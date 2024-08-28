@@ -1,0 +1,55 @@
+
++================================= 
+| Initializing SEM Application ... 
++================================= 
+
+SEMmesh initiliazed
+ex, ey, ez=65, 0, 65
+nx, ny, nz=196, 1, 196
+Number of nodes: 38416
+Number of elements: 4225
+Allocate host memory for source and pressure values ...
+
+Source location: 1001, 1001, 1001
+Sample 0	: sourceTerm = 0.0102097
+Sample 100	: sourceTerm = -0
+Sample 200	: sourceTerm = -0.0102097
+Sample 300	: sourceTerm = 0
+Sample 400	: sourceTerm = 0
+Sample 500	: sourceTerm = 0
+Sample 600	: sourceTerm = 0
+Sample 700	: sourceTerm = 0
+Sample 800	: sourceTerm = 0
+Sample 900	: sourceTerm = 0
+Element number for the source location: 2178
+
+Allocate host memory for arrays in the solver ...
+
++================================= 
+| Running SEM Application ...      
++================================= 
+
+TimeStep=0;  pnGlobal @ elementSource location 2178 after computeOneStep = 0.0399712
+TimeStep=100;  pnGlobal @ elementSource location 2178 after computeOneStep = 169.033
+TimeStep=200;  pnGlobal @ elementSource location 2178 after computeOneStep = -26.147
+TimeStep=300;  pnGlobal @ elementSource location 2178 after computeOneStep = -5.67193
+TimeStep=400;  pnGlobal @ elementSource location 2178 after computeOneStep = -2.54453
+TimeStep=500;  pnGlobal @ elementSource location 2178 after computeOneStep = -1.36864
+TimeStep=600;  pnGlobal @ elementSource location 2178 after computeOneStep = -0.92352
+TimeStep=700;  pnGlobal @ elementSource location 2178 after computeOneStep = -0.598765
+TimeStep=800;  pnGlobal @ elementSource location 2178 after computeOneStep = -0.477745
+TimeStep=900;  pnGlobal @ elementSource location 2178 after computeOneStep = -0.334455
+------------------------------------------------ 
+
+---- Elapsed Kernel Time : 0.203623 seconds.
+---- Elapsed Output Time : 0.002825 seconds.
+------------------------------------------------ 
+
++================================= 
+| SEM Application Finished.       
++================================= 
+
+Elapsed Initial Time : 0.529096 seconds.
+Elapsed Compute Time : 0.206651 seconds.
+Elapsed TotalExe Time : 0.736995 seconds.
+

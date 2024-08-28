@@ -1,0 +1,52 @@
+
++==================================== 
+| Initializing FDTD Application ...       
++==================================== 
+
+Number of grids: nx=150, ny=150, nz=150
+Source location: xs=75, xy=75, xz=75
+
++================================= 
+|  Running FDTD Application ...       
++================================= 
+
+TimeStep=0	; Pressure value at source [75 75 75] = 0.041887
+TimeStep=50	; Pressure value at source [75 75 75] = 431.375793
+TimeStep=100	; Pressure value at source [75 75 75] = -760.125122
+TimeStep=150	; Pressure value at source [75 75 75] = -8.384164
+TimeStep=200	; Pressure value at source [75 75 75] = -0.001208
+TimeStep=250	; Pressure value at source [75 75 75] = 0.000680
+TimeStep=300	; Pressure value at source [75 75 75] = -0.000398
+TimeStep=350	; Pressure value at source [75 75 75] = 0.000336
+TimeStep=400	; Pressure value at source [75 75 75] = -0.000204
+TimeStep=450	; Pressure value at source [75 75 75] = 0.000142
+TimeStep=500	; Pressure value at source [75 75 75] = -0.000064
+TimeStep=550	; Pressure value at source [75 75 75] = 0.000033
+TimeStep=600	; Pressure value at source [75 75 75] = 0.000038
+TimeStep=650	; Pressure value at source [75 75 75] = -0.000033
+TimeStep=700	; Pressure value at source [75 75 75] = 0.000049
+TimeStep=750	; Pressure value at source [75 75 75] = -0.000068
+TimeStep=800	; Pressure value at source [75 75 75] = 0.000061
+TimeStep=850	; Pressure value at source [75 75 75] = -0.000044
+TimeStep=900	; Pressure value at source [75 75 75] = 0.000031
+TimeStep=950	; Pressure value at source [75 75 75] = -0.000020
+TimeStep=1000	; Pressure value at source [75 75 75] = 0.000020
+TimeStep=1050	; Pressure value at source [75 75 75] = 0.000032
+TimeStep=1100	; Pressure value at source [75 75 75] = 0.049410
+TimeStep=1150	; Pressure value at source [75 75 75] = 0.095787
+TimeStep=1200	; Pressure value at source [75 75 75] = 0.211021
+
++================================= 
+|  FDTD Application Finished.       
++================================= 
+
+Elapsed Initialization Time : 0.321516 seconds.
+
+Elapsed ComputeLoop RunTime : 0.133108 seconds.
+------------------------------------------------ 
+---- Elapsed Kernel Time : 0.032117 seconds.
+---- Elapsed AddRHS Time : 0.004077 seconds.
+---- Elapsed Output Time : 0.096694 seconds.
+------------------------------------------------ 
+Elapsed TotalExecution Time : 0.47468 seconds.
+

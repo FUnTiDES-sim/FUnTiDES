@@ -1,0 +1,14 @@
+#!/usr/local/bin/gnuplot --persist
+if (ARGC==0){ 
+    print "usage: call 'plt.script' ARG1 ARG2 with ARG1=number of snapshots ARG2=snapshot step"
+    exit
+}
+print " number of snapshots: ",ARG1 
+do for [ n=0:ARG1] {
+print " display snapshot:",n
+name=sprintf('snapshot%d',n*ARG2)
+print name
+splot name every 2:2 
+pause 1
+}
+
