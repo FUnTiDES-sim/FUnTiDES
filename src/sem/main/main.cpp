@@ -5,10 +5,25 @@
 //************************************************************************
 
 #include "SEMproxy.hpp"
+#ifdef USE_SHIVA
+#include <functions/LagrangeBasis.hpp>
+#include <functions/Quadrature.hpp>
+#include <functions/Spacing.hpp>
+#include <common/ShivaMacros.hpp>
+#include <common/pmpl.hpp>
+#include <common/types.hpp>
+#endif
+
 
 int main( int argc, char *argv[] )
 {
 
+using namespace shiva;
+using namespace shiva::functions;
+using BasisType = LagrangeBasis< double, 5, GaussLobattoSpacing >;
+static constexpr double coord = 0.3;
+constexpr double    value = BasisType::template value< 1 >( coord );
+std::cout<< "simple string------------------> value="<<value<<std::endl;
   time_point< system_clock > startInitTime = system_clock::now();
 
   #ifdef USE_KOKKOS

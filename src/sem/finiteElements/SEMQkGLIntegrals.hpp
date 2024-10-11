@@ -7,6 +7,22 @@
 #include "SEMQkGLBasisFunctions.hpp"
 using namespace std;
 
+/*#ifdef USE_SHIVA
+#include <functions/LagrangeBasis.hpp>
+#include <functions/Quadrature.hpp>
+#include <functions/Spacing.hpp>
+#include <common/ShivaMacros.hpp>
+#include <common/pmpl.hpp>
+#include <common/types.hpp>
+using namespace shiva;
+using namespace shiva::functions;
+using BasisType = LagrangeBasis< double, 5, GaussLobattoSpacing >;
+static constexpr double coord = 0.3;
+constexpr double    value = BasisType::template value< 1 >( coord );
+#endif*/
+
+
+
 /**
  * This class is the basis class for the hexahedron finite element cells with shape functions defined on Gauss-Lobatto quadrature points.
  */

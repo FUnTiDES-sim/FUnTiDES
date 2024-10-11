@@ -171,6 +171,7 @@ if(USE_OMP)
 else()
     message ("-- USE_OMP flag is set to be false and OMP is not enabled")
 endif()
+################################
 
 
 ################################
@@ -256,6 +257,7 @@ if ( USE_RAJA)
 else()
     message ("-- USE_RAJA flag is set to be false and RAJA is not enabled")
 endif()
+################################
 
 
 ################################
@@ -304,8 +306,25 @@ else ()
   set (USE_KOKKOS OFF CACHE BOOL "")
   message("-- KOKKOS_DIR is not the correct path and is not enabled")
 endif()
+################################
 
-message(STATUS "CMAKE_CXX_COMPILER=${CMAKE_CXX_COMPILER}")
+################################
+## Shiva
+###############################
+if(USE_SHIVA)
+   set (SHIVA_DIR "$ENV{SHIVA_DIR}")
+   message(STATUS "USE SHIVA in = ${SHIVA_DIR}")
+   message(STATUS "CMAKE_CXX_COMPILER=${CMAKE_CXX_COMPILER}")
+   find_package(shiva REQUIRED
+                PATHS ${SHIVA_DIR}
+                NO_DEFAULT_PATH)
+   get_target_property(SHIVA_INCLUDE_DIRS shiva INTERFACE_INCLUDE_DIRECTORIES)
+   set_target_properties(shiva PROPERTIES INTERFACE_SYSTEM_INCLUDE_DIRECTORIES "${SHIVA_INCLUDE_DIRS}")
+   include_directories(${SHIVA_INCLUDE_DIRS})
+   message(STATUS "USE_SHIVA=${USE_SHIVA}")
+   message(STATUS "SHIVA_INCLUDE_DIRS=${SHIVA_INCLUDE_DIRS}")
+endif()
+###############################
 
 configure_file( utils/commonConfig.hpp.in
                 ${CMAKE_BINARY_DIR}/src/commonConfig.hpp)

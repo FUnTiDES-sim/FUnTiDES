@@ -280,5 +280,4 @@ T allocateArray3D( int n1, int n2, int n3 )
   return array;
 }
 
-
 #endif //DATATYPE_HPP_

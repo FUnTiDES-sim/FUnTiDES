@@ -43,6 +43,7 @@
 // Add Tests directory (CMake option)
 #cmakedefine addTests 
 
+#cmakedefine USE_SHIVA
 #endif
 
 
