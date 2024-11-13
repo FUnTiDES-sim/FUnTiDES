@@ -56,18 +56,25 @@ void SEMsolver::computeOneStep( const int & timeSample,
     pnLocal[i]=pnGlobal( localToGlobal, i2 );
   }
 
-  /*myQkIntegrals.computeMassMatrixAndStiffnessVector(elementNumber,order,nPointsPerElement,
-                                           globalNodesList,globalNodesCoords,
-                                           weights,derivativeBasisFunction1D,
-                                           massMatrixLocal,pnLocal,Y);*/
+#ifdef USE_SEMCLASSIC
   myQkIntegrals.computeMassMatrixAndStiffnessVector(elementNumber,order,nPointsPerElement,
                                            globalNodesCoordsX,globalNodesCoordsY,globalNodesCoordsZ,
                                            weights,derivativeBasisFunction1D,
                                            massMatrixLocal,pnLocal,Y);
+#endif
 
-/*  myQkIntegrals.computeMassMatrixAndStiffnessVector(elementNumber, order, nPointsPerElement,
+#ifdef USE_SEMOPTIM
+  myQkIntegrals.computeMassMatrixAndStiffnessVector(elementNumber, order, nPointsPerElement,
                                            globalNodesCoordsX,globalNodesCoordsY,globalNodesCoordsZ,
-                                           massMatrixLocal, pnLocal, Y);*/
+                                           massMatrixLocal, pnLocal, Y);
+#endif
+
+#ifdef USE_SHIVA
+  constexpr int ORDER=order;
+  myQkIntegrals.computeMassMatrixAndStiffnessVector<ORDER>(elementNumber, nPointsPerElement,
+                                           globalNodesCoordsX,globalNodesCoordsY,globalNodesCoordsZ,
+                                           massMatrixLocal, pnLocal, Y);
+#endif
 
 
   //compute global mass Matrix and global stiffness vector

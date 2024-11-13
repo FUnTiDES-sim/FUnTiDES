@@ -9,6 +9,8 @@
 
 #include "commonMacros.hpp"
 
+using namespace std;
+
 #ifdef USE_VECTOR
 
 template< class T > class Vector
@@ -279,5 +281,48 @@ T allocateArray3D( int n1, int n2, int n3 )
   T array( KOKKOSNAME n1, n2, n3 );
   return array;
 }
+
+
+// to be placed somewhere else 
+template< typename T, typename... Args>
+void printJMatrix( const int &element, T& J, string matrixname, Args... args)
+{
+  if( element==0 )
+  {
+    (cout << ... << args) << '\n';
+    printf("%s at element %d\n", matrixname.c_str(), element);
+    #ifdef USE_SHIVA
+    for (int l=0;l<3;l++) printf("%f, %f, %f\n",J(l,0),J(l,1),J(l,2));
+    #else
+    for (int l=0;l<3;l++) printf("%f, %f, %f\n",J[l][0],J[l][1],J[l][2]);
+    #endif
+  }
+}
+
+
+template< typename T>
+void printBMatrix( const int &element, T& B )
+{
+  // print B matrix at the first element
+  if( element==0 )
+  {
+    printf("\nB matrix at element %d\n", element);
+    printf("%f, %f, %f\n",B[0],B[5],B[4]);
+    printf("%f, %f, %f\n",B[5],B[1],B[3]);
+    printf("%f, %f, %f\n\n",B[4],B[3],B[2]);
+  }
+}
+
+//float jacobianTime=0;
+//float detJTime=0;
+//float massMatrixTime=0;
+//float BTime=0;
+//float gradPhiBGradPhiTime=0;
+//float stiffnessTime=0;
+
+#define timewatch(timepoint)\
+  chrono::time_point< std::chrono::system_clock > timepoint = chrono::system_clock::now();
+#define accumtime(accumulatedtime, starttime)\
+  accumulatedtime+=(chrono::system_clock::now() - starttime).count();
 
 #endif //DATATYPE_HPP_

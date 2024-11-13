@@ -311,18 +311,17 @@ endif()
 ################################
 ## Shiva
 ###############################
-if(USE_SHIVA)
-   set (SHIVA_DIR "$ENV{SHIVA_DIR}")
-   message(STATUS "USE SHIVA in = ${SHIVA_DIR}")
-   message(STATUS "CMAKE_CXX_COMPILER=${CMAKE_CXX_COMPILER}")
-   find_package(shiva REQUIRED
-                PATHS ${SHIVA_DIR}
-                NO_DEFAULT_PATH)
-   get_target_property(SHIVA_INCLUDE_DIRS shiva INTERFACE_INCLUDE_DIRECTORIES)
-   set_target_properties(shiva PROPERTIES INTERFACE_SYSTEM_INCLUDE_DIRECTORIES "${SHIVA_INCLUDE_DIRS}")
-   include_directories(${SHIVA_INCLUDE_DIRS})
-   message(STATUS "USE_SHIVA=${USE_SHIVA}")
-   message(STATUS "SHIVA_INCLUDE_DIRS=${SHIVA_INCLUDE_DIRS}")
+#-------------------------------------------------------------------
+# setup for Shiva
+## -- the default is using Shiva library
+## -- if USE_SHIVA=OFF it will use the SEM as in GEOS
+#-------------------------------------------------------------------
+if( USE_SHIVA )
+  configure_file( ${CMAKE_CURRENT_SOURCE_DIR}/Shiva/src/ShivaConfig.hpp.in
+                  ${CMAKE_BINARY_DIR}/src/ShivaConfig.hpp )
+  configure_file( ${CMAKE_CURRENT_SOURCE_DIR}/Shiva/tpl/camp/include/camp/config.in.hpp
+                  ${PROJECT_BINARY_DIR}/src/camp/config.hpp)
+  message(STATUS "USE SHIVA as a submodule")
 endif()
 ###############################
 
