@@ -70,7 +70,7 @@ void SEMsolver::computeOneStep( const int & timeSample,
 #endif
 
 #ifdef USE_SHIVA
-  constexpr int ORDER=order;
+  constexpr int ORDER=SEMinfo::myOrderNumber;
   myQkIntegrals.computeMassMatrixAndStiffnessVector<ORDER>(elementNumber, nPointsPerElement,
                                            globalNodesCoordsX,globalNodesCoordsY,globalNodesCoordsZ,
                                            massMatrixLocal, pnLocal, Y);
@@ -138,7 +138,7 @@ void SEMsolver::outputPnValues(  SEMmesh mesh,
                                  const arrayReal & pnGlobal)
 {
     //writes debugging ascii file.
-    if( indexTimeStep%100==0 )
+    if( indexTimeStep%1==0 )
     {   
       cout<<"TimeStep="<<indexTimeStep<<";  pnGlobal @ elementSource location "<<myElementSource
           <<" after computeOneStep = "<< pnGlobal(globalNodesList(myElementSource,0),i1)<<endl;

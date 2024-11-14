@@ -287,7 +287,7 @@ T allocateArray3D( int n1, int n2, int n3 )
 template< typename T, typename... Args>
 void printJMatrix( const int &element, T& J, string matrixname, Args... args)
 {
-  if( element==0 )
+  if( element<2 )
   {
     (cout << ... << args) << '\n';
     printf("%s at element %d\n", matrixname.c_str(), element);
@@ -304,7 +304,7 @@ template< typename T>
 void printBMatrix( const int &element, T& B )
 {
   // print B matrix at the first element
-  if( element==0 )
+  if( element<2 )
   {
     printf("\nB matrix at element %d\n", element);
     printf("%f, %f, %f\n",B[0],B[5],B[4]);
