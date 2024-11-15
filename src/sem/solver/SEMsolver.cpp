@@ -138,7 +138,7 @@ void SEMsolver::outputPnValues(  SEMmesh mesh,
                                  const arrayReal & pnGlobal)
 {
     //writes debugging ascii file.
-    if( indexTimeStep%1==0 )
+    if( indexTimeStep%50==0 )
     {   
       cout<<"TimeStep="<<indexTimeStep<<";  pnGlobal @ elementSource location "<<myElementSource
           <<" after computeOneStep = "<< pnGlobal(globalNodesList(myElementSource,0),i1)<<endl;
