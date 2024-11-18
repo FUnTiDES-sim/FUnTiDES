@@ -301,14 +301,11 @@ public:
       {
          Y[q]=0;
       }
-      //for (int q=0;q<nPointsPerElement;q++)
-      //{
-          computeStiffnessTerm<ORDER>(elementNumber,X, massMatrixLocal, [&] (const int i, const int j, const double val)
-                  {
-                   float localIncrement=val*pnLocal[j];
-                   Y[i]+=localIncrement;
-                  });
-      //}
+      computeStiffnessTerm<ORDER>(elementNumber,X, massMatrixLocal, [&] (const int i, const int j, const double val)
+                                 {
+                                   float localIncrement=val*pnLocal[j];
+                                   Y[i]+=localIncrement;
+                                 });
   }
   /////////////////////////////////////////////////////////////////////////////////////
   //  end from GEOS implementation

@@ -168,7 +168,6 @@ public:
    {
       int qa, qb, qc;
       multiIndex( r,q, qa, qb, qc );
-      //const double w3D = GLBasis.weight<SEMinfo>( qa )*GLBasis.weight<SEMinfo>( qb )*GLBasis.weight<SEMinfo>( qc );
       const double w3D = SEMQkGLBasisFunctions::weight<SEMinfo>( qa )*SEMQkGLBasisFunctions::weight<SEMinfo>( qb )*SEMQkGLBasisFunctions::weight<SEMinfo>( qc );
       double J[3][3] = {{0}};
       jacobianTransformation(e, r, qa, qb, qc, X, J );
@@ -243,6 +242,7 @@ public:
   {
       jacobianTransformation( e, r, qa, qb, qc, X, J );
       double const detJ = determinant( J );
+
   
       // compute J^T.J/det(J), using Voigt notation for B
       B[0] = (J[0][0]*J[0][0]+J[1][0]*J[1][0]+J[2][0]*J[2][0])/detJ;
@@ -267,7 +267,9 @@ public:
                                FUNC && func ) const
   {
      //const double w = GLBasis.weight<SEMinfo>(qa )*GLBasis.weight<SEMinfo>(qb )*GLBasis.weight<SEMinfo>(qc );
-     const double w = SEMQkGLBasisFunctions::weight<SEMinfo>(qa )*SEMQkGLBasisFunctions::weight<SEMinfo>(qb )*SEMQkGLBasisFunctions::weight<SEMinfo>(qc );
+     const double w = SEMQkGLBasisFunctions::weight<SEMinfo>(qa )*
+	              SEMQkGLBasisFunctions::weight<SEMinfo>(qb )*
+		      SEMQkGLBasisFunctions::weight<SEMinfo>(qc );
      for( int i=0; i<num1dNodes; i++ )
      {
        const int ibc = linearIndex( r,i, qb, qc );
@@ -360,7 +362,7 @@ public:
       for (int q=0;q<nPointsPerElement;q++)
       {
           massMatrixLocal[q]=computeMassTerm( elementNumber, order,q, X); 
-          computeStiffnessTerm(elementNumber, order, q, X,[&] (const int i, const int j, const double val)
+          computeStiffnessTerm(elementNumber, order, q, X, [&] (const int i, const int j, const double val)
                   {
                    float localIncrement=val*pnLocal[j];
                    Y[i]+=localIncrement;
