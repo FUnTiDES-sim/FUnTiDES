@@ -43,6 +43,10 @@
 // Add Tests directory (CMake option)
 #cmakedefine addTests 
 
+// define library for pde discretization
+#cmakedefine USE_SEMCLASSIC
+#cmakedefine USE_SEMOPTIM
+#cmakedefine USE_SHIVA
 #endif
 
 

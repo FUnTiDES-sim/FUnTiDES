@@ -24,7 +24,6 @@ set (sem_sources
      solver/SEMsolver.cpp
      main/SEMproxy.cpp
      main/main.cpp)
-    #finiteElements/SEMQkGL.cpp
 
 blt_add_executable( NAME ${SEM_EXECUTABLE}
                     SOURCES ${sem_sources}
@@ -36,6 +35,9 @@ target_include_directories( ${SEM_EXECUTABLE} PUBLIC
         ${CMAKE_CURRENT_SOURCE_DIR}/finiteElements
         ${CMAKE_CURRENT_SOURCE_DIR}/mesh
         ${CMAKE_CURRENT_SOURCE_DIR}/solver
+        ${CMAKE_CURRENT_SOURCE_DIR}/../Shiva/src
+        ${CMAKE_CURRENT_SOURCE_DIR}/../Shiva/tpl/camp/include
+        ${CMAKE_BINARY_DIR}/include
         ${CMAKE_CURRENT_SOURCE_DIR}/main)
 
 install(TARGETS ${SEM_EXECUTABLE}

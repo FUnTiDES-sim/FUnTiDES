@@ -29,6 +29,10 @@ option (USE_RAJA "Use RAJA to parallelise loops" OFF)
 # use KOKOS to expose parallelism loop
 option (USE_KOKKOS "Use KOKKOS to parallelise loops" OFF)
 
+option (USE_SEMCLASSIC "Use CLASSIC " OFF)
+option (USE_SEMOPTIM "Use OPTIM " OFF)
+option (USE_SHIVA "Use SHIVA " OFF)
+
 #---------------------------------------------------
 # Tests directory to perform differen tests before
 # integration into proxy apps

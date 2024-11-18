@@ -51,7 +51,7 @@ else()
   # C++ options
   set(CMAKE_CXX_COMPILER c++  CACHE PATH "")
   message( STATUS, "--------------------------------------- ${CMAKE_CXX_COMPILER}")
-  set (CMAKE_CXX_FLAGS "-g -O3 -std=c++17  " CACHE STRING "" FORCE)
+  set (CMAKE_CXX_FLAGS "-g -O3 -std=c++17 -fconcepts " CACHE STRING "" FORCE)
   set(CMAKE_CXX_FLAGS_RELEASE "-g -O3 -DNDEBUG " CACHE STRING "")
   set(CMAKE_CXX_FLAGS_RELWITHDEBINFO "-g ${CMAKE_CXX_FLAGS_RELEASE}" CACHE STRING "")
   set(CMAKE_CXX_FLAGS_DEBUG "-O0 -g" CACHE STRING "")
@@ -88,7 +88,7 @@ if(X86_laptop)
     set(CUDA_ROOT $ENV{CUDA_ROOT} CACHE PATH "" FORCE)
     set(CMAKE_CUDA_ARCHITECTURES 89 CACHE STRING "" FORCE)
     set(CUDA_ARCH sm_89 CACHE STRING "" FORCE)
-    set(CMAKE_CUDA_FLAGS "-lineinfo -g -pg -restrict --expt-relaxed-constexpr --expt-extended-lambda -Werror cross-execution-space-call,reorder,deprecated-declarations -std=c++17" CACHE STRING "")
+    set(CMAKE_CUDA_FLAGS "-lineinfo -g -pg -restrict --expt-relaxed-constexpr --expt-extended-lambda -Werror cross-execution-space-call,reorder,deprecated-declarations -std=c++17 -fconcepts" CACHE STRING "")
     set(CMAKE_CUDA_FLAGS_RELEASE "-g -Xcompiler -DNDEBUG -Xcompiler -O3" CACHE STRING "")
     set(CMAKE_CUDA_FLAGS_RELWITHDEBINFO "-g -lineinfo ${CMAKE_CUDA_FLAGS_RELEASE}" CACHE STRING "")
     set(CMAKE_CUDA_FLAGS_DEBUG "-g -G -O0 -Xcompiler -O0" CACHE STRING "")
@@ -171,6 +171,7 @@ if(USE_OMP)
 else()
     message ("-- USE_OMP flag is set to be false and OMP is not enabled")
 endif()
+################################
 
 
 ################################
@@ -256,6 +257,7 @@ if ( USE_RAJA)
 else()
     message ("-- USE_RAJA flag is set to be false and RAJA is not enabled")
 endif()
+################################
 
 
 ################################
@@ -304,8 +306,24 @@ else ()
   set (USE_KOKKOS OFF CACHE BOOL "")
   message("-- KOKKOS_DIR is not the correct path and is not enabled")
 endif()
+################################
 
-message(STATUS "CMAKE_CXX_COMPILER=${CMAKE_CXX_COMPILER}")
+################################
+## Shiva
+###############################
+#-------------------------------------------------------------------
+# setup for Shiva
+## -- the default is using Shiva library
+## -- if USE_SHIVA=OFF it will use the SEM as in GEOS
+#-------------------------------------------------------------------
+if( USE_SHIVA )
+  configure_file( ${CMAKE_CURRENT_SOURCE_DIR}/Shiva/src/ShivaConfig.hpp.in
+                  ${CMAKE_BINARY_DIR}/src/ShivaConfig.hpp )
+  configure_file( ${CMAKE_CURRENT_SOURCE_DIR}/Shiva/tpl/camp/include/camp/config.in.hpp
+                  ${PROJECT_BINARY_DIR}/src/camp/config.hpp)
+  message(STATUS "USE SHIVA as a submodule")
+endif()
+###############################
 
 configure_file( utils/commonConfig.hpp.in
                 ${CMAKE_BINARY_DIR}/src/commonConfig.hpp)
