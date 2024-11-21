@@ -63,7 +63,6 @@ private:
 
   //shared arrays
   arrayInt globalNodesList;
-  arrayReal globalNodesCoords;
   arrayReal globalNodesCoordsX;
   arrayReal globalNodesCoordsY;
   arrayReal globalNodesCoordsZ;

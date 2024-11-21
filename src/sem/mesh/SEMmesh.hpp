@@ -60,8 +60,6 @@ public:
   //get coord in one direction
   vector< float > getCoordInOneDirection( const int & order, const int & nCoord, const int & h, const int & nElement ) const;
 
-  // Initialize nodal coordinates.
-  void nodesCoordinates( const int & numberOfNodes, arrayReal & nodeCoords ) const;
 
   // Initialize nodal coordinates.
   void nodesCoordinates( arrayReal & nodeCoordsX,arrayReal & nodeCoordsZ, arrayReal & nodeCoordsY ) const;

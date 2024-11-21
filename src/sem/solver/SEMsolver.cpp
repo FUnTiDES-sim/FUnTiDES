@@ -95,39 +95,6 @@ void SEMsolver::computeOneStep( const int & timeSample,
                    -myInfo.myTimeStep*myInfo.myTimeStep*yGlobal[I]/massMatrixGlobal[I];
   LOOPEND
 
-  #ifdef SEM2D
-  {
-    LOOPHEAD( myInfo.numberOfBoundaryNodes, i )
-    ShGlobal[i]=0;
-    LOOPEND
-
-    LOOPHEAD( myInfo.numberOfBoundaryFaces, iFace )
-    //get ds
-    float ds[6];
-    float Sh[6];
-    float Js[2][6];
-
-    // compute ds
-    myQk.computeDs( iFace, order, faceInfos, (order+1)*(order+1), Js,
-                    globalNodesCoords, derivativeBasisFunction1D, ds );
-
-    //compute Sh and ShGlobal
-    for( int i=0; i<order+1; i++ )
-    {
-      int gIndexFaceNode=localFaceNodeToGlobalFaceNode( iFace, i );
-      Sh[i]=weights[i]*ds[i]/(model[faceInfos( iFace, 0 )]);
-      ATOMICADD( ShGlobal[gIndexFaceNode], Sh[i] );
-    }
-    LOOPEND
-
-    LOOPHEAD( myInfo.numberOfBoundaryNodes, i )
-    int I=listOfBoundaryNodes[i];
-    float invMpSh=1/(massMatrixGlobal[I]+myInfo.myTimeStep*ShGlobal[i]*0.5);
-    float MmSh=massMatrixGlobal[I]-myInfo.myTimeStep*ShGlobal[i]*0.5;
-    pnGlobal( I, i1 )=invMpSh*(2*massMatrixGlobal[I]*pnGlobal( I, i2 )-MmSh*pnGlobal( I, i1 )-myInfo.myTimeStep*myInfo.myTimeStep*yGlobal[I]);
-    LOOPEND
-  }
-  #endif
   FENCE
 }
 
@@ -189,7 +156,6 @@ void SEMsolver::allocateFEarrays( SEMinfo & myInfo )
   listOfInteriorNodes=allocateVector< vectorInt >( myInfo.numberOfInteriorNodes, "listOfInteriorNodes" );
   
   // global coordinates
-  globalNodesCoords=allocateArray2D< arrayReal >( myInfo.numberOfNodes, 3, "globalNodesCoords" );
   globalNodesCoordsX=allocateArray2D< arrayReal >( myInfo.numberOfElements, nbQuadraturePoints, "globalNodesCoordsX");
   globalNodesCoordsY=allocateArray2D< arrayReal >( myInfo.numberOfElements, nbQuadraturePoints, "globalNodesCoordsY");
   globalNodesCoordsZ=allocateArray2D< arrayReal >( myInfo.numberOfElements, nbQuadraturePoints, "globalNodesCoordsZ");

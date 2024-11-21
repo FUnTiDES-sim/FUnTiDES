@@ -139,32 +139,6 @@ std::vector< float > SEMmesh::getCoordInOneDirection( const int & order, const i
 }
 
 // Initialize nodal coordinates.
-   void SEMmesh::nodesCoordinates( const int & numberOfNodes, arrayReal & nodeCoords ) const
-   { 
-     std::vector< float > coordX( nx );
-     std::vector< float > coordY( ny );
-     std::vector< float > coordZ( nz );
-     
-     coordX=getCoordInOneDirection( order, nx, hx, ex );
-     coordY=getCoordInOneDirection( order, ny, hy, ey );
-     coordZ=getCoordInOneDirection( order, nz, hz, ez );
-     
-     for( int k=0; k<ny; k++ ) 
-     { 
-       for( int j=0; j<nz; j++ ) 
-       { 
-         for( int i=0; i<nx; i++ )
-         { 
-           nodeCoords( i+nx*j+k*nx*nz, 0 )=coordX[i];
-           nodeCoords( i+nx*j+k*nx*nz, 1 )=coordZ[j];
-           nodeCoords( i+nx*j+k*nx*nz, 2 )=coordY[k];
-         }
-       }
-     }
-   }
-
-
-// Initialize nodal coordinates.
 void SEMmesh::nodesCoordinates( arrayReal & nodeCoordsX,
                                 arrayReal & nodeCoordsZ,
                                 arrayReal & nodeCoordsY) const
@@ -372,60 +346,6 @@ void SEMmesh::getListOfInteriorElements( vectorInt & listOfInteriorElements ) co
       }
     }
   }
-}
-
-// sort element by color
-// red=0, green=1, blue=2, yellow=3
-// get
-int SEMmesh::getNumberOfElementsByColor() const
-{return ((ey==0)?(ex/2+ex%2)*(ez/2+ez%2):(ex/2+ex%2)*(ey/2+ey%2)*(ez/2+ez%2));}
-//sort
-void SEMmesh::sortElementsByColor( int numberOfElementsByColor[], arrayInt & listOfElementsByColor ) const
-{
-  // red
-  int k=0;
-  for( int j=0; j<ez; j=j+2 )
-  {
-    for( int i=0; i<ex; i=i+2 )
-    {
-      listOfElementsByColor( 0, k )=i+j*ex;
-      k=k+1;
-    }
-  }
-  numberOfElementsByColor[0]=k;
-  // green
-  k=0;
-  for( int j=0; j<ez; j=j+2 )
-  {
-    for( int i=1; i<ex; i=i+2 )
-    {
-      listOfElementsByColor( 1, k )=i+j*ex;
-      k=k+1;
-    }
-  }
-  numberOfElementsByColor[1]=k;
-  // blue
-  k=0;
-  for( int j=1; j<ez; j=j+2 )
-  {
-    for( int i=0; i<ex; i=i+2 )
-    {
-      listOfElementsByColor( 2, k )=i+j*ex;
-      k=k+1;
-    }
-  }
-  numberOfElementsByColor[2]=k;
-  // yellow
-  k=0;
-  for( int j=1; j<ez; j=j+2 )
-  {
-    for( int i=1; i<ex; i=i+2 )
-    {
-      listOfElementsByColor( 3, k )=i+j*ex;
-      k=k+1;
-    }
-  }
-  numberOfElementsByColor[3]=k;
 }
 
 
