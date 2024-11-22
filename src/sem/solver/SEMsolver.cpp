@@ -121,12 +121,7 @@ void SEMsolver::initFEarrays( SEMinfo & myInfo, SEMmesh mesh )
   mesh.globalNodesList( myInfo.numberOfElements, globalNodesList );
   mesh.getListOfInteriorNodes( myInfo.numberOfInteriorNodes, listOfInteriorNodes );
   // mesh coordinates
-  mesh.nodesCoordinates( myInfo.numberOfNodes, globalNodesCoords );
   mesh.nodesCoordinates( globalNodesCoordsX,globalNodesCoordsZ,globalNodesCoordsY);
-  // boundary elements
-  mesh.getListOfBoundaryNodes( myInfo.numberOfBoundaryNodes, listOfBoundaryNodes );
-  mesh.getBoundaryFacesInfos( faceInfos );
-  mesh.getLocalFaceNodeToGlobalFaceNode( localFaceNodeToGlobalFaceNode );
   // get model
   mesh.getModel( myInfo.numberOfElements, model );
   // get quadrature points
@@ -136,14 +131,6 @@ void SEMsolver::initFEarrays( SEMinfo & myInfo, SEMmesh mesh )
   // get basis function and corresponding derivatives
   myQkBasis.getDerivativeBasisFunction1D( order, quadraturePoints, derivativeBasisFunction1D );
  
-  // sort element by color
-  #ifdef SEM_MESHCOLOR
-  mesh.sortElementsByColor(myInfo.numberOfElementsByColor,listOfElementsByColor);
-  printf("number of elements color red %d\n", myInfo.numberOfElementsByColor[0]);
-  printf("number of elements color green %d\n", myInfo.numberOfElementsByColor[1]);
-  printf("number of elements color blue %d\n", myInfo.numberOfElementsByColor[2]);
-  printf("number of elements color yellow %d\n", myInfo.numberOfElementsByColor[3]);
-  #endif
 
 }
 
