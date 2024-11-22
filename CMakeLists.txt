@@ -31,7 +31,7 @@ option (USE_KOKKOS "Use KOKKOS to parallelise loops" OFF)
 
 option (USE_SEMCLASSIC "Use CLASSIC " OFF)
 option (USE_SEMOPTIM "Use OPTIM " OFF)
-option (USE_SHIVA "Use SHIVA " OFF)
+option (USE_SHIVA "Use SHIVA " ON)
 
 #---------------------------------------------------
 # Tests directory to perform differen tests before

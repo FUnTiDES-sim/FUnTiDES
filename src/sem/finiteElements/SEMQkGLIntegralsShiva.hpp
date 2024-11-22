@@ -35,6 +35,7 @@ private:
   int order;
   static constexpr int N=SEMinfo::myOrderNumber +1;
   struct QuadratureGaussLobatto<float,N> GLQ;
+  using QGL = QuadratureGaussLobatto<float,N>;
 
   using Transform =
       LinearTransform< double,
@@ -141,18 +142,12 @@ public:
       symMatrix[5]=temp[5];
   }
   
-  template<int ORDER, typename FUNC>
+  template<int ORDER, int qa, int qb, int qc, typename FUNC>
   PROXY_HOST_DEVICE
   void computeGradPhiBGradPhi( const int e,
-		               auto const icqa,
-                               auto const icqb,
-                               auto const icqc,
                                double const (&B)[6],
                                FUNC && func ) const
   {
-     constexpr int qa = decltype(icqa)::value;
-     constexpr int qb = decltype(icqb)::value;
-     constexpr int qc = decltype(icqc)::value;
      constexpr double qcoords[3] = { quadrature::template coordinate<qa>(),
                                      quadrature::template coordinate<qb>(),
                                      quadrature::template coordinate<qc>() };
@@ -248,7 +243,7 @@ public:
 	  
           // mass matrix
           constexpr int q=qc+qb*(ORDER+1)+qa*(ORDER+1)*(ORDER+1);
-          constexpr double w3D = GLQ.weight(qa )*GLQ.weight(qb )*GLQ.weight(qc );
+          constexpr double w3D = QGL::weight<qa>()*QGL::weight<qb>()*QGL::weight<qc>();
           massMatrix[q]=w3D*detJ;
 
           // compute J^{T}J/detJ
@@ -262,7 +257,7 @@ public:
           symInvert0( B );
 
           // compute gradPhiI*B*gradPhiJ and stiffness vector
-          computeGradPhiBGradPhi<ORDER>(e, icqa, icqb, icqc,B, func);
+          computeGradPhiBGradPhi<ORDER, qa, qb, qc >(e,B, func);
       });
   }
 
