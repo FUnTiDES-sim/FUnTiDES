@@ -7,4 +7,4 @@
 	url = ../../GEOS-DEV/Shiva.git
 [submodule "blt"]
 	path = blt
-	url = git@github.com:LLNL/blt.git
+	url = ../../LLNL/blt.git
