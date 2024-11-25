@@ -67,9 +67,6 @@ private:
   arrayReal globalNodesCoordsY;
   arrayReal globalNodesCoordsZ;
   vectorInt listOfInteriorNodes;
-  vectorInt listOfBoundaryNodes;
-  arrayInt faceInfos;
-  arrayInt localFaceNodeToGlobalFaceNode;
 
   // get model
   vectorReal model;
@@ -84,8 +81,6 @@ private:
   //shared arrays
   vectorReal massMatrixGlobal;
   vectorReal yGlobal;
-  vectorReal ShGlobal;
 
-  arrayInt listOfElementsByColor;
 };
 #endif //SEM_SOLVER_HPP_

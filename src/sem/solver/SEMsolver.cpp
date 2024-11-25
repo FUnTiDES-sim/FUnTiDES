@@ -147,11 +147,6 @@ void SEMsolver::allocateFEarrays( SEMinfo & myInfo )
   globalNodesCoordsY=allocateArray2D< arrayReal >( myInfo.numberOfElements, nbQuadraturePoints, "globalNodesCoordsY");
   globalNodesCoordsZ=allocateArray2D< arrayReal >( myInfo.numberOfElements, nbQuadraturePoints, "globalNodesCoordsZ");
   
-  listOfBoundaryNodes=allocateVector< vectorInt >( myInfo.numberOfBoundaryNodes, "listOfBoundaryNodes" );
-
-  faceInfos=allocateArray2D< arrayInt >( myInfo.numberOfBoundaryFaces, 2+(order+1), "faceInfos" );
-  localFaceNodeToGlobalFaceNode=allocateArray2D< arrayInt >( myInfo.numberOfBoundaryFaces, order+1, "localFaceNodeToGlobalFaceNode" );
-
   model=allocateVector< vectorReal >( myInfo.numberOfElements, "model" );
 
   quadraturePoints=allocateVector< vectorDouble >( order+1, "quadraturePoints" );
@@ -163,10 +158,4 @@ void SEMsolver::allocateFEarrays( SEMinfo & myInfo )
   //shared arrays
   massMatrixGlobal=allocateVector< vectorReal >( myInfo.numberOfNodes, "massMatrixGlobal" );
   yGlobal=allocateVector< vectorReal >( myInfo.numberOfNodes, "yGlobal" );
-  ShGlobal=allocateVector< vectorReal >( myInfo.numberOfBoundaryNodes, "ShGlobal" );
-
-  #ifdef SEM_MESHCOLOR
-  //allocate list of elements by color
-  listOfElementsByColor=allocateArray2D<arrayInt>(myInfo.numberOfColors, myInfo.numberMaxOfElementsByColor, "listOfElemByColor");
-  #endif
 }
