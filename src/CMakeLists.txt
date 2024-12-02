@@ -83,7 +83,7 @@ set( ENABLE_OPENMP OFF CACHE STRING "" FORCE)
 
 # choose platform for Cuda options
 if(X86_laptop)
-  set(X86_cypress OFF CACHE STRING "" FORCE)
+  set(X86_A100 OFF CACHE STRING "" FORCE)
   if (ENABLE_CUDA)
     set(CUDA_ROOT $ENV{CUDA_ROOT} CACHE PATH "" FORCE)
     set(CMAKE_CUDA_ARCHITECTURES 89 CACHE STRING "" FORCE)
@@ -121,7 +121,7 @@ elseif(ARM)
     set(DEVICE "GRACE" CACHE PATH "" FORCE)
   endif()
 
-elseif(X86_cypress)
+elseif(X86_A100)
   if (ENABLE_CUDA)
     set(CUDA_ROOT $ENV{CUDA_ROOT} CACHE PATH "" FORCE)
     set(CMAKE_CUDA_ARCHITECTURES 80 CACHE STRING "" FORCE)
@@ -150,8 +150,6 @@ if( ENABLE_CUDA )
   set(CMAKE_CUDA_SEPARABLE_COMPILATION ON)
 endif()
 
-include( ../blt/SetupBLT.cmake )
-
 set (USE_VECTOR ON CACHE BOOL "" FORCE)
 
 ################################
@@ -159,8 +157,8 @@ set (USE_VECTOR ON CACHE BOOL "" FORCE)
 ################################
 # the solver is using OpenMP+Vector on CPU
 if(USE_OMP)
+  set (ENABLE_OPENMP ON CACHE STRING "" FORCE)
   set (SOLVER "OMP" CACHE PATH "" FORCE)
-  message(STATUS "BUILDING SOLVER including OpenMP+Vector on CPU")
   set (USE_KOKKOS OFF CACHE BOOL "")
   set (USE_RAJA OFF CACHE BOOL "")
   set (USE_LVARRAY OFF CACHE BOOL "" FORCE)
@@ -168,11 +166,14 @@ if(USE_OMP)
   set (USE_VECTOR ON CACHE BOOL "" FORCE)
   set (extraComponentsLinkList ${extraComponentsLinkList} openmp )
   message ("-- USE_OMP flag is set: USE_VECTOR= ${USE_VECTOR} ")
+  message(STATUS "BUILDING SOLVER including OpenMP+Vector on CPU")
 else()
     message ("-- USE_OMP flag is set to be false and OMP is not enabled")
 endif()
 ################################
 
+
+include( ../blt/SetupBLT.cmake )
 
 ################################
 # RAJA
