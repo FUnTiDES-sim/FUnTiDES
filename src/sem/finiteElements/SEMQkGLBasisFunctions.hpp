@@ -428,7 +428,7 @@ public:
    * @return The derivative value
   */
   PROXY_HOST_DEVICE 
-  constexpr static double basisGradientAt( const int order, const int q, const int p )
+  constexpr static double basisGradientAt(  const int q, const int p )
   {
      if( p <= halfNodes )
      {

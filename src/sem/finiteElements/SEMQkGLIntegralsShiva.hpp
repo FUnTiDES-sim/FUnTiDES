@@ -140,6 +140,17 @@ public:
       symMatrix[4]=temp[4];
       symMatrix[5]=temp[5];
   }
+
+  /* @brief Helper function for static for loop
+  * @tparam FUNC the callback function
+  * @tparam ...Is integer indices of the loop
+  */
+  template < typename FUNC, int... Is >
+  static constexpr void loop( FUNC && func, std::integer_sequence< int, Is... > )
+  {
+    ( func( std::integral_constant< int, Is >{} ), ... );
+  }
+
   
   template<int ORDER, int qa, int qb,  int qc, typename FUNC>
   PROXY_HOST_DEVICE
@@ -147,29 +158,21 @@ public:
                                double const (&B)[6],
                                FUNC && func ) const
   {
-     constexpr double qcoords[3] = { quadrature::template coordinate<qa>(),
-                                     quadrature::template coordinate<qb>(),
-                                     quadrature::template coordinate<qc>() };
      const double w = GLQ.weight(qa )*GLQ.weight(qb )*GLQ.weight(qc );
-     for( int i=0; i<ORDER+1; i++ )
+     loop( [&] (auto const i)
      {
        const int ibc = linearIndex( ORDER,i, qb, qc );
        const int aic = linearIndex( ORDER,qa, i, qc );
        const int abi = linearIndex( ORDER,qa, qb, i );
-       //const double gia = basisFunction::template gradient<qa>(qcoords[0]);
-       //const double gib = basisFunction::template gradient<qb>(qcoords[0]);
-       //const double gic = basisFunction::template gradient<qc>(qcoords[0]);
        const double gia = SEMQkGLBasisFunctions::basisGradientAt(ORDER, i, qa );
        const double gib = SEMQkGLBasisFunctions::basisGradientAt(ORDER, i, qb );
        const double gic = SEMQkGLBasisFunctions::basisGradientAt(ORDER, i, qc );
-       for( int j=0; j<ORDER+1; j++ )
+       loop( [&] (auto const j)
        {
+
          const int jbc = linearIndex( ORDER,j, qb, qc );
          const int ajc = linearIndex( ORDER,qa, j, qc );
          const int abj = linearIndex( ORDER,qa, qb, j );
-         //const double gja = basisFunction::template gradient<qa>(qcoords[0]);
-         //const double gjb = basisFunction::template gradient<qb>(qcoords[0]);
-         //const double gjc = basisFunction::template gradient<qc>(qcoords[0]);
          const double gja = SEMQkGLBasisFunctions::basisGradientAt(ORDER, j, qa );
          const double gjb = SEMQkGLBasisFunctions::basisGradientAt(ORDER, j, qb );
          const double gjc = SEMQkGLBasisFunctions::basisGradientAt(ORDER, j, qc );
@@ -190,8 +193,8 @@ public:
          const double w5 = w * gia * gjb;
          func( ibc, ajc, w5 * B[5] );
          func( ajc, ibc, w5 * B[5] );
-       }
-     }
+       },std::make_integer_sequence<int,ORDER+1>{});
+     },std::make_integer_sequence<int,ORDER+1>{});
   }
   
   template<int ORDER,typename FUNC>
