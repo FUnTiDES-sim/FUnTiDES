@@ -12,12 +12,9 @@ set (CMAKE_VERBOSE_MAKEFILE ON )
 # Setup the computing resources for running proxyapp
 #-----------------------------------------------------
 option (X86_laptop "X86 architecture  default" ON)
-option (X86_cypress "Compilation on Cypress Cluster" OFF)
-option (Power9_pangea3 "Power9 architecture  " OFF)
-option (ARM "ARM aarch64 architecture: e.g. grace CPU" OFF)
 
 #-----------------------------------------------------
-# Setup the flags for users to select programming models
+# Setup the options for users to select programming models
 #-----------------------------------------------------
 
 # use OMP to parallelise loops
@@ -29,15 +26,17 @@ option (USE_RAJA "Use RAJA to parallelise loops" OFF)
 # use KOKOS to expose parallelism loop
 option (USE_KOKKOS "Use KOKKOS to parallelise loops" OFF)
 
+#-----------------------------------------------------
+# Setup the options for users to select SEM methods
+#-----------------------------------------------------
 option (USE_SEMCLASSIC "Use CLASSIC " OFF)
 option (USE_SEMOPTIM "Use OPTIM " OFF)
 option (USE_SHIVA "Use SHIVA " OFF)
 
 #---------------------------------------------------
-# Tests directory to perform differen tests before
-# integration into proxy apps
+# Option to test finite-difference code
 #---------------------------------------------------
-option (addTests "add Tests directory" OFF)
+option (addFD "add finite-difference directory" OFF)
 
 #--------------------------------------------------------
 # Option to save snapshots of wavefields (for debugging)
@@ -49,16 +48,6 @@ option (FD_SAVE_SNAPSHOTS "save snapshots for FD-proxy" OFF)
 # Option to printout memory allocation info of arrays
 #------------------------------------------------------
 option (PRINT_ALLOC_INFO "printout memory allocation info" OFF)
-
-#---------------------------------------------------
-# Option to test SEM-proxy 2D case (default is 3D)
-#---------------------------------------------------
-option (SEM2D "SEM-proxy 2D or 3D case" OFF)
-
-#---------------------------------------------------------
-# Option to use coloring scheme to avoid atomic operations
-#---------------------------------------------------------
-option (SEM_MESHCOLOR "use coloring scheme" OFF)
 
 #---------------------------------------------------------
 # Option to use hierarchical parallelism in Kokkos

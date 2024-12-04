@@ -7,8 +7,6 @@ struct SEMinfo
   int numberOfElements;
   int numberOfPointsPerElement;
   int numberOfInteriorNodes;
-  int numberOfBoundaryNodes;
-  int numberOfBoundaryFaces;
 
   const int myNumberOfRHS=1;
   static constexpr int myOrderNumber=2;
@@ -22,10 +20,5 @@ struct SEMinfo
   int myNumSamples=myTimeMax/myTimeStep;
   int myElementSource;
 
-  #ifdef SEM_MESHCOLOR
-  int numberMaxOfElementsByColor;
-  const int numberOfColors=4;
-  int numberOfElementsByColor[4];
-  #endif
 };
 #endif

@@ -142,7 +142,7 @@ public:
       symMatrix[5]=temp[5];
   }
   
-  template<int ORDER, int qa, int qb, int qc, typename FUNC>
+  template<int ORDER, int qa, int qb,  int qc, typename FUNC>
   PROXY_HOST_DEVICE
   void computeGradPhiBGradPhi( const int e,
                                double const (&B)[6],
@@ -256,7 +256,7 @@ public:
           symInvert0( B );
 
           // compute gradPhiI*B*gradPhiJ and stiffness vector
-          computeGradPhiBGradPhi<ORDER, qa, qb, qc >(e,B, func);
+          computeGradPhiBGradPhi<ORDER,qa,qb,qc>(e,B, func);
       });
   }
 

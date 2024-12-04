@@ -60,8 +60,6 @@ public:
   //get coord in one direction
   vector< float > getCoordInOneDirection( const int & order, const int & nCoord, const int & h, const int & nElement ) const;
 
-  // Initialize nodal coordinates.
-  void nodesCoordinates( const int & numberOfNodes, arrayReal & nodeCoords ) const;
 
   // Initialize nodal coordinates.
   void nodesCoordinates( arrayReal & nodeCoordsX,arrayReal & nodeCoordsZ, arrayReal & nodeCoordsY ) const;
@@ -80,28 +78,6 @@ public:
 
   // set model
   void getModel( const int & numberOfNodes, vectorReal & model ) const;
-
-  // sort element by color
-  // red=0, green=1, blue=2, yellow=3
-  int getNumberOfElementsByColor() const;
-  void sortElementsByColor( int numberOfElementsByColor[], arrayInt & listOfElementsByColor ) const;
-
-  // get number of Boundary Faces
-  int getNumberOfBoundaryFaces() const;
-
-  // get number of Boundary nodes
-  int getNumberOfBoundaryNodes() const;
-
-  // provides informations about boundary  faces:
-  // element number,
-  // orientation of the face
-  void getBoundaryFacesInfos( arrayInt & faceInfos )const;
-
-  //  get list of global boundary nodes
-  int getListOfBoundaryNodes( const int & numberOfBoundaryNodes, vectorInt & listOfBoundaryNodes ) const;
-
-  // provides a mapping between local node of a face and global node Face:
-  void getLocalFaceNodeToGlobalFaceNode( arrayInt & localFaceNodeToGlobalFaceNode ) const;
 
   // compute global to local node index
   int Itoijk( const int & I, int & i, int & j, int & k ) const;

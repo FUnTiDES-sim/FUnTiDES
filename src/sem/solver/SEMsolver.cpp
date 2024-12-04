@@ -95,39 +95,6 @@ void SEMsolver::computeOneStep( const int & timeSample,
                    -myInfo.myTimeStep*myInfo.myTimeStep*yGlobal[I]/massMatrixGlobal[I];
   LOOPEND
 
-  #ifdef SEM2D
-  {
-    LOOPHEAD( myInfo.numberOfBoundaryNodes, i )
-    ShGlobal[i]=0;
-    LOOPEND
-
-    LOOPHEAD( myInfo.numberOfBoundaryFaces, iFace )
-    //get ds
-    float ds[6];
-    float Sh[6];
-    float Js[2][6];
-
-    // compute ds
-    myQk.computeDs( iFace, order, faceInfos, (order+1)*(order+1), Js,
-                    globalNodesCoords, derivativeBasisFunction1D, ds );
-
-    //compute Sh and ShGlobal
-    for( int i=0; i<order+1; i++ )
-    {
-      int gIndexFaceNode=localFaceNodeToGlobalFaceNode( iFace, i );
-      Sh[i]=weights[i]*ds[i]/(model[faceInfos( iFace, 0 )]);
-      ATOMICADD( ShGlobal[gIndexFaceNode], Sh[i] );
-    }
-    LOOPEND
-
-    LOOPHEAD( myInfo.numberOfBoundaryNodes, i )
-    int I=listOfBoundaryNodes[i];
-    float invMpSh=1/(massMatrixGlobal[I]+myInfo.myTimeStep*ShGlobal[i]*0.5);
-    float MmSh=massMatrixGlobal[I]-myInfo.myTimeStep*ShGlobal[i]*0.5;
-    pnGlobal( I, i1 )=invMpSh*(2*massMatrixGlobal[I]*pnGlobal( I, i2 )-MmSh*pnGlobal( I, i1 )-myInfo.myTimeStep*myInfo.myTimeStep*yGlobal[I]);
-    LOOPEND
-  }
-  #endif
   FENCE
 }
 
@@ -154,12 +121,7 @@ void SEMsolver::initFEarrays( SEMinfo & myInfo, SEMmesh mesh )
   mesh.globalNodesList( myInfo.numberOfElements, globalNodesList );
   mesh.getListOfInteriorNodes( myInfo.numberOfInteriorNodes, listOfInteriorNodes );
   // mesh coordinates
-  mesh.nodesCoordinates( myInfo.numberOfNodes, globalNodesCoords );
   mesh.nodesCoordinates( globalNodesCoordsX,globalNodesCoordsZ,globalNodesCoordsY);
-  // boundary elements
-  mesh.getListOfBoundaryNodes( myInfo.numberOfBoundaryNodes, listOfBoundaryNodes );
-  mesh.getBoundaryFacesInfos( faceInfos );
-  mesh.getLocalFaceNodeToGlobalFaceNode( localFaceNodeToGlobalFaceNode );
   // get model
   mesh.getModel( myInfo.numberOfElements, model );
   // get quadrature points
@@ -169,14 +131,6 @@ void SEMsolver::initFEarrays( SEMinfo & myInfo, SEMmesh mesh )
   // get basis function and corresponding derivatives
   myQkBasis.getDerivativeBasisFunction1D( order, quadraturePoints, derivativeBasisFunction1D );
  
-  // sort element by color
-  #ifdef SEM_MESHCOLOR
-  mesh.sortElementsByColor(myInfo.numberOfElementsByColor,listOfElementsByColor);
-  printf("number of elements color red %d\n", myInfo.numberOfElementsByColor[0]);
-  printf("number of elements color green %d\n", myInfo.numberOfElementsByColor[1]);
-  printf("number of elements color blue %d\n", myInfo.numberOfElementsByColor[2]);
-  printf("number of elements color yellow %d\n", myInfo.numberOfElementsByColor[3]);
-  #endif
 
 }
 
@@ -189,16 +143,10 @@ void SEMsolver::allocateFEarrays( SEMinfo & myInfo )
   listOfInteriorNodes=allocateVector< vectorInt >( myInfo.numberOfInteriorNodes, "listOfInteriorNodes" );
   
   // global coordinates
-  globalNodesCoords=allocateArray2D< arrayReal >( myInfo.numberOfNodes, 3, "globalNodesCoords" );
   globalNodesCoordsX=allocateArray2D< arrayReal >( myInfo.numberOfElements, nbQuadraturePoints, "globalNodesCoordsX");
   globalNodesCoordsY=allocateArray2D< arrayReal >( myInfo.numberOfElements, nbQuadraturePoints, "globalNodesCoordsY");
   globalNodesCoordsZ=allocateArray2D< arrayReal >( myInfo.numberOfElements, nbQuadraturePoints, "globalNodesCoordsZ");
   
-  listOfBoundaryNodes=allocateVector< vectorInt >( myInfo.numberOfBoundaryNodes, "listOfBoundaryNodes" );
-
-  faceInfos=allocateArray2D< arrayInt >( myInfo.numberOfBoundaryFaces, 2+(order+1), "faceInfos" );
-  localFaceNodeToGlobalFaceNode=allocateArray2D< arrayInt >( myInfo.numberOfBoundaryFaces, order+1, "localFaceNodeToGlobalFaceNode" );
-
   model=allocateVector< vectorReal >( myInfo.numberOfElements, "model" );
 
   quadraturePoints=allocateVector< vectorDouble >( order+1, "quadraturePoints" );
@@ -210,10 +158,4 @@ void SEMsolver::allocateFEarrays( SEMinfo & myInfo )
   //shared arrays
   massMatrixGlobal=allocateVector< vectorReal >( myInfo.numberOfNodes, "massMatrixGlobal" );
   yGlobal=allocateVector< vectorReal >( myInfo.numberOfNodes, "yGlobal" );
-  ShGlobal=allocateVector< vectorReal >( myInfo.numberOfBoundaryNodes, "ShGlobal" );
-
-  #ifdef SEM_MESHCOLOR
-  //allocate list of elements by color
-  listOfElementsByColor=allocateArray2D<arrayInt>(myInfo.numberOfColors, myInfo.numberMaxOfElementsByColor, "listOfElemByColor");
-  #endif
 }
