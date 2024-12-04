@@ -5,6 +5,8 @@ export CXX=/opt/rocm/llvm/bin/clang++
 
 export OMP_PROC_BIND=spread; export OMP_PLACES=threads
 export DEVICE=Mi300aeval_AMDZen4CPU
+export CMAKE_C_FLAGS="-march=znver4 -mtune=znver4"
+export CMAKE_CXX_FLAGS="-march=znver4 -mtune=znver4"
 
 # for omp on CPU:  cmake -DCMAKE_INSTALL_PREFIX=../install -DUSE_OMP=ON .. ; make
 # for sequential mode on CPU:  cmake -DCMAKE_INSTALL_PREFIX=../install .. ; make
