@@ -198,14 +198,12 @@ public:
   template<int ORDER,typename FUNC>
   PROXY_HOST_DEVICE
   void computeStiffnessTerm( const int e,
-		             double const (&X)[8][3],
+                             Transform const & trilinearCell,
                              float massMatrix[],
                              FUNC && func ) const
   {
         double B[6] = {0};
         JacobianType J{ 0.0 };
-        Transform trilinearCell;
-        trilinearCell.setData( X );
 
         // this is a compile time quadrature loop over each tensor direction
         forNestedSequence< ORDER+1,
@@ -220,19 +218,19 @@ public:
 
           // must be here, Jacobian must be put to 0 for each quadrature point
           //Jacobian matrix J
-	  
-	  J(0,0)=0;
-	  J(0,1)=0;
-	  J(0,2)=0;
-	  J(1,0)=0;
-	  J(1,1)=0;
-	  J(1,2)=0;
-	  J(2,0)=0;
-	  J(2,1)=0;
-	  J(2,2)=0;
-	 
+          
+          J(0,0)=0;
+          J(0,1)=0;
+          J(0,2)=0;
+          J(1,0)=0;
+          J(1,1)=0;
+          J(1,2)=0;
+          J(2,0)=0;
+          J(2,1)=0;
+          J(2,2)=0;
+         
           shiva::geometry::utilities::jacobian<quadrature, qa,qb,qc>( trilinearCell, J );
-	   
+           
           // detJ
           // j(0,0) j(0,1) j(0,2)
           // j(1,0) j(1,1) j(1,2)
@@ -240,19 +238,20 @@ public:
           double const detJ = +J(0,0)*(J(1,1)*J(2,2)-J(2,1)*J(1,2))
                               -J(0,1)*(J(1,0)*J(2,2)-J(2,0)*J(1,2))
                               +J(0,2)*(J(1,0)*J(2,1)-J(2,0)*J(1,1));
-	  
+          
           // mass matrix
           constexpr int q=qc+qb*(ORDER+1)+qa*(ORDER+1)*(ORDER+1);
           constexpr double w3D = QGL::weight<qa>()*QGL::weight<qb>()*QGL::weight<qc>();
           massMatrix[q]=w3D*detJ;
 
           // compute J^{T}J/detJ
-          B[0] = (J(0,0)*J(0,0)+J(1,0)*J(1,0)+J(2,0)*J(2,0))/detJ;
-          B[1] = (J(0,1)*J(0,1)+J(1,1)*J(1,1)+J(2,1)*J(2,1))/detJ;
-          B[2] = (J(0,2)*J(0,2)+J(1,2)*J(1,2)+J(2,2)*J(2,2))/detJ;
-          B[3] = (J(0,1)*J(0,2)+J(1,1)*J(1,2)+J(2,1)*J(2,2))/detJ;
-          B[4] = (J(0,0)*J(0,2)+J(1,0)*J(1,2)+J(2,0)*J(2,2))/detJ;
-          B[5] = (J(0,0)*J(0,1)+J(1,0)*J(1,1)+J(2,0)*J(2,1))/detJ;
+          double const invDetJ = 1.0 / detJ;
+          B[0] = (J(0,0)*J(0,0)+J(1,0)*J(1,0)+J(2,0)*J(2,0)) * invDetJ;
+          B[1] = (J(0,1)*J(0,1)+J(1,1)*J(1,1)+J(2,1)*J(2,1)) * invDetJ;
+          B[2] = (J(0,2)*J(0,2)+J(1,2)*J(1,2)+J(2,2)*J(2,2)) * invDetJ;
+          B[3] = (J(0,1)*J(0,2)+J(1,1)*J(1,2)+J(2,1)*J(2,2)) * invDetJ;
+          B[4] = (J(0,0)*J(0,2)+J(1,0)*J(1,2)+J(2,0)*J(2,2)) * invDetJ;
+          B[5] = (J(0,0)*J(0,1)+J(1,0)*J(1,1)+J(2,0)*J(2,1)) * invDetJ;
           // compute detJ*J^{-1}J^{-T}
           symInvert0( B );
 
@@ -276,19 +275,19 @@ public:
                                            float pnLocal[],
                                            float Y[]) const
   {
-      double X[8][3];
-      int I=0;
-      for( int k=0;k<ORDER+1;k+=ORDER )
+      Transform trilinearCell;
+      Transform::DataType & cellCoordData = trilinearCell.getData();
+
+      for( int k=0; k<2; ++k)
       {
-          for ( int j=0; j<ORDER+1;j+=ORDER )
+          for ( int j=0; j<2; ++j)
           {
-              for( int i=0;i<ORDER+1;i+=ORDER )
+              for( int i=0; i<2; ++i)
               {
-                  int l=i+j*(ORDER+1)+k*(ORDER+1)*(ORDER+1);
-                  X[I][0]=nodesCoordsX(elementNumber,l);
-                  X[I][1]=nodesCoordsZ(elementNumber,l);
-                  X[I][2]=nodesCoordsY(elementNumber,l);
-                  I++;
+                  int const l = ORDER * ( i + j*(ORDER+1) + k*(ORDER+1)*(ORDER+1) ) ;
+                  cellCoordData(i,j,k,0) = nodesCoordsX(elementNumber,l);
+                  cellCoordData(i,j,k,1) = nodesCoordsZ(elementNumber,l);
+                  cellCoordData(i,j,k,2) = nodesCoordsY(elementNumber,l);
               }
           }
       }
@@ -296,10 +295,9 @@ public:
       {
          Y[q]=0;
       }
-      computeStiffnessTerm<ORDER>(elementNumber,X, massMatrixLocal, [&] (const int i, const int j, const double val)
+      computeStiffnessTerm<ORDER>(elementNumber,trilinearCell, massMatrixLocal, [&] (const int i, const int j, const double val)
                                  {
-                                   float localIncrement=val*pnLocal[j];
-                                   Y[i]+=localIncrement;
+                                    Y[i]= Y[i] + val*pnLocal[j];
                                  });
   }
   /////////////////////////////////////////////////////////////////////////////////////

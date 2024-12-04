@@ -8,7 +8,7 @@
   #define PROXY_HOST_DEVICE KOKKOS_INLINE_FUNCTION 
   //#define PROXY_HOST_DEVICE  KOKKOS_FUNCTION
 #else
-  #define PROXY_HOST_DEVICE 
+  #define PROXY_HOST_DEVICE inline
 #endif
 
 #if defined (USE_KOKKOS)

@@ -48,9 +48,9 @@ public:
   Array2D(): data( 0, std::vector< T >( 0 )) {}
 
   std::vector< T > & operator[]( int index ){return data[index];}
-  T& operator()( int row, int col ) {return data[row][col];}
-  T& operator()( int row, int col ) const {return const_cast< T & >(data[row][col]);}
-  T& operator=( const T & data ) { return *this; };
+  inline T& operator()( int row, int col ) {return data[row][col];}
+  inline T& operator()( int row, int col ) const {return const_cast< T & >(data[row][col]);}
+  inline T& operator=( const T & data ) { return *this; };
 
 private:
   std::vector< std::vector< T > > data;

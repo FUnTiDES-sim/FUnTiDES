@@ -364,8 +364,7 @@ public:
           massMatrixLocal[q]=computeMassTerm( elementNumber, order,q, X); 
           computeStiffnessTerm(elementNumber, order, q, X, [&] (const int i, const int j, const double val)
                   {
-                   float localIncrement=val*pnLocal[j];
-                   Y[i]+=localIncrement;
+                   Y[i] = Y[i] + val*pnLocal[j];
                   });
       }
   }
