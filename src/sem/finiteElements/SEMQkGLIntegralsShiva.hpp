@@ -34,8 +34,6 @@ class SEMQkGLIntegralsShiva
 private:
   int order;
   static constexpr int N=SEMinfo::myOrderNumber +1;
-  struct QuadratureGaussLobatto<float,N> GLQ;
-  using QGL = QuadratureGaussLobatto<float,N>;
 
   using Transform =
       LinearTransform< double,
@@ -151,7 +149,7 @@ public:
      constexpr double qcoords[3] = { quadrature::template coordinate<qa>(),
                                      quadrature::template coordinate<qb>(),
                                      quadrature::template coordinate<qc>() };
-     const double w = GLQ.weight(qa )*GLQ.weight(qb )*GLQ.weight(qc );
+     const double w = quadrature::template weight<qa>() * quadrature::template weight<qb>() * quadrature::template weight<qc>();
      for( int i=0; i<ORDER+1; i++ )
      {
        const int ibc = linearIndex( ORDER,i, qb, qc );
@@ -241,7 +239,7 @@ public:
           
           // mass matrix
           constexpr int q=qc+qb*(ORDER+1)+qa*(ORDER+1)*(ORDER+1);
-          constexpr double w3D = QGL::weight<qa>()*QGL::weight<qb>()*QGL::weight<qc>();
+          constexpr double w3D = quadrature::weight<qa>()*quadrature::weight<qb>()*quadrature::weight<qc>();
           massMatrix[q]=w3D*detJ;
 
           // compute J^{T}J/detJ
