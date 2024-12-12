@@ -254,7 +254,7 @@ public:
           //for( int i = 0; i < 3; i++ )
           loop([&](auto const i)
           {
-            J[i][j] +=  jacCoeff * X[k][i];
+            J[j][j] +=  jacCoeff * X[k][j];
           },std::make_integer_sequence<int,SEQI>{});
         },std::make_integer_sequence<int,SEQJ>{});
       },std::make_integer_sequence<int,SEQK>{});
@@ -262,7 +262,7 @@ public:
 
   /**
    * @brief Calculates the isoparametric "geometrical" transformation
-   *  matrix/mapping from the parent space to the physical space.
+   * matrix/mapping from the parent space to the physical space.
    * @param qa The 1d quadrature point index in xi0 direction (0,1)
    * @param qb The 1d quadrature point index in xi1 direction (0,1)
    * @param qc The 1d quadrature point index in xi2 direction (0,1)
@@ -289,6 +289,14 @@ public:
 
       // compute detJ*J^{-1}J^{-T}
       symInvert0( B );
+      /*
+      B[0] = (J[0][0]*J[0][0])/detJ;
+      B[1] = (J[1][1]*J[1][1])/detJ;
+      B[2] = (J[2][2]*J[2][2])/detJ;
+      B[0]=1./B[0];
+      B[1]=1./B[1];
+      B[2]=1./B[2];
+      */
   }
 
   template<int qa,int qb,int qc>
@@ -324,7 +332,8 @@ public:
   */
     template<int ORDER,typename FUNC>
   PROXY_HOST_DEVICE
-  void computeGradPhiBGradPhi( int const qa,
+  void computeGradPhiBGradPhi( const int flag,
+		               int const qa,
                                int const qb,
                                int const qc,
                                float const (&B)[6],
@@ -333,7 +342,6 @@ public:
      const float w = SEMQkGLBasisFunctions::weight<SEMinfo>(qa )*
                       SEMQkGLBasisFunctions::weight<SEMinfo>(qb )*
                       SEMQkGLBasisFunctions::weight<SEMinfo>(qc );
-     //for(int i=0;i<ORDER+1;i++)
      loop( [&] (auto const i)
      {
        const int ibc = linearIndex< ORDER>(i, qb, qc );
@@ -342,7 +350,6 @@ public:
        const float gia = SEMQkGLBasisFunctions::basisGradientAt( i, qa );
        const float gib = SEMQkGLBasisFunctions::basisGradientAt( i, qb );
        const float gic = SEMQkGLBasisFunctions::basisGradientAt( i, qc );
-       //for( int j=0;j<ORDER+1;j++)
        loop( [&] (auto const j)
        {
          const int jbc = linearIndex< ORDER>(j, qb, qc );
@@ -359,7 +366,7 @@ public:
          const double w2 = w * gic * gjc;
          func( abi, abj, w2 * B[2] );
          // off-diagonal terms
-	 /*
+	 if (flag==1){
          const double w3 = w * gib * gjc;
          func( aic, abj, w3 * B[3] );
          func( abj, aic, w3 * B[3] );
@@ -369,7 +376,7 @@ public:
          const double w5 = w * gia * gjb;
          func( ibc, ajc, w5 * B[5] );
          func( ajc, ibc, w5 * B[5] );
-	 */
+	 }
        },std::make_integer_sequence<int,ORDER+1>{});
      },std::make_integer_sequence<int,ORDER+1>{});
   }
@@ -421,7 +428,7 @@ public:
   
   /**
    * @brief computes the non-zero contributions of the d.o.f. indexd by q to the
-   *   mass matrix M, i.e., the superposition matrix of the shape functions.
+   * mass matrix M, i.e., the superposition matrix of the shape functions.
    * @param q The quadrature point index
    * @param X Array containing the coordinates of the mesh support points.
    * @return The diagonal mass term associated to q
@@ -444,8 +451,6 @@ public:
   PROXY_HOST_DEVICE
   double computeMassTerm( float const (&X)[8][3] ) const
   {
-     //int qa, qb, qc;
-    //multiIndex<ORDER>(q, qa, qb, qc );
      constexpr int qc = q/((ORDER+1)*(ORDER+1));
      constexpr int qb = (q%((ORDER+1)*(ORDER+1)))/(ORDER+1);
      constexpr int qa = (q%((ORDER+1)*(ORDER+1)))%(ORDER+1);
@@ -453,7 +458,6 @@ public:
                      *SEMQkGLBasisFunctions::weight<SEMinfo>( qb )
                      *SEMQkGLBasisFunctions::weight<SEMinfo>( qc );
      float J[3][3] = {{0}};
-     //jacobianTransformation<qa, qb, qc>( X, J );
      jacobianTransformation(qa, qb, qc, X, J );
      return determinant( J )*w3D;
   }
@@ -466,11 +470,12 @@ public:
                              FUNC && func ) const
   {
         int qa, qb, qc;
+	int flag=0;
         multiIndex<ORDER>( q, qa, qb, qc );
         float B[6] = {0};
         float J[3][3] = {{0}};
         computeBMatrix( qa, qb, qc, X, J, B );
-        computeGradPhiBGradPhi<ORDER>( qa, qb, qc, B, func );
+        computeGradPhiBGradPhi<ORDER>(flag, qa, qb, qc, B, func );
   }
 
   template<int ORDER,int q,typename FUNC>
@@ -479,15 +484,11 @@ public:
                              float const (&X)[8][3],
                              FUNC && func ) const
   {
-    //int qa, qb, qc;
-    //multiIndex<ORDER>(q, qa, qb, qc );
     constexpr int qc = q/((ORDER+1)*(ORDER+1));
     constexpr int qb = (q%((ORDER+1)*(ORDER+1)))/(ORDER+1);
     constexpr int qa = (q%((ORDER+1)*(ORDER+1)))%(ORDER+1);
     float B[6] = {0};
     float J[3][3] = {{0}};
-    //computeBMatrix<qa,qb,qc>(X, J, B );
-    //computeGradPhiBGradPhi<ORDER,qa,qb,qc>(B, func );
     computeBMatrix(qa,qb,qc,X,J,B );
     computeGradPhiBGradPhi<ORDER>(qa,qb,qc,B,func );
   }
