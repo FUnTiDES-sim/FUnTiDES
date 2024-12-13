@@ -122,19 +122,15 @@ std::vector< float > SEMmesh::getCoordInOneDirection( const int & order, const i
     default:
       break;
   }
-  //for( int i=0; i<nElement; i++ )
-  //{
-    int i=nElement;
-    float x0=i*h;
-    float x1=(i+1)*h;
-    float b=(x1+x0)/2.;
-    float a=b-x0;
-    for( int j=0; j<order+1; j++ )
-    {
-      //coord[j+i*order]=a*xi[j]+b;
-      coord[j]=a*xi[j]+b;
-    }
-  //}
+  int i=nElement;
+  float x0=i*h;
+  float x1=(i+1)*h;
+  float b=(x1+x0)/2.;
+  float a=b-x0;
+  for( int j=0; j<order+1; j++ )
+  {
+    coord[j]=a*xi[j]+b;
+  }
   return coord;
 }
 
@@ -166,7 +162,6 @@ void SEMmesh::nodesCoordinates( arrayReal & nodeCoordsX,
                     nodeCoordsX(e, i+(order+1)*j+k*(order+1)*(order+1))=coordX[i];
                     nodeCoordsZ(e, i+(order+1)*j+k*(order+1)*(order+1))=coordZ[j];
                     nodeCoordsY(e, i+(order+1)*j+k*(order+1)*(order+1))=coordY[k];
-                    //if(e==0)printf("l=%d %f %f %f \n",i+(order+1)*j+k*(order+1)*(order+1),coordX[i],coordY[j],coordZ[k]);
                  }
               }
            }

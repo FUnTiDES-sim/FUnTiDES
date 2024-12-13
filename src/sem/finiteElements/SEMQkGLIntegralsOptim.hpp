@@ -179,9 +179,11 @@ public:
   PROXY_HOST_DEVICE
   float determinant(float  m[3][3]) const
   {
-     return abs(m[0][0]*(m[1][1]*m[2][2]-m[2][1]*m[1][2])
+     float detJ=abs(m[0][0]*(m[1][1]*m[2][2]-m[2][1]*m[1][2])
                -m[0][1]*(m[1][0]*m[2][2]-m[2][0]*m[1][2])
                +m[0][2]*(m[1][0]*m[2][1]-m[2][0]*m[1][1]));
+     //float detJ=abs(m[0][0]*m[1][1]*m[2][2]);
+     return  detJ;
   }
 
   PROXY_HOST_DEVICE
@@ -211,7 +213,6 @@ public:
       constexpr int SEQK=8;
       constexpr int SEQJ=3;
       constexpr int SEQI=3;
-      //for( int k = 0; k < 8; k++ )
       loop([&](auto const k)
       {
         constexpr int ka = k % 2;
@@ -223,7 +224,7 @@ public:
           float  jacCoeff = jacobianCoefficient1D( qa, 0, ka, j ) *
                             jacobianCoefficient1D( qb, 1, kb, j ) *
                             jacobianCoefficient1D( qc, 2, kc, j );
-          //for( int i = 0; i < 3; i++ )
+          //J[j][j] +=  jacCoeff * X[k][j];
           loop([&](auto const i)
           {
             J[i][j] +=  jacCoeff * X[k][i];
@@ -254,7 +255,7 @@ public:
           //for( int i = 0; i < 3; i++ )
           loop([&](auto const i)
           {
-            J[j][j] +=  jacCoeff * X[k][j];
+            J[i][j] +=  jacCoeff * X[k][j];
           },std::make_integer_sequence<int,SEQI>{});
         },std::make_integer_sequence<int,SEQJ>{});
       },std::make_integer_sequence<int,SEQK>{});
@@ -290,12 +291,12 @@ public:
       // compute detJ*J^{-1}J^{-T}
       symInvert0( B );
       /*
-      B[0] = (J[0][0]*J[0][0])/detJ;
-      B[1] = (J[1][1]*J[1][1])/detJ;
-      B[2] = (J[2][2]*J[2][2])/detJ;
-      B[0]=1./B[0];
-      B[1]=1./B[1];
-      B[2]=1./B[2];
+      B[0] = (J[0][0]*J[0][0]);
+      B[1] = (J[1][1]*J[1][1]);
+      B[2] = (J[2][2]*J[2][2]);
+      B[0]=detJ/B[0];
+      B[1]=detJ/B[1];
+      B[2]=detJ/B[2];
       */
   }
 
@@ -555,5 +556,5 @@ public:
   /////////////////////////////////////////////////////////////////////////////////////
   
 };
-  
 #endif //SEMQKGLINTEGRALSOPTIM_HPP_
+  
