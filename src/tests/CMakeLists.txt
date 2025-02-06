@@ -8,8 +8,8 @@
 # the followings need "-DUSE_KOKKOS=ON -DENABLE_CUDA=ON"
 #set (testcase  Kokkos)
 #set (testcase  Kokkos0)
-set (testcase  Kokkos1)
-#set (testcase  FDTDKokkos)
+#set (testcase  Kokkos1)
+set (testcase  FDTDKokkos)
 
 # the followings need "-DUSE_RAJA=ON -DENABLE_HIP=ON"
 #set (testcase  raja_hip_daxpy)
