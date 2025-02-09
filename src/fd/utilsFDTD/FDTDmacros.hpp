@@ -140,6 +140,9 @@ constexpr size_t greater_of_squarest_factor_pair(size_t n)
     arrayRealView pnGlobal = PN_Global.toView();\
     vectorRealView RHSTerm  = myModels.RHSTerm.toView();\
     vectorRealView vp  = myModels.vp.toView();
+  #define CREATEVIEWSPONGE\
+    arrayRealView pnGlobal = PN_Global.toView();\
+    vectorRealView spongeArray=myModels.spongeArray.toView();
 #else
   #define CREATEVIEWINNER \
       vectorReal coefx  = myModels.coefx;\
