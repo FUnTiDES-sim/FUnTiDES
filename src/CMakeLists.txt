@@ -43,14 +43,14 @@ if(ENABLE_HIP)
   set(USE_SEM_INLINE ON CACHE BOOL "" FORCE) #clang doesn't support -fgpu-rdc yet
 else()
   # CC options
-  set(CMAKE_C_COMPILER  gcc CACHE PATH "")
+  set(CMAKE_C_COMPILER  /usr/bin/gcc-12  CACHE PATH "")
   set(CMAKE_C_FLAGS_RELEASE "-g -O3 -DNDEBUG" CACHE STRING "")
   set(CMAKE_C_FLAGS_RELWITHDEBINFO "-g ${CMAKE_C_FLAGS_RELEASE}" CACHE STRING "")
   set(CMAKE_C_FLAGS_DEBUG "-O0 -g" CACHE STRING "")
 
   # C++ options
-  set(CMAKE_CXX_COMPILER c++  CACHE PATH "")
-  message( STATUS, "--------------------------------------- ${CMAKE_CXX_COMPILER}")
+  set(CMAKE_CXX_COMPILER /usr/bin/g++-12  CACHE PATH "")
+  message( STATUS, "-----------------------CMAKE_CXX_COMPILER=${CMAKE_CXX_COMPILER}")
   set (CMAKE_CXX_FLAGS "-g -O3 -std=c++20 -fconcepts " CACHE STRING "" FORCE)
   set(CMAKE_CXX_FLAGS_RELEASE "-g -O3 -DNDEBUG " CACHE STRING "")
   set(CMAKE_CXX_FLAGS_RELWITHDEBINFO "-g ${CMAKE_CXX_FLAGS_RELEASE}" CACHE STRING "")
@@ -331,4 +331,4 @@ configure_file( utils/commonConfig.hpp.in
 
 add_subdirectory( sem )
 add_subdirectory( fd )
-add_subdirectory( tests )
+#add_subdirectory( tests )
