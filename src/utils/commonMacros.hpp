@@ -36,12 +36,12 @@
 
 
 #if defined (USE_KOKKOS) && defined (USE_KOKKOS_TEAMS)
-  #define LaunchMaxThreadsPerBlock 64 
-  #define LaunchMinBlocksPerSM 1
-  #define nthreads 64
+  #define LaunchMaxThreadsPerBlock 32 
+  #define LaunchMinBlocksPerSM 2
+  #define nthreads 32
   #define MAINLOOPHEAD(Range, Iterator)\
     const int leagueSize=(Range-1)/nthreads; \
-    const Kokkos::TeamPolicy<Kokkos::LaunchBounds<LaunchMaxThreadsPerBlock, LaunchMinBlocksPerSM>> teamPolicy(leagueSize, nthreads); \
+    const Kokkos::TeamPolicy<Kokkos::LaunchBounds<LaunchMaxThreadsPerBlock, LaunchMinBlocksPerSM>> teamPolicy(leagueSize, Kokkos::AUTO()); \
     Kokkos::parallel_for("Loop", teamPolicy, KOKKOS_CLASS_LAMBDA ( const Kokkos::TeamPolicy<>::member_type & thread ) { \
       Kokkos::parallel_for(Kokkos::TeamThreadRange(thread, nthreads), [=] (const int index) { \
         int Iterator = thread.league_rank()*nthreads+index;

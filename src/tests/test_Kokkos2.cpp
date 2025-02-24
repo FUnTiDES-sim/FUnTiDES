@@ -39,7 +39,7 @@ int main( int argc, char * argv[] )
 
   const Kokkos::TeamPolicy<> policy3(N, 3);
   Kokkos::parallel_for("Loop4outer", policy3, KOKKOS_LAMBDA ( const Kokkos::TeamPolicy<>::member_type & thread ) {
-    Kokkos::parallel_for(Kokkos::TeamThreadRange(thread, 31), KOKKOS_LAMBDA (const int i) {
+    Kokkos::parallel_for(Kokkos::TeamThreadRange(thread, 31), [&] (const int i) {
         printf("Loop3: Greetings from thread %i of team %i out of (thread_size %d, team_size %d) executed loop %d \n",
                 thread.team_rank(),thread.league_rank(), thread.team_size(), thread.league_size(), i);
     });

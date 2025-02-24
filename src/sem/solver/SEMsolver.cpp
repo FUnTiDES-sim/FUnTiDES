@@ -9,6 +9,7 @@
 
 #include "SEMsolver.hpp"
 
+
 void SEMsolver::computeFEInit( SEMinfo & myInfo, SEMmesh mesh )
 {
   order = myInfo.myOrderNumber;
@@ -64,11 +65,6 @@ void SEMsolver::computeOneStep( const int & timeSample,
 #endif
 
 #ifdef USE_SEMOPTIM
-  /*
-  myQkIntegrals.computeMassMatrixAndStiffnessVector(elementNumber,order, nPointsPerElement,
-                                           globalNodesCoordsX,globalNodesCoordsY,globalNodesCoordsZ,
-                                           massMatrixLocal, pnLocal, Y);
-  */
   constexpr int ORDER=SEMinfo::myOrderNumber;
   myQkIntegrals.computeMassMatrixAndStiffnessVector<ORDER>(elementNumber,nPointsPerElement,
                                            globalNodesCoordsX,globalNodesCoordsY,globalNodesCoordsZ,
