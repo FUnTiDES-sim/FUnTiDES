@@ -45,6 +45,7 @@ void SEMsolver::computeOneStep( const int & timeSample,
   // start main parallel section
   MAINLOOPHEAD( myInfo.numberOfElements, elementNumber )
 
+  if(elementNumber<myInfo.numberOfElements){
   float massMatrixLocal[ROW];
   float pnLocal[ROW];
   float Y[ROW];
@@ -91,7 +92,7 @@ void SEMsolver::computeOneStep( const int & timeSample,
     ATOMICADD( massMatrixGlobal[gIndex], massMatrixLocal[i] );
     ATOMICADD( yGlobal[gIndex], Y[i] );
   }
-
+  }
   MAINLOOPEND
 
   // update pressure

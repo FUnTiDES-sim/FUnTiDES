@@ -36,7 +36,7 @@
 
 
 #if defined (USE_KOKKOS) && defined (USE_KOKKOS_TEAMS)
-  #define LaunchMaxThreadsPerBlock 64 
+  /*#define LaunchMaxThreadsPerBlock 64 
   #define LaunchMinBlocksPerSM 1
   #define nthreads 64
   #define MAINLOOPHEAD(Range, Iterator)\
@@ -45,7 +45,14 @@
     Kokkos::parallel_for("Loop", teamPolicy, KOKKOS_CLASS_LAMBDA ( const Kokkos::TeamPolicy<>::member_type & thread ) { \
       Kokkos::parallel_for(Kokkos::TeamThreadRange(thread, nthreads), [=] (const int index) { \
         int Iterator = thread.league_rank()*nthreads+index;
-  #define MAINLOOPEND }); });
+  #define MAINLOOPEND }); }); */
+  #define MAINLOOPHEAD(Range, Iterator)\
+    const int nthreads=128;\
+    const int leagueSize=(Range-1)/nthreads; \
+    const Kokkos::TeamPolicy<> teamPolicy(leagueSize, Kokkos::AUTO()); \
+    Kokkos::parallel_for("teamLoop", teamPolicy,KOKKOS_CLASS_LAMBDA(const Kokkos::TeamPolicy<>::member_type & team_member ){\
+		int Iterator=team_member.league_rank () * team_member.team_size () + team_member.team_rank ();
+  #define MAINLOOPEND });
 
 #elif defined (USE_KOKKOS) && !defined(SEM_MESHCOLOR)
   #define LaunchMaxThreadsPerBlock 64

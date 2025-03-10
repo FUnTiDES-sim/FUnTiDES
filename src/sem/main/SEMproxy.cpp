@@ -12,6 +12,9 @@ SEMproxy::SEMproxy(int argc, char *argv[])
   int ex = (argc > 1)? std::stoi(argv[1]) : 100; 
   int ey = ex;
   int ez = ex;
+  ex=256;
+  ey=100;
+  ez=100;
 
   float lx = (argc > 2)? std::stof(argv[2]) : 2000; 
   float ly = lx;
