@@ -50,16 +50,6 @@ option (FD_SAVE_SNAPSHOTS "save snapshots for FD-proxy" OFF)
 #------------------------------------------------------
 option (PRINT_ALLOC_INFO "printout memory allocation info" OFF)
 
-#---------------------------------------------------
-# Option to test SEM-proxy 2D case (default is 3D)
-#---------------------------------------------------
-option (SEM2D "SEM-proxy 2D or 3D case" OFF)
-
-#---------------------------------------------------------
-# Option to use coloring scheme to avoid atomic operations
-#---------------------------------------------------------
-option (SEM_MESHCOLOR "use coloring scheme" OFF)
-
 #---------------------------------------------------------
 # Option to use hierarchical parallelism in Kokkos
 #---------------------------------------------------------

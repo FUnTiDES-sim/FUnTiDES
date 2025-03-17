@@ -25,20 +25,14 @@
         vectorIntView rhsElement=RHS_Element.toView(); \
         vectorRealView massMatrixGlobal=this->massMatrixGlobal.toView(); \
         vectorRealView yGlobal=this->yGlobal.toView(); \
-        vectorRealView ShGlobal=this->ShGlobal.toView(); \
         arrayIntView globalNodesList=this->globalNodesList.toView(); \
         vectorRealView model=this->model.toView(); \
         vectorIntView listOfInteriorNodes=this->listOfInteriorNodes.toView(); \
-        vectorIntView listOfBoundaryNodes=this->listOfBoundaryNodes.toView(); \
-        arrayIntView faceInfos=this->faceInfos.toView(); \
-        arrayIntView localFaceNodeToGlobalFaceNode=this->localFaceNodeToGlobalFaceNode.toView(); \
         vectorDoubleView weights=this->weights.toView(); \
-        arrayRealView globalNodesCoords=this->globalNodesCoords.toView(); \
         arrayRealView globalNodesCoordsX=this->globalNodesCoordsX.toView(); \
         arrayRealView globalNodesCoordsY=this->globalNodesCoordsY.toView(); \
         arrayRealView globalNodesCoordsZ=this->globalNodesCoordsZ.toView(); \
-        arrayDoubleView derivativeBasisFunction1D=this->derivativeBasisFunction1D.toView(); \
-        arrayIntView listOfElementsByColor=this->listOfElementsByColor.toView();
+        arrayDoubleView derivativeBasisFunction1D=this->derivativeBasisFunction1D.toView(); 
 #else
 #define CREATEVIEWS
 #define RHS_Term rhsTerm

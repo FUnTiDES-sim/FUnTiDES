@@ -25,6 +25,16 @@ using namespace shiva::discretizations::finiteElementMethod;
 
 using namespace std;
 
+/* @brief Helper function for static for loop
+ * @tparam FUNC the callback function
+ * @tparam ...Is integer indices of the loop
+*/
+template < typename FUNC, int... Is >
+static constexpr void loop( FUNC && func, std::integer_sequence< int, Is... > )
+{
+   ( func( std::integral_constant< int, Is >{} ), ... );
+}
+
 /**
  * This class is the basis class for the hexahedron finite element cells with shape functions defined on Gauss-Lobatto quadrature points.
  */
@@ -140,64 +150,52 @@ public:
       symMatrix[4]=temp[4];
       symMatrix[5]=temp[5];
   }
+
+
   
-  template<int ORDER, typename FUNC>
+  template<int ORDER, int qa, int qb,  int qc, typename FUNC>
   PROXY_HOST_DEVICE
   void computeGradPhiBGradPhi( const int e,
-		               auto const icqa,
-                               auto const icqb,
-                               auto const icqc,
                                double const (&B)[6],
                                FUNC && func ) const
   {
-     constexpr int qa = decltype(icqa)::value;
-     constexpr int qb = decltype(icqb)::value;
-     constexpr int qc = decltype(icqc)::value;
-     constexpr double qcoords[3] = { quadrature::template coordinate<qa>(),
-                                     quadrature::template coordinate<qb>(),
-                                     quadrature::template coordinate<qc>() };
-     const double w = GLQ.weight(qa )*GLQ.weight(qb )*GLQ.weight(qc );
-     for( int i=0; i<ORDER+1; i++ )
+     constexpr double w = GLQ.weight(qa )*GLQ.weight(qb )*GLQ.weight(qc );
+     loop( [&] (auto const i)
      {
-       const int ibc = linearIndex( ORDER,i, qb, qc );
-       const int aic = linearIndex( ORDER,qa, i, qc );
-       const int abi = linearIndex( ORDER,qa, qb, i );
-       //const double gia = basisFunction::template gradient<qa>(qcoords[0]);
-       //const double gib = basisFunction::template gradient<qb>(qcoords[0]);
-       //const double gic = basisFunction::template gradient<qc>(qcoords[0]);
-       const double gia = SEMQkGLBasisFunctions::basisGradientAt(ORDER, i, qa );
-       const double gib = SEMQkGLBasisFunctions::basisGradientAt(ORDER, i, qb );
-       const double gic = SEMQkGLBasisFunctions::basisGradientAt(ORDER, i, qc );
-       for( int j=0; j<ORDER+1; j++ )
+       constexpr int ibc = linearIndex( ORDER,i, qb, qc );
+       constexpr int aic = linearIndex( ORDER,qa, i, qc );
+       constexpr int abi = linearIndex( ORDER,qa, qb, i );
+       constexpr double gia = SEMQkGLBasisFunctions::basisGradientAt(i, qa );
+       constexpr double gib = SEMQkGLBasisFunctions::basisGradientAt(i, qb );
+       constexpr double gic = SEMQkGLBasisFunctions::basisGradientAt(i, qc );
+       loop( [&] (auto const j)
        {
-         const int jbc = linearIndex( ORDER,j, qb, qc );
-         const int ajc = linearIndex( ORDER,qa, j, qc );
-         const int abj = linearIndex( ORDER,qa, qb, j );
-         //const double gja = basisFunction::template gradient<qa>(qcoords[0]);
-         //const double gjb = basisFunction::template gradient<qb>(qcoords[0]);
-         //const double gjc = basisFunction::template gradient<qc>(qcoords[0]);
-         const double gja = SEMQkGLBasisFunctions::basisGradientAt(ORDER, j, qa );
-         const double gjb = SEMQkGLBasisFunctions::basisGradientAt(ORDER, j, qb );
-         const double gjc = SEMQkGLBasisFunctions::basisGradientAt(ORDER, j, qc );
+
+         constexpr int jbc = linearIndex( ORDER,j, qb, qc );
+         constexpr int ajc = linearIndex( ORDER,qa, j, qc );
+         constexpr int abj = linearIndex( ORDER,qa, qb, j );
+         constexpr double gja = SEMQkGLBasisFunctions::basisGradientAt(j, qa );
+         constexpr double gjb = SEMQkGLBasisFunctions::basisGradientAt(j, qb );
+         constexpr double gjc = SEMQkGLBasisFunctions::basisGradientAt(j, qc );
          // diagonal terms
-         const double w0 = w * gia * gja;
+         constexpr double w0 = w * gia * gja;
          func( ibc, jbc, w0 * B[0] );
-         const double w1 = w * gib * gjb;
+         constexpr double w1 = w * gib * gjb;
          func( aic, ajc, w1 * B[1] );
-         const double w2 = w * gic * gjc;
+         constexpr double w2 = w * gic * gjc;
          func( abi, abj, w2 * B[2] );
          // off-diagonal terms
-         const double w3 = w * gib * gjc;
+         constexpr double w3 = w * gib * gjc;
          func( aic, abj, w3 * B[3] );
          func( abj, aic, w3 * B[3] );
-         const double w4 = w * gia * gjc;
+         constexpr double w4 = w * gia * gjc;
          func( ibc, abj, w4 * B[4] );
          func( abj, ibc, w4 * B[4] );
-         const double w5 = w * gia * gjb;
+         constexpr double w5 = w * gia * gjb;
          func( ibc, ajc, w5 * B[5] );
          func( ajc, ibc, w5 * B[5] );
-       }
-     }
+       },std::make_integer_sequence<int,ORDER+1>{});
+     },std::make_integer_sequence<int,ORDER+1>{});
   }
   
   template<int ORDER,typename FUNC>
@@ -262,7 +260,7 @@ public:
           symInvert0( B );
 
           // compute gradPhiI*B*gradPhiJ and stiffness vector
-          computeGradPhiBGradPhi<ORDER>(e, icqa, icqb, icqc,B, func);
+          computeGradPhiBGradPhi<ORDER,qa,qb,qc>(e,B, func);
       });
   }
 
