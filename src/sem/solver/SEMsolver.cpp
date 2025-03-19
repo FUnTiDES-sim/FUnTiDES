@@ -28,6 +28,10 @@ void SEMsolver::computeOneStep( const int & timeSample,
                                 arrayReal const & PN_Global,
                                 const vectorInt & RHS_Element )
 {
+#ifdef USE_CALIPER
+    CALI_CXX_MARK_FUNCTION;
+#endif
+
   CREATEVIEWS
 
   LOOPHEAD( myInfo.numberOfNodes, i )
@@ -35,13 +39,19 @@ void SEMsolver::computeOneStep( const int & timeSample,
   yGlobal[i]=0;
   LOOPEND
 
+#ifdef USE_CALIPER
+  CALI_MARK_BEGIN("Step Update NodeRHS");
+#endif
   // update pnGLobal with right hade side
   LOOPHEAD( myInfo.myNumberOfRHS, i )
   int nodeRHS=globalNodesList( rhsElement[i], 0 );
   pnGlobal( nodeRHS, i2 )+=myInfo.myTimeStep*myInfo.myTimeStep*model[rhsElement[i]]
                           *model[rhsElement[i]]*rhsTerm( i, timeSample );
   LOOPEND
-
+#ifdef USE_CALIPER
+  CALI_MARK_END("Step Update NodeRHS");
+  CALI_MARK_BEGIN("Step Main Loop");
+#endif
   // start main parallel section
   MAINLOOPHEAD( myInfo.numberOfElements, elementNumber )
 
@@ -95,12 +105,22 @@ void SEMsolver::computeOneStep( const int & timeSample,
   }
   MAINLOOPEND
 
+#ifdef USE_CALIPER
+  CALI_MARK_END("Step Main Loop");
+  CALI_MARK_BEGIN("pressureloop");
+#endif // USE_CALIPER
+
   // update pressure
   LOOPHEAD( myInfo.numberOfInteriorNodes, i )
   int I=listOfInteriorNodes[i];
   pnGlobal( I, i1 )=2*pnGlobal( I, i2 )-pnGlobal( I, i1 )
                    -myInfo.myTimeStep*myInfo.myTimeStep*yGlobal[I]/massMatrixGlobal[I];
   LOOPEND
+    
+#ifdef USE_CALIPER
+  CALI_MARK_END("pressureloop");
+#endif // USE_CALIPER
+
 
   FENCE
 }

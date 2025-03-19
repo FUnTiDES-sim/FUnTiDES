@@ -14,6 +14,9 @@
 #include "SEMQkGLBasisFunctions.hpp"
 #include "SEMQkGLIntegrals.hpp"
 #include "SEMmesh.hpp"
+#ifdef USE_CALIPER
+#include <caliper/cali.h>
+#endif
 
 class SEMsolver
 {

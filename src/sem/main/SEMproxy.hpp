@@ -10,6 +10,9 @@
 
 #include "SEMsolver.hpp"
 #include "utils.hpp"
+#ifdef USE_CALIPER
+#include <caliper/cali.h>
+#endif
 
 /**
  * @class SEMproxy
