@@ -19,6 +19,8 @@ option (ARM "ARM aarch64 architecture: e.g. grace CPU" OFF)
 #-----------------------------------------------------
 # Setup the flags for users to select programming models
 #-----------------------------------------------------
+# use of Caliper to instrument code
+option (USE_CALIPER "Use Caliper instrumentation" OFF)
 
 # use OMP to parallelise loops
 option (USE_OMP "Use OpenMP to parallelise loops" OFF)

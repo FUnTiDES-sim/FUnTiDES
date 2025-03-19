@@ -5,7 +5,9 @@
 //************************************************************************
 
 #include "SEMproxy.hpp"
-
+#ifdef USE_CALIPER
+#include <caliper/cali.h>
+#endif
 
 int main( int argc, char *argv[] )
 {
@@ -13,9 +15,14 @@ int main( int argc, char *argv[] )
   time_point< system_clock > startInitTime = system_clock::now();
 
   #ifdef USE_KOKKOS
+  cout << "Using Kokkos" << endl;
   Kokkos::initialize( argc, argv );
   {
   #endif
+    
+#ifdef USE_CALIPER
+    CALI_CXX_MARK_FUNCTION;
+#endif
 
   cout << "\n+================================= "<< endl;
   cout << "| Initializing SEM Application ... "<< endl;
@@ -46,6 +53,6 @@ int main( int argc, char *argv[] )
   Kokkos::finalize();
   #endif
 
-  cout << "Elapsed TotalExe Time : "<<( system_clock::now()-startInitTime).count()/1E9 <<" seconds.\n"<< endl;
+  cout << "Elapsed TotalExe Time : "<<( system_clock::now()-startInitTime).count()/1E9 <<" seconds.\n"<< endl;  
   return (0);
 }

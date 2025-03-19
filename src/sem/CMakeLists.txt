@@ -42,4 +42,3 @@ target_include_directories( ${SEM_EXECUTABLE} PUBLIC
 
 install(TARGETS ${SEM_EXECUTABLE}
         RUNTIME DESTINATION bin)
-
