@@ -9,6 +9,7 @@
 
 SEMproxy::SEMproxy(int argc, char *argv[])
 {
+  argc = 0; // temporary hack to deactivate option 
   int ex = (argc > 1)? std::stoi(argv[1]) : 100; 
   int ey = ex;
   int ez = ex;

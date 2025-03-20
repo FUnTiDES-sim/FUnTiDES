@@ -11,4 +11,4 @@ export KOKKOS_INCLUDE_DIR=$kokkos_install_dir/include
 
 export SHIVA_DIR=/home/henri/src/proxyApp/buildInstall/installShiva
 
-export CALIPER_DIR=/home/alexis/install/tplprox/caliper
+export CALIPER_DIR=/home/alexis/install/caliper
