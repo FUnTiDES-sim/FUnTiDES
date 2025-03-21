@@ -40,7 +40,7 @@ void SEMsolver::computeOneStep( const int & timeSample,
   LOOPEND
 
 #ifdef USE_CALIPER
-  CALI_MARK_BEGIN("Step Update NodeRHS");
+  CALI_MARK_BEGIN("updateNodeRHS");
 #endif
   // update pnGLobal with right hade side
   LOOPHEAD( myInfo.myNumberOfRHS, i )
@@ -49,8 +49,8 @@ void SEMsolver::computeOneStep( const int & timeSample,
                           *model[rhsElement[i]]*rhsTerm( i, timeSample );
   LOOPEND
 #ifdef USE_CALIPER
-  CALI_MARK_END("Step Update NodeRHS");
-  CALI_MARK_BEGIN("Step Main Loop");
+  CALI_MARK_END("updateNodeRHS");
+  CALI_MARK_BEGIN("mainloop");
 #endif
   // start main parallel section
   MAINLOOPHEAD( myInfo.numberOfElements, elementNumber )
@@ -66,6 +66,7 @@ void SEMsolver::computeOneStep( const int & timeSample,
     int localToGlobal=globalNodesList( elementNumber, i );
     pnLocal[i]=pnGlobal( localToGlobal, i2 );
   }
+
 
 #ifdef USE_SEMCLASSIC
   myQkIntegrals.computeMassMatrixAndStiffnessVector(elementNumber,order,nPointsPerElement,
@@ -93,7 +94,6 @@ void SEMsolver::computeOneStep( const int & timeSample,
                                            massMatrixLocal, pnLocal, Y);
 #endif
 
-
   //compute global mass Matrix and global stiffness vector
   for( int i=0; i<nPointsPerElement; i++ )
   {
@@ -106,7 +106,7 @@ void SEMsolver::computeOneStep( const int & timeSample,
   MAINLOOPEND
 
 #ifdef USE_CALIPER
-  CALI_MARK_END("Step Main Loop");
+  CALI_MARK_END("mainloop");
   CALI_MARK_BEGIN("pressureloop");
 #endif // USE_CALIPER
 
