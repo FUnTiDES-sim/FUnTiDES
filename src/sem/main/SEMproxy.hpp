@@ -55,14 +55,14 @@ public:
   // get information from mesh
   void getMeshInfo();
 
-
+  SEMmesh myMesh;
+  
 private:
 
   int i1=0;
   int i2=1;
 
   SEMinfo myInfo;
-  SEMmesh myMesh;
 
   SEMsolver mySolver;
   SolverUtils myUtils;

@@ -383,8 +383,12 @@ elseif(EXISTS $ENV{EASYPAP_DIR}/lib/cmake/Easypap/ezvConfig.cmake)
     message("-- EZV founded at $ENV{EASYPAP_DIR}")
     message(STATUS "EZV Include Dirs: ${EZV_INCLUDE_DIRS}")
     message(STATUS "EZV Libraries: ${EZV_LIBRARIES}")
+    # SDL 2 configuration
+    message("-- SLD2 must be installed for EZV.")
+    find_package(SDL2 REQUIRED)
+    include_directories(${SDL2_INCLUDE_DIRS})
 
-    # Register Caliper with BLT (if using BLT)
+    # Register EZM with BLT (if using BLT)
     blt_register_library(
 	NAME ezv
 	INCLUDES ${EZV_INCLUDE_DIRS}
@@ -392,6 +396,13 @@ elseif(EXISTS $ENV{EASYPAP_DIR}/lib/cmake/Easypap/ezvConfig.cmake)
     )
     set (dependencyList ${dependencyList} ezv)
     add_definitions(-DUSE_EZV)
+    # Register SDL2 with BLT (if using BLT)
+    blt_register_library(
+	NAME sdl2
+	INCLUDES ${SDL2_INCLUDE_DIRS}
+	LIBRARIES ${SDL2_LIBRARIES}
+    )
+    set (dependencyList ${dependencyList} sdl2)
 elseif(NOT DEFINED $ENV{EASYPAP_DIR})
     message("-- USE_EZV is enabled but EASYPAP_DIR is not defined.")
     set(USE_EZV OFF CACHE BOOL "")
