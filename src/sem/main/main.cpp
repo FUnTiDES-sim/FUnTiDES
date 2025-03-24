@@ -8,6 +8,7 @@
 #ifdef USE_CALIPER
 #include <caliper/cali-manager.h>
 #include <caliper/cali.h>
+#include <string>
 #endif // USE_CALIPER
 #ifdef USE_EZV
 #include <ezv/ezv.h>
@@ -24,9 +25,11 @@ int main(int argc, char *argv[]) {
 #endif
 
 #ifdef USE_CALIPER
+    // Defines CALIPER configuration with cmdline arguments
+    // Sets -P option to choose caliper outputs
     cali::ConfigManager mgr;
 
-    char* cali_configuration;
+    std::string cali_configuration;
     if (cmdOptionExists(argv, argv + argc, "-P")) {
       cali_configuration = getCmdOption(argv, argc+argv, "-P");
     }
@@ -34,7 +37,7 @@ int main(int argc, char *argv[]) {
       cali_configuration = "runtime-report";
     }
 
-    mgr.add(cali_configuration);
+    mgr.add(cali_configuration.c_str());
     if (mgr.error()) {
       std::cerr << "Config error: " << mgr.error_msg() << std::endl;
     }
@@ -43,7 +46,7 @@ int main(int argc, char *argv[]) {
     }
     mgr.start();
     CALI_CXX_MARK_FUNCTION;
-#endif
+#endif // USE_CALIPER
 
     cout << "\n+================================= " << endl;
     cout << "| Initializing SEM Application ... " << endl;
