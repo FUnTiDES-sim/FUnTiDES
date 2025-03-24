@@ -22,6 +22,7 @@ message ( "---------------------------------------------------------------------
 set (sem_sources
      mesh/SEMmesh.cpp
      solver/SEMsolver.cpp
+     main/argsparse.cpp
      main/SEMproxy.cpp
      main/main.cpp)
 

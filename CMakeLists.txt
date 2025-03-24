@@ -22,6 +22,10 @@ option (ARM "ARM aarch64 architecture: e.g. grace CPU" OFF)
 # use of Caliper to instrument code
 option (USE_CALIPER "Use Caliper instrumentation" OFF)
 
+# use of EZV to instrument code
+option (USE_EZV "Use EZV instrumentation" OFF)
+
+
 # use OMP to parallelise loops
 option (USE_OMP "Use OpenMP to parallelise loops" OFF)
 
