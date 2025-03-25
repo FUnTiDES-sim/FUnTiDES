@@ -8,4 +8,5 @@
 *~
 #*
 compile_commands.json
-src/LvArray
+src/LvArra*
+.cache
