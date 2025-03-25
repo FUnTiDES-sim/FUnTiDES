@@ -5,16 +5,16 @@
 //************************************************************************
 
 #include "SEMproxy.hpp"
-#ifdef USE_CALIPER
-#include <caliper/cali-manager.h>
-#include <caliper/cali.h>
-#include <string>
-#endif // USE_CALIPER
 #ifdef USE_EZV
 #include <ezv/ezv.h>
 #include <ezv/ezv_event.h>
 #include <vector>
 #endif // USE_EZV
+
+#ifdef USE_CALIPER
+#include "caliperUtils.hpp"
+#include <caliper/cali-manager.h>
+#endif // USE_CALIPER
 
 #ifdef USE_EZV
 const unsigned int SCR_WIDTH = 1024;
@@ -28,27 +28,24 @@ static ezv_ctx_t ctx[2] = {NULL, NULL};
 static unsigned nb_ctx = 1;
 static int hud = -1;
 
-
-static void do_pick (void)
-{
-  int p = ezv_perform_1D_picking (ctx, nb_ctx);
+static void do_pick(void) {
+  int p = ezv_perform_1D_picking(ctx, nb_ctx);
   if (p == -1)
-    ezv_hud_off (ctx[0], hud);
+    ezv_hud_off(ctx[0], hud);
   else {
-    ezv_hud_on (ctx[0], hud);
-    ezv_hud_set (ctx[0], hud, "Cell: %d", p);
+    ezv_hud_on(ctx[0], hud);
+    ezv_hud_set(ctx[0], hud, "Cell: %d", p);
   }
 }
 
-static void process_events (void)
-{
+static void process_events(void) {
   SDL_Event event;
-  int r = ezv_get_event (&event, 1);
+  int r = ezv_get_event(&event, 1);
   if (r > 0) {
     int pick;
-    ezv_process_event (ctx, nb_ctx, &event, NULL, &pick);
+    ezv_process_event(ctx, nb_ctx, &event, NULL, &pick);
     if (pick)
-      do_pick ();
+      do_pick();
   }
 }
 
@@ -164,25 +161,8 @@ int main(int argc, char *argv[]) {
 #endif
 
 #ifdef USE_CALIPER
-    // Defines CALIPER configuration with cmdline arguments
-    // Sets -P option to choose caliper outputs
     cali::ConfigManager mgr;
-
-    std::string cali_configuration;
-    if (cmdOptionExists(argv, argv + argc, "-P")) {
-      cali_configuration = getCmdOption(argv, argc + argv, "-P");
-    } else {
-      cali_configuration = "runtime-report";
-    }
-
-    mgr.add(cali_configuration.c_str());
-    if (mgr.error()) {
-      std::cerr << "Config error: " << mgr.error_msg() << std::endl;
-    } else {
-      std::cout << "Starting Caliper with option set at: " << cali_configuration
-                << std::endl;
-    }
-    mgr.start();
+    int caliperInitRet = launch_caliper_ctx(argc, argv, mgr);
     CALI_CXX_MARK_FUNCTION;
 #endif // USE_CALIPER
 
