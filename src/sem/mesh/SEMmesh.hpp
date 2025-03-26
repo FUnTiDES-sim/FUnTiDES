@@ -57,6 +57,16 @@ public:
   //get Dz
   int getDz() const;
 
+  // getter for ex
+  int getEx()const;
+
+  // getter for ey
+  int getEy() const;
+
+  // getter for ez
+  int getEz() const;
+
+
   //get coord in one direction
   vector< float > getCoordInOneDirection( const int & order, const int & nCoord, const int & h, const int & nElement ) const;
 

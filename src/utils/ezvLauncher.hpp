@@ -16,13 +16,12 @@ static ezv_ctx_t ctx[2] = {NULL, NULL};
 static unsigned nb_ctx = 1;
 static int hud = -1;
 
-
 /**
  * @brief Handles the pick operation.
- * 
- * This function performs a 1D picking operation using `ezv_perform_1D_picking`. If the 
- * picking operation returns `-1`, it turns off the HUD display. Otherwise, it turns on 
- * the HUD and displays the picked cell's ID.
+ *
+ * This function performs a 1D picking operation using `ezv_perform_1D_picking`.
+ * If the picking operation returns `-1`, it turns off the HUD display.
+ * Otherwise, it turns on the HUD and displays the picked cell's ID.
  */
 static void do_pick(void) {
   int p = ezv_perform_1D_picking(ctx, nb_ctx);
@@ -30,16 +29,16 @@ static void do_pick(void) {
     ezv_hud_off(ctx[0], hud);
   else {
     ezv_hud_on(ctx[0], hud);
-    ezv_hud_set(ctx[0], hud, "Cell: %d", p);
+    ezv_hud_set(ctx[0], hud, const_cast<char *>("Cell: %d"), p);
   }
 }
 
 /**
  * @brief Processes events from the event queue.
- * 
- * This function retrieves events from the event queue and processes them using 
- * `ezv_process_event`. If a pick event is detected, it calls the `do_pick` function 
- * to handle the pick operation.
+ *
+ * This function retrieves events from the event queue and processes them using
+ * `ezv_process_event`. If a pick event is detected, it calls the `do_pick`
+ * function to handle the pick operation.
  */
 static void process_events(void) {
   SDL_Event event;
@@ -74,6 +73,12 @@ struct Vec3 {
    */
   bool operator==(const Vec3 &other) const {
     return x == other.x && y == other.y && z == other.z;
+  }
+
+  // Opérateur de sortie pour std::cout
+  friend std::ostream &operator<<(std::ostream &os, const Vec3 &v) {
+    os << "(" << v.x << ", " << v.y << ", " << v.z << ")";
+    return os;
   }
 };
 
@@ -135,6 +140,24 @@ static int add_triangle(mesh3d_obj_t *mesh, unsigned v1, unsigned v2,
   return nbt++;
 }
 
+// static void mesh3d_form_cells(mesh3d_obj_t *mesh, unsigned group_size) {
+//   unsigned indt = 0;
+//   unsigned c;
+
+//   if (mesh->triangle_info == NULL) {
+//     printf("Lazy alloc!\n");
+//     mesh->triangle_info = (unsigned*)calloc(mesh->nb_triangles,
+//     sizeof(unsigned));
+//   }
+//   for (c = 0; c < mesh->nb_cells; c++) {
+//     mesh->cells[c] = indt;
+//     for (int g = 0; g < group_size; g++)
+//       mesh->triangle_info[indt++] |= (c << CELLNO_SHIFT);
+//   }
+//   // extra cell
+//   mesh->cells[c] = indt;
+// }
+
 /**
  * @brief Convert SEMmesh surfacic mesh into an EZV-compatible mesh.
  *
@@ -152,22 +175,27 @@ static int add_triangle(mesh3d_obj_t *mesh, unsigned v1, unsigned v2,
 void convertSEMToMesh3D(const SEMmesh &mesh, mesh3d_obj_t *mesh3d) {
   vector<Vec3> vertices;
   unordered_map<Vec3, int> vertexIndex; // Map to store unique vertices
-  int nx = mesh.getNx(), ny = mesh.getNy(), nz = mesh.getNz();
+  int ex = mesh.getEx(), ey = mesh.getEy(), ez = mesh.getEz();
   float hx = mesh.getDx(), hy = mesh.getDy(), hz = mesh.getDz();
 
   // initial parameters
-  mesh3d->nb_vertices = nx * ny * nz * 8;
-  mesh3d->vertices = (float *)malloc(mesh3d->nb_vertices * 3 * sizeof(float));
-  mesh3d->nb_triangles = nx * ny * nz * 12;
+  mesh3d->nb_vertices = (ex + 1) * (ey + 1) * (ez + 1);
+  mesh3d->vertices = (float *)malloc(mesh3d->nb_vertices * sizeof(float) * 3);
+  mesh3d->nb_triangles = ex * ey * ez * 12; // TODO: Avoid duplicates here
   mesh3d->triangles =
       (unsigned int *)malloc(mesh3d->nb_triangles * 3 * sizeof(unsigned));
   mesh3d->triangle_info =
       (unsigned int *)calloc(mesh3d->nb_triangles, sizeof(unsigned));
+  mesh3d->nb_cells = mesh.getNumberOfElements();
+  mesh3d->cells = (unsigned *)malloc((mesh3d->nb_cells + 1) * sizeof(unsigned));
 
+  int elem_id = 0;
   // Iterate over all elements
-  for (int i = 0; i < nx - 1; i++) {
-    for (int j = 0; j < ny - 1; j++) {
-      for (int k = 0; k < nz - 1; k++) {
+  for (int i = 0; i < ex; i++) {
+    for (int j = 0; j < ey; j++) {
+      for (int k = 0; k < ez; k++) {
+        // std::cout << "=============================" << std::endl;
+        // std::cout << "Creating element " << elem_id << std::endl;
         // Define the 8 vertices of the cube
         Vec3 cubeVertices[8] = {{i * hx, j * hy, k * hz},
                                 {(i + 1) * hx, j * hy, k * hz},
@@ -177,6 +205,9 @@ void convertSEMToMesh3D(const SEMmesh &mesh, mesh3d_obj_t *mesh3d) {
                                 {(i + 1) * hx, j * hy, (k + 1) * hz},
                                 {(i + 1) * hx, (j + 1) * hy, (k + 1) * hz},
                                 {i * hx, (j + 1) * hy, (k + 1) * hz}};
+        // for (int cvidx = 0; cvidx < 8; cvidx++)
+        //   std::cout << "Vertice " << cvidx << " is " << cubeVertices[cvidx]
+        //             << std::endl;
 
         int vertexIndices[8];
 
@@ -207,12 +238,24 @@ void convertSEMToMesh3D(const SEMmesh &mesh, mesh3d_obj_t *mesh3d) {
             {vertexIndices[4], vertexIndices[1], vertexIndices[0]}};
 
         // Append triangles to the mesh
+        // Add cell for this element
+        // if (elem_id > mesh3d->nb_cells) std::cerr << "oh no1." << std::endl;
+        mesh3d->cells[elem_id] = elem_id * 12;
         for (int t = 0; t < 12; t++) {
+          int triangle_idx = t + 12 * elem_id;
+          mesh3d->triangle_info[triangle_idx] |= (elem_id << CELLNO_SHIFT);
           add_triangle(mesh3d, faces[t][0], faces[t][1], faces[t][2]);
         }
+
+        elem_id++;
+        // std::cout << "=============================" << std::endl;
       }
     }
   }
+  std::cout << "Created " << vertices.size() << " vertices while "
+            << (ex + 1) * (ey + 1) * (ez + 1) << " where expected."
+            << std::endl;
+  mesh3d->cells[elem_id] = ++elem_id * 12;
 }
 
 /**
