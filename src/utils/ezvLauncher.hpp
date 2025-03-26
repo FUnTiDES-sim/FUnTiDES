@@ -16,6 +16,14 @@ static ezv_ctx_t ctx[2] = {NULL, NULL};
 static unsigned nb_ctx = 1;
 static int hud = -1;
 
+
+/**
+ * @brief Handles the pick operation.
+ * 
+ * This function performs a 1D picking operation using `ezv_perform_1D_picking`. If the 
+ * picking operation returns `-1`, it turns off the HUD display. Otherwise, it turns on 
+ * the HUD and displays the picked cell's ID.
+ */
 static void do_pick(void) {
   int p = ezv_perform_1D_picking(ctx, nb_ctx);
   if (p == -1)
@@ -26,6 +34,13 @@ static void do_pick(void) {
   }
 }
 
+/**
+ * @brief Processes events from the event queue.
+ * 
+ * This function retrieves events from the event queue and processes them using 
+ * `ezv_process_event`. If a pick event is detected, it calls the `do_pick` function 
+ * to handle the pick operation.
+ */
 static void process_events(void) {
   SDL_Event event;
   int r = ezv_get_event(&event, 1);
@@ -37,13 +52,42 @@ static void process_events(void) {
   }
 }
 
+/**
+ * @brief Structure representing a 3D vector.
+ *
+ * This structure is used to represent a 3D vector with `x`, `y`, and `z`
+ * coordinates.
+ */
 struct Vec3 {
   float x, y, z;
+
+  /**
+   * @brief Compares two Vec3 objects for equality.
+   *
+   * This operator compares the `x`, `y`, and `z` coordinates of two `Vec3`
+   * objects and returns `true` if all the coordinates are equal, `false`
+   * otherwise.
+   *
+   * @param other The `Vec3` object to compare with.
+   *
+   * @return `true` if the vectors are equal, `false` otherwise.
+   */
   bool operator==(const Vec3 &other) const {
     return x == other.x && y == other.y && z == other.z;
   }
 };
 
+/**
+ * @brief Specialization of the hash function for Vec3 to store unique vertices.
+ *
+ * This specialization of the `std::hash` template allows the usage of `Vec3` as
+ * a key in unordered containers by generating a unique hash value based on the
+ * coordinates (x, y, z) of the `Vec3` object.
+ *
+ * @param v The Vec3 object to hash.
+ *
+ * @return A hash value representing the Vec3 object.
+ */
 // Hash function for Vec3 to store unique vertices
 namespace std {
 template <> struct hash<Vec3> {
@@ -53,6 +97,19 @@ template <> struct hash<Vec3> {
 };
 } // namespace std
 
+/**
+ * @brief Adds a vertex to the EZV mesh.
+ *
+ * This function adds a vertex with the given coordinates (x, y, z) to the
+ * mesh's vertex list.
+ *
+ * @param mesh Pointer to the mesh3d object where the vertex will be added.
+ * @param x The x-coordinate of the vertex.
+ * @param y The y-coordinate of the vertex.
+ * @param z The z-coordinate of the vertex.
+ *
+ * @return The number of vertices in the mesh after the addition.
+ */
 static int add_vertice(mesh3d_obj_t *mesh, float x, float y, float z) {
   mesh->vertices[vi++] = x;
   mesh->vertices[vi++] = y;
@@ -60,6 +117,16 @@ static int add_vertice(mesh3d_obj_t *mesh, float x, float y, float z) {
   return nbv++;
 }
 
+/**
+ * @brief Adds a triangle to the EZV mesh.
+ *
+ * @param mesh Pointer to the mesh3d object where the triangle will be added.
+ * @param v1 Index of the first vertex of the triangle.
+ * @param v2 Index of the second vertex of the triangle.
+ * @param v3 Index of the third vertex of the triangle.
+ *
+ * @return The number of triangles in the mesh after the addition.
+ */
 static int add_triangle(mesh3d_obj_t *mesh, unsigned v1, unsigned v2,
                         unsigned v3) {
   mesh->triangles[ti++] = v1;
@@ -68,12 +135,27 @@ static int add_triangle(mesh3d_obj_t *mesh, unsigned v1, unsigned v2,
   return nbt++;
 }
 
-void convertSEMToMesh3D(const SEMmesh &mesh, mesh3d_obj_t *mesh3d,
-                        vector<Vec3> &vertices, vector<int> &triangles) {
+/**
+ * @brief Convert SEMmesh surfacic mesh into an EZV-compatible mesh.
+ *
+ * Takes a SEMmesh and converts all its hexahedral elements into 12 unique
+ * triangles, 2 per face. For each element of SEMmesh, it creates 8 unique
+ * vertices, then uses a hash table to avoid duplicates (shared nodes).
+ *
+ * TODO: An optimization could be to avoid using a hash table and compute
+ * boundary elements separately. This should allow for greater parallelism
+ * opportunities.
+ *
+ * @param mesh SEMmesh mesh to convert
+ * @param mesh3d EZV mesh output
+ */
+void convertSEMToMesh3D(const SEMmesh &mesh, mesh3d_obj_t *mesh3d) {
+  vector<Vec3> vertices;
   unordered_map<Vec3, int> vertexIndex; // Map to store unique vertices
   int nx = mesh.getNx(), ny = mesh.getNy(), nz = mesh.getNz();
   float hx = mesh.getDx(), hy = mesh.getDy(), hz = mesh.getDz();
 
+  // initial parameters
   mesh3d->nb_vertices = nx * ny * nz * 8;
   mesh3d->vertices = (float *)malloc(mesh3d->nb_vertices * 3 * sizeof(float));
   mesh3d->nb_triangles = nx * ny * nz * 12;
@@ -124,18 +206,22 @@ void convertSEMToMesh3D(const SEMmesh &mesh, mesh3d_obj_t *mesh3d,
             {vertexIndices[4], vertexIndices[5], vertexIndices[1]},
             {vertexIndices[4], vertexIndices[1], vertexIndices[0]}};
 
-        // Append triangles to the list
+        // Append triangles to the mesh
         for (int t = 0; t < 12; t++) {
-          triangles.push_back(faces[t][0]);
-          triangles.push_back(faces[t][1]);
-          triangles.push_back(faces[t][2]);
-
           add_triangle(mesh3d, faces[t][0], faces[t][1], faces[t][2]);
         }
       }
     }
   }
 }
+
+/**
+ * @brief Initialize EZV, convert simulation mesh to ezv compatible mesh then
+ * open SDL window displaying it.
+ *
+ * @param semsim SEMsim object containing the simulation mesh in SEMmesh format.
+ * @param mesh New EZV mesh to display.
+ */
 
 inline void init_ezv(SEMproxy &semsim, mesh3d_obj_t mesh) {
   cout << "Initialize ezv and its mesh." << endl;
@@ -144,7 +230,7 @@ inline void init_ezv(SEMproxy &semsim, mesh3d_obj_t mesh) {
   // mesh3d_obj_build_torus_volume(&mesh, 32, 16, 16);
   std::vector<Vec3> vertices;
   std::vector<int> triangles;
-  convertSEMToMesh3D(semsim.myMesh, &mesh, vertices, triangles);
+  convertSEMToMesh3D(semsim.myMesh, &mesh);
 
   // Create SDL windows and initialize OpenGL context
   ctx[0] =
