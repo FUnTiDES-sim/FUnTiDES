@@ -13,11 +13,42 @@
 
 #ifdef USE_EZV
 #include "ezvLauncher.hpp"
+#include <thread>
 #endif // USE_EZV
+
+time_point<system_clock> startInitTime;
+
+void compute(SEMproxy &semsim) {
+  cout << "\n+================================= " << endl;
+  cout << "| Running SEM Application ...      " << endl;
+  cout << "+================================= \n" << endl;
+
+  // start timer
+  time_point<system_clock> startRunTime = system_clock::now();
+  semsim.run();
+
+  cout << "\n+================================= " << endl;
+  cout << "| SEM Application Finished.       " << endl;
+  cout << "+================================= \n" << endl;
+
+  // print timing information
+  cout << "Elapsed Initial Time : "
+       << (startRunTime - startInitTime).count() / 1E9 << " seconds." << endl;
+  cout << "Elapsed Compute Time : "
+       << (system_clock::now() - startRunTime).count() / 1E9 << " seconds."
+       << endl;
+};
+
+void compute_loop(SEMproxy semsim) { compute(semsim); }
 
 int main(int argc, char *argv[]) {
 
-  time_point<system_clock> startInitTime = system_clock::now();
+  startInitTime = system_clock::now();
+
+#ifdef USE_EZV
+  static mesh3d_obj_t mesh;
+  init_ezv();
+#endif // USE_EZV
 
 #ifdef USE_KOKKOS
   cout << "Using Kokkos" << endl;
@@ -37,31 +68,18 @@ int main(int argc, char *argv[]) {
 
     SEMproxy semsim(argc, argv);
 
-#ifdef USE_EZV
-    static mesh3d_obj_t mesh;
-    init_ezv(semsim, mesh);
-#endif // USE_EZV
-
     semsim.initFiniteElem();
 
-    cout << "\n+================================= " << endl;
-    cout << "| Running SEM Application ...      " << endl;
-    cout << "+================================= \n" << endl;
+#ifdef USE_EZV
+    ezv_init_mesh(semsim, &mesh);
+    std::thread compute_thread(compute_loop, semsim);
+    ezv_loop();
 
-    // start timer
-    time_point<system_clock> startRunTime = system_clock::now();
-    semsim.run();
-
-    cout << "\n+================================= " << endl;
-    cout << "| SEM Application Finished.       " << endl;
-    cout << "+================================= \n" << endl;
-
-    // print timing information
-    cout << "Elapsed Initial Time : "
-         << (startRunTime - startInitTime).count() / 1E9 << " seconds." << endl;
-    cout << "Elapsed Compute Time : "
-         << (system_clock::now() - startRunTime).count() / 1E9 << " seconds."
-         << endl;
+    if (compute_thread.joinable())
+      compute_thread.join();
+#else
+  compute_loop(semsim);
+#endif // USE_EZV
 
 #ifdef USE_CALIPER
     mgr.flush();

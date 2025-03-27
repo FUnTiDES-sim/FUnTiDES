@@ -33,6 +33,23 @@ static void do_pick(void) {
   }
 }
 
+enum { EZV_THR_EVENT_DATA_COLORS, EZV_THR_EVENT_CPU_COLORS };
+
+static uint32_t base_event = 0;
+
+static void thr_push_data_colors(ezv_ctx_t ctx, void *values) {
+  SDL_Event event;
+
+  event.type = SDL_USEREVENT;
+  event.user.code = base_event + EZV_THR_EVENT_DATA_COLORS;
+  event.user.data1 = (void *)ctx;
+  event.user.data2 = (void *)values;
+
+  SDL_PushEvent(&event);
+}
+
+ezv_ctx_t get_ezv_ctx() { return ctx; }
+
 /**
  * @brief Processes events from the event queue.
  *
@@ -140,24 +157,6 @@ static int add_triangle(mesh3d_obj_t *mesh, unsigned v1, unsigned v2,
   return nbt++;
 }
 
-// static void mesh3d_form_cells(mesh3d_obj_t *mesh, unsigned group_size) {
-//   unsigned indt = 0;
-//   unsigned c;
-
-//   if (mesh->triangle_info == NULL) {
-//     printf("Lazy alloc!\n");
-//     mesh->triangle_info = (unsigned*)calloc(mesh->nb_triangles,
-//     sizeof(unsigned));
-//   }
-//   for (c = 0; c < mesh->nb_cells; c++) {
-//     mesh->cells[c] = indt;
-//     for (int g = 0; g < group_size; g++)
-//       mesh->triangle_info[indt++] |= (c << CELLNO_SHIFT);
-//   }
-//   // extra cell
-//   mesh->cells[c] = indt;
-// }
-
 /**
  * @brief Convert SEMmesh surfacic mesh into an EZV-compatible mesh.
  *
@@ -194,8 +193,6 @@ void convertSEMToMesh3D(const SEMmesh &mesh, mesh3d_obj_t *mesh3d) {
   for (int i = 0; i < ex; i++) {
     for (int j = 0; j < ey; j++) {
       for (int k = 0; k < ez; k++) {
-        // std::cout << "=============================" << std::endl;
-        // std::cout << "Creating element " << elem_id << std::endl;
         // Define the 8 vertices of the cube
         Vec3 cubeVertices[8] = {{i * hx, j * hy, k * hz},
                                 {(i + 1) * hx, j * hy, k * hz},
@@ -205,9 +202,6 @@ void convertSEMToMesh3D(const SEMmesh &mesh, mesh3d_obj_t *mesh3d) {
                                 {(i + 1) * hx, j * hy, (k + 1) * hz},
                                 {(i + 1) * hx, (j + 1) * hy, (k + 1) * hz},
                                 {i * hx, (j + 1) * hy, (k + 1) * hz}};
-        // for (int cvidx = 0; cvidx < 8; cvidx++)
-        //   std::cout << "Vertice " << cvidx << " is " << cubeVertices[cvidx]
-        //             << std::endl;
 
         int vertexIndices[8];
 
@@ -239,7 +233,6 @@ void convertSEMToMesh3D(const SEMmesh &mesh, mesh3d_obj_t *mesh3d) {
 
         // Append triangles to the mesh
         // Add cell for this element
-        // if (elem_id > mesh3d->nb_cells) std::cerr << "oh no1." << std::endl;
         mesh3d->cells[elem_id] = elem_id * 12;
         for (int t = 0; t < 12; t++) {
           int triangle_idx = t + 12 * elem_id;
@@ -248,7 +241,6 @@ void convertSEMToMesh3D(const SEMmesh &mesh, mesh3d_obj_t *mesh3d) {
         }
 
         elem_id++;
-        // std::cout << "=============================" << std::endl;
       }
     }
   }
@@ -266,14 +258,9 @@ void convertSEMToMesh3D(const SEMmesh &mesh, mesh3d_obj_t *mesh3d) {
  * @param mesh New EZV mesh to display.
  */
 
-inline void init_ezv(SEMproxy &semsim, mesh3d_obj_t mesh) {
-  cout << "Initialize ezv and its mesh." << endl;
+inline void init_ezv() {
+  cout << "Initialize ezv." << endl;
   ezv_init();
-
-  // mesh3d_obj_build_torus_volume(&mesh, 32, 16, 16);
-  std::vector<Vec3> vertices;
-  std::vector<int> triangles;
-  convertSEMToMesh3D(semsim.myMesh, &mesh);
 
   // Create SDL windows and initialize OpenGL context
   ctx[0] =
@@ -282,14 +269,24 @@ inline void init_ezv(SEMproxy &semsim, mesh3d_obj_t mesh) {
                      EZV_ENABLE_PICKING | EZV_ENABLE_HUD | EZV_ENABLE_CLIPPING);
   hud = ezv_hud_alloc(ctx[0]);
   ezv_hud_on(ctx[0], hud);
-  // Attach mesh
-  ezv_mesh3d_set_mesh(ctx[0], &mesh);
-  ezv_use_data_colors_predefined(ctx[0], EZV_PALETTE_RAINBOW);
 
+  cout << "End of EZV init." << endl;
+}
+
+inline void ezv_loop(void) {
   while (1) {
     process_events();
     ezv_render(ctx, nb_ctx);
   }
-  cout << "End of EZV init." << endl;
 }
+
+inline void ezv_init_mesh(SEMproxy &semsim, mesh3d_obj_t *mesh) {
+  cout << "Converting SEMmesh to EZV mesh." << endl;
+  // Setting mesh into ezm format
+  convertSEMToMesh3D(semsim.myMesh, mesh);
+  // Attach mesh
+  ezv_mesh3d_set_mesh(ctx[0], mesh);
+  ezv_use_data_colors_predefined(ctx[0], EZV_PALETTE_RAINBOW);
+}
+
 #endif // USE_EZV
