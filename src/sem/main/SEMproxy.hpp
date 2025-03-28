@@ -55,6 +55,9 @@ public:
   // get information from mesh
   void getMeshInfo();
 
+  // update color matrix for vizu
+  void update_color_matrix();
+
   SEMmesh myMesh;
   
 private:
@@ -71,6 +74,7 @@ private:
   arrayReal myRHSTerm;
   arrayReal pnGlobal;
   vectorInt rhsElement;
+  float* color_matrix;
 
 };
 

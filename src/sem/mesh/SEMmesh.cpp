@@ -333,7 +333,18 @@ void SEMmesh::getListOfInteriorElements(
   }
 }
 
-// save snapshot
+/**
+ * @brief Saves a snapshot of the solution at a given time step.
+ * 
+ * This function extracts a 2D slice of the solution from the provided array `u`
+ * at the specified index `i1` and writes it to a file. The snapshot is saved 
+ * in a simple text format containing the x, z coordinates and the corresponding 
+ * solution value.
+ * 
+ * @param indexTimeStep Index of the time step used for naming the snapshot file.
+ * @param i1 Index of the slice to extract from the solution array.
+ * @param u 2D array containing the solution values.
+ */
 void SEMmesh::saveSnapShot(const int indexTimeStep, const int i1,
                            arrayReal const &u) const {
 

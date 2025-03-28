@@ -52,6 +52,18 @@ public:
   T& operator()( int row, int col ) const {return const_cast< T & >(data[row][col]);}
   T& operator=( const T & data ) { return *this; };
 
+  std::vector<T> getColumn(int colIndex) const {
+    if (data.empty() || colIndex >= data[0].size()) {
+      return {}; // Empty vector
+    }
+
+    std::vector<T> column(data.size());
+    for (size_t i = 0; i < data.size(); ++i) {
+      column[i] = data[i][colIndex];
+    }
+    return column;
+  }
+
 private:
   std::vector< std::vector< T > > data;
 };
@@ -219,6 +231,17 @@ typedef Kokkos::View< double * *, Layout, MemSpace > arrayDouble;
 typedef Kokkos::View< int * * *, Layout, MemSpace > array3DInt;
 typedef Kokkos::View< float * * *, Layout, MemSpace > array3DReal;
 typedef Kokkos::View< double * * *, Layout, MemSpace > array3DDouble;
+
+
+// void copyColumnToFloatArray(arrayReal& kokkosView, float* floatArray, int column_idx, int nb_row) {
+//     // Copie des éléments de la i-ème colonne de la Kokkos::View dans le tableau classique float*
+//     Kokkos::parallel_for("Copy Column to Float Array", Kokkos::RangePolicy<Kokkos::HostSpace>(0, nb_row),
+//         KOKKOS_LAMBDA(const int i) {
+// 	  floatArray[i] = kokkosView(i, column_idx);  // Copier la i-ème colonne dans le tableau classique
+//         });
+
+//     Kokkos::fence(); // Synchronisation des threads
+// }
 
 /*
    typedef Kokkos::View<int*,     Layout, DeviceMemorySpace> vectorIntViewView;

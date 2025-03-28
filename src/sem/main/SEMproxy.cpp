@@ -6,6 +6,9 @@
 //************************************************************************
 
 #include "SEMproxy.hpp"
+#ifdef USE_EZV
+#include "ezvLauncher.hpp"
+#endif // USE_EZV
 
 SEMproxy::SEMproxy(int argc, char *argv[]) {
   int ex = (cmdOptionExists(argv, argv + argc, "-ex"))
@@ -49,9 +52,14 @@ void SEMproxy::initFiniteElem() {
 
 // Run the simulation.
 void SEMproxy::run() {
+
 #ifdef USE_CALIPER
   CALI_CXX_MARK_FUNCTION;
 #endif
+
+  // TODO: Here to tell EZV the inital color map update
+  //  copyColumnToFloatArray(pnGlobal, mesh_cells_color, i1, myMesh.getNumberOfElements());
+  //  ezv_thr_push_data_colors(get_ezv_ctx()[0], mesh_cells_color);
 
   time_point<system_clock> startComputeTime, startOutputTime, totalComputeTime,
       totalOutputTime;
@@ -70,6 +78,9 @@ void SEMproxy::run() {
     swap(i1, i2);
     totalOutputTime += system_clock::now() - startOutputTime;
   }
+  // Send signal to EZV to update color map
+  // ezv_thr_push_data_colors(get_ezv_ctx()[0], getColumn(pnGlobal, i1).data());
+
   float kerneltime_ms = time_point_cast<microseconds>(totalComputeTime)
                             .time_since_epoch()
                             .count();
@@ -101,7 +112,12 @@ void SEMproxy::init_arrays() {
                                          myInfo.myNumSamples, "RHSTerm");
   rhsElement = allocateVector<vectorInt>(myInfo.myNumberOfRHS, "rhsElement");
   pnGlobal = allocateArray2D<arrayReal>(myInfo.numberOfNodes, 2, "pnGlobal");
+#ifdef USE_EZM
+  color_matrix = (float*)malloc(myInfo.numberOfNodes * sizeof(float*));
+#endif // USE_EZM
 }
+
+void SEMproxy::update_color_matrix() {}
 
 // Initialize sources
 void SEMproxy::init_source() {

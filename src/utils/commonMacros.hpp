@@ -60,14 +60,14 @@
   #define MAINLOOPHEAD(Range, Iterator)\
     Kokkos::parallel_for( Kokkos::RangePolicy<Kokkos::LaunchBounds<LaunchMaxThreadsPerBlock, LaunchMinBlocksPerSM>>(0, Range), \
                           KOKKOS_CLASS_LAMBDA ( const int Iterator ){
-  #define MAINLOOPEND   });
+#define MAINLOOPEND   });
 
 #elif defined (SEM_MESHCOLOR)
   #define MAINLOOPHEAD(Range, Iterator)\
     for (int color=0; color<myInfo.numberOfColors;color++) {\
     LOOPHEAD( myInfo.numberOfElementsByColor[color], eColor) \
     int Iterator=listOfElementsByColor(color,eColor);
-  #define MAINLOOPEND   }); }
+#define MAINLOOPEND   }); }
 
 #else
   #define MAINLOOPHEAD LOOPHEAD

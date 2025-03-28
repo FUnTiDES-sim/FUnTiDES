@@ -1,9 +1,14 @@
+#ifndef EZV_LAUNCHER_HPP
+#define EZV_LAUNCHER_HPP
+
 #ifdef USE_EZV
 #include "SEMmesh.hpp"
 #include "SEMproxy.hpp"
+#include "utils.hpp"
 #include <ezv/ezv.h>
 #include <ezv/ezv_event.h>
 #include <vector>
+#include <mutex>
 
 const unsigned int SCR_WIDTH = 1024;
 const unsigned int SCR_HEIGHT = 768;
@@ -15,6 +20,11 @@ static unsigned nbv = 0;
 static ezv_ctx_t ctx[2] = {NULL, NULL};
 static unsigned nb_ctx = 1;
 static int hud = -1;
+static uint32_t base_event = 0;
+
+enum { EZV_THR_EVENT_DATA_COLORS, EZV_THR_EVENT_CPU_COLORS };
+
+inline ezv_ctx_t *get_ezv_ctx() { return ctx; }
 
 /**
  * @brief Handles the pick operation.
@@ -33,11 +43,7 @@ static void do_pick(void) {
   }
 }
 
-enum { EZV_THR_EVENT_DATA_COLORS, EZV_THR_EVENT_CPU_COLORS };
-
-static uint32_t base_event = 0;
-
-static void thr_push_data_colors(ezv_ctx_t ctx, void *values) {
+static void ezv_thr_push_data_colors(ezv_ctx_t ctx, void *values) {
   SDL_Event event;
 
   event.type = SDL_USEREVENT;
@@ -48,21 +54,32 @@ static void thr_push_data_colors(ezv_ctx_t ctx, void *values) {
   SDL_PushEvent(&event);
 }
 
-ezv_ctx_t get_ezv_ctx() { return ctx; }
 
 /**
- * @brief Processes events from the event queue.
+ * @brief Processes incoming SDL events from the event queue.
  *
- * This function retrieves events from the event queue and processes them using
- * `ezv_process_event`. If a pick event is detected, it calls the `do_pick`
- * function to handle the pick operation.
+ * This function retrieves events using `ezv_get_event` and handles them
+ * accordingly. If the event is a user-defined event related to data colors, it
+ * updates the data colors in the visualization context. Otherwise, it processes
+ * the event using `ezv_process_event`. If an event requires picking hud info
+ * (with mouse), it triggers the `do_pick` function.
  */
 static void process_events(void) {
   SDL_Event event;
-  int r = ezv_get_event(&event, 1);
+  int r;
+
+  r = ezv_get_event(&event, 1);
+
   if (r > 0) {
-    int pick;
-    ezv_process_event(ctx, nb_ctx, &event, NULL, &pick);
+    int pick = 0;
+    if (event.type == SDL_USEREVENT) {
+      if (event.user.code == base_event + EZV_THR_EVENT_DATA_COLORS) {
+        ezv_set_data_colors((ezv_ctx_t)event.user.data1,
+                            (float *)event.user.data2);
+        pick = 1;
+      }
+    } else
+      ezv_process_event(ctx, nb_ctx, &event, NULL, &pick);
     if (pick)
       do_pick();
   }
@@ -171,28 +188,34 @@ static int add_triangle(mesh3d_obj_t *mesh, unsigned v1, unsigned v2,
  * @param mesh SEMmesh mesh to convert
  * @param mesh3d EZV mesh output
  */
-void convertSEMToMesh3D(const SEMmesh &mesh, mesh3d_obj_t *mesh3d) {
+static void convertSEMToMesh3D(const SEMmesh &mesh, mesh3d_obj_t *mesh3d) {
   vector<Vec3> vertices;
   unordered_map<Vec3, int> vertexIndex; // Map to store unique vertices
-  int ex = mesh.getEx(), ey = mesh.getEy(), ez = mesh.getEz();
+  int nx = mesh.getNx(), ny = mesh.getNy(), nz = mesh.getNz();
   float hx = mesh.getDx(), hy = mesh.getDy(), hz = mesh.getDz();
 
   // initial parameters
-  mesh3d->nb_vertices = (ex + 1) * (ey + 1) * (ez + 1);
+  mesh3d->nb_vertices = (nx+1) * (ny+1) * (nz+1);
   mesh3d->vertices = (float *)malloc(mesh3d->nb_vertices * sizeof(float) * 3);
-  mesh3d->nb_triangles = ex * ey * ez * 12; // TODO: Avoid duplicates here
+  mesh3d->nb_triangles = nx * ny * nz * 12; 
   mesh3d->triangles =
       (unsigned int *)malloc(mesh3d->nb_triangles * 3 * sizeof(unsigned));
   mesh3d->triangle_info =
       (unsigned int *)calloc(mesh3d->nb_triangles, sizeof(unsigned));
-  mesh3d->nb_cells = mesh.getNumberOfElements();
+  mesh3d->nb_cells = nx * ny * nz;
   mesh3d->cells = (unsigned *)malloc((mesh3d->nb_cells + 1) * sizeof(unsigned));
+
+  cout << "Init of EZV mesh ended :" << endl;
+  cout << "---- Vertices :         " << mesh3d->nb_vertices << endl;
+  cout << "---- Triangles :        " << mesh3d->nb_triangles << endl;
+  cout << "---- Cells :            " << mesh3d->nb_cells << endl;
+  cout << "---- SEMmesh elements : " << mesh.getNumberOfElements();
 
   int elem_id = 0;
   // Iterate over all elements
-  for (int i = 0; i < ex; i++) {
-    for (int j = 0; j < ey; j++) {
-      for (int k = 0; k < ez; k++) {
+  for (int i = 0; i < nx; i++) {
+    for (int j = 0; j < ny; j++) {
+      for (int k = 0; k < nz; k++) {
         // Define the 8 vertices of the cube
         Vec3 cubeVertices[8] = {{i * hx, j * hy, k * hz},
                                 {(i + 1) * hx, j * hy, k * hz},
@@ -244,11 +267,14 @@ void convertSEMToMesh3D(const SEMmesh &mesh, mesh3d_obj_t *mesh3d) {
       }
     }
   }
-  std::cout << "Created " << vertices.size() << " vertices while "
-            << (ex + 1) * (ey + 1) * (ez + 1) << " where expected."
-            << std::endl;
-  mesh3d->cells[elem_id] = ++elem_id * 12;
+  
+  mesh3d->cells[elem_id] = elem_id * 12;
 }
+
+// static void update_mesh_with_pnglobal(arrayReal pnGlobal, int i1,
+// mesh3d_obj_t mesh) {
+//   // TODO
+// }
 
 /**
  * @brief Initialize EZV, convert simulation mesh to ezv compatible mesh then
@@ -290,3 +316,4 @@ inline void ezv_init_mesh(SEMproxy &semsim, mesh3d_obj_t *mesh) {
 }
 
 #endif // USE_EZV
+#endif // EZV_LAUNCHER_HPP
