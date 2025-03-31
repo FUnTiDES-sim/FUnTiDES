@@ -57,10 +57,6 @@ void SEMproxy::run() {
   CALI_CXX_MARK_FUNCTION;
 #endif
 
-  // TODO: Here to tell EZV the inital color map update
-  //  copyColumnToFloatArray(pnGlobal, mesh_cells_color, i1, myMesh.getNumberOfElements());
-  //  ezv_thr_push_data_colors(get_ezv_ctx()[0], mesh_cells_color);
-
   time_point<system_clock> startComputeTime, startOutputTime, totalComputeTime,
       totalOutputTime;
 
@@ -75,11 +71,13 @@ void SEMproxy::run() {
     startOutputTime = system_clock::now();
     mySolver.outputPnValues(myMesh, indexTimeSample, i1, myInfo.myElementSource,
                             pnGlobal);
+    
+    // Send signal to EZV to update color map
+    // ezv_thr_push_data_colors(get_ezv_ctx()[0], getColumn(pnGlobal, i1).data());
+
     swap(i1, i2);
     totalOutputTime += system_clock::now() - startOutputTime;
   }
-  // Send signal to EZV to update color map
-  // ezv_thr_push_data_colors(get_ezv_ctx()[0], getColumn(pnGlobal, i1).data());
 
   float kerneltime_ms = time_point_cast<microseconds>(totalComputeTime)
                             .time_since_epoch()

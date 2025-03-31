@@ -46,7 +46,6 @@ int main(int argc, char *argv[]) {
   startInitTime = system_clock::now();
 
 #ifdef USE_EZV
-  static mesh3d_obj_t mesh;
   init_ezv();
 #endif // USE_EZV
 

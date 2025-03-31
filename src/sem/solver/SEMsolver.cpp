@@ -8,6 +8,13 @@
 //************************************************************************
 
 #include "SEMsolver.hpp"
+#ifdef USE_EZV
+#include <cstdlib>
+#include "ezvLauncher.hpp"
+#ifdef USE_KOKKOS
+#include <Kokkos_Core.hpp>
+#endif // USE_KOKKOS
+#endif // USE_EZV
 
 void SEMsolver::computeFEInit(SEMinfo &myInfo, SEMmesh mesh) {
   order = myInfo.myOrderNumber;
@@ -102,13 +109,25 @@ void SEMsolver::computeOneStep(const int &timeSample, const int &order,
   CALI_MARK_BEGIN("pressureloop");
 #endif // USE_CALIPER
 
+#ifdef USE_EZV
+  float *parallel_compute_unit = (float *)calloc(PN_Global.size(), sizeof(float));
+#endif
+
   // update pressure
   LOOPHEAD(myInfo.numberOfInteriorNodes, i)
   int I = listOfInteriorNodes[i];
   pnGlobal(I, i1) =
       2 * pnGlobal(I, i2) - pnGlobal(I, i1) -
       myInfo.myTimeStep * myInfo.myTimeStep * yGlobal[I] / massMatrixGlobal[I];
+  // TODO Fill parallel tab
+#ifdef USE_EZV
+  parallel_compute_unit[i] = 1.0;
+#endif // USE_EZV
   LOOPEND
+#ifdef USE_EZV
+  // Send signal to EZV to update color map
+  ezv_thr_push_data_colors(get_ezv_ctx()[0], parallel_compute_unit);
+#endif // USE_EZV
 
 #ifdef USE_CALIPER
   CALI_MARK_END("pressureloop");

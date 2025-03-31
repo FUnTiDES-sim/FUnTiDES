@@ -7,8 +7,8 @@
 #include "utils.hpp"
 #include <ezv/ezv.h>
 #include <ezv/ezv_event.h>
-#include <vector>
 #include <mutex>
+#include <vector>
 
 const unsigned int SCR_WIDTH = 1024;
 const unsigned int SCR_HEIGHT = 768;
@@ -17,6 +17,7 @@ static unsigned ti = 0;
 static unsigned nbt = 0;
 static unsigned nbv = 0;
 
+static mesh3d_obj_t mesh;
 static ezv_ctx_t ctx[2] = {NULL, NULL};
 static unsigned nb_ctx = 1;
 static int hud = -1;
@@ -54,7 +55,6 @@ static void ezv_thr_push_data_colors(ezv_ctx_t ctx, void *values) {
   SDL_PushEvent(&event);
 }
 
-
 /**
  * @brief Processes incoming SDL events from the event queue.
  *
@@ -74,8 +74,13 @@ static void process_events(void) {
     int pick = 0;
     if (event.type == SDL_USEREVENT) {
       if (event.user.code == base_event + EZV_THR_EVENT_DATA_COLORS) {
-        ezv_set_data_colors((ezv_ctx_t)event.user.data1,
-                            (float *)event.user.data2);
+        if (!event.user.data2) {
+          std::cerr << "Error : event.user.data2 is NULL!" << std::endl;
+        } else {
+          ezv_set_data_colors(ctx[0],
+                              (float *)event.user.data2);
+	  free(event.user.data2);
+        }
         pick = 1;
       }
     } else
@@ -195,9 +200,9 @@ static void convertSEMToMesh3D(const SEMmesh &mesh, mesh3d_obj_t *mesh3d) {
   float hx = mesh.getDx(), hy = mesh.getDy(), hz = mesh.getDz();
 
   // initial parameters
-  mesh3d->nb_vertices = (nx+1) * (ny+1) * (nz+1);
+  mesh3d->nb_vertices = (nx + 1) * (ny + 1) * (nz + 1);
   mesh3d->vertices = (float *)malloc(mesh3d->nb_vertices * sizeof(float) * 3);
-  mesh3d->nb_triangles = nx * ny * nz * 12; 
+  mesh3d->nb_triangles = nx * ny * nz * 12;
   mesh3d->triangles =
       (unsigned int *)malloc(mesh3d->nb_triangles * 3 * sizeof(unsigned));
   mesh3d->triangle_info =
@@ -267,7 +272,7 @@ static void convertSEMToMesh3D(const SEMmesh &mesh, mesh3d_obj_t *mesh3d) {
       }
     }
   }
-  
+
   mesh3d->cells[elem_id] = elem_id * 12;
 }
 
@@ -296,6 +301,8 @@ inline void init_ezv() {
   hud = ezv_hud_alloc(ctx[0]);
   ezv_hud_on(ctx[0], hud);
 
+  mesh3d_obj_init (&mesh);
+
   cout << "End of EZV init." << endl;
 }
 
@@ -311,7 +318,8 @@ inline void ezv_init_mesh(SEMproxy &semsim, mesh3d_obj_t *mesh) {
   // Setting mesh into ezm format
   convertSEMToMesh3D(semsim.myMesh, mesh);
   // Attach mesh
-  ezv_mesh3d_set_mesh(ctx[0], mesh);
+  mesh3d_obj_compute_bounding_box (mesh);
+  ezv_mesh3d_set_mesh (ctx[0], mesh);
   ezv_use_data_colors_predefined(ctx[0], EZV_PALETTE_RAINBOW);
 }
 
