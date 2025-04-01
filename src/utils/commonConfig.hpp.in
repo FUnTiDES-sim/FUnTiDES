@@ -7,9 +7,6 @@
 // Enables use of OMP (CMake option)
 #cmakedefine USE_OMP
 
-// Enable use of RAJA (CMake option)
-#cmakedefine USE_RAJA
-
 // Enable use of LvArray (CMake option)
 #cmakedefine USE_LVARRAY
 

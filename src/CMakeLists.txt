@@ -1,12 +1,11 @@
 #-------------------------------------------------------------------
 # The Solver Implementation is with Programming Models:
 #
-#  Users can choose from "OMP", "RAJA", and "KOKKOS" as following:
+#  Users can choose from "OMP" or "KOKKOS" as following:
 #
 #  (0) The default is using sequential mode
 #  (1) If USE_OMP is ON, it is using OpenMP+Vector on CPU.
-#  (2) If USE_RAJA is ON, it is using RAJA+LVARRAY+CUDA.
-#  (3) If USE_KOKKOS is ON, it is using KOKKOS+CUDA.
+#  (2) If USE_KOKKOS is ON, it is using KOKKOS+CUDA.
 #
 #  And the users can chose data containers as following:
 #
@@ -18,10 +17,6 @@
 #  export MODULEPATH=/data_local/appli_local/MTS/GEOSX/modulefiles/:$MODULEPATH
 #  module load cmake/3.21.4 gcc/8.4.1 cuda/11.0.3 ompi/4.1.2 openblas/0.3.18 python4geosx/3.8.5-gcc-8.4.1-ompi-4.1.2
 #  export _TPL_ROOT_DIR=/users/j0024947/appli_src/geosx/codes/proxyApp/tpl4ProxyApp/installTPL
-#  export RAJA_DIR=${SEM_TPL_ROOT_DIR}/raja/lib/cmake/raja
-#  export CAMP_DIR=${SEM_TPL_ROOT_DIR}/raja/lib/cmake/camp
-#  export CHAI_DIR=${SEM_TPL_ROOT_DIR}/chai/share/chai/cmake/
-#  export UMPIRE_DIR=${SEM_TPL_ROOT_DIR}/chai/lib/cmake/umpire/
 #
 #-------------------------------------------------------------------
 
@@ -163,7 +158,6 @@ if(USE_OMP)
   set (SOLVER "OMP" CACHE PATH "" FORCE)
   message(STATUS "BUILDING SOLVER including OpenMP+Vector on CPU")
   set (USE_KOKKOS OFF CACHE BOOL "")
-  set (USE_RAJA OFF CACHE BOOL "")
   set (USE_LVARRAY OFF CACHE BOOL "" FORCE)
   set (ENABLE_CUDA OFF CACHE STRING "" FORCE)
   set (USE_VECTOR ON CACHE BOOL "" FORCE)
@@ -173,93 +167,6 @@ else()
     message ("-- USE_OMP flag is set to be false and OMP is not enabled")
 endif()
 ################################
-
-
-################################
-# RAJA
-################################
-# the solver is using RAJA+LVARRAY+CUDA on GPU
-if ( USE_RAJA)
-   # disable OMP and KOKKOS
-   set (USE_LVARRAY ON CACHE BOOL "" FORCE)
-   set (USE_VECTOR OFF CACHE BOOL "" FORCE)
-   set (USE_OMP OFF CACHE BOOL "")
-   set (USE_KOKKOS OFF CACHE BOOL "")
-   # set solver
-   message( " " )
-   message( STATUS "-------------------RAJA SETTINGS---------------------------------------" )
-   set (SOLVER "Raja" CACHE PATH "" FORCE)
-   message(STATUS "BUILDING SOLVER including RAJA ")
-
-   set (RAJA_DIR "$ENV{RAJA_DIR}")
-   if(DEFINED RAJA_DIR)
-       message(STATUS "USE RAJA in RAJA_DIR = ${RAJA_DIR}")
-       find_package(RAJA REQUIRED
-                    PATHS ${RAJA_DIR}
-                    NO_DEFAULT_PATH)
-       get_target_property(RAJA_INCLUDE_DIRS RAJA INTERFACE_INCLUDE_DIRECTORIES)
-       set_target_properties(RAJA PROPERTIES INTERFACE_SYSTEM_INCLUDE_DIRECTORIES "${RAJA_INCLUDE_DIRS}")
-       message(STATUS "RAJA_INCLUDE_DIRS: ${RAJA_INCLUDE_DIRS}")
-       set(ENABLE_RAJA ON CACHE BOOL "")
-       set(thirdPartyLibs ${thirdPartyLibs} RAJA )
-   else()
-       message(FATAL_ERROR "ProxyApp requires RAJA, set RAJA_DIR to the RAJA installation directory.")
-   endif()
-
-   if( ENABLE_HIP )
-     set(RAJA_ENABLE_HIP ON CACHE BOOL "" FORCE)
-     set(RAJA_ENABLE_CUDA OFF CACHE BOOL "" FORCE)
-     include_directories("/opt/rocm-6.0.0/include")
-   endif()
-
-   ################################
-   # Umpire
-   ################################
-   set (UMPIRE_DIR "$ENV{UMPIRE_DIR}")
-   if(DEFINED UMPIRE_DIR)
-       message(STATUS " USE RAJA: RAJA must be compiled with UMPIRE in UMPIRE_DIR = ${UMPIRE_DIR}")
-       find_package(umpire REQUIRED
-                    PATHS ${UMPIRE_DIR}
-                    NO_DEFAULT_PATH)
-       set(ENABLE_UMPIRE ON CACHE BOOL "")
-       set(thirdPartyLibs ${thirdPartyLibs} umpire)
-   else()
-       message(FATAL_ERROR "ProxyApp requires Umpire, set UMPIRE_DIR to the Umpire installation directory.")
-   endif()
-
-   ################################
-   # CHAI
-   ################################
-   set (CHAI_DIR "$ENV{CHAI_DIR}")
-   if(DEFINED CHAI_DIR)
-       message(STATUS " USE RAJA in CHAI_DIR = ${CHAI_DIR}")
-       find_package(chai REQUIRED
-                    PATHS ${CHAI_DIR}
-                    NO_DEFAULT_PATH)
-       get_target_property(CHAI_INCLUDE_DIRS chai INTERFACE_INCLUDE_DIRECTORIES)
-       set_target_properties(chai PROPERTIES INTERFACE_SYSTEM_INCLUDE_DIRECTORIES "${CHAI_INCLUDE_DIRS}")
-       set(ENABLE_CHAI ON CACHE BOOL "")
-       set(thirdPartyLibs ${thirdPartyLibs} chai)
-   else()
-     message(FATAL_ERROR "ProxyApp requires CHAI, set CHAI_DIR to the CHAI installation directory.")
-   endif()
-
-   set (extraComponentsLinkList ${extraComponentsLinkList} openmp )
-   set (dependencyList lvarray RAJA chai)
-   add_subdirectory( LvArray )
-   include_directories(${CMAKE_CURRENT_SOURCE_DIR}/LvArray/src)
-
-   if( ENABLE_HIP )
-     set (dependencyList ${dependencyList} blt::hip blt::hip_runtime)
-   endif()
-
-   message( STATUS "-------------------END RAJA SETTINGS-----------------------------------" )
-   message( " " )
-else()
-    message ("-- USE_RAJA flag is set to be false and RAJA is not enabled")
-endif()
-################################
-
 
 ################################
 # KOKKOS

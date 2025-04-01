@@ -124,6 +124,7 @@ void SEMsolver::computeOneStep(const int &timeSample, const int &order,
   parallel_compute_unit[i] = 1.0;
 #endif // USE_EZV
   LOOPEND
+
 #ifdef USE_EZV
   // Send signal to EZV to update color map
   ezv_thr_push_data_colors(get_ezv_ctx()[0], parallel_compute_unit);
