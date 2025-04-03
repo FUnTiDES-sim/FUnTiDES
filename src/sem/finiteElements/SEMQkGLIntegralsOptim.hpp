@@ -28,7 +28,7 @@ private:
   ////////////////////////////////////////////////////////////////////////////////////
   //  from GEOS implementation
   /////////////////////////////////////////////////////////////////////////////////////
-  constexpr static double sqrt5 = 2.2360679774997897;
+  constexpr static float sqrt5 = 2.2360679774997897;
   // order of polynomial approximation
   constexpr static  int ORDER=SEMinfo::myOrderNumber;
   // Half the number of support points, rounded down. Precomputed for efficiency
@@ -175,19 +175,10 @@ public:
       }
   }
 
-  
-  PROXY_HOST_DEVICE
-  float determinant(float  m[3][3]) const
-  {
-     float detJ=abs(m[0][0]*(m[1][1]*m[2][2]-m[2][1]*m[1][2])
-               -m[0][1]*(m[1][0]*m[2][2]-m[2][0]*m[1][2])
-               +m[0][2]*(m[1][0]*m[2][1]-m[2][0]*m[1][1]));
-     //float detJ=abs(m[0][0]*m[1][1]*m[2][2]);
-     return  detJ;
-  }
+
 
   PROXY_HOST_DEVICE
-  double determinant(double  m[3][3]) const
+  float determinant(float  m[3][3]) const
   {
      return abs(m[0][0]*(m[1][1]*m[2][2]-m[2][1]*m[1][2])
                -m[0][1]*(m[1][0]*m[2][2]-m[2][0]*m[1][2])
@@ -360,21 +351,21 @@ public:
          const float gjb = SEMQkGLBasisFunctions::basisGradientAt( j, qb );
          const float gjc = SEMQkGLBasisFunctions::basisGradientAt( j, qc );
          // diagonal terms
-         const double w0 = w * gia * gja;
+         const float w0 = w * gia * gja;
          func( ibc, jbc, w0 * B[0] );
-         const double w1 = w * gib * gjb;
+         const float w1 = w * gib * gjb;
          func( aic, ajc, w1 * B[1] );
-         const double w2 = w * gic * gjc;
+         const float w2 = w * gic * gjc;
          func( abi, abj, w2 * B[2] );
          // off-diagonal terms
 	 if (flag==1){
-         const double w3 = w * gib * gjc;
+         const float w3 = w * gib * gjc;
          func( aic, abj, w3 * B[3] );
          func( abj, aic, w3 * B[3] );
-         const double w4 = w * gia * gjc;
+         const float w4 = w * gia * gjc;
          func( ibc, abj, w4 * B[4] );
          func( abj, ibc, w4 * B[4] );
-         const double w5 = w * gia * gjb;
+         const float w5 = w * gia * gjb;
          func( ibc, ajc, w5 * B[5] );
          func( ajc, ibc, w5 * B[5] );
 	 }
@@ -387,7 +378,7 @@ public:
   void computeGradPhiBGradPhi( float const (&B)[6],
                                FUNC && func ) const
   {
-     constexpr double w = SEMQkGLBasisFunctions::weight<SEMinfo>(qa )*
+     constexpr float w = SEMQkGLBasisFunctions::weight<SEMinfo>(qa )*
 	              SEMQkGLBasisFunctions::weight<SEMinfo>(qb )*
 		      SEMQkGLBasisFunctions::weight<SEMinfo>(qc );
      loop( [&] (auto const i)
@@ -395,32 +386,32 @@ public:
        constexpr int ibc = linearIndex<ORDER>(i, qb, qc );
        constexpr int aic = linearIndex<ORDER>(qa, i, qc );
        constexpr int abi = linearIndex<ORDER>(qa, qb, i );
-       constexpr double gia = SEMQkGLBasisFunctions::basisGradientAt( i, qa );
-       constexpr double gib = SEMQkGLBasisFunctions::basisGradientAt( i, qb );
-       constexpr double gic = SEMQkGLBasisFunctions::basisGradientAt( i, qc );
+       constexpr float gia = SEMQkGLBasisFunctions::basisGradientAt( i, qa );
+       constexpr float gib = SEMQkGLBasisFunctions::basisGradientAt( i, qb );
+       constexpr float gic = SEMQkGLBasisFunctions::basisGradientAt( i, qc );
        loop( [&] (auto const j)
        {
          constexpr int jbc = linearIndex<ORDER>(j, qb, qc );
          constexpr int ajc = linearIndex<ORDER>(qa, j, qc );
          constexpr int abj = linearIndex<ORDER>(qa, qb, j );
-         constexpr double gja = SEMQkGLBasisFunctions::basisGradientAt( j, qa );
-         constexpr double gjb = SEMQkGLBasisFunctions::basisGradientAt( j, qb );
-         constexpr double gjc = SEMQkGLBasisFunctions::basisGradientAt( j, qc );
+         constexpr float gja = SEMQkGLBasisFunctions::basisGradientAt( j, qa );
+         constexpr float gjb = SEMQkGLBasisFunctions::basisGradientAt( j, qb );
+         constexpr float gjc = SEMQkGLBasisFunctions::basisGradientAt( j, qc );
          // diagonal terms
-         const double w0 = w * gia * gja;
+         const float w0 = w * gia * gja;
          func( ibc, jbc, w0 * B[0] );
-         const double w1 = w * gib * gjb;
+         const float w1 = w * gib * gjb;
          func( aic, ajc, w1 * B[1] );
-         const double w2 = w * gic * gjc;
+         const float w2 = w * gic * gjc;
          func( abi, abj, w2 * B[2] );
          // off-diagonal terms
-         const double w3 = w * gib * gjc;
+         const float w3 = w * gib * gjc;
          func( aic, abj, w3 * B[3] );
          func( abj, aic, w3 * B[3] );
-         const double w4 = w * gia * gjc;
+         const float w4 = w * gia * gjc;
          func( ibc, abj, w4 * B[4] );
          func( abj, ibc, w4 * B[4] );
-         const double w5 = w * gia * gjb;
+         const float w5 = w * gia * gjb;
          func( ibc, ajc, w5 * B[5] );
          func( ajc, ibc, w5 * B[5] );
        },std::make_integer_sequence<int,ORDER+1>{});
@@ -436,11 +427,11 @@ public:
   */
   template<int ORDER>
   PROXY_HOST_DEVICE
-  double computeMassTerm(int const q, float const (&X)[8][3] ) const
+  float computeMassTerm(int const q, float const (&X)[8][3] ) const
   {
      int qa, qb, qc;
      multiIndex( ORDER,q, qa, qb, qc );
-     const double w3D=SEMQkGLBasisFunctions::weight<SEMinfo>( qa )
+     const float w3D=SEMQkGLBasisFunctions::weight<SEMinfo>( qa )
                      *SEMQkGLBasisFunctions::weight<SEMinfo>( qb )
                      *SEMQkGLBasisFunctions::weight<SEMinfo>( qc );
      float J[3][3] = {{0}};
@@ -450,12 +441,12 @@ public:
 
   template<int ORDER,int q>
   PROXY_HOST_DEVICE
-  double computeMassTerm( float const (&X)[8][3] ) const
+  float computeMassTerm( float const (&X)[8][3] ) const
   {
      constexpr int qc = q/((ORDER+1)*(ORDER+1));
      constexpr int qb = (q%((ORDER+1)*(ORDER+1)))/(ORDER+1);
      constexpr int qa = (q%((ORDER+1)*(ORDER+1)))%(ORDER+1);
-     constexpr double w3D=SEMQkGLBasisFunctions::weight<SEMinfo>( qa )
+     constexpr float w3D=SEMQkGLBasisFunctions::weight<SEMinfo>( qa )
                      *SEMQkGLBasisFunctions::weight<SEMinfo>( qb )
                      *SEMQkGLBasisFunctions::weight<SEMinfo>( qc );
      float J[3][3] = {{0}};
@@ -541,7 +532,7 @@ public:
       loop([&] (auto const q)
       {
           massMatrixLocal[q]=computeMassTerm<ORDER,q>( X); 
-          computeStiffnessTerm<ORDER,q>( X, [&] (const int i, const int j, const double val)
+          computeStiffnessTerm<ORDER,q>( X, [&] (const int i, const int j, const float val)
                   {
                    float localIncrement=val*pnLocal[j];
                    Y[i]+=localIncrement;
@@ -551,7 +542,7 @@ public:
       for (int q=0;q<nPointsPerElement;q++)
       {
           massMatrixLocal[q]=computeMassTerm<ORDER>(q, X); 
-          computeStiffnessTerm<ORDER>(q, X, [&] (const int i, const int j, const double val)
+          computeStiffnessTerm<ORDER>(q, X, [&] (const int i, const int j, const float val)
                   {
                    float localIncrement=val*pnLocal[j];
                    Y[i]+=localIncrement;
