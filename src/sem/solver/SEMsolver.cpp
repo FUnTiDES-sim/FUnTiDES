@@ -152,9 +152,12 @@ void SEMsolver::allocateFEarrays( SEMinfo & myInfo )
   listOfInteriorNodes=allocateVector< vectorInt >( myInfo.numberOfInteriorNodes, "listOfInteriorNodes" );
   
   // global coordinates
-  globalNodesCoordsX=allocateArray2D< arrayReal >( myInfo.numberOfElements, nbQuadraturePoints, "globalNodesCoordsX");
-  globalNodesCoordsY=allocateArray2D< arrayReal >( myInfo.numberOfElements, nbQuadraturePoints, "globalNodesCoordsY");
-  globalNodesCoordsZ=allocateArray2D< arrayReal >( myInfo.numberOfElements, nbQuadraturePoints, "globalNodesCoordsZ");
+  //globalNodesCoordsX=allocateArray2D< arrayReal >( myInfo.numberOfElements, nbQuadraturePoints, "globalNodesCoordsX");
+  //globalNodesCoordsY=allocateArray2D< arrayReal >( myInfo.numberOfElements, nbQuadraturePoints, "globalNodesCoordsY");
+  //globalNodesCoordsZ=allocateArray2D< arrayReal >( myInfo.numberOfElements, nbQuadraturePoints, "globalNodesCoordsZ");
+  globalNodesCoordsX=allocateArray2D< arrayReal >( myInfo.numberOfElements, 8, "globalNodesCoordsX");
+  globalNodesCoordsY=allocateArray2D< arrayReal >( myInfo.numberOfElements, 8, "globalNodesCoordsY");
+  globalNodesCoordsZ=allocateArray2D< arrayReal >( myInfo.numberOfElements, 8, "globalNodesCoordsZ");
   
   model=allocateVector< vectorReal >( myInfo.numberOfElements, "model" );
 

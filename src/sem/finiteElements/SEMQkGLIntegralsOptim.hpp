@@ -511,13 +511,20 @@ public:
   {
       float X[8][3];
       int I=0;
-      for( int k=0;k<ORDER+1;k+=ORDER )
+/*    for( int k=0;k<ORDER+1;k+=ORDER )
       {
           for ( int j=0; j<ORDER+1;j+=ORDER )
           {
               for( int i=0;i<ORDER+1;i+=ORDER )
               {
-                  int l=i+j*(ORDER+1)+k*(ORDER+1)*(ORDER+1);
+                  int l=i+j*(ORDER+1)+k*(ORDER+1)*(ORDER+1);*/
+      for( int k=0;k<2;k++ )
+      {
+          for ( int j=0; j<2;j++ )
+          {
+              for( int i=0;i<2;i++ )
+              {
+                  int l=i+j*2+k*4;
                   X[I][0]=nodesCoordsX(elementNumber,l);
                   X[I][1]=nodesCoordsZ(elementNumber,l);
                   X[I][2]=nodesCoordsY(elementNumber,l);

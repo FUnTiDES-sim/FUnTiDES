@@ -134,6 +134,7 @@ std::vector< float > SEMmesh::getCoordInOneDirection( const int & order, const i
   return coord;
 }
 
+/*
 // Initialize nodal coordinates.
 void SEMmesh::nodesCoordinates( arrayReal & nodeCoordsX,
                                 arrayReal & nodeCoordsZ,
@@ -167,6 +168,36 @@ void SEMmesh::nodesCoordinates( arrayReal & nodeCoordsX,
            }
         }
      }
+  }
+}
+*/
+// Initialize nodal coordinates.
+void SEMmesh::nodesCoordinates(arrayReal & nodeCoordsX,
+                               arrayReal & nodeCoordsZ,
+                               arrayReal & nodeCoordsY) const
+{
+
+  for(int n=0;n<ey;n++)
+  {
+    for(int m=0;m<ez; m++)
+    {
+      for(int l=0;l<ex;l++)
+      {
+        int e=l+m*ex+n*ex*ez;
+        for( int k=0; k<2; k++ )
+        {
+          for( int j=0; j<2; j++ )
+          {
+            for( int i=0; i<2; i++ )
+            {
+              nodeCoordsX(e, i+2*j+4*k)=(l+i)*hx;
+              nodeCoordsZ(e, i+2*j+4*k)=(m+j)*hz;
+              nodeCoordsY(e, i+2*j+4*k)=(n+k)*hy;
+            }
+          }
+        }
+      }
+    }
   }
 }
 
