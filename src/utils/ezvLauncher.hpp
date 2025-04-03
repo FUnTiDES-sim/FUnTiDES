@@ -77,8 +77,7 @@ static void process_events(void) {
         if (!event.user.data2) {
           std::cerr << "Error : event.user.data2 is NULL!" << std::endl;
         } else {
-          ezv_set_data_colors(ctx[0],
-                              (float *)event.user.data2);
+          ezv_set_data_colors(ctx[0], (float *)event.user.data2);
 	  free(event.user.data2);
         }
         pick = 1;
@@ -301,7 +300,7 @@ inline void init_ezv() {
   hud = ezv_hud_alloc(ctx[0]);
   ezv_hud_on(ctx[0], hud);
 
-  mesh3d_obj_init (&mesh);
+  mesh3d_obj_init(&mesh);
 
   cout << "End of EZV init." << endl;
 }
@@ -318,8 +317,8 @@ inline void ezv_init_mesh(SEMproxy &semsim, mesh3d_obj_t *mesh) {
   // Setting mesh into ezm format
   convertSEMToMesh3D(semsim.myMesh, mesh);
   // Attach mesh
-  mesh3d_obj_compute_bounding_box (mesh);
-  ezv_mesh3d_set_mesh (ctx[0], mesh);
+  mesh3d_obj_compute_bounding_box(mesh);
+  ezv_mesh3d_set_mesh(ctx[0], mesh);
   ezv_use_data_colors_predefined(ctx[0], EZV_PALETTE_RAINBOW);
 }
 
