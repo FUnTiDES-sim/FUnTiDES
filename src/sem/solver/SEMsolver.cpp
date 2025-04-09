@@ -76,11 +76,6 @@ void SEMsolver::computeOneStep(const int &timeSample, const int &order,
 #endif
 
 #ifdef USE_SEMOPTIM
-    /*
-    myQkIntegrals.computeMassMatrixAndStiffnessVector(elementNumber,order,
-    nPointsPerElement, globalNodesCoordsX,globalNodesCoordsY,globalNodesCoordsZ,
-                                             massMatrixLocal, pnLocal, Y);
-    */
     constexpr int ORDER = SEMinfo::myOrderNumber;
     myQkIntegrals.computeMassMatrixAndStiffnessVector<ORDER>(
         elementNumber, nPointsPerElement, globalNodesCoordsX,
@@ -133,8 +128,8 @@ void SEMsolver::computeOneStep(const int &timeSample, const int &order,
   float *ezv_data = (float *)malloc((nb_x) * sizeof(float));
   // copy kokkos data into heap
   for (auto i = 0; i < nb_x; i++) {
-      auto idx = i;
-      ezv_data[idx] = ezv_host_data(i, i1);
+    auto idx = i;
+    ezv_data[idx] = ezv_host_data(i, i1);
   }
 
   ezv_thr_push_data_colors(get_ezv_ctx()[0], ezv_data);

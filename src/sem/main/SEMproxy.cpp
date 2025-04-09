@@ -110,12 +110,7 @@ void SEMproxy::init_arrays() {
                                          myInfo.myNumSamples, "RHSTerm");
   rhsElement = allocateVector<vectorInt>(myInfo.myNumberOfRHS, "rhsElement");
   pnGlobal = allocateArray2D<arrayReal>(myInfo.numberOfNodes, 2, "pnGlobal");
-#ifdef USE_EZM
-  color_matrix = (float*)malloc(myInfo.numberOfNodes * sizeof(float*));
-#endif // USE_EZM
 }
-
-void SEMproxy::update_color_matrix() {}
 
 // Initialize sources
 void SEMproxy::init_source() {

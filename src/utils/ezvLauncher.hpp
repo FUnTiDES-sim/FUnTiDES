@@ -22,6 +22,7 @@ static ezv_ctx_t ctx[2] = {NULL, NULL};
 static unsigned nb_ctx = 1;
 static int hud = -1;
 static uint32_t base_event = 0;
+static bool is_over = false;
 
 enum { EZV_THR_EVENT_DATA_COLORS, EZV_THR_EVENT_CPU_COLORS };
 
@@ -29,7 +30,6 @@ inline ezv_ctx_t *get_ezv_ctx() { return ctx; }
 
 /**
  * @brief Handles the pick operation.
- *
  * This function performs a 1D picking operation using `ezv_perform_1D_picking`.
  * If the picking operation returns `-1`, it turns off the HUD display.
  * Otherwise, it turns on the HUD and displays the picked cell's ID.
@@ -55,9 +55,19 @@ static void ezv_thr_push_data_colors(ezv_ctx_t ctx, void *values) {
   SDL_PushEvent(&event);
 }
 
+static void ezv_set_hidden_mask(ezv_ctx_t ctx, mesh3d_obj_t mesh,
+                                float *values) {
+  assert(ctx != NULL);
+  assert(values != NULL);
+
+  std::unique_ptr<bool[]> mask(new bool[mesh.nb_cells]);
+  for (std::size_t i = 0; i < mesh.nb_cells; ++i)
+    mask[i] = static_cast<bool>(values[i]);
+  ezv_cellmask_set1D_hidden_custom(ctx, mask.get(), mesh.nb_cells);
+}
+
 /**
  * @brief Processes incoming SDL events from the event queue.
- *
  * This function retrieves events using `ezv_get_event` and handles them
  * accordingly. If the event is a user-defined event related to data colors, it
  * updates the data colors in the visualization context. Otherwise, it processes
@@ -72,13 +82,16 @@ static void process_events(void) {
 
   if (r > 0) {
     int pick = 0;
-    if (event.type == SDL_USEREVENT) {
+    if (event.type == SDL_KEYDOWN && event.key.keysym.sym == SDLK_q) {
+      is_over = true;
+    } else if (event.type == SDL_USEREVENT) {
       if (event.user.code == base_event + EZV_THR_EVENT_DATA_COLORS) {
         if (!event.user.data2) {
           std::cerr << "Error : event.user.data2 is NULL!" << std::endl;
         } else {
           ezv_set_data_colors(ctx[0], (float *)event.user.data2);
-	  free(event.user.data2);
+          // ezv_set_hidden_mask(ctx[0], mesh, (float *)event.user.data2);
+          free(event.user.data2);
         }
         pick = 1;
       }
@@ -91,7 +104,6 @@ static void process_events(void) {
 
 /**
  * @brief Structure representing a 3D vector.
- *
  * This structure is used to represent a 3D vector with `x`, `y`, and `z`
  * coordinates.
  */
@@ -100,7 +112,6 @@ struct Vec3 {
 
   /**
    * @brief Compares two Vec3 objects for equality.
-   *
    * This operator compares the `x`, `y`, and `z` coordinates of two `Vec3`
    * objects and returns `true` if all the coordinates are equal, `false`
    * otherwise.
@@ -122,7 +133,6 @@ struct Vec3 {
 
 /**
  * @brief Specialization of the hash function for Vec3 to store unique vertices.
- *
  * This specialization of the `std::hash` template allows the usage of `Vec3` as
  * a key in unordered containers by generating a unique hash value based on the
  * coordinates (x, y, z) of the `Vec3` object.
@@ -306,7 +316,7 @@ inline void init_ezv() {
 }
 
 inline void ezv_loop(void) {
-  while (1) {
+  while (!is_over) {
     process_events();
     ezv_render(ctx, nb_ctx);
   }
