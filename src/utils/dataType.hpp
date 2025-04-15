@@ -95,105 +95,105 @@ using array3DDouble=Array3D< double >;
 
 #endif //USE_VECTOR
 
-#ifdef USE_LVARRAY
+// #ifdef USE_LVARRAY
 
-#include "Array.hpp"
-#include "ChaiBuffer.hpp"
+// #include "Array.hpp"
+// #include "ChaiBuffer.hpp"
 
-// define vectors and  arrays.
-using vectorInt=LvArray::Array< int,
-                                1,
-                                camp::idx_seq< 0 >,
-                                std::ptrdiff_t,
-                                LvArray::ChaiBuffer >;
-using vectorReal=LvArray::Array< float,
-                                 1,
-                                 camp::idx_seq< 0 >,
-                                 std::ptrdiff_t,
-                                 LvArray::ChaiBuffer >;
-using vectorDouble=LvArray::Array< double,
-                                   1,
-                                   camp::idx_seq< 0 >,
-                                   std::ptrdiff_t,
-                                   LvArray::ChaiBuffer >;
-using arrayInt=LvArray::Array< int,
-                               2,
-                               camp::idx_seq< 0, 1 >,
-                               std::ptrdiff_t,
-                               LvArray::ChaiBuffer >;
-using arrayReal=LvArray::Array< float,
-                                2,
-                                camp::idx_seq< 0, 1 >,
-                                std::ptrdiff_t,
-                                LvArray::ChaiBuffer >;
-using arrayDouble=LvArray::Array< double,
-                                  2,
-                                  camp::idx_seq< 0, 1 >,
-                                  std::ptrdiff_t,
-                                  LvArray::ChaiBuffer >;
-using array3DInt=LvArray::Array< int,
-                                 3,
-                                 camp::idx_seq< 0, 1, 2 >,
-                                 std::ptrdiff_t,
-                                 LvArray::ChaiBuffer >;
-using array3DReal=LvArray::Array< float,
-                                  3,
-                                  camp::idx_seq< 0, 1, 2 >,
-                                  std::ptrdiff_t,
-                                  LvArray::ChaiBuffer >;
-using array3DDouble=LvArray::Array< double,
-                                    3,
-                                    camp::idx_seq< 0, 1, 2 >,
-                                    std::ptrdiff_t,
-                                    LvArray::ChaiBuffer >;
-// defines Views
-using vectorIntView=LvArray::ArrayView< int,
-                                        1,
-                                        0,
-                                        std::ptrdiff_t,
-                                        LvArray::ChaiBuffer >;
-using vectorRealView=LvArray::ArrayView< float,
-                                         1,
-                                         0,
-                                         std::ptrdiff_t,
-                                         LvArray::ChaiBuffer >;
-using vectorDoubleView=LvArray::ArrayView< double,
-                                           1,
-                                           0,
-                                           std::ptrdiff_t,
-                                           LvArray::ChaiBuffer >;
-using arrayIntView=LvArray::ArrayView< int,
-                                       2,
-                                       1,
-                                       std::ptrdiff_t,
-                                       LvArray::ChaiBuffer >;
-using arrayRealView=LvArray::ArrayView< float,
-                                        2,
-                                        1,
-                                        std::ptrdiff_t,
-                                        LvArray::ChaiBuffer >;
-using arrayDoubleView=LvArray::ArrayView< double,
-                                          2,
-                                          1,
-                                          std::ptrdiff_t,
-                                          LvArray::ChaiBuffer >;
-using array3DIntView=LvArray::ArrayView< int,
-                                         3,
-                                         2,
-                                         std::ptrdiff_t,
-                                         LvArray::ChaiBuffer >;
-using array3DRealView=LvArray::ArrayView< float,
-                                          3,
-                                          2,
-                                          std::ptrdiff_t,
-                                          LvArray::ChaiBuffer >;
-using array3DDoubleView=LvArray::ArrayView< double,
-                                            3,
-                                            2,
-                                            std::ptrdiff_t,
-                                            LvArray::ChaiBuffer >;
+// // define vectors and  arrays.
+// using vectorInt=LvArray::Array< int,
+//                                 1,
+//                                 camp::idx_seq< 0 >,
+//                                 std::ptrdiff_t,
+//                                 LvArray::ChaiBuffer >;
+// using vectorReal=LvArray::Array< float,
+//                                  1,
+//                                  camp::idx_seq< 0 >,
+//                                  std::ptrdiff_t,
+//                                  LvArray::ChaiBuffer >;
+// using vectorDouble=LvArray::Array< double,
+//                                    1,
+//                                    camp::idx_seq< 0 >,
+//                                    std::ptrdiff_t,
+//                                    LvArray::ChaiBuffer >;
+// using arrayInt=LvArray::Array< int,
+//                                2,
+//                                camp::idx_seq< 0, 1 >,
+//                                std::ptrdiff_t,
+//                                LvArray::ChaiBuffer >;
+// using arrayReal=LvArray::Array< float,
+//                                 2,
+//                                 camp::idx_seq< 0, 1 >,
+//                                 std::ptrdiff_t,
+//                                 LvArray::ChaiBuffer >;
+// using arrayDouble=LvArray::Array< double,
+//                                   2,
+//                                   camp::idx_seq< 0, 1 >,
+//                                   std::ptrdiff_t,
+//                                   LvArray::ChaiBuffer >;
+// using array3DInt=LvArray::Array< int,
+//                                  3,
+//                                  camp::idx_seq< 0, 1, 2 >,
+//                                  std::ptrdiff_t,
+//                                  LvArray::ChaiBuffer >;
+// using array3DReal=LvArray::Array< float,
+//                                   3,
+//                                   camp::idx_seq< 0, 1, 2 >,
+//                                   std::ptrdiff_t,
+//                                   LvArray::ChaiBuffer >;
+// using array3DDouble=LvArray::Array< double,
+//                                     3,
+//                                     camp::idx_seq< 0, 1, 2 >,
+//                                     std::ptrdiff_t,
+//                                     LvArray::ChaiBuffer >;
+// // defines Views
+// using vectorIntView=LvArray::ArrayView< int,
+//                                         1,
+//                                         0,
+//                                         std::ptrdiff_t,
+//                                         LvArray::ChaiBuffer >;
+// using vectorRealView=LvArray::ArrayView< float,
+//                                          1,
+//                                          0,
+//                                          std::ptrdiff_t,
+//                                          LvArray::ChaiBuffer >;
+// using vectorDoubleView=LvArray::ArrayView< double,
+//                                            1,
+//                                            0,
+//                                            std::ptrdiff_t,
+//                                            LvArray::ChaiBuffer >;
+// using arrayIntView=LvArray::ArrayView< int,
+//                                        2,
+//                                        1,
+//                                        std::ptrdiff_t,
+//                                        LvArray::ChaiBuffer >;
+// using arrayRealView=LvArray::ArrayView< float,
+//                                         2,
+//                                         1,
+//                                         std::ptrdiff_t,
+//                                         LvArray::ChaiBuffer >;
+// using arrayDoubleView=LvArray::ArrayView< double,
+//                                           2,
+//                                           1,
+//                                           std::ptrdiff_t,
+//                                           LvArray::ChaiBuffer >;
+// using array3DIntView=LvArray::ArrayView< int,
+//                                          3,
+//                                          2,
+//                                          std::ptrdiff_t,
+//                                          LvArray::ChaiBuffer >;
+// using array3DRealView=LvArray::ArrayView< float,
+//                                           3,
+//                                           2,
+//                                           std::ptrdiff_t,
+//                                           LvArray::ChaiBuffer >;
+// using array3DDoubleView=LvArray::ArrayView< double,
+//                                             3,
+//                                             2,
+//                                             std::ptrdiff_t,
+//                                             LvArray::ChaiBuffer >;
 
-#endif //USE_LVARRAY
+// #endif //USE_LVARRAY
 
 #ifdef USE_KOKKOS
 
