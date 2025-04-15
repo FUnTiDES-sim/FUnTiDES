@@ -3,7 +3,6 @@
 // define Macros for function type
 #if defined (USE_KOKKOS)
   #define PROXY_HOST_DEVICE KOKKOS_INLINE_FUNCTION 
-  //#define PROXY_HOST_DEVICE  KOKKOS_FUNCTION
 #else
   #define PROXY_HOST_DEVICE 
 #endif
