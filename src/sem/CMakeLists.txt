@@ -20,10 +20,10 @@ message ( "---------------------------------------------------------------------
 #-------------------------------------------------------
 
 set (sem_sources
-     mesh/SEMmesh.cpp
-     solver/SEMsolver.cpp
-     main/SEMproxy.cpp
-     main/main.cpp)
+     SEMmesh.cpp
+     SEMsolver.cpp
+     SEMproxy.cpp
+     main.cpp)
 
 blt_add_executable( NAME ${SEM_EXECUTABLE}
                     SOURCES ${sem_sources}
@@ -32,13 +32,9 @@ blt_add_executable( NAME ${SEM_EXECUTABLE}
 target_include_directories( ${SEM_EXECUTABLE} PUBLIC
         ${CMAKE_BINARY_DIR}/src
         ${CMAKE_CURRENT_SOURCE_DIR}/../utils
-        ${CMAKE_CURRENT_SOURCE_DIR}/finiteElements
-        ${CMAKE_CURRENT_SOURCE_DIR}/mesh
-        ${CMAKE_CURRENT_SOURCE_DIR}/solver
         ${CMAKE_CURRENT_SOURCE_DIR}/../Shiva/src
         ${CMAKE_CURRENT_SOURCE_DIR}/../Shiva/tpl/camp/include
-        ${CMAKE_BINARY_DIR}/include
-        ${CMAKE_CURRENT_SOURCE_DIR}/main)
+        ${CMAKE_BINARY_DIR}/../include)
 
 install(TARGETS ${SEM_EXECUTABLE}
         RUNTIME DESTINATION bin)
