@@ -67,14 +67,14 @@ option (USE_KOKKOS_TEAMS "use hierarchical parallelism in Kokkos" OFF)
 #-------------------------------------------------------------------
 
  # CC options
-# set(CMAKE_C_COMPILER  /usr/bin/gcc-12  CACHE PATH "")
+set(CMAKE_C_COMPILER  /usr/bin/gcc-12  CACHE PATH "")
 set(CMAKE_C_FLAGS_RELEASE "-O3 -DNDEBUG" CACHE STRING "")
 set(CMAKE_C_FLAGS_RELWITHDEBINFO "-g ${CMAKE_C_FLAGS_RELEASE}" CACHE STRING "")
 set(CMAKE_C_FLAGS_DEBUG "-O0 -g" CACHE STRING "")
 # C++ options
-# set(CMAKE_CXX_COMPILER /usr/bin/g++-12  CACHE PATH "")
+set(CMAKE_CXX_COMPILER /usr/bin/g++-12  CACHE PATH "")
 message(STATUS "--CMAKE_CXX_COMPILER=${CMAKE_CXX_COMPILER}")
-set(CMAKE_CXX_FLAGS "-O3 -fconcepts " CACHE STRING "" FORCE)
+set(CMAKE_CXX_FLAGS "-O3 " CACHE STRING "" FORCE)
 set(CMAKE_CXX_FLAGS_RELEASE "-O3 -DNDEBUG " CACHE STRING "")
 set(CMAKE_CXX_FLAGS_RELWITHDEBINFO "-g ${CMAKE_CXX_FLAGS_RELEASE}" CACHE STRING "")
 set(CMAKE_CXX_FLAGS_DEBUG "-O0 -g" CACHE STRING "")
