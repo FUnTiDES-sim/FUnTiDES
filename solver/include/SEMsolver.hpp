@@ -13,7 +13,7 @@
 //#include "SEMQkGL.hpp"
 #include "SEMQkGLBasisFunctions.hpp"
 #include "SEMQkGLIntegrals.hpp"
-#include "SEMmesh.hpp"
+#include <mesh/SEMmesh.hpp>
 #ifdef USE_CALIPER
 #include <caliper/cali.h>
 #endif

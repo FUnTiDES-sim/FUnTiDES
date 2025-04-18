@@ -1,4 +1,4 @@
-#include "SEMmesh.hpp"
+#include <mesh/SEMmesh.hpp>
 
 SEMmesh::SEMmesh(const int &ex_in, const int &ey_in, const int &ez_in,
                  const float &lx_in, const float &ly_in, const float &lz_in,
