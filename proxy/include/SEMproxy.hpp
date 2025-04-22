@@ -19,14 +19,13 @@
  * @class SEMproxy
  */
 
-class SEMproxy
-{
+class SEMproxy {
 public:
-
   /**
    * @brief Constructor of the SEMproxy class
    */
   SEMproxy(int argc, char *argv[]);
+  SEMproxy(int ex, int ey, int ez, float lx);
 
   /**
    * @brief Destructor of the SEMproxy class
@@ -59,11 +58,10 @@ public:
   void update_color_matrix();
 
   SEMmesh myMesh;
-  
-private:
 
-  int i1=0;
-  int i2=1;
+private:
+  int i1 = 0;
+  int i2 = 1;
 
   SEMinfo myInfo;
 
@@ -74,8 +72,7 @@ private:
   arrayReal myRHSTerm;
   arrayReal pnGlobal;
   vectorInt rhsElement;
-  float* color_matrix;
-
+  float *color_matrix;
 };
 
 #endif /* SEMPROXY_HPP_ */

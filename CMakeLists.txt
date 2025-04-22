@@ -74,22 +74,31 @@ set(CMAKE_C_FLAGS_DEBUG "-O0 -g" CACHE STRING "")
 # C++ options
 set(CMAKE_CXX_COMPILER /usr/bin/g++-12  CACHE PATH "")
 message(STATUS "--CMAKE_CXX_COMPILER=${CMAKE_CXX_COMPILER}")
-set(CMAKE_CXX_FLAGS "-O3 " CACHE STRING "" FORCE)
 set(CMAKE_CXX_FLAGS_RELEASE "-O3 -DNDEBUG " CACHE STRING "")
 set(CMAKE_CXX_FLAGS_RELWITHDEBINFO "-g ${CMAKE_CXX_FLAGS_RELEASE}" CACHE STRING "")
 set(CMAKE_CXX_FLAGS_DEBUG "-O0 -g" CACHE STRING "")
 set(CMAKE_CXX_STANDARD 17 CACHE STRING "")
 set(CMAKE_CXX_EXTENSIONS OFF CACHE BOOL "Disable gnu++ extensions" FORCE)
 
+# if (ENABLE_CUDA)
+# set(CUDA_ROOT $ENV{CUDA_ROOT} CACHE PATH "" FORCE)
+# set(CMAKE_CUDA_ARCHITECTURES 89 CACHE STRING "" FORCE)
+# # set(CUDA_ARCH sm_89 CACHE STRING "" FORCE)
+# set(CMAKE_CUDA_FLAGS "-restrict --expt-relaxed-constexpr --expt-extended-lambda -Werror cross-execution-space-call,reorder,deprecated-declarations -fconcepts" CACHE STRING "")
+# set(CMAKE_CUDA_FLAGS_RELEASE "-g -Xcompiler -DNDEBUG" CACHE STRING "")
+# set(CMAKE_CUDA_FLAGS_RELWITHDEBINFO "-g -lineinfo ${CMAKE_CUDA_FLAGS_RELEASE}" CACHE STRING "")
+# set(CMAKE_CUDA_FLAGS_DEBUG "-g -G -Xcompiler -O0" CACHE STRING "")
+# endif()
 if (ENABLE_CUDA)
-set(CUDA_ROOT $ENV{CUDA_ROOT} CACHE PATH "" FORCE)
-set(CMAKE_CUDA_ARCHITECTURES 89 CACHE STRING "" FORCE)
-set(CUDA_ARCH sm_89 CACHE STRING "" FORCE)
-set(CMAKE_CUDA_FLAGS "-restrict --expt-relaxed-constexpr --expt-extended-lambda -Werror cross-execution-space-call,reorder,deprecated-declarations -fconcepts" CACHE STRING "")
-set(CMAKE_CUDA_FLAGS_RELEASE "-g -Xcompiler -DNDEBUG" CACHE STRING "")
-set(CMAKE_CUDA_FLAGS_RELWITHDEBINFO "-g -lineinfo ${CMAKE_CUDA_FLAGS_RELEASE}" CACHE STRING "")
-set(CMAKE_CUDA_FLAGS_DEBUG "-g -G -Xcompiler -O0" CACHE STRING "")
+  set(CUDA_ROOT $ENV{CUDA_ROOT} CACHE PATH "" FORCE)
+  set(CMAKE_CUDA_ARCHITECTURES 89 CACHE STRING "" FORCE)
+  set(CMAKE_CUDA_FLAGS "--expt-relaxed-constexpr --expt-extended-lambda" CACHE STRING "")
+  set(CMAKE_CUDA_FLAGS_RELEASE "-g -Xcompiler -DNDEBUG" CACHE STRING "")
+  set(CMAKE_CUDA_FLAGS_RELWITHDEBINFO "-g -lineinfo ${CMAKE_CUDA_FLAGS_RELEASE}" CACHE STRING "")
+  set(CMAKE_CUDA_FLAGS_DEBUG "-g -G -Xcompiler -O0" CACHE STRING "")
+  set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} --generate-code arch=compute_89,code=sm_89" CACHE STRING "" FORCE)
 endif()
+
 
 ################################
 # SEM USE OMP
@@ -206,6 +215,8 @@ else()
     set(USE_EZV OFF CACHE BOOL "")
 endif()
 
+find_package(Python 3.8 COMPONENTS Interpreter Development REQUIRED)
+add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/external/pybind11)
 
 
 configure_file( ${CMAKE_CURRENT_SOURCE_DIR}/utils/include/utils/commonConfig.hpp.in

@@ -33,6 +33,11 @@ SEMproxy::SEMproxy(int argc, char *argv[]) {
   myMesh = simpleMesh;
 }
 
+SEMproxy::SEMproxy(int ex, int ey, int ez, float lx) {
+  SEMmesh simpleMesh{ex, ey, ez, lx, lx, lx, myInfo.myOrderNumber};
+  myMesh = simpleMesh;
+}
+
 // Initialize the simulation.
 void SEMproxy::initFiniteElem() {
 #ifdef USE_CALIPER
@@ -71,9 +76,6 @@ void SEMproxy::run() {
     startOutputTime = system_clock::now();
     mySolver.outputPnValues(myMesh, indexTimeSample, i1, myInfo.myElementSource,
                             pnGlobal);
-    
-    // Send signal to EZV to update color map
-    // ezv_thr_push_data_colors(get_ezv_ctx()[0], getColumn(pnGlobal, i1).data());
 
     swap(i1, i2);
     totalOutputTime += system_clock::now() - startOutputTime;
