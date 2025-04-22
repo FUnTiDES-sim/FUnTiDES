@@ -45,19 +45,22 @@ public:
    */
   void run();
 
-  // initialize source and RHS
-  void init_source();
-
-  // allocate arrays and vectors
-  void init_arrays();
-
   // get information from mesh
   void getMeshInfo();
 
-  // update color matrix for vizu
-  void update_color_matrix();
-
   SEMmesh myMesh;
+
+  // Getter and setter for myRHSTerm
+  arrayReal getMyRHSTerm() const;
+  void setMyRHSTerm(const arrayReal &value);
+
+  // Getter and setter for pnGlobal
+  arrayReal getPnGlobal() const; 
+  void setPnGlobal(const arrayReal &value); 
+
+  // Getter and setter for rhsElement
+  vectorInt getRhsElement() const;
+  void setRhsElement(const vectorInt &value);
 
 private:
   int i1 = 0;
@@ -72,7 +75,12 @@ private:
   arrayReal myRHSTerm;
   arrayReal pnGlobal;
   vectorInt rhsElement;
-  float *color_matrix;
+
+  // initialize source and RHS
+  void init_source();
+
+  // allocate arrays and vectors
+  void init_arrays();
 };
 
 #endif /* SEMPROXY_HPP_ */

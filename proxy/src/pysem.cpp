@@ -22,5 +22,11 @@ PYBIND11_MODULE(pysem, m) {
         .def(py::init<int, int, int, float>())
         .def("get_mesh_info", &SEMproxy::getMeshInfo)
         .def("run", &SEMproxy::run)
-        .def("initFiniteElem", &SEMproxy::initFiniteElem);
+        .def("initFiniteElem", &SEMproxy::initFiniteElem)
+        .def("get_my_rhs_term", &SEMproxy::getMyRHSTerm)
+        .def("set_my_rhs_term", &SEMproxy::setMyRHSTerm)
+        .def("get_pn_global", &SEMproxy::getPnGlobal)
+        .def("set_pn_global", &SEMproxy::setPnGlobal)
+        .def("get_rhs_element", &SEMproxy::getRhsElement)
+        .def("set_rhs_element", &SEMproxy::setRhsElement);
 }
