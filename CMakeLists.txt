@@ -17,13 +17,19 @@ option (USE_CALIPER "Use Caliper instrumentation" OFF)
 # use of EZV to instrument code
 option (USE_EZV "Use EZV instrumentation" OFF)
 
-
 # use OMP to parallelise loops
 option (USE_OMP "Use OpenMP to parallelise loops" OFF)
 
 # use KOKOS to expose parallelism loop
 option (USE_KOKKOS "Use KOKKOS to parallelise loops" OFF)
 
+# Enable or not cuda
+option (ENABLE_CUDA "Enable cuda compilation" OFF)
+
+# Enable the python wrapping compilation
+option (ENABLE_PYWRAP "Enable python binding compilation with pybind11" OFF)
+
+# Chose integral version
 option (USE_SEMCLASSIC "Use CLASSIC " OFF)
 option (USE_SEMOPTIM "Use OPTIM " OFF)
 option (USE_SHIVA "Use SHIVA " OFF)
@@ -80,15 +86,6 @@ set(CMAKE_CXX_FLAGS_DEBUG "-O0 -g" CACHE STRING "")
 set(CMAKE_CXX_STANDARD 17 CACHE STRING "")
 set(CMAKE_CXX_EXTENSIONS OFF CACHE BOOL "Disable gnu++ extensions" FORCE)
 
-# if (ENABLE_CUDA)
-# set(CUDA_ROOT $ENV{CUDA_ROOT} CACHE PATH "" FORCE)
-# set(CMAKE_CUDA_ARCHITECTURES 89 CACHE STRING "" FORCE)
-# # set(CUDA_ARCH sm_89 CACHE STRING "" FORCE)
-# set(CMAKE_CUDA_FLAGS "-restrict --expt-relaxed-constexpr --expt-extended-lambda -Werror cross-execution-space-call,reorder,deprecated-declarations -fconcepts" CACHE STRING "")
-# set(CMAKE_CUDA_FLAGS_RELEASE "-g -Xcompiler -DNDEBUG" CACHE STRING "")
-# set(CMAKE_CUDA_FLAGS_RELWITHDEBINFO "-g -lineinfo ${CMAKE_CUDA_FLAGS_RELEASE}" CACHE STRING "")
-# set(CMAKE_CUDA_FLAGS_DEBUG "-g -G -Xcompiler -O0" CACHE STRING "")
-# endif()
 if (ENABLE_CUDA)
   set(CUDA_ROOT $ENV{CUDA_ROOT} CACHE PATH "" FORCE)
   set(CMAKE_CUDA_ARCHITECTURES 89 CACHE STRING "" FORCE)
@@ -104,19 +101,26 @@ endif()
 # SEM USE OMP
 ################################
 # the solver is using OpenMP+Vector on CPU
-if(USE_OMP)
-  set (SOLVER "OMP" CACHE PATH "" FORCE)
+if(USE_OMP AND NOT USE_KOKKOS)
   message(STATUS "BUILDING SOLVER including OpenMP+Vector on CPU")
-  set (USE_KOKKOS OFF CACHE BOOL "")
-  # set (USE_LVARRAY OFF CACHE BOOL "" FORCE)
+  find_package(OpenMP REQUIRED)
   set (ENABLE_CUDA OFF CACHE STRING "" FORCE)
   set (USE_VECTOR ON CACHE BOOL "" FORCE)
-  set (extraComponentsLinkList ${extraComponentsLinkList} openmp )
   message ("-- USE_OMP flag is set: USE_VECTOR= ${USE_VECTOR} ")
 else()
-    message ("-- USE_OMP flag is set to be false and OMP is not enabled")
+    message ("-- USE_OMP flag is set to be false or Kokkos activated. OMP is not enabled")
 endif()
+
 ################################
+# PYTHON WRAPPING
+################################
+if (ENABLE_PYWRAP)
+  message(STATUS "-- Enabling Python wrapping librairies. Using pybind11")
+  find_package(Python 3.8 COMPONENTS Interpreter Development REQUIRED)
+  add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/external/pybind11)
+  set(CMAKE_INTERPROCEDURAL_OPTIMIZATION FALSE CACHE BOOL "Disable global LTO" FORCE)
+  set(CMAKE_POSITION_INDEPENDENT_CODE ON)
+endif()
 
 ################################
 # KOKKOS
@@ -125,15 +129,19 @@ endif()
 if (NOT USE_KOKKOS)
   message ("-- USE_KOKKOS flag is set to false. KOKKOS is not enabled")
 else ()
+  message (STATUS "Building the application with Kokkos.")
   set(Kokkos_SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/external/kokkos)
   set(Kokkos_BINARY_DIR ${CMAKE_BINARY_DIR}/external/kokkos_build)
 
   set(Kokkos_ENABLE_SERIAL OFF CACHE BOOL "" FORCE)
   set(Kokkos_ENABLE_OPENMP ON CACHE BOOL "" FORCE)
-
+  if (ENABLE_CUDA)
+    set(Kokkos_ENABLE_CUDA ON CACHE BOOL "" FORCE)
+    message (STATUS "-- Activating CUDA with Kokkos.")
+  endif()
   add_subdirectory(${Kokkos_SOURCE_DIR})
+  message (STATUS "-- Kokkos Activated. Source are at $ENV{Kokkos_SOURCE_DIR}.")
 endif()
-################################
 
 ################################
 ## Shiva
@@ -214,9 +222,6 @@ else()
     message("-- USE_EZV flag is enabled but unknown error occured.")
     set(USE_EZV OFF CACHE BOOL "")
 endif()
-
-find_package(Python 3.8 COMPONENTS Interpreter Development REQUIRED)
-add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/external/pybind11)
 
 
 configure_file( ${CMAKE_CURRENT_SOURCE_DIR}/utils/include/utils/commonConfig.hpp.in

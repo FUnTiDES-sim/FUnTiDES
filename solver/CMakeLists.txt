@@ -1,14 +1,21 @@
-# Crée la bibliothèque solver
 add_library(solver
   src/SEMsolver.cpp
 )
 
-# Inclut les headers publics
 target_include_directories(solver PUBLIC
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
 )
 
-# Lie avec la bibliothèque utils uniquement
+set(SOLV_LIBS mesh utils)
+
+if(USE_KOKKOS)
+  list(APPEND SOLV_LIBS Kokkos::kokkos)
+endif()
+
+if(USE_OMP)
+  list(APPEND SOLV_LIBS OpenMP::OpenMP_CXX)
+endif()
+
 target_link_libraries(solver
-  PUBLIC utils mesh Kokkos::kokkos
+  PUBLIC ${SOLV_LIBS}
 )

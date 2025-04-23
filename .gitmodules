@@ -1,7 +1,6 @@
 [submodule "src/Shiva"]
 	path = src/Shiva
 	url = ../../GEOS-DEV/Shiva.git
-
 [submodule "external/kokkos"]
 	path = external/kokkos
 	url = https://github.com/kokkos/kokkos.git
