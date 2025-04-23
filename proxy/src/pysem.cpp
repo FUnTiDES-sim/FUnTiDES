@@ -18,6 +18,11 @@ PYBIND11_MODULE(pysem, m) {
         }
     });
 
+    // TODO: Remove when pykokkos-base is installed on Alexis' system
+    m.def("fence", []() {
+      Kokkos::fence();
+    });
+
     py::class_<SEMproxy>(m, "SEMproxy")
         .def(py::init<int, int, int, float>())
         .def("get_mesh_info", &SEMproxy::getMeshInfo)

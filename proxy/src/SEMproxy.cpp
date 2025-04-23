@@ -146,26 +146,14 @@ void SEMproxy::init_source() {
        << endl;
 }
 
-arrayReal SEMproxy::getMyRHSTerm() const {
-    return myRHSTerm;
-}
+arrayReal SEMproxy::getMyRHSTerm() const { return myRHSTerm; }
 
-void SEMproxy::setMyRHSTerm(const arrayReal& value) {
-    myRHSTerm = value;
-}
+void SEMproxy::setMyRHSTerm(const arrayReal &value) { myRHSTerm = value; }
 
-arrayReal SEMproxy::getPnGlobal() const {
-    return pnGlobal;
-}
+arrayReal SEMproxy::getPnGlobal() const { return pnGlobal; }
 
-void SEMproxy::setPnGlobal(const arrayReal& value) {
-    pnGlobal = value;
-}
+void SEMproxy::setPnGlobal(const arrayReal &value) { pnGlobal = value; }
 
-vectorInt SEMproxy::getRhsElement() const {
-    return rhsElement;
-}
+vectorInt SEMproxy::getRhsElement() const { return rhsElement; }
 
-void SEMproxy::setRhsElement(const vectorInt& value) {
-    rhsElement = value;
-}
+void SEMproxy::setRhsElement(const vectorInt &value) { rhsElement = value; }
