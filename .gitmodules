@@ -1,7 +1,9 @@
-[submodule "extern/pybind11"]
-	path = extern/pybind11
-	url = ../../pybind/pybind11
-	branch = stable
 [submodule "src/Shiva"]
 	path = src/Shiva
 	url = ../../GEOS-DEV/Shiva.git
+[submodule "external/kokkos"]
+	path = external/kokkos
+	url = https://github.com/kokkos/kokkos.git
+[submodule "external/pybind11"]
+	path = external/pybind11
+	url = https://github.com/pybind/pybind11.git

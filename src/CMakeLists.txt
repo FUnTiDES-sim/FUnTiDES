@@ -146,7 +146,7 @@ if( ENABLE_CUDA )
   set(CMAKE_CUDA_SEPARABLE_COMPILATION ON)
 endif()
 
-include( ../blt/SetupBLT.cmake )
+include( ../ext/blt/SetupBLT.cmake )
 
 set (USE_VECTOR ON CACHE BOOL "" FORCE)
 

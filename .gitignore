@@ -1,7 +1,7 @@
 *.swp
 *build*
 *install*
-*bin*
+bin*
 *snapshot*
 *.vscode*
 

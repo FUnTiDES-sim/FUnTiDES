@@ -1,0 +1,35 @@
+add_executable(semproxy
+  src/main.cpp
+  src/SEMproxy.cpp
+)
+
+target_include_directories(semproxy
+  PRIVATE
+    ${CMAKE_SOURCE_DIR}/proxy/include
+)
+
+target_link_libraries(semproxy
+  PRIVATE
+    solver
+    mesh
+    utils
+)
+
+if (ENABLE_PYWRAP)
+  # Retirer -flto manuellement (hack mais efficace parfois)
+  string(REPLACE "-flto" "" CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
+  file(COPY ${CMAKE_SOURCE_DIR}/pyscript/ DESTINATION ${CMAKE_BINARY_DIR}/proxy)
+  pybind11_add_module(pysem src/pysem.cpp src/SEMproxy.cpp)
+
+  target_include_directories(pysem PRIVATE ${CMAKE_SOURCE_DIR}/proxy/include)
+
+  target_link_libraries(pysem
+    PRIVATE
+      solver
+      mesh
+      utils
+  )
+
+  set_target_properties(pysem PROPERTIES INTERPROCEDURAL_OPTIMIZATION FALSE)
+  set_target_properties(pysem PROPERTIES POSITION_INDEPENDENT_CODE TRUE)
+endif()
