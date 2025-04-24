@@ -16,8 +16,6 @@ target_link_libraries(semproxy
 )
 
 if (ENABLE_PYWRAP)
-  # Retirer -flto manuellement (hack mais efficace parfois)
-  string(REPLACE "-flto" "" CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
   file(COPY ${CMAKE_SOURCE_DIR}/pyscript/ DESTINATION ${CMAKE_BINARY_DIR}/proxy)
   pybind11_add_module(pysem src/pysem.cpp src/SEMproxy.cpp)
 

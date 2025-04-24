@@ -7,3 +7,6 @@
 [submodule "external/pybind11"]
 	path = external/pybind11
 	url = https://github.com/pybind/pybind11.git
+[submodule "external/pykokkos-base"]
+	path = external/pykokkos-base
+	url = https://github.com/kokkos/pykokkos-base.git

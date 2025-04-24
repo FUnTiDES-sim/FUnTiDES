@@ -1,6 +1,5 @@
 cmake_minimum_required( VERSION 3.22.1 )
 
-project( proxyapp )
 
 #-----------------------------------------------------
 # Setup Flags for Building and Installation
@@ -73,7 +72,7 @@ option (USE_KOKKOS_TEAMS "use hierarchical parallelism in Kokkos" OFF)
 #-------------------------------------------------------------------
 
  # CC options
-set(CMAKE_C_COMPILER  /usr/bin/gcc-12  CACHE PATH "")
+set(CMAKE_C_COMPILER  /usr/bin/gcc-12  CACHE STRING "")
 set(CMAKE_C_FLAGS_RELEASE "-O3 -DNDEBUG" CACHE STRING "")
 set(CMAKE_C_FLAGS_RELWITHDEBINFO "-g ${CMAKE_C_FLAGS_RELEASE}" CACHE STRING "")
 set(CMAKE_C_FLAGS_DEBUG "-O0 -g" CACHE STRING "")
@@ -86,15 +85,17 @@ set(CMAKE_CXX_FLAGS_DEBUG "-O0 -g" CACHE STRING "")
 set(CMAKE_CXX_STANDARD 17 CACHE STRING "")
 set(CMAKE_CXX_EXTENSIONS OFF CACHE BOOL "Disable gnu++ extensions" FORCE)
 
-if (ENABLE_CUDA)
-  set(CUDA_ROOT $ENV{CUDA_ROOT} CACHE PATH "" FORCE)
-  set(CMAKE_CUDA_ARCHITECTURES 89 CACHE STRING "" FORCE)
-  set(CMAKE_CUDA_FLAGS "--expt-relaxed-constexpr --expt-extended-lambda" CACHE STRING "")
-  set(CMAKE_CUDA_FLAGS_RELEASE "-g -Xcompiler -DNDEBUG" CACHE STRING "")
-  set(CMAKE_CUDA_FLAGS_RELWITHDEBINFO "-g -lineinfo ${CMAKE_CUDA_FLAGS_RELEASE}" CACHE STRING "")
-  set(CMAKE_CUDA_FLAGS_DEBUG "-g -G -Xcompiler -O0" CACHE STRING "")
-  set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} --generate-code arch=compute_89,code=sm_89" CACHE STRING "" FORCE)
-endif()
+project( proxyapp )
+
+# if (ENABLE_CUDA)
+#   set(CUDA_ROOT $ENV{CUDA_ROOT} CACHE PATH "" FORCE)
+#   set(CMAKE_CUDA_ARCHITECTURES 89 CACHE STRING "" FORCE)
+#   set(CMAKE_CUDA_FLAGS "--expt-relaxed-constexpr --expt-extended-lambda" CACHE STRING "")
+#   set(CMAKE_CUDA_FLAGS_RELEASE "-g -Xcompiler -DNDEBUG" CACHE STRING "")
+#   set(CMAKE_CUDA_FLAGS_RELWITHDEBINFO "-g -lineinfo ${CMAKE_CUDA_FLAGS_RELEASE}" CACHE STRING "")
+#   set(CMAKE_CUDA_FLAGS_DEBUG "-g -G -Xcompiler -O0" CACHE STRING "")
+#   set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} --generate-code arch=compute_89,code=sm_89" CACHE STRING "" FORCE)
+# endif()
 
 
 ################################
@@ -131,16 +132,23 @@ if (NOT USE_KOKKOS)
 else ()
   message (STATUS "Building the application with Kokkos.")
   set(Kokkos_SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/external/kokkos)
-  set(Kokkos_BINARY_DIR ${CMAKE_BINARY_DIR}/external/kokkos_build)
+  set(Kokkos_BINARY_DIR ${CMAKE_BINARY_DIR}/external/kokkos/)
 
   set(Kokkos_ENABLE_SERIAL OFF CACHE BOOL "" FORCE)
   set(Kokkos_ENABLE_OPENMP ON CACHE BOOL "" FORCE)
   if (ENABLE_CUDA)
     set(Kokkos_ENABLE_CUDA ON CACHE BOOL "" FORCE)
+    set(Kokkos_ENABLE_CUDA_CONSTEXPR ON CACHE BOOL "" FORCE)
     message (STATUS "-- Activating CUDA with Kokkos.")
   endif()
   add_subdirectory(${Kokkos_SOURCE_DIR})
-  message (STATUS "-- Kokkos Activated. Source are at $ENV{Kokkos_SOURCE_DIR}.")
+  message (STATUS "-- Kokkos Activated. Source are at ${Kokkos_SOURCE_DIR}.")
+  if(ENABLE_PYWRAP)
+    set(ENABLE_INTERNAL_KOKKOS OFF CACHE BOOL "" FORCE)
+    set(Kokkos_DIR "${Kokkos_BINARY_DIR}" CACHE PATH "Use external Kokkos build")
+    message(STATUS "-- Enabling pykokkos base.")
+    add_subdirectory(external/pykokkos-base)
+  endif()
 endif()
 
 ################################
