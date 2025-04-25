@@ -30,7 +30,7 @@ option (ENABLE_PYWRAP "Enable python binding compilation with pybind11" OFF)
 
 # Chose integral version
 option (USE_SEMCLASSIC "Use CLASSIC " OFF)
-option (USE_SEMOPTIM "Use OPTIM " OFF)
+option (USE_SEMOPTIM "Use OPTIM " ON)
 option (USE_SHIVA "Use SHIVA " OFF)
 
 #--------------------------------------------------------
@@ -49,6 +49,11 @@ option (PRINT_ALLOC_INFO "printout memory allocation info" OFF)
 #---------------------------------------------------------
 option (USE_KOKKOS_TEAMS "use hierarchical parallelism in Kokkos" OFF)
 
+option(BUILD_SHARED_LIBS "Build shared libraries" ON)
+# So make install will copy pykokkos-base onto proxy folder
+if(CMAKE_INSTALL_PREFIX_INITIALIZED_TO_DEFAULT)
+  set(CMAKE_INSTALL_PREFIX "." CACHE PATH "Install path prefix" FORCE)
+endif()
 #-------------------------------------------------------------------
 # The Solver Implementation is with Programming Models:
 #
@@ -134,11 +139,14 @@ else ()
   set(Kokkos_SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/external/kokkos)
   set(Kokkos_BINARY_DIR ${CMAKE_BINARY_DIR}/external/kokkos/)
 
-  set(Kokkos_ENABLE_SERIAL OFF CACHE BOOL "" FORCE)
+  set(Kokkos_ENABLE_SERIAL ON CACHE BOOL "" FORCE)
   set(Kokkos_ENABLE_OPENMP ON CACHE BOOL "" FORCE)
+  set(Kokkos_ENABLE_SHARED ON CACHE BOOL "" FORCE)
   if (ENABLE_CUDA)
     set(Kokkos_ENABLE_CUDA ON CACHE BOOL "" FORCE)
     set(Kokkos_ENABLE_CUDA_CONSTEXPR ON CACHE BOOL "" FORCE)
+    set(Kokkos_ENABLE_CUDA_UVM ON CACHE BOOL "" FORCE)
+    set(Kokkos_ENABLE_CUDA_LAMBDA ON CACHE BOOL "" FORCE)
     message (STATUS "-- Activating CUDA with Kokkos.")
   endif()
   add_subdirectory(${Kokkos_SOURCE_DIR})
@@ -148,6 +156,14 @@ else ()
     set(Kokkos_DIR "${Kokkos_BINARY_DIR}" CACHE PATH "Use external Kokkos build")
     message(STATUS "-- Enabling pykokkos base.")
     add_subdirectory(external/pykokkos-base)
+    # Installing pykokkos-base python lib.
+    set(PYKOKKOS_BUILD_DIR "${CMAKE_BINARY_DIR}/external/pykokkos-base/kokkos")
+    file(GLOB PYKOKKOS_MODULE_SO "${PYKOKKOS_BUILD_DIR}/libpykokkos*.so")
+
+      install(
+        FILES ${PYKOKKOS_MODULE_SO}
+        DESTINATION proxy
+      )
   endif()
 endif()
 

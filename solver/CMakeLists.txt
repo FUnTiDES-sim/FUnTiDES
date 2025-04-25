@@ -13,6 +13,7 @@ if(USE_KOKKOS)
 endif()
 
 if(USE_OMP)
+  # find_package(OpenMP REQUIRED)
   list(APPEND SOLV_LIBS OpenMP::OpenMP_CXX)
 endif()
 
