@@ -5,7 +5,7 @@ add_executable(semproxy
 
 target_include_directories(semproxy
   PRIVATE
-    ${CMAKE_SOURCE_DIR}/proxy/include
+    ${CMAKE_CURRENT_SOURCE_DIR}/include
 )
 
 target_link_libraries(semproxy
@@ -16,10 +16,10 @@ target_link_libraries(semproxy
 )
 
 if (ENABLE_PYWRAP)
-  file(COPY ${CMAKE_SOURCE_DIR}/pyscript/ DESTINATION ${CMAKE_BINARY_DIR}/proxy)
+  file(COPY ${CMAKE_SOURCE_DIR}/scripts/pyscript/ DESTINATION ${CMAKE_BINARY_DIR}/proxy)
   pybind11_add_module(pysem src/pysem.cpp src/SEMproxy.cpp)
 
-  target_include_directories(pysem PRIVATE ${CMAKE_SOURCE_DIR}/proxy/include)
+  target_include_directories(pysem PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include)
 
   target_link_libraries(pysem
     PRIVATE

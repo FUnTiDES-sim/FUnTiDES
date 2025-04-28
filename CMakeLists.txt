@@ -4,9 +4,10 @@ cmake_minimum_required( VERSION 3.22.1 )
 #-----------------------------------------------------
 # Setup Flags for Building and Installation
 #-----------------------------------------------------
-
 set (CMAKE_VERBOSE_MAKEFILE ON )
 
+option (COMPILE_SEM "Compile Spectral Elements Method simulation" ON)
+option (COMPILE_FD "Compile finit elements simulation" ON)
 #-----------------------------------------------------
 # Setup the flags for users to select programming models
 #-----------------------------------------------------
@@ -240,8 +241,14 @@ endif()
 configure_file( ${CMAKE_CURRENT_SOURCE_DIR}/utils/include/utils/commonConfig.hpp.in
                 ${CMAKE_BINARY_DIR}/utils/include/utils/commonConfig.hpp)
 
-
 add_subdirectory(utils)
-add_subdirectory(mesh)
-add_subdirectory(solver)
-add_subdirectory(proxy)
+
+if (COMPILE_SEM)
+  add_subdirectory(sem)
+  # add_subdirectory(mesh)
+  # add_subdirectory(solver)
+  # add_subdirectory(proxy)
+endif()
+
+if (COMPILE_FD)
+endif()

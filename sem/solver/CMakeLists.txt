@@ -4,9 +4,10 @@ add_library(solver
 
 target_include_directories(solver PUBLIC
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+  ${CMAKE_CURRENT_SOURCE_DIR}/../discretization
 )
 
-set(SOLV_LIBS mesh utils)
+set(SOLV_LIBS discretization mesh utils)
 
 if(USE_KOKKOS)
   list(APPEND SOLV_LIBS Kokkos::kokkos)

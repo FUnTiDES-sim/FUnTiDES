@@ -5,15 +5,15 @@
 #include <mesh/SEMdata.hpp>
 using namespace std;
 #ifdef USE_SEMCLASSIC
-    #include <SEMQkGLBasisFunctionsClassic.hpp> 
+    #include <discretization/SEMQkGLBasisFunctionsClassic.hpp>
     using SEMQkGLBasisFunctions = SEMQkGLBasisFunctionsClassic ;
 #endif
 #ifdef  USE_SEMOPTIM 
-    #include <SEMQkGLBasisFunctionsOptim.hpp>
+    #include <discretization/SEMQkGLBasisFunctionsOptim.hpp>
     using SEMQkGLBasisFunctions = SEMQkGLBasisFunctionsOptim;
 #endif
 #ifdef  USE_SHIVA
-    #include <SEMQkGLBasisFunctionsOptim.hpp>
+    #include <discretization/SEMQkGLBasisFunctionsOptim.hpp>
     using SEMQkGLBasisFunctions = SEMQkGLBasisFunctionsOptim;
 #endif
 #endif //SEMQKGLBASISFUNCTIONS_HPP_
