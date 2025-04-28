@@ -245,10 +245,8 @@ add_subdirectory(utils)
 
 if (COMPILE_SEM)
   add_subdirectory(sem)
-  # add_subdirectory(mesh)
-  # add_subdirectory(solver)
-  # add_subdirectory(proxy)
 endif()
 
 if (COMPILE_FD)
+  add_subdirectory(fd)
 endif()

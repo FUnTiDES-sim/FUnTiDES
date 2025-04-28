@@ -1,7 +1,7 @@
 #ifndef FDTDUTILS_HPP
 #define FDTDUTILS_HPP
 
-#include "dataType.hpp"
+#include <utils/dataType.hpp>
 #include "FDTDdata.hpp"
 
 using namespace std;
