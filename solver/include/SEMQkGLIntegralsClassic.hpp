@@ -1,10 +1,11 @@
 #ifndef SEMQKGLINTEGRALSCLASSIC_HPP_
 #define SEMQKGLINTEGRALSCLASSIC_HPP_
 
-#include "dataType.hpp"
-#include "SEMmacros.hpp"
-#include "SEMdata.hpp"
+#include <utils/dataType.hpp>
+#include <utils/SEMmacros.hpp>
+#include <mesh/SEMdata.hpp>
 #include "SEMQkGLBasisFunctions.hpp"
+
 using namespace std;
 
 /**

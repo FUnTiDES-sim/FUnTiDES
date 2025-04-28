@@ -128,7 +128,6 @@ void SEMproxy::init_source() {
     // extract element number for current rhs
     rhsElement[i] = myMesh.getElementNumberFromPoints(
         myRHSLocation(i, 0), myRHSLocation(i, 1), myRHSLocation(i, 2));
-    // printf("Element number for the source %d is: %d\n", i, rhsElement[i]);
   }
 
   // initialize source term

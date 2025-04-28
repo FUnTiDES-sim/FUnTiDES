@@ -1,5 +1,6 @@
 #ifndef SEMINFO_HPP_
 #define SEMINFO_HPP_
+
 struct SEMinfo
 {
   // get infos from mesh

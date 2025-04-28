@@ -92,17 +92,6 @@ set(CMAKE_CXX_EXTENSIONS OFF CACHE BOOL "Disable gnu++ extensions" FORCE)
 
 project( proxyapp )
 
-# if (ENABLE_CUDA)
-#   set(CUDA_ROOT $ENV{CUDA_ROOT} CACHE PATH "" FORCE)
-#   set(CMAKE_CUDA_ARCHITECTURES 89 CACHE STRING "" FORCE)
-#   set(CMAKE_CUDA_FLAGS "--expt-relaxed-constexpr --expt-extended-lambda" CACHE STRING "")
-#   set(CMAKE_CUDA_FLAGS_RELEASE "-g -Xcompiler -DNDEBUG" CACHE STRING "")
-#   set(CMAKE_CUDA_FLAGS_RELWITHDEBINFO "-g -lineinfo ${CMAKE_CUDA_FLAGS_RELEASE}" CACHE STRING "")
-#   set(CMAKE_CUDA_FLAGS_DEBUG "-g -G -Xcompiler -O0" CACHE STRING "")
-#   set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} --generate-code arch=compute_89,code=sm_89" CACHE STRING "" FORCE)
-# endif()
-
-
 ################################
 # SEM USE OMP
 ################################
