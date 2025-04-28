@@ -3,8 +3,8 @@
 
 #include <utils/dataType.hpp>
 #include <utils/SEMmacros.hpp>
-#include <mesh/SEMdata.hpp>
-#include "SEMQkGLBasisFunctions.hpp"
+#include <utils/SEMdata.hpp>
+#include <discretization/SEMQkGLBasisFunctions.hpp>
 
 using namespace std;
 

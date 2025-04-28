@@ -4,7 +4,7 @@
 #include "SEMQkGLBasisFunctions.hpp"
 #include <utils/dataType.hpp>
 #include <utils/SEMmacros.hpp>
-#include <mesh/SEMdata.hpp>
+#include <utils/SEMdata.hpp>
 
 using namespace std;
 
