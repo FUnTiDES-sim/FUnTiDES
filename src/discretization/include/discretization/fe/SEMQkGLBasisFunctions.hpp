@@ -5,15 +5,15 @@
 #include <utils/SEMdata.hpp>
 using namespace std;
 #ifdef USE_SEMCLASSIC
-    #include <discretization/SEMQkGLBasisFunctionsClassic.hpp>
+    #include <discretization/fe/SEMQkGLBasisFunctionsClassic.hpp>
     using SEMQkGLBasisFunctions = SEMQkGLBasisFunctionsClassic ;
 #endif
 #ifdef  USE_SEMOPTIM 
-    #include <discretization/SEMQkGLBasisFunctionsOptim.hpp>
+    #include <discretization/fe/SEMQkGLBasisFunctionsOptim.hpp>
     using SEMQkGLBasisFunctions = SEMQkGLBasisFunctionsOptim;
 #endif
 #ifdef  USE_SHIVA
-    #include <discretization/SEMQkGLBasisFunctionsOptim.hpp>
+    #include <discretization/fe/SEMQkGLBasisFunctionsOptim.hpp>
     using SEMQkGLBasisFunctions = SEMQkGLBasisFunctionsOptim;
 #endif
 #endif //SEMQKGLBASISFUNCTIONS_HPP_

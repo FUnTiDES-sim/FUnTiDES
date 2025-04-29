@@ -11,8 +11,8 @@
 #define SEM_SOLVER_HPP_
 
 //#include "SEMQkGL.hpp"
-#include <discretization/SEMQkGLBasisFunctions.hpp>
-#include <discretization/SEMQkGLIntegrals.hpp>
+#include <discretization/fe/SEMQkGLBasisFunctions.hpp>
+#include <discretization/fe/SEMQkGLIntegrals.hpp>
 #include <mesh/SEMmesh.hpp>
 #ifdef USE_CALIPER
 #include <caliper/cali.h>

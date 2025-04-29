@@ -1,12 +1,12 @@
 #ifdef USE_SEMCLASSIC
-    #include <discretization/SEMQkGLIntegralsClassic.hpp>
+    #include <discretization/fe/SEMQkGLIntegralsClassic.hpp>
     using SEMQkGLIntegrals = SEMQkGLIntegralsClassic ;
 #endif
 #ifdef  USE_SEMOPTIM 
-    #include <discretization/SEMQkGLIntegralsOptim.hpp>
+    #include <discretization/fe/SEMQkGLIntegralsOptim.hpp>
     using SEMQkGLIntegrals = SEMQkGLIntegralsOptim;
 #endif
 #ifdef USE_SHIVA
-    #include <discretization/SEMQkGLIntegralsShiva.hpp>
+    #include <discretization/fe/SEMQkGLIntegralsShiva.hpp>
     using SEMQkGLIntegrals = SEMQkGLIntegralsShiva ;
 #endif

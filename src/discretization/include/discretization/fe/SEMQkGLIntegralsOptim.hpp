@@ -1,7 +1,6 @@
 #ifndef SEMQKGLINTEGRALSOPTIM_HPP_
 #define SEMQKGLINTEGRALSOPTIM_HPP_
 
-#include "SEMQkGLBasisFunctions.hpp"
 #include <utils/dataType.hpp>
 #include <utils/SEMmacros.hpp>
 #include <utils/SEMdata.hpp>

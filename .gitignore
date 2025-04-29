@@ -10,3 +10,7 @@ bin*
 compile_commands.json
 src/LvArra*
 .cache
+
+external/pybind11
+external/kokkos
+external/pykokkos-base
