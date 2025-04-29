@@ -40,14 +40,15 @@ endif()
 # Setup for FD_EXECUTABLE
 ################################
 if(COMPILE_FD)
-  add_executable(fd_executable FDTDmain.cpp)
-  target_include_directories(fd_executable PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/utilsFDTD)
+  add_executable(fdproxy src/FDTDmain.cpp)
+  # target_include_directories(fd_executable PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/utilsFDTD)
 
+  target_link_libraries(fdproxy PRIVATE discretization)
   set(FD_LIBS utils)
 
   if(USE_KOKKOS)
     list(APPEND FD_LIBS Kokkos::kokkos)
   endif()
 
-  target_link_libraries(fd_executable PRIVATE ${FD_LIBS})
+  target_link_libraries(fdproxy PRIVATE ${FD_LIBS})
 endif()
