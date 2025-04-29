@@ -1,5 +1,5 @@
 add_subdirectory(utils)
 add_subdirectory(discretization)
-add_subdirectory(mesh)
+add_subdirectory(model)
 add_subdirectory(solver)
 add_subdirectory(main)

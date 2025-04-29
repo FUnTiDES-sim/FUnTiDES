@@ -13,7 +13,7 @@
 //#include "SEMQkGL.hpp"
 #include <discretization/fe/SEMQkGLBasisFunctions.hpp>
 #include <discretization/fe/SEMQkGLIntegrals.hpp>
-#include <mesh/SEMmesh.hpp>
+#include <model.hpp>
 #ifdef USE_CALIPER
 #include <caliper/cali.h>
 #endif
@@ -30,7 +30,7 @@ public:
    * init all FE components for computing mass and stiffness matrices
    */
   void computeFEInit ( SEMinfo & myInfo,
-                       SEMmesh mesh );
+                       Mesh mesh );
 
   /**
    * @brief computeOneStep function:
@@ -47,13 +47,13 @@ public:
                         arrayReal const & myPnGlobal,
                         const vectorInt & myRhsElement );
 
-  void outputPnValues ( SEMmesh mesh,
+  void outputPnValues ( Mesh mesh,
                         const int & indexTimeStep,
                         int & i1,
                         int & myElementSource,
                         const arrayReal & pnGlobal );
 
-  void initFEarrays( SEMinfo & myInfo, SEMmesh mesh );
+  void initFEarrays( SEMinfo & myInfo, Mesh mesh );
 
   void allocateFEarrays( SEMinfo & myInfo );
 

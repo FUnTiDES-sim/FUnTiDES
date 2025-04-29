@@ -34,6 +34,9 @@ option (USE_SEMCLASSIC "Use CLASSIC " OFF)
 option (USE_SEMOPTIM "Use OPTIM " ON)
 option (USE_SHIVA "Use SHIVA " OFF)
 
+# Chose data model
+option (USE_SIMPLE_MESH "Use Simple mesh" ON)
+
 #--------------------------------------------------------
 # Option to save snapshots of wavefields (for debugging)
 #--------------------------------------------------------

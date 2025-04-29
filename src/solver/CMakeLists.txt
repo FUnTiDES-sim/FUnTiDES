@@ -5,6 +5,7 @@ add_library(solver
 target_include_directories(solver PUBLIC
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
   ${CMAKE_CURRENT_SOURCE_DIR}/../discretization
+  ${CMAKE_CURRENT_SOURCE_DIR}/../model
 )
 
 set(SOLV_LIBS discretization mesh utils)
