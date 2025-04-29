@@ -16,7 +16,7 @@
 #endif // USE_KOKKOS
 #endif // USE_EZV
 
-void SEMsolver::computeFEInit(SEMinfo &myInfo, SEMmesh mesh) {
+void SEMsolver::computeFEInit(SEMinfo &myInfo, Mesh mesh) {
   order = myInfo.myOrderNumber;
   allocateFEarrays(myInfo);
   initFEarrays(myInfo, mesh);
@@ -142,7 +142,7 @@ void SEMsolver::computeOneStep(const int &timeSample, const int &order,
   FENCE
 }
 
-void SEMsolver::outputPnValues(SEMmesh mesh, const int &indexTimeStep, int &i1,
+void SEMsolver::outputPnValues(Mesh mesh, const int &indexTimeStep, int &i1,
                                int &myElementSource,
                                const arrayReal &pnGlobal) {
   // writes debugging ascii file.
@@ -157,7 +157,7 @@ void SEMsolver::outputPnValues(SEMmesh mesh, const int &indexTimeStep, int &i1,
   }
 }
 
-void SEMsolver::initFEarrays(SEMinfo &myInfo, SEMmesh mesh) {
+void SEMsolver::initFEarrays(SEMinfo &myInfo, Mesh mesh) {
   // interior elements
   mesh.globalNodesList(myInfo.numberOfElements, globalNodesList);
   mesh.getListOfInteriorNodes(myInfo.numberOfInteriorNodes,
