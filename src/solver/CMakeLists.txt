@@ -1,12 +1,10 @@
-add_library(solver
-  src/SEMsolver.cpp
-)
+add_library(solver src/SEMsolver.cpp)
 
-target_include_directories(solver PUBLIC
-  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
-  ${CMAKE_CURRENT_SOURCE_DIR}/../discretization
-  ${CMAKE_CURRENT_SOURCE_DIR}/../model
-)
+target_include_directories(
+  solver
+  PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+         ${CMAKE_CURRENT_SOURCE_DIR}/../discretization
+         ${CMAKE_CURRENT_SOURCE_DIR}/../model)
 
 set(SOLV_LIBS discretization mesh utils)
 
@@ -15,12 +13,11 @@ if(USE_KOKKOS)
 endif()
 
 if(USE_OMP)
+  find_package(OpenMP REQUIRED)
   list(APPEND SOLV_LIBS OpenMP::OpenMP_CXX)
 endif()
 
-target_link_libraries(solver
-  PUBLIC ${SOLV_LIBS}
-)
+target_link_libraries(solver PUBLIC ${SOLV_LIBS})
 
 if(ENABLE_PYWRAP)
   pybind11_add_module(pysolver src/pysolver.cpp)
