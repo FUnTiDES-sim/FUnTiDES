@@ -42,6 +42,9 @@ endif()
 if(COMPILE_FD)
   add_executable(fdproxy src/FDTDmain.cpp)
   # target_include_directories(fd_executable PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/utilsFDTD)
+  target_include_directories(fdproxy PUBLIC
+    ${CMAKE_CURRENT_SOURCE_DIR}/../discretization
+  )
 
   target_link_libraries(fdproxy PRIVATE discretization)
   set(FD_LIBS utils)

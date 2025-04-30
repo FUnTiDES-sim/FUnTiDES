@@ -4,7 +4,7 @@
 // main.cpp: this main file is simply a driver
 //************************************************************************
 
-#include <discretization/fd/FDTDinit.hpp>
+#include <fd/FDTDinit.hpp>
 
 int main( int argc, char *argv[] )
 {
