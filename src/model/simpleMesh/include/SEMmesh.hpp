@@ -1,8 +1,8 @@
 #ifndef SEM_MESH_
 #define SEM_MESH_
 
-#include <utils/dataType.hpp>
-#include <utils/SEMmacros.hpp>
+#include <dataType.hpp>
+#include <SEMmacros.hpp>
 using namespace std;
 
 class SEMmesh

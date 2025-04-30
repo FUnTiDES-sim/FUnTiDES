@@ -9,8 +9,8 @@
 #define SEMPROXY_HPP_
 
 #include <SEMsolver.hpp>
-#include <utils/argsparse.hpp>
-#include <utils/utils.hpp>
+#include <argsparse.hpp>
+#include <utils.hpp>
 #ifdef USE_CALIPER
 #include <caliper/cali.h>
 #endif

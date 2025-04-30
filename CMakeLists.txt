@@ -241,19 +241,7 @@ else()
 endif()
 
 
-configure_file( ${CMAKE_CURRENT_SOURCE_DIR}/src/utils/include/utils/commonConfig.hpp.in
-                ${CMAKE_BINARY_DIR}/src/utils/include/utils/commonConfig.hpp)
+configure_file( ${CMAKE_CURRENT_SOURCE_DIR}/src/utils/include/commonConfig.hpp.in
+                ${CMAKE_BINARY_DIR}/src/utils/include/commonConfig.hpp)
 
  add_subdirectory(src)
-# add_subdirectory(utils)
-# add_subdirectory(discretization)
-# add_subdirectory(solver)
-# add_subdirectory(mesh)
-
-# if (COMPILE_SEM)
-#   add_subdirectory(sem)
-# endif()
-
-# if (COMPILE_FD)
-#   add_subdirectory(fd)
-# endif()
