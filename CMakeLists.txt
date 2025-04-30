@@ -17,6 +17,8 @@ option (USE_CALIPER "Use Caliper instrumentation" OFF)
 # use of EZV to instrument code
 option (USE_EZV "Use EZV instrumentation" OFF)
 
+# use vector data type. Needed for serial version
+option (USE_VECTOR "Use vectors." ON)
 # use OMP to parallelise loops
 option (USE_OMP "Use OpenMP to parallelise loops" OFF)
 
@@ -129,6 +131,8 @@ if (NOT USE_KOKKOS)
   message ("-- USE_KOKKOS flag is set to false. KOKKOS is not enabled")
 else ()
   message (STATUS "Building the application with Kokkos.")
+  set(USE_VECTOR OFF CACHE BOOL "" FORCE)
+
   set(Kokkos_SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/external/kokkos)
   set(Kokkos_BINARY_DIR ${CMAKE_BINARY_DIR}/external/kokkos/)
 
