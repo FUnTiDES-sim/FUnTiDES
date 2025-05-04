@@ -26,14 +26,12 @@ void SEMsolver::computeFEInit(SEMinfo &myInfo, Mesh mesh) {
 void SEMsolver::computeOneStep(const int &timeSample, const int &order,
                                const int &nPointsPerElement, const int &i1,
                                const int &i2, SEMinfo &myInfo,
-                               const arrayReal &RHS_Term,
-                               arrayReal const &PN_Global,
-                               const vectorInt &RHS_Element) {
+                               const arrayReal &rhsTerm,
+                               arrayReal const &pnGlobal,
+                               const vectorInt &rhsElement) {
 #ifdef USE_CALIPER
   CALI_CXX_MARK_FUNCTION;
 #endif
-
-  CREATEVIEWS
 
   LOOPHEAD(myInfo.numberOfNodes, i)
   massMatrixGlobal[i] = 0;
@@ -106,8 +104,8 @@ void SEMsolver::computeOneStep(const int &timeSample, const int &order,
 
 #ifdef USE_EZV
   //  Kokkos::View<float *, Kokkos::CudaSpace> ezv_device_data("EZV Device",
-  //  PN_Global.size());
-  auto ezv_host_data = Kokkos::create_mirror(PN_Global);
+  //  pnGlobal.size());
+  auto ezv_host_data = Kokkos::create_mirror(pnGlobal);
   Kokkos::fence();
 #endif
 
@@ -121,9 +119,9 @@ void SEMsolver::computeOneStep(const int &timeSample, const int &order,
 
 #ifdef USE_EZV
   Kokkos::fence();
-  Kokkos::deep_copy(ezv_host_data, PN_Global);
-  auto nb_x = PN_Global.extent(0);
-  auto nb_y = PN_Global.extent(1);
+  Kokkos::deep_copy(ezv_host_data, pnGlobal);
+  auto nb_x = pnGlobal.extent(0);
+  auto nb_y = pnGlobal.extent(1);
   Kokkos::fence();
   float *ezv_data = (float *)malloc((nb_x) * sizeof(float));
   // copy kokkos data into heap
@@ -165,6 +163,7 @@ void SEMsolver::initFEarrays(SEMinfo &myInfo, Mesh mesh) {
   // mesh coordinates
   mesh.nodesCoordinates(globalNodesCoordsX, globalNodesCoordsZ,
                         globalNodesCoordsY);
+#endif
   // get model
   mesh.getModel(myInfo.numberOfElements, model);
   // get quadrature points
@@ -189,18 +188,12 @@ void SEMsolver::allocateFEarrays(SEMinfo &myInfo) {
                                                   "listOfInteriorNodes");
 
   // global coordinates
-  // globalNodesCoordsX=allocateArray2D< arrayReal >( myInfo.numberOfElements,
-  // nbQuadraturePoints, "globalNodesCoordsX");
-  // globalNodesCoordsY=allocateArray2D< arrayReal >( myInfo.numberOfElements,
-  // nbQuadraturePoints, "globalNodesCoordsY");
-  // globalNodesCoordsZ=allocateArray2D< arrayReal >( myInfo.numberOfElements,
-  // nbQuadraturePoints, "globalNodesCoordsZ");
-  globalNodesCoordsX = allocateArray2D<arrayReal>(myInfo.numberOfElements, 8,
-                                                  "globalNodesCoordsX");
-  globalNodesCoordsY = allocateArray2D<arrayReal>(myInfo.numberOfElements, 8,
-                                                  "globalNodesCoordsY");
-  globalNodesCoordsZ = allocateArray2D<arrayReal>(myInfo.numberOfElements, 8,
-                                                  "globalNodesCoordsZ");
+  globalNodesCoordsX=allocateArray2D< arrayReal >( myInfo.numberOfElements,
+    nbQuadraturePoints, "globalNodesCoordsX");
+  globalNodesCoordsY=allocateArray2D< arrayReal >( myInfo.numberOfElements,
+    nbQuadraturePoints, "globalNodesCoordsY");
+  globalNodesCoordsZ=allocateArray2D< arrayReal >( myInfo.numberOfElements,
+    nbQuadraturePoints, "globalNodesCoordsZ");
 
   model = allocateVector<vectorReal>(myInfo.numberOfElements, "model");
 

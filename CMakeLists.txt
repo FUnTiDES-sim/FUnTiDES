@@ -170,6 +170,9 @@ if( USE_SHIVA )
   configure_file( ${CMAKE_CURRENT_SOURCE_DIR}/src/Shiva/tpl/camp/include/camp/config.in.hpp
                   ${PROJECT_BINARY_DIR}/src/camp/config.hpp)
   message(STATUS "USE SHIVA as a submodule")
+  include_directories(${CMAKE_CURRENT_SOURCE_DIR}/src/Shiva/tpl/camp/include/
+                      ${PROJECT_BINARY_DIR}/src/
+                      ${PROJECT_BINARY_DIR}/src/camp/)
 endif()
 ###############################
 
