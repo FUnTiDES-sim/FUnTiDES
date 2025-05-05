@@ -10,3 +10,6 @@
 [submodule "external/pykokkos-base"]
 	path = external/pykokkos-base
 	url = https://github.com/kokkos/pykokkos-base.git
+[submodule "src/discretization/SEMKernels"]
+	path = src/discretization/SEMKernels
+	url = git@github.com:proxySem/SEMKernels.git
