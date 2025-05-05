@@ -4,7 +4,7 @@
 #include <dataType.hpp>
 #include <SEMmacros.hpp>
 #include <SEMdata.hpp>
-#include <discretization/fe/SEMQkGLBasisFunctions.hpp>
+#include <SEMQkGLBasisFunctions.hpp>
 
 using namespace std;
 
