@@ -161,9 +161,14 @@ void SEMsolver::initFEarrays(SEMinfo &myInfo, Mesh mesh) {
   mesh.getListOfInteriorNodes(myInfo.numberOfInteriorNodes,
                               listOfInteriorNodes);
   // mesh coordinates
+#ifdef USE_SEMOPTIM
+  mesh.nodesCoordinates_opt(globalNodesCoordsX, globalNodesCoordsZ,
+                        globalNodesCoordsY);
+#else 
   mesh.nodesCoordinates(globalNodesCoordsX, globalNodesCoordsZ,
                         globalNodesCoordsY);
-  // #endif
+#endif // USE_SEMOPTIM 
+
   // get model
   mesh.getModel(myInfo.numberOfElements, model);
   // get quadrature points
