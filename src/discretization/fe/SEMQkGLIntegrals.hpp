@@ -10,3 +10,7 @@
     #include <fe/SEMQkGLIntegralsShiva.hpp>
     using SEMQkGLIntegrals = SEMQkGLIntegralsShiva ;
 #endif
+#ifdef USE_SEMGEOS
+    #include <fe/SEMQkGLIntegralsGeos.hpp>
+    using SEMQkGLIntegrals = SEMQkGLIntegralsGeos;
+#endif // USE_SEMGEOS

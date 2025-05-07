@@ -38,6 +38,7 @@
 #cmakedefine USE_SEMCLASSIC
 #cmakedefine USE_SEMOPTIM
 #cmakedefine USE_SHIVA
+#cmakedefine USE_SEMGEOS
 
 #cmakedefine USE_SIMPLE_MESH
 #endif

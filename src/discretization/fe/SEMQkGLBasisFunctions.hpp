@@ -16,4 +16,8 @@ using namespace std;
     #include <fe/SEMQkGLBasisFunctionsOptim.hpp>
     using SEMQkGLBasisFunctions = SEMQkGLBasisFunctionsOptim;
 #endif
+#ifdef USE_SEMGEOS
+    #include <fe/SEMQkGLBasisFunctionsGeos.hpp>
+    using SEMQkGLBasisFunctions = SEMQkGLBasisFunctionsGeos;
+#endif // USE_SEMGEOS
 #endif //SEMQKGLBASISFUNCTIONS_HPP_
