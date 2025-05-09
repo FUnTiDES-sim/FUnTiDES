@@ -26,14 +26,12 @@ void SEMsolver::computeFEInit(SEMinfo &myInfo, Mesh mesh) {
 void SEMsolver::computeOneStep(const int &timeSample, const int &order,
                                const int &nPointsPerElement, const int &i1,
                                const int &i2, SEMinfo &myInfo,
-                               const arrayReal &RHS_Term,
-                               arrayReal const &PN_Global,
-                               const vectorInt &RHS_Element) {
+                               const arrayReal &rhsTerm,
+                               arrayReal const &pnGlobal,
+                               const vectorInt &rhsElement) {
 #ifdef USE_CALIPER
   CALI_CXX_MARK_FUNCTION;
-#endif
-
-  CREATEVIEWS
+#endif // USE_CALIPER
 
   LOOPHEAD(myInfo.numberOfNodes, i)
   massMatrixGlobal[i] = 0;
@@ -42,7 +40,7 @@ void SEMsolver::computeOneStep(const int &timeSample, const int &order,
 
 #ifdef USE_CALIPER
   CALI_MARK_BEGIN("updateNodeRHS");
-#endif
+#endif // USE_CALIPER
   // update pnGLobal with right hade side
   LOOPHEAD(myInfo.myNumberOfRHS, i)
   int nodeRHS = globalNodesList(rhsElement[i], 0);
@@ -53,7 +51,7 @@ void SEMsolver::computeOneStep(const int &timeSample, const int &order,
 #ifdef USE_CALIPER
   CALI_MARK_END("updateNodeRHS");
   CALI_MARK_BEGIN("mainloop");
-#endif
+#endif // USE_CALIPER
   // start main parallel section
   MAINLOOPHEAD(myInfo.numberOfElements, elementNumber)
 
@@ -73,7 +71,7 @@ void SEMsolver::computeOneStep(const int &timeSample, const int &order,
         elementNumber, order, nPointsPerElement, globalNodesCoordsX,
         globalNodesCoordsY, globalNodesCoordsZ, weights,
         derivativeBasisFunction1D, massMatrixLocal, pnLocal, Y);
-#endif
+#endif // USE_SEMCLASSIC
 
 #ifdef USE_SEMOPTIM
     constexpr int ORDER = SEMinfo::myOrderNumber;
@@ -87,7 +85,7 @@ void SEMsolver::computeOneStep(const int &timeSample, const int &order,
     myQkIntegrals.computeMassMatrixAndStiffnessVector<ORDER>(
         elementNumber, nPointsPerElement, globalNodesCoordsX,
         globalNodesCoordsY, globalNodesCoordsZ, massMatrixLocal, pnLocal, Y);
-#endif
+#endif // USE_SHIVA
 
     // compute global mass Matrix and global stiffness vector
     for (int i = 0; i < nPointsPerElement; i++) {
@@ -106,10 +104,10 @@ void SEMsolver::computeOneStep(const int &timeSample, const int &order,
 
 #ifdef USE_EZV
   //  Kokkos::View<float *, Kokkos::CudaSpace> ezv_device_data("EZV Device",
-  //  PN_Global.size());
-  auto ezv_host_data = Kokkos::create_mirror(PN_Global);
+  //  pnGlobal.size());
+  auto ezv_host_data = Kokkos::create_mirror(pnGlobal);
   Kokkos::fence();
-#endif
+#endif // USE_EZV
 
   // update pressure
   LOOPHEAD(myInfo.numberOfInteriorNodes, i)
@@ -121,9 +119,9 @@ void SEMsolver::computeOneStep(const int &timeSample, const int &order,
 
 #ifdef USE_EZV
   Kokkos::fence();
-  Kokkos::deep_copy(ezv_host_data, PN_Global);
-  auto nb_x = PN_Global.extent(0);
-  auto nb_y = PN_Global.extent(1);
+  Kokkos::deep_copy(ezv_host_data, pnGlobal);
+  auto nb_x = pnGlobal.extent(0);
+  auto nb_y = pnGlobal.extent(1);
   Kokkos::fence();
   float *ezv_data = (float *)malloc((nb_x) * sizeof(float));
   // copy kokkos data into heap
@@ -153,7 +151,7 @@ void SEMsolver::outputPnValues(Mesh mesh, const int &indexTimeStep, int &i1,
          << pnGlobal(globalNodesList(myElementSource, 0), i1) << endl;
 #ifdef SEM_SAVE_SNAPSHOTS
     mesh.saveSnapShot(indexTimeStep, i1, pnGlobal);
-#endif
+#endif // SEM_SAVE_SNAPSHOTS
   }
 }
 
@@ -163,8 +161,14 @@ void SEMsolver::initFEarrays(SEMinfo &myInfo, Mesh mesh) {
   mesh.getListOfInteriorNodes(myInfo.numberOfInteriorNodes,
                               listOfInteriorNodes);
   // mesh coordinates
+#ifdef USE_SEMOPTIM
+  mesh.nodesCoordinates_opt(globalNodesCoordsX, globalNodesCoordsZ,
+                        globalNodesCoordsY);
+#else 
   mesh.nodesCoordinates(globalNodesCoordsX, globalNodesCoordsZ,
                         globalNodesCoordsY);
+#endif // USE_SEMOPTIM 
+
   // get model
   mesh.getModel(myInfo.numberOfElements, model);
   // get quadrature points
@@ -175,7 +179,7 @@ void SEMsolver::initFEarrays(SEMinfo &myInfo, Mesh mesh) {
   // get basis function and corresponding derivatives
   myQkBasis.getDerivativeBasisFunction1D(order, quadraturePoints,
                                          derivativeBasisFunction1D);
-#endif
+#endif // USE_SEMCLASSIC
 }
 
 void SEMsolver::allocateFEarrays(SEMinfo &myInfo) {
@@ -189,18 +193,12 @@ void SEMsolver::allocateFEarrays(SEMinfo &myInfo) {
                                                   "listOfInteriorNodes");
 
   // global coordinates
-  // globalNodesCoordsX=allocateArray2D< arrayReal >( myInfo.numberOfElements,
-  // nbQuadraturePoints, "globalNodesCoordsX");
-  // globalNodesCoordsY=allocateArray2D< arrayReal >( myInfo.numberOfElements,
-  // nbQuadraturePoints, "globalNodesCoordsY");
-  // globalNodesCoordsZ=allocateArray2D< arrayReal >( myInfo.numberOfElements,
-  // nbQuadraturePoints, "globalNodesCoordsZ");
-  globalNodesCoordsX = allocateArray2D<arrayReal>(myInfo.numberOfElements, 8,
-                                                  "globalNodesCoordsX");
-  globalNodesCoordsY = allocateArray2D<arrayReal>(myInfo.numberOfElements, 8,
-                                                  "globalNodesCoordsY");
-  globalNodesCoordsZ = allocateArray2D<arrayReal>(myInfo.numberOfElements, 8,
-                                                  "globalNodesCoordsZ");
+  globalNodesCoordsX = allocateArray2D<arrayReal>(
+      myInfo.numberOfElements, nbQuadraturePoints, "globalNodesCoordsX");
+  globalNodesCoordsY = allocateArray2D<arrayReal>(
+      myInfo.numberOfElements, nbQuadraturePoints, "globalNodesCoordsY");
+  globalNodesCoordsZ = allocateArray2D<arrayReal>(
+      myInfo.numberOfElements, nbQuadraturePoints, "globalNodesCoordsZ");
 
   model = allocateVector<vectorReal>(myInfo.numberOfElements, "model");
 

@@ -8,6 +8,7 @@ set (CMAKE_VERBOSE_MAKEFILE ON )
 
 option (COMPILE_SEM "Compile Spectral Elements Method simulation" ON)
 option (COMPILE_FD "Compile finit elements simulation" ON)
+
 #-----------------------------------------------------
 # Setup the flags for users to select programming models
 #-----------------------------------------------------
@@ -60,36 +61,27 @@ option(BUILD_SHARED_LIBS "Build shared libraries" ON)
 if(CMAKE_INSTALL_PREFIX_INITIALIZED_TO_DEFAULT)
   set(CMAKE_INSTALL_PREFIX "." CACHE PATH "Install path prefix" FORCE)
 endif()
+
 #-------------------------------------------------------------------
-# The Solver Implementation is with Programming Models:
-#
-#  Users can choose from "OMP" or "KOKKOS" as following:
-#
-#  (0) The default is using sequential mode
-#  (1) If USE_OMP is ON, it is using OpenMP+Vector on CPU.
-#  (2) If USE_KOKKOS is ON, it is using KOKKOS+CUDA.
-#
-#  And the users can chose data containers as following:
-#
-#  env variables to be defined before build
-#  the variables above are defined for Pangea3
-#  _TPL must be first compiled and installed
-#
-#  example:
-#  export MODULEPATH=/data_local/appli_local/MTS/GEOSX/modulefiles/:$MODULEPATH
-#  module load cmake/3.21.4 gcc/8.4.1 cuda/11.0.3 ompi/4.1.2 openblas/0.3.18 python4geosx/3.8.5-gcc-8.4.1-ompi-4.1.2
-#  export _TPL_ROOT_DIR=/users/j0024947/appli_src/geosx/codes/proxyApp/tpl4ProxyApp/installTPL
-#
+# setup compilation flags
 #-------------------------------------------------------------------
 
- # CC options
-set(CMAKE_C_COMPILER  /usr/bin/gcc-12  CACHE STRING "")
+# CC options
+if(DEFINED CMAKE_C_COMPILER)
+  message(STATUS "The CMAKE_C_COMPILER is ${CMAKE_C_COMPILER}")
+else()
+  set(CMAKE_C_COMPILER  /usr/bin/gcc-12  CACHE STRING "")
+endif()
 set(CMAKE_C_FLAGS_RELEASE "-O3 -DNDEBUG" CACHE STRING "")
 set(CMAKE_C_FLAGS_RELWITHDEBINFO "-g ${CMAKE_C_FLAGS_RELEASE}" CACHE STRING "")
 set(CMAKE_C_FLAGS_DEBUG "-O0 -g" CACHE STRING "")
+
 # C++ options
-set(CMAKE_CXX_COMPILER /usr/bin/g++-12  CACHE PATH "")
-message(STATUS "--CMAKE_CXX_COMPILER=${CMAKE_CXX_COMPILER}")
+if(DEFINED CMAKE_CXX_COMPILER)
+  message(STATUS "The CMAKE_CXX_COMPILER is ${CMAKE_CXX_COMPILER}")
+else()
+  set(CMAKE_CXX_COMPILER /usr/bin/g++-12  CACHE PATH "")
+endif()
 set(CMAKE_CXX_FLAGS_RELEASE "-O3 -DNDEBUG " CACHE STRING "")
 set(CMAKE_CXX_FLAGS_RELWITHDEBINFO "-g ${CMAKE_CXX_FLAGS_RELEASE}" CACHE STRING "")
 set(CMAKE_CXX_FLAGS_DEBUG "-O0 -g" CACHE STRING "")
@@ -173,11 +165,14 @@ endif()
 ## -- if USE_SHIVA=OFF it will use the SEM as in GEOS
 #-------------------------------------------------------------------
 if( USE_SHIVA )
-  configure_file( ${CMAKE_CURRENT_SOURCE_DIR}/Shiva/src/ShivaConfig.hpp.in
+  configure_file( ${CMAKE_CURRENT_SOURCE_DIR}/src/discretization/Shiva/src/ShivaConfig.hpp.in
                   ${CMAKE_BINARY_DIR}/src/ShivaConfig.hpp )
-  configure_file( ${CMAKE_CURRENT_SOURCE_DIR}/Shiva/tpl/camp/include/camp/config.in.hpp
+  configure_file( ${CMAKE_CURRENT_SOURCE_DIR}/src/discretization/Shiva/tpl/camp/include/camp/config.in.hpp
                   ${PROJECT_BINARY_DIR}/src/camp/config.hpp)
   message(STATUS "USE SHIVA as a submodule")
+  include_directories(${CMAKE_CURRENT_SOURCE_DIR}/src/discretization/Shiva/tpl/camp/include/
+                      ${PROJECT_BINARY_DIR}/src/
+                      ${PROJECT_BINARY_DIR}/src/camp/)
 endif()
 ###############################
 

@@ -17,12 +17,6 @@
 #define ZEROED2D 1
 #endif
 
-// TODO: Remove CREATEVIEWS
-#define CREATEVIEWS
-#define RHS_Term rhsTerm
-#define PN_Global pnGlobal
-#define RHS_Element rhsElement
-
 #if defined (USE_KOKKOS) && !defined(SEM_MESHCOLOR)
   #define ATOMICADD(ADD1,ADD2) Kokkos::atomic_add(&ADD1,ADD2)
 #else
