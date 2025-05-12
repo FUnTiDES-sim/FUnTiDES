@@ -75,14 +75,14 @@ void SEMsolver::computeOneStep(const int &timeSample, const int &order,
 
 #ifdef USE_SEMOPTIM
     constexpr int ORDER = SEMinfo::myOrderNumber;
-    myQkIntegrals.computeMassMatrixAndStiffnessVector<ORDER>(
+    myQkIntegrals.computeMassMatrixAndStiffnessVector(
         elementNumber, nPointsPerElement, globalNodesCoordsX,
         globalNodesCoordsY, globalNodesCoordsZ, massMatrixLocal, pnLocal, Y);
 #endif
 
 #ifdef USE_SHIVA
     constexpr int ORDER = SEMinfo::myOrderNumber;
-    myQkIntegrals.computeMassMatrixAndStiffnessVector<ORDER>(
+    myQkIntegrals.computeMassMatrixAndStiffnessVector(
         elementNumber, nPointsPerElement, globalNodesCoordsX,
         globalNodesCoordsY, globalNodesCoordsZ, massMatrixLocal, pnLocal, Y);
 #endif // USE_SHIVA

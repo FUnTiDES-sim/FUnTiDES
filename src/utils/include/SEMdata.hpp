@@ -1,6 +1,9 @@
 #ifndef SEMINFO_HPP_
 #define SEMINFO_HPP_
 
+#include "SEMmacros.hpp"
+
+#include <cmath>
 struct SEMinfo
 {
   // get infos from mesh
