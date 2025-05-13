@@ -159,16 +159,7 @@ void SEMsolver::initFEarrays(SEMinfo &myInfo, Mesh mesh) {
   mesh.getModel(myInfo.numberOfElements, model);
   // get quadrature points
 
-#ifdef USE_SEMCLASSIC
-
-    
-  myQkBasis.gaussLobattoQuadraturePoints( myQkIntegrals.m_quadraturePointCoords );
-  // get gauss-lobatto weights
-  myQkBasis.gaussLobattoQuadratureWeights( myQkIntegrals.m_weights);
-  // get basis function and corresponding derivatives
-  myQkBasis.getDerivativeBasisFunction1D( myQkIntegrals.m_quadraturePointCoords,
-    myQkIntegrals.m_dPhi);
-#endif // USE_SEMCLASSIC
+  myQkIntegrals.init();
 }
 
 void SEMsolver::allocateFEarrays(SEMinfo &myInfo) {
