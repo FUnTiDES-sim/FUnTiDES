@@ -66,26 +66,15 @@ void SEMsolver::computeOneStep(const int &timeSample, const int &order,
       pnLocal[i] = pnGlobal(localToGlobal, i2);
     }
 
-#ifdef USE_SEMCLASSIC
-    myQkIntegrals.computeMassMatrixAndStiffnessVector(
-        elementNumber, order, nPointsPerElement, globalNodesCoordsX,
-        globalNodesCoordsY, globalNodesCoordsZ, weights,
-        derivativeBasisFunction1D, massMatrixLocal, pnLocal, Y);
-#endif // USE_SEMCLASSIC
+    myQkIntegrals.computeMassMatrixAndStiffnessVector( elementNumber, 
+                                                      nPointsPerElement, 
+                                                      globalNodesCoordsX,
+                                                      globalNodesCoordsY, 
+                                                      globalNodesCoordsZ, 
+                                                      massMatrixLocal, 
+                                                      pnLocal, 
+                                                      Y);
 
-#ifdef USE_SEMOPTIM
-    constexpr int ORDER = SEMinfo::myOrderNumber;
-    myQkIntegrals.computeMassMatrixAndStiffnessVector(
-        elementNumber, nPointsPerElement, globalNodesCoordsX,
-        globalNodesCoordsY, globalNodesCoordsZ, massMatrixLocal, pnLocal, Y);
-#endif
-
-#ifdef USE_SHIVA
-    constexpr int ORDER = SEMinfo::myOrderNumber;
-    myQkIntegrals.computeMassMatrixAndStiffnessVector(
-        elementNumber, nPointsPerElement, globalNodesCoordsX,
-        globalNodesCoordsY, globalNodesCoordsZ, massMatrixLocal, pnLocal, Y);
-#endif // USE_SHIVA
 
     // compute global mass Matrix and global stiffness vector
     for (int i = 0; i < nPointsPerElement; i++) {
@@ -169,13 +158,16 @@ void SEMsolver::initFEarrays(SEMinfo &myInfo, Mesh mesh) {
   // get model
   mesh.getModel(myInfo.numberOfElements, model);
   // get quadrature points
+
 #ifdef USE_SEMCLASSIC
-  myQkBasis.gaussLobattoQuadraturePoints(order, quadraturePoints);
+
+    
+  myQkBasis.gaussLobattoQuadraturePoints( myQkIntegrals.m_quadraturePointCoords );
   // get gauss-lobatto weights
-  myQkBasis.gaussLobattoQuadratureWeights(order, weights);
+  myQkBasis.gaussLobattoQuadratureWeights( myQkIntegrals.m_weights);
   // get basis function and corresponding derivatives
-  myQkBasis.getDerivativeBasisFunction1D(order, quadraturePoints,
-                                         derivativeBasisFunction1D);
+  myQkBasis.getDerivativeBasisFunction1D( myQkIntegrals.m_quadraturePointCoords,
+    myQkIntegrals.m_dPhi);
 #endif // USE_SEMCLASSIC
 }
 

@@ -2,8 +2,8 @@
 
 
 #ifdef USE_SEMCLASSIC
-    #include <fe/SEMQkGLIntegralsClassic.hpp>
-    using SEMQkGLIntegrals = SEMQkGLIntegralsClassic ;
+    #include <fe/SEMKernels/src/finiteElement/SEMQkGLIntegralsClassic.hpp>
+    using SEMQkGLIntegrals = SEMQkGLIntegralsClassic<SEMinfo::myOrderNumber> ;
 #endif
 #ifdef  USE_SEMOPTIM 
     #include <fe/SEMKernels/src/finiteElement/SEMQkGLIntegralsOptim.hpp>
