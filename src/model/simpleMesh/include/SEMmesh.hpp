@@ -12,7 +12,7 @@ private:
   int nx, ny, nz;
   float lx, ly, lz;
   float hx, hy, hz;
-  int orderx, ordery, orderz;
+  int orderx, ordery, orderz, order;
   int nbFaces;
 
 public:
@@ -72,7 +72,7 @@ public:
 
 
   // Initialize nodal coordinates.
-  void nodesCoordinates( arrayReal & nodeCoordsX,arrayReal & nodeCoordsZ, arrayReal & nodeCoordsY, int const order ) const;
+  void nodesCoordinates( arrayReal & nodeCoordsX,arrayReal & nodeCoordsZ, arrayReal & nodeCoordsY, int const ORDER ) const;
 
   //  list of global nodes ( vertices)
   void globalNodesList( const int & numberOfElements, arrayInt & nodesList ) const;

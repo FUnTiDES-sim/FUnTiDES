@@ -135,31 +135,31 @@ std::vector<float> SEMmesh::getCoordInOneDirection(const int &order,
 void SEMmesh::nodesCoordinates( arrayReal & nodeCoordsX,
                                 arrayReal & nodeCoordsZ,
                                 arrayReal & nodeCoordsY,
-                                int const order ) const
+                                int const ORDER ) const
 {
-  std::vector< float > coordX( order+1 );
-  std::vector< float > coordY( order+1 );
-  std::vector< float > coordZ( order+1 );
+  std::vector< float > coordX( ORDER+1 );
+  std::vector< float > coordY( ORDER+1 );
+  std::vector< float > coordZ( ORDER+1 );
 
   for(int n=0;n<ey;n++)
   {
-     coordY=getCoordInOneDirection( order, order+1, hy, n );
+     coordY=getCoordInOneDirection( ORDER, ORDER+1, hy, n );
      for(int m=0;m<ez;m++)
      {
-        coordZ=getCoordInOneDirection( order, order+1, hz, m );
+        coordZ=getCoordInOneDirection( ORDER, ORDER+1, hz, m );
         for(int l=0;l<ex;l++)
         {
-           coordX=getCoordInOneDirection( order, order+1, hx, l );
+           coordX=getCoordInOneDirection( ORDER, ORDER+1, hx, l );
            int e=l+m*ex+n*ex*ez;
-           for( int k=0; k<order+1; k++ )
+           for( int k=0; k<ORDER+1; k++ )
            {
-              for( int j=0; j<order+1; j++ )
+              for( int j=0; j<ORDER+1; j++ )
               {
-                 for( int i=0; i<order+1; i++ )
+                 for( int i=0; i<ORDER+1; i++ )
                  {
-                    nodeCoordsX(e,i+(order+1)*j+k*(order+1)*(order+1))=coordX[i]; 
-                    nodeCoordsZ(e,i+(order+1)*j+k*(order+1)*(order+1))=coordZ[j]; 
-                    nodeCoordsY(e,i+(order+1)*j+k*(order+1)*(order+1))=coordY[k];
+                    nodeCoordsX( e, i+(ORDER+1)*j+k*(ORDER+1)*(ORDER+1) ) = coordX[i]; 
+                    nodeCoordsZ( e, i+(ORDER+1)*j+k*(ORDER+1)*(ORDER+1) ) = coordZ[j]; 
+                    nodeCoordsY( e, i+(ORDER+1)*j+k*(ORDER+1)*(ORDER+1) ) = coordY[k];
                  }
               }
            }
@@ -167,7 +167,6 @@ void SEMmesh::nodesCoordinates( arrayReal & nodeCoordsX,
      }
   }
 }
-
 
 
 //  list of global nodes ( vertices) for each element
