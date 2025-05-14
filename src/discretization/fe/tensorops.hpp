@@ -38,6 +38,31 @@ double invert3x3(double (&J)[3][3])
   return det;
 }
 
+inline auto invert3x3(double (&Jinv)[3][3], double (&J)[3][3])
+{
+    Jinv[ 0 ][ 0 ] = J[ 1 ][ 1 ] * J[ 2 ][ 2 ] - J[ 1 ][ 2 ] * J[ 2 ][ 1 ];
+    Jinv[ 0 ][ 1 ] = J[ 0 ][ 2 ] * J[ 2 ][ 1 ] - J[ 0 ][ 1 ] * J[ 2 ][ 2 ];
+    Jinv[ 0 ][ 2 ] = J[ 0 ][ 1 ] * J[ 1 ][ 2 ] - J[ 0 ][ 2 ] * J[ 1 ][ 1 ];
+
+    auto const det = J[ 0 ][ 0 ] * Jinv[ 0 ][ 0 ] +
+                     J[ 1 ][ 0 ] * Jinv[ 0 ][ 1 ] +
+                     J[ 2 ][ 0 ] * Jinv[ 0 ][ 2 ];
+
+    auto const invDet = 1.0 / det;
+
+    Jinv[ 0 ][ 0 ] *= invDet;
+    Jinv[ 0 ][ 1 ] *= invDet;
+    Jinv[ 0 ][ 2 ] *= invDet;
+    Jinv[ 1 ][ 0 ] = ( J[ 1 ][ 2 ] * J[ 2 ][ 0 ] - J[ 1 ][ 0 ] * J[ 2 ][ 2 ] ) * invDet;
+    Jinv[ 1 ][ 1 ] = ( J[ 0 ][ 0 ] * J[ 2 ][ 2 ] - J[ 0 ][ 2 ] * J[ 2 ][ 0 ] ) * invDet;
+    Jinv[ 1 ][ 2 ] = ( J[ 0 ][ 2 ] * J[ 1 ][ 0 ] - J[ 0 ][ 0 ] * J[ 1 ][ 2 ] ) * invDet;
+    Jinv[ 2 ][ 0 ] = ( J[ 1 ][ 0 ] * J[ 2 ][ 1 ] - J[ 1 ][ 1 ] * J[ 2 ][ 0 ] ) * invDet;
+    Jinv[ 2 ][ 1 ] = ( J[ 0 ][ 1 ] * J[ 2 ][ 0 ] - J[ 0 ][ 0 ] * J[ 2 ][ 1 ] ) * invDet;
+    Jinv[ 2 ][ 2 ] = ( J[ 0 ][ 0 ] * J[ 1 ][ 1 ] - J[ 0 ][ 1 ] * J[ 1 ][ 0 ] ) * invDet;
+
+    return det;
+}
+
 template< int N >
 double determinant(const double (&A)[N][N]);
 

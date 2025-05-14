@@ -562,9 +562,9 @@ public:
   static void computeBMatrix( int const qa,
                               int const qb,
                               int const qc,
-                              float const (&X)[8][3],
-                              float ( &J )[3][3],
-                              float ( &B )[6] );
+                              double const (&X)[8][3],
+                              double ( &J )[3][3],
+                              double ( &B )[6] );
 
   /**
    * @brief computes the non-zero contributions of the d.o.f. indexed by q to the
