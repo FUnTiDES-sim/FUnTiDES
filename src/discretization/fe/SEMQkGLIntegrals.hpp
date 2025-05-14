@@ -7,7 +7,7 @@
 #endif
 #ifdef  USE_SEMOPTIM 
     #include <fe/SEMKernels/src/finiteElement/SEMQkGLIntegralsOptim.hpp>
-    using SEMQkGLIntegrals = SEMQkGLIntegralsOptim<SEMinfo::myOrderNumber>;
+    using SEMQkGLIntegrals = SEMQkGLIntegralsOptim<SEMinfo::myOrderNumber, float, float>;
 #endif
 #ifdef USE_SHIVA
     #include <fe/SEMKernels/src/finiteElement/SEMQkGLIntegralsShiva.hpp>

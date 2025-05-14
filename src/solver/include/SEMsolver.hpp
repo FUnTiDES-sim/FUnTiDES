@@ -64,8 +64,6 @@ public:
 private:
 
   int order;
-  //SEMQkGL myQk;
-  SEMQkGLBasisFunctions<SEMinfo::myOrderNumber> myQkBasis;
   SEMQkGLIntegrals myQkIntegrals;
 
   //shared arrays
