@@ -106,6 +106,7 @@ public:
   constexpr static double valueBubble( const double xi )
   {
     return 1.0 - pow( xi, 2 );
+    // return 1.0 - std::pow(2.0, xi);
   }
 
 

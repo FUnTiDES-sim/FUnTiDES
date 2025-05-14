@@ -25,7 +25,8 @@
 #include "LagrangeBasis3GL.hpp"
 #include "LagrangeBasis4GL.hpp"
 #include "LagrangeBasis5GL.hpp"
-
+#include "tensorops.hpp"
+// #include "FiniteElementBase.hpp"
 
 /**
  * This class is the basis class for the hexahedron finite element cells with
@@ -33,7 +34,7 @@
  * All the degree-specific versions (Q1, Q2, Q3, ...) are defined at the end of this file.
  */
 template< typename GL_BASIS >
-class Qk_Hexahedron_Lagrange_GaussLobatto final : public FiniteElementBase
+class Qk_Hexahedron_Lagrange_GaussLobatto final //: public FiniteElementBase
 {
 public:
 
@@ -104,7 +105,7 @@ public:
 
   ~Qk_Hexahedron_Lagrange_GaussLobatto() = default;
 
-  virtual int getNumQuadraturePoints() const override
+  virtual int getNumQuadraturePoints() // const override
   {
     return numQuadraturePoints;
   }
@@ -114,13 +115,13 @@ public:
    * @param stack Stack variables as filled by @ref setupStack.
    * @return The number of quadrature points.
    */
-  static int getNumQuadraturePoints( StackVariables const & stack )
-  {
-    // GEOS_UNUSED_VAR( stack );
-    return numQuadraturePoints;
-  }
+  // static int getNumQuadraturePoints( StackVariables const & stack )
+  // {
+  //   // GEOS_UNUSED_VAR( stack );
+  //   return numQuadraturePoints;
+  // }
 
-  virtual int getNumSupportPoints() const override
+  virtual int getNumSupportPoints() // const override
   {
     return numNodes;
   }
@@ -135,11 +136,11 @@ public:
    * @param stack Object that holds stack variables.
    * @return The number of support points.
    */
-  static int getNumSupportPoints( StackVariables const & stack )
-  {
-    // GEOS_UNUSED_VAR( stack );
-    return numNodes;
-  }
+  // static int getNumSupportPoints( StackVariables const & stack )
+  // {
+  //   // GEOS_UNUSED_VAR( stack );
+  //   return numNodes;
+  // }
 
 
   /**
@@ -234,13 +235,13 @@ public:
    *   point.
    */
 
-  static void calcN( int const q,
-                     StackVariables const & stack,
-                     double ( & N )[numNodes] )
-  {
-    // GEOS_UNUSED_VAR( stack );
-    return calcN( q, N );
-  }
+  // static void calcN( int const q,
+  //                    StackVariables const & stack,
+  //                    double ( & N )[numNodes] )
+  // {
+  //   // GEOS_UNUSED_VAR( stack );
+  //   return calcN( q, N );
+  // }
 
 
   /**
@@ -281,10 +282,10 @@ public:
    * @return The determinant of the parent/physical transformation matrix.
    */
 
-  static double calcGradN( int const q,
-                           double const (&X)[numNodes][3],
-                           StackVariables const & stack,
-                           double ( &gradN )[numNodes][3] );
+  // static double calcGradN( int const q,
+  //                          double const (&X)[numNodes][3],
+  //                          StackVariables const & stack,
+  //                          double ( &gradN )[numNodes][3] );
   /**
    * @brief Calculate the shape functions derivatives wrt the physical
    *   coordinates.
@@ -322,10 +323,10 @@ public:
    *   support points at the coordinates of the quadrature point @p q.
    * @return The determinant of the parent/physical transformation matrix.
    */
-  static double calcGradNWithCorners( int const q,
-                                      double const (&X)[8][3],
-                                      StackVariables const & stack,
-                                      double ( &gradN )[numNodes][3] );
+  // static double calcGradNWithCorners( int const q,
+  //                                     double const (&X)[8][3],
+  //                                     StackVariables const & stack,
+  //                                     double ( &gradN )[numNodes][3] );
 
   /**
    * @brief Calculate the integration weights for a quadrature point.
@@ -368,7 +369,7 @@ public:
                                            double ( & J )[3][3] )
   {
     jacobianTransformation( qa, qb, qc, X, J );
-    return LvArray::tensorOps::invert< 3 >( J );
+    return invert3x3( J );
   }
 
   /**
@@ -886,7 +887,7 @@ Qk_Hexahedron_Lagrange_GaussLobatto< GL_BASIS >::calcGradN( int const q,
 
   jacobianTransformation( qa, qb, qc, Xmesh, J );
 
-  double const detJ = LvArray::tensorOps::invert< 3 >( J );
+  double const detJ = invert3x3( J );
 
   applyTransformationToParentGradients( q, J, gradN );
 
@@ -905,7 +906,7 @@ Qk_Hexahedron_Lagrange_GaussLobatto< GL_BASIS >::calcGradN( double const (&coord
 
   jacobianTransformation( coords, X, J );
 
-  double const detJ = LvArray::tensorOps::invert< 3 >( J );
+  double const detJ = invert3x3( J );
 
   applyTransformationToParentGradients( coords, J, gradN );
 
@@ -913,17 +914,17 @@ Qk_Hexahedron_Lagrange_GaussLobatto< GL_BASIS >::calcGradN( double const (&coord
 }
 template< typename GL_BASIS >
 
-// GEOS_FORCE_INLINE
-double Qk_Hexahedron_Lagrange_GaussLobatto< GL_BASIS >::
-calcGradN( int const q,
-           double const (&X)[numNodes][3],
-           StackVariables const & GEOS_UNUSED_PARAM( stack ),
-           double ( & gradN )[numNodes][3] )
-{
-  return calcGradN( q, X, gradN );
-}
+// // GEOS_FORCE_INLINE
+// double Qk_Hexahedron_Lagrange_GaussLobatto< GL_BASIS >::
+// calcGradN( int const q,
+//            double const (&X)[numNodes][3],
+//            StackVariables const & GEOS_UNUSED_PARAM( stack ),
+//            double ( & gradN )[numNodes][3] )
+// {
+//   return calcGradN( q, X, gradN );
+// }
 
-template< typename GL_BASIS >
+// template< typename GL_BASIS >
 
 // GEOS_FORCE_INLINE
 double
@@ -938,7 +939,7 @@ Qk_Hexahedron_Lagrange_GaussLobatto< GL_BASIS >::calcGradNWithCorners( int const
 
   jacobianTransformation( qa, qb, qc, X, J );
 
-  double const detJ = LvArray::tensorOps::invert< 3 >( J );
+  double const detJ = invert3x3( J );
 
   applyTransformationToParentGradients( q, J, gradN );
 
@@ -957,7 +958,7 @@ Qk_Hexahedron_Lagrange_GaussLobatto< GL_BASIS >::calcGradNWithCorners( double co
 
   jacobianTransformationWithCorners( coords, X, J );
 
-  double const detJ = LvArray::tensorOps::invert< 3 >( J );
+  double const detJ = invert3x3( J );
 
   applyTransformationToParentGradients( coords, J, gradN );
 
@@ -966,14 +967,14 @@ Qk_Hexahedron_Lagrange_GaussLobatto< GL_BASIS >::calcGradNWithCorners( double co
 template< typename GL_BASIS >
 
 // GEOS_FORCE_INLINE
-double Qk_Hexahedron_Lagrange_GaussLobatto< GL_BASIS >::
-calcGradNWithCorners( int const q,
-                      double const (&X)[8][3],
-                      StackVariables const & GEOS_UNUSED_PARAM( stack ),
-                      double ( & gradN )[numNodes][3] )
-{
-  return calcGradN( q, X, gradN );
-}
+// double Qk_Hexahedron_Lagrange_GaussLobatto< GL_BASIS >::
+// calcGradNWithCorners( int const q,
+//                       double const (&X)[8][3],
+//                       StackVariables const & GEOS_UNUSED_PARAM( stack ),
+//                       double ( & gradN )[numNodes][3] )
+// {
+//   return calcGradN( q, X, gradN );
+// }
 //*************************************************************************************************
 #if __GNUC__
 #pragma GCC diagnostic push
@@ -981,8 +982,6 @@ calcGradNWithCorners( int const q,
 #endif
 
 template< typename GL_BASIS >
-
-// GEOS_FORCE_INLINE
 void
 Qk_Hexahedron_Lagrange_GaussLobatto< GL_BASIS >::
 jacobianTransformation( int const qa,
@@ -1023,7 +1022,8 @@ jacobianTransformation( double const (&coords)[3],
                                              double const (&X)[numNodes][3],
                                              double (& J)[3][3] )
   {
-    double const * const GEOS_RESTRICT Xnode = X[nodeIndex];
+    // double const * const GEOS_RESTRICT Xnode = X[nodeIndex];
+    double const *Xnode = X[nodeIndex];
     for( int i = 0; i < 3; ++i )
     {
       for( int j = 0; j < 3; ++j )
@@ -1148,7 +1148,7 @@ computeMassTerm( int const q,
   const double w3D = GL_BASIS::weight( qa )*GL_BASIS::weight( qb )*GL_BASIS::weight( qc );
   double J[3][3] = {{0}};
   jacobianTransformation( qa, qb, qc, X, J );
-  return LvArray::math::abs( LvArray::tensorOps::determinant< 3 >( J ) )*w3D;
+  return std::abs( determinant< 3 >( J ) )*w3D;
 }
 
 template< typename GL_BASIS >
@@ -1169,7 +1169,7 @@ computeDampingTerm( int const q,
   B[0] = J[0][0]*J[0][0]+J[1][0]*J[1][0]+J[2][0]*J[2][0];
   B[1] = J[0][1]*J[0][1]+J[1][1]*J[1][1]+J[2][1]*J[2][1];
   B[2] = J[0][0]*J[0][1]+J[1][0]*J[1][1]+J[2][0]*J[2][1];
-  return sqrt( LvArray::math::abs( LvArray::tensorOps::symDeterminant< 2 >( B ) ) )*w2D;
+  return sqrt( std::abs( symDeterminant< 2 >( B ) ) )*w2D;
 }
 
 template< typename GL_BASIS >
@@ -1185,7 +1185,7 @@ computeBMatrix( int const qa,
                 double (& B)[6] )
 {
   jacobianTransformation( qa, qb, qc, X, J );
-  double const detJ = LvArray::tensorOps::determinant< 3 >( J );
+  double const detJ = determinant< 3 >( J );
 
   // compute J^T.J/det(J), using Voigt notation for B
   B[0] = (J[0][0]*J[0][0]+J[1][0]*J[1][0]+J[2][0]*J[2][0])/detJ;
@@ -1212,10 +1212,10 @@ computeBzMatrix( int const qa,
                  double (& B)[6] )
 {
   jacobianTransformation( qa, qb, qc, X, J );
-  double const detJ = LvArray::tensorOps::determinant< 3 >( J );
+  double const detJ = determinant< 3 >( J );
 
   double Jinv[3][3] = {{0}};
-  LvArray::tensorOps::invert< 3 >( Jinv, J );
+  invert3x3( Jinv, J );
 
   // compute det(J)*J^{-1}Az*J^{-T}, using Voigt notation for B
   B[0] = detJ*(Jinv[0][2]*Jinv[0][2]);
@@ -1239,10 +1239,10 @@ computeBxyMatrix( int const qa,
                   double (& B)[6] )
 {
   jacobianTransformation( qa, qb, qc, X, J );
-  double const detJ = LvArray::tensorOps::determinant< 3 >( J );
+  double const detJ = determinant< 3 >( J );
 
   double Jinv[3][3] = {{0}};
-  LvArray::tensorOps::invert< 3 >( Jinv, J );
+  invert3x3( Jinv, J );
 
   // compute det(J)*J^{-1}Axy*J^{-T}, using Voigt notation for B
   B[0] = detJ*(Jinv[0][0]*Jinv[0][0] + Jinv[0][1]*Jinv[0][1]);
@@ -1371,7 +1371,7 @@ computeFirstOrderStiffnessTerm( int const q,
   GL_BASIS::TensorProduct3D::multiIndex( q, qa, qb, qc );
   double J[3][3] = {{0}};
   jacobianTransformation( qa, qb, qc, X, J );
-  double const detJ = LvArray::tensorOps::invert< 3 >( J );
+  double const detJ = invert3x3( J );
   const double w = GL_BASIS::weight( qa )*GL_BASIS::weight( qb )*GL_BASIS::weight( qc );
   for( int i=0; i<num1dNodes; i++ )
   {
@@ -1424,7 +1424,7 @@ computeFirstOrderStiffnessTermX( int const q,
   GL_BASIS::TensorProduct3D::multiIndex( q, qa, qb, qc );
   double J[3][3] = {{0}};
   jacobianTransformation( qa, qb, qc, X, J );
-  const double detJ = LvArray::tensorOps::invert< 3 >( J );
+  const double detJ = invert3x3( J );
   const double w = GL_BASIS::weight( qa )*GL_BASIS::weight( qb )*GL_BASIS::weight( qc );
 
   for( int i1 = 0; i1 < num1dNodes; ++i1 )
@@ -1449,7 +1449,7 @@ computeFirstOrderStiffnessTermY( int const q,
   GL_BASIS::TensorProduct3D::multiIndex( q, qa, qb, qc );
   double J[3][3] = {{0}};
   jacobianTransformation( qa, qb, qc, X, J );
-  const double detJ = LvArray::tensorOps::invert< 3 >( J );
+  const double detJ = invert3x3( J );
   const double w = GL_BASIS::weight( qa )*GL_BASIS::weight( qb )*GL_BASIS::weight( qc );
 
   for( int i2 = 0; i2 < num1dNodes; ++i2 )
@@ -1473,7 +1473,7 @@ computeFirstOrderStiffnessTermZ( int const q,
   GL_BASIS::TensorProduct3D::multiIndex( q, qa, qb, qc );
   double J[3][3] = {{0}};
   jacobianTransformation( qa, qb, qc, X, J );
-  const double detJ = LvArray::tensorOps::invert< 3 >( J );
+  const double detJ = invert3x3( J );
   const double w = GL_BASIS::weight( qa )*GL_BASIS::weight( qb )*GL_BASIS::weight( qc );
 
   for( int i3 = 0; i3 < num1dNodes; ++i3 )
@@ -1542,7 +1542,7 @@ transformedQuadratureWeight( int const q,
 
   jacobianTransformation( qa, qb, qc, X, J );
 
-  return LvArray::tensorOps::determinant< 3 >( J );
+  return determinant< 3 >( J );
 }
 
 
