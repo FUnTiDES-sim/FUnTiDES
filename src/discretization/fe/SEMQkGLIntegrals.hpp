@@ -19,13 +19,12 @@
                                         LagrangeBasis< double, 1, EqualSpacing >,
                                         LagrangeBasis< double, 1, EqualSpacing > > >;
 
-  constexpr int order = 1;
   using ParentElementType =
     ParentElement< double,
                    Cube< double >,
-                   LagrangeBasis< double, order, EqualSpacing >,
-                   LagrangeBasis< double, order, EqualSpacing >,
-                   LagrangeBasis< double, order, EqualSpacing > >;
+                   LagrangeBasis< double, SEMinfo::myOrderNumber, EqualSpacing >,
+                   LagrangeBasis< double, SEMinfo::myOrderNumber, EqualSpacing >,
+                   LagrangeBasis< double, SEMinfo::myOrderNumber, EqualSpacing > >;
 
-  using SEMQkGLIntegrals = SEMQkGLIntegralsShiva< double, order, TransformType, ParentElementType >;    
+  using SEMQkGLIntegrals = SEMQkGLIntegralsShiva< double, SEMinfo::myOrderNumber, TransformType, ParentElementType >;    
 #endif
