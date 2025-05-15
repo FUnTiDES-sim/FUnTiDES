@@ -76,12 +76,38 @@ inline double determinant<3>(const double (&A)[3][3])
 }
 
 template< int N >
-double symDeterminant(const double (&B)[3]);
+double symDeterminant( double (&B)[3]);
 
 template<>
-inline double symDeterminant<2>( const double (&B)[3] )
+inline double symDeterminant<2>( double (&B)[3] )
 {
   return B[0] * B[1] - B[2] * B[2];
+}
+
+template< int N >
+double symDeterminant( double (&B)[6]);
+
+template<>
+inline double symDeterminant<3>( double (&B)[6] )
+{
+  return B[ 0 ] * B[ 1 ] * B[ 2 ] +
+         B[ 5 ] * B[ 4 ] * B[ 3 ] * 2 -
+         B[ 0 ] * B[ 3 ] * B[ 3 ] -
+         B[ 1 ] * B[ 4 ] * B[ 4 ] -
+         B[ 2 ] * B[ 5 ] * B[ 5 ];
+}
+
+inline  static auto symInvert( double (&J)[6])
+{
+  auto const det = symDeterminant<3>(J);
+  auto const invDet = 1 / det;
+
+  auto const temp = J[ 0 ];
+  J[ 0 ] = J[ 1 ] * invDet;
+  J[ 1 ] = temp * invDet;
+  J[ 2 ] *= -invDet;
+
+  return det;
 }
 
 #endif // TENSOROPS_H_

@@ -22,11 +22,6 @@
 
 // #include "common/DataTypes.hpp"
 
-namespace geos
-{
-namespace finiteElement
-{
-
 /**
  * This class contains the implementation for a second order (quadratic) Lagrange
  * polynomial basis. The parent space is defined by:
@@ -530,10 +525,6 @@ public:
     }
   };
 };
-
-
-}
-}
 
 
 #endif /* GEOS_FINITEELEMENT_ELEMENTFORMULATIONS_ELEMENTFORMULATIONS_LAGRANGEBASIS4GL_HPP_ */

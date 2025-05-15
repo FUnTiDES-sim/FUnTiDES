@@ -34,7 +34,7 @@
  * All the degree-specific versions (Q1, Q2, Q3, ...) are defined at the end of this file.
  */
 template< typename GL_BASIS >
-class Qk_Hexahedron_Lagrange_GaussLobatto final //: public FiniteElementBase
+class Qk_Hexahedron_Lagrange_GaussLobatto final
 {
 public:
 
@@ -459,8 +459,6 @@ public:
    * @param X Array containing the coordinates of the mesh support points.
    * @param J Array to store the Jacobian transformation.
    */
-
-  // GEOS_FORCE_INLINE
   static void jacobianTransformation( int const qa,
                                       int const qb,
                                       int const qc,
@@ -474,8 +472,6 @@ public:
    * @param X Array containing the coordinates of the support points.
    * @param J Array to store the Jacobian transformation.
    */
-
-  // GEOS_FORCE_INLINE
   static void jacobianTransformation( double const (&coords)[3],
                                       double const (&X)[numNodes][3],
                                       double ( &J )[3][3] );
@@ -489,8 +485,6 @@ public:
    * @param X Array containing the coordinates of the mesh corners.
    * @param J Array to store the Jacobian transformation.
    */
-
-  // GEOS_FORCE_INLINE
   static void jacobianTransformationWithCorners( double const (&coords)[3],
                                                  double const (&X)[8][3],
                                                  double ( &J )[3][3] );
@@ -504,8 +498,6 @@ public:
    * @param[in] X Real-world coordinates of the cell corners
    * @param[out] coords Real-world coordinates of the interpolated point
    */
-
-  // GEOS_FORCE_INLINE
   static void trilinearInterp( double const alpha,
                                double const beta,
                                double const gamma,
@@ -517,8 +509,6 @@ public:
    * @param[in] Xmesh Array containing the coordinates of the corners of the mesh element
    * @param[out] X Array containing the coordinates of the support points.
    */
-
-  // GEOS_FORCE_INLINE
   static void computeLocalCoords( double const (&Xmesh)[8][3],
                                   double const (&X)[numNodes][3] );
 
@@ -802,8 +792,6 @@ private:
 
 template< typename GL_BASIS >
 template< typename FUNC, typename ... PARAMS >
-
-// GEOS_FORCE_INLINE
 void
 Qk_Hexahedron_Lagrange_GaussLobatto< GL_BASIS >::supportLoop( double const (&coords)[3],
                                                               FUNC && func,
@@ -835,8 +823,6 @@ Qk_Hexahedron_Lagrange_GaussLobatto< GL_BASIS >::supportLoop( double const (&coo
 
 template< typename GL_BASIS >
 template< typename FUNC, typename ... PARAMS >
-
-// GEOS_FORCE_INLINE
 void
 Qk_Hexahedron_Lagrange_GaussLobatto< GL_BASIS >::supportLoop( int const q,
                                                               FUNC && func,
@@ -865,8 +851,6 @@ Qk_Hexahedron_Lagrange_GaussLobatto< GL_BASIS >::supportLoop( int const q,
 //*************************************************************************************************
 
 template< typename GL_BASIS >
-
-// GEOS_FORCE_INLINE
 double
 Qk_Hexahedron_Lagrange_GaussLobatto< GL_BASIS >::calcGradN( int const q,
                                                             double const (&X)[numNodes][3],
@@ -947,8 +931,6 @@ Qk_Hexahedron_Lagrange_GaussLobatto< GL_BASIS >::calcGradNWithCorners( int const
 }
 //*************************************************************************************************
 template< typename GL_BASIS >
-
-// GEOS_FORCE_INLINE
 double
 Qk_Hexahedron_Lagrange_GaussLobatto< GL_BASIS >::calcGradNWithCorners( double const (&coords)[3],
                                                                        double const (&X)[8][3],
@@ -964,17 +946,7 @@ Qk_Hexahedron_Lagrange_GaussLobatto< GL_BASIS >::calcGradNWithCorners( double co
 
   return detJ;
 }
-template< typename GL_BASIS >
 
-// GEOS_FORCE_INLINE
-// double Qk_Hexahedron_Lagrange_GaussLobatto< GL_BASIS >::
-// calcGradNWithCorners( int const q,
-//                       double const (&X)[8][3],
-//                       StackVariables const & GEOS_UNUSED_PARAM( stack ),
-//                       double ( & gradN )[numNodes][3] )
-// {
-//   return calcGradN( q, X, gradN );
-// }
 //*************************************************************************************************
 #if __GNUC__
 #pragma GCC diagnostic push
@@ -982,9 +954,7 @@ template< typename GL_BASIS >
 #endif
 
 template< typename GL_BASIS >
-void
-Qk_Hexahedron_Lagrange_GaussLobatto< GL_BASIS >::
-jacobianTransformation( int const qa,
+void Qk_Hexahedron_Lagrange_GaussLobatto< GL_BASIS >::jacobianTransformation( int const qa,
                         int const qb,
                         int const qc,
                         double const (&X)[8][3],
@@ -1009,8 +979,6 @@ jacobianTransformation( int const qa,
 }
 
 template< typename GL_BASIS >
-
-// GEOS_FORCE_INLINE
 void
 Qk_Hexahedron_Lagrange_GaussLobatto< GL_BASIS >::
 jacobianTransformation( double const (&coords)[3],
@@ -1196,7 +1164,7 @@ computeBMatrix( int const qa,
   B[5] = (J[0][0]*J[0][1]+J[1][0]*J[1][1]+J[2][0]*J[2][1])/detJ;
 
   // compute detJ*J^{-1}J^{-T}
-  LvArray::tensorOps::symInvert< 3 >( B );
+  symInvert( B );
 }
 
 template< typename GL_BASIS >
@@ -1509,8 +1477,6 @@ applyTransformationToParentGradients( int const q,
 
 //*************************************************************************************************
 template< typename GL_BASIS >
-
-// GEOS_FORCE_INLINE
 void
 Qk_Hexahedron_Lagrange_GaussLobatto< GL_BASIS >::
 applyTransformationToParentGradients( double const (&coords)[3],
@@ -1616,8 +1582,6 @@ plusGradNajAij( int const q,
 
 
 template< typename GL_BASIS >
-
-// GEOS_FORCE_INLINE
 void Qk_Hexahedron_Lagrange_GaussLobatto< GL_BASIS >::
 gradient( int const q,
           double const (&invJ)[3][3],
@@ -1849,7 +1813,6 @@ using Q4_Hexahedron_Lagrange_GaussLobatto = Qk_Hexahedron_Lagrange_GaussLobatto<
  */
 using Q5_Hexahedron_Lagrange_GaussLobatto = Qk_Hexahedron_Lagrange_GaussLobatto< LagrangeBasis5GL >;
 
-@endcond
 
 #if __GNUC__
 #pragma GCC diagnostic pop

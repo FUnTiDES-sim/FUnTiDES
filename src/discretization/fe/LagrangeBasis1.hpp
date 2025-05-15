@@ -22,10 +22,6 @@
 
 // #include "common/DataTypes.hpp"
 
-namespace geos
-{
-namespace finiteElement
-{
 
 /**
  * This class contains the implementation for a first order (linear) Lagrange
@@ -508,8 +504,6 @@ public:
 
 };
 
-}
-}
 
 
 #endif /* _LAGRANGEBASIS1_HPP_ */
