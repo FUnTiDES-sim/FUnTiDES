@@ -63,6 +63,7 @@ public:
    * @param qc The index in the third direction
    * @return The linear index in 3D
    */
+  PROXY_HOST_DEVICE
   constexpr static int linearIndex3DVal( const int qa, int const qb, int const qc )
   {
     return qa + qb * num1dNodes + qc * numNodesPerFace;
@@ -73,6 +74,7 @@ public:
    * @param k The index of the mesh vertex, from 0 to 7
    * @return The linear index in 3D
    */
+  PROXY_HOST_DEVICE
   constexpr static int meshIndexToLinearIndex3D( int const k )
   {
     return linearIndex3DVal( ( num1dNodes - 1 ) * ( k % 2 ),
@@ -87,6 +89,7 @@ public:
    * @param qb The index in the second direction
    * @return The linear index in 2D
    */
+  PROXY_HOST_DEVICE
   constexpr static int linearIndex2DVal( const int qa, const int qb )
   {
     return qa + qb * num1dNodes;
@@ -97,14 +100,17 @@ public:
    * @param k The index of the mesh vertex, from 0 to 3
    * @return The linear index in 2D
    */
+  PROXY_HOST_DEVICE
   constexpr static int meshIndexToLinearIndex2D( int const k )
   {
     return linearIndex2DVal( ( num1dNodes - 1 ) * ( k % 2 ),
                              ( num1dNodes - 1 ) * ( k / 2 ) );
   }
 
+  PROXY_HOST_DEVICE
   ~Qk_Hexahedron_Lagrange_GaussLobatto() = default;
 
+  PROXY_HOST_DEVICE
   virtual int getNumQuadraturePoints() // const override
   {
     return numQuadraturePoints;
@@ -121,12 +127,14 @@ public:
   //   return numQuadraturePoints;
   // }
 
+  PROXY_HOST_DEVICE
   virtual int getNumSupportPoints() // const override
   {
     return numNodes;
   }
 
-  virtual int getMaxSupportPoints() const override
+  PROXY_HOST_DEVICE
+  virtual int getMaxSupportPoints() const
   {
     return maxSupportPoints;
   }
@@ -148,6 +156,7 @@ public:
    * @param[in] coords The parent coordinates at which to evaluate the shape function value
    * @param[out] N The shape function values.
    */
+  PROXY_HOST_DEVICE
   static void calcN( double const (&coords)[3],
                      double (& N)[numNodes] )
   {
@@ -173,6 +182,7 @@ public:
    * @param p the index of the 1D quadrature point
    * @return The derivative value
    */
+  PROXY_HOST_DEVICE
   constexpr static double basisGradientAt( const int q, const int p )
   {
     if( p <= halfNodes )
@@ -196,6 +206,7 @@ public:
    * @param dir The direction in which the derivatives are being computed
    * @return The value of the jacobian factor
    */
+  PROXY_HOST_DEVICE
   constexpr static double jacobianCoefficient1D( const int q, const int i, const int k, const int dir )
   {
     if( i == dir )
@@ -216,6 +227,7 @@ public:
    *   point.
    */
 
+  PROXY_HOST_DEVICE
   static void calcN( int const q,
                      double (& N)[numNodes] )
   {
@@ -254,6 +266,7 @@ public:
    * @return The determinant of the parent/physical transformation matrix.
    */
 
+  PROXY_HOST_DEVICE
   static double calcGradN( int const q,
                            double const (&X)[numNodes][3],
                            double ( &gradN )[numNodes][3] );
@@ -267,6 +280,7 @@ public:
    * @return The determinant of the parent/physical transformation matrix.
    */
 
+  PROXY_HOST_DEVICE
   static double calcGradN( double const (&coords)[3],
                            double const (&X)[numNodes][3],
                            double ( &gradN )[numNodes][3] );
@@ -296,6 +310,7 @@ public:
    * @return The determinant of the parent/physical transformation matrix.
    */
 
+  PROXY_HOST_DEVICE
   static double calcGradNWithCorners( int const q,
                                       double const (&X)[8][3],
                                       double ( &gradN )[numNodes][3] );
@@ -309,6 +324,7 @@ public:
    * @return The determinant of the parent/physical transformation matrix.
    */
 
+  PROXY_HOST_DEVICE
   static double calcGradNWithCorners( double const (&coords)[3],
                                       double const (&X)[8][3],
                                       double ( &gradN )[numNodes][3] );
@@ -335,6 +351,7 @@ public:
    * @return The product of the quadrature rule weight and the determinate of
    *   the parent/physical transformation matrix.
    */
+  PROXY_HOST_DEVICE
   static double transformedQuadratureWeight( int const q,
                                              double const (&X)[numNodes][3] );
 
@@ -346,6 +363,7 @@ public:
    * @param X Array containing the coordinates of the mesh support points.
    * @param J Array to store the Jacobian transformation.
    */
+  PROXY_HOST_DEVICE
   static void jacobianTransformation2d( int const qa,
                                         int const qb,
                                         double const (&X)[4][3],
@@ -362,6 +380,7 @@ public:
    * @param J Array to store the Jacobian transformation.
    * @return The determinant of the Jacobian transformation matrix.
    */
+  PROXY_HOST_DEVICE
   static double invJacobianTransformation( int const qa,
                                            int const qb,
                                            int const qc,
@@ -380,6 +399,7 @@ public:
    * @param J Array to store the Jacobian transformation.
    * @return The determinant of the Jacobian transformation matrix.
    */
+  PROXY_HOST_DEVICE
   static double invJacobianTransformation( int const q,
                                            double const (&X)[8][3],
                                            double ( & J )[3][3] )
@@ -400,6 +420,7 @@ public:
    *   operator on.
    * @param grad The symmetric gradient in Voigt notation.
    */
+  PROXY_HOST_DEVICE
   static void symmetricGradient( int const q,
                                  double const (&invJ)[3][3],
                                  double const (&var)[numNodes][3],
@@ -422,6 +443,7 @@ public:
    * \f]
    *
    */
+  PROXY_HOST_DEVICE
   static void gradient( int const q,
                         double const (&invJ)[3][3],
                         double const (&var)[numNodes][3],
@@ -443,6 +465,7 @@ public:
    * where \f$\frac{\partial N_a}{\partial X_j}\f$ is the basis function gradient,
    *   \f$var_{ij}\f$ is the rank-2 symmetric tensor.
    */
+  PROXY_HOST_DEVICE
   static void plusGradNajAij( int const q,
                               double const (&invJ)[3][3],
                               double const (&var)[6],
@@ -459,6 +482,7 @@ public:
    * @param X Array containing the coordinates of the mesh support points.
    * @param J Array to store the Jacobian transformation.
    */
+  PROXY_HOST_DEVICE
   static void jacobianTransformation( int const qa,
                                       int const qb,
                                       int const qc,
@@ -472,6 +496,7 @@ public:
    * @param X Array containing the coordinates of the support points.
    * @param J Array to store the Jacobian transformation.
    */
+  PROXY_HOST_DEVICE
   static void jacobianTransformation( double const (&coords)[3],
                                       double const (&X)[numNodes][3],
                                       double ( &J )[3][3] );
@@ -485,6 +510,7 @@ public:
    * @param X Array containing the coordinates of the mesh corners.
    * @param J Array to store the Jacobian transformation.
    */
+  PROXY_HOST_DEVICE
   static void jacobianTransformationWithCorners( double const (&coords)[3],
                                                  double const (&X)[8][3],
                                                  double ( &J )[3][3] );
@@ -498,6 +524,7 @@ public:
    * @param[in] X Real-world coordinates of the cell corners
    * @param[out] coords Real-world coordinates of the interpolated point
    */
+  PROXY_HOST_DEVICE
   static void trilinearInterp( double const alpha,
                                double const beta,
                                double const gamma,
@@ -509,6 +536,7 @@ public:
    * @param[in] Xmesh Array containing the coordinates of the corners of the mesh element
    * @param[out] X Array containing the coordinates of the support points.
    */
+  PROXY_HOST_DEVICE
   static void computeLocalCoords( double const (&Xmesh)[8][3],
                                   double const (&X)[numNodes][3] );
 
@@ -521,6 +549,7 @@ public:
    */
 
   // GEOS_FORCE_INLINE
+  PROXY_HOST_DEVICE
   static double computeMassTerm( int const q,
                                  double const (&X)[8][3] );
 
@@ -534,6 +563,7 @@ public:
    */
 
   // GEOS_FORCE_INLINE
+  PROXY_HOST_DEVICE
   static double computeDampingTerm( int const q,
                                     double const (&X)[4][3] );
 
@@ -549,6 +579,7 @@ public:
    */
 
   // GEOS_FORCE_INLINE
+  PROXY_HOST_DEVICE
   static void computeBMatrix( int const qa,
                               int const qb,
                               int const qc,
@@ -566,6 +597,7 @@ public:
    */
   template< typename FUNC >
 
+  PROXY_HOST_DEVICE
   // GEOS_FORCE_INLINE
   static void computeStiffnessTerm( int const q,
                                     double const (&X)[8][3],
@@ -583,6 +615,7 @@ public:
    */
 
   // GEOS_FORCE_INLINE
+  PROXY_HOST_DEVICE
   static void computeBxyMatrix( int const qa,
                                 int const qb,
                                 int const qc,
@@ -601,6 +634,7 @@ public:
   template< typename FUNC >
 
   // GEOS_FORCE_INLINE
+  PROXY_HOST_DEVICE
   static void computeStiffnessxyTerm( int const q,
                                       double const (&X)[8][3],
                                       FUNC && func );
@@ -617,6 +651,7 @@ public:
    */
 
   // GEOS_FORCE_INLINE
+  PROXY_HOST_DEVICE
   static void computeBzMatrix( int const qa,
                                int const qb,
                                int const qc,
@@ -635,6 +670,7 @@ public:
   template< typename FUNC >
 
   // GEOS_FORCE_INLINE
+  PROXY_HOST_DEVICE
   static void computeStiffnesszTerm( int const q,
                                      double const (&X)[8][3],
                                      FUNC && func );
@@ -651,6 +687,7 @@ public:
   template< typename FUNC >
 
   // GEOS_FORCE_INLINE
+  PROXY_HOST_DEVICE
   static void
   computeGradPhiBGradPhi( int const qa,
                           int const qb,
@@ -669,6 +706,7 @@ public:
   template< typename FUNC >
 
   // GEOS_FORCE_INLINE
+  PROXY_HOST_DEVICE
   static void computeFirstOrderStiffnessTermX( int const q,
                                                double const (&X)[8][3],
                                                FUNC && func );
@@ -683,6 +721,7 @@ public:
   template< typename FUNC >
 
   // GEOS_FORCE_INLINE
+  PROXY_HOST_DEVICE
   static void computeFirstOrderStiffnessTermY( int const q,
                                                double const (&X)[8][3],
                                                FUNC && func );
@@ -697,6 +736,7 @@ public:
   template< typename FUNC >
 
   // GEOS_FORCE_INLINE
+  PROXY_HOST_DEVICE
   static void computeFirstOrderStiffnessTermZ( int const q,
                                                double const (&X)[8][3],
                                                FUNC && func );
@@ -712,6 +752,7 @@ public:
   template< typename FUNC >
 
   // GEOS_FORCE_INLINE
+  PROXY_HOST_DEVICE
   static void computeFirstOrderStiffnessTerm( int const q,
                                               double const (&X)[8][3],
                                               FUNC && stiffnessVal );
@@ -728,6 +769,7 @@ public:
    */
 
   // GEOS_FORCE_INLINE
+  PROXY_HOST_DEVICE
   static void applyTransformationToParentGradients( int const q,
                                                     double const ( &invJ )[3][3],
                                                     double ( &gradN )[numNodes][3] );
@@ -743,6 +785,7 @@ public:
    */
 
   // GEOS_FORCE_INLINE
+  PROXY_HOST_DEVICE
   static void applyTransformationToParentGradients( double const (&coords)[3],
                                                     double const ( &invJ )[3][3],
                                                     double ( &gradN )[numNodes][3] );
@@ -766,6 +809,7 @@ private:
   template< typename FUNC, typename ... PARAMS >
 
   // GEOS_FORCE_INLINE
+  PROXY_HOST_DEVICE
   static void supportLoop( double const (&coords)[3],
                            FUNC && func,
                            PARAMS &&... params );
@@ -781,10 +825,17 @@ private:
   template< typename FUNC, typename ... PARAMS >
 
   // GEOS_FORCE_INLINE
+  PROXY_HOST_DEVICE
   static void supportLoop( int const q,
                            FUNC && func,
                            PARAMS &&... params );
 
+  PROXY_HOST_DEVICE
+  void computeMassMatrixAndStiffnessVector(
+                          const int &elementNumber, const int &nPointsPerElement,
+                          ARRAY_REAL_VIEW const &nodesCoordsX, ARRAY_REAL_VIEW const &nodesCoordsY,
+                          ARRAY_REAL_VIEW const &nodesCoordsZ, float massMatrixLocal[],
+                          float pnLocal[], float Y[]);
 };
 
 /// @cond Doxygen_Suppress
@@ -792,6 +843,7 @@ private:
 
 template< typename GL_BASIS >
 template< typename FUNC, typename ... PARAMS >
+  PROXY_HOST_DEVICE
 void
 Qk_Hexahedron_Lagrange_GaussLobatto< GL_BASIS >::supportLoop( double const (&coords)[3],
                                                               FUNC && func,
@@ -823,6 +875,7 @@ Qk_Hexahedron_Lagrange_GaussLobatto< GL_BASIS >::supportLoop( double const (&coo
 
 template< typename GL_BASIS >
 template< typename FUNC, typename ... PARAMS >
+  PROXY_HOST_DEVICE
 void
 Qk_Hexahedron_Lagrange_GaussLobatto< GL_BASIS >::supportLoop( int const q,
                                                               FUNC && func,
@@ -851,6 +904,7 @@ Qk_Hexahedron_Lagrange_GaussLobatto< GL_BASIS >::supportLoop( int const q,
 //*************************************************************************************************
 
 template< typename GL_BASIS >
+  PROXY_HOST_DEVICE
 double
 Qk_Hexahedron_Lagrange_GaussLobatto< GL_BASIS >::calcGradN( int const q,
                                                             double const (&X)[numNodes][3],
@@ -879,6 +933,7 @@ Qk_Hexahedron_Lagrange_GaussLobatto< GL_BASIS >::calcGradN( int const q,
 }
 //*************************************************************************************************
 template< typename GL_BASIS >
+  PROXY_HOST_DEVICE
 
 // GEOS_FORCE_INLINE
 double
@@ -897,6 +952,7 @@ Qk_Hexahedron_Lagrange_GaussLobatto< GL_BASIS >::calcGradN( double const (&coord
   return detJ;
 }
 template< typename GL_BASIS >
+  PROXY_HOST_DEVICE
 
 // // GEOS_FORCE_INLINE
 // double Qk_Hexahedron_Lagrange_GaussLobatto< GL_BASIS >::
@@ -931,6 +987,7 @@ Qk_Hexahedron_Lagrange_GaussLobatto< GL_BASIS >::calcGradNWithCorners( int const
 }
 //*************************************************************************************************
 template< typename GL_BASIS >
+  PROXY_HOST_DEVICE
 double
 Qk_Hexahedron_Lagrange_GaussLobatto< GL_BASIS >::calcGradNWithCorners( double const (&coords)[3],
                                                                        double const (&X)[8][3],
@@ -954,6 +1011,7 @@ Qk_Hexahedron_Lagrange_GaussLobatto< GL_BASIS >::calcGradNWithCorners( double co
 #endif
 
 template< typename GL_BASIS >
+  PROXY_HOST_DEVICE
 void Qk_Hexahedron_Lagrange_GaussLobatto< GL_BASIS >::jacobianTransformation( int const qa,
                         int const qb,
                         int const qc,
@@ -979,6 +1037,7 @@ void Qk_Hexahedron_Lagrange_GaussLobatto< GL_BASIS >::jacobianTransformation( in
 }
 
 template< typename GL_BASIS >
+  PROXY_HOST_DEVICE
 void
 Qk_Hexahedron_Lagrange_GaussLobatto< GL_BASIS >::
 jacobianTransformation( double const (&coords)[3],
@@ -1004,6 +1063,7 @@ jacobianTransformation( double const (&coords)[3],
 
 template< typename GL_BASIS >
 
+  PROXY_HOST_DEVICE
 // GEOS_FORCE_INLINE
 void
 Qk_Hexahedron_Lagrange_GaussLobatto< GL_BASIS >::
@@ -1036,6 +1096,7 @@ jacobianTransformationWithCorners( double const (&coords)[3],
 template< typename GL_BASIS >
 
 // GEOS_FORCE_INLINE
+  PROXY_HOST_DEVICE
 void
 Qk_Hexahedron_Lagrange_GaussLobatto< GL_BASIS >::
 trilinearInterp( double const alpha,
@@ -1061,6 +1122,7 @@ trilinearInterp( double const alpha,
 template< typename GL_BASIS >
 
 // GEOS_FORCE_INLINE
+  PROXY_HOST_DEVICE
 void
 Qk_Hexahedron_Lagrange_GaussLobatto< GL_BASIS >::
 computeLocalCoords( double const (&Xmesh)[8][3],
@@ -1080,6 +1142,7 @@ computeLocalCoords( double const (&Xmesh)[8][3],
 template< typename GL_BASIS >
 
 // GEOS_FORCE_INLINE
+  PROXY_HOST_DEVICE
 void
 Qk_Hexahedron_Lagrange_GaussLobatto< GL_BASIS >::
 jacobianTransformation2d( int const qa,
@@ -1105,7 +1168,7 @@ jacobianTransformation2d( int const qa,
 
 template< typename GL_BASIS >
 
-// GEOS_FORCE_INLINE
+  PROXY_HOST_DEVICE
 double
 Qk_Hexahedron_Lagrange_GaussLobatto< GL_BASIS >::
 computeMassTerm( int const q,
@@ -1121,6 +1184,7 @@ computeMassTerm( int const q,
 
 template< typename GL_BASIS >
 
+  PROXY_HOST_DEVICE
 // GEOS_FORCE_INLINE
 double
 Qk_Hexahedron_Lagrange_GaussLobatto< GL_BASIS >::
@@ -1142,6 +1206,7 @@ computeDampingTerm( int const q,
 
 template< typename GL_BASIS >
 
+  PROXY_HOST_DEVICE
 // GEOS_FORCE_INLINE
 void
 Qk_Hexahedron_Lagrange_GaussLobatto< GL_BASIS >::
@@ -1170,6 +1235,7 @@ computeBMatrix( int const qa,
 template< typename GL_BASIS >
 
 // GEOS_FORCE_INLINE
+  PROXY_HOST_DEVICE
 void
 Qk_Hexahedron_Lagrange_GaussLobatto< GL_BASIS >::
 computeBzMatrix( int const qa,
@@ -1197,6 +1263,7 @@ computeBzMatrix( int const qa,
 template< typename GL_BASIS >
 
 // GEOS_FORCE_INLINE
+  PROXY_HOST_DEVICE
 void
 Qk_Hexahedron_Lagrange_GaussLobatto< GL_BASIS >::
 computeBxyMatrix( int const qa,
@@ -1225,6 +1292,7 @@ template< typename GL_BASIS >
 template< typename FUNC >
 
 // GEOS_FORCE_INLINE
+  PROXY_HOST_DEVICE
 void
 Qk_Hexahedron_Lagrange_GaussLobatto< GL_BASIS >::
 computeGradPhiBGradPhi( int const qa,
@@ -1274,6 +1342,7 @@ computeGradPhiBGradPhi( int const qa,
 template< typename GL_BASIS >
 template< typename FUNC >
 
+  PROXY_HOST_DEVICE
 // GEOS_FORCE_INLINE
 void
 Qk_Hexahedron_Lagrange_GaussLobatto< GL_BASIS >::
@@ -1292,6 +1361,7 @@ computeStiffnessxyTerm( int const q,
 template< typename GL_BASIS >
 template< typename FUNC >
 
+  PROXY_HOST_DEVICE
 // GEOS_FORCE_INLINE
 void
 Qk_Hexahedron_Lagrange_GaussLobatto< GL_BASIS >::
@@ -1311,6 +1381,7 @@ template< typename GL_BASIS >
 template< typename FUNC >
 
 // GEOS_FORCE_INLINE
+  PROXY_HOST_DEVICE
 void
 Qk_Hexahedron_Lagrange_GaussLobatto< GL_BASIS >::
 computeStiffnessTerm( int const q,
@@ -1328,6 +1399,7 @@ computeStiffnessTerm( int const q,
 template< typename GL_BASIS >
 template< typename FUNC >
 
+  PROXY_HOST_DEVICE
 // GEOS_FORCE_INLINE
 void
 Qk_Hexahedron_Lagrange_GaussLobatto< GL_BASIS >::
@@ -1381,6 +1453,7 @@ computeFirstOrderStiffnessTerm( int const q,
 template< typename GL_BASIS >
 template< typename FUNC >
 
+  PROXY_HOST_DEVICE
 // GEOS_FORCE_INLINE
 void
 Qk_Hexahedron_Lagrange_GaussLobatto< GL_BASIS >::
@@ -1406,6 +1479,7 @@ computeFirstOrderStiffnessTermX( int const q,
 template< typename GL_BASIS >
 template< typename FUNC >
 
+  PROXY_HOST_DEVICE
 // GEOS_FORCE_INLINE
 void
 Qk_Hexahedron_Lagrange_GaussLobatto< GL_BASIS >::
@@ -1431,6 +1505,7 @@ template< typename GL_BASIS >
 template< typename FUNC >
 
 // GEOS_FORCE_INLINE
+  PROXY_HOST_DEVICE
 void
 Qk_Hexahedron_Lagrange_GaussLobatto< GL_BASIS >::
 computeFirstOrderStiffnessTermZ( int const q,
@@ -1454,6 +1529,7 @@ computeFirstOrderStiffnessTermZ( int const q,
 //*************************************************************************************************
 template< typename GL_BASIS >
 
+  PROXY_HOST_DEVICE
 // GEOS_FORCE_INLINE
 void
 Qk_Hexahedron_Lagrange_GaussLobatto< GL_BASIS >::
@@ -1477,6 +1553,7 @@ applyTransformationToParentGradients( int const q,
 
 //*************************************************************************************************
 template< typename GL_BASIS >
+  PROXY_HOST_DEVICE
 void
 Qk_Hexahedron_Lagrange_GaussLobatto< GL_BASIS >::
 applyTransformationToParentGradients( double const (&coords)[3],
@@ -1497,6 +1574,7 @@ applyTransformationToParentGradients( double const (&coords)[3],
 template< typename GL_BASIS >
 
 // GEOS_FORCE_INLINE
+  PROXY_HOST_DEVICE
 double
 Qk_Hexahedron_Lagrange_GaussLobatto< GL_BASIS >::
 transformedQuadratureWeight( int const q,
@@ -1516,6 +1594,7 @@ transformedQuadratureWeight( int const q,
 template< typename GL_BASIS >
 
 // GEOS_FORCE_INLINE
+  PROXY_HOST_DEVICE
 void Qk_Hexahedron_Lagrange_GaussLobatto< GL_BASIS >::
 symmetricGradient( int const q,
                    double const (&invJ)[3][3],
@@ -1550,6 +1629,7 @@ symmetricGradient( int const q,
 template< typename GL_BASIS >
 
 // GEOS_FORCE_INLINE
+  PROXY_HOST_DEVICE
 void Qk_Hexahedron_Lagrange_GaussLobatto< GL_BASIS >::
 plusGradNajAij( int const q,
                 double const (&invJ)[3][3],
@@ -1582,6 +1662,7 @@ plusGradNajAij( int const q,
 
 
 template< typename GL_BASIS >
+  PROXY_HOST_DEVICE
 void Qk_Hexahedron_Lagrange_GaussLobatto< GL_BASIS >::
 gradient( int const q,
           double const (&invJ)[3][3],
@@ -1608,6 +1689,44 @@ gradient( int const q,
     }
   }, invJ, var, grad );
 }
+
+template< typename GL_BASIS >
+  PROXY_HOST_DEVICE
+void Qk_Hexahedron_Lagrange_GaussLobatto< GL_BASIS >::
+computeMassMatrixAndStiffnessVector(const int &elementNumber, const int &nPointsPerElement,
+                                    ARRAY_REAL_VIEW const &nodesCoordsX, ARRAY_REAL_VIEW const &nodesCoordsY,
+                                    ARRAY_REAL_VIEW const &nodesCoordsZ, float massMatrixLocal[],
+                                    float pnLocal[], float Y[])
+{
+    double X[8][3];
+    int I = 0;
+
+    for (int k = 0; k < 2; k++) {
+      for (int j = 0; j < 2; j++) {
+        for (int i = 0; i < 2; i++) {
+          int l = i + j * 2 + k * 4;
+          X[I][0] = nodesCoordsX(elementNumber, l);
+          X[I][1] = nodesCoordsZ(elementNumber, l);
+          X[I][2] = nodesCoordsY(elementNumber, l);
+          I++;
+        }
+      }
+    }
+
+    for (int q = 0; q < nPointsPerElement; q++) {
+      Y[q] = 0;
+    }
+
+    for (int q = 0; q < nPointsPerElement; q++) {
+      massMatrixLocal[q] = computeMassTerm(q, X);
+      computeStiffnessTerm(
+          q, X, [&](const int i, const int j, const double val) {
+            float localIncrement = val * pnLocal[j];
+            Y[i] += localIncrement;
+          });
+    }
+}
+
 /**
  * This class contains the kernel accessible functions specific to the standard
  * Trilinear Hexahedron finite element with a Gaussian quadrature rule. It is

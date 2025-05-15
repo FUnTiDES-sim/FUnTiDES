@@ -19,6 +19,7 @@
  * @file LagrangeBasis2.hpp
  */
 
+#include <dataType.hpp>
 // #include "common/DataTypes.hpp"
 
 /**
@@ -40,6 +41,7 @@ public:
    * @param q The index of the support point
    * @return The value of the weight
    */
+  PROXY_HOST_DEVICE
   constexpr static double weight(const int q) {
     switch (q) {
     case 0:
@@ -56,6 +58,7 @@ public:
    * @param supportPointIndex The linear index of support point
    * @return parent coordinate in the xi0 direction.
    */
+  PROXY_HOST_DEVICE
   constexpr static double parentSupportCoord(const int supportPointIndex) {
     switch (supportPointIndex) {
     case 0:
@@ -76,6 +79,7 @@ public:
    * @param xi The coordinate at which to evaluate the basis.
    * @return The value of basis function.
    */
+  PROXY_HOST_DEVICE
   constexpr static double value(const int index, const double xi) {
 
     switch (index) {
@@ -94,6 +98,7 @@ public:
    * @param xi The coordinate at which to evaluate the basis.
    * @return The value of the basis.
    */
+  PROXY_HOST_DEVICE
   constexpr static double value0(const double xi) {
     const double xi_div2 = 0.5 * xi;
     return -xi_div2 + xi_div2 * xi;
@@ -104,6 +109,7 @@ public:
    * @param xi The coordinate at which to evaluate the basis.
    * @return The value of the basis.
    */
+  PROXY_HOST_DEVICE
   constexpr static double value1(const double xi) { return 1.0 - xi * xi; }
 
   /**
@@ -111,6 +117,7 @@ public:
    * @param xi The coordinate at which to evaluate the basis.
    * @return The value of the basis.
    */
+  PROXY_HOST_DEVICE
   constexpr static double value2(const double xi) {
     const double xi_div2 = 0.5 * xi;
     return xi_div2 + xi_div2 * xi;
@@ -122,6 +129,7 @@ public:
    * @param xi The coordinate at which to evaluate the gradient.
    * @return The gradient of basis function
    */
+  PROXY_HOST_DEVICE
   constexpr static double gradient0(const double xi) { return -0.5 + xi; }
 
   /**
@@ -130,6 +138,7 @@ public:
    * @param xi The coordinate at which to evaluate the gradient.
    * @return The gradient of basis function
    */
+  PROXY_HOST_DEVICE
   constexpr static double gradient1(const double xi) { return -2 * xi; }
 
   /**
@@ -138,6 +147,7 @@ public:
    * @param xi The coordinate at which to evaluate the gradient.
    * @return The gradient of basis function
    */
+  PROXY_HOST_DEVICE
   constexpr static double gradient2(const double xi) { return 0.5 + xi; }
 
   /**
@@ -147,6 +157,7 @@ public:
    * @param xi The coordinate at which to evaluate the basis.
    * @return The value of basis function.
    */
+  PROXY_HOST_DEVICE
   constexpr static double gradient(const int index, const double xi) {
     switch (index) {
     case 0:
@@ -166,6 +177,7 @@ public:
    * @param p The index of the support point
    * @return The gradient of basis function.
    */
+  PROXY_HOST_DEVICE
   constexpr static double gradientAt(const int q, const int p) {
     switch (q) {
     case 0:
@@ -213,6 +225,7 @@ public:
      * @param j The index in the xi1 direction (0,1)
      * @return The linear index of the support/quadrature point (0-8)
      */
+    PROXY_HOST_DEVICE
     constexpr static int linearIndex(const int i, const int j) {
       return i + 3 * j;
     }
@@ -224,6 +237,7 @@ public:
      * @param i0 The Cartesian index of the support point in the xi0 direction.
      * @param i1 The Cartesian index of the support point in the xi1 direction.
      */
+    PROXY_HOST_DEVICE
     constexpr static void multiIndex(const int linearIndex, int &i0, int &i1) {
 
       i1 = ((linearIndex * 22) >> 6);
@@ -241,6 +255,7 @@ public:
      * @param N Array to hold the value of the basis functions at each support
      * point.
      */
+    PROXY_HOST_DEVICE
     static void value(double const (&coords)[2],
                       double (&N)[numSupportPoints]) {
       for (int a = 0; a < 3; ++a) {

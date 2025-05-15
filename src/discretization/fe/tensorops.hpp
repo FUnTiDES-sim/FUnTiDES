@@ -7,7 +7,7 @@
  * @param J The 3x3 matrix to invert.
  * @return The determinant of the original matrix.
  */
-double invert3x3(double (&J)[3][3])
+inline double invert3x3(double (&J)[3][3])
 {
   // Compute the determinant
   double det =
