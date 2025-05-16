@@ -6,8 +6,8 @@
 #include <dataType.hpp>
 #include "Qk_Hexahedron_Lagrange_GaussLobatto.hpp"
 
-class SEMQkGLIntegralsGeos
-{
+// class SEMQkGLIntegralsGeos
+// {
 // private:
 //   int order;
 //   struct SEMinfo infos;
@@ -56,7 +56,7 @@ class SEMQkGLIntegralsGeos
 //           });
 //     }
 //   }
-};
+// };
 
 
 

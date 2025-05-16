@@ -1,13 +1,15 @@
 #ifndef TENSOROPS_H_
 #define TENSOROPS_H_
 
+// #include <commonMacro.hpp>
 /**
  * @brief Inverts a 3x3 matrix and returns its determinant.
  *        The matrix is modified in place.
  * @param J The 3x3 matrix to invert.
  * @return The determinant of the original matrix.
  */
-inline double invert3x3(double (&J)[3][3])
+PROXY_HOST_DEVICE
+double invert3x3(double (&J)[3][3])
 {
   // Compute the determinant
   double det =
@@ -38,7 +40,8 @@ inline double invert3x3(double (&J)[3][3])
   return det;
 }
 
-inline auto invert3x3(double (&Jinv)[3][3], double (&J)[3][3])
+PROXY_HOST_DEVICE
+auto invert3x3(double (&Jinv)[3][3], double (&J)[3][3])
 {
     Jinv[ 0 ][ 0 ] = J[ 1 ][ 1 ] * J[ 2 ][ 2 ] - J[ 1 ][ 2 ] * J[ 2 ][ 1 ];
     Jinv[ 0 ][ 1 ] = J[ 0 ][ 2 ] * J[ 2 ][ 1 ] - J[ 0 ][ 1 ] * J[ 2 ][ 2 ];
@@ -60,14 +63,17 @@ inline auto invert3x3(double (&Jinv)[3][3], double (&J)[3][3])
     Jinv[ 2 ][ 1 ] = ( J[ 0 ][ 1 ] * J[ 2 ][ 0 ] - J[ 0 ][ 0 ] * J[ 2 ][ 1 ] ) * invDet;
     Jinv[ 2 ][ 2 ] = ( J[ 0 ][ 0 ] * J[ 1 ][ 1 ] - J[ 0 ][ 1 ] * J[ 1 ][ 0 ] ) * invDet;
 
+
     return det;
 }
 
 template< int N >
+PROXY_HOST_DEVICE
 double determinant(const double (&A)[N][N]);
 
 template<>
-inline double determinant<3>(const double (&A)[3][3])
+PROXY_HOST_DEVICE
+double determinant<3>(const double (&A)[3][3])
 {
   return
       A[0][0] * (A[1][1] * A[2][2] - A[1][2] * A[2][1]) -
@@ -76,19 +82,23 @@ inline double determinant<3>(const double (&A)[3][3])
 }
 
 template< int N >
+PROXY_HOST_DEVICE
 double symDeterminant( double (&B)[3]);
 
 template<>
-inline double symDeterminant<2>( double (&B)[3] )
+PROXY_HOST_DEVICE
+double symDeterminant<2>( double (&B)[3] )
 {
   return B[0] * B[1] - B[2] * B[2];
 }
 
 template< int N >
+PROXY_HOST_DEVICE
 double symDeterminant( double (&B)[6]);
 
 template<>
-inline double symDeterminant<3>( double (&B)[6] )
+PROXY_HOST_DEVICE
+double symDeterminant<3>( double (&B)[6] )
 {
   return B[ 0 ] * B[ 1 ] * B[ 2 ] +
          B[ 5 ] * B[ 4 ] * B[ 3 ] * 2 -
@@ -97,7 +107,8 @@ inline double symDeterminant<3>( double (&B)[6] )
          B[ 2 ] * B[ 5 ] * B[ 5 ];
 }
 
-inline  static auto symInvert( double (&J)[6])
+PROXY_HOST_DEVICE
+static auto symInvert( double (&J)[6])
 {
   auto const det = symDeterminant<3>(J);
   auto const invDet = 1 / det;

@@ -87,6 +87,12 @@ void SEMsolver::computeOneStep(const int &timeSample, const int &order,
         globalNodesCoordsY, globalNodesCoordsZ, massMatrixLocal, pnLocal, Y);
 #endif // USE_SHIVA
 
+#ifdef USE_SEMGEOS
+    myQkIntegrals.computeMassMatrixAndStiffnessVector(
+        elementNumber, nPointsPerElement, globalNodesCoordsX,
+        globalNodesCoordsY, globalNodesCoordsZ, massMatrixLocal, pnLocal, Y);
+#endif // USE_SEMGEOS
+
     // compute global mass Matrix and global stiffness vector
     for (int i = 0; i < nPointsPerElement; i++) {
       int gIndex = globalNodesList(elementNumber, i);

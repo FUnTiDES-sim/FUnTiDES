@@ -734,8 +734,6 @@ public:
    * @param func Callback function accepting three parameters: i, j and R_ij
    */
   template< typename FUNC >
-
-  // GEOS_FORCE_INLINE
   PROXY_HOST_DEVICE
   static void computeFirstOrderStiffnessTermZ( int const q,
                                                double const (&X)[8][3],
@@ -750,8 +748,6 @@ public:
    * @param stiffnessVal Callback function accepting three parameters: i, j and R_ij
    */
   template< typename FUNC >
-
-  // GEOS_FORCE_INLINE
   PROXY_HOST_DEVICE
   static void computeFirstOrderStiffnessTerm( int const q,
                                               double const (&X)[8][3],
@@ -767,8 +763,6 @@ public:
    * @param gradN Array to contain the shape function derivatives for all
    *   support points at the coordinates of the quadrature point @p q.
    */
-
-  // GEOS_FORCE_INLINE
   PROXY_HOST_DEVICE
   static void applyTransformationToParentGradients( int const q,
                                                     double const ( &invJ )[3][3],
@@ -783,12 +777,17 @@ public:
    * @param gradN Array to contain the shape function derivatives for all
    *   support points at the coordinates of the quadrature point @p q.
    */
-
-  // GEOS_FORCE_INLINE
   PROXY_HOST_DEVICE
   static void applyTransformationToParentGradients( double const (&coords)[3],
                                                     double const ( &invJ )[3][3],
                                                     double ( &gradN )[numNodes][3] );
+
+  PROXY_HOST_DEVICE
+  void computeMassMatrixAndStiffnessVector(
+                          const int &elementNumber, const int &nPointsPerElement,
+                          ARRAY_REAL_VIEW const &nodesCoordsX, ARRAY_REAL_VIEW const &nodesCoordsY,
+                          ARRAY_REAL_VIEW const &nodesCoordsZ, float massMatrixLocal[],
+                          float pnLocal[], float Y[]) const;
 
 
 private:
@@ -807,8 +806,6 @@ private:
    * @param params The parameters to pass to @p func.
    */
   template< typename FUNC, typename ... PARAMS >
-
-  // GEOS_FORCE_INLINE
   PROXY_HOST_DEVICE
   static void supportLoop( double const (&coords)[3],
                            FUNC && func,
@@ -830,12 +827,6 @@ private:
                            FUNC && func,
                            PARAMS &&... params );
 
-  PROXY_HOST_DEVICE
-  void computeMassMatrixAndStiffnessVector(
-                          const int &elementNumber, const int &nPointsPerElement,
-                          ARRAY_REAL_VIEW const &nodesCoordsX, ARRAY_REAL_VIEW const &nodesCoordsY,
-                          ARRAY_REAL_VIEW const &nodesCoordsZ, float massMatrixLocal[],
-                          float pnLocal[], float Y[]);
 };
 
 /// @cond Doxygen_Suppress
@@ -843,7 +834,7 @@ private:
 
 template< typename GL_BASIS >
 template< typename FUNC, typename ... PARAMS >
-  PROXY_HOST_DEVICE
+PROXY_HOST_DEVICE
 void
 Qk_Hexahedron_Lagrange_GaussLobatto< GL_BASIS >::supportLoop( double const (&coords)[3],
                                                               FUNC && func,
@@ -1691,12 +1682,12 @@ gradient( int const q,
 }
 
 template< typename GL_BASIS >
-  PROXY_HOST_DEVICE
+PROXY_HOST_DEVICE
 void Qk_Hexahedron_Lagrange_GaussLobatto< GL_BASIS >::
 computeMassMatrixAndStiffnessVector(const int &elementNumber, const int &nPointsPerElement,
                                     ARRAY_REAL_VIEW const &nodesCoordsX, ARRAY_REAL_VIEW const &nodesCoordsY,
                                     ARRAY_REAL_VIEW const &nodesCoordsZ, float massMatrixLocal[],
-                                    float pnLocal[], float Y[])
+                                    float pnLocal[], float Y[]) const
 {
     double X[8][3];
     int I = 0;
