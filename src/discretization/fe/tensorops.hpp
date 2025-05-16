@@ -40,6 +40,15 @@ double invert3x3(double (&J)[3][3])
   return det;
 }
 
+/**
+* @brief Invert the source matrix @p J and store the result in @p Jinv.
+* @tparam Jinv The type of @p Jinv.
+* @tparam J The type of @p J.
+* @param Jinv The 3v3 matrix to write the inverse to.
+* @param srcMatrix The 3x3 matrix to take the inverse of.
+* @return The determinant.
+* @note @p srcMatrix can contain integers but @p dstMatrix must contain floating point values.
+*/
 PROXY_HOST_DEVICE
 auto invert3x3(double (&Jinv)[3][3], double (&J)[3][3])
 {
