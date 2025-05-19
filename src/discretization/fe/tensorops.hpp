@@ -116,16 +116,47 @@ double symDeterminant<3>( double (&B)[6] )
          B[ 2 ] * B[ 5 ] * B[ 5 ];
 }
 
+  /**
+   * @brief Invert the symmetric matrix @p J and store the result in @p dst.
+   * @tparam DST_SYM_MATRIX The type of @p dst.
+   * @tparam SRC_SYM_MATRIX The type of @p J.
+   * @param dst The 3x3 symmetric matrix to write the inverse to.
+   * @param J The 3x3 symmetric matrix to take the inverse of.
+   * @return The determinant.
+   * @note @p J can contain integers but @p dstMatrix must contain floating point values.
+   */
+PROXY_HOST_DEVICE
+static auto symInvert( double (&dst)[6],
+                       double const (&J)[6] )
+{
+    using FloatingPoint = std::decay_t< decltype( dst[ 0 ] ) >;
+
+    dst[ 0 ] = J[ 1 ] * J[ 2 ] - J[ 3 ] * J[ 3 ];
+    dst[ 5 ] = J[ 4 ] * J[ 3 ] - J[ 5 ] * J[ 2 ];
+    dst[ 4 ] = J[ 5 ] * J[ 3 ] - J[ 4 ] * J[ 1 ];
+
+    auto const det = J[ 0 ] * dst[ 0 ] +
+                    J[ 5 ] * dst[ 5 ] +
+                    J[ 4 ] * dst[ 4 ];
+    FloatingPoint const invDet = FloatingPoint( 1 ) / det;
+
+    dst[ 0 ] *= invDet;
+    dst[ 5 ] *= invDet;
+    dst[ 4 ] *= invDet;
+    dst[ 1 ] = ( J[ 0 ] * J[ 2 ] - J[ 4 ] * J[ 4 ] ) * invDet;
+    dst[ 3 ] = ( J[ 5 ] * J[ 4 ] - J[ 0 ] * J[ 3 ] ) * invDet;
+    dst[ 2 ] = ( J[ 0 ] * J[ 1 ] - J[ 5 ] * J[ 5 ] ) * invDet;
+
+    return det;
+}
+
 PROXY_HOST_DEVICE
 static auto symInvert( double (&J)[6])
 {
-  auto const det = symDeterminant<3>(J);
-  auto const invDet = 1 / det;
-
-  auto const temp = J[ 0 ];
-  J[ 0 ] = J[ 1 ] * invDet;
-  J[ 1 ] = temp * invDet;
-  J[ 2 ] *= -invDet;
+  std::remove_reference_t< decltype( J[ 0 ] ) > temp[ 6 ];
+  auto const det = symInvert( temp, J );
+  // std::copy< 6 >( J, temp );
+  for(int i = 0; i < 6; i++) J[i] = temp[i];
 
   return det;
 }
