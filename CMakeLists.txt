@@ -88,7 +88,8 @@ set(CMAKE_CXX_FLAGS_DEBUG "-O0 -g" CACHE STRING "")
 set(CMAKE_CXX_STANDARD 17 CACHE STRING "")
 set(CMAKE_CXX_EXTENSIONS OFF CACHE BOOL "Disable gnu++ extensions" FORCE)
 set(CMAKE_CUDA_HOST_COMPILER ${CMAKE_CXX_COMPILER} CACHE STRING "" FORCE)
-set(CMAKE_CUDA_ARCHITECTURES $ENV{CUDA_ARCHITECTURES} CACHE STRING "" FORCE)
+
+set(CMAKE_CUDA_ARCHITECTURES native CACHE STRING "Auto-detect CUDA arch" FORCE)
 
 project( proxyapp )
 
@@ -116,6 +117,9 @@ if (ENABLE_PYWRAP)
   set(CMAKE_INTERPROCEDURAL_OPTIMIZATION FALSE CACHE BOOL "Disable global LTO" FORCE)
   set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 endif()
+# This must go *before* add_subdirectory(kokkos)
+
+set(CMAKE_CXX_COMPILER /opt/rh/gcc-toolset-13/root/bin/g++ CACHE FILEPATH "Use real g++" FORCE)
 
 ################################
 # KOKKOS
@@ -138,6 +142,7 @@ else ()
     set(Kokkos_ENABLE_CUDA_CONSTEXPR ON CACHE BOOL "" FORCE)
     set(Kokkos_ENABLE_CUDA_UVM ON CACHE BOOL "" FORCE)
     set(Kokkos_ENABLE_CUDA_LAMBDA ON CACHE BOOL "" FORCE)
+    set(Kokkos_ENABLE_NVCC_WRAPPER OFF CACHE BOOL "" FORCE)
     message (STATUS "-- Activating CUDA with Kokkos.")
   endif()
   add_subdirectory(${Kokkos_SOURCE_DIR})
