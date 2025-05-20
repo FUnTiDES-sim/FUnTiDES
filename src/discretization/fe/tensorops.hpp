@@ -8,18 +8,23 @@
  * @param J The 3x3 matrix to invert.
  * @return The determinant of the original matrix.
  */
+template <typename T>
 PROXY_HOST_DEVICE
-double invert3x3(double (&J)[3][3])
+T invert3x3(T (&J)[3][3]);
+
+template <typename T>
+PROXY_HOST_DEVICE
+T invert3x3(T (&J)[3][3])
 {
   // Compute the determinant
-  double det =
+  T det =
       J[0][0] * (J[1][1] * J[2][2] - J[1][2] * J[2][1]) -
       J[0][1] * (J[1][0] * J[2][2] - J[1][2] * J[2][0]) +
       J[0][2] * (J[1][0] * J[2][1] - J[1][1] * J[2][0]);
 
-  double invDet = 1.0 / det;
+  T invDet = 1.0 / det;
 
-  double inv[3][3];
+  T inv[3][3];
 
   inv[0][0] =  (J[1][1] * J[2][2] - J[1][2] * J[2][1]) * invDet;
   inv[0][1] = -(J[0][1] * J[2][2] - J[0][2] * J[2][1]) * invDet;
@@ -49,8 +54,13 @@ double invert3x3(double (&J)[3][3])
 * @return The determinant.
 * @note @p srcMatrix can contain integers but @p dstMatrix must contain floating point values.
 */
+template <typename T>
 PROXY_HOST_DEVICE
-auto invert3x3(double (&Jinv)[3][3], double (&J)[3][3])
+auto invert3x3(T (&Jinv)[3][3], T (&J)[3][3]);
+
+template <typename T>
+PROXY_HOST_DEVICE
+auto invert3x3(T (&Jinv)[3][3], T (&J)[3][3])
 {
     Jinv[ 0 ][ 0 ] = J[ 1 ][ 1 ] * J[ 2 ][ 2 ] - J[ 1 ][ 2 ] * J[ 2 ][ 1 ];
     Jinv[ 0 ][ 1 ] = J[ 0 ][ 2 ] * J[ 2 ][ 1 ] - J[ 0 ][ 1 ] * J[ 2 ][ 2 ];
@@ -60,7 +70,7 @@ auto invert3x3(double (&Jinv)[3][3], double (&J)[3][3])
                      J[ 1 ][ 0 ] * Jinv[ 0 ][ 1 ] +
                      J[ 2 ][ 0 ] * Jinv[ 0 ][ 2 ];
 
-    auto const invDet = 1.0 / det;
+    auto const invDet = T(1) / det;
 
     Jinv[ 0 ][ 0 ] *= invDet;
     Jinv[ 0 ][ 1 ] *= invDet;
@@ -76,13 +86,13 @@ auto invert3x3(double (&Jinv)[3][3], double (&J)[3][3])
     return det;
 }
 
-template< int N >
+template< int N, typename T >
 PROXY_HOST_DEVICE
-double determinant(const double (&A)[N][N]);
+T determinant(const T (&A)[N][N]);
 
-template<>
+template<typename T>
 PROXY_HOST_DEVICE
-double determinant<3>(const double (&A)[3][3])
+T determinant(const T (&A)[3][3])
 {
   return
       A[0][0] * (A[1][1] * A[2][2] - A[1][2] * A[2][1]) -
@@ -90,24 +100,24 @@ double determinant<3>(const double (&A)[3][3])
       A[0][2] * (A[1][0] * A[2][1] - A[1][1] * A[2][0]);
 }
 
-template< int N >
+template< int N, typename T >
 PROXY_HOST_DEVICE
-double symDeterminant( double (&B)[3]);
+T symDeterminant( T (&B)[3]);
 
-template<>
+template<typename T>
 PROXY_HOST_DEVICE
-double symDeterminant<2>( double (&B)[3] )
+T symDeterminant<2>( T (&B)[3] )
 {
   return B[0] * B[1] - B[2] * B[2];
 }
 
-template< int N >
+template< int N, typename T >
 PROXY_HOST_DEVICE
-double symDeterminant( double (&B)[6]);
+T symDeterminant( T (&B)[6]);
 
-template<>
+template<typename T>
 PROXY_HOST_DEVICE
-double symDeterminant<3>( double (&B)[6] )
+T symDeterminant<3>( T (&B)[6] )
 {
   return B[ 0 ] * B[ 1 ] * B[ 2 ] +
          B[ 5 ] * B[ 4 ] * B[ 3 ] * 2 -
@@ -125,9 +135,10 @@ double symDeterminant<3>( double (&B)[6] )
    * @return The determinant.
    * @note @p J can contain integers but @p dstMatrix must contain floating point values.
    */
+template <typename T>
 PROXY_HOST_DEVICE
-static auto symInvert( double (&dst)[6],
-                       double const (&J)[6] )
+static auto symInvert( T (&dst)[6],
+                       T const (&J)[6] )
 {
     using FloatingPoint = std::decay_t< decltype( dst[ 0 ] ) >;
 
@@ -150,8 +161,9 @@ static auto symInvert( double (&dst)[6],
     return det;
 }
 
+template<typename T>
 PROXY_HOST_DEVICE
-static auto symInvert( double (&J)[6])
+static auto symInvert( T (&J)[6])
 {
   std::remove_reference_t< decltype( J[ 0 ] ) > temp[ 6 ];
   auto const det = symInvert( temp, J );

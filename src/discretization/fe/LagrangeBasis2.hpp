@@ -42,7 +42,7 @@ public:
    * @return The value of the weight
    */
   PROXY_HOST_DEVICE
-  constexpr static double weight(const int q) {
+  constexpr static real_t weight(const int q) {
     switch (q) {
     case 0:
     case 2:

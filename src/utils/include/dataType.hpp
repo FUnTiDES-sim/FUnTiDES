@@ -11,6 +11,14 @@
 
 using namespace std;
 
+
+#ifdef USE_DOUBLE
+using real_t = double;
+#else
+using real_t = float;
+#endif
+
+
 #ifdef USE_VECTOR
 
 template< class T > class Vector
