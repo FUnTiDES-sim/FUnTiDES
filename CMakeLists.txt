@@ -34,7 +34,7 @@ option (ENABLE_PYWRAP "Enable python binding compilation with pybind11" OFF)
 
 # Chose integral version
 option (USE_SEMCLASSIC "Use CLASSIC " OFF)
-option (USE_SEMOPTIM "Use OPTIM " ON)
+option (USE_SEMOPTIM "Use OPTIM " OFF)
 option (USE_SHIVA "Use SHIVA " OFF)
 option (USE_SEMGEOS "Use Geos Implentation" OFF)
 
