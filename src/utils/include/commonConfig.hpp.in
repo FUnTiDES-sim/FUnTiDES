@@ -40,6 +40,8 @@
 #cmakedefine USE_SHIVA
 #cmakedefine USE_SEMGEOS
 
+#cmakedefine USE_DOUBLE
+
 #cmakedefine USE_SIMPLE_MESH
 #endif
 

@@ -12,5 +12,5 @@
 #endif
 #ifdef USE_SEMGEOS
     #include <fe/SEMQkGLIntegralsGeos.hpp>
-    using SEMQkGLIntegrals = Q2_Hexahedron_Lagrange_GaussLobatto;
+    using SEMQkGLIntegrals = Q2_Hexahedron_Lagrange_GaussLobatto; 
 #endif // USE_SEMGEOS

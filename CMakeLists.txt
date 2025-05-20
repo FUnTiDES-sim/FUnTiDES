@@ -38,6 +38,8 @@ option (USE_SEMOPTIM "Use OPTIM " ON)
 option (USE_SHIVA "Use SHIVA " OFF)
 option (USE_SEMGEOS "Use Geos Implentation" OFF)
 
+option (USE_DOUBLE "Use discretization libs with double precision instead of single precision." OFF)
+
 # Chose data model
 option (USE_SIMPLE_MESH "Use Simple mesh" ON)
 
