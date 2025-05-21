@@ -29,18 +29,12 @@ void SEMsolver::computeOneStep(const int &timeSample, const int &order,
                                const arrayReal &rhsTerm,
                                arrayReal const &pnGlobal,
                                const vectorInt &rhsElement) {
-#ifdef USE_CALIPER
-  CALI_CXX_MARK_FUNCTION;
-#endif // USE_CALIPER
 
   LOOPHEAD(myInfo.numberOfNodes, i)
   massMatrixGlobal[i] = 0;
   yGlobal[i] = 0;
   LOOPEND
 
-#ifdef USE_CALIPER
-  CALI_MARK_BEGIN("updateNodeRHS");
-#endif // USE_CALIPER
   // update pnGLobal with right hade side
   LOOPHEAD(myInfo.myNumberOfRHS, i)
   int nodeRHS = globalNodesList(rhsElement[i], 0);
@@ -48,10 +42,6 @@ void SEMsolver::computeOneStep(const int &timeSample, const int &order,
                            model[rhsElement[i]] * model[rhsElement[i]] *
                            rhsTerm(i, timeSample);
   LOOPEND
-#ifdef USE_CALIPER
-  CALI_MARK_END("updateNodeRHS");
-  CALI_MARK_BEGIN("mainloop");
-#endif // USE_CALIPER
   // start main parallel section
   MAINLOOPHEAD(myInfo.numberOfElements, elementNumber)
 
@@ -103,11 +93,6 @@ void SEMsolver::computeOneStep(const int &timeSample, const int &order,
   }
   MAINLOOPEND
 
-#ifdef USE_CALIPER
-  CALI_MARK_END("mainloop");
-  CALI_MARK_BEGIN("pressureloop");
-#endif // USE_CALIPER
-
 #ifdef USE_EZV
   //  Kokkos::View<float *, Kokkos::CudaSpace> ezv_device_data("EZV Device",
   //  pnGlobal.size());
@@ -138,10 +123,6 @@ void SEMsolver::computeOneStep(const int &timeSample, const int &order,
 
   ezv_thr_push_data_colors(get_ezv_ctx()[0], ezv_data);
 #endif // USE_EZV
-
-#ifdef USE_CALIPER
-  CALI_MARK_END("pressureloop");
-#endif // USE_CALIPER
 
   FENCE
 }

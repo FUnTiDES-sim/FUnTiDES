@@ -52,6 +52,59 @@ int SEMmesh::getNumberOfInteriorNodes() const {
   return ((ny == 1) ? (nx - 2) * (nz - 2) : (nx - 2) * (ny - 2) * (nz - 2));
 }
 
+int SEMmesh::getNumberOfInteriorNodes(int spongeSize) const {
+  return ((ny == 1)
+              ? (nx - spongeSize) * (nz - spongeSize)
+              : (nx - spongeSize) * (ny - spongeSize) * (nz - spongeSize));
+}
+
+// return the number of elements from sponge boundaries to exclude for surface
+int SEMmesh::getNumSurfaceElementsToExcludeFromSponge() const {
+  if (spongeSize <= 0 || ey == 1)
+    return 0;
+
+  return (ex - 2) * (ey - 2) * spongeSize;
+}
+
+// get number of sponge elements
+int SEMmesh::getNumberOfSpongeElements() const {
+  if (spongeSize <= 0)
+    return 0;
+
+  if (!surfaceSponge || ey == 0)
+    // (ex - spongeSpongeSize * 2 + (ez - spongeSize) * spongeSize * 2
+    return ((ey == 0) ? 2.0 * spongeSize * (-2.0 * spongeSize + ez + ex)
+                      : getNumberOfElements() - (ex - spongeSize) *
+                                                    (ey - spongeSize) *
+                                                    (ez - spongeSize));
+  // Case surface elements are removed
+  // only for 3d case
+  return getNumberOfElements() -
+         (ex - spongeSize) * (ey - spongeSize) * (ez - spongeSize) -
+         getNumSurfaceElementsToExcludeFromSponge();
+}
+
+// get number of sponge nodes
+int SEMmesh::getNumberOfSpongeNodes() const {
+  if (spongeSize <= 0)
+    return 0;
+
+  int totalNbNodes = getNumberOfNodes();
+  int numberInteriorNodes = getNumberOfInteriorNodes(spongeSize);
+
+  return totalNbNodes - numberInteriorNodes;
+}
+
+// get number of damping nodes
+// TODO
+int SEMmesh::getNumberOfDampingNodes() const { return 0; }
+
+// get the number of Damping elements
+int SEMmesh::getNumberOfDampingElements() const {
+  return ((ey == 0) ? 2 * (ex + ey - 2)
+                    : getNumberOfElements() - (ex - 1) * (ey - 1) * (ez - 1));
+}
+
 // get nx
 int SEMmesh::getNx() const { return nx; }
 
@@ -131,44 +184,6 @@ std::vector<float> SEMmesh::getCoordInOneDirection(const int &order,
   return coord;
 }
 
-/*
-// Initialize nodal coordinates.
-void SEMmesh::nodesCoordinates( arrayReal & nodeCoordsX,
-                                arrayReal & nodeCoordsZ,
-                                arrayReal & nodeCoordsY) const
-{
-  std::vector< float > coordX( order+1 );
-  std::vector< float > coordY( order+1 );
-  std::vector< float > coordZ( order+1 );
-
-  for(int n=0;n<ey;n++)
-  {
-     coordY=getCoordInOneDirection( order, order+1, hy, n );
-     for(int m=0;m<ez;m++)
-     {
-        coordZ=getCoordInOneDirection( order, order+1, hz, m );
-        for(int l=0;l<ex;l++)
-        {
-           coordX=getCoordInOneDirection( order, order+1, hx, l );
-           int e=l+m*ex+n*ex*ez;
-           for( int k=0; k<order+1; k++ )
-           {
-              for( int j=0; j<order+1; j++ )
-              {
-                 for( int i=0; i<order+1; i++ )
-                 {
-                    nodeCoordsX(e,
-i+(order+1)*j+k*(order+1)*(order+1))=coordX[i]; nodeCoordsZ(e,
-i+(order+1)*j+k*(order+1)*(order+1))=coordZ[j]; nodeCoordsY(e,
-i+(order+1)*j+k*(order+1)*(order+1))=coordY[k];
-                 }
-              }
-           }
-        }
-     }
-  }
-}
-*/
 // Initialize nodal coordinates.
 void SEMmesh::nodesCoordinates(arrayReal &nodeCoordsX, arrayReal &nodeCoordsZ,
                                arrayReal &nodeCoordsY) const {
@@ -335,13 +350,14 @@ void SEMmesh::getListOfInteriorElements(
 
 /**
  * @brief Saves a snapshot of the solution at a given time step.
- * 
+ *
  * This function extracts a 2D slice of the solution from the provided array `u`
- * at the specified index `i1` and writes it to a file. The snapshot is saved 
- * in a simple text format containing the x, z coordinates and the corresponding 
+ * at the specified index `i1` and writes it to a file. The snapshot is saved
+ * in a simple text format containing the x, z coordinates and the corresponding
  * solution value.
- * 
- * @param indexTimeStep Index of the time step used for naming the snapshot file.
+ *
+ * @param indexTimeStep Index of the time step used for naming the snapshot
+ * file.
  * @param i1 Index of the slice to extract from the solution array.
  * @param u 2D array containing the solution values.
  */
