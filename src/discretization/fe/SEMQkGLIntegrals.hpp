@@ -1,5 +1,7 @@
 #include "SEMdata.hpp"
 
+using tfloat = float;
+using gfloat = float;
 
 #ifdef USE_SEMCLASSIC
     #include <fe/SEMKernels/src/finiteElement/SEMQkGLIntegralsClassic.hpp>
@@ -7,24 +9,24 @@
 #endif
 #ifdef  USE_SEMOPTIM 
     #include <fe/SEMKernels/src/finiteElement/SEMQkGLIntegralsOptim.hpp>
-    using SEMQkGLIntegrals = SEMQkGLIntegralsOptim<SEMinfo::myOrderNumber, float, float>;
+    using SEMQkGLIntegrals = SEMQkGLIntegralsOptim<SEMinfo::myOrderNumber, tfloat, gfloat>;
 #endif
 #ifdef USE_SHIVA
     #include <fe/SEMKernels/src/finiteElement/SEMQkGLIntegralsShiva.hpp>
     using TransformType =
-    LinearTransform< double,
-                     InterpolatedShape< double,
-                                        Cube< double >,
-                                        LagrangeBasis< double, 1, EqualSpacing >,
-                                        LagrangeBasis< double, 1, EqualSpacing >,
-                                        LagrangeBasis< double, 1, EqualSpacing > > >;
+    LinearTransform< tfloat,
+                     InterpolatedShape< tfloat,
+                                        Cube< tfloat >,
+                                        LagrangeBasis< tfloat, 1, EqualSpacing >,
+                                        LagrangeBasis< tfloat, 1, EqualSpacing >,
+                                        LagrangeBasis< tfloat, 1, EqualSpacing > > >;
 
   using ParentElementType =
-    ParentElement< double,
-                   Cube< double >,
-                   LagrangeBasis< double, SEMinfo::myOrderNumber, EqualSpacing >,
-                   LagrangeBasis< double, SEMinfo::myOrderNumber, EqualSpacing >,
-                   LagrangeBasis< double, SEMinfo::myOrderNumber, EqualSpacing > >;
+    ParentElement< gfloat,
+                   Cube< gfloat >,
+                   LagrangeBasis< gfloat, SEMinfo::myOrderNumber, EqualSpacing >,
+                   LagrangeBasis< gfloat, SEMinfo::myOrderNumber, EqualSpacing >,
+                   LagrangeBasis< gfloat, SEMinfo::myOrderNumber, EqualSpacing > >;
 
-  using SEMQkGLIntegrals = SEMQkGLIntegralsShiva< double, SEMinfo::myOrderNumber, TransformType, ParentElementType >;    
+  using SEMQkGLIntegrals = SEMQkGLIntegralsShiva< SEMinfo::myOrderNumber, TransformType, ParentElementType >;    
 #endif

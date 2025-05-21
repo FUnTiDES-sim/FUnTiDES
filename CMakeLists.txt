@@ -119,7 +119,6 @@ if (ENABLE_PYWRAP)
 endif()
 # This must go *before* add_subdirectory(kokkos)
 
-set(CMAKE_CXX_COMPILER /opt/rh/gcc-toolset-13/root/bin/g++ CACHE FILEPATH "Use real g++" FORCE)
 
 ################################
 # KOKKOS
