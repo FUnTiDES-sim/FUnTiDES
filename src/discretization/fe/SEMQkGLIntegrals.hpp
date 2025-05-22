@@ -1,7 +1,7 @@
 #include "SEMdata.hpp"
 
-using tfloat = double;
-using gfloat = double;
+using tfloat = float;
+using gfloat = float;
 
 #ifdef USE_SEMCLASSIC
     #include <fe/SEMKernels/src/finiteElement/SEMQkGLIntegralsClassic.hpp>

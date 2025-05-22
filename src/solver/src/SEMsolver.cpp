@@ -56,13 +56,13 @@ void SEMsolver::computeOneStep(const int &timeSample, const int &order,
   MAINLOOPHEAD(myInfo.numberOfElements, elementNumber)
 
   if (elementNumber < myInfo.numberOfElements) {
-    float massMatrixLocal[ROW];
-    float pnLocal[ROW];
-    float Y[ROW];
+    float massMatrixLocal[SEMinfo::nPointsPerElement];
+    float pnLocal[SEMinfo::nPointsPerElement];
+    float Y[SEMinfo::nPointsPerElement] = {0};
 
     // get pnGlobal to pnLocal
-    for (int i = 0; i < nPointsPerElement; i++) {
-      int localToGlobal = globalNodesList(elementNumber, i);
+    for (int i = 0; i < SEMinfo::nPointsPerElement; i++) {
+      int const localToGlobal = globalNodesList(elementNumber, i);
       pnLocal[i] = pnGlobal(localToGlobal, i2);
     }
 
@@ -77,9 +77,11 @@ void SEMsolver::computeOneStep(const int &timeSample, const int &order,
 
 
     // compute global mass Matrix and global stiffness vector
-    for (int i = 0; i < nPointsPerElement; i++) {
-      int gIndex = globalNodesList(elementNumber, i);
-      massMatrixLocal[i] /= (model[elementNumber] * model[elementNumber]);
+
+    auto const inv_model2 = 1.0f / (model[elementNumber] * model[elementNumber]);
+    for (int i = 0; i < SEMinfo::nPointsPerElement; i++) {
+      int const gIndex = globalNodesList(elementNumber, i);
+      massMatrixLocal[i] *= inv_model2;
       ATOMICADD(massMatrixGlobal[gIndex], massMatrixLocal[i]);
       ATOMICADD(yGlobal[gIndex], Y[i]);
     }
