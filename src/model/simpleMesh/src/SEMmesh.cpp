@@ -238,7 +238,6 @@ int SEMmesh::Itoijk(const int &I, int &i, int &j, int &k) const {
   k = I / (nx * nz);
   return 0;
 }
-
 // compute global node to grid  indexes
 int SEMmesh::Itoij(const int &I, int &i, int &j) const {
   i = I % nx;
@@ -289,16 +288,6 @@ void SEMmesh::getModel(const int &numberOfElements, vectorReal &model) const {
         model[e] = 1500;
       }
     }
-    /*
-       for( int k=ez/2; k<ez; k++ )
-       {
-       for( int i=0; i<ex; i++ )
-       {
-         int e=i+k*ex+j*ex*ez;
-         model[e]=3500;
-       }
-       }
-     */
   }
 }
 //  get list of global interior nodes
@@ -389,4 +378,115 @@ void SEMmesh::saveSnapShot(const int indexTimeStep, const int i1,
     }
   }
   snapFile.close();
+}
+
+void SEMmesh::getListOfDampingElements(vectorInt &listOfDampingElements) const {
+  // case 2d
+  int m = 0;
+  if (ey == 0) {
+    for (int j = 0; j < ez; j++) {
+      for (int i = 0; i < ex; i++) {
+        if (i == 0 || i == ex - 1 || j == 0 || j == ez - 1) {
+          listOfDampingElements[m] = i + j * ex;
+          m++;
+        }
+      }
+    }
+  }
+
+  else {
+    for (int k = 0; k < ey; k++) {
+      for (int j = 0; j < ez; j++) {
+        for (int i = 0; i < ex; i++) {
+          if (i == 0 || i == ex - 1 || j == 0 || j == ez - 1 || k == 0 ||
+              k == ey - 1) {
+            listOfDampingElements[m] = i + j * ex + k * ex * ez;
+            m++;
+          }
+        }
+      }
+    }
+  }
+}
+
+void SEMmesh::getListOfDampingNodes(vectorInt &listOfDampingNodes) const {
+  int m = 0;
+  if (ny == 1) {
+    for (int j = 0; j < nz; j++) {
+      for (int i = 0; i < nx; i++) {
+        if (i == 0 || i == nx - 1 || j == 0 || j == nz - 1) {
+          listOfDampingNodes[m] = i + j * nx;
+          m++;
+        }
+      }
+    }
+  } else {
+    for (int k = 0; k < ny; k++) {
+      for (int j = 0; j < nz; j++) {
+        for (int i = 0; i < nx; i++) {
+          if (i == 0 || i == nx - 1 || j == 0 || j == nz - 1 || k == 0 ||
+              k == ny - 1) {
+            listOfDampingNodes[m] = i + j * nx + k * nx * nz;
+            m++;
+          }
+        }
+      }
+    }
+  }
+}
+
+void SEMmesh::getListOfSpongeElements(vectorInt &listOfSpongeElements) const {
+  // case 2d
+  int m = 0;
+  if (ey == 0) {
+    for (int j = 0; j < ez; j++) {
+      for (int i = 0; i < ex; i++) {
+        if (i < spongeSize || i > ex - 1 - spongeSize || j < spongeSize ||
+            j > ez - 1 - spongeSize) {
+          listOfSpongeElements[m] = i + j * ex;
+          m++;
+        }
+      }
+    }
+  } else {
+    for (int k = 0; k < ey; k++) {
+      for (int j = 0; j < ez; j++) {
+        for (int i = 0; i < ex; i++) {
+          if (i < spongeSize || i > ex - 1 - spongeSize || j < spongeSize ||
+              j > ez - 1 - spongeSize || k < spongeSize ||
+              k > ey - 1 - spongeSize) {
+            listOfSpongeElements[m] = i + j * ex + k * ex * ez;
+            m++;
+          }
+        }
+      }
+    }
+  }
+}
+
+void SEMmesh::getListOfSpongeNodes(vectorInt &listOfSpongeNodes) const {
+  int m = 0;
+  if (ny == 1) {
+    for (int j = 0; j < nz; j++) {
+      for (int i = 0; i < nx; i++) {
+        if (i < spongeSize || i == nx - 1 || j == 0 || j == nz - 1) {
+          listOfSpongeNodes[m] = i + j * nx;
+          m++;
+        }
+      }
+    }
+  } else {
+    for (int k = 0; k < ny; k++) {
+      for (int j = 0; j < nz; j++) {
+        for (int i = 0; i < nx; i++) {
+          if (i < spongeSize || i > nx - 1 - spongeSize || j < spongeSize ||
+              j > nz - 1 - spongeSize || k < spongeSize ||
+              k > ny - 1 - spongeSize) {
+            listOfSpongeNodes[m] = i + j * nx + k * nx * nz;
+            m++;
+          }
+        }
+      }
+    }
+  }
 }
