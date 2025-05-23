@@ -173,6 +173,10 @@ void SEMsolver::allocateFEarrays(SEMinfo &myInfo) {
                                               "globalNodesList");
   listOfInteriorNodes = allocateVector<vectorInt>(myInfo.numberOfInteriorNodes,
                                                   "listOfInteriorNodes");
+  listOfDampingNodes = allocateVector<vectorInt>(myInfo.numberOfDampingNodes,
+                                                 "listOfDampingNodes");
+  listOfSpongeNodes = allocateVector<vectorInt>(myInfo.numberOfSpongeNodes,
+                                                "listOfSpongeNodes");
 
   // global coordinates
   globalNodesCoordsX = allocateArray2D<arrayReal>(

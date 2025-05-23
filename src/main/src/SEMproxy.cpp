@@ -40,9 +40,6 @@ SEMproxy::SEMproxy(int ex, int ey, int ez, float lx) {
 
 // Initialize the simulation.
 void SEMproxy::initFiniteElem() {
-#ifdef USE_CALIPER
-  CALI_CXX_MARK_FUNCTION;
-#endif
   // get information from mesh
   getMeshInfo();
 
@@ -57,10 +54,6 @@ void SEMproxy::initFiniteElem() {
 
 // Run the simulation.
 void SEMproxy::run() {
-
-#ifdef USE_CALIPER
-  CALI_CXX_MARK_FUNCTION;
-#endif
 
   time_point<system_clock> startComputeTime, startOutputTime, totalComputeTime,
       totalOutputTime;
@@ -103,6 +96,8 @@ void SEMproxy::getMeshInfo() {
   myInfo.numberOfPointsPerElement = myMesh.getNumberOfPointsPerElement();
   myInfo.numberOfInteriorNodes = myMesh.getNumberOfInteriorNodes();
   myInfo.numberOfPointsPerElement = myMesh.getNumberOfPointsPerElement();
+  myInfo.numberOfDampingNodes = myMesh.getNumberOfDampingNodes();
+  myInfo.numberOfSpongeNodes = myMesh.getNumberOfSpongeNodes();
 }
 
 // Initialize arrays
