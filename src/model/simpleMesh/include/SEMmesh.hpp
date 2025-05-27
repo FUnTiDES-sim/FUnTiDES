@@ -72,10 +72,7 @@ public:
 
 
   // Initialize nodal coordinates.
-  void nodesCoordinates( arrayReal & nodeCoordsX,arrayReal & nodeCoordsZ, arrayReal & nodeCoordsY ) const;
-
-  // Initialize nodal coordinates.
-  void nodesCoordinates_opt( arrayReal & nodeCoordsX,arrayReal & nodeCoordsZ, arrayReal & nodeCoordsY ) const;
+  void nodesCoordinates( arrayReal & nodeCoordsX,arrayReal & nodeCoordsZ, arrayReal & nodeCoordsY, int const ORDER ) const;
 
   //  list of global nodes ( vertices)
   void globalNodesList( const int & numberOfElements, arrayInt & nodesList ) const;

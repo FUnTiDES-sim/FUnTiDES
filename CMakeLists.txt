@@ -87,6 +87,8 @@ set(CMAKE_CXX_FLAGS_RELWITHDEBINFO "-g ${CMAKE_CXX_FLAGS_RELEASE}" CACHE STRING 
 set(CMAKE_CXX_FLAGS_DEBUG "-O0 -g" CACHE STRING "")
 set(CMAKE_CXX_STANDARD 17 CACHE STRING "")
 set(CMAKE_CXX_EXTENSIONS OFF CACHE BOOL "Disable gnu++ extensions" FORCE)
+set(CMAKE_CUDA_HOST_COMPILER ${CMAKE_CXX_COMPILER} CACHE STRING "" FORCE)
+set(CMAKE_CUDA_ARCHITECTURES native CACHE STRING "Auto-detect CUDA arch" FORCE)
 
 project( proxyapp )
 
@@ -114,6 +116,8 @@ if (ENABLE_PYWRAP)
   set(CMAKE_INTERPROCEDURAL_OPTIMIZATION FALSE CACHE BOOL "Disable global LTO" FORCE)
   set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 endif()
+# This must go *before* add_subdirectory(kokkos)
+
 
 ################################
 # KOKKOS
@@ -136,6 +140,9 @@ else ()
     set(Kokkos_ENABLE_CUDA_CONSTEXPR ON CACHE BOOL "" FORCE)
     set(Kokkos_ENABLE_CUDA_UVM ON CACHE BOOL "" FORCE)
     set(Kokkos_ENABLE_CUDA_LAMBDA ON CACHE BOOL "" FORCE)
+    if(CMAKE_BUILD_TYPE STREQUAL "Debug" OR CMAKE_BUILD_TYPE STREQUAL "RelWithDebInfo")
+      set(Kokkos_ENABLE_DEBUG ON CACHE BOOL "" FORCE)
+    endif()
     message (STATUS "-- Activating CUDA with Kokkos.")
   endif()
   add_subdirectory(${Kokkos_SOURCE_DIR})
@@ -164,16 +171,16 @@ endif()
 ## -- the default is using Shiva library
 ## -- if USE_SHIVA=OFF it will use the SEM as in GEOS
 #-------------------------------------------------------------------
-if( USE_SHIVA )
-  configure_file( ${CMAKE_CURRENT_SOURCE_DIR}/src/discretization/Shiva/src/ShivaConfig.hpp.in
-                  ${CMAKE_BINARY_DIR}/src/ShivaConfig.hpp )
-  configure_file( ${CMAKE_CURRENT_SOURCE_DIR}/src/discretization/Shiva/tpl/camp/include/camp/config.in.hpp
-                  ${PROJECT_BINARY_DIR}/src/camp/config.hpp)
-  message(STATUS "USE SHIVA as a submodule")
-  include_directories(${CMAKE_CURRENT_SOURCE_DIR}/src/discretization/Shiva/tpl/camp/include/
-                      ${PROJECT_BINARY_DIR}/src/
-                      ${PROJECT_BINARY_DIR}/src/camp/)
-endif()
+# if( USE_SHIVA )
+#   configure_file( ${CMAKE_CURRENT_SOURCE_DIR}/src/discretization/Shiva/src/ShivaConfig.hpp.in
+#                   ${CMAKE_BINARY_DIR}/src/ShivaConfig.hpp )
+#   configure_file( ${CMAKE_CURRENT_SOURCE_DIR}/src/discretization/Shiva/tpl/camp/include/camp/config.in.hpp
+#                   ${PROJECT_BINARY_DIR}/src/camp/config.hpp)
+#   message(STATUS "USE SHIVA as a submodule")
+#   include_directories(${CMAKE_CURRENT_SOURCE_DIR}/src/discretization/Shiva/tpl/camp/include/
+#                       ${PROJECT_BINARY_DIR}/src/
+#                       ${PROJECT_BINARY_DIR}/src/camp/)
+# endif()
 ###############################
 
 

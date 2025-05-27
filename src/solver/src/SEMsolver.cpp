@@ -56,41 +56,32 @@ void SEMsolver::computeOneStep(const int &timeSample, const int &order,
   MAINLOOPHEAD(myInfo.numberOfElements, elementNumber)
 
   if (elementNumber < myInfo.numberOfElements) {
-    float massMatrixLocal[ROW];
-    float pnLocal[ROW];
-    float Y[ROW];
+    float massMatrixLocal[SEMinfo::nPointsPerElement];
+    float pnLocal[SEMinfo::nPointsPerElement];
+    float Y[SEMinfo::nPointsPerElement] = {0};
 
     // get pnGlobal to pnLocal
-    for (int i = 0; i < nPointsPerElement; i++) {
-      int localToGlobal = globalNodesList(elementNumber, i);
+    for (int i = 0; i < SEMinfo::nPointsPerElement; i++) {
+      int const localToGlobal = globalNodesList(elementNumber, i);
       pnLocal[i] = pnGlobal(localToGlobal, i2);
     }
 
-#ifdef USE_SEMCLASSIC
-    myQkIntegrals.computeMassMatrixAndStiffnessVector(
-        elementNumber, order, nPointsPerElement, globalNodesCoordsX,
-        globalNodesCoordsY, globalNodesCoordsZ, weights,
-        derivativeBasisFunction1D, massMatrixLocal, pnLocal, Y);
-#endif // USE_SEMCLASSIC
+    myQkIntegrals.computeMassMatrixAndStiffnessVector( elementNumber, 
+                                                      nPointsPerElement, 
+                                                      globalNodesCoordsX,
+                                                      globalNodesCoordsY, 
+                                                      globalNodesCoordsZ, 
+                                                      massMatrixLocal, 
+                                                      pnLocal, 
+                                                      Y);
 
-#ifdef USE_SEMOPTIM
-    constexpr int ORDER = SEMinfo::myOrderNumber;
-    myQkIntegrals.computeMassMatrixAndStiffnessVector<ORDER>(
-        elementNumber, nPointsPerElement, globalNodesCoordsX,
-        globalNodesCoordsY, globalNodesCoordsZ, massMatrixLocal, pnLocal, Y);
-#endif
-
-#ifdef USE_SHIVA
-    constexpr int ORDER = SEMinfo::myOrderNumber;
-    myQkIntegrals.computeMassMatrixAndStiffnessVector<ORDER>(
-        elementNumber, nPointsPerElement, globalNodesCoordsX,
-        globalNodesCoordsY, globalNodesCoordsZ, massMatrixLocal, pnLocal, Y);
-#endif // USE_SHIVA
 
     // compute global mass Matrix and global stiffness vector
-    for (int i = 0; i < nPointsPerElement; i++) {
-      int gIndex = globalNodesList(elementNumber, i);
-      massMatrixLocal[i] /= (model[elementNumber] * model[elementNumber]);
+
+    auto const inv_model2 = 1.0f / (model[elementNumber] * model[elementNumber]);
+    for (int i = 0; i < SEMinfo::nPointsPerElement; i++) {
+      int const gIndex = globalNodesList(elementNumber, i);
+      massMatrixLocal[i] *= inv_model2;
       ATOMICADD(massMatrixGlobal[gIndex], massMatrixLocal[i]);
       ATOMICADD(yGlobal[gIndex], Y[i]);
     }
@@ -161,25 +152,16 @@ void SEMsolver::initFEarrays(SEMinfo &myInfo, Mesh mesh) {
   mesh.getListOfInteriorNodes(myInfo.numberOfInteriorNodes,
                               listOfInteriorNodes);
   // mesh coordinates
-#ifdef USE_SEMOPTIM
-  mesh.nodesCoordinates_opt(globalNodesCoordsX, globalNodesCoordsZ,
-                        globalNodesCoordsY);
-#else 
-  mesh.nodesCoordinates(globalNodesCoordsX, globalNodesCoordsZ,
-                        globalNodesCoordsY);
-#endif // USE_SEMOPTIM 
+  mesh.nodesCoordinates( globalNodesCoordsX, 
+                         globalNodesCoordsZ,
+                         globalNodesCoordsY,
+                         1 );
 
   // get model
   mesh.getModel(myInfo.numberOfElements, model);
   // get quadrature points
-#ifdef USE_SEMCLASSIC
-  myQkBasis.gaussLobattoQuadraturePoints(order, quadraturePoints);
-  // get gauss-lobatto weights
-  myQkBasis.gaussLobattoQuadratureWeights(order, weights);
-  // get basis function and corresponding derivatives
-  myQkBasis.getDerivativeBasisFunction1D(order, quadraturePoints,
-                                         derivativeBasisFunction1D);
-#endif // USE_SEMCLASSIC
+
+  myQkIntegrals.init();
 }
 
 void SEMsolver::allocateFEarrays(SEMinfo &myInfo) {

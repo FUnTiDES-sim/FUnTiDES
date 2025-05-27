@@ -14,6 +14,10 @@
 #include <BasisFunctions.hpp>
 #include <Integrals.hpp>
 #include <model.hpp>
+#include "commonMacros.hpp"
+#include "SEMdata.hpp"
+#include "SEMQkGLBasisFunctions.hpp"
+
 #ifdef USE_CALIPER
 #include <caliper/cali.h>
 #endif
@@ -60,8 +64,6 @@ public:
 private:
 
   int order;
-  //SEMQkGL myQk;
-  SEMQkGLBasisFunctions myQkBasis;
   SEMQkGLIntegrals myQkIntegrals;
 
   //shared arrays

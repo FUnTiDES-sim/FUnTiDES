@@ -1,12 +1,32 @@
+#include "SEMdata.hpp"
+
+using tfloat = float;
+using gfloat = float;
+
 #ifdef USE_SEMCLASSIC
-    #include <fe/SEMQkGLIntegralsClassic.hpp>
-    using SEMQkGLIntegrals = SEMQkGLIntegralsClassic ;
+    #include <fe/SEMKernels/src/finiteElement/SEMQkGLIntegralsClassic.hpp>
+    using SEMQkGLIntegrals = SEMQkGLIntegralsClassic<SEMinfo::myOrderNumber> ;
 #endif
 #ifdef  USE_SEMOPTIM 
-    #include <fe/SEMQkGLIntegralsOptim.hpp>
-    using SEMQkGLIntegrals = SEMQkGLIntegralsOptim;
+    #include <fe/SEMKernels/src/finiteElement/SEMQkGLIntegralsOptim.hpp>
+    using SEMQkGLIntegrals = SEMQkGLIntegralsOptim<SEMinfo::myOrderNumber, tfloat, gfloat>;
 #endif
 #ifdef USE_SHIVA
-    #include <fe/SEMQkGLIntegralsShiva.hpp>
-    using SEMQkGLIntegrals = SEMQkGLIntegralsShiva ;
+    #include <fe/SEMKernels/src/finiteElement/SEMQkGLIntegralsShiva.hpp>
+    using TransformType =
+    LinearTransform< tfloat,
+                     InterpolatedShape< tfloat,
+                                        Cube< tfloat >,
+                                        LagrangeBasis< tfloat, 1, EqualSpacing >,
+                                        LagrangeBasis< tfloat, 1, EqualSpacing >,
+                                        LagrangeBasis< tfloat, 1, EqualSpacing > > >;
+
+  using ParentElementType =
+    ParentElement< gfloat,
+                   Cube< gfloat >,
+                   LagrangeBasis< gfloat, SEMinfo::myOrderNumber, EqualSpacing >,
+                   LagrangeBasis< gfloat, SEMinfo::myOrderNumber, EqualSpacing >,
+                   LagrangeBasis< gfloat, SEMinfo::myOrderNumber, EqualSpacing > >;
+
+  using SEMQkGLIntegrals = SEMQkGLIntegralsShiva< SEMinfo::myOrderNumber, TransformType, ParentElementType >;    
 #endif
