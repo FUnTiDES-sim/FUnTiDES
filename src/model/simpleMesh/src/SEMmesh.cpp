@@ -221,8 +221,6 @@ void SEMmesh::globalNodesList(const int &numberOfElements,
                   l + n * (order + 1) + m * (order + 1) * (order + 1);
               int dofGlobal = offset + l + n * nx + m * nx * nz;
               nodesList(n0, dofLocal) = dofGlobal;
-              // if(n0==7)printf("offset=%d dofLocal=%d
-              // dofGlobal=%d\n",offset,dofLocal,dofGlobal);
             }
           }
         }
@@ -245,6 +243,20 @@ int SEMmesh::Itoij(const int &I, int &i, int &j) const {
   return 0;
 }
 
+// transform index I into index Element e and point i
+int SEMmesh::ItoEi(const int I, int *e, int *i) const {
+  const int numQP = (order + 1) * (order + 1) * (order + 1);
+  const int numElements = ex * ((ey == 0) ? 1 : ey) * ez;
+  const int totalSize = numElements * numQP;
+
+  if (I < 0 || I >= totalSize) {
+    return 1; // invalid index
+  }
+
+  *e = I / numQP;
+  *i = I % numQP;
+  return 0;
+}
 // project vector node to grid
 std::vector<std::vector<float>>
 SEMmesh::projectToGrid(const int numberOfNodes,

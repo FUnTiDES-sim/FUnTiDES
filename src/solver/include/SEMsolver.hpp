@@ -61,7 +61,7 @@ public:
   void getSpongeValues(Mesh &mesh, SEMinfo &myInfo, const float vMin,
                        const float r);
 
-  void applyTaperCoeff(SEMinfo myinfo);
+  void applyTaperCoeff(arrayReal &myPnGlobal, SEMinfo myinfo, SEMmesh mesh);
 
   // Define dummy structure for computing sponge value
   struct MinMax3D {
@@ -103,6 +103,8 @@ public:
 
 private:
   int order;
+  SEMinfo myInfo;
+  Mesh myMesh;
   // SEMQkGL myQk;
   SEMQkGLBasisFunctions myQkBasis;
   SEMQkGLIntegrals myQkIntegrals;

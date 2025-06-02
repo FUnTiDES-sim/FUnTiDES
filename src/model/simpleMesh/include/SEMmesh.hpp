@@ -186,6 +186,23 @@ public:
   // compute global to local node index 2D version
   int Itoij(const int &I, int &i, int &j) const;
 
+  /**
+   * @brief Converts a 1D global index to a corresponding element and quadrature
+   * point index.
+   *
+   * This function maps a 1D index `I` into a pair of indices: the element index
+   * `e` and the quadrature point index `i` within that element.
+   *
+   * @param[in]  I  The global 1D index.
+   * @param[out] e  Pointer to the element index corresponding to the global
+   * index.
+   * @param[out] i  Pointer to the quadrature point index within the element.
+   *
+   * @return 0 on success, or a non-zero error code if the index is out of
+   * bounds or invalid.
+   */
+  int ItoEi(const int I, int *e, int *i) const;
+
   // project vector node to grid
   vector<vector<float>> projectToGrid(const int numberOfNodes,
                                       const vector<float> inputVector) const;

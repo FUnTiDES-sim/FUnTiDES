@@ -17,6 +17,8 @@
 #endif // USE_EZV
 
 void SEMsolver::computeFEInit(SEMinfo &myInfo, Mesh mesh) {
+  // myInfo = myInfo;
+  myMesh = mesh;
   order = myInfo.myOrderNumber;
   allocateFEarrays(myInfo);
   initFEarrays(myInfo, mesh);
@@ -93,13 +95,6 @@ void SEMsolver::computeOneStep(const int &timeSample, const int &order,
   }
   MAINLOOPEND
 
-#ifdef USE_EZV
-  //  Kokkos::View<float *, Kokkos::CudaSpace> ezv_device_data("EZV Device",
-  //  pnGlobal.size());
-  auto ezv_host_data = Kokkos::create_mirror(pnGlobal);
-  Kokkos::fence();
-#endif // USE_EZV
-
   // update pressure
   LOOPHEAD(myInfo.numberOfInteriorNodes, i)
   int I = listOfInteriorNodes[i];
@@ -108,21 +103,18 @@ void SEMsolver::computeOneStep(const int &timeSample, const int &order,
       myInfo.myTimeStep * myInfo.myTimeStep * yGlobal[I] / massMatrixGlobal[I];
   LOOPEND
 
-#ifdef USE_EZV
-  Kokkos::fence();
-  Kokkos::deep_copy(ezv_host_data, pnGlobal);
-  auto nb_x = pnGlobal.extent(0);
-  auto nb_y = pnGlobal.extent(1);
-  Kokkos::fence();
-  float *ezv_data = (float *)malloc((nb_x) * sizeof(float));
-  // copy kokkos data into heap
-  for (auto i = 0; i < nb_x; i++) {
-    auto idx = i;
-    ezv_data[idx] = ezv_host_data(i, i1);
-  }
+  // update pressure for sponge
+  getSpongeValues(myMesh, myInfo, vMin, 0.000001);
 
-  ezv_thr_push_data_colors(get_ezv_ctx()[0], ezv_data);
-#endif // USE_EZV
+  LOOPHEAD(myInfo.numberOfSpongeNodes, i)
+  int I = listOfSpongeNodes[i];
+  int e, ii;
+  int ret = myMesh.ItoEi(I, &e, &ii);
+  assert(ret == 0);
+  pnGlobal(I, i1) = 2 * pnGlobal(I, i2) - pnGlobal(I, i1) -
+                    myInfo.myTimeStep * myInfo.myTimeStep * yGlobal[I] /
+                        massMatrixGlobal[I] * spongeTaperCoeff(e, i);
+  LOOPEND
 
   FENCE
 }
@@ -296,9 +288,18 @@ void SEMsolver::getSpongeValues(Mesh &mesh, SEMinfo &myInfo, const float vMin,
 };
 
 // multiply by taper coefficient
-void SEMsolver::applyTaperCoeff(SEMinfo myInfo) {
+void SEMsolver::applyTaperCoeff(arrayReal &myPnGlobal, SEMinfo myInfo,
+                                SEMmesh mesh) {
   LOOPHEAD(myInfo.numberOfInteriorNodes, i)
   int id = listOfSpongeNodes(i);
+  int ii, e;
+  int ret = mesh.ItoEi(id, &e, &ii);
+  assert(ret == 0);
 
+  myPnGlobal(e, i) *= spongeTaperCoeff(e, i);
   LOOPEND
+
+#ifdef USE_KOKKOS
+  Kokkos::fence();
+#endif // USE_KOKKOS
 };
