@@ -29,13 +29,14 @@ public:
           const float &lx_in, const float &ly_in, const float &lz_in,
           const int &order_in, const int spongeSize, const bool surfaceSponge,
           const bool surfaceDamping)
-      : SEMmesh(ex_in, ey_in, ez_in, lx_in, ly_in, lz_in,
-                order_in) // Delegation happens here
-  {
+      : SEMmesh(ex_in, ey_in, ez_in, lx_in, ly_in, lz_in, order_in) {
     this->spongeSize = spongeSize;
     this->surfaceSponge = surfaceSponge;
     this->surfaceDamping = surfaceDamping;
   }
+
+  PROXY_HOST_DEVICE
+  float getSpongeSize() const { return float(spongeSize); };
 
   // Returns number of Nodes in the mesh
   int getNumberOfNodes() const;

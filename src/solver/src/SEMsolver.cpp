@@ -150,9 +150,28 @@ void SEMsolver::initFEarrays(SEMinfo &myInfo, Mesh mesh) {
   // mesh coordinates
   mesh.nodesCoordinates(globalNodesCoordsX, globalNodesCoordsZ,
                         globalNodesCoordsY);
-  // #endif
+  // sponge element id
+  mesh.getListOfSpongeNodes(listOfSpongeNodes);
+
   // get model
   mesh.getModel(myInfo.numberOfElements, model);
+  // get minimal wavespeed
+  double min;
+  auto model_ = this->model; // Avoid implicit capture
+#ifdef USE_KOKKOS
+  Kokkos::parallel_reduce(
+      "vMinFind", myInfo.numberOfElements,
+      KOKKOS_LAMBDA(const int &e, double &lmin) {
+        double val = model_[e];
+        if (val < lmin)
+          lmin = val;
+      },
+      Kokkos::Min<double>(min));
+  vMin = min;
+#else
+  vMin = 1500;
+#endif // USE_KOKKOS
+
   // get quadrature points
 #ifdef USE_SEMCLASSIC
   myQkBasis.gaussLobattoQuadraturePoints(order, quadraturePoints);
@@ -177,7 +196,6 @@ void SEMsolver::allocateFEarrays(SEMinfo &myInfo) {
                                                  "listOfDampingNodes");
   listOfSpongeNodes = allocateVector<vectorInt>(myInfo.numberOfSpongeNodes,
                                                 "listOfSpongeNodes");
-
   // global coordinates
   globalNodesCoordsX = allocateArray2D<arrayReal>(
       myInfo.numberOfElements, nbQuadraturePoints, "globalNodesCoordsX");
@@ -200,4 +218,87 @@ void SEMsolver::allocateFEarrays(SEMinfo &myInfo) {
   massMatrixGlobal =
       allocateVector<vectorReal>(myInfo.numberOfNodes, "massMatrixGlobal");
   yGlobal = allocateVector<vectorReal>(myInfo.numberOfNodes, "yGlobal");
+
+  // sponge allocation
+  spongeTaperCoeff = allocateArray2D<arrayReal>(
+      myInfo.numberOfElements, nbQuadraturePoints, "spongeTaperCoeff");
 }
+
+void SEMsolver::getSpongeValues(Mesh &mesh, SEMinfo &myInfo, const float vMin,
+                                const float r) {
+
+  MinMax3D globalMinMax;
+
+  // Kokkos not allowing 'this' capture in lambda
+  auto coordsX = globalNodesCoordsX;
+  auto coordsY = globalNodesCoordsY;
+  auto coordsZ = globalNodesCoordsZ;
+
+  // Collects min and max value for each coordinate x y z
+  // at node level
+#ifdef USE_KOKKOS
+  Kokkos::parallel_reduce(
+      "Sponge Value MinMax", myInfo.numberOfElements,
+      KOKKOS_LAMBDA(int e, MinMax3D &local) {
+        // Loop over nodes in one element
+        for (int i = 0; i < myInfo.numberOfPointsPerElement; i++) {
+          const auto globalX = coordsX(e, i);
+          const auto globalY = coordsY(e, i);
+          const auto globalZ = coordsZ(e, i);
+
+          if (globalX < local.min_x)
+            local.min_x = globalX;
+          if (globalX > local.max_x)
+            local.max_x = globalX;
+
+          if (globalY < local.min_y)
+            local.min_y = globalY;
+          if (globalY > local.max_y)
+            local.max_y = globalY;
+
+          if (globalZ < local.min_z)
+            local.min_z = globalZ;
+          if (globalZ > local.max_z)
+            local.max_z = globalZ;
+        }
+      },
+      globalMinMax);
+#else
+  throw std::logic_error(
+      "Function MinMax not yet implemented outside Kokkos env.");
+#endif // USE_KOKKOS
+
+  // Compute sponge distance for every elements' nodes
+  LOOPHEAD(myInfo.numberOfElements, e)
+  for (int i = 0; i < myInfo.numberOfPointsPerElement; i++) {
+    float taper = 0;
+    float dist = 0;
+    const auto nodeX = coordsX(e, i);
+    const auto nodeY = coordsY(e, i);
+    const auto nodeZ = coordsZ(e, i);
+
+    float distXmin = nodeX - globalMinMax.min_x;
+    float distYmin = nodeY - globalMinMax.min_y;
+
+    float distXmax = nodeX - globalMinMax.max_x;
+    float distYmax = nodeY - globalMinMax.max_y;
+    float distZmax = nodeZ - globalMinMax.max_z;
+
+    dist = std::min({distXmin, distXmax, distYmin, distYmax, distZmax});
+    taper = std::exp(
+        (((3 * vMin) / (2 * mesh.getSpongeSize())) * std::log(r) *
+         std::pow((mesh.getSpongeSize() - dist) / mesh.getSpongeSize(), 2)) *
+        myInfo.myTimeStep);
+
+    spongeTaperCoeff(e, i) = taper;
+  }
+  LOOPEND
+};
+
+// multiply by taper coefficient
+void SEMsolver::applyTaperCoeff(SEMinfo myInfo) {
+  LOOPHEAD(myInfo.numberOfInteriorNodes, i)
+  int id = listOfSpongeNodes(i);
+
+  LOOPEND
+};
