@@ -61,7 +61,8 @@ public:
   void getSpongeValues(Mesh &mesh, SEMinfo &myInfo, const float vMin,
                        const float r);
 
-  void applyTaperCoeff(arrayReal &myPnGlobal, SEMinfo myinfo, SEMmesh mesh);
+  void spongeUpdate(Mesh mesh, SEMinfo &myInfo, const arrayReal &pnGlobal,
+                    const int i1, const int i2);
 
   // Define dummy structure for computing sponge value
   struct MinMax3D {

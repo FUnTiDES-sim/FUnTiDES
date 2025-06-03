@@ -14,7 +14,7 @@ private:
   int orderx, ordery, orderz, order;
   int nbFaces;
   int spongeSize;
-  bool surfaceSponge;
+  bool spongeSurface;
   bool surfaceDamping;
 
 public:
@@ -23,17 +23,7 @@ public:
 
   SEMmesh(const int &ex_in, const int &ey_in, const int &ez_in,
           const float &lx_in, const float &ly_in, const float &lz_in,
-          const int &order_in);
-
-  SEMmesh(const int &ex_in, const int &ey_in, const int &ez_in,
-          const float &lx_in, const float &ly_in, const float &lz_in,
-          const int &order_in, const int spongeSize, const bool surfaceSponge,
-          const bool surfaceDamping)
-      : SEMmesh(ex_in, ey_in, ez_in, lx_in, ly_in, lz_in, order_in) {
-    this->spongeSize = spongeSize;
-    this->surfaceSponge = surfaceSponge;
-    this->surfaceDamping = surfaceDamping;
-  }
+          const int &order_in, const int spongeSize, const bool surfaceSponge);
 
   PROXY_HOST_DEVICE
   float getSpongeSize() const { return float(spongeSize); };
@@ -175,7 +165,7 @@ public:
    * @param[out] listOfSpongeNodes Vector that will be filled with indices of
    * sponge nodes.
    */
-  void getListOfSpongeNodes(vectorInt &listOfSpongeNodes) const;
+  void getListOfSpongeNodes(const vectorInt &listOfSpongeNodes) const;
 
   // set model
   void getModel(const int &numberOfNodes, vectorReal &model) const;
@@ -201,7 +191,20 @@ public:
    * @return 0 on success, or a non-zero error code if the index is out of
    * bounds or invalid.
    */
-  int ItoEi(const int I, int *e, int *i) const;
+  PROXY_HOST_DEVICE
+  int ItoEi(const int I, int *e, int *i) const {
+    const int numQP = (order + 1) * (order + 1) * (order + 1);
+    const int numElements = ex * ((ey == 0) ? 1 : ey) * ez;
+    const int totalSize = numElements * numQP;
+
+    if (I < 0 || I >= totalSize) {
+      return 1; // invalid index
+    }
+
+    *e = I / numQP;
+    *i = I % numQP;
+    return 0;
+  }
 
   // project vector node to grid
   vector<vector<float>> projectToGrid(const int numberOfNodes,

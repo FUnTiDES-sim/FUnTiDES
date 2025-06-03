@@ -104,17 +104,7 @@ void SEMsolver::computeOneStep(const int &timeSample, const int &order,
   LOOPEND
 
   // update pressure for sponge
-  getSpongeValues(myMesh, myInfo, vMin, 0.000001);
-
-  LOOPHEAD(myInfo.numberOfSpongeNodes, i)
-  int I = listOfSpongeNodes[i];
-  int e, ii;
-  int ret = myMesh.ItoEi(I, &e, &ii);
-  assert(ret == 0);
-  pnGlobal(I, i1) = 2 * pnGlobal(I, i2) - pnGlobal(I, i1) -
-                    myInfo.myTimeStep * myInfo.myTimeStep * yGlobal[I] /
-                        massMatrixGlobal[I] * spongeTaperCoeff(e, i);
-  LOOPEND
+  spongeUpdate(myMesh, myInfo, pnGlobal, i1, i2);
 
   FENCE
 }
@@ -173,6 +163,8 @@ void SEMsolver::initFEarrays(SEMinfo &myInfo, Mesh mesh) {
   myQkBasis.getDerivativeBasisFunction1D(order, quadraturePoints,
                                          derivativeBasisFunction1D);
 #endif // USE_SEMCLASSIC
+
+  getSpongeValues(mesh, myInfo, vMin, 0.00000001);
 }
 
 void SEMsolver::allocateFEarrays(SEMinfo &myInfo) {
@@ -186,6 +178,8 @@ void SEMsolver::allocateFEarrays(SEMinfo &myInfo) {
                                                   "listOfInteriorNodes");
   listOfDampingNodes = allocateVector<vectorInt>(myInfo.numberOfDampingNodes,
                                                  "listOfDampingNodes");
+  cout << "### Allocating " << myInfo.numberOfSpongeNodes << " sponge nodes"
+       << endl;
   listOfSpongeNodes = allocateVector<vectorInt>(myInfo.numberOfSpongeNodes,
                                                 "listOfSpongeNodes");
   // global coordinates
@@ -285,21 +279,21 @@ void SEMsolver::getSpongeValues(Mesh &mesh, SEMinfo &myInfo, const float vMin,
     spongeTaperCoeff(e, i) = taper;
   }
   LOOPEND
-};
+}
 
-// multiply by taper coefficient
-void SEMsolver::applyTaperCoeff(arrayReal &myPnGlobal, SEMinfo myInfo,
-                                SEMmesh mesh) {
-  LOOPHEAD(myInfo.numberOfInteriorNodes, i)
-  int id = listOfSpongeNodes(i);
-  int ii, e;
-  int ret = mesh.ItoEi(id, &e, &ii);
+void SEMsolver::spongeUpdate(Mesh mesh, SEMinfo &myInfo,
+                             const arrayReal &pnGlobal, const int i1,
+                             const int i2) {
+  LOOPHEAD(myInfo.numberOfSpongeNodes, i)
+  int I = listOfSpongeNodes[i];
+  int e, ii;
+  int ret = myMesh.ItoEi(I, &e, &ii);
   assert(ret == 0);
+  for (int pn : {i1}) {
+    pnGlobal(I, pn) = 2 * pnGlobal(I, i2) - pnGlobal(I, i1) -
+                      myInfo.myTimeStep * myInfo.myTimeStep * yGlobal[I] /
+                          massMatrixGlobal[I] * spongeTaperCoeff(e, ii);
+  }
 
-  myPnGlobal(e, i) *= spongeTaperCoeff(e, i);
   LOOPEND
-
-#ifdef USE_KOKKOS
-  Kokkos::fence();
-#endif // USE_KOKKOS
-};
+}

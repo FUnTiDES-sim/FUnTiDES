@@ -2,7 +2,8 @@
 
 SEMmesh::SEMmesh(const int &ex_in, const int &ey_in, const int &ez_in,
                  const float &lx_in, const float &ly_in, const float &lz_in,
-                 const int &order_in) {
+                 const int &order_in, const int spongeSize_in,
+                 const bool spongeSurface_in) {
   orderx = order_in;
   ordery = order_in;
   orderz = order_in;
@@ -22,6 +23,8 @@ SEMmesh::SEMmesh(const int &ex_in, const int &ey_in, const int &ez_in,
   cout << "SEMmesh initiliazed\n";
   cout << "ex, ey, ez=" << ex << ", " << ey << ", " << ez << endl;
   cout << "nx, ny, nz=" << nx << ", " << ny << ", " << nz << endl;
+  spongeSize = spongeSize_in;
+  spongeSurface = spongeSurface_in;
 }
 
 int SEMmesh::getNumberOfNodes() const {
@@ -71,8 +74,7 @@ int SEMmesh::getNumberOfSpongeElements() const {
   if (spongeSize <= 0)
     return 0;
 
-  if (!surfaceSponge || ey == 0)
-    // (ex - spongeSpongeSize * 2 + (ez - spongeSize) * spongeSize * 2
+  if (ey == 0)
     return ((ey == 0) ? 2.0 * spongeSize * (-2.0 * spongeSize + ez + ex)
                       : getNumberOfElements() - (ex - spongeSize) *
                                                     (ey - spongeSize) *
@@ -89,10 +91,30 @@ int SEMmesh::getNumberOfSpongeNodes() const {
   if (spongeSize <= 0)
     return 0;
 
-  int totalNbNodes = getNumberOfNodes();
-  int numberInteriorNodes = getNumberOfInteriorNodes(spongeSize);
-
-  return totalNbNodes - numberInteriorNodes;
+  int count = 0;
+  if (ny == 1) {
+    for (int j = 0; j < nz; j++) {
+      for (int i = 0; i < nx; i++) {
+        if (i < spongeSize || i > nx - 1 - spongeSize || j < spongeSize ||
+            j > nz - 1 - spongeSize) {
+          count++;
+        }
+      }
+    }
+  } else {
+    for (int k = 0; k < ny; k++) {
+      for (int j = 0; j < nz; j++) {
+        for (int i = 0; i < nx; i++) {
+          if (i < spongeSize || i > nx - 1 - spongeSize || j < spongeSize ||
+              j > nz - 1 - spongeSize || k < spongeSize ||
+              k > ny - 1 - spongeSize) {
+            count++;
+          }
+        }
+      }
+    }
+  }
+  return count;
 }
 
 // get number of damping nodes
@@ -243,20 +265,6 @@ int SEMmesh::Itoij(const int &I, int &i, int &j) const {
   return 0;
 }
 
-// transform index I into index Element e and point i
-int SEMmesh::ItoEi(const int I, int *e, int *i) const {
-  const int numQP = (order + 1) * (order + 1) * (order + 1);
-  const int numElements = ex * ((ey == 0) ? 1 : ey) * ez;
-  const int totalSize = numElements * numQP;
-
-  if (I < 0 || I >= totalSize) {
-    return 1; // invalid index
-  }
-
-  *e = I / numQP;
-  *i = I % numQP;
-  return 0;
-}
 // project vector node to grid
 std::vector<std::vector<float>>
 SEMmesh::projectToGrid(const int numberOfNodes,
@@ -448,6 +456,9 @@ void SEMmesh::getListOfDampingNodes(vectorInt &listOfDampingNodes) const {
 }
 
 void SEMmesh::getListOfSpongeElements(vectorInt &listOfSpongeElements) const {
+  if (spongeSize <= 0)
+    return;
+
   // case 2d
   int m = 0;
   if (ey == 0) {
@@ -476,7 +487,10 @@ void SEMmesh::getListOfSpongeElements(vectorInt &listOfSpongeElements) const {
   }
 }
 
-void SEMmesh::getListOfSpongeNodes(vectorInt &listOfSpongeNodes) const {
+void SEMmesh::getListOfSpongeNodes(const vectorInt &listOfSpongeNodes) const {
+  if (spongeSize <= 0)
+    return;
+
   int m = 0;
   if (ny == 1) {
     for (int j = 0; j < nz; j++) {
@@ -501,4 +515,5 @@ void SEMmesh::getListOfSpongeNodes(vectorInt &listOfSpongeNodes) const {
       }
     }
   }
+  cout << "### Sponge Nodes allocated : " << m << endl;
 }

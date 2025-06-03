@@ -29,12 +29,12 @@ SEMproxy::SEMproxy(int argc, char *argv[]) {
   float ly = lx;
   float lz = lx;
 
-  SEMmesh simpleMesh{ex, ey, ez, lx, ly, lz, myInfo.myOrderNumber};
+  SEMmesh simpleMesh{ex, ey, ez, lx, ly, lz, myInfo.myOrderNumber, 5, false};
   myMesh = simpleMesh;
 }
 
 SEMproxy::SEMproxy(int ex, int ey, int ez, float lx) {
-  SEMmesh simpleMesh{ex, ey, ez, lx, lx, lx, myInfo.myOrderNumber};
+  SEMmesh simpleMesh{ex, ey, ez, lx, lx, lx, myInfo.myOrderNumber, 5, false};
   myMesh = simpleMesh;
 }
 
