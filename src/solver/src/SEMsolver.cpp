@@ -104,7 +104,7 @@ void SEMsolver::computeOneStep(const int &timeSample, const int &order,
   LOOPEND
 
   // update pressure for sponge
-  spongeUpdate(myMesh, myInfo, pnGlobal, i1, i2);
+  spongeUpdate(pnGlobal, i1, i2);
 
   FENCE
 }
@@ -132,11 +132,10 @@ void SEMsolver::initFEarrays(SEMinfo &myInfo, Mesh mesh) {
   // mesh coordinates
   mesh.nodesCoordinates(globalNodesCoordsX, globalNodesCoordsZ,
                         globalNodesCoordsY);
-  // sponge element id
-  mesh.getListOfSpongeNodes(listOfSpongeNodes);
 
   // get model
   mesh.getModel(myInfo.numberOfElements, model);
+
   // get minimal wavespeed
   double min;
   auto model_ = this->model; // Avoid implicit capture
@@ -164,7 +163,8 @@ void SEMsolver::initFEarrays(SEMinfo &myInfo, Mesh mesh) {
                                          derivativeBasisFunction1D);
 #endif // USE_SEMCLASSIC
 
-  getSpongeValues(mesh, myInfo, vMin, 0.00000001);
+  // Sponge boundaries
+  initSpongeValues(mesh, myInfo, vMin, 0.001);
 }
 
 void SEMsolver::allocateFEarrays(SEMinfo &myInfo) {
@@ -180,8 +180,7 @@ void SEMsolver::allocateFEarrays(SEMinfo &myInfo) {
                                                  "listOfDampingNodes");
   cout << "### Allocating " << myInfo.numberOfSpongeNodes << " sponge nodes"
        << endl;
-  listOfSpongeNodes = allocateVector<vectorInt>(myInfo.numberOfSpongeNodes,
-                                                "listOfSpongeNodes");
+
   // global coordinates
   globalNodesCoordsX = allocateArray2D<arrayReal>(
       myInfo.numberOfElements, nbQuadraturePoints, "globalNodesCoordsX");
@@ -206,94 +205,89 @@ void SEMsolver::allocateFEarrays(SEMinfo &myInfo) {
   yGlobal = allocateVector<vectorReal>(myInfo.numberOfNodes, "yGlobal");
 
   // sponge allocation
-  spongeTaperCoeff = allocateArray2D<arrayReal>(
-      myInfo.numberOfElements, nbQuadraturePoints, "spongeTaperCoeff");
+  spongeTaperCoeff =
+      allocateVector<vectorReal>(myInfo.numberOfNodes, "spongeTaperCoeff");
 }
 
-void SEMsolver::getSpongeValues(Mesh &mesh, SEMinfo &myInfo, const float vMin,
-                                const float r) {
-
-  MinMax3D globalMinMax;
-
-  // Kokkos not allowing 'this' capture in lambda
-  auto coordsX = globalNodesCoordsX;
-  auto coordsY = globalNodesCoordsY;
-  auto coordsZ = globalNodesCoordsZ;
-
-  // Collects min and max value for each coordinate x y z
-  // at node level
-#ifdef USE_KOKKOS
-  Kokkos::parallel_reduce(
-      "Sponge Value MinMax", myInfo.numberOfElements,
-      KOKKOS_LAMBDA(int e, MinMax3D &local) {
-        // Loop over nodes in one element
-        for (int i = 0; i < myInfo.numberOfPointsPerElement; i++) {
-          const auto globalX = coordsX(e, i);
-          const auto globalY = coordsY(e, i);
-          const auto globalZ = coordsZ(e, i);
-
-          if (globalX < local.min_x)
-            local.min_x = globalX;
-          if (globalX > local.max_x)
-            local.max_x = globalX;
-
-          if (globalY < local.min_y)
-            local.min_y = globalY;
-          if (globalY > local.max_y)
-            local.max_y = globalY;
-
-          if (globalZ < local.min_z)
-            local.min_z = globalZ;
-          if (globalZ > local.max_z)
-            local.max_z = globalZ;
-        }
-      },
-      globalMinMax);
-#else
-  throw std::logic_error(
-      "Function MinMax not yet implemented outside Kokkos env.");
-#endif // USE_KOKKOS
-
-  // Compute sponge distance for every elements' nodes
-  LOOPHEAD(myInfo.numberOfElements, e)
-  for (int i = 0; i < myInfo.numberOfPointsPerElement; i++) {
-    float taper = 0;
-    float dist = 0;
-    const auto nodeX = coordsX(e, i);
-    const auto nodeY = coordsY(e, i);
-    const auto nodeZ = coordsZ(e, i);
-
-    float distXmin = nodeX - globalMinMax.min_x;
-    float distYmin = nodeY - globalMinMax.min_y;
-
-    float distXmax = nodeX - globalMinMax.max_x;
-    float distYmax = nodeY - globalMinMax.max_y;
-    float distZmax = nodeZ - globalMinMax.max_z;
-
-    dist = std::min({distXmin, distXmax, distYmin, distYmax, distZmax});
-    taper = std::exp(
-        (((3 * vMin) / (2 * mesh.getSpongeSize())) * std::log(r) *
-         std::pow((mesh.getSpongeSize() - dist) / mesh.getSpongeSize(), 2)) *
-        myInfo.myTimeStep);
-
-    spongeTaperCoeff(e, i) = taper;
+void SEMsolver::initSpongeValues(Mesh &mesh, SEMinfo &myInfo, const float vMin,
+                                 const float r) {
+  // Init all taper to 1 (default value)
+  for (int i = 0; i < myInfo.numberOfNodes; i++) {
+    spongeTaperCoeff(i) = 1;
   }
-  LOOPEND
+
+  int n = 0;
+  int alpha = -0.0001;
+  int spongeSize = mesh.getSpongeSize();
+  int nx = mesh.getNx();
+  int ny = mesh.getNy();
+  int nz = mesh.getNz();
+
+  // Update X boundaries
+  for (int k = 0; k < nz; k++) {
+    for (int j = 0; j < ny; j++) {
+      // lower x
+      for (int i = 0; i <= spongeSize; i++) {
+        n = mesh.ijktoI(i, j, k);
+        int value = spongeSize - i;
+        spongeTaperCoeff(n) =
+            std::exp(alpha * static_cast<double>(value * value));
+      }
+      // upper x
+      for (int i = nx - spongeSize - 1; i < nx; i++) {
+        n = mesh.ijktoI(i, j, k);
+        int value = spongeSize - (nx - i);
+        spongeTaperCoeff(n) =
+            std::exp(alpha * static_cast<double>(value * value));
+      }
+    }
+  }
+
+  // Update Y boundaries
+  for (int k = 0; k < nz; k++) {
+    for (int i = 0; i < nx; i++) {
+      // lower y
+      for (int j = 0; j <= spongeSize; j++) {
+        n = mesh.ijktoI(i, j, k);
+        int value = spongeSize - j;
+        spongeTaperCoeff(n) =
+            std::exp(alpha * static_cast<double>(value * value));
+      }
+      // upper y
+      for (int j = ny - spongeSize - 1; j < ny; j++) {
+        n = mesh.ijktoI(i, j, k);
+        int value = spongeSize - (ny - j);
+        spongeTaperCoeff(n) =
+            std::exp(alpha * static_cast<double>(value * value));
+      }
+    }
+  }
+
+  // Update Z boundaries
+  for (int j = 0; j < ny; j++) {
+    for (int i = 0; i < nx; i++) {
+      // lower z
+      for (int k = 0; k <= spongeSize; k++) {
+        n = mesh.ijktoI(i, j, k);
+        int value = spongeSize - k;
+        spongeTaperCoeff(n) =
+            std::exp(alpha * static_cast<double>(value * value));
+      }
+      // upper z
+      for (int k = nz - spongeSize - 1; k < nz; k++) {
+        n = mesh.ijktoI(i, j, k);
+        int value = spongeSize - (nz - k);
+        spongeTaperCoeff(n) =
+            std::exp(alpha * static_cast<double>(value * value));
+      }
+    }
+  }
 }
 
-void SEMsolver::spongeUpdate(Mesh mesh, SEMinfo &myInfo,
-                             const arrayReal &pnGlobal, const int i1,
+void SEMsolver::spongeUpdate(const arrayReal &pnGlobal, const int i1,
                              const int i2) {
-  LOOPHEAD(myInfo.numberOfSpongeNodes, i)
-  int I = listOfSpongeNodes[i];
-  int e, ii;
-  int ret = myMesh.ItoEi(I, &e, &ii);
-  assert(ret == 0);
-  for (int pn : {i1}) {
-    pnGlobal(I, pn) = 2 * pnGlobal(I, i2) - pnGlobal(I, i1) -
-                      myInfo.myTimeStep * myInfo.myTimeStep * yGlobal[I] /
-                          massMatrixGlobal[I] * spongeTaperCoeff(e, ii);
+  for (int i = 0; i < myInfo.numberOfNodes; i++) {
+    pnGlobal(i, i1) *= spongeTaperCoeff(i);
+    pnGlobal(i, i2) *= spongeTaperCoeff(i);
   }
-
-  LOOPEND
 }

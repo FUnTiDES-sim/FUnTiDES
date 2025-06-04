@@ -13,11 +13,8 @@
 // #include "SEMQkGL.hpp"
 #include <BasisFunctions.hpp>
 #include <Integrals.hpp>
-#include <model.hpp>
-#ifdef USE_CALIPER
-#include <caliper/cali.h>
-#endif
 #include <cmath>
+#include <model.hpp>
 
 class SEMsolver {
 public:
@@ -58,49 +55,10 @@ public:
    * elastic)
    * @param[in] r desired reflectivity of the Taper
    */
-  void getSpongeValues(Mesh &mesh, SEMinfo &myInfo, const float vMin,
-                       const float r);
+  void initSpongeValues(Mesh &mesh, SEMinfo &myInfo, const float vMin,
+                        const float r);
 
-  void spongeUpdate(Mesh mesh, SEMinfo &myInfo, const arrayReal &pnGlobal,
-                    const int i1, const int i2);
-
-  // Define dummy structure for computing sponge value
-  struct MinMax3D {
-    float min_x, max_x;
-    float min_y, max_y;
-    float min_z, max_z;
-
-#ifdef USE_KOKKOS
-    KOKKOS_INLINE_FUNCTION
-    MinMax3D()
-        : min_x(Kokkos::reduction_identity<float>::max()),
-          max_x(Kokkos::reduction_identity<float>::min()),
-          min_y(Kokkos::reduction_identity<float>::max()),
-          max_y(Kokkos::reduction_identity<float>::min()),
-          min_z(Kokkos::reduction_identity<float>::max()),
-          max_z(Kokkos::reduction_identity<float>::min()) {}
-#else
-    MinMax3D()
-        : min_x(std::numeric_limits<double>::max()),
-          max_x(std::numeric_limits<double>::lowest()),
-          min_y(std::numeric_limits<double>::max()),
-          max_y(std::numeric_limits<double>::lowest()),
-          min_z(std::numeric_limits<double>::max()),
-          max_z(std::numeric_limits<double>::lowest()) {}
-#endif // USE_KOKKOS
-
-    KOKKOS_INLINE_FUNCTION
-    void operator+=(const MinMax3D &rhs) {
-      min_x = min_x < rhs.min_x ? min_x : rhs.min_x;
-      max_x = max_x > rhs.max_x ? max_x : rhs.max_x;
-
-      min_y = min_y < rhs.min_y ? min_y : rhs.min_y;
-      max_y = max_y > rhs.max_y ? max_y : rhs.max_y;
-
-      min_z = min_z < rhs.min_z ? min_z : rhs.min_z;
-      max_z = max_z > rhs.max_z ? max_z : rhs.max_z;
-    }
-  };
+  void spongeUpdate(const arrayReal &pnGlobal, const int i1, const int i2);
 
 private:
   int order;
@@ -117,8 +75,8 @@ private:
   arrayReal globalNodesCoordsZ;
   vectorInt listOfInteriorNodes;
   vectorInt listOfDampingNodes;
-  vectorInt listOfSpongeNodes;
-  arrayReal spongeTaperCoeff;
+  // sponge boundaries data
+  vectorReal spongeTaperCoeff;
 
   // get model
   vectorReal model;

@@ -26,7 +26,7 @@ public:
           const int &order_in, const int spongeSize, const bool surfaceSponge);
 
   PROXY_HOST_DEVICE
-  float getSpongeSize() const { return float(spongeSize); };
+  int getSpongeSize() const { return float(spongeSize); };
 
   // Returns number of Nodes in the mesh
   int getNumberOfNodes() const;
@@ -175,6 +175,24 @@ public:
 
   // compute global to local node index 2D version
   int Itoij(const int &I, int &i, int &j) const;
+
+  /**
+   * @brief Compute the global 1D node index from 3D grid indices.
+   *
+   * This function calculates the global node index corresponding to
+   * the local 3D grid indices `(i, j, k)` based on the mesh dimensions.
+   *
+   * @param i Local index along the x-direction (0 ≤ i < nx).
+   * @param j Local index along the y-direction (0 ≤ j < nz).
+   * @param k Local index along the z-direction (depending on mesh shape).
+   * @return The corresponding global node index I.
+   *
+   * @see Itoijk() for the inverse mapping.
+   */
+  PROXY_HOST_DEVICE
+  int ijktoI(const int i, const int j, const int k) {
+    return i + j * nx + k * nx * ny;
+  }
 
   /**
    * @brief Converts a 1D global index to a corresponding element and quadrature
