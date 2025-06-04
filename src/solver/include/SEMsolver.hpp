@@ -28,15 +28,27 @@ public:
   void computeFEInit(SEMinfo &myInfo, Mesh mesh);
 
   /**
-   * @brief computeOneStep function:
-   * init all FE components for computing mass and stiffness matrices
+   * @brief Compute one step of the spectral element wave equation solver.
+   *
+   * This function advances the pressure field `pnGlobal` by one time step using
+   * a second-order explicit scheme. It resets global accumulators, applies RHS
+   * forcing, computes local element contributions to mass and stiffness
+   * matrices, updates pressure for interior nodes, and applies sponge damping.
+   *
+   * @param timeSample   Index of the current time step in `rhsTerm`
+   * @param order        Spectral element interpolation order
+   * @param nPointsPerElement Number of quadrature points per element
+   * @param i1           Index for pressure at previous time step
+   * @param i2           Index for pressure at current time step
+   * @param myInfo       Structure containing mesh and solver configuration
+   * @param rhsTerm      External forcing term, function of space and time
+   * @param pnGlobal     2D array storing the global pressure field [node][time]
+   * @param rhsElement   List of elements with a non-zero forcing term
    */
-
   void computeOneStep(const int &timeSample, const int &order,
                       const int &nPointsPerElement, const int &i1,
-                      const int &i2, SEMinfo &myInfo,
-                      const arrayReal &myRHSTerm, arrayReal const &myPnGlobal,
-                      const vectorInt &myRhsElement);
+                      const int &i2, SEMinfo &myInfo, const arrayReal &rhsTerm,
+                      arrayReal &pnGlobal, const vectorInt &rhsElement);
 
   void outputPnValues(Mesh mesh, const int &indexTimeStep, int &i1,
                       int &myElementSource, const arrayReal &pnGlobal);
@@ -58,6 +70,53 @@ public:
   void initSpongeValues(Mesh &mesh, SEMinfo &myInfo);
 
   void spongeUpdate(const arrayReal &pnGlobal, const int i1, const int i2);
+
+  /**
+   * @brief Reset the global mass matrix and stiffness vector to zero.
+   *
+   * @param numNodes Total number of global nodes.
+   */
+  void resetGlobalVectors(int numNodes);
+
+  /**
+   * @brief Apply the external forcing term to the pressure field.
+   *
+   * @param timeSample Current time index into `rhsTerm`
+   * @param i2 Index of the current time step in `pnGlobal`
+   * @param rhsTerm Right-hand side values (forcing)
+   * @param rhsElement Elements affected by the forcing term
+   * @param myInfo Solver and mesh configuration
+   * @param pnGlobal Pressure field array to update
+   */
+  void applyRHSTerm(int timeSample, int i2, const arrayReal &rhsTerm,
+                    const vectorInt &rhsElement, SEMinfo &myInfo,
+                    arrayReal &pnGlobal);
+
+  /**
+   * @brief Compute local element contributions to the global mass and stiffness
+   * system.
+   *
+   * @param order Polynomial interpolation order of the elements
+   * @param nPointsPerElement Number of quadrature points per element
+   * @param myInfo Solver configuration and mesh info
+   * @param i2 Index of the current time step in `pnGlobal`
+   * @param pnGlobal Global pressure field (used as input)
+   */
+  void computeElementContributions(int order, int nPointsPerElement,
+                                   SEMinfo &myInfo, int i2,
+                                   const arrayReal &pnGlobal);
+
+  /**
+   * @brief Update the pressure field for interior nodes using the time
+   * integration scheme.
+   *
+   * @param i1 Index for pressure at the previous time step
+   * @param i2 Index for pressure at the current time step
+   * @param myInfo Solver and mesh configuration
+   * @param pnGlobal Pressure field array (updated in-place)
+   */
+  void updatePressureField(int i1, int i2, SEMinfo &myInfo,
+                           arrayReal &pnGlobal);
 
 private:
   int order;

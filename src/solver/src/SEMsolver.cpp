@@ -25,89 +25,94 @@ void SEMsolver::computeFEInit(SEMinfo &myInfo_in, Mesh mesh) {
   initFEarrays(myInfo_in, mesh);
 }
 
-// compute one step of the time dynamic wave equation solver
 void SEMsolver::computeOneStep(const int &timeSample, const int &order,
                                const int &nPointsPerElement, const int &i1,
                                const int &i2, SEMinfo &myInfo,
-                               const arrayReal &rhsTerm,
-                               arrayReal const &pnGlobal,
+                               const arrayReal &rhsTerm, arrayReal &pnGlobal,
                                const vectorInt &rhsElement) {
+  resetGlobalVectors(myInfo.numberOfNodes);
+  FENCE
+  applyRHSTerm(timeSample, i2, rhsTerm, rhsElement, myInfo, pnGlobal);
+  FENCE
+  computeElementContributions(order, nPointsPerElement, myInfo, i2, pnGlobal);
+  FENCE
+  updatePressureField(i1, i2, myInfo, pnGlobal);
+  FENCE
+  spongeUpdate(pnGlobal, i1, i2);
+  FENCE
+}
 
-  LOOPHEAD(myInfo.numberOfNodes, i)
+void SEMsolver::resetGlobalVectors(int numNodes) {
+  LOOPHEAD(numNodes, i)
   massMatrixGlobal[i] = 0;
   yGlobal[i] = 0;
   LOOPEND
+}
 
-  // update pnGLobal with right hade side
+void SEMsolver::applyRHSTerm(int timeSample, int i2, const arrayReal &rhsTerm,
+                             const vectorInt &rhsElement, SEMinfo &myInfo,
+                             arrayReal &pnGlobal) {
   LOOPHEAD(myInfo.myNumberOfRHS, i)
   int nodeRHS = globalNodesList(rhsElement[i], 0);
-  pnGlobal(nodeRHS, i2) += myInfo.myTimeStep * myInfo.myTimeStep *
-                           model[rhsElement[i]] * model[rhsElement[i]] *
-                           rhsTerm(i, timeSample);
+  float scale = myInfo.myTimeStep * myInfo.myTimeStep * model[rhsElement[i]] *
+                model[rhsElement[i]];
+  pnGlobal(nodeRHS, i2) += scale * rhsTerm(i, timeSample);
   LOOPEND
-  // start main parallel section
+}
+
+void SEMsolver::computeElementContributions(int order, int nPointsPerElement,
+                                            SEMinfo &myInfo, int i2,
+                                            const arrayReal &pnGlobal) {
   MAINLOOPHEAD(myInfo.numberOfElements, elementNumber)
 
-  if (elementNumber < myInfo.numberOfElements) {
-    float massMatrixLocal[ROW];
-    float pnLocal[ROW];
-    float Y[ROW];
+  // Guard for extra threads (Kokkos might launch more than needed)
+  if (elementNumber >= myInfo.numberOfElements)
+    return;
 
-    // get pnGlobal to pnLocal
-    for (int i = 0; i < nPointsPerElement; i++) {
-      int localToGlobal = globalNodesList(elementNumber, i);
-      pnLocal[i] = pnGlobal(localToGlobal, i2);
-    }
+  float massMatrixLocal[ROW] = {0};
+  float pnLocal[ROW] = {0};
+  float Y[ROW] = {0};
 
-#ifdef USE_SEMCLASSIC
-    myQkIntegrals.computeMassMatrixAndStiffnessVector(
-        elementNumber, order, nPointsPerElement, globalNodesCoordsX,
-        globalNodesCoordsY, globalNodesCoordsZ, weights,
-        derivativeBasisFunction1D, massMatrixLocal, pnLocal, Y);
-#endif // USE_SEMCLASSIC
+  for (int i = 0; i < nPointsPerElement; ++i) {
+    int globalIdx = globalNodesList(elementNumber, i);
+    pnLocal[i] = pnGlobal(globalIdx, i2);
+  }
 
-#ifdef USE_SEMOPTIM
-    constexpr int ORDER = SEMinfo::myOrderNumber;
-    myQkIntegrals.computeMassMatrixAndStiffnessVector<ORDER>(
-        elementNumber, nPointsPerElement, globalNodesCoordsX,
-        globalNodesCoordsY, globalNodesCoordsZ, massMatrixLocal, pnLocal, Y);
+#if defined(USE_SEMCLASSIC)
+  myQkIntegrals.computeMassMatrixAndStiffnessVector(
+      elementNumber, order, nPointsPerElement, globalNodesCoordsX,
+      globalNodesCoordsY, globalNodesCoordsZ, weights,
+      derivativeBasisFunction1D, massMatrixLocal, pnLocal, Y);
+#elif defined(USE_SEMOPTIM) || defined(USE_SHIVA)
+  constexpr int ORDER = SEMinfo::myOrderNumber;
+  myQkIntegrals.computeMassMatrixAndStiffnessVector<ORDER>(
+      elementNumber, nPointsPerElement, globalNodesCoordsX, globalNodesCoordsY,
+      globalNodesCoordsZ, massMatrixLocal, pnLocal, Y);
+#elif defined(USE_SEMGEOS)
+  myQkIntegrals.computeMassMatrixAndStiffnessVector(
+      elementNumber, nPointsPerElement, globalNodesCoordsX, globalNodesCoordsY,
+      globalNodesCoordsZ, massMatrixLocal, pnLocal, Y);
 #endif
 
-#ifdef USE_SHIVA
-    constexpr int ORDER = SEMinfo::myOrderNumber;
-    myQkIntegrals.computeMassMatrixAndStiffnessVector<ORDER>(
-        elementNumber, nPointsPerElement, globalNodesCoordsX,
-        globalNodesCoordsY, globalNodesCoordsZ, massMatrixLocal, pnLocal, Y);
-#endif // USE_SHIVA
-
-#ifdef USE_SEMGEOS
-    myQkIntegrals.computeMassMatrixAndStiffnessVector(
-        elementNumber, nPointsPerElement, globalNodesCoordsX,
-        globalNodesCoordsY, globalNodesCoordsZ, massMatrixLocal, pnLocal, Y);
-#endif // USE_SEMGEOS
-
-    // compute global mass Matrix and global stiffness vector
-    for (int i = 0; i < nPointsPerElement; i++) {
-      int gIndex = globalNodesList(elementNumber, i);
-      massMatrixLocal[i] /= (model[elementNumber] * model[elementNumber]);
-      ATOMICADD(massMatrixGlobal[gIndex], massMatrixLocal[i]);
-      ATOMICADD(yGlobal[gIndex], Y[i]);
-    }
+  for (int i = 0; i < nPointsPerElement; ++i) {
+    int gIndex = globalNodesList(elementNumber, i);
+    float scale = model[elementNumber] * model[elementNumber];
+    float massValue = massMatrixLocal[i] / scale;
+    ATOMICADD(massMatrixGlobal[gIndex], massValue);
+    ATOMICADD(yGlobal[gIndex], Y[i]);
   }
-  MAINLOOPEND
 
-  // update pressure
+  MAINLOOPEND
+}
+
+void SEMsolver::updatePressureField(int i1, int i2, SEMinfo &myInfo,
+                                    arrayReal &pnGlobal) {
   LOOPHEAD(myInfo.numberOfInteriorNodes, i)
   int I = listOfInteriorNodes[i];
   pnGlobal(I, i1) =
       2 * pnGlobal(I, i2) - pnGlobal(I, i1) -
       myInfo.myTimeStep * myInfo.myTimeStep * yGlobal[I] / massMatrixGlobal[I];
   LOOPEND
-  Kokkos::fence();
-  // update pressure for sponge
-  spongeUpdate(pnGlobal, i1, i2);
-
-  FENCE
 }
 
 void SEMsolver::outputPnValues(Mesh mesh, const int &indexTimeStep, int &i1,
