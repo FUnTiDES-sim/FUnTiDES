@@ -55,14 +55,13 @@ public:
    * elastic)
    * @param[in] r desired reflectivity of the Taper
    */
-  void initSpongeValues(Mesh &mesh, SEMinfo &myInfo, const float vMin,
-                        const float r);
+  void initSpongeValues(Mesh &mesh, SEMinfo &myInfo);
 
   void spongeUpdate(const arrayReal &pnGlobal, const int i1, const int i2);
 
 private:
   int order;
-  SEMinfo myInfo;
+  SEMinfo *myInfo;
   Mesh myMesh;
   // SEMQkGL myQk;
   SEMQkGLBasisFunctions myQkBasis;

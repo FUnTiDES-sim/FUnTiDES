@@ -8,6 +8,7 @@
 //************************************************************************
 
 #include "SEMsolver.hpp"
+#include "dataType.hpp"
 #ifdef USE_EZV
 #include "ezvLauncher.hpp"
 #include <cstdlib>
@@ -16,12 +17,12 @@
 #endif // USE_KOKKOS
 #endif // USE_EZV
 
-void SEMsolver::computeFEInit(SEMinfo &myInfo, Mesh mesh) {
-  // myInfo = myInfo;
+void SEMsolver::computeFEInit(SEMinfo &myInfo_in, Mesh mesh) {
+  this->myInfo = &myInfo_in;
   myMesh = mesh;
-  order = myInfo.myOrderNumber;
-  allocateFEarrays(myInfo);
-  initFEarrays(myInfo, mesh);
+  order = myInfo_in.myOrderNumber;
+  allocateFEarrays(myInfo_in);
+  initFEarrays(myInfo_in, mesh);
 }
 
 // compute one step of the time dynamic wave equation solver
@@ -102,7 +103,7 @@ void SEMsolver::computeOneStep(const int &timeSample, const int &order,
       2 * pnGlobal(I, i2) - pnGlobal(I, i1) -
       myInfo.myTimeStep * myInfo.myTimeStep * yGlobal[I] / massMatrixGlobal[I];
   LOOPEND
-
+  Kokkos::fence();
   // update pressure for sponge
   spongeUpdate(pnGlobal, i1, i2);
 
@@ -164,7 +165,8 @@ void SEMsolver::initFEarrays(SEMinfo &myInfo, Mesh mesh) {
 #endif // USE_SEMCLASSIC
 
   // Sponge boundaries
-  initSpongeValues(mesh, myInfo, vMin, 0.001);
+  initSpongeValues(mesh, myInfo);
+  Kokkos::fence();
 }
 
 void SEMsolver::allocateFEarrays(SEMinfo &myInfo) {
@@ -209,54 +211,54 @@ void SEMsolver::allocateFEarrays(SEMinfo &myInfo) {
       allocateVector<vectorReal>(myInfo.numberOfNodes, "spongeTaperCoeff");
 }
 
-void SEMsolver::initSpongeValues(Mesh &mesh, SEMinfo &myInfo, const float vMin,
-                                 const float r) {
+void SEMsolver::initSpongeValues(Mesh &mesh, SEMinfo &myInfo) {
   // Init all taper to 1 (default value)
-  for (int i = 0; i < myInfo.numberOfNodes; i++) {
-    spongeTaperCoeff(i) = 1;
-  }
+  LOOPHEAD(myInfo.numberOfNodes, i)
+  spongeTaperCoeff(i) = 1;
+  LOOPEND
 
-  int n = 0;
-  int alpha = -0.0001;
+  // int n = 0;
+  double alpha = -0.0001;
   int spongeSize = mesh.getSpongeSize();
   int nx = mesh.getNx();
   int ny = mesh.getNy();
   int nz = mesh.getNz();
 
   // Update X boundaries
-  for (int k = 0; k < nz; k++) {
-    for (int j = 0; j < ny; j++) {
-      // lower x
-      for (int i = 0; i <= spongeSize; i++) {
-        n = mesh.ijktoI(i, j, k);
-        int value = spongeSize - i;
-        spongeTaperCoeff(n) =
-            std::exp(alpha * static_cast<double>(value * value));
-      }
-      // upper x
-      for (int i = nx - spongeSize - 1; i < nx; i++) {
-        n = mesh.ijktoI(i, j, k);
-        int value = spongeSize - (nx - i);
-        spongeTaperCoeff(n) =
-            std::exp(alpha * static_cast<double>(value * value));
-      }
+  LOOPHEAD(nz, k)
+  // for (int k = 0; k < nz; k++) {
+  for (int j = 0; j < ny; j++) {
+    // lower x
+    for (int i = 0; i <= spongeSize; i++) {
+      int n = mesh.ijktoI(i, j, k);
+      double value = spongeSize - i;
+      spongeTaperCoeff(n) = std::exp(alpha * static_cast<float>(value * value));
+    }
+    // upper x
+    for (int i = nx - spongeSize - 1; i < nx; i++) {
+      int n = mesh.ijktoI(i, j, k);
+      double value = spongeSize - (nx - i);
+      spongeTaperCoeff(n) = std::exp(alpha * static_cast<float>(value * value));
     }
   }
+  // }
+  LOOPEND
 
+  int n;
   // Update Y boundaries
   for (int k = 0; k < nz; k++) {
     for (int i = 0; i < nx; i++) {
       // lower y
       for (int j = 0; j <= spongeSize; j++) {
         n = mesh.ijktoI(i, j, k);
-        int value = spongeSize - j;
+        double value = spongeSize - j;
         spongeTaperCoeff(n) =
             std::exp(alpha * static_cast<double>(value * value));
       }
       // upper y
       for (int j = ny - spongeSize - 1; j < ny; j++) {
         n = mesh.ijktoI(i, j, k);
-        int value = spongeSize - (ny - j);
+        double value = spongeSize - (ny - j);
         spongeTaperCoeff(n) =
             std::exp(alpha * static_cast<double>(value * value));
       }
@@ -265,29 +267,33 @@ void SEMsolver::initSpongeValues(Mesh &mesh, SEMinfo &myInfo, const float vMin,
 
   // Update Z boundaries
   for (int j = 0; j < ny; j++) {
+    int n;
     for (int i = 0; i < nx; i++) {
       // lower z
       for (int k = 0; k <= spongeSize; k++) {
         n = mesh.ijktoI(i, j, k);
-        int value = spongeSize - k;
+        double value = spongeSize - k;
         spongeTaperCoeff(n) =
             std::exp(alpha * static_cast<double>(value * value));
       }
       // upper z
       for (int k = nz - spongeSize - 1; k < nz; k++) {
         n = mesh.ijktoI(i, j, k);
-        int value = spongeSize - (nz - k);
+        double value = spongeSize - (nz - k);
         spongeTaperCoeff(n) =
             std::exp(alpha * static_cast<double>(value * value));
       }
     }
   }
+  Kokkos::fence();
 }
 
 void SEMsolver::spongeUpdate(const arrayReal &pnGlobal, const int i1,
                              const int i2) {
-  for (int i = 0; i < myInfo.numberOfNodes; i++) {
-    pnGlobal(i, i1) *= spongeTaperCoeff(i);
-    pnGlobal(i, i2) *= spongeTaperCoeff(i);
-  }
+  // for (int i = 0; i < myInfo->numberOfNodes; i++) {
+  LOOPHEAD(myInfo->numberOfNodes, i)
+  pnGlobal(i, i1) *= spongeTaperCoeff(i);
+  pnGlobal(i, i2) *= spongeTaperCoeff(i);
+  LOOPEND
 }
+// }

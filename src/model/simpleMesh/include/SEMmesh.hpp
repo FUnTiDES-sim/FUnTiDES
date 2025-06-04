@@ -190,7 +190,7 @@ public:
    * @see Itoijk() for the inverse mapping.
    */
   PROXY_HOST_DEVICE
-  int ijktoI(const int i, const int j, const int k) {
+  int ijktoI(const int i, const int j, const int k) const {
     return i + j * nx + k * nx * ny;
   }
 
