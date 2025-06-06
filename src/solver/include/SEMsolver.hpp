@@ -118,6 +118,17 @@ public:
   void updatePressureField(int i1, int i2, SEMinfo &myInfo,
                            arrayReal &pnGlobal);
 
+  // Getters for shared arrays
+  const arrayInt &getGlobalNodesList() const { return globalNodesList; }
+  const arrayReal &getGlobalNodesCoordsX() const { return globalNodesCoordsX; }
+  const arrayReal &getGlobalNodesCoordsY() const { return globalNodesCoordsY; }
+  const arrayReal &getGlobalNodesCoordsZ() const { return globalNodesCoordsZ; }
+  const vectorInt &getListOfInteriorNodes() const {
+    return listOfInteriorNodes;
+  }
+  const vectorInt &getListOfDampingNodes() const { return listOfDampingNodes; }
+  const vectorReal &getSpongeTaperCoeff() const { return spongeTaperCoeff; }
+
 private:
   int order;
   SEMinfo *myInfo;
