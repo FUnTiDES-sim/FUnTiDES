@@ -28,7 +28,7 @@ struct SEMinfo
   static constexpr int nPointsPerElement = intPow((myOrderNumber+1), dims );
 
   const float f0=10.;
-  const float myTimeMax=0.01;
+  const float myTimeMax=1;
   const int sourceOrder=1;
 
   int myNumSamples=myTimeMax/myTimeStep;

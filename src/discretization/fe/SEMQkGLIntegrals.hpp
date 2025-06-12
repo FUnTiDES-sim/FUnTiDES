@@ -4,15 +4,15 @@ using tfloat = float;
 using gfloat = float;
 
 #ifdef USE_SEMCLASSIC
-    #include <fe/SEMKernels/src/finiteElement/SEMQkGLIntegralsClassic.hpp>
+    #include <fe/SEMKernels/src/finiteElement/classic/SEMQkGLIntegralsClassic.hpp>
     using SEMQkGLIntegrals = SEMQkGLIntegralsClassic<SEMinfo::myOrderNumber> ;
 #endif
 #ifdef  USE_SEMOPTIM 
-    #include <fe/SEMKernels/src/finiteElement/SEMQkGLIntegralsOptim.hpp>
+    #include <fe/SEMKernels/src/finiteElement/optim/SEMQkGLIntegralsOptim.hpp>
     using SEMQkGLIntegrals = SEMQkGLIntegralsOptim<SEMinfo::myOrderNumber, tfloat, gfloat>;
 #endif
 #ifdef USE_SHIVA
-    #include <fe/SEMKernels/src/finiteElement/SEMQkGLIntegralsShiva.hpp>
+    #include <fe/SEMKernels/src/finiteElement/shiva/SEMQkGLIntegralsShiva.hpp>
     using TransformType =
     LinearTransform< tfloat,
                      InterpolatedShape< tfloat,
