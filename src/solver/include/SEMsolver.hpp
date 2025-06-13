@@ -75,13 +75,15 @@ private:
 
   // get model
   vectorReal model;
-
+  
+#ifdef USE_SEMCLASSIC
   // get quadrature points and weights
   vectorDouble quadraturePoints;
   vectorDouble weights;
 
   // get basis function and corresponding derivatives
   arrayDouble derivativeBasisFunction1D;
+#endif //USE_SEMCLASSIC
 
   //shared arrays
   vectorReal massMatrixGlobal;

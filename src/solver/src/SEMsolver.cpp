@@ -184,6 +184,7 @@ void SEMsolver::allocateFEarrays(SEMinfo &myInfo) {
 
   model = allocateVector<vectorReal>(myInfo.numberOfElements, "model");
 
+  #ifdef USE_SEMCLASSIC
   quadraturePoints =
       allocateVector<vectorDouble>(order + 1, "quadraturePoints");
 
@@ -191,6 +192,8 @@ void SEMsolver::allocateFEarrays(SEMinfo &myInfo) {
 
   derivativeBasisFunction1D = allocateArray2D<arrayDouble>(
       order + 1, order + 1, "derivativeBasisFunction1D");
+  #endif // USE_SEMCLASSIC
+  
 
   // shared arrays
   massMatrixGlobal =
