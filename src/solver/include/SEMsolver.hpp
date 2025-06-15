@@ -75,6 +75,7 @@ private:
 
   // get model
   vectorReal model;
+  double vMin; // min wavespeed in model
   
 #ifdef USE_SEMCLASSIC
   // get quadrature points and weights

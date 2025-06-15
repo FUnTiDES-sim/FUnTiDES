@@ -159,9 +159,35 @@ void SEMsolver::initFEarrays(SEMinfo &myInfo, Mesh mesh) {
 
   // get model
   mesh.getModel(myInfo.numberOfElements, model);
-  // get quadrature points
+   // get minimal wavespeed
+  double min;
+  auto model_ = this->model; // Avoid implicit capture
+#ifdef USE_KOKKOS
+  Kokkos::parallel_reduce(
+      "vMinFind", myInfo.numberOfElements,
+      KOKKOS_LAMBDA(const int &e, double &lmin) {
+        double val = model_[e];
+        if (val < lmin)
+          lmin = val;
+      },
+      Kokkos::Min<double>(min));
+  vMin = min;
+#else
+  vMin = 1500;
+#endif // USE_KOKKOS
 
-  //myQkIntegrals.init();
+  // get quadrature points
+#ifdef USE_SEMCLASSIC
+  myQkBasis.gaussLobattoQuadraturePoints(order, quadraturePoints);
+  // get gauss-lobatto weights
+  myQkBasis.gaussLobattoQuadratureWeights(order, weights);
+  // get basis function and corresponding derivatives
+  myQkBasis.getDerivativeBasisFunction1D(order, quadraturePoints,
+                                         derivativeBasisFunction1D);
+  myQkIntegrals.init();
+#endif // USE_SEMCLASSIC
+
+
 }
 
 void SEMsolver::allocateFEarrays(SEMinfo &myInfo) {
