@@ -9,6 +9,8 @@
 
 #include "commonMacros.hpp"
 
+using real_t=float;
+
 using namespace std;
 
 #ifdef USE_VECTOR
