@@ -161,7 +161,7 @@ void SEMsolver::initFEarrays(SEMinfo &myInfo, Mesh mesh) {
   mesh.getModel(myInfo.numberOfElements, model);
   // get quadrature points
 
-  myQkIntegrals.init();
+  //myQkIntegrals.init();
 }
 
 void SEMsolver::allocateFEarrays(SEMinfo &myInfo) {
