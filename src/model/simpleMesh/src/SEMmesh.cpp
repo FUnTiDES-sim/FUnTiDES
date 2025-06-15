@@ -2,7 +2,8 @@
 
 SEMmesh::SEMmesh(const int &ex_in, const int &ey_in, const int &ez_in,
                  const float &lx_in, const float &ly_in, const float &lz_in,
-                 const int &order_in) {
+                 const int &order_in, const int spongeSize_in,
+                 const bool spongeSurface_in) {
   orderx = order_in;
   ordery = order_in;
   orderz = order_in;
@@ -22,6 +23,8 @@ SEMmesh::SEMmesh(const int &ex_in, const int &ey_in, const int &ez_in,
   cout << "SEMmesh initiliazed\n";
   cout << "ex, ey, ez=" << ex << ", " << ey << ", " << ez << endl;
   cout << "nx, ny, nz=" << nx << ", " << ny << ", " << nz << endl;
+  spongeSize = spongeSize_in;
+  spongeSurface = spongeSurface_in;
 }
 
 int SEMmesh::getNumberOfNodes() const {
@@ -50,6 +53,78 @@ int SEMmesh::getNumberOfInteriorElements() const {
 // get number of interior Nodes
 int SEMmesh::getNumberOfInteriorNodes() const {
   return ((ny == 1) ? (nx - 2) * (nz - 2) : (nx - 2) * (ny - 2) * (nz - 2));
+}
+
+int SEMmesh::getNumberOfInteriorNodes(int spongeSize) const {
+  return ((ny == 1)
+              ? (nx - spongeSize) * (nz - spongeSize)
+              : (nx - spongeSize) * (ny - spongeSize) * (nz - spongeSize));
+}
+
+// return the number of elements from sponge boundaries to exclude for surface
+int SEMmesh::getNumSurfaceElementsToExcludeFromSponge() const {
+  if (spongeSize <= 0 || ey == 1)
+    return 0;
+
+  return (ex - 2) * (ey - 2) * spongeSize;
+}
+
+// get number of sponge elements
+int SEMmesh::getNumberOfSpongeElements() const {
+  if (spongeSize <= 0)
+    return 0;
+
+  if (ey == 0)
+    return ((ey == 0) ? 2.0 * spongeSize * (-2.0 * spongeSize + ez + ex)
+                      : getNumberOfElements() - (ex - spongeSize) *
+                                                    (ey - spongeSize) *
+                                                    (ez - spongeSize));
+  // Case surface elements are removed
+  // only for 3d case
+  return getNumberOfElements() -
+         (ex - spongeSize) * (ey - spongeSize) * (ez - spongeSize) -
+         getNumSurfaceElementsToExcludeFromSponge();
+}
+
+// get number of sponge nodes
+int SEMmesh::getNumberOfSpongeNodes() const {
+  if (spongeSize <= 0)
+    return 0;
+
+  int count = 0;
+  if (ny == 1) {
+    for (int j = 0; j < nz; j++) {
+      for (int i = 0; i < nx; i++) {
+        if (i < spongeSize || i > nx - 1 - spongeSize || j < spongeSize ||
+            j > nz - 1 - spongeSize) {
+          count++;
+        }
+      }
+    }
+  } else {
+    for (int k = 0; k < ny; k++) {
+      for (int j = 0; j < nz; j++) {
+        for (int i = 0; i < nx; i++) {
+          if (i < spongeSize || i > nx - 1 - spongeSize || j < spongeSize ||
+              j > nz - 1 - spongeSize || k < spongeSize ||
+              k > ny - 1 - spongeSize) {
+            count++;
+          }
+        }
+      }
+    }
+  }
+  return count;
+}
+
+// get number of damping nodes
+// TODO
+int SEMmesh::getNumberOfDampingNodes() const { return 0; }
+
+// get the number of Damping elements
+int SEMmesh::getNumberOfDampingElements() const {
+  return ((ey == 0) ? 2 * (ex + ey - 2)
+                    : getNumberOfElements() - (ex - 1) * (ey - 1) * (ez - 1));
 }
 
 // get nx
@@ -132,42 +207,26 @@ std::vector<float> SEMmesh::getCoordInOneDirection(const int &order,
 }
 
 // Initialize nodal coordinates.
-void SEMmesh::nodesCoordinates( arrayReal & nodeCoordsX,
-                                arrayReal & nodeCoordsZ,
-                                arrayReal & nodeCoordsY,
-                                int const ORDER ) const
-{
-  std::vector< float > coordX( ORDER+1 );
-  std::vector< float > coordY( ORDER+1 );
-  std::vector< float > coordZ( ORDER+1 );
+void SEMmesh::nodesCoordinates(arrayReal &nodeCoordsX, arrayReal &nodeCoordsZ,
+                               arrayReal &nodeCoordsY) const {
 
-  for(int n=0;n<ey;n++)
-  {
-     coordY=getCoordInOneDirection( ORDER, ORDER+1, hy, n );
-     for(int m=0;m<ez;m++)
-     {
-        coordZ=getCoordInOneDirection( ORDER, ORDER+1, hz, m );
-        for(int l=0;l<ex;l++)
-        {
-           coordX=getCoordInOneDirection( ORDER, ORDER+1, hx, l );
-           int e=l+m*ex+n*ex*ez;
-           for( int k=0; k<ORDER+1; k++ )
-           {
-              for( int j=0; j<ORDER+1; j++ )
-              {
-                 for( int i=0; i<ORDER+1; i++ )
-                 {
-                    nodeCoordsX( e, i+(ORDER+1)*j+k*(ORDER+1)*(ORDER+1) ) = coordX[i]; 
-                    nodeCoordsZ( e, i+(ORDER+1)*j+k*(ORDER+1)*(ORDER+1) ) = coordZ[j]; 
-                    nodeCoordsY( e, i+(ORDER+1)*j+k*(ORDER+1)*(ORDER+1) ) = coordY[k];
-                 }
-              }
-           }
+  for (int n = 0; n < ey; n++) {
+    for (int m = 0; m < ez; m++) {
+      for (int l = 0; l < ex; l++) {
+        int e = l + m * ex + n * ex * ez;
+        for (int k = 0; k < 2; k++) {
+          for (int j = 0; j < 2; j++) {
+            for (int i = 0; i < 2; i++) {
+              nodeCoordsX(e, i + 2 * j + 4 * k) = (l + i) * hx;
+              nodeCoordsZ(e, i + 2 * j + 4 * k) = (m + j) * hz;
+              nodeCoordsY(e, i + 2 * j + 4 * k) = (n + k) * hy;
+            }
+          }
         }
-     }
+      }
+    }
   }
 }
-
 
 //  list of global nodes ( vertices) for each element
 void SEMmesh::globalNodesList(const int &numberOfElements,
@@ -184,8 +243,6 @@ void SEMmesh::globalNodesList(const int &numberOfElements,
                   l + n * (order + 1) + m * (order + 1) * (order + 1);
               int dofGlobal = offset + l + n * nx + m * nx * nz;
               nodesList(n0, dofLocal) = dofGlobal;
-              // if(n0==7)printf("offset=%d dofLocal=%d
-              // dofGlobal=%d\n",offset,dofLocal,dofGlobal);
             }
           }
         }
@@ -201,7 +258,6 @@ int SEMmesh::Itoijk(const int &I, int &i, int &j, int &k) const {
   k = I / (nx * nz);
   return 0;
 }
-
 // compute global node to grid  indexes
 int SEMmesh::Itoij(const int &I, int &i, int &j) const {
   i = I % nx;
@@ -252,16 +308,6 @@ void SEMmesh::getModel(const int &numberOfElements, vectorReal &model) const {
         model[e] = 1500;
       }
     }
-    /*
-       for( int k=ez/2; k<ez; k++ )
-       {
-       for( int i=0; i<ex; i++ )
-       {
-         int e=i+k*ex+j*ex*ez;
-         model[e]=3500;
-       }
-       }
-     */
   }
 }
 //  get list of global interior nodes
@@ -313,13 +359,14 @@ void SEMmesh::getListOfInteriorElements(
 
 /**
  * @brief Saves a snapshot of the solution at a given time step.
- * 
+ *
  * This function extracts a 2D slice of the solution from the provided array `u`
- * at the specified index `i1` and writes it to a file. The snapshot is saved 
- * in a simple text format containing the x, z coordinates and the corresponding 
+ * at the specified index `i1` and writes it to a file. The snapshot is saved
+ * in a simple text format containing the x, z coordinates and the corresponding
  * solution value.
- * 
- * @param indexTimeStep Index of the time step used for naming the snapshot file.
+ *
+ * @param indexTimeStep Index of the time step used for naming the snapshot
+ * file.
  * @param i1 Index of the slice to extract from the solution array.
  * @param u 2D array containing the solution values.
  */
@@ -351,4 +398,122 @@ void SEMmesh::saveSnapShot(const int indexTimeStep, const int i1,
     }
   }
   snapFile.close();
+}
+
+void SEMmesh::getListOfDampingElements(vectorInt &listOfDampingElements) const {
+  // case 2d
+  int m = 0;
+  if (ey == 0) {
+    for (int j = 0; j < ez; j++) {
+      for (int i = 0; i < ex; i++) {
+        if (i == 0 || i == ex - 1 || j == 0 || j == ez - 1) {
+          listOfDampingElements[m] = i + j * ex;
+          m++;
+        }
+      }
+    }
+  }
+
+  else {
+    for (int k = 0; k < ey; k++) {
+      for (int j = 0; j < ez; j++) {
+        for (int i = 0; i < ex; i++) {
+          if (i == 0 || i == ex - 1 || j == 0 || j == ez - 1 || k == 0 ||
+              k == ey - 1) {
+            listOfDampingElements[m] = i + j * ex + k * ex * ez;
+            m++;
+          }
+        }
+      }
+    }
+  }
+}
+
+void SEMmesh::getListOfDampingNodes(vectorInt &listOfDampingNodes) const {
+  int m = 0;
+  if (ny == 1) {
+    for (int j = 0; j < nz; j++) {
+      for (int i = 0; i < nx; i++) {
+        if (i == 0 || i == nx - 1 || j == 0 || j == nz - 1) {
+          listOfDampingNodes[m] = i + j * nx;
+          m++;
+        }
+      }
+    }
+  } else {
+    for (int k = 0; k < ny; k++) {
+      for (int j = 0; j < nz; j++) {
+        for (int i = 0; i < nx; i++) {
+          if (i == 0 || i == nx - 1 || j == 0 || j == nz - 1 || k == 0 ||
+              k == ny - 1) {
+            listOfDampingNodes[m] = i + j * nx + k * nx * nz;
+            m++;
+          }
+        }
+      }
+    }
+  }
+}
+
+void SEMmesh::getListOfSpongeElements(vectorInt &listOfSpongeElements) const {
+  if (spongeSize <= 0)
+    return;
+
+  // case 2d
+  int m = 0;
+  if (ey == 0) {
+    for (int j = 0; j < ez; j++) {
+      for (int i = 0; i < ex; i++) {
+        if (i < spongeSize || i > ex - 1 - spongeSize || j < spongeSize ||
+            j > ez - 1 - spongeSize) {
+          listOfSpongeElements[m] = i + j * ex;
+          m++;
+        }
+      }
+    }
+  } else {
+    for (int k = 0; k < ey; k++) {
+      for (int j = 0; j < ez; j++) {
+        for (int i = 0; i < ex; i++) {
+          if (i < spongeSize || i > ex - 1 - spongeSize || j < spongeSize ||
+              j > ez - 1 - spongeSize || k < spongeSize ||
+              k > ey - 1 - spongeSize) {
+            listOfSpongeElements[m] = i + j * ex + k * ex * ez;
+            m++;
+          }
+        }
+      }
+    }
+  }
+}
+
+void SEMmesh::getListOfSpongeNodes(const vectorInt &listOfSpongeNodes) const {
+  if (spongeSize <= 0)
+    return;
+
+  int m = 0;
+  if (ny == 1) {
+    for (int j = 0; j < nz; j++) {
+      for (int i = 0; i < nx; i++) {
+        if (i < spongeSize || i == nx - 1 || j == 0 || j == nz - 1) {
+          listOfSpongeNodes[m] = i + j * nx;
+          m++;
+        }
+      }
+    }
+  } else {
+    for (int k = 0; k < ny; k++) {
+      for (int j = 0; j < nz; j++) {
+        for (int i = 0; i < nx; i++) {
+          if (i < spongeSize || i > nx - 1 - spongeSize || j < spongeSize ||
+              j > nz - 1 - spongeSize || k < spongeSize ||
+              k > ny - 1 - spongeSize) {
+            listOfSpongeNodes[m] = i + j * nx + k * nx * nz;
+            m++;
+          }
+        }
+      }
+    }
+  }
+  cout << "### Sponge Nodes allocated : " << m << endl;
 }
