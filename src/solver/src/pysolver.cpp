@@ -4,25 +4,32 @@
 #include <pybind11/stl.h>
 
 namespace py = pybind11;
-namespace pk = pykokkos;
 
-PYBIND11_MODULE(sem_bindings, m) {
-  pk::initialize(); // Initializes Kokkos
+PYBIND11_MODULE(pysolver, m) {
 
   py::class_<SEMsolver>(m, "SEMsolver")
       .def(py::init<>())
-      .def("computeFEInit", [](SEMsolver &self, SEMinfo &info,
-                               Mesh &mesh) { self.computeFEInit(info, mesh); })
-      .def("computeOneStep",
-           [](SEMsolver &self, int timeSample, int order, int nPointsPerElement,
-              int i1, int i2, SEMinfo &info, pk::view_type<float **> rhsTerm,
-              pk::view_type<float **> pnGlobal, std::vector<int> rhsElement) {
-             self.computeOneStep(timeSample, order, nPointsPerElement, i1, i2,
-                                 info, rhsTerm, pnGlobal, rhsElement);
-           });
 
-  // Register pykokkos view types (arrayReal2D, etc.)
-  pk::add_view_to_module<float, 2>(m, "arrayReal2D");
-  pk::add_view_to_module<float, 2>(m, "pnGlobal");
-  pk::add_view_to_module<float, 2>(m, "rhsTerm");
+      // Basic getters/setters
+      .def("get_order", &SEMsolver::getOrder)
+      .def("set_order", &SEMsolver::setOrder)
+      .def("get_vmin", &SEMsolver::getVMin)
+      .def("set_vmin", &SEMsolver::setVMin)
+
+      // Kokkos::View container accessors
+      .def("get_model", &SEMsolver::getModel)
+      .def("set_model", &SEMsolver::setModel)
+      .def("get_mass_matrix_global", &SEMsolver::getMassMatrixGlobal)
+      .def("set_mass_matrix_global", &SEMsolver::setMassMatrixGlobal)
+      .def("get_global_nodes_list", &SEMsolver::getGlobalNodesList)
+      .def("set_global_nodes_list", &SEMsolver::setGlobalNodesList)
+      .def("get_list_of_interior_nodes", &SEMsolver::getListOfInteriorNodes)
+      .def("set_list_of_interior_nodes", &SEMsolver::setListOfInteriorNodes)
+      .def("get_list_of_damping_nodes", &SEMsolver::getListOfDampingNodes)
+      .def("set_list_of_damping_nodes", &SEMsolver::setListOfDampingNodes)
+      .def("get_sponge_taper_coeff", &SEMsolver::getSpongeTaperCoeff)
+      .def("set_sponge_taper_coeff", &SEMsolver::setSpongeTaperCoeff)
+
+      .def("initFEarrays", &SEMsolver::initFEarrays)
+      .def("compute_one_step", &SEMsolver::computeOneStep);
 }

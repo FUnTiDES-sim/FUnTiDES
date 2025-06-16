@@ -18,8 +18,9 @@
 #endif // USE_EZV
 
 void SEMsolver::computeFEInit(SEMinfo &myInfo_in, Mesh mesh) {
-  this->myInfo = &myInfo_in;
-  myMesh = mesh;
+  cout << "Init fe Arrays" << endl;
+  // this->myInfo = myInfo_in;
+  // myMesh = mesh;
   order = myInfo_in.myOrderNumber;
   allocateFEarrays(myInfo_in);
   initFEarrays(myInfo_in, mesh);

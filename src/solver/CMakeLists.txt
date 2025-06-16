@@ -19,17 +19,17 @@ endif()
 
 target_link_libraries(solver PUBLIC ${SOLV_LIBS})
 
-# if(ENABLE_PYWRAP)
-#   pybind11_add_module(pysolver src/pysolver.cpp)
+if(ENABLE_PYWRAP)
+  pybind11_add_module(pysolver src/pysolver.cpp src/SEMsolver.cpp)
 
-#   target_include_directories(pysolver PRIVATE
-#              include
-#              ${CMAKE_CURRENT_SOURCE_DIR}/../discretization
-#              ${CMAKE_CURRENT_SOURCE_DIR}/../model
-#              ${CMAKE_SOURCE_DIR}/external/pykokkos-base/include)
+  target_include_directories(pysolver PRIVATE
+             include
+             ${CMAKE_CURRENT_SOURCE_DIR}/../discretization
+             ${CMAKE_CURRENT_SOURCE_DIR}/../model
+             ${CMAKE_SOURCE_DIR}/external/pykokkos-base/include)
 
-#   target_link_libraries(pysolver PUBLIC ${SOLV_LIBS})
+  target_link_libraries(pysolver PUBLIC ${SOLV_LIBS})
 
-#   set_target_properties(pysolver PROPERTIES INTERPROCEDURAL_OPTIMIZATION FALSE)
-#   set_target_properties(pysolver PROPERTIES POSITION_INDEPENDENT_CODE TRUE)
-# endif()
+  set_target_properties(pysolver PROPERTIES INTERPROCEDURAL_OPTIMIZATION FALSE)
+  set_target_properties(pysolver PROPERTIES POSITION_INDEPENDENT_CODE TRUE)
+endif()

@@ -55,12 +55,6 @@ int main(int argc, char *argv[]) {
   {
 #endif
 
-#ifdef USE_CALIPER
-    cali::ConfigManager mgr;
-    int caliperInitRet = launch_caliper_ctx(argc, argv, mgr);
-    CALI_CXX_MARK_FUNCTION;
-#endif // USE_CALIPER
-
     cout << "\n+================================= " << endl;
     cout << "| Initializing SEM Application ... " << endl;
     cout << "+================================= \n" << endl;
@@ -79,10 +73,6 @@ int main(int argc, char *argv[]) {
 #else
   compute_loop(semsim);
 #endif // USE_EZV
-
-#ifdef USE_CALIPER
-    mgr.flush();
-#endif // USE_CALIPER
 
 #ifdef USE_KOKKOS
   }

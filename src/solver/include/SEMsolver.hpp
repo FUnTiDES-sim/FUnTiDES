@@ -125,9 +125,38 @@ public:
   const arrayReal &getGlobalNodesCoordsZ() const { return globalNodesCoordsZ; }
   const vectorInt &getListOfInteriorNodes() const {
     return listOfInteriorNodes;
+#ifdef USE_CALIPER
+    mgr.flush();
+#endif // USE_CALIPER
   }
   const vectorInt &getListOfDampingNodes() const { return listOfDampingNodes; }
   const vectorReal &getSpongeTaperCoeff() const { return spongeTaperCoeff; }
+
+  void setGlobalNodesList(const arrayInt &list) { globalNodesList = list; }
+  void setGlobalNodesCoordsX(const arrayReal &x) { globalNodesCoordsX = x; }
+  void setGlobalNodesCoordsY(const arrayReal &y) { globalNodesCoordsY = y; }
+  void setGlobalNodesCoordsZ(const arrayReal &z) { globalNodesCoordsZ = z; }
+  void setListOfInteriorNodes(const vectorInt &nodes) {
+    listOfInteriorNodes = nodes;
+  }
+  void setListOfDampingNodes(const vectorInt &nodes) {
+    listOfDampingNodes = nodes;
+  }
+  void setSpongeTaperCoeff(const vectorReal &coeff) {
+    spongeTaperCoeff = coeff;
+  }
+
+  void setOrder(int o) { order = o; }
+  int getOrder() const { return order; }
+
+  void setVMin(double v) { vMin = v; }
+  double getVMin() const { return vMin; }
+
+  void setModel(const vectorReal &m) { model = m; }
+  const vectorReal &getModel() const { return model; }
+
+  void setMassMatrixGlobal(const vectorReal &m) { massMatrixGlobal = m; }
+  const vectorReal &getMassMatrixGlobal() const { return massMatrixGlobal; }
 
 private:
   int order;
