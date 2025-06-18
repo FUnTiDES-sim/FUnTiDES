@@ -18,9 +18,7 @@
 #endif // USE_EZV
 
 void SEMsolver::computeFEInit(SEMinfo &myInfo_in, Mesh mesh) {
-  cout << "Init fe Arrays" << endl;
-  // this->myInfo = myInfo_in;
-  // myMesh = mesh;
+  myInfo = &myInfo_in;
   order = myInfo_in.myOrderNumber;
   allocateFEarrays(myInfo_in);
   initFEarrays(myInfo_in, mesh);
@@ -29,7 +27,8 @@ void SEMsolver::computeFEInit(SEMinfo &myInfo_in, Mesh mesh) {
 void SEMsolver::computeOneStep(const int &timeSample, const int &order,
                                const int &nPointsPerElement, const int &i1,
                                const int &i2, SEMinfo &myInfo,
-                               const arrayReal &rhsTerm, arrayReal &pnGlobal,
+                               const arrayReal &rhsTerm,
+                               const arrayReal &pnGlobal,
                                const vectorInt &rhsElement) {
   resetGlobalVectors(myInfo.numberOfNodes);
   FENCE
@@ -43,6 +42,21 @@ void SEMsolver::computeOneStep(const int &timeSample, const int &order,
   FENCE
 }
 
+void SEMsolver::computeOneStep_wrapper(
+    int t, int order, int npts, int i1, int i2, SEMinfo info,
+    Kokkos::Experimental::python_view_type_t<
+        Kokkos::View<float **, Layout, MemSpace>>
+        rhsTerm,
+    Kokkos::Experimental::python_view_type_t<
+        Kokkos::View<float **, Layout, MemSpace>>
+        pnGlobal,
+    Kokkos::Experimental::python_view_type_t<
+        Kokkos::View<int *, Layout, MemSpace>>
+        rhsElement) {
+  // arrayReal pnGlobal_raw(pnGlobal);
+  computeOneStep(t, order, npts, i1, i2, info, rhsTerm, pnGlobal, rhsElement);
+}
+
 void SEMsolver::resetGlobalVectors(int numNodes) {
   LOOPHEAD(numNodes, i)
   massMatrixGlobal[i] = 0;
@@ -52,8 +66,15 @@ void SEMsolver::resetGlobalVectors(int numNodes) {
 
 void SEMsolver::applyRHSTerm(int timeSample, int i2, const arrayReal &rhsTerm,
                              const vectorInt &rhsElement, SEMinfo &myInfo,
-                             arrayReal &pnGlobal) {
+                             const arrayReal &pnGlobal) {
   LOOPHEAD(myInfo.myNumberOfRHS, i)
+  int elem = rhsElement(i);
+
+  if (elem < 0 || elem >= globalNodesList.extent(0)) {
+    printf("Invalid rhsElement[%d] = %d (globalNodesList extent = %lu)\n", i,
+           elem, globalNodesList.extent(0));
+    return;
+  }
   int nodeRHS = globalNodesList(rhsElement[i], 0);
   float scale = myInfo.myTimeStep * myInfo.myTimeStep * model[rhsElement[i]] *
                 model[rhsElement[i]];
@@ -107,7 +128,7 @@ void SEMsolver::computeElementContributions(int order, int nPointsPerElement,
 }
 
 void SEMsolver::updatePressureField(int i1, int i2, SEMinfo &myInfo,
-                                    arrayReal &pnGlobal) {
+                                    const arrayReal &pnGlobal) {
   LOOPHEAD(myInfo.numberOfInteriorNodes, i)
   int I = listOfInteriorNodes[i];
   pnGlobal(I, i1) =

@@ -300,7 +300,6 @@ int SEMmesh::getElementNumberFromPoints(const float &x, const float &y,
 
 // set model
 void SEMmesh::getModel(const int &numberOfElements, vectorReal &model) const {
-
   for (int j = 0; j < ((ey == 0) ? 1 : ey); j++) {
     for (int k = 0; k < ez; k++) {
       for (int i = 0; i < ex; i++) {
@@ -310,6 +309,7 @@ void SEMmesh::getModel(const int &numberOfElements, vectorReal &model) const {
     }
   }
 }
+
 //  get list of global interior nodes
 int SEMmesh::getListOfInteriorNodes(const int &numberOfInteriorNodes,
                                     vectorInt &listOfInteriorNodes) const {

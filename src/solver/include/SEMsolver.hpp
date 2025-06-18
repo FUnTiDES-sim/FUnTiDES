@@ -11,8 +11,10 @@
 #define SEM_SOLVER_HPP_
 
 // #include "SEMQkGL.hpp"
+#include "dataType.hpp"
 #include <BasisFunctions.hpp>
 #include <Integrals.hpp>
+#include <KokkosExp_InterOp.hpp>
 #include <cmath>
 #include <model.hpp>
 
@@ -48,7 +50,19 @@ public:
   void computeOneStep(const int &timeSample, const int &order,
                       const int &nPointsPerElement, const int &i1,
                       const int &i2, SEMinfo &myInfo, const arrayReal &rhsTerm,
-                      arrayReal &pnGlobal, const vectorInt &rhsElement);
+                      const arrayReal &pnGlobal, const vectorInt &rhsElement);
+
+  void computeOneStep_wrapper(int t, int order, int npts, int i1, int i2,
+                              SEMinfo info,
+                              Kokkos::Experimental::python_view_type_t<
+                                  Kokkos::View<float **, Layout, MemSpace>>
+                                  rhsTerm,
+                              Kokkos::Experimental::python_view_type_t<
+                                  Kokkos::View<float **, Layout, MemSpace>>
+                                  pnGlobal,
+                              Kokkos::Experimental::python_view_type_t<
+                                  Kokkos::View<int *, Layout, MemSpace>>
+                                  rhsElement);
 
   void outputPnValues(Mesh mesh, const int &indexTimeStep, int &i1,
                       int &myElementSource, const arrayReal &pnGlobal);
@@ -90,7 +104,7 @@ public:
    */
   void applyRHSTerm(int timeSample, int i2, const arrayReal &rhsTerm,
                     const vectorInt &rhsElement, SEMinfo &myInfo,
-                    arrayReal &pnGlobal);
+                    const arrayReal &pnGlobal);
 
   /**
    * @brief Compute local element contributions to the global mass and stiffness
@@ -116,7 +130,7 @@ public:
    * @param pnGlobal Pressure field array (updated in-place)
    */
   void updatePressureField(int i1, int i2, SEMinfo &myInfo,
-                           arrayReal &pnGlobal);
+                           const arrayReal &pnGlobal);
 
   // Getters for shared arrays
   const arrayInt &getGlobalNodesList() const { return globalNodesList; }
@@ -153,6 +167,11 @@ public:
   double getVMin() const { return vMin; }
 
   void setModel(const vectorReal &m) { model = m; }
+  void setModel_wrapper(Kokkos::Experimental::python_view_type_t<
+                        Kokkos::View<float *, Layout, MemSpace>>
+                            m) {
+    setModel(m);
+  }
   const vectorReal &getModel() const { return model; }
 
   void setMassMatrixGlobal(const vectorReal &m) { massMatrixGlobal = m; }

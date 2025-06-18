@@ -6,23 +6,6 @@
 namespace py = pybind11;
 
 PYBIND11_MODULE(pysem, m) {
-  // m.def("initialize_kokkos", []() {
-  //     if (!Kokkos::is_initialized()) {
-  //         Kokkos::initialize();
-  //     }
-  // });
-
-  // m.def("finalize_kokkos", []() {
-  //     if (Kokkos::is_initialized()) {
-  //         Kokkos::finalize();
-  //     }
-  // });
-
-  // // TODO: Remove when pykokkos-base is installed on Alexis' system
-  // m.def("fence", []() {
-  //   Kokkos::fence();
-  // });
-
   py::class_<SEMproxy>(m, "SEMproxy")
       .def(py::init<int, int, int, float>())
       .def("get_mesh_info", &SEMproxy::getMeshInfo)
@@ -41,6 +24,12 @@ PYBIND11_MODULE(pysem, m) {
       .def("getSpongeSize", &SEMmesh::getSpongeSize)
       .def("getNumberOfNodes", &SEMmesh::getNumberOfNodes)
       .def("getNumberOfElements", &SEMmesh::getNumberOfElements)
+      .def("getNumberOfInteriorNodes",
+           py::overload_cast<>(&SEMmesh::getNumberOfInteriorNodes, py::const_))
+      .def("getNumberOfInteriorNodes",
+           py::overload_cast<int>(&SEMmesh::getNumberOfInteriorNodes,
+                                  py::const_),
+           py::arg("spongeSize"))
       .def("getNumberOfPointsPerElement",
            &SEMmesh::getNumberOfPointsPerElement);
 
