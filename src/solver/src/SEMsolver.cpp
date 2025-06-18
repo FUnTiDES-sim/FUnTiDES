@@ -31,14 +31,12 @@ void SEMsolver::computeOneStep(const int &timeSample, const int &order,
                                const arrayReal &rhsTerm, arrayReal &pnGlobal,
                                const vectorInt &rhsElement) {
   resetGlobalVectors(myInfo.numberOfNodes);
-  FENCE
   applyRHSTerm(timeSample, i2, rhsTerm, rhsElement, myInfo, pnGlobal);
   FENCE
   computeElementContributions(order, nPointsPerElement, myInfo, i2, pnGlobal);
   FENCE
   updatePressureField(i1, i2, myInfo, pnGlobal);
-  FENCE
-  spongeUpdate(pnGlobal, i1, i2);
+//  spongeUpdate(pnGlobal, i1, i2);
   FENCE
 }
 
@@ -69,9 +67,9 @@ void SEMsolver::computeElementContributions(int order, int nPointsPerElement,
   if (elementNumber >= myInfo.numberOfElements)
     return;
 
-  float massMatrixLocal[ROW] = {0};
-  float pnLocal[ROW] = {0};
-  float Y[ROW] = {0};
+  float massMatrixLocal[SEMinfo::nPointsPerElement] = {0};
+  float pnLocal[SEMinfo::nPointsPerElement] = {0};
+  float Y[SEMinfo::nPointsPerElement] = {0};
 
   for (int i = 0; i < nPointsPerElement; ++i) {
     int globalIdx = globalNodesList(elementNumber, i);
@@ -89,11 +87,11 @@ void SEMsolver::computeElementContributions(int order, int nPointsPerElement,
                 globalNodesCoordsZ, massMatrixLocal, pnLocal, Y);
 #endif
 
-  for (int i = 0; i < nPointsPerElement; ++i) {
-    int gIndex = globalNodesList(elementNumber, i);
-    float scale = model[elementNumber] * model[elementNumber];
-    float massValue = massMatrixLocal[i] / scale;
-    ATOMICADD(massMatrixGlobal[gIndex], massValue);
+  auto const inv_model2 = 1.0f / (model[elementNumber] * model[elementNumber]);
+  for (int i = 0; i < SEMinfo::nPointsPerElement; ++i) {
+    int const gIndex = globalNodesList(elementNumber, i);
+      massMatrixLocal[i] *= inv_model2;
+      ATOMICADD(massMatrixGlobal[gIndex], massMatrixLocal[i]);
     ATOMICADD(yGlobal[gIndex], Y[i]);
   }
 
