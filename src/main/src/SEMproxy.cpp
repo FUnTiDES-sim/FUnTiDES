@@ -16,18 +16,23 @@ SEMproxy::SEMproxy(int argc, char *argv[]) {
                : 100;
   int ey = (cmdOptionExists(argv, argv + argc, "-ey"))
                ? std::stoi(getCmdOption(argv, argv + argc, "-ey"))
-               : 100;
+               : ex;
   ;
   int ez = (cmdOptionExists(argv, argv + argc, "-ez"))
                ? std::stoi(getCmdOption(argv, argv + argc, "-ez"))
-               : 100;
+               : ex;
   ;
 
   float lx = (cmdOptionExists(argv, argv + argc, "-lx"))
                  ? std::stof(getCmdOption(argv, argv + argc, "-lx"))
                  : 2000;
-  float ly = lx;
-  float lz = lx;
+  float ly = (cmdOptionExists(argv, argv + argc, "-ly"))
+                 ? std::stof(getCmdOption(argv, argv + argc, "-ly"))
+                 : lx;
+  float lz = (cmdOptionExists(argv, argv + argc, "-lz"))
+                 ? std::stof(getCmdOption(argv, argv + argc, "-lz"))
+                 : lx;
+ 
 
   SEMmesh simpleMesh{ex, ey, ez, lx, ly, lz, myInfo.myOrderNumber,30, false};
   myMesh = simpleMesh;
