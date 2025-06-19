@@ -199,13 +199,13 @@ using array3DDouble = Array3D<double>;
 #endif
 
 #include <Kokkos_Core.hpp>
-// #define MemSpace Kokkos::SharedSpace
+#define MemSpace Kokkos::SharedSpace
 
 #ifdef ENABLE_CUDA
-#define MemSpace Kokkos::CudaUVMSpace
+// #define MemSpace Kokkos::CudaUVMSpace
 using Layout = Kokkos::LayoutLeft;
 #else
-#define MemSpace Kokkos::HostSpace
+// #define MemSpace Kokkos::HostSpace
 using Layout = Kokkos::LayoutRight;
 #endif
 

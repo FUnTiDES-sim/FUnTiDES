@@ -112,7 +112,7 @@ endif()
 ################################
 if (ENABLE_PYWRAP)
   message(STATUS "-- Enabling Python wrapping librairies. Using pybind11")
-  find_package(Python 3.8 COMPONENTS Interpreter Development REQUIRED)
+  find_package(Python COMPONENTS Interpreter Development REQUIRED)
   add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/external/pybind11)
   set(CMAKE_INTERPROCEDURAL_OPTIMIZATION FALSE CACHE BOOL "Disable global LTO" FORCE)
   set(CMAKE_POSITION_INDEPENDENT_CODE ON)

@@ -68,14 +68,8 @@ void SEMsolver::applyRHSTerm(int timeSample, int i2, const arrayReal &rhsTerm,
                              const vectorInt &rhsElement, SEMinfo &myInfo,
                              const arrayReal &pnGlobal) {
   LOOPHEAD(myInfo.myNumberOfRHS, i)
-  int elem = rhsElement(i);
-
-  if (elem < 0 || elem >= globalNodesList.extent(0)) {
-    printf("Invalid rhsElement[%d] = %d (globalNodesList extent = %lu)\n", i,
-           elem, globalNodesList.extent(0));
-    return;
-  }
   int nodeRHS = globalNodesList(rhsElement[i], 0);
+  // int nodeRHS = 0;
   float scale = myInfo.myTimeStep * myInfo.myTimeStep * model[rhsElement[i]] *
                 model[rhsElement[i]];
   pnGlobal(nodeRHS, i2) += scale * rhsTerm(i, timeSample);
