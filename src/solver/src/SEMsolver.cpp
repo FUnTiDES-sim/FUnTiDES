@@ -36,7 +36,8 @@ void SEMsolver::computeOneStep(const int &timeSample, const int &order,
   computeElementContributions(order, nPointsPerElement, myInfo, i2, pnGlobal);
   FENCE
   updatePressureField(i1, i2, myInfo, pnGlobal);
-//  spongeUpdate(pnGlobal, i1, i2);
+  FENCE
+  spongeUpdate(pnGlobal, i1, i2);
   FENCE
 }
 
@@ -49,12 +50,13 @@ void SEMsolver::resetGlobalVectors(int numNodes) {
 
 void SEMsolver::applyRHSTerm(int timeSample, int i2, const arrayReal &rhsTerm,
                              const vectorInt &rhsElement, SEMinfo &myInfo,
-                             arrayReal &pnGlobal) {
+                             arrayReal &pnGlobal) 
+{
+  float const dt2 = myInfo.myTimeStep * myInfo.myTimeStep;
   LOOPHEAD(myInfo.myNumberOfRHS, i)
-  int nodeRHS = globalNodesList(rhsElement[i], 0);
-  float scale = myInfo.myTimeStep * myInfo.myTimeStep * model[rhsElement[i]] *
-                model[rhsElement[i]];
-  pnGlobal(nodeRHS, i2) += scale * rhsTerm(i, timeSample);
+    int nodeRHS = globalNodesList(rhsElement[i], 0);
+    float scale = dt2 * model[rhsElement[i]] * model[rhsElement[i]];
+    pnGlobal(nodeRHS, i2) += scale * rhsTerm(i, timeSample);
   LOOPEND
 }
 
@@ -67,12 +69,13 @@ void SEMsolver::computeElementContributions(int order, int nPointsPerElement,
   if (elementNumber >= myInfo.numberOfElements)
     return;
 
-  float massMatrixLocal[SEMinfo::nPointsPerElement] = {0};
-  float pnLocal[SEMinfo::nPointsPerElement] = {0};
+  float massMatrixLocal[SEMinfo::nPointsPerElement];
+  float pnLocal[SEMinfo::nPointsPerElement];
   float Y[SEMinfo::nPointsPerElement] = {0};
 
-  for (int i = 0; i < nPointsPerElement; ++i) {
-    int globalIdx = globalNodesList(elementNumber, i);
+  for (int i = 0; i < nPointsPerElement; ++i) 
+  {
+    int const globalIdx = globalNodesList(elementNumber, i);
     pnLocal[i] = pnGlobal(globalIdx, i2);
   }
 
@@ -82,16 +85,22 @@ void SEMsolver::computeElementContributions(int order, int nPointsPerElement,
                 globalNodesCoordsY, globalNodesCoordsZ, weights,
                 derivativeBasisFunction1D, massMatrixLocal, pnLocal, Y);
 #else
-  myQkIntegrals.computeMassMatrixAndStiffnessVector(
-                elementNumber, nPointsPerElement, globalNodesCoordsX, globalNodesCoordsY,
-                globalNodesCoordsZ, massMatrixLocal, pnLocal, Y);
+  myQkIntegrals.computeMassMatrixAndStiffnessVector( elementNumber, 
+                                                     nPointsPerElement, 
+                                                     globalNodesCoordsX, 
+                                                     globalNodesCoordsY,
+                                                     globalNodesCoordsZ, 
+                                                     massMatrixLocal, 
+                                                     pnLocal, 
+                                                     Y);
 #endif
 
   auto const inv_model2 = 1.0f / (model[elementNumber] * model[elementNumber]);
-  for (int i = 0; i < SEMinfo::nPointsPerElement; ++i) {
+  for (int i = 0; i < SEMinfo::nPointsPerElement; ++i) 
+  {
     int const gIndex = globalNodesList(elementNumber, i);
-      massMatrixLocal[i] *= inv_model2;
-      ATOMICADD(massMatrixGlobal[gIndex], massMatrixLocal[i]);
+    massMatrixLocal[i] *= inv_model2;
+    ATOMICADD(massMatrixGlobal[gIndex], massMatrixLocal[i]);
     ATOMICADD(yGlobal[gIndex], Y[i]);
   }
 
@@ -99,12 +108,13 @@ void SEMsolver::computeElementContributions(int order, int nPointsPerElement,
 }
 
 void SEMsolver::updatePressureField(int i1, int i2, SEMinfo &myInfo,
-                                    arrayReal &pnGlobal) {
+                                    arrayReal &pnGlobal) 
+{
+
+  float const dt2 = myInfo.myTimeStep * myInfo.myTimeStep;
   LOOPHEAD(myInfo.numberOfInteriorNodes, i)
-  int I = listOfInteriorNodes[i];
-  pnGlobal(I, i1) =
-      2 * pnGlobal(I, i2) - pnGlobal(I, i1) -
-      myInfo.myTimeStep * myInfo.myTimeStep * yGlobal[I] / massMatrixGlobal[I];
+    int const I = listOfInteriorNodes[i];
+    pnGlobal(I, i1) = 2 * pnGlobal(I, i2) - pnGlobal(I, i1) - dt2 * yGlobal[I] / massMatrixGlobal[I];
   LOOPEND
 }
 
