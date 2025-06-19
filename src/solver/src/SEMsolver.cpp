@@ -8,6 +8,7 @@
 //************************************************************************
 
 #include "SEMsolver.hpp"
+#include "dataType.hpp"
 #ifdef USE_EZV
 #include "ezvLauncher.hpp"
 #include <cstdlib>
@@ -16,119 +17,105 @@
 #endif // USE_KOKKOS
 #endif // USE_EZV
 
-void SEMsolver::computeFEInit(SEMinfo &myInfo, Mesh mesh) {
-  order = myInfo.myOrderNumber;
-  allocateFEarrays(myInfo);
-  initFEarrays(myInfo, mesh);
+void SEMsolver::computeFEInit(SEMinfo &myInfo_in, Mesh mesh) {
+  this->myInfo = &myInfo_in;
+  myMesh = mesh;
+  order = myInfo_in.myOrderNumber;
+  allocateFEarrays(myInfo_in);
+  initFEarrays(myInfo_in, mesh);
 }
 
-// compute one step of the time dynamic wave equation solver
 void SEMsolver::computeOneStep(const int &timeSample, const int &order,
                                const int &nPointsPerElement, const int &i1,
                                const int &i2, SEMinfo &myInfo,
-                               const arrayReal &rhsTerm,
-                               arrayReal const &pnGlobal,
+                               const arrayReal &rhsTerm, arrayReal &pnGlobal,
                                const vectorInt &rhsElement) {
-#ifdef USE_CALIPER
-  CALI_CXX_MARK_FUNCTION;
-#endif // USE_CALIPER
+  resetGlobalVectors(myInfo.numberOfNodes);
+  applyRHSTerm(timeSample, i2, rhsTerm, rhsElement, myInfo, pnGlobal);
+  FENCE
+  computeElementContributions(order, nPointsPerElement, myInfo, i2, pnGlobal);
+  FENCE
+  updatePressureField(i1, i2, myInfo, pnGlobal);
+  FENCE
+  spongeUpdate(pnGlobal, i1, i2);
+  FENCE
+}
 
-  LOOPHEAD(myInfo.numberOfNodes, i)
+void SEMsolver::resetGlobalVectors(int numNodes) {
+  LOOPHEAD(numNodes, i)
   massMatrixGlobal[i] = 0;
   yGlobal[i] = 0;
   LOOPEND
+}
 
-#ifdef USE_CALIPER
-  CALI_MARK_BEGIN("updateNodeRHS");
-#endif // USE_CALIPER
-  // update pnGLobal with right hade side
+void SEMsolver::applyRHSTerm(int timeSample, int i2, const arrayReal &rhsTerm,
+                             const vectorInt &rhsElement, SEMinfo &myInfo,
+                             arrayReal &pnGlobal) 
+{
+  float const dt2 = myInfo.myTimeStep * myInfo.myTimeStep;
   LOOPHEAD(myInfo.myNumberOfRHS, i)
-  int nodeRHS = globalNodesList(rhsElement[i], 0);
-  pnGlobal(nodeRHS, i2) += myInfo.myTimeStep * myInfo.myTimeStep *
-                           model[rhsElement[i]] * model[rhsElement[i]] *
-                           rhsTerm(i, timeSample);
+    int nodeRHS = globalNodesList(rhsElement[i], 0);
+    float scale = dt2 * model[rhsElement[i]] * model[rhsElement[i]];
+    pnGlobal(nodeRHS, i2) += scale * rhsTerm(i, timeSample);
   LOOPEND
-#ifdef USE_CALIPER
-  CALI_MARK_END("updateNodeRHS");
-  CALI_MARK_BEGIN("mainloop");
-#endif // USE_CALIPER
-  // start main parallel section
+}
+
+void SEMsolver::computeElementContributions(int order, int nPointsPerElement,
+                                            SEMinfo &myInfo, int i2,
+                                            const arrayReal &pnGlobal) {
   MAINLOOPHEAD(myInfo.numberOfElements, elementNumber)
 
-  if (elementNumber < myInfo.numberOfElements) {
-    float massMatrixLocal[SEMinfo::nPointsPerElement];
-    float pnLocal[SEMinfo::nPointsPerElement];
-    float Y[SEMinfo::nPointsPerElement] = {0};
+  // Guard for extra threads (Kokkos might launch more than needed)
+  if (elementNumber >= myInfo.numberOfElements)
+    return;
 
-    // get pnGlobal to pnLocal
-    for (int i = 0; i < SEMinfo::nPointsPerElement; i++) {
-      int const localToGlobal = globalNodesList(elementNumber, i);
-      pnLocal[i] = pnGlobal(localToGlobal, i2);
-    }
+  float massMatrixLocal[SEMinfo::nPointsPerElement];
+  float pnLocal[SEMinfo::nPointsPerElement];
+  float Y[SEMinfo::nPointsPerElement] = {0};
 
-    myQkIntegrals.computeMassMatrixAndStiffnessVector( elementNumber, 
-                                                      nPointsPerElement, 
-                                                      globalNodesCoordsX,
-                                                      globalNodesCoordsY, 
-                                                      globalNodesCoordsZ, 
-                                                      massMatrixLocal, 
-                                                      pnLocal, 
-                                                      Y);
-
-
-    // compute global mass Matrix and global stiffness vector
-
-    auto const inv_model2 = 1.0f / (model[elementNumber] * model[elementNumber]);
-    for (int i = 0; i < SEMinfo::nPointsPerElement; i++) {
-      int const gIndex = globalNodesList(elementNumber, i);
-      massMatrixLocal[i] *= inv_model2;
-      ATOMICADD(massMatrixGlobal[gIndex], massMatrixLocal[i]);
-      ATOMICADD(yGlobal[gIndex], Y[i]);
-    }
+  for (int i = 0; i < nPointsPerElement; ++i) 
+  {
+    int const globalIdx = globalNodesList(elementNumber, i);
+    pnLocal[i] = pnGlobal(globalIdx, i2);
   }
+
+#if defined(USE_SEMCLASSIC)
+  myQkIntegrals.computeMassMatrixAndStiffnessVector(
+                elementNumber, order, nPointsPerElement, globalNodesCoordsX,
+                globalNodesCoordsY, globalNodesCoordsZ, weights,
+                derivativeBasisFunction1D, massMatrixLocal, pnLocal, Y);
+#else
+  myQkIntegrals.computeMassMatrixAndStiffnessVector( elementNumber, 
+                                                     nPointsPerElement, 
+                                                     globalNodesCoordsX, 
+                                                     globalNodesCoordsY,
+                                                     globalNodesCoordsZ, 
+                                                     massMatrixLocal, 
+                                                     pnLocal, 
+                                                     Y);
+#endif
+
+  auto const inv_model2 = 1.0f / (model[elementNumber] * model[elementNumber]);
+  for (int i = 0; i < SEMinfo::nPointsPerElement; ++i) 
+  {
+    int const gIndex = globalNodesList(elementNumber, i);
+    massMatrixLocal[i] *= inv_model2;
+    ATOMICADD(massMatrixGlobal[gIndex], massMatrixLocal[i]);
+    ATOMICADD(yGlobal[gIndex], Y[i]);
+  }
+
   MAINLOOPEND
+}
 
-#ifdef USE_CALIPER
-  CALI_MARK_END("mainloop");
-  CALI_MARK_BEGIN("pressureloop");
-#endif // USE_CALIPER
+void SEMsolver::updatePressureField(int i1, int i2, SEMinfo &myInfo,
+                                    arrayReal &pnGlobal) 
+{
 
-#ifdef USE_EZV
-  //  Kokkos::View<float *, Kokkos::CudaSpace> ezv_device_data("EZV Device",
-  //  pnGlobal.size());
-  auto ezv_host_data = Kokkos::create_mirror(pnGlobal);
-  Kokkos::fence();
-#endif // USE_EZV
-
-  // update pressure
+  float const dt2 = myInfo.myTimeStep * myInfo.myTimeStep;
   LOOPHEAD(myInfo.numberOfInteriorNodes, i)
-  int I = listOfInteriorNodes[i];
-  pnGlobal(I, i1) =
-      2 * pnGlobal(I, i2) - pnGlobal(I, i1) -
-      myInfo.myTimeStep * myInfo.myTimeStep * yGlobal[I] / massMatrixGlobal[I];
+    int const I = listOfInteriorNodes[i];
+    pnGlobal(I, i1) = 2 * pnGlobal(I, i2) - pnGlobal(I, i1) - dt2 * yGlobal[I] / massMatrixGlobal[I];
   LOOPEND
-
-#ifdef USE_EZV
-  Kokkos::fence();
-  Kokkos::deep_copy(ezv_host_data, pnGlobal);
-  auto nb_x = pnGlobal.extent(0);
-  auto nb_y = pnGlobal.extent(1);
-  Kokkos::fence();
-  float *ezv_data = (float *)malloc((nb_x) * sizeof(float));
-  // copy kokkos data into heap
-  for (auto i = 0; i < nb_x; i++) {
-    auto idx = i;
-    ezv_data[idx] = ezv_host_data(i, i1);
-  }
-
-  ezv_thr_push_data_colors(get_ezv_ctx()[0], ezv_data);
-#endif // USE_EZV
-
-#ifdef USE_CALIPER
-  CALI_MARK_END("pressureloop");
-#endif // USE_CALIPER
-
-  FENCE
 }
 
 void SEMsolver::outputPnValues(Mesh mesh, const int &indexTimeStep, int &i1,
@@ -152,16 +139,42 @@ void SEMsolver::initFEarrays(SEMinfo &myInfo, Mesh mesh) {
   mesh.getListOfInteriorNodes(myInfo.numberOfInteriorNodes,
                               listOfInteriorNodes);
   // mesh coordinates
-  mesh.nodesCoordinates( globalNodesCoordsX, 
-                         globalNodesCoordsZ,
-                         globalNodesCoordsY,
-                         1 );
+  mesh.nodesCoordinates(globalNodesCoordsX, globalNodesCoordsZ,
+                        globalNodesCoordsY);
 
   // get model
   mesh.getModel(myInfo.numberOfElements, model);
-  // get quadrature points
 
-  myQkIntegrals.init();
+  // get minimal wavespeed
+  double min;
+  auto model_ = this->model; // Avoid implicit capture
+#ifdef USE_KOKKOS
+  Kokkos::parallel_reduce(
+      "vMinFind", myInfo.numberOfElements,
+      KOKKOS_LAMBDA(const int &e, double &lmin) {
+        double val = model_[e];
+        if (val < lmin)
+          lmin = val;
+      },
+      Kokkos::Min<double>(min));
+  vMin = min;
+#else
+  vMin = 1500;
+#endif // USE_KOKKOS
+
+  // get quadrature points
+#ifdef USE_SEMCLASSIC
+  myQkBasis.gaussLobattoQuadraturePoints(order, quadraturePoints);
+  // get gauss-lobatto weights
+  myQkBasis.gaussLobattoQuadratureWeights(order, weights);
+  // get basis function and corresponding derivatives
+  myQkBasis.getDerivativeBasisFunction1D(order, quadraturePoints,
+                                         derivativeBasisFunction1D);
+#endif // USE_SEMCLASSIC
+
+  // Sponge boundaries
+  initSpongeValues(mesh, myInfo);
+  Kokkos::fence();
 }
 
 void SEMsolver::allocateFEarrays(SEMinfo &myInfo) {
@@ -173,6 +186,10 @@ void SEMsolver::allocateFEarrays(SEMinfo &myInfo) {
                                               "globalNodesList");
   listOfInteriorNodes = allocateVector<vectorInt>(myInfo.numberOfInteriorNodes,
                                                   "listOfInteriorNodes");
+  listOfDampingNodes = allocateVector<vectorInt>(myInfo.numberOfDampingNodes,
+                                                 "listOfDampingNodes");
+  cout << "### Allocating " << myInfo.numberOfSpongeNodes << " sponge nodes"
+       << endl;
 
   // global coordinates
   globalNodesCoordsX = allocateArray2D<arrayReal>(
@@ -183,7 +200,8 @@ void SEMsolver::allocateFEarrays(SEMinfo &myInfo) {
       myInfo.numberOfElements, nbQuadraturePoints, "globalNodesCoordsZ");
 
   model = allocateVector<vectorReal>(myInfo.numberOfElements, "model");
-
+  
+  #ifdef USE_SEMCLASSIC
   quadraturePoints =
       allocateVector<vectorDouble>(order + 1, "quadraturePoints");
 
@@ -191,9 +209,101 @@ void SEMsolver::allocateFEarrays(SEMinfo &myInfo) {
 
   derivativeBasisFunction1D = allocateArray2D<arrayDouble>(
       order + 1, order + 1, "derivativeBasisFunction1D");
+  #endif // USE_SEMCLASSIC
 
   // shared arrays
   massMatrixGlobal =
       allocateVector<vectorReal>(myInfo.numberOfNodes, "massMatrixGlobal");
   yGlobal = allocateVector<vectorReal>(myInfo.numberOfNodes, "yGlobal");
+
+  // sponge allocation
+  spongeTaperCoeff =
+      allocateVector<vectorReal>(myInfo.numberOfNodes, "spongeTaperCoeff");
 }
+
+void SEMsolver::initSpongeValues(Mesh &mesh, SEMinfo &myInfo) {
+  // Init all taper to 1 (default value)
+  LOOPHEAD(myInfo.numberOfNodes, i)
+  spongeTaperCoeff(i) = 1;
+  LOOPEND
+
+  // int n = 0;
+  double alpha = -0.0001;
+  int spongeSize = mesh.getSpongeSize();
+  int nx = mesh.getNx();
+  int ny = mesh.getNy();
+  int nz = mesh.getNz();
+
+  // Update X boundaries
+  LOOPHEAD(nz, k)
+  for (int j = 0; j < ny; j++) {
+    // lower x
+    for (int i = 0; i <= spongeSize; i++) {
+      int n = mesh.ijktoI(i, j, k);
+      double value = spongeSize - i;
+      spongeTaperCoeff(n) = std::exp(alpha * static_cast<float>(value * value));
+    }
+    // upper x
+    for (int i = nx - spongeSize - 1; i < nx; i++) {
+      int n = mesh.ijktoI(i, j, k);
+      double value = spongeSize - (nx - i);
+      spongeTaperCoeff(n) = std::exp(alpha * static_cast<float>(value * value));
+    }
+  }
+  LOOPEND
+
+  // Update Y boundaries
+  // for (int k = 0; k < nz; k++) {
+  LOOPHEAD(nz, k)
+  int n;
+  for (int i = 0; i < nx; i++) {
+    // lower y
+    for (int j = 0; j <= spongeSize; j++) {
+      n = mesh.ijktoI(i, j, k);
+      double value = spongeSize - j;
+      spongeTaperCoeff(n) =
+          std::exp(alpha * static_cast<double>(value * value));
+    }
+    // upper y
+    for (int j = ny - spongeSize - 1; j < ny; j++) {
+      n = mesh.ijktoI(i, j, k);
+      double value = spongeSize - (ny - j);
+      spongeTaperCoeff(n) =
+          std::exp(alpha * static_cast<double>(value * value));
+    }
+  }
+  LOOPEND
+
+  // Update Z boundaries
+  LOOPHEAD(ny, j)
+  int n;
+  for (int i = 0; i < nx; i++) {
+    // lower z
+    for (int k = 0; k <= spongeSize; k++) {
+      n = mesh.ijktoI(i, j, k);
+      double value = spongeSize - k;
+      spongeTaperCoeff(n) =
+          std::exp(alpha * static_cast<double>(value * value));
+    }
+    // upper z
+    for (int k = nz - spongeSize - 1; k < nz; k++) {
+      n = mesh.ijktoI(i, j, k);
+      double value = spongeSize - (nz - k);
+      spongeTaperCoeff(n) =
+          std::exp(alpha * static_cast<double>(value * value));
+    }
+  }
+  LOOPEND
+
+  FENCE
+}
+
+void SEMsolver::spongeUpdate(const arrayReal &pnGlobal, const int i1,
+                             const int i2) {
+  // for (int i = 0; i < myInfo->numberOfNodes; i++) {
+  LOOPHEAD(myInfo->numberOfNodes, i)
+  pnGlobal(i, i1) *= spongeTaperCoeff(i);
+  pnGlobal(i, i2) *= spongeTaperCoeff(i);
+  LOOPEND
+}
+// }

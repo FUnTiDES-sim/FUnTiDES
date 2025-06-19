@@ -25,8 +25,7 @@
 
 // define fence
 #if defined (USE_KOKKOS)
-  #define FENCE\
-  if(timeSample%50==0) Kokkos::fence();
+  #define FENCE  Kokkos::fence();
 #else
   #define FENCE 
 #endif

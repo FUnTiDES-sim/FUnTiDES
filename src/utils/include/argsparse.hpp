@@ -16,13 +16,18 @@
  * @return A pointer to the value associated with the option if found,
  *         otherwise returns nullptr.
  */
-inline char *getCmdOption(char **begin, char **end, const std::string &option) {
-  char **itr = std::find(begin, end, option.c_str());
-  if (itr != end && ++itr != end) {
-    return *itr;
+inline std::string getCmdOption(char **begin, char **end, const std::string &option) 
+{
+  for (char **itr = begin; itr != end; ++itr) 
+  {
+    if (std::string(*itr) == option && (itr + 1) != end) 
+    {
+      return std::string(*(itr + 1));
+    }
   }
-  return nullptr;
+  return "";
 }
+
 
 /**
  * @brief Checks if a specific command-line option exists.
@@ -35,8 +40,15 @@ inline char *getCmdOption(char **begin, char **end, const std::string &option) {
  * @param option The option to check for.
  * @return True if the option exists, otherwise false.
  */
-inline bool cmdOptionExists(char **begin, char **end, const std::string &option) {
-  return std::find(begin, end, option.c_str()) != end;
+inline bool cmdOptionExists(char **begin, char **end, const std::string &option) 
+{
+    return std::find_if( begin, 
+                         end, 
+                         [&](char *arg) 
+    {
+        return std::string(arg) == option;
+    }) != end;
 }
+
 
 #endif // ARGSPARSE_HPP

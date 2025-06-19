@@ -9,6 +9,8 @@
 
 #include "commonMacros.hpp"
 
+using real_t=float;
+
 using namespace std;
 
 #ifdef USE_VECTOR
@@ -202,7 +204,8 @@ using array3DDouble=Array3D< double >;
 #endif
 
 #include <Kokkos_Core.hpp>
-#define MemSpace Kokkos::SharedSpace
+//#define MemSpace Kokkos::SharedSpace
+#define MemSpace Kokkos::CudaUVMSpace
 
 #ifdef ENABLE_CUDA
 using Layout=Kokkos::LayoutLeft;

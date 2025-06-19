@@ -10,7 +10,7 @@ target_include_directories( discretization INTERFACE
                             )
 message(STATUS "Binary include dir: ${CMAKE_BINARY_DIR}/include")
 
-include( fe/SEMKernels/cmake/blt/SetupBLT.cmake )
+include( fe/SEMKernels/src/Shiva/tpl/camp/extern/blt/SetupBLT.cmake )
 add_subdirectory( fe/SEMKernels )
 
 add_dependencies( discretization finiteElements shiva)
