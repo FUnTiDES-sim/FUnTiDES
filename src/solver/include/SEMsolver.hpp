@@ -14,9 +14,11 @@
 #include "dataType.hpp"
 #include <BasisFunctions.hpp>
 #include <Integrals.hpp>
-#include <KokkosExp_InterOp.hpp>
 #include <cmath>
 #include <model.hpp>
+#ifdef USE_KOKKOS
+#include <KokkosExp_InterOp.hpp>
+#endif
 
 class SEMsolver {
 public:
@@ -52,6 +54,7 @@ public:
                       const int &i2, SEMinfo &myInfo, const arrayReal &rhsTerm,
                       const arrayReal &pnGlobal, const vectorInt &rhsElement);
 
+#ifdef ENABLE_PYWRAP
   void computeOneStep_wrapper(int t, int order, int npts, int i1, int i2,
                               SEMinfo info,
                               Kokkos::Experimental::python_view_type_t<
@@ -63,6 +66,7 @@ public:
                               Kokkos::Experimental::python_view_type_t<
                                   Kokkos::View<int *, Layout, MemSpace>>
                                   rhsElement);
+#endif // ENABLE_PYWRAP
 
   void outputPnValues(Mesh mesh, const int &indexTimeStep, int &i1,
                       int &myElementSource, const arrayReal &pnGlobal);
@@ -167,11 +171,13 @@ public:
   double getVMin() const { return vMin; }
 
   void setModel(const vectorReal &m) { model = m; }
+#ifdef ENABLE_PYWRAP
   void setModel_wrapper(Kokkos::Experimental::python_view_type_t<
                         Kokkos::View<float *, Layout, MemSpace>>
                             m) {
     setModel(m);
   }
+#endif
   const vectorReal &getModel() const { return model; }
 
   void setMassMatrixGlobal(const vectorReal &m) { massMatrixGlobal = m; }

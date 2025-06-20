@@ -121,7 +121,7 @@ endif()
 ################################
 # KOKKOS
 ################################
-# the solver is using KOKKOS+CUDA if USE_KOKKOS is ON
+# the solver is using KOKKOS if USE_KOKKOS is ON
 if (NOT USE_KOKKOS)
   message ("-- USE_KOKKOS flag is set to false. KOKKOS is not enabled")
 else ()
@@ -150,6 +150,9 @@ else ()
   add_subdirectory(${Kokkos_SOURCE_DIR})
   message (STATUS "-- Kokkos Activated. Source are at ${Kokkos_SOURCE_DIR}.")
   if(ENABLE_PYWRAP)
+    if (NOT ENABLE_CUDA)
+      set(ENABLE_MEMORY_TRAITS OFF)
+    endif ()
     set(Kokkos_ENABLE_PYTHON ON)
     set(Kokkos_ENABLE_DEBUG ON)
     set(BUILD_SHARE_LIBS ON CACHE BOOL "" FORCE)

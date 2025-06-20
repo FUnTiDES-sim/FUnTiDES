@@ -42,6 +42,7 @@ void SEMsolver::computeOneStep(const int &timeSample, const int &order,
   FENCE
 }
 
+#ifdef ENABLE_PYWRAP
 void SEMsolver::computeOneStep_wrapper(
     int t, int order, int npts, int i1, int i2, SEMinfo info,
     Kokkos::Experimental::python_view_type_t<
@@ -56,6 +57,7 @@ void SEMsolver::computeOneStep_wrapper(
   // arrayReal pnGlobal_raw(pnGlobal);
   computeOneStep(t, order, npts, i1, i2, info, rhsTerm, pnGlobal, rhsElement);
 }
+#endif // ENABLE_PYWRAP
 
 void SEMsolver::resetGlobalVectors(int numNodes) {
   LOOPHEAD(numNodes, i)
@@ -187,7 +189,7 @@ void SEMsolver::initFEarrays(SEMinfo &myInfo, Mesh mesh) {
 
   // Sponge boundaries
   initSpongeValues(mesh, myInfo);
-  Kokkos::fence();
+  FENCE
 }
 
 void SEMsolver::allocateFEarrays(SEMinfo &myInfo) {
