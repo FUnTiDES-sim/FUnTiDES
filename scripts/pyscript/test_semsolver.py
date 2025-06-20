@@ -10,13 +10,13 @@ from datetime import datetime
 import pysolver as Solver
 import pysem as Sem
 
-# ArrayReal = kokkos.KokkosView_float32_HostSpace_LayoutLeft_2
-# VectorInt = kokkos.KokkosView_int32_HostSpace_LayoutLeft_1
-# VectorReal = kokkos.KokkosView_float32_HostSpace_LayoutLeft_1
+ArrayReal = kokkos.KokkosView_float32_HostSpace_LayoutRight_2
+VectorInt = kokkos.KokkosView_int32_HostSpace_LayoutRight_1
+VectorReal = kokkos.KokkosView_float32_HostSpace_LayoutRight_1
 
-ArrayReal = kokkos.KokkosView_float32_CudaUVMSpace_LayoutLeft_2
-VectorInt = kokkos.KokkosView_int32_CudaUVMSpace_LayoutLeft_1
-VectorReal = kokkos.KokkosView_float32_CudaUVMSpace_LayoutLeft_1
+# ArrayReal = kokkos.KokkosView_float32_CudaUVMSpace_LayoutLeft_2
+# VectorInt = kokkos.KokkosView_int32_CudaUVMSpace_LayoutLeft_1
+# VectorReal = kokkos.KokkosView_float32_CudaUVMSpace_LayoutLeft_1
 
 def print_global( arr ):
   for idx, e in enumerate(arr):
@@ -36,7 +36,7 @@ def sourceTerm( time_n, f0 ):
 
 def initModel(model,nElements):
     for i in range(nElements):
-        model[i]=1500.
+        model[i]=2000.
     return 0
 
 def initPressure(pressure,nDof):
@@ -88,9 +88,9 @@ def main():
   ex=100
   ey=100
   ez=100
-  hx=1500.
-  hy=1500.
-  hz=1500.
+  hx=20.
+  hy=20.
+  hz=20.
 
   nx=ex*order+1
   ny=ey*order+1
@@ -108,7 +108,7 @@ def main():
   initModel(model,nElements)
   kk_model = VectorReal(model, (nElements,))
 
-  mesh = Sem.SEMmesh(ex, ey, ez, hx, hy, hz, order, 20, False)
+  mesh = Sem.SEMmesh(ex, ey, ez, hx*ex, hy*ey, hz*ez, order, 20, False)
   myInfo = Sem.SEMinfo()
   myInfo.numberOfNodes = nx * ny * nz
   myInfo.numberOfElements = nElements
@@ -128,7 +128,7 @@ def main():
   kk_pnGlobal = ArrayReal(pnGlobal, (nDof, 2))
 
   # source term
-  f0=15
+  f0=5
   # time step and sampling
   timeStep=0.001
   timeStep2=timeStep*timeStep
