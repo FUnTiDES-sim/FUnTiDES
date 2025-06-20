@@ -19,6 +19,8 @@
 // Enables use of ENABLE_CUDA (CMake option)
 #cmakedefine ENABLE_CUDA
 
+// Enables python wrapping code
+#cmakedefine ENABLE_PYWRAP
 
 // Enable save snapshots of wavefields in SEM-proxy (for debugging)
 #cmakedefine SEM_SAVE_SNAPSHOTS
@@ -29,10 +31,8 @@
 // Enable printout memory allocation info for arrays
 #cmakedefine PRINT_ALLOC_INFO
 
-
 // Enable hierarchical parallelism in Kokkos
 #cmakedefine USE_KOKKOS_TEAMS
-
 
 // define library for pde discretization
 #cmakedefine USE_SEMCLASSIC
@@ -44,5 +44,3 @@
 
 #cmakedefine USE_SIMPLE_MESH
 #endif
-
-
