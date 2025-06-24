@@ -1,6 +1,4 @@
 #!/usr/bin/env python3
-import faulthandler
-faulthandler.enable()
 import numpy as np
 import matplotlib.pyplot as plt
 import libpykokkos as kokkos
@@ -10,13 +8,13 @@ from datetime import datetime
 import pysolver as Solver
 import pysem as Sem
 
-ArrayReal = kokkos.KokkosView_float32_HostSpace_LayoutRight_2
-VectorInt = kokkos.KokkosView_int32_HostSpace_LayoutRight_1
-VectorReal = kokkos.KokkosView_float32_HostSpace_LayoutRight_1
+# ArrayReal = kokkos.KokkosView_float32_HostSpace_LayoutRight_2
+# VectorInt = kokkos.KokkosView_int32_HostSpace_LayoutRight_1
+# VectorReal = kokkos.KokkosView_float32_HostSpace_LayoutRight_1
 
-# ArrayReal = kokkos.KokkosView_float32_CudaUVMSpace_LayoutLeft_2
-# VectorInt = kokkos.KokkosView_int32_CudaUVMSpace_LayoutLeft_1
-# VectorReal = kokkos.KokkosView_float32_CudaUVMSpace_LayoutLeft_1
+ArrayReal = kokkos.KokkosView_float32_CudaUVMSpace_LayoutLeft_2
+VectorInt = kokkos.KokkosView_int32_CudaUVMSpace_LayoutLeft_1
+VectorReal = kokkos.KokkosView_float32_CudaUVMSpace_LayoutLeft_1
 
 def print_global( arr ):
   for idx, e in enumerate(arr):
@@ -36,7 +34,7 @@ def sourceTerm( time_n, f0 ):
 
 def initModel(model,nElements):
     for i in range(nElements):
-        model[i]=2000.
+        model[i]=1500.
     return 0
 
 def initPressure(pressure,nDof):
@@ -85,12 +83,13 @@ def main():
   # kokkos.initialize()
 
   order=2
+  domain_size=1500.
   ex=100
   ey=100
   ez=100
-  hx=20.
-  hy=20.
-  hz=20.
+  hx=domain_size/ex
+  hy=domain_size/ey
+  hz=domain_size/ez
 
   nx=ex*order+1
   ny=ey*order+1
@@ -108,7 +107,7 @@ def main():
   initModel(model,nElements)
   kk_model = VectorReal(model, (nElements,))
 
-  mesh = Sem.SEMmesh(ex, ey, ez, hx*ex, hy*ey, hz*ez, order, 20, False)
+  mesh = Sem.SEMmesh(ex, ey, ez, domain_size, domain_size, domain_size, order, 20, False)
   myInfo = Sem.SEMinfo()
   myInfo.numberOfNodes = nx * ny * nz
   myInfo.numberOfElements = nElements
@@ -131,7 +130,6 @@ def main():
   f0=5
   # time step and sampling
   timeStep=0.001
-  timeStep2=timeStep*timeStep
   nTimeSteps=300
   numberOfRHS=1
   xs=ex*hx/2
@@ -144,7 +142,7 @@ def main():
   print("RHS element number ", RHSElement[0])
 
   # compute source term
-  RHSTerm=np.zeros((numberOfRHS,nTimeSteps),dtype=float)
+  RHSTerm=np.zeros((numberOfRHS,nTimeSteps),dtype=np.float32)
   for i in range(nTimeSteps):
       RHSTerm[0,i]=sourceTerm(i*timeStep,f0)
   kk_RHSTerm = ArrayReal(RHSTerm, (numberOfRHS,nTimeSteps))
