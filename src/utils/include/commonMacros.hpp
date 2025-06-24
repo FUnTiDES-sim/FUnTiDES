@@ -62,6 +62,9 @@
 #define VECTOR_REAL_VIEW vectorReal
 #define VECTOR_INT_VIEW vectorInt
 
+#define ARRAY_TYPE_VIEW arrayReal
+#define VECTOR_TYPE_VIEW vectorReal
+
 #if defined (USE_KOKKOS)
   #define KOKKOSNAME "v",
 #else

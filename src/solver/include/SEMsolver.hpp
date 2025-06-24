@@ -122,8 +122,8 @@ private:
   int order;
   SEMinfo *myInfo;
   Mesh myMesh;
-  // SEMQkGL myQk;
-  //SEMQkGLBasisFunctions myQkBasis;
+  // Basis functions and integrals
+  
   SEMQkGLIntegrals myQkIntegrals;
 
   // shared arrays
@@ -140,12 +140,15 @@ private:
   vectorReal model;
   double vMin; // min wavespeed in model
 
-  // get quadrature points and weights
-  vectorDouble quadraturePoints;
-  vectorDouble weights;
-
-  // get basis function and corresponding derivatives
-  arrayDouble derivativeBasisFunction1D;
+  #if defined(USE_SEMCLASSIC)
+    SEMQkGLBasisFunctions myQkBasis;
+   // get quadrature points and weights
+    vectorDouble quadraturePoints;
+    vectorDouble weights;
+  
+    // get basis function and corresponding derivatives
+    arrayDouble derivativeBasisFunction1D;
+  #endif
 
   // shared arrays
   vectorReal massMatrixGlobal;
