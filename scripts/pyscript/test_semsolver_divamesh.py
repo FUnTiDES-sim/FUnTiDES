@@ -21,7 +21,6 @@ from pydiva_mesh.core.m_hexa_mesh import Hexa_mesh
 from pydiva_mesh.core.m_hexa_model import Mesh_model
 from pydiva_mesh.core.m_hexa_vtk_export import Hexa_vtk_export
 from pydiva_mesh.core.m_wrap_sem_proxy_unstruct import Wrap_sem_proxy_unstruct
-from pydiva_mesh.core.m_hexa_ghost_unstruct import Mesh_ghost_unstruct
 
 # PROXY
 import libpykokkos as kokkos
@@ -44,7 +43,6 @@ class Mesher:
         self.mesh_model = Mesh_model()
         self.vtk_export = Hexa_vtk_export()
         self.wrap = Wrap_sem_proxy_unstruct()
-        self.ghost = Mesh_ghost_unstruct()
 
         self.outdir = param.frompar(
             "outdir",
@@ -60,11 +58,6 @@ class Mesher:
             "out_gll_vtk",
             default=False,
             help="Whether gll nodes should be exported into a vtk file.",
-        )
-        self.out_ghost_vtk = param.frompar(
-            "out_ghost_vtk",
-            default=False,
-            help="Whether ghosts should be exported into a vtk file.",
         )
 
     @timing
@@ -100,14 +93,8 @@ class Mesher:
         self.mesh_model.info_model_elem(self.paral.get_rank() == 0)
 
     @timing
-    def com_ghost(self):
-        self.ghost.init(self.mesh, o_model_elem=True, o_model_node=True)
-        self.ghost.compute(self.mesh, self.mesh_model)
-        self.ghost.info(self.paral.get_rank() == 0)
-
-    @timing
     def wrap_mesh(self):
-        self.wrap.init(self.mesh, self.mesh_model, self.ghost)
+        self.wrap.init(self.mesh, self.mesh_model)
 
         ngllx = self.wrap.ngllx
         nglly = self.wrap.nglly
@@ -161,35 +148,6 @@ class Mesher:
             )
 
     @timing
-    def export_ghost(self):
-        import vtk
-
-        n_ghost_node = self.wrap.n_ghost_node
-        ghost_coord = self.wrap.ghost_coord_node
-        ghost_coord = ghost_coord.reshape((3, n_ghost_node), order="F")
-
-        # Write ghost nodes as a VTP (vtkPolyData) file of points
-        points = vtk.vtkPoints()
-        for i in range(n_ghost_node):
-            points.InsertNextPoint(ghost_coord[0, i], ghost_coord[1, i], ghost_coord[2, i])
-
-        polydata = vtk.vtkPolyData()
-        polydata.SetPoints(points)
-
-        # Add a vertex cell for each point so they are visible in a preview
-        vertices = vtk.vtkCellArray()
-        for i in range(n_ghost_node):
-            vertices.InsertNextCell(1)
-            vertices.InsertCellPoint(i)
-        polydata.SetVerts(vertices)
-
-        writer = vtk.vtkXMLPolyDataWriter()
-        filename = f"ghost_points{self.paral.get_rank()}.vtp"
-        writer.SetFileName(filename)
-        writer.SetInputData(polydata)
-        writer.Write()
-
-    @timing
     def export_gll(self):
         self.vtk_export.export_gll(
             self.paral, self.mesh, self.mesh_model, self.vtk_name
@@ -205,7 +163,6 @@ class Mesher:
     def free(self):
         self.mesh_model.free_model_elem()
         self.mesh_model.free_model_gll()
-        self.ghost.free()
         self.wrap.free()
         self.mesh.free()
         self.earth_model.free()
@@ -217,15 +174,10 @@ class Mesher:
         self.read_earth_model()
         self.build_mesh()
         self.load_model_on_mesh()
-        self.com_ghost()
         self.wrap_mesh()
-        if self.out_ghost_vtk:
-            self.export_ghost()
         if self.out_gll_vtk:
             self.export_gll()
         self.export_elements()
-        self.free()
-        timer_print()
 
 
 class SEM:
@@ -233,27 +185,27 @@ class SEM:
     def __init__(self, paral: Parallelism, wrap: Wrap_sem_proxy_unstruct):
         # from wrapper
         self.paral = paral
-        self.ngllx = self.wrap.ngllx
-        self.nglly = self.wrap.nglly
-        self.ngllz = self.wrap.ngllz
-        self.min_node = self.wrap.min_node
-        self.max_node = self.wrap.max_node
-        self.min_elem = self.wrap.min_elem
-        self.max_elem = self.wrap.max_elem
-        self.elem_to_node = self.wrap.elem_to_node
-        self.coord_node = self.wrap.coord_node
-        self.rho_elem = self.wrap.rho_elem
-        self.vp_elem = self.wrap.vp_elem
-        self.vs_elem = self.wrap.vs_elem
-        self.rho_node = self.wrap.rho_node
-        self.vp_node = self.wrap.vp_node
-        self.vs_node = self.wrap.vs_node
+        self.ngllx = wrap.ngllx
+        self.nglly = wrap.nglly
+        self.ngllz = wrap.ngllz
+        self.min_node = wrap.min_node
+        self.max_node = wrap.max_node
+        self.min_elem = wrap.min_elem
+        self.max_elem = wrap.max_elem
+        self.elem_to_node = wrap.elem_to_node
+        self.coord_node = wrap.coord_node
+        self.rho_elem = wrap.rho_elem
+        self.vp_elem = wrap.vp_elem
+        self.vs_elem = wrap.vs_elem
+        self.rho_node = wrap.rho_node
+        self.vp_node = wrap.vp_node
+        self.vs_node = wrap.vs_node
 
         # for solver
-        self.order = self.wrap.ngllx - 1
-        self.ngll = self.wrap.ngllx * self.wrap.nglly * self.wrap.ngllz
-        self.n_elem = self.wrap.max_elem - self.wrap.max_elem + 1
-        self.n_node = self.wrap.max_node - self.wrap.min_node + 1
+        self.order = wrap.ngllx - 1
+        self.ngll = wrap.ngllx * wrap.nglly * wrap.ngllz
+        self.n_elem = wrap.max_elem - wrap.max_elem + 1
+        self.n_node = wrap.max_node - wrap.min_node + 1
         kokkos.initialize()
 
     @timing
@@ -395,6 +347,20 @@ class SEM:
         print(f"Max iteration time: {np.max(iteration_times):.4f} seconds")
 
     @timing
+    def info(self):
+        print(f"{'-' * 65}")
+        print("SEM Solver Info")
+        print(f"{'Array':<20} {'Shape':<20} {'Min':<15} {'Max':<15}")
+        print(f"{'-' * 65}")
+        print(f"{'nodesList':<20} {str(self.nodesList.shape):<20} {self.nodesList.min():<15} {self.nodesList.max():<15}")
+        print(f"{'nodesCoordsX':<20} {str(self.nodesCoordsX.shape):<20} {self.nodesCoordsX.min():<15.6f} {self.nodesCoordsX.max():<15.6f}")
+        print(f"{'nodesCoordsY':<20} {str(self.nodesCoordsY.shape):<20} {self.nodesCoordsY.min():<15.6f} {self.nodesCoordsY.max():<15.6f}")
+        print(f"{'nodesCoordsZ':<20} {str(self.nodesCoordsZ.shape):<20} {self.nodesCoordsZ.min():<15.6f} {self.nodesCoordsZ.max():<15.6f}")
+        print(f"{'RHSElement':<20} {str(self.RHSElement.shape):<20} {self.RHSElement.min():<15} {self.RHSElement.max():<15}")
+        print(f"{'RHSTerm':<20} {str(self.RHSTerm.shape):<20} {self.RHSTerm.min():<15.6f} {self.RHSTerm.max():<15.6f}")
+        print(f"{'-' * 65}")
+
+    @timing
     def free(self):
         del self.solver
         del self.myInfo
@@ -407,8 +373,8 @@ class SEM:
         self.init_pressure()
         self.init_solver()
         self.inti_source()
+        self.info()
         self.propagate()
-        self.free()
 
 
 def main():
@@ -431,6 +397,12 @@ def main():
     # SEM
     sem = SEM(paral, mesher.wrap)
     sem.run()
+
+    # Free
+    sem.free()
+    mesher.free()
+
+    timer_print()
 
 
 if __name__ == "__main__":
