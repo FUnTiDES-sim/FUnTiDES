@@ -20,16 +20,93 @@
 #include <KokkosExp_InterOp.hpp>
 #endif
 
+// TODO to get it running with numpy wrappers
+#include <pybind11/pybind11.h>
+#include <pybind11/numpy.h>
+#include <pybind11/stl.h>
+#include <pybind11/functional.h>
+namespace py = pybind11;
+
 class SEMsolver {
 public:
   PROXY_HOST_DEVICE SEMsolver() {};
   PROXY_HOST_DEVICE ~SEMsolver(){};
 
   /**
-   * @brief computeFEInit function:
-   * init all FE components for computing mass and stiffness matrices
+   * @brief Allocate and init all FE components for computing mass, stiffness matrices.
+   * 
+   * Uses the internal Mesh structure.
    */
   void computeFEInit(SEMinfo &myInfo, Mesh mesh);
+  
+  /**
+   * @brief Allocate and init all FE components for computing mass, stiffness matrices.
+   * 
+   * Uses external arrays instead of Mesh structure (for pyFWI)
+   */
+  void computeFEInitWithoutMesh(SEMinfo &myInfo,
+                                arrayInt &nodesList,
+                                arrayReal &nodesCoordsX,
+                                arrayReal &nodesCoordsY,
+                                arrayReal &nodesCoordsZ,
+                                vectorInt &interiorNodes,
+                                vectorReal &modelOnElements);
+
+   /**
+    * @brief pybind11 wrapper for computeFEInitWithoutMesh
+    */
+   void computeFEInitWithoutMesh_(SEMinfo &myInfo,
+                                  py::array_t<int,   py::array::c_style | py::array::forcecast> & nodesList,
+                                  py::array_t<float, py::array::c_style | py::array::forcecast> & nodesCoordsX,
+                                  py::array_t<float, py::array::c_style | py::array::forcecast> & nodesCoordsY,
+                                  py::array_t<float, py::array::c_style | py::array::forcecast> & nodesCoordsZ,
+                                  py::array_t<int,   py::array::c_style | py::array::forcecast> & interiorNodes,
+                                  py::array_t<float, py::array::c_style | py::array::forcecast> & modelOnElements);
+
+  /**
+   * @brief Allocate the finite element arrays needed for the solver.
+   * 
+   * Uses the internal Mesh structure to set up global node lists,
+   */
+  void allocateFEarrays(SEMinfo &myInfo);
+
+  /**
+   * @brief Allocate the finite element arrays needed for the solver.
+   * 
+   * Uses the internal Mesh structure to set up global node lists,
+   */
+  void allocateFEarraysWithoutMesh(SEMinfo &myInfo);
+
+  /**
+   * @brief Initialize the finite element arrays needed for the solver.
+   * 
+   * Uses the internal Mesh structure to set up global node lists,
+   */
+  void initFEarrays(SEMinfo &myInfo, Mesh mesh);
+
+  /**
+   * @brief Initialize the finite element arrays needed for the solver.
+   * 
+   * Uses external arrays instead of Mesh structure (for pyFWI).
+   */
+  void initFEarraysWithoutMesh(SEMinfo &myInfo,
+                               arrayInt &nodesList,
+                               arrayReal &nodesCoordsX,
+                               arrayReal &nodesCoordsY,
+                               arrayReal &nodesCoordsZ,
+                               vectorInt &interiorNodes,
+                               vectorReal &modelOnElements);
+
+  /**
+   * @brief pybind11 wrapper for initFEarraysWithoutMesh
+   */
+  void initFEarraysWithoutMesh_(SEMinfo &myInfo,
+                                py::array_t<int,   py::array::c_style | py::array::forcecast> & nodesList,
+                                py::array_t<float, py::array::c_style | py::array::forcecast> & nodesCoordsX,
+                                py::array_t<float, py::array::c_style | py::array::forcecast> & nodesCoordsY,
+                                py::array_t<float, py::array::c_style | py::array::forcecast> & nodesCoordsZ,
+                                py::array_t<int,   py::array::c_style | py::array::forcecast> & interiorNodes,
+                                py::array_t<float, py::array::c_style | py::array::forcecast> & modelOnElements);
 
   /**
    * @brief Compute one step of the spectral element wave equation solver.
@@ -70,10 +147,6 @@ public:
 
   void outputPnValues(Mesh mesh, const int &indexTimeStep, int &i1,
                       int &myElementSource, const arrayReal &pnGlobal);
-
-  void initFEarrays(SEMinfo &myInfo, Mesh mesh);
-
-  void allocateFEarrays(SEMinfo &myInfo);
 
   /**
    * @brief Compute coefficients for the taper layers. In this computation the

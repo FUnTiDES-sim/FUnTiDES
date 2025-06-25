@@ -4,9 +4,11 @@ target_include_directories(
   solver
   PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
          ${CMAKE_CURRENT_SOURCE_DIR}/../discretization
-         ${CMAKE_CURRENT_SOURCE_DIR}/../model)
+         ${CMAKE_CURRENT_SOURCE_DIR}/../model
+         ${pybind11_INCLUDE_DIRS}) # TODO to get it running with numpy wrappers (ugly hack)
 
-set(SOLV_LIBS discretization mesh utils)
+set(SOLV_LIBS discretization mesh utils
+                             ${pybind11_LIBRARIES} Python::Python) # TODO to get it running with numpy wrappers (ugly hack)
 
 if(USE_KOKKOS)
   list(APPEND SOLV_LIBS Kokkos::kokkos)

@@ -24,6 +24,244 @@ void SEMsolver::computeFEInit(SEMinfo &myInfo_in, Mesh mesh) {
   initFEarrays(myInfo_in, mesh);
 }
 
+void SEMsolver::computeFEInitWithoutMesh(SEMinfo &myInfo_in,
+                                         arrayInt &nodesList,
+                                         arrayReal &nodesCoordsX,
+                                         arrayReal &nodesCoordsY,
+                                         arrayReal &nodesCoordsZ,
+                                         vectorInt &interiorNodes,
+                                         vectorReal &modelOnElements) {
+  myInfo = &myInfo_in;
+  order = myInfo_in.myOrderNumber;
+  allocateFEarraysWithoutMesh(myInfo_in);
+  initFEarraysWithoutMesh(myInfo_in, nodesList, nodesCoordsX, nodesCoordsY, nodesCoordsZ, interiorNodes, modelOnElements);
+}
+
+// TODO for pyFWI we should change layour to allow Fortran ordering (so far we transpose the arrays in Python before passing them)
+void SEMsolver::computeFEInitWithoutMesh_(SEMinfo &myInfo,
+                                          py::array_t<int,   py::array::c_style | py::array::forcecast> & nodesList,
+                                          py::array_t<float, py::array::c_style | py::array::forcecast> & nodesCoordsX,
+                                          py::array_t<float, py::array::c_style | py::array::forcecast> & nodesCoordsY,
+                                          py::array_t<float, py::array::c_style | py::array::forcecast> & nodesCoordsZ,
+                                          py::array_t<int,   py::array::c_style | py::array::forcecast> & interiorNodes,
+                                          py::array_t<float, py::array::c_style | py::array::forcecast> & modelOnElements) {
+   // Convert numpy arrays to raw pointers and wrap in Kokkos::View
+   py::buffer_info buf_nodesList = nodesList.request();
+   int (*nodesList_ptr) = static_cast<int*>(buf_nodesList.ptr);
+   auto kokkos_nodesList = arrayInt(nodesList_ptr, buf_nodesList.size);
+   py::buffer_info buf_nodesCoordsX = nodesCoordsX.request();
+   float (*nodesCoordsX_ptr) = static_cast<float *>(buf_nodesCoordsX.ptr);
+   auto kokkos_nodesCoordsX = arrayReal(nodesCoordsX_ptr, buf_nodesCoordsX.size);
+   py::buffer_info buf_nodesCoordsY = nodesCoordsY.request();
+   float (*nodesCoordsY_ptr) = static_cast<float *>(buf_nodesCoordsY.ptr);
+   auto kokkos_nodesCoordsY = arrayReal(nodesCoordsY_ptr, buf_nodesCoordsY.size);
+   py::buffer_info buf_nodesCoordsZ = nodesCoordsZ.request();
+   float (*nodesCoordsZ_ptr) = static_cast<float *>(buf_nodesCoordsZ.ptr);
+   auto kokkos_nodesCoordsZ = arrayReal(nodesCoordsZ_ptr, buf_nodesCoordsZ.size);
+   py::buffer_info buf_interiorNodes = interiorNodes.request();
+   int (*interiorNodes_ptr) = static_cast<int *>(buf_interiorNodes.ptr);
+   auto kokkos_interiorNodes = vectorInt(interiorNodes_ptr, buf_interiorNodes.size);
+   py::buffer_info buf_modelOnElements = modelOnElements.request();
+   float (*modelOnElements_ptr) = static_cast<float *>(buf_modelOnElements.ptr);
+   auto kokkos_modelOnElements = vectorReal(modelOnElements_ptr, buf_modelOnElements.size);
+
+   computeFEInitWithoutMesh(myInfo,
+                            kokkos_nodesList,
+                            kokkos_nodesCoordsX,
+                            kokkos_nodesCoordsY,
+                            kokkos_nodesCoordsZ,
+                            kokkos_interiorNodes,
+                            kokkos_modelOnElements);
+}
+
+void SEMsolver::allocateFEarrays(SEMinfo &myInfo) {
+  int nbQuadraturePoints = (order + 1) * (order + 1) * (order + 1);
+  // interior elements
+  cout << "Allocate host memory for arrays in the solver ..." << endl;
+  globalNodesList = allocateArray2D<arrayInt>(myInfo.numberOfElements,
+                                              myInfo.numberOfPointsPerElement,
+                                              "globalNodesList");
+  listOfInteriorNodes = allocateVector<vectorInt>(myInfo.numberOfInteriorNodes,
+                                                  "listOfInteriorNodes");
+  listOfDampingNodes = allocateVector<vectorInt>(myInfo.numberOfDampingNodes,
+                                                 "listOfDampingNodes");
+  cout << "### Allocating " << myInfo.numberOfSpongeNodes << " sponge nodes"
+       << endl;
+
+  // global coordinates
+  globalNodesCoordsX = allocateArray2D<arrayReal>(
+      myInfo.numberOfElements, nbQuadraturePoints, "globalNodesCoordsX");
+  globalNodesCoordsY = allocateArray2D<arrayReal>(
+      myInfo.numberOfElements, nbQuadraturePoints, "globalNodesCoordsY");
+  globalNodesCoordsZ = allocateArray2D<arrayReal>(
+      myInfo.numberOfElements, nbQuadraturePoints, "globalNodesCoordsZ");
+
+  model = allocateVector<vectorReal>(myInfo.numberOfElements, "model");
+
+  quadraturePoints =
+      allocateVector<vectorDouble>(order + 1, "quadraturePoints");
+
+  weights = allocateVector<vectorDouble>(order + 1, "weights");
+
+  derivativeBasisFunction1D = allocateArray2D<arrayDouble>(
+      order + 1, order + 1, "derivativeBasisFunction1D");
+
+  // shared arrays
+  massMatrixGlobal =
+      allocateVector<vectorReal>(myInfo.numberOfNodes, "massMatrixGlobal");
+  yGlobal = allocateVector<vectorReal>(myInfo.numberOfNodes, "yGlobal");
+
+  // sponge allocation
+  spongeTaperCoeff =
+      allocateVector<vectorReal>(myInfo.numberOfNodes, "spongeTaperCoeff");
+}
+
+void SEMsolver::allocateFEarraysWithoutMesh(SEMinfo &myInfo) {
+  quadraturePoints =
+      allocateVector<vectorDouble>(order + 1, "quadraturePoints");
+
+  weights = allocateVector<vectorDouble>(order + 1, "weights");
+
+  derivativeBasisFunction1D = allocateArray2D<arrayDouble>(
+      order + 1, order + 1, "derivativeBasisFunction1D");
+
+  // shared arrays
+  massMatrixGlobal =
+      allocateVector<vectorReal>(myInfo.numberOfNodes, "massMatrixGlobal");
+  yGlobal = allocateVector<vectorReal>(myInfo.numberOfNodes, "yGlobal");
+
+  // sponge allocation
+  spongeTaperCoeff =
+      allocateVector<vectorReal>(myInfo.numberOfNodes, "spongeTaperCoeff");
+}
+
+void SEMsolver::initFEarrays(SEMinfo &myInfo, Mesh mesh) {
+  // interior elements
+  mesh.globalNodesList(myInfo.numberOfElements, globalNodesList);
+  mesh.getListOfInteriorNodes(myInfo.numberOfInteriorNodes,
+                              listOfInteriorNodes);
+  // mesh coordinates
+  mesh.nodesCoordinates(globalNodesCoordsX, globalNodesCoordsZ,
+                        globalNodesCoordsY);
+
+  // get model
+  mesh.getModel(myInfo.numberOfElements, model);
+
+  // get minimal wavespeed
+  double min;
+  auto model_ = this->model; // Avoid implicit capture
+#ifdef USE_KOKKOS
+  Kokkos::parallel_reduce(
+      "vMinFind", myInfo.numberOfElements,
+      KOKKOS_LAMBDA(const int &e, double &lmin) {
+        double val = model_[e];
+        if (val < lmin)
+          lmin = val;
+      },
+      Kokkos::Min<double>(min));
+  vMin = min;
+#else
+  vMin = 1500;
+#endif // USE_KOKKOS
+
+  // get quadrature points
+#ifdef USE_SEMCLASSIC
+  myQkBasis.gaussLobattoQuadraturePoints(order, quadraturePoints);
+  // get gauss-lobatto weights
+  myQkBasis.gaussLobattoQuadratureWeights(order, weights);
+  // get basis function and corresponding derivatives
+  myQkBasis.getDerivativeBasisFunction1D(order, quadraturePoints,
+                                         derivativeBasisFunction1D);
+#endif // USE_SEMCLASSIC
+
+  // Sponge boundaries
+  initSpongeValues(mesh, myInfo);
+  FENCE
+}
+
+void SEMsolver::initFEarraysWithoutMesh(SEMinfo &myInfo,
+                                        arrayInt &nodesList,
+                                        arrayReal &nodesCoordsX,
+                                        arrayReal &nodesCoordsY,
+                                        arrayReal &nodesCoordsZ,
+                                        vectorInt &interiorNodes,
+                                        vectorReal &modelOnElements) {
+
+  globalNodesList     = nodesList;
+  globalNodesCoordsX  = nodesCoordsX;
+  globalNodesCoordsY  = nodesCoordsY;
+  globalNodesCoordsZ  = nodesCoordsZ;
+  listOfInteriorNodes = interiorNodes;
+  model               = modelOnElements;
+
+  // get minimal wavespeed
+  double min;
+  auto model_ = this->model; // Avoid implicit capture
+#ifdef USE_KOKKOS
+  Kokkos::parallel_reduce(
+        "vMinFind", myInfo.numberOfElements,
+        KOKKOS_LAMBDA(const int &e, double &lmin) {
+        double val = model_[e];
+        if (val < lmin)
+           lmin = val;
+        },
+        Kokkos::Min<double>(min));
+  vMin = min;
+#else
+  vMin = 1500;
+#endif // USE_KOKKOS
+
+  // get quadrature points
+#ifdef USE_SEMCLASSIC
+  myQkBasis.gaussLobattoQuadraturePoints(order, quadraturePoints);
+  // get gauss-lobatto weights
+  myQkBasis.gaussLobattoQuadratureWeights(order, weights);
+  // get basis function and corresponding derivatives
+  myQkBasis.getDerivativeBasisFunction1D(order, quadraturePoints,
+                                         derivativeBasisFunction1D);
+#endif // USE_SEMCLASSIC
+
+  // Sponge boundaries
+  //initSpongeValues(mesh, myInfo); TODO not yet available from mesher
+  FENCE
+}
+
+void SEMsolver::initFEarraysWithoutMesh_(SEMinfo &myInfo,
+                                         py::array_t<int,   py::array::c_style | py::array::forcecast> & nodesList,
+                                         py::array_t<float, py::array::c_style | py::array::forcecast> & nodesCoordsX,
+                                         py::array_t<float, py::array::c_style | py::array::forcecast> & nodesCoordsY,
+                                         py::array_t<float, py::array::c_style | py::array::forcecast> & nodesCoordsZ,
+                                         py::array_t<int,   py::array::c_style | py::array::forcecast> & interiorNodes,
+                                         py::array_t<float, py::array::c_style | py::array::forcecast> & modelOnElements) {
+   // Convert numpy arrays to raw pointers and wrap in Kokkos::View
+   py::buffer_info buf_nodesList = nodesList.request();
+   int (*nodesList_ptr) = static_cast<int*>(buf_nodesList.ptr);
+   auto kokkos_nodesList = arrayInt(nodesList_ptr, buf_nodesList.size);
+   py::buffer_info buf_nodesCoordsX = nodesCoordsX.request();
+   float (*nodesCoordsX_ptr) = static_cast<float *>(buf_nodesCoordsX.ptr);
+   auto kokkos_nodesCoordsX = arrayReal(nodesCoordsX_ptr, buf_nodesCoordsX.size);
+   py::buffer_info buf_nodesCoordsY = nodesCoordsY.request();
+   float (*nodesCoordsY_ptr) = static_cast<float *>(buf_nodesCoordsY.ptr);
+   auto kokkos_nodesCoordsY = arrayReal(nodesCoordsY_ptr, buf_nodesCoordsY.size);
+   py::buffer_info buf_nodesCoordsZ = nodesCoordsZ.request();
+   float (*nodesCoordsZ_ptr) = static_cast<float *>(buf_nodesCoordsZ.ptr);
+   auto kokkos_nodesCoordsZ = arrayReal(nodesCoordsZ_ptr, buf_nodesCoordsZ.size);
+   py::buffer_info buf_interiorNodes = interiorNodes.request();
+   int (*interiorNodes_ptr) = static_cast<int *>(buf_interiorNodes.ptr);
+   auto kokkos_interiorNodes = vectorInt(interiorNodes_ptr, buf_interiorNodes.size);
+   py::buffer_info buf_modelOnElements = modelOnElements.request();
+   float (*modelOnElements_ptr) = static_cast<float *>(buf_modelOnElements.ptr);
+   auto kokkos_modelOnElements = vectorReal(modelOnElements_ptr, buf_modelOnElements.size);
+
+   initFEarraysWithoutMesh(myInfo,
+                           kokkos_nodesList,
+                           kokkos_nodesCoordsX,
+                           kokkos_nodesCoordsY,
+                           kokkos_nodesCoordsZ,
+                           kokkos_interiorNodes,
+                           kokkos_modelOnElements);
+   }
+
 void SEMsolver::computeOneStep(const int &timeSample, const int &order,
                                const int &nPointsPerElement, const int &i1,
                                const int &i2, SEMinfo &myInfo,
@@ -146,92 +384,6 @@ void SEMsolver::outputPnValues(Mesh mesh, const int &indexTimeStep, int &i1,
     mesh.saveSnapShot(indexTimeStep, i1, pnGlobal);
 #endif // SEM_SAVE_SNAPSHOTS
   }
-}
-
-void SEMsolver::initFEarrays(SEMinfo &myInfo, Mesh mesh) {
-  // interior elements
-  mesh.globalNodesList(myInfo.numberOfElements, globalNodesList);
-  mesh.getListOfInteriorNodes(myInfo.numberOfInteriorNodes,
-                              listOfInteriorNodes);
-  // mesh coordinates
-  mesh.nodesCoordinates(globalNodesCoordsX, globalNodesCoordsZ,
-                        globalNodesCoordsY);
-
-  // get model
-  mesh.getModel(myInfo.numberOfElements, model);
-
-  // get minimal wavespeed
-  double min;
-  auto model_ = this->model; // Avoid implicit capture
-#ifdef USE_KOKKOS
-  Kokkos::parallel_reduce(
-      "vMinFind", myInfo.numberOfElements,
-      KOKKOS_LAMBDA(const int &e, double &lmin) {
-        double val = model_[e];
-        if (val < lmin)
-          lmin = val;
-      },
-      Kokkos::Min<double>(min));
-  vMin = min;
-#else
-  vMin = 1500;
-#endif // USE_KOKKOS
-
-  // get quadrature points
-#ifdef USE_SEMCLASSIC
-  myQkBasis.gaussLobattoQuadraturePoints(order, quadraturePoints);
-  // get gauss-lobatto weights
-  myQkBasis.gaussLobattoQuadratureWeights(order, weights);
-  // get basis function and corresponding derivatives
-  myQkBasis.getDerivativeBasisFunction1D(order, quadraturePoints,
-                                         derivativeBasisFunction1D);
-#endif // USE_SEMCLASSIC
-
-  // Sponge boundaries
-  initSpongeValues(mesh, myInfo);
-  FENCE
-}
-
-void SEMsolver::allocateFEarrays(SEMinfo &myInfo) {
-  int nbQuadraturePoints = (order + 1) * (order + 1) * (order + 1);
-  // interior elements
-  cout << "Allocate host memory for arrays in the solver ..." << endl;
-  globalNodesList = allocateArray2D<arrayInt>(myInfo.numberOfElements,
-                                              myInfo.numberOfPointsPerElement,
-                                              "globalNodesList");
-  listOfInteriorNodes = allocateVector<vectorInt>(myInfo.numberOfInteriorNodes,
-                                                  "listOfInteriorNodes");
-  listOfDampingNodes = allocateVector<vectorInt>(myInfo.numberOfDampingNodes,
-                                                 "listOfDampingNodes");
-  cout << "### Allocating " << myInfo.numberOfSpongeNodes << " sponge nodes"
-       << endl;
-
-  // global coordinates
-  globalNodesCoordsX = allocateArray2D<arrayReal>(
-      myInfo.numberOfElements, nbQuadraturePoints, "globalNodesCoordsX");
-  globalNodesCoordsY = allocateArray2D<arrayReal>(
-      myInfo.numberOfElements, nbQuadraturePoints, "globalNodesCoordsY");
-  globalNodesCoordsZ = allocateArray2D<arrayReal>(
-      myInfo.numberOfElements, nbQuadraturePoints, "globalNodesCoordsZ");
-
-  model = allocateVector<vectorReal>(myInfo.numberOfElements, "model");
-
-  quadraturePoints =
-      allocateVector<vectorDouble>(order + 1, "quadraturePoints");
-
-  weights = allocateVector<vectorDouble>(order + 1, "weights");
-
-  derivativeBasisFunction1D = allocateArray2D<arrayDouble>(
-      order + 1, order + 1, "derivativeBasisFunction1D");
-
-  // shared arrays
-  massMatrixGlobal =
-      allocateVector<vectorReal>(myInfo.numberOfNodes, "massMatrixGlobal");
-  yGlobal = allocateVector<vectorReal>(myInfo.numberOfNodes, "yGlobal");
-
-  // sponge allocation
-  spongeTaperCoeff =
-      allocateVector<vectorReal>(myInfo.numberOfNodes, "spongeTaperCoeff");
 }
 
 void SEMsolver::initSpongeValues(Mesh &mesh, SEMinfo &myInfo) {
