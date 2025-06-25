@@ -113,6 +113,11 @@ void SEMsolver::allocateFEarraysWithoutMesh(SEMinfo &myInfo) {
   // sponge allocation
   spongeTaperCoeff =
       allocateVector<vectorReal>(myInfo.numberOfNodes, "spongeTaperCoeff");
+
+  // TODO quick and dirty fix to avoid uninitialized values in spongeTaperCoeff
+  LOOPHEAD(myInfo.numberOfNodes, i)
+  spongeTaperCoeff(i) = 1;
+  LOOPEND
 }
 
 void SEMsolver::initFEarrays(SEMinfo &myInfo, Mesh mesh) {
