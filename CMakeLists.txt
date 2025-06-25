@@ -34,11 +34,9 @@ option (ENABLE_PYWRAP "Enable python binding compilation with pybind11" OFF)
 
 # Chose integral version
 option (USE_SEMCLASSIC "Use CLASSIC " OFF)
-option (USE_SEMOPTIM "Use OPTIM " ON)
+option (USE_SEMOPTIM "Use OPTIM " OFF)
+option (USE_SEMGEOS "Use GEOS " OFF)
 option (USE_SHIVA "Use SHIVA " OFF)
-option (USE_SEMGEOS "Use Geos Implentation" OFF)
-
-option (USE_DOUBLE "Use discretization libs with double precision instead of single precision." OFF)
 
 # Chose data model
 option (USE_SIMPLE_MESH "Use Simple mesh" ON)
@@ -90,6 +88,8 @@ set(CMAKE_CXX_FLAGS_RELWITHDEBINFO "-g ${CMAKE_CXX_FLAGS_RELEASE}" CACHE STRING 
 set(CMAKE_CXX_FLAGS_DEBUG "-O0 -g" CACHE STRING "")
 set(CMAKE_CXX_STANDARD 17 CACHE STRING "")
 set(CMAKE_CXX_EXTENSIONS OFF CACHE BOOL "Disable gnu++ extensions" FORCE)
+set(CMAKE_CUDA_HOST_COMPILER ${CMAKE_CXX_COMPILER} CACHE STRING "" FORCE)
+set(CMAKE_CUDA_ARCHITECTURES native CACHE STRING "Auto-detect CUDA arch" FORCE)
 
 project( proxyapp )
 
@@ -117,6 +117,8 @@ if (ENABLE_PYWRAP)
   set(CMAKE_INTERPROCEDURAL_OPTIMIZATION FALSE CACHE BOOL "Disable global LTO" FORCE)
   set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 endif()
+# This must go *before* add_subdirectory(kokkos)
+
 
 ################################
 # KOKKOS
@@ -129,13 +131,8 @@ else ()
   set(USE_VECTOR OFF CACHE BOOL "" FORCE)
 
   # link against pykokkos-base instead of kokkos
-  if (ENABLE_PYWRAP)
-    set(Kokkos_SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/external/kokkos)
-    set(Kokkos_BINARY_DIR ${CMAKE_BINARY_DIR}/external/kokkos/)
-  else ()
-    set(Kokkos_SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/external/kokkos)
-    set(Kokkos_BINARY_DIR ${CMAKE_BINARY_DIR}/external/kokkos/)
-  endif() # Enable pywrap
+  set(Kokkos_SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/external/kokkos)
+  set(Kokkos_BINARY_DIR ${CMAKE_BINARY_DIR}/external/kokkos/)
 
   set(Kokkos_ENABLE_SERIAL ON CACHE BOOL "" FORCE)
   set(Kokkos_ENABLE_OPENMP ON CACHE BOOL "" FORCE)
@@ -145,14 +142,15 @@ else ()
     set(Kokkos_ENABLE_CUDA_CONSTEXPR ON CACHE BOOL "" FORCE)
     set(Kokkos_ENABLE_CUDA_UVM ON CACHE BOOL "" FORCE)
     set(Kokkos_ENABLE_CUDA_LAMBDA ON CACHE BOOL "" FORCE)
+    if(CMAKE_BUILD_TYPE STREQUAL "Debug" OR CMAKE_BUILD_TYPE STREQUAL "RelWithDebInfo")
+      set(Kokkos_ENABLE_DEBUG ON CACHE BOOL "" FORCE)
+    endif()
     message (STATUS "-- Activating CUDA with Kokkos.")
   endif()
   add_subdirectory(${Kokkos_SOURCE_DIR})
   message (STATUS "-- Kokkos Activated. Source are at ${Kokkos_SOURCE_DIR}.")
   if(ENABLE_PYWRAP)
-    if (NOT ENABLE_CUDA)
-      set(ENABLE_MEMORY_TRAITS OFF)
-    endif ()
+    set(ENABLE_MEMORY_TRAITS OFF)
     set(Kokkos_ENABLE_PYTHON ON)
     set(Kokkos_ENABLE_DEBUG ON)
     set(BUILD_SHARE_LIBS ON CACHE BOOL "" FORCE)
@@ -180,16 +178,16 @@ endif()
 ## -- the default is using Shiva library
 ## -- if USE_SHIVA=OFF it will use the SEM as in GEOS
 #-------------------------------------------------------------------
-if( USE_SHIVA )
-  configure_file( ${CMAKE_CURRENT_SOURCE_DIR}/src/Shiva/src/ShivaConfig.hpp.in
-                  ${CMAKE_BINARY_DIR}/src/ShivaConfig.hpp )
-  configure_file( ${CMAKE_CURRENT_SOURCE_DIR}/src/Shiva/tpl/camp/include/camp/config.in.hpp
-                  ${PROJECT_BINARY_DIR}/src/camp/config.hpp)
-  message(STATUS "USE SHIVA as a submodule")
-  include_directories(${CMAKE_CURRENT_SOURCE_DIR}/src/Shiva/tpl/camp/include/
-                      ${PROJECT_BINARY_DIR}/src/
-                      ${PROJECT_BINARY_DIR}/src/camp/)
-endif()
+# if( USE_SHIVA )
+#   configure_file( ${CMAKE_CURRENT_SOURCE_DIR}/src/discretization/Shiva/src/ShivaConfig.hpp.in
+#                   ${CMAKE_BINARY_DIR}/src/ShivaConfig.hpp )
+#   configure_file( ${CMAKE_CURRENT_SOURCE_DIR}/src/discretization/Shiva/tpl/camp/include/camp/config.in.hpp
+#                   ${PROJECT_BINARY_DIR}/src/camp/config.hpp)
+#   message(STATUS "USE SHIVA as a submodule")
+#   include_directories(${CMAKE_CURRENT_SOURCE_DIR}/src/discretization/Shiva/tpl/camp/include/
+#                       ${PROJECT_BINARY_DIR}/src/
+#                       ${PROJECT_BINARY_DIR}/src/camp/)
+# endif()
 ###############################
 
 

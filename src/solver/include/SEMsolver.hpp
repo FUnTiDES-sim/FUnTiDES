@@ -188,7 +188,7 @@ private:
   SEMinfo *myInfo;
   Mesh myMesh;
   // SEMQkGL myQk;
-  SEMQkGLBasisFunctions myQkBasis;
+  // SEMQkGLBasisFunctions myQkBasis;
   SEMQkGLIntegrals myQkIntegrals;
 
   // shared arrays

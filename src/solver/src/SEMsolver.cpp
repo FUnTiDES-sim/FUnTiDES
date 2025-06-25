@@ -31,14 +31,11 @@ void SEMsolver::computeOneStep(const int &timeSample, const int &order,
                                const arrayReal &pnGlobal,
                                const vectorInt &rhsElement) {
   resetGlobalVectors(myInfo.numberOfNodes);
-  FENCE
   applyRHSTerm(timeSample, i2, rhsTerm, rhsElement, myInfo, pnGlobal);
   FENCE
   computeElementContributions(order, nPointsPerElement, myInfo, i2, pnGlobal);
   FENCE
   updatePressureField(i1, i2, myInfo, pnGlobal);
-  FENCE
-  spongeUpdate(pnGlobal, i1, i2);
   FENCE
 }
 
@@ -68,12 +65,11 @@ void SEMsolver::resetGlobalVectors(int numNodes) {
 
 void SEMsolver::applyRHSTerm(int timeSample, int i2, const arrayReal &rhsTerm,
                              const vectorInt &rhsElement, SEMinfo &myInfo,
-                             const arrayReal &pnGlobal) {
+                             arrayReal &pnGlobal) {
+  float const dt2 = myInfo.myTimeStep * myInfo.myTimeStep;
   LOOPHEAD(myInfo.myNumberOfRHS, i)
   int nodeRHS = globalNodesList(rhsElement[i], 0);
-  // int nodeRHS = 0;
-  float scale = myInfo.myTimeStep * myInfo.myTimeStep * model[rhsElement[i]] *
-                model[rhsElement[i]];
+  float scale = dt2 * model[rhsElement[i]] * model[rhsElement[i]];
   pnGlobal(nodeRHS, i2) += scale * rhsTerm(i, timeSample);
   LOOPEND
 }
@@ -87,12 +83,12 @@ void SEMsolver::computeElementContributions(int order, int nPointsPerElement,
   if (elementNumber >= myInfo.numberOfElements)
     return;
 
-  float massMatrixLocal[ROW] = {0};
-  float pnLocal[ROW] = {0};
-  float Y[ROW] = {0};
+  float massMatrixLocal[SEMinfo::nPointsPerElement];
+  float pnLocal[SEMinfo::nPointsPerElement];
+  float Y[SEMinfo::nPointsPerElement] = {0};
 
   for (int i = 0; i < nPointsPerElement; ++i) {
-    int globalIdx = globalNodesList(elementNumber, i);
+    int const globalIdx = globalNodesList(elementNumber, i);
     pnLocal[i] = pnGlobal(globalIdx, i2);
   }
 
@@ -101,22 +97,17 @@ void SEMsolver::computeElementContributions(int order, int nPointsPerElement,
       elementNumber, order, nPointsPerElement, globalNodesCoordsX,
       globalNodesCoordsY, globalNodesCoordsZ, weights,
       derivativeBasisFunction1D, massMatrixLocal, pnLocal, Y);
-#elif defined(USE_SEMOPTIM) || defined(USE_SHIVA)
-  constexpr int ORDER = SEMinfo::myOrderNumber;
-  myQkIntegrals.computeMassMatrixAndStiffnessVector<ORDER>(
-      elementNumber, nPointsPerElement, globalNodesCoordsX, globalNodesCoordsY,
-      globalNodesCoordsZ, massMatrixLocal, pnLocal, Y);
-#elif defined(USE_SEMGEOS)
+#else
   myQkIntegrals.computeMassMatrixAndStiffnessVector(
       elementNumber, nPointsPerElement, globalNodesCoordsX, globalNodesCoordsY,
       globalNodesCoordsZ, massMatrixLocal, pnLocal, Y);
 #endif
 
-  for (int i = 0; i < nPointsPerElement; ++i) {
-    int gIndex = globalNodesList(elementNumber, i);
-    float scale = model[elementNumber] * model[elementNumber];
-    float massValue = massMatrixLocal[i] / scale;
-    ATOMICADD(massMatrixGlobal[gIndex], massValue);
+  auto const inv_model2 = 1.0f / (model[elementNumber] * model[elementNumber]);
+  for (int i = 0; i < SEMinfo::nPointsPerElement; ++i) {
+    int const gIndex = globalNodesList(elementNumber, i);
+    massMatrixLocal[i] *= inv_model2;
+    ATOMICADD(massMatrixGlobal[gIndex], massMatrixLocal[i]);
     ATOMICADD(yGlobal[gIndex], Y[i]);
   }
 
@@ -124,12 +115,14 @@ void SEMsolver::computeElementContributions(int order, int nPointsPerElement,
 }
 
 void SEMsolver::updatePressureField(int i1, int i2, SEMinfo &myInfo,
-                                    const arrayReal &pnGlobal) {
-  LOOPHEAD(myInfo.numberOfInteriorNodes, i)
-  int I = listOfInteriorNodes[i];
-  pnGlobal(I, i1) =
-      2 * pnGlobal(I, i2) - pnGlobal(I, i1) -
-      myInfo.myTimeStep * myInfo.myTimeStep * yGlobal[I] / massMatrixGlobal[I];
+                                    arrayReal &pnGlobal) {
+
+  float const dt2 = myInfo.myTimeStep * myInfo.myTimeStep;
+  LOOPHEAD(myInfo.numberOfNodes, I)
+  pnGlobal(I, i1) = 2 * pnGlobal(I, i2) - pnGlobal(I, i1) -
+                    dt2 * yGlobal[I] / massMatrixGlobal[I];
+  pnGlobal(I, i1) *= spongeTaperCoeff(I);
+  pnGlobal(I, i2) *= spongeTaperCoeff(I);
   LOOPEND
 }
 
@@ -216,6 +209,7 @@ void SEMsolver::allocateFEarrays(SEMinfo &myInfo) {
 
   model = allocateVector<vectorReal>(myInfo.numberOfElements, "model");
 
+#ifdef USE_SEMCLASSIC
   quadraturePoints =
       allocateVector<vectorDouble>(order + 1, "quadraturePoints");
 
@@ -223,6 +217,7 @@ void SEMsolver::allocateFEarrays(SEMinfo &myInfo) {
 
   derivativeBasisFunction1D = allocateArray2D<arrayDouble>(
       order + 1, order + 1, "derivativeBasisFunction1D");
+#endif // USE_SEMCLASSIC
 
   // shared arrays
   massMatrixGlobal =

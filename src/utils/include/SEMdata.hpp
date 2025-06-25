@@ -1,6 +1,14 @@
 #ifndef SEMINFO_HPP_
 #define SEMINFO_HPP_
 
+#include "SEMmacros.hpp"
+
+#include <cmath>
+
+constexpr inline int intPow(int base, unsigned int exp) {
+  return (exp == 0) ? 1 : base * intPow(base, exp - 1);
+}
+
 struct SEMinfo {
   // get infos from mesh
   int numberOfNodes;
@@ -13,7 +21,8 @@ struct SEMinfo {
   const int myNumberOfRHS = 1;
   static constexpr int myOrderNumber = 2;
   const float myTimeStep = 0.001;
-  const int nPointsPerElement = pow((myOrderNumber + 1), DIMENSION);
+  static constexpr int nPointsPerElement =
+      intPow((myOrderNumber + 1), DIMENSION);
 
   const float f0 = 10.;
   const float myTimeMax = 1.5;
