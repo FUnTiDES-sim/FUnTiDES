@@ -65,7 +65,7 @@ void SEMsolver::resetGlobalVectors(int numNodes) {
 
 void SEMsolver::applyRHSTerm(int timeSample, int i2, const arrayReal &rhsTerm,
                              const vectorInt &rhsElement, SEMinfo &myInfo,
-                             arrayReal &pnGlobal) {
+                             const arrayReal &pnGlobal) {
   float const dt2 = myInfo.myTimeStep * myInfo.myTimeStep;
   LOOPHEAD(myInfo.myNumberOfRHS, i)
   int nodeRHS = globalNodesList(rhsElement[i], 0);
@@ -115,7 +115,7 @@ void SEMsolver::computeElementContributions(int order, int nPointsPerElement,
 }
 
 void SEMsolver::updatePressureField(int i1, int i2, SEMinfo &myInfo,
-                                    arrayReal &pnGlobal) {
+                                    const arrayReal &pnGlobal) {
 
   float const dt2 = myInfo.myTimeStep * myInfo.myTimeStep;
   LOOPHEAD(myInfo.numberOfNodes, I)
