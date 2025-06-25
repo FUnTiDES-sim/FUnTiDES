@@ -21,21 +21,8 @@ void SEMsolver::computeFEInit(SEMinfo &myInfo_in, Mesh mesh) {
   this->myInfo = &myInfo_in;
   myMesh = mesh;
   order = myInfo_in.myOrderNumber;
-  printf("SEMsolver::computeFEInit",
-        "Initializing arrays for the SEM solver with order %d", order);
-  // Allocate arrays for the solver
-  // This function allocates all arrays needed for the solver
-  // It allocates arrays for global nodes, global coordinates, and sponge
-  // It also allocates arrays for the mass matrix and the global pressure field
-  // Allocate arrays for the solver
-  // This function allocates all arrays needed for the solver
-  // It allocates arrays for global nodes, global coordinates, and sponge
-  // It also allocates arrays for the mass matrix and the global pressure field
   allocateFEarrays(myInfo_in);
-  // Initialize the quadrature points and weight
   initFEarrays(myInfo_in, mesh);
-  printf("SEMsolver::computeFEInit",
-        "Initialized arrays for the SEM solver with order %d", order);  
 }
 
 void SEMsolver::computeOneStep(const int &timeSample, const int &order,
@@ -46,9 +33,9 @@ void SEMsolver::computeOneStep(const int &timeSample, const int &order,
   resetGlobalVectors(myInfo.numberOfNodes);
   applyRHSTerm(timeSample, i2, rhsTerm, rhsElement, myInfo, pnGlobal);
   FENCE
-  //computeElementContributions(order, nPointsPerElement, myInfo, i2, pnGlobal);
+  computeElementContributions(order, nPointsPerElement, myInfo, i2, pnGlobal);
   FENCE
-  //updatePressureField(i1, i2, myInfo, pnGlobal);
+  updatePressureField(i1, i2, myInfo, pnGlobal);
   FENCE
   //spongeUpdate(pnGlobal, i1, i2);
   //FENCE
@@ -82,8 +69,8 @@ void SEMsolver::computeElementContributions(int order, int nPointsPerElement,
   if (elementNumber >= myInfo.numberOfElements)
     return;
 
-  float massMatrixLocal[SEMinfo::nPointsPerElement];
-  float pnLocal[SEMinfo::nPointsPerElement];
+  float massMatrixLocal[SEMinfo::nPointsPerElement] = {0};
+  float pnLocal[SEMinfo::nPointsPerElement] = {0};
   float Y[SEMinfo::nPointsPerElement] = {0};
 
   for (int i = 0; i < nPointsPerElement; ++i) 
@@ -92,7 +79,7 @@ void SEMsolver::computeElementContributions(int order, int nPointsPerElement,
     pnLocal[i] = pnGlobal(globalIdx, i2);
   }
 
-#if defined(USE_SEMCLASSIC)
+#ifdef USE_SEMCLASSIC
   myQkIntegrals.computeMassMatrixAndStiffnessVector(elementNumber, 
                                                     order,
                                                     nPointsPerElement, 
@@ -144,7 +131,7 @@ void SEMsolver::outputPnValues(Mesh mesh, const int &indexTimeStep, int &i1,
                                int &myElementSource,
                                const arrayReal &pnGlobal) {
   // writes debugging ascii file.
-  if (indexTimeStep % 50 == 0) {
+  if (indexTimeStep % 50== 0) {
     cout << "TimeStep=" << indexTimeStep
          << ";  pnGlobal @ elementSource location " << myElementSource
          << " after computeOneStep = "
@@ -228,13 +215,14 @@ void SEMsolver::allocateFEarrays(SEMinfo &myInfo) {
       myInfo.numberOfElements, nbQuadraturePoints, "globalNodesCoordsZ");
 
   model = allocateVector<vectorReal>(myInfo.numberOfElements, "model");
+
+  cout << "Allocate model ..." << endl;
   
   #ifdef USE_SEMCLASSIC
-    myQkBasis.gaussLobattoQuadraturePoints( order, quadraturePoints );
-   // get gauss-lobatto weights
-    myQkBasis.gaussLobattoQuadratureWeights( order, weights );
-    // get basis function and corresponding derivatives
-    myQkBasis.getDerivativeBasisFunction1D( order, quadraturePoints, derivativeBasisFunction1D );
+  quadraturePoints = allocateVector<vectorDouble>(nbQuadraturePoints, "quadraturePoints");
+  weights = allocateVector<vectorDouble>(nbQuadraturePoints, "weights");
+  derivativeBasisFunction1D = allocateArray2D<arrayDouble>(myInfo.numberOfNodes,
+                                                           nbQuadraturePoints, "derivativeBasisFunction1D");
   #endif // USE_SEMCLASSIC
 
   // shared arrays

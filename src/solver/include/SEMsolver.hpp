@@ -140,13 +140,10 @@ private:
   vectorReal model;
   double vMin; // min wavespeed in model
 
-  #if defined(USE_SEMCLASSIC)
+  #ifdef USE_SEMCLASSIC
     SEMQkGLBasisFunctions myQkBasis;
-   // get quadrature points and weights
     vectorDouble quadraturePoints;
     vectorDouble weights;
-  
-    // get basis function and corresponding derivatives
     arrayDouble derivativeBasisFunction1D;
   #endif
 
