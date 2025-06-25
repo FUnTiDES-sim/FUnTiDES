@@ -144,7 +144,7 @@ class Mesher:
                 f"{'vp_node':<15} {str(vp_node.shape):<20} {vp_node.min():<15.6f} {vp_node.max():<15.6f}"
             )
             print(
-                f"{'vs_node':<15} {str(vs_node.shape):<20} {vs_node.min():<15.6f} {vs_node.max():<15.6f}"
+                f"{'vs_node':<15} {str(vs_node.shape):<20} {vs_node.min():<15.6f} {vs_node.max():<15.6f}", flush=True
             )
 
     @timing
@@ -204,13 +204,13 @@ class SEM:
         # for solver
         self.order = wrap.ngllx - 1
         self.ngll = wrap.ngllx * wrap.nglly * wrap.ngllz
-        self.n_elem = wrap.max_elem - wrap.max_elem + 1
+        self.n_elem = wrap.max_elem - wrap.min_elem + 1
         self.n_node = wrap.max_node - wrap.min_node + 1
         kokkos.initialize()
 
     @timing
     def init_fe_arrays(self):
-        print("Initializing FE arrays...")
+        print("Initializing FE arrays...", flush=True)
         self.interiorNodes = np.linspace(0, self.n_node - 1, self.n_node, dtype=int)  # TODO so far only interior nodes
 
         # TODO very inneficient
@@ -224,7 +224,7 @@ class SEM:
             for k in range(self.ngllz):
                 for j in range(self.nglly):
                     for i in range(self.ngllx):
-                        dof_local = i + j * self.ngllx + k * self.ngllx * self.nglly
+                        dof_local = i + j * self.ngllx + k * self.ngllx * self.nglly # TODO is this correct ?
                         dof_global = self.elem_to_node[i, j, k, e] - self.min_node
                         self.nodesList[e, dof_local] = dof_global
                         self.nodesCoordsX[e, dof_local] = self.coord_node[0, dof_global]
@@ -241,7 +241,7 @@ class SEM:
 
     @timing
     def init_info(self):
-        print("Initializing SEMinfo...")
+        print("Initializing SEMinfo...", flush=True)
         self.myInfo = Sem.SEMinfo()
         self.myInfo.numberOfNodes = self.n_node
         self.myInfo.numberOfElements = self.n_elem
@@ -250,28 +250,28 @@ class SEM:
 
     @timing
     def init_pressure(self):
-        print("Initializing Pressure...")
+        print("Initializing Pressure...", flush=True)
         self.pnGlobal = np.zeros((self.n_node, 2), dtype=np.float32)
         self.kk_pnGlobal = ArrayReal(self.pnGlobal, (self.n_node, 2))
 
     @timing
     def init_solver(self):
-        print("Initializing Solver...")
+        print("Initializing Solver...", flush=True)
         self.solver = Solver.SEMsolver()
         self.solver.computeFEInitWithoutMesh(self.myInfo, self.kk_nodesList, self.kk_nodesCoordsX, self.kk_nodesCoordsY, self.kk_nodesCoordsZ, self.kk_interiorNodes, self.kk_model)
 
     @timing
     def inti_source(self):
-        print("Initializing Source...")
+        print("Initializing Source...", flush=True)
         self.f0 = 5
         self.timeStep = 0.001
         self.nTimeSteps = 300
         self.numberOfRHS = 1
 
         self.RHSElement = np.array([self.numberOfRHS],dtype=int)
-        self.RHSElement[0] = self.max_elem - self.min_elem + 1 # TODO just take mid element for now
+        self.RHSElement[0] = (self.max_elem - self.min_elem + 1) / 2 # TODO just take mid element for now
         self.kk_RHSElement = VectorInt(self.RHSElement, (self.numberOfRHS,))
-        print("   - RHS element number ", self.RHSElement[0])
+        print("   - RHS element number ", self.RHSElement[0], flush=True)
 
         self.RHSTerm = np.zeros((self.numberOfRHS, self.nTimeSteps), dtype=np.float32)
         for i in range(self.nTimeSteps):
@@ -296,7 +296,8 @@ class SEM:
         simulation_start = datetime.now()
         iteration_times = []
 
-        print(f"Simulation started at: {simulation_start}")
+        print("Propagating...", flush=True)
+        print(f"Simulation started at: {simulation_start}", flush=True)
 
         # propagate one step forward in time
         i1 = 0
@@ -305,9 +306,6 @@ class SEM:
 
         for timeSample in range(self.nTimeSteps):
             iter_start = time.time()
-
-            if timeSample % 100 == 0:
-                print("sum pnGlobal[:, i1]", np.sum(self.pnGlobal[:, i1]))
 
             self.solver.computeOneStep(timeSample, self.order, self.ngll, i1, i2, self.myInfo, self.kk_RHSTerm, self.kk_pnGlobal, self.kk_RHSElement)
 
@@ -326,8 +324,7 @@ class SEM:
                 print(f"Elapsed time: {elapsed_time:.2f} seconds")
                 print(f"Average iteration time: {np.mean(iteration_times):.4f} seconds")
                 print(f"Pressure={self.pnGlobal[elementSource,0]}")
-
-            print(f"Percentage of zeros in pnGlobal = {np.count_nonzero(self.pnGlobal[i1] == 0) / self.pnGlobal[i1].size * 100}")
+                print(f"Percentage of zeros in pnGlobal = {np.count_nonzero(self.pnGlobal[i1] == 0) / self.pnGlobal[i1].size * 100}", flush=True)
 
             tmp = i1
             i1 = i2
@@ -344,7 +341,7 @@ class SEM:
         print(f"Total runtime: {total_time:.2f} seconds")
         print(f"Average iteration time: {np.mean(iteration_times):.4f} seconds")
         print(f"Min iteration time: {np.min(iteration_times):.4f} seconds")
-        print(f"Max iteration time: {np.max(iteration_times):.4f} seconds")
+        print(f"Max iteration time: {np.max(iteration_times):.4f} seconds", flush=True)
 
     @timing
     def info(self):
@@ -358,7 +355,7 @@ class SEM:
         print(f"{'nodesCoordsZ':<20} {str(self.nodesCoordsZ.shape):<20} {self.nodesCoordsZ.min():<15.6f} {self.nodesCoordsZ.max():<15.6f}")
         print(f"{'RHSElement':<20} {str(self.RHSElement.shape):<20} {self.RHSElement.min():<15} {self.RHSElement.max():<15}")
         print(f"{'RHSTerm':<20} {str(self.RHSTerm.shape):<20} {self.RHSTerm.min():<15.6f} {self.RHSTerm.max():<15.6f}")
-        print(f"{'-' * 65}")
+        print(f"{'-' * 65}", flush=True)
 
     @timing
     def free(self):
@@ -371,9 +368,9 @@ class SEM:
         self.init_info()
         self.init_fe_arrays()
         self.init_pressure()
-        self.init_solver()
         self.inti_source()
         self.info()
+        self.init_solver()
         self.propagate()
 
 
