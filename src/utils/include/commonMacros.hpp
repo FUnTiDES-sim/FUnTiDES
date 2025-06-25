@@ -55,10 +55,10 @@
   #define MAINLOOPEND LOOPEND
 #endif
 
-#define ARRAY_DOUBLE_VIEW arrayDouble
+#define ARRAY_DOUBLE_VIEW arrayReal
 #define ARRAY_REAL_VIEW arrayReal
 #define ARRAY_INT_VIEW arrayInt
-#define VECTOR_DOUBLE_VIEW vectorDouble
+#define VECTOR_DOUBLE_VIEW vectorReal
 #define VECTOR_REAL_VIEW vectorReal
 #define VECTOR_INT_VIEW vectorInt
 

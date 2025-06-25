@@ -47,11 +47,11 @@ public:
    */
   void computeOneStep(const int &timeSample, const int &order,
                       const int &nPointsPerElement, const int &i1,
-                      const int &i2, SEMinfo &myInfo, const arrayReal &rhsTerm,
-                      arrayReal &pnGlobal, const vectorInt &rhsElement);
+                      const int &i2, SEMinfo &myInfo, const ARRAY_REAL_VIEW &rhsTerm,
+                      ARRAY_REAL_VIEW &pnGlobal, const VECTOR_INT_VIEW &rhsElement);
 
   void outputPnValues(Mesh mesh, const int &indexTimeStep, int &i1,
-                      int &myElementSource, const arrayReal &pnGlobal);
+                      int &myElementSource, const ARRAY_REAL_VIEW &pnGlobal);
 
   void initFEarrays(SEMinfo &myInfo, Mesh mesh);
 
@@ -69,7 +69,7 @@ public:
    */
   void initSpongeValues(Mesh &mesh, SEMinfo &myInfo);
 
-  void spongeUpdate(const arrayReal &pnGlobal, const int i1, const int i2);
+  void spongeUpdate(const ARRAY_REAL_VIEW &pnGlobal, const int i1, const int i2);
 
   /**
    * @brief Reset the global mass matrix and stiffness vector to zero.
@@ -88,9 +88,9 @@ public:
    * @param myInfo Solver and mesh configuration
    * @param pnGlobal Pressure field array to update
    */
-  void applyRHSTerm(int timeSample, int i2, const arrayReal &rhsTerm,
-                    const vectorInt &rhsElement, SEMinfo &myInfo,
-                    arrayReal &pnGlobal);
+  void applyRHSTerm(int timeSample, int i2, const ARRAY_REAL_VIEW &rhsTerm,
+                    const VECTOR_INT_VIEW &rhsElement, SEMinfo &myInfo,
+                    ARRAY_REAL_VIEW &pnGlobal);
 
   /**
    * @brief Compute local element contributions to the global mass and stiffness
@@ -104,7 +104,7 @@ public:
    */
   void computeElementContributions(int order, int nPointsPerElement,
                                    SEMinfo &myInfo, int i2,
-                                   const arrayReal &pnGlobal);
+                                   const ARRAY_REAL_VIEW &pnGlobal);
 
   /**
    * @brief Update the pressure field for interior nodes using the time
@@ -116,7 +116,7 @@ public:
    * @param pnGlobal Pressure field array (updated in-place)
    */
   void updatePressureField(int i1, int i2, SEMinfo &myInfo,
-                           arrayReal &pnGlobal);
+                           ARRAY_REAL_VIEW &pnGlobal);
 
 private:
   int order;
@@ -127,30 +127,30 @@ private:
   SEMQkGLIntegrals myQkIntegrals;
 
   // shared arrays
-  arrayInt globalNodesList;
-  arrayReal globalNodesCoordsX;
-  arrayReal globalNodesCoordsY;
-  arrayReal globalNodesCoordsZ;
-  vectorInt listOfInteriorNodes;
-  vectorInt listOfDampingNodes;
+  ARRAY_INT_VIEW globalNodesList;
+  ARRAY_REAL_VIEW globalNodesCoordsX;
+  ARRAY_REAL_VIEW globalNodesCoordsY;
+  ARRAY_REAL_VIEW globalNodesCoordsZ;
+  VECTOR_INT_VIEW listOfInteriorNodes;
+  VECTOR_INT_VIEW listOfDampingNodes;
   // sponge boundaries data
-  vectorReal spongeTaperCoeff;
+  VECTOR_REAL_VIEW spongeTaperCoeff;
 
   // get model
-  vectorReal model;
+  VECTOR_REAL_VIEW model;
   double vMin; // min wavespeed in model
 
   #ifdef USE_SEMCLASSIC
     SEMQkGLBasisFunctions myQkBasis;
-    vectorDouble quadraturePoints;
-    vectorDouble weights;
-    arrayDouble derivativeBasisFunction1D;
+    VECTOR_REAL_VIEW quadraturePoints;
+    VECTOR_REAL_VIEW weights;
+    ARRAY_REAL_VIEW derivativeBasisFunction1D;
   #endif
 
   // shared arrays
-  vectorReal massMatrixGlobal;
-  vectorReal yGlobal;
-  vectorReal dampingValues;
-  vectorReal dampingDistanceValues;
+  VECTOR_REAL_VIEW massMatrixGlobal;
+  VECTOR_REAL_VIEW yGlobal;
+  VECTOR_REAL_VIEW dampingValues;
+  VECTOR_REAL_VIEW dampingDistanceValues;
 };
 #endif // SEM_SOLVER_HPP_

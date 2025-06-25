@@ -28,8 +28,8 @@ void SEMsolver::computeFEInit(SEMinfo &myInfo_in, Mesh mesh) {
 void SEMsolver::computeOneStep(const int &timeSample, const int &order,
                                const int &nPointsPerElement, const int &i1,
                                const int &i2, SEMinfo &myInfo,
-                               const arrayReal &rhsTerm, arrayReal &pnGlobal,
-                               const vectorInt &rhsElement) {
+                               const ARRAY_REAL_VIEW &rhsTerm, ARRAY_REAL_VIEW &pnGlobal,
+                               const VECTOR_INT_VIEW &rhsElement) {
   resetGlobalVectors(myInfo.numberOfNodes);
   applyRHSTerm(timeSample, i2, rhsTerm, rhsElement, myInfo, pnGlobal);
   FENCE
@@ -46,9 +46,9 @@ void SEMsolver::resetGlobalVectors(int numNodes) {
   LOOPEND
 }
 
-void SEMsolver::applyRHSTerm(int timeSample, int i2, const arrayReal &rhsTerm,
-                             const vectorInt &rhsElement, SEMinfo &myInfo,
-                             arrayReal &pnGlobal) 
+void SEMsolver::applyRHSTerm(int timeSample, int i2, const ARRAY_REAL_VIEW &rhsTerm,
+                             const VECTOR_INT_VIEW &rhsElement, SEMinfo &myInfo,
+                             ARRAY_REAL_VIEW &pnGlobal) 
 {
   float const dt2 = myInfo.myTimeStep * myInfo.myTimeStep;
   LOOPHEAD(myInfo.myNumberOfRHS, i)
@@ -60,7 +60,7 @@ void SEMsolver::applyRHSTerm(int timeSample, int i2, const arrayReal &rhsTerm,
 
 void SEMsolver::computeElementContributions(int order, int nPointsPerElement,
                                             SEMinfo &myInfo, int i2,
-                                            const arrayReal &pnGlobal) {
+                                            const ARRAY_REAL_VIEW &pnGlobal) {
   MAINLOOPHEAD(myInfo.numberOfElements, elementNumber)
 
   // Guard for extra threads (Kokkos might launch more than needed)
@@ -113,7 +113,7 @@ void SEMsolver::computeElementContributions(int order, int nPointsPerElement,
 }
 
 void SEMsolver::updatePressureField(int i1, int i2, SEMinfo &myInfo,
-                                    arrayReal &pnGlobal) 
+                                    ARRAY_REAL_VIEW &pnGlobal) 
 {
 
   float const dt2 = myInfo.myTimeStep * myInfo.myTimeStep;
@@ -126,7 +126,7 @@ void SEMsolver::updatePressureField(int i1, int i2, SEMinfo &myInfo,
 
 void SEMsolver::outputPnValues(Mesh mesh, const int &indexTimeStep, int &i1,
                                int &myElementSource,
-                               const arrayReal &pnGlobal) {
+                               const ARRAY_REAL_VIEW &pnGlobal) {
   // writes debugging ascii file.
   if (indexTimeStep % 50== 0) {
     cout << "TimeStep=" << indexTimeStep
@@ -193,43 +193,41 @@ void SEMsolver::allocateFEarrays(SEMinfo &myInfo) {
   int nbQuadraturePoints = (order + 1) * (order + 1) * (order + 1);
   // interior elements
   cout << "Allocate host memory for arrays in the solver ..." << endl;
-  globalNodesList = allocateArray2D<arrayInt>(myInfo.numberOfElements,
+  globalNodesList = allocateArray2D<ARRAY_INT_VIEW>(myInfo.numberOfElements,
                                               myInfo.numberOfPointsPerElement,
                                               "globalNodesList");
-  listOfInteriorNodes = allocateVector<vectorInt>(myInfo.numberOfInteriorNodes,
+  listOfInteriorNodes = allocateVector<VECTOR_INT_VIEW>(myInfo.numberOfInteriorNodes,
                                                   "listOfInteriorNodes");
-  listOfDampingNodes = allocateVector<vectorInt>(myInfo.numberOfDampingNodes,
+  listOfDampingNodes = allocateVector<VECTOR_INT_VIEW>(myInfo.numberOfDampingNodes,
                                                  "listOfDampingNodes");
-  cout << "### Allocating " << myInfo.numberOfSpongeNodes << " sponge nodes"
-       << endl;
 
   // global coordinates
-  globalNodesCoordsX = allocateArray2D<arrayReal>(
+  globalNodesCoordsX = allocateArray2D<ARRAY_REAL_VIEW>(
       myInfo.numberOfElements, nbQuadraturePoints, "globalNodesCoordsX");
-  globalNodesCoordsY = allocateArray2D<arrayReal>(
+  globalNodesCoordsY = allocateArray2D<ARRAY_REAL_VIEW>(
       myInfo.numberOfElements, nbQuadraturePoints, "globalNodesCoordsY");
-  globalNodesCoordsZ = allocateArray2D<arrayReal>(
+  globalNodesCoordsZ = allocateArray2D<ARRAY_REAL_VIEW>(
       myInfo.numberOfElements, nbQuadraturePoints, "globalNodesCoordsZ");
 
-  model = allocateVector<vectorReal>(myInfo.numberOfElements, "model");
+  model = allocateVector<VECTOR_REAL_VIEW>(myInfo.numberOfElements, "model");
 
   cout << "Allocate model ..." << endl;
   
   #ifdef USE_SEMCLASSIC
-  quadraturePoints = allocateVector<vectorDouble>(nbQuadraturePoints, "quadraturePoints");
-  weights = allocateVector<vectorDouble>(nbQuadraturePoints, "weights");
-  derivativeBasisFunction1D = allocateArray2D<arrayDouble>(myInfo.numberOfNodes,
+  quadraturePoints = allocateVector<VECTOR_REAL_VIEW>(nbQuadraturePoints, "quadraturePoints");
+  weights = allocateVector<VECTOR_REAL_VIEW>(nbQuadraturePoints, "weights");
+  derivativeBasisFunction1D = allocateArray2D<ARRAY_REAL_VIEW>(myInfo.numberOfNodes,
                                                            nbQuadraturePoints, "derivativeBasisFunction1D");
   #endif // USE_SEMCLASSIC
 
   // shared arrays
   massMatrixGlobal =
-      allocateVector<vectorReal>(myInfo.numberOfNodes, "massMatrixGlobal");
-  yGlobal = allocateVector<vectorReal>(myInfo.numberOfNodes, "yGlobal");
+      allocateVector<VECTOR_REAL_VIEW>(myInfo.numberOfNodes, "massMatrixGlobal");
+  yGlobal = allocateVector<VECTOR_REAL_VIEW>(myInfo.numberOfNodes, "yGlobal");
 
   // sponge allocation
   spongeTaperCoeff =
-      allocateVector<vectorReal>(myInfo.numberOfNodes, "spongeTaperCoeff");
+      allocateVector<VECTOR_REAL_VIEW>(myInfo.numberOfNodes, "spongeTaperCoeff");
 }
 
 void SEMsolver::initSpongeValues(Mesh &mesh, SEMinfo &myInfo) {
@@ -309,7 +307,7 @@ void SEMsolver::initSpongeValues(Mesh &mesh, SEMinfo &myInfo) {
   FENCE
 }
 
-void SEMsolver::spongeUpdate(const arrayReal &pnGlobal, const int i1,
+void SEMsolver::spongeUpdate(const ARRAY_REAL_VIEW &pnGlobal, const int i1,
                              const int i2) {
   // for (int i = 0; i < myInfo->numberOfNodes; i++) {
   LOOPHEAD(myInfo->numberOfNodes, i)
