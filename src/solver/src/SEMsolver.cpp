@@ -37,8 +37,6 @@ void SEMsolver::computeOneStep(const int &timeSample, const int &order,
   FENCE
   updatePressureField(i1, i2, myInfo, pnGlobal);
   FENCE
-  //spongeUpdate(pnGlobal, i1, i2);
-  //FENCE
 }
 
 void SEMsolver::resetGlobalVectors(int numNodes) {
@@ -120,7 +118,6 @@ void SEMsolver::updatePressureField(int i1, int i2, SEMinfo &myInfo,
 
   float const dt2 = myInfo.myTimeStep * myInfo.myTimeStep;
   LOOPHEAD(myInfo.numberOfNodes, I)
-    //int const I =listOfInteriorNodes[i];
     pnGlobal(I, i1) = 2 * pnGlobal(I, i2) - pnGlobal(I, i1) - dt2 * yGlobal[I] / massMatrixGlobal[I];
     pnGlobal(I, i1) *= spongeTaperCoeff(I);
     pnGlobal(I, i2) *= spongeTaperCoeff(I);
