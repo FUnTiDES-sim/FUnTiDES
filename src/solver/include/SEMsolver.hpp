@@ -45,23 +45,23 @@ public:
    * Uses external arrays instead of Mesh structure (for pyFWI)
    */
   void computeFEInitWithoutMesh(SEMinfo &myInfo,
-                                arrayInt &nodesList,
-                                arrayReal &nodesCoordsX,
-                                arrayReal &nodesCoordsY,
-                                arrayReal &nodesCoordsZ,
-                                vectorInt &interiorNodes,
-                                vectorReal &modelOnElements);
+                                const arrayInt &nodesList,
+                                const arrayReal &nodesCoordsX,
+                                const arrayReal &nodesCoordsY,
+                                const arrayReal &nodesCoordsZ,
+                                const vectorInt &interiorNodes,
+                                const vectorReal &modelOnElements);
 
    /**
     * @brief pybind11 wrapper for computeFEInitWithoutMesh
     */
    void computeFEInitWithoutMesh_(SEMinfo &myInfo,
-                                  py::array_t<int,   py::array::c_style | py::array::forcecast> & nodesList,
-                                  py::array_t<float, py::array::c_style | py::array::forcecast> & nodesCoordsX,
-                                  py::array_t<float, py::array::c_style | py::array::forcecast> & nodesCoordsY,
-                                  py::array_t<float, py::array::c_style | py::array::forcecast> & nodesCoordsZ,
-                                  py::array_t<int,   py::array::c_style | py::array::forcecast> & interiorNodes,
-                                  py::array_t<float, py::array::c_style | py::array::forcecast> & modelOnElements);
+                                  Kokkos::Experimental::python_view_type_t<Kokkos::View<int **, Layout, MemSpace>> nodesList,
+                                  Kokkos::Experimental::python_view_type_t<Kokkos::View<float **, Layout, MemSpace>> nodesCoordsX,
+                                  Kokkos::Experimental::python_view_type_t<Kokkos::View<float **, Layout, MemSpace>> nodesCoordsY,
+                                  Kokkos::Experimental::python_view_type_t<Kokkos::View<float **, Layout, MemSpace>> nodesCoordsZ,
+                                  Kokkos::Experimental::python_view_type_t<Kokkos::View<int *, Layout, MemSpace>> interiorNodes,
+                                  Kokkos::Experimental::python_view_type_t<Kokkos::View<float *, Layout, MemSpace>> modelOnElements);
 
   /**
    * @brief Allocate the finite element arrays needed for the solver.
@@ -90,23 +90,23 @@ public:
    * Uses external arrays instead of Mesh structure (for pyFWI).
    */
   void initFEarraysWithoutMesh(SEMinfo &myInfo,
-                               arrayInt &nodesList,
-                               arrayReal &nodesCoordsX,
-                               arrayReal &nodesCoordsY,
-                               arrayReal &nodesCoordsZ,
-                               vectorInt &interiorNodes,
-                               vectorReal &modelOnElements);
+                               const arrayInt &nodesList,
+                               const arrayReal &nodesCoordsX,
+                               const arrayReal &nodesCoordsY,
+                               const arrayReal &nodesCoordsZ,
+                               const vectorInt &interiorNodes,
+                               const vectorReal &modelOnElements);
 
   /**
    * @brief pybind11 wrapper for initFEarraysWithoutMesh
    */
   void initFEarraysWithoutMesh_(SEMinfo &myInfo,
-                                py::array_t<int,   py::array::c_style | py::array::forcecast> & nodesList,
-                                py::array_t<float, py::array::c_style | py::array::forcecast> & nodesCoordsX,
-                                py::array_t<float, py::array::c_style | py::array::forcecast> & nodesCoordsY,
-                                py::array_t<float, py::array::c_style | py::array::forcecast> & nodesCoordsZ,
-                                py::array_t<int,   py::array::c_style | py::array::forcecast> & interiorNodes,
-                                py::array_t<float, py::array::c_style | py::array::forcecast> & modelOnElements);
+                                Kokkos::Experimental::python_view_type_t<Kokkos::View<int **, Layout, MemSpace>> nodesList,
+                                Kokkos::Experimental::python_view_type_t<Kokkos::View<float **, Layout, MemSpace>> nodesCoordsX,
+                                Kokkos::Experimental::python_view_type_t<Kokkos::View<float **, Layout, MemSpace>> nodesCoordsY,
+                                Kokkos::Experimental::python_view_type_t<Kokkos::View<float **, Layout, MemSpace>> nodesCoordsZ,
+                                Kokkos::Experimental::python_view_type_t<Kokkos::View<int *, Layout, MemSpace>> interiorNodes,
+                                Kokkos::Experimental::python_view_type_t<Kokkos::View<float *, Layout, MemSpace>> modelOnElements);
 
   /**
    * @brief Compute one step of the spectral element wave equation solver.

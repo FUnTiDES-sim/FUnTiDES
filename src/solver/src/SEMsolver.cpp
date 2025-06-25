@@ -25,12 +25,12 @@ void SEMsolver::computeFEInit(SEMinfo &myInfo_in, Mesh mesh) {
 }
 
 void SEMsolver::computeFEInitWithoutMesh(SEMinfo &myInfo_in,
-                                         arrayInt &nodesList,
-                                         arrayReal &nodesCoordsX,
-                                         arrayReal &nodesCoordsY,
-                                         arrayReal &nodesCoordsZ,
-                                         vectorInt &interiorNodes,
-                                         vectorReal &modelOnElements) {
+                                         const arrayInt &nodesList,
+                                         const arrayReal &nodesCoordsX,
+                                         const arrayReal &nodesCoordsY,
+                                         const arrayReal &nodesCoordsZ,
+                                         const vectorInt &interiorNodes,
+                                         const vectorReal &modelOnElements) {
   myInfo = &myInfo_in;
   order = myInfo_in.myOrderNumber;
   allocateFEarraysWithoutMesh(myInfo_in);
@@ -39,39 +39,19 @@ void SEMsolver::computeFEInitWithoutMesh(SEMinfo &myInfo_in,
 
 // TODO for pyFWI we should change layour to allow Fortran ordering (so far we transpose the arrays in Python before passing them)
 void SEMsolver::computeFEInitWithoutMesh_(SEMinfo &myInfo,
-                                          py::array_t<int,   py::array::c_style | py::array::forcecast> & nodesList,
-                                          py::array_t<float, py::array::c_style | py::array::forcecast> & nodesCoordsX,
-                                          py::array_t<float, py::array::c_style | py::array::forcecast> & nodesCoordsY,
-                                          py::array_t<float, py::array::c_style | py::array::forcecast> & nodesCoordsZ,
-                                          py::array_t<int,   py::array::c_style | py::array::forcecast> & interiorNodes,
-                                          py::array_t<float, py::array::c_style | py::array::forcecast> & modelOnElements) {
-   // Convert numpy arrays to raw pointers and wrap in Kokkos::View
-   py::buffer_info buf_nodesList = nodesList.request();
-   int (*nodesList_ptr) = static_cast<int*>(buf_nodesList.ptr);
-   auto kokkos_nodesList = arrayInt(nodesList_ptr, buf_nodesList.size);
-   py::buffer_info buf_nodesCoordsX = nodesCoordsX.request();
-   float (*nodesCoordsX_ptr) = static_cast<float *>(buf_nodesCoordsX.ptr);
-   auto kokkos_nodesCoordsX = arrayReal(nodesCoordsX_ptr, buf_nodesCoordsX.size);
-   py::buffer_info buf_nodesCoordsY = nodesCoordsY.request();
-   float (*nodesCoordsY_ptr) = static_cast<float *>(buf_nodesCoordsY.ptr);
-   auto kokkos_nodesCoordsY = arrayReal(nodesCoordsY_ptr, buf_nodesCoordsY.size);
-   py::buffer_info buf_nodesCoordsZ = nodesCoordsZ.request();
-   float (*nodesCoordsZ_ptr) = static_cast<float *>(buf_nodesCoordsZ.ptr);
-   auto kokkos_nodesCoordsZ = arrayReal(nodesCoordsZ_ptr, buf_nodesCoordsZ.size);
-   py::buffer_info buf_interiorNodes = interiorNodes.request();
-   int (*interiorNodes_ptr) = static_cast<int *>(buf_interiorNodes.ptr);
-   auto kokkos_interiorNodes = vectorInt(interiorNodes_ptr, buf_interiorNodes.size);
-   py::buffer_info buf_modelOnElements = modelOnElements.request();
-   float (*modelOnElements_ptr) = static_cast<float *>(buf_modelOnElements.ptr);
-   auto kokkos_modelOnElements = vectorReal(modelOnElements_ptr, buf_modelOnElements.size);
-
+                                          Kokkos::Experimental::python_view_type_t<Kokkos::View<int **, Layout, MemSpace>> nodesList,
+                                          Kokkos::Experimental::python_view_type_t<Kokkos::View<float **, Layout, MemSpace>> nodesCoordsX,
+                                          Kokkos::Experimental::python_view_type_t<Kokkos::View<float **, Layout, MemSpace>> nodesCoordsY,
+                                          Kokkos::Experimental::python_view_type_t<Kokkos::View<float **, Layout, MemSpace>> nodesCoordsZ,
+                                          Kokkos::Experimental::python_view_type_t<Kokkos::View<int *, Layout, MemSpace>> interiorNodes,
+                                          Kokkos::Experimental::python_view_type_t<Kokkos::View<float *, Layout, MemSpace>> modelOnElements) {
    computeFEInitWithoutMesh(myInfo,
-                            kokkos_nodesList,
-                            kokkos_nodesCoordsX,
-                            kokkos_nodesCoordsY,
-                            kokkos_nodesCoordsZ,
-                            kokkos_interiorNodes,
-                            kokkos_modelOnElements);
+                            nodesList,
+                            nodesCoordsX,
+                            nodesCoordsY,
+                            nodesCoordsZ,
+                            interiorNodes,
+                            modelOnElements);
 }
 
 void SEMsolver::allocateFEarrays(SEMinfo &myInfo) {
@@ -180,12 +160,12 @@ void SEMsolver::initFEarrays(SEMinfo &myInfo, Mesh mesh) {
 }
 
 void SEMsolver::initFEarraysWithoutMesh(SEMinfo &myInfo,
-                                        arrayInt &nodesList,
-                                        arrayReal &nodesCoordsX,
-                                        arrayReal &nodesCoordsY,
-                                        arrayReal &nodesCoordsZ,
-                                        vectorInt &interiorNodes,
-                                        vectorReal &modelOnElements) {
+                                        const arrayInt &nodesList,
+                                        const arrayReal &nodesCoordsX,
+                                        const arrayReal &nodesCoordsY,
+                                        const arrayReal &nodesCoordsZ,
+                                        const vectorInt &interiorNodes,
+                                        const vectorReal &modelOnElements) {
 
   globalNodesList     = nodesList;
   globalNodesCoordsX  = nodesCoordsX;
@@ -227,39 +207,19 @@ void SEMsolver::initFEarraysWithoutMesh(SEMinfo &myInfo,
 }
 
 void SEMsolver::initFEarraysWithoutMesh_(SEMinfo &myInfo,
-                                         py::array_t<int,   py::array::c_style | py::array::forcecast> & nodesList,
-                                         py::array_t<float, py::array::c_style | py::array::forcecast> & nodesCoordsX,
-                                         py::array_t<float, py::array::c_style | py::array::forcecast> & nodesCoordsY,
-                                         py::array_t<float, py::array::c_style | py::array::forcecast> & nodesCoordsZ,
-                                         py::array_t<int,   py::array::c_style | py::array::forcecast> & interiorNodes,
-                                         py::array_t<float, py::array::c_style | py::array::forcecast> & modelOnElements) {
-   // Convert numpy arrays to raw pointers and wrap in Kokkos::View
-   py::buffer_info buf_nodesList = nodesList.request();
-   int (*nodesList_ptr) = static_cast<int*>(buf_nodesList.ptr);
-   auto kokkos_nodesList = arrayInt(nodesList_ptr, buf_nodesList.size);
-   py::buffer_info buf_nodesCoordsX = nodesCoordsX.request();
-   float (*nodesCoordsX_ptr) = static_cast<float *>(buf_nodesCoordsX.ptr);
-   auto kokkos_nodesCoordsX = arrayReal(nodesCoordsX_ptr, buf_nodesCoordsX.size);
-   py::buffer_info buf_nodesCoordsY = nodesCoordsY.request();
-   float (*nodesCoordsY_ptr) = static_cast<float *>(buf_nodesCoordsY.ptr);
-   auto kokkos_nodesCoordsY = arrayReal(nodesCoordsY_ptr, buf_nodesCoordsY.size);
-   py::buffer_info buf_nodesCoordsZ = nodesCoordsZ.request();
-   float (*nodesCoordsZ_ptr) = static_cast<float *>(buf_nodesCoordsZ.ptr);
-   auto kokkos_nodesCoordsZ = arrayReal(nodesCoordsZ_ptr, buf_nodesCoordsZ.size);
-   py::buffer_info buf_interiorNodes = interiorNodes.request();
-   int (*interiorNodes_ptr) = static_cast<int *>(buf_interiorNodes.ptr);
-   auto kokkos_interiorNodes = vectorInt(interiorNodes_ptr, buf_interiorNodes.size);
-   py::buffer_info buf_modelOnElements = modelOnElements.request();
-   float (*modelOnElements_ptr) = static_cast<float *>(buf_modelOnElements.ptr);
-   auto kokkos_modelOnElements = vectorReal(modelOnElements_ptr, buf_modelOnElements.size);
-
+                                         Kokkos::Experimental::python_view_type_t<Kokkos::View<int **, Layout, MemSpace>> nodesList,
+                                         Kokkos::Experimental::python_view_type_t<Kokkos::View<float **, Layout, MemSpace>> nodesCoordsX,
+                                         Kokkos::Experimental::python_view_type_t<Kokkos::View<float **, Layout, MemSpace>> nodesCoordsY,
+                                         Kokkos::Experimental::python_view_type_t<Kokkos::View<float **, Layout, MemSpace>> nodesCoordsZ,
+                                         Kokkos::Experimental::python_view_type_t<Kokkos::View<int *, Layout, MemSpace>> interiorNodes,
+                                         Kokkos::Experimental::python_view_type_t<Kokkos::View<float *, Layout, MemSpace>> modelOnElements) {
    initFEarraysWithoutMesh(myInfo,
-                           kokkos_nodesList,
-                           kokkos_nodesCoordsX,
-                           kokkos_nodesCoordsY,
-                           kokkos_nodesCoordsZ,
-                           kokkos_interiorNodes,
-                           kokkos_modelOnElements);
+                           nodesList,
+                           nodesCoordsX,
+                           nodesCoordsY,
+                           nodesCoordsZ,
+                           interiorNodes,
+                           modelOnElements);
    }
 
 void SEMsolver::computeOneStep(const int &timeSample, const int &order,
