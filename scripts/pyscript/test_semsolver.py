@@ -8,13 +8,13 @@ from datetime import datetime
 import pysolver as Solver
 import pysem as Sem
 
-# ArrayReal = kokkos.KokkosView_float32_HostSpace_LayoutRight_2
-# VectorInt = kokkos.KokkosView_int32_HostSpace_LayoutRight_1
-# VectorReal = kokkos.KokkosView_float32_HostSpace_LayoutRight_1
+ArrayReal = kokkos.KokkosView_float32_HostSpace_LayoutRight_2
+VectorInt = kokkos.KokkosView_int32_HostSpace_LayoutRight_1
+VectorReal = kokkos.KokkosView_float32_HostSpace_LayoutRight_1
 
-ArrayReal = kokkos.KokkosView_float32_CudaUVMSpace_LayoutLeft_2
-VectorInt = kokkos.KokkosView_int32_CudaUVMSpace_LayoutLeft_1
-VectorReal = kokkos.KokkosView_float32_CudaUVMSpace_LayoutLeft_1
+# ArrayReal = kokkos.KokkosView_float32_CudaUVMSpace_LayoutLeft_2
+# VectorInt = kokkos.KokkosView_int32_CudaUVMSpace_LayoutLeft_1
+# VectorReal = kokkos.KokkosView_float32_CudaUVMSpace_LayoutLeft_1
 
 def print_global( arr ):
   for idx, e in enumerate(arr):
@@ -173,21 +173,17 @@ def main():
      iter_time = time.time() - iter_start
      iteration_times.append(iter_time)
 
-     if timeSample%100==0:
+     if timeSample%10==0:
        print("sum pnGlobal[:, i1]", np.sum(pnGlobal[:, i1]))
-       print(f"RHSElement[0] = {RHSElement[0]}")
-       print(f"Source location (xs,ys,zs) = {xs}, {ys}, {zs}")
        maxval=np.max(np.abs(pnGlobal))/5
-       print(f"Pressure max val after iteration {timeSample}: {maxval}")
        print(f"Average iteration time: {np.mean(iteration_times):.4f} seconds")
        elementSource=nodesList[RHSElement[0],0]
        elapsed_time = time.time() - start_time
+       print("TIME")
        print(f"Time iteration {timeSample}/{nTimeSteps}")
        print(f"Elapsed time: {elapsed_time:.2f} seconds")
        print(f"Average iteration time: {np.mean(iteration_times):.4f} seconds")
        print(f"Pressure={pnGlobal[elementSource,0]}")
-
-       print(f"Percentage of zeros in pnGlobal = {np.count_nonzero(pnGlobal[i1] == 0) / pnGlobal[i1].size * 100}")
 
        grid=getSnapshot(timeStep,i1,nx,ny,nz,hx,hy,hz,pnGlobal,maxval)
        im.set_array(grid)  # Update plot with new values
