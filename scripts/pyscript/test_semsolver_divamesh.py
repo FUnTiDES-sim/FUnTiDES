@@ -1,28 +1,31 @@
 """
-Mesher for SEM.
-This mesher is used to create a hexahedric mesh from a SEP with projected vp.
-Uses pysabl, pydw and pydiva_mesh modules and runs in parallel using MPI.
+Test SEM solver with DIVA hexahedral mesh.
+Uses pysabl, pydw and pydiva_mesh modules on top of regular SEM solver modules (kokkos, pysolver, pysem).
 Outputs vtk files for visualization of the mesh and optionally GLL nodes.
-Usage: mpirun -np 2 python mesher.py par=<mesher_parameter_file>
+Usage: mpirun -np 2 python test_semsolver_divamesh.py par=<mesher_parameter_file>
 """
 
 import numpy as np
 import time
 from datetime import datetime
 
-# SEM
+# SABL
 import pysabl.parser as parser
 from pysabl.m_parallel_timer import timing, timer_print
 from pysabl.m_parallelism_context import Parallelism
-from pydw.m_earth_model import Earth_model
 from pysabl.m_database import Database
+
+# DIVA-WAVE-EQUATION
+from pydw.m_earth_model import Earth_model
 from pydw.m_propagator_param import Propagator_param
+
+# DIVA-MESH
 from pydiva_mesh.core.m_hexa_mesh import Hexa_mesh
 from pydiva_mesh.core.m_hexa_model import Mesh_model
 from pydiva_mesh.core.m_hexa_vtk_export import Hexa_vtk_export
 from pydiva_mesh.core.m_wrap_sem_proxy_unstruct import Wrap_sem_proxy_unstruct
 
-# PROXY
+# SEM-PROXY
 import libpykokkos as kokkos
 import pysolver as Solver
 import pysem as Sem
@@ -34,6 +37,10 @@ VectorReal = kokkos.KokkosView_float32_HostSpace_LayoutRight_1
 
 
 class Mesher:
+    """
+    DIVA Mesher for SEM (without ghosting).
+    """
+
     def __init__(self, paral: Parallelism, param: parser.Param):
         self.paral = paral
         self.prop_param = Propagator_param()
@@ -181,6 +188,9 @@ class Mesher:
 
 
 class SEM:
+    """
+    SEM solver using the DIVA hexahedral mesh.
+    """
 
     def __init__(self, paral: Parallelism, wrap: Wrap_sem_proxy_unstruct):
         # from wrapper
@@ -211,11 +221,11 @@ class SEM:
     @timing
     def init_fe_arrays(self):
         print("Initializing FE arrays...", flush=True)
-        self.interiorNodes = np.linspace(0, self.n_node - 1, self.n_node, dtype=int)  # TODO so far only interior nodes
+        self.interiorNodes = np.linspace(0, self.n_node - 1, self.n_node, dtype=np.int32)  # TODO so far only interior nodes
 
         # TODO very inneficient
         # (elem,dof_local) -> dof_global
-        self.nodesList = np.zeros((self.n_elem, self.ngll), dtype=int)
+        self.nodesList = np.zeros((self.n_elem, self.ngll), dtype=np.int32)
         # (elem,dof_local) -> coord
         self.nodesCoordsX = np.zeros((self.n_elem, self.ngll), dtype=np.float32)
         self.nodesCoordsY = np.zeros((self.n_elem, self.ngll), dtype=np.float32)
@@ -268,7 +278,7 @@ class SEM:
         self.nTimeSteps = 300
         self.numberOfRHS = 1
 
-        self.RHSElement = np.array([self.numberOfRHS],dtype=int)
+        self.RHSElement = np.array([self.numberOfRHS],dtype=np.int32)
         self.RHSElement[0] = (self.max_elem - self.min_elem + 1) / 2 # TODO just take mid element for now
         self.kk_RHSElement = VectorInt(self.RHSElement, (self.numberOfRHS,))
         print("   - RHS element number ", self.RHSElement[0], flush=True)
@@ -381,9 +391,9 @@ def main():
 
     # Initialize parametrization
     param = parser.Param(
-        name="SEM GLL mesher",
-        purpose="Create Hexahedric mesh from SEP with projected vp",
-        parallelism="MPI parallelism on vertical axis",
+        name="Solver SEM with DIVA hexahedral mesh",
+        purpose="Test SEM solver with DIVA hexahedral mesh (requires DIVA par file)",
+        parallelism="SEM solver uses Kokkos for parallelism, Mesher uses MPI and OMP/OACC",
         author="G. Fuss",
     )
 
