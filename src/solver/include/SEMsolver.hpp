@@ -89,8 +89,13 @@ public:
    */
   void initSpongeValues(Mesh &mesh, SEMinfo &myInfo);
 
+<<<<<<< HEAD
   void spongeUpdate(const ARRAY_REAL_VIEW &pnGlobal, const int i1,
                     const int i2);
+=======
+  void spongeUpdate(const ARRAY_REAL_VIEW &pnGlobal, const int i1,
+                    const int i2);
+>>>>>>> main
 
   /**
    * @brief Reset the global mass matrix and stiffness vector to zero.
@@ -191,7 +196,6 @@ private:
   SEMinfo *myInfo;
   Mesh myMesh;
   // Basis functions and integrals
-
   SEMQkGLIntegrals myQkIntegrals;
 
   // shared arrays
