@@ -57,15 +57,11 @@ PYBIND11_MODULE(pysolver, m) {
       .def("get_sponge_taper_coeff", &SEMsolver::getSpongeTaperCoeff)
       .def("set_sponge_taper_coeff", &SEMsolver::setSpongeTaperCoeff)
 
-      // For internal mesh
-      .def("computeFEInit",&SEMsolver::computeFEInit)
-
       // For pyFWI
-      .def("computeFEInitWithoutMesh",    &SEMsolver::computeFEInitWithoutMesh_) // = allocate + init
-      .def("allocateFEarraysWithoutMesh", &SEMsolver::allocateFEarraysWithoutMesh)
-      .def("initFEarraysWithoutMesh",     &SEMsolver::initFEarraysWithoutMesh_)
+      .def("allocateSolverDIVA", &SEMsolver::allocateSolverDIVA)
+      .def("FEInitDIVA",     &SEMsolver::FEInitDIVA_)
 
-      .def("computeOneStep", &SEMsolver::computeOneStep_wrapper);
+      .def("computeOneStepDIVA", &SEMsolver::computeOneStepDIVA_wrapper);
 
   // m.def("compute_debug_args", &compute_debug_args);
 

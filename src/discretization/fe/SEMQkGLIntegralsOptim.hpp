@@ -474,43 +474,65 @@ public:
     computeGradPhiBGradPhi<ORDER>(qa, qb, qc, B, func);
   }
 
+
   /**
-   * @brief compute  mass Matrix stiffnessVector.
+   * @brief compute  mass Matrix stiffnessVector using arrays from DIVA mesh.
    */
   template <int ORDER>
-  PROXY_HOST_DEVICE void computeMassMatrixAndStiffnessVector(
+  PROXY_HOST_DEVICE void computeMassMatrixAndStiffnessVectorDIVA(
       const int &elementNumber, const int &nPointsPerElement,
-      ARRAY_REAL_VIEW const &nodesCoordsX, ARRAY_REAL_VIEW const &nodesCoordsY,
-      ARRAY_REAL_VIEW const &nodesCoordsZ, float massMatrixLocal[],
-      float pnLocal[], float Y[]) const {
+      ARRAY_INT_VIEW const &elemsToNodesDIVA, ARRAY_REAL_VIEW const &nodeCoordsDIVA,
+      float massMatrixLocal[], float pnLocal[], float Y[]) const {
     float X[8][3];
     int I = 0;
 
+    // DIVA option --> Stefano                               
     for (int k = 0; k < 2; k++) {
       for (int j = 0; j < 2; j++) {
         for (int i = 0; i < 2; i++) {
-          int l = i + j * 2 + k * 4;
-          X[I][0] = nodesCoordsX(elementNumber, l);
-          X[I][1] = nodesCoordsZ(elementNumber, l);
-          X[I][2] = nodesCoordsY(elementNumber, l);
-          I++;
-        }
-      }
-    }
-    
+          int iDiva = i == 0 ? 0 : ORDER + 1;
+          int jDiva = j == 0 ? 0 : ORDER + 1;
+          int kDiva = k == 0 ? 0 : ORDER + 1;
+          int nodeIndex = elemsToNodesDIVA(iDiva, jDiva, kDiva, elementNumber);
+          for( int d=0; d< 3; ++d )                                                                                                       
+          {                                                                                                                            
+            X[ I ][ d ] = nodeCoordsDIVA[d,  nodeIndex ];   
+          }
+          I++;                                                                                                                            
+        }                                                                                                                              
+      }  
+    }      
+   
     for (int q = 0; q < nPointsPerElement; q++) {
       Y[q] = 0;
     }
-    
-    for (int q = 0; q < nPointsPerElement; q++) {
-      massMatrixLocal[q] = computeMassTerm<ORDER>(q, X);
-      computeStiffnessTerm<ORDER>(
-          q, X, [&](const int i, const int j, const double val) {
-            float localIncrement = val * pnLocal[j];
-            Y[i] += localIncrement;
+    int q = 0;
+    for (int k = 0; k < ORDER+1; k++) {
+      for (int j = 0; j < ORDER+1; j++) {
+        for (int i = 0; i < ORDER+1; i++) {
+            int node = elemsToNodesDIVA(i, j, k, elementNumber);
+            massMatrixLocal[q] = computeMassTerm<ORDER>(q, X) / (vp_node[node] * vp_node[node]);
+            computeStiffnessTerm<ORDER>(
+                q, X, [&](const int i, const int j, const double val) {
+                float rho = rho_node[node];  
+                float localIncrement = val * pnLocal[j] / rho;
+                 Y[i] += localIncrement;
           });
+          q++:
+        }
+      }
     }
+
+    // for (int q = 0; q < nPointsPerElement; q++) {
+    //   massMatrixLocal[q] = computeMassTerm<ORDER>(q, X);
+    //   computeStiffnessTerm<ORDER>(
+    //       q, X, [&](const int i, const int j, const double val) {
+    //         float localIncrement = val * pnLocal[j];
+    //         Y[i] += localIncrement;
+    //       });
+    // }
   }
+
   /////////////////////////////////////////////////////////////////////////////////////
   //  end from GEOS implementation
   /////////////////////////////////////////////////////////////////////////////////////

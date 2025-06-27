@@ -221,6 +221,10 @@ typedef Kokkos::View<int ***, Layout, MemSpace> array3DInt;
 typedef Kokkos::View<float ***, Layout, MemSpace> array3DReal;
 typedef Kokkos::View<double ***, Layout, MemSpace> array3DDouble;
 
+typedef Kokkos::View<int ****, Layout, MemSpace> array4DInt;
+typedef Kokkos::View<float ****, Layout, MemSpace> array4DReal;
+typedef Kokkos::View<double ****, Layout, MemSpace> array4DDouble;
+
 #endif // USE_KOKKOS
 
 template <class T> T allocateVector(int n1) {
