@@ -61,6 +61,7 @@
 #define VECTOR_DOUBLE_VIEW vectorDouble
 #define VECTOR_REAL_VIEW vectorReal
 #define VECTOR_INT_VIEW vectorInt
+#define ARRAY_4D_INT_VIEW array4DInt
 
 #if defined (USE_KOKKOS)
   #define KOKKOSNAME "v",

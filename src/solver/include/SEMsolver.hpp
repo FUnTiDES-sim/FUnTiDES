@@ -33,80 +33,62 @@ public:
   PROXY_HOST_DEVICE ~SEMsolver(){};
 
   /**
-   * @brief Allocate and init all FE components for computing mass, stiffness matrices.
+   * @brief Allocate SEM matrices and components for computing mass, stiffness matrices.
    * 
-   * Uses the internal Mesh structure.
+   * Adapted to DIVA-mesh.
    */
-  void computeFEInit(SEMinfo &myInfo, Mesh mesh);
+  void allocateSolverDIVA(SEMinfo &myInfo_in);
   
   /**
-   * @brief Allocate and init all FE components for computing mass, stiffness matrices.
+   * @brief Initialize all SEM matrices and components for computing mass, stiffness matrices.
    * 
-   * Uses external arrays instead of Mesh structure (for pyFWI)
+   * Uses arrays provided by DIVA-mesh (for pyFWI).
    */
-  void computeFEInitWithoutMesh(SEMinfo &myInfo,
-                                const arrayInt &nodesList,
-                                const arrayReal &nodesCoordsX,
-                                const arrayReal &nodesCoordsY,
-                                const arrayReal &nodesCoordsZ,
-                                const vectorInt &interiorNodes,
-                                const vectorReal &modelOnElements);
+  void FEInitDIVA(SEMinfo &myInfo,
+                            const array4DInt &elemsToNodesDIVA,
+                            const arrayReal &nodeCoordsDIVA,
+                            const vectorInt &interiorNodes,
+                            const vectorReal &rhomodelOnNodes,
+                            const vectorReal &vpmodelOnNodes);
 
-   /**
-    * @brief pybind11 wrapper for computeFEInitWithoutMesh
-    */
-   void computeFEInitWithoutMesh_(SEMinfo &myInfo,
-                                  Kokkos::Experimental::python_view_type_t<Kokkos::View<int **, Layout, MemSpace>> nodesList,
-                                  Kokkos::Experimental::python_view_type_t<Kokkos::View<float **, Layout, MemSpace>> nodesCoordsX,
-                                  Kokkos::Experimental::python_view_type_t<Kokkos::View<float **, Layout, MemSpace>> nodesCoordsY,
-                                  Kokkos::Experimental::python_view_type_t<Kokkos::View<float **, Layout, MemSpace>> nodesCoordsZ,
-                                  Kokkos::Experimental::python_view_type_t<Kokkos::View<int *, Layout, MemSpace>> interiorNodes,
-                                  Kokkos::Experimental::python_view_type_t<Kokkos::View<float *, Layout, MemSpace>> modelOnElements);
+  /**
+   * @brief pybind11 wrapper for FEInitDIVA.
+   */ 
+  void FEInitDIVA_(SEMinfo &myInfo,
+                              Kokkos::Experimental::python_view_type_t<Kokkos::View<int ****, Layout, MemSpace>> elemsToNodesDIVA,
+                              Kokkos::Experimental::python_view_type_t<Kokkos::View<float **, Layout, MemSpace>> nodeCoordsDIVA,
+                              Kokkos::Experimental::python_view_type_t<Kokkos::View<int *, Layout, MemSpace>> interiorNodes,
+                              Kokkos::Experimental::python_view_type_t<Kokkos::View<float *, Layout, MemSpace>> rhomodelOnNodes,
+                              Kokkos::Experimental::python_view_type_t<Kokkos::View<float *, Layout, MemSpace>> vpmodelOnNodes);
 
   /**
    * @brief Allocate the finite element arrays needed for the solver.
    * 
-   * Uses the internal Mesh structure to set up global node lists,
-   */
-  void allocateFEarrays(SEMinfo &myInfo);
-
-  /**
-   * @brief Allocate the finite element arrays needed for the solver.
-   * 
-   * Uses the internal Mesh structure to set up global node lists,
+   * Uses the DIVA-mesh structure to set up global node lists.
    */
   void allocateFEarraysWithoutMesh(SEMinfo &myInfo);
 
   /**
    * @brief Initialize the finite element arrays needed for the solver.
    * 
-   * Uses the internal Mesh structure to set up global node lists,
+   * Uses the DIVA-mesh structure to set up global node lists.
    */
-  void initFEarrays(SEMinfo &myInfo, Mesh mesh);
-
-  /**
-   * @brief Initialize the finite element arrays needed for the solver.
-   * 
-   * Uses external arrays instead of Mesh structure (for pyFWI).
-   */
-  void initFEarraysWithoutMesh(SEMinfo &myInfo,
-                               const arrayInt &nodesList,
-                               const arrayReal &nodesCoordsX,
-                               const arrayReal &nodesCoordsY,
-                               const arrayReal &nodesCoordsZ,
-                               const vectorInt &interiorNodes,
-                               const vectorReal &modelOnElements);
+  void initFEarraysDIVA(SEMinfo &myInfo,
+                                  const array4DInt &elemsToNodesDIVA,
+                                  const arrayReal &nodeCoordsDIVA,
+                                  const vectorInt &interiorNodes,
+                                  const vectorReal &rhomodelOnNodes,
+                                  const vectorReal &vpmodelOnNodes);
 
   /**
    * @brief pybind11 wrapper for initFEarraysWithoutMesh
    */
-  void initFEarraysWithoutMesh_(SEMinfo &myInfo,
-                                Kokkos::Experimental::python_view_type_t<Kokkos::View<int **, Layout, MemSpace>> nodesList,
-                                Kokkos::Experimental::python_view_type_t<Kokkos::View<float **, Layout, MemSpace>> nodesCoordsX,
-                                Kokkos::Experimental::python_view_type_t<Kokkos::View<float **, Layout, MemSpace>> nodesCoordsY,
-                                Kokkos::Experimental::python_view_type_t<Kokkos::View<float **, Layout, MemSpace>> nodesCoordsZ,
-                                Kokkos::Experimental::python_view_type_t<Kokkos::View<int *, Layout, MemSpace>> interiorNodes,
-                                Kokkos::Experimental::python_view_type_t<Kokkos::View<float *, Layout, MemSpace>> modelOnElements);
+  // void initFEarraysDIVA_(SEMinfo &myInfo,
+  //                                        Kokkos::Experimental::python_view_type_t<Kokkos::View<int ****, Layout, MemSpace>> elemsToNodesDIVA,
+  //                                        Kokkos::Experimental::python_view_type_t<Kokkos::View<float **, Layout, MemSpace>> nodeCoordsDIVA,
+  //                                        Kokkos::Experimental::python_view_type_t<Kokkos::View<int *, Layout, MemSpace>> interiorNodes,
+  //                                        Kokkos::Experimental::python_view_type_t<Kokkos::View<float *, Layout, MemSpace>> rhomodelOnNodes,
+  //                                        Kokkos::Experimental::python_view_type_t<Kokkos::View<float *, Layout, MemSpace>> vpmodelOnNodes);
 
   /**
    * @brief Compute one step of the spectral element wave equation solver.
@@ -126,39 +108,41 @@ public:
    * @param pnGlobal     2D array storing the global pressure field [node][time]
    * @param rhsElement   List of elements with a non-zero forcing term
    */
-  void computeOneStep(const int &timeSample, const int &order,
-                      const int &nPointsPerElement, const int &i1,
-                      const int &i2, SEMinfo &myInfo, const arrayReal &rhsTerm,
-                      const arrayReal &pnGlobal, const vectorInt &rhsElement);
+  void computeOneStepDIVA(const int &timeSample, const int &order,
+                               const int &nPointsPerElement, const int &i1,
+                               const int &i2, SEMinfo &myInfo,
+                               const arrayReal &rhsTerm,
+                               const arrayReal &pnGlobal,
+                               const vectorInt &rhsElement);
 
 #ifdef ENABLE_PYWRAP
-  void computeOneStep_wrapper(int t, int order, int npts, int i1, int i2,
-                              SEMinfo info,
-                              Kokkos::Experimental::python_view_type_t<
-                                  Kokkos::View<float **, Layout, MemSpace>>
-                                  rhsTerm,
-                              Kokkos::Experimental::python_view_type_t<
-                                  Kokkos::View<float **, Layout, MemSpace>>
-                                  pnGlobal,
-                              Kokkos::Experimental::python_view_type_t<
-                                  Kokkos::View<int *, Layout, MemSpace>>
-                                  rhsElement);
+  void computeOneStepDIVA_wrapper(
+    int t, int order, int npts, int i1, int i2, SEMinfo info,
+    Kokkos::Experimental::python_view_type_t<
+        Kokkos::View<float **, Layout, MemSpace>>
+        rhsTerm,
+    Kokkos::Experimental::python_view_type_t<
+        Kokkos::View<float **, Layout, MemSpace>>
+        pnGlobal,
+    Kokkos::Experimental::python_view_type_t<
+        Kokkos::View<int *, Layout, MemSpace>>
+        rhsElement);
 #endif // ENABLE_PYWRAP
 
-  void outputPnValues(Mesh mesh, const int &indexTimeStep, int &i1,
-                      int &myElementSource, const arrayReal &pnGlobal);
+  // void outputPnValues(Mesh mesh, const int &indexTimeStep, int &i1,
+  //                     int &myElementSource, const arrayReal &pnGlobal);
 
-  /**
-   * @brief Compute coefficients for the taper layers. In this computation the
-   * choice of the taper length and the coefficient of reflection (r)
-   * highly depends on the model. Usually R will be between 10^{-3} and 1
-   * and you need to find a compromise with sizeT.
-   *
-   * @param[in] vMin Min wavespeed (P-wavespeed for acoustic, S-wavespeed for
-   * elastic)
-   * @param[in] r desired reflectivity of the Taper
-   */
-  void initSpongeValues(Mesh &mesh, SEMinfo &myInfo);
+  // /**
+  //  * @brief Compute coefficients for the taper layers. In this computation the
+  //  * choice of the taper length and the coefficient of reflection (r)
+  //  * highly depends on the model. Usually R will be between 10^{-3} and 1
+  //  * and you need to find a compromise with sizeT.
+  //  *
+  //  * @param[in] vMin Min wavespeed (P-wavespeed for acoustic, S-wavespeed for
+  //  * elastic)
+  //  * @param[in] r desired reflectivity of the Taper
+  //  */
+  // void initSpongeValues(Mesh &mesh, SEMinfo &myInfo);
 
   void spongeUpdate(const arrayReal &pnGlobal, const int i1, const int i2);
 
@@ -179,9 +163,9 @@ public:
    * @param myInfo Solver and mesh configuration
    * @param pnGlobal Pressure field array to update
    */
-  void applyRHSTerm(int timeSample, int i2, const arrayReal &rhsTerm,
+  void applyRHSTerm(int timeSample, const arrayReal &rhsTerm,
                     const vectorInt &rhsElement, SEMinfo &myInfo,
-                    const arrayReal &pnGlobal);
+                    const vectorReal &yGlobal);
 
   /**
    * @brief Compute local element contributions to the global mass and stiffness
@@ -193,9 +177,9 @@ public:
    * @param i2 Index of the current time step in `pnGlobal`
    * @param pnGlobal Global pressure field (used as input)
    */
-  void computeElementContributions(int order, int nPointsPerElement,
-                                   SEMinfo &myInfo, int i2,
-                                   const arrayReal &pnGlobal);
+  void computeElementContributionsDIVA(int order, int nPointsPerElement,
+                                            SEMinfo &myInfo, int i2,
+                                            const arrayReal &pnGlobal);
 
   /**
    * @brief Update the pressure field for interior nodes using the time
@@ -210,10 +194,6 @@ public:
                            const arrayReal &pnGlobal);
 
   // Getters for shared arrays
-  const arrayInt &getGlobalNodesList() const { return globalNodesList; }
-  const arrayReal &getGlobalNodesCoordsX() const { return globalNodesCoordsX; }
-  const arrayReal &getGlobalNodesCoordsY() const { return globalNodesCoordsY; }
-  const arrayReal &getGlobalNodesCoordsZ() const { return globalNodesCoordsZ; }
   const vectorInt &getListOfInteriorNodes() const {
     return listOfInteriorNodes;
 #ifdef USE_CALIPER
@@ -222,11 +202,6 @@ public:
   }
   const vectorInt &getListOfDampingNodes() const { return listOfDampingNodes; }
   const vectorReal &getSpongeTaperCoeff() const { return spongeTaperCoeff; }
-
-  void setGlobalNodesList(const arrayInt &list) { globalNodesList = list; }
-  void setGlobalNodesCoordsX(const arrayReal &x) { globalNodesCoordsX = x; }
-  void setGlobalNodesCoordsY(const arrayReal &y) { globalNodesCoordsY = y; }
-  void setGlobalNodesCoordsZ(const arrayReal &z) { globalNodesCoordsZ = z; }
   void setListOfInteriorNodes(const vectorInt &nodes) {
     listOfInteriorNodes = nodes;
   }
@@ -243,15 +218,22 @@ public:
   void setVMin(double v) { vMin = v; }
   double getVMin() const { return vMin; }
 
-  void setModel(const vectorReal &m) { model = m; }
+  void setvpModel(const vectorReal &m) { vpmodel = m; }
+  void setrhoModel(const vectorReal &m) { rhomodel = m; }
 #ifdef ENABLE_PYWRAP
-  void setModel_wrapper(Kokkos::Experimental::python_view_type_t<
+  void setvpModel_wrapper(Kokkos::Experimental::python_view_type_t<
                         Kokkos::View<float *, Layout, MemSpace>>
                             m) {
-    setModel(m);
+    setvpModel(m);
+  }
+  void setrhoModel_wrapper(Kokkos::Experimental::python_view_type_t<
+                        Kokkos::View<float *, Layout, MemSpace>>
+                            m) {
+    setrhoModel(m);
   }
 #endif
-  const vectorReal &getModel() const { return model; }
+  const vectorReal &getvpModel() const { return vpmodel; }
+  const vectorReal &getrhoModel() const { return rhomodel; }
 
   void setMassMatrixGlobal(const vectorReal &m) { massMatrixGlobal = m; }
   const vectorReal &getMassMatrixGlobal() const { return massMatrixGlobal; }
@@ -266,16 +248,16 @@ private:
 
   // shared arrays
   arrayInt globalNodesList;
-  arrayReal globalNodesCoordsX;
-  arrayReal globalNodesCoordsY;
-  arrayReal globalNodesCoordsZ;
   vectorInt listOfInteriorNodes;
   vectorInt listOfDampingNodes;
+  array4DInt globalelemsToNodesDIVA;
+  arrayReal globalnodeCoordsDIVA;
   // sponge boundaries data
   vectorReal spongeTaperCoeff;
 
   // get model
-  vectorReal model;
+  vectorReal vpmodel;
+  vectorReal rhomodel;
   double vMin; // min wavespeed in model
 
   // get quadrature points and weights

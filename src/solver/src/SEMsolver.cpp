@@ -24,23 +24,26 @@ void SEMsolver::allocateSolverDIVA(SEMinfo &myInfo_in) {
 }
 
 void SEMsolver::FEInitDIVA(SEMinfo &myInfo,
-                            const ARRAY4DINT &elemsToNodesDIVA,
+                            const array4DInt &elemsToNodesDIVA,
                             const arrayReal &nodeCoordsDIVA,
                             const vectorInt &interiorNodes,
-                            const vectorReal &modelOnNodes) {
-  initFEarraysDIVA(myInfo, elemsToNodesDIVA, nodeCoordsDIVA, interiorNodes, modelOnNodes);
+                            const vectorReal &rhomodelOnNodes,
+                            const vectorReal &vpmodelOnNodes) {
+  initFEarraysDIVA(myInfo, elemsToNodesDIVA, nodeCoordsDIVA, interiorNodes, rhomodelOnNodes, vpmodelOnNodes);
 }
 
 void SEMsolver::FEInitDIVA_(SEMinfo &myInfo,
                               Kokkos::Experimental::python_view_type_t<Kokkos::View<int ****, Layout, MemSpace>> elemsToNodesDIVA,
                               Kokkos::Experimental::python_view_type_t<Kokkos::View<float **, Layout, MemSpace>> nodeCoordsDIVA,
                               Kokkos::Experimental::python_view_type_t<Kokkos::View<int *, Layout, MemSpace>> interiorNodes,
-                              Kokkos::Experimental::python_view_type_t<Kokkos::View<float *, Layout, MemSpace>> modelOnNodes) {
-   computeFEInitWithoutMesh(myInfo,
-                            elemsToNodesDIVA,
-                            nodeCoordsDIVA,
-                            interiorNodes,
-                            modelOnNodes);
+                              Kokkos::Experimental::python_view_type_t<Kokkos::View<float *, Layout, MemSpace>> rhomodelOnNodes,
+                              Kokkos::Experimental::python_view_type_t<Kokkos::View<float *, Layout, MemSpace>> vpmodelOnNodes) {
+   FEInitDIVA(myInfo,
+              elemsToNodesDIVA,
+              nodeCoordsDIVA,
+              interiorNodes,
+              rhomodelOnNodes,
+              vpmodelOnNodes);
 }
 
 void SEMsolver::allocateFEarraysWithoutMesh(SEMinfo &myInfo) {
@@ -68,19 +71,21 @@ void SEMsolver::allocateFEarraysWithoutMesh(SEMinfo &myInfo) {
 }
 
 void SEMsolver::initFEarraysDIVA(SEMinfo &myInfo,
-                                  const ARRAY4DINT &elemsToNodesDIVA,
+                                  const array4DInt &elemsToNodesDIVA,
                                   const arrayReal &nodeCoordsDIVA,
                                   const vectorInt &interiorNodes,
-                                  const vectorReal &modelOnNodes) {
+                                  const vectorReal &rhomodelOnNodes,
+                                  const vectorReal &vpmodelOnNodes) {
 
   globalelemsToNodesDIVA = elemsToNodesDIVA;
   globalnodeCoordsDIVA   = nodeCoordsDIVA;
   listOfInteriorNodes    = interiorNodes;
-  model                  = modelOnNodes;
+  vpmodel                = vpmodelOnNodes;
+  rhomodel               = rhomodelOnNodes;
 
   // get minimal wavespeed
   double min;
-  auto model_ = this->model; // Avoid implicit capture
+  auto model_ = this->vpmodel; // Avoid implicit capture
 #ifdef USE_KOKKOS
   Kokkos::parallel_reduce(
         "vMinFind", myInfo.numberOfNodes,
@@ -110,17 +115,19 @@ void SEMsolver::initFEarraysDIVA(SEMinfo &myInfo,
   FENCE
 }
 
-void SEMsolver::initFEarraysDIVA_(SEMinfo &myInfo,
-                                         Kokkos::Experimental::python_view_type_t<Kokkos::View<int ****, Layout, MemSpace>> elemsToNodesDIVA,
-                                         Kokkos::Experimental::python_view_type_t<Kokkos::View<float **, Layout, MemSpace>> nodeCoordsDIVA,
-                                         Kokkos::Experimental::python_view_type_t<Kokkos::View<int *, Layout, MemSpace>> interiorNodes,
-                                         Kokkos::Experimental::python_view_type_t<Kokkos::View<float *, Layout, MemSpace>> modelOnNodes) {
-   initFEarraysDIVA(myInfo,
-                      elemsToNodesDIVA,
-                      nodeCoordsDIVA,
-                      interiorNodes,
-                      modelOnNodes);
-   }
+// void SEMsolver::initFEarraysDIVA_(SEMinfo &myInfo,
+//                                          Kokkos::Experimental::python_view_type_t<Kokkos::View<int ****, Layout, MemSpace>> elemsToNodesDIVA,
+//                                          Kokkos::Experimental::python_view_type_t<Kokkos::View<float **, Layout, MemSpace>> nodeCoordsDIVA,
+//                                          Kokkos::Experimental::python_view_type_t<Kokkos::View<int *, Layout, MemSpace>> interiorNodes,
+//                                          Kokkos::Experimental::python_view_type_t<Kokkos::View<float *, Layout, MemSpace>> rhomodelOnNodes,
+//                                          Kokkos::Experimental::python_view_type_t<Kokkos::View<float *, Layout, MemSpace>> vpmodelOnNodes) {
+//    initFEarraysDIVA(myInfo,
+//                       elemsToNodesDIVA,
+//                       nodeCoordsDIVA,
+//                       interiorNodes,
+//                       rhomodelOnNodes,
+//                       vpmodelOnNodes);
+//    }
 
 void SEMsolver::computeOneStepDIVA(const int &timeSample, const int &order,
                                const int &nPointsPerElement, const int &i1,
@@ -130,9 +137,9 @@ void SEMsolver::computeOneStepDIVA(const int &timeSample, const int &order,
                                const vectorInt &rhsElement) {
   resetGlobalVectors(myInfo.numberOfNodes);
   FENCE
-  applyRHSTerm(timeSample, rhsTerm, rhsElement, myInfo, yGlobal);// Leave as last operation (at i1) before sponge
-  FENCE
   computeElementContributionsDIVA(order, nPointsPerElement, myInfo, i2, pnGlobal);
+  FENCE
+  applyRHSTerm(timeSample, rhsTerm, rhsElement, myInfo, yGlobal);
   FENCE
   updatePressureField(i1, i2, myInfo, pnGlobal);
   FENCE
@@ -166,11 +173,10 @@ void SEMsolver::resetGlobalVectors(int numNodes) {
 
 void SEMsolver::applyRHSTerm(int timeSample, const arrayReal &rhsTerm,
                              const vectorInt &rhsElement, SEMinfo &myInfo,
-                             const arrayReal &pnGlobal) {
+                             const vectorReal &yGlobal) {
   LOOPHEAD(myInfo.myNumberOfRHS, i)
   int nodeRHS = globalelemsToNodesDIVA(0,0,0,rhsElement[i]); // TODO modify when we have the coeffs
-  // int nodeRHS = 0;
-  yGlobal(nodeRHS) += scale * rhsTerm(i, timeSample);
+  yGlobal[nodeRHS] -= rhsTerm(i, timeSample);
   LOOPEND
 }
 
@@ -197,11 +203,11 @@ void SEMsolver::computeElementContributionsDIVA(int order, int nPointsPerElement
     }
   }
 
-#if defineddefined(USE_SEMOPTIM) || defined(USE_SHIVA)
+#if defined(USE_SEMOPTIM) || defined(USE_SHIVA)
   constexpr int ORDER = SEMinfo::myOrderNumber;
   myQkIntegrals.computeMassMatrixAndStiffnessVectorDIVA<ORDER>(
-      elementNumber, nPointsPerElement, globalelemsToNodesDIVA, massMatrixLocal, globalnodeCoordsDIVA,
-      pnLocal, Y);
+      elementNumber, nPointsPerElement, globalelemsToNodesDIVA, globalnodeCoordsDIVA,
+      massMatrixLocal, pnLocal, Y, rhomodel, vpmodel);
 #endif
 
 
@@ -223,6 +229,13 @@ void SEMsolver::updatePressureField(int i1, int i2, SEMinfo &myInfo,
                                     const arrayReal &pnGlobal) {
   LOOPHEAD(myInfo.numberOfInteriorNodes, i)
   int I = listOfInteriorNodes[i];
+  printf("RHSTerm[%d] = %f\n", I, yGlobal[I]);
+  printf("pnGlobal[%d][%d] = %f\n", I, i2, pnGlobal(I, i2));
+  printf("pnGlobal[%d][%d] = %f\n", I, i1, pnGlobal(I, i1));
+  printf("massMatrixGlobal[%d] = %f\n", I, massMatrixGlobal[I]);
+  printf("rho[%d] = %f\n", I, rhomodel[I]);
+  printf("vp[%d] = %f\n", I, vpmodel[I]);
+  // Update pressure field
   pnGlobal(I, i1) =
       2 * pnGlobal(I, i2) - pnGlobal(I, i1) -
       myInfo.myTimeStep * myInfo.myTimeStep * yGlobal[I] / massMatrixGlobal[I];

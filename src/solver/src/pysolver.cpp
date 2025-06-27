@@ -44,12 +44,12 @@ PYBIND11_MODULE(pysolver, m) {
       .def("set_vmin", &SEMsolver::setVMin)
 
       // Kokkos::View container accessors
-      .def("get_model", &SEMsolver::getModel)
-      .def("set_model", &SEMsolver::setModel_wrapper)
+      .def("get_vpmodel", &SEMsolver::getvpModel)
+      .def("set_vpmodel", &SEMsolver::setvpModel_wrapper)
+      .def("get_rhomodel", &SEMsolver::getrhoModel)
+      .def("set_rhomodel", &SEMsolver::setrhoModel_wrapper)
       .def("get_mass_matrix_global", &SEMsolver::getMassMatrixGlobal)
       .def("set_mass_matrix_global", &SEMsolver::setMassMatrixGlobal)
-      .def("get_global_nodes_list", &SEMsolver::getGlobalNodesList)
-      .def("set_global_nodes_list", &SEMsolver::setGlobalNodesList)
       .def("get_list_of_interior_nodes", &SEMsolver::getListOfInteriorNodes)
       .def("set_list_of_interior_nodes", &SEMsolver::setListOfInteriorNodes)
       .def("get_list_of_damping_nodes", &SEMsolver::getListOfDampingNodes)

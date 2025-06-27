@@ -481,8 +481,9 @@ public:
   template <int ORDER>
   PROXY_HOST_DEVICE void computeMassMatrixAndStiffnessVectorDIVA(
       const int &elementNumber, const int &nPointsPerElement,
-      ARRAY_INT_VIEW const &elemsToNodesDIVA, ARRAY_REAL_VIEW const &nodeCoordsDIVA,
-      float massMatrixLocal[], float pnLocal[], float Y[]) const {
+      ARRAY_4D_INT_VIEW const &elemsToNodesDIVA, ARRAY_REAL_VIEW const &nodeCoordsDIVA,
+      float massMatrixLocal[], float pnLocal[], float Y[],
+      VECTOR_REAL_VIEW const &rho_node, VECTOR_REAL_VIEW const &vp_node) const {
     float X[8][3];
     int I = 0;
 
@@ -496,7 +497,7 @@ public:
           int nodeIndex = elemsToNodesDIVA(iDiva, jDiva, kDiva, elementNumber);
           for( int d=0; d< 3; ++d )                                                                                                       
           {                                                                                                                            
-            X[ I ][ d ] = nodeCoordsDIVA[d,  nodeIndex ];   
+            X[ I ][ d ] = nodeCoordsDIVA(d,  nodeIndex );   
           }
           I++;                                                                                                                            
         }                                                                                                                              
@@ -506,6 +507,7 @@ public:
     for (int q = 0; q < nPointsPerElement; q++) {
       Y[q] = 0;
     }
+    
     int q = 0;
     for (int k = 0; k < ORDER+1; k++) {
       for (int j = 0; j < ORDER+1; j++) {
@@ -518,7 +520,7 @@ public:
                 float localIncrement = val * pnLocal[j] / rho;
                  Y[i] += localIncrement;
           });
-          q++:
+          q++;
         }
       }
     }

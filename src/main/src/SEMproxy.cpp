@@ -49,7 +49,8 @@ void SEMproxy::initFiniteElem() {
   // initialize source and RHS
   init_source();
 
-  mySolver.computeFEInit(myInfo, myMesh);
+  mySolver.allocateSolverDIVA(myInfo);
+
 }
 
 // Run the simulation.
@@ -61,14 +62,14 @@ void SEMproxy::run() {
   for (int indexTimeSample = 0; indexTimeSample < myInfo.myNumSamples;
        indexTimeSample++) {
     startComputeTime = system_clock::now();
-    mySolver.computeOneStep(indexTimeSample, myInfo.myOrderNumber,
+    mySolver.computeOneStepDIVA(indexTimeSample, myInfo.myOrderNumber,
                             myInfo.nPointsPerElement, i1, i2, myInfo, myRHSTerm,
                             pnGlobal, rhsElement);
     totalComputeTime += system_clock::now() - startComputeTime;
 
     startOutputTime = system_clock::now();
-    mySolver.outputPnValues(myMesh, indexTimeSample, i1, myInfo.myElementSource,
-                            pnGlobal);
+    // mySolver.outputPnValues(myMesh, indexTimeSample, i1, myInfo.myElementSource,
+    //                       pnGlobal);
 
     swap(i1, i2);
     totalOutputTime += system_clock::now() - startOutputTime;
