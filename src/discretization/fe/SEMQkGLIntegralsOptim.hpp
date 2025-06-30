@@ -491,9 +491,9 @@ public:
     for (int k = 0; k < 2; k++) {
       for (int j = 0; j < 2; j++) {
         for (int i = 0; i < 2; i++) {
-          int iDiva = i == 0 ? 0 : ORDER + 1;
-          int jDiva = j == 0 ? 0 : ORDER + 1;
-          int kDiva = k == 0 ? 0 : ORDER + 1;
+          int iDiva = i == 0 ? 0 : ORDER;
+          int jDiva = j == 0 ? 0 : ORDER;
+          int kDiva = k == 0 ? 0 : ORDER;
           int nodeIndex = elemsToNodesDIVA(iDiva, jDiva, kDiva, elementNumber);
           for( int d=0; d< 3; ++d )                                                                                                       
           {                                                                                                                            
@@ -502,8 +502,24 @@ public:
           I++;                                                                                                                            
         }                                                                                                                              
       }  
+    }     
+    // DEBUG 
+    I = 0;
+    printf("Element %d:\n", elementNumber);
+    for (int k = 0; k < 2; k++) {
+      for (int j = 0; j < 2; j++) {
+        for (int i = 0; i < 2; i++) {
+          int iDiva = i == 0 ? 0 : ORDER;
+          int jDiva = j == 0 ? 0 : ORDER;
+          int kDiva = k == 0 ? 0 : ORDER;
+          int nodeIndex = elemsToNodesDIVA(iDiva, jDiva, kDiva, elementNumber);
+          printf("node %i, %i, %i -> %i, X= %f, %f, %f\n",iDiva, jDiva, kDiva, nodeIndex, X[I][0], X[I][1], X[I][2]);
+          I++;                                                                                                                            
+        }                                                                                                                              
+      }  
     }      
-   
+    // DEBUG
+    
     for (int q = 0; q < nPointsPerElement; q++) {
       Y[q] = 0;
     }
@@ -513,12 +529,12 @@ public:
       for (int j = 0; j < ORDER+1; j++) {
         for (int i = 0; i < ORDER+1; i++) {
             int node = elemsToNodesDIVA(i, j, k, elementNumber);
+            float rho = rho_node[node];
             massMatrixLocal[q] = computeMassTerm<ORDER>(q, X) / (vp_node[node] * vp_node[node]);
             computeStiffnessTerm<ORDER>(
-                q, X, [&](const int i, const int j, const double val) {
-                float rho = rho_node[node];  
-                float localIncrement = val * pnLocal[j] / rho;
-                 Y[i] += localIncrement;
+                q, X, [&](const int iy, const int jy, const double val) {                  
+                float localIncrement = val * pnLocal[jy] / rho;
+                 Y[iy] += localIncrement;
           });
           q++;
         }
