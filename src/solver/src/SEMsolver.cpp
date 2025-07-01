@@ -9,13 +9,10 @@
 
 #include "SEMsolver.hpp"
 #include "dataType.hpp"
-#ifdef USE_EZV
-#include "ezvLauncher.hpp"
 #include <cstdlib>
 #ifdef USE_KOKKOS
 #include <Kokkos_Core.hpp>
 #endif // USE_KOKKOS
-#endif // USE_EZV
 
 void SEMsolver::computeFEInit(SEMinfo &myInfo_in, Mesh mesh) {
   myInfo = &myInfo_in;
@@ -27,14 +24,10 @@ void SEMsolver::computeFEInit(SEMinfo &myInfo_in, Mesh mesh) {
 void SEMsolver::computeOneStep(const int &timeSample, const int &order,
                                const int &nPointsPerElement, const int &i1,
                                const int &i2, SEMinfo &myInfo,
-<<<<<<< HEAD
                                const ARRAY_REAL_VIEW &rhsTerm,
                                const ARRAY_REAL_VIEW &pnGlobal,
-=======
-                               const ARRAY_REAL_VIEW &rhsTerm,
-                               ARRAY_REAL_VIEW &pnGlobal,
->>>>>>> main
                                const VECTOR_INT_VIEW &rhsElement) {
+  FENCE
   resetGlobalVectors(myInfo.numberOfNodes);
   applyRHSTerm(timeSample, i2, rhsTerm, rhsElement, myInfo, pnGlobal);
   FENCE
@@ -44,23 +37,6 @@ void SEMsolver::computeOneStep(const int &timeSample, const int &order,
   FENCE
 }
 
-#ifdef ENABLE_PYWRAP
-void SEMsolver::computeOneStep_wrapper(
-    int t, int order, int npts, int i1, int i2, SEMinfo info,
-    Kokkos::Experimental::python_view_type_t<
-        Kokkos::View<float **, Layout, MemSpace>>
-        rhsTerm,
-    Kokkos::Experimental::python_view_type_t<
-        Kokkos::View<float **, Layout, MemSpace>>
-        pnGlobal,
-    Kokkos::Experimental::python_view_type_t<
-        Kokkos::View<int *, Layout, MemSpace>>
-        rhsElement) {
-  // arrayReal pnGlobal_raw(pnGlobal);
-  computeOneStep(t, order, npts, i1, i2, info, rhsTerm, pnGlobal, rhsElement);
-}
-#endif // ENABLE_PYWRAP
-
 void SEMsolver::resetGlobalVectors(int numNodes) {
   LOOPHEAD(numNodes, i)
   massMatrixGlobal[i] = 0;
@@ -68,17 +44,10 @@ void SEMsolver::resetGlobalVectors(int numNodes) {
   LOOPEND
 }
 
-<<<<<<< HEAD
 void SEMsolver::applyRHSTerm(int timeSample, int i2,
                              const ARRAY_REAL_VIEW &rhsTerm,
                              const VECTOR_INT_VIEW &rhsElement, SEMinfo &myInfo,
                              const ARRAY_REAL_VIEW &pnGlobal) {
-=======
-void SEMsolver::applyRHSTerm(int timeSample, int i2,
-                             const ARRAY_REAL_VIEW &rhsTerm,
-                             const VECTOR_INT_VIEW &rhsElement, SEMinfo &myInfo,
-                             ARRAY_REAL_VIEW &pnGlobal) {
->>>>>>> main
   float const dt2 = myInfo.myTimeStep * myInfo.myTimeStep;
   LOOPHEAD(myInfo.myNumberOfRHS, i)
   int nodeRHS = globalNodesList(rhsElement[i], 0);
@@ -106,16 +75,10 @@ void SEMsolver::computeElementContributions(int order, int nPointsPerElement,
   }
 
 #ifdef USE_SEMCLASSIC
-  <<<<<<< HEAD myQkIntegrals.computeMassMatrixAndStiffnessVector(
-      elementNumber, order, nPointsPerElement, globalNodesCoordsX,
-      globalNodesCoordsY, globalNodesCoordsZ, weights,
-      derivativeBasisFunction1D, massMatrixLocal, pnLocal, Y);
-=======
   myQkIntegrals.computeMassMatrixAndStiffnessVector(
       elementNumber, order, nPointsPerElement, globalNodesCoordsX,
       globalNodesCoordsY, globalNodesCoordsZ, weights,
       derivativeBasisFunction1D, massMatrixLocal, pnLocal, Y);
->>>>>>> main
 #else
   myQkIntegrals.computeMassMatrixAndStiffnessVector(
       elementNumber, nPointsPerElement, globalNodesCoordsX, globalNodesCoordsY,
@@ -134,11 +97,7 @@ void SEMsolver::computeElementContributions(int order, int nPointsPerElement,
 }
 
 void SEMsolver::updatePressureField(int i1, int i2, SEMinfo &myInfo,
-<<<<<<< HEAD
                                     const ARRAY_REAL_VIEW &pnGlobal) {
-=======
-                                    ARRAY_REAL_VIEW &pnGlobal) {
->>>>>>> main
 
   float const dt2 = myInfo.myTimeStep * myInfo.myTimeStep;
   LOOPHEAD(myInfo.numberOfNodes, I)

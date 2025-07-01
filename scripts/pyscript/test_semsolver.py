@@ -1,20 +1,13 @@
 #!/usr/bin/env python3
 import numpy as np
 import matplotlib.pyplot as plt
-import libpykokkos as kokkos
+import kokkos
 import time
 from datetime import datetime
 
 import pysolver as Solver
 import pysem as Sem
 
-ArrayReal = kokkos.KokkosView_float32_HostSpace_LayoutRight_2
-VectorInt = kokkos.KokkosView_int32_HostSpace_LayoutRight_1
-VectorReal = kokkos.KokkosView_float32_HostSpace_LayoutRight_1
-
-# ArrayReal = kokkos.KokkosView_float32_CudaUVMSpace_LayoutLeft_2
-# VectorInt = kokkos.KokkosView_int32_CudaUVMSpace_LayoutLeft_1
-# VectorReal = kokkos.KokkosView_float32_CudaUVMSpace_LayoutLeft_1
 
 def print_global( arr ):
   for idx, e in enumerate(arr):
@@ -43,17 +36,19 @@ def initPressure(pressure,nDof):
         pressure[i,1]=0.
     return 0
 
-def getSnapshot(timeStep,i1,nx,ny,nz,hx,hy,hz,pnGlobal,maxval):
+def getSnapshot(timeStep,i1,nx,ny,nz,hx,hy,hz,pnGlobal, normalize):
   offset=nx*nz*(int(ny/2)-1)
-  print(nx,ny,nz,offset)
   grid=np.zeros((nx,nz))
   for I in range(offset,offset+nx*nz):
       i=(I-offset)%nx
       j=int((I-offset-i)/nx);
-      if maxval != 0:
-        grid[i,j]=pnGlobal[I,i1]/maxval
-      else :
-        grid[i,j]=pnGlobal[I,i1]
+      grid[i,j]=pnGlobal[I,i1]
+
+  if normalize:
+      maxvalue = np.abs(grid).max()
+      if maxvalue != 0:
+        grid = grid / maxvalue
+
   return grid
 
 def get_element_number_from_point(ex, ey, ez, hx, hy, hz, x, y, z):
@@ -80,8 +75,6 @@ def main():
 
   print(f"Simulation started at: {simulation_start}")
 
-  # kokkos.initialize()
-
   order=2
   domain_size=1500.
   ex=100
@@ -103,12 +96,15 @@ def main():
   printOffset=int(nDof/freqPrint)
   print("number of elements=",nElements)
 
-  model = np.zeros([nElements],dtype=np.float32)
-  initModel(model,nElements)
-  kk_model = VectorReal(model, (nElements,))
+  memspace = kokkos.CudaUVMSpace
+  layout = kokkos.LayoutLeft
 
-  mesh = Sem.SEMmesh(ex, ey, ez, domain_size, domain_size, domain_size, order, 20, False)
-  myInfo = Sem.SEMinfo()
+  kk_model = kokkos.array([nElements], dtype=kokkos.float32, space=memspace, layout=layout)
+  model = np.array(kk_model, copy=False)
+  initModel(model,nElements)
+
+  mesh = Solver.SEMmesh(ex, ey, ez, domain_size, domain_size, domain_size, order, 30, False)
+  myInfo = Solver.SEMinfo()
   myInfo.numberOfNodes = nx * ny * nz
   myInfo.numberOfElements = nElements
   myInfo.numberOfPointsPerElement = nPointsPerElement
@@ -122,36 +118,37 @@ def main():
 
   # allocate pressure
   print("Allocating Pressure...")
-  pnGlobal = np.zeros((nDof, 2), dtype=np.float32)
+  kk_pnGlobal = kokkos.array([nDof, 2], dtype=kokkos.float32, space=memspace, layout=layout)
+  pnGlobal = np.array(kk_pnGlobal, copy=False)
   initPressure(pnGlobal, nDof)
-  kk_pnGlobal = ArrayReal(pnGlobal, (nDof, 2))
 
   # source term
   f0=5
   # time step and sampling
   timeStep=0.001
-  nTimeSteps=300
+  nTimeSteps=1500
   numberOfRHS=1
   xs=ex*hx/2
   ys=ey*hy/2
   zs=ez*hz/2
 
-  RHSElement=np.array([numberOfRHS],dtype=int)
+  kk_RHSElement = kokkos.array([numberOfRHS], dtype=kokkos.int32, space=memspace, layout=layout)
+  RHSElement=np.array(kk_RHSElement, copy=False)
   RHSElement[0] = get_element_number_from_point(ex,ey,ez,hx,hy,hz,xs,ys,zs)
-  kk_RHSElement = VectorInt(RHSElement, (numberOfRHS,))
   print("RHS element number ", RHSElement[0])
 
   # compute source term
-  RHSTerm=np.zeros((numberOfRHS,nTimeSteps),dtype=np.float32)
+  kk_RHSTerm = kokkos.array([numberOfRHS, nTimeSteps], dtype=kokkos.float32, space=memspace, layout=layout)
+  RHSTerm = np.array(kk_RHSTerm, copy=False)
   for i in range(nTimeSteps):
       RHSTerm[0,i]=sourceTerm(i*timeStep,f0)
-  kk_RHSTerm = ArrayReal(RHSTerm, (numberOfRHS,nTimeSteps))
 
   # setup graphic display
   grid=np.zeros((nx,nz))
-  plt.ion()  # Enable interactive mode
   fig, ax = plt.subplots()
-  im = ax.imshow(grid, cmap='viridis', interpolation='nearest')
+  cmpvalue = 20
+  im = ax.imshow(grid, cmap='viridis', interpolation='nearest', vmin=-cmpvalue, vmax=cmpvalue)
+
   plt.colorbar(im, ax=ax, label="Intensity")
   plt.title("2D Slice of a Float32 Array")
   plt.xlabel("X-axis")
@@ -163,19 +160,13 @@ def main():
 
   for timeSample in range(nTimeSteps):
      iter_start = time.time()
-     if timeSample%100==0:
-       print()
-       print("sum pnGlobal[:, i1]", np.sum(pnGlobal[:, i1]))
-
      solver.computeOneStep(timeSample, order, nPointsPerElement, i1, i2, myInfo, kk_RHSTerm, kk_pnGlobal, kk_RHSElement)
-     # Solver.compute_debug_args(solver, 0, 2, 27, 0, 1, myInfo,kk_RHSTerm, kk_pnGlobal, kk_RHSElement)
 
      iter_time = time.time() - iter_start
      iteration_times.append(iter_time)
 
      if timeSample%10==0:
        print("sum pnGlobal[:, i1]", np.sum(pnGlobal[:, i1]))
-       maxval=np.max(np.abs(pnGlobal))/5
        print(f"Average iteration time: {np.mean(iteration_times):.4f} seconds")
        elementSource=nodesList[RHSElement[0],0]
        elapsed_time = time.time() - start_time
@@ -183,14 +174,16 @@ def main():
        print(f"Time iteration {timeSample}/{nTimeSteps}")
        print(f"Elapsed time: {elapsed_time:.2f} seconds")
        print(f"Average iteration time: {np.mean(iteration_times):.4f} seconds")
-       print(f"Pressure={pnGlobal[elementSource,0]}")
+       print(f"Min pressure: {np.min(pnGlobal)}")
+       print(f"Max pressure: {np.max(pnGlobal)}")
+       print()
 
-       grid=getSnapshot(timeStep,i1,nx,ny,nz,hx,hy,hz,pnGlobal,maxval)
+       # plotting
+       grid=getSnapshot(timeStep,i1,nx,ny,nz,hx,hy,hz,pnGlobal,False)
        im.set_array(grid)  # Update plot with new values
        plt.draw()  # Redraw the figure with updated data
-       plt.pause(1)  # Pause for 1 second before updating again
        plt.ioff
-       plt.show()
+       plt.savefig(f"snap0{timeSample:0{5}d}.png")
 
      tmp=i1
      i1=i2

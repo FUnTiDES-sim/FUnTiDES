@@ -56,20 +56,6 @@ public:
                       const ARRAY_REAL_VIEW &pnGlobal,
                       const VECTOR_INT_VIEW &rhsElement);
 
-#ifdef ENABLE_PYWRAP
-  void computeOneStep_wrapper(int t, int order, int npts, int i1, int i2,
-                              SEMinfo info,
-                              Kokkos::Experimental::python_view_type_t<
-                                  Kokkos::View<float **, Layout, MemSpace>>
-                                  rhsTerm,
-                              Kokkos::Experimental::python_view_type_t<
-                                  Kokkos::View<float **, Layout, MemSpace>>
-                                  pnGlobal,
-                              Kokkos::Experimental::python_view_type_t<
-                                  Kokkos::View<int *, Layout, MemSpace>>
-                                  rhsElement);
-#endif // ENABLE_PYWRAP
-
   void outputPnValues(Mesh mesh, const int &indexTimeStep, int &i1,
                       int &myElementSource, const ARRAY_REAL_VIEW &pnGlobal);
 
@@ -89,13 +75,8 @@ public:
    */
   void initSpongeValues(Mesh &mesh, SEMinfo &myInfo);
 
-<<<<<<< HEAD
   void spongeUpdate(const ARRAY_REAL_VIEW &pnGlobal, const int i1,
                     const int i2);
-=======
-  void spongeUpdate(const ARRAY_REAL_VIEW &pnGlobal, const int i1,
-                    const int i2);
->>>>>>> main
 
   /**
    * @brief Reset the global mass matrix and stiffness vector to zero.
@@ -179,13 +160,7 @@ public:
   double getVMin() const { return vMin; }
 
   void setModel(const vectorReal &m) { model = m; }
-#ifdef ENABLE_PYWRAP
-  void setModel_wrapper(Kokkos::Experimental::python_view_type_t<
-                        Kokkos::View<float *, Layout, MemSpace>>
-                            m) {
-    setModel(m);
-  }
-#endif
+
   const vectorReal &getModel() const { return model; }
 
   void setMassMatrixGlobal(const vectorReal &m) { massMatrixGlobal = m; }
