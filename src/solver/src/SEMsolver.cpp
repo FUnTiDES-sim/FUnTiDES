@@ -33,7 +33,7 @@ void SEMsolver::FEInitDIVA(SEMinfo &myInfo,
 }
 
 void SEMsolver::FEInitDIVA_(SEMinfo &myInfo,
-                              Kokkos::Experimental::python_view_type_t<Kokkos::View<int ****, Layout, MemSpace>> elemsToNodesDIVA,
+                              Kokkos::Experimental::python_view_type_t<Kokkos::View<int64_t ****, Layout, MemSpace>> elemsToNodesDIVA,
                               Kokkos::Experimental::python_view_type_t<Kokkos::View<float **, Layout, MemSpace>> nodeCoordsDIVA,
                               Kokkos::Experimental::python_view_type_t<Kokkos::View<int *, Layout, MemSpace>> interiorNodes,
                               Kokkos::Experimental::python_view_type_t<Kokkos::View<float *, Layout, MemSpace>> rhomodelOnNodes,
@@ -139,7 +139,7 @@ void SEMsolver::computeOneStepDIVA(const int &timeSample, const int &order,
   FENCE
   computeElementContributionsDIVA(order, nPointsPerElement, myInfo, i2, pnGlobal);
   FENCE
-  applyRHSTerm(timeSample, rhsTerm, rhsElement, myInfo, yGlobal);
+  applyRHSTerm(timeSample, rhsTerm, rhsElement, myInfo);
   FENCE
   updatePressureField(i1, i2, myInfo, pnGlobal);
   FENCE
@@ -172,8 +172,7 @@ void SEMsolver::resetGlobalVectors(int numNodes) {
 }
 
 void SEMsolver::applyRHSTerm(int timeSample, const arrayReal &rhsTerm,
-                             const vectorInt &rhsElement, SEMinfo &myInfo,
-                             const vectorReal &yGlobal) {
+                             const vectorInt &rhsElement, SEMinfo &myInfo) {
   LOOPHEAD(myInfo.myNumberOfRHS, i)
   int nodeRHS = globalelemsToNodesDIVA(0,0,0,rhsElement[i]); // TODO modify when we have the coeffs
   yGlobal[nodeRHS] -= rhsTerm(i, timeSample);
@@ -194,11 +193,13 @@ void SEMsolver::computeElementContributionsDIVA(int order, int nPointsPerElement
   float pnLocal[ROW] = {0};
   float Y[ROW] = {0};
 
+  int qindex = 0;
   for (int k = 0; k < order + 1; ++k) {
     for (int j = 0; j < order + 1; ++j) {
       for (int i = 0; i < order + 1; ++i) {
            int globalIdx = globalelemsToNodesDIVA(i, j, k, elementNumber);
-           pnLocal[i] = pnGlobal(globalIdx, i2);
+           pnLocal[qindex] = pnGlobal(globalIdx, i2);
+           qindex++;
       }
     }
   }
@@ -210,14 +211,15 @@ void SEMsolver::computeElementContributionsDIVA(int order, int nPointsPerElement
       massMatrixLocal, pnLocal, Y, rhomodel, vpmodel);
 #endif
 
-
+  qindex = 0;  
   for (int k = 0; k < order + 1; ++k) {
     for (int j = 0; j < order + 1; ++j) {
       for (int i = 0; i < order + 1; ++i) {
            int gIndex = globalelemsToNodesDIVA(i, j, k, elementNumber);
-           float massValue = massMatrixLocal[i];
+           float massValue = massMatrixLocal[qindex];
            ATOMICADD(massMatrixGlobal[gIndex], massValue);
-           ATOMICADD(yGlobal[gIndex], Y[i]);
+           ATOMICADD(yGlobal[gIndex], Y[qindex]);
+           qindex++;
        }
     }
   }
@@ -229,12 +231,15 @@ void SEMsolver::updatePressureField(int i1, int i2, SEMinfo &myInfo,
                                     const arrayReal &pnGlobal) {
   LOOPHEAD(myInfo.numberOfInteriorNodes, i)
   int I = listOfInteriorNodes[i];
-  printf("RHSTerm[%d] = %f\n", I, yGlobal[I]);
-  printf("pnGlobal[%d][%d] = %f\n", I, i2, pnGlobal(I, i2));
-  printf("pnGlobal[%d][%d] = %f\n", I, i1, pnGlobal(I, i1));
-  printf("massMatrixGlobal[%d] = %f\n", I, massMatrixGlobal[I]);
-  printf("rho[%d] = %f\n", I, rhomodel[I]);
-  printf("vp[%d] = %f\n", I, vpmodel[I]);
+  // if (I >7550000 & I < 7570000) {
+  // // Debugging output  
+  // printf("RHSTerm[%d] = %f\n", I, yGlobal[I]);
+  // printf("pnGlobal[%d][%d] = %f\n", I, i2, pnGlobal(I, i2));
+  // printf("pnGlobal[%d][%d] = %f\n", I, i1, pnGlobal(I, i1));
+  // printf("massMatrixGlobal[%d] = %f\n", I, massMatrixGlobal[I]);
+  // printf("rho[%d] = %f\n", I, rhomodel[I]);
+  // printf("vp[%d] = %f\n", I, vpmodel[I]);
+  // }
   // Update pressure field
   pnGlobal(I, i1) =
       2 * pnGlobal(I, i2) - pnGlobal(I, i1) -

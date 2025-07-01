@@ -55,7 +55,7 @@ public:
    * @brief pybind11 wrapper for FEInitDIVA.
    */ 
   void FEInitDIVA_(SEMinfo &myInfo,
-                              Kokkos::Experimental::python_view_type_t<Kokkos::View<int ****, Layout, MemSpace>> elemsToNodesDIVA,
+                              Kokkos::Experimental::python_view_type_t<Kokkos::View<int64_t ****, Layout, MemSpace>> elemsToNodesDIVA,
                               Kokkos::Experimental::python_view_type_t<Kokkos::View<float **, Layout, MemSpace>> nodeCoordsDIVA,
                               Kokkos::Experimental::python_view_type_t<Kokkos::View<int *, Layout, MemSpace>> interiorNodes,
                               Kokkos::Experimental::python_view_type_t<Kokkos::View<float *, Layout, MemSpace>> rhomodelOnNodes,
@@ -164,8 +164,7 @@ public:
    * @param pnGlobal Pressure field array to update
    */
   void applyRHSTerm(int timeSample, const arrayReal &rhsTerm,
-                    const vectorInt &rhsElement, SEMinfo &myInfo,
-                    const vectorReal &yGlobal);
+                    const vectorInt &rhsElement, SEMinfo &myInfo);
 
   /**
    * @brief Compute local element contributions to the global mass and stiffness
