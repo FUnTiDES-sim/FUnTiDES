@@ -235,9 +235,11 @@ void SEMsolver::computeOneStep(const int &timeSample, const int &order,
                                const vectorInt &rhsElement) {
   resetGlobalVectors(myInfo.numberOfNodes);
   FENCE
-  applyRHSTerm(timeSample, i2, rhsTerm, rhsElement, myInfo, pnGlobal);
-  FENCE
+  //applyRHSTerm(timeSample, i2, rhsTerm, rhsElement, myInfo, pnGlobal);
+  //FENCE
   computeElementContributions(order, nPointsPerElement, myInfo, i2, pnGlobal);
+  FENCE
+  applyRHSTerm(timeSample, rhsTerm, rhsElement, myInfo);
   FENCE
   updatePressureField(i1, i2, myInfo, pnGlobal);
   FENCE
@@ -269,15 +271,23 @@ void SEMsolver::resetGlobalVectors(int numNodes) {
   LOOPEND
 }
 
-void SEMsolver::applyRHSTerm(int timeSample, int i2, const arrayReal &rhsTerm,
-                             const vectorInt &rhsElement, SEMinfo &myInfo,
-                             const arrayReal &pnGlobal) {
+// void SEMsolver::applyRHSTerm(int timeSample, int i2, const arrayReal &rhsTerm,
+//                              const vectorInt &rhsElement, SEMinfo &myInfo,
+//                              const arrayReal &pnGlobal) {
+//   LOOPHEAD(myInfo.myNumberOfRHS, i)
+//   int nodeRHS = globalNodesList(rhsElement[i], 0);
+//   // int nodeRHS = 0;
+//   float scale = myInfo.myTimeStep * myInfo.myTimeStep * model[rhsElement[i]] *
+//                 model[rhsElement[i]];
+//   pnGlobal(nodeRHS, i2) += scale * rhsTerm(i, timeSample);
+//   LOOPEND
+// }
+
+void SEMsolver::applyRHSTerm(int timeSample, const arrayReal &rhsTerm,
+                             const vectorInt &rhsElement, SEMinfo &myInfo) {
   LOOPHEAD(myInfo.myNumberOfRHS, i)
-  int nodeRHS = globalNodesList(rhsElement[i], 0);
-  // int nodeRHS = 0;
-  float scale = myInfo.myTimeStep * myInfo.myTimeStep * model[rhsElement[i]] *
-                model[rhsElement[i]];
-  pnGlobal(nodeRHS, i2) += scale * rhsTerm(i, timeSample);
+  int nodeRHS = globalNodesList(rhsElement[i], 0); // TODO modify when we have the coeffs
+  yGlobal[nodeRHS] -= rhsTerm(i, timeSample);
   LOOPEND
 }
 
