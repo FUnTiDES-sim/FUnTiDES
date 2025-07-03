@@ -4,7 +4,7 @@ cmake_minimum_required( VERSION 3.22.1 )
 #-----------------------------------------------------
 # Setup Flags for Building and Installation
 #-----------------------------------------------------
-set (CMAKE_VERBOSE_MAKEFILE ON )
+set (CMAKE_VERBOSE_MAKEFILE OFF )
 
 option (COMPILE_SEM "Compile Spectral Elements Method simulation" ON)
 option (COMPILE_FD "Compile finit elements simulation" ON)
@@ -66,7 +66,6 @@ endif()
 #-------------------------------------------------------------------
 # setup compilation flags
 #-------------------------------------------------------------------
-
 # CC options
 if(DEFINED CMAKE_C_COMPILER)
   message(STATUS "The CMAKE_C_COMPILER is ${CMAKE_C_COMPILER}")
@@ -156,6 +155,7 @@ else ()
     set(BUILD_SHARE_LIBS ON CACHE BOOL "" FORCE)
     set(Kokkos_ENABLE_SERIAL ON CACHE BOOL "" FORCE)
     set(ENABLE_INTERNAL_KOKKOS OFF CACHE BOOL "" FORCE)
+    set(ENABLE_INTERNAL_PYBIND11 OFF CACHE BOOL "" FORCE)
     set(Kokkos_DIR "${Kokkos_BINARY_DIR}" CACHE PATH "Use external Kokkos build")
     message(STATUS "-- Enabling pykokkos base.")
     add_subdirectory(external/pykokkos-base)
