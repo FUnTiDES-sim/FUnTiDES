@@ -32,7 +32,6 @@ PYBIND11_MODULE(pysolver, m) {
       .def_readwrite("numberOfPointsPerElement",
                      &SEMinfo::numberOfPointsPerElement)
       .def_readwrite("numberOfInteriorNodes", &SEMinfo::numberOfInteriorNodes)
-      .def_readwrite("numberOfDampingNodes", &SEMinfo::numberOfDampingNodes)
       .def_readwrite("numberOfSpongeNodes", &SEMinfo::numberOfSpongeNodes)
       .def_readwrite("myNumSamples", &SEMinfo::myNumSamples)
       .def_readwrite("myElementSource", &SEMinfo::myElementSource);

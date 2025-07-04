@@ -15,7 +15,6 @@ struct SEMinfo {
   int numberOfElements;
   int numberOfPointsPerElement;
   int numberOfInteriorNodes;
-  int numberOfDampingNodes;
   int numberOfSpongeNodes;
 
   const int myNumberOfRHS = 1;
