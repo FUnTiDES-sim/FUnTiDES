@@ -182,8 +182,6 @@ void SEMsolver::allocateFEarrays(SEMinfo &myInfo) {
       "globalNodesList");
   listOfInteriorNodes = allocateVector<VECTOR_INT_VIEW>(
       myInfo.numberOfInteriorNodes, "listOfInteriorNodes");
-  listOfDampingNodes = allocateVector<VECTOR_INT_VIEW>(
-      myInfo.numberOfDampingNodes, "listOfDampingNodes");
 
   // global coordinates
   globalNodesCoordsX = allocateArray2D<ARRAY_REAL_VIEW>(
