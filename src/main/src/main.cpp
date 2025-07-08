@@ -39,7 +39,7 @@ void compute(SEMproxy &semsim) {
        << endl;
 };
 
-void compute_loop(SEMproxy semsim) { compute(semsim); }
+void compute_loop(SEMproxy & semsim) { compute(semsim); }
 
 int main(int argc, char *argv[]) {
 

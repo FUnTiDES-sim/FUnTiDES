@@ -6,6 +6,8 @@
 //************************************************************************
 
 #include "SEMproxy.hpp"
+
+#include "solverFactory.hpp"
 #ifdef USE_EZV
 #include "ezvLauncher.hpp"
 #endif // USE_EZV
@@ -36,6 +38,8 @@ SEMproxy::SEMproxy(int argc, char *argv[]) {
 
   SEMmesh simpleMesh{ex, ey, ez, lx, ly, lz, myInfo.myOrderNumber,30, false};
   myMesh = simpleMesh;
+
+  mySolver = createSolver( 0, 1, 2 ); // physicsType, methodType, order
 }
 
 SEMproxy::SEMproxy(int ex, int ey, int ez, float lx) {
@@ -57,7 +61,7 @@ void SEMproxy::initFiniteElem() {
   // initialize source and RHS
   init_source();
 
-  mySolver.computeFEInit(myInfo, myMesh);
+  mySolver->computeFEInit(myInfo, myMesh);
 }
 
 // Run the simulation.
@@ -73,13 +77,13 @@ void SEMproxy::run() {
   for (int indexTimeSample = 0; indexTimeSample < myInfo.myNumSamples;
        indexTimeSample++) {
     startComputeTime = system_clock::now();
-    mySolver.computeOneStep(indexTimeSample, myInfo.myOrderNumber,
+    mySolver->computeOneStep(indexTimeSample,
                             myInfo.nPointsPerElement, i1, i2, myInfo, myRHSTerm,
                             pnGlobal, rhsElement);
     totalComputeTime += system_clock::now() - startComputeTime;
 
     startOutputTime = system_clock::now();
-    mySolver.outputPnValues(myMesh, indexTimeSample, i1, myInfo.myElementSource,
+    mySolver->outputPnValues(myMesh, indexTimeSample, i1, myInfo.myElementSource,
                             pnGlobal);
 
     swap(i1, i2);

@@ -8,12 +8,14 @@
 #ifndef SEMPROXY_HPP_
 #define SEMPROXY_HPP_
 
-#include <SEMsolver.hpp>
+#include "SolverBase.hpp"
 #include <argsparse.hpp>
 #include <utils.hpp>
 #ifdef USE_CALIPER
 #include <caliper/cali.h>
 #endif
+
+#include <memory>
 
 /**
  * @class SEMproxy
@@ -68,7 +70,7 @@ private:
 
   SEMinfo myInfo;
 
-  SEMsolver mySolver;
+  std::unique_ptr<SolverBase> mySolver;
   SolverUtils myUtils;
 
   // arrays

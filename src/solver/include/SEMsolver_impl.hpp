@@ -7,6 +7,11 @@
 //
 //************************************************************************
 
+#include "finiteElement/classic/SEMQkGLIntegralsClassic.hpp"
+#include "finiteElement/optim/SEMQkGLIntegralsOptim.hpp"
+#include "finiteElement/geos/Qk_Hexahedron_Lagrange_GaussLobatto.hpp"
+#include "finiteElement/shiva/SEMQkGLIntegralsShiva.hpp"
+
 #include "SEMsolver.hpp"
 #include "dataType.hpp"
 #ifdef USE_EZV
@@ -17,7 +22,11 @@
 #endif // USE_KOKKOS
 #endif // USE_EZV
 
-void SEMsolver::computeFEInit(SEMinfo &myInfo_in, Mesh mesh) {
+template< int ORDER, typename INTEGRAL_TYPE >
+void 
+SEMsolver<ORDER, INTEGRAL_TYPE>::computeFEInit( SEMinfo const & myInfo_in, 
+                                                Mesh const & mesh ) 
+{
   this->myInfo = &myInfo_in;
   myMesh = mesh;
   order = myInfo_in.myOrderNumber;
@@ -25,11 +34,18 @@ void SEMsolver::computeFEInit(SEMinfo &myInfo_in, Mesh mesh) {
   initFEarrays(myInfo_in, mesh);
 }
 
-void SEMsolver::computeOneStep(const int &timeSample, const int &order,
-                               const int &nPointsPerElement, const int &i1,
-                               const int &i2, SEMinfo &myInfo,
-                               const ARRAY_REAL_VIEW &rhsTerm, ARRAY_REAL_VIEW &pnGlobal,
-                               const VECTOR_INT_VIEW &rhsElement) {
+template< int ORDER, typename INTEGRAL_TYPE >
+void 
+SEMsolver<ORDER, INTEGRAL_TYPE>::
+computeOneStep( const int &timeSample, 
+                const int &nPointsPerElement, 
+                const int &i1,
+                const int &i2, 
+                SEMinfo const & myInfo,
+                const ARRAY_REAL_VIEW &rhsTerm, 
+                const ARRAY_REAL_VIEW &pnGlobal,
+                const VECTOR_INT_VIEW &rhsElement )
+{
   resetGlobalVectors(myInfo.numberOfNodes);
   applyRHSTerm(timeSample, i2, rhsTerm, rhsElement, myInfo, pnGlobal);
   FENCE
@@ -39,16 +55,22 @@ void SEMsolver::computeOneStep(const int &timeSample, const int &order,
   FENCE
 }
 
-void SEMsolver::resetGlobalVectors(int numNodes) {
+template< int ORDER, typename INTEGRAL_TYPE >
+void 
+SEMsolver<ORDER, INTEGRAL_TYPE>::
+resetGlobalVectors(int numNodes) {
   LOOPHEAD(numNodes, i)
   massMatrixGlobal[i] = 0;
   yGlobal[i] = 0;
   LOOPEND
 }
 
-void SEMsolver::applyRHSTerm(int timeSample, int i2, const ARRAY_REAL_VIEW &rhsTerm,
-                             const VECTOR_INT_VIEW &rhsElement, SEMinfo &myInfo,
-                             ARRAY_REAL_VIEW &pnGlobal) 
+template< int ORDER, typename INTEGRAL_TYPE >
+void 
+SEMsolver<ORDER, INTEGRAL_TYPE>::
+applyRHSTerm(int timeSample, int i2, const ARRAY_REAL_VIEW &rhsTerm,
+                             const VECTOR_INT_VIEW &rhsElement, SEMinfo const &myInfo,
+                             const ARRAY_REAL_VIEW &pnGlobal) 
 {
   float const dt2 = myInfo.myTimeStep * myInfo.myTimeStep;
   LOOPHEAD(myInfo.myNumberOfRHS, i)
@@ -58,8 +80,11 @@ void SEMsolver::applyRHSTerm(int timeSample, int i2, const ARRAY_REAL_VIEW &rhsT
   LOOPEND
 }
 
-void SEMsolver::computeElementContributions(int order, int nPointsPerElement,
-                                            SEMinfo &myInfo, int i2,
+template< int ORDER, typename INTEGRAL_TYPE >
+void 
+SEMsolver<ORDER, INTEGRAL_TYPE>::
+computeElementContributions(int order, int nPointsPerElement,
+                                            SEMinfo const &myInfo, int i2,
                                             const ARRAY_REAL_VIEW &pnGlobal) {
   MAINLOOPHEAD(myInfo.numberOfElements, elementNumber)
 
@@ -112,8 +137,11 @@ void SEMsolver::computeElementContributions(int order, int nPointsPerElement,
   MAINLOOPEND
 }
 
-void SEMsolver::updatePressureField(int i1, int i2, SEMinfo &myInfo,
-                                    ARRAY_REAL_VIEW &pnGlobal) 
+template< int ORDER, typename INTEGRAL_TYPE >
+void 
+SEMsolver<ORDER, INTEGRAL_TYPE>::
+updatePressureField(int i1, int i2, SEMinfo const &myInfo,
+                    const ARRAY_REAL_VIEW &pnGlobal) 
 {
 
   float const dt2 = myInfo.myTimeStep * myInfo.myTimeStep;
@@ -124,7 +152,10 @@ void SEMsolver::updatePressureField(int i1, int i2, SEMinfo &myInfo,
   LOOPEND
 }
 
-void SEMsolver::outputPnValues(Mesh mesh, const int &indexTimeStep, int &i1,
+template< int ORDER, typename INTEGRAL_TYPE >
+void 
+SEMsolver<ORDER, INTEGRAL_TYPE>::
+outputPnValues(Mesh mesh, const int &indexTimeStep, int &i1,
                                int &myElementSource,
                                const ARRAY_REAL_VIEW &pnGlobal) {
   // writes debugging ascii file.
@@ -139,7 +170,10 @@ void SEMsolver::outputPnValues(Mesh mesh, const int &indexTimeStep, int &i1,
   }
 }
 
-void SEMsolver::initFEarrays(SEMinfo &myInfo, Mesh mesh) {
+template< int ORDER, typename INTEGRAL_TYPE >
+void 
+SEMsolver<ORDER, INTEGRAL_TYPE>::
+initFEarrays( SEMinfo const & myInfo, Mesh mesh) {
   // interior elements
   mesh.globalNodesList(myInfo.numberOfElements, globalNodesList);
   mesh.getListOfInteriorNodes(myInfo.numberOfInteriorNodes,
@@ -180,7 +214,7 @@ void SEMsolver::initFEarrays(SEMinfo &myInfo, Mesh mesh) {
 
   // Sponge boundaries
   initSpongeValues(mesh, myInfo);
-  Kokkos::fence();
+  FENCE;
 }
 
 //************************************************************************
@@ -189,7 +223,11 @@ void SEMsolver::initFEarrays(SEMinfo &myInfo, Mesh mesh) {
 //  It allocates arrays for global nodes, global coordinates, and sponge
 //  It also allocates arrays for the mass matrix and the global pressure field
 //************************************************************************
-void SEMsolver::allocateFEarrays(SEMinfo &myInfo) {
+template< int ORDER, typename INTEGRAL_TYPE >
+void 
+SEMsolver<ORDER, INTEGRAL_TYPE>::
+allocateFEarrays( SEMinfo const & myInfo) 
+{
   int nbQuadraturePoints = (order + 1) * (order + 1) * (order + 1);
   // interior elements
   cout << "Allocate host memory for arrays in the solver ..." << endl;
@@ -230,7 +268,11 @@ void SEMsolver::allocateFEarrays(SEMinfo &myInfo) {
       allocateVector<VECTOR_REAL_VIEW>(myInfo.numberOfNodes, "spongeTaperCoeff");
 }
 
-void SEMsolver::initSpongeValues(Mesh &mesh, SEMinfo &myInfo) {
+template< int ORDER, typename INTEGRAL_TYPE >
+void 
+SEMsolver<ORDER, INTEGRAL_TYPE>::
+initSpongeValues(Mesh &mesh, SEMinfo const &myInfo) 
+{
   // Init all taper to 1 (default value)
   LOOPHEAD(myInfo.numberOfNodes, i)
   spongeTaperCoeff(i) = 1;
@@ -307,12 +349,21 @@ void SEMsolver::initSpongeValues(Mesh &mesh, SEMinfo &myInfo) {
   FENCE
 }
 
-void SEMsolver::spongeUpdate(const ARRAY_REAL_VIEW &pnGlobal, const int i1,
-                             const int i2) {
+template< int ORDER, typename INTEGRAL_TYPE >
+void 
+SEMsolver<ORDER, INTEGRAL_TYPE>::
+spongeUpdate( const ARRAY_REAL_VIEW &pnGlobal, 
+              const int i1,
+              const int i2) 
+{
   // for (int i = 0; i < myInfo->numberOfNodes; i++) {
   LOOPHEAD(myInfo->numberOfNodes, i)
   pnGlobal(i, i1) *= spongeTaperCoeff(i);
   pnGlobal(i, i2) *= spongeTaperCoeff(i);
   LOOPEND
 }
-// }
+
+
+template class SEMsolver< 2, SEMQkGLIntegralsOptim< 2, float, float > >;
+template class SEMsolver< 3, SEMQkGLIntegralsOptim< 3, float, float > >;
+template class SEMsolver< 4, SEMQkGLIntegralsOptim< 4, float, float > >;
