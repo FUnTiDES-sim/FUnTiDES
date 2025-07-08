@@ -24,6 +24,7 @@ class SEMsolver {
 public:
   PROXY_HOST_DEVICE SEMsolver() {};
   PROXY_HOST_DEVICE ~SEMsolver(){};
+  PROXY_HOST_DEVICE SEMsolver(Mesh mesh) { computeFEInit(mesh); };
 
   /**
    * @brief computeFEInit function:
@@ -49,13 +50,10 @@ public:
    * @param pnGlobal     2D array storing the global pressure field [node][time]
    * @param rhsElement   List of elements with a non-zero forcing term
    */
-  void computeOneStep(const int &timeSample, const int &i1, const int &i2,
-                      const ARRAY_REAL_VIEW &rhsTerm,
-                      const ARRAY_REAL_VIEW &pnGlobal,
-                      const VECTOR_INT_VIEW &rhsElement);
+  void computeOneStep(const int &timeSample, const int &i1, const int &i2, const ARRAY_REAL_VIEW &rhsTerm,
+                      const ARRAY_REAL_VIEW &pnGlobal, const VECTOR_INT_VIEW &rhsElement);
 
-  void outputPnValues(Mesh mesh, const int &indexTimeStep, int &i1,
-                      int &myElementSource, const ARRAY_REAL_VIEW &pnGlobal);
+  void outputPnValues(Mesh mesh, const int &indexTimeStep, int &i1, int &myElementSource, const ARRAY_REAL_VIEW &pnGlobal);
 
   void initFEarrays();
 
@@ -73,8 +71,7 @@ public:
    */
   void initSpongeValues(Mesh &mesh, SEMinfo &myInfo);
 
-  void spongeUpdate(const ARRAY_REAL_VIEW &pnGlobal, const int i1,
-                    const int i2);
+  void spongeUpdate(const ARRAY_REAL_VIEW &pnGlobal, const int i1, const int i2);
 
   /**
    * @brief Reset the global mass matrix and stiffness vector to zero.
@@ -93,9 +90,8 @@ public:
    * @param myInfo Solver and mesh configuration
    * @param pnGlobal Pressure field array to update
    */
-  void applyRHSTerm(int timeSample, int i2, const ARRAY_REAL_VIEW &rhsTerm,
-                    const VECTOR_INT_VIEW &rhsElement,
-                    const ARRAY_REAL_VIEW &pnGlobal);
+  void applyRHSTerm(int timeSample, int i2, const ARRAY_REAL_VIEW &rhsTerm, const VECTOR_INT_VIEW &rhsElement,
+                    const VECTOR_REAL_VIEW &yGlobal);
 
   /**
    * @brief Compute local element contributions to the global mass and stiffness

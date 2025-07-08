@@ -26,7 +26,9 @@ void SEMsolver::computeOneStep(const int &timeSample, const int &i1,
                                const VECTOR_INT_VIEW &rhsElement) {
   FENCE
   resetGlobalVectors(myMesh.getNumberOfNodes());
-  applyRHSTerm(timeSample, i2, rhsTerm, rhsElement, pnGlobal);
+  // TODO: Fence for debug. To remove
+  FENCE
+  applyRHSTerm(timeSample, i2, rhsTerm, rhsElement, yGlobal);
   FENCE
   computeElementContributions(i2, pnGlobal);
   FENCE
@@ -44,13 +46,13 @@ void SEMsolver::resetGlobalVectors(int numNodes) {
 void SEMsolver::applyRHSTerm(int timeSample, int i2,
                              const ARRAY_REAL_VIEW &rhsTerm,
                              const VECTOR_INT_VIEW &rhsElement,
-                             const ARRAY_REAL_VIEW &pnGlobal) {
+                             const VECTOR_REAL_VIEW &yGlobal) {
   float const dt2 = myTimeStep * myTimeStep;
   LOOPHEAD(rhsElement.size(), i)
   int nodeRHS = myMesh.globalNodeIndex(rhsElement[i], 0, 0, 0);
   float scale =
       dt2 * myMesh.getModel(rhsElement[i]) * myMesh.getModel(rhsElement[i]);
-  pnGlobal(nodeRHS, i2) += scale * rhsTerm(i, timeSample);
+  yGlobal(nodeRHS) -= scale * rhsTerm(i, timeSample);
   LOOPEND
 }
 
@@ -81,9 +83,25 @@ void SEMsolver::computeElementContributions(int i2,
       globalNodesCoordsX, globalNodesCoordsY, globalNodesCoordsZ, weights,
       derivativeBasisFunction1D, massMatrixLocal, pnLocal, Y);
 #else
+  // Init coordinates of element's corner
+  float X[8][3];
+  int I = 0;
+  int nodes_corner[2] = {0, myMesh.getOrder()};
+  for (int k : nodes_corner) {
+    for (int j : nodes_corner) {
+      for (int i : nodes_corner) {
+        int nodeIdx = myMesh.globalNodeIndex(elementNumber, i, j, k);
+        X[I][0] = myMesh.nodeCoordX(nodeIdx);
+        X[I][1] = myMesh.nodeCoordZ(nodeIdx);
+        X[I][2] = myMesh.nodeCoordY(nodeIdx);
+        I++;
+      }
+    }
+  }
+
   myQkIntegrals.computeMassMatrixAndStiffnessVector(
-      elementNumber, myMesh.getNumberOfPointsPerElement(), globalNodesCoordsX,
-      globalNodesCoordsY, globalNodesCoordsZ, massMatrixLocal, pnLocal, Y);
+      elementNumber, myMesh.getNumberOfPointsPerElement(), X, massMatrixLocal,
+      pnLocal, Y);
 #endif
 
   auto const inv_model2 =

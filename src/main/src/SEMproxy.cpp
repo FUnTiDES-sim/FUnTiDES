@@ -6,9 +6,13 @@
 //************************************************************************
 
 #include "SEMproxy.hpp"
+#include "dataType.hpp"
 #ifdef USE_EZV
 #include "ezvLauncher.hpp"
 #endif // USE_EZV
+#include <iomanip>
+#include <iostream>
+#include <sstream>
 
 SEMproxy::SEMproxy(int argc, char *argv[]) {
   int ex = (cmdOptionExists(argv, argv + argc, "-ex"))
@@ -33,27 +37,24 @@ SEMproxy::SEMproxy(int argc, char *argv[]) {
                  ? std::stof(getCmdOption(argv, argv + argc, "-lz"))
                  : lx;
 
-  SEMmesh simpleMesh{ex, ey, ez, lx, ly, lz, myInfo.myOrderNumber, 30, false};
+  SEMmesh<float, int, int> simpleMesh(ex, ey, ez, lx, ly, lz, 2);
   myMesh = simpleMesh;
 }
 
 SEMproxy::SEMproxy(int ex, int ey, int ez, float lx) {
-  SEMmesh simpleMesh{ex, ey, ez, lx, lx, lx, myInfo.myOrderNumber, 30, false};
+  SEMmesh<float, int, int> simpleMesh(ex, ey, ez, lx, lx, lx, 2);
   myMesh = simpleMesh;
 }
 
 // Initialize the simulation.
 void SEMproxy::initFiniteElem() {
-  // get information from mesh
-  getMeshInfo();
-
   // allocate arrays and vectors
   init_arrays();
 
   // initialize source and RHS
   init_source();
 
-  mySolver.computeFEInit(myInfo, myMesh);
+  // mySolver.computeFEInit(myInfo, myMesh);
 }
 
 // Run the simulation.
@@ -65,15 +66,15 @@ void SEMproxy::run() {
   for (int indexTimeSample = 0; indexTimeSample < myInfo.myNumSamples;
        indexTimeSample++) {
     startComputeTime = system_clock::now();
-    mySolver.computeOneStep(indexTimeSample, myInfo.myOrderNumber,
-                            myInfo.nPointsPerElement, i1, i2, myInfo, myRHSTerm,
-                            pnGlobal, rhsElement);
+    mySolver.computeOneStep(indexTimeSample, i1, i2, myRHSTerm, pnGlobal,
+                            rhsElement);
     totalComputeTime += system_clock::now() - startComputeTime;
 
     startOutputTime = system_clock::now();
     mySolver.outputPnValues(myMesh, indexTimeSample, i1, myInfo.myElementSource,
                             pnGlobal);
 
+    saveCtrlSlice(indexTimeSample, i1);
     swap(i1, i2);
     totalOutputTime += system_clock::now() - startOutputTime;
   }
@@ -93,22 +94,13 @@ void SEMproxy::run() {
 }
 
 // Initialize arrays
-void SEMproxy::getMeshInfo() {
-  // get information from mesh
-  myInfo.numberOfNodes = myMesh.getNumberOfNodes();
-  myInfo.numberOfElements = myMesh.getNumberOfElements();
-  myInfo.numberOfPointsPerElement = myMesh.getNumberOfPointsPerElement();
-  myInfo.numberOfInteriorNodes = myMesh.getNumberOfInteriorNodes();
-  myInfo.numberOfPointsPerElement = myMesh.getNumberOfPointsPerElement();
-}
-
-// Initialize arrays
 void SEMproxy::init_arrays() {
   cout << "Allocate host memory for source and pressure values ..." << endl;
-  myRHSTerm = allocateArray2D<arrayReal>(myInfo.myNumberOfRHS,
-                                         myInfo.myNumSamples, "RHSTerm");
-  rhsElement = allocateVector<vectorInt>(myInfo.myNumberOfRHS, "rhsElement");
-  pnGlobal = allocateArray2D<arrayReal>(myInfo.numberOfNodes, 2, "pnGlobal");
+  myRHSTerm =
+      allocateArray2D<arrayReal>(myNumberOfRHS, myNumSamples, "RHSTerm");
+  rhsElement = allocateVector<vectorInt>(myNumberOfRHS, "rhsElement");
+  pnGlobal =
+      allocateArray2D<arrayReal>(myMesh.getNumberOfNodes(), 2, "pnGlobal");
 }
 
 // Initialize sources
@@ -123,8 +115,7 @@ void SEMproxy::init_source() {
        << myRHSLocation(0, 1) << ", " << myRHSLocation(0, 2) << endl;
   for (int i = 0; i < myInfo.myNumberOfRHS; i++) {
     // extract element number for current rhs
-    rhsElement[i] = myMesh.getElementNumberFromPoints(
-        myRHSLocation(i, 0), myRHSLocation(i, 1), myRHSLocation(i, 2));
+    rhsElement[i] = 2;
   }
 
   // initialize source term
@@ -142,14 +133,26 @@ void SEMproxy::init_source() {
        << endl;
 }
 
-arrayReal SEMproxy::getMyRHSTerm() const { return myRHSTerm; }
+std::string formatSnapshotFilename(int id, int width = 5) {
+  std::ostringstream oss;
+  oss << "Snapshot" << std::setw(width) << std::setfill('0') << id;
+  return oss.str();
+}
 
-void SEMproxy::setMyRHSTerm(const arrayReal &value) { myRHSTerm = value; }
+void SEMproxy::saveCtrlSlice(int iteration, int i) {
+  // extract slide of nodes id
+  int nbNode = myMesh.getNx() * myMesh.getNy();
+  int z = myMesh.getNz() / 2;
+  vectorInt slice = allocateVector<vectorInt>(nbNode, "save slice");
+  myMesh.extractXYslice(z, slice);
 
-arrayReal SEMproxy::getPnGlobal() const { return pnGlobal; }
-
-void SEMproxy::setPnGlobal(const arrayReal &value) { pnGlobal = value; }
-
-vectorInt SEMproxy::getRhsElement() const { return rhsElement; }
-
-void SEMproxy::setRhsElement(const vectorInt &value) { rhsElement = value; }
+  // save pnGlobal value
+  std::string filename = formatSnapshotFilename(iteration, 5);
+  std::ofstream file(filename);
+  for (int x = 0; x < myMesh.getNx(); x++) {
+    for (int y = 0; y < myMesh.getNy(); y++) {
+      file << pnGlobal(slice(x * y + x), i) << " ";
+    }
+    file << "\n";
+  }
+}

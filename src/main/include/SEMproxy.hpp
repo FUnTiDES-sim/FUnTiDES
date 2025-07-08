@@ -38,6 +38,8 @@ public:
    */
   void initFiniteElem();
 
+  void saveCtrlSlice(int iteration, int i);
+
   /**
    * @brief Run the simulation.
    * @pre This must be called after init()
@@ -45,28 +47,19 @@ public:
    */
   void run();
 
-  // get information from mesh
-  void getMeshInfo();
-
-  SEMmesh myMesh;
-
-  // Getter and setter for myRHSTerm
-  arrayReal getMyRHSTerm() const;
-  void setMyRHSTerm(const arrayReal &value);
-
-  // Getter and setter for pnGlobal
-  arrayReal getPnGlobal() const; 
-  void setPnGlobal(const arrayReal &value); 
-
-  // Getter and setter for rhsElement
-  vectorInt getRhsElement() const;
-  void setRhsElement(const vectorInt &value);
-
 private:
   int i1 = 0;
   int i2 = 1;
 
+  const int myNumberOfRHS = 1;
+  const float myTimeStep = 0.001;
+  const float f0 = 10.;
+  const float myTimeMax = 1.5;
+  const int sourceOrder = 1;
+  int myNumSamples = myTimeMax / myTimeStep;
+
   SEMinfo myInfo;
+  SEMmesh<float, int, int> myMesh;
 
   SEMsolver mySolver;
   SolverUtils myUtils;
