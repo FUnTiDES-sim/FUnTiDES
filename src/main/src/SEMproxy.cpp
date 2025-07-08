@@ -12,34 +12,26 @@
 #include "ezvLauncher.hpp"
 #endif // USE_EZV
 
-SEMproxy::SEMproxy(int argc, char *argv[]) {
-  int ex = (cmdOptionExists(argv, argv + argc, "-ex"))
-               ? std::stoi(getCmdOption(argv, argv + argc, "-ex"))
-               : 100;
-  int ey = (cmdOptionExists(argv, argv + argc, "-ey"))
-               ? std::stoi(getCmdOption(argv, argv + argc, "-ey"))
-               : ex;
-  ;
-  int ez = (cmdOptionExists(argv, argv + argc, "-ez"))
-               ? std::stoi(getCmdOption(argv, argv + argc, "-ez"))
-               : ex;
-  ;
+SEMproxy::SEMproxy(int argc, char *argv[]) 
+{
+  int ex = ( cmdOptionExists(argv, argv + argc, "-ex")) ? std::stoi(getCmdOption(argv, argv + argc, "-ex")) : 100;
+  int ey = ( cmdOptionExists(argv, argv + argc, "-ey")) ? std::stoi(getCmdOption(argv, argv + argc, "-ey")) : ex;
+  int ez = ( cmdOptionExists(argv, argv + argc, "-ez")) ? std::stoi(getCmdOption(argv, argv + argc, "-ez")) : ex;
 
-  float lx = (cmdOptionExists(argv, argv + argc, "-lx"))
-                 ? std::stof(getCmdOption(argv, argv + argc, "-lx"))
-                 : 2000;
-  float ly = (cmdOptionExists(argv, argv + argc, "-ly"))
-                 ? std::stof(getCmdOption(argv, argv + argc, "-ly"))
-                 : lx;
-  float lz = (cmdOptionExists(argv, argv + argc, "-lz"))
-                 ? std::stof(getCmdOption(argv, argv + argc, "-lz"))
-                 : lx;
- 
+  float lx = ( cmdOptionExists(argv, argv + argc, "-lx")) ? std::stof(getCmdOption(argv, argv + argc, "-lx")) : 2000;
+  float ly = ( cmdOptionExists(argv, argv + argc, "-ly")) ? std::stof(getCmdOption(argv, argv + argc, "-ly")) : lx;
+  float lz = ( cmdOptionExists(argv, argv + argc, "-lz")) ? std::stof(getCmdOption(argv, argv + argc, "-lz")) : lx;
+
+  int const physicsType = ( cmdOptionExists(argv, argv + argc, "-physics")) ? std::stoi(getCmdOption(argv, argv + argc, "-physics")) : 0;
+  int const methodType = ( cmdOptionExists(argv, argv + argc, "-method")) ? std::stoi(getCmdOption(argv, argv + argc, "-method")) : 1;
+  int const order = ( cmdOptionExists(argv, argv + argc, "-order")) ? std::stoi(getCmdOption(argv, argv + argc, "-order")) : 2;
+  mySolver = createSolver( physicsType, methodType, order );
+
+
 
   SEMmesh simpleMesh{ex, ey, ez, lx, ly, lz, myInfo.myOrderNumber,30, false};
   myMesh = simpleMesh;
 
-  mySolver = createSolver( 0, 1, 2 ); // physicsType, methodType, order
 }
 
 SEMproxy::SEMproxy(int ex, int ey, int ez, float lx) {

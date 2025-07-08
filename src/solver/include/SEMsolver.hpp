@@ -12,15 +12,14 @@
 
 #include "SolverBase.hpp"
 
-// #include "SEMQkGL.hpp"
 #include "dataType.hpp"
-#include <BasisFunctions.hpp>
-#include <Integrals.hpp>
-#include <cmath>
-#include <model.hpp>
+
 #ifdef USE_KOKKOS
 #include <KokkosExp_InterOp.hpp>
 #endif
+
+#include <cmath>
+#include <model.hpp>
 
 
 template< int ORDER,
@@ -182,7 +181,9 @@ private:
   SEMinfo const * myInfo;
   Mesh myMesh;
   // Basis functions and integrals
-  SEMQkGLIntegrals myQkIntegrals;
+  INTEGRAL_TYPE myQkIntegrals;
+  typename INTEGRAL_TYPE::PrecomputedData m_precomputedIntegralData;
+
 
   // shared arrays
   ARRAY_INT_VIEW globalNodesList;

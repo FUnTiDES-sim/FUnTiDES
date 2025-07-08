@@ -7,13 +7,10 @@
 //
 //************************************************************************
 
-#include "finiteElement/classic/SEMQkGLIntegralsClassic.hpp"
-#include "finiteElement/optim/SEMQkGLIntegralsOptim.hpp"
-#include "finiteElement/geos/Qk_Hexahedron_Lagrange_GaussLobatto.hpp"
-#include "finiteElement/shiva/SEMQkGLIntegralsShiva.hpp"
 
 #include "SEMsolver.hpp"
 #include "dataType.hpp"
+#include "fe/Integrals.hpp"
 #ifdef USE_EZV
 #include "ezvLauncher.hpp"
 #include <cstdlib>
@@ -92,9 +89,9 @@ computeElementContributions(int order, int nPointsPerElement,
   if (elementNumber >= myInfo.numberOfElements)
     return;
 
-  float massMatrixLocal[SEMinfo::nPointsPerElement] = {0};
-  float pnLocal[SEMinfo::nPointsPerElement] = {0};
-  float Y[SEMinfo::nPointsPerElement] = {0};
+  float massMatrixLocal[ (ORDER+1)*(ORDER+1)*(ORDER+1) ] = {0};
+  float pnLocal[ (ORDER+1)*(ORDER+1)*(ORDER+1) ] = {0};
+  float Y[ (ORDER+1)*(ORDER+1)*(ORDER+1) ] = {0};
 
   for (int i = 0; i < nPointsPerElement; ++i) 
   {
@@ -102,31 +99,19 @@ computeElementContributions(int order, int nPointsPerElement,
     pnLocal[i] = pnGlobal(globalIdx, i2);
   }
 
-#ifdef USE_SEMCLASSIC
-  myQkIntegrals.computeMassMatrixAndStiffnessVector(elementNumber, 
-                                                    order,
-                                                    nPointsPerElement, 
-                                                    globalNodesCoordsX,
-                                                    globalNodesCoordsY, 
-                                                    globalNodesCoordsZ, 
-                                                    weights,
-                                                    derivativeBasisFunction1D, 
-                                                    massMatrixLocal, 
-                                                    pnLocal, 
-                                                    Y);
-#else
+
   myQkIntegrals.computeMassMatrixAndStiffnessVector( elementNumber, 
                                                      nPointsPerElement, 
                                                      globalNodesCoordsX, 
                                                      globalNodesCoordsY,
                                                      globalNodesCoordsZ, 
+                                                     m_precomputedIntegralData,
                                                      massMatrixLocal, 
                                                      pnLocal, 
                                                      Y);
-#endif
 
   auto const inv_model2 = 1.0f / (model[elementNumber] * model[elementNumber]);
-  for (int i = 0; i < SEMinfo::nPointsPerElement; ++i) 
+  for (int i = 0; i < (ORDER+1)*(ORDER+1)*(ORDER+1); ++i) 
   {
     int const gIndex = globalNodesList(elementNumber, i);
     massMatrixLocal[i] *= inv_model2;
@@ -203,14 +188,8 @@ initFEarrays( SEMinfo const & myInfo, Mesh mesh) {
 #endif // USE_KOKKOS
 
   // get quadrature points
-#ifdef USE_SEMCLASSIC
-  myQkBasis.gaussLobattoQuadraturePoints(order,quadraturePoints);
-  // get gauss-lobatto weights
-  myQkBasis.gaussLobattoQuadratureWeights(order,weights);
-  // get basis function and corresponding derivatives
-  myQkBasis.getDerivativeBasisFunction1D(order,quadraturePoints,
-                                         derivativeBasisFunction1D);
-#endif // USE_SEMCLASSIC
+
+  INTEGRAL_TYPE::init( m_precomputedIntegralData);
 
   // Sponge boundaries
   initSpongeValues(mesh, myInfo);
@@ -251,13 +230,6 @@ allocateFEarrays( SEMinfo const & myInfo)
 
   cout << "Allocate model ..." << endl;
   
-  #ifdef USE_SEMCLASSIC
-  quadraturePoints = allocateVector<VECTOR_REAL_VIEW>(nbQuadraturePoints, "quadraturePoints");
-  weights = allocateVector<VECTOR_REAL_VIEW>(nbQuadraturePoints, "weights");
-  derivativeBasisFunction1D = allocateArray2D<ARRAY_REAL_VIEW>(myInfo.numberOfNodes,
-                                                           nbQuadraturePoints, "derivativeBasisFunction1D");
-  #endif // USE_SEMCLASSIC
-
   // shared arrays
   massMatrixGlobal =
       allocateVector<VECTOR_REAL_VIEW>(myInfo.numberOfNodes, "massMatrixGlobal");
@@ -364,6 +336,14 @@ spongeUpdate( const ARRAY_REAL_VIEW &pnGlobal,
 }
 
 
-template class SEMsolver< 2, SEMQkGLIntegralsOptim< 2, float, float > >;
-template class SEMsolver< 3, SEMQkGLIntegralsOptim< 3, float, float > >;
-template class SEMsolver< 4, SEMQkGLIntegralsOptim< 4, float, float > >;
+template class SEMsolver< 2, IntegralTypeSelector< 2, 0 >::type >;
+template class SEMsolver< 3, IntegralTypeSelector< 3, 0 >::type >;
+template class SEMsolver< 4, IntegralTypeSelector< 4, 0 >::type >;
+
+template class SEMsolver< 2, IntegralTypeSelector< 2, 1 >::type >;
+template class SEMsolver< 3, IntegralTypeSelector< 3, 1 >::type >;
+template class SEMsolver< 4, IntegralTypeSelector< 4, 1 >::type >;
+
+template class SEMsolver< 2, IntegralTypeSelector< 2, 3 >::type >;
+template class SEMsolver< 3, IntegralTypeSelector< 3, 3 >::type >;
+template class SEMsolver< 4, IntegralTypeSelector< 4, 3 >::type >;

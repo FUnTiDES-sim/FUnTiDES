@@ -29,17 +29,17 @@ std::unique_ptr<SolverBase> createSolver( int const physicsType,
 {
     if (physicsType == 0) 
     {
-        // if (methodType == 0) 
-        // {
-        //   return orderDispatch( order, []( auto orderIC ) -> std::unique_ptr<SolverBase>
-        //   {
-        //     constexpr int ORDER = decltype(orderIC)::value;
-        //     using IntegralType = typename IntegralTypeSelector< ORDER, 0 >::type;
-        //     //return std::make_unique< SEMsolver< ORDER, IntegralType > >();
-        //     return std::unique_ptr<SolverBase>( new SEMsolver<ORDER, IntegralType>() );
-        //   });
-        // }
-        // else 
+        if (methodType == 0) 
+        {
+          return orderDispatch( order, []( auto orderIC ) -> std::unique_ptr<SolverBase>
+          {
+            constexpr int ORDER = decltype(orderIC)::value;
+            using IntegralType = typename IntegralTypeSelector< ORDER, 0 >::type;
+            //return std::make_unique< SEMsolver< ORDER, IntegralType > >();
+            return std::unique_ptr<SolverBase>( new SEMsolver<ORDER, IntegralType>() );
+          });
+        }
+        else 
         if (methodType == 1) 
         {
           return orderDispatch( order, []( auto orderIC ) -> std::unique_ptr<SolverBase>
@@ -60,16 +60,16 @@ std::unique_ptr<SolverBase> createSolver( int const physicsType,
         //     return std::unique_ptr<SolverBase>( new SEMsolver<ORDER, IntegralType>() );
         //   });
         // }
-        // else if (methodType == 3) 
-        // {
-        //   return orderDispatch( order, []( auto orderIC ) -> std::unique_ptr<SolverBase>
-        //   {
-        //     constexpr int ORDER = decltype(orderIC)::value;
-        //     using IntegralType = typename IntegralTypeSelector< ORDER, 3 >::type;
-        //     //return std::make_unique< SEMsolver< ORDER, IntegralType > >();
-        //     return std::unique_ptr<SolverBase>( new SEMsolver<ORDER, IntegralType>() );
-        //   });
-        // }
+        else if (methodType == 3) 
+        {
+          return orderDispatch( order, []( auto orderIC ) -> std::unique_ptr<SolverBase>
+          {
+            constexpr int ORDER = decltype(orderIC)::value;
+            using IntegralType = typename IntegralTypeSelector< ORDER, 3 >::type;
+            //return std::make_unique< SEMsolver< ORDER, IntegralType > >();
+            return std::unique_ptr<SolverBase>( new SEMsolver<ORDER, IntegralType>() );
+          });
+        }
 
     }
     // Add more physics types as needed
