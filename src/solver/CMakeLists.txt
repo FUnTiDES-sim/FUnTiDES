@@ -2,6 +2,7 @@ add_library( solver
              src/solverFactory.cpp
              src/SEMSolver_20.cpp
              src/SEMSolver_21.cpp
+             src/SEMSolver_22.cpp
              src/SEMSolver_23.cpp
             )
 

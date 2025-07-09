@@ -100,15 +100,15 @@ computeElementContributions(int order, int nPointsPerElement,
   }
 
 
-  myQkIntegrals.computeMassMatrixAndStiffnessVector( elementNumber, 
-                                                     nPointsPerElement, 
-                                                     globalNodesCoordsX, 
-                                                     globalNodesCoordsY,
-                                                     globalNodesCoordsZ, 
-                                                     m_precomputedIntegralData,
-                                                     massMatrixLocal, 
-                                                     pnLocal, 
-                                                     Y);
+  INTEGRAL_TYPE::computeMassMatrixAndStiffnessVector( elementNumber, 
+                                                      nPointsPerElement, 
+                                                      globalNodesCoordsX, 
+                                                      globalNodesCoordsY,
+                                                      globalNodesCoordsZ, 
+                                                      m_precomputedIntegralData,
+                                                      massMatrixLocal, 
+                                                      pnLocal, 
+                                                      Y );
 
   auto const inv_model2 = 1.0f / (model[elementNumber] * model[elementNumber]);
   for (int i = 0; i < (ORDER+1)*(ORDER+1)*(ORDER+1); ++i) 
@@ -338,4 +338,5 @@ spongeUpdate( const ARRAY_REAL_VIEW &pnGlobal,
 
 extern template class SEMsolver< 2, IntegralTypeSelector< 2, 0 >::type >;
 extern template class SEMsolver< 2, IntegralTypeSelector< 2, 1 >::type >;
+extern template class SEMsolver< 2, IntegralTypeSelector< 2, 2 >::type >;
 extern template class SEMsolver< 2, IntegralTypeSelector< 2, 3 >::type >;

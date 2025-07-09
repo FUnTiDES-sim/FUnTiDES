@@ -116,24 +116,23 @@ void SEMproxy::init_arrays() {
 }
 
 // Initialize sources
-void SEMproxy::init_source() {
-  arrayReal myRHSLocation =
-      allocateArray2D<arrayReal>(myInfo.myNumberOfRHS, 3, "RHSLocation");
+void SEMproxy::init_source() 
+{
+  arrayReal myRHSLocation = allocateArray2D<arrayReal>(myInfo.myNumberOfRHS, 3, "RHSLocation");
   // set number of rhs and location
   myRHSLocation(0, 0) = 1001;
   myRHSLocation(0, 1) = 1001;
   myRHSLocation(0, 2) = 1001;
   cout << "\nSource location: " << myRHSLocation(0, 0) << ", "
        << myRHSLocation(0, 1) << ", " << myRHSLocation(0, 2) << endl;
-  for (int i = 0; i < myInfo.myNumberOfRHS; i++) {
+  for (int i = 0; i < myInfo.myNumberOfRHS; i++) 
+  {
     // extract element number for current rhs
-    rhsElement[i] = myMesh.getElementNumberFromPoints(
-        myRHSLocation(i, 0), myRHSLocation(i, 1), myRHSLocation(i, 2));
+    rhsElement[i] = myMesh.getElementNumberFromPoints( myRHSLocation(i, 0), myRHSLocation(i, 1), myRHSLocation(i, 2));
   }
 
   // initialize source term
-  vector<float> sourceTerm = myUtils.computeSourceTerm(
-      myInfo.myNumSamples, myInfo.myTimeStep, myInfo.f0, myInfo.sourceOrder);
+  vector<float> sourceTerm = myUtils.computeSourceTerm( myInfo.myNumSamples, myInfo.myTimeStep, myInfo.f0, myInfo.sourceOrder);
   for (int j = 0; j < myInfo.myNumSamples; j++) {
     myRHSTerm(0, j) = sourceTerm[j];
     if (j % 100 == 0)
