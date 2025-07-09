@@ -337,8 +337,8 @@ void printBMatrix( const int &element, T& B )
 //float stiffnessTime=0;
 
 #define timewatch(timepoint)\
-  chrono::time_point< std::chrono::system_clock > timepoint = chrono::system_clock::now();
+  chrono::time_point< std::chrono::steady_clock > timepoint = chrono::steady_clock::now();
 #define accumtime(accumulatedtime, starttime)\
-  accumulatedtime+=(chrono::system_clock::now() - starttime).count();
+  accumulatedtime+=(chrono::steady_clock::now() - starttime).count();
 
 #endif //DATATYPE_HPP_

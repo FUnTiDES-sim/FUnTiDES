@@ -63,23 +63,23 @@ void SEMproxy::run() {
   CALI_CXX_MARK_FUNCTION;
 #endif
 
-  time_point<system_clock> startComputeTime, startOutputTime, totalComputeTime,
+  time_point<steady_clock> startComputeTime, startOutputTime, totalComputeTime,
       totalOutputTime;
 
-  for (int indexTimeSample = 0; indexTimeSample < myInfo.myNumSamples;
-       indexTimeSample++) {
-    startComputeTime = system_clock::now();
+  for (int indexTimeSample = 0; indexTimeSample < myInfo.myNumSamples; indexTimeSample++) 
+  {
+    startComputeTime = steady_clock::now();
     mySolver->computeOneStep(indexTimeSample,
                             myInfo.nPointsPerElement, i1, i2, myInfo, myRHSTerm,
                             pnGlobal, rhsElement);
-    totalComputeTime += system_clock::now() - startComputeTime;
+    totalComputeTime += steady_clock::now() - startComputeTime;
 
-    startOutputTime = system_clock::now();
+    startOutputTime = steady_clock::now();
     mySolver->outputPnValues(myMesh, indexTimeSample, i1, myInfo.myElementSource,
                             pnGlobal);
 
     swap(i1, i2);
-    totalOutputTime += system_clock::now() - startOutputTime;
+    totalOutputTime += steady_clock::now() - startOutputTime;
   }
 
   float kerneltime_ms = time_point_cast<microseconds>(totalComputeTime)
