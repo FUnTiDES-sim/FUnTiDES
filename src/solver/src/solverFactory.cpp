@@ -12,14 +12,14 @@ std::unique_ptr<SolverBase> orderDispatch( int const order,
   {
     return func( integral_constant< int, 2>{} );
   }
-  else if( order == 3 )
-  {
-    return func( integral_constant< int, 3>{} );
-  }
-  else if( order == 4 )
-  {
-    return func( integral_constant< int, 4>{} );
-  }
+  // else if( order == 3 )
+  // {
+  //   return func( integral_constant< int, 3>{} );
+  // }
+  // else if( order == 4 )
+  // {
+  //   return func( integral_constant< int, 4>{} );
+  // }
   abort();
 }
 

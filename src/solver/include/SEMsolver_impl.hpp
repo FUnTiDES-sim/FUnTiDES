@@ -336,14 +336,6 @@ spongeUpdate( const ARRAY_REAL_VIEW &pnGlobal,
 }
 
 
-template class SEMsolver< 2, IntegralTypeSelector< 2, 0 >::type >;
-template class SEMsolver< 3, IntegralTypeSelector< 3, 0 >::type >;
-template class SEMsolver< 4, IntegralTypeSelector< 4, 0 >::type >;
-
-template class SEMsolver< 2, IntegralTypeSelector< 2, 1 >::type >;
-template class SEMsolver< 3, IntegralTypeSelector< 3, 1 >::type >;
-template class SEMsolver< 4, IntegralTypeSelector< 4, 1 >::type >;
-
-template class SEMsolver< 2, IntegralTypeSelector< 2, 3 >::type >;
-template class SEMsolver< 3, IntegralTypeSelector< 3, 3 >::type >;
-template class SEMsolver< 4, IntegralTypeSelector< 4, 3 >::type >;
+extern template class SEMsolver< 2, IntegralTypeSelector< 2, 0 >::type >;
+extern template class SEMsolver< 2, IntegralTypeSelector< 2, 1 >::type >;
+extern template class SEMsolver< 2, IntegralTypeSelector< 2, 3 >::type >;

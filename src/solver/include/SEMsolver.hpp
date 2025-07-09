@@ -27,8 +27,8 @@ template< int ORDER,
 class SEMsolver : public SolverBase
 {
 public:
-  PROXY_HOST_DEVICE SEMsolver():SolverBase() {};
-  PROXY_HOST_DEVICE ~SEMsolver(){};
+  SEMsolver() = default;
+  ~SEMsolver() = default;
 
   /**
    * @brief computeFEInit function:

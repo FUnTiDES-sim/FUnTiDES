@@ -1,6 +1,8 @@
 add_library( solver 
              src/solverFactory.cpp
              src/SEMSolver_20.cpp
+             src/SEMSolver_21.cpp
+             src/SEMSolver_23.cpp
             )
 
 target_include_directories(
