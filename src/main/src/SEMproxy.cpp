@@ -41,29 +41,13 @@ SEMproxy::SEMproxy(int argc, char *argv[]) {
   myMesh = simpleMesh;
 }
 
-SEMproxy::SEMproxy(int ex, int ey, int ez, float lx) {
-  SEMmesh<float, int, int> simpleMesh(ex, ey, ez, lx, lx, lx, 2);
-  myMesh = simpleMesh;
-}
-
-// Initialize the simulation.
-void SEMproxy::initFiniteElem() {
-  // allocate arrays and vectors
-  init_arrays();
-
-  // initialize source and RHS
-  init_source();
-
-  // mySolver.computeFEInit(myInfo, myMesh);
-}
-
 // Run the simulation.
 void SEMproxy::run() {
 
   time_point<system_clock> startComputeTime, startOutputTime, totalComputeTime,
       totalOutputTime;
 
-  for (int indexTimeSample = 0; indexTimeSample < myInfo.myNumSamples;
+  for (int indexTimeSample = 0; indexTimeSample < myNumSamples;
        indexTimeSample++) {
     startComputeTime = system_clock::now();
     mySolver.computeOneStep(indexTimeSample, i1, i2, myRHSTerm, pnGlobal,
@@ -71,7 +55,7 @@ void SEMproxy::run() {
     totalComputeTime += system_clock::now() - startComputeTime;
 
     startOutputTime = system_clock::now();
-    mySolver.outputPnValues(myMesh, indexTimeSample, i1, myInfo.myElementSource,
+    mySolver.outputPnValues(myMesh, indexTimeSample, i1, myElementSource,
                             pnGlobal);
 
     saveCtrlSlice(indexTimeSample, i1);
@@ -105,31 +89,29 @@ void SEMproxy::init_arrays() {
 
 // Initialize sources
 void SEMproxy::init_source() {
-  arrayReal myRHSLocation =
-      allocateArray2D<arrayReal>(myInfo.myNumberOfRHS, 3, "RHSLocation");
+  arrayReal myRHSLocation = allocateArray2D<arrayReal>(1, 3, "RHSLocation");
   // set number of rhs and location
-  myRHSLocation(0, 0) = 1001;
-  myRHSLocation(0, 1) = 1001;
-  myRHSLocation(0, 2) = 1001;
+  myRHSLocation(0, 0) = 0;
+  myRHSLocation(0, 1) = 0;
+  myRHSLocation(0, 2) = 0;
   cout << "\nSource location: " << myRHSLocation(0, 0) << ", "
        << myRHSLocation(0, 1) << ", " << myRHSLocation(0, 2) << endl;
-  for (int i = 0; i < myInfo.myNumberOfRHS; i++) {
+  for (int i = 0; i < 1; i++) {
     // extract element number for current rhs
-    rhsElement[i] = 2;
+    rhsElement[i] = 0;
   }
 
   // initialize source term
-  vector<float> sourceTerm = myUtils.computeSourceTerm(
-      myInfo.myNumSamples, myInfo.myTimeStep, myInfo.f0, myInfo.sourceOrder);
-  for (int j = 0; j < myInfo.myNumSamples; j++) {
+  vector<float> sourceTerm =
+      myUtils.computeSourceTerm(myNumSamples, myTimeStep, f0, sourceOrder);
+  for (int j = 0; j < myNumSamples; j++) {
     myRHSTerm(0, j) = sourceTerm[j];
     if (j % 100 == 0)
       cout << "Sample " << j << "\t: sourceTerm = " << sourceTerm[j] << endl;
   }
   // get element number of source term
-  myInfo.myElementSource = rhsElement[0];
-  cout << "Element number for the source location: " << myInfo.myElementSource
-       << endl
+  myElementSource = rhsElement[0];
+  cout << "Element number for the source location: " << myElementSource << endl
        << endl;
 }
 

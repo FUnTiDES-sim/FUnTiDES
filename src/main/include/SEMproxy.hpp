@@ -25,7 +25,9 @@ public:
    * @brief Constructor of the SEMproxy class
    */
   SEMproxy(int argc, char *argv[]);
-  SEMproxy(int ex, int ey, int ez, float lx);
+
+  SEMproxy(int ex, int ey, int ez, float lx)
+      : myMesh(ex, ey, ez, lx, lx, lx, 2), mySolver(myMesh) {}
 
   /**
    * @brief Destructor of the SEMproxy class
@@ -36,7 +38,12 @@ public:
    * @brief Initialize the simulation.
    * @post run()
    */
-  void initFiniteElem();
+  void initFiniteElem() {
+    // allocate arrays and vectors
+    init_arrays();
+    // initialize source and RHS
+    init_source();
+  };
 
   void saveCtrlSlice(int iteration, int i);
 
@@ -57,8 +64,8 @@ private:
   const float myTimeMax = 1.5;
   const int sourceOrder = 1;
   int myNumSamples = myTimeMax / myTimeStep;
+  int myElementSource = 0;
 
-  SEMinfo myInfo;
   SEMmesh<float, int, int> myMesh;
 
   SEMsolver mySolver;

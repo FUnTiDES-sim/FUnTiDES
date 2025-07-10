@@ -26,14 +26,11 @@ void SEMsolver::computeOneStep(const int &timeSample, const int &i1,
                                const VECTOR_INT_VIEW &rhsElement) {
   FENCE
   resetGlobalVectors(myMesh.getNumberOfNodes());
-  // TODO: Fence for debug. To remove
-  FENCE
-  applyRHSTerm(timeSample, i2, rhsTerm, rhsElement, yGlobal);
+  applyRHSTerm(timeSample, i2, rhsTerm, rhsElement, pnGlobal);
   FENCE
   computeElementContributions(i2, pnGlobal);
   FENCE
   updatePressureField(i1, i2, pnGlobal);
-  FENCE
 }
 
 void SEMsolver::resetGlobalVectors(int numNodes) {
@@ -46,13 +43,14 @@ void SEMsolver::resetGlobalVectors(int numNodes) {
 void SEMsolver::applyRHSTerm(int timeSample, int i2,
                              const ARRAY_REAL_VIEW &rhsTerm,
                              const VECTOR_INT_VIEW &rhsElement,
-                             const VECTOR_REAL_VIEW &yGlobal) {
+                             const ARRAY_REAL_VIEW &pnGlobal) {
   float const dt2 = myTimeStep * myTimeStep;
-  LOOPHEAD(rhsElement.size(), i)
+  int nb_rhs_element = rhsElement.extent(0);
+  LOOPHEAD(nb_rhs_element, i)
   int nodeRHS = myMesh.globalNodeIndex(rhsElement[i], 0, 0, 0);
   float scale =
       dt2 * myMesh.getModel(rhsElement[i]) * myMesh.getModel(rhsElement[i]);
-  yGlobal(nodeRHS) -= scale * rhsTerm(i, timeSample);
+  pnGlobal(nodeRHS, i2) += scale * rhsTerm(i, timeSample);
   LOOPEND
 }
 
@@ -126,21 +124,26 @@ void SEMsolver::updatePressureField(int i1, int i2,
   LOOPHEAD(myMesh.getNumberOfNodes(), I)
   pnGlobal(I, i1) = 2 * pnGlobal(I, i2) - pnGlobal(I, i1) -
                     dt2 * yGlobal[I] / massMatrixGlobal[I];
-  pnGlobal(I, i1) *= spongeTaperCoeff(I);
-  pnGlobal(I, i2) *= spongeTaperCoeff(I);
+  // pnGlobal(I, i1) *= spongeTaperCoeff(I);
+  // pnGlobal(I, i2) *= spongeTaperCoeff(I);
   LOOPEND
 }
 
 void SEMsolver::outputPnValues(Mesh mesh, const int &indexTimeStep, int &i1,
                                int &myElementSource,
                                const ARRAY_REAL_VIEW &pnGlobal) {
+  float sum = 0.0;
+  Kokkos::parallel_reduce(
+      "Sum pnGlobal", myMesh.getNumberOfNodes(),
+      KOKKOS_LAMBDA(int i, float &local_sum) { local_sum += pnGlobal(i, i1); },
+      sum);
   // writes debugging ascii file.
   if (indexTimeStep % 50 == 0) {
     cout << "TimeStep=" << indexTimeStep
          << ";  pnGlobal @ elementSource location " << myElementSource
          << " after computeOneStep = "
          << pnGlobal(myMesh.globalNodeIndex(myElementSource, 0, 0, 0), i1)
-         << endl;
+         << " and sum pnGlobal is " << sum << endl;
 #ifdef SEM_SAVE_SNAPSHOTS
     mesh.saveSnapShot(indexTimeStep, i1, pnGlobal);
 #endif // SEM_SAVE_SNAPSHOTS

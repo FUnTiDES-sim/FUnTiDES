@@ -7,7 +7,6 @@
 #include <iostream>
 #include <vector>
 
-#include "Kokkos_Core_fwd.hpp"
 #include "commonMacros.hpp"
 
 using real_t = float;
@@ -96,6 +95,8 @@ using array3DDouble = Array3D<double>;
 #endif // USE_VECTOR
 
 #ifdef USE_KOKKOS
+
+#include "Kokkos_Core_fwd.hpp"
 
 #ifdef ENABLE_HIP
 #define __HIP_PLATFORM_AMD__ 1
