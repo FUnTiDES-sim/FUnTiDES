@@ -64,8 +64,8 @@ void SEMsolver::computeElementContributions(int order, int nPointsPerElement,
   MAINLOOPHEAD(myInfo.numberOfElements, elementNumber)
 
   // Guard for extra threads (Kokkos might launch more than needed)
-  if (elementNumber >= myInfo.numberOfElements)
-    return;
+  //if (elementNumber >= myInfo.numberOfElements)
+  //  return;
 
   float massMatrixLocal[SEMinfo::nPointsPerElement] = {0};
   float pnLocal[SEMinfo::nPointsPerElement] = {0};
@@ -180,7 +180,9 @@ void SEMsolver::initFEarrays(SEMinfo &myInfo, Mesh mesh) {
 
   // Sponge boundaries
   initSpongeValues(mesh, myInfo);
+#ifdef USE_KOKKOS
   Kokkos::fence();
+#endif
 }
 
 //************************************************************************
