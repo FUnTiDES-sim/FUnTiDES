@@ -33,14 +33,9 @@
 // Enable hierarchical parallelism in Kokkos
 #cmakedefine USE_KOKKOS_TEAMS
 
-
-// define library for pde discretization
-#cmakedefine USE_SEMCLASSIC
-#cmakedefine USE_SEMOPTIM
-#cmakedefine USE_SEMGEOS
-#cmakedefine USE_SHIVA
-
+// Define mesh input type
 #cmakedefine USE_SIMPLE_MESH
+
 #endif
 
 

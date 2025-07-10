@@ -199,13 +199,6 @@ private:
   VECTOR_REAL_VIEW model;
   double vMin; // min wavespeed in model
 
-#ifdef USE_SEMCLASSIC
-  SEMQkGLBasisFunctions myQkBasis;
-  VECTOR_REAL_VIEW quadraturePoints;
-  VECTOR_REAL_VIEW weights;
-  ARRAY_REAL_VIEW derivativeBasisFunction1D;
-#endif
-
   // shared arrays
   VECTOR_REAL_VIEW massMatrixGlobal;
   VECTOR_REAL_VIEW yGlobal;
