@@ -7,13 +7,13 @@
 #include <pybind11/stl.h>
 
 namespace py = pybind11;
+using SEMmesh = cartesianSEMmesh<float, int, int, 2>;
 
 PYBIND11_MODULE(pysolver, m) {
 
   py::class_<SEMmesh>(m, "SEMmesh")
       .def(py::init<>())
       .def(py::init<int, int, int, float, float, float, int, int, bool>())
-      .def("getSpongeSize", &SEMmesh::getSpongeSize)
       .def("getNumberOfNodes", &SEMmesh::getNumberOfNodes)
       .def("getNumberOfElements", &SEMmesh::getNumberOfElements)
       .def("getNumberOfInteriorNodes",
@@ -25,16 +25,17 @@ PYBIND11_MODULE(pysolver, m) {
       .def("getNumberOfPointsPerElement",
            &SEMmesh::getNumberOfPointsPerElement);
 
-  py::class_<SEMinfo>(m, "SEMinfo")
-      .def(py::init<>()) // you'll need a default constructor or custom init
-      .def_readwrite("numberOfNodes", &SEMinfo::numberOfNodes)
-      .def_readwrite("numberOfElements", &SEMinfo::numberOfElements)
-      .def_readwrite("numberOfPointsPerElement",
-                     &SEMinfo::numberOfPointsPerElement)
-      .def_readwrite("numberOfInteriorNodes", &SEMinfo::numberOfInteriorNodes)
-      .def_readwrite("numberOfSpongeNodes", &SEMinfo::numberOfSpongeNodes)
-      .def_readwrite("myNumSamples", &SEMinfo::myNumSamples)
-      .def_readwrite("myElementSource", &SEMinfo::myElementSource);
+  // py::class_<SEMinfo>(m, "SEMinfo")
+  //     .def(py::init<>()) // you'll need a default constructor or custom init
+  //     .def_readwrite("numberOfNodes", &SEMinfo::numberOfNodes)
+  //     .def_readwrite("numberOfElements", &SEMinfo::numberOfElements)
+  //     .def_readwrite("numberOfPointsPerElement",
+  //                    &SEMinfo::numberOfPointsPerElement)
+  //     .def_readwrite("numberOfInteriorNodes",
+  //     &SEMinfo::numberOfInteriorNodes) .def_readwrite("numberOfSpongeNodes",
+  //     &SEMinfo::numberOfSpongeNodes) .def_readwrite("myNumSamples",
+  //     &SEMinfo::myNumSamples) .def_readwrite("myElementSource",
+  //     &SEMinfo::myElementSource);
 
   py::class_<SEMsolver>(m, "SEMsolver")
       .def(py::init<>())
