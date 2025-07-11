@@ -37,7 +37,7 @@ SEMproxy::SEMproxy(int argc, char *argv[]) {
                  ? std::stof(getCmdOption(argv, argv + argc, "-lz"))
                  : lx;
 
-  SEMmesh<float, int, int> simpleMesh(ex, ey, ez, lx, ly, lz, 2);
+  SEMmesh<float, int, int, 2> simpleMesh(ex, ey, ez, lx, ly, lz, 2);
   myMesh = simpleMesh;
 }
 

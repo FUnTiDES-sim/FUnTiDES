@@ -8,7 +8,7 @@ using namespace std;
 // Old implementation of mesh
 void globalNodesList(int size, int order, vector<vector<int>> &nodesList) {
   int nx = size * order + 1;
-  int ny = nx, nz = nx;
+  int nz = nx;
   for (int j = 0; j < size; j++) {
     for (int k = 0; k < size; k++) {
       for (int i = 0; i < size; i++) {
@@ -116,15 +116,16 @@ void nodesCoordinates(vector<vector<float>> &nodeCoordsX,
 }
 
 int main(int argc, char **argv) {
-  int size = 5;
-  int order = 2;
-  float domainSize = 200.;
-  float elemSize = domainSize / size;
-  int numberOfElement = size * size * size;
-  int numberOfNodes =
+  const int size = 5;
+  const int order = 2;
+  const float domainSize = 200.;
+  const float elemSize = domainSize / size;
+  const int numberOfElement = size * size * size;
+  const int numberOfNodes =
       (size * order + 1) * (size * order + 1) * (size * order + 1);
   // init new mesh
-  SEMmesh<float, int, int> mesh(size, size, size, 200., 200., 200., order);
+  SEMmesh<float, int, int, order> mesh(size, size, size, 200., 200., 200.,
+                                       order);
 
   // security checks
   assert(numberOfElement == mesh.getNumberOfElements());

@@ -63,10 +63,11 @@ private:
   const float f0 = 10.;
   const float myTimeMax = 1.5;
   const int sourceOrder = 1;
+  const static int order = 2;
   int myNumSamples = myTimeMax / myTimeStep;
   int myElementSource = 0;
 
-  SEMmesh<float, int, int> myMesh;
+  SEMmesh<float, int, int, order> myMesh;
 
   SEMsolver mySolver;
   SolverUtils myUtils;

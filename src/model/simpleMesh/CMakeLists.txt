@@ -4,6 +4,7 @@ add_library(mesh
 
 target_include_directories(mesh PUBLIC
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/../meshAPI/include>
 )
 
 set(MESH_LIBS utils)

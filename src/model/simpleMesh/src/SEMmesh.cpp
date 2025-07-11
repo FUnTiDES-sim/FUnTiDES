@@ -1,3 +1,3 @@
 #include "SEMmesh.hpp"
 
-template class SEMmesh<float, int, int>;
+template class SEMmesh<float, int, int, 2>;
