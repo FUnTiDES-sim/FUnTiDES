@@ -7,15 +7,15 @@
 #include <dataType.hpp>
 
 template <typename Coord, typename NodeIDX, typename ElementIDX, int ORDER>
-class SEMmesh : public BaseMesh<Coord, NodeIDX, ElementIDX, ORDER> {
+class CartesianSEMmesh : public BaseMesh<Coord, NodeIDX, ElementIDX, ORDER> {
 public:
-  PROXY_HOST_DEVICE SEMmesh() {};
-  PROXY_HOST_DEVICE ~SEMmesh(){};
+  PROXY_HOST_DEVICE CartesianSEMmesh() {};
+  PROXY_HOST_DEVICE ~CartesianSEMmesh(){};
 
   PROXY_HOST_DEVICE
-  SEMmesh(const ElementIDX &ex_in, const ElementIDX &ey_in,
-          const ElementIDX &ez_in, const float &lx_in, const float &ly_in,
-          const float &lz_in, const int order)
+  CartesianSEMmesh(const ElementIDX &ex_in, const ElementIDX &ey_in,
+                   const ElementIDX &ez_in, const float &lx_in,
+                   const float &ly_in, const float &lz_in, const int order)
       : BaseMesh<Coord, NodeIDX, ElementIDX, ORDER>(ex_in, ey_in, ez_in, lx_in,
                                                     ly_in, lz_in, order) {}
 
@@ -64,14 +64,12 @@ public:
 
   PROXY_HOST_DEVICE
   constexpr int getNumberOfPointsPerElement() const {
-    // return (this->order + 1) * (this->order + 1) * (this->order + 1);
-    return 27; // TODO: This is temporary hack
+    return (ORDER + 1) * (ORDER + 1) * (ORDER + 1);
   }
 
   PROXY_HOST_DEVICE
-  constexpr int getOrder() const { return 2; };
+  constexpr int getOrder() const { return ORDER; }
   // TODO X Y Z
-  // TODO Change constexpr
 
   PROXY_HOST_DEVICE
   int getModel(ElementIDX e) const { return 1500; };

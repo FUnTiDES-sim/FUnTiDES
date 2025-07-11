@@ -124,8 +124,8 @@ int main(int argc, char **argv) {
   const int numberOfNodes =
       (size * order + 1) * (size * order + 1) * (size * order + 1);
   // init new mesh
-  SEMmesh<float, int, int, order> mesh(size, size, size, 200., 200., 200.,
-                                       order);
+  CartesianSEMmesh<float, int, int, order> mesh(size, size, size, 200., 200.,
+                                                200., order);
 
   // security checks
   assert(numberOfElement == mesh.getNumberOfElements());

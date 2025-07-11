@@ -67,7 +67,7 @@ private:
   int myNumSamples = myTimeMax / myTimeStep;
   int myElementSource = 0;
 
-  SEMmesh<float, int, int, order> myMesh;
+  CartesianSEMmesh<float, int, int, order> myMesh;
 
   SEMsolver mySolver;
   SolverUtils myUtils;
