@@ -20,8 +20,6 @@ struct SEMinfo {
   const int myNumberOfRHS = 1;
   static constexpr int myOrderNumber = 2;
   const float myTimeStep = 0.001;
-  static constexpr int nPointsPerElement =
-      intPow((myOrderNumber + 1), DIMENSION);
 
   const float f0 = 10.;
   const float myTimeMax = 1.5;

@@ -25,7 +25,9 @@ public:
    * @brief Constructor of the SEMproxy class
    */
   SEMproxy(int argc, char *argv[]);
-  SEMproxy(int ex, int ey, int ez, float lx);
+
+  SEMproxy(int ex, int ey, int ez, float lx)
+      : myMesh(ex, ey, ez, lx, lx, lx, 2), mySolver(myMesh) {}
 
   /**
    * @brief Destructor of the SEMproxy class
@@ -36,7 +38,14 @@ public:
    * @brief Initialize the simulation.
    * @post run()
    */
-  void initFiniteElem();
+  void initFiniteElem() {
+    // allocate arrays and vectors
+    init_arrays();
+    // initialize source and RHS
+    init_source();
+  };
+
+  void saveCtrlSlice(int iteration, int i);
 
   /**
    * @brief Run the simulation.
@@ -45,28 +54,20 @@ public:
    */
   void run();
 
-  // get information from mesh
-  void getMeshInfo();
-
-  SEMmesh myMesh;
-
-  // Getter and setter for myRHSTerm
-  arrayReal getMyRHSTerm() const;
-  void setMyRHSTerm(const arrayReal &value);
-
-  // Getter and setter for pnGlobal
-  arrayReal getPnGlobal() const; 
-  void setPnGlobal(const arrayReal &value); 
-
-  // Getter and setter for rhsElement
-  vectorInt getRhsElement() const;
-  void setRhsElement(const vectorInt &value);
-
 private:
   int i1 = 0;
   int i2 = 1;
 
-  SEMinfo myInfo;
+  const int myNumberOfRHS = 1;
+  const float myTimeStep = 0.001;
+  const float f0 = 10.;
+  const float myTimeMax = 1.5;
+  const int sourceOrder = 1;
+  const static int order = 2;
+  int myNumSamples = myTimeMax / myTimeStep;
+  int myElementSource = 0;
+
+  CartesianSEMmesh<float, int, int, order> myMesh;
 
   SEMsolver mySolver;
   SolverUtils myUtils;
