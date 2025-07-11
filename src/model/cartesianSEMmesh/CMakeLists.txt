@@ -1,5 +1,5 @@
 add_library(mesh
-    src/SEMmesh.cpp
+    src/cartesianSEMmesh.cpp
 )
 
 target_include_directories(mesh PUBLIC

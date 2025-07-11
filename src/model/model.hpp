@@ -2,7 +2,7 @@
 #define MODEL_H_
 
 #ifdef USE_SIMPLE_MESH
-#include <SEMmesh.hpp>
+#include <cartesianSEMmesh.hpp>
 using Mesh = CartesianSEMmesh<float, int, int, 2>;
 #endif
 
