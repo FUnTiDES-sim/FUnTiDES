@@ -159,7 +159,7 @@ outputPnValues( const int &indexTimeStep, int &i1,
          << " after computeOneStep = "
          << pnGlobal(globalNodesList(myElementSource, 0), i1) << endl;
 #ifdef SEM_SAVE_SNAPSHOTS
-    mesh.saveSnapShot(indexTimeStep, i1, pnGlobal);
+    m_mesh.saveSnapShot(indexTimeStep, i1, pnGlobal);
 #endif // SEM_SAVE_SNAPSHOTS
   }
 }
@@ -186,14 +186,15 @@ initFEarrays()
   double min;
   auto model_ = this->model; // Avoid implicit capture
 #ifdef USE_KOKKOS
-  Kokkos::parallel_reduce(
-      "vMinFind", myInfo.numberOfElements,
-      KOKKOS_LAMBDA(const int &e, double &lmin) {
-        double val = model_[e];
-        if (val < lmin)
-          lmin = val;
-      },
-      Kokkos::Min<double>(min));
+  Kokkos::parallel_reduce( "vMinFind", 
+                           numberOfElements,
+                           KOKKOS_LAMBDA(const int &e, double &lmin) 
+                           {
+                              double val = model_[e];
+                              if (val < lmin)
+                                lmin = val;
+                            },
+                            Kokkos::Min<double>(min));
   vMin = min;
 #else
   vMin = 1500;
