@@ -267,17 +267,23 @@ void SEMmesh::nodesCoordinates(arrayReal &nodeCoordsX, arrayReal &nodeCoordsZ,
 
 //  list of global nodes ( vertices) for each element
 void SEMmesh::globalNodesList(const int &numberOfElements,
-                              arrayInt &nodesList) const {
-  for (int j = 0; j < ((ey == 0) ? 1 : ey); j++) {
-    for (int k = 0; k < ez; k++) {
-      for (int i = 0; i < ex; i++) {
+                              arrayInt &nodesList) const 
+{
+  for (int j = 0; j < ((ey == 0) ? 1 : ey); j++) 
+  {
+    for (int k = 0; k < ez; k++) 
+    {
+      for (int i = 0; i < ex; i++) 
+      {
         int n0 = i + k * ex + j * ex * ez;
         int offset = i * order + k * order * nx + j * order * nx * nz;
-        for (int m = 0; m < ((ey == 0) ? 1 : order + 1); m++) {
-          for (int n = 0; n < order + 1; n++) {
-            for (int l = 0; l < order + 1; l++) {
-              int dofLocal =
-                  l + n * (order + 1) + m * (order + 1) * (order + 1);
+        for (int m = 0; m < ((ey == 0) ? 1 : order + 1); m++) 
+        {
+          for (int n = 0; n < order + 1; n++) 
+          {
+            for (int l = 0; l < order + 1; l++) 
+            {
+              int dofLocal = l + n * (order + 1) + m * (order + 1) * (order + 1);
               int dofGlobal = offset + l + n * nx + m * nx * nz;
               nodesList(n0, dofLocal) = dofGlobal;
             }
