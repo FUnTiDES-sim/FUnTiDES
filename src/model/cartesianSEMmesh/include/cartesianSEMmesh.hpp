@@ -6,6 +6,20 @@
 #include <cmath>
 #include <dataType.hpp>
 
+/**
+ * @brief 3D Cartesian Spectral Element Method (SEM) mesh.
+ *
+ * This class implements a structured, Cartesian mesh using the Spectral Element
+ * Method (SEM) in 3D space. It inherits from the templated `BaseMesh` class and
+ * provides concrete implementations for coordinate mapping and global indexing.
+ *
+ * @tparam Coord      Coordinate type (e.g., float or double)
+ * @tparam NodeIDX    Type used to index global nodes (e.g., int or std::size_t)
+ * @tparam ElementIDX Type used to index elements
+ * @tparam ORDER      Polynomial interpolation order per element
+ *
+ * @see BaseMesh
+ */
 template <typename Coord, typename NodeIDX, typename ElementIDX, int ORDER>
 class CartesianSEMmesh : public BaseMesh<Coord, NodeIDX, ElementIDX, ORDER> {
 public:
