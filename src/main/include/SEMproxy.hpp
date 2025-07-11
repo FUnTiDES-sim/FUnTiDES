@@ -68,9 +68,21 @@ private:
   int i1 = 0;
   int i2 = 1;
 
-  SEMinfo myInfo;
+  float m_dt;
+  float m_maxTime;
+  int m_numSamples;
 
-  std::unique_ptr<SolverBase> mySolver;
+  float m_f0;
+  int m_sourceOrder;
+  int m_elementSource;
+  int m_numberOfRHS;
+
+  int m_numberOfNodes;
+  int m_numberOfElements;
+  int m_numberOfPointsPerElement;
+  int m_numberOfInteriorNodes;
+
+  std::unique_ptr<SolverBase> m_solver;
   SolverUtils myUtils;
 
   // arrays

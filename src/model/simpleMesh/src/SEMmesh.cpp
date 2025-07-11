@@ -29,13 +29,13 @@ SEMmesh::SEMmesh(const int &ex_in, const int &ey_in, const int &ez_in,
 
 int SEMmesh::getNumberOfNodes() const {
   int numberOfNodes = (ex * orderx + 1) * (ey * ordery + 1) * (ez * orderz + 1);
-  printf("Number of nodes: %d\n", numberOfNodes);
+  //printf("Number of nodes: %d\n", numberOfNodes);
   return numberOfNodes;
 }
 
 int SEMmesh::getNumberOfElements() const {
   int numberOfElements = ((ey == 0) ? ex * ez : ex * ey * ez);
-  printf("Number of elements: %d\n", numberOfElements);
+  //printf("Number of elements: %d\n", numberOfElements);
   return numberOfElements;
 }
 

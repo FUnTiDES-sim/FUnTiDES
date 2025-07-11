@@ -21,77 +21,84 @@
 
 template< int ORDER, typename INTEGRAL_TYPE >
 void 
-SEMsolver<ORDER, INTEGRAL_TYPE>::computeFEInit( SEMinfo const & myInfo_in, 
-                                                Mesh const & mesh ) 
+SEMsolver<ORDER, INTEGRAL_TYPE>::computeFEInit( Mesh const & mesh ) 
 {
-  this->myInfo = &myInfo_in;
-  myMesh = mesh;
-  order = myInfo_in.myOrderNumber;
-  allocateFEarrays(myInfo_in);
-  initFEarrays(myInfo_in, mesh);
+  m_mesh = mesh;
+  allocateFEarrays( );
+  initFEarrays( );
 }
 
 template< int ORDER, typename INTEGRAL_TYPE >
 void 
 SEMsolver<ORDER, INTEGRAL_TYPE>::
-computeOneStep( const int &timeSample, 
-                const int &nPointsPerElement, 
+computeOneStep( const float &dt, 
+                const int &timeSample, 
                 const int &i1,
                 const int &i2, 
-                SEMinfo const & myInfo,
                 const ARRAY_REAL_VIEW &rhsTerm, 
                 const ARRAY_REAL_VIEW &pnGlobal,
                 const VECTOR_INT_VIEW &rhsElement )
 {
-  resetGlobalVectors(myInfo.numberOfNodes);
-  applyRHSTerm(timeSample, i2, rhsTerm, rhsElement, myInfo, pnGlobal);
+  resetGlobalVectors();
+  applyRHSTerm( dt, timeSample, i2, rhsTerm, rhsElement, pnGlobal);
   FENCE
-  computeElementContributions(order, nPointsPerElement, myInfo, i2, pnGlobal);
+  computeElementContributions( numPointsPerElem, i2, pnGlobal);
   FENCE
-  updatePressureField(i1, i2, myInfo, pnGlobal);
+  updatePressureField( dt, rhsTerm, i1, i2, pnGlobal);
   FENCE
 }
 
 template< int ORDER, typename INTEGRAL_TYPE >
 void 
 SEMsolver<ORDER, INTEGRAL_TYPE>::
-resetGlobalVectors(int numNodes) {
-  LOOPHEAD(numNodes, i)
-  massMatrixGlobal[i] = 0;
-  yGlobal[i] = 0;
+resetGlobalVectors() 
+{
+  
+  LOOPHEAD( massMatrixGlobal.extent(0), i )
+  {
+    massMatrixGlobal[i] = 0;
+    yGlobal[i] = 0;
+  }
   LOOPEND
 }
 
 template< int ORDER, typename INTEGRAL_TYPE >
 void 
 SEMsolver<ORDER, INTEGRAL_TYPE>::
-applyRHSTerm(int timeSample, int i2, const ARRAY_REAL_VIEW &rhsTerm,
-                             const VECTOR_INT_VIEW &rhsElement, SEMinfo const &myInfo,
-                             const ARRAY_REAL_VIEW &pnGlobal) 
+applyRHSTerm( float const dt,
+              int timeSample, 
+              int i2, 
+              const ARRAY_REAL_VIEW &rhsTerm,
+              const VECTOR_INT_VIEW &rhsElement, 
+              const ARRAY_REAL_VIEW &pnGlobal) 
 {
-  float const dt2 = myInfo.myTimeStep * myInfo.myTimeStep;
-  LOOPHEAD(myInfo.myNumberOfRHS, i)
+  float const dt2 = dt * dt;
+  LOOPHEAD(rhsElement.extent(0), i)
+  {
     int nodeRHS = globalNodesList(rhsElement[i], 0);
     float scale = dt2 * model[rhsElement[i]] * model[rhsElement[i]];
     pnGlobal(nodeRHS, i2) += scale * rhsTerm(i, timeSample);
+  }
   LOOPEND
 }
 
 template< int ORDER, typename INTEGRAL_TYPE >
 void 
 SEMsolver<ORDER, INTEGRAL_TYPE>::
-computeElementContributions(int order, int nPointsPerElement,
-                                            SEMinfo const &myInfo, int i2,
-                                            const ARRAY_REAL_VIEW &pnGlobal) {
-  MAINLOOPHEAD(myInfo.numberOfElements, elementNumber)
+computeElementContributions( int nPointsPerElement,
+                             int i2,
+                             const ARRAY_REAL_VIEW &pnGlobal )
+{
+  int const numberOfElements = m_mesh.getNumberOfElements();
+  MAINLOOPHEAD( numberOfElements, elementNumber)
 
   // Guard for extra threads (Kokkos might launch more than needed)
-  if (elementNumber >= myInfo.numberOfElements)
+  if (elementNumber >= numberOfElements)
     return;
 
-  float massMatrixLocal[ (ORDER+1)*(ORDER+1)*(ORDER+1) ] = {0};
-  float pnLocal[ (ORDER+1)*(ORDER+1)*(ORDER+1) ] = {0};
-  float Y[ (ORDER+1)*(ORDER+1)*(ORDER+1) ] = {0};
+  float massMatrixLocal[ numPointsPerElem ] = {0};
+  float pnLocal[ numPointsPerElem ] = {0};
+  float Y[ numPointsPerElem ] = {0};
 
   for (int i = 0; i < nPointsPerElement; ++i) 
   {
@@ -111,7 +118,7 @@ computeElementContributions(int order, int nPointsPerElement,
                                                       Y );
 
   auto const inv_model2 = 1.0f / (model[elementNumber] * model[elementNumber]);
-  for (int i = 0; i < (ORDER+1)*(ORDER+1)*(ORDER+1); ++i) 
+  for (int i = 0; i < numPointsPerElem; ++i) 
   {
     int const gIndex = globalNodesList(elementNumber, i);
     massMatrixLocal[i] *= inv_model2;
@@ -125,12 +132,14 @@ computeElementContributions(int order, int nPointsPerElement,
 template< int ORDER, typename INTEGRAL_TYPE >
 void 
 SEMsolver<ORDER, INTEGRAL_TYPE>::
-updatePressureField(int i1, int i2, SEMinfo const &myInfo,
-                    const ARRAY_REAL_VIEW &pnGlobal) 
+updatePressureField( float const dt,
+                     const ARRAY_REAL_VIEW &rhsTerm,
+                     int i1, 
+                     int i2, 
+                     const ARRAY_REAL_VIEW &pnGlobal )
 {
-
-  float const dt2 = myInfo.myTimeStep * myInfo.myTimeStep;
-  LOOPHEAD(myInfo.numberOfNodes, I)
+  float const dt2 = dt * dt;
+  LOOPHEAD( spongeTaperCoeff.extent(0), I)
     pnGlobal(I, i1) = 2 * pnGlobal(I, i2) - pnGlobal(I, i1) - dt2 * yGlobal[I] / massMatrixGlobal[I];
     pnGlobal(I, i1) *= spongeTaperCoeff(I);
     pnGlobal(I, i2) *= spongeTaperCoeff(I);
@@ -140,7 +149,7 @@ updatePressureField(int i1, int i2, SEMinfo const &myInfo,
 template< int ORDER, typename INTEGRAL_TYPE >
 void 
 SEMsolver<ORDER, INTEGRAL_TYPE>::
-outputPnValues(Mesh mesh, const int &indexTimeStep, int &i1,
+outputPnValues( const int &indexTimeStep, int &i1,
                                int &myElementSource,
                                const ARRAY_REAL_VIEW &pnGlobal) {
   // writes debugging ascii file.
@@ -158,17 +167,20 @@ outputPnValues(Mesh mesh, const int &indexTimeStep, int &i1,
 template< int ORDER, typename INTEGRAL_TYPE >
 void 
 SEMsolver<ORDER, INTEGRAL_TYPE>::
-initFEarrays( SEMinfo const & myInfo, Mesh mesh) {
+initFEarrays() 
+{
+  int const numberOfElements = m_mesh.getNumberOfElements();
+  int const numberOfInteriorNodes = m_mesh.getNumberOfInteriorNodes();
   // interior elements
-  mesh.globalNodesList(myInfo.numberOfElements, globalNodesList);
-  mesh.getListOfInteriorNodes(myInfo.numberOfInteriorNodes,
+  m_mesh.globalNodesList( numberOfElements, globalNodesList);
+  m_mesh.getListOfInteriorNodes(numberOfInteriorNodes,
                               listOfInteriorNodes);
   // mesh coordinates
-  mesh.nodesCoordinates(globalNodesCoordsX, globalNodesCoordsZ,
+  m_mesh.nodesCoordinates(globalNodesCoordsX, globalNodesCoordsZ,
                         globalNodesCoordsY);
 
   // get model
-  mesh.getModel(myInfo.numberOfElements, model);
+  m_mesh.getModel( numberOfElements, model);
 
   // get minimal wavespeed
   double min;
@@ -192,7 +204,7 @@ initFEarrays( SEMinfo const & myInfo, Mesh mesh) {
   INTEGRAL_TYPE::init( m_precomputedIntegralData);
 
   // Sponge boundaries
-  initSpongeValues(mesh, myInfo);
+  initSpongeValues(m_mesh);
   FENCE;
 }
 
@@ -205,48 +217,50 @@ initFEarrays( SEMinfo const & myInfo, Mesh mesh) {
 template< int ORDER, typename INTEGRAL_TYPE >
 void 
 SEMsolver<ORDER, INTEGRAL_TYPE>::
-allocateFEarrays( SEMinfo const & myInfo) 
+allocateFEarrays() 
 {
-  int nbQuadraturePoints = (order + 1) * (order + 1) * (order + 1);
+  int const numberOfElements = m_mesh.getNumberOfElements();
+  int const numberOfNodes = m_mesh.getNumberOfNodes();
+  int nbQuadraturePoints = numPointsPerElem;
+  int const numberOfInteriorNodes = m_mesh.getNumberOfInteriorNodes();
+  int const numberOfDampingNodes = m_mesh.getNumberOfDampingNodes();
   // interior elements
   cout << "Allocate host memory for arrays in the solver ..." << endl;
-  globalNodesList = allocateArray2D<ARRAY_INT_VIEW>(myInfo.numberOfElements,
-                                              myInfo.numberOfPointsPerElement,
+  globalNodesList = allocateArray2D<ARRAY_INT_VIEW>(numberOfElements,
+                                                    numPointsPerElem,
                                               "globalNodesList");
-  listOfInteriorNodes = allocateVector<VECTOR_INT_VIEW>(myInfo.numberOfInteriorNodes,
+  listOfInteriorNodes = allocateVector<VECTOR_INT_VIEW>(numberOfInteriorNodes,
                                                   "listOfInteriorNodes");
-  listOfDampingNodes = allocateVector<VECTOR_INT_VIEW>(myInfo.numberOfDampingNodes,
+  listOfDampingNodes = allocateVector<VECTOR_INT_VIEW>(numberOfDampingNodes,
                                                  "listOfDampingNodes");
 
   // global coordinates
-  globalNodesCoordsX = allocateArray2D<ARRAY_REAL_VIEW>(
-      myInfo.numberOfElements, nbQuadraturePoints, "globalNodesCoordsX");
-  globalNodesCoordsY = allocateArray2D<ARRAY_REAL_VIEW>(
-      myInfo.numberOfElements, nbQuadraturePoints, "globalNodesCoordsY");
-  globalNodesCoordsZ = allocateArray2D<ARRAY_REAL_VIEW>(
-      myInfo.numberOfElements, nbQuadraturePoints, "globalNodesCoordsZ");
+  globalNodesCoordsX = allocateArray2D<ARRAY_REAL_VIEW>( numberOfElements, nbQuadraturePoints, "globalNodesCoordsX");
+  globalNodesCoordsY = allocateArray2D<ARRAY_REAL_VIEW>( numberOfElements, nbQuadraturePoints, "globalNodesCoordsY");
+  globalNodesCoordsZ = allocateArray2D<ARRAY_REAL_VIEW>( numberOfElements, nbQuadraturePoints, "globalNodesCoordsZ");
 
-  model = allocateVector<VECTOR_REAL_VIEW>(myInfo.numberOfElements, "model");
+  model = allocateVector<VECTOR_REAL_VIEW>(numberOfElements, "model");
 
   cout << "Allocate model ..." << endl;
   
   // shared arrays
   massMatrixGlobal =
-      allocateVector<VECTOR_REAL_VIEW>(myInfo.numberOfNodes, "massMatrixGlobal");
-  yGlobal = allocateVector<VECTOR_REAL_VIEW>(myInfo.numberOfNodes, "yGlobal");
+      allocateVector<VECTOR_REAL_VIEW>( numberOfNodes, "massMatrixGlobal");
+  yGlobal = allocateVector<VECTOR_REAL_VIEW>( numberOfNodes, "yGlobal");
 
   // sponge allocation
   spongeTaperCoeff =
-      allocateVector<VECTOR_REAL_VIEW>(myInfo.numberOfNodes, "spongeTaperCoeff");
+      allocateVector<VECTOR_REAL_VIEW>( numberOfNodes, "spongeTaperCoeff");
 }
 
 template< int ORDER, typename INTEGRAL_TYPE >
 void 
 SEMsolver<ORDER, INTEGRAL_TYPE>::
-initSpongeValues(Mesh &mesh, SEMinfo const &myInfo) 
+initSpongeValues(Mesh &mesh) 
 {
+  int const numberOfNodes = mesh.getNumberOfNodes();
   // Init all taper to 1 (default value)
-  LOOPHEAD(myInfo.numberOfNodes, i)
+  LOOPHEAD( numberOfNodes, i)
   spongeTaperCoeff(i) = 1;
   LOOPEND
 
@@ -328,8 +342,7 @@ spongeUpdate( const ARRAY_REAL_VIEW &pnGlobal,
               const int i1,
               const int i2) 
 {
-  // for (int i = 0; i < myInfo->numberOfNodes; i++) {
-  LOOPHEAD(myInfo->numberOfNodes, i)
+  LOOPHEAD(spongeTaperCoeff.extent(0), i)
   pnGlobal(i, i1) *= spongeTaperCoeff(i);
   pnGlobal(i, i2) *= spongeTaperCoeff(i);
   LOOPEND

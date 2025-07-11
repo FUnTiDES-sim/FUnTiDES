@@ -37,7 +37,13 @@ public:
   T & operator=( const T & data )
   { return *this; };
 
-  int size(){return this->size();};
+  int size() const
+  {return data.size();};
+
+  int extent( int ) const
+  {
+    return data.size();
+  }
 
 private:
   std::vector< T > data;
