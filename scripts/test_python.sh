@@ -16,12 +16,12 @@ script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 mkdir -p "$outputDir"
 
 # Create symlink to python script (absolute)
-ln -sf "$script_dir/pyscript/test_semsolver.py" "$outputDir"
+cp -r "$script_dir/pyscript/test_semsolver.py" "$outputDir"
 
 # Create symlinks to each python lib matching *cpython*
 for lib in "$buildDir"/lib/*cpython*; do
-    ln -sf "$lib" "$outputDir/"
+    cp -r "$lib" "$outputDir/"
 done
 
 # Create symlink to pykokkos base (absolute)
-ln -sf "$buildDir/external/pykokkos-base/kokkos" "$outputDir/"
+cp -r "$buildDir/external/pykokkos-base/kokkos" "$outputDir/"

@@ -6,7 +6,6 @@ import time
 from datetime import datetime
 
 import pysolver as Solver
-import pysem as Sem
 
 
 def print_global(arr):
@@ -115,18 +114,9 @@ def main():
     model = np.array(kk_model, copy=False)
     initModel(model, nElements)
 
-    mesh = Solver.SEMmesh(
-        ex, ey, ez, domain_size, domain_size, domain_size, order, 30, False
-    )
-    myInfo = Solver.SEMinfo()
-    myInfo.numberOfNodes = nx * ny * nz
-    myInfo.numberOfElements = nElements
-    myInfo.numberOfPointsPerElement = nPointsPerElement
-    myInfo.numberOfInteriorNodes = mesh.getNumberOfInteriorNodes()
+    mesh = Solver.SEMmesh(ex, ey, ez, domain_size, domain_size, domain_size, order)
 
-    solver = Solver.SEMsolver()
-    solver.computeFEInit(myInfo, mesh)
-    solver.set_model(kk_model)
+    solver = Solver.SEMsolver(mesh)
 
     nodesList = np.zeros((nElements, nPointsPerElement), dtype=int)
 
@@ -184,11 +174,8 @@ def main():
         iter_start = time.time()
         solver.computeOneStep(
             timeSample,
-            order,
-            nPointsPerElement,
             i1,
             i2,
-            myInfo,
             kk_RHSTerm,
             kk_pnGlobal,
             kk_RHSElement,
@@ -240,7 +227,6 @@ def main():
     del kk_RHSElement
     del solver
     del mesh
-    del myInfo
 
     kokkos.finalize()
     print("end of  computation")

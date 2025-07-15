@@ -24,7 +24,7 @@ class SEMsolver {
 public:
   PROXY_HOST_DEVICE SEMsolver() {};
   PROXY_HOST_DEVICE ~SEMsolver(){};
-  SEMsolver(Mesh mesh) { computeFEInit(mesh); };
+  SEMsolver(const Mesh mesh) { computeFEInit(mesh); };
 
   /**
    * @brief computeFEInit function:
