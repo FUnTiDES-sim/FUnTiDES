@@ -90,13 +90,12 @@ void SEMsolver::computeElementContributions(int i2,
       for (int i : nodes_corner) {
         int nodeIdx = myMesh.globalNodeIndex(elementNumber, i, j, k);
         X[I][0] = myMesh.nodeCoordX(nodeIdx);
-        X[I][1] = myMesh.nodeCoordZ(nodeIdx);
-        X[I][2] = myMesh.nodeCoordY(nodeIdx);
+        X[I][2] = myMesh.nodeCoordZ(nodeIdx);
+        X[I][1] = myMesh.nodeCoordY(nodeIdx);
         I++;
       }
     }
   }
-
   myQkIntegrals.computeMassMatrixAndStiffnessVector(
       elementNumber, myMesh.getNumberOfPointsPerElement(), X, massMatrixLocal,
       pnLocal, Y);

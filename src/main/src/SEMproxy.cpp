@@ -57,9 +57,6 @@ void SEMproxy::run() {
     startOutputTime = system_clock::now();
     mySolver.outputPnValues(myMesh, indexTimeSample, i1, myElementSource,
                             pnGlobal);
-    if (indexTimeSample % 50 == 0) {
-      saveCtrlSlice(indexTimeSample, i1);
-    }
     swap(i1, i2);
     totalOutputTime += system_clock::now() - startOutputTime;
   }
