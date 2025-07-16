@@ -76,22 +76,35 @@ void SEMsolver::computeElementContributions(int i2,
   }
 
 #ifdef USE_SEMCLASSIC
+  float nodeCoords[myMesh.getNumberOfPointsPerElement()][3];
+  int I = 0;
+  for (int k = 0; k< myMesh.getOrder() + 1; k++) {
+    for (int j = 0; j < myMesh.getOrder() + 1; j++) {
+      for (int i = 0; i < myMesh.getOrder() + 1; i++) {
+        int nodeIdx = myMesh.globalNodeIndex(elementNumber, i, j, k);
+        nodeCoords[I][0] = myMesh.nodeCoordX(nodeIdx);
+        nodeCoords[I][2] = myMesh.nodeCoordZ(nodeIdx);
+        nodeCoords[I][1] = myMesh.nodeCoordY(nodeIdx);
+        I++;
+      }
+    }
+  }
   myQkIntegrals.computeMassMatrixAndStiffnessVector(
-      elementNumber, myMesh.getOrder(), myMesh.getNumberOfPointsPerElement(),
-      globalNodesCoordsX, globalNodesCoordsY, globalNodesCoordsZ, weights,
+      myMesh.getOrder(), myMesh.getNumberOfPointsPerElement(),
+      nodeCoords, weights,
       derivativeBasisFunction1D, massMatrixLocal, pnLocal, Y);
 #else
   // Init coordinates of element's corner
-  float X[8][3];
+  float cornerCoords[8][3];
   int I = 0;
   int nodes_corner[2] = {0, myMesh.getOrder()};
   for (int k : nodes_corner) {
     for (int j : nodes_corner) {
       for (int i : nodes_corner) {
         int nodeIdx = myMesh.globalNodeIndex(elementNumber, i, j, k);
-        X[I][0] = myMesh.nodeCoordX(nodeIdx);
-        X[I][2] = myMesh.nodeCoordZ(nodeIdx);
-        X[I][1] = myMesh.nodeCoordY(nodeIdx);
+        cornerCoords[I][0] = myMesh.nodeCoordX(nodeIdx);
+        cornerCoords[I][2] = myMesh.nodeCoordZ(nodeIdx);
+        cornerCoords[I][1] = myMesh.nodeCoordY(nodeIdx);
         I++;
       }
     }
