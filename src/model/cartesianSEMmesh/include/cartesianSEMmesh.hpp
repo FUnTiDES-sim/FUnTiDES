@@ -13,6 +13,7 @@
  * Method (SEM) in 3D space. It inherits from the templated `BaseMesh` class and
  * provides concrete implementations for coordinate mapping and global indexing.
  *
+ * @tparam ModelType  Type used for model parameters (e.g., float or double)
  * @tparam Coord      Coordinate type (e.g., float or double)
  * @tparam NodeIDX    Type used to index global nodes (e.g., int or std::size_t)
  * @tparam ElementIDX Type used to index elements
@@ -20,18 +21,39 @@
  *
  * @see BaseMesh
  */
-template <typename Coord, typename NodeIDX, typename ElementIDX, int ORDER>
-class CartesianSEMmesh : public BaseMesh<Coord, NodeIDX, ElementIDX, ORDER> {
+template <typename ModelType, typename Coord, typename NodeIDX, typename ElementIDX, int ORDER>
+class CartesianSEMmesh : public BaseMesh<ModelType, Coord, NodeIDX, ElementIDX, ORDER> {
 public:
-  PROXY_HOST_DEVICE CartesianSEMmesh() {};
-  PROXY_HOST_DEVICE ~CartesianSEMmesh(){};
+  PROXY_HOST_DEVICE
+  CartesianSEMmesh() {};
 
+  /**
+   * @brief Constructs a structured mesh with element counts and physical sizes.
+   *
+   * @param ex_in   Number of elements in the X direction
+   * @param ey_in   Number of elements in the Y direction
+   * @param ez_in   Number of elements in the Z direction
+   * @param lx_in   Physical length in the X direction
+   * @param ly_in   Physical length in the Y direction
+   * @param lz_in   Physical length in the Z direction
+   * @param order   Polynomial interpolation order per element
+   */
   PROXY_HOST_DEVICE
   CartesianSEMmesh(const ElementIDX &ex_in, const ElementIDX &ey_in,
-                   const ElementIDX &ez_in, const float &lx_in,
-                   const float &ly_in, const float &lz_in, const int order)
-      : BaseMesh<Coord, NodeIDX, ElementIDX, ORDER>(ex_in, ey_in, ez_in, lx_in,
-                                                    ly_in, lz_in, order) {}
+           const ElementIDX &ez_in, const float &lx_in, const float &ly_in,
+           const float &lz_in, const int order)
+      : ex(ex_in), ey(ey_in), ez(ez_in), lx(lx_in), ly(ly_in), lz(lz_in),
+        order(order), orderx(order), ordery(order), orderz(order) {
+    nx = ex * orderx + 1;
+    ny = ey * ordery + 1;
+    nz = ez * orderz + 1;
+
+    hx = lx / static_cast<float>(ex);
+    hy = ly / static_cast<float>(ey);
+    hz = lz / static_cast<float>(ez);
+  }
+
+  PROXY_HOST_DEVICE ~CartesianSEMmesh(){};
 
   PROXY_HOST_DEVICE
   Coord nodeCoordX(NodeIDX dofGlobal) const {
@@ -74,6 +96,19 @@ public:
   }
 
   PROXY_HOST_DEVICE
+  ModelType getModelVpOnNodes(NodeIDX n) const { return 1500; }
+
+  PROXY_HOST_DEVICE
+  ModelType getModelVpOnElement(ElementIDX e) const { return 1500; }
+
+  PROXY_HOST_DEVICE
+  ModelType getModelRhoOnNodes(NodeIDX n) const { return 1; }
+
+  PROXY_HOST_DEVICE
+  ModelType getModelRhoOnElement(ElementIDX e) const { return 1; }
+
+
+  PROXY_HOST_DEVICE
   NodeIDX getNumberOfNodes() const { return this->nx * this->ny * this->nz; };
 
   PROXY_HOST_DEVICE
@@ -85,8 +120,8 @@ public:
   constexpr int getOrder() const { return ORDER; }
   // TODO X Y Z
 
-  PROXY_HOST_DEVICE
-  int getModel(ElementIDX e) const { return 1500; };
+  // PROXY_HOST_DEVICE
+  // int getModel(ElementIDX e) const { return 1500; };
 
   void extractXYslice(int k, vectorInt slice) const {
     int id = 0;
@@ -97,5 +132,13 @@ public:
       }
     }
   }
+
+private:
+  ElementIDX ex, ey, ez; // Nb elements in each direction
+  ElementIDX nx, ny, nz; // Nb nodes in each direction
+  float lx, ly, lz;      // domain size
+  float hx, hy, hz;      // element size
+  int orderx, ordery, orderz, order;
+
 };
 #endif // SEM_MESH_

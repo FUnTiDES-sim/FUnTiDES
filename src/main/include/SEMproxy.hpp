@@ -45,7 +45,7 @@ public:
     init_source();
   };
 
-  void saveCtrlSlice(int iteration, int i);
+  // void saveCtrlSlice(int iteration, int i);
 
   /**
    * @brief Run the simulation.
@@ -67,7 +67,7 @@ private:
   int myNumSamples = myTimeMax / myTimeStep;
   int myElementSource = 0;
 
-  CartesianSEMmesh<float, int, int, order> myMesh;
+  CartesianSEMmesh<float, float, int, int, order> myMesh;
 
   SEMsolver mySolver;
   SolverUtils myUtils;

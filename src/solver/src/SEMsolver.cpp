@@ -57,7 +57,7 @@ void SEMsolver::applyRHSTerm(int timeSample, int i2,
         {
           int localNodeId = x + y * (myMesh.getOrder()+1) + z * (myMesh.getOrder() + 1) * (myMesh.getOrder() + 1);
           int nodeRHS = myMesh.globalNodeIndex(rhsElement[i], x, y, z);
-          float scale =  dt2 * myMesh.getModel(rhsElement[i]) * myMesh.getModel(rhsElement[i]);
+          float scale =  dt2 * myMesh.getModelVpOnElement(rhsElement[i]) * myMesh.getModelVpOnElement(rhsElement[i]);
           pnGlobal(nodeRHS, i2) += scale * rhsTerm(i, timeSample) * rhsWeights(i, localNodeId);
         }
       }
@@ -126,7 +126,7 @@ void SEMsolver::computeElementContributions(int i2,
 #endif
 
   auto const inv_model2 =
-      1.0f / (myMesh.getModel(elementNumber) * myMesh.getModel(elementNumber));
+      1.0f / (myMesh.getModelVpOnElement(elementNumber) * myMesh.getModelVpOnElement(elementNumber));
   for (int i = 0; i < myMesh.getNumberOfPointsPerElement(); ++i) {
     int x = i % dim;
     int z = (i / dim) % dim;

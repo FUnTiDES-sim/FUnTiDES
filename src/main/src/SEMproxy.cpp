@@ -37,7 +37,7 @@ SEMproxy::SEMproxy(int argc, char *argv[]) {
                  ? std::stof(getCmdOption(argv, argv + argc, "-lz"))
                  : lx;
 
-  CartesianSEMmesh<float, int, int, 2> simpleMesh(ex, ey, ez, lx, ly, lz, 2);
+  CartesianSEMmesh<float, float, int, int, 2> simpleMesh(ex, ey, ez, lx, ly, lz, 2);
   myMesh = simpleMesh;
 }
 
@@ -130,20 +130,20 @@ std::string formatSnapshotFilename(int id, int width = 5) {
   return oss.str();
 }
 
-void SEMproxy::saveCtrlSlice(int iteration, int i) {
-  // extract slide of nodes id
-  int nbNode = myMesh.getNx() * myMesh.getNy();
-  int z = myMesh.getNz() / 2;
-  vectorInt slice = allocateVector<vectorInt>(nbNode, "save slice");
-  myMesh.extractXYslice(z, slice);
+// void SEMproxy::saveCtrlSlice(int iteration, int i) {
+//   // extract slide of nodes id
+//   int nbNode = myMesh.getNx() * myMesh.getNy();
+//   int z = myMesh.getNz() / 2;
+//   vectorInt slice = allocateVector<vectorInt>(nbNode, "save slice");
+//   myMesh.extractXYslice(z, slice);
 
-  // save pnGlobal value
-  std::string filename = formatSnapshotFilename(iteration, 5);
-  std::ofstream file(filename);
-  for (int x = 0; x < myMesh.getNx(); x++) {
-    for (int y = 0; y < myMesh.getNy(); y++) {
-      file << pnGlobal(slice(x * y + x), i) << " ";
-    }
-    file << "\n";
-  }
-}
+//   // save pnGlobal value
+//   std::string filename = formatSnapshotFilename(iteration, 5);
+//   std::ofstream file(filename);
+//   for (int x = 0; x < myMesh.getNx(); x++) {
+//     for (int y = 0; y < myMesh.getNy(); y++) {
+//       file << pnGlobal(slice(x * y + x), i) << " ";
+//     }
+//     file << "\n";
+//   }
+// }
