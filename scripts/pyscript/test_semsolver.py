@@ -86,9 +86,9 @@ def main():
 
     order = 2
     domain_size = 1500.0
-    ex = 200
-    ey = 200
-    ez = 200
+    ex = 100
+    ey = 100
+    ez = 100
     hx = domain_size / ex
     hy = domain_size / ey
     hz = domain_size / ez
@@ -145,6 +145,15 @@ def main():
     RHSElement[0] = get_element_number_from_point(ex, ey, ez, hx, hy, hz, xs, ys, zs)
     print("RHS element number ", RHSElement[0])
 
+    kk_RHSWeights = kokkos.array([numberOfRHS, mesh.get_nb_points_per_element()], dtype=kokkos.float32, space=memspace, layout=layout)
+    RHSWeights = np.array(kk_RHSWeights, copy=False)
+    for i in range(numberOfRHS):
+        for j in range(mesh.get_nb_points_per_element()):
+            RHSWeights[i, j] = 0
+    RHSWeights[0,0] = 1
+
+    print(RHSWeights)
+
     # compute source term
     kk_RHSTerm = kokkos.array(
         [numberOfRHS, nTimeSteps], dtype=kokkos.float32, space=memspace, layout=layout
@@ -179,6 +188,7 @@ def main():
             kk_RHSTerm,
             kk_pnGlobal,
             kk_RHSElement,
+            kk_RHSWeights
         )
 
         iter_time = time.time() - iter_start

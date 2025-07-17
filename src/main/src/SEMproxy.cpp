@@ -51,7 +51,7 @@ void SEMproxy::run() {
        indexTimeSample++) {
     startComputeTime = system_clock::now();
     mySolver.computeOneStep(indexTimeSample, i1, i2, myRHSTerm, pnGlobal,
-                            rhsElement);
+                            rhsElement, rhsWeights);
     totalComputeTime += system_clock::now() - startComputeTime;
 
     startOutputTime = system_clock::now();
@@ -81,6 +81,7 @@ void SEMproxy::init_arrays() {
   myRHSTerm =
       allocateArray2D<arrayReal>(myNumberOfRHS, myNumSamples, "RHSTerm");
   rhsElement = allocateVector<vectorInt>(myNumberOfRHS, "rhsElement");
+  rhsWeights = allocateArray2D<arrayReal>(myNumberOfRHS, myMesh.getNumberOfPointsPerElement(), "RHSWeight");
   pnGlobal =
       allocateArray2D<arrayReal>(myMesh.getNumberOfNodes(), 2, "pnGlobal");
 }
@@ -111,6 +112,15 @@ void SEMproxy::init_source() {
   myElementSource = rhsElement[0];
   cout << "Element number for the source location: " << myElementSource << endl
        << endl;
+  // Setting the weight for source ponderation on node.
+  for (int i = 0; i < myNumberOfRHS; i++)
+  {
+    rhsWeights(i, 0) = 1;
+    for (int j = 1; j < myMesh.getNumberOfPointsPerElement(); j++)
+    {
+      rhsWeights(i, j) = 0;
+    }
+  }
 }
 
 std::string formatSnapshotFilename(int id, int width = 5) {

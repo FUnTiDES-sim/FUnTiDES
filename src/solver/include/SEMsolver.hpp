@@ -53,7 +53,8 @@ public:
   void computeOneStep(const int &timeSample, const int &i1, const int &i2,
                       const ARRAY_REAL_VIEW &rhsTerm,
                       const ARRAY_REAL_VIEW &pnGlobal,
-                      const VECTOR_INT_VIEW &rhsElement);
+                      const VECTOR_INT_VIEW &rhsElement,
+                      const ARRAY_REAL_VIEW &rhsWeights);
 
   void outputPnValues(Mesh mesh, const int &indexTimeStep, int &i1,
                       int &myElementSource, const ARRAY_REAL_VIEW &pnGlobal);
@@ -96,7 +97,8 @@ public:
    */
   void applyRHSTerm(int timeSample, int i2, const ARRAY_REAL_VIEW &rhsTerm,
                     const VECTOR_INT_VIEW &rhsElement,
-                    const ARRAY_REAL_VIEW &pnGlobal);
+                    const ARRAY_REAL_VIEW &pnGlobal,
+                    const ARRAY_REAL_VIEW &rhsWeights);
 
   /**
    * @brief Compute local element contributions to the global mass and stiffness

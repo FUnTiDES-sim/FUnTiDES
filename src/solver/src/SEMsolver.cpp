@@ -23,10 +23,11 @@ void SEMsolver::computeFEInit(Mesh mesh_in) {
 void SEMsolver::computeOneStep(const int &timeSample, const int &i1,
                                const int &i2, const ARRAY_REAL_VIEW &rhsTerm,
                                const ARRAY_REAL_VIEW &pnGlobal,
-                               const VECTOR_INT_VIEW &rhsElement) {
+                               const VECTOR_INT_VIEW &rhsElement,
+                               const ARRAY_REAL_VIEW &rhsWeights) {
   FENCE
   resetGlobalVectors(myMesh.getNumberOfNodes());
-  applyRHSTerm(timeSample, i2, rhsTerm, rhsElement, pnGlobal);
+  applyRHSTerm(timeSample, i2, rhsTerm, rhsElement, pnGlobal, rhsWeights);
   FENCE
   computeElementContributions(i2, pnGlobal);
   FENCE
@@ -43,14 +44,24 @@ void SEMsolver::resetGlobalVectors(int numNodes) {
 void SEMsolver::applyRHSTerm(int timeSample, int i2,
                              const ARRAY_REAL_VIEW &rhsTerm,
                              const VECTOR_INT_VIEW &rhsElement,
-                             const ARRAY_REAL_VIEW &pnGlobal) {
+                             const ARRAY_REAL_VIEW &pnGlobal,
+                             const ARRAY_REAL_VIEW &rhsWeights) {
   float const dt2 = myTimeStep * myTimeStep;
   int nb_rhs_element = rhsElement.extent(0);
   LOOPHEAD(nb_rhs_element, i)
-  int nodeRHS = myMesh.globalNodeIndex(rhsElement[i], 0, 0, 0);
-  float scale =
-      dt2 * myMesh.getModel(rhsElement[i]) * myMesh.getModel(rhsElement[i]);
-  pnGlobal(nodeRHS, i2) += scale * rhsTerm(i, timeSample);
+    for(int z = 0; z < myMesh.getOrder(); z++)
+    {
+      for(int y = 0; y < myMesh.getOrder(); y++)
+      {
+        for (int x = 0; x < myMesh.getOrder(); x++)
+        {
+          int localNodeId = x + y * (myMesh.getOrder()+1) + z * (myMesh.getOrder() + 1) * (myMesh.getOrder() + 1);
+          int nodeRHS = myMesh.globalNodeIndex(rhsElement[i], x, y, z);
+          float scale =  dt2 * myMesh.getModel(rhsElement[i]) * myMesh.getModel(rhsElement[i]);
+          pnGlobal(nodeRHS, i2) += scale * rhsTerm(i, timeSample) * rhsWeights(i, localNodeId);
+        }
+      }
+    }
   LOOPEND
 }
 
@@ -110,7 +121,7 @@ void SEMsolver::computeElementContributions(int i2,
     }
   }
   myQkIntegrals.computeMassMatrixAndStiffnessVector(
-      elementNumber, myMesh.getNumberOfPointsPerElement(), X, massMatrixLocal,
+      elementNumber, myMesh.getNumberOfPointsPerElement(), cornerCoords, massMatrixLocal,
       pnLocal, Y);
 #endif
 

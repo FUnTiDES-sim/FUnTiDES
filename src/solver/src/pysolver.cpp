@@ -13,6 +13,7 @@ PYBIND11_MODULE(pysolver, m) {
 
   py::class_<SEMmesh>(m, "SEMmesh")
       .def(py::init<>())
+      .def("get_nb_points_per_element", &SEMmesh::getNumberOfPointsPerElement)
       .def(py::init<int, int, int, float, float, float, int>());
 
   py::class_<SEMsolver>(m, "SEMsolver")
@@ -32,9 +33,10 @@ PYBIND11_MODULE(pysolver, m) {
                  pnGlobal_view,
              Kokkos::Experimental::python_view_type_t<
                  Kokkos::View<int *, Layout, MemSpace>>
-                 rhsElement_view) {
+                 rhsElement_view,
+             Kokkos::Experimental::python_view_type_t<Kokkos::View<float **, Layout, MemSpace>> rhsWeights) {
             self.computeOneStep(t, i1, i2, rhsTerm_view, pnGlobal_view,
-                                rhsElement_view);
+                                rhsElement_view, rhsWeights);
           },
           "Compute one step of the solver");
 }

@@ -76,6 +76,7 @@ private:
   arrayReal myRHSTerm;
   arrayReal pnGlobal;
   vectorInt rhsElement;
+  arrayReal rhsWeights;
 
   // initialize source and RHS
   void init_source();
