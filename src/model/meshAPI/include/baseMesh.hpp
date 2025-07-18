@@ -113,7 +113,26 @@ public:
   PROXY_HOST_DEVICE
   constexpr int getOrder() const { return ORDER; };
 
-
+  /**
+  * @enum BoundaryFlag
+  * @brief Flags representing the boundary condition type of a mesh node.
+  *
+  * This enumeration is used to mark nodes of the SEM mesh with specific
+  * boundary properties. Multiple flags can be combined using bitwise OR.
+  *
+  * - `InteriorNode` : Node inside the computational domain.
+  * - `Damping`      : Node in a damping boundary region.
+  * - `Sponge`       : Node in a sponge layer region.
+  * - `Surface`      : Node on a free surface boundary.
+  * - `Ghost`        : Ghost node used for halo/exchange regions.
+  *
+  * @note Flags are implemented as bitfields, allowing combinations using `|`.
+  *
+  * Example:
+  * @code
+  * BoundaryFlag f = static_cast<BoundaryFlag>(Damping | Sponge);
+  * @endcode
+  */
   enum BoundaryFlag: uint8_t
   {
       InteriorNode = 0,
@@ -123,8 +142,54 @@ public:
       Ghost        = 1 << 3
   };
 
+  /**
+  * @brief Get the boundary type of a given node.
+  *
+  * This pure virtual function returns the boundary type of the specified node
+  * in the SEM mesh.
+  *
+  * @param n Index of the node (`NodeIDX`) in the mesh.
+  * @return A @ref BoundaryFlag indicating the boundary type (or `InteriorNode` if none).
+  *
+  * @note Must be implemented by derived classes for specific mesh/boundary setups.
+  */
   PROXY_HOST_DEVICE
   virtual BoundaryFlag boundaryType(NodeIDX n) const = 0;
+
+  /**
+  * @brief Compute the outward normal vector of a given element face.
+  *
+  * For a given element `e`, direction `dir`, and face index `face`,
+  * this function stores the **unit outward normal vector** of the face
+  * into the array `v[3]`.
+  *
+  * - `dir` specifies the axis-aligned face group:
+  *   - `0` → Front/Back faces (normal along ±x)
+  *   - `1` → Left/Right faces (normal along ±y)
+  *   - `2` → Bottom/Top faces (normal along ±z)
+  *
+  * - `face` specifies which side in the given `dir`:
+  *   - `1` → The negative side (e.g., front, left, bottom)
+  *   - `2` → The positive side (e.g., back, right, top)
+  *
+  * The computed vector `v` is of type `ModelType`, which is a floating-point
+  * type (e.g., `float`, `double`).
+  *
+  * @param e Index of the element (`ElementIDX`) in the mesh.
+  * @param dir Face direction axis (`0=x`, `1=y`, `2=z`).
+  * @param face Which face in the given direction (`1=negative`, `2=positive`).
+  * @param[out] v Output array of size 3 containing the face normal vector.
+  *
+  * @note Must be implemented by derived classes based on the mesh layout.
+  *
+  * @par Example:
+  * @code
+  * ModelType normal[3];
+  * mesh->faceNormal(e, 0, 1, normal); // Get normal of the "front" face
+  * @endcode
+  */
+  PROXY_HOST_DEVICE
+  virtual void faceNormal(ElementIDX e, int dir, int face, ModelType v[3]) const = 0;
 };
 
 #endif // BASE_MESH_

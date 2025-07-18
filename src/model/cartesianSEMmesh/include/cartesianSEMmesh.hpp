@@ -137,7 +137,8 @@ public:
     return Base::InteriorNode;
   }
 
-
+  PROXY_HOST_DEVICE
+  virtual void faceNormal(ElementIDX e, int dir, int face, ModelType v[3]) const {}
 
 private:
   ElementIDX ex, ey, ez; // Nb elements in each direction
