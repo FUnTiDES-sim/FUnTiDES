@@ -27,6 +27,8 @@ public:
   PROXY_HOST_DEVICE
   CartesianSEMmesh() {};
 
+  using Base = BaseMesh<ModelType, Coord, NodeIDX, ElementIDX, ORDER>;
+
   /**
    * @brief Constructs a structured mesh with element counts and physical sizes.
    *
@@ -118,10 +120,6 @@ public:
 
   PROXY_HOST_DEVICE
   constexpr int getOrder() const { return ORDER; }
-  // TODO X Y Z
-
-  // PROXY_HOST_DEVICE
-  // int getModel(ElementIDX e) const { return 1500; };
 
   void extractXYslice(int k, vectorInt slice) const {
     int id = 0;
@@ -132,6 +130,14 @@ public:
       }
     }
   }
+
+  PROXY_HOST_DEVICE
+  typename Base::BoundaryFlag boundaryType(NodeIDX n) const
+  {
+    return Base::InteriorNode;
+  }
+
+
 
 private:
   ElementIDX ex, ey, ez; // Nb elements in each direction

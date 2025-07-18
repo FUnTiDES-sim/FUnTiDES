@@ -113,6 +113,18 @@ public:
   PROXY_HOST_DEVICE
   constexpr int getOrder() const { return ORDER; };
 
+
+  enum BoundaryFlag: uint8_t
+  {
+      InteriorNode = 0,
+      Damping      = 1 << 0,
+      Sponge       = 1 << 1,
+      Surface      = 1 << 2,
+      Ghost        = 1 << 3
+  };
+
+  PROXY_HOST_DEVICE
+  virtual BoundaryFlag boundaryType(NodeIDX n) const = 0;
 };
 
 #endif // BASE_MESH_
