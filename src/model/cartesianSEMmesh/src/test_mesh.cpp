@@ -117,7 +117,7 @@ void nodesCoordinates(vector<vector<float>> &nodeCoordsX,
 
 int main(int argc, char **argv) {
   const int size = 5;
-  const int order = 2;
+  const int order = 4;
   const float domainSize = 200.;
   const float elemSize = domainSize / size;
   const int numberOfElement = size * size * size;
@@ -132,16 +132,16 @@ int main(int argc, char **argv) {
   assert(numberOfNodes == mesh.getNumberOfNodes());
 
   // 1) Checking if Element To node map is valide
-  vector<vector<int>> oldGlobalNodeList(numberOfElement,
-                                        vector<int>(numberOfNodes, 0));
-  globalNodesList(size, 2, oldGlobalNodeList);
+  cout << "Testing if element map is right, testing first corner...\n";
+  vector<vector<int>> oldGlobalNodeList(numberOfElement, vector<int>(numberOfNodes, 0));
+  globalNodesList(size, order, oldGlobalNodeList);
   for (int y = 0; y < size; y++) {
     for (int z = 0; z < size; z++) {
       for (int x = 0; x < size; x++) {
         int element = x + z * size + y * size * size;
         assert(element < size * size * size);
-        if (oldGlobalNodeList[element][0] !=
-            mesh.globalNodeIndex(element, 0, 0, 0)) {
+        if (oldGlobalNodeList[element][0] != mesh.globalNodeIndex(element, 0, 0, 0))
+        {
           cout << "Element (" << element << ") (" << x << ", " << y << ", " << z
                << ") first node: ";
           cout << mesh.globalNodeIndex(element, 0, 0, 0) << endl;
@@ -152,9 +152,10 @@ int main(int argc, char **argv) {
       }
     }
   }
+  cout << "... SUCCESS.\n";
 
   // 2) Checking Coord
-  // filling old data
+  cout << "Testing node coordinate against old Mesh api...\n";
   vector<vector<float>> oldCoodX(numberOfElement,
                                  vector<float>(numberOfNodes, 0));
   vector<vector<float>> oldCoodY(numberOfElement,
@@ -163,6 +164,8 @@ int main(int argc, char **argv) {
                                  vector<float>(numberOfNodes, 0));
   nodesCoordinates(oldCoodX, oldCoodZ, oldCoodY, size, order, elemSize);
 
+  // Imprecision tolerance for float
+  const double EPSILON = 1e-5;
   // Checking X
   for (int y = 0; y < size; y++) {
     for (int z = 0; z < size; z++) {
@@ -178,7 +181,7 @@ int main(int argc, char **argv) {
               float oldCoordxN = oldCoodX[elemIndex][localNodeIndex];
               float newCoordxN = mesh.nodeCoordX(globalNodeIndex);
 
-              if (oldCoordxN != newCoordxN) {
+              if (std::fabs(oldCoordxN - newCoordxN) > EPSILON) {
                 cout << "Node global id (" << globalNodeIndex << ")" << endl;
                 cout << "Element (" << elemIndex << ") (" << nx << ", " << ny
                      << ", " << nz << ") node X coordinate: ";
@@ -192,6 +195,7 @@ int main(int argc, char **argv) {
       }
     }
   }
+  cout << "...SUCCESS on X axis.\n";
 
   // Checking Y
   for (int y = 0; y < size; y++) {
@@ -223,6 +227,7 @@ int main(int argc, char **argv) {
       }
     }
   }
+  cout << "...SUCCESS on Y axis.\n";
 
   // Checking Z
   for (int y = 0; y < size; y++) {
@@ -254,6 +259,7 @@ int main(int argc, char **argv) {
       }
     }
   }
+  cout << "...SUCCESS on Z axis.\n";
 
   return 0;
 }

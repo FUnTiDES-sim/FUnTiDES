@@ -60,7 +60,8 @@ int main(int argc, char *argv[]) {
     cout << "+================================= \n" << endl;
 
     // SEMproxy semsim(argc, argv);
-    SEMproxy semsim(100, 100, 100, 2000.);
+    constexpr int order = 3;
+    SEMproxy semsim(100, 100, 100, 2000., order);
 
     semsim.initFiniteElem();
 

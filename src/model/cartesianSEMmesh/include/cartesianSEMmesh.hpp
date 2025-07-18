@@ -2,9 +2,11 @@
 #define SEM_MESH_
 
 #include "baseMesh.hpp"
+#include "gllpoints.hpp"
 #include <SEMmacros.hpp>
 #include <cmath>
 #include <dataType.hpp>
+#include <stdexcept>
 
 /**
  * @brief 3D Cartesian Spectral Element Method (SEM) mesh.
@@ -57,10 +59,24 @@ public:
 
   PROXY_HOST_DEVICE ~CartesianSEMmesh(){};
 
+
   PROXY_HOST_DEVICE
   Coord nodeCoordX(NodeIDX dofGlobal) const {
-    int gx = dofGlobal % this->nx;
-    return gx * this->hx / this->order;
+    // int gx = dofGlobal % this->nx;
+    // return gx * this->hx / this->order;
+    constexpr int nodesPerElem = ORDER + 1;
+    int elemId = dofGlobal / nodesPerElem;
+    int localId = dofGlobal % nodesPerElem;
+
+    double elemStart = elemId * hx;
+    double elemEnd   = (elemId + 1) * hx;
+
+    // Map reference [-1,1] -> [elemStart, elemEnd]
+    double xi = GLLPoints<ORDER>::get(localId);
+
+    // Affine map from [-1,1] to [elemStart, elemEnd]
+    auto physicalX = 0.5 * ( (1 - xi) * elemStart + (1 + xi) * elemEnd );
+    return physicalX;
   }
 
   PROXY_HOST_DEVICE
