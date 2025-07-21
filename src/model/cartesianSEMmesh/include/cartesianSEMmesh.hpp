@@ -61,48 +61,52 @@ public:
 
   PROXY_HOST_DEVICE
   Coord nodeCoord(NodeIDX dofGlobal, int dim) const {
-    // --- Decode global structured indices ---
-    int ix = dofGlobal % nx;             // X fastest
-    int iy = (dofGlobal / nx) % ny;      // Y middle
-    int iz = dofGlobal / (nx * ny);      // Z slowest
+       // 1) nb noeuds par élément
+    int nodesPerElem = (order + 1) * (order + 1) * (order + 1);
 
-    // --- Prepare result vector ---
-    float coords[3];
+    // 2) décomposition en élément + noeud local
+    int elemIndex  = dofGlobal / nodesPerElem;
+    int localIndex = dofGlobal % nodesPerElem;
 
-    // === Loop over each axis (0=X, 1=Y, 2=Z) ===
-    for (int axis = 0; axis < 3; ++axis) {
-        int iAxis;
-        float hAxis;
+    // --- élément l,m,n (même ordre que l’original) ---
+    int l = elemIndex % ex;             // élément en X
+    int m = (elemIndex / ex) % ey;      // élément en Y
+    int n = elemIndex / (ex * ey);      // élément en Z
 
-        if (axis == 0) { iAxis = ix; hAxis = static_cast<float>(hx); }
-        else if (axis == 1) { iAxis = iy; hAxis = static_cast<float>(hy); }
-        else { iAxis = iz; hAxis = static_cast<float>(hz); }
+    // --- noeud local i,j,k ---
+    int i = localIndex % (order + 1);
+    int j = (localIndex / (order + 1)) % (order + 1);
+    int k = localIndex / ((order + 1) * (order + 1));
 
-        // Raw element/local index
-        int local_raw = iAxis % ORDER;
-        int elem_raw  = iAxis / ORDER;
+    // choisir l’élément + noeud local + pas sur l’axe voulu
+    int elemAxis  = 0;
+    int localAxis = 0;
+    float hAxis   = 0.0f;
 
-        // Boundary correction
-        int boundary = (iAxis > 0 && local_raw == 0);
-        int elemAxis  = elem_raw - boundary;
-        int localAxis = local_raw + boundary * ORDER; // 0..ORDER
-
-        // Physical element bounds
-        float x0 = static_cast<float>(elemAxis) * hAxis;
-        float x1 = static_cast<float>(elemAxis + 1) * hAxis;
-        float b  = (x1 + x0) * 0.5f;   // midpoint
-        float a  = b - x0;             // half-length
-
-        // GLL reference coordinate in [-1,1]
-        float xi_f = static_cast<float>(GLLPoints<ORDER>::get(localAxis));
-
-        // Legacy mapping: coord = a * xi + b
-        coords[axis] = a * xi_f + b;
+    if (dim == 0) { // X
+        elemAxis  = l;
+        localAxis = i;
+        hAxis     = hx;
+    } else if (dim == 1) { // Y
+        elemAxis  = m;
+        localAxis = j;
+        hAxis     = hy;
+    } else { // Z
+        elemAxis  = n;
+        localAxis = k;
+        hAxis     = hz;
     }
+    float xi = GLLPoints<ORDER>::get(localAxis);
+    float x0 = elemAxis * hAxis;
+    float x1 = (elemAxis + 1) * hAxis;
 
-    // --- Return requested dim ---
-    return static_cast<Coord>(coords[dim]);
+    float b = 0.5f * (x0 + x1);  // centre
+    float a = 0.5f * (x1 - x0);  // demi-longueur = h/2
+
+    return a * xi + b;
+
   }
+
 
   PROXY_HOST_DEVICE
   NodeIDX globalNodeIndex(ElementIDX e, int i, int j, int k) const {
