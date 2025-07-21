@@ -7,7 +7,7 @@
 #include <pybind11/stl.h>
 
 namespace py = pybind11;
-using SEMmesh = CartesianSEMmesh<float, float, int, int, 2>;
+using SEMmesh = Mesh;
 
 PYBIND11_MODULE(pysolver, m) {
 

@@ -63,11 +63,11 @@ private:
   const float f0 = 10.;
   const float myTimeMax = 1.5;
   const int sourceOrder = 1;
-  const static int order = 2;
+  const static int order = 3;
   int myNumSamples = myTimeMax / myTimeStep;
   int myElementSource = 0;
 
-  CartesianSEMmesh<float, float, int, int, order> myMesh;
+  Mesh myMesh;
 
   SEMsolver mySolver;
   SolverUtils myUtils;
