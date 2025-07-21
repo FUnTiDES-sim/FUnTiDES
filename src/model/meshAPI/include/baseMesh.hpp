@@ -41,23 +41,7 @@ public:
    * @return X coordinate of the node
    */
   PROXY_HOST_DEVICE
-  virtual Coord nodeCoordX(NodeIDX dofGlobal) const = 0;
-
-  /**
-   * @brief Get the Y coordinate of a global node.
-   * @param dofGlobal Global node index
-   * @return Y coordinate of the node
-   */
-  PROXY_HOST_DEVICE
-  virtual Coord nodeCoordY(NodeIDX dofGlobal) const = 0;
-
-  /**
-   * @brief Get the Z coordinate of a global node.
-   * @param dofGlobal Global node index
-   * @return Z coordinate of the node
-   */
-  PROXY_HOST_DEVICE
-  virtual Coord nodeCoordZ(NodeIDX dofGlobal) const = 0;
+  virtual Coord nodeCoord(NodeIDX dofGlobal, int dim) const = 0;
 
   /**
    * @brief Get the global node index for a local element-node triplet.

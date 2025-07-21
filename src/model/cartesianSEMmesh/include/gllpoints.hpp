@@ -11,9 +11,10 @@ template<int ORDER>
 struct GLLPoints {
     static_assert(ORDER >= 1 && ORDER <= MAX_GLL_ORDER, "Order must be between 1 and 5");
     static constexpr int num_points = ORDER + 1;
+    static constexpr float sqrt5 = 2.2360679774997897;
 
     /// Return the i-th GLL point for given Order
-    PROXY_HOST_DEVICE static constexpr double get(int i) {
+    PROXY_HOST_DEVICE static constexpr float get(int i) {
         if constexpr (ORDER == 1) {
             switch(i) {
                 case 0: return -1.0;
@@ -28,8 +29,8 @@ struct GLLPoints {
         } else if constexpr (ORDER == 3) {
             switch(i) {
                 case 0: return -1.0;
-                case 1: return -0.447213595499958;
-                case 2: return 0.447213595499958;
+                case 1: return -1.0 / sqrt5;
+                case 2: return 1.0 / sqrt5;
                 case 3: return 1.0;
             }
         } else if constexpr (ORDER == 4) {

@@ -93,9 +93,9 @@ void SEMsolver::computeElementContributions(int i2,
     for (int j = 0; j < myMesh.getOrder() + 1; j++) {
       for (int i = 0; i < myMesh.getOrder() + 1; i++) {
         int nodeIdx = myMesh.globalNodeIndex(elementNumber, i, j, k);
-        nodeCoords[I][0] = myMesh.nodeCoordX(nodeIdx);
-        nodeCoords[I][2] = myMesh.nodeCoordZ(nodeIdx);
-        nodeCoords[I][1] = myMesh.nodeCoordY(nodeIdx);
+        nodeCoords[I][0] = myMesh.nodeCoord(nodeIdx, 0);
+        nodeCoords[I][2] = myMesh.nodeCoord(nodeIdx, 2);
+        nodeCoords[I][1] = myMesh.nodeCoord(nodeIdx, 1);
         I++;
       }
     }
@@ -113,9 +113,9 @@ void SEMsolver::computeElementContributions(int i2,
     for (int j : nodes_corner) {
       for (int i : nodes_corner) {
         int nodeIdx = myMesh.globalNodeIndex(elementNumber, i, j, k);
-        cornerCoords[I][0] = myMesh.nodeCoordX(nodeIdx);
-        cornerCoords[I][2] = myMesh.nodeCoordZ(nodeIdx);
-        cornerCoords[I][1] = myMesh.nodeCoordY(nodeIdx);
+        cornerCoords[I][0] = myMesh.nodeCoord(nodeIdx, 0);
+        cornerCoords[I][2] = myMesh.nodeCoord(nodeIdx, 2);
+        cornerCoords[I][1] = myMesh.nodeCoord(nodeIdx, 1);
         I++;
       }
     }

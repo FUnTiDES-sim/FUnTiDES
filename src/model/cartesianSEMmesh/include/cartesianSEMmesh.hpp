@@ -59,52 +59,65 @@ public:
 
   PROXY_HOST_DEVICE ~CartesianSEMmesh(){};
 
-
   PROXY_HOST_DEVICE
-  Coord nodeCoordX(NodeIDX dofGlobal) const {
-    // int gx = dofGlobal % this->nx;
-    // return gx * this->hx / this->order;
-    constexpr int nodesPerElem = ORDER + 1;
-    int elemId = dofGlobal / nodesPerElem;
-    int localId = dofGlobal % nodesPerElem;
+  Coord nodeCoord(NodeIDX dofGlobal, int dim) const {
+    // --- Decode global structured indices ---
+    int ix = dofGlobal % nx;             // X fastest
+    int iy = (dofGlobal / nx) % ny;      // Y middle
+    int iz = dofGlobal / (nx * ny);      // Z slowest
 
-    double elemStart = elemId * hx;
-    double elemEnd   = (elemId + 1) * hx;
+    // --- Prepare result vector ---
+    float coords[3];
 
-    // Map reference [-1,1] -> [elemStart, elemEnd]
-    double xi = GLLPoints<ORDER>::get(localId);
+    // === Loop over each axis (0=X, 1=Y, 2=Z) ===
+    for (int axis = 0; axis < 3; ++axis) {
+        int iAxis;
+        float hAxis;
 
-    // Affine map from [-1,1] to [elemStart, elemEnd]
-    auto physicalX = 0.5 * ( (1 - xi) * elemStart + (1 + xi) * elemEnd );
-    return physicalX;
-  }
+        if (axis == 0) { iAxis = ix; hAxis = static_cast<float>(hx); }
+        else if (axis == 1) { iAxis = iy; hAxis = static_cast<float>(hy); }
+        else { iAxis = iz; hAxis = static_cast<float>(hz); }
 
-  PROXY_HOST_DEVICE
-  Coord nodeCoordZ(NodeIDX dofGlobal) const {
-    int gz = (dofGlobal / this->nx) % this->nz;
-    return gz * this->hz / this->order;
-  }
+        // Raw element/local index
+        int local_raw = iAxis % ORDER;
+        int elem_raw  = iAxis / ORDER;
 
-  PROXY_HOST_DEVICE
-  Coord nodeCoordY(NodeIDX dofGlobal) const {
-    int gy = dofGlobal / (this->nx * this->nz);
-    return gy * this->hy / this->order;
+        // Boundary correction
+        int boundary = (iAxis > 0 && local_raw == 0);
+        int elemAxis  = elem_raw - boundary;
+        int localAxis = local_raw + boundary * ORDER; // 0..ORDER
+
+        // Physical element bounds
+        float x0 = static_cast<float>(elemAxis) * hAxis;
+        float x1 = static_cast<float>(elemAxis + 1) * hAxis;
+        float b  = (x1 + x0) * 0.5f;   // midpoint
+        float a  = b - x0;             // half-length
+
+        // GLL reference coordinate in [-1,1]
+        float xi_f = static_cast<float>(GLLPoints<ORDER>::get(localAxis));
+
+        // Legacy mapping: coord = a * xi + b
+        coords[axis] = a * xi_f + b;
+    }
+
+    // --- Return requested dim ---
+    return static_cast<Coord>(coords[dim]);
   }
 
   PROXY_HOST_DEVICE
   NodeIDX globalNodeIndex(ElementIDX e, int i, int j, int k) const {
     ElementIDX elementI, elementJ, elementK;
-    elementJ = e / (this->ex * this->ez);
-    ElementIDX localIK = e - elementJ * this->ex * this->ez;
-    elementI = localIK % this->ex;
-    elementK = localIK / this->ex;
+    elementK = e / (this->ex * this->ez);
+    ElementIDX localIJ = e - elementK * this->ex * this->ez;
+    elementI = localIJ % this->ex;
+    elementJ = localIJ / this->ex;
 
     ElementIDX elementOffset = elementI * this->order +
-                               elementK * this->order * this->nx +
-                               elementJ * this->order * this->nx * this->nz;
+                               elementJ * this->order * this->nx +
+                               elementK * this->order * this->nx * this->nz;
 
     NodeIDX dofGlobal =
-        elementOffset + i + k * this->nx + j * this->nx * this->nz;
+        elementOffset + i + j * this->nx + k * this->nx * this->nz;
     return dofGlobal;
   }
 

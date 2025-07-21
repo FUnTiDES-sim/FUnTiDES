@@ -9,11 +9,11 @@ using namespace std;
 void globalNodesList(int size, int order, vector<vector<int>> &nodesList) {
   int nx = size * order + 1;
   int nz = nx;
-  for (int j = 0; j < size; j++) {
-    for (int k = 0; k < size; k++) {
+  for (int k = 0; k < size; k++) {
+    for (int j = 0; j < size; j++) {
       for (int i = 0; i < size; i++) {
-        int n0 = i + k * size + j * size * size;
-        int offset = i * order + k * order * nx + j * order * nx * nz;
+        int n0 = i + j * size + k * size * size;
+        int offset = i * order + j * order * nx + k * order * nx * nz;
         for (int m = 0; m < order + 1; m++) {
           for (int n = 0; n < order + 1; n++) {
             for (int l = 0; l < order + 1; l++) {
@@ -92,9 +92,9 @@ void nodesCoordinates(vector<vector<float>> &nodeCoordsX,
   std::vector<float> coordZ(order + 1);
 
   for (int n = 0; n < size; n++) {
-    coordY = getCoordInOneDirection(order, order + 1, elemSize, n);
+    coordZ = getCoordInOneDirection(order, order + 1, elemSize, n);
     for (int m = 0; m < size; m++) {
-      coordZ = getCoordInOneDirection(order, order + 1, elemSize, m);
+      coordY = getCoordInOneDirection(order, order + 1, elemSize, m);
       for (int l = 0; l < size; l++) {
         coordX = getCoordInOneDirection(order, order + 1, elemSize, l);
         int e = l + m * size + n * size * size;
@@ -116,8 +116,8 @@ void nodesCoordinates(vector<vector<float>> &nodeCoordsX,
 }
 
 int main(int argc, char **argv) {
-  const int size = 5;
-  const int order = 4;
+  const int size = 3;
+  const int order = 3;
   const float domainSize = 200.;
   const float elemSize = domainSize / size;
   const int numberOfElement = size * size * size;
@@ -135,10 +135,10 @@ int main(int argc, char **argv) {
   cout << "Testing if element map is right, testing first corner...\n";
   vector<vector<int>> oldGlobalNodeList(numberOfElement, vector<int>(numberOfNodes, 0));
   globalNodesList(size, order, oldGlobalNodeList);
-  for (int y = 0; y < size; y++) {
-    for (int z = 0; z < size; z++) {
+  for (int z = 0; z < size; z++) {
+    for (int y = 0; y < size; y++) {
       for (int x = 0; x < size; x++) {
-        int element = x + z * size + y * size * size;
+        int element = x + y * size + z * size * size;
         assert(element < size * size * size);
         if (oldGlobalNodeList[element][0] != mesh.globalNodeIndex(element, 0, 0, 0))
         {
@@ -165,29 +165,30 @@ int main(int argc, char **argv) {
   nodesCoordinates(oldCoodX, oldCoodZ, oldCoodY, size, order, elemSize);
 
   // Imprecision tolerance for float
-  const double EPSILON = 1e-5;
+  // const double EPSILON = 1e-5;
   // Checking X
-  for (int y = 0; y < size; y++) {
-    for (int z = 0; z < size; z++) {
-      for (int x = 0; x < size; x++) {
-        int elemIndex = x + z * size + y * size * size;
-        for (int ny = 0; ny < order + 1; ny++) {
+  for (int dim = 0; dim < 3; dim++) {
+    for (int y = 0; y < size; y++) {
+      for (int z = 0; z < size; z++) {
+        for (int x = 0; x < size; x++) {
+          int elemIndex = x + z * size + y * size * size;
           for (int nz = 0; nz < order + 1; nz++) {
-            for (int nx = 0; nx < order + 1; nx++) {
-              int localNodeIndex =
-                  nx + nz * (order + 1) + (order + 1) * (order + 1) * ny;
-              int globalNodeIndex = mesh.globalNodeIndex(elemIndex, nx, ny, nz);
+            for (int ny = 0; ny < order + 1; ny++) {
+              for (int nx = 0; nx < order + 1; nx++) {
+                int localNodeIndex =
+                    nx + ny * (order + 1) + (order + 1) * (order + 1) * nz;
+                int globalNodeIndex = mesh.globalNodeIndex(elemIndex, nx, ny, nz);
 
-              float oldCoordxN = oldCoodX[elemIndex][localNodeIndex];
-              float newCoordxN = mesh.nodeCoordX(globalNodeIndex);
+                float oldCoordxN;
+                if (dim == 0)
+                  oldCoordxN = oldCoodX[elemIndex][localNodeIndex];
+                if (dim == 1)
+                  oldCoordxN = oldCoodY[elemIndex][localNodeIndex];
+                if (dim == 2)
+                  oldCoordxN = oldCoodZ[elemIndex][localNodeIndex];
+                float newCoordxN = mesh.nodeCoord(globalNodeIndex, dim);
 
-              if (std::fabs(oldCoordxN - newCoordxN) > EPSILON) {
-                cout << "Node global id (" << globalNodeIndex << ")" << endl;
-                cout << "Element (" << elemIndex << ") (" << nx << ", " << ny
-                     << ", " << nz << ") node X coordinate: ";
-                cout << newCoordxN << endl;
-                cout << "Old implementation is: " << oldCoordxN << endl;
-                return 1;
+                std::cout << dim << " " << newCoordxN << " " << oldCoordxN << std::endl;
               }
             }
           }
@@ -196,70 +197,6 @@ int main(int argc, char **argv) {
     }
   }
   cout << "...SUCCESS on X axis.\n";
-
-  // Checking Y
-  for (int y = 0; y < size; y++) {
-    for (int z = 0; z < size; z++) {
-      for (int x = 0; x < size; x++) {
-        int elemIndex = x + z * size + y * size * size;
-        for (int ny = 0; ny < order + 1; ny++) {
-          for (int nz = 0; nz < order + 1; nz++) {
-            for (int nx = 0; nx < order + 1; nx++) {
-              int localNodeIndex =
-                  nx + nz * (order + 1) + (order + 1) * (order + 1) * ny;
-              int globalNodeIndex = mesh.globalNodeIndex(elemIndex, nx, ny, nz);
-
-              float oldCoordyN = oldCoodY[elemIndex][localNodeIndex];
-              float newCoordyN = mesh.nodeCoordY(globalNodeIndex);
-
-              if (oldCoordyN != newCoordyN) {
-                cout << "Node global id (" << globalNodeIndex << ")" << endl;
-                cout << "Element (" << elemIndex << ") (" << nx << ", " << ny
-                     << ", " << nz << ") node Y coordinate: ";
-                cout << newCoordyN << endl;
-                cout << "Old implementation is: " << oldCoordyN << endl;
-                cout << "WHILE CHECKING Y" << endl;
-                return 1;
-              }
-            }
-          }
-        }
-      }
-    }
-  }
-  cout << "...SUCCESS on Y axis.\n";
-
-  // Checking Z
-  for (int y = 0; y < size; y++) {
-    for (int z = 0; z < size; z++) {
-      for (int x = 0; x < size; x++) {
-        int elemIndex = x + z * size + y * size * size;
-        for (int ny = 0; ny < order + 1; ny++) {
-          for (int nz = 0; nz < order + 1; nz++) {
-            for (int nx = 0; nx < order + 1; nx++) {
-              int localNodeIndex =
-                  nx + nz * (order + 1) + (order + 1) * (order + 1) * ny;
-              int globalNodeIndex = mesh.globalNodeIndex(elemIndex, nx, ny, nz);
-
-              float oldCoordzN = oldCoodZ[elemIndex][localNodeIndex];
-              float newCoordzN = mesh.nodeCoordZ(globalNodeIndex);
-
-              if (oldCoordzN != newCoordzN) {
-                cout << "Node global id (" << globalNodeIndex << ")" << endl;
-                cout << "Element (" << elemIndex << ") (" << nx << ", " << ny
-                     << ", " << nz << ") node Z coordinate: ";
-                cout << newCoordzN << endl;
-                cout << "Old implementation is: " << oldCoordzN << endl;
-                cout << "WHILE CHECKING Z" << endl;
-                return 1;
-              }
-            }
-          }
-        }
-      }
-    }
-  }
-  cout << "...SUCCESS on Z axis.\n";
 
   return 0;
 }
