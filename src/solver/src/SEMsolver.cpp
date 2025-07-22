@@ -49,16 +49,19 @@ void SEMsolver::applyRHSTerm(int timeSample, int i2,
   float const dt2 = myTimeStep * myTimeStep;
   int nb_rhs_element = rhsElement.extent(0);
   LOOPHEAD(nb_rhs_element, i)
-    for(int z = 0; z < myMesh.getOrder(); z++)
+    for(int z = 0; z < myMesh.getOrder() + 1; z++)
     {
-      for(int y = 0; y < myMesh.getOrder(); y++)
+      for(int y = 0; y < myMesh.getOrder() + 1; y++)
       {
-        for (int x = 0; x < myMesh.getOrder(); x++)
+        for (int x = 0; x < myMesh.getOrder() + 1; x++)
         {
           int localNodeId = x + y * (myMesh.getOrder()+1) + z * (myMesh.getOrder() + 1) * (myMesh.getOrder() + 1);
           int nodeRHS = myMesh.globalNodeIndex(rhsElement[i], x, y, z);
           float scale =  dt2 * myMesh.getModelVpOnElement(rhsElement[i]) * myMesh.getModelVpOnElement(rhsElement[i]);
-          pnGlobal(nodeRHS, i2) += scale * rhsTerm(i, timeSample) * rhsWeights(i, localNodeId);
+          float source = scale * rhsTerm(i, timeSample) * rhsWeights(i, localNodeId);
+          pnGlobal(nodeRHS, i2) += source;
+
+          printf("Applying to element %d, node %d, the pressure %f. Weight is %f\n", nodeRHS, localNodeId, source, rhsWeights(i, localNodeId));
         }
       }
     }
@@ -160,16 +163,12 @@ void SEMsolver::outputPnValues(Mesh mesh, const int &indexTimeStep, int &i1,
       "Sum pnGlobal", myMesh.getNumberOfNodes(),
       KOKKOS_LAMBDA(int i, float &local_sum) { local_sum += pnGlobal(i, i1); },
       sum);
-  // writes debugging ascii file.
   if (indexTimeStep % 50 == 0) {
     cout << "TimeStep=" << indexTimeStep
          << ";  pnGlobal @ elementSource location " << myElementSource
          << " after computeOneStep = "
          << pnGlobal(myMesh.globalNodeIndex(myElementSource, 0, 0, 0), i1)
          << " and sum pnGlobal is " << sum << endl;
-#ifdef SEM_SAVE_SNAPSHOTS
-    mesh.saveSnapShot(indexTimeStep, i1, pnGlobal);
-#endif // SEM_SAVE_SNAPSHOTS
   }
 }
 

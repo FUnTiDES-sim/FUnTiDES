@@ -90,9 +90,9 @@ void SEMproxy::init_arrays() {
 void SEMproxy::init_source() {
   arrayReal myRHSLocation = allocateArray2D<arrayReal>(1, 3, "RHSLocation");
   // set number of rhs and location
-  myRHSLocation(0, 0) = 0;
-  myRHSLocation(0, 1) = 0;
-  myRHSLocation(0, 2) = 0;
+  myRHSLocation(0, 0) = 50;
+  myRHSLocation(0, 1) = 50;
+  myRHSLocation(0, 2) = 50;
   cout << "\nSource location: " << myRHSLocation(0, 0) << ", "
        << myRHSLocation(0, 1) << ", " << myRHSLocation(0, 2) << endl;
   for (int i = 0; i < 1; i++) {
@@ -115,10 +115,9 @@ void SEMproxy::init_source() {
   // Setting the weight for source ponderation on node.
   for (int i = 0; i < myNumberOfRHS; i++)
   {
-    rhsWeights(i, 0) = 1;
-    for (int j = 1; j < myMesh.getNumberOfPointsPerElement(); j++)
+    for (int j = 0; j < myMesh.getNumberOfPointsPerElement(); j++)
     {
-      rhsWeights(i, j) = 0;
+      rhsWeights(i, j) = 1.0/ myMesh.getNumberOfPointsPerElement();
     }
   }
 }
@@ -130,20 +129,3 @@ std::string formatSnapshotFilename(int id, int width = 5) {
   return oss.str();
 }
 
-// void SEMproxy::saveCtrlSlice(int iteration, int i) {
-//   // extract slide of nodes id
-//   int nbNode = myMesh.getNx() * myMesh.getNy();
-//   int z = myMesh.getNz() / 2;
-//   vectorInt slice = allocateVector<vectorInt>(nbNode, "save slice");
-//   myMesh.extractXYslice(z, slice);
-
-//   // save pnGlobal value
-//   std::string filename = formatSnapshotFilename(iteration, 5);
-//   std::ofstream file(filename);
-//   for (int x = 0; x < myMesh.getNx(); x++) {
-//     for (int y = 0; y < myMesh.getNy(); y++) {
-//       file << pnGlobal(slice(x * y + x), i) << " ";
-//     }
-//     file << "\n";
-//   }
-// }

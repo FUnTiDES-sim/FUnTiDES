@@ -41,14 +41,12 @@ public:
    * matrices, updates pressure for interior nodes, and applies sponge damping.
    *
    * @param timeSample   Index of the current time step in `rhsTerm`
-   * @param order        Spectral element interpolation order
-   * @param nPointsPerElement Number of quadrature points per element
    * @param i1           Index for pressure at previous time step
    * @param i2           Index for pressure at current time step
-   * @param myInfo       Structure containing mesh and solver configuration
    * @param rhsTerm      External forcing term, function of space and time
    * @param pnGlobal     2D array storing the global pressure field [node][time]
    * @param rhsElement   List of elements with a non-zero forcing term
+   * @param rhsWeights   2D array storing ponderation weights for every source nodes
    */
   void computeOneStep(const int &timeSample, const int &i1, const int &i2,
                       const ARRAY_REAL_VIEW &rhsTerm,
@@ -92,7 +90,6 @@ public:
    * @param i2 Index of the current time step in `pnGlobal`
    * @param rhsTerm Right-hand side values (forcing)
    * @param rhsElement Elements affected by the forcing term
-   * @param myInfo Solver and mesh configuration
    * @param pnGlobal Pressure field array to update
    */
   void applyRHSTerm(int timeSample, int i2, const ARRAY_REAL_VIEW &rhsTerm,
@@ -104,9 +101,6 @@ public:
    * @brief Compute local element contributions to the global mass and stiffness
    * system.
    *
-   * @param order Polynomial interpolation order of the elements
-   * @param nPointsPerElement Number of quadrature points per element
-   * @param myInfo Solver configuration and mesh info
    * @param i2 Index of the current time step in `pnGlobal`
    * @param pnGlobal Global pressure field (used as input)
    */
@@ -118,7 +112,6 @@ public:
    *
    * @param i1 Index for pressure at the previous time step
    * @param i2 Index for pressure at the current time step
-   * @param myInfo Solver and mesh configuration
    * @param pnGlobal Pressure field array (updated in-place)
    */
   void updatePressureField(int i1, int i2, const ARRAY_REAL_VIEW &pnGlobal);

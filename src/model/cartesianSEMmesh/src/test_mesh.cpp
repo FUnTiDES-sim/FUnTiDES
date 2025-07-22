@@ -107,9 +107,6 @@ void nodesCoordinates(vector<vector<float>> &nodeCoordsX,
                              k * (order + 1) * (order + 1)] = coordZ[k];
               nodeCoordsY[e][i + (order + 1) * j +
                              k * (order + 1) * (order + 1)] = coordY[j];
-
-              std::cout << "Coordinate for element " << e << " combo (" << i << ", " << j << ", "<< k << ") ";
-              std::cout << "are " << coordX[i] << " " << coordY[j] << " " << coordZ[k] << std::endl;
             }
           }
         }
@@ -120,7 +117,7 @@ void nodesCoordinates(vector<vector<float>> &nodeCoordsX,
 
 int main(int argc, char **argv) {
   const int size = 3;
-  const int order = 3;
+  const int order = 5;
   const float domainSize = 200.;
   const float elemSize = domainSize / size;
   const int numberOfElement = size * size * size;
@@ -174,8 +171,9 @@ int main(int argc, char **argv) {
   nodesCoordinates(oldCoodX, oldCoodZ, oldCoodY, size, order, elemSize);
 
   // Imprecision tolerance for float
-  // const double EPSILON = 1e-5;
-  // Checking X
+ const double EPSILON = 2;
+
+  // Checking coordinates
   for (int z = 0; z < size; z++) {
     for (int y = 0; y < size; y++) {
       for (int x = 0; x < size; x++) {
@@ -183,9 +181,9 @@ int main(int argc, char **argv) {
         for (int nz = 0; nz < order + 1; nz++) {
           for (int ny = 0; ny < order + 1; ny++) {
             for (int nx = 0; nx < order + 1; nx++) {
-              int localNodeIndex =
-                  nx + ny * (order + 1) + (order + 1) * (order + 1) * nz;
+              int localNodeIndex = nx + ny * (order + 1) + (order + 1) * (order + 1) * nz;
               int globalNodeIndex = mesh.globalNodeIndex(elemIndex, nx, ny, nz);
+
               float oldCoordxN = oldCoodX[elemIndex][localNodeIndex];
               float oldCoordyN = oldCoodY[elemIndex][localNodeIndex];
               float oldCoordzN = oldCoodZ[elemIndex][localNodeIndex];
@@ -194,15 +192,22 @@ int main(int argc, char **argv) {
               float newCoordyN = mesh.nodeCoord(globalNodeIndex, 1);
               float newCoordzN = mesh.nodeCoord(globalNodeIndex, 2);
 
-              std::cout << "Element " << elemIndex << " ";
-              std::cout << "(" << oldCoordxN << ", " << oldCoordyN << ", " << oldCoordzN << ") ";
-              std::cout << "(" << newCoordxN << ", " << newCoordyN << ", " << newCoordzN << ") " << std::endl;
+              if (fabs(oldCoordxN - newCoordxN) > EPSILON ||
+                  fabs(oldCoordyN - newCoordyN) > EPSILON ||
+                  fabs(oldCoordzN - newCoordzN) > EPSILON) {
+                std::cout << "Mismatch at element " << elemIndex << " node " << localNodeIndex << std::endl;
+                std::cout << "Old: (" << oldCoordxN << ", " << oldCoordyN << ", " << oldCoordzN << ") "
+                          << "New: (" << newCoordxN << ", " << newCoordyN << ", " << newCoordzN << ")" << std::endl;
+                return 0;
+              }
             }
           }
         }
       }
     }
   }
+
+  std::cout << "All coordinates match within EPSILON." << std::endl;
   cout << "...SUCCESS on X axis.\n";
 
   return 0;

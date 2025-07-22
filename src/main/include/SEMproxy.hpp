@@ -26,7 +26,7 @@ public:
    */
   SEMproxy(int argc, char *argv[]);
 
-  SEMproxy(int ex, int ey, int ez, float lx, int order)
+  SEMproxy(int ex, int ey, int ez, float lx)
       : myMesh(ex, ey, ez, lx, lx, lx, order), mySolver(myMesh) {}
 
   /**
