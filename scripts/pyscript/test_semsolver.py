@@ -84,7 +84,7 @@ def main():
 
     print(f"Simulation started at: {simulation_start}")
 
-    order = 2
+    order = 3
     domain_size = 1500.0
     ex = 100
     ey = 100

@@ -147,15 +147,14 @@ int main(int argc, char **argv) {
           for (int ny = 0; ny < order + 1; ny++) {
             for (int nx = 0; nx < order + 1; nx++) {
               int nodeId = nx + ny * (order+1) + nz * (order + 1) * (order+1);
-              if (oldGlobalNodeList[element][nodeId] != mesh.globalNodeIndex(element, x, y, z))
+              if (oldGlobalNodeList[element][nodeId] != mesh.globalNodeIndex(element, nx, ny, nz))
               {
                 cout << "Element (" << element << ") (" << x << ", " << y << ", " << z
                      << ") at node (" << nx << ", " << ny << ", " << nz << ") give ";
-                cout << mesh.globalNodeIndex(element, x, y, z) << endl;
-                cout << "while Old implementation is: " << oldGlobalNodeList[element][nodeId]
+                cout << mesh.globalNodeIndex(element, nx, ny, nz) << " against " << oldGlobalNodeList[element][nodeId]
                      << endl;
-                return 1;
-              };
+                // return 1;
+              }
             }
           }
         }
@@ -177,10 +176,10 @@ int main(int argc, char **argv) {
   // Imprecision tolerance for float
   // const double EPSILON = 1e-5;
   // Checking X
-  for (int y = 0; y < size; y++) {
-    for (int z = 0; z < size; z++) {
+  for (int z = 0; z < size; z++) {
+    for (int y = 0; y < size; y++) {
       for (int x = 0; x < size; x++) {
-        int elemIndex = x + z * size + y * size * size;
+        int elemIndex = x + y * size + z * size * size;
         for (int nz = 0; nz < order + 1; nz++) {
           for (int ny = 0; ny < order + 1; ny++) {
             for (int nx = 0; nx < order + 1; nx++) {

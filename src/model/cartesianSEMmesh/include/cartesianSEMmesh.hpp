@@ -61,68 +61,57 @@ public:
 
   PROXY_HOST_DEVICE
   Coord nodeCoord(NodeIDX dofGlobal, int dim) const {
-       // 1) nb noeuds par élément
-    int nodesPerElem = (order + 1) * (order + 1) * (order + 1);
+    // Calculate total number of nodes per dimension
+    int nodesPerDim[3];
+    nodesPerDim[0] = (ex * ORDER) + 1;  // nx total nodes in X
+    nodesPerDim[1] = (ey * ORDER) + 1;  // ny total nodes in Y
+    nodesPerDim[2] = (ez * ORDER) + 1;  // nz total nodes in Z
 
-    // 2) décomposition en élément + noeud local
-    int elemIndex  = dofGlobal / nodesPerElem;
-    int localIndex = dofGlobal % nodesPerElem;
+    // Convert global node index to 3D node indices (i, j, k)
+    int k = dofGlobal / (nodesPerDim[0] * nodesPerDim[1]);
+    int remainder = dofGlobal % (nodesPerDim[0] * nodesPerDim[1]);
+    int j = remainder / nodesPerDim[0];
+    int i = remainder % nodesPerDim[0];
 
-    // --- élément l,m,n (même ordre que l’original) ---
-    int l = elemIndex % ex;             // élément en X
-    int m = (elemIndex / ex) % ey;      // élément en Y
-    int n = elemIndex / (ex * ey);      // élément en Z
+    int nodeIdx[3] = {i, j, k};
 
-    // --- noeud local i,j,k ---
-    int i = localIndex % (order + 1);
-    int j = (localIndex / (order + 1)) % (order + 1);
-    int k = localIndex / ((order + 1) * (order + 1));
+    // Determine which element this node belongs to and local position within element
+    int elemIdx = nodeIdx[dim] / ORDER;  // Element index in the requested dimension
+    int localIdx = nodeIdx[dim] % ORDER; // Local node index within element (0 to ORDER)
 
-    // choisir l’élément + noeud local + pas sur l’axe voulu
-    int elemAxis  = 0;
-    int localAxis = 0;
-    float hAxis   = 0.0f;
-
-    if (dim == 0) { // X
-        elemAxis  = l;
-        localAxis = i;
-        hAxis     = hx;
-    } else if (dim == 1) { // Y
-        elemAxis  = m;
-        localAxis = j;
-        hAxis     = hy;
-    } else { // Z
-        elemAxis  = n;
-        localAxis = k;
-        hAxis     = hz;
+    // Handle boundary case: if we're at the last node of an element (except the last element),
+    // it's actually the first node of the next element
+    if (localIdx == ORDER && elemIdx < (dim == 0 ? ex : (dim == 1 ? ey : ez)) - 1) {
+        elemIdx++;
+        localIdx = 0;
     }
-    float xi = GLLPoints<ORDER>::get(localAxis);
-    float x0 = elemAxis * hAxis;
-    float x1 = (elemAxis + 1) * hAxis;
 
-    float b = 0.5f * (x0 + x1);  // centre
-    float a = 0.5f * (x1 - x0);  // demi-longueur = h/2
+    // Get the GLL point coordinate in reference element [-1, 1]
+    Coord gllPoint = GLLPoints<ORDER>::get(localIdx);
 
-    return a * xi + b;
+    // Map from reference element to physical element
+    Coord elementSize = (dim == 0) ? hx : ((dim == 1) ? hy : hz);
+    Coord elementStart = elemIdx * elementSize;
 
+    // Transform from [-1, 1] to physical coordinates
+    Coord physicalCoord = elementStart + (gllPoint + 1.0) * elementSize * 0.5;
+
+    return physicalCoord;
   }
 
 
   PROXY_HOST_DEVICE
   NodeIDX globalNodeIndex(ElementIDX e, int i, int j, int k) const {
-    ElementIDX elementI, elementJ, elementK;
-    elementK = e / (this->ex * this->ez);
-    ElementIDX localIJ = e - elementK * this->ex * this->ez;
-    elementI = localIJ % this->ex;
-    elementJ = localIJ / this->ex;
+    ElementIDX elemZ = e / (ex * ey);
+    ElementIDX tmp   = e % (ex * ey);
+    ElementIDX elemY = tmp / ex;
+    ElementIDX elemX = tmp % ex;
 
-    ElementIDX elementOffset = elementI * this->order +
-                               elementJ * this->order * this->nx +
-                               elementK * this->order * this->nx * this->nz;
+    int ix = elemX * ORDER + i;
+    int iy = elemY * ORDER + j;
+    int iz = elemZ * ORDER + k;
 
-    NodeIDX dofGlobal =
-        elementOffset + i + j * this->nx + k * this->nx * this->nz;
-    return dofGlobal;
+    return ix + iy * nx + iz * nx * ny;
   }
 
   PROXY_HOST_DEVICE
