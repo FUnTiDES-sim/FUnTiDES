@@ -22,6 +22,28 @@
 #include <model.hpp>
 
 
+  struct SEMsolverData : SolverBase::DataStruct
+  {
+    SEMsolverData( int i1, 
+                   int i2, 
+                   ARRAY_REAL_VIEW const & rhsTerm,
+                   ARRAY_REAL_VIEW const & pnGlobal,
+                  VECTOR_INT_VIEW const & rhsElement ): 
+      m_i1(i1), 
+      m_i2(i2), 
+      m_rhsTerm(rhsTerm), 
+      m_pnGlobal(pnGlobal), 
+      m_rhsElement(rhsElement) 
+    {}
+
+    int m_i1;
+    int m_i2;
+    ARRAY_REAL_VIEW const & m_rhsTerm;
+    ARRAY_REAL_VIEW const & m_pnGlobal;
+    VECTOR_INT_VIEW const & m_rhsElement;
+  };
+
+
 template< int ORDER,
           typename INTEGRAL_TYPE >
 class SEMsolver : public SolverBase
@@ -33,6 +55,8 @@ public:
 
   SEMsolver() = default;
   ~SEMsolver() = default;
+
+
 
   /**
    * @brief computeFEInit function:
@@ -57,13 +81,9 @@ public:
    * @param pnGlobal     2D array storing the global pressure field [node][time]
    * @param rhsElement   List of elements with a non-zero forcing term
    */
-  virtual void computeOneStep( const float &dt,
-                               const int &timeSample,
-                               const int &i1,
-                               const int &i2, 
-                               const ARRAY_REAL_VIEW &rhsTerm,
-                               const ARRAY_REAL_VIEW &pnGlobal,
-                               const VECTOR_INT_VIEW &rhsElement ) override final;
+  virtual void computeOneStep( const float & dt,
+                              const int & timeSample,
+                              DataStruct & data ) override final;
 
   virtual void outputPnValues( const int &indexTimeStep, 
                                int &i1,

@@ -32,13 +32,18 @@ template< int ORDER, typename INTEGRAL_TYPE >
 void 
 SEMsolver<ORDER, INTEGRAL_TYPE>::
 computeOneStep( const float &dt, 
-                const int &timeSample, 
-                const int &i1,
-                const int &i2, 
-                const ARRAY_REAL_VIEW &rhsTerm, 
-                const ARRAY_REAL_VIEW &pnGlobal,
-                const VECTOR_INT_VIEW &rhsElement )
+                const int &timeSample,
+                SolverBase::DataStruct & data )
 {
+  // Cast to the specific DataStruct type
+  auto & myData = dynamic_cast<SEMsolverData &>(data);
+
+  int const & i1 = myData.m_i1;
+  int const & i2 = myData.m_i2;
+  ARRAY_REAL_VIEW const & rhsTerm = myData.m_rhsTerm;
+  ARRAY_REAL_VIEW const & pnGlobal = myData.m_pnGlobal;
+  VECTOR_INT_VIEW const & rhsElement = myData.m_rhsElement;
+
   resetGlobalVectors();
   applyRHSTerm( dt, timeSample, i2, rhsTerm, rhsElement, pnGlobal);
   FENCE

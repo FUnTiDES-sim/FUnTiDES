@@ -13,14 +13,16 @@ public:
   // Destructor
   virtual ~SolverBase() = default;
 
+  struct DataStruct
+  {
+    // Base structure for data passed to the solver
+    virtual ~DataStruct() = default;
+  };
+
   // Pure virtual function to compute one step of the solver
   virtual void computeOneStep(const float & dt,
                               const int & timeSample,
-                              const int & i1,
-                              const int & i2,
-                              const ARRAY_REAL_VIEW & rhsTerm,
-                              const ARRAY_REAL_VIEW & pnGlobal,
-                              const VECTOR_INT_VIEW & rhsElement ) = 0;
+                              DataStruct & data ) = 0;
 
   // Pure virtual function to initialize finite element components
   virtual void computeFEInit( Mesh const & mesh ) = 0;

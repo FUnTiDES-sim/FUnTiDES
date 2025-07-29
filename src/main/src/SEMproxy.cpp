@@ -8,6 +8,9 @@
 #include "SEMproxy.hpp"
 
 #include "solverFactory.hpp"
+#include "SEMsolver.hpp"
+
+
 #ifdef USE_EZV
 #include "ezvLauncher.hpp"
 #endif // USE_EZV
@@ -76,11 +79,13 @@ void SEMproxy::run()
   time_point<steady_clock> startComputeTime, startOutputTime, totalComputeTime,
       totalOutputTime;
 
+  SEMsolverData solverData(  i1, i2, myRHSTerm, pnGlobal, rhsElement );
+
   for (int indexTimeSample = 0; indexTimeSample < m_numSamples; indexTimeSample++) 
   {
     startComputeTime = steady_clock::now();
-    m_solver->computeOneStep( m_dt, indexTimeSample, i1, i2, myRHSTerm,
-                              pnGlobal, rhsElement);
+    m_solver->computeOneStep( m_dt, indexTimeSample, solverData );
+    
     totalComputeTime += steady_clock::now() - startComputeTime;
 
     startOutputTime = steady_clock::now();
@@ -88,6 +93,8 @@ void SEMproxy::run()
                             pnGlobal);
 
     swap(i1, i2);
+    swap( solverData.m_i1, solverData.m_i2 );
+
     totalOutputTime += steady_clock::now() - startOutputTime;
   }
 
