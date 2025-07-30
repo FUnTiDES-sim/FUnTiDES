@@ -6,16 +6,6 @@
 
 #include "SEMproxy.hpp"
 
-#ifdef USE_CALIPER
-#include "caliperUtils.hpp"
-#include <caliper/cali-manager.h>
-#endif // USE_CALIPER
-
-#ifdef USE_EZV
-#include "ezvLauncher.hpp"
-#include <thread>
-#endif // USE_EZV
-
 time_point<system_clock> startInitTime;
 
 void compute(SEMproxy &semsim) {
@@ -45,10 +35,6 @@ int main(int argc, char *argv[]) {
 
   startInitTime = system_clock::now();
 
-#ifdef USE_EZV
-  init_ezv();
-#endif // USE_EZV
-
 #ifdef USE_KOKKOS
   cout << "Using Kokkos" << endl;
   Kokkos::initialize(argc, argv);
@@ -61,20 +47,11 @@ int main(int argc, char *argv[]) {
 
     // SEMproxy semsim(argc, argv);
     // constexpr int order = 2;
-    SEMproxy semsim(100, 100, 100, 2000.);
+    SEMproxy semsim(50, 50, 50, 2000.);
 
     semsim.initFiniteElem();
 
-#ifdef USE_EZV
-    ezv_init_mesh(semsim, &mesh);
-    std::thread compute_thread(compute_loop, semsim);
-    ezv_loop();
-
-    if (compute_thread.joinable())
-      compute_thread.join();
-#else
-  compute_loop(semsim);
-#endif // USE_EZV
+    compute_loop(semsim);
 
 #ifdef USE_KOKKOS
   }

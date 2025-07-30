@@ -18,7 +18,7 @@ struct SEMinfo {
   int numberOfSpongeNodes;
 
   const int myNumberOfRHS = 1;
-  static constexpr int myOrderNumber = 2;
+  static constexpr int myOrderNumber = 3;
   const float myTimeStep = 0.001;
 
   const float f0 = 10.;

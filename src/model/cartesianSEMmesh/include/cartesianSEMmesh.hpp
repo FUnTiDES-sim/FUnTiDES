@@ -29,9 +29,7 @@ public:
   PROXY_HOST_DEVICE
   CartesianSEMmesh() {};
 
-  using Base = BaseMesh<ModelType, Coord, NodeIDX, ElementIDX, ORDER>;
-
-  /**
+ /**
    * @brief Constructs a structured mesh with element counts and physical sizes.
    *
    * @param ex_in   Number of elements in the X direction
@@ -143,24 +141,33 @@ public:
   PROXY_HOST_DEVICE
   constexpr int getOrder() const { return ORDER; }
 
-  void extractXYslice(int k, vectorInt slice) const {
-    int id = 0;
-    for (int j = 0; j < this->ny; ++j) {
-      for (int i = 0; i < this->nx; ++i) {
-        NodeIDX nodeIdx = i + j * this->nx + k * this->nx * this->ny;
-        slice(id) = nodeIdx;
-      }
-    }
-  }
-
   PROXY_HOST_DEVICE
-  typename Base::BoundaryFlag boundaryType(NodeIDX n) const
+  BoundaryFlag boundaryType(NodeIDX n) const
   {
-    return Base::InteriorNode;
+    return BoundaryFlag::InteriorNode;
   }
 
   PROXY_HOST_DEVICE
-  virtual void faceNormal(ElementIDX e, int dir, int face, ModelType v[3]) const {}
+  void faceNormal(ElementIDX e, int dir, int face, ModelType v[3]) const { return; }
+
+  PROXY_HOST_DEVICE
+  Coord domainSize(int dim) const
+  {
+    if (dim == 0) return lx;
+    if (dim == 1) return ly;
+    return lz;
+  }
+
+  PROXY_HOST_DEVICE
+  ElementIDX elementFromCoordinate(Coord x, Coord y, Coord z) const {
+    int i = static_cast<int>(x / lx);
+    int j = static_cast<int>(y / ly);
+    int k = static_cast<int>(z / lz);
+
+    int index = i + nx * (j + ny * k);
+    return ElementIDX(index);
+  }
+
 
 private:
   ElementIDX ex, ey, ez; // Nb elements in each direction

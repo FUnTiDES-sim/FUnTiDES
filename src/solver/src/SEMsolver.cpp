@@ -60,8 +60,6 @@ void SEMsolver::applyRHSTerm(int timeSample, int i2,
           float scale =  dt2 * myMesh.getModelVpOnElement(rhsElement[i]) * myMesh.getModelVpOnElement(rhsElement[i]);
           float source = scale * rhsTerm(i, timeSample) * rhsWeights(i, localNodeId);
           pnGlobal(nodeRHS, i2) += source;
-
-          printf("Applying to element %d, node %d, the pressure %f. Weight is %f\n", nodeRHS, localNodeId, source, rhsWeights(i, localNodeId));
         }
       }
     }
@@ -213,4 +211,30 @@ void SEMsolver::allocateFEarrays() {
   // sponge allocation
   spongeTaperCoeff = allocateVector<VECTOR_REAL_VIEW>(myMesh.getNumberOfNodes(),
                                                       "spongeTaperCoeff");
+}
+
+
+void SEMsolver::initSpongeValues() {
+  // Init all taper to 1 (default value)
+  double alpha = -0.0001;
+  LOOPHEAD(myMesh.getNumberOfNodes(), n)
+    float x = myMesh.nodeCoord(n, 0);
+    float y = myMesh.nodeCoord(n, 1);
+    float z = myMesh.nodeCoord(n, 2);
+    float distToFrontierX = min(myMesh.domainSize(0) - x, x);
+    float distToFrontierY = min(myMesh.domainSize(0) - y, y);
+    float distToFrontierZ = min(myMesh.domainSize(0) - z, z);
+
+    // Find closest distance to domain's end in x y z coordinate
+    float minDistToFrontier;
+    if (!isSurface) minDistToFrontier = min(distToFrontierX, min(distToFrontierY, distToFrontierZ));
+    else minDistToFrontier = min(distToFrontierY, distToFrontierZ);
+
+    // Compute taper Coeff
+      // spongeTaperCoeff(n) = std::exp(alpha * static_cast<double>(distToFrontier * distToFrontier));
+    if (minDistToFrontier < m_spongeSize) spongeTaperCoeff(n) = std::exp(alpha * static_cast<double>(minDistToFrontier * minDistToFrontier));
+    else spongeTaperCoeff(n) = 1;
+  LOOPEND
+
+  FENCE
 }
