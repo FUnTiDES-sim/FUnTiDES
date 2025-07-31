@@ -50,7 +50,7 @@ void SEMproxy::run() {
   for (int indexTimeSample = 0; indexTimeSample < myNumSamples;
        indexTimeSample++) {
     startComputeTime = system_clock::now();
-    mySolver.computeOneStep(indexTimeSample, i1, i2, myRHSTerm, pnGlobal,
+    mySolver.computeOneStep(indexTimeSample, myTimeStep, i1, i2, myRHSTerm, pnGlobal,
                             rhsElement, rhsWeights);
     totalComputeTime += system_clock::now() - startComputeTime;
 

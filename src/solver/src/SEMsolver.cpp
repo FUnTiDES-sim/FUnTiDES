@@ -20,18 +20,19 @@ void SEMsolver::computeFEInit(Mesh mesh_in) {
   initFEarrays();
 }
 
-void SEMsolver::computeOneStep(const int &timeSample, const int &i1,
-                               const int &i2, const ARRAY_REAL_VIEW &rhsTerm,
+void SEMsolver::computeOneStep(const int &timeSample, const float dt,
+                               const int &i1, const int &i2,
+                               const ARRAY_REAL_VIEW &rhsTerm,
                                const ARRAY_REAL_VIEW &pnGlobal,
                                const VECTOR_INT_VIEW &rhsElement,
                                const ARRAY_REAL_VIEW &rhsWeights) {
   FENCE
   resetGlobalVectors(myMesh.getNumberOfNodes());
-  applyRHSTerm(timeSample, i2, rhsTerm, rhsElement, pnGlobal, rhsWeights);
+  applyRHSTerm(timeSample, dt, i2, rhsTerm, rhsElement, pnGlobal, rhsWeights);
   FENCE
   computeElementContributions(i2, pnGlobal);
   FENCE
-  updatePressureField(i1, i2, pnGlobal);
+  updatePressureField(dt, i1, i2, pnGlobal);
 }
 
 void SEMsolver::resetGlobalVectors(int numNodes) {
@@ -41,12 +42,12 @@ void SEMsolver::resetGlobalVectors(int numNodes) {
   LOOPEND
 }
 
-void SEMsolver::applyRHSTerm(int timeSample, int i2,
+void SEMsolver::applyRHSTerm(int timeSample, float dt, int i2,
                              const ARRAY_REAL_VIEW &rhsTerm,
                              const VECTOR_INT_VIEW &rhsElement,
                              const ARRAY_REAL_VIEW &pnGlobal,
                              const ARRAY_REAL_VIEW &rhsWeights) {
-  float const dt2 = myTimeStep * myTimeStep;
+  float const dt2 = dt * dt;
   int nb_rhs_element = rhsElement.extent(0);
   LOOPHEAD(nb_rhs_element, i)
     for(int z = 0; z < myMesh.getOrder() + 1; z++)
@@ -141,10 +142,10 @@ void SEMsolver::computeElementContributions(int i2,
   MAINLOOPEND
 }
 
-void SEMsolver::updatePressureField(int i1, int i2,
+void SEMsolver::updatePressureField(float dt, int i1, int i2,
                                     const ARRAY_REAL_VIEW &pnGlobal) {
 
-  float const dt2 = myTimeStep * myTimeStep;
+  float const dt2 = dt * dt;
   LOOPHEAD(myMesh.getNumberOfNodes(), I)
   pnGlobal(I, i1) = 2 * pnGlobal(I, i2) - pnGlobal(I, i1) -
                     dt2 * yGlobal[I] / massMatrixGlobal[I];

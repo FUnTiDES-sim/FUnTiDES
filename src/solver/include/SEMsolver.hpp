@@ -53,6 +53,7 @@ public:
    * Advances the pressure field using explicit time integration.
    *
    * @param timeSample   Current time index into the RHS (source) term
+   * @param dt           Delta time for this iteration
    * @param i1           Index for previous pressure field
    * @param i2           Index for current pressure field
    * @param rhsTerm      Right-hand side forcing term [node][time]
@@ -60,7 +61,8 @@ public:
    * @param rhsElement   List of active source elements
    * @param rhsWeights   Forcing weights per source node
    */
-  void computeOneStep(const int &timeSample, const int &i1, const int &i2,
+  void computeOneStep(const int &timeSample, const float dt,
+                      const int &i1, const int &i2,
                       const ARRAY_REAL_VIEW &rhsTerm,
                       const ARRAY_REAL_VIEW &pnGlobal,
                       const VECTOR_INT_VIEW &rhsElement,
@@ -112,7 +114,8 @@ public:
    * @param pnGlobal     Global pressure field (modified in-place)
    * @param rhsWeights   Forcing weights per node
    */
-  void applyRHSTerm(int timeSample, int i2, const ARRAY_REAL_VIEW &rhsTerm,
+  void applyRHSTerm(int timeSample, float dt, int i2,
+                    const ARRAY_REAL_VIEW &rhsTerm,
                     const VECTOR_INT_VIEW &rhsElement,
                     const ARRAY_REAL_VIEW &pnGlobal,
                     const ARRAY_REAL_VIEW &rhsWeights);
@@ -134,7 +137,7 @@ public:
    * @param i2       Current time step index
    * @param pnGlobal Pressure field array (updated in-place)
    */
-  void updatePressureField(int i1, int i2, const ARRAY_REAL_VIEW &pnGlobal);
+  void updatePressureField(float dt, int i1, int i2, const ARRAY_REAL_VIEW &pnGlobal);
 
   /**
    * @brief Accessor for the sponge tapering coefficients.
@@ -144,7 +147,7 @@ public:
 
 private:
   Mesh myMesh;                         ///< Internal copy of the mesh
-  const float myTimeStep = 0.001f;     ///< Time step size (fixed)
+  // const float myTimeStep = 0.001f;     ///< Time step size (fixed)
   float m_spongeSize = 100.;
   bool isSurface = true;
 
