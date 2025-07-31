@@ -86,9 +86,9 @@ def main():
 
     order = 3
     domain_size = 1500.0
-    ex = 100
-    ey = 100
-    ez = 100
+    ex = 50
+    ey = 50
+    ez = 50
     hx = domain_size / ex
     hy = domain_size / ey
     hz = domain_size / ez
@@ -133,26 +133,21 @@ def main():
     # time step and sampling
     timeStep = 0.001
     nTimeSteps = 3000
-    numberOfRHS = 1
-    xs = ex * hx / 2
-    ys = ey * hy / 2
-    zs = ez * hz / 2
+    numberOfRHS = 2
 
     kk_RHSElement = kokkos.array(
         [numberOfRHS], dtype=kokkos.int32, space=memspace, layout=layout
     )
     RHSElement = np.array(kk_RHSElement, copy=False)
-    RHSElement[0] = get_element_number_from_point(ex, ey, ez, hx, hy, hz, xs, ys, zs)
+    RHSElement[0] = mesh.element_from_coordinate(domain_size / 2, 120, domain_size / 2)
+    RHSElement[1] = mesh.element_from_coordinate(domain_size / 2, domain_size - 120, domain_size / 2)
     print("RHS element number ", RHSElement[0])
 
     kk_RHSWeights = kokkos.array([numberOfRHS, mesh.get_nb_points_per_element()], dtype=kokkos.float32, space=memspace, layout=layout)
     RHSWeights = np.array(kk_RHSWeights, copy=False)
     for i in range(numberOfRHS):
         for j in range(mesh.get_nb_points_per_element()):
-            RHSWeights[i, j] = 0
-    RHSWeights[0,0] = 1
-
-    print(RHSWeights)
+            RHSWeights[i, j] = 1 / mesh.get_nb_points_per_element()
 
     # compute source term
     kk_RHSTerm = kokkos.array(
@@ -161,11 +156,12 @@ def main():
     RHSTerm = np.array(kk_RHSTerm, copy=False)
     for i in range(nTimeSteps):
         RHSTerm[0, i] = sourceTerm(i * timeStep, f0)
+        RHSTerm[1, i] = sourceTerm(i * timeStep, f0)
 
     # setup graphic display
     grid = np.zeros((nx, nz))
     fig, ax = plt.subplots()
-    cmpvalue = 20
+    cmpvalue = 0.2
     im = ax.imshow(
         grid, cmap="viridis", interpolation="nearest", vmin=-cmpvalue, vmax=cmpvalue
     )
@@ -183,6 +179,7 @@ def main():
         iter_start = time.time()
         solver.computeOneStep(
             timeSample,
+            timeStep,
             i1,
             i2,
             kk_RHSTerm,
