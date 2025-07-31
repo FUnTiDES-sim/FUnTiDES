@@ -26,13 +26,14 @@ void SEMsolver::computeOneStep(const int &timeSample, const float dt,
                                const ARRAY_REAL_VIEW &pnGlobal,
                                const VECTOR_INT_VIEW &rhsElement,
                                const ARRAY_REAL_VIEW &rhsWeights) {
-  FENCE
   resetGlobalVectors(myMesh.getNumberOfNodes());
+  FENCE
   applyRHSTerm(timeSample, dt, i2, rhsTerm, rhsElement, pnGlobal, rhsWeights);
   FENCE
   computeElementContributions(i2, pnGlobal);
   FENCE
   updatePressureField(dt, i1, i2, pnGlobal);
+  FENCE
 }
 
 void SEMsolver::resetGlobalVectors(int numNodes) {
@@ -60,7 +61,7 @@ void SEMsolver::applyRHSTerm(int timeSample, float dt, int i2,
           int nodeRHS = myMesh.globalNodeIndex(rhsElement[i], x, y, z);
           float scale =  dt2 * myMesh.getModelVpOnElement(rhsElement[i]) * myMesh.getModelVpOnElement(rhsElement[i]);
           float source = scale * rhsTerm(i, timeSample) * rhsWeights(i, localNodeId);
-          pnGlobal(nodeRHS, i2) += source;
+          yGlobal(nodeRHS) -= source;
         }
       }
     }
