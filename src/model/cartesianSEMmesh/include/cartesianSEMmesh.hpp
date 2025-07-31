@@ -158,16 +158,28 @@ public:
     return lz;
   }
 
+  // PROXY_HOST_DEVICE
+  // ElementIDX elementFromCoordinate(Coord x, Coord y, Coord z) const {
+  //   int i = static_cast<int>(x / lx);
+  //   int j = static_cast<int>(y / ly);
+  //   int k = static_cast<int>(z / lz);
+
+  //   int index = i + nx * (j + ny * k);
+  //   return ElementIDX(index);
+  // }
+
   PROXY_HOST_DEVICE
   ElementIDX elementFromCoordinate(Coord x, Coord y, Coord z) const {
-    int i = static_cast<int>(x / lx);
-    int j = static_cast<int>(y / ly);
-    int k = static_cast<int>(z / lz);
+      // Calculate grid indices by scaling coordinates to grid space
+      int i = static_cast<int>(x * ex / lx);
+      int j = static_cast<int>(y * ey / ly);
+      int k = static_cast<int>(z * ez / lz);
 
-    int index = i + nx * (j + ny * k);
-    return ElementIDX(index);
+      // Calculate linear index using row-major ordering
+      int index = i + ex * (j + ey * k);
+
+      return ElementIDX(index);
   }
-
 
 private:
   ElementIDX ex, ey, ez; // Nb elements in each direction
