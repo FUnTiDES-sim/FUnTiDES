@@ -149,8 +149,8 @@ void SEMsolver::updatePressureField(float dt, int i1, int i2,
   LOOPHEAD(myMesh.getNumberOfNodes(), I)
   pnGlobal(I, i1) = 2 * pnGlobal(I, i2) - pnGlobal(I, i1) -
                     dt2 * yGlobal[I] / massMatrixGlobal[I];
-  // pnGlobal(I, i1) *= spongeTaperCoeff(I);
-  // pnGlobal(I, i2) *= spongeTaperCoeff(I);
+  pnGlobal(I, i1) *= spongeTaperCoeff(I);
+  pnGlobal(I, i2) *= spongeTaperCoeff(I);
   LOOPEND
 }
 
@@ -182,6 +182,8 @@ void SEMsolver::initFEarrays() {
   myQkBasis.getDerivativeBasisFunction1D(myMesh.getOrder(), quadraturePoints,
                                          derivativeBasisFunction1D);
 #endif // USE_SEMCLASSIC
+
+  initSpongeValues();
 }
 
 //************************************************************************
@@ -222,19 +224,24 @@ void SEMsolver::initSpongeValues() {
     float x = myMesh.nodeCoord(n, 0);
     float y = myMesh.nodeCoord(n, 1);
     float z = myMesh.nodeCoord(n, 2);
+
     float distToFrontierX = min(myMesh.domainSize(0) - x, x);
-    float distToFrontierY = min(myMesh.domainSize(0) - y, y);
-    float distToFrontierZ = min(myMesh.domainSize(0) - z, z);
+    float distToFrontierY = min(myMesh.domainSize(1) - y, y);  // Fixed: use index 1
+    float distToFrontierZ = min(myMesh.domainSize(2) - z, z);  // Fixed: use index 2
 
     // Find closest distance to domain's end in x y z coordinate
     float minDistToFrontier;
     if (!isSurface) minDistToFrontier = min(distToFrontierX, min(distToFrontierY, distToFrontierZ));
     else minDistToFrontier = min(distToFrontierY, distToFrontierZ);
 
-    // Compute taper Coeff
-      // spongeTaperCoeff(n) = std::exp(alpha * static_cast<double>(distToFrontier * distToFrontier));
-    if (minDistToFrontier < m_spongeSize) spongeTaperCoeff(n) = std::exp(alpha * static_cast<double>(minDistToFrontier * minDistToFrontier));
-    else spongeTaperCoeff(n) = 1;
+    // Compute taper Coeff with proper Gaussian decay
+    if (minDistToFrontier < m_spongeSize) {
+        // Normalize distance to avoid underflow - alpha is already negative
+        double normalizedDist = minDistToFrontier / m_spongeSize;
+        spongeTaperCoeff(n) = std::exp(alpha * normalizedDist * normalizedDist);
+    } else {
+        spongeTaperCoeff(n) = 1.0;
+    }
   LOOPEND
 
   FENCE
