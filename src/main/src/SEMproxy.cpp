@@ -99,8 +99,8 @@ void SEMproxy::init_source() {
        << myMesh.elementFromCoordinate(myRHSLocation(0,0), myRHSLocation(0,1),myRHSLocation(0,2)) << endl;
   for (int i = 0; i < 1; i++) {
     // extract element number for current rhs
-    rhsElement[i] = myMesh.elementFromCoordinate(myRHSLocation(i,0), myRHSLocation(i,1),myRHSLocation(i,2));
-    // rhsElement[i] = 1275;
+    // rhsElement[i] = myMesh.elementFromCoordinate(myRHSLocation(i,0), myRHSLocation(i,1),myRHSLocation(i,2));
+    rhsElement[i] = 1275;
   }
 
   // initialize source term
