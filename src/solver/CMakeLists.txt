@@ -1,12 +1,24 @@
 add_library(solver src/SEMsolver.cpp)
 
+# Allow to link agains any model and mesh library that respects the API
+if(NOT DEFINED SOLVER_MODEL_INTERFACE)
+  set(SOLVER_MODEL_INTERFACE ${CMAKE_CURRENT_SOURCE_DIR}/../model)
+endif()
+
+if(NOT DEFINED SOLVER_MESH_LIBS)
+  set(SOLVER_MESH_LIBS mesh)
+endif()
+
+message(STATUS "SOLVER_MODEL_INTERFACE: ${SOLVER_MODEL_INTERFACE}")
+message(STATUS "SOLVER_MESH_LIBS      : ${SOLVER_MESH_LIBS}")
+
 target_include_directories(
   solver
   PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
          ${CMAKE_CURRENT_SOURCE_DIR}/../discretization
-         ${CMAKE_CURRENT_SOURCE_DIR}/../model)
+         ${SOLVER_MODEL_INTERFACE})
 
-set(SOLV_LIBS discretization mesh utils)
+set(SOLV_LIBS discretization ${SOLVER_MESH_LIBS} utils)
 
 if(USE_KOKKOS)
   list(APPEND SOLV_LIBS Kokkos::kokkos)
@@ -25,7 +37,7 @@ if(ENABLE_PYWRAP)
   target_include_directories(pysolver PRIVATE
              include
              ${CMAKE_CURRENT_SOURCE_DIR}/../discretization
-             ${CMAKE_CURRENT_SOURCE_DIR}/../model
+             ${SOLVER_MODEL_INTERFACE}
              ${CMAKE_SOURCE_DIR}/external/pykokkos-base/include)
 
   target_link_libraries(pysolver PUBLIC ${SOLV_LIBS})
