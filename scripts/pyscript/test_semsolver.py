@@ -132,15 +132,15 @@ def main():
     f0 = 5
     # time step and sampling
     timeStep = 0.001
-    nTimeSteps = 3000
+    nTimeSteps = 5000
     numberOfRHS = 2
 
     kk_RHSElement = kokkos.array(
         [numberOfRHS], dtype=kokkos.int32, space=memspace, layout=layout
     )
     RHSElement = np.array(kk_RHSElement, copy=False)
-    RHSElement[0] = mesh.element_from_coordinate(domain_size / 2, 120, domain_size / 2)
-    RHSElement[1] = mesh.element_from_coordinate(domain_size / 2, domain_size - 120, domain_size / 2)
+    RHSElement[0] = mesh.element_from_coordinate(domain_size / 2, domain_size / 2, domain_size / 2)
+    RHSElement[1] = mesh.element_from_coordinate(domain_size / 2, domain_size - 300, domain_size / 2)
     print("RHS element number ", RHSElement[0])
 
     kk_RHSWeights = kokkos.array([numberOfRHS, mesh.get_nb_points_per_element()], dtype=kokkos.float32, space=memspace, layout=layout)
@@ -161,7 +161,7 @@ def main():
     # setup graphic display
     grid = np.zeros((nx, nz))
     fig, ax = plt.subplots()
-    cmpvalue = 0.2
+    cmpvalue = 0.15
     im = ax.imshow(
         grid, cmap="viridis", interpolation="nearest", vmin=-cmpvalue, vmax=cmpvalue
     )
@@ -199,6 +199,7 @@ def main():
             print()
 
         if timeSample % 100 == 0:
+            print(f"Sum pnGlobal {np.abs(pnGlobal[i1])}")
             print(f"Time {timeSample} / {nTimeSteps}")
 
         if timeSample % 10 == 0:
