@@ -8,7 +8,7 @@
 template < int ORDER, int METHOD_TYPE >
 struct IntegralTypeSelector
 {
-  static_assert( true, "Unsupported method type" );  
+  static_assert( false, "Unsupported method type" );  
 };
 
 
@@ -27,7 +27,7 @@ struct IntegralTypeSelector< ORDER, 1 >
 template< int ORDER >
 struct IntegralTypeSelector< ORDER, 2 >
 {
-  using type = Q2_Hexahedron_Lagrange_GaussLobatto; 
+  using type = typename Qk_Hexahedron_Lagrange_GaussLobatto_Selector<ORDER>::type; 
 };
 
 
