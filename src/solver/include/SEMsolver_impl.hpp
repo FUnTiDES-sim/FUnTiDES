@@ -181,8 +181,10 @@ initFEarrays()
   m_mesh.getListOfInteriorNodes(numberOfInteriorNodes,
                               listOfInteriorNodes);
   // mesh coordinates
-  m_mesh.nodesCoordinates(globalNodesCoordsX, globalNodesCoordsZ,
-                        globalNodesCoordsY);
+  m_mesh.nodesCoordinates( globalNodesCoordsX, 
+                           globalNodesCoordsZ,
+                           globalNodesCoordsY,
+                           INTEGRAL_TYPE::isClassic );
 
   // get model
   m_mesh.getModel( numberOfElements, model);

@@ -107,8 +107,11 @@ public:
                                        const int &h, const int &nElement) const;
 
   // Initialize nodal coordinates.
-  void nodesCoordinates(arrayReal &nodeCoordsX, arrayReal &nodeCoordsZ,
-                        arrayReal &nodeCoordsY) const;
+
+  void nodesCoordinates( arrayReal &nodeCoordsX, 
+                         arrayReal &nodeCoordsZ,
+                         arrayReal &nodeCoordsY,
+                         bool const isClassic ) const;
 
   //  list of global nodes ( vertices)
   void globalNodesList(const int &numberOfElements, arrayInt &nodesList) const;
