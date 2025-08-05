@@ -10,3 +10,4 @@
 [submodule "src/discretization/SEMKernels"]
 	path = src/discretization/fe/SEMKernels
 	url = git@github.com/proxySem/SEMKernels.git
+	branch = meshapi

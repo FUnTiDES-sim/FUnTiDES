@@ -54,6 +54,27 @@ public:
    */
   void run();
 
+  /**
+  * Extract an XY slice from a Kokkos 1D View representing a 3D cubic array
+  *
+  * For Kokkos:
+  * Extract XY slice using subview (more efficient, zero-copy)
+  * Returns a subview that shares memory with the original array
+  *
+  * @param array_1d: Input Kokkos 1D View containing 3D data (stored in X-Y-Z order)
+  * @param size: Size of each dimension (assuming cubic array: size x size x size)
+  * @param z: Z-level to extract (0 to size-1)
+  * @return: Kokkos 1D View containing the XY slice
+  */
+  VECTOR_REAL_VIEW extractXYSlice(const VECTOR_REAL_VIEW& array, int size, int z);
+
+  /**
+  * Save slice in gnuplot matrix format (default - best for gnuplot)
+  * Format: space-separated matrix with blank lines between rows for 3D plotting
+  */
+  void saveSlice(const VECTOR_REAL_VIEW& host_slice,
+                int size, const std::string& filepath);
+
 private:
   int i1 = 0;
   int i2 = 1;

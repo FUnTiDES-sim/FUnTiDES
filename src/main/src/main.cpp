@@ -47,7 +47,7 @@ int main(int argc, char *argv[]) {
 
     // SEMproxy semsim(argc, argv);
     // constexpr int order = 2;
-    SEMproxy semsim(50, 50, 50, 2000.);
+    SEMproxy semsim(10, 10, 10, 2000.);
 
     semsim.initFiniteElem();
 
