@@ -17,7 +17,7 @@
 SEMproxy::SEMproxy(int argc, char *argv[]) {
   int ex = (cmdOptionExists(argv, argv + argc, "-ex"))
                ? std::stoi(getCmdOption(argv, argv + argc, "-ex"))
-               : 100;
+               : 50;
   int ey = (cmdOptionExists(argv, argv + argc, "-ey"))
                ? std::stoi(getCmdOption(argv, argv + argc, "-ey"))
                : ex;
@@ -37,8 +37,22 @@ SEMproxy::SEMproxy(int argc, char *argv[]) {
                  ? std::stof(getCmdOption(argv, argv + argc, "-lz"))
                  : lx;
 
-  Mesh simpleMesh(ex, ey, ez, lx, ly, lz, order);
-  myMesh = simpleMesh;
+  nb_elements[0] = ex;
+  nb_elements[1] = ey;
+  nb_elements[2] = ez;
+
+  nb_nodes[0] = ex * order + 1;
+  nb_nodes[1] = ey * order + 1;
+  nb_nodes[2] = ez * order + 1;
+
+  std::cout << "Starting simulation with Cartesian Mesh of size "
+            << "(" << ex << ',' << ey << ',' << ez << ')' << std::endl;
+  std::cout << "Size of the domain is "
+            << "(" << lx << ',' << ly << ',' << lz << ')' << std::endl;
+
+  Mesh cartesianMesh(ex, ey, ez, lx, ly, lz, order);
+  myMesh = cartesianMesh;
+  mySolver = SEMsolver(myMesh);
 }
 
 void SEMproxy::run() {
@@ -54,20 +68,20 @@ void SEMproxy::run() {
 
     startOutputTime = system_clock::now();
 
-    FENCE
-
-    // if (indexTimeSample == 0)
-    // {
-    //   for (int i = 0; i < (10*3+1) *(10*3+1) * (10*3+1)  ; i++)
-    //   {
-    //     cout << pnGlobal(i1, i) << " ";
-    //     if (i % 10 == 0) cout << endl;
-    //   }
-    // }
-    if (indexTimeSample == 1400)
+    if (indexTimeSample % 50 == 0)
     {
-      VECTOR_REAL_VIEW slice = extractXYSlice(Kokkos::subview(pnGlobal, i1, Kokkos::ALL), 10*3+1, (10*3+1)/2);
-      saveSlice(slice, 10*3+1, "slice.dat");
+      mySolver.outputPnValues(myMesh, indexTimeSample, i1, rhsElement[0], pnGlobal);
+    }
+
+    if (indexTimeSample % 10 == 0)
+    {
+      std::stringstream filename;
+      filename << "slice" << indexTimeSample << ".dat";
+      std::string str_filename = filename.str();
+
+      auto subview = Kokkos::subview(pnGlobal, Kokkos::ALL, i1);
+      auto slice = myMesh.extractXYSlice(subview, nb_nodes[0], nb_nodes[0]/2);
+      saveSlice(slice, nb_nodes[0], str_filename);
     }
 
     swap(i1, i2);
@@ -144,44 +158,6 @@ std::string formatSnapshotFilename(int id, int width = 5) {
   return oss.str();
 }
 
-#ifndef USE_KOKKOS
-VECTOR_REAL_VIEW SEMproxy::extractXYSlice(const VECTOR_REAL_VIEW& array, int size, int z)
-{
-  int expected_size = size * size * size;
-
-  // Calculate slice parameters
-  int slice_size = size * size;
-  int start_index = z * slice_size;
-
-  // Create output view
-  VECTOR_REAL_VIEW xy_slice("xy_slice", slice_size);
-
-  // Extract the slice using parallel_for
-  // Kokkos::parallel_for("extract_xy_slice", slice_size, KOKKOS_LAMBDA(int i) {
-  LOOPHEAD(slice_size, i)
-      xy_slice(i) = array_1d(start_index + i);
-  LOOPEND
-  // });
-
-  return xy_slice;
-}
-
-#else // USE_KOKKOS
-VECTOR_REAL_VIEW SEMproxy::extractXYSlice(const VECTOR_REAL_VIEW& array, int size, int z) {
-    // Validate inputs
-    if (z < 0 || z >= size) {
-        Kokkos::abort("Z index out of bounds");
-    }
-
-    int slice_size = size * size;
-    int start_index = z * slice_size;
-    int end_index = start_index + slice_size;
-
-    // Create subview (zero-copy operation)
-    return Kokkos::subview(array, Kokkos::make_pair(start_index, end_index));
-}
-#endif // USE_KOKKOS
-
 /**
  * Save slice in gnuplot matrix format (default - best for gnuplot)
  * Format: space-separated matrix with blank lines between rows for 3D plotting
@@ -192,13 +168,15 @@ void SEMproxy::saveSlice(const VECTOR_REAL_VIEW& host_slice,
 
     file << std::fixed << std::setprecision(6);
 
+    file << size << "\n" << size << "\n";
+
     // Standard matrix format - works with 'plot "file" matrix with image'
     for (int y = 0; y < size; ++y) {
         for (int x = 0; x < size; ++x) {
             file << host_slice(y * size + x);
-            if (x < size - 1) file << " ";
+            file << " ";
         }
-        file << "\n";
+        // file << "\n";
     }
 
     file.close();

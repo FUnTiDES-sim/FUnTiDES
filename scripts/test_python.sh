@@ -17,6 +17,7 @@ mkdir -p "$outputDir"
 
 # Create symlink to python script (absolute)
 cp -r "$script_dir/pyscript/test_semsolver.py" "$outputDir"
+cp -r "$script_dir/pyscript/dat_to_video.py" "$outputDir"
 
 # Create symlinks to each python lib matching *cpython*
 for lib in "$buildDir"/lib/*cpython*; do

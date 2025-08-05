@@ -108,12 +108,6 @@ def main():
     memspace = kokkos.CudaUVMSpace
     layout = kokkos.LayoutLeft
 
-    kk_model = kokkos.array(
-        [nElements], dtype=kokkos.float32, space=memspace, layout=layout
-    )
-    model = np.array(kk_model, copy=False)
-    initModel(model, nElements)
-
     mesh = Solver.SEMmesh(ex, ey, ez, domain_size, domain_size, domain_size, order)
 
     solver = Solver.SEMsolver(mesh)
@@ -132,7 +126,7 @@ def main():
     f0 = 5
     # time step and sampling
     timeStep = 0.001
-    nTimeSteps = 5000
+    nTimeSteps = 200
     numberOfRHS = 2
 
     kk_RHSElement = kokkos.array(
@@ -230,9 +224,9 @@ def main():
 
     # release kokkos arrays and vectors
     del kk_pnGlobal
-    del kk_model
     del kk_RHSTerm
     del kk_RHSElement
+    del kk_RHSWeights
     del solver
     del mesh
 
