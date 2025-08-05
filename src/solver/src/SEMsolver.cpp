@@ -49,7 +49,7 @@ void SEMsolver::applyRHSTerm(int timeSample, float dt, int i2,
                              const ARRAY_REAL_VIEW &pnGlobal,
                              const ARRAY_REAL_VIEW &rhsWeights) {
   float const dt2 = dt * dt;
-  int nb_rhs_element = rhsElement.size(0);
+  int nb_rhs_element = rhsElement.extent(0);
   LOOPHEAD(nb_rhs_element, i)
     for(int z = 0; z < myMesh.getOrder() + 1; z++)
     {
