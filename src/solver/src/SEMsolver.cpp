@@ -49,7 +49,7 @@ void SEMsolver::applyRHSTerm(int timeSample, float dt, int i2,
                              const ARRAY_REAL_VIEW &pnGlobal,
                              const ARRAY_REAL_VIEW &rhsWeights) {
   float const dt2 = dt * dt;
-  int nb_rhs_element = rhsElement.extent(0);
+  int nb_rhs_element = rhsElement.size(0);
   LOOPHEAD(nb_rhs_element, i)
     for(int z = 0; z < myMesh.getOrder() + 1; z++)
     {
@@ -159,10 +159,16 @@ void SEMsolver::outputPnValues(Mesh mesh, const int &indexTimeStep, int &i1,
                                int &myElementSource,
                                const ARRAY_REAL_VIEW &pnGlobal) {
   float sum = 0.0;
-  Kokkos::parallel_reduce(
-      "Sum pnGlobal", myMesh.getNumberOfNodes(),
-      KOKKOS_LAMBDA(int i, float &local_sum) { local_sum += pnGlobal(i, i1); },
-      sum);
+  #ifdef USE_KOKKOS
+    Kokkos::parallel_reduce(
+        "Sum pnGlobal", myMesh.getNumberOfNodes(),
+        KOKKOS_LAMBDA(int i, float &local_sum) { local_sum += pnGlobal(i, i1); },
+        sum);
+  #else
+    for (int i = 0; i < myMesh.getNumberOfNodes(); ++i) {
+      sum += pnGlobal(i, i1);
+    }
+  #endif
   if (indexTimeStep % 50 == 0) {
     cout << "TimeStep=" << indexTimeStep
          << ";  pnGlobal @ elementSource location " << myElementSource

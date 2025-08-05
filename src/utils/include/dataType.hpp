@@ -32,7 +32,7 @@ public:
   T &operator[](int index) const { return const_cast<T &>(data[index]); }
   T &operator=(const T &data) { return *this; };
 
-  size_t size() const { return data.size(); };
+  size_t extent(int dim) const { return data.size(); };
 
 private:
   std::vector<T> data;
@@ -51,7 +51,7 @@ public:
   }
   T &operator=(const T &data) { return *this; };
 
-  size_t size(int dim) const {
+  size_t extent(int dim) const {
     if (dim == 0) return data.size();
     if (dim == 1 && !data.empty()) return data[0].size();
     return 0;
@@ -82,7 +82,7 @@ public:
   std::vector<T> &operator[](int index) { return data[index]; }
   T &operator()(size_t X, size_t Y, size_t Z) const { return data[X][Y][Z]; }
 
-  size_t size(int dim) const {
+  size_t extent(int dim) const {
     if (dim == 0) return data.size();
     if (dim == 1 && !data.empty()) return data[0].size();
     if (dim == 2 && !data.empty() && !data[0].empty()) return data[0][0].size();
