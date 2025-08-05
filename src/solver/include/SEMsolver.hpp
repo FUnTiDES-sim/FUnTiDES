@@ -148,7 +148,7 @@ public:
 private:
   Mesh myMesh;                         ///< Internal copy of the mesh
   // const float myTimeStep = 0.001f;     ///< Time step size (fixed)
-  float m_spongeSize = 100.;
+  float m_spongeSize = 250.;
   bool isSurface = true;
 
   // Basis functions and integral objects

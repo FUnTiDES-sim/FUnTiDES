@@ -225,31 +225,48 @@ void SEMsolver::allocateFEarrays() {
 
 
 void SEMsolver::initSpongeValues() {
-  // Init all taper to 1 (default value)
-  double alpha = -0.0001;
-  LOOPHEAD(myMesh.getNumberOfNodes(), n)
-    float x = myMesh.nodeCoord(n, 0);
-    float y = myMesh.nodeCoord(n, 1);
-    float z = myMesh.nodeCoord(n, 2);
+  // LOOPHEAD(myMesh.getNumberOfNodes(), n)
+  double sigma_max = 0.01;
+  for (int n = 0; n < myMesh.getNumberOfNodes(); n++)
+  {
+      float x = myMesh.nodeCoord(n, 0);
+      float y = myMesh.nodeCoord(n, 1);
+      float z = myMesh.nodeCoord(n, 2);
+      float distToFrontierX = min(myMesh.domainSize(0) - x, x);
+      float distToFrontierY = min(myMesh.domainSize(1) - y, y);
+      float distToFrontierZ = min(myMesh.domainSize(2) - z, z);
 
-    float distToFrontierX = min(myMesh.domainSize(0) - x, x);
-    float distToFrontierY = min(myMesh.domainSize(1) - y, y);  // Fixed: use index 1
-    float distToFrontierZ = min(myMesh.domainSize(2) - z, z);  // Fixed: use index 2
+      // Find closest distance to domain's boundary
+      float minDistToFrontier;
+      // if (!isSurface) minDistToFrontier = min(distToFrontierX, min(distToFrontierY, distToFrontierZ));
+      minDistToFrontier = min(distToFrontierX, min(distToFrontierY, distToFrontierZ));
+      // else minDistToFrontier = min(distToFrontierY, distToFrontierZ);
 
-    // Find closest distance to domain's end in x y z coordinate
-    float minDistToFrontier;
-    if (!isSurface) minDistToFrontier = min(distToFrontierX, min(distToFrontierY, distToFrontierZ));
-    else minDistToFrontier = min(distToFrontierY, distToFrontierZ);
-
-    // Compute taper Coeff with proper Gaussian decay
-    if (minDistToFrontier < m_spongeSize) {
-        // Normalize distance to avoid underflow - alpha is already negative
-        double normalizedDist = minDistToFrontier / m_spongeSize;
-        spongeTaperCoeff(n) = std::exp(alpha * normalizedDist * normalizedDist);
-    } else {
-        spongeTaperCoeff(n) = 1.0;
-    }
-  LOOPEND
+      // Compute taper coefficient using the original Gaussian formula
+      if (minDistToFrontier < m_spongeSize) {
+          // d = distance from absorption boundary
+          double d = minDistToFrontier;
+          // δ = characteristic width of the Gaussian
+          double delta = m_spongeSize / 3.0;
+          // σ(d) = σ_max * exp(-(d/δ)²)
+          double sigma = sigma_max * std::exp(-((d / delta) * (d / delta)));
+          // Convert to taper coefficient
+          spongeTaperCoeff(n) = 1.0 / (1.0 + sigma);
+      } else {
+          // No damping in physical domain
+          spongeTaperCoeff(n) = 1.0;
+      }
+  }
+  // LOOPEND
 
   FENCE
+
+  // Debuging: Wrinting down all taper coef
+  std::ofstream outfile("spongeTaperCoeff.txt");
+  for (int i = 0; i < myMesh.getNumberOfNodes(); i++)
+  {
+    outfile << spongeTaperCoeff(i) << endl;
+  }
+
+  outfile.close();
 }
