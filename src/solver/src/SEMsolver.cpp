@@ -159,23 +159,15 @@ void SEMsolver::outputPnValues(Mesh mesh, const int &indexTimeStep, int &i1,
                                int &myElementSource,
                                const ARRAY_REAL_VIEW &pnGlobal) {
   float sum = 0.0;
-  #ifdef USE_KOKKOS
-    Kokkos::parallel_reduce(
-        "Sum pnGlobal", myMesh.getNumberOfNodes(),
-        KOKKOS_LAMBDA(int i, float &local_sum) { local_sum += pnGlobal(i, i1); },
-        sum);
-  #else
-    for (int i = 0; i < myMesh.getNumberOfNodes(); ++i) {
-      sum += pnGlobal(i, i1);
-    }
-  #endif
-  if (indexTimeStep % 50 == 0) {
-    cout << "TimeStep=" << indexTimeStep
-         << ";  pnGlobal @ elementSource location " << myElementSource
-         << " after computeOneStep = "
-         << pnGlobal(myMesh.globalNodeIndex(myElementSource, 0, 0, 0), i1)
-         << " and sum pnGlobal is " << sum << endl;
-  }
+  Kokkos::parallel_reduce(
+      "Sum pnGlobal", myMesh.getNumberOfNodes(),
+      KOKKOS_LAMBDA(int i, float &local_sum) { local_sum += pnGlobal(i, i1); },
+      sum);
+  cout << "TimeStep=" << indexTimeStep
+        << ";  pnGlobal @ elementSource location " << myElementSource
+        << " after computeOneStep = "
+        << pnGlobal(myMesh.globalNodeIndex(myElementSource, 0, 0, 0), i1)
+        << " and sum pnGlobal is " << sum << endl;
 }
 
 void SEMsolver::initFEarrays() {

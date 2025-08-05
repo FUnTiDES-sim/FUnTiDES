@@ -45,9 +45,8 @@ int main(int argc, char *argv[]) {
     cout << "| Initializing SEM Application ... " << endl;
     cout << "+================================= \n" << endl;
 
-    // SEMproxy semsim(argc, argv);
-    // constexpr int order = 2;
-    SEMproxy semsim(10, 10, 10, 2000.);
+    SEMproxy semsim(argc, argv);
+    // SEMproxy semsim(10, 10, 10, 2000.);
 
     semsim.initFiniteElem();
 

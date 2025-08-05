@@ -158,16 +158,6 @@ public:
     return lz;
   }
 
-  // PROXY_HOST_DEVICE
-  // ElementIDX elementFromCoordinate(Coord x, Coord y, Coord z) const {
-  //   int i = static_cast<int>(x / lx);
-  //   int j = static_cast<int>(y / ly);
-  //   int k = static_cast<int>(z / lz);
-
-  //   int index = i + nx * (j + ny * k);
-  //   return ElementIDX(index);
-  // }
-
   PROXY_HOST_DEVICE
   ElementIDX elementFromCoordinate(Coord x, Coord y, Coord z) const {
       // Calculate grid indices by scaling coordinates to grid space
@@ -180,6 +170,47 @@ public:
 
       return ElementIDX(index);
   }
+
+#ifndef USE_KOKKOS
+  VECTOR_REAL_VIEW extractXYSlice(const VECTOR_REAL_VIEW& array, int size, int z)
+  {
+    int expected_size = size * size * size;
+
+    // Calculate slice parameters
+    int slice_size = size * size;
+    int start_index = z * slice_size;
+
+    // Create output view
+    VECTOR_REAL_VIEW xy_slice("xy_slice", slice_size);
+
+    // Extract the slice using parallel_for
+    // Kokkos::parallel_for("extract_xy_slice", slice_size, KOKKOS_LAMBDA(int i) {
+    LOOPHEAD(slice_size, i)
+        xy_slice(i) = array_1d(start_index + i);
+    LOOPEND
+    // });
+
+    return xy_slice;
+  }
+
+#else // USE_KOKKOS
+  VECTOR_REAL_VIEW extractXYSlice(const VECTOR_REAL_VIEW& array, int size, int z) {
+      // Validate inputs
+      if (z < 0 || z >= size) {
+          Kokkos::abort("Z index out of bounds");
+      }
+
+      int slice_size = size * size;
+      int start_index = z * slice_size;
+      int end_index = start_index + slice_size;
+
+      // Create subview (zero-copy operation)
+      return Kokkos::subview(array, Kokkos::make_pair(start_index, end_index));
+  }
+#endif // USE_KOKKOS
+
+
+
 
 private:
   ElementIDX ex, ey, ez; // Nb elements in each direction
