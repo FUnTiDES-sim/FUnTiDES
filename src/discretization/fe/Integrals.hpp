@@ -6,10 +6,7 @@
 #include "finiteElement/shiva/SEMQkGLIntegralsShiva.hpp"
 
 template < int ORDER, int METHOD_TYPE >
-struct IntegralTypeSelector
-{
-  static_assert( false, "Unsupported method type" );  
-};
+struct IntegralTypeSelector;
 
 
 template< int ORDER >

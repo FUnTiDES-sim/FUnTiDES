@@ -243,9 +243,18 @@ allocateFEarrays()
                                                  "listOfDampingNodes");
 
   // global coordinates
-  globalNodesCoordsX = allocateArray2D<ARRAY_REAL_VIEW>( numberOfElements, nbQuadraturePoints, "globalNodesCoordsX");
-  globalNodesCoordsY = allocateArray2D<ARRAY_REAL_VIEW>( numberOfElements, nbQuadraturePoints, "globalNodesCoordsY");
-  globalNodesCoordsZ = allocateArray2D<ARRAY_REAL_VIEW>( numberOfElements, nbQuadraturePoints, "globalNodesCoordsZ");
+  if(INTEGRAL_TYPE::isClassic)
+  {
+    globalNodesCoordsX = allocateArray2D<ARRAY_REAL_VIEW>( numberOfElements, nbQuadraturePoints, "globalNodesCoordsX");
+    globalNodesCoordsY = allocateArray2D<ARRAY_REAL_VIEW>( numberOfElements, nbQuadraturePoints, "globalNodesCoordsY");
+    globalNodesCoordsZ = allocateArray2D<ARRAY_REAL_VIEW>( numberOfElements, nbQuadraturePoints, "globalNodesCoordsZ");
+  }
+  else
+  {
+    globalNodesCoordsX = allocateArray2D<ARRAY_REAL_VIEW>( numberOfElements, 8, "globalNodesCoordsX");
+    globalNodesCoordsY = allocateArray2D<ARRAY_REAL_VIEW>( numberOfElements, 8, "globalNodesCoordsY");
+    globalNodesCoordsZ = allocateArray2D<ARRAY_REAL_VIEW>( numberOfElements, 8, "globalNodesCoordsZ");
+  }
 
   model = allocateVector<VECTOR_REAL_VIEW>(numberOfElements, "model");
 
