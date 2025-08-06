@@ -16,7 +16,7 @@
 #include <thread>
 #endif // USE_EZV
 
-time_point<system_clock> startInitTime;
+time_point<steady_clock> startInitTime;
 
 void compute(SEMproxy &semsim) {
   cout << "\n+================================= " << endl;
@@ -24,7 +24,7 @@ void compute(SEMproxy &semsim) {
   cout << "+================================= \n" << endl;
 
   // start timer
-  time_point<system_clock> startRunTime = system_clock::now();
+  time_point<steady_clock> startRunTime = steady_clock::now();
   semsim.run();
 
   cout << "\n+================================= " << endl;
@@ -35,15 +35,15 @@ void compute(SEMproxy &semsim) {
   cout << "Elapsed Initial Time : "
        << (startRunTime - startInitTime).count() / 1E9 << " seconds." << endl;
   cout << "Elapsed Compute Time : "
-       << (system_clock::now() - startRunTime).count() / 1E9 << " seconds."
+       << (steady_clock::now() - startRunTime).count() / 1E9 << " seconds."
        << endl;
 };
 
-void compute_loop(SEMproxy semsim) { compute(semsim); }
+void compute_loop(SEMproxy & semsim) { compute(semsim); }
 
 int main(int argc, char *argv[]) {
 
-  startInitTime = system_clock::now();
+  startInitTime = steady_clock::now();
 
 #ifdef USE_EZV
   init_ezv();
@@ -90,7 +90,7 @@ int main(int argc, char *argv[]) {
 #endif
 
   cout << "Elapsed TotalExe Time : "
-       << (system_clock::now() - startInitTime).count() / 1E9 << " seconds.\n"
+       << (steady_clock::now() - startInitTime).count() / 1E9 << " seconds.\n"
        << endl;
   return (0);
 }

@@ -10,22 +10,59 @@
 #ifndef SEM_SOLVER_HPP_
 #define SEM_SOLVER_HPP_
 
-// #include "SEMQkGL.hpp"
-#include <BasisFunctions.hpp>
-#include <Integrals.hpp>
+#include "SolverBase.hpp"
+
+#include "dataType.hpp"
+
+#ifdef USE_KOKKOS
+#include <KokkosExp_InterOp.hpp>
+#endif
+
 #include <cmath>
 #include <model.hpp>
 
-class SEMsolver {
+
+  struct SEMsolverData : SolverBase::DataStruct
+  {
+    SEMsolverData( int i1, 
+                   int i2, 
+                   ARRAY_REAL_VIEW const & rhsTerm,
+                   ARRAY_REAL_VIEW const & pnGlobal,
+                  VECTOR_INT_VIEW const & rhsElement ): 
+      m_i1(i1), 
+      m_i2(i2), 
+      m_rhsTerm(rhsTerm), 
+      m_pnGlobal(pnGlobal), 
+      m_rhsElement(rhsElement) 
+    {}
+
+    int m_i1;
+    int m_i2;
+    ARRAY_REAL_VIEW const & m_rhsTerm;
+    ARRAY_REAL_VIEW const & m_pnGlobal;
+    VECTOR_INT_VIEW const & m_rhsElement;
+  };
+
+
+template< int ORDER,
+          typename INTEGRAL_TYPE >
+class SEMsolver : public SolverBase
+{
 public:
-  PROXY_HOST_DEVICE SEMsolver() {};
-  PROXY_HOST_DEVICE ~SEMsolver(){};
+
+  constexpr static int numPoints1d = ORDER + 1;
+  constexpr static int numPointsPerElem = (ORDER + 1) * (ORDER + 1) * (ORDER + 1);
+
+  SEMsolver() = default;
+  ~SEMsolver() = default;
+
+
 
   /**
    * @brief computeFEInit function:
    * init all FE components for computing mass and stiffness matrices
    */
-  void computeFEInit(SEMinfo &myInfo, Mesh mesh);
+  virtual void computeFEInit( Mesh const & mesh ) override final;
 
   /**
    * @brief Compute one step of the spectral element wave equation solver.
@@ -36,7 +73,6 @@ public:
    * matrices, updates pressure for interior nodes, and applies sponge damping.
    *
    * @param timeSample   Index of the current time step in `rhsTerm`
-   * @param order        Spectral element interpolation order
    * @param nPointsPerElement Number of quadrature points per element
    * @param i1           Index for pressure at previous time step
    * @param i2           Index for pressure at current time step
@@ -45,17 +81,18 @@ public:
    * @param pnGlobal     2D array storing the global pressure field [node][time]
    * @param rhsElement   List of elements with a non-zero forcing term
    */
-  void computeOneStep(const int &timeSample, const int &order,
-                      const int &nPointsPerElement, const int &i1,
-                      const int &i2, SEMinfo &myInfo, const ARRAY_REAL_VIEW &rhsTerm,
-                      ARRAY_REAL_VIEW &pnGlobal, const VECTOR_INT_VIEW &rhsElement);
+  virtual void computeOneStep( const float & dt,
+                              const int & timeSample,
+                              DataStruct & data ) override final;
 
-  void outputPnValues(Mesh mesh, const int &indexTimeStep, int &i1,
-                      int &myElementSource, const ARRAY_REAL_VIEW &pnGlobal);
+  virtual void outputPnValues( const int &indexTimeStep, 
+                               int &i1,
+                               int &myElementSource, 
+                               const ARRAY_REAL_VIEW &pnGlobal ) override final;
 
-  void initFEarrays(SEMinfo &myInfo, Mesh mesh);
+  void initFEarrays();
 
-  void allocateFEarrays(SEMinfo &myInfo);
+  void allocateFEarrays();
 
   /**
    * @brief Compute coefficients for the taper layers. In this computation the
@@ -67,16 +104,17 @@ public:
    * elastic)
    * @param[in] r desired reflectivity of the Taper
    */
-  void initSpongeValues(Mesh &mesh, SEMinfo &myInfo);
+  void initSpongeValues(Mesh &mesh );
 
-  void spongeUpdate(const ARRAY_REAL_VIEW &pnGlobal, const int i1, const int i2);
+  void spongeUpdate(const ARRAY_REAL_VIEW &pnGlobal, const int i1,
+                    const int i2);
 
   /**
    * @brief Reset the global mass matrix and stiffness vector to zero.
    *
    * @param numNodes Total number of global nodes.
    */
-  void resetGlobalVectors(int numNodes);
+  void resetGlobalVectors();
 
   /**
    * @brief Apply the external forcing term to the pressure field.
@@ -88,9 +126,9 @@ public:
    * @param myInfo Solver and mesh configuration
    * @param pnGlobal Pressure field array to update
    */
-  void applyRHSTerm(int timeSample, int i2, const ARRAY_REAL_VIEW &rhsTerm,
-                    const VECTOR_INT_VIEW &rhsElement, SEMinfo &myInfo,
-                    ARRAY_REAL_VIEW &pnGlobal);
+  void applyRHSTerm(float const dt, int timeSample, int i2, const ARRAY_REAL_VIEW &rhsTerm,
+                    const VECTOR_INT_VIEW &rhsElement,
+                    const ARRAY_REAL_VIEW &pnGlobal);
 
   /**
    * @brief Compute local element contributions to the global mass and stiffness
@@ -102,9 +140,9 @@ public:
    * @param i2 Index of the current time step in `pnGlobal`
    * @param pnGlobal Global pressure field (used as input)
    */
-  void computeElementContributions(int order, int nPointsPerElement,
-                                   SEMinfo &myInfo, int i2,
-                                   const ARRAY_REAL_VIEW &pnGlobal);
+  void computeElementContributions( int nPointsPerElement,
+                                    int i2,
+                                    const ARRAY_REAL_VIEW &pnGlobal);
 
   /**
    * @brief Update the pressure field for interior nodes using the time
@@ -115,16 +153,57 @@ public:
    * @param myInfo Solver and mesh configuration
    * @param pnGlobal Pressure field array (updated in-place)
    */
-  void updatePressureField(int i1, int i2, SEMinfo &myInfo,
-                           ARRAY_REAL_VIEW &pnGlobal);
+  void updatePressureField( float const dt,
+                     const ARRAY_REAL_VIEW &rhsTerm,
+                     int i1, 
+                     int i2, 
+                     const ARRAY_REAL_VIEW &pnGlobal);
+
+  // Getters for shared arrays
+  const arrayInt &getGlobalNodesList() const { return globalNodesList; }
+  const arrayReal &getGlobalNodesCoordsX() const { return globalNodesCoordsX; }
+  const arrayReal &getGlobalNodesCoordsY() const { return globalNodesCoordsY; }
+  const arrayReal &getGlobalNodesCoordsZ() const { return globalNodesCoordsZ; }
+  const vectorInt &getListOfInteriorNodes() const {
+    return listOfInteriorNodes;
+#ifdef USE_CALIPER
+    mgr.flush();
+#endif // USE_CALIPER
+  }
+  const vectorInt &getListOfDampingNodes() const { return listOfDampingNodes; }
+  const vectorReal &getSpongeTaperCoeff() const { return spongeTaperCoeff; }
+
+  void setGlobalNodesList(const arrayInt &list) { globalNodesList = list; }
+  void setGlobalNodesCoordsX(const arrayReal &x) { globalNodesCoordsX = x; }
+  void setGlobalNodesCoordsY(const arrayReal &y) { globalNodesCoordsY = y; }
+  void setGlobalNodesCoordsZ(const arrayReal &z) { globalNodesCoordsZ = z; }
+  void setListOfInteriorNodes(const vectorInt &nodes) {
+    listOfInteriorNodes = nodes;
+  }
+  void setListOfDampingNodes(const vectorInt &nodes) {
+    listOfDampingNodes = nodes;
+  }
+  void setSpongeTaperCoeff(const vectorReal &coeff) {
+    spongeTaperCoeff = coeff;
+  }
+
+  void setVMin(double v) { vMin = v; }
+  double getVMin() const { return vMin; }
+
+  void setModel(const vectorReal &m) { model = m; }
+
+  const vectorReal &getModel() const { return model; }
+
+  void setMassMatrixGlobal(const vectorReal &m) { massMatrixGlobal = m; }
+  const vectorReal &getMassMatrixGlobal() const { return massMatrixGlobal; }
 
 private:
-  int order;
-  SEMinfo *myInfo;
-  Mesh myMesh;
+
+  Mesh m_mesh;
   // Basis functions and integrals
-  
-  SEMQkGLIntegrals myQkIntegrals;
+  INTEGRAL_TYPE myQkIntegrals;
+  typename INTEGRAL_TYPE::PrecomputedData m_precomputedIntegralData;
+
 
   // shared arrays
   ARRAY_INT_VIEW globalNodesList;
@@ -139,13 +218,6 @@ private:
   // get model
   VECTOR_REAL_VIEW model;
   double vMin; // min wavespeed in model
-
-  #ifdef USE_SEMCLASSIC
-    SEMQkGLBasisFunctions myQkBasis;
-    VECTOR_REAL_VIEW quadraturePoints;
-    VECTOR_REAL_VIEW weights;
-    ARRAY_REAL_VIEW derivativeBasisFunction1D;
-  #endif
 
   // shared arrays
   VECTOR_REAL_VIEW massMatrixGlobal;

@@ -29,13 +29,13 @@ SEMmesh::SEMmesh(const int &ex_in, const int &ey_in, const int &ez_in,
 
 int SEMmesh::getNumberOfNodes() const {
   int numberOfNodes = (ex * orderx + 1) * (ey * ordery + 1) * (ez * orderz + 1);
-  printf("Number of nodes: %d\n", numberOfNodes);
+  //printf("Number of nodes: %d\n", numberOfNodes);
   return numberOfNodes;
 }
 
 int SEMmesh::getNumberOfElements() const {
   int numberOfElements = ((ey == 0) ? ex * ez : ex * ey * ez);
-  printf("Number of elements: %d\n", numberOfElements);
+  //printf("Number of elements: %d\n", numberOfElements);
   return numberOfElements;
 }
 
@@ -205,57 +205,58 @@ std::vector<float> SEMmesh::getCoordInOneDirection(const int &order,
   }
   return coord;
 }
-#ifdef USE_SEMCLASSIC
+
 // Initialize nodal coordinates.
-void SEMmesh::nodesCoordinates( arrayReal & nodeCoordsX,
-                                arrayReal & nodeCoordsZ,
-                                arrayReal & nodeCoordsY) const
+void SEMmesh::nodesCoordinates( arrayReal &nodeCoordsX, 
+                                arrayReal &nodeCoordsZ,
+                                arrayReal &nodeCoordsY,
+                                bool const isClassic ) const 
 {
-  std::vector< float > coordX( order+1 );
-  std::vector< float > coordY( order+1 );
-  std::vector< float > coordZ( order+1 );
-
-  for(int n=0;n<ey;n++)
+  if (isClassic) 
   {
-     coordY=getCoordInOneDirection( order, order+1, hy, n );
-     for(int m=0;m<ez;m++)
-     {
-        coordZ=getCoordInOneDirection( order, order+1, hz, m );
-        for(int l=0;l<ex;l++)
-        {
-           coordX=getCoordInOneDirection( order, order+1, hx, l );
-           int e=l+m*ex+n*ex*ez;
-           for( int k=0; k<order+1; k++ )
-           {
-              for( int j=0; j<order+1; j++ )
-              {
-                 for( int i=0; i<order+1; i++ )
-                 {
-                    nodeCoordsX(e, i+(order+1)*j+k*(order+1)*(order+1))=coordX[i];
-                    nodeCoordsZ(e, i+(order+1)*j+k*(order+1)*(order+1))=coordZ[j];
-                    nodeCoordsY(e, i+(order+1)*j+k*(order+1)*(order+1))=coordY[k];
-                 }
-              }
-           }
-        }
-     }
-  }
-}
-#else
-// Initialize nodal coordinates.
-void SEMmesh::nodesCoordinates(arrayReal &nodeCoordsX, arrayReal &nodeCoordsZ,
-                               arrayReal &nodeCoordsY) const {
+    std::vector< float > coordX( order+1 );
+    std::vector< float > coordY( order+1 );
+    std::vector< float > coordZ( order+1 );
 
-  for (int n = 0; n < ey; n++) {
-    for (int m = 0; m < ez; m++) {
-      for (int l = 0; l < ex; l++) {
-        int e = l + m * ex + n * ex * ez;
-        for (int k = 0; k < 2; k++) {
-          for (int j = 0; j < 2; j++) {
-            for (int i = 0; i < 2; i++) {
-              nodeCoordsX(e, i + 2 * j + 4 * k) = (l + i) * hx;
-              nodeCoordsZ(e, i + 2 * j + 4 * k) = (m + j) * hz;
-              nodeCoordsY(e, i + 2 * j + 4 * k) = (n + k) * hy;
+    for(int n=0;n<ey;n++)
+    {
+      coordY=getCoordInOneDirection( order, order+1, hy, n );
+      for(int m=0;m<ez;m++)
+      {
+          coordZ=getCoordInOneDirection( order, order+1, hz, m );
+          for(int l=0;l<ex;l++)
+          {
+            coordX=getCoordInOneDirection( order, order+1, hx, l );
+            int e=l+m*ex+n*ex*ez;
+            for( int k=0; k<order+1; k++ )
+            {
+                for( int j=0; j<order+1; j++ )
+                {
+                  for( int i=0; i<order+1; i++ )
+                  {
+                      nodeCoordsX(e, i+(order+1)*j+k*(order+1)*(order+1))=coordX[i];
+                      nodeCoordsZ(e, i+(order+1)*j+k*(order+1)*(order+1))=coordZ[j];
+                      nodeCoordsY(e, i+(order+1)*j+k*(order+1)*(order+1))=coordY[k];
+                  }
+                }
+            }
+          }
+      }
+    }
+  }
+  else
+  {
+    for (int n = 0; n < ey; n++) {
+      for (int m = 0; m < ez; m++) {
+        for (int l = 0; l < ex; l++) {
+          int e = l + m * ex + n * ex * ez;
+          for (int k = 0; k < 2; k++) {
+            for (int j = 0; j < 2; j++) {
+              for (int i = 0; i < 2; i++) {
+                nodeCoordsX(e, i + 2 * j + 4 * k) = (l + i) * hx;
+                nodeCoordsZ(e, i + 2 * j + 4 * k) = (m + j) * hz;
+                nodeCoordsY(e, i + 2 * j + 4 * k) = (n + k) * hy;
+              }
             }
           }
         }
@@ -263,21 +264,27 @@ void SEMmesh::nodesCoordinates(arrayReal &nodeCoordsX, arrayReal &nodeCoordsZ,
     }
   }
 }
-#endif
+
 
 //  list of global nodes ( vertices) for each element
 void SEMmesh::globalNodesList(const int &numberOfElements,
-                              arrayInt &nodesList) const {
-  for (int j = 0; j < ((ey == 0) ? 1 : ey); j++) {
-    for (int k = 0; k < ez; k++) {
-      for (int i = 0; i < ex; i++) {
+                              arrayInt &nodesList) const 
+{
+  for (int j = 0; j < ((ey == 0) ? 1 : ey); j++) 
+  {
+    for (int k = 0; k < ez; k++) 
+    {
+      for (int i = 0; i < ex; i++) 
+      {
         int n0 = i + k * ex + j * ex * ez;
         int offset = i * order + k * order * nx + j * order * nx * nz;
-        for (int m = 0; m < ((ey == 0) ? 1 : order + 1); m++) {
-          for (int n = 0; n < order + 1; n++) {
-            for (int l = 0; l < order + 1; l++) {
-              int dofLocal =
-                  l + n * (order + 1) + m * (order + 1) * (order + 1);
+        for (int m = 0; m < ((ey == 0) ? 1 : order + 1); m++) 
+        {
+          for (int n = 0; n < order + 1; n++) 
+          {
+            for (int l = 0; l < order + 1; l++) 
+            {
+              int dofLocal = l + n * (order + 1) + m * (order + 1) * (order + 1);
               int dofGlobal = offset + l + n * nx + m * nx * nz;
               nodesList(n0, dofLocal) = dofGlobal;
             }
