@@ -32,12 +32,6 @@ option (ENABLE_CUDA "Enable cuda compilation" OFF)
 # Enable the python wrapping compilation
 option (ENABLE_PYWRAP "Enable python binding compilation with pybind11" OFF)
 
-# Chose integral version
-option (USE_SEMCLASSIC "Use CLASSIC " OFF)
-option (USE_SEMOPTIM "Use OPTIM " OFF)
-option (USE_SEMGEOS "Use GEOS " OFF)
-option (USE_SHIVA "Use SHIVA " OFF)
-
 # Chose data model
 option (USE_SIMPLE_MESH "Use Simple mesh" ON)
 

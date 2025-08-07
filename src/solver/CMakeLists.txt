@@ -1,4 +1,18 @@
-add_library(solver src/SEMsolver.cpp)
+add_library( solver 
+             src/solverFactory.cpp
+             src/SEMSolver_10.cpp
+             src/SEMSolver_11.cpp
+             src/SEMSolver_12.cpp
+             src/SEMSolver_13.cpp
+             src/SEMSolver_20.cpp
+             src/SEMSolver_21.cpp
+             src/SEMSolver_22.cpp
+             src/SEMSolver_23.cpp
+             src/SEMSolver_30.cpp
+             src/SEMSolver_31.cpp
+             src/SEMSolver_32.cpp
+             src/SEMSolver_33.cpp
+            )
 
 # Allow to link agains any model and mesh library that respects the API
 if(NOT DEFINED SOLVER_MODEL_INTERFACE)

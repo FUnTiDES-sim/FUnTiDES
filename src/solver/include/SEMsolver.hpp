@@ -11,81 +11,99 @@
 #ifndef SEM_SOLVER_HPP_
 #define SEM_SOLVER_HPP_
 
+#include "SolverBase.hpp"
+
 #include "dataType.hpp"
-#include <BasisFunctions.hpp>
-#include <Integrals.hpp>
-#include <cmath>
-#include <model.hpp>
 
 #ifdef USE_KOKKOS
 #include <KokkosExp_InterOp.hpp>
 #endif
 
-class SEMsolver {
-public:
-  /**
-   * @brief Default constructor.
-   */
-  PROXY_HOST_DEVICE SEMsolver() {};
+#include <cmath>
+#include <model.hpp>
 
-  /**
-   * @brief Destructor.
-   */
-  PROXY_HOST_DEVICE ~SEMsolver(){};
+
+  struct SEMsolverData : SolverBase::DataStruct
+  {
+    SEMsolverData( int i1,
+                   int i2,
+                   ARRAY_REAL_VIEW const & rhsTerm,
+                   ARRAY_REAL_VIEW const & pnGlobal,
+                   VECTOR_INT_VIEW const & rhsElement,
+                   ARRAY_REAL_VIEW const & rhsWeights):
+      m_i1(i1),
+      m_i2(i2),
+      m_rhsTerm(rhsTerm),
+      m_pnGlobal(pnGlobal),
+      m_rhsElement(rhsElement),
+      m_rhsWeights(rhsWeights)
+    {}
+
+    int m_i1;
+    int m_i2;
+    ARRAY_REAL_VIEW const & m_rhsTerm;
+    ARRAY_REAL_VIEW const & m_pnGlobal;
+    VECTOR_INT_VIEW const & m_rhsElement;
+    ARRAY_REAL_VIEW const & m_rhsWeights;
+  };
+
+
+template< int ORDER,
+          typename INTEGRAL_TYPE >
+class SEMsolver : public SolverBase
+{
+public:
+
+  constexpr static int numPoints1d = ORDER + 1;
+  constexpr static int numPointsPerElem = (ORDER + 1) * (ORDER + 1) * (ORDER + 1);
+
+  SEMsolver() = default;
+  ~SEMsolver() = default;
+
+
 
   /**
    * @brief Construct and initialize solver from a mesh.
    * @param mesh Reference to the mesh used in the simulation.
    */
-  SEMsolver(const Mesh mesh) { computeFEInit(mesh); };
+  virtual void computeFEInit( Mesh const & mesh ) override final;
 
   /**
    * @brief Initialize all finite element structures:
    * basis functions, integrals, global arrays, etc.
    *
-   * @param mesh Mesh structure containing the domain information.
+   * This function advances the pressure field `pnGlobal` by one time step using
+   * a second-order explicit scheme. It resets global accumulators, applies RHS
+   * forcing, computes local element contributions to mass and stiffness
+   * matrices, updates pressure for interior nodes, and applies sponge damping.
+   *
+   * @param timeSample   Index of the current time step in `rhsTerm`
+   * @param nPointsPerElement Number of quadrature points per element
+   * @param i1           Index for pressure at previous time step
+   * @param i2           Index for pressure at current time step
+   * @param myInfo       Structure containing mesh and solver configuration
+   * @param rhsTerm      External forcing term, function of space and time
+   * @param pnGlobal     2D array storing the global pressure field [node][time]
+   * @param rhsElement   List of elements with a non-zero forcing term
    */
-  void computeFEInit(Mesh mesh);
+  virtual void computeOneStep( const float & dt,
+                              const int & timeSample,
+                              DataStruct & data ) override final;
 
-  /**
-   * @brief Compute one time step of the SEM wave equation solver.
-   *
-   * Advances the pressure field using explicit time integration.
-   *
-   * @param timeSample   Current time index into the RHS (source) term
-   * @param dt           Delta time for this iteration
-   * @param i1           Index for previous pressure field
-   * @param i2           Index for current pressure field
-   * @param rhsTerm      Right-hand side forcing term [node][time]
-   * @param pnGlobal     Global pressure field [node][time]
-   * @param rhsElement   List of active source elements
-   * @param rhsWeights   Forcing weights per source node
-   */
-  void computeOneStep(const int &timeSample, const float dt,
-                      const int &i1, const int &i2,
-                      const ARRAY_REAL_VIEW &rhsTerm,
-                      const ARRAY_REAL_VIEW &pnGlobal,
-                      const VECTOR_INT_VIEW &rhsElement,
-                      const ARRAY_REAL_VIEW &rhsWeights);
+  virtual void outputPnValues( const int &indexTimeStep,
+                               int &i1,
+                               int &myElementSource,
+                               const ARRAY_REAL_VIEW &pnGlobal ) override final;
 
-  /**
-   * @brief Output pressure values at a specific time step.
-   *
-   * Typically used for recording seismograms or snapshots.
-   *
-   * @param mesh             Mesh structure
-   * @param indexTimeStep    Time index to output
-   * @param i1               Index for pressure buffer
-   * @param myElementSource  Element containing the receiver
-   * @param pnGlobal         Global pressure field [node][time]
-   */
-  void outputPnValues(Mesh mesh, const int &indexTimeStep, int &i1,
-                      int &myElementSource, const ARRAY_REAL_VIEW &pnGlobal);
+  void initFEarrays();
 
   /**
    * @brief Initialize arrays required by the finite element solver.
    */
-  void initFEarrays();
+  void initSpongeValues(Mesh &mesh );
+
+  // void spongeUpdate(const ARRAY_REAL_VIEW &pnGlobal, const int i1,
+  //                   const int i2);
 
   /**
    * @brief Allocate memory for FE-related arrays (mass, stiffness, etc.).
@@ -102,7 +120,7 @@ public:
    *
    * @param numNodes Total number of global nodes.
    */
-  void resetGlobalVectors(int numNodes);
+  void resetGlobalVectors();
 
   /**
    * @brief Apply external forcing to the global pressure field.
@@ -114,8 +132,7 @@ public:
    * @param pnGlobal     Global pressure field (modified in-place)
    * @param rhsWeights   Forcing weights per node
    */
-  void applyRHSTerm(int timeSample, float dt, int i2,
-                    const ARRAY_REAL_VIEW &rhsTerm,
+  void applyRHSTerm(float const dt, int timeSample, int i2, const ARRAY_REAL_VIEW &rhsTerm,
                     const VECTOR_INT_VIEW &rhsElement,
                     const ARRAY_REAL_VIEW &pnGlobal,
                     const ARRAY_REAL_VIEW &rhsWeights);
@@ -126,7 +143,9 @@ public:
    * @param i2       Current pressure field index
    * @param pnGlobal Global pressure field
    */
-  void computeElementContributions(int i2, const ARRAY_REAL_VIEW &pnGlobal);
+  void computeElementContributions( int nPointsPerElement,
+                                    int i2,
+                                    const ARRAY_REAL_VIEW &pnGlobal);
 
   /**
    * @brief Update the global pressure field at interior nodes.
@@ -137,13 +156,12 @@ public:
    * @param i2       Current time step index
    * @param pnGlobal Pressure field array (updated in-place)
    */
-  void updatePressureField(float dt, int i1, int i2, const ARRAY_REAL_VIEW &pnGlobal);
+  void updatePressureField( float const dt,
+                     const ARRAY_REAL_VIEW &rhsTerm,
+                     int i1,
+                     int i2,
+                     const ARRAY_REAL_VIEW &pnGlobal);
 
-  /**
-   * @brief Accessor for the sponge tapering coefficients.
-   * @return Const reference to the sponge taper coefficient vector.
-   */
-  const vectorReal &getSpongeTaperCoeff() const { return spongeTaperCoeff; }
 
 private:
   Mesh myMesh;                         ///< Internal copy of the mesh
@@ -151,20 +169,20 @@ private:
   float m_spongeSize = 250.;
   bool isSurface = true;
 
-  // Basis functions and integral objects
-  SEMQkGLIntegrals myQkIntegrals;
+  Mesh m_mesh;
+  // Basis functions and integrals
+  INTEGRAL_TYPE myQkIntegrals;
+  typename INTEGRAL_TYPE::PrecomputedData m_precomputedIntegralData;
+
 
   // Sponge tapering
   VECTOR_REAL_VIEW spongeTaperCoeff;
 
-#ifdef USE_SEMCLASSIC
-  SEMQkGLBasisFunctions myQkBasis;
   VECTOR_REAL_VIEW quadraturePoints;
   VECTOR_REAL_VIEW weights;
   ARRAY_REAL_VIEW derivativeBasisFunction1D;
-#endif
 
-  // Global FE vectors
+  // shared arrays
   VECTOR_REAL_VIEW massMatrixGlobal;
   VECTOR_REAL_VIEW yGlobal;
 };
