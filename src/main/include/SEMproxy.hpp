@@ -68,7 +68,7 @@ private:
   const float f0 = 10.;
   const float myTimeMax = 1.5;
   const int sourceOrder = 1;
-  // const static int order = 3;
+
   int myNumSamples = myTimeMax / myTimeStep;
   int myElementSource = 0;
 

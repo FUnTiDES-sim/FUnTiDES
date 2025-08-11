@@ -66,7 +66,7 @@ public:
    * @brief Construct and initialize solver from a mesh.
    * @param mesh Reference to the mesh used in the simulation.
    */
-    SEMsolver(CartesianSEMmesh<float, float, int, int, ORDER> const & mesh) { computeFEInit(mesh); };
+  SEMsolver(const Mesh mesh) { computeFEInit(mesh); };
 
   /**
    * @brief Initialize all finite element structures:
@@ -91,7 +91,7 @@ public:
    * @param rhsWeights   Forcing weights per source node
    */
   virtual void computeOneStep( const float & dt,
-                               const int &timeSample,
+                               const int & timeSample,
                                DataStruct & data ) override final;
 
   /**
@@ -173,7 +173,7 @@ public:
 
 
 private:
-  CartesianSEMmesh<float, float, int, int, ORDER> m_mesh;
+  Mesh m_mesh;
 
   float m_spongeSize = 250.;
   bool isSurface = true;
@@ -184,6 +184,13 @@ private:
 
   // Sponge tapering
   VECTOR_REAL_VIEW spongeTaperCoeff;
+
+#ifdef USE_SEMCLASSIC
+  SEMQkGLBasisFunctions myQkBasis;
+  VECTOR_REAL_VIEW quadraturePoints;
+  VECTOR_REAL_VIEW weights;
+  ARRAY_REAL_VIEW derivativeBasisFunction1D;
+#endif
 
   // Global FE vectors
   VECTOR_REAL_VIEW massMatrixGlobal;

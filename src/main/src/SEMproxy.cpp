@@ -42,7 +42,7 @@ SEMproxy::SEMproxy(int argc, char *argv[]) {
   m_solver = SolverFactory::createSolver( SolverFactory::SEM,
                                           SolverFactory::GEOS,
                                           order );
-  CartesianSEMmesh<float, float, int, int, order> cartesianMesh(ex, ey, ez, lx, ly, lz, order);
+  Mesh cartesianMesh(ex, ey, ez, lx, ly, lz, order);
   myMesh = cartesianMesh;
   m_solver->computeFEInit(myMesh);
 
