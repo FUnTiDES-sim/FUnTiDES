@@ -1,4 +1,17 @@
-add_library(solver src/SEMsolver.cpp)
+add_library(solver
+            src/solverFactory.cpp
+            src/SEMQ1_classic_solver.cpp
+            src/SEMQ2_classic_solver.cpp
+            src/SEMQ3_classic_solver.cpp
+            src/SEMQ1_optim_solver.cpp
+            src/SEMQ2_optim_solver.cpp
+            src/SEMQ3_optim_solver.cpp
+            src/SEMQ1_geos_solver.cpp
+            src/SEMQ2_geos_solver.cpp
+            src/SEMQ3_geos_solver.cpp
+            src/SEMQ1_shiva_solver.cpp
+            src/SEMQ2_shiva_solver.cpp
+            src/SEMQ3_shiva_solver.cpp)
 
 # Allow to link agains any model and mesh library that respects the API
 if(NOT DEFINED SOLVER_MODEL_INTERFACE)

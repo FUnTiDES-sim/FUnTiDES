@@ -29,7 +29,7 @@ void compute(SEMproxy &semsim) {
        << endl;
 };
 
-void compute_loop(SEMproxy semsim) { compute(semsim); }
+void compute_loop(SEMproxy & semsim) { compute(semsim); }
 
 int main(int argc, char *argv[]) {
 
@@ -46,9 +46,6 @@ int main(int argc, char *argv[]) {
     cout << "+================================= \n" << endl;
 
     SEMproxy semsim(argc, argv);
-    // SEMproxy semsim(10, 10, 10, 2000.);
-
-    semsim.initFiniteElem();
 
     compute_loop(semsim);
 

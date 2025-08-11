@@ -158,16 +158,11 @@ void SEMsolver::updatePressureField(float dt, int i1, int i2,
 void SEMsolver::outputPnValues(Mesh mesh, const int &indexTimeStep, int &i1,
                                int &myElementSource,
                                const ARRAY_REAL_VIEW &pnGlobal) {
-  float sum = 0.0;
-  Kokkos::parallel_reduce(
-      "Sum pnGlobal", myMesh.getNumberOfNodes(),
-      KOKKOS_LAMBDA(int i, float &local_sum) { local_sum += pnGlobal(i, i1); },
-      sum);
   cout << "TimeStep=" << indexTimeStep
-        << ";  pnGlobal @ elementSource location " << myElementSource
-        << " after computeOneStep = "
-        << pnGlobal(myMesh.globalNodeIndex(myElementSource, 0, 0, 0), i1)
-        << " and sum pnGlobal is " << sum << endl;
+       << ";  pnGlobal @ elementSource location " << myElementSource
+       << " after computeOneStep = "
+       << pnGlobal(myMesh.globalNodeIndex(myElementSource, 0, 0, 0), i1)
+       << endl;
 }
 
 void SEMsolver::initFEarrays() {

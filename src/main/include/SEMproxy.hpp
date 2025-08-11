@@ -8,12 +8,10 @@
 #ifndef SEMPROXY_HPP_
 #define SEMPROXY_HPP_
 
-#include <SEMsolver.hpp>
+#include "SolverBase.hpp"
 #include <argsparse.hpp>
 #include <utils.hpp>
-#ifdef USE_CALIPER
-#include <caliper/cali.h>
-#endif
+#include <memory>
 
 /**
  * @class SEMproxy
@@ -36,9 +34,7 @@ public:
    * @post run()
    */
   void initFiniteElem() {
-    // allocate arrays and vectors
     init_arrays();
-    // initialize source and RHS
     init_source();
   };
 
@@ -72,13 +68,13 @@ private:
   const float f0 = 10.;
   const float myTimeMax = 1.5;
   const int sourceOrder = 1;
-  const static int order = 3;
+  // const static int order = 3;
   int myNumSamples = myTimeMax / myTimeStep;
   int myElementSource = 0;
 
-  Mesh myMesh;
+  CartesianSEMmesh<float, float, int, int, 3> myMesh;
 
-  SEMsolver mySolver;
+  std::unique_ptr<SolverBase> m_solver;
   SolverUtils myUtils;
 
   // arrays

@@ -5,11 +5,10 @@
 //
 //************************************************************************
 
+#include "solverFactory.hpp"
+#include "SEMsolver.hpp"
 #include "SEMproxy.hpp"
 #include "dataType.hpp"
-#ifdef USE_EZV
-#include "ezvLauncher.hpp"
-#endif // USE_EZV
 #include <iomanip>
 #include <iostream>
 #include <sstream>
@@ -37,6 +36,16 @@ SEMproxy::SEMproxy(int argc, char *argv[]) {
                  ? std::stof(getCmdOption(argv, argv + argc, "-lz"))
                  : lx;
 
+  int const implemType = ( cmdOptionExists(argv, argv + argc, "-implem")) ? std::stoi(getCmdOption(argv, argv + argc, "-implem")) : 0;
+  int const order = ( cmdOptionExists(argv, argv + argc, "-order")) ? std::stoi(getCmdOption(argv, argv + argc, "-order")) : 2;
+  // m_solver = SolverFactory::createSolver( implemType, methodType, order );
+  m_solver = SolverFactory::createSolver( SolverFactory::SEM,
+                                          SolverFactory::GEOS,
+                                          order );
+  CartesianSEMmesh<float, float, int, int, order> cartesianMesh(ex, ey, ez, lx, ly, lz, order);
+  myMesh = cartesianMesh;
+  m_solver->computeFEInit(myMesh);
+
   nb_elements[0] = ex;
   nb_elements[1] = ey;
   nb_elements[2] = ez;
@@ -45,32 +54,31 @@ SEMproxy::SEMproxy(int argc, char *argv[]) {
   nb_nodes[1] = ey * order + 1;
   nb_nodes[2] = ez * order + 1;
 
+  initFiniteElem();
+
   std::cout << "Starting simulation with Cartesian Mesh of size "
             << "(" << ex << ',' << ey << ',' << ez << ')' << std::endl;
   std::cout << "Size of the domain is "
             << "(" << lx << ',' << ly << ',' << lz << ')' << std::endl;
-
-  Mesh cartesianMesh(ex, ey, ez, lx, ly, lz, order);
-  myMesh = cartesianMesh;
-  mySolver = SEMsolver(myMesh);
 }
 
 void SEMproxy::run() {
   time_point<system_clock> startComputeTime, startOutputTime, totalComputeTime,
       totalOutputTime;
 
+  SEMsolverData solverData(  i1, i2, myRHSTerm, pnGlobal, rhsElement, rhsWeights );
+
   for (int indexTimeSample = 0; indexTimeSample < myNumSamples;
        indexTimeSample++) {
     startComputeTime = system_clock::now();
-    mySolver.computeOneStep(indexTimeSample, myTimeStep, i1, i2, myRHSTerm, pnGlobal,
-                            rhsElement, rhsWeights);
+    m_solver->computeOneStep(myTimeStep, indexTimeSample, solverData);
     totalComputeTime += system_clock::now() - startComputeTime;
 
     startOutputTime = system_clock::now();
 
     if (indexTimeSample % 50 == 0)
     {
-      mySolver.outputPnValues(myMesh, indexTimeSample, i1, rhsElement[0], pnGlobal);
+      m_solver->outputPnValues(indexTimeSample, i1, rhsElement[0], pnGlobal);
     }
 
     if (indexTimeSample % 10 == 0)
