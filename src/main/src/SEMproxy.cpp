@@ -8,6 +8,7 @@
 #include "cartesianSEMmesh.hpp"
 #include "solverFactory.hpp"
 #include "SEMsolver.hpp"
+#include <cxxopts.hpp>
 #include "SEMproxy.hpp"
 #include "dataType.hpp"
 #include <iomanip>
@@ -15,36 +16,47 @@
 #include <sstream>
 
 SEMproxy::SEMproxy(int argc, char *argv[]) {
-  int ex = (cmdOptionExists(argv, argv + argc, "-ex"))
-               ? std::stoi(getCmdOption(argv, argv + argc, "-ex"))
-               : 50;
-  int ey = (cmdOptionExists(argv, argv + argc, "-ey"))
-               ? std::stoi(getCmdOption(argv, argv + argc, "-ey"))
-               : ex;
-  ;
-  int ez = (cmdOptionExists(argv, argv + argc, "-ez"))
-               ? std::stoi(getCmdOption(argv, argv + argc, "-ez"))
-               : ex;
-  ;
+  cxxopts::Options options("SEM Proxy", "Runs the SEM simulation.");
+  options.add_options()
+    ("o,order", "Order of approximation.",
+         cxxopts::value<int>()->default_value("2"))
 
-  float lx = (cmdOptionExists(argv, argv + argc, "-lx"))
-                 ? std::stof(getCmdOption(argv, argv + argc, "-lx"))
-                 : 2000;
-  float ly = (cmdOptionExists(argv, argv + argc, "-ly"))
-                 ? std::stof(getCmdOption(argv, argv + argc, "-ly"))
-                 : lx;
-  float lz = (cmdOptionExists(argv, argv + argc, "-lz"))
-                 ? std::stof(getCmdOption(argv, argv + argc, "-lz"))
-                 : lx;
+    ("ex", "Number of element on X axis. For Cartesian Mesh",
+         cxxopts::value<int>()->default_value("50"))
+    ("ey", "Number of element on Y axis. For Cartesian Mesh",
+         cxxopts::value<int>()->default_value("50"))
+    ("ez", "Number of element on Z axis. For Cartesian Mesh",
+         cxxopts::value<int>()->default_value("50"))
 
-  int const implemType = ( cmdOptionExists(argv, argv + argc, "-implem")) ? std::stoi(getCmdOption(argv, argv + argc, "-implem")) : 0;
-  int const order = ( cmdOptionExists(argv, argv + argc, "-order")) ? std::stoi(getCmdOption(argv, argv + argc, "-order")) : 2;
+    ("lx", "Size of the Domain. X axis. For Cartesian Mesh",
+         cxxopts::value<float>()->default_value("2000."))
+    ("ly", "Size of the Domain. Y axis. For Cartesian Mesh",
+         cxxopts::value<float>()->default_value("2000."))
+    ("lz", "Size of the Domain. Z axis. For Cartesian Mesh",
+         cxxopts::value<float>()->default_value("2000."))
 
-  // m_solver = SolverFactory::createSolver( implemType, methodType, order );
+    ("implem", "Implentation type (classic, optim, geos, shiva)",
+         cxxopts::value<string>()->default_value("optim"))
+    ("method", "Method type (sem, dg)",
+         cxxopts::value<string>()->default_value("sem"))
+    ;
 
-  m_solver = SolverFactory::createSolver( SolverFactory::SEM,
-                                          SolverFactory::GEOS,
-                                          order );
+  auto result = options.parse(argc, argv);
+
+  int order = result["order"].as<int>();
+
+  int ex = result["ex"].as<int>();
+  int ey = result["ey"].as<int>();
+  int ez = result["ez"].as<int>();
+
+  float lx = result["lx"].as<float>();
+  float ly = result["ly"].as<float>();
+  float lz = result["lz"].as<float>();
+
+  SolverFactory::methodType methodType = getMethod( result["method"].as<string>() );
+  SolverFactory::implemType implemType = getImplem( result["implem"].as<string>() );
+
+  m_solver = SolverFactory::createSolver( methodType, implemType, order );
 
   CartesianParams<int, float> params{ order, ex, ey, ez, lx, ly, lz};
   CartesianSEMmesh<float, int, 2> cartesianMesh(params);
@@ -65,6 +77,9 @@ SEMproxy::SEMproxy(int argc, char *argv[]) {
             << "(" << ex << ',' << ey << ',' << ez << ')' << std::endl;
   std::cout << "Size of the domain is "
             << "(" << lx << ',' << ly << ',' << lz << ')' << std::endl;
+  std::cout << "Launching the Method " << result["method"].as<string>()
+            << " and the implementation " << result["implem"].as<string>() << std::endl;
+  std::cout << "Order of approximation will be " << order << std::endl;
 }
 
 void SEMproxy::run() {
@@ -159,7 +174,7 @@ void SEMproxy::init_source() {
   {
     for (int j = 0; j < myMesh->getNumberOfPointsPerElement(); j++)
     {
-      rhsWeights(i, j) = 1.0/ myMesh->getNumberOfPointsPerElement();
+      rhsWeights(i, j) = 1.0 / myMesh->getNumberOfPointsPerElement();
     }
   }
 }
@@ -193,4 +208,22 @@ void SEMproxy::saveSlice(const VECTOR_REAL_VIEW& host_slice,
     }
 
     file.close();
+}
+
+SolverFactory::implemType SEMproxy::getImplem ( string implemArg )
+{
+  if (implemArg == "classic") return SolverFactory::CLASSIC;
+  if (implemArg == "optim") return SolverFactory::OPTIM;
+  if (implemArg == "geos") return SolverFactory::GEOS;
+  if (implemArg == "shiva") return SolverFactory::SHIVA;
+
+  throw std::invalid_argument( "Implentation type does not follow any valid type." );
+}
+
+SolverFactory::methodType SEMproxy::getMethod ( string methodArg )
+{
+  if ( methodArg == "sem" ) return SolverFactory::SEM;
+  if ( methodArg == "dg" ) return SolverFactory::DG;
+
+  throw std::invalid_argument( "Method type does not follow any valid type." );
 }

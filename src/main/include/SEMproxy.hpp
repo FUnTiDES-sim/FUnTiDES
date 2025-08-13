@@ -8,7 +8,7 @@
 #ifndef SEMPROXY_HPP_
 #define SEMPROXY_HPP_
 
-#include "SolverBase.hpp"
+#include "solverFactory.hpp"
 #include <argsparse.hpp>
 #include <utils.hpp>
 #include <memory>
@@ -67,7 +67,7 @@ private:
   const float myTimeStep = 0.001;
   const float f0 = 10.;
   const float myTimeMax = 1.5;
-  const int sourceOrder = 1;
+  const int sourceOrder = 2;
 
   int myNumSamples = myTimeMax / myTimeStep;
   int myElementSource = 0;
@@ -88,6 +88,12 @@ private:
 
   // allocate arrays and vectors
   void init_arrays();
+
+
+  // private methods to pars argv options
+  int getPhysic ( string physicArg );
+  SolverFactory::implemType getImplem ( string implemArg );
+  SolverFactory::methodType getMethod ( string methodArg );
 };
 
 #endif /* SEMPROXY_HPP_ */
