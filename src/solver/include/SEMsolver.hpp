@@ -11,6 +11,7 @@
 #ifndef SEM_SOLVER_HPP_
 #define SEM_SOLVER_HPP_
 
+#include "cartesianSEMmesh.hpp"
 #include "dataType.hpp"
 #include "SolverBase.hpp"
 // #include <BasisFunctions.hpp>
@@ -63,18 +64,12 @@ public:
   ~SEMsolver() = default;
 
   /**
-   * @brief Construct and initialize solver from a mesh.
-   * @param mesh Reference to the mesh used in the simulation.
-   */
-  SEMsolver(const Mesh mesh) { computeFEInit(mesh); };
-
-  /**
    * @brief Initialize all finite element structures:
    * basis functions, integrals, global arrays, etc.
    *
-   * @param mesh Mesh structure containing the domain information.
+   * @param mesh BaseMesh structure containing the domain information.
    */
-  virtual void computeFEInit( Mesh const & mesh ) override final;
+  virtual void computeFEInit( BaseMesh<discretization_t, index_t> const & mesh ) override final;
 
   /**
    * @brief Compute one time step of the SEM wave equation solver.
@@ -99,7 +94,6 @@ public:
    *
    * Typically used for recording seismograms or snapshots.
    *
-   * @param mesh             Mesh structure
    * @param indexTimeStep    Time index to output
    * @param i1               Index for pressure buffer
    * @param myElementSource  Element containing the receiver
@@ -173,7 +167,9 @@ public:
 
 
 private:
-  Mesh m_mesh;
+  CartesianSEMmesh<discretization_t, index_t, ORDER> m_mesh;
+
+  static constexpr int nPointsElement = (ORDER + 1) * (ORDER + 1) * (ORDER + 1);
 
   float m_spongeSize = 250.;
   bool isSurface = true;
@@ -185,16 +181,11 @@ private:
   // Sponge tapering
   VECTOR_REAL_VIEW spongeTaperCoeff;
 
-#ifdef USE_SEMCLASSIC
-  SEMQkGLBasisFunctions myQkBasis;
-  VECTOR_REAL_VIEW quadraturePoints;
-  VECTOR_REAL_VIEW weights;
-  ARRAY_REAL_VIEW derivativeBasisFunction1D;
-#endif
-
   // Global FE vectors
   VECTOR_REAL_VIEW massMatrixGlobal;
   VECTOR_REAL_VIEW yGlobal;
+
+  void computeFEInit(CartesianSEMmesh<discretization_t, index_t, ORDER> const & mesh);
 };
 
 #endif // SEM_SOLVER_HPP_

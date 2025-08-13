@@ -2,6 +2,7 @@
 #define SEM_MESH_
 
 #include "baseMesh.hpp"
+#include "CartesianParams.hpp"
 #include "gllpoints.hpp"
 #include <SEMmacros.hpp>
 #include <cmath>
@@ -15,16 +16,14 @@
  * Method (SEM) in 3D space. It inherits from the templated `BaseMesh` class and
  * provides concrete implementations for coordinate mapping and global indexing.
  *
- * @tparam ModelType  Type used for model parameters (e.g., float or double)
- * @tparam Coord      Coordinate type (e.g., float or double)
- * @tparam NodeIDX    Type used to index global nodes (e.g., int or std::size_t)
- * @tparam ElementIDX Type used to index elements
+ * @tparam coord_t      Coordinate type (e.g., float or double)
+ * @tparam index_t    Type used to index global nodes (e.g., int or std::size_t)
  * @tparam ORDER      Polynomial interpolation order per element
  *
  * @see BaseMesh
  */
-template <typename ModelType, typename Coord, typename NodeIDX, typename ElementIDX, int ORDER>
-class CartesianSEMmesh : public BaseMesh<ModelType, Coord, NodeIDX, ElementIDX, ORDER> {
+template <typename coord_t, typename index_t, int ORDER>
+class CartesianSEMmesh : public BaseMesh<coord_t, index_t> {
 public:
   PROXY_HOST_DEVICE
   CartesianSEMmesh() {};
@@ -41,14 +40,14 @@ public:
    * @param order   Polynomial interpolation order per element
    */
   PROXY_HOST_DEVICE
-  CartesianSEMmesh(const ElementIDX &ex_in, const ElementIDX &ey_in,
-           const ElementIDX &ez_in, const float &lx_in, const float &ly_in,
-           const float &lz_in, const int order)
-      : ex(ex_in), ey(ey_in), ez(ez_in), lx(lx_in), ly(ly_in), lz(lz_in),
-        order(order), orderx(order), ordery(order), orderz(order) {
-    nx = ex * orderx + 1;
-    ny = ey * ordery + 1;
-    nz = ez * orderz + 1;
+  CartesianSEMmesh ( CartesianParams<index_t, coord_t> params )
+      : ex(params.ex), ey(params.ey), ez(params.ez),
+        lx(params.lx), ly(params.ly), lz(params.lz),
+        order(params.order)
+  {
+    nx = ex * order + 1;
+    ny = ey * order + 1;
+    nz = ez * order + 1;
 
     hx = lx / static_cast<float>(ex);
     hy = ly / static_cast<float>(ey);
@@ -58,7 +57,8 @@ public:
   PROXY_HOST_DEVICE ~CartesianSEMmesh(){};
 
   PROXY_HOST_DEVICE
-  Coord nodeCoord(NodeIDX dofGlobal, int dim) const {
+  coord_t nodeCoord(index_t dofGlobal, int dim) const override final
+  {
     // Calculate total number of nodes per dimension
     int nodesPerDim[3];
     nodesPerDim[0] = (ex * ORDER) + 1;  // nx total nodes in X
@@ -85,25 +85,26 @@ public:
     }
 
     // Get the GLL point coordinate in reference element [-1, 1]
-    Coord gllPoint = GLLPoints<ORDER>::get(localIdx);
+    coord_t gllPoint = GLLPoints<ORDER>::get(localIdx);
 
     // Map from reference element to physical element
-    Coord elementSize = (dim == 0) ? hx : ((dim == 1) ? hy : hz);
-    Coord elementStart = elemIdx * elementSize;
+    coord_t elementSize = (dim == 0) ? hx : ((dim == 1) ? hy : hz);
+    coord_t elementStart = elemIdx * elementSize;
 
     // Transform from [-1, 1] to physical coordinates
-    Coord physicalCoord = elementStart + (gllPoint + 1.0) * elementSize * 0.5;
+    coord_t physicalCoord = elementStart + (gllPoint + 1.0) * elementSize * 0.5;
 
     return physicalCoord;
   }
 
 
   PROXY_HOST_DEVICE
-  NodeIDX globalNodeIndex(ElementIDX e, int i, int j, int k) const {
-    ElementIDX elemZ = e / (ex * ey);
-    ElementIDX tmp   = e % (ex * ey);
-    ElementIDX elemY = tmp / ex;
-    ElementIDX elemX = tmp % ex;
+  index_t globalNodeIndex(index_t e, int i, int j, int k) const override final
+  {
+    index_t elemZ = e / (ex * ey);
+    index_t tmp   = e % (ex * ey);
+    index_t elemY = tmp / ex;
+    index_t elemX = tmp % ex;
 
     int ix = elemX * ORDER + i;
     int iy = elemY * ORDER + j;
@@ -113,45 +114,68 @@ public:
   }
 
   PROXY_HOST_DEVICE
-  ElementIDX getNumberOfElements() const {
+  index_t getNumberOfElements() const override final
+  {
     return this->ex * this->ey * this->ez;
   }
 
   PROXY_HOST_DEVICE
-  ModelType getModelVpOnNodes(NodeIDX n) const { return 1500; }
+  coord_t getModelVpOnNodes(index_t n) const override final
+  {
+    return 1500;
+  }
 
   PROXY_HOST_DEVICE
-  ModelType getModelVpOnElement(ElementIDX e) const { return 1500; }
+  coord_t getModelVpOnElement(index_t e) const override final
+  {
+    return 1500;
+  }
 
   PROXY_HOST_DEVICE
-  ModelType getModelRhoOnNodes(NodeIDX n) const { return 1; }
+  coord_t getModelRhoOnNodes(index_t n) const override final
+  {
+    return 1;
+  }
 
   PROXY_HOST_DEVICE
-  ModelType getModelRhoOnElement(ElementIDX e) const { return 1; }
+  coord_t getModelRhoOnElement(index_t e) const override final
+  {
+    return 1;
+  }
 
 
   PROXY_HOST_DEVICE
-  NodeIDX getNumberOfNodes() const { return this->nx * this->ny * this->nz; };
+  index_t getNumberOfNodes() const override final
+  {
+    return this->nx * this->ny * this->nz;
+  }
 
   PROXY_HOST_DEVICE
-  constexpr int getNumberOfPointsPerElement() const {
+  int getNumberOfPointsPerElement() const override final
+  {
     return (ORDER + 1) * (ORDER + 1) * (ORDER + 1);
   }
 
   PROXY_HOST_DEVICE
-  constexpr int getOrder() const { return ORDER; }
+  int getOrder() const override final
+  {
+    return ORDER;
+  }
 
   PROXY_HOST_DEVICE
-  BoundaryFlag boundaryType(NodeIDX n) const
+  BoundaryFlag boundaryType(index_t n) const override final
   {
     return BoundaryFlag::InteriorNode;
   }
 
   PROXY_HOST_DEVICE
-  void faceNormal(ElementIDX e, int dir, int face, ModelType v[3]) const { return; }
+  void faceNormal(index_t e, int dir, int face, coord_t v[3]) const override final
+  {
+    return;
+  }
 
   PROXY_HOST_DEVICE
-  Coord domainSize(int dim) const
+  coord_t domainSize(int dim) const override final
   {
     if (dim == 0) return lx;
     if (dim == 1) return ly;
@@ -159,7 +183,8 @@ public:
   }
 
   PROXY_HOST_DEVICE
-  ElementIDX elementFromCoordinate(Coord x, Coord y, Coord z) const {
+  index_t elementFromCoordinate(coord_t x, coord_t y, coord_t z) const override final
+  {
       // Calculate grid indices by scaling coordinates to grid space
       int i = static_cast<int>(x * ex / lx);
       int j = static_cast<int>(y * ey / ly);
@@ -168,11 +193,12 @@ public:
       // Calculate linear index using row-major ordering
       int index = i + ex * (j + ey * k);
 
-      return ElementIDX(index);
+      return index_t(index);
   }
 
 #ifndef USE_KOKKOS
-  VECTOR_REAL_VIEW extractXYSlice(const VECTOR_REAL_VIEW& array, int size, int z)
+  VECTOR_REAL_VIEW
+  extractXYSlice(const VECTOR_REAL_VIEW& array, index_t size, index_t z) const
   {
     int expected_size = size * size * size;
 
@@ -194,7 +220,9 @@ public:
   }
 
 #else // USE_KOKKOS
-  VECTOR_REAL_VIEW extractXYSlice(const VECTOR_REAL_VIEW& array, int size, int z) {
+  VECTOR_REAL_VIEW
+  extractXYSlice(const VECTOR_REAL_VIEW& array, index_t size, index_t z) const
+  {
       // Validate inputs
       if (z < 0 || z >= size) {
           Kokkos::abort("Z index out of bounds");
@@ -213,8 +241,8 @@ public:
 
 
 private:
-  ElementIDX ex, ey, ez; // Nb elements in each direction
-  ElementIDX nx, ny, nz; // Nb nodes in each direction
+  index_t ex, ey, ez; // Nb elements in each direction
+  index_t nx, ny, nz; // Nb nodes in each direction
   float lx, ly, lz;      // domain size
   float hx, hy, hz;      // element size
   int orderx, ordery, orderz, order;

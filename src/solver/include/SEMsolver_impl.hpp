@@ -12,9 +12,27 @@
 #include <cstdlib>
 #include "fe/Integrals.hpp"
 
+template< int ORDER, typename INTEGRAL_TYPE >
+void
+SEMsolver<ORDER, INTEGRAL_TYPE>::
+computeFEInit(BaseMesh<discretization_t, index_t> const & mesh_in)
+{
+  if (auto cart = dynamic_cast<
+          CartesianSEMmesh<discretization_t,index_t,ORDER> const*>(&mesh_in)) {
+    this->computeFEInit(*cart);  // delegate to the concrete overload
+    return;
+  }
+
+  throw std::runtime_error(
+      "SEMsolver<ORDER=" + std::to_string(ORDER) +
+      "> expects CartesianSEMmesh<..., ORDER>.");
+}
 
 template< int ORDER, typename INTEGRAL_TYPE >
-void SEMsolver<ORDER, INTEGRAL_TYPE>::computeFEInit(Mesh const & mesh_in) {
+void
+SEMsolver<ORDER, INTEGRAL_TYPE>::
+computeFEInit(CartesianSEMmesh<discretization_t, index_t, ORDER> const & mesh_in)
+{
   m_mesh = mesh_in;
   allocateFEarrays();
   initFEarrays();
@@ -75,13 +93,13 @@ applyRHSTerm(int timeSample,
   int nb_rhs_element = rhsElement.extent(0);
   LOOPHEAD(nb_rhs_element, i)
   {
-    for(int z = 0; z < m_mesh.getOrder() + 1; z++)
+    for(int z = 0; z < ORDER + 1; z++)
     {
-      for(int y = 0; y < m_mesh.getOrder() + 1; y++)
+      for(int y = 0; y < ORDER + 1; y++)
       {
-        for (int x = 0; x < m_mesh.getOrder() + 1; x++)
+        for (int x = 0; x < ORDER + 1; x++)
         {
-          int localNodeId = x + y * (m_mesh.getOrder()+1) + z * (m_mesh.getOrder() + 1) * (m_mesh.getOrder() + 1);
+          int localNodeId = x + y * (ORDER + 1) + z * (ORDER + 1) * (ORDER + 1);
           int nodeRHS = m_mesh.globalNodeIndex(rhsElement[i], x, y, z);
           float scale =  dt2 * m_mesh.getModelVpOnElement(rhsElement[i]) * m_mesh.getModelVpOnElement(rhsElement[i]);
           float source = scale * rhsTerm(i, timeSample) * rhsWeights(i, localNodeId);
@@ -105,9 +123,9 @@ computeElementContributions(int i2,
   if (elementNumber >= m_mesh.getNumberOfElements())
     return;
 
-  float massMatrixLocal[m_mesh.getNumberOfPointsPerElement()] = {0};
-  float pnLocal[m_mesh.getNumberOfPointsPerElement()] = {0};
-  float Y[m_mesh.getNumberOfPointsPerElement()] = {0};
+  float massMatrixLocal[nPointsElement]= {0};
+  float pnLocal[nPointsElement]= {0};
+  float Y[nPointsElement] = {0};
 
   int dim = m_mesh.getOrder() + 1;
   for (int i = 0; i < m_mesh.getNumberOfPointsPerElement(); ++i) {
@@ -123,7 +141,7 @@ computeElementContributions(int i2,
                   INTEGRAL_TYPE,
                   typename IntegralTypeSelector<ORDER, IntegralType::CLASSIC>::type>) {
     // === CLASSIC path ===
-    float nodeCoords[m_mesh.getNumberOfPointsPerElement()][3];
+    float nodeCoords[nPointsElement][3];
     int I = 0;
     for (int k = 0; k < m_mesh.getOrder() + 1; k++) {
       for (int j = 0; j < m_mesh.getOrder() + 1; j++) {

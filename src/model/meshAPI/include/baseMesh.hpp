@@ -30,14 +30,12 @@ enum BoundaryFlag: uint8_t
  * queries and defines an interface for accessing node coordinates and global
  * indices, as well as model parameters such as velocity and density.
  *
- * @tparam ModelType  Type used for model parameters (e.g., float or double)
- * @tparam Coord      Type used to represent spatial coordinates (real number)
- * @tparam NodeIDX    Type used for indexing global nodes (e.g., int or long)
- * @tparam ElementIDX Type used for indexing elements
- * @tparam ORDER      Polynomial order of the mesh elements
+ * @tparam coord_t           Type used to represent spatial coordinates (real number)
+ * @tparam index_t           Type used for indexing global nodes and elements
  */
-template <typename ModelType, typename Coord, typename NodeIDX, typename ElementIDX, int ORDER>
-class BaseMesh {
+template <typename coord_t, typename index_t>
+class BaseMesh
+{
 
 public:
   /**
@@ -50,8 +48,7 @@ public:
   /**
    * @brief Virtual destructor.
    */
-  PROXY_HOST_DEVICE
-  virtual ~BaseMesh() {}
+  PROXY_HOST_DEVICE ~BaseMesh() {}
 
   /**
    * @brief Get the coordinate of a global node in the given dimension.
@@ -61,19 +58,19 @@ public:
    * @return Coordinate value in the specified dimension
    */
   PROXY_HOST_DEVICE
-  virtual Coord nodeCoord(NodeIDX dofGlobal, int dim) const = 0;
+  virtual coord_t nodeCoord(index_t dofGlobal, int dim) const = 0;
 
   /**
    * @brief Get the global node index for a local element-node triplet.
    *
    * @param e Element index
-   * @param i Local i-index in the element (0 ≤ i ≤ ORDER)
-   * @param j Local j-index in the element (0 ≤ j ≤ ORDER)
-   * @param k Local k-index in the element (0 ≤ k ≤ ORDER)
+   * @param i Local i-index in the element
+   * @param j Local j-index in the element
+   * @param k Local k-index in the element
    * @return Global node index
    */
   PROXY_HOST_DEVICE
-  virtual NodeIDX globalNodeIndex(ElementIDX e, int i, int j, int k) const = 0;
+  virtual index_t globalNodeIndex(index_t e, int i, int j, int k) const = 0;
 
   /**
    * @brief Get the P-wave velocity value at a global node.
@@ -82,7 +79,7 @@ public:
    * @return Model P-wave velocity value at the node
    */
   PROXY_HOST_DEVICE
-  virtual ModelType getModelVpOnNodes(NodeIDX n) const = 0;
+  virtual coord_t getModelVpOnNodes(index_t n) const = 0;
 
   /**
    * @brief Get the average P-wave velocity value on a given element.
@@ -91,7 +88,7 @@ public:
    * @return Model P-wave velocity value for the element
    */
   PROXY_HOST_DEVICE
-  virtual ModelType getModelVpOnElement(ElementIDX e) const = 0;
+  virtual coord_t getModelVpOnElement(index_t e) const = 0;
 
   /**
    * @brief Get the density value at a global node.
@@ -100,7 +97,7 @@ public:
    * @return Model density value at the node
    */
   PROXY_HOST_DEVICE
-  virtual ModelType getModelRhoOnNodes(NodeIDX n) const = 0;
+  virtual coord_t getModelRhoOnNodes(index_t n) const = 0;
 
   /**
    * @brief Get the average density value on a given element.
@@ -109,21 +106,21 @@ public:
    * @return Model density value for the element
    */
   PROXY_HOST_DEVICE
-  virtual ModelType getModelRhoOnElement(ElementIDX e) const = 0;
+  virtual coord_t getModelRhoOnElement(index_t e) const = 0;
 
   /**
    * @brief Get the total number of elements in the mesh.
    * @return Total element count (typically ex * ey * ez)
    */
   PROXY_HOST_DEVICE
-  virtual ElementIDX getNumberOfElements() const = 0;
+  virtual index_t getNumberOfElements() const = 0;
 
   /**
    * @brief Get the total number of global nodes in the mesh.
    * @return Total node count (typically nx * ny * nz)
    */
   PROXY_HOST_DEVICE
-  virtual NodeIDX getNumberOfNodes() const = 0;
+  virtual index_t getNumberOfNodes() const = 0;
 
   /**
    * @brief Get the number of interpolation points per element.
@@ -133,9 +130,7 @@ public:
    * @return Number of interpolation points in one element
    */
   PROXY_HOST_DEVICE
-  constexpr int getNumberOfPointsPerElement() const {
-    return (ORDER + 1) * (ORDER + 1) * (ORDER + 1);
-  }
+  virtual int getNumberOfPointsPerElement() const = 0;
 
   /**
    * @brief Get the polynomial order of the elements.
@@ -143,7 +138,7 @@ public:
    * @return ORDER (template parameter)
    */
   PROXY_HOST_DEVICE
-  constexpr int getOrder() const { return ORDER; }
+  virtual int getOrder() const = 0;
 
   /**
    * @brief Get the boundary type of a given node.
@@ -152,7 +147,7 @@ public:
    * @return A combination of BoundaryFlag values
    */
   PROXY_HOST_DEVICE
-  virtual BoundaryFlag boundaryType(NodeIDX n) const = 0;
+  virtual BoundaryFlag boundaryType(index_t n) const = 0;
 
   /**
    * @brief Compute the outward unit normal vector of an element face.
@@ -163,7 +158,7 @@ public:
    * @param[out] v Output array (size 3) holding the normal vector
    */
   PROXY_HOST_DEVICE
-  virtual void faceNormal(ElementIDX e, int dir, int face, ModelType v[3]) const = 0;
+  virtual void faceNormal(index_t e, int dir, int face, coord_t v[3]) const = 0;
 
   /**
   * @brief Get the size of the domain in the specified dimension.
@@ -175,7 +170,7 @@ public:
   * @return The size of the domain along the specified dimension.
   */
   PROXY_HOST_DEVICE
-  virtual Coord domainSize(int dim) const = 0;
+  virtual coord_t domainSize(int dim) const = 0;
 
   /**
   * @brief Get the element index at the given coordinate.
@@ -189,7 +184,7 @@ public:
   * @return The element index corresponding to the given coordinates.
   */
   PROXY_HOST_DEVICE
-  virtual ElementIDX elementFromCoordinate(Coord x, Coord y, Coord z) const = 0;
+  virtual index_t elementFromCoordinate(coord_t x, coord_t y, coord_t z) const = 0;
 
   /**
   * Extract an XY slice from a Kokkos 1D View representing a 3D cubic array
@@ -203,7 +198,8 @@ public:
   * @param z: Z-level to extract (0 to size-1)
   * @return: Kokkos 1D View containing the XY slice
   */
-  VECTOR_REAL_VIEW extractXYSlice(const VECTOR_REAL_VIEW& array, int size, int z)
+  VECTOR_REAL_VIEW
+  extractXYSlice(const VECTOR_REAL_VIEW& array, index_t size, index_t z) const
   {
     return {};
   };

@@ -5,6 +5,7 @@
 //
 //************************************************************************
 
+#include "cartesianSEMmesh.hpp"
 #include "solverFactory.hpp"
 #include "SEMsolver.hpp"
 #include "SEMproxy.hpp"
@@ -38,13 +39,17 @@ SEMproxy::SEMproxy(int argc, char *argv[]) {
 
   int const implemType = ( cmdOptionExists(argv, argv + argc, "-implem")) ? std::stoi(getCmdOption(argv, argv + argc, "-implem")) : 0;
   int const order = ( cmdOptionExists(argv, argv + argc, "-order")) ? std::stoi(getCmdOption(argv, argv + argc, "-order")) : 2;
+
   // m_solver = SolverFactory::createSolver( implemType, methodType, order );
+
   m_solver = SolverFactory::createSolver( SolverFactory::SEM,
                                           SolverFactory::GEOS,
                                           order );
-  Mesh cartesianMesh(ex, ey, ez, lx, ly, lz, order);
-  myMesh = cartesianMesh;
-  m_solver->computeFEInit(myMesh);
+
+  CartesianParams<int, float> params{ order, ex, ey, ez, lx, ly, lz};
+  CartesianSEMmesh<float, int, 2> cartesianMesh(params);
+  myMesh = &cartesianMesh;
+  m_solver->computeFEInit(*myMesh);
 
   nb_elements[0] = ex;
   nb_elements[1] = ey;
@@ -81,16 +86,16 @@ void SEMproxy::run() {
       m_solver->outputPnValues(indexTimeSample, i1, rhsElement[0], pnGlobal);
     }
 
-    if (indexTimeSample % 10 == 0)
-    {
-      std::stringstream filename;
-      filename << "slice" << indexTimeSample << ".dat";
-      std::string str_filename = filename.str();
+    // if (indexTimeSample % 10 == 0)
+    // {
+    //   std::stringstream filename;
+    //   filename << "slice" << indexTimeSample << ".dat";
+    //   std::string str_filename = filename.str();
 
-      auto subview = Kokkos::subview(pnGlobal, Kokkos::ALL, i1);
-      auto slice = myMesh.extractXYSlice(subview, nb_nodes[0], nb_nodes[0]/2);
-      saveSlice(slice, nb_nodes[0], str_filename);
-    }
+    //   auto subview = Kokkos::subview(pnGlobal, Kokkos::ALL, i1);
+    //   auto slice = myMesh->extractXYSlice(subview, nb_nodes[0], nb_nodes[0]/2);
+    //   saveSlice(slice, nb_nodes[0], str_filename);
+    // }
 
     swap(i1, i2);
     totalOutputTime += system_clock::now() - startOutputTime;
@@ -116,25 +121,25 @@ void SEMproxy::init_arrays() {
   myRHSTerm =
       allocateArray2D<arrayReal>(myNumberOfRHS, myNumSamples, "RHSTerm");
   rhsElement = allocateVector<vectorInt>(myNumberOfRHS, "rhsElement");
-  rhsWeights = allocateArray2D<arrayReal>(myNumberOfRHS, myMesh.getNumberOfPointsPerElement(), "RHSWeight");
+  rhsWeights = allocateArray2D<arrayReal>(myNumberOfRHS, myMesh->getNumberOfPointsPerElement(), "RHSWeight");
   pnGlobal =
-      allocateArray2D<arrayReal>(myMesh.getNumberOfNodes(), 2, "pnGlobal");
+      allocateArray2D<arrayReal>(myMesh->getNumberOfNodes(), 2, "pnGlobal");
 }
 
 // Initialize sources
 void SEMproxy::init_source() {
   arrayReal myRHSLocation = allocateArray2D<arrayReal>(1, 3, "RHSLocation");
   // set number of rhs and location
-  myRHSLocation(0, 0) = myMesh.domainSize(0) / 2;
-  myRHSLocation(0, 1) = myMesh.domainSize(1) / 2;
-  myRHSLocation(0, 2) = myMesh.domainSize(2) / 2;
+  myRHSLocation(0, 0) = myMesh->domainSize(0) / 2;
+  myRHSLocation(0, 1) = myMesh->domainSize(1) / 2;
+  myRHSLocation(0, 2) = myMesh->domainSize(2) / 2;
   cout << "\nSource 1 location: " << myRHSLocation(0, 0) << ", "
        << myRHSLocation(0, 1) << ", " << myRHSLocation(0, 2) << endl;
   cout << "Corresponding to element id "
-       << myMesh.elementFromCoordinate(myRHSLocation(0,0), myRHSLocation(0,1),myRHSLocation(0,2)) << endl;
+       << myMesh->elementFromCoordinate(myRHSLocation(0,0), myRHSLocation(0,1),myRHSLocation(0,2)) << endl;
   for (int i = 0; i < 1; i++) {
     // extract element number for current rhs
-    rhsElement[i] = myMesh.elementFromCoordinate(myRHSLocation(i,0), myRHSLocation(i,1),myRHSLocation(i,2));
+    rhsElement[i] = myMesh->elementFromCoordinate(myRHSLocation(i,0), myRHSLocation(i,1),myRHSLocation(i,2));
   }
 
   // initialize source term
@@ -152,9 +157,9 @@ void SEMproxy::init_source() {
   // Setting the weight for source ponderation on node.
   for (int i = 0; i < myNumberOfRHS; i++)
   {
-    for (int j = 0; j < myMesh.getNumberOfPointsPerElement(); j++)
+    for (int j = 0; j < myMesh->getNumberOfPointsPerElement(); j++)
     {
-      rhsWeights(i, j) = 1.0/ myMesh.getNumberOfPointsPerElement();
+      rhsWeights(i, j) = 1.0/ myMesh->getNumberOfPointsPerElement();
     }
   }
 }
