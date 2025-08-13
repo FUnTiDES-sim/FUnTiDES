@@ -18,6 +18,8 @@
 SEMproxy::SEMproxy(int argc, char *argv[]) {
   cxxopts::Options options("SEM Proxy", "Runs the SEM simulation.");
   options.add_options()
+    ("h,help", "Print this help message.")
+
     ("o,order", "Order of approximation.",
          cxxopts::value<int>()->default_value("2"))
 
@@ -42,6 +44,13 @@ SEMproxy::SEMproxy(int argc, char *argv[]) {
     ;
 
   auto result = options.parse(argc, argv);
+
+  if (result.count("help"))
+  {
+    std::cout << options.help() << std::endl;
+    exit(0);
+  }
+
 
   int order = result["order"].as<int>();
 

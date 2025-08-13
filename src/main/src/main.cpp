@@ -36,7 +36,8 @@ int main(int argc, char *argv[]) {
   startInitTime = system_clock::now();
 
 #ifdef USE_KOKKOS
-  cout << "Using Kokkos" << endl;
+  setenv("OMP_PROC_BIND", "spread", 1);
+  setenv("OMP_PLACES", "threads", 1);
   Kokkos::initialize(argc, argv);
   {
 #endif
