@@ -15,55 +15,26 @@
 #include <iostream>
 #include <sstream>
 
-SEMproxy::SEMproxy(int argc, char *argv[]) {
-  cxxopts::Options options("SEM Proxy", "Runs the SEM simulation.");
-  options.add_options()
-    ("h,help", "Print this help message.")
 
-    ("o,order", "Order of approximation.",
-         cxxopts::value<int>()->default_value("2"))
+SEMproxy::SEMproxy(const SemProxyOptions& opt) {
+  // if (result.count("help"))
+  // {
+  //   std::cout << options.help() << std::endl;
+  //   exit(0);
+  // }
 
-    ("ex", "Number of element on X axis. For Cartesian Mesh",
-         cxxopts::value<int>()->default_value("50"))
-    ("ey", "Number of element on Y axis. For Cartesian Mesh",
-         cxxopts::value<int>()->default_value("50"))
-    ("ez", "Number of element on Z axis. For Cartesian Mesh",
-         cxxopts::value<int>()->default_value("50"))
+  int order = opt.order;
 
-    ("lx", "Size of the Domain. X axis. For Cartesian Mesh",
-         cxxopts::value<float>()->default_value("2000."))
-    ("ly", "Size of the Domain. Y axis. For Cartesian Mesh",
-         cxxopts::value<float>()->default_value("2000."))
-    ("lz", "Size of the Domain. Z axis. For Cartesian Mesh",
-         cxxopts::value<float>()->default_value("2000."))
+  int ex = opt.ex;
+  int ey = opt.ey;
+  int ez = opt.ez;
 
-    ("implem", "Implentation type (classic, optim, geos, shiva)",
-         cxxopts::value<string>()->default_value("optim"))
-    ("method", "Method type (sem, dg)",
-         cxxopts::value<string>()->default_value("sem"))
-    ;
+  float lx = opt.lx;
+  float ly = opt.ly;
+  float lz = opt.lz;
 
-  auto result = options.parse(argc, argv);
-
-  if (result.count("help"))
-  {
-    std::cout << options.help() << std::endl;
-    exit(0);
-  }
-
-
-  int order = result["order"].as<int>();
-
-  int ex = result["ex"].as<int>();
-  int ey = result["ey"].as<int>();
-  int ez = result["ez"].as<int>();
-
-  float lx = result["lx"].as<float>();
-  float ly = result["ly"].as<float>();
-  float lz = result["lz"].as<float>();
-
-  SolverFactory::methodType methodType = getMethod( result["method"].as<string>() );
-  SolverFactory::implemType implemType = getImplem( result["implem"].as<string>() );
+  SolverFactory::methodType methodType = getMethod( opt.method );
+  SolverFactory::implemType implemType = getImplem( opt.implem );
 
   m_solver = SolverFactory::createSolver( methodType, implemType, order );
 
@@ -86,8 +57,8 @@ SEMproxy::SEMproxy(int argc, char *argv[]) {
             << "(" << ex << ',' << ey << ',' << ez << ')' << std::endl;
   std::cout << "Size of the domain is "
             << "(" << lx << ',' << ly << ',' << lz << ')' << std::endl;
-  std::cout << "Launching the Method " << result["method"].as<string>()
-            << " and the implementation " << result["implem"].as<string>() << std::endl;
+  std::cout << "Launching the Method " << opt.method
+            << " and the implementation " << opt.implem << std::endl;
   std::cout << "Order of approximation will be " << order << std::endl;
 }
 

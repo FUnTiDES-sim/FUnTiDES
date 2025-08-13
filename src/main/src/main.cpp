@@ -4,6 +4,7 @@
 //  main.cpp: this main file is simply a driver
 //************************************************************************
 
+#include "SEMproxyOptions.hpp"
 #include "SEMproxy.hpp"
 
 time_point<system_clock> startInitTime;
@@ -42,11 +43,34 @@ int main(int argc, char *argv[]) {
   {
 #endif
 
-    cout << "\n+================================= " << endl;
-    cout << "| Initializing SEM Application ... " << endl;
-    cout << "+================================= \n" << endl;
+    cxxopts::Options options("SEM Proxy", "Runs the SEM simulation.");
+    options.allow_unrecognised_options();       // lets Kokkos flags pass
 
-    SEMproxy semsim(argc, argv);
+    options.add_options()("h,help", "Print help message");
+
+    SemProxyOptions opt;
+    SemProxyOptions::bind_cli(options, opt);
+
+    auto result = options.parse(argc, argv);
+
+   if (result.count("help"))
+   {
+     std::cout << options.help() << std::endl;
+     exit(0);
+   }
+
+    try { opt.validate(); }
+    catch (const std::exception& e) {
+      // your error path (no help printing here)
+      std::cerr << "Invalid options: " << e.what() << "\n";
+      return 1;
+    }
+
+    cout << "+==================================+" << endl;
+    cout << "| Initializing SEM Application ... |" << endl;
+    cout << "+==================================+\n" << endl;
+
+    SEMproxy semsim(opt);
 
     compute_loop(semsim);
 

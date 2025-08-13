@@ -8,6 +8,7 @@
 #ifndef SEMPROXY_HPP_
 #define SEMPROXY_HPP_
 
+#include "SEMproxyOptions.hpp"
 #include "solverFactory.hpp"
 #include <argsparse.hpp>
 #include <utils.hpp>
@@ -22,7 +23,7 @@ public:
   /**
    * @brief Constructor of the SEMproxy class
    */
-  SEMproxy(int argc, char *argv[]);
+  SEMproxy(const SemProxyOptions& cfg);
 
   /**
    * @brief Destructor of the SEMproxy class
