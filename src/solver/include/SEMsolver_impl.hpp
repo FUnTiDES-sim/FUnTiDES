@@ -12,21 +12,6 @@
 #include <cstdlib>
 #include "fe/Integrals.hpp"
 
-// template< int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE >
-// void
-// SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE>::
-// computeFEInit(BaseMesh<discretization_t, index_t> const & mesh_in)
-// {
-//   if (auto cart = dynamic_cast<
-//           CartesianSEMmesh<discretization_t,index_t,ORDER> const*>(&mesh_in)) {
-//     this->computeFEInit(*cart);  // delegate to the concrete overload
-//     return;
-//   }
-
-//   throw std::runtime_error(
-//       "SEMsolver<ORDER=" + std::to_string(ORDER) +
-//       "> expects CartesianSEMmesh<..., ORDER>.");
-// }
 
 template< int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE >
 void
@@ -318,8 +303,9 @@ initSpongeValues()
   std::ofstream outfile("spongeTaperCoeff.txt");
   for (int i = 0; i < m_mesh.getNumberOfNodes(); i++)
   {
-    outfile << spongeTaperCoeff(i) << endl;
+    outfile << spongeTaperCoeff(i) << ' ';
   }
 
+  outfile << endl;
   outfile.close();
 }

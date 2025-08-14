@@ -72,6 +72,7 @@ SEMproxy::SEMproxy(const SemProxyOptions& opt) {
   std::cout << "Starting simulation with Cartesian Mesh of size "
             << "(" << ex << ',' << ey << ',' << ez << ')' << std::endl;
   std::cout << "Number of node is " << myMesh->getNumberOfNodes() << std::endl;
+  std::cout << "Number of element is " << myMesh->getNumberOfElements() << std::endl;
   std::cout << "Size of the domain is "
             << "(" << lx << ',' << ly << ',' << lz << ')' << std::endl;
   std::cout << "Launching the Method " << opt.method
@@ -197,7 +198,7 @@ void SEMproxy::saveSlice(const VECTOR_REAL_VIEW& host_slice,
 
     for (int y = 0; y < size; ++y) {
         for (int x = 0; x < size; ++x) {
-            file << host_slice(y * size + x);
+            file << host_slice[y * size + x];
             file << " ";
         }
     }

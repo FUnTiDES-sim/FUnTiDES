@@ -202,18 +202,18 @@ public:
   {
     int expected_size = size * size * size;
 
-    // Calculate slice parameters
+    // // Calculate slice parameters
     int slice_size = size * size;
     int start_index = z * slice_size;
 
-    // Create output view
-    VECTOR_REAL_VIEW xy_slice("xy_slice", slice_size);
+    // // Create output view
+    VECTOR_REAL_VIEW xy_slice = allocateVector<vectorReal>(slice_size);
 
     // Extract the slice using parallel_for
     // Kokkos::parallel_for("extract_xy_slice", slice_size, KOKKOS_LAMBDA(int i) {
-    LOOPHEAD(slice_size, i)
-        xy_slice(i) = array_1d(start_index + i);
-    LOOPEND
+    // LOOPHEAD(slice_size, i)
+        // xy_slice(i) = array_1d(start_index + i);
+    // LOOPEND
     // });
 
     return xy_slice;
