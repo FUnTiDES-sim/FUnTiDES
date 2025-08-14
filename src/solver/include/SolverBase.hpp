@@ -28,7 +28,7 @@ public:
                               DataStruct & data ) = 0;
 
   // Pure virtual function to initialize finite element components
-  virtual void computeFEInit( BaseMesh<discretization_t, index_t> const & mesh ) = 0;
+  virtual void computeFEInit( BaseMesh<discretization_t, index_t> & mesh ) = 0;
 
   virtual void outputPnValues( const int &indexTimeStep,
                                int &i1,

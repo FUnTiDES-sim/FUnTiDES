@@ -14,14 +14,9 @@
 #include "cartesianSEMmesh.hpp"
 #include "dataType.hpp"
 #include "SolverBase.hpp"
-// #include <BasisFunctions.hpp>
-// #include <Integrals.hpp>
 #include <cmath>
 #include <model.hpp>
 
-// #ifdef USE_KOKKOS
-// #include <KokkosExp_InterOp.hpp>
-// #endif
 
 struct SEMsolverData : SolverBase::DataStruct
 {
@@ -30,7 +25,7 @@ struct SEMsolverData : SolverBase::DataStruct
                  ARRAY_REAL_VIEW const & rhsTerm,
                  ARRAY_REAL_VIEW const & pnGlobal,
                  VECTOR_INT_VIEW const & rhsElement,
-                 ARRAY_REAL_VIEW & rhsWeights ):
+                 ARRAY_REAL_VIEW & rhsWeights):
     m_i1(i1),
     m_i2(i2),
     m_rhsTerm(rhsTerm),
@@ -49,7 +44,8 @@ struct SEMsolverData : SolverBase::DataStruct
 
 
 template< int ORDER,
-          typename INTEGRAL_TYPE >
+          typename INTEGRAL_TYPE,
+          typename MESH_TYPE>
 class SEMsolver : public SolverBase
 {
 public:
@@ -69,7 +65,7 @@ public:
    *
    * @param mesh BaseMesh structure containing the domain information.
    */
-  virtual void computeFEInit( BaseMesh<discretization_t, index_t> const & mesh ) override final;
+  virtual void computeFEInit( BaseMesh<discretization_t, index_t> & mesh ) override final;
 
   /**
    * @brief Compute one time step of the SEM wave equation solver.
@@ -167,7 +163,7 @@ public:
 
 
 private:
-  CartesianSEMmesh<discretization_t, index_t, ORDER> m_mesh;
+  MESH_TYPE m_mesh;
 
   static constexpr int nPointsElement = (ORDER + 1) * (ORDER + 1) * (ORDER + 1);
 

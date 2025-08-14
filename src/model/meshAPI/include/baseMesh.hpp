@@ -198,10 +198,12 @@ public:
   * @param z: Z-level to extract (0 to size-1)
   * @return: Kokkos 1D View containing the XY slice
   */
+  virtual
   VECTOR_REAL_VIEW
   extractXYSlice(const VECTOR_REAL_VIEW& array, index_t size, index_t z) const
   {
-    return {};
+    std::cout << "ExctractXYSlice is not implemented in MeshBase" << std::endl;
+    throw std::runtime_error("ExtractXYSlice not implemented");  // Proper exception
   };
 
 };

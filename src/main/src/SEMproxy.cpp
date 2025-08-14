@@ -31,39 +31,6 @@ SEMproxy::SEMproxy(const SemProxyOptions& opt) {
   const SolverFactory::methodType methodType = getMethod( opt.method );
   const SolverFactory::implemType implemType = getImplem( opt.implem );
 
-  // using M1 = CartesianSEMmesh<float,int,1>;
-  // using M2 = CartesianSEMmesh<float,int,2>;
-  // using M3 = CartesianSEMmesh<float,int,3>;
-  // using MeshVar = std::variant<M1,M2,M3>;
-
-  // CartesianParams<int, float> params{ order, ex, ey, ez, lx, ly, lz};
-  // switch ( order )
-  // {
-  //   case 1:
-  //   {
-  //     m_solver = SolverFactory::createSolver( methodType, implemType, 1 );
-  //     CartesianSEMmesh<float, int, 1> cartesianMesh(params);
-  //     break;
-  //   }
-  //   case 2:
-  //   {
-  //     m_solver = SolverFactory::createSolver( methodType, implemType, 2 );
-  //     CartesianSEMmesh<float, int, 2> cartesianMesh(params);
-  //     break;
-  //   }
-  //   case 3:
-  //   {
-  //     m_solver = SolverFactory::createSolver( methodType, implemType, 3 );
-  //     CartesianSEMmesh<float, int, 3> cartesianMesh(params);
-  //     break;
-  //   }
-  //   default:
-  //     throw std::invalid_argument("Order must be within [1, 3]");
-  // }
-
-  // myMesh = &cartesianMesh;
-  // m_solver->computeFEInit(*myMesh);
-
   using Base = BaseMesh<float,int>;
   using M1 = CartesianSEMmesh<float,int,1>;
   using M2 = CartesianSEMmesh<float,int,2>;
@@ -81,7 +48,7 @@ SEMproxy::SEMproxy(const SemProxyOptions& opt) {
     default: throw std::invalid_argument("Order must be within [1, 3]");
   }
 
-  m_solver = SolverFactory::createSolver(methodType, implemType, order);
+  m_solver = SolverFactory::createSolver(methodType, implemType, SolverFactory::CARTESIAN, order);
 
   // If solver has overloads/templates for each mesh:
   std::visit([&](auto& m){
@@ -116,7 +83,7 @@ void SEMproxy::run() {
   time_point<system_clock> startComputeTime, startOutputTime, totalComputeTime,
       totalOutputTime;
 
-  SEMsolverData solverData(  i1, i2, myRHSTerm, pnGlobal, rhsElement, rhsWeights );
+  SEMsolverData solverData(  i1, i2, myRHSTerm, pnGlobal, rhsElement, rhsWeights);
 
   for (int indexTimeSample = 0; indexTimeSample < myNumSamples;
        indexTimeSample++) {
@@ -217,24 +184,22 @@ std::string formatSnapshotFilename(int id, int width = 5) {
 }
 
 /**
- * Save slice in gnuplot matrix format (default - best for gnuplot)
+ * Save slice in matrix formating
  * Format: space-separated matrix with blank lines between rows for 3D plotting
  */
 void SEMproxy::saveSlice(const VECTOR_REAL_VIEW& host_slice,
-               int size, const std::string& filepath) {
+               int size, const std::string& filepath)
+{
     std::ofstream file(filepath);
 
     file << std::fixed << std::setprecision(6);
-
     file << size << "\n" << size << "\n";
 
-    // Standard matrix format - works with 'plot "file" matrix with image'
     for (int y = 0; y < size; ++y) {
         for (int x = 0; x < size; ++x) {
             file << host_slice(y * size + x);
             file << " ";
         }
-        // file << "\n";
     }
 
     file.close();

@@ -12,34 +12,39 @@
 #include <cstdlib>
 #include "fe/Integrals.hpp"
 
-template< int ORDER, typename INTEGRAL_TYPE >
+// template< int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE >
+// void
+// SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE>::
+// computeFEInit(BaseMesh<discretization_t, index_t> const & mesh_in)
+// {
+//   if (auto cart = dynamic_cast<
+//           CartesianSEMmesh<discretization_t,index_t,ORDER> const*>(&mesh_in)) {
+//     this->computeFEInit(*cart);  // delegate to the concrete overload
+//     return;
+//   }
+
+//   throw std::runtime_error(
+//       "SEMsolver<ORDER=" + std::to_string(ORDER) +
+//       "> expects CartesianSEMmesh<..., ORDER>.");
+// }
+
+template< int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE >
 void
-SEMsolver<ORDER, INTEGRAL_TYPE>::
-computeFEInit(BaseMesh<discretization_t, index_t> const & mesh_in)
+SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE>::
+computeFEInit(BaseMesh<discretization_t, index_t> & mesh_in)
 {
-  if (auto cart = dynamic_cast<
-          CartesianSEMmesh<discretization_t,index_t,ORDER> const*>(&mesh_in)) {
-    this->computeFEInit(*cart);  // delegate to the concrete overload
-    return;
+  if (auto* typed_mesh = dynamic_cast<MESH_TYPE*>(&mesh_in)) {
+      m_mesh = *typed_mesh;
+  } else {
+      throw std::runtime_error("Incompatible mesh type in solver");
   }
-
-  throw std::runtime_error(
-      "SEMsolver<ORDER=" + std::to_string(ORDER) +
-      "> expects CartesianSEMmesh<..., ORDER>.");
-}
-
-template< int ORDER, typename INTEGRAL_TYPE >
-void
-SEMsolver<ORDER, INTEGRAL_TYPE>::
-computeFEInit(CartesianSEMmesh<discretization_t, index_t, ORDER> const & mesh_in)
-{
-  m_mesh = mesh_in;
   allocateFEarrays();
   initFEarrays();
 }
 
-template< int ORDER, typename INTEGRAL_TYPE >
-void SEMsolver<ORDER, INTEGRAL_TYPE>::
+template< int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE >
+void
+SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE>::
 computeOneStep( const float & dt,
                 const int &timeSample,
                 SolverBase::DataStruct & data )
@@ -64,9 +69,9 @@ computeOneStep( const float & dt,
   FENCE
 }
 
-template< int ORDER, typename INTEGRAL_TYPE >
+template< int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE >
 void
-SEMsolver<ORDER, INTEGRAL_TYPE>::
+SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE>::
 resetGlobalVectors( int numNodes )
 {
 
@@ -78,9 +83,9 @@ resetGlobalVectors( int numNodes )
   LOOPEND
 }
 
-template< int ORDER, typename INTEGRAL_TYPE >
+template< int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE >
 void
-SEMsolver<ORDER, INTEGRAL_TYPE>::
+SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE>::
 applyRHSTerm(int timeSample,
              float dt,
              int i2,
@@ -111,9 +116,9 @@ applyRHSTerm(int timeSample,
   LOOPEND
 }
 
-template< int ORDER, typename INTEGRAL_TYPE >
+template< int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE >
 void
-SEMsolver<ORDER, INTEGRAL_TYPE>::
+SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE>::
 computeElementContributions(int i2,
                             const ARRAY_REAL_VIEW &pnGlobal)
 {
@@ -205,9 +210,9 @@ computeElementContributions(int i2,
 }
 
 
-template< int ORDER, typename INTEGRAL_TYPE >
+template< int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE >
 void
-SEMsolver<ORDER, INTEGRAL_TYPE>::
+SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE>::
 updatePressureField(float dt,
                     int i1,
                     int i2,
@@ -224,9 +229,9 @@ updatePressureField(float dt,
   LOOPEND
 }
 
-template< int ORDER, typename INTEGRAL_TYPE >
+template< int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE >
 void
-SEMsolver<ORDER, INTEGRAL_TYPE>::
+SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE>::
 outputPnValues( const int &indexTimeStep,
                 int &i1,
                 int &myElementSource,
@@ -239,18 +244,18 @@ outputPnValues( const int &indexTimeStep,
         << endl;
 }
 
-template< int ORDER, typename INTEGRAL_TYPE >
+template< int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE >
 void
-SEMsolver<ORDER, INTEGRAL_TYPE>::
+SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE>::
 initFEarrays()
 {
   // get quadrature points
   initSpongeValues();
 }
 
-template< int ORDER, typename INTEGRAL_TYPE >
+template< int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE >
 void
-SEMsolver<ORDER, INTEGRAL_TYPE>::
+SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE>::
 allocateFEarrays()
 {
   int nbQuadraturePoints = (m_mesh.getOrder() + 1) * (m_mesh.getOrder() + 1) *
@@ -268,9 +273,9 @@ allocateFEarrays()
 }
 
 
-template< int ORDER, typename INTEGRAL_TYPE >
+template< int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE >
 void
-SEMsolver<ORDER, INTEGRAL_TYPE>::
+SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE>::
 initSpongeValues()
 {
   // LOOPHEAD(m_mesh.getNumberOfNodes(), n)

@@ -198,7 +198,7 @@ public:
 
 #ifndef USE_KOKKOS
   VECTOR_REAL_VIEW
-  extractXYSlice(const VECTOR_REAL_VIEW& array, index_t size, index_t z) const
+  extractXYSlice(const VECTOR_REAL_VIEW& array, index_t size, index_t z) const override final
   {
     int expected_size = size * size * size;
 
@@ -221,7 +221,8 @@ public:
 
 #else // USE_KOKKOS
   VECTOR_REAL_VIEW
-  extractXYSlice(const VECTOR_REAL_VIEW& array, index_t size, index_t z) const
+  extractXYSlice(const VECTOR_REAL_VIEW& array, index_t size, index_t z)
+  const override final
   {
       // Validate inputs
       if (z < 0 || z >= size) {
