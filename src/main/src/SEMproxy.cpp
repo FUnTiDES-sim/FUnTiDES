@@ -111,6 +111,12 @@ void SEMproxy::run() {
     // }
 
     swap(i1, i2);
+
+    auto tmp = solverData.m_i1;
+    solverData.m_i1 = solverData.m_i2;
+    solverData.m_i2 = tmp;
+
+
     totalOutputTime += system_clock::now() - startOutputTime;
   }
 
