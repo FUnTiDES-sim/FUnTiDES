@@ -234,7 +234,7 @@ void
 SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE>::
 initFEarrays()
 {
-  // get quadrature points
+  INTEGRAL_TYPE::init( m_precomputedIntegralData);
   initSpongeValues();
 }
 
