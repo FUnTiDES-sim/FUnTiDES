@@ -1,3 +1,2 @@
-if(USE_SIMPLE_MESH)
-    add_subdirectory(cartesianSEMmesh)
-endif()
+add_subdirectory(cartesianSEMmesh)
+add_subdirectory(cartesianUnstructMesh)
