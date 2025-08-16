@@ -95,6 +95,7 @@ private:
   int getPhysic ( string physicArg );
   SolverFactory::implemType getImplem ( string implemArg );
   SolverFactory::methodType getMethod ( string methodArg );
+  SolverFactory::meshType getMesh ( string meshArg );
 };
 
 #endif /* SEMPROXY_HPP_ */

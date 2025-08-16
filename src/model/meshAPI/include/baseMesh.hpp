@@ -38,12 +38,18 @@ class BaseMesh
 {
 
 public:
+  struct DataStruct {
+    // Base structure for data passed to the mesh
+    virtual ~DataStruct() = default;
+  };
+
   /**
    * @brief Default constructor.
    *
    * Initializes an empty BaseMesh object.
    */
   PROXY_HOST_DEVICE BaseMesh() {}
+  PROXY_HOST_DEVICE BaseMesh(const DataStruct params) {};
 
   /**
    * @brief Virtual destructor.

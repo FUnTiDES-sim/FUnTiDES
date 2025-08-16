@@ -41,8 +41,13 @@ make_sem_solver(int order, meshType mesh)
         using MeshT = CartesianSEMmesh<float, int, ORDER>;
         return std::make_unique<SEMsolver<ORDER, SelectedIntegral, MeshT>>();
       });
-
     case UNSTRUCT_CARTESIAN:
+       return orderDispatch(order, [] (auto orderIC) -> std::unique_ptr<SolverBase> {
+        constexpr int ORDER = decltype(orderIC)::value;
+        using SelectedIntegral = typename IntegralTypeSelector<ORDER, ImplTag>::type;
+        using MeshT = CartesianUnstructMesh<float, int, ORDER>;
+        return std::make_unique<SEMsolver<ORDER, SelectedIntegral, MeshT>>();
+      });
     case DIVA:
       throw std::runtime_error("SEM mesh type not implemented yet");
   }

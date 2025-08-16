@@ -18,7 +18,7 @@
 
 
 SEMproxy::SEMproxy(const SemProxyOptions& opt) {
-  static const int order = opt.order;
+  const int order = opt.order;
 
   const int ex = opt.ex;
   const int ey = opt.ey;
@@ -30,25 +30,105 @@ SEMproxy::SEMproxy(const SemProxyOptions& opt) {
 
   const SolverFactory::methodType methodType = getMethod( opt.method );
   const SolverFactory::implemType implemType = getImplem( opt.implem );
+  const SolverFactory::meshType meshType = getMesh( opt.mesh );
 
   using Base = BaseMesh<float,int>;
-  using M1 = CartesianSEMmesh<float,int,1>;
-  using M2 = CartesianSEMmesh<float,int,2>;
-  using M3 = CartesianSEMmesh<float,int,3>;
-  using MeshVar = std::variant<M1,M2,M3>;
+  using CartM1 = CartesianSEMmesh<float,int,1>;
+  using CartM2 = CartesianSEMmesh<float,int,2>;
+  using CartM3 = CartesianSEMmesh<float,int,3>;
+  using UnstrM1 = CartesianUnstructMesh<float,int,1>;
+  using UnstrM2 = CartesianUnstructMesh<float,int,2>;
+  using UnstrM3 = CartesianUnstructMesh<float,int,3>;
+  using MeshVar = std::variant<CartM1, CartM2, CartM3, UnstrM1, UnstrM2, UnstrM3>;
+  using MeshParams = std::variant<CartesianParams<float,int>, CartesianUnstructParams<float,int>>;
 
-  MeshVar mesh;  // by-value ownership
-
-  CartesianParams<int,float> params{order, ex, ey, ez, lx, ly, lz};
-
-  switch (order) {
-    case 1: mesh.emplace<M1>(params); break;
-    case 2: mesh.emplace<M2>(params); break;
-    case 3: mesh.emplace<M3>(params); break;
-    default: throw std::invalid_argument("Order must be within [1, 3]");
+  MeshParams params;
+  if (meshType == SolverFactory::CARTESIAN) {
+    params.emplace<CartesianParams<float,int>>(order, ex, ey, ez, lx, ly, lz);
+  } else if (meshType == SolverFactory::UNSTRUCT_CARTESIAN) {
+    params.emplace<CartesianUnstructParams<float,int>>(order, ex, ey, ez, lx, ly, lz);
   }
 
-  m_solver = SolverFactory::createSolver(methodType, implemType, SolverFactory::CARTESIAN, order);
+  MeshVar mesh;
+  std::visit([&mesh, meshType, order](const auto& p) {
+    if (meshType == SolverFactory::CARTESIAN) {
+      switch (order) {
+        case 1: mesh.emplace<CartM1>(p); break;
+        case 2: mesh.emplace<CartM2>(p); break;
+        case 3: mesh.emplace<CartM3>(p); break;
+        default: throw std::invalid_argument("Order must be within [1, 3]");
+      }
+    } else if (meshType == SolverFactory::UNSTRUCT_CARTESIAN) {
+      switch (order) {
+        case 1: mesh.emplace<UnstrM1>(p); break;
+        case 2: mesh.emplace<UnstrM2>(p); break;
+        case 3: mesh.emplace<UnstrM3>(p); break;
+        default: throw std::invalid_argument("Order must be within [1, 3]");
+      }
+    }
+  }, params);
+
+  if (meshType == SolverFactory::CARTESIAN) {
+    CartesianParams<float,int> cartParams(order, ex, ey, ez, lx, ly, lz);
+    switch (order) {
+      case 1: mesh.emplace<CartM1>(cartParams); break;
+      case 2: mesh.emplace<CartM2>(cartParams); break;
+      case 3: mesh.emplace<CartM3>(cartParams); break;
+      default: throw std::invalid_argument("Order must be within [1, 3]");
+    }
+  } else if (meshType == SolverFactory::UNSTRUCT_CARTESIAN) {
+    CartesianUnstructParams<float,int> unstrParams(order, ex, ey, ez, lx, ly, lz);
+    switch (order) {
+      case 1: mesh.emplace<UnstrM1>(unstrParams); break;
+      case 2: mesh.emplace<UnstrM2>(unstrParams); break;
+      case 3: mesh.emplace<UnstrM3>(unstrParams); break;
+      default: throw std::invalid_argument("Order must be within [1, 3]");
+    }
+  }
+  // using Base = BaseMesh<float,int>;
+  // using CartM1 = CartesianSEMmesh<float,int,1>;
+  // using CartM2 = CartesianSEMmesh<float,int,2>;
+  // using CartM3 = CartesianSEMmesh<float,int,3>;
+  // using UnstrM1 = CartesianUnstructMesh<float,int,1>;
+  // using UnstrM2 = CartesianUnstructMesh<float,int,2>;
+  // using UnstrM3 = CartesianUnstructMesh<float,int,3>;
+  // using MeshVar = std::variant<CartM1, CartM2, CartM3, UnstrM1, UnstrM2, UnstrM3>;
+  // using ParamsPtr = std::unique_ptr<BaseParams>;
+
+  // template<typename IndexType, typename ValueType>
+  // using MeshParams = std::variant<
+  //           CartesianParams<IndexType, ValueType>,
+  //           UnstructuredParams<IndexType, ValueType>>;
+
+  // ParamsPtr params;
+  // if (meshType == MeshType::Cartesian) {
+  //   params = std::make_unique<CartParams>(order, ex, ey, ez, lx, ly, lz);
+  // } else {
+  //   params = std::make_unique<UnstrParams>(order, nodes, connectivity);
+  // }
+
+  // MeshVar mesh;
+  // CartesianParams<int,float> params{order, ex, ey, ez, lx, ly, lz};
+
+  // if (meshType == SolverFactory::CARTESIAN) {
+  //   switch (order) {
+  //     case 1: mesh.emplace<CartM1>(params); break;
+  //     case 2: mesh.emplace<CartM2>(params); break;
+  //     case 3: mesh.emplace<CartM3>(params); break;
+  //     default: throw std::invalid_argument("Order must be within [1, 3]");
+  //   }
+  // } else if (meshType == SolverFactory::UNSTRUCT_CARTESIAN) {
+  //   switch (order) {
+  //     case 1: mesh.emplace<UnstrM1>(params); break;
+  //     case 2: mesh.emplace<UnstrM2>(params); break;
+  //     case 3: mesh.emplace<UnstrM3>(params); break;
+  //     default: throw std::invalid_argument("Order must be within [1, 3]");
+  //   }
+  // } else {
+  //   throw std::invalid_argument("Invalid mesh type");
+  // }
+
+  m_solver = SolverFactory::createSolver(methodType, implemType, meshType, order);
 
   // If solver has overloads/templates for each mesh:
   std::visit([&](auto& m){
@@ -76,7 +156,8 @@ SEMproxy::SEMproxy(const SemProxyOptions& opt) {
   std::cout << "Size of the domain is "
             << "(" << lx << ',' << ly << ',' << lz << ')' << std::endl;
   std::cout << "Launching the Method " << opt.method
-            << " and the implementation " << opt.implem << std::endl;
+            << ", the implementation " << opt.implem
+            << " and the mesh is " << opt.mesh << std::endl;
   std::cout << "Order of approximation will be " << order << std::endl;
 }
 
@@ -220,6 +301,15 @@ SolverFactory::implemType SEMproxy::getImplem ( string implemArg )
   if (implemArg == "shiva") return SolverFactory::SHIVA;
 
   throw std::invalid_argument( "Implentation type does not follow any valid type." );
+}
+
+SolverFactory::meshType SEMproxy::getMesh ( string meshArg )
+{
+  if ( meshArg == "cartesian" ) return SolverFactory::CARTESIAN;
+  if ( meshArg == "ucartesian" ) return SolverFactory::UNSTRUCT_CARTESIAN;
+
+  std::cout << "Mesh type found is " << meshArg << std::endl;
+  throw std::invalid_argument( "Mesh type does not follow any valid type." );
 }
 
 SolverFactory::methodType SEMproxy::getMethod ( string methodArg )

@@ -39,15 +39,24 @@ public:
    * @param lz_in   Physical length in the Z direction
    * @param order   Polynomial interpolation order per element
    */
-  PROXY_HOST_DEVICE
-  CartesianSEMmesh ( CartesianParams<index_t, coord_t> params )
-      : ex(params.ex), ey(params.ey), ez(params.ez),
-        lx(params.lx), ly(params.ly), lz(params.lz),
-        order(params.order)
+  CartesianSEMmesh (const typename BaseMesh<coord_t, index_t>::DataStruct & params)
   {
-    nx = ex * order + 1;
-    ny = ey * order + 1;
-    nz = ez * order + 1;
+    auto const& p = dynamic_cast<const CartesianParams<coord_t, index_t>&>(params);
+
+    order = p.order;
+
+    ex = p.ex;
+    ey = p.ey;
+    ez = p.ez;
+
+    lx = p.lx;
+    ly = p.ly;
+    lz = p.lz;
+
+
+    nx = ex * ORDER + 1;
+    ny = ey * ORDER + 1;
+    nz = ez * ORDER + 1;
 
     hx = lx / static_cast<float>(ex);
     hy = ly / static_cast<float>(ey);

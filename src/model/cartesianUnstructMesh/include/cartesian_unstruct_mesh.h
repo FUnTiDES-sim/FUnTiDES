@@ -11,10 +11,17 @@ class CartesianUnstructMesh : public BaseMesh<Coord, Index> {
  public:
   CartesianUnstructMesh() { }
 
-  CartesianUnstructMesh (CartesianUnstructParams<Coord, Index> params)
-      : ex_(params.ex), ey_(params.ey), ez_(params.ez),
-        lx_(params.lx), ly_(params.ly), lz_(params.lz)
-  {
+  CartesianUnstructMesh (const typename BaseMesh<Coord, Index>::DataStruct & params) {
+    auto const& p = dynamic_cast<const CartesianUnstructParams<Coord, Index>&>(params);
+
+    ex_ = p.ex;
+    ey_ = p.ey;
+    ez_ = p.ez;
+
+    lx_ = p.lx;
+    ly_ = p.ly;
+    lz_ = p.lz;
+
     initGlobalNodeList();
     initNodesCoords();
   }

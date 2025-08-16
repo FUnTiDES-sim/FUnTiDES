@@ -124,7 +124,7 @@ int main(int argc, char **argv) {
   const int numberOfNodes =
       (size * order + 1) * (size * order + 1) * (size * order + 1);
   // init new mesh
-  CartesianUnstructParams<float, int> params{ order, size, size, size, domainSize, domainSize, domainSize };
+  CartesianUnstructParams<float, int> params(order, size, size, size, domainSize, domainSize, domainSize);
   CartesianUnstructMesh<float, int, order> mesh(params);
 
   // security checks
