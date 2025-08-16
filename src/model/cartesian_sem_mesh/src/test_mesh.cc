@@ -1,4 +1,4 @@
-#include <cartesianSEMmesh.hpp>
+#include <cartesian_sem_mesh.h>
 #include <cassert>
 #include <iostream>
 #include <vector>

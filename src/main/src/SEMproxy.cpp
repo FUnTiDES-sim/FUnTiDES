@@ -5,7 +5,7 @@
 //
 //************************************************************************
 
-#include "cartesianSEMmesh.hpp"
+#include "cartesian_sem_mesh.h"
 #include "solverFactory.hpp"
 #include "SEMsolver.hpp"
 #include <cxxopts.hpp>

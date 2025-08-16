@@ -1,7 +1,7 @@
 #ifndef SRC_MODEL_CARTESIANUNSTRUCTMESH_INCLUDE_CARTESIAN_UNSTRUCT_MESH_H_
 #define SRC_MODEL_CARTESIANUNSTRUCTMESH_INCLUDE_CARTESIAN_UNSTRUCT_MESH_H_
 
-#include "baseMesh.hpp"
+#include "../../mesh_api/include/baseMesh.hpp"
 #include "cartesian_unstruct_params.h"
 #include <dataType.hpp>
 #include "commonMacros.hpp"

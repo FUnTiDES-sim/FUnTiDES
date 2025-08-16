@@ -11,7 +11,7 @@
 #ifndef SEM_SOLVER_HPP_
 #define SEM_SOLVER_HPP_
 
-#include "cartesianSEMmesh.hpp"
+#include "cartesian_sem_mesh.h"
 #include "dataType.hpp"
 #include "SolverBase.hpp"
 #include <cmath>

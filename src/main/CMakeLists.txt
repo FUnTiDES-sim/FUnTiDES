@@ -14,7 +14,7 @@ if(COMPILE_SEM)
     PRIVATE
       discretization
       solver
-      mesh
+      cartesian_mesh
       utils
   )
 
@@ -27,7 +27,7 @@ if(COMPILE_SEM)
     target_link_libraries(pysem
       PRIVATE
         solver
-        mesh
+        cartesian_mesh
         utils
     )
 

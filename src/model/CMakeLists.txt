@@ -1,2 +1,2 @@
-add_subdirectory(cartesianSEMmesh)
-add_subdirectory(cartesianUnstructMesh)
+add_subdirectory(cartesian_sem_mesh)
+add_subdirectory(cartesian_unstruct_mesh)
