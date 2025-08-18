@@ -23,7 +23,7 @@
  * @see BaseMesh
  */
 template <typename Coord, typename Index, int ORDER>
-class CartesianSEMmesh : public BaseMesh<Coord, Index> {
+class CartesianSEMmesh : public mesh_base::BaseMesh<Coord, Index> {
  public:
   PROXY_HOST_DEVICE
   CartesianSEMmesh() {}
@@ -40,7 +40,7 @@ class CartesianSEMmesh : public BaseMesh<Coord, Index> {
    * @param order   Polynomial interpolation order per element
    */
   explicit CartesianSEMmesh(
-      const typename BaseMesh<Coord, Index>::DataStruct& params) {
+      const typename mesh_base::BaseMesh<Coord, Index>::DataStruct& params) {
     auto const& p =
         dynamic_cast<const CartesianParams<Coord, Index>&>(params);
 
@@ -161,8 +161,8 @@ class CartesianSEMmesh : public BaseMesh<Coord, Index> {
   }
 
   PROXY_HOST_DEVICE
-  BoundaryFlag boundaryType(Index n) const final {
-    return BoundaryFlag::InteriorNode;
+  mesh_base::BoundaryFlag boundaryType(Index n) const final {
+    return mesh_base::BoundaryFlag::InteriorNode;
   }
 
   PROXY_HOST_DEVICE

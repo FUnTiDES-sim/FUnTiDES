@@ -32,7 +32,7 @@ SEMproxy::SEMproxy(const SemProxyOptions& opt) {
   const SolverFactory::implemType implemType = getImplem( opt.implem );
   const SolverFactory::meshType meshType = getMesh( opt.mesh );
 
-  using Base = BaseMesh<float,int>;
+  using Base = mesh_base::BaseMesh<float,int>;
   using CartM1 = CartesianSEMmesh<float,int,1>;
   using CartM2 = CartesianSEMmesh<float,int,2>;
   using CartM3 = CartesianSEMmesh<float,int,3>;
@@ -85,7 +85,7 @@ SEMproxy::SEMproxy(const SemProxyOptions& opt) {
       default: throw std::invalid_argument("Order must be within [1, 3]");
     }
   }
-  // using Base = BaseMesh<float,int>;
+  // using Base = mesh_base::BaseMesh<float,int>;
   // using CartM1 = CartesianSEMmesh<float,int,1>;
   // using CartM2 = CartesianSEMmesh<float,int,2>;
   // using CartM3 = CartesianSEMmesh<float,int,3>;

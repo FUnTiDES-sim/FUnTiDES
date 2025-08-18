@@ -4,6 +4,7 @@
 #include <SEMmacros.hpp>
 #include <dataType.hpp>
 
+namespace mesh_base {
 /**
   * @enum BoundaryFlag
   * @brief Flags representing the boundary condition type of a mesh node.
@@ -20,6 +21,11 @@ enum BoundaryFlag: uint8_t
     Ghost        = 1 << 3    ///< Ghost node for halo/exchange
 };
 
+/**
+ * This enum describs all the type of mesh supported.
+ *
+ */
+enum meshType   { CARTESIAN, UNSTRUCT_CARTESIAN, DIVA };
 
 /**
  * @brief Abstract base class representing a structured 3D mesh.
@@ -213,5 +219,5 @@ public:
   };
 
 };
-
+}  // namespace mesh_base
 #endif // BASE_MESH_

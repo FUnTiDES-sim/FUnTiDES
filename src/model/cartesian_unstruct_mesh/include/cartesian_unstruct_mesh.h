@@ -7,11 +7,11 @@
 #include "commonMacros.hpp"
 
 template <typename Coord, typename Index, int order>
-class CartesianUnstructMesh : public BaseMesh<Coord, Index> {
+class CartesianUnstructMesh : public mesh_base::BaseMesh<Coord, Index> {
  public:
   CartesianUnstructMesh() { }
 
-  CartesianUnstructMesh (const typename BaseMesh<Coord, Index>::DataStruct & params) {
+  CartesianUnstructMesh (const typename mesh_base::BaseMesh<Coord, Index>::DataStruct & params) {
     auto const& p = dynamic_cast<const CartesianUnstructParams<Coord, Index>&>(params);
 
     ex_ = p.ex;
@@ -100,8 +100,8 @@ class CartesianUnstructMesh : public BaseMesh<Coord, Index> {
   }
 
   PROXY_HOST_DEVICE
-  BoundaryFlag boundaryType(Index n) const final {
-    return BoundaryFlag::InteriorNode;
+  mesh_base::BoundaryFlag boundaryType(Index n) const final {
+    return mesh_base::BoundaryFlag::InteriorNode;
   }
 
   PROXY_HOST_DEVICE

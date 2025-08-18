@@ -73,7 +73,7 @@ private:
   int myNumSamples = myTimeMax / myTimeStep;
   int myElementSource = 0;
 
-  BaseMesh<float, int> const* myMesh = nullptr;
+  mesh_base::BaseMesh<float, int> const* myMesh = nullptr;
 
   std::unique_ptr<SolverBase> m_solver;
   SolverUtils myUtils;

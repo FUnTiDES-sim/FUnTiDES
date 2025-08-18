@@ -65,7 +65,7 @@ public:
    *
    * @param mesh BaseMesh structure containing the domain information.
    */
-  virtual void computeFEInit( BaseMesh<discretization_t, index_t> & mesh ) override final;
+  virtual void computeFEInit( mesh_base::BaseMesh<discretization_t, index_t> & mesh ) override final;
 
   /**
    * @brief Compute one time step of the SEM wave equation solver.

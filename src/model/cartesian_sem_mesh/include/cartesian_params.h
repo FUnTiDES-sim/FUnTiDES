@@ -3,7 +3,7 @@
 
 template <typename Coord, typename Index>
 struct CartesianParams :
-    public BaseMesh<Coord, Index>::DataStruct {
+    public mesh_base::BaseMesh<Coord, Index>::DataStruct {
     int order;
 
     Index ex, ey, ez;
