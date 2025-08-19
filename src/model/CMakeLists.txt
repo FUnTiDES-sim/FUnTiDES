@@ -1,3 +1,3 @@
 if(USE_SIMPLE_MESH)
-    add_subdirectory(simpleMesh)
+    add_subdirectory(cartesianSEMmesh)
 endif()

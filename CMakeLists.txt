@@ -4,7 +4,7 @@ cmake_minimum_required( VERSION 3.22.1 )
 #-----------------------------------------------------
 # Setup Flags for Building and Installation
 #-----------------------------------------------------
-set (CMAKE_VERBOSE_MAKEFILE ON )
+set (CMAKE_VERBOSE_MAKEFILE OFF )
 
 option (COMPILE_SEM "Compile Spectral Elements Method simulation" ON)
 option (COMPILE_FD "Compile finit elements simulation" ON)
@@ -60,7 +60,6 @@ endif()
 #-------------------------------------------------------------------
 # setup compilation flags
 #-------------------------------------------------------------------
-
 # CC options
 if(DEFINED CMAKE_C_COMPILER)
   message(STATUS "The CMAKE_C_COMPILER is ${CMAKE_C_COMPILER}")
@@ -106,7 +105,7 @@ endif()
 ################################
 if (ENABLE_PYWRAP)
   message(STATUS "-- Enabling Python wrapping librairies. Using pybind11")
-  find_package(Python 3.8 COMPONENTS Interpreter Development REQUIRED)
+  find_package(Python COMPONENTS Interpreter Development REQUIRED)
   add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/external/pybind11)
   set(CMAKE_INTERPROCEDURAL_OPTIMIZATION FALSE CACHE BOOL "Disable global LTO" FORCE)
   set(CMAKE_POSITION_INDEPENDENT_CODE ON)
@@ -117,7 +116,7 @@ endif()
 ################################
 # KOKKOS
 ################################
-# the solver is using KOKKOS+CUDA if USE_KOKKOS is ON
+# the solver is using KOKKOS if USE_KOKKOS is ON
 if (NOT USE_KOKKOS)
   message ("-- USE_KOKKOS flag is set to false. KOKKOS is not enabled")
 else ()
@@ -135,6 +134,7 @@ else ()
     set(Kokkos_ENABLE_CUDA_CONSTEXPR ON CACHE BOOL "" FORCE)
     set(Kokkos_ENABLE_CUDA_UVM ON CACHE BOOL "" FORCE)
     set(Kokkos_ENABLE_CUDA_LAMBDA ON CACHE BOOL "" FORCE)
+    set(Kokkos_ENABLE_CUDA_RELOCATE_DEVICE_CODE OFF CACHE BOOL "" FORCE)
     if(CMAKE_BUILD_TYPE STREQUAL "Debug" OR CMAKE_BUILD_TYPE STREQUAL "RelWithDebInfo")
       set(Kokkos_ENABLE_DEBUG ON CACHE BOOL "" FORCE)
     endif()
@@ -143,7 +143,13 @@ else ()
   add_subdirectory(${Kokkos_SOURCE_DIR})
   message (STATUS "-- Kokkos Activated. Source are at ${Kokkos_SOURCE_DIR}.")
   if(ENABLE_PYWRAP)
+    set(ENABLE_MEMORY_TRAITS OFF)
+    set(Kokkos_ENABLE_PYTHON ON)
+    set(Kokkos_ENABLE_DEBUG OFF)
+    set(BUILD_SHARE_LIBS ON CACHE BOOL "" FORCE)
+    set(Kokkos_ENABLE_SERIAL ON CACHE BOOL "" FORCE)
     set(ENABLE_INTERNAL_KOKKOS OFF CACHE BOOL "" FORCE)
+    set(ENABLE_INTERNAL_PYBIND11 OFF CACHE BOOL "" FORCE)
     set(Kokkos_DIR "${Kokkos_BINARY_DIR}" CACHE PATH "Use external Kokkos build")
     message(STATUS "-- Enabling pykokkos base.")
     add_subdirectory(external/pykokkos-base)

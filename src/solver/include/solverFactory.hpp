@@ -2,10 +2,17 @@
 
 #include "SolverBase.hpp"
 #include "fe/Integrals.hpp"
-
 #include <memory>
 
-std::unique_ptr<SolverBase> createSolver( int const physicsType,
-                                          int const methodType,
-                                          int const order );
+namespace SolverFactory
+{
+    enum methodType { SEM, DG };
+    enum implemType { CLASSIC, GEOS, OPTIM, SHIVA };
+    enum meshType   { CARTESIAN, UNSTRUCT_CARTESIAN, DIVA };
+
+    std::unique_ptr<SolverBase> createSolver( methodType const methodType,
+                                              implemType const implemType,
+                                              meshType const meshType,
+                                              int const order );
+}
 

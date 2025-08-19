@@ -8,13 +8,10 @@
 #ifndef SEMPROXY_HPP_
 #define SEMPROXY_HPP_
 
-#include "SolverBase.hpp"
+#include "SEMproxyOptions.hpp"
+#include "solverFactory.hpp"
 #include <argsparse.hpp>
 #include <utils.hpp>
-#ifdef USE_CALIPER
-#include <caliper/cali.h>
-#endif
-
 #include <memory>
 
 /**
@@ -26,8 +23,7 @@ public:
   /**
    * @brief Constructor of the SEMproxy class
    */
-  SEMproxy(int argc, char *argv[]);
-  SEMproxy(int ex, int ey, int ez, float lx);
+  SEMproxy(const SemProxyOptions& cfg);
 
   /**
    * @brief Destructor of the SEMproxy class
@@ -38,7 +34,12 @@ public:
    * @brief Initialize the simulation.
    * @post run()
    */
-  void initFiniteElem();
+  void initFiniteElem() {
+    init_arrays();
+    init_source();
+  };
+
+  // void saveCtrlSlice(int iteration, int i);
 
   /**
    * @brief Run the simulation.
@@ -47,40 +48,32 @@ public:
    */
   void run();
 
-  // get information from mesh
-  void getMeshInfo();
-
-  SEMmesh myMesh;
-
-  // Getter and setter for myRHSTerm
-  arrayReal getMyRHSTerm() const;
-  void setMyRHSTerm(const arrayReal &value);
-
-  // Getter and setter for pnGlobal
-  arrayReal getPnGlobal() const; 
-  void setPnGlobal(const arrayReal &value); 
-
-  // Getter and setter for rhsElement
-  vectorInt getRhsElement() const;
-  void setRhsElement(const vectorInt &value);
+  /**
+  * Save slice in gnuplot matrix format (default - best for gnuplot)
+  * Format: space-separated matrix with blank lines between rows for 3D plotting
+  */
+  void saveSlice(const VECTOR_REAL_VIEW& host_slice,
+                int size, const std::string& filepath);
 
 private:
   int i1 = 0;
   int i2 = 1;
 
-  float m_dt;
-  float m_maxTime;
-  int m_numSamples;
+  // proper to cartesian mesh
+  // or any structured mesh
+  int nb_elements[3] = {0};
+  int nb_nodes[3] = {0};
 
-  float m_f0;
-  int m_sourceOrder;
-  int m_elementSource;
-  int m_numberOfRHS;
+  const int myNumberOfRHS = 1;
+  const float myTimeStep = 0.001;
+  const float f0 = 10.;
+  const float myTimeMax = 1.5;
+  const int sourceOrder = 2;
 
-  int m_numberOfNodes;
-  int m_numberOfElements;
-  int m_numberOfPointsPerElement;
-  int m_numberOfInteriorNodes;
+  int myNumSamples = myTimeMax / myTimeStep;
+  int myElementSource = 0;
+
+  BaseMesh<float, int> const* myMesh = nullptr;
 
   std::unique_ptr<SolverBase> m_solver;
   SolverUtils myUtils;
@@ -89,12 +82,19 @@ private:
   arrayReal myRHSTerm;
   arrayReal pnGlobal;
   vectorInt rhsElement;
+  arrayReal rhsWeights;
 
   // initialize source and RHS
   void init_source();
 
   // allocate arrays and vectors
   void init_arrays();
+
+
+  // private methods to pars argv options
+  int getPhysic ( string physicArg );
+  SolverFactory::implemType getImplem ( string implemArg );
+  SolverFactory::methodType getMethod ( string methodArg );
 };
 
 #endif /* SEMPROXY_HPP_ */
