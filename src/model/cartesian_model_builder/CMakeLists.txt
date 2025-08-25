@@ -4,7 +4,7 @@ add_library(cartesianUnstructMesh
 
 target_include_directories(cartesianUnstructMesh PUBLIC
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
-    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/../meshAPI/include>
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/../mesh_api/include>
 )
 
 set(MESH_LIBS utils)

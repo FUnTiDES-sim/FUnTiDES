@@ -1,2 +1,1 @@
-add_subdirectory(cartesian_sem_mesh)
-add_subdirectory(cartesian_unstruct_mesh)
+add_subdirectory(model_api)

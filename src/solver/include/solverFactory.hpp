@@ -8,7 +8,7 @@ namespace SolverFactory
 {
     enum methodType { SEM, DG };
     enum implemType { CLASSIC, GEOS, OPTIM, SHIVA };
-    enum meshType   { CARTESIAN, UNSTRUCT_CARTESIAN, DIVA };
+    enum meshType   { Struct, Unstruct};
 
     std::unique_ptr<SolverBase> createSolver( methodType const methodType,
                                               implemType const implemType,

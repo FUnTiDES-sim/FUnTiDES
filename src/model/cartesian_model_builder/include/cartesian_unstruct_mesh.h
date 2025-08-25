@@ -1,18 +1,17 @@
-#ifndef SRC_MODEL_CARTESIANUNSTRUCTMESH_INCLUDE_CARTESIAN_UNSTRUCT_MESH_H_
-#define SRC_MODEL_CARTESIANUNSTRUCTMESH_INCLUDE_CARTESIAN_UNSTRUCT_MESH_H_
+#ifndef SRC_MODEL_CARTESIANMESH_INCLUDE_CARTESIAN_UNSTRUCT_MESH_H_
+#define SRC_MODEL_CARTESIANMESH_INCLUDE_CARTESIAN_UNSTRUCT_MESH_H_
 
-#include "../../mesh_api/include/baseMesh.hpp"
 #include "cartesian_unstruct_params.h"
-#include <dataType.hpp>
+#include "dataType.hpp"
 #include "commonMacros.hpp"
 
-template <typename Coord, typename Index, int order>
-class CartesianUnstructMesh : public mesh_base::BaseMesh<Coord, Index> {
+template <typename FloatType, typename ScalarType, int order>
+class CartesianUnstructMesh : public mesh_api::MeshBase {
  public:
   CartesianUnstructMesh() { }
 
-  CartesianUnstructMesh (const typename mesh_base::BaseMesh<Coord, Index>::DataStruct & params) {
-    auto const& p = dynamic_cast<const CartesianUnstructParams<Coord, Index>&>(params);
+  CartesianUnstructMesh (const typename mesh_base::MeshBase::DataStruct & params) {
+    auto const& p = dynamic_cast<const CartesianParams<FloatType, ScalarType>&>(params);
 
     ex_ = p.ex;
     ey_ = p.ey;
@@ -28,147 +27,16 @@ class CartesianUnstructMesh : public mesh_base::BaseMesh<Coord, Index> {
 
   ~CartesianUnstructMesh() = default;
 
-  PROXY_HOST_DEVICE
-  Coord nodeCoord(Index dofGlobalIndex, int dim) const final {
-    switch (dim) {
-      case 0: {
-        return nodes_coords_x_[dofGlobalIndex];
-      }
-      case 1: {
-        return nodes_coords_y_[dofGlobalIndex];
-      }
-      case 2: {
-        return nodes_coords_z_[dofGlobalIndex];
-      }
-      default:
-        return -1;
-    }
-  }
-
-
-  PROXY_HOST_DEVICE
-  Index globalNodeIndex(Index elementIndex,
-                        int i,
-                        int j,
-                        int k) const final {
-    const auto localDofIndex = i + j * (order + 1) + k * (order + 1) * (order + 1);
-    return global_node_index_(elementIndex, localDofIndex);
-  }
-
-  PROXY_HOST_DEVICE
-  Index getNumberOfElements() const final {
-    return this->ex_ * this->ey_ * this->ez_;
-  }
-
-  PROXY_HOST_DEVICE
-  Coord getModelVpOnNodes(Index n) const final {
-    return 1500;
-  }
-
-  PROXY_HOST_DEVICE
-  Coord getModelVpOnElement(Index e) const final {
-    return 1500;
-  }
-
-  PROXY_HOST_DEVICE
-  Coord getModelRhoOnNodes(Index n) const final {
-    return 1;
-  }
-
-  PROXY_HOST_DEVICE
-  Coord getModelRhoOnElement(Index e) const final {
-    return 1;
-  }
-
-
-  PROXY_HOST_DEVICE
-  Index getNumberOfNodes() const final {
-    Index nx = this->ex_ * order + 1;
-    Index ny = this->ey_ * order + 1;
-    Index nz = this->ez_ * order + 1;
-    return nx * ny * nz;
-  }
-
-  PROXY_HOST_DEVICE
-  int getNumberOfPointsPerElement() const final {
-    return (order + 1) * (order + 1) * (order + 1);
-  }
-
-  PROXY_HOST_DEVICE
-  int getOrder() const final {
-    return order;
-  }
-
-  PROXY_HOST_DEVICE
-  mesh_base::BoundaryFlag boundaryType(Index n) const final {
-    return mesh_base::BoundaryFlag::InteriorNode;
-  }
-
-  PROXY_HOST_DEVICE
-  void faceNormal(Index e,
-                  int dir,
-                  int face,
-                  Coord v[3]) const final {
-    return;
-  }
-
-  PROXY_HOST_DEVICE
-  Coord domainSize(int dim) const final {
-    switch (dim) {
-      case 0 :
-        return lx_;
-      case 1:
-        return ly_;
-      case 2:
-        return lz_;
-      default:
-        return -1;
-    }
-  }
-
-  PROXY_HOST_DEVICE
-  Index elementFromCoordinate(Coord x, Coord y, Coord z) const final {
-      int i = static_cast<int>(x * ex_ / lx_);
-      int j = static_cast<int>(y * ey_ / ly_);
-      int k = static_cast<int>(z * ez_ / lz_);
-
-      // Calculate linear index using row-major ordering
-      auto index = i + ex_ * (j + ey_ * k);
-
-      return index;
-  }
-
-  VECTOR_REAL_VIEW
-  extractXYSlice(const VECTOR_REAL_VIEW& array,
-                 Index size,
-                 Index z) const final {
-#ifndef USE_KOKKOS
-      throw "ExtractXYSlice is not working "
-            "without kokkos (Cartesian Unstruct Mesh)";
-#else
-      if (z < 0 || z >= size) {
-          Kokkos::abort("Z index out of bounds");
-      }
-
-      int slice_size = size * size;
-      int start_index = z * slice_size;
-      int end_index = start_index + slice_size;
-
-      // Create subview (zero-copy operation)
-      return Kokkos::subview(array, Kokkos::make_pair(start_index, end_index));
-#endif  // USE_KOKKOS
-  }
-
  private:
-  Index ex_, ey_, ez_;
-  Coord lx_, ly_, lz_;
+  ScalarType ex_, ey_, ez_;
+  FloatType lx_, ly_, lz_;
 
   ARRAY_INT_VIEW  global_node_index_;
   VECTOR_REAL_VIEW nodes_coords_x_;
   VECTOR_REAL_VIEW nodes_coords_y_;
   VECTOR_REAL_VIEW nodes_coords_z_;
 
-void initGlobalNodeList() {
+  void initGlobalNodeList() {
     int nodes_x = order + 1;
     int nodes_y = order + 1;
     int nodes_z = order + 1;
@@ -310,4 +178,4 @@ void initGlobalNodeList() {
 
 };
 
-#endif  // SRC_MODEL_CARTESIANUNSTRUCTMESH_INCLUDE_CARTESIAN_UNSTRUCT_MESH_H_
+#endif  // SRC_MODEL_CARTESIANMESH_INCLUDE_CARTESIAN_UNSTRUCT_MESH_H_

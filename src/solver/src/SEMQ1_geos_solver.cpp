@@ -1,5 +1,5 @@
 #include "SEMsolver_impl.hpp"
 
 constexpr int ORDER = 1;
-template class SEMsolver< ORDER, IntegralTypeSelector< ORDER, IntegralType::GEOS>::type, CartesianSEMmesh<float, int, ORDER> >;
-template class SEMsolver< ORDER, IntegralTypeSelector< ORDER, IntegralType::GEOS>::type, CartesianUnstructMesh<float, int, ORDER> >;
+template class SEMsolver< ORDER, IntegralTypeSelector< ORDER, IntegralType::GEOS>::type, model::ModelStruct<float, int> >;
+template class SEMsolver< ORDER, IntegralTypeSelector< ORDER, IntegralType::GEOS>::type, model::ModelUnstruct<float, int> >;
