@@ -1,26 +1,17 @@
-add_library(cartesianUnstructMesh
-    src/cartesian_unstruct_mesh.cc
+add_library(cartesian_builders
+    src/cartesian_struct_mesh.cc
 )
 
-target_include_directories(cartesianUnstructMesh PUBLIC
+target_include_directories(cartesian_builders PUBLIC
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
-    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/../mesh_api/include>
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/../model_api/include>
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/../model_builder_api/include>
 )
 
-set(MESH_LIBS utils)
+set(BUILDER_LIBS utils model_lib)
 
 if (USE_KOKKOS)
-    list(APPEND MESH_LIBS Kokkos::kokkos)
+    list(APPEND BUILDER_LIBS Kokkos::kokkos)
 endif()
 
-target_link_libraries(cartesianUnstructMesh PUBLIC ${MESH_LIBS})
-
-
-# Adding test case
-add_executable(testUmesh src/test_mesh.cc)
-target_include_directories(testUmesh PRIVATE  ${CMAKE_CURRENT_SOURCE_DIR}/include)
-target_link_libraries(testUmesh
-    PRIVATE
-      cartesianUnstructMesh
-      utils
-  )
+target_link_libraries(cartesian_builders PUBLIC ${BUILDER_LIBS})

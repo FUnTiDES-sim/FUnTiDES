@@ -1,1 +1,2 @@
 add_subdirectory(model_api)
+add_subdirectory(cartesian_model_builder)

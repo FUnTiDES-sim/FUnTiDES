@@ -27,7 +27,8 @@ if(COMPILE_SEM)
     target_link_libraries(pysem
       PRIVATE
         solver
-        cartesian_mesh
+        cartesian_builders
+        model_lib
         utils
     )
 

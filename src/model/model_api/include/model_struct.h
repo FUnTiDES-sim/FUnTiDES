@@ -8,11 +8,16 @@ namespace model {
 
 template<typename FloatType, typename ScalarType>
 struct ModelStructData {
+    public:
     // GPU-compatible special member functions
     PROXY_HOST_DEVICE ModelStructData() = default;
     PROXY_HOST_DEVICE ~ModelStructData() = default;
     PROXY_HOST_DEVICE ModelStructData(const ModelStructData&) = default;
     PROXY_HOST_DEVICE ModelStructData& operator=(const ModelStructData&) = default;
+
+    ScalarType ex_, ey_, ez_;
+    FloatType dx_, dy_, dz_;
+    int order_;
 };
 
 /**
@@ -30,7 +35,19 @@ class ModelStruct: public ModelApi<FloatType, ScalarType>{
      * @brief Constructor from ModelStructData.
      * @param data ModelStructData structure containing all the mesh data
      */
-    PROXY_HOST_DEVICE ModelStruct(const ModelStructData<ScalarType, FloatType>& data) {}
+    PROXY_HOST_DEVICE ModelStruct(const ModelStructData<FloatType, ScalarType>& data) :
+        ex_(data.ex_), ey_(data.ey_), ez_(data.ez_),
+        hx_(data.dx_), hy_(data.dy_), hz_(data.dz_),
+        order_(data.order_) {
+
+        nx_ = order_ * ex_ + 1;
+        ny_ = order_ * ey_ + 1;
+        nz_ = order_ * ez_ + 1;
+
+        lx_ = ex_ * hx_;
+        ly_ = ey_ * hy_;
+        lz_ = ez_ * hz_;
+    }
 
     /**
      * @brief Copy constructor.
