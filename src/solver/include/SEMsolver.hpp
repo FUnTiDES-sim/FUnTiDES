@@ -64,7 +64,7 @@ public:
    *
    * @param mesh BaseMesh structure containing the domain information.
    */
-  virtual void computeFEInit( MESH_TYPE & mesh );
+  virtual void computeFEInit(model::ModelApi<float, int>& mesh);
 
   /**
    * @brief Compute one time step of the SEM wave equation solver.

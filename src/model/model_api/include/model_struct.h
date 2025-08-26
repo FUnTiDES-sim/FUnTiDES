@@ -195,7 +195,7 @@ class ModelStruct: public ModelApi<FloatType, ScalarType>{
      */
     PROXY_HOST_DEVICE
     ScalarType getNumberOfNodes() const {
-        return getNumberOfPointsPerElement() * getNumberOfElements();
+        return (order_ * ex_ + 1) * (order_ * ey_ + 1) * (order_ * ez_ + 1);
     }
 
     /**

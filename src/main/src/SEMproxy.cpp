@@ -5,12 +5,12 @@
 //
 //************************************************************************
 
-#include "cartesian_sem_mesh.h"
 #include "solverFactory.hpp"
 #include "SEMsolver.hpp"
 #include <cxxopts.hpp>
 #include "SEMproxy.hpp"
 #include "dataType.hpp"
+#include <cartesian_struct_builder.h>
 #include <iomanip>
 #include <iostream>
 #include <sstream>
@@ -32,112 +32,14 @@ SEMproxy::SEMproxy(const SemProxyOptions& opt) {
   const SolverFactory::implemType implemType = getImplem( opt.implem );
   const SolverFactory::meshType meshType = getMesh( opt.mesh );
 
-  using Base = mesh_base::BaseMesh<float,int>;
-  using CartM1 = CartesianSEMmesh<float,int,1>;
-  using CartM2 = CartesianSEMmesh<float,int,2>;
-  using CartM3 = CartesianSEMmesh<float,int,3>;
-  using UnstrM1 = CartesianUnstructMesh<float,int,1>;
-  using UnstrM2 = CartesianUnstructMesh<float,int,2>;
-  using UnstrM3 = CartesianUnstructMesh<float,int,3>;
-  using MeshVar = std::variant<CartM1, CartM2, CartM3, UnstrM1, UnstrM2, UnstrM3>;
-  using MeshParams = std::variant<CartesianParams<float,int>, CartesianUnstructParams<float,int>>;
-
-  MeshParams params;
-  if (meshType == SolverFactory::CARTESIAN) {
-    params.emplace<CartesianParams<float,int>>(order, ex, ey, ez, lx, ly, lz);
-  } else if (meshType == SolverFactory::UNSTRUCT_CARTESIAN) {
-    params.emplace<CartesianUnstructParams<float,int>>(order, ex, ey, ez, lx, ly, lz);
+  if (meshType == SolverFactory::Struct) {
+    model_builder::CartesianStructBuilder<float, int> builder;
+    m_mesh_storage = builder.getModel(ex, lx/ex, order);
+    m_mesh = &m_mesh_storage;
   }
-
-  MeshVar mesh;
-  std::visit([&mesh, meshType, order](const auto& p) {
-    if (meshType == SolverFactory::CARTESIAN) {
-      switch (order) {
-        case 1: mesh.emplace<CartM1>(p); break;
-        case 2: mesh.emplace<CartM2>(p); break;
-        case 3: mesh.emplace<CartM3>(p); break;
-        default: throw std::invalid_argument("Order must be within [1, 3]");
-      }
-    } else if (meshType == SolverFactory::UNSTRUCT_CARTESIAN) {
-      switch (order) {
-        case 1: mesh.emplace<UnstrM1>(p); break;
-        case 2: mesh.emplace<UnstrM2>(p); break;
-        case 3: mesh.emplace<UnstrM3>(p); break;
-        default: throw std::invalid_argument("Order must be within [1, 3]");
-      }
-    }
-  }, params);
-
-  if (meshType == SolverFactory::CARTESIAN) {
-    CartesianParams<float,int> cartParams(order, ex, ey, ez, lx, ly, lz);
-    switch (order) {
-      case 1: mesh.emplace<CartM1>(cartParams); break;
-      case 2: mesh.emplace<CartM2>(cartParams); break;
-      case 3: mesh.emplace<CartM3>(cartParams); break;
-      default: throw std::invalid_argument("Order must be within [1, 3]");
-    }
-  } else if (meshType == SolverFactory::UNSTRUCT_CARTESIAN) {
-    CartesianUnstructParams<float,int> unstrParams(order, ex, ey, ez, lx, ly, lz);
-    switch (order) {
-      case 1: mesh.emplace<UnstrM1>(unstrParams); break;
-      case 2: mesh.emplace<UnstrM2>(unstrParams); break;
-      case 3: mesh.emplace<UnstrM3>(unstrParams); break;
-      default: throw std::invalid_argument("Order must be within [1, 3]");
-    }
-  }
-  // using Base = mesh_base::BaseMesh<float,int>;
-  // using CartM1 = CartesianSEMmesh<float,int,1>;
-  // using CartM2 = CartesianSEMmesh<float,int,2>;
-  // using CartM3 = CartesianSEMmesh<float,int,3>;
-  // using UnstrM1 = CartesianUnstructMesh<float,int,1>;
-  // using UnstrM2 = CartesianUnstructMesh<float,int,2>;
-  // using UnstrM3 = CartesianUnstructMesh<float,int,3>;
-  // using MeshVar = std::variant<CartM1, CartM2, CartM3, UnstrM1, UnstrM2, UnstrM3>;
-  // using ParamsPtr = std::unique_ptr<BaseParams>;
-
-  // template<typename IndexType, typename ValueType>
-  // using MeshParams = std::variant<
-  //           CartesianParams<IndexType, ValueType>,
-  //           UnstructuredParams<IndexType, ValueType>>;
-
-  // ParamsPtr params;
-  // if (meshType == MeshType::Cartesian) {
-  //   params = std::make_unique<CartParams>(order, ex, ey, ez, lx, ly, lz);
-  // } else {
-  //   params = std::make_unique<UnstrParams>(order, nodes, connectivity);
-  // }
-
-  // MeshVar mesh;
-  // CartesianParams<int,float> params{order, ex, ey, ez, lx, ly, lz};
-
-  // if (meshType == SolverFactory::CARTESIAN) {
-  //   switch (order) {
-  //     case 1: mesh.emplace<CartM1>(params); break;
-  //     case 2: mesh.emplace<CartM2>(params); break;
-  //     case 3: mesh.emplace<CartM3>(params); break;
-  //     default: throw std::invalid_argument("Order must be within [1, 3]");
-  //   }
-  // } else if (meshType == SolverFactory::UNSTRUCT_CARTESIAN) {
-  //   switch (order) {
-  //     case 1: mesh.emplace<UnstrM1>(params); break;
-  //     case 2: mesh.emplace<UnstrM2>(params); break;
-  //     case 3: mesh.emplace<UnstrM3>(params); break;
-  //     default: throw std::invalid_argument("Order must be within [1, 3]");
-  //   }
-  // } else {
-  //   throw std::invalid_argument("Invalid mesh type");
-  // }
 
   m_solver = SolverFactory::createSolver(methodType, implemType, meshType, order);
-
-  // If solver has overloads/templates for each mesh:
-  std::visit([&](auto& m){
-    m_solver->computeFEInit(m);   // overload or template on T
-  }, mesh);
-
-  myMesh =
-    std::visit([](auto& m) -> const Base* { return static_cast<Base*>(&m); }, mesh);
-
+  m_solver->computeFEInit(*m_mesh);
 
   nb_elements[0] = ex;
   nb_elements[1] = ey;
@@ -151,8 +53,8 @@ SEMproxy::SEMproxy(const SemProxyOptions& opt) {
 
   std::cout << "Starting simulation with Cartesian Mesh of size "
             << "(" << ex << ',' << ey << ',' << ez << ')' << std::endl;
-  std::cout << "Number of node is " << myMesh->getNumberOfNodes() << std::endl;
-  std::cout << "Number of element is " << myMesh->getNumberOfElements() << std::endl;
+  std::cout << "Number of node is " << m_mesh->getNumberOfNodes() << std::endl;
+  std::cout << "Number of element is " << m_mesh->getNumberOfElements() << std::endl;
   std::cout << "Size of the domain is "
             << "(" << lx << ',' << ly << ',' << lz << ')' << std::endl;
   std::cout << "Launching the Method " << opt.method
@@ -187,7 +89,7 @@ void SEMproxy::run() {
     //   std::string str_filename = filename.str();
 
     //   auto subview = Kokkos::subview(pnGlobal, Kokkos::ALL, i1);
-    //   auto slice = myMesh->extractXYSlice(subview, nb_nodes[0], nb_nodes[0]/2);
+    //   auto slice = m_mesh->extractXYSlice(subview, nb_nodes[0], nb_nodes[0]/2);
     //   saveSlice(slice, nb_nodes[0], str_filename);
     // }
 
@@ -221,25 +123,26 @@ void SEMproxy::init_arrays() {
   myRHSTerm =
       allocateArray2D<arrayReal>(myNumberOfRHS, myNumSamples, "RHSTerm");
   rhsElement = allocateVector<vectorInt>(myNumberOfRHS, "rhsElement");
-  rhsWeights = allocateArray2D<arrayReal>(myNumberOfRHS, myMesh->getNumberOfPointsPerElement(), "RHSWeight");
+  rhsWeights = allocateArray2D<arrayReal>(myNumberOfRHS, m_mesh->getNumberOfPointsPerElement(), "RHSWeight");
   pnGlobal =
-      allocateArray2D<arrayReal>(myMesh->getNumberOfNodes(), 2, "pnGlobal");
+      allocateArray2D<arrayReal>(m_mesh->getNumberOfNodes(), 2, "pnGlobal");
 }
 
 // Initialize sources
 void SEMproxy::init_source() {
   arrayReal myRHSLocation = allocateArray2D<arrayReal>(1, 3, "RHSLocation");
   // set number of rhs and location
-  myRHSLocation(0, 0) = myMesh->domainSize(0) / 2;
-  myRHSLocation(0, 1) = myMesh->domainSize(1) / 2;
-  myRHSLocation(0, 2) = myMesh->domainSize(2) / 2;
-  cout << "\nSource 1 location: " << myRHSLocation(0, 0) << ", "
-       << myRHSLocation(0, 1) << ", " << myRHSLocation(0, 2) << endl;
-  cout << "Corresponding to element id "
-       << myMesh->elementFromCoordinate(myRHSLocation(0,0), myRHSLocation(0,1),myRHSLocation(0,2)) << endl;
+  myRHSLocation(0, 0) = m_mesh->domainSize(0) / 2;
+  myRHSLocation(0, 1) = m_mesh->domainSize(1) / 2;
+  myRHSLocation(0, 2) = m_mesh->domainSize(2) / 2;
+  // cout << "\nSource 1 location: " << myRHSLocation(0, 0) << ", "
+  //      << myRHSLocation(0, 1) << ", " << myRHSLocation(0, 2) << endl;
+  // cout << "Corresponding to element id "
+  //      << m_mesh->elementFromCoordinate(myRHSLocation(0,0), myRHSLocation(0,1),myRHSLocation(0,2)) << endl;
   for (int i = 0; i < 1; i++) {
     // extract element number for current rhs
-    rhsElement[i] = myMesh->elementFromCoordinate(myRHSLocation(i,0), myRHSLocation(i,1),myRHSLocation(i,2));
+    // rhsElement[i] = m_mesh->elementFromCoordinate(myRHSLocation(i,0), myRHSLocation(i,1),myRHSLocation(i,2));
+    rhsElement[i] = 505050;
   }
 
   // initialize source term
@@ -257,9 +160,9 @@ void SEMproxy::init_source() {
   // Setting the weight for source ponderation on node.
   for (int i = 0; i < myNumberOfRHS; i++)
   {
-    for (int j = 0; j < myMesh->getNumberOfPointsPerElement(); j++)
+    for (int j = 0; j < m_mesh->getNumberOfPointsPerElement(); j++)
     {
-      rhsWeights(i, j) = 1.0 / myMesh->getNumberOfPointsPerElement();
+      rhsWeights(i, j) = 1.0 / m_mesh->getNumberOfPointsPerElement();
     }
   }
 }
@@ -305,8 +208,8 @@ SolverFactory::implemType SEMproxy::getImplem ( string implemArg )
 
 SolverFactory::meshType SEMproxy::getMesh ( string meshArg )
 {
-  if ( meshArg == "cartesian" ) return SolverFactory::CARTESIAN;
-  if ( meshArg == "ucartesian" ) return SolverFactory::UNSTRUCT_CARTESIAN;
+  if ( meshArg == "cartesian" ) return SolverFactory::Struct;
+  if ( meshArg == "ucartesian" ) return SolverFactory::Unstruct;
 
   std::cout << "Mesh type found is " << meshArg << std::endl;
   throw std::invalid_argument( "Mesh type does not follow any valid type." );

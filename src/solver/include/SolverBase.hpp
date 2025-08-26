@@ -4,9 +4,6 @@
 #include "dataType.hpp"
 #include "model.hpp"
 
-using discretization_t = float;
-using index_t = int;
-
 class SolverBase
 {
 public:
@@ -28,7 +25,7 @@ public:
                               DataStruct & data ) = 0;
 
   // Pure virtual function to initialize finite element components
-  // virtual void computeFEInit( mesh_base::BaseMesh<discretization_t, index_t> & mesh ) = 0;
+  virtual void computeFEInit( model::ModelApi<float, int>& mesh ) = 0;
 
   virtual void outputPnValues( const int &indexTimeStep,
                                int &i1,

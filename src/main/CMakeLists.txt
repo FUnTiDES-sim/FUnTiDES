@@ -14,7 +14,8 @@ if(COMPILE_SEM)
     PRIVATE
       discretization
       solver
-      cartesian_mesh
+      cartesian_builders
+      model_lib
       utils
   )
 
