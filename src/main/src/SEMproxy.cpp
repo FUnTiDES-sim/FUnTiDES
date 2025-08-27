@@ -11,6 +11,7 @@
 #include "SEMproxy.hpp"
 #include "dataType.hpp"
 #include <cartesian_struct_builder.h>
+#include <cartesian_unstruct_builder.h>
 #include <iomanip>
 #include <iostream>
 #include <sstream>
@@ -19,14 +20,12 @@
 
 SEMproxy::SEMproxy(const SemProxyOptions& opt) {
   const int order = opt.order;
-
   const int ex = opt.ex;
-  const int ey = opt.ey;
-  const int ez = opt.ez;
-
+  int ey = opt.ey;
+  int ez = opt.ez;
   const float lx = opt.lx;
-  const float ly = opt.ly;
-  const float lz = opt.lz;
+  float ly = opt.ly;
+  float lz = opt.lz;
 
   const SolverFactory::methodType methodType = getMethod( opt.method );
   const SolverFactory::implemType implemType = getImplem( opt.implem );
@@ -36,18 +35,23 @@ SEMproxy::SEMproxy(const SemProxyOptions& opt) {
     model_builder::CartesianStructBuilder<float, int> builder;
     m_mesh_storage = builder.getModel(ex, lx/ex, order);
     m_mesh = &m_mesh_storage;
+    ey = ex;
+    ez = ex;
+    ly = lx;
+    lz = lx;
+  }
+  else if (meshType == SolverFactory::Unstruct) {
+    model_builder::CartesianParams<float, int> param(order, ex, ey, ez,  lx, ly, lz);
+    model_builder::CartesianUnstructBuilder<float, int> builder(param);
+    m_umesh_storage = builder.getModel();
+    m_mesh = &m_umesh_storage;
+  }
+  else {
+    throw std::runtime_error("Incorrect mesh type (SEMproxy ctor.)");
   }
 
   m_solver = SolverFactory::createSolver(methodType, implemType, meshType, order);
   m_solver->computeFEInit(*m_mesh);
-
-  nb_elements[0] = ex;
-  nb_elements[1] = ey;
-  nb_elements[2] = ez;
-
-  nb_nodes[0] = ex * order + 1;
-  nb_nodes[1] = ey * order + 1;
-  nb_nodes[2] = ez * order + 1;
 
   initFiniteElem();
 
@@ -82,6 +86,7 @@ void SEMproxy::run() {
       m_solver->outputPnValues(indexTimeSample, i1, rhsElement[0], pnGlobal);
     }
 
+    // TODO: redo snapshot
     // if (indexTimeSample % 10 == 0)
     // {
     //   std::stringstream filename;
@@ -131,17 +136,9 @@ void SEMproxy::init_arrays() {
 // Initialize sources
 void SEMproxy::init_source() {
   arrayReal myRHSLocation = allocateArray2D<arrayReal>(1, 3, "RHSLocation");
-  // set number of rhs and location
-  myRHSLocation(0, 0) = m_mesh->domainSize(0) / 2;
-  myRHSLocation(0, 1) = m_mesh->domainSize(1) / 2;
-  myRHSLocation(0, 2) = m_mesh->domainSize(2) / 2;
-  // cout << "\nSource 1 location: " << myRHSLocation(0, 0) << ", "
-  //      << myRHSLocation(0, 1) << ", " << myRHSLocation(0, 2) << endl;
-  // cout << "Corresponding to element id "
-  //      << m_mesh->elementFromCoordinate(myRHSLocation(0,0), myRHSLocation(0,1),myRHSLocation(0,2)) << endl;
+  std::cout << "All source are currently are coded on element 50." << std::endl;
   for (int i = 0; i < 1; i++) {
-    // extract element number for current rhs
-    // rhsElement[i] = m_mesh->elementFromCoordinate(myRHSLocation(i,0), myRHSLocation(i,1),myRHSLocation(i,2));
+    // TODO: Make a better source init
     rhsElement[i] = 50;
   }
 

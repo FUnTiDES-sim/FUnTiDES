@@ -1,5 +1,3 @@
-#include "cartesian_unstruct_mesh.h"
+#include "cartesian_unstruct_builder.h"
 
-template class CartesianUnstructMesh<float, int, 1>;
-template class CartesianUnstructMesh<float, int, 2>;
-template class CartesianUnstructMesh<float, int, 3>;
+template class model_builder::CartesianUnstructBuilder<float, int>;

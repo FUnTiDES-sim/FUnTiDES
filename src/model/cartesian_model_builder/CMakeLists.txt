@@ -1,5 +1,6 @@
 add_library(cartesian_builders
     src/cartesian_struct_mesh.cc
+    src/cartesian_unstruct_mesh.cc
 )
 
 target_include_directories(cartesian_builders PUBLIC

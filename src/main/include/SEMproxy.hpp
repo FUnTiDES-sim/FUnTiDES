@@ -9,9 +9,8 @@
 #define SEMPROXY_HPP_
 
 #include "SEMproxyOptions.hpp"
-#include "model_api.h"
+#include <model_api.h>
 #include "solverFactory.hpp"
-// #include "../../model/model.hpp"
 #include <argsparse.hpp>
 #include <utils.hpp>
 #include <memory>
@@ -75,7 +74,8 @@ private:
   int myNumSamples = myTimeMax / myTimeStep;
   int myElementSource = 0;
 
-  model::ModelStruct<float, int> m_mesh_storage;  // Store the actual object
+  model::ModelStruct<float, int> m_mesh_storage;
+  model::ModelUnstruct<float, int> m_umesh_storage;
   model::ModelApi<float, int>* m_mesh;
   std::unique_ptr<SolverBase> m_solver;
 
