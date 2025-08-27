@@ -120,7 +120,7 @@ class ModelUnstruct : public ModelApi<FloatType, ScalarType> {
      */
     PROXY_HOST_DEVICE
     FloatType getModelVpOnNodes(ScalarType n) const final {  // Added const, removed virtual
-        return model_vp_node_(n);
+        return model_vp_node_[n];
     }
 
     /**
@@ -130,7 +130,7 @@ class ModelUnstruct : public ModelApi<FloatType, ScalarType> {
      */
     PROXY_HOST_DEVICE
     FloatType getModelVpOnElement(ScalarType e) const final {  // Added const, removed virtual, fixed typo
-        return model_vp_element_(e);  // Fixed: was "reutrn"
+        return model_vp_element_[e];  // Fixed: was "reutrn"
     }
 
     /**
@@ -140,7 +140,7 @@ class ModelUnstruct : public ModelApi<FloatType, ScalarType> {
      */
     PROXY_HOST_DEVICE
     FloatType getModelRhoOnNodes(ScalarType n) const final {  // Added const, removed virtual
-        return model_rho_node_(n);
+        return model_rho_node_[n];
     }
 
     /**
@@ -150,7 +150,7 @@ class ModelUnstruct : public ModelApi<FloatType, ScalarType> {
      */
     PROXY_HOST_DEVICE
     FloatType getModelRhoOnElement(ScalarType e) const final {  // Added const, removed virtual
-        return model_rho_element_(e);
+        return model_rho_element_[e];
     }
 
     /**
@@ -196,7 +196,7 @@ class ModelUnstruct : public ModelApi<FloatType, ScalarType> {
      */
     PROXY_HOST_DEVICE
     BoundaryFlag boundaryType(ScalarType n) const final {
-        return static_cast<BoundaryFlag>(boundaries_t_(n));
+        return static_cast<BoundaryFlag>(boundaries_t_[n]);
     }
 
     /**

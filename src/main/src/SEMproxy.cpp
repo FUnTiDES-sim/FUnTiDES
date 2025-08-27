@@ -142,7 +142,7 @@ void SEMproxy::init_source() {
   for (int i = 0; i < 1; i++) {
     // extract element number for current rhs
     // rhsElement[i] = m_mesh->elementFromCoordinate(myRHSLocation(i,0), myRHSLocation(i,1),myRHSLocation(i,2));
-    rhsElement[i] = 505050;
+    rhsElement[i] = 50;
   }
 
   // initialize source term

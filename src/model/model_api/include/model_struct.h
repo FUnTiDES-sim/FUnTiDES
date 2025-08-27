@@ -204,8 +204,8 @@ class ModelStruct: public ModelApi<FloatType, ScalarType>{
      */
     PROXY_HOST_DEVICE
     int getNumberOfPointsPerElement() const {
-        int n_nodes_per_elem = (order_ * ex_ + 1)
-            * (order_ * ey_ + 1) * (order_ * ez_ + 1);
+        int n_nodes_per_elem = (order_ + 1)
+            * (order_ + 1) * (order_ + 1);
         return n_nodes_per_elem;
     }
 
