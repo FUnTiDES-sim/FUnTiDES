@@ -1,4 +1,4 @@
-#include <cartesianSEMmesh.hpp>
+#include <cartesian_unstruct_mesh.h>
 #include <cassert>
 #include <iostream>
 #include <vector>
@@ -116,16 +116,16 @@ void nodesCoordinates(vector<vector<float>> &nodeCoordsX,
 }
 
 int main(int argc, char **argv) {
-  const int size = 3;
-  const int order = 5;
+  const int size = 10;
+  const int order = 3;
   const float domainSize = 200.;
   const float elemSize = domainSize / size;
   const int numberOfElement = size * size * size;
   const int numberOfNodes =
       (size * order + 1) * (size * order + 1) * (size * order + 1);
   // init new mesh
-  CartesianParams<int, float> params{ order, size, size, size, domainSize, domainSize, domainSize };
-  CartesianSEMmesh<float, int, order> mesh(params);
+  CartesianUnstructParams<float, int> params(order, size, size, size, domainSize, domainSize, domainSize);
+  CartesianUnstructMesh<float, int, order> mesh(params);
 
   // security checks
   assert(numberOfElement == mesh.getNumberOfElements());
@@ -150,7 +150,7 @@ int main(int argc, char **argv) {
                      << ") at node (" << nx << ", " << ny << ", " << nz << ") give ";
                 cout << mesh.globalNodeIndex(element, nx, ny, nz) << " against " << oldGlobalNodeList[element][nodeId]
                      << endl;
-                // return 1;
+                return 1;
               }
             }
           }

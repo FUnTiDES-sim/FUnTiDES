@@ -11,7 +11,6 @@
 #ifndef SEM_SOLVER_HPP_
 #define SEM_SOLVER_HPP_
 
-#include "cartesianSEMmesh.hpp"
 #include "dataType.hpp"
 #include "SolverBase.hpp"
 #include <cmath>
@@ -65,7 +64,7 @@ public:
    *
    * @param mesh BaseMesh structure containing the domain information.
    */
-  virtual void computeFEInit( BaseMesh<discretization_t, index_t> & mesh ) override final;
+  virtual void computeFEInit(model::ModelApi<float, int>& mesh);
 
   /**
    * @brief Compute one time step of the SEM wave equation solver.
@@ -181,7 +180,7 @@ private:
   VECTOR_REAL_VIEW massMatrixGlobal;
   VECTOR_REAL_VIEW yGlobal;
 
-  void computeFEInit(CartesianSEMmesh<discretization_t, index_t, ORDER> const & mesh);
+  void computeFEInit(MESH_TYPE const & mesh);
 };
 
 #endif // SEM_SOLVER_HPP_

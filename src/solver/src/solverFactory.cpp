@@ -33,18 +33,21 @@ static std::unique_ptr<SolverBase>
 make_sem_solver(int order, meshType mesh)
 {
   switch (mesh) {
-    case CARTESIAN:
+    case Struct:
       // ORDER-dependent mesh type
       return orderDispatch(order, [] (auto orderIC) -> std::unique_ptr<SolverBase> {
         constexpr int ORDER = decltype(orderIC)::value;
         using SelectedIntegral = typename IntegralTypeSelector<ORDER, ImplTag>::type;
-        using MeshT = CartesianSEMmesh<float, int, ORDER>;
+        using MeshT = model::ModelStruct<float, int>;
         return std::make_unique<SEMsolver<ORDER, SelectedIntegral, MeshT>>();
       });
-
-    case UNSTRUCT_CARTESIAN:
-    case DIVA:
-      throw std::runtime_error("SEM mesh type not implemented yet");
+    case Unstruct:
+       return orderDispatch(order, [] (auto orderIC) -> std::unique_ptr<SolverBase> {
+        constexpr int ORDER = decltype(orderIC)::value;
+        using SelectedIntegral = typename IntegralTypeSelector<ORDER, ImplTag>::type;
+        using MeshT = model::ModelUnstruct<float, int>;
+        return std::make_unique<SEMsolver<ORDER, SelectedIntegral, MeshT>>();
+      });
   }
 
   throw std::runtime_error("Unknown mesh type");
@@ -52,9 +55,9 @@ make_sem_solver(int order, meshType mesh)
 
 std::unique_ptr<SolverBase>
 createSolver(methodType const methodType,
-              implemType const implemType,
-              meshType   const mesh,
-              int        const order)
+             implemType const implemType,
+             meshType   const mesh,
+             int        const order)
 {
   if (methodType == SEM) {
     switch (implemType) {
