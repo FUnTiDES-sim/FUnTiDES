@@ -16,8 +16,7 @@
 template< int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE >
 void
 SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE>::
-computeFEInit(BaseMesh<discretization_t, index_t> & mesh_in)
-{
+computeFEInit(model::ModelApi<float, int>& mesh_in) {
   if (auto* typed_mesh = dynamic_cast<MESH_TYPE*>(&mesh_in)) {
       m_mesh = *typed_mesh;
   } else {
@@ -234,7 +233,7 @@ void
 SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE>::
 initFEarrays()
 {
-  // get quadrature points
+  INTEGRAL_TYPE::init( m_precomputedIntegralData);
   initSpongeValues();
 }
 

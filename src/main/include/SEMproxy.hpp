@@ -9,6 +9,7 @@
 #define SEMPROXY_HPP_
 
 #include "SEMproxyOptions.hpp"
+#include <model_api.h>
 #include "solverFactory.hpp"
 #include <argsparse.hpp>
 #include <utils.hpp>
@@ -73,8 +74,9 @@ private:
   int myNumSamples = myTimeMax / myTimeStep;
   int myElementSource = 0;
 
-  BaseMesh<float, int> const* myMesh = nullptr;
-
+  model::ModelStruct<float, int> m_mesh_storage;
+  model::ModelUnstruct<float, int> m_umesh_storage;
+  model::ModelApi<float, int>* m_mesh;
   std::unique_ptr<SolverBase> m_solver;
   SolverUtils myUtils;
 
@@ -95,6 +97,7 @@ private:
   int getPhysic ( string physicArg );
   SolverFactory::implemType getImplem ( string implemArg );
   SolverFactory::methodType getMethod ( string methodArg );
+  SolverFactory::meshType getMesh ( string meshArg );
 };
 
 #endif /* SEMPROXY_HPP_ */

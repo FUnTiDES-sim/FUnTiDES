@@ -12,6 +12,7 @@ public:
   float lx = 2000.f, ly = 2000.f, lz = 2000.f;
   std::string implem = "optim";   // classic|optim|geos|shiva
   std::string method = "sem";     // sem|dg
+  std::string mesh = "cartesian";
 
   void validate() const {
     if (order < 1) throw std::runtime_error("order must be >= 1");
@@ -39,6 +40,8 @@ public:
       ("implem", "Implementation: classic|optim|geos|shiva",
           cxxopts::value<std::string>(o.implem))
       ("method", "Method: sem|dg",
-          cxxopts::value<std::string>(o.method));
+          cxxopts::value<std::string>(o.method))
+      ("mesh", "Mesh: cartesian|ucartesian",
+          cxxopts::value<std::string>(o.mesh));
   }
 };
