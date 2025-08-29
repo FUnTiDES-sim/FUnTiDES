@@ -32,9 +32,25 @@ SEMproxy::SEMproxy(const SemProxyOptions& opt) {
   const SolverFactory::meshType meshType = getMesh( opt.mesh );
 
   if (meshType == SolverFactory::Struct) {
-    model_builder::CartesianStructBuilder<float, int> builder;
-    m_mesh_storage = builder.getModel(ex, lx/ex, order);
-    m_mesh = &m_mesh_storage;
+    switch(order) {
+      case 1: {
+        model_builder::CartesianStructBuilder<float, int, 1> builder;
+        m_mesh_storage = builder.getModel(ex, lx/ex);
+        break;
+      }
+      case 2: {
+        model_builder::CartesianStructBuilder<float, int, 2> builder;
+        m_mesh_storage = builder.getModel(ex, lx/ex);
+        break;
+      }
+      case 3: {
+        model_builder::CartesianStructBuilder<float, int, 3> builder;
+        m_mesh_storage = builder.getModel(ex, lx/ex);
+        break;
+      }
+      default:
+        throw std::runtime_error("Order other than 1 2 3 is not supported (semproxy)");
+    }
     ey = ex;
     ez = ex;
     ly = lx;
@@ -43,12 +59,15 @@ SEMproxy::SEMproxy(const SemProxyOptions& opt) {
   else if (meshType == SolverFactory::Unstruct) {
     model_builder::CartesianParams<float, int> param(order, ex, ey, ez,  lx, ly, lz);
     model_builder::CartesianUnstructBuilder<float, int> builder(param);
-    m_umesh_storage = builder.getModel();
-    m_mesh = &m_umesh_storage;
+    m_mesh_storage = builder.getModel();
   }
   else {
     throw std::runtime_error("Incorrect mesh type (SEMproxy ctor.)");
   }
+
+  m_mesh = std::visit([](auto& mesh) -> model::ModelApi<float, int>* {
+      return static_cast<model::ModelApi<float, int>*>(&mesh);
+    }, m_mesh_storage);
 
   m_solver = SolverFactory::createSolver(methodType, implemType, meshType, order);
   m_solver->computeFEInit(*m_mesh);

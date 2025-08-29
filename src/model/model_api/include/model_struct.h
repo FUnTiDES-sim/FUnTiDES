@@ -17,13 +17,12 @@ struct ModelStructData {
 
     ScalarType ex_, ey_, ez_;
     FloatType dx_, dy_, dz_;
-    int order_;
 };
 
 /**
  * @brief Abstract base class representing a structured 3D mesh.
  */
-template <typename FloatType, typename ScalarType>
+template <typename FloatType, typename ScalarType, int Order>
 class ModelStruct: public ModelApi<FloatType, ScalarType>{
  public:
     /**
@@ -37,12 +36,11 @@ class ModelStruct: public ModelApi<FloatType, ScalarType>{
      */
     PROXY_HOST_DEVICE ModelStruct(const ModelStructData<FloatType, ScalarType>& data) :
         ex_(data.ex_), ey_(data.ey_), ez_(data.ez_),
-        hx_(data.dx_), hy_(data.dy_), hz_(data.dz_),
-        order_(data.order_) {
+        hx_(data.dx_), hy_(data.dy_), hz_(data.dz_) {
 
-        nx_ = order_ * ex_ + 1;
-        ny_ = order_ * ey_ + 1;
-        nz_ = order_ * ez_ + 1;
+        nx_ = Order * ex_ + 1;
+        ny_ = Order * ey_ + 1;
+        nz_ = Order * ez_ + 1;
 
         lx_ = ex_ * hx_;
         ly_ = ey_ * hy_;
@@ -74,9 +72,9 @@ class ModelStruct: public ModelApi<FloatType, ScalarType>{
     FloatType nodeCoord(ScalarType dofGlobal, int dim) const {
         // Calculate total number of nodes per dimension
         int nodesPerDim[3];
-        nodesPerDim[0] = (ex_ * order_) + 1;
-        nodesPerDim[1] = (ey_ * order_) + 1;
-        nodesPerDim[2] = (ez_ * order_) + 1;
+        nodesPerDim[0] = (ex_ * Order) + 1;
+        nodesPerDim[1] = (ey_ * Order) + 1;
+        nodesPerDim[2] = (ez_ * Order) + 1;
 
         // Convert global node index to 3D node indices (i, j, k)
         int k = dofGlobal / (nodesPerDim[0] * nodesPerDim[1]);
@@ -87,18 +85,18 @@ class ModelStruct: public ModelApi<FloatType, ScalarType>{
         int nodeIdx[3] = {i, j, k};
 
         // Determine which element this node belongs to and local position within element
-        int elemIdx = nodeIdx[dim] / order_;  // Element index in the requested dimension
-        int localIdx = nodeIdx[dim] % order_; // Local node index within element (0 to order_)
+        int elemIdx = nodeIdx[dim] / Order;  // Element index in the requested dimension
+        int localIdx = nodeIdx[dim] % Order; // Local node index within element (0 to Order)
 
         // Handle boundary case: if we're at the last node of an element (except the last element),
         // it's actually the first node of the next element
-        if (localIdx == order_ && elemIdx < (dim == 0 ? ex_ : (dim == 1 ? ey_ : ez_)) - 1) {
+        if (localIdx == Order && elemIdx < (dim == 0 ? ex_ : (dim == 1 ? ey_ : ez_)) - 1) {
             elemIdx++;
             localIdx = 0;
         }
 
         // Get the GLL point coordinate in reference element [-1, 1]
-        FloatType gllPoint = GLLPoints::get(order_, localIdx);
+        FloatType gllPoint = GLLPoints::get(Order, localIdx);
 
         // Map from reference element to physical element
         FloatType elementSize = (dim == 0) ? hx_ : ((dim == 1) ? hy_ : hz_);
@@ -129,9 +127,9 @@ class ModelStruct: public ModelApi<FloatType, ScalarType>{
         ScalarType elemY = tmp / ex_;
         ScalarType elemX = tmp % ex_;
 
-        int ix = elemX * order_ + i;
-        int iy = elemY * order_ + j;
-        int iz = elemZ * order_ + k;
+        int ix = elemX * Order + i;
+        int iy = elemY * Order + j;
+        int iz = elemZ * Order + k;
 
         return ix + iy * nx_ + iz * nx_ * ny_;
     }
@@ -195,7 +193,7 @@ class ModelStruct: public ModelApi<FloatType, ScalarType>{
      */
     PROXY_HOST_DEVICE
     ScalarType getNumberOfNodes() const {
-        return (order_ * ex_ + 1) * (order_ * ey_ + 1) * (order_ * ez_ + 1);
+        return (Order * ex_ + 1) * (Order * ey_ + 1) * (Order * ez_ + 1);
     }
 
     /**
@@ -204,8 +202,8 @@ class ModelStruct: public ModelApi<FloatType, ScalarType>{
      */
     PROXY_HOST_DEVICE
     int getNumberOfPointsPerElement() const {
-        int n_nodes_per_elem = (order_ + 1)
-            * (order_ + 1) * (order_ + 1);
+        int n_nodes_per_elem = (Order + 1)
+            * (Order + 1) * (Order + 1);
         return n_nodes_per_elem;
     }
 
@@ -215,7 +213,7 @@ class ModelStruct: public ModelApi<FloatType, ScalarType>{
      */
     PROXY_HOST_DEVICE
     int getOrder() const {
-        return order_;
+        return Order;
     }
 
     /**
@@ -265,7 +263,6 @@ class ModelStruct: public ModelApi<FloatType, ScalarType>{
   ScalarType nx_, ny_, nz_; // Nb nodes in each direction
   FloatType lx_, ly_, lz_;      // domain size
   FloatType hx_, hy_, hz_;      // element size
-  int order_;
 
 };
 

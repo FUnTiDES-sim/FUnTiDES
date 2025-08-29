@@ -4,13 +4,13 @@
 #include <model_struct.h>
 
 namespace model_builder {
-    template<typename FloatType, typename ScalarType>
+    template<typename FloatType, typename ScalarType, int Order>
     class CartesianStructBuilder: public ModelBuilderBase<FloatType, ScalarType> {
      public:
        CartesianStructBuilder() = default;
        ~CartesianStructBuilder() = default;
 
-       model::ModelStruct<FloatType, ScalarType> getModel(ScalarType e, FloatType h, int order) const {
+       model::ModelStruct<FloatType, ScalarType, Order> getModel(ScalarType e, FloatType h) const {
           model::ModelStructData<FloatType, ScalarType> data;
           data.ex_ = e;
           data.ey_ = e;
@@ -20,9 +20,7 @@ namespace model_builder {
           data.dy_ = h;
           data.dz_ = h;
 
-          data.order_ = order;
-
-          return model::ModelStruct<FloatType, ScalarType>(data);
+          return model::ModelStruct<FloatType, ScalarType, Order>(data);
        }
     };
 }

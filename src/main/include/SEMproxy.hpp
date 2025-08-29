@@ -14,6 +14,7 @@
 #include <argsparse.hpp>
 #include <utils.hpp>
 #include <memory>
+#include <variant>
 
 /**
  * @class SEMproxy
@@ -74,8 +75,13 @@ private:
   int myNumSamples = myTimeMax / myTimeStep;
   int myElementSource = 0;
 
-  model::ModelStruct<float, int> m_mesh_storage;
-  model::ModelUnstruct<float, int> m_umesh_storage;
+  std::variant <
+    model::ModelStruct<float, int, 1>,
+    model::ModelStruct<float, int, 2>,
+    model::ModelStruct<float, int, 3>,
+    model::ModelStruct<float, int, 4>,
+    model::ModelUnstruct<float, int>
+    > m_mesh_storage;
   model::ModelApi<float, int>* m_mesh;
   std::unique_ptr<SolverBase> m_solver;
   SolverUtils myUtils;
