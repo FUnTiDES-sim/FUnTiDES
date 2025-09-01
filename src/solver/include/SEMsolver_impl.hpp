@@ -125,34 +125,6 @@ computeElementContributions(int i2,
     pnLocal[i] = pnGlobal(globalIdx, i2);
   }
 
-  // Compile-time selection: CLASSIC vs others
-  if constexpr (std::is_same_v<
-                  INTEGRAL_TYPE,
-                  typename IntegralTypeSelector<ORDER, IntegralType::CLASSIC>::type>) {
-    // === CLASSIC path ===
-    float nodeCoords[nPointsElement][3];
-    int I = 0;
-    for (int k = 0; k < m_mesh.getOrder() + 1; k++) {
-      for (int j = 0; j < m_mesh.getOrder() + 1; j++) {
-        for (int i = 0; i < m_mesh.getOrder() + 1; i++) {
-          int nodeIdx = m_mesh.globalNodeIndex(elementNumber, i, j, k);
-          nodeCoords[I][0] = m_mesh.nodeCoord(nodeIdx, 0);
-          nodeCoords[I][2] = m_mesh.nodeCoord(nodeIdx, 2);
-          nodeCoords[I][1] = m_mesh.nodeCoord(nodeIdx, 1);
-          I++;
-        }
-      }
-    }
-
-  INTEGRAL_TYPE::computeMassMatrixAndStiffnessVector( elementNumber,
-                                                      m_mesh.getNumberOfPointsPerElement(),
-                                                      nodeCoords,
-                                                      m_precomputedIntegralData,
-                                                      massMatrixLocal,
-                                                      pnLocal,
-                                                      Y );
-  } else {
-    // === OPTIM / GEOS / SHIVA path ===
     float cornerCoords[8][3];
     int I = 0;
     int nodes_corner[2] = {0, m_mesh.getOrder()};
@@ -175,7 +147,6 @@ computeElementContributions(int i2,
                                                       massMatrixLocal,
                                                       pnLocal,
                                                       Y );
-  }
 
   auto const inv_model2 =
       1.0f / (m_mesh.getModelVpOnElement(elementNumber) *
