@@ -29,13 +29,13 @@ if(COMPILE_SEM)
     target_link_libraries(pysem
       PRIVATE
         solver
-        cartesian_builders
-        model_lib
-        utils
+        proxy_model_builder_cartesian
+        proxy_model_struct
+        proxy_model_unstruct
+        proxy_utils
     )
 
-    set_target_properties(pysem PROPERTIES INTERPROCEDURAL_OPTIMIZATION FALSE)
-    set_target_properties(pysem PROPERTIES POSITION_INDEPENDENT_CODE TRUE)
+    configure_python_module(pysem)
   endif()
 endif()
 
@@ -50,7 +50,11 @@ if(COMPILE_FD)
     ${CMAKE_CURRENT_SOURCE_DIR}/../discretization
   )
 
-  target_link_libraries(fdproxy PRIVATE discretization proxy_utils)
+  target_link_libraries(fdproxy
+    PRIVATE
+      discretization
+      proxy_utils
+  )
 
   target_link_kokkos_if_enabled(fdproxy)
 endif()
