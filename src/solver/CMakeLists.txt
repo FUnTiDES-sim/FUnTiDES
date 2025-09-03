@@ -13,29 +13,15 @@ add_library(solver
             src/SEMQ2_shiva_solver.cpp
             src/SEMQ3_shiva_solver.cpp)
 
-# Allow to link agains any model and mesh library that respects the API
-if(NOT DEFINED SOLVER_MODEL_INTERFACE)
-  set(SOLVER_MODEL_INTERFACE ${CMAKE_CURRENT_SOURCE_DIR}/../model)
-endif()
-
-if(NOT DEFINED SOLVER_MESH_LIBS)
-  set(SOLVER_MESH_LIBS model_lib)
-endif()
-
-message(STATUS "SOLVER_MODEL_INTERFACE: ${SOLVER_MODEL_INTERFACE}")
-message(STATUS "SOLVER_MESH_LIBS      : ${SOLVER_MESH_LIBS}")
-
 target_include_directories(
   solver
   PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
          ${CMAKE_CURRENT_SOURCE_DIR}/../discretization
-         ${SOLVER_MODEL_INTERFACE})
+)
 
-set(SOLV_LIBS discretization ${SOLVER_MESH_LIBS} utils)
+set(SOLV_LIBS discretization proxy_utils  proxy_model_struct proxy_model_unstruct)
 
-if(USE_KOKKOS)
-  list(APPEND SOLV_LIBS Kokkos::kokkos)
-endif()
+target_link_kokkos_if_enabled(solver)
 
 if(USE_OMP)
   find_package(OpenMP REQUIRED)

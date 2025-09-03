@@ -15,3 +15,7 @@ add_subdirectory( fe/SEMKernels )
 
 add_dependencies( discretization finiteElements shiva)
 
+target_link_libraries(discretization
+  INTERFACE
+    proxy_utils
+)

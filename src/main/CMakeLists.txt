@@ -14,9 +14,10 @@ if(COMPILE_SEM)
     PRIVATE
       discretization
       solver
-      cartesian_builders
-      model_lib
-      utils
+      proxy_model_builder_cartesian
+      proxy_model_struct
+      proxy_model_unstruct
+      proxy_utils
   )
 
   if (ENABLE_PYWRAP)
@@ -49,12 +50,7 @@ if(COMPILE_FD)
     ${CMAKE_CURRENT_SOURCE_DIR}/../discretization
   )
 
-  target_link_libraries(fdproxy PRIVATE discretization)
-  set(FD_LIBS utils)
+  target_link_libraries(fdproxy PRIVATE discretization proxy_utils)
 
-  if(USE_KOKKOS)
-    list(APPEND FD_LIBS Kokkos::kokkos)
-  endif()
-
-  target_link_libraries(fdproxy PRIVATE ${FD_LIBS})
+  target_link_kokkos_if_enabled(fdproxy)
 endif()
