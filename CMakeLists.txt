@@ -1,254 +1,39 @@
 cmake_minimum_required( VERSION 3.22.1 )
 
-
 #-----------------------------------------------------
-# Setup Flags for Building and Installation
+# Cmake debug flag
 #-----------------------------------------------------
-set (CMAKE_VERBOSE_MAKEFILE OFF )
-
-option (COMPILE_SEM "Compile Spectral Elements Method simulation" ON)
-option (COMPILE_FD "Compile finit elements simulation" ON)
-
-#-----------------------------------------------------
-# Setup the flags for users to select programming models
-#-----------------------------------------------------
-# use of Caliper to instrument code
-option (USE_CALIPER "Use Caliper instrumentation" OFF)
-
-# use of EZV to instrument code
-option (USE_EZV "Use EZV instrumentation" OFF)
-
-# use vector data type. Needed for serial version
-option (USE_VECTOR "Use vectors." ON)
-# use OMP to parallelise loops
-option (USE_OMP "Use OpenMP to parallelise loops" OFF)
-
-# use KOKOS to expose parallelism loop
-option (USE_KOKKOS "Use KOKKOS to parallelise loops" OFF)
-
-# Enable or not cuda
-option (ENABLE_CUDA "Enable cuda compilation" OFF)
-
-# Enable the python wrapping compilation
-option (ENABLE_PYWRAP "Enable python binding compilation with pybind11" OFF)
-
-# Chose data model
-option (USE_SIMPLE_MESH "Use Simple mesh" ON)
+set(CMAKE_VERBOSE_MAKEFILE OFF)
 
 #--------------------------------------------------------
-# Option to save snapshots of wavefields (for debugging)
+# Configure compiler/project
 #--------------------------------------------------------
-option (SEM_SAVE_SNAPSHOTS "save snapshots for SEM-proxy" OFF)
-option (FD_SAVE_SNAPSHOTS "save snapshots for FD-proxy" OFF)
+include(cmake/CompilerConfig.cmake) # This must go *before* project()
+project(proxyapp)
+include(cmake/ProxyConfig.cmake)    # This must go *before* other configurations
 
-#------------------------------------------------------
-# Option to printout memory allocation info of arrays
-#------------------------------------------------------
-option (PRINT_ALLOC_INFO "printout memory allocation info" OFF)
+#--------------------------------------------------------
+# Configure
+#--------------------------------------------------------
+include(cmake/OpenmpConfig.cmake)
+include(cmake/PywrapConfig.cmake)   # This must go *before* add_subdirectory(kokkos)
+include(cmake/KokkosConfig.cmake)
+include(cmake/CaliperConfig.cmake)
+include(cmake/EasyVizConfig.cmake)
 
-#---------------------------------------------------------
-# Option to use hierarchical parallelism in Kokkos
-#---------------------------------------------------------
-option (USE_KOKKOS_TEAMS "use hierarchical parallelism in Kokkos" OFF)
+#--------------------------------------------------------
+# Custom cmake functions
+#--------------------------------------------------------
+include(cmake/KokkosUtils.cmake)
+include(cmake/ProxyUtils.cmake)
+include(cmake/PywrapUtils.cmake)
 
-option(BUILD_SHARED_LIBS "Build shared libraries" ON)
-# So make install will copy pykokkos-base onto proxy folder
-if(CMAKE_INSTALL_PREFIX_INITIALIZED_TO_DEFAULT)
-  set(CMAKE_INSTALL_PREFIX "." CACHE PATH "Install path prefix" FORCE)
-endif()
+#--------------------------------------------------------
+# Subdirectories
+#--------------------------------------------------------
+add_subdirectory(src)
 
-#-------------------------------------------------------------------
-# setup compilation flags
-#-------------------------------------------------------------------
-# CC options
-if(DEFINED CMAKE_C_COMPILER)
-  message(STATUS "The CMAKE_C_COMPILER is ${CMAKE_C_COMPILER}")
-else()
-  set(CMAKE_C_COMPILER  /usr/bin/gcc-12  CACHE STRING "")
-endif()
-set(CMAKE_C_FLAGS_RELEASE "-O3 -DNDEBUG" CACHE STRING "")
-set(CMAKE_C_FLAGS_RELWITHDEBINFO "-g ${CMAKE_C_FLAGS_RELEASE}" CACHE STRING "")
-set(CMAKE_C_FLAGS_DEBUG "-O0 -g" CACHE STRING "")
-
-# C++ options
-if(DEFINED CMAKE_CXX_COMPILER)
-  message(STATUS "The CMAKE_CXX_COMPILER is ${CMAKE_CXX_COMPILER}")
-else()
-  set(CMAKE_CXX_COMPILER /usr/bin/g++-12  CACHE PATH "")
-endif()
-set(CMAKE_CXX_FLAGS_RELEASE "-O3 -DNDEBUG " CACHE STRING "")
-set(CMAKE_CXX_FLAGS_RELWITHDEBINFO "-g ${CMAKE_CXX_FLAGS_RELEASE}" CACHE STRING "")
-set(CMAKE_CXX_FLAGS_DEBUG "-O0 -g" CACHE STRING "")
-set(CMAKE_CXX_STANDARD 17 CACHE STRING "")
-set(CMAKE_CXX_EXTENSIONS OFF CACHE BOOL "Disable gnu++ extensions" FORCE)
-set(CMAKE_CUDA_HOST_COMPILER ${CMAKE_CXX_COMPILER} CACHE STRING "" FORCE)
-set(CMAKE_CUDA_ARCHITECTURES native CACHE STRING "Auto-detect CUDA arch" FORCE)
-
-project( proxyapp )
-
-################################
-# SEM USE OMP
-################################
-# the solver is using OpenMP+Vector on CPU
-if(USE_OMP AND NOT USE_KOKKOS)
-  message(STATUS "BUILDING SOLVER including OpenMP+Vector on CPU")
-  find_package(OpenMP REQUIRED)
-  set (ENABLE_CUDA OFF CACHE STRING "" FORCE)
-  set (USE_VECTOR ON CACHE BOOL "" FORCE)
-  message ("-- USE_OMP flag is set: USE_VECTOR= ${USE_VECTOR} ")
-else()
-    message ("-- USE_OMP flag is set to be false or Kokkos activated. OMP is not enabled")
-endif()
-
-################################
-# PYTHON WRAPPING
-################################
-if (ENABLE_PYWRAP)
-  message(STATUS "-- Enabling Python wrapping librairies. Using pybind11")
-  find_package(Python COMPONENTS Interpreter Development REQUIRED)
-  add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/external/pybind11)
-  set(CMAKE_INTERPROCEDURAL_OPTIMIZATION FALSE CACHE BOOL "Disable global LTO" FORCE)
-  set(CMAKE_POSITION_INDEPENDENT_CODE ON)
-endif()
-# This must go *before* add_subdirectory(kokkos)
-
-
-################################
-# KOKKOS
-################################
-# the solver is using KOKKOS if USE_KOKKOS is ON
-if (NOT USE_KOKKOS)
-  message ("-- USE_KOKKOS flag is set to false. KOKKOS is not enabled")
-else ()
-  message (STATUS "Building the application with Kokkos.")
-  set(USE_VECTOR OFF CACHE BOOL "" FORCE)
-
-  set(Kokkos_SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/external/kokkos)
-  set(Kokkos_BINARY_DIR ${CMAKE_BINARY_DIR}/external/kokkos/)
-
-  set(Kokkos_ENABLE_SERIAL ON CACHE BOOL "" FORCE)
-  set(Kokkos_ENABLE_OPENMP ON CACHE BOOL "" FORCE)
-  set(Kokkos_ENABLE_SHARED ON CACHE BOOL "" FORCE)
-  if (ENABLE_CUDA)
-    set(Kokkos_ENABLE_CUDA ON CACHE BOOL "" FORCE)
-    set(Kokkos_ENABLE_CUDA_CONSTEXPR ON CACHE BOOL "" FORCE)
-    set(Kokkos_ENABLE_CUDA_UVM ON CACHE BOOL "" FORCE)
-    set(Kokkos_ENABLE_CUDA_LAMBDA ON CACHE BOOL "" FORCE)
-    set(Kokkos_ENABLE_CUDA_RELOCATE_DEVICE_CODE OFF CACHE BOOL "" FORCE)
-    if(CMAKE_BUILD_TYPE STREQUAL "Debug" OR CMAKE_BUILD_TYPE STREQUAL "RelWithDebInfo")
-      set(Kokkos_ENABLE_DEBUG ON CACHE BOOL "" FORCE)
-    endif()
-    message (STATUS "-- Activating CUDA with Kokkos.")
-  endif()
-  add_subdirectory(${Kokkos_SOURCE_DIR})
-  message (STATUS "-- Kokkos Activated. Source are at ${Kokkos_SOURCE_DIR}.")
-  if(ENABLE_PYWRAP)
-    set(ENABLE_MEMORY_TRAITS OFF)
-    set(Kokkos_ENABLE_PYTHON ON)
-    set(Kokkos_ENABLE_DEBUG OFF)
-    set(BUILD_SHARE_LIBS ON CACHE BOOL "" FORCE)
-    set(Kokkos_ENABLE_SERIAL ON CACHE BOOL "" FORCE)
-    set(ENABLE_INTERNAL_KOKKOS OFF CACHE BOOL "" FORCE)
-    set(ENABLE_INTERNAL_PYBIND11 OFF CACHE BOOL "" FORCE)
-    set(Kokkos_DIR "${Kokkos_BINARY_DIR}" CACHE PATH "Use external Kokkos build")
-    message(STATUS "-- Enabling pykokkos base.")
-    add_subdirectory(external/pykokkos-base)
-    # Installing pykokkos-base python lib.
-    set(PYKOKKOS_BUILD_DIR "${CMAKE_BINARY_DIR}/external/pykokkos-base/kokkos")
-    file(GLOB PYKOKKOS_MODULE_SO "${PYKOKKOS_BUILD_DIR}/libpykokkos*.so")
-
-      install(
-        FILES ${PYKOKKOS_MODULE_SO}
-        DESTINATION proxy
-      )
-  endif()
-endif()
-
-################################
-## Shiva
-###############################
-#-------------------------------------------------------------------
-# setup for Shiva
-## -- the default is using Shiva library
-## -- if USE_SHIVA=OFF it will use the SEM as in GEOS
-#-------------------------------------------------------------------
-# if( USE_SHIVA )
-#   configure_file( ${CMAKE_CURRENT_SOURCE_DIR}/src/discretization/Shiva/src/ShivaConfig.hpp.in
-#                   ${CMAKE_BINARY_DIR}/src/ShivaConfig.hpp )
-#   configure_file( ${CMAKE_CURRENT_SOURCE_DIR}/src/discretization/Shiva/tpl/camp/include/camp/config.in.hpp
-#                   ${PROJECT_BINARY_DIR}/src/camp/config.hpp)
-#   message(STATUS "USE SHIVA as a submodule")
-#   include_directories(${CMAKE_CURRENT_SOURCE_DIR}/src/discretization/Shiva/tpl/camp/include/
-#                       ${PROJECT_BINARY_DIR}/src/
-#                       ${PROJECT_BINARY_DIR}/src/camp/)
-# endif()
-###############################
-
-
-################################
-## Caliper
-###############################
-if(NOT USE_CALIPER)
-    message("-- USE_CALIPER is set to false. CALIPER is not enabled")
-elseif(EXISTS $ENV{CALIPER_DIR}/share/cmake/caliper/caliper-config.cmake)
-    message("-- Using Caliper for code instrumentation")
-    # Manually set the paths
-    set(CALIPER_INCLUDE_DIRS "$ENV{CALIPER_DIR}/include")
-    set(CALIPER_LIBRARIES "$ENV{CALIPER_DIR}/lib/libcaliper.so")
-    message(STATUS "Caliper Include Dirs: ${CALIPER_INCLUDE_DIRS}")
-    message(STATUS "Caliper Libraries: ${CALIPER_LIBRARIES}")
-    include_directories(${CALIPER_INCLUDE_DIRS})
-    link_directories(${CALIPER_DIR}/lib)
-    # Find package
-    set(caliper_DIR "$ENV{CALIPER_DIR}/share/cmake/caliper")
-    find_package(caliper REQUIRED)
-    message("-- Caliper founded at $ENV{CALIPER_DIR}")
-
-    add_definitions(-DUSE_CALIPER)
-elseif(NOT DEFINED $ENV{CALIPER_DIR})
-    message("-- USE_CALIPER is enabled but CALIPER_DIR is not defined.")
-    set(USE_CALIPER OFF CACHE BOOL "")
-else()
-    message("-- USE_CALIPER is enabled but unknown error occured.")
-    set(USE_CALIPER OFF CACHE BOOL "")
-endif()
-
-################################
-## Easy Viz
-###############################
-if(NOT USE_EZV)
-    message("-- USE_EZV is set to false. EZV is not enabled")
-elseif(EXISTS $ENV{EASYPAP_DIR}/lib/cmake/Easypap/ezvConfig.cmake)
-    message("-- Using EZV for code instrumentation")
-    # Find Scotch dependancy
-    message("-- Scotch is required for ezv to work.")
-    message("-- SCOTCH_DIR variable must be set at scotch root directory.")
-    set(SCOTCH_DIR "$ENV{SCOTCH_DIR}/lib/cmake/scotch")
-    message("-- SCOTCH_DIR now set at $ENV{SCOTCH_DIR}.")
-    # Find package
-    set(Easypap_ROOT "$ENV{EASYPAP_DIR}/lib/cmake/Easypap")
-    find_package(Easypap COMPONENTS ezv REQUIRED)
-    set(EZV_INCLUDE_DIRS "$ENV{EASYPAP_DIR}/include")
-    set(EZV_LIBRARIES "$ENV{EASYPAP_DIR}/lib/libezv.so")
-    message("-- EZV founded at $ENV{EASYPAP_DIR}")
-    message(STATUS "EZV Include Dirs: ${EZV_INCLUDE_DIRS}")
-    message(STATUS "EZV Libraries: ${EZV_LIBRARIES}")
-    # SDL 2 configuration
-    message("-- SLD2 must be installed for EZV.")
-    find_package(SDL2 REQUIRED)
-    include_directories(${SDL2_INCLUDE_DIRS})
-
-   set (dependencyList ${dependencyList} sdl2)
-elseif(NOT DEFINED $ENV{EASYPAP_DIR})
-    message("-- USE_EZV is enabled but EASYPAP_DIR is not defined.")
-    set(USE_EZV OFF CACHE BOOL "")
-else()
-    message("-- USE_EZV flag is enabled but unknown error occured.")
-    set(USE_EZV OFF CACHE BOOL "")
-endif()
-
-
-configure_file( ${CMAKE_CURRENT_SOURCE_DIR}/src/utils/include/commonConfig.hpp.in
-                ${CMAKE_BINARY_DIR}/src/utils/include/commonConfig.hpp)
-
- add_subdirectory(src)
+#--------------------------------------------------------
+# Print configuration summary
+#--------------------------------------------------------
+print_configuration_summary()
