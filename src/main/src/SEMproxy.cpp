@@ -34,17 +34,17 @@ SEMproxy::SEMproxy(const SemProxyOptions& opt) {
   if (meshType == SolverFactory::Struct) {
     switch(order) {
       case 1: {
-        model_builder::CartesianStructBuilder<float, int, 1> builder;
+        model::CartesianStructBuilder<float, int, 1> builder;
         m_mesh_storage = builder.getModel(ex, lx/ex);
         break;
       }
       case 2: {
-        model_builder::CartesianStructBuilder<float, int, 2> builder;
+        model::CartesianStructBuilder<float, int, 2> builder;
         m_mesh_storage = builder.getModel(ex, lx/ex);
         break;
       }
       case 3: {
-        model_builder::CartesianStructBuilder<float, int, 3> builder;
+        model::CartesianStructBuilder<float, int, 3> builder;
         m_mesh_storage = builder.getModel(ex, lx/ex);
         break;
       }
@@ -57,8 +57,8 @@ SEMproxy::SEMproxy(const SemProxyOptions& opt) {
     lz = lx;
   }
   else if (meshType == SolverFactory::Unstruct) {
-    model_builder::CartesianParams<float, int> param(order, ex, ey, ez,  lx, ly, lz);
-    model_builder::CartesianUnstructBuilder<float, int> builder(param);
+    model::CartesianParams<float, int> param(order, ex, ey, ez,  lx, ly, lz);
+    model::CartesianUnstructBuilder<float, int> builder(param);
     m_mesh_storage = builder.getModel();
   }
   else {
