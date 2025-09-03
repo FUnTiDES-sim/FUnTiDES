@@ -266,5 +266,3 @@ src/LvArra*
 external/pybind11
 external/kokkos
 external/pykokkos-base
-*build*
-*install*
