@@ -20,9 +20,12 @@
 
 SEMproxy::SEMproxy(const SemProxyOptions& opt) {
   const int order = opt.order;
-  const int ex = opt.ex;
-  int ey = opt.ey;
-  int ez = opt.ez;
+  nb_elements_[0] = opt.ex;
+  nb_elements_[1] = opt.ey;
+  nb_elements_[2] = opt.ez;
+  nb_nodes[0] = opt.ex * order + 1;
+  nb_nodes[1] = opt.ey * order + 1;
+  nb_nodes[2] = opt.ez * order + 1;
   const float lx = opt.lx;
   float ly = opt.ly;
   float lz = opt.lz;
@@ -32,31 +35,37 @@ SEMproxy::SEMproxy(const SemProxyOptions& opt) {
   const SolverFactory::meshType meshType = getMesh( opt.mesh );
 
   if (meshType == SolverFactory::Struct) {
+    int e = nb_elements_[0];
+    int element_size = lx / e;
     switch(order) {
       case 1: {
         model_builder::CartesianStructBuilder<float, int, 1> builder;
-        m_mesh_storage = builder.getModel(ex, lx/ex);
+        m_mesh_storage = builder.getModel(e, element_size);
         break;
       }
       case 2: {
         model_builder::CartesianStructBuilder<float, int, 2> builder;
-        m_mesh_storage = builder.getModel(ex, lx/ex);
+        m_mesh_storage = builder.getModel(e, element_size);
         break;
       }
       case 3: {
         model_builder::CartesianStructBuilder<float, int, 3> builder;
-        m_mesh_storage = builder.getModel(ex, lx/ex);
+        m_mesh_storage = builder.getModel(e, element_size);
         break;
       }
       default:
         throw std::runtime_error("Order other than 1 2 3 is not supported (semproxy)");
     }
-    ey = ex;
-    ez = ex;
+    nb_elements_[1] = nb_elements_[0];
+    nb_elements_[2] = nb_elements_[0];
     ly = lx;
     lz = lx;
   }
   else if (meshType == SolverFactory::Unstruct) {
+    int ex = nb_elements_[0];
+    int ey = nb_elements_[1];
+    int ez = nb_elements_[2];
+
     model_builder::CartesianParams<float, int> param(order, ex, ey, ez,  lx, ly, lz);
     model_builder::CartesianUnstructBuilder<float, int> builder(param);
     m_mesh_storage = builder.getModel();
@@ -75,7 +84,7 @@ SEMproxy::SEMproxy(const SemProxyOptions& opt) {
   initFiniteElem();
 
   std::cout << "Starting simulation with Cartesian Mesh of size "
-            << "(" << ex << ',' << ey << ',' << ez << ')' << std::endl;
+            << "(" << nb_elements_[0] << ',' << nb_elements_[1] << ',' << nb_elements_[2] << ')' << std::endl;
   std::cout << "Number of node is " << m_mesh->getNumberOfNodes() << std::endl;
   std::cout << "Number of element is " << m_mesh->getNumberOfElements() << std::endl;
   std::cout << "Size of the domain is "
@@ -155,10 +164,14 @@ void SEMproxy::init_arrays() {
 // Initialize sources
 void SEMproxy::init_source() {
   arrayReal myRHSLocation = allocateArray2D<arrayReal>(1, 3, "RHSLocation");
-  std::cout << "All source are currently are coded on element 50." << std::endl;
+  // std::cout << "All source are currently are coded on element 50." << std::endl;
+  std::cout << "All source are currently are coded on middle element." << std::endl;
+  int ex = nb_elements_[0];
+  int ey = nb_elements_[1];
+  int ez = nb_elements_[2];
+  int source_index = ex/2 + ey/2 * ex + ez/2 * ey * ex;
   for (int i = 0; i < 1; i++) {
-    // TODO: Make a better source init
-    rhsElement[i] = 50;
+    rhsElement[i] = source_index;
   }
 
   // initialize source term
@@ -169,10 +182,12 @@ void SEMproxy::init_source() {
     if (j % 100 == 0)
       cout << "Sample " << j << "\t: sourceTerm = " << sourceTerm[j] << endl;
   }
+
   // get element number of source term
   myElementSource = rhsElement[0];
   cout << "Element number for the source location: " << myElementSource << endl
        << endl;
+
   // Setting the weight for source ponderation on node.
   for (int i = 0; i < myNumberOfRHS; i++)
   {
