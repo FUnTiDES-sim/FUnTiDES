@@ -55,7 +55,9 @@ public:
   * Format: space-separated matrix with blank lines between rows for 3D plotting
   */
   void saveSlice(const VECTOR_REAL_VIEW& host_slice,
-                int size, const std::string& filepath);
+                int sizex, int sizey, const std::string& filepath) const;
+
+  void saveSnapshot(int timesample) const;
 
 private:
   int i1 = 0;
@@ -64,7 +66,7 @@ private:
   // proper to cartesian mesh
   // or any structured mesh
   int nb_elements_[3] = {0};
-  int nb_nodes[3] = {0};
+  int nb_nodes_[3] = {0};
 
   const int myNumberOfRHS = 1;
   const float myTimeStep = 0.001;
