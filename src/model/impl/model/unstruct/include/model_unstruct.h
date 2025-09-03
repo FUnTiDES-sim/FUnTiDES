@@ -1,7 +1,7 @@
 #ifndef SRC_MODEL_MODELAPI_INCLUDE_MODEL_UNSTRUCT_H_
 #define SRC_MODEL_MODELAPI_INCLUDE_MODEL_UNSTRUCT_H_
 
-#include "model_api.h"
+#include <model.h>
 
 namespace model {
 template<typename FloatType, typename ScalarType>

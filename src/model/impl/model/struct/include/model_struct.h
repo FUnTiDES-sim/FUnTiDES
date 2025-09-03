@@ -1,7 +1,7 @@
 #ifndef SRC_MODEL_MODELAPI_INCLUDE_MODEL_STRUCT_H_
 #define SRC_MODEL_MODELAPI_INCLUDE_MODEL_STRUCT_H_
 
-#include "model_api.h"
+#include <model.h>
 #include "gllpoints.h"
 
 namespace model {

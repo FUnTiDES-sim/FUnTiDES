@@ -1,7 +1,6 @@
 #ifndef SRC_MODEL_MODELAPI_INCLUDE_GLLPOINTS_H_
 #define SRC_MODEL_MODELAPI_INCLUDE_GLLPOINTS_H_
 
-#pragma once
 #include <array>
 #include <cstddef>
 
