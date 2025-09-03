@@ -64,7 +64,7 @@ private:
 
   // proper to cartesian mesh
   // or any structured mesh
-  int nb_elements[3] = {0};
+  int nb_elements_[3] = {0};
   int nb_nodes[3] = {0};
 
   const int myNumberOfRHS = 1;
