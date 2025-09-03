@@ -20,17 +20,17 @@ public:
   };
 
   // Pure virtual function to compute one step of the solver
-  virtual void computeOneStep(const float & dt,
-                              const int & timeSample,
-                              DataStruct & data ) = 0;
+  virtual void computeOneStep( const float & dt,
+                               const int & timeSample,
+                               DataStruct & data ) = 0;
 
   // Pure virtual function to initialize finite element components
-  virtual void computeFEInit( model::ModelApi<float, int>& mesh ) = 0;
+  virtual void computeFEInit( model::ModelApi< float, int > & mesh ) = 0;
 
   virtual void outputPnValues( const int &indexTimeStep,
                                int &i1,
                                int &myElementSource,
-                               const ARRAY_REAL_VIEW &pnGlobal) = 0;
+                               const ARRAY_REAL_VIEW &pnGlobal ) = 0;
 
 };
 

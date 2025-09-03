@@ -5,19 +5,19 @@
 #include <dataType.hpp>
 
 /**
-  * @enum BoundaryFlag
-  * @brief Flags representing the boundary condition type of a mesh node.
-  *
-  * This enumeration is used to mark nodes of the SEM mesh with specific
-  * boundary properties. Multiple flags can be combined using bitwise OR.
-  */
+ * @enum BoundaryFlag
+ * @brief Flags representing the boundary condition type of a mesh node.
+ *
+ * This enumeration is used to mark nodes of the SEM mesh with specific
+ * boundary properties. Multiple flags can be combined using bitwise OR.
+ */
 enum BoundaryFlag: uint8_t
 {
-    InteriorNode = 0,        ///< Node inside the domain
-    Damping      = 1 << 0,   ///< Node in damping boundary zone
-    Sponge       = 1 << 1,   ///< Node in sponge layer
-    Surface      = 1 << 2,   ///< Node on a free surface
-    Ghost        = 1 << 3    ///< Ghost node for halo/exchange
+  InteriorNode = 0,          ///< Node inside the domain
+  Damping      = 1 << 0,     ///< Node in damping boundary zone
+  Sponge       = 1 << 1,     ///< Node in sponge layer
+  Surface      = 1 << 2,     ///< Node on a free surface
+  Ghost        = 1 << 3      ///< Ghost node for halo/exchange
 };
 
 
@@ -33,7 +33,7 @@ enum BoundaryFlag: uint8_t
  * @tparam coord_t           Type used to represent spatial coordinates (real number)
  * @tparam index_t           Type used for indexing global nodes and elements
  */
-template <typename coord_t, typename index_t>
+template< typename coord_t, typename index_t >
 class BaseMesh
 {
 
@@ -58,7 +58,7 @@ public:
    * @return Coordinate value in the specified dimension
    */
   PROXY_HOST_DEVICE
-  virtual coord_t nodeCoord(index_t dofGlobal, int dim) const = 0;
+  virtual coord_t nodeCoord( index_t dofGlobal, int dim ) const = 0;
 
   /**
    * @brief Get the global node index for a local element-node triplet.
@@ -70,7 +70,7 @@ public:
    * @return Global node index
    */
   PROXY_HOST_DEVICE
-  virtual index_t globalNodeIndex(index_t e, int i, int j, int k) const = 0;
+  virtual index_t globalNodeIndex( index_t e, int i, int j, int k ) const = 0;
 
   /**
    * @brief Get the P-wave velocity value at a global node.
@@ -79,7 +79,7 @@ public:
    * @return Model P-wave velocity value at the node
    */
   PROXY_HOST_DEVICE
-  virtual coord_t getModelVpOnNodes(index_t n) const = 0;
+  virtual coord_t getModelVpOnNodes( index_t n ) const = 0;
 
   /**
    * @brief Get the average P-wave velocity value on a given element.
@@ -88,7 +88,7 @@ public:
    * @return Model P-wave velocity value for the element
    */
   PROXY_HOST_DEVICE
-  virtual coord_t getModelVpOnElement(index_t e) const = 0;
+  virtual coord_t getModelVpOnElement( index_t e ) const = 0;
 
   /**
    * @brief Get the density value at a global node.
@@ -97,7 +97,7 @@ public:
    * @return Model density value at the node
    */
   PROXY_HOST_DEVICE
-  virtual coord_t getModelRhoOnNodes(index_t n) const = 0;
+  virtual coord_t getModelRhoOnNodes( index_t n ) const = 0;
 
   /**
    * @brief Get the average density value on a given element.
@@ -106,7 +106,7 @@ public:
    * @return Model density value for the element
    */
   PROXY_HOST_DEVICE
-  virtual coord_t getModelRhoOnElement(index_t e) const = 0;
+  virtual coord_t getModelRhoOnElement( index_t e ) const = 0;
 
   /**
    * @brief Get the total number of elements in the mesh.
@@ -147,7 +147,7 @@ public:
    * @return A combination of BoundaryFlag values
    */
   PROXY_HOST_DEVICE
-  virtual BoundaryFlag boundaryType(index_t n) const = 0;
+  virtual BoundaryFlag boundaryType( index_t n ) const = 0;
 
   /**
    * @brief Compute the outward unit normal vector of an element face.
@@ -158,52 +158,52 @@ public:
    * @param[out] v Output array (size 3) holding the normal vector
    */
   PROXY_HOST_DEVICE
-  virtual void faceNormal(index_t e, int dir, int face, coord_t v[3]) const = 0;
+  virtual void faceNormal( index_t e, int dir, int face, coord_t v[3] ) const = 0;
 
   /**
-  * @brief Get the size of the domain in the specified dimension.
-  *
-  * This function returns the size of the domain along the given dimension.
-  * Dimensions are typically 0 (X), 1 (Y), or 2 (Z).
-  *
-  * @param dim The dimension index (0 for X, 1 for Y, 2 for Z).
-  * @return The size of the domain along the specified dimension.
-  */
+   * @brief Get the size of the domain in the specified dimension.
+   *
+   * This function returns the size of the domain along the given dimension.
+   * Dimensions are typically 0 (X), 1 (Y), or 2 (Z).
+   *
+   * @param dim The dimension index (0 for X, 1 for Y, 2 for Z).
+   * @return The size of the domain along the specified dimension.
+   */
   PROXY_HOST_DEVICE
-  virtual coord_t domainSize(int dim) const = 0;
+  virtual coord_t domainSize( int dim ) const = 0;
 
   /**
-  * @brief Get the element index at the given coordinate.
-  *
-  * This function returns the index of the element located at the
-  * specified (x, y, z) coordinates within the domain.
-  *
-  * @param x The X coordinate.
-  * @param y The Y coordinate.
-  * @param z The Z coordinate.
-  * @return The element index corresponding to the given coordinates.
-  */
+   * @brief Get the element index at the given coordinate.
+   *
+   * This function returns the index of the element located at the
+   * specified (x, y, z) coordinates within the domain.
+   *
+   * @param x The X coordinate.
+   * @param y The Y coordinate.
+   * @param z The Z coordinate.
+   * @return The element index corresponding to the given coordinates.
+   */
   PROXY_HOST_DEVICE
-  virtual index_t elementFromCoordinate(coord_t x, coord_t y, coord_t z) const = 0;
+  virtual index_t elementFromCoordinate( coord_t x, coord_t y, coord_t z ) const = 0;
 
   /**
-  * Extract an XY slice from a Kokkos 1D View representing a 3D cubic array
-  *
-  * For Kokkos:
-  * Extract XY slice using subview (more efficient, zero-copy)
-  * Returns a subview that shares memory with the original array
-  *
-  * @param array_1d: Input Kokkos 1D View containing 3D data (stored in X-Y-Z order)
-  * @param size: Size of each dimension (assuming cubic array: size x size x size)
-  * @param z: Z-level to extract (0 to size-1)
-  * @return: Kokkos 1D View containing the XY slice
-  */
+   * Extract an XY slice from a Kokkos 1D View representing a 3D cubic array
+   *
+   * For Kokkos:
+   * Extract XY slice using subview (more efficient, zero-copy)
+   * Returns a subview that shares memory with the original array
+   *
+   * @param array_1d: Input Kokkos 1D View containing 3D data (stored in X-Y-Z order)
+   * @param size: Size of each dimension (assuming cubic array: size x size x size)
+   * @param z: Z-level to extract (0 to size-1)
+   * @return: Kokkos 1D View containing the XY slice
+   */
   virtual
   VECTOR_REAL_VIEW
-  extractXYSlice(const VECTOR_REAL_VIEW& array, index_t size, index_t z) const
+  extractXYSlice( const VECTOR_REAL_VIEW & array, index_t size, index_t z ) const
   {
     std::cout << "ExctractXYSlice is not implemented in MeshBase" << std::endl;
-    throw std::runtime_error("ExtractXYSlice not implemented");  // Proper exception
+    throw std::runtime_error( "ExtractXYSlice not implemented" );  // Proper exception
   };
 
 };

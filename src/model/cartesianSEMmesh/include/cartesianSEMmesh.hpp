@@ -22,13 +22,14 @@
  *
  * @see BaseMesh
  */
-template <typename coord_t, typename index_t, int ORDER>
-class CartesianSEMmesh : public BaseMesh<coord_t, index_t> {
+template< typename coord_t, typename index_t, int ORDER >
+class CartesianSEMmesh : public BaseMesh< coord_t, index_t >
+{
 public:
   PROXY_HOST_DEVICE
   CartesianSEMmesh() {};
 
- /**
+  /**
    * @brief Constructs a structured mesh with element counts and physical sizes.
    *
    * @param ex_in   Number of elements in the X direction
@@ -40,24 +41,24 @@ public:
    * @param order   Polynomial interpolation order per element
    */
   PROXY_HOST_DEVICE
-  CartesianSEMmesh ( CartesianParams<index_t, coord_t> params )
-      : ex(params.ex), ey(params.ey), ez(params.ez),
-        lx(params.lx), ly(params.ly), lz(params.lz),
-        order(params.order)
+  CartesianSEMmesh ( CartesianParams< index_t, coord_t > params )
+    : ex( params.ex ), ey( params.ey ), ez( params.ez ),
+    lx( params.lx ), ly( params.ly ), lz( params.lz ),
+    order( params.order )
   {
     nx = ex * order + 1;
     ny = ey * order + 1;
     nz = ez * order + 1;
 
-    hx = lx / static_cast<float>(ex);
-    hy = ly / static_cast<float>(ey);
-    hz = lz / static_cast<float>(ez);
+    hx = lx / static_cast< float >(ex);
+    hy = ly / static_cast< float >(ey);
+    hz = lz / static_cast< float >(ez);
   }
 
   PROXY_HOST_DEVICE ~CartesianSEMmesh(){};
 
   PROXY_HOST_DEVICE
-  coord_t nodeCoord(index_t dofGlobal, int dim) const override final
+  coord_t nodeCoord( index_t dofGlobal, int dim ) const override final
   {
     // Calculate total number of nodes per dimension
     int nodesPerDim[3];
@@ -79,13 +80,14 @@ public:
 
     // Handle boundary case: if we're at the last node of an element (except the last element),
     // it's actually the first node of the next element
-    if (localIdx == ORDER && elemIdx < (dim == 0 ? ex : (dim == 1 ? ey : ez)) - 1) {
-        elemIdx++;
-        localIdx = 0;
+    if ( localIdx == ORDER && elemIdx < (dim == 0 ? ex : (dim == 1 ? ey : ez)) - 1 )
+    {
+      elemIdx++;
+      localIdx = 0;
     }
 
     // Get the GLL point coordinate in reference element [-1, 1]
-    coord_t gllPoint = GLLPoints<ORDER>::get(localIdx);
+    coord_t gllPoint = GLLPoints< ORDER >::get( localIdx );
 
     // Map from reference element to physical element
     coord_t elementSize = (dim == 0) ? hx : ((dim == 1) ? hy : hz);
@@ -99,7 +101,7 @@ public:
 
 
   PROXY_HOST_DEVICE
-  index_t globalNodeIndex(index_t e, int i, int j, int k) const override final
+  index_t globalNodeIndex( index_t e, int i, int j, int k ) const override final
   {
     index_t elemZ = e / (ex * ey);
     index_t tmp   = e % (ex * ey);
@@ -120,25 +122,25 @@ public:
   }
 
   PROXY_HOST_DEVICE
-  coord_t getModelVpOnNodes(index_t n) const override final
+  coord_t getModelVpOnNodes( index_t n ) const override final
   {
     return 1500;
   }
 
   PROXY_HOST_DEVICE
-  coord_t getModelVpOnElement(index_t e) const override final
+  coord_t getModelVpOnElement( index_t e ) const override final
   {
     return 1500;
   }
 
   PROXY_HOST_DEVICE
-  coord_t getModelRhoOnNodes(index_t n) const override final
+  coord_t getModelRhoOnNodes( index_t n ) const override final
   {
     return 1;
   }
 
   PROXY_HOST_DEVICE
-  coord_t getModelRhoOnElement(index_t e) const override final
+  coord_t getModelRhoOnElement( index_t e ) const override final
   {
     return 1;
   }
@@ -163,42 +165,42 @@ public:
   }
 
   PROXY_HOST_DEVICE
-  BoundaryFlag boundaryType(index_t n) const override final
+  BoundaryFlag boundaryType( index_t n ) const override final
   {
     return BoundaryFlag::InteriorNode;
   }
 
   PROXY_HOST_DEVICE
-  void faceNormal(index_t e, int dir, int face, coord_t v[3]) const override final
+  void faceNormal( index_t e, int dir, int face, coord_t v[3] ) const override final
   {
     return;
   }
 
   PROXY_HOST_DEVICE
-  coord_t domainSize(int dim) const override final
+  coord_t domainSize( int dim ) const override final
   {
-    if (dim == 0) return lx;
-    if (dim == 1) return ly;
+    if ( dim == 0 ) return lx;
+    if ( dim == 1 ) return ly;
     return lz;
   }
 
   PROXY_HOST_DEVICE
-  index_t elementFromCoordinate(coord_t x, coord_t y, coord_t z) const override final
+  index_t elementFromCoordinate( coord_t x, coord_t y, coord_t z ) const override final
   {
-      // Calculate grid indices by scaling coordinates to grid space
-      int i = static_cast<int>(x * ex / lx);
-      int j = static_cast<int>(y * ey / ly);
-      int k = static_cast<int>(z * ez / lz);
+    // Calculate grid indices by scaling coordinates to grid space
+    int i = static_cast< int >(x * ex / lx);
+    int j = static_cast< int >(y * ey / ly);
+    int k = static_cast< int >(z * ez / lz);
 
-      // Calculate linear index using row-major ordering
-      int index = i + ex * (j + ey * k);
+    // Calculate linear index using row-major ordering
+    int index = i + ex * (j + ey * k);
 
-      return index_t(index);
+    return index_t( index );
   }
 
 #ifndef USE_KOKKOS
   VECTOR_REAL_VIEW
-  extractXYSlice(const VECTOR_REAL_VIEW& array, index_t size, index_t z) const override final
+  extractXYSlice( const VECTOR_REAL_VIEW & array, index_t size, index_t z ) const override final
   {
     int expected_size = size * size * size;
 
@@ -207,12 +209,12 @@ public:
     int start_index = z * slice_size;
 
     // // Create output view
-    VECTOR_REAL_VIEW xy_slice = allocateVector<vectorReal>(slice_size);
+    VECTOR_REAL_VIEW xy_slice = allocateVector< vectorReal >( slice_size );
 
     // Extract the slice using parallel_for
     // Kokkos::parallel_for("extract_xy_slice", slice_size, KOKKOS_LAMBDA(int i) {
     // LOOPHEAD(slice_size, i)
-        // xy_slice(i) = array_1d(start_index + i);
+    // xy_slice(i) = array_1d(start_index + i);
     // LOOPEND
     // });
 
@@ -221,23 +223,23 @@ public:
 
 #else // USE_KOKKOS
   VECTOR_REAL_VIEW
-  extractXYSlice(const VECTOR_REAL_VIEW& array, index_t size, index_t z)
+  extractXYSlice( const VECTOR_REAL_VIEW & array, index_t size, index_t z )
   const override final
   {
-      // Validate inputs
-      if (z < 0 || z >= size) {
-          Kokkos::abort("Z index out of bounds");
-      }
+    // Validate inputs
+    if ( z < 0 || z >= size )
+    {
+      Kokkos::abort( "Z index out of bounds" );
+    }
 
-      int slice_size = size * size;
-      int start_index = z * slice_size;
-      int end_index = start_index + slice_size;
+    int slice_size = size * size;
+    int start_index = z * slice_size;
+    int end_index = start_index + slice_size;
 
-      // Create subview (zero-copy operation)
-      return Kokkos::subview(array, Kokkos::make_pair(start_index, end_index));
+    // Create subview (zero-copy operation)
+    return Kokkos::subview( array, Kokkos::make_pair( start_index, end_index ));
   }
 #endif // USE_KOKKOS
-
 
 
 

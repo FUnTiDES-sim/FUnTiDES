@@ -7,21 +7,28 @@
 #include <caliper/cali.h>
 #include <string>
 
-inline int launch_caliper_ctx(int argc, char **argv, cali::ConfigManager & mgr) {
+inline int launch_caliper_ctx( int argc, char * *argv, cali::ConfigManager & mgr )
+{
   // Defines CALIPER configuration with cmdline arguments
   // Sets -P option to choose caliper outputs
   std::string cali_configuration;
-  if (cmdOptionExists(argv, argv + argc, "-P")) {
-    cali_configuration = getCmdOption(argv, argc + argv, "-P");
-  } else {
+  if ( cmdOptionExists( argv, argv + argc, "-P" ))
+  {
+    cali_configuration = getCmdOption( argv, argc + argv, "-P" );
+  }
+  else
+  {
     cali_configuration = "runtime-report";
   }
 
-  mgr.add(cali_configuration.c_str());
-  if (mgr.error()) {
+  mgr.add( cali_configuration.c_str());
+  if ( mgr.error())
+  {
     std::cerr << "Config error: " << mgr.error_msg() << std::endl;
     return -1;
-  } else {
+  }
+  else
+  {
     std::cout << "Starting Caliper with option set at: " << cali_configuration
               << std::endl;
   }

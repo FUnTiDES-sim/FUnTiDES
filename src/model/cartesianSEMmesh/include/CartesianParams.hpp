@@ -1,10 +1,10 @@
 #pragma once
 
-template <typename index_t, typename discretization_t>
+template< typename index_t, typename discretization_t >
 struct CartesianParams
 {
-    int order;
+  int order;
 
-    index_t ex, ey, ez;
-    discretization_t lx, ly, lz;
+  index_t ex, ey, ez;
+  discretization_t lx, ly, lz;
 };

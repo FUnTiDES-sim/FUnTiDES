@@ -18,9 +18,9 @@
 #endif
 
 #if defined(USE_KOKKOS) && !defined(SEM_MESHCOLOR)
-#define ATOMICADD(ADD1, ADD2) Kokkos::atomic_add(&ADD1, ADD2)
+#define ATOMICADD( ADD1, ADD2 ) Kokkos::atomic_add( &ADD1, ADD2 )
 #else
-#define ATOMICADD(ADD1, ADD2) ADD1 += ADD2
+#define ATOMICADD( ADD1, ADD2 ) ADD1 += ADD2
 #endif
 
 // define fence

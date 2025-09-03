@@ -24,13 +24,13 @@ struct SEMsolverData : SolverBase::DataStruct
                  ARRAY_REAL_VIEW const & rhsTerm,
                  ARRAY_REAL_VIEW const & pnGlobal,
                  VECTOR_INT_VIEW const & rhsElement,
-                 ARRAY_REAL_VIEW & rhsWeights):
-    m_i1(i1),
-    m_i2(i2),
-    m_rhsTerm(rhsTerm),
-    m_pnGlobal(pnGlobal),
-    m_rhsElement(rhsElement),
-    m_rhsWeights(rhsWeights)
+                 ARRAY_REAL_VIEW & rhsWeights ):
+    m_i1( i1 ),
+    m_i2( i2 ),
+    m_rhsTerm( rhsTerm ),
+    m_pnGlobal( pnGlobal ),
+    m_rhsElement( rhsElement ),
+    m_rhsWeights( rhsWeights )
   {}
 
   int m_i1;
@@ -44,7 +44,7 @@ struct SEMsolverData : SolverBase::DataStruct
 
 template< int ORDER,
           typename INTEGRAL_TYPE,
-          typename MESH_TYPE>
+          typename MESH_TYPE >
 class SEMsolver : public SolverBase
 {
 public:
@@ -64,7 +64,7 @@ public:
    *
    * @param mesh BaseMesh structure containing the domain information.
    */
-  virtual void computeFEInit(model::ModelApi<float, int>& mesh);
+  virtual void computeFEInit( model::ModelApi< float, int > & mesh );
 
   /**
    * @brief Compute one time step of the SEM wave equation solver.
@@ -97,7 +97,7 @@ public:
   virtual void outputPnValues( const int &indexTimeStep,
                                int &i1,
                                int &myElementSource,
-                               const ARRAY_REAL_VIEW &pnGlobal) override final;
+                               const ARRAY_REAL_VIEW &pnGlobal ) override final;
 
   /**
    * @brief Initialize arrays required by the finite element solver.
@@ -119,7 +119,7 @@ public:
    *
    * @param numNodes Total number of global nodes.
    */
-  void resetGlobalVectors(int numNodes);
+  void resetGlobalVectors( int numNodes );
 
   /**
    * @brief Apply external forcing to the global pressure field.
@@ -131,11 +131,11 @@ public:
    * @param pnGlobal     Global pressure field (modified in-place)
    * @param rhsWeights   Forcing weights per node
    */
-  void applyRHSTerm(int timeSample, float dt, int i2,
-                    const ARRAY_REAL_VIEW &rhsTerm,
-                    const VECTOR_INT_VIEW &rhsElement,
-                    const ARRAY_REAL_VIEW &pnGlobal,
-                    const ARRAY_REAL_VIEW &rhsWeights);
+  void applyRHSTerm( int timeSample, float dt, int i2,
+                     const ARRAY_REAL_VIEW &rhsTerm,
+                     const VECTOR_INT_VIEW &rhsElement,
+                     const ARRAY_REAL_VIEW &pnGlobal,
+                     const ARRAY_REAL_VIEW &rhsWeights );
 
   /**
    * @brief Assemble local element contributions to global FE vectors.
@@ -143,8 +143,8 @@ public:
    * @param i2       Current pressure field index
    * @param pnGlobal Global pressure field
    */
-  void computeElementContributions(int i2,
-                                   const ARRAY_REAL_VIEW &pnGlobal);
+  void computeElementContributions( int i2,
+                                    const ARRAY_REAL_VIEW &pnGlobal );
 
   /**
    * @brief Update the global pressure field at interior nodes.
@@ -155,10 +155,10 @@ public:
    * @param i2       Current time step index
    * @param pnGlobal Pressure field array (updated in-place)
    */
-  void updatePressureField(float dt,
-                           int i1,
-                           int i2,
-                           const ARRAY_REAL_VIEW &pnGlobal);
+  void updatePressureField( float dt,
+                            int i1,
+                            int i2,
+                            const ARRAY_REAL_VIEW &pnGlobal );
 
 
 private:
@@ -180,7 +180,7 @@ private:
   VECTOR_REAL_VIEW massMatrixGlobal;
   VECTOR_REAL_VIEW yGlobal;
 
-  void computeFEInit(MESH_TYPE const & mesh);
+  void computeFEInit( MESH_TYPE const & mesh );
 };
 
 #endif // SEM_SOLVER_HPP_

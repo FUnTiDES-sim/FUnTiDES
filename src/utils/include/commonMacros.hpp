@@ -8,8 +8,7 @@
 #endif
 
 #if defined (USE_KOKKOS)
-  #define LOOPHEAD(Range, Iterator)\
-    Kokkos::parallel_for( Range, KOKKOS_CLASS_LAMBDA ( const int Iterator ){
+  #define LOOPHEAD(Range, Iterator) Kokkos::parallel_for( Range, KOKKOS_CLASS_LAMBDA ( const int Iterator ){
   #define LOOPEND   });
 
 #elif defined (USE_OMP)
