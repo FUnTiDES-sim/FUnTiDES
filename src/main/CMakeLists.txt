@@ -7,13 +7,15 @@ if(COMPILE_SEM)
   target_include_directories(semproxy
     PRIVATE
       ${CMAKE_CURRENT_SOURCE_DIR}/include
+      ${CMAKE_SOURCE_DIR}/external/cxxopts/
   )
 
   target_link_libraries(semproxy
     PRIVATE
       discretization
       solver
-      mesh
+      cartesian_builders
+      model_lib
       utils
   )
 
@@ -26,7 +28,8 @@ if(COMPILE_SEM)
     target_link_libraries(pysem
       PRIVATE
         solver
-        mesh
+        cartesian_builders
+        model_lib
         utils
     )
 

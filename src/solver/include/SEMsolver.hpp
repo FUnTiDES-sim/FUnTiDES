@@ -1,228 +1,186 @@
 //************************************************************************
 //   proxy application v.0.0.1
 //
-//  SEMsolver.hpp: simple 2D acoustive wave equation solver
+//  SEMsolver.hpp: simple 2D acoustic wave equation solver
 //
-//  the SEMsolver class servers as a base class for the SEM solver
-//
+//  The SEMsolver class serves as a base class for the Spectral Element Method
+//  solver. It provides core functionality to initialize FE operators,
+//  advance pressure fields, apply forcing terms, and handle absorbing boundaries.
 //************************************************************************
 
 #ifndef SEM_SOLVER_HPP_
 #define SEM_SOLVER_HPP_
 
-#include "SolverBase.hpp"
-
 #include "dataType.hpp"
-
-#ifdef USE_KOKKOS
-#include <KokkosExp_InterOp.hpp>
-#endif
-
+#include "SolverBase.hpp"
 #include <cmath>
 #include <model.hpp>
 
 
-  struct SEMsolverData : SolverBase::DataStruct
-  {
-    SEMsolverData( int i1, 
-                   int i2, 
-                   ARRAY_REAL_VIEW const & rhsTerm,
-                   ARRAY_REAL_VIEW const & pnGlobal,
-                  VECTOR_INT_VIEW const & rhsElement ): 
-      m_i1(i1), 
-      m_i2(i2), 
-      m_rhsTerm(rhsTerm), 
-      m_pnGlobal(pnGlobal), 
-      m_rhsElement(rhsElement) 
-    {}
+struct SEMsolverData : SolverBase::DataStruct
+{
+  SEMsolverData( int i1,
+                 int i2,
+                 ARRAY_REAL_VIEW const & rhsTerm,
+                 ARRAY_REAL_VIEW const & pnGlobal,
+                 VECTOR_INT_VIEW const & rhsElement,
+                 ARRAY_REAL_VIEW & rhsWeights):
+    m_i1(i1),
+    m_i2(i2),
+    m_rhsTerm(rhsTerm),
+    m_pnGlobal(pnGlobal),
+    m_rhsElement(rhsElement),
+    m_rhsWeights(rhsWeights)
+  {}
 
-    int m_i1;
-    int m_i2;
-    ARRAY_REAL_VIEW const & m_rhsTerm;
-    ARRAY_REAL_VIEW const & m_pnGlobal;
-    VECTOR_INT_VIEW const & m_rhsElement;
-  };
+  int m_i1;
+  int m_i2;
+  ARRAY_REAL_VIEW const & m_rhsTerm;
+  ARRAY_REAL_VIEW const & m_pnGlobal;
+  VECTOR_INT_VIEW const & m_rhsElement;
+  ARRAY_REAL_VIEW const & m_rhsWeights;
+};
 
 
 template< int ORDER,
-          typename INTEGRAL_TYPE >
+          typename INTEGRAL_TYPE,
+          typename MESH_TYPE>
 class SEMsolver : public SolverBase
 {
 public:
-
-  constexpr static int numPoints1d = ORDER + 1;
-  constexpr static int numPointsPerElem = (ORDER + 1) * (ORDER + 1) * (ORDER + 1);
-
+  /**
+   * @brief Default constructor.
+   */
   SEMsolver() = default;
+
+  /**
+   * @brief Destructor.
+   */
   ~SEMsolver() = default;
 
-
-
   /**
-   * @brief computeFEInit function:
-   * init all FE components for computing mass and stiffness matrices
+   * @brief Initialize all finite element structures:
+   * basis functions, integrals, global arrays, etc.
+   *
+   * @param mesh BaseMesh structure containing the domain information.
    */
-  virtual void computeFEInit( Mesh const & mesh ) override final;
+  virtual void computeFEInit(model::ModelApi<float, int>& mesh);
 
   /**
-   * @brief Compute one step of the spectral element wave equation solver.
+   * @brief Compute one time step of the SEM wave equation solver.
    *
-   * This function advances the pressure field `pnGlobal` by one time step using
-   * a second-order explicit scheme. It resets global accumulators, applies RHS
-   * forcing, computes local element contributions to mass and stiffness
-   * matrices, updates pressure for interior nodes, and applies sponge damping.
+   * Advances the pressure field using explicit time integration.
    *
-   * @param timeSample   Index of the current time step in `rhsTerm`
-   * @param nPointsPerElement Number of quadrature points per element
-   * @param i1           Index for pressure at previous time step
-   * @param i2           Index for pressure at current time step
-   * @param myInfo       Structure containing mesh and solver configuration
-   * @param rhsTerm      External forcing term, function of space and time
-   * @param pnGlobal     2D array storing the global pressure field [node][time]
-   * @param rhsElement   List of elements with a non-zero forcing term
+   * @param timeSample   Current time index into the RHS (source) term
+   * @param dt           Delta time for this iteration
+   * @param i1           Index for previous pressure field
+   * @param i2           Index for current pressure field
+   * @param rhsTerm      Right-hand side forcing term [node][time]
+   * @param pnGlobal     Global pressure field [node][time]
+   * @param rhsElement   List of active source elements
+   * @param rhsWeights   Forcing weights per source node
    */
   virtual void computeOneStep( const float & dt,
-                              const int & timeSample,
-                              DataStruct & data ) override final;
+                               const int & timeSample,
+                               DataStruct & data ) override final;
 
-  virtual void outputPnValues( const int &indexTimeStep, 
+  /**
+   * @brief Output pressure values at a specific time step.
+   *
+   * Typically used for recording seismograms or snapshots.
+   *
+   * @param indexTimeStep    Time index to output
+   * @param i1               Index for pressure buffer
+   * @param myElementSource  Element containing the receiver
+   * @param pnGlobal         Global pressure field [node][time]
+   */
+  virtual void outputPnValues( const int &indexTimeStep,
                                int &i1,
-                               int &myElementSource, 
-                               const ARRAY_REAL_VIEW &pnGlobal ) override final;
+                               int &myElementSource,
+                               const ARRAY_REAL_VIEW &pnGlobal) override final;
 
+  /**
+   * @brief Initialize arrays required by the finite element solver.
+   */
   void initFEarrays();
 
+  /**
+   * @brief Allocate memory for FE-related arrays (mass, stiffness, etc.).
+   */
   void allocateFEarrays();
 
   /**
-   * @brief Compute coefficients for the taper layers. In this computation the
-   * choice of the taper length and the coefficient of reflection (r)
-   * highly depends on the model. Usually R will be between 10^{-3} and 1
-   * and you need to find a compromise with sizeT.
-   *
-   * @param[in] vMin Min wavespeed (P-wavespeed for acoustic, S-wavespeed for
-   * elastic)
-   * @param[in] r desired reflectivity of the Taper
+   * @brief Initialize sponge (absorbing layer) coefficients.
    */
-  void initSpongeValues(Mesh &mesh );
-
-  void spongeUpdate(const ARRAY_REAL_VIEW &pnGlobal, const int i1,
-                    const int i2);
+  void initSpongeValues();
 
   /**
-   * @brief Reset the global mass matrix and stiffness vector to zero.
+   * @brief Reset global FE vectors (mass, stiffness) before accumulation.
    *
    * @param numNodes Total number of global nodes.
    */
-  void resetGlobalVectors();
+  void resetGlobalVectors(int numNodes);
 
   /**
-   * @brief Apply the external forcing term to the pressure field.
+   * @brief Apply external forcing to the global pressure field.
    *
-   * @param timeSample Current time index into `rhsTerm`
-   * @param i2 Index of the current time step in `pnGlobal`
-   * @param rhsTerm Right-hand side values (forcing)
-   * @param rhsElement Elements affected by the forcing term
-   * @param myInfo Solver and mesh configuration
-   * @param pnGlobal Pressure field array to update
+   * @param timeSample   Current time sample index
+   * @param i2           Current pressure index
+   * @param rhsTerm      RHS forcing term array
+   * @param rhsElement   Indices of source elements
+   * @param pnGlobal     Global pressure field (modified in-place)
+   * @param rhsWeights   Forcing weights per node
    */
-  void applyRHSTerm(float const dt, int timeSample, int i2, const ARRAY_REAL_VIEW &rhsTerm,
+  void applyRHSTerm(int timeSample, float dt, int i2,
+                    const ARRAY_REAL_VIEW &rhsTerm,
                     const VECTOR_INT_VIEW &rhsElement,
-                    const ARRAY_REAL_VIEW &pnGlobal);
+                    const ARRAY_REAL_VIEW &pnGlobal,
+                    const ARRAY_REAL_VIEW &rhsWeights);
 
   /**
-   * @brief Compute local element contributions to the global mass and stiffness
-   * system.
+   * @brief Assemble local element contributions to global FE vectors.
    *
-   * @param order Polynomial interpolation order of the elements
-   * @param nPointsPerElement Number of quadrature points per element
-   * @param myInfo Solver configuration and mesh info
-   * @param i2 Index of the current time step in `pnGlobal`
-   * @param pnGlobal Global pressure field (used as input)
+   * @param i2       Current pressure field index
+   * @param pnGlobal Global pressure field
    */
-  void computeElementContributions( int nPointsPerElement,
-                                    int i2,
-                                    const ARRAY_REAL_VIEW &pnGlobal);
+  void computeElementContributions(int i2,
+                                   const ARRAY_REAL_VIEW &pnGlobal);
 
   /**
-   * @brief Update the pressure field for interior nodes using the time
-   * integration scheme.
+   * @brief Update the global pressure field at interior nodes.
    *
-   * @param i1 Index for pressure at the previous time step
-   * @param i2 Index for pressure at the current time step
-   * @param myInfo Solver and mesh configuration
+   * Applies the time integration scheme.
+   *
+   * @param i1       Previous time step index
+   * @param i2       Current time step index
    * @param pnGlobal Pressure field array (updated in-place)
    */
-  void updatePressureField( float const dt,
-                     const ARRAY_REAL_VIEW &rhsTerm,
-                     int i1, 
-                     int i2, 
-                     const ARRAY_REAL_VIEW &pnGlobal);
+  void updatePressureField(float dt,
+                           int i1,
+                           int i2,
+                           const ARRAY_REAL_VIEW &pnGlobal);
 
-  // Getters for shared arrays
-  const arrayInt &getGlobalNodesList() const { return globalNodesList; }
-  const arrayReal &getGlobalNodesCoordsX() const { return globalNodesCoordsX; }
-  const arrayReal &getGlobalNodesCoordsY() const { return globalNodesCoordsY; }
-  const arrayReal &getGlobalNodesCoordsZ() const { return globalNodesCoordsZ; }
-  const vectorInt &getListOfInteriorNodes() const {
-    return listOfInteriorNodes;
-#ifdef USE_CALIPER
-    mgr.flush();
-#endif // USE_CALIPER
-  }
-  const vectorInt &getListOfDampingNodes() const { return listOfDampingNodes; }
-  const vectorReal &getSpongeTaperCoeff() const { return spongeTaperCoeff; }
-
-  void setGlobalNodesList(const arrayInt &list) { globalNodesList = list; }
-  void setGlobalNodesCoordsX(const arrayReal &x) { globalNodesCoordsX = x; }
-  void setGlobalNodesCoordsY(const arrayReal &y) { globalNodesCoordsY = y; }
-  void setGlobalNodesCoordsZ(const arrayReal &z) { globalNodesCoordsZ = z; }
-  void setListOfInteriorNodes(const vectorInt &nodes) {
-    listOfInteriorNodes = nodes;
-  }
-  void setListOfDampingNodes(const vectorInt &nodes) {
-    listOfDampingNodes = nodes;
-  }
-  void setSpongeTaperCoeff(const vectorReal &coeff) {
-    spongeTaperCoeff = coeff;
-  }
-
-  void setVMin(double v) { vMin = v; }
-  double getVMin() const { return vMin; }
-
-  void setModel(const vectorReal &m) { model = m; }
-
-  const vectorReal &getModel() const { return model; }
-
-  void setMassMatrixGlobal(const vectorReal &m) { massMatrixGlobal = m; }
-  const vectorReal &getMassMatrixGlobal() const { return massMatrixGlobal; }
 
 private:
+  MESH_TYPE m_mesh;
 
-  Mesh m_mesh;
-  // Basis functions and integrals
+  static constexpr int nPointsElement = (ORDER + 1) * (ORDER + 1) * (ORDER + 1);
+
+  float m_spongeSize = 250.;
+  bool isSurface = true;
+
+  // Basis functions and integral objects
   INTEGRAL_TYPE myQkIntegrals;
   typename INTEGRAL_TYPE::PrecomputedData m_precomputedIntegralData;
 
-
-  // shared arrays
-  ARRAY_INT_VIEW globalNodesList;
-  ARRAY_REAL_VIEW globalNodesCoordsX;
-  ARRAY_REAL_VIEW globalNodesCoordsY;
-  ARRAY_REAL_VIEW globalNodesCoordsZ;
-  VECTOR_INT_VIEW listOfInteriorNodes;
-  VECTOR_INT_VIEW listOfDampingNodes;
-  // sponge boundaries data
+  // Sponge tapering
   VECTOR_REAL_VIEW spongeTaperCoeff;
 
-  // get model
-  VECTOR_REAL_VIEW model;
-  double vMin; // min wavespeed in model
-
-  // shared arrays
+  // Global FE vectors
   VECTOR_REAL_VIEW massMatrixGlobal;
   VECTOR_REAL_VIEW yGlobal;
-  VECTOR_REAL_VIEW dampingValues;
-  VECTOR_REAL_VIEW dampingDistanceValues;
+
+  void computeFEInit(MESH_TYPE const & mesh);
 };
+
 #endif // SEM_SOLVER_HPP_

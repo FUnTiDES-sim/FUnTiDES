@@ -8,19 +8,16 @@ export CUDA_ARCHITECTURES=90
 export CUDA_MANAGED_FORCE_DEVICE_ALLOC=1
 
 # for sequential mode on CPU:  cmake -DCMAKE_INSTALL_PREFIX=../install -DCMAKE_C_COMPILER=gcc -DCMAKE_CXX_COMPILER=g++ .. ; make
-# for omp on CPU:  cmake -DCMAKE_INSTALL_PREFIX=../install -DCMAKE_C_COMPILER=gcc -DCMAKE_CXX_COMPILER=g++ -Duse OMP=ON  .. ; make
+# for omp on CPU:  cmake -DCMAKE_INSTALL_PREFIX=../install -DCMAKE_C_COMPILER=gcc -DCMAKE_CXX_COMPILER=g++ -DUSE_OMP=ON  .. ; make
 
-# for kokkos on GPU: cmake -DCMAKE_INSTALL_PREFIX=../install -DCMAKE_C_COMPILER=gcc -DCMAKE_CXX_COMPILER=g++ -Duse KOKKOS=ON -DENABLE_CUDA=ON -DCMAKE_BUILD_TYPE=Release ..; make -j 72 
+# USE_SEMOPTIM
+# for kokkos on GPU: cmake -DCMAKE_INSTALL_PREFIX=../install -DCMAKE_C_COMPILER=gcc -DCMAKE_CXX_COMPILER=g++ -DUSE_KOKKOS=ON -DENABLE_CUDA=ON -DUSE_SEMOPTIM=ON -DCMAKE_BUILD_TYPE=Release ..; make -j 72 
 
-# for use SEMCLASSIC
-# ./bin/semproxy  -physics 0  -method 0 -order 2
+# USE_SHIVA=ON 
+# for kokkos on GPU: cmake -DCMAKE_INSTALL_PREFIX=../install -DCMAKE_C_COMPILER=gcc -DCMAKE_CXX_COMPILER=g++ -DUSE_KOKKOS=ON -DENABLE_CUDA=ON -DUSE_SHIVA=ON -DCMAKE_BUILD_TYPE=Release ..; make -j 72
 
-# for use SEMOPTIM
-# ./bin/semproxy  -physics 0  -method 1 -order 2
+# USE_SEMGEOS=ON
+# for kokkos on GPU: cmake -DCMAKE_INSTALL_PREFIX=../install -DCMAKE_C_COMPILER=gcc -DCMAKE_CXX_COMPILER=g++ -DUSE_KOKKOS=ON -DENABLE_CUDA=ON -DUSE_SEMGEOS=ON -DCMAKE_BUILD_TYPE=Release ..;  make -j 72
 
-# for use SEMGEOS
-# ./bin/semproxy  -physics 0  -method 2 -order 2
-
-# for use SHIVA
-# ./bin/semproxy  -physics 0  -method 3 -order 2
-
+# USE_SEMCLASSIC
+# for kokkos on GPU: cmake -DCMAKE_INSTALL_PREFIX=../install -DCMAKE_C_COMPILER=gcc -DCMAKE_CXX_COMPILER=g++ -DUSE_KOKKOS=ON -DENABLE_CUDA=ON -DUSE_SEMCLASSIC=ON -DCMAKE_BUILD_TYPE=Release ..; make -j 72 

@@ -1,3 +1,2 @@
-if(USE_SIMPLE_MESH)
-    add_subdirectory(simpleMesh)
-endif()
+add_subdirectory(model_api)
+add_subdirectory(cartesian_model_builder)

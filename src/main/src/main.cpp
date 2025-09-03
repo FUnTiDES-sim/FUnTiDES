@@ -4,19 +4,10 @@
 //  main.cpp: this main file is simply a driver
 //************************************************************************
 
+#include "SEMproxyOptions.hpp"
 #include "SEMproxy.hpp"
 
-#ifdef USE_CALIPER
-#include "caliperUtils.hpp"
-#include <caliper/cali-manager.h>
-#endif // USE_CALIPER
-
-#ifdef USE_EZV
-#include "ezvLauncher.hpp"
-#include <thread>
-#endif // USE_EZV
-
-time_point<steady_clock> startInitTime;
+time_point<system_clock> startInitTime;
 
 void compute(SEMproxy &semsim) {
   cout << "\n+================================= " << endl;
@@ -24,7 +15,7 @@ void compute(SEMproxy &semsim) {
   cout << "+================================= \n" << endl;
 
   // start timer
-  time_point<steady_clock> startRunTime = steady_clock::now();
+  time_point<system_clock> startRunTime = system_clock::now();
   semsim.run();
 
   cout << "\n+================================= " << endl;
@@ -35,7 +26,7 @@ void compute(SEMproxy &semsim) {
   cout << "Elapsed Initial Time : "
        << (startRunTime - startInitTime).count() / 1E9 << " seconds." << endl;
   cout << "Elapsed Compute Time : "
-       << (steady_clock::now() - startRunTime).count() / 1E9 << " seconds."
+       << (system_clock::now() - startRunTime).count() / 1E9 << " seconds."
        << endl;
 };
 
@@ -43,46 +34,45 @@ void compute_loop(SEMproxy & semsim) { compute(semsim); }
 
 int main(int argc, char *argv[]) {
 
-  startInitTime = steady_clock::now();
-
-#ifdef USE_EZV
-  init_ezv();
-#endif // USE_EZV
+  startInitTime = system_clock::now();
 
 #ifdef USE_KOKKOS
-  cout << "Using Kokkos" << endl;
+  setenv("OMP_PROC_BIND", "spread", 1);
+  setenv("OMP_PLACES", "threads", 1);
   Kokkos::initialize(argc, argv);
   {
 #endif
 
-#ifdef USE_CALIPER
-    cali::ConfigManager mgr;
-    int caliperInitRet = launch_caliper_ctx(argc, argv, mgr);
-    CALI_CXX_MARK_FUNCTION;
-#endif // USE_CALIPER
+    cxxopts::Options options("SEM Proxy", "Runs the SEM simulation.");
+    options.allow_unrecognised_options();       // lets Kokkos flags pass
 
-    cout << "\n+================================= " << endl;
-    cout << "| Initializing SEM Application ... " << endl;
-    cout << "+================================= \n" << endl;
+    options.add_options()("h,help", "Print help message");
 
-    SEMproxy semsim(argc, argv);
+    SemProxyOptions opt;
+    SemProxyOptions::bind_cli(options, opt);
 
-    semsim.initFiniteElem();
+    auto result = options.parse(argc, argv);
 
-#ifdef USE_EZV
-    ezv_init_mesh(semsim, &mesh);
-    std::thread compute_thread(compute_loop, semsim);
-    ezv_loop();
+   if (result.count("help"))
+   {
+     std::cout << options.help() << std::endl;
+     exit(0);
+   }
 
-    if (compute_thread.joinable())
-      compute_thread.join();
-#else
-  compute_loop(semsim);
-#endif // USE_EZV
+    try { opt.validate(); }
+    catch (const std::exception& e) {
+      // your error path (no help printing here)
+      std::cerr << "Invalid options: " << e.what() << "\n";
+      return 1;
+    }
 
-#ifdef USE_CALIPER
-    mgr.flush();
-#endif // USE_CALIPER
+    cout << "+==================================+" << endl;
+    cout << "| Initializing SEM Application ... |" << endl;
+    cout << "+==================================+\n" << endl;
+
+    SEMproxy semsim(opt);
+
+    compute_loop(semsim);
 
 #ifdef USE_KOKKOS
   }
@@ -90,7 +80,7 @@ int main(int argc, char *argv[]) {
 #endif
 
   cout << "Elapsed TotalExe Time : "
-       << (steady_clock::now() - startInitTime).count() / 1E9 << " seconds.\n"
+       << (system_clock::now() - startInitTime).count() / 1E9 << " seconds.\n"
        << endl;
   return (0);
 }

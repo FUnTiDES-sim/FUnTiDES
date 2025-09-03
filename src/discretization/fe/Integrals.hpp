@@ -8,28 +8,32 @@
 template < int ORDER, int METHOD_TYPE >
 struct IntegralTypeSelector;
 
+namespace IntegralType
+{
+    enum {CLASSIC, OPTIM, GEOS, SHIVA};
+}
 
 template< int ORDER >
-struct IntegralTypeSelector< ORDER, 0 >
+struct IntegralTypeSelector< ORDER, IntegralType::CLASSIC >
 {
-  using type = SEMQkGLIntegralsClassic<ORDER>; 
+  using type = SEMQkGLIntegralsClassic<ORDER>;
 };
 
 template< int ORDER >
-struct IntegralTypeSelector< ORDER, 1 >
+struct IntegralTypeSelector< ORDER, IntegralType::OPTIM >
 {
-  using type = SEMQkGLIntegralsOptim< ORDER, float, float >; 
+  using type = SEMQkGLIntegralsOptim< ORDER, float, float >;
 };
 
 template< int ORDER >
-struct IntegralTypeSelector< ORDER, 2 >
+struct IntegralTypeSelector< ORDER, IntegralType::GEOS >
 {
-  using type = typename Qk_Hexahedron_Lagrange_GaussLobatto_Selector<ORDER>::type; 
+  using type = typename Qk_Hexahedron_Lagrange_GaussLobatto_Selector<ORDER>::type;
 };
 
 
 template< int ORDER >
-struct IntegralTypeSelector< ORDER, 3 >
+struct IntegralTypeSelector< ORDER, IntegralType::SHIVA >
 {
     using TransformType =
     LinearTransform< float,

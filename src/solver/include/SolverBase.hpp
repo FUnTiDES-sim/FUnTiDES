@@ -25,11 +25,11 @@ public:
                               DataStruct & data ) = 0;
 
   // Pure virtual function to initialize finite element components
-  virtual void computeFEInit( Mesh const & mesh ) = 0;
+  virtual void computeFEInit( model::ModelApi<float, int>& mesh ) = 0;
 
-  virtual void outputPnValues( const int &indexTimeStep, 
+  virtual void outputPnValues( const int &indexTimeStep,
                                int &i1,
-                               int &myElementSource, 
+                               int &myElementSource,
                                const ARRAY_REAL_VIEW &pnGlobal) = 0;
 
 };

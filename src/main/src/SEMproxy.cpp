@@ -5,97 +5,126 @@
 //
 //************************************************************************
 
-#include "SEMproxy.hpp"
-
 #include "solverFactory.hpp"
 #include "SEMsolver.hpp"
+#include <cxxopts.hpp>
+#include "SEMproxy.hpp"
+#include "dataType.hpp"
+#include <cartesian_struct_builder.h>
+#include <cartesian_unstruct_builder.h>
+#include <iomanip>
+#include <iostream>
+#include <sstream>
+#include <variant>
 
 
-#ifdef USE_EZV
-#include "ezvLauncher.hpp"
-#endif // USE_EZV
+SEMproxy::SEMproxy(const SemProxyOptions& opt) {
+  const int order = opt.order;
+  const int ex = opt.ex;
+  int ey = opt.ey;
+  int ez = opt.ez;
+  const float lx = opt.lx;
+  float ly = opt.ly;
+  float lz = opt.lz;
 
-SEMproxy::SEMproxy(int argc, char *argv[]) 
-{
-  int ex = ( cmdOptionExists(argv, argv + argc, "-ex")) ? std::stoi(getCmdOption(argv, argv + argc, "-ex")) : 100;
-  int ey = ( cmdOptionExists(argv, argv + argc, "-ey")) ? std::stoi(getCmdOption(argv, argv + argc, "-ey")) : ex;
-  int ez = ( cmdOptionExists(argv, argv + argc, "-ez")) ? std::stoi(getCmdOption(argv, argv + argc, "-ez")) : ex;
+  const SolverFactory::methodType methodType = getMethod( opt.method );
+  const SolverFactory::implemType implemType = getImplem( opt.implem );
+  const SolverFactory::meshType meshType = getMesh( opt.mesh );
 
-  float lx = ( cmdOptionExists(argv, argv + argc, "-lx")) ? std::stof(getCmdOption(argv, argv + argc, "-lx")) : 2000;
-  float ly = ( cmdOptionExists(argv, argv + argc, "-ly")) ? std::stof(getCmdOption(argv, argv + argc, "-ly")) : lx;
-  float lz = ( cmdOptionExists(argv, argv + argc, "-lz")) ? std::stof(getCmdOption(argv, argv + argc, "-lz")) : lx;
+  if (meshType == SolverFactory::Struct) {
+    switch(order) {
+      case 1: {
+        model_builder::CartesianStructBuilder<float, int, 1> builder;
+        m_mesh_storage = builder.getModel(ex, lx/ex);
+        break;
+      }
+      case 2: {
+        model_builder::CartesianStructBuilder<float, int, 2> builder;
+        m_mesh_storage = builder.getModel(ex, lx/ex);
+        break;
+      }
+      case 3: {
+        model_builder::CartesianStructBuilder<float, int, 3> builder;
+        m_mesh_storage = builder.getModel(ex, lx/ex);
+        break;
+      }
+      default:
+        throw std::runtime_error("Order other than 1 2 3 is not supported (semproxy)");
+    }
+    ey = ex;
+    ez = ex;
+    ly = lx;
+    lz = lx;
+  }
+  else if (meshType == SolverFactory::Unstruct) {
+    model_builder::CartesianParams<float, int> param(order, ex, ey, ez,  lx, ly, lz);
+    model_builder::CartesianUnstructBuilder<float, int> builder(param);
+    m_mesh_storage = builder.getModel();
+  }
+  else {
+    throw std::runtime_error("Incorrect mesh type (SEMproxy ctor.)");
+  }
 
-  int const physicsType = ( cmdOptionExists(argv, argv + argc, "-physics")) ? std::stoi(getCmdOption(argv, argv + argc, "-physics")) : 0;
-  int const methodType = ( cmdOptionExists(argv, argv + argc, "-method")) ? std::stoi(getCmdOption(argv, argv + argc, "-method")) : 1;
-  int const order = ( cmdOptionExists(argv, argv + argc, "-order")) ? std::stoi(getCmdOption(argv, argv + argc, "-order")) : 2;
-  m_solver = createSolver( physicsType, methodType, order );
+  m_mesh = std::visit([](auto& mesh) -> model::ModelApi<float, int>* {
+      return static_cast<model::ModelApi<float, int>*>(&mesh);
+    }, m_mesh_storage);
 
-  m_dt = ( cmdOptionExists(argv, argv + argc, "-dt")) ? std::stof(getCmdOption(argv, argv + argc, "-dt")) : 0.001;
-  m_maxTime = ( cmdOptionExists(argv, argv + argc, "-tmax")) ? std::stof(getCmdOption(argv, argv + argc, "-tmax")) : 1.5;
+  m_solver = SolverFactory::createSolver(methodType, implemType, meshType, order);
+  m_solver->computeFEInit(*m_mesh);
 
-  m_elementSource = ( cmdOptionExists(argv, argv + argc, "-elementSource")) ? std::stoi(getCmdOption(argv, argv + argc, "-elementSource")) : 0;
-  m_f0 = ( cmdOptionExists(argv, argv + argc, "-f0")) ? std::stof(getCmdOption(argv, argv + argc, "-f0")) : 10.0;
-  m_sourceOrder = ( cmdOptionExists(argv, argv + argc, "-sourceOrder")) ? std::stoi(getCmdOption(argv, argv + argc, "-sourceOrder")) : 1;
-  m_numberOfRHS = ( cmdOptionExists(argv, argv + argc, "-numberOfRHS")) ? std::stoi(getCmdOption(argv, argv + argc, "-numberOfRHS")) : 1;
-  m_numSamples = static_cast<int>(m_maxTime / m_dt);
+  initFiniteElem();
 
-
-
-  SEMmesh simpleMesh{ex, ey, ez, lx, ly, lz, order ,30, false};
-  myMesh = simpleMesh;
-
+  std::cout << "Starting simulation with Cartesian Mesh of size "
+            << "(" << ex << ',' << ey << ',' << ez << ')' << std::endl;
+  std::cout << "Number of node is " << m_mesh->getNumberOfNodes() << std::endl;
+  std::cout << "Number of element is " << m_mesh->getNumberOfElements() << std::endl;
+  std::cout << "Size of the domain is "
+            << "(" << lx << ',' << ly << ',' << lz << ')' << std::endl;
+  std::cout << "Launching the Method " << opt.method
+            << ", the implementation " << opt.implem
+            << " and the mesh is " << opt.mesh << std::endl;
+  std::cout << "Order of approximation will be " << order << std::endl;
 }
 
-// SEMproxy::SEMproxy(int ex, int ey, int ez, float lx) {
-//   SEMmesh simpleMesh{ex, ey, ez, lx, lx, lx, myInfo.myOrderNumber,30, false};
-//   myMesh = simpleMesh;
-// }
-
-// Initialize the simulation.
-void SEMproxy::initFiniteElem() {
-#ifdef USE_CALIPER
-  CALI_CXX_MARK_FUNCTION;
-#endif
-  // get information from mesh
-  getMeshInfo();
-
-  // allocate arrays and vectors
-  init_arrays();
-
-  // initialize source and RHS
-  init_source();
-
-  m_solver->computeFEInit( myMesh );
-}
-
-// Run the simulation.
-void SEMproxy::run() 
-{
-
-#ifdef USE_CALIPER
-  CALI_CXX_MARK_FUNCTION;
-#endif
-
-  time_point<steady_clock> startComputeTime, startOutputTime, totalComputeTime,
+void SEMproxy::run() {
+  time_point<system_clock> startComputeTime, startOutputTime, totalComputeTime,
       totalOutputTime;
 
-  SEMsolverData solverData(  i1, i2, myRHSTerm, pnGlobal, rhsElement );
+  SEMsolverData solverData(  i1, i2, myRHSTerm, pnGlobal, rhsElement, rhsWeights);
 
-  for (int indexTimeSample = 0; indexTimeSample < m_numSamples; indexTimeSample++) 
-  {
-    startComputeTime = steady_clock::now();
-    m_solver->computeOneStep( m_dt, indexTimeSample, solverData );
-    
-    totalComputeTime += steady_clock::now() - startComputeTime;
+  for (int indexTimeSample = 0; indexTimeSample < myNumSamples;
+       indexTimeSample++) {
+    startComputeTime = system_clock::now();
+    m_solver->computeOneStep(myTimeStep, indexTimeSample, solverData);
+    totalComputeTime += system_clock::now() - startComputeTime;
 
-    startOutputTime = steady_clock::now();
-    m_solver->outputPnValues( indexTimeSample, i1, m_elementSource,
-                            pnGlobal);
+    startOutputTime = system_clock::now();
+
+    if (indexTimeSample % 50 == 0)
+    {
+      m_solver->outputPnValues(indexTimeSample, i1, rhsElement[0], pnGlobal);
+    }
+
+    // TODO: redo snapshot
+    // if (indexTimeSample % 10 == 0)
+    // {
+    //   std::stringstream filename;
+    //   filename << "slice" << indexTimeSample << ".dat";
+    //   std::string str_filename = filename.str();
+
+    //   auto subview = Kokkos::subview(pnGlobal, Kokkos::ALL, i1);
+    //   auto slice = m_mesh->extractXYSlice(subview, nb_nodes[0], nb_nodes[0]/2);
+    //   saveSlice(slice, nb_nodes[0], str_filename);
+    // }
 
     swap(i1, i2);
-    swap( solverData.m_i1, solverData.m_i2 );
 
-    totalOutputTime += steady_clock::now() - startOutputTime;
+    auto tmp = solverData.m_i1;
+    solverData.m_i1 = solverData.m_i2;
+    solverData.m_i2 = tmp;
+
+
+    totalOutputTime += system_clock::now() - startOutputTime;
   }
 
   float kerneltime_ms = time_point_cast<microseconds>(totalComputeTime)
@@ -113,61 +142,99 @@ void SEMproxy::run()
 }
 
 // Initialize arrays
-void SEMproxy::getMeshInfo() {
-  // get information from mesh
-  m_numberOfNodes = myMesh.getNumberOfNodes();
-  m_numberOfElements = myMesh.getNumberOfElements();
-  m_numberOfPointsPerElement = myMesh.getNumberOfPointsPerElement();
-  m_numberOfInteriorNodes = myMesh.getNumberOfInteriorNodes();
-}
-
-// Initialize arrays
 void SEMproxy::init_arrays() {
   cout << "Allocate host memory for source and pressure values ..." << endl;
-  myRHSTerm = allocateArray2D<arrayReal>(m_numberOfRHS,
-                                         m_numSamples, "RHSTerm");
-  rhsElement = allocateVector<vectorInt>(m_numberOfRHS, "rhsElement");
-  pnGlobal = allocateArray2D<arrayReal>(m_numberOfNodes, 2, "pnGlobal");
+  myRHSTerm =
+      allocateArray2D<arrayReal>(myNumberOfRHS, myNumSamples, "RHSTerm");
+  rhsElement = allocateVector<vectorInt>(myNumberOfRHS, "rhsElement");
+  rhsWeights = allocateArray2D<arrayReal>(myNumberOfRHS, m_mesh->getNumberOfPointsPerElement(), "RHSWeight");
+  pnGlobal =
+      allocateArray2D<arrayReal>(m_mesh->getNumberOfNodes(), 2, "pnGlobal");
 }
 
 // Initialize sources
-void SEMproxy::init_source() 
-{
-  arrayReal myRHSLocation = allocateArray2D<arrayReal>(m_numberOfRHS, 3, "RHSLocation");
-  // set number of rhs and location
-  myRHSLocation(0, 0) = 1001;
-  myRHSLocation(0, 1) = 1001;
-  myRHSLocation(0, 2) = 1001;
-  cout << "\nSource location: " << myRHSLocation(0, 0) << ", "
-       << myRHSLocation(0, 1) << ", " << myRHSLocation(0, 2) << endl;
-  for (int i = 0; i < m_numberOfRHS; i++) 
-  {
-    // extract element number for current rhs
-    rhsElement[i] = myMesh.getElementNumberFromPoints( myRHSLocation(i, 0), myRHSLocation(i, 1), myRHSLocation(i, 2));
+void SEMproxy::init_source() {
+  arrayReal myRHSLocation = allocateArray2D<arrayReal>(1, 3, "RHSLocation");
+  std::cout << "All source are currently are coded on element 50." << std::endl;
+  for (int i = 0; i < 1; i++) {
+    // TODO: Make a better source init
+    rhsElement[i] = 50;
   }
 
   // initialize source term
-  vector<float> sourceTerm = myUtils.computeSourceTerm( m_numSamples, m_dt, m_f0, m_sourceOrder);
-  for (int j = 0; j < m_numSamples; j++) {
+  vector<float> sourceTerm =
+      myUtils.computeSourceTerm(myNumSamples, myTimeStep, f0, sourceOrder);
+  for (int j = 0; j < myNumSamples; j++) {
     myRHSTerm(0, j) = sourceTerm[j];
     if (j % 100 == 0)
       cout << "Sample " << j << "\t: sourceTerm = " << sourceTerm[j] << endl;
   }
   // get element number of source term
-  m_elementSource = rhsElement[0];
-  cout << "Element number for the source location: " << m_elementSource
-       << endl
+  myElementSource = rhsElement[0];
+  cout << "Element number for the source location: " << myElementSource << endl
        << endl;
+  // Setting the weight for source ponderation on node.
+  for (int i = 0; i < myNumberOfRHS; i++)
+  {
+    for (int j = 0; j < m_mesh->getNumberOfPointsPerElement(); j++)
+    {
+      rhsWeights(i, j) = 1.0 / m_mesh->getNumberOfPointsPerElement();
+    }
+  }
 }
 
-arrayReal SEMproxy::getMyRHSTerm() const { return myRHSTerm; }
+std::string formatSnapshotFilename(int id, int width = 5) {
+  std::ostringstream oss;
+  // oss << "snapshot" << std::setw(width) << std::setfill('0') << id;
+  oss << "snapshot" << id;
+  return oss.str();
+}
 
-void SEMproxy::setMyRHSTerm(const arrayReal &value) { myRHSTerm = value; }
+/**
+ * Save slice in matrix formating
+ * Format: space-separated matrix with blank lines between rows for 3D plotting
+ */
+void SEMproxy::saveSlice(const VECTOR_REAL_VIEW& host_slice,
+               int size, const std::string& filepath)
+{
+    std::ofstream file(filepath);
 
-arrayReal SEMproxy::getPnGlobal() const { return pnGlobal; }
+    file << std::fixed << std::setprecision(6);
+    file << size << "\n" << size << "\n";
 
-void SEMproxy::setPnGlobal(const arrayReal &value) { pnGlobal = value; }
+    for (int y = 0; y < size; ++y) {
+        for (int x = 0; x < size; ++x) {
+            file << host_slice[y * size + x];
+            file << " ";
+        }
+    }
 
-vectorInt SEMproxy::getRhsElement() const { return rhsElement; }
+    file.close();
+}
 
-void SEMproxy::setRhsElement(const vectorInt &value) { rhsElement = value; }
+SolverFactory::implemType SEMproxy::getImplem ( string implemArg )
+{
+  if (implemArg == "classic") return SolverFactory::CLASSIC;
+  if (implemArg == "optim") return SolverFactory::OPTIM;
+  if (implemArg == "geos") return SolverFactory::GEOS;
+  if (implemArg == "shiva") return SolverFactory::SHIVA;
+
+  throw std::invalid_argument( "Implentation type does not follow any valid type." );
+}
+
+SolverFactory::meshType SEMproxy::getMesh ( string meshArg )
+{
+  if ( meshArg == "cartesian" ) return SolverFactory::Struct;
+  if ( meshArg == "ucartesian" ) return SolverFactory::Unstruct;
+
+  std::cout << "Mesh type found is " << meshArg << std::endl;
+  throw std::invalid_argument( "Mesh type does not follow any valid type." );
+}
+
+SolverFactory::methodType SEMproxy::getMethod ( string methodArg )
+{
+  if ( methodArg == "sem" ) return SolverFactory::SEM;
+  if ( methodArg == "dg" ) return SolverFactory::DG;
+
+  throw std::invalid_argument( "Method type does not follow any valid type." );
+}
