@@ -9,12 +9,13 @@
 #define SEMPROXY_HPP_
 
 #include "SEMproxyOptions.hpp"
-#include <model_api.h>
 #include "solverFactory.hpp"
 #include <argsparse.hpp>
 #include <utils.hpp>
 #include <memory>
 #include <variant>
+#include <model_struct.h>
+#include <model_unstruct.h>
 
 /**
  * @class SEMproxy
