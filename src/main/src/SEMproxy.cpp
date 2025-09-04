@@ -83,10 +83,9 @@ SEMproxy::SEMproxy(const SemProxyOptions& opt) {
 
   // snapshots settings
   is_snapshots_ = opt.snapshots;
-  snap_time_interval_ = opt.snap_time_interval;
-  snap_folder_ = opt.snap_folder;
-
   if (is_snapshots_) {
+    snap_time_interval_ = opt.snap_time_interval;
+    snap_folder_ = opt.snap_folder;
     std::filesystem::create_directories(snap_folder_);
   }
 
@@ -161,6 +160,7 @@ void SEMproxy::saveSnapshot(int timeSample) const {
   filename << snap_folder_ << "/slice" << timeSample << ".dat";
   std::string str_filename = filename.str();
 
+#ifdef USE_KOKKOS
   auto subview = Kokkos::subview(pnGlobal, Kokkos::ALL, i1);
   int middle_z = (nb_nodes_[2]-1) / 2;
   int slice_start = middle_z * nb_nodes_[0] * nb_nodes_[1];
@@ -168,6 +168,23 @@ void SEMproxy::saveSnapshot(int timeSample) const {
   auto xy_slice = Kokkos::subview(subview,
                                   Kokkos::make_pair(slice_start, slice_end));
   FENCE
+#else
+  std::vector<float> column_data = pnGlobal.getColumn(i1);
+
+  vectorReal subview(column_data.size());
+  for (int i = 0; i < column_data.size(); ++i) {
+      subview[i] = column_data[i];
+  }
+
+  int middle_z = (nb_nodes_[2] - 1) / 2;
+  int slice_start = middle_z * nb_nodes_[0] * nb_nodes_[1];
+  int slice_end = slice_start + (nb_nodes_[0] * nb_nodes_[1]);
+
+  vectorReal xy_slice(slice_end - slice_start);
+  for (int i = 0; i < slice_end - slice_start; ++i) {
+      xy_slice[i] = subview[slice_start + i];
+  }
+#endif  // USE_KOKKOS
   saveSlice(xy_slice, nb_nodes_[0], nb_nodes_[1], str_filename);
   FENCE
 }
