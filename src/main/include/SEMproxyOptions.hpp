@@ -13,6 +13,10 @@ public:
   std::string implem = "optim";   // classic|optim|geos|shiva
   std::string method = "sem";     // sem|dg
   std::string mesh = "cartesian";
+  // snapshots
+  bool snapshots = false;
+  int snap_time_interval = 10;
+  std::string snap_folder = "snapshots";
 
   void validate() const {
     if (order < 1) throw std::runtime_error("order must be >= 1");
@@ -42,6 +46,12 @@ public:
       ("method", "Method: sem|dg",
           cxxopts::value<std::string>(o.method))
       ("mesh", "Mesh: cartesian|ucartesian",
-          cxxopts::value<std::string>(o.mesh));
+          cxxopts::value<std::string>(o.mesh))
+      ("s,snapshots", "Enable snapshot.",
+          cxxopts::value<bool>(o.snapshots))
+      ("snap-folder", "Folder where to save snapshots. (default=snapshots)",
+          cxxopts::value<std::string>(o.snap_folder))
+      ("snap-interval", "Interval on iteration between two snapshots. (default=10)",
+          cxxopts::value<int>(o.snap_time_interval));
   }
 };

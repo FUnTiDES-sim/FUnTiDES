@@ -14,6 +14,7 @@
 #include <argsparse.hpp>
 #include <utils.hpp>
 #include <memory>
+#include <string>
 #include <variant>
 
 /**
@@ -67,6 +68,11 @@ private:
   // or any structured mesh
   int nb_elements_[3] = {0};
   int nb_nodes_[3] = {0};
+
+  // snapshots
+  bool is_snapshots_;
+  int snap_time_interval_;
+  std::string snap_folder_;
 
   const int myNumberOfRHS = 1;
   const float myTimeStep = 0.001;

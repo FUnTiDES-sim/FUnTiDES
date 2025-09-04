@@ -85,6 +85,11 @@ SEMproxy::SEMproxy(const SemProxyOptions& opt) {
 
   initFiniteElem();
 
+  // snapshots settings
+  is_snapshots_ = opt.snapshots;
+  snap_time_interval_ = opt.snap_time_interval;
+  snap_folder_ = opt.snap_folder;
+
   std::cout << "Starting simulation with Cartesian Mesh of size "
             << "(" << nb_elements_[0] << ',' << nb_elements_[1] << ',' << nb_elements_[2] << ')' << std::endl;
   std::cout << "Number of node is " << m_mesh->getNumberOfNodes() << std::endl;
@@ -95,6 +100,11 @@ SEMproxy::SEMproxy(const SemProxyOptions& opt) {
             << ", the implementation " << opt.implem
             << " and the mesh is " << opt.mesh << std::endl;
   std::cout << "Order of approximation will be " << order << std::endl;
+
+  if (is_snapshots_) {
+    std::cout << "Snapshots enable every " << snap_time_interval_ << " iteration." << std::endl;
+    std::cout << "Saved in " << snap_folder_ << " folder." << std::endl;
+  }
 }
 
 void SEMproxy::run() {
@@ -117,7 +127,7 @@ void SEMproxy::run() {
     }
 
     // Save slice in dat format
-    if (indexTimeSample % 10 == 0)
+    if (is_snapshots_ && indexTimeSample % snap_time_interval_ == 0)
     {
       saveSnapshot(indexTimeSample);
     }
