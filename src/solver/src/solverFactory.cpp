@@ -1,3 +1,5 @@
+#include <model_struct.h>
+#include <model_unstruct.h>
 #include "solverFactory.hpp"
 #include "SEMsolver.hpp"
 

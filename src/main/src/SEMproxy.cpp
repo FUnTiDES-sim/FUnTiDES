@@ -23,6 +23,7 @@ SEMproxy::SEMproxy(const SemProxyOptions& opt) {
   nb_elements_[0] = opt.ex;
   nb_elements_[1] = opt.ey;
   nb_elements_[2] = opt.ez;
+
   const float lx = opt.lx;
   float ly = opt.ly;
   float lz = opt.lz;
@@ -36,17 +37,17 @@ SEMproxy::SEMproxy(const SemProxyOptions& opt) {
     int element_size = lx / e;
     switch(order) {
       case 1: {
-        model_builder::CartesianStructBuilder<float, int, 1> builder;
+        model::CartesianStructBuilder<float, int, 1> builder;
         m_mesh_storage = builder.getModel(e, element_size);
         break;
       }
       case 2: {
-        model_builder::CartesianStructBuilder<float, int, 2> builder;
+        model::CartesianStructBuilder<float, int, 2> builder;
         m_mesh_storage = builder.getModel(e, element_size);
         break;
       }
       case 3: {
-        model_builder::CartesianStructBuilder<float, int, 3> builder;
+        model::CartesianStructBuilder<float, int, 3> builder;
         m_mesh_storage = builder.getModel(e, element_size);
         break;
       }
@@ -63,8 +64,8 @@ SEMproxy::SEMproxy(const SemProxyOptions& opt) {
     int ey = nb_elements_[1];
     int ez = nb_elements_[2];
 
-    model_builder::CartesianParams<float, int> param(order, ex, ey, ez,  lx, ly, lz);
-    model_builder::CartesianUnstructBuilder<float, int> builder(param);
+    model::CartesianParams<float, int> param(order, ex, ey, ez,  lx, ly, lz);
+    model::CartesianUnstructBuilder<float, int> builder(param);
     m_mesh_storage = builder.getModel();
   }
   else {
@@ -74,11 +75,6 @@ SEMproxy::SEMproxy(const SemProxyOptions& opt) {
   m_mesh = std::visit([](auto& mesh) -> model::ModelApi<float, int>* {
       return static_cast<model::ModelApi<float, int>*>(&mesh);
     }, m_mesh_storage);
-
-
-  nb_nodes_[0] = nb_elements_[0] * order + 1;
-  nb_nodes_[1] = nb_elements_[1] * order + 1;
-  nb_nodes_[2] = nb_elements_[2] * order + 1;
 
   m_solver = SolverFactory::createSolver(methodType, implemType, meshType, order);
   m_solver->computeFEInit(*m_mesh);
