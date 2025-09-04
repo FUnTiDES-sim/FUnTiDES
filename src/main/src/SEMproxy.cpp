@@ -86,6 +86,10 @@ SEMproxy::SEMproxy(const SemProxyOptions& opt) {
   snap_time_interval_ = opt.snap_time_interval;
   snap_folder_ = opt.snap_folder;
 
+  if (is_snapshots_) {
+    std::filesystem::create_directories(snap_folder_);
+  }
+
   std::cout << "Starting simulation with Cartesian Mesh of size "
             << "(" << nb_elements_[0] << ',' << nb_elements_[1] << ',' << nb_elements_[2] << ')' << std::endl;
   std::cout << "Number of node is " << m_mesh->getNumberOfNodes() << std::endl;
@@ -154,7 +158,7 @@ void SEMproxy::run() {
 
 void SEMproxy::saveSnapshot(int timeSample) const {
   std::stringstream filename;
-  filename << "slice" << timeSample << ".dat";
+  filename << snap_folder_ << "/slice" << timeSample << ".dat";
   std::string str_filename = filename.str();
 
   auto subview = Kokkos::subview(pnGlobal, Kokkos::ALL, i1);
