@@ -1,71 +1,84 @@
-#include <KokkosExp_InterOp.hpp>
-#include <Kokkos_Core_fwd.hpp>
 #include <pybind11/numpy.h>
 #include <pybind11/pybind11.h>
 #include <pybind11/stl.h>
 
-#include <dataType.hpp>
+#include <commonMacros.hpp>
 #include <SEMsolver.hpp>
 #include <SolverBase.hpp>
-
-#include "solverFactory.hpp"
+#include <solverFactory.hpp>
 
 namespace py = pybind11;
 
-// Define type aliases for Kokkos views
-using Float2DView = Kokkos::View<float **, Layout, MemSpace>;
-using Int1DView = Kokkos::View<int *, Layout, MemSpace>;
-using PyFloat2DView = Kokkos::Experimental::python_view_type_t<Float2DView>;
-using PyInt1DView = Kokkos::Experimental::python_view_type_t<Int1DView>;
-
 PYBIND11_MODULE(pyproxys, m) {
 
-  // Bind enums
-  py::enum_<SolverFactory::methodType>(m, "MethodType")
-    .value("SEM", SolverFactory::SEM)
-    .value("DG", SolverFactory::DG)
-    .export_values();
+  // Create submodule 'solver'
+  py::module_ solver = m.def_submodule("solver", "Solver submodule");
 
-  py::enum_<SolverFactory::implemType>(m, "ImplemType")
+  // Bind enums
+  py::enum_<SolverFactory::methodType>(solver, "MethodType")
+    .value("SEM", SolverFactory::SEM)
+    .value("DG", SolverFactory::DG);
+
+  py::enum_<SolverFactory::implemType>(solver, "ImplemType")
     .value("CLASSIC", SolverFactory::CLASSIC)
     .value("GEOS", SolverFactory::GEOS)
     .value("OPTIM", SolverFactory::OPTIM)
-    .value("SHIVA", SolverFactory::SHIVA)
-    .export_values();
+    .value("SHIVA", SolverFactory::SHIVA);
 
-  py::enum_<SolverFactory::meshType>(m, "MeshType")
-    .value("Struct", SolverFactory::Struct)
-    .value("Unstruct", SolverFactory::Unstruct)
-    .export_values();
+  py::enum_<SolverFactory::meshType>(solver, "MeshType")
+    .value("STRUCT", SolverFactory::Struct)
+    .value("UNSTRUCT", SolverFactory::Unstruct);
+
+  // Bind DataStruct
+  py::class_<SolverBase::DataStruct, std::shared_ptr<SolverBase::DataStruct>>(solver, "DataStruct")
+    .def(py::init<>());
+
+  // Bind SEMsolverData (inherits from DataStruct)
+  py::class_<SEMsolverData, SolverBase::DataStruct, std::shared_ptr<SEMsolverData>>(solver, "SEMsolverData")
+    .def(py::init<int, int,
+                  const ARRAY_REAL_VIEW&,
+                  const ARRAY_REAL_VIEW&,
+                  const VECTOR_INT_VIEW&,
+                  ARRAY_REAL_VIEW&>(),
+         py::arg("i1"),
+         py::arg("i2"),
+         py::arg("rhs_term"),
+         py::arg("pn_global"),
+         py::arg("rhs_element"),
+         py::arg("rhs_weights"))
+    .def_readwrite("i1", &SEMsolverData::m_i1)
+    .def_readwrite("i2", &SEMsolverData::m_i2)
+    .def_property_readonly("rhs_term", [](SEMsolverData &self) { return self.m_rhsTerm; })
+    .def_property_readonly("pn_global", [](SEMsolverData &self) { return self.m_pnGlobal; })
+    .def_property_readonly("rhs_element", [](SEMsolverData &self) { return self.m_rhsElement; })
+    .def_property_readonly("rhs_weights", [](SEMsolverData &self) { return self.m_rhsWeights; });
 
   // Bind SolverBase
+  py::class_<SolverBase, std::shared_ptr<SolverBase>>(solver, "SolverBase")
+    .def("compute_fe_init", &SolverBase::computeFEInit,
+        py::arg("mesh"))
+    .def("compute_one_step", &SolverBase::computeOneStep,
+        py::arg("dt"),
+        py::arg("time_sample"),
+        py::arg("data"))
+    .def("output_pn_values", &SolverBase::outputPnValues,
+        py::arg("index_time_step"),
+        py::arg("i1"),
+        py::arg("my_element_source"),
+        py::arg("pn_global"));
 
-    py::class_<SolverBase::DataStruct, std::shared_ptr<SolverBase::DataStruct>>(m, "DataStruct")
-      .def(py::init<>());
-
-    py::class_<SolverBase, std::shared_ptr<SolverBase>>(m, "SolverBase")
-      .def("computeFEInit", &SolverBase::computeFEInit)
-      .def("computeOneStep",
-        [](SolverBase &self, float dt, int timeSample, SolverBase::DataStruct &data) {
-          self.computeOneStep(dt, timeSample, data);
-        }
-      )
-      .def("outputPnValues", &SolverBase::outputPnValues);
-
-  // Bind factory function
+  // Bind Solver factory function (returns shared_ptr<SolverBase>)
   m.def("createSolver",
     [](SolverFactory::methodType methodType,
        SolverFactory::implemType implemType,
        SolverFactory::meshType meshType,
        int order) {
         auto solver = SolverFactory::createSolver(methodType, implemType, meshType, order);
-        return std::shared_ptr<SolverBase>(std::move(solver));
+        return std::shared_ptr<SolverBase>(std::move(solver)); // pyfwi needs to do solver2 = solver1
     },
-    py::arg("methodType"),
-    py::arg("implemType"),
-    py::arg("meshType"),
-    py::arg("order"),
-    "Create a solver instance using the factory."
-  );
+    py::arg("method_type"),
+    py::arg("implem_type"),
+    py::arg("mesh_type"),
+    py::arg("order"));
 
 }
