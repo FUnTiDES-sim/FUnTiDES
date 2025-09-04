@@ -161,7 +161,7 @@ void SEMproxy::saveSnapshot(int timeSample) const {
 
 #ifdef USE_KOKKOS
   auto subview = Kokkos::subview(pnGlobal, Kokkos::ALL, i1);
-  int middle_z = (nb_nodes_[2]-1) / 2;
+  int middle_z = nb_nodes_[2] / 2;
   int slice_start = middle_z * nb_nodes_[0] * nb_nodes_[1];
   int slice_end = slice_start + (nb_nodes_[0] * nb_nodes_[1]);
   auto xy_slice = Kokkos::subview(subview,
@@ -175,7 +175,7 @@ void SEMproxy::saveSnapshot(int timeSample) const {
       subview[i] = column_data[i];
   }
 
-  int middle_z = (nb_nodes_[2] - 1) / 2;
+  int middle_z = nb_nodes_[2] / 2;
   int slice_start = middle_z * nb_nodes_[0] * nb_nodes_[1];
   int slice_end = slice_start + (nb_nodes_[0] * nb_nodes_[1]);
 
