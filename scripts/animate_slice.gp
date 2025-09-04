@@ -30,10 +30,25 @@ do for [i=1:n_files] {
     set yrange [0:sizey-1]
     set title sprintf("Frame %d/%d: %s (%dx%d)", i, n_files, filename, sizex, sizey)
 
-    # Get data range and center colorbar on 0
+    # Get data range and handle edge cases
     stats filename skip 2 matrix nooutput
-    max_abs = (abs(STATS_max) > abs(STATS_min)) ? abs(STATS_max) : abs(STATS_min)
-    set cbrange [-max_abs:max_abs]
+
+    # Check if data has any variation
+    if (STATS_max == STATS_min) {
+        # All values are the same (e.g., all zeros)
+        if (abs(STATS_max) > 0) {
+            # All same non-zero value
+            set cbrange [STATS_max*0.9:STATS_max*1.1]
+        } else {
+            # All zeros - use small range
+            set cbrange [-1e-10:1e-10]
+        }
+        print sprintf("  Warning: All values are %.6f", STATS_max)
+    } else {
+        # Normal case - center colorbar on 0
+        max_abs = (abs(STATS_max) > abs(STATS_min)) ? abs(STATS_max) : abs(STATS_min)
+        set cbrange [-max_abs:max_abs]
+    }
 
     # Plot with centered colorbar
     plot filename skip 2 matrix with image notitle
