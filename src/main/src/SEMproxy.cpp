@@ -23,6 +23,9 @@ SEMproxy::SEMproxy(const SemProxyOptions& opt) {
   nb_elements_[0] = opt.ex;
   nb_elements_[1] = opt.ey;
   nb_elements_[2] = opt.ez;
+  nb_nodes_[0] = opt.ex * order + 1;
+  nb_nodes_[1] = opt.ey * order + 1;
+  nb_nodes_[2] = opt.ez * order + 1;
 
   const float lx = opt.lx;
   float ly = opt.ly;
@@ -54,10 +57,6 @@ SEMproxy::SEMproxy(const SemProxyOptions& opt) {
       default:
         throw std::runtime_error("Order other than 1 2 3 is not supported (semproxy)");
     }
-    nb_elements_[1] = nb_elements_[0];
-    nb_elements_[2] = nb_elements_[0];
-    ly = lx;
-    lz = lx;
   }
   else if (meshType == SolverFactory::Unstruct) {
     int ex = nb_elements_[0];
