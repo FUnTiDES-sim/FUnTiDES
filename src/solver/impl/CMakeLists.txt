@@ -28,3 +28,9 @@ if(USE_OMP)
 endif()
 
 target_link_libraries(proxy_solver PUBLIC ${SOLV_LIBS})
+
+install(TARGETS proxy_solver
+  EXPORT proxy_solver_targets
+  ARCHIVE DESTINATION lib
+  LIBRARY DESTINATION lib
+  INCLUDES DESTINATION include)

@@ -9,32 +9,32 @@
 
 namespace py = pybind11;
 
-PYBIND11_MODULE(pyproxys, m) {
+PYBIND11_MODULE(solver, m) {
 
   // Create submodule 'solver'
-  py::module_ solver = m.def_submodule("solver", "Solver submodule");
+  m.attr("__name__") = "pyproxys.solver";
 
   // Bind enums
-  py::enum_<SolverFactory::methodType>(solver, "MethodType")
+  py::enum_<SolverFactory::methodType>(m, "MethodType")
     .value("SEM", SolverFactory::SEM)
     .value("DG", SolverFactory::DG);
 
-  py::enum_<SolverFactory::implemType>(solver, "ImplemType")
+  py::enum_<SolverFactory::implemType>(m, "ImplemType")
     .value("CLASSIC", SolverFactory::CLASSIC)
     .value("GEOS", SolverFactory::GEOS)
     .value("OPTIM", SolverFactory::OPTIM)
     .value("SHIVA", SolverFactory::SHIVA);
 
-  py::enum_<SolverFactory::meshType>(solver, "MeshType")
+  py::enum_<SolverFactory::meshType>(m, "MeshType")
     .value("STRUCT", SolverFactory::Struct)
     .value("UNSTRUCT", SolverFactory::Unstruct);
 
   // Bind DataStruct
-  py::class_<SolverBase::DataStruct, std::shared_ptr<SolverBase::DataStruct>>(solver, "DataStruct")
+  py::class_<SolverBase::DataStruct, std::shared_ptr<SolverBase::DataStruct>>(m, "DataStruct")
     .def(py::init<>());
 
   // Bind SEMsolverData (inherits from DataStruct)
-  py::class_<SEMsolverData, SolverBase::DataStruct, std::shared_ptr<SEMsolverData>>(solver, "SEMsolverData")
+  py::class_<SEMsolverData, SolverBase::DataStruct, std::shared_ptr<SEMsolverData>>(m, "SEMsolverData")
     .def(py::init<int, int,
                   const ARRAY_REAL_VIEW&,
                   const ARRAY_REAL_VIEW&,
@@ -54,7 +54,7 @@ PYBIND11_MODULE(pyproxys, m) {
     .def_property_readonly("rhs_weights", [](SEMsolverData &self) { return self.m_rhsWeights; });
 
   // Bind SolverBase
-  py::class_<SolverBase, std::shared_ptr<SolverBase>>(solver, "SolverBase")
+  py::class_<SolverBase, std::shared_ptr<SolverBase>>(m, "SolverBase")
     .def("compute_fe_init", &SolverBase::computeFEInit,
         py::arg("mesh"))
     .def("compute_one_step", &SolverBase::computeOneStep,
