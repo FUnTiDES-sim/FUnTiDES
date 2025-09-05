@@ -78,13 +78,18 @@ SEMproxy::SEMproxy(const SemProxyOptions& opt) {
       return static_cast<model::ModelApi<float, int>*>(&mesh);
     }, m_mesh_storage);
 
-  m_solver = SolverFactory::createSolver(methodType, implemType, meshType, order);
-  m_solver->computeFEInit(*m_mesh);
-
   // time parameters
-  dt_ = opt.dt;
+  if (opt.autodt) {
+    float cfl_factor = (order == 2) ? 0.5 : 0.7;
+    dt_ = find_cfl_dt(cfl_factor);
+  } else {
+    dt_ = opt.dt;
+  }
   timemax_ = opt.timemax;
   num_sample_ = timemax_ / dt_;
+
+  m_solver = SolverFactory::createSolver(methodType, implemType, meshType, order);
+  m_solver->computeFEInit(*m_mesh);
 
   initFiniteElem();
 
@@ -259,4 +264,14 @@ SolverFactory::methodType SEMproxy::getMethod ( string methodArg )
   if ( methodArg == "dg" ) return SolverFactory::DG;
 
   throw std::invalid_argument( "Method type does not follow any valid type." );
+}
+
+float SEMproxy::find_cfl_dt(float cfl_factor) {
+  float sqrtDim3 = 1.73;  // to change for 2d
+  float min_spacing = m_mesh->getMinSpacing();
+  float v_max = m_mesh->getMaxSpeed();
+
+  float dt = cfl_factor * min_spacing / (sqrtDim3 * v_max);
+
+  return dt;
 }

@@ -258,6 +258,18 @@ class ModelStruct: public ModelApi<FloatType, ScalarType>{
         }
     }
 
+    PROXY_HOST_DEVICE
+    FloatType getMinSpacing() const {
+        // no gll so hack to find space
+        return min(hx_, min(hy_, hz_)) / (Order+1);
+    }
+
+    PROXY_HOST_DEVICE
+    FloatType getMaxSpeed() const {
+        // TODO: introduce proper model.
+        return 1500;
+    }
+
  private:
   ScalarType ex_, ey_, ez_; // Nb elements in each direction
   ScalarType nx_, ny_, nz_; // Nb nodes in each direction

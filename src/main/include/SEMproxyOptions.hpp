@@ -15,6 +15,7 @@ public:
   std::string mesh = "cartesian";
   float dt = 0.001;
   float timemax = 1.5;
+  bool autodt = false;
 
   void validate() const {
     if (order < 1) throw std::runtime_error("order must be >= 1");
@@ -48,6 +49,8 @@ public:
       ("dt", "Time step selection in s (default = 0.001s)",
           cxxopts::value<float>(o.dt))
       ("timemax", "Duration of the simulation in s (default = 1.5s)",
-          cxxopts::value<float>(o.timemax));
+          cxxopts::value<float>(o.timemax))
+      ("auto-dt", "Select automatique dt via CFL equation.",
+          cxxopts::value<bool>(o.autodt));
   }
 };

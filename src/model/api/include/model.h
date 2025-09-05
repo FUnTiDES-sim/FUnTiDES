@@ -173,6 +173,24 @@ public:
      */
     PROXY_HOST_DEVICE
     virtual FloatType domainSize(int dim) const = 0;
+
+
+    /**
+    * @brief Gets the minimum spacing between grid points or nodes
+    * Returns the smallest distance between adjacent computational points
+    * in the discretized domain.
+    * @return Minimum spacing value between grid points
+    */
+    PROXY_HOST_DEVICE
+    virtual FloatType getMinSpacing() const = 0;
+
+    /**
+    * @brief Gets the maximum wave speed in the computational domain
+    * Returns the highest wave velocity present in the velocity model.
+    * @return Maximum wave speed value
+    */
+    PROXY_HOST_DEVICE
+    virtual FloatType getMaxSpeed() const = 0;
 };
 
 }  // namespace model
