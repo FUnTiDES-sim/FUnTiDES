@@ -35,31 +35,32 @@ SEMproxy::SEMproxy(const SemProxyOptions& opt) {
   const SolverFactory::meshType meshType = getMesh( opt.mesh );
 
   if (meshType == SolverFactory::Struct) {
-    int e = nb_elements_[0];
-    int element_size = lx / e;
+    int ex = nb_elements_[0];
+    int elem_sizex = lx / ex;
+    int ey = nb_elements_[1];
+    int elem_sizey = ly / ey;
+    int ez = nb_elements_[2];
+    int elem_sizez = lz / ez;
+
     switch(order) {
       case 1: {
         model::CartesianStructBuilder<float, int, 1> builder;
-        m_mesh_storage = builder.getModel(e, element_size);
+        m_mesh_storage = builder.getModel(ex, elem_sizex, ey, elem_sizey, ez, elem_sizez);
         break;
       }
       case 2: {
         model::CartesianStructBuilder<float, int, 2> builder;
-        m_mesh_storage = builder.getModel(e, element_size);
+        m_mesh_storage = builder.getModel(ex, elem_sizex, ey, elem_sizey, ez, elem_sizez);
         break;
       }
       case 3: {
         model::CartesianStructBuilder<float, int, 3> builder;
-        m_mesh_storage = builder.getModel(e, element_size);
+        m_mesh_storage = builder.getModel(ex, elem_sizex, ey, elem_sizey, ez, elem_sizez);
         break;
       }
       default:
         throw std::runtime_error("Order other than 1 2 3 is not supported (semproxy)");
     }
-    nb_elements_[1] = nb_elements_[0];
-    nb_elements_[2] = nb_elements_[0];
-    ly = lx;
-    lz = lx;
   }
   else if (meshType == SolverFactory::Unstruct) {
     int ex = nb_elements_[0];
