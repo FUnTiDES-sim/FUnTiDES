@@ -81,6 +81,11 @@ SEMproxy::SEMproxy(const SemProxyOptions& opt) {
   m_solver = SolverFactory::createSolver(methodType, implemType, meshType, order);
   m_solver->computeFEInit(*m_mesh);
 
+  // time parameters
+  dt_ = opt.dt;
+  timemax_ = opt.timemax;
+  num_sample_ = timemax_ / dt_;
+
   initFiniteElem();
 
   std::cout << "Starting simulation with Cartesian Mesh of size "
@@ -93,6 +98,8 @@ SEMproxy::SEMproxy(const SemProxyOptions& opt) {
             << ", the implementation " << opt.implem
             << " and the mesh is " << opt.mesh << std::endl;
   std::cout << "Order of approximation will be " << order << std::endl;
+  std::cout << "Time step is " << dt_ << "s" << std::endl;
+  std::cout << "Simulated time is " << timemax_ << "s" << std::endl;
 }
 
 void SEMproxy::run() {
@@ -101,10 +108,10 @@ void SEMproxy::run() {
 
   SEMsolverData solverData(  i1, i2, myRHSTerm, pnGlobal, rhsElement, rhsWeights);
 
-  for (int indexTimeSample = 0; indexTimeSample < myNumSamples;
+  for (int indexTimeSample = 0; indexTimeSample < num_sample_;
        indexTimeSample++) {
     startComputeTime = system_clock::now();
-    m_solver->computeOneStep(myTimeStep, indexTimeSample, solverData);
+    m_solver->computeOneStep(dt_, indexTimeSample, solverData);
     totalComputeTime += system_clock::now() - startComputeTime;
 
     startOutputTime = system_clock::now();
@@ -154,7 +161,7 @@ void SEMproxy::run() {
 void SEMproxy::init_arrays() {
   cout << "Allocate host memory for source and pressure values ..." << endl;
   myRHSTerm =
-      allocateArray2D<arrayReal>(myNumberOfRHS, myNumSamples, "RHSTerm");
+      allocateArray2D<arrayReal>(myNumberOfRHS, num_sample_, "RHSTerm");
   rhsElement = allocateVector<vectorInt>(myNumberOfRHS, "rhsElement");
   rhsWeights = allocateArray2D<arrayReal>(myNumberOfRHS, m_mesh->getNumberOfPointsPerElement(), "RHSWeight");
   pnGlobal =
@@ -176,8 +183,8 @@ void SEMproxy::init_source() {
 
   // initialize source term
   vector<float> sourceTerm =
-      myUtils.computeSourceTerm(myNumSamples, myTimeStep, f0, sourceOrder);
-  for (int j = 0; j < myNumSamples; j++) {
+      myUtils.computeSourceTerm(num_sample_, dt_, f0, sourceOrder);
+  for (int j = 0; j < num_sample_; j++) {
     myRHSTerm(0, j) = sourceTerm[j];
     if (j % 100 == 0)
       cout << "Sample " << j << "\t: sourceTerm = " << sourceTerm[j] << endl;
