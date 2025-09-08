@@ -254,14 +254,25 @@ class ModelStruct: public ModelApi<FloatType, ScalarType>{
             case 0: return lx_;
             case 1: return ly_;
             case 2: return lz_;
-            default: return -1; // throw std::runtime_error("Incorrect dim in domain size");
+            default: return -1;
         }
     }
 
     PROXY_HOST_DEVICE
     FloatType getMinSpacing() const {
-        // no gll so hack to find space
-        return min(hx_, min(hy_, hz_)) / (Order+1);
+        // returns a different distance approximation depending on order.
+        if constexpr (Order == 1)
+            return min(hx_, min(hy_, hz_));
+        if constexpr (Order == 2)
+            return min(hx_, min(hy_, hz_)) / 2;
+        if constexpr (Order == 3)
+            return min(hx_, min(hy_, hz_)) * 0.276393;
+        if constexpr (Order == 4)
+            return min(hx_, min(hy_, hz_)) * 0.172673;
+        if constexpr (Order == 5)
+            return min(hx_, min(hy_, hz_)) * 0.117472;
+
+        return -1;
     }
 
     PROXY_HOST_DEVICE
