@@ -306,7 +306,26 @@ def create_solver(implem_type):
             raise ValueError(f"Unknown implementation type: {implem_type}")
 
 
-def sourceTerm(time_n, f0):
+def source_term(time_n, f0):
+    """
+    Computes the source term value at a given time for a Ricker wavelet.
+
+    Parameters
+    ----------
+    time_n : float
+        The current time at which to evaluate the source term.
+    f0 : float
+        The peak frequency of the Ricker wavelet.
+
+    Returns
+    -------
+    float
+        The value of the source term at the specified time.
+
+    Notes
+    -----
+    The function returns zero outside the interval [-0.9 * t_peak, 2.9 * t_peak], where t_peak = 1.0 / f0.
+    """
     o_tpeak = 1.0 / f0
     pulse = 0.0
     if time_n <= -0.9 * o_tpeak or time_n >= 2.9 * o_tpeak:
@@ -480,8 +499,8 @@ def allocate_rhs_term(n_rhs, n_time_steps, dt, f0, memspace, layout):
     )
     RHSTerm = np.array(kk_RHSTerm, copy=False)
     for i in range(n_time_steps):
-        RHSTerm[0, i] = sourceTerm(i * dt, f0)
-        RHSTerm[1, i] = sourceTerm(i * dt, f0)
+        RHSTerm[0, i] = source_term(i * dt, f0)
+        RHSTerm[1, i] = source_term(i * dt, f0)
     return kk_RHSTerm, RHSTerm
 
 
@@ -552,6 +571,43 @@ def allocate_rhs_element(n_rhs, n_points_per_elements, memspace, layout):
     return kk_RHSElement, RHSElement
 
 
+def create_solver_data(kk_RHSTerm, kk_pnGlobal, kk_RHSElement, kk_RHSWeights):
+    """
+    Create SEMsolverData instance and return it along with i1 and i2.
+
+    Parameters
+    ----------
+    kk_RHSTerm : kokkos array
+        The Kokkos array for the source term.
+    kk_pnGlobal : kokkos array
+        The Kokkos array for pressure.
+    kk_RHSElement : kokkos array
+        The Kokkos array for the element indices.
+    kk_RHSWeights : kokkos array
+        The Kokkos array for the weights.
+
+    Returns
+    -------
+    data : Solver.SEMsolverData
+        The SEMsolverData instance.
+    i1 : int
+        Index for pressure field 1.
+    i2 : int
+        Index for pressure field 2.
+    """
+    data = Solver.SEMsolverData(
+        0,
+        1,
+        kk_RHSTerm,
+        kk_pnGlobal,
+        kk_RHSElement,
+        kk_RHSWeights,
+    )
+    i1 = data.i1
+    i2 = data.i2
+    return data, i1, i2
+
+
 def compute_step(
     time_sample,
     dt,
@@ -616,43 +672,6 @@ def compute_step(
     data.i1 = i1
     data.i2 = i2
     return i1, i2
-
-
-def create_solver_data(kk_RHSTerm, kk_pnGlobal, kk_RHSElement, kk_RHSWeights):
-    """
-    Create SEMsolverData instance and return it along with i1 and i2.
-
-    Parameters
-    ----------
-    kk_RHSTerm : kokkos array
-        The Kokkos array for the source term.
-    kk_pnGlobal : kokkos array
-        The Kokkos array for pressure.
-    kk_RHSElement : kokkos array
-        The Kokkos array for the element indices.
-    kk_RHSWeights : kokkos array
-        The Kokkos array for the weights.
-
-    Returns
-    -------
-    data : Solver.SEMsolverData
-        The SEMsolverData instance.
-    i1 : int
-        Index for pressure field 1.
-    i2 : int
-        Index for pressure field 2.
-    """
-    data = Solver.SEMsolverData(
-        0,
-        1,
-        kk_RHSTerm,
-        kk_pnGlobal,
-        kk_RHSElement,
-        kk_RHSWeights,
-    )
-    i1 = data.i1
-    i2 = data.i2
-    return data, i1, i2
 
 
 def main():
@@ -771,13 +790,14 @@ def main():
     simulation_end = datetime.now()
     total_time = end_time - start_time
 
-    print("\nSimulation Statistics:")
-    print(f"Start time: {simulation_start}")
-    print(f"End time: {simulation_end}")
-    print(f"Total runtime: {total_time:.2f} seconds")
-    print(f"Average iteration time: {np.mean(iteration_times):.4f} seconds")
-    print(f"Min iteration time: {np.min(iteration_times):.4f} seconds")
-    print(f"Max iteration time: {np.max(iteration_times):.4f} seconds")
+    print("==========SIMULATION STATISTICS==========")
+    print(f"{'Start time:':<25} {simulation_start}")
+    print(f"{'End time:':<25} {simulation_end}")
+    print(f"{'Total runtime:':<25} {total_time:.2f} seconds")
+    print(f"{'Average iteration time:':<25} {np.mean(iteration_times):.4f} seconds")
+    print(f"{'Min iteration time:':<25} {np.min(iteration_times):.4f} seconds")
+    print(f"{'Max iteration time:':<25} {np.max(iteration_times):.4f} seconds")
+    print("=========================================")
 
     # release kokkos arrays and vectors
     del kk_pnGlobal
