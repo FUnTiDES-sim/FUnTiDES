@@ -189,7 +189,6 @@ public:
     * Returns the highest wave velocity present in the velocity model.
     * @return Maximum wave speed value
     */
-    PROXY_HOST_DEVICE
     virtual FloatType getMaxSpeed() const = 0;
 };
 

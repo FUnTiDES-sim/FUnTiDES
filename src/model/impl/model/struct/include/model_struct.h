@@ -275,7 +275,6 @@ class ModelStruct: public ModelApi<FloatType, ScalarType>{
         return -1;
     }
 
-    PROXY_HOST_DEVICE
     FloatType getMaxSpeed() const {
         // TODO: introduce proper model.
         return 1500;

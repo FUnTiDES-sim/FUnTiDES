@@ -299,20 +299,14 @@ class ModelUnstruct : public ModelApi<FloatType, ScalarType> {
       return minSpacing;
     }
 
-    PROXY_HOST_DEVICE
     FloatType getMaxSpeed() const final {
-       FloatType maxSpeed = -1;
+       FloatType maxSpeedNode;
+       FloatType maxSpeedElem;
 
-       for (int i = 0; i < n_node_; i++) {
-           if (model_vp_node_[i] > maxSpeed)
-               maxSpeed = model_vp_node_[i];
-       }
-       for (int i = 0; i < n_element_; i++) {
-           if (model_vp_element_[i] > maxSpeed)
-               maxSpeed = model_vp_element_[i];
-       }
+       FIND_MAX(model_vp_node_, n_node_, maxSpeedNode);
+       FIND_MAX(model_vp_node_, n_element_, maxSpeedElem);
 
-       return maxSpeed;
+       return max(maxSpeedElem, maxSpeedNode);
     }
 
 private:
