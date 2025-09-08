@@ -9,7 +9,9 @@ if(ENABLE_PYWRAP)
 
   target_link_libraries(model
     PUBLIC
+      proxy_model_struct
       proxy_model_unstruct
+      proxy_model_builder_cartesian
   )
 
   configure_python_module(model)

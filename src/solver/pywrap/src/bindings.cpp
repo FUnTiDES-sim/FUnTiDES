@@ -56,7 +56,7 @@ PYBIND11_MODULE(solver, m) {
   // Bind SolverBase
   py::class_<SolverBase, std::shared_ptr<SolverBase>>(m, "SolverBase")
     .def("compute_fe_init", &SolverBase::computeFEInit,
-        py::arg("mesh"))
+        py::arg("model"))
     .def("compute_one_step", &SolverBase::computeOneStep,
         py::arg("dt"),
         py::arg("time_sample"),
@@ -68,7 +68,7 @@ PYBIND11_MODULE(solver, m) {
         py::arg("pn_global"));
 
   // Bind Solver factory function (returns shared_ptr<SolverBase>)
-  m.def("createSolver",
+  m.def("create_solver",
     [](SolverFactory::methodType methodType,
        SolverFactory::implemType implemType,
        SolverFactory::meshType meshType,
