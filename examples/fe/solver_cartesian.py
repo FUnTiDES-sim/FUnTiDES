@@ -610,10 +610,6 @@ def create_solver_data(kk_RHSTerm, kk_pnGlobal, kk_RHSElement, kk_RHSWeights):
     -------
     data : Solver.SEMsolverData
         The SEMsolverData instance.
-    i1 : int
-        Index for pressure field 1.
-    i2 : int
-        Index for pressure field 2.
     """
     data = Solver.SEMsolverData(
         0,
@@ -623,9 +619,9 @@ def create_solver_data(kk_RHSTerm, kk_pnGlobal, kk_RHSElement, kk_RHSWeights):
         kk_RHSElement,
         kk_RHSWeights,
     )
-    i1 = data.i1
-    i2 = data.i2
-    return data, i1, i2
+    data.print()
+
+    return data
 
 
 def compute_step(
@@ -686,7 +682,7 @@ def compute_step(
     if time_sample % 100 == 0:
         print(f"Time {time_sample} / {n_time_steps}")
     if time_sample % 10 == 0:
-        plot_snapshot(dt, i1, nx, ny, nz, hx, hy, hz, pnGlobal, im, time_sample)
+        plot_snapshot(i1, nx, ny, nz, pnGlobal, im, time_sample)
     # Swap pn and pn+1
     tmp = i1
     i1 = i2
@@ -733,10 +729,11 @@ def main():
     print("=========================================")
 
     # Setup graphic display
+    print("Setting up plot...")
     _, _, im = setup_plot(nx, nz)
+    print("Plot set up")
 
     # Initialize Kokkos
-    print("Initializing Kokkos...")
     kokkos.initialize()
     print("Kokkos initialized")
     memspace, layout = select_kokkos_memspace(args.mem)
@@ -770,27 +767,31 @@ def main():
     # allocate RHS arrays
     print("Allocating RHS element...")
     kk_RHSElement, RHSElement = allocate_rhs_element(n_rhs, n_points_per_elements, memspace, layout)
-    print("RHS element number 0", RHSElement[0])
-    print("RHS element number 1", RHSElement[1])
+    print("  - RHS element number 0", RHSElement[0])
+    print("  - RHS element number 1", RHSElement[1])
     print("RHS element allocated")
 
     print("Allocating RHS weights...")
-    kk_RHSWeights, _ = allocate_rhs_weight(n_rhs, model, memspace, layout)
+    kk_RHSWeights, rhsWeights = allocate_rhs_weight(n_rhs, model, memspace, layout)
     print("RHS weights allocated")
 
     print("Allocating RHS term...")
-    kk_RHSTerm, _ = allocate_rhs_term(n_rhs, n_time_steps, dt, f0, memspace, layout)
+    kk_RHSTerm, rhsTerm = allocate_rhs_term(n_rhs, n_time_steps, dt, f0, memspace, layout)
     print("RHS term allocated")
 
     # Create solver data instance
     print("Creating solver data...")
-    data, i1, i2 = create_solver_data(
+    data = create_solver_data(
         kk_RHSTerm, kk_pnGlobal, kk_RHSElement, kk_RHSWeights
     )
     print("Solver data created")
 
+    i1 = data.i1
+    i2 = data.i2
+
     # Loop over time steps
     for time_sample in range(n_time_steps):
+
         i1, i2 = compute_step(
             time_sample,
             dt,

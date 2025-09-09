@@ -33,7 +33,7 @@ PYBIND11_MODULE(solver, m) {
 
   // Bind DataStruct
   py::class_<SolverBase::DataStruct, std::shared_ptr<SolverBase::DataStruct>>(m, "DataStruct")
-    .def(py::init<>());
+    .def("print", &SolverBase::DataStruct::print);
 
   // Bind SEMsolverData (inherits from DataStruct)
   py::class_<SEMsolverData, SolverBase::DataStruct, std::shared_ptr<SEMsolverData>>(m, "SEMsolverData")
@@ -48,12 +48,9 @@ PYBIND11_MODULE(solver, m) {
          py::arg("pn_global"),
          py::arg("rhs_element"),
          py::arg("rhs_weights"))
+    .def("print", &SEMsolverData::print)
     .def_readwrite("i1", &SEMsolverData::m_i1)
-    .def_readwrite("i2", &SEMsolverData::m_i2)
-    .def_property_readonly("rhs_term", [](SEMsolverData &self) { return self.m_rhsTerm; })
-    .def_property_readonly("pn_global", [](SEMsolverData &self) { return self.m_pnGlobal; })
-    .def_property_readonly("rhs_element", [](SEMsolverData &self) { return self.m_rhsElement; })
-    .def_property_readonly("rhs_weights", [](SEMsolverData &self) { return self.m_rhsWeights; });
+    .def_readwrite("i2", &SEMsolverData::m_i2);
 
   // Bind SolverBase
   py::class_<SolverBase, std::shared_ptr<SolverBase>>(m, "SolverBase")
