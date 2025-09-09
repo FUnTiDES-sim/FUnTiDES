@@ -23,9 +23,10 @@ SEMproxy::SEMproxy(const SemProxyOptions& opt) {
   nb_elements_[0] = opt.ex;
   nb_elements_[1] = opt.ey;
   nb_elements_[2] = opt.ez;
-  nb_nodes[0] = opt.ex * order + 1;
-  nb_nodes[1] = opt.ey * order + 1;
-  nb_nodes[2] = opt.ez * order + 1;
+  nb_nodes_[0] = opt.ex * order + 1;
+  nb_nodes_[1] = opt.ey * order + 1;
+  nb_nodes_[2] = opt.ez * order + 1;
+
   const float lx = opt.lx;
   float ly = opt.ly;
   float lz = opt.lz;
@@ -84,6 +85,14 @@ SEMproxy::SEMproxy(const SemProxyOptions& opt) {
 
   initFiniteElem();
 
+  // snapshots settings
+  is_snapshots_ = opt.snapshots;
+  if (is_snapshots_) {
+    snap_time_interval_ = opt.snap_time_interval;
+    snap_folder_ = opt.snap_folder;
+    std::filesystem::create_directories(snap_folder_);
+  }
+
   std::cout << "Starting simulation with Cartesian Mesh of size "
             << "(" << nb_elements_[0] << ',' << nb_elements_[1] << ',' << nb_elements_[2] << ')' << std::endl;
   std::cout << "Number of node is " << m_mesh->getNumberOfNodes() << std::endl;
@@ -94,6 +103,11 @@ SEMproxy::SEMproxy(const SemProxyOptions& opt) {
             << ", the implementation " << opt.implem
             << " and the mesh is " << opt.mesh << std::endl;
   std::cout << "Order of approximation will be " << order << std::endl;
+
+  if (is_snapshots_) {
+    std::cout << "Snapshots enable every " << snap_time_interval_ << " iteration." << std::endl;
+    std::cout << "Saved in " << snap_folder_ << " folder." << std::endl;
+  }
 }
 
 void SEMproxy::run() {
@@ -115,17 +129,11 @@ void SEMproxy::run() {
       m_solver->outputPnValues(indexTimeSample, i1, rhsElement[0], pnGlobal);
     }
 
-    // TODO: redo snapshot
-    // if (indexTimeSample % 10 == 0)
-    // {
-    //   std::stringstream filename;
-    //   filename << "slice" << indexTimeSample << ".dat";
-    //   std::string str_filename = filename.str();
-
-    //   auto subview = Kokkos::subview(pnGlobal, Kokkos::ALL, i1);
-    //   auto slice = m_mesh->extractXYSlice(subview, nb_nodes[0], nb_nodes[0]/2);
-    //   saveSlice(slice, nb_nodes[0], str_filename);
-    // }
+    // Save slice in dat format
+    if (is_snapshots_ && indexTimeSample % snap_time_interval_ == 0)
+    {
+      saveSnapshot(indexTimeSample);
+    }
 
     swap(i1, i2);
 
@@ -149,6 +157,40 @@ void SEMproxy::run() {
   cout << "---- Elapsed Output Time : " << outputtime_ms / 1E6 << " seconds."
        << endl;
   cout << "------------------------------------------------ " << endl;
+}
+
+void SEMproxy::saveSnapshot(int timeSample) const {
+  std::stringstream filename;
+  filename << snap_folder_ << "/slice" << timeSample << ".dat";
+  std::string str_filename = filename.str();
+
+#ifdef USE_KOKKOS
+  auto subview = Kokkos::subview(pnGlobal, Kokkos::ALL, i1);
+  int middle_z = nb_nodes_[2] / 2;
+  int slice_start = middle_z * nb_nodes_[0] * nb_nodes_[1];
+  int slice_end = slice_start + (nb_nodes_[0] * nb_nodes_[1]);
+  auto xy_slice = Kokkos::subview(subview,
+                                  Kokkos::make_pair(slice_start, slice_end));
+  FENCE
+#else
+  std::vector<float> column_data = pnGlobal.getColumn(i1);
+
+  vectorReal subview(column_data.size());
+  for (int i = 0; i < column_data.size(); ++i) {
+      subview[i] = column_data[i];
+  }
+
+  int middle_z = nb_nodes_[2] / 2;
+  int slice_start = middle_z * nb_nodes_[0] * nb_nodes_[1];
+  int slice_end = slice_start + (nb_nodes_[0] * nb_nodes_[1]);
+
+  vectorReal xy_slice(slice_end - slice_start);
+  for (int i = 0; i < slice_end - slice_start; ++i) {
+      xy_slice[i] = subview[slice_start + i];
+  }
+#endif  // USE_KOKKOS
+  saveSlice(xy_slice, nb_nodes_[0], nb_nodes_[1], str_filename);
+  FENCE
 }
 
 // Initialize arrays
@@ -211,21 +253,21 @@ std::string formatSnapshotFilename(int id, int width = 5) {
  * Format: space-separated matrix with blank lines between rows for 3D plotting
  */
 void SEMproxy::saveSlice(const VECTOR_REAL_VIEW& host_slice,
-               int size, const std::string& filepath)
+               int sizex, int sizey, const std::string& filepath) const
 {
-    std::ofstream file(filepath);
+  std::ofstream file(filepath);
+  file << std::fixed << std::setprecision(6);
+  file << sizex << "\n" << sizey << "\n";
 
-    file << std::fixed << std::setprecision(6);
-    file << size << "\n" << size << "\n";
-
-    for (int y = 0; y < size; ++y) {
-        for (int x = 0; x < size; ++x) {
-            file << host_slice[y * size + x];
-            file << " ";
-        }
+  for (int i = 0; i < sizex * sizey; ++i) {
+    file << host_slice[i];
+    if ((i + 1) % sizex == 0) {
+      file << "\n";  // New line every sizex elements
+    } else {
+      file << " ";
     }
-
-    file.close();
+  }
+  file.close();
 }
 
 SolverFactory::implemType SEMproxy::getImplem ( string implemArg )
