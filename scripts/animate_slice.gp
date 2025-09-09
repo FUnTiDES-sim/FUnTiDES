@@ -9,7 +9,7 @@ set terminal qt enhanced font "Arial,12"
 set xlabel "X"
 set ylabel "Y"
 set size square
-set palette defined (0 "blue", 0.5 "white", 1 "red")
+set palette defined (0 "black", 0.5 "gray", 1 "white")
 
 # Get file count
 n_files = system("ls slice*.dat | wc -l") + 0
