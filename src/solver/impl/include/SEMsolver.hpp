@@ -24,7 +24,7 @@ struct SEMsolverData : SolverBase::DataStruct
                  ARRAY_REAL_VIEW const & rhsTerm,
                  ARRAY_REAL_VIEW const & pnGlobal,
                  VECTOR_INT_VIEW const & rhsElement,
-                 ARRAY_REAL_VIEW & rhsWeights):
+                 ARRAY_REAL_VIEW const & rhsWeights):
     m_i1(i1),
     m_i2(i2),
     m_rhsTerm(rhsTerm),

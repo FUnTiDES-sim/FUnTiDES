@@ -1,3 +1,4 @@
+#include <KokkosExp_InterOp.hpp>
 #include <pybind11/numpy.h>
 #include <pybind11/pybind11.h>
 #include <pybind11/stl.h>
@@ -15,6 +16,7 @@ PYBIND11_MODULE(solver, m) {
   m.attr("__name__") = "pyproxys.solver";
 
   // Bind enums
+  // (!they are not python enums, just to select the template at runtime!)
   py::enum_<SolverFactory::methodType>(m, "MethodType")
     .value("SEM", SolverFactory::SEM)
     .value("DG", SolverFactory::DG);
@@ -36,10 +38,10 @@ PYBIND11_MODULE(solver, m) {
   // Bind SEMsolverData (inherits from DataStruct)
   py::class_<SEMsolverData, SolverBase::DataStruct, std::shared_ptr<SEMsolverData>>(m, "SEMsolverData")
     .def(py::init<int, int,
-                  const ARRAY_REAL_VIEW&,
-                  const ARRAY_REAL_VIEW&,
-                  const VECTOR_INT_VIEW&,
-                  ARRAY_REAL_VIEW&>(),
+                  Kokkos::Experimental::python_view_type_t<ARRAY_REAL_VIEW>,
+                  Kokkos::Experimental::python_view_type_t<ARRAY_REAL_VIEW>,
+                  Kokkos::Experimental::python_view_type_t<VECTOR_INT_VIEW>,
+                  Kokkos::Experimental::python_view_type_t<ARRAY_REAL_VIEW>>(),
          py::arg("i1"),
          py::arg("i2"),
          py::arg("rhs_term"),

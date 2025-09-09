@@ -31,9 +31,13 @@ PYBIND11_MODULE(model, m) {
   // until we get a factory that returns a shared pointer we have to bind specific template instances
   // so we only map what is used in pyfwi and python examples
 
+  // Bind ModelApi<float, int>
+  using ModelAPIFI = model::ModelApi<float, int>;
+  py::class_<ModelAPIFI, std::shared_ptr<ModelAPIFI>>(m, "ModelApi");
+
   // Bind ModelUnstruct<float, int> (only one used by pyfwi so far)
   using ModelUnstructFI = model::ModelUnstruct<float, int>;
-  py::class_<ModelUnstructFI, std::shared_ptr<ModelUnstructFI>>(m, "ModelUnstruct")
+  py::class_<ModelUnstructFI, ModelAPIFI, std::shared_ptr<ModelUnstructFI>>(m, "ModelUnstruct")
     .def(py::init<>())
     .def("get_number_of_elements", &ModelUnstructFI::getNumberOfElements)
     .def("get_number_of_nodes", &ModelUnstructFI::getNumberOfNodes)
@@ -50,7 +54,7 @@ PYBIND11_MODULE(model, m) {
 
   // Bind ModelStruct<float, int, order> for orders 1, 2, and 3
   using ModelStructFI1 = model::ModelStruct<float, int, 1>;
-  py::class_<ModelStructFI1, std::shared_ptr<ModelStructFI1>>(m, "ModelStructFI1")
+  py::class_<ModelStructFI1, ModelAPIFI, std::shared_ptr<ModelStructFI1>>(m, "ModelStructFI1")
     .def(py::init<>())
     .def(py::init<const model::ModelStructData<float, int>&>())
     .def("get_number_of_elements", &ModelStructFI1::getNumberOfElements)
@@ -67,7 +71,7 @@ PYBIND11_MODULE(model, m) {
     .def("boundary_type", &ModelStructFI1::boundaryType);
 
   using ModelStructFI2 = model::ModelStruct<float, int, 2>;
-  py::class_<ModelStructFI2, std::shared_ptr<ModelStructFI2>>(m, "ModelStructFI2")
+  py::class_<ModelStructFI2, ModelAPIFI, std::shared_ptr<ModelStructFI2>>(m, "ModelStructFI2")
     .def(py::init<>())
     .def(py::init<const model::ModelStructData<float, int>&>())
     .def("get_number_of_elements", &ModelStructFI2::getNumberOfElements)
@@ -84,7 +88,7 @@ PYBIND11_MODULE(model, m) {
     .def("boundary_type", &ModelStructFI2::boundaryType);
 
   using ModelStructFI3 = model::ModelStruct<float, int, 3>;
-  py::class_<ModelStructFI3, std::shared_ptr<ModelStructFI3>>(m, "ModelStructFI3")
+  py::class_<ModelStructFI3, ModelAPIFI, std::shared_ptr<ModelStructFI3>>(m, "ModelStructFI3")
     .def(py::init<>())
     .def(py::init<const model::ModelStructData<float, int>&>())
     .def("get_number_of_elements", &ModelStructFI3::getNumberOfElements)

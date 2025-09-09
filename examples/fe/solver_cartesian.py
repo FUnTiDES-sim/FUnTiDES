@@ -37,7 +37,6 @@ class MemSpace(Enum):
     GPU = "CudaUVMSpace"
 
 
-# TODO already defined in Solver
 class ModelType(Enum):
     """
     Cartesian model type options.
@@ -52,6 +51,27 @@ class ModelType(Enum):
 
     STRUCTURED = "Structured"
     UNSTRUCTURED = "Unstructured"
+
+
+class ImplemType(Enum):
+    """
+    Implementation type options.
+
+    Attributes
+    ----------
+    CLASSIC : str
+        Classic implementation.
+    GEOS : str
+        Geos implementation.
+    OPTIM : str
+        Optim implementation.
+    SHIVA : str
+        Shiva implementation.
+    """
+    CLASSIC = "Classic"
+    GEOS = "Geos"
+    OPTIM = "Optim"
+    SHIVA = "Shiva"
 
 
 def parse_args():
@@ -80,9 +100,9 @@ def parse_args():
     )
     parser.add_argument(
         "--impl",
-        choices=[e.name for e in Solver.ImplemType],
-        default=Solver.ImplemType.SEM.name,
-        help=f"Choose implementation type: {', '.join(e.name for e in Solver.ImplemType)} (default: SEM)",
+        choices=[e.name for e in ImplemType],
+        default=ImplemType.SHIVA.value,
+        help=f"Choose implementation type: {', '.join(e.name for e in ImplemType)} (default: SHIVA)",
     )
     parser.add_argument(
         "--order",
@@ -174,7 +194,7 @@ def create_model(model_type, e, h, order):
     match ModelType(model_type):
         case ModelType.STRUCTURED:
             print("Creating structured cartesian model")
-            return create_structured_model(e, h, order)
+            return create_structured_model(e[0], h[0], order)
         case ModelType.UNSTRUCTURED:
             print("Creating unstructured cartesian model")
             return create_unstructured_model(e, h, order)
@@ -216,7 +236,7 @@ def create_structured_model(e, h, order):
             raise ValueError(
                 f"Order {order} is not wrapped by pybind11 (only 1, 2, 3 supported)"
             )
-    return builder.getModel(e, h)
+    return builder.get_model(e, h)
 
 
 def create_unstructured_model(e, h, order):
@@ -273,34 +293,34 @@ def create_solver(implem_type):
     ValueError
         If the implementation type is unknown.
     """
-    match Solver.ImplemType[implem_type]:
-        case Solver.ImplemType.CLASSIC:
+    match ImplemType(implem_type):
+        case ImplemType.CLASSIC:
             print("Using CLASSIC implementation")
             return Solver.create_solver(
-                Solver.methodType.FEM,
-                Solver.implemType.CLASSIC,
-                Solver.meshType.CARTESIAN,
+                Solver.MethodType.SEM,
+                Solver.ImplemType.CLASSIC,
+                Solver.MeshType.CARTESIAN,
             )
-        case Solver.ImplemType.GEOS:
+        case ImplemType.GEOS:
             print("Using GEOS implementation")
             return Solver.create_solver(
-                Solver.methodType.FEM,
-                Solver.implemType.GEOS,
-                Solver.meshType.CARTESIAN,
+                Solver.MethodType.SEM,
+                Solver.ImplemType.GEOS,
+                Solver.MeshType.CARTESIAN,
             )
-        case Solver.ImplemType.OPTIM:
+        case ImplemType.OPTIM:
             print("Using OPTIM implementation")
             return Solver.create_solver(
-                Solver.methodType.FEM,
-                Solver.implemType.OPTIM,
-                Solver.meshType.CARTESIAN,
+                Solver.MethodType.SEM,
+                Solver.ImplemType.OPTIM,
+                Solver.MeshType.CARTESIAN,
             )
-        case Solver.ImplemType.SEM:
-            print("Using SEM implementation")
+        case ImplemType.SHIVA:
+            print("Using SHIVA implementation")
             return Solver.create_solver(
-                Solver.methodType.FEM,
-                Solver.implemType.SEM,
-                Solver.meshType.CARTESIAN,
+                Solver.MethodType.SEM,
+                Solver.ImplemType.SHIVA,
+                Solver.MeshType.STRUCT, 3 #TODO fix that and simplify
             )
         case _:
             raise ValueError(f"Unknown implementation type: {implem_type}")
@@ -513,7 +533,7 @@ def allocate_rhs_weight(n_rhs, model, memspace, layout):
     n_rhs : int
         Number of right-hand side sources.
     model : Model.ModelStruct or Model.ModelUnstruct
-        The model object with get_nb_points_per_element and get_number_of_points_per_element methods.
+        The model object with get_number_of_points_per_element methods.
     memspace : kokkos.Space
         The selected Kokkos memory space.
     layout : kokkos.Layout
@@ -526,7 +546,7 @@ def allocate_rhs_weight(n_rhs, model, memspace, layout):
     RHSWeights : np.ndarray
         The numpy array view of the weights.
     """
-    nb_points = model.get_nb_points_per_element()
+    nb_points = model.get_number_of_points_per_element()
     kk_RHSWeights = kokkos.array(
         [n_rhs, nb_points],
         dtype=kokkos.float32,
@@ -655,7 +675,9 @@ def compute_step(
         Updated indices for pressure fields.
     """
     iter_start = time.time()
+    print(f"Computing time step {time_sample + 1} / {n_time_steps}")
     solver.compute_one_step(dt, time_sample, data)
+    print(f"Time step {time_sample + 1} computed")
     iter_time = time.time() - iter_start
     iteration_times.append(iter_time)
     if time_sample % 1000 == 0:
@@ -717,7 +739,7 @@ def main():
     print("Initializing Kokkos...")
     kokkos.initialize()
     print("Kokkos initialized")
-    memspace, layout = select_kokkos_memspace(args.memspace)
+    memspace, layout = select_kokkos_memspace(args.mem)
 
     # Add timing variables
     start_time = time.time()
@@ -727,12 +749,12 @@ def main():
 
     # Create model
     print("Creating model...")
-    model = create_model(args.modeltype, (ex, ey, ez), (hx, hy, hz), order)
+    model = create_model(args.model, (ex, ey, ez), (hx, hy, hz), order)
     print("Model created")
 
     # Create solver
     print("Creating solver...")
-    solver = create_solver(args.implemtype)
+    solver = create_solver(args.impl)
     print("Solver created")
 
     # Initialize model
@@ -747,9 +769,7 @@ def main():
 
     # allocate RHS arrays
     print("Allocating RHS element...")
-    kk_RHSElement, RHSElement = allocate_rhs_element(
-        n_rhs, n_points_per_elements, memspace, layout
-    )
+    kk_RHSElement, RHSElement = allocate_rhs_element(n_rhs, n_points_per_elements, memspace, layout)
     print("RHS element number 0", RHSElement[0])
     print("RHS element number 1", RHSElement[1])
     print("RHS element allocated")
