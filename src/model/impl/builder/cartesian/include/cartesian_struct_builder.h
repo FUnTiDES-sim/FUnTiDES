@@ -10,15 +10,17 @@ namespace model {
        CartesianStructBuilder() = default;
        ~CartesianStructBuilder() = default;
 
-       model::ModelStruct<FloatType, ScalarType, Order> getModel(ScalarType e, FloatType h) const {
+       model::ModelStruct<FloatType, ScalarType, Order> getModel(ScalarType ex, FloatType hx,
+                                                                 ScalarType ey, FloatType hy,
+                                                                 ScalarType ez, FloatType hz) const {
           model::ModelStructData<FloatType, ScalarType> data;
-          data.ex_ = e;
-          data.ey_ = e;
-          data.ez_ = e;
+          data.ex_ = ex;
+          data.ey_ = ey;
+          data.ez_ = ez;
 
-          data.dx_ = h;
-          data.dy_ = h;
-          data.dz_ = h;
+          data.dx_ = hx;
+          data.dy_ = hy;
+          data.dz_ = hz;
 
           return model::ModelStruct<FloatType, ScalarType, Order>(data);
        }
