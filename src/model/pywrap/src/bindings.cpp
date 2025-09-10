@@ -118,17 +118,26 @@ PYBIND11_MODULE(model, m) {
   using CartesianStructBuilderFI1 = model::CartesianStructBuilder<float, int, 1>;
   py::class_<CartesianStructBuilderFI1, std::shared_ptr<CartesianStructBuilderFI1>>(m, "CartesianStructBuilderFI1")
     .def(py::init<>())
-    .def("get_model", &CartesianStructBuilderFI1::getModel, py::arg("e"), py::arg("h"));
+    .def("get_model", &CartesianStructBuilderFI1::getModel,
+      py::arg("ex"), py::arg("hx"),
+      py::arg("ey"), py::arg("hy"),
+      py::arg("ez"), py::arg("hz"));
 
   using CartesianStructBuilderFI2 = model::CartesianStructBuilder<float, int, 2>;
   py::class_<CartesianStructBuilderFI2, std::shared_ptr<CartesianStructBuilderFI2>>(m, "CartesianStructBuilderFI2")
     .def(py::init<>())
-    .def("get_model", &CartesianStructBuilderFI2::getModel, py::arg("e"), py::arg("h"));
+    .def("get_model", &CartesianStructBuilderFI2::getModel,
+      py::arg("ex"), py::arg("hx"),
+      py::arg("ey"), py::arg("hy"),
+      py::arg("ez"), py::arg("hz"));
 
   using CartesianStructBuilderFI3 = model::CartesianStructBuilder<float, int, 3>;
   py::class_<CartesianStructBuilderFI3, std::shared_ptr<CartesianStructBuilderFI3>>(m, "CartesianStructBuilderFI3")
     .def(py::init<>())
-    .def("get_model", &CartesianStructBuilderFI3::getModel, py::arg("e"), py::arg("h"));
+    .def("get_model", &CartesianStructBuilderFI3::getModel,
+      py::arg("ex"), py::arg("hx"),
+      py::arg("ey"), py::arg("hy"),
+      py::arg("ez"), py::arg("hz"));
 
   // Bind CartesianParams<float, int>
   using CartesianParamsFI = model::CartesianParams<float, int>;

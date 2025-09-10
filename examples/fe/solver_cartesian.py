@@ -278,7 +278,7 @@ def create_model(model_type, e, h, order):
     """
     match ModelType(model_type):
         case ModelType.STRUCTURED:
-            return create_structured_model(e[0], h[0], order)
+            return create_structured_model(e, h, order)
         case ModelType.UNSTRUCTURED:
             return create_unstructured_model(e, h, order)
         case _:
@@ -319,7 +319,7 @@ def create_structured_model(e, h, order):
             raise ValueError(
                 f"Order {order} is not wrapped by pybind11 (only 1, 2, 3 supported)"
             )
-    return builder.get_model(e, h)
+    return builder.get_model(e[0], h[0], e[1], h[1], e[2], h[2])
 
 
 def create_unstructured_model(e, h, order):
