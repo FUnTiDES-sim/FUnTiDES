@@ -7,6 +7,7 @@
   #define PROXY_HOST_DEVICE 
 #endif
 
+// LOOPHEAD
 #if defined (USE_KOKKOS)
   #define LOOPHEAD(Range, Iterator)\
     Kokkos::parallel_for( Range, KOKKOS_CLASS_LAMBDA ( const int Iterator ){
@@ -25,7 +26,7 @@
   #define LOOPEND   }
 #endif
 
-
+// MAINLOOP
 #if defined (USE_KOKKOS) && defined (USE_KOKKOS_TEAMS)
   #define MAINLOOPHEAD(Range, Iterator)\
     const int nthreads=128;\
@@ -53,6 +54,75 @@
 #else
   #define MAINLOOPHEAD LOOPHEAD
   #define MAINLOOPEND LOOPEND
+#endif
+
+// FIND_MAX
+#if defined(USE_KOKKOS)
+  #define FIND_MAX(Array, Range, Result)                                \
+    Kokkos::parallel_reduce(Range, KOKKOS_CLASS_LAMBDA(const int i,     \
+                                                       decltype(Result)& local_max) { \
+      local_max = Array[i];                                             \
+    }, Kokkos::Max<decltype(Result)>(Result));
+#elif defined(USE_OMP)
+  #define FIND_MAX(Array, Range, Result)                                \
+    Result = Array[0];                                                  \
+    _Pragma("omp parallel for reduction(max:Result)")                   \
+    for (int i = 1; i < Range; i++) {                                  \
+      if (Array[i] > Result) Result = Array[i];                        \
+    }
+#else
+  // The sequential case
+  #define FIND_MAX(Array, Range, Result)                                \
+    Result = Array[0];                                                  \
+    for (int i = 1; i < Range; i++) {                                  \
+      if (Array[i] > Result) Result = Array[i];                        \
+    }
+#endif
+
+// FIND_MIN
+#if defined(USE_KOKKOS)
+  #define FIND_MIN(Array, Range, Result)                                \
+    Kokkos::parallel_reduce(Range, KOKKOS_CLASS_LAMBDA(const int i,     \
+                                                       decltype(Result)& local_min) { \
+      local_min = Array[i];                                             \
+    }, Kokkos::Min<decltype(Result)>(Result));
+#elif defined(USE_OMP)
+  #define FIND_MIN(Array, Range, Result)                                \
+    Result = Array[0];                                                  \
+    _Pragma("omp parallel for reduction(min:Result)")                   \
+    for (int i = 1; i < Range; i++) {                                  \
+      if (Array[i] < Result) Result = Array[i];                        \
+    }
+#else
+  // The sequential case
+  #define FIND_MIN(Array, Range, Result)                                \
+    Result = Array[0];                                                  \
+    for (int i = 1; i < Range; i++) {                                  \
+      if (Array[i] < Result) Result = Array[i];                        \
+    }
+#endif
+
+// SUM
+#if defined(USE_KOKKOS)
+  #define SUM(Array, Range, Result)                                     \
+    Kokkos::parallel_reduce(Range, KOKKOS_CLASS_LAMBDA(const int i,     \
+                                                       decltype(Result)& local_sum) { \
+      local_sum = Array[i];                                             \
+    }, Kokkos::Sum<decltype(Result)>(Result));
+#elif defined(USE_OMP)
+  #define SUM(Array, Range, Result)                                     \
+    Result = decltype(Result){0};                                       \
+    _Pragma("omp parallel for reduction(+:Result)")                     \
+    for (int i = 0; i < Range; i++) {                                  \
+      Result += Array[i];                                               \
+    }
+#else
+  // The sequential case
+  #define SUM(Array, Range, Result)                                     \
+    Result = decltype(Result){0};                                       \
+    for (int i = 0; i < Range; i++) {                                  \
+      Result += Array[i];                                               \
+    }
 #endif
 
 #define ARRAY_DOUBLE_VIEW arrayReal

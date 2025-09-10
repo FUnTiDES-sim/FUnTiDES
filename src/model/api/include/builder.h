@@ -9,6 +9,6 @@ namespace model {
       ModelBuilderBase() = default;
       ~ModelBuilderBase() = default;
 
-      model::ModelApi<FloatType, ScalarType> getModel() const;
+      unique_ptr<model::ModelApi<FloatType, ScalarType>> getModel() const;
     };
 }

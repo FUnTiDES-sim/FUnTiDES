@@ -13,6 +13,14 @@ public:
   std::string implem = "optim";   // classic|optim|geos|shiva
   std::string method = "sem";     // sem|dg
   std::string mesh = "cartesian";
+  float dt = 0.001;
+  float timemax = 1.5;
+  bool autodt = false;
+  // snapshots
+  bool snapshots = false;
+  int snap_time_interval = 10;
+  std::string snap_folder = "snapshots";
+
 
   void validate() const {
     if (order < 1) throw std::runtime_error("order must be >= 1");
@@ -42,6 +50,18 @@ public:
       ("method", "Method: sem|dg",
           cxxopts::value<std::string>(o.method))
       ("mesh", "Mesh: cartesian|ucartesian",
-          cxxopts::value<std::string>(o.mesh));
+          cxxopts::value<std::string>(o.mesh))
+      ("dt", "Time step selection in s (default = 0.001s)",
+          cxxopts::value<float>(o.dt))
+      ("timemax", "Duration of the simulation in s (default = 1.5s)",
+          cxxopts::value<float>(o.timemax))
+      ("auto-dt", "Select automatique dt via CFL equation.",
+          cxxopts::value<bool>(o.autodt))
+      ("s,snapshots", "Enable snapshot.",
+          cxxopts::value<bool>(o.snapshots))
+      ("snap-folder", "Folder where to save snapshots. (default=snapshots)",
+          cxxopts::value<std::string>(o.snap_folder))
+      ("snap-interval", "Interval on iteration between two snapshots. (default=10)",
+          cxxopts::value<int>(o.snap_time_interval));
   }
 };

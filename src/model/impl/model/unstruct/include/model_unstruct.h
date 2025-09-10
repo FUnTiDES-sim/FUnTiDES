@@ -232,6 +232,83 @@ class ModelUnstruct : public ModelApi<FloatType, ScalarType> {
         }
     }
 
+    PROXY_HOST_DEVICE
+    FloatType getMinSpacing() const final {
+      FloatType minSpacing = std::numeric_limits<FloatType>::max();
+
+      // Iterate through all elements
+      for (ScalarType e = 0; e < n_element_; ++e) {
+        // Check spacing in each dimension within the element
+        for (int dim = 0; dim < 3; ++dim) {
+            // Check i-direction spacing
+            for (int j = 0; j <= order_; ++j) {
+                for (int k = 0; k <= order_; ++k) {
+                    for (int i = 0; i < order_; ++i) {
+                        ScalarType node1 = globalNodeIndex(e, i, j, k);
+                        ScalarType node2 = globalNodeIndex(e, i+1, j, k);
+
+                        FloatType coord1 = nodeCoord(node1, dim);
+                        FloatType coord2 = nodeCoord(node2, dim);
+                        FloatType spacing = abs(coord2 - coord1);
+
+                        if (spacing > 0 && spacing < minSpacing) {
+                            minSpacing = spacing;
+                        }
+                    }
+                }
+            }
+
+            // Check j-direction spacing
+            for (int i = 0; i <= order_; ++i) {
+                for (int k = 0; k <= order_; ++k) {
+                    for (int j = 0; j < order_; ++j) {
+                        ScalarType node1 = globalNodeIndex(e, i, j, k);
+                        ScalarType node2 = globalNodeIndex(e, i, j+1, k);
+
+                        FloatType coord1 = nodeCoord(node1, dim);
+                        FloatType coord2 = nodeCoord(node2, dim);
+                        FloatType spacing = abs(coord2 - coord1);
+
+                        if (spacing > 0 && spacing < minSpacing) {
+                            minSpacing = spacing;
+                        }
+                    }
+                }
+            }
+
+            // Check k-direction spacing
+            for (int i = 0; i <= order_; ++i) {
+                for (int j = 0; j <= order_; ++j) {
+                    for (int k = 0; k < order_; ++k) {
+                        ScalarType node1 = globalNodeIndex(e, i, j, k);
+                        ScalarType node2 = globalNodeIndex(e, i, j, k+1);
+
+                        FloatType coord1 = nodeCoord(node1, dim);
+                        FloatType coord2 = nodeCoord(node2, dim);
+                        FloatType spacing = abs(coord2 - coord1);
+
+                        if (spacing > 0 && spacing < minSpacing) {
+                            minSpacing = spacing;
+                        }
+                    }
+                }
+            }
+        }
+      }
+
+      return minSpacing;
+    }
+
+    FloatType getMaxSpeed() const final {
+       FloatType maxSpeedNode;
+       FloatType maxSpeedElem;
+
+       FIND_MAX(model_vp_node_, n_node_, maxSpeedNode);
+       FIND_MAX(model_vp_node_, n_element_, maxSpeedElem);
+
+       return max(maxSpeedElem, maxSpeedNode);
+    }
+
 private:
     ScalarType order_;
     ScalarType n_element_;
