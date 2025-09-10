@@ -56,7 +56,7 @@ public:
       ("timemax", "Duration of the simulation in s (default = 1.5s)",
           cxxopts::value<float>(o.timemax))
       ("auto-dt", "Select automatique dt via CFL equation.",
-          cxxopts::value<bool>(o.autodt)),
+          cxxopts::value<bool>(o.autodt))
       ("s,snapshots", "Enable snapshot.",
           cxxopts::value<bool>(o.snapshots))
       ("snap-folder", "Folder where to save snapshots. (default=snapshots)",
