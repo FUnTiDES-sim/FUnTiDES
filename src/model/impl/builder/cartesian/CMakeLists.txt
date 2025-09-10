@@ -13,3 +13,9 @@ target_link_libraries(proxy_model_builder_cartesian PUBLIC
 )
 
 target_link_kokkos_if_enabled(proxy_model_builder_cartesian)
+
+install(TARGETS proxy_model_builder_cartesian
+  EXPORT proxy_model_builder_cartesian_targets
+  ARCHIVE DESTINATION lib
+  LIBRARY DESTINATION lib
+  INCLUDES DESTINATION include)

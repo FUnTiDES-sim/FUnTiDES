@@ -21,10 +21,10 @@ struct SEMsolverData : SolverBase::DataStruct
 {
   SEMsolverData( int i1,
                  int i2,
-                 ARRAY_REAL_VIEW const & rhsTerm,
-                 ARRAY_REAL_VIEW const & pnGlobal,
-                 VECTOR_INT_VIEW const & rhsElement,
-                 ARRAY_REAL_VIEW & rhsWeights):
+                 ARRAY_REAL_VIEW rhsTerm,
+                 ARRAY_REAL_VIEW pnGlobal,
+                 VECTOR_INT_VIEW rhsElement,
+                 ARRAY_REAL_VIEW rhsWeights):
     m_i1(i1),
     m_i2(i2),
     m_rhsTerm(rhsTerm),
@@ -33,12 +33,20 @@ struct SEMsolverData : SolverBase::DataStruct
     m_rhsWeights(rhsWeights)
   {}
 
+  void print() const override {
+      std::cout << "SEMsolverData: i1=" << m_i1 << ", i2=" << m_i2 << std::endl;
+      std::cout << "RHS Term size: " << m_rhsTerm.extent(0) << std::endl;
+      std::cout << "Pn Global size: " << m_pnGlobal.extent(0) << std::endl;
+      std::cout << "RHS Element size: " << m_rhsElement.extent(0) << std::endl;
+      std::cout << "RHS Weights size: " << m_rhsWeights.extent(0) << std::endl;
+  }
+
   int m_i1;
   int m_i2;
-  ARRAY_REAL_VIEW const & m_rhsTerm;
-  ARRAY_REAL_VIEW const & m_pnGlobal;
-  VECTOR_INT_VIEW const & m_rhsElement;
-  ARRAY_REAL_VIEW const & m_rhsWeights;
+  ARRAY_REAL_VIEW m_rhsTerm;
+  ARRAY_REAL_VIEW m_pnGlobal;
+  VECTOR_INT_VIEW m_rhsElement;
+  ARRAY_REAL_VIEW m_rhsWeights;
 };
 
 

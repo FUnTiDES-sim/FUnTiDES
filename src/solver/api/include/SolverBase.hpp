@@ -17,6 +17,8 @@ public:
   {
     // Base structure for data passed to the solver
     virtual ~DataStruct() = default;
+
+    virtual void print() const = 0;
   };
 
   // Pure virtual function to compute one step of the solver
