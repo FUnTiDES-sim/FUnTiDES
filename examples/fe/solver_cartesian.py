@@ -68,6 +68,7 @@ class ImplemType(Enum):
     SHIVA : str
         Shiva implementation.
     """
+
     CLASSIC = "Classic"
     GEOS = "Geos"
     OPTIM = "Optim"
@@ -484,9 +485,7 @@ def setup_plot(nx, nz, cmpvalue=0.15):
     """
     grid = np.zeros((nx, nz))
     fig, ax = plt.subplots()
-    im = ax.imshow(
-        grid, cmap="viridis", interpolation="nearest"
-    )
+    im = ax.imshow(grid, cmap="viridis", interpolation="nearest")
     plt.colorbar(im, ax=ax, label="Intensity")
     plt.title("2D Slice of a Float32 Array")
     plt.xlabel("X-axis")
@@ -646,8 +645,8 @@ def allocate_rhs_element(n_rhs, ex, ey, ez, memspace, layout):
         [n_rhs], dtype=kokkos.int32, space=memspace, layout=layout
     )
     RHSElement = np.array(kk_RHSElement, copy=False)
-    RHSElement[0] = ex/2 + ey/2 * ex + ez/2 * ey * ex  # one half of slice
-    RHSElement[1] = ex/3 + ey/2 * ex + ez/2 * ey * ex  # one third of slice
+    RHSElement[0] = ex / 2 + ey / 2 * ex + ez / 2 * ey * ex  # one half of slice
+    RHSElement[1] = ex / 3 + ey / 2 * ex + ez / 2 * ey * ex  # one third of slice
     return kk_RHSElement, RHSElement
 
 
@@ -691,10 +690,13 @@ def compute_step(
     data,
     iteration_times,
     n_time_steps,
-    i1, i2,
-    nx, ny, nz,
+    i1,
+    i2,
+    nx,
+    ny,
+    nz,
     pnGlobal,
-    im
+    im,
 ):
     """
     Perform a single time step of the simulation, update timing, plot, and swap indices.
@@ -824,7 +826,9 @@ def main():
 
     # allocate RHS arrays
     print("Allocating RHS element...")
-    kk_RHSElement, RHSElement = allocate_rhs_element(n_rhs, ex, ey, ez, memspace, layout)
+    kk_RHSElement, RHSElement = allocate_rhs_element(
+        n_rhs, ex, ey, ez, memspace, layout
+    )
     print("  - RHS element number 0", RHSElement[0])
     print("  - RHS element number 1", RHSElement[1])
     print("RHS element allocated")
@@ -834,14 +838,14 @@ def main():
     print("RHS weights allocated")
 
     print("Allocating RHS term...")
-    kk_RHSTerm, rhsTerm = allocate_rhs_term(n_rhs, n_time_steps, dt, f0, memspace, layout)
+    kk_RHSTerm, rhsTerm = allocate_rhs_term(
+        n_rhs, n_time_steps, dt, f0, memspace, layout
+    )
     print("RHS term allocated")
 
     # Create solver data instance
     print("Creating solver data...")
-    data = create_solver_data(
-        kk_RHSTerm, kk_pnGlobal, kk_RHSElement, kk_RHSWeights
-    )
+    data = create_solver_data(kk_RHSTerm, kk_pnGlobal, kk_RHSElement, kk_RHSWeights)
     print("Solver data created")
 
     i1 = data.i1
@@ -849,7 +853,6 @@ def main():
 
     # Loop over time steps
     for time_sample in range(n_time_steps):
-
         i1, i2 = compute_step(
             time_sample,
             dt,
@@ -857,10 +860,13 @@ def main():
             data,
             iteration_times,
             n_time_steps,
-            i1, i2,
-            nx, ny, nz,
+            i1,
+            i2,
+            nx,
+            ny,
+            nz,
             pnGlobal,
-            im
+            im,
         )
 
     # Print final timing statistics
