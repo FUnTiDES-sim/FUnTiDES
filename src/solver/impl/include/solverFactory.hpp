@@ -1,7 +1,7 @@
 #pragma once
 
 #include "SolverBase.hpp"
-#include "fe/Integrals.hpp"
+#include <fe/Integrals.hpp>
 #include <memory>
 
 namespace SolverFactory
