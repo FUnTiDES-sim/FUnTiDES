@@ -107,7 +107,7 @@ def parse_args():
     parser.add_argument(
         "--order",
         type=int,
-        default=3,
+        default=2,
         choices=range(1, 4),
         help="Polynomial order of the elements (default: 3, max 3)",
     )
@@ -120,20 +120,44 @@ def parse_args():
     parser.add_argument(
         "--ex",
         type=int,
-        default=50,
+        default=100,
         help="Number of elements in x-direction (default: 50)",
     )
     parser.add_argument(
         "--ey",
         type=int,
-        default=50,
+        default=100,
         help="Number of elements in y-direction (default: 50)",
     )
     parser.add_argument(
         "--ez",
         type=int,
-        default=50,
+        default=100,
         help="Number of elements in z-direction (default: 50)",
+    )
+    parser.add_argument(
+        "--f0",
+        type=float,
+        default=5.0,
+        help="Peak frequency for the Ricker source term (default: 5.0)",
+    )
+    parser.add_argument(
+        "--dt",
+        type=float,
+        default=0.001,
+        help="Time step size (default: 0.001)",
+    )
+    parser.add_argument(
+        "--n_time_steps",
+        type=int,
+        default=1500,
+        help="Number of time steps to run (default: 1500)",
+    )
+    parser.add_argument(
+        "--n_rhs",
+        type=int,
+        default=2,
+        help="Number of right-hand side sources (default: 2)",
     )
     return parser.parse_args()
 
@@ -158,12 +182,72 @@ def select_kokkos_memspace(memspace_arg):
     if in_memspace == MemSpace.CPU:
         memspace = kokkos.HostSpace
         layout = kokkos.LayoutRight
-        print("Using Kokkos HostSpace (CPU) | LayoutRight")
     else:
         memspace = kokkos.CudaUVMSpace
         layout = kokkos.LayoutLeft
-        print("Using Kokkos CudaUVMSpace (GPU) | LayoutLeft")
     return memspace, layout
+
+
+def get_solver_model_type(model_type):
+    """
+    Map a ModelType value (or name) to the corresponding Solver.MeshType.
+
+    Parameters
+    ----------
+    model_type : str or ModelType
+        Model type name or ModelType enum value. Accepted values are
+        'Structured' / ModelType.STRUCTURED and 'Unstructured' / ModelType.UNSTRUCTED.
+
+    Returns
+    -------
+    Solver.MeshType
+        Corresponding Solver.MeshType enum (Solver.MeshType.STRUCT or Solver.MeshType.UNSTRUCT).
+
+    Raises
+    ------
+    ValueError
+        If the provided model_type is unknown or unsupported.
+    """
+    match ModelType(model_type):
+        case ModelType.STRUCTURED:
+            return Solver.MeshType.STRUCT
+        case ModelType.UNSTRUCTURED:
+            return Solver.MeshType.UNSTRUCT
+        case _:
+            raise ValueError(f"Unknown model type: {model_type}")
+
+
+def get_solver_implem_type(implem_type):
+    """
+    Map an implementation identifier (name or enum) to the corresponding Solver.ImplemType.
+
+    Parameters
+    ----------
+    implem_type : str or ImplemType
+        Implementation name or ImplemType enum. Accepted names are
+        'CLASSIC', 'GEOS', 'OPTIM', 'SHIVA' (case-insensitive when passed as enum names).
+
+    Returns
+    -------
+    Solver.ImplemType
+        Corresponding Solver.ImplemType enum value.
+
+    Raises
+    ------
+    ValueError
+        If the provided implem_type is unknown or unsupported.
+    """
+    match ImplemType(implem_type):
+        case ImplemType.CLASSIC:
+            return Solver.ImplemType.CLASSIC
+        case ImplemType.GEOS:
+            return Solver.ImplemType.GEOS
+        case ImplemType.OPTIM:
+            return Solver.ImplemType.OPTIM
+        case ImplemType.SHIVA:
+            return Solver.ImplemType.SHIVA
+        case _:
+            raise ValueError(f"Unknown implementation type: {implem_type}")
 
 
 def create_model(model_type, e, h, order):
@@ -193,10 +277,8 @@ def create_model(model_type, e, h, order):
     """
     match ModelType(model_type):
         case ModelType.STRUCTURED:
-            print("Creating structured cartesian model")
             return create_structured_model(e[0], h[0], order)
         case ModelType.UNSTRUCTURED:
-            print("Creating unstructured cartesian model")
             return create_unstructured_model(e, h, order)
         case _:
             raise ValueError(f"Unknown model type: {model_type}")
@@ -274,7 +356,7 @@ def create_unstructured_model(e, h, order):
     return builder.getModel()
 
 
-def create_solver(implem_type):
+def create_solver(implem_type, model_type, order):
     """
     Create a solver based on the specified implementation type.
 
@@ -282,6 +364,10 @@ def create_solver(implem_type):
     ----------
     implem_type : str
         The implementation type, one of 'CLASSIC', 'GEOS', 'OPTIM', or 'SHIVA'.
+    model_type : str
+        The model type, either 'Structured' or 'Unstructured'.
+    order : int
+        The polynomial order of the elements.
 
     Returns
     -------
@@ -293,37 +379,10 @@ def create_solver(implem_type):
     ValueError
         If the implementation type is unknown.
     """
-    match ImplemType(implem_type):
-        case ImplemType.CLASSIC:
-            print("Using CLASSIC implementation")
-            return Solver.create_solver(
-                Solver.MethodType.SEM,
-                Solver.ImplemType.CLASSIC,
-                Solver.MeshType.CARTESIAN,
-            )
-        case ImplemType.GEOS:
-            print("Using GEOS implementation")
-            return Solver.create_solver(
-                Solver.MethodType.SEM,
-                Solver.ImplemType.GEOS,
-                Solver.MeshType.CARTESIAN,
-            )
-        case ImplemType.OPTIM:
-            print("Using OPTIM implementation")
-            return Solver.create_solver(
-                Solver.MethodType.SEM,
-                Solver.ImplemType.OPTIM,
-                Solver.MeshType.CARTESIAN,
-            )
-        case ImplemType.SHIVA:
-            print("Using SHIVA implementation")
-            return Solver.create_solver(
-                Solver.MethodType.SEM,
-                Solver.ImplemType.SHIVA,
-                Solver.MeshType.STRUCT, 3 #TODO fix that and simplify
-            )
-        case _:
-            raise ValueError(f"Unknown implementation type: {implem_type}")
+    impl = get_solver_implem_type(implem_type)
+    model = get_solver_model_type(model_type)
+
+    return Solver.create_solver(Solver.MethodType.SEM, impl, model, order)
 
 
 def source_term(time_n, f0):
@@ -426,12 +485,13 @@ def setup_plot(nx, nz, cmpvalue=0.15):
     grid = np.zeros((nx, nz))
     fig, ax = plt.subplots()
     im = ax.imshow(
-        grid, cmap="viridis", interpolation="nearest", vmin=-cmpvalue, vmax=cmpvalue
+        grid, cmap="viridis", interpolation="nearest"
     )
     plt.colorbar(im, ax=ax, label="Intensity")
     plt.title("2D Slice of a Float32 Array")
     plt.xlabel("X-axis")
     plt.ylabel("Z-axis")
+    plt.ioff()  # Prevent showing the plot interactively
     return fig, ax, im
 
 
@@ -560,7 +620,7 @@ def allocate_rhs_weight(n_rhs, model, memspace, layout):
     return kk_RHSWeights, RHSWeights
 
 
-def allocate_rhs_element(n_rhs, n_points_per_elements, memspace, layout):
+def allocate_rhs_element(n_rhs, ex, ey, ez, memspace, layout):
     """
     Allocate and fill the RHSElement array.
 
@@ -586,8 +646,8 @@ def allocate_rhs_element(n_rhs, n_points_per_elements, memspace, layout):
         [n_rhs], dtype=kokkos.int32, space=memspace, layout=layout
     )
     RHSElement = np.array(kk_RHSElement, copy=False)
-    RHSElement[0] = n_points_per_elements / 2
-    RHSElement[1] = n_points_per_elements / 3
+    RHSElement[0] = ex/2 + ey/2 * ex + ez/2 * ey * ex  # one half of slice
+    RHSElement[1] = ex/3 + ey/2 * ex + ez/2 * ey * ex  # one third of slice
     return kk_RHSElement, RHSElement
 
 
@@ -633,7 +693,6 @@ def compute_step(
     n_time_steps,
     i1, i2,
     nx, ny, nz,
-    hx, hy, hz,
     pnGlobal,
     im
 ):
@@ -657,9 +716,7 @@ def compute_step(
     i1, i2 : int
         Indices for pressure fields.
     nx, ny, nz : int
-        Grid dimensions.
-    hx, hy, hz : float
-        Grid spacings.
+        Grid dimensions for the plot.
     pnGlobal : np.ndarray
         Pressure field array.
     im : matplotlib.image.AxesImage
@@ -696,11 +753,11 @@ def main():
     # Parse command line arguments
     args = parse_args()
 
-    # Initialize global parameters
-    f0 = 5  # source term
-    dt = 0.001  # time step and sampling
-    n_time_steps = 200  # total number of time steps
-    n_rhs = 2  # number of right-hand side sources
+    # Initialize global parameters from command-line arguments
+    f0 = args.f0
+    dt = args.dt
+    n_time_steps = args.n_time_steps
+    n_rhs = args.n_rhs
     order = args.order
     domain_size = args.domain_size
     ex = args.ex
@@ -715,6 +772,7 @@ def main():
     n_dof = nx * ny * nz
     n_elements = ex * ey * ez
     n_points_per_elements = (order + 1) * (order + 1) * (order + 1)
+
     print("==========SIMULATION PARAMETERS==========")
     print(f"order                        : {order}")
     print(f"memspace                     : {args.mem}")
@@ -751,7 +809,7 @@ def main():
 
     # Create solver
     print("Creating solver...")
-    solver = create_solver(args.impl)
+    solver = create_solver(args.impl, args.model, order)
     print("Solver created")
 
     # Initialize model
@@ -766,7 +824,7 @@ def main():
 
     # allocate RHS arrays
     print("Allocating RHS element...")
-    kk_RHSElement, RHSElement = allocate_rhs_element(n_rhs, n_points_per_elements, memspace, layout)
+    kk_RHSElement, RHSElement = allocate_rhs_element(n_rhs, ex, ey, ez, memspace, layout)
     print("  - RHS element number 0", RHSElement[0])
     print("  - RHS element number 1", RHSElement[1])
     print("RHS element allocated")
@@ -801,7 +859,6 @@ def main():
             n_time_steps,
             i1, i2,
             nx, ny, nz,
-            hx, hy, hz,
             pnGlobal,
             im
         )
@@ -829,8 +886,7 @@ def main():
     del model
 
     kokkos.finalize()
-    print("end of  computation")
-    print("we close kokkos")
+    print("End of  computation")
 
 
 if __name__ == "__main__":
