@@ -1,6 +1,7 @@
 #pragma once
 
 #include <model.h>
+#include <memory>
 
 namespace model {
     template<typename FloatType, typename ScalarType>
@@ -9,6 +10,6 @@ namespace model {
       ModelBuilderBase() = default;
       ~ModelBuilderBase() = default;
 
-      unique_ptr<model::ModelApi<FloatType, ScalarType>> getModel() const;
+      std::unique_ptr<model::ModelApi<FloatType, ScalarType>> getModel() const;
     };
 }
