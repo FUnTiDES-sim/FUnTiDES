@@ -43,8 +43,6 @@ public:
     init_source();
   };
 
-  // void saveCtrlSlice(int iteration, int i);
-
   /**
    * @brief Run the simulation.
    * @pre This must be called after init()
@@ -61,6 +59,22 @@ public:
 
   void saveSnapshot(int timesample) const;
 
+  /**
+  * @brief Computes optimal time step using CFL stability condition for seismic wave propagation
+  *
+  * Calculates the maximum stable time step for explicit finite difference schemes
+  * using the CFL condition: dt ≤ CFL_factor × min_spacing / (√D × v_max)
+  * where D is the number of dimension.
+  *
+  * @param cfl_factor Stability factor (0.5-0.7 for 2nd-order, 0.3-0.4 for higher-order schemes)
+  * @return dt the max timestep.
+  *
+  * @note Typical values: 0.5-0.7 for 2nd-order, 0.3-0.4 for higher-order schemes
+  * @warning Must be called before time-stepping loop to ensure numerical stability
+  *
+  */
+  float find_cfl_dt(float cfl_factor);
+
 private:
   int i1 = 0;
   int i2 = 1;
@@ -75,13 +89,14 @@ private:
   int snap_time_interval_;
   std::string snap_folder_;
 
+  // time parameters
+  float dt_;
+  float timemax_;
+  int num_sample_;
+  // source parameters
   const int myNumberOfRHS = 1;
-  const float myTimeStep = 0.001;
   const float f0 = 10.;
-  const float myTimeMax = 1.5;
   const int sourceOrder = 2;
-
-  int myNumSamples = myTimeMax / myTimeStep;
   int myElementSource = 0;
 
   std::variant <

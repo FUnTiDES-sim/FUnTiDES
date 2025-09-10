@@ -80,6 +80,16 @@ SEMproxy::SEMproxy(const SemProxyOptions& opt) {
       return static_cast<model::ModelApi<float, int>*>(&mesh);
     }, m_mesh_storage);
 
+  // time parameters
+  if (opt.autodt) {
+    float cfl_factor = (order == 2) ? 0.5 : 0.7;
+    dt_ = find_cfl_dt(cfl_factor);
+  } else {
+    dt_ = opt.dt;
+  }
+  timemax_ = opt.timemax;
+  num_sample_ = timemax_ / dt_;
+
   m_solver = SolverFactory::createSolver(methodType, implemType, meshType, order);
   m_solver->computeFEInit(*m_mesh);
 
@@ -103,6 +113,8 @@ SEMproxy::SEMproxy(const SemProxyOptions& opt) {
             << ", the implementation " << opt.implem
             << " and the mesh is " << opt.mesh << std::endl;
   std::cout << "Order of approximation will be " << order << std::endl;
+  std::cout << "Time step is " << dt_ << "s" << std::endl;
+  std::cout << "Simulated time is " << timemax_ << "s" << std::endl;
 
   if (is_snapshots_) {
     std::cout << "Snapshots enable every " << snap_time_interval_ << " iteration." << std::endl;
@@ -116,10 +128,10 @@ void SEMproxy::run() {
 
   SEMsolverData solverData(  i1, i2, myRHSTerm, pnGlobal, rhsElement, rhsWeights);
 
-  for (int indexTimeSample = 0; indexTimeSample < myNumSamples;
+  for (int indexTimeSample = 0; indexTimeSample < num_sample_;
        indexTimeSample++) {
     startComputeTime = system_clock::now();
-    m_solver->computeOneStep(myTimeStep, indexTimeSample, solverData);
+    m_solver->computeOneStep(dt_, indexTimeSample, solverData);
     totalComputeTime += system_clock::now() - startComputeTime;
 
     startOutputTime = system_clock::now();
@@ -197,7 +209,7 @@ void SEMproxy::saveSnapshot(int timeSample) const {
 void SEMproxy::init_arrays() {
   cout << "Allocate host memory for source and pressure values ..." << endl;
   myRHSTerm =
-      allocateArray2D<arrayReal>(myNumberOfRHS, myNumSamples, "RHSTerm");
+      allocateArray2D<arrayReal>(myNumberOfRHS, num_sample_, "RHSTerm");
   rhsElement = allocateVector<vectorInt>(myNumberOfRHS, "rhsElement");
   rhsWeights = allocateArray2D<arrayReal>(myNumberOfRHS, m_mesh->getNumberOfPointsPerElement(), "RHSWeight");
   pnGlobal =
@@ -219,8 +231,8 @@ void SEMproxy::init_source() {
 
   // initialize source term
   vector<float> sourceTerm =
-      myUtils.computeSourceTerm(myNumSamples, myTimeStep, f0, sourceOrder);
-  for (int j = 0; j < myNumSamples; j++) {
+      myUtils.computeSourceTerm(num_sample_, dt_, f0, sourceOrder);
+  for (int j = 0; j < num_sample_; j++) {
     myRHSTerm(0, j) = sourceTerm[j];
     if (j % 100 == 0)
       cout << "Sample " << j << "\t: sourceTerm = " << sourceTerm[j] << endl;
@@ -295,4 +307,14 @@ SolverFactory::methodType SEMproxy::getMethod ( string methodArg )
   if ( methodArg == "dg" ) return SolverFactory::DG;
 
   throw std::invalid_argument( "Method type does not follow any valid type." );
+}
+
+float SEMproxy::find_cfl_dt(float cfl_factor) {
+  float sqrtDim3 = 1.73;  // to change for 2d
+  float min_spacing = m_mesh->getMinSpacing();
+  float v_max = m_mesh->getMaxSpeed();
+
+  float dt = cfl_factor * min_spacing / (sqrtDim3 * v_max);
+
+  return dt;
 }
