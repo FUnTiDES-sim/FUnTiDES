@@ -45,18 +45,18 @@ SEMproxy::SEMproxy(const SemProxyOptions& opt) {
 
     switch(order) {
       case 1: {
-        model::CartesianStructBuilder<float, int, 1> builder;
-        m_mesh_storage = builder.getModel(ex, elem_sizex, ey, elem_sizey, ez, elem_sizez);
+        model::CartesianStructBuilder<float, int, 1> builder(ex, elem_sizex, ey, elem_sizey, ez, elem_sizez);
+        m_mesh_storage = builder.getModel();
         break;
       }
       case 2: {
-        model::CartesianStructBuilder<float, int, 2> builder;
-        m_mesh_storage = builder.getModel(ex, elem_sizex, ey, elem_sizey, ez, elem_sizez);
+        model::CartesianStructBuilder<float, int, 2> builder(ex, elem_sizex, ey, elem_sizey, ez, elem_sizez);
+        m_mesh_storage = builder.getModel();
         break;
       }
       case 3: {
-        model::CartesianStructBuilder<float, int, 3> builder;
-        m_mesh_storage = builder.getModel(ex, elem_sizex, ey, elem_sizey, ez, elem_sizez);
+        model::CartesianStructBuilder<float, int, 3> builder(ex, elem_sizex, ey, elem_sizey, ez, elem_sizez);
+        m_mesh_storage = builder.getModel();
         break;
       }
       default:

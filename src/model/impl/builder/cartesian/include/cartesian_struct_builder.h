@@ -7,22 +7,35 @@ namespace model {
     template<typename FloatType, typename ScalarType, int Order>
     class CartesianStructBuilder: public ModelBuilderBase<FloatType, ScalarType> {
      public:
-       CartesianStructBuilder() = default;
+        CartesianStructBuilder(ScalarType ex, FloatType hx,
+                               ScalarType ey, FloatType hy,
+                               ScalarType ez, FloatType hz) {
+            ex_ = ex;
+            ey_ = ey;
+            ez_ = ez;
+            hx_ = hx;
+            hy_ = hy;
+            hz_ = hz;
+        } 
        ~CartesianStructBuilder() = default;
 
-       model::ModelStruct<FloatType, ScalarType, Order> getModel(ScalarType ex, FloatType hx,
-                                                                 ScalarType ey, FloatType hy,
-                                                                 ScalarType ez, FloatType hz) const {
+       model::ModelStruct<FloatType, ScalarType, Order> getModel() const {
           model::ModelStructData<FloatType, ScalarType> data;
-          data.ex_ = ex;
-          data.ey_ = ey;
-          data.ez_ = ez;
+          data.ex_ = ex_;
+          data.ey_ = ey_;
+          data.ez_ = ez_;
 
-          data.dx_ = hx;
-          data.dy_ = hy;
-          data.dz_ = hz;
+          data.dx_ = hx_;
+          data.dy_ = hy_;
+          data.dz_ = hz_;
 
           return model::ModelStruct<FloatType, ScalarType, Order>(data);
        }
+
+     private:
+        ScalarType ex_, ey_, ez_;
+        FloatType hx_, hy_, hz_;
+
+
     };
 }
