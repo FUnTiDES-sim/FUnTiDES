@@ -75,10 +75,49 @@ The following options can be used to configure your build:
 | `USE_CALIPER`          | Enable Caliper profiling (deprecated, will be removed)                      |
 | `USE_EZV`              | Enable EasyPAP visualization (currently not working)                        |
 | `USE_KOKKOS`           | Enable Kokkos support (serial by default, CUDA/OpenMP with flags)           |
-| `USE_SEMCLASSIC`       | Use classic SEM discretization library                                      |
-| `USE_SEMOPTIM`         | Use optimized SEM version                                                   |
-| `USE_SHIVA`            | Use Shiva SEM discretization (custom variant)                               |
 | `USE_VECTOR`           | Use `std::vector` for data arrays (enabled by default unless Kokkos is used)|
 
 ---
 
+## 🐍 Python wrappers 
+
+### Prerequisites
+
+The compilation of python wrappers requires _pybind11_ to be installed in your python environment.
+
+### Generation
+
+The proxy must be configured with `-DENABLE_PYWRAP=ON` and installed via `make install`. Optionally, you can set `-DCMAKE_INSTALL_PREFIX` to where you want to deploy the application along with the python wrappers.
+
+This will create a _pyproxys_ package in your install directory which contains both the _solver_ and _model_ pybind modules.
+
+```bash
+(.venv) [proxys]$ ls $MY_INSTALL_DIR/pyproxys/
+__init__.py  model.cpython-311-x86_64-linux-gnu.so  solver.cpython-311-x86_64-linux-gnu.so
+```
+
+This will also install _kokkos_ in your python environment, which will point to the kokkos built by the _pyproxys_ app.
+
+```bash
+(.venv) [proxys]$ ls .venv/lib/python3.11/site-packages/kokkos/
+__init__.py  libpykokkos.cpython-311-x86_64-linux-gnu.so  __pycache__  pytest.ini  test  utility.py
+```
+
+### Usage
+
+First, extend your `PYTHONPATH` to make the _pyproxys_ package visible.
+
+```bash
+export PYTHONPATH=$PYTHONPATH:$MY_INSTALL_DIR
+```
+
+Then extend your `LD_LIBRARY_PATH` so that all libraries point to the same _kokkos_ libraries that are installed in the _lib64_ folder.
+
+```bash
+export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$MY_INSTALL_DIR/lib64
+```
+
+There is no need to extend the `LD_LIBRARY_PATH` with the _proxys_ libraries since the python wrappers use their _RPATH_ to retrieve them in the _lib_ folder.
+
+
+Some examples on how to use the wrappers are available in the [`examples`](examples/) folder.

@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 add_library(solver
             src/solverFactory.cpp
             src/SEMQ1_classic_solver.cpp
@@ -59,3 +60,8 @@ if(ENABLE_PYWRAP)
   set_target_properties(pysolver PROPERTIES INTERPROCEDURAL_OPTIMIZATION FALSE)
   set_target_properties(pysolver PROPERTIES POSITION_INDEPENDENT_CODE TRUE)
 endif()
+=======
+add_subdirectory(api)
+add_subdirectory(impl)
+add_subdirectory(pywrap)
+>>>>>>> origin/main
