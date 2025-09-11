@@ -1,18 +1,18 @@
 add_library(proxy_solver
             src/solverFactory.cpp
-            src/SEMQ1_classic_solver.cpp
-            src/SEMQ2_classic_solver.cpp
-            src/SEMQ3_classic_solver.cpp
-            src/SEMQ1_optim_solver.cpp
-            src/SEMQ2_optim_solver.cpp
-            src/SEMQ3_optim_solver.cpp
-            src/SEMQ1_geos_solver.cpp
-            src/SEMQ2_geos_solver.cpp
-            src/SEMQ3_geos_solver.cpp
-            src/SEMQ1_shiva_solver.cpp
-            src/SEMQ2_shiva_solver.cpp
-            src/SEMQ3_struct_shiva_solver.cpp
-            src/SEMQ3_unstruct_shiva_solver.cpp)
+            src/classic/SEMQ1_classic_solver.cpp
+            src/classic/SEMQ2_classic_solver.cpp
+            src/classic/SEMQ3_classic_solver.cpp
+            src/optim/SEMQ1_optim_solver.cpp
+            src/optim/SEMQ2_optim_solver.cpp
+            src/optim/SEMQ3_optim_solver.cpp
+            src/geos/SEMQ1_geos_solver.cpp
+            src/geos/SEMQ2_geos_solver.cpp
+            src/geos/SEMQ3_geos_solver.cpp
+            src/shiva/SEMQ1_shiva_solver.cpp
+            src/shiva/SEMQ2_shiva_solver.cpp
+            src/shiva/SEMQ3_struct_shiva_solver.cpp
+            src/shiva/SEMQ3_unstruct_shiva_solver.cpp)
 
 target_include_directories(proxy_solver
   PUBLIC
