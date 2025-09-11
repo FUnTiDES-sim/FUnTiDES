@@ -1,26 +1,27 @@
+#include "solverFactory.hpp"
+
 #include <model_struct.h>
 #include <model_unstruct.h>
-#include "solverFactory.hpp"
+
 #include "SEMsolver.hpp"
 
 namespace SolverFactory
 {
 
-template< typename FUNC >
-std::unique_ptr<SolverBase> orderDispatch( int const order,
-                                           FUNC && func )
+template <typename FUNC>
+std::unique_ptr<SolverBase> orderDispatch(int const order, FUNC&& func)
 {
-  if( order == 1 )
+  if (order == 1)
   {
-    return func( integral_constant< int, 1>{} );
+    return func(integral_constant<int, 1>{});
   }
-  if( order == 2 )
+  if (order == 2)
   {
-    return func( integral_constant< int, 2>{} );
+    return func(integral_constant<int, 2>{});
   }
-  else if( order == 3 )
+  else if (order == 3)
   {
-    return func( integral_constant< int, 3>{} );
+    return func(integral_constant<int, 3>{});
   }
   // else if( order == 4 )
   // {
@@ -31,46 +32,56 @@ std::unique_ptr<SolverBase> orderDispatch( int const order,
 
 // ImplTag is one of IntegralType::CLASSIC/OPTIM/GEOS/SHIVA (compile-time)
 template <auto ImplTag>
-static std::unique_ptr<SolverBase>
-make_sem_solver(int order, meshType mesh)
+static std::unique_ptr<SolverBase> make_sem_solver(int order, meshType mesh)
 {
-  switch (mesh) {
+  switch (mesh)
+  {
     case Struct:
       // ORDER-dependent mesh type
-      return orderDispatch(order, [] (auto orderIC) -> std::unique_ptr<SolverBase> {
-        constexpr int ORDER = decltype(orderIC)::value;
-        using SelectedIntegral = typename IntegralTypeSelector<ORDER, ImplTag>::type;
-        using MeshT = model::ModelStruct<float, int, ORDER>;
-        return std::make_unique<SEMsolver<ORDER, SelectedIntegral, MeshT>>();
-      });
+      return orderDispatch(
+          order, [](auto orderIC) -> std::unique_ptr<SolverBase> {
+            constexpr int ORDER = decltype(orderIC)::value;
+            using SelectedIntegral =
+                typename IntegralTypeSelector<ORDER, ImplTag>::type;
+            using MeshT = model::ModelStruct<float, int, ORDER>;
+            return std::make_unique<
+                SEMsolver<ORDER, SelectedIntegral, MeshT>>();
+          });
     case Unstruct:
-       return orderDispatch(order, [] (auto orderIC) -> std::unique_ptr<SolverBase> {
-        constexpr int ORDER = decltype(orderIC)::value;
-        using SelectedIntegral = typename IntegralTypeSelector<ORDER, ImplTag>::type;
-        using MeshT = model::ModelUnstruct<float, int>;
-        return std::make_unique<SEMsolver<ORDER, SelectedIntegral, MeshT>>();
-      });
+      return orderDispatch(
+          order, [](auto orderIC) -> std::unique_ptr<SolverBase> {
+            constexpr int ORDER = decltype(orderIC)::value;
+            using SelectedIntegral =
+                typename IntegralTypeSelector<ORDER, ImplTag>::type;
+            using MeshT = model::ModelUnstruct<float, int>;
+            return std::make_unique<
+                SEMsolver<ORDER, SelectedIntegral, MeshT>>();
+          });
   }
 
   throw std::runtime_error("Unknown mesh type");
 }
 
-std::unique_ptr<SolverBase>
-createSolver(methodType const methodType,
-             implemType const implemType,
-             meshType   const mesh,
-             int        const order)
+std::unique_ptr<SolverBase> createSolver(methodType const methodType,
+                                         implemType const implemType,
+                                         meshType const mesh, int const order)
 {
-  if (methodType == SEM) {
-    switch (implemType) {
-      case CLASSIC: return make_sem_solver<IntegralType::CLASSIC>(order, mesh);
-      case GEOS:    return make_sem_solver<IntegralType::GEOS>(order, mesh);
-      case OPTIM:   return make_sem_solver<IntegralType::OPTIM>(order, mesh);
-      case SHIVA:   return make_sem_solver<IntegralType::SHIVA>(order, mesh);
+  if (methodType == SEM)
+  {
+    switch (implemType)
+    {
+      case CLASSIC:
+        return make_sem_solver<IntegralType::CLASSIC>(order, mesh);
+      case GEOS:
+        return make_sem_solver<IntegralType::GEOS>(order, mesh);
+      case OPTIM:
+        return make_sem_solver<IntegralType::OPTIM>(order, mesh);
+      case SHIVA:
+        return make_sem_solver<IntegralType::SHIVA>(order, mesh);
     }
   }
 
   // Add DG or other methods as needed
   throw std::runtime_error("Unsupported solver configuration");
 }
-} // namespace SolverFactory
+}  // namespace SolverFactory
