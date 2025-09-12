@@ -1,0 +1,123 @@
+name: Pangea4-PR
+
+on:      
+  pull_request:
+    branches:
+      - main
+
+  push:
+    branches:
+      - '**' # TODO REMOVE BEFORE MERGE
+
+  workflow_dispatch:       # Allow to start this workflow manually
+
+jobs:
+
+  init_summary:
+    runs-on: ubuntu-latest
+
+    outputs:
+      summary_path: ${{ steps.summary_path_id.outputs.summary_path }}
+    steps:
+    - id: summary_path_id
+      run: |
+        TMP_PATH=$(mktemp /tmp/summary_XXXXXX.txt)
+        echo "summary_path=${TMP_PATH}" >> $GITHUB_OUTPUT
+
+    - name: Debug summary_path
+      run: echo "Summary path is ${{ steps.summary_path_id.outputs.summary_path }}"
+
+
+  build:
+    needs: init_summary
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        compiler: [gcc-native/12.1]
+        discretization: [fd, sem]
+        pywrap: [on, off]
+        programming_model: [vector, kokkos]
+
+      max-parallel: 5
+      
+    continue-on-error: true # We want to run other builds even if some build fails
+
+    steps:
+
+    - name: Checkout
+      id: checkout
+      uses: actions/checkout@v4
+      with:
+        submodules: recursive
+
+    - name: Build
+      id: build
+      run: |
+          export COMPILER=${{ matrix.compiler }}
+          export DISCRETIZATION=${{ matrix.discretization }}
+          export PYWRAP=${{ matrix.pywrap }}
+          export PROGRAMMING_MODEL=${{ matrix.programming_model }}
+
+          #### Cmake flags
+          #### Extend CMAKE_FLAGS based on selections
+          export CMAKE_FLAGS=""
+
+          # Discretization variant
+          if [[ "$DISCRETIZATION" == "fd" ]]; then
+            CMAKE_FLAGS="$CMAKE_FLAGS -DCOMPILE_FD=ON -DCOMPILE_SEM=OFF"
+          elif [[ "$DISCRETIZATION" == "sem" ]]; then
+            CMAKE_FLAGS="$CMAKE_FLAGS -DCOMPILE_SEM=ON -DCOMPILE_FD=OFF"
+          fi
+
+          # Python bindings
+          if [[ "$PYWRAP" == "on" ]]; then
+            CMAKE_FLAGS="$CMAKE_FLAGS -DENABLE_PYWRAP=ON"
+          else
+            CMAKE_FLAGS="$CMAKE_FLAGS -DENABLE_PYWRAP=OFF"
+          fi
+
+          # Programming model
+          if [[ "$PROGRAMMING_MODEL" == "vector" ]]; then
+            CMAKE_FLAGS="$CMAKE_FLAGS -DUSE_VECTOR=ON"
+          elif [[ "$PROGRAMMING_MODEL" == "kokkos" ]]; then
+            CMAKE_FLAGS="$CMAKE_FLAGS -DUSE_KOKKOS=ON"
+          fi
+
+          ####
+          #### Configure & Build
+          mkdir build
+          cd build
+          cmake .. ${CMAKE_FLAGS}
+          make -j 6
+
+    - name: Write summary line
+      if: always()
+      run: |
+        STATUS="${{ job.status == 'success' && '✅ Success' || '❌ Failed' }}"
+        echo "| \`${{ matrix.compiler }}\` | \`${{ matrix.discretization }}\` | \`${{ matrix.programming_model }}\` | \`${{ matrix.pywrap }}\` | ${STATUS} |" >> ${{ needs.init_summary.outputs.summary_path }}
+
+  summary:
+    needs: [init_summary, build]
+    runs-on: hpc
+    steps:
+    - name: Create summary table
+      run: |
+        echo "## Matrix build summary" > full-summary.md
+        echo "" >> full-summary.md
+        echo "| Compiler | Discretization | Programming model | PyWrap | Status |" >> full-summary.md
+        echo "|----------|----------------|-------------------|--------|--------|" >> full-summary.md
+        cat ${{ needs.init_summary.outputs.summary_path }} >> full-summary.md
+
+    - name: Write to $GITHUB_STEP_SUMMARY
+      run: |
+        cat full-summary.md >> $GITHUB_STEP_SUMMARY
+        rm -f ${{ needs.init_summary.outputs.summary_path }}
+
+        # if at least one failed, need to exit 1
+        if grep -q "❌ Failed" full-summary.md; then
+          rm -f full-summary.md
+          exit 1
+        fi
+        
+        rm -f full-summary.md
