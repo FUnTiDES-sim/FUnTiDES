@@ -120,7 +120,7 @@ jobs:
           cd build
           echo "cmake .. ${CMAKE_FLAGS}" # For debug
           cmake .. ${CMAKE_FLAGS}
-          make -j 6
+          make -j$(nproc)
 
     - name: Write summary line
       if: always()
