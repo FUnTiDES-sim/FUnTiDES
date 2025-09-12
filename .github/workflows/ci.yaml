@@ -1,4 +1,4 @@
-name: Pangea4-PR
+name: CI
 
 on:      
   pull_request:
@@ -9,7 +9,7 @@ on:
     branches:
       - '**' # TODO REMOVE BEFORE MERGE
 
-  workflow_dispatch:       # Allow to start this workflow manually
+  workflow_dispatch: # Allow to start this workflow manually
 
 jobs:
 
@@ -34,7 +34,6 @@ jobs:
 
     strategy:
       matrix:
-        compiler: [gcc-native/12.1]
         discretization: [fd, sem]
         pywrap: [on, off]
         programming_model: [vector, kokkos]
@@ -54,7 +53,10 @@ jobs:
     - name: Build
       id: build
       run: |
-          export COMPILER=${{ matrix.compiler }}
+          #### Set gcc 11
+          export CC=gcc-11
+          export CXX=g++-11
+
           export DISCRETIZATION=${{ matrix.discretization }}
           export PYWRAP=${{ matrix.pywrap }}
           export PROGRAMMING_MODEL=${{ matrix.programming_model }}
@@ -99,7 +101,7 @@ jobs:
 
   summary:
     needs: [init_summary, build]
-    runs-on: hpc
+    runs-on: ubuntu-latest
     steps:
     - name: Create summary table
       run: |
