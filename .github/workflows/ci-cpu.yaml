@@ -13,23 +13,7 @@ on:
 
 jobs:
 
-  init_summary:
-    runs-on: ubuntu-latest
-
-    outputs:
-      summary_path: ${{ steps.summary_path_id.outputs.summary_path }}
-    steps:
-    - id: summary_path_id
-      run: |
-        TMP_PATH=$(mktemp /tmp/summary_XXXXXX.txt)
-        echo "summary_path=${TMP_PATH}" >> $GITHUB_OUTPUT
-
-    - name: Debug summary_path
-      run: echo "Summary path is ${{ steps.summary_path_id.outputs.summary_path }}"
-
-
   build:
-    needs: init_summary
     runs-on: ubuntu-latest
 
     strategy:
@@ -48,126 +32,133 @@ jobs:
 
     steps:
 
-    # We need a token to get private submodule SEMKernels
-    - name: Get token from Github App
-      uses: actions/create-github-app-token@v1
-      id: app_token
-      with:
-        app-id: ${{ secrets.APP_ID }}
-        private-key: ${{ secrets.PRIVATE_KEY }}
-        # owner is required, otherwise the creds will fail the checkout step
-        owner: ${{ github.repository_owner }}
+      # We need a token to get private submodule SEMKernels
+      - name: Get token from Github App
+        uses: actions/create-github-app-token@v1
+        id: app_token
+        with:
+          app-id: ${{ secrets.APP_ID }}
+          private-key: ${{ secrets.PRIVATE_KEY }}
+          # owner is required, otherwise the creds will fail the checkout step
+          owner: ${{ github.repository_owner }}
 
-    - name: Checkout
-      id: checkout
-      uses: actions/checkout@v4
-      with:
-        fetch-depth: 0
-        submodules: recursive
-        token: ${{ steps.app_token.outputs.token }}
+      - name: Checkout
+        id: checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          submodules: recursive
+          token: ${{ steps.app_token.outputs.token }}
 
-    - name: Set up Python
-      if: matrix.pywrap == 'pywrap-on'
-      run: |
-        python3 -m venv .venv
-        source .venv/bin/activate
-        pip install --upgrade pip
-        pip install pybind11
-
-    - name: Configure
-      id: configure
-      run: |
-        export DISCRETIZATION=${{ matrix.discretization }}
-        export PYWRAP=${{ matrix.pywrap }}
-        export PROGRAMMING_MODEL=${{ matrix.programming_model }}
-
-        # Extend CMAKE_FLAGS based on selections
-        export CMAKE_FLAGS=""
-
-        # Discretization variant
-        if [[ "$DISCRETIZATION" == "fd" ]]; then
-          CMAKE_FLAGS="$CMAKE_FLAGS -DCOMPILE_FD=ON -DCOMPILE_SEM=OFF"
-        elif [[ "$DISCRETIZATION" == "sem" ]]; then
-          CMAKE_FLAGS="$CMAKE_FLAGS -DCOMPILE_SEM=ON -DCOMPILE_FD=OFF"
-        fi
-
-        # Python bindings
-        if [[ "$PYWRAP" == "pywrap-on" ]]; then
-          CMAKE_FLAGS="$CMAKE_FLAGS -DENABLE_PYWRAP=ON"
-          export PYWRAP_SUMMARY=on
-        else
-          CMAKE_FLAGS="$CMAKE_FLAGS -DENABLE_PYWRAP=OFF"
-          export PYWRAP_SUMMARY=off
-        fi
-
-        # Programming model
-        if [[ "$PROGRAMMING_MODEL" == "vector" ]]; then
-          CMAKE_FLAGS="$CMAKE_FLAGS -DUSE_VECTOR=ON"
-        elif [[ "$PROGRAMMING_MODEL" == "kokkos" ]]; then
-          CMAKE_FLAGS="$CMAKE_FLAGS -DUSE_KOKKOS=ON"
-        fi
-
-        # Activate python venv if pywrap is on
-        if [[ "$PYWRAP" == "pywrap-on" ]]; then
+      - name: Set up Python
+        if: matrix.pywrap == 'pywrap-on'
+        run: |
+          python3 -m venv .venv
           source .venv/bin/activate
-        fi
+          pip install --upgrade pip
+          pip install pybind11
 
-        mkdir build
-        cd build
-        echo "cmake .. ${CMAKE_FLAGS}" # For debug
-        cmake .. ${CMAKE_FLAGS}
+      - name: Configure
+        id: configure
+        run: |
+          export DISCRETIZATION=${{ matrix.discretization }}
+          export PYWRAP=${{ matrix.pywrap }}
+          export PROGRAMMING_MODEL=${{ matrix.programming_model }}
 
-    - name: Build
-      id: build
-      run: |
+          # Extend CMAKE_FLAGS based on selections
+          export CMAKE_FLAGS=""
 
-        # Activate python venv if pywrap is on
-        if [[ "$PYWRAP" == "pywrap-on" ]]; then
-          source .venv/bin/activate
-        fi
+          # Discretization variant
+          if [[ "$DISCRETIZATION" == "fd" ]]; then
+            CMAKE_FLAGS="$CMAKE_FLAGS -DCOMPILE_FD=ON -DCOMPILE_SEM=OFF"
+          elif [[ "$DISCRETIZATION" == "sem" ]]; then
+            CMAKE_FLAGS="$CMAKE_FLAGS -DCOMPILE_SEM=ON -DCOMPILE_FD=OFF"
+          fi
 
-        cd build
-        make -j$(nproc)
+          # Python bindings
+          if [[ "$PYWRAP" == "pywrap-on" ]]; then
+            CMAKE_FLAGS="$CMAKE_FLAGS -DENABLE_PYWRAP=ON"
+            export PYWRAP_SUMMARY=on
+          else
+            CMAKE_FLAGS="$CMAKE_FLAGS -DENABLE_PYWRAP=OFF"
+            export PYWRAP_SUMMARY=off
+          fi
 
-    - name: Install
-      id: install
-      run: |
+          # Programming model
+          if [[ "$PROGRAMMING_MODEL" == "vector" ]]; then
+            CMAKE_FLAGS="$CMAKE_FLAGS -DUSE_VECTOR=ON"
+          elif [[ "$PROGRAMMING_MODEL" == "kokkos" ]]; then
+            CMAKE_FLAGS="$CMAKE_FLAGS -DUSE_KOKKOS=ON"
+          fi
 
-        # Activate python venv if pywrap is on
-        if [[ "$PYWRAP" == "pywrap-on" ]]; then
-          source .venv/bin/activate
-        fi
+          # Activate python venv if pywrap is on
+          if [[ "$PYWRAP" == "pywrap-on" ]]; then
+            source .venv/bin/activate
+          fi
 
-        cd build
-        make install
+          mkdir build
+          cd build
+          echo "cmake .. ${CMAKE_FLAGS}" # For debug
+          cmake .. ${CMAKE_FLAGS}
 
-    - name: Write summary line
-      if: always()
-      run: |
-        STATUS="${{ job.status == 'success' && '✅ Success' || '❌ Failed' }}"
-        echo " | \`${{ matrix.discretization }}\` | \`${{ matrix.programming_model }}\` | ${PYWRAP_SUMMARY} | ${STATUS} |" >> ${{ needs.init_summary.outputs.summary_path }}
+      - name: Build
+        id: build
+        run: |
+          # Activate python venv if pywrap is on
+          if [[ "$PYWRAP" == "pywrap-on" ]]; then
+            source .venv/bin/activate
+          fi
+
+          cd build
+          make -j$(nproc)
+
+      - name: Install
+        id: install
+        run: |
+          # Activate python venv if pywrap is on
+          if [[ "$PYWRAP" == "pywrap-on" ]]; then
+            source .venv/bin/activate
+          fi
+
+          cd build
+          make install
+
+      - name: Write summary line
+        if: always()
+        run: |
+          STATUS="${{ job.status == 'success' && '✅ Success' || '❌ Failed' }}"
+          echo "| \`${{ matrix.discretization }}\` | \`${{ matrix.programming_model }}\` | ${{ matrix.pywrap }} | ${STATUS} |" > summary_line.md
+
+      - name: Upload summary line
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: summary-lines
+          path: summary_line_${{ matrix.discretization }}_${{ matrix.programming_model }}_${{ matrix.pywrap }}.md
 
   summary:
-    needs: [init_summary, build]
+    needs: build
     runs-on: ubuntu-latest
+    if: always()
+  
     steps:
-    - name: Create summary table
-      run: |
-        echo "## Matrix build summary" > full-summary.md
-        echo "" >> full-summary.md
-        echo "| Discretization | Programming model | PyWrap | Status |" >> full-summary.md
-        echo "|----------------|-------------------|--------|--------|" >> full-summary.md
-        cat ${{ needs.init_summary.outputs.summary_path }} >> full-summary.md
+      - name: Download all summary lines
+        uses: actions/download-artifact@v4
+        with:
+          name: summary-lines
+          path: summary-lines
 
-    - name: Write to $GITHUB_STEP_SUMMARY
-      run: |
-        cat full-summary.md >> $GITHUB_STEP_SUMMARY
-        rm -f ${{ needs.init_summary.outputs.summary_path }}
+      - name: Write summary table
+        run: |
+          echo "## Matrix build summary" > $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Discretization | Programming model | PyWrap | Status |" >> $GITHUB_STEP_SUMMARY
+          echo "|----------------|-------------------|--------|--------|" >> $GITHUB_STEP_SUMMARY
+          cat summary-lines/summary_line*.md >> $GITHUB_STEP_SUMMARY
 
-        # if at least one failed, need to exit 1
-        if grep -q "❌ Failed" full-summary.md; then
-          rm -f full-summary.md
-          exit 1
-        fi
-        
-        rm -f full-summary.md
+      - name: Check failures
+        run: |
+          # if at least one failed, need to exit 1
+          if grep -q "❌ Failed" $GITHUB_STEP_SUMMARY; then
+            exit 1
+          fi
