@@ -37,6 +37,10 @@ jobs:
         discretization: [fd, sem]
         pywrap: [pywrap-on, pywrap-off]
         programming_model: [vector, kokkos]
+        exclude:
+        # Exclude Vector + Python (wrappers use Kokkos)
+        - programming_model: vector
+          pywrap: pywrap-on
 
       max-parallel: 5
       
