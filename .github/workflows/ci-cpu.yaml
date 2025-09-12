@@ -69,8 +69,8 @@ jobs:
       id: build
       run: |
           #### Set gcc 11
-          export CC=gcc-11
-          export CXX=g++-11
+          #export CC=gcc-11
+          #export CXX=g++-11
 
           export DISCRETIZATION=${{ matrix.discretization }}
           export PYWRAP=${{ matrix.pywrap }}
@@ -90,8 +90,10 @@ jobs:
           # Python bindings
           if [[ "$PYWRAP" == "pywrapon" ]]; then
             CMAKE_FLAGS="$CMAKE_FLAGS -DENABLE_PYWRAP=ON"
+            export PYWRAP_SUMMARY=on
           else
             CMAKE_FLAGS="$CMAKE_FLAGS -DENABLE_PYWRAP=OFF"
+            export PYWRAP_SUMMARY=off
           fi
 
           # Programming model
@@ -112,7 +114,7 @@ jobs:
       if: always()
       run: |
         STATUS="${{ job.status == 'success' && '✅ Success' || '❌ Failed' }}"
-        echo " | \`${{ matrix.discretization }}\` | \`${{ matrix.programming_model }}\` | \`${{ matrix.pywrap }}\` | ${STATUS} |" >> ${{ needs.init_summary.outputs.summary_path }}
+        echo " | \`${{ matrix.discretization }}\` | \`${{ matrix.programming_model }}\` | ${PYWRAP_SUMMARY} | ${STATUS} |" >> ${{ needs.init_summary.outputs.summary_path }}
 
   summary:
     needs: [init_summary, build]
