@@ -9,14 +9,10 @@ namespace model {
      public:
         CartesianStructBuilder(ScalarType ex, FloatType hx,
                                ScalarType ey, FloatType hy,
-                               ScalarType ez, FloatType hz) {
-            ex_ = ex;
-            ey_ = ey;
-            ez_ = ez;
-            hx_ = hx;
-            hy_ = hy;
-            hz_ = hz;
-        } 
+                               ScalarType ez, FloatType hz) :
+        ex_(ex), ey_(ey), ez_(ez), hx_(hx), hy_(hy), hz_(hz){
+        }
+
        ~CartesianStructBuilder() = default;
 
        std::shared_ptr<model::ModelApi<FloatType, ScalarType>> getModel() const override {

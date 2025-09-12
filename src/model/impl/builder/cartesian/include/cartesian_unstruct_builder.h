@@ -12,16 +12,9 @@ namespace model {
    public:
     CartesianUnstructBuilder() { }
 
-    CartesianUnstructBuilder (const CartesianParams<FloatType, ScalarType> & p) {
-      ex_ = p.ex;
-      ey_ = p.ey;
-      ez_ = p.ez;
-
-      lx_ = p.lx;
-      ly_ = p.ly;
-      lz_ = p.lz;
-
-      order_ = p.order;
+    CartesianUnstructBuilder (const CartesianParams<FloatType, ScalarType> & p) :
+      ex_(p.ex), ey_(p.ey), ez_(p.ez), lx_(p.lx), ly_(p.ly), lz_(p.lz),
+      order_(p.order){
 
       initGlobalNodeList();
       initNodesCoords();
