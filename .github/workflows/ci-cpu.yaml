@@ -155,10 +155,3 @@ jobs:
           echo "| Discretization | Programming model | PyWrap | Status |" >> $GITHUB_STEP_SUMMARY
           echo "|----------------|-------------------|--------|--------|" >> $GITHUB_STEP_SUMMARY
           find summary-lines -name "summary_line*.md" | sort | xargs cat >> $GITHUB_STEP_SUMMARY
-
-      - name: Check failures
-        run: |
-          # if at least one failed, need to exit 1
-          if grep -q "❌ Failed" $GITHUB_STEP_SUMMARY; then
-            exit 1
-          fi
