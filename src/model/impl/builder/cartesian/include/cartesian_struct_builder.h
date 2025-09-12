@@ -19,7 +19,7 @@ namespace model {
         } 
        ~CartesianStructBuilder() = default;
 
-       model::ModelStruct<FloatType, ScalarType, Order> getModel() const {
+       std::shared_ptr<model::ModelApi<FloatType, ScalarType>> getModel() const override {
           model::ModelStructData<FloatType, ScalarType> data;
           data.ex_ = ex_;
           data.ey_ = ey_;
@@ -29,7 +29,7 @@ namespace model {
           data.dy_ = hy_;
           data.dz_ = hz_;
 
-          return model::ModelStruct<FloatType, ScalarType, Order>(data);
+          return std::make_shared<model::ModelStruct<FloatType, ScalarType, Order>>(data);
        }
 
      private:

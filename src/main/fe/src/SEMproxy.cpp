@@ -46,17 +46,17 @@ SEMproxy::SEMproxy(const SemProxyOptions& opt) {
     switch(order) {
       case 1: {
         model::CartesianStructBuilder<float, int, 1> builder(ex, elem_sizex, ey, elem_sizey, ez, elem_sizez);
-        m_mesh_storage = builder.getModel();
+        m_mesh = builder.getModel();
         break;
       }
       case 2: {
         model::CartesianStructBuilder<float, int, 2> builder(ex, elem_sizex, ey, elem_sizey, ez, elem_sizez);
-        m_mesh_storage = builder.getModel();
+        m_mesh = builder.getModel();
         break;
       }
       case 3: {
         model::CartesianStructBuilder<float, int, 3> builder(ex, elem_sizex, ey, elem_sizey, ez, elem_sizez);
-        m_mesh_storage = builder.getModel();
+        m_mesh = builder.getModel();
         break;
       }
       default:
@@ -70,15 +70,11 @@ SEMproxy::SEMproxy(const SemProxyOptions& opt) {
 
     model::CartesianParams<float, int> param(order, ex, ey, ez,  lx, ly, lz);
     model::CartesianUnstructBuilder<float, int> builder(param);
-    m_mesh_storage = builder.getModel();
+    m_mesh = builder.getModel();
   }
   else {
     throw std::runtime_error("Incorrect mesh type (SEMproxy ctor.)");
   }
-
-  m_mesh = std::visit([](auto& mesh) -> model::ModelApi<float, int>* {
-      return static_cast<model::ModelApi<float, int>*>(&mesh);
-    }, m_mesh_storage);
 
   // time parameters
   if (opt.autodt) {

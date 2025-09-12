@@ -28,7 +28,7 @@ namespace model {
       initModels();
     }
 
-    model::ModelUnstruct<FloatType, ScalarType> getModel() {
+    std::shared_ptr<model::ModelApi<FloatType, ScalarType>> getModel() const override {
       model::ModelUnstructData<FloatType, ScalarType> modelData;
 
       modelData.order_ = order_;
@@ -50,7 +50,7 @@ namespace model {
       modelData.model_vp_element_ = model_vp_element_;
       modelData.model_rho_element_ = model_rho_element_;
 
-      return model::ModelUnstruct<FloatType, ScalarType>(modelData);
+      return std::make_shared<model::ModelUnstruct<FloatType, ScalarType>>(modelData);
     }
 
     ~CartesianUnstructBuilder() = default;
