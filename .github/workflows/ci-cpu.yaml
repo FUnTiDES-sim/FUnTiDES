@@ -65,6 +65,14 @@ jobs:
         submodules: recursive
         token: ${{ steps.app_token.outputs.token }}
 
+    - name: Set up Python
+      if: matrix.pywrap == 'pywrap-on'
+      run: |
+        python3 -m venv .venv
+        source .venv/bin/activate
+        pip install --upgrade pip
+        pip install pybind11
+
     - name: Build
       id: build
       run: |
@@ -101,6 +109,13 @@ jobs:
 
           ####
           #### Configure & Build
+
+          # Activate python venv if pywrap is on
+          if [[ "$PYWRAP" == "pywrap-on" ]]; then
+            source .venv/bin/activate
+          fi
+
+          # Build
           mkdir build
           cd build
           echo "cmake .. ${CMAKE_FLAGS}" # For debug
