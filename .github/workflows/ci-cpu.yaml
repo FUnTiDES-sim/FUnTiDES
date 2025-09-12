@@ -127,7 +127,7 @@ jobs:
         if: always()
         run: |
           STATUS="${{ job.status == 'success' && '✅ Success' || '❌ Failed' }}"
-          echo "| \`${{ matrix.discretization }}\` | \`${{ matrix.programming_model }}\` | ${{ matrix.pywrap }} | ${STATUS} |" > summary_line.md
+          echo "| \`${{ matrix.discretization }}\` | \`${{ matrix.programming_model }}\` | ${{ matrix.pywrap }} | ${STATUS} |" > summary_line_${{ matrix.discretization }}_${{ matrix.programming_model }}_${{ matrix.pywrap }}.md
 
       - name: Upload summary line
         if: always()
