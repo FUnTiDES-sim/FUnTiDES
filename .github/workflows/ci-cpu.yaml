@@ -39,7 +39,7 @@ jobs:
     strategy:
       matrix:
         discretization: [fd, sem]
-        pywrap: [on, off]
+        pywrap: [pywrap-on, pywrap-off]
         programming_model: [vector, kokkos]
 
       max-parallel: 5
@@ -77,7 +77,7 @@ jobs:
           fi
 
           # Python bindings
-          if [[ "$PYWRAP" == "on" ]]; then
+          if [[ "$PYWRAP" == "pywrapon" ]]; then
             CMAKE_FLAGS="$CMAKE_FLAGS -DENABLE_PYWRAP=ON"
           else
             CMAKE_FLAGS="$CMAKE_FLAGS -DENABLE_PYWRAP=OFF"
