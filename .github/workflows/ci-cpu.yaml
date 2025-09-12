@@ -99,7 +99,7 @@ jobs:
           mkdir build
           cd build
           echo "cmake .. ${CMAKE_FLAGS}" # For debug
-          cmake .. ${CMAKE_FLAGS}
+          cmake .. ${CMAKE_FLAGS} -DCMAKE_INSTALL_PREFIX=../install
 
       - name: Build
         id: build
