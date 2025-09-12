@@ -84,7 +84,7 @@ jobs:
           fi
 
           # Python bindings
-          if [[ "$PYWRAP" == "pywrapon" ]]; then
+          if [[ "$PYWRAP" == "pywrap-on" ]]; then
             CMAKE_FLAGS="$CMAKE_FLAGS -DENABLE_PYWRAP=ON"
             export PYWRAP_SUMMARY=on
           else
