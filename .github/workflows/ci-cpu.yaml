@@ -154,7 +154,7 @@ jobs:
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "| Discretization | Programming model | PyWrap | Status |" >> $GITHUB_STEP_SUMMARY
           echo "|----------------|-------------------|--------|--------|" >> $GITHUB_STEP_SUMMARY
-          cat summary-lines/summary_line*.md >> $GITHUB_STEP_SUMMARY
+          find summary-lines -name "summary_line*.md" | sort | xargs cat >> $GITHUB_STEP_SUMMARY
 
       - name: Check failures
         run: |
