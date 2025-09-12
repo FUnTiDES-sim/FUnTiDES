@@ -13,3 +13,9 @@ target_link_libraries(proxy_model_unstruct
 )
 
 target_link_kokkos_if_enabled(proxy_model_unstruct)
+
+install(TARGETS proxy_model_unstruct
+  EXPORT proxy_model_unstruct_targets
+  ARCHIVE DESTINATION lib
+  LIBRARY DESTINATION lib
+  INCLUDES DESTINATION include)
