@@ -72,8 +72,6 @@ The following options can be used to configure your build:
 | `COMPILE_SEM`          | Enable compilation of the SEM proxy (default: ON)                           |
 | `ENABLE_CUDA`          | Enable CUDA backend (used by Kokkos)                                        |
 | `ENABLE_PYWRAP`        | Enable Python bindings via pybind11 (experimental)                          |
-| `USE_CALIPER`          | Enable Caliper profiling (deprecated, will be removed)                      |
-| `USE_EZV`              | Enable EasyPAP visualization (currently not working)                        |
 | `USE_KOKKOS`           | Enable Kokkos support (serial by default, CUDA/OpenMP with flags)           |
 | `USE_VECTOR`           | Use `std::vector` for data arrays (enabled by default unless Kokkos is used)|
 
