@@ -48,6 +48,7 @@ jobs:
 
     steps:
 
+    # We need a token to get private submodule SEMKernels
     - name: Get token from Github App
       uses: actions/create-github-app-token@v1
       id: app_token
@@ -73,54 +74,72 @@ jobs:
         pip install --upgrade pip
         pip install pybind11
 
+    - name: Configure
+      id: configure
+      run: |
+        export DISCRETIZATION=${{ matrix.discretization }}
+        export PYWRAP=${{ matrix.pywrap }}
+        export PROGRAMMING_MODEL=${{ matrix.programming_model }}
+
+        # Extend CMAKE_FLAGS based on selections
+        export CMAKE_FLAGS=""
+
+        # Discretization variant
+        if [[ "$DISCRETIZATION" == "fd" ]]; then
+          CMAKE_FLAGS="$CMAKE_FLAGS -DCOMPILE_FD=ON -DCOMPILE_SEM=OFF"
+        elif [[ "$DISCRETIZATION" == "sem" ]]; then
+          CMAKE_FLAGS="$CMAKE_FLAGS -DCOMPILE_SEM=ON -DCOMPILE_FD=OFF"
+        fi
+
+        # Python bindings
+        if [[ "$PYWRAP" == "pywrap-on" ]]; then
+          CMAKE_FLAGS="$CMAKE_FLAGS -DENABLE_PYWRAP=ON"
+          export PYWRAP_SUMMARY=on
+        else
+          CMAKE_FLAGS="$CMAKE_FLAGS -DENABLE_PYWRAP=OFF"
+          export PYWRAP_SUMMARY=off
+        fi
+
+        # Programming model
+        if [[ "$PROGRAMMING_MODEL" == "vector" ]]; then
+          CMAKE_FLAGS="$CMAKE_FLAGS -DUSE_VECTOR=ON"
+        elif [[ "$PROGRAMMING_MODEL" == "kokkos" ]]; then
+          CMAKE_FLAGS="$CMAKE_FLAGS -DUSE_KOKKOS=ON"
+        fi
+
+        # Activate python venv if pywrap is on
+        if [[ "$PYWRAP" == "pywrap-on" ]]; then
+          source .venv/bin/activate
+        fi
+
+        mkdir build
+        cd build
+        echo "cmake .. ${CMAKE_FLAGS}" # For debug
+        cmake .. ${CMAKE_FLAGS}
+
     - name: Build
       id: build
       run: |
-          export DISCRETIZATION=${{ matrix.discretization }}
-          export PYWRAP=${{ matrix.pywrap }}
-          export PROGRAMMING_MODEL=${{ matrix.programming_model }}
 
-          #### Cmake flags
-          #### Extend CMAKE_FLAGS based on selections
-          export CMAKE_FLAGS=""
+        # Activate python venv if pywrap is on
+        if [[ "$PYWRAP" == "pywrap-on" ]]; then
+          source .venv/bin/activate
+        fi
 
-          # Discretization variant
-          if [[ "$DISCRETIZATION" == "fd" ]]; then
-            CMAKE_FLAGS="$CMAKE_FLAGS -DCOMPILE_FD=ON -DCOMPILE_SEM=OFF"
-          elif [[ "$DISCRETIZATION" == "sem" ]]; then
-            CMAKE_FLAGS="$CMAKE_FLAGS -DCOMPILE_SEM=ON -DCOMPILE_FD=OFF"
-          fi
+        cd build
+        make -j$(nproc)
 
-          # Python bindings
-          if [[ "$PYWRAP" == "pywrap-on" ]]; then
-            CMAKE_FLAGS="$CMAKE_FLAGS -DENABLE_PYWRAP=ON"
-            export PYWRAP_SUMMARY=on
-          else
-            CMAKE_FLAGS="$CMAKE_FLAGS -DENABLE_PYWRAP=OFF"
-            export PYWRAP_SUMMARY=off
-          fi
+    - name: Install
+      id: install
+      run: |
 
-          # Programming model
-          if [[ "$PROGRAMMING_MODEL" == "vector" ]]; then
-            CMAKE_FLAGS="$CMAKE_FLAGS -DUSE_VECTOR=ON"
-          elif [[ "$PROGRAMMING_MODEL" == "kokkos" ]]; then
-            CMAKE_FLAGS="$CMAKE_FLAGS -DUSE_KOKKOS=ON"
-          fi
+        # Activate python venv if pywrap is on
+        if [[ "$PYWRAP" == "pywrap-on" ]]; then
+          source .venv/bin/activate
+        fi
 
-          ####
-          #### Configure & Build
-
-          # Activate python venv if pywrap is on
-          if [[ "$PYWRAP" == "pywrap-on" ]]; then
-            source .venv/bin/activate
-          fi
-
-          # Build
-          mkdir build
-          cd build
-          echo "cmake .. ${CMAKE_FLAGS}" # For debug
-          cmake .. ${CMAKE_FLAGS}
-          make -j$(nproc)
+        cd build
+        make install
 
     - name: Write summary line
       if: always()
