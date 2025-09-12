@@ -68,10 +68,6 @@ jobs:
     - name: Build
       id: build
       run: |
-          #### Set gcc 11
-          #export CC=gcc-11
-          #export CXX=g++-11
-
           export DISCRETIZATION=${{ matrix.discretization }}
           export PYWRAP=${{ matrix.pywrap }}
           export PROGRAMMING_MODEL=${{ matrix.programming_model }}
@@ -107,6 +103,7 @@ jobs:
           #### Configure & Build
           mkdir build
           cd build
+          echo "cmake .. ${CMAKE_FLAGS}" # For debug
           cmake .. ${CMAKE_FLAGS}
           make -j 6
 
