@@ -1,4 +1,8 @@
-name: CI
+name: CI-CPU
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 on:      
   pull_request:
@@ -97,7 +101,7 @@ jobs:
       if: always()
       run: |
         STATUS="${{ job.status == 'success' && '✅ Success' || '❌ Failed' }}"
-        echo "| \`${{ matrix.compiler }}\` | \`${{ matrix.discretization }}\` | \`${{ matrix.programming_model }}\` | \`${{ matrix.pywrap }}\` | ${STATUS} |" >> ${{ needs.init_summary.outputs.summary_path }}
+        echo " | \`${{ matrix.discretization }}\` | \`${{ matrix.programming_model }}\` | \`${{ matrix.pywrap }}\` | ${STATUS} |" >> ${{ needs.init_summary.outputs.summary_path }}
 
   summary:
     needs: [init_summary, build]
@@ -107,8 +111,8 @@ jobs:
       run: |
         echo "## Matrix build summary" > full-summary.md
         echo "" >> full-summary.md
-        echo "| Compiler | Discretization | Programming model | PyWrap | Status |" >> full-summary.md
-        echo "|----------|----------------|-------------------|--------|--------|" >> full-summary.md
+        echo "| Discretization | Programming model | PyWrap | Status |" >> full-summary.md
+        echo "|----------------|-------------------|--------|--------|" >> full-summary.md
         cat ${{ needs.init_summary.outputs.summary_path }} >> full-summary.md
 
     - name: Write to $GITHUB_STEP_SUMMARY
