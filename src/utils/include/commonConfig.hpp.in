@@ -7,9 +7,6 @@
 // Enables use of OMP (CMake option)
 #cmakedefine USE_OMP
 
-// Enable use of LvArray (CMake option)
-#cmakedefine USE_LVARRAY
-
 // Enables use of KOKOS (CMake option)
 #cmakedefine USE_KOKKOS
 
@@ -21,9 +18,6 @@
 
 // Enables python wrapping code
 #cmakedefine ENABLE_PYWRAP
-
-// Enable save snapshots of wavefields in SEM-proxy (for debugging)
-#cmakedefine SEM_SAVE_SNAPSHOTS
 
 // Enable save snapshots of wavefields in FD-proxy (for debugging)
 #cmakedefine FD_SAVE_SNAPSHOTS

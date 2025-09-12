@@ -1,0 +1,157 @@
+name: CI-CPU
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+on:      
+  pull_request:
+    branches:
+      - main
+
+  workflow_dispatch: # Allow to start this workflow manually
+
+jobs:
+
+  build:
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        discretization: [fd, sem]
+        pywrap: [pywrap-on, pywrap-off]
+        programming_model: [vector, kokkos]
+        exclude:
+        # Exclude Vector + Python (wrappers use Kokkos)
+        - programming_model: vector
+          pywrap: pywrap-on
+
+      max-parallel: 5
+      
+    continue-on-error: true # We want to run other builds even if some build fails
+
+    steps:
+
+      # We need a token to get private submodule SEMKernels
+      - name: Get token from Github App
+        uses: actions/create-github-app-token@v1
+        id: app_token
+        with:
+          app-id: ${{ secrets.APP_ID }}
+          private-key: ${{ secrets.PRIVATE_KEY }}
+          # owner is required, otherwise the creds will fail the checkout step
+          owner: ${{ github.repository_owner }}
+
+      - name: Checkout
+        id: checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          submodules: recursive
+          token: ${{ steps.app_token.outputs.token }}
+
+      - name: Set up Python
+        if: matrix.pywrap == 'pywrap-on'
+        run: |
+          python3 -m venv .venv
+          source .venv/bin/activate
+          pip install --upgrade pip
+          pip install pybind11
+
+      - name: Configure
+        id: configure
+        run: |
+          export DISCRETIZATION=${{ matrix.discretization }}
+          export PYWRAP=${{ matrix.pywrap }}
+          export PROGRAMMING_MODEL=${{ matrix.programming_model }}
+
+          # Extend CMAKE_FLAGS based on selections
+          export CMAKE_FLAGS=""
+
+          # Discretization variant
+          if [[ "$DISCRETIZATION" == "fd" ]]; then
+            CMAKE_FLAGS="$CMAKE_FLAGS -DCOMPILE_FD=ON -DCOMPILE_SEM=OFF"
+          elif [[ "$DISCRETIZATION" == "sem" ]]; then
+            CMAKE_FLAGS="$CMAKE_FLAGS -DCOMPILE_SEM=ON -DCOMPILE_FD=OFF"
+          fi
+
+          # Python bindings
+          if [[ "$PYWRAP" == "pywrap-on" ]]; then
+            CMAKE_FLAGS="$CMAKE_FLAGS -DENABLE_PYWRAP=ON"
+            export PYWRAP_SUMMARY=on
+          else
+            CMAKE_FLAGS="$CMAKE_FLAGS -DENABLE_PYWRAP=OFF"
+            export PYWRAP_SUMMARY=off
+          fi
+
+          # Programming model
+          if [[ "$PROGRAMMING_MODEL" == "vector" ]]; then
+            CMAKE_FLAGS="$CMAKE_FLAGS -DUSE_VECTOR=ON"
+          elif [[ "$PROGRAMMING_MODEL" == "kokkos" ]]; then
+            CMAKE_FLAGS="$CMAKE_FLAGS -DUSE_KOKKOS=ON"
+          fi
+
+          # Activate python venv if pywrap is on
+          if [[ "$PYWRAP" == "pywrap-on" ]]; then
+            source .venv/bin/activate
+          fi
+
+          mkdir build
+          cd build
+          echo "cmake .. ${CMAKE_FLAGS}" # For debug
+          cmake .. ${CMAKE_FLAGS} -DCMAKE_INSTALL_PREFIX=../install
+
+      - name: Build
+        id: build
+        run: |
+          # Activate python venv if pywrap is on
+          if [[ "$PYWRAP" == "pywrap-on" ]]; then
+            source .venv/bin/activate
+          fi
+
+          cd build
+          make -j$(nproc)
+
+      - name: Install
+        id: install
+        run: |
+          # Activate python venv if pywrap is on
+          if [[ "$PYWRAP" == "pywrap-on" ]]; then
+            source .venv/bin/activate
+          fi
+
+          cd build
+          make install
+
+      - name: Write summary line
+        if: always()
+        run: |
+          STATUS="${{ job.status == 'success' && '✅ Success' || '❌ Failed' }}"
+          echo "| \`${{ matrix.discretization }}\` | \`${{ matrix.programming_model }}\` | ${{ matrix.pywrap }} | ${STATUS} |" > summary_line_${{ matrix.discretization }}_${{ matrix.programming_model }}_${{ matrix.pywrap }}.md
+
+      - name: Upload summary line
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: summary-lines-${{ matrix.discretization }}-${{ matrix.programming_model }}-${{ matrix.pywrap }}
+          path: summary_line_${{ matrix.discretization }}_${{ matrix.programming_model }}_${{ matrix.pywrap }}.md
+
+  summary:
+    needs: build
+    runs-on: ubuntu-latest
+    if: always()
+  
+    steps:
+      - name: Download all summary lines
+        uses: actions/download-artifact@v4
+        with:
+          pattern: summary-lines-*
+          path: summary-lines
+
+      - name: Write summary table
+        run: |
+          echo "## Matrix build summary" > $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Discretization | Programming model | PyWrap | Status |" >> $GITHUB_STEP_SUMMARY
+          echo "|----------------|-------------------|--------|--------|" >> $GITHUB_STEP_SUMMARY
+          find summary-lines -name "summary_line*.md" | sort | xargs cat >> $GITHUB_STEP_SUMMARY

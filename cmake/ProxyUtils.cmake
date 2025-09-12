@@ -20,17 +20,11 @@ function(print_configuration_summary)
   message(STATUS "  USE_KOKKOS_TEAMS:     ${USE_KOKKOS_TEAMS}")
   message(STATUS "")
 
-  message(STATUS "Instrumentation:")
-  message(STATUS "  USE_CALIPER:          ${USE_CALIPER}")
-  message(STATUS "  USE_EZV:              ${USE_EZV}")
-  message(STATUS "")
-  
   message(STATUS "Python Wrapping:")
   message(STATUS "  ENABLE_PYWRAP:        ${ENABLE_PYWRAP}")
   message(STATUS "")
   
   message(STATUS "Debugging Options:")
-  message(STATUS "  SEM_SAVE_SNAPSHOTS:   ${SEM_SAVE_SNAPSHOTS}")
   message(STATUS "  FD_SAVE_SNAPSHOTS:    ${FD_SAVE_SNAPSHOTS}")
   message(STATUS "  PRINT_ALLOC_INFO:     ${PRINT_ALLOC_INFO}")
   message(STATUS "")
