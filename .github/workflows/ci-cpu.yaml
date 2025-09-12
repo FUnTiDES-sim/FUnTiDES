@@ -133,7 +133,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: summary-lines
+          name: summary-lines-${{ matrix.discretization }}-${{ matrix.programming_model }}-${{ matrix.pywrap }}
           path: summary_line_${{ matrix.discretization }}_${{ matrix.programming_model }}_${{ matrix.pywrap }}.md
 
   summary:
@@ -145,7 +145,7 @@ jobs:
       - name: Download all summary lines
         uses: actions/download-artifact@v4
         with:
-          name: summary-lines
+          pattern: summary-lines-*
           path: summary-lines
 
       - name: Write summary table
