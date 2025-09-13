@@ -10,6 +10,8 @@ namespace model {
       ModelBuilderBase() = default;
       ~ModelBuilderBase() = default;
 
+      static constexpr int MAX_ORDER = 5;
+
       std::unique_ptr<model::ModelApi<FloatType, ScalarType>> getModel() const;
     };
 }

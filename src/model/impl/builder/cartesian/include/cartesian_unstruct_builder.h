@@ -10,6 +10,8 @@ namespace model {
   template <typename FloatType, typename ScalarType>
   class CartesianUnstructBuilder : ModelBuilderBase<FloatType, ScalarType>{
    public:
+    using ModelBuilderBase<FloatType, ScalarType>::MAX_ORDER;
+
     CartesianUnstructBuilder() { }
 
     CartesianUnstructBuilder (const CartesianParams<FloatType, ScalarType> & p) {
@@ -105,7 +107,7 @@ namespace model {
   }
 
     void getCoordInOneDirection(const int& h, const int& n_element, float* coord) {
-      float xi[order_+1];
+      float xi[MAX_ORDER+1];
 
       switch (order_) {
         case 1:
@@ -172,9 +174,9 @@ namespace model {
       nodes_coords_y_ = allocateVector<VECTOR_REAL_VIEW>(total_nodes, "nodes coords y");
       nodes_coords_z_ = allocateVector<VECTOR_REAL_VIEW>(total_nodes, "nodes coords z");
 
-      float coord_x[order_+1];
-      float coord_y[order_+1];
-      float coord_z[order_+1];
+      float coord_x[MAX_ORDER+1];
+      float coord_y[MAX_ORDER+1];
+      float coord_z[MAX_ORDER+1];
 
       auto hx = lx_ / ex_;
       auto hy = ly_ / ey_;
