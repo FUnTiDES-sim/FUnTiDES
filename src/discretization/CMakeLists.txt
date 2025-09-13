@@ -12,7 +12,8 @@ target_include_directories(discretization
 )
 message(STATUS "Binary include dir: ${CMAKE_BINARY_DIR}/include")
 
-include( fe/SEMKernels/src/Shiva/tpl/camp/extern/blt/SetupBLT.cmake )
+set( SHIVA_ENABLE_CAMP OFF CACHE BOOL "Disable CAMP support" FORCE )
+set( SHIVA_ENABLE_BLT OFF CACHE BOOL "Disable use of BLT" FORCE )
 add_subdirectory( fe/SEMKernels )
 
 add_dependencies( discretization finiteElements shiva)
