@@ -6,10 +6,6 @@
 option(COMPILE_SEM "Compile Spectral Elements Method simulation" ON)
 option(COMPILE_FD "Compile finite elements simulation" ON)
 
-# Instrumentation
-option(USE_CALIPER "Use Caliper instrumentation" OFF)
-option(USE_EZV "Use EZV instrumentation" OFF)
-
 # Programming models
 option(USE_VECTOR "Use vectors." OFF)
 option(USE_OMP "Use OpenMP to parallelise loops" OFF)
@@ -21,7 +17,6 @@ option(ENABLE_CUDA "Enable cuda compilation" OFF)
 option(ENABLE_PYWRAP "Enable python binding compilation with pybind11" OFF)
 
 # Debugging options
-option(SEM_SAVE_SNAPSHOTS "Save snapshots for SEM-proxy" OFF)
 option(FD_SAVE_SNAPSHOTS "Save snapshots for FD-proxy" OFF)
 option(PRINT_ALLOC_INFO "Printout memory allocation info" OFF)
 
