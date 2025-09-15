@@ -4,9 +4,9 @@
 #include <pybind11/stl.h>
 
 #include <commonMacros.hpp>
-#include <SEMsolver.hpp>
-#include <SolverBase.hpp>
-#include <solverFactory.hpp>
+#include <sem_solver.h>
+#include <solver_base.h>
+#include <solver_factory.h>
 
 namespace py = pybind11;
 
