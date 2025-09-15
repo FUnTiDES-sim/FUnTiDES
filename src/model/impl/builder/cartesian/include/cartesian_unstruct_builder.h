@@ -12,23 +12,16 @@ namespace model {
    public:
     CartesianUnstructBuilder() { }
 
-    CartesianUnstructBuilder (const CartesianParams<FloatType, ScalarType> & p) {
-      ex_ = p.ex;
-      ey_ = p.ey;
-      ez_ = p.ez;
-
-      lx_ = p.lx;
-      ly_ = p.ly;
-      lz_ = p.lz;
-
-      order_ = p.order;
+    CartesianUnstructBuilder (const CartesianParams<FloatType, ScalarType> & p) :
+      ex_(p.ex), ey_(p.ey), ez_(p.ez), lx_(p.lx), ly_(p.ly), lz_(p.lz),
+      order_(p.order){
 
       initGlobalNodeList();
       initNodesCoords();
       initModels();
     }
 
-    model::ModelUnstruct<FloatType, ScalarType> getModel() {
+    std::shared_ptr<model::ModelApi<FloatType, ScalarType>> getModel() const override {
       model::ModelUnstructData<FloatType, ScalarType> modelData;
 
       modelData.order_ = order_;
@@ -50,7 +43,7 @@ namespace model {
       modelData.model_vp_element_ = model_vp_element_;
       modelData.model_rho_element_ = model_rho_element_;
 
-      return model::ModelUnstruct<FloatType, ScalarType>(modelData);
+      return std::make_shared<model::ModelUnstruct<FloatType, ScalarType>>(modelData);
     }
 
     ~CartesianUnstructBuilder() = default;
