@@ -27,8 +27,6 @@ jobs:
         with:
           clang-format-version: '13'
           check-path: 'src'  # Adjust this path to your source code location
-          fallback-style: 'Google'  # Or whatever style you're using
-          # exclude-regex: '(third_party|external)'  # Uncomment if you want to exclude some paths
 
   build:
     runs-on: ubuntu-latest
