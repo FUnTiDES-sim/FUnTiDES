@@ -45,9 +45,9 @@ computeOneStep( const float & dt,
 
   resetGlobalVectors(m_mesh.getNumberOfNodes());
   FENCE
-  applyRHSTerm(timeSample, dt, i2, rhsTerm, rhsElement, pnGlobal, rhsWeights);
-  FENCE
   computeElementContributions(i2, pnGlobal);
+  FENCE
+  applyRHSTerm(timeSample, dt, i2, rhsTerm, rhsElement, pnGlobal, rhsWeights);
   FENCE
   updatePressureField(dt, i1, i2, pnGlobal);
   FENCE
@@ -90,9 +90,7 @@ applyRHSTerm(int timeSample,
         {
           int localNodeId = x + y * (ORDER + 1) + z * (ORDER + 1) * (ORDER + 1);
           int nodeRHS = m_mesh.globalNodeIndex(rhsElement[i], x, y, z);
-          float scale =  dt2 * m_mesh.getModelVpOnElement(rhsElement[i]) * m_mesh.getModelVpOnElement(rhsElement[i]);
-          float source = scale * rhsTerm(i, timeSample) * rhsWeights(i, localNodeId);
-          yGlobal(nodeRHS) -= source;
+          yGlobal(nodeRHS) -= rhsTerm(i, timeSample) * rhsWeights(i, localNodeId);
         }
       }
     }
@@ -125,38 +123,43 @@ computeElementContributions(int i2,
     pnLocal[i] = pnGlobal(globalIdx, i2);
   }
 
-    float cornerCoords[8][3];
-    int I = 0;
-    int nodes_corner[2] = {0, m_mesh.getOrder()};
-    for (int k : nodes_corner) {
-      for (int j : nodes_corner) {
-        for (int i : nodes_corner) {
-          int nodeIdx = m_mesh.globalNodeIndex(elementNumber, i, j, k);
-          cornerCoords[I][0] = m_mesh.nodeCoord(nodeIdx, 0);
-          cornerCoords[I][2] = m_mesh.nodeCoord(nodeIdx, 2);
-          cornerCoords[I][1] = m_mesh.nodeCoord(nodeIdx, 1);
-          I++;
-        }
+  float cornerCoords[8][3];
+  int I = 0;
+  int nodes_corner[2] = {0, m_mesh.getOrder()};
+  for (int k : nodes_corner) {
+    for (int j : nodes_corner) {
+      for (int i : nodes_corner) {
+        int nodeIdx = m_mesh.globalNodeIndex(elementNumber, i, j, k);
+        cornerCoords[I][0] = m_mesh.nodeCoord(nodeIdx, 0);
+        cornerCoords[I][2] = m_mesh.nodeCoord(nodeIdx, 2);
+        cornerCoords[I][1] = m_mesh.nodeCoord(nodeIdx, 1);
+        I++;
       }
     }
+  }
 
+  auto getVp = [&](NodeIDX n) { return m_mesh.getModelVpOnNodes(n); };
+  auto getRho = [&](NodeIDX n) { return m_mesh.getModelRhoOnNodes(n); };
+  auto elem2nodes = [&](int e, int i, int j, int k) {
+    return m_mesh.globalNodeIndex(e, i, j, k);
+  };
   INTEGRAL_TYPE::computeMassMatrixAndStiffnessVector( elementNumber,
                                                       m_mesh.getNumberOfPointsPerElement(),
                                                       cornerCoords,
                                                       m_precomputedIntegralData,
                                                       massMatrixLocal,
                                                       pnLocal,
-                                                      Y );
+                                                      Y,
+                                                      getVp,
+                                                      getRho,
+                                                      elem2nodes
+                                                     );
 
-  auto const inv_model2 =
-      1.0f / (m_mesh.getModelVpOnElement(elementNumber) *
-              m_mesh.getModelVpOnElement(elementNumber));
   for (int i = 0; i < m_mesh.getNumberOfPointsPerElement(); ++i) {
     int x = i % dim;
     int z = (i / dim) % dim;
     int y = i / (dim * dim);
     int const gIndex = m_mesh.globalNodeIndex(elementNumber, x, y, z);
-    massMatrixLocal[i] *= inv_model2;
     ATOMICADD(massMatrixGlobal[gIndex], massMatrixLocal[i]);
     ATOMICADD(yGlobal[gIndex], Y[i]);
   }
