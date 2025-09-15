@@ -12,13 +12,9 @@ target_include_directories(discretization
 )
 message(STATUS "Binary include dir: ${CMAKE_BINARY_DIR}/include")
 
-set( SHIVA_ENABLE_CAMP OFF CACHE BOOL "Disable CAMP support" FORCE )
-set( SHIVA_ENABLE_BLT OFF CACHE BOOL "Disable use of BLT" FORCE )
 add_subdirectory( fe/SEMKernels )
 
-add_dependencies( discretization finiteElements shiva)
+add_dependencies( discretization finiteElements )
 
-target_link_libraries(discretization
-  INTERFACE
-    proxy_utils
-)
+target_link_libraries( discretization INTERFACE proxy_utils )
+target_link_libraries( discretization INTERFACE Shiva::shiva )
