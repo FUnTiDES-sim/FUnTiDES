@@ -310,16 +310,16 @@ def create_structured_model(e, h, order):
     """
     match order:
         case 1:
-            builder = Model.CartesianStructBuilderFI1()
+            builder = Model.CartesianStructBuilderFI1(e[0], h[0], e[1], h[1], e[2], h[2])
         case 2:
-            builder = Model.CartesianStructBuilderFI2()
+            builder = Model.CartesianStructBuilderFI2(e[0], h[0], e[1], h[1], e[2], h[2])
         case 3:
-            builder = Model.CartesianStructBuilderFI3()
+            builder = Model.CartesianStructBuilderFI3(e[0], h[0], e[1], h[1], e[2], h[2])
         case _:
             raise ValueError(
                 f"Order {order} is not wrapped by pybind11 (only 1, 2, 3 supported)"
             )
-    return builder.get_model(e[0], h[0], e[1], h[1], e[2], h[2])
+    return builder.get_model()
 
 
 def create_unstructured_model(e, h, order):
