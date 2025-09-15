@@ -1,9 +1,9 @@
-#include "solverFactory.hpp"
+#include "solver_factory.h"
 
 #include <model_struct.h>
 #include <model_unstruct.h>
 
-#include "SEMsolver.hpp"
+#include "sem_solver.h"
 
 namespace SolverFactory
 {

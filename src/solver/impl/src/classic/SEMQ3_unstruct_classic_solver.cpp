@@ -1,6 +1,6 @@
 #include <model_unstruct.h>
 
-#include "SEMsolver_impl.hpp"
+#include "sem_solver_impl.h"
 
 constexpr int ORDER = 3;
 template class SEMsolver<

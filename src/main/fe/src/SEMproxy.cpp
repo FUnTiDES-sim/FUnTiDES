@@ -5,8 +5,7 @@
 //
 //************************************************************************
 
-#include "solverFactory.hpp"
-#include "SEMsolver.hpp"
+#include <sem_solver.h>
 #include <cxxopts.hpp>
 #include "SEMproxy.hpp"
 #include <dataType.hpp>

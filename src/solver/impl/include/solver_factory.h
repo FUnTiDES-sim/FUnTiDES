@@ -3,7 +3,7 @@
 #include <fe/Integrals.hpp>
 #include <memory>
 
-#include "SolverBase.hpp"
+#include "solver_base.h"
 
 namespace SolverFactory
 {

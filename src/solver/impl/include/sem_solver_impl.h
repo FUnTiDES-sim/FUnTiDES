@@ -9,7 +9,7 @@
 
 #include <cstdlib>
 
-#include "SEMsolver.hpp"
+#include "sem_solver.h"
 #include "dataType.hpp"
 #include "fe/Integrals.hpp"
 

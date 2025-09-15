@@ -9,7 +9,7 @@
 #define SEMPROXY_HPP_
 
 #include "SEMproxyOptions.hpp"
-#include "solverFactory.hpp"
+#include <solver_factory.h>
 #include <argsparse.hpp>
 #include <utils.hpp>
 #include <memory>

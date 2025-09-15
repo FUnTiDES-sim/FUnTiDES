@@ -16,7 +16,7 @@
 
 #include <cmath>
 
-#include "SolverBase.hpp"
+#include "solver_base.h"
 #include "dataType.hpp"
 
 struct SEMsolverData : SolverBase::DataStruct
