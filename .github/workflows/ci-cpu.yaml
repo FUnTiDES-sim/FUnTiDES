@@ -4,7 +4,7 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
-on:      
+on:
   pull_request:
     branches:
       - main
@@ -13,9 +13,26 @@ on:
 
 jobs:
 
-  build:
+  # Format check job - runs first and blocks everything else if it fails
+  format-check:
+    name: Code Formatting Check
     runs-on: ubuntu-latest
 
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Run clang-format style check
+        uses: jidicula/clang-format-action@v4.11.0
+        with:
+          clang-format-version: '13'
+          check-path: 'src'  # Adjust this path to your source code location
+          fallback-style: 'Google'  # Or whatever style you're using
+          # exclude-regex: '(third_party|external)'  # Uncomment if you want to exclude some paths
+
+  build:
+    runs-on: ubuntu-latest
+    needs: format-check
     strategy:
       matrix:
         discretization: [fd, sem]
@@ -27,7 +44,7 @@ jobs:
           pywrap: pywrap-on
 
       max-parallel: 5
-      
+
     continue-on-error: true # We want to run other builds even if some build fails
 
     steps:
@@ -137,10 +154,10 @@ jobs:
           path: summary_line_${{ matrix.discretization }}_${{ matrix.programming_model }}_${{ matrix.pywrap }}.md
 
   summary:
-    needs: build
+    needs: [format-check, build]
     runs-on: ubuntu-latest
     if: always()
-  
+
     steps:
       - name: Download all summary lines
         uses: actions/download-artifact@v4
