@@ -12,6 +12,6 @@ namespace model {
 
       static constexpr int MAX_ORDER = 5;
 
-      std::unique_ptr<model::ModelApi<FloatType, ScalarType>> getModel() const;
+      virtual std::shared_ptr<model::ModelApi<FloatType, ScalarType>> getModel() const = 0;
     };
 }
