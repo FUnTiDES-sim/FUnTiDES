@@ -1,5 +1,7 @@
 if(COMPILE_SEM)
 
+  set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
+
   add_executable(semproxy
     src/main.cpp
     src/SEMproxy.cpp
