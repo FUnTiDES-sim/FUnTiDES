@@ -55,8 +55,8 @@
   {                                                           \
     LOOPHEAD(myInfo.numberOfElementsByColor[color], eColor)   \
     int Iterator = listOfElementsByColor(color, eColor);
-#define MAINLOOPEND       \
-  }); \
+#define MAINLOOPEND \
+  });               \
   }
 
 #else

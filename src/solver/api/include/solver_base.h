@@ -1,9 +1,8 @@
 #ifndef SOLVER_BASE_HPP_
 #define SOLVER_BASE_HPP_
 
-#include <model.h>
-
 #include <data_type.h>
+#include <model.h>
 
 class SolverBase
 {

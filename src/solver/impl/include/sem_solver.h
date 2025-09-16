@@ -12,12 +12,11 @@
 #ifndef SEM_SOLVER_HPP_
 #define SEM_SOLVER_HPP_
 
+#include <data_type.h>
 #include <model.h>
+#include <solver_base.h>
 
 #include <cmath>
-
-#include <solver_base.h>
-#include <data_type.h>
 
 struct SEMsolverData : SolverBase::DataStruct
 {

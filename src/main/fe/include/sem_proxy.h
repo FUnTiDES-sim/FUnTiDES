@@ -8,7 +8,7 @@
 #ifndef SEMPROXY_HPP_
 #define SEMPROXY_HPP_
 
-#include "SEMproxyOptions.hpp"
+#include "sem_proxy_options.h"
 #include <solver_factory.h>
 #include <data_type.h>
 #include <utils.h>
