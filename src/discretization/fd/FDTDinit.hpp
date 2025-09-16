@@ -4,7 +4,6 @@
 #include <utils.h>
 
 #include "FDTDutils.hpp"
-#include "FDTDkernels.hpp"
 
 struct FDTDInit
 {

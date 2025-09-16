@@ -4,6 +4,7 @@
 #include <data_type.h>
 
 #include "FDTDdata.hpp"
+#include "FDTDkernels.hpp"
 
 using namespace std;
 
