@@ -1,8 +1,8 @@
 #ifndef SRC_MODEL_MODELAPI_INCLUDE_MODEL_API_H_
 #define SRC_MODEL_MODELAPI_INCLUDE_MODEL_API_H_
 
-#include <SEMmacros.hpp>
-#include <dataType.hpp>
+#include <sem_macros.h>
+#include <data_type.h>
 
 namespace model {
 

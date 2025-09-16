@@ -7,7 +7,7 @@
 #include <iostream>
 #include <vector>
 
-#include "commonMacros.hpp"
+#include "common_macros.h"
 
 using real_t = float;
 
