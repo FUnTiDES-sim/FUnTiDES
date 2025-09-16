@@ -1,7 +1,7 @@
 #ifndef FDTDINIT_HPP
 #define FDTDINIT_HPP
 
-#include <utils.hpp>
+#include <utils.h>
 #include "FDTDutils.hpp"
 #include "FDTDkernels.hpp"
 

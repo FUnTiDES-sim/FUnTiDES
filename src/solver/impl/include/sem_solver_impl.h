@@ -10,7 +10,7 @@
 #include <cstdlib>
 
 #include "sem_solver.h"
-#include "dataType.hpp"
+#include <data_type.h>
 #include "fe/Integrals.hpp"
 
 template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE>

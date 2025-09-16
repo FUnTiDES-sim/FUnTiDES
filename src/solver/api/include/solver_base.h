@@ -3,7 +3,7 @@
 
 #include <model.h>
 
-#include <dataType.hpp>
+#include <data_type.h>
 
 class SolverBase
 {

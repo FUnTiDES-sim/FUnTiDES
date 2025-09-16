@@ -8,7 +8,6 @@
 #include <sem_solver.h>
 #include <cxxopts.hpp>
 #include "SEMproxy.hpp"
-#include <dataType.hpp>
 #include <cartesian_struct_builder.h>
 #include <cartesian_unstruct_builder.h>
 #include <iomanip>
