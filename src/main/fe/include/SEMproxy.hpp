@@ -99,14 +99,7 @@ private:
   const int sourceOrder = 2;
   int myElementSource = 0;
 
-  std::variant <
-    model::ModelStruct<float, int, 1>,
-    model::ModelStruct<float, int, 2>,
-    model::ModelStruct<float, int, 3>,
-    model::ModelStruct<float, int, 4>,
-    model::ModelUnstruct<float, int>
-    > m_mesh_storage;
-  model::ModelApi<float, int>* m_mesh;
+  std::shared_ptr<model::ModelApi<float, int>> m_mesh;
   std::unique_ptr<SolverBase> m_solver;
   SolverUtils myUtils;
 

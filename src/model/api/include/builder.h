@@ -10,6 +10,6 @@ namespace model {
       ModelBuilderBase() = default;
       ~ModelBuilderBase() = default;
 
-      std::unique_ptr<model::ModelApi<FloatType, ScalarType>> getModel() const;
+      virtual std::shared_ptr<model::ModelApi<FloatType, ScalarType>> getModel() const = 0;
     };
 }
