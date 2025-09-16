@@ -3,35 +3,38 @@
 #include <builder.h>
 #include <model_struct.h>
 
-namespace model {
-    template<typename FloatType, typename ScalarType, int Order>
-    class CartesianStructBuilder: public ModelBuilderBase<FloatType, ScalarType> {
-     public:
-        CartesianStructBuilder(ScalarType ex, FloatType hx,
-                               ScalarType ey, FloatType hy,
-                               ScalarType ez, FloatType hz) :
-        ex_(ex), ey_(ey), ez_(ez), hx_(hx), hy_(hy), hz_(hz){
-        }
+namespace model
+{
+template <typename FloatType, typename ScalarType, int Order>
+class CartesianStructBuilder : public ModelBuilderBase<FloatType, ScalarType>
+{
+ public:
+  CartesianStructBuilder(ScalarType ex, FloatType hx, ScalarType ey,
+                         FloatType hy, ScalarType ez, FloatType hz)
+      : ex_(ex), ey_(ey), ez_(ez), hx_(hx), hy_(hy), hz_(hz)
+  {
+  }
 
-       ~CartesianStructBuilder() = default;
+  ~CartesianStructBuilder() = default;
 
-       std::shared_ptr<model::ModelApi<FloatType, ScalarType>> getModel() const override {
-          model::ModelStructData<FloatType, ScalarType> data;
-          data.ex_ = ex_;
-          data.ey_ = ey_;
-          data.ez_ = ez_;
+  std::shared_ptr<model::ModelApi<FloatType, ScalarType>> getModel()
+      const override
+  {
+    model::ModelStructData<FloatType, ScalarType> data;
+    data.ex_ = ex_;
+    data.ey_ = ey_;
+    data.ez_ = ez_;
 
-          data.dx_ = hx_;
-          data.dy_ = hy_;
-          data.dz_ = hz_;
+    data.dx_ = hx_;
+    data.dy_ = hy_;
+    data.dz_ = hz_;
 
-          return std::make_shared<model::ModelStruct<FloatType, ScalarType, Order>>(data);
-       }
+    return std::make_shared<model::ModelStruct<FloatType, ScalarType, Order>>(
+        data);
+  }
 
-     private:
-        ScalarType ex_, ey_, ez_;
-        FloatType hx_, hy_, hz_;
-
-
-    };
-}
+ private:
+  ScalarType ex_, ey_, ez_;
+  FloatType hx_, hy_, hz_;
+};
+}  // namespace model

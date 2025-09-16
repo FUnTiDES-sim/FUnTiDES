@@ -1,4 +1,4 @@
-#include "commonConfig.hpp"
+#include "common_config.h"
 
 // define Macros for function type
 #if defined(USE_KOKKOS)

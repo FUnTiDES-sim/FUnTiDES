@@ -1,7 +1,7 @@
 #ifndef SEM_MACROS_HPP_
 #define SEM_MACROS_HPP_
 
-#include "commonConfig.hpp"
+#include "common_config.h"
 
 // define Macros test SEM proxy 2D case
 #if defined(SEM2D)
