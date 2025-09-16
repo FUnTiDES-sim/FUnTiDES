@@ -26,7 +26,7 @@ jobs:
         uses: jidicula/clang-format-action@v4.11.0
         with:
           clang-format-version: '13'
-          check-path: 'src'  # Adjust this path to your source code location
+          check-path: 'src'
 
   build:
     runs-on: ubuntu-latest
