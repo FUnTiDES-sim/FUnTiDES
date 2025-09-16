@@ -30,4 +30,4 @@
 #define FENCE
 #endif
 
-#endif // SEM_MACROS_HPP_
+#endif  // SEM_MACROS_HPP_
