@@ -112,14 +112,9 @@ SEMproxy::SEMproxy(const SemProxyOptions& opt)
     std::filesystem::create_directories(snap_folder_);
   }
 
-  std::cout << "Starting simulation with Cartesian Mesh of size " << "("
-            << nb_elements_[0] << ',' << nb_elements_[1] << ','
-            << nb_elements_[2] << ')' << std::endl;
   std::cout << "Number of node is " << m_mesh->getNumberOfNodes() << std::endl;
   std::cout << "Number of element is " << m_mesh->getNumberOfElements()
             << std::endl;
-  std::cout << "Size of the domain is " << "(" << lx << ',' << ly << ',' << lz
-            << ')' << std::endl;
   std::cout << "Launching the Method " << opt.method << ", the implementation "
             << opt.implem << " and the mesh is " << opt.mesh << std::endl;
   std::cout << "Order of approximation will be " << order << std::endl;
