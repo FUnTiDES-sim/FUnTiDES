@@ -1,3 +1,4 @@
+#include <common_macros.h>
 #include <pybind11/numpy.h>
 #include <pybind11/pybind11.h>
 #include <pybind11/stl.h>
@@ -6,7 +7,6 @@
 #include <solver_factory.h>
 
 #include <KokkosExp_InterOp.hpp>
-#include <common_macros.h>
 
 namespace py = pybind11;
 
