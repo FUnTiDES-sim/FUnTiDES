@@ -1,7 +1,7 @@
 //************************************************************************
 //   proxy application v.0.0.1
 //
-//  SEMsolver.cpp: simple 2D acoustive wave equation solver
+//  SEMsolver.cpp: acoustic wave equation solver
 //
 //  the SEMsolver class servers as a base class for the SEM solver
 //
@@ -138,8 +138,8 @@ computeElementContributions(int i2,
     }
   }
 
-  auto getVp = [&](NodeIDX n) { return m_mesh.getModelVpOnNodes(n); };
-  auto getRho = [&](NodeIDX n) { return m_mesh.getModelRhoOnNodes(n); };
+  auto getVp = [&](n_idx n) { return m_mesh.getModelVpOnNodes(n); };
+  auto getRho = [&](n_idx n) { return m_mesh.getModelRhoOnNodes(n); };
   auto elem2nodes = [&](int e, int i, int j, int k) {
     return m_mesh.globalNodeIndex(e, i, j, k);
   };
