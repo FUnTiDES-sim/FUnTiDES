@@ -154,7 +154,7 @@ jobs:
   summary:
     needs: [format-check, build]
     runs-on: ubuntu-latest
-    if: always()
+    if: ${{ needs.format-check.result == 'success' }}
 
     steps:
       - name: Download all summary lines
