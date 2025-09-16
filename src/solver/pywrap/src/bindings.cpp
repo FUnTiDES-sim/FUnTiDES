@@ -6,7 +6,7 @@
 #include <solver_factory.h>
 
 #include <KokkosExp_InterOp.hpp>
-#include <commonMacros.hpp>
+#include <common_macros.h>
 
 namespace py = pybind11;
 
