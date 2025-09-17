@@ -80,7 +80,6 @@ jobs:
         id: configure
         env:
           SCCACHE_GHA_ENABLED: "true"
-          SCCACHE_GHA_CACHE_KEY: ${{ matrix.discretization }}-${{ matrix.programming_model }}-${{ matrix.pywrap }}
         run: |
           export DISCRETIZATION=${{ matrix.discretization }}
           export PYWRAP=${{ matrix.pywrap }}
@@ -128,7 +127,6 @@ jobs:
         id: build
         env:
           SCCACHE_GHA_ENABLED: "true"
-          SCCACHE_GHA_CACHE_KEY: ${{ matrix.discretization }}-${{ matrix.programming_model }}-${{ matrix.pywrap }}
         run: |
           # Activate python venv if pywrap is on
           if [[ "$PYWRAP" == "pywrap-on" ]]; then
