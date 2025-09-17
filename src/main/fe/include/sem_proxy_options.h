@@ -8,14 +8,16 @@ class SemProxyOptions
 {
  public:
   // Defaults
-  int order = 2;
-  int ex = 50, ey = 50, ez = 50;
+  int   order = 2;
+  int   ex = 50, ey = 50, ez = 50;
   float lx = 2000.f, ly = 2000.f, lz = 2000.f;
-  std::string implem = "optim";  // classic|optim|geos|shiva
-  std::string method = "sem";    // sem|dg
+  float srcx = 1010.f, srcy = 1010.f, srcz = 1010.f;
+  float rcvx = 1410.f, rcvy = 1010.f, rcvz = 1010.f;
+  std::string implem = "geos";   // classic|optim|geos|shiva
+  std::string method = "sem";     // sem|dg
   std::string mesh = "cartesian";
-  float dt = 0.001;
-  float timemax = 1.5;
+  float dt = 0.006;
+  float timemax = 0.7;
   bool autodt = false;
   // snapshots
   bool snapshots = false;
