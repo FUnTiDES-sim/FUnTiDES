@@ -64,15 +64,15 @@ struct FDTDUtils
     float ftmp = 0.;
     float cfl = 0.8;
     ftmp += fabsf(coefx[0]) + fabsf(coefy[0]) + fabsf(coefz[0]);
-    for (int i = 1; i < coefx.size(); i++)
+    for (int i = 1; i < coefx.extent(0); i++)
     {
       ftmp += 2.f * fabsf(coefx[i]);
     }
-    for (int i = 1; i < coefy.size(); i++)
+    for (int i = 1; i < coefy.extent(0); i++)
     {
       ftmp += 2.f * fabsf(coefy[i]);
     }
-    for (int i = 1; i < coefz.size(); i++)
+    for (int i = 1; i < coefz.extent(0); i++)
     {
       ftmp += 2.f * fabsf(coefz[i]);
     }
