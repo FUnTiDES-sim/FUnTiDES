@@ -10,6 +10,3 @@
 [submodule "src/discretization/SEMKernels"]
 	path = src/discretization/fe/SEMKernels
 	url = https://github.com/proxySem/SEMKernels.git
-	branch = feature/gformat
-[submodule "src/discretization/fe/SEMKernels"]
-	branch = feature/gformat
