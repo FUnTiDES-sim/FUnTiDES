@@ -1,11 +1,14 @@
 if(COMPILE_FD)
 
-  add_executable(fdproxy src/FDTDmain.cpp)
-
-  target_include_directories(fdproxy
-    PRIVATE
-      ${CMAKE_CURRENT_SOURCE_DIR}/../discretization
-  )
+  add_executable(fdproxy 
+                 src/FDmain.cpp
+                 src/FDproxy.cpp
+                )
+  target_include_directories(fdproxy PUBLIC
+                            ${CMAKE_CURRENT_SOURCE_DIR}/include
+                             ${CMAKE_SOURCE_DIR}/external/cxxopts/
+                            ${CMAKE_CURRENT_SOURCE_DIR}/../../discretization/fd/FDTDKernels/include
+                            )
 
   target_link_libraries(fdproxy
     PRIVATE
