@@ -12,6 +12,7 @@ struct FDTDKernel
     LOOP3DHEAD(x3, y3, z3, x4, y4, z4)
     float lapx = 0;
     for (int l = 1; l < coefx.extent(0); l++)
+
     {
       lapx += coefx[l] * (pnGlobal(IDX3_l(i + l, j, k), cb) +
                           pnGlobal(IDX3_l(i - l, j, k), cb));
