@@ -13,8 +13,6 @@ using real_t = float;
 
 using namespace std;
 
-using n_idx = int;
-
 #ifdef USE_DOUBLE
 using real_t = double;
 #else

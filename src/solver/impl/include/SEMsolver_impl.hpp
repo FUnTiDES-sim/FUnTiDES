@@ -138,8 +138,8 @@ computeElementContributions(int i2,
     }
   }
 
-  auto getVp = [&](n_idx n) { return m_mesh.getModelVpOnNodes(n); };
-  auto getRho = [&](n_idx n) { return m_mesh.getModelRhoOnNodes(n); };
+  auto getVp = [&](int n) { return m_mesh.getModelVpOnNodes(n); };
+  auto getRho = [&](int n) { return m_mesh.getModelRhoOnNodes(n); };
   auto elem2nodes = [&](int e, int i, int j, int k) {
     return m_mesh.globalNodeIndex(e, i, j, k);
   };
