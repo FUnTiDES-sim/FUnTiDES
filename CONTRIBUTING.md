@@ -75,8 +75,6 @@ If you see formatting errors in CI:
 
 The project's code formatting is defined in [`.clang-format`](.clang-format):
 
-{% include_relative .clang-format %}
-
 ## Submission Checklist
 
 Before submitting your pull request:
