@@ -1,7 +1,7 @@
 //************************************************************************
 //   proxy application v.0.0.1
 //
-//  SEMsolver.cpp: simple 2D acoustive wave equation solver
+//  SEMsolver.cpp: acoustic wave equation solver
 //
 //  the SEMsolver class servers as a base class for the SEM solver
 //
@@ -46,9 +46,9 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE>::computeOneStep(
 
   resetGlobalVectors(m_mesh.getNumberOfNodes());
   FENCE
-  applyRHSTerm(timeSample, dt, i2, rhsTerm, rhsElement, pnGlobal, rhsWeights);
-  FENCE
   computeElementContributions(i2, pnGlobal);
+  FENCE
+  applyRHSTerm(timeSample, dt, i2, rhsTerm, rhsElement, pnGlobal, rhsWeights);
   FENCE
   updatePressureField(dt, i1, i2, pnGlobal);
   FENCE
@@ -84,11 +84,8 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE>::applyRHSTerm(
         {
           int localNodeId = x + y * (ORDER + 1) + z * (ORDER + 1) * (ORDER + 1);
           int nodeRHS = m_mesh.globalNodeIndex(rhsElement[i], x, y, z);
-          float scale = dt2 * m_mesh.getModelVpOnElement(rhsElement[i]) *
-                        m_mesh.getModelVpOnElement(rhsElement[i]);
-          float source =
-              scale * rhsTerm(i, timeSample) * rhsWeights(i, localNodeId);
-          yGlobal(nodeRHS) -= source;
+          yGlobal(nodeRHS) -=
+              rhsTerm(i, timeSample) * rhsWeights(i, localNodeId);
         }
       }
     }
@@ -137,19 +134,22 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE>::computeElementContributions(
     }
   }
 
+  auto getVp = [&](int n) { return m_mesh.getModelVpOnNodes(n); };
+  auto getRho = [&](int n) { return m_mesh.getModelRhoOnNodes(n); };
+  auto elem2nodes = [&](int e, int i, int j, int k) {
+    return m_mesh.globalNodeIndex(e, i, j, k);
+  };
   INTEGRAL_TYPE::computeMassMatrixAndStiffnessVector(
       elementNumber, m_mesh.getNumberOfPointsPerElement(), cornerCoords,
-      m_precomputedIntegralData, massMatrixLocal, pnLocal, Y);
+      m_precomputedIntegralData, massMatrixLocal, pnLocal, Y, getVp, getRho,
+      elem2nodes);
 
-  auto const inv_model2 = 1.0f / (m_mesh.getModelVpOnElement(elementNumber) *
-                                  m_mesh.getModelVpOnElement(elementNumber));
   for (int i = 0; i < m_mesh.getNumberOfPointsPerElement(); ++i)
   {
     int x = i % dim;
     int z = (i / dim) % dim;
     int y = i / (dim * dim);
     int const gIndex = m_mesh.globalNodeIndex(elementNumber, x, y, z);
-    massMatrixLocal[i] *= inv_model2;
     ATOMICADD(massMatrixGlobal[gIndex], massMatrixLocal[i]);
     ATOMICADD(yGlobal[gIndex], Y[i]);
   }
