@@ -28,6 +28,9 @@ sudo apt install clang-format
 # macOS
 brew install clang-format
 
+# Python (cross-platform)
+python -m pip install clang-format
+
 # Or check if already installed
 clang-format --version
 ```
@@ -70,24 +73,9 @@ If you see formatting errors in CI:
 
 ### Configuration Details
 
-Our `.clang-format` configuration:
+The project's code formatting is defined in [`.clang-format`](.clang-format):
 
-```yaml
-BasedOnStyle: Google
-Language: Cpp
-BreakBeforeBraces: Custom
-BraceWrapping:
-  AfterClass: true
-  AfterControlStatement: true
-  AfterEnum: true
-  AfterFunction: true
-  AfterNamespace: true
-  AfterStruct: true
-  AfterUnion: true
-  BeforeCatch: true
-  BeforeElse: true
-  IndentBraces: false
-```
+{% include_relative .clang-format %}
 
 ## Submission Checklist
 
