@@ -9,15 +9,14 @@
 #define FDPROXY_HPP_
 
 #include <memory>
-#include <argsparse.hpp>
-#include <sourceUtils.hpp>
+#include <args_parse.h>
+#include <utils.h>
 #include "FDproxyOptions.hpp"
 #include "FDTDGrids.hpp"
 #include "FDTDStencils.hpp"
 #include "FDTDkernels.hpp"
 #include "FDTDio.hpp"
-#include "sourceUtils.hpp"
-#include "readSEPfile.hpp"
+#include "read_sepfile.h"
 
 /**
  * @class FDproxy
@@ -82,7 +81,7 @@ private:
   FDTDStencils myStencils;
   FDTDKernels  myKernels;
   FDTDio       myIO;
-  SourceUtils  myUtils;
+  SolverUtils myUtils;
 
 };
 

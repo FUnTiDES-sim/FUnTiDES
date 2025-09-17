@@ -7,7 +7,7 @@
 
 #include <cxxopts.hpp>
 #include "FDproxy.hpp"
-#include "dataType.hpp"
+#include "data_type.h"
 #include <iomanip>
 #include <iostream>
 #include <sstream>

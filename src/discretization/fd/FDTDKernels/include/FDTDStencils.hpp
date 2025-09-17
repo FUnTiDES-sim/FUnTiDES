@@ -1,7 +1,7 @@
 #ifndef FDTDKERNELS_HPP
 #define FDTDKERNELS_HPP
 
-#include <dataType.hpp>
+#include <data_type.h>
 #include "FDproxyOptions.hpp"
 #include <cmath>
 

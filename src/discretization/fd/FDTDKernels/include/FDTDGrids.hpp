@@ -3,7 +3,7 @@
 
 #include "FDTDmacros.hpp"
 #include "FDproxyOptions.hpp"
-#include <dataType.hpp>
+#include <data_type.h>
 
 struct FDTDGRIDS
 {
