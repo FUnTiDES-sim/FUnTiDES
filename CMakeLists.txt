@@ -8,8 +8,8 @@ set(CMAKE_VERBOSE_MAKEFILE OFF)
 #--------------------------------------------------------
 # Configure compiler/project
 #--------------------------------------------------------
-include(cmake/CompilerConfig.cmake) # This must go *before* project()
-project(proxyapp)
+project(proxyapp LANGUAGES CXX)
+include(cmake/CompilerConfig.cmake) # This must go *after* project()
 include(cmake/ProxyConfig.cmake)    # This must go *before* other configurations
 
 #--------------------------------------------------------
