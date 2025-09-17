@@ -1,8 +1,8 @@
 if(COMPILE_SEM)
 
   add_executable(semproxy
-    src/main.cpp
-    src/SEMproxy.cpp
+    src/main.cc
+    src/sem_proxy.cc
   )
 
   target_include_directories(semproxy
