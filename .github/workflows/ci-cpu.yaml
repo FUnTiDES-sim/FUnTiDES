@@ -75,6 +75,8 @@ jobs:
 
       - name: Run sccache-cache
         uses: mozilla-actions/sccache-action@v0.0.9
+        with:
+          cache-key: ${{ matrix.discretization }}-${{ matrix.programming_model }}-${{ matrix.pywrap }}
 
       - name: Configure
         id: configure
