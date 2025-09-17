@@ -4,12 +4,13 @@
 //  main.cpp: this main file is simply a driver
 //************************************************************************
 
-#include "SEMproxyOptions.hpp"
-#include "SEMproxy.hpp"
+#include "sem_proxy.h"
+#include "sem_proxy_options.h"
 
 time_point<system_clock> startInitTime;
 
-void compute(SEMproxy &semsim) {
+void compute(SEMproxy &semsim)
+{
   cout << "\n+================================= " << endl;
   cout << "| Running SEM Application ...      " << endl;
   cout << "+================================= \n" << endl;
@@ -30,10 +31,10 @@ void compute(SEMproxy &semsim) {
        << endl;
 };
 
-void compute_loop(SEMproxy & semsim) { compute(semsim); }
+void compute_loop(SEMproxy &semsim) { compute(semsim); }
 
-int main(int argc, char *argv[]) {
-
+int main(int argc, char *argv[])
+{
   startInitTime = system_clock::now();
 
 #ifdef USE_KOKKOS
@@ -44,7 +45,7 @@ int main(int argc, char *argv[]) {
 #endif
 
     cxxopts::Options options("SEM Proxy", "Runs the SEM simulation.");
-    options.allow_unrecognised_options();       // lets Kokkos flags pass
+    options.allow_unrecognised_options();  // lets Kokkos flags pass
 
     options.add_options()("h,help", "Print help message");
 
@@ -53,14 +54,18 @@ int main(int argc, char *argv[]) {
 
     auto result = options.parse(argc, argv);
 
-   if (result.count("help"))
-   {
-     std::cout << options.help() << std::endl;
-     exit(0);
-   }
+    if (result.count("help"))
+    {
+      std::cout << options.help() << std::endl;
+      exit(0);
+    }
 
-    try { opt.validate(); }
-    catch (const std::exception& e) {
+    try
+    {
+      opt.validate();
+    }
+    catch (const std::exception &e)
+    {
       // your error path (no help printing here)
       std::cerr << "Invalid options: " << e.what() << "\n";
       return 1;

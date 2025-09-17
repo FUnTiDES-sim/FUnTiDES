@@ -5,40 +5,40 @@
 //
 //  The SEMsolver class serves as a base class for the Spectral Element Method
 //  solver. It provides core functionality to initialize FE operators,
-//  advance pressure fields, apply forcing terms, and handle absorbing boundaries.
+//  advance pressure fields, apply forcing terms, and handle absorbing
+//  boundaries.
 //************************************************************************
 
 #ifndef SEM_SOLVER_HPP_
 #define SEM_SOLVER_HPP_
 
-#include "dataType.hpp"
-#include "SolverBase.hpp"
-#include <cmath>
+#include <data_type.h>
 #include <model.h>
+#include <solver_base.h>
 
+#include <cmath>
 
 struct SEMsolverData : SolverBase::DataStruct
 {
-  SEMsolverData( int i1,
-                 int i2,
-                 ARRAY_REAL_VIEW rhsTerm,
-                 ARRAY_REAL_VIEW pnGlobal,
-                 VECTOR_INT_VIEW rhsElement,
-                 ARRAY_REAL_VIEW rhsWeights):
-    m_i1(i1),
-    m_i2(i2),
-    m_rhsTerm(rhsTerm),
-    m_pnGlobal(pnGlobal),
-    m_rhsElement(rhsElement),
-    m_rhsWeights(rhsWeights)
-  {}
+  SEMsolverData(int i1, int i2, ARRAY_REAL_VIEW rhsTerm,
+                ARRAY_REAL_VIEW pnGlobal, VECTOR_INT_VIEW rhsElement,
+                ARRAY_REAL_VIEW rhsWeights)
+      : m_i1(i1),
+        m_i2(i2),
+        m_rhsTerm(rhsTerm),
+        m_pnGlobal(pnGlobal),
+        m_rhsElement(rhsElement),
+        m_rhsWeights(rhsWeights)
+  {
+  }
 
-  void print() const override {
-      std::cout << "SEMsolverData: i1=" << m_i1 << ", i2=" << m_i2 << std::endl;
-      std::cout << "RHS Term size: " << m_rhsTerm.extent(0) << std::endl;
-      std::cout << "Pn Global size: " << m_pnGlobal.extent(0) << std::endl;
-      std::cout << "RHS Element size: " << m_rhsElement.extent(0) << std::endl;
-      std::cout << "RHS Weights size: " << m_rhsWeights.extent(0) << std::endl;
+  void print() const override
+  {
+    std::cout << "SEMsolverData: i1=" << m_i1 << ", i2=" << m_i2 << std::endl;
+    std::cout << "RHS Term size: " << m_rhsTerm.extent(0) << std::endl;
+    std::cout << "Pn Global size: " << m_pnGlobal.extent(0) << std::endl;
+    std::cout << "RHS Element size: " << m_rhsElement.extent(0) << std::endl;
+    std::cout << "RHS Weights size: " << m_rhsWeights.extent(0) << std::endl;
   }
 
   int m_i1;
@@ -49,13 +49,10 @@ struct SEMsolverData : SolverBase::DataStruct
   ARRAY_REAL_VIEW m_rhsWeights;
 };
 
-
-template< int ORDER,
-          typename INTEGRAL_TYPE,
-          typename MESH_TYPE>
+template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE>
 class SEMsolver : public SolverBase
 {
-public:
+ public:
   /**
    * @brief Default constructor.
    */
@@ -72,7 +69,7 @@ public:
    *
    * @param mesh BaseMesh structure containing the domain information.
    */
-  virtual void computeFEInit(model::ModelApi<float, int>& mesh);
+  virtual void computeFEInit(model::ModelApi<float, int> &mesh);
 
   /**
    * @brief Compute one time step of the SEM wave equation solver.
@@ -86,11 +83,10 @@ public:
    * @param rhsTerm      Right-hand side forcing term [node][time]
    * @param pnGlobal     Global pressure field [node][time]
    * @param rhsElement   List of active source elements
-   * @param rhsWeights   Forcing weights per source node
+   * @param rhsWeights   Source injection nodal weights, per element
    */
-  virtual void computeOneStep( const float & dt,
-                               const int & timeSample,
-                               DataStruct & data ) override final;
+  virtual void computeOneStep(const float &dt, const int &timeSample,
+                              DataStruct &data) override final;
 
   /**
    * @brief Output pressure values at a specific time step.
@@ -102,10 +98,9 @@ public:
    * @param myElementSource  Element containing the receiver
    * @param pnGlobal         Global pressure field [node][time]
    */
-  virtual void outputPnValues( const int &indexTimeStep,
-                               int &i1,
-                               int &myElementSource,
-                               const ARRAY_REAL_VIEW &pnGlobal) override final;
+  virtual void outputPnValues(const int &indexTimeStep, int &i1,
+                              int &myElementSource,
+                              const ARRAY_REAL_VIEW &pnGlobal) override final;
 
   /**
    * @brief Initialize arrays required by the finite element solver.
@@ -151,8 +146,7 @@ public:
    * @param i2       Current pressure field index
    * @param pnGlobal Global pressure field
    */
-  void computeElementContributions(int i2,
-                                   const ARRAY_REAL_VIEW &pnGlobal);
+  void computeElementContributions(int i2, const ARRAY_REAL_VIEW &pnGlobal);
 
   /**
    * @brief Update the global pressure field at interior nodes.
@@ -163,13 +157,10 @@ public:
    * @param i2       Current time step index
    * @param pnGlobal Pressure field array (updated in-place)
    */
-  void updatePressureField(float dt,
-                           int i1,
-                           int i2,
+  void updatePressureField(float dt, int i1, int i2,
                            const ARRAY_REAL_VIEW &pnGlobal);
 
-
-private:
+ private:
   MESH_TYPE m_mesh;
 
   static constexpr int nPointsElement = (ORDER + 1) * (ORDER + 1) * (ORDER + 1);
@@ -188,7 +179,7 @@ private:
   VECTOR_REAL_VIEW massMatrixGlobal;
   VECTOR_REAL_VIEW yGlobal;
 
-  void computeFEInit(MESH_TYPE const & mesh);
+  void computeFEInit(MESH_TYPE const &mesh);
 };
 
-#endif // SEM_SOLVER_HPP_
+#endif  // SEM_SOLVER_HPP_
