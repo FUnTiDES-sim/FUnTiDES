@@ -10,6 +10,7 @@
 #include <cxxopts.hpp>
 #include "SEMproxy.hpp"
 #include <dataType.hpp>
+#include <sourceAndReceiverUtils.hpp>
 #include <cartesian_struct_builder.h>
 #include <cartesian_unstruct_builder.h>
 #include <iomanip>
@@ -17,6 +18,7 @@
 #include <sstream>
 #include <variant>
 
+using namespace SourceAndReceiverUtils;
 
 SEMproxy::SEMproxy(const SemProxyOptions& opt) {
   const int order = opt.order;
@@ -30,6 +32,18 @@ SEMproxy::SEMproxy(const SemProxyOptions& opt) {
   const float lx = opt.lx;
   float ly = opt.ly;
   float lz = opt.lz;
+
+  src_coord_[0] = opt.srcx;
+  src_coord_[1] = opt.srcy;
+  src_coord_[2] = opt.srcz;
+
+  domain_size_[0] = lx;
+  domain_size_[1] = ly;
+  domain_size_[2] = lz;
+
+  rcv_coord_[0] = opt.rcvx;
+  rcv_coord_[1] = opt.rcvy;
+  rcv_coord_[2] = opt.rcvz;
 
   const SolverFactory::methodType methodType = getMethod( opt.method );
   const SolverFactory::implemType implemType = getImplem( opt.implem );
@@ -143,6 +157,22 @@ void SEMproxy::run() {
       saveSnapshot(indexTimeSample);
     }
 
+    // Save pressure at receiver
+    const int order = m_mesh->getOrder();
+
+    float varnp1 = 0.0;
+    for(int i=0; i <order+1; i++) {
+      for(int j=0; j <order+1; j++) {
+        for(int k=0; k <order+1; k++) {
+          int nodeIdx = m_mesh->globalNodeIndex(rhsElementRcv[0], i, j, k);
+          int globalNodeOnElement = i + j*(order+1) + k*(order+1)*(order+1);
+          varnp1 += pnGlobal(nodeIdx, i2)*rhsWeightsRcv(0, globalNodeOnElement);
+        }
+      }
+    }
+
+    pnAtReceiver(0, indexTimeSample) = varnp1;
+
     swap(i1, i2);
 
     auto tmp = solverData.m_i1;
@@ -152,6 +182,9 @@ void SEMproxy::run() {
 
     totalOutputTime += system_clock::now() - startOutputTime;
   }
+
+  //Output receiver
+  saveReceiver();
 
   float kerneltime_ms = time_point_cast<microseconds>(totalComputeTime)
                             .time_since_epoch()
@@ -201,6 +234,17 @@ void SEMproxy::saveSnapshot(int timeSample) const {
   FENCE
 }
 
+void SEMproxy::saveReceiver() const {
+  std::stringstream filename;
+  filename << "receiver.dat";
+  std::string str_filename = filename.str();
+  std::ofstream outfile(str_filename);
+  for (int i = 0; i < num_sample_; i++) {
+    outfile << i * dt_ << " " << pnAtReceiver(0, i) << std::endl;
+}
+  outfile.close();
+}
+
 // Initialize arrays
 void SEMproxy::init_arrays() {
   cout << "Allocate host memory for source and pressure values ..." << endl;
@@ -210,6 +254,13 @@ void SEMproxy::init_arrays() {
   rhsWeights = allocateArray2D<arrayReal>(myNumberOfRHS, m_mesh->getNumberOfPointsPerElement(), "RHSWeight");
   pnGlobal =
       allocateArray2D<arrayReal>(m_mesh->getNumberOfNodes(), 2, "pnGlobal");
+
+  // Receiver
+  rhsElementRcv = allocateVector<vectorInt>(1, "rhsElementRcv");
+  rhsWeightsRcv = allocateArray2D<arrayReal>(1, m_mesh->getNumberOfPointsPerElement(), "RHSWeightRcv");
+  pnAtReceiver =
+      allocateArray2D<arrayReal>(1, num_sample_, "pnAtReceiver");
+  
 }
 
 // Initialize sources
@@ -220,10 +271,41 @@ void SEMproxy::init_source() {
   int ex = nb_elements_[0];
   int ey = nb_elements_[1];
   int ez = nb_elements_[2];
-  int source_index = ex/2 + ey/2 * ex + ez/2 * ey * ex;
+
+  int lx = domain_size_[0];
+  int ly = domain_size_[1];
+  int lz = domain_size_[2];
+
+
+  // Get source element index
+ 
+  int source_index = floor((src_coord_[0] * ex) / lx) +
+                     floor((src_coord_[1] * ey) / ly) * ex +
+                     floor((src_coord_[2] * ez) / lz) * ey * ex;
+
+
   for (int i = 0; i < 1; i++) {
     rhsElement[i] = source_index;
   }
+
+  //Get coordinates of the corners of the sourc element
+  float cornerCoords[8][3];
+  int I = 0;
+  int nodes_corner[2] = {0, m_mesh->getOrder()};
+  for (int k : nodes_corner) {
+    for (int j : nodes_corner) {
+      for (int i : nodes_corner) {
+        int nodeIdx = m_mesh->globalNodeIndex(rhsElement[0], i, j, k);
+        cornerCoords[I][0] = m_mesh->nodeCoord(nodeIdx, 0);
+        cornerCoords[I][2] = m_mesh->nodeCoord(nodeIdx, 2);
+        cornerCoords[I][1] = m_mesh->nodeCoord(nodeIdx, 1);
+        I++;
+      }
+    }
+  }
+
+
+
 
   // initialize source term
   vector<float> sourceTerm =
@@ -239,14 +321,68 @@ void SEMproxy::init_source() {
   cout << "Element number for the source location: " << myElementSource << endl
        << endl;
 
-  // Setting the weight for source ponderation on node.
-  for (int i = 0; i < myNumberOfRHS; i++)
-  {
-    for (int j = 0; j < m_mesh->getNumberOfPointsPerElement(); j++)
-    {
-      rhsWeights(i, j) = 1.0 / m_mesh->getNumberOfPointsPerElement();
+  int order = m_mesh->getOrder();
+
+  switch(order) {
+    case 1:
+        SourceAndReceiverUtils::ComputeRHSWeights<1>(cornerCoords, src_coord_, rhsWeights);
+        break;
+    case 2:
+        SourceAndReceiverUtils::ComputeRHSWeights<2>(cornerCoords, src_coord_, rhsWeights);
+        break;
+    case 3:
+        SourceAndReceiverUtils::ComputeRHSWeights<3>(cornerCoords, src_coord_, rhsWeights);
+        break;
+    default:
+        throw std::runtime_error("Unsupported order: " + std::to_string(order));
+  }
+
+  //Receiver computation
+
+  int receiver_index = floor((rcv_coord_[0] * ex) / lx) +
+                     floor((rcv_coord_[1] * ey) / ly) * ex +
+                     floor((rcv_coord_[2] * ez) / lz) * ey * ex;
+
+  for( int i = 0; i < 1; i++) {
+    rhsElementRcv[i] = receiver_index;
+  }
+
+  //Get coordinates of the corners of the receiver element
+  float cornerCoordsRcv[8][3];
+  I = 0;
+  for (int k : nodes_corner) {
+    for (int j : nodes_corner) {
+      for (int i : nodes_corner) {
+        int nodeIdx = m_mesh->globalNodeIndex(rhsElementRcv[0], i, j, k);
+        cornerCoordsRcv[I][0] = m_mesh->nodeCoord(nodeIdx, 0);
+        cornerCoordsRcv[I][2] = m_mesh->nodeCoord(nodeIdx, 2);
+        cornerCoordsRcv[I][1] = m_mesh->nodeCoord(nodeIdx, 1);
+        I++;
+      }
     }
   }
+
+  switch(order) {
+    case 1:
+        SourceAndReceiverUtils::ComputeRHSWeights<1>(cornerCoordsRcv, rcv_coord_, rhsWeightsRcv);
+        break;
+    case 2:
+        SourceAndReceiverUtils::ComputeRHSWeights<2>(cornerCoordsRcv, rcv_coord_, rhsWeightsRcv);
+        break;
+    case 3:
+        SourceAndReceiverUtils::ComputeRHSWeights<3>(cornerCoordsRcv, rcv_coord_, rhsWeightsRcv);
+        break;
+    default:
+        throw std::runtime_error("Unsupported order: " + std::to_string(order));
+  }
+
+  printf("Receiver is located at element %d\n", rhsElementRcv[0]);
+  printf("Receiver coordinates are (%f, %f, %f)\n", rcv_coord_[0], rcv_coord_[1], rcv_coord_[2]);
+  printf("Receiver weights are: ");
+  for(int i=0; i < m_mesh->getNumberOfPointsPerElement(); i++) {
+    printf("%f ", rhsWeightsRcv(0,i));    
+  }
+
 }
 
 std::string formatSnapshotFilename(int id, int width = 5) {
