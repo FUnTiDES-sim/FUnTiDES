@@ -1,8 +1,8 @@
 if(COMPILE_SEM)
 
   add_executable(semproxy
-    src/main.cpp
-    src/SEMproxy.cpp
+    src/main.cc
+    src/sem_proxy.cc
   )
 
   target_include_directories(semproxy
@@ -19,6 +19,7 @@ if(COMPILE_SEM)
       proxy_model_struct
       proxy_model_unstruct
       proxy_utils
+      ${STDCXXFS_LIB}
   )
 
 endif()

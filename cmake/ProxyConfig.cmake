@@ -30,5 +30,5 @@ if(CMAKE_INSTALL_PREFIX_INITIALIZED_TO_DEFAULT)
 endif()
 
 # Macro definitions
-configure_file(${CMAKE_CURRENT_SOURCE_DIR}/src/utils/include/commonConfig.hpp.in
-               ${CMAKE_BINARY_DIR}/src/utils/include/commonConfig.hpp)
+configure_file(${CMAKE_CURRENT_SOURCE_DIR}/src/utils/include/common_config.h.in
+               ${CMAKE_BINARY_DIR}/src/utils/include/common_config.h)
