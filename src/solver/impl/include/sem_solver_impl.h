@@ -16,7 +16,8 @@
 
 template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE>
 void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE>::computeFEInit(
-    model::ModelApi<float, int> &mesh_in)
+    model::ModelApi<float, int> &mesh_in, const float sponge_size[3],
+    const bool surface_sponge)
 {
   if (auto *typed_mesh = dynamic_cast<MESH_TYPE *>(&mesh_in))
   {
@@ -26,6 +27,12 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE>::computeFEInit(
   {
     throw std::runtime_error("Incompatible mesh type in solver");
   }
+
+  sponge_size_[0] = sponge_size[0];
+  sponge_size_[1] = sponge_size[1];
+  sponge_size_[2] = sponge_size[2];
+  surface_sponge_ = surface_sponge;
+
   allocateFEarrays();
   initFEarrays();
 }
@@ -211,32 +218,45 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE>::allocateFEarrays()
 template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE>
 void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE>::initSpongeValues()
 {
-  // LOOPHEAD(m_mesh.getNumberOfNodes(), n)
-  double sigma_max = 0.01;
+  const double sigma_max = 0.15;
   for (int n = 0; n < m_mesh.getNumberOfNodes(); n++)
   {
-    float x = m_mesh.nodeCoord(n, 0);
-    float y = m_mesh.nodeCoord(n, 1);
-    float z = m_mesh.nodeCoord(n, 2);
-    float distToFrontierX = min(m_mesh.domainSize(0) - x, x);
-    float distToFrontierY = min(m_mesh.domainSize(1) - y, y);
-    float distToFrontierZ = min(m_mesh.domainSize(2) - z, z);
+    const double x = m_mesh.nodeCoord(n, 0);
+    const double y = m_mesh.nodeCoord(n, 1);
+    const double z = m_mesh.nodeCoord(n, 2);
+    const double distToFrontierX = (surface_sponge_)
+                                       ? m_mesh.domainSize(0) - x
+                                       : min(m_mesh.domainSize(0) - x, x);
+    const double distToFrontierY = min(m_mesh.domainSize(1) - y, y);
+    const double distToFrontierZ = min(m_mesh.domainSize(2) - z, z);
 
-    // Find closest distance to domain's boundary
-    float minDistToFrontier;
-    // if (!isSurface) minDistToFrontier = min(distToFrontierX,
-    // min(distToFrontierY, distToFrontierZ));
-    minDistToFrontier =
-        min(distToFrontierX, min(distToFrontierY, distToFrontierZ));
-    // else minDistToFrontier = min(distToFrontierY, distToFrontierZ);
+    double minDistToFrontier = max(
+        m_mesh.domainSize(0), max(m_mesh.domainSize(1), m_mesh.domainSize(2)));
+
+    bool is_sponge = false;
+    if (distToFrontierX < sponge_size_[0])
+    {
+      is_sponge = true;
+      minDistToFrontier = min(minDistToFrontier, distToFrontierX);
+    }
+    if (distToFrontierY < sponge_size_[1])
+    {
+      is_sponge = true;
+      minDistToFrontier = min(minDistToFrontier, distToFrontierY);
+    }
+    if (distToFrontierZ < sponge_size_[2])
+    {
+      is_sponge = true;
+      minDistToFrontier = min(minDistToFrontier, distToFrontierZ);
+    }
 
     // Compute taper coefficient using the original Gaussian formula
-    if (minDistToFrontier < m_spongeSize)
+    if (is_sponge)
     {
       // d = distance from absorption boundary
       double d = minDistToFrontier;
       // δ = characteristic width of the Gaussian
-      double delta = m_spongeSize / 3.0;
+      double delta = sponge_size_[0] / 3.0;
       // σ(d) = σ_max * exp(-(d/δ)²)
       double sigma = sigma_max * std::exp(-((d / delta) * (d / delta)));
       // Convert to taper coefficient
@@ -248,7 +268,6 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE>::initSpongeValues()
       spongeTaperCoeff(n) = 1.0;
     }
   }
-  // LOOPEND
 
   FENCE
 

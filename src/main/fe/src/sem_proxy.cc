@@ -27,6 +27,11 @@ SEMproxy::SEMproxy(const SemProxyOptions& opt)
   nb_nodes_[1] = opt.ey * order + 1;
   nb_nodes_[2] = opt.ez * order + 1;
 
+  const float spongex = opt.boundaries_size;
+  const float spongey = opt.boundaries_size;
+  const float spongez = opt.boundaries_size;
+  const float sponge_size[3] = {spongex, spongey, spongez};
+
   const float lx = opt.lx;
   float ly = opt.ly;
   float lz = opt.lz;
@@ -99,7 +104,7 @@ SEMproxy::SEMproxy(const SemProxyOptions& opt)
 
   m_solver =
       SolverFactory::createSolver(methodType, implemType, meshType, order);
-  m_solver->computeFEInit(*m_mesh);
+  m_solver->computeFEInit(*m_mesh, sponge_size, opt.surface_sponge);
 
   initFiniteElem();
 

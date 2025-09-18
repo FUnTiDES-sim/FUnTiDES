@@ -21,6 +21,9 @@ class SemProxyOptions
   bool snapshots = false;
   int snap_time_interval = 10;
   std::string snap_folder = "snapshots";
+  // sponge boundaries parameters
+  float boundaries_size = 0;
+  bool surface_sponge = false;
 
   void validate() const
   {
@@ -61,6 +64,10 @@ class SemProxyOptions
         cxxopts::value<std::string>(o.snap_folder))(
         "snap-interval",
         "Interval on iteration between two snapshots. (default=10)",
-        cxxopts::value<int>(o.snap_time_interval));
+        cxxopts::value<int>(o.snap_time_interval))(
+        "boundaries-size", "Size of absorbing boundaries (meters)",
+        cxxopts::value<float>(o.boundaries_size))(
+        "sponge-surface", "Considere the surface's nodes as non sponge nodes",
+        cxxopts::value<bool>(o.surface_sponge));
   }
 };
