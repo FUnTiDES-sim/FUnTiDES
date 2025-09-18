@@ -73,15 +73,22 @@ jobs:
           pip install --upgrade pip
           pip install pybind11
 
+      - name: Run sccache-cache
+        uses: mozilla-actions/sccache-action@v0.0.9
+
       - name: Configure
         id: configure
+        env:
+          SCCACHE_GHA_ENABLED: "true"
         run: |
           export DISCRETIZATION=${{ matrix.discretization }}
           export PYWRAP=${{ matrix.pywrap }}
           export PROGRAMMING_MODEL=${{ matrix.programming_model }}
 
           # Extend CMAKE_FLAGS based on selections
-          export CMAKE_FLAGS=""
+          
+          # Use sccache to speed up recompilation
+          export CMAKE_FLAGS="-DCMAKE_C_COMPILER_LAUNCHER=sccache -DCMAKE_CXX_COMPILER_LAUNCHER=sccache"
 
           # Discretization variant
           if [[ "$DISCRETIZATION" == "fd" ]]; then
@@ -118,6 +125,8 @@ jobs:
 
       - name: Build
         id: build
+        env:
+          SCCACHE_GHA_ENABLED: "true"
         run: |
           # Activate python venv if pywrap is on
           if [[ "$PYWRAP" == "pywrap-on" ]]; then
