@@ -10,11 +10,11 @@
 #include <cartesian_struct_builder.h>
 #include <cartesian_unstruct_builder.h>
 #include <sem_solver.h>
+#include <source_and_receiver_utils.h>
 
 #include <cxxopts.hpp>
 #include <iomanip>
 #include <iostream>
-#include <source_and_receiver_utils.h>
 #include <sstream>
 #include <variant>
 
@@ -415,7 +415,6 @@ void SEMproxy::init_source()
     default:
       throw std::runtime_error("Unsupported order: " + std::to_string(order));
   }
-
 }
 
 std::string formatSnapshotFilename(int id, int width = 5)
