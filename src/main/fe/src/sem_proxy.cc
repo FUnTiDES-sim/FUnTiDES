@@ -14,7 +14,7 @@
 #include <cxxopts.hpp>
 #include <iomanip>
 #include <iostream>
-#include <sourceAndReceiverUtils.hpp>
+#include <source_and_receiver_utils.h>
 #include <sstream>
 #include <variant>
 
@@ -30,17 +30,13 @@ SEMproxy::SEMproxy(const SemProxyOptions& opt)
   nb_nodes_[1] = opt.ey * order + 1;
   nb_nodes_[2] = opt.ez * order + 1;
 
-  const float lx = opt.lx;
-  float ly = opt.ly;
-  float lz = opt.lz;
-
   src_coord_[0] = opt.srcx;
   src_coord_[1] = opt.srcy;
   src_coord_[2] = opt.srcz;
 
-  domain_size_[0] = lx;
-  domain_size_[1] = ly;
-  domain_size_[2] = lz;
+  domain_size_[0] = opt.lx;
+  domain_size_[1] = opt.ly;
+  domain_size_[2] = opt.lz;
 
   rcv_coord_[0] = opt.rcvx;
   rcv_coord_[1] = opt.rcvy;
@@ -53,10 +49,13 @@ SEMproxy::SEMproxy(const SemProxyOptions& opt)
   if (meshType == SolverFactory::Struct)
   {
     int ex = nb_elements_[0];
+    float lx = domain_size_[0];
     int elem_sizex = lx / ex;
+    float ly = domain_size_[1];
     int ey = nb_elements_[1];
     int elem_sizey = ly / ey;
     int ez = nb_elements_[2];
+    float lz = domain_size_[2];
     int elem_sizez = lz / ez;
 
     switch (order)
@@ -89,6 +88,9 @@ SEMproxy::SEMproxy(const SemProxyOptions& opt)
     int ex = nb_elements_[0];
     int ey = nb_elements_[1];
     int ez = nb_elements_[2];
+    float lx = domain_size_[0];
+    float ly = domain_size_[1];
+    float lz = domain_size_[2];
 
     model::CartesianParams<float, int> param(order, ex, ey, ez, lx, ly, lz);
     model::CartesianUnstructBuilder<float, int> builder(param);
@@ -414,14 +416,6 @@ void SEMproxy::init_source()
       throw std::runtime_error("Unsupported order: " + std::to_string(order));
   }
 
-  printf("Receiver is located at element %d\n", rhsElementRcv[0]);
-  printf("Receiver coordinates are (%f, %f, %f)\n", rcv_coord_[0],
-         rcv_coord_[1], rcv_coord_[2]);
-  printf("Receiver weights are: ");
-  for (int i = 0; i < m_mesh->getNumberOfPointsPerElement(); i++)
-  {
-    printf("%f ", rhsWeightsRcv(0, i));
-  }
 }
 
 std::string formatSnapshotFilename(int id, int width = 5)
