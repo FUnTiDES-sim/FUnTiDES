@@ -83,7 +83,7 @@ class SEMsolver : public SolverBase
    * @param rhsTerm      Right-hand side forcing term [node][time]
    * @param pnGlobal     Global pressure field [node][time]
    * @param rhsElement   List of active source elements
-   * @param rhsWeights   Source injection nodal weights, per element
+   * @param rhsWeights   Forcing weights per source node
    */
   virtual void computeOneStep(const float &dt, const int &timeSample,
                               DataStruct &data) override final;

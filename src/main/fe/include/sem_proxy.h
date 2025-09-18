@@ -64,6 +64,8 @@ class SEMproxy
 
   void saveSnapshot(int timesample) const;
 
+  void saveReceiver() const;
+
   /**
    * @brief Computes optimal time step using CFL stability condition for seismic
    * wave propagation
@@ -92,6 +94,9 @@ class SEMproxy
   // or any structured mesh
   int nb_elements_[3] = {0};
   int nb_nodes_[3] = {0};
+  float src_coord_[3] = {0};
+  float domain_size_[3] = {0};
+  float rcv_coord_[3] = {0};
 
   // snapshots
   bool is_snapshots_;
@@ -104,7 +109,7 @@ class SEMproxy
   int num_sample_;
   // source parameters
   const int myNumberOfRHS = 1;
-  const float f0 = 10.;
+  const float f0 = 5.;
   const int sourceOrder = 2;
   int myElementSource = 0;
 
@@ -116,7 +121,10 @@ class SEMproxy
   arrayReal myRHSTerm;
   arrayReal pnGlobal;
   vectorInt rhsElement;
+  vectorInt rhsElementRcv;
   arrayReal rhsWeights;
+  arrayReal rhsWeightsRcv;
+  arrayReal pnAtReceiver;
 
   // initialize source and RHS
   void init_source();
