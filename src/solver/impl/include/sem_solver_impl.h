@@ -84,10 +84,7 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE>::applyRHSTerm(
         {
           int localNodeId = x + y * (ORDER + 1) + z * (ORDER + 1) * (ORDER + 1);
           int nodeRHS = m_mesh.globalNodeIndex(rhsElement[i], x, y, z);
-          float scale = dt2 * m_mesh.getModelVpOnElement(rhsElement[i]) *
-                        m_mesh.getModelVpOnElement(rhsElement[i]);
-          float source =
-              scale * rhsTerm(i, timeSample) * rhsWeights(i, localNodeId);
+          float source = rhsTerm(i, timeSample) * rhsWeights(i, localNodeId);
           yGlobal(nodeRHS) -= source;
         }
       }
