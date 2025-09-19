@@ -21,7 +21,8 @@ fdtd_proxy::fdtd_proxy(const fdtd_options & opt):m_opt(opt) {}
 void fdtd_proxy::init_fdtd() 
 {
   printf("+======================================\n");
-  printf("saveSnapshots=%d snapShotInterval=%d\n",m_opt.output.saveSnapShots,m_opt.output.snapShotInterval);
+  printf("saveSnapshots=%d snapShotInterval=%d\n",m_opt.output.saveSnapShots,
+                                                  m_opt.output.snapShotInterval);
   printf("--------------------------------------\n");
   printf("\n");
   printf("geometry init\n");
