@@ -74,7 +74,7 @@ class SEMsolver : public SolverBase
    *                       for geophysics to preserve natural reflections).
    */
   virtual void computeFEInit(model::ModelApi<float, int> &mesh,
-                             const float sponge_size[3], const bool surface_sponge);
+                             const float sponge_size[3], const bool surface_sponge, const float taper_delta_);
   /**
    * @brief Compute one time step of the SEM wave equation solver.
    *
@@ -171,6 +171,7 @@ class SEMsolver : public SolverBase
 
   float sponge_size_[3];
   bool surface_sponge_;
+  float taper_delta_;  // attenuation parameter
 
   // Basis functions and integral objects
   INTEGRAL_TYPE myQkIntegrals;

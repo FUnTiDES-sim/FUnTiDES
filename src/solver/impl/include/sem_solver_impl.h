@@ -17,7 +17,7 @@
 template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE>
 void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE>::computeFEInit(
     model::ModelApi<float, int> &mesh_in, const float sponge_size[3],
-    const bool surface_sponge)
+    const bool surface_sponge, const float taper_delta)
 {
   if (auto *typed_mesh = dynamic_cast<MESH_TYPE *>(&mesh_in))
   {
@@ -32,6 +32,7 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE>::computeFEInit(
   sponge_size_[1] = sponge_size[1];
   sponge_size_[2] = sponge_size[2];
   surface_sponge_ = surface_sponge;
+  taper_delta_ = taper_delta;
 
   allocateFEarrays();
   initFEarrays();
@@ -256,7 +257,7 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE>::initSpongeValues()
       // d = distance from absorption boundary
       double d = minDistToFrontier;
       // δ = characteristic width of the Gaussian
-      double delta = sponge_size_[0] / 3.0;
+      double delta = taper_delta_;
       // σ(d) = σ_max * exp(-(d/δ)²)
       double sigma = sigma_max * std::exp(-((d / delta) * (d / delta)));
       // Convert to taper coefficient
