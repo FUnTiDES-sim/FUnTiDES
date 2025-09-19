@@ -38,10 +38,6 @@ SEMproxy::SEMproxy(const SemProxyOptions& opt)
   src_coord_[1] = opt.srcy;
   src_coord_[2] = opt.srcz;
 
-  const float lx = opt.lx;
-  float ly = opt.ly;
-  float lz = opt.lz;
-
   domain_size_[0] = opt.lx;
   domain_size_[1] = opt.ly;
   domain_size_[2] = opt.lz;

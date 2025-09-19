@@ -53,7 +53,9 @@ PYBIND11_MODULE(solver, m)
 
   // Bind SolverBase
   py::class_<SolverBase, std::shared_ptr<SolverBase>>(m, "SolverBase")
-      .def("compute_fe_init", &SolverBase::computeFEInit, py::arg("model"))
+      .def("compute_fe_init", &SolverBase::computeFEInit, py::arg("model"),
+           py::arg("sponge_size") = std::array<float, 3>{0.0f, 0.0f, 0.0f},
+           py::arg("sponge_surface") = true, py::arg("taper_delta") = 0)
       .def("compute_one_step", &SolverBase::computeOneStep, py::arg("dt"),
            py::arg("time_sample"), py::arg("data"))
       .def("output_pn_values", &SolverBase::outputPnValues,
