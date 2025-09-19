@@ -70,7 +70,7 @@ class SemProxyOptions
         cxxopts::value<float>(o.boundaries_size))(
         "sponge-surface", "Considere the surface's nodes as non sponge nodes",
         cxxopts::value<bool>(o.surface_sponge))(
-"taper-delta", "Taper delta for sponge boundaries value", cxxopts::value<float>(o.taper_delta)
-);
+        "taper-delta", "Taper delta for sponge boundaries value",
+        cxxopts::value<float>(o.taper_delta));
   }
 };

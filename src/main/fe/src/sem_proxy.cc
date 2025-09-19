@@ -104,7 +104,8 @@ SEMproxy::SEMproxy(const SemProxyOptions& opt)
 
   m_solver =
       SolverFactory::createSolver(methodType, implemType, meshType, order);
-  m_solver->computeFEInit(*m_mesh, sponge_size, opt.surface_sponge, opt.taper_delta);
+  m_solver->computeFEInit(*m_mesh, sponge_size, opt.surface_sponge,
+                          opt.taper_delta);
 
   initFiniteElem();
 
