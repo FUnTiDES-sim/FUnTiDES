@@ -24,13 +24,6 @@ void fdtd_solver::compute_one_step(int itime,int i1,int i2)
   int y4=m_grids.ny - m_stencils.ly;
   int z3=m_stencils.lz;
   int z4=m_grids.nz - m_stencils.lz;
-  //printf("x3=%d x4=%d\n",x3,x4);
-  //printf("y3=%d y4=%d\n",y3,y4);
-  //printf("z3=%d z4=%d\n",z3,z4);
-  // add source term
-  //std::cout<< m_grids.nx<<" "<<m_grids.ny<<"  "<<m_grids.nz<<"\n";
-  //std::cout<< m_stencils.lx<<" "<<m_stencils.ly<<"  "<<m_stencils.lz<<"\n";
-  //std::cout<< m_source_receivers.xsrc<<" "<<m_source_receivers.ysrc<<"  "<<m_source_receivers.zsrc<<"\n";
   m_kernels.addRHS( itime, i2,
                    m_grids.nx, m_grids.ny, m_grids.nz,
                    m_stencils.lx, m_stencils.ly, m_stencils.lz,
