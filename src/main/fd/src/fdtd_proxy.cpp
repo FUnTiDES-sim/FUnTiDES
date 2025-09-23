@@ -21,7 +21,7 @@ fdtd_proxy::fdtd_proxy(const fdtd_options & opt)
     , m_kernels()
     , m_io()
     , m_utils()
-    , m_solver(m_grids,m_kernels,m_stencils,m_utils,m_source_receivers) {}
+    , m_solver(m_grids,m_kernels,m_stencils,m_source_receivers) {}
 
 // Initialize the simulation.
 // @post run()  
@@ -146,7 +146,7 @@ void fdtd_proxy::run()
     startOutputTime = system_clock::now();
     if (indexTimeSample % m_opt.output.snapShotInterval == 0)
     {
-      m_io.outputPnValues(indexTimeSample, i1,m_grids,m_kernels,m_stencils,m_opt);
+      m_io.outputPnValues(indexTimeSample, i1,m_grids,m_kernels,m_stencils,m_opt,m_source_receivers);
     }
     //swap(i1, i2);
     auto tmp = i1;

@@ -9,5 +9,5 @@ struct fdtd_source_receivers
 {
   // source location
   int xsrc{-1},ysrc{-1}, zsrc{-1};
-}
+};
 #endif //FDTD_SOURCE_RECEIVERS_H_

@@ -7,6 +7,7 @@
 #include "fdtd_kernels.h"
 #include "fdtd_stencils.h"
 #include "fdtd_options.h"
+#include "fdtd_source_receivers.h"
 
 using namespace std;
 
@@ -17,7 +18,8 @@ struct fdtd_io
                         fdtd_grids &m_grids,
                         fdtd_kernels &m_kernels,
                         fdtd_stencils &m_stencils,
-                        fdtd_options &m_opt)  
+                        fdtd_options &m_opt,
+                        fdtd_source_receivers & m_src)  
     {
         int nx=m_grids.nx;
         int ny=m_grids.ny;
@@ -25,9 +27,9 @@ struct fdtd_io
         int lx=m_stencils.lx;
         int ly=m_stencils.ly;
         int lz=m_stencils.lz;
-        int xs=100;
-        int ys=100;
-        int zs=100;
+        int xs=m_src.xsrc;
+        int ys=m_src.ysrc;
+        int zs=m_src.zsrc;
   
         bool saveSnapShots=m_opt.output.saveSnapShots;
         if(itSample%50==0)
