@@ -11,13 +11,15 @@
 #include <memory>
 #include <args_parse.h>
 #include <utils.h>
-#include "fdtd_solver.h"
+
 #include "fdtd_options.h"
 #include "fdtd_grids.h"
 #include "fdtd_stencils.h"
 #include "fdtd_kernels.h"
+#include "fdtd_source_receivers.h"
 #include "fdtd_io.h"
 #include "read_sepfile.h"
+#include "fdtd_solver.h"
 
 /**
  * @class FDproxy
@@ -81,6 +83,7 @@ private:
   fdtd_io       m_io;
   SolverUtils   m_utils;
   fdtd_solver   m_solver;
+  fdtd_source_receivers m_source_receivers;
 
 };
 

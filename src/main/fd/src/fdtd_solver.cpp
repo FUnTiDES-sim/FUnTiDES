@@ -15,7 +15,7 @@
 
 
 // compute one time step
-void fdtd_solver::compute_one_step(int itime)
+void fdtd_solver::compute_one_step(int itime,int i1,int i2)
 {
 
   int x3=m_stencils.lx;
@@ -30,11 +30,11 @@ void fdtd_solver::compute_one_step(int itime)
   // add source term
   //std::cout<< m_grids.nx<<" "<<m_grids.ny<<"  "<<m_grids.nz<<"\n";
   //std::cout<< m_stencils.lx<<" "<<m_stencils.ly<<"  "<<m_stencils.lz<<"\n";
-  //std::cout<< m_xsrc<<" "<<m_ysrc<<"  "<<m_zsrc<<"\n";
+  std::cout<< m_source_receivers.xsrc<<" "<<m_source_receivers.ysrc<<"  "<<m_source_receivers.zsrc<<"\n";
   m_kernels.addRHS( itime, i2,
                    m_grids.nx, m_grids.ny, m_grids.nz,
                    m_stencils.lx, m_stencils.ly, m_stencils.lz,
-                   m_xsrc, m_ysrc, m_zsrc,
+                   m_source_receivers.xsrc, m_source_receivers.ysrc, m_source_receivers.zsrc,
                    m_grids.vp,
                    m_kernels.RHSTerm,
                    m_kernels.pnGlobal );

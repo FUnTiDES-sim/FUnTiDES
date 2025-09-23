@@ -21,7 +21,7 @@ fdtd_proxy::fdtd_proxy(const fdtd_options & opt)
     , m_kernels()
     , m_io()
     , m_utils()
-    , m_solver(m_grids,m_kernels,m_stencils) {}
+    , m_solver(m_grids,m_kernels,m_stencils,m_utils,m_source_receivers) {}
 
 // Initialize the simulation.
 // @post run()  
@@ -98,14 +98,14 @@ void fdtd_proxy::init_fdtd()
   printf("f0=%f\n",f0);
   printf("sourceOrder=%d\n",sourceOrder);
   printf("--------------------------------------\n");
-  xsrc=m_opt.source.xs;
-  ysrc=m_opt.source.ys;
-  zsrc=m_opt.source.zs;
-  if(xsrc<0) xsrc=m_grids.nx/2;
-  if(ysrc<0) ysrc=m_grids.ny/2;
-  if(zsrc<0) zsrc=m_grids.nz/2;
+  m_source_receivers.xsrc=m_opt.source.xs;
+  m_source_receivers.ysrc=m_opt.source.ys;
+  m_source_receivers.zsrc=m_opt.source.zs;
+  if(xsrc<0) m_source_receivers.xsrc=m_grids.nx/2;
+  if(ysrc<0) m_source_receivers.ysrc=m_grids.ny/2;
+  if(zsrc<0) m_source_receivers.zsrc=m_grids.nz/2;
   printf("source position\n");
-  printf("xsrc=%d ysrc=%d zsrc=%d\n",xsrc,ysrc,zsrc);
+  printf("xsrc=%d ysrc=%d zsrc=%d\n",m_source_receivers.xsrc,m_source_receivers.ysrc,m_source_receivers.zsrc);
   printf("--------------------------------------\n");
   init_source();
   printf("source init done\n");
@@ -141,7 +141,7 @@ void fdtd_proxy::run()
   for (int indexTimeSample = 0; indexTimeSample < nSamples; indexTimeSample++)
   {
     startComputeTime = system_clock::now();
-    m_solver.compute_one_step(indexTimeSample);
+    m_solver.compute_one_step(indexTimeSample,i1,i2);
     totalComputeTime += system_clock::now() - startComputeTime;
     startOutputTime = system_clock::now();
     if (indexTimeSample % m_opt.output.snapShotInterval == 0)
