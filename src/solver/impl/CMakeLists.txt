@@ -1,11 +1,5 @@
 add_library(proxy_solver
             src/solver_factory.cc
-            src/classic/SEMQ1_struct_classic_solver.cpp
-            src/classic/SEMQ1_unstruct_classic_solver.cpp
-            src/classic/SEMQ2_struct_classic_solver.cpp
-            src/classic/SEMQ2_unstruct_classic_solver.cpp
-            src/classic/SEMQ3_struct_classic_solver.cpp
-            src/classic/SEMQ3_unstruct_classic_solver.cpp
             src/geos/SEMQ1_struct_geos_solver.cpp
             src/geos/SEMQ1_unstruct_geos_solver.cpp
             src/geos/SEMQ2_struct_geos_solver.cpp

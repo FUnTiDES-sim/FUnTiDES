@@ -1,6 +1,5 @@
 #pragma once
 
-#include "finiteElement/classic/SEMQkGLIntegralsClassic.hpp"
 #include "finiteElement/geos/Qk_Hexahedron_Lagrange_GaussLobatto.hpp"
 #include "finiteElement/shiva/SEMQkGLIntegralsShiva.hpp"
 
@@ -16,12 +15,6 @@ enum
   SHIVA
 };
 }
-
-template <int ORDER>
-struct IntegralTypeSelector<ORDER, IntegralType::CLASSIC>
-{
-  using type = SEMQkGLIntegralsClassic<ORDER>;
-};
 
 template <int ORDER>
 struct IntegralTypeSelector<ORDER, IntegralType::GEOS>

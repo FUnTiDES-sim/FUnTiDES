@@ -22,7 +22,6 @@ PYBIND11_MODULE(solver, m)
       .value("DG", SolverFactory::DG);
 
   py::enum_<SolverFactory::implemType>(m, "ImplemType")
-      .value("CLASSIC", SolverFactory::CLASSIC)
       .value("GEOS", SolverFactory::GEOS)
       .value("SHIVA", SolverFactory::SHIVA);
 
