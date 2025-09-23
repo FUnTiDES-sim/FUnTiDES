@@ -11,6 +11,7 @@
 #include <memory>
 #include <args_parse.h>
 #include <utils.h>
+#include "fdtd_solver.h"
 #include "fdtd_options.h"
 #include "fdtd_grids.h"
 #include "fdtd_stencils.h"
@@ -38,13 +39,7 @@ public:
    * @brief Initialize the simulation.
    * @post run()
    */
-  void init_fdtd();
-  
-  // initialize source and RHS
-  void init_source();
-
-  // compute one step
-  void compute_one_step(int itime);
+  void init_fdtd(); 
 
   /**
    * @brief Run the simulation.
@@ -77,11 +72,15 @@ private:
   int ysrc=-1;
   int zsrc=-1;
 
+  // initialize source and RHS
+  void init_source();
+
   fdtd_grids    m_grids;
   fdtd_stencils m_stencils;
   fdtd_kernels  m_kernels;
   fdtd_io       m_io;
   SolverUtils   m_utils;
+  fdtd_solver   m_solver;
 
 };
 

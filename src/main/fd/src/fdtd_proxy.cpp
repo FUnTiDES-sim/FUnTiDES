@@ -14,7 +14,14 @@
 #include <variant>
 
 
-fdtd_proxy::fdtd_proxy(const fdtd_options & opt):m_opt(opt) {}
+fdtd_proxy::fdtd_proxy(const fdtd_options & opt)
+    : m_opt(opt)
+    , m_grids()
+    , m_stencils()
+    , m_kernels()
+    , m_io()
+    , m_utils()
+    , m_solver(m_grids,m_kernels,m_stencils) {}
 
 // Initialize the simulation.
 // @post run()  
@@ -108,8 +115,10 @@ void fdtd_proxy::init_fdtd()
   m_kernels.defineSpongeBoundary(m_grids.nx, m_grids.ny, m_grids.nz);
   printf("sponge boundary init done\n"); 
   printf("--------------------------------------\n");
-}
 
+  printf("solver initialization done\n");
+  printf("--------------------------------------\n");
+  }
 
 // inti source term, e.g., Ricker wavelet
 void fdtd_proxy::init_source()
@@ -125,50 +134,6 @@ void fdtd_proxy::init_source()
   }
 }
 
-// compute one time step
-void fdtd_proxy::compute_one_step(int itime)
-{
-
-  int x3=m_stencils.lx;
-  int x4=m_grids.nx - m_stencils.lx;
-  int y3=m_stencils.ly;
-  int y4=m_grids.ny - m_stencils.ly;
-  int z3=m_stencils.lz;
-  int z4=m_grids.nz - m_stencils.lz;
-  // add source term
-  m_kernels.addRHS( itime, i2,
-                   m_grids.nx, m_grids.ny, m_grids.nz,
-                   m_stencils.lx, m_stencils.ly, m_stencils.lz,
-                   xsrc, ysrc, zsrc,
-                   m_grids.vp,
-                   m_kernels.RHSTerm,
-                   m_kernels.pnGlobal );
-  //printf("addRHS done\n");
-  FDFENCE
-  // inner points
-  m_kernels.inner3D( i1, i2,
-                    m_grids.nx, m_grids.ny, m_grids.nz,
-                    m_stencils.lx, m_stencils.ly, m_stencils.lz,
-                    x3, x4, y3, y4, z3, z4,
-                    m_stencils.coef0,
-                    m_stencils.coefx,
-                    m_stencils.coefy,
-                    m_stencils.coefz,
-                    m_grids.vp,
-                    m_kernels.pnGlobal );
-  //printf("inner3D done\n");
-  FDFENCE
-  // apply sponge boundary to wavefield
-  m_kernels.applySponge( i1, i2,
-                        m_grids.nx, m_grids.ny, m_grids.nz,
-                        m_stencils.lx, m_stencils.ly, m_stencils.lz,
-                        x3, x4, y3, y4, z3, z4,
-                        m_kernels.spongeArray,
-                        m_kernels.pnGlobal );
-  //printf("applySponge done\n"); 
-  FDFENCE
-}
-
 // run all time steps
 void fdtd_proxy::run() 
 {
@@ -176,7 +141,7 @@ void fdtd_proxy::run()
   for (int indexTimeSample = 0; indexTimeSample < nSamples; indexTimeSample++)
   {
     startComputeTime = system_clock::now();
-    compute_one_step(indexTimeSample);
+    m_solver.compute_one_step(indexTimeSample);
     totalComputeTime += system_clock::now() - startComputeTime;
     startOutputTime = system_clock::now();
     if (indexTimeSample % m_opt.output.snapShotInterval == 0)
