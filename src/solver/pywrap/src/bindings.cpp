@@ -24,7 +24,6 @@ PYBIND11_MODULE(solver, m)
   py::enum_<SolverFactory::implemType>(m, "ImplemType")
       .value("CLASSIC", SolverFactory::CLASSIC)
       .value("GEOS", SolverFactory::GEOS)
-      .value("OPTIM", SolverFactory::OPTIM)
       .value("SHIVA", SolverFactory::SHIVA);
 
   py::enum_<SolverFactory::meshType>(m, "MeshType")

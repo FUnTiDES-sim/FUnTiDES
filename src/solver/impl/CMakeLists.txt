@@ -6,12 +6,6 @@ add_library(proxy_solver
             src/classic/SEMQ2_unstruct_classic_solver.cpp
             src/classic/SEMQ3_struct_classic_solver.cpp
             src/classic/SEMQ3_unstruct_classic_solver.cpp
-            src/optim/SEMQ1_struct_optim_solver.cpp
-            src/optim/SEMQ1_unstruct_optim_solver.cpp
-            src/optim/SEMQ2_struct_optim_solver.cpp
-            src/optim/SEMQ2_unstruct_optim_solver.cpp
-            src/optim/SEMQ3_struct_optim_solver.cpp
-            src/optim/SEMQ3_unstruct_optim_solver.cpp
             src/geos/SEMQ1_struct_geos_solver.cpp
             src/geos/SEMQ1_unstruct_geos_solver.cpp
             src/geos/SEMQ2_struct_geos_solver.cpp

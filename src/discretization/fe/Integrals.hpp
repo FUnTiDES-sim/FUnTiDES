@@ -2,7 +2,6 @@
 
 #include "finiteElement/classic/SEMQkGLIntegralsClassic.hpp"
 #include "finiteElement/geos/Qk_Hexahedron_Lagrange_GaussLobatto.hpp"
-#include "finiteElement/optim/SEMQkGLIntegralsOptim.hpp"
 #include "finiteElement/shiva/SEMQkGLIntegralsShiva.hpp"
 
 template <int ORDER, int METHOD_TYPE>
@@ -13,7 +12,6 @@ namespace IntegralType
 enum
 {
   CLASSIC,
-  OPTIM,
   GEOS,
   SHIVA
 };
@@ -23,12 +21,6 @@ template <int ORDER>
 struct IntegralTypeSelector<ORDER, IntegralType::CLASSIC>
 {
   using type = SEMQkGLIntegralsClassic<ORDER>;
-};
-
-template <int ORDER>
-struct IntegralTypeSelector<ORDER, IntegralType::OPTIM>
-{
-  using type = SEMQkGLIntegralsOptim<ORDER, float, float>;
 };
 
 template <int ORDER>
