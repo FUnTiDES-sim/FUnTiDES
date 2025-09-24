@@ -458,7 +458,6 @@ void SEMproxy::saveSlice(const VECTOR_REAL_VIEW& host_slice, int sizex,
 
 SolverFactory::implemType SEMproxy::getImplem(string implemArg)
 {
-  if (implemArg == "classic") return SolverFactory::CLASSIC;
   if (implemArg == "geos") return SolverFactory::GEOS;
   if (implemArg == "shiva") return SolverFactory::SHIVA;
 

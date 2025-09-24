@@ -14,7 +14,6 @@ enum methodType
 };
 enum implemType
 {
-  CLASSIC,
   GEOS,
   SHIVA
 };
