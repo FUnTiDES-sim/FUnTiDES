@@ -13,3 +13,6 @@
 	branch = feature/gformat
 [submodule "src/discretization/fe/SEMKernels"]
 	branch = feature/gformat
+[submodule "external/ADIOS2"]
+	path = external/ADIOS2
+	url = https://github.com/ornladios/ADIOS2.git
