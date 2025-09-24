@@ -1,8 +1,0 @@
-#include <model_struct.h>
-
-#include "sem_solver_impl.h"
-
-constexpr int ORDER = 1;
-template class SEMsolver<
-    ORDER, IntegralTypeSelector<ORDER, IntegralType::CLASSIC>::type,
-    model::ModelStruct<float, int, ORDER> >;

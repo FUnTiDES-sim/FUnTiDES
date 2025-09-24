@@ -14,9 +14,7 @@ enum methodType
 };
 enum implemType
 {
-  CLASSIC,
   GEOS,
-  OPTIM,
   SHIVA
 };
 enum meshType
