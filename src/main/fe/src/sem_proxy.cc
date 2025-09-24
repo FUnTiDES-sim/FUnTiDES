@@ -459,7 +459,7 @@ void SEMproxy::saveSlice(const VECTOR_REAL_VIEW& host_slice, int sizex,
 SolverFactory::implemType SEMproxy::getImplem(string implemArg)
 {
   if (implemArg == "geos") return SolverFactory::GEOS;
-  if (implemArg == "shiva") return SolverFactory::SHIVA;
+  // if (implemArg == "shiva") return SolverFactory::SHIVA;
 
   throw std::invalid_argument(
       "Implentation type does not follow any valid type.");

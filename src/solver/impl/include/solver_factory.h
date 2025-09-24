@@ -15,7 +15,7 @@ enum methodType
 enum implemType
 {
   GEOS,
-  SHIVA
+  /* SHIVA */
 };
 enum meshType
 {
