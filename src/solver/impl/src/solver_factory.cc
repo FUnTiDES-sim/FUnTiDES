@@ -72,8 +72,8 @@ std::unique_ptr<SolverBase> createSolver(methodType const methodType,
     {
       case GEOS:
         return make_sem_solver<IntegralType::GEOS>(order, mesh);
-      case SHIVA:
-        return make_sem_solver<IntegralType::SHIVA>(order, mesh);
+      // case SHIVA:
+      //   return make_sem_solver<IntegralType::SHIVA>(order, mesh);
     }
   }
 
