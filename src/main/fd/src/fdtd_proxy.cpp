@@ -101,9 +101,9 @@ void fdtd_proxy::init_fdtd()
   m_source_receivers.xsrc=m_opt.source.xs;
   m_source_receivers.ysrc=m_opt.source.ys;
   m_source_receivers.zsrc=m_opt.source.zs;
-  if(xsrc<0) m_source_receivers.xsrc=m_grids.nx/2;
-  if(ysrc<0) m_source_receivers.ysrc=m_grids.ny/2;
-  if(zsrc<0) m_source_receivers.zsrc=m_grids.nz/2;
+  if(m_source_receivers.xsrc<0) m_source_receivers.xsrc=m_grids.nx/2;
+  if(m_source_receivers.ysrc<0) m_source_receivers.ysrc=m_grids.ny/2;
+  if(m_source_receivers.zsrc<0) m_source_receivers.zsrc=m_grids.nz/2;
   printf("source position\n");
   printf("xsrc=%d ysrc=%d zsrc=%d\n",m_source_receivers.xsrc,m_source_receivers.ysrc,m_source_receivers.zsrc);
   printf("--------------------------------------\n");
