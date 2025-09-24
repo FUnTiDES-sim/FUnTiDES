@@ -142,51 +142,22 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE>::computeElementContributions(
     }
   }
 
-  // INTEGRAL_TYPE::computeMassMatrixAndStiffnessVector(
-  //     elementNumber, m_mesh.getNumberOfPointsPerElement(), cornerCoords,
-  //     m_precomputedIntegralData, massMatrixLocal, pnLocal, Y);
+  INTEGRAL_TYPE::computeMassMatrixAndStiffnessVector(
+      elementNumber, m_mesh.getNumberOfPointsPerElement(), cornerCoords,
+      m_precomputedIntegralData, massMatrixLocal, pnLocal, Y);
 
   auto const inv_model2 = 1.0f / (m_mesh.getModelVpOnElement(elementNumber) *
                                   m_mesh.getModelVpOnElement(elementNumber));
-
-  //Stiffness term
-
-  for(int i = 0; i < m_mesh.getNumberOfPointsPerElement(); ++i)
-  {
-    Y[i] = 0;
-  }
-
-  for(int j = 0; j < m_mesh.getNumberOfPointsPerElement(); ++j)
-  {
-    massMatrixLocal[j] = 0;
-  }
-
-  INTEGRAL_TYPE::computeMassTerm( cornerCoords, [&]( const int j, const real_t val )
-  {
-    //massMatrixLocal[q] = computeMassTerm(q, X);
-    massMatrixLocal[j] += val;
-  } );
-
-  INTEGRAL_TYPE::computeStiffnessTerm( cornerCoords, [&]( const int i, const int j, const real_t val )
-  {
-    float localIncrement = val * pnLocal[j];
-    Y[i] += localIncrement;
-  } );
-
-  
-
-  //Accumulation
   for (int i = 0; i < m_mesh.getNumberOfPointsPerElement(); ++i)
   {
     int x = i % dim;
     int z = (i / dim) % dim;
     int y = i / (dim * dim);
-    int const gIndex = m_mesh.globalNodeIndex(elementNumber, x, y, z);   
+    int const gIndex = m_mesh.globalNodeIndex(elementNumber, x, y, z);
     massMatrixLocal[i] *= inv_model2;
-    ATOMICADD(massMatrixGlobal[gIndex], massMatrixLocal[i]); 
+    ATOMICADD(massMatrixGlobal[gIndex], massMatrixLocal[i]);
     ATOMICADD(yGlobal[gIndex], Y[i]);
   }
-
 
   MAINLOOPEND
 }

@@ -16,7 +16,7 @@ class SemProxyOptions
   std::string implem = "geos";  // geos|shiva
   std::string method = "sem";   // sem|dg
   std::string mesh = "cartesian";
-  float dt = 0.003;
+  float dt = 0.006;
   float timemax = 0.7;
   bool autodt = false;
   // snapshots
