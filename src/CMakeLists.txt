@@ -20,9 +20,9 @@ file(GLOB_RECURSE ALL_SOURCE_FILES
      "${CMAKE_SOURCE_DIR}/src/*.h"
      "${CMAKE_SOURCE_DIR}/src/*.hh")
 
-# Example: filter out files whose path contains "thirdparty" or "external"
-list(FILTER ALL_SOURCE_FILES EXCLUDE REGEX "thirdparty")
-list(FILTER ALL_SOURCE_FILES EXCLUDE REGEX "external")
+# Example: filter out files whose path contains "Shiva" or "SEMKernels"
+list(FILTER ALL_SOURCE_FILES EXCLUDE REGEX "Shiva")
+list(FILTER ALL_SOURCE_FILES EXCLUDE REGEX "SEMKernels")
 
 # Make the format target
 add_custom_target( apply_clang_format
