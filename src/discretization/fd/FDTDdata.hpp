@@ -5,9 +5,8 @@
 
 struct FDTDGRIDS
 {
-
-  int nx, ny, nz;     // number of grid on the x,y,z direction
-  int xs, ys, zs;     // source location on the x,y,z direction
+  int nx, ny, nz;  // number of grid on the x,y,z direction
+  int xs, ys, zs;  // source location on the x,y,z direction
   int lx, ly, lz;
   float dx, dy, dz;
 
@@ -18,12 +17,10 @@ struct FDTDGRIDS
   int x1, x2, x3, x4, x5, x6;
   int y1, y2, y3, y4, y5, y6;
   int z1, z2, z3, z4, z5, z6;
-
 };
 
 struct FDTDMODELS
 {
-
   double coef0;
 
   vectorReal coefx;
@@ -38,7 +35,6 @@ struct FDTDMODELS
   vectorReal pnp1;
   vectorReal pn;
   arrayReal pnGlobal;
-
 };
 
-#endif //FDTDDATA_HPP_
+#endif  // FDTDDATA_HPP_

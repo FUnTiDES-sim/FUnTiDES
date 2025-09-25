@@ -5,7 +5,7 @@ set -euo pipefail
 EXS="100"
 EYS="100"
 EZS="100"
-IMPLEMS="classic optim geos shiva"
+IMPLEMS="geos shiva"
 MESHES="cartesian ucartesian"
 ORDERS="1 2 3"
 SEMPROXY_BIN="bin/semproxy"
