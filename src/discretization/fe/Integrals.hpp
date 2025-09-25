@@ -38,5 +38,6 @@ struct IntegralTypeSelector<ORDER, IntegralType::GEOS>
 //                     LagrangeBasis<float, ORDER, EqualSpacing>,
 //                     LagrangeBasis<float, ORDER, EqualSpacing> >;
 
-//   using type = SEMQkGLIntegralsShiva<ORDER, TransformType, ParentElementType>;
+//   using type = SEMQkGLIntegralsShiva<ORDER, TransformType,
+//   ParentElementType>;
 // };

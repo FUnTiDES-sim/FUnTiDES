@@ -8,7 +8,7 @@
 //************************************************************************
 
 #include <data_type.h>
-
+#include <adios_utils.h>
 #include <cstdlib>
 
 #include "fe/Integrals.hpp"
@@ -269,13 +269,8 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE>::initSpongeValues()
 
   FENCE
 
-  // Debuging: Wrinting down all taper coef
-  std::ofstream outfile("spongeTaperCoeff.txt");
-  for (int i = 0; i < m_mesh.getNumberOfNodes(); i++)
-  {
-    outfile << spongeTaperCoeff(i) << ' ';
-  }
+  // Write taper coeff for debugging purpose
+  adios2::ADIOS adios;
+  io::write1dArray<vectorReal>(adios, spongeTaperCoeff, "spongeTaperCoeff.bp", "sponge_coeff");
 
-  outfile << endl;
-  outfile.close();
 }
