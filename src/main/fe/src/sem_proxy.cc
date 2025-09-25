@@ -125,6 +125,8 @@ SEMproxy::SEMproxy(const SemProxyOptions& opt)
 
   initFiniteElem();
 
+  io_ctrl_ = std::make_shared<SemIOController>(static_cast<size_t>(num_sample_), static_cast<size_t>(1));
+
   // snapshots settings
   is_snapshots_ = opt.snapshots;
   if (is_snapshots_)
@@ -273,6 +275,9 @@ void SEMproxy::saveReceiver() const
     outfile << i * dt_ << " " << pnAtReceiver(0, i) << std::endl;
   }
   outfile.close();
+
+  adios2::ADIOS adios;
+  io::write2dArray(adios, pnAtReceiver, "receiver.bp", "receivers");
 }
 
 // Initialize arrays

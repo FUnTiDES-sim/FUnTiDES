@@ -15,6 +15,8 @@
 #include <solver_factory.h>
 #include <utils.h>
 
+#include "sem_io_controller.h"
+
 #include <memory>
 #include <string>
 #include <variant>
@@ -126,6 +128,9 @@ class SEMproxy
   arrayReal rhsWeights;
   arrayReal rhsWeightsRcv;
   arrayReal pnAtReceiver;
+
+  // io controller
+  std::shared_ptr<SemIOController> io_ctrl_;
 
   // initialize source and RHS
   void init_source();
