@@ -25,9 +25,13 @@ list(FILTER ALL_SOURCE_FILES EXCLUDE REGEX "Shiva")
 list(FILTER ALL_SOURCE_FILES EXCLUDE REGEX "SEMKernels")
 
 # Make the format target
+if( NOT CLANG_FORMAT_EXECUTABLE )
+  set( CLANG_FORMAT_EXECUTABLE clang-format )
+endif()
+
+message( STATUS "Using clang-format executable: ${CLANG_FORMAT_EXECUTABLE}" )
+
 add_custom_target( apply_clang_format
-  COMMAND clang-format -i
-          -style=file:${CMAKE_SOURCE_DIR}/.clang-format
-          ${ALL_SOURCE_FILES}
-  WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+                   COMMAND ${CLANG_FORMAT_EXECUTABLE} -i -style=file -fallback-style=none ${ALL_SOURCE_FILES}
+                   WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
 )
