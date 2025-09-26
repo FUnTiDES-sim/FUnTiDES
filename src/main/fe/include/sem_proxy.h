@@ -89,6 +89,8 @@ class SEMproxy
    */
   float find_cfl_dt(float cfl_factor);
 
+  void saveSnapshot();
+
  private:
   int i1 = 0;
   int i2 = 1;

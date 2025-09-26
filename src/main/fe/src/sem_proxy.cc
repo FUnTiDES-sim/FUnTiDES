@@ -125,7 +125,7 @@ SEMproxy::SEMproxy(const SemProxyOptions& opt)
 
   initFiniteElem();
 
-  io_ctrl_ = std::make_shared<SemIOController>(static_cast<size_t>(num_sample_), static_cast<size_t>(1));
+  io_ctrl_ = std::make_shared<SemIOController>(static_cast<size_t>(m_mesh->getNumberOfNodes()), static_cast<size_t>(num_sample_), static_cast<size_t>(1));
 
   // snapshots settings
   is_snapshots_ = opt.snapshots;
@@ -177,7 +177,8 @@ void SEMproxy::run()
     // Save slice in dat format
     if (is_snapshots_ && indexTimeSample % snap_time_interval_ == 0)
     {
-      saveSnapshot(indexTimeSample);
+      // saveSnapshot(indexTimeSample);
+      saveSnapshot();
     }
 
     // Save pressure at receiver
@@ -459,6 +460,11 @@ void SEMproxy::saveSlice(const VECTOR_REAL_VIEW& host_slice, int sizex,
     }
   }
   file.close();
+}
+
+void SEMproxy::saveSnapshot()
+{
+  io_ctrl_->saveSnapshot(pnGlobal, i1);
 }
 
 SolverFactory::implemType SEMproxy::getImplem(string implemArg)
