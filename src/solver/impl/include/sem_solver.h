@@ -76,7 +76,7 @@ class SEMsolver : public SolverBase
   virtual void computeFEInit(model::ModelApi<float, int> &mesh,
                              const float sponge_size[3],
                              const bool surface_sponge,
-                             const float taper_delta_);
+                             const float taper_delta_) override final;
   /**
    * @brief Compute one time step of the SEM wave equation solver.
    *

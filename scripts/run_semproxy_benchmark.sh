@@ -5,7 +5,7 @@ set -euo pipefail
 EXS="100"
 EYS="100"
 EZS="100"
-IMPLEMS="classic optim geos shiva"
+IMPLEMS="geos shiva"
 MESHES="cartesian ucartesian"
 ORDERS="1 2 3"
 SEMPROXY_BIN="bin/semproxy"
@@ -20,7 +20,7 @@ Options (space-separated lists allowed; quoted):
   --ex        "100"            # values for --ex
   --ey        "100"            # values for --ey
   --ez        "100"            # values for --ez
-  --implem    "classic"        # {classic, optim, geos, shiva}
+  --implem    "geos"        # {classic, optim, geos, shiva}
   --mesh      "cartesian"      # {cartesian, ucartesian}
   -o|--order  "1 2 3"          # polynomial orders
   --bin       PATH             # path to semproxy (default: bin/semproxy)
@@ -77,7 +77,9 @@ for order in $ORDERS; do
                   --ex "$ex" --ey "$ey" --ez "$ez"
                   --implem "$implem"
                   --mesh "$mesh"
-                  -o "$order" )
+                  -o "$order"
+                  --timemax "1.5"
+                  --dt "0.001" )
             echo ">> ${cmd[*]}"
 
             if [[ "$DRY_RUN" -eq 1 ]]; then
