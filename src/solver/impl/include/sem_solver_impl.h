@@ -124,23 +124,7 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE>::computeElementContributions(
     pnLocal[i] = pnGlobal(globalIdx, i2);
   }
 
-  float cornerCoords[8][3];
-  int I = 0;
-  int nodes_corner[2] = {0, m_mesh.getOrder()};
-  for (int k : nodes_corner)
-  {
-    for (int j : nodes_corner)
-    {
-      for (int i : nodes_corner)
-      {
-        int nodeIdx = m_mesh.globalNodeIndex(elementNumber, i, j, k);
-        cornerCoords[I][0] = m_mesh.nodeCoord(nodeIdx, 0);
-        cornerCoords[I][2] = m_mesh.nodeCoord(nodeIdx, 2);
-        cornerCoords[I][1] = m_mesh.nodeCoord(nodeIdx, 1);
-        I++;
-      }
-    }
-  }
+  typename INTEGRAL_TYPE::TransformType const transformData = INTEGRAL_TYPE::gatherCoordinates( elementNumber, m_mesh );
 
   auto const inv_model2 = 1.0f / (m_mesh.getModelVpOnElement(elementNumber) *
                                   m_mesh.getModelVpOnElement(elementNumber));
@@ -153,15 +137,18 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE>::computeElementContributions(
     massMatrixLocal[i] = 0;
   }
 
-  INTEGRAL_TYPE::computeMassTerm(
-      cornerCoords,
-      [&](const int j, const real_t val) { massMatrixLocal[j] += val; });
+  INTEGRAL_TYPE::computeMassTerm( transformData,
+                                  [&](const int j, const real_t val) 
+  { 
+    massMatrixLocal[j] += val; 
+  });
 
-  INTEGRAL_TYPE::computeStiffnessTerm(
-      cornerCoords, [&](const int i, const int j, const real_t val) {
-        float localIncrement = val * pnLocal[j];
-        Y[i] += localIncrement;
-      });
+  INTEGRAL_TYPE::computeStiffnessTerm( transformData, 
+                                       [&](const int i, const int j, const real_t val) 
+  {
+    float localIncrement = val * pnLocal[j];
+    Y[i] += localIncrement;
+  });
 
   for (int i = 0; i < m_mesh.getNumberOfPointsPerElement(); ++i)
   {
@@ -207,7 +194,6 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE>::outputPnValues(
 template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE>
 void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE>::initFEarrays()
 {
-  INTEGRAL_TYPE::init(m_precomputedIntegralData);
   initSpongeValues();
 }
 
