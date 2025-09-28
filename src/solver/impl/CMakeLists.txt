@@ -11,7 +11,8 @@ add_library(proxy_solver
             src/shiva/SEMQ2_struct_shiva_solver.cpp
             src/shiva/SEMQ2_unstruct_shiva_solver.cpp
             src/shiva/SEMQ3_struct_shiva_solver.cpp
-            src/shiva/SEMQ3_unstruct_shiva_solver.cpp)
+            src/shiva/SEMQ3_unstruct_shiva_solver.cpp
+            )
 
 target_include_directories(proxy_solver
   PUBLIC

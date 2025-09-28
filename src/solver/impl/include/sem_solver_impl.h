@@ -124,7 +124,8 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE>::computeElementContributions(
     pnLocal[i] = pnGlobal(globalIdx, i2);
   }
 
-  typename INTEGRAL_TYPE::TransformType const transformData = INTEGRAL_TYPE::gatherCoordinates( elementNumber, m_mesh );
+  typename INTEGRAL_TYPE::TransformType transformData;
+  INTEGRAL_TYPE::gatherCoordinates( elementNumber, m_mesh, transformData );
 
   auto const inv_model2 = 1.0f / (m_mesh.getModelVpOnElement(elementNumber) *
                                   m_mesh.getModelVpOnElement(elementNumber));
