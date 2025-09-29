@@ -172,7 +172,7 @@ PYBIND11_MODULE(model, m)
       .def(py::init<>())
       .def(py::init<int, int, int, int, float, float, float>(),
            py::arg("order"), py::arg("ex"), py::arg("ey"), py::arg("ez"),
-           py::arg("lx"), py::arg("ly"), py::arg("lz"))
+           py::arg("lx"), py::arg("ly"), py::arg("lz"), py::arg("isModelOnNodes"))
       .def_readwrite("order", &CartesianParamsFI::order)
       .def_readwrite("ex", &CartesianParamsFI::ex)
       .def_readwrite("ey", &CartesianParamsFI::ey)
