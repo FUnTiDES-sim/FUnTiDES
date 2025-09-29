@@ -125,7 +125,9 @@ SEMproxy::SEMproxy(const SemProxyOptions& opt)
 
   initFiniteElem();
 
-  io_ctrl_ = std::make_shared<SemIOController>(static_cast<size_t>(m_mesh->getNumberOfNodes()), static_cast<size_t>(num_sample_), static_cast<size_t>(1));
+  io_ctrl_ = std::make_shared<SemIOController>(
+      static_cast<size_t>(m_mesh->getNumberOfNodes()),
+      static_cast<size_t>(num_sample_), static_cast<size_t>(1));
 
   // snapshots settings
   is_snapshots_ = opt.snapshots;
@@ -177,8 +179,7 @@ void SEMproxy::run()
     // Save slice in dat format
     if (is_snapshots_ && indexTimeSample % snap_time_interval_ == 0)
     {
-      // saveSnapshot(indexTimeSample);
-      saveSnapshot();
+      saveSnapshot(indexTimeSample);
     }
 
     // Save pressure at receiver
@@ -226,43 +227,6 @@ void SEMproxy::run()
   cout << "---- Elapsed Output Time : " << outputtime_ms / 1E6 << " seconds."
        << endl;
   cout << "------------------------------------------------ " << endl;
-}
-
-void SEMproxy::saveSnapshot(int timeSample) const
-{
-  std::stringstream filename;
-  filename << snap_folder_ << "/slice" << timeSample << ".dat";
-  std::string str_filename = filename.str();
-
-#ifdef USE_KOKKOS
-  auto subview = Kokkos::subview(pnGlobal, Kokkos::ALL, i1);
-  int middle_z = nb_nodes_[2] / 2;
-  int slice_start = middle_z * nb_nodes_[0] * nb_nodes_[1];
-  int slice_end = slice_start + (nb_nodes_[0] * nb_nodes_[1]);
-  auto xy_slice =
-      Kokkos::subview(subview, Kokkos::make_pair(slice_start, slice_end));
-  FENCE
-#else
-  std::vector<float> column_data = pnGlobal.getColumn(i1);
-
-  vectorReal subview(column_data.size());
-  for (int i = 0; i < column_data.size(); ++i)
-  {
-    subview[i] = column_data[i];
-  }
-
-  int middle_z = nb_nodes_[2] / 2;
-  int slice_start = middle_z * nb_nodes_[0] * nb_nodes_[1];
-  int slice_end = slice_start + (nb_nodes_[0] * nb_nodes_[1]);
-
-  vectorReal xy_slice(slice_end - slice_start);
-  for (int i = 0; i < slice_end - slice_start; ++i)
-  {
-    xy_slice[i] = subview[slice_start + i];
-  }
-#endif  // USE_KOKKOS
-  saveSlice(xy_slice, nb_nodes_[0], nb_nodes_[1], str_filename);
-  FENCE
 }
 
 void SEMproxy::saveReceiver() const
@@ -462,9 +426,19 @@ void SEMproxy::saveSlice(const VECTOR_REAL_VIEW& host_slice, int sizex,
   file.close();
 }
 
-void SEMproxy::saveSnapshot()
+void SEMproxy::saveSnapshot(int timestep)
 {
-  io_ctrl_->saveSnapshot(pnGlobal, i1);
+#ifdef USE_KOKKOS
+  // get subkokkos view copy
+  auto nb_nodes = pnGlobal.extent(1);
+  auto subview = Kokkos::subview(pnGlobal, i1, Kokkos::ALL());
+  vectorReal subset("snapshot_cpy", nb_nodes);
+  Kokkos::deep_copy(subset, subview);
+#else
+
+#endif  // USE_KOKKOS
+
+  io_ctrl_->saveSnapshot(subset, timestep);
 }
 
 SolverFactory::implemType SEMproxy::getImplem(string implemArg)
