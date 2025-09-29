@@ -140,7 +140,7 @@ PYBIND11_MODULE(model, m)
   py::class_<CartesianStructBuilderFI1,
              std::shared_ptr<CartesianStructBuilderFI1>>(
       m, "CartesianStructBuilderFI1")
-      .def(py::init<int, float, int, float, int, float>(), py::arg("ex"),
+      .def(py::init<int, float, int, float, int, float, bool>(), py::arg("ex"),
            py::arg("hx"), py::arg("ey"), py::arg("hy"), py::arg("ez"),
            py::arg("hz"), py::arg("isModelOnNodes"))
       .def("get_model", &CartesianStructBuilderFI1::getModel);
@@ -150,7 +150,7 @@ PYBIND11_MODULE(model, m)
   py::class_<CartesianStructBuilderFI2,
              std::shared_ptr<CartesianStructBuilderFI2>>(
       m, "CartesianStructBuilderFI2")
-      .def(py::init<int, float, int, float, int, float>(), py::arg("ex"),
+      .def(py::init<int, float, int, float, int, float, bool>(), py::arg("ex"),
            py::arg("hx"), py::arg("ey"), py::arg("hy"), py::arg("ez"),
            py::arg("hz"), py::arg("isModelOnNodes"))
       .def("get_model", &CartesianStructBuilderFI2::getModel);
@@ -160,7 +160,7 @@ PYBIND11_MODULE(model, m)
   py::class_<CartesianStructBuilderFI3,
              std::shared_ptr<CartesianStructBuilderFI3>>(
       m, "CartesianStructBuilderFI3")
-      .def(py::init<int, float, int, float, int, float>(), py::arg("ex"),
+      .def(py::init<int, float, int, float, int, float, bool>(), py::arg("ex"),
            py::arg("hx"), py::arg("ey"), py::arg("hy"), py::arg("ez"),
            py::arg("hz"), py::arg("isModelOnNodes"))
       .def("get_model", &CartesianStructBuilderFI3::getModel);
@@ -170,7 +170,7 @@ PYBIND11_MODULE(model, m)
   py::class_<CartesianParamsFI, std::shared_ptr<CartesianParamsFI>>(
       m, "CartesianParams")
       .def(py::init<>())
-      .def(py::init<int, int, int, int, float, float, float>(),
+      .def(py::init<int, int, int, int, float, float, float, bool>(),
            py::arg("order"), py::arg("ex"), py::arg("ey"), py::arg("ez"),
            py::arg("lx"), py::arg("ly"), py::arg("lz"),
            py::arg("isModelOnNodes"))
