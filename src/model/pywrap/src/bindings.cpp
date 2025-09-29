@@ -129,7 +129,9 @@ PYBIND11_MODULE(model, m)
       .def_readwrite("ez", &model::ModelStructData<float, int>::ez_)
       .def_readwrite("dx", &model::ModelStructData<float, int>::dx_)
       .def_readwrite("dy", &model::ModelStructData<float, int>::dy_)
-      .def_readwrite("dz", &model::ModelStructData<float, int>::dz_);
+      .def_readwrite("dz", &model::ModelStructData<float, int>::dz_)
+      .def_readwrite("isModelOnNodes",
+                     &model::ModelStructData<float, int>::isModelOnNodes_);
 
   // Bind CartesianStructBuilder<float, int, order> for orders 1, 2, and 3
   using CartesianStructBuilderFI1 =
@@ -137,9 +139,9 @@ PYBIND11_MODULE(model, m)
   py::class_<CartesianStructBuilderFI1,
              std::shared_ptr<CartesianStructBuilderFI1>>(
       m, "CartesianStructBuilderFI1")
-      .def(py::init<int, float, int, float, int, float>(), py::arg("ex"),
+      .def(py::init<int, float, int, float, int, float, bool>(), py::arg("ex"),
            py::arg("hx"), py::arg("ey"), py::arg("hy"), py::arg("ez"),
-           py::arg("hz"))
+           py::arg("hz"), py::arg("isModelOnNodes"))
       .def("get_model", &CartesianStructBuilderFI1::getModel);
 
   using CartesianStructBuilderFI2 =
@@ -147,9 +149,9 @@ PYBIND11_MODULE(model, m)
   py::class_<CartesianStructBuilderFI2,
              std::shared_ptr<CartesianStructBuilderFI2>>(
       m, "CartesianStructBuilderFI2")
-      .def(py::init<int, float, int, float, int, float>(), py::arg("ex"),
+      .def(py::init<int, float, int, float, int, float, bool>(), py::arg("ex"),
            py::arg("hx"), py::arg("ey"), py::arg("hy"), py::arg("ez"),
-           py::arg("hz"))
+           py::arg("hz"), py::arg("isModelOnNodes"))
       .def("get_model", &CartesianStructBuilderFI2::getModel);
 
   using CartesianStructBuilderFI3 =
@@ -157,9 +159,9 @@ PYBIND11_MODULE(model, m)
   py::class_<CartesianStructBuilderFI3,
              std::shared_ptr<CartesianStructBuilderFI3>>(
       m, "CartesianStructBuilderFI3")
-      .def(py::init<int, float, int, float, int, float>(), py::arg("ex"),
+      .def(py::init<int, float, int, float, int, float, bool>(), py::arg("ex"),
            py::arg("hx"), py::arg("ey"), py::arg("hy"), py::arg("ez"),
-           py::arg("hz"))
+           py::arg("hz"), py::arg("isModelOnNodes"))
       .def("get_model", &CartesianStructBuilderFI3::getModel);
 
   // Bind CartesianParams<float, int>
@@ -167,16 +169,18 @@ PYBIND11_MODULE(model, m)
   py::class_<CartesianParamsFI, std::shared_ptr<CartesianParamsFI>>(
       m, "CartesianParams")
       .def(py::init<>())
-      .def(py::init<int, int, int, int, float, float, float>(),
+      .def(py::init<int, int, int, int, float, float, float, bool>(),
            py::arg("order"), py::arg("ex"), py::arg("ey"), py::arg("ez"),
-           py::arg("lx"), py::arg("ly"), py::arg("lz"))
+           py::arg("lx"), py::arg("ly"), py::arg("lz"),
+           py::arg("isModelOnNodes"))
       .def_readwrite("order", &CartesianParamsFI::order)
       .def_readwrite("ex", &CartesianParamsFI::ex)
       .def_readwrite("ey", &CartesianParamsFI::ey)
       .def_readwrite("ez", &CartesianParamsFI::ez)
       .def_readwrite("lx", &CartesianParamsFI::lx)
       .def_readwrite("ly", &CartesianParamsFI::ly)
-      .def_readwrite("lz", &CartesianParamsFI::lz);
+      .def_readwrite("lz", &CartesianParamsFI::lz)
+      .def_readwrite("isModelOnNodes", &CartesianParamsFI::isModelOnNodes);
 
   // Bind CartesianUnstructBuilder<float, int>
   using CartesianUnstructBuilderFI =
