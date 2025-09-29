@@ -130,7 +130,6 @@ PYBIND11_MODULE(model, m)
       .def_readwrite("dx", &model::ModelStructData<float, int>::dx_)
       .def_readwrite("dy", &model::ModelStructData<float, int>::dy_)
       .def_readwrite("dz", &model::ModelStructData<float, int>::dz_)
-      .def_readwrite("order", &model::ModelStructData<float, int>::order_)
       .def_readwrite("isModelOnNodes",
                      &model::ModelStructData<float, int>::isModelOnNodes_);
 
