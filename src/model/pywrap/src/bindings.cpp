@@ -129,7 +129,8 @@ PYBIND11_MODULE(model, m)
       .def_readwrite("ez", &model::ModelStructData<float, int>::ez_)
       .def_readwrite("dx", &model::ModelStructData<float, int>::dx_)
       .def_readwrite("dy", &model::ModelStructData<float, int>::dy_)
-      .def_readwrite("dz", &model::ModelStructData<float, int>::dz_);
+      .def_readwrite("dz", &model::ModelStructData<float, int>::dz_)
+      .def_readwrite("order", &model::ModelStructData<float, int>::order_);
 
   // Bind CartesianStructBuilder<float, int, order> for orders 1, 2, and 3
   using CartesianStructBuilderFI1 =
@@ -139,7 +140,7 @@ PYBIND11_MODULE(model, m)
       m, "CartesianStructBuilderFI1")
       .def(py::init<int, float, int, float, int, float>(), py::arg("ex"),
            py::arg("hx"), py::arg("ey"), py::arg("hy"), py::arg("ez"),
-           py::arg("hz"))
+           py::arg("hz"),py::arg("isModelOnNodes"))
       .def("get_model", &CartesianStructBuilderFI1::getModel);
 
   using CartesianStructBuilderFI2 =
@@ -149,7 +150,7 @@ PYBIND11_MODULE(model, m)
       m, "CartesianStructBuilderFI2")
       .def(py::init<int, float, int, float, int, float>(), py::arg("ex"),
            py::arg("hx"), py::arg("ey"), py::arg("hy"), py::arg("ez"),
-           py::arg("hz"))
+           py::arg("hz"),py::arg("isModelOnNodes"))
       .def("get_model", &CartesianStructBuilderFI2::getModel);
 
   using CartesianStructBuilderFI3 =
@@ -159,7 +160,7 @@ PYBIND11_MODULE(model, m)
       m, "CartesianStructBuilderFI3")
       .def(py::init<int, float, int, float, int, float>(), py::arg("ex"),
            py::arg("hx"), py::arg("ey"), py::arg("hy"), py::arg("ez"),
-           py::arg("hz"))
+           py::arg("hz"),py::arg("isModelOnNodes"))
       .def("get_model", &CartesianStructBuilderFI3::getModel);
 
   // Bind CartesianParams<float, int>
@@ -176,7 +177,8 @@ PYBIND11_MODULE(model, m)
       .def_readwrite("ez", &CartesianParamsFI::ez)
       .def_readwrite("lx", &CartesianParamsFI::lx)
       .def_readwrite("ly", &CartesianParamsFI::ly)
-      .def_readwrite("lz", &CartesianParamsFI::lz);
+      .def_readwrite("lz", &CartesianParamsFI::lz)
+      .def_readwrite("isModelOnNodes", &CartesianParamsFI::isModelOnNodes);
 
   // Bind CartesianUnstructBuilder<float, int>
   using CartesianUnstructBuilderFI =
