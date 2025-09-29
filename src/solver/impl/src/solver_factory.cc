@@ -78,6 +78,8 @@ std::unique_ptr<SolverBase> createSolver(methodType const methodType,
   }
 
   // Add DG or other methods as needed
-  throw std::runtime_error("Unsupported solver configuration");
+  throw std::runtime_error(
+      "Unsupported solver configuration: methodType=" + to_string(methodType) +
+      ", implemType=" + to_string(implemType));
 }
 }  // namespace SolverFactory

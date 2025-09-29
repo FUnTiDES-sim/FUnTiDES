@@ -9,7 +9,7 @@ namespace model
 {
 
 template <typename FloatType, typename ScalarType>
-struct ModelStructData
+struct ModelStructData : public ModelDataBase<FloatType, ScalarType>
 {
  public:
   // GPU-compatible special member functions

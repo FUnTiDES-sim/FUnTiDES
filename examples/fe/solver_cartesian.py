@@ -20,6 +20,12 @@ import numpy as np
 import pyproxys.model as Model
 import pyproxys.solver as Solver
 
+# Create alias to use float32 and int32 types
+CartesianStructBuilderFI1 = Model.CartesianStructBuilder_f32_i32_O1
+CartesianStructBuilderFI2 = Model.CartesianStructBuilder_f32_i32_O2
+CartesianStructBuilderFI3 = Model.CartesianStructBuilder_f32_i32_O3
+CartesianUnstructBuilder = Model.CartesianUnstructBuilder_f32_i32
+CartesianParams = Model.CartesianParams_f32_i32
 
 class MemSpace(Enum):
     """
@@ -89,28 +95,28 @@ def parse_args():
     )
     parser.add_argument(
         "--mem",
-        choices=[e.value for e in MemSpace],
-        default=MemSpace.CPU.value,
-        help="Choose Kokkos memspace: 'HostSpace' (CPU, default) or 'CudaUVMSpace' (GPU)",
+        choices=[e.name for e in MemSpace],
+        default=MemSpace.CPU.name,
+        help=f"Choose Kokkos memspace: {', '.join(e.name for e in MemSpace)} (default: {MemSpace.CPU.name})",
     )
     parser.add_argument(
         "--model",
-        choices=[e.value for e in ModelType],
-        default=ModelType.STRUCTURED.value,
-        help="Choose model type: 'Structured' (default) or 'Unstructured'",
+        choices=[e.name for e in ModelType],
+        default=ModelType.STRUCTURED.name,
+        help=f"Choose model type: {', '.join(e.name for e in ModelType)} (default: {ModelType.STRUCTURED.name})",
     )
     parser.add_argument(
         "--impl",
         choices=[e.name for e in ImplemType],
-        default=ImplemType.SHIVA.value,
-        help=f"Choose implementation type: {', '.join(e.name for e in ImplemType)} (default: SHIVA)",
+        default=ImplemType.SHIVA.name,
+        help=f"Choose implementation type: {', '.join(e.name for e in ImplemType)} (default: {ImplemType.SHIVA.name})",
     )
     parser.add_argument(
         "--order",
         type=int,
         default=2,
         choices=range(1, 4),
-        help="Polynomial order of the elements (default: 3, max 3)",
+        help="Polynomial order of the elements (default: 2, max 3)",
     )
     parser.add_argument(
         "--domain_size",
@@ -179,8 +185,11 @@ def select_kokkos_memspace(memspace_arg):
     layout : kokkos.Layout
         The selected Kokkos layout.
     """
-    in_memspace = MemSpace(memspace_arg)
-    if in_memspace == MemSpace.CPU:
+    try:
+        enum_value = MemSpace[memspace_arg]
+    except KeyError:
+        raise ValueError(f"Unknown python memory space: {memspace_arg}")
+    if enum_value == MemSpace.CPU:
         memspace = kokkos.HostSpace
         layout = kokkos.LayoutRight
     else:
@@ -209,13 +218,17 @@ def get_solver_model_type(model_type):
     ValueError
         If the provided model_type is unknown or unsupported.
     """
-    match ModelType(model_type):
+    try:
+        enum_value = ModelType[model_type]
+    except KeyError:
+        raise ValueError(f"Unknown python model type: {model_type}")
+    match enum_value:
         case ModelType.STRUCTURED:
             return Solver.MeshType.STRUCT
         case ModelType.UNSTRUCTURED:
             return Solver.MeshType.UNSTRUCT
         case _:
-            raise ValueError(f"Unknown model type: {model_type}")
+            raise ValueError(f"Unknown solver model type for: {enum_value.name}")
 
 
 def get_solver_implem_type(implem_type):
@@ -238,7 +251,11 @@ def get_solver_implem_type(implem_type):
     ValueError
         If the provided implem_type is unknown or unsupported.
     """
-    match ImplemType(implem_type):
+    try:
+        enum_value = ImplemType[implem_type]
+    except KeyError:
+        raise ValueError(f"Unknown python implementation type: {implem_type}")
+    match enum_value:
         case ImplemType.CLASSIC:
             return Solver.ImplemType.CLASSIC
         case ImplemType.GEOS:
@@ -248,7 +265,7 @@ def get_solver_implem_type(implem_type):
         case ImplemType.SHIVA:
             return Solver.ImplemType.SHIVA
         case _:
-            raise ValueError(f"Unknown implementation type: {implem_type}")
+            raise ValueError(f"Unknown solver implementation type for: {enum_value.name}")
 
 
 def create_model(model_type, e, h, order):
@@ -276,13 +293,17 @@ def create_model(model_type, e, h, order):
     ValueError
         If the model type is unknown.
     """
-    match ModelType(model_type):
+    try:
+        enum_value = ModelType[model_type]
+    except KeyError:
+        raise ValueError(f"Unknown python model type: {model_type}")
+    match enum_value:
         case ModelType.STRUCTURED:
             return create_structured_model(e, h, order)
         case ModelType.UNSTRUCTURED:
             return create_unstructured_model(e, h, order)
         case _:
-            raise ValueError(f"Unknown model type: {model_type}")
+            raise ValueError(f"Unknown model type: {enum_value.name}")
 
 
 def create_structured_model(e, h, order):
@@ -310,11 +331,11 @@ def create_structured_model(e, h, order):
     """
     match order:
         case 1:
-            builder = Model.CartesianStructBuilderFI1(e[0], h[0], e[1], h[1], e[2], h[2])
+            builder = CartesianStructBuilderFI1(e[0], h[0], e[1], h[1], e[2], h[2])
         case 2:
-            builder = Model.CartesianStructBuilderFI2(e[0], h[0], e[1], h[1], e[2], h[2])
+            builder = CartesianStructBuilderFI2(e[0], h[0], e[1], h[1], e[2], h[2])
         case 3:
-            builder = Model.CartesianStructBuilderFI3(e[0], h[0], e[1], h[1], e[2], h[2])
+            builder = CartesianStructBuilderFI3(e[0], h[0], e[1], h[1], e[2], h[2])
         case _:
             raise ValueError(
                 f"Order {order} is not wrapped by pybind11 (only 1, 2, 3 supported)"
@@ -349,11 +370,11 @@ def create_unstructured_model(e, h, order):
         raise ValueError(
             f"Order {order} is not wrapped by pybind11 (only 1, 2, 3 supported)"
         )
-    params = Model.CartesianParams()
+    params = CartesianParams()
     params.ex, params.ey, params.ez = e
     params.hx, params.hy, params.hz = h
     params.order = order
-    builder = Model.CartesianUnstructBuilder(params)
+    builder = CartesianUnstructBuilder(params)
     return builder.getModel()
 
 
