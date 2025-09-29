@@ -140,7 +140,7 @@ PYBIND11_MODULE(model, m)
       m, "CartesianStructBuilderFI1")
       .def(py::init<int, float, int, float, int, float>(), py::arg("ex"),
            py::arg("hx"), py::arg("ey"), py::arg("hy"), py::arg("ez"),
-           py::arg("hz"),py::arg("isModelOnNodes"))
+           py::arg("hz"), py::arg("isModelOnNodes"))
       .def("get_model", &CartesianStructBuilderFI1::getModel);
 
   using CartesianStructBuilderFI2 =
@@ -150,7 +150,7 @@ PYBIND11_MODULE(model, m)
       m, "CartesianStructBuilderFI2")
       .def(py::init<int, float, int, float, int, float>(), py::arg("ex"),
            py::arg("hx"), py::arg("ey"), py::arg("hy"), py::arg("ez"),
-           py::arg("hz"),py::arg("isModelOnNodes"))
+           py::arg("hz"), py::arg("isModelOnNodes"))
       .def("get_model", &CartesianStructBuilderFI2::getModel);
 
   using CartesianStructBuilderFI3 =
@@ -160,7 +160,7 @@ PYBIND11_MODULE(model, m)
       m, "CartesianStructBuilderFI3")
       .def(py::init<int, float, int, float, int, float>(), py::arg("ex"),
            py::arg("hx"), py::arg("ey"), py::arg("hy"), py::arg("ez"),
-           py::arg("hz"),py::arg("isModelOnNodes"))
+           py::arg("hz"), py::arg("isModelOnNodes"))
       .def("get_model", &CartesianStructBuilderFI3::getModel);
 
   // Bind CartesianParams<float, int>

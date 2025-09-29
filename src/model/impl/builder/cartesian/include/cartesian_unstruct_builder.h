@@ -248,33 +248,32 @@ class CartesianUnstructBuilder : ModelBuilderBase<FloatType, ScalarType>
     int n_element = ex_ * ey_ * ez_;
     int n_node = (ex_ * order_ + 1) * (ey_ * order_ + 1) * (ez_ * order_ + 1);
     printf("isModelOnNodes_: %d\n", isModelOnNodes_);
-    if(isModelOnNodes_){
-          model_rho_node_ =
-        allocateVector<VECTOR_REAL_VIEW>(n_node, "model rho node");
-    model_vp_node_ = allocateVector<VECTOR_REAL_VIEW>(n_node, "model vp node");
-
-    for (int i = 0; i < n_node; i++)
+    if (isModelOnNodes_)
     {
-      model_rho_node_[i] = 1;
-      model_vp_node_[i] = 1500;
-    }
+      model_rho_node_ =
+          allocateVector<VECTOR_REAL_VIEW>(n_node, "model rho node");
+      model_vp_node_ =
+          allocateVector<VECTOR_REAL_VIEW>(n_node, "model vp node");
+
+      for (int i = 0; i < n_node; i++)
+      {
+        model_rho_node_[i] = 1;
+        model_vp_node_[i] = 1500;
+      }
     }
 
     else
     {
-     
-    model_rho_element_ =
-        allocateVector<VECTOR_REAL_VIEW>(n_element, "model rho elem");
-    model_vp_element_ =
-        allocateVector<VECTOR_REAL_VIEW>(n_element, "model vp elem");
+      model_rho_element_ =
+          allocateVector<VECTOR_REAL_VIEW>(n_element, "model rho elem");
+      model_vp_element_ =
+          allocateVector<VECTOR_REAL_VIEW>(n_element, "model vp elem");
 
-    
-
-    for (int i = 0; i < n_element; i++)
-    {
-      model_rho_element_[i] = 1;
-      model_vp_element_[i] = 1500;
-    }
+      for (int i = 0; i < n_element; i++)
+      {
+        model_rho_element_[i] = 1;
+        model_vp_element_[i] = 1500;
+      }
     }
   }
 };
