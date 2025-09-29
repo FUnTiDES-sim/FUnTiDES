@@ -21,6 +21,8 @@ struct ModelStructData
 
   ScalarType ex_, ey_, ez_;
   FloatType dx_, dy_, dz_;
+  bool isModelLoaded_;
+  bool isModelOnNodes_;
 };
 
 /**
@@ -302,6 +304,7 @@ class ModelStruct : public ModelApi<FloatType, ScalarType>
   ScalarType nx_, ny_, nz_;  // Nb nodes in each direction
   FloatType lx_, ly_, lz_;   // domain size
   FloatType hx_, hy_, hz_;   // element size
+  bool isModelOnNodes_;
 };
 
 }  // namespace model

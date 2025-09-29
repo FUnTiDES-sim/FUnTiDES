@@ -23,7 +23,9 @@ class CartesianUnstructBuilder : ModelBuilderBase<FloatType, ScalarType>
         lx_(p.lx),
         ly_(p.ly),
         lz_(p.lz),
-        order_(p.order)
+        order_(p.order),
+        isModelOnNodes_(p.isModelOnNodes)
+
   {
     initGlobalNodeList();
     initNodesCoords();
@@ -48,6 +50,8 @@ class CartesianUnstructBuilder : ModelBuilderBase<FloatType, ScalarType>
     modelData.nodes_coords_y_ = nodes_coords_y_;
     modelData.nodes_coords_z_ = nodes_coords_z_;
 
+    modelData.isModelOnNodes_ = isModelOnNodes_;
+
     modelData.model_vp_node_ = model_vp_node_;
     modelData.model_rho_node_ = model_rho_node_;
     modelData.model_vp_element_ = model_vp_element_;
@@ -63,6 +67,7 @@ class CartesianUnstructBuilder : ModelBuilderBase<FloatType, ScalarType>
   ScalarType ex_, ey_, ez_;
   FloatType lx_, ly_, lz_;
   int order_;
+  bool isModelOnNodes_;
 
   ARRAY_INT_VIEW global_node_index_;
   VECTOR_REAL_VIEW nodes_coords_x_;

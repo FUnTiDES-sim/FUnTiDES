@@ -27,6 +27,8 @@ class SemProxyOptions
   float boundaries_size = 0;
   bool surface_sponge = false;
   float taper_delta = 0.015;
+  // Bollean to tell if the model is charged on nodes or on element
+  bool isModelOnNodes = true;
 
   void validate() const
   {
