@@ -21,7 +21,6 @@ struct ModelStructData
 
   ScalarType ex_, ey_, ez_;
   FloatType dx_, dy_, dz_;
-  bool isModelLoaded_;
   bool isModelOnNodes_;
 };
 

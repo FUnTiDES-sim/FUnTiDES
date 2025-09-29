@@ -98,7 +98,8 @@ SEMproxy::SEMproxy(const SemProxyOptions& opt)
     float ly = domain_size_[1];
     float lz = domain_size_[2];
 
-    model::CartesianParams<float, int> param(order, ex, ey, ez, lx, ly, lz, isModelOnNodes);
+    model::CartesianParams<float, int> param(order, ex, ey, ez, lx, ly, lz,
+                                             isModelOnNodes);
     model::CartesianUnstructBuilder<float, int> builder(param);
     m_mesh = builder.getModel();
   }

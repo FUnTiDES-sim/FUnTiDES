@@ -17,7 +17,14 @@ struct CartesianParams
 
   CartesianParams(int order_, Index ex_, Index ey_, Index ez_, Coord lx_,
                   Coord ly_, Coord lz_, bool isModelOnNodes_)
-      : order(order_), ex(ex_), ey(ey_), ez(ez_), lx(lx_), ly(ly_), lz(lz_), isModelOnNodes(isModelOnNodes_)
+      : order(order_),
+        ex(ex_),
+        ey(ey_),
+        ez(ez_),
+        lx(lx_),
+        ly(ly_),
+        lz(lz_),
+        isModelOnNodes(isModelOnNodes_)
   {
   }
 };

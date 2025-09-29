@@ -191,10 +191,10 @@ class ModelApi
 
   bool isModelOnNodes() const { return m_isModelOnNodes; }
 
-  private:
-
+ private:
   /**
-   * @brief Flag indicating where the model is defined (true = nodes, false = elements)
+   * @brief Flag indicating where the model is defined (true = nodes, false =
+   * elements)
    */
   bool m_isModelOnNodes;
 };

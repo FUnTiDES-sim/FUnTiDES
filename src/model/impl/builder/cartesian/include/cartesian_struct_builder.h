@@ -10,8 +10,15 @@ class CartesianStructBuilder : public ModelBuilderBase<FloatType, ScalarType>
 {
  public:
   CartesianStructBuilder(ScalarType ex, FloatType hx, ScalarType ey,
-                         FloatType hy, ScalarType ez, FloatType hz, bool isModelOnNodes)
-      : ex_(ex), ey_(ey), ez_(ez), hx_(hx), hy_(hy), hz_(hz),isModelOnNodes_(isModelOnNodes)
+                         FloatType hy, ScalarType ez, FloatType hz,
+                         bool isModelOnNodes)
+      : ex_(ex),
+        ey_(ey),
+        ez_(ez),
+        hx_(hx),
+        hy_(hy),
+        hz_(hz),
+        isModelOnNodes_(isModelOnNodes)
   {
   }
 
@@ -28,7 +35,7 @@ class CartesianStructBuilder : public ModelBuilderBase<FloatType, ScalarType>
     data.dx_ = hx_;
     data.dy_ = hy_;
     data.dz_ = hz_;
-    data.isModelLoaded_ = isModelOnNodes_;
+    data.isModelOnNodes_ = isModelOnNodes_;
 
     return std::make_shared<model::ModelStruct<FloatType, ScalarType, Order>>(
         data);
