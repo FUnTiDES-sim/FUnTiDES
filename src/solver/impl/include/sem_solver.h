@@ -152,7 +152,7 @@ class SEMsolver : public SolverBase
    * @param i2       Current pressure field index
    * @param pnGlobal Global pressure field
    */
-  void computeElementContributions(int i2, const ARRAY_REAL_VIEW &pnGlobal);
+  void computeElementContributions(int i2, const ARRAY_REAL_VIEW & pnGlobal);
 
   /**
    * @brief Update the global pressure field at interior nodes.

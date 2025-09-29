@@ -68,7 +68,6 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE>::resetGlobalVectors(
 {
   LOOPHEAD(numNodes, i)
   {
-    massMatrixGlobal[i] = 0;
     yGlobal[i] = 0;
   }
   LOOPEND
@@ -102,15 +101,14 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE>::applyRHSTerm(
 }
 
 template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE>
-void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE>::computeElementContributions(
-    int i2, const ARRAY_REAL_VIEW &pnGlobal)
+void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE>::
+computeElementContributions( int i2, const ARRAY_REAL_VIEW & pnGlobal )
 {
   MAINLOOPHEAD(m_mesh.getNumberOfElements(), elementNumber)
 
   // Guard for extra threads (Kokkos might launch more than needed)
   if (elementNumber >= m_mesh.getNumberOfElements()) return;
 
-  float massMatrixLocal[nPointsElement] = {0};
   float pnLocal[nPointsElement] = {0};
   float Y[nPointsElement] = {0};
 
@@ -127,23 +125,7 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE>::computeElementContributions(
   typename INTEGRAL_TYPE::TransformType transformData;
   INTEGRAL_TYPE::gatherCoordinates( elementNumber, m_mesh, transformData );
 
-  auto const inv_model2 = 1.0f / (m_mesh.getModelVpOnElement(elementNumber) *
-                                  m_mesh.getModelVpOnElement(elementNumber));
-
   // Stiffness term
-
-  for (int i = 0; i < m_mesh.getNumberOfPointsPerElement(); ++i)
-  {
-    Y[i] = 0;
-    massMatrixLocal[i] = 0;
-  }
-
-  INTEGRAL_TYPE::computeMassTerm( transformData,
-                                  [&](const int j, const real_t val) 
-  { 
-    massMatrixLocal[j] += val; 
-  });
-
   INTEGRAL_TYPE::computeStiffnessTerm( transformData, 
                                        [&](const int i, const int j, const real_t val) 
   {
@@ -157,8 +139,6 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE>::computeElementContributions(
     int z = (i / dim) % dim;
     int y = i / (dim * dim);
     int const gIndex = m_mesh.globalNodeIndex(elementNumber, x, y, z);
-    massMatrixLocal[i] *= inv_model2;
-    ATOMICADD(massMatrixGlobal[gIndex], massMatrixLocal[i]);
     ATOMICADD(yGlobal[gIndex], Y[i]);
   }
 
@@ -195,6 +175,41 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE>::outputPnValues(
 template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE>
 void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE>::initFEarrays()
 {
+  const int dim = m_mesh.getOrder() + 1;
+
+  MAINLOOPHEAD(m_mesh.getNumberOfElements(), elementNumber)
+
+  // Guard for extra threads (Kokkos might launch more than needed)
+  if (elementNumber >= m_mesh.getNumberOfElements()) return;
+
+  float massMatrixLocal[nPointsElement] = {0};
+
+  typename INTEGRAL_TYPE::TransformType transformData;
+  INTEGRAL_TYPE::gatherCoordinates( elementNumber, m_mesh, transformData );
+
+  auto const inv_model2 = 1.0f / (m_mesh.getModelVpOnElement(elementNumber) *
+                                  m_mesh.getModelVpOnElement(elementNumber));
+
+  INTEGRAL_TYPE::computeMassTerm( transformData,
+                                  [&](const int j, const real_t val) 
+  { 
+    massMatrixLocal[j] += val; 
+  });
+
+  // Stiffness term
+
+  for (int i = 0; i < m_mesh.getNumberOfPointsPerElement(); ++i)
+  {
+    int x = i % dim;
+    int z = (i / dim) % dim;
+    int y = i / (dim * dim);
+    int const gIndex = m_mesh.globalNodeIndex(elementNumber, x, y, z);
+    massMatrixLocal[i] *= inv_model2;
+    ATOMICADD(massMatrixGlobal[gIndex], massMatrixLocal[i]);
+  }
+
+  MAINLOOPEND
+  
   initSpongeValues();
 }
 
