@@ -20,12 +20,12 @@ namespace model
 template <typename FloatType, typename ScalarType>
 void bind_modelbuilderbase(py::module_ &m)
 {
-  using Base = model::ModelBuilderBase<FloatType, ScalarType>;
+  using T = model::ModelBuilderBase<FloatType, ScalarType>;
   std::string name = model_class_name<FloatType, ScalarType>("ModelBuilderBase");
 
-  py::class_<Base, std::shared_ptr<Base>>(m, name.c_str())
-      .def_static("max_order", []() { return Base::MAX_ORDER; })
-      .def("get_model", &Base::getModel);
+  py::class_<T, std::shared_ptr<T>>(m, name.c_str())
+      .def_static("max_order", []() { return T::MAX_ORDER; })
+      .def("get_model", &T::getModel);
 }
 
 // template binder for CartesianStructBuilder
