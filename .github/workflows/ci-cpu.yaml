@@ -71,7 +71,7 @@ jobs:
           python3 -m venv .venv
           source .venv/bin/activate
           pip install --upgrade pip
-          pip install pybind11
+          pip install pybind11 pytest
 
       - name: Run sccache-cache
         uses: mozilla-actions/sccache-action@v0.0.9
@@ -146,6 +146,19 @@ jobs:
 
           cd build
           make install
+      
+      - name: Run pytests
+        if: matrix.pywrap == 'pywrap-on'
+        env:
+          OMP_NUM_THREADS: 2
+          OMP_THREAD_LIMIT: 2
+          KOKKOS_NUM_THREADS: 2
+        run: |
+          source .venv/bin/activate
+          export INSTALL_DIR=$(realpath ../install)
+          export PYTHONPATH=$PYTHONPATH:$INSTALL_DIR
+          export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$INSTALL_DIR/lib64
+          python -m pytest tests -q
 
       - name: Write summary line
         if: always()
