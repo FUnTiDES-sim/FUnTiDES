@@ -67,7 +67,7 @@ void bind_cartesian_unstruct_params(py::module_ &m)
       .def_readwrite("lx", &Params::lx)
       .def_readwrite("ly", &Params::ly)
       .def_readwrite("lz", &Params::lz)
-      .def_readwrite("isModelOnNodes", &Params::isModelOnNodes);
+      .def_readwrite("is_model_on_nodes", &Params::isModelOnNodes);
 }
 
 // template binder for CartesianUnstructBuilder

@@ -11,7 +11,7 @@ class UnstructData:
 
 @pytest.fixture
 def unstruct(request):
-    order, param_cls, builder_cls = request.param
+    order, param_cls, builder_cls, on_nodes = request.param
 
     sd = UnstructData(order)
 
@@ -19,6 +19,7 @@ def unstruct(request):
     params.ex, params.ey, params.ez = sd.ex, sd.ey, sd.ez
     params.lx, params.ly, params.lz = sd.lx, sd.ly, sd.lz
     params.order = order
+    params.is_model_on_nodes = on_nodes
 
     builder = builder_cls(params)
 
@@ -27,21 +28,33 @@ def unstruct(request):
 
 test_cases = [
     # f32, i32 cases
-    (1, Model.CartesianParams_f32_i32, Model.CartesianUnstructBuilder_f32_i32),
-    (2, Model.CartesianParams_f32_i32, Model.CartesianUnstructBuilder_f32_i32),
-    (3, Model.CartesianParams_f32_i32, Model.CartesianUnstructBuilder_f32_i32),
+    (1, Model.CartesianParams_f32_i32, Model.CartesianUnstructBuilder_f32_i32, True),
+    (1, Model.CartesianParams_f32_i32, Model.CartesianUnstructBuilder_f32_i32, False),
+    (2, Model.CartesianParams_f32_i32, Model.CartesianUnstructBuilder_f32_i32, True),
+    (2, Model.CartesianParams_f32_i32, Model.CartesianUnstructBuilder_f32_i32, False),
+    (3, Model.CartesianParams_f32_i32, Model.CartesianUnstructBuilder_f32_i32, True),
+    (3, Model.CartesianParams_f32_i32, Model.CartesianUnstructBuilder_f32_i32, False),
     # f64, i32 cases
-    (1, Model.CartesianParams_f64_i32, Model.CartesianUnstructBuilder_f64_i32),
-    (2, Model.CartesianParams_f64_i32, Model.CartesianUnstructBuilder_f64_i32),
-    (3, Model.CartesianParams_f64_i32, Model.CartesianUnstructBuilder_f64_i32),
+    (1, Model.CartesianParams_f64_i32, Model.CartesianUnstructBuilder_f64_i32, True),
+    (1, Model.CartesianParams_f64_i32, Model.CartesianUnstructBuilder_f64_i32, False),
+    (2, Model.CartesianParams_f64_i32, Model.CartesianUnstructBuilder_f64_i32, True),
+    (2, Model.CartesianParams_f64_i32, Model.CartesianUnstructBuilder_f64_i32, False),
+    (3, Model.CartesianParams_f64_i32, Model.CartesianUnstructBuilder_f64_i32, True),
+    (3, Model.CartesianParams_f64_i32, Model.CartesianUnstructBuilder_f64_i32, False),
     # f32, i64 cases
-    (1, Model.CartesianParams_f32_i64, Model.CartesianUnstructBuilder_f32_i64),
-    (2, Model.CartesianParams_f32_i64, Model.CartesianUnstructBuilder_f32_i64),
-    (3, Model.CartesianParams_f32_i64, Model.CartesianUnstructBuilder_f32_i64),
+    (1, Model.CartesianParams_f32_i64, Model.CartesianUnstructBuilder_f32_i64, True),
+    (1, Model.CartesianParams_f32_i64, Model.CartesianUnstructBuilder_f32_i64, False),
+    (2, Model.CartesianParams_f32_i64, Model.CartesianUnstructBuilder_f32_i64, True),
+    (2, Model.CartesianParams_f32_i64, Model.CartesianUnstructBuilder_f32_i64, False),
+    (3, Model.CartesianParams_f32_i64, Model.CartesianUnstructBuilder_f32_i64, True),
+    (3, Model.CartesianParams_f32_i64, Model.CartesianUnstructBuilder_f32_i64, False),
     # f64, i64 cases
-    (1, Model.CartesianParams_f64_i64, Model.CartesianUnstructBuilder_f64_i64),
-    (2, Model.CartesianParams_f64_i64, Model.CartesianUnstructBuilder_f64_i64),
-    (3, Model.CartesianParams_f64_i64, Model.CartesianUnstructBuilder_f64_i64),
+    (1, Model.CartesianParams_f64_i64, Model.CartesianUnstructBuilder_f64_i64, True),
+    (1, Model.CartesianParams_f64_i64, Model.CartesianUnstructBuilder_f64_i64, False),
+    (2, Model.CartesianParams_f64_i64, Model.CartesianUnstructBuilder_f64_i64, True),
+    (2, Model.CartesianParams_f64_i64, Model.CartesianUnstructBuilder_f64_i64, False),
+    (3, Model.CartesianParams_f64_i64, Model.CartesianUnstructBuilder_f64_i64, True),
+    (3, Model.CartesianParams_f64_i64, Model.CartesianUnstructBuilder_f64_i64, False),
 ]
 
 

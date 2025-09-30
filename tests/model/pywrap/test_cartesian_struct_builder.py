@@ -16,34 +16,47 @@ class StructData:
 
 @pytest.fixture
 def struct(request):
-    order, builder_cls = request.param
+    order, builder_cls, on_nodes = request.param
 
     sd = StructData(order)
 
     builder = builder_cls(sd.ex, sd.hx,
                           sd.ey, sd.hy,
-                          sd.ez, sd.hz)
+                          sd.ez, sd.hz,
+                          on_nodes)
 
     return sd, builder
 
 
 test_cases = [
     # f32, i32 cases
-    (1, Model.CartesianStructBuilder_f32_i32_O1),
-    (2, Model.CartesianStructBuilder_f32_i32_O2),
-    (3, Model.CartesianStructBuilder_f32_i32_O3),
+    (1, Model.CartesianStructBuilder_f32_i32_O1, True),
+    (1, Model.CartesianStructBuilder_f32_i32_O1, False),
+    (2, Model.CartesianStructBuilder_f32_i32_O2, True),
+    (2, Model.CartesianStructBuilder_f32_i32_O2, False),
+    (3, Model.CartesianStructBuilder_f32_i32_O3, True),
+    (3, Model.CartesianStructBuilder_f32_i32_O3, False),
     # f64, i32 cases
-    (1, Model.CartesianStructBuilder_f64_i32_O1),
-    (2, Model.CartesianStructBuilder_f64_i32_O2),
-    (3, Model.CartesianStructBuilder_f64_i32_O3),
+    (1, Model.CartesianStructBuilder_f64_i32_O1, True),
+    (1, Model.CartesianStructBuilder_f64_i32_O1, False),
+    (2, Model.CartesianStructBuilder_f64_i32_O2, True),
+    (2, Model.CartesianStructBuilder_f64_i32_O2, False),
+    (3, Model.CartesianStructBuilder_f64_i32_O3, True),
+    (3, Model.CartesianStructBuilder_f64_i32_O3, False),
     # f32, i64 cases
-    (1, Model.CartesianStructBuilder_f32_i64_O1),
-    (2, Model.CartesianStructBuilder_f32_i64_O2),
-    (3, Model.CartesianStructBuilder_f32_i64_O3),
+    (1, Model.CartesianStructBuilder_f32_i64_O1, True),
+    (1, Model.CartesianStructBuilder_f32_i64_O1, False),
+    (2, Model.CartesianStructBuilder_f32_i64_O2, True),
+    (2, Model.CartesianStructBuilder_f32_i64_O2, False),
+    (3, Model.CartesianStructBuilder_f32_i64_O3, True),
+    (3, Model.CartesianStructBuilder_f32_i64_O3, False),
     # f64, i64 cases
-    (1, Model.CartesianStructBuilder_f64_i64_O1),
-    (2, Model.CartesianStructBuilder_f64_i64_O2),
-    (3, Model.CartesianStructBuilder_f64_i64_O3),
+    (1, Model.CartesianStructBuilder_f64_i64_O1, True),
+    (1, Model.CartesianStructBuilder_f64_i64_O1, False),
+    (2, Model.CartesianStructBuilder_f64_i64_O2, True),
+    (2, Model.CartesianStructBuilder_f64_i64_O2, False),
+    (3, Model.CartesianStructBuilder_f64_i64_O3, True),
+    (3, Model.CartesianStructBuilder_f64_i64_O3, False),
 ]
 
 

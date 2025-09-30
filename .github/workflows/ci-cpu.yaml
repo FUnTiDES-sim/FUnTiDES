@@ -148,7 +148,7 @@ jobs:
           make install
       
       - name: Run pytests
-        if: matrix.pywrap == 'pywrap-on'
+        if: matrix.pywrap == 'pywrap-on' && matrix.discretization == 'sem'
         env:
           OMP_NUM_THREADS: 2
           OMP_THREAD_LIMIT: 2
