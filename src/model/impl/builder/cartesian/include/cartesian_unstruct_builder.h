@@ -247,7 +247,6 @@ class CartesianUnstructBuilder : ModelBuilderBase<FloatType, ScalarType>
     // creating uniforms model
     int n_element = ex_ * ey_ * ez_;
     int n_node = (ex_ * order_ + 1) * (ey_ * order_ + 1) * (ez_ * order_ + 1);
-    printf("isModelOnNodes_: %d\n", isModelOnNodes_);
     if (isModelOnNodes_)
     {
       model_rho_node_ =

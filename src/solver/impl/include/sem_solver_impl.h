@@ -56,7 +56,7 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE>::computeOneStep(
   FENCE
   applyRHSTerm(timeSample, dt, i2, rhsTerm, rhsElement, pnGlobal, rhsWeights);
   FENCE
-  computeElementContributions(i2, pnGlobal);
+  computeElementContributions(i2, pnGlobal, m_mesh.isModelOnNodes());
   FENCE
   updatePressureField(dt, i1, i2, pnGlobal);
   FENCE
@@ -103,7 +103,7 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE>::applyRHSTerm(
 
 template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE>
 void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE>::computeElementContributions(
-    int i2, const ARRAY_REAL_VIEW &pnGlobal)
+    int i2, const ARRAY_REAL_VIEW &pnGlobal, bool isModelOnNodes)
 {
   MAINLOOPHEAD(m_mesh.getNumberOfElements(), elementNumber)
 
@@ -142,8 +142,12 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE>::computeElementContributions(
     }
   }
 
-  auto const inv_model2 = 1.0f / (m_mesh.getModelVpOnElement(elementNumber) *
-                                  m_mesh.getModelVpOnElement(elementNumber));
+  real_t inv_model2 = 0.0f;
+  if (!isModelOnNodes)
+  {
+    inv_model2 = 1.0f / (m_mesh.getModelVpOnElement(elementNumber) *
+                         m_mesh.getModelVpOnElement(elementNumber));
+  }
 
   // Stiffness term
 
@@ -169,6 +173,11 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE>::computeElementContributions(
     int z = (i / dim) % dim;
     int y = i / (dim * dim);
     int const gIndex = m_mesh.globalNodeIndex(elementNumber, x, y, z);
+    if (isModelOnNodes)
+    {
+      inv_model2 = 1.0f / (m_mesh.getModelVpOnNodes(gIndex) *
+                           m_mesh.getModelVpOnNodes(gIndex));
+    }
     massMatrixLocal[i] *= inv_model2;
     ATOMICADD(massMatrixGlobal[gIndex], massMatrixLocal[i]);
     ATOMICADD(yGlobal[gIndex], Y[i]);

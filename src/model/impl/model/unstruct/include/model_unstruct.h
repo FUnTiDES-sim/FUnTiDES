@@ -168,6 +168,9 @@ class ModelUnstruct : public ModelApi<FloatType, ScalarType>
     return model_rho_element_[e];
   }
 
+  PROXY_HOST_DEVICE
+  bool isModelOnNodes() const final { return isModelOnNodes_; }
+
   /**
    * @brief Get the total number of elements in the mesh.
    * @return Total element count

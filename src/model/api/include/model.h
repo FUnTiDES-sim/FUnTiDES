@@ -189,14 +189,8 @@ class ModelApi
    */
   virtual FloatType getMaxSpeed() const = 0;
 
-  bool isModelOnNodes() const { return m_isModelOnNodes; }
-
- private:
-  /**
-   * @brief Flag indicating where the model is defined (true = nodes, false =
-   * elements)
-   */
-  bool m_isModelOnNodes;
+  PROXY_HOST_DEVICE
+  virtual bool isModelOnNodes() const = 0;
 };
 
 }  // namespace model
