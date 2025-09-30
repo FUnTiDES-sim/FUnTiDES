@@ -66,10 +66,7 @@ template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE>
 void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE>::resetGlobalVectors(
     int numNodes)
 {
-  LOOPHEAD(numNodes, i)
-  {
-    yGlobal[i] = 0;
-  }
+  LOOPHEAD(numNodes, i) { yGlobal[i] = 0; }
   LOOPEND
 }
 
@@ -101,8 +98,8 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE>::applyRHSTerm(
 }
 
 template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE>
-void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE>::
-computeElementContributions( int i2, const ARRAY_REAL_VIEW & pnGlobal )
+void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE>::computeElementContributions(
+    int i2, const ARRAY_REAL_VIEW &pnGlobal)
 {
   MAINLOOPHEAD(m_mesh.getNumberOfElements(), elementNumber)
 
@@ -123,15 +120,14 @@ computeElementContributions( int i2, const ARRAY_REAL_VIEW & pnGlobal )
   }
 
   typename INTEGRAL_TYPE::TransformType transformData;
-  INTEGRAL_TYPE::gatherCoordinates( elementNumber, m_mesh, transformData );
+  INTEGRAL_TYPE::gatherCoordinates(elementNumber, m_mesh, transformData);
 
   // Stiffness term
-  INTEGRAL_TYPE::computeStiffnessTerm( transformData, 
-                                       [&](const int i, const int j, const real_t val) 
-  {
-    float localIncrement = val * pnLocal[j];
-    Y[i] += localIncrement;
-  });
+  INTEGRAL_TYPE::computeStiffnessTerm(
+      transformData, [&](const int i, const int j, const real_t val) {
+        float localIncrement = val * pnLocal[j];
+        Y[i] += localIncrement;
+      });
 
   for (int i = 0; i < m_mesh.getNumberOfPointsPerElement(); ++i)
   {
@@ -185,16 +181,14 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE>::initFEarrays()
   float massMatrixLocal[nPointsElement] = {0};
 
   typename INTEGRAL_TYPE::TransformType transformData;
-  INTEGRAL_TYPE::gatherCoordinates( elementNumber, m_mesh, transformData );
+  INTEGRAL_TYPE::gatherCoordinates(elementNumber, m_mesh, transformData);
 
   auto const inv_model2 = 1.0f / (m_mesh.getModelVpOnElement(elementNumber) *
                                   m_mesh.getModelVpOnElement(elementNumber));
 
-  INTEGRAL_TYPE::computeMassTerm( transformData,
-                                  [&](const int j, const real_t val) 
-  { 
-    massMatrixLocal[j] += val; 
-  });
+  INTEGRAL_TYPE::computeMassTerm(
+      transformData,
+      [&](const int j, const real_t val) { massMatrixLocal[j] += val; });
 
   // Stiffness term
 
@@ -209,7 +203,7 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE>::initFEarrays()
   }
 
   MAINLOOPEND
-  
+
   initSpongeValues();
 }
 
