@@ -298,6 +298,9 @@ class ModelStruct : public ModelApi<FloatType, ScalarType>
     return 1500;
   }
 
+  PROXY_HOST_DEVICE
+  bool isModelOnNodes() const { return isModelOnNodes_; }
+
  private:
   ScalarType ex_, ey_, ez_;  // Nb elements in each direction
   ScalarType nx_, ny_, nz_;  // Nb nodes in each direction
