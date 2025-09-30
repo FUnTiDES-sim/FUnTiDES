@@ -9,6 +9,7 @@
 
 #include <data_type.h>
 
+#include <array>
 #include <cstdlib>
 
 #include "fe/Integrals.hpp"
