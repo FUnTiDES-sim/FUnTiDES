@@ -372,7 +372,7 @@ def create_unstructured_model(e, h, order):
         )
     params = CartesianParams()
     params.ex, params.ey, params.ez = e
-    params.hx, params.hy, params.hz = h
+    params.lx, params.ly, params.lz = h
     params.order = order
     builder = CartesianUnstructBuilder(params)
     return builder.getModel()
