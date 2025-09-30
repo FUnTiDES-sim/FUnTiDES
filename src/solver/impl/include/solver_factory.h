@@ -14,7 +14,7 @@ enum methodType
 };
 enum implemType
 {
-  GEOS,
+  MAKUTU,
   SHIVA
 };
 enum meshType

@@ -13,7 +13,7 @@ class SemProxyOptions
   float lx = 2000.f, ly = 2000.f, lz = 2000.f;
   float srcx = 1010.f, srcy = 1010.f, srcz = 1010.f;
   float rcvx = 1410.f, rcvy = 1010.f, rcvz = 1010.f;
-  std::string implem = "geos";  // geos|shiva
+  std::string implem = "makutu";  // makutu|shiva
   std::string method = "sem";   // sem|dg
   std::string mesh = "cartesian";
   float dt = 0.006;
@@ -28,7 +28,7 @@ class SemProxyOptions
   bool surface_sponge = false;
   float taper_delta = 0.015;
   // Boolean to tell if the model is charged on nodes or on element
-  bool isModelOnNodes = true;
+  bool isModelOnNodes = false;
 
   void validate() const
   {
@@ -53,7 +53,7 @@ class SemProxyOptions
                                    cxxopts::value<float>(o.lx))(
         "ly", "Domain size Y (Cartesian)", cxxopts::value<float>(o.ly))(
         "lz", "Domain size Z (Cartesian)", cxxopts::value<float>(o.lz))(
-        "implem", "Implementation: geos|shiva",
+        "implem", "Implementation: makutu|shiva",
         cxxopts::value<std::string>(o.implem))(
         "method", "Method: sem|dg", cxxopts::value<std::string>(o.method))(
         "mesh", "Mesh: cartesian|ucartesian",

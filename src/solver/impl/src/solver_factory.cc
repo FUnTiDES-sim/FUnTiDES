@@ -30,7 +30,7 @@ std::unique_ptr<SolverBase> orderDispatch(int const order, FUNC&& func)
   abort();
 }
 
-// ImplTag is one of IntegralType::GEOS/SHIVA (compile-time)
+// ImplTag is one of IntegralType::MAKUTU/SHIVA (compile-time)
 template <auto ImplTag>
 static std::unique_ptr<SolverBase> make_sem_solver(int order, meshType mesh)
 {
@@ -70,8 +70,8 @@ std::unique_ptr<SolverBase> createSolver(methodType const methodType,
   {
     switch (implemType)
     {
-      case GEOS:
-        return make_sem_solver<IntegralType::GEOS>(order, mesh);
+      case MAKUTU:
+        return make_sem_solver<IntegralType::MAKUTU>(order, mesh);
         // case SHIVA:
         //   return make_sem_solver<IntegralType::SHIVA>(order, mesh);
     }
