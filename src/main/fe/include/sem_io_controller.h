@@ -70,10 +70,10 @@ class SemIOController
     receiver_writer_.Close();
   }
 
-  void saveReceivers(vectorReal& receivers)
+  void saveReceiver(vectorReal& receiver)
   {
     receiver_writer_.BeginStep();
-    receiver_writer_.Put(receivers_, receivers.data());
+    receiver_writer_.Put(receivers_, receiver.data());
     receiver_writer_.EndStep();
   }
 

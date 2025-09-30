@@ -209,6 +209,14 @@ void SEMproxy::run()
     totalOutputTime += system_clock::now() - startOutputTime;
   }
 
+  for (int i = 0; i < pnAtReceiver.extent(0); i++)
+  {
+    auto subview = Kokkos::subview(pnAtReceiver, i, Kokkos::ALL());
+    vectorReal subset("receiver_save", num_sample_);
+    Kokkos::deep_copy(subset, subview);
+    io_ctrl_->saveReceiver(subset);
+  }
+
   float kerneltime_ms = time_point_cast<microseconds>(totalComputeTime)
                             .time_since_epoch()
                             .count();
