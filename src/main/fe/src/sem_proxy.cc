@@ -33,7 +33,7 @@ SEMproxy::SEMproxy(const SemProxyOptions& opt)
   const float spongex = opt.boundaries_size;
   const float spongey = opt.boundaries_size;
   const float spongez = opt.boundaries_size;
-  const float sponge_size[3] = {spongex, spongey, spongez};
+  const std::array<float, 3> sponge_size = {spongex, spongey, spongez};
   src_coord_[0] = opt.srcx;
   src_coord_[1] = opt.srcy;
   src_coord_[2] = opt.srcz;

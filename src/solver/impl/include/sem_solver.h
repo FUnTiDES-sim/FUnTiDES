@@ -74,7 +74,7 @@ class SEMsolver : public SolverBase
    *                       for geophysics to preserve natural reflections).
    */
   virtual void computeFEInit(model::ModelApi<float, int> &mesh,
-                             const float sponge_size[3],
+                             const std::array<float, 3> &sponge_size,
                              const bool surface_sponge,
                              const float taper_delta_) override final;
   /**
