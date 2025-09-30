@@ -19,6 +19,7 @@ struct ModelUnstructData : public ModelDataBase<FloatType, ScalarType>
   ScalarType n_element_;
   ScalarType n_node_;
   FloatType lx_, ly_, lz_;
+  bool isModelOnNodes_;
 
   // Coordinates and index map views
   ARRAY_INT_VIEW global_node_index_;
@@ -58,6 +59,7 @@ class ModelUnstruct : public ModelApi<FloatType, ScalarType>
         lx_(data.lx_),
         ly_(data.ly_),
         lz_(data.lz_),
+        isModelOnNodes_(data.isModelOnNodes_),
         global_node_index_(data.global_node_index_),
         nodes_coords_x_(data.nodes_coords_x_),
         nodes_coords_y_(data.nodes_coords_y_),
@@ -352,6 +354,7 @@ class ModelUnstruct : public ModelApi<FloatType, ScalarType>
   ScalarType n_node_;
   FloatType lx_, ly_, lz_;
   int n_points_per_element_;  // Added missing member
+  bool isModelOnNodes_;
 
   // Coordinates and index map views
   ARRAY_INT_VIEW global_node_index_;

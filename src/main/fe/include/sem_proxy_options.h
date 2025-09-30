@@ -27,6 +27,8 @@ class SemProxyOptions
   float boundaries_size = 0;
   bool surface_sponge = false;
   float taper_delta = 0.015;
+  // Boolean to tell if the model is charged on nodes or on element
+  bool isModelOnNodes = false;
 
   void validate() const
   {
@@ -73,6 +75,10 @@ class SemProxyOptions
         "sponge-surface", "Considere the surface's nodes as non sponge nodes",
         cxxopts::value<bool>(o.surface_sponge))(
         "taper-delta", "Taper delta for sponge boundaries value",
-        cxxopts::value<float>(o.taper_delta));
+        cxxopts::value<float>(o.taper_delta))(
+        "is-model-on-nodes",
+        "Boolean to tell if the model is charged on nodes (true) or on element "
+        "(false)",
+        cxxopts::value<bool>(o.isModelOnNodes));
   }
 };

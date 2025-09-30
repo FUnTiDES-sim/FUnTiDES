@@ -46,6 +46,8 @@ SEMproxy::SEMproxy(const SemProxyOptions& opt)
   rcv_coord_[1] = opt.rcvy;
   rcv_coord_[2] = opt.rcvz;
 
+  bool isModelOnNodes = opt.isModelOnNodes;
+
   const SolverFactory::methodType methodType = getMethod(opt.method);
   const SolverFactory::implemType implemType = getImplem(opt.implem);
   const SolverFactory::meshType meshType = getMesh(opt.mesh);
@@ -66,19 +68,19 @@ SEMproxy::SEMproxy(const SemProxyOptions& opt)
     {
       case 1: {
         model::CartesianStructBuilder<float, int, 1> builder(
-            ex, elem_sizex, ey, elem_sizey, ez, elem_sizez);
+            ex, elem_sizex, ey, elem_sizey, ez, elem_sizez, isModelOnNodes);
         m_mesh = builder.getModel();
         break;
       }
       case 2: {
         model::CartesianStructBuilder<float, int, 2> builder(
-            ex, elem_sizex, ey, elem_sizey, ez, elem_sizez);
+            ex, elem_sizex, ey, elem_sizey, ez, elem_sizez, isModelOnNodes);
         m_mesh = builder.getModel();
         break;
       }
       case 3: {
         model::CartesianStructBuilder<float, int, 3> builder(
-            ex, elem_sizex, ey, elem_sizey, ez, elem_sizez);
+            ex, elem_sizex, ey, elem_sizey, ez, elem_sizez, isModelOnNodes);
         m_mesh = builder.getModel();
         break;
       }
@@ -96,7 +98,8 @@ SEMproxy::SEMproxy(const SemProxyOptions& opt)
     float ly = domain_size_[1];
     float lz = domain_size_[2];
 
-    model::CartesianParams<float, int> param(order, ex, ey, ez, lx, ly, lz);
+    model::CartesianParams<float, int> param(order, ex, ey, ez, lx, ly, lz,
+                                             isModelOnNodes);
     model::CartesianUnstructBuilder<float, int> builder(param);
     m_mesh = builder.getModel();
   }
