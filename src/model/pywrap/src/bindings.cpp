@@ -2,11 +2,11 @@
 #include <pybind11/pybind11.h>
 #include <pybind11/stl.h>
 
-#include "bindings_builder.h"
-#include "bindings_model.h"
-
 #include <cstdint>
 #include <string>
+
+#include "bindings_builder.h"
+#include "bindings_model.h"
 
 namespace py = pybind11;
 
@@ -22,7 +22,8 @@ PYBIND11_MODULE(model, m)
   model::bind_modelapi<double, long>(m);
 
   // Bind ModelStruct
-  for (int order = 1; order <= 3; ++order) {
+  for (int order = 1; order <= 3; ++order)
+  {
     model::orderDispatch(order, [&](auto order_tag) {
       constexpr int ord = decltype(order_tag)::value;
       model::bind_modelstruct<float, int, ord>(m);
@@ -58,7 +59,8 @@ PYBIND11_MODULE(model, m)
   model::bind_modelbuilderbase<double, long>(m);
 
   // Bind CartesianStructBuilder
-  for (int order = 1; order <= 3; ++order) {
+  for (int order = 1; order <= 3; ++order)
+  {
     model::orderDispatch(order, [&](auto order_tag) {
       constexpr int ord = decltype(order_tag)::value;
       model::bind_cartesian_struct_builder<float, int, ord>(m);

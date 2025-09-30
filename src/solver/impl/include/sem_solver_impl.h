@@ -16,8 +16,9 @@
 
 template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE>
 void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE>::computeFEInit(
-    model::ModelApi<float, int> &mesh_in, const std::array<float, 3> &sponge_size,
-    const bool surface_sponge, const float taper_delta)
+    model::ModelApi<float, int> &mesh_in,
+    const std::array<float, 3> &sponge_size, const bool surface_sponge,
+    const float taper_delta)
 {
   if (auto *typed_mesh = dynamic_cast<MESH_TYPE *>(&mesh_in))
   {

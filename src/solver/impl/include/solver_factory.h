@@ -27,9 +27,12 @@ inline std::string to_string(methodType m)
 {
   switch (m)
   {
-    case SEM: return "SEM";
-    case DG: return "DG";
-    default: return "Unknown";
+    case SEM:
+      return "SEM";
+    case DG:
+      return "DG";
+    default:
+      return "Unknown";
   }
 }
 
@@ -37,9 +40,12 @@ inline std::string to_string(implemType i)
 {
   switch (i)
   {
-    case GEOS: return "GEOS";
-    case SHIVA: return "SHIVA";
-    default: return "Unknown";
+    case GEOS:
+      return "GEOS";
+    case SHIVA:
+      return "SHIVA";
+    default:
+      return "Unknown";
   }
 }
 
@@ -47,9 +53,12 @@ inline std::string to_string(meshType m)
 {
   switch (m)
   {
-    case Struct: return "Struct";
-    case Unstruct: return "Unstruct";
-    default: return "Unknown";
+    case Struct:
+      return "Struct";
+    case Unstruct:
+      return "Unstruct";
+    default:
+      return "Unknown";
   }
 }
 

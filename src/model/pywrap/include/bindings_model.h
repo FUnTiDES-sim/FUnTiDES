@@ -4,12 +4,12 @@
 #include <pybind11/pybind11.h>
 #include <pybind11/stl.h>
 
+#include <string>
+
 #include "bindings_utils.h"
 #include "model.h"
 #include "model_struct.h"
 #include "model_unstruct.h"
-
-#include <string>
 
 namespace py = pybind11;
 
@@ -49,7 +49,8 @@ void bind_modelstruct(py::module_ &m)
   using T = model::ModelStruct<FloatType, ScalarType, Order>;
   using Data = model::ModelStructData<FloatType, ScalarType>;
 
-  std::string name = model_class_name<FloatType, ScalarType, Order>("ModelStruct");
+  std::string name =
+      model_class_name<FloatType, ScalarType, Order>("ModelStruct");
 
   py::class_<T, Base, std::shared_ptr<T>>(m, name.c_str())
       .def(py::init<const Data &>());
@@ -86,12 +87,13 @@ void bind_modelunstruct(py::module_ &m)
       .def(py::init<const Data &>());
 }
 
-//template binder for ModelUnstructData
+// template binder for ModelUnstructData
 template <typename FloatType, typename ScalarType>
 void bind_modelunstructdata(py::module_ &m)
 {
   using Data = model::ModelUnstructData<FloatType, ScalarType>;
-  std::string name = model_class_name<FloatType, ScalarType>("ModelUnstructData");
+  std::string name =
+      model_class_name<FloatType, ScalarType>("ModelUnstructData");
 
   py::class_<Data>(m, name.c_str())
       .def(py::init<>())
@@ -112,4 +114,4 @@ void bind_modelunstructdata(py::module_ &m)
       .def_readwrite("boundaries_t", &Data::boundaries_t_);
 }
 
-}
+}  // namespace model
