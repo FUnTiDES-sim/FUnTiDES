@@ -27,7 +27,7 @@ struct ModelStructData
  * @brief Abstract base class representing a structured 3D mesh.
  */
 template <typename FloatType, typename ScalarType, int Order>
-class ModelStruct : public ModelApi<FloatType, ScalarType>
+class ModelStruct final : public ModelApi<FloatType, ScalarType>
 {
  public:
   /**

@@ -6,7 +6,7 @@
 namespace model
 {
 template <typename FloatType, typename ScalarType>
-struct ModelUnstructData : public ModelDataBase<FloatType, ScalarType>
+struct ModelUnstructData final : public ModelDataBase<FloatType, ScalarType>
 {
   // GPU-compatible special member functions
   PROXY_HOST_DEVICE ModelUnstructData() = default;
