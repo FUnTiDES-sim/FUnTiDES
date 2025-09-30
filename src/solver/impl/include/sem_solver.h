@@ -177,7 +177,6 @@ class SEMsolver : public SolverBase
 
   // Basis functions and integral objects
   INTEGRAL_TYPE myQkIntegrals;
-  typename INTEGRAL_TYPE::PrecomputedData m_precomputedIntegralData;
 
   // Sponge tapering
   VECTOR_REAL_VIEW spongeTaperCoeff;
