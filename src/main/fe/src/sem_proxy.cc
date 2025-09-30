@@ -134,8 +134,6 @@ SEMproxy::SEMproxy(const SemProxyOptions& opt)
   if (is_snapshots_)
   {
     snap_time_interval_ = opt.snap_time_interval;
-    snap_folder_ = opt.snap_folder;
-    std::filesystem::create_directories(snap_folder_);
   }
 
   std::cout << "Number of node is " << m_mesh->getNumberOfNodes() << std::endl;
@@ -151,7 +149,6 @@ SEMproxy::SEMproxy(const SemProxyOptions& opt)
   {
     std::cout << "Snapshots enable every " << snap_time_interval_
               << " iteration." << std::endl;
-    std::cout << "Saved in " << snap_folder_ << " folder." << std::endl;
   }
 }
 
@@ -212,9 +209,6 @@ void SEMproxy::run()
     totalOutputTime += system_clock::now() - startOutputTime;
   }
 
-  // Output receiver
-  saveReceiver();
-
   float kerneltime_ms = time_point_cast<microseconds>(totalComputeTime)
                             .time_since_epoch()
                             .count();
@@ -227,22 +221,6 @@ void SEMproxy::run()
   cout << "---- Elapsed Output Time : " << outputtime_ms / 1E6 << " seconds."
        << endl;
   cout << "------------------------------------------------ " << endl;
-}
-
-void SEMproxy::saveReceiver() const
-{
-  std::stringstream filename;
-  filename << "receiver.dat";
-  std::string str_filename = filename.str();
-  std::ofstream outfile(str_filename);
-  for (int i = 0; i < num_sample_; i++)
-  {
-    outfile << i * dt_ << " " << pnAtReceiver(0, i) << std::endl;
-  }
-  outfile.close();
-
-  adios2::ADIOS adios;
-  io::write2dArray(adios, pnAtReceiver, "receiver.bp", "receivers");
 }
 
 // Initialize arrays
@@ -345,7 +323,6 @@ void SEMproxy::init_source()
   }
 
   // Receiver computation
-
   int receiver_index = floor((rcv_coord_[0] * ex) / lx) +
                        floor((rcv_coord_[1] * ey) / ly) * ex +
                        floor((rcv_coord_[2] * ez) / lz) * ey * ex;
@@ -392,50 +369,22 @@ void SEMproxy::init_source()
   }
 }
 
-std::string formatSnapshotFilename(int id, int width = 5)
-{
-  std::ostringstream oss;
-  // oss << "snapshot" << std::setw(width) << std::setfill('0') << id;
-  oss << "snapshot" << id;
-  return oss.str();
-}
-
-/**
- * Save slice in matrix formating
- * Format: space-separated matrix with blank lines between rows for 3D plotting
- */
-void SEMproxy::saveSlice(const VECTOR_REAL_VIEW& host_slice, int sizex,
-                         int sizey, const std::string& filepath) const
-{
-  std::ofstream file(filepath);
-  file << std::fixed << std::setprecision(6);
-  file << sizex << "\n" << sizey << "\n";
-
-  for (int i = 0; i < sizex * sizey; ++i)
-  {
-    file << host_slice[i];
-    if ((i + 1) % sizex == 0)
-    {
-      file << "\n";  // New line every sizex elements
-    }
-    else
-    {
-      file << " ";
-    }
-  }
-  file.close();
-}
-
 void SEMproxy::saveSnapshot(int timestep)
 {
 #ifdef USE_KOKKOS
-  // get subkokkos view copy
-  auto nb_nodes = pnGlobal.extent(1);
-  auto subview = Kokkos::subview(pnGlobal, i1, Kokkos::ALL());
-  vectorReal subset("snapshot_cpy", nb_nodes);
-  Kokkos::deep_copy(subset, subview);
-#else
+  auto nb_nodes = pnGlobal.extent(0);
+  auto subview = Kokkos::subview(pnGlobal, Kokkos::ALL(), i1);
 
+  vectorReal subset("snapshot_cpy", nb_nodes);
+  // Use a parallel copy to handle the strided layout
+  Kokkos::parallel_for(
+      "copy_column", nb_nodes,
+      KOKKOS_LAMBDA(int i) { subset(i) = subview(i); });
+  Kokkos::fence();
+#else
+  auto nb_nodes = pnGlobal[0].size();
+  auto& subview = pnGlobal[i1];
+  vectorReal subset(subview.begin(), subview.end());
 #endif  // USE_KOKKOS
 
   io_ctrl_->saveSnapshot(subset, timestep);

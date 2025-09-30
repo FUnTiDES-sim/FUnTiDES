@@ -22,7 +22,6 @@ class SemProxyOptions
   // snapshots
   bool snapshots = false;
   int snap_time_interval = 10;
-  std::string snap_folder = "snapshots";
   // sponge boundaries parameters
   float boundaries_size = 0;
   bool surface_sponge = false;
@@ -63,8 +62,6 @@ class SemProxyOptions
         "auto-dt", "Select automatique dt via CFL equation.",
         cxxopts::value<bool>(o.autodt))("s,snapshots", "Enable snapshot.",
                                         cxxopts::value<bool>(o.snapshots))(
-        "snap-folder", "Folder where to save snapshots. (default=snapshots)",
-        cxxopts::value<std::string>(o.snap_folder))(
         "snap-interval",
         "Interval on iteration between two snapshots. (default=10)",
         cxxopts::value<int>(o.snap_time_interval))(

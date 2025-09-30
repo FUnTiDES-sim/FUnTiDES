@@ -67,8 +67,6 @@ class SEMproxy
 
   void saveSnapshot(int timesample) const;
 
-  void saveReceiver() const;
-
   /**
    * @brief Computes optimal time step using CFL stability condition for seismic
    * wave propagation

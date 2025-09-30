@@ -22,23 +22,39 @@ using real_t = float;
 #ifdef USE_VECTOR
 
 template <class T>
-class Vector
-{
+class Vector {
  public:
-  Vector(int numRows) : data(numRows) {}
-  Vector() : data(0) {}
+  Vector(int numRows) : data_(numRows) {}
+  Vector() : data_(0) {}
 
-  T &operator()(int index) { return data[index]; }
-  T &operator[](int index) { return data[index]; }
+  // Iterator range constructor for copying from other containers
+  template<typename Iterator>
+  Vector(Iterator first, Iterator last) : data_(first, last) {}
 
-  T &operator[](int index) const { return const_cast<T &>(data[index]); }
-  T &operator=(const T &data) { return *this; };
+  // Element access
+  T& operator()(int index) { return data_[index]; }
+  T& operator[](int index) { return data_[index]; }
+  const T& operator[](int index) const { return data_[index]; }
 
-  size_t extent(int dim) const { return data.size(); };
+  // Assignment operator (fixed - was incorrect)
+  Vector& operator=(const Vector& other) {
+    if (this != &other) {
+      data_ = other.data_;
+    }
+    return *this;
+  }
+
+  // Size/extent
+  size_t extent(int dim) const { return data_.size(); }
+  
+  // Data access
+  T* data() { return data_.data(); }
+  const T* data() const { return data_.data(); }
 
  private:
-  std::vector<T> data;
+  std::vector<T> data_;
 };
+
 
 template <class T>
 class Array2D

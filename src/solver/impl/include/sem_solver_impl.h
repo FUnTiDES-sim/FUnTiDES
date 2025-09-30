@@ -268,9 +268,4 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE>::initSpongeValues()
   }
 
   FENCE
-
-  // Write taper coeff for debugging purpose
-  adios2::ADIOS adios;
-  io::write1dArray<vectorReal>(adios, spongeTaperCoeff, "spongeTaperCoeff.bp", "sponge_coeff");
-
 }
