@@ -10,7 +10,8 @@ namespace SourceAndReceiverUtils
 {
 
 template <int ORDER>
-void ComputeRHSWeights(real_t const (&cornerCoords)[8][3], std::array<float, 3> coordsReal,
+void ComputeRHSWeights(real_t const (&cornerCoords)[8][3],
+                       std::array<float, 3> coordsReal,
                        ARRAY_REAL_VIEW& rhsWeights)
 {
   constexpr int numNodes =
