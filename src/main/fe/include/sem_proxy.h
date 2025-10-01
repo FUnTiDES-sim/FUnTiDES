@@ -14,12 +14,11 @@
 #include <solver_factory.h>
 #include <utils.h>
 
-#include "sem_io_controller.h"
-
 #include <memory>
 #include <string>
 #include <variant>
 
+#include "sem_io_controller.h"
 #include "sem_proxy_options.h"
 
 /**

@@ -77,7 +77,6 @@ class SemIOController
     receiver_writer_.EndStep();
   }
 
-
   void saveSnapshot(const vectorReal& pnGlobal, const int timestep)
   {
     snaps_writer_.BeginStep();
