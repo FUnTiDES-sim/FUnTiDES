@@ -12,12 +12,7 @@ target_include_directories( discretization INTERFACE
                           ) 
 message(STATUS "Binary include dir: ${CMAKE_BINARY_DIR}/include")
 
-include( fe/SEMKernels/src/Shiva/tpl/camp/extern/blt/SetupBLT.cmake )
 add_subdirectory( fe/SEMKernels )
 
-add_dependencies( discretization finiteElements shiva)
-
-target_link_libraries(discretization
-  INTERFACE
-    proxy_utils
-)
+target_link_libraries( discretization INTERFACE proxy_utils )
+target_link_libraries( discretization INTERFACE Shiva::shiva )

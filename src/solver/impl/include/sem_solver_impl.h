@@ -9,6 +9,7 @@
 
 #include <data_type.h>
 
+#include <array>
 #include <cstdlib>
 
 #include "fe/Integrals.hpp"
@@ -16,8 +17,9 @@
 
 template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE>
 void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE>::computeFEInit(
-    model::ModelApi<float, int> &mesh_in, const float sponge_size[3],
-    const bool surface_sponge, const float taper_delta)
+    model::ModelApi<float, int> &mesh_in,
+    const std::array<float, 3> &sponge_size, const bool surface_sponge,
+    const float taper_delta)
 {
   if (auto *typed_mesh = dynamic_cast<MESH_TYPE *>(&mesh_in))
   {
@@ -56,7 +58,7 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE>::computeOneStep(
   FENCE
   applyRHSTerm(timeSample, dt, i2, rhsTerm, rhsElement, pnGlobal, rhsWeights);
   FENCE
-  computeElementContributions(i2, pnGlobal);
+  computeElementContributions(i2, pnGlobal, m_mesh.isModelOnNodes());
   FENCE
   updatePressureField(dt, i1, i2, pnGlobal);
   FENCE
@@ -103,7 +105,7 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE>::applyRHSTerm(
 
 template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE>
 void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE>::computeElementContributions(
-    int i2, const ARRAY_REAL_VIEW &pnGlobal)
+    int i2, const ARRAY_REAL_VIEW &pnGlobal, bool isModelOnNodes)
 {
   MAINLOOPHEAD(m_mesh.getNumberOfElements(), elementNumber)
 
@@ -142,18 +144,42 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE>::computeElementContributions(
     }
   }
 
-  INTEGRAL_TYPE::computeMassMatrixAndStiffnessVector(
-      elementNumber, m_mesh.getNumberOfPointsPerElement(), cornerCoords,
-      m_precomputedIntegralData, massMatrixLocal, pnLocal, Y);
+  real_t inv_model2 = 0.0f;
+  if (!isModelOnNodes)
+  {
+    inv_model2 = 1.0f / (m_mesh.getModelVpOnElement(elementNumber) *
+                         m_mesh.getModelVpOnElement(elementNumber));
+  }
 
-  auto const inv_model2 = 1.0f / (m_mesh.getModelVpOnElement(elementNumber) *
-                                  m_mesh.getModelVpOnElement(elementNumber));
+  // Stiffness term
+
+  for (int i = 0; i < m_mesh.getNumberOfPointsPerElement(); ++i)
+  {
+    Y[i] = 0;
+    massMatrixLocal[i] = 0;
+  }
+
+  INTEGRAL_TYPE::computeMassTerm(
+      cornerCoords,
+      [&](const int j, const real_t val) { massMatrixLocal[j] += val; });
+
+  INTEGRAL_TYPE::computeStiffnessTerm(
+      cornerCoords, [&](const int i, const int j, const real_t val) {
+        float localIncrement = val * pnLocal[j];
+        Y[i] += localIncrement;
+      });
+
   for (int i = 0; i < m_mesh.getNumberOfPointsPerElement(); ++i)
   {
     int x = i % dim;
     int z = (i / dim) % dim;
     int y = i / (dim * dim);
     int const gIndex = m_mesh.globalNodeIndex(elementNumber, x, y, z);
+    if (isModelOnNodes)
+    {
+      inv_model2 = 1.0f / (m_mesh.getModelVpOnNodes(gIndex) *
+                           m_mesh.getModelVpOnNodes(gIndex));
+    }
     massMatrixLocal[i] *= inv_model2;
     ATOMICADD(massMatrixGlobal[gIndex], massMatrixLocal[i]);
     ATOMICADD(yGlobal[gIndex], Y[i]);

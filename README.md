@@ -81,7 +81,10 @@ The following options can be used to configure your build:
 
 ### Prerequisites
 
-The compilation of python wrappers requires _pybind11_ to be installed in your python environment.
+To install python requirements
+```bash
+pip install -r requirements.txt
+```
 
 ### Generation
 
@@ -119,3 +122,25 @@ There is no need to extend the `LD_LIBRARY_PATH` with the _proxys_ libraries sin
 
 
 Some examples on how to use the wrappers are available in the [`examples`](examples/) folder.
+
+### Tests & Benchmarks
+
+To install dev python packages
+```bash
+pip install -r requirements-dev.txt
+```
+
+To run basic python unit tests
+```bash
+pytest -vv -s  tests/units
+```
+
+To run python benchmarks
+```bash
+pytest -vv -s tests/benchmarks
+```
+
+To generate benchmark plots
+```bash
+pytest -vv -s --benchmark-histogram=plot tests/benchmarks
+```

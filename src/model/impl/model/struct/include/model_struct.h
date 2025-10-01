@@ -9,7 +9,7 @@ namespace model
 {
 
 template <typename FloatType, typename ScalarType>
-struct ModelStructData
+struct ModelStructData : public ModelDataBase<FloatType, ScalarType>
 {
  public:
   // GPU-compatible special member functions
@@ -21,6 +21,7 @@ struct ModelStructData
 
   ScalarType ex_, ey_, ez_;
   FloatType dx_, dy_, dz_;
+  bool isModelOnNodes_;
 };
 
 /**
@@ -297,11 +298,15 @@ class ModelStruct : public ModelApi<FloatType, ScalarType>
     return 1500;
   }
 
+  PROXY_HOST_DEVICE
+  bool isModelOnNodes() const { return isModelOnNodes_; }
+
  private:
   ScalarType ex_, ey_, ez_;  // Nb elements in each direction
   ScalarType nx_, ny_, nz_;  // Nb nodes in each direction
   FloatType lx_, ly_, lz_;   // domain size
   FloatType hx_, hy_, hz_;   // element size
+  bool isModelOnNodes_;
 };
 
 }  // namespace model
