@@ -1,5 +1,3 @@
-# File: proxys/src/model/pywrap/tests/test_bindings.py
-# Language: python
 import pyproxys.model as Model
 import pytest
 
