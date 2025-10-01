@@ -1,8 +1,8 @@
 #ifndef SOURCEANDRECEIVERUTILS_HPP
 #define SOURCEANDRECEIVERUTILS_HPP
 
-#include "../../src/discretization/fe/SEMKernels/src/finiteElement/makutu/Qk_Hexahedron_Lagrange_GaussLobatto.hpp"
 #include "data_type.h"
+#include "finiteElement/makutu/Qk_Hexahedron_Lagrange_GaussLobatto.hpp"
 
 using namespace std::chrono;
 

@@ -145,10 +145,13 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE>::computeElementContributions(
   }
 
   real_t inv_model2 = 0.0f;
+  real_t inv_density = 0.0f;
   if (!isModelOnNodes)
   {
     inv_model2 = 1.0f / (m_mesh.getModelVpOnElement(elementNumber) *
-                         m_mesh.getModelVpOnElement(elementNumber));
+                         m_mesh.getModelVpOnElement(elementNumber) *
+                         m_mesh.getModelRhoOnElement(elementNumber));
+    inv_density = 1.0f / m_mesh.getModelRhoOnElement(elementNumber);
   }
 
   // Stiffness term
@@ -178,9 +181,12 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE>::computeElementContributions(
     if (isModelOnNodes)
     {
       inv_model2 = 1.0f / (m_mesh.getModelVpOnNodes(gIndex) *
-                           m_mesh.getModelVpOnNodes(gIndex));
+                           m_mesh.getModelVpOnNodes(gIndex) *
+                           m_mesh.getModelRhoOnNodes(gIndex));
+      inv_density = 1.0f / m_mesh.getModelRhoOnNodes(gIndex);
     }
     massMatrixLocal[i] *= inv_model2;
+    Y[i] *= inv_density;
     ATOMICADD(massMatrixGlobal[gIndex], massMatrixLocal[i]);
     ATOMICADD(yGlobal[gIndex], Y[i]);
   }
