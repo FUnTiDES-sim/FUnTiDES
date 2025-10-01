@@ -157,9 +157,9 @@ jobs:
           source .venv/bin/activate
           export INSTALL_DIR=$(realpath ./install)
           echo "Install dir: $INSTALL_DIR"
-          ls $INSTALL_DIR
+          ls $INSTALL_DIR/*
           export PYTHONPATH=$PYTHONPATH:$INSTALL_DIR
-          export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$INSTALL_DIR/lib64
+          export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$INSTALL_DIR/lib
           python -m pytest tests -q
 
       - name: Write summary line
