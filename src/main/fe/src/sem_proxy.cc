@@ -215,10 +215,21 @@ void SEMproxy::run()
   for (int i = 0; i < pnAtReceiver.extent(0); i++)
   {
     // get receiver i
+#ifdef USE_KOKKOS
     auto subview = Kokkos::subview(pnAtReceiver, i, Kokkos::ALL());
     vectorReal subset("receiver_save", num_sample_);
     Kokkos::deep_copy(subset, subview);
-    // get coords of receiver i
+#else
+    auto& subview = pnAtReceiver;
+    vectorReal subset(subview.extent(0) * subview.extent(1));
+    for (size_t i = 0; i < subview.extent(0); ++i)
+    {
+      for (size_t j = 0; j < subview.extent(1); ++j)
+      {
+        subset[i * subview.extent(1) + j] = subview(i, j);
+      }
+    }
+#endif  // USE_KOKKOS
     io_ctrl_->saveReceiver(subset, src_coord_);
   }
 

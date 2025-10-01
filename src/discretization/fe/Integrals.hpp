@@ -1,7 +1,7 @@
 #pragma once
 
 #include "finiteElement/makutu/Qk_Hexahedron_Lagrange_GaussLobatto.hpp"
-#include "finiteElement/shiva/SEMQkGLIntegralsShiva.hpp"
+// #include "finiteElement/shiva/SEMQkGLIntegralsShiva.hpp"
 
 template <int ORDER, int METHOD_TYPE>
 struct IntegralTypeSelector;
