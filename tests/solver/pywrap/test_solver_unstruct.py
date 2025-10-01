@@ -6,13 +6,10 @@ import pyproxys.solver as Solver
 import solver_utils as Utils
 
 
-class StructData:
+class UnstructData:
     def __init__(self, order):
         self.ex = self.ey = self.ez = 10
-        self.domain_size = 1500
-        self.hx = self.domain_size / self.ex
-        self.hy = self.domain_size / self.ey
-        self.hz = self.domain_size / self.ez
+        self.lx = self.ly = self.lz = 1500
         self.order = order
         self.nx = self.ex * self.order + 1
         self.ny = self.ey * self.order + 1
@@ -21,35 +18,38 @@ class StructData:
 
 
 @pytest.fixture
-def struct(request):
-    order, builder_cls, on_nodes = request.param
+def unstruct(request):
+    order, param_cls, builder_cls, on_nodes = request.param
 
-    sd = StructData(order)
+    sd = UnstructData(order)
 
-    builder = builder_cls(sd.ex, sd.hx,
-                          sd.ey, sd.hy,
-                          sd.ez, sd.hz,
-                          on_nodes)
+    params = param_cls()
+    params.ex, params.ey, params.ez = sd.ex, sd.ey, sd.ez
+    params.lx, params.ly, params.lz = sd.lx, sd.ly, sd.lz
+    params.order = order
+    params.is_model_on_nodes = on_nodes
 
-    return sd, builder
+    builder = builder_cls(params)
+
+    return sd, params, builder
 
 
 test_cases_struct = [
     # f32, i32 cases (only ones supported by solver so far)
-    (1, Model.CartesianStructBuilder_f32_i32_O1, True),
-    (1, Model.CartesianStructBuilder_f32_i32_O1, False),
-    (2, Model.CartesianStructBuilder_f32_i32_O2, True),
-    (2, Model.CartesianStructBuilder_f32_i32_O2, False),
-    (3, Model.CartesianStructBuilder_f32_i32_O3, True),
-    (3, Model.CartesianStructBuilder_f32_i32_O3, False),
+    (1, Model.CartesianParams_f32_i32, Model.CartesianUnstructBuilder_f32_i32, True),
+    (1, Model.CartesianParams_f32_i32, Model.CartesianUnstructBuilder_f32_i32, False),
+    (2, Model.CartesianParams_f32_i32, Model.CartesianUnstructBuilder_f32_i32, True),
+    (2, Model.CartesianParams_f32_i32, Model.CartesianUnstructBuilder_f32_i32, False),
+    (3, Model.CartesianParams_f32_i32, Model.CartesianUnstructBuilder_f32_i32, True),
+    (3, Model.CartesianParams_f32_i32, Model.CartesianUnstructBuilder_f32_i32, False),
 ]
 
 
-class TestSolverStruct:
-    @pytest.mark.parametrize("struct", test_cases_struct, indirect=True)
+class TestSolverUnstruct:
+    @pytest.mark.parametrize("unstruct", test_cases_struct, indirect=True)
     @pytest.mark.parametrize("implem", [Solver.ImplemType.GEOS, Solver.ImplemType.SHIVA])
-    def test_solver_one_step_struct(self, struct, implem):
-        sd, builder = struct
+    def test_solver_one_step(self, unstruct, implem):
+        sd, _, builder = unstruct
         n_rhs = 2
         dt = 0.001
         time_sample = 1
@@ -62,7 +62,7 @@ class TestSolverStruct:
         if implem == Solver.ImplemType.SHIVA:
             return
 
-        solver = Solver.create_solver(Solver.MethodType.SEM, implem, Solver.MeshType.STRUCT, sd.order)
+        solver = Solver.create_solver(Solver.MethodType.SEM, implem, Solver.MeshType.UNSTRUCT, sd.order)
 
         solver.compute_fe_init(model)
 
