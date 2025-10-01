@@ -9,9 +9,11 @@
 namespace model
 {
 template <typename FloatType, typename ScalarType>
-class CartesianUnstructBuilder : ModelBuilderBase<FloatType, ScalarType>
+class CartesianUnstructBuilder : public ModelBuilderBase<FloatType, ScalarType>
 {
  public:
+  using ModelBuilderBase<FloatType, ScalarType>::MAX_ORDER;
+
   CartesianUnstructBuilder() {}
 
   CartesianUnstructBuilder(const CartesianParams<FloatType, ScalarType>& p)
@@ -21,7 +23,9 @@ class CartesianUnstructBuilder : ModelBuilderBase<FloatType, ScalarType>
         lx_(p.lx),
         ly_(p.ly),
         lz_(p.lz),
-        order_(p.order)
+        order_(p.order),
+        isModelOnNodes_(p.isModelOnNodes)
+
   {
     initGlobalNodeList();
     initNodesCoords();
@@ -46,6 +50,8 @@ class CartesianUnstructBuilder : ModelBuilderBase<FloatType, ScalarType>
     modelData.nodes_coords_y_ = nodes_coords_y_;
     modelData.nodes_coords_z_ = nodes_coords_z_;
 
+    modelData.isModelOnNodes_ = isModelOnNodes_;
+
     modelData.model_vp_node_ = model_vp_node_;
     modelData.model_rho_node_ = model_rho_node_;
     modelData.model_vp_element_ = model_vp_element_;
@@ -61,6 +67,7 @@ class CartesianUnstructBuilder : ModelBuilderBase<FloatType, ScalarType>
   ScalarType ex_, ey_, ez_;
   FloatType lx_, ly_, lz_;
   int order_;
+  bool isModelOnNodes_;
 
   ARRAY_INT_VIEW global_node_index_;
   VECTOR_REAL_VIEW nodes_coords_x_;
@@ -115,7 +122,7 @@ class CartesianUnstructBuilder : ModelBuilderBase<FloatType, ScalarType>
 
   void getCoordInOneDirection(const int& h, const int& n_element, float* coord)
   {
-    float xi[order_ + 1];
+    float xi[MAX_ORDER + 1];
 
     switch (order_)
     {
@@ -188,9 +195,9 @@ class CartesianUnstructBuilder : ModelBuilderBase<FloatType, ScalarType>
     nodes_coords_z_ =
         allocateVector<VECTOR_REAL_VIEW>(total_nodes, "nodes coords z");
 
-    float coord_x[order_ + 1];
-    float coord_y[order_ + 1];
-    float coord_z[order_ + 1];
+    float coord_x[MAX_ORDER + 1];
+    float coord_y[MAX_ORDER + 1];
+    float coord_z[MAX_ORDER + 1];
 
     auto hx = lx_ / ex_;
     auto hy = ly_ / ey_;
@@ -240,23 +247,32 @@ class CartesianUnstructBuilder : ModelBuilderBase<FloatType, ScalarType>
     // creating uniforms model
     int n_element = ex_ * ey_ * ez_;
     int n_node = (ex_ * order_ + 1) * (ey_ * order_ + 1) * (ez_ * order_ + 1);
-    model_rho_element_ =
-        allocateVector<VECTOR_REAL_VIEW>(n_element, "model rho elem");
-    model_vp_element_ =
-        allocateVector<VECTOR_REAL_VIEW>(n_element, "model vp elem");
-    model_rho_node_ =
-        allocateVector<VECTOR_REAL_VIEW>(n_node, "model rho node");
-    model_vp_node_ = allocateVector<VECTOR_REAL_VIEW>(n_node, "model vp node");
+    if (isModelOnNodes_)
+    {
+      model_rho_node_ =
+          allocateVector<VECTOR_REAL_VIEW>(n_node, "model rho node");
+      model_vp_node_ =
+          allocateVector<VECTOR_REAL_VIEW>(n_node, "model vp node");
 
-    for (int i = 0; i < n_element; i++)
-    {
-      model_rho_element_[i] = 1;
-      model_vp_element_[i] = 1500;
+      for (int i = 0; i < n_node; i++)
+      {
+        model_rho_node_[i] = 1;
+        model_vp_node_[i] = 1500;
+      }
     }
-    for (int i = 0; i < n_node; i++)
+
+    else
     {
-      model_rho_node_[i] = 1;
-      model_vp_node_[i] = 1500;
+      model_rho_element_ =
+          allocateVector<VECTOR_REAL_VIEW>(n_element, "model rho elem");
+      model_vp_element_ =
+          allocateVector<VECTOR_REAL_VIEW>(n_element, "model vp elem");
+
+      for (int i = 0; i < n_element; i++)
+      {
+        model_rho_element_[i] = 1;
+        model_vp_element_[i] = 1500;
+      }
     }
   }
 };

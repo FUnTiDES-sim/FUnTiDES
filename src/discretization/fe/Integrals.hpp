@@ -1,7 +1,7 @@
 #pragma once
 
-#include "finiteElement/geos/Qk_Hexahedron_Lagrange_GaussLobatto.hpp"
-// #include "finiteElement/shiva/SEMQkGLIntegralsShiva.hpp"
+#include "finiteElement/makutu/Qk_Hexahedron_Lagrange_GaussLobatto.hpp"
+#include "finiteElement/shiva/SEMQkGLIntegralsShiva.hpp"
 
 template <int ORDER, int METHOD_TYPE>
 struct IntegralTypeSelector;
@@ -10,14 +10,13 @@ namespace IntegralType
 {
 enum
 {
-  CLASSIC,
-  GEOS,
+  MAKUTU,
   SHIVA
 };
 }
 
 template <int ORDER>
-struct IntegralTypeSelector<ORDER, IntegralType::GEOS>
+struct IntegralTypeSelector<ORDER, IntegralType::MAKUTU>
 {
   using type =
       typename Qk_Hexahedron_Lagrange_GaussLobatto_Selector<ORDER>::type;

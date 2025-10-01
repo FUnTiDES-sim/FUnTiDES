@@ -1,17 +1,18 @@
 add_library(proxy_solver
             src/solver_factory.cc
-            src/geos/SEMQ1_struct_geos_solver.cpp
-            src/geos/SEMQ1_unstruct_geos_solver.cpp
-            src/geos/SEMQ2_struct_geos_solver.cpp
-            src/geos/SEMQ2_unstruct_geos_solver.cpp
-            src/geos/SEMQ3_struct_geos_solver.cpp
-            src/geos/SEMQ3_unstruct_geos_solver.cpp)
+            src/makutu/SEMQ1_struct_makutu_solver.cpp
+            src/makutu/SEMQ1_unstruct_makutu_solver.cpp
+            src/makutu/SEMQ2_struct_makutu_solver.cpp
+            src/makutu/SEMQ2_unstruct_makutu_solver.cpp
+            src/makutu/SEMQ3_struct_makutu_solver.cpp
+            src/makutu/SEMQ3_unstruct_makutu_solver.cpp
             # src/shiva/SEMQ1_struct_shiva_solver.cpp
             # src/shiva/SEMQ1_unstruct_shiva_solver.cpp
             # src/shiva/SEMQ2_struct_shiva_solver.cpp
             # src/shiva/SEMQ2_unstruct_shiva_solver.cpp
             # src/shiva/SEMQ3_struct_shiva_solver.cpp
-            # src/shiva/SEMQ3_unstruct_shiva_solver.cpp)
+            # src/shiva/SEMQ3_unstruct_shiva_solver.cpp
+            )
 
 target_include_directories(proxy_solver
   PUBLIC

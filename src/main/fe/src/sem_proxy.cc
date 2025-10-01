@@ -33,7 +33,7 @@ SEMproxy::SEMproxy(const SemProxyOptions& opt)
   const float spongex = opt.boundaries_size;
   const float spongey = opt.boundaries_size;
   const float spongez = opt.boundaries_size;
-  const float sponge_size[3] = {spongex, spongey, spongez};
+  const std::array<float, 3> sponge_size = {spongex, spongey, spongez};
   src_coord_[0] = opt.srcx;
   src_coord_[1] = opt.srcy;
   src_coord_[2] = opt.srcz;
@@ -45,6 +45,8 @@ SEMproxy::SEMproxy(const SemProxyOptions& opt)
   rcv_coord_[0] = opt.rcvx;
   rcv_coord_[1] = opt.rcvy;
   rcv_coord_[2] = opt.rcvz;
+
+  bool isModelOnNodes = opt.isModelOnNodes;
 
   const SolverFactory::methodType methodType = getMethod(opt.method);
   const SolverFactory::implemType implemType = getImplem(opt.implem);
@@ -66,19 +68,19 @@ SEMproxy::SEMproxy(const SemProxyOptions& opt)
     {
       case 1: {
         model::CartesianStructBuilder<float, int, 1> builder(
-            ex, elem_sizex, ey, elem_sizey, ez, elem_sizez);
+            ex, elem_sizex, ey, elem_sizey, ez, elem_sizez, isModelOnNodes);
         m_mesh = builder.getModel();
         break;
       }
       case 2: {
         model::CartesianStructBuilder<float, int, 2> builder(
-            ex, elem_sizex, ey, elem_sizey, ez, elem_sizez);
+            ex, elem_sizex, ey, elem_sizey, ez, elem_sizez, isModelOnNodes);
         m_mesh = builder.getModel();
         break;
       }
       case 3: {
         model::CartesianStructBuilder<float, int, 3> builder(
-            ex, elem_sizex, ey, elem_sizey, ez, elem_sizez);
+            ex, elem_sizex, ey, elem_sizey, ez, elem_sizez, isModelOnNodes);
         m_mesh = builder.getModel();
         break;
       }
@@ -96,7 +98,8 @@ SEMproxy::SEMproxy(const SemProxyOptions& opt)
     float ly = domain_size_[1];
     float lz = domain_size_[2];
 
-    model::CartesianParams<float, int> param(order, ex, ey, ez, lx, ly, lz);
+    model::CartesianParams<float, int> param(order, ex, ey, ez, lx, ly, lz,
+                                             isModelOnNodes);
     model::CartesianUnstructBuilder<float, int> builder(param);
     m_mesh = builder.getModel();
   }
@@ -402,8 +405,8 @@ void SEMproxy::saveSnapshot(int timestep)
 
 SolverFactory::implemType SEMproxy::getImplem(string implemArg)
 {
-  if (implemArg == "geos") return SolverFactory::GEOS;
-  // if (implemArg == "shiva") return SolverFactory::SHIVA;
+  if (implemArg == "makutu") return SolverFactory::MAKUTU;
+  if (implemArg == "shiva") return SolverFactory::SHIVA;
 
   throw std::invalid_argument(
       "Implentation type does not follow any valid type.");
