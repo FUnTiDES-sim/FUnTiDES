@@ -268,3 +268,4 @@ external/pybind11
 external/kokkos
 external/pykokkos-base
 spongeTaperCoeff.txt
+*.svg
