@@ -41,10 +41,8 @@ void bind_cartesian_struct_builder(py::module_ &m)
   py::class_<T, Base, std::shared_ptr<T>>(m, name.c_str())
       .def(py::init<ScalarType, FloatType, ScalarType, FloatType, ScalarType,
                     FloatType, bool>(),
-           py::arg("ex"), py::arg("hx"),
-           py::arg("ey"), py::arg("hy"),
-           py::arg("ez"), py::arg("hz"),
-           py::arg("is_model_on_nodes"));
+           py::arg("ex"), py::arg("hx"), py::arg("ey"), py::arg("hy"),
+           py::arg("ez"), py::arg("hz"), py::arg("is_model_on_nodes"));
 }
 
 // template binder for CartesianParams
@@ -59,7 +57,8 @@ void bind_cartesian_unstruct_params(py::module_ &m)
       .def(py::init<int, ScalarType, ScalarType, ScalarType, FloatType,
                     FloatType, FloatType, bool>(),
            py::arg("order"), py::arg("ex"), py::arg("ey"), py::arg("ez"),
-           py::arg("lx"), py::arg("ly"), py::arg("lz"), py::arg("is_model_on_nodes"))
+           py::arg("lx"), py::arg("ly"), py::arg("lz"),
+           py::arg("is_model_on_nodes"))
       .def_readwrite("order", &Params::order)
       .def_readwrite("ex", &Params::ex)
       .def_readwrite("ey", &Params::ey)
