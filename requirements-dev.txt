@@ -1,0 +1,5 @@
+pytest
+pytest-benchmark
+pygal
+ruff
+clang-format==13
