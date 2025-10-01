@@ -7,6 +7,12 @@ add_library(proxy_solver
             src/geos/SEMQ3_struct_geos_solver.cpp
             src/geos/SEMQ3_unstruct_geos_solver.cpp
             src/shiva/SEMQ1_struct_shiva_solver.cpp
+            src/shiva/cec_O1_struct_shiva.cpp
+            src/shiva/cec_O2_struct_shiva.cpp
+            src/shiva/cec_O3_struct_shiva.cpp
+            src/shiva/cec_O1_ustruct_shiva.cpp
+            src/shiva/cec_O2_ustruct_shiva.cpp
+            src/shiva/cec_O3_ustruct_shiva.cpp
             src/shiva/SEMQ1_unstruct_shiva_solver.cpp
             src/shiva/SEMQ2_struct_shiva_solver.cpp
             src/shiva/SEMQ2_unstruct_shiva_solver.cpp

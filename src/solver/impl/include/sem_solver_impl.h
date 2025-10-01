@@ -13,6 +13,7 @@
 
 #include "fe/Integrals.hpp"
 #include "sem_solver.h"
+#include "compute_element_contributions.h"
 
 template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE>
 void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE>::computeFEInit(
@@ -101,6 +102,15 @@ template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE>
 void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE>::computeElementContributions(
     int i2, const ARRAY_REAL_VIEW &pnGlobal)
 {
+
+  if constexpr (INTEGRAL_TYPE::isShiva)
+  {
+    // Specialization for Shiva mesh
+    solver::kernels::computeElementContributions<ORDER, INTEGRAL_TYPE, MESH_TYPE>(
+        i2, pnGlobal, m_mesh, yGlobal);
+  }
+  else
+  { 
   MAINLOOPHEAD(m_mesh.getNumberOfElements(), elementNumber)
 
   // Guard for extra threads (Kokkos might launch more than needed)
@@ -139,6 +149,8 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE>::computeElementContributions(
   }
 
   MAINLOOPEND
+  }
+
 }
 
 template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE>
