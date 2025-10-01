@@ -211,10 +211,12 @@ void SEMproxy::run()
 
   for (int i = 0; i < pnAtReceiver.extent(0); i++)
   {
+    // get receiver i
     auto subview = Kokkos::subview(pnAtReceiver, i, Kokkos::ALL());
     vectorReal subset("receiver_save", num_sample_);
     Kokkos::deep_copy(subset, subview);
-    io_ctrl_->saveReceiver(subset);
+    // get coords of receiver i
+    io_ctrl_->saveReceiver(subset, src_coord_);
   }
 
   float kerneltime_ms = time_point_cast<microseconds>(totalComputeTime)

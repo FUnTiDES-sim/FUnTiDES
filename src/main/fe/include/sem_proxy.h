@@ -95,9 +95,9 @@ class SEMproxy
   // or any structured mesh
   int nb_elements_[3] = {0};
   int nb_nodes_[3] = {0};
-  float src_coord_[3] = {0};
+  std::array<float, 3> src_coord_ = {0};
+  std::array<float, 3> rcv_coord_ = {0};
   float domain_size_[3] = {0};
-  float rcv_coord_[3] = {0};
 
   // snapshots
   bool is_snapshots_;
