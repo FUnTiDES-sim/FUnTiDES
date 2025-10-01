@@ -11,6 +11,7 @@ For help run with the --help option.
 
 import argparse
 import time
+import os
 from datetime import datetime
 from enum import Enum
 
@@ -26,6 +27,11 @@ CartesianStructBuilderFI2 = Model.CartesianStructBuilder_f32_i32_O2
 CartesianStructBuilderFI3 = Model.CartesianStructBuilder_f32_i32_O3
 CartesianUnstructBuilder = Model.CartesianUnstructBuilder_f32_i32
 CartesianParams = Model.CartesianParams_f32_i32
+
+# Avoid taking the enitre dev node for this example
+os.environ.setdefault("OMP_NUM_THREADS", "6")
+os.environ.setdefault("OMP_THREAD_LIMIT", "6")
+os.environ.setdefault("KOKKOS_NUM_THREADS", "6")
 
 class MemSpace(Enum):
     """
@@ -166,6 +172,12 @@ def parse_args():
         default=2,
         help="Number of right-hand side sources (default: 2)",
     )
+    parser.add_argument(
+        "--on_nodes",
+        type=bool,
+        default=True,
+        help="Whether to apply model on nodes (default: True)",
+    )
     return parser.parse_args()
 
 
@@ -268,7 +280,7 @@ def get_solver_implem_type(implem_type):
             raise ValueError(f"Unknown solver implementation type for: {enum_value.name}")
 
 
-def create_model(model_type, e, h, order):
+def create_model(model_type, e, h, order, on_nodes):
     """
     Create a Cartesian model based on the specified type.
 
@@ -282,6 +294,8 @@ def create_model(model_type, e, h, order):
         Element sizes in each dimension (hx, hy, hz).
     order : int
         The polynomial order of the elements.
+    on_nodes : bool
+        Whether to apply the model on nodes (True) or elements (False).
 
     Returns
     -------
@@ -299,14 +313,14 @@ def create_model(model_type, e, h, order):
         raise ValueError(f"Unknown python model type: {model_type}")
     match enum_value:
         case ModelType.STRUCTURED:
-            return create_structured_model(e, h, order)
+            return create_structured_model(e, h, order, on_nodes)
         case ModelType.UNSTRUCTURED:
-            return create_unstructured_model(e, h, order)
+            return create_unstructured_model(e, h, order, on_nodes)
         case _:
             raise ValueError(f"Unknown model type: {enum_value.name}")
 
 
-def create_structured_model(e, h, order):
+def create_structured_model(e, h, order, on_nodes):
     """
     Create a structured Cartesian model based on the specified order.
 
@@ -318,6 +332,8 @@ def create_structured_model(e, h, order):
         Element sizes in each dimension (hx, hy, hz).
     order : int
         The polynomial order of the elements.
+    on_nodes: bool
+        Whether to apply the model on nodes (True) or elements (False).
 
     Returns
     -------
@@ -331,11 +347,11 @@ def create_structured_model(e, h, order):
     """
     match order:
         case 1:
-            builder = CartesianStructBuilderFI1(e[0], h[0], e[1], h[1], e[2], h[2])
+            builder = CartesianStructBuilderFI1(e[0], h[0], e[1], h[1], e[2], h[2], on_nodes)
         case 2:
-            builder = CartesianStructBuilderFI2(e[0], h[0], e[1], h[1], e[2], h[2])
+            builder = CartesianStructBuilderFI2(e[0], h[0], e[1], h[1], e[2], h[2], on_nodes)
         case 3:
-            builder = CartesianStructBuilderFI3(e[0], h[0], e[1], h[1], e[2], h[2])
+            builder = CartesianStructBuilderFI3(e[0], h[0], e[1], h[1], e[2], h[2], on_nodes)
         case _:
             raise ValueError(
                 f"Order {order} is not wrapped by pybind11 (only 1, 2, 3 supported)"
@@ -343,7 +359,7 @@ def create_structured_model(e, h, order):
     return builder.get_model()
 
 
-def create_unstructured_model(e, h, order):
+def create_unstructured_model(e, h, order, on_nodes):
     """
     Create an unstructured Cartesian model.
 
@@ -355,6 +371,8 @@ def create_unstructured_model(e, h, order):
         Element sizes in each dimension (hx, hy, hz).
     order : int
         The polynomial order of the elements.
+    on_nodes: bool
+        Whether to apply the model on nodes (True) or elements (False).
 
     Returns
     -------
@@ -374,6 +392,7 @@ def create_unstructured_model(e, h, order):
     params.ex, params.ey, params.ez = e
     params.lx, params.ly, params.lz = h
     params.order = order
+    params.is_model_on_nodes = on_nodes
     builder = CartesianUnstructBuilder(params)
     return builder.getModel()
 
@@ -777,6 +796,7 @@ def main():
     args = parse_args()
 
     # Initialize global parameters from command-line arguments
+    on_nodes = args.on_nodes
     f0 = args.f0
     dt = args.dt
     n_time_steps = args.n_time_steps
@@ -827,7 +847,7 @@ def main():
 
     # Create model
     print("Creating model...")
-    model = create_model(args.model, (ex, ey, ez), (hx, hy, hz), order)
+    model = create_model(args.model, (ex, ey, ez), (hx, hy, hz), order, on_nodes)
     print("Model created")
 
     # Create solver
