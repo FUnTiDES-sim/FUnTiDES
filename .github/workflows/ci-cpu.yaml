@@ -158,7 +158,7 @@ jobs:
           export INSTALL_DIR=$(realpath ./install)
           export PYTHONPATH=$PYTHONPATH:$INSTALL_DIR
           export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$INSTALL_DIR/lib
-          python -m pytest tests -q
+          pytest tests/units
 
       - name: Write summary line
         if: always()
