@@ -46,7 +46,7 @@ test_cases_struct = [
 class TestSolverUnstruct:
     @pytest.mark.parametrize("unstruct", test_cases_struct, indirect=True)
     @pytest.mark.parametrize(
-        "implem", [Solver.ImplemType.GEOS, Solver.ImplemType.SHIVA]
+        "implem", [Solver.ImplemType.MAKUTU, Solver.ImplemType.SHIVA]
     )
     def test_solver_one_step(self, unstruct, implem):
         sd, _, builder = unstruct
