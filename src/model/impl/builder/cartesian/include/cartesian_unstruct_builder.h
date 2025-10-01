@@ -9,7 +9,7 @@
 namespace model
 {
 template <typename FloatType, typename ScalarType>
-class CartesianUnstructBuilder : ModelBuilderBase<FloatType, ScalarType>
+class CartesianUnstructBuilder : public ModelBuilderBase<FloatType, ScalarType>
 {
  public:
   using ModelBuilderBase<FloatType, ScalarType>::MAX_ORDER;
