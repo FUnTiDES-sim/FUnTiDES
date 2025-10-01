@@ -142,5 +142,5 @@ pytest tests/benchmarks
 
 To generate benchmark plots
 ```bash
-pytest --benchmark-histogram=struct tests/benchmarks
+pytest --benchmark-histogram=plot tests/benchmarks
 ```
