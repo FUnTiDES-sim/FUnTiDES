@@ -4,10 +4,11 @@ import pytest
 import solver_utils as Utils
 import benchmark_groups as Groups
 
+
 class UnstructData:
     def __init__(self, order):
-        self.ex = self.ey = self.ez = 10
-        self.lx = self.ly = self.lz = 1500
+        self.ex = self.ey = self.ez = 100
+        self.lx = self.ly = self.lz = 2000
         self.order = order
         self.nx = self.ex * self.order + 1
         self.ny = self.ey * self.order + 1
@@ -32,7 +33,7 @@ def unstruct(request):
     return sd, params, builder
 
 
-test_cases_struct = [
+test_cases = [
     # f32, i32 cases (only ones supported by solver so far)
     (1, Model.CartesianParams_f32_i32, Model.CartesianUnstructBuilder_f32_i32, True),
     (1, Model.CartesianParams_f32_i32, Model.CartesianUnstructBuilder_f32_i32, False),
@@ -45,7 +46,7 @@ test_cases_struct = [
 
 class TestSolverUnstruct:
     @pytest.mark.benchmark(group=Groups.BenchmarkGroup.COMPUTE_FE_INIT.name)
-    @pytest.mark.parametrize("unstruct", test_cases_struct, indirect=True)
+    @pytest.mark.parametrize("unstruct", test_cases, indirect=True)
     @pytest.mark.parametrize(
         "implem", [Solver.ImplemType.GEOS, Solver.ImplemType.SHIVA]
     )
@@ -65,7 +66,7 @@ class TestSolverUnstruct:
         benchmark(solver.compute_fe_init, model)
 
     @pytest.mark.benchmark(group=Groups.BenchmarkGroup.COMPUTE_ONE_STEP.name)
-    @pytest.mark.parametrize("unstruct", test_cases_struct, indirect=True)
+    @pytest.mark.parametrize("unstruct", test_cases, indirect=True)
     @pytest.mark.parametrize(
         "implem", [Solver.ImplemType.GEOS, Solver.ImplemType.SHIVA]
     )

@@ -30,7 +30,7 @@ def struct(request):
     return sd, builder
 
 
-test_cases_struct = [
+test_cases = [
     # f32, i32 cases (only ones supported by solver so far)
     (1, Model.CartesianStructBuilder_f32_i32_O1, True),
     (1, Model.CartesianStructBuilder_f32_i32_O1, False),
@@ -43,7 +43,7 @@ test_cases_struct = [
 
 class TestSolverStruct:
     @pytest.mark.benchmark(group=Groups.BenchmarkGroup.COMPUTE_FE_INIT.name)
-    @pytest.mark.parametrize("struct", test_cases_struct, indirect=True)
+    @pytest.mark.parametrize("struct", test_cases, indirect=True)
     @pytest.mark.parametrize(
         "implem", [Solver.ImplemType.GEOS, Solver.ImplemType.SHIVA]
     )
@@ -63,7 +63,7 @@ class TestSolverStruct:
         benchmark(solver.compute_fe_init, model)
 
     @pytest.mark.benchmark(group=Groups.BenchmarkGroup.COMPUTE_ONE_STEP.name)
-    @pytest.mark.parametrize("struct", test_cases_struct, indirect=True)
+    @pytest.mark.parametrize("struct", test_cases, indirect=True)
     @pytest.mark.parametrize(
         "implem", [Solver.ImplemType.GEOS, Solver.ImplemType.SHIVA]
     )

@@ -132,15 +132,15 @@ pip install -r requirements-dev.txt
 
 To run basic python unit tests
 ```bash
-pytest tests/units
+pytest -vv -s  tests/units
 ```
 
 To run python benchmarks
 ```bash
-pytest tests/benchmarks
+pytest -vv -s tests/benchmarks
 ```
 
 To generate benchmark plots
 ```bash
-pytest --benchmark-histogram=plot tests/benchmarks
+pytest -vv -s --benchmark-histogram=plot tests/benchmarks
 ```
