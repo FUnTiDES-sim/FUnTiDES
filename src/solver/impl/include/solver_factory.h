@@ -14,7 +14,7 @@ enum methodType
 };
 enum implemType
 {
-  GEOS,
+  MAKUTU,
   SHIVA
 };
 enum meshType
@@ -40,8 +40,8 @@ inline std::string to_string(implemType i)
 {
   switch (i)
   {
-    case GEOS:
-      return "GEOS";
+    case MAKUTU:
+      return "MAKUTU";
     case SHIVA:
       return "SHIVA";
     default:
