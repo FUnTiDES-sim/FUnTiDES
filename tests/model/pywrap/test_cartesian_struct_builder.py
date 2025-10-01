@@ -1,7 +1,7 @@
 # File: proxys/src/model/pywrap/tests/test_bindings.py
 # Language: python
-import pytest
 import pyproxys.model as Model
+import pytest
 
 
 class StructData:
@@ -20,10 +20,7 @@ def struct(request):
 
     sd = StructData(order)
 
-    builder = builder_cls(sd.ex, sd.hx,
-                          sd.ey, sd.hy,
-                          sd.ez, sd.hz,
-                          on_nodes)
+    builder = builder_cls(sd.ex, sd.hx, sd.ey, sd.hy, sd.ez, sd.hz, on_nodes)
 
     return sd, builder
 

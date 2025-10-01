@@ -1,7 +1,6 @@
 import kokkos
 import numpy as np
 
-
 default_memspace = kokkos.HostSpace
 default_layout = kokkos.LayoutRight
 
@@ -16,7 +15,9 @@ def allocate_pressure(n_dof, memspace=default_memspace, layout=default_layout):
     return kk_pnGlobal, pnGlobal
 
 
-def allocate_rhs_term(n_rhs, n_time_steps, dt, f0, memspace=default_memspace, layout=default_layout):
+def allocate_rhs_term(
+    n_rhs, n_time_steps, dt, f0, memspace=default_memspace, layout=default_layout
+):
     kk_RHSTerm = kokkos.array(
         [n_rhs, n_time_steps], dtype=kokkos.float32, space=memspace, layout=layout
     )
@@ -42,7 +43,9 @@ def allocate_rhs_weight(n_rhs, model, memspace=default_memspace, layout=default_
     return kk_RHSWeights, RHSWeights
 
 
-def allocate_rhs_element(n_rhs, ex, ey, ez, memspace=default_memspace, layout=default_layout):
+def allocate_rhs_element(
+    n_rhs, ex, ey, ez, memspace=default_memspace, layout=default_layout
+):
     kk_RHSElement = kokkos.array(
         [n_rhs], dtype=kokkos.int32, space=memspace, layout=layout
     )

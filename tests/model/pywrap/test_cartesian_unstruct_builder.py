@@ -1,5 +1,5 @@
-import pytest
 import pyproxys.model as Model
+import pytest
 
 
 class UnstructData:

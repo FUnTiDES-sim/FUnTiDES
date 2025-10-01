@@ -1,8 +1,6 @@
-import pytest
-
 import pyproxys.model as Model
 import pyproxys.solver as Solver
-
+import pytest
 import solver_utils as Utils
 
 
@@ -47,7 +45,9 @@ test_cases_struct = [
 
 class TestSolverUnstruct:
     @pytest.mark.parametrize("unstruct", test_cases_struct, indirect=True)
-    @pytest.mark.parametrize("implem", [Solver.ImplemType.GEOS, Solver.ImplemType.SHIVA])
+    @pytest.mark.parametrize(
+        "implem", [Solver.ImplemType.GEOS, Solver.ImplemType.SHIVA]
+    )
     def test_solver_one_step(self, unstruct, implem):
         sd, _, builder = unstruct
         n_rhs = 2
@@ -62,7 +62,9 @@ class TestSolverUnstruct:
         if implem == Solver.ImplemType.SHIVA:
             return
 
-        solver = Solver.create_solver(Solver.MethodType.SEM, implem, Solver.MeshType.UNSTRUCT, sd.order)
+        solver = Solver.create_solver(
+            Solver.MethodType.SEM, implem, Solver.MeshType.UNSTRUCT, sd.order
+        )
 
         solver.compute_fe_init(model)
 
@@ -71,6 +73,8 @@ class TestSolverUnstruct:
         kk_RHSWeights, _ = Utils.allocate_rhs_weight(n_rhs, model)
         kk_RHSTerm, _ = Utils.allocate_rhs_term(n_rhs, n_time_steps, dt, f0)
 
-        data = Solver.SEMsolverData(0, 1, kk_RHSTerm, kk_pnGlobal, kk_RHSElement, kk_RHSWeights)
+        data = Solver.SEMsolverData(
+            0, 1, kk_RHSTerm, kk_pnGlobal, kk_RHSElement, kk_RHSWeights
+        )
 
         solver.compute_one_step(dt, time_sample, data)
