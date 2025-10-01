@@ -8,7 +8,6 @@
 #ifndef SEMPROXY_HPP_
 #define SEMPROXY_HPP_
 
-#include <adios_utils.h>
 #include <data_type.h>
 #include <model_struct.h>
 #include <model_unstruct.h>

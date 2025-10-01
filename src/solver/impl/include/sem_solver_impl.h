@@ -8,7 +8,6 @@
 //************************************************************************
 
 #include <data_type.h>
-#include <adios_utils.h>
 #include <cstdlib>
 
 #include "fe/Integrals.hpp"

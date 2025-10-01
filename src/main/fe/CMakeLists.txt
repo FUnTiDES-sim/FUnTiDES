@@ -19,7 +19,7 @@ if(COMPILE_SEM)
       proxy_model_struct
       proxy_model_unstruct
       proxy_utils
-      proxy_adios
+      adios2::adios2
       ${STDCXXFS_LIB}
   )
 

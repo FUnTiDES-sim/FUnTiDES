@@ -18,7 +18,7 @@ target_include_directories(proxy_solver
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
 )
 
-set(SOLV_LIBS discretization proxy_utils proxy_model_struct proxy_model_unstruct proxy_solver_api proxy_model_api proxy_adios)
+set(SOLV_LIBS discretization proxy_utils proxy_model_struct proxy_model_unstruct proxy_solver_api proxy_model_api)
 
 target_link_kokkos_if_enabled(proxy_solver)
 

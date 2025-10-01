@@ -12,9 +12,3 @@ target_include_directories(proxy_adios INTERFACE
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
     $<INSTALL_INTERFACE:include>
 )
-
-target_link_libraries(proxy_adios INTERFACE adios2::adios2)
-
-target_sources(proxy_adios INTERFACE
-    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include/adios_utils.h>
-)
