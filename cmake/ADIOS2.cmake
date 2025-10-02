@@ -62,14 +62,3 @@ if(NOT TARGET adios2::adios2)
     endif()
 
 endif()
-
-# Function to link ADIOS2 target
-function(target_link_adios2 target_name)
-    if(TARGET adios2::adios2)
-        target_link_libraries(${target_name} PRIVATE adios2::adios2)
-        target_compile_definitions(${target_name} PRIVATE ADIOS2_AVAILABLE)
-        message(STATUS "Linked ADIOS2 to ${target_name}")
-    else()
-        message(WARNING "ADIOS2 target not available for linking to ${target_name}")
-    endif()
-endfunction()
