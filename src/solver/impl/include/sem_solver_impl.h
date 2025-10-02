@@ -154,14 +154,6 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE>::computeElementContributions(
     inv_density = 1.0f / m_mesh.getModelRhoOnElement(elementNumber);
   }
 
-  // Stiffness term
-
-  for (int i = 0; i < m_mesh.getNumberOfPointsPerElement(); ++i)
-  {
-    Y[i] = 0;
-    massMatrixLocal[i] = 0;
-  }
-
   INTEGRAL_TYPE::computeMassTerm(
       cornerCoords,
       [&](const int j, const real_t val) { massMatrixLocal[j] += val; });
