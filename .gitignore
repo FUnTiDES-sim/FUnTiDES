@@ -269,3 +269,5 @@ external/kokkos
 external/pykokkos-base
 spongeTaperCoeff.txt
 *.svg
+snap*.png
+receiver.dat
