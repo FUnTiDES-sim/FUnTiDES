@@ -5,5 +5,3 @@ target_include_directories(proxy_utils
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
     $<BUILD_INTERFACE:${CMAKE_BINARY_DIR}/src/utils/include>
 )
-
-add_library(proxy_adios INTERFACE)

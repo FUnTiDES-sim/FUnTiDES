@@ -98,7 +98,7 @@ class SemIOController
     attachOperator();
   }
 
-  SemIOController() = default;
+  SemIOController();
 
   ~SemIOController()
   {
