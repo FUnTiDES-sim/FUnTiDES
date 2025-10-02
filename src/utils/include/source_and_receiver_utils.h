@@ -3,6 +3,7 @@
 
 #include "../../src/discretization/fe/SEMKernels/src/finiteElement/makutu/Qk_Hexahedron_Lagrange_GaussLobatto.hpp"
 #include "data_type.h"
+#include <array>
 
 using namespace std::chrono;
 

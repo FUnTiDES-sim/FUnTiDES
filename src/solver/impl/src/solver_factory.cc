@@ -73,7 +73,7 @@ std::unique_ptr<SolverBase> createSolver(methodType const methodType,
       case MAKUTU:
         return make_sem_solver<IntegralType::MAKUTU>(order, mesh);
         // case SHIVA:
-        // return make_sem_solver<IntegralType::SHIVA>(order, mesh);
+        //   return make_sem_solver<IntegralType::SHIVA>(order, mesh);
     }
   }
 

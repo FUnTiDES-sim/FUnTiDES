@@ -31,7 +31,7 @@ endif()
 
 message( STATUS "Using clang-format executable: ${CLANG_FORMAT_EXECUTABLE}" )
 
-# add_custom_target( apply_clang_format
-#                    COMMAND ${CLANG_FORMAT_EXECUTABLE} -i -style=file -fallback-style=none ${ALL_SOURCE_FILES}
-#                    WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
-# )
+add_custom_target( apply_clang_format
+                   COMMAND ${CLANG_FORMAT_EXECUTABLE} -i -style=file -fallback-style=none ${ALL_SOURCE_FILES}
+                   WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+)

@@ -7,8 +7,3 @@ target_include_directories(proxy_utils
 )
 
 add_library(proxy_adios INTERFACE)
-
-target_include_directories(proxy_adios INTERFACE
-    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
-    $<INSTALL_INTERFACE:include>
-)

@@ -149,12 +149,12 @@ pytest -vv -s --benchmark-histogram=plot tests/benchmarks
 
 To plot the snapshots we provide a python script:
 ```bash
-python3 ./scripts/adios_cartesian_snap_viz.py 201 201 201 --file snapshots.bp --slice
+python ./scripts/adios_cartesian_snap_viz.py 201 201 201 --file snapshots.bp --slice
 ```
 where 201 values should be replaced by number of nodes on x y and z. And file correpond to the `snapshots.bp` folder with bp5 files.
 
 For the receivers:
 ``` bash
-python3 ./scripts/adios_single_receiver_viz.py
+python ./scripts/adios_single_receiver_viz.py
 ```
 within the folder containing the `receivers.bp` folder.
