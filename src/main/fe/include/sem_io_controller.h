@@ -98,7 +98,7 @@ class SemIOController
     attachOperator();
   }
 
-  SemIOController();
+  SemIOController() = delete;
 
   ~SemIOController()
   {
