@@ -263,76 +263,59 @@ class ModelUnstruct : public ModelApi<FloatType, ScalarType>
   {
     FloatType minSpacing = std::numeric_limits<FloatType>::max();
 
-    // Iterate through all elements
-    for (ScalarType e = 0; e < n_element_; ++e)
+    // Since all elements are the same size, only check the first element
+    constexpr ScalarType e = 0;
+
+    // Check i-direction spacing
+    for (int k = 0; k <= order_; ++k)
     {
-      // Check spacing in each dimension within the element
-      for (int dim = 0; dim < 3; ++dim)
+      for (int j = 0; j <= order_; ++j)
       {
-        // Check i-direction spacing
-        for (int j = 0; j <= order_; ++j)
+        for (int i = 0; i < order_; ++i)
         {
-          for (int k = 0; k <= order_; ++k)
-          {
-            for (int i = 0; i < order_; ++i)
-            {
-              ScalarType node1 = globalNodeIndex(e, i, j, k);
-              ScalarType node2 = globalNodeIndex(e, i + 1, j, k);
-
-              FloatType coord1 = nodeCoord(node1, dim);
-              FloatType coord2 = nodeCoord(node2, dim);
-              FloatType spacing = abs(coord2 - coord1);
-
-              if (spacing > 0 && spacing < minSpacing)
-              {
-                minSpacing = spacing;
-              }
-            }
-          }
+          ScalarType node1 = globalNodeIndex(e, i, j, k);
+          ScalarType node2 = globalNodeIndex(e, i + 1, j, k);
+          FloatType dx = nodeCoord(node2, 0) - nodeCoord(node1, 0);
+          FloatType dy = nodeCoord(node2, 1) - nodeCoord(node1, 1);
+          FloatType dz = nodeCoord(node2, 2) - nodeCoord(node1, 2);
+          FloatType spacing = sqrt(dx * dx + dy * dy + dz * dz);
+          minSpacing = fmin(minSpacing, spacing);
         }
+      }
+    }
 
-        // Check j-direction spacing
-        for (int i = 0; i <= order_; ++i)
+    // Check j-direction spacing
+    for (int k = 0; k <= order_; ++k)
+    {
+      for (int i = 0; i <= order_; ++i)
+      {
+        for (int j = 0; j < order_; ++j)
         {
-          for (int k = 0; k <= order_; ++k)
-          {
-            for (int j = 0; j < order_; ++j)
-            {
-              ScalarType node1 = globalNodeIndex(e, i, j, k);
-              ScalarType node2 = globalNodeIndex(e, i, j + 1, k);
-
-              FloatType coord1 = nodeCoord(node1, dim);
-              FloatType coord2 = nodeCoord(node2, dim);
-              FloatType spacing = abs(coord2 - coord1);
-
-              if (spacing > 0 && spacing < minSpacing)
-              {
-                minSpacing = spacing;
-              }
-            }
-          }
+          ScalarType node1 = globalNodeIndex(e, i, j, k);
+          ScalarType node2 = globalNodeIndex(e, i, j + 1, k);
+          FloatType dx = nodeCoord(node2, 0) - nodeCoord(node1, 0);
+          FloatType dy = nodeCoord(node2, 1) - nodeCoord(node1, 1);
+          FloatType dz = nodeCoord(node2, 2) - nodeCoord(node1, 2);
+          FloatType spacing = sqrt(dx * dx + dy * dy + dz * dz);
+          minSpacing = fmin(minSpacing, spacing);
         }
+      }
+    }
 
-        // Check k-direction spacing
-        for (int i = 0; i <= order_; ++i)
+    // Check k-direction spacing
+    for (int j = 0; j <= order_; ++j)
+    {
+      for (int i = 0; i <= order_; ++i)
+      {
+        for (int k = 0; k < order_; ++k)
         {
-          for (int j = 0; j <= order_; ++j)
-          {
-            for (int k = 0; k < order_; ++k)
-            {
-              ScalarType node1 = globalNodeIndex(e, i, j, k);
-              ScalarType node2 = globalNodeIndex(e, i, j, k + 1);
-
-              FloatType coord1 = nodeCoord(node1, dim);
-              FloatType coord2 = nodeCoord(node2, dim);
-              FloatType spacing = abs(coord2 - coord1);
-
-              if (spacing > 0 && spacing < minSpacing)
-              {
-                minSpacing = spacing;
-              }
-            }
-          }
+          ScalarType node1 = globalNodeIndex(e, i, j, k);
+          ScalarType node2 = globalNodeIndex(e, i, j, k + 1);
+          FloatType dx = nodeCoord(node2, 0) - nodeCoord(node1, 0);
+          FloatType dy = nodeCoord(node2, 1) - nodeCoord(node1, 1);
+          FloatType dz = nodeCoord(node2, 2) - nodeCoord(node1, 2);
+          FloatType spacing = sqrt(dx * dx + dy * dy + dz * dz);
+          minSpacing = fmin(minSpacing, spacing);
         }
       }
     }
