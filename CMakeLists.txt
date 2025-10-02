@@ -18,6 +18,7 @@ include(cmake/ProxyConfig.cmake)    # This must go *before* other configurations
 include(cmake/OpenmpConfig.cmake)
 include(cmake/PywrapConfig.cmake)   # This must go *before* add_subdirectory(kokkos)
 include(cmake/KokkosConfig.cmake)
+include(cmake/ADIOS2.cmake)
 
 #--------------------------------------------------------
 # Custom cmake functions
