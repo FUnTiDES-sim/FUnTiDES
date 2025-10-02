@@ -21,7 +21,11 @@ if(COMPILE_SEM)
       proxy_model_struct
       proxy_model_unstruct
       proxy_utils
+      adios2::adios2
       ${STDCXXFS_LIB}
   )
+
+install(TARGETS semproxy
+        RUNTIME DESTINATION bin)
 
 endif()
