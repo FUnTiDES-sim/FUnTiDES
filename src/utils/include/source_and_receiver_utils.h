@@ -1,6 +1,8 @@
 #ifndef SOURCEANDRECEIVERUTILS_HPP
 #define SOURCEANDRECEIVERUTILS_HPP
 
+#include <array>
+
 #include "../../src/discretization/fe/SEMKernels/src/finiteElement/makutu/Qk_Hexahedron_Lagrange_GaussLobatto.hpp"
 #include "data_type.h"
 
@@ -10,7 +12,8 @@ namespace SourceAndReceiverUtils
 {
 
 template <int ORDER>
-void ComputeRHSWeights(real_t const (&cornerCoords)[8][3], float coordsReal[3],
+void ComputeRHSWeights(real_t const (&cornerCoords)[8][3],
+                       std::array<float, 3> coordsReal,
                        ARRAY_REAL_VIEW& rhsWeights)
 {
   constexpr int numNodes =

@@ -294,14 +294,4 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE>::initSpongeValues()
   }
 
   FENCE
-
-  // Debuging: Wrinting down all taper coef
-  std::ofstream outfile("spongeTaperCoeff.txt");
-  for (int i = 0; i < m_mesh.getNumberOfNodes(); i++)
-  {
-    outfile << spongeTaperCoeff(i) << ' ';
-  }
-
-  outfile << endl;
-  outfile.close();
 }
