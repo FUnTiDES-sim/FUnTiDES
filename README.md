@@ -1,6 +1,6 @@
-# proxyApp: Wave simulations simplified
+# FUnTiDES: Fast Unstructured Time Dynamic Equation Solver
 
-**proxyApp** is a collection of simplified codes that represent real scientific applications. It serves as a standard tool for evaluating and comparing the performance of various high-performance computing (HPC) systems, particularly those used for scientific simulations.
+**FUnTiDES** is a collection of simplified codes that represent real scientific applications. It serves as a standard tool for evaluating and comparing the performance of various high-performance computing (HPC) systems, particularly those used for scientific simulations.
 
 ---
 
