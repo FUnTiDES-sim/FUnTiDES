@@ -1,0 +1,22 @@
+name: Format Check
+
+on:
+  workflow_call:
+
+jobs:
+  format-check:
+    name: Code Formatting Check
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        path: ['src', 'tests']
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Run clang-format style check
+        uses: jidicula/clang-format-action@v4.11.0
+        with:
+          clang-format-version: '13'
+          check-path: ${{ matrix.path }}

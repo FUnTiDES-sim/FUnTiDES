@@ -19,6 +19,7 @@ include(cmake/OpenmpConfig.cmake)
 include(cmake/PywrapConfig.cmake)   # This must go *before* add_subdirectory(kokkos)
 include(cmake/KokkosConfig.cmake)
 include(cmake/ADIOS2.cmake)
+include(cmake/Googletest.cmake)
 
 #--------------------------------------------------------
 # Custom cmake functions
@@ -31,6 +32,7 @@ include(cmake/PywrapUtils.cmake)
 # Subdirectories
 #--------------------------------------------------------
 add_subdirectory(src)
+add_subdirectory(tests)
 
 #--------------------------------------------------------
 # Print configuration summary
