@@ -125,6 +125,12 @@ jobs:
           cd build
           make -j$(nproc)
 
+      - name: Test
+        id: test
+        run: |
+          cd build
+          ctest --output-on-failure
+
       - name: Install
         id: install
         run: |
