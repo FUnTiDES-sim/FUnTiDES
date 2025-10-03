@@ -15,18 +15,7 @@ jobs:
 
   # Format check job - runs first and blocks everything else if it fails
   format-check:
-    name: Code Formatting Check
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Run clang-format style check
-        uses: jidicula/clang-format-action@v4.11.0
-        with:
-          clang-format-version: '13'
-          check-path: 'src'
+    uses: ./.github/workflows/format-check.yaml
 
   build:
     runs-on: ubuntu-latest
