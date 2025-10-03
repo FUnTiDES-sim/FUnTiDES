@@ -84,14 +84,17 @@ TEST_P(CartesianStructBuilderFixture, MultipleCallsReturnDifferentInstances) {
 
 // Test polymorphic behavior
 TEST_P(CartesianStructBuilderFixture, PolymorphicBehavior) {
+    // Prepare
     int order = std::get<0>(GetParam());
     bool isModelOnNodes = std::get<1>(GetParam());
-    auto builder = createBuilder(order, isModelOnNodes);
 
+    // Act
+    auto builder = createBuilder(order, isModelOnNodes);
     ASSERT_NE(builder, nullptr);
     ModelBuilderBase<float, int>* base_ptr = builder.get();
     auto model = base_ptr->getModel();
     
+    // Assert
     ASSERT_NE(model, nullptr);
 }
 
