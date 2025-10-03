@@ -47,7 +47,8 @@ class ModelStruct : public ModelApi<FloatType, ScalarType>
         ez_(data.ez_),
         hx_(data.dx_),
         hy_(data.dy_),
-        hz_(data.dz_)
+        hz_(data.dz_),
+        isModelOnNodes_(data.isModelOnNodes_)
   {
     nx_ = Order * ex_ + 1;
     ny_ = Order * ey_ + 1;

@@ -32,6 +32,7 @@ include(cmake/PywrapUtils.cmake)
 # Subdirectories
 #--------------------------------------------------------
 add_subdirectory(src)
+add_subdirectory(tests)
 
 #--------------------------------------------------------
 # Print configuration summary
