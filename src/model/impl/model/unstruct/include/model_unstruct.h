@@ -258,81 +258,89 @@ class ModelUnstruct : public ModelApi<FloatType, ScalarType>
     }
   }
 
+  /**
+   * @brief Computes the minimum spacing between neighboring quadrature points.
+   *
+   * This function calculates the minimum Euclidean distance between adjacent
+   * quadrature points in the spectral element mesh. Since all elements have
+   * identical size and shape, the minimum spacing is computed by examining only
+   * the first element (e=0), avoiding redundant calculations across all
+   * elements.
+   *
+   * The algorithm checks spacing in three directions:
+   * - i-direction: spacing between points (i, j, k) and (i+1, j, k)
+   * - j-direction: spacing between points (i, j, k) and (i, j+1, k)
+   * - k-direction: spacing between points (i, j, k) and (i, j, k+1)
+   *
+   * For each neighboring pair, the 3D Euclidean distance is computed:
+   * distance = sqrt((x2-x1)² + (y2-y1)² + (z2-z1)²)
+   *
+   * @return The minimum spacing (in physical coordinates) between any two
+   *         neighboring quadrature points in the mesh.
+   *
+   * @note This function assumes all elements are identical in size and shape.
+   * @note Only checks direct neighbors along grid lines, not diagonal
+   * neighbors.
+   * @note Complexity: O(order³) instead of O(n_element × order³)
+   */
   PROXY_HOST_DEVICE
   FloatType getMinSpacing() const final
   {
     FloatType minSpacing = std::numeric_limits<FloatType>::max();
 
-    // Iterate through all elements
-    for (ScalarType e = 0; e < n_element_; ++e)
+    // Since all elements are the same size, only check the first element
+    constexpr ScalarType e = 0;
+
+    // Check i-direction spacing
+    for (int k = 0; k <= order_; ++k)
     {
-      // Check spacing in each dimension within the element
-      for (int dim = 0; dim < 3; ++dim)
+      for (int j = 0; j <= order_; ++j)
       {
-        // Check i-direction spacing
-        for (int j = 0; j <= order_; ++j)
+        for (int i = 0; i < order_; ++i)
         {
-          for (int k = 0; k <= order_; ++k)
-          {
-            for (int i = 0; i < order_; ++i)
-            {
-              ScalarType node1 = globalNodeIndex(e, i, j, k);
-              ScalarType node2 = globalNodeIndex(e, i + 1, j, k);
-
-              FloatType coord1 = nodeCoord(node1, dim);
-              FloatType coord2 = nodeCoord(node2, dim);
-              FloatType spacing = abs(coord2 - coord1);
-
-              if (spacing > 0 && spacing < minSpacing)
-              {
-                minSpacing = spacing;
-              }
-            }
-          }
+          ScalarType node1 = globalNodeIndex(e, i, j, k);
+          ScalarType node2 = globalNodeIndex(e, i + 1, j, k);
+          FloatType dx = nodeCoord(node2, 0) - nodeCoord(node1, 0);
+          FloatType dy = nodeCoord(node2, 1) - nodeCoord(node1, 1);
+          FloatType dz = nodeCoord(node2, 2) - nodeCoord(node1, 2);
+          FloatType spacing = sqrt(dx * dx + dy * dy + dz * dz);
+          minSpacing = fmin(minSpacing, spacing);
         }
+      }
+    }
 
-        // Check j-direction spacing
-        for (int i = 0; i <= order_; ++i)
+    // Check j-direction spacing
+    for (int k = 0; k <= order_; ++k)
+    {
+      for (int i = 0; i <= order_; ++i)
+      {
+        for (int j = 0; j < order_; ++j)
         {
-          for (int k = 0; k <= order_; ++k)
-          {
-            for (int j = 0; j < order_; ++j)
-            {
-              ScalarType node1 = globalNodeIndex(e, i, j, k);
-              ScalarType node2 = globalNodeIndex(e, i, j + 1, k);
-
-              FloatType coord1 = nodeCoord(node1, dim);
-              FloatType coord2 = nodeCoord(node2, dim);
-              FloatType spacing = abs(coord2 - coord1);
-
-              if (spacing > 0 && spacing < minSpacing)
-              {
-                minSpacing = spacing;
-              }
-            }
-          }
+          ScalarType node1 = globalNodeIndex(e, i, j, k);
+          ScalarType node2 = globalNodeIndex(e, i, j + 1, k);
+          FloatType dx = nodeCoord(node2, 0) - nodeCoord(node1, 0);
+          FloatType dy = nodeCoord(node2, 1) - nodeCoord(node1, 1);
+          FloatType dz = nodeCoord(node2, 2) - nodeCoord(node1, 2);
+          FloatType spacing = sqrt(dx * dx + dy * dy + dz * dz);
+          minSpacing = fmin(minSpacing, spacing);
         }
+      }
+    }
 
-        // Check k-direction spacing
-        for (int i = 0; i <= order_; ++i)
+    // Check k-direction spacing
+    for (int j = 0; j <= order_; ++j)
+    {
+      for (int i = 0; i <= order_; ++i)
+      {
+        for (int k = 0; k < order_; ++k)
         {
-          for (int j = 0; j <= order_; ++j)
-          {
-            for (int k = 0; k < order_; ++k)
-            {
-              ScalarType node1 = globalNodeIndex(e, i, j, k);
-              ScalarType node2 = globalNodeIndex(e, i, j, k + 1);
-
-              FloatType coord1 = nodeCoord(node1, dim);
-              FloatType coord2 = nodeCoord(node2, dim);
-              FloatType spacing = abs(coord2 - coord1);
-
-              if (spacing > 0 && spacing < minSpacing)
-              {
-                minSpacing = spacing;
-              }
-            }
-          }
+          ScalarType node1 = globalNodeIndex(e, i, j, k);
+          ScalarType node2 = globalNodeIndex(e, i, j, k + 1);
+          FloatType dx = nodeCoord(node2, 0) - nodeCoord(node1, 0);
+          FloatType dy = nodeCoord(node2, 1) - nodeCoord(node1, 1);
+          FloatType dz = nodeCoord(node2, 2) - nodeCoord(node1, 2);
+          FloatType spacing = sqrt(dx * dx + dy * dy + dz * dz);
+          minSpacing = fmin(minSpacing, spacing);
         }
       }
     }
@@ -345,9 +353,19 @@ class ModelUnstruct : public ModelApi<FloatType, ScalarType>
     FloatType maxSpeedNode;
     FloatType maxSpeedElem;
 
-    FIND_MAX(model_vp_node_, n_node_, maxSpeedNode);
-    FIND_MAX(model_vp_node_, n_element_, maxSpeedElem);
-
+    if (model_vp_node_.extent(0) > 0)
+    {
+      FIND_MAX(model_vp_node_, n_node_, maxSpeedNode);
+    }
+    else if (model_vp_element_.extent(0) > 0)
+    {
+      FIND_MAX(model_vp_element_, n_element_, maxSpeedElem);
+    }
+    else
+    {
+      throw std::runtime_error(
+          "No model initialized (model unstruct getMaxSpeed).");
+    }
     return max(maxSpeedElem, maxSpeedNode);
   }
 
