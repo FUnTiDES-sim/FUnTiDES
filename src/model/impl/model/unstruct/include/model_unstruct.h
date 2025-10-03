@@ -41,6 +41,9 @@ template <typename FloatType, typename ScalarType>
 class ModelUnstruct : public ModelApi<FloatType, ScalarType>
 {
  public:
+
+  using IndexType = int;
+
   /**
    * @brief Default constructor.
    */
@@ -81,6 +84,17 @@ class ModelUnstruct : public ModelApi<FloatType, ScalarType>
    */
   PROXY_HOST_DEVICE ~ModelUnstruct() = default;
 
+
+
+
+  PROXY_HOST_DEVICE
+  void vertexCoords(IndexType dofGlobal, FloatType (&coords)[3]) const
+  {
+    coords[0] = nodes_coords_x_[dofGlobal];
+    coords[1] = nodes_coords_y_[dofGlobal];
+    coords[2] = nodes_coords_z_[dofGlobal];
+  }
+
   /**
    * @brief Get the coordinate of a global node in the given dimension.
    * @param dofGlobal Global node index
@@ -106,6 +120,8 @@ class ModelUnstruct : public ModelApi<FloatType, ScalarType>
     }
   }
 
+
+
   /**
    * @brief Get the global node index for a local element-node triplet.
    * @param e Element index
@@ -121,6 +137,14 @@ class ModelUnstruct : public ModelApi<FloatType, ScalarType>
         i + j * (order_ + 1) + k * (order_ + 1) * (order_ + 1);
     return global_node_index_(e, localDofIndex);  // Fixed: was elementIndex
   }
+
+  PROXY_HOST_DEVICE
+  void elementIndex( const int linearIndex, IndexType& elemIndex ) const
+  {
+    elemIndex = linearIndex;
+  }
+
+  
 
   /**
    * @brief Get the P-wave velocity value at a global node.

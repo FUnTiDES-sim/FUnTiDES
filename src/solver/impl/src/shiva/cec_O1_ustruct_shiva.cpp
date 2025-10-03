@@ -1,6 +1,6 @@
 #include <model_unstruct.h>
 
-#include "compute_element_contributions.h"
+#include "compute_element_contributions_impl.h"
 
 #include "Integrals.hpp"
 

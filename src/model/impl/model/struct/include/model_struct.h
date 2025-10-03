@@ -12,6 +12,7 @@ template <typename FloatType, typename ScalarType>
 struct ModelStructData
 {
  public:
+
   // GPU-compatible special member functions
   PROXY_HOST_DEVICE ModelStructData() = default;
   PROXY_HOST_DEVICE ~ModelStructData() = default;
@@ -30,6 +31,9 @@ template <typename FloatType, typename ScalarType, int Order>
 class ModelStruct final : public ModelApi<FloatType, ScalarType>
 {
  public:
+  using IndexType = int[3];
+
+
   /**
    * @brief Default constructor.
    */
@@ -71,6 +75,16 @@ class ModelStruct final : public ModelApi<FloatType, ScalarType>
    * @brief Destructor.
    */
   PROXY_HOST_DEVICE ~ModelStruct() = default;
+
+
+
+  PROXY_HOST_DEVICE
+  void vertexCoords( IndexType dofGlobal, FloatType (&coords)[3] ) const
+  {
+    coords[0] = dofGlobal[0] * ex_;
+    coords[1] = dofGlobal[1] * ey_;
+    coords[2] = dofGlobal[2] * ez_;
+  }
 
   /**
    * @brief Get the coordinate of a global node in the given dimension.
@@ -146,6 +160,22 @@ class ModelStruct final : public ModelApi<FloatType, ScalarType>
     int iz = elemZ * Order + k;
 
     return ix + iy * nx_ + iz * nx_ * ny_;
+  }
+
+
+  PROXY_HOST_DEVICE
+  void elementIndex( const int linearIndex, IndexType& elemIndex ) const
+  {
+    elemIndex[2] = linearIndex / ( ex_ * ey_ );
+    int rem = linearIndex - elemIndex[2] * ( ex_ * ey_ );
+    elemIndex[1] = rem / ex_;
+    elemIndex[0] = rem - elemIndex[1] * ex_;
+  }
+
+  PROXY_HOST_DEVICE
+  ScalarType globalNodeIndex( const IndexType& elemIndex, const int i, const int j, const int k) const
+  {
+    return (elemIndex[0]+i) + nx_ * ( (elemIndex[1]+j) + ny_ * (elemIndex[2]+k) );
   }
 
   /**
