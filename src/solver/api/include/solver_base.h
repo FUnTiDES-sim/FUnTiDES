@@ -26,7 +26,7 @@ class SolverBase
                               DataStruct &data) = 0;
 
   // Pure virtual function to initialize finite element components
-  virtual void computeFEInit(model::ModelApi<float, int> &mesh,
+  virtual void computeFEInit(model::mesh::ModelApi<float, int> &mesh,
                              const std::array<float, 3> &sponge_size,
                              const bool surface_sponge,
                              const float taper_delta) = 0;

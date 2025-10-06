@@ -5,4 +5,4 @@
 constexpr int ORDER = 2;
 template class SEMsolver<
     ORDER, IntegralTypeSelector<ORDER, IntegralType::MAKUTU>::type,
-    model::ModelUnstruct<float, int> >;
+    model::mesh::ModelUnstruct<float, int> >;
