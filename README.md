@@ -57,7 +57,7 @@ Unit tests only
 ctest -LE benchmark
 ```
 
-Benchmarks only
+Benchmarks only, results will be stored in results generated in `build/Benchmarking` as a json file.
 ```sh
 ctest -L benchmark
 ```
@@ -67,7 +67,7 @@ Or just both
 ctest
 ```
 
-To can compare benchmarks results generated in `build/Benchmarking` against baselines use the compare tool from google benchmark, e.g. :
+To can compare your build against baselines use the compare tool from google benchmark.
 ```python
 python ../external/benchmark/tools/compare.py benchmarks  \
        ../tests/benchmarks/cpp/baselines/cpu/amd-epyc-9534_64-core/bench_solver_struct_latest.json \
