@@ -15,11 +15,11 @@ class CartesianStructBuilderFixture
 {
  protected:
   static constexpr int ex = 10;
-  static constexpr float hx = 0.1f;
+  static constexpr float lx = 1;
   static constexpr int ey = 20;
-  static constexpr float hy = 0.2f;
+  static constexpr float ly = 4;
   static constexpr int ez = 30;
-  static constexpr float hz = 0.3f;
+  static constexpr float lz = 9;
 
   std::unique_ptr<ModelBuilderBase<float, int>> createBuilder(
       int order, bool isModelOnNodes)
@@ -28,16 +28,16 @@ class CartesianStructBuilderFixture
     {
       case 1:
         return std::make_unique<CartesianStructBuilder<float, int, 1>>(
-            ex, hx, ey, hy, ez, hz, isModelOnNodes);
+            ex, lx, ey, ly, ez, lz, isModelOnNodes);
       case 2:
         return std::make_unique<CartesianStructBuilder<float, int, 2>>(
-            ex, hx, ey, hy, ez, hz, isModelOnNodes);
+            ex, lx, ey, ly, ez, lz, isModelOnNodes);
       case 3:
         return std::make_unique<CartesianStructBuilder<float, int, 3>>(
-            ex, hx, ey, hy, ez, hz, isModelOnNodes);
+            ex, lx, ey, ly, ez, lz, isModelOnNodes);
       case 4:
         return std::make_unique<CartesianStructBuilder<float, int, 4>>(
-            ex, hx, ey, hy, ez, hz, isModelOnNodes);
+            ex, lx, ey, ly, ez, lz, isModelOnNodes);
       default:
         return nullptr;
     }
@@ -71,9 +71,9 @@ TEST_P(CartesianStructBuilderFixture, GetModelReturnsValidModel)
   EXPECT_EQ(model->getNumberOfElements(), 10 * 20 * 30);
   EXPECT_EQ(model->getNumberOfNodes(),
             (10 * order + 1) * (20 * order + 1) * (30 * order + 1));
-  EXPECT_FLOAT_EQ(model->domainSize(0), 10 * 0.1f);
-  EXPECT_FLOAT_EQ(model->domainSize(1), 20 * 0.2f);
-  EXPECT_FLOAT_EQ(model->domainSize(2), 30 * 0.3f);
+  EXPECT_FLOAT_EQ(model->domainSize(0), 1);
+  EXPECT_FLOAT_EQ(model->domainSize(1), 4);
+  EXPECT_FLOAT_EQ(model->domainSize(2), 9);
 }
 
 // Test multiple calls return different instances
