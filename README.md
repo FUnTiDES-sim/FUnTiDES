@@ -45,12 +45,29 @@ The current SEM proxy supports the following data container:
 mkdir build
 cd build
 cmake ..
-make
+make install
 ```
 
 By default, this builds the applications in sequential mode using `std::vector`. Both SEM and FD applications are compiled.
 
-### Step 2: Run Examples
+### Step 2: Run Tests & Benchmarks
+
+Unit tests only
+```sh
+ctest -LE benchmark
+```
+
+Benchmarks only
+```sh
+ctest -L benchmark
+```
+
+Or just both
+```sh
+ctest
+```
+
+### Step 3: Run Examples
 
 ```sh
 # Run SEM simulation with 100 x 100 x 100 elements

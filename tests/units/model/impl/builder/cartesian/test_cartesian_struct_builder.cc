@@ -9,9 +9,8 @@ namespace model
 namespace test
 {
 
-// Parameterized test fixture for different orders and isModelOnNodes values
-class CartesianStructBuilderFixture
-    : public ::testing::TestWithParam<std::tuple<int, bool>>
+template <typename T>
+class CartesianStructInputs : public ::testing::Test
 {
  protected:
   static constexpr int ex = 10;
@@ -20,52 +19,45 @@ class CartesianStructBuilderFixture
   static constexpr float hy = 0.2f;
   static constexpr int ez = 30;
   static constexpr float hz = 0.3f;
-
-  std::unique_ptr<ModelBuilderBase<float, int>> createBuilder(
-      int order, bool isModelOnNodes)
-  {
-    switch (order)
-    {
-      case 1:
-        return std::make_unique<CartesianStructBuilder<float, int, 1>>(
-            ex, hx, ey, hy, ez, hz, isModelOnNodes);
-      case 2:
-        return std::make_unique<CartesianStructBuilder<float, int, 2>>(
-            ex, hx, ey, hy, ez, hz, isModelOnNodes);
-      case 3:
-        return std::make_unique<CartesianStructBuilder<float, int, 3>>(
-            ex, hx, ey, hy, ez, hz, isModelOnNodes);
-      case 4:
-        return std::make_unique<CartesianStructBuilder<float, int, 4>>(
-            ex, hx, ey, hy, ez, hz, isModelOnNodes);
-      default:
-        return nullptr;
-    }
-  }
 };
 
-// Instantiate the parameterized tests with different orders and isModelOnNodes
-// values
-INSTANTIATE_TEST_SUITE_P(CartesianStructBuilderTests,
-                         CartesianStructBuilderFixture,
-                         ::testing::Combine(::testing::Values(1, 2, 3, 4),
-                                            ::testing::Bool()));
+// Template struct to hold Order and isModelOnNodes parameters
+template <int Order, bool IsModelOnNodes>
+struct BuilderConfig
+{
+  using Type = CartesianStructBuilder<float, int, Order>;
+  static constexpr int order = Order;
+  static constexpr bool isModelOnNodes = IsModelOnNodes;
+};
+
+// Define all combinations of Order (1-4) and isModelOnNodes (true/false)
+using BuilderTypes = ::testing::Types<
+    BuilderConfig<1, true>,
+    BuilderConfig<1, false>,
+    BuilderConfig<2, true>,
+    BuilderConfig<2, false>,
+    BuilderConfig<3, true>,
+    BuilderConfig<3, false>,
+    BuilderConfig<4, true>,
+    BuilderConfig<4, false>>;
+
+TYPED_TEST_SUITE(CartesianStructInputs, BuilderTypes);
 
 // Test constructor and getModel for all orders and isModelOnNodes values, and
 // check resulting model values
-TEST_P(CartesianStructBuilderFixture, GetModelReturnsValidModel)
+TYPED_TEST(CartesianStructInputs, GetModelReturnsValidModel)
 {
   // Prepare
-  int order = std::get<0>(GetParam());
-  bool isModelOnNodes = std::get<1>(GetParam());
+  constexpr int order = TypeParam::order;
+  constexpr bool isModelOnNodes = TypeParam::isModelOnNodes;
 
   // Act
-  auto builder = createBuilder(order, isModelOnNodes);
-  ASSERT_NE(builder, nullptr);
-  auto model = builder->getModel();
-  ASSERT_NE(model, nullptr);
+  typename TypeParam::Type builder(this->ex, this->hx, this->ey, this->hy,
+                                    this->ez, this->hz, isModelOnNodes);
+  auto model = builder.getModel();
 
   // Assert
+  ASSERT_NE(model, nullptr);
   EXPECT_EQ(model->getOrder(), order);
   EXPECT_EQ(model->isModelOnNodes(), isModelOnNodes);
   EXPECT_EQ(model->getNumberOfElements(), 10 * 20 * 30);
@@ -77,35 +69,33 @@ TEST_P(CartesianStructBuilderFixture, GetModelReturnsValidModel)
 }
 
 // Test multiple calls return different instances
-TEST_P(CartesianStructBuilderFixture, MultipleCallsReturnDifferentInstances)
+TYPED_TEST(CartesianStructInputs, MultipleCallsReturnDifferentInstances)
 {
   // Prepare
-  int order = std::get<0>(GetParam());
-  bool isModelOnNodes = std::get<1>(GetParam());
+  constexpr bool isModelOnNodes = TypeParam::isModelOnNodes;
 
   // Act
-  auto builder = createBuilder(order, isModelOnNodes);
-  ASSERT_NE(builder, nullptr);
+  typename TypeParam::Type builder(this->ex, this->hx, this->ey, this->hy,
+                                    this->ez, this->hz, isModelOnNodes);
 
   // Assert
-  auto model1 = builder->getModel();
-  auto model2 = builder->getModel();
+  auto model1 = builder.getModel();
+  auto model2 = builder.getModel();
   ASSERT_NE(model1, nullptr);
   ASSERT_NE(model2, nullptr);
   EXPECT_NE(model1.get(), model2.get());
 }
 
 // Test polymorphic behavior
-TEST_P(CartesianStructBuilderFixture, PolymorphicBehavior)
+TYPED_TEST(CartesianStructInputs, PolymorphicBehavior)
 {
   // Prepare
-  int order = std::get<0>(GetParam());
-  bool isModelOnNodes = std::get<1>(GetParam());
+  constexpr bool isModelOnNodes = TypeParam::isModelOnNodes;
 
   // Act
-  auto builder = createBuilder(order, isModelOnNodes);
-  ASSERT_NE(builder, nullptr);
-  ModelBuilderBase<float, int>* base_ptr = builder.get();
+  typename TypeParam::Type builder(this->ex, this->hx, this->ey, this->hy,
+                                    this->ez, this->hz, isModelOnNodes);
+  ModelBuilderBase<float, int>* base_ptr = &builder;
   auto model = base_ptr->getModel();
 
   // Assert
