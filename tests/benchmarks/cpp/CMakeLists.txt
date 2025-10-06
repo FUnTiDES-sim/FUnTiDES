@@ -1,5 +1,6 @@
 add_benchmark(bench_solver_struct
-  SOURCES solver_struct_bench.cpp
+  SOURCES
+    solver_struct_bench.cpp
   LIBS
     proxy_solver
     proxy_model_builder_cartesian
@@ -7,7 +8,6 @@ add_benchmark(bench_solver_struct
     proxy_model_unstruct
     discretization
     proxy_utils
-  TIME 0.000003
   LABELS
     struct
     solver

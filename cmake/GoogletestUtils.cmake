@@ -14,14 +14,13 @@
 #     proxy_model_unstruct
 #     discretization
 #     proxy_utils
-#   TIME 0.20
 #   LABELS 
 #     solver
 #     struct
 # )
 function(add_benchmark name)
-  set(options)
-  set(oneValueArgs TIME)
+  set(options)      # cmake flags for verbose, etc. (optional)
+  set(oneValueArgs) # name
   set(multiValueArgs SOURCES LIBS LABELS)
   cmake_parse_arguments(ARG "${options}" "${oneValueArgs}" "${multiValueArgs}" ${ARGN})
 
@@ -40,16 +39,11 @@ function(add_benchmark name)
       RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin/benchmarks
   )
 
-  # Use provided TIME or default to 0.01
-  if(ARG_TIME)
-    set(benchmark_time ${ARG_TIME})
-  else()
-    set(benchmark_time 0.01)
-  endif()
-
   add_test(
     NAME ${name}
-    COMMAND ${name} --benchmark_min_time=${benchmark_time}
+    COMMAND $<TARGET_FILE:${name}> 
+      --benchmark_out=${BENCHMARK_RESULTS_DIR}/${name}_latest.json
+      --benchmark_out_format=json
   )
 
   # Add labels to the benchmark test if provided, always include "benchmark"
