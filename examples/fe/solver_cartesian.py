@@ -315,14 +315,14 @@ def create_model(model_type, e, h, l, order, on_nodes):
         raise ValueError(f"Unknown python model type: {model_type}")
     match enum_value:
         case ModelType.STRUCTURED:
-            return create_structured_model(e, h, order, on_nodes)
+            return create_structured_model(e, l, order, on_nodes)
         case ModelType.UNSTRUCTURED:
             return create_unstructured_model(e, l, order, on_nodes)
         case _:
             raise ValueError(f"Unknown model type: {enum_value.name}")
 
 
-def create_structured_model(e, h, order, on_nodes):
+def create_structured_model(e, l, order, on_nodes):
     """
     Create a structured Cartesian model based on the specified order.
 
@@ -330,8 +330,8 @@ def create_structured_model(e, h, order, on_nodes):
     ----------
     e : int
         Number of elements in each dimension (ex, ey, ez).
-    h : int
-        Element sizes in each dimension (hx, hy, hz).
+    l : tuple of float
+        Domain sizes in each dimension (lx, ly, lz).
     order : int
         The polynomial order of the elements.
     on_nodes: bool
@@ -349,11 +349,11 @@ def create_structured_model(e, h, order, on_nodes):
     """
     match order:
         case 1:
-            builder = CartesianStructBuilderFI1(e[0], h[0], e[1], h[1], e[2], h[2], on_nodes)
+            builder = CartesianStructBuilderFI1(e[0], l[0], e[1], l[1], e[2], l[2], on_nodes)
         case 2:
-            builder = CartesianStructBuilderFI2(e[0], h[0], e[1], h[1], e[2], h[2], on_nodes)
+            builder = CartesianStructBuilderFI2(e[0], l[0], e[1], l[1], e[2], l[2], on_nodes)
         case 3:
-            builder = CartesianStructBuilderFI3(e[0], h[0], e[1], h[1], e[2], h[2], on_nodes)
+            builder = CartesianStructBuilderFI3(e[0], l[0], e[1], l[1], e[2], l[2], on_nodes)
         case _:
             raise ValueError(
                 f"Order {order} is not wrapped by pybind11 (only 1, 2, 3 supported)"
