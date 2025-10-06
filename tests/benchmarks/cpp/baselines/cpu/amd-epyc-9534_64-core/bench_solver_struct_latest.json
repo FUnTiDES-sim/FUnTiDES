@@ -1,0 +1,103 @@
+{
+  "context": {
+    "date": "2025-10-06T14:36:34+02:00",
+    "host_name": "p4log04",
+    "executable": "/scratch/FUnTiDES/build/bin/benchmarks/bench_solver_struct",
+    "num_cpus": 256,
+    "mhz_per_cpu": 3694,
+    "cpu_scaling_enabled": false,
+    "aslr_enabled": true,
+    "caches": [
+      {
+        "type": "Data",
+        "level": 1,
+        "size": 32768,
+        "num_sharing": 2
+      },
+      {
+        "type": "Instruction",
+        "level": 1,
+        "size": 32768,
+        "num_sharing": 2
+      },
+      {
+        "type": "Unified",
+        "level": 2,
+        "size": 1048576,
+        "num_sharing": 2
+      },
+      {
+        "type": "Unified",
+        "level": 3,
+        "size": 33554432,
+        "num_sharing": 16
+      }
+    ],
+    "load_avg": [60.87,72.23,63.13],
+    "library_version": "v1.9.4",
+    "library_build_type": "release",
+    "json_schema_version": 1
+  },
+  "benchmarks": [
+    {
+      "name": "SolverStructFixture/FEInit/1/1/threads:1",
+      "family_index": 0,
+      "per_family_instance_index": 0,
+      "run_name": "SolverStructFixture/FEInit/1/1/threads:1",
+      "run_type": "iteration",
+      "repetitions": 1,
+      "repetition_index": 0,
+      "threads": 1,
+      "iterations": 52,
+      "real_time": 1.1995841499950844e+01,
+      "cpu_time": 1.1952166096153848e+01,
+      "time_unit": "ms",
+      "label": "Order=1 OnNodes=1"
+    },
+    {
+      "name": "SolverStructFixture/FEInit/1/1/threads:2",
+      "family_index": 0,
+      "per_family_instance_index": 1,
+      "run_name": "SolverStructFixture/FEInit/1/1/threads:2",
+      "run_type": "iteration",
+      "repetitions": 1,
+      "repetition_index": 0,
+      "threads": 2,
+      "iterations": 56,
+      "real_time": 1.2206477070971491e+01,
+      "cpu_time": 1.2157648107142856e+01,
+      "time_unit": "ms",
+      "label": "Order=1 OnNodes=1"
+    },
+    {
+      "name": "SolverStructFixture/FEInit/1/1/threads:4",
+      "family_index": 0,
+      "per_family_instance_index": 2,
+      "run_name": "SolverStructFixture/FEInit/1/1/threads:4",
+      "run_type": "iteration",
+      "repetitions": 1,
+      "repetition_index": 0,
+      "threads": 4,
+      "iterations": 48,
+      "real_time": 1.3083986500229608e+01,
+      "cpu_time": 1.3026178458333332e+01,
+      "time_unit": "ms",
+      "label": "Order=1 OnNodes=1"
+    },
+    {
+      "name": "SolverStructFixture/FEInit/1/1/threads:8",
+      "family_index": 0,
+      "per_family_instance_index": 3,
+      "run_name": "SolverStructFixture/FEInit/1/1/threads:8",
+      "run_type": "iteration",
+      "repetitions": 1,
+      "repetition_index": 0,
+      "threads": 8,
+      "iterations": 48,
+      "real_time": 1.4677034375078316e+01,
+      "cpu_time": 1.4542502249999998e+01,
+      "time_unit": "ms",
+      "label": "Order=1 OnNodes=1"
+    }
+  ]
+}

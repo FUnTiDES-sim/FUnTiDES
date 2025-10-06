@@ -67,6 +67,13 @@ Or just both
 ctest
 ```
 
+To can compare benchmarks results generated in `build/Benchmarking` against baselines use the compare tool from google benchmark, e.g. :
+```python
+python ../external/benchmark/tools/compare.py benchmarks  \
+       ../tests/benchmarks/cpp/baselines/cpu/amd-epyc-9534_64-core/bench_solver_struct_latest.json \
+       ./bin/benchmarks/bench_solver_struct
+```
+
 ### Step 3: Run Examples
 
 ```sh
