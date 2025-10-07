@@ -14,7 +14,7 @@
 
 namespace model
 {
-namespace solver
+namespace bench
 {
 
 constexpr float PI = 3.14157f;

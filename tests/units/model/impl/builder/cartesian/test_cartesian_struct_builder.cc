@@ -75,7 +75,7 @@ TYPED_TEST(CartesianStructInputs, MultipleCallsReturnDifferentInstances)
 
   // Act
   typename TypeParam::Type builder(this->ex, this->hx, this->ey, this->hy,
-                                    this->ez, this->hz, isModelOnNodes);
+                                   this->ez, this->hz, isModelOnNodes);
 
   // Assert
   auto model1 = builder.getModel();
@@ -93,7 +93,7 @@ TYPED_TEST(CartesianStructInputs, PolymorphicBehavior)
 
   // Act
   typename TypeParam::Type builder(this->ex, this->hx, this->ey, this->hy,
-                                    this->ez, this->hz, isModelOnNodes);
+                                   this->ez, this->hz, isModelOnNodes);
   ModelBuilderBase<float, int>* base_ptr = &builder;
   auto model = base_ptr->getModel();
 
