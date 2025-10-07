@@ -98,23 +98,19 @@ struct BenchmarkArrays
   arrayReal rhsWeights;
   arrayReal pnGlobal;
   arrayReal rhsLocation;
+
+  BenchmarkArrays(int n_rhs, int n_time_steps, int n_dof, 
+                  int nb_points_per_element)
+  {
+    rhsTerm = allocateArray2D<arrayReal>(n_rhs, n_time_steps, "rhsTerm");
+    rhsElement = allocateVector<vectorInt>(n_rhs, "rhsElement");
+    rhsWeights = allocateArray2D<arrayReal>(n_rhs, nb_points_per_element, "rhsWeights");
+    pnGlobal = allocateArray2D<arrayReal>(n_dof, 2, "pnGlobal");
+    rhsLocation = allocateArray2D<arrayReal>(1, 3, "rhsLocation");
+    
+    FENCE
+  }
 };
-
-// Function to initialize benchmark arrays
-BenchmarkArrays init_arrays(int n_rhs, int n_time_steps, int n_dof, 
-                            int nb_points_per_element)
-{
-  BenchmarkArrays arrays;
-
-  arrays.rhsTerm = allocateArray2D<arrayReal>(n_rhs, n_time_steps, "rhsTerm");
-  arrays.rhsElement = allocateVector<vectorInt>(n_rhs, "rhsElement");
-  arrays.rhsWeights = allocateArray2D<arrayReal>(n_rhs, nb_points_per_element, "rhsWeights");
-  arrays.pnGlobal = allocateArray2D<arrayReal>(n_dof, 2, "pnGlobal");
-  arrays.rhsLocation = allocateArray2D<arrayReal>(1, 3, "rhsLocation");
-  
-  FENCE
-  return arrays;
-}
 
 // Benchmark for compute_fe_init using fixture
 BENCHMARK_DEFINE_F(SolverStructFixture, FEInit)(benchmark::State &state)
@@ -160,36 +156,36 @@ BENCHMARK_DEFINE_F(SolverStructFixture, OneStep)(benchmark::State &state)
   int n_rhs = 2;
   float dt = 0.001f;
   int time_sample = 1;
-  int n_time_steps = 2;
+  int n_time_steps = 1500;
   float f0 = 5.0f;
 
   // Create model
   auto model = createModel(order, isModelOnNodes);
+
+  // Sponge parameters
+  std::array<float, 3> sponge_size = {200.0f, 200.0f, 200.0f};
+  bool surface_sponge = false;
+  float taper_delta = 100.0f;
 
   // Create and initialize solver
   auto solver = SolverFactory::createSolver(
       SolverFactory::methodType::SEM, implem,
       SolverFactory::meshType::Struct, order);
 
-  std::array<float, 3> sponge_size = {200.0f, 200.0f, 200.0f};
-  bool surface_sponge = false;
-  float taper_delta = 100.0f;
   solver->computeFEInit(*model, sponge_size, surface_sponge, taper_delta);
 
-  BenchmarkArrays arrays = init_arrays(n_rhs, n_time_steps, sd.n_dof, 
-                                       model->getNumberOfPointsPerElement());
+  BenchmarkArrays arrays(n_rhs, n_time_steps, sd.n_dof, 
+                         model->getNumberOfPointsPerElement());
 
   arrays.rhsElement(0) = ex / 2 + ey / 2 * ex + ez / 2 * ey * ex;
   arrays.rhsElement(1) = ex / 3 + ey / 2 * ex + ez / 2 * ey * ex;
 
-  // Note: This section seems to have undefined variables (myUtils, num_sample_, etc.)
-  // You may need to fix this part based on your actual implementation
-  // std::vector<float> sourceTerm =
-  //   myUtils.computeSourceTerm(num_sample_, dt_, f0, sourceOrder);
-  // for (int j = 0; j < num_sample_; j++)
-  // {
-  //   myRHSTerm(0, j) = sourceTerm[j];
-  // }
+  SolverUtils myUtils;
+  std::vector<float> sourceTerm = myUtils.computeSourceTerm(n_time_steps, dt, f0, 2);
+  for (int j = 0; j < n_time_steps; j++)
+  {
+    arrays.rhsTerm(0, j) = sourceTerm[j];
+  }
 
   // Create solver data
   SEMsolverData data(0, 1, arrays.rhsTerm, arrays.pnGlobal, arrays.rhsElement, arrays.rhsWeights);
@@ -200,15 +196,11 @@ BENCHMARK_DEFINE_F(SolverStructFixture, OneStep)(benchmark::State &state)
     solver->computeOneStep(dt, time_sample, data);
   }
 
-  // Report additional metrics
-  state.SetLabel("Order=" + std::to_string(order) +
-                 " OnNodes=" + std::to_string(isModelOnNodes) +
-                 " DOF=" + std::to_string(sd.n_dof));
 }
 
 // Register benchmarks with different parameters
 // FEInit benchmarks
-BENCHMARK_REGISTER_F(SolverStructFixture, FEInit)->Args({1, 1})->ThreadRange(1, 8)->Unit(benchmark::kMillisecond);
+//BENCHMARK_REGISTER_F(SolverStructFixture, FEInit)->Args({1, 1})->ThreadRange(1, 8)->Unit(benchmark::kMillisecond);
 //BENCHMARK_REGISTER_F(SolverStructFixture, FEInit)->Args({1, 0})->Unit(benchmark::kMillisecond);
 //BENCHMARK_REGISTER_F(SolverStructFixture, FEInit)->Args({2, 1})->Unit(benchmark::kMillisecond);
 //BENCHMARK_REGISTER_F(SolverStructFixture, FEInit)->Args({2, 0})->Unit(benchmark::kMillisecond);
@@ -216,12 +208,12 @@ BENCHMARK_REGISTER_F(SolverStructFixture, FEInit)->Args({1, 1})->ThreadRange(1, 
 //BENCHMARK_REGISTER_F(SolverStructFixture, FEInit)->Args({3, 0})->Unit(benchmark::kMillisecond);
 
 // OneStep benchmarks
-//BENCHMARK_REGISTER_F(SolverStructFixture, OneStep)->Args({1, 1})->Unit(benchmark::kMillisecond);
-//BENCHMARK_REGISTER_F(SolverStructFixture, OneStep)->Args({1, 0})->Unit(benchmark::kMillisecond);
-//BENCHMARK_REGISTER_F(SolverStructFixture, OneStep)->Args({2, 1})->Unit(benchmark::kMillisecond);
-//BENCHMARK_REGISTER_F(SolverStructFixture, OneStep)->Args({2, 0})->Unit(benchmark::kMillisecond);
-//BENCHMARK_REGISTER_F(SolverStructFixture, OneStep)->Args({3, 1})->Unit(benchmark::kMillisecond);
-//BENCHMARK_REGISTER_F(SolverStructFixture, OneStep)->Args({3, 0})->Unit(benchmark::kMillisecond);
+BENCHMARK_REGISTER_F(SolverStructFixture, OneStep)->Args({1, 1})->Unit(benchmark::kMillisecond);
+BENCHMARK_REGISTER_F(SolverStructFixture, OneStep)->Args({1, 0})->Unit(benchmark::kMillisecond);
+BENCHMARK_REGISTER_F(SolverStructFixture, OneStep)->Args({2, 1})->Unit(benchmark::kMillisecond);
+BENCHMARK_REGISTER_F(SolverStructFixture, OneStep)->Args({2, 0})->Unit(benchmark::kMillisecond);
+BENCHMARK_REGISTER_F(SolverStructFixture, OneStep)->Args({3, 1})->Unit(benchmark::kMillisecond);
+BENCHMARK_REGISTER_F(SolverStructFixture, OneStep)->Args({3, 0})->Unit(benchmark::kMillisecond);
 
 int main(int argc, char** argv) {
 #ifdef USE_KOKKOS
