@@ -30,6 +30,7 @@ function(print_configuration_summary)
   message(STATUS "")
   
   message(STATUS "Build Options:")
+  message(STATUS "  CMAKE_BUILD_TYPE:     ${CMAKE_BUILD_TYPE}")
   message(STATUS "  BUILD_SHARED_LIBS:    ${BUILD_SHARED_LIBS}")
   message(STATUS "  CMAKE_INSTALL_PREFIX: ${CMAKE_INSTALL_PREFIX}")
   message(STATUS "")
