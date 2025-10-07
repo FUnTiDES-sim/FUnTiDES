@@ -1,7 +1,8 @@
 #pragma once
 
-#include <data_type.h>
-#include <model.h>
+#include "data_type.h"
+#include "model.h"
+#include "sem_macros.h"
 
 namespace solver
 {
@@ -47,15 +48,18 @@ void computeElementContributions( int i2,
     }
   }
 
+  // generic data type defined from the integral type
   typename INTEGRAL_TYPE::TransformType transformData;
   INTEGRAL_TYPE::gatherCoordinates(elementNumber, m_mesh, transformData);
 
   // Stiffness term
-  INTEGRAL_TYPE::computeStiffnessTerm(
-      transformData, [&](const int i, const int j, const real_t val) {
-        float localIncrement = val * pnLocal[j];
-        Y[i] += localIncrement;
-      });
+  INTEGRAL_TYPE::computeStiffnessTerm( transformData, 
+                                      [&pnLocal, &Y]
+                                      (const int i, const int j, const real_t val) 
+  {
+    float localIncrement = val * pnLocal[j];
+    Y[i] += localIncrement;
+  });
 
   for (int i = 0; i < m_mesh.getNumberOfPointsPerElement(); ++i)
   {

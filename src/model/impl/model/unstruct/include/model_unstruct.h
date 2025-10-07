@@ -84,15 +84,33 @@ class ModelUnstruct : public ModelApi<FloatType, ScalarType>
    */
   PROXY_HOST_DEVICE ~ModelUnstruct() = default;
 
-
+  template< typename FUNC >
+  PROXY_HOST_DEVICE
+  void gatherShapeData( const IndexType& elemIndex, FUNC&& func ) const
+  {
+    for ( int k = 0; k < 2; ++k )
+    {
+      for ( int j = 0; j < 2; ++j )
+      {
+        for ( int i = 0; i < 2; ++i )
+        {
+          int const nodeIdx = globalNodeIndex(elemIndex, i, j, k);
+          func( i, j, k,
+                nodes_coords_x_[nodeIdx], 
+                nodes_coords_y_[nodeIdx], 
+                nodes_coords_z_[nodeIdx] );
+        }
+      }
+    }
+  }
 
 
   PROXY_HOST_DEVICE
-  void vertexCoords(IndexType dofGlobal, FloatType (&coords)[3]) const
+  void vertexCoords(IndexType vertexIndex, FloatType (&coords)[3]) const
   {
-    coords[0] = nodes_coords_x_[dofGlobal];
-    coords[1] = nodes_coords_y_[dofGlobal];
-    coords[2] = nodes_coords_z_[dofGlobal];
+    coords[0] = nodes_coords_x_[vertexIndex];
+    coords[1] = nodes_coords_y_[vertexIndex];
+    coords[2] = nodes_coords_z_[vertexIndex];
   }
 
   /**

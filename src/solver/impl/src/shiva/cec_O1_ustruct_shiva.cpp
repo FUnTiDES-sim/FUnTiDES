@@ -11,7 +11,7 @@ namespace kernels
 constexpr int ORDER = 1;
 template void 
 computeElementContributions< ORDER,
-                             IntegralTypeSelector<ORDER, IntegralType::SHIVA>::type,
+                             IntegralTypeSelector<ORDER, false, IntegralType::SHIVA>::type,
                              model::ModelUnstruct<float, int> > 
                             ( int i2, 
                                const ARRAY_REAL_VIEW &pnGlobal, 

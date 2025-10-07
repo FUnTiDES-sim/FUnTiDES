@@ -4,5 +4,5 @@
 
 constexpr int ORDER = 3;
 template class SEMsolver<ORDER,
-                         IntegralTypeSelector<ORDER, IntegralType::GEOS>::type,
+                         IntegralTypeSelector<ORDER, false, IntegralType::GEOS>::type,
                          model::ModelUnstruct<float, int> >;

@@ -41,8 +41,7 @@ static std::unique_ptr<SolverBase> make_sem_solver(int order, meshType mesh)
       return orderDispatch(
           order, [](auto orderIC) -> std::unique_ptr<SolverBase> {
             constexpr int ORDER = decltype(orderIC)::value;
-            using SelectedIntegral =
-                typename IntegralTypeSelector<ORDER, ImplTag>::type;
+            using SelectedIntegral = typename IntegralTypeSelector<ORDER, true, ImplTag>::type;
             using MeshT = model::ModelStruct<float, int, ORDER>;
             return std::make_unique<
                 SEMsolver<ORDER, SelectedIntegral, MeshT>>();
@@ -51,8 +50,7 @@ static std::unique_ptr<SolverBase> make_sem_solver(int order, meshType mesh)
       return orderDispatch(
           order, [](auto orderIC) -> std::unique_ptr<SolverBase> {
             constexpr int ORDER = decltype(orderIC)::value;
-            using SelectedIntegral =
-                typename IntegralTypeSelector<ORDER, ImplTag>::type;
+            using SelectedIntegral = typename IntegralTypeSelector<ORDER, false, ImplTag>::type;
             using MeshT = model::ModelUnstruct<float, int>;
             return std::make_unique<
                 SEMsolver<ORDER, SelectedIntegral, MeshT>>();

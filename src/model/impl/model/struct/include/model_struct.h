@@ -81,9 +81,9 @@ class ModelStruct final : public ModelApi<FloatType, ScalarType>
   PROXY_HOST_DEVICE
   void vertexCoords( IndexType dofGlobal, FloatType (&coords)[3] ) const
   {
-    coords[0] = dofGlobal[0] * ex_;
-    coords[1] = dofGlobal[1] * ey_;
-    coords[2] = dofGlobal[2] * ez_;
+    coords[0] = dofGlobal[0] * hx_;
+    coords[1] = dofGlobal[1] * hy_;
+    coords[2] = dofGlobal[2] * hz_;
   }
 
   /**
@@ -139,6 +139,14 @@ class ModelStruct final : public ModelApi<FloatType, ScalarType>
     return physicalCoord;
   }
 
+  template< typename FUNC >
+  PROXY_HOST_DEVICE
+  void gatherShapeData( const IndexType&, //elemIndex, 
+                        FUNC&& func ) const
+  {
+    func( hx_, hy_, hz_ );
+  }
+
   /**
    * @brief Get the global node index for a local element-node triplet.
    * @param e Element index
@@ -167,7 +175,7 @@ class ModelStruct final : public ModelApi<FloatType, ScalarType>
   void elementIndex( const int linearIndex, IndexType& elemIndex ) const
   {
     elemIndex[2] = linearIndex / ( ex_ * ey_ );
-    int rem = linearIndex - elemIndex[2] * ( ex_ * ey_ );
+    int const rem = linearIndex - elemIndex[2] * ( ex_ * ey_ );
     elemIndex[1] = rem / ex_;
     elemIndex[0] = rem - elemIndex[1] * ex_;
   }

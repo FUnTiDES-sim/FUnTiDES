@@ -3,7 +3,7 @@
 #include "finiteElement/geos/Qk_Hexahedron_Lagrange_GaussLobatto.hpp"
 #include "finiteElement/shiva/SEMQkGLIntegralsShiva.hpp"
 
-template <int ORDER, int METHOD_TYPE>
+template <int ORDER, bool IS_STRUCTURED_MESH, int METHOD_TYPE >
 struct IntegralTypeSelector;
 
 namespace IntegralType
@@ -16,21 +16,36 @@ enum
 };
 }
 
-template <int ORDER>
-struct IntegralTypeSelector<ORDER, IntegralType::GEOS>
+template <int ORDER, bool IS_STRUCTURED_MESH>
+struct IntegralTypeSelector<ORDER, IS_STRUCTURED_MESH, IntegralType::GEOS>
 {
   using type =
       typename Qk_Hexahedron_Lagrange_GaussLobatto_Selector<ORDER>::type;
 };
 
 template <int ORDER>
-struct IntegralTypeSelector<ORDER, IntegralType::SHIVA>
+struct IntegralTypeSelector<ORDER, false, IntegralType::SHIVA>
 {
   using TransformType = LinearTransform<
       float, InterpolatedShape<float, Cube<float>,
                                LagrangeBasis<float, 1, EqualSpacing>,
                                LagrangeBasis<float, 1, EqualSpacing>,
                                LagrangeBasis<float, 1, EqualSpacing> > >;
+
+  using ParentElementType =
+      ParentElement<float, Cube<float>,
+                    LagrangeBasis<float, ORDER, EqualSpacing>,
+                    LagrangeBasis<float, ORDER, EqualSpacing>,
+                    LagrangeBasis<float, ORDER, EqualSpacing> >;
+
+  using type = SEMQkGLIntegralsShiva<ORDER, TransformType, ParentElementType>;
+};
+
+
+template <int ORDER>
+struct IntegralTypeSelector<ORDER, true, IntegralType::SHIVA>
+{
+  using TransformType = Scaling< float >;
 
   using ParentElementType =
       ParentElement<float, Cube<float>,
