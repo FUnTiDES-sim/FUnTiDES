@@ -26,6 +26,6 @@ add_benchmark(bench_solver_fe_cartesian_unstruct
     discretization
     proxy_utils
   LABELS
-    struct
+    unstruct
     solver
 )
