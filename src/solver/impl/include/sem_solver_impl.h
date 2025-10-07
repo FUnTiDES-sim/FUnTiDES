@@ -141,24 +141,16 @@ computeElementContributions( int i2, const ARRAY_REAL_VIEW & pnGlobal , bool isM
     int z = (i / dim) % dim;
     int y = i / (dim * dim);
     int const gIndex = m_mesh.globalNodeIndex(elementNumber, x, y, z);
-    real_t inv_model2 = 0.0f;
     real_t inv_density = 0.0f;
     if (!isModelOnNodes)
     {
-      inv_model2 = 1.0f / (m_mesh.getModelVpOnElement(elementNumber) *
-                          m_mesh.getModelVpOnElement(elementNumber) *
-                          m_mesh.getModelRhoOnElement(elementNumber));
       inv_density = 1.0f / m_mesh.getModelRhoOnElement(elementNumber);
+    } 
     if (isModelOnNodes)
     {
-      inv_model2 = 1.0f / (m_mesh.getModelVpOnNodes(gIndex) *
-                           m_mesh.getModelVpOnNodes(gIndex) *
-                           m_mesh.getModelRhoOnNodes(gIndex));
       inv_density = 1.0f / m_mesh.getModelRhoOnNodes(gIndex);
     }
-    massMatrixLocal[i] *= inv_model2;
     Y[i] *= inv_density;
-    ATOMICADD(massMatrixGlobal[gIndex], massMatrixLocal[i]);
     ATOMICADD(yGlobal[gIndex], Y[i]);
   }
 
@@ -207,9 +199,6 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE>::initFEarrays()
   typename INTEGRAL_TYPE::TransformType transformData;
   INTEGRAL_TYPE::gatherCoordinates( elementNumber, m_mesh, transformData );
 
-  auto const inv_model2 = 1.0f / (m_mesh.getModelVpOnElement(elementNumber) *
-                                  m_mesh.getModelVpOnElement(elementNumber));
-
   INTEGRAL_TYPE::computeMassTerm( transformData,
                                   [&](const int j, const real_t val) 
   { 
@@ -224,6 +213,21 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE>::initFEarrays()
     int z = (i / dim) % dim;
     int y = i / (dim * dim);
     int const gIndex = m_mesh.globalNodeIndex(elementNumber, x, y, z);
+
+    real_t inv_model2 = 0.0f;
+    if (!m_mesh.isModelOnNodes())
+    {
+      inv_model2 = 1.0f / (m_mesh.getModelVpOnElement(elementNumber) *
+                           m_mesh.getModelVpOnElement(elementNumber) *
+                           m_mesh.getModelRhoOnElement(elementNumber));
+    }
+    else
+    {
+      inv_model2 = 1.0f / (m_mesh.getModelVpOnNodes(gIndex) *
+                           m_mesh.getModelVpOnNodes(gIndex) *
+                           m_mesh.getModelRhoOnNodes(gIndex));
+    }
+
     massMatrixLocal[i] *= inv_model2;
     ATOMICADD(massMatrixGlobal[gIndex], massMatrixLocal[i]);
   }
