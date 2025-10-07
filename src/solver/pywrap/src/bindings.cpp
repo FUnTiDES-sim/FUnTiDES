@@ -22,7 +22,7 @@ PYBIND11_MODULE(solver, m)
       .value("DG", SolverFactory::DG);
 
   py::enum_<SolverFactory::implemType>(m, "ImplemType")
-      .value("GEOS", SolverFactory::GEOS)
+      .value("MAKUTU", SolverFactory::MAKUTU)
       .value("SHIVA", SolverFactory::SHIVA);
 
   py::enum_<SolverFactory::meshType>(m, "MeshType")

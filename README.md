@@ -1,6 +1,6 @@
-# proxyApp: Wave simulations simplified
+# FUnTiDES: Fast Unstructured Time Dynamic Equation Solver
 
-**proxyApp** is a collection of simplified codes that represent real scientific applications. It serves as a standard tool for evaluating and comparing the performance of various high-performance computing (HPC) systems, particularly those used for scientific simulations.
+**FUnTiDES** is a collection of simplified codes that represent real scientific applications. It serves as a standard tool for evaluating and comparing the performance of various high-performance computing (HPC) systems, particularly those used for scientific simulations.
 
 ---
 
@@ -8,10 +8,10 @@
 
 The current implementation includes two proxy applications for solving the 2nd-order acoustic wave equation in 2D and 3D:
 
-- **SEM (Spectral Element Method)**  
+- **SEM (Spectral Element Method)**
   A benchmark designed to simulate wave propagation using SEM, a Galerkin-based finite element method for solving partial differential equations (PDEs).
 
-- **FD (Finite Difference Method)**  
+- **FD (Finite Difference Method)**
   A benchmark that uses finite-difference stencil operators to simulate wave propagation and solve PDEs.
 
 A key feature of these proxy applications is their adaptability to different programming models and HPC architectures. They are also easy to build and run, making them accessible to both researchers and developers.
@@ -22,7 +22,6 @@ A key feature of these proxy applications is their adaptability to different pro
 
 The SEM proxy currently supports:
 
-- [OpenMP](https://www.openmp.org/) — for loop-level parallelism
 - [Kokkos](https://kokkos.github.io/kokkos-core-wiki/) — for performance portability
 
 > **Note**: Kokkos is included as a Git submodule and will be compiled automatically when enabled.
@@ -33,7 +32,7 @@ The SEM proxy currently supports:
 
 The current SEM proxy supports the following data container:
 
-- `std::vector` (default for serial and OpenMP modes)
+- `std::vector` (default for serial )
 
 ---
 
@@ -77,11 +76,14 @@ The following options can be used to configure your build:
 
 ---
 
-## 🐍 Python wrappers 
+## 🐍 Python wrappers
 
 ### Prerequisites
 
-The compilation of python wrappers requires _pybind11_ to be installed in your python environment.
+To install python requirements
+```bash
+pip install -r requirements.txt
+```
 
 ### Generation
 
@@ -119,3 +121,39 @@ There is no need to extend the `LD_LIBRARY_PATH` with the _proxys_ libraries sin
 
 
 Some examples on how to use the wrappers are available in the [`examples`](examples/) folder.
+
+### Tests & Benchmarks
+
+To install dev python packages
+```bash
+pip install -r requirements-dev.txt
+```
+
+To run basic python unit tests
+```bash
+pytest -vv -s  tests/units
+```
+
+To run python benchmarks
+```bash
+pytest -vv -s tests/benchmarks
+```
+
+To generate benchmark plots
+```bash
+pytest -vv -s --benchmark-histogram=plot tests/benchmarks
+```
+
+### Ploting Receivers and Snapshots
+
+To plot the snapshots we provide a python script:
+```bash
+python ./scripts/adios/adios_cartesian_snap_viz.py 201 201 201 --file snapshots.bp --slice
+```
+where 201 values should be replaced by number of nodes on x y and z. And file correpond to the `snapshots.bp` folder with bp5 files.
+
+For the receivers:
+``` bash
+python ./scripts/adios/adios_single_receiver_viz.py
+```
+within the folder containing the `receivers.bp` folder.

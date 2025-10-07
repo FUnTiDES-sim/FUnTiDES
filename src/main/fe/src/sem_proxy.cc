@@ -33,7 +33,7 @@ SEMproxy::SEMproxy(const SemProxyOptions& opt)
   const float spongex = opt.boundaries_size;
   const float spongey = opt.boundaries_size;
   const float spongez = opt.boundaries_size;
-  const float sponge_size[3] = {spongex, spongey, spongez};
+  const std::array<float, 3> sponge_size = {spongex, spongey, spongez};
   src_coord_[0] = opt.srcx;
   src_coord_[1] = opt.srcy;
   src_coord_[2] = opt.srcz;
@@ -46,39 +46,38 @@ SEMproxy::SEMproxy(const SemProxyOptions& opt)
   rcv_coord_[1] = opt.rcvy;
   rcv_coord_[2] = opt.rcvz;
 
+  bool isModelOnNodes = opt.isModelOnNodes;
+
   const SolverFactory::methodType methodType = getMethod(opt.method);
   const SolverFactory::implemType implemType = getImplem(opt.implem);
   const SolverFactory::meshType meshType = getMesh(opt.mesh);
 
+  float lx = domain_size_[0];
+  float ly = domain_size_[1];
+  float lz = domain_size_[2];
+  int ex = nb_elements_[0];
+  int ey = nb_elements_[1];
+  int ez = nb_elements_[2];
+
   if (meshType == SolverFactory::Struct)
   {
-    int ex = nb_elements_[0];
-    float lx = domain_size_[0];
-    int elem_sizex = lx / ex;
-    float ly = domain_size_[1];
-    int ey = nb_elements_[1];
-    int elem_sizey = ly / ey;
-    int ez = nb_elements_[2];
-    float lz = domain_size_[2];
-    int elem_sizez = lz / ez;
-
     switch (order)
     {
       case 1: {
         model::CartesianStructBuilder<float, int, 1> builder(
-            ex, elem_sizex, ey, elem_sizey, ez, elem_sizez);
+            ex, lx, ey, ly, ez, lz, isModelOnNodes);
         m_mesh = builder.getModel();
         break;
       }
       case 2: {
         model::CartesianStructBuilder<float, int, 2> builder(
-            ex, elem_sizex, ey, elem_sizey, ez, elem_sizez);
+            ex, lx, ey, ly, ez, lz, isModelOnNodes);
         m_mesh = builder.getModel();
         break;
       }
       case 3: {
         model::CartesianStructBuilder<float, int, 3> builder(
-            ex, elem_sizex, ey, elem_sizey, ez, elem_sizez);
+            ex, lx, ey, ly, ez, lz, isModelOnNodes);
         m_mesh = builder.getModel();
         break;
       }
@@ -89,14 +88,8 @@ SEMproxy::SEMproxy(const SemProxyOptions& opt)
   }
   else if (meshType == SolverFactory::Unstruct)
   {
-    int ex = nb_elements_[0];
-    int ey = nb_elements_[1];
-    int ez = nb_elements_[2];
-    float lx = domain_size_[0];
-    float ly = domain_size_[1];
-    float lz = domain_size_[2];
-
-    model::CartesianParams<float, int> param(order, ex, ey, ez, lx, ly, lz);
+    model::CartesianParams<float, int> param(order, ex, ey, ez, lx, ly, lz,
+                                             isModelOnNodes);
     model::CartesianUnstructBuilder<float, int> builder(param);
     m_mesh = builder.getModel();
   }
@@ -125,13 +118,15 @@ SEMproxy::SEMproxy(const SemProxyOptions& opt)
 
   initFiniteElem();
 
+  io_ctrl_ = std::make_shared<SemIOController>(
+      static_cast<size_t>(m_mesh->getNumberOfNodes()),
+      static_cast<size_t>(num_sample_), static_cast<size_t>(1));
+
   // snapshots settings
   is_snapshots_ = opt.snapshots;
   if (is_snapshots_)
   {
     snap_time_interval_ = opt.snap_time_interval;
-    snap_folder_ = opt.snap_folder;
-    std::filesystem::create_directories(snap_folder_);
   }
 
   std::cout << "Number of node is " << m_mesh->getNumberOfNodes() << std::endl;
@@ -147,7 +142,6 @@ SEMproxy::SEMproxy(const SemProxyOptions& opt)
   {
     std::cout << "Snapshots enable every " << snap_time_interval_
               << " iteration." << std::endl;
-    std::cout << "Saved in " << snap_folder_ << " folder." << std::endl;
   }
 }
 
@@ -208,8 +202,26 @@ void SEMproxy::run()
     totalOutputTime += system_clock::now() - startOutputTime;
   }
 
-  // Output receiver
-  saveReceiver();
+  for (int i = 0; i < pnAtReceiver.extent(0); i++)
+  {
+    // get receiver i
+#ifdef USE_KOKKOS
+    auto subview = Kokkos::subview(pnAtReceiver, i, Kokkos::ALL());
+    vectorReal subset("receiver_save", num_sample_);
+    Kokkos::deep_copy(subset, subview);
+#else
+    auto& subview = pnAtReceiver;
+    vectorReal subset(subview.extent(0) * subview.extent(1));
+    for (size_t i = 0; i < subview.extent(0); ++i)
+    {
+      for (size_t j = 0; j < subview.extent(1); ++j)
+      {
+        subset[i * subview.extent(1) + j] = subview(i, j);
+      }
+    }
+#endif  // USE_KOKKOS
+    io_ctrl_->saveReceiver(subset, src_coord_);
+  }
 
   float kerneltime_ms = time_point_cast<microseconds>(totalComputeTime)
                             .time_since_epoch()
@@ -223,56 +235,6 @@ void SEMproxy::run()
   cout << "---- Elapsed Output Time : " << outputtime_ms / 1E6 << " seconds."
        << endl;
   cout << "------------------------------------------------ " << endl;
-}
-
-void SEMproxy::saveSnapshot(int timeSample) const
-{
-  std::stringstream filename;
-  filename << snap_folder_ << "/slice" << timeSample << ".dat";
-  std::string str_filename = filename.str();
-
-#ifdef USE_KOKKOS
-  auto subview = Kokkos::subview(pnGlobal, Kokkos::ALL, i1);
-  int middle_z = nb_nodes_[2] / 2;
-  int slice_start = middle_z * nb_nodes_[0] * nb_nodes_[1];
-  int slice_end = slice_start + (nb_nodes_[0] * nb_nodes_[1]);
-  auto xy_slice =
-      Kokkos::subview(subview, Kokkos::make_pair(slice_start, slice_end));
-  FENCE
-#else
-  std::vector<float> column_data = pnGlobal.getColumn(i1);
-
-  vectorReal subview(column_data.size());
-  for (int i = 0; i < column_data.size(); ++i)
-  {
-    subview[i] = column_data[i];
-  }
-
-  int middle_z = nb_nodes_[2] / 2;
-  int slice_start = middle_z * nb_nodes_[0] * nb_nodes_[1];
-  int slice_end = slice_start + (nb_nodes_[0] * nb_nodes_[1]);
-
-  vectorReal xy_slice(slice_end - slice_start);
-  for (int i = 0; i < slice_end - slice_start; ++i)
-  {
-    xy_slice[i] = subview[slice_start + i];
-  }
-#endif  // USE_KOKKOS
-  saveSlice(xy_slice, nb_nodes_[0], nb_nodes_[1], str_filename);
-  FENCE
-}
-
-void SEMproxy::saveReceiver() const
-{
-  std::stringstream filename;
-  filename << "receiver.dat";
-  std::string str_filename = filename.str();
-  std::ofstream outfile(str_filename);
-  for (int i = 0; i < num_sample_; i++)
-  {
-    outfile << i * dt_ << " " << pnAtReceiver(0, i) << std::endl;
-  }
-  outfile.close();
 }
 
 // Initialize arrays
@@ -375,7 +337,6 @@ void SEMproxy::init_source()
   }
 
   // Receiver computation
-
   int receiver_index = floor((rcv_coord_[0] * ex) / lx) +
                        floor((rcv_coord_[1] * ey) / ly) * ex +
                        floor((rcv_coord_[2] * ez) / lz) * ey * ex;
@@ -422,43 +383,30 @@ void SEMproxy::init_source()
   }
 }
 
-std::string formatSnapshotFilename(int id, int width = 5)
+void SEMproxy::saveSnapshot(int timestep)
 {
-  std::ostringstream oss;
-  // oss << "snapshot" << std::setw(width) << std::setfill('0') << id;
-  oss << "snapshot" << id;
-  return oss.str();
-}
+#ifdef USE_KOKKOS
+  auto nb_nodes = pnGlobal.extent(0);
+  auto subview = Kokkos::subview(pnGlobal, Kokkos::ALL(), i1);
 
-/**
- * Save slice in matrix formating
- * Format: space-separated matrix with blank lines between rows for 3D plotting
- */
-void SEMproxy::saveSlice(const VECTOR_REAL_VIEW& host_slice, int sizex,
-                         int sizey, const std::string& filepath) const
-{
-  std::ofstream file(filepath);
-  file << std::fixed << std::setprecision(6);
-  file << sizex << "\n" << sizey << "\n";
+  vectorReal subset("snapshot_cpy", nb_nodes);
+  // Use a parallel copy to handle the strided layout
+  Kokkos::parallel_for(
+      "copy_column", nb_nodes,
+      KOKKOS_LAMBDA(int i) { subset(i) = subview(i); });
+  Kokkos::fence();
+#else
+  auto nb_nodes = pnGlobal[0].size();
+  auto& subview = pnGlobal[i1];
+  vectorReal subset(subview.begin(), subview.end());
+#endif  // USE_KOKKOS
 
-  for (int i = 0; i < sizex * sizey; ++i)
-  {
-    file << host_slice[i];
-    if ((i + 1) % sizex == 0)
-    {
-      file << "\n";  // New line every sizex elements
-    }
-    else
-    {
-      file << " ";
-    }
-  }
-  file.close();
+  io_ctrl_->saveSnapshot(subset, timestep);
 }
 
 SolverFactory::implemType SEMproxy::getImplem(string implemArg)
 {
-  if (implemArg == "geos") return SolverFactory::GEOS;
+  if (implemArg == "makutu") return SolverFactory::MAKUTU;
   if (implemArg == "shiva") return SolverFactory::SHIVA;
 
   throw std::invalid_argument(

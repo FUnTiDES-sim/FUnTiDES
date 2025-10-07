@@ -9,7 +9,7 @@
 namespace model
 {
 template <typename FloatType, typename ScalarType>
-class CartesianUnstructBuilder : ModelBuilderBase<FloatType, ScalarType>
+class CartesianUnstructBuilder : public ModelBuilderBase<FloatType, ScalarType>
 {
  public:
   using ModelBuilderBase<FloatType, ScalarType>::MAX_ORDER;
@@ -23,7 +23,9 @@ class CartesianUnstructBuilder : ModelBuilderBase<FloatType, ScalarType>
         lx_(p.lx),
         ly_(p.ly),
         lz_(p.lz),
-        order_(p.order)
+        order_(p.order),
+        isModelOnNodes_(p.isModelOnNodes)
+
   {
     initGlobalNodeList();
     initNodesCoords();
@@ -48,6 +50,8 @@ class CartesianUnstructBuilder : ModelBuilderBase<FloatType, ScalarType>
     modelData.nodes_coords_y_ = nodes_coords_y_;
     modelData.nodes_coords_z_ = nodes_coords_z_;
 
+    modelData.isModelOnNodes_ = isModelOnNodes_;
+
     modelData.model_vp_node_ = model_vp_node_;
     modelData.model_rho_node_ = model_rho_node_;
     modelData.model_vp_element_ = model_vp_element_;
@@ -63,6 +67,7 @@ class CartesianUnstructBuilder : ModelBuilderBase<FloatType, ScalarType>
   ScalarType ex_, ey_, ez_;
   FloatType lx_, ly_, lz_;
   int order_;
+  bool isModelOnNodes_;
 
   ARRAY_INT_VIEW global_node_index_;
   VECTOR_REAL_VIEW nodes_coords_x_;
@@ -242,23 +247,32 @@ class CartesianUnstructBuilder : ModelBuilderBase<FloatType, ScalarType>
     // creating uniforms model
     int n_element = ex_ * ey_ * ez_;
     int n_node = (ex_ * order_ + 1) * (ey_ * order_ + 1) * (ez_ * order_ + 1);
-    model_rho_element_ =
-        allocateVector<VECTOR_REAL_VIEW>(n_element, "model rho elem");
-    model_vp_element_ =
-        allocateVector<VECTOR_REAL_VIEW>(n_element, "model vp elem");
-    model_rho_node_ =
-        allocateVector<VECTOR_REAL_VIEW>(n_node, "model rho node");
-    model_vp_node_ = allocateVector<VECTOR_REAL_VIEW>(n_node, "model vp node");
+    if (isModelOnNodes_)
+    {
+      model_rho_node_ =
+          allocateVector<VECTOR_REAL_VIEW>(n_node, "model rho node");
+      model_vp_node_ =
+          allocateVector<VECTOR_REAL_VIEW>(n_node, "model vp node");
 
-    for (int i = 0; i < n_element; i++)
-    {
-      model_rho_element_[i] = 1;
-      model_vp_element_[i] = 1500;
+      for (int i = 0; i < n_node; i++)
+      {
+        model_rho_node_[i] = 1;
+        model_vp_node_[i] = 1500;
+      }
     }
-    for (int i = 0; i < n_node; i++)
+
+    else
     {
-      model_rho_node_[i] = 1;
-      model_vp_node_[i] = 1500;
+      model_rho_element_ =
+          allocateVector<VECTOR_REAL_VIEW>(n_element, "model rho elem");
+      model_vp_element_ =
+          allocateVector<VECTOR_REAL_VIEW>(n_element, "model vp elem");
+
+      for (int i = 0; i < n_element; i++)
+      {
+        model_rho_element_[i] = 1;
+        model_vp_element_[i] = 1500;
+      }
     }
   }
 };

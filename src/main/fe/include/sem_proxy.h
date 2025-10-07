@@ -18,6 +18,7 @@
 #include <string>
 #include <variant>
 
+#include "sem_io_controller.h"
 #include "sem_proxy_options.h"
 
 /**
@@ -64,8 +65,6 @@ class SEMproxy
 
   void saveSnapshot(int timesample) const;
 
-  void saveReceiver() const;
-
   /**
    * @brief Computes optimal time step using CFL stability condition for seismic
    * wave propagation
@@ -86,6 +85,8 @@ class SEMproxy
    */
   float find_cfl_dt(float cfl_factor);
 
+  void saveSnapshot(int timestep);
+
  private:
   int i1 = 0;
   int i2 = 1;
@@ -94,9 +95,9 @@ class SEMproxy
   // or any structured mesh
   int nb_elements_[3] = {0};
   int nb_nodes_[3] = {0};
-  float src_coord_[3] = {0};
+  std::array<float, 3> src_coord_ = {0};
+  std::array<float, 3> rcv_coord_ = {0};
   float domain_size_[3] = {0};
-  float rcv_coord_[3] = {0};
 
   // snapshots
   bool is_snapshots_;
@@ -125,6 +126,9 @@ class SEMproxy
   arrayReal rhsWeights;
   arrayReal rhsWeightsRcv;
   arrayReal pnAtReceiver;
+
+  // io controller
+  std::shared_ptr<SemIOController> io_ctrl_;
 
   // initialize source and RHS
   void init_source();

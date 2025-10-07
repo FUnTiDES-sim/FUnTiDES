@@ -267,3 +267,7 @@ src/LvArra*
 external/pybind11
 external/kokkos
 external/pykokkos-base
+
+*.svg
+snap*.png
+receiver.dat

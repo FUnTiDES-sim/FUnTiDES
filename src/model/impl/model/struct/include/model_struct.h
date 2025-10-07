@@ -9,7 +9,7 @@ namespace model
 {
 
 template <typename FloatType, typename ScalarType>
-struct ModelStructData
+struct ModelStructData : public ModelDataBase<FloatType, ScalarType>
 {
  public:
   // GPU-compatible special member functions
@@ -21,6 +21,7 @@ struct ModelStructData
 
   ScalarType ex_, ey_, ez_;
   FloatType dx_, dy_, dz_;
+  bool isModelOnNodes_;
 };
 
 /**
@@ -44,17 +45,18 @@ class ModelStruct : public ModelApi<FloatType, ScalarType>
       : ex_(data.ex_),
         ey_(data.ey_),
         ez_(data.ez_),
-        hx_(data.dx_),
-        hy_(data.dy_),
-        hz_(data.dz_)
+        lx_(data.dx_),
+        ly_(data.dy_),
+        lz_(data.dz_),
+        isModelOnNodes_(data.isModelOnNodes_)
   {
     nx_ = Order * ex_ + 1;
     ny_ = Order * ey_ + 1;
     nz_ = Order * ez_ + 1;
 
-    lx_ = ex_ * hx_;
-    ly_ = ey_ * hy_;
-    lz_ = ez_ * hz_;
+    hx_ = lx_ / ex_;
+    hy_ = ly_ / ey_;
+    hz_ = lz_ / ez_;
   }
 
   /**
@@ -297,11 +299,15 @@ class ModelStruct : public ModelApi<FloatType, ScalarType>
     return 1500;
   }
 
+  PROXY_HOST_DEVICE
+  bool isModelOnNodes() const { return isModelOnNodes_; }
+
  private:
   ScalarType ex_, ey_, ez_;  // Nb elements in each direction
   ScalarType nx_, ny_, nz_;  // Nb nodes in each direction
   FloatType lx_, ly_, lz_;   // domain size
   FloatType hx_, hy_, hz_;   // element size
+  bool isModelOnNodes_;
 };
 
 }  // namespace model

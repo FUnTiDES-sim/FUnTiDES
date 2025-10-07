@@ -1,8 +1,10 @@
 #ifndef SOURCEANDRECEIVERUTILS_HPP
 #define SOURCEANDRECEIVERUTILS_HPP
 
-#include "../../src/discretization/fe/SEMKernels/src/finiteElement/geos/Qk_Hexahedron_Lagrange_GaussLobatto.hpp"
+#include <array>
+
 #include "data_type.h"
+#include "finiteElement/makutu/Qk_Hexahedron_Lagrange_GaussLobatto.hpp"
 
 using namespace std::chrono;
 
@@ -10,7 +12,8 @@ namespace SourceAndReceiverUtils
 {
 
 template <int ORDER>
-void ComputeRHSWeights(real_t const (&cornerCoords)[8][3], float coordsReal[3],
+void ComputeRHSWeights(real_t const (&cornerCoords)[8][3],
+                       std::array<float, 3> coordsReal,
                        ARRAY_REAL_VIEW& rhsWeights)
 {
   constexpr int numNodes =

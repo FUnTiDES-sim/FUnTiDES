@@ -74,7 +74,7 @@ class SEMsolver : public SolverBase
    *                       for geophysics to preserve natural reflections).
    */
   virtual void computeFEInit(model::ModelApi<float, int> &mesh,
-                             const float sponge_size[3],
+                             const std::array<float, 3> &sponge_size,
                              const bool surface_sponge,
                              const float taper_delta_) override final;
   /**
@@ -84,12 +84,9 @@ class SEMsolver : public SolverBase
    *
    * @param timeSample   Current time index into the RHS (source) term
    * @param dt           Delta time for this iteration
-   * @param i1           Index for previous pressure field
-   * @param i2           Index for current pressure field
-   * @param rhsTerm      Right-hand side forcing term [node][time]
-   * @param pnGlobal     Global pressure field [node][time]
-   * @param rhsElement   List of active source elements
-   * @param rhsWeights   Forcing weights per source node
+   * @param data         DataStruct containing all necessary arrays
+   * @param isModelOnNodes True if the velocity model is defined on nodes, false
+   * if on elements
    */
   virtual void computeOneStep(const float &dt, const int &timeSample,
                               DataStruct &data) override final;
@@ -152,7 +149,8 @@ class SEMsolver : public SolverBase
    * @param i2       Current pressure field index
    * @param pnGlobal Global pressure field
    */
-  void computeElementContributions(int i2, const ARRAY_REAL_VIEW & pnGlobal);
+  void computeElementContributions(int i2, const ARRAY_REAL_VIEW & pnGlobal,
+                                   bool isModelOnNodes);
 
   /**
    * @brief Update the global pressure field at interior nodes.

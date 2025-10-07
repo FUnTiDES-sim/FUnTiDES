@@ -15,18 +15,7 @@ jobs:
 
   # Format check job - runs first and blocks everything else if it fails
   format-check:
-    name: Code Formatting Check
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Run clang-format style check
-        uses: jidicula/clang-format-action@v4.11.0
-        with:
-          clang-format-version: '13'
-          check-path: 'src'
+    uses: ./.github/workflows/format-check.yaml
 
   build:
     runs-on: ubuntu-latest
@@ -71,7 +60,7 @@ jobs:
           python3 -m venv .venv
           source .venv/bin/activate
           pip install --upgrade pip
-          pip install pybind11
+          pip install pybind11 pytest numpy
 
       - name: Run sccache-cache
         uses: mozilla-actions/sccache-action@v0.0.9
@@ -136,6 +125,12 @@ jobs:
           cd build
           make -j$(nproc)
 
+      - name: Test
+        id: test
+        run: |
+          cd build
+          ctest --output-on-failure
+
       - name: Install
         id: install
         run: |
@@ -146,6 +141,19 @@ jobs:
 
           cd build
           make install
+      
+      - name: Run pytests
+        if: matrix.pywrap == 'pywrap-on' && matrix.discretization == 'sem'
+        env:
+          OMP_NUM_THREADS: 2
+          OMP_THREAD_LIMIT: 2
+          KOKKOS_NUM_THREADS: 2
+        run: |
+          source .venv/bin/activate
+          export INSTALL_DIR=$(realpath ./install)
+          export PYTHONPATH=$PYTHONPATH:$INSTALL_DIR
+          export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$INSTALL_DIR/lib
+          pytest tests/units
 
       - name: Write summary line
         if: always()

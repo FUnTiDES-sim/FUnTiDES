@@ -188,6 +188,9 @@ class ModelApi
    * @return Maximum wave speed value
    */
   virtual FloatType getMaxSpeed() const = 0;
+
+  PROXY_HOST_DEVICE
+  virtual bool isModelOnNodes() const = 0;
 };
 
 }  // namespace model
