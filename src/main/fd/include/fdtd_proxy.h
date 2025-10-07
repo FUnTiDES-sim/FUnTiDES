@@ -77,7 +77,7 @@ private:
   // initialize source and RHS
   void init_source();
 
-  fdtd_grids    m_grids;
+  model::fdgrid::FdtdGrids m_grids;
   fdtd_stencils m_stencils;
   fdtd_kernels  m_kernels;
   fdtd_io       m_io;

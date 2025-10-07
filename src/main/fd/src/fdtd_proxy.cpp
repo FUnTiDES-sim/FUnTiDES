@@ -33,14 +33,14 @@ void fdtd_proxy::init_fdtd()
   printf("--------------------------------------\n");
   printf("\n");
   printf("geometry init\n");
-  m_grids.initGrid(m_opt);
+  m_grids.InitGrid(m_opt);
   printf("--------------------------------------\n");
-  printf("dx=%f dy=%f dz=%f\n",m_grids.dx,m_grids.dy,m_grids.dz);
-  printf("nx=%d ny=%d nz=%d\n",m_grids.nx,m_grids.ny,m_grids.nz);
+  printf("dx=%f dy=%f dz=%f\n",m_grids.dx(),m_grids.dy(),m_grids.dz());
+  printf("nx=%d ny=%d nz=%d\n",m_grids.nx(),m_grids.ny(),m_grids.nz());
 
   printf("stencil init\n");
   printf("--------------------------------------\n");
-  m_stencils.initStencilsCoefficients(m_opt,m_grids.dx,m_grids.dy,m_grids.dz);
+  m_stencils.initStencilsCoefficients(m_opt,m_grids.dx(),m_grids.dy(),m_grids.dz());
   printf("stencil coefficients\n");
   printf("lx=%d ly=%d lz=%d\n",m_stencils.lx,m_stencils.ly,m_stencils.lz);  
   printf("coef0=%f\n",m_stencils.coef0);
@@ -81,12 +81,12 @@ void fdtd_proxy::init_fdtd()
 
   // init model arrays
   printf("model init\n");
-  m_grids.initModelArrays(m_opt);
+  m_grids.InitModelArrays(m_opt);
   printf("model init done\n");
   printf("--------------------------------------\n");
 
   //allocate and initialize wavefields arrays
-  m_kernels.initFieldsArrays(m_grids.nx, m_grids.ny, m_grids.nz,
+  m_kernels.initFieldsArrays(m_grids.nx(), m_grids.ny(), m_grids.nz(),
                    m_stencils.lx, m_stencils.ly, m_stencils.lz);
   printf("arrays init done\n");
   printf("--------------------------------------\n"); 
@@ -101,9 +101,9 @@ void fdtd_proxy::init_fdtd()
   m_source_receivers.xsrc=m_opt.source.xs;
   m_source_receivers.ysrc=m_opt.source.ys;
   m_source_receivers.zsrc=m_opt.source.zs;
-  if(m_source_receivers.xsrc<0) m_source_receivers.xsrc=m_grids.nx/2;
-  if(m_source_receivers.ysrc<0) m_source_receivers.ysrc=m_grids.ny/2;
-  if(m_source_receivers.zsrc<0) m_source_receivers.zsrc=m_grids.nz/2;
+  if(m_source_receivers.xsrc<0) m_source_receivers.xsrc=m_grids.nx()/2;
+  if(m_source_receivers.ysrc<0) m_source_receivers.ysrc=m_grids.ny()/2;
+  if(m_source_receivers.zsrc<0) m_source_receivers.zsrc=m_grids.nz()/2;
   printf("source position\n");
   printf("xsrc=%d ysrc=%d zsrc=%d\n",m_source_receivers.xsrc,m_source_receivers.ysrc,m_source_receivers.zsrc);
   printf("--------------------------------------\n");
@@ -112,7 +112,7 @@ void fdtd_proxy::init_fdtd()
   printf("--------------------------------------\n");
   
   // define sponge boundary
-  m_kernels.defineSpongeBoundary(m_grids.nx, m_grids.ny, m_grids.nz);
+  m_kernels.defineSpongeBoundary(m_grids.nx(), m_grids.ny(), m_grids.nz());
   printf("sponge boundary init done\n"); 
   printf("--------------------------------------\n");
 

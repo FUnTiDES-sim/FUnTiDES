@@ -26,7 +26,7 @@ public:
    * @brief Constructor of the SEMproxy class
    */
     
-  fdtd_solver(fdtd_grids& grids, 
+  fdtd_solver(model::fdgrid::FdtdGrids& grids,
               fdtd_kernels& kernels, 
               fdtd_stencils& stencils,
               fdtd_source_receivers &source_receivers): m_grids(grids), 
@@ -44,7 +44,7 @@ public:
 
   
 private:
-  fdtd_grids    & m_grids;
+  model::fdgrid::FdtdGrids    & m_grids;
   fdtd_stencils & m_stencils;
   fdtd_kernels  & m_kernels;
   fdtd_source_receivers & m_source_receivers;

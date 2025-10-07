@@ -3,7 +3,7 @@
 
 #include <cstdio>
 #include <vector>
-#include "fdtd_grids.h"
+#include <fdtd_grids.h>
 #include "fdtd_kernels.h"
 #include "fdtd_stencils.h"
 #include "fdtd_options.h"
@@ -15,15 +15,15 @@ struct fdtd_io
 {
     //writes  pn values at the source location and save snapshot
     void outputPnValues(int itSample, int i1,
-                        fdtd_grids &m_grids,
+                        model::fdgrid::FdtdGrids &m_grids,
                         fdtd_kernels &m_kernels,
                         fdtd_stencils &m_stencils,
                         fdtd_options &m_opt,
                         fdtd_source_receivers & m_src)  
     {
-        int nx=m_grids.nx;
-        int ny=m_grids.ny;
-        int nz=m_grids.nz;
+        int nx=m_grids.nx();
+        int ny=m_grids.ny();
+        int nz=m_grids.nz();
         int lx=m_stencils.lx;
         int ly=m_stencils.ly;
         int lz=m_stencils.lz;
@@ -53,11 +53,11 @@ struct fdtd_io
                        const int &y0, const int &y1, 
                        const int &z0, const int &z1, 
                        const int istep, int i1,
-                       fdtd_grids &m_grids, fdtd_kernels &m_kernels,
+                       model::fdgrid::FdtdGrids &m_grids, fdtd_kernels &m_kernels,
                        fdtd_stencils &m_stencils,fdtd_options &m_opt)
     {
-        int ny=m_grids.ny;
-        int nz=m_grids.nz;
+        int ny=m_grids.ny();
+        int nz=m_grids.nz();
         int lx=m_stencils.lx;
         int ly=m_stencils.ly;
         int lz=m_stencils.lz;
