@@ -14,13 +14,6 @@
 #define LOOPEND \
   });
 
-#elif defined(USE_OMP)
-#define LOOPHEAD(Range, Iterator)                                      \
-  _Pragma("omp parallel for") for (int Iterator = 0; Iterator < Range; \
-                                   Iterator++)                         \
-  {
-#define LOOPEND }
-
 #else
 // the sequential case
 #define LOOPHEAD(Range, Iterator)                      \
@@ -73,14 +66,6 @@
         local_max = Array[i];                                         \
       },                                                              \
       Kokkos::Max<decltype(Result)>(Result));
-#elif defined(USE_OMP)
-#define FIND_MAX(Array, Range, Result)                                         \
-  Result = Array[0];                                                           \
-  _Pragma("omp parallel for reduction(max:Result)") for (int i = 1; i < Range; \
-                                                         i++)                  \
-  {                                                                            \
-    if (Array[i] > Result) Result = Array[i];                                  \
-  }
 #else
 // The sequential case
 #define FIND_MAX(Array, Range, Result)        \
@@ -100,14 +85,6 @@
         local_min = Array[i];                                         \
       },                                                              \
       Kokkos::Min<decltype(Result)>(Result));
-#elif defined(USE_OMP)
-#define FIND_MIN(Array, Range, Result)                                         \
-  Result = Array[0];                                                           \
-  _Pragma("omp parallel for reduction(min:Result)") for (int i = 1; i < Range; \
-                                                         i++)                  \
-  {                                                                            \
-    if (Array[i] < Result) Result = Array[i];                                  \
-  }
 #else
 // The sequential case
 #define FIND_MIN(Array, Range, Result)        \
@@ -127,14 +104,6 @@
         local_sum = Array[i];                                         \
       },                                                              \
       Kokkos::Sum<decltype(Result)>(Result));
-#elif defined(USE_OMP)
-#define SUM(Array, Range, Result)                                            \
-  Result = decltype(Result){0};                                              \
-  _Pragma("omp parallel for reduction(+:Result)") for (int i = 0; i < Range; \
-                                                       i++)                  \
-  {                                                                          \
-    Result += Array[i];                                                      \
-  }
 #else
 // The sequential case
 #define SUM(Array, Range, Result) \
