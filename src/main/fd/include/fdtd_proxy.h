@@ -8,29 +8,31 @@
 #ifndef FDTD_PROXY_HPP_
 #define FDTD_PROXY_HPP_
 
-#include <memory>
 #include <args_parse.h>
 #include <utils.h>
 
-#include "fdtd_options.h"
+#include <memory>
+
 #include "fdtd_grids.h"
-#include "fdtd_stencils.h"
-#include "fdtd_kernels.h"
-#include "fdtd_source_receivers.h"
 #include "fdtd_io.h"
-#include "read_sepfile.h"
+#include "fdtd_kernels.h"
+#include "fdtd_options.h"
 #include "fdtd_solver.h"
+#include "fdtd_source_receivers.h"
+#include "fdtd_stencils.h"
+#include "read_sepfile.h"
 
 /**
  * @class FDproxy
  */
 
-class fdtd_proxy {
-public:
+class fdtd_proxy
+{
+ public:
   /**
    * @brief Constructor of the SEMproxy class
    */
-  fdtd_proxy(const fdtd_options & opt);
+  fdtd_proxy(const fdtd_options& opt);
 
   /**
    * @brief Destructor of the SEMproxy class
@@ -41,7 +43,7 @@ public:
    * @brief Initialize the simulation.
    * @post run()
    */
-  void init_fdtd(); 
+  void init_fdtd();
 
   /**
    * @brief Run the simulation.
@@ -50,9 +52,9 @@ public:
    */
   void run();
 
-private:
+ private:
   fdtd_options m_opt;
-  
+
   int i1 = 0;
   int i2 = 1;
 
@@ -60,31 +62,30 @@ private:
   int ncoefsY;
   int ncoefsZ;
 
-  int   nSamples;
+  int nSamples;
   float timeStep;
   float timeMax;
-  
-  int   sourceOrder;
+
+  int sourceOrder;
   float f0;
   float vmin;
   float vmax;
   float lambdamax;
 
-  int xsrc=-1;
-  int ysrc=-1;
-  int zsrc=-1;
+  int xsrc = -1;
+  int ysrc = -1;
+  int zsrc = -1;
 
   // initialize source and RHS
   void init_source();
 
   model::fdgrid::FdtdGrids m_grids;
   fdtd_stencils m_stencils;
-  fdtd_kernels  m_kernels;
-  fdtd_io       m_io;
-  SolverUtils   m_utils;
-  fdtd_solver   m_solver;
+  fdtd_kernels m_kernels;
+  fdtd_io m_io;
+  SolverUtils m_utils;
+  fdtd_solver m_solver;
   fdtd_source_receivers m_source_receivers;
-
 };
 
 #endif /* SEMPROXY_HPP_ */
