@@ -12,9 +12,10 @@ if(COMPILE_FD)
                             )
 
   target_link_libraries(fdproxy
-    PRIVATE
+    PUBLIC
       discretization
       proxy_utils
+      fd_grid
   )
 
   target_link_kokkos_if_enabled(fdproxy)

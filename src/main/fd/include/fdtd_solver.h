@@ -11,7 +11,7 @@
 #include <memory>
 #include <args_parse.h>
 #include <utils.h>
-#include "fdtd_grids.h"
+#include <fdtd_grids.h>
 #include "fdtd_stencils.h"
 #include "fdtd_kernels.h"
 #include "fdtd_source_receivers.h"
