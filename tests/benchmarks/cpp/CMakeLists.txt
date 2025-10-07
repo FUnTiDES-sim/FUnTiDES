@@ -1,6 +1,8 @@
-add_benchmark(bench_solver_struct
+add_benchmark(bench_solver_fe_cartesian_struct
   SOURCES
-    solver_struct_bench.cpp
+    src/bench_solver_fe_cartesian_struct.cc
+  INCLUDES
+    ${CMAKE_CURRENT_SOURCE_DIR}/include
   LIBS
     proxy_solver
     proxy_model_builder_cartesian

@@ -3,10 +3,13 @@
 #-------------------------------------------------------------------
 
 # Helper function to create a benchmark executable
-# The first argument is the target name, the rest are sources and libraries
+# The first argument is the target name, the rest are sources, includes and libraries
 # Example :
 # add_benchmark(bench_solver_struct
-#   SOURCES solver_struct_bench.cpp
+#   SOURCES
+#     src/my_bench.cc
+#   INCLUDES
+#     ${CMAKE_CURRENT_SOURCE_DIR}/include
 #   LIBS
 #     proxy_solver
 #     proxy_model_builder_cartesian
@@ -21,7 +24,7 @@
 function(add_benchmark name)
   set(options)      # cmake flags for verbose, etc. (optional)
   set(oneValueArgs) # name
-  set(multiValueArgs SOURCES LIBS LABELS)
+  set(multiValueArgs SOURCES INCLUDES LIBS LABELS)
   cmake_parse_arguments(ARG "${options}" "${oneValueArgs}" "${multiValueArgs}" ${ARGN})
 
   add_executable(${name} ${ARG_SOURCES})
@@ -31,6 +34,14 @@ function(add_benchmark name)
       ${ARG_LIBS}
       benchmark::benchmark
   )
+
+  # Add include directories if provided
+  if(ARG_INCLUDES)
+    target_include_directories(${name}
+      PRIVATE
+        ${ARG_INCLUDES}
+    )
+  endif()
 
   target_link_kokkos_if_enabled(${name})
 

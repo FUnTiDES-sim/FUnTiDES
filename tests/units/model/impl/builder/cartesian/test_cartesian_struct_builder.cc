@@ -21,7 +21,6 @@ class CartesianStructInputs : public ::testing::Test
   static constexpr float hz = 0.3f;
 };
 
-// Template struct to hold Order and isModelOnNodes parameters
 template <int Order, bool IsModelOnNodes>
 struct BuilderConfig
 {
