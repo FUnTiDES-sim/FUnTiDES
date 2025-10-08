@@ -149,6 +149,8 @@ Some examples on how to use the wrappers are available in the [`examples`](examp
 
 ### Tests & Benchmarks
 
+All commands from this section should be executed from the repository root directory.
+
 To install dev python packages
 ```bash
 pip install -r requirements-dev.txt
