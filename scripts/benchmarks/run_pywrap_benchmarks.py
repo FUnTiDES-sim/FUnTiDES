@@ -41,8 +41,8 @@ def parse_args():
     p.add_argument(
         "--threads",
         type=str,
-        default="2,4,8,16,32,64",
-        help="Comma-separated list of thread counts (default: 2,4,8,16,32,64)",
+        default="1,2,4,8,16,32,64",
+        help="Comma-separated list of thread counts (default: 1,2,4,8,16,32,64)",
     )
     p.add_argument(
         "--marker",
