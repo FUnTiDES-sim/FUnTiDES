@@ -149,7 +149,7 @@ class SEMsolver : public SolverBase
    * @param i2       Current pressure field index
    * @param pnGlobal Global pressure field
    */
-  void computeElementContributions(int i2, const ARRAY_REAL_VIEW &pnGlobal,
+  void computeElementContributions(int i2, const ARRAY_REAL_VIEW & pnGlobal,
                                    bool isModelOnNodes);
 
   /**
@@ -175,7 +175,6 @@ class SEMsolver : public SolverBase
 
   // Basis functions and integral objects
   INTEGRAL_TYPE myQkIntegrals;
-  typename INTEGRAL_TYPE::PrecomputedData m_precomputedIntegralData;
 
   // Sponge tapering
   VECTOR_REAL_VIEW spongeTaperCoeff;
