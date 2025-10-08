@@ -18,7 +18,7 @@ struct FdtdIo
   // writes  pn values at the source location and save snapshot
   void outputPnValues(int itSample, int i1, model::fdgrid::FdtdGrids &m_grids,
                       FdtdKernels &m_kernels, FdtdStencils &m_stencils,
-                      FdtdOptions &m_opt, FdtdSourceReceivers &m_src)
+                      fdtd::FdtdOptions &m_opt, FdtdSourceReceivers &m_src)
   {
     int nx = m_grids.nx();
     int ny = m_grids.ny();
@@ -49,8 +49,9 @@ struct FdtdIo
   void write_snapshot(const int &x0, const int &x1, const int &y0,
                       const int &y1, const int &z0, const int &z1,
                       const int istep, int i1,
-                      model::fdgrid::FdtdGrids &m_grids, FdtdKernels &m_kernels,
-                      FdtdStencils &m_stencils, FdtdOptions &m_opt)
+                      model::fdgrid::FdtdGrids &m_grids,
+                      FdtdKernels &m_kernels, FdtdStencils &m_stencils,
+                      fdtd::FdtdOptions &m_opt)
   {
     int ny = m_grids.ny();
     int nz = m_grids.nz();

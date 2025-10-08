@@ -52,7 +52,7 @@ class GridGeometry
    * @brief Construct from FDTD options
    * @param opt Configuration options
    */
-  explicit GridGeometry(const FdtdOptions& opt)
+  explicit GridGeometry(const fdtd::FdtdOptions& opt)
       : GridGeometry(opt.grid.nx, opt.grid.ny, opt.grid.nz, opt.grid.dx,
                      opt.grid.dy, opt.grid.dz)
   {

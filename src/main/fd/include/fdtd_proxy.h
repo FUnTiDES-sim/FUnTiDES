@@ -45,7 +45,7 @@ namespace fdtd
  *
  * Typical usage:
  * @code
- *   FdtdOptions options = ParseCommandLineArgs(argc, argv);
+ *   fdtd::FdtdOptions options = ParseCommandLineArgs(argc, argv);
  *   FdtdProxy proxy(options);
  *   proxy.InitFdtd();
  *   proxy.Run();
@@ -59,7 +59,7 @@ class FdtdProxy
    * @param opt Configuration options for the simulation including grid size,
    *            time stepping parameters, and I/O settings.
    */
-  explicit FdtdProxy(const FdtdOptions& opt);
+  explicit FdtdProxy(const fdtd::FdtdOptions& opt);
 
   /**
    * @brief Destructor for the FdtdProxy class.
@@ -149,7 +149,7 @@ class FdtdProxy
       const std::chrono::nanoseconds& total_output_time) const;
 
   // Simulation configuration
-  FdtdOptions opt_;
+  fdtd::FdtdOptions opt_;
 
   // Grid indexing for time integration (current and next time level)
   int time_index_current_ = 0;

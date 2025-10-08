@@ -160,8 +160,8 @@ int main(int argc, char* argv[])
     options.allow_unrecognised_options();  // Allow Kokkos flags to pass through
 
     // Bind FDTD options to CLI parser
-    FdtdOptions opt;
-    FdtdOptions::BindCli(options, opt);
+    fdtd::FdtdOptions opt;
+    fdtd::FdtdOptions::BindCli(options, opt);
 
     // Parse command-line arguments
     auto result = options.parse(argc, argv);

@@ -34,7 +34,7 @@ class VelocityModel
    * @param time_step Time step for wave equation (dt)
    * @throws std::runtime_error if allocation fails
    */
-  void Initialize(const FdtdOptions& opt, float time_step)
+  void Initialize(const fdtd::FdtdOptions& opt, float time_step)
   {
     size_t model_volume = geom_.TotalPoints();
 
