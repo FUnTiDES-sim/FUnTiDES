@@ -37,12 +37,12 @@ class FdtdGrids
    * @brief Initialize grid geometry (backward compatible)
    * @param opt FDTD configuration options
    */
-  void InitGrid(const fdtd_options& opt)
+  void InitGrid(const FdtdOptions& opt)
   {
     // Load geometry from file if specified
-    if (!opt.velocity.fileModel.empty())
+    if (!opt.velocity.file_model.empty())
     {
-      geom_ = ModelIO::ReadGeometry(opt.velocity.fileModel);
+      geom_ = ModelIO::ReadGeometry(opt.velocity.file_model);
     }
     else
     {
@@ -57,7 +57,7 @@ class FdtdGrids
    * @brief Initialize model arrays (backward compatible)
    * @param opt FDTD configuration options
    */
-  void InitModelArrays(const fdtd_options& opt)
+  void InitModelArrays(const FdtdOptions& opt)
   {
     constexpr float kTimeStep = 0.001f;  // TODO: Make configurable
     model_ = std::make_unique<VelocityModel>(geom_);

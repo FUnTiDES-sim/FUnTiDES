@@ -1,171 +1,201 @@
+
 //************************************************************************
-//   proxy application v.0.0.1
+// Finite Difference Time Domain (FDTD) Acoustic Simulation
 //
-//  semproxy.cpp: the main interface of  proxy application
+// src/main/fd/fdtd_proxy.cpp
 //
+// Implementation of the FDTD proxy application main interface
+//
+// This file implements the FdtdProxy class, which orchestrates the entire
+// FDTD simulation workflow including initialization, time-stepping, and
+// output generation for acoustic wave propagation modeling.
 //************************************************************************
 
-#include <cxxopts.hpp>
 #include "fdtd_proxy.h"
-#include "data_type.h"
+
 #include <iomanip>
 #include <iostream>
 #include <sstream>
 #include <variant>
 
+#include <cxxopts.hpp>
 
-fdtd_proxy::fdtd_proxy(const fdtd_options & opt)
-    : m_opt(opt)
-    , m_grids()
-    , m_stencils()
-    , m_kernels()
-    , m_io()
-    , m_utils()
-    , m_solver(m_grids,m_kernels,m_stencils,m_source_receivers) {}
+#include "data_type.h"
 
-// Initialize the simulation.
-// @post run()  
-void fdtd_proxy::init_fdtd() 
-{
+FdtdProxy::FdtdProxy(const FdtdOptions& opt)
+    : opt_(opt),
+      grids_(),
+      stencils_(),
+      kernels_(),
+      io_(),
+      utils_(),
+      solver_(grids_, kernels_, stencils_, source_receivers_) {}
+
+void FdtdProxy::InitFdtd() {
   printf("+======================================\n");
-  printf("saveSnapshots=%d snapShotInterval=%d\n",m_opt.output.saveSnapShots,
-                                                  m_opt.output.snapShotInterval);
+  printf("saveSnapshots=%d snapShotInterval=%d\n",
+         opt_.output.save_snapshots,
+         opt_.output.snapshot_interval);
   printf("--------------------------------------\n");
   printf("\n");
-  printf("geometry init\n");
-  m_grids.InitGrid(m_opt);
-  printf("--------------------------------------\n");
-  printf("dx=%f dy=%f dz=%f\n",m_grids.dx(),m_grids.dy(),m_grids.dz());
-  printf("nx=%d ny=%d nz=%d\n",m_grids.nx(),m_grids.ny(),m_grids.nz());
 
+  // Initialize computational grid geometry
+  printf("geometry init\n");
+  grids_.InitGrid(opt_);
+  printf("--------------------------------------\n");
+  printf("dx=%f dy=%f dz=%f\n", grids_.dx(), grids_.dy(), grids_.dz());
+  printf("nx=%d ny=%d nz=%d\n", grids_.nx(), grids_.ny(), grids_.nz());
+
+  // Initialize finite difference stencil coefficients
   printf("stencil init\n");
   printf("--------------------------------------\n");
-  m_stencils.initStencilsCoefficients(m_opt,m_grids.dx(),m_grids.dy(),m_grids.dz());
+  stencils_.initStencilsCoefficients(opt_, grids_.dx(), grids_.dy(),
+                                     grids_.dz());
   printf("stencil coefficients\n");
-  printf("lx=%d ly=%d lz=%d\n",m_stencils.lx,m_stencils.ly,m_stencils.lz);  
-  printf("coef0=%f\n",m_stencils.coef0);
-  for( int i=0;i<m_stencils.ncoefsX;i++ )
-    printf("coefx[%d]=%f ",i,m_stencils.coefx[i]);
+  printf("lx=%d ly=%d lz=%d\n", stencils_.lx, stencils_.ly, stencils_.lz);
+  printf("coef0=%f\n", stencils_.coef0);
+  for (int i = 0; i < stencils_.ncoefsX; i++) {
+    printf("coefx[%d]=%f ", i, stencils_.coefx[i]);
+  }
   printf("\n");
-  for( int i=0;i<m_stencils.ncoefsY;i++ )
-    printf("coefy[%d]=%f ",i,m_stencils.coefy[i]);
+  for (int i = 0; i < stencils_.ncoefsY; i++) {
+    printf("coefy[%d]=%f ", i, stencils_.coefy[i]);
+  }
   printf("\n");
-  for( int i=0;i<m_stencils.ncoefsZ;i++ )
-    printf("coefz[%d]=%f ",i,m_stencils.coefz[i]);
+  for (int i = 0; i < stencils_.ncoefsZ; i++) {
+    printf("coefz[%d]=%f ", i, stencils_.coefz[i]);
+  }
   printf("\n");
 
-  // velocity model
+  // Initialize velocity model parameters
   printf("\n");
   printf("velocity model init\n");
-  printf("vmin=%f vmax=%f\n",m_opt.velocity.vmin,m_opt.velocity.vmax);
+  printf("vmin=%f vmax=%f\n", opt_.velocity.vmin, opt_.velocity.vmax);
   printf("--------------------------------------\n");
-  vmin=m_opt.velocity.vmin;
-  vmax=m_opt.velocity.vmax;
-  lambdamax=m_opt.velocity.vmax/(2.5*m_opt.source.f0);
-  timeStep=m_opt.time.timeStep;
-  timeMax=m_opt.time.timeMax;
-  printf("user defined time step=%e\n",timeStep); 
-  printf("user defined max time=%f\n",m_opt.time.timeMax);
-  printf("--------------------------------------\n");
-  if(timeStep==0)
-  {
-    timeStep=m_stencils.compute_dt_sch(vmax);
-    printf("compute time step from CFL condition\n");
-  }
-  else
-    printf("user defined time step\n"); 
-  nSamples=timeMax/timeStep;
-  printf("timeStep=%e\n",timeStep);
-  printf("nSamples=%d\n",nSamples);
+  velocity_min_ = opt_.velocity.vmin;
+  velocity_max_ = opt_.velocity.vmax;
+  wavelength_max_ = opt_.velocity.vmax / (2.5 * opt_.source.f0);
+  time_step_ = opt_.time.time_step;
+  time_max_ = opt_.time.time_max;
+  printf("user defined time step=%e\n", time_step_);
+  printf("user defined max time=%f\n", opt_.time.time_max);
   printf("--------------------------------------\n");
 
-  // init model arrays
+  // Compute time step from CFL condition if not user-defined
+  if (time_step_ == 0) {
+    time_step_ = stencils_.compute_dt_sch(velocity_max_);
+    printf("compute time step from CFL condition\n");
+  } else {
+    printf("user defined time step\n");
+  }
+  num_time_samples_ = time_max_ / time_step_;
+  printf("timeStep=%e\n", time_step_);
+  printf("nSamples=%d\n", num_time_samples_);
+  printf("--------------------------------------\n");
+
+  // Initialize model arrays (velocity, density, etc.)
   printf("model init\n");
-  m_grids.InitModelArrays(m_opt);
+  grids_.InitModelArrays(opt_);
   printf("model init done\n");
   printf("--------------------------------------\n");
 
-  //allocate and initialize wavefields arrays
-  m_kernels.initFieldsArrays(m_grids.nx(), m_grids.ny(), m_grids.nz(),
-                   m_stencils.lx, m_stencils.ly, m_stencils.lz);
+  // Allocate and initialize wavefield arrays
+  kernels_.initFieldsArrays(grids_.nx(), grids_.ny(), grids_.nz(),
+                            stencils_.lx, stencils_.ly, stencils_.lz);
   printf("arrays init done\n");
-  printf("--------------------------------------\n"); 
+  printf("--------------------------------------\n");
 
-  // set up source
-  f0=m_opt.source.f0;
-  sourceOrder=m_opt.source.sourceOrder;
+  // Configure seismic source parameters
+  source_frequency_ = opt_.source.f0;
+  source_order_ = opt_.source.source_order;
   printf("central freq and source order\n");
-  printf("f0=%f\n",f0);
-  printf("sourceOrder=%d\n",sourceOrder);
+  printf("f0=%f\n", source_frequency_);
+  printf("sourceOrder=%d\n", source_order_);
   printf("--------------------------------------\n");
-  m_source_receivers.xsrc=m_opt.source.xs;
-  m_source_receivers.ysrc=m_opt.source.ys;
-  m_source_receivers.zsrc=m_opt.source.zs;
-  if(m_source_receivers.xsrc<0) m_source_receivers.xsrc=m_grids.nx()/2;
-  if(m_source_receivers.ysrc<0) m_source_receivers.ysrc=m_grids.ny()/2;
-  if(m_source_receivers.zsrc<0) m_source_receivers.zsrc=m_grids.nz()/2;
+
+  // Set source position (use grid center if not specified)
+  source_receivers_.xsrc = opt_.source.xs;
+  source_receivers_.ysrc = opt_.source.ys;
+  source_receivers_.zsrc = opt_.source.zs;
+  if (source_receivers_.xsrc < 0) {
+    source_receivers_.xsrc = grids_.nx() / 2;
+  }
+  if (source_receivers_.ysrc < 0) {
+    source_receivers_.ysrc = grids_.ny() / 2;
+  }
+  if (source_receivers_.zsrc < 0) {
+    source_receivers_.zsrc = grids_.nz() / 2;
+  }
   printf("source position\n");
-  printf("xsrc=%d ysrc=%d zsrc=%d\n",m_source_receivers.xsrc,m_source_receivers.ysrc,m_source_receivers.zsrc);
+  printf("xsrc=%d ysrc=%d zsrc=%d\n", source_receivers_.xsrc,
+         source_receivers_.ysrc, source_receivers_.zsrc);
   printf("--------------------------------------\n");
-  init_source();
+
+  InitSource();
   printf("source init done\n");
   printf("--------------------------------------\n");
-  
-  // define sponge boundary
-  m_kernels.defineSpongeBoundary(m_grids.nx(), m_grids.ny(), m_grids.nz());
-  printf("sponge boundary init done\n"); 
+
+  // Define absorbing boundary conditions (sponge layers)
+  kernels_.defineSpongeBoundary(grids_.nx(), grids_.ny(), grids_.nz());
+  printf("sponge boundary init done\n");
   printf("--------------------------------------\n");
 
   printf("solver initialization done\n");
   printf("--------------------------------------\n");
-  }
+}
 
-// inti source term, e.g., Ricker wavelet
-void fdtd_proxy::init_source()
-{
-  // compute source term
-  m_kernels.RHSTerm = allocateVector< vectorReal >( nSamples, "RHSTerm" );
+void FdtdProxy::InitSource() {
+  // Compute source term (e.g., Ricker wavelet)
+  kernels_.RHSTerm =
+      allocateVector<vectorReal>(num_time_samples_, "RHSTerm");
 
-  std::vector< float > sourceTerm=m_utils.computeSourceTerm( nSamples, timeStep, f0, sourceOrder );
-  for( int i=0; i<nSamples; i++ )
-  {
-    m_kernels.RHSTerm[i]=sourceTerm[i];
-    //cout<<"sample "<<i<<"\t: sourceTerm = "<<sourceTerm[i]<< endl;
+  std::vector<float> source_term = utils_.computeSourceTerm(
+      num_time_samples_, time_step_, source_frequency_, source_order_);
+  for (int i = 0; i < num_time_samples_; i++) {
+    kernels_.RHSTerm[i] = source_term[i];
+    // std::cout << "sample " << i << "\t: sourceTerm = " << source_term[i]
+    //           << std::endl;
   }
 }
 
-// run all time steps
-void fdtd_proxy::run() 
-{
-  time_point<system_clock> startComputeTime, startOutputTime, totalComputeTime, totalOutputTime;
-  for (int indexTimeSample = 0; indexTimeSample < nSamples; indexTimeSample++)
-  {
-    startComputeTime = system_clock::now();
-    m_solver.compute_one_step(indexTimeSample,i1,i2);
-    totalComputeTime += system_clock::now() - startComputeTime;
-    startOutputTime = system_clock::now();
-    if (indexTimeSample % m_opt.output.snapShotInterval == 0)
-    {
-      m_io.outputPnValues(indexTimeSample, i1,m_grids,m_kernels,m_stencils,m_opt,m_source_receivers);
+void FdtdProxy::Run() {
+  time_point<system_clock> start_compute_time, start_output_time,
+      total_compute_time, total_output_time;
+
+  for (int index_time_sample = 0; index_time_sample < num_time_samples_;
+       index_time_sample++) {
+    // Compute one time step
+    start_compute_time = system_clock::now();
+    solver_.compute_one_step(index_time_sample, time_index_current_,
+                             time_index_next_);
+    total_compute_time += system_clock::now() - start_compute_time;
+
+    // Output snapshots at specified intervals
+    start_output_time = system_clock::now();
+    if (index_time_sample % opt_.output.snapshot_interval == 0) {
+      io_.outputPnValues(index_time_sample, time_index_current_, grids_,
+                         kernels_, stencils_, opt_, source_receivers_);
     }
-    //swap(i1, i2);
-    auto tmp = i1;
-    i1 = i2;
-    i2 = tmp;
-    totalOutputTime += system_clock::now() - startOutputTime;
-   
+
+    // Swap time indices for next iteration
+    std::swap(time_index_current_, time_index_next_);
+
+    total_output_time += system_clock::now() - start_output_time;
     fflush(stdout);
   }
-  float kerneltime_ms = time_point_cast<microseconds>(totalComputeTime)
-                            .time_since_epoch()
-                            .count();
-  float outputtime_ms=time_point_cast<microseconds>(totalOutputTime).time_since_epoch().count();
-  cout << "------------------------------------------------ " << endl;
-  cout << "\n---- Elapsed Kernel Time : " << kerneltime_ms / 1E6 << " seconds."<< endl;
-  cout << "---- Elapsed Output Time : " << outputtime_ms / 1E6 << " seconds."<< endl;
-  cout << "------------------------------------------------ " << endl;
-}
 
-//************************************************************************
-// End of file
-//************************************************************************
+  // Report performance metrics
+  float kernel_time_ms = time_point_cast<microseconds>(total_compute_time)
+                             .time_since_epoch()
+                             .count();
+  float output_time_ms = time_point_cast<microseconds>(total_output_time)
+                             .time_since_epoch()
+                             .count();
+
+  std::cout << "------------------------------------------------ " << std::endl;
+  std::cout << "\n---- Elapsed Kernel Time : " << kernel_time_ms / 1E6
+            << " seconds." << std::endl;
+  std::cout << "---- Elapsed Output Time : " << output_time_ms / 1E6
+            << " seconds." << std::endl;
+  std::cout << "------------------------------------------------ " << std::endl;
+}

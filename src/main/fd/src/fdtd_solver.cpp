@@ -15,7 +15,7 @@
 
 
 // compute one time step
-void fdtd_solver::compute_one_step(int itime,int i1,int i2)
+void FdtdSolver::compute_one_step(int itime,int i1,int i2)
 {
 
   int x3=m_stencils.lx;

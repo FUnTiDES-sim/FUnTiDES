@@ -1,79 +1,145 @@
 //************************************************************************
-//  SEM proxy application v.0.0.1
+// Finite Difference Time Domain (FDTD) Acoustic Simulation
+// Version 0.0.1
 //
-//  main.cpp: this main file is simply a driver
+// src/main/fd/main.cpp
+//
+// Main driver program for FDTD simulation
+//
+// This file provides the entry point for the FDTD acoustic wave
+// propagation simulator. It handles command-line argument parsing,
+// initializes the simulation environment (including optional Kokkos
+// support), and orchestrates the complete simulation workflow.
 //************************************************************************
+
+#include <chrono>
+#include <cstdlib>
+#include <exception>
+#include <iostream>
+
+#include <cxxopts.hpp>
+
+#ifdef USE_KOKKOS
+#include <Kokkos_Core.hpp>
+#endif
 
 #include "fdtd_options.h"
 #include "fdtd_proxy.h"
 
-time_point<system_clock> startInitTime;
+using std::chrono::system_clock;
+using std::chrono::time_point;
 
-void compute(fdtd_proxy &fdsim) 
-{
-  // initialize FD simulation
-  fdsim.init_fdtd();
-  cout << "FD Initialization done." << endl;
-  // start timer
-  time_point<system_clock> startRunTime = system_clock::now();
-  // run simulation
-  cout<<"Starting FD computation ... " << endl;
-  fdsim.run();
-  // print timing information
-  cout << "Elapsed Initial Time : "
-       << (startRunTime - startInitTime).count() / 1E9 << " seconds." << endl;
-  cout << "Elapsed Compute Time : "
-       << (system_clock::now() - startRunTime).count() / 1E9 << " seconds."
-       << endl;
-};
+// Global start time for total execution timing
+time_point<system_clock> g_start_init_time;
 
-void compute_loop(fdtd_proxy & fdsim) { compute(fdsim); }
+/**
+ * @brief Executes the complete FDTD simulation workflow.
+ *
+ * Initializes the FDTD simulation environment, runs the time-stepping
+ * loop, and reports performance metrics.
+ *
+ * @param fd_sim Reference to the FdtdProxy simulation object
+ */
+void Compute(FdtdProxy& fd_sim) {
+  // Initialize FDTD simulation
+  fd_sim.InitFdtd();
+  std::cout << "FDTD initialization done." << std::endl;
 
-int main(int argc, char *argv[]) {
+  // Start computation timer
+  time_point<system_clock> start_run_time = system_clock::now();
 
-  startInitTime = system_clock::now();
+  // Run simulation
+  std::cout << "Starting FDTD computation..." << std::endl;
+  fd_sim.Run();
+
+  // Report timing information
+  auto init_duration = std::chrono::duration_cast<std::chrono::nanoseconds>(
+      start_run_time - g_start_init_time);
+  auto compute_duration = std::chrono::duration_cast<std::chrono::nanoseconds>(
+      system_clock::now() - start_run_time);
+
+  std::cout << "Elapsed initialization time: "
+            << init_duration.count() / 1E9 << " seconds." << std::endl;
+  std::cout << "Elapsed computation time: "
+            << compute_duration.count() / 1E9 << " seconds." << std::endl;
+}
+
+/**
+ * @brief Wrapper function for the computation loop.
+ *
+ * This function provides a clean interface for the main simulation
+ * execution, allowing for future extensions such as parameter sweeps
+ * or ensemble runs.
+ *
+ * @param fd_sim Reference to the FdtdProxy simulation object
+ */
+void ComputeLoop(FdtdProxy& fd_sim) {
+  Compute(fd_sim);
+}
+
+/**
+ * @brief Main entry point for the FDTD simulation program.
+ *
+ * Parses command-line arguments, validates configuration, initializes
+ * the simulation environment (including optional Kokkos parallel
+ * execution framework), and runs the FDTD simulation.
+ *
+ * @param argc Number of command-line arguments
+ * @param argv Array of command-line argument strings
+ * @return 0 on success, 1 on error
+ */
+int main(int argc, char* argv[]) {
+  g_start_init_time = system_clock::now();
 
 #ifdef USE_KOKKOS
+  // Configure OpenMP thread binding for optimal performance
   setenv("OMP_PROC_BIND", "spread", 1);
   setenv("OMP_PLACES", "threads", 1);
   Kokkos::initialize(argc, argv);
   {
 #endif
 
-  cxxopts::Options options("FD Proxy", "Runs the FD simulation.");
-  options.allow_unrecognised_options();       // lets Kokkos flags pass
+    // Set up command-line option parser
+    cxxopts::Options options("FDTD Proxy", "FDTD acoustic wave simulation");
+    options.allow_unrecognised_options();  // Allow Kokkos flags to pass through
 
-  fdtd_options opt;
-  fdtd_options::bind_cli(options, opt);
+    // Bind FDTD options to CLI parser
+    FdtdOptions opt;
+    FdtdOptions::BindCli(options, opt);
 
-  auto result = options.parse(argc, argv);
+    // Parse command-line arguments
+    auto result = options.parse(argc, argv);
 
-  if (result.count("help"))
-  {
-    std::cout << options.help() << std::endl;
-    exit(0);
-  }
+    // Display help if requested
+    if (result.count("help")) {
+      std::cout << options.help() << std::endl;
+      return 0;
+    }
 
-  try { opt.validate(); }
-  catch (const std::exception& e) 
-  {
-    // your error path (no help printing here)
-    std::cerr << "Invalid options: " << e.what() << "\n";
-    return 1;
-  }
+    // Validate configuration options
+    try {
+      opt.Validate();
+    } catch (const std::exception& e) {
+      std::cerr << "Error: Invalid configuration - " << e.what() << std::endl;
+      return 1;
+    }
 
-  // initialize FD simulation object
-  fdtd_proxy fdsim(opt);
-  // run simulation
-  compute_loop(fdsim);
+    // Initialize FDTD simulation object
+    FdtdProxy fd_sim(opt);
+
+    // Execute simulation
+    ComputeLoop(fd_sim);
 
 #ifdef USE_KOKKOS
   }
   Kokkos::finalize();
 #endif
 
-  cout << "Elapsed TotalExe Time : "
-       << (system_clock::now() - startInitTime).count() / 1E9 << " seconds.\n"
-       << endl;
-  return (0);
+  // Report total execution time
+  auto total_duration = std::chrono::duration_cast<std::chrono::nanoseconds>(
+      system_clock::now() - g_start_init_time);
+  std::cout << "\nTotal execution time: "
+            << total_duration.count() / 1E9 << " seconds." << std::endl;
+
+  return 0;
 }

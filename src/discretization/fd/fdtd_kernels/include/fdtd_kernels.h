@@ -1,7 +1,7 @@
 #ifndef FDTD_KERNEL_HPP
 #define FDTD_KERNEL_HPP
 
-struct fdtd_kernels
+struct FdtdKernels
 {
   vectorReal spongeArray;
   vectorReal RHSTerm;

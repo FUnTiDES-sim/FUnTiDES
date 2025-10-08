@@ -5,7 +5,7 @@
 #include "fdtd_options.h"
 #include <data_type.h>
 
-struct fdtd_source_receivers
+struct FdtdSourceReceivers
 {
   // source location
   int xsrc{-1},ysrc{-1}, zsrc{-1};

@@ -8,7 +8,7 @@
 using namespace std;
 
 
-struct fdtd_stencils
+struct FdtdStencils
 {
   int ncoefsX{0},ncoefsY{0},ncoefsZ{0};
   int lx{0},ly{0},lz{0}; // half stencil lenght
@@ -66,7 +66,7 @@ struct fdtd_stencils
   }
 
 
-  void initStencilsCoefficients(fdtd_options &m_opt,float dx, float dy, float dz)
+  void initStencilsCoefficients(FdtdOptions &m_opt,float dx, float dy, float dz)
   {
     // half stencil lenght
     lx = m_opt.stencil.lx;

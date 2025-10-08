@@ -13,12 +13,12 @@
 
 using namespace std;
 
-struct fdtd_io
+struct FdtdIo
 {
   // writes  pn values at the source location and save snapshot
   void outputPnValues(int itSample, int i1, model::fdgrid::FdtdGrids &m_grids,
-                      fdtd_kernels &m_kernels, fdtd_stencils &m_stencils,
-                      fdtd_options &m_opt, fdtd_source_receivers &m_src)
+                      FdtdKernels &m_kernels, FdtdStencils &m_stencils,
+                      FdtdOptions &m_opt, FdtdSourceReceivers &m_src)
   {
     int nx = m_grids.nx();
     int ny = m_grids.ny();
@@ -30,7 +30,7 @@ struct fdtd_io
     int ys = m_src.ysrc;
     int zs = m_src.zsrc;
 
-    bool saveSnapShots = m_opt.output.saveSnapShots;
+    bool saveSnapShots = m_opt.output.save_snapshots;
     if (itSample % 50 == 0)
     {
       FDFENCE
@@ -50,8 +50,8 @@ struct fdtd_io
                       const int &y1, const int &z0, const int &z1,
                       const int istep, int i1,
                       model::fdgrid::FdtdGrids &m_grids,
-                      fdtd_kernels &m_kernels, fdtd_stencils &m_stencils,
-                      fdtd_options &m_opt)
+                      FdtdKernels &m_kernels, FdtdStencils &m_stencils,
+                      FdtdOptions &m_opt)
   {
     int ny = m_grids.ny();
     int nz = m_grids.nz();

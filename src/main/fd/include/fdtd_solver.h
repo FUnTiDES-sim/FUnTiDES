@@ -22,15 +22,15 @@
  * @class fdtd_solver
  */
 
-class fdtd_solver
+class FdtdSolver
 {
  public:
   /**
    * @brief Constructor of the SEMproxy class
    */
 
-  fdtd_solver(model::fdgrid::FdtdGrids& grids, fdtd_kernels& kernels,
-              fdtd_stencils& stencils, fdtd_source_receivers& source_receivers)
+  FdtdSolver(model::fdgrid::FdtdGrids& grids, FdtdKernels& kernels,
+              FdtdStencils& stencils, FdtdSourceReceivers& source_receivers)
       : m_grids(grids),
         m_kernels(kernels),
         m_stencils(stencils),
@@ -41,16 +41,16 @@ class fdtd_solver
   /**
    * @brief Destructor of the SEMproxy class
    */
-  ~fdtd_solver(){};
+  ~FdtdSolver(){};
 
   // compute one step
   void compute_one_step(int itime, int i1, int i2);
 
  private:
   model::fdgrid::FdtdGrids& m_grids;
-  fdtd_stencils& m_stencils;
-  fdtd_kernels& m_kernels;
-  fdtd_source_receivers& m_source_receivers;
+  FdtdStencils& m_stencils;
+  FdtdKernels& m_kernels;
+  FdtdSourceReceivers& m_source_receivers;
 };
 
 #endif /* FDTD_SOLVER_HPP_ */

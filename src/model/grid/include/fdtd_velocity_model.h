@@ -31,7 +31,7 @@ class VelocityModel
    * @param time_step Time step for wave equation (dt)
    * @throws std::runtime_error if allocation fails
    */
-  void Initialize(const fdtd_options& opt, float time_step)
+  void Initialize(const FdtdOptions& opt, float time_step)
   {
     size_t model_volume = geom_.TotalPoints();
 
@@ -49,9 +49,9 @@ class VelocityModel
     float init_vp_value = opt.velocity.vmin * opt.velocity.vmin *
                           time_step * time_step;
 
-    if (opt.velocity.usefilemodel && !opt.velocity.fileModel.empty())
+    if (opt.velocity.use_file_model && !opt.velocity.file_model.empty())
     {
-      LoadFromFile(opt.velocity.fileModel);
+      LoadFromFile(opt.velocity.file_model);
     }
     else
     {
