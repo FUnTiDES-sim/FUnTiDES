@@ -16,6 +16,7 @@
 #ifndef SRC_MAIN_FD_INCLUDE_FDTD_PROXY_HPP_
 #define SRC_MAIN_FD_INCLUDE_FDTD_PROXY_HPP_
 
+#include <chrono>
 #include <memory>
 
 #include "args_parse.h"
@@ -48,8 +49,7 @@
  *   proxy.Run();
  * @endcode
  */
-class FdtdProxy
-{
+class FdtdProxy {
  public:
   /**
    * @brief Constructs an FDTD proxy with the given simulation options.
@@ -92,15 +92,58 @@ class FdtdProxy
 
  private:
   /**
-   * @brief Initializes the seismic source term.
+   * @brief Initializes the computational grid geometry.
+   */
+  void InitializeGrid();
+
+  /**
+   * @brief Initializes finite difference stencil coefficients.
+   */
+  void InitializeStencils();
+
+  /**
+   * @brief Initializes velocity model parameters and time stepping.
+   */
+  void InitializeVelocityModel();
+
+  /**
+   * @brief Initializes model arrays (velocity, density, etc.).
+   */
+  void InitializeModelArrays();
+
+  /**
+   * @brief Allocates and initializes wavefield arrays.
+   */
+  void InitializeWavefieldArrays();
+
+  /**
+   * @brief Configures seismic source parameters and position.
+   */
+  void InitializeSource();
+
+  /**
+   * @brief Initializes absorbing boundary conditions.
+   */
+  void InitializeBoundaries();
+
+  /**
+   * @brief Initializes the seismic source wavelet.
    *
-   * Configures the source wavelet (e.g., Ricker wavelet) and its spatial
-   * location within the computational domain.
+   * Computes the source time function (e.g., Ricker wavelet) and stores
+   * it for injection during time stepping.
    *
-   * @post Source parameters are set and ready for injection during
-   *       time stepping.
+   * @post Source wavelet is computed and ready for injection.
    */
   void InitSource();
+
+  /**
+   * @brief Prints performance metrics after simulation completion.
+   * @param total_compute_time Accumulated computation time
+   * @param total_output_time Accumulated I/O time
+   */
+  void PrintPerformanceMetrics(
+      const std::chrono::nanoseconds& total_compute_time,
+      const std::chrono::nanoseconds& total_output_time) const;
 
   // Simulation configuration
   FdtdOptions opt_;

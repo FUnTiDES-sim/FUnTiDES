@@ -1,6 +1,6 @@
-
 //************************************************************************
 // Finite Difference Time Domain (FDTD) Acoustic Simulation
+// Version 0.0.1
 //
 // src/main/fd/fdtd_proxy.cpp
 //
@@ -9,17 +9,48 @@
 // This file implements the FdtdProxy class, which orchestrates the entire
 // FDTD simulation workflow including initialization, time-stepping, and
 // output generation for acoustic wave propagation modeling.
+//
+// Copyright (c) 2025
+// License: [Specify license here]
 //************************************************************************
 
 #include "fdtd_proxy.h"
 
-#include <cxxopts.hpp>
+#include <chrono>
 #include <iomanip>
 #include <iostream>
 #include <sstream>
 #include <variant>
 
+#include <cxxopts.hpp>
+
 #include "data_type.h"
+
+using std::chrono::duration_cast;
+using std::chrono::microseconds;
+using std::chrono::nanoseconds;
+using std::chrono::system_clock;
+using std::chrono::time_point;
+
+namespace {
+
+/**
+ * @brief Prints a section separator line.
+ */
+void PrintSeparator() {
+  std::cout << "--------------------------------------" << std::endl;
+}
+
+/**
+ * @brief Converts microseconds to seconds.
+ * @param time_us Time in microseconds
+ * @return Time in seconds
+ */
+inline double MicrosecondsToSeconds(double time_us) {
+  return time_us / 1E6;
+}
+
+}  // namespace
 
 FdtdProxy::FdtdProxy(const FdtdOptions& opt)
     : opt_(opt),
@@ -28,165 +59,172 @@ FdtdProxy::FdtdProxy(const FdtdOptions& opt)
       kernels_(),
       io_(),
       utils_(),
-      solver_(grids_, kernels_, stencils_, source_receivers_)
-{
+      solver_(grids_, kernels_, stencils_, source_receivers_) {}
+
+void FdtdProxy::InitFdtd() {
+  std::cout << "+======================================" << std::endl;
+  std::cout << "saveSnapshots=" << opt_.output.save_snapshots
+            << " snapShotInterval=" << opt_.output.snapshot_interval
+            << std::endl;
+  PrintSeparator();
+  std::cout << std::endl;
+
+  InitializeGrid();
+  InitializeStencils();
+  InitializeVelocityModel();
+  InitializeModelArrays();
+  InitializeWavefieldArrays();
+  InitializeSource();
+  InitializeBoundaries();
+
+  std::cout << "solver initialization done" << std::endl;
+  PrintSeparator();
 }
 
-void FdtdProxy::InitFdtd()
-{
-  printf("+======================================\n");
-  printf("saveSnapshots=%d snapShotInterval=%d\n", opt_.output.save_snapshots,
-         opt_.output.snapshot_interval);
-  printf("--------------------------------------\n");
-  printf("\n");
-
-  // Initialize computational grid geometry
-  printf("geometry init\n");
+void FdtdProxy::InitializeGrid() {
+  std::cout << "geometry init" << std::endl;
   grids_.InitGrid(opt_);
-  printf("--------------------------------------\n");
-  printf("dx=%f dy=%f dz=%f\n", grids_.dx(), grids_.dy(), grids_.dz());
-  printf("nx=%d ny=%d nz=%d\n", grids_.nx(), grids_.ny(), grids_.nz());
+  PrintSeparator();
+  std::cout << "dx=" << grids_.dx() << " dy=" << grids_.dy()
+            << " dz=" << grids_.dz() << std::endl;
+  std::cout << "nx=" << grids_.nx() << " ny=" << grids_.ny()
+            << " nz=" << grids_.nz() << std::endl;
+}
 
-  // Initialize finite difference stencil coefficients
-  printf("stencil init\n");
-  printf("--------------------------------------\n");
+void FdtdProxy::InitializeStencils() {
+  std::cout << "stencil init" << std::endl;
+  PrintSeparator();
   stencils_.initStencilsCoefficients(opt_, grids_.dx(), grids_.dy(),
                                      grids_.dz());
-  printf("stencil coefficients\n");
-  printf("lx=%d ly=%d lz=%d\n", stencils_.lx, stencils_.ly, stencils_.lz);
-  printf("coef0=%f\n", stencils_.coef0);
-  for (int i = 0; i < stencils_.ncoefsX; i++)
-  {
-    printf("coefx[%d]=%f ", i, stencils_.coefx[i]);
-  }
-  printf("\n");
-  for (int i = 0; i < stencils_.ncoefsY; i++)
-  {
-    printf("coefy[%d]=%f ", i, stencils_.coefy[i]);
-  }
-  printf("\n");
-  for (int i = 0; i < stencils_.ncoefsZ; i++)
-  {
-    printf("coefz[%d]=%f ", i, stencils_.coefz[i]);
-  }
-  printf("\n");
+  std::cout << "stencil coefficients" << std::endl;
+  std::cout << "lx=" << stencils_.lx << " ly=" << stencils_.ly
+            << " lz=" << stencils_.lz << std::endl;
+  std::cout << "coef0=" << stencils_.coef0 << std::endl;
 
-  // Initialize velocity model parameters
-  printf("\n");
-  printf("velocity model init\n");
-  printf("vmin=%f vmax=%f\n", opt_.velocity.vmin, opt_.velocity.vmax);
-  printf("--------------------------------------\n");
+  for (int i = 0; i < stencils_.ncoefsX; i++) {
+    std::cout << "coefx[" << i << "]=" << stencils_.coefx[i] << " ";
+  }
+  std::cout << std::endl;
+
+  for (int i = 0; i < stencils_.ncoefsY; i++) {
+    std::cout << "coefy[" << i << "]=" << stencils_.coefy[i] << " ";
+  }
+  std::cout << std::endl;
+
+  for (int i = 0; i < stencils_.ncoefsZ; i++) {
+    std::cout << "coefz[" << i << "]=" << stencils_.coefz[i] << " ";
+  }
+  std::cout << std::endl;
+}
+
+void FdtdProxy::InitializeVelocityModel() {
+  std::cout << std::endl;
+  std::cout << "velocity model init" << std::endl;
+  std::cout << "vmin=" << opt_.velocity.vmin << " vmax=" << opt_.velocity.vmax
+            << std::endl;
+  PrintSeparator();
+
   velocity_min_ = opt_.velocity.vmin;
   velocity_max_ = opt_.velocity.vmax;
   wavelength_max_ = opt_.velocity.vmax / (2.5 * opt_.source.f0);
   time_step_ = opt_.time.time_step;
   time_max_ = opt_.time.time_max;
-  printf("user defined time step=%e\n", time_step_);
-  printf("user defined max time=%f\n", opt_.time.time_max);
-  printf("--------------------------------------\n");
+
+  std::cout << "user defined time step=" << std::scientific << time_step_
+            << std::endl;
+  std::cout << "user defined max time=" << std::fixed << opt_.time.time_max
+            << std::endl;
+  PrintSeparator();
 
   // Compute time step from CFL condition if not user-defined
-  if (time_step_ == 0)
-  {
+  if (time_step_ == 0.0f) {
     time_step_ = stencils_.compute_dt_sch(velocity_max_);
-    printf("compute time step from CFL condition\n");
+    std::cout << "compute time step from CFL condition" << std::endl;
+  } else {
+    std::cout << "user defined time step" << std::endl;
   }
-  else
-  {
-    printf("user defined time step\n");
-  }
-  num_time_samples_ = time_max_ / time_step_;
-  printf("timeStep=%e\n", time_step_);
-  printf("nSamples=%d\n", num_time_samples_);
-  printf("--------------------------------------\n");
 
-  // Initialize model arrays (velocity, density, etc.)
-  printf("model init\n");
-  grids_.InitModelArrays(opt_);
-  printf("model init done\n");
-  printf("--------------------------------------\n");
-
-  // Allocate and initialize wavefield arrays
-  kernels_.initFieldsArrays(grids_.nx(), grids_.ny(), grids_.nz(), stencils_.lx,
-                            stencils_.ly, stencils_.lz);
-  printf("arrays init done\n");
-  printf("--------------------------------------\n");
-
-  // Configure seismic source parameters
-  source_frequency_ = opt_.source.f0;
-  source_order_ = opt_.source.source_order;
-  printf("central freq and source order\n");
-  printf("f0=%f\n", source_frequency_);
-  printf("sourceOrder=%d\n", source_order_);
-  printf("--------------------------------------\n");
-
-  // Set source position (use grid center if not specified)
-  source_receivers_.xsrc = opt_.source.xs;
-  source_receivers_.ysrc = opt_.source.ys;
-  source_receivers_.zsrc = opt_.source.zs;
-  if (source_receivers_.xsrc < 0)
-  {
-    source_receivers_.xsrc = grids_.nx() / 2;
-  }
-  if (source_receivers_.ysrc < 0)
-  {
-    source_receivers_.ysrc = grids_.ny() / 2;
-  }
-  if (source_receivers_.zsrc < 0)
-  {
-    source_receivers_.zsrc = grids_.nz() / 2;
-  }
-  printf("source position\n");
-  printf("xsrc=%d ysrc=%d zsrc=%d\n", source_receivers_.xsrc,
-         source_receivers_.ysrc, source_receivers_.zsrc);
-  printf("--------------------------------------\n");
-
-  InitSource();
-  printf("source init done\n");
-  printf("--------------------------------------\n");
-
-  // Define absorbing boundary conditions (sponge layers)
-  kernels_.defineSpongeBoundary(grids_.nx(), grids_.ny(), grids_.nz());
-  printf("sponge boundary init done\n");
-  printf("--------------------------------------\n");
-
-  printf("solver initialization done\n");
-  printf("--------------------------------------\n");
+  num_time_samples_ = static_cast<int>(time_max_ / time_step_);
+  std::cout << "timeStep=" << std::scientific << time_step_ << std::endl;
+  std::cout << "nSamples=" << num_time_samples_ << std::endl;
+  PrintSeparator();
 }
 
-void FdtdProxy::InitSource()
-{
+void FdtdProxy::InitializeModelArrays() {
+  std::cout << "model init" << std::endl;
+  grids_.InitModelArrays(opt_);
+  std::cout << "model init done" << std::endl;
+  PrintSeparator();
+}
+
+void FdtdProxy::InitializeWavefieldArrays() {
+  kernels_.initFieldsArrays(grids_.nx(), grids_.ny(), grids_.nz(),
+                            stencils_.lx, stencils_.ly, stencils_.lz);
+  std::cout << "arrays init done" << std::endl;
+  PrintSeparator();
+}
+
+void FdtdProxy::InitializeSource() {
+  source_frequency_ = opt_.source.f0;
+  source_order_ = opt_.source.source_order;
+  std::cout << "central freq and source order" << std::endl;
+  std::cout << "f0=" << source_frequency_ << std::endl;
+  std::cout << "sourceOrder=" << source_order_ << std::endl;
+  PrintSeparator();
+
+  // Set source position (use grid center if not specified)
+  source_receivers_.xsrc = (opt_.source.xs < 0) ? grids_.nx() / 2
+                                                 : opt_.source.xs;
+  source_receivers_.ysrc = (opt_.source.ys < 0) ? grids_.ny() / 2
+                                                 : opt_.source.ys;
+  source_receivers_.zsrc = (opt_.source.zs < 0) ? grids_.nz() / 2
+                                                 : opt_.source.zs;
+
+  std::cout << "source position" << std::endl;
+  std::cout << "xsrc=" << source_receivers_.xsrc
+            << " ysrc=" << source_receivers_.ysrc
+            << " zsrc=" << source_receivers_.zsrc << std::endl;
+  PrintSeparator();
+
+  InitSource();
+  std::cout << "source init done" << std::endl;
+  PrintSeparator();
+}
+
+void FdtdProxy::InitializeBoundaries() {
+  kernels_.defineSpongeBoundary(grids_.nx(), grids_.ny(), grids_.nz());
+  std::cout << "sponge boundary init done" << std::endl;
+  PrintSeparator();
+}
+
+void FdtdProxy::InitSource() {
   // Compute source term (e.g., Ricker wavelet)
   kernels_.RHSTerm = allocateVector<vectorReal>(num_time_samples_, "RHSTerm");
 
   std::vector<float> source_term = utils_.computeSourceTerm(
       num_time_samples_, time_step_, source_frequency_, source_order_);
-  for (int i = 0; i < num_time_samples_; i++)
-  {
+
+  for (int i = 0; i < num_time_samples_; i++) {
     kernels_.RHSTerm[i] = source_term[i];
-    // std::cout << "sample " << i << "\t: sourceTerm = " << source_term[i]
-    //           << std::endl;
   }
 }
 
-void FdtdProxy::Run()
-{
-  time_point<system_clock> start_compute_time, start_output_time,
-      total_compute_time, total_output_time;
+void FdtdProxy::Run() {
+  nanoseconds total_compute_time{0};
+  nanoseconds total_output_time{0};
 
   for (int index_time_sample = 0; index_time_sample < num_time_samples_;
-       index_time_sample++)
-  {
+       index_time_sample++) {
     // Compute one time step
-    start_compute_time = system_clock::now();
+    auto start_compute_time = system_clock::now();
     solver_.compute_one_step(index_time_sample, time_index_current_,
                              time_index_next_);
-    total_compute_time += system_clock::now() - start_compute_time;
+    total_compute_time += duration_cast<nanoseconds>(
+        system_clock::now() - start_compute_time);
 
     // Output snapshots at specified intervals
-    start_output_time = system_clock::now();
-    if (index_time_sample % opt_.output.snapshot_interval == 0)
-    {
+    auto start_output_time = system_clock::now();
+    if (index_time_sample % opt_.output.snapshot_interval == 0) {
       io_.outputPnValues(index_time_sample, time_index_current_, grids_,
                          kernels_, stencils_, opt_, source_receivers_);
     }
@@ -194,22 +232,30 @@ void FdtdProxy::Run()
     // Swap time indices for next iteration
     std::swap(time_index_current_, time_index_next_);
 
-    total_output_time += system_clock::now() - start_output_time;
-    fflush(stdout);
+    total_output_time += duration_cast<nanoseconds>(
+        system_clock::now() - start_output_time);
+    std::cout.flush();
   }
 
-  // Report performance metrics
-  float kernel_time_ms = time_point_cast<microseconds>(total_compute_time)
-                             .time_since_epoch()
-                             .count();
-  float output_time_ms = time_point_cast<microseconds>(total_output_time)
-                             .time_since_epoch()
-                             .count();
+  PrintPerformanceMetrics(total_compute_time, total_output_time);
+}
+
+void FdtdProxy::PrintPerformanceMetrics(
+    const nanoseconds& total_compute_time,
+    const nanoseconds& total_output_time) const {
+  const double kernel_time_us =
+      static_cast<double>(duration_cast<microseconds>(total_compute_time)
+                              .count());
+  const double output_time_us =
+      static_cast<double>(duration_cast<microseconds>(total_output_time)
+                              .count());
 
   std::cout << "------------------------------------------------ " << std::endl;
-  std::cout << "\n---- Elapsed Kernel Time : " << kernel_time_ms / 1E6
-            << " seconds." << std::endl;
-  std::cout << "---- Elapsed Output Time : " << output_time_ms / 1E6
-            << " seconds." << std::endl;
+  std::cout << "\n---- Elapsed Kernel Time : "
+            << MicrosecondsToSeconds(kernel_time_us) << " seconds."
+            << std::endl;
+  std::cout << "---- Elapsed Output Time : "
+            << MicrosecondsToSeconds(output_time_us) << " seconds."
+            << std::endl;
   std::cout << "------------------------------------------------ " << std::endl;
 }

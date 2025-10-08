@@ -17,6 +17,7 @@
 #include <cxxopts.hpp>
 #include <exception>
 #include <iostream>
+#include <memory>
 
 #ifdef USE_KOKKOS
 #include <Kokkos_Core.hpp>
@@ -25,11 +26,58 @@
 #include "fdtd_options.h"
 #include "fdtd_proxy.h"
 
+namespace
+{
+
+using std::chrono::duration_cast;
+using std::chrono::nanoseconds;
 using std::chrono::system_clock;
 using std::chrono::time_point;
 
 // Global start time for total execution timing
 time_point<system_clock> g_start_init_time;
+
+#ifdef USE_KOKKOS
+/**
+ * @brief RAII wrapper for Kokkos initialization/finalization.
+ */
+class KokkosScope
+{
+ public:
+  explicit KokkosScope(int argc, char* argv[])
+  {
+    Kokkos::initialize(argc, argv);
+  }
+  ~KokkosScope() { Kokkos::finalize(); }
+
+  // Prevent copying and moving
+  KokkosScope(const KokkosScope&) = delete;
+  KokkosScope& operator=(const KokkosScope&) = delete;
+  KokkosScope(KokkosScope&&) = delete;
+  KokkosScope& operator=(KokkosScope&&) = delete;
+};
+#endif
+
+/**
+ * @brief Converts nanoseconds duration to seconds as a double.
+ * @param duration Duration in nanoseconds
+ * @return Duration in seconds
+ */
+inline double NanosecondsToSeconds(const nanoseconds& duration)
+{
+  return duration.count() / 1E9;
+}
+
+/**
+ * @brief Prints a formatted timing report.
+ * @param label Description of the timing measurement
+ * @param duration Duration to report
+ */
+void PrintTiming(const std::string& label, const nanoseconds& duration)
+{
+  std::cout << label << ": " << NanosecondsToSeconds(duration) << " seconds."
+            << std::endl;
+}
 
 /**
  * @brief Executes the complete FDTD simulation workflow.
@@ -42,38 +90,44 @@ time_point<system_clock> g_start_init_time;
 void Compute(FdtdProxy& fd_sim)
 {
   // Initialize FDTD simulation
+  std::cout << "Initializing FDTD simulation..." << std::endl;
   fd_sim.InitFdtd();
-  std::cout << "FDTD initialization done." << std::endl;
+  std::cout << "FDTD initialization complete." << std::endl;
 
   // Start computation timer
-  time_point<system_clock> start_run_time = system_clock::now();
+  const auto start_run_time = system_clock::now();
 
   // Run simulation
-  std::cout << "Starting FDTD computation..." << std::endl;
+  std::cout << "\nStarting FDTD computation..." << std::endl;
   fd_sim.Run();
+  std::cout << "FDTD computation complete.\n" << std::endl;
 
   // Report timing information
-  auto init_duration = std::chrono::duration_cast<std::chrono::nanoseconds>(
-      start_run_time - g_start_init_time);
-  auto compute_duration = std::chrono::duration_cast<std::chrono::nanoseconds>(
-      system_clock::now() - start_run_time);
+  const auto init_duration =
+      duration_cast<nanoseconds>(start_run_time - g_start_init_time);
+  const auto compute_duration =
+      duration_cast<nanoseconds>(system_clock::now() - start_run_time);
 
-  std::cout << "Elapsed initialization time: " << init_duration.count() / 1E9
-            << " seconds." << std::endl;
-  std::cout << "Elapsed computation time: " << compute_duration.count() / 1E9
-            << " seconds." << std::endl;
+  std::cout << "=== Timing Summary ===" << std::endl;
+  PrintTiming("Initialization time", init_duration);
+  PrintTiming("Computation time   ", compute_duration);
+  std::cout << "======================" << std::endl;
 }
 
 /**
- * @brief Wrapper function for the computation loop.
- *
- * This function provides a clean interface for the main simulation
- * execution, allowing for future extensions such as parameter sweeps
- * or ensemble runs.
- *
- * @param fd_sim Reference to the FdtdProxy simulation object
+ * @brief Configures environment variables for optimal Kokkos/OpenMP
+ * performance.
  */
-void ComputeLoop(FdtdProxy& fd_sim) { Compute(fd_sim); }
+void ConfigureParallelEnvironment()
+{
+#ifdef USE_KOKKOS
+  // Configure OpenMP thread binding for optimal performance
+  setenv("OMP_PROC_BIND", "spread", 0);  // Don't override if already set
+  setenv("OMP_PLACES", "threads", 0);
+#endif
+}
+
+}  // namespace
 
 /**
  * @brief Main entry point for the FDTD simulation program.
@@ -90,14 +144,17 @@ int main(int argc, char* argv[])
 {
   g_start_init_time = system_clock::now();
 
+  // Configure parallel execution environment
+  ConfigureParallelEnvironment();
+
 #ifdef USE_KOKKOS
-  // Configure OpenMP thread binding for optimal performance
-  setenv("OMP_PROC_BIND", "spread", 1);
-  setenv("OMP_PLACES", "threads", 1);
-  Kokkos::initialize(argc, argv);
-  {
+  // RAII: Kokkos will be automatically finalized when this object goes out of
+  // scope
+  KokkosScope kokkos_scope(argc, argv);
 #endif
 
+  try
+  {
     // Set up command-line option parser
     cxxopts::Options options("FDTD Proxy", "FDTD acoustic wave simulation");
     options.allow_unrecognised_options();  // Allow Kokkos flags to pass through
@@ -117,32 +174,29 @@ int main(int argc, char* argv[])
     }
 
     // Validate configuration options
-    try
-    {
-      opt.Validate();
-    }
-    catch (const std::exception& e)
-    {
-      std::cerr << "Error: Invalid configuration - " << e.what() << std::endl;
-      return 1;
-    }
+    opt.Validate();
 
-    // Initialize FDTD simulation object
+    // Initialize and run FDTD simulation
     FdtdProxy fd_sim(opt);
+    Compute(fd_sim);
 
-    // Execute simulation
-    ComputeLoop(fd_sim);
+    // Report total execution time
+    const auto total_duration =
+        duration_cast<nanoseconds>(system_clock::now() - g_start_init_time);
+    std::cout << "\n";
+    PrintTiming("Total execution time", total_duration);
 
-#ifdef USE_KOKKOS
+    return 0;
   }
-  Kokkos::finalize();
-#endif
-
-  // Report total execution time
-  auto total_duration = std::chrono::duration_cast<std::chrono::nanoseconds>(
-      system_clock::now() - g_start_init_time);
-  std::cout << "\nTotal execution time: " << total_duration.count() / 1E9
-            << " seconds." << std::endl;
-
-  return 0;
+  catch (const std::exception& e)
+  {
+    std::cerr << "\nError: " << e.what() << std::endl;
+    return 1;
+  }
+  catch (...)
+  {
+    std::cerr << "\nFatal error: Unknown exception" << std::endl;
+    return 1;
+  }
+  // KokkosScope destructor automatically calls Kokkos::finalize() here
 }
