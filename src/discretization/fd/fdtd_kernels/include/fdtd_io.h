@@ -49,9 +49,8 @@ struct FdtdIo
   void write_snapshot(const int &x0, const int &x1, const int &y0,
                       const int &y1, const int &z0, const int &z1,
                       const int istep, int i1,
-                      model::fdgrid::FdtdGrids &m_grids,
-                      FdtdKernels &m_kernels, FdtdStencils &m_stencils,
-                      FdtdOptions &m_opt)
+                      model::fdgrid::FdtdGrids &m_grids, FdtdKernels &m_kernels,
+                      FdtdStencils &m_stencils, FdtdOptions &m_opt)
   {
     int ny = m_grids.ny();
     int nz = m_grids.nz();

@@ -16,10 +16,9 @@
 #ifndef SRC_MAIN_FD_INCLUDE_FDTD_OPTIONS_HPP_
 #define SRC_MAIN_FD_INCLUDE_FDTD_OPTIONS_HPP_
 
+#include <cxxopts.hpp>
 #include <stdexcept>
 #include <string>
-
-#include <cxxopts.hpp>
 
 /**
  * @class FdtdOptions
@@ -38,19 +37,21 @@
  *   options.Validate();
  * @endcode
  */
-class FdtdOptions {
+class FdtdOptions
+{
  public:
   /**
    * @struct GridParams
    * @brief Parameters defining the computational grid geometry.
    */
-  struct GridParams {
-    int nx{200};     ///< Number of grid points in X direction
-    int ny{200};     ///< Number of grid points in Y direction
-    int nz{200};     ///< Number of grid points in Z direction
-    float dx{10.f};  ///< Grid spacing in X direction (meters)
-    float dy{10.f};  ///< Grid spacing in Y direction (meters)
-    float dz{10.f};  ///< Grid spacing in Z direction (meters)
+  struct GridParams
+  {
+    int nx{200};                    ///< Number of grid points in X direction
+    int ny{200};                    ///< Number of grid points in Y direction
+    int nz{200};                    ///< Number of grid points in Z direction
+    float dx{10.f};                 ///< Grid spacing in X direction (meters)
+    float dy{10.f};                 ///< Grid spacing in Y direction (meters)
+    float dz{10.f};                 ///< Grid spacing in Z direction (meters)
     std::string mesh{"cartesian"};  ///< Mesh type (currently only cartesian)
   } grid;
 
@@ -58,10 +59,11 @@ class FdtdOptions {
    * @struct StencilParams
    * @brief Parameters for finite difference stencil configuration.
    */
-  struct StencilParams {
-    int lx{4};  ///< Half-width of stencil in X direction
-    int ly{4};  ///< Half-width of stencil in Y direction
-    int lz{4};  ///< Half-width of stencil in Z direction
+  struct StencilParams
+  {
+    int lx{4};                    ///< Half-width of stencil in X direction
+    int ly{4};                    ///< Half-width of stencil in Y direction
+    int lz{4};                    ///< Half-width of stencil in Z direction
     std::string implem{"remez"};  ///< Stencil implementation (remez|taylor)
   } stencil;
 
@@ -69,32 +71,35 @@ class FdtdOptions {
    * @struct SourceParams
    * @brief Parameters defining the seismic source configuration.
    */
-  struct SourceParams {
-    int xs{-1};  ///< Source X position (-1 = grid center)
-    int ys{-1};  ///< Source Y position (-1 = grid center)
-    int zs{-1};  ///< Source Z position (-1 = grid center)
-    float f0{10.f};         ///< Peak frequency (Hz)
-    int source_order{2};    ///< Time derivative order of source wavelet
+  struct SourceParams
+  {
+    int xs{-1};           ///< Source X position (-1 = grid center)
+    int ys{-1};           ///< Source Y position (-1 = grid center)
+    int zs{-1};           ///< Source Z position (-1 = grid center)
+    float f0{10.f};       ///< Peak frequency (Hz)
+    int source_order{2};  ///< Time derivative order of source wavelet
   } source;
 
   /**
    * @struct VelocityParams
    * @brief Parameters for velocity model configuration.
    */
-  struct VelocityParams {
-    float vmin{1500.f};  ///< Minimum velocity in model (m/s)
-    float vmax{4500.f};  ///< Maximum velocity in model (m/s)
-    std::string file_model{""};    ///< Path to velocity model file
-    bool use_file_model{false};    ///< Flag to use file-based model
+  struct VelocityParams
+  {
+    float vmin{1500.f};          ///< Minimum velocity in model (m/s)
+    float vmax{4500.f};          ///< Maximum velocity in model (m/s)
+    std::string file_model{""};  ///< Path to velocity model file
+    bool use_file_model{false};  ///< Flag to use file-based model
   } velocity;
 
   /**
    * @struct TimeParams
    * @brief Parameters for time integration configuration.
    */
-  struct TimeParams {
-    float time_step{0.f};  ///< Time step size (0 = auto-compute from CFL)
-    float time_max{1.f};   ///< Maximum simulation time (seconds)
+  struct TimeParams
+  {
+    float time_step{0.f};        ///< Time step size (0 = auto-compute from CFL)
+    float time_max{1.f};         ///< Maximum simulation time (seconds)
     std::string method{"FDTD"};  ///< Time stepping method
   } time;
 
@@ -102,20 +107,22 @@ class FdtdOptions {
    * @struct BoundaryParams
    * @brief Parameters for absorbing boundary conditions.
    */
-  struct BoundaryParams {
-    bool use_pml{false};           ///< Enable PML boundary conditions
-    int pml_size{20};              ///< Thickness of PML layers (grid points)
-    int sponge_size{20};           ///< Thickness of sponge layers (grid points)
-    float sponge_alpha{0.015f};    ///< Damping coefficient for sponge
+  struct BoundaryParams
+  {
+    bool use_pml{false};         ///< Enable PML boundary conditions
+    int pml_size{20};            ///< Thickness of PML layers (grid points)
+    int sponge_size{20};         ///< Thickness of sponge layers (grid points)
+    float sponge_alpha{0.015f};  ///< Damping coefficient for sponge
   } boundary;
 
   /**
    * @struct OutputParams
    * @brief Parameters controlling simulation output.
    */
-  struct OutputParams {
-    bool save_snapshots{false};     ///< Enable wavefield snapshot saving
-    int snapshot_interval{10};      ///< Time steps between snapshots
+  struct OutputParams
+  {
+    bool save_snapshots{false};  ///< Enable wavefield snapshot saving
+    int snapshot_interval{10};   ///< Time steps between snapshots
   } output;
 
   /**
@@ -126,7 +133,8 @@ class FdtdOptions {
    *
    * @throws std::runtime_error if any parameter is invalid
    */
-  void Validate() const {
+  void Validate() const
+  {
     ValidateGrid();
     ValidateStencil();
     ValidateSource();
@@ -145,11 +153,11 @@ class FdtdOptions {
    * @param opts The cxxopts::Options object to configure
    * @param options The FdtdOptions instance to populate with parsed values
    */
-  static void BindCli(cxxopts::Options& opts, FdtdOptions& options) {
+  static void BindCli(cxxopts::Options& opts, FdtdOptions& options)
+  {
     // Grid options
-    opts.add_options("Grid")(
-        "nx", "Number of grid points in X direction",
-        cxxopts::value<int>(options.grid.nx))(
+    opts.add_options("Grid")("nx", "Number of grid points in X direction",
+                             cxxopts::value<int>(options.grid.nx))(
         "ny", "Number of grid points in Y direction",
         cxxopts::value<int>(options.grid.ny))(
         "nz", "Number of grid points in Z direction",
@@ -164,9 +172,8 @@ class FdtdOptions {
         cxxopts::value<std::string>(options.grid.mesh));
 
     // Stencil options
-    opts.add_options("Stencil")(
-        "lx", "Half-width of stencil in X direction",
-        cxxopts::value<int>(options.stencil.lx))(
+    opts.add_options("Stencil")("lx", "Half-width of stencil in X direction",
+                                cxxopts::value<int>(options.stencil.lx))(
         "ly", "Half-width of stencil in Y direction",
         cxxopts::value<int>(options.stencil.ly))(
         "lz", "Half-width of stencil in Z direction",
@@ -175,9 +182,8 @@ class FdtdOptions {
         cxxopts::value<std::string>(options.stencil.implem));
 
     // Source options
-    opts.add_options("Source")(
-        "xs", "Source X position (-1 for grid center)",
-        cxxopts::value<int>(options.source.xs))(
+    opts.add_options("Source")("xs", "Source X position (-1 for grid center)",
+                               cxxopts::value<int>(options.source.xs))(
         "ys", "Source Y position (-1 for grid center)",
         cxxopts::value<int>(options.source.ys))(
         "zs", "Source Z position (-1 for grid center)",
@@ -188,18 +194,17 @@ class FdtdOptions {
         cxxopts::value<int>(options.source.source_order));
 
     // Velocity options
-    opts.add_options("Velocity")(
-        "vmin", "Minimum velocity in model (m/s)",
-        cxxopts::value<float>(options.velocity.vmin))(
+    opts.add_options("Velocity")("vmin", "Minimum velocity in model (m/s)",
+                                 cxxopts::value<float>(options.velocity.vmin))(
         "vmax", "Maximum velocity in model (m/s)",
         cxxopts::value<float>(options.velocity.vmax))(
         "fileModel", "Path to velocity model file",
         cxxopts::value<std::string>(options.velocity.file_model));
 
     // Time stepping options
-    opts.add_options("Time")(
-        "timeStep", "Time step size (0 for auto-compute from CFL)",
-        cxxopts::value<float>(options.time.time_step))(
+    opts.add_options("Time")("timeStep",
+                             "Time step size (0 for auto-compute from CFL)",
+                             cxxopts::value<float>(options.time.time_step))(
         "timeMax", "Maximum simulation time (seconds)",
         cxxopts::value<float>(options.time.time_max))(
         "method", "Time stepping method (FDTD)",
@@ -228,66 +233,87 @@ class FdtdOptions {
   }
 
  private:
-  void ValidateGrid() const {
-    if (grid.nx <= 0 || grid.ny <= 0 || grid.nz <= 0) {
+  void ValidateGrid() const
+  {
+    if (grid.nx <= 0 || grid.ny <= 0 || grid.nz <= 0)
+    {
       throw std::runtime_error("Grid dimensions must be positive");
     }
-    if (grid.dx <= 0.f || grid.dy <= 0.f || grid.dz <= 0.f) {
+    if (grid.dx <= 0.f || grid.dy <= 0.f || grid.dz <= 0.f)
+    {
       throw std::runtime_error("Grid spacing must be positive");
     }
   }
 
-  void ValidateStencil() const {
-    if (stencil.lx <= 0 || stencil.ly <= 0 || stencil.lz <= 0) {
+  void ValidateStencil() const
+  {
+    if (stencil.lx <= 0 || stencil.ly <= 0 || stencil.lz <= 0)
+    {
       throw std::runtime_error("Stencil half-widths must be positive");
     }
-    if (stencil.implem != "remez" && stencil.implem != "taylor") {
+    if (stencil.implem != "remez" && stencil.implem != "taylor")
+    {
       throw std::runtime_error(
           "Stencil implementation must be 'remez' or 'taylor'");
     }
   }
 
-  void ValidateSource() const {
-    if (source.f0 <= 0.f) {
+  void ValidateSource() const
+  {
+    if (source.f0 <= 0.f)
+    {
       throw std::runtime_error("Source frequency must be positive");
     }
-    if (source.source_order < 1) {
+    if (source.source_order < 1)
+    {
       throw std::runtime_error("Source order must be >= 1");
     }
   }
 
-  void ValidateVelocity() const {
-    if (velocity.vmin <= 0.f || velocity.vmax <= 0.f) {
+  void ValidateVelocity() const
+  {
+    if (velocity.vmin <= 0.f || velocity.vmax <= 0.f)
+    {
       throw std::runtime_error("Velocities must be positive");
     }
-    if (velocity.vmin >= velocity.vmax) {
+    if (velocity.vmin >= velocity.vmax)
+    {
       throw std::runtime_error("Minimum velocity must be less than maximum");
     }
   }
 
-  void ValidateTime() const {
-    if (time.time_max <= 0.f) {
+  void ValidateTime() const
+  {
+    if (time.time_max <= 0.f)
+    {
       throw std::runtime_error("Maximum simulation time must be positive");
     }
-    if (time.time_step < 0.f) {
+    if (time.time_step < 0.f)
+    {
       throw std::runtime_error("Time step cannot be negative");
     }
   }
 
-  void ValidateBoundary() const {
-    if (boundary.pml_size < 0) {
+  void ValidateBoundary() const
+  {
+    if (boundary.pml_size < 0)
+    {
       throw std::runtime_error("PML size cannot be negative");
     }
-    if (boundary.sponge_size < 0) {
+    if (boundary.sponge_size < 0)
+    {
       throw std::runtime_error("Sponge size cannot be negative");
     }
-    if (boundary.sponge_alpha < 0.f) {
+    if (boundary.sponge_alpha < 0.f)
+    {
       throw std::runtime_error("Sponge damping coefficient cannot be negative");
     }
   }
 
-  void ValidateOutput() const {
-    if (output.snapshot_interval <= 0) {
+  void ValidateOutput() const
+  {
+    if (output.snapshot_interval <= 0)
+    {
       throw std::runtime_error("Snapshot interval must be positive");
     }
   }

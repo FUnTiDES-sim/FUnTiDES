@@ -13,12 +13,11 @@
 
 #include "fdtd_proxy.h"
 
+#include <cxxopts.hpp>
 #include <iomanip>
 #include <iostream>
 #include <sstream>
 #include <variant>
-
-#include <cxxopts.hpp>
 
 #include "data_type.h"
 
@@ -29,12 +28,14 @@ FdtdProxy::FdtdProxy(const FdtdOptions& opt)
       kernels_(),
       io_(),
       utils_(),
-      solver_(grids_, kernels_, stencils_, source_receivers_) {}
+      solver_(grids_, kernels_, stencils_, source_receivers_)
+{
+}
 
-void FdtdProxy::InitFdtd() {
+void FdtdProxy::InitFdtd()
+{
   printf("+======================================\n");
-  printf("saveSnapshots=%d snapShotInterval=%d\n",
-         opt_.output.save_snapshots,
+  printf("saveSnapshots=%d snapShotInterval=%d\n", opt_.output.save_snapshots,
          opt_.output.snapshot_interval);
   printf("--------------------------------------\n");
   printf("\n");
@@ -54,15 +55,18 @@ void FdtdProxy::InitFdtd() {
   printf("stencil coefficients\n");
   printf("lx=%d ly=%d lz=%d\n", stencils_.lx, stencils_.ly, stencils_.lz);
   printf("coef0=%f\n", stencils_.coef0);
-  for (int i = 0; i < stencils_.ncoefsX; i++) {
+  for (int i = 0; i < stencils_.ncoefsX; i++)
+  {
     printf("coefx[%d]=%f ", i, stencils_.coefx[i]);
   }
   printf("\n");
-  for (int i = 0; i < stencils_.ncoefsY; i++) {
+  for (int i = 0; i < stencils_.ncoefsY; i++)
+  {
     printf("coefy[%d]=%f ", i, stencils_.coefy[i]);
   }
   printf("\n");
-  for (int i = 0; i < stencils_.ncoefsZ; i++) {
+  for (int i = 0; i < stencils_.ncoefsZ; i++)
+  {
     printf("coefz[%d]=%f ", i, stencils_.coefz[i]);
   }
   printf("\n");
@@ -82,10 +86,13 @@ void FdtdProxy::InitFdtd() {
   printf("--------------------------------------\n");
 
   // Compute time step from CFL condition if not user-defined
-  if (time_step_ == 0) {
+  if (time_step_ == 0)
+  {
     time_step_ = stencils_.compute_dt_sch(velocity_max_);
     printf("compute time step from CFL condition\n");
-  } else {
+  }
+  else
+  {
     printf("user defined time step\n");
   }
   num_time_samples_ = time_max_ / time_step_;
@@ -100,8 +107,8 @@ void FdtdProxy::InitFdtd() {
   printf("--------------------------------------\n");
 
   // Allocate and initialize wavefield arrays
-  kernels_.initFieldsArrays(grids_.nx(), grids_.ny(), grids_.nz(),
-                            stencils_.lx, stencils_.ly, stencils_.lz);
+  kernels_.initFieldsArrays(grids_.nx(), grids_.ny(), grids_.nz(), stencils_.lx,
+                            stencils_.ly, stencils_.lz);
   printf("arrays init done\n");
   printf("--------------------------------------\n");
 
@@ -117,13 +124,16 @@ void FdtdProxy::InitFdtd() {
   source_receivers_.xsrc = opt_.source.xs;
   source_receivers_.ysrc = opt_.source.ys;
   source_receivers_.zsrc = opt_.source.zs;
-  if (source_receivers_.xsrc < 0) {
+  if (source_receivers_.xsrc < 0)
+  {
     source_receivers_.xsrc = grids_.nx() / 2;
   }
-  if (source_receivers_.ysrc < 0) {
+  if (source_receivers_.ysrc < 0)
+  {
     source_receivers_.ysrc = grids_.ny() / 2;
   }
-  if (source_receivers_.zsrc < 0) {
+  if (source_receivers_.zsrc < 0)
+  {
     source_receivers_.zsrc = grids_.nz() / 2;
   }
   printf("source position\n");
@@ -144,26 +154,29 @@ void FdtdProxy::InitFdtd() {
   printf("--------------------------------------\n");
 }
 
-void FdtdProxy::InitSource() {
+void FdtdProxy::InitSource()
+{
   // Compute source term (e.g., Ricker wavelet)
-  kernels_.RHSTerm =
-      allocateVector<vectorReal>(num_time_samples_, "RHSTerm");
+  kernels_.RHSTerm = allocateVector<vectorReal>(num_time_samples_, "RHSTerm");
 
   std::vector<float> source_term = utils_.computeSourceTerm(
       num_time_samples_, time_step_, source_frequency_, source_order_);
-  for (int i = 0; i < num_time_samples_; i++) {
+  for (int i = 0; i < num_time_samples_; i++)
+  {
     kernels_.RHSTerm[i] = source_term[i];
     // std::cout << "sample " << i << "\t: sourceTerm = " << source_term[i]
     //           << std::endl;
   }
 }
 
-void FdtdProxy::Run() {
+void FdtdProxy::Run()
+{
   time_point<system_clock> start_compute_time, start_output_time,
       total_compute_time, total_output_time;
 
   for (int index_time_sample = 0; index_time_sample < num_time_samples_;
-       index_time_sample++) {
+       index_time_sample++)
+  {
     // Compute one time step
     start_compute_time = system_clock::now();
     solver_.compute_one_step(index_time_sample, time_index_current_,
@@ -172,7 +185,8 @@ void FdtdProxy::Run() {
 
     // Output snapshots at specified intervals
     start_output_time = system_clock::now();
-    if (index_time_sample % opt_.output.snapshot_interval == 0) {
+    if (index_time_sample % opt_.output.snapshot_interval == 0)
+    {
       io_.outputPnValues(index_time_sample, time_index_current_, grids_,
                          kernels_, stencils_, opt_, source_receivers_);
     }

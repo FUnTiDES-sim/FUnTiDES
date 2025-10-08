@@ -39,8 +39,8 @@ class CartesianStructBuilder : public ModelBuilderBase<FloatType, ScalarType>
     data.dz_ = lz_;
     data.isModelOnNodes_ = isModelOnNodes_;
 
-    return std::make_shared<model::mesh::ModelStruct<FloatType, ScalarType, Order>>(
-        data);
+    return std::make_shared<
+        model::mesh::ModelStruct<FloatType, ScalarType, Order>>(data);
   }
 
  private:

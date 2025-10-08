@@ -48,7 +48,8 @@
  *   proxy.Run();
  * @endcode
  */
-class FdtdProxy {
+class FdtdProxy
+{
  public:
   /**
    * @brief Constructs an FDTD proxy with the given simulation options.
@@ -119,11 +120,11 @@ class FdtdProxy {
   float time_max_;
 
   // Source configuration
-  int source_order_;       ///< Spatial derivative order for source injection
-  float source_frequency_; ///< Dominant frequency (Hz) of source wavelet
-  float velocity_min_;     ///< Minimum velocity in model (m/s)
-  float velocity_max_;     ///< Maximum velocity in model (m/s)
-  float wavelength_max_;   ///< Maximum wavelength for stability analysis
+  int source_order_;        ///< Spatial derivative order for source injection
+  float source_frequency_;  ///< Dominant frequency (Hz) of source wavelet
+  float velocity_min_;      ///< Minimum velocity in model (m/s)
+  float velocity_max_;      ///< Maximum velocity in model (m/s)
+  float wavelength_max_;    ///< Maximum wavelength for stability analysis
 
   // Source location (grid indices)
   int source_x_ = -1;

@@ -88,8 +88,8 @@ SEMproxy::SEMproxy(const SemProxyOptions& opt)
   }
   else if (meshType == SolverFactory::Unstruct)
   {
-    model::mesh::CartesianParams<float, int> param(order, ex, ey, ez, lx, ly, lz,
-                                             isModelOnNodes);
+    model::mesh::CartesianParams<float, int> param(order, ex, ey, ez, lx, ly,
+                                                   lz, isModelOnNodes);
     model::mesh::CartesianUnstructBuilder<float, int> builder(param);
     m_mesh = builder.getModel();
   }

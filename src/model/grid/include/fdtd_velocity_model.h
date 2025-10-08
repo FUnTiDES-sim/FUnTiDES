@@ -7,12 +7,15 @@
 
 #include <data_type.h>
 #include <fdtd_options.h>
-#include "fdtd_grid_geometry.h"
-#include "fdtd_model_io.h"
-#include "fdtd_macros.h"
 
-namespace model {
-namespace fdgrid {
+#include "fdtd_grid_geometry.h"
+#include "fdtd_macros.h"
+#include "fdtd_model_io.h"
+
+namespace model
+{
+namespace fdgrid
+{
 
 /**
  * @brief Velocity model storage and initialization
@@ -46,8 +49,8 @@ class VelocityModel
     }
 
     // Initialize with scaled velocity for wave equation
-    float init_vp_value = opt.velocity.vmin * opt.velocity.vmin *
-                          time_step * time_step;
+    float init_vp_value =
+        opt.velocity.vmin * opt.velocity.vmin * time_step * time_step;
 
     if (opt.velocity.use_file_model && !opt.velocity.file_model.empty())
     {

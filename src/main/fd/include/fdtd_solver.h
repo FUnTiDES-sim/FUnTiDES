@@ -30,7 +30,7 @@ class FdtdSolver
    */
 
   FdtdSolver(model::fdgrid::FdtdGrids& grids, FdtdKernels& kernels,
-              FdtdStencils& stencils, FdtdSourceReceivers& source_receivers)
+             FdtdStencils& stencils, FdtdSourceReceivers& source_receivers)
       : m_grids(grids),
         m_kernels(kernels),
         m_stencils(stencils),

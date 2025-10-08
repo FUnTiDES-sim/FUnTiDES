@@ -14,10 +14,9 @@
 
 #include <chrono>
 #include <cstdlib>
+#include <cxxopts.hpp>
 #include <exception>
 #include <iostream>
-
-#include <cxxopts.hpp>
 
 #ifdef USE_KOKKOS
 #include <Kokkos_Core.hpp>
@@ -40,7 +39,8 @@ time_point<system_clock> g_start_init_time;
  *
  * @param fd_sim Reference to the FdtdProxy simulation object
  */
-void Compute(FdtdProxy& fd_sim) {
+void Compute(FdtdProxy& fd_sim)
+{
   // Initialize FDTD simulation
   fd_sim.InitFdtd();
   std::cout << "FDTD initialization done." << std::endl;
@@ -58,10 +58,10 @@ void Compute(FdtdProxy& fd_sim) {
   auto compute_duration = std::chrono::duration_cast<std::chrono::nanoseconds>(
       system_clock::now() - start_run_time);
 
-  std::cout << "Elapsed initialization time: "
-            << init_duration.count() / 1E9 << " seconds." << std::endl;
-  std::cout << "Elapsed computation time: "
-            << compute_duration.count() / 1E9 << " seconds." << std::endl;
+  std::cout << "Elapsed initialization time: " << init_duration.count() / 1E9
+            << " seconds." << std::endl;
+  std::cout << "Elapsed computation time: " << compute_duration.count() / 1E9
+            << " seconds." << std::endl;
 }
 
 /**
@@ -73,9 +73,7 @@ void Compute(FdtdProxy& fd_sim) {
  *
  * @param fd_sim Reference to the FdtdProxy simulation object
  */
-void ComputeLoop(FdtdProxy& fd_sim) {
-  Compute(fd_sim);
-}
+void ComputeLoop(FdtdProxy& fd_sim) { Compute(fd_sim); }
 
 /**
  * @brief Main entry point for the FDTD simulation program.
@@ -88,7 +86,8 @@ void ComputeLoop(FdtdProxy& fd_sim) {
  * @param argv Array of command-line argument strings
  * @return 0 on success, 1 on error
  */
-int main(int argc, char* argv[]) {
+int main(int argc, char* argv[])
+{
   g_start_init_time = system_clock::now();
 
 #ifdef USE_KOKKOS
@@ -111,15 +110,19 @@ int main(int argc, char* argv[]) {
     auto result = options.parse(argc, argv);
 
     // Display help if requested
-    if (result.count("help")) {
+    if (result.count("help"))
+    {
       std::cout << options.help() << std::endl;
       return 0;
     }
 
     // Validate configuration options
-    try {
+    try
+    {
       opt.Validate();
-    } catch (const std::exception& e) {
+    }
+    catch (const std::exception& e)
+    {
       std::cerr << "Error: Invalid configuration - " << e.what() << std::endl;
       return 1;
     }
@@ -138,8 +141,8 @@ int main(int argc, char* argv[]) {
   // Report total execution time
   auto total_duration = std::chrono::duration_cast<std::chrono::nanoseconds>(
       system_clock::now() - g_start_init_time);
-  std::cout << "\nTotal execution time: "
-            << total_duration.count() / 1E9 << " seconds." << std::endl;
+  std::cout << "\nTotal execution time: " << total_duration.count() / 1E9
+            << " seconds." << std::endl;
 
   return 0;
 }
