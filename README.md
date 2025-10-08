@@ -154,19 +154,29 @@ To install dev python packages
 pip install -r requirements-dev.txt
 ```
 
-To run basic python unit tests
+To run basic python unit tests (default is using 6 threads)
 ```bash
 pytest -vv -s  tests/units
 ```
 
-To run python benchmarks
+To run basic python unit tests with more threads
 ```bash
-pytest -vv -s tests/benchmarks
+pytest -vv -s  tests/units --kokkos-threads 12
 ```
 
-To generate benchmark plots
+To run python benchmarks (default is using 6 threads)
 ```bash
-pytest -vv -s --benchmark-histogram=plot tests/benchmarks
+pytest -vv -s tests/benchmarks/python
+```
+
+To run python benchmarks with more threads
+```bash
+pytest -vv -s tests/benchmarks/python --kokkos-threads 12
+```
+
+To run all python benchmarks (default is using 1,2,4,8,16,32,64 threads)
+```bash
+python scripts/run_python_benchmarks.py
 ```
 
 ### Ploting Receivers and Snapshots
