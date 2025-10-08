@@ -1,19 +1,14 @@
 #!/usr/bin/env python3
 import argparse
-import os
 import subprocess
 import sys
 from pathlib import Path
 
 
 def run_once(threads, extra_pytest_args, bench_root, marker):
-    env = os.environ.copy()
-    for var in ("KOKKOS_NUM_THREADS", "OMP_NUM_THREADS", "OMP_THREAD_LIMIT"):
-        env[var] = str(threads)
-
     out_dir = bench_root
     out_dir.mkdir(parents=True, exist_ok=True)
-    outfile = out_dir / f"python_{marker}_t{threads}_latest.json"
+    outfile = out_dir / f"python_{marker}_t{threads}.json"
 
     cmd = [
         sys.executable,
@@ -21,6 +16,7 @@ def run_once(threads, extra_pytest_args, bench_root, marker):
         "pytest",
         "-q",
         "tests/benchmarks/python",
+        "--kokkos-threads", str(threads),
         "--benchmark-only",
         f"--benchmark-json={outfile}",
     ]
@@ -29,7 +25,7 @@ def run_once(threads, extra_pytest_args, bench_root, marker):
     cmd += extra_pytest_args
 
     print(f"[RUN] threads={threads} -> {outfile}")
-    subprocess.check_call(cmd, env=env)
+    subprocess.check_call(cmd)
 
 
 def parse_args():
@@ -51,7 +47,7 @@ def parse_args():
     p.add_argument(
         "--output-dir",
         type=Path,
-        default=Path("build/benchmarks/python"),
+        default=Path("build/Benchmarking/python"),
         help="Output directory for JSON results",
     )
     p.add_argument(
