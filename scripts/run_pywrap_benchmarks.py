@@ -16,7 +16,7 @@ def run_once(threads, extra_pytest_args, bench_root, marker):
         "pytest",
         "-q",
         "tests/benchmarks/python",
-        "--kokkos-threads", str(threads),
+        "--threads", str(threads),
         "--benchmark-only",
         f"--benchmark-json={outfile}",
     ]

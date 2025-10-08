@@ -163,7 +163,7 @@ pytest -vv -s  tests/units
 
 To run basic python unit tests with more threads
 ```bash
-pytest -vv -s  tests/units --kokkos-threads 12
+pytest -vv -s  tests/units --threads 12
 ```
 
 To run python benchmarks (default is using 6 threads)
@@ -173,7 +173,7 @@ pytest -vv -s tests/benchmarks/python
 
 To run python benchmarks with more threads
 ```bash
-pytest -vv -s tests/benchmarks/python --kokkos-threads 12
+pytest -vv -s tests/benchmarks/python --threads 12
 ```
 
 To run all python benchmarks (default is using 1,2,4,8,16,32,64 threads)

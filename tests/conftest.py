@@ -4,7 +4,7 @@ import kokkos
 
 def pytest_addoption(parser):
     parser.addoption(
-        "--kokkos-threads",
+        "--threads",
         type=int,
         default=6,
         help="Number of Kokkos threads (sets KOKKOS_NUM_THREADS / OMP_NUM_THREADS / OMP_THREAD_LIMIT before kokkos.initialize())"
@@ -18,7 +18,7 @@ def _set_thread_env(n: int):
 
 
 def pytest_sessionstart(session):
-    n = session.config.getoption("--kokkos-threads")
+    n = session.config.getoption("--threads")
     _set_thread_env(n)
     kokkos.initialize()
 
