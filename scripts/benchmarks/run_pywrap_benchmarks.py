@@ -5,7 +5,7 @@ import sys
 from pathlib import Path
 
 
-def run_once(threads, extra_pytest_args, bench_root, marker):
+def run_once(threads, extra_pytest_args, bench_root, marker, verbose):
     out_dir = bench_root
     out_dir.mkdir(parents=True, exist_ok=True)
     outfile = out_dir / f"python_{marker}_t{threads}.json"
@@ -14,12 +14,18 @@ def run_once(threads, extra_pytest_args, bench_root, marker):
         sys.executable,
         "-m",
         "pytest",
-        "-q",
+    ]
+    if verbose:
+        cmd.extend(["-vv", "-s"])
+    else:
+        cmd.append("-q")
+    
+    cmd.extend([
         "tests/benchmarks/python",
         "--threads", str(threads),
         "--benchmark-only",
         f"--benchmark-json={outfile}",
-    ]
+    ])
     if marker:
         cmd.extend(("-m", marker))
     cmd += extra_pytest_args
@@ -51,6 +57,11 @@ def parse_args():
         help="Output directory for JSON results",
     )
     p.add_argument(
+        "--verbose",
+        action="store_true",
+        help="Enable verbose output (pytest -vv -s instead of -q)",
+    )
+    p.add_argument(
         "pytest_args",
         nargs=argparse.REMAINDER,
         help="Additional arguments passed through to pytest after '--'",
@@ -62,7 +73,7 @@ def main():
     args = parse_args()
     thread_list = [int(t) for t in args.threads.split(",") if t.strip()]
     for t in thread_list:
-        run_once(t, args.pytest_args, args.output_dir, args.marker)
+        run_once(t, args.pytest_args, args.output_dir, args.marker, args.verbose)
     print("All Python benchmarks completed.")
     return 0
 

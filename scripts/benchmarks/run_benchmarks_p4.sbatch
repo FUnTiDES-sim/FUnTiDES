@@ -6,7 +6,7 @@
 #SBATCH --partition=p4_dev
 #SBATCH --output=benchmark_%j.out
 #SBATCH --error=benchmark_%j.err
-##SBATCH --exclusive
+#SBATCH --exclusive
 #SBATCH --mem=734GB
 #SBATCH --nodes=1
 #SBATCH --ntasks=1
@@ -72,7 +72,7 @@ echo "numactl --show:"; numactl --show
 # RUN
 echo "=== PYTHON BENCHMARKS ==="
 pushd $ROOT_DIR
-srun --cpu-bind=socket,verbose --cpus-per-task=96 python scripts/run_pywrap_benchmarks.py --threads 2,4,8,16,32,64
+srun --cpu-bind=socket,verbose --cpus-per-task=96 python scripts/benchmarks/run_pywrap_benchmarks.py --verbose
 popd
 echo "=== CPP BENCHMARKS ==="
 pushd $BUILD_DIR

@@ -178,7 +178,7 @@ pytest -vv -s tests/benchmarks/python --threads 12
 
 To run all python benchmarks (default is using 1,2,4,8,16,32,64 threads)
 ```bash
-python scripts/run_python_benchmarks.py
+python scripts/benchmarks/run_pywrap_benchmarks.py --verbose
 ```
 
 ### Ploting Receivers and Snapshots
