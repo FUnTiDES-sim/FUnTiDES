@@ -1,160 +1,395 @@
-# FUnTiDES: Fast Unstructured Time Dynamic Equation Solver
+# 🌊 FUnTiDES
 
-**FUnTiDES** is a collection of simplified codes that represent real scientific applications. It serves as a standard tool for evaluating and comparing the performance of various high-performance computing (HPC) systems, particularly those used for scientific simulations.
+> **F**ast **Un**structured **Ti**me **D**ynamic **E**quation **S**olver
 
----
+A high-performance framework for seismic and acoustic wave propagation simulations, designed for modern HPC architectures.
 
-## Included Applications
+[![C++17](https://img.shields.io/badge/C++-17-blue.svg)](https://isocpp.org/)
+[![CMake](https://img.shields.io/badge/CMake-3.12+-064F8C.svg)](https://cmake.org/)
+[![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 
-The current implementation includes two proxy applications for solving the 2nd-order acoustic wave equation in 2D and 3D:
+## 🎯 Overview
 
-- **SEM (Spectral Element Method)**  
-  A benchmark designed to simulate wave propagation using SEM, a Galerkin-based finite element method for solving partial differential equations (PDEs).
+FUnTiDES provides production-ready proxy applications for solving the 2nd-order acoustic wave equation in 2D and 3D. It serves as a standard benchmark for evaluating HPC system performance and supports multiple numerical methods and parallel programming models.
 
-- **FD (Finite Difference Method)**  
-  A benchmark that uses finite-difference stencil operators to simulate wave propagation and solve PDEs.
+### Key Features
 
-A key feature of these proxy applications is their adaptability to different programming models and HPC architectures. They are also easy to build and run, making them accessible to both researchers and developers.
-
----
-
-## Supported Programming Models
-
-The SEM proxy currently supports:
-
-- [OpenMP](https://www.openmp.org/) — for loop-level parallelism
-- [Kokkos](https://kokkos.github.io/kokkos-core-wiki/) — for performance portability
-
-> **Note**: Kokkos is included as a Git submodule and will be compiled automatically when enabled.
+- 🚀 **Multiple Numerical Methods**: Spectral Element Method (SEM) and Finite Difference Method (FD)
+- 🔧 **Flexible Parallelism**: OpenMP, Kokkos (CUDA, HIP, SYCL)
+- 🐍 **Python Bindings**: Experimental PyBind11 wrappers
+- 📊 **Advanced I/O**: ADIOS2 support for snapshot and receiver output
+- ⚡ **Performance Portable**: Single codebase, multiple architectures
 
 ---
 
-## Supported Data Containers
+## 🚀 Quick Start
 
-The current SEM proxy supports the following data container:
+### Prerequisites
 
-- `std::vector` (default for serial and OpenMP modes)
+- C++17 compatible compiler (GCC 7+, Clang 5+, MSVC 2017+)
+- CMake 3.12 or higher
+- (Optional) CUDA Toolkit for GPU support
+- (Optional) Python 3.7+ for Python bindings
 
----
+### Build
 
-## Quick Start: Build and Run
+```bash
+# Clone the repository
+git clone --recursive https://github.com/your-org/funtides.git
+cd funtides
 
-### Step 1: Compile and Install
+# Configure and build
+mkdir build && cd build
+cmake -DCMAKE_BUILD_TYPE=Release ..
+make -j$(nproc)
 
-```sh
-mkdir build
-cd build
-cmake ..
-make
+# Optional: Install
+make install
 ```
 
-By default, this builds the applications in sequential mode using `std::vector`. Both SEM and FD applications are compiled.
+### Run Your First Simulation
 
-### Step 2: Run Examples
-
-```sh
-# Run SEM simulation with 100 x 100 x 100 elements
+```bash
+# Spectral Element Method - 100³ element mesh
 ./src/main/semproxy -ex 100
 
-# Run FD simulation
+# Finite Difference Method - default configuration
 ./src/main/fdproxy
 ```
 
 ---
 
-## CMake Options
+## 📦 Numerical Methods
 
-The following options can be used to configure your build:
+### Spectral Element Method (SEM)
 
-| Option                 | Description                                                                 |
-|------------------------|-----------------------------------------------------------------------------|
-| `COMPILE_FD`           | Enable compilation of the FD proxy (default: ON)                            |
-| `COMPILE_SEM`          | Enable compilation of the SEM proxy (default: ON)                           |
-| `ENABLE_CUDA`          | Enable CUDA backend (used by Kokkos)                                        |
-| `ENABLE_PYWRAP`        | Enable Python bindings via pybind11 (experimental)                          |
-| `USE_KOKKOS`           | Enable Kokkos support (serial by default, CUDA/OpenMP with flags)           |
-| `USE_VECTOR`           | Use `std::vector` for data arrays (enabled by default unless Kokkos is used)|
+High-order Galerkin finite element method ideal for complex geometries and accurate wave propagation in heterogeneous media.
+
+**Use when:**
+- High accuracy is required
+- Complex domain geometries
+- Heterogeneous material properties
+
+### Finite Difference Method (FD)
+
+Efficient stencil-based approach for regular grids, optimized for large-scale 3D simulations.
+
+**Use when:**
+- Large computational domains
+- Regular Cartesian meshes
+- Memory bandwidth is critical
 
 ---
 
-## 🐍 Python wrappers 
+## ⚙️ Configuration Options
 
-### Prerequisites
+### CMake Build Options
 
-To install python requirements
+| Option | Default | Description |
+|--------|---------|-------------|
+| `COMPILE_FD` | `ON` | Build Finite Difference proxy |
+| `COMPILE_SEM` | `ON` | Build Spectral Element proxy |
+| `USE_KOKKOS` | `OFF` | Enable Kokkos for performance portability |
+| `ENABLE_CUDA` | `OFF` | Enable NVIDIA GPU support via Kokkos |
+| `ENABLE_PYWRAP` | `OFF` | Build Python bindings (experimental) |
+| `USE_VECTOR` | `ON` | Use `std::vector` containers |
+
+### Build Examples
+
+**OpenMP parallel:**
 ```bash
-pip install -r requirements.txt
+cmake -DUSE_OPENMP=ON ..
 ```
 
-### Generation
-
-The proxy must be configured with `-DENABLE_PYWRAP=ON` and installed via `make install`. Optionally, you can set `-DCMAKE_INSTALL_PREFIX` to where you want to deploy the application along with the python wrappers.
-
-This will create a _pyproxys_ package in your install directory which contains both the _solver_ and _model_ pybind modules.
-
+**CUDA GPU acceleration:**
 ```bash
-(.venv) [proxys]$ ls $MY_INSTALL_DIR/pyproxys/
-__init__.py  model.cpython-311-x86_64-linux-gnu.so  solver.cpython-311-x86_64-linux-gnu.so
+cmake -DUSE_KOKKOS=ON -DENABLE_CUDA=ON ..
 ```
 
-This will also install _kokkos_ in your python environment, which will point to the kokkos built by the _pyproxys_ app.
-
+**Python bindings:**
 ```bash
-(.venv) [proxys]$ ls .venv/lib/python3.11/site-packages/kokkos/
-__init__.py  libpykokkos.cpython-311-x86_64-linux-gnu.so  __pycache__  pytest.ini  test  utility.py
+cmake -DENABLE_PYWRAP=ON -DCMAKE_INSTALL_PREFIX=/path/to/install ..
 ```
 
-### Usage
+---
 
-First, extend your `PYTHONPATH` to make the _pyproxys_ package visible.
+## 🎮 Usage Guide
+
+### SEM Proxy
+
+#### Command Line Interface
 
 ```bash
-export PYTHONPATH=$PYTHONPATH:$MY_INSTALL_DIR
+semproxy [OPTIONS]
 ```
 
-Then extend your `LD_LIBRARY_PATH` so that all libraries point to the same _kokkos_ libraries that are installed in the _lib64_ folder.
+#### Core Options
 
+##### Mesh Configuration
 ```bash
-export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$MY_INSTALL_DIR/lib64
+--ex 100 --ey 100 --ez 100     # Elements per direction (Cartesian)
+--lx 1000 --ly 1000 --lz 1000  # Domain size in meters
+--mesh cartesian               # Mesh type: cartesian|ucartesian
 ```
 
-There is no need to extend the `LD_LIBRARY_PATH` with the _proxys_ libraries since the python wrappers use their _RPATH_ to retrieve them in the _lib_ folder.
-
-
-Some examples on how to use the wrappers are available in the [`examples`](examples/) folder.
-
-### Tests & Benchmarks
-
-To install dev python packages
+##### Discretization
 ```bash
+-o 4                           # Polynomial order (spectral accuracy)
+--method sem                   # Method: sem|dg (Discontinuous Galerkin)
+--implem makutu                # Implementation: makutu|shiva
+```
+
+##### Time Stepping
+```bash
+--dt 0.001                     # Time step (seconds)
+--timemax 2.0                  # Simulation duration (seconds)
+--auto-dt                      # Auto-compute from CFL condition
+```
+
+##### Boundary Conditions
+```bash
+--boundaries-size 100          # Absorbing boundary thickness (meters)
+--sponge-surface               # Exclude surface nodes from sponge
+--taper-delta 0.95             # Sponge layer damping coefficient
+```
+
+##### Output
+```bash
+-s                             # Enable snapshots
+--snap-interval 50             # Snapshots every N iterations
+```
+
+##### Model Configuration
+```bash
+--is-model-on-nodes            # Model defined on nodes vs elements
+```
+
+#### Example Workflows
+
+```bash
+# Standard 3D simulation with auto time-stepping
+semproxy -o 4 --ex 50 --ey 50 --ez 50 \
+         --lx 5000 --ly 5000 --lz 5000 \
+         --auto-dt --timemax 3.0 \
+         -s --snap-interval 100
+
+# High-order 2D simulation with sponge boundaries
+semproxy -o 6 --ex 200 --ey 200 --ez 1 \
+         --method sem --implem makutu \
+         --boundaries-size 200 --sponge-surface \
+         --dt 0.0005 --timemax 1.5
+```
+
+---
+
+### FD Proxy
+
+#### Command Line Interface
+
+```bash
+fdproxy [OPTIONS]
+```
+
+#### Core Options
+
+##### Grid Configuration
+```bash
+--nx 201 --ny 201 --nz 201    # Grid dimensions (nodes)
+--dx 10 --dy 10 --dz 10        # Grid spacing (meters)
+--mesh cartesian               # Mesh type
+```
+
+##### Stencil Configuration
+```bash
+--lx 4 --ly 4 --lz 4           # Stencil half-width per direction
+--implem remez                 # Implementation: remez|taylor
+```
+
+##### Source Configuration
+```bash
+--f0 25.0                      # Peak frequency (Hz)
+--xs 1000 --ys 1000 --zs 1000  # Source position (meters, -1=center)
+--sourceOrder 2                # Time derivative order
+```
+
+##### Velocity Model
+```bash
+--vmin 1500 --vmax 3500        # Velocity range (m/s)
+--fileModel model.bin          # Load velocity model from file
+```
+
+##### Time Stepping
+```bash
+--timeStep 0.001               # Time step (seconds, 0=auto CFL)
+--timeMax 2.0                  # Simulation duration (seconds)
+--method FDTD                  # Time stepping method
+```
+
+##### Boundary Conditions
+```bash
+--usePML                       # Enable PML absorbing boundaries
+--pmlSize 20                   # PML thickness (grid points)
+--spongeSize 10                # Sponge layer thickness
+--spongeAlpha 0.9              # Sponge damping coefficient
+```
+
+##### Output
+```bash
+--saveSnapShots                # Save wavefield snapshots
+--snapShotInterval 100         # Snapshot frequency (time steps)
+```
+
+#### Example Workflows
+
+```bash
+# Small acoustic simulation with PML boundaries
+fdproxy --nx 101 --ny 101 --nz 101 \
+        --dx 10 --dy 10 --dz 10 \
+        --f0 20 --timeMax 1.0 \
+        --usePML --pmlSize 15 \
+        --saveSnapShots --snapShotInterval 50
+
+# High-frequency simulation with custom velocity
+fdproxy --nx 301 --ny 301 --nz 301 \
+        --vmin 2000 --vmax 4500 \
+        --f0 50 --sourceOrder 2 \
+        --timeStep 0 --timeMax 3.0
+
+# 2D simulation with Remez stencil
+fdproxy --nx 501 --ny 501 --nz 1 \
+        --dx 5 --dy 5 \
+        --lx 6 --ly 6 --implem remez \
+        --f0 30 --xs -1 --ys -1 \
+        --timeStep 0 --timeMax 2.5
+```
+
+---
+
+## 🐍 Python Interface
+
+### Installation
+
+```bash
+# Build with Python support
+cmake -DENABLE_PYWRAP=ON -DCMAKE_INSTALL_PREFIX=$HOME/.local ..
+make install
+
+# Configure environment
+export PYTHONPATH=$HOME/.local:$PYTHONPATH
+export LD_LIBRARY_PATH=$HOME/.local/lib64:$LD_LIBRARY_PATH
+```
+
+### Quick Example
+
+```python
+from pyproxys import solver, model
+
+# Create simulation
+sim = solver.FDSimulation(nx=201, ny=201, nz=201)
+sim.set_source(x=1000, y=1000, z=1000, f0=25.0)
+
+# Run simulation
+sim.run(time_max=2.0)
+
+# Access results
+snapshots = sim.get_snapshots()
+receivers = sim.get_receivers()
+```
+
+### Testing
+
+```bash
+# Install development dependencies
 pip install -r requirements-dev.txt
+
+# Run unit tests
+pytest -vv tests/units
+
+# Run benchmarks
+pytest -vv tests/benchmarks
+
+# Generate benchmark plots
+pytest --benchmark-histogram=plot tests/benchmarks
 ```
 
-To run basic python unit tests
+---
+
+## 📊 Visualization
+
+### Snapshot Visualization
+
 ```bash
-pytest -vv -s  tests/units
+# Visualize 3D snapshots (with slicing)
+python scripts/adios/adios_cartesian_snap_viz.py 201 201 201 \
+       --file snapshots.bp --slice
 ```
 
-To run python benchmarks
+### Receiver Traces
+
 ```bash
-pytest -vv -s tests/benchmarks
+# Plot receiver time series
+cd output_directory
+python scripts/adios/adios_single_receiver_viz.py
 ```
 
-To generate benchmark plots
-```bash
-pytest -vv -s --benchmark-histogram=plot tests/benchmarks
+---
+
+## 🏗️ Project Structure
+
+```
+funtides/
+├── src/
+│   ├── main/           # Proxy application entry points
+│   ├── sem/            # Spectral Element Method implementation
+│   ├── fd/             # Finite Difference implementation
+│   └── common/         # Shared utilities and kernels
+├── examples/           # Python usage examples
+├── scripts/            # Visualization and analysis tools
+├── tests/
+│   ├── units/          # Unit tests
+│   └── benchmarks/     # Performance benchmarks
+└── external/           # Third-party dependencies (Kokkos)
 ```
 
-### Ploting Receivers and Snapshots
+---
 
-To plot the snapshots we provide a python script:
-```bash
-python ./scripts/adios/adios_cartesian_snap_viz.py 201 201 201 --file snapshots.bp --slice
-```
-where 201 values should be replaced by number of nodes on x y and z. And file correpond to the `snapshots.bp` folder with bp5 files.
+## 🤝 Contributing
 
-For the receivers:
-``` bash
-python ./scripts/adios/adios_single_receiver_viz.py
+We welcome contributions! Please see [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
+
+### Code Style
+
+- C++: Google C++ Style Guide
+- Python: PEP 8
+- Editor: Doom Emacs configuration included
+
+---
+
+## 📄 License
+
+This project is licensed under the MIT License - see [LICENSE](LICENSE) for details.
+
+---
+
+## 🙏 Acknowledgments
+
+- Kokkos team for the performance portability framework
+- ADIOS2 for parallel I/O capabilities
+- The scientific computing community
+
+---
+
+## 📚 References
+
+If you use FUnTiDES in your research, please cite:
+
+```bibtex
+@software{funtides2024,
+  title = {FUnTiDES: Fast Unstructured Time Dynamic Equation Solver},
+  author = {Your Team},
+  year = {2024},
+  url = {https://github.com/your-org/funtides}
+}
 ```
-within the folder containing the `receivers.bp` folder.
+
+---
