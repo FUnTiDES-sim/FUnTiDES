@@ -1,5 +1,5 @@
 #-------------------------------------------------------------------
-# Google test/benchmark related functions
+# Google benchmark related functions
 #-------------------------------------------------------------------
 
 # Helper function to create a benchmark executable and register tests
