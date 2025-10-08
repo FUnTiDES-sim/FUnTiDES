@@ -135,21 +135,14 @@ computeElementContributions( int i2, const ARRAY_REAL_VIEW & pnGlobal , bool isM
     Y[i] += localIncrement;
   });
 
+
+  real_t const inv_density = !isModelOnNodes ? 1.0f / m_mesh.getModelRhoOnElement(elementNumber) : 1.0f;
   for (int i = 0; i < m_mesh.getNumberOfPointsPerElement(); ++i)
   {
     int x = i % dim;
     int z = (i / dim) % dim;
     int y = i / (dim * dim);
     int const gIndex = m_mesh.globalNodeIndex(elementNumber, x, y, z);
-    real_t inv_density = 0.0f;
-    if (!isModelOnNodes)
-    {
-      inv_density = 1.0f / m_mesh.getModelRhoOnElement(elementNumber);
-    } 
-    if (isModelOnNodes)
-    {
-      inv_density = 1.0f / m_mesh.getModelRhoOnNodes(gIndex);
-    }
     Y[i] *= inv_density;
     ATOMICADD(yGlobal[gIndex], Y[i]);
   }
@@ -161,11 +154,14 @@ template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE>
 void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE>::updatePressureField(
     float dt, int i1, int i2, const ARRAY_REAL_VIEW &pnGlobal)
 {
+
+  bool const isModelOnNodes = m_mesh.isModelOnNodes();
   float const dt2 = dt * dt;
   LOOPHEAD(m_mesh.getNumberOfNodes(), I)
   {
-    pnGlobal(I, i1) = 2 * pnGlobal(I, i2) - pnGlobal(I, i1) -
-                      dt2 * yGlobal[I] / massMatrixGlobal[I];
+    real_t const density = isModelOnNodes ? m_mesh.getModelRhoOnNodes(I) : 1.0f;
+
+    pnGlobal(I, i1) = 2 * pnGlobal(I, i2) - pnGlobal(I, i1) - dt2 * yGlobal[I] / (massMatrixGlobal[I] * density);
     pnGlobal(I, i1) *= spongeTaperCoeff(I);
     pnGlobal(I, i2) *= spongeTaperCoeff(I);
   }
