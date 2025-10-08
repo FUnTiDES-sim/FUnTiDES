@@ -13,7 +13,7 @@
 #include <cstdlib>
 
 #include "fe/Integrals.hpp"
-#include "sem_solver.h"
+#include "sem_solver_acoustic.h"
 
 template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE>
 void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE>::computeFEInit(

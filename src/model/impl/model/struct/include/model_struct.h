@@ -22,6 +22,7 @@ struct ModelStructData : public ModelDataBase<FloatType, ScalarType>
   ScalarType ex_, ey_, ez_;
   FloatType dx_, dy_, dz_;
   bool isModelOnNodes_;
+  bool isElastic_;
 };
 
 /**
@@ -48,7 +49,8 @@ class ModelStruct : public ModelApi<FloatType, ScalarType>
         lx_(data.dx_),
         ly_(data.dy_),
         lz_(data.dz_),
-        isModelOnNodes_(data.isModelOnNodes_)
+        isModelOnNodes_(data.isModelOnNodes_),
+        isElastic_(data.isElastic_)
   {
     nx_ = Order * ex_ + 1;
     ny_ = Order * ey_ + 1;
@@ -198,6 +200,151 @@ class ModelStruct : public ModelApi<FloatType, ScalarType>
     return 1;
   }
 
+    /**
+   * @brief Get the S-wave velocity value at a global node.
+   * @param n Global node index
+   * @return Model P-wave velocity value at the node
+   */
+  PROXY_HOST_DEVICE
+  FloatType getModelVsOnNodes(ScalarType n) const
+  {
+    // TODO: Not returning magic number
+    return 755;
+  }
+
+  /**
+   * @brief Get the average S-wave velocity value on a given element.
+   * @param e Element index
+   * @return Model P-wave velocity value for the element
+   */
+  PROXY_HOST_DEVICE
+  FloatType getModelVsOnElement(ScalarType e) const
+  {
+    // TODO: Not returning a magic number
+    return 755;
+  }
+
+  /**
+   * @brief Get the average Thomsen parameter delta value on a given nodes.
+   * @param n Global node index
+   * @return Model Thomsen paramter delta value for the node
+   */
+  PROXY_HOST_DEVICE
+  FloatType getModelDeltaOnNodes(ScalarType n) const
+  {
+    // TODO: Not returning magic number
+    return 0.1;
+  }
+
+  /**
+   * @brief Get the average Thomsen parameter delta value on a given element.
+   * @param e Element index
+   * @return Model Thomsen paramter delta value for the element
+   */
+  PROXY_HOST_DEVICE
+  FloatType getModelDeltaOnElement(ScalarType e) const
+  {
+    //TODO: Not returning a magic number
+    return 0.1;
+  }
+
+  /**
+   * @brief Get the average Thomsen parameter epsilon value on a given node.
+   * @param n Global node index
+   * @return Model Thomsen paramter epsilon value for the node
+   */
+  PROXY_HOST_DEVICE
+  FloatType getModelEpsilonOnNodes(ScalarType n) const
+  {
+    //TODO: Not returning magic number
+    return 0.2;
+  }
+
+  /**
+   * @brief Get the average Thomsen parameter epsilon value on a given element.
+   * @param e Element index
+   * @return Model Thomsen paramter epsilon value for the element
+   */
+  PROXY_HOST_DEVICE
+  FloatType getModelEpsilonOnElement(ScalarType e) const
+  {
+    //TODO: Not returning a magic number
+    return 0.2;
+  }
+
+  /**
+   * @brief Get the average Thomsen parameter gamma value on a given node.
+   * @param n Global node index
+   * @return Model Thomsen paramter gamma value for the node
+   */
+  PROXY_HOST_DEVICE
+  FloatType getModelGammaOnNodes(ScalarType n) const
+  {
+    //TODO: Not returning magic number
+    return 0.08;
+  }
+
+  /**
+   * @brief Get the average Thomsen parameter gamma value on a given element.
+   * @param e Element index
+   * @return Model Thomsen paramter gamma value for the element
+   */
+  PROXY_HOST_DEVICE
+  FloatType getModelGammaOnElement(ScalarType e) const
+  {
+    //TODO: Not returning a magic number
+    return 0.08;
+  }
+
+  /**
+   * @brief Get the average anisotropic parameter theta value on a given node.
+   * @param n Global node index
+   * @return Model anisotropic paramter theta value for the node
+   */
+  PROXY_HOST_DEVICE
+  ScalarType getModelThetaOnNodes(ScalarType n) const
+  {
+    //TODO: Not returning magic number
+    return 30;
+  }
+
+  /**
+   * @brief Get the average anisotropic parameter theta value on a given element.
+   * @param e Element index
+   * @return Model anisotropic paramter theta value for the element
+   */
+  PROXY_HOST_DEVICE
+  ScalarType getModelThetaOnElement(ScalarType e) const
+  {
+    //TODO: Not returning a magic number
+    return 30;
+  }
+
+  /**
+   * @brief Get the average anisotropic parameter phi value on a given node.
+   * @param n Global node index
+   * @return Model anisotropic paramter phi value for the node
+   */
+  PROXY_HOST_DEVICE
+  ScalarType getModelPhiOnNodes(ScalarType n) const
+  {
+    //TODO: Not returning magic number
+    return 45;
+  }
+
+  /**
+   * @brief Get the average anisotropic parameter phi value on a given element.
+   * @param e Element index
+   * @return Model anisotropic paramter phi value for the element
+   */
+  PROXY_HOST_DEVICE
+  ScalarType getModelPhiOnElement(ScalarType e) const
+  {
+    //TODO: Not returning a magic number
+    return 45;
+  }
+
+
   /**
    * @brief Get the total number of elements in the mesh.
    * @return Total element count
@@ -301,6 +448,9 @@ class ModelStruct : public ModelApi<FloatType, ScalarType>
 
   PROXY_HOST_DEVICE
   bool isModelOnNodes() const { return isModelOnNodes_; }
+
+  PROXY_HOST_DEVICE
+  bool isElastic() const { return isElastic_; }
 
  private:
   ScalarType ex_, ey_, ez_;  // Nb elements in each direction

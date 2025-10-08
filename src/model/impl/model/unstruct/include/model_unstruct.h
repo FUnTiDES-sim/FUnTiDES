@@ -20,6 +20,7 @@ struct ModelUnstructData : public ModelDataBase<FloatType, ScalarType>
   ScalarType n_node_;
   FloatType lx_, ly_, lz_;
   bool isModelOnNodes_;
+  bool isElastic_;
 
   // Coordinates and index map views
   ARRAY_INT_VIEW global_node_index_;
@@ -32,6 +33,16 @@ struct ModelUnstructData : public ModelDataBase<FloatType, ScalarType>
   VECTOR_REAL_VIEW model_vp_element_;
   VECTOR_REAL_VIEW model_rho_node_;
   VECTOR_REAL_VIEW model_rho_element_;
+  VECTOR_REAL_VIEW model_vs_node_;
+  VECTOR_REAL_VIEW model_vs_element_;
+  VECTOR_REAL_VIEW model_delta_node_;
+  VECTOR_REAL_VIEW model_delta_element_;
+  VECTOR_REAL_VIEW model_epsilon_node_;
+  VECTOR_REAL_VIEW model_epsilon_element_;
+  VECTOR_REAL_VIEW model_gamma_node_;
+  VECTOR_REAL_VIEW model_gamma_element_;
+  VECTOR_REAL_VIEW model_phi_node_;
+  VECTOR_REAL_VIEW model_phi_element_;
   VECTOR_REAL_VIEW boundaries_t_;
 };
 
@@ -60,6 +71,7 @@ class ModelUnstruct : public ModelApi<FloatType, ScalarType>
         ly_(data.ly_),
         lz_(data.lz_),
         isModelOnNodes_(data.isModelOnNodes_),
+        isElastic_(data.isElastic_),
         global_node_index_(data.global_node_index_),
         nodes_coords_x_(data.nodes_coords_x_),
         nodes_coords_y_(data.nodes_coords_y_),
@@ -68,6 +80,18 @@ class ModelUnstruct : public ModelApi<FloatType, ScalarType>
         model_vp_element_(data.model_vp_element_),
         model_rho_node_(data.model_rho_node_),
         model_rho_element_(data.model_rho_element_),
+        model_vs_node_(data.model_vs_node_),
+        model_vs_element_(data.model_vs_element_),
+        model_delta_node_(data.model_delta_node_),
+        model_delta_element_(data.model_delta_element_),
+        model_epsilon_node_(data.model_epsilon_node_),
+        model_epsilon_element_(data.model_epsilon_element_),
+        model_gamma_node_(data.model_gamma_node_),
+        model_gamma_element_(data.model_gamma_element_),
+        model_phi_node_(data.model_phi_node_),
+        model_phi_element_(data.model_phi_element_),
+        model_theta_node_(data.model_theta_node_),
+        model_theta_element_(data.model_theta_element_),
         boundaries_t_(data.boundaries_t_),
         n_points_per_element_((order_ + 1) * (order_ + 1) * (order_ + 1))
   {
@@ -168,8 +192,152 @@ class ModelUnstruct : public ModelApi<FloatType, ScalarType>
     return model_rho_element_[e];
   }
 
+  /**
+   * @brief Get the average S-wave velocity value at a global node.
+   * @param n Global node index
+   * @return Model S-wave velocity value at the node
+   */
+  PROXY_HOST_DEVICE
+  FloatType getModelVsOnNodes(ScalarType n) const final
+  { 
+    return model_vs_node_[n];
+  }
+
+  /**
+   * @brief Get the average S-wave velocity value on a given element.
+   * @param e Element index
+   * @return Model S-wave velocity value for the element
+   */
+  PROXY_HOST_DEVICE
+  FloatType getModelVsOnElement(ScalarType e) const final
+  {  
+    return model_vs_element_[e];
+  }
+
+  /**
+   * @brief Get the average Thomsen parameter delta value at a global node.
+   * @param n Global node index
+   * @return Model Thomsen paramter delta value for the node
+   */
+  PROXY_HOST_DEVICE
+  FloatType getModelDeltaOnNodes(ScalarType n) const final
+  { 
+    return model_delta_node_[n];
+  }
+
+  /**
+   * @brief Get the average Thomsen parameter delta value on a given element.
+   * @param e Element index
+   * @return Model Thomsen paramter delta value for the element
+   */
+  PROXY_HOST_DEVICE
+  FloatType getModelDeltaOnElement(ScalarType e) const final
+  {  
+    return model_delta_element_[e];
+  }
+
+  /**
+   * @brief Get the average Thomsen parameter epsilon value at a global node.
+   * @param n Global node index
+   * @return Model Thomsen paramter epsilon value for the node
+   */
+  PROXY_HOST_DEVICE
+  FloatType getModelEpsilonOnNodes(ScalarType n) const final
+  { 
+    return model_epsilon_node_[n];
+  }
+
+  /**
+   * @brief Get the average Thomsen parameter epsilon value on a given element.
+   * @param e Element index
+   * @return Model Thomsen paramter epsilon value for the element
+   */
+
+  PROXY_HOST_DEVICE
+  FloatType getModelEpsilonOnElement(ScalarType e) const final
+  {  
+    return model_epsilon_element_[e];
+  }
+
+  /**
+   * @brief Get the average Thomsen parameter gamma value at a global node.
+   * @param n Global node index
+   * @return Model Thomsen paramter gamma value for the node
+   */
+  PROXY_HOST_DEVICE
+  FloatType getModelGammaOnNodes(ScalarType n) const final
+  {
+    return model_gamma_node_[n];
+  }
+
+  /**
+   * @brief Get the average Thomsen parameter gamma value on a given element.
+   * @param e Element index
+   * @return Model Thomsen paramter gamma value for the element
+   */
+  PROXY_HOST_DEVICE
+  FloatType getModelGammaOnElement(ScalarType e) const final
+  {
+    return model_gamma_element_[e];
+  }
+
+  /**
+   * @brief Get the average anisotropic parameter phi value at a global node.
+   * @param n Global node index
+   * @return Model anisotropic paramter phi value for the node
+   */
+  PROXY_HOST_DEVICE
+  ScalarType getModelPhiOnNodes(ScalarType n) const final
+  {
+    return model_phi_node_[n];
+  }
+
+  /**
+   * @brief Get the average anisotropic parameter phi value on a given element.
+   * @param e Element index
+   * @return Model anisotropic paramter phi value for the element
+   */
+  PROXY_HOST_DEVICE
+  ScalarType getModelPhiOnElement(ScalarType e) const final
+  {
+    return model_phi_element_[e];
+  }
+
+  /**
+   * @brief Get the average anisotropic parameter theta value at a global node.
+   * @param n Global node index
+   * @return Model anisotropic paramter theta value for the node
+   */
+  PROXY_HOST_DEVICE
+  ScalarType getModelThetaOnNodes(ScalarType n) const final
+  {
+    return model_theta_node_[n];
+  }
+
+  /**
+   * @brief Get the average anisotropic parameter theta value on a given element.
+   * @param e Element index
+   * @return Model anisotropic paramter theta value for the element
+   */
+  PROXY_HOST_DEVICE
+  ScalarType getModelThetaOnElement(ScalarType e) const final
+  {
+    return model_theta_element_[e];
+  }
+
+  /**
+   * @brief Indicates if the model properties are defined on nodes.
+   * @return True if model properties are defined at nodes, false if at elements
+   */
   PROXY_HOST_DEVICE
   bool isModelOnNodes() const final { return isModelOnNodes_; }
+
+  /**
+   * @brief Indicates if the model is elastic.
+   * @return True if the model is elastic, false otherwise
+   */
+  PROXY_HOST_DEVICE
+  bool isElastic() const final { return isElastic_; }
 
   /**
    * @brief Get the total number of elements in the mesh.
@@ -376,6 +544,7 @@ class ModelUnstruct : public ModelApi<FloatType, ScalarType>
   FloatType lx_, ly_, lz_;
   int n_points_per_element_;  // Added missing member
   bool isModelOnNodes_;
+  bool isElastic_;
 
   // Coordinates and index map views
   ARRAY_INT_VIEW global_node_index_;
@@ -388,6 +557,18 @@ class ModelUnstruct : public ModelApi<FloatType, ScalarType>
   VECTOR_REAL_VIEW model_vp_element_;
   VECTOR_REAL_VIEW model_rho_node_;
   VECTOR_REAL_VIEW model_rho_element_;
+  VECTOR_REAL_VIEW model_vs_node_;
+  VECTOR_REAL_VIEW model_vs_element_;
+  VECTOR_REAL_VIEW model_delta_node_;
+  VECTOR_REAL_VIEW model_delta_element_;
+  VECTOR_REAL_VIEW model_epsilon_node_;
+  VECTOR_REAL_VIEW model_epsilon_element_;
+  VECTOR_REAL_VIEW model_theta_node_;
+  VECTOR_REAL_VIEW model_theta_element_;
+  VECTOR_REAL_VIEW model_gamma_node_;
+  VECTOR_REAL_VIEW model_gamma_element_;
+  VECTOR_REAL_VIEW model_phi_node_;
+  VECTOR_REAL_VIEW model_phi_element_;
 
   VECTOR_REAL_VIEW boundaries_t_;
 };
