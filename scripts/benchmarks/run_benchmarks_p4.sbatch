@@ -29,6 +29,7 @@ ENV_DIR=$ROOT_DIR/scripts/environments
 BUILD_DIR="$ROOT_DIR/build"
 INSTALL_DIR="$ROOT_DIR/install"
 
+echo "=== SETUP SCRIPT ==="
 echo "Script dir: $SCRIPT_DIR"
 echo "Root dir: $ROOT_DIR"
 echo "Build dir: $BUILD_DIR"
@@ -44,15 +45,19 @@ export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$INSTALL_DIR/lib64
 export OMP_PLACES=cores
 export OMP_PROC_BIND=close # close (cache locality) | spread (bandwidth / NUMA balance)
 export OMP_DYNAMIC=FALSE
-export OMP_DISPLAY_ENV=VERBOSE
+
+echo "=== SETUP OMP ==="
+echo "OMP_PLACES=$OMP_PLACES"
+echo "OMP_PROC_BIND=$OMP_PROC_BIND"
+echo "OMP_DYNAMIC=$OMP_DYNAMIC"
 
 # CHECK
-echo "=== Topology ==="
+echo "=== TOPOLOGY ==="
 lscpu | egrep 'Socket|Core|CPU\(s\)|NUMA'
 echo
 echo "numactl -H:"
 numactl -H
-echo "=== Binding ==="
+echo "=== BINDING ==="
 echo
 echo "SLURM env:"
 echo "SLURM_JOB_CPUS_PER_NODE=$SLURM_JOB_CPUS_PER_NODE"
@@ -65,11 +70,11 @@ echo "numactl --show:"; numactl --show
 '
 
 # RUN
-# python benchmarks
-#pushd $ROOT_DIR
-#srun --cpu-bind=socket,verbose --cpus-per-task=96 python scripts/run_pywrap_benchmarks.py --threads 2,4,8,16,32,64
-#popd
-# cpp benchmarks
+echo "=== PYTHON BENCHMARKS ==="
+pushd $ROOT_DIR
+srun --cpu-bind=socket,verbose --cpus-per-task=96 python scripts/run_pywrap_benchmarks.py --threads 2,4,8,16,32,64
+popd
+echo "=== CPP BENCHMARKS ==="
 pushd $BUILD_DIR
 srun --cpu-bind=socket,verbose --cpus-per-task=96 ctest -L benchmark
 popd
