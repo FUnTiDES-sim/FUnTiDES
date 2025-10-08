@@ -1,9 +1,9 @@
 if(COMPILE_FD)
 
   add_executable(fdproxy 
-                 src/main.cpp
-                 src/fdtd_proxy.cpp
-                 src/fdtd_solver.cpp
+                 src/main.cc
+                 src/fdtd_proxy.cc
+                 src/fdtd_solver.cc
                 )
   target_include_directories(fdproxy PUBLIC
                             ${CMAKE_CURRENT_SOURCE_DIR}/include

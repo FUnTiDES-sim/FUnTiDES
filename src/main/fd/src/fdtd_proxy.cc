@@ -17,12 +17,11 @@
 #include "fdtd_proxy.h"
 
 #include <chrono>
+#include <cxxopts.hpp>
 #include <iomanip>
 #include <iostream>
 #include <sstream>
 #include <variant>
-
-#include <cxxopts.hpp>
 
 #include "data_type.h"
 
@@ -32,12 +31,14 @@ using std::chrono::nanoseconds;
 using std::chrono::system_clock;
 using std::chrono::time_point;
 
-namespace {
+namespace
+{
 
 /**
  * @brief Prints a section separator line.
  */
-void PrintSeparator() {
+void PrintSeparator()
+{
   std::cout << "--------------------------------------" << std::endl;
 }
 
@@ -46,11 +47,12 @@ void PrintSeparator() {
  * @param time_us Time in microseconds
  * @return Time in seconds
  */
-inline double MicrosecondsToSeconds(double time_us) {
-  return time_us / 1E6;
-}
+inline double MicrosecondsToSeconds(double time_us) { return time_us / 1E6; }
 
 }  // namespace
+
+namespace fdtd
+{
 
 FdtdProxy::FdtdProxy(const FdtdOptions& opt)
     : opt_(opt),
@@ -59,9 +61,12 @@ FdtdProxy::FdtdProxy(const FdtdOptions& opt)
       kernels_(),
       io_(),
       utils_(),
-      solver_(grids_, kernels_, stencils_, source_receivers_) {}
+      solver_(grids_, kernels_, stencils_, source_receivers_)
+{
+}
 
-void FdtdProxy::InitFdtd() {
+void FdtdProxy::InitFdtd()
+{
   std::cout << "+======================================" << std::endl;
   std::cout << "saveSnapshots=" << opt_.output.save_snapshots
             << " snapShotInterval=" << opt_.output.snapshot_interval
@@ -81,7 +86,8 @@ void FdtdProxy::InitFdtd() {
   PrintSeparator();
 }
 
-void FdtdProxy::InitializeGrid() {
+void FdtdProxy::InitializeGrid()
+{
   std::cout << "geometry init" << std::endl;
   grids_.InitGrid(opt_);
   PrintSeparator();
@@ -91,7 +97,8 @@ void FdtdProxy::InitializeGrid() {
             << " nz=" << grids_.nz() << std::endl;
 }
 
-void FdtdProxy::InitializeStencils() {
+void FdtdProxy::InitializeStencils()
+{
   std::cout << "stencil init" << std::endl;
   PrintSeparator();
   stencils_.initStencilsCoefficients(opt_, grids_.dx(), grids_.dy(),
@@ -101,23 +108,27 @@ void FdtdProxy::InitializeStencils() {
             << " lz=" << stencils_.lz << std::endl;
   std::cout << "coef0=" << stencils_.coef0 << std::endl;
 
-  for (int i = 0; i < stencils_.ncoefsX; i++) {
+  for (int i = 0; i < stencils_.ncoefsX; i++)
+  {
     std::cout << "coefx[" << i << "]=" << stencils_.coefx[i] << " ";
   }
   std::cout << std::endl;
 
-  for (int i = 0; i < stencils_.ncoefsY; i++) {
+  for (int i = 0; i < stencils_.ncoefsY; i++)
+  {
     std::cout << "coefy[" << i << "]=" << stencils_.coefy[i] << " ";
   }
   std::cout << std::endl;
 
-  for (int i = 0; i < stencils_.ncoefsZ; i++) {
+  for (int i = 0; i < stencils_.ncoefsZ; i++)
+  {
     std::cout << "coefz[" << i << "]=" << stencils_.coefz[i] << " ";
   }
   std::cout << std::endl;
 }
 
-void FdtdProxy::InitializeVelocityModel() {
+void FdtdProxy::InitializeVelocityModel()
+{
   std::cout << std::endl;
   std::cout << "velocity model init" << std::endl;
   std::cout << "vmin=" << opt_.velocity.vmin << " vmax=" << opt_.velocity.vmax
@@ -137,10 +148,13 @@ void FdtdProxy::InitializeVelocityModel() {
   PrintSeparator();
 
   // Compute time step from CFL condition if not user-defined
-  if (time_step_ == 0.0f) {
+  if (time_step_ == 0.0f)
+  {
     time_step_ = stencils_.compute_dt_sch(velocity_max_);
     std::cout << "compute time step from CFL condition" << std::endl;
-  } else {
+  }
+  else
+  {
     std::cout << "user defined time step" << std::endl;
   }
 
@@ -150,21 +164,24 @@ void FdtdProxy::InitializeVelocityModel() {
   PrintSeparator();
 }
 
-void FdtdProxy::InitializeModelArrays() {
+void FdtdProxy::InitializeModelArrays()
+{
   std::cout << "model init" << std::endl;
   grids_.InitModelArrays(opt_);
   std::cout << "model init done" << std::endl;
   PrintSeparator();
 }
 
-void FdtdProxy::InitializeWavefieldArrays() {
-  kernels_.initFieldsArrays(grids_.nx(), grids_.ny(), grids_.nz(),
-                            stencils_.lx, stencils_.ly, stencils_.lz);
+void FdtdProxy::InitializeWavefieldArrays()
+{
+  kernels_.initFieldsArrays(grids_.nx(), grids_.ny(), grids_.nz(), stencils_.lx,
+                            stencils_.ly, stencils_.lz);
   std::cout << "arrays init done" << std::endl;
   PrintSeparator();
 }
 
-void FdtdProxy::InitializeSource() {
+void FdtdProxy::InitializeSource()
+{
   source_frequency_ = opt_.source.f0;
   source_order_ = opt_.source.source_order;
   std::cout << "central freq and source order" << std::endl;
@@ -173,12 +190,12 @@ void FdtdProxy::InitializeSource() {
   PrintSeparator();
 
   // Set source position (use grid center if not specified)
-  source_receivers_.xsrc = (opt_.source.xs < 0) ? grids_.nx() / 2
-                                                 : opt_.source.xs;
-  source_receivers_.ysrc = (opt_.source.ys < 0) ? grids_.ny() / 2
-                                                 : opt_.source.ys;
-  source_receivers_.zsrc = (opt_.source.zs < 0) ? grids_.nz() / 2
-                                                 : opt_.source.zs;
+  source_receivers_.xsrc =
+      (opt_.source.xs < 0) ? grids_.nx() / 2 : opt_.source.xs;
+  source_receivers_.ysrc =
+      (opt_.source.ys < 0) ? grids_.ny() / 2 : opt_.source.ys;
+  source_receivers_.zsrc =
+      (opt_.source.zs < 0) ? grids_.nz() / 2 : opt_.source.zs;
 
   std::cout << "source position" << std::endl;
   std::cout << "xsrc=" << source_receivers_.xsrc
@@ -191,40 +208,46 @@ void FdtdProxy::InitializeSource() {
   PrintSeparator();
 }
 
-void FdtdProxy::InitializeBoundaries() {
+void FdtdProxy::InitializeBoundaries()
+{
   kernels_.defineSpongeBoundary(grids_.nx(), grids_.ny(), grids_.nz());
   std::cout << "sponge boundary init done" << std::endl;
   PrintSeparator();
 }
 
-void FdtdProxy::InitSource() {
+void FdtdProxy::InitSource()
+{
   // Compute source term (e.g., Ricker wavelet)
   kernels_.RHSTerm = allocateVector<vectorReal>(num_time_samples_, "RHSTerm");
 
   std::vector<float> source_term = utils_.computeSourceTerm(
       num_time_samples_, time_step_, source_frequency_, source_order_);
 
-  for (int i = 0; i < num_time_samples_; i++) {
+  for (int i = 0; i < num_time_samples_; i++)
+  {
     kernels_.RHSTerm[i] = source_term[i];
   }
 }
 
-void FdtdProxy::Run() {
+void FdtdProxy::Run()
+{
   nanoseconds total_compute_time{0};
   nanoseconds total_output_time{0};
 
   for (int index_time_sample = 0; index_time_sample < num_time_samples_;
-       index_time_sample++) {
+       index_time_sample++)
+  {
     // Compute one time step
     auto start_compute_time = system_clock::now();
     solver_.compute_one_step(index_time_sample, time_index_current_,
                              time_index_next_);
-    total_compute_time += duration_cast<nanoseconds>(
-        system_clock::now() - start_compute_time);
+    total_compute_time +=
+        duration_cast<nanoseconds>(system_clock::now() - start_compute_time);
 
     // Output snapshots at specified intervals
     auto start_output_time = system_clock::now();
-    if (index_time_sample % opt_.output.snapshot_interval == 0) {
+    if (index_time_sample % opt_.output.snapshot_interval == 0)
+    {
       io_.outputPnValues(index_time_sample, time_index_current_, grids_,
                          kernels_, stencils_, opt_, source_receivers_);
     }
@@ -232,8 +255,8 @@ void FdtdProxy::Run() {
     // Swap time indices for next iteration
     std::swap(time_index_current_, time_index_next_);
 
-    total_output_time += duration_cast<nanoseconds>(
-        system_clock::now() - start_output_time);
+    total_output_time +=
+        duration_cast<nanoseconds>(system_clock::now() - start_output_time);
     std::cout.flush();
   }
 
@@ -242,13 +265,12 @@ void FdtdProxy::Run() {
 
 void FdtdProxy::PrintPerformanceMetrics(
     const nanoseconds& total_compute_time,
-    const nanoseconds& total_output_time) const {
-  const double kernel_time_us =
-      static_cast<double>(duration_cast<microseconds>(total_compute_time)
-                              .count());
-  const double output_time_us =
-      static_cast<double>(duration_cast<microseconds>(total_output_time)
-                              .count());
+    const nanoseconds& total_output_time) const
+{
+  const double kernel_time_us = static_cast<double>(
+      duration_cast<microseconds>(total_compute_time).count());
+  const double output_time_us = static_cast<double>(
+      duration_cast<microseconds>(total_output_time).count());
 
   std::cout << "------------------------------------------------ " << std::endl;
   std::cout << "\n---- Elapsed Kernel Time : "
@@ -259,3 +281,5 @@ void FdtdProxy::PrintPerformanceMetrics(
             << std::endl;
   std::cout << "------------------------------------------------ " << std::endl;
 }
+
+}  // namespace fdtd

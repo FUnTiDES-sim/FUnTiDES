@@ -30,6 +30,8 @@
 #include "read_sepfile.h"
 #include "utils.h"
 
+namespace fdtd
+{
 /**
  * @class FdtdProxy
  * @brief Main orchestration class for FDTD acoustic wave propagation
@@ -49,7 +51,8 @@
  *   proxy.Run();
  * @endcode
  */
-class FdtdProxy {
+class FdtdProxy
+{
  public:
   /**
    * @brief Constructs an FDTD proxy with the given simulation options.
@@ -184,4 +187,5 @@ class FdtdProxy {
   FdtdSourceReceivers source_receivers_;
 };
 
+}  // namespace fdtd
 #endif  // SRC_MAIN_FD_INCLUDE_FDTD_PROXY_HPP_

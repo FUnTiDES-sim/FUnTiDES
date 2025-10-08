@@ -87,7 +87,7 @@ void PrintTiming(const std::string& label, const nanoseconds& duration)
  *
  * @param fd_sim Reference to the FdtdProxy simulation object
  */
-void Compute(FdtdProxy& fd_sim)
+void Compute(fdtd::FdtdProxy& fd_sim)
 {
   // Initialize FDTD simulation
   std::cout << "Initializing FDTD simulation..." << std::endl;
@@ -177,7 +177,7 @@ int main(int argc, char* argv[])
     opt.Validate();
 
     // Initialize and run FDTD simulation
-    FdtdProxy fd_sim(opt);
+    fdtd::FdtdProxy fd_sim(opt);
     Compute(fd_sim);
 
     // Report total execution time
