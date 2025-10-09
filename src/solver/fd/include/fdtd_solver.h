@@ -28,8 +28,10 @@ class FdtdSolver
    * @brief Constructor of the SEMproxy class
    */
 
-  FdtdSolver(model::fdgrid::FdtdGrids& grids, FdtdKernels& kernels,
-             FdtdStencils& stencils, FdtdSourceReceivers& source_receivers)
+  FdtdSolver(model::fdgrid::FdtdGrids& grids,
+             fdtd::kernel::FdtdKernels& kernels,
+             fdtd::stencils::FdtdStencils& stencils,
+             FdtdSourceReceivers& source_receivers)
       : m_grids(grids),
         m_kernels(kernels),
         m_stencils(stencils),
@@ -47,8 +49,8 @@ class FdtdSolver
 
  private:
   model::fdgrid::FdtdGrids& m_grids;
-  FdtdStencils& m_stencils;
-  FdtdKernels& m_kernels;
+  fdtd::stencils::FdtdStencils& m_stencils;
+  fdtd::kernel::FdtdKernels& m_kernels;
   FdtdSourceReceivers& m_source_receivers;
 };
 

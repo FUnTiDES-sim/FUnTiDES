@@ -4,6 +4,10 @@
 #include "data_type.h"
 #include "fdtd_macros.h"
 
+namespace fdtd
+{
+namespace kernel
+{
 struct FdtdKernels
 {
   vectorReal spongeArray;
@@ -178,4 +182,7 @@ struct FdtdKernels
     return 0;
   }
 };
+
+}  // namespace kernel
+}  // namespace fdtd
 #endif  // FDTD_KERNELS_H
