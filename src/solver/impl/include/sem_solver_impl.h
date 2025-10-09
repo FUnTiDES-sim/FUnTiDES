@@ -39,7 +39,7 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE>::computeFEInit(
 
   allocateFEarrays();
   initFEarrays();
-  computeGlobalMassMatrix(m_mesh_ptr.isModelOnNodes());
+  computeGlobalMassMatrix(m_mesh_ptr->isModelOnNodes());
 }
 
 template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE>
