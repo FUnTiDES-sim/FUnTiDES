@@ -72,7 +72,7 @@ echo "numactl --show:"; numactl --show
 # RUN
 echo "=== PYTHON BENCHMARKS ==="
 pushd $ROOT_DIR
-srun --cpu-bind=socket,verbose --cpus-per-task=96 python scripts/benchmarks/run_pywrap_benchmarks.py --verbose
+srun --cpu-bind=socket,verbose --cpus-per-task=96 python scripts/benchmarks/run_pywrap_benchmarks.py --verbose --prefix solver_fe_cartesian
 popd
 echo "=== CPP BENCHMARKS ==="
 pushd $BUILD_DIR

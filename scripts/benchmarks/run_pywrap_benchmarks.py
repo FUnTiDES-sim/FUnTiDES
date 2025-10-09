@@ -5,10 +5,11 @@ import sys
 from pathlib import Path
 
 
-def run_once(threads, extra_pytest_args, bench_root, marker, verbose):
+def run_once(threads, extra_pytest_args, bench_root, prefix, verbose):
     out_dir = bench_root
     out_dir.mkdir(parents=True, exist_ok=True)
-    outfile = out_dir / f"python_{marker}_t{threads}.json"
+
+    outfile = out_dir / f"{prefix}_t{threads}.json"
 
     cmd = [
         sys.executable,
@@ -26,8 +27,6 @@ def run_once(threads, extra_pytest_args, bench_root, marker, verbose):
         "--benchmark-only",
         f"--benchmark-json={outfile}",
     ])
-    if marker:
-        cmd.extend(("-m", marker))
     cmd += extra_pytest_args
 
     print(f"[RUN] threads={threads} -> {outfile}")
@@ -45,10 +44,10 @@ def parse_args():
         help="Comma-separated list of thread counts (default: 1,2,4,8,16,32,64)",
     )
     p.add_argument(
-        "--marker",
+        "--prefix",
         type=str,
         default="",
-        help="Optional pytest marker expression to filter benchmarks",
+        help="Optional prefix inserted before the _t in the output filename (e.g. 'run1' -> run1_t4.json)",
     )
     p.add_argument(
         "--output-dir",
@@ -73,7 +72,7 @@ def main():
     args = parse_args()
     thread_list = [int(t) for t in args.threads.split(",") if t.strip()]
     for t in thread_list:
-        run_once(t, args.pytest_args, args.output_dir, args.marker, args.verbose)
+        run_once(t, args.pytest_args, args.output_dir, args.prefix, args.verbose)
     print("All Python benchmarks completed.")
     return 0
 
