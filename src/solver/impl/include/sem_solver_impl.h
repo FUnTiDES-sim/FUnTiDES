@@ -165,7 +165,6 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE>::computeElementContributions(
         {
           int const gIndex = m_mesh.globalNodeIndex(elementNumber, qa, qb, qc);
           inv_density = 1.0f / m_mesh.getModelRhoOnNodes(gIndex);
-          float localIncrement = inv_density * val * pnLocal[j];
         }
         float localIncrement = inv_density * val * pnLocal[j];
         Y[i] += localIncrement;
