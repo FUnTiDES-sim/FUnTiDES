@@ -17,8 +17,6 @@ namespace model
 namespace bench
 {
 
-constexpr float PI = 3.14157f;
-
 // Template config for the fixture
 template <int Order>
 struct BuilderConfig
