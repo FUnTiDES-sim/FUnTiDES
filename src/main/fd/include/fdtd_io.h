@@ -45,19 +45,18 @@ struct FdtdIo
              m_kernels.pnGlobal(IDX3_l(xs, ys, zs), i1),
              m_kernels.pnGlobal(IDX3_l(xs + 1, ys, zs), i1));
       if (saveSnapShots)
-        write_snapshot(0, nx, ny / 2, ny / 2, 0, nz, itSample, i1, m_grids,
-                       m_kernels, m_stencils, m_opt);
+        WriteSnapshot(0, nx, ny / 2, ny / 2, 0, nz, itSample, i1, m_grids,
+                      m_kernels, m_stencils, m_opt);
     }
   }
 
   // write snapshot to file
-  void write_snapshot(const int &x0, const int &x1, const int &y0,
-                      const int &y1, const int &z0, const int &z1,
-                      const int istep, int i1,
-                      model::fdgrid::FdtdGrids &m_grids,
-                      fdtd::kernel::FdtdKernels &m_kernels,
-                      fdtd::stencils::FdtdStencils &m_stencils,
-                      fdtd::options::FdtdOptions &m_opt)
+  void WriteSnapshot(const int &x0, const int &x1, const int &y0, const int &y1,
+                     const int &z0, const int &z1, const int istep, int i1,
+                     model::fdgrid::FdtdGrids &m_grids,
+                     fdtd::kernel::FdtdKernels &m_kernels,
+                     fdtd::stencils::FdtdStencils &m_stencils,
+                     fdtd::options::FdtdOptions &m_opt)
   {
     int ny = m_grids.ny();
     int nz = m_grids.nz();

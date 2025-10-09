@@ -24,7 +24,7 @@ struct FdtdKernels
 
     spongeArray = allocateVector<vectorReal>(modelVolume, "spongeArray");
     pnGlobal = allocateArray2D<arrayReal>(extModelVolume, 2, "pnGlobal");
-#pragma omp parallel for collapse(3)
+
     for (int i = -lx; i < nx + lx; i++)
     {
       for (int j = -ly; j < ny + ly; j++)

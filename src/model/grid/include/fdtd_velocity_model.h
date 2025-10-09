@@ -72,7 +72,6 @@ class VelocityModel
     const int nz = geom_.nz();
 
     // Layer 1: Entire volume
-#pragma omp parallel for collapse(3)
     for (int i = 0; i < nx; i++)
     {
       for (int j = 0; j < ny; j++)
@@ -87,7 +86,6 @@ class VelocityModel
     // Layer 2: Lower half with doubled velocity
     constexpr float kVelocityRatio = 2.0f;
     const float layer2_vp = kVelocityRatio * init_vp_value;
-#pragma omp parallel for collapse(3)
     for (int i = 0; i < nx; i++)
     {
       for (int j = 0; j < ny; j++)

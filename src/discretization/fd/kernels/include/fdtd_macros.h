@@ -1,21 +1,6 @@
 #ifndef FDTD_MACROS_H
 #define FDTD_MACROS_H
 
-/*#define NX myGrids.nx
-#define NY myGrids.ny
-#define NZ myGrids.nz
-
-#define LX myGrids.lx
-#define LY myGrids.ly
-#define LZ myGrids.lz
-
-#define POW2(x) ((x)*(x))
-#define IDX3(i,j,k) (NZ*NY*(i) + NZ*(j) + (k))
-#define IDX3_l(i,j,k) ((NZ+2*LZ)*(NY+2*LY)*((i)+LX) + (NZ+2*LZ)*((j)+LY) +
-((k)+LZ)) #define IDX3_eta1(i,j,k) ((NZ+2)*(NY+2)*((i)+1) + (NZ+2)*((j)+1) +
-((k)+1))
-*/
-
 #define POW2(x) ((x) * (x))
 #define IDX3(i, j, k) (nz * ny * (i) + nz * (j) + (k))
 #define IDX3_l(i, j, k)                                                      \

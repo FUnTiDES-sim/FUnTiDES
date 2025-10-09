@@ -1,10 +1,3 @@
-//************************************************************************
-//   proxy application v.0.0.1
-//
-//  semproxy.cpp: the main interface of  proxy application
-//
-//************************************************************************
-
 #include "fdtd_solver.h"
 
 #include <cxxopts.hpp>
@@ -15,7 +8,43 @@
 
 #include "data_type.h"
 
-// compute one time step
+/**
+ * @brief Computes a single time step in the FDTD acoustic wave simulation.
+ *
+ * This function performs one complete iteration of the Finite-Difference
+ * Time-Domain (FDTD) algorithm for acoustic wave propagation. It executes
+ * three main operations in sequence: adding source terms, computing inner
+ * domain updates, and applying absorbing boundary conditions.
+ *
+ * @param itime Current time step index in the simulation
+ * @param i1 First buffer index for the two-buffer time stepping scheme
+ * @param i2 Second buffer index for the two-buffer time stepping scheme
+ *
+ * @details The computation proceeds in three phases:
+ *
+ * 1. Source Term Addition: Injects acoustic energy from sources into
+ *    the pressure field using the RHS (right-hand side) term at specified
+ *    source locations.
+ *
+ * 2. Inner Domain Update: Applies the finite-difference stencil to
+ *    compute spatial derivatives and update the pressure field in the
+ *    interior domain, excluding the boundary layers defined by the stencil
+ *    half-lengths (lx, ly, lz).
+ *
+ * 3. Sponge Boundary Application: Attenuates outgoing waves at the
+ *    domain boundaries to prevent non-physical reflections using absorbing
+ *    boundary conditions.
+ *
+ * @note The function uses FDFENCE macros between operations to ensure proper
+ *       memory synchronization in parallel execution environments.
+ *
+ * @warning This function assumes all grid arrays and stencil coefficients
+ *          have been properly initialized before invocation.
+ *
+ * @see FdtdSolver::addRHS()
+ * @see FdtdSolver::inner3D()
+ * @see FdtdSolver::applySponge()
+ */
 void FdtdSolver::compute_one_step(int itime, int i1, int i2)
 {
   int x3 = m_stencils.lx;
@@ -48,7 +77,3 @@ void FdtdSolver::compute_one_step(int itime, int i1, int i2)
   // printf("applySponge done\n");
   FDFENCE
 }
-
-//************************************************************************
-// End of file
-//************************************************************************
