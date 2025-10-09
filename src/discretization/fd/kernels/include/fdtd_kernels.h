@@ -1,8 +1,8 @@
 #ifndef FDTD_KERNEL_HPP
 #define FDTD_KERNEL_HPP
 
-#include "fdtd_macros.h"
 #include "data_type.h"
+#include "fdtd_macros.h"
 
 struct FdtdKernels
 {

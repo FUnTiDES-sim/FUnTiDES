@@ -26,7 +26,7 @@ class BoundaryLayers
    * @brief Configure boundary layers from options
    * @param opt Configuration containing boundary parameters
    */
-  void Initialize(const fdtd::FdtdOptions& opt)
+  void Initialize(const fdtd::options::FdtdOptions& opt)
   {
     // TODO: Extract from opt.boundary or similar
     // For now, set to reasonable defaults

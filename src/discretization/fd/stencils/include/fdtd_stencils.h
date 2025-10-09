@@ -66,8 +66,8 @@ struct FdtdStencils
     }
   }
 
-  void initStencilsCoefficients(fdtd::FdtdOptions &m_opt, float dx, float dy,
-                                float dz)
+  void initStencilsCoefficients(fdtd::options::FdtdOptions &m_opt, float dx,
+                                float dy, float dz)
   {
     // half stencil lenght
     lx = m_opt.stencil.lx;

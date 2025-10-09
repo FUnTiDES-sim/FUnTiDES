@@ -23,6 +23,8 @@
 namespace fdtd
 {
 
+namespace options
+{
 /**
  * @class FdtdOptions
  * @brief Configuration container for FDTD simulation parameters.
@@ -321,6 +323,8 @@ class FdtdOptions
     }
   }
 };
+
+}  // namespace options
 }  // namespace fdtd
 
 #endif  // SRC_MAIN_FD_INCLUDE_FDTD_OPTIONS_HPP_

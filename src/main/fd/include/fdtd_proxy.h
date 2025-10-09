@@ -59,7 +59,7 @@ class FdtdProxy
    * @param opt Configuration options for the simulation including grid size,
    *            time stepping parameters, and I/O settings.
    */
-  explicit FdtdProxy(const fdtd::FdtdOptions& opt);
+  explicit FdtdProxy(const fdtd::options::FdtdOptions& opt);
 
   /**
    * @brief Destructor for the FdtdProxy class.
@@ -149,7 +149,7 @@ class FdtdProxy
       const std::chrono::nanoseconds& total_output_time) const;
 
   // Simulation configuration
-  fdtd::FdtdOptions opt_;
+  fdtd::options::FdtdOptions opt_;
 
   // Grid indexing for time integration (current and next time level)
   int time_index_current_ = 0;
@@ -181,7 +181,7 @@ class FdtdProxy
   model::fdgrid::FdtdGrids grids_;
   FdtdStencils stencils_;
   FdtdKernels kernels_;
-  FdtdIo io_;
+  fdtd::io::FdtdIo io_;
   SolverUtils utils_;
   FdtdSolver solver_;
   FdtdSourceReceivers source_receivers_;
