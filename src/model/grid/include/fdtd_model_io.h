@@ -132,11 +132,11 @@ class ModelIO
     else
     {
       // For Kokkos::View, check size matches
-      if (data.size() != expected_size)
+      if (data.extent(0) != expected_size)
       {
         throw std::runtime_error("Kokkos::View size mismatch: expected " +
                                  std::to_string(expected_size) + ", got " +
-                                 std::to_string(data.size()) +
+                                 std::to_string(data.extent(0)) +
                                  ". Pre-allocate view with correct size.");
       }
     }
@@ -192,7 +192,7 @@ class ModelIO
 
     // Write data
     outfile.write(reinterpret_cast<const char*>(write_ptr),
-                  data.size() * sizeof(float));
+                  data.extent(0) * sizeof(float));
 
     if (!outfile)
     {
@@ -241,8 +241,8 @@ class ModelIO
     else
     {
       // Kokkos::View - copy to host buffer first
-      temp_buffer.resize(data.size());
-      for (size_t i = 0; i < data.size(); ++i)
+      temp_buffer.resize(data.extent(0));
+      for (size_t i = 0; i < data.extent(0); ++i)
       {
         temp_buffer[i] = data(i);
       }
