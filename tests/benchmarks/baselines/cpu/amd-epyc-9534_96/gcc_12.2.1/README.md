@@ -52,8 +52,15 @@ Benchmark suites:
 
 ## Generate plots
 
+To plot current baselines
 ```bash
 python scripts/benchmarks/plot_benchmarks.py --python-dir tests/benchmarks/baselines/cpu/amd-epyc-9534_96/gcc_12.2.1/python --cpp-dir tests/benchmarks/baselines/cpu/amd-epyc-9534_96/gcc_12.2.1/cpp
 ```
 
 ## Compare results
+
+Compare current cpp benchmarks against baseline
+```bash
+./scripts/benchmarks/compare_benchmarks.sh tests/benchmarks/baselines/cpu/amd-epyc-9534_96/gcc_12.2.1/cpp build/Benchmarking/cpp
+```
+

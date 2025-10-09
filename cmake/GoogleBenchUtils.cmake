@@ -17,7 +17,7 @@
 #   )
 #
 # Parameters:
-#   name                - Name of the benchmark executable
+#   name               - Name of the benchmark executable
 #   SOURCES            - List of source files for the benchmark (required)
 #   INCLUDES           - List of include directories (optional)
 #   LIBS               - List of libraries to link against (optional)
