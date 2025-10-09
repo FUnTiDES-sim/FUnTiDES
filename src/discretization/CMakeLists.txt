@@ -5,9 +5,6 @@ target_include_directories( discretization INTERFACE
                             $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/fe/SEMKernels/src/finiteElement/>
                             $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/fe/SEMKernels/src/Shiva/src/>
                             $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/>
-                            $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/fd>
-                            $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/fd/fdtd_kernels> 
-                            $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/fd/fdtd_kernels/include> 
                             ${CMAKE_BINARY_DIR}/include
                           ) 
 message(STATUS "Binary include dir: ${CMAKE_BINARY_DIR}/include")
