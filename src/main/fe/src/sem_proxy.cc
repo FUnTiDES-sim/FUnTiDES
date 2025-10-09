@@ -52,35 +52,32 @@ SEMproxy::SEMproxy(const SemProxyOptions& opt)
   const SolverFactory::implemType implemType = getImplem(opt.implem);
   const SolverFactory::meshType meshType = getMesh(opt.mesh);
 
+  float lx = domain_size_[0];
+  float ly = domain_size_[1];
+  float lz = domain_size_[2];
+  int ex = nb_elements_[0];
+  int ey = nb_elements_[1];
+  int ez = nb_elements_[2];
+
   if (meshType == SolverFactory::Struct)
   {
-    int ex = nb_elements_[0];
-    float lx = domain_size_[0];
-    int elem_sizex = lx / ex;
-    float ly = domain_size_[1];
-    int ey = nb_elements_[1];
-    int elem_sizey = ly / ey;
-    int ez = nb_elements_[2];
-    float lz = domain_size_[2];
-    int elem_sizez = lz / ez;
-
     switch (order)
     {
       case 1: {
         model::CartesianStructBuilder<float, int, 1> builder(
-            ex, elem_sizex, ey, elem_sizey, ez, elem_sizez, isModelOnNodes);
+            ex, lx, ey, ly, ez, lz, isModelOnNodes);
         m_mesh = builder.getModel();
         break;
       }
       case 2: {
         model::CartesianStructBuilder<float, int, 2> builder(
-            ex, elem_sizex, ey, elem_sizey, ez, elem_sizez, isModelOnNodes);
+            ex, lx, ey, ly, ez, lz, isModelOnNodes);
         m_mesh = builder.getModel();
         break;
       }
       case 3: {
         model::CartesianStructBuilder<float, int, 3> builder(
-            ex, elem_sizex, ey, elem_sizey, ez, elem_sizez, isModelOnNodes);
+            ex, lx, ey, ly, ez, lz, isModelOnNodes);
         m_mesh = builder.getModel();
         break;
       }
@@ -91,13 +88,6 @@ SEMproxy::SEMproxy(const SemProxyOptions& opt)
   }
   else if (meshType == SolverFactory::Unstruct)
   {
-    int ex = nb_elements_[0];
-    int ey = nb_elements_[1];
-    int ez = nb_elements_[2];
-    float lx = domain_size_[0];
-    float ly = domain_size_[1];
-    float lz = domain_size_[2];
-
     model::CartesianParams<float, int> param(order, ex, ey, ez, lx, ly, lz,
                                              isModelOnNodes);
     model::CartesianUnstructBuilder<float, int> builder(param);

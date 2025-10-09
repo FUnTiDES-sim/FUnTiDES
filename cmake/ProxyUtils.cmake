@@ -14,7 +14,6 @@ function(print_configuration_summary)
   
   message(STATUS "Programming Models:")
   message(STATUS "  USE_VECTOR:           ${USE_VECTOR}")
-  message(STATUS "  USE_OMP:              ${USE_OMP}")
   message(STATUS "  USE_KOKKOS:           ${USE_KOKKOS}")
   message(STATUS "  ENABLE_CUDA:          ${ENABLE_CUDA}")
   message(STATUS "  USE_KOKKOS_TEAMS:     ${USE_KOKKOS_TEAMS}")
