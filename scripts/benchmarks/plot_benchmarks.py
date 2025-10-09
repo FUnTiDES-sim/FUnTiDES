@@ -270,8 +270,8 @@ def plot_benchmarks(python_data: Dict[int, Dict[str, Dict[int, float]]],
 
             if py_vals:
                 ax.plot(py_threads, py_vals,
-                        marker='o', linestyle='-',
-                        color=color,
+                        marker='o', markersize=4, linestyle='-',
+                        color=color, markerfacecolor='none',
                         label=f"Py O{order}")
             if cpp_vals:
                 ax.plot(cpp_threads, cpp_vals,
@@ -282,8 +282,11 @@ def plot_benchmarks(python_data: Dict[int, Dict[str, Dict[int, float]]],
         ax.set_title(cat_title)
         ax.set_xlabel("Threads")
         ax.set_ylabel("Runtime (ms)")
+        ax.set_xscale('log')
+        ax.set_yscale('log')
         ax.set_xticks(thread_counts)
-        ax.grid(alpha=0.3)
+        ax.get_xaxis().set_major_formatter(plt.ScalarFormatter())
+        ax.grid(alpha=0.3, which='both')
         ax.legend(fontsize='small', ncol=2)
 
     fig.suptitle('Benchmark Comparison by Category (Orders as curves)', fontsize=14)
