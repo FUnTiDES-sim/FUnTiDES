@@ -458,6 +458,7 @@ class ModelStruct : public ModelApi<FloatType, ScalarType>
   FloatType lx_, ly_, lz_;   // domain size
   FloatType hx_, hy_, hz_;   // element size
   bool isModelOnNodes_;
+  bool isElastic_;
 };
 
 }  // namespace model

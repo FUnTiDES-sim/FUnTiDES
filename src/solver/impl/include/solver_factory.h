@@ -22,6 +22,11 @@ enum meshType
   Struct,
   Unstruct
 };
+enum physicType
+{
+  Acoustic,
+  Elastic
+};
 
 inline std::string to_string(methodType m)
 {
@@ -62,8 +67,22 @@ inline std::string to_string(meshType m)
   }
 }
 
+inline std::string to_string(physicType p)
+{
+  switch (p)
+  {
+    case Acoustic:
+      return "Acoustic";
+    case Elastic:
+      return "Elastic";
+    default:
+      return "Unknown";
+  }
+}
+
 std::unique_ptr<SolverBase> createSolver(methodType const methodType,
                                          implemType const implemType,
                                          meshType const meshType,
+                                         physicType const physicType,
                                          int const order);
 }  // namespace SolverFactory

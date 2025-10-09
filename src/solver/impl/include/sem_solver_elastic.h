@@ -18,6 +18,12 @@
 
 #include <cmath>
 
+/**
+ * @brief Data structure for elastic wave propagation solver.
+ * 
+ * Contains displacement fields, forcing terms, and time indices
+ * for elastic wave equation computations.
+ */
 struct SEMsolverDataElastic : public SolverBase::DataStruct
 {
   SEMsolverDataElastic(int i1, int i2, ARRAY_REAL_VIEW rhsTermx,
@@ -51,45 +57,120 @@ struct SEMsolverDataElastic : public SolverBase::DataStruct
     std::cout << "RHS Weights size: " << m_rhsWeights.extent(0) << std::endl;
   }
 
-  int m_i1;
-  int m_i2;
-  ARRAY_REAL_VIEW m_rhsTermx;
-  ARRAY_REAL_VIEW m_rhsTermy;
-  ARRAY_REAL_VIEW m_rhsTermz;
-  ARRAY_REAL_VIEW m_uxnGlobal;
-  ARRAY_REAL_VIEW m_uynGlobal;
-  ARRAY_REAL_VIEW m_uznGlobal;
-  VECTOR_INT_VIEW m_rhsElement;
-  ARRAY_REAL_VIEW m_rhsWeights;
+  int m_i1;                      ///< Previous time step index
+  int m_i2;                      ///< Current time step index
+  ARRAY_REAL_VIEW m_rhsTermx;    ///< X-component forcing term
+  ARRAY_REAL_VIEW m_rhsTermy;    ///< Y-component forcing term
+  ARRAY_REAL_VIEW m_rhsTermz;    ///< Z-component forcing term
+  ARRAY_REAL_VIEW m_uxnGlobal;   ///< X-displacement field
+  ARRAY_REAL_VIEW m_uynGlobal;   ///< Y-displacement field
+  ARRAY_REAL_VIEW m_uznGlobal;   ///< Z-displacement field
+  VECTOR_INT_VIEW m_rhsElement;  ///< Source element indices
+  ARRAY_REAL_VIEW m_rhsWeights;  ///< Forcing weights per node
 };
 
+/**
+ * @brief Spectral Element Method solver for elastic wave propagation.
+ * 
+ * @tparam ORDER Polynomial order of the spectral elements
+ * @tparam INTEGRAL_TYPE Type for numerical integration (basis functions, quadrature)
+ * @tparam MESH_TYPE Type of the computational mesh
+ */
 template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE>
-class SEMsolverElastic : public SEMsolverBase
+class SEMsolverElastic : public SEMSolverBase
 {
  public:
+  /**
+   * @brief Default constructor.
+   */
   SEMsolverElastic() = default;
-  
+
+  /**
+   * @brief Destructor.
+   */
   ~SEMsolverElastic() = default;
 
+  /**
+   * @brief Initialize all finite element structures:
+   * basis functions, integrals, global arrays, and sponge boundaries.
+   *
+   * @param mesh BaseMesh structure containing the domain information.
+   * @param sponge_size Thickness (in elements) of absorbing sponge layers
+   *                    in each direction [x, y, z] to prevent reflections.
+   * @param surface_sponge Enable sponge at free surface (typically false
+   *                       for geophysics to preserve natural reflections).
+   * @param taper_delta_ Attenuation parameter for sponge layers.
+   */
   void computeFEInit(model::ModelApi<float, int> &mesh,
                      const std::array<float, 3> &sponge_size,
                      const bool surface_sponge,
                      const float taper_delta_) override;
 
+  /**
+   * @brief Compute one time step of the elastic wave equation solver.
+   *
+   * Advances the displacement field using explicit time integration.
+   *
+   * @param dt Delta time for this iteration.
+   * @param timeSample Current time index into the RHS (source) term.
+   * @param data DataStruct containing all necessary arrays.
+   */
   void computeOneStep(const float &dt, const int &timeSample,
                       DataStruct &data) override;
 
+  /**
+   * @brief Initialize arrays required by the finite element solver.
+   */
   void initFEarrays() override;
+
+  /**
+   * @brief Allocate memory for FE-related arrays (mass, stiffness, etc.).
+   */
   void allocateFEarrays() override;
+
+  /**
+   * @brief Initialize sponge (absorbing layer) coefficients.
+   */
   void initSpongeValues() override;
+
+  /**
+   * @brief Reset global FE vectors (mass, stiffness) before accumulation.
+   *
+   * @param numNodes Total number of global nodes.
+   */
   void resetGlobalVectors(int numNodes) override;
 
+  /**
+   * @brief Output displacement values at a specific time step.
+   *
+   * Typically used for recording seismograms or snapshots.
+   *
+   * @param indexTimeStep Time index to output.
+   * @param i1 Index for displacement buffer.
+   * @param myElementSource Element containing the receiver.
+   * @param uxnGlobal Global X-displacement field [node][time].
+   * @param uynGlobal Global Y-displacement field [node][time].
+   * @param uznGlobal Global Z-displacement field [node][time].
+   */
   void outputUnValues(const int &indexTimeStep, int &i1,
                       int &myElementSource,
                       const ARRAY_REAL_VIEW &uxnGlobal,
                       const ARRAY_REAL_VIEW &uynGlobal,
                       const ARRAY_REAL_VIEW &uznGlobal);
 
+  /**
+   * @brief Apply external forcing to the global displacement field.
+   *
+   * @param timeSample Current time sample index.
+   * @param dt Delta time for this iteration.
+   * @param i2 Current displacement index.
+   * @param rhsTermx X-component RHS forcing term array.
+   * @param rhsTermy Y-component RHS forcing term array.
+   * @param rhsTermz Z-component RHS forcing term array.
+   * @param rhsElement Indices of source elements.
+   * @param pnGlobal Global displacement field (modified in-place).
+   * @param rhsWeights Forcing weights per node.
+   */
   void applyRHSTerm(int timeSample, float dt, int i2,
                     const ARRAY_REAL_VIEW &rhsTermx,
                     const ARRAY_REAL_VIEW &rhsTermy,
@@ -98,31 +179,53 @@ class SEMsolverElastic : public SEMsolverBase
                     const ARRAY_REAL_VIEW &pnGlobal,
                     const ARRAY_REAL_VIEW &rhsWeights);
 
+  /**
+   * @brief Assemble local element contributions to global FE vectors.
+   *
+   * @param i2 Current displacement field index.
+   * @param pnGlobal Global displacement field.
+   * @param isModelOnNodes True if the velocity model is defined on nodes,
+   *                       false if on elements.
+   */
   void computeElementContributions(int i2, const ARRAY_REAL_VIEW &pnGlobal,
                                    bool isModelOnNodes);
 
+  /**
+   * @brief Update the global displacement field at interior nodes.
+   *
+   * Applies the time integration scheme for elastic wave propagation.
+   *
+   * @param dt Delta time for this iteration.
+   * @param i1 Previous time step index.
+   * @param i2 Current time step index.
+   * @param uxnGlobal X-displacement field array (updated in-place).
+   * @param uynGlobal Y-displacement field array (updated in-place).
+   * @param uznGlobal Z-displacement field array (updated in-place).
+   */
   void updateDisplacementField(float dt, int i1, int i2,
                                const ARRAY_REAL_VIEW &uxnGlobal,
                                const ARRAY_REAL_VIEW &uynGlobal,
                                const ARRAY_REAL_VIEW &uznGlobal);
 
  private:
-  MESH_TYPE m_mesh;
+  MESH_TYPE m_mesh;  ///< Computational mesh
 
+  /// Number of nodes per element
   static constexpr int nPointsElement = (ORDER + 1) * (ORDER + 1) * (ORDER + 1);
 
-  float sponge_size_[3];
-  bool surface_sponge_;
-  float taper_delta_;
+  float sponge_size_[3];    ///< Sponge layer thickness [x, y, z]
+  bool surface_sponge_;     ///< Enable sponge at free surface
+  float taper_delta_;       ///< Attenuation parameter
 
+  /// Basis functions and integral objects
   INTEGRAL_TYPE myQkIntegrals;
   typename INTEGRAL_TYPE::PrecomputedData m_precomputedIntegralData;
 
-  VECTOR_REAL_VIEW spongeTaperCoeff;
-  VECTOR_REAL_VIEW massMatrixGlobal;
-  VECTOR_REAL_VIEW uxGlobal;
-  VECTOR_REAL_VIEW uyGlobal;
-  VECTOR_REAL_VIEW uzGlobal;
+  VECTOR_REAL_VIEW spongeTaperCoeff;  ///< Sponge tapering coefficients
+  VECTOR_REAL_VIEW massMatrixGlobal;  ///< Global mass matrix
+  VECTOR_REAL_VIEW uxGlobal;          ///< Global X-component work vector
+  VECTOR_REAL_VIEW uyGlobal;          ///< Global Y-component work vector
+  VECTOR_REAL_VIEW uzGlobal;          ///< Global Z-component work vector
 };
 
 #endif  // SEM_SOLVER_ELASTIC_HPP_

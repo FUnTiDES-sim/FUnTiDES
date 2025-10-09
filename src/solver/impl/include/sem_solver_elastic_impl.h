@@ -1,9 +1,9 @@
 //************************************************************************
 //   proxy application v.0.0.1
 //
-//  SEMsolver.cpp: simple 2D acoustive wave equation solver
+//  SEMsolverElastic.cpp: simple 2D acoustive wave equation solver
 //
-//  the SEMsolver class servers as a base class for the SEM solver
+//  the SEMsolverElastic class servers as a base class for the SEM solver
 //
 //************************************************************************
 
@@ -13,10 +13,10 @@
 #include <cstdlib>
 
 #include "fe/Integrals.hpp"
-#include "sem_solver_acoustic.h"
+#include "sem_solver_elastic.h"
 
 template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE>
-void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE>::computeFEInit(
+void SEMsolverElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE>::computeFEInit(
     model::ModelApi<float, int> &mesh_in,
     const std::array<float, 3> &sponge_size, const bool surface_sponge,
     const float taper_delta)
@@ -41,16 +41,20 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE>::computeFEInit(
 }
 
 template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE>
-void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE>::computeOneStep(
+void SEMsolverElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE>::computeOneStep(
     const float &dt, const int &timeSample, SolverBase::DataStruct &data)
 {
   // Cast to the specific DataStruct type
-  auto &myData = dynamic_cast<SEMsolverData &>(data);
+  auto &myData = dynamic_cast<SEMsolverDataElastic &>(data);
 
   int const &i1 = myData.m_i1;
   int const &i2 = myData.m_i2;
-  ARRAY_REAL_VIEW const &rhsTerm = myData.m_rhsTerm;
-  ARRAY_REAL_VIEW const &pnGlobal = myData.m_pnGlobal;
+  ARRAY_REAL_VIEW const &rhsTermx = myData.m_rhsTermx;
+  ARRAY_REAL_VIEW const &rhsTermy = myData.m_rhsTermy;
+  ARRAY_REAL_VIEW const &rhsTermz = myData.m_rhsTermz;
+  ARRAY_REAL_VIEW const &uxnGlobal = myData.m_uxnGlobal;
+  ARRAY_REAL_VIEW const &uynGlobal = myData.m_uynGlobal;
+  ARRAY_REAL_VIEW const &uznGlobal = myData.m_uznGlobal;
   VECTOR_INT_VIEW const &rhsElement = myData.m_rhsElement;
   ARRAY_REAL_VIEW const &rhsWeights = myData.m_rhsWeights;
 
@@ -64,22 +68,25 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE>::computeOneStep(
   FENCE
 }
 
+
 template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE>
-void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE>::resetGlobalVectors(
+void SEMsolverElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE>::resetGlobalVectors(
     int numNodes)
 {
   LOOPHEAD(numNodes, i)
   {
-    massMatrixGlobal[i] = 0;
-    yGlobal[i] = 0;
+    uxGlobal[i] = 0;
+    uyGlobal[i] = 0;
+    uzGlobal[i] = 0;
   }
   LOOPEND
 }
 
 template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE>
-void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE>::applyRHSTerm(
-    int timeSample, float dt, int i2, const ARRAY_REAL_VIEW &rhsTerm,
-    const VECTOR_INT_VIEW &rhsElement, const ARRAY_REAL_VIEW &pnGlobal,
+void SEMsolverElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE>::applyRHSTerm(
+    int timeSample, float dt, int i2, const ARRAY_REAL_VIEW &rhsTermx,
+    const ARRAY_REAL_VIEW &rhsTermy,const ARRAY_REAL_VIEW &rhsTermz,
+    const VECTOR_INT_VIEW &rhsElement, 
     const ARRAY_REAL_VIEW &rhsWeights)
 {
   float const dt2 = dt * dt;
@@ -94,8 +101,12 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE>::applyRHSTerm(
         {
           int localNodeId = x + y * (ORDER + 1) + z * (ORDER + 1) * (ORDER + 1);
           int nodeRHS = m_mesh.globalNodeIndex(rhsElement[i], x, y, z);
-          float source = rhsTerm(i, timeSample) * rhsWeights(i, localNodeId);
-          yGlobal(nodeRHS) -= source;
+          float sourcex = rhsTermx(i, timeSample) * rhsWeights(i, localNodeId);
+          float sourcey = rhsTermy(i, timeSample) * rhsWeights(i, localNodeId);
+          float sourcez = rhsTermz(i, timeSample) * rhsWeights(i, localNodeId);
+          uxGlobal(nodeRHS) -= sourcex;
+          uyGlobal(nodeRHS) -= sourcey;
+          uzGlobal(nodeRHS) -= sourcez;
         }
       }
     }
@@ -104,7 +115,7 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE>::applyRHSTerm(
 }
 
 template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE>
-void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE>::computeElementContributions(
+void SEMsolverElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE>::computeElementContributions(
     int i2, const ARRAY_REAL_VIEW &pnGlobal, bool isModelOnNodes)
 {
   MAINLOOPHEAD(m_mesh.getNumberOfElements(), elementNumber)
@@ -187,7 +198,7 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE>::computeElementContributions(
 }
 
 template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE>
-void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE>::updatePressureField(
+void SEMsolverElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE>::updatePressureField(
     float dt, int i1, int i2, const ARRAY_REAL_VIEW &pnGlobal)
 {
   float const dt2 = dt * dt;
@@ -202,7 +213,7 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE>::updatePressureField(
 }
 
 template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE>
-void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE>::outputPnValues(
+void SEMsolverElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE>::outputPnValues(
     const int &indexTimeStep, int &i1, int &myElementSource,
     const ARRAY_REAL_VIEW &pnGlobal)
 {
@@ -214,14 +225,14 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE>::outputPnValues(
 }
 
 template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE>
-void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE>::initFEarrays()
+void SEMsolverElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE>::initFEarrays()
 {
   INTEGRAL_TYPE::init(m_precomputedIntegralData);
   initSpongeValues();
 }
 
 template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE>
-void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE>::allocateFEarrays()
+void SEMsolverElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE>::allocateFEarrays()
 {
   int nbQuadraturePoints = (m_mesh.getOrder() + 1) * (m_mesh.getOrder() + 1) *
                            (m_mesh.getOrder() + 1);
@@ -238,7 +249,7 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE>::allocateFEarrays()
 }
 
 template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE>
-void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE>::initSpongeValues()
+void SEMsolverElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE>::initSpongeValues()
 {
   const double sigma_max = 0.15;
   for (int n = 0; n < m_mesh.getNumberOfNodes(); n++)

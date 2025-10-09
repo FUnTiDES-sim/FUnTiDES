@@ -41,6 +41,8 @@ struct ModelUnstructData : public ModelDataBase<FloatType, ScalarType>
   VECTOR_REAL_VIEW model_epsilon_element_;
   VECTOR_REAL_VIEW model_gamma_node_;
   VECTOR_REAL_VIEW model_gamma_element_;
+  VECTOR_REAL_VIEW model_theta_node_;
+  VECTOR_REAL_VIEW model_theta_element_;
   VECTOR_REAL_VIEW model_phi_node_;
   VECTOR_REAL_VIEW model_phi_element_;
   VECTOR_REAL_VIEW boundaries_t_;

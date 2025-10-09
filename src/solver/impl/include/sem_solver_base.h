@@ -21,12 +21,6 @@ class SEMSolverBase : public SolverBase
 {
  public:
 
-  struct SEMDataStruct : public SolverBase::DataStruct
-  {
-    void print() const override { /* implémentation */ }
-  };
-
-
   /**
    * @brief Initialize all finite element structures:
    * basis functions, integrals, global arrays, and sponge boundaries.
@@ -67,4 +61,4 @@ class SEMSolverBase : public SolverBase
 
 };
 
-#endif  // SEM_SOLVER_HPP_
+#endif  // SEM_SOLVERBASE_HPP_

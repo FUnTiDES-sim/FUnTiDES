@@ -3,8 +3,8 @@
 #include <model_struct.h>
 #include <model_unstruct.h>
 
-#include "sem_solver.h"
-
+#include "sem_solver_acoustic.h"
+#include "sem_solver_elastic.h"
 namespace SolverFactory
 {
 
@@ -32,7 +32,7 @@ std::unique_ptr<SolverBase> orderDispatch(int const order, FUNC&& func)
 
 // ImplTag is one of IntegralType::MAKUTU/SHIVA (compile-time)
 template <auto ImplTag>
-static std::unique_ptr<SolverBase> make_sem_solver(int order, meshType mesh)
+static std::unique_ptr<SolverBase> make_sem_solver(int order, meshType mesh, physicType physic)
 {
   switch (mesh)
   {
@@ -45,18 +45,36 @@ static std::unique_ptr<SolverBase> make_sem_solver(int order, meshType mesh)
                 typename IntegralTypeSelector<ORDER, ImplTag>::type;
             using MeshT = model::ModelStruct<float, int, ORDER>;
             return std::make_unique<
-                SEMsolver<ORDER, SelectedIntegral, MeshT>>();
+                SEMsolverAcoustic<ORDER, SelectedIntegral, MeshT>>();
           });
     case Unstruct:
-      return orderDispatch(
-          order, [](auto orderIC) -> std::unique_ptr<SolverBase> {
-            constexpr int ORDER = decltype(orderIC)::value;
-            using SelectedIntegral =
-                typename IntegralTypeSelector<ORDER, ImplTag>::type;
-            using MeshT = model::ModelUnstruct<float, int>;
-            return std::make_unique<
-                SEMsolver<ORDER, SelectedIntegral, MeshT>>();
-          });
+      switch (physic)
+      {
+        case Acoustic:
+          return orderDispatch(
+            order, [](auto orderIC) -> std::unique_ptr<SolverBase> {
+              constexpr int ORDER = decltype(orderIC)::value;
+              using SelectedIntegral =
+                  typename IntegralTypeSelector<ORDER, ImplTag>::type;
+              using MeshT = model::ModelUnstruct<float, int>;
+              return std::make_unique<
+                  SEMsolverAcoustic<ORDER, SelectedIntegral, MeshT>>();
+            });
+        case Elastic:
+                     return orderDispatch(
+            order, [](auto orderIC) -> std::unique_ptr<SolverBase> {
+              constexpr int ORDER = decltype(orderIC)::value;
+              using SelectedIntegral =
+                  typename IntegralTypeSelector<ORDER, ImplTag>::type;
+              using MeshT = model::ModelUnstruct<float, int>;
+              return std::make_unique<
+                  SEMsolverElastic<ORDER, SelectedIntegral, MeshT>>();
+            });
+
+      }
+      default:
+      break;
+
   }
 
   throw std::runtime_error("Unknown mesh type");
@@ -64,14 +82,16 @@ static std::unique_ptr<SolverBase> make_sem_solver(int order, meshType mesh)
 
 std::unique_ptr<SolverBase> createSolver(methodType const methodType,
                                          implemType const implemType,
-                                         meshType const mesh, int const order)
+                                         meshType const mesh, 
+                                         physicType const physicType,
+                                         int const order)
 {
   if (methodType == SEM)
   {
     switch (implemType)
     {
       case MAKUTU:
-        return make_sem_solver<IntegralType::MAKUTU>(order, mesh);
+        return make_sem_solver<IntegralType::MAKUTU>(order, mesh, physicType);
         // case SHIVA:
         //   return make_sem_solver<IntegralType::SHIVA>(order, mesh);
     }
@@ -80,6 +100,6 @@ std::unique_ptr<SolverBase> createSolver(methodType const methodType,
   // Add DG or other methods as needed
   throw std::runtime_error(
       "Unsupported solver configuration: methodType=" + to_string(methodType) +
-      ", implemType=" + to_string(implemType));
+      ", implemType=" + to_string(implemType) + ", physicType=" + to_string(physicType));
 }
 }  // namespace SolverFactory
