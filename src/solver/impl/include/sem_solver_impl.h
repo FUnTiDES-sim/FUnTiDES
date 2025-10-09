@@ -254,9 +254,9 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE>::computeGlobalMassMatrix(
     int const gIndex = m_mesh.globalNodeIndex(elementNumber, x, y, z);
     if (isModelOnNodes)
     {
-      inv_model2 = 1.0f / (m_mesh.getModelVpOnElement(elementNumber) *
-                           m_mesh.getModelVpOnElement(elementNumber) *
-                           m_mesh.getModelRhoOnElement(elementNumber));
+      inv_model2 = 1.0f / (m_mesh.getModelVpOnElement(gIndex) *
+                           m_mesh.getModelVpOnElement(gIndex) *
+                           m_mesh.getModelRhoOnElement(gIndex));
     }
     massMatrixLocal[i] *= inv_model2;
     ATOMICADD(massMatrixGlobal[gIndex], massMatrixLocal[i]);
