@@ -3,14 +3,14 @@
 #include <array>
 #include <memory>
 
-#include "utils.h"
+#include "bench_macros.h"
+#include "bench_main.h"
 #include "cartesian_struct_builder.h"
 #include "data_type.h"
 #include "model.h"
 #include "sem_solver.h"
 #include "solver_factory.h"
-#include "bench_macros.h"
-#include "bench_main.h"
+#include "utils.h"
 
 namespace model
 {
@@ -38,11 +38,13 @@ class SolverStructFixture : public benchmark::Fixture
   static constexpr int ez = 100;
   static constexpr float domain_size = 2000.0f;
   static constexpr int order = T::order;
-  static constexpr int n_dof = (ex * order + 1) * (ey * order + 1) * (ez * order + 1);
+  static constexpr int n_dof =
+      (ex * order + 1) * (ey * order + 1) * (ez * order + 1);
   bool isModelOnNodes_;
 
   // sponge
-  inline static constexpr std::array<float, 3> sponge_size = {200.0f, 200.0f, 200.0f};
+  inline static constexpr std::array<float, 3> sponge_size = {200.0f, 200.0f,
+                                                              200.0f};
   inline static constexpr bool surface_sponge = false;
   inline static constexpr float taper_delta = 100.0f;
 
@@ -73,8 +75,8 @@ class SolverStructFixture : public benchmark::Fixture
   void setLabel(benchmark::State& state) const
   {
     state.SetLabel("Order=" + std::to_string(order) +
-                  " OnNodes=" + std::to_string(isModelOnNodes_) +
-                  " Implem=" + std::to_string(implem_));
+                   " OnNodes=" + std::to_string(isModelOnNodes_) +
+                   " Implem=" + std::to_string(implem_));
   }
 };
 
@@ -87,64 +89,73 @@ struct BenchmarkArrays
   arrayReal pnGlobal;
   arrayReal rhsLocation;
 
-  BenchmarkArrays(int n_rhs, int n_time_steps, int n_dof, 
+  BenchmarkArrays(int n_rhs, int n_time_steps, int n_dof,
                   int nb_points_per_element)
   {
     rhsTerm = allocateArray2D<arrayReal>(n_rhs, n_time_steps, "rhsTerm");
     rhsElement = allocateVector<vectorInt>(n_rhs, "rhsElement");
-    rhsWeights = allocateArray2D<arrayReal>(n_rhs, nb_points_per_element, "rhsWeights");
+    rhsWeights =
+        allocateArray2D<arrayReal>(n_rhs, nb_points_per_element, "rhsWeights");
     pnGlobal = allocateArray2D<arrayReal>(n_dof, 2, "pnGlobal");
     rhsLocation = allocateArray2D<arrayReal>(1, 3, "rhsLocation");
-    
+
     FENCE
   }
 };
 
-BENCHMARK_TEMPLATE_METHOD_F(SolverStructFixture, FEInit)(benchmark::State &state)
+BENCHMARK_TEMPLATE_METHOD_F(SolverStructFixture, FEInit)
+(benchmark::State& state)
 {
   // Prepare
   auto model = this->createModel();
 
-  auto solver = SolverFactory::createSolver(
-      SolverFactory::methodType::SEM, this->implem_,
-      SolverFactory::meshType::Struct, this->order);
+  auto solver =
+      SolverFactory::createSolver(SolverFactory::methodType::SEM, this->implem_,
+                                  SolverFactory::meshType::Struct, this->order);
 
   // Bench
   for (auto _ : state)
   {
-    solver->computeFEInit(*model, this->sponge_size, this->surface_sponge, this->taper_delta);
+    solver->computeFEInit(*model, this->sponge_size, this->surface_sponge,
+                          this->taper_delta);
   }
 
   // Label
   this->setLabel(state);
 }
 
-BENCHMARK_TEMPLATE_METHOD_F(SolverStructFixture, OneStep)(benchmark::State &state)
+BENCHMARK_TEMPLATE_METHOD_F(SolverStructFixture, OneStep)
+(benchmark::State& state)
 {
   // Prepare
   auto model = this->createModel();
 
-  auto solver = SolverFactory::createSolver(
-      SolverFactory::methodType::SEM, this->implem_,
-      SolverFactory::meshType::Struct, this->order);
+  auto solver =
+      SolverFactory::createSolver(SolverFactory::methodType::SEM, this->implem_,
+                                  SolverFactory::meshType::Struct, this->order);
 
-  solver->computeFEInit(*model, this->sponge_size, this->surface_sponge, this->taper_delta);
+  solver->computeFEInit(*model, this->sponge_size, this->surface_sponge,
+                        this->taper_delta);
 
   BenchmarkArrays arrays(this->n_rhs, this->n_time_steps, this->n_dof,
                          model->getNumberOfPointsPerElement());
   // sources at the center of the domain
-  arrays.rhsElement(0) = this->ex / 2 + this->ey / 2 * this->ex + this->ez / 2 * this->ey * this->ex;
-  arrays.rhsElement(1) = this->ex / 3 + this->ey / 2 * this->ex + this->ez / 2 * this->ey * this->ex;
+  arrays.rhsElement(0) = this->ex / 2 + this->ey / 2 * this->ex +
+                         this->ez / 2 * this->ey * this->ex;
+  arrays.rhsElement(1) = this->ex / 3 + this->ey / 2 * this->ex +
+                         this->ez / 2 * this->ey * this->ex;
 
   // ricker wavelet
   SolverUtils myUtils;
-  std::vector<float> sourceTerm = myUtils.computeSourceTerm(this->n_time_steps, this->dt, this->f0, 2);
+  std::vector<float> sourceTerm =
+      myUtils.computeSourceTerm(this->n_time_steps, this->dt, this->f0, 2);
   for (int j = 0; j < this->n_time_steps; j++)
   {
     arrays.rhsTerm(0, j) = sourceTerm[j];
   }
 
-  SEMsolverData data(0, 1, arrays.rhsTerm, arrays.pnGlobal, arrays.rhsElement, arrays.rhsWeights);
+  SEMsolverData data(0, 1, arrays.rhsTerm, arrays.pnGlobal, arrays.rhsElement,
+                     arrays.rhsWeights);
 
   // Bench
   for (auto _ : state)
@@ -158,14 +169,18 @@ BENCHMARK_TEMPLATE_METHOD_F(SolverStructFixture, OneStep)(benchmark::State &stat
 
 // Instantiate for all order/isModelOnNodes/implemType combinations
 // TODO add SolverFactory::implemType::SHIVA when reactivated in compilation
-BENCHMARK_FOR_ALL_ORDERS(SolverStructFixture, FEInit, BuilderConfig,
-  ->ArgsProduct({{0, 1}, {SolverFactory::implemType::MAKUTU}})->Unit(benchmark::kMillisecond))
-BENCHMARK_FOR_ALL_ORDERS(SolverStructFixture, OneStep, BuilderConfig,
-  ->ArgsProduct({{0, 1}, {SolverFactory::implemType::MAKUTU}})->Unit(benchmark::kMillisecond))
+BENCHMARK_FOR_ALL_ORDERS(
+    SolverStructFixture, FEInit,
+    BuilderConfig,
+        ->ArgsProduct({{0, 1}, {SolverFactory::implemType::MAKUTU}})
+        ->Unit(benchmark::kMillisecond))
+BENCHMARK_FOR_ALL_ORDERS(
+    SolverStructFixture, OneStep,
+    BuilderConfig,
+        ->ArgsProduct({{0, 1}, {SolverFactory::implemType::MAKUTU}})
+        ->Unit(benchmark::kMillisecond))
 
-}
-}
+}  // namespace bench
+}  // namespace model
 
-int main(int argc, char** argv) {
-  return runBenchmarks(argc, argv);
-}
+int main(int argc, char** argv) { return runBenchmarks(argc, argv); }

@@ -30,15 +30,11 @@ struct BuilderConfig
 };
 
 // Define all combinations of Order (1-4) and isModelOnNodes (true/false)
-using BuilderTypes = ::testing::Types<
-    BuilderConfig<1, true>,
-    BuilderConfig<1, false>,
-    BuilderConfig<2, true>,
-    BuilderConfig<2, false>,
-    BuilderConfig<3, true>,
-    BuilderConfig<3, false>,
-    BuilderConfig<4, true>,
-    BuilderConfig<4, false>>;
+using BuilderTypes =
+    ::testing::Types<BuilderConfig<1, true>, BuilderConfig<1, false>,
+                     BuilderConfig<2, true>, BuilderConfig<2, false>,
+                     BuilderConfig<3, true>, BuilderConfig<3, false>,
+                     BuilderConfig<4, true>, BuilderConfig<4, false>>;
 
 TYPED_TEST_SUITE(CartesianStructInputs, BuilderTypes);
 
@@ -52,7 +48,7 @@ TYPED_TEST(CartesianStructInputs, GetModelReturnsValidModel)
 
   // Act
   typename TypeParam::Type builder(this->ex, this->hx, this->ey, this->hy,
-                                    this->ez, this->hz, isModelOnNodes);
+                                   this->ez, this->hz, isModelOnNodes);
   auto model = builder.getModel();
 
   // Assert
