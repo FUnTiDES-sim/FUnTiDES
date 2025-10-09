@@ -9,8 +9,7 @@
 #include <fdtd_options.h>
 
 #include "fdtd_grid_geometry.h"
-#include "fdtd_macros.h"
-#include "fdtd_model_io.h"
+// #include "fdtd_macros.h"
 
 namespace model
 {

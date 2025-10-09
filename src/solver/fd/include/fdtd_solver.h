@@ -8,7 +8,6 @@
 #ifndef FDTD_SOLVER_HPP_
 #define FDTD_SOLVER_HPP_
 
-#include <args_parse.h>
 #include <fdtd_grids.h>
 #include <utils.h>
 

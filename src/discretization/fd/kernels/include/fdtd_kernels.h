@@ -1,6 +1,9 @@
 #ifndef FDTD_KERNEL_HPP
 #define FDTD_KERNEL_HPP
 
+#include "fdtd_macros.h"
+#include "data_type.h"
+
 struct FdtdKernels
 {
   vectorReal spongeArray;
