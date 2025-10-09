@@ -273,3 +273,4 @@ snap*.png
 receiver.dat
 
 *.err
+benchmark_comparison.png

@@ -19,7 +19,7 @@ def run_once(threads, extra_pytest_args, bench_root, marker, verbose):
         cmd.extend(["-vv", "-s"])
     else:
         cmd.append("-q")
-    
+
     cmd.extend([
         "tests/benchmarks/python",
         "--threads", str(threads),
