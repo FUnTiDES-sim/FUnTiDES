@@ -1,10 +1,11 @@
 #pragma once
 
-#include <cstring>
+#include <benchmark/benchmark.h>
+
 #include <cstdlib>
+#include <cstring>
 #include <stdexcept>
 #include <string>
-#include <benchmark/benchmark.h>
 #ifdef USE_KOKKOS
 #include <Kokkos_Core.hpp>
 #endif
