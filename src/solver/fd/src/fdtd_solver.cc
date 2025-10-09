@@ -30,9 +30,7 @@ void FdtdSolver::compute_one_step(int itime, int i1, int i2)
                    m_source_receivers.zsrc, m_grids.vp(), m_kernels.RHSTerm,
                    m_kernels.pnGlobal);
 
-  // printf("addRHS done\n");
   FDFENCE
-  // inner points
 
   m_kernels.inner3D(i1, i2, m_grids.nx(), m_grids.ny(), m_grids.nz(),
                     m_stencils.lx, m_stencils.ly, m_stencils.lz, x3, x4, y3, y4,

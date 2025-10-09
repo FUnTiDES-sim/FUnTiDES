@@ -20,18 +20,9 @@ struct FdtdKernels
 
     spongeArray = allocateVector<vectorReal>(modelVolume, "spongeArray");
     pnGlobal = allocateArray2D<arrayReal>(extModelVolume, 2, "pnGlobal");
-#pragma omp parallel for collapse(3)
-    for (int i = -lx; i < nx + lx; i++)
-    {
-      for (int j = -ly; j < ny + ly; j++)
-      {
-        for (int k = -lz; k < nz + lz; k++)
-        {
-          pnGlobal(IDX3_l(i, j, k), 0) = 0.000001;
-          pnGlobal(IDX3_l(i, j, k), 1) = 0.000001;
-        }
-      }
-    }
+    LOOP3DHEAD(0, 0, 0, nx + lx, ny + ly, nz + lz)
+    pnGlobal(IDX3_l(i, j, k), 0) = 0.000001;
+    LOOP3DEND
   }
   // add RHS term
   int addRHS(const int itSample, int &cb, int const &nx, int const &ny,
