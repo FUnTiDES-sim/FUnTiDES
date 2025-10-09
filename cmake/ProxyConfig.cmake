@@ -8,7 +8,6 @@ option(COMPILE_FD "Compile finite elements simulation" ON)
 
 # Programming models
 option(USE_VECTOR "Use vectors." OFF)
-option(USE_OMP "Use OpenMP to parallelise loops" OFF)
 option(USE_KOKKOS "Use KOKKOS to parallelise loops" OFF)
 option(USE_KOKKOS_TEAMS "use hierarchical parallelism in Kokkos" OFF)
 option(ENABLE_CUDA "Enable cuda compilation" OFF)

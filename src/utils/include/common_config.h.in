@@ -4,9 +4,6 @@
 // Enable use of Vector (CMake option)
 #cmakedefine USE_VECTOR
 
-// Enables use of OMP (CMake option)
-#cmakedefine USE_OMP
-
 // Enables use of KOKOS (CMake option)
 #cmakedefine USE_KOKKOS
 
