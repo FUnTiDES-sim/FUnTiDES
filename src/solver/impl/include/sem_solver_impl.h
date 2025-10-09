@@ -69,10 +69,7 @@ template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE>
 void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE>::resetGlobalVectors(
     int numNodes)
 {
-  LOOPHEAD(numNodes, i)
-  {
-    yGlobal[i] = 0;
-  }
+  LOOPHEAD(numNodes, i) { yGlobal[i] = 0; }
   LOOPEND
 }
 
@@ -207,7 +204,8 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE>::initFEarrays()
 }
 
 template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE>
-void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE>::computeGlobalMassMatrix(bool isModelOnNodes)
+void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE>::computeGlobalMassMatrix(
+    bool isModelOnNodes)
 {
   MAINLOOPHEAD(m_mesh.getNumberOfElements(), elementNumber)
 
@@ -239,10 +237,9 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE>::computeGlobalMassMatrix(bool is
   real_t inv_model2 = 0.0f;
   if (!isModelOnNodes)
   {
-       inv_model2 = 1.0f / (m_mesh.getModelVpOnElement(elementNumber) *
+    inv_model2 = 1.0f / (m_mesh.getModelVpOnElement(elementNumber) *
                          m_mesh.getModelVpOnElement(elementNumber) *
                          m_mesh.getModelRhoOnElement(elementNumber));
-
   }
 
   INTEGRAL_TYPE::computeMassTerm(
@@ -258,9 +255,8 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE>::computeGlobalMassMatrix(bool is
     if (isModelOnNodes)
     {
       inv_model2 = 1.0f / (m_mesh.getModelVpOnElement(elementNumber) *
-                  m_mesh.getModelVpOnElement(elementNumber) *
-                  m_mesh.getModelRhoOnElement(elementNumber));
-
+                           m_mesh.getModelVpOnElement(elementNumber) *
+                           m_mesh.getModelRhoOnElement(elementNumber));
     }
     massMatrixLocal[i] *= inv_model2;
     ATOMICADD(massMatrixGlobal[gIndex], massMatrixLocal[i]);
@@ -268,7 +264,6 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE>::computeGlobalMassMatrix(bool is
 
   MAINLOOPEND
 }
-
 
 template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE>
 void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE>::allocateFEarrays()
