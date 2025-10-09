@@ -173,6 +173,9 @@ class SEMsolver : public SolverBase
                            const ARRAY_REAL_VIEW &pnGlobal);
 
  private:
+  /*
+    Add pointer
+  */
   MESH_TYPE m_mesh;
   const MESH_TYPE *m_mesh_ptr;
 
