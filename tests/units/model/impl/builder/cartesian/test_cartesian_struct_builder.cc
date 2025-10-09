@@ -14,11 +14,11 @@ class CartesianStructInputs : public ::testing::Test
 {
  protected:
   static constexpr int ex = 10;
-  static constexpr float hx = 0.1f;
+  static constexpr float lx = 1;
   static constexpr int ey = 20;
-  static constexpr float hy = 0.2f;
+  static constexpr float ly = 4;
   static constexpr int ez = 30;
-  static constexpr float hz = 0.3f;
+  static constexpr float lz = 9;
 };
 
 template <int Order, bool IsModelOnNodes>
@@ -47,8 +47,8 @@ TYPED_TEST(CartesianStructInputs, GetModelReturnsValidModel)
   constexpr bool isModelOnNodes = TypeParam::isModelOnNodes;
 
   // Act
-  typename TypeParam::Type builder(this->ex, this->hx, this->ey, this->hy,
-                                   this->ez, this->hz, isModelOnNodes);
+  typename TypeParam::Type builder(this->ex, this->lx, this->ey, this->ly,
+                                   this->ez, this->lz, isModelOnNodes);
   auto model = builder.getModel();
 
   // Assert
@@ -58,9 +58,9 @@ TYPED_TEST(CartesianStructInputs, GetModelReturnsValidModel)
   EXPECT_EQ(model->getNumberOfElements(), 10 * 20 * 30);
   EXPECT_EQ(model->getNumberOfNodes(),
             (10 * order + 1) * (20 * order + 1) * (30 * order + 1));
-  EXPECT_FLOAT_EQ(model->domainSize(0), 10 * 0.1f);
-  EXPECT_FLOAT_EQ(model->domainSize(1), 20 * 0.2f);
-  EXPECT_FLOAT_EQ(model->domainSize(2), 30 * 0.3f);
+  EXPECT_FLOAT_EQ(model->domainSize(0), 1);
+  EXPECT_FLOAT_EQ(model->domainSize(1), 4);
+  EXPECT_FLOAT_EQ(model->domainSize(2), 9);
 }
 
 // Test multiple calls return different instances
@@ -70,8 +70,8 @@ TYPED_TEST(CartesianStructInputs, MultipleCallsReturnDifferentInstances)
   constexpr bool isModelOnNodes = TypeParam::isModelOnNodes;
 
   // Act
-  typename TypeParam::Type builder(this->ex, this->hx, this->ey, this->hy,
-                                   this->ez, this->hz, isModelOnNodes);
+  typename TypeParam::Type builder(this->ex, this->lx, this->ey, this->ly,
+                                   this->ez, this->lz, isModelOnNodes);
 
   // Assert
   auto model1 = builder.getModel();
@@ -88,8 +88,8 @@ TYPED_TEST(CartesianStructInputs, PolymorphicBehavior)
   constexpr bool isModelOnNodes = TypeParam::isModelOnNodes;
 
   // Act
-  typename TypeParam::Type builder(this->ex, this->hx, this->ey, this->hy,
-                                   this->ez, this->hz, isModelOnNodes);
+  typename TypeParam::Type builder(this->ex, this->lx, this->ey, this->ly,
+                                   this->ez, this->lz, isModelOnNodes);
   ModelBuilderBase<float, int>* base_ptr = &builder;
   auto model = base_ptr->getModel();
 
