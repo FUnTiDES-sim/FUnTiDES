@@ -57,26 +57,6 @@
 #define MAINLOOPEND LOOPEND
 #endif
 
-// In fdtd_macros.h - remove or comment out the old definition and use this:
-
-#if defined(USE_KOKKOS)
-#define LOOP3DHEAD(x3, y3, z3, x4, y4, z4) \
-    Kokkos::parallel_for("loop3d", \
-      Kokkos::MDRangePolicy<Kokkos::Rank<3>>({x3, y3, z3}, {x4, y4, z4}), \
-      KOKKOS_CLASS_LAMBDA(int i, int j, int k) {
-#define LOOP3DEND \
-  });
-#else
-#define LOOP3DHEAD(x3, y3, z3, x4, y4, z4) \
-  for (int i = x3; i < x4; i++) { \
-    for (int j = y3; j < y4; j++) { \
-      for (int k = z3; k < z4; k++) {
-#define LOOP3DEND \
-      } \
-    } \
-  }
-#endif
-
 // FIND_MAX
 #if defined(USE_KOKKOS)
 #define FIND_MAX(Array, Range, Result)                                \

@@ -7,9 +7,8 @@
 
 #include "fdtd_options.h"
 
+using namespace std;
 
-namespace fdtd {
-namespace stencils {
 struct FdtdStencils
 {
   int ncoefsX{0}, ncoefsY{0}, ncoefsZ{0};
@@ -129,7 +128,4 @@ struct FdtdStencils
     return 2 * cfl / (sqrtf(ftmp) * vmax);
   }
 };
-
-} // namespace stencils
-} // namespace fdtd
 #endif  // FDTD_STENCILS_H

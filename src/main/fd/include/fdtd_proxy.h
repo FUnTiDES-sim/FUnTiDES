@@ -179,7 +179,7 @@ class FdtdProxy
 
   // Core simulation components
   model::fdgrid::FdtdGrids grids_;
-  fdtd::stencils::FdtdStencils stencils_;
+  FdtdStencils stencils_;
   FdtdKernels kernels_;
   fdtd::io::FdtdIo io_;
   SolverUtils utils_;
