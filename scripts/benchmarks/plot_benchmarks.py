@@ -17,10 +17,15 @@ def parse_args():
     p.add_argument('--save',
                    default='./benchmark_comparison.png',
                    help='Path to save the resulting plot (PNG).')
+    p.add_argument('--on-nodes',
+                   action='store_true',
+                   default=False,
+                   help='If set, include only benchmarks run "on nodes". Otherwise on elements. '
+                        'By default only benchmarks is on elements.')
     return p.parse_args()
 
 
-def extract_data(folder: str, extractor) -> Tuple[List[int], Dict[str, Dict[int, float]]]:
+def extract_data(folder: str, extractor, on_nodes=False) -> Tuple[List[int], Dict[str, Dict[int, float]]]:
     """
     Scan folder for JSON files with thread count pattern and extract benchmark data.
     This function searches for JSON files matching the pattern `t<threads>.json` 
@@ -68,14 +73,14 @@ def extract_data(folder: str, extractor) -> Tuple[List[int], Dict[str, Dict[int,
 
             try:
                 print(f"Processing {entry.path} for {threads} threads...")
-                extractor(entry.path, per_thread_data[threads])
+                extractor(entry.path, per_thread_data[threads], on_nodes)
             except Exception as e:
                 print(f"Warning: failed to parse {entry.path}: {e}")
 
     return per_thread_data
 
 
-def extract_python_benchmarks(json_file, results):
+def extract_python_benchmarks(json_file, results, on_nodes):
 
     with open(json_file, 'r') as f:
         data = json.load(f)
@@ -88,11 +93,11 @@ def extract_python_benchmarks(json_file, results):
             if 'struct' in params and isinstance(params['struct'], list):
                 order = params['struct'][0]
                 is_structured = True
-                on_nodes = params['struct'][-1]
+                is_on_nodes = params['struct'][-1]
             elif 'unstruct' in params and isinstance(params['unstruct'], list):
                 order = params['unstruct'][0]
                 is_structured = False
-                on_nodes = params['unstruct'][-1]
+                is_on_nodes = params['unstruct'][-1]
             else:
                 raise ValueError("Missing 'struct' or 'unstruct' parameter for mapping")
 
@@ -100,8 +105,10 @@ def extract_python_benchmarks(json_file, results):
             is_init = 'solver_fe_init' in name
             is_one_step = 'solver_one_step' in name
 
-            # TODO for now skip onNodes
-            if on_nodes:
+            # Filter by on_nodes flag
+            if is_on_nodes and not on_nodes:
+                continue
+            if not is_on_nodes and on_nodes:
                 continue
 
             # Map to appropriate category (in ms)
@@ -113,7 +120,7 @@ def extract_python_benchmarks(json_file, results):
                       time_ms)
 
 
-def extract_cpp_benchmarks(json_file, results):
+def extract_cpp_benchmarks(json_file, results, on_nodes):
 
     with open(json_file, 'r') as f:
         data = json.load(f)
@@ -133,12 +140,14 @@ def extract_cpp_benchmarks(json_file, results):
             if label:
                 match = re.search(r'Order=(\d+)', label)
                 order = int(match.group(1))
-                on_nodes = 'OnNodes=1' in label
+                is_on_nodes = 'OnNodes=1' in label
             else:
                 raise ValueError("Missing 'label' parameter for mapping")
 
-            # TODO for now skip onNodes
-            if on_nodes:
+            # Filter by on_nodes flag
+            if is_on_nodes and not on_nodes:
+                continue
+            if not is_on_nodes and on_nodes:
                 continue
 
             # Map to appropriate category (in ms)
@@ -179,7 +188,7 @@ def fill_data(data: Dict[str, Dict[int, float]],
 
 def plot_benchmarks(python_data: Dict[int, Dict[str, Dict[int, float]]],
                     cpp_data: Dict[int, Dict[str, Dict[int, float]]],
-                    save_path: str = None):
+                    save_path: str = None, on_nodes: bool = False):
     """
     Plot benchmark comparison results for Python and C++ implementations.
 
@@ -289,7 +298,8 @@ def plot_benchmarks(python_data: Dict[int, Dict[str, Dict[int, float]]],
         ax.grid(alpha=0.3, which='both')
         ax.legend(fontsize='small', ncol=2)
 
-    fig.suptitle('Benchmark Comparison by Category (Orders as curves)', fontsize=14)
+    mode_str = "Model on nodes" if on_nodes else "Model on elements"
+    fig.suptitle(f'Benchmark Comparison by Category (Orders as curves)\n{mode_str}', fontsize=14)
     plt.tight_layout(rect=[0, 0, 1, 0.93])
 
     if save_path:
@@ -303,13 +313,13 @@ def plot_benchmarks(python_data: Dict[int, Dict[str, Dict[int, float]]],
 def main():
     args = parse_args()
 
-    python_data = extract_data(args.python_dir, extract_python_benchmarks)
-    cpp_data = extract_data(args.cpp_dir, extract_cpp_benchmarks)
+    python_data = extract_data(args.python_dir, extract_python_benchmarks, args.on_nodes)
+    cpp_data = extract_data(args.cpp_dir, extract_cpp_benchmarks, args.on_nodes)
 
     if len(python_data) != len(cpp_data):
         print("Warning: Python and C++ sets differ.")
 
-    plot_benchmarks(python_data, cpp_data, save_path=args.save)
+    plot_benchmarks(python_data, cpp_data, args.save, args.on_nodes)
 
 
 if __name__ == "__main__":

@@ -53,8 +53,15 @@ Benchmark suites:
 ## Generate plots
 
 To plot current baselines
+
+Model on elements
 ```bash
 python scripts/benchmarks/plot_benchmarks.py --python-dir tests/benchmarks/baselines/cpu/amd-epyc-9534_96/gcc_12.2.1/python --cpp-dir tests/benchmarks/baselines/cpu/amd-epyc-9534_96/gcc_12.2.1/cpp
+```
+
+Model on nodes
+```bash
+python scripts/benchmarks/plot_benchmarks.py --python-dir tests/benchmarks/baselines/cpu/amd-epyc-9534_96/gcc_12.2.1/python --cpp-dir tests/benchmarks/baselines/cpu/amd-epyc-9534_96/gcc_12.2.1/cpp --on-nodes
 ```
 
 ## Compare results
