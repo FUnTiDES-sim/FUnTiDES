@@ -30,9 +30,9 @@ find "$BASELINE_DIR" -type f -name "*.json" | while read -r baseline_file; do
   dirname=$(dirname "$rel_path")
   
   # Transform baseline filename to comparison filename format
-  # Remove extension, add bench_ prefix and _latest suffix
+  # Remove extension, add bench_ prefix
   base_name="${filename%.json}"
-  comparison_filename="bench_${base_name}_latest.json"
+  comparison_filename="bench_${base_name}.json"
   
   # Construct corresponding comparison file path
   if [ "$dirname" = "." ]; then

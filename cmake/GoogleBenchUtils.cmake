@@ -92,7 +92,7 @@ function(add_benchmark name)
       NAME ${test_name}
       COMMAND $<TARGET_FILE:${name}>
         --kokkos-threads=${t}
-        --benchmark_out=${BENCHMARK_RESULTS_DIR}/${test_name}_latest.json
+        --benchmark_out=${BENCHMARK_RESULTS_DIR}/${test_name}.json
         --benchmark_out_format=json
     )
     set_tests_properties(${test_name}
