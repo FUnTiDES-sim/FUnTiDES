@@ -6,13 +6,16 @@
 #define SRC_MODEL_GRID_INCLUDE_FDTD_GRIDS_H_
 
 #include <fdtd_options.h>
-#include "fdtd_grid_geometry.h"
-#include "fdtd_boundary.h"
-#include "fdtd_velocity_model.h"
-#include "fdtd_model_io.h"
 
-namespace model {
-namespace fdgrid {
+#include "fdtd_boundary.h"
+#include "fdtd_grid_geometry.h"
+#include "fdtd_model_io.h"
+#include "fdtd_velocity_model.h"
+
+namespace model
+{
+namespace fdgrid
+{
 
 /**
  * @brief FDTD grid facade maintaining backward compatibility
@@ -37,12 +40,12 @@ class FdtdGrids
    * @brief Initialize grid geometry (backward compatible)
    * @param opt FDTD configuration options
    */
-  void InitGrid(const fdtd_options& opt)
+  void InitGrid(const fdtd::options::FdtdOptions& opt)
   {
     // Load geometry from file if specified
-    if (!opt.velocity.fileModel.empty())
+    if (!opt.velocity.file_model.empty())
     {
-      geom_ = ModelIO::ReadGeometry(opt.velocity.fileModel);
+      geom_ = ModelIO::ReadGeometry(opt.velocity.file_model);
     }
     else
     {
@@ -57,7 +60,7 @@ class FdtdGrids
    * @brief Initialize model arrays (backward compatible)
    * @param opt FDTD configuration options
    */
-  void InitModelArrays(const fdtd_options& opt)
+  void InitModelArrays(const fdtd::options::FdtdOptions& opt)
   {
     constexpr float kTimeStep = 0.001f;  // TODO: Make configurable
     model_ = std::make_unique<VelocityModel>(geom_);
@@ -73,8 +76,12 @@ class FdtdGrids
   {
     if (file_model.empty()) return;
     auto geom = ModelIO::ReadGeometry(file_model);
-    nx = geom.nx(); ny = geom.ny(); nz = geom.nz();
-    dx = geom.dx(); dy = geom.dy(); dz = geom.dz();
+    nx = geom.nx();
+    ny = geom.ny();
+    nz = geom.nz();
+    dx = geom.dx();
+    dy = geom.dy();
+    dz = geom.dz();
   }
 
   /**
@@ -140,7 +147,10 @@ class FdtdGrids
 
   // Direct access to components for new code
   [[nodiscard]] const GridGeometry& geometry() const noexcept { return geom_; }
-  [[nodiscard]] const BoundaryLayers& boundary() const noexcept { return boundary_; }
+  [[nodiscard]] const BoundaryLayers& boundary() const noexcept
+  {
+    return boundary_;
+  }
   [[nodiscard]] const VelocityModel& model() const noexcept { return *model_; }
   [[nodiscard]] VelocityModel& model() noexcept { return *model_; }
 

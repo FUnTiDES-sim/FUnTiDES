@@ -80,7 +80,8 @@ void bind_cartesian_unstruct_builder(py::module_ &m)
 
   py::class_<T, Base, std::shared_ptr<T>>(m, name.c_str())
       .def(py::init<>())
-      .def(py::init<const model::mesh::CartesianParams<FloatType, ScalarType> &>());
+      .def(py::init<
+           const model::mesh::CartesianParams<FloatType, ScalarType> &>());
 }
 
 }  // namespace model

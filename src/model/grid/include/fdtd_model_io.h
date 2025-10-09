@@ -8,33 +8,45 @@
 #include <fstream>
 #include <stdexcept>
 #include <string>
-#include <vector>
 #include <type_traits>
+#include <vector>
+
 #include "fdtd_grid_geometry.h"
 
-namespace model {
-namespace fdgrid {
+namespace model
+{
+namespace fdgrid
+{
 
 /**
  * @brief Type traits for detecting container capabilities
  */
-namespace detail {
+namespace detail
+{
 
 // Check if type has resize() method (std::vector)
-template<typename T, typename = void>
-struct has_resize : std::false_type {};
+template <typename T, typename = void>
+struct has_resize : std::false_type
+{
+};
 
-template<typename T>
+template <typename T>
 struct has_resize<T, std::void_t<decltype(std::declval<T>().resize(size_t{}))>>
-    : std::true_type {};
+    : std::true_type
+{
+};
 
 // Check if type has data() method
-template<typename T, typename = void>
-struct has_data : std::false_type {};
+template <typename T, typename = void>
+struct has_data : std::false_type
+{
+};
 
-template<typename T>
+template <typename T>
 struct has_data<T, std::void_t<decltype(std::declval<T>().data())>>
-    : std::true_type {};
+    : std::true_type
+{
+};
 
 }  // namespace detail
 
@@ -97,10 +109,9 @@ class ModelIO
    * @param data Output container (std::vector or Kokkos::View)
    * @throws std::runtime_error if read fails or size mismatch
    */
-  template<typename VectorType>
+  template <typename VectorType>
   static void ReadVelocityModel(const std::string& file_path,
-                                 const GridGeometry& geom,
-                                 VectorType& data)
+                                const GridGeometry& geom, VectorType& data)
   {
     std::ifstream infile(file_path, std::ios::in | std::ios::binary);
     if (!infile)
@@ -123,11 +134,10 @@ class ModelIO
       // For Kokkos::View, check size matches
       if (data.size() != expected_size)
       {
-        throw std::runtime_error(
-            "Kokkos::View size mismatch: expected " +
-            std::to_string(expected_size) + ", got " +
-            std::to_string(data.size()) +
-            ". Pre-allocate view with correct size.");
+        throw std::runtime_error("Kokkos::View size mismatch: expected " +
+                                 std::to_string(expected_size) + ", got " +
+                                 std::to_string(data.size()) +
+                                 ". Pre-allocate view with correct size.");
       }
     }
 
@@ -144,7 +154,8 @@ class ModelIO
     // Copy to output (handles both std::vector and Kokkos::View)
     CopyData(temp_buffer, data, expected_size);
 
-    printf("Loaded %zu velocity values from %s\n", expected_size, file_path.c_str());
+    printf("Loaded %zu velocity values from %s\n", expected_size,
+           file_path.c_str());
   }
 
   /**
@@ -154,10 +165,10 @@ class ModelIO
    * @param data Velocity model data (std::vector or Kokkos::View)
    * @throws std::runtime_error if write fails
    */
-  template<typename VectorType>
+  template <typename VectorType>
   static void WriteVelocityModel(const std::string& file_path,
-                                  const GridGeometry& geom,
-                                  const VectorType& data)
+                                 const GridGeometry& geom,
+                                 const VectorType& data)
   {
     std::ofstream outfile(file_path, std::ios::out | std::ios::binary);
     if (!outfile)
@@ -193,9 +204,10 @@ class ModelIO
 
  private:
   /**
-   * @brief Copy data from source to destination (handles different container types)
+   * @brief Copy data from source to destination (handles different container
+   * types)
    */
-  template<typename SourceType, typename DestType>
+  template <typename SourceType, typename DestType>
   static void CopyData(const SourceType& src, DestType& dest, size_t size)
   {
     // Direct copy for std::vector or containers with direct data access
@@ -214,9 +226,10 @@ class ModelIO
   }
 
   /**
-   * @brief Get raw data pointer, using temporary buffer for Kokkos::View if needed
+   * @brief Get raw data pointer, using temporary buffer for Kokkos::View if
+   * needed
    */
-  template<typename VectorType>
+  template <typename VectorType>
   static const float* GetDataPointer(const VectorType& data,
                                      std::vector<float>& temp_buffer)
   {

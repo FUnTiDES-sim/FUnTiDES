@@ -1,7 +1,10 @@
 #ifndef FDTD_KERNEL_HPP
 #define FDTD_KERNEL_HPP
 
-struct fdtd_kernels
+#include "data_type.h"
+#include "fdtd_macros.h"
+
+struct FdtdKernels
 {
   vectorReal spongeArray;
   vectorReal RHSTerm;

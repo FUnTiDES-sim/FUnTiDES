@@ -1,18 +1,25 @@
 //************************************************************************
-//   proxy application v.0.0.1
+// Finite Difference Time Domain (FDTD) Acoustic Simulation
+// Version 0.0.1
 //
-//  semproxy.hpp: the main interface of SEM proxy application
+// fdtd_proxy.hpp: Main interface for the FDTD proxy application
 //
+// This header defines the primary orchestration class for finite difference
+// time domain acoustic wave propagation simulations. The FdtdProxy class
+// manages initialization, coordinate grid setup, time stepping, and
+// output generation for forward modeling applications in geophysics.
+//
+// Copyright (c) 2025
+// License: [Specify license here]
 //************************************************************************
 
-#ifndef FDTD_PROXY_HPP_
-#define FDTD_PROXY_HPP_
+#ifndef SRC_MAIN_FD_INCLUDE_FDTD_PROXY_HPP_
+#define SRC_MAIN_FD_INCLUDE_FDTD_PROXY_HPP_
 
-#include <args_parse.h>
-#include <utils.h>
-
+#include <chrono>
 #include <memory>
 
+#include "args_parse.h"
 #include "fdtd_grids.h"
 #include "fdtd_io.h"
 #include "fdtd_kernels.h"
@@ -21,71 +28,164 @@
 #include "fdtd_source_receivers.h"
 #include "fdtd_stencils.h"
 #include "read_sepfile.h"
+#include "utils.h"
 
+namespace fdtd
+{
 /**
- * @class FDproxy
+ * @class FdtdProxy
+ * @brief Main orchestration class for FDTD acoustic wave propagation
+ *        simulation.
+ *
+ * This class coordinates all components of the FDTD simulation including:
+ * - Grid initialization and spatial discretization
+ * - Source and receiver configuration
+ * - Time-stepping loop management
+ * - I/O operations for results
+ *
+ * Typical usage:
+ * @code
+ *   fdtd::FdtdOptions options = ParseCommandLineArgs(argc, argv);
+ *   FdtdProxy proxy(options);
+ *   proxy.InitFdtd();
+ *   proxy.Run();
+ * @endcode
  */
-
-class fdtd_proxy
+class FdtdProxy
 {
  public:
   /**
-   * @brief Constructor of the SEMproxy class
+   * @brief Constructs an FDTD proxy with the given simulation options.
+   * @param opt Configuration options for the simulation including grid size,
+   *            time stepping parameters, and I/O settings.
    */
-  fdtd_proxy(const fdtd_options& opt);
+  explicit FdtdProxy(const fdtd::options::FdtdOptions& opt);
 
   /**
-   * @brief Destructor of the SEMproxy class
+   * @brief Destructor for the FdtdProxy class.
    */
-  ~fdtd_proxy(){};
+  ~FdtdProxy() = default;
 
   /**
-   * @brief Initialize the simulation.
-   * @post run()
+   * @brief Initializes the FDTD simulation environment.
+   *
+   * Performs the following initialization steps:
+   * - Allocates and initializes computational grids
+   * - Configures finite difference stencils
+   * - Sets up source and receiver geometries
+   * - Prepares I/O subsystems
+   *
+   * @pre Constructor has been called with valid options.
+   * @post All internal state is initialized and ready for Run().
    */
-  void init_fdtd();
+  void InitFdtd();
 
   /**
-   * @brief Run the simulation.
-   * @pre This must be called after init()
-   * @post Optional printout performance resutls
+   * @brief Executes the main time-stepping loop of the simulation.
+   *
+   * Advances the wave equation solution through time using the configured
+   * numerical scheme. Writes output at specified intervals according to
+   * the I/O configuration.
+   *
+   * @pre InitFdtd() must be called before this method.
+   * @post Simulation results are written to disk; performance metrics
+   *       may be printed to stdout.
    */
-  void run();
+  void Run();
 
  private:
-  fdtd_options m_opt;
+  /**
+   * @brief Initializes the computational grid geometry.
+   */
+  void InitializeGrid();
 
-  int i1 = 0;
-  int i2 = 1;
+  /**
+   * @brief Initializes finite difference stencil coefficients.
+   */
+  void InitializeStencils();
 
-  int ncoefsX;
-  int ncoefsY;
-  int ncoefsZ;
+  /**
+   * @brief Initializes velocity model parameters and time stepping.
+   */
+  void InitializeVelocityModel();
 
-  int nSamples;
-  float timeStep;
-  float timeMax;
+  /**
+   * @brief Initializes model arrays (velocity, density, etc.).
+   */
+  void InitializeModelArrays();
 
-  int sourceOrder;
-  float f0;
-  float vmin;
-  float vmax;
-  float lambdamax;
+  /**
+   * @brief Allocates and initializes wavefield arrays.
+   */
+  void InitializeWavefieldArrays();
 
-  int xsrc = -1;
-  int ysrc = -1;
-  int zsrc = -1;
+  /**
+   * @brief Configures seismic source parameters and position.
+   */
+  void InitializeSource();
 
-  // initialize source and RHS
-  void init_source();
+  /**
+   * @brief Initializes absorbing boundary conditions.
+   */
+  void InitializeBoundaries();
 
-  model::fdgrid::FdtdGrids m_grids;
-  fdtd_stencils m_stencils;
-  fdtd_kernels m_kernels;
-  fdtd_io m_io;
-  SolverUtils m_utils;
-  fdtd_solver m_solver;
-  fdtd_source_receivers m_source_receivers;
+  /**
+   * @brief Initializes the seismic source wavelet.
+   *
+   * Computes the source time function (e.g., Ricker wavelet) and stores
+   * it for injection during time stepping.
+   *
+   * @post Source wavelet is computed and ready for injection.
+   */
+  void InitSource();
+
+  /**
+   * @brief Prints performance metrics after simulation completion.
+   * @param total_compute_time Accumulated computation time
+   * @param total_output_time Accumulated I/O time
+   */
+  void PrintPerformanceMetrics(
+      const std::chrono::nanoseconds& total_compute_time,
+      const std::chrono::nanoseconds& total_output_time) const;
+
+  // Simulation configuration
+  fdtd::options::FdtdOptions opt_;
+
+  // Grid indexing for time integration (current and next time level)
+  int time_index_current_ = 0;
+  int time_index_next_ = 1;
+
+  // Finite difference stencil sizes
+  int num_coefs_x_;
+  int num_coefs_y_;
+  int num_coefs_z_;
+
+  // Time integration parameters
+  int num_time_samples_;
+  float time_step_;
+  float time_max_;
+
+  // Source configuration
+  int source_order_;        ///< Spatial derivative order for source injection
+  float source_frequency_;  ///< Dominant frequency (Hz) of source wavelet
+  float velocity_min_;      ///< Minimum velocity in model (m/s)
+  float velocity_max_;      ///< Maximum velocity in model (m/s)
+  float wavelength_max_;    ///< Maximum wavelength for stability analysis
+
+  // Source location (grid indices)
+  int source_x_ = -1;
+  int source_y_ = -1;
+  int source_z_ = -1;
+
+  // Core simulation components
+  model::fdgrid::FdtdGrids grids_;
+  FdtdStencils stencils_;
+  FdtdKernels kernels_;
+  fdtd::io::FdtdIo io_;
+  SolverUtils utils_;
+  FdtdSolver solver_;
+  FdtdSourceReceivers source_receivers_;
 };
 
-#endif /* SEMPROXY_HPP_ */
+}  // namespace fdtd
+#endif  // SRC_MAIN_FD_INCLUDE_FDTD_PROXY_HPP_
