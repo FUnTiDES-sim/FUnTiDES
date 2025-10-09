@@ -23,11 +23,6 @@ set(SOLV_LIBS discretization proxy_utils proxy_model_struct proxy_model_unstruct
 
 target_link_kokkos_if_enabled(proxy_solver)
 
-if(USE_OMP)
-  find_package(OpenMP REQUIRED)
-  list(APPEND SOLV_LIBS OpenMP::OpenMP_CXX)
-endif()
-
 target_link_libraries(proxy_solver PUBLIC ${SOLV_LIBS})
 
 install(TARGETS proxy_solver

@@ -8,10 +8,10 @@
 
 The current implementation includes two proxy applications for solving the 2nd-order acoustic wave equation in 2D and 3D:
 
-- **SEM (Spectral Element Method)**  
+- **SEM (Spectral Element Method)**
   A benchmark designed to simulate wave propagation using SEM, a Galerkin-based finite element method for solving partial differential equations (PDEs).
 
-- **FD (Finite Difference Method)**  
+- **FD (Finite Difference Method)**
   A benchmark that uses finite-difference stencil operators to simulate wave propagation and solve PDEs.
 
 A key feature of these proxy applications is their adaptability to different programming models and HPC architectures. They are also easy to build and run, making them accessible to both researchers and developers.
@@ -22,7 +22,6 @@ A key feature of these proxy applications is their adaptability to different pro
 
 The SEM proxy currently supports:
 
-- [OpenMP](https://www.openmp.org/) — for loop-level parallelism
 - [Kokkos](https://kokkos.github.io/kokkos-core-wiki/) — for performance portability
 
 > **Note**: Kokkos is included as a Git submodule and will be compiled automatically when enabled.
@@ -33,7 +32,7 @@ The SEM proxy currently supports:
 
 The current SEM proxy supports the following data container:
 
-- `std::vector` (default for serial and OpenMP modes)
+- `std::vector` (default for serial )
 
 ---
 
@@ -77,7 +76,7 @@ The following options can be used to configure your build:
 
 ---
 
-## 🐍 Python wrappers 
+## 🐍 Python wrappers
 
 ### Prerequisites
 
@@ -149,12 +148,12 @@ pytest -vv -s --benchmark-histogram=plot tests/benchmarks
 
 To plot the snapshots we provide a python script:
 ```bash
-python ./scripts/adios_cartesian_snap_viz.py 201 201 201 --file snapshots.bp --slice
+python ./scripts/adios/adios_cartesian_snap_viz.py 201 201 201 --file snapshots.bp --slice
 ```
 where 201 values should be replaced by number of nodes on x y and z. And file correpond to the `snapshots.bp` folder with bp5 files.
 
 For the receivers:
 ``` bash
-python ./scripts/adios_single_receiver_viz.py
+python ./scripts/adios/adios_single_receiver_viz.py
 ```
 within the folder containing the `receivers.bp` folder.

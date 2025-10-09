@@ -290,7 +290,6 @@ struct FDTDInit
     float init_vp_value = vmin * vmin * timeStep * timeStep;
 
     // initialize vp and pressure field
-#pragma omp parallel for collapse(3)
     for (int i = 0; i < myGrids.nx; i++)
     {
       for (int j = 0; j < myGrids.ny; j++)
@@ -301,7 +300,6 @@ struct FDTDInit
         }
       }
     }
-#pragma omp parallel for collapse(3)
     for (int i = 0; i < myGrids.nx; i++)
     {
       for (int j = 0; j < myGrids.ny; j++)
@@ -313,7 +311,6 @@ struct FDTDInit
       }
     }
 
-#pragma omp parallel for collapse(3)
     for (int i = -myGrids.lx; i < myGrids.nx + myGrids.lx; i++)
     {
       for (int j = -myGrids.ly; j < myGrids.ny + myGrids.ly; j++)

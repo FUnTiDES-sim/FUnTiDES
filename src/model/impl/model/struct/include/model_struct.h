@@ -45,17 +45,18 @@ class ModelStruct : public ModelApi<FloatType, ScalarType>
       : ex_(data.ex_),
         ey_(data.ey_),
         ez_(data.ez_),
-        hx_(data.dx_),
-        hy_(data.dy_),
-        hz_(data.dz_)
+        lx_(data.dx_),
+        ly_(data.dy_),
+        lz_(data.dz_),
+        isModelOnNodes_(data.isModelOnNodes_)
   {
     nx_ = Order * ex_ + 1;
     ny_ = Order * ey_ + 1;
     nz_ = Order * ez_ + 1;
 
-    lx_ = ex_ * hx_;
-    ly_ = ey_ * hy_;
-    lz_ = ez_ * hz_;
+    hx_ = lx_ / ex_;
+    hy_ = ly_ / ey_;
+    hz_ = lz_ / ez_;
   }
 
   /**
