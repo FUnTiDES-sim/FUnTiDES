@@ -24,6 +24,7 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE>::computeFEInit(
   if (auto *typed_mesh = dynamic_cast<MESH_TYPE *>(&mesh_in))
   {
     m_mesh = *typed_mesh;
+    m_mesh_ptr = typed_mesh;
   }
   else
   {
@@ -38,7 +39,7 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE>::computeFEInit(
 
   allocateFEarrays();
   initFEarrays();
-  computeGlobalMassMatrix(m_mesh.isModelOnNodes());
+  computeGlobalMassMatrix(m_mesh_ptr.isModelOnNodes());
 }
 
 template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE>

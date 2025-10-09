@@ -174,6 +174,7 @@ class SEMsolver : public SolverBase
 
  private:
   MESH_TYPE m_mesh;
+  const MESH_TYPE *m_mesh_ptr;
 
   static constexpr int nPointsElement = (ORDER + 1) * (ORDER + 1) * (ORDER + 1);
 
