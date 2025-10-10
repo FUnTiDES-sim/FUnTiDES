@@ -1,9 +1,15 @@
 # Benchmark Configuration
 
 ## System overview
-
-CHECK WHAT IS PUBLIC
-
+ 
+Benchmarks were generated on Pangea 4, an x86 CPU cluster built on the HPE Cray XD2000 platform.
+ 
+- Architecture: AMD Genoa (4th Gen Zen4)
+- Processor: AMD Epyc 9654 (96 cores per socket, 2 sockets per node = 192 cores/node)
+- Hyperthreading: Disabled
+- Memory: 768GB DDR5-4800 per node
+- Operating System: RHEL 8.8
+- Scheduler: Slurm v23
 
 ## Compiler and runtime environment
 
