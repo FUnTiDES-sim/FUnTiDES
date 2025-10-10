@@ -45,8 +45,16 @@ runs:
         set -euo pipefail
         echo "Node: $(hostname)"
         echo "Start: $(date -Is)"
-        ${RUN_SCRIPT}
-        echo "End: $(date -Is)"
+        EOF
+
+        cat >> job.slurm <<'EOF'
+        ${{ inputs.run-script }}
+        EOF
+
+        cat >> job.slurm <<'EOF'
+        STATUS=$?
+        echo "End: $(date -Is) (exit=$STATUS)"
+        exit $STATUS
         EOF
 
         # Insert run-script
