@@ -5,7 +5,11 @@ add_subdirectory(solver)
 add_subdirectory(main)
 
 if(ENABLE_PYWRAP)
-  install_pyproxys_package(model solver)
+  if(COMPILE_SEM)
+    install_pyproxys_package(model solver)
+  else()
+    install_pyproxys_package(model)
+  endif()
 endif()
 
 

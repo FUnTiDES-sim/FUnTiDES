@@ -1,0 +1,79 @@
+#include "fdtd_solver.h"
+
+#include <cxxopts.hpp>
+#include <iomanip>
+#include <iostream>
+#include <sstream>
+#include <variant>
+
+#include "data_type.h"
+
+/**
+ * @brief Computes a single time step in the FDTD acoustic wave simulation.
+ *
+ * This function performs one complete iteration of the Finite-Difference
+ * Time-Domain (FDTD) algorithm for acoustic wave propagation. It executes
+ * three main operations in sequence: adding source terms, computing inner
+ * domain updates, and applying absorbing boundary conditions.
+ *
+ * @param itime Current time step index in the simulation
+ * @param i1 First buffer index for the two-buffer time stepping scheme
+ * @param i2 Second buffer index for the two-buffer time stepping scheme
+ *
+ * @details The computation proceeds in three phases:
+ *
+ * 1. Source Term Addition: Injects acoustic energy from sources into
+ *    the pressure field using the RHS (right-hand side) term at specified
+ *    source locations.
+ *
+ * 2. Inner Domain Update: Applies the finite-difference stencil to
+ *    compute spatial derivatives and update the pressure field in the
+ *    interior domain, excluding the boundary layers defined by the stencil
+ *    half-lengths (lx, ly, lz).
+ *
+ * 3. Sponge Boundary Application: Attenuates outgoing waves at the
+ *    domain boundaries to prevent non-physical reflections using absorbing
+ *    boundary conditions.
+ *
+ * @note The function uses FDFENCE macros between operations to ensure proper
+ *       memory synchronization in parallel execution environments.
+ *
+ * @warning This function assumes all grid arrays and stencil coefficients
+ *          have been properly initialized before invocation.
+ *
+ * @see FdtdSolver::addRHS()
+ * @see FdtdSolver::inner3D()
+ * @see FdtdSolver::applySponge()
+ */
+void FdtdSolver::compute_one_step(int itime, int i1, int i2)
+{
+  int x3 = m_stencils.lx;
+  int x4 = m_grids.nx() - m_stencils.lx;
+  int y3 = m_stencils.ly;
+  int y4 = m_grids.ny() - m_stencils.ly;
+  int z3 = m_stencils.lz;
+  int z4 = m_grids.nz() - m_stencils.lz;
+  m_kernels.addRHS(itime, i2, m_grids.nx(), m_grids.ny(), m_grids.nz(),
+                   m_stencils.lx, m_stencils.ly, m_stencils.lz,
+                   m_source_receivers.xsrc, m_source_receivers.ysrc,
+                   m_source_receivers.zsrc, m_grids.vp(), m_kernels.RHSTerm,
+                   m_kernels.pnGlobal);
+
+  // printf("addRHS done\n");
+  FDFENCE
+  // inner points
+
+  m_kernels.inner3D(i1, i2, m_grids.nx(), m_grids.ny(), m_grids.nz(),
+                    m_stencils.lx, m_stencils.ly, m_stencils.lz, x3, x4, y3, y4,
+                    z3, z4, m_stencils.coef0, m_stencils.coefx,
+                    m_stencils.coefy, m_stencils.coefz, m_grids.vp(),
+                    m_kernels.pnGlobal);
+  // printf("inner3D done\n");
+  FDFENCE
+  // apply sponge boundary to wavefield
+  m_kernels.applySponge(i1, i2, m_grids.nx(), m_grids.ny(), m_grids.nz(),
+                        m_stencils.lx, m_stencils.ly, m_stencils.lz, x3, x4, y3,
+                        y4, z3, z4, m_kernels.spongeArray, m_kernels.pnGlobal);
+  // printf("applySponge done\n");
+  FDFENCE
+}

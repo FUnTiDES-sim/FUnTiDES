@@ -6,6 +6,8 @@
 
 namespace model
 {
+namespace mesh
+{
 namespace test
 {
 
@@ -113,4 +115,5 @@ TEST_P(CartesianStructBuilderFixture, PolymorphicBehavior)
 }
 
 }  // namespace test
+}  // namespace mesh
 }  // namespace model

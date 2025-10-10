@@ -38,6 +38,7 @@ class Vector
   T &operator()(int index) { return data_[index]; }
   T &operator[](int index) { return data_[index]; }
   const T &operator[](int index) const { return data_[index]; }
+  const T &operator()(int index) const { return data_[index]; }
 
   // Assignment operator (fixed - was incorrect)
   Vector &operator=(const Vector &other)

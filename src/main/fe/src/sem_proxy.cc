@@ -64,19 +64,19 @@ SEMproxy::SEMproxy(const SemProxyOptions& opt)
     switch (order)
     {
       case 1: {
-        model::CartesianStructBuilder<float, int, 1> builder(
+        model::mesh::CartesianStructBuilder<float, int, 1> builder(
             ex, lx, ey, ly, ez, lz, isModelOnNodes);
         m_mesh = builder.getModel();
         break;
       }
       case 2: {
-        model::CartesianStructBuilder<float, int, 2> builder(
+        model::mesh::CartesianStructBuilder<float, int, 2> builder(
             ex, lx, ey, ly, ez, lz, isModelOnNodes);
         m_mesh = builder.getModel();
         break;
       }
       case 3: {
-        model::CartesianStructBuilder<float, int, 3> builder(
+        model::mesh::CartesianStructBuilder<float, int, 3> builder(
             ex, lx, ey, ly, ez, lz, isModelOnNodes);
         m_mesh = builder.getModel();
         break;
@@ -88,9 +88,9 @@ SEMproxy::SEMproxy(const SemProxyOptions& opt)
   }
   else if (meshType == SolverFactory::Unstruct)
   {
-    model::CartesianParams<float, int> param(order, ex, ey, ez, lx, ly, lz,
-                                             isModelOnNodes);
-    model::CartesianUnstructBuilder<float, int> builder(param);
+    model::mesh::CartesianParams<float, int> param(order, ex, ey, ez, lx, ly,
+                                                   lz, isModelOnNodes);
+    model::mesh::CartesianUnstructBuilder<float, int> builder(param);
     m_mesh = builder.getModel();
   }
   else
