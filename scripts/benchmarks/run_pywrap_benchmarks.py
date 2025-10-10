@@ -9,7 +9,7 @@ def run_once(threads, extra_pytest_args, bench_root, prefix, verbose):
     out_dir = bench_root
     out_dir.mkdir(parents=True, exist_ok=True)
 
-    outfile = out_dir / f"{prefix}_t{threads}.json"
+    out_file = f"{prefix}_t{threads}"
 
     cmd = [
         sys.executable,
@@ -25,11 +25,13 @@ def run_once(threads, extra_pytest_args, bench_root, prefix, verbose):
         "tests/benchmarks/python",
         "--threads", str(threads),
         "--benchmark-only",
-        f"--benchmark-json={outfile}",
+        f"--benchmark-storage=file://{out_dir}",
+        f"--benchmark-save={out_file}",
+        "--benchmark-min-rounds=10"
     ])
     cmd += extra_pytest_args
 
-    print(f"[RUN] threads={threads} -> {outfile}")
+    print(f"[RUN] threads={threads} -> {out_file}")
     subprocess.check_call(cmd)
 
 
