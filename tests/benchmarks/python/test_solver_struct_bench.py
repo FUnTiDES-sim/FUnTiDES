@@ -72,7 +72,7 @@ class TestSolverStruct:
         n_rhs = 2
         dt = 0.001
         time_sample = 1
-        n_time_steps = 1
+        n_time_steps = 1500
         f0 = 5.0
 
         model = builder.get_model()

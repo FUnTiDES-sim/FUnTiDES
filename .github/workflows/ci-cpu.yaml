@@ -129,7 +129,8 @@ jobs:
         id: test
         run: |
           cd build
-          ctest --output-on-failure
+          # Run tests without benchmarks
+          ctest -LE benchmark --output-on-failure
 
       - name: Install
         id: install
