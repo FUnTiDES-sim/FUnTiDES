@@ -1,0 +1,90 @@
+name: CI-CPU
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+  # TODO RUN after CPU only if success
+on:
+  pull_request:
+    branches:
+      - main
+
+  workflow_dispatch: # Allow to start this workflow manually
+
+jobs:
+
+  build:
+    runs-on: hpc-us
+    strategy:
+      matrix:
+        #discretization: [fd, sem] TODO always build both
+        discretization: [fd]
+        #pywrap: [pywrap-on, pywrap-off] TODO activate python
+        pywrap: [pywrap-on]
+        programming_model: [vector, kokkos]
+        exclude:
+        # Exclude Vector + Python (wrappers use Kokkos)
+        - programming_model: vector
+          pywrap: pywrap-on
+
+      max-parallel: 5
+
+    continue-on-error: true # We want to run other builds even if some build fails
+
+    steps:
+
+      - name: Checkout
+        id: checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          submodules: recursive
+
+      - name: Submit Slurm matrix job
+        uses: ./.github/actions/slurm-submit
+        with:
+          job-name: funtides-${{ matrix.discretization }}-${{ matrix.pywrap }}-${{ matrix.programming_model }}
+          partition: maple
+          run-script: |
+            set -e
+            DISCRETIZATION='${{ matrix.discretization }}'
+            PYWRAP='${{ matrix.pywrap }}'
+            PROGRAMMING_MODEL='${{ matrix.programming_model }}'
+
+            module purge
+            source scripts/env_Maple_GH200.sh
+            module list
+
+            if [[ "$PYWRAP" == "pywrap-on" ]]; then
+              python3 -m venv .venv
+              source .venv/bin/activate
+              pip install --upgrade pip
+              pip install pybind11 pytest numpy
+            fi
+
+            CMAKE_FLAGS=""
+            [[ "$DISCRETIZATION" == "fd"  ]] && CMAKE_FLAGS+=" -DCOMPILE_FD=ON -DCOMPILE_SEM=OFF"
+            [[ "$DISCRETIZATION" == "sem" ]] && CMAKE_FLAGS+=" -DCOMPILE_SEM=ON -DCOMPILE_FD=OFF"
+            if [[ "$PYWRAP" == "pywrap-on" ]]; then
+              CMAKE_FLAGS+=" -DENABLE_PYWRAP=ON"
+            else
+              CMAKE_FLAGS+=" -DENABLE_PYWRAP=OFF"
+            fi
+            [[ "$PROGRAMMING_MODEL" == "vector" ]] && CMAKE_FLAGS+=" -DUSE_VECTOR=ON"
+            [[ "$PROGRAMMING_MODEL" == "kokkos" ]] && CMAKE_FLAGS+=" -DUSE_KOKKOS=ON"
+
+            mkdir -p build
+            cd build
+            cmake .. ${CMAKE_FLAGS} -DCMAKE_INSTALL_PREFIX=../install
+            make -j$(nproc)
+            ctest --output-on-failure
+            make install
+
+            if [[ "$PYWRAP" == "pywrap-on" && "$DISCRETIZATION" == "sem" ]]; then
+              source ../.venv/bin/activate
+              export INSTALL_DIR=$(realpath ../install)
+              export PYTHONPATH=$PYTHONPATH:$INSTALL_DIR
+              export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$INSTALL_DIR/lib
+              OMP_NUM_THREADS=2 OMP_THREAD_LIMIT=2 KOKKOS_NUM_THREADS=2 pytest ../tests/units
+            fi

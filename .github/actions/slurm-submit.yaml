@@ -1,0 +1,60 @@
+name: slurm-submit
+description: Submit and wait for a Slurm job
+inputs:
+  job-name:
+    required: true
+  partition:
+    required: true
+  account:
+    required: false
+    default: "co2su"
+  time:
+    required: false
+    default: 00:30:00
+  cpus:
+    required: false
+    default: "1"
+  gpus:
+    required: false
+    default: "1"
+  extra-sbatch:
+    required: false
+    default: ""
+  run-script:
+    required: true
+    description: Multi-line bash payload executed inside the job
+runs:
+  using: composite
+  steps:
+    - shell: bash
+      run: |
+        # Create Slurm job script
+        set -euo pipefail
+        cat > job.slurm <<'EOF'
+        #!/bin/bash
+        #SBATCH -J ${{ inputs.job-name }}
+        #SBATCH -o slurm-%x-%j.out
+        #SBATCH -e slurm-%x-%j.err
+        #SBATCH -p ${{ inputs.partition }}
+        #SBATCH -A ${{ inputs.account }}
+        #SBATCH -t ${{ inputs.time }}
+        #SBATCH -c ${{ inputs.cpus }}
+        #SBATCH --gres=gpu:${{ inputs.gpus }}
+        ${{ inputs.extra-sbatch }}
+
+        set -euo pipefail
+        echo "Node: $(hostname)"
+        echo "Start: $(date -Is)"
+        ${RUN_SCRIPT}
+        echo "End: $(date -Is)"
+        EOF
+
+        # Insert run-script
+        sed -i "s|\${RUN_SCRIPT}|${{ inputs.run-script }}|" job.slurm
+
+        echo "Submitting Slurm job..."
+        cat job.slurm
+        sbatch --wait job.slurm
+
+        echo "Tail of output:"
+        tail -n 200 slurm-*.out || true
