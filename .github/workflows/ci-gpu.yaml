@@ -42,7 +42,7 @@ jobs:
           submodules: recursive
 
       - name: Submit Slurm matrix job
-        uses: ./.github/actions/slurm-submit.yaml
+        uses: ./.github/actions/slurm-submit
         with:
           job-name: funtides-${{ matrix.discretization }}-${{ matrix.pywrap }}-${{ matrix.programming_model }}
           partition: maple
