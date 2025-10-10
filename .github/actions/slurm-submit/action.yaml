@@ -57,9 +57,6 @@ runs:
         exit $STATUS
         EOF
 
-        # Insert run-script
-        sed -i "s|\${RUN_SCRIPT}|${{ inputs.run-script }}|" job.slurm
-
         echo "Submitting Slurm job..."
         cat job.slurm
         sbatch --wait job.slurm
