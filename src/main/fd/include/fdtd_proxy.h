@@ -27,7 +27,6 @@
 #include "fdtd_solver.h"
 #include "fdtd_source_receivers.h"
 #include "fdtd_stencils.h"
-#include "read_sepfile.h"
 #include "utils.h"
 
 namespace fdtd
