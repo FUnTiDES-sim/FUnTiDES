@@ -24,7 +24,6 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE>::computeFEInit(
   if (auto *typed_mesh = dynamic_cast<MESH_TYPE *>(&mesh_in))
   {
     m_mesh = *typed_mesh;
-    m_mesh_ptr = typed_mesh;
   }
   else
   {
@@ -39,7 +38,7 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE>::computeFEInit(
 
   allocateFEarrays();
   initFEarrays();
-  computeGlobalMassMatrix(m_mesh_ptr->isModelOnNodes());
+  computeGlobalMassMatrix(m_mesh.isModelOnNodes());
 }
 
 template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE>
@@ -255,9 +254,9 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE>::computeGlobalMassMatrix(
     int const gIndex = m_mesh.globalNodeIndex(elementNumber, x, y, z);
     if (isModelOnNodes)
     {
-      inv_model2 = 1.0f / (m_mesh.getModelVpOnElement(gIndex) *
-                           m_mesh.getModelVpOnElement(gIndex) *
-                           m_mesh.getModelRhoOnElement(gIndex));
+      inv_model2 = 1.0f / (m_mesh.getModelVpOnNodes(gIndex) *
+                           m_mesh.getModelVpOnNodes(gIndex) *
+                           m_mesh.getModelRhoOnNodes(gIndex));
     }
     massMatrixLocal[i] *= inv_model2;
     ATOMICADD(massMatrixGlobal[gIndex], massMatrixLocal[i]);
