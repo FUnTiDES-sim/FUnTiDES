@@ -173,6 +173,8 @@ class SEMsolver : public SolverBase
                            const ARRAY_REAL_VIEW &pnGlobal);
 
  private:
+  MESH_TYPE m_mesh;
+
   static constexpr int nPointsElement = (ORDER + 1) * (ORDER + 1) * (ORDER + 1);
 
   float sponge_size_[3];
