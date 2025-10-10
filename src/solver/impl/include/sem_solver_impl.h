@@ -147,8 +147,14 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE>::computeElementContributions(
   }
 
   INTEGRAL_TYPE::computeStiffnessTerm(
-      cornerCoords, [&](const int i, const int j, const real_t val) {
-        float localIncrement = val * pnLocal[j];
+      cornerCoords, [&](const int qa, const int qb, const int qc, const int i,
+                        const int j, const real_t val) {
+        if (isModelOnNodes)
+        {
+          int const gIndex = m_mesh.globalNodeIndex(elementNumber, qa, qb, qc);
+          inv_density = 1.0f / m_mesh.getModelRhoOnNodes(gIndex);
+        }
+        float localIncrement = inv_density * val * pnLocal[j];
         Y[i] += localIncrement;
       });
 
@@ -158,11 +164,6 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE>::computeElementContributions(
     int z = (i / dim) % dim;
     int y = i / (dim * dim);
     int const gIndex = m_mesh.globalNodeIndex(elementNumber, x, y, z);
-    if (isModelOnNodes)
-    {
-      inv_density = 1.0f / m_mesh.getModelRhoOnNodes(gIndex);
-    }
-    Y[i] *= inv_density;
     ATOMICADD(yGlobal[gIndex], Y[i]);
   }
 
