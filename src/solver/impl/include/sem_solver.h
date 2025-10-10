@@ -121,6 +121,14 @@ class SEMsolver : public SolverBase
   void initSpongeValues();
 
   /**
+   * @brief Compute the global mass matrix, accounting for the model.
+   *
+   * @param isModelOnNodes True if the velocity model is defined on nodes, false
+   *                       if on elements
+   */
+  void computeGlobalMassMatrix(bool isModelOnNodes);
+
+  /**
    * @brief Reset global FE vectors (mass, stiffness) before accumulation.
    *
    * @param numNodes Total number of global nodes.
