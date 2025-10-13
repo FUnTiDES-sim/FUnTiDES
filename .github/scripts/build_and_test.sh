@@ -12,6 +12,7 @@ echo "  Discretization = $DISCRETIZATION"
 echo "  Pywrap         = $PYWRAP"
 echo "  Model          = $PROGRAMMING_MODEL"
 
+set +e
 source "/apps/modules/modulefiles3/supporting_scripts/modver_config.sh"
 export LMOD_IGNORE_CACHE=1
 source $SUPPORTSCRIPT_3_DIR/activateMod3
