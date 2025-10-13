@@ -1,0 +1,1239 @@
+{
+    "machine_info": {
+        "node": "r102n54",
+        "processor": "x86_64",
+        "machine": "x86_64",
+        "python_compiler": "GCC 8.5.0 20210514 (Red Hat 8.5.0-18)",
+        "python_implementation": "CPython",
+        "python_implementation_version": "3.11.6",
+        "python_version": "3.11.6",
+        "python_build": [
+            "main",
+            "Jan  2 2024 12:32:21"
+        ],
+        "release": "4.18.0-477.27.1.el8_8.x86_64",
+        "system": "Linux",
+        "cpu": {
+            "python_version": "3.11.6.final.0 (64 bit)",
+            "cpuinfo_version": [
+                9,
+                0,
+                0
+            ],
+            "cpuinfo_version_string": "9.0.0",
+            "arch": "X86_64",
+            "bits": 64,
+            "count": 192,
+            "arch_string_raw": "x86_64",
+            "vendor_id_raw": "AuthenticAMD",
+            "brand_raw": "AMD EPYC 9654 96-Core Processor",
+            "hz_advertised_friendly": "3.6941 GHz",
+            "hz_actual_friendly": "3.6941 GHz",
+            "hz_advertised": [
+                3694147000,
+                0
+            ],
+            "hz_actual": [
+                3694147000,
+                0
+            ],
+            "stepping": 1,
+            "model": 17,
+            "family": 25,
+            "flags": [
+                "3dnowprefetch",
+                "abm",
+                "adx",
+                "aes",
+                "amd_ppin",
+                "aperfmperf",
+                "apic",
+                "arat",
+                "avic",
+                "avx",
+                "avx2",
+                "avx512_bf16",
+                "avx512_bitalg",
+                "avx512_vbmi2",
+                "avx512_vnni",
+                "avx512_vpopcntdq",
+                "avx512bw",
+                "avx512cd",
+                "avx512dq",
+                "avx512f",
+                "avx512ifma",
+                "avx512vbmi",
+                "avx512vl",
+                "bmi1",
+                "bmi2",
+                "bpext",
+                "cat_l3",
+                "cdp_l3",
+                "clflush",
+                "clflushopt",
+                "clwb",
+                "clzero",
+                "cmov",
+                "cmp_legacy",
+                "constant_tsc",
+                "cpb",
+                "cppc",
+                "cpuid",
+                "cqm",
+                "cqm_llc",
+                "cqm_mbm_local",
+                "cqm_mbm_total",
+                "cqm_occup_llc",
+                "cr8_legacy",
+                "cx16",
+                "cx8",
+                "de",
+                "decodeassists",
+                "erms",
+                "extapic",
+                "extd_apicid",
+                "f16c",
+                "flush_l1d",
+                "flushbyasid",
+                "fma",
+                "fpu",
+                "fsgsbase",
+                "fsrm",
+                "fxsr",
+                "fxsr_opt",
+                "gfni",
+                "ht",
+                "hw_pstate",
+                "ibpb",
+                "ibrs",
+                "ibs",
+                "invpcid",
+                "invpcid_single",
+                "irperf",
+                "la57",
+                "lahf_lm",
+                "lbrv",
+                "lm",
+                "mba",
+                "mca",
+                "mce",
+                "misalignsse",
+                "mmx",
+                "mmxext",
+                "monitor",
+                "movbe",
+                "msr",
+                "mtrr",
+                "mwaitx",
+                "nonstop_tsc",
+                "nopl",
+                "npt",
+                "nrip_save",
+                "nx",
+                "ospke",
+                "osvw",
+                "overflow_recov",
+                "pae",
+                "pat",
+                "pausefilter",
+                "pcid",
+                "pclmulqdq",
+                "pdpe1gb",
+                "perfctr_core",
+                "perfctr_llc",
+                "perfctr_nb",
+                "perfmon_v2",
+                "pfthreshold",
+                "pge",
+                "pku",
+                "pni",
+                "popcnt",
+                "pse",
+                "pse36",
+                "rdpid",
+                "rdrand",
+                "rdseed",
+                "rdt_a",
+                "rdtscp",
+                "rep_good",
+                "sep",
+                "sha_ni",
+                "skinit",
+                "smap",
+                "smca",
+                "smep",
+                "ssbd",
+                "sse",
+                "sse2",
+                "sse4_1",
+                "sse4_2",
+                "sse4a",
+                "ssse3",
+                "stibp",
+                "succor",
+                "svm",
+                "svm_lock",
+                "syscall",
+                "tce",
+                "topoext",
+                "tsc",
+                "tsc_scale",
+                "umip",
+                "v_spec_ctrl",
+                "v_vmsave_vmload",
+                "vaes",
+                "vgif",
+                "vmcb_clean",
+                "vme",
+                "vmmcall",
+                "vpclmulqdq",
+                "wbnoinvd",
+                "wdt",
+                "x2apic",
+                "xgetbv1",
+                "xsave",
+                "xsavec",
+                "xsaveerptr",
+                "xsaveopt",
+                "xsaves"
+            ],
+            "l3_cache_size": 1048576,
+            "l2_cache_size": 1048576,
+            "l1_data_cache_size": 32768,
+            "l1_instruction_cache_size": 32768
+        }
+    },
+    "commit_info": {
+        "id": "unknown",
+        "time": null,
+        "author_time": null,
+        "dirty": false,
+        "error": "FileNotFoundError(2, 'No such file or directory')",
+        "project": "FUnTiDES",
+        "branch": "(unknown)"
+    },
+    "benchmarks": [
+        {
+            "group": "COMPUTE_FE_INIT",
+            "name": "test_solver_fe_init[implem0-struct0]",
+            "fullname": "tests/benchmarks/python/test_solver_struct_bench.py::TestSolverStruct::test_solver_fe_init[implem0-struct0]",
+            "params": {
+                "implem": "UNSERIALIZABLE[<ImplemType.MAKUTU: 0>]",
+                "struct": [
+                    1,
+                    "UNSERIALIZABLE[<class 'pyproxys.model.CartesianStructBuilder_f32_i32_O1'>]",
+                    true
+                ]
+            },
+            "param": "implem0-struct0",
+            "extra_info": {},
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 10,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "warmup": false
+            },
+            "stats": {
+                "min": 0.005890803411602974,
+                "max": 0.007748568430542946,
+                "mean": 0.00596974883979607,
+                "stddev": 0.0002838401707738193,
+                "rounds": 124,
+                "median": 0.005913703702390194,
+                "iqr": 2.3190397769212723e-05,
+                "q1": 0.005905136000365019,
+                "q3": 0.005928326398134232,
+                "iqr_outliers": 8,
+                "stddev_outliers": 4,
+                "outliers": "4;8",
+                "ld15iqr": 0.005890803411602974,
+                "hd15iqr": 0.005964525043964386,
+                "ops": 167.51123486698657,
+                "total": 0.7402488561347127,
+                "iterations": 1
+            }
+        },
+        {
+            "group": "COMPUTE_FE_INIT",
+            "name": "test_solver_fe_init[implem0-struct1]",
+            "fullname": "tests/benchmarks/python/test_solver_struct_bench.py::TestSolverStruct::test_solver_fe_init[implem0-struct1]",
+            "params": {
+                "implem": "UNSERIALIZABLE[<ImplemType.MAKUTU: 0>]",
+                "struct": [
+                    1,
+                    "UNSERIALIZABLE[<class 'pyproxys.model.CartesianStructBuilder_f32_i32_O1'>]",
+                    false
+                ]
+            },
+            "param": "implem0-struct1",
+            "extra_info": {},
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 10,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "warmup": false
+            },
+            "stats": {
+                "min": 0.005892876535654068,
+                "max": 0.006367545574903488,
+                "mean": 0.005920326376023392,
+                "stddev": 3.817404957563031e-05,
+                "rounds": 168,
+                "median": 0.005914089269936085,
+                "iqr": 1.3661105185747147e-05,
+                "q1": 0.005907799117267132,
+                "q3": 0.005921460222452879,
+                "iqr_outliers": 15,
+                "stddev_outliers": 6,
+                "outliers": "6;15",
+                "ld15iqr": 0.005892876535654068,
+                "hd15iqr": 0.005944325588643551,
+                "ops": 168.90960674902644,
+                "total": 0.9946148311719298,
+                "iterations": 1
+            }
+        },
+        {
+            "group": "COMPUTE_FE_INIT",
+            "name": "test_solver_fe_init[implem0-struct2]",
+            "fullname": "tests/benchmarks/python/test_solver_struct_bench.py::TestSolverStruct::test_solver_fe_init[implem0-struct2]",
+            "params": {
+                "implem": "UNSERIALIZABLE[<ImplemType.MAKUTU: 0>]",
+                "struct": [
+                    2,
+                    "UNSERIALIZABLE[<class 'pyproxys.model.CartesianStructBuilder_f32_i32_O2'>]",
+                    true
+                ]
+            },
+            "param": "implem0-struct2",
+            "extra_info": {},
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 10,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "warmup": false
+            },
+            "stats": {
+                "min": 0.05240992736071348,
+                "max": 0.058319419622421265,
+                "mean": 0.05378392224924432,
+                "stddev": 0.002153946699945307,
+                "rounds": 18,
+                "median": 0.05251058470457792,
+                "iqr": 0.0020448481664061546,
+                "q1": 0.05245687812566757,
+                "q3": 0.05450172629207373,
+                "iqr_outliers": 2,
+                "stddev_outliers": 3,
+                "outliers": "3;2",
+                "ld15iqr": 0.05240992736071348,
+                "hd15iqr": 0.058260499499738216,
+                "ops": 18.59291695696385,
+                "total": 0.9681106004863977,
+                "iterations": 1
+            }
+        },
+        {
+            "group": "COMPUTE_FE_INIT",
+            "name": "test_solver_fe_init[implem0-struct3]",
+            "fullname": "tests/benchmarks/python/test_solver_struct_bench.py::TestSolverStruct::test_solver_fe_init[implem0-struct3]",
+            "params": {
+                "implem": "UNSERIALIZABLE[<ImplemType.MAKUTU: 0>]",
+                "struct": [
+                    2,
+                    "UNSERIALIZABLE[<class 'pyproxys.model.CartesianStructBuilder_f32_i32_O2'>]",
+                    false
+                ]
+            },
+            "param": "implem0-struct3",
+            "extra_info": {},
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 10,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "warmup": false
+            },
+            "stats": {
+                "min": 0.052374523133039474,
+                "max": 0.05256044398993254,
+                "mean": 0.052431117929518226,
+                "stddev": 4.309493479805184e-05,
+                "rounds": 20,
+                "median": 0.05242157960310578,
+                "iqr": 5.3029973059892654e-05,
+                "q1": 0.052400527987629175,
+                "q3": 0.05245355796068907,
+                "iqr_outliers": 1,
+                "stddev_outliers": 4,
+                "outliers": "4;1",
+                "ld15iqr": 0.052374523133039474,
+                "hd15iqr": 0.05256044398993254,
+                "ops": 19.07264310755826,
+                "total": 1.0486223585903645,
+                "iterations": 1
+            }
+        },
+        {
+            "group": "COMPUTE_FE_INIT",
+            "name": "test_solver_fe_init[implem0-struct4]",
+            "fullname": "tests/benchmarks/python/test_solver_struct_bench.py::TestSolverStruct::test_solver_fe_init[implem0-struct4]",
+            "params": {
+                "implem": "UNSERIALIZABLE[<ImplemType.MAKUTU: 0>]",
+                "struct": [
+                    3,
+                    "UNSERIALIZABLE[<class 'pyproxys.model.CartesianStructBuilder_f32_i32_O3'>]",
+                    true
+                ]
+            },
+            "param": "implem0-struct4",
+            "extra_info": {},
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 10,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "warmup": false
+            },
+            "stats": {
+                "min": 0.2078290730714798,
+                "max": 0.2083195960149169,
+                "mean": 0.20801003649830818,
+                "stddev": 0.0001573345103246192,
+                "rounds": 10,
+                "median": 0.2079797717742622,
+                "iqr": 0.00022086501121520996,
+                "q1": 0.20788764208555222,
+                "q3": 0.20810850709676743,
+                "iqr_outliers": 0,
+                "stddev_outliers": 3,
+                "outliers": "3;0",
+                "ld15iqr": 0.2078290730714798,
+                "hd15iqr": 0.2083195960149169,
+                "ops": 4.807460336213793,
+                "total": 2.080100364983082,
+                "iterations": 1
+            }
+        },
+        {
+            "group": "COMPUTE_FE_INIT",
+            "name": "test_solver_fe_init[implem0-struct5]",
+            "fullname": "tests/benchmarks/python/test_solver_struct_bench.py::TestSolverStruct::test_solver_fe_init[implem0-struct5]",
+            "params": {
+                "implem": "UNSERIALIZABLE[<ImplemType.MAKUTU: 0>]",
+                "struct": [
+                    3,
+                    "UNSERIALIZABLE[<class 'pyproxys.model.CartesianStructBuilder_f32_i32_O3'>]",
+                    false
+                ]
+            },
+            "param": "implem0-struct5",
+            "extra_info": {},
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 10,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "warmup": false
+            },
+            "stats": {
+                "min": 0.20765424892306328,
+                "max": 0.20818193815648556,
+                "mean": 0.20782398097217084,
+                "stddev": 0.00018363713793098445,
+                "rounds": 10,
+                "median": 0.20776308421045542,
+                "iqr": 0.00027415528893470764,
+                "q1": 0.20767255686223507,
+                "q3": 0.20794671215116978,
+                "iqr_outliers": 0,
+                "stddev_outliers": 2,
+                "outliers": "2;0",
+                "ld15iqr": 0.20765424892306328,
+                "hd15iqr": 0.20818193815648556,
+                "ops": 4.811764240691296,
+                "total": 2.0782398097217083,
+                "iterations": 1
+            }
+        },
+        {
+            "group": "COMPUTE_ONE_STEP",
+            "name": "test_solver_one_step[implem0-struct0]",
+            "fullname": "tests/benchmarks/python/test_solver_struct_bench.py::TestSolverStruct::test_solver_one_step[implem0-struct0]",
+            "params": {
+                "implem": "UNSERIALIZABLE[<ImplemType.MAKUTU: 0>]",
+                "struct": [
+                    1,
+                    "UNSERIALIZABLE[<class 'pyproxys.model.CartesianStructBuilder_f32_i32_O1'>]",
+                    true
+                ]
+            },
+            "param": "implem0-struct0",
+            "extra_info": {},
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 10,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "warmup": false
+            },
+            "stats": {
+                "min": 0.0514203580096364,
+                "max": 0.0515888724476099,
+                "mean": 0.05146730905398726,
+                "stddev": 4.010471449383038e-05,
+                "rounds": 20,
+                "median": 0.05146186053752899,
+                "iqr": 4.9884896725416183e-05,
+                "q1": 0.051436797715723515,
+                "q3": 0.05148668261244893,
+                "iqr_outliers": 1,
+                "stddev_outliers": 6,
+                "outliers": "6;1",
+                "ld15iqr": 0.0514203580096364,
+                "hd15iqr": 0.0515888724476099,
+                "ops": 19.429809297996087,
+                "total": 1.0293461810797453,
+                "iterations": 1
+            }
+        },
+        {
+            "group": "COMPUTE_ONE_STEP",
+            "name": "test_solver_one_step[implem0-struct1]",
+            "fullname": "tests/benchmarks/python/test_solver_struct_bench.py::TestSolverStruct::test_solver_one_step[implem0-struct1]",
+            "params": {
+                "implem": "UNSERIALIZABLE[<ImplemType.MAKUTU: 0>]",
+                "struct": [
+                    1,
+                    "UNSERIALIZABLE[<class 'pyproxys.model.CartesianStructBuilder_f32_i32_O1'>]",
+                    false
+                ]
+            },
+            "param": "implem0-struct1",
+            "extra_info": {},
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 10,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "warmup": false
+            },
+            "stats": {
+                "min": 0.051396711729466915,
+                "max": 0.051654381677508354,
+                "mean": 0.05145447328686714,
+                "stddev": 5.608570416946463e-05,
+                "rounds": 20,
+                "median": 0.05144379334524274,
+                "iqr": 2.6954803615808487e-05,
+                "q1": 0.05142369819805026,
+                "q3": 0.05145065300166607,
+                "iqr_outliers": 3,
+                "stddev_outliers": 4,
+                "outliers": "4;3",
+                "ld15iqr": 0.051396711729466915,
+                "hd15iqr": 0.05151401925832033,
+                "ops": 19.434656233381997,
+                "total": 1.0290894657373428,
+                "iterations": 1
+            }
+        },
+        {
+            "group": "COMPUTE_ONE_STEP",
+            "name": "test_solver_one_step[implem0-struct2]",
+            "fullname": "tests/benchmarks/python/test_solver_struct_bench.py::TestSolverStruct::test_solver_one_step[implem0-struct2]",
+            "params": {
+                "implem": "UNSERIALIZABLE[<ImplemType.MAKUTU: 0>]",
+                "struct": [
+                    2,
+                    "UNSERIALIZABLE[<class 'pyproxys.model.CartesianStructBuilder_f32_i32_O2'>]",
+                    true
+                ]
+            },
+            "param": "implem0-struct2",
+            "extra_info": {},
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 10,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "warmup": false
+            },
+            "stats": {
+                "min": 0.2782321274280548,
+                "max": 0.27872919104993343,
+                "mean": 0.27846484649926423,
+                "stddev": 0.00017156318755988568,
+                "rounds": 10,
+                "median": 0.2784376093186438,
+                "iqr": 0.0002465527504682541,
+                "q1": 0.27833974082022905,
+                "q3": 0.2785862935706973,
+                "iqr_outliers": 0,
+                "stddev_outliers": 4,
+                "outliers": "4;0",
+                "ld15iqr": 0.2782321274280548,
+                "hd15iqr": 0.27872919104993343,
+                "ops": 3.591117559618579,
+                "total": 2.7846484649926424,
+                "iterations": 1
+            }
+        },
+        {
+            "group": "COMPUTE_ONE_STEP",
+            "name": "test_solver_one_step[implem0-struct3]",
+            "fullname": "tests/benchmarks/python/test_solver_struct_bench.py::TestSolverStruct::test_solver_one_step[implem0-struct3]",
+            "params": {
+                "implem": "UNSERIALIZABLE[<ImplemType.MAKUTU: 0>]",
+                "struct": [
+                    2,
+                    "UNSERIALIZABLE[<class 'pyproxys.model.CartesianStructBuilder_f32_i32_O2'>]",
+                    false
+                ]
+            },
+            "param": "implem0-struct3",
+            "extra_info": {},
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 10,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "warmup": false
+            },
+            "stats": {
+                "min": 0.27798991184681654,
+                "max": 0.27850417979061604,
+                "mean": 0.2781853944994509,
+                "stddev": 0.0001486335174028251,
+                "rounds": 10,
+                "median": 0.2781825130805373,
+                "iqr": 0.0001554759219288826,
+                "q1": 0.27809423953294754,
+                "q3": 0.2782497154548764,
+                "iqr_outliers": 1,
+                "stddev_outliers": 3,
+                "outliers": "3;1",
+                "ld15iqr": 0.27798991184681654,
+                "hd15iqr": 0.27850417979061604,
+                "ops": 3.5947250278877374,
+                "total": 2.781853944994509,
+                "iterations": 1
+            }
+        },
+        {
+            "group": "COMPUTE_ONE_STEP",
+            "name": "test_solver_one_step[implem0-struct4]",
+            "fullname": "tests/benchmarks/python/test_solver_struct_bench.py::TestSolverStruct::test_solver_one_step[implem0-struct4]",
+            "params": {
+                "implem": "UNSERIALIZABLE[<ImplemType.MAKUTU: 0>]",
+                "struct": [
+                    3,
+                    "UNSERIALIZABLE[<class 'pyproxys.model.CartesianStructBuilder_f32_i32_O3'>]",
+                    true
+                ]
+            },
+            "param": "implem0-struct4",
+            "extra_info": {},
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 10,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "warmup": false
+            },
+            "stats": {
+                "min": 0.8537289164960384,
+                "max": 0.855164822191,
+                "mean": 0.8544977454468607,
+                "stddev": 0.00041868704049472254,
+                "rounds": 10,
+                "median": 0.8544655828736722,
+                "iqr": 0.0005254168063402176,
+                "q1": 0.8542815940454602,
+                "q3": 0.8548070108518004,
+                "iqr_outliers": 0,
+                "stddev_outliers": 3,
+                "outliers": "3;0",
+                "ld15iqr": 0.8537289164960384,
+                "hd15iqr": 0.855164822191,
+                "ops": 1.1702781023454294,
+                "total": 8.544977454468608,
+                "iterations": 1
+            }
+        },
+        {
+            "group": "COMPUTE_ONE_STEP",
+            "name": "test_solver_one_step[implem0-struct5]",
+            "fullname": "tests/benchmarks/python/test_solver_struct_bench.py::TestSolverStruct::test_solver_one_step[implem0-struct5]",
+            "params": {
+                "implem": "UNSERIALIZABLE[<ImplemType.MAKUTU: 0>]",
+                "struct": [
+                    3,
+                    "UNSERIALIZABLE[<class 'pyproxys.model.CartesianStructBuilder_f32_i32_O3'>]",
+                    false
+                ]
+            },
+            "param": "implem0-struct5",
+            "extra_info": {},
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 10,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "warmup": false
+            },
+            "stats": {
+                "min": 0.8539972640573978,
+                "max": 0.8551863050088286,
+                "mean": 0.8546100011095404,
+                "stddev": 0.0003288834282019824,
+                "rounds": 10,
+                "median": 0.8545911586843431,
+                "iqr": 0.0004421984776854515,
+                "q1": 0.8544149771332741,
+                "q3": 0.8548571756109595,
+                "iqr_outliers": 0,
+                "stddev_outliers": 2,
+                "outliers": "2;0",
+                "ld15iqr": 0.8539972640573978,
+                "hd15iqr": 0.8551863050088286,
+                "ops": 1.17012438270287,
+                "total": 8.546100011095405,
+                "iterations": 1
+            }
+        },
+        {
+            "group": "COMPUTE_FE_INIT",
+            "name": "test_solver_fe_init[implem0-unstruct0]",
+            "fullname": "tests/benchmarks/python/test_solver_unstruct_bench.py::TestSolverUnstruct::test_solver_fe_init[implem0-unstruct0]",
+            "params": {
+                "implem": "UNSERIALIZABLE[<ImplemType.MAKUTU: 0>]",
+                "unstruct": [
+                    1,
+                    "UNSERIALIZABLE[<class 'pyproxys.model.CartesianParams_f32_i32'>]",
+                    "UNSERIALIZABLE[<class 'pyproxys.model.CartesianUnstructBuilder_f32_i32'>]",
+                    true
+                ]
+            },
+            "param": "implem0-unstruct0",
+            "extra_info": {},
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 10,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "warmup": false
+            },
+            "stats": {
+                "min": 0.0028046490624547005,
+                "max": 0.0030893906950950623,
+                "mean": 0.0028265706254832516,
+                "stddev": 3.9799016389040654e-05,
+                "rounds": 323,
+                "median": 0.0028183888643980026,
+                "iqr": 1.3805925846099854e-05,
+                "q1": 0.0028127708937972784,
+                "q3": 0.0028265768196433783,
+                "iqr_outliers": 12,
+                "stddev_outliers": 10,
+                "outliers": "10;12",
+                "ld15iqr": 0.0028046490624547005,
+                "hd15iqr": 0.0028477441519498825,
+                "ops": 353.78560542036075,
+                "total": 0.9129823120310903,
+                "iterations": 1
+            }
+        },
+        {
+            "group": "COMPUTE_FE_INIT",
+            "name": "test_solver_fe_init[implem0-unstruct1]",
+            "fullname": "tests/benchmarks/python/test_solver_unstruct_bench.py::TestSolverUnstruct::test_solver_fe_init[implem0-unstruct1]",
+            "params": {
+                "implem": "UNSERIALIZABLE[<ImplemType.MAKUTU: 0>]",
+                "unstruct": [
+                    1,
+                    "UNSERIALIZABLE[<class 'pyproxys.model.CartesianParams_f32_i32'>]",
+                    "UNSERIALIZABLE[<class 'pyproxys.model.CartesianUnstructBuilder_f32_i32'>]",
+                    false
+                ]
+            },
+            "param": "implem0-unstruct1",
+            "extra_info": {},
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 10,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "warmup": false
+            },
+            "stats": {
+                "min": 0.0028029372915625572,
+                "max": 0.003029518760740757,
+                "mean": 0.0028199193274494726,
+                "stddev": 2.478012780414983e-05,
+                "rounds": 329,
+                "median": 0.0028152456507086754,
+                "iqr": 1.3443175703287125e-05,
+                "q1": 0.0028092358261346817,
+                "q3": 0.002822679001837969,
+                "iqr_outliers": 10,
+                "stddev_outliers": 8,
+                "outliers": "8;10",
+                "ld15iqr": 0.0028029372915625572,
+                "hd15iqr": 0.0028435280546545982,
+                "ops": 354.62007379639056,
+                "total": 0.9277534587308764,
+                "iterations": 1
+            }
+        },
+        {
+            "group": "COMPUTE_FE_INIT",
+            "name": "test_solver_fe_init[implem0-unstruct2]",
+            "fullname": "tests/benchmarks/python/test_solver_unstruct_bench.py::TestSolverUnstruct::test_solver_fe_init[implem0-unstruct2]",
+            "params": {
+                "implem": "UNSERIALIZABLE[<ImplemType.MAKUTU: 0>]",
+                "unstruct": [
+                    2,
+                    "UNSERIALIZABLE[<class 'pyproxys.model.CartesianParams_f32_i32'>]",
+                    "UNSERIALIZABLE[<class 'pyproxys.model.CartesianUnstructBuilder_f32_i32'>]",
+                    true
+                ]
+            },
+            "param": "implem0-unstruct2",
+            "extra_info": {},
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 10,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "warmup": false
+            },
+            "stats": {
+                "min": 0.024204217828810215,
+                "max": 0.02981400489807129,
+                "mean": 0.024686182136921322,
+                "stddev": 0.0011900295286809846,
+                "rounds": 34,
+                "median": 0.02426168927922845,
+                "iqr": 8.774362504482269e-05,
+                "q1": 0.02423024643212557,
+                "q3": 0.02431799005717039,
+                "iqr_outliers": 5,
+                "stddev_outliers": 5,
+                "outliers": "5;5",
+                "ld15iqr": 0.024204217828810215,
+                "hd15iqr": 0.026039238087832928,
+                "ops": 40.508491529938645,
+                "total": 0.8393301926553249,
+                "iterations": 1
+            }
+        },
+        {
+            "group": "COMPUTE_FE_INIT",
+            "name": "test_solver_fe_init[implem0-unstruct3]",
+            "fullname": "tests/benchmarks/python/test_solver_unstruct_bench.py::TestSolverUnstruct::test_solver_fe_init[implem0-unstruct3]",
+            "params": {
+                "implem": "UNSERIALIZABLE[<ImplemType.MAKUTU: 0>]",
+                "unstruct": [
+                    2,
+                    "UNSERIALIZABLE[<class 'pyproxys.model.CartesianParams_f32_i32'>]",
+                    "UNSERIALIZABLE[<class 'pyproxys.model.CartesianUnstructBuilder_f32_i32'>]",
+                    false
+                ]
+            },
+            "param": "implem0-unstruct3",
+            "extra_info": {},
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 10,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "warmup": false
+            },
+            "stats": {
+                "min": 0.024193081073462963,
+                "max": 0.028143014758825302,
+                "mean": 0.02457501506432891,
+                "stddev": 0.0009036211333725187,
+                "rounds": 42,
+                "median": 0.02426469884812832,
+                "iqr": 7.759686559438705e-05,
+                "q1": 0.024234564043581486,
+                "q3": 0.024312160909175873,
+                "iqr_outliers": 5,
+                "stddev_outliers": 5,
+                "outliers": "5;5",
+                "ld15iqr": 0.024193081073462963,
+                "hd15iqr": 0.026078857481479645,
+                "ops": 40.69173497482484,
+                "total": 1.0321506327018142,
+                "iterations": 1
+            }
+        },
+        {
+            "group": "COMPUTE_FE_INIT",
+            "name": "test_solver_fe_init[implem0-unstruct4]",
+            "fullname": "tests/benchmarks/python/test_solver_unstruct_bench.py::TestSolverUnstruct::test_solver_fe_init[implem0-unstruct4]",
+            "params": {
+                "implem": "UNSERIALIZABLE[<ImplemType.MAKUTU: 0>]",
+                "unstruct": [
+                    3,
+                    "UNSERIALIZABLE[<class 'pyproxys.model.CartesianParams_f32_i32'>]",
+                    "UNSERIALIZABLE[<class 'pyproxys.model.CartesianUnstructBuilder_f32_i32'>]",
+                    true
+                ]
+            },
+            "param": "implem0-unstruct4",
+            "extra_info": {},
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 10,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "warmup": false
+            },
+            "stats": {
+                "min": 0.09980288334190845,
+                "max": 0.09998211450874805,
+                "mean": 0.09988282206044956,
+                "stddev": 5.2486610848411816e-05,
+                "rounds": 11,
+                "median": 0.0998950619250536,
+                "iqr": 6.192573346197605e-05,
+                "q1": 0.09984911535866559,
+                "q3": 0.09991104109212756,
+                "iqr_outliers": 0,
+                "stddev_outliers": 3,
+                "outliers": "3;0",
+                "ld15iqr": 0.09980288334190845,
+                "hd15iqr": 0.09998211450874805,
+                "ops": 10.011731540732752,
+                "total": 1.0987110426649451,
+                "iterations": 1
+            }
+        },
+        {
+            "group": "COMPUTE_FE_INIT",
+            "name": "test_solver_fe_init[implem0-unstruct5]",
+            "fullname": "tests/benchmarks/python/test_solver_unstruct_bench.py::TestSolverUnstruct::test_solver_fe_init[implem0-unstruct5]",
+            "params": {
+                "implem": "UNSERIALIZABLE[<ImplemType.MAKUTU: 0>]",
+                "unstruct": [
+                    3,
+                    "UNSERIALIZABLE[<class 'pyproxys.model.CartesianParams_f32_i32'>]",
+                    "UNSERIALIZABLE[<class 'pyproxys.model.CartesianUnstructBuilder_f32_i32'>]",
+                    false
+                ]
+            },
+            "param": "implem0-unstruct5",
+            "extra_info": {},
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 10,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "warmup": false
+            },
+            "stats": {
+                "min": 0.09959218371659517,
+                "max": 0.09983745496720076,
+                "mean": 0.09967755746435035,
+                "stddev": 6.825664592058176e-05,
+                "rounds": 11,
+                "median": 0.09966745879501104,
+                "iqr": 6.501050665974617e-05,
+                "q1": 0.09962899959646165,
+                "q3": 0.0996940101031214,
+                "iqr_outliers": 1,
+                "stddev_outliers": 3,
+                "outliers": "3;1",
+                "ld15iqr": 0.09959218371659517,
+                "hd15iqr": 0.09983745496720076,
+                "ops": 10.032348559079105,
+                "total": 1.096453132107854,
+                "iterations": 1
+            }
+        },
+        {
+            "group": "COMPUTE_ONE_STEP",
+            "name": "test_solver_one_step[implem0-unstruct0]",
+            "fullname": "tests/benchmarks/python/test_solver_unstruct_bench.py::TestSolverUnstruct::test_solver_one_step[implem0-unstruct0]",
+            "params": {
+                "implem": "UNSERIALIZABLE[<ImplemType.MAKUTU: 0>]",
+                "unstruct": [
+                    1,
+                    "UNSERIALIZABLE[<class 'pyproxys.model.CartesianParams_f32_i32'>]",
+                    "UNSERIALIZABLE[<class 'pyproxys.model.CartesianUnstructBuilder_f32_i32'>]",
+                    true
+                ]
+            },
+            "param": "implem0-unstruct0",
+            "extra_info": {},
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 10,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "warmup": false
+            },
+            "stats": {
+                "min": 0.05552340392023325,
+                "max": 0.055673801340162754,
+                "mean": 0.0556069231695599,
+                "stddev": 3.519807561871814e-05,
+                "rounds": 18,
+                "median": 0.05560672469437122,
+                "iqr": 2.5237910449504852e-05,
+                "q1": 0.05559629388153553,
+                "q3": 0.055621531791985035,
+                "iqr_outliers": 2,
+                "stddev_outliers": 7,
+                "outliers": "7;2",
+                "ld15iqr": 0.055570284835994244,
+                "hd15iqr": 0.055673801340162754,
+                "ops": 17.98337226734774,
+                "total": 1.0009246170520782,
+                "iterations": 1
+            }
+        },
+        {
+            "group": "COMPUTE_ONE_STEP",
+            "name": "test_solver_one_step[implem0-unstruct1]",
+            "fullname": "tests/benchmarks/python/test_solver_unstruct_bench.py::TestSolverUnstruct::test_solver_one_step[implem0-unstruct1]",
+            "params": {
+                "implem": "UNSERIALIZABLE[<ImplemType.MAKUTU: 0>]",
+                "unstruct": [
+                    1,
+                    "UNSERIALIZABLE[<class 'pyproxys.model.CartesianParams_f32_i32'>]",
+                    "UNSERIALIZABLE[<class 'pyproxys.model.CartesianUnstructBuilder_f32_i32'>]",
+                    false
+                ]
+            },
+            "param": "implem0-unstruct1",
+            "extra_info": {},
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 10,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "warmup": false
+            },
+            "stats": {
+                "min": 0.05521124042570591,
+                "max": 0.055355438962578773,
+                "mean": 0.05524273770616243,
+                "stddev": 3.284256100680472e-05,
+                "rounds": 19,
+                "median": 0.05523212254047394,
+                "iqr": 2.8313370421528816e-05,
+                "q1": 0.055225759744644165,
+                "q3": 0.055254073115065694,
+                "iqr_outliers": 1,
+                "stddev_outliers": 2,
+                "outliers": "2;1",
+                "ld15iqr": 0.05521124042570591,
+                "hd15iqr": 0.055355438962578773,
+                "ops": 18.101926905198404,
+                "total": 1.0496120164170861,
+                "iterations": 1
+            }
+        },
+        {
+            "group": "COMPUTE_ONE_STEP",
+            "name": "test_solver_one_step[implem0-unstruct2]",
+            "fullname": "tests/benchmarks/python/test_solver_unstruct_bench.py::TestSolverUnstruct::test_solver_one_step[implem0-unstruct2]",
+            "params": {
+                "implem": "UNSERIALIZABLE[<ImplemType.MAKUTU: 0>]",
+                "unstruct": [
+                    2,
+                    "UNSERIALIZABLE[<class 'pyproxys.model.CartesianParams_f32_i32'>]",
+                    "UNSERIALIZABLE[<class 'pyproxys.model.CartesianUnstructBuilder_f32_i32'>]",
+                    true
+                ]
+            },
+            "param": "implem0-unstruct2",
+            "extra_info": {},
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 10,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "warmup": false
+            },
+            "stats": {
+                "min": 0.3021005168557167,
+                "max": 0.30288002733141184,
+                "mean": 0.302341281529516,
+                "stddev": 0.00023595516257071003,
+                "rounds": 10,
+                "median": 0.30229059467092156,
+                "iqr": 0.000318402424454689,
+                "q1": 0.3021693108603358,
+                "q3": 0.3024877132847905,
+                "iqr_outliers": 0,
+                "stddev_outliers": 2,
+                "outliers": "2;0",
+                "ld15iqr": 0.3021005168557167,
+                "hd15iqr": 0.30288002733141184,
+                "ops": 3.3075205441383804,
+                "total": 3.02341281529516,
+                "iterations": 1
+            }
+        },
+        {
+            "group": "COMPUTE_ONE_STEP",
+            "name": "test_solver_one_step[implem0-unstruct3]",
+            "fullname": "tests/benchmarks/python/test_solver_unstruct_bench.py::TestSolverUnstruct::test_solver_one_step[implem0-unstruct3]",
+            "params": {
+                "implem": "UNSERIALIZABLE[<ImplemType.MAKUTU: 0>]",
+                "unstruct": [
+                    2,
+                    "UNSERIALIZABLE[<class 'pyproxys.model.CartesianParams_f32_i32'>]",
+                    "UNSERIALIZABLE[<class 'pyproxys.model.CartesianUnstructBuilder_f32_i32'>]",
+                    false
+                ]
+            },
+            "param": "implem0-unstruct3",
+            "extra_info": {},
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 10,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "warmup": false
+            },
+            "stats": {
+                "min": 0.2955908142030239,
+                "max": 0.2962150005623698,
+                "mean": 0.29575653094798326,
+                "stddev": 0.00020527353166175513,
+                "rounds": 10,
+                "median": 0.29569901851937175,
+                "iqr": 0.00013545434921979904,
+                "q1": 0.2956208912655711,
+                "q3": 0.2957563456147909,
+                "iqr_outliers": 2,
+                "stddev_outliers": 2,
+                "outliers": "2;2",
+                "ld15iqr": 0.2955908142030239,
+                "hd15iqr": 0.2960287379100919,
+                "ops": 3.3811594854548686,
+                "total": 2.9575653094798326,
+                "iterations": 1
+            }
+        },
+        {
+            "group": "COMPUTE_ONE_STEP",
+            "name": "test_solver_one_step[implem0-unstruct4]",
+            "fullname": "tests/benchmarks/python/test_solver_unstruct_bench.py::TestSolverUnstruct::test_solver_one_step[implem0-unstruct4]",
+            "params": {
+                "implem": "UNSERIALIZABLE[<ImplemType.MAKUTU: 0>]",
+                "unstruct": [
+                    3,
+                    "UNSERIALIZABLE[<class 'pyproxys.model.CartesianParams_f32_i32'>]",
+                    "UNSERIALIZABLE[<class 'pyproxys.model.CartesianUnstructBuilder_f32_i32'>]",
+                    true
+                ]
+            },
+            "param": "implem0-unstruct4",
+            "extra_info": {},
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 10,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "warmup": false
+            },
+            "stats": {
+                "min": 0.9496407201513648,
+                "max": 0.9507174361497164,
+                "mean": 0.9499504423700273,
+                "stddev": 0.0003389423917673571,
+                "rounds": 10,
+                "median": 0.9498324454762042,
+                "iqr": 0.0004485584795475006,
+                "q1": 0.9496804298833013,
+                "q3": 0.9501289883628488,
+                "iqr_outliers": 0,
+                "stddev_outliers": 1,
+                "outliers": "1;0",
+                "ld15iqr": 0.9496407201513648,
+                "hd15iqr": 0.9507174361497164,
+                "ops": 1.052686493313382,
+                "total": 9.499504423700273,
+                "iterations": 1
+            }
+        },
+        {
+            "group": "COMPUTE_ONE_STEP",
+            "name": "test_solver_one_step[implem0-unstruct5]",
+            "fullname": "tests/benchmarks/python/test_solver_unstruct_bench.py::TestSolverUnstruct::test_solver_one_step[implem0-unstruct5]",
+            "params": {
+                "implem": "UNSERIALIZABLE[<ImplemType.MAKUTU: 0>]",
+                "unstruct": [
+                    3,
+                    "UNSERIALIZABLE[<class 'pyproxys.model.CartesianParams_f32_i32'>]",
+                    "UNSERIALIZABLE[<class 'pyproxys.model.CartesianUnstructBuilder_f32_i32'>]",
+                    false
+                ]
+            },
+            "param": "implem0-unstruct5",
+            "extra_info": {},
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 10,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "warmup": false
+            },
+            "stats": {
+                "min": 0.9492617351934314,
+                "max": 0.9536776961758733,
+                "mean": 0.9504735765047372,
+                "stddev": 0.001278883950091563,
+                "rounds": 10,
+                "median": 0.9500184021890163,
+                "iqr": 0.00135018490254879,
+                "q1": 0.9496796289458871,
+                "q3": 0.9510298138484359,
+                "iqr_outliers": 1,
+                "stddev_outliers": 1,
+                "outliers": "1;1",
+                "ld15iqr": 0.9492617351934314,
+                "hd15iqr": 0.9536776961758733,
+                "ops": 1.0521071018906079,
+                "total": 9.504735765047371,
+                "iterations": 1
+            }
+        }
+    ],
+    "datetime": "2025-10-10T11:55:32.270444+00:00",
+    "version": "5.1.0"
+}

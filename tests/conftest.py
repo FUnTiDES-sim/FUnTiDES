@@ -1,14 +1,25 @@
-import kokkos
 import os
+import kokkos
 
 
-# Avoid using the entire developer node for tests
-os.environ.setdefault("OMP_NUM_THREADS", "6")
-os.environ.setdefault("OMP_THREAD_LIMIT", "6")
-os.environ.setdefault("KOKKOS_NUM_THREADS", "6")
+def pytest_addoption(parser):
+    parser.addoption(
+        "--threads",
+        type=int,
+        default=6,
+        help="Number of Kokkos threads (sets KOKKOS_NUM_THREADS / OMP_NUM_THREADS / OMP_THREAD_LIMIT before kokkos.initialize())"
+    )
+
+
+def _set_thread_env(n: int):
+    v = str(n)
+    for var in ("KOKKOS_NUM_THREADS", "OMP_NUM_THREADS", "OMP_THREAD_LIMIT"):
+        os.environ[var] = v
 
 
 def pytest_sessionstart(session):
+    n = session.config.getoption("--threads")
+    _set_thread_env(n)
     kokkos.initialize()
 
 
