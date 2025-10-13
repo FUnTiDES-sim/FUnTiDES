@@ -18,7 +18,7 @@ jobs:
     runs-on: hpc-us
     strategy:
       matrix:
-        partition: [maple_mig] # TODO add cypres
+        partition: [maple_mig, cypress_dgx] # TODO add cypres
         #discretization: [fd, sem] TODO always build both
         discretization: [fd]
         #pywrap: [pywrap-on, pywrap-off] TODO activate python
@@ -44,7 +44,7 @@ jobs:
           submodules: recursive
 
       # FOR MAPLE
-      - name: Submit Slurm matrix job
+      - name: Submit Slurm H200
         if: ${{ matrix.partition != 'cypress_dgx' }}
         uses: ./.github/actions/slurm-submit
         env:
@@ -59,7 +59,7 @@ jobs:
             ./.github/scripts/build_and_test.sh
 
       # FOR CYPRESS
-      - name: Allocate Slurm session with salloc
+      - name: Allocate Slurm A100
         if: ${{ matrix.partition == 'cypress_dgx' }}
         uses: ./.github/actions/slurm-salloc
         env:
