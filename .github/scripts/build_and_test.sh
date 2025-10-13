@@ -1,5 +1,8 @@
 #!/usr/bin/env bash
 
+# Ensure the script fails on errors and undefined variables
+set -euo pipefail
+
 # Expects environment variables already exported:
 # SLURM_PARTITION, DISCRETIZATION, PYWRAP, PROGRAMMING_MODEL
 

@@ -12,9 +12,6 @@ inputs:
   gpus:
     required: false
     default: "1"
-  extra-salloc:
-    required: false
-    default: ""
   run-script:
     required: true
     description: Multi-line bash job executed inside the allocated session
@@ -23,21 +20,17 @@ runs:
   steps:
     - shell: bash
       run: |
+        # Create Slurm job script
         set -euo pipefail
 
-        echo "Preparing run script..."
         cat > job.sh <<'EOF'
-        set -euo pipefail
+        #!/bin/bash
         echo "Node: $(hostname)"
         echo "Start: $(date -Is)"
-        ${inputs.run-script}
-        STATUS=$?
-        echo "End: $(date -Is) (exit=$STATUS)"
-        exit $STATUS
         EOF
 
         cat >> job.sh <<'EOF'
-        ${inputs.run-script}
+        ${{ inputs.run-script }}
         EOF
 
         cat >> job.sh <<'EOF'

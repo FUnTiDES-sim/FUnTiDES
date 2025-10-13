@@ -30,6 +30,7 @@ runs:
       run: |
         # Create Slurm job script
         set -euo pipefail
+
         cat > job.slurm <<'EOF'
         #!/bin/bash
         #SBATCH -J ${{ inputs.job-name }}
@@ -42,7 +43,6 @@ runs:
         #SBATCH --gres=gpu:${{ inputs.gpus }}
         ${{ inputs.extra-sbatch }}
 
-        set -euo pipefail
         echo "Node: $(hostname)"
         echo "Start: $(date -Is)"
         EOF
