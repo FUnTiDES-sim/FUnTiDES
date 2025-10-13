@@ -59,10 +59,18 @@ runs:
 
         echo "Submitting Slurm job..."
         cat job.slurm
+        
+        # Run sbatch without aborting early; capture exit code
+        set +e
         sbatch --wait job.slurm
+        SBATCH_STATUS=$?
+        set -e
 
         echo "Tail of output:"
         tail -n 200 slurm-*.out || true
 
         echo "Tail of error:"
         tail -n 200 slurm-*.err || true
+
+        # Propagate sbatch (job) exit code
+        exit $SBATCH_STATUS
