@@ -48,10 +48,10 @@ runs:
 
         # Run the script inside the allocated resources.
         # Use srun to ensure it executes on allocated node.
-        salloc -p cypress_dgx \
+        script -q -e -c "salloc -p cypress_dgx \
                -A co2su \
                --gres=gpu:${{ inputs.gpus }} \
                --time=${{ inputs.time }} \
                --cpus-per-task=${{ inputs.cpus }} \
                --job-name=${{ inputs.job-name }} \
-               srun job.sh
+               srun job.sh" /dev/null
