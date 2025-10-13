@@ -22,7 +22,7 @@ jobs:
         #discretization: [fd, sem] TODO always build both
         discretization: [fd]
         #pywrap: [pywrap-on, pywrap-off] TODO activate python
-        pywrap: [pywrap-on]
+        pywrap: [pywrap-off]
         #programming_model: [vector, kokkos] TODO activate vector
         programming_model: [kokkos]
         exclude:
