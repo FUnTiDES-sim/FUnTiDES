@@ -42,16 +42,24 @@ runs:
         chmod +x job.sh
 
         echo "Requesting allocation with salloc..."
-        echo "Command: salloc -p cypress_dgx -A co2su --gres=gpu:${{ inputs.gpus }} --time=${{ inputs.time }} --cpus-per-task=${{ inputs.cpus }} --job-name=${{ inputs.job-name }}"
+
+        # Build salloc command into an array to preserve arguments
+        cmd=(
+          salloc
+          -p cypress_dgx
+          -A co2su
+          --gres=gpu:${{ inputs.gpus }}
+          --time=${{ inputs.time }}
+          --cpus-per-task=${{ inputs.cpus }}
+          --job-name=${{ inputs.job-name }}
+          srun job.sh
+        )
+
+        echo -n "Command: "
+        printf '%q ' "${cmd[@]}"
+        echo
         echo "For run script:"
         cat job.sh
 
-        # Run the script inside the allocated resources.
-        # Use srun to ensure it executes on allocated node.
-        salloc -p cypress_dgx \
-               -A co2su \
-               --gres=gpu:${{ inputs.gpus }} \
-               --time=${{ inputs.time }} \
-               --cpus-per-task=${{ inputs.cpus }} \
-               --job-name=${{ inputs.job-name }} \
-               srun --pty bash job.sh
+        # Execute the command
+        "${cmd[@]}"
