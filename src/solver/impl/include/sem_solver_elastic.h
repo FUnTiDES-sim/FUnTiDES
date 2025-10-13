@@ -141,6 +141,14 @@ class SEMsolverElastic : public SEMSolverBase
   void resetGlobalVectors(int numNodes) override;
 
   /**
+   * @brief Compute the global mass matrix, accounting for the model.
+   *
+   * @param isModelOnNodes True if the velocity model is defined on nodes, false
+   *                       if on elements
+   */
+  void computeGlobalMassMatrix(bool isModelOnNodes) override;
+
+  /**
    * @brief Output displacement values at a specific time step.
    *
    * Typically used for recording seismograms or snapshots.
@@ -176,7 +184,6 @@ class SEMsolverElastic : public SEMSolverBase
                     const ARRAY_REAL_VIEW &rhsTermy,
                     const ARRAY_REAL_VIEW &rhsTermz,
                     const VECTOR_INT_VIEW &rhsElement,
-                    const ARRAY_REAL_VIEW &pnGlobal,
                     const ARRAY_REAL_VIEW &rhsWeights);
 
   /**

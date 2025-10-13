@@ -68,6 +68,7 @@ class SEMsolverAcoustic : public SEMSolverBase
   void allocateFEarrays() override;
   void initSpongeValues() override;
   void resetGlobalVectors(int numNodes) override;
+  void computeGlobalMassMatrix(bool isModelOnNodes) override;
 
   void outputPnValues(const int &indexTimeStep, int &i1,
                       int &myElementSource,

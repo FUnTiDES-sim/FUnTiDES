@@ -59,6 +59,14 @@ class SEMSolverBase : public SolverBase
    */
   virtual void resetGlobalVectors(int numNodes)=0;
 
+  /**
+   * @brief Compute the global mass matrix.
+   *  once at the beginning of the simulation.
+   * @param isModelOnNodes True if the velocity model is defined on nodes, false
+   *                       if on elements
+   */
+  virtual void computeGlobalMassMatrix(bool isModelOnNodes)=0;
+
 };
 
 #endif  // SEM_SOLVERBASE_HPP_
