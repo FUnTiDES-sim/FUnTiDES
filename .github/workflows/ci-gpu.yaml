@@ -18,7 +18,8 @@ jobs:
     runs-on: hpc-us
     strategy:
       matrix:
-        arch: [h200] # add cypress_dgx when ready
+        #arch: [h200, a100]
+        arch: [a100]
         #pywrap: [pywrap-on, pywrap-off] TODO activate python
         pywrap: [pywrap-off]
         #programming_model: [vector, kokkos] TODO activate vector
@@ -29,11 +30,14 @@ jobs:
         - programming_model: vector
           pywrap: pywrap-on
         
-        # Include head nodes
+        # Map arch to cluster
         include:
           - arch: h200
             partition: maple_mig
             head_node: maple-1
+
+          - arch: a100
+            partition: cypress_dgx
 
       max-parallel: 5
 
@@ -57,7 +61,7 @@ jobs:
           PYWRAP: ${{ matrix.pywrap }}
           PROGRAMMING_MODEL: ${{ matrix.programming_model }}
         with:
-          job-name: funtides-${{ matrix.partition }}-${{ matrix.pywrap }}-${{ matrix.programming_model }}
+          job-name: funtides-${{ matrix.pywrap }}-${{ matrix.programming_model }}
           head-node: ${{ matrix.head_node }}
           partition: ${{ matrix.partition }}
           run-script: |
@@ -68,10 +72,10 @@ jobs:
         if: ${{ matrix.partition == 'cypress_dgx' }}
         uses: ./.github/actions/slurm-salloc
         env:
-          SLURM_PARTITION: ${{ matrix.partition }}
           PYWRAP: ${{ matrix.pywrap }}
           PROGRAMMING_MODEL: ${{ matrix.programming_model }}
         with:
-          job-name: funtides-${{ matrix.partition }}-${{ matrix.pywrap }}-${{ matrix.programming_model }}
+          job-name: funtides-${{ matrix.pywrap }}-${{ matrix.programming_model }}
+          partition: ${{ matrix.partition }}
           run-script: |
             ./.github/scripts/build_and_test_gpu.sh
