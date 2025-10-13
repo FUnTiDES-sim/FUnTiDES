@@ -55,7 +55,7 @@ jobs:
         if: ${{ matrix.partition != 'cypress_dgx' }}
         uses: ./.github/actions/slurm-submit
         env:
-          SLURM_PARTITION: ${{ matrix.partition }}
+          RDHPC_PARTITION: ${{ matrix.partition }}
           PYWRAP: ${{ matrix.pywrap }}
           PROGRAMMING_MODEL: ${{ matrix.programming_model }}
         with:
@@ -70,6 +70,7 @@ jobs:
         if: ${{ matrix.partition == 'cypress_dgx' }}
         uses: ./.github/actions/slurm-salloc
         env:
+          RDHPC_PARTITION: ${{ matrix.partition }}
           PYWRAP: ${{ matrix.pywrap }}
           PROGRAMMING_MODEL: ${{ matrix.programming_model }}
         with:

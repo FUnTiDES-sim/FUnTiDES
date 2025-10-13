@@ -1,19 +1,22 @@
 #!/usr/bin/env bash
 
 # Ensure the script fails on errors and undefined variables
-#set -euo pipefail
+set -euo pipefail
 
 # Expects environment variables already exported:
-# SLURM_PARTITION, PYWRAP, PROGRAMMING_MODEL
+# RDHPC_PARTITION, PYWRAP, PROGRAMMING_MODEL
 
 echo "[build]"
-echo "  Partition      = $SLURM_PARTITION"
+echo "  Partition      = $RDHPC_PARTITION"
 echo "  Pywrap         = $PYWRAP"
 echo "  Model          = $PROGRAMMING_MODEL"
 
-if [[ "$SLURM_PARTITION" == "maple_mig" || "$SLURM_PARTITION" == "maple" ]]; then
+if [[ "$RDHPC_PARTITION" == "maple_mig" || "$RDHPC_PARTITION" == "maple" ]]; then
   source scripts/environments/env_Maple_GH200.sh
-  module list
+fi
+
+if [[ "$RDHPC_PARTITION" == "cypress_dgx" ]]; then
+  source scripts/environments/env_Cypress_DGXA100.sh
 fi
 
 if [[ "$PYWRAP" == "pywrap-on" ]]; then
