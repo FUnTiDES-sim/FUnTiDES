@@ -49,7 +49,7 @@ jobs:
           submodules: recursive
 
       # FOR MAPLE
-      - name: Submit Slurm H200
+      - name: Slurm Submit
         if: ${{ matrix.partition != 'cypress_dgx' }}
         uses: ./.github/actions/slurm-submit
         env:
@@ -64,7 +64,7 @@ jobs:
             ./.github/scripts/build_and_test_gpu.sh
 
       # FOR CYPRESS
-      - name: Allocate Slurm A100
+      - name: Slurm Allocate
         if: ${{ matrix.partition == 'cypress_dgx' }}
         uses: ./.github/actions/slurm-salloc
         env:
