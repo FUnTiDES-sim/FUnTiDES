@@ -18,6 +18,7 @@ jobs:
     runs-on: hpc-us
     strategy:
       matrix:
+        partition: [maple_mig] # TODO add cypres
         #discretization: [fd, sem] TODO always build both
         discretization: [fd]
         #pywrap: [pywrap-on, pywrap-off] TODO activate python
@@ -45,16 +46,18 @@ jobs:
       - name: Submit Slurm matrix job
         uses: ./.github/actions/slurm-submit
         with:
-          job-name: funtides-${{ matrix.discretization }}-${{ matrix.pywrap }}-${{ matrix.programming_model }}
-          partition: maple
+          job-name: funtides-${{ matrix.partition }}-${{ matrix.discretization }}-${{ matrix.pywrap }}-${{ matrix.programming_model }}
           run-script: |
             set -e
+            SLURM_PARTITION='${{ matrix.partition }}'
             DISCRETIZATION='${{ matrix.discretization }}'
             PYWRAP='${{ matrix.pywrap }}'
             PROGRAMMING_MODEL='${{ matrix.programming_model }}'
 
-            source scripts/env_Maple_GH200.sh
-            module list
+            if [[ "$SLURM_PARTITION" == "maple_mig" || "$SLURM_PARTITION" == "maple" ]]; then
+              source scripts/env_Maple_GH200.sh
+              module list
+            fi
 
             if [[ "$PYWRAP" == "pywrap-on" ]]; then
               python3 -m venv .venv
