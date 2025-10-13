@@ -63,3 +63,6 @@ runs:
 
         echo "Tail of output:"
         tail -n 200 slurm-*.out || true
+
+        echo "Tail of error:"
+        tail -n 200 slurm-*.err || true

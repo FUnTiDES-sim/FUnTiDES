@@ -1,0 +1,65 @@
+name: slurm-salloc
+description: Allocate an interactive Slurm session with salloc and run a script
+inputs:
+  job-name:
+    required: true
+  time:
+    required: false
+    default: 00:30:00
+  cpus:
+    required: false
+    default: "1"
+  gpus:
+    required: false
+    default: "1"
+  extra-salloc:
+    required: false
+    default: ""
+  run-script:
+    required: true
+    description: Multi-line bash job executed inside the allocated session
+runs:
+  using: composite
+  steps:
+    - shell: bash
+      run: |
+        set -euo pipefail
+
+        echo "Preparing run script..."
+        cat > job.sh <<'EOF'
+        set -euo pipefail
+        echo "Node: $(hostname)"
+        echo "Start: $(date -Is)"
+        ${inputs.run-script}
+        STATUS=$?
+        echo "End: $(date -Is) (exit=$STATUS)"
+        exit $STATUS
+        EOF
+
+        cat >> job.sh <<'EOF'
+        ${inputs.run-script}
+        EOF
+
+        cat >> job.sh <<'EOF'
+        STATUS=$?
+        echo "End: $(date -Is) (exit=$STATUS)"
+        exit $STATUS
+        EOF
+
+        chmod +x job.sh
+
+        echo "Requesting allocation with salloc..."
+        echo "Command: salloc -p cypress_dgx -A co2su --gres=gpu:${{ inputs.gpus }} --time=${{ inputs.time }} --cpus-per-task=${{ inputs.cpus }} --job-name=${{ inputs.job-name }} ${{ inputs.extra-salloc }}"
+        echo "For run script:"
+        cat job.sh
+
+        # Run the script inside the allocated resources.
+        # Use srun to ensure it executes on allocated node.
+        salloc -p cypress_dgx \
+               -A co2su \
+               --gres=gpu:${{ inputs.gpus }} \
+               --time=${{ inputs.time }} \
+               --cpus-per-task=${{ inputs.cpus }} \
+               --job-name=${{ inputs.job-name }} \
+               ${{ inputs.extra-salloc }} \
+               srun bash job.sh
