@@ -62,9 +62,18 @@ runs:
         echo "Submitting Slurm job..."
         cat job.slurm
 
-        # Run sbatch without aborting early; capture exit code
+        # Assume current directory is shared/visible on maple-1; submit directly there
         set +e
-        sbatch --wait job.slurm
+        REMOTE_HOST="maple-1"
+        LOCAL_DIR="$(pwd)"
+
+        if [ ! -f job.slurm ]; then
+          echo "job.slurm not found in ${LOCAL_DIR}"
+          exit 1
+        fi
+
+        echo "Submitting Slurm job on ${REMOTE_HOST} from shared dir ${LOCAL_DIR}..."
+        ssh -o BatchMode=yes "${REMOTE_HOST}" "cd '${LOCAL_DIR}' && sbatch --wait job.slurm"
         SBATCH_STATUS=$?
         set -e
 

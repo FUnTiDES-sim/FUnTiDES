@@ -18,7 +18,7 @@ jobs:
     runs-on: hpc-us
     strategy:
       matrix:
-        partition: [maple_mig, cypress_dgx] # TODO add cypres
+        partition: [maple_mig] #, cypress_dgx] # TODO add cypres
         #discretization: [fd, sem] TODO always build both
         discretization: [fd]
         #pywrap: [pywrap-on, pywrap-off] TODO activate python
