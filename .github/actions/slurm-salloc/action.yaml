@@ -20,6 +20,12 @@ runs:
   steps:
     - shell: bash
       run: |
+        # Source bashrc
+        if [ -f "~/.bashrc" ]; then
+          echo "Sourcing ~/.bashrc"
+          source "~/.bashrc"
+        fi
+
         # Create Slurm job script
         set -euo pipefail
 

@@ -12,11 +12,6 @@ echo "  Discretization = $DISCRETIZATION"
 echo "  Pywrap         = $PYWRAP"
 echo "  Model          = $PROGRAMMING_MODEL"
 
-if [ -f "${HOME}/.bashrc" ]; then
-  echo "Sourcing ${HOME}/.bashrc"
-  source "${HOME}/.bashrc"
-fi
-
 if [[ "$SLURM_PARTITION" == "maple_mig" || "$SLURM_PARTITION" == "maple" ]]; then
   source scripts/env_Maple_GH200.sh
   module list
