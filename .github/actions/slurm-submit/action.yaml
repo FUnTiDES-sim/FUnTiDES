@@ -17,9 +17,6 @@ inputs:
   gpus:
     required: false
     default: "1"
-  extra-sbatch:
-    required: false
-    default: ""
   run-script:
     required: true
     description: Multi-line bash payload executed inside the job
@@ -41,7 +38,6 @@ runs:
         #SBATCH -t ${{ inputs.time }}
         #SBATCH -c ${{ inputs.cpus }}
         #SBATCH --gres=gpu:${{ inputs.gpus }}
-        ${{ inputs.extra-sbatch }}
 
         echo "Node: $(hostname)"
         echo "Start: $(date -Is)"
@@ -59,7 +55,7 @@ runs:
 
         echo "Submitting Slurm job..."
         cat job.slurm
-        
+
         # Run sbatch without aborting early; capture exit code
         set +e
         sbatch --wait job.slurm

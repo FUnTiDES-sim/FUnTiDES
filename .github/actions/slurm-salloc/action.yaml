@@ -42,7 +42,7 @@ runs:
         chmod +x job.sh
 
         echo "Requesting allocation with salloc..."
-        echo "Command: salloc -p cypress_dgx -A co2su --gres=gpu:${{ inputs.gpus }} --time=${{ inputs.time }} --cpus-per-task=${{ inputs.cpus }} --job-name=${{ inputs.job-name }} ${{ inputs.extra-salloc }}"
+        echo "Command: salloc -p cypress_dgx -A co2su --gres=gpu:${{ inputs.gpus }} --time=${{ inputs.time }} --cpus-per-task=${{ inputs.cpus }} --job-name=${{ inputs.job-name }}"
         echo "For run script:"
         cat job.sh
 
