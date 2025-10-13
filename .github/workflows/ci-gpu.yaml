@@ -18,8 +18,6 @@ jobs:
     runs-on: hpc-us
     strategy:
       matrix:
-        #arch: [h200, a100]
-        arch: [a100]
         #pywrap: [pywrap-on, pywrap-off] TODO activate python
         pywrap: [pywrap-off]
         #programming_model: [vector, kokkos] TODO activate vector
@@ -32,9 +30,9 @@ jobs:
         
         # Map arch to cluster
         include:
-          - arch: h200
-            partition: maple_mig
-            head_node: maple-1
+          #- arch: h200
+          #  partition: maple_mig
+          #  head_node: maple-1
 
           - arch: a100
             partition: cypress_dgx
