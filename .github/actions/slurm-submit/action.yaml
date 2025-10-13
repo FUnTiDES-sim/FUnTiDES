@@ -73,10 +73,15 @@ runs:
         fi
 
         echo "Submitting Slurm job on ${REMOTE_HOST} from shared dir ${LOCAL_DIR}..."
-        ssh -o BatchMode=yes "${REMOTE_HOST}" "cd '${LOCAL_DIR}' && sbatch --wait job.slurm"
+        ssh -o BatchMode=yes "${REMOTE_HOST}" "cd '${LOCAL_DIR}' && \
+          export SLURM_PARTITION='${{ inputs.partition }}' && \
+          echo '  Partition      = '\"\$SLURM_PARTITION\" && \
+          echo '  Discretization = '\"\$DISCRETIZATION\" && \
+          echo '  Pywrap         = '\"\$PYWRAP\" && \
+          echo '  Model          = '\"\$PROGRAMMING_MODEL\" && \
+          sbatch --export=ALL,SLURM_PARTITION,DISCRETIZATION,PYWRAP,PROGRAMMING_MODEL --wait job.slurm"
         SBATCH_STATUS=$?
         set -e
-
         echo "Tail of output:"
         tail -n 200 slurm-*.out || true
 
