@@ -18,17 +18,22 @@ jobs:
     runs-on: hpc-us
     strategy:
       matrix:
-        partition: [maple_mig] #, cypress_dgx] # TODO add cypres
-        #discretization: [fd, sem] TODO always build both
-        discretization: [fd]
+        arch: [h200] # add cypress_dgx when ready
         #pywrap: [pywrap-on, pywrap-off] TODO activate python
         pywrap: [pywrap-off]
         #programming_model: [vector, kokkos] TODO activate vector
         programming_model: [kokkos]
-        exclude:
+
         # Exclude Vector + Python (wrappers use Kokkos)
+        exclude:
         - programming_model: vector
           pywrap: pywrap-on
+        
+        # Include head nodes
+        include:
+          - arch: h200
+            partition: maple_mig
+            head_node: maple-1
 
       max-parallel: 5
 
@@ -49,14 +54,14 @@ jobs:
         uses: ./.github/actions/slurm-submit
         env:
           SLURM_PARTITION: ${{ matrix.partition }}
-          DISCRETIZATION: ${{ matrix.discretization }}
           PYWRAP: ${{ matrix.pywrap }}
           PROGRAMMING_MODEL: ${{ matrix.programming_model }}
         with:
-          job-name: funtides-${{ matrix.partition }}-${{ matrix.discretization }}-${{ matrix.pywrap }}-${{ matrix.programming_model }}
+          job-name: funtides-${{ matrix.partition }}-${{ matrix.pywrap }}-${{ matrix.programming_model }}
+          head-node: ${{ matrix.head_node }}
           partition: ${{ matrix.partition }}
           run-script: |
-            ./.github/scripts/build_and_test.sh
+            ./.github/scripts/build_and_test_gpu.sh
 
       # FOR CYPRESS
       - name: Allocate Slurm A100
@@ -64,10 +69,9 @@ jobs:
         uses: ./.github/actions/slurm-salloc
         env:
           SLURM_PARTITION: ${{ matrix.partition }}
-          DISCRETIZATION: ${{ matrix.discretization }}
           PYWRAP: ${{ matrix.pywrap }}
           PROGRAMMING_MODEL: ${{ matrix.programming_model }}
         with:
-          job-name: funtides-${{ matrix.partition }}-${{ matrix.discretization }}-${{ matrix.pywrap }}-${{ matrix.programming_model }}
+          job-name: funtides-${{ matrix.partition }}-${{ matrix.pywrap }}-${{ matrix.programming_model }}
           run-script: |
-            ./.github/scripts/build_and_test.sh
+            ./.github/scripts/build_and_test_gpu.sh

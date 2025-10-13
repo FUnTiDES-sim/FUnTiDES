@@ -3,6 +3,8 @@ description: Submit and wait for a Slurm job
 inputs:
   job-name:
     required: true
+  head-node:
+    required: true
   partition:
     required: true
   account:
@@ -25,12 +27,6 @@ runs:
   steps:
     - shell: bash
       run: |
-        # Source bashrc
-        if [ -f "~/.bashrc" ]; then
-          echo "Sourcing ~/.bashrc"
-          source "~/.bashrc"
-        fi
-
         # Create Slurm job script
         set -euo pipefail
 
@@ -62,11 +58,10 @@ runs:
         echo "Submitting Slurm job..."
         cat job.slurm
 
-        # Assume current directory is shared/visible on maple-1; submit directly there
+        # Assume current directory is shared/visible on remote; submit directly there
         set +e
-        REMOTE_HOST="maple-1"
+        REMOTE_HOST="${{ inputs.head-node }}"
         LOCAL_DIR="$(pwd)"
-
         if [ ! -f job.slurm ]; then
           echo "job.slurm not found in ${LOCAL_DIR}"
           exit 1
@@ -75,15 +70,14 @@ runs:
         echo "Submitting Slurm job on ${REMOTE_HOST} from shared dir ${LOCAL_DIR}..."
         ssh -o BatchMode=yes "${REMOTE_HOST}" "cd '${LOCAL_DIR}' && \
           export SLURM_PARTITION='${{ inputs.partition }}' \
-                 DISCRETIZATION='${DISCRETIZATION:-${{ env.DISCRETIZATION }}}' \
                  PYWRAP='${PYWRAP:-${{ env.PYWRAP }}}' \
                  PROGRAMMING_MODEL='${PROGRAMMING_MODEL:-${{ env.PROGRAMMING_MODEL }}}' && \
           echo '  Partition      = '\"\$SLURM_PARTITION\" && \
-          echo '  Discretization = '\"\$DISCRETIZATION\" && \
           echo '  Pywrap         = '\"\$PYWRAP\" && \
           echo '  Model          = '\"\$PROGRAMMING_MODEL\" && \
-          sbatch --export=SLURM_PARTITION,DISCRETIZATION,PYWRAP,PROGRAMMING_MODEL --wait job.slurm"
+          sbatch --export=SLURM_PARTITION,PYWRAP,PROGRAMMING_MODEL --wait job.slurm"
         SBATCH_STATUS=$?
+
         set -e
         echo "Tail of output:"
         tail -n 200 slurm-*.out || true

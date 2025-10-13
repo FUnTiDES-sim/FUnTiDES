@@ -4,11 +4,10 @@
 set -euo pipefail
 
 # Expects environment variables already exported:
-# SLURM_PARTITION, DISCRETIZATION, PYWRAP, PROGRAMMING_MODEL
+# SLURM_PARTITION, PYWRAP, PROGRAMMING_MODEL
 
 echo "[build]"
 echo "  Partition      = $SLURM_PARTITION"
-echo "  Discretization = $DISCRETIZATION"
 echo "  Pywrap         = $PYWRAP"
 echo "  Model          = $PROGRAMMING_MODEL"
 
@@ -24,9 +23,7 @@ if [[ "$PYWRAP" == "pywrap-on" ]]; then
   pip install pybind11 pytest numpy
 fi
 
-CMAKE_FLAGS=""
-[[ "$DISCRETIZATION" == "fd"  ]] && CMAKE_FLAGS+=" -DCOMPILE_FD=ON -DCOMPILE_SEM=OFF"
-[[ "$DISCRETIZATION" == "sem" ]] && CMAKE_FLAGS+=" -DCOMPILE_SEM=ON -DCOMPILE_FD=OFF"
+CMAKE_FLAGS=" -DCOMPILE_SEM=ON -DCOMPILE_FD=ON -DENABLE_CUDA=ON"
 
 if [[ "$PYWRAP" == "pywrap-on" ]]; then
   CMAKE_FLAGS+=" -DENABLE_PYWRAP=ON"
@@ -43,7 +40,7 @@ make -j"$(nproc)"
 ctest --output-on-failure
 make install
 
-if [[ "$PYWRAP" == "pywrap-on" && "$DISCRETIZATION" == "sem" ]]; then
+if [[ "$PYWRAP" == "pywrap-on" ]]; then
   source ../.venv/bin/activate
   export INSTALL_DIR
   INSTALL_DIR=$(realpath ../install)
