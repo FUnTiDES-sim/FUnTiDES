@@ -18,21 +18,24 @@ jobs:
     runs-on: hpc-us
     strategy:
       matrix:
-        #pywrap: [pywrap-on, pywrap-off] TODO activate python
-        pywrap: [pywrap-off]
-        #programming_model: [vector, kokkos] TODO activate vector
-        programming_model: [kokkos]
+        arch: [a100, h200]
+        pywrap: [pywrap-off, pywrap-on]
+        programming_model: [vector, kokkos]
 
-        # Exclude Vector + Python (wrappers use Kokkos)
+        # Always build python wrappers for Kokkos
+        # Never build python wrappers for Vector
         exclude:
         - programming_model: vector
           pywrap: pywrap-on
-        
+
+        - programming_model: kokkos
+          pywrap: pywrap-off
+
         # Map arch to cluster
         include:
-          #- arch: h200
-          #  partition: maple_mig
-          #  head_node: maple-1
+          - arch: h200
+            partition: maple_mig
+            head_node: maple-1
 
           - arch: a100
             partition: cypress_dgx
