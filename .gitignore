@@ -271,3 +271,6 @@ external/pykokkos-base
 *.svg
 snap*.png
 receiver.dat
+
+*.err
+benchmark_comparison.png

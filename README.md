@@ -44,12 +44,29 @@ The current SEM proxy supports the following data container:
 mkdir build
 cd build
 cmake ..
-make
+make install
 ```
 
 By default, this builds the applications in sequential mode using `std::vector`. Both SEM and FD applications are compiled.
 
-### Step 2: Run Examples
+### Step 2: Run Tests & Benchmarks
+
+Unit tests only
+```sh
+ctest -LE benchmark
+```
+
+Benchmarks only, results will be stored in results generated in `build/Benchmarking` as a json file.
+```sh
+ctest -L benchmark
+```
+
+Or just both
+```sh
+ctest
+```
+
+### Step 3: Run Examples
 
 ```sh
 # Run SEM simulation with 100 x 100 x 100 elements
@@ -124,24 +141,36 @@ Some examples on how to use the wrappers are available in the [`examples`](examp
 
 ### Tests & Benchmarks
 
+All commands from this section should be executed from the repository root directory.
+
 To install dev python packages
 ```bash
 pip install -r requirements-dev.txt
 ```
 
-To run basic python unit tests
+To run basic python unit tests (default is using 6 threads)
 ```bash
 pytest -vv -s  tests/units
 ```
 
-To run python benchmarks
+To run basic python unit tests with more threads
 ```bash
-pytest -vv -s tests/benchmarks
+pytest -vv -s  tests/units --threads 12
 ```
 
-To generate benchmark plots
+To run python benchmarks (default is using 6 threads)
 ```bash
-pytest -vv -s --benchmark-histogram=plot tests/benchmarks
+pytest -vv -s tests/benchmarks/python
+```
+
+To run python benchmarks with more threads
+```bash
+pytest -vv -s tests/benchmarks/python --threads 12
+```
+
+To run all python benchmarks (default is using 1,2,4,8,16,32,64 threads)
+```bash
+python scripts/benchmarks/run_pywrap_benchmarks.py --verbose
 ```
 
 ### Ploting Receivers and Snapshots
