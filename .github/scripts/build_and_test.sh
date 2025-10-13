@@ -12,6 +12,10 @@ echo "  Discretization = $DISCRETIZATION"
 echo "  Pywrap         = $PYWRAP"
 echo "  Model          = $PROGRAMMING_MODEL"
 
+source "/apps/modules/modulefiles3/supporting_scripts/modver_config.sh"
+export LMOD_IGNORE_CACHE=1
+source $SUPPORTSCRIPT_3_DIR/activateMod3
+
 if [[ "$SLURM_PARTITION" == "maple_mig" || "$SLURM_PARTITION" == "maple" ]]; then
   source scripts/env_Maple_GH200.sh
   module list
