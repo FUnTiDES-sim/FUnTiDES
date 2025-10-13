@@ -12,7 +12,7 @@ echo "  Pywrap         = $PYWRAP"
 echo "  Model          = $PROGRAMMING_MODEL"
 
 if [[ "$SLURM_PARTITION" == "maple_mig" || "$SLURM_PARTITION" == "maple" ]]; then
-  source scripts/env_Maple_GH200.sh
+  source scripts/environments/env_Maple_GH200.sh
   module list
 fi
 
