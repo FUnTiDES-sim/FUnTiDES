@@ -47,6 +47,7 @@ jobs:
         uses: ./.github/actions/slurm-submit
         with:
           job-name: funtides-${{ matrix.partition }}-${{ matrix.discretization }}-${{ matrix.pywrap }}-${{ matrix.programming_model }}
+          partition: ${{ matrix.partition }}
           run-script: |
             set -e
             SLURM_PARTITION='${{ matrix.partition }}'
