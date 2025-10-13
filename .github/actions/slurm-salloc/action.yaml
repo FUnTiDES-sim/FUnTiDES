@@ -48,7 +48,7 @@ runs:
 
         echo "Requesting allocation with salloc..."
         cmd=(
-          salloc
+          env -i salloc
           -p ${{ inputs.partition }}
           -A ${{ inputs.account }}
           --gres=gpu:${{ inputs.gpus }}
