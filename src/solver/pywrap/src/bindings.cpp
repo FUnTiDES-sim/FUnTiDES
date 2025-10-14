@@ -30,8 +30,8 @@ PYBIND11_MODULE(solver, m)
       .value("UNSTRUCT", SolverFactory::Unstruct);
 
   py::enum_<SolverFactory::modelLocationType>(m, "ModelLocationType")
-      .value("OnNodes", SolverFactory::modelLocationType::OnNodes)
-      .value("OnElements", SolverFactory::modelLocationType::OnElements)
+      .value("ONNODES", SolverFactory::modelLocationType::OnNodes)
+      .value("ONELEMENTS", SolverFactory::modelLocationType::OnElements)
       .export_values();
 
   // Bind DataStruct

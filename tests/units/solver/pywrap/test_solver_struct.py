@@ -59,8 +59,8 @@ class TestSolverStruct:
             return
         
         # Convertir le booléen en ModelLocationType
-        model_location = (Solver.ModelLocationType.ON_NODES if is_model_on_nodes 
-                         else Solver.ModelLocationType.ON_ELEMENTS)
+        model_location = (Solver.ModelLocationType.ONNODES if is_model_on_nodes 
+                         else Solver.ModelLocationType.ONELEMENTS)
         
         solver = Solver.create_solver(
             Solver.MethodType.SEM, implem, Solver.MeshType.STRUCT, 
