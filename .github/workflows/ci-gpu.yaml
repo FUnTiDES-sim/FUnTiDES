@@ -4,17 +4,22 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
-  # TODO RUN after CPU only if success
+# PR only runs whith GPU_RUN label (see "if" condition in build job)
 on:
   pull_request:
     branches:
       - main
+    types: [opened, synchronize, reopened, labeled, unlabeled, edited]
+    paths-ignore:
+      - '**/README.md'
+      - 'examples/**'
 
   workflow_dispatch: # Allow to start this workflow manually
 
 jobs:
 
   build:
+    if: ${{ github.event_name == 'workflow_dispatch' || (github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'GPU_RUN')) }}
     runs-on: hpc-us
     strategy:
       matrix:
