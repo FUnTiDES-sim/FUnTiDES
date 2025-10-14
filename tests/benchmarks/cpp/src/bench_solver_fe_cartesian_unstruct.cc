@@ -30,8 +30,6 @@ struct BuilderConfig
 template <typename T>
 class SolverUnstructFixture : public benchmark::Fixture
 {
- public:
-  using benchmark::Fixture::SetUp;
 
  protected:
   // model
