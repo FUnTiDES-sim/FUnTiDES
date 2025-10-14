@@ -71,6 +71,7 @@ jobs:
           job-name: funtides-${{ matrix.pywrap }}-${{ matrix.programming_model }}-${{ runner.name }}
           head-node: ${{ matrix.head_node }}
           partition: ${{ matrix.partition }}
+          time: 02:00:00
           run-script: |
             ./.github/scripts/build_and_test_gpu.sh
 
