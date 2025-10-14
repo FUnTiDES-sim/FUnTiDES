@@ -55,20 +55,26 @@ class TestSolverUnstruct:
         n_time_steps = 1
         f0 = 5.0
         model = builder.get_model()
-        
+
         # TODO remove when we reactivate SHIVA
         if implem == Solver.ImplemType.SHIVA:
             return
-        
+
         # Convertir le booléen en ModelLocationType
-        model_location = (Solver.ModelLocationType.ONNODES if is_model_on_nodes 
-                         else Solver.ModelLocationType.ONELEMENTS)
-        
-        solver = Solver.create_solver(
-            Solver.MethodType.SEM, implem, Solver.MeshType.UNSTRUCT, 
-            model_location, sd.order
+        model_location = (
+            Solver.ModelLocationType.ONNODES
+            if is_model_on_nodes
+            else Solver.ModelLocationType.ONELEMENTS
         )
-        
+
+        solver = Solver.create_solver(
+            Solver.MethodType.SEM,
+            implem,
+            Solver.MeshType.UNSTRUCT,
+            model_location,
+            sd.order,
+        )
+
         solver.compute_fe_init(model)
         kk_pnGlobal, _ = Utils.allocate_pressure(sd.n_dof)
         kk_RHSElement, _ = Utils.allocate_rhs_element(n_rhs, sd.ex, sd.ey, sd.ez)
