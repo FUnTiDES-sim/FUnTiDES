@@ -1,7 +1,7 @@
 #!/bin/bash -l
 
 # Ensure the script fails on errors and undefined variables
-#set -euo pipefail TODO add back
+set -euo pipefail
 
 # Expects environment variables already exported:
 # RDHPC_PARTITION, PYWRAP, PROGRAMMING_MODEL
@@ -39,8 +39,8 @@ fi
 mkdir -p build
 cd build
 cmake .. ${CMAKE_FLAGS} -DCMAKE_INSTALL_PREFIX=../install
-make -j"$(nproc)"
-#ctest --output-on-failure TODO fix on GPU
+make -j32 # do not use all threads to avoid OOM
+#ctest --output-on-failure TODO #154 fix on GPU
 make install
 
 if [[ "$PYWRAP" == "pywrap-on" ]]; then
