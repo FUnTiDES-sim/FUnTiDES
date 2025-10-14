@@ -30,7 +30,6 @@ struct BuilderConfig
 template <typename T>
 class SolverUnstructFixture : public benchmark::Fixture
 {
-
  protected:
   // model
   static constexpr int ex = 100;
