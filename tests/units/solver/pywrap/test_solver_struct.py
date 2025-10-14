@@ -26,7 +26,7 @@ def struct(request):
 
     builder = builder_cls(sd.ex, sd.hx, sd.ey, sd.hy, sd.ez, sd.hz, on_nodes)
 
-    return sd, builder
+    return sd, builder, on_nodes
 
 
 test_cases_struct = [
@@ -46,7 +46,7 @@ class TestSolverStruct:
         "implem", [Solver.ImplemType.MAKUTU, Solver.ImplemType.SHIVA]
     )
     def test_solver_one_step(self, struct, implem):
-        sd, builder, is_model_on_nodes = struct  # Déstructure le tuple
+        sd, builder, is_model_on_nodes = struct
         n_rhs = 2
         dt = 0.001
         time_sample = 1

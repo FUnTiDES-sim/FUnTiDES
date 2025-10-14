@@ -22,14 +22,13 @@ def unstruct(request):
     sd = UnstructData(order)
 
     params = param_cls()
+
     params.ex, params.ey, params.ez = sd.ex, sd.ey, sd.ez
     params.lx, params.ly, params.lz = sd.lx, sd.ly, sd.lz
     params.order = order
     params.is_model_on_nodes = on_nodes
-
     builder = builder_cls(params)
-
-    return sd, params, builder
+    return sd, params, builder, on_nodes
 
 
 test_cases_struct = [
