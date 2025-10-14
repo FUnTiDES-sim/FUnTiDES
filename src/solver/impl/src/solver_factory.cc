@@ -31,55 +31,120 @@ std::unique_ptr<SolverBase> orderDispatch(int const order, FUNC&& func)
 }
 
 // ImplTag is one of IntegralType::MAKUTU/SHIVA (compile-time)
+// template <auto ImplTag>
+// static std::unique_ptr<SolverBase> make_sem_solver(int order, meshType mesh)
+// {
+//   switch (mesh)
+//   {
+//     case Struct:
+//       // ORDER-dependent mesh type
+//       return orderDispatch(
+//           order, [](auto orderIC) -> std::unique_ptr<SolverBase> {
+//             constexpr int ORDER = decltype(orderIC)::value;
+//             using SelectedIntegral =
+//                 typename IntegralTypeSelector<ORDER, ImplTag>::type;
+//             using MeshT = model::ModelStruct<float, int, ORDER>;
+//             return std::make_unique<
+//                 SEMsolver<ORDER, SelectedIntegral, MeshT>>();
+//           });
+//     case Unstruct:
+//       return orderDispatch(
+//           order, [](auto orderIC) -> std::unique_ptr<SolverBase> {
+//             constexpr int ORDER = decltype(orderIC)::value;
+//             using SelectedIntegral =
+//                 typename IntegralTypeSelector<ORDER, ImplTag>::type;
+//             using MeshT = model::ModelUnstruct<float, int>;
+//             return std::make_unique<
+//                 SEMsolver<ORDER, SelectedIntegral, MeshT>>();
+//           });
+//   }
+
+//   throw std::runtime_error("Unknown mesh type");
+// }
+
 template <auto ImplTag>
-static std::unique_ptr<SolverBase> make_sem_solver(int order, meshType mesh)
+static std::unique_ptr<SolverBase> make_sem_solver(int order, meshType mesh, modelLocationType modelLocation)
 {
-  switch (mesh)
+  bool isModelOnNodes = (modelLocation == OnNodes);
+  
+   switch (mesh)
   {
     case Struct:
-      // ORDER-dependent mesh type
       return orderDispatch(
-          order, [](auto orderIC) -> std::unique_ptr<SolverBase> {
+          order, [isModelOnNodes](auto orderIC) -> std::unique_ptr<SolverBase> {
             constexpr int ORDER = decltype(orderIC)::value;
             using SelectedIntegral =
                 typename IntegralTypeSelector<ORDER, ImplTag>::type;
             using MeshT = model::ModelStruct<float, int, ORDER>;
-            return std::make_unique<
-                SEMsolver<ORDER, SelectedIntegral, MeshT>>();
+            
+            if (isModelOnNodes) {
+              return std::make_unique<
+                  SEMsolver<ORDER, SelectedIntegral, MeshT, true>>();
+            } else {
+              return std::make_unique<
+                  SEMsolver<ORDER, SelectedIntegral, MeshT, false>>();
+            }
           });
     case Unstruct:
       return orderDispatch(
-          order, [](auto orderIC) -> std::unique_ptr<SolverBase> {
+          order, [isModelOnNodes](auto orderIC) -> std::unique_ptr<SolverBase> {
             constexpr int ORDER = decltype(orderIC)::value;
             using SelectedIntegral =
                 typename IntegralTypeSelector<ORDER, ImplTag>::type;
             using MeshT = model::ModelUnstruct<float, int>;
-            return std::make_unique<
-                SEMsolver<ORDER, SelectedIntegral, MeshT>>();
+            
+            if (isModelOnNodes) {
+              return std::make_unique<
+                  SEMsolver<ORDER, SelectedIntegral, MeshT, true>>();
+            } else {
+              return std::make_unique<
+                  SEMsolver<ORDER, SelectedIntegral, MeshT, false>>();
+            }
           });
   }
-
   throw std::runtime_error("Unknown mesh type");
 }
 
-std::unique_ptr<SolverBase> createSolver(methodType const methodType,
-                                         implemType const implemType,
-                                         meshType const mesh, int const order)
-{
-  if (methodType == SEM)
-  {
-    switch (implemType)
-    {
-      case MAKUTU:
-        return make_sem_solver<IntegralType::MAKUTU>(order, mesh);
-        // case SHIVA:
-        //   return make_sem_solver<IntegralType::SHIVA>(order, mesh);
-    }
-  }
+// std::unique_ptr<SolverBase> createSolver(methodType const methodType,
+//                                          implemType const implemType,
+//                                          meshType const mesh, int const order)
+// {
+//   if (methodType == SEM)
+//   {
+//     switch (implemType)
+//     {
+//       case MAKUTU:
+//         return make_sem_solver<IntegralType::MAKUTU>(order, mesh);
+//         // case SHIVA:
+//         //   return make_sem_solver<IntegralType::SHIVA>(order, mesh);
+//     }
+//   }
 
-  // Add DG or other methods as needed
-  throw std::runtime_error(
-      "Unsupported solver configuration: methodType=" + to_string(methodType) +
-      ", implemType=" + to_string(implemType));
-}
+//   // Add DG or other methods as needed
+//   throw std::runtime_error(
+//       "Unsupported solver configuration: methodType=" + to_string(methodType) +
+//       ", implemType=" + to_string(implemType));
+// }
+  std::unique_ptr<SolverBase> createSolver(methodType const methodType,
+                                           implemType const implemType,
+                                           meshType const mesh,
+                                           modelLocationType const modelLocation,
+                                           int const order)
+  {
+    if (methodType == SEM)
+    {
+      switch (implemType)
+      {
+        case MAKUTU:
+          return make_sem_solver<IntegralType::MAKUTU>(order, mesh, modelLocation);
+          // case SHIVA:
+          //   return make_sem_solver<IntegralType::SHIVA>(order, mesh, modelLocation);
+      }
+    }
+  
+    // Add DG or other methods as needed
+    throw std::runtime_error(
+        "Unsupported solver configuration: methodType=" + to_string(methodType) +
+        ", implemType=" + to_string(implemType));
+  }
 }  // namespace SolverFactory

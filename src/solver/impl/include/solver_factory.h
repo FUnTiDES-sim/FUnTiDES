@@ -23,6 +23,12 @@ enum meshType
   Unstruct
 };
 
+enum modelLocationType 
+{
+  OnNodes,
+  OnElements
+};
+
 inline std::string to_string(methodType m)
 {
   switch (m)
@@ -62,8 +68,22 @@ inline std::string to_string(meshType m)
   }
 }
 
+inline std::string to_string(modelLocationType loc)
+{
+  switch (loc)
+  {
+    case OnNodes:
+      return "OnNodes";
+    case OnElements:
+      return "OnElements";
+    default:
+      return "Unknown";
+  }
+}
+
 std::unique_ptr<SolverBase> createSolver(methodType const methodType,
                                          implemType const implemType,
                                          meshType const meshType,
+                                         modelLocationType const modelLocation,
                                          int const order);
 }  // namespace SolverFactory

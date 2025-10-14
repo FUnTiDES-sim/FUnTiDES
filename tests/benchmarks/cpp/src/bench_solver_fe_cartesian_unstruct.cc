@@ -30,6 +30,10 @@ struct BuilderConfig
 template <typename T>
 class SolverUnstructFixture : public benchmark::Fixture
 {
+
+public:
+ using benchmark::Fixture::SetUp;
+
  protected:
   // model
   static constexpr int ex = 100;
@@ -56,6 +60,7 @@ class SolverUnstructFixture : public benchmark::Fixture
   static constexpr int n_time_steps = 1500;
   static constexpr float f0 = 5.0f;
   SolverFactory::implemType implem_;
+
 
   void SetUp(const ::benchmark::State& state) override
   {
@@ -110,7 +115,9 @@ BENCHMARK_TEMPLATE_METHOD_F(SolverUnstructFixture, FEInit)
 
   auto solver = SolverFactory::createSolver(
       SolverFactory::methodType::SEM, this->implem_,
-      SolverFactory::meshType::Unstruct, this->order);
+      SolverFactory::meshType::Unstruct, 
+      this->isModelOnNodes_ ? SolverFactory::modelLocationType::OnNodes : SolverFactory::modelLocationType::OnElements,
+      this->order);
 
   // Bench
   for (auto _ : state)
@@ -131,7 +138,9 @@ BENCHMARK_TEMPLATE_METHOD_F(SolverUnstructFixture, OneStep)
 
   auto solver = SolverFactory::createSolver(
       SolverFactory::methodType::SEM, this->implem_,
-      SolverFactory::meshType::Unstruct, this->order);
+      SolverFactory::meshType::Unstruct, 
+      this->isModelOnNodes_ ? SolverFactory::modelLocationType::OnNodes : SolverFactory::modelLocationType::OnElements,
+      this->order);
 
   solver->computeFEInit(*model, this->sponge_size, this->surface_sponge,
                         this->taper_delta);

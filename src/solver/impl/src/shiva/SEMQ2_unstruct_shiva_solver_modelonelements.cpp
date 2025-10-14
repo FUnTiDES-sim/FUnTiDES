@@ -2,7 +2,7 @@
 
 #include "sem_solver_impl.h"
 
-constexpr int ORDER = 1;
+constexpr int ORDER = 2;
 template class SEMsolver<ORDER,
                          IntegralTypeSelector<ORDER, IntegralType::SHIVA>::type,
-                         model::ModelUnstruct<float, int> >;
+                         model::ModelUnstruct<float, int>, false >;
