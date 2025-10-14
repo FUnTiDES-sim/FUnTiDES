@@ -15,7 +15,7 @@ inputs:
     default: 00:30:00
   cpus:
     required: false
-    default: "32"
+    default: "1"
   gpus:
     required: false
     default: "1"
