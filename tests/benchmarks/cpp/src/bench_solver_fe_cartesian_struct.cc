@@ -107,11 +107,12 @@ BENCHMARK_TEMPLATE_METHOD_F(SolverStructFixture, FEInit)
   // Prepare
   auto model = this->createModel();
 
-  auto solver =
-      SolverFactory::createSolver(SolverFactory::methodType::SEM, this->implem_,
-                                  SolverFactory::meshType::Struct, 
-                                  this->isModelOnNodes_ ? SolverFactory::modelLocationType::OnNodes : SolverFactory::modelLocationType::OnElements,
-                                  this->order);
+  auto solver = SolverFactory::createSolver(
+      SolverFactory::methodType::SEM, this->implem_,
+      SolverFactory::meshType::Struct,
+      this->isModelOnNodes_ ? SolverFactory::modelLocationType::OnNodes
+                            : SolverFactory::modelLocationType::OnElements,
+      this->order);
 
   // Bench
   for (auto _ : state)
@@ -130,11 +131,12 @@ BENCHMARK_TEMPLATE_METHOD_F(SolverStructFixture, OneStep)
   // Prepare
   auto model = this->createModel();
 
-  auto solver =
-      SolverFactory::createSolver(SolverFactory::methodType::SEM, this->implem_,
-                                  SolverFactory::meshType::Struct,
-                                  this->isModelOnNodes_ ? SolverFactory::modelLocationType::OnNodes : SolverFactory::modelLocationType::OnElements,
-                                  this->order);
+  auto solver = SolverFactory::createSolver(
+      SolverFactory::methodType::SEM, this->implem_,
+      SolverFactory::meshType::Struct,
+      this->isModelOnNodes_ ? SolverFactory::modelLocationType::OnNodes
+                            : SolverFactory::modelLocationType::OnElements,
+      this->order);
 
   solver->computeFEInit(*model, this->sponge_size, this->surface_sponge,
                         this->taper_delta);
