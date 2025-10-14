@@ -62,7 +62,8 @@ jobs:
           PYWRAP: ${{ matrix.pywrap }}
           PROGRAMMING_MODEL: ${{ matrix.programming_model }}
         with:
-          job-name: funtides-${{ matrix.pywrap }}-${{ matrix.programming_model }}
+          # job name MUST be unique for partition
+          job-name: funtides-${{ matrix.pywrap }}-${{ matrix.programming_model }}-${{ runner.name }}
           head-node: ${{ matrix.head_node }}
           partition: ${{ matrix.partition }}
           run-script: |
@@ -77,7 +78,8 @@ jobs:
           PYWRAP: ${{ matrix.pywrap }}
           PROGRAMMING_MODEL: ${{ matrix.programming_model }}
         with:
-          job-name: funtides-${{ matrix.pywrap }}-${{ matrix.programming_model }}
+          # job name MUST be unique for partition
+          job-name: funtides-${{ matrix.pywrap }}-${{ matrix.programming_model }}-${{ runner.name }}
           partition: ${{ matrix.partition }}
           run-script: |
             ./.github/scripts/build_and_test_gpu.sh

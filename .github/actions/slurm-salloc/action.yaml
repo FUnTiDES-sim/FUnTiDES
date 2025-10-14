@@ -66,3 +66,13 @@ runs:
 
         # Execute the command
         "${cmd[@]}"
+
+    - id: cancel
+      if: cancelled()
+      shell: bash
+      run: |
+        # Not the cleanest way to clean but since we only have one concurrent job per runner and each job has a unique name, this should be fine
+        JOB_NAME="${{ inputs.job-name }}"
+        PARTITION="${{ inputs.partition }}"
+        echo "Cancelling all Slurm jobs named '$JOB_NAME' on partition '$PARTITION'"
+        squeue -h -n "${JOB_NAME}" -p "${PARTITION}" -o '%i' | xargs -r scancel || true

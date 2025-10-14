@@ -87,3 +87,14 @@ runs:
 
         # Propagate sbatch (job) exit code
         exit $SBATCH_STATUS
+
+    - id: cancel
+      if: cancelled()
+      shell: bash
+      run: |
+        # Not the cleanest way to clean but since we only have one concurrent job per runner and each job has a unique name, this should be fine
+        REMOTE_HOST="${{ inputs.head-node }}"
+        JOB_NAME="${{ inputs.job-name }}"
+        PARTITION="${{ inputs.partition }}"
+        echo "Cancelling all Slurm jobs named '$JOB_NAME' on partition '$PARTITION' at $REMOTE_HOST"
+        ssh -o BatchMode=yes "${REMOTE_HOST}" "squeue -h -n \"${JOB_NAME}\" -p \"${PARTITION}\" -o '%i' | xargs -r scancel" || true
