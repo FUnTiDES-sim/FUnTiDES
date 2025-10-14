@@ -7,5 +7,3 @@ export Kokkos_DIR=/shared/data1/Users/j0535952/work2025/ProgrammingModels/kokkos
 export CUDA_ROOT=/hrtc/apps/cuda/12.6.20/aarch64/rocky9/
 export CUDA_ARCHITECTURES=90
 export CUDA_MANAGED_FORCE_DEVICE_ALLOC=1
-
-# for sequential mode on CPU:  cmake -DCMAKE_INSTALL_PREFIX=../install -DCMAKE_C_COMPILER=gcc -DCMAKE_CXX_COMPILER=g++ .. ; make

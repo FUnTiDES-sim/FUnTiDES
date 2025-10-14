@@ -55,7 +55,7 @@ runs:
           --time=${{ inputs.time }}
           --cpus-per-task=${{ inputs.cpus }}
           --job-name=${{ inputs.job-name }}
-          srun job.sh
+          srun --export=USER,HOME,TERM job.sh
         )
 
         echo -n "Command: "

@@ -1,7 +1,7 @@
-#!/usr/bin/env bash
+#!/bin/bash -l
 
 # Ensure the script fails on errors and undefined variables
-#set -euo pipefail
+#set -euo pipefail TODO add back
 
 # Expects environment variables already exported:
 # RDHPC_PARTITION, PYWRAP, PROGRAMMING_MODEL
