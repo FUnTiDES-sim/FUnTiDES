@@ -63,11 +63,12 @@ std::unique_ptr<SolverBase> orderDispatch(int const order, FUNC&& func)
 // }
 
 template <auto ImplTag>
-static std::unique_ptr<SolverBase> make_sem_solver(int order, meshType mesh, modelLocationType modelLocation)
+static std::unique_ptr<SolverBase> make_sem_solver(
+    int order, meshType mesh, modelLocationType modelLocation)
 {
   bool isModelOnNodes = (modelLocation == OnNodes);
-  
-   switch (mesh)
+
+  switch (mesh)
   {
     case Struct:
       return orderDispatch(
@@ -76,11 +77,14 @@ static std::unique_ptr<SolverBase> make_sem_solver(int order, meshType mesh, mod
             using SelectedIntegral =
                 typename IntegralTypeSelector<ORDER, ImplTag>::type;
             using MeshT = model::ModelStruct<float, int, ORDER>;
-            
-            if (isModelOnNodes) {
+
+            if (isModelOnNodes)
+            {
               return std::make_unique<
                   SEMsolver<ORDER, SelectedIntegral, MeshT, true>>();
-            } else {
+            }
+            else
+            {
               return std::make_unique<
                   SEMsolver<ORDER, SelectedIntegral, MeshT, false>>();
             }
@@ -92,11 +96,14 @@ static std::unique_ptr<SolverBase> make_sem_solver(int order, meshType mesh, mod
             using SelectedIntegral =
                 typename IntegralTypeSelector<ORDER, ImplTag>::type;
             using MeshT = model::ModelUnstruct<float, int>;
-            
-            if (isModelOnNodes) {
+
+            if (isModelOnNodes)
+            {
               return std::make_unique<
                   SEMsolver<ORDER, SelectedIntegral, MeshT, true>>();
-            } else {
+            }
+            else
+            {
               return std::make_unique<
                   SEMsolver<ORDER, SelectedIntegral, MeshT, false>>();
             }
@@ -107,7 +114,8 @@ static std::unique_ptr<SolverBase> make_sem_solver(int order, meshType mesh, mod
 
 // std::unique_ptr<SolverBase> createSolver(methodType const methodType,
 //                                          implemType const implemType,
-//                                          meshType const mesh, int const order)
+//                                          meshType const mesh, int const
+//                                          order)
 // {
 //   if (methodType == SEM)
 //   {
@@ -122,29 +130,32 @@ static std::unique_ptr<SolverBase> make_sem_solver(int order, meshType mesh, mod
 
 //   // Add DG or other methods as needed
 //   throw std::runtime_error(
-//       "Unsupported solver configuration: methodType=" + to_string(methodType) +
+//       "Unsupported solver configuration: methodType=" + to_string(methodType)
+//       +
 //       ", implemType=" + to_string(implemType));
 // }
-  std::unique_ptr<SolverBase> createSolver(methodType const methodType,
-                                           implemType const implemType,
-                                           meshType const mesh,
-                                           modelLocationType const modelLocation,
-                                           int const order)
+std::unique_ptr<SolverBase> createSolver(methodType const methodType,
+                                         implemType const implemType,
+                                         meshType const mesh,
+                                         modelLocationType const modelLocation,
+                                         int const order)
+{
+  if (methodType == SEM)
   {
-    if (methodType == SEM)
+    switch (implemType)
     {
-      switch (implemType)
-      {
-        case MAKUTU:
-          return make_sem_solver<IntegralType::MAKUTU>(order, mesh, modelLocation);
-          // case SHIVA:
-          //   return make_sem_solver<IntegralType::SHIVA>(order, mesh, modelLocation);
-      }
+      case MAKUTU:
+        return make_sem_solver<IntegralType::MAKUTU>(order, mesh,
+                                                     modelLocation);
+        // case SHIVA:
+        //   return make_sem_solver<IntegralType::SHIVA>(order, mesh,
+        //   modelLocation);
     }
-  
-    // Add DG or other methods as needed
-    throw std::runtime_error(
-        "Unsupported solver configuration: methodType=" + to_string(methodType) +
-        ", implemType=" + to_string(implemType));
   }
+
+  // Add DG or other methods as needed
+  throw std::runtime_error(
+      "Unsupported solver configuration: methodType=" + to_string(methodType) +
+      ", implemType=" + to_string(implemType));
+}
 }  // namespace SolverFactory

@@ -49,7 +49,8 @@ struct SEMsolverData : SolverBase::DataStruct
   ARRAY_REAL_VIEW m_rhsWeights;
 };
 
-template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE, bool IS_MODEL_ON_NODES>
+template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE,
+          bool IS_MODEL_ON_NODES>
 class SEMsolver : public SolverBase
 {
  public:
@@ -121,7 +122,7 @@ class SEMsolver : public SolverBase
   /**
    * @brief Compute the global mass matrix, accounting for the model.
    */
-  
+
   void computeGlobalMassMatrix();
 
   /**

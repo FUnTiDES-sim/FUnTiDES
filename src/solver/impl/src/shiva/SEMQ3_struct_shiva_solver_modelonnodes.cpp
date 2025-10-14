@@ -5,4 +5,4 @@
 constexpr int ORDER = 3;
 template class SEMsolver<ORDER,
                          IntegralTypeSelector<ORDER, IntegralType::SHIVA>::type,
-                         model::ModelStruct<float, int, ORDER>, true >;
+                         model::ModelStruct<float, int, ORDER>, true>;

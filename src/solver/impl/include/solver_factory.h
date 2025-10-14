@@ -23,7 +23,7 @@ enum meshType
   Unstruct
 };
 
-enum modelLocationType 
+enum modelLocationType
 {
   OnNodes,
   OnElements

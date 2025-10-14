@@ -15,11 +15,12 @@
 #include "fe/Integrals.hpp"
 #include "sem_solver.h"
 
-template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE, bool IS_MODEL_ON_NODES>
-void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES>::computeFEInit(
-    model::ModelApi<float, int> &mesh_in,
-    const std::array<float, 3> &sponge_size, const bool surface_sponge,
-    const float taper_delta)
+template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE,
+          bool IS_MODEL_ON_NODES>
+void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES>::
+    computeFEInit(model::ModelApi<float, int> &mesh_in,
+                  const std::array<float, 3> &sponge_size,
+                  const bool surface_sponge, const float taper_delta)
 {
   if (auto *typed_mesh = dynamic_cast<MESH_TYPE *>(&mesh_in))
   {
@@ -41,9 +42,12 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES>::computeFEIni
   computeGlobalMassMatrix();
 }
 
-template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE, bool IS_MODEL_ON_NODES>
-void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE,IS_MODEL_ON_NODES>::computeOneStep(
-    const float &dt, const int &timeSample, SolverBase::DataStruct &data)
+template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE,
+          bool IS_MODEL_ON_NODES>
+void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE,
+               IS_MODEL_ON_NODES>::computeOneStep(const float &dt,
+                                                  const int &timeSample,
+                                                  SolverBase::DataStruct &data)
 {
   // Cast to the specific DataStruct type
   auto &myData = dynamic_cast<SEMsolverData &>(data);
@@ -65,19 +69,23 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE,IS_MODEL_ON_NODES>::computeOneSte
   FENCE
 }
 
-template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE, bool IS_MODEL_ON_NODES>
-void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE,IS_MODEL_ON_NODES>::resetGlobalVectors(
-    int numNodes)
+template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE,
+          bool IS_MODEL_ON_NODES>
+void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE,
+               IS_MODEL_ON_NODES>::resetGlobalVectors(int numNodes)
 {
   LOOPHEAD(numNodes, i) { yGlobal[i] = 0; }
   LOOPEND
 }
 
-template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE, bool IS_MODEL_ON_NODES>
-void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE,IS_MODEL_ON_NODES>::applyRHSTerm(
-    int timeSample, float dt, int i2, const ARRAY_REAL_VIEW &rhsTerm,
-    const VECTOR_INT_VIEW &rhsElement, const ARRAY_REAL_VIEW &pnGlobal,
-    const ARRAY_REAL_VIEW &rhsWeights)
+template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE,
+          bool IS_MODEL_ON_NODES>
+void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES>::
+    applyRHSTerm(int timeSample, float dt, int i2,
+                 const ARRAY_REAL_VIEW &rhsTerm,
+                 const VECTOR_INT_VIEW &rhsElement,
+                 const ARRAY_REAL_VIEW &pnGlobal,
+                 const ARRAY_REAL_VIEW &rhsWeights)
 {
   float const dt2 = dt * dt;
   int nb_rhs_element = rhsElement.extent(0);
@@ -100,9 +108,10 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE,IS_MODEL_ON_NODES>::applyRHSTerm(
   LOOPEND
 }
 
-template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE, bool IS_MODEL_ON_NODES>
-void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE,IS_MODEL_ON_NODES>::computeElementContributions(
-    int i2, const ARRAY_REAL_VIEW &pnGlobal)
+template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE,
+          bool IS_MODEL_ON_NODES>
+void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES>::
+    computeElementContributions(int i2, const ARRAY_REAL_VIEW &pnGlobal)
 {
   MAINLOOPHEAD(m_mesh.getNumberOfElements(), elementNumber)
 
@@ -170,9 +179,12 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE,IS_MODEL_ON_NODES>::computeElemen
   MAINLOOPEND
 }
 
-template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE, bool IS_MODEL_ON_NODES>
-void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE,IS_MODEL_ON_NODES>::updatePressureField(
-    float dt, int i1, int i2, const ARRAY_REAL_VIEW &pnGlobal)
+template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE,
+          bool IS_MODEL_ON_NODES>
+void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE,
+               IS_MODEL_ON_NODES>::updatePressureField(float dt, int i1, int i2,
+                                                       const ARRAY_REAL_VIEW
+                                                           &pnGlobal)
 {
   float const dt2 = dt * dt;
   LOOPHEAD(m_mesh.getNumberOfNodes(), I)
@@ -185,10 +197,11 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE,IS_MODEL_ON_NODES>::updatePressur
   LOOPEND
 }
 
-template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE, bool IS_MODEL_ON_NODES>
-void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE,IS_MODEL_ON_NODES>::outputPnValues(
-    const int &indexTimeStep, int &i1, int &myElementSource,
-    const ARRAY_REAL_VIEW &pnGlobal)
+template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE,
+          bool IS_MODEL_ON_NODES>
+void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES>::
+    outputPnValues(const int &indexTimeStep, int &i1, int &myElementSource,
+                   const ARRAY_REAL_VIEW &pnGlobal)
 {
   cout << "TimeStep=" << indexTimeStep
        << ";  pnGlobal @ elementSource location " << myElementSource
@@ -197,15 +210,19 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE,IS_MODEL_ON_NODES>::outputPnValue
        << endl;
 }
 
-template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE, bool IS_MODEL_ON_NODES>
-void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE,IS_MODEL_ON_NODES>::initFEarrays()
+template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE,
+          bool IS_MODEL_ON_NODES>
+void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE,
+               IS_MODEL_ON_NODES>::initFEarrays()
 {
   INTEGRAL_TYPE::init(m_precomputedIntegralData);
   initSpongeValues();
 }
 
-template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE, bool IS_MODEL_ON_NODES>
-void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE,IS_MODEL_ON_NODES>::computeGlobalMassMatrix()
+template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE,
+          bool IS_MODEL_ON_NODES>
+void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE,
+               IS_MODEL_ON_NODES>::computeGlobalMassMatrix()
 {
   MAINLOOPHEAD(m_mesh.getNumberOfElements(), elementNumber)
 
@@ -265,8 +282,10 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE,IS_MODEL_ON_NODES>::computeGlobal
   MAINLOOPEND
 }
 
-template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE, bool IS_MODEL_ON_NODES>
-void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE,IS_MODEL_ON_NODES>::allocateFEarrays()
+template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE,
+          bool IS_MODEL_ON_NODES>
+void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE,
+               IS_MODEL_ON_NODES>::allocateFEarrays()
 {
   int nbQuadraturePoints = (m_mesh.getOrder() + 1) * (m_mesh.getOrder() + 1) *
                            (m_mesh.getOrder() + 1);
@@ -282,8 +301,10 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE,IS_MODEL_ON_NODES>::allocateFEarr
                                                       "spongeTaperCoeff");
 }
 
-template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE, bool IS_MODEL_ON_NODES>
-void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE,IS_MODEL_ON_NODES>::initSpongeValues()
+template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE,
+          bool IS_MODEL_ON_NODES>
+void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE,
+               IS_MODEL_ON_NODES>::initSpongeValues()
 {
   const double sigma_max = 0.15;
   for (int n = 0; n < m_mesh.getNumberOfNodes(); n++)
