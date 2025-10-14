@@ -17,6 +17,9 @@ inputs:
   gpus:
     required: false
     default: "1"
+  mem:
+    required: false
+    default: "50G"
   run-script:
     required: true
     description: Multi-line bash job executed inside the allocated session
@@ -54,6 +57,7 @@ runs:
           --gres=gpu:${{ inputs.gpus }}
           --time=${{ inputs.time }}
           --cpus-per-task=${{ inputs.cpus }}
+          --mem=${{ inputs.mem }}
           --job-name=${{ inputs.job-name }}
           srun --export=USER,HOME,TERM,RDHPC_PARTITION,PYWRAP,PROGRAMMING_MODEL job.sh
         )

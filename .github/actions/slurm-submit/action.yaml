@@ -19,6 +19,9 @@ inputs:
   gpus:
     required: false
     default: "1"
+  mem:
+    required: false
+    default: "50G"
   run-script:
     required: true
     description: Multi-line bash payload executed inside the job
@@ -40,6 +43,7 @@ runs:
         #SBATCH -t ${{ inputs.time }}
         #SBATCH -c ${{ inputs.cpus }}
         #SBATCH --gres=gpu:${{ inputs.gpus }}
+        #SBATCH --mem=${{ inputs.mem }}
 
         echo "Node: $(hostname)"
         echo "Start: $(date -Is)"
