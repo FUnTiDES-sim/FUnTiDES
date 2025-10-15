@@ -21,12 +21,14 @@ import numpy as np
 import pyproxys.model as Model
 import pyproxys.solver as Solver
 
+# Create alias to use float32 and int32 types
 CartesianStructBuilderFI1 = Model.CartesianStructBuilder_f32_i32_O1
 CartesianStructBuilderFI2 = Model.CartesianStructBuilder_f32_i32_O2
 CartesianStructBuilderFI3 = Model.CartesianStructBuilder_f32_i32_O3
 CartesianUnstructBuilder = Model.CartesianUnstructBuilder_f32_i32
 CartesianParams = Model.CartesianParams_f32_i32
 
+# Avoid taking the enitre dev node for this example
 os.environ.setdefault("OMP_NUM_THREADS", "6")
 os.environ.setdefault("OMP_THREAD_LIMIT", "6")
 os.environ.setdefault("KOKKOS_NUM_THREADS", "6")
@@ -559,7 +561,7 @@ def setup_plot(nx, nz, cmpvalue=0.15):
     plt.title("2D Slice of a Float32 Array")
     plt.xlabel("X-axis")
     plt.ylabel("Z-axis")
-    plt.ioff()
+    plt.ioff()  # Prevent showing the plot interactively
     return fig, ax, im
 
 
@@ -582,8 +584,8 @@ def plot_snapshot(i1, nx, ny, nz, pnGlobal, im, t):
     """
 
     grid = get_snapshot(i1, nx, ny, nz, pnGlobal, False)
-    im.set_array(grid)
-    plt.draw()
+    im.set_array(grid) # Update plot with new values
+    plt.draw() # Redraw the figure with updated data
     plt.ioff()
     plt.savefig(f"snap0{t:0{5}d}.png")
 
@@ -825,8 +827,10 @@ def compute_step(
 
 
 def main():
+    # Parse command line arguments
     args = parse_args()
 
+    # Initialize global parameters from command-line arguments
     on_nodes = args.on_nodes
     f0 = args.f0
     dt = args.dt
@@ -862,37 +866,45 @@ def main():
     print(f"n_rhs                        : {n_rhs}")
     print("=========================================")
 
+    # Setup graphic display
     print("Setting up plot...")
     _, _, im = setup_plot(nx, nz)
     print("Plot set up")
 
+    # Initialize Kokkos
     kokkos.initialize()
     print("Kokkos initialized")
     memspace, layout = select_kokkos_memspace(args.mem)
 
+    # Add timing variables
     start_time = time.time()
     simulation_start = datetime.now()
     iteration_times = []
     print(f"Simulation started at: {simulation_start}")
 
+    # Create model
     print("Creating model...")
     model = create_model(
         args.model, (ex, ey, ez), (hx, hy, hz), (lx, ly, lz), order, on_nodes
     )
     print("Model created")
 
+    # Create solver
     print("Creating solver...")
     solver = create_solver(args.impl, args.model, order, on_nodes)
     print("Solver created")
 
+    # Initialize model
     print("Initializing model...")
     solver.compute_fe_init(model)
     print("Model initialized")
 
+    # allocate pressure
     print("Allocating Pressure...")
     kk_pnGlobal, pnGlobal = allocate_pressure(n_dof, memspace, layout)
     print("Pressure allocated")
 
+    # allocate RHS arrays
     print("Allocating RHS element...")
     kk_RHSElement, RHSElement = allocate_rhs_element(
         n_rhs, ex, ey, ez, memspace, layout
@@ -911,6 +923,7 @@ def main():
     )
     print("RHS term allocated")
 
+    # Create solver data instance
     print("Creating solver data...")
     data = create_solver_data(kk_RHSTerm, kk_pnGlobal, kk_RHSElement, kk_RHSWeights)
     print("Solver data created")
@@ -918,6 +931,7 @@ def main():
     i1 = data.i1
     i2 = data.i2
 
+    # Loop over time steps
     for time_sample in range(n_time_steps):
         i1, i2 = compute_step(
             time_sample,
@@ -935,6 +949,7 @@ def main():
             im,
         )
 
+    # Print final timing statistics
     end_time = time.time()
     simulation_end = datetime.now()
     total_time = end_time - start_time
@@ -948,6 +963,7 @@ def main():
     print(f"{'Max iteration time:':<25} {np.max(iteration_times):.4f} seconds")
     print("=========================================")
 
+    # release kokkos arrays and vectors
     del kk_pnGlobal
     del kk_RHSTerm
     del kk_RHSElement
