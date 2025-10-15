@@ -51,6 +51,9 @@ SEMproxy::SEMproxy(const SemProxyOptions& opt)
   const SolverFactory::methodType methodType = getMethod(opt.method);
   const SolverFactory::implemType implemType = getImplem(opt.implem);
   const SolverFactory::meshType meshType = getMesh(opt.mesh);
+  const SolverFactory::modelLocationType modelLocation =
+      isModelOnNodes ? SolverFactory::modelLocationType::OnNodes
+                     : SolverFactory::modelLocationType::OnElements;
 
   float lx = domain_size_[0];
   float ly = domain_size_[1];
@@ -111,8 +114,8 @@ SEMproxy::SEMproxy(const SemProxyOptions& opt)
   timemax_ = opt.timemax;
   num_sample_ = timemax_ / dt_;
 
-  m_solver =
-      SolverFactory::createSolver(methodType, implemType, meshType, order);
+  m_solver = SolverFactory::createSolver(methodType, implemType, meshType,
+                                         modelLocation, order);
   m_solver->computeFEInit(*m_mesh, sponge_size, opt.surface_sponge,
                           opt.taper_delta);
 

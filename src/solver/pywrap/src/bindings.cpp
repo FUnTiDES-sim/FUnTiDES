@@ -29,6 +29,11 @@ PYBIND11_MODULE(solver, m)
       .value("STRUCT", SolverFactory::Struct)
       .value("UNSTRUCT", SolverFactory::Unstruct);
 
+  py::enum_<SolverFactory::modelLocationType>(m, "ModelLocationType")
+      .value("ONNODES", SolverFactory::modelLocationType::OnNodes)
+      .value("ONELEMENTS", SolverFactory::modelLocationType::OnElements)
+      .export_values();
+
   // Bind DataStruct
   py::class_<SolverBase::DataStruct, std::shared_ptr<SolverBase::DataStruct>>(
       m, "DataStruct")
@@ -65,12 +70,12 @@ PYBIND11_MODULE(solver, m)
       "create_solver",
       [](SolverFactory::methodType methodType,
          SolverFactory::implemType implemType, SolverFactory::meshType meshType,
-         int order) {
-        auto solver = SolverFactory::createSolver(methodType, implemType,
-                                                  meshType, order);
+         SolverFactory::modelLocationType modelLocation, int order) {
+        auto solver = SolverFactory::createSolver(
+            methodType, implemType, meshType, modelLocation, order);
         return std::shared_ptr<SolverBase>(
             std::move(solver));  // pyfwi needs to do solver2 = solver1
       },
       py::arg("method_type"), py::arg("implem_type"), py::arg("mesh_type"),
-      py::arg("order"));
+      py::arg("model_location"), py::arg("order"));
 }
