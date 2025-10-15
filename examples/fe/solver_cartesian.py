@@ -33,16 +33,53 @@ os.environ.setdefault("KOKKOS_NUM_THREADS", "6")
 
 
 class MemSpace(Enum):
+    """
+    Memory space options for Kokkos.
+
+    Attributes
+    ----------
+    CPU : str
+        Host memory space ("HostSpace").
+    GPU : str
+        CUDA Unified Virtual Memory space ("CudaUVMSpace").
+    """
+
     CPU = "HostSpace"
     GPU = "CudaUVMSpace"
 
 
 class ModelType(Enum):
+    """
+    Cartesian model type options.
+
+    Attributes
+    ----------
+    STRUCTURED : str
+        On-the-fly generated mesh, no stored arrays.
+    UNSTRUCTURED : str
+        Stores mesh in arrays (coordinates, etc.)
+    """
+
     STRUCTURED = "Structured"
     UNSTRUCTURED = "Unstructured"
 
 
 class ImplemType(Enum):
+    """
+    Implementation type options.
+
+    Attributes
+    ----------
+    CLASSIC : str
+        Classic implementation.
+    GEOS : str
+        Geos implementation.
+    OPTIM : str
+        Optim implementation.
+    SHIVA : str
+        Shiva implementation.
+    """
+
     CLASSIC = "Classic"
     MAKUTU = "MAKUTU"
     OPTIM = "Optim"
@@ -50,6 +87,15 @@ class ImplemType(Enum):
 
 
 def parse_args():
+    """
+    Parses command line arguments.
+
+    Returns
+    -------
+    argparse.Namespace
+        Parsed command line arguments.
+    """
+
     parser = argparse.ArgumentParser(
         description="Run FE Cartesian solver with Kokkos memspace selection."
     )
@@ -136,6 +182,22 @@ def parse_args():
 
 
 def select_kokkos_memspace(memspace_arg):
+    """
+    Select the Kokkos memory space and layout.
+
+    Parameters
+    ----------
+    memspace_arg : str
+        The memory space argument, either 'CPU' or 'GPU'.
+
+    Returns
+    -------
+    memspace : kokkos.Space
+        The selected Kokkos memory space.
+    layout : kokkos.Layout
+        The selected Kokkos layout.
+    """
+
     try:
         enum_value = MemSpace[memspace_arg]
     except KeyError:
@@ -150,6 +212,26 @@ def select_kokkos_memspace(memspace_arg):
 
 
 def get_solver_model_type(model_type):
+    """
+    Map a ModelType value (or name) to the corresponding Solver.MeshType.
+
+    Parameters
+    ----------
+    model_type : str or ModelType
+        Model type name or ModelType enum value. Accepted values are
+        'Structured' / ModelType.STRUCTURED and 'Unstructured' / ModelType.UNSTRUCTED.
+
+    Returns
+    -------
+    Solver.MeshType
+        Corresponding Solver.MeshType enum (Solver.MeshType.STRUCT or Solver.MeshType.UNSTRUCT).
+
+    Raises
+    ------
+    ValueError
+        If the provided model_type is unknown or unsupported.
+    """
+
     try:
         enum_value = ModelType[model_type]
     except KeyError:
@@ -164,6 +246,26 @@ def get_solver_model_type(model_type):
 
 
 def get_solver_implem_type(implem_type):
+    """
+    Map an implementation identifier (name or enum) to the corresponding Solver.ImplemType.
+
+    Parameters
+    ----------
+    implem_type : str or ImplemType
+        Implementation name or ImplemType enum. Accepted names are
+        'CLASSIC', 'MAKUTU', 'OPTIM', 'SHIVA' (case-insensitive when passed as enum names).
+
+    Returns
+    -------
+    Solver.ImplemType
+        Corresponding Solver.ImplemType enum value.
+
+    Raises
+    ------
+    ValueError
+        If the provided implem_type is unknown or unsupported.
+    """
+
     try:
         enum_value = ImplemType[implem_type]
     except KeyError:
@@ -184,6 +286,35 @@ def get_solver_implem_type(implem_type):
 
 
 def create_model(model_type, e, h, l, order, on_nodes):
+    """
+    Create a Cartesian model based on the specified type.
+
+    Parameters
+    ----------
+    model_type : str
+        The type of model to create, either 'Structured' or 'Unstructured'.
+    e : int or tuple of int
+        Number of elements in each dimension (ex, ey, ez).
+    h : int or tuple of float
+        Element sizes in each dimension (hx, hy, hz). Required for structured models.
+    l : tuple of float
+        Domain sizes in each dimension (lx, ly, lz). Required for unstructured models.
+    order : int
+        The polynomial order of the elements.
+    on_nodes : bool
+        Whether to apply the model on nodes (True) or elements (False).
+
+    Returns
+    -------
+    model : Model.ModelStruct or Model.ModelUnstruct
+        The created Cartesian model.
+
+    Raises
+    ------
+    ValueError
+        If the model type is unknown.
+    """
+
     try:
         enum_value = ModelType[model_type]
     except KeyError:
@@ -198,6 +329,31 @@ def create_model(model_type, e, h, l, order, on_nodes):
 
 
 def create_structured_model(e, l, order, on_nodes):
+    """
+    Create a structured Cartesian model based on the specified order.
+
+    Parameters
+    ----------
+    e : int
+        Number of elements in each dimension (ex, ey, ez).
+    l : tuple of float
+        Domain sizes in each dimension (lx, ly, lz).
+    order : int
+        The polynomial order of the elements.
+    on_nodes: bool
+        Whether to apply the model on nodes (True) or elements (False).
+
+    Returns
+    -------
+    model : Model.ModelStruct
+        The created structured Cartesian model.
+
+    Raises
+    ------
+    ValueError
+        If the order is not 1, 2, or 3.
+    """
+
     match order:
         case 1:
             builder = CartesianStructBuilderFI1(
@@ -219,6 +375,31 @@ def create_structured_model(e, l, order, on_nodes):
 
 
 def create_unstructured_model(e, l, order, on_nodes):
+    """
+    Create an unstructured Cartesian model.
+
+    Parameters
+    ----------
+    e : tuple of int
+        Number of elements in each dimension (ex, ey, ez).
+    l : tuple of float
+        Domain sizes in each dimension (lx, ly, lz).
+    order : int
+        The polynomial order of the elements.
+    on_nodes: bool
+        Whether to apply the model on nodes (True) or elements (False).
+
+    Returns
+    -------
+    model : Model.ModelUnstruct
+        The created unstructured Cartesian model.
+
+    Raises
+    ------
+    ValueError
+        If the order is not 1, 2, or 3.
+    """
+
     if order not in (1, 2, 3):
         raise ValueError(
             f"Order {order} is not wrapped by pybind11 (only 1, 2, 3 supported)"
@@ -233,6 +414,31 @@ def create_unstructured_model(e, l, order, on_nodes):
 
 
 def create_solver(implem_type, model_type, order, on_nodes):
+    """
+    Create a solver based on the specified implementation type.
+
+    Parameters
+    ----------
+    implem_type : str
+        The implementation type, one of 'CLASSIC', 'GEOS', 'OPTIM', or 'SHIVA'.
+    model_type : str
+        The model type, either 'Structured' or 'Unstructured'.
+    order : int
+        The polynomial order of the elements.
+    on_nodes : bool
+        Whether the model is applied on nodes (True) or elements (False).
+
+    Returns
+    -------
+    solver : Solver.Solver
+        The created solver.
+
+    Raises
+    ------
+    ValueError
+        If the implementation type is unknown.
+    """
+
     impl = get_solver_implem_type(implem_type)
     model = get_solver_model_type(model_type)
     model_location = (
@@ -247,6 +453,26 @@ def create_solver(implem_type, model_type, order, on_nodes):
 
 
 def source_term(time_n, f0):
+    """
+    Computes the source term value at a given time for a Ricker wavelet.
+
+    Parameters
+    ----------
+    time_n : float
+        The current time at which to evaluate the source term.
+    f0 : float
+        The peak frequency of the Ricker wavelet.
+
+    Returns
+    -------
+    float
+        The value of the source term at the specified time.
+
+    Notes
+    -----
+    The function returns zero outside the interval [-0.9 * t_peak, 2.9 * t_peak], where t_peak = 1.0 / f0.
+    """
+
     o_tpeak = 1.0 / f0
     pulse = 0.0
     if time_n <= -0.9 * o_tpeak or time_n >= 2.9 * o_tpeak:
@@ -264,6 +490,30 @@ def source_term(time_n, f0):
 
 
 def get_snapshot(i1, nx, ny, nz, pnGlobal, normalize=False):
+    """
+    Extracts a 2D snapshot from a 3D global array at a specified index, with optional normalization.
+
+    Parameters
+    ----------
+    i1 : int
+        Index for the pressure field.
+    nx : int
+        Number of grid points in the x-direction.
+    ny : int
+        Number of grid points in the y-direction.
+    nz : int
+        Number of grid points in the z-direction.
+    pnGlobal : np.ndarray
+        The global 3D array of shape (nx * ny * nz, N), where N >= i1 + 1.
+    normalize : bool
+        If True, normalize the resulting 2D grid by its maximum absolute value (default: False).
+
+    Returns
+    -------
+    grid : np.ndarray
+        A 2D array of shape (nx, nz) representing the extracted snapshot.
+    """
+
     offset = nx * nz * (int(ny / 2) - 1)
     grid = np.zeros((nx, nz))
     for I in range(offset, offset + nx * nz):
@@ -280,6 +530,28 @@ def get_snapshot(i1, nx, ny, nz, pnGlobal, normalize=False):
 
 
 def setup_plot(nx, nz, cmpvalue=0.15):
+    """
+    Set up a matplotlib plot for a 2D slice of a Float32 array.
+
+    Parameters
+    ----------
+    nx : int
+        Number of grid points in the x-direction.
+    nz : int
+        Number of grid points in the z-direction.
+    cmpvalue : float, optional
+        Color map value range (default: 0.15).
+
+    Returns
+    -------
+    fig : matplotlib.figure.Figure
+        The created figure.
+    ax : matplotlib.axes.Axes
+        The created axes.
+    im : matplotlib.image.AxesImage
+        The image object for updating the plot.
+    """
+
     grid = np.zeros((nx, nz))
     fig, ax = plt.subplots()
     im = ax.imshow(grid, cmap="viridis", interpolation="nearest")
@@ -292,6 +564,23 @@ def setup_plot(nx, nz, cmpvalue=0.15):
 
 
 def plot_snapshot(i1, nx, ny, nz, pnGlobal, im, t):
+    """
+    Plot and save a snapshot of the simulation at the given time step.
+
+    Parameters
+    ----------
+    i1 : int
+        Index for the pressure field.
+    nx, ny, nz : int
+        Grid dimensions.
+    pnGlobal : np.ndarray
+        Pressure field array.
+    im : matplotlib.image.AxesImage
+        The image object for updating the plot.
+    t : int
+        Current time step.
+    """
+
     grid = get_snapshot(i1, nx, ny, nz, pnGlobal, False)
     im.set_array(grid)
     plt.draw()
@@ -300,6 +589,26 @@ def plot_snapshot(i1, nx, ny, nz, pnGlobal, im, t):
 
 
 def allocate_pressure(n_dof, memspace, layout):
+    """
+    Allocate and initialize to 0 the pressure arrays.
+
+    Parameters
+    ----------
+    n_dof : int
+        Number of degrees of freedom.
+    memspace : kokkos.Space
+        The selected Kokkos memory space.
+    layout : kokkos.Layout
+        The selected Kokkos layout.
+
+    Returns
+    -------
+    kk_pnGlobal : kokkos array
+        The Kokkos array for pressure.
+    pnGlobal : np.ndarray
+        The numpy array view of the pressure.
+    """
+
     kk_pnGlobal = kokkos.array(
         [n_dof, 2], dtype=kokkos.float32, space=memspace, layout=layout
     )
@@ -310,6 +619,32 @@ def allocate_pressure(n_dof, memspace, layout):
 
 
 def allocate_rhs_term(n_rhs, n_time_steps, dt, f0, memspace, layout):
+    """
+    Allocate and fill the RHSTerm array for the source term.
+
+    Parameters
+    ----------
+    n_rhs : int
+        Number of right-hand side sources.
+    n_time_steps : int
+        Number of time steps.
+    dt : float
+        Time step size.
+    f0 : float
+        Source frequency.
+    memspace : kokkos.Space
+        The selected Kokkos memory space.
+    layout : kokkos.Layout
+        The selected Kokkos layout.
+
+    Returns
+    -------
+    kk_RHSTerm : kokkos array
+        The Kokkos array for the source term.
+    RHSTerm : np.ndarray
+        The numpy array view of the source term.
+    """
+
     kk_RHSTerm = kokkos.array(
         [n_rhs, n_time_steps], dtype=kokkos.float32, space=memspace, layout=layout
     )
@@ -321,6 +656,28 @@ def allocate_rhs_term(n_rhs, n_time_steps, dt, f0, memspace, layout):
 
 
 def allocate_rhs_weight(n_rhs, model, memspace, layout):
+    """
+    Allocate and fill the RHSWeights array.
+
+    Parameters
+    ----------
+    n_rhs : int
+        Number of right-hand side sources.
+    model : Model.ModelStruct or Model.ModelUnstruct
+        The model object with get_number_of_points_per_element methods.
+    memspace : kokkos.Space
+        The selected Kokkos memory space.
+    layout : kokkos.Layout
+        The selected Kokkos layout.
+
+    Returns
+    -------
+    kk_RHSWeights : kokkos array
+        The Kokkos array for the weights.
+    RHSWeights : np.ndarray
+        The numpy array view of the weights.
+    """
+
     nb_points = model.get_number_of_points_per_element()
     kk_RHSWeights = kokkos.array(
         [n_rhs, nb_points],
@@ -336,6 +693,28 @@ def allocate_rhs_weight(n_rhs, model, memspace, layout):
 
 
 def allocate_rhs_element(n_rhs, ex, ey, ez, memspace, layout):
+    """
+    Allocate and fill the RHSElement array.
+
+    Parameters
+    ----------
+    n_rhs : int
+        Number of right-hand side sources.
+    n_points_per_elements : int
+        Number of points per element.
+    memspace : kokkos.Space
+        The selected Kokkos memory space.
+    layout : kokkos.Layout
+        The selected Kokkos layout.
+
+    Returns
+    -------
+    kk_RHSElement : kokkos array
+        The Kokkos array for the element indices.
+    RHSElement : np.ndarray
+        The numpy array view of the element indices.
+    """
+
     kk_RHSElement = kokkos.array(
         [n_rhs], dtype=kokkos.int32, space=memspace, layout=layout
     )
@@ -346,6 +725,26 @@ def allocate_rhs_element(n_rhs, ex, ey, ez, memspace, layout):
 
 
 def create_solver_data(kk_RHSTerm, kk_pnGlobal, kk_RHSElement, kk_RHSWeights):
+    """
+    Create SEMsolverData instance and return it along with i1 and i2.
+
+    Parameters
+    ----------
+    kk_RHSTerm : kokkos array
+        The Kokkos array for the source term.
+    kk_pnGlobal : kokkos array
+        The Kokkos array for pressure.
+    kk_RHSElement : kokkos array
+        The Kokkos array for the element indices.
+    kk_RHSWeights : kokkos array
+        The Kokkos array for the weights.
+
+    Returns
+    -------
+    data : Solver.SEMsolverData
+        The SEMsolverData instance.
+    """
+
     data = Solver.SEMsolverData(
         0,
         1,
@@ -374,6 +773,38 @@ def compute_step(
     pnGlobal,
     im,
 ):
+    """
+    Perform a single time step of the simulation, update timing, plot, and swap indices.
+
+    Parameters
+    ----------
+    time_sample : int
+        Current time step.
+    dt : float
+        Time step size.
+    solver : Solver.Solver
+        The solver instance.
+    data : Solver.SEMsolverData
+        The SEMsolverData instance.
+    iteration_times : list
+        List to append iteration time.
+    n_time_steps : int
+        Total number of time steps.
+    i1, i2 : int
+        Indices for pressure fields.
+    nx, ny, nz : int
+        Grid dimensions for the plot.
+    pnGlobal : np.ndarray
+        Pressure field array.
+    im : matplotlib.image.AxesImage
+        The image object for updating the plot.
+
+    Returns
+    -------
+    i1, i2 : int
+        Updated indices for pressure fields.
+    """
+
     iter_start = time.time()
     solver.compute_one_step(dt, time_sample, data)
     iter_time = time.time() - iter_start

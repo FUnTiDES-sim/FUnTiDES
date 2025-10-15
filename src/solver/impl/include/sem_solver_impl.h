@@ -150,7 +150,7 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES>::
   }
 
   real_t inv_density = 0.0f;
-  if (!IS_MODEL_ON_NODES)
+  if constexpr (!IS_MODEL_ON_NODES)
   {
     inv_density = 1.0f / m_mesh.getModelRhoOnElement(elementNumber);
   }
