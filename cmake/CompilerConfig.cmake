@@ -2,6 +2,7 @@
 # Compilation flags
 #-------------------------------------------------------------------
 
+# use kokkos native architecture instead of -march=native to avoid issues on mac arm systems.
 set( Kokkos_ARCH_NATIVE ON CACHE BOOL "Enable Kokkos native architecture" FORCE )
 
 # CC
