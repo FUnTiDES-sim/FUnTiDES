@@ -584,8 +584,8 @@ def plot_snapshot(i1, nx, ny, nz, pnGlobal, im, t):
     """
 
     grid = get_snapshot(i1, nx, ny, nz, pnGlobal, False)
-    im.set_array(grid) # Update plot with new values
-    plt.draw() # Redraw the figure with updated data
+    im.set_array(grid)  # Update plot with new values
+    plt.draw()  # Redraw the figure with updated data
     plt.ioff()
     plt.savefig(f"snap0{t:0{5}d}.png")
 
