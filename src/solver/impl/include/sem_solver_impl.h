@@ -38,6 +38,7 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE>::computeFEInit(
 
   allocateFEarrays();
   initFEarrays();
+  computeGlobalMassMatrix(m_mesh.isModelOnNodes());
 }
 
 template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE>
@@ -68,10 +69,7 @@ template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE>
 void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE>::resetGlobalVectors(
     int numNodes)
 {
-  LOOPHEAD(numNodes, i)
-  {
-    yGlobal[i] = 0;
-  }
+  LOOPHEAD(numNodes, i) { yGlobal[i] = 0; }
   LOOPEND
 }
 
@@ -143,6 +141,10 @@ computeElementContributions( int i2, const ARRAY_REAL_VIEW & pnGlobal , bool isM
     int z = (i / dim) % dim;
     int y = i / (dim * dim);
     int const gIndex = m_mesh.globalNodeIndex(elementNumber, x, y, z);
+    if (isModelOnNodes)
+    {
+      inv_density = 1.0f / m_mesh.getModelRhoOnNodes(gIndex);
+    }
     Y[i] *= inv_density;
     ATOMICADD(yGlobal[gIndex], Y[i]);
   }
@@ -231,6 +233,68 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE>::initFEarrays()
   MAINLOOPEND
   
   initSpongeValues();
+}
+
+template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE>
+void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE>::computeGlobalMassMatrix(
+    bool isModelOnNodes)
+{
+  MAINLOOPHEAD(m_mesh.getNumberOfElements(), elementNumber)
+
+  // Guard for extra threads (Kokkos might launch more than needed)
+  if (elementNumber >= m_mesh.getNumberOfElements()) return;
+
+  float massMatrixLocal[nPointsElement] = {0};
+
+  int dim = m_mesh.getOrder() + 1;
+
+  float cornerCoords[8][3];
+  int I = 0;
+  int nodes_corner[2] = {0, m_mesh.getOrder()};
+  for (int k : nodes_corner)
+  {
+    for (int j : nodes_corner)
+    {
+      for (int i : nodes_corner)
+      {
+        int nodeIdx = m_mesh.globalNodeIndex(elementNumber, i, j, k);
+        cornerCoords[I][0] = m_mesh.nodeCoord(nodeIdx, 0);
+        cornerCoords[I][2] = m_mesh.nodeCoord(nodeIdx, 2);
+        cornerCoords[I][1] = m_mesh.nodeCoord(nodeIdx, 1);
+        I++;
+      }
+    }
+  }
+
+  real_t inv_model2 = 0.0f;
+  if (!isModelOnNodes)
+  {
+    inv_model2 = 1.0f / (m_mesh.getModelVpOnElement(elementNumber) *
+                         m_mesh.getModelVpOnElement(elementNumber) *
+                         m_mesh.getModelRhoOnElement(elementNumber));
+  }
+
+  INTEGRAL_TYPE::computeMassTerm(
+      cornerCoords,
+      [&](const int j, const real_t val) { massMatrixLocal[j] += val; });
+
+  for (int i = 0; i < m_mesh.getNumberOfPointsPerElement(); ++i)
+  {
+    int x = i % dim;
+    int z = (i / dim) % dim;
+    int y = i / (dim * dim);
+    int const gIndex = m_mesh.globalNodeIndex(elementNumber, x, y, z);
+    if (isModelOnNodes)
+    {
+      inv_model2 = 1.0f / (m_mesh.getModelVpOnNodes(gIndex) *
+                           m_mesh.getModelVpOnNodes(gIndex) *
+                           m_mesh.getModelRhoOnNodes(gIndex));
+    }
+    massMatrixLocal[i] *= inv_model2;
+    ATOMICADD(massMatrixGlobal[gIndex], massMatrixLocal[i]);
+  }
+
+  MAINLOOPEND
 }
 
 template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE>

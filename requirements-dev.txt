@@ -1,5 +1,7 @@
+matplotlib
 pytest
 pytest-benchmark
 pygal
 ruff
+scipy
 clang-format==13
