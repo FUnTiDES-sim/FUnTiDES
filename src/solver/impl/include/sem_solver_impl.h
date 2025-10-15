@@ -134,7 +134,7 @@ computeElementContributions( int i2, const ARRAY_REAL_VIEW & pnGlobal , bool isM
   });
 
 
-  real_t const inv_density = !isModelOnNodes ? 1.0f / m_mesh.getModelRhoOnElement(elementNumber) : 1.0f;
+  real_t  inv_density = 1.0f / m_mesh.getModelRhoOnElement(elementNumber);
   for (int i = 0; i < m_mesh.getNumberOfPointsPerElement(); ++i)
   {
     int x = i % dim;
@@ -156,14 +156,11 @@ template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE>
 void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE>::updatePressureField(
     float dt, int i1, int i2, const ARRAY_REAL_VIEW &pnGlobal)
 {
-
-  bool const isModelOnNodes = m_mesh.isModelOnNodes();
   float const dt2 = dt * dt;
   LOOPHEAD(m_mesh.getNumberOfNodes(), I)
   {
-    real_t const density = isModelOnNodes ? m_mesh.getModelRhoOnNodes(I) : 1.0f;
-
-    pnGlobal(I, i1) = 2 * pnGlobal(I, i2) - pnGlobal(I, i1) - dt2 * yGlobal[I] / (massMatrixGlobal[I] * density);
+    pnGlobal(I, i1) = 2 * pnGlobal(I, i2) - pnGlobal(I, i1) -
+                      dt2 * yGlobal[I] / massMatrixGlobal[I];
     pnGlobal(I, i1) *= spongeTaperCoeff(I);
     pnGlobal(I, i2) *= spongeTaperCoeff(I);
   }
@@ -185,53 +182,6 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE>::outputPnValues(
 template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE>
 void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE>::initFEarrays()
 {
-  const int dim = m_mesh.getOrder() + 1;
-
-  MAINLOOPHEAD(m_mesh.getNumberOfElements(), elementNumber)
-
-  // Guard for extra threads (Kokkos might launch more than needed)
-  if (elementNumber >= m_mesh.getNumberOfElements()) return;
-
-  float massMatrixLocal[nPointsElement] = {0};
-
-  typename INTEGRAL_TYPE::TransformType transformData;
-  INTEGRAL_TYPE::gatherCoordinates( elementNumber, m_mesh, transformData );
-
-  INTEGRAL_TYPE::computeMassTerm( transformData,
-                                  [&](const int j, const real_t val) 
-  { 
-    massMatrixLocal[j] += val; 
-  });
-
-  // Stiffness term
-
-  for (int i = 0; i < m_mesh.getNumberOfPointsPerElement(); ++i)
-  {
-    int x = i % dim;
-    int z = (i / dim) % dim;
-    int y = i / (dim * dim);
-    int const gIndex = m_mesh.globalNodeIndex(elementNumber, x, y, z);
-
-    real_t inv_model2 = 0.0f;
-    if (!m_mesh.isModelOnNodes())
-    {
-      inv_model2 = 1.0f / (m_mesh.getModelVpOnElement(elementNumber) *
-                           m_mesh.getModelVpOnElement(elementNumber) *
-                           m_mesh.getModelRhoOnElement(elementNumber));
-    }
-    else
-    {
-      inv_model2 = 1.0f / (m_mesh.getModelVpOnNodes(gIndex) *
-                           m_mesh.getModelVpOnNodes(gIndex) *
-                           m_mesh.getModelRhoOnNodes(gIndex));
-    }
-
-    massMatrixLocal[i] *= inv_model2;
-    ATOMICADD(massMatrixGlobal[gIndex], massMatrixLocal[i]);
-  }
-
-  MAINLOOPEND
-  
   initSpongeValues();
 }
 
@@ -248,23 +198,14 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE>::computeGlobalMassMatrix(
 
   int dim = m_mesh.getOrder() + 1;
 
-  float cornerCoords[8][3];
-  int I = 0;
-  int nodes_corner[2] = {0, m_mesh.getOrder()};
-  for (int k : nodes_corner)
-  {
-    for (int j : nodes_corner)
-    {
-      for (int i : nodes_corner)
-      {
-        int nodeIdx = m_mesh.globalNodeIndex(elementNumber, i, j, k);
-        cornerCoords[I][0] = m_mesh.nodeCoord(nodeIdx, 0);
-        cornerCoords[I][2] = m_mesh.nodeCoord(nodeIdx, 2);
-        cornerCoords[I][1] = m_mesh.nodeCoord(nodeIdx, 1);
-        I++;
-      }
-    }
-  }
+  typename INTEGRAL_TYPE::TransformType transformData;
+  INTEGRAL_TYPE::gatherCoordinates( elementNumber, m_mesh, transformData );
+
+  INTEGRAL_TYPE::computeMassTerm( transformData,
+                                  [&](const int j, const real_t val) 
+  { 
+    massMatrixLocal[j] += val; 
+  });
 
   real_t inv_model2 = 0.0f;
   if (!isModelOnNodes)
@@ -273,10 +214,6 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE>::computeGlobalMassMatrix(
                          m_mesh.getModelVpOnElement(elementNumber) *
                          m_mesh.getModelRhoOnElement(elementNumber));
   }
-
-  INTEGRAL_TYPE::computeMassTerm(
-      cornerCoords,
-      [&](const int j, const real_t val) { massMatrixLocal[j] += val; });
 
   for (int i = 0; i < m_mesh.getNumberOfPointsPerElement(); ++i)
   {
