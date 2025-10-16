@@ -1,0 +1,104 @@
+name: slurm-submit
+description: Submit and wait for a Slurm job
+inputs:
+  job-name:
+    required: true
+  head-node:
+    required: true
+  partition:
+    required: true
+  account:
+    required: false
+    default: "co2su"
+  time:
+    required: false
+    default: 00:30:00
+  cpus:
+    required: false
+    default: "1"
+  gpus:
+    required: false
+    default: "1"
+  mem:
+    required: false
+    default: "50G"
+  run-script:
+    required: true
+    description: Multi-line bash payload executed inside the job
+runs:
+  using: composite
+  steps:
+    - shell: bash
+      run: |
+        # Create Slurm job script
+        set -euo pipefail
+
+        cat > job.slurm <<'EOF'
+        #!/bin/bash
+        #SBATCH -J ${{ inputs.job-name }}
+        #SBATCH -o slurm-%x-%j.out
+        #SBATCH -e slurm-%x-%j.err
+        #SBATCH -p ${{ inputs.partition }}
+        #SBATCH -A ${{ inputs.account }}
+        #SBATCH -t ${{ inputs.time }}
+        #SBATCH -c ${{ inputs.cpus }}
+        #SBATCH --gres=gpu:${{ inputs.gpus }}
+        #SBATCH --mem=${{ inputs.mem }}
+
+        echo "Node: $(hostname)"
+        echo "Start: $(date -Is)"
+        EOF
+
+        cat >> job.slurm <<'EOF'
+        ${{ inputs.run-script }}
+        EOF
+
+        cat >> job.slurm <<'EOF'
+        STATUS=$?
+        echo "End: $(date -Is) (exit=$STATUS)"
+        exit $STATUS
+        EOF
+
+        echo "Submitting Slurm job..."
+        cat job.slurm
+
+        # Assume current directory is shared/visible on remote; submit directly there
+        set +e
+        REMOTE_HOST="${{ inputs.head-node }}"
+        LOCAL_DIR="$(pwd)"
+        if [ ! -f job.slurm ]; then
+          echo "job.slurm not found in ${LOCAL_DIR}"
+          exit 1
+        fi
+
+        echo "Submitting Slurm job on ${REMOTE_HOST} from shared dir ${LOCAL_DIR}..."
+        ssh -o BatchMode=yes "${REMOTE_HOST}" "cd '${LOCAL_DIR}' && \
+          export RDHPC_PARTITION='${{ inputs.partition }}' \
+                 PYWRAP='${PYWRAP:-${{ env.PYWRAP }}}' \
+                 PROGRAMMING_MODEL='${PROGRAMMING_MODEL:-${{ env.PROGRAMMING_MODEL }}}' && \
+          echo '  Partition      = '\"\$RDHPC_PARTITION\" && \
+          echo '  Pywrap         = '\"\$PYWRAP\" && \
+          echo '  Model          = '\"\$PROGRAMMING_MODEL\" && \
+          sbatch --export=RDHPC_PARTITION,PYWRAP,PROGRAMMING_MODEL --wait job.slurm"
+        SBATCH_STATUS=$?
+
+        set -e
+        echo "Tail of output:"
+        tail -n 200 slurm-*.out || true
+
+        echo "Tail of error:"
+        tail -n 200 slurm-*.err || true
+
+        # Propagate sbatch (job) exit code
+        exit $SBATCH_STATUS
+
+    - id: cancel
+      if: cancelled()
+      shell: bash
+      run: |
+        # Not the cleanest way to clean but since we only have one concurrent job per runner and each job has a unique name, this should be fine
+        REMOTE_HOST="${{ inputs.head-node }}"
+        JOB_NAME="${{ inputs.job-name }}"
+        PARTITION="${{ inputs.partition }}"
+        echo "Cancelling all Slurm jobs named '$JOB_NAME' on partition '$PARTITION' at $REMOTE_HOST"
+        ssh -o BatchMode=yes "${REMOTE_HOST}" "squeue -h -n \"${JOB_NAME}\" -p \"${PARTITION}\" -o '%i' | xargs -r scancel" || true

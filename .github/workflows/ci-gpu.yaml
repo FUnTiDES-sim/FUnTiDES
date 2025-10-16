@@ -1,0 +1,91 @@
+name: CI-GPU
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+# PR only runs whith GPU_RUN label (see "if" condition in build job)
+on:
+  pull_request:
+    branches:
+      - main
+    types: [opened, synchronize, reopened, labeled, unlabeled, edited]
+    paths-ignore:
+      - '**/README.md'
+      - 'examples/**'
+
+  workflow_dispatch: # Allow to start this workflow manually
+
+jobs:
+
+  build:
+    if: ${{ github.event_name == 'workflow_dispatch' || (github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'GPU_RUN')) }}
+    runs-on: hpc-us
+    strategy:
+      matrix:
+        arch: [a100, h200]
+        pywrap: [pywrap-off, pywrap-on]
+        programming_model: [vector, kokkos]
+
+        # Always build python wrappers for Kokkos
+        # Never build python wrappers for Vector
+        exclude:
+        - programming_model: vector
+          pywrap: pywrap-on
+
+        - programming_model: kokkos
+          pywrap: pywrap-off
+
+        # Map arch to cluster
+        include:
+          - arch: h200
+            partition: maple_mig
+            head_node: maple-1
+
+          - arch: a100
+            partition: cypress_dgx
+
+      max-parallel: 5
+
+    continue-on-error: true # We want to run other builds even if some build fails
+
+    steps:
+
+      - name: Checkout
+        id: checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          submodules: recursive
+
+      # FOR MAPLE
+      - name: Slurm Submit
+        if: ${{ matrix.partition != 'cypress_dgx' }}
+        uses: ./.github/actions/slurm-submit
+        env:
+          RDHPC_PARTITION: ${{ matrix.partition }}
+          PYWRAP: ${{ matrix.pywrap }}
+          PROGRAMMING_MODEL: ${{ matrix.programming_model }}
+        with:
+          # job name MUST be unique for partition
+          job-name: funtides-${{ matrix.pywrap }}-${{ matrix.programming_model }}-${{ runner.name }}
+          head-node: ${{ matrix.head_node }}
+          partition: ${{ matrix.partition }}
+          time: 02:00:00
+          run-script: |
+            ./.github/scripts/build_and_test_gpu.sh
+
+      # FOR CYPRESS
+      - name: Slurm Allocate
+        if: ${{ matrix.partition == 'cypress_dgx' }}
+        uses: ./.github/actions/slurm-salloc
+        env:
+          RDHPC_PARTITION: ${{ matrix.partition }}
+          PYWRAP: ${{ matrix.pywrap }}
+          PROGRAMMING_MODEL: ${{ matrix.programming_model }}
+        with:
+          # job name MUST be unique for partition
+          job-name: funtides-${{ matrix.pywrap }}-${{ matrix.programming_model }}-${{ runner.name }}
+          partition: ${{ matrix.partition }}
+          run-script: |
+            ./.github/scripts/build_and_test_gpu.sh

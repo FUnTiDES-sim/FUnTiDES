@@ -99,8 +99,12 @@ The following options can be used to configure your build:
 
 To install python requirements
 ```bash
+python -m venv .venv
+source .venv/bin/asctivate
 pip install -r requirements.txt
 ```
+
+Make sure that your venv is sourced before running configure, build, test and install steps.
 
 ### Generation
 
