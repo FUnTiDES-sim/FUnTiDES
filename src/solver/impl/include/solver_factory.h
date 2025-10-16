@@ -22,11 +22,17 @@ enum meshType
   Struct,
   Unstruct
 };
+enum modelLocationType
+{
+  OnNodes,
+  OnElements
+};
 enum physicType
 {
   Acoustic,
   Elastic
 };
+
 
 inline std::string to_string(methodType m)
 {
@@ -67,6 +73,19 @@ inline std::string to_string(meshType m)
   }
 }
 
+inline std::string to_string(modelLocationType loc)
+{
+  switch (loc)
+  {
+    case OnNodes:
+      return "OnNodes";
+    case OnElements:
+      return "OnElements";
+    default:
+      return "Unknown";
+  }
+}
+
 inline std::string to_string(physicType p)
 {
   switch (p)
@@ -80,9 +99,11 @@ inline std::string to_string(physicType p)
   }
 }
 
+
 std::unique_ptr<SolverBase> createSolver(methodType const methodType,
                                          implemType const implemType,
                                          meshType const meshType,
+                                         modelLocationType const modelLocation,
                                          physicType const physicType,
                                          int const order);
 }  // namespace SolverFactory

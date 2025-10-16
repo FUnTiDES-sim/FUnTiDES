@@ -5,4 +5,4 @@
 constexpr int ORDER = 3;
 template class SEMsolverAcoustic<
     ORDER, IntegralTypeSelector<ORDER, IntegralType::MAKUTU>::type,
-    model::ModelStruct<float, int, ORDER> >;
+    model::ModelStruct<float, int, ORDER>, true>;
