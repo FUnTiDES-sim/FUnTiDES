@@ -1,8 +1,8 @@
 #include <model_struct.h>
 
-#include "sem_solver_impl.h"
+#include "sem_solver_acoustic_impl.h"
 
 constexpr int ORDER = 1;
-template class SEMsolver<
+template class SEMsolverAcoustic<
     ORDER, IntegralTypeSelector<ORDER, IntegralType::MAKUTU>::type,
     model::ModelStruct<float, int, ORDER>, false>;

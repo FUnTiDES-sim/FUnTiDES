@@ -76,7 +76,8 @@ struct SEMsolverDataElastic : public SolverBase::DataStruct
  * @tparam INTEGRAL_TYPE Type for numerical integration (basis functions, quadrature)
  * @tparam MESH_TYPE Type of the computational mesh
  */
-template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE>
+template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE, 
+          bool IS_MODEL_ON_NODES>
 class SEMsolverElastic : public SEMSolverBase
 {
  public:
@@ -146,7 +147,7 @@ class SEMsolverElastic : public SEMSolverBase
    * @param isModelOnNodes True if the velocity model is defined on nodes, false
    *                       if on elements
    */
-  void computeGlobalMassMatrix(bool isModelOnNodes) override;
+  void computeGlobalMassMatrix() override;
 
   /**
    * @brief Output displacement values at a specific time step.
@@ -194,8 +195,9 @@ class SEMsolverElastic : public SEMSolverBase
    * @param isModelOnNodes True if the velocity model is defined on nodes,
    *                       false if on elements.
    */
-  void computeElementContributions(int i2, const ARRAY_REAL_VIEW &pnGlobal,
-                                   bool isModelOnNodes);
+  void computeElementContributions(int i2, const ARRAY_REAL_VIEW &uxnGlobal,
+                                   const ARRAY_REAL_VIEW &uynGlobal,
+                                   const ARRAY_REAL_VIEW &uznGlobal);
 
   /**
    * @brief Update the global displacement field at interior nodes.
