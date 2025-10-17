@@ -3,7 +3,7 @@
 #include <fe/Integrals.hpp>
 #include <memory>
 
-#include "solver_base.h"
+#include "sem_solver_base.h"
 
 namespace SolverFactory
 {
@@ -100,7 +100,7 @@ inline std::string to_string(physicType p)
 }
 
 
-std::unique_ptr<SolverBase> createSolver(methodType const methodType,
+std::unique_ptr<SEMSolverBase> createSolver(methodType const methodType,
                                          implemType const implemType,
                                          meshType const meshType,
                                          modelLocationType const modelLocation,

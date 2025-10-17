@@ -104,6 +104,9 @@ class SEMproxy
   int snap_time_interval_;
   std::string snap_folder_;
 
+  //physics
+  bool isElastic_;
+
   // time parameters
   float dt_;
   float timemax_;
@@ -115,7 +118,7 @@ class SEMproxy
   int myElementSource = 0;
 
   std::shared_ptr<model::ModelApi<float, int>> m_mesh;
-  std::unique_ptr<SolverBase> m_solver;
+  std::unique_ptr<SEMSolverBase> m_solver;
   SolverUtils myUtils;
 
   // arrays
@@ -126,6 +129,17 @@ class SEMproxy
   arrayReal rhsWeights;
   arrayReal rhsWeightsRcv;
   arrayReal pnAtReceiver;
+  //elastic arrays
+
+  arrayReal myRHSTermx;
+  arrayReal myRHSTermy;
+  arrayReal myRHSTermz;
+  arrayReal uxnGlobal;
+  arrayReal uynGlobal;
+  arrayReal uznGlobal;
+  arrayReal uxnAtReceiver;
+  arrayReal uynAtReceiver;
+  arrayReal uznAtReceiver;
 
   // io controller
   std::shared_ptr<SemIOController> io_ctrl_;

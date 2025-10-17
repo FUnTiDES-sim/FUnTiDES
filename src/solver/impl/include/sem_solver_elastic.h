@@ -76,7 +76,8 @@ struct SEMsolverDataElastic : public SolverBase::DataStruct
  * @tparam INTEGRAL_TYPE Type for numerical integration (basis functions, quadrature)
  * @tparam MESH_TYPE Type of the computational mesh
  */
-template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE>
+template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE, 
+          bool IS_MODEL_ON_NODES>
 class SEMsolverElastic : public SEMSolverBase
 {
  public:
@@ -146,7 +147,7 @@ class SEMsolverElastic : public SEMSolverBase
    * @param isModelOnNodes True if the velocity model is defined on nodes, false
    *                       if on elements
    */
-  void computeGlobalMassMatrix(bool isModelOnNodes) override;
+  void computeGlobalMassMatrix() override;
 
   /**
    * @brief Output displacement values at a specific time step.
@@ -160,11 +161,9 @@ class SEMsolverElastic : public SEMSolverBase
    * @param uynGlobal Global Y-displacement field [node][time].
    * @param uznGlobal Global Z-displacement field [node][time].
    */
-  void outputUnValues(const int &indexTimeStep, int &i1,
+  void outputSolutionValues(const int &indexTimeStep, int &i1,
                       int &myElementSource,
-                      const ARRAY_REAL_VIEW &uxnGlobal,
-                      const ARRAY_REAL_VIEW &uynGlobal,
-                      const ARRAY_REAL_VIEW &uznGlobal);
+                      const ARRAY_REAL_VIEW &uxnGlobal, const char* fieldName) override;
 
   /**
    * @brief Apply external forcing to the global displacement field.
@@ -194,8 +193,9 @@ class SEMsolverElastic : public SEMSolverBase
    * @param isModelOnNodes True if the velocity model is defined on nodes,
    *                       false if on elements.
    */
-  void computeElementContributions(int i2, const ARRAY_REAL_VIEW &pnGlobal,
-                                   bool isModelOnNodes);
+  void computeElementContributions(int i2, const ARRAY_REAL_VIEW &uxnGlobal,
+                                   const ARRAY_REAL_VIEW &uynGlobal,
+                                   const ARRAY_REAL_VIEW &uznGlobal);
 
   /**
    * @brief Update the global displacement field at interior nodes.
@@ -213,6 +213,24 @@ class SEMsolverElastic : public SEMSolverBase
                                const ARRAY_REAL_VIEW &uxnGlobal,
                                const ARRAY_REAL_VIEW &uynGlobal,
                                const ARRAY_REAL_VIEW &uznGlobal);
+
+  /**
+   * @brief Compute the elasticity matrix at a given node.
+   * @param vp P-wave velocity.
+   * @param vs S-wave velocity.
+   * @param rho Density.
+   * @param delta Thomsen parameter delta.
+   * @param epsilon Thomsen parameter epsilon.
+   * @param gamma Thomsen parameter gamma.
+   * @param phi Azimuthal angle (radians).
+   * @param theta Dip angle (radians).
+   * @param C Output 6x6 elasticity matrix.
+   */
+  PROXY_HOST_DEVICE
+  void computeCMatrix(float const vp, float const vs, float const rho, float const delta, 
+                      float const epsilon, float const gamma, float const phi, float const theta, float (&C)[6][6]) const ;
+
+
 
  private:
   MESH_TYPE m_mesh;  ///< Computational mesh

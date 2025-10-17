@@ -200,13 +200,14 @@ void SEMsolverAcoustic<ORDER, INTEGRAL_TYPE, MESH_TYPE,
 template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE,
           bool IS_MODEL_ON_NODES>
 void SEMsolverAcoustic<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES>::
-    outputPnValues(const int &indexTimeStep, int &i1, int &myElementSource,
-                   const ARRAY_REAL_VIEW &pnGlobal)
+    outputSolutionValues(const int &indexTimeStep, int &i1, int &myElementSource,
+                         const ARRAY_REAL_VIEW &fieldGlobal,
+                         const char* fieldName)  // ← Nouveau paramètre
 {
   cout << "TimeStep=" << indexTimeStep
-       << ";  pnGlobal @ elementSource location " << myElementSource
+       << ";  " << fieldName << " @ elementSource location " << myElementSource
        << " after computeOneStep = "
-       << pnGlobal(m_mesh.globalNodeIndex(myElementSource, 0, 0, 0), i1)
+       << fieldGlobal(m_mesh.globalNodeIndex(myElementSource, 0, 0, 0), i1)
        << endl;
 }
 

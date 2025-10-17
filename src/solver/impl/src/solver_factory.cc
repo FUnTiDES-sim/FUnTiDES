@@ -9,7 +9,7 @@ namespace SolverFactory
 {
 
 template <typename FUNC>
-std::unique_ptr<SolverBase> orderDispatch(int const order, FUNC&& func)
+std::unique_ptr<SEMSolverBase> orderDispatch(int const order, FUNC&& func)
 {
   if (order == 1)
   {
@@ -31,7 +31,7 @@ std::unique_ptr<SolverBase> orderDispatch(int const order, FUNC&& func)
 }
 
 template <auto ImplTag>
-static std::unique_ptr<SolverBase> make_sem_solver(int order, meshType mesh, modelLocationType modelLocation, physicType physic)
+static std::unique_ptr<SEMSolverBase> make_sem_solver(int order, meshType mesh, modelLocationType modelLocation, physicType physic)
 {
   bool isModelOnNodes = (modelLocation == OnNodes);
 
@@ -42,7 +42,7 @@ static std::unique_ptr<SolverBase> make_sem_solver(int order, meshType mesh, mod
       {
         case Acoustic:
           return orderDispatch(
-            order, [isModelOnNodes](auto orderIC) -> std::unique_ptr<SolverBase> {
+            order, [isModelOnNodes](auto orderIC) -> std::unique_ptr<SEMSolverBase> {
               constexpr int ORDER = decltype(orderIC)::value;
               using SelectedIntegral =
                   typename IntegralTypeSelector<ORDER, ImplTag>::type;
@@ -60,7 +60,7 @@ static std::unique_ptr<SolverBase> make_sem_solver(int order, meshType mesh, mod
             });
         case Elastic:
           return orderDispatch(
-            order, [isModelOnNodes](auto orderIC) -> std::unique_ptr<SolverBase> {
+            order, [isModelOnNodes](auto orderIC) -> std::unique_ptr<SEMSolverBase> {
               constexpr int ORDER = decltype(orderIC)::value;
               using SelectedIntegral =
                   typename IntegralTypeSelector<ORDER, ImplTag>::type;
@@ -82,7 +82,7 @@ static std::unique_ptr<SolverBase> make_sem_solver(int order, meshType mesh, mod
       {
         case Acoustic:
           return orderDispatch(
-            order, [isModelOnNodes](auto orderIC) -> std::unique_ptr<SolverBase> {
+            order, [isModelOnNodes](auto orderIC) -> std::unique_ptr<SEMSolverBase> {
               constexpr int ORDER = decltype(orderIC)::value;
               using SelectedIntegral =
                   typename IntegralTypeSelector<ORDER, ImplTag>::type;
@@ -100,7 +100,7 @@ static std::unique_ptr<SolverBase> make_sem_solver(int order, meshType mesh, mod
             });
         case Elastic:
           return orderDispatch(
-            order, [isModelOnNodes](auto orderIC) -> std::unique_ptr<SolverBase> {
+            order, [isModelOnNodes](auto orderIC) -> std::unique_ptr<SEMSolverBase> {
               constexpr int ORDER = decltype(orderIC)::value;
               using SelectedIntegral =
                   typename IntegralTypeSelector<ORDER, ImplTag>::type;
@@ -126,7 +126,7 @@ static std::unique_ptr<SolverBase> make_sem_solver(int order, meshType mesh, mod
   throw std::runtime_error("Unknown mesh type");
 }
 
-std::unique_ptr<SolverBase> createSolver(methodType const methodType,
+std::unique_ptr<SEMSolverBase> createSolver(methodType const methodType,
                                          implemType const implemType,
                                          meshType const mesh, 
                                          modelLocationType const modelLocation,

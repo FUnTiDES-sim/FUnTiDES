@@ -65,7 +65,11 @@ class SEMSolverBase : public SolverBase
    * @param isModelOnNodes True if the velocity model is defined on nodes, false
    *                       if on elements
    */
-  virtual void computeGlobalMassMatrix(bool isModelOnNodes)=0;
+  virtual void computeGlobalMassMatrix()=0;
+
+  virtual void outputSolutionValues(const int &indexTimeStep, int &i1,
+                                    int &myElementSource,
+                                    const ARRAY_REAL_VIEW &field, const char* fieldName)=0;
 
 };
 

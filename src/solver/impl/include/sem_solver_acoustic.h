@@ -49,7 +49,8 @@ struct SEMsolverDataAcoustic : public SolverBase::DataStruct
   ARRAY_REAL_VIEW m_rhsWeights;
 };
 
-template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE>
+template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE,
+          bool IS_MODEL_ON_NODES>
 class SEMsolverAcoustic : public SEMSolverBase
 {
  public:
@@ -68,11 +69,11 @@ class SEMsolverAcoustic : public SEMSolverBase
   void allocateFEarrays() override;
   void initSpongeValues() override;
   void resetGlobalVectors(int numNodes) override;
-  void computeGlobalMassMatrix(bool isModelOnNodes) override;
+  void computeGlobalMassMatrix() override;
 
-  void outputPnValues(const int &indexTimeStep, int &i1,
+  void outputSolutionValues(const int &indexTimeStep, int &i1,
                       int &myElementSource,
-                      const ARRAY_REAL_VIEW &pnGlobal);
+                      const ARRAY_REAL_VIEW &pnGlobal, const char* fieldName) override;
 
   void applyRHSTerm(int timeSample, float dt, int i2,
                     const ARRAY_REAL_VIEW &rhsTerm,
@@ -80,8 +81,7 @@ class SEMsolverAcoustic : public SEMSolverBase
                     const ARRAY_REAL_VIEW &pnGlobal,
                     const ARRAY_REAL_VIEW &rhsWeights);
 
-  void computeElementContributions(int i2, const ARRAY_REAL_VIEW &pnGlobal,
-                                   bool isModelOnNodes);
+  void computeElementContributions(int i2, const ARRAY_REAL_VIEW &pnGlobal);
 
   void updatePressureField(float dt, int i1, int i2,
                            const ARRAY_REAL_VIEW &pnGlobal);

@@ -2,7 +2,7 @@
 #include <pybind11/numpy.h>
 #include <pybind11/pybind11.h>
 #include <pybind11/stl.h>
-#include <sem_solver.h>
+#include <sem_solver_acoustic.h>
 #include <solver_base.h>
 #include <solver_factory.h>
 
@@ -34,14 +34,19 @@ PYBIND11_MODULE(solver, m)
       .value("ONELEMENTS", SolverFactory::modelLocationType::OnElements)
       .export_values();
 
+  py::enum_<SolverFactory::physicType>(m, "PhysicType")
+      .value("ACOUSTIC", SolverFactory::Acoustic)
+      .value("ELASTIC", SolverFactory::Elastic)
+      .export_values();
+
   // Bind DataStruct
-  py::class_<SolverBase::DataStruct, std::shared_ptr<SolverBase::DataStruct>>(
+  py::class_<SEMSolverBase::DataStruct, std::shared_ptr<SEMSolverBase::DataStruct>>(
       m, "DataStruct")
-      .def("print", &SolverBase::DataStruct::print);
+      .def("print", &SEMSolverBase::DataStruct::print);
 
   // Bind SEMsolverData (inherits from DataStruct)
-  py::class_<SEMsolverData, SolverBase::DataStruct,
-             std::shared_ptr<SEMsolverData>>(m, "SEMsolverData")
+  py::class_<SEMsolverDataAcoustic, SEMSolverBase::DataStruct,
+             std::shared_ptr<SEMsolverDataAcoustic>>(m, "SEMsolverDataAcoustic")
       .def(
           py::init<int, int,
                    Kokkos::Experimental::python_view_type_t<ARRAY_REAL_VIEW>,
@@ -50,32 +55,32 @@ PYBIND11_MODULE(solver, m)
                    Kokkos::Experimental::python_view_type_t<ARRAY_REAL_VIEW>>(),
           py::arg("i1"), py::arg("i2"), py::arg("rhs_term"),
           py::arg("pn_global"), py::arg("rhs_element"), py::arg("rhs_weights"))
-      .def("print", &SEMsolverData::print)
-      .def_readwrite("i1", &SEMsolverData::m_i1)
-      .def_readwrite("i2", &SEMsolverData::m_i2);
+      .def("print", &SEMsolverDataAcoustic::print)
+      .def_readwrite("i1", &SEMsolverDataAcoustic::m_i1)
+      .def_readwrite("i2", &SEMsolverDataAcoustic::m_i2);
 
   // Bind SolverBase
-  py::class_<SolverBase, std::shared_ptr<SolverBase>>(m, "SolverBase")
-      .def("compute_fe_init", &SolverBase::computeFEInit, py::arg("model"),
+  py::class_<SEMSolverBase, std::shared_ptr<SEMSolverBase>>(m, "SEMSolverBase")
+      .def("compute_fe_init", &SEMSolverBase::computeFEInit, py::arg("model"),
            py::arg("sponge_size") = std::array<float, 3>{0.0f, 0.0f, 0.0f},
            py::arg("sponge_surface") = true, py::arg("taper_delta") = 0)
-      .def("compute_one_step", &SolverBase::computeOneStep, py::arg("dt"),
+      .def("compute_one_step", &SEMSolverBase::computeOneStep, py::arg("dt"),
            py::arg("time_sample"), py::arg("data"))
-      .def("output_pn_values", &SolverBase::outputPnValues,
+      .def("output_pn_values", &SEMSolverBase::outputSolutionValues,
            py::arg("index_time_step"), py::arg("i1"),
-           py::arg("my_element_source"), py::arg("pn_global"));
+           py::arg("my_element_source"), py::arg("field_global"),py::arg("field_name") = "pnGlobal");
 
   // Bind Solver factory function (returns shared_ptr<SolverBase>)
   m.def(
       "create_solver",
       [](SolverFactory::methodType methodType,
          SolverFactory::implemType implemType, SolverFactory::meshType meshType,
-         SolverFactory::modelLocationType modelLocation, int order) {
+         SolverFactory::modelLocationType modelLocation, SolverFactory::physicType physicType, int order) {
         auto solver = SolverFactory::createSolver(
-            methodType, implemType, meshType, modelLocation, order);
-        return std::shared_ptr<SolverBase>(
+            methodType, implemType, meshType, modelLocation, physicType , order);
+        return std::shared_ptr<SEMSolverBase>(
             std::move(solver));  // pyfwi needs to do solver2 = solver1
       },
       py::arg("method_type"), py::arg("implem_type"), py::arg("mesh_type"),
-      py::arg("model_location"), py::arg("order"));
+      py::arg("model_location"), py::arg("ohysic_type") ,py::arg("order"));
 }
