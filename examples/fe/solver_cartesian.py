@@ -4,14 +4,14 @@ This module runs the solver using a cartesian model with:
   - Kokkos GPU or CPU memory space
   - Structured or unstructured cartesian mesh
   - Polynomial order 1, 2 or 3
-  - Implementation type: CLASSIC, GEOS, OPTIM or SHIVA
+  - Implementation type: CLASSIC, MAKUTU, OPTIM or SHIVA
 It demonstrates usage of pybind11 wrapped C++ classes and functions from the proxys library.
 For help run with the --help option.
 """
 
 import argparse
-import time
 import os
+import time
 from datetime import datetime
 from enum import Enum
 
@@ -32,6 +32,7 @@ CartesianParams = Model.CartesianParams_f32_i32
 os.environ.setdefault("OMP_NUM_THREADS", "6")
 os.environ.setdefault("OMP_THREAD_LIMIT", "6")
 os.environ.setdefault("KOKKOS_NUM_THREADS", "6")
+
 
 class MemSpace(Enum):
     """
@@ -82,7 +83,7 @@ class ImplemType(Enum):
     """
 
     CLASSIC = "Classic"
-    GEOS = "Geos"
+    MAKUTU = "MAKUTU"
     OPTIM = "Optim"
     SHIVA = "Shiva"
 
@@ -96,6 +97,7 @@ def parse_args():
     argparse.Namespace
         Parsed command line arguments.
     """
+
     parser = argparse.ArgumentParser(
         description="Run FE Cartesian solver with Kokkos memspace selection."
     )
@@ -114,8 +116,8 @@ def parse_args():
     parser.add_argument(
         "--impl",
         choices=[e.name for e in ImplemType],
-        default=ImplemType.SHIVA.name,
-        help=f"Choose implementation type: {', '.join(e.name for e in ImplemType)} (default: {ImplemType.SHIVA.name})",
+        default=ImplemType.MAKUTU.name,
+        help=f"Choose implementation type: {', '.join(e.name for e in ImplemType)} (default: {ImplemType.MAKUTU.name})",
     )
     parser.add_argument(
         "--order",
@@ -197,6 +199,7 @@ def select_kokkos_memspace(memspace_arg):
     layout : kokkos.Layout
         The selected Kokkos layout.
     """
+
     try:
         enum_value = MemSpace[memspace_arg]
     except KeyError:
@@ -230,6 +233,7 @@ def get_solver_model_type(model_type):
     ValueError
         If the provided model_type is unknown or unsupported.
     """
+
     try:
         enum_value = ModelType[model_type]
     except KeyError:
@@ -251,7 +255,7 @@ def get_solver_implem_type(implem_type):
     ----------
     implem_type : str or ImplemType
         Implementation name or ImplemType enum. Accepted names are
-        'CLASSIC', 'GEOS', 'OPTIM', 'SHIVA' (case-insensitive when passed as enum names).
+        'CLASSIC', 'MAKUTU', 'OPTIM', 'SHIVA' (case-insensitive when passed as enum names).
 
     Returns
     -------
@@ -263,6 +267,7 @@ def get_solver_implem_type(implem_type):
     ValueError
         If the provided implem_type is unknown or unsupported.
     """
+
     try:
         enum_value = ImplemType[implem_type]
     except KeyError:
@@ -270,14 +275,16 @@ def get_solver_implem_type(implem_type):
     match enum_value:
         case ImplemType.CLASSIC:
             return Solver.ImplemType.CLASSIC
-        case ImplemType.GEOS:
-            return Solver.ImplemType.GEOS
+        case ImplemType.MAKUTU:
+            return Solver.ImplemType.MAKUTU
         case ImplemType.OPTIM:
             return Solver.ImplemType.OPTIM
         case ImplemType.SHIVA:
             return Solver.ImplemType.SHIVA
         case _:
-            raise ValueError(f"Unknown solver implementation type for: {enum_value.name}")
+            raise ValueError(
+                f"Unknown solver implementation type for: {enum_value.name}"
+            )
 
 
 def create_model(model_type, e, h, l, order, on_nodes):
@@ -309,6 +316,7 @@ def create_model(model_type, e, h, l, order, on_nodes):
     ValueError
         If the model type is unknown.
     """
+
     try:
         enum_value = ModelType[model_type]
     except KeyError:
@@ -347,13 +355,20 @@ def create_structured_model(e, l, order, on_nodes):
     ValueError
         If the order is not 1, 2, or 3.
     """
+
     match order:
         case 1:
-            builder = CartesianStructBuilderFI1(e[0], l[0], e[1], l[1], e[2], l[2], on_nodes)
+            builder = CartesianStructBuilderFI1(
+                e[0], l[0], e[1], l[1], e[2], l[2], on_nodes
+            )
         case 2:
-            builder = CartesianStructBuilderFI2(e[0], l[0], e[1], l[1], e[2], l[2], on_nodes)
+            builder = CartesianStructBuilderFI2(
+                e[0], l[0], e[1], l[1], e[2], l[2], on_nodes
+            )
         case 3:
-            builder = CartesianStructBuilderFI3(e[0], l[0], e[1], l[1], e[2], l[2], on_nodes)
+            builder = CartesianStructBuilderFI3(
+                e[0], l[0], e[1], l[1], e[2], l[2], on_nodes
+            )
         case _:
             raise ValueError(
                 f"Order {order} is not wrapped by pybind11 (only 1, 2, 3 supported)"
@@ -386,6 +401,7 @@ def create_unstructured_model(e, l, order, on_nodes):
     ValueError
         If the order is not 1, 2, or 3.
     """
+
     if order not in (1, 2, 3):
         raise ValueError(
             f"Order {order} is not wrapped by pybind11 (only 1, 2, 3 supported)"
@@ -399,7 +415,7 @@ def create_unstructured_model(e, l, order, on_nodes):
     return builder.get_model()
 
 
-def create_solver(implem_type, model_type, order):
+def create_solver(implem_type, model_type, order, on_nodes):
     """
     Create a solver based on the specified implementation type.
 
@@ -411,6 +427,8 @@ def create_solver(implem_type, model_type, order):
         The model type, either 'Structured' or 'Unstructured'.
     order : int
         The polynomial order of the elements.
+    on_nodes : bool
+        Whether the model is applied on nodes (True) or elements (False).
 
     Returns
     -------
@@ -422,10 +440,18 @@ def create_solver(implem_type, model_type, order):
     ValueError
         If the implementation type is unknown.
     """
+
     impl = get_solver_implem_type(implem_type)
     model = get_solver_model_type(model_type)
+    model_location = (
+        Solver.ModelLocationType.ONNODES
+        if on_nodes
+        else Solver.ModelLocationType.ONELEMENTS
+    )
 
-    return Solver.create_solver(Solver.MethodType.SEM, impl, model, order)
+    return Solver.create_solver(
+        Solver.MethodType.SEM, impl, model, model_location, order
+    )
 
 
 def source_term(time_n, f0):
@@ -448,6 +474,7 @@ def source_term(time_n, f0):
     -----
     The function returns zero outside the interval [-0.9 * t_peak, 2.9 * t_peak], where t_peak = 1.0 / f0.
     """
+
     o_tpeak = 1.0 / f0
     pulse = 0.0
     if time_n <= -0.9 * o_tpeak or time_n >= 2.9 * o_tpeak:
@@ -488,6 +515,7 @@ def get_snapshot(i1, nx, ny, nz, pnGlobal, normalize=False):
     grid : np.ndarray
         A 2D array of shape (nx, nz) representing the extracted snapshot.
     """
+
     offset = nx * nz * (int(ny / 2) - 1)
     grid = np.zeros((nx, nz))
     for I in range(offset, offset + nx * nz):
@@ -525,6 +553,7 @@ def setup_plot(nx, nz, cmpvalue=0.15):
     im : matplotlib.image.AxesImage
         The image object for updating the plot.
     """
+
     grid = np.zeros((nx, nz))
     fig, ax = plt.subplots()
     im = ax.imshow(grid, cmap="viridis", interpolation="nearest")
@@ -553,6 +582,7 @@ def plot_snapshot(i1, nx, ny, nz, pnGlobal, im, t):
     t : int
         Current time step.
     """
+
     grid = get_snapshot(i1, nx, ny, nz, pnGlobal, False)
     im.set_array(grid)  # Update plot with new values
     plt.draw()  # Redraw the figure with updated data
@@ -580,6 +610,7 @@ def allocate_pressure(n_dof, memspace, layout):
     pnGlobal : np.ndarray
         The numpy array view of the pressure.
     """
+
     kk_pnGlobal = kokkos.array(
         [n_dof, 2], dtype=kokkos.float32, space=memspace, layout=layout
     )
@@ -615,6 +646,7 @@ def allocate_rhs_term(n_rhs, n_time_steps, dt, f0, memspace, layout):
     RHSTerm : np.ndarray
         The numpy array view of the source term.
     """
+
     kk_RHSTerm = kokkos.array(
         [n_rhs, n_time_steps], dtype=kokkos.float32, space=memspace, layout=layout
     )
@@ -647,6 +679,7 @@ def allocate_rhs_weight(n_rhs, model, memspace, layout):
     RHSWeights : np.ndarray
         The numpy array view of the weights.
     """
+
     nb_points = model.get_number_of_points_per_element()
     kk_RHSWeights = kokkos.array(
         [n_rhs, nb_points],
@@ -683,12 +716,13 @@ def allocate_rhs_element(n_rhs, ex, ey, ez, memspace, layout):
     RHSElement : np.ndarray
         The numpy array view of the element indices.
     """
+
     kk_RHSElement = kokkos.array(
         [n_rhs], dtype=kokkos.int32, space=memspace, layout=layout
     )
     RHSElement = np.array(kk_RHSElement, copy=False)
-    RHSElement[0] = ex / 2 + ey / 2 * ex + ez / 2 * ey * ex  # one half of slice
-    RHSElement[1] = ex / 3 + ey / 2 * ex + ez / 2 * ey * ex  # one third of slice
+    RHSElement[0] = ex / 2 + ey / 2 * ex + ez / 2 * ey * ex
+    RHSElement[1] = ex / 3 + ey / 2 * ex + ez / 2 * ey * ex
     return kk_RHSElement, RHSElement
 
 
@@ -712,6 +746,7 @@ def create_solver_data(kk_RHSTerm, kk_pnGlobal, kk_RHSElement, kk_RHSWeights):
     data : Solver.SEMsolverData
         The SEMsolverData instance.
     """
+
     data = Solver.SEMsolverData(
         0,
         1,
@@ -771,6 +806,7 @@ def compute_step(
     i1, i2 : int
         Updated indices for pressure fields.
     """
+
     iter_start = time.time()
     solver.compute_one_step(dt, time_sample, data)
     iter_time = time.time() - iter_start
@@ -782,7 +818,6 @@ def compute_step(
         print(f"Time {time_sample} / {n_time_steps}")
     if time_sample % 10 == 0:
         plot_snapshot(i1, nx, ny, nz, pnGlobal, im, time_sample)
-    # Swap pn and pn+1
     tmp = i1
     i1 = i2
     i2 = tmp
@@ -849,17 +884,14 @@ def main():
 
     # Create model
     print("Creating model...")
-    model = create_model(args.model,
-                         (ex, ey, ez),
-                         (hx, hy, hz),
-                         (lx, ly, lz),
-                         order,
-                         on_nodes)
+    model = create_model(
+        args.model, (ex, ey, ez), (hx, hy, hz), (lx, ly, lz), order, on_nodes
+    )
     print("Model created")
 
     # Create solver
     print("Creating solver...")
-    solver = create_solver(args.impl, args.model, order)
+    solver = create_solver(args.impl, args.model, order, on_nodes)
     print("Solver created")
 
     # Initialize model

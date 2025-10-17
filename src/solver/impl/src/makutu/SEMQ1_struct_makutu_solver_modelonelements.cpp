@@ -2,7 +2,7 @@
 
 #include "sem_solver_impl.h"
 
-constexpr int ORDER = 3;
+constexpr int ORDER = 1;
 template class SEMsolver<
     ORDER, IntegralTypeSelector<ORDER, IntegralType::MAKUTU>::type,
-    model::ModelStruct<float, int, ORDER> >;
+    model::ModelStruct<float, int, ORDER>, false>;

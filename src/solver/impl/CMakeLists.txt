@@ -1,17 +1,29 @@
 add_library(proxy_solver
             src/solver_factory.cc
-            src/makutu/SEMQ1_struct_makutu_solver.cpp
-            src/makutu/SEMQ1_unstruct_makutu_solver.cpp
-            src/makutu/SEMQ2_struct_makutu_solver.cpp
-            src/makutu/SEMQ2_unstruct_makutu_solver.cpp
-            src/makutu/SEMQ3_struct_makutu_solver.cpp
-            src/makutu/SEMQ3_unstruct_makutu_solver.cpp
-            src/shiva/SEMQ1_struct_shiva_solver.cpp
-            src/shiva/SEMQ1_unstruct_shiva_solver.cpp
-            src/shiva/SEMQ2_struct_shiva_solver.cpp
-            src/shiva/SEMQ2_unstruct_shiva_solver.cpp
-            src/shiva/SEMQ3_struct_shiva_solver.cpp
-            src/shiva/SEMQ3_unstruct_shiva_solver.cpp
+            src/makutu/SEMQ1_struct_makutu_solver_modelonelements.cpp
+            src/makutu/SEMQ1_struct_makutu_solver_modelonnodes.cpp
+            src/makutu/SEMQ1_unstruct_makutu_solver_modelonelements.cpp
+            src/makutu/SEMQ1_unstruct_makutu_solver_modelonnodes.cpp
+            src/makutu/SEMQ2_struct_makutu_solver_modelonelements.cpp
+            src/makutu/SEMQ2_struct_makutu_solver_modelonnodes.cpp
+            src/makutu/SEMQ2_unstruct_makutu_solver_modelonelements.cpp
+            src/makutu/SEMQ2_unstruct_makutu_solver_modelonnodes.cpp
+            src/makutu/SEMQ3_struct_makutu_solver_modelonelements.cpp
+            src/makutu/SEMQ3_struct_makutu_solver_modelonnodes.cpp
+            src/makutu/SEMQ3_unstruct_makutu_solver_modelonelements.cpp
+            src/makutu/SEMQ3_unstruct_makutu_solver_modelonnodes.cpp
+            src/shiva/SEMQ1_struct_shiva_solver_modelonelements.cpp
+            src/shiva/SEMQ1_struct_shiva_solver_modelonnodes.cpp
+            src/shiva/SEMQ1_unstruct_shiva_solver_modelonelements.cpp
+            src/shiva/SEMQ1_unstruct_shiva_solver_modelonnodes.cpp
+            src/shiva/SEMQ2_struct_shiva_solver_modelonelements.cpp
+            src/shiva/SEMQ2_struct_shiva_solver_modelonnodes.cpp
+            src/shiva/SEMQ2_unstruct_shiva_solver_modelonelements.cpp
+            src/shiva/SEMQ2_unstruct_shiva_solver_modelonnodes.cpp
+            src/shiva/SEMQ3_struct_shiva_solver_modelonelements.cpp
+            src/shiva/SEMQ3_struct_shiva_solver_modelonnodes.cpp
+            src/shiva/SEMQ3_unstruct_shiva_solver_modelonelements.cpp
+            src/shiva/SEMQ3_unstruct_shiva_solver_modelonnodes.cpp
             )
 
 target_include_directories(proxy_solver
