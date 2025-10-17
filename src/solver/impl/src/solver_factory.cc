@@ -91,11 +91,9 @@ std::unique_ptr<SolverBase> createSolver(methodType const methodType,
     switch (implemType)
     {
       case MAKUTU:
-        return make_sem_solver<IntegralType::MAKUTU>(order, mesh,
-                                                     modelLocation);
-        // case SHIVA:
-        //   return make_sem_solver<IntegralType::SHIVA>(order, mesh,
-        //   modelLocation);
+        return make_sem_solver<IntegralType::MAKUTU>(order, mesh, modelLocation);
+      case SHIVA:
+        return make_sem_solver<IntegralType::SHIVA>(order, mesh, modelLocation);
     }
   }
 

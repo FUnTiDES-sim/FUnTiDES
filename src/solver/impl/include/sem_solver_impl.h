@@ -131,32 +131,18 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES>::
     pnLocal[i] = pnGlobal(globalIdx, i2);
   }
 
-  float cornerCoords[8][3];
-  int I = 0;
-  int nodes_corner[2] = {0, m_mesh.getOrder()};
-  for (int k : nodes_corner)
-  {
-    for (int j : nodes_corner)
-    {
-      for (int i : nodes_corner)
-      {
-        int nodeIdx = m_mesh.globalNodeIndex(elementNumber, i, j, k);
-        cornerCoords[I][0] = m_mesh.nodeCoord(nodeIdx, 0);
-        cornerCoords[I][2] = m_mesh.nodeCoord(nodeIdx, 2);
-        cornerCoords[I][1] = m_mesh.nodeCoord(nodeIdx, 1);
-        I++;
-      }
-    }
-  }
+  typename INTEGRAL_TYPE::TransformType transformData;
+  INTEGRAL_TYPE::gatherCoordinates( elementNumber, m_mesh, transformData );
 
+  // Stiffness term
   real_t inv_density = 0.0f;
   if constexpr (!IS_MODEL_ON_NODES)
   {
     inv_density = 1.0f / m_mesh.getModelRhoOnElement(elementNumber);
   }
 
-  INTEGRAL_TYPE::computeStiffnessTerm(
-      cornerCoords, [&](const int qa, const int qb, const int qc, const int i,
+    INTEGRAL_TYPE::computeStiffnessTerm(
+      transformData, [&](const int qa, const int qb, const int qc, const int i,
                         const int j, const real_t val) {
         if constexpr (IS_MODEL_ON_NODES)
         {
@@ -215,7 +201,6 @@ template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE,
 void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE,
                IS_MODEL_ON_NODES>::initFEarrays()
 {
-  INTEGRAL_TYPE::init(m_precomputedIntegralData);
   initSpongeValues();
 }
 
@@ -233,23 +218,12 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE,
 
   int dim = m_mesh.getOrder() + 1;
 
-  float cornerCoords[8][3];
-  int I = 0;
-  int nodes_corner[2] = {0, m_mesh.getOrder()};
-  for (int k : nodes_corner)
-  {
-    for (int j : nodes_corner)
-    {
-      for (int i : nodes_corner)
-      {
-        int nodeIdx = m_mesh.globalNodeIndex(elementNumber, i, j, k);
-        cornerCoords[I][0] = m_mesh.nodeCoord(nodeIdx, 0);
-        cornerCoords[I][2] = m_mesh.nodeCoord(nodeIdx, 2);
-        cornerCoords[I][1] = m_mesh.nodeCoord(nodeIdx, 1);
-        I++;
-      }
-    }
-  }
+  typename INTEGRAL_TYPE::TransformType transformData;
+  INTEGRAL_TYPE::gatherCoordinates( elementNumber, m_mesh, transformData );
+
+  INTEGRAL_TYPE::computeMassTerm( 
+      transformData,
+      [&](const int j, const real_t val) {  massMatrixLocal[j] += val; });
 
   real_t inv_model2 = 0.0f;
   if constexpr (!IS_MODEL_ON_NODES)
@@ -258,10 +232,6 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE,
                          m_mesh.getModelVpOnElement(elementNumber) *
                          m_mesh.getModelRhoOnElement(elementNumber));
   }
-
-  INTEGRAL_TYPE::computeMassTerm(
-      cornerCoords,
-      [&](const int j, const real_t val) { massMatrixLocal[j] += val; });
 
   for (int i = 0; i < m_mesh.getNumberOfPointsPerElement(); ++i)
   {

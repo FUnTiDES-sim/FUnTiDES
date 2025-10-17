@@ -81,7 +81,7 @@ class ModelStruct : public ModelApi<FloatType, ScalarType>
    * @return Coordinate value in the specified dimension
    */
   PROXY_HOST_DEVICE
-  FloatType nodeCoord(ScalarType dofGlobal, int dim) const
+  FloatType nodeCoord(ScalarType dofGlobal, int dim) const final
   {
     // Calculate total number of nodes per dimension
     int nodesPerDim[3];
@@ -136,7 +136,7 @@ class ModelStruct : public ModelApi<FloatType, ScalarType>
    * @return Global node index
    */
   PROXY_HOST_DEVICE
-  ScalarType globalNodeIndex(ScalarType e, int i, int j, int k) const
+  ScalarType globalNodeIndex(ScalarType e, int i, int j, int k) const final
   {
     ScalarType elemZ = e / (ex_ * ey_);
     ScalarType tmp = e % (ex_ * ey_);
