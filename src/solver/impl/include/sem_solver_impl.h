@@ -14,6 +14,7 @@
 
 #include "fe/Integrals.hpp"
 #include "sem_solver.h"
+#include "model_discretization_interface.h"
 
 template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE,
           bool IS_MODEL_ON_NODES>
@@ -132,7 +133,7 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES>::
   }
 
   typename INTEGRAL_TYPE::TransformType transformData;
-  INTEGRAL_TYPE::gatherCoordinates( elementNumber, m_mesh, transformData );
+  model_discretization_interface::gatherTransformData( elementNumber, m_mesh, transformData );
 
   // Stiffness term
   real_t inv_density = 0.0f;
@@ -219,7 +220,7 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE,
   int dim = m_mesh.getOrder() + 1;
 
   typename INTEGRAL_TYPE::TransformType transformData;
-  INTEGRAL_TYPE::gatherCoordinates( elementNumber, m_mesh, transformData );
+  model_discretization_interface::gatherTransformData( elementNumber, m_mesh, transformData );
 
   INTEGRAL_TYPE::computeMassTerm( 
       transformData,
