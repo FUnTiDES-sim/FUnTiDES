@@ -154,35 +154,14 @@ void SEMsolverElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE,IS_MODEL_ON_NODES>::comput
       {
         int nodeIdx = m_mesh.globalNodeIndex(elementNumber, i, j, k);
         cornerCoords[I][0] = m_mesh.nodeCoord(nodeIdx, 0);
-        cornerCoords[I][2] = m_mesh.nodeCoord(nodeIdx, 2);
         cornerCoords[I][1] = m_mesh.nodeCoord(nodeIdx, 1);
+        cornerCoords[I][2] = m_mesh.nodeCoord(nodeIdx, 2);
         I++;
       }
     }
   }
 
-  float CTTInodes[nPointsElement][6][6];
-  float CTTIelement[6][6];
-  //Compute elasticity matrix
-  if constexpr (IS_MODEL_ON_NODES)
-  {
-    for (int i = 0; i < nPointsElement; i++)
-    {
-      int x = i % dim;
-      int z = (i / dim) % dim;
-      int y = i / (dim * dim);
-      int const gIndex = m_mesh.globalNodeIndex(elementNumber, x, y, z);
-      float const vp = m_mesh.getModelVpOnNodes(gIndex);
-      float const vs = m_mesh.getModelVsOnNodes(gIndex);
-      float const rho = m_mesh.getModelRhoOnNodes(gIndex);
-      float const delta = m_mesh.getModelDeltaOnNodes(gIndex);
-      float const epsilon = m_mesh.getModelEpsilonOnNodes(gIndex);
-      float const gamma = m_mesh.getModelGammaOnNodes(gIndex);
-      float const phi = m_mesh.getModelPhiOnNodes(gIndex);
-      float const theta = m_mesh.getModelThetaOnNodes(gIndex);
-      computeCMatrix(vp,vs,rho,delta,epsilon,gamma,phi,theta,CTTInodes[i]);
-    }
-  }
+  float (CTTI)[6][6];
 
   if constexpr (!IS_MODEL_ON_NODES)
   {
@@ -194,12 +173,9 @@ void SEMsolverElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE,IS_MODEL_ON_NODES>::comput
     float const gamma = m_mesh.getModelGammaOnElement(elementNumber);
     float const phi = m_mesh.getModelPhiOnElement(elementNumber);
     float const theta = m_mesh.getModelThetaOnElement(elementNumber);
-    computeCMatrix(vp,vs,rho,delta,epsilon,gamma,phi,theta,CTTIelement);
+    computeCMatrix(vp,vs,rho,delta,epsilon,gamma,phi,theta,CTTI);
 
   }
-
-  float CTTItemp[6][6]; 
-  float (*CTTI)[6][6];
 
   INTEGRAL_TYPE::computeStiffNessTermwithJac(cornerCoords, [&] (int qa, int qb, int qc)
   { 
@@ -213,60 +189,61 @@ void SEMsolverElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE,IS_MODEL_ON_NODES>::comput
       float const gamma = m_mesh.getModelGammaOnNodes(gIndex);
       float const phi = m_mesh.getModelPhiOnNodes(gIndex);
       float const theta = m_mesh.getModelThetaOnNodes(gIndex);
-      computeCMatrix(vp,vs,rho,delta,epsilon,gamma,phi,theta,CTTItemp);
-      CTTI = &CTTItemp;
-    } else {
-      CTTI = &CTTIelement;
-    }
+      computeCMatrix(vp,vs,rho,delta,epsilon,gamma,phi,theta,CTTI);
+    } 
 
   },
 
   [&] (int i, int j, float val, float const (&J)[3][3], const int p, const int r)
   {
-          float const Rxx_ij = val*((*CTTI)[0][0]*J[p][0]*J[r][0]+(*CTTI)[5][0]*J[p][0]*J[r][1]+(*CTTI)[4][0]*J[p][0]*J[r][2]+
-                                 (*CTTI)[0][5]*J[p][1]*J[r][0]+(*CTTI)[5][5]*J[p][1]*J[r][1]+(*CTTI)[4][5]*J[p][1]*J[r][2]+
-                                 (*CTTI)[0][4]*J[p][2]*J[r][0]+(*CTTI)[5][4]*J[p][2]*J[r][1]+(*CTTI)[4][4]*J[p][2]*J[r][2]);
-
-      float const Ryy_ij = val*((*CTTI)[5][5]*J[p][0]*J[r][0]+(*CTTI)[1][5]*J[p][0]*J[r][1]+(*CTTI)[3][5]*J[p][0]*J[r][2]+
-                                 (*CTTI)[5][2]*J[p][1]*J[r][0]+(*CTTI)[2][2]*J[p][1]*J[r][1]+(*CTTI)[3][2]*J[p][1]*J[r][2]+
-                                 (*CTTI)[5][3]*J[p][2]*J[r][0]+(*CTTI)[2][3]*J[p][2]*J[r][1]+(*CTTI)[3][3]*J[p][2]*J[r][2]);
-
-      float const Rzz_ij = val*((*CTTI)[4][4]*J[p][0]*J[r][0]+(*CTTI)[3][4]*J[p][0]*J[r][1]+(*CTTI)[2][4]*J[p][0]*J[r][2]+
-                                 (*CTTI)[4][3]*J[p][1]*J[r][0]+(*CTTI)[3][3]*J[p][1]*J[r][1]+(*CTTI)[2][3]*J[p][1]*J[r][2]+
-                                 (*CTTI)[4][2]*J[p][2]*J[r][0]+(*CTTI)[3][2]*J[p][2]*J[r][1]+(*CTTI)[2][2]*J[p][2]*J[r][2]);
-
-      float const Ryx_ij = val*((*CTTI)[0][5]*J[p][0]*J[r][0]+(*CTTI)[5][5]*J[p][0]*J[r][1]+(*CTTI)[4][5]*J[p][0]*J[r][2]+
-                                 (*CTTI)[0][1]*J[p][1]*J[r][0]+(*CTTI)[4][1]*J[p][1]*J[r][1]+(*CTTI)[4][1]*J[p][1]*J[r][2]+
-                                 (*CTTI)[0][3]*J[p][2]*J[r][0]+(*CTTI)[5][3]*J[p][2]*J[r][1]+(*CTTI)[4][3]*J[p][2]*J[r][2]);
-
-      float const Rxy_ij = val*((*CTTI)[5][0]*J[p][0]*J[r][0]+(*CTTI)[1][0]*J[p][0]*J[r][1]+(*CTTI)[3][0]*J[p][0]*J[r][2]+
-                                 (*CTTI)[5][5]*J[p][1]*J[r][0]+(*CTTI)[1][5]*J[p][1]*J[r][1]+(*CTTI)[3][5]*J[p][1]*J[r][2]+
-                                 (*CTTI)[5][4]*J[p][2]*J[r][0]+(*CTTI)[1][4]*J[p][2]*J[r][1]+(*CTTI)[3][4]*J[p][2]*J[r][2]);
-
-      float const Rzx_ij = val*((*CTTI)[0][4]*J[p][0]*J[r][0]+(*CTTI)[5][4]*J[p][0]*J[r][1]+(*CTTI)[4][4]*J[p][0]*J[r][2]+
-                                 (*CTTI)[0][3]*J[p][1]*J[r][0]+(*CTTI)[5][3]*J[p][1]*J[r][1]+(*CTTI)[4][3]*J[p][1]*J[r][2]+
-                                 (*CTTI)[0][2]*J[p][2]*J[r][0]+(*CTTI)[4][2]*J[p][2]*J[r][1]+(*CTTI)[4][2]*J[p][2]*J[r][2]);
-
-      float const Rxz_ij = val*((*CTTI)[4][0]*J[p][0]*J[r][0]+(*CTTI)[3][0]*J[p][0]*J[r][1]+(*CTTI)[2][0]*J[p][0]*J[r][2]+
-                                 (*CTTI)[4][5]*J[p][1]*J[r][0]+(*CTTI)[3][5]*J[p][1]*J[r][1]+(*CTTI)[2][5]*J[p][1]*J[r][2]+
-                                 (*CTTI)[4][4]*J[p][2]*J[r][0]+(*CTTI)[3][4]*J[p][2]*J[r][1]+(*CTTI)[2][4]*J[p][2]*J[r][2]);
-
-      float const Rzy_ij = val*((*CTTI)[5][4]*J[p][0]*J[r][0]+(*CTTI)[1][4]*J[p][0]*J[r][1]+(*CTTI)[3][4]*J[p][0]*J[r][2]+
-                                 (*CTTI)[5][3]*J[p][1]*J[r][0]+(*CTTI)[1][3]*J[p][1]*J[r][1]+(*CTTI)[3][3]*J[p][1]*J[r][2]+
-                                 (*CTTI)[5][2]*J[p][2]*J[r][0]+(*CTTI)[1][2]*J[p][2]*J[r][1]+(*CTTI)[3][2]*J[p][2]*J[r][2]);
-
-      float const Ryz_ij = val*((*CTTI)[4][5]*J[p][0]*J[r][0]+(*CTTI)[3][5]*J[p][0]*J[r][1]+(*CTTI)[2][5]*J[p][0]*J[r][2]+
-                                 (*CTTI)[4][1]*J[p][1]*J[r][0]+(*CTTI)[3][1]*J[p][1]*J[r][1]+(*CTTI)[2][1]*J[p][1]*J[r][2]+
-                                 (*CTTI)[5][3]*J[p][2]*J[r][0]+(*CTTI)[3][3]*J[p][2]*J[r][1]+(*CTTI)[2][3]*J[p][2]*J[r][2]);
-
-        float const localIncrementx = Rxx_ij * uxnLocal[j] + Rxy_ij * uynLocal[j] + Rxz_ij * uznLocal[j];
-        float const localIncrementy = Ryx_ij * uxnLocal[j] + Ryy_ij * uynLocal[j] + Ryz_ij * uznLocal[j];
-        float const localIncrementz = Rzx_ij * uxnLocal[j] + Rzy_ij * uynLocal[j] + Rzz_ij * uznLocal[j];
-        ux[i] += localIncrementx;
-        uy[i] += localIncrementy;
-        uz[i] += localIncrementz;
-  
-
+    float Jp0 = J[p][0], Jp1 = J[p][1], Jp2 = J[p][2];
+    float Jr0 = J[r][0], Jr1 = J[r][1], Jr2 = J[r][2];
+    
+    float C00 = CTTI[0][0], C01 = CTTI[0][1], C02 = CTTI[0][2];
+    float C03 = CTTI[0][3], C04 = CTTI[0][4], C05 = CTTI[0][5];
+    float C11 = CTTI[1][1], C12 = CTTI[1][2], C13 = CTTI[1][3];
+    float C14 = CTTI[1][4], C15 = CTTI[1][5];
+    float C22 = CTTI[2][2], C23 = CTTI[2][3], C24 = CTTI[2][4], C25 = CTTI[2][5];
+    float C33 = CTTI[3][3], C34 = CTTI[3][4], C35 = CTTI[3][5];
+    float C44 = CTTI[4][4], C45 = CTTI[4][5];
+    float C55 = CTTI[5][5];
+    
+    float Jp0Jr0 = Jp0*Jr0, Jp0Jr1 = Jp0*Jr1, Jp0Jr2 = Jp0*Jr2;
+    float Jp1Jr0 = Jp1*Jr0, Jp1Jr1 = Jp1*Jr1, Jp1Jr2 = Jp1*Jr2;
+    float Jp2Jr0 = Jp2*Jr0, Jp2Jr1 = Jp2*Jr1, Jp2Jr2 = Jp2*Jr2;
+    
+    float const Rxx = val*(C00*Jp0Jr0 + C05*Jp0Jr1 + C04*Jp0Jr2 +
+                           C05*Jp1Jr0 + C55*Jp1Jr1 + C45*Jp1Jr2 +
+                           C04*Jp2Jr0 + C45*Jp2Jr1 + C44*Jp2Jr2);
+    
+    float const Ryy = val*(C55*Jp0Jr0 + C15*Jp0Jr1 + C35*Jp0Jr2 +
+                           C15*Jp1Jr0 + C11*Jp1Jr1 + C13*Jp1Jr2 +
+                           C35*Jp2Jr0 + C13*Jp2Jr1 + C33*Jp2Jr2);
+    
+    float const Rzz = val*(C44*Jp0Jr0 + C34*Jp0Jr1 + C24*Jp0Jr2 +
+                           C34*Jp1Jr0 + C33*Jp1Jr1 + C23*Jp1Jr2 +
+                           C24*Jp2Jr0 + C23*Jp2Jr1 + C22*Jp2Jr2);
+    
+    float const Rxy = val*(C05*Jp0Jr0 + C01*Jp0Jr1 + C03*Jp0Jr2 +
+                           C55*Jp1Jr0 + C15*Jp1Jr1 + C35*Jp1Jr2 +
+                           C45*Jp2Jr0 + C14*Jp2Jr1 + C34*Jp2Jr2);
+    
+    float const Rxz = val*(C04*Jp0Jr0 + C03*Jp0Jr1 + C02*Jp0Jr2 +
+                           C45*Jp1Jr0 + C35*Jp1Jr1 + C25*Jp1Jr2 +
+                           C44*Jp2Jr0 + C34*Jp2Jr1 + C24*Jp2Jr2);
+    
+    float const Ryz = val*(C45*Jp0Jr0 + C35*Jp0Jr1 + C25*Jp0Jr2 +
+                           C14*Jp1Jr0 + C13*Jp1Jr1 + C12*Jp1Jr2 +
+                           C34*Jp2Jr0 + C33*Jp2Jr1 + C23*Jp2Jr2);
+    
+    float const localIncrementx = Rxx * uxnLocal[j] + Rxy * uynLocal[j] + Rxz * uznLocal[j];
+    float const localIncrementy = Rxy * uxnLocal[j] + Ryy * uynLocal[j] + Ryz * uznLocal[j];
+    float const localIncrementz = Rxz * uxnLocal[j] + Ryz * uynLocal[j] + Rzz * uznLocal[j];
+    
+    
+    ux[i] += localIncrementx;
+    uy[i] += localIncrementy;
+    uz[i] += localIncrementz;
 
   } ); 
 
@@ -306,6 +283,7 @@ void SEMsolverElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE,IS_MODEL_ON_NODES>::update
                       dt2 * uzGlobal[I] / massMatrixGlobal[I];
     uznGlobal(I, i1) *= spongeTaperCoeff(I);
     uznGlobal(I, i2) *= spongeTaperCoeff(I);
+    
   }
   LOOPEND
 }
@@ -418,47 +396,79 @@ void SEMsolverElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE,IS_MODEL_ON_NODES>::comput
      float const vs, float const rho, float const delta, float const epsilon, float const gamma, 
      float const phi, float const  theta, float (&CTTI)[6][6]) const
 {
-  //Build CVTI Matrix
+
   float CVTI[6][6] = {0.0f};
   CVTI[0][0] = rho * vp * vp * (1.0f + 2.0f*epsilon);
   CVTI[1][1] = CVTI[0][0];
-  CVTI[2][0] = rho * sqrtf( powf(vp*vp - vs*vs, 2)
-                             + 2.0f*vp*vp*delta*(vp*vp - vs*vs) )
-                - rho * vs * vs;
-  CVTI[0][2] = CVTI[2][0];
-  CVTI[1][2] = CVTI[0][2];
-  CVTI[2][1] = CVTI[1][2];
   CVTI[2][2] = rho * vp * vp;
   CVTI[3][3] = rho * vs * vs;
   CVTI[4][4] = CVTI[3][3];
   CVTI[5][5] = rho * vs * vs * (1.0f + 2.0f*gamma);
-  CVTI[1][0] = CVTI[0][0] - 2.0f*CVTI[5][5];
-  CVTI[0][1] = CVTI[1][0];
-  // --- Voigt mapping ---
-  int Voigt[3][3] = {{0,5,4},{5,1,3},{4,3,2}};
-  // --- Rotation matrix ---
+  
+  CVTI[0][1] = CVTI[0][0] - 2.0f * CVTI[5][5];
+  CVTI[1][0] = CVTI[0][1];
+  
+  CVTI[0][2] = rho * sqrtf( (vp*vp - vs*vs)*(vp*vp - vs*vs) + 2.0f*vp*vp*delta*(vp*vp - vs*vs) ) - rho * vs*vs;
+  CVTI[1][2] = CVTI[0][2];
+  CVTI[2][0] = CVTI[0][2];
+  CVTI[2][1] = CVTI[0][2];
+  
   float R[3][3];
-  float ctheta = cosf(theta);
-  float stheta = sinf(theta);
-  float cphi   = cosf(phi);
-  float sphi   = sinf(phi);
-  R[0][0] = ctheta*cphi;  R[0][1] = ctheta*sphi;  R[0][2] = -stheta;
-  R[1][0] = -sphi;        R[1][1] = cphi;        R[1][2] = 0.0f;
-  R[2][0] = stheta*cphi;  R[2][1] = stheta*sphi; R[2][2] = ctheta;
-  // ---Build CTTI ---
-  for(int l=0; l<3; l++)
-      for(int m=0; m<3; m++)
-          for(int j=0; j<3; j++)
-              for(int i=0; i<3; i++)
-              {
-                  float coeff = 0.0f;
-                  for(int a=0; a<3; a++)
-                      for(int b=0; b<3; b++)
-                          for(int c=0; c<3; c++)
-                              for(int d=0; d<3; d++)
-                                  coeff += R[d][i]*R[c][j]*R[b][m]*R[a][l]*CVTI[Voigt[d][c]][Voigt[b][a]];
-                  CTTI[Voigt[i][j]][Voigt[m][l]] = coeff;
-              }
+  float ctheta = cosf(theta), stheta = sinf(theta);
+  float cphi   = cosf(phi),   sphi   = sinf(phi);
+  
+  R[0][0] =  ctheta*cphi;  R[0][1] =  ctheta*sphi;  R[0][2] = -stheta;
+  R[1][0] = -sphi;         R[1][1] =  cphi;        R[1][2] = 0.0f;
+  R[2][0] =  stheta*cphi;  R[2][1] =  stheta*sphi; R[2][2] = ctheta;
+  
+  float M[6][6] = {0.0f};
+  
+  M[0][0] = R[0][0]*R[0][0]; M[0][1] = R[0][1]*R[0][1]; M[0][2] = R[0][2]*R[0][2];
+  M[1][0] = R[1][0]*R[1][0]; M[1][1] = R[1][1]*R[1][1]; M[1][2] = R[1][2]*R[1][2];
+  M[2][0] = R[2][0]*R[2][0]; M[2][1] = R[2][1]*R[2][1]; M[2][2] = R[2][2]*R[2][2];
+  
+  M[0][3] = R[0][1]*R[0][2]; M[0][4] = R[0][0]*R[0][2]; M[0][5] = R[0][0]*R[0][1];
+  M[1][3] = R[1][1]*R[1][2]; M[1][4] = R[1][0]*R[1][2]; M[1][5] = R[1][0]*R[1][1];
+  M[2][3] = R[2][1]*R[2][2]; M[2][4] = R[2][0]*R[2][2]; M[2][5] = R[2][0]*R[2][1];
+  
+  M[3][0] = 2*R[1][0]*R[2][0]; M[3][1] = 2*R[1][1]*R[2][1]; M[3][2] = 2*R[1][2]*R[2][2];
+  M[3][3] = R[1][1]*R[2][2] + R[1][2]*R[2][1];
+  M[3][4] = R[1][0]*R[2][2] + R[1][2]*R[2][0];
+  M[3][5] = R[1][0]*R[2][1] + R[1][1]*R[2][0];
+  
+  M[4][0] = 2*R[0][0]*R[2][0]; M[4][1] = 2*R[0][1]*R[2][1]; M[4][2] = 2*R[0][2]*R[2][2];
+  M[4][3] = R[0][1]*R[2][2] + R[0][2]*R[2][1];
+  M[4][4] = R[0][0]*R[2][2] + R[0][2]*R[2][0];
+  M[4][5] = R[0][0]*R[2][1] + R[0][1]*R[2][0];
+  
+  M[5][0] = 2*R[0][0]*R[1][0]; M[5][1] = 2*R[0][1]*R[1][1]; M[5][2] = 2*R[0][2]*R[1][2];
+  M[5][3] = R[0][1]*R[1][2] + R[0][2]*R[1][1];
+  M[5][4] = R[0][0]*R[1][2] + R[0][2]*R[1][0];
+  M[5][5] = R[0][0]*R[1][1] + R[0][1]*R[1][0];
+  
+  // 4. Multiplication CTTI = M * CVTI * M^T (déroulé)
+  float temp[6][6] = {0.0f};
+  for(int i=0; i<6; i++)
+    for(int j=0; j<6; j++)
+      temp[i][j] = 0.0f;
+  
+  for(int i=0; i<6; i++)
+      for(int k=0; k<6; k++)
+          for(int j=0; j<6; j++)
+              temp[i][j] += M[i][k] * CVTI[k][j];
+  
+  for(int i=0; i<6; i++)
+      for(int j=i; j<6; j++) // Triangle supérieur
+      {
+          CTTI[i][j] = 0.0f;
+          for(int k=0; k<6; k++)
+              CTTI[i][j] += temp[i][k] * M[j][k];
+          if(i!=j) CTTI[j][i] = CTTI[i][j]; // Symétrie
+      }
+  
+  
+      
+
 
 }
 
