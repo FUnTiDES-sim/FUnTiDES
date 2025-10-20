@@ -8,8 +8,6 @@
 
 namespace model
 {
-namespace mesh
-{
 template <typename FloatType, typename ScalarType>
 class CartesianUnstructBuilder : public ModelBuilderBase<FloatType, ScalarType>
 {
@@ -34,10 +32,10 @@ class CartesianUnstructBuilder : public ModelBuilderBase<FloatType, ScalarType>
     initModels();
   }
 
-  std::shared_ptr<model::mesh::ModelApi<FloatType, ScalarType>> getModel()
+  std::shared_ptr<model::ModelApi<FloatType, ScalarType>> getModel()
       const override
   {
-    model::mesh::ModelUnstructData<FloatType, ScalarType> modelData;
+    model::ModelUnstructData<FloatType, ScalarType> modelData;
 
     modelData.order_ = order_;
     modelData.n_element_ = ex_ * ey_ * ez_;
@@ -59,7 +57,7 @@ class CartesianUnstructBuilder : public ModelBuilderBase<FloatType, ScalarType>
     modelData.model_vp_element_ = model_vp_element_;
     modelData.model_rho_element_ = model_rho_element_;
 
-    return std::make_shared<model::mesh::ModelUnstruct<FloatType, ScalarType>>(
+    return std::make_shared<model::ModelUnstruct<FloatType, ScalarType>>(
         modelData);
   }
 
@@ -278,7 +276,5 @@ class CartesianUnstructBuilder : public ModelBuilderBase<FloatType, ScalarType>
     }
   }
 };
-
-}  // namespace mesh
 }  // namespace model
 #endif  // SRC_MODEL_CARTESIANMESH_INCLUDE_CARTESIAN_UNSTRUCT_MESH_H_

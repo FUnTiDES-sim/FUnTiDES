@@ -5,8 +5,6 @@
 
 namespace model
 {
-namespace mesh
-{
 template <typename FloatType, typename ScalarType, int Order>
 class CartesianStructBuilder : public ModelBuilderBase<FloatType, ScalarType>
 {
@@ -26,10 +24,10 @@ class CartesianStructBuilder : public ModelBuilderBase<FloatType, ScalarType>
 
   ~CartesianStructBuilder() = default;
 
-  std::shared_ptr<model::mesh::ModelApi<FloatType, ScalarType>> getModel()
+  std::shared_ptr<model::ModelApi<FloatType, ScalarType>> getModel()
       const override
   {
-    model::mesh::ModelStructData<FloatType, ScalarType> data;
+    model::ModelStructData<FloatType, ScalarType> data;
     data.ex_ = ex_;
     data.ey_ = ey_;
     data.ez_ = ez_;
@@ -39,8 +37,8 @@ class CartesianStructBuilder : public ModelBuilderBase<FloatType, ScalarType>
     data.dz_ = lz_;
     data.isModelOnNodes_ = isModelOnNodes_;
 
-    return std::make_shared<
-        model::mesh::ModelStruct<FloatType, ScalarType, Order>>(data);
+    return std::make_shared<model::ModelStruct<FloatType, ScalarType, Order>>(
+        data);
   }
 
  private:
@@ -48,5 +46,4 @@ class CartesianStructBuilder : public ModelBuilderBase<FloatType, ScalarType>
   FloatType lx_, ly_, lz_;
   bool isModelOnNodes_;
 };
-}  // namespace mesh
 }  // namespace model

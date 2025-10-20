@@ -20,7 +20,7 @@ namespace model
 template <typename FloatType, typename ScalarType>
 void bind_modelapi(py::module_ &m)
 {
-  using T = model::mesh::ModelApi<FloatType, ScalarType>;
+  using T = model::ModelApi<FloatType, ScalarType>;
   std::string name = model_class_name<FloatType, ScalarType>("ModelApi");
 
   py::class_<T, std::shared_ptr<T>>(m, name.c_str())
@@ -45,9 +45,9 @@ void bind_modelapi(py::module_ &m)
 template <typename FloatType, typename ScalarType, int Order>
 void bind_modelstruct(py::module_ &m)
 {
-  using Base = model::mesh::ModelApi<FloatType, ScalarType>;
-  using T = model::mesh::ModelStruct<FloatType, ScalarType, Order>;
-  using Data = model::mesh::ModelStructData<FloatType, ScalarType>;
+  using Base = model::ModelApi<FloatType, ScalarType>;
+  using T = model::ModelStruct<FloatType, ScalarType, Order>;
+  using Data = model::ModelStructData<FloatType, ScalarType>;
 
   std::string name =
       model_class_name<FloatType, ScalarType, Order>("ModelStruct");
@@ -60,7 +60,7 @@ void bind_modelstruct(py::module_ &m)
 template <typename FloatType, typename ScalarType>
 void bind_modelstructdata(py::module_ &m)
 {
-  using Data = model::mesh::ModelStructData<FloatType, ScalarType>;
+  using Data = model::ModelStructData<FloatType, ScalarType>;
   std::string name = model_class_name<FloatType, ScalarType>("ModelStructData");
 
   py::class_<Data>(m, name.c_str())
@@ -77,9 +77,9 @@ void bind_modelstructdata(py::module_ &m)
 template <typename FloatType, typename ScalarType>
 void bind_modelunstruct(py::module_ &m)
 {
-  using Base = model::mesh::ModelApi<FloatType, ScalarType>;
-  using T = model::mesh::ModelUnstruct<FloatType, ScalarType>;
-  using Data = model::mesh::ModelUnstructData<FloatType, ScalarType>;
+  using Base = model::ModelApi<FloatType, ScalarType>;
+  using T = model::ModelUnstruct<FloatType, ScalarType>;
+  using Data = model::ModelUnstructData<FloatType, ScalarType>;
 
   std::string name = model_class_name<FloatType, ScalarType>("ModelUnstruct");
 
@@ -91,7 +91,7 @@ void bind_modelunstruct(py::module_ &m)
 template <typename FloatType, typename ScalarType>
 void bind_modelunstructdata(py::module_ &m)
 {
-  using Data = model::mesh::ModelUnstructData<FloatType, ScalarType>;
+  using Data = model::ModelUnstructData<FloatType, ScalarType>;
   std::string name =
       model_class_name<FloatType, ScalarType>("ModelUnstructData");
 

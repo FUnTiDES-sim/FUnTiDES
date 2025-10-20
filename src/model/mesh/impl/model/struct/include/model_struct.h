@@ -7,8 +7,7 @@
 
 namespace model
 {
-namespace mesh
-{
+
 template <typename FloatType, typename ScalarType>
 struct ModelStructData : public ModelDataBase<FloatType, ScalarType>
 {
@@ -311,6 +310,5 @@ class ModelStruct : public ModelApi<FloatType, ScalarType>
   bool isModelOnNodes_;
 };
 
-}  // namespace mesh
 }  // namespace model
 #endif  // SRC_MODEL_MODELAPI_INCLUDE_MODEL_STRUCT_H_

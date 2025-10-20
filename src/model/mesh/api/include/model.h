@@ -6,8 +6,7 @@
 
 namespace model
 {
-namespace mesh
-{
+
 template <typename FloatType, typename ScalarType>
 struct ModelDataBase
 {
@@ -193,6 +192,6 @@ class ModelApi
   PROXY_HOST_DEVICE
   virtual bool isModelOnNodes() const = 0;
 };
-}  // namespace mesh
+
 }  // namespace model
 #endif  // SRC_MODEL_MODELAPI_INCLUDE_MODEL_API_H_

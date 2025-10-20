@@ -5,8 +5,6 @@
 
 namespace model
 {
-namespace mesh
-{
 template <typename FloatType, typename ScalarType>
 struct ModelUnstructData : public ModelDataBase<FloatType, ScalarType>
 {
@@ -393,8 +391,6 @@ class ModelUnstruct : public ModelApi<FloatType, ScalarType>
 
   VECTOR_REAL_VIEW boundaries_t_;
 };
-
-}  // namespace mesh
 }  // namespace model
 
 #endif  // SRC_MODEL_MODELAPI_INCLUDE_MODEL_UNSTRUCT_H_

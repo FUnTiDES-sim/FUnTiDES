@@ -20,7 +20,7 @@ namespace model
 template <typename FloatType, typename ScalarType>
 void bind_modelbuilderbase(py::module_ &m)
 {
-  using T = model::mesh::ModelBuilderBase<FloatType, ScalarType>;
+  using T = model::ModelBuilderBase<FloatType, ScalarType>;
   std::string name =
       model_class_name<FloatType, ScalarType>("ModelBuilderBase");
 
@@ -33,8 +33,8 @@ void bind_modelbuilderbase(py::module_ &m)
 template <typename FloatType, typename ScalarType, int Order>
 void bind_cartesian_struct_builder(py::module_ &m)
 {
-  using Base = model::mesh::ModelBuilderBase<FloatType, ScalarType>;
-  using T = model::mesh::CartesianStructBuilder<FloatType, ScalarType, Order>;
+  using Base = model::ModelBuilderBase<FloatType, ScalarType>;
+  using T = model::CartesianStructBuilder<FloatType, ScalarType, Order>;
   std::string name =
       model_class_name<FloatType, ScalarType, Order>("CartesianStructBuilder");
 
@@ -49,7 +49,7 @@ void bind_cartesian_struct_builder(py::module_ &m)
 template <typename FloatType, typename ScalarType>
 void bind_cartesian_unstruct_params(py::module_ &m)
 {
-  using Params = model::mesh::CartesianParams<FloatType, ScalarType>;
+  using Params = model::CartesianParams<FloatType, ScalarType>;
   std::string name = model_class_name<FloatType, ScalarType>("CartesianParams");
 
   py::class_<Params, std::shared_ptr<Params>>(m, name.c_str())
@@ -73,15 +73,14 @@ void bind_cartesian_unstruct_params(py::module_ &m)
 template <typename FloatType, typename ScalarType>
 void bind_cartesian_unstruct_builder(py::module_ &m)
 {
-  using Base = model::mesh::ModelBuilderBase<FloatType, ScalarType>;
-  using T = model::mesh::CartesianUnstructBuilder<FloatType, ScalarType>;
+  using Base = model::ModelBuilderBase<FloatType, ScalarType>;
+  using T = model::CartesianUnstructBuilder<FloatType, ScalarType>;
   std::string name =
       model_class_name<FloatType, ScalarType>("CartesianUnstructBuilder");
 
   py::class_<T, Base, std::shared_ptr<T>>(m, name.c_str())
       .def(py::init<>())
-      .def(py::init<
-           const model::mesh::CartesianParams<FloatType, ScalarType> &>());
+      .def(py::init<const model::CartesianParams<FloatType, ScalarType> &>());
 }
 
 }  // namespace model

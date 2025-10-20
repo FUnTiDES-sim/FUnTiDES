@@ -6,8 +6,6 @@
 
 namespace model
 {
-namespace mesh
-{
 template <typename FloatType, typename ScalarType>
 class ModelBuilderBase
 {
@@ -17,8 +15,7 @@ class ModelBuilderBase
 
   static constexpr int MAX_ORDER = 5;
 
-  virtual std::shared_ptr<model::mesh::ModelApi<FloatType, ScalarType>>
-  getModel() const = 0;
+  virtual std::shared_ptr<model::ModelApi<FloatType, ScalarType>> getModel()
+      const = 0;
 };
-}  // namespace mesh
 }  // namespace model

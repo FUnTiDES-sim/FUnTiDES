@@ -49,7 +49,8 @@ struct SEMsolverData : SolverBase::DataStruct
   ARRAY_REAL_VIEW m_rhsWeights;
 };
 
-template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE>
+template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE,
+          bool IS_MODEL_ON_NODES>
 class SEMsolver : public SolverBase
 {
  public:
@@ -73,7 +74,7 @@ class SEMsolver : public SolverBase
    * @param surface_sponge Enable sponge at free surface (typically false
    *                       for geophysics to preserve natural reflections).
    */
-  virtual void computeFEInit(model::mesh::ModelApi<float, int> &mesh,
+  virtual void computeFEInit(model::ModelApi<float, int> &mesh,
                              const std::array<float, 3> &sponge_size,
                              const bool surface_sponge,
                              const float taper_delta_) override final;
@@ -85,8 +86,6 @@ class SEMsolver : public SolverBase
    * @param timeSample   Current time index into the RHS (source) term
    * @param dt           Delta time for this iteration
    * @param data         DataStruct containing all necessary arrays
-   * @param isModelOnNodes True if the velocity model is defined on nodes, false
-   * if on elements
    */
   virtual void computeOneStep(const float &dt, const int &timeSample,
                               DataStruct &data) override final;
@@ -121,6 +120,12 @@ class SEMsolver : public SolverBase
   void initSpongeValues();
 
   /**
+   * @brief Compute the global mass matrix, accounting for the model.
+   */
+
+  void computeGlobalMassMatrix();
+
+  /**
    * @brief Reset global FE vectors (mass, stiffness) before accumulation.
    *
    * @param numNodes Total number of global nodes.
@@ -149,8 +154,7 @@ class SEMsolver : public SolverBase
    * @param i2       Current pressure field index
    * @param pnGlobal Global pressure field
    */
-  void computeElementContributions(int i2, const ARRAY_REAL_VIEW &pnGlobal,
-                                   bool isModelOnNodes);
+  void computeElementContributions(int i2, const ARRAY_REAL_VIEW &pnGlobal);
 
   /**
    * @brief Update the global pressure field at interior nodes.
