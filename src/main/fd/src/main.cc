@@ -23,8 +23,8 @@
 #include <Kokkos_Core.hpp>
 #endif
 
-#include "fdtd_options.h"
-#include "fdtd_proxy.h"
+#include "fd_options.h"
+#include "fd_proxy.h"
 
 namespace
 {

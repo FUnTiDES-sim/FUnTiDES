@@ -1,7 +1,7 @@
 if(COMPILE_FD)
   add_executable(fdproxy
                  src/main.cc
-                 src/fdtd_proxy.cc
+                 src/fd_proxy.cc
                 )
 
   target_include_directories(fdproxy PRIVATE
@@ -14,8 +14,8 @@ if(COMPILE_FD)
       discretization
       proxy_utils
       fd_grid
-      fdtd_solver
-      fdtd_discretization
+      fd_solver
+      fd_discretization
   )
 
   target_link_kokkos_if_enabled(fdproxy)
