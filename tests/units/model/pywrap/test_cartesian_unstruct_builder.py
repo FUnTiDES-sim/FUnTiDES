@@ -1,4 +1,4 @@
-import pyproxys.model as Model
+import pyfuntides.model as Model
 import pytest
 
 

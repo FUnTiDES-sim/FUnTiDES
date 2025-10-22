@@ -1,5 +1,5 @@
-import pyproxys.model as Model
-import pyproxys.solver as Solver
+import pyfuntides.model as Model
+import pyfuntides.solver as Solver
 import pytest
 import solver_utils as Utils
 import benchmark_groups as Groups

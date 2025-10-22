@@ -13,7 +13,7 @@ namespace py = pybind11;
 PYBIND11_MODULE(model, m)
 {
   // Create submodule 'model'
-  m.attr("__name__") = "pyproxys.model";
+  m.attr("__name__") = "pyfuntides.model";
 
   // Bind ModelApi
   model::bind_modelapi<float, int>(m);
