@@ -74,6 +74,7 @@ gatherTransformData( const int & elementNumber,
 
   if constexpr ( transform_type_selector<TT>::type == transform_types::shiva_linear_transform )
   {
+    typename MESH_TYPE::IndexType const elementIndex = mesh.elementIndex( elementNumber );
     typename TRANSFORM_TYPE::DataType & cellCoordData = transformData.getData();
     for ( int k = 0; k < 2; ++k )
     {
@@ -81,16 +82,17 @@ gatherTransformData( const int & elementNumber,
       {
         for ( int i = 0; i < 2; ++i )
         {
-          int const nodeIdx = mesh.globalNodeIndex(elementNumber, i, j, k);
-          cellCoordData( i, j, k, 0 ) = mesh.nodeCoord(nodeIdx, 0);
-          cellCoordData( i, j, k, 1 ) = mesh.nodeCoord(nodeIdx, 1);
-          cellCoordData( i, j, k, 2 ) = mesh.nodeCoord(nodeIdx, 2);
+          typename MESH_TYPE::IndexType const vertexIndex = mesh.globalVertexIndex( elementIndex, i, j, k);
+          float * const coords = &cellCoordData(i, j, k, 0);
+          mesh.vertexCoords( vertexIndex, coords );
         }
       }
     }
   }
   else if constexpr ( transform_type_selector<TT>::type == transform_types::linear_transform )
   {
+    typename MESH_TYPE::IndexType elementIndex = mesh.elementIndex( elementNumber );
+
     int I = 0;
     for (int k = 0; k < 2; ++k)
     {
@@ -98,10 +100,8 @@ gatherTransformData( const int & elementNumber,
       {
         for (int i=0; i<2; ++i)
         {
-          int nodeIdx = mesh.globalNodeIndex(elementNumber, i, j, k);
-          transformData.data[I][0] = mesh.nodeCoord(nodeIdx, 0);
-          transformData.data[I][1] = mesh.nodeCoord(nodeIdx, 1);
-          transformData.data[I][2] = mesh.nodeCoord(nodeIdx, 2);
+          typename MESH_TYPE::IndexType const vertexIndex = mesh.globalVertexIndex( elementIndex, i, j, k);
+          mesh.vertexCoords( vertexIndex, transformData.data[I] );
           ++I;
         }
       }

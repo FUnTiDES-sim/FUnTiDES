@@ -123,13 +123,17 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES>::
   float Y[nPointsElement] = {0};
 
   int dim = m_mesh.getOrder() + 1;
-  for (int i = 0; i < m_mesh.getNumberOfPointsPerElement(); ++i)
+  for( int i = 0; i < dim; ++i )
   {
-    int x = i % dim;
-    int z = (i / dim) % dim;
-    int y = i / (dim * dim);
-    int const globalIdx = m_mesh.globalNodeIndex(elementNumber, x, y, z);
-    pnLocal[i] = pnGlobal(globalIdx, i2);
+    for( int j = 0; j < dim; ++j )
+    {
+      for( int k = 0; k < dim; ++k )
+      {
+        int const globalIdx = m_mesh.globalNodeIndex(elementNumber, i, j, k);
+        int const localIdx = i + j * dim + k * dim * dim;
+        pnLocal[localIdx] = pnGlobal(globalIdx, i2);
+      }
+    }
   }
 
   typename INTEGRAL_TYPE::TransformType transformData;
@@ -142,25 +146,34 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES>::
     inv_density = 1.0f / m_mesh.getModelRhoOnElement(elementNumber);
   }
 
-    INTEGRAL_TYPE::computeStiffnessTerm(
-      transformData, [&](const int qa, const int qb, const int qc, const int i,
-                        const int j, const real_t val) {
-        if constexpr (IS_MODEL_ON_NODES)
-        {
-          int const gIndex = m_mesh.globalNodeIndex(elementNumber, qa, qb, qc);
-          inv_density = 1.0f / m_mesh.getModelRhoOnNodes(gIndex);
-        }
-        float localIncrement = inv_density * val * pnLocal[j];
-        Y[i] += localIncrement;
-      });
+    INTEGRAL_TYPE::computeStiffnessTerm( transformData, 
+                                         [&]( const int qa, 
+                                              const int qb, 
+                                              const int qc, 
+                                              const int i,
+                                              const int j, 
+                                              const real_t val ) 
+    {
+      if constexpr (IS_MODEL_ON_NODES)
+      {
+        int const gIndex = m_mesh.globalNodeIndex(elementNumber, qa, qb, qc);
+        inv_density = 1.0f / m_mesh.getModelRhoOnNodes(gIndex);
+      }
+      float localIncrement = inv_density * val * pnLocal[j];
+      Y[i] += localIncrement;
+    });
 
-  for (int i = 0; i < m_mesh.getNumberOfPointsPerElement(); ++i)
+  for( int i = 0; i < dim; ++i )
   {
-    int x = i % dim;
-    int z = (i / dim) % dim;
-    int y = i / (dim * dim);
-    int const gIndex = m_mesh.globalNodeIndex(elementNumber, x, y, z);
-    ATOMICADD(yGlobal[gIndex], Y[i]);
+    for( int j = 0; j < dim; ++j )
+    {
+      for( int k = 0; k < dim; ++k )
+      {
+        int const globalIdx = m_mesh.globalNodeIndex(elementNumber, i, j, k);
+        int const localIdx = i + j * dim + k * dim * dim;
+        ATOMICADD(yGlobal[globalIdx], Y[localIdx]);
+      }
+    }
   }
 
   MAINLOOPEND

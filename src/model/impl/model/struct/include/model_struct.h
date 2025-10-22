@@ -31,6 +31,9 @@ template <typename FloatType, typename ScalarType, int Order>
 class ModelStruct : public ModelApi<FloatType, ScalarType>
 {
  public:
+  using IndexType = std::array<int, 3>;
+
+
   /**
    * @brief Default constructor.
    */
@@ -73,6 +76,36 @@ class ModelStruct : public ModelApi<FloatType, ScalarType>
    * @brief Destructor.
    */
   PROXY_HOST_DEVICE ~ModelStruct() = default;
+
+
+
+  PROXY_HOST_DEVICE
+  IndexType elementIndex( const int linearIndex ) const
+  {
+    IndexType elemIndex;
+    elemIndex[2] = linearIndex / ( ex_ * ey_ );
+    int const rem = linearIndex - elemIndex[2] * ( ex_ * ey_ );
+    elemIndex[1] = rem / ex_;
+    elemIndex[0] = rem - elemIndex[1] * ex_;
+    return elemIndex;
+  }
+
+  PROXY_HOST_DEVICE
+  IndexType globalVertexIndex(IndexType e, int const i, int const j, int const k) const
+  {
+    return { e[0] + i, 
+             e[1] + j, 
+             e[2] + k };
+  }
+
+
+  PROXY_HOST_DEVICE
+  void vertexCoords( IndexType dofGlobal, FloatType * const coords ) const
+  {
+    coords[0] = dofGlobal[0] * ex_;
+    coords[1] = dofGlobal[1] * ey_;
+    coords[2] = dofGlobal[2] * ez_;
+  }
 
   /**
    * @brief Get the coordinate of a global node in the given dimension.
