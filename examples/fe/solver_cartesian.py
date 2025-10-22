@@ -15,11 +15,11 @@ import time
 from datetime import datetime
 from enum import Enum
 
-import kokkos
 import matplotlib.pyplot as plt
 import numpy as np
-import pyproxys.model as Model
-import pyproxys.solver as Solver
+import kokkos # must be imported after matplotlib to avoid conflicts
+import pyfuntides.model as Model
+import pyfuntides.solver as Solver
 
 # Create alias to use float32 and int32 types
 CartesianStructBuilderFI1 = Model.CartesianStructBuilder_f32_i32_O1

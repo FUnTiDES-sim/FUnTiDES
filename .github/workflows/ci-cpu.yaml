@@ -152,7 +152,7 @@ jobs:
         run: |
           source .venv/bin/activate
           export INSTALL_DIR=$(realpath ./install)
-          export PYTHONPATH=$PYTHONPATH:$INSTALL_DIR
+          export PYTHONPATH=$PYTHONPATH:$INSTALL_DIR/python
           export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$INSTALL_DIR/lib
           pytest tests/units
 
