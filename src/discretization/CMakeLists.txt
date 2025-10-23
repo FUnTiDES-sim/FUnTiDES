@@ -14,4 +14,4 @@ message(STATUS "Binary include dir: ${CMAKE_BINARY_DIR}/include")
 add_subdirectory( fe/SEMKernels )
 
 target_link_libraries( discretization INTERFACE proxy_utils )
-# target_link_libraries( discretization INTERFACE Shiva::shiva )
+target_link_libraries( discretization INTERFACE Shiva::shiva )

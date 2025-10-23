@@ -42,6 +42,9 @@ template <typename FloatType, typename ScalarType>
 class ModelUnstruct : public ModelApi<FloatType, ScalarType>
 {
  public:
+  using IndexType = int;
+
+
   /**
    * @brief Default constructor.
    */
@@ -82,6 +85,28 @@ class ModelUnstruct : public ModelApi<FloatType, ScalarType>
    * @brief Destructor.
    */
   PROXY_HOST_DEVICE ~ModelUnstruct() = default;
+
+
+  PROXY_HOST_DEVICE
+  IndexType elementIndex( const int linearIndex ) const
+  {
+    return linearIndex;
+  }
+
+  PROXY_HOST_DEVICE
+  void vertexCoords(IndexType dofGlobal, FloatType * const coords ) const
+  {
+    coords[0] = nodes_coords_x_[dofGlobal];
+    coords[1] = nodes_coords_y_[dofGlobal];
+    coords[2] = nodes_coords_z_[dofGlobal];
+  }
+
+  PROXY_HOST_DEVICE
+  IndexType globalVertexIndex(IndexType e, int const i, int const j, int const k) const
+  {
+    const auto localDofIndex = i + j * (order_ + 1) + k * (order_ + 1) * (order_ + 1);
+    return global_node_index_(e, localDofIndex);  // Fixed: was elementIndex
+  }
 
   /**
    * @brief Get the coordinate of a global node in the given dimension.
