@@ -161,8 +161,7 @@ void SEMsolverElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE,IS_MODEL_ON_NODES>::comput
     }
   }
 
-  float (CTTI)[6][6];
-
+  float CTTI[6][6];
   if constexpr (!IS_MODEL_ON_NODES)
   {
     float const vp = m_mesh.getModelVpOnElement(elementNumber);
@@ -176,9 +175,21 @@ void SEMsolverElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE,IS_MODEL_ON_NODES>::comput
     computeCMatrix(vp,vs,rho,delta,epsilon,gamma,phi,theta,CTTI);
 
   }
+  #ifdef __CUDACC__
+  // CUDA: use vector types to load 4 floats at once
+  struct CJPacked { float4 a; float2 b; }; // a.x,a.y,a.z,a.w -> v0..v3 ; b.x,b.y -> v4,v5
+#else
+  // Fallback portable layout (same memory footprint, aligned to 16 bytes)
+  struct CJPacked { alignas(16) float a0, a1, a2, a3; float b0, b1, float pad[2]; };
+#endif
 
-  INTEGRAL_TYPE::computeStiffNessTermwithJac(cornerCoords, [&] (int qa, int qb, int qc)
+CJPacked CJflat[3*3*6];
+INTEGRAL_TYPE::computeStiffNessTermwithJac(cornerCoords, 
+  [&] (int qa, int qb, int qc, float const (&J)[3][3]) 
   { 
+
+
+
     if constexpr (IS_MODEL_ON_NODES) {
       int const gIndex = m_mesh.globalNodeIndex(elementNumber, qa, qb, qc);
       float const vp = m_mesh.getModelVpOnNodes(gIndex);
@@ -190,62 +201,103 @@ void SEMsolverElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE,IS_MODEL_ON_NODES>::comput
       float const phi = m_mesh.getModelPhiOnNodes(gIndex);
       float const theta = m_mesh.getModelThetaOnNodes(gIndex);
       computeCMatrix(vp,vs,rho,delta,epsilon,gamma,phi,theta,CTTI);
-    } 
+    }
+        float const C00 = CTTI[0][0], C01 = CTTI[0][1], C02 = CTTI[0][2];
+    float const C03 = CTTI[0][3], C04 = CTTI[0][4], C05 = CTTI[0][5];
+    float const C11 = CTTI[1][1], C12 = CTTI[1][2], C13 = CTTI[1][3];
+    float const C14 = CTTI[1][4], C15 = CTTI[1][5];
+    float const C22 = CTTI[2][2], C23 = CTTI[2][3], C24 = CTTI[2][4], C25 = CTTI[2][5];
+    float const C33 = CTTI[3][3], C34 = CTTI[3][4], C35 = CTTI[3][5];
+    float const C44 = CTTI[4][4], C45 = CTTI[4][5];
+    float const C55 = CTTI[5][5];
 
-  },
+for (int p = 0; p < 3; ++p) {
+  const float Jp0 = J[p][0], Jp1 = J[p][1], Jp2 = J[p][2];
+  for (int r = 0; r < 3; ++r) {
+    const float Jr0 = J[r][0], Jr1 = J[r][1], Jr2 = J[r][2];
 
-  [&] (int i, int j, float val, float const (&J)[3][3], const int p, const int r)
+    // precompute products
+    const float p0r0 = Jp0*Jr0, p0r1 = Jp0*Jr1, p0r2 = Jp0*Jr2;
+    const float p1r0 = Jp1*Jr0, p1r1 = Jp1*Jr1, p1r2 = Jp1*Jr2;
+    const float p2r0 = Jp2*Jr0, p2r1 = Jp2*Jr1, p2r2 = Jp2*Jr2;
+
+    const int idx = p*3 + r; // 0..8
+
+    float v0 = C00*p0r0 + C05*p0r1 + C04*p0r2 +
+               C05*p1r0 + C55*p1r1 + C45*p1r2 +
+               C04*p2r0 + C45*p2r1 + C44*p2r2; // Rxx
+    float v1 = C55*p0r0 + C15*p0r1 + C35*p0r2 +
+               C15*p1r0 + C11*p1r1 + C13*p1r2 +
+               C35*p2r0 + C13*p2r1 + C33*p2r2; // Ryy
+    float v2 = C44*p0r0 + C34*p0r1 + C24*p0r2 +
+               C34*p1r0 + C33*p1r1 + C23*p1r2 +
+               C24*p2r0 + C23*p2r1 + C22*p2r2; // Rzz
+    float v3 = C05*p0r0 + C01*p0r1 + C03*p0r2 +
+               C55*p1r0 + C15*p1r1 + C35*p1r2 +
+               C45*p2r0 + C14*p2r1 + C34*p2r2; // Rxy
+    float v4 = C04*p0r0 + C03*p0r1 + C02*p0r2 +
+               C45*p1r0 + C35*p1r1 + C25*p1r2 +
+               C44*p2r0 + C34*p2r1 + C24*p2r2; // Rxz
+    float v5 = C45*p0r0 + C35*p0r1 + C25*p0r2 +
+               C14*p1r0 + C13*p1r1 + C12*p1r2 +
+               C34*p2r0 + C33*p2r1 + C23*p2r2; // Ryz
+
+#ifdef __CUDACC__
+    CJflat[idx].a = make_float4(v0, v1, v2, v3);
+    CJflat[idx].b = make_float2(v4, v5);
+#else
+    CJflat[idx].a0 = v0; CJflat[idx].a1 = v1; CJflat[idx].a2 = v2; CJflat[idx].a3 = v3;
+    CJflat[idx].b0 = v4; CJflat[idx].b1 = v5;
+#endif
+  }
+}
+
+    
+},
+
+  [&] (int i, int j, float val, float (&J)[3][3], const int p, const int r)
   {
-    float Jp0 = J[p][0], Jp1 = J[p][1], Jp2 = J[p][2];
-    float Jr0 = J[r][0], Jr1 = J[r][1], Jr2 = J[r][2];
-    
-    float C00 = CTTI[0][0], C01 = CTTI[0][1], C02 = CTTI[0][2];
-    float C03 = CTTI[0][3], C04 = CTTI[0][4], C05 = CTTI[0][5];
-    float C11 = CTTI[1][1], C12 = CTTI[1][2], C13 = CTTI[1][3];
-    float C14 = CTTI[1][4], C15 = CTTI[1][5];
-    float C22 = CTTI[2][2], C23 = CTTI[2][3], C24 = CTTI[2][4], C25 = CTTI[2][5];
-    float C33 = CTTI[3][3], C34 = CTTI[3][4], C35 = CTTI[3][5];
-    float C44 = CTTI[4][4], C45 = CTTI[4][5];
-    float C55 = CTTI[5][5];
-    
-    float Jp0Jr0 = Jp0*Jr0, Jp0Jr1 = Jp0*Jr1, Jp0Jr2 = Jp0*Jr2;
-    float Jp1Jr0 = Jp1*Jr0, Jp1Jr1 = Jp1*Jr1, Jp1Jr2 = Jp1*Jr2;
-    float Jp2Jr0 = Jp2*Jr0, Jp2Jr1 = Jp2*Jr1, Jp2Jr2 = Jp2*Jr2;
-    
-    float const Rxx = val*(C00*Jp0Jr0 + C05*Jp0Jr1 + C04*Jp0Jr2 +
-                           C05*Jp1Jr0 + C55*Jp1Jr1 + C45*Jp1Jr2 +
-                           C04*Jp2Jr0 + C45*Jp2Jr1 + C44*Jp2Jr2);
-    
-    float const Ryy = val*(C55*Jp0Jr0 + C15*Jp0Jr1 + C35*Jp0Jr2 +
-                           C15*Jp1Jr0 + C11*Jp1Jr1 + C13*Jp1Jr2 +
-                           C35*Jp2Jr0 + C13*Jp2Jr1 + C33*Jp2Jr2);
-    
-    float const Rzz = val*(C44*Jp0Jr0 + C34*Jp0Jr1 + C24*Jp0Jr2 +
-                           C34*Jp1Jr0 + C33*Jp1Jr1 + C23*Jp1Jr2 +
-                           C24*Jp2Jr0 + C23*Jp2Jr1 + C22*Jp2Jr2);
-    
-    float const Rxy = val*(C05*Jp0Jr0 + C01*Jp0Jr1 + C03*Jp0Jr2 +
-                           C55*Jp1Jr0 + C15*Jp1Jr1 + C35*Jp1Jr2 +
-                           C45*Jp2Jr0 + C14*Jp2Jr1 + C34*Jp2Jr2);
-    
-    float const Rxz = val*(C04*Jp0Jr0 + C03*Jp0Jr1 + C02*Jp0Jr2 +
-                           C45*Jp1Jr0 + C35*Jp1Jr1 + C25*Jp1Jr2 +
-                           C44*Jp2Jr0 + C34*Jp2Jr1 + C24*Jp2Jr2);
-    
-    float const Ryz = val*(C45*Jp0Jr0 + C35*Jp0Jr1 + C25*Jp0Jr2 +
-                           C14*Jp1Jr0 + C13*Jp1Jr1 + C12*Jp1Jr2 +
-                           C34*Jp2Jr0 + C33*Jp2Jr1 + C23*Jp2Jr2);
-    
-    float const localIncrementx = Rxx * uxnLocal[j] + Rxy * uynLocal[j] + Rxz * uznLocal[j];
-    float const localIncrementy = Rxy * uxnLocal[j] + Ryy * uynLocal[j] + Ryz * uznLocal[j];
-    float const localIncrementz = Rxz * uxnLocal[j] + Ryz * uynLocal[j] + Rzz * uznLocal[j];
-    
-    
-    ux[i] += localIncrementx;
-    uy[i] += localIncrementy;
-    uz[i] += localIncrementz;
+        const int idx = p*3 + r;
 
-  } ); 
+#ifdef __CUDACC__
+
+    const float3 u_local = make_float3(uxnLocal[j], uynLocal[j], uznLocal[j]);
+    
+    // Charger CJ packed vectors (one instruction each)
+    const float4 a = CJflat[idx].a;
+    const float2 b = CJflat[idx].b;
+
+    // a.x = Rxx, a.y = Ryy, a.z = Rzz, a.w = Rxy, b.x = Rxz, b.y = Ryz
+    float * __restrict__ ux_ptr = &ux[i];
+    float * __restrict__ uy_ptr = &uy[i];
+    float * __restrict__ uz_ptr = &uz[i];
+    
+    // Accumulation with FMA
+    *ux_ptr += fmaf(val * a.x, u_local.x, fmaf(val * a.w, u_local.y, val * b.x * u_local.z));
+    *uy_ptr += fmaf(val * a.w, u_local.x, fmaf(val * a.y, u_local.y, val * b.y * u_local.z));
+    *uz_ptr += fmaf(val * b.x, u_local.x, fmaf(val * b.y, u_local.y, val * a.z * u_local.z));
+#else
+    // Portable version
+    const float uxj = uxnLocal[j];
+    const float uyj = uynLocal[j];
+    const float uzj = uznLocal[j];
+    
+    const float rxx = CJflat[idx].a0;
+    const float ryy = CJflat[idx].a1;
+    const float rzz = CJflat[idx].a2;
+    const float rxy = CJflat[idx].a3;
+    const float rxz = CJflat[idx].b0;
+    const float ryz = CJflat[idx].b1;
+
+    ux[i] += fmaf(val * rxx, uxj, fmaf(val * rxy, uyj, val * rxz * uzj));
+    uy[i] += fmaf(val * rxy, uxj, fmaf(val * ryy, uyj, val * ryz * uzj));
+    uz[i] += fmaf(val * rxz, uxj, fmaf(val * ryz, uyj, val * rzz * uzj));
+#endif
+
+    
+
+  }
+);
 
 
   for (int i = 0; i < m_mesh.getNumberOfPointsPerElement(); ++i)
