@@ -132,10 +132,8 @@ class ModelStruct : public ModelApi<FloatType, ScalarType>
 
     // Determine which element this node belongs to and local position within
     // element
-    int elemIdx =
-        nodeIdx[dim] / Order;  // Element index in the requested dimension
-    int localIdx =
-        nodeIdx[dim] % Order;  // Local node index within element (0 to Order)
+    int elemIdx = nodeIdx[dim] / Order;  // Element index in the requested dimension
+    int localIdx = nodeIdx[dim] % Order;  // Local node index within element (0 to Order)
 
     // Handle boundary case: if we're at the last node of an element (except the
     // last element), it's actually the first node of the next element
