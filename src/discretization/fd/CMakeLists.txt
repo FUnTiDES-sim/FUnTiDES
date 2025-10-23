@@ -5,7 +5,7 @@ add_library(fd_discretization INTERFACE)
 target_include_directories(fd_discretization INTERFACE
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/stencils/include>
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/kernels/include>
-    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/boundary/include>
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/abckernels/include>
     $<INSTALL_INTERFACE:include>
 )
 

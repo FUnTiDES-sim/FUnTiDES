@@ -17,7 +17,7 @@ target_include_directories(fd_solver PRIVATE
     ${CMAKE_BINARY_DIR}/src/utils/include
     ${CMAKE_SOURCE_DIR}/src/discretization/fd/kernels/include
     ${CMAKE_SOURCE_DIR}/src/discretization/fd/stencils/include
-    ${CMAKE_SOURCE_DIR}/src/discretization/fd/boundary/include
+    ${CMAKE_SOURCE_DIR}/src/discretization/fd/abckernels/include
     ${CMAKE_SOURCE_DIR}/src/model/grid/include
     ${CMAKE_SOURCE_DIR}/external/cxxopts
 )
