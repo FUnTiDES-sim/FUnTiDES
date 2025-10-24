@@ -22,7 +22,7 @@ struct FdtdAbcKernels
   {
     const int L = 20;
     const float alpha = -0.00015;
-
+    //const float alpha = -0.00035;
     // compute sponge boundary terms
     // intailize to 1
     for (int k = 0; k < nz; k++)
@@ -47,8 +47,9 @@ struct FdtdAbcKernels
       {
         for (int i = 0; i < L; i++)
         {
-          // spongeArray(IDX3(i,j,k))= exp(alpha*pow((L-i)*dx,2));
+          //spongeArray(IDX3(i,j,k))= exp(alpha*pow((L-i)*dx,2));
           spongeArray(IDX3(i, j, k)) = exp(alpha * pow((L - i), 2));
+          //printf("spongeArray(%d,%d,%d)=%f\n",i,j,k,spongeArray(IDX3(i, j, k)));
         }
         for (int i = nx - L; i < nx; i++)
         {

@@ -62,9 +62,9 @@ void FdtdSolver::compute_one_step(int itime, int i1, int i2)
   m_kernels.inner3D(i1, i2, 
                     m_grids.nx(), m_grids.ny(), m_grids.nz(),
                     m_stencils.lx, m_stencils.ly, m_stencils.lz, 
-                    m_grids.x3(), m_grids.x4(), 
-                    m_grids.y3(), m_grids.y4(),
-                    m_grids.z3(), m_grids.z4(), 
+                    m_grids.x1(), m_grids.x6(), 
+                    m_grids.y1(), m_grids.y6(),
+                    m_grids.z1(), m_grids.z6(), 
                     m_stencils.coef0, m_stencils.coefx,
                     m_stencils.coefy, m_stencils.coefz, 
                     m_grids.vp(),m_kernels.pnGlobal);
@@ -74,9 +74,9 @@ void FdtdSolver::compute_one_step(int itime, int i1, int i2)
   m_kernels.applySponge(i1, i2, 
                         m_grids.nx(), m_grids.ny(), m_grids.nz(),
                         m_stencils.lx, m_stencils.ly, m_stencils.lz,
-                        m_grids.x3(), m_grids.x4(), 
-                        m_grids.y3(), m_grids.y4(),
-                        m_grids.z3(), m_grids.z4(), 
+                        m_grids.x1(), m_grids.x6(), 
+                        m_grids.y1(), m_grids.y6(),
+                        m_grids.z1(), m_grids.z6(), 
                         m_abckernels.spongeArray, m_kernels.pnGlobal);
   // printf("applySponge done\n");
   FDFENCE

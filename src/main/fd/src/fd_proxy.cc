@@ -252,9 +252,9 @@ void FdtdProxy::InitializeBoundaries()
     float dt_sch=0.001f;
     float vmax=opt_.velocity.vmax;
     
-  
+    printf("PML params: nx=%d ny=%d nz=%d ndampx=%d ndampy=%d ndampz=%d\n",nx,ny,nz,ndampx,ndampy,ndampz);
     // allocate eta array
-    abckernels_.eta = allocateVector<vectorReal>(nx*ny*nz, "eta");
+    abckernels_.eta = allocateVector<vectorReal>((nx+2)*(ny+2)*(nz+2), "eta");
     vectorReal &eta=abckernels_.eta;
     abckernels_.init_eta(nx, ny, nz, 
                        ndampx, ndampy, ndampz,
