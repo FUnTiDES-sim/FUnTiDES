@@ -13,7 +13,7 @@ namespace py = pybind11;
 PYBIND11_MODULE(solver, m)
 {
   // Create submodule 'solver'
-  m.attr("__name__") = "pyproxys.solver";
+  m.attr("__name__") = "pyfuntides.solver";
 
   // Bind enums
   // (!they are not python enums, just to select the template at runtime!)

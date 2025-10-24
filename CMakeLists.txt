@@ -15,7 +15,7 @@ include(cmake/ProxyConfig.cmake)    # This must go *before* other configurations
 #--------------------------------------------------------
 # Configure
 #--------------------------------------------------------
-include(cmake/PywrapConfig.cmake)   # This must go *before* add_subdirectory(kokkos)
+include(cmake/PywrapConfig.cmake)   # This must go *before* kokkos and adios configurations
 include(cmake/KokkosConfig.cmake)
 include(cmake/ADIOS2Config.cmake)
 include(cmake/GoogleTestConfig.cmake)
