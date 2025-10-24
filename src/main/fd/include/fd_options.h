@@ -115,7 +115,7 @@ class FdtdOptions
   struct BoundaryParams
   {
     bool use_pml{false};         ///< Enable PML boundary conditions
-    bool use_sponge{true};         ///< Enable PML boundary conditions
+    bool use_sponge{false};         ///< Enable PML boundary conditions
     int pml_size{4};            ///< Thickness of PML layers (grid points)
     int sponge_size{20};         ///< Thickness of sponge layers (grid points)
     float sponge_alpha{0.015f};  ///< Damping coefficient for sponge
@@ -315,6 +315,11 @@ class FdtdOptions
     if (boundary.sponge_alpha < 0.f)
     {
       throw std::runtime_error("Sponge damping coefficient cannot be negative");
+    }
+    if (!boundary.use_pml && !boundary.use_sponge)
+    {
+      throw std::runtime_error(
+          "At least one absorbing boundary condition must be enabled");
     }
   }
 

@@ -292,9 +292,15 @@ void FdtdProxy::Run()
        index_time_sample++)
   {
     // Compute one time step
-    auto start_compute_time = system_clock::now();
-    solver_.compute_one_step(index_time_sample, time_index_current_,
-                             time_index_next_);
+    auto start_compute_time = system_clock::now();  
+    if(opt_.boundary.use_sponge){ 
+      solver_.compute_one_stepSB(index_time_sample, time_index_current_,
+                                 time_index_next_);
+    }
+    if(opt_.boundary.use_pml){
+      solver_.compute_one_stepPML(index_time_sample, time_index_current_,
+                                 time_index_next_);
+    }
     total_compute_time +=
         duration_cast<nanoseconds>(system_clock::now() - start_compute_time);
 

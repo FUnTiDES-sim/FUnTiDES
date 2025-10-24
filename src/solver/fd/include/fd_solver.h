@@ -43,8 +43,11 @@ class FdtdSolver
    */
   ~FdtdSolver(){};
 
-  // compute one step
-  void compute_one_step(int itime, int i1, int i2);
+  // compute one step with sponge boundary
+  void compute_one_stepSB(int itime, int i1, int i2);
+
+  // compute one step with PML
+  void compute_one_stepPML(int itime, int i1, int i2);
 
  private:
   model::fdgrid::FdtdGrids& m_grids;

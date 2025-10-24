@@ -19,10 +19,10 @@ struct FdtdKernels
   void initFieldsArrays(int nx, int ny, int nz, 
                         int lx, int ly, int lz)
   {
-    int modelVolume = nx * ny * nz;
     int extModelVolume = (nx + 2 * lx) * (ny + 2 * ly) * (nz + 2 * lz);
-
+    int modelVolume = nx * ny * nz;
     pnGlobal = allocateArray2D<arrayReal>(extModelVolume, 2, "pnGlobal");
+    phi = allocateVector<vectorReal>(modelVolume, "phi");
 
     for (int i = -lx; i < nx + lx; i++)
     {

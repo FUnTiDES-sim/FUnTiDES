@@ -30,14 +30,21 @@ class BoundaryLayers
   {
     // TODO: Extract from opt.boundary or similar
     // For now, set to reasonable defaults
+    float lambdamax_ = opt.velocity.vmin/(2.5*opt.source.f0); // Maximum wavelength in model
+    ntaperx_ = ntapery_ = ntaperz_ = opt.boundary.pml_size;
     if(opt.boundary.use_pml)
     {
-      ndampx_ = ndampy_ = ndampz_ = opt.boundary.pml_size;
+      ndampx_ = ntaperx_ * lambdamax_ / opt.grid.dx;
+      ndampy_ = ntapery_ * lambdamax_ / opt.grid.dy;
+      ndampz_ = ntaperz_ * lambdamax_ / opt.grid.dz;
     }
     if(opt.boundary.use_sponge)
     {
-      ntaperx_ = ntapery_ = ntaperz_ = opt.boundary.sponge_size;
+      ndampx_ = 0;
+      ndampy_ = 0;
+      ndampz_ = 0;
     }
+
     ComputeBoundaryRegions(opt.boundary.use_sponge,
                            opt.boundary.use_pml,
                            opt.grid.nx, opt.grid.ny, opt.grid.nz);
@@ -53,50 +60,26 @@ class BoundaryLayers
   {
     // Example: divide domain into 6 regions per axis
     // x1-x2: left boundary, x3-x4: interior, x5-x6: right boundary
-    if(sponge){
-      x1_= 0;
-      x2_= ntaperx_;
-      x3_= ntaperx_;
-      x4_= nx-ntaperx_;
-      x5_= nx-ntaperx_;
-      x6_= nx;
+    x1_= 0;
+    x2_= ndampx_;
+    x3_= ndampx_;
+    x4_= nx-ndampx_;
+    x5_= nx-ndampx_;
+    x6_= nx;
 
-      y1_= 0;
-      y2_= ntapery_;
-      y3_= ntapery_;
-      y4_= ny-ntapery_;
-      y5_= ny-ntapery_;
-      y6_= ny;
+    y1_= 0;
+    y2_= ndampy_;
+    y3_= ndampy_;
+    y4_= ny-ndampy_;
+    y5_= ny-ndampy_;
+    y6_= ny;
 
-      z1_= 0;
-      z2_= ntaperz_;
-      z3_= ntaperz_;
-      z4_= nz-ntaperz_;
-      z5_= nz-ntaperz_;
-      z6_= nz;
-    }
-    if(pml){
-      x1_ = 0;
-      x2_ = ndampx_;
-      x3_ = ndampx_ ;
-      x4_ = nx - ndampx_;
-      x5_ = nx - ndampx_;
-      x6_ = nx;
-
-      y1_ = 0;
-      y2_ = ndampy_;
-      y3_ = ndampy_;
-      y4_ = ny - ndampy_;
-      y5_ = ny - ndampy_;
-      y6_ = ny;
-
-      z1_ = 0;
-      z2_ = ndampz_;
-      z3_ = ndampz_;
-      z4_ = nz - ndampz_;
-      z5_ = nz - ndampz_;
-      z6_ = nz;
-    }
+    z1_= 0;
+    z2_= ndampz_;
+    z3_= ndampz_;
+    z4_= nz-ndampz_;
+    z5_= nz-ndampz_;
+    z6_= nz;
   }
 
   // Accessors
