@@ -47,7 +47,8 @@ cmake ..
 make install
 ```
 
-By default, this builds the applications in sequential mode using `std::vector`. Both SEM and FD applications are compiled.
+By default, this builds the applications in sequential mode using `std::vector`.
+Both SEM and FD applications are compiled.
 
 ### Step 2: Run Tests & Benchmarks
 
@@ -106,26 +107,34 @@ pip install -r requirements.txt
 
 The proxy must be configured with `-DENABLE_PYWRAP=ON` and installed via `make install`. Optionally, you can set `-DCMAKE_INSTALL_PREFIX` to where you want to deploy the application along with the python wrappers.
 
-This will create a _pyproxys_ package in your install directory which contains both the _solver_ and _model_ pybind modules.
+This will create a _pyfuntides_ package in your install directory which contains both the _solver_ and _model_ pybind modules.
 
 ```bash
-(.venv) [proxys]$ ls $MY_INSTALL_DIR/pyproxys/
+(.venv) [proxys]$ ls $MY_INSTALL_DIR/python/pyfuntides/
 __init__.py  model.cpython-311-x86_64-linux-gnu.so  solver.cpython-311-x86_64-linux-gnu.so
 ```
 
-This will also install _kokkos_ in your python environment, which will point to the kokkos built by the _pyproxys_ app.
+This will also install _kokkos_ in your python environment, which will point to the kokkos built by the _pyfuntides_ app.
 
 ```bash
 (.venv) [proxys]$ ls .venv/lib/python3.11/site-packages/kokkos/
 __init__.py  libpykokkos.cpython-311-x86_64-linux-gnu.so  __pycache__  pytest.ini  test  utility.py
 ```
 
+If you do not have write access on your python environment, it will install it under _$MY_INSTALL_DIR/lib/python3.11/site-packages/kokkos_.
+In that case you will have to extend your python path with this directory.
+
 ### Usage
 
-First, extend your `PYTHONPATH` to make the _pyproxys_ package visible.
+First, extend your `PYTHONPATH` to make the _pyfuntides_ and _adios_ package visible.
 
 ```bash
-export PYTHONPATH=$PYTHONPATH:$MY_INSTALL_DIR
+export PYTHONPATH=$PYTHONPATH:$MY_INSTALL_DIR/python
+```
+
+If needed (kokkos could not write in your python environment), also extend your `PYTHONPATH` to make the kokkos package visible.
+```bash
+export PYTHONPATH=$PYTHONPATH:$MY_INSTALL_DIR/lib/python3.11/site-packages
 ```
 
 Then extend your `LD_LIBRARY_PATH` so that all libraries point to the same _kokkos_ libraries that are installed in the _lib64_ folder.
@@ -141,7 +150,7 @@ Some examples on how to use the wrappers are available in the [`examples`](examp
 
 ### Tests & Benchmarks
 
-All commands from this section should be executed from the repository root directory.
+**All commands from this section should be executed from the repository root directory!**
 
 To install dev python packages
 ```bash
