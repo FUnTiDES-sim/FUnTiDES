@@ -60,6 +60,7 @@
 // FIND_MAX
 #if defined(USE_KOKKOS)
 #define FIND_MAX(Array, Range, Result)                                \
+  Result = decltype(Result)(Array[0]);                                \
   Kokkos::parallel_reduce(                                            \
       Range,                                                          \
       KOKKOS_CLASS_LAMBDA(const int i, decltype(Result)& local_max) { \
