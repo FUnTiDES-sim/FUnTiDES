@@ -63,7 +63,7 @@
   Kokkos::parallel_reduce(                                            \
       Range,                                                          \
       KOKKOS_CLASS_LAMBDA(const int i, decltype(Result)& local_max) { \
-         if (Array[i] > local_max) local_max = Array[i];              \
+        if (Array[i] > local_max) local_max = Array[i];               \
       },                                                              \
       Kokkos::Max<decltype(Result)>(Result));
 #else

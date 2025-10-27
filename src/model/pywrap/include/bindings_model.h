@@ -4,15 +4,14 @@
 #include <pybind11/pybind11.h>
 #include <pybind11/stl.h>
 
+#include <KokkosExp_InterOp.hpp>
 #include <string>
 
-#include "common_macros.h"
 #include "bindings_utils.h"
+#include "common_macros.h"
 #include "model.h"
 #include "model_struct.h"
 #include "model_unstruct.h"
-
-#include <KokkosExp_InterOp.hpp>
 
 namespace py = pybind11;
 
@@ -100,32 +99,24 @@ void bind_modelunstructdata(py::module_ &m)
 
   py::class_<Data>(m, name.c_str())
       .def(py::init<
-           ScalarType, ScalarType, ScalarType,
-           FloatType, FloatType, FloatType,
-           bool,
-           Kokkos::Experimental::python_view_type_t<ARRAY_INT_VIEW>,
-           Kokkos::Experimental::python_view_type_t<VECTOR_REAL_VIEW>,
-           Kokkos::Experimental::python_view_type_t<VECTOR_REAL_VIEW>,
-           Kokkos::Experimental::python_view_type_t<VECTOR_REAL_VIEW>,
-           Kokkos::Experimental::python_view_type_t<VECTOR_REAL_VIEW>,
-           Kokkos::Experimental::python_view_type_t<VECTOR_REAL_VIEW>,
-           Kokkos::Experimental::python_view_type_t<VECTOR_REAL_VIEW>,
-           Kokkos::Experimental::python_view_type_t<VECTOR_REAL_VIEW>,
-           Kokkos::Experimental::python_view_type_t<VECTOR_REAL_VIEW>
-          >(),
-          py::arg("order"), py::arg("n_element"), py::arg("n_node"),
-          py::arg("lx"), py::arg("ly"), py::arg("lz"),
-          py::arg("is_model_on_nodes"),
-          py::arg("global_node_index"),
-          py::arg("nodes_coords_x"),
-          py::arg("nodes_coords_y"),
-          py::arg("nodes_coords_z"),
-          py::arg("model_vp_node"),
-          py::arg("model_vp_element"),
-          py::arg("model_rho_node"),
-          py::arg("model_rho_element"),
-          py::arg("boundaries_t")
-      );
+               ScalarType, ScalarType, ScalarType, FloatType, FloatType,
+               FloatType, bool,
+               Kokkos::Experimental::python_view_type_t<ARRAY_INT_VIEW>,
+               Kokkos::Experimental::python_view_type_t<VECTOR_REAL_VIEW>,
+               Kokkos::Experimental::python_view_type_t<VECTOR_REAL_VIEW>,
+               Kokkos::Experimental::python_view_type_t<VECTOR_REAL_VIEW>,
+               Kokkos::Experimental::python_view_type_t<VECTOR_REAL_VIEW>,
+               Kokkos::Experimental::python_view_type_t<VECTOR_REAL_VIEW>,
+               Kokkos::Experimental::python_view_type_t<VECTOR_REAL_VIEW>,
+               Kokkos::Experimental::python_view_type_t<VECTOR_REAL_VIEW>,
+               Kokkos::Experimental::python_view_type_t<VECTOR_REAL_VIEW>>(),
+           py::arg("order"), py::arg("n_element"), py::arg("n_node"),
+           py::arg("lx"), py::arg("ly"), py::arg("lz"),
+           py::arg("is_model_on_nodes"), py::arg("global_node_index"),
+           py::arg("nodes_coords_x"), py::arg("nodes_coords_y"),
+           py::arg("nodes_coords_z"), py::arg("model_vp_node"),
+           py::arg("model_vp_element"), py::arg("model_rho_node"),
+           py::arg("model_rho_element"), py::arg("boundaries_t"));
 }
 
 }  // namespace model
