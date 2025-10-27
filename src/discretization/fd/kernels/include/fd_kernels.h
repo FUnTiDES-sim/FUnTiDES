@@ -84,8 +84,7 @@ struct FdtdKernels
     }
     pnGlobal(IDX3_l(i, j, k), ca) =
         2. * pnGlobal(IDX3_l(i, j, k), cb) - pnGlobal(IDX3_l(i, j, k), ca) +
-        vp[IDX3(i, j, k)] *
-            (coef0 * pnGlobal(IDX3_l(i, j, k), cb) + lapx + lapy + lapz);
+        vp[IDX3(i, j, k)] *(coef0 * pnGlobal(IDX3_l(i, j, k), cb) + lapx + lapy + lapz);
     LOOP3DEND
     return 0;
   }
