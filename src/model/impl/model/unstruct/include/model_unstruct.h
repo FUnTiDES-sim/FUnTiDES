@@ -12,8 +12,37 @@ struct ModelUnstructData : public ModelDataBase<FloatType, ScalarType>
   PROXY_HOST_DEVICE ModelUnstructData() = default;
   PROXY_HOST_DEVICE ~ModelUnstructData() = default;
   PROXY_HOST_DEVICE ModelUnstructData(const ModelUnstructData&) = default;
-  PROXY_HOST_DEVICE ModelUnstructData& operator=(const ModelUnstructData&) =
-      default;
+  PROXY_HOST_DEVICE ModelUnstructData& operator=(const ModelUnstructData&) = default;
+
+  PROXY_HOST_DEVICE
+  ModelUnstructData(
+      ScalarType order, ScalarType n_element, ScalarType n_node,
+      FloatType lx, FloatType ly, FloatType lz,
+      bool isModelOnNodes,
+      ARRAY_INT_VIEW global_node_index,
+      VECTOR_REAL_VIEW nodes_coords_x,
+      VECTOR_REAL_VIEW nodes_coords_y,
+      VECTOR_REAL_VIEW nodes_coords_z,
+      VECTOR_REAL_VIEW model_vp_node,
+      VECTOR_REAL_VIEW model_vp_element,
+      VECTOR_REAL_VIEW model_rho_node,
+      VECTOR_REAL_VIEW model_rho_element,
+      VECTOR_REAL_VIEW boundaries_t)
+      : order_(order),
+        n_element_(n_element),
+        n_node_(n_node),
+        lx_(lx), ly_(ly), lz_(lz),
+        isModelOnNodes_(isModelOnNodes),
+        global_node_index_(global_node_index),
+        nodes_coords_x_(nodes_coords_x),
+        nodes_coords_y_(nodes_coords_y),
+        nodes_coords_z_(nodes_coords_z),
+        model_vp_node_(model_vp_node),
+        model_vp_element_(model_vp_element),
+        model_rho_node_(model_rho_node),
+        model_rho_element_(model_rho_element),
+        boundaries_t_(boundaries_t)
+  {}
 
   ScalarType order_;
   ScalarType n_element_;
