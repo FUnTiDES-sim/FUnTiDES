@@ -162,7 +162,7 @@ BENCHMARK_TEMPLATE_METHOD_F(SolverStructFixture, OneStep)
     arrays.rhsTerm(0, j) = sourceTerm[j];
   }
 
-  SEMsolverData data(0, 1, arrays.rhsTerm, arrays.pnGlobal, arrays.rhsElement,
+  SEMsolverDataAcoustic data(0, 1, arrays.rhsTerm, arrays.pnGlobal, arrays.rhsElement,
                      arrays.rhsWeights);
 
   // Bench
