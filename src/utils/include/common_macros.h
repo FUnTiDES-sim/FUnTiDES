@@ -63,8 +63,8 @@
 #define FIND_MAX_1D(Array, Range, Result)                                  \
   if (Array.extent(0) == 0)                                                \
     throw std::runtime_error("Error in FIND_MAX_1D: Array has zero size"); \
-  Result = decltype(Result)(Array[0]);                                     \
   Kokkos::parallel_reduce(                                                 \
+      "FindMax1D",                                                         \
       Range,                                                               \
       KOKKOS_CLASS_LAMBDA(const int i, decltype(Result)& local_max) {      \
         if (Array[i] > local_max) local_max = Array[i];                    \

@@ -127,6 +127,10 @@ jobs:
 
       - name: Test
         id: test
+        env:
+          OMP_NUM_THREADS: 2
+          OMP_THREAD_LIMIT: 2
+          KOKKOS_NUM_THREADS: 2
         run: |
           cd build
           # Run tests without benchmarks
@@ -145,16 +149,12 @@ jobs:
       
       - name: Run pytests
         if: matrix.pywrap == 'pywrap-on' && matrix.discretization == 'sem'
-        env:
-          OMP_NUM_THREADS: 2
-          OMP_THREAD_LIMIT: 2
-          KOKKOS_NUM_THREADS: 2
         run: |
           source .venv/bin/activate
           export INSTALL_DIR=$(realpath ./install)
           export PYTHONPATH=$PYTHONPATH:$INSTALL_DIR/python
           export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$INSTALL_DIR/lib
-          pytest tests/units
+          pytest tests/units --kokkos-num-threads=2
 
       - name: Write summary line
         if: always()

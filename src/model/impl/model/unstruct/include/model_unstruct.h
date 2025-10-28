@@ -378,8 +378,8 @@ class ModelUnstruct : public ModelApi<FloatType, ScalarType>
 
   FloatType getMaxSpeed() const final
   {
-    FloatType maxSpeedNode;
-    FloatType maxSpeedElem;
+    FloatType maxSpeedNode = std::numeric_limits<FloatType>::lowest();
+    FloatType maxSpeedElem = std::numeric_limits<FloatType>::lowest();
 
     if (model_vp_node_.extent(0) > 0)
     {
