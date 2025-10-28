@@ -1,13 +1,4 @@
-add_executable(cartesian_struct_builder_test
-    test_cartesian_struct_builder.cc
+add_gtest(cartesian_struct_builder_test
+  test_cartesian_struct_builder.cc
+  proxy_model_builder_cartesian
 )
-
-target_link_libraries(cartesian_struct_builder_test
-    PRIVATE
-    gtest
-    gtest_main
-    proxy_model_builder_cartesian
-)
-
-
-gtest_discover_tests(cartesian_struct_builder_test)

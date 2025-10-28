@@ -383,11 +383,11 @@ class ModelUnstruct : public ModelApi<FloatType, ScalarType>
 
     if (model_vp_node_.extent(0) > 0)
     {
-      FIND_MAX(model_vp_node_, n_node_, maxSpeedNode);
+      FIND_MAX_1D(model_vp_node_, n_node_, maxSpeedNode);
     }
     else if (model_vp_element_.extent(0) > 0)
     {
-      FIND_MAX(model_vp_element_, n_element_, maxSpeedElem);
+      FIND_MAX_1D(model_vp_element_, n_element_, maxSpeedElem);
     }
     else
     {

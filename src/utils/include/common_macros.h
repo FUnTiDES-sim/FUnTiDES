@@ -57,23 +57,28 @@
 #define MAINLOOPEND LOOPEND
 #endif
 
-// FIND_MAX
+// FIND_MAX FOR 1D ARRAY
+// The kokkos case
 #if defined(USE_KOKKOS)
-#define FIND_MAX(Array, Range, Result)                                \
-  Result = decltype(Result)(Array[0]);                                \
-  Kokkos::parallel_reduce(                                            \
-      Range,                                                          \
-      KOKKOS_CLASS_LAMBDA(const int i, decltype(Result)& local_max) { \
-        if (Array[i] > local_max) local_max = Array[i];               \
-      },                                                              \
+#define FIND_MAX_1D(Array, Range, Result)                                  \
+  if (Array.extent(0) == 0)                                                \
+    throw std::runtime_error("Error in FIND_MAX_1D: Array has zero size"); \
+  Result = decltype(Result)(Array[0]);                                     \
+  Kokkos::parallel_reduce(                                                 \
+      Range,                                                               \
+      KOKKOS_CLASS_LAMBDA(const int i, decltype(Result)& local_max) {      \
+        if (Array[i] > local_max) local_max = Array[i];                    \
+      },                                                                   \
       Kokkos::Max<decltype(Result)>(Result));
 #else
 // The sequential case
-#define FIND_MAX(Array, Range, Result)        \
-  Result = Array[0];                          \
-  for (int i = 1; i < Range; i++)             \
-  {                                           \
-    if (Array[i] > Result) Result = Array[i]; \
+#define FIND_MAX_1D(Array, Range, Result)                                  \
+  if (Array.extent(0) == 0)                                                \
+    throw std::runtime_error("Error in FIND_MAX_1D: Array has zero size"); \
+  Result = Array[0];                                                       \
+  for (int i = 1; i < Range; i++)                                          \
+  {                                                                        \
+    if (Array[i] > Result) Result = Array[i];                              \
   }
 #endif
 
