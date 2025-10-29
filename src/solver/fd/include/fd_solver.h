@@ -8,12 +8,13 @@
 #ifndef FDTD_SOLVER_HPP_
 #define FDTD_SOLVER_HPP_
 
+#include <fd_grids.h>
 #include <utils.h>
+
 #include <memory>
 
-#include <fd_grids.h>
-#include "fd_kernels.h"
 #include "fd_abckernels.h"
+#include "fd_kernels.h"
 #include "fd_source_receivers.h"
 #include "fd_stencils.h"
 
@@ -32,16 +33,17 @@ class FdtdSolver
              fdtd::kernel::FdtdKernels& kernels,
              fdtd::abckernel::FdtdAbcKernels& abckernels,
              fdtd::stencils::FdtdStencils& stencils,
-             FdtdSourceReceivers& source_receivers): m_grids(grids),
-                                                     m_kernels(kernels),
-                                                     m_abckernels(abckernels),
-                                                     m_stencils(stencils),
-                                                     m_source_receivers(source_receivers){};
+             FdtdSourceReceivers& source_receivers)
+      : m_grids(grids),
+        m_kernels(kernels),
+        m_abckernels(abckernels),
+        m_stencils(stencils),
+        m_source_receivers(source_receivers) {};
 
   /**
    * @brief Destructor of the SEMproxy class
    */
-  ~FdtdSolver(){};
+  ~FdtdSolver() {};
 
   // compute one step with sponge boundary
   void compute_one_stepSB(int itime, int i1, int i2);

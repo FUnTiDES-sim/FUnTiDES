@@ -1,7 +1,6 @@
 #ifndef FDTD_IO_H_
 #define FDTD_IO_H_
 
-
 #include <cstdio>
 #include <vector>
 

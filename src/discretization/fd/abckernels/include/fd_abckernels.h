@@ -9,22 +9,21 @@ namespace fdtd
 {
 namespace abckernel
 {
-struct FdtdAbcKernels 
+struct FdtdAbcKernels
 {
-  
   vectorReal eta;
   vectorReal spongeArray;
   //------------------------------------------------------------------
-  //sponge boundary
+  // sponge boundary
   //------------------------------------------------------------------
   // define sponge boundary
   void defineSpongeBoundary(int nx, int ny, int nz)
   {
     const int L = 20;
     const float alpha = -0.00015;
-    //const float alpha = -0.00035;
-    // compute sponge boundary terms
-    // intailize to 1
+    // const float alpha = -0.00035;
+    //  compute sponge boundary terms
+    //  intailize to 1
     for (int k = 0; k < nz; k++)
     {
       for (int j = 0; j < ny; j++)
@@ -47,9 +46,10 @@ struct FdtdAbcKernels
       {
         for (int i = 0; i < L; i++)
         {
-          //spongeArray(IDX3(i,j,k))= exp(alpha*pow((L-i)*dx,2));
+          // spongeArray(IDX3(i,j,k))= exp(alpha*pow((L-i)*dx,2));
           spongeArray(IDX3(i, j, k)) = exp(alpha * pow((L - i), 2));
-          //printf("spongeArray(%d,%d,%d)=%f\n",i,j,k,spongeArray(IDX3(i, j, k)));
+          // printf("spongeArray(%d,%d,%d)=%f\n",i,j,k,spongeArray(IDX3(i, j,
+          // k)));
         }
         for (int i = nx - L; i < nx; i++)
         {
@@ -97,7 +97,7 @@ struct FdtdAbcKernels
   }
 
   //------------------------------------------------------------------
-  //PML
+  // PML
   //------------------------------------------------------------------
   // Initialize the PML profile
   void pml_profile_init(vector<float> &profile, int i_min, int i_max,
@@ -111,20 +111,20 @@ struct FdtdAbcKernels
     int last_beg = n - n_last + 1 + shift;
     int last_end = n + shift;
 
-    #pragma omp parallel for
+#pragma omp parallel for
     for (int i = i_min; i <= i_max; ++i)
     {
       profile[i] = 0.f;
     }
 
     float tmp = scale / POW2(first_end - first_beg + 1);
-    #pragma omp parallel for
+#pragma omp parallel for
     for (int i = 1; i <= first_end - first_beg + 1; ++i)
     {
       profile[first_end - i + 1] = POW2(i) * tmp;
     }
 
-    #pragma omp parallel for
+#pragma omp parallel for
     for (int i = 1; i <= last_end - last_beg + 1; ++i)
     {
       profile[last_beg + i - 1] = POW2(i) * tmp;
@@ -137,7 +137,7 @@ struct FdtdAbcKernels
                           int ybeg, int yend, int zbeg, int zend)
   {
     const int n_ghost = 1;
-    #pragma omp parallel for collapse(3)
+#pragma omp parallel for collapse(3)
     for (int ix = xbeg - n_ghost; ix <= xend + n_ghost; ++ix)
     {
       for (int iy = ybeg - n_ghost; iy <= yend + n_ghost; ++iy)
@@ -192,7 +192,7 @@ struct FdtdAbcKernels
                 int z5, int z6, float dx, float dy, float dz, float dt_sch,
                 float vmax, vectorReal &eta)
   {
-    #pragma omp parallel for collapse(3)
+#pragma omp parallel for collapse(3)
     for (int i = -1; i < nx + 1; ++i)
     {
       for (int j = -1; j < ny + 1; ++j)
@@ -228,9 +228,8 @@ struct FdtdAbcKernels
         nx, ny, nz, eta, etax, etay, etaz, 1, nx, 1, ny, x1 + 1, x2, x5 + 1, x6,
         y1 + 1, y2, y3 + 1, y4, y5 + 1, y6, z1 + 1, z2, z3 + 1, z4, z5 + 1, z6);
   }
-
 };
 
-}  // namespace boundary
+}  // namespace abckernel
 }  // namespace fdtd
 #endif  // FDTD_PML_HPP

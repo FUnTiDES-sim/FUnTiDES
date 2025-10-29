@@ -115,8 +115,8 @@ class FdtdOptions
   struct BoundaryParams
   {
     bool use_pml{false};         ///< Enable PML boundary conditions
-    bool use_sponge{false};         ///< Enable PML boundary conditions
-    int pml_size{4};            ///< Thickness of PML layers (grid points)
+    bool use_sponge{false};      ///< Enable PML boundary conditions
+    int pml_size{4};             ///< Thickness of PML layers (grid points)
     int sponge_size{20};         ///< Thickness of sponge layers (grid points)
     float sponge_alpha{0.015f};  ///< Damping coefficient for sponge
   } boundary;
@@ -217,16 +217,16 @@ class FdtdOptions
         cxxopts::value<std::string>(options.time.method));
 
     // Boundary options
-    opts.add_options("Boundary")
-        ("usePML", "Enable PML absorbing boundaries",
-        cxxopts::value<bool>(options.boundary.use_pml))
-        ("pmlSize", "PML layer thickness (grid points)",
-        cxxopts::value<int>(options.boundary.pml_size))
-        ("useSponge", "Enable sponge absorbing boundaries",
-        cxxopts::value<bool>(options.boundary.use_sponge))
-        ("spongeSize", "Sponge layer thickness (grid points)",
-        cxxopts::value<int>(options.boundary.sponge_size))
-        ("spongeAlpha", "Sponge damping coefficient",
+    opts.add_options("Boundary")(
+        "usePML", "Enable PML absorbing boundaries",
+        cxxopts::value<bool>(options.boundary.use_pml))(
+        "pmlSize", "PML layer thickness (grid points)",
+        cxxopts::value<int>(options.boundary.pml_size))(
+        "useSponge", "Enable sponge absorbing boundaries",
+        cxxopts::value<bool>(options.boundary.use_sponge))(
+        "spongeSize", "Sponge layer thickness (grid points)",
+        cxxopts::value<int>(options.boundary.sponge_size))(
+        "spongeAlpha", "Sponge damping coefficient",
         cxxopts::value<float>(options.boundary.sponge_alpha));
 
     // Output options

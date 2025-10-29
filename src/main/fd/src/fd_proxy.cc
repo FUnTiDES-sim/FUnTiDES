@@ -62,7 +62,7 @@ FdtdProxy::FdtdProxy(const fdtd::options::FdtdOptions& opt)
       io_(),
       utils_(),
       abckernels_(),
-      solver_(grids_, kernels_,abckernels_, stencils_, source_receivers_)
+      solver_(grids_, kernels_, abckernels_, stencils_, source_receivers_)
 {
 }
 
@@ -175,8 +175,8 @@ void FdtdProxy::InitializeModelArrays()
 
 void FdtdProxy::InitializeWavefieldArrays()
 {
-  kernels_.initFieldsArrays(grids_.nx(), grids_.ny(), grids_.nz(), 
-                            stencils_.lx, stencils_.ly, stencils_.lz);
+  kernels_.initFieldsArrays(grids_.nx(), grids_.ny(), grids_.nz(), stencils_.lx,
+                            stencils_.ly, stencils_.lz);
   std::cout << "arrays init done" << std::endl;
   PrintSeparator();
 }
@@ -212,60 +212,60 @@ void FdtdProxy::InitializeSource()
 void FdtdProxy::InitializeBoundaries()
 {
   std::cout << "boundary init" << std::endl;
-  //abckernels_.Initialize(opt_);
-  if(opt_.boundary.use_sponge){
-    int nx=grids_.nx();
-    int ny=grids_.ny();
-    int nz=grids_.nz();
-    abckernels_.spongeArray = allocateVector<vectorReal>(nx*ny*nz, "spongeArray");
+  // abckernels_.Initialize(opt_);
+  if (opt_.boundary.use_sponge)
+  {
+    int nx = grids_.nx();
+    int ny = grids_.ny();
+    int nz = grids_.nz();
+    abckernels_.spongeArray =
+        allocateVector<vectorReal>(nx * ny * nz, "spongeArray");
     abckernels_.defineSpongeBoundary(nx, ny, nz);
     std::cout << "sponge boundary init done" << std::endl;
   }
-  if(opt_.boundary.use_pml){
-    int nx=grids_.nx();
-    int ny=grids_.ny();
-    int nz=grids_.nz();
-    int ndampx=grids_.ndampx();
-    int ndampy=grids_.ndampy();
-    int ndampz=grids_.ndampz();
-    int x1=grids_.x1();
-    int x2=grids_.x2();
-    int x3=grids_.x3();
-    int x4=grids_.x4();
-    int x5=grids_.x5();
-    int x6=grids_.x6();
-    int y1=grids_.y1();
-    int y2=grids_.y2();
-    int y3=grids_.y3();
-    int y4=grids_.y4();
-    int y5=grids_.y5();
-    int y6=grids_.y6();
-    int z1=grids_.z1();
-    int z2=grids_.z2();
-    int z3=grids_.z3();
-    int z4=grids_.z4();
-    int z5=grids_.z5();
-    int z6=grids_.z6();
-    float dx=grids_.dx();
-    float dy=grids_.dy();
-    float dz=grids_.dz();
-    float dt_sch=0.001f;
-    float vmax=opt_.velocity.vmax;
-    
-    printf("PML params: nx=%d ny=%d nz=%d ndampx=%d ndampy=%d ndampz=%d\n",nx,ny,nz,ndampx,ndampy,ndampz);
+  if (opt_.boundary.use_pml)
+  {
+    int nx = grids_.nx();
+    int ny = grids_.ny();
+    int nz = grids_.nz();
+    int ndampx = grids_.ndampx();
+    int ndampy = grids_.ndampy();
+    int ndampz = grids_.ndampz();
+    int x1 = grids_.x1();
+    int x2 = grids_.x2();
+    int x3 = grids_.x3();
+    int x4 = grids_.x4();
+    int x5 = grids_.x5();
+    int x6 = grids_.x6();
+    int y1 = grids_.y1();
+    int y2 = grids_.y2();
+    int y3 = grids_.y3();
+    int y4 = grids_.y4();
+    int y5 = grids_.y5();
+    int y6 = grids_.y6();
+    int z1 = grids_.z1();
+    int z2 = grids_.z2();
+    int z3 = grids_.z3();
+    int z4 = grids_.z4();
+    int z5 = grids_.z5();
+    int z6 = grids_.z6();
+    float dx = grids_.dx();
+    float dy = grids_.dy();
+    float dz = grids_.dz();
+    float dt_sch = 0.001f;
+    float vmax = opt_.velocity.vmax;
+
+    printf("PML params: nx=%d ny=%d nz=%d ndampx=%d ndampy=%d ndampz=%d\n", nx,
+           ny, nz, ndampx, ndampy, ndampz);
     // allocate eta array
-    abckernels_.eta = allocateVector<vectorReal>((nx+2)*(ny+2)*(nz+2), "eta");
-    vectorReal &eta=abckernels_.eta;
-    abckernels_.init_eta(nx, ny, nz, 
-                       ndampx, ndampy, ndampz,
-                       x1, x2, x3, x4, x5, x6, 
-                       y1, y2, y3, y4, y5, y6,
-                       z1, z2, z3, z4, z5, z6, 
-                       dx, dy, dz, 
-                       dt_sch,vmax, 
-                       eta);
+    abckernels_.eta =
+        allocateVector<vectorReal>((nx + 2) * (ny + 2) * (nz + 2), "eta");
+    vectorReal& eta = abckernels_.eta;
+    abckernels_.init_eta(nx, ny, nz, ndampx, ndampy, ndampz, x1, x2, x3, x4, x5,
+                         x6, y1, y2, y3, y4, y5, y6, z1, z2, z3, z4, z5, z6, dx,
+                         dy, dz, dt_sch, vmax, eta);
     std::cout << "PML boundary init done" << std::endl;
-  } 
+  }
   PrintSeparator();
 }
 
@@ -292,14 +292,16 @@ void FdtdProxy::Run()
        index_time_sample++)
   {
     // Compute one time step
-    auto start_compute_time = system_clock::now();  
-    if(opt_.boundary.use_sponge){ 
+    auto start_compute_time = system_clock::now();
+    if (opt_.boundary.use_sponge)
+    {
       solver_.compute_one_stepSB(index_time_sample, time_index_current_,
                                  time_index_next_);
     }
-    if(opt_.boundary.use_pml){
+    if (opt_.boundary.use_pml)
+    {
       solver_.compute_one_stepPML(index_time_sample, time_index_current_,
-                                 time_index_next_);
+                                  time_index_next_);
     }
     total_compute_time +=
         duration_cast<nanoseconds>(system_clock::now() - start_compute_time);
