@@ -5,7 +5,7 @@ add_subdirectory(solver)
 add_subdirectory(main)
 
 if(ENABLE_PYWRAP)
-  install_pyproxys_package(model solver)
+  install_pyfuntides_package(model solver)
 endif()
 
 
