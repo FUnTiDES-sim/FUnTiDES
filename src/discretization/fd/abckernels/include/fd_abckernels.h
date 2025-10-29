@@ -2,6 +2,7 @@
 #define FDTD_PML_HPP
 
 #include "data_type.h"
+#include "fd_macros.h"
 
 using namespace std;
 
