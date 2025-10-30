@@ -82,7 +82,7 @@ If you see formatting errors in CI:
 ### Caching
 
 Our continuous integration system uses sccache to speed up the builds.
-In some rare instances where the cache might be corrupted, you can deactivate it by adding the tag `sccache_off` to your PR.
+In some rare instances where the cache might be corrupted, you can deactivate it by adding the tag `SCCACHE_OFF` to your PR.
 
 ## Submission Checklist
 
