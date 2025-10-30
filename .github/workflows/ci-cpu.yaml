@@ -22,7 +22,6 @@ jobs:
     needs: format-check
     strategy:
       matrix:
-        discretization: [fd, sem]
         pywrap: [pywrap-on, pywrap-off]
         programming_model: [vector, kokkos]
         exclude:
@@ -62,7 +61,17 @@ jobs:
           pip install --upgrade pip
           pip install pybind11 pytest numpy
 
+      - name: Check for labels
+        id: check_labels
+        run: |
+          if echo "${{ toJson(github.event.pull_request.labels) }}" | grep -q '"name":"sccache_off"'; then
+            echo "SCCACHE_OFF=true" >> $GITHUB_ENV
+          else
+            echo "SCCACHE_OFF=false" >> $GITHUB_ENV
+          fi
+
       - name: Run sccache-cache
+        if: env.SCCACHE_OFF != 'true'
         uses: mozilla-actions/sccache-action@v0.0.9
 
       - name: Configure
@@ -75,15 +84,13 @@ jobs:
           export PROGRAMMING_MODEL=${{ matrix.programming_model }}
 
           # Extend CMAKE_FLAGS based on selections
-          
-          # Use sccache to speed up recompilation
-          export CMAKE_FLAGS="-DCMAKE_C_COMPILER_LAUNCHER=sccache -DCMAKE_CXX_COMPILER_LAUNCHER=sccache"
 
-          # Discretization variant
-          if [[ "$DISCRETIZATION" == "fd" ]]; then
-            CMAKE_FLAGS="$CMAKE_FLAGS -DCOMPILE_FD=ON -DCOMPILE_SEM=OFF"
-          elif [[ "$DISCRETIZATION" == "sem" ]]; then
-            CMAKE_FLAGS="$CMAKE_FLAGS -DCOMPILE_SEM=ON -DCOMPILE_FD=OFF"
+          # Discretization (build fd + sem)
+          CMAKE_FLAGS="-DCOMPILE_FD=ON -DCOMPILE_SEM=ON"
+          
+          # Use sccache to speed up recompilation unless disabled
+          if [[ "$SCCACHE_OFF" != "true" ]]; then
+            export CMAKE_FLAGS="$CMAKE_FLAGS -DCMAKE_C_COMPILER_LAUNCHER=sccache -DCMAKE_CXX_COMPILER_LAUNCHER=sccache"
           fi
 
           # Python bindings
@@ -155,36 +162,4 @@ jobs:
           export PYTHONPATH=$PYTHONPATH:$INSTALL_DIR/python
           export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$INSTALL_DIR/lib
           pytest tests/units --kokkos-num-threads=2
-
-      - name: Write summary line
-        if: always()
-        run: |
-          STATUS="${{ job.status == 'success' && '✅ Success' || '❌ Failed' }}"
-          echo "| \`${{ matrix.discretization }}\` | \`${{ matrix.programming_model }}\` | ${{ matrix.pywrap }} | ${STATUS} |" > summary_line_${{ matrix.discretization }}_${{ matrix.programming_model }}_${{ matrix.pywrap }}.md
-
-      - name: Upload summary line
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: summary-lines-${{ matrix.discretization }}-${{ matrix.programming_model }}-${{ matrix.pywrap }}
-          path: summary_line_${{ matrix.discretization }}_${{ matrix.programming_model }}_${{ matrix.pywrap }}.md
-
-  summary:
-    needs: [format-check, build]
-    runs-on: ubuntu-latest
-    if: ${{ needs.format-check.result == 'success' }}
-
-    steps:
-      - name: Download all summary lines
-        uses: actions/download-artifact@v4
-        with:
-          pattern: summary-lines-*
-          path: summary-lines
-
-      - name: Write summary table
-        run: |
-          echo "## Matrix build summary" > $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "| Discretization | Programming model | PyWrap | Status |" >> $GITHUB_STEP_SUMMARY
-          echo "|----------------|-------------------|--------|--------|" >> $GITHUB_STEP_SUMMARY
-          find summary-lines -name "summary_line*.md" | sort | xargs cat >> $GITHUB_STEP_SUMMARY
+  
