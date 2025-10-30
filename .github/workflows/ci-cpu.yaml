@@ -64,7 +64,7 @@ jobs:
       - name: Check for labels
         id: check_labels
         run: |
-          if echo "${{ toJson(github.event.pull_request.labels) }}" | grep -q '"name":"sccache_off"'; then
+          if echo "${{ toJson(github.event.pull_request.labels) }}" | grep -q '"name":"SCCACHE_OFF"'; then
             echo "SCCACHE_OFF=true" >> $GITHUB_ENV
           else
             echo "SCCACHE_OFF=false" >> $GITHUB_ENV
