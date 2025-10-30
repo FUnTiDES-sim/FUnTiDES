@@ -42,7 +42,6 @@ class SolverUnstructFixture : public benchmark::Fixture
   static constexpr int n_dof =
       (ex * order + 1) * (ey * order + 1) * (ez * order + 1);
   bool isModelOnNodes_;
-  bool isElastic_;
 
   // sponge
   inline static constexpr std::array<float, 3> sponge_size = {200.0f, 200.0f,
@@ -67,7 +66,7 @@ class SolverUnstructFixture : public benchmark::Fixture
   std::shared_ptr<model::ModelApi<float, int>> createModel()
   {
     typename T::BuilderParams params(order, ex, ey, ez, lx, ly, lz,
-                                     isModelOnNodes_,isElastic_);
+                                     isModelOnNodes_,false);
     typename T::Builder builder(params);
     return builder.getModel();
   }
@@ -77,7 +76,7 @@ class SolverUnstructFixture : public benchmark::Fixture
     state.SetLabel("Order=" + std::to_string(order) +
                    " OnNodes=" + std::to_string(isModelOnNodes_) +
                    " Implem=" + std::to_string(implem_) + 
-                   " IsElastic=" + std::to_string(isElastic_));
+                   " IsElastic=" + std::to_string(false));
   }
 };
 
@@ -115,7 +114,7 @@ BENCHMARK_TEMPLATE_METHOD_F(SolverUnstructFixture, FEInit)
       SolverFactory::meshType::Unstruct,
       this->isModelOnNodes_ ? SolverFactory::modelLocationType::OnNodes
                             : SolverFactory::modelLocationType::OnElements,
-      this->isElastic_ ? SolverFactory::physicType::Elastic : SolverFactory::physicType::Acoustic,
+      SolverFactory::physicType::Acoustic,
       this->order);
 
   // Bench
@@ -140,7 +139,7 @@ BENCHMARK_TEMPLATE_METHOD_F(SolverUnstructFixture, OneStep)
       SolverFactory::meshType::Unstruct,
       this->isModelOnNodes_ ? SolverFactory::modelLocationType::OnNodes
                             : SolverFactory::modelLocationType::OnElements,
-      this->isElastic_ ? SolverFactory::physicType::Elastic : SolverFactory::physicType::Acoustic,
+      SolverFactory::physicType::Acoustic,
       this->order);
 
   solver->computeFEInit(*model, this->sponge_size, this->surface_sponge,

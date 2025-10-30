@@ -180,7 +180,8 @@ void SEMsolverElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE,IS_MODEL_ON_NODES>::comput
   struct CJPacked { float4 a; float2 b; }; // a.x,a.y,a.z,a.w -> v0..v3 ; b.x,b.y -> v4,v5
 #else
   // Fallback portable layout (same memory footprint, aligned to 16 bytes)
-  struct CJPacked { alignas(16) float a0, a1, a2, a3; float b0, b1, float pad[2]; };
+  struct CJPacked { alignas(16) float a0, a1, a2, a3; float b0, b1, pad[2]; };
+
 #endif
 
 CJPacked CJflat[3*3*6];

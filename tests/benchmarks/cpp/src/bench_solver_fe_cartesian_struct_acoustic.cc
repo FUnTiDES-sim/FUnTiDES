@@ -39,7 +39,6 @@ class SolverStructFixture : public benchmark::Fixture
   static constexpr int n_dof =
       (ex * order + 1) * (ey * order + 1) * (ez * order + 1);
   bool isModelOnNodes_;
-  bool isElastic_;
 
   // sponge
   inline static constexpr std::array<float, 3> sponge_size = {200.0f, 200.0f,
@@ -67,7 +66,7 @@ class SolverStructFixture : public benchmark::Fixture
     float hy = domain_size / ey;
     float hz = domain_size / ez;
 
-    typename T::Builder builder(ex, hx, ey, hy, ez, hz, isModelOnNodes_,isElastic_);
+    typename T::Builder builder(ex, hx, ey, hy, ez, hz, isModelOnNodes_,false);
     return builder.getModel();
   }
 
@@ -76,7 +75,7 @@ class SolverStructFixture : public benchmark::Fixture
     state.SetLabel("Order=" + std::to_string(order) +
                    " OnNodes=" + std::to_string(isModelOnNodes_) +
                    " Implem=" + std::to_string(implem_) + 
-                   " IsElastic=" + std::to_string(isElastic_));
+                   " IsElastic=" + std::to_string(false));
   }
 };
 
@@ -114,8 +113,7 @@ BENCHMARK_TEMPLATE_METHOD_F(SolverStructFixture, FEInit)
       SolverFactory::meshType::Struct,
       this->isModelOnNodes_ ? SolverFactory::modelLocationType::OnNodes
                             : SolverFactory::modelLocationType::OnElements,
-      this->isElastic_ ? SolverFactory::physicType::Elastic : SolverFactory::physicType::Acoustic,
-      this->order);
+      SolverFactory::physicType::Acoustic,this->order);
 
   // Bench
   for (auto _ : state)
@@ -139,8 +137,7 @@ BENCHMARK_TEMPLATE_METHOD_F(SolverStructFixture, OneStep)
       SolverFactory::meshType::Struct,
       this->isModelOnNodes_ ? SolverFactory::modelLocationType::OnNodes
                             : SolverFactory::modelLocationType::OnElements,
-      this->isElastic_ ? SolverFactory::physicType::Elastic : SolverFactory::physicType::Elastic,
-      this->order);
+      SolverFactory::physicType::Acoustic, this->order);
 
   solver->computeFEInit(*model, this->sponge_size, this->surface_sponge,
                         this->taper_delta);
