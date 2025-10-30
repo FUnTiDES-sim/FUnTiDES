@@ -63,7 +63,7 @@ jobs:
           pip install pybind11 pytest numpy
 
       - name: Run sccache-cache
-        uses: mozilla-actions/sccache-action@v0.12.0
+        uses: mozilla-actions/sccache-action@v0.0.9
 
       - name: Configure
         id: configure
