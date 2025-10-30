@@ -19,6 +19,9 @@ jobs:
         uses: actions/github-script@v8
         with:
           script: |
+            function sleep(ms) {
+              return new Promise(resolve => setTimeout(resolve, ms));
+            }
             console.log("About to clear all caches")
             let page = 1
             let deleted = 0
@@ -31,12 +34,18 @@ jobs:
               console.log(`Fetched page ${page}, got ${caches.data.actions_caches.length} caches`)
               if (!caches.data.actions_caches.length) break
               for (const cache of caches.data.actions_caches) {
-                await github.rest.actions.deleteActionsCacheById({
-                  owner: context.repo.owner,
-                  repo: context.repo.repo,
-                  cache_id: cache.id,
-                })
-                deleted++
+                try {
+                  console.log(`Deleting cache ${cache.id} created at ${cache.created_at}`)
+                  await github.rest.actions.deleteActionsCacheById({
+                    owner: context.repo.owner,
+                    repo: context.repo.repo,
+                    cache_id: cache.id,
+                  })
+                  deleted++
+                } catch (error) {
+                  console.log(`Failed to delete cache ${cache.id}: ${error.message}`)
+                }
+                await sleep(500) // 0.5 second delay to avoid rate limits
               }
               page++
             }
