@@ -62,13 +62,13 @@ jobs:
           pip install --upgrade pip
           pip install pybind11 pytest numpy
 
-      #- name: Run sccache-cache
-      #  uses: mozilla-actions/sccache-action@v0.0.9
+      - name: Run sccache-cache
+        uses: mozilla-actions/sccache-action@v0.12.0
 
       - name: Configure
         id: configure
         env:
-          SCCACHE_GHA_ENABLED: "false"
+          SCCACHE_GHA_ENABLED: "true"
         run: |
           export DISCRETIZATION=${{ matrix.discretization }}
           export PYWRAP=${{ matrix.pywrap }}
@@ -77,8 +77,7 @@ jobs:
           # Extend CMAKE_FLAGS based on selections
           
           # Use sccache to speed up recompilation
-          # export CMAKE_FLAGS="-DCMAKE_C_COMPILER_LAUNCHER=sccache -DCMAKE_CXX_COMPILER_LAUNCHER=sccache"
-          export CMAKE_FLAGS="-DCMAKE_VERBOSE_MAKEFILE=ON"
+          export CMAKE_FLAGS="-DCMAKE_C_COMPILER_LAUNCHER=sccache -DCMAKE_CXX_COMPILER_LAUNCHER=sccache"
 
 
           # Discretization variant
@@ -117,7 +116,7 @@ jobs:
       - name: Build
         id: build
         env:
-          SCCACHE_GHA_ENABLED: "false"
+          SCCACHE_GHA_ENABLED: "true"
         run: |
           # Activate python venv if pywrap is on
           if [[ "$PYWRAP" == "pywrap-on" ]]; then
@@ -125,7 +124,7 @@ jobs:
           fi
 
           cd build
-          make -j$(nproc) VERBOSE=1
+          make -j$(nproc)
 
       - name: Test
         id: test
