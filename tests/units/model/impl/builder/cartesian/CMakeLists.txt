@@ -1,4 +1,4 @@
-add_gtest(cartesian_struct_builder_test
+funtides_add_gtest(cartesian_struct_builder_test
   test_cartesian_struct_builder.cc
   proxy_model_builder_cartesian
 )

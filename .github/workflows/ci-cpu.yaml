@@ -79,6 +79,7 @@ jobs:
           # Use sccache to speed up recompilation
           export CMAKE_FLAGS="-DCMAKE_C_COMPILER_LAUNCHER=sccache -DCMAKE_CXX_COMPILER_LAUNCHER=sccache"
 
+
           # Discretization variant
           if [[ "$DISCRETIZATION" == "fd" ]]; then
             CMAKE_FLAGS="$CMAKE_FLAGS -DCOMPILE_FD=ON -DCOMPILE_SEM=OFF"
