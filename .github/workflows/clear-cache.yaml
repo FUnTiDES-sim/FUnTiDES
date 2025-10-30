@@ -26,9 +26,9 @@ jobs:
               const caches = await github.rest.actions.getActionsCacheList({
                 owner: context.repo.owner,
                 repo: context.repo.repo,
-                per_page: 100,
                 page: page,
               })
+              console.log(`Fetched page ${page}, got ${caches.data.actions_caches.length} caches`)
               if (!caches.data.actions_caches.length) break
               for (const cache of caches.data.actions_caches) {
                 await github.rest.actions.deleteActionsCacheById({
