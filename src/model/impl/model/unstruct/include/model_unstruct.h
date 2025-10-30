@@ -15,6 +15,53 @@ struct ModelUnstructData : public ModelDataBase<FloatType, ScalarType>
   PROXY_HOST_DEVICE ModelUnstructData& operator=(const ModelUnstructData&) =
       default;
 
+  PROXY_HOST_DEVICE
+  ModelUnstructData(
+      ScalarType order, ScalarType n_element, ScalarType n_node, FloatType lx,
+      FloatType ly, FloatType lz, bool isModelOnNodes, bool isElastic,
+      ARRAY_INT_VIEW global_node_index, VECTOR_REAL_VIEW nodes_coords_x,
+      VECTOR_REAL_VIEW nodes_coords_y, VECTOR_REAL_VIEW nodes_coords_z,
+      VECTOR_REAL_VIEW model_vp_node, VECTOR_REAL_VIEW model_vp_element,
+      VECTOR_REAL_VIEW model_rho_node, VECTOR_REAL_VIEW model_rho_element,
+      VECTOR_REAL_VIEW model_vs_node, VECTOR_REAL_VIEW model_vs_element,
+      VECTOR_REAL_VIEW model_delta_node, VECTOR_REAL_VIEW model_delta_element,
+      VECTOR_REAL_VIEW model_epsilon_node, VECTOR_REAL_VIEW model_epsilon_element,
+      VECTOR_REAL_VIEW model_gamma_node, VECTOR_REAL_VIEW model_gamma_element,
+      VECTOR_REAL_VIEW model_theta_node, VECTOR_REAL_VIEW model_theta_element,
+      VECTOR_REAL_VIEW model_phi_node, VECTOR_REAL_VIEW model_phi_element,
+      VECTOR_REAL_VIEW boundaries_t)
+      : order_(order),
+        n_element_(n_element),
+        n_node_(n_node),
+        lx_(lx),
+        ly_(ly),
+        lz_(lz),
+        isModelOnNodes_(isModelOnNodes),
+        isElastic_(isElastic),
+        global_node_index_(global_node_index),
+        nodes_coords_x_(nodes_coords_x),
+        nodes_coords_y_(nodes_coords_y),
+        nodes_coords_z_(nodes_coords_z),
+        model_vp_node_(model_vp_node),
+        model_vp_element_(model_vp_element),
+        model_rho_node_(model_rho_node),
+        model_rho_element_(model_rho_element),
+        model_vs_node_(model_vs_node),
+        model_vs_element_(model_vs_element),
+        model_delta_node_(model_delta_node),
+        model_delta_element_(model_delta_element),
+        model_epsilon_node_(model_epsilon_node),
+        model_epsilon_element_(model_epsilon_element),
+        model_gamma_node_(model_gamma_node),
+        model_gamma_element_(model_gamma_element),
+        model_theta_node_(model_theta_node),
+        model_theta_element_(model_theta_element),
+        model_phi_node_(model_phi_node),
+        model_phi_element_(model_phi_element),
+        boundaries_t_(boundaries_t)
+  {
+  }
+
   ScalarType order_;
   ScalarType n_element_;
   ScalarType n_node_;
@@ -520,16 +567,16 @@ class ModelUnstruct : public ModelApi<FloatType, ScalarType>
 
   FloatType getMaxSpeed() const final
   {
-    FloatType maxSpeedNode;
-    FloatType maxSpeedElem;
+    FloatType maxSpeedNode = std::numeric_limits<FloatType>::lowest();
+    FloatType maxSpeedElem = std::numeric_limits<FloatType>::lowest();
 
     if (model_vp_node_.extent(0) > 0)
     {
-      FIND_MAX(model_vp_node_, n_node_, maxSpeedNode);
+      FIND_MAX_1D(model_vp_node_, n_node_, maxSpeedNode);
     }
     else if (model_vp_element_.extent(0) > 0)
     {
-      FIND_MAX(model_vp_element_, n_element_, maxSpeedElem);
+      FIND_MAX_1D(model_vp_element_, n_element_, maxSpeedElem);
     }
     else
     {
