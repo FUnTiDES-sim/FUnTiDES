@@ -33,7 +33,6 @@ enum physicType
   Elastic
 };
 
-
 inline std::string to_string(methodType m)
 {
   switch (m)
@@ -99,11 +98,8 @@ inline std::string to_string(physicType p)
   }
 }
 
-
-std::unique_ptr<SEMSolverBase> createSolver(methodType const methodType,
-                                         implemType const implemType,
-                                         meshType const meshType,
-                                         modelLocationType const modelLocation,
-                                         physicType const physicType,
-                                         int const order);
+std::unique_ptr<SEMSolverBase> createSolver(
+    methodType const methodType, implemType const implemType,
+    meshType const meshType, modelLocationType const modelLocation,
+    physicType const physicType, int const order);
 }  // namespace SolverFactory

@@ -59,7 +59,7 @@ void bind_cartesian_unstruct_params(py::module_ &m)
                     FloatType, FloatType, bool, bool>(),
            py::arg("order"), py::arg("ex"), py::arg("ey"), py::arg("ez"),
            py::arg("lx"), py::arg("ly"), py::arg("lz"),
-           py::arg("is_model_on_nodes"),py::arg("is_elastic"))
+           py::arg("is_model_on_nodes"), py::arg("is_elastic"))
       .def_readwrite("order", &Params::order)
       .def_readwrite("ex", &Params::ex)
       .def_readwrite("ey", &Params::ey)

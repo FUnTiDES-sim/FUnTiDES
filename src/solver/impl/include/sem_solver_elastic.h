@@ -20,17 +20,17 @@
 
 /**
  * @brief Data structure for elastic wave propagation solver.
- * 
+ *
  * Contains displacement fields, forcing terms, and time indices
  * for elastic wave equation computations.
  */
 struct SEMsolverDataElastic : public SolverBase::DataStruct
 {
   SEMsolverDataElastic(int i1, int i2, ARRAY_REAL_VIEW rhsTermx,
-                ARRAY_REAL_VIEW rhsTermy, ARRAY_REAL_VIEW rhsTermz,
-                ARRAY_REAL_VIEW uxnGlobal,  ARRAY_REAL_VIEW uynGlobal, 
-                ARRAY_REAL_VIEW uznGlobal, VECTOR_INT_VIEW rhsElement,
-                ARRAY_REAL_VIEW rhsWeights)
+                       ARRAY_REAL_VIEW rhsTermy, ARRAY_REAL_VIEW rhsTermz,
+                       ARRAY_REAL_VIEW uxnGlobal, ARRAY_REAL_VIEW uynGlobal,
+                       ARRAY_REAL_VIEW uznGlobal, VECTOR_INT_VIEW rhsElement,
+                       ARRAY_REAL_VIEW rhsWeights)
       : m_i1(i1),
         m_i2(i2),
         m_rhsTermx(rhsTermx),
@@ -46,7 +46,8 @@ struct SEMsolverDataElastic : public SolverBase::DataStruct
 
   void print() const override
   {
-    std::cout << "SEMsolverDataElastic: i1=" << m_i1 << ", i2=" << m_i2 << std::endl;
+    std::cout << "SEMsolverDataElastic: i1=" << m_i1 << ", i2=" << m_i2
+              << std::endl;
     std::cout << "RHSx Term size: " << m_rhsTermx.extent(0) << std::endl;
     std::cout << "RHSy Term size: " << m_rhsTermy.extent(0) << std::endl;
     std::cout << "RHSz Term size: " << m_rhsTermz.extent(0) << std::endl;
@@ -71,12 +72,13 @@ struct SEMsolverDataElastic : public SolverBase::DataStruct
 
 /**
  * @brief Spectral Element Method solver for elastic wave propagation.
- * 
+ *
  * @tparam ORDER Polynomial order of the spectral elements
- * @tparam INTEGRAL_TYPE Type for numerical integration (basis functions, quadrature)
+ * @tparam INTEGRAL_TYPE Type for numerical integration (basis functions,
+ * quadrature)
  * @tparam MESH_TYPE Type of the computational mesh
  */
-template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE, 
+template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE,
           bool IS_MODEL_ON_NODES>
 class SEMsolverElastic : public SEMSolverBase
 {
@@ -162,8 +164,9 @@ class SEMsolverElastic : public SEMSolverBase
    * @param uznGlobal Global Z-displacement field [node][time].
    */
   void outputSolutionValues(const int &indexTimeStep, int &i1,
-                      int &myElementSource,
-                      const ARRAY_REAL_VIEW &uxnGlobal, const char* fieldName) override;
+                            int &myElementSource,
+                            const ARRAY_REAL_VIEW &uxnGlobal,
+                            const char *fieldName) override;
 
   /**
    * @brief Apply external forcing to the global displacement field.
@@ -227,10 +230,10 @@ class SEMsolverElastic : public SEMSolverBase
    * @param C Output 6x6 elasticity matrix.
    */
   PROXY_HOST_DEVICE
-  void computeCMatrix(float const vp, float const vs, float const rho, float const delta, 
-                      float const epsilon, float const gamma, float const phi, float const theta, float (&C)[6][6]) const ;
-
-
+  void computeCMatrix(float const vp, float const vs, float const rho,
+                      float const delta, float const epsilon, float const gamma,
+                      float const phi, float const theta,
+                      float (&C)[6][6]) const;
 
  private:
   MESH_TYPE m_mesh;  ///< Computational mesh
@@ -238,9 +241,9 @@ class SEMsolverElastic : public SEMSolverBase
   /// Number of nodes per element
   static constexpr int nPointsElement = (ORDER + 1) * (ORDER + 1) * (ORDER + 1);
 
-  float sponge_size_[3];    ///< Sponge layer thickness [x, y, z]
-  bool surface_sponge_;     ///< Enable sponge at free surface
-  float taper_delta_;       ///< Attenuation parameter
+  float sponge_size_[3];  ///< Sponge layer thickness [x, y, z]
+  bool surface_sponge_;   ///< Enable sponge at free surface
+  float taper_delta_;     ///< Attenuation parameter
 
   /// Basis functions and integral objects
   INTEGRAL_TYPE myQkIntegrals;

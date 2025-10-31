@@ -21,8 +21,8 @@
 struct SEMsolverDataAcoustic : public SolverBase::DataStruct
 {
   SEMsolverDataAcoustic(int i1, int i2, ARRAY_REAL_VIEW rhsTerm,
-                ARRAY_REAL_VIEW pnGlobal, VECTOR_INT_VIEW rhsElement,
-                ARRAY_REAL_VIEW rhsWeights)
+                        ARRAY_REAL_VIEW pnGlobal, VECTOR_INT_VIEW rhsElement,
+                        ARRAY_REAL_VIEW rhsWeights)
       : m_i1(i1),
         m_i2(i2),
         m_rhsTerm(rhsTerm),
@@ -72,8 +72,9 @@ class SEMsolverAcoustic : public SEMSolverBase
   void computeGlobalMassMatrix() override;
 
   void outputSolutionValues(const int &indexTimeStep, int &i1,
-                      int &myElementSource,
-                      const ARRAY_REAL_VIEW &pnGlobal, const char* fieldName) override;
+                            int &myElementSource,
+                            const ARRAY_REAL_VIEW &pnGlobal,
+                            const char *fieldName) override;
 
   void applyRHSTerm(int timeSample, float dt, int i2,
                     const ARRAY_REAL_VIEW &rhsTerm,

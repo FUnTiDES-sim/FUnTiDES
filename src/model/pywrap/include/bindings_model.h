@@ -136,17 +136,18 @@ void bind_modelunstructdata(py::module_ &m)
                Kokkos::Experimental::python_view_type_t<VECTOR_REAL_VIEW>>(),
            py::arg("order"), py::arg("n_element"), py::arg("n_node"),
            py::arg("lx"), py::arg("ly"), py::arg("lz"),
-           py::arg("is_model_on_nodes"), py::arg("is_elastic") ,py::arg("global_node_index"),
-           py::arg("nodes_coords_x"), py::arg("nodes_coords_y"),
-           py::arg("nodes_coords_z"), py::arg("model_vp_node"),
-           py::arg("model_vp_element"), py::arg("model_rho_node"),
-           py::arg("model_rho_element"), py::arg("model_vs_node"),
-           py::arg("model_vs_element"), py::arg("model_delta_node"),
-           py::arg("model_delta_element"), py::arg("model_epsilon_node"),
-           py::arg("model_epsilon_element"), py::arg("model_gamma_node"),
-           py::arg("model_gamma_element"), py::arg("model_phi_node"),
-           py::arg("model_phi_element"), py::arg("model_theta_node"),
-           py::arg("model_theta_element"), py::arg("boundaries_t"));
+           py::arg("is_model_on_nodes"), py::arg("is_elastic"),
+           py::arg("global_node_index"), py::arg("nodes_coords_x"),
+           py::arg("nodes_coords_y"), py::arg("nodes_coords_z"),
+           py::arg("model_vp_node"), py::arg("model_vp_element"),
+           py::arg("model_rho_node"), py::arg("model_rho_element"),
+           py::arg("model_vs_node"), py::arg("model_vs_element"),
+           py::arg("model_delta_node"), py::arg("model_delta_element"),
+           py::arg("model_epsilon_node"), py::arg("model_epsilon_element"),
+           py::arg("model_gamma_node"), py::arg("model_gamma_element"),
+           py::arg("model_phi_node"), py::arg("model_phi_element"),
+           py::arg("model_theta_node"), py::arg("model_theta_element"),
+           py::arg("boundaries_t"));
 }
 
 }  // namespace model

@@ -104,7 +104,7 @@ class SEMproxy
   int snap_time_interval_;
   std::string snap_folder_;
 
-  //physics
+  // physics
   bool isElastic_;
 
   // time parameters
@@ -129,7 +129,7 @@ class SEMproxy
   arrayReal rhsWeights;
   arrayReal rhsWeightsRcv;
   arrayReal pnAtReceiver;
-  //elastic arrays
+  // elastic arrays
 
   arrayReal myRHSTermx;
   arrayReal myRHSTermy;

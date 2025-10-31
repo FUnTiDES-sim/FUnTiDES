@@ -25,11 +25,11 @@ struct ModelUnstructData : public ModelDataBase<FloatType, ScalarType>
       VECTOR_REAL_VIEW model_rho_node, VECTOR_REAL_VIEW model_rho_element,
       VECTOR_REAL_VIEW model_vs_node, VECTOR_REAL_VIEW model_vs_element,
       VECTOR_REAL_VIEW model_delta_node, VECTOR_REAL_VIEW model_delta_element,
-      VECTOR_REAL_VIEW model_epsilon_node, VECTOR_REAL_VIEW model_epsilon_element,
-      VECTOR_REAL_VIEW model_gamma_node, VECTOR_REAL_VIEW model_gamma_element,
-      VECTOR_REAL_VIEW model_theta_node, VECTOR_REAL_VIEW model_theta_element,
-      VECTOR_REAL_VIEW model_phi_node, VECTOR_REAL_VIEW model_phi_element,
-      VECTOR_REAL_VIEW boundaries_t)
+      VECTOR_REAL_VIEW model_epsilon_node,
+      VECTOR_REAL_VIEW model_epsilon_element, VECTOR_REAL_VIEW model_gamma_node,
+      VECTOR_REAL_VIEW model_gamma_element, VECTOR_REAL_VIEW model_theta_node,
+      VECTOR_REAL_VIEW model_theta_element, VECTOR_REAL_VIEW model_phi_node,
+      VECTOR_REAL_VIEW model_phi_element, VECTOR_REAL_VIEW boundaries_t)
       : order_(order),
         n_element_(n_element),
         n_node_(n_node),
@@ -248,7 +248,7 @@ class ModelUnstruct : public ModelApi<FloatType, ScalarType>
    */
   PROXY_HOST_DEVICE
   FloatType getModelVsOnNodes(ScalarType n) const final
-  { 
+  {
     return model_vs_node_[n];
   }
 
@@ -259,7 +259,7 @@ class ModelUnstruct : public ModelApi<FloatType, ScalarType>
    */
   PROXY_HOST_DEVICE
   FloatType getModelVsOnElement(ScalarType e) const final
-  {  
+  {
     return model_vs_element_[e];
   }
 
@@ -270,7 +270,7 @@ class ModelUnstruct : public ModelApi<FloatType, ScalarType>
    */
   PROXY_HOST_DEVICE
   FloatType getModelDeltaOnNodes(ScalarType n) const final
-  { 
+  {
     return model_delta_node_[n];
   }
 
@@ -281,7 +281,7 @@ class ModelUnstruct : public ModelApi<FloatType, ScalarType>
    */
   PROXY_HOST_DEVICE
   FloatType getModelDeltaOnElement(ScalarType e) const final
-  {  
+  {
     return model_delta_element_[e];
   }
 
@@ -292,7 +292,7 @@ class ModelUnstruct : public ModelApi<FloatType, ScalarType>
    */
   PROXY_HOST_DEVICE
   FloatType getModelEpsilonOnNodes(ScalarType n) const final
-  { 
+  {
     return model_epsilon_node_[n];
   }
 
@@ -304,7 +304,7 @@ class ModelUnstruct : public ModelApi<FloatType, ScalarType>
 
   PROXY_HOST_DEVICE
   FloatType getModelEpsilonOnElement(ScalarType e) const final
-  {  
+  {
     return model_epsilon_element_[e];
   }
 
@@ -364,7 +364,8 @@ class ModelUnstruct : public ModelApi<FloatType, ScalarType>
   }
 
   /**
-   * @brief Get the average anisotropic parameter theta value on a given element.
+   * @brief Get the average anisotropic parameter theta value on a given
+   * element.
    * @param e Element index
    * @return Model anisotropic paramter theta value for the element
    */

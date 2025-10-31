@@ -16,11 +16,9 @@
 
 #include <cmath>
 
-
 class SEMSolverBase : public SolverBase
 {
  public:
-
   /**
    * @brief Initialize all finite element structures:
    * basis functions, integrals, global arrays, and sponge boundaries.
@@ -34,30 +32,29 @@ class SEMSolverBase : public SolverBase
   virtual void computeFEInit(model::ModelApi<float, int> &mesh,
                              const std::array<float, 3> &sponge_size,
                              const bool surface_sponge,
-                             const float taper_delta_) =0;
-
+                             const float taper_delta_) = 0;
 
   /**
    * @brief Initialize arrays required by the finite element solver.
    */
-  virtual void initFEarrays()=0;
+  virtual void initFEarrays() = 0;
 
   /**
    * @brief Allocate memory for FE-related arrays (mass, stiffness, etc.).
    */
-  virtual void allocateFEarrays()=0;
+  virtual void allocateFEarrays() = 0;
 
   /**
    * @brief Initialize sponge (absorbing layer) coefficients.
    */
-  virtual void initSpongeValues()=0;
+  virtual void initSpongeValues() = 0;
 
   /**
    * @brief Reset global FE vectors (mass, stiffness) before accumulation.
    *
    * @param numNodes Total number of global nodes.
    */
-  virtual void resetGlobalVectors(int numNodes)=0;
+  virtual void resetGlobalVectors(int numNodes) = 0;
 
   /**
    * @brief Compute the global mass matrix.
@@ -65,12 +62,12 @@ class SEMSolverBase : public SolverBase
    * @param isModelOnNodes True if the velocity model is defined on nodes, false
    *                       if on elements
    */
-  virtual void computeGlobalMassMatrix()=0;
+  virtual void computeGlobalMassMatrix() = 0;
 
   virtual void outputSolutionValues(const int &indexTimeStep, int &i1,
                                     int &myElementSource,
-                                    const ARRAY_REAL_VIEW &field, const char* fieldName)=0;
-
+                                    const ARRAY_REAL_VIEW &field,
+                                    const char *fieldName) = 0;
 };
 
 #endif  // SEM_SOLVERBASE_HPP_

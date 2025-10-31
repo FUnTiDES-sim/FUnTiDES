@@ -144,10 +144,10 @@ SEMproxy::SEMproxy(const SemProxyOptions& opt)
             << std::endl;
   std::cout << "Launching the Method " << opt.method << ", the implementation "
             << opt.implem << " and the mesh is " << opt.mesh << std::endl;
-  std::cout << "Model is on "
-            << (isModelOnNodes ? "nodes" : "elements") << std::endl;
-  std::cout << "Physics type is "
-            << (isElastic ? "elastic" : "acoustic") << std::endl;
+  std::cout << "Model is on " << (isModelOnNodes ? "nodes" : "elements")
+            << std::endl;
+  std::cout << "Physics type is " << (isElastic ? "elastic" : "acoustic")
+            << std::endl;
   std::cout << "Order of approximation will be " << order << std::endl;
   std::cout << "Time step is " << dt_ << "s" << std::endl;
   std::cout << "Simulated time is " << timemax_ << "s" << std::endl;
@@ -166,9 +166,10 @@ void SEMproxy::run()
 
   bool isElastic = isElastic_;
 
-  if(!isElastic)
+  if (!isElastic)
   {
-    SEMsolverDataAcoustic solverData(i1, i2, myRHSTerm, pnGlobal, rhsElement, rhsWeights);
+    SEMsolverDataAcoustic solverData(i1, i2, myRHSTerm, pnGlobal, rhsElement,
+                                     rhsWeights);
 
     for (int indexTimeSample = 0; indexTimeSample < num_sample_;
          indexTimeSample++)
@@ -176,23 +177,24 @@ void SEMproxy::run()
       startComputeTime = system_clock::now();
       m_solver->computeOneStep(dt_, indexTimeSample, solverData);
       totalComputeTime += system_clock::now() - startComputeTime;
-  
+
       startOutputTime = system_clock::now();
-  
+
       if (indexTimeSample % 50 == 0)
       {
-        m_solver->outputSolutionValues(indexTimeSample, i1, rhsElement[0], pnGlobal, "pnGlobal");
+        m_solver->outputSolutionValues(indexTimeSample, i1, rhsElement[0],
+                                       pnGlobal, "pnGlobal");
       }
-  
+
       // Save slice in dat format
       if (is_snapshots_ && indexTimeSample % snap_time_interval_ == 0)
       {
         saveSnapshot(indexTimeSample);
       }
-  
+
       // Save pressure at receiver
       const int order = m_mesh->getOrder();
-  
+
       float varnp1 = 0.0;
       for (int i = 0; i < order + 1; i++)
       {
@@ -208,26 +210,26 @@ void SEMproxy::run()
           }
         }
       }
-  
+
       pnAtReceiver(0, indexTimeSample) = varnp1;
-  
+
       swap(i1, i2);
-  
+
       auto tmp = solverData.m_i1;
       solverData.m_i1 = solverData.m_i2;
       solverData.m_i2 = tmp;
-  
+
       totalOutputTime += system_clock::now() - startOutputTime;
     }
 
     for (int i = 0; i < pnAtReceiver.extent(0); i++)
     {
       // get receiver i
-  #ifdef USE_KOKKOS
+#ifdef USE_KOKKOS
       auto subview = Kokkos::subview(pnAtReceiver, i, Kokkos::ALL());
       vectorReal subset("receiver_save", num_sample_);
       Kokkos::deep_copy(subset, subview);
-  #else
+#else
       auto& subview = pnAtReceiver;
       vectorReal subset(subview.extent(0) * subview.extent(1));
       for (size_t i = 0; i < subview.extent(0); ++i)
@@ -237,13 +239,15 @@ void SEMproxy::run()
           subset[i * subview.extent(1) + j] = subview(i, j);
         }
       }
-  #endif  // USE_KOKKOS
-         io_ctrl_->saveReceiver(subset, src_coord_);  }
-
+#endif  // USE_KOKKOS
+      io_ctrl_->saveReceiver(subset, src_coord_);
     }
+  }
   else
   {
-    SEMsolverDataElastic solverData(i1, i2, myRHSTermx,myRHSTermy,myRHSTermz, uxnGlobal,uynGlobal,uznGlobal, rhsElement, rhsWeights);
+    SEMsolverDataElastic solverData(i1, i2, myRHSTermx, myRHSTermy, myRHSTermz,
+                                    uxnGlobal, uynGlobal, uznGlobal, rhsElement,
+                                    rhsWeights);
 
     for (int indexTimeSample = 0; indexTimeSample < num_sample_;
          indexTimeSample++)
@@ -251,25 +255,28 @@ void SEMproxy::run()
       startComputeTime = system_clock::now();
       m_solver->computeOneStep(dt_, indexTimeSample, solverData);
       totalComputeTime += system_clock::now() - startComputeTime;
-  
+
       startOutputTime = system_clock::now();
-  
+
       if (indexTimeSample % 50 == 0)
       {
-        m_solver->outputSolutionValues(indexTimeSample, i1, rhsElement[0], uxnGlobal, "uxnGlobal");
-        m_solver->outputSolutionValues(indexTimeSample, i1, rhsElement[0], uynGlobal, "uynGlobal");
-        m_solver->outputSolutionValues(indexTimeSample, i1, rhsElement[0], uznGlobal, "uznGlobal");
+        m_solver->outputSolutionValues(indexTimeSample, i1, rhsElement[0],
+                                       uxnGlobal, "uxnGlobal");
+        m_solver->outputSolutionValues(indexTimeSample, i1, rhsElement[0],
+                                       uynGlobal, "uynGlobal");
+        m_solver->outputSolutionValues(indexTimeSample, i1, rhsElement[0],
+                                       uznGlobal, "uznGlobal");
       }
-  
+
       // Save slice in dat format
       if (is_snapshots_ && indexTimeSample % snap_time_interval_ == 0)
       {
         saveSnapshot(indexTimeSample);
       }
-  
+
       // Save pressure at receiver
       const int order = m_mesh->getOrder();
-  
+
       float varuxnp1 = 0.0;
       float varyunp1 = 0.0;
       float varuznp1 = 0.0;
@@ -291,28 +298,28 @@ void SEMproxy::run()
           }
         }
       }
-  
+
       uxnAtReceiver(0, indexTimeSample) = varuxnp1;
       uynAtReceiver(0, indexTimeSample) = varyunp1;
       uznAtReceiver(0, indexTimeSample) = varuznp1;
-  
+
       swap(i1, i2);
-  
+
       auto tmp = solverData.m_i1;
       solverData.m_i1 = solverData.m_i2;
       solverData.m_i2 = tmp;
-  
+
       totalOutputTime += system_clock::now() - startOutputTime;
     }
 
     for (int i = 0; i < uxnAtReceiver.extent(0); i++)
     {
       // get receiver i
-  #ifdef USE_KOKKOS
+#ifdef USE_KOKKOS
       auto subview = Kokkos::subview(uxnAtReceiver, i, Kokkos::ALL());
       vectorReal subset("receiver_save", num_sample_);
       Kokkos::deep_copy(subset, subview);
-  #else
+#else
       auto& subview = pnAtReceiver;
       vectorReal subset(subview.extent(0) * subview.extent(1));
       for (size_t i = 0; i < subview.extent(0); ++i)
@@ -322,14 +329,10 @@ void SEMproxy::run()
           subset[i * subview.extent(1) + j] = subview(i, j);
         }
       }
-  #endif  // USE_KOKKOS
+#endif  // USE_KOKKOS
       io_ctrl_->saveReceiver(subset, src_coord_);
     }
-     
   }
-
-   
-  
 
   float kerneltime_ms = time_point_cast<microseconds>(totalComputeTime)
                             .time_since_epoch()
@@ -349,41 +352,42 @@ void SEMproxy::run()
 void SEMproxy::init_arrays()
 {
   cout << "Allocate host memory for source and pressure values ..." << endl;
-  
+
   rhsElement = allocateVector<vectorInt>(myNumberOfRHS, "rhsElement");
   rhsWeights = allocateArray2D<arrayReal>(
       myNumberOfRHS, m_mesh->getNumberOfPointsPerElement(), "RHSWeight");
 
-  if(!isElastic_)
+  if (!isElastic_)
   {
-    myRHSTerm = allocateArray2D<arrayReal>(myNumberOfRHS, num_sample_, "RHSTerm");
+    myRHSTerm =
+        allocateArray2D<arrayReal>(myNumberOfRHS, num_sample_, "RHSTerm");
     pnGlobal =
         allocateArray2D<arrayReal>(m_mesh->getNumberOfNodes(), 2, "pnGlobal");
     pnAtReceiver = allocateArray2D<arrayReal>(1, num_sample_, "pnAtReceiver");
   }
   else
   {
-    myRHSTermx = allocateArray2D<arrayReal>(myNumberOfRHS, num_sample_, "RHSTermx");
-    myRHSTermy = allocateArray2D<arrayReal>(myNumberOfRHS, num_sample_, "RHSTermy");
-    myRHSTermz = allocateArray2D<arrayReal>(myNumberOfRHS, num_sample_, "RHSTermz");
+    myRHSTermx =
+        allocateArray2D<arrayReal>(myNumberOfRHS, num_sample_, "RHSTermx");
+    myRHSTermy =
+        allocateArray2D<arrayReal>(myNumberOfRHS, num_sample_, "RHSTermy");
+    myRHSTermz =
+        allocateArray2D<arrayReal>(myNumberOfRHS, num_sample_, "RHSTermz");
     uxnGlobal =
         allocateArray2D<arrayReal>(m_mesh->getNumberOfNodes(), 2, "uxnGlobal");
     uynGlobal =
         allocateArray2D<arrayReal>(m_mesh->getNumberOfNodes(), 2, "uynGlobal");
     uznGlobal =
         allocateArray2D<arrayReal>(m_mesh->getNumberOfNodes(), 2, "uznGlobal");
-    uxnAtReceiver =
-        allocateArray2D<arrayReal>(1, num_sample_, "uxnAtReceiver");
+    uxnAtReceiver = allocateArray2D<arrayReal>(1, num_sample_, "uxnAtReceiver");
     uynAtReceiver =
-        allocateArray2D<arrayReal>(1, num_sample_, "uynAtReceiver ");    
-    uznAtReceiver =
-        allocateArray2D<arrayReal>(1, num_sample_,  "uznAtReceiver");
+        allocateArray2D<arrayReal>(1, num_sample_, "uynAtReceiver ");
+    uznAtReceiver = allocateArray2D<arrayReal>(1, num_sample_, "uznAtReceiver");
   }
   // Receiver
   rhsElementRcv = allocateVector<vectorInt>(1, "rhsElementRcv");
   rhsWeightsRcv = allocateArray2D<arrayReal>(
       1, m_mesh->getNumberOfPointsPerElement(), "RHSWeightRcv");
-  
 }
 
 // Initialize sources
@@ -435,7 +439,7 @@ void SEMproxy::init_source()
   // initialize source term
   vector<float> sourceTerm =
       myUtils.computeSourceTerm(num_sample_, dt_, f0, sourceOrder);
-  if(!isElastic_)
+  if (!isElastic_)
   {
     for (int j = 0; j < num_sample_; j++)
     {

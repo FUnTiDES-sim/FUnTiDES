@@ -200,7 +200,7 @@ class ModelStruct : public ModelApi<FloatType, ScalarType>
     return 1;
   }
 
-    /**
+  /**
    * @brief Get the S-wave velocity value at a global node.
    * @param n Global node index
    * @return Model P-wave velocity value at the node
@@ -244,7 +244,7 @@ class ModelStruct : public ModelApi<FloatType, ScalarType>
   PROXY_HOST_DEVICE
   FloatType getModelDeltaOnElement(ScalarType e) const
   {
-    //TODO: Not returning a magic number
+    // TODO: Not returning a magic number
     return 0.1;
   }
 
@@ -256,7 +256,7 @@ class ModelStruct : public ModelApi<FloatType, ScalarType>
   PROXY_HOST_DEVICE
   FloatType getModelEpsilonOnNodes(ScalarType n) const
   {
-    //TODO: Not returning magic number
+    // TODO: Not returning magic number
     return 0.2;
   }
 
@@ -268,7 +268,7 @@ class ModelStruct : public ModelApi<FloatType, ScalarType>
   PROXY_HOST_DEVICE
   FloatType getModelEpsilonOnElement(ScalarType e) const
   {
-    //TODO: Not returning a magic number
+    // TODO: Not returning a magic number
     return 0.2;
   }
 
@@ -280,7 +280,7 @@ class ModelStruct : public ModelApi<FloatType, ScalarType>
   PROXY_HOST_DEVICE
   FloatType getModelGammaOnNodes(ScalarType n) const
   {
-    //TODO: Not returning magic number
+    // TODO: Not returning magic number
     return 0.08;
   }
 
@@ -292,7 +292,7 @@ class ModelStruct : public ModelApi<FloatType, ScalarType>
   PROXY_HOST_DEVICE
   FloatType getModelGammaOnElement(ScalarType e) const
   {
-    //TODO: Not returning a magic number
+    // TODO: Not returning a magic number
     return 0.08;
   }
 
@@ -304,19 +304,20 @@ class ModelStruct : public ModelApi<FloatType, ScalarType>
   PROXY_HOST_DEVICE
   ScalarType getModelThetaOnNodes(ScalarType n) const
   {
-    //TODO: Not returning magic number
+    // TODO: Not returning magic number
     return 30;
   }
 
   /**
-   * @brief Get the average anisotropic parameter theta value on a given element.
+   * @brief Get the average anisotropic parameter theta value on a given
+   * element.
    * @param e Element index
    * @return Model anisotropic paramter theta value for the element
    */
   PROXY_HOST_DEVICE
   ScalarType getModelThetaOnElement(ScalarType e) const
   {
-    //TODO: Not returning a magic number
+    // TODO: Not returning a magic number
     return 30;
   }
 
@@ -328,7 +329,7 @@ class ModelStruct : public ModelApi<FloatType, ScalarType>
   PROXY_HOST_DEVICE
   ScalarType getModelPhiOnNodes(ScalarType n) const
   {
-    //TODO: Not returning magic number
+    // TODO: Not returning magic number
     return 45;
   }
 
@@ -340,10 +341,9 @@ class ModelStruct : public ModelApi<FloatType, ScalarType>
   PROXY_HOST_DEVICE
   ScalarType getModelPhiOnElement(ScalarType e) const
   {
-    //TODO: Not returning a magic number
+    // TODO: Not returning a magic number
     return 45;
   }
-
 
   /**
    * @brief Get the total number of elements in the mesh.

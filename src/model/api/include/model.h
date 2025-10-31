@@ -191,7 +191,8 @@ class ModelApi
   virtual ScalarType getModelThetaOnNodes(ScalarType n) const = 0;
 
   /**
-   * @brief Get the average anisotropic parameter theta value on a given element.
+   * @brief Get the average anisotropic parameter theta value on a given
+   * element.
    * @param e Element index
    * @return Model anisotropic paramter theta value for the element
    */

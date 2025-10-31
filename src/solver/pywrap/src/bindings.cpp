@@ -59,7 +59,7 @@ PYBIND11_MODULE(solver, m)
       .def_readwrite("i1", &SEMsolverDataAcoustic::m_i1)
       .def_readwrite("i2", &SEMsolverDataAcoustic::m_i2);
 
-  //Bind SEMSolverDataElastic (inherits from SolverBase::DataStruct)
+  // Bind SEMSolverDataElastic (inherits from SolverBase::DataStruct)
   py::class_<SEMsolverDataElastic, SolverBase::DataStruct,
              std::shared_ptr<SEMsolverDataElastic>>(m, "SEMsolverDataElastic")
       .def(
@@ -72,9 +72,10 @@ PYBIND11_MODULE(solver, m)
                    Kokkos::Experimental::python_view_type_t<ARRAY_REAL_VIEW>,
                    Kokkos::Experimental::python_view_type_t<VECTOR_INT_VIEW>,
                    Kokkos::Experimental::python_view_type_t<ARRAY_REAL_VIEW>>(),
-          py::arg("i1"), py::arg("i2"), py::arg("rhs_termx"), py::arg("rhs_termy"),
-          py::arg("rhs_termz"),py::arg("uxn_global"), py::arg("uyn_global"), 
-          py::arg("uzn_global"),py::arg("rhs_element"), py::arg("rhs_weights"))
+          py::arg("i1"), py::arg("i2"), py::arg("rhs_termx"),
+          py::arg("rhs_termy"), py::arg("rhs_termz"), py::arg("uxn_global"),
+          py::arg("uyn_global"), py::arg("uzn_global"), py::arg("rhs_element"),
+          py::arg("rhs_weights"))
       .def("print", &SEMsolverDataElastic::print)
       .def_readwrite("i1", &SEMsolverDataElastic::m_i1)
       .def_readwrite("i2", &SEMsolverDataElastic::m_i2);
@@ -88,19 +89,21 @@ PYBIND11_MODULE(solver, m)
            py::arg("time_sample"), py::arg("data"))
       .def("output_solution_values", &SEMSolverBase::outputSolutionValues,
            py::arg("index_time_step"), py::arg("i1"),
-           py::arg("my_element_source"), py::arg("field_global"), py::arg("field_name"));
+           py::arg("my_element_source"), py::arg("field_global"),
+           py::arg("field_name"));
 
   // Bind Solver factory function (returns shared_ptr<SolverBase>)
   m.def(
       "create_solver",
       [](SolverFactory::methodType methodType,
          SolverFactory::implemType implemType, SolverFactory::meshType meshType,
-         SolverFactory::modelLocationType modelLocation, SolverFactory::physicType physicType, int order) {
+         SolverFactory::modelLocationType modelLocation,
+         SolverFactory::physicType physicType, int order) {
         auto solver = SolverFactory::createSolver(
-            methodType, implemType, meshType, modelLocation, physicType , order);
+            methodType, implemType, meshType, modelLocation, physicType, order);
         return std::shared_ptr<SEMSolverBase>(
             std::move(solver));  // pyfwi needs to do solver2 = solver1
       },
       py::arg("method_type"), py::arg("implem_type"), py::arg("mesh_type"),
-      py::arg("model_location"), py::arg("physic_type") ,py::arg("order"));
+      py::arg("model_location"), py::arg("physic_type"), py::arg("order"));
 }

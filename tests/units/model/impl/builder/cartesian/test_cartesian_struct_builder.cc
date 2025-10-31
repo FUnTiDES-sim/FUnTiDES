@@ -30,7 +30,7 @@ struct BuilderConfig
   static constexpr bool isElastic = IsElastic;
 };
 
-// Define all combinations of Order (1-4) and isModelOnNodes (true/false)
+// Define all combinations of Order (1-4) and isModelOnNodes (true/false), isElastic (true/false)
 using BuilderTypes =
     ::testing::Types<BuilderConfig<1, true, true>, BuilderConfig<1, false, false>,
                      BuilderConfig<1, true, false>, BuilderConfig<1, false, true>,

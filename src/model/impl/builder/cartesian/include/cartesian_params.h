@@ -27,7 +27,7 @@ struct CartesianParams
         lz(lz_),
         isModelOnNodes(isModelOnNodes_),
         isElastic(isElastic_)
-        
+
   {
   }
 };
