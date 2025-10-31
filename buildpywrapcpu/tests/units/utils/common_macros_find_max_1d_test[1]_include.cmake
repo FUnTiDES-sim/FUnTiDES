@@ -1,5 +1,0 @@
-if(EXISTS "/home/aurelien/Documents/Inge/Makutu-TE/FUnTiDES/funtides/buildpywrapcpu/tests/units/utils/common_macros_find_max_1d_test[1]_tests.cmake")
-  include("/home/aurelien/Documents/Inge/Makutu-TE/FUnTiDES/funtides/buildpywrapcpu/tests/units/utils/common_macros_find_max_1d_test[1]_tests.cmake")
-else()
-  add_test(common_macros_find_max_1d_test_NOT_BUILT common_macros_find_max_1d_test_NOT_BUILT)
-endif()

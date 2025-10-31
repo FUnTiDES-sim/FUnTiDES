@@ -1,5 +1,0 @@
-if(EXISTS "/home/aurelien/Documents/Inge/Makutu-TE/FUnTiDES/funtides/buildpywrapcpu/tests/units/model/impl/builder/cartesian/cartesian_struct_builder_test[1]_tests.cmake")
-  include("/home/aurelien/Documents/Inge/Makutu-TE/FUnTiDES/funtides/buildpywrapcpu/tests/units/model/impl/builder/cartesian/cartesian_struct_builder_test[1]_tests.cmake")
-else()
-  add_test(cartesian_struct_builder_test_NOT_BUILT cartesian_struct_builder_test_NOT_BUILT)
-endif()
