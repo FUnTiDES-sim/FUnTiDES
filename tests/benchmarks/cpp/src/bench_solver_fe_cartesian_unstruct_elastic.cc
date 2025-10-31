@@ -66,7 +66,7 @@ class SolverUnstructFixture : public benchmark::Fixture
   std::shared_ptr<model::ModelApi<float, int>> createModel()
   {
     typename T::BuilderParams params(order, ex, ey, ez, lx, ly, lz,
-                                     isModelOnNodes_,true);
+                                     isModelOnNodes_, true);
     typename T::Builder builder(params);
     return builder.getModel();
   }
@@ -75,7 +75,7 @@ class SolverUnstructFixture : public benchmark::Fixture
   {
     state.SetLabel("Order=" + std::to_string(order) +
                    " OnNodes=" + std::to_string(isModelOnNodes_) +
-                   " Implem=" + std::to_string(implem_) + 
+                   " Implem=" + std::to_string(implem_) +
                    " IsElastic=" + std::to_string(true));
   }
 };
@@ -122,7 +122,7 @@ BENCHMARK_TEMPLATE_METHOD_F(SolverUnstructFixture, FEInit)
       SolverFactory::meshType::Unstruct,
       this->isModelOnNodes_ ? SolverFactory::modelLocationType::OnNodes
                             : SolverFactory::modelLocationType::OnElements,
-      SolverFactory::physicType::Elastic,this->order);
+      SolverFactory::physicType::Elastic, this->order);
 
   // Bench
   for (auto _ : state)
@@ -146,8 +146,7 @@ BENCHMARK_TEMPLATE_METHOD_F(SolverUnstructFixture, OneStep)
       SolverFactory::meshType::Unstruct,
       this->isModelOnNodes_ ? SolverFactory::modelLocationType::OnNodes
                             : SolverFactory::modelLocationType::OnElements,
-     SolverFactory::physicType::Elastic,
-      this->order);
+      SolverFactory::physicType::Elastic, this->order);
 
   solver->computeFEInit(*model, this->sponge_size, this->surface_sponge,
                         this->taper_delta);
@@ -171,9 +170,9 @@ BENCHMARK_TEMPLATE_METHOD_F(SolverUnstructFixture, OneStep)
     arrays.rhsTermz(0, j) = sourceTerm[j];
   }
 
-  SEMsolverDataElastic data(0, 1, arrays.rhsTermx, arrays.rhsTermy , arrays.rhsTermz , arrays.uxnGlobal, 
-                     arrays.uynGlobal, arrays.uznGlobal , arrays.rhsElement, arrays.rhsWeights);
-
+  SEMsolverDataElastic data(
+      0, 1, arrays.rhsTermx, arrays.rhsTermy, arrays.rhsTermz, arrays.uxnGlobal,
+      arrays.uynGlobal, arrays.uznGlobal, arrays.rhsElement, arrays.rhsWeights);
 
   // Bench
   for (auto _ : state)

@@ -66,7 +66,7 @@ class SolverStructFixture : public benchmark::Fixture
     float hy = domain_size / ey;
     float hz = domain_size / ez;
 
-    typename T::Builder builder(ex, hx, ey, hy, ez, hz, isModelOnNodes_,false);
+    typename T::Builder builder(ex, hx, ey, hy, ez, hz, isModelOnNodes_, false);
     return builder.getModel();
   }
 
@@ -74,7 +74,7 @@ class SolverStructFixture : public benchmark::Fixture
   {
     state.SetLabel("Order=" + std::to_string(order) +
                    " OnNodes=" + std::to_string(isModelOnNodes_) +
-                   " Implem=" + std::to_string(implem_) + 
+                   " Implem=" + std::to_string(implem_) +
                    " IsElastic=" + std::to_string(false));
   }
 };
@@ -113,7 +113,7 @@ BENCHMARK_TEMPLATE_METHOD_F(SolverStructFixture, FEInit)
       SolverFactory::meshType::Struct,
       this->isModelOnNodes_ ? SolverFactory::modelLocationType::OnNodes
                             : SolverFactory::modelLocationType::OnElements,
-      SolverFactory::physicType::Acoustic,this->order);
+      SolverFactory::physicType::Acoustic, this->order);
 
   // Bench
   for (auto _ : state)
@@ -159,8 +159,8 @@ BENCHMARK_TEMPLATE_METHOD_F(SolverStructFixture, OneStep)
     arrays.rhsTerm(0, j) = sourceTerm[j];
   }
 
-  SEMsolverDataAcoustic data(0, 1, arrays.rhsTerm, arrays.pnGlobal, arrays.rhsElement,
-                     arrays.rhsWeights);
+  SEMsolverDataAcoustic data(0, 1, arrays.rhsTerm, arrays.pnGlobal,
+                             arrays.rhsElement, arrays.rhsWeights);
 
   // Bench
   for (auto _ : state)
