@@ -3,7 +3,7 @@
 #include <fe/Integrals.hpp>
 #include <memory>
 
-#include "solver_base.h"
+#include "sem_solver_base.h"
 
 namespace SolverFactory
 {
@@ -22,11 +22,15 @@ enum meshType
   Struct,
   Unstruct
 };
-
 enum modelLocationType
 {
   OnNodes,
   OnElements
+};
+enum physicType
+{
+  Acoustic,
+  Elastic
 };
 
 inline std::string to_string(methodType m)
@@ -81,9 +85,21 @@ inline std::string to_string(modelLocationType loc)
   }
 }
 
-std::unique_ptr<SolverBase> createSolver(methodType const methodType,
-                                         implemType const implemType,
-                                         meshType const meshType,
-                                         modelLocationType const modelLocation,
-                                         int const order);
+inline std::string to_string(physicType p)
+{
+  switch (p)
+  {
+    case Acoustic:
+      return "Acoustic";
+    case Elastic:
+      return "Elastic";
+    default:
+      return "Unknown";
+  }
+}
+
+std::unique_ptr<SEMSolverBase> createSolver(
+    methodType const methodType, implemType const implemType,
+    meshType const meshType, modelLocationType const modelLocation,
+    physicType const physicType, int const order);
 }  // namespace SolverFactory

@@ -24,7 +24,8 @@ class CartesianUnstructBuilder : public ModelBuilderBase<FloatType, ScalarType>
         ly_(p.ly),
         lz_(p.lz),
         order_(p.order),
-        isModelOnNodes_(p.isModelOnNodes)
+        isModelOnNodes_(p.isModelOnNodes),
+        isElastic_(p.isElastic)
 
   {
     initGlobalNodeList();
@@ -51,11 +52,24 @@ class CartesianUnstructBuilder : public ModelBuilderBase<FloatType, ScalarType>
     modelData.nodes_coords_z_ = nodes_coords_z_;
 
     modelData.isModelOnNodes_ = isModelOnNodes_;
+    modelData.isElastic_ = isElastic_;
 
     modelData.model_vp_node_ = model_vp_node_;
     modelData.model_rho_node_ = model_rho_node_;
+    modelData.model_vs_node_ = model_vs_node_;
+    modelData.model_delta_node_ = model_delta_node_;
+    modelData.model_epsilon_node_ = model_epsilon_node_;
+    modelData.model_gamma_node_ = model_gamma_node_;
+    modelData.model_theta_node_ = model_theta_node_;
+    modelData.model_phi_node_ = model_phi_node_;
     modelData.model_vp_element_ = model_vp_element_;
     modelData.model_rho_element_ = model_rho_element_;
+    modelData.model_vs_element_ = model_vs_element_;
+    modelData.model_delta_element_ = model_delta_element_;
+    modelData.model_epsilon_element_ = model_epsilon_element_;
+    modelData.model_gamma_element_ = model_gamma_element_;
+    modelData.model_theta_element_ = model_theta_element_;
+    modelData.model_phi_element_ = model_phi_element_;
 
     return std::make_shared<model::ModelUnstruct<FloatType, ScalarType>>(
         modelData);
@@ -68,6 +82,7 @@ class CartesianUnstructBuilder : public ModelBuilderBase<FloatType, ScalarType>
   FloatType lx_, ly_, lz_;
   int order_;
   bool isModelOnNodes_;
+  bool isElastic_;
 
   ARRAY_INT_VIEW global_node_index_;
   VECTOR_REAL_VIEW nodes_coords_x_;
@@ -78,6 +93,19 @@ class CartesianUnstructBuilder : public ModelBuilderBase<FloatType, ScalarType>
   VECTOR_REAL_VIEW model_vp_element_;
   VECTOR_REAL_VIEW model_rho_node_;
   VECTOR_REAL_VIEW model_rho_element_;
+  VECTOR_REAL_VIEW model_vs_node_;
+  VECTOR_REAL_VIEW model_vs_element_;
+  VECTOR_REAL_VIEW model_delta_node_;
+  VECTOR_REAL_VIEW model_delta_element_;
+  VECTOR_REAL_VIEW model_epsilon_node_;
+  VECTOR_REAL_VIEW model_epsilon_element_;
+  VECTOR_REAL_VIEW model_gamma_node_;
+  VECTOR_REAL_VIEW model_gamma_element_;
+  VECTOR_REAL_VIEW model_theta_node_;
+  VECTOR_REAL_VIEW model_theta_element_;
+  VECTOR_REAL_VIEW model_phi_node_;
+  VECTOR_REAL_VIEW model_phi_element_;
+
   VECTOR_REAL_VIEW boundaries_t_;
 
   void initGlobalNodeList()
@@ -259,6 +287,31 @@ class CartesianUnstructBuilder : public ModelBuilderBase<FloatType, ScalarType>
         model_rho_node_[i] = 1;
         model_vp_node_[i] = 1500;
       }
+      if (isElastic_)
+      {
+        model_vs_node_ =
+            allocateVector<VECTOR_REAL_VIEW>(n_node, "model vs node");
+        model_delta_node_ =
+            allocateVector<VECTOR_REAL_VIEW>(n_node, "model delta node");
+        model_gamma_node_ =
+            allocateVector<VECTOR_REAL_VIEW>(n_node, "model gamma node");
+        model_epsilon_node_ =
+            allocateVector<VECTOR_REAL_VIEW>(n_node, "model epsilon node");
+        model_theta_node_ =
+            allocateVector<VECTOR_REAL_VIEW>(n_node, "model theta node");
+        model_phi_node_ =
+            allocateVector<VECTOR_REAL_VIEW>(n_node, "model phi node");
+
+        for (int i = 0; i < n_node; i++)
+        {
+          model_vs_node_[i] = 755;
+          model_delta_node_[i] = 0.2;
+          model_epsilon_node_[i] = 0.3;
+          model_gamma_node_[i] = 0.08;
+          model_theta_node_[i] = 30;
+          model_phi_node_[i] = 45;
+        }
+      }
     }
 
     else
@@ -272,6 +325,32 @@ class CartesianUnstructBuilder : public ModelBuilderBase<FloatType, ScalarType>
       {
         model_rho_element_[i] = 1;
         model_vp_element_[i] = 1500;
+      }
+
+      if (isElastic_)
+      {
+        model_vs_element_ =
+            allocateVector<VECTOR_REAL_VIEW>(n_element, "model vs element");
+        model_delta_element_ =
+            allocateVector<VECTOR_REAL_VIEW>(n_element, "model delta element");
+        model_gamma_element_ =
+            allocateVector<VECTOR_REAL_VIEW>(n_element, "model gamma element");
+        model_epsilon_element_ = allocateVector<VECTOR_REAL_VIEW>(
+            n_element, "model epsilon element");
+        model_theta_element_ =
+            allocateVector<VECTOR_REAL_VIEW>(n_element, "model theta element");
+        model_phi_element_ =
+            allocateVector<VECTOR_REAL_VIEW>(n_element, "model phi element");
+
+        for (int i = 0; i < n_element; i++)
+        {
+          model_vs_element_[i] = 755;
+          model_delta_element_[i] = 0.2;
+          model_epsilon_element_[i] = 0.3;
+          model_gamma_element_[i] = 0.08;
+          model_theta_element_[i] = 30;
+          model_phi_element_[i] = 45;
+        }
       }
     }
   }

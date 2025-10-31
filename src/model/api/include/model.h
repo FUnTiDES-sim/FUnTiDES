@@ -119,6 +119,103 @@ class ModelApi
   virtual FloatType getModelRhoOnElement(ScalarType e) const = 0;
 
   /**
+   * @brief Get the S-wave velocity value at a global node.
+   * @param n Global node index
+   * @return Model P-wave velocity value at the node
+   */
+  PROXY_HOST_DEVICE
+  virtual FloatType getModelVsOnNodes(ScalarType n) const = 0;
+
+  /**
+   * @brief Get the average S-wave velocity value on a given element.
+   * @param e Element index
+   * @return Model P-wave velocity value for the element
+   */
+  PROXY_HOST_DEVICE
+  virtual FloatType getModelVsOnElement(ScalarType e) const = 0;
+
+  /**
+   * @brief Get the average Thomsen parameter delta value on a given nodes.
+   * @param n Global node index
+   * @return Model Thomsen paramter delta value for the node
+   */
+  PROXY_HOST_DEVICE
+  virtual FloatType getModelDeltaOnNodes(ScalarType n) const = 0;
+
+  /**
+   * @brief Get the average Thomsen parameter delta value on a given element.
+   * @param e Element index
+   * @return Model Thomsen paramter delta value for the element
+   */
+  PROXY_HOST_DEVICE
+  virtual FloatType getModelDeltaOnElement(ScalarType e) const = 0;
+
+  /**
+   * @brief Get the average Thomsen parameter epsilon value on a given node.
+   * @param n Global node index
+   * @return Model Thomsen paramter epsilon value for the node
+   */
+  PROXY_HOST_DEVICE
+  virtual FloatType getModelEpsilonOnNodes(ScalarType n) const = 0;
+
+  /**
+   * @brief Get the average Thomsen parameter epsilon value on a given element.
+   * @param e Element index
+   * @return Model Thomsen paramter epsilon value for the element
+   */
+  PROXY_HOST_DEVICE
+  virtual FloatType getModelEpsilonOnElement(ScalarType e) const = 0;
+
+  /**
+   * @brief Get the average Thomsen parameter gamma value on a given node.
+   * @param n Global node index
+   * @return Model Thomsen paramter gamma value for the node
+   */
+  PROXY_HOST_DEVICE
+  virtual FloatType getModelGammaOnNodes(ScalarType n) const = 0;
+
+  /**
+   * @brief Get the average Thomsen parameter gamma value on a given element.
+   * @param e Element index
+   * @return Model Thomsen paramter gamma value for the element
+   */
+  PROXY_HOST_DEVICE
+  virtual FloatType getModelGammaOnElement(ScalarType e) const = 0;
+
+  /**
+   * @brief Get the average anisotropic parameter theta value on a given node.
+   * @param n Global node index
+   * @return Model anisotropic paramter theta value for the node
+   */
+  PROXY_HOST_DEVICE
+  virtual ScalarType getModelThetaOnNodes(ScalarType n) const = 0;
+
+  /**
+   * @brief Get the average anisotropic parameter theta value on a given
+   * element.
+   * @param e Element index
+   * @return Model anisotropic paramter theta value for the element
+   */
+  PROXY_HOST_DEVICE
+  virtual ScalarType getModelThetaOnElement(ScalarType e) const = 0;
+
+  /**
+   * @brief Get the average anisotropic parameter phi value on a given node.
+   * @param n Global node index
+   * @return Model anisotropic paramter phi value for the node
+   */
+  PROXY_HOST_DEVICE
+  virtual ScalarType getModelPhiOnNodes(ScalarType n) const = 0;
+
+  /**
+   * @brief Get the average anisotropic parameter phi value on a given element.
+   * @param e Element index
+   * @return Model anisotropic paramter phi value for the element
+   */
+  PROXY_HOST_DEVICE
+  virtual ScalarType getModelPhiOnElement(ScalarType e) const = 0;
+
+  /**
    * @brief Get the total number of elements in the mesh.
    * @return Total element count
    */
@@ -189,8 +286,23 @@ class ModelApi
    */
   virtual FloatType getMaxSpeed() const = 0;
 
+  /**
+   * @brief Indicates if the model properties are defined at nodes
+   * Returns true if model parameters (e.g., velocity, density) are
+   * specified at mesh nodes, false if defined at element centers.
+   * @return True if model is defined on nodes, false if on elements
+   */
   PROXY_HOST_DEVICE
   virtual bool isModelOnNodes() const = 0;
+
+  /**
+   * @brief Indicates if the model is elastic.
+   * Returns true if the model supports elastic wave propagation,
+   * false if it is acoustic only.
+   * @return True if the model is elastic, false if acoustic only
+   */
+  PROXY_HOST_DEVICE
+  virtual bool isElastic() const = 0;
 };
 
 }  // namespace model

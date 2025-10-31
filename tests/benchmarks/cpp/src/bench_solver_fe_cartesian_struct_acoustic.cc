@@ -8,7 +8,7 @@
 #include "cartesian_struct_builder.h"
 #include "data_type.h"
 #include "model.h"
-#include "sem_solver.h"
+#include "sem_solver_acoustic.h"
 #include "solver_factory.h"
 #include "utils.h"
 
@@ -66,7 +66,7 @@ class SolverStructFixture : public benchmark::Fixture
     float hy = domain_size / ey;
     float hz = domain_size / ez;
 
-    typename T::Builder builder(ex, hx, ey, hy, ez, hz, isModelOnNodes_);
+    typename T::Builder builder(ex, hx, ey, hy, ez, hz, isModelOnNodes_, false);
     return builder.getModel();
   }
 
@@ -74,7 +74,8 @@ class SolverStructFixture : public benchmark::Fixture
   {
     state.SetLabel("Order=" + std::to_string(order) +
                    " OnNodes=" + std::to_string(isModelOnNodes_) +
-                   " Implem=" + std::to_string(implem_));
+                   " Implem=" + std::to_string(implem_) +
+                   " IsElastic=" + std::to_string(false));
   }
 };
 
@@ -112,7 +113,7 @@ BENCHMARK_TEMPLATE_METHOD_F(SolverStructFixture, FEInit)
       SolverFactory::meshType::Struct,
       this->isModelOnNodes_ ? SolverFactory::modelLocationType::OnNodes
                             : SolverFactory::modelLocationType::OnElements,
-      this->order);
+      SolverFactory::physicType::Acoustic, this->order);
 
   // Bench
   for (auto _ : state)
@@ -136,7 +137,7 @@ BENCHMARK_TEMPLATE_METHOD_F(SolverStructFixture, OneStep)
       SolverFactory::meshType::Struct,
       this->isModelOnNodes_ ? SolverFactory::modelLocationType::OnNodes
                             : SolverFactory::modelLocationType::OnElements,
-      this->order);
+      SolverFactory::physicType::Acoustic, this->order);
 
   solver->computeFEInit(*model, this->sponge_size, this->surface_sponge,
                         this->taper_delta);
@@ -158,8 +159,8 @@ BENCHMARK_TEMPLATE_METHOD_F(SolverStructFixture, OneStep)
     arrays.rhsTerm(0, j) = sourceTerm[j];
   }
 
-  SEMsolverData data(0, 1, arrays.rhsTerm, arrays.pnGlobal, arrays.rhsElement,
-                     arrays.rhsWeights);
+  SEMsolverDataAcoustic data(0, 1, arrays.rhsTerm, arrays.pnGlobal,
+                             arrays.rhsElement, arrays.rhsWeights);
 
   // Bench
   for (auto _ : state)

@@ -14,6 +14,32 @@ def allocate_pressure(n_dof, memspace=default_memspace, layout=default_layout):
 
     return kk_pnGlobal, pnGlobal
 
+def allocate_displacementx(n_dof, memspace=default_memspace, layout=default_layout):
+    kk_uxnGlobal = kokkos.array(
+        [n_dof, 2], dtype=kokkos.float32, space=memspace, layout=layout
+    )
+    uxnGlobal = np.array(kk_uxnGlobal, copy=False)
+    uxnGlobal[:] = 0.0
+
+    return kk_uxnGlobal, uxnGlobal
+
+def allocate_displacementy(n_dof, memspace=default_memspace, layout=default_layout):
+    kk_uynGlobal = kokkos.array(
+        [n_dof, 2], dtype=kokkos.float32, space=memspace, layout=layout
+    )
+    uynGlobal = np.array(kk_uynGlobal, copy=False)
+    uynGlobal[:] = 0.0
+
+    return kk_uynGlobal, uynGlobal
+
+def allocate_displacementz(n_dof, memspace=default_memspace, layout=default_layout):
+    kk_uznGlobal = kokkos.array(
+        [n_dof, 2], dtype=kokkos.float32, space=memspace, layout=layout
+    )
+    uznGlobal = np.array(kk_uznGlobal, copy=False)
+    uznGlobal[:] = 0.0
+
+    return kk_uznGlobal, uznGlobal
 
 def allocate_rhs_term(
     n_rhs, n_time_steps, dt, f0, memspace=default_memspace, layout=default_layout

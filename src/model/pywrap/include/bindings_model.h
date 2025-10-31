@@ -32,6 +32,18 @@ void bind_modelapi(py::module_ &m)
       .def("get_model_vp_on_element", &T::getModelVpOnElement)
       .def("get_model_rho_on_node", &T::getModelRhoOnNodes)
       .def("get_model_rho_on_element", &T::getModelRhoOnElement)
+      .def("get_model_vs_on_node", &T::getModelVsOnNodes)
+      .def("get_model_vs_on_element", &T::getModelVsOnElement)
+      .def("get_model_delta_on_node", &T::getModelDeltaOnNodes)
+      .def("get_model_delta_on_element", &T::getModelDeltaOnElement)
+      .def("get_model_epsilon_on_node", &T::getModelEpsilonOnNodes)
+      .def("get_model_epsilon_on_element", &T::getModelEpsilonOnElement)
+      .def("get_model_gamma_on_node", &T::getModelGammaOnNodes)
+      .def("get_model_gamma_on_element", &T::getModelGammaOnElement)
+      .def("get_model_phi_on_node", &T::getModelPhiOnNodes)
+      .def("get_model_phi_on_element", &T::getModelPhiOnElement)
+      .def("get_model_theta_on_node", &T::getModelThetaOnNodes)
+      .def("get_model_theta_on_element", &T::getModelThetaOnElement)
       .def("get_number_of_elements", &T::getNumberOfElements)
       .def("get_number_of_nodes", &T::getNumberOfNodes)
       .def("get_number_of_points_per_element", &T::getNumberOfPointsPerElement)
@@ -100,8 +112,20 @@ void bind_modelunstructdata(py::module_ &m)
   py::class_<Data>(m, name.c_str())
       .def(py::init<
                ScalarType, ScalarType, ScalarType, FloatType, FloatType,
-               FloatType, bool,
+               FloatType, bool, bool,
                Kokkos::Experimental::python_view_type_t<ARRAY_INT_VIEW>,
+               Kokkos::Experimental::python_view_type_t<VECTOR_REAL_VIEW>,
+               Kokkos::Experimental::python_view_type_t<VECTOR_REAL_VIEW>,
+               Kokkos::Experimental::python_view_type_t<VECTOR_REAL_VIEW>,
+               Kokkos::Experimental::python_view_type_t<VECTOR_REAL_VIEW>,
+               Kokkos::Experimental::python_view_type_t<VECTOR_REAL_VIEW>,
+               Kokkos::Experimental::python_view_type_t<VECTOR_REAL_VIEW>,
+               Kokkos::Experimental::python_view_type_t<VECTOR_REAL_VIEW>,
+               Kokkos::Experimental::python_view_type_t<VECTOR_REAL_VIEW>,
+               Kokkos::Experimental::python_view_type_t<VECTOR_REAL_VIEW>,
+               Kokkos::Experimental::python_view_type_t<VECTOR_REAL_VIEW>,
+               Kokkos::Experimental::python_view_type_t<VECTOR_REAL_VIEW>,
+               Kokkos::Experimental::python_view_type_t<VECTOR_REAL_VIEW>,
                Kokkos::Experimental::python_view_type_t<VECTOR_REAL_VIEW>,
                Kokkos::Experimental::python_view_type_t<VECTOR_REAL_VIEW>,
                Kokkos::Experimental::python_view_type_t<VECTOR_REAL_VIEW>,
@@ -112,11 +136,18 @@ void bind_modelunstructdata(py::module_ &m)
                Kokkos::Experimental::python_view_type_t<VECTOR_REAL_VIEW>>(),
            py::arg("order"), py::arg("n_element"), py::arg("n_node"),
            py::arg("lx"), py::arg("ly"), py::arg("lz"),
-           py::arg("is_model_on_nodes"), py::arg("global_node_index"),
-           py::arg("nodes_coords_x"), py::arg("nodes_coords_y"),
-           py::arg("nodes_coords_z"), py::arg("model_vp_node"),
-           py::arg("model_vp_element"), py::arg("model_rho_node"),
-           py::arg("model_rho_element"), py::arg("boundaries_t"));
+           py::arg("is_model_on_nodes"), py::arg("is_elastic"),
+           py::arg("global_node_index"), py::arg("nodes_coords_x"),
+           py::arg("nodes_coords_y"), py::arg("nodes_coords_z"),
+           py::arg("model_vp_node"), py::arg("model_vp_element"),
+           py::arg("model_rho_node"), py::arg("model_rho_element"),
+           py::arg("model_vs_node"), py::arg("model_vs_element"),
+           py::arg("model_delta_node"), py::arg("model_delta_element"),
+           py::arg("model_epsilon_node"), py::arg("model_epsilon_element"),
+           py::arg("model_gamma_node"), py::arg("model_gamma_element"),
+           py::arg("model_phi_node"), py::arg("model_phi_element"),
+           py::arg("model_theta_node"), py::arg("model_theta_element"),
+           py::arg("boundaries_t"));
 }
 
 }  // namespace model
