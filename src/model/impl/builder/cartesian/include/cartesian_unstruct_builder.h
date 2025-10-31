@@ -342,7 +342,7 @@ class CartesianUnstructBuilder : public ModelBuilderBase<FloatType, ScalarType>
         model_phi_element_ =
             allocateVector<VECTOR_REAL_VIEW>(n_element, "model phi element");
 
-        for (int i = 0; i < n_node; i++)
+        for (int i = 0; i < n_element; i++)
         {
           model_vs_element_[i] = 755;
           model_delta_element_[i] = 0.2;
