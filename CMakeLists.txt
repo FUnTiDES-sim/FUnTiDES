@@ -28,6 +28,7 @@ include(cmake/KokkosUtils.cmake)
 include(cmake/ProxyUtils.cmake)
 include(cmake/PywrapUtils.cmake)
 include(cmake/GoogleBenchUtils.cmake)
+include(cmake/GoogleTestUtils.cmake)
 
 #--------------------------------------------------------
 # Subdirectories

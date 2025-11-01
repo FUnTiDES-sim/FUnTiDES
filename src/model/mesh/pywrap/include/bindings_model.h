@@ -4,9 +4,11 @@
 #include <pybind11/pybind11.h>
 #include <pybind11/stl.h>
 
+#include <KokkosExp_InterOp.hpp>
 #include <string>
 
 #include "bindings_utils.h"
+#include "common_macros.h"
 #include "model.h"
 #include "model_struct.h"
 #include "model_unstruct.h"
@@ -26,9 +28,9 @@ void bind_modelapi(py::module_ &m)
   py::class_<T, std::shared_ptr<T>>(m, name.c_str())
       .def("node_coord", &T::nodeCoord)
       .def("global_node_index", &T::globalNodeIndex)
-      .def("get_model_vp_on_nodes", &T::getModelVpOnNodes)
+      .def("get_model_vp_on_node", &T::getModelVpOnNodes)
       .def("get_model_vp_on_element", &T::getModelVpOnElement)
-      .def("get_model_rho_on_nodes", &T::getModelRhoOnNodes)
+      .def("get_model_rho_on_node", &T::getModelRhoOnNodes)
       .def("get_model_rho_on_element", &T::getModelRhoOnElement)
       .def("get_number_of_elements", &T::getNumberOfElements)
       .def("get_number_of_nodes", &T::getNumberOfNodes)
@@ -96,22 +98,25 @@ void bind_modelunstructdata(py::module_ &m)
       model_class_name<FloatType, ScalarType>("ModelUnstructData");
 
   py::class_<Data>(m, name.c_str())
-      .def(py::init<>())
-      .def_readwrite("order", &Data::order_)
-      .def_readwrite("n_element", &Data::n_element_)
-      .def_readwrite("n_node", &Data::n_node_)
-      .def_readwrite("lx", &Data::lx_)
-      .def_readwrite("ly", &Data::ly_)
-      .def_readwrite("lz", &Data::lz_)
-      .def_readwrite("global_node_index", &Data::global_node_index_)
-      .def_readwrite("nodes_coords_x", &Data::nodes_coords_x_)
-      .def_readwrite("nodes_coords_y", &Data::nodes_coords_y_)
-      .def_readwrite("nodes_coords_z", &Data::nodes_coords_z_)
-      .def_readwrite("model_vp_node", &Data::model_vp_node_)
-      .def_readwrite("model_vp_element", &Data::model_vp_element_)
-      .def_readwrite("model_rho_node", &Data::model_rho_node_)
-      .def_readwrite("model_rho_element", &Data::model_rho_element_)
-      .def_readwrite("boundaries_t", &Data::boundaries_t_);
+      .def(py::init<
+               ScalarType, ScalarType, ScalarType, FloatType, FloatType,
+               FloatType, bool,
+               Kokkos::Experimental::python_view_type_t<ARRAY_INT_VIEW>,
+               Kokkos::Experimental::python_view_type_t<VECTOR_REAL_VIEW>,
+               Kokkos::Experimental::python_view_type_t<VECTOR_REAL_VIEW>,
+               Kokkos::Experimental::python_view_type_t<VECTOR_REAL_VIEW>,
+               Kokkos::Experimental::python_view_type_t<VECTOR_REAL_VIEW>,
+               Kokkos::Experimental::python_view_type_t<VECTOR_REAL_VIEW>,
+               Kokkos::Experimental::python_view_type_t<VECTOR_REAL_VIEW>,
+               Kokkos::Experimental::python_view_type_t<VECTOR_REAL_VIEW>,
+               Kokkos::Experimental::python_view_type_t<VECTOR_REAL_VIEW>>(),
+           py::arg("order"), py::arg("n_element"), py::arg("n_node"),
+           py::arg("lx"), py::arg("ly"), py::arg("lz"),
+           py::arg("is_model_on_nodes"), py::arg("global_node_index"),
+           py::arg("nodes_coords_x"), py::arg("nodes_coords_y"),
+           py::arg("nodes_coords_z"), py::arg("model_vp_node"),
+           py::arg("model_vp_element"), py::arg("model_rho_node"),
+           py::arg("model_rho_element"), py::arg("boundaries_t"));
 }
 
 }  // namespace model
