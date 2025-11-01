@@ -38,12 +38,12 @@ class FdtdSolver
         m_kernels(kernels),
         m_abckernels(abckernels),
         m_stencils(stencils),
-        m_source_receivers(source_receivers) {};
+        m_source_receivers(source_receivers){};
 
   /**
    * @brief Destructor of the SEMproxy class
    */
-  ~FdtdSolver() {};
+  ~FdtdSolver(){};
 
   // compute one step with sponge boundary
   void compute_one_stepSB(int itime, int i1, int i2);
