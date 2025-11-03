@@ -9,7 +9,7 @@ namespace model
 {
 
 template <typename FloatType, typename ScalarType>
-struct ModelStructData : public ModelDataBase<FloatType, ScalarType>
+struct ModelStructData final: public ModelDataBase<FloatType, ScalarType>
 {
  public:
   // GPU-compatible special member functions
@@ -31,6 +31,7 @@ template <typename FloatType, typename ScalarType, int Order>
 class ModelStruct : public ModelApi<FloatType, ScalarType>
 {
  public:
+  /// Define IndexType as an array of 3 integers for 3D indexing
   using IndexType = std::array<int, 3>;
 
 
@@ -78,7 +79,11 @@ class ModelStruct : public ModelApi<FloatType, ScalarType>
   PROXY_HOST_DEVICE ~ModelStruct() = default;
 
 
-
+  /**
+   * @brief Get the element index as a 3D array from a linear index.
+   * @param linearIndex The linear index of the element
+   * @return The 3D array index of the element
+   */
   PROXY_HOST_DEVICE
   IndexType elementIndex( const int linearIndex ) const
   {
@@ -90,6 +95,14 @@ class ModelStruct : public ModelApi<FloatType, ScalarType>
     return elemIndex;
   }
 
+  /**
+   * @brief Get the global vertex index the element index and local indices.
+   * @param e Element index
+   * @param i Local i-index of vertex in the element
+   * @param j Local j-index of vertex in the element
+   * @param k Local k-index of vertex in the element
+   * @return Global vertex index
+   */
   PROXY_HOST_DEVICE
   IndexType globalVertexIndex(IndexType e, int const i, int const j, int const k) const
   {
@@ -98,7 +111,11 @@ class ModelStruct : public ModelApi<FloatType, ScalarType>
              e[2] + k };
   }
 
-
+  /**
+   * @brief Get the vertex coordinates of a global node.
+   * @param dofGlobal Global node index
+   * @param[out] coords Output array (size 3) holding the coordinates
+   */
   PROXY_HOST_DEVICE
   void vertexCoords( IndexType dofGlobal, FloatType * const coords ) const
   {
