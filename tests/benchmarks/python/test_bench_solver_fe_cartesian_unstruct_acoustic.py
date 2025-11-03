@@ -41,20 +41,6 @@ test_cases = [
         Model.CartesianParams_f32_i32,
         Model.CartesianUnstructBuilder_f32_i32,
         True,
-        True,
-    ),
-    (
-        1,
-        Model.CartesianParams_f32_i32,
-        Model.CartesianUnstructBuilder_f32_i32,
-        False,
-        True,
-    ),
-    (
-        1,
-        Model.CartesianParams_f32_i32,
-        Model.CartesianUnstructBuilder_f32_i32,
-        True,
         False,
     ),
     (
@@ -69,20 +55,6 @@ test_cases = [
         Model.CartesianParams_f32_i32,
         Model.CartesianUnstructBuilder_f32_i32,
         True,
-        True,
-    ),
-    (
-        2,
-        Model.CartesianParams_f32_i32,
-        Model.CartesianUnstructBuilder_f32_i32,
-        False,
-        True,
-    ),
-    (
-        2,
-        Model.CartesianParams_f32_i32,
-        Model.CartesianUnstructBuilder_f32_i32,
-        True,
         False,
     ),
     (
@@ -91,20 +63,6 @@ test_cases = [
         Model.CartesianUnstructBuilder_f32_i32,
         False,
         False,
-    ),
-    (
-        3,
-        Model.CartesianParams_f32_i32,
-        Model.CartesianUnstructBuilder_f32_i32,
-        True,
-        True,
-    ),
-    (
-        3,
-        Model.CartesianParams_f32_i32,
-        Model.CartesianUnstructBuilder_f32_i32,
-        False,
-        True,
     ),
     (
         3,
@@ -123,7 +81,7 @@ test_cases = [
 ]
 
 
-class TestSolverUnstruct:
+class TestSolverUnstructAcoustic:
     @pytest.mark.benchmark(group=Groups.BenchmarkGroup.COMPUTE_FE_INIT.name)
     @pytest.mark.parametrize("unstruct", test_cases, indirect=True)
     @pytest.mark.parametrize(
@@ -144,9 +102,7 @@ class TestSolverUnstruct:
             else Solver.ModelLocationType.ONELEMENTS
         )
 
-        physic_type = (
-            Solver.PhysicType.ACOUSTIC if not is_elastic else Solver.PhysicType.ELASTIC
-        )
+        physic_type = Solver.PhysicType.ACOUSTIC 
 
         solver = Solver.create_solver(
             Solver.MethodType.SEM,
@@ -184,9 +140,7 @@ class TestSolverUnstruct:
             else Solver.ModelLocationType.ONELEMENTS
         )
 
-        physic_type = (
-            Solver.PhysicType.ACOUSTIC if not is_elastic else Solver.PhysicType.ELASTIC
-        )
+        physic_type = Solver.PhysicType.ACOUSTIC 
 
         solver = Solver.create_solver(
             Solver.MethodType.SEM,
@@ -199,36 +153,13 @@ class TestSolverUnstruct:
 
         solver.compute_fe_init(model)
 
-        if physic_type == Solver.PhysicType.ACOUSTIC:
-            kk_pnGlobal, _ = Utils.allocate_pressure(sd.n_dof)
-            kk_RHSElement, _ = Utils.allocate_rhs_element(n_rhs, sd.ex, sd.ey, sd.ez)
-            kk_RHSWeights, _ = Utils.allocate_rhs_weight(n_rhs, model)
-            kk_RHSTerm, _ = Utils.allocate_rhs_term(n_rhs, n_time_steps, dt, f0)
+        kk_pnGlobal, _ = Utils.allocate_pressure(sd.n_dof)
+        kk_RHSElement, _ = Utils.allocate_rhs_element(n_rhs, sd.ex, sd.ey, sd.ez)
+        kk_RHSWeights, _ = Utils.allocate_rhs_weight(n_rhs, model)
+        kk_RHSTerm, _ = Utils.allocate_rhs_term(n_rhs, n_time_steps, dt, f0)
 
-            data = Solver.SEMsolverDataAcoustic(
-                0, 1, kk_RHSTerm, kk_pnGlobal, kk_RHSElement, kk_RHSWeights
-            )
-        else:
-            kk_uxnGlobal, _ = Utils.allocate_displacementx(sd.n_dof)
-            kk_uynGlobal, _ = Utils.allocate_displacementy(sd.n_dof)
-            kk_uznGlobal, _ = Utils.allocate_displacementz(sd.n_dof)
-            kk_RHSElement, _ = Utils.allocate_rhs_element(n_rhs, sd.ex, sd.ey, sd.ez)
-            kk_RHSWeights, _ = Utils.allocate_rhs_weight(n_rhs, model)
-            kk_RHSTermx, _ = Utils.allocate_rhs_term(n_rhs, n_time_steps, dt, f0)
-            kk_RHSTermy, _ = Utils.allocate_rhs_term(n_rhs, n_time_steps, dt, f0)
-            kk_RHSTermz, _ = Utils.allocate_rhs_term(n_rhs, n_time_steps, dt, f0)
-
-            data = Solver.SEMsolverDataElastic(
-                0,
-                1,
-                kk_RHSTermx,
-                kk_RHSTermy,
-                kk_RHSTermz,
-                kk_uxnGlobal,
-                kk_uynGlobal,
-                kk_uznGlobal,
-                kk_RHSElement,
-                kk_RHSWeights,
+        data = Solver.SEMsolverDataAcoustic(
+            0, 1, kk_RHSTerm, kk_pnGlobal, kk_RHSElement, kk_RHSWeights
             )
 
         benchmark(solver.compute_one_step, dt, time_sample, data)
