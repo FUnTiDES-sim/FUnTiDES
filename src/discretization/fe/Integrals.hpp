@@ -37,6 +37,5 @@ struct IntegralTypeSelector<ORDER, IntegralType::SHIVA>
                     LagrangeBasis<float, ORDER, EqualSpacing>,
                     LagrangeBasis<float, ORDER, EqualSpacing> >;
 
-  using type = SEMQkGLIntegralsShiva<ORDER, TransformType,
-  ParentElementType>;
+  using type = SEMQkGLIntegralsShiva<ORDER, TransformType, ParentElementType>;
 };

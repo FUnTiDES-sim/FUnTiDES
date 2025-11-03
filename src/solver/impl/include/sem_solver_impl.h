@@ -13,8 +13,8 @@
 #include <cstdlib>
 
 #include "fe/Integrals.hpp"
-#include "sem_solver.h"
 #include "model_discretization_interface.h"
+#include "sem_solver.h"
 
 template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE,
           bool IS_MODEL_ON_NODES>
@@ -123,11 +123,11 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES>::
   float Y[nPointsElement] = {0};
 
   int dim = m_mesh.getOrder() + 1;
-  for( int i = 0; i < dim; ++i )
+  for (int i = 0; i < dim; ++i)
   {
-    for( int j = 0; j < dim; ++j )
+    for (int j = 0; j < dim; ++j)
     {
-      for( int k = 0; k < dim; ++k )
+      for (int k = 0; k < dim; ++k)
       {
         int const globalIdx = m_mesh.globalNodeIndex(elementNumber, i, j, k);
         int const localIdx = i + j * dim + k * dim * dim;
@@ -137,7 +137,8 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES>::
   }
 
   typename INTEGRAL_TYPE::TransformType transformData;
-  model_discretization_interface::gatherTransformData( elementNumber, m_mesh, transformData );
+  model_discretization_interface::gatherTransformData(elementNumber, m_mesh,
+                                                      transformData);
 
   // Stiffness term
   real_t inv_density = 0.0f;
@@ -146,25 +147,23 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES>::
     inv_density = 1.0f / m_mesh.getModelRhoOnElement(elementNumber);
   }
 
-  INTEGRAL_TYPE::computeStiffnessTerm( 
-    transformData, 
-    [&]( const int qa, const int qb, const int qc, const int i, const int j, const real_t val )
-    {
-      if constexpr (IS_MODEL_ON_NODES)
-      {
-        int const gIndex = m_mesh.globalNodeIndex(elementNumber, qa, qb, qc);
-        inv_density = 1.0f / m_mesh.getModelRhoOnNodes(gIndex);
-      }
-      float localIncrement = inv_density * val * pnLocal[j];
-      Y[i] += localIncrement;
-    }
-  );
+  INTEGRAL_TYPE::computeStiffnessTerm(
+      transformData, [&](const int qa, const int qb, const int qc, const int i,
+                         const int j, const real_t val) {
+        if constexpr (IS_MODEL_ON_NODES)
+        {
+          int const gIndex = m_mesh.globalNodeIndex(elementNumber, qa, qb, qc);
+          inv_density = 1.0f / m_mesh.getModelRhoOnNodes(gIndex);
+        }
+        float localIncrement = inv_density * val * pnLocal[j];
+        Y[i] += localIncrement;
+      });
 
-  for( int i = 0; i < dim; ++i )
+  for (int i = 0; i < dim; ++i)
   {
-    for( int j = 0; j < dim; ++j )
+    for (int j = 0; j < dim; ++j)
     {
-      for( int k = 0; k < dim; ++k )
+      for (int k = 0; k < dim; ++k)
       {
         int const globalIdx = m_mesh.globalNodeIndex(elementNumber, i, j, k);
         int const localIdx = i + j * dim + k * dim * dim;
@@ -230,11 +229,12 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE,
   int dim = m_mesh.getOrder() + 1;
 
   typename INTEGRAL_TYPE::TransformType transformData;
-  model_discretization_interface::gatherTransformData( elementNumber, m_mesh, transformData );
+  model_discretization_interface::gatherTransformData(elementNumber, m_mesh,
+                                                      transformData);
 
-  INTEGRAL_TYPE::computeMassTerm( 
+  INTEGRAL_TYPE::computeMassTerm(
       transformData,
-      [&](const int j, const real_t val) {  massMatrixLocal[j] += val; });
+      [&](const int j, const real_t val) { massMatrixLocal[j] += val; });
 
   real_t inv_model2 = 0.0f;
   if constexpr (!IS_MODEL_ON_NODES)

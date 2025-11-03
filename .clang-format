@@ -12,10 +12,3 @@ BraceWrapping:
   BeforeCatch: true
   BeforeElse: true
   IndentBraces: false
-  BeforeLambdaBody: true
-
-BinPackArguments: false
-BinPackParameters: false
-LambdaBodyIndentation: Signature
-AlignAfterOpenBracket: Align
-ContinuationIndentWidth: 2

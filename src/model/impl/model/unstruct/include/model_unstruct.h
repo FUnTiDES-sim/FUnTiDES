@@ -73,7 +73,6 @@ class ModelUnstruct final : public ModelApi<FloatType, ScalarType>
   /// Define IndexType as an integer for unstructured indexing
   using IndexType = int;
 
-
   /**
    * @brief Default constructor.
    */
@@ -115,17 +114,13 @@ class ModelUnstruct final : public ModelApi<FloatType, ScalarType>
    */
   PROXY_HOST_DEVICE ~ModelUnstruct() = default;
 
-
   /**
    * @brief pass through function to go from linear index space to IndexType.
    * @param linearIndex The linear index of the element
    * @return the linear index of the element
    */
   PROXY_HOST_DEVICE
-  IndexType elementIndex( const int linearIndex ) const
-  {
-    return linearIndex;
-  }
+  IndexType elementIndex(const int linearIndex) const { return linearIndex; }
 
   /**
    * @brief Get the global vertex index the element index and local indices.
@@ -136,9 +131,11 @@ class ModelUnstruct final : public ModelApi<FloatType, ScalarType>
    * @return Global vertex index
    */
   PROXY_HOST_DEVICE
-  IndexType globalVertexIndex(IndexType e, int const i, int const j, int const k) const
+  IndexType globalVertexIndex(IndexType e, int const i, int const j,
+                              int const k) const
   {
-    const auto localDofIndex = i + j * (order_ + 1) + k * (order_ + 1) * (order_ + 1);
+    const auto localDofIndex =
+        i + j * (order_ + 1) + k * (order_ + 1) * (order_ + 1);
     return global_node_index_(e, localDofIndex);
   }
 
@@ -148,7 +145,7 @@ class ModelUnstruct final : public ModelApi<FloatType, ScalarType>
    * @param[out] coords Output array (size 3) holding the coordinates
    */
   PROXY_HOST_DEVICE
-  void vertexCoords(IndexType dofGlobal, FloatType * const coords ) const
+  void vertexCoords(IndexType dofGlobal, FloatType* const coords) const
   {
     coords[0] = nodes_coords_x_[dofGlobal];
     coords[1] = nodes_coords_y_[dofGlobal];

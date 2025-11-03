@@ -9,7 +9,7 @@ namespace model
 {
 
 template <typename FloatType, typename ScalarType>
-struct ModelStructData final: public ModelDataBase<FloatType, ScalarType>
+struct ModelStructData final : public ModelDataBase<FloatType, ScalarType>
 {
  public:
   // GPU-compatible special member functions
@@ -33,7 +33,6 @@ class ModelStruct : public ModelApi<FloatType, ScalarType>
  public:
   /// Define IndexType as an array of 3 integers for 3D indexing
   using IndexType = std::array<int, 3>;
-
 
   /**
    * @brief Default constructor.
@@ -78,18 +77,17 @@ class ModelStruct : public ModelApi<FloatType, ScalarType>
    */
   PROXY_HOST_DEVICE ~ModelStruct() = default;
 
-
   /**
    * @brief Get the element index as a 3D array from a linear index.
    * @param linearIndex The linear index of the element
    * @return The 3D array index of the element
    */
   PROXY_HOST_DEVICE
-  IndexType elementIndex( const int linearIndex ) const
+  IndexType elementIndex(const int linearIndex) const
   {
     IndexType elemIndex;
-    elemIndex[2] = linearIndex / ( ex_ * ey_ );
-    int const rem = linearIndex - elemIndex[2] * ( ex_ * ey_ );
+    elemIndex[2] = linearIndex / (ex_ * ey_);
+    int const rem = linearIndex - elemIndex[2] * (ex_ * ey_);
     elemIndex[1] = rem / ex_;
     elemIndex[0] = rem - elemIndex[1] * ex_;
     return elemIndex;
@@ -104,11 +102,10 @@ class ModelStruct : public ModelApi<FloatType, ScalarType>
    * @return Global vertex index
    */
   PROXY_HOST_DEVICE
-  IndexType globalVertexIndex(IndexType e, int const i, int const j, int const k) const
+  IndexType globalVertexIndex(IndexType e, int const i, int const j,
+                              int const k) const
   {
-    return { e[0] + i, 
-             e[1] + j, 
-             e[2] + k };
+    return {e[0] + i, e[1] + j, e[2] + k};
   }
 
   /**
@@ -117,7 +114,7 @@ class ModelStruct : public ModelApi<FloatType, ScalarType>
    * @param[out] coords Output array (size 3) holding the coordinates
    */
   PROXY_HOST_DEVICE
-  void vertexCoords( IndexType dofGlobal, FloatType * const coords ) const
+  void vertexCoords(IndexType dofGlobal, FloatType* const coords) const
   {
     coords[0] = dofGlobal[0] * ex_;
     coords[1] = dofGlobal[1] * ey_;
@@ -149,8 +146,10 @@ class ModelStruct : public ModelApi<FloatType, ScalarType>
 
     // Determine which element this node belongs to and local position within
     // element
-    int elemIdx = nodeIdx[dim] / Order;  // Element index in the requested dimension
-    int localIdx = nodeIdx[dim] % Order;  // Local node index within element (0 to Order)
+    int elemIdx =
+        nodeIdx[dim] / Order;  // Element index in the requested dimension
+    int localIdx =
+        nodeIdx[dim] % Order;  // Local node index within element (0 to Order)
 
     // Handle boundary case: if we're at the last node of an element (except the
     // last element), it's actually the first node of the next element
