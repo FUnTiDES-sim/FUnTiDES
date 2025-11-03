@@ -21,15 +21,20 @@ Our code style is based on **Google C++ Style Guide** with the following custom 
 
 **1. Install clang-format**
 
+We use version 13 of clang-format.
+
 ```bash
 # Ubuntu/Debian
-sudo apt install clang-format
+sudo apt install clang-format-13
 
 # macOS
-brew install clang-format
+brew install clang-format@13
 
 # Python (cross-platform)
-python -m pip install clang-format
+#   - clang only 
+pip install clang-format==13
+#   - all dev requirements at once
+pip install -r requirements-dev.txt
 
 # Or check if already installed
 clang-format --version
@@ -57,9 +62,16 @@ find . \( -name "*.h" -o -name "*.hpp" -o -name "*.cc" -o -name "*.cpp" -o -name
 git diff --exit-code
 ```
 
-### CI/CD Format Checking
+### Configuration Details
 
-Our continuous integration system automatically checks code formatting. **Pull requests with formatting violations will fail the build**. 
+The project's code formatting is defined in [`.clang-format`](.clang-format):
+
+## CI/CD
+
+### Format Checking
+
+Our continuous integration system automatically checks code formatting.
+**Pull requests with formatting violations will fail the build and stop any subsequent build**. 
 
 If you see formatting errors in CI:
 
@@ -67,13 +79,10 @@ If you see formatting errors in CI:
 2. Run clang-format as described above
 3. Commit and push the formatting fixes
 
+### Caching
 
-
-
-
-### Configuration Details
-
-The project's code formatting is defined in [`.clang-format`](.clang-format):
+Our continuous integration system uses sccache to speed up the builds.
+In some rare instances where the cache might be corrupted, you can deactivate it by adding the tag `SCCACHE_OFF` to your PR.
 
 ## Submission Checklist
 
