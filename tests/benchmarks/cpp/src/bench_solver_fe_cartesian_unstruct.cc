@@ -176,12 +176,14 @@ BENCHMARK_TEMPLATE_METHOD_F(SolverUnstructFixture, OneStep)
 BENCHMARK_FOR_ALL_ORDERS(
     SolverUnstructFixture, FEInit,
     BuilderConfig,
-        ->ArgsProduct({{0, 1}, {SolverFactory::implemType::MAKUTU, SolverFactory::implemType::SHIVA}})
+        ->ArgsProduct({{0, 1}, {SolverFactory::implemType::MAKUTU,
+                                SolverFactory::implemType::SHIVA}})
         ->Unit(benchmark::kMillisecond))
 BENCHMARK_FOR_ALL_ORDERS(
     SolverUnstructFixture, OneStep,
     BuilderConfig,
-        ->ArgsProduct({{0, 1}, {SolverFactory::implemType::MAKUTU, SolverFactory::implemType::SHIVA}})
+        ->ArgsProduct({{0, 1}, {SolverFactory::implemType::MAKUTU,
+                                SolverFactory::implemType::SHIVA}})
         ->Unit(benchmark::kMillisecond))
 
 }  // namespace bench
