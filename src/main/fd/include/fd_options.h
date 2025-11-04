@@ -114,7 +114,7 @@ class FdtdOptions
    */
   struct BoundaryParams
   {
-    bool use_pml{true};         ///< Enable PML boundary conditions
+    bool use_pml{true};          ///< Enable PML boundary conditions
     bool use_sponge{false};      ///< Enable PML boundary conditions
     int pml_size{4};             ///< Thickness of PML layers (grid points)
     int sponge_size{20};         ///< Thickness of sponge layers (grid points)
