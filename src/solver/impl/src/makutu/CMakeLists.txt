@@ -19,7 +19,7 @@ set(MODEL_TYPES "onelements" "onnodes")
 set(TEMPLATE_FILE "${CMAKE_CURRENT_SOURCE_DIR}/templates/makutu_solver_template.cpp.in")
 
 # Output directory for generated files (in source tree, as they seem to be committed)
-set(GENERATED_DIR "${CMAKE_CURRENT_SOURCE_DIR}")
+set(GENERATED_DIR "${CMAKE_CURRENT_BINARY_DIR}")
 
 # Generator script (we'll use configure_file as these are simple)
 # Alternatively, use a Python script if more complex logic is needed
