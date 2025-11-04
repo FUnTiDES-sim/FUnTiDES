@@ -90,7 +90,7 @@ struct FdtdKernels
             const int z4, const double coef0, const float &hdx_2,
             const float &hdy_2, const float &hdz_2, vectorReal const &coefx,
             vectorReal const &coefy, vectorReal const &coefz,
-            vectorReal const &vp, vectorReal const &eta, vectorReal  &phi,
+            vectorReal const &vp, vectorReal const &eta, vectorReal &phi,
             arrayReal &pnGlobal) const
   {
     LOOP3DHEAD(x3, y3, z3, x4, y4, z4)
@@ -151,9 +151,9 @@ struct FdtdKernels
   {
     LOOP3DHEAD(x3, y3, z3, x4, y4, z4)
     pnGlobal(IDX3_l(i, j, k), ca) =
-        pnGlobal(IDX3_l(i, j, k), ca);// * spongeArray(IDX3(i, j, k));
+        pnGlobal(IDX3_l(i, j, k), ca);  // * spongeArray(IDX3(i, j, k));
     pnGlobal(IDX3_l(i, j, k), cb) =
-        pnGlobal(IDX3_l(i, j, k), cb);// * spongeArray(IDX3(i, j, k));
+        pnGlobal(IDX3_l(i, j, k), cb);  // * spongeArray(IDX3(i, j, k));
     LOOP3DEND
     return 0;
   }
