@@ -67,9 +67,12 @@ struct ModelUnstructData : public ModelDataBase<FloatType, ScalarType>
  * @brief Abstract base class representing a structured 3D mesh.
  */
 template <typename FloatType, typename ScalarType>
-class ModelUnstruct : public ModelApi<FloatType, ScalarType>
+class ModelUnstruct final : public ModelApi<FloatType, ScalarType>
 {
  public:
+  /// Define IndexType as an integer for unstructured indexing
+  using IndexType = int;
+
   /**
    * @brief Default constructor.
    */
@@ -110,6 +113,44 @@ class ModelUnstruct : public ModelApi<FloatType, ScalarType>
    * @brief Destructor.
    */
   PROXY_HOST_DEVICE ~ModelUnstruct() = default;
+
+  /**
+   * @brief pass through function to go from linear index space to IndexType.
+   * @param linearIndex The linear index of the element
+   * @return the linear index of the element
+   */
+  PROXY_HOST_DEVICE
+  IndexType elementIndex(const int linearIndex) const { return linearIndex; }
+
+  /**
+   * @brief Get the global vertex index the element index and local indices.
+   * @param e Element index
+   * @param i Local i-index of vertex in the element
+   * @param j Local j-index of vertex in the element
+   * @param k Local k-index of vertex in the element
+   * @return Global vertex index
+   */
+  PROXY_HOST_DEVICE
+  IndexType globalVertexIndex(IndexType e, int const i, int const j,
+                              int const k) const
+  {
+    const auto localDofIndex =
+        i + j * (order_ + 1) + k * (order_ + 1) * (order_ + 1);
+    return global_node_index_(e, localDofIndex);
+  }
+
+  /**
+   * @brief Get the vertex coordinates of a global node.
+   * @param dofGlobal Global node index
+   * @param[out] coords Output array (size 3) holding the coordinates
+   */
+  PROXY_HOST_DEVICE
+  void vertexCoords(IndexType dofGlobal, FloatType* const coords) const
+  {
+    coords[0] = nodes_coords_x_[dofGlobal];
+    coords[1] = nodes_coords_y_[dofGlobal];
+    coords[2] = nodes_coords_z_[dofGlobal];
+  }
 
   /**
    * @brief Get the coordinate of a global node in the given dimension.

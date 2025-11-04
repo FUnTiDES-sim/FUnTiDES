@@ -10,15 +10,19 @@ endif()
 
 
 # Collect all sources
+set(DIRS "${CMAKE_SOURCE_DIR}/src" "${CMAKE_SOURCE_DIR}/test")
+set(EXTS cpp hpp cxx hxx cc c h hh)
+
+set(GLOBS "")
+foreach(d ${DIRS})
+  foreach(e ${EXTS})
+    message( STATUS "Adding source files from dir: ${d} with extension: .${e}" )
+    list(APPEND GLOBS "${d}/*.${e}")
+  endforeach()
+endforeach()
+
 file(GLOB_RECURSE ALL_SOURCE_FILES
-     "${CMAKE_SOURCE_DIR}/src/*.cpp"
-     "${CMAKE_SOURCE_DIR}/src/*.hpp"
-     "${CMAKE_SOURCE_DIR}/src/*.cxx"
-     "${CMAKE_SOURCE_DIR}/src/*.hxx"
-     "${CMAKE_SOURCE_DIR}/src/*.cc"
-     "${CMAKE_SOURCE_DIR}/src/*.c"
-     "${CMAKE_SOURCE_DIR}/src/*.h"
-     "${CMAKE_SOURCE_DIR}/src/*.hh")
+     ${GLOBS})
 
 # Example: filter out files whose path contains "Shiva" or "SEMKernels"
 list(FILTER ALL_SOURCE_FILES EXCLUDE REGEX "Shiva")
