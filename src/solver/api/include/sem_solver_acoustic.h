@@ -9,8 +9,8 @@
 //  boundaries.
 //************************************************************************
 
-#ifndef SEM_SOLVER_ELASTIC_HPP_
-#define SEM_SOLVER_ELASTIC_HPP_
+#ifndef SEM_SOLVER_ACOUSTIC_HPP_
+#define SEM_SOLVER_ACOUSTIC_HPP_
 
 #include <data_type.h>
 #include <model.h>
@@ -18,27 +18,15 @@
 
 #include <cmath>
 
-/**
- * @brief Data structure for elastic wave propagation solver.
- *
- * Contains displacement fields, forcing terms, and time indices
- * for elastic wave equation computations.
- */
-struct SEMsolverDataElastic : public SolverBase::DataStruct
+struct SEMsolverDataAcoustic : public SolverBase::DataStruct
 {
-  SEMsolverDataElastic(int i1, int i2, ARRAY_REAL_VIEW rhsTermx,
-                       ARRAY_REAL_VIEW rhsTermy, ARRAY_REAL_VIEW rhsTermz,
-                       ARRAY_REAL_VIEW uxnGlobal, ARRAY_REAL_VIEW uynGlobal,
-                       ARRAY_REAL_VIEW uznGlobal, VECTOR_INT_VIEW rhsElement,
-                       ARRAY_REAL_VIEW rhsWeights)
+  SEMsolverDataAcoustic(int i1, int i2, ARRAY_REAL_VIEW rhsTerm,
+                        ARRAY_REAL_VIEW pnGlobal, VECTOR_INT_VIEW rhsElement,
+                        ARRAY_REAL_VIEW rhsWeights)
       : m_i1(i1),
         m_i2(i2),
-        m_rhsTermx(rhsTermx),
-        m_rhsTermy(rhsTermy),
-        m_rhsTermz(rhsTermz),
-        m_uxnGlobal(uxnGlobal),
-        m_uynGlobal(uynGlobal),
-        m_uznGlobal(uznGlobal),
+        m_rhsTerm(rhsTerm),
+        m_pnGlobal(pnGlobal),
         m_rhsElement(rhsElement),
         m_rhsWeights(rhsWeights)
   {
@@ -46,52 +34,38 @@ struct SEMsolverDataElastic : public SolverBase::DataStruct
 
   void print() const override
   {
-    std::cout << "SEMsolverDataElastic: i1=" << m_i1 << ", i2=" << m_i2
-              << std::endl;
-    std::cout << "RHSx Term size: " << m_rhsTermx.extent(0) << std::endl;
-    std::cout << "RHSy Term size: " << m_rhsTermy.extent(0) << std::endl;
-    std::cout << "RHSz Term size: " << m_rhsTermz.extent(0) << std::endl;
-    std::cout << "Uxn Global size: " << m_uxnGlobal.extent(0) << std::endl;
-    std::cout << "Uyn Global size: " << m_uynGlobal.extent(0) << std::endl;
-    std::cout << "Uzn Global size: " << m_uznGlobal.extent(0) << std::endl;
+    std::cout << "SEMsolverData: i1=" << m_i1 << ", i2=" << m_i2 << std::endl;
+    std::cout << "RHS Term size: " << m_rhsTerm.extent(0) << std::endl;
+    std::cout << "Pn Global size: " << m_pnGlobal.extent(0) << std::endl;
     std::cout << "RHS Element size: " << m_rhsElement.extent(0) << std::endl;
     std::cout << "RHS Weights size: " << m_rhsWeights.extent(0) << std::endl;
   }
 
   int m_i1;                      ///< Previous time step index
   int m_i2;                      ///< Current time step index
-  ARRAY_REAL_VIEW m_rhsTermx;    ///< X-component forcing term
-  ARRAY_REAL_VIEW m_rhsTermy;    ///< Y-component forcing term
-  ARRAY_REAL_VIEW m_rhsTermz;    ///< Z-component forcing term
-  ARRAY_REAL_VIEW m_uxnGlobal;   ///< X-displacement field
-  ARRAY_REAL_VIEW m_uynGlobal;   ///< Y-displacement field
-  ARRAY_REAL_VIEW m_uznGlobal;   ///< Z-displacement field
+  ARRAY_REAL_VIEW m_rhsTerm;     ///< RHS forcing term
+  ARRAY_REAL_VIEW m_pnGlobal;    ///< Pressure field
   VECTOR_INT_VIEW m_rhsElement;  ///< Source element indices
   ARRAY_REAL_VIEW m_rhsWeights;  ///< Forcing weights per node
 };
 
 /**
- * @brief Spectral Element Method solver for elastic wave propagation.
+ * @brief Spectral Element Method solver for acoustic wave propagation.
  *
  * @tparam ORDER Polynomial order of the spectral elements
  * @tparam INTEGRAL_TYPE Type for numerical integration (basis functions,
  * quadrature)
  * @tparam MESH_TYPE Type of the computational mesh
+ * @tparam IS_MODEL_ON_NODES Boolean to say if the model is located on nodes
+ * (true) or on elements (false)
  */
 template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE,
           bool IS_MODEL_ON_NODES>
-class SEMsolverElastic : public SEMSolverBase
+class SEMsolverAcoustic : public SEMSolverBase
 {
  public:
-  /**
-   * @brief Default constructor.
-   */
-  SEMsolverElastic() = default;
-
-  /**
-   * @brief Destructor.
-   */
-  ~SEMsolverElastic() = default;
+  SEMsolverAcoustic() = default;
+  ~SEMsolverAcoustic() = default;
 
   /**
    * @brief Initialize all finite element structures:
@@ -145,9 +119,6 @@ class SEMsolverElastic : public SEMSolverBase
 
   /**
    * @brief Compute the global mass matrix, accounting for the model.
-   *
-   * @param isModelOnNodes True if the velocity model is defined on nodes, false
-   *                       if on elements
    */
   void computeGlobalMassMatrix() override;
 
@@ -159,32 +130,24 @@ class SEMsolverElastic : public SEMSolverBase
    * @param indexTimeStep Time index to output.
    * @param i1 Index for displacement buffer.
    * @param myElementSource Element containing the receiver.
-   * @param uxnGlobal Global X-displacement field [node][time].
-   * @param uynGlobal Global Y-displacement field [node][time].
-   * @param uznGlobal Global Z-displacement field [node][time].
+   * @param field The field to output
+   * @param fieldName The name of the field to output (here it can be pnGlobal)
    */
   void outputSolutionValues(const int &indexTimeStep, int &i1,
-                            int &myElementSource,
-                            const ARRAY_REAL_VIEW &uxnGlobal,
+                            int &myElementSource, const ARRAY_REAL_VIEW &field,
                             const char *fieldName) override;
-
   /**
    * @brief Apply external forcing to the global displacement field.
    *
    * @param timeSample Current time sample index.
    * @param dt Delta time for this iteration.
    * @param i2 Current displacement index.
-   * @param rhsTermx X-component RHS forcing term array.
-   * @param rhsTermy Y-component RHS forcing term array.
-   * @param rhsTermz Z-component RHS forcing term array.
+   * @param rhsTerm RHS forcing term array.
    * @param rhsElement Indices of source elements.
-   * @param pnGlobal Global displacement field (modified in-place).
    * @param rhsWeights Forcing weights per node.
    */
   void applyRHSTerm(int timeSample, float dt, int i2,
-                    const ARRAY_REAL_VIEW &rhsTermx,
-                    const ARRAY_REAL_VIEW &rhsTermy,
-                    const ARRAY_REAL_VIEW &rhsTermz,
+                    const ARRAY_REAL_VIEW &rhsTerm,
                     const VECTOR_INT_VIEW &rhsElement,
                     const ARRAY_REAL_VIEW &rhsWeights);
 
@@ -192,48 +155,22 @@ class SEMsolverElastic : public SEMSolverBase
    * @brief Assemble local element contributions to global FE vectors.
    *
    * @param i2 Current displacement field index.
-   * @param pnGlobal Global displacement field.
-   * @param isModelOnNodes True if the velocity model is defined on nodes,
-   *                       false if on elements.
+   * @param pnGlobal Global pressure field.
    */
-  void computeElementContributions(int i2, const ARRAY_REAL_VIEW &uxnGlobal,
-                                   const ARRAY_REAL_VIEW &uynGlobal,
-                                   const ARRAY_REAL_VIEW &uznGlobal);
+  void computeElementContributions(int i2, const ARRAY_REAL_VIEW &pnGlobal);
 
   /**
-   * @brief Update the global displacement field at interior nodes.
+   * @brief Update the global pressure field at interior nodes.
    *
-   * Applies the time integration scheme for elastic wave propagation.
+   * Applies the time integration scheme for acoustic wave propagation.
    *
    * @param dt Delta time for this iteration.
    * @param i1 Previous time step index.
    * @param i2 Current time step index.
-   * @param uxnGlobal X-displacement field array (updated in-place).
-   * @param uynGlobal Y-displacement field array (updated in-place).
-   * @param uznGlobal Z-displacement field array (updated in-place).
+   * @param pnGlobal Pressure field array (updated in-place).
    */
-  void updateDisplacementField(float dt, int i1, int i2,
-                               const ARRAY_REAL_VIEW &uxnGlobal,
-                               const ARRAY_REAL_VIEW &uynGlobal,
-                               const ARRAY_REAL_VIEW &uznGlobal);
-
-  /**
-   * @brief Compute the elasticity matrix at a given node.
-   * @param vp P-wave velocity.
-   * @param vs S-wave velocity.
-   * @param rho Density.
-   * @param delta Thomsen parameter delta.
-   * @param epsilon Thomsen parameter epsilon.
-   * @param gamma Thomsen parameter gamma.
-   * @param phi Azimuthal angle (radians).
-   * @param theta Dip angle (radians).
-   * @param C Output 6x6 elasticity matrix.
-   */
-  PROXY_HOST_DEVICE
-  void computeCMatrix(float const vp, float const vs, float const rho,
-                      float const delta, float const epsilon, float const gamma,
-                      float const phi, float const theta,
-                      float (&C)[6][6]) const;
+  void updatePressureField(float dt, int i1, int i2,
+                           const ARRAY_REAL_VIEW &pnGlobal);
 
  private:
   MESH_TYPE m_mesh;  ///< Computational mesh
@@ -247,13 +184,10 @@ class SEMsolverElastic : public SEMSolverBase
 
   /// Basis functions and integral objects
   INTEGRAL_TYPE myQkIntegrals;
-  typename INTEGRAL_TYPE::PrecomputedData m_precomputedIntegralData;
 
   VECTOR_REAL_VIEW spongeTaperCoeff;  ///< Sponge tapering coefficients
   VECTOR_REAL_VIEW massMatrixGlobal;  ///< Global mass matrix
-  VECTOR_REAL_VIEW uxGlobal;          ///< Global X-component work vector
-  VECTOR_REAL_VIEW uyGlobal;          ///< Global Y-component work vector
-  VECTOR_REAL_VIEW uzGlobal;          ///< Global Z-component work vector
+  VECTOR_REAL_VIEW yGlobal;           ///< Global pressure work vector
 };
 
-#endif  // SEM_SOLVER_ELASTIC_HPP_
+#endif  // SEM_SOLVER_ACOUSTIC_HPP_

@@ -1,13 +1,3 @@
-//************************************************************************
-//   proxy application v.0.0.1
-//
-//  SEMsolver.hpp: simple 2D acoustic wave equation solver
-//
-//  The SEMsolver class serves as a base class for the Spectral Element Method
-//  solver. It provides core functionality to initialize FE operators,
-//  advance pressure fields, apply forcing terms, and handle absorbing
-//  boundaries.
-//************************************************************************
 
 #ifndef SEM_SOLVERBASE_HPP_
 #define SEM_SOLVERBASE_HPP_
@@ -59,10 +49,27 @@ class SEMSolverBase : public SolverBase
   /**
    * @brief Compute the global mass matrix.
    *  once at the beginning of the simulation.
-   * @param isModelOnNodes True if the velocity model is defined on nodes, false
-   *                       if on elements
    */
   virtual void computeGlobalMassMatrix() = 0;
+
+  /**
+   * @brief Outputs solution field values at a specific time step
+   *
+   * This pure virtual function is responsible for writing or displaying
+   * solution values for a given field at a particular time step. It must be
+   * implemented by derived classes to define the specific output behavior.
+   *
+   * @param[in] indexTimeStep The index of the current time step for which
+   *                          solution values are being output
+   * @param[in,out] i1 Index variable (corresponding to the time n of the
+   * solution)
+   * @param[in,out] myElementSource Index or identifier of the source element
+   *                                being processed
+   * @param[in] field Constant view of the array containing the field values
+   *                  to be output
+   * @param[in] fieldName Name/identifier of the field being output (as a
+   *                      C-string)
+   */
 
   virtual void outputSolutionValues(const int &indexTimeStep, int &i1,
                                     int &myElementSource,

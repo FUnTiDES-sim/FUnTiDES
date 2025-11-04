@@ -1,12 +1,3 @@
-//************************************************************************
-//   proxy application v.0.0.1
-//
-//  SEMsolverAcoustic.cpp: simple 2D acoustive wave equation solver
-//
-//  the SEMsolverAcoustic class servers as a base class for the SEM solver
-//
-//************************************************************************
-
 #include <data_type.h>
 
 #include <array>
@@ -60,7 +51,7 @@ void SEMsolverAcoustic<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES>::
 
   resetGlobalVectors(m_mesh.getNumberOfNodes());
   FENCE
-  applyRHSTerm(timeSample, dt, i2, rhsTerm, rhsElement, pnGlobal, rhsWeights);
+  applyRHSTerm(timeSample, dt, i2, rhsTerm, rhsElement, rhsWeights);
   FENCE
   computeElementContributions(i2, pnGlobal);
   FENCE
@@ -83,7 +74,6 @@ void SEMsolverAcoustic<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES>::
     applyRHSTerm(int timeSample, float dt, int i2,
                  const ARRAY_REAL_VIEW &rhsTerm,
                  const VECTOR_INT_VIEW &rhsElement,
-                 const ARRAY_REAL_VIEW &pnGlobal,
                  const ARRAY_REAL_VIEW &rhsWeights)
 {
   float const dt2 = dt * dt;
@@ -215,7 +205,6 @@ template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE,
 void SEMsolverAcoustic<ORDER, INTEGRAL_TYPE, MESH_TYPE,
                        IS_MODEL_ON_NODES>::initFEarrays()
 {
-  INTEGRAL_TYPE::init(m_precomputedIntegralData);
   initSpongeValues();
 }
 

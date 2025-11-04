@@ -380,7 +380,6 @@ template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE,
 void SEMsolverElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE,
                       IS_MODEL_ON_NODES>::initFEarrays()
 {
-  INTEGRAL_TYPE::init(m_precomputedIntegralData);
   initSpongeValues();
 }
 
