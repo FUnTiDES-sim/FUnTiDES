@@ -54,10 +54,6 @@ class TestSolverStruct:
         f0 = 5.0
         model = builder.get_model()
 
-        # TODO remove when we reactivate SHIVA
-        if implem == Solver.ImplemType.SHIVA:
-            return
-
         # Convert is_model_on_nodes (bool) to modelLocationType
         model_location = (
             Solver.ModelLocationType.ONNODES

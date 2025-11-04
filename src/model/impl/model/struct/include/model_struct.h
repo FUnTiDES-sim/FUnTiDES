@@ -9,7 +9,7 @@ namespace model
 {
 
 template <typename FloatType, typename ScalarType>
-struct ModelStructData : public ModelDataBase<FloatType, ScalarType>
+struct ModelStructData final : public ModelDataBase<FloatType, ScalarType>
 {
  public:
   // GPU-compatible special member functions
@@ -31,6 +31,9 @@ template <typename FloatType, typename ScalarType, int Order>
 class ModelStruct : public ModelApi<FloatType, ScalarType>
 {
  public:
+  /// Define IndexType as an array of 3 integers for 3D indexing
+  using IndexType = std::array<int, 3>;
+
   /**
    * @brief Default constructor.
    */
@@ -75,13 +78,57 @@ class ModelStruct : public ModelApi<FloatType, ScalarType>
   PROXY_HOST_DEVICE ~ModelStruct() = default;
 
   /**
+   * @brief Get the element index as a 3D array from a linear index.
+   * @param linearIndex The linear index of the element
+   * @return The 3D array index of the element
+   */
+  PROXY_HOST_DEVICE
+  IndexType elementIndex(const int linearIndex) const
+  {
+    IndexType elemIndex;
+    elemIndex[2] = linearIndex / (ex_ * ey_);
+    int const rem = linearIndex - elemIndex[2] * (ex_ * ey_);
+    elemIndex[1] = rem / ex_;
+    elemIndex[0] = rem - elemIndex[1] * ex_;
+    return elemIndex;
+  }
+
+  /**
+   * @brief Get the global vertex index the element index and local indices.
+   * @param e Element index
+   * @param i Local i-index of vertex in the element
+   * @param j Local j-index of vertex in the element
+   * @param k Local k-index of vertex in the element
+   * @return Global vertex index
+   */
+  PROXY_HOST_DEVICE
+  IndexType globalVertexIndex(IndexType e, int const i, int const j,
+                              int const k) const
+  {
+    return {e[0] + i, e[1] + j, e[2] + k};
+  }
+
+  /**
+   * @brief Get the vertex coordinates of a global node.
+   * @param dofGlobal Global node index
+   * @param[out] coords Output array (size 3) holding the coordinates
+   */
+  PROXY_HOST_DEVICE
+  void vertexCoords(IndexType dofGlobal, FloatType* const coords) const
+  {
+    coords[0] = dofGlobal[0] * ex_;
+    coords[1] = dofGlobal[1] * ey_;
+    coords[2] = dofGlobal[2] * ez_;
+  }
+
+  /**
    * @brief Get the coordinate of a global node in the given dimension.
    * @param dofGlobal Global node index
    * @param dim Dimension index (0 = x, 1 = y, 2 = z)
    * @return Coordinate value in the specified dimension
    */
   PROXY_HOST_DEVICE
-  FloatType nodeCoord(ScalarType dofGlobal, int dim) const
+  FloatType nodeCoord(ScalarType dofGlobal, int dim) const final
   {
     // Calculate total number of nodes per dimension
     int nodesPerDim[3];
@@ -136,7 +183,7 @@ class ModelStruct : public ModelApi<FloatType, ScalarType>
    * @return Global node index
    */
   PROXY_HOST_DEVICE
-  ScalarType globalNodeIndex(ScalarType e, int i, int j, int k) const
+  ScalarType globalNodeIndex(ScalarType e, int i, int j, int k) const final
   {
     ScalarType elemZ = e / (ex_ * ey_);
     ScalarType tmp = e % (ex_ * ey_);

@@ -55,10 +55,6 @@ class TestSolverUnstruct:
 
         model = builder.get_model()
 
-        # TODO remove when we reactivate SHIVA
-        if implem == Solver.ImplemType.SHIVA:
-            return
-
         solver = Solver.create_solver(
             Solver.MethodType.SEM, implem, Solver.MeshType.UNSTRUCT, sd.order
         )
@@ -79,10 +75,6 @@ class TestSolverUnstruct:
         f0 = 5.0
 
         model = builder.get_model()
-
-        # TODO remove when we reactivate SHIVA
-        if implem == Solver.ImplemType.SHIVA:
-            return
 
         solver = Solver.create_solver(
             Solver.MethodType.SEM, implem, Solver.MeshType.UNSTRUCT, sd.order

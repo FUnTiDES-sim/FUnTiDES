@@ -56,10 +56,6 @@ class TestSolverUnstruct:
         f0 = 5.0
         model = builder.get_model()
 
-        # TODO remove when we reactivate SHIVA
-        if implem == Solver.ImplemType.SHIVA:
-            return
-
         # Convertir le booléen en ModelLocationType
         model_location = (
             Solver.ModelLocationType.ONNODES
