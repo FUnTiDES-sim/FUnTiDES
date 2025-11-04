@@ -31,7 +31,7 @@
   }
 #endif
 
-/*#define CREATEVIEWINNER              \
+#define CREATEVIEWINNER              \
   vectorReal coefx = myModels.coefx; \
   vectorReal coefy = myModels.coefy; \
   vectorReal coefz = myModels.coefz; \
@@ -47,7 +47,7 @@
   vectorReal vp = myModels.vp;
 #define CREATEVIEWSPONGE vectorReal spongeArray = myModels.spongeArray;
 #define PN_Global pnGlobal
-*/
+
 #if defined(USE_KOKKOS)
 #define FDFENCE Kokkos::fence();
 #else

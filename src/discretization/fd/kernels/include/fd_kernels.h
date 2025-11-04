@@ -90,24 +90,29 @@ struct FdtdKernels
             const int z4, const double coef0, const float &hdx_2,
             const float &hdy_2, const float &hdz_2, vectorReal const &coefx,
             vectorReal const &coefy, vectorReal const &coefz,
+<<<<<<< HEAD
             vectorReal const &vp, vectorReal const &eta, vectorReal &phi,
             arrayReal &pnGlobal) const
+=======
+            vectorReal const &vp, vectorReal const &eta, vectorReal const &phi,
+            arrayReal const &pnGlobal) const
+>>>>>>> parent of 7dfcf26 (disable spongeBoundary)
   {
     LOOP3DHEAD(x3, y3, z3, x4, y4, z4)
     float lapx = 0;
-    for (int l = 1; l < lx; l++)
+    for (int l = 1; l < coefx.size(); l++)
     {
       lapx += coefx[l] * (pnGlobal(IDX3_l(i + l, j, k), cb) +
                           pnGlobal(IDX3_l(i - l, j, k), cb));
     }
     float lapy = 0;
-    for (int l = 1; l < ly; l++)
+    for (int l = 1; l < coefy.size(); l++)
     {
       lapy += coefy[l] * (pnGlobal(IDX3_l(i, j + l, k), cb) +
                           pnGlobal(IDX3_l(i, j - l, k), cb));
     }
     float lapz = 0;
-    for (int l = 1; l < lz; l++)
+    for (int l = 1; l < coefz.size(); l++)
     {
       lapz += coefz[l] * (pnGlobal(IDX3_l(i, j, k + l), cb) +
                           pnGlobal(IDX3_l(i, j, k - l), cb));
@@ -149,11 +154,18 @@ struct FdtdKernels
                   const int z4, vectorReal const &spongeArray,
                   arrayReal const &pnGlobal) const
   {
+    // CREATEVIEWSPONGE
     LOOP3DHEAD(x3, y3, z3, x4, y4, z4)
     pnGlobal(IDX3_l(i, j, k), ca) =
+<<<<<<< HEAD
         pnGlobal(IDX3_l(i, j, k), ca);  // * spongeArray(IDX3(i, j, k));
     pnGlobal(IDX3_l(i, j, k), cb) =
         pnGlobal(IDX3_l(i, j, k), cb);  // * spongeArray(IDX3(i, j, k));
+=======
+        pnGlobal(IDX3_l(i, j, k), ca) * spongeArray(IDX3(i, j, k));
+    pnGlobal(IDX3_l(i, j, k), cb) =
+        pnGlobal(IDX3_l(i, j, k), cb) * spongeArray(IDX3(i, j, k));
+>>>>>>> parent of 7dfcf26 (disable spongeBoundary)
     LOOP3DEND
     return 0;
   }
