@@ -2,7 +2,7 @@
 # Google test related functions
 #-------------------------------------------------------------------
 
-function(funtides_add_gtest TEST_NAME TEST_FILE EXTRA_LINKS)
+function(add_gtest TEST_NAME TEST_FILE EXTRA_LINKS)
     add_executable(${TEST_NAME}
         ${TEST_FILE}
         ${TEST_MAIN}
