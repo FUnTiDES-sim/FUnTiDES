@@ -6,6 +6,11 @@ cmake_minimum_required( VERSION 3.22.1 )
 set(CMAKE_VERBOSE_MAKEFILE OFF)
 
 #--------------------------------------------------------
+# Check cmake option conflicts
+#--------------------------------------------------------
+include(cmake/CheckOptions.cmake)
+
+#--------------------------------------------------------
 # Configure compiler/project
 #--------------------------------------------------------
 project(proxyapp LANGUAGES CXX)

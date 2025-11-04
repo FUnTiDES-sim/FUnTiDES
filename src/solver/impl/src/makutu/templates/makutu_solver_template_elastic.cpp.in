@@ -1,0 +1,12 @@
+// Auto-generated file - DO NOT EDIT
+// Generated for: SEMQ@ORDER@ @MESH_TYPE@ makutu solver model@MODEL_TYPE@
+
+#include <@MODEL_HEADER@>
+
+#include "sem_solver_elastic_impl.h"
+
+constexpr int ORDER = @ORDER@;
+
+template class SEMsolverElastic<ORDER, 
+                         IntegralTypeSelector<ORDER, IntegralType::MAKUTU>::type,
+                         model::@MODEL_CLASS@<@MODEL_TEMPLATE_PARAMS@>, @MODEL_ON_NODES@>;
