@@ -8,7 +8,7 @@
 #include "cartesian_unstruct_builder.h"
 #include "data_type.h"
 #include "model.h"
-#include "sem_solver.h"
+#include "sem_solver_elastic.h"
 #include "solver_factory.h"
 #include "utils.h"
 
@@ -66,7 +66,7 @@ class SolverUnstructFixture : public benchmark::Fixture
   std::shared_ptr<model::ModelApi<float, int>> createModel()
   {
     typename T::BuilderParams params(order, ex, ey, ez, lx, ly, lz,
-                                     isModelOnNodes_);
+                                     isModelOnNodes_, true);
     typename T::Builder builder(params);
     return builder.getModel();
   }
@@ -75,27 +75,36 @@ class SolverUnstructFixture : public benchmark::Fixture
   {
     state.SetLabel("Order=" + std::to_string(order) +
                    " OnNodes=" + std::to_string(isModelOnNodes_) +
-                   " Implem=" + std::to_string(implem_));
+                   " Implem=" + std::to_string(implem_) +
+                   " IsElastic=" + std::to_string(true));
   }
 };
 
 // Unstructure to hold allocated arrays for benchmarks
 struct BenchmarkArrays
 {
-  arrayReal rhsTerm;
+  arrayReal rhsTermx;
+  arrayReal rhsTermy;
+  arrayReal rhsTermz;
   vectorInt rhsElement;
   arrayReal rhsWeights;
-  arrayReal pnGlobal;
+  arrayReal uxnGlobal;
+  arrayReal uynGlobal;
+  arrayReal uznGlobal;
   arrayReal rhsLocation;
 
   BenchmarkArrays(int n_rhs, int n_time_steps, int n_dof,
                   int nb_points_per_element)
   {
-    rhsTerm = allocateArray2D<arrayReal>(n_rhs, n_time_steps, "rhsTerm");
+    rhsTermx = allocateArray2D<arrayReal>(n_rhs, n_time_steps, "rhsTermx");
+    rhsTermy = allocateArray2D<arrayReal>(n_rhs, n_time_steps, "rhsTermy");
+    rhsTermz = allocateArray2D<arrayReal>(n_rhs, n_time_steps, "rhsTermz");
     rhsElement = allocateVector<vectorInt>(n_rhs, "rhsElement");
     rhsWeights =
         allocateArray2D<arrayReal>(n_rhs, nb_points_per_element, "rhsWeights");
-    pnGlobal = allocateArray2D<arrayReal>(n_dof, 2, "pnGlobal");
+    uxnGlobal = allocateArray2D<arrayReal>(n_dof, 2, "uxnGlobal");
+    uynGlobal = allocateArray2D<arrayReal>(n_dof, 2, "uynGlobal");
+    uznGlobal = allocateArray2D<arrayReal>(n_dof, 2, "uznGlobal");
     rhsLocation = allocateArray2D<arrayReal>(1, 3, "rhsLocation");
 
     FENCE
@@ -113,7 +122,7 @@ BENCHMARK_TEMPLATE_METHOD_F(SolverUnstructFixture, FEInit)
       SolverFactory::meshType::Unstruct,
       this->isModelOnNodes_ ? SolverFactory::modelLocationType::OnNodes
                             : SolverFactory::modelLocationType::OnElements,
-      this->order);
+      SolverFactory::physicType::Elastic, this->order);
 
   // Bench
   for (auto _ : state)
@@ -137,7 +146,7 @@ BENCHMARK_TEMPLATE_METHOD_F(SolverUnstructFixture, OneStep)
       SolverFactory::meshType::Unstruct,
       this->isModelOnNodes_ ? SolverFactory::modelLocationType::OnNodes
                             : SolverFactory::modelLocationType::OnElements,
-      this->order);
+      SolverFactory::physicType::Elastic, this->order);
 
   solver->computeFEInit(*model, this->sponge_size, this->surface_sponge,
                         this->taper_delta);
@@ -156,11 +165,14 @@ BENCHMARK_TEMPLATE_METHOD_F(SolverUnstructFixture, OneStep)
       myUtils.computeSourceTerm(this->n_time_steps, this->dt, this->f0, 2);
   for (int j = 0; j < this->n_time_steps; j++)
   {
-    arrays.rhsTerm(0, j) = sourceTerm[j];
+    arrays.rhsTermx(0, j) = sourceTerm[j];
+    arrays.rhsTermy(0, j) = sourceTerm[j];
+    arrays.rhsTermz(0, j) = sourceTerm[j];
   }
 
-  SEMsolverData data(0, 1, arrays.rhsTerm, arrays.pnGlobal, arrays.rhsElement,
-                     arrays.rhsWeights);
+  SEMsolverDataElastic data(
+      0, 1, arrays.rhsTermx, arrays.rhsTermy, arrays.rhsTermz, arrays.uxnGlobal,
+      arrays.uynGlobal, arrays.uznGlobal, arrays.rhsElement, arrays.rhsWeights);
 
   // Bench
   for (auto _ : state)

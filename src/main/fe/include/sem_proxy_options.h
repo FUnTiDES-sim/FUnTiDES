@@ -28,6 +28,7 @@ class SemProxyOptions
   float taper_delta = 0.015;
   // Boolean to tell if the model is charged on nodes or on element
   bool isModelOnNodes = false;
+  bool isElastic = false;
 
   void validate() const
   {
@@ -76,6 +77,7 @@ class SemProxyOptions
         "is-model-on-nodes",
         "Boolean to tell if the model is charged on nodes (true) or on element "
         "(false)",
-        cxxopts::value<bool>(o.isModelOnNodes));
+        cxxopts::value<bool>(o.isModelOnNodes))(
+        "is-elastic", "Elastic simulation", cxxopts::value<bool>(o.isElastic));
   }
 };
