@@ -18,6 +18,7 @@ class SEMSolverBase : public SolverBase
    *                    in each direction [x, y, z] to prevent reflections.
    * @param surface_sponge Enable sponge at free surface (typically false
    *                       for geophysics to preserve natural reflections).
+   * @param taper_delta_ Attenuation parameter for sponge layers.
    */
   virtual void computeFEInit(model::ModelApi<float, int> &mesh,
                              const std::array<float, 3> &sponge_size,

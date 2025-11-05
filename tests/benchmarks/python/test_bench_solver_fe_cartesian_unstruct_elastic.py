@@ -3,17 +3,7 @@ import pyfuntides.solver as Solver
 import pytest
 import solver_utils as Utils
 import benchmark_groups as Groups
-
-
-class UnstructData:
-    def __init__(self, order):
-        self.ex = self.ey = self.ez = 100
-        self.lx = self.ly = self.lz = 2000
-        self.order = order
-        self.nx = self.ex * self.order + 1
-        self.ny = self.ey * self.order + 1
-        self.nz = self.ez * self.order + 1
-        self.n_dof = self.nx * self.ny * self.nz
+from data_structures import UnstructData
 
 
 @pytest.fixture
@@ -103,7 +93,6 @@ class TestSolverUnstruct:
         )
 
         physic_type = Solver.PhysicType.ELASTIC
-        
 
         solver = Solver.create_solver(
             Solver.MethodType.SEM,
@@ -142,7 +131,6 @@ class TestSolverUnstruct:
         )
 
         physic_type = Solver.PhysicType.ELASTIC
-        
 
         solver = Solver.create_solver(
             Solver.MethodType.SEM,

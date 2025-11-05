@@ -3,17 +3,7 @@ import pyfuntides.solver as Solver
 import pytest
 import solver_utils as Utils
 import benchmark_groups as Groups
-
-
-class UnstructData:
-    def __init__(self, order):
-        self.ex = self.ey = self.ez = 100
-        self.lx = self.ly = self.lz = 2000
-        self.order = order
-        self.nx = self.ex * self.order + 1
-        self.ny = self.ey * self.order + 1
-        self.nz = self.ez * self.order + 1
-        self.n_dof = self.nx * self.ny * self.nz
+from data_structures import UnstructData
 
 
 @pytest.fixture
@@ -102,7 +92,7 @@ class TestSolverUnstructAcoustic:
             else Solver.ModelLocationType.ONELEMENTS
         )
 
-        physic_type = Solver.PhysicType.ACOUSTIC 
+        physic_type = Solver.PhysicType.ACOUSTIC
 
         solver = Solver.create_solver(
             Solver.MethodType.SEM,
@@ -140,7 +130,7 @@ class TestSolverUnstructAcoustic:
             else Solver.ModelLocationType.ONELEMENTS
         )
 
-        physic_type = Solver.PhysicType.ACOUSTIC 
+        physic_type = Solver.PhysicType.ACOUSTIC
 
         solver = Solver.create_solver(
             Solver.MethodType.SEM,
@@ -160,6 +150,6 @@ class TestSolverUnstructAcoustic:
 
         data = Solver.SEMsolverDataAcoustic(
             0, 1, kk_RHSTerm, kk_pnGlobal, kk_RHSElement, kk_RHSWeights
-            )
+        )
 
         benchmark(solver.compute_one_step, dt, time_sample, data)
