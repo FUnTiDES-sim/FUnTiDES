@@ -15,11 +15,9 @@
  */
 struct SEMsolverDataElastic : public SolverBase::DataStruct
 {
-  SEMsolverDataElastic(int i1, int i2, ARRAY_REAL_VIEW rhsTermx,
-                       ARRAY_REAL_VIEW rhsTermy, ARRAY_REAL_VIEW rhsTermz,
-                       ARRAY_REAL_VIEW uxnGlobal, ARRAY_REAL_VIEW uynGlobal,
-                       ARRAY_REAL_VIEW uznGlobal, VECTOR_INT_VIEW rhsElement,
-                       ARRAY_REAL_VIEW rhsWeights)
+  SEMsolverDataElastic(int i1, int i2, ARRAY_REAL_VIEW rhsTermx, ARRAY_REAL_VIEW rhsTermy, ARRAY_REAL_VIEW rhsTermz,
+                       ARRAY_REAL_VIEW uxnGlobal, ARRAY_REAL_VIEW uynGlobal, ARRAY_REAL_VIEW uznGlobal,
+                       VECTOR_INT_VIEW rhsElement, ARRAY_REAL_VIEW rhsWeights)
       : m_i1(i1),
         m_i2(i2),
         m_rhsTermx(rhsTermx),
@@ -35,8 +33,7 @@ struct SEMsolverDataElastic : public SolverBase::DataStruct
 
   void print() const override
   {
-    std::cout << "SEMsolverDataElastic: i1=" << m_i1 << ", i2=" << m_i2
-              << std::endl;
+    std::cout << "SEMsolverDataElastic: i1=" << m_i1 << ", i2=" << m_i2 << std::endl;
     std::cout << "RHSx Term size: " << m_rhsTermx.extent(0) << std::endl;
     std::cout << "RHSy Term size: " << m_rhsTermy.extent(0) << std::endl;
     std::cout << "RHSz Term size: " << m_rhsTermz.extent(0) << std::endl;
@@ -69,8 +66,7 @@ struct SEMsolverDataElastic : public SolverBase::DataStruct
  * @tparam IS_MODEL_ON_NODES Boolean to say if the model is located on nodes
  * (true) or on elements (false)
  */
-template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE,
-          bool IS_MODEL_ON_NODES>
+template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE, bool IS_MODEL_ON_NODES>
 class SEMsolverElastic : public SEMSolverBase
 {
  public:
@@ -95,10 +91,8 @@ class SEMsolverElastic : public SEMSolverBase
    *                       for geophysics to preserve natural reflections).
    * @param taper_delta_ Attenuation parameter for sponge layers.
    */
-  void computeFEInit(model::ModelApi<float, int> &mesh,
-                     const std::array<float, 3> &sponge_size,
-                     const bool surface_sponge,
-                     const float taper_delta_) override;
+  void computeFEInit(model::ModelApi<float, int> &mesh, const std::array<float, 3> &sponge_size,
+                     const bool surface_sponge, const float taper_delta_) override;
 
   /**
    * @brief Compute one time step of the elastic wave equation solver.
@@ -109,8 +103,7 @@ class SEMsolverElastic : public SEMSolverBase
    * @param timeSample Current time index into the RHS (source) term.
    * @param data DataStruct containing all necessary arrays.
    */
-  void computeOneStep(const float &dt, const int &timeSample,
-                      DataStruct &data) override;
+  void computeOneStep(const float &dt, const int &timeSample, DataStruct &data) override;
 
   /**
    * @brief Initialize arrays required by the finite element solver.
@@ -151,9 +144,7 @@ class SEMsolverElastic : public SEMSolverBase
    * @param fieldName The name of the field to output (here it can be uxnGlobal,
    * uynGloba, uznGlobal)
    */
-  void outputSolutionValues(const int &indexTimeStep, int &i1,
-                            int &myElementSource,
-                            const ARRAY_REAL_VIEW &uxnGlobal,
+  void outputSolutionValues(const int &indexTimeStep, int &i1, int &myElementSource, const ARRAY_REAL_VIEW &uxnGlobal,
                             const char *fieldName) override;
 
   /**
@@ -168,11 +159,8 @@ class SEMsolverElastic : public SEMSolverBase
    * @param rhsElement Indices of source elements.
    * @param rhsWeights Forcing weights per node.
    */
-  void applyRHSTerm(int timeSample, float dt, int i2,
-                    const ARRAY_REAL_VIEW &rhsTermx,
-                    const ARRAY_REAL_VIEW &rhsTermy,
-                    const ARRAY_REAL_VIEW &rhsTermz,
-                    const VECTOR_INT_VIEW &rhsElement,
+  void applyRHSTerm(int timeSample, float dt, int i2, const ARRAY_REAL_VIEW &rhsTermx, const ARRAY_REAL_VIEW &rhsTermy,
+                    const ARRAY_REAL_VIEW &rhsTermz, const VECTOR_INT_VIEW &rhsElement,
                     const ARRAY_REAL_VIEW &rhsWeights);
 
   /**
@@ -183,8 +171,7 @@ class SEMsolverElastic : public SEMSolverBase
    * @param uynGlobal Global displacement in y direction  field.
    * @param uznGlobal Global displacement in z direction  field.
    */
-  void computeElementContributions(int i2, const ARRAY_REAL_VIEW &uxnGlobal,
-                                   const ARRAY_REAL_VIEW &uynGlobal,
+  void computeElementContributions(int i2, const ARRAY_REAL_VIEW &uxnGlobal, const ARRAY_REAL_VIEW &uynGlobal,
                                    const ARRAY_REAL_VIEW &uznGlobal);
 
   /**
@@ -199,10 +186,8 @@ class SEMsolverElastic : public SEMSolverBase
    * @param uynGlobal Y-displacement field array (updated in-place).
    * @param uznGlobal Z-displacement field array (updated in-place).
    */
-  void updateDisplacementField(float dt, int i1, int i2,
-                               const ARRAY_REAL_VIEW &uxnGlobal,
-                               const ARRAY_REAL_VIEW &uynGlobal,
-                               const ARRAY_REAL_VIEW &uznGlobal);
+  void updateDisplacementField(float dt, int i1, int i2, const ARRAY_REAL_VIEW &uxnGlobal,
+                               const ARRAY_REAL_VIEW &uynGlobal, const ARRAY_REAL_VIEW &uznGlobal);
 
   /**
    * @brief Compute the elasticity matrix at a given node.
@@ -217,10 +202,8 @@ class SEMsolverElastic : public SEMSolverBase
    * @param C Output 6x6 elasticity matrix.
    */
   PROXY_HOST_DEVICE
-  void computeCMatrix(float const vp, float const vs, float const rho,
-                      float const delta, float const epsilon, float const gamma,
-                      float const phi, float const theta,
-                      float (&C)[6][6]) const;
+  void computeCMatrix(float const vp, float const vs, float const rho, float const delta, float const epsilon,
+                      float const gamma, float const phi, float const theta, float (&C)[6][6]) const;
 
  private:
   MESH_TYPE m_mesh;  ///< Computational mesh
@@ -237,9 +220,9 @@ class SEMsolverElastic : public SEMSolverBase
 
   VECTOR_REAL_VIEW spongeTaperCoeff;  ///< Sponge tapering coefficients
   VECTOR_REAL_VIEW massMatrixGlobal;  ///< Global mass matrix
-  VECTOR_REAL_VIEW uxGlobal;  ///< Global displacment X-component work vector
-  VECTOR_REAL_VIEW uyGlobal;  ///< Global displacment Y-component work vector
-  VECTOR_REAL_VIEW uzGlobal;  ///< Global displacment Z-component work vector
+  VECTOR_REAL_VIEW uxGlobal;          ///< Global displacment X-component work vector
+  VECTOR_REAL_VIEW uyGlobal;          ///< Global displacment Y-component work vector
+  VECTOR_REAL_VIEW uzGlobal;          ///< Global displacment Z-component work vector
 };
 
 #endif  // SEM_SOLVER_ELASTIC_HPP_

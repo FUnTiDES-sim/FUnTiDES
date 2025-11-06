@@ -33,15 +33,13 @@ class CartesianUnstructBuilder : public ModelBuilderBase<FloatType, ScalarType>
     initModels();
   }
 
-  std::shared_ptr<model::ModelApi<FloatType, ScalarType>> getModel()
-      const override
+  std::shared_ptr<model::ModelApi<FloatType, ScalarType>> getModel() const override
   {
     model::ModelUnstructData<FloatType, ScalarType> modelData;
 
     modelData.order_ = order_;
     modelData.n_element_ = ex_ * ey_ * ez_;
-    modelData.n_node_ =
-        (ex_ * order_ + 1) * (ey_ * order_ + 1) * (ez_ * order_ + 1);
+    modelData.n_node_ = (ex_ * order_ + 1) * (ey_ * order_ + 1) * (ez_ * order_ + 1);
     modelData.lx_ = lx_;
     modelData.ly_ = ly_;
     modelData.lz_ = lz_;
@@ -71,8 +69,7 @@ class CartesianUnstructBuilder : public ModelBuilderBase<FloatType, ScalarType>
     modelData.model_theta_element_ = model_theta_element_;
     modelData.model_phi_element_ = model_phi_element_;
 
-    return std::make_shared<model::ModelUnstruct<FloatType, ScalarType>>(
-        modelData);
+    return std::make_shared<model::ModelUnstruct<FloatType, ScalarType>>(modelData);
   }
 
   ~CartesianUnstructBuilder() = default;
@@ -114,8 +111,7 @@ class CartesianUnstructBuilder : public ModelBuilderBase<FloatType, ScalarType>
     int nodes_y = order_ + 1;
     int nodes_z = order_ + 1;
     int total_nodes = nodes_x * nodes_y * nodes_z;
-    global_node_index_ = allocateArray2D<ARRAY_INT_VIEW>(
-        ex_ * ey_ * ez_, total_nodes, "global node index");
+    global_node_index_ = allocateArray2D<ARRAY_INT_VIEW>(ex_ * ey_ * ez_, total_nodes, "global node index");
     int nx = ex_ * order_ + 1;  // Total nodes in x direction
     int ny = ey_ * order_ + 1;  // Total nodes in y direction
     int nz = ez_ * order_ + 1;  // Total nodes in z direction
@@ -136,8 +132,7 @@ class CartesianUnstructBuilder : public ModelBuilderBase<FloatType, ScalarType>
             {  // y-direction
               for (int l = 0; l < order_ + 1; l++)
               {  // x-direction
-                int dofLocal =
-                    l + n * (order_ + 1) + m * (order_ + 1) * (order_ + 1);
+                int dofLocal = l + n * (order_ + 1) + m * (order_ + 1) * (order_ + 1);
                 int dofGlobal = offset + l + n * nx + m * nx * ny;
                 global_node_index_(elementNum, dofLocal) = dofGlobal;
               }
@@ -216,12 +211,9 @@ class CartesianUnstructBuilder : public ModelBuilderBase<FloatType, ScalarType>
     int total_nodes = nodes_x * nodes_y * nodes_z;
 
     // Init the structure within mesh
-    nodes_coords_x_ =
-        allocateVector<VECTOR_REAL_VIEW>(total_nodes, "nodes coords x");
-    nodes_coords_y_ =
-        allocateVector<VECTOR_REAL_VIEW>(total_nodes, "nodes coords y");
-    nodes_coords_z_ =
-        allocateVector<VECTOR_REAL_VIEW>(total_nodes, "nodes coords z");
+    nodes_coords_x_ = allocateVector<VECTOR_REAL_VIEW>(total_nodes, "nodes coords x");
+    nodes_coords_y_ = allocateVector<VECTOR_REAL_VIEW>(total_nodes, "nodes coords y");
+    nodes_coords_z_ = allocateVector<VECTOR_REAL_VIEW>(total_nodes, "nodes coords z");
 
     float coord_x[MAX_ORDER + 1];
     float coord_y[MAX_ORDER + 1];
@@ -251,11 +243,9 @@ class CartesianUnstructBuilder : public ModelBuilderBase<FloatType, ScalarType>
                 int global_j = m * order_ + j;
                 int global_k = n * order_ + k;
 
-                int global_node_index = global_i + global_j * nodes_x +
-                                        global_k * nodes_x * nodes_y;
+                int global_node_index = global_i + global_j * nodes_x + global_k * nodes_x * nodes_y;
 
-                if (global_i < nodes_x && global_j < nodes_y &&
-                    global_k < nodes_z)
+                if (global_i < nodes_x && global_j < nodes_y && global_k < nodes_z)
                 {
                   nodes_coords_x_(global_node_index) = coord_x[i];
                   nodes_coords_y_(global_node_index) = coord_y[j];
@@ -277,10 +267,8 @@ class CartesianUnstructBuilder : public ModelBuilderBase<FloatType, ScalarType>
     int n_node = (ex_ * order_ + 1) * (ey_ * order_ + 1) * (ez_ * order_ + 1);
     if (isModelOnNodes_)
     {
-      model_rho_node_ =
-          allocateVector<VECTOR_REAL_VIEW>(n_node, "model rho node");
-      model_vp_node_ =
-          allocateVector<VECTOR_REAL_VIEW>(n_node, "model vp node");
+      model_rho_node_ = allocateVector<VECTOR_REAL_VIEW>(n_node, "model rho node");
+      model_vp_node_ = allocateVector<VECTOR_REAL_VIEW>(n_node, "model vp node");
 
       for (int i = 0; i < n_node; i++)
       {
@@ -289,18 +277,12 @@ class CartesianUnstructBuilder : public ModelBuilderBase<FloatType, ScalarType>
       }
       if (isElastic_)
       {
-        model_vs_node_ =
-            allocateVector<VECTOR_REAL_VIEW>(n_node, "model vs node");
-        model_delta_node_ =
-            allocateVector<VECTOR_REAL_VIEW>(n_node, "model delta node");
-        model_gamma_node_ =
-            allocateVector<VECTOR_REAL_VIEW>(n_node, "model gamma node");
-        model_epsilon_node_ =
-            allocateVector<VECTOR_REAL_VIEW>(n_node, "model epsilon node");
-        model_theta_node_ =
-            allocateVector<VECTOR_REAL_VIEW>(n_node, "model theta node");
-        model_phi_node_ =
-            allocateVector<VECTOR_REAL_VIEW>(n_node, "model phi node");
+        model_vs_node_ = allocateVector<VECTOR_REAL_VIEW>(n_node, "model vs node");
+        model_delta_node_ = allocateVector<VECTOR_REAL_VIEW>(n_node, "model delta node");
+        model_gamma_node_ = allocateVector<VECTOR_REAL_VIEW>(n_node, "model gamma node");
+        model_epsilon_node_ = allocateVector<VECTOR_REAL_VIEW>(n_node, "model epsilon node");
+        model_theta_node_ = allocateVector<VECTOR_REAL_VIEW>(n_node, "model theta node");
+        model_phi_node_ = allocateVector<VECTOR_REAL_VIEW>(n_node, "model phi node");
 
         for (int i = 0; i < n_node; i++)
         {
@@ -316,10 +298,8 @@ class CartesianUnstructBuilder : public ModelBuilderBase<FloatType, ScalarType>
 
     else
     {
-      model_rho_element_ =
-          allocateVector<VECTOR_REAL_VIEW>(n_element, "model rho elem");
-      model_vp_element_ =
-          allocateVector<VECTOR_REAL_VIEW>(n_element, "model vp elem");
+      model_rho_element_ = allocateVector<VECTOR_REAL_VIEW>(n_element, "model rho elem");
+      model_vp_element_ = allocateVector<VECTOR_REAL_VIEW>(n_element, "model vp elem");
 
       for (int i = 0; i < n_element; i++)
       {
@@ -329,18 +309,12 @@ class CartesianUnstructBuilder : public ModelBuilderBase<FloatType, ScalarType>
 
       if (isElastic_)
       {
-        model_vs_element_ =
-            allocateVector<VECTOR_REAL_VIEW>(n_element, "model vs element");
-        model_delta_element_ =
-            allocateVector<VECTOR_REAL_VIEW>(n_element, "model delta element");
-        model_gamma_element_ =
-            allocateVector<VECTOR_REAL_VIEW>(n_element, "model gamma element");
-        model_epsilon_element_ = allocateVector<VECTOR_REAL_VIEW>(
-            n_element, "model epsilon element");
-        model_theta_element_ =
-            allocateVector<VECTOR_REAL_VIEW>(n_element, "model theta element");
-        model_phi_element_ =
-            allocateVector<VECTOR_REAL_VIEW>(n_element, "model phi element");
+        model_vs_element_ = allocateVector<VECTOR_REAL_VIEW>(n_element, "model vs element");
+        model_delta_element_ = allocateVector<VECTOR_REAL_VIEW>(n_element, "model delta element");
+        model_gamma_element_ = allocateVector<VECTOR_REAL_VIEW>(n_element, "model gamma element");
+        model_epsilon_element_ = allocateVector<VECTOR_REAL_VIEW>(n_element, "model epsilon element");
+        model_theta_element_ = allocateVector<VECTOR_REAL_VIEW>(n_element, "model theta element");
+        model_phi_element_ = allocateVector<VECTOR_REAL_VIEW>(n_element, "model phi element");
 
         for (int i = 0; i < n_element; i++)
         {

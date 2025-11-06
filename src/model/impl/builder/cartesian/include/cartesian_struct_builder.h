@@ -9,24 +9,15 @@ template <typename FloatType, typename ScalarType, int Order>
 class CartesianStructBuilder : public ModelBuilderBase<FloatType, ScalarType>
 {
  public:
-  CartesianStructBuilder(ScalarType ex, FloatType lx, ScalarType ey,
-                         FloatType ly, ScalarType ez, FloatType lz,
+  CartesianStructBuilder(ScalarType ex, FloatType lx, ScalarType ey, FloatType ly, ScalarType ez, FloatType lz,
                          bool isModelOnNodes, bool isElastic)
-      : ex_(ex),
-        ey_(ey),
-        ez_(ez),
-        lx_(lx),
-        ly_(ly),
-        lz_(lz),
-        isModelOnNodes_(isModelOnNodes),
-        isElastic_(isElastic)
+      : ex_(ex), ey_(ey), ez_(ez), lx_(lx), ly_(ly), lz_(lz), isModelOnNodes_(isModelOnNodes), isElastic_(isElastic)
   {
   }
 
   ~CartesianStructBuilder() = default;
 
-  std::shared_ptr<model::ModelApi<FloatType, ScalarType>> getModel()
-      const override
+  std::shared_ptr<model::ModelApi<FloatType, ScalarType>> getModel() const override
   {
     model::ModelStructData<FloatType, ScalarType> data;
     data.ex_ = ex_;
@@ -39,8 +30,7 @@ class CartesianStructBuilder : public ModelBuilderBase<FloatType, ScalarType>
     data.isModelOnNodes_ = isModelOnNodes_;
     data.isElastic_ = isElastic_;
 
-    return std::make_shared<model::ModelStruct<FloatType, ScalarType, Order>>(
-        data);
+    return std::make_shared<model::ModelStruct<FloatType, ScalarType, Order>>(data);
   }
 
  private:

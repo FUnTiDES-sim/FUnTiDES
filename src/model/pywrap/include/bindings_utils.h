@@ -41,8 +41,7 @@ constexpr const char* order_suffix(int order)
     case 3:
       return "O3";
     default:
-      throw std::runtime_error("Unsupported order for binding: " +
-                               std::to_string(order));
+      throw std::runtime_error("Unsupported order for binding: " + std::to_string(order));
   }
 }
 
@@ -58,8 +57,7 @@ auto orderDispatch(int const order, FUNC&& func)
     case 3:
       return func(std::integral_constant<int, 3>{});
     default:
-      throw std::invalid_argument("Unsupported order for binding: " +
-                                  std::to_string(order));
+      throw std::invalid_argument("Unsupported order for binding: " + std::to_string(order));
   }
 }
 
@@ -67,8 +65,7 @@ auto orderDispatch(int const order, FUNC&& func)
 template <typename FloatType, typename ScalarType, int Order>
 std::string model_class_name(std::string basename)
 {
-  return basename + "_" + type_suffix<FloatType, ScalarType>() + "_" +
-         order_suffix(Order);
+  return basename + "_" + type_suffix<FloatType, ScalarType>() + "_" + order_suffix(Order);
 }
 
 // helper to generate class name

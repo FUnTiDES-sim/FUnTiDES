@@ -11,10 +11,7 @@ struct GLLPoints
   static constexpr float sqrt5 = 2.2360679774997897;
 
   /// Return the number of points for given order
-  PROXY_HOST_DEVICE static constexpr int num_points(int order)
-  {
-    return order + 1;
-  }
+  PROXY_HOST_DEVICE static constexpr int num_points(int order) { return order + 1; }
 
   /// Return the i-th GLL point for given order
   PROXY_HOST_DEVICE static float get(int order, int i)

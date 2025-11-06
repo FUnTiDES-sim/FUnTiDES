@@ -58,8 +58,7 @@ struct FDTDUtils
         break;
     }
   }
-  float compute_dt_sch(const float vmax, vectorReal &coefx, vectorReal &coefy,
-                       vectorReal &coefz)
+  float compute_dt_sch(const float vmax, vectorReal &coefx, vectorReal &coefy, vectorReal &coefz)
   {
     float ftmp = 0.;
     float cfl = 0.8;
@@ -80,8 +79,7 @@ struct FDTDUtils
     return 2 * cfl / (sqrtf(ftmp) * vmax);
   }
 
-  void pml_profile_init(vector<float> &profile, int i_min, int i_max,
-                        int n_first, int n_last, float scale)
+  void pml_profile_init(vector<float> &profile, int i_min, int i_max, int n_first, int n_last, float scale)
   {
     int n = i_max - i_min + 1;
     int shift = i_min - 1;
@@ -111,10 +109,8 @@ struct FDTDUtils
     }
   }
 
-  void pml_profile_extend(int nx, int ny, int nz, vectorReal &eta,
-                          const vector<float> &etax, const vector<float> &etay,
-                          const vector<float> &etaz, int xbeg, int xend,
-                          int ybeg, int yend, int zbeg, int zend)
+  void pml_profile_extend(int nx, int ny, int nz, vectorReal &eta, const vector<float> &etax, const vector<float> &etay,
+                          const vector<float> &etaz, int xbeg, int xend, int ybeg, int yend, int zbeg, int zend)
   {
     const int n_ghost = 1;
 #pragma omp parallel for collapse(3)
@@ -124,53 +120,36 @@ struct FDTDUtils
       {
         for (int iz = zbeg - n_ghost; iz <= zend + n_ghost; ++iz)
         {
-          eta[(nz + 2) * (ny + 2) * ix + (nz + 2) * (iy) + iz] =
-              etax[ix] + etay[iy] + etaz[iz];
+          eta[(nz + 2) * (ny + 2) * ix + (nz + 2) * (iy) + iz] = etax[ix] + etay[iy] + etaz[iz];
         }
       }
     }
   }
 
-  void pml_profile_extend_all(int nx, int ny, int nz, vectorReal &eta,
-                              const vector<float> &etax,
-                              const vector<float> &etay,
-                              const vector<float> &etaz, int xmin, int xmax,
-                              int ymin, int ymax, int x1, int x2, int x5,
-                              int x6, int y1, int y2, int y3, int y4, int y5,
-                              int y6, int z1, int z2, int z3, int z4, int z5,
-                              int z6)
+  void pml_profile_extend_all(int nx, int ny, int nz, vectorReal &eta, const vector<float> &etax,
+                              const vector<float> &etay, const vector<float> &etaz, int xmin, int xmax, int ymin,
+                              int ymax, int x1, int x2, int x5, int x6, int y1, int y2, int y3, int y4, int y5, int y6,
+                              int z1, int z2, int z3, int z4, int z5, int z6)
   {
     // Top.
-    if (z1 != -1)
-      pml_profile_extend(nx, ny, nz, eta, etax, etay, etaz, xmin, xmax, ymin,
-                         ymax, z1, z2);
+    if (z1 != -1) pml_profile_extend(nx, ny, nz, eta, etax, etay, etaz, xmin, xmax, ymin, ymax, z1, z2);
     // Bottom.
-    if (z5 != -5)
-      pml_profile_extend(nx, ny, nz, eta, etax, etay, etaz, xmin, xmax, ymin,
-                         ymax, z5, z6);
+    if (z5 != -5) pml_profile_extend(nx, ny, nz, eta, etax, etay, etaz, xmin, xmax, ymin, ymax, z5, z6);
     // Front.
-    if ((y1 != -1) && (z3 != -3))
-      pml_profile_extend(nx, ny, nz, eta, etax, etay, etaz, xmin, xmax, y1, y2,
-                         z3, z4);
+    if ((y1 != -1) && (z3 != -3)) pml_profile_extend(nx, ny, nz, eta, etax, etay, etaz, xmin, xmax, y1, y2, z3, z4);
     // Back.
-    if ((y6 != -6) && (z3 != -3))
-      pml_profile_extend(nx, ny, nz, eta, etax, etay, etaz, xmin, xmax, y5, y6,
-                         z3, z4);
+    if ((y6 != -6) && (z3 != -3)) pml_profile_extend(nx, ny, nz, eta, etax, etay, etaz, xmin, xmax, y5, y6, z3, z4);
     // Left.
     if ((x1 != -1) && (y3 != -3) && (z3 != -3))
-      pml_profile_extend(nx, ny, nz, eta, etax, etay, etaz, x1, x2, y3, y4, z3,
-                         z4);
+      pml_profile_extend(nx, ny, nz, eta, etax, etay, etaz, x1, x2, y3, y4, z3, z4);
     // Right.
     if ((x6 != -6) && (y3 != -3) && (z3 != -3))
-      pml_profile_extend(nx, ny, nz, eta, etax, etay, etaz, x5, x6, y3, y4, z3,
-                         z4);
+      pml_profile_extend(nx, ny, nz, eta, etax, etay, etaz, x5, x6, y3, y4, z3, z4);
   }
 
-  void init_eta(int nx, int ny, int nz, int ndampx, int ndampy, int ndampz,
-                int x1, int x2, int x3, int x4, int x5, int x6, int y1, int y2,
-                int y3, int y4, int y5, int y6, int z1, int z2, int z3, int z4,
-                int z5, int z6, float dx, float dy, float dz, float dt_sch,
-                float vmax, vectorReal &eta)
+  void init_eta(int nx, int ny, int nz, int ndampx, int ndampy, int ndampz, int x1, int x2, int x3, int x4, int x5,
+                int x6, int y1, int y2, int y3, int y4, int y5, int y6, int z1, int z2, int z3, int z4, int z5, int z6,
+                float dx, float dy, float dz, float dt_sch, float vmax, vectorReal &eta)
   {
 #pragma omp parallel for collapse(3)
     for (int i = -1; i < nx + 1; ++i)
@@ -179,8 +158,7 @@ struct FDTDUtils
       {
         for (int k = -1; k < nz + 1; ++k)
         {
-          eta[(nz + 2) * (ny + 2) * (i + 1) + (nz + 2) * (j + 1) + (k + 1)] =
-              0.f;
+          eta[(nz + 2) * (ny + 2) * (i + 1) + (nz + 2) * (j + 1) + (k + 1)] = 0.f;
         }
       }
     }
@@ -204,31 +182,27 @@ struct FDTDUtils
     // printf("param=%f\n",param);
     pml_profile_init(etaz, 0, nz + 1, ndampz, ndampz, param);
 
-    (void)pml_profile_extend_all(
-        nx, ny, nz, eta, etax, etay, etaz, 1, nx, 1, ny, x1 + 1, x2, x5 + 1, x6,
-        y1 + 1, y2, y3 + 1, y4, y5 + 1, y6, z1 + 1, z2, z3 + 1, z4, z5 + 1, z6);
+    (void)pml_profile_extend_all(nx, ny, nz, eta, etax, etay, etaz, 1, nx, 1, ny, x1 + 1, x2, x5 + 1, x6, y1 + 1, y2,
+                                 y3 + 1, y4, y5 + 1, y6, z1 + 1, z2, z3 + 1, z4, z5 + 1, z6);
   }
 
-  void output(FDTDGRIDS &myGrids, arrayReal const &pnGlobal, int itSample,
-              const int &i1, const bool saveSnapShots)
+  void output(FDTDGRIDS &myGrids, arrayReal const &pnGlobal, int itSample, const int &i1, const bool saveSnapShots)
   {
     if (itSample % 50 == 0)
     {
       FDFENCE
 
-      printf("TimeStep=%d\t; Pressure value at source [%d %d %d] = %f\n",
-             itSample, myGrids.xs, myGrids.ys, myGrids.zs,
+      printf("TimeStep=%d\t; Pressure value at source [%d %d %d] = %f\n", itSample, myGrids.xs, myGrids.ys, myGrids.zs,
              pnGlobal(IDX3_l(myGrids.xs, myGrids.ys, myGrids.zs), i1));
       // #ifdef FD_SAVE_SNAPSHOTS
       if (saveSnapShots)
-        write_io(myGrids, 0, myGrids.nx, myGrids.ny / 2, myGrids.ny / 2, 0,
-                 myGrids.nz, pnGlobal, itSample, i1);
+        write_io(myGrids, 0, myGrids.nx, myGrids.ny / 2, myGrids.ny / 2, 0, myGrids.nz, pnGlobal, itSample, i1);
       // #endif
     }
   }
 
-  void write_io(FDTDGRIDS &myGrids, int x0, int x1, int y0, int y1, int z0,
-                int z1, arrayReal const &pnGlobal, int istep, const int &i1)
+  void write_io(FDTDGRIDS &myGrids, int x0, int x1, int y0, int y1, int z0, int z1, arrayReal const &pnGlobal,
+                int istep, const int &i1)
   {
     char filename_buf[32];
     snprintf(filename_buf, sizeof(filename_buf), "snapshot_it_%d.H@", istep);
@@ -242,8 +216,7 @@ struct FDTDUtils
       {
         for (int i = x0; i < x1; ++i)
         {
-          fwrite(&pnGlobal(IDX3_l(i, j, k), i1), sizeof(float), 1,
-                 snapshot_file);
+          fwrite(&pnGlobal(IDX3_l(i, j, k), i1), sizeof(float), 1, snapshot_file);
         }
       }
     }

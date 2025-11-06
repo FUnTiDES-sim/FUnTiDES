@@ -18,8 +18,7 @@ enum
 template <int ORDER>
 struct IntegralTypeSelector<ORDER, IntegralType::MAKUTU>
 {
-  using type =
-      typename Qk_Hexahedron_Lagrange_GaussLobatto_Selector<ORDER>::type;
+  using type = typename Qk_Hexahedron_Lagrange_GaussLobatto_Selector<ORDER>::type;
 };
 
 // template <int ORDER>

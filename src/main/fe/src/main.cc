@@ -24,11 +24,8 @@ void compute(SEMproxy &semsim)
   cout << "+================================= \n" << endl;
 
   // print timing information
-  cout << "Elapsed Initial Time : "
-       << (startRunTime - startInitTime).count() / 1E9 << " seconds." << endl;
-  cout << "Elapsed Compute Time : "
-       << (system_clock::now() - startRunTime).count() / 1E9 << " seconds."
-       << endl;
+  cout << "Elapsed Initial Time : " << (startRunTime - startInitTime).count() / 1E9 << " seconds." << endl;
+  cout << "Elapsed Compute Time : " << (system_clock::now() - startRunTime).count() / 1E9 << " seconds." << endl;
 };
 
 void compute_loop(SEMproxy &semsim) { compute(semsim); }
@@ -84,8 +81,6 @@ int main(int argc, char *argv[])
   Kokkos::finalize();
 #endif
 
-  cout << "Elapsed TotalExe Time : "
-       << (system_clock::now() - startInitTime).count() / 1E9 << " seconds.\n"
-       << endl;
+  cout << "Elapsed TotalExe Time : " << (system_clock::now() - startInitTime).count() / 1E9 << " seconds.\n" << endl;
   return (0);
 }

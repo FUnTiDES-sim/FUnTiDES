@@ -6,12 +6,10 @@
 #include "fe/Integrals.hpp"
 #include "sem_solver_acoustic.h"
 
-template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE,
-          bool IS_MODEL_ON_NODES>
-void SEMsolverAcoustic<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES>::
-    computeFEInit(model::ModelApi<float, int> &mesh_in,
-                  const std::array<float, 3> &sponge_size,
-                  const bool surface_sponge, const float taper_delta)
+template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE, bool IS_MODEL_ON_NODES>
+void SEMsolverAcoustic<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES>::computeFEInit(
+    model::ModelApi<float, int> &mesh_in, const std::array<float, 3> &sponge_size, const bool surface_sponge,
+    const float taper_delta)
 {
   if (auto *typed_mesh = dynamic_cast<MESH_TYPE *>(&mesh_in))
   {
@@ -33,11 +31,10 @@ void SEMsolverAcoustic<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES>::
   computeGlobalMassMatrix();
 }
 
-template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE,
-          bool IS_MODEL_ON_NODES>
-void SEMsolverAcoustic<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES>::
-    computeOneStep(const float &dt, const int &timeSample,
-                   SolverBase::DataStruct &data)
+template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE, bool IS_MODEL_ON_NODES>
+void SEMsolverAcoustic<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES>::computeOneStep(const float &dt,
+                                                                                           const int &timeSample,
+                                                                                           SolverBase::DataStruct &data)
 {
   // Cast to the specific DataStruct type
   auto &myData = dynamic_cast<SEMsolverDataAcoustic &>(data);
@@ -59,22 +56,17 @@ void SEMsolverAcoustic<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES>::
   FENCE
 }
 
-template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE,
-          bool IS_MODEL_ON_NODES>
-void SEMsolverAcoustic<ORDER, INTEGRAL_TYPE, MESH_TYPE,
-                       IS_MODEL_ON_NODES>::resetGlobalVectors(int numNodes)
+template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE, bool IS_MODEL_ON_NODES>
+void SEMsolverAcoustic<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES>::resetGlobalVectors(int numNodes)
 {
   LOOPHEAD(numNodes, i) { yGlobal[i] = 0; }
   LOOPEND
 }
 
-template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE,
-          bool IS_MODEL_ON_NODES>
-void SEMsolverAcoustic<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES>::
-    applyRHSTerm(int timeSample, float dt, int i2,
-                 const ARRAY_REAL_VIEW &rhsTerm,
-                 const VECTOR_INT_VIEW &rhsElement,
-                 const ARRAY_REAL_VIEW &rhsWeights)
+template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE, bool IS_MODEL_ON_NODES>
+void SEMsolverAcoustic<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES>::applyRHSTerm(
+    int timeSample, float dt, int i2, const ARRAY_REAL_VIEW &rhsTerm, const VECTOR_INT_VIEW &rhsElement,
+    const ARRAY_REAL_VIEW &rhsWeights)
 {
   float const dt2 = dt * dt;
   int nb_rhs_element = rhsElement.extent(0);
@@ -97,10 +89,9 @@ void SEMsolverAcoustic<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES>::
   LOOPEND
 }
 
-template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE,
-          bool IS_MODEL_ON_NODES>
-void SEMsolverAcoustic<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES>::
-    computeElementContributions(int i2, const ARRAY_REAL_VIEW &pnGlobal)
+template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE, bool IS_MODEL_ON_NODES>
+void SEMsolverAcoustic<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES>::computeElementContributions(
+    int i2, const ARRAY_REAL_VIEW &pnGlobal)
 {
   MAINLOOPHEAD(m_mesh.getNumberOfElements(), elementNumber)
 
@@ -145,8 +136,7 @@ void SEMsolverAcoustic<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES>::
   }
 
   INTEGRAL_TYPE::computeStiffnessTerm(
-      cornerCoords, [&](const int qa, const int qb, const int qc, const int i,
-                        const int j, const real_t val) {
+      cornerCoords, [&](const int qa, const int qb, const int qc, const int i, const int j, const real_t val) {
         if constexpr (IS_MODEL_ON_NODES)
         {
           int const gIndex = m_mesh.globalNodeIndex(elementNumber, qa, qb, qc);
@@ -168,50 +158,37 @@ void SEMsolverAcoustic<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES>::
   MAINLOOPEND
 }
 
-template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE,
-          bool IS_MODEL_ON_NODES>
-void SEMsolverAcoustic<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES>::
-    updatePressureField(float dt, int i1, int i2,
-                        const ARRAY_REAL_VIEW &pnGlobal)
+template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE, bool IS_MODEL_ON_NODES>
+void SEMsolverAcoustic<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES>::updatePressureField(
+    float dt, int i1, int i2, const ARRAY_REAL_VIEW &pnGlobal)
 {
   float const dt2 = dt * dt;
   LOOPHEAD(m_mesh.getNumberOfNodes(), I)
   {
-    pnGlobal(I, i1) = 2 * pnGlobal(I, i2) - pnGlobal(I, i1) -
-                      dt2 * yGlobal[I] / massMatrixGlobal[I];
+    pnGlobal(I, i1) = 2 * pnGlobal(I, i2) - pnGlobal(I, i1) - dt2 * yGlobal[I] / massMatrixGlobal[I];
     pnGlobal(I, i1) *= spongeTaperCoeff(I);
     pnGlobal(I, i2) *= spongeTaperCoeff(I);
   }
   LOOPEND
 }
 
-template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE,
-          bool IS_MODEL_ON_NODES>
-void SEMsolverAcoustic<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES>::
-    outputSolutionValues(const int &indexTimeStep, int &i1,
-                         int &myElementSource,
-                         const ARRAY_REAL_VIEW &fieldGlobal,
-                         const char *fieldName)  // ← Nouveau paramètre
+template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE, bool IS_MODEL_ON_NODES>
+void SEMsolverAcoustic<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES>::outputSolutionValues(
+    const int &indexTimeStep, int &i1, int &myElementSource, const ARRAY_REAL_VIEW &fieldGlobal,
+    const char *fieldName)  // ← Nouveau paramètre
 {
-  cout << "TimeStep=" << indexTimeStep << ";  " << fieldName
-       << " @ elementSource location " << myElementSource
-       << " after computeOneStep = "
-       << fieldGlobal(m_mesh.globalNodeIndex(myElementSource, 0, 0, 0), i1)
-       << endl;
+  cout << "TimeStep=" << indexTimeStep << ";  " << fieldName << " @ elementSource location " << myElementSource
+       << " after computeOneStep = " << fieldGlobal(m_mesh.globalNodeIndex(myElementSource, 0, 0, 0), i1) << endl;
 }
 
-template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE,
-          bool IS_MODEL_ON_NODES>
-void SEMsolverAcoustic<ORDER, INTEGRAL_TYPE, MESH_TYPE,
-                       IS_MODEL_ON_NODES>::initFEarrays()
+template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE, bool IS_MODEL_ON_NODES>
+void SEMsolverAcoustic<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES>::initFEarrays()
 {
   initSpongeValues();
 }
 
-template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE,
-          bool IS_MODEL_ON_NODES>
-void SEMsolverAcoustic<ORDER, INTEGRAL_TYPE, MESH_TYPE,
-                       IS_MODEL_ON_NODES>::computeGlobalMassMatrix()
+template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE, bool IS_MODEL_ON_NODES>
+void SEMsolverAcoustic<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES>::computeGlobalMassMatrix()
 {
   MAINLOOPHEAD(m_mesh.getNumberOfElements(), elementNumber)
 
@@ -243,14 +220,11 @@ void SEMsolverAcoustic<ORDER, INTEGRAL_TYPE, MESH_TYPE,
   real_t inv_model2 = 0.0f;
   if constexpr (!IS_MODEL_ON_NODES)
   {
-    inv_model2 = 1.0f / (m_mesh.getModelVpOnElement(elementNumber) *
-                         m_mesh.getModelVpOnElement(elementNumber) *
+    inv_model2 = 1.0f / (m_mesh.getModelVpOnElement(elementNumber) * m_mesh.getModelVpOnElement(elementNumber) *
                          m_mesh.getModelRhoOnElement(elementNumber));
   }
 
-  INTEGRAL_TYPE::computeMassTerm(
-      cornerCoords,
-      [&](const int j, const real_t val) { massMatrixLocal[j] += val; });
+  INTEGRAL_TYPE::computeMassTerm(cornerCoords, [&](const int j, const real_t val) { massMatrixLocal[j] += val; });
 
   for (int i = 0; i < m_mesh.getNumberOfPointsPerElement(); ++i)
   {
@@ -260,8 +234,7 @@ void SEMsolverAcoustic<ORDER, INTEGRAL_TYPE, MESH_TYPE,
     int const gIndex = m_mesh.globalNodeIndex(elementNumber, x, y, z);
     if constexpr (IS_MODEL_ON_NODES)
     {
-      inv_model2 = 1.0f / (m_mesh.getModelVpOnNodes(gIndex) *
-                           m_mesh.getModelVpOnNodes(gIndex) *
+      inv_model2 = 1.0f / (m_mesh.getModelVpOnNodes(gIndex) * m_mesh.getModelVpOnNodes(gIndex) *
                            m_mesh.getModelRhoOnNodes(gIndex));
     }
     massMatrixLocal[i] *= inv_model2;
@@ -271,29 +244,21 @@ void SEMsolverAcoustic<ORDER, INTEGRAL_TYPE, MESH_TYPE,
   MAINLOOPEND
 }
 
-template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE,
-          bool IS_MODEL_ON_NODES>
-void SEMsolverAcoustic<ORDER, INTEGRAL_TYPE, MESH_TYPE,
-                       IS_MODEL_ON_NODES>::allocateFEarrays()
+template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE, bool IS_MODEL_ON_NODES>
+void SEMsolverAcoustic<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES>::allocateFEarrays()
 {
-  int nbQuadraturePoints = (m_mesh.getOrder() + 1) * (m_mesh.getOrder() + 1) *
-                           (m_mesh.getOrder() + 1);
+  int nbQuadraturePoints = (m_mesh.getOrder() + 1) * (m_mesh.getOrder() + 1) * (m_mesh.getOrder() + 1);
 
   // shared arrays
-  massMatrixGlobal = allocateVector<VECTOR_REAL_VIEW>(m_mesh.getNumberOfNodes(),
-                                                      "massMatrixGlobal");
-  yGlobal =
-      allocateVector<VECTOR_REAL_VIEW>(m_mesh.getNumberOfNodes(), "yGlobal");
+  massMatrixGlobal = allocateVector<VECTOR_REAL_VIEW>(m_mesh.getNumberOfNodes(), "massMatrixGlobal");
+  yGlobal = allocateVector<VECTOR_REAL_VIEW>(m_mesh.getNumberOfNodes(), "yGlobal");
 
   // sponge allocation
-  spongeTaperCoeff = allocateVector<VECTOR_REAL_VIEW>(m_mesh.getNumberOfNodes(),
-                                                      "spongeTaperCoeff");
+  spongeTaperCoeff = allocateVector<VECTOR_REAL_VIEW>(m_mesh.getNumberOfNodes(), "spongeTaperCoeff");
 }
 
-template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE,
-          bool IS_MODEL_ON_NODES>
-void SEMsolverAcoustic<ORDER, INTEGRAL_TYPE, MESH_TYPE,
-                       IS_MODEL_ON_NODES>::initSpongeValues()
+template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE, bool IS_MODEL_ON_NODES>
+void SEMsolverAcoustic<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES>::initSpongeValues()
 {
   const double sigma_max = 0.15;
   for (int n = 0; n < m_mesh.getNumberOfNodes(); n++)
@@ -301,14 +266,11 @@ void SEMsolverAcoustic<ORDER, INTEGRAL_TYPE, MESH_TYPE,
     const double x = m_mesh.nodeCoord(n, 0);
     const double y = m_mesh.nodeCoord(n, 1);
     const double z = m_mesh.nodeCoord(n, 2);
-    const double distToFrontierX = (surface_sponge_)
-                                       ? m_mesh.domainSize(0) - x
-                                       : min(m_mesh.domainSize(0) - x, x);
+    const double distToFrontierX = (surface_sponge_) ? m_mesh.domainSize(0) - x : min(m_mesh.domainSize(0) - x, x);
     const double distToFrontierY = min(m_mesh.domainSize(1) - y, y);
     const double distToFrontierZ = min(m_mesh.domainSize(2) - z, z);
 
-    double minDistToFrontier = max(
-        m_mesh.domainSize(0), max(m_mesh.domainSize(1), m_mesh.domainSize(2)));
+    double minDistToFrontier = max(m_mesh.domainSize(0), max(m_mesh.domainSize(1), m_mesh.domainSize(2)));
 
     bool is_sponge = false;
     if (distToFrontierX < sponge_size_[0])

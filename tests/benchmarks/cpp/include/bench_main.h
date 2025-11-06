@@ -27,18 +27,14 @@ static int parseKokkosThreads(int argc, char** argv)
     if (std::strncmp(arg, prefix, len) == 0)
     {
       const char* value = arg + len;
-      if (*value == '\0')
-        throw std::invalid_argument("--kokkos-threads requires a value");
+      if (*value == '\0') throw std::invalid_argument("--kokkos-threads requires a value");
       char* end = nullptr;
       long v = std::strtol(value, &end, 10);
-      if (*end != '\0' || v < 0)
-        throw std::invalid_argument(
-            "--kokkos-threads must be a non-negative integer");
+      if (*end != '\0' || v < 0) throw std::invalid_argument("--kokkos-threads must be a non-negative integer");
       return static_cast<int>(v);
     }
   }
-  throw std::invalid_argument(
-      "--kokkos-threads must be set to > 0, e.g. --kokkos-threads=4");
+  throw std::invalid_argument("--kokkos-threads must be set to > 0, e.g. --kokkos-threads=4");
 }
 
 /**

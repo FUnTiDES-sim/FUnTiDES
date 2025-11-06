@@ -51,21 +51,16 @@ class SemIOController
     snaps_writer_ = async_io_.Open(SNAPS_FILE, adios2::Mode::Write);
   }
 
-  void defineVariable(const size_t nb_nodes, const size_t nb_iter,
-                      const size_t nb_receiver)
+  void defineVariable(const size_t nb_nodes, const size_t nb_iter, const size_t nb_receiver)
   {
-    receivers_ =
-        io_.DefineVariable<float>("AccousticReceiver", {nb_receiver, nb_iter},
-                                  {0, 0}, {nb_receiver, nb_iter});
+    receivers_ = io_.DefineVariable<float>("AccousticReceiver", {nb_receiver, nb_iter}, {0, 0}, {nb_receiver, nb_iter});
 
-    receivers_coords_ = io_.DefineVariable<float>(
-        "AccousticReceiverCoords", {nb_receiver, 3}, {0, 0}, {nb_receiver, 3});
+    receivers_coords_ =
+        io_.DefineVariable<float>("AccousticReceiverCoords", {nb_receiver, 3}, {0, 0}, {nb_receiver, 3});
 
-    iter_times_ =
-        io_.DefineVariable<float>("IterationTimes", {nb_iter}, {0}, {nb_iter});
+    iter_times_ = io_.DefineVariable<float>("IterationTimes", {nb_iter}, {0}, {nb_iter});
 
-    pn_ = async_io_.DefineVariable<float>("PressureField", {nb_nodes}, {0},
-                                          {nb_nodes});
+    pn_ = async_io_.DefineVariable<float>("PressureField", {nb_nodes}, {0}, {nb_nodes});
 
     timestep_ = async_io_.DefineVariable<int>("TimeStep");
   }
@@ -88,8 +83,7 @@ class SemIOController
   }
 
  public:
-  SemIOController(const size_t nb_nodes, const size_t nb_iter,
-                  const size_t nb_receiver)
+  SemIOController(const size_t nb_nodes, const size_t nb_iter, const size_t nb_receiver)
   {
     initAdios();
     configureIO();

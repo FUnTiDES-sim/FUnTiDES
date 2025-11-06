@@ -60,35 +60,30 @@
 // FIND_MAX FOR 1D ARRAY
 // The kokkos case
 #if defined(USE_KOKKOS)
-#define FIND_MAX_1D(Array, Range, Result)                                  \
-  if (Array.extent(0) == 0)                                                \
-    throw std::runtime_error("Error in FIND_MAX_1D: Array has zero size"); \
-  Kokkos::parallel_reduce(                                                 \
-      "FindMax1D", Range,                                                  \
-      KOKKOS_CLASS_LAMBDA(const int i, decltype(Result)& local_max) {      \
-        if (Array[i] > local_max) local_max = Array[i];                    \
-      },                                                                   \
+#define FIND_MAX_1D(Array, Range, Result)                                                          \
+  if (Array.extent(0) == 0) throw std::runtime_error("Error in FIND_MAX_1D: Array has zero size"); \
+  Kokkos::parallel_reduce(                                                                         \
+      "FindMax1D", Range,                                                                          \
+      KOKKOS_CLASS_LAMBDA(const int i, decltype(Result)& local_max) {                              \
+        if (Array[i] > local_max) local_max = Array[i];                                            \
+      },                                                                                           \
       Kokkos::Max<decltype(Result)>(Result));
 #else
 // The sequential case
-#define FIND_MAX_1D(Array, Range, Result)                                  \
-  if (Array.extent(0) == 0)                                                \
-    throw std::runtime_error("Error in FIND_MAX_1D: Array has zero size"); \
-  Result = Array[0];                                                       \
-  for (int i = 1; i < Range; i++)                                          \
-  {                                                                        \
-    if (Array[i] > Result) Result = Array[i];                              \
+#define FIND_MAX_1D(Array, Range, Result)                                                          \
+  if (Array.extent(0) == 0) throw std::runtime_error("Error in FIND_MAX_1D: Array has zero size"); \
+  Result = Array[0];                                                                               \
+  for (int i = 1; i < Range; i++)                                                                  \
+  {                                                                                                \
+    if (Array[i] > Result) Result = Array[i];                                                      \
   }
 #endif
 
 // FIND_MIN
 #if defined(USE_KOKKOS)
-#define FIND_MIN(Array, Range, Result)                                \
-  Kokkos::parallel_reduce(                                            \
-      Range,                                                          \
-      KOKKOS_CLASS_LAMBDA(const int i, decltype(Result)& local_min) { \
-        local_min = Array[i];                                         \
-      },                                                              \
+#define FIND_MIN(Array, Range, Result)                                                                \
+  Kokkos::parallel_reduce(                                                                            \
+      Range, KOKKOS_CLASS_LAMBDA(const int i, decltype(Result)& local_min) { local_min = Array[i]; }, \
       Kokkos::Min<decltype(Result)>(Result));
 #else
 // The sequential case
@@ -102,12 +97,9 @@
 
 // SUM
 #if defined(USE_KOKKOS)
-#define SUM(Array, Range, Result)                                     \
-  Kokkos::parallel_reduce(                                            \
-      Range,                                                          \
-      KOKKOS_CLASS_LAMBDA(const int i, decltype(Result)& local_sum) { \
-        local_sum = Array[i];                                         \
-      },                                                              \
+#define SUM(Array, Range, Result)                                                                     \
+  Kokkos::parallel_reduce(                                                                            \
+      Range, KOKKOS_CLASS_LAMBDA(const int i, decltype(Result)& local_sum) { local_sum = Array[i]; }, \
       Kokkos::Sum<decltype(Result)>(Result));
 #else
 // The sequential case

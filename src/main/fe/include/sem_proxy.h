@@ -36,7 +36,7 @@ class SEMproxy
   /**
    * @brief Destructor of the SEMproxy class
    */
-  ~SEMproxy(){};
+  ~SEMproxy() {};
 
   /**
    * @brief Initialize the simulation.
@@ -60,8 +60,7 @@ class SEMproxy
    * Format: space-separated matrix with blank lines between rows for 3D
    * plotting
    */
-  void saveSlice(const VECTOR_REAL_VIEW& host_slice, int sizex, int sizey,
-                 const std::string& filepath) const;
+  void saveSlice(const VECTOR_REAL_VIEW& host_slice, int sizex, int sizey, const std::string& filepath) const;
 
   void saveSnapshot(int timesample) const;
 

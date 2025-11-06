@@ -16,8 +16,7 @@
  * @return A pointer to the value associated with the option if found,
  *         otherwise returns nullptr.
  */
-inline std::string getCmdOption(char **begin, char **end,
-                                const std::string &option)
+inline std::string getCmdOption(char **begin, char **end, const std::string &option)
 {
   for (char **itr = begin; itr != end; ++itr)
   {
@@ -42,9 +41,7 @@ inline std::string getCmdOption(char **begin, char **end,
  */
 inline bool cmdOptionExists(char **begin, char **end, const std::string &option)
 {
-  return std::find_if(begin, end, [&](char *arg) {
-           return std::string(arg) == option;
-         }) != end;
+  return std::find_if(begin, end, [&](char *arg) { return std::string(arg) == option; }) != end;
 }
 
 #endif  // ARGSPARSE_HPP
