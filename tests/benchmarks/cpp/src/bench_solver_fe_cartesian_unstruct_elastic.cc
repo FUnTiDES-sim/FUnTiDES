@@ -39,13 +39,11 @@ class SolverUnstructFixture : public benchmark::Fixture
   static constexpr float ly = 2000.0f;
   static constexpr float lz = 2000.0f;
   static constexpr int order = T::order;
-  static constexpr int n_dof =
-      (ex * order + 1) * (ey * order + 1) * (ez * order + 1);
+  static constexpr int n_dof = (ex * order + 1) * (ey * order + 1) * (ez * order + 1);
   bool isModelOnNodes_;
 
   // sponge
-  inline static constexpr std::array<float, 3> sponge_size = {200.0f, 200.0f,
-                                                              200.0f};
+  inline static constexpr std::array<float, 3> sponge_size = {200.0f, 200.0f, 200.0f};
   inline static constexpr bool surface_sponge = false;
   inline static constexpr float taper_delta = 100.0f;
 
@@ -65,18 +63,15 @@ class SolverUnstructFixture : public benchmark::Fixture
 
   std::shared_ptr<model::ModelApi<float, int>> createModel()
   {
-    typename T::BuilderParams params(order, ex, ey, ez, lx, ly, lz,
-                                     isModelOnNodes_, true);
+    typename T::BuilderParams params(order, ex, ey, ez, lx, ly, lz, isModelOnNodes_, true);
     typename T::Builder builder(params);
     return builder.getModel();
   }
 
   void setLabel(benchmark::State& state) const
   {
-    state.SetLabel("Order=" + std::to_string(order) +
-                   " OnNodes=" + std::to_string(isModelOnNodes_) +
-                   " Implem=" + std::to_string(implem_) +
-                   " IsElastic=" + std::to_string(true));
+    state.SetLabel("Order=" + std::to_string(order) + " OnNodes=" + std::to_string(isModelOnNodes_) +
+                   " Implem=" + std::to_string(implem_) + " IsElastic=" + std::to_string(true));
   }
 };
 
@@ -93,15 +88,13 @@ struct BenchmarkArrays
   arrayReal uznGlobal;
   arrayReal rhsLocation;
 
-  BenchmarkArrays(int n_rhs, int n_time_steps, int n_dof,
-                  int nb_points_per_element)
+  BenchmarkArrays(int n_rhs, int n_time_steps, int n_dof, int nb_points_per_element)
   {
     rhsTermx = allocateArray2D<arrayReal>(n_rhs, n_time_steps, "rhsTermx");
     rhsTermy = allocateArray2D<arrayReal>(n_rhs, n_time_steps, "rhsTermy");
     rhsTermz = allocateArray2D<arrayReal>(n_rhs, n_time_steps, "rhsTermz");
     rhsElement = allocateVector<vectorInt>(n_rhs, "rhsElement");
-    rhsWeights =
-        allocateArray2D<arrayReal>(n_rhs, nb_points_per_element, "rhsWeights");
+    rhsWeights = allocateArray2D<arrayReal>(n_rhs, nb_points_per_element, "rhsWeights");
     uxnGlobal = allocateArray2D<arrayReal>(n_dof, 2, "uxnGlobal");
     uynGlobal = allocateArray2D<arrayReal>(n_dof, 2, "uynGlobal");
     uznGlobal = allocateArray2D<arrayReal>(n_dof, 2, "uznGlobal");
@@ -118,17 +111,14 @@ BENCHMARK_TEMPLATE_METHOD_F(SolverUnstructFixture, FEInit)
   auto model = this->createModel();
 
   auto solver = SolverFactory::createSolver(
-      SolverFactory::methodType::SEM, this->implem_,
-      SolverFactory::meshType::Unstruct,
-      this->isModelOnNodes_ ? SolverFactory::modelLocationType::OnNodes
-                            : SolverFactory::modelLocationType::OnElements,
+      SolverFactory::methodType::SEM, this->implem_, SolverFactory::meshType::Unstruct,
+      this->isModelOnNodes_ ? SolverFactory::modelLocationType::OnNodes : SolverFactory::modelLocationType::OnElements,
       SolverFactory::physicType::Elastic, this->order);
 
   // Bench
   for (auto _ : state)
   {
-    solver->computeFEInit(*model, this->sponge_size, this->surface_sponge,
-                          this->taper_delta);
+    solver->computeFEInit(*model, this->sponge_size, this->surface_sponge, this->taper_delta);
   }
 
   // Label
@@ -142,27 +132,20 @@ BENCHMARK_TEMPLATE_METHOD_F(SolverUnstructFixture, OneStep)
   auto model = this->createModel();
 
   auto solver = SolverFactory::createSolver(
-      SolverFactory::methodType::SEM, this->implem_,
-      SolverFactory::meshType::Unstruct,
-      this->isModelOnNodes_ ? SolverFactory::modelLocationType::OnNodes
-                            : SolverFactory::modelLocationType::OnElements,
+      SolverFactory::methodType::SEM, this->implem_, SolverFactory::meshType::Unstruct,
+      this->isModelOnNodes_ ? SolverFactory::modelLocationType::OnNodes : SolverFactory::modelLocationType::OnElements,
       SolverFactory::physicType::Elastic, this->order);
 
-  solver->computeFEInit(*model, this->sponge_size, this->surface_sponge,
-                        this->taper_delta);
+  solver->computeFEInit(*model, this->sponge_size, this->surface_sponge, this->taper_delta);
 
-  BenchmarkArrays arrays(this->n_rhs, this->n_time_steps, this->n_dof,
-                         model->getNumberOfPointsPerElement());
+  BenchmarkArrays arrays(this->n_rhs, this->n_time_steps, this->n_dof, model->getNumberOfPointsPerElement());
   // sources at the center of the domain
-  arrays.rhsElement(0) = this->ex / 2 + this->ey / 2 * this->ex +
-                         this->ez / 2 * this->ey * this->ex;
-  arrays.rhsElement(1) = this->ex / 3 + this->ey / 2 * this->ex +
-                         this->ez / 2 * this->ey * this->ex;
+  arrays.rhsElement(0) = this->ex / 2 + this->ey / 2 * this->ex + this->ez / 2 * this->ey * this->ex;
+  arrays.rhsElement(1) = this->ex / 3 + this->ey / 2 * this->ex + this->ez / 2 * this->ey * this->ex;
 
   // ricker wavelet
   SolverUtils myUtils;
-  std::vector<float> sourceTerm =
-      myUtils.computeSourceTerm(this->n_time_steps, this->dt, this->f0, 2);
+  std::vector<float> sourceTerm = myUtils.computeSourceTerm(this->n_time_steps, this->dt, this->f0, 2);
   for (int j = 0; j < this->n_time_steps; j++)
   {
     arrays.rhsTermx(0, j) = sourceTerm[j];
@@ -170,9 +153,8 @@ BENCHMARK_TEMPLATE_METHOD_F(SolverUnstructFixture, OneStep)
     arrays.rhsTermz(0, j) = sourceTerm[j];
   }
 
-  SEMsolverDataElastic data(
-      0, 1, arrays.rhsTermx, arrays.rhsTermy, arrays.rhsTermz, arrays.uxnGlobal,
-      arrays.uynGlobal, arrays.uznGlobal, arrays.rhsElement, arrays.rhsWeights);
+  SEMsolverDataElastic data(0, 1, arrays.rhsTermx, arrays.rhsTermy, arrays.rhsTermz, arrays.uxnGlobal, arrays.uynGlobal,
+                            arrays.uznGlobal, arrays.rhsElement, arrays.rhsWeights);
 
   // Bench
   for (auto _ : state)
@@ -188,14 +170,10 @@ BENCHMARK_TEMPLATE_METHOD_F(SolverUnstructFixture, OneStep)
 // TODO add SolverFactory::implemType::SHIVA when reactivated in compilation
 BENCHMARK_FOR_ALL_ORDERS(
     SolverUnstructFixture, FEInit,
-    BuilderConfig,
-        ->ArgsProduct({{0, 1}, {SolverFactory::implemType::MAKUTU}})
-        ->Unit(benchmark::kMillisecond))
+    BuilderConfig, ->ArgsProduct({{0, 1}, {SolverFactory::implemType::MAKUTU}})->Unit(benchmark::kMillisecond))
 BENCHMARK_FOR_ALL_ORDERS(
     SolverUnstructFixture, OneStep,
-    BuilderConfig,
-        ->ArgsProduct({{0, 1}, {SolverFactory::implemType::MAKUTU}})
-        ->Unit(benchmark::kMillisecond))
+    BuilderConfig, ->ArgsProduct({{0, 1}, {SolverFactory::implemType::MAKUTU}})->Unit(benchmark::kMillisecond))
 
 }  // namespace bench
 }  // namespace model
