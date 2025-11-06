@@ -63,11 +63,9 @@ void bind_modelstruct(py::module_ &m)
   using T = model::ModelStruct<FloatType, ScalarType, Order>;
   using Data = model::ModelStructData<FloatType, ScalarType>;
 
-  std::string name =
-      model_class_name<FloatType, ScalarType, Order>("ModelStruct");
+  std::string name = model_class_name<FloatType, ScalarType, Order>("ModelStruct");
 
-  py::class_<T, Base, std::shared_ptr<T>>(m, name.c_str())
-      .def(py::init<const Data &>());
+  py::class_<T, Base, std::shared_ptr<T>>(m, name.c_str()).def(py::init<const Data &>());
 }
 
 // templated binder for ModelStructData
@@ -97,8 +95,7 @@ void bind_modelunstruct(py::module_ &m)
 
   std::string name = model_class_name<FloatType, ScalarType>("ModelUnstruct");
 
-  py::class_<T, Base, std::shared_ptr<T>>(m, name.c_str())
-      .def(py::init<const Data &>());
+  py::class_<T, Base, std::shared_ptr<T>>(m, name.c_str()).def(py::init<const Data &>());
 }
 
 // template binder for ModelUnstructData
@@ -106,48 +103,39 @@ template <typename FloatType, typename ScalarType>
 void bind_modelunstructdata(py::module_ &m)
 {
   using Data = model::ModelUnstructData<FloatType, ScalarType>;
-  std::string name =
-      model_class_name<FloatType, ScalarType>("ModelUnstructData");
+  std::string name = model_class_name<FloatType, ScalarType>("ModelUnstructData");
 
   py::class_<Data>(m, name.c_str())
-      .def(py::init<
-               ScalarType, ScalarType, ScalarType, FloatType, FloatType,
-               FloatType, bool, bool,
-               Kokkos::Experimental::python_view_type_t<ARRAY_INT_VIEW>,
-               Kokkos::Experimental::python_view_type_t<VECTOR_REAL_VIEW>,
-               Kokkos::Experimental::python_view_type_t<VECTOR_REAL_VIEW>,
-               Kokkos::Experimental::python_view_type_t<VECTOR_REAL_VIEW>,
-               Kokkos::Experimental::python_view_type_t<VECTOR_REAL_VIEW>,
-               Kokkos::Experimental::python_view_type_t<VECTOR_REAL_VIEW>,
-               Kokkos::Experimental::python_view_type_t<VECTOR_REAL_VIEW>,
-               Kokkos::Experimental::python_view_type_t<VECTOR_REAL_VIEW>,
-               Kokkos::Experimental::python_view_type_t<VECTOR_REAL_VIEW>,
-               Kokkos::Experimental::python_view_type_t<VECTOR_REAL_VIEW>,
-               Kokkos::Experimental::python_view_type_t<VECTOR_REAL_VIEW>,
-               Kokkos::Experimental::python_view_type_t<VECTOR_REAL_VIEW>,
-               Kokkos::Experimental::python_view_type_t<VECTOR_REAL_VIEW>,
-               Kokkos::Experimental::python_view_type_t<VECTOR_REAL_VIEW>,
-               Kokkos::Experimental::python_view_type_t<VECTOR_REAL_VIEW>,
-               Kokkos::Experimental::python_view_type_t<VECTOR_REAL_VIEW>,
-               Kokkos::Experimental::python_view_type_t<VECTOR_REAL_VIEW>,
-               Kokkos::Experimental::python_view_type_t<VECTOR_REAL_VIEW>,
-               Kokkos::Experimental::python_view_type_t<VECTOR_REAL_VIEW>,
-               Kokkos::Experimental::python_view_type_t<VECTOR_REAL_VIEW>,
-               Kokkos::Experimental::python_view_type_t<VECTOR_REAL_VIEW>>(),
-           py::arg("order"), py::arg("n_element"), py::arg("n_node"),
-           py::arg("lx"), py::arg("ly"), py::arg("lz"),
-           py::arg("is_model_on_nodes"), py::arg("is_elastic"),
-           py::arg("global_node_index"), py::arg("nodes_coords_x"),
-           py::arg("nodes_coords_y"), py::arg("nodes_coords_z"),
-           py::arg("model_vp_node"), py::arg("model_vp_element"),
-           py::arg("model_rho_node"), py::arg("model_rho_element"),
-           py::arg("model_vs_node"), py::arg("model_vs_element"),
-           py::arg("model_delta_node"), py::arg("model_delta_element"),
-           py::arg("model_epsilon_node"), py::arg("model_epsilon_element"),
-           py::arg("model_gamma_node"), py::arg("model_gamma_element"),
-           py::arg("model_phi_node"), py::arg("model_phi_element"),
-           py::arg("model_theta_node"), py::arg("model_theta_element"),
-           py::arg("boundaries_t"));
+      .def(py::init<ScalarType, ScalarType, ScalarType, FloatType, FloatType, FloatType, bool, bool,
+                    Kokkos::Experimental::python_view_type_t<ARRAY_INT_VIEW>,
+                    Kokkos::Experimental::python_view_type_t<VECTOR_REAL_VIEW>,
+                    Kokkos::Experimental::python_view_type_t<VECTOR_REAL_VIEW>,
+                    Kokkos::Experimental::python_view_type_t<VECTOR_REAL_VIEW>,
+                    Kokkos::Experimental::python_view_type_t<VECTOR_REAL_VIEW>,
+                    Kokkos::Experimental::python_view_type_t<VECTOR_REAL_VIEW>,
+                    Kokkos::Experimental::python_view_type_t<VECTOR_REAL_VIEW>,
+                    Kokkos::Experimental::python_view_type_t<VECTOR_REAL_VIEW>,
+                    Kokkos::Experimental::python_view_type_t<VECTOR_REAL_VIEW>,
+                    Kokkos::Experimental::python_view_type_t<VECTOR_REAL_VIEW>,
+                    Kokkos::Experimental::python_view_type_t<VECTOR_REAL_VIEW>,
+                    Kokkos::Experimental::python_view_type_t<VECTOR_REAL_VIEW>,
+                    Kokkos::Experimental::python_view_type_t<VECTOR_REAL_VIEW>,
+                    Kokkos::Experimental::python_view_type_t<VECTOR_REAL_VIEW>,
+                    Kokkos::Experimental::python_view_type_t<VECTOR_REAL_VIEW>,
+                    Kokkos::Experimental::python_view_type_t<VECTOR_REAL_VIEW>,
+                    Kokkos::Experimental::python_view_type_t<VECTOR_REAL_VIEW>,
+                    Kokkos::Experimental::python_view_type_t<VECTOR_REAL_VIEW>,
+                    Kokkos::Experimental::python_view_type_t<VECTOR_REAL_VIEW>,
+                    Kokkos::Experimental::python_view_type_t<VECTOR_REAL_VIEW>,
+                    Kokkos::Experimental::python_view_type_t<VECTOR_REAL_VIEW>>(),
+           py::arg("order"), py::arg("n_element"), py::arg("n_node"), py::arg("lx"), py::arg("ly"), py::arg("lz"),
+           py::arg("is_model_on_nodes"), py::arg("is_elastic"), py::arg("global_node_index"), py::arg("nodes_coords_x"),
+           py::arg("nodes_coords_y"), py::arg("nodes_coords_z"), py::arg("model_vp_node"), py::arg("model_vp_element"),
+           py::arg("model_rho_node"), py::arg("model_rho_element"), py::arg("model_vs_node"),
+           py::arg("model_vs_element"), py::arg("model_delta_node"), py::arg("model_delta_element"),
+           py::arg("model_epsilon_node"), py::arg("model_epsilon_element"), py::arg("model_gamma_node"),
+           py::arg("model_gamma_element"), py::arg("model_phi_node"), py::arg("model_phi_element"),
+           py::arg("model_theta_node"), py::arg("model_theta_element"), py::arg("boundaries_t"));
 }
 
 }  // namespace model

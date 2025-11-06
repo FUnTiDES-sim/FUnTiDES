@@ -20,15 +20,9 @@
 
 struct SEMsolverDataAcoustic : public SolverBase::DataStruct
 {
-  SEMsolverDataAcoustic(int i1, int i2, ARRAY_REAL_VIEW rhsTerm,
-                        ARRAY_REAL_VIEW pnGlobal, VECTOR_INT_VIEW rhsElement,
+  SEMsolverDataAcoustic(int i1, int i2, ARRAY_REAL_VIEW rhsTerm, ARRAY_REAL_VIEW pnGlobal, VECTOR_INT_VIEW rhsElement,
                         ARRAY_REAL_VIEW rhsWeights)
-      : m_i1(i1),
-        m_i2(i2),
-        m_rhsTerm(rhsTerm),
-        m_pnGlobal(pnGlobal),
-        m_rhsElement(rhsElement),
-        m_rhsWeights(rhsWeights)
+      : m_i1(i1), m_i2(i2), m_rhsTerm(rhsTerm), m_pnGlobal(pnGlobal), m_rhsElement(rhsElement), m_rhsWeights(rhsWeights)
   {
   }
 
@@ -59,8 +53,7 @@ struct SEMsolverDataAcoustic : public SolverBase::DataStruct
  * @tparam IS_MODEL_ON_NODES Boolean to say if the model is located on nodes
  * (true) or on elements (false)
  */
-template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE,
-          bool IS_MODEL_ON_NODES>
+template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE, bool IS_MODEL_ON_NODES>
 class SEMsolverAcoustic : public SEMSolverBase
 {
  public:
@@ -78,10 +71,8 @@ class SEMsolverAcoustic : public SEMSolverBase
    *                       for geophysics to preserve natural reflections).
    * @param taper_delta_ Attenuation parameter for sponge layers.
    */
-  void computeFEInit(model::ModelApi<float, int> &mesh,
-                     const std::array<float, 3> &sponge_size,
-                     const bool surface_sponge,
-                     const float taper_delta_) override;
+  void computeFEInit(model::ModelApi<float, int> &mesh, const std::array<float, 3> &sponge_size,
+                     const bool surface_sponge, const float taper_delta_) override;
 
   /**
    * @brief Compute one time step of the elastic wave equation solver.
@@ -92,8 +83,7 @@ class SEMsolverAcoustic : public SEMSolverBase
    * @param timeSample Current time index into the RHS (source) term.
    * @param data DataStruct containing all necessary arrays.
    */
-  void computeOneStep(const float &dt, const int &timeSample,
-                      DataStruct &data) override;
+  void computeOneStep(const float &dt, const int &timeSample, DataStruct &data) override;
 
   /**
    * @brief Initialize arrays required by the finite element solver.
@@ -133,8 +123,7 @@ class SEMsolverAcoustic : public SEMSolverBase
    * @param field The field to output
    * @param fieldName The name of the field to output (here it can be pnGlobal)
    */
-  void outputSolutionValues(const int &indexTimeStep, int &i1,
-                            int &myElementSource, const ARRAY_REAL_VIEW &field,
+  void outputSolutionValues(const int &indexTimeStep, int &i1, int &myElementSource, const ARRAY_REAL_VIEW &field,
                             const char *fieldName) override;
   /**
    * @brief Apply external forcing to the global displacement field.
@@ -146,9 +135,7 @@ class SEMsolverAcoustic : public SEMSolverBase
    * @param rhsElement Indices of source elements.
    * @param rhsWeights Forcing weights per node.
    */
-  void applyRHSTerm(int timeSample, float dt, int i2,
-                    const ARRAY_REAL_VIEW &rhsTerm,
-                    const VECTOR_INT_VIEW &rhsElement,
+  void applyRHSTerm(int timeSample, float dt, int i2, const ARRAY_REAL_VIEW &rhsTerm, const VECTOR_INT_VIEW &rhsElement,
                     const ARRAY_REAL_VIEW &rhsWeights);
 
   /**
@@ -169,8 +156,7 @@ class SEMsolverAcoustic : public SEMSolverBase
    * @param i2 Current time step index.
    * @param pnGlobal Pressure field array (updated in-place).
    */
-  void updatePressureField(float dt, int i1, int i2,
-                           const ARRAY_REAL_VIEW &pnGlobal);
+  void updatePressureField(float dt, int i1, int i2, const ARRAY_REAL_VIEW &pnGlobal);
 
  private:
   MESH_TYPE m_mesh;  ///< Computational mesh

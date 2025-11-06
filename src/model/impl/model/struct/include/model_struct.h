@@ -16,8 +16,7 @@ struct ModelStructData : public ModelDataBase<FloatType, ScalarType>
   PROXY_HOST_DEVICE ModelStructData() = default;
   PROXY_HOST_DEVICE ~ModelStructData() = default;
   PROXY_HOST_DEVICE ModelStructData(const ModelStructData&) = default;
-  PROXY_HOST_DEVICE ModelStructData& operator=(const ModelStructData&) =
-      default;
+  PROXY_HOST_DEVICE ModelStructData& operator=(const ModelStructData&) = default;
 
   ScalarType ex_, ey_, ez_;
   FloatType dx_, dy_, dz_;
@@ -41,8 +40,7 @@ class ModelStruct : public ModelApi<FloatType, ScalarType>
    * @brief Constructor from ModelStructData.
    * @param data ModelStructData structure containing all the mesh data
    */
-  PROXY_HOST_DEVICE ModelStruct(
-      const ModelStructData<FloatType, ScalarType>& data)
+  PROXY_HOST_DEVICE ModelStruct(const ModelStructData<FloatType, ScalarType>& data)
       : ex_(data.ex_),
         ey_(data.ey_),
         ez_(data.ez_),
@@ -101,15 +99,12 @@ class ModelStruct : public ModelApi<FloatType, ScalarType>
 
     // Determine which element this node belongs to and local position within
     // element
-    int elemIdx =
-        nodeIdx[dim] / Order;  // Element index in the requested dimension
-    int localIdx =
-        nodeIdx[dim] % Order;  // Local node index within element (0 to Order)
+    int elemIdx = nodeIdx[dim] / Order;   // Element index in the requested dimension
+    int localIdx = nodeIdx[dim] % Order;  // Local node index within element (0 to Order)
 
     // Handle boundary case: if we're at the last node of an element (except the
     // last element), it's actually the first node of the next element
-    if (localIdx == Order &&
-        elemIdx < (dim == 0 ? ex_ : (dim == 1 ? ey_ : ez_)) - 1)
+    if (localIdx == Order && elemIdx < (dim == 0 ? ex_ : (dim == 1 ? ey_ : ez_)) - 1)
     {
       elemIdx++;
       localIdx = 0;
@@ -123,8 +118,7 @@ class ModelStruct : public ModelApi<FloatType, ScalarType>
     FloatType elementStart = elemIdx * elementSize;
 
     // Transform from [-1, 1] to physical coordinates
-    FloatType physicalCoord =
-        elementStart + (gllPoint + 1.0) * elementSize * 0.5;
+    FloatType physicalCoord = elementStart + (gllPoint + 1.0) * elementSize * 0.5;
 
     return physicalCoord;
   }
@@ -357,10 +351,7 @@ class ModelStruct : public ModelApi<FloatType, ScalarType>
    * @return Total node count
    */
   PROXY_HOST_DEVICE
-  ScalarType getNumberOfNodes() const
-  {
-    return (Order * ex_ + 1) * (Order * ey_ + 1) * (Order * ez_ + 1);
-  }
+  ScalarType getNumberOfNodes() const { return (Order * ex_ + 1) * (Order * ey_ + 1) * (Order * ez_ + 1); }
 
   /**
    * @brief Get the number of interpolation points per element.

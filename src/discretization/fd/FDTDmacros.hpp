@@ -11,11 +11,8 @@
 
 #define POW2(x) ((x) * (x))
 #define IDX3(i, j, k) (NZ * NY * (i) + NZ * (j) + (k))
-#define IDX3_l(i, j, k)                                                      \
-  ((NZ + 2 * LZ) * (NY + 2 * LY) * ((i) + LX) + (NZ + 2 * LZ) * ((j) + LY) + \
-   ((k) + LZ))
-#define IDX3_eta1(i, j, k) \
-  ((NZ + 2) * (NY + 2) * ((i) + 1) + (NZ + 2) * ((j) + 1) + ((k) + 1))
+#define IDX3_l(i, j, k) ((NZ + 2 * LZ) * (NY + 2 * LY) * ((i) + LX) + (NZ + 2 * LZ) * ((j) + LY) + ((k) + LZ))
+#define IDX3_eta1(i, j, k) ((NZ + 2) * (NY + 2) * ((i) + 1) + (NZ + 2) * ((j) + 1) + ((k) + 1))
 
 #if defined(USE_KOKKOS)
 #define LOOP3DHEAD(x3, y3, z3, x4, y4, z4) Kokkos::parallel_for(Kokkos::MDRangePolicy<Kokkos::Rank<3>>({z3,x3,y3},{z4,x4,y4}),KOKKOS_LAMBDA(int k,int i,int j) {

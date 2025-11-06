@@ -160,10 +160,8 @@ struct FDTDInit
       printf("if no argument running with default values\n");
     }
 
-    printf("Number of grids: nx=%d, ny=%d, nz=%d\n", myGrids.nx, myGrids.ny,
-           myGrids.nz);
-    printf("Source location: xs=%d, ys=%d, zs=%d\n", myGrids.xs, myGrids.ys,
-           myGrids.zs);
+    printf("Number of grids: nx=%d, ny=%d, nz=%d\n", myGrids.nx, myGrids.ny, myGrids.nz);
+    printf("Source location: xs=%d, ys=%d, zs=%d\n", myGrids.xs, myGrids.ys, myGrids.zs);
     float lambdamax = vmin / fmax;
 
     // init pml limits
@@ -237,8 +235,7 @@ struct FDTDInit
     }
     myModels.coef0 = -2. * (tmpX + tmpY + tmpZ);
 
-    timeStep = myFDTDUtils.compute_dt_sch(vmax, myModels.coefx, myModels.coefy,
-                                          myModels.coefz);
+    timeStep = myFDTDUtils.compute_dt_sch(vmax, myModels.coefx, myModels.coefy, myModels.coefz);
     nSamples = timeMax / timeStep;
     printf("init coefs done\n");
   }
@@ -248,8 +245,7 @@ struct FDTDInit
     // compute source term
     myModels.RHSTerm = allocateVector<vectorReal>(nSamples, "RHSTerm");
 
-    std::vector<float> sourceTerm =
-        myUtils.computeSourceTerm(nSamples, timeStep, f0, sourceOrder);
+    std::vector<float> sourceTerm = myUtils.computeSourceTerm(nSamples, timeStep, f0, sourceOrder);
     for (int i = 0; i < nSamples; i++)
     {
       myModels.RHSTerm[i] = sourceTerm[i];
@@ -260,31 +256,25 @@ struct FDTDInit
   void init_models(FDTDGRIDS &myGrids, FDTDMODELS &myModels)
   {
     int modelVolume = myGrids.nx * myGrids.ny * myGrids.nz;
-    int extModelVolume = (myGrids.nx + 2 * myGrids.lx) *
-                         (myGrids.ny + 2 * myGrids.ly) *
-                         (myGrids.nz + 2 * myGrids.lz);
+    int extModelVolume = (myGrids.nx + 2 * myGrids.lx) * (myGrids.ny + 2 * myGrids.ly) * (myGrids.nz + 2 * myGrids.lz);
     int etaModelVolume = (myGrids.nx + 2) * (myGrids.ny + 2) * (myGrids.nz + 2);
 
-    myModels.spongeArray =
-        allocateVector<vectorReal>(modelVolume, "spongeArray");
+    myModels.spongeArray = allocateVector<vectorReal>(modelVolume, "spongeArray");
     myModels.vp = allocateVector<vectorReal>(modelVolume, "vp");
     myModels.pnp1 = allocateVector<vectorReal>(extModelVolume, "pnp1");
     myModels.pn = allocateVector<vectorReal>(extModelVolume, "pn");
-    myModels.pnGlobal =
-        allocateArray2D<arrayReal>(extModelVolume, 2, "pnGlobal");
+    myModels.pnGlobal = allocateArray2D<arrayReal>(extModelVolume, 2, "pnGlobal");
 
     if (usePML)
     {
       printf("ici\n");
       myModels.phi = allocateVector<vectorReal>(modelVolume, "phi");
       myModels.eta = allocateVector<vectorReal>(etaModelVolume, "eta");
-      myFDTDUtils.init_eta(
-          myGrids.nx, myGrids.ny, myGrids.nz, myGrids.ndampx, myGrids.ndampy,
-          myGrids.ndampz, myGrids.x1, myGrids.x2, myGrids.x3, myGrids.x4,
-          myGrids.x5, myGrids.x6, myGrids.y1, myGrids.y2, myGrids.y3,
-          myGrids.y4, myGrids.y5, myGrids.y6, myGrids.z1, myGrids.z2,
-          myGrids.z3, myGrids.z4, myGrids.z5, myGrids.z6, myGrids.dx,
-          myGrids.dy, myGrids.dz, timeStep, vmax, myModels.eta);
+      myFDTDUtils.init_eta(myGrids.nx, myGrids.ny, myGrids.nz, myGrids.ndampx, myGrids.ndampy, myGrids.ndampz,
+                           myGrids.x1, myGrids.x2, myGrids.x3, myGrids.x4, myGrids.x5, myGrids.x6, myGrids.y1,
+                           myGrids.y2, myGrids.y3, myGrids.y4, myGrids.y5, myGrids.y6, myGrids.z1, myGrids.z2,
+                           myGrids.z3, myGrids.z4, myGrids.z5, myGrids.z6, myGrids.dx, myGrids.dy, myGrids.dz, timeStep,
+                           vmax, myModels.eta);
       printf("ici\n");
     }
     float init_vp_value = vmin * vmin * timeStep * timeStep;

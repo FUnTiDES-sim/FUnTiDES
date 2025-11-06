@@ -21,8 +21,7 @@ template <typename FloatType, typename ScalarType>
 void bind_modelbuilderbase(py::module_ &m)
 {
   using T = model::ModelBuilderBase<FloatType, ScalarType>;
-  std::string name =
-      model_class_name<FloatType, ScalarType>("ModelBuilderBase");
+  std::string name = model_class_name<FloatType, ScalarType>("ModelBuilderBase");
 
   py::class_<T, std::shared_ptr<T>>(m, name.c_str())
       .def_static("max_order", []() { return T::MAX_ORDER; })
@@ -35,14 +34,11 @@ void bind_cartesian_struct_builder(py::module_ &m)
 {
   using Base = model::ModelBuilderBase<FloatType, ScalarType>;
   using T = model::CartesianStructBuilder<FloatType, ScalarType, Order>;
-  std::string name =
-      model_class_name<FloatType, ScalarType, Order>("CartesianStructBuilder");
+  std::string name = model_class_name<FloatType, ScalarType, Order>("CartesianStructBuilder");
 
   py::class_<T, Base, std::shared_ptr<T>>(m, name.c_str())
-      .def(py::init<ScalarType, FloatType, ScalarType, FloatType, ScalarType,
-                    FloatType, bool, bool>(),
-           py::arg("ex"), py::arg("hx"), py::arg("ey"), py::arg("hy"),
-           py::arg("ez"), py::arg("hz"), py::arg("is_model_on_nodes"),
+      .def(py::init<ScalarType, FloatType, ScalarType, FloatType, ScalarType, FloatType, bool, bool>(), py::arg("ex"),
+           py::arg("hx"), py::arg("ey"), py::arg("hy"), py::arg("ez"), py::arg("hz"), py::arg("is_model_on_nodes"),
            py::arg("is_elastic"));
 }
 
@@ -55,10 +51,8 @@ void bind_cartesian_unstruct_params(py::module_ &m)
 
   py::class_<Params, std::shared_ptr<Params>>(m, name.c_str())
       .def(py::init<>())
-      .def(py::init<int, ScalarType, ScalarType, ScalarType, FloatType,
-                    FloatType, FloatType, bool, bool>(),
-           py::arg("order"), py::arg("ex"), py::arg("ey"), py::arg("ez"),
-           py::arg("lx"), py::arg("ly"), py::arg("lz"),
+      .def(py::init<int, ScalarType, ScalarType, ScalarType, FloatType, FloatType, FloatType, bool, bool>(),
+           py::arg("order"), py::arg("ex"), py::arg("ey"), py::arg("ez"), py::arg("lx"), py::arg("ly"), py::arg("lz"),
            py::arg("is_model_on_nodes"), py::arg("is_elastic"))
       .def_readwrite("order", &Params::order)
       .def_readwrite("ex", &Params::ex)
@@ -77,8 +71,7 @@ void bind_cartesian_unstruct_builder(py::module_ &m)
 {
   using Base = model::ModelBuilderBase<FloatType, ScalarType>;
   using T = model::CartesianUnstructBuilder<FloatType, ScalarType>;
-  std::string name =
-      model_class_name<FloatType, ScalarType>("CartesianUnstructBuilder");
+  std::string name = model_class_name<FloatType, ScalarType>("CartesianUnstructBuilder");
 
   py::class_<T, Base, std::shared_ptr<T>>(m, name.c_str())
       .def(py::init<>())

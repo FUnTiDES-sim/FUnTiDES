@@ -22,7 +22,6 @@ class SolverBase
   };
 
   // Pure virtual function to compute one step of the solver
-  virtual void computeOneStep(const float &dt, const int &timeSample,
-                              DataStruct &data) = 0;
+  virtual void computeOneStep(const float &dt, const int &timeSample, DataStruct &data) = 0;
 };
 #endif  // SOLVER_BASE_HPP_

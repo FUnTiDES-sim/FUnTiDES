@@ -12,24 +12,20 @@ struct ModelUnstructData : public ModelDataBase<FloatType, ScalarType>
   PROXY_HOST_DEVICE ModelUnstructData() = default;
   PROXY_HOST_DEVICE ~ModelUnstructData() = default;
   PROXY_HOST_DEVICE ModelUnstructData(const ModelUnstructData&) = default;
-  PROXY_HOST_DEVICE ModelUnstructData& operator=(const ModelUnstructData&) =
-      default;
+  PROXY_HOST_DEVICE ModelUnstructData& operator=(const ModelUnstructData&) = default;
 
   PROXY_HOST_DEVICE
-  ModelUnstructData(
-      ScalarType order, ScalarType n_element, ScalarType n_node, FloatType lx,
-      FloatType ly, FloatType lz, bool isModelOnNodes, bool isElastic,
-      ARRAY_INT_VIEW global_node_index, VECTOR_REAL_VIEW nodes_coords_x,
-      VECTOR_REAL_VIEW nodes_coords_y, VECTOR_REAL_VIEW nodes_coords_z,
-      VECTOR_REAL_VIEW model_vp_node, VECTOR_REAL_VIEW model_vp_element,
-      VECTOR_REAL_VIEW model_rho_node, VECTOR_REAL_VIEW model_rho_element,
-      VECTOR_REAL_VIEW model_vs_node, VECTOR_REAL_VIEW model_vs_element,
-      VECTOR_REAL_VIEW model_delta_node, VECTOR_REAL_VIEW model_delta_element,
-      VECTOR_REAL_VIEW model_epsilon_node,
-      VECTOR_REAL_VIEW model_epsilon_element, VECTOR_REAL_VIEW model_gamma_node,
-      VECTOR_REAL_VIEW model_gamma_element, VECTOR_REAL_VIEW model_theta_node,
-      VECTOR_REAL_VIEW model_theta_element, VECTOR_REAL_VIEW model_phi_node,
-      VECTOR_REAL_VIEW model_phi_element, VECTOR_REAL_VIEW boundaries_t)
+  ModelUnstructData(ScalarType order, ScalarType n_element, ScalarType n_node, FloatType lx, FloatType ly, FloatType lz,
+                    bool isModelOnNodes, bool isElastic, ARRAY_INT_VIEW global_node_index,
+                    VECTOR_REAL_VIEW nodes_coords_x, VECTOR_REAL_VIEW nodes_coords_y, VECTOR_REAL_VIEW nodes_coords_z,
+                    VECTOR_REAL_VIEW model_vp_node, VECTOR_REAL_VIEW model_vp_element, VECTOR_REAL_VIEW model_rho_node,
+                    VECTOR_REAL_VIEW model_rho_element, VECTOR_REAL_VIEW model_vs_node,
+                    VECTOR_REAL_VIEW model_vs_element, VECTOR_REAL_VIEW model_delta_node,
+                    VECTOR_REAL_VIEW model_delta_element, VECTOR_REAL_VIEW model_epsilon_node,
+                    VECTOR_REAL_VIEW model_epsilon_element, VECTOR_REAL_VIEW model_gamma_node,
+                    VECTOR_REAL_VIEW model_gamma_element, VECTOR_REAL_VIEW model_theta_node,
+                    VECTOR_REAL_VIEW model_theta_element, VECTOR_REAL_VIEW model_phi_node,
+                    VECTOR_REAL_VIEW model_phi_element, VECTOR_REAL_VIEW boundaries_t)
       : order_(order),
         n_element_(n_element),
         n_node_(n_node),
@@ -111,8 +107,7 @@ class ModelUnstruct : public ModelApi<FloatType, ScalarType>
    * @brief Constructor from ModelData.
    * @param data ModelData structure containing all the mesh data
    */
-  PROXY_HOST_DEVICE ModelUnstruct(
-      const ModelUnstructData<FloatType, ScalarType>& data)
+  PROXY_HOST_DEVICE ModelUnstruct(const ModelUnstructData<FloatType, ScalarType>& data)
       : order_(data.order_),
         n_element_(data.n_element_),
         n_node_(data.n_node_),
@@ -192,8 +187,7 @@ class ModelUnstruct : public ModelApi<FloatType, ScalarType>
   PROXY_HOST_DEVICE
   ScalarType globalNodeIndex(ScalarType e, int i, int j, int k) const final
   {
-    const auto localDofIndex =
-        i + j * (order_ + 1) + k * (order_ + 1) * (order_ + 1);
+    const auto localDofIndex = i + j * (order_ + 1) + k * (order_ + 1) * (order_ + 1);
     return global_node_index_(e, localDofIndex);  // Fixed: was elementIndex
   }
 
@@ -247,10 +241,7 @@ class ModelUnstruct : public ModelApi<FloatType, ScalarType>
    * @return Model S-wave velocity value at the node
    */
   PROXY_HOST_DEVICE
-  FloatType getModelVsOnNodes(ScalarType n) const final
-  {
-    return model_vs_node_[n];
-  }
+  FloatType getModelVsOnNodes(ScalarType n) const final { return model_vs_node_[n]; }
 
   /**
    * @brief Get the average S-wave velocity value on a given element.
@@ -258,10 +249,7 @@ class ModelUnstruct : public ModelApi<FloatType, ScalarType>
    * @return Model S-wave velocity value for the element
    */
   PROXY_HOST_DEVICE
-  FloatType getModelVsOnElement(ScalarType e) const final
-  {
-    return model_vs_element_[e];
-  }
+  FloatType getModelVsOnElement(ScalarType e) const final { return model_vs_element_[e]; }
 
   /**
    * @brief Get the average Thomsen parameter delta value at a global node.
@@ -269,10 +257,7 @@ class ModelUnstruct : public ModelApi<FloatType, ScalarType>
    * @return Model Thomsen paramter delta value for the node
    */
   PROXY_HOST_DEVICE
-  FloatType getModelDeltaOnNodes(ScalarType n) const final
-  {
-    return model_delta_node_[n];
-  }
+  FloatType getModelDeltaOnNodes(ScalarType n) const final { return model_delta_node_[n]; }
 
   /**
    * @brief Get the average Thomsen parameter delta value on a given element.
@@ -280,10 +265,7 @@ class ModelUnstruct : public ModelApi<FloatType, ScalarType>
    * @return Model Thomsen paramter delta value for the element
    */
   PROXY_HOST_DEVICE
-  FloatType getModelDeltaOnElement(ScalarType e) const final
-  {
-    return model_delta_element_[e];
-  }
+  FloatType getModelDeltaOnElement(ScalarType e) const final { return model_delta_element_[e]; }
 
   /**
    * @brief Get the average Thomsen parameter epsilon value at a global node.
@@ -291,10 +273,7 @@ class ModelUnstruct : public ModelApi<FloatType, ScalarType>
    * @return Model Thomsen paramter epsilon value for the node
    */
   PROXY_HOST_DEVICE
-  FloatType getModelEpsilonOnNodes(ScalarType n) const final
-  {
-    return model_epsilon_node_[n];
-  }
+  FloatType getModelEpsilonOnNodes(ScalarType n) const final { return model_epsilon_node_[n]; }
 
   /**
    * @brief Get the average Thomsen parameter epsilon value on a given element.
@@ -303,10 +282,7 @@ class ModelUnstruct : public ModelApi<FloatType, ScalarType>
    */
 
   PROXY_HOST_DEVICE
-  FloatType getModelEpsilonOnElement(ScalarType e) const final
-  {
-    return model_epsilon_element_[e];
-  }
+  FloatType getModelEpsilonOnElement(ScalarType e) const final { return model_epsilon_element_[e]; }
 
   /**
    * @brief Get the average Thomsen parameter gamma value at a global node.
@@ -314,10 +290,7 @@ class ModelUnstruct : public ModelApi<FloatType, ScalarType>
    * @return Model Thomsen paramter gamma value for the node
    */
   PROXY_HOST_DEVICE
-  FloatType getModelGammaOnNodes(ScalarType n) const final
-  {
-    return model_gamma_node_[n];
-  }
+  FloatType getModelGammaOnNodes(ScalarType n) const final { return model_gamma_node_[n]; }
 
   /**
    * @brief Get the average Thomsen parameter gamma value on a given element.
@@ -325,10 +298,7 @@ class ModelUnstruct : public ModelApi<FloatType, ScalarType>
    * @return Model Thomsen paramter gamma value for the element
    */
   PROXY_HOST_DEVICE
-  FloatType getModelGammaOnElement(ScalarType e) const final
-  {
-    return model_gamma_element_[e];
-  }
+  FloatType getModelGammaOnElement(ScalarType e) const final { return model_gamma_element_[e]; }
 
   /**
    * @brief Get the average anisotropic parameter phi value at a global node.
@@ -336,10 +306,7 @@ class ModelUnstruct : public ModelApi<FloatType, ScalarType>
    * @return Model anisotropic paramter phi value for the node
    */
   PROXY_HOST_DEVICE
-  ScalarType getModelPhiOnNodes(ScalarType n) const final
-  {
-    return model_phi_node_[n];
-  }
+  ScalarType getModelPhiOnNodes(ScalarType n) const final { return model_phi_node_[n]; }
 
   /**
    * @brief Get the average anisotropic parameter phi value on a given element.
@@ -347,10 +314,7 @@ class ModelUnstruct : public ModelApi<FloatType, ScalarType>
    * @return Model anisotropic paramter phi value for the element
    */
   PROXY_HOST_DEVICE
-  ScalarType getModelPhiOnElement(ScalarType e) const final
-  {
-    return model_phi_element_[e];
-  }
+  ScalarType getModelPhiOnElement(ScalarType e) const final { return model_phi_element_[e]; }
 
   /**
    * @brief Get the average anisotropic parameter theta value at a global node.
@@ -358,10 +322,7 @@ class ModelUnstruct : public ModelApi<FloatType, ScalarType>
    * @return Model anisotropic paramter theta value for the node
    */
   PROXY_HOST_DEVICE
-  ScalarType getModelThetaOnNodes(ScalarType n) const final
-  {
-    return model_theta_node_[n];
-  }
+  ScalarType getModelThetaOnNodes(ScalarType n) const final { return model_theta_node_[n]; }
 
   /**
    * @brief Get the average anisotropic parameter theta value on a given
@@ -370,10 +331,7 @@ class ModelUnstruct : public ModelApi<FloatType, ScalarType>
    * @return Model anisotropic paramter theta value for the element
    */
   PROXY_HOST_DEVICE
-  ScalarType getModelThetaOnElement(ScalarType e) const final
-  {
-    return model_theta_element_[e];
-  }
+  ScalarType getModelThetaOnElement(ScalarType e) const final { return model_theta_element_[e]; }
 
   /**
    * @brief Indicates if the model properties are defined on nodes.
@@ -414,10 +372,7 @@ class ModelUnstruct : public ModelApi<FloatType, ScalarType>
    * @return Number of interpolation points in one element
    */
   PROXY_HOST_DEVICE
-  int getNumberOfPointsPerElement() const final
-  {
-    return n_points_per_element_;
-  }
+  int getNumberOfPointsPerElement() const final { return n_points_per_element_; }
 
   /**
    * @brief Get the polynomial order of the elements.
@@ -435,10 +390,7 @@ class ModelUnstruct : public ModelApi<FloatType, ScalarType>
    * @return A combination of BoundaryFlag values
    */
   PROXY_HOST_DEVICE
-  BoundaryFlag boundaryType(ScalarType n) const final
-  {
-    return static_cast<BoundaryFlag>(boundaries_t_[n]);
-  }
+  BoundaryFlag boundaryType(ScalarType n) const final { return static_cast<BoundaryFlag>(boundaries_t_[n]); }
 
   /**
    * @brief Compute the outward unit normal vector of an element face.
@@ -581,8 +533,7 @@ class ModelUnstruct : public ModelApi<FloatType, ScalarType>
     }
     else
     {
-      throw std::runtime_error(
-          "No model initialized (model unstruct getMaxSpeed).");
+      throw std::runtime_error("No model initialized (model unstruct getMaxSpeed).");
     }
     return max(maxSpeedElem, maxSpeedNode);
   }

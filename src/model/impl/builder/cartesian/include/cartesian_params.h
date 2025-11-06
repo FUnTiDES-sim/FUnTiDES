@@ -16,8 +16,8 @@ struct CartesianParams
 
   CartesianParams() = default;
 
-  CartesianParams(int order_, Index ex_, Index ey_, Index ez_, Coord lx_,
-                  Coord ly_, Coord lz_, bool isModelOnNodes_, bool isElastic_)
+  CartesianParams(int order_, Index ex_, Index ey_, Index ez_, Coord lx_, Coord ly_, Coord lz_, bool isModelOnNodes_,
+                  bool isElastic_)
       : order(order_),
         ex(ex_),
         ey(ey_),

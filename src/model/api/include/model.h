@@ -46,9 +46,7 @@ class ModelApi
    * @brief Constructor from ModelDataBase.
    * @param data ModelDataBase structure containing all the mesh data
    */
-  PROXY_HOST_DEVICE ModelApi(const ModelDataBase<ScalarType, FloatType>& data)
-  {
-  }
+  PROXY_HOST_DEVICE ModelApi(const ModelDataBase<ScalarType, FloatType>& data) {}
 
   /**
    * @brief Copy constructor.
@@ -83,8 +81,7 @@ class ModelApi
    * @return Global node index
    */
   PROXY_HOST_DEVICE
-  virtual ScalarType globalNodeIndex(ScalarType e, int i, int j,
-                                     int k) const = 0;
+  virtual ScalarType globalNodeIndex(ScalarType e, int i, int j, int k) const = 0;
 
   /**
    * @brief Get the P-wave velocity value at a global node.
@@ -259,8 +256,7 @@ class ModelApi
    * @param[out] v Output array (size 3) holding the normal vector
    */
   PROXY_HOST_DEVICE
-  virtual void faceNormal(ScalarType e, int dir, int face,
-                          FloatType v[3]) const = 0;
+  virtual void faceNormal(ScalarType e, int dir, int face, FloatType v[3]) const = 0;
 
   /**
    * @brief Get the size of the domain in the specified dimension.

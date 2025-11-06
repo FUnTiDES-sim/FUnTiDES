@@ -15,12 +15,10 @@
 #include "fe/Integrals.hpp"
 #include "sem_solver_elastic.h"
 
-template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE,
-          bool IS_MODEL_ON_NODES>
-void SEMsolverElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES>::
-    computeFEInit(model::ModelApi<float, int> &mesh_in,
-                  const std::array<float, 3> &sponge_size,
-                  const bool surface_sponge, const float taper_delta)
+template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE, bool IS_MODEL_ON_NODES>
+void SEMsolverElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES>::computeFEInit(
+    model::ModelApi<float, int> &mesh_in, const std::array<float, 3> &sponge_size, const bool surface_sponge,
+    const float taper_delta)
 {
   if (auto *typed_mesh = dynamic_cast<MESH_TYPE *>(&mesh_in))
   {
@@ -42,11 +40,10 @@ void SEMsolverElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES>::
   computeGlobalMassMatrix();
 }
 
-template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE,
-          bool IS_MODEL_ON_NODES>
-void SEMsolverElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES>::
-    computeOneStep(const float &dt, const int &timeSample,
-                   SolverBase::DataStruct &data)
+template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE, bool IS_MODEL_ON_NODES>
+void SEMsolverElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES>::computeOneStep(const float &dt,
+                                                                                          const int &timeSample,
+                                                                                          SolverBase::DataStruct &data)
 {
   // Cast to the specific DataStruct type
   auto &myData = dynamic_cast<SEMsolverDataElastic &>(data);
@@ -64,8 +61,7 @@ void SEMsolverElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES>::
 
   resetGlobalVectors(m_mesh.getNumberOfNodes());
   FENCE
-  applyRHSTerm(timeSample, dt, i2, rhsTermx, rhsTermy, rhsTermz, rhsElement,
-               rhsWeights);
+  applyRHSTerm(timeSample, dt, i2, rhsTermx, rhsTermy, rhsTermz, rhsElement, rhsWeights);
   FENCE
   computeElementContributions(i2, uxnGlobal, uynGlobal, uznGlobal);
   FENCE
@@ -73,10 +69,8 @@ void SEMsolverElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES>::
   FENCE
 }
 
-template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE,
-          bool IS_MODEL_ON_NODES>
-void SEMsolverElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE,
-                      IS_MODEL_ON_NODES>::resetGlobalVectors(int numNodes)
+template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE, bool IS_MODEL_ON_NODES>
+void SEMsolverElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES>::resetGlobalVectors(int numNodes)
 {
   LOOPHEAD(numNodes, i)
   {
@@ -87,15 +81,10 @@ void SEMsolverElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE,
   LOOPEND
 }
 
-template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE,
-          bool IS_MODEL_ON_NODES>
-void SEMsolverElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES>::
-    applyRHSTerm(int timeSample, float dt, int i2,
-                 const ARRAY_REAL_VIEW &rhsTermx,
-                 const ARRAY_REAL_VIEW &rhsTermy,
-                 const ARRAY_REAL_VIEW &rhsTermz,
-                 const VECTOR_INT_VIEW &rhsElement,
-                 const ARRAY_REAL_VIEW &rhsWeights)
+template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE, bool IS_MODEL_ON_NODES>
+void SEMsolverElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES>::applyRHSTerm(
+    int timeSample, float dt, int i2, const ARRAY_REAL_VIEW &rhsTermx, const ARRAY_REAL_VIEW &rhsTermy,
+    const ARRAY_REAL_VIEW &rhsTermz, const VECTOR_INT_VIEW &rhsElement, const ARRAY_REAL_VIEW &rhsWeights)
 {
   float const dt2 = dt * dt;
   int nb_rhs_element = rhsElement.extent(0);
@@ -122,12 +111,9 @@ void SEMsolverElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES>::
   LOOPEND
 }
 
-template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE,
-          bool IS_MODEL_ON_NODES>
-void SEMsolverElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES>::
-    computeElementContributions(int i2, const ARRAY_REAL_VIEW &uxnGlobal,
-                                const ARRAY_REAL_VIEW &uynGlobal,
-                                const ARRAY_REAL_VIEW &uznGlobal)
+template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE, bool IS_MODEL_ON_NODES>
+void SEMsolverElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES>::computeElementContributions(
+    int i2, const ARRAY_REAL_VIEW &uxnGlobal, const ARRAY_REAL_VIEW &uynGlobal, const ARRAY_REAL_VIEW &uznGlobal)
 {
   MAINLOOPHEAD(m_mesh.getNumberOfElements(), elementNumber)
 
@@ -222,8 +208,7 @@ void SEMsolverElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES>::
         float const C03 = CTTI[0][3], C04 = CTTI[0][4], C05 = CTTI[0][5];
         float const C11 = CTTI[1][1], C12 = CTTI[1][2], C13 = CTTI[1][3];
         float const C14 = CTTI[1][4], C15 = CTTI[1][5];
-        float const C22 = CTTI[2][2], C23 = CTTI[2][3], C24 = CTTI[2][4],
-                    C25 = CTTI[2][5];
+        float const C22 = CTTI[2][2], C23 = CTTI[2][3], C24 = CTTI[2][4], C25 = CTTI[2][5];
         float const C33 = CTTI[3][3], C34 = CTTI[3][4], C35 = CTTI[3][5];
         float const C44 = CTTI[4][4], C45 = CTTI[4][5];
         float const C55 = CTTI[5][5];
@@ -242,24 +227,18 @@ void SEMsolverElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES>::
 
             const int idx = p * 3 + r;  // 0..8
 
-            float v0 = C00 * p0r0 + C05 * p0r1 + C04 * p0r2 + C05 * p1r0 +
-                       C55 * p1r1 + C45 * p1r2 + C04 * p2r0 + C45 * p2r1 +
-                       C44 * p2r2;  // Rxx
-            float v1 = C55 * p0r0 + C15 * p0r1 + C35 * p0r2 + C15 * p1r0 +
-                       C11 * p1r1 + C13 * p1r2 + C35 * p2r0 + C13 * p2r1 +
-                       C33 * p2r2;  // Ryy
-            float v2 = C44 * p0r0 + C34 * p0r1 + C24 * p0r2 + C34 * p1r0 +
-                       C33 * p1r1 + C23 * p1r2 + C24 * p2r0 + C23 * p2r1 +
-                       C22 * p2r2;  // Rzz
-            float v3 = C05 * p0r0 + C01 * p0r1 + C03 * p0r2 + C55 * p1r0 +
-                       C15 * p1r1 + C35 * p1r2 + C45 * p2r0 + C14 * p2r1 +
-                       C34 * p2r2;  // Rxy
-            float v4 = C04 * p0r0 + C03 * p0r1 + C02 * p0r2 + C45 * p1r0 +
-                       C35 * p1r1 + C25 * p1r2 + C44 * p2r0 + C34 * p2r1 +
-                       C24 * p2r2;  // Rxz
-            float v5 = C45 * p0r0 + C35 * p0r1 + C25 * p0r2 + C14 * p1r0 +
-                       C13 * p1r1 + C12 * p1r2 + C34 * p2r0 + C33 * p2r1 +
-                       C23 * p2r2;  // Ryz
+            float v0 = C00 * p0r0 + C05 * p0r1 + C04 * p0r2 + C05 * p1r0 + C55 * p1r1 + C45 * p1r2 + C04 * p2r0 +
+                       C45 * p2r1 + C44 * p2r2;  // Rxx
+            float v1 = C55 * p0r0 + C15 * p0r1 + C35 * p0r2 + C15 * p1r0 + C11 * p1r1 + C13 * p1r2 + C35 * p2r0 +
+                       C13 * p2r1 + C33 * p2r2;  // Ryy
+            float v2 = C44 * p0r0 + C34 * p0r1 + C24 * p0r2 + C34 * p1r0 + C33 * p1r1 + C23 * p1r2 + C24 * p2r0 +
+                       C23 * p2r1 + C22 * p2r2;  // Rzz
+            float v3 = C05 * p0r0 + C01 * p0r1 + C03 * p0r2 + C55 * p1r0 + C15 * p1r1 + C35 * p1r2 + C45 * p2r0 +
+                       C14 * p2r1 + C34 * p2r2;  // Rxy
+            float v4 = C04 * p0r0 + C03 * p0r1 + C02 * p0r2 + C45 * p1r0 + C35 * p1r1 + C25 * p1r2 + C44 * p2r0 +
+                       C34 * p2r1 + C24 * p2r2;  // Rxz
+            float v5 = C45 * p0r0 + C35 * p0r1 + C25 * p0r2 + C14 * p1r0 + C13 * p1r1 + C12 * p1r2 + C34 * p2r0 +
+                       C33 * p2r1 + C23 * p2r2;  // Ryz
 
 #ifdef __CUDACC__
             CJflat[idx].a = make_float4(v0, v1, v2, v3);
@@ -276,13 +255,12 @@ void SEMsolverElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES>::
         }
       },
 
-      [&](int i, int j, float val, float(&J)[3][3], const int p, const int r) {
+      [&](int i, int j, float val, float (&J)[3][3], const int p, const int r) {
         const int idx = p * 3 + r;
 
 #ifdef __CUDACC__
 
-        const float3 u_local =
-            make_float3(uxnLocal[j], uynLocal[j], uznLocal[j]);
+        const float3 u_local = make_float3(uxnLocal[j], uynLocal[j], uznLocal[j]);
 
         // Charger CJ packed vectors (one instruction each)
         const float4 a = CJflat[idx].a;
@@ -294,12 +272,9 @@ void SEMsolverElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES>::
         float *__restrict__ uz_ptr = &uz[i];
 
         // Accumulation with FMA
-        *ux_ptr += fmaf(val * a.x, u_local.x,
-                        fmaf(val * a.w, u_local.y, val * b.x * u_local.z));
-        *uy_ptr += fmaf(val * a.w, u_local.x,
-                        fmaf(val * a.y, u_local.y, val * b.y * u_local.z));
-        *uz_ptr += fmaf(val * b.x, u_local.x,
-                        fmaf(val * b.y, u_local.y, val * a.z * u_local.z));
+        *ux_ptr += fmaf(val * a.x, u_local.x, fmaf(val * a.w, u_local.y, val * b.x * u_local.z));
+        *uy_ptr += fmaf(val * a.w, u_local.x, fmaf(val * a.y, u_local.y, val * b.y * u_local.z));
+        *uz_ptr += fmaf(val * b.x, u_local.x, fmaf(val * b.y, u_local.y, val * a.z * u_local.z));
 #else
         // Portable version
         const float uxj = uxnLocal[j];
@@ -333,83 +308,58 @@ void SEMsolverElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES>::
   MAINLOOPEND
 }
 
-template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE,
-          bool IS_MODEL_ON_NODES>
-void SEMsolverElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES>::
-    updateDisplacementField(float dt, int i1, int i2,
-                            const ARRAY_REAL_VIEW &uxnGlobal,
-                            const ARRAY_REAL_VIEW &uynGlobal,
-                            const ARRAY_REAL_VIEW &uznGlobal)
+template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE, bool IS_MODEL_ON_NODES>
+void SEMsolverElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES>::updateDisplacementField(
+    float dt, int i1, int i2, const ARRAY_REAL_VIEW &uxnGlobal, const ARRAY_REAL_VIEW &uynGlobal,
+    const ARRAY_REAL_VIEW &uznGlobal)
 {
   float const dt2 = dt * dt;
   LOOPHEAD(m_mesh.getNumberOfNodes(), I)
   {
-    uxnGlobal(I, i1) = 2 * uxnGlobal(I, i2) - uxnGlobal(I, i1) -
-                       dt2 * uxGlobal[I] / massMatrixGlobal[I];
+    uxnGlobal(I, i1) = 2 * uxnGlobal(I, i2) - uxnGlobal(I, i1) - dt2 * uxGlobal[I] / massMatrixGlobal[I];
     uxnGlobal(I, i1) *= spongeTaperCoeff(I);
     uxnGlobal(I, i2) *= spongeTaperCoeff(I);
-    uynGlobal(I, i1) = 2 * uynGlobal(I, i2) - uynGlobal(I, i1) -
-                       dt2 * uyGlobal[I] / massMatrixGlobal[I];
+    uynGlobal(I, i1) = 2 * uynGlobal(I, i2) - uynGlobal(I, i1) - dt2 * uyGlobal[I] / massMatrixGlobal[I];
     uynGlobal(I, i1) *= spongeTaperCoeff(I);
     uynGlobal(I, i2) *= spongeTaperCoeff(I);
-    uznGlobal(I, i1) = 2 * uznGlobal(I, i2) - uznGlobal(I, i1) -
-                       dt2 * uzGlobal[I] / massMatrixGlobal[I];
+    uznGlobal(I, i1) = 2 * uznGlobal(I, i2) - uznGlobal(I, i1) - dt2 * uzGlobal[I] / massMatrixGlobal[I];
     uznGlobal(I, i1) *= spongeTaperCoeff(I);
     uznGlobal(I, i2) *= spongeTaperCoeff(I);
   }
   LOOPEND
 }
 
-template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE,
-          bool IS_MODEL_ON_NODES>
-void SEMsolverElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES>::
-    outputSolutionValues(const int &indexTimeStep, int &i1,
-                         int &myElementSource,
-                         const ARRAY_REAL_VIEW &fieldGlobal,
-                         const char *fieldName)
+template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE, bool IS_MODEL_ON_NODES>
+void SEMsolverElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES>::outputSolutionValues(
+    const int &indexTimeStep, int &i1, int &myElementSource, const ARRAY_REAL_VIEW &fieldGlobal, const char *fieldName)
 {
-  cout << "TimeStep=" << indexTimeStep << ";  " << fieldName
-       << " @ elementSource location " << myElementSource
-       << " after computeOneStep = "
-       << fieldGlobal(m_mesh.globalNodeIndex(myElementSource, 0, 0, 0), i1)
-       << endl;
+  cout << "TimeStep=" << indexTimeStep << ";  " << fieldName << " @ elementSource location " << myElementSource
+       << " after computeOneStep = " << fieldGlobal(m_mesh.globalNodeIndex(myElementSource, 0, 0, 0), i1) << endl;
 }
 
-template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE,
-          bool IS_MODEL_ON_NODES>
-void SEMsolverElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE,
-                      IS_MODEL_ON_NODES>::initFEarrays()
+template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE, bool IS_MODEL_ON_NODES>
+void SEMsolverElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES>::initFEarrays()
 {
   initSpongeValues();
 }
 
-template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE,
-          bool IS_MODEL_ON_NODES>
-void SEMsolverElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE,
-                      IS_MODEL_ON_NODES>::allocateFEarrays()
+template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE, bool IS_MODEL_ON_NODES>
+void SEMsolverElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES>::allocateFEarrays()
 {
-  int nbQuadraturePoints = (m_mesh.getOrder() + 1) * (m_mesh.getOrder() + 1) *
-                           (m_mesh.getOrder() + 1);
+  int nbQuadraturePoints = (m_mesh.getOrder() + 1) * (m_mesh.getOrder() + 1) * (m_mesh.getOrder() + 1);
 
   // shared arrays
-  massMatrixGlobal = allocateVector<VECTOR_REAL_VIEW>(m_mesh.getNumberOfNodes(),
-                                                      "massMatrixGlobal");
-  uxGlobal =
-      allocateVector<VECTOR_REAL_VIEW>(m_mesh.getNumberOfNodes(), "uxGlobal");
-  uyGlobal =
-      allocateVector<VECTOR_REAL_VIEW>(m_mesh.getNumberOfNodes(), "uyGlobal");
-  uzGlobal =
-      allocateVector<VECTOR_REAL_VIEW>(m_mesh.getNumberOfNodes(), "uzGlobal");
+  massMatrixGlobal = allocateVector<VECTOR_REAL_VIEW>(m_mesh.getNumberOfNodes(), "massMatrixGlobal");
+  uxGlobal = allocateVector<VECTOR_REAL_VIEW>(m_mesh.getNumberOfNodes(), "uxGlobal");
+  uyGlobal = allocateVector<VECTOR_REAL_VIEW>(m_mesh.getNumberOfNodes(), "uyGlobal");
+  uzGlobal = allocateVector<VECTOR_REAL_VIEW>(m_mesh.getNumberOfNodes(), "uzGlobal");
 
   // sponge allocation
-  spongeTaperCoeff = allocateVector<VECTOR_REAL_VIEW>(m_mesh.getNumberOfNodes(),
-                                                      "spongeTaperCoeff");
+  spongeTaperCoeff = allocateVector<VECTOR_REAL_VIEW>(m_mesh.getNumberOfNodes(), "spongeTaperCoeff");
 }
 
-template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE,
-          bool IS_MODEL_ON_NODES>
-void SEMsolverElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE,
-                      IS_MODEL_ON_NODES>::computeGlobalMassMatrix()
+template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE, bool IS_MODEL_ON_NODES>
+void SEMsolverElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES>::computeGlobalMassMatrix()
 {
   MAINLOOPHEAD(m_mesh.getNumberOfElements(), elementNumber)
 
@@ -444,9 +394,7 @@ void SEMsolverElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE,
     density = m_mesh.getModelRhoOnElement(elementNumber);
   }
 
-  INTEGRAL_TYPE::computeMassTerm(
-      cornerCoords,
-      [&](const int j, const real_t val) { massMatrixLocal[j] += val; });
+  INTEGRAL_TYPE::computeMassTerm(cornerCoords, [&](const int j, const real_t val) { massMatrixLocal[j] += val; });
 
   for (int i = 0; i < m_mesh.getNumberOfPointsPerElement(); ++i)
   {
@@ -465,15 +413,10 @@ void SEMsolverElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE,
   MAINLOOPEND
 }
 
-template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE,
-          bool IS_MODEL_ON_NODES>
-PROXY_HOST_DEVICE void SEMsolverElastic<
-    ORDER, INTEGRAL_TYPE, MESH_TYPE,
-    IS_MODEL_ON_NODES>::computeCMatrix(float const vp, float const vs,
-                                       float const rho, float const delta,
-                                       float const epsilon, float const gamma,
-                                       float const phi, float const theta,
-                                       float (&CTTI)[6][6]) const
+template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE, bool IS_MODEL_ON_NODES>
+PROXY_HOST_DEVICE void SEMsolverElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES>::computeCMatrix(
+    float const vp, float const vs, float const rho, float const delta, float const epsilon, float const gamma,
+    float const phi, float const theta, float (&CTTI)[6][6]) const
 {
   float CVTI[6][6] = {0.0f};
   CVTI[0][0] = rho * vp * vp * (1.0f + 2.0f * epsilon);
@@ -486,8 +429,7 @@ PROXY_HOST_DEVICE void SEMsolverElastic<
   CVTI[0][1] = CVTI[0][0] - 2.0f * CVTI[5][5];
   CVTI[1][0] = CVTI[0][1];
 
-  CVTI[0][2] = rho * sqrtf((vp * vp - vs * vs) * (vp * vp - vs * vs) +
-                           2.0f * vp * vp * delta * (vp * vp - vs * vs)) -
+  CVTI[0][2] = rho * sqrtf((vp * vp - vs * vs) * (vp * vp - vs * vs) + 2.0f * vp * vp * delta * (vp * vp - vs * vs)) -
                rho * vs * vs;
   CVTI[1][2] = CVTI[0][2];
   CVTI[2][0] = CVTI[0][2];
@@ -568,10 +510,8 @@ PROXY_HOST_DEVICE void SEMsolverElastic<
     }
 }
 
-template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE,
-          bool IS_MODEL_ON_NODES>
-void SEMsolverElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE,
-                      IS_MODEL_ON_NODES>::initSpongeValues()
+template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE, bool IS_MODEL_ON_NODES>
+void SEMsolverElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES>::initSpongeValues()
 {
   const double sigma_max = 0.15;
   for (int n = 0; n < m_mesh.getNumberOfNodes(); n++)
@@ -579,14 +519,11 @@ void SEMsolverElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE,
     const double x = m_mesh.nodeCoord(n, 0);
     const double y = m_mesh.nodeCoord(n, 1);
     const double z = m_mesh.nodeCoord(n, 2);
-    const double distToFrontierX = (surface_sponge_)
-                                       ? m_mesh.domainSize(0) - x
-                                       : min(m_mesh.domainSize(0) - x, x);
+    const double distToFrontierX = (surface_sponge_) ? m_mesh.domainSize(0) - x : min(m_mesh.domainSize(0) - x, x);
     const double distToFrontierY = min(m_mesh.domainSize(1) - y, y);
     const double distToFrontierZ = min(m_mesh.domainSize(2) - z, z);
 
-    double minDistToFrontier = max(
-        m_mesh.domainSize(0), max(m_mesh.domainSize(1), m_mesh.domainSize(2)));
+    double minDistToFrontier = max(m_mesh.domainSize(0), max(m_mesh.domainSize(1), m_mesh.domainSize(2)));
 
     bool is_sponge = false;
     if (distToFrontierX < sponge_size_[0])

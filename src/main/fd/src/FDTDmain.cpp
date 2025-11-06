@@ -49,16 +49,15 @@ int main(int argc, char *argv[])
     // start timer
     time_point<system_clock> startRunTime = system_clock::now();
 
-    time_point<system_clock> startAddRHS, totalAddRHS, startComputeTime,
-        startOutputTime, totalComputeTime, totalOutputTime;
+    time_point<system_clock> startAddRHS, totalAddRHS, startComputeTime, startOutputTime, totalComputeTime,
+        totalOutputTime;
 
     // main loop for wave propagation on each time step
     for (int itSample = 0; itSample < myInit.nSamples; itSample++)
     {
       // add RHS term
       startAddRHS = system_clock::now();
-      myKernel.addRHS(myGrids, itSample, myModels, myInit.i2,
-                      myModels.pnGlobal);
+      myKernel.addRHS(myGrids, itSample, myModels, myInit.i2, myModels.pnGlobal);
       totalAddRHS += system_clock::now() - startAddRHS;
 
       // compute one step
@@ -77,8 +76,7 @@ int main(int argc, char *argv[])
       startOutputTime = system_clock::now();
       swap(myInit.i1, myInit.i2);
       // print infos and save wavefields
-      myFDTDUtils.output(myGrids, myModels.pnGlobal, itSample, myInit.i2,
-                         myInit.saveSnapShots);
+      myFDTDUtils.output(myGrids, myModels.pnGlobal, itSample, myInit.i2, myInit.saveSnapShots);
       totalOutputTime += system_clock::now() - startOutputTime;
     }
 
@@ -87,28 +85,17 @@ int main(int argc, char *argv[])
     cout << "+================================= \n" << endl;
 
     // print timing information
-    float addrhstime_ms =
-        time_point_cast<microseconds>(totalAddRHS).time_since_epoch().count();
-    float kerneltime_ms = time_point_cast<microseconds>(totalComputeTime)
-                              .time_since_epoch()
-                              .count();
-    float outputtime_ms = time_point_cast<microseconds>(totalOutputTime)
-                              .time_since_epoch()
-                              .count();
+    float addrhstime_ms = time_point_cast<microseconds>(totalAddRHS).time_since_epoch().count();
+    float kerneltime_ms = time_point_cast<microseconds>(totalComputeTime).time_since_epoch().count();
+    float outputtime_ms = time_point_cast<microseconds>(totalOutputTime).time_since_epoch().count();
 
-    cout << "Elapsed Initialization Time : "
-         << (startRunTime - startInitTime).count() / 1E9 << " seconds.\n"
-         << endl;
-    cout << "Elapsed ComputeLoop RunTime : "
-         << (system_clock::now() - startRunTime).count() / 1E9 << " seconds."
+    cout << "Elapsed Initialization Time : " << (startRunTime - startInitTime).count() / 1E9 << " seconds.\n" << endl;
+    cout << "Elapsed ComputeLoop RunTime : " << (system_clock::now() - startRunTime).count() / 1E9 << " seconds."
          << endl;
     cout << "------------------------------------------------ " << endl;
-    cout << "---- Elapsed Kernel Time : " << kerneltime_ms / 1E6 << " seconds."
-         << endl;
-    cout << "---- Elapsed AddRHS Time : " << addrhstime_ms / 1E6 << " seconds."
-         << endl;
-    cout << "---- Elapsed Output Time : " << outputtime_ms / 1E6 << " seconds."
-         << endl;
+    cout << "---- Elapsed Kernel Time : " << kerneltime_ms / 1E6 << " seconds." << endl;
+    cout << "---- Elapsed AddRHS Time : " << addrhstime_ms / 1E6 << " seconds." << endl;
+    cout << "---- Elapsed Output Time : " << outputtime_ms / 1E6 << " seconds." << endl;
     cout << "------------------------------------------------ " << endl;
 
 #ifdef USE_KOKKOS
@@ -116,8 +103,7 @@ int main(int argc, char *argv[])
   Kokkos::finalize();
 #endif
 
-  cout << "Elapsed TotalExecution Time : "
-       << (system_clock::now() - startInitTime).count() / 1E9 << " seconds.\n"
+  cout << "Elapsed TotalExecution Time : " << (system_clock::now() - startInitTime).count() / 1E9 << " seconds.\n"
        << endl;
   return (0);
 }

@@ -64,17 +64,12 @@ template <class T>
 class Array2D
 {
  public:
-  Array2D(int numRows, int numCols) : data(numRows, std::vector<T>(numCols, 0))
-  {
-  }
+  Array2D(int numRows, int numCols) : data(numRows, std::vector<T>(numCols, 0)) {}
   Array2D() : data(0, std::vector<T>(0)) {}
 
   std::vector<T> &operator[](int index) { return data[index]; }
   T &operator()(int row, int col) { return data[row][col]; }
-  T &operator()(int row, int col) const
-  {
-    return const_cast<T &>(data[row][col]);
-  }
+  T &operator()(int row, int col) const { return const_cast<T &>(data[row][col]); }
   T &operator=(const T &data) { return *this; };
 
   size_t extent(int dim) const
@@ -107,10 +102,7 @@ template <class T>
 class Array3D
 {
  public:
-  Array3D(int X, int Y, int Z)
-      : data(X, std::vector<std::vector<T>>(Y, std::vector<T>(Z)))
-  {
-  }
+  Array3D(int X, int Y, int Z) : data(X, std::vector<std::vector<T>>(Y, std::vector<T>(Z))) {}
   Array3D() : data(0, std::vector<std::vector<T>>(0)) {}
 
   std::vector<T> &operator[](int index) { return data[index]; }
@@ -207,8 +199,7 @@ template <class T>
 T allocateArray2D(int n1, int n2, const char *name)
 {
 #ifdef PRINT_ALLOC_INFO
-  std::cout << "allocate array : " << name << " of size: (" << n1 << ", " << n2
-            << ")" << std::endl;
+  std::cout << "allocate array : " << name << " of size: (" << n1 << ", " << n2 << ")" << std::endl;
 #endif
   T array(KOKKOSNAME n1, n2);
   return array;
@@ -217,8 +208,7 @@ template <class T>
 T allocateArray3D(int n1, int n2, int n3)
 {
 #ifdef PRINT_ALLOC_INFO
-  std::cout << "allocate array of size " << n1 << ", " << n2 << ", " << n3
-            << std::endl;
+  std::cout << "allocate array of size " << n1 << ", " << n2 << ", " << n3 << std::endl;
 #endif
   T array(KOKKOSNAME n1, n2, n3);
   return array;
@@ -233,11 +223,9 @@ void printJMatrix(const int &element, T &J, string matrixname, Args... args)
     (cout << ... << args) << '\n';
     printf("%s at element %d\n", matrixname.c_str(), element);
 #ifdef USE_SHIVA
-    for (int l = 0; l < 3; l++)
-      printf("%f, %f, %f\n", J(l, 0), J(l, 1), J(l, 2));
+    for (int l = 0; l < 3; l++) printf("%f, %f, %f\n", J(l, 0), J(l, 1), J(l, 2));
 #else
-    for (int l = 0; l < 3; l++)
-      printf("%f, %f, %f\n", J[l][0], J[l][1], J[l][2]);
+    for (int l = 0; l < 3; l++) printf("%f, %f, %f\n", J[l][0], J[l][1], J[l][2]);
 #endif
   }
 }
@@ -262,10 +250,7 @@ void printBMatrix(const int &element, T &B)
 // float gradPhiBGradPhiTime=0;
 // float stiffnessTime=0;
 
-#define timewatch(timepoint)                                \
-  chrono::time_point<std::chrono::system_clock> timepoint = \
-      chrono::system_clock::now();
-#define accumtime(accumulatedtime, starttime) \
-  accumulatedtime += (chrono::system_clock::now() - starttime).count();
+#define timewatch(timepoint) chrono::time_point<std::chrono::system_clock> timepoint = chrono::system_clock::now();
+#define accumtime(accumulatedtime, starttime) accumulatedtime += (chrono::system_clock::now() - starttime).count();
 
 #endif  // DATATYPE_HPP_
