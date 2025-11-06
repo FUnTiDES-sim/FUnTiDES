@@ -1,30 +1,13 @@
-add_library(proxy_solver
-            src/solver_factory.cc
-            src/makutu/SEMQ1_struct_makutu_solver_modelonelements.cpp
-            src/makutu/SEMQ1_struct_makutu_solver_modelonnodes.cpp
-            src/makutu/SEMQ1_unstruct_makutu_solver_modelonelements.cpp
-            src/makutu/SEMQ1_unstruct_makutu_solver_modelonnodes.cpp
-            src/makutu/SEMQ2_struct_makutu_solver_modelonelements.cpp
-            src/makutu/SEMQ2_struct_makutu_solver_modelonnodes.cpp
-            src/makutu/SEMQ2_unstruct_makutu_solver_modelonelements.cpp
-            src/makutu/SEMQ2_unstruct_makutu_solver_modelonnodes.cpp
-            src/makutu/SEMQ3_struct_makutu_solver_modelonelements.cpp
-            src/makutu/SEMQ3_struct_makutu_solver_modelonnodes.cpp
-            src/makutu/SEMQ3_unstruct_makutu_solver_modelonelements.cpp
-            src/makutu/SEMQ3_unstruct_makutu_solver_modelonnodes.cpp
-            src/shiva/SEMQ1_struct_shiva_solver_modelonelements.cpp
-            src/shiva/SEMQ1_struct_shiva_solver_modelonnodes.cpp
-            src/shiva/SEMQ1_unstruct_shiva_solver_modelonelements.cpp
-            src/shiva/SEMQ1_unstruct_shiva_solver_modelonnodes.cpp
-            src/shiva/SEMQ2_struct_shiva_solver_modelonelements.cpp
-            src/shiva/SEMQ2_struct_shiva_solver_modelonnodes.cpp
-            src/shiva/SEMQ2_unstruct_shiva_solver_modelonelements.cpp
-            src/shiva/SEMQ2_unstruct_shiva_solver_modelonnodes.cpp
-            src/shiva/SEMQ3_struct_shiva_solver_modelonelements.cpp
-            src/shiva/SEMQ3_struct_shiva_solver_modelonnodes.cpp
-            src/shiva/SEMQ3_unstruct_shiva_solver_modelonelements.cpp
-            src/shiva/SEMQ3_unstruct_shiva_solver_modelonnodes.cpp
-            )
+add_library(proxy_solver)
+
+add_subdirectory(src/makutu)
+target_sources(proxy_solver PRIVATE ${MAKUTU_GENERATED_SOURCES})
+add_subdirectory(src/shiva)
+target_sources(proxy_solver PRIVATE ${SHIVA_GENERATED_SOURCES})
+
+target_sources(proxy_solver PRIVATE 
+     src/solver_factory.cc
+)
 
 target_include_directories(proxy_solver
   PUBLIC

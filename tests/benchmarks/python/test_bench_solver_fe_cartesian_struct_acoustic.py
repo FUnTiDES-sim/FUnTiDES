@@ -3,57 +3,59 @@ import pyfuntides.solver as Solver
 import pytest
 import solver_utils as Utils
 import benchmark_groups as Groups
-
-
-class StructData:
-    def __init__(self, order):
-        self.ex = self.ey = self.ez = 100
-        self.domain_size = 2000
-        self.hx = self.domain_size / self.ex
-        self.hy = self.domain_size / self.ey
-        self.hz = self.domain_size / self.ez
-        self.order = order
-        self.nx = self.ex * self.order + 1
-        self.ny = self.ey * self.order + 1
-        self.nz = self.ez * self.order + 1
-        self.n_dof = self.nx * self.ny * self.nz
+from data_structures import StructData
 
 
 @pytest.fixture
 def struct(request):
-    order, builder_cls, on_nodes = request.param
+    order, builder_cls, on_nodes, is_elastic = request.param
 
     sd = StructData(order)
 
-    builder = builder_cls(sd.ex, sd.hx, sd.ey, sd.hy, sd.ez, sd.hz, on_nodes)
+    builder = builder_cls(
+        sd.ex, sd.hx, sd.ey, sd.hy, sd.ez, sd.hz, on_nodes, is_elastic
+    )
 
-    return sd, builder
+    return sd, builder, on_nodes, is_elastic
 
 
 test_cases = [
     # f32, i32 cases (only ones supported by solver so far)
-    (1, Model.CartesianStructBuilder_f32_i32_O1, True),
-    (1, Model.CartesianStructBuilder_f32_i32_O1, False),
-    (2, Model.CartesianStructBuilder_f32_i32_O2, True),
-    (2, Model.CartesianStructBuilder_f32_i32_O2, False),
-    (3, Model.CartesianStructBuilder_f32_i32_O3, True),
-    (3, Model.CartesianStructBuilder_f32_i32_O3, False),
+    (1, Model.CartesianStructBuilder_f32_i32_O1, True, False),
+    (1, Model.CartesianStructBuilder_f32_i32_O1, False, False),
+    (2, Model.CartesianStructBuilder_f32_i32_O2, True, False),
+    (2, Model.CartesianStructBuilder_f32_i32_O2, False, False),
+    (3, Model.CartesianStructBuilder_f32_i32_O3, True, False),
+    (3, Model.CartesianStructBuilder_f32_i32_O3, False, False),
 ]
 
 
-class TestSolverStruct:
+class TestSolverStructAcoustic:
     @pytest.mark.benchmark(group=Groups.BenchmarkGroup.COMPUTE_FE_INIT.name)
     @pytest.mark.parametrize("struct", test_cases, indirect=True)
     @pytest.mark.parametrize(
         "implem", [Solver.ImplemType.MAKUTU, Solver.ImplemType.SHIVA]
     )
     def test_solver_fe_init(self, struct, implem, benchmark):
-        sd, builder = struct
+        sd, builder, on_nodes, is_elastic = struct
 
         model = builder.get_model()
 
+        model_location = (
+            Solver.ModelLocationType.ONNODES
+            if on_nodes
+            else Solver.ModelLocationType.ONELEMENTS
+        )
+
+        physic_type = Solver.PhysicType.ACOUSTIC
+
         solver = Solver.create_solver(
-            Solver.MethodType.SEM, implem, Solver.MeshType.STRUCT, sd.order
+            Solver.MethodType.SEM,
+            implem,
+            Solver.MeshType.STRUCT,
+            model_location,
+            physic_type,
+            sd.order,
         )
 
         benchmark(solver.compute_fe_init, model)
@@ -64,7 +66,7 @@ class TestSolverStruct:
         "implem", [Solver.ImplemType.MAKUTU, Solver.ImplemType.SHIVA]
     )
     def test_solver_one_step(self, struct, implem, benchmark):
-        sd, builder = struct
+        sd, builder, on_nodes, is_elastic = struct
         n_rhs = 2
         dt = 0.001
         time_sample = 1
@@ -73,8 +75,23 @@ class TestSolverStruct:
 
         model = builder.get_model()
 
+        model_location = (
+            Solver.ModelLocationType.ONNODES
+            if on_nodes
+            else Solver.ModelLocationType.ONELEMENTS
+        )
+
+        physic_type = (
+            Solver.PhysicType.ACOUSTIC if not is_elastic else Solver.PhysicType.ELASTIC
+        )
+
         solver = Solver.create_solver(
-            Solver.MethodType.SEM, implem, Solver.MeshType.STRUCT, sd.order
+            Solver.MethodType.SEM,
+            implem,
+            Solver.MeshType.STRUCT,
+            model_location,
+            physic_type,
+            sd.order,
         )
 
         solver.compute_fe_init(model)
@@ -84,7 +101,7 @@ class TestSolverStruct:
         kk_RHSWeights, _ = Utils.allocate_rhs_weight(n_rhs, model)
         kk_RHSTerm, _ = Utils.allocate_rhs_term(n_rhs, n_time_steps, dt, f0)
 
-        data = Solver.SEMsolverData(
+        data = Solver.SEMsolverDataAcoustic(
             0, 1, kk_RHSTerm, kk_pnGlobal, kk_RHSElement, kk_RHSWeights
         )
 

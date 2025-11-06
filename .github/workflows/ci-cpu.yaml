@@ -35,15 +35,20 @@ jobs:
 
     steps:
 
-      # We need a token to get private submodule SEMKernels
-      - name: Get token from Github App
-        uses: actions/create-github-app-token@v1
-        id: app_token
+      - name: Get PR labels
+        id: pr-labels
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
         with:
-          app-id: ${{ secrets.APP_ID }}
-          private-key: ${{ secrets.PRIVATE_KEY }}
-          # owner is required, otherwise the creds will fail the checkout step
-          owner: ${{ github.repository_owner }}
+          script: |
+            const { data: pullRequest } = await github.rest.pulls.get({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: context.issue.number
+            });
+            const labels = pullRequest.labels.map(label => label.name);
+            core.setOutput('labels', labels.join(','));
+            core.setOutput('has-sccache-off', labels.includes('SCCACHE_OFF') ? 'true' : 'false');
 
       - name: Checkout
         id: checkout
@@ -51,7 +56,6 @@ jobs:
         with:
           fetch-depth: 0
           submodules: recursive
-          token: ${{ steps.app_token.outputs.token }}
 
       - name: Set up Python
         if: matrix.pywrap == 'pywrap-on'
@@ -62,7 +66,7 @@ jobs:
           pip install pybind11 pytest numpy
 
       - name: Turn off sccache
-        if: contains(github.event.pull_request.labels.*.name, 'SCCACHE_OFF')
+        if: steps.pr-labels.outputs.has-sccache-off == 'true'
         run: echo "SCCACHE_OFF=true" >> $GITHUB_ENV
 
       - name: Run sccache-cache

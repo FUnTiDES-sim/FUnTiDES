@@ -5,10 +5,10 @@
 
 #include "bench_macros.h"
 #include "bench_main.h"
-#include "cartesian_unstruct_builder.h"
+#include "cartesian_struct_builder.h"
 #include "data_type.h"
 #include "model.h"
-#include "sem_solver.h"
+#include "sem_solver_acoustic.h"
 #include "solver_factory.h"
 #include "utils.h"
 
@@ -21,23 +21,20 @@ namespace bench
 template <int Order>
 struct BuilderConfig
 {
-  using Builder = CartesianUnstructBuilder<float, int>;
-  using BuilderParams = CartesianParams<float, int>;
+  using Builder = CartesianStructBuilder<float, int, Order>;
   static constexpr int order = Order;
 };
 
 // Template fixture for the benchmarks
 template <typename T>
-class SolverUnstructFixture : public benchmark::Fixture
+class SolverStructFixture : public benchmark::Fixture
 {
  protected:
   // model
   static constexpr int ex = 100;
   static constexpr int ey = 100;
   static constexpr int ez = 100;
-  static constexpr float lx = 2000.0f;
-  static constexpr float ly = 2000.0f;
-  static constexpr float lz = 2000.0f;
+  static constexpr float domain_size = 2000.0f;
   static constexpr int order = T::order;
   static constexpr int n_dof =
       (ex * order + 1) * (ey * order + 1) * (ez * order + 1);
@@ -65,9 +62,11 @@ class SolverUnstructFixture : public benchmark::Fixture
 
   std::shared_ptr<model::ModelApi<float, int>> createModel()
   {
-    typename T::BuilderParams params(order, ex, ey, ez, lx, ly, lz,
-                                     isModelOnNodes_);
-    typename T::Builder builder(params);
+    float hx = domain_size / ex;
+    float hy = domain_size / ey;
+    float hz = domain_size / ez;
+
+    typename T::Builder builder(ex, hx, ey, hy, ez, hz, isModelOnNodes_, false);
     return builder.getModel();
   }
 
@@ -75,11 +74,12 @@ class SolverUnstructFixture : public benchmark::Fixture
   {
     state.SetLabel("Order=" + std::to_string(order) +
                    " OnNodes=" + std::to_string(isModelOnNodes_) +
-                   " Implem=" + std::to_string(implem_));
+                   " Implem=" + std::to_string(implem_) +
+                   " IsElastic=" + std::to_string(false));
   }
 };
 
-// Unstructure to hold allocated arrays for benchmarks
+// Structure to hold allocated arrays for benchmarks
 struct BenchmarkArrays
 {
   arrayReal rhsTerm;
@@ -102,7 +102,7 @@ struct BenchmarkArrays
   }
 };
 
-BENCHMARK_TEMPLATE_METHOD_F(SolverUnstructFixture, FEInit)
+BENCHMARK_TEMPLATE_METHOD_F(SolverStructFixture, FEInit)
 (benchmark::State& state)
 {
   // Prepare
@@ -110,10 +110,10 @@ BENCHMARK_TEMPLATE_METHOD_F(SolverUnstructFixture, FEInit)
 
   auto solver = SolverFactory::createSolver(
       SolverFactory::methodType::SEM, this->implem_,
-      SolverFactory::meshType::Unstruct,
+      SolverFactory::meshType::Struct,
       this->isModelOnNodes_ ? SolverFactory::modelLocationType::OnNodes
                             : SolverFactory::modelLocationType::OnElements,
-      this->order);
+      SolverFactory::physicType::Acoustic, this->order);
 
   // Bench
   for (auto _ : state)
@@ -126,7 +126,7 @@ BENCHMARK_TEMPLATE_METHOD_F(SolverUnstructFixture, FEInit)
   this->setLabel(state);
 }
 
-BENCHMARK_TEMPLATE_METHOD_F(SolverUnstructFixture, OneStep)
+BENCHMARK_TEMPLATE_METHOD_F(SolverStructFixture, OneStep)
 (benchmark::State& state)
 {
   // Prepare
@@ -134,10 +134,10 @@ BENCHMARK_TEMPLATE_METHOD_F(SolverUnstructFixture, OneStep)
 
   auto solver = SolverFactory::createSolver(
       SolverFactory::methodType::SEM, this->implem_,
-      SolverFactory::meshType::Unstruct,
+      SolverFactory::meshType::Struct,
       this->isModelOnNodes_ ? SolverFactory::modelLocationType::OnNodes
                             : SolverFactory::modelLocationType::OnElements,
-      this->order);
+      SolverFactory::physicType::Acoustic, this->order);
 
   solver->computeFEInit(*model, this->sponge_size, this->surface_sponge,
                         this->taper_delta);
@@ -159,8 +159,8 @@ BENCHMARK_TEMPLATE_METHOD_F(SolverUnstructFixture, OneStep)
     arrays.rhsTerm(0, j) = sourceTerm[j];
   }
 
-  SEMsolverData data(0, 1, arrays.rhsTerm, arrays.pnGlobal, arrays.rhsElement,
-                     arrays.rhsWeights);
+  SEMsolverDataAcoustic data(0, 1, arrays.rhsTerm, arrays.pnGlobal,
+                             arrays.rhsElement, arrays.rhsWeights);
 
   // Bench
   for (auto _ : state)
@@ -173,13 +173,13 @@ BENCHMARK_TEMPLATE_METHOD_F(SolverUnstructFixture, OneStep)
 }
 
 // Instantiate for all order/isModelOnNodes/implemType combinations
-BENCHMARK_FOR_ALL_ORDERS(SolverUnstructFixture, FEInit,
+BENCHMARK_FOR_ALL_ORDERS(SolverStructFixture, FEInit,
                          BuilderConfig,
                              ->ArgsProduct({{0, 1},
                                             {SolverFactory::implemType::MAKUTU,
                                              SolverFactory::implemType::SHIVA}})
                              ->Unit(benchmark::kMillisecond))
-BENCHMARK_FOR_ALL_ORDERS(SolverUnstructFixture, OneStep,
+BENCHMARK_FOR_ALL_ORDERS(SolverStructFixture, OneStep,
                          BuilderConfig,
                              ->ArgsProduct({{0, 1},
                                             {SolverFactory::implemType::MAKUTU,
