@@ -95,19 +95,19 @@ struct FdtdKernels
   {
     LOOP3DHEAD(x3, y3, z3, x4, y4, z4)
     float lapx = 0;
-    for (int l = 1; l < coefx.size(); l++)
+    for (int l = 1; l < coefx.extent(0); l++)
     {
       lapx += coefx[l] * (pnGlobal(IDX3_l(i + l, j, k), cb) +
                           pnGlobal(IDX3_l(i - l, j, k), cb));
     }
     float lapy = 0;
-    for (int l = 1; l < coefy.size(); l++)
+    for (int l = 1; l < coefy.extent(0); l++)
     {
       lapy += coefy[l] * (pnGlobal(IDX3_l(i, j + l, k), cb) +
                           pnGlobal(IDX3_l(i, j - l, k), cb));
     }
     float lapz = 0;
-    for (int l = 1; l < coefz.size(); l++)
+    for (int l = 1; l < coefz.extent(0); l++)
     {
       lapz += coefz[l] * (pnGlobal(IDX3_l(i, j, k + l), cb) +
                           pnGlobal(IDX3_l(i, j, k - l), cb));
