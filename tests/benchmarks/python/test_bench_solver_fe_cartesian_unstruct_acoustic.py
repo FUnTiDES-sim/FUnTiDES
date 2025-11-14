@@ -3,22 +3,12 @@ import pyfuntides.solver as Solver
 import pytest
 import solver_utils as Utils
 import benchmark_groups as Groups
-
-
-class UnstructData:
-    def __init__(self, order):
-        self.ex = self.ey = self.ez = 100
-        self.lx = self.ly = self.lz = 2000
-        self.order = order
-        self.nx = self.ex * self.order + 1
-        self.ny = self.ey * self.order + 1
-        self.nz = self.ez * self.order + 1
-        self.n_dof = self.nx * self.ny * self.nz
+from data_structures import UnstructData
 
 
 @pytest.fixture
 def unstruct(request):
-    order, param_cls, builder_cls, on_nodes = request.param
+    order, param_cls, builder_cls, on_nodes, is_elastic = request.param
 
     sd = UnstructData(order)
 
@@ -27,31 +17,68 @@ def unstruct(request):
     params.lx, params.ly, params.lz = sd.lx, sd.ly, sd.lz
     params.order = order
     params.is_model_on_nodes = on_nodes
+    params.is_elastic = is_elastic
 
     builder = builder_cls(params)
 
-    return sd, params, builder
+    return sd, params, builder, on_nodes, is_elastic
 
 
 test_cases = [
     # f32, i32 cases (only ones supported by solver so far)
-    (1, Model.CartesianParams_f32_i32, Model.CartesianUnstructBuilder_f32_i32, True),
-    (1, Model.CartesianParams_f32_i32, Model.CartesianUnstructBuilder_f32_i32, False),
-    (2, Model.CartesianParams_f32_i32, Model.CartesianUnstructBuilder_f32_i32, True),
-    (2, Model.CartesianParams_f32_i32, Model.CartesianUnstructBuilder_f32_i32, False),
-    (3, Model.CartesianParams_f32_i32, Model.CartesianUnstructBuilder_f32_i32, True),
-    (3, Model.CartesianParams_f32_i32, Model.CartesianUnstructBuilder_f32_i32, False),
+    (
+        1,
+        Model.CartesianParams_f32_i32,
+        Model.CartesianUnstructBuilder_f32_i32,
+        True,
+        False,
+    ),
+    (
+        1,
+        Model.CartesianParams_f32_i32,
+        Model.CartesianUnstructBuilder_f32_i32,
+        False,
+        False,
+    ),
+    (
+        2,
+        Model.CartesianParams_f32_i32,
+        Model.CartesianUnstructBuilder_f32_i32,
+        True,
+        False,
+    ),
+    (
+        2,
+        Model.CartesianParams_f32_i32,
+        Model.CartesianUnstructBuilder_f32_i32,
+        False,
+        False,
+    ),
+    (
+        3,
+        Model.CartesianParams_f32_i32,
+        Model.CartesianUnstructBuilder_f32_i32,
+        True,
+        False,
+    ),
+    (
+        3,
+        Model.CartesianParams_f32_i32,
+        Model.CartesianUnstructBuilder_f32_i32,
+        False,
+        False,
+    ),
 ]
 
 
-class TestSolverUnstruct:
+class TestSolverUnstructAcoustic:
     @pytest.mark.benchmark(group=Groups.BenchmarkGroup.COMPUTE_FE_INIT.name)
     @pytest.mark.parametrize("unstruct", test_cases, indirect=True)
     @pytest.mark.parametrize(
         "implem", [Solver.ImplemType.MAKUTU, Solver.ImplemType.SHIVA]
     )
     def test_solver_fe_init(self, unstruct, implem, benchmark):
-        sd, _, builder = unstruct
+        sd, _, builder, on_nodes, is_elastic = unstruct
 
         model = builder.get_model()
 
@@ -59,8 +86,21 @@ class TestSolverUnstruct:
         if implem == Solver.ImplemType.SHIVA:
             return
 
+        model_location = (
+            Solver.ModelLocationType.ONNODES
+            if on_nodes
+            else Solver.ModelLocationType.ONELEMENTS
+        )
+
+        physic_type = Solver.PhysicType.ACOUSTIC
+
         solver = Solver.create_solver(
-            Solver.MethodType.SEM, implem, Solver.MeshType.UNSTRUCT, sd.order
+            Solver.MethodType.SEM,
+            implem,
+            Solver.MeshType.UNSTRUCT,
+            model_location,
+            physic_type,
+            sd.order,
         )
 
         benchmark(solver.compute_fe_init, model)
@@ -71,7 +111,7 @@ class TestSolverUnstruct:
         "implem", [Solver.ImplemType.MAKUTU, Solver.ImplemType.SHIVA]
     )
     def test_solver_one_step(self, unstruct, implem, benchmark):
-        sd, _, builder = unstruct
+        sd, _, builder, on_nodes, is_elastic = unstruct
         n_rhs = 2
         dt = 0.001
         time_sample = 1
@@ -84,8 +124,21 @@ class TestSolverUnstruct:
         if implem == Solver.ImplemType.SHIVA:
             return
 
+        model_location = (
+            Solver.ModelLocationType.ONNODES
+            if on_nodes
+            else Solver.ModelLocationType.ONELEMENTS
+        )
+
+        physic_type = Solver.PhysicType.ACOUSTIC
+
         solver = Solver.create_solver(
-            Solver.MethodType.SEM, implem, Solver.MeshType.UNSTRUCT, sd.order
+            Solver.MethodType.SEM,
+            implem,
+            Solver.MeshType.UNSTRUCT,
+            model_location,
+            physic_type,
+            sd.order,
         )
 
         solver.compute_fe_init(model)
@@ -95,7 +148,7 @@ class TestSolverUnstruct:
         kk_RHSWeights, _ = Utils.allocate_rhs_weight(n_rhs, model)
         kk_RHSTerm, _ = Utils.allocate_rhs_term(n_rhs, n_time_steps, dt, f0)
 
-        data = Solver.SEMsolverData(
+        data = Solver.SEMsolverDataAcoustic(
             0, 1, kk_RHSTerm, kk_pnGlobal, kk_RHSElement, kk_RHSWeights
         )
 

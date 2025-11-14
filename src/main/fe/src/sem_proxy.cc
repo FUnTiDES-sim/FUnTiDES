@@ -9,7 +9,8 @@
 
 #include <cartesian_struct_builder.h>
 #include <cartesian_unstruct_builder.h>
-#include <sem_solver.h>
+#include <sem_solver_acoustic.h>
+#include <sem_solver_elastic.h>
 #include <source_and_receiver_utils.h>
 
 #include <cxxopts.hpp>
@@ -47,6 +48,9 @@ SEMproxy::SEMproxy(const SemProxyOptions& opt)
   rcv_coord_[2] = opt.rcvz;
 
   bool isModelOnNodes = opt.isModelOnNodes;
+  isElastic_ = opt.isElastic;
+  cout << boolalpha;
+  bool isElastic = isElastic_;
 
   const SolverFactory::methodType methodType = getMethod(opt.method);
   const SolverFactory::implemType implemType = getImplem(opt.implem);
@@ -54,6 +58,9 @@ SEMproxy::SEMproxy(const SemProxyOptions& opt)
   const SolverFactory::modelLocationType modelLocation =
       isModelOnNodes ? SolverFactory::modelLocationType::OnNodes
                      : SolverFactory::modelLocationType::OnElements;
+  const SolverFactory::physicType physicType =
+      isElastic ? SolverFactory::physicType::Elastic
+                : SolverFactory::physicType::Acoustic;
 
   float lx = domain_size_[0];
   float ly = domain_size_[1];
@@ -68,19 +75,19 @@ SEMproxy::SEMproxy(const SemProxyOptions& opt)
     {
       case 1: {
         model::CartesianStructBuilder<float, int, 1> builder(
-            ex, lx, ey, ly, ez, lz, isModelOnNodes);
+            ex, lx, ey, ly, ez, lz, isModelOnNodes, isElastic);
         m_mesh = builder.getModel();
         break;
       }
       case 2: {
         model::CartesianStructBuilder<float, int, 2> builder(
-            ex, lx, ey, ly, ez, lz, isModelOnNodes);
+            ex, lx, ey, ly, ez, lz, isModelOnNodes, isElastic);
         m_mesh = builder.getModel();
         break;
       }
       case 3: {
         model::CartesianStructBuilder<float, int, 3> builder(
-            ex, lx, ey, ly, ez, lz, isModelOnNodes);
+            ex, lx, ey, ly, ez, lz, isModelOnNodes, isElastic);
         m_mesh = builder.getModel();
         break;
       }
@@ -92,7 +99,7 @@ SEMproxy::SEMproxy(const SemProxyOptions& opt)
   else if (meshType == SolverFactory::Unstruct)
   {
     model::CartesianParams<float, int> param(order, ex, ey, ez, lx, ly, lz,
-                                             isModelOnNodes);
+                                             isModelOnNodes, isElastic);
     model::CartesianUnstructBuilder<float, int> builder(param);
     m_mesh = builder.getModel();
   }
@@ -115,7 +122,7 @@ SEMproxy::SEMproxy(const SemProxyOptions& opt)
   num_sample_ = timemax_ / dt_;
 
   m_solver = SolverFactory::createSolver(methodType, implemType, meshType,
-                                         modelLocation, order);
+                                         modelLocation, physicType, order);
   m_solver->computeFEInit(*m_mesh, sponge_size, opt.surface_sponge,
                           opt.taper_delta);
 
@@ -137,6 +144,10 @@ SEMproxy::SEMproxy(const SemProxyOptions& opt)
             << std::endl;
   std::cout << "Launching the Method " << opt.method << ", the implementation "
             << opt.implem << " and the mesh is " << opt.mesh << std::endl;
+  std::cout << "Model is on " << (isModelOnNodes ? "nodes" : "elements")
+            << std::endl;
+  std::cout << "Physics type is " << (isElastic ? "elastic" : "acoustic")
+            << std::endl;
   std::cout << "Order of approximation will be " << order << std::endl;
   std::cout << "Time step is " << dt_ << "s" << std::endl;
   std::cout << "Simulated time is " << timemax_ << "s" << std::endl;
@@ -153,77 +164,174 @@ void SEMproxy::run()
   time_point<system_clock> startComputeTime, startOutputTime, totalComputeTime,
       totalOutputTime;
 
-  SEMsolverData solverData(i1, i2, myRHSTerm, pnGlobal, rhsElement, rhsWeights);
+  bool isElastic = isElastic_;
 
-  for (int indexTimeSample = 0; indexTimeSample < num_sample_;
-       indexTimeSample++)
+  if (!isElastic)
   {
-    startComputeTime = system_clock::now();
-    m_solver->computeOneStep(dt_, indexTimeSample, solverData);
-    totalComputeTime += system_clock::now() - startComputeTime;
+    SEMsolverDataAcoustic solverData(i1, i2, myRHSTerm, pnGlobal, rhsElement,
+                                     rhsWeights);
 
-    startOutputTime = system_clock::now();
-
-    if (indexTimeSample % 50 == 0)
+    for (int indexTimeSample = 0; indexTimeSample < num_sample_;
+         indexTimeSample++)
     {
-      m_solver->outputPnValues(indexTimeSample, i1, rhsElement[0], pnGlobal);
-    }
+      startComputeTime = system_clock::now();
+      m_solver->computeOneStep(dt_, indexTimeSample, solverData);
+      totalComputeTime += system_clock::now() - startComputeTime;
 
-    // Save slice in dat format
-    if (is_snapshots_ && indexTimeSample % snap_time_interval_ == 0)
-    {
-      saveSnapshot(indexTimeSample);
-    }
+      startOutputTime = system_clock::now();
 
-    // Save pressure at receiver
-    const int order = m_mesh->getOrder();
-
-    float varnp1 = 0.0;
-    for (int i = 0; i < order + 1; i++)
-    {
-      for (int j = 0; j < order + 1; j++)
+      if (indexTimeSample % 50 == 0)
       {
-        for (int k = 0; k < order + 1; k++)
+        m_solver->outputSolutionValues(indexTimeSample, i1, rhsElement[0],
+                                       pnGlobal, "pnGlobal");
+      }
+
+      // Save slice in dat format
+      if (is_snapshots_ && indexTimeSample % snap_time_interval_ == 0)
+      {
+        saveSnapshot(indexTimeSample);
+      }
+
+      // Save pressure at receiver
+      const int order = m_mesh->getOrder();
+
+      float varnp1 = 0.0;
+      for (int i = 0; i < order + 1; i++)
+      {
+        for (int j = 0; j < order + 1; j++)
         {
-          int nodeIdx = m_mesh->globalNodeIndex(rhsElementRcv[0], i, j, k);
-          int globalNodeOnElement =
-              i + j * (order + 1) + k * (order + 1) * (order + 1);
-          varnp1 +=
-              pnGlobal(nodeIdx, i2) * rhsWeightsRcv(0, globalNodeOnElement);
+          for (int k = 0; k < order + 1; k++)
+          {
+            int nodeIdx = m_mesh->globalNodeIndex(rhsElementRcv[0], i, j, k);
+            int globalNodeOnElement =
+                i + j * (order + 1) + k * (order + 1) * (order + 1);
+            varnp1 +=
+                pnGlobal(nodeIdx, i2) * rhsWeightsRcv(0, globalNodeOnElement);
+          }
         }
       }
+
+      pnAtReceiver(0, indexTimeSample) = varnp1;
+
+      swap(i1, i2);
+
+      auto tmp = solverData.m_i1;
+      solverData.m_i1 = solverData.m_i2;
+      solverData.m_i2 = tmp;
+
+      totalOutputTime += system_clock::now() - startOutputTime;
     }
 
-    pnAtReceiver(0, indexTimeSample) = varnp1;
-
-    swap(i1, i2);
-
-    auto tmp = solverData.m_i1;
-    solverData.m_i1 = solverData.m_i2;
-    solverData.m_i2 = tmp;
-
-    totalOutputTime += system_clock::now() - startOutputTime;
-  }
-
-  for (int i = 0; i < pnAtReceiver.extent(0); i++)
-  {
-    // get receiver i
-#ifdef USE_KOKKOS
-    auto subview = Kokkos::subview(pnAtReceiver, i, Kokkos::ALL());
-    vectorReal subset("receiver_save", num_sample_);
-    Kokkos::deep_copy(subset, subview);
-#else
-    auto& subview = pnAtReceiver;
-    vectorReal subset(subview.extent(0) * subview.extent(1));
-    for (size_t i = 0; i < subview.extent(0); ++i)
+    for (int i = 0; i < pnAtReceiver.extent(0); i++)
     {
-      for (size_t j = 0; j < subview.extent(1); ++j)
+      // get receiver i
+#ifdef USE_KOKKOS
+      auto subview = Kokkos::subview(pnAtReceiver, i, Kokkos::ALL());
+      vectorReal subset("receiver_save", num_sample_);
+      Kokkos::deep_copy(subset, subview);
+#else
+      auto& subview = pnAtReceiver;
+      vectorReal subset(subview.extent(0) * subview.extent(1));
+      for (size_t i = 0; i < subview.extent(0); ++i)
       {
-        subset[i * subview.extent(1) + j] = subview(i, j);
+        for (size_t j = 0; j < subview.extent(1); ++j)
+        {
+          subset[i * subview.extent(1) + j] = subview(i, j);
+        }
       }
-    }
 #endif  // USE_KOKKOS
-    io_ctrl_->saveReceiver(subset, src_coord_);
+      io_ctrl_->saveReceiver(subset, src_coord_);
+    }
+  }
+  else
+  {
+    SEMsolverDataElastic solverData(i1, i2, myRHSTermx, myRHSTermy, myRHSTermz,
+                                    uxnGlobal, uynGlobal, uznGlobal, rhsElement,
+                                    rhsWeights);
+
+    for (int indexTimeSample = 0; indexTimeSample < num_sample_;
+         indexTimeSample++)
+    {
+      startComputeTime = system_clock::now();
+      m_solver->computeOneStep(dt_, indexTimeSample, solverData);
+      totalComputeTime += system_clock::now() - startComputeTime;
+
+      startOutputTime = system_clock::now();
+
+      if (indexTimeSample % 50 == 0)
+      {
+        m_solver->outputSolutionValues(indexTimeSample, i1, rhsElement[0],
+                                       uxnGlobal, "uxnGlobal");
+        m_solver->outputSolutionValues(indexTimeSample, i1, rhsElement[0],
+                                       uynGlobal, "uynGlobal");
+        m_solver->outputSolutionValues(indexTimeSample, i1, rhsElement[0],
+                                       uznGlobal, "uznGlobal");
+      }
+
+      // Save slice in dat format
+      if (is_snapshots_ && indexTimeSample % snap_time_interval_ == 0)
+      {
+        saveSnapshot(indexTimeSample);
+      }
+
+      // Save pressure at receiver
+      const int order = m_mesh->getOrder();
+
+      float varuxnp1 = 0.0;
+      float varyunp1 = 0.0;
+      float varuznp1 = 0.0;
+      for (int i = 0; i < order + 1; i++)
+      {
+        for (int j = 0; j < order + 1; j++)
+        {
+          for (int k = 0; k < order + 1; k++)
+          {
+            int nodeIdx = m_mesh->globalNodeIndex(rhsElementRcv[0], i, j, k);
+            int globalNodeOnElement =
+                i + j * (order + 1) + k * (order + 1) * (order + 1);
+            varuxnp1 +=
+                uxnGlobal(nodeIdx, i2) * rhsWeightsRcv(0, globalNodeOnElement);
+            varyunp1 +=
+                uynGlobal(nodeIdx, i2) * rhsWeightsRcv(0, globalNodeOnElement);
+            varuznp1 +=
+                uznGlobal(nodeIdx, i2) * rhsWeightsRcv(0, globalNodeOnElement);
+          }
+        }
+      }
+
+      uxnAtReceiver(0, indexTimeSample) = varuxnp1;
+      uynAtReceiver(0, indexTimeSample) = varyunp1;
+      uznAtReceiver(0, indexTimeSample) = varuznp1;
+
+      swap(i1, i2);
+
+      auto tmp = solverData.m_i1;
+      solverData.m_i1 = solverData.m_i2;
+      solverData.m_i2 = tmp;
+
+      totalOutputTime += system_clock::now() - startOutputTime;
+    }
+
+    for (int i = 0; i < uxnAtReceiver.extent(0); i++)
+    {
+      // get receiver i
+#ifdef USE_KOKKOS
+      auto subview = Kokkos::subview(uxnAtReceiver, i, Kokkos::ALL());
+      vectorReal subset("receiver_save", num_sample_);
+      Kokkos::deep_copy(subset, subview);
+#else
+      auto& subview = pnAtReceiver;
+      vectorReal subset(subview.extent(0) * subview.extent(1));
+      for (size_t i = 0; i < subview.extent(0); ++i)
+      {
+        for (size_t j = 0; j < subview.extent(1); ++j)
+        {
+          subset[i * subview.extent(1) + j] = subview(i, j);
+        }
+      }
+#endif  // USE_KOKKOS
+      io_ctrl_->saveReceiver(subset, src_coord_);
+    }
   }
 
   float kerneltime_ms = time_point_cast<microseconds>(totalComputeTime)
@@ -244,18 +352,42 @@ void SEMproxy::run()
 void SEMproxy::init_arrays()
 {
   cout << "Allocate host memory for source and pressure values ..." << endl;
-  myRHSTerm = allocateArray2D<arrayReal>(myNumberOfRHS, num_sample_, "RHSTerm");
+
   rhsElement = allocateVector<vectorInt>(myNumberOfRHS, "rhsElement");
   rhsWeights = allocateArray2D<arrayReal>(
       myNumberOfRHS, m_mesh->getNumberOfPointsPerElement(), "RHSWeight");
-  pnGlobal =
-      allocateArray2D<arrayReal>(m_mesh->getNumberOfNodes(), 2, "pnGlobal");
 
+  if (!isElastic_)
+  {
+    myRHSTerm =
+        allocateArray2D<arrayReal>(myNumberOfRHS, num_sample_, "RHSTerm");
+    pnGlobal =
+        allocateArray2D<arrayReal>(m_mesh->getNumberOfNodes(), 2, "pnGlobal");
+    pnAtReceiver = allocateArray2D<arrayReal>(1, num_sample_, "pnAtReceiver");
+  }
+  else
+  {
+    myRHSTermx =
+        allocateArray2D<arrayReal>(myNumberOfRHS, num_sample_, "RHSTermx");
+    myRHSTermy =
+        allocateArray2D<arrayReal>(myNumberOfRHS, num_sample_, "RHSTermy");
+    myRHSTermz =
+        allocateArray2D<arrayReal>(myNumberOfRHS, num_sample_, "RHSTermz");
+    uxnGlobal =
+        allocateArray2D<arrayReal>(m_mesh->getNumberOfNodes(), 2, "uxnGlobal");
+    uynGlobal =
+        allocateArray2D<arrayReal>(m_mesh->getNumberOfNodes(), 2, "uynGlobal");
+    uznGlobal =
+        allocateArray2D<arrayReal>(m_mesh->getNumberOfNodes(), 2, "uznGlobal");
+    uxnAtReceiver = allocateArray2D<arrayReal>(1, num_sample_, "uxnAtReceiver");
+    uynAtReceiver =
+        allocateArray2D<arrayReal>(1, num_sample_, "uynAtReceiver ");
+    uznAtReceiver = allocateArray2D<arrayReal>(1, num_sample_, "uznAtReceiver");
+  }
   // Receiver
   rhsElementRcv = allocateVector<vectorInt>(1, "rhsElementRcv");
   rhsWeightsRcv = allocateArray2D<arrayReal>(
       1, m_mesh->getNumberOfPointsPerElement(), "RHSWeightRcv");
-  pnAtReceiver = allocateArray2D<arrayReal>(1, num_sample_, "pnAtReceiver");
 }
 
 // Initialize sources
@@ -307,11 +439,25 @@ void SEMproxy::init_source()
   // initialize source term
   vector<float> sourceTerm =
       myUtils.computeSourceTerm(num_sample_, dt_, f0, sourceOrder);
-  for (int j = 0; j < num_sample_; j++)
+  if (!isElastic_)
   {
-    myRHSTerm(0, j) = sourceTerm[j];
-    if (j % 100 == 0)
-      cout << "Sample " << j << "\t: sourceTerm = " << sourceTerm[j] << endl;
+    for (int j = 0; j < num_sample_; j++)
+    {
+      myRHSTerm(0, j) = sourceTerm[j];
+      if (j % 100 == 0)
+        cout << "Sample " << j << "\t: sourceTerm = " << sourceTerm[j] << endl;
+    }
+  }
+  else
+  {
+    for (int j = 0; j < num_sample_; j++)
+    {
+      myRHSTermx(0, j) = sourceTerm[j];
+      myRHSTermy(0, j) = sourceTerm[j];
+      myRHSTermz(0, j) = sourceTerm[j];
+      if (j % 100 == 0)
+        cout << "Sample " << j << "\t: sourceTerm = " << sourceTerm[j] << endl;
+    }
   }
 
   // get element number of source term

@@ -12,11 +12,12 @@ struct CartesianParams
   Coord lx, ly, lz;
 
   bool isModelOnNodes;
+  bool isElastic;
 
   CartesianParams() = default;
 
   CartesianParams(int order_, Index ex_, Index ey_, Index ez_, Coord lx_,
-                  Coord ly_, Coord lz_, bool isModelOnNodes_)
+                  Coord ly_, Coord lz_, bool isModelOnNodes_, bool isElastic_)
       : order(order_),
         ex(ex_),
         ey(ey_),
@@ -24,7 +25,9 @@ struct CartesianParams
         lx(lx_),
         ly(ly_),
         lz(lz_),
-        isModelOnNodes(isModelOnNodes_)
+        isModelOnNodes(isModelOnNodes_),
+        isElastic(isElastic_)
+
   {
   }
 };
