@@ -1,3 +1,2 @@
-add_subdirectory(api)
-add_subdirectory(impl)
-add_subdirectory(pywrap)
+add_subdirectory(mesh)
+add_subdirectory(grid)
