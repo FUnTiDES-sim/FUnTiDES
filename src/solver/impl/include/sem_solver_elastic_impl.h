@@ -13,6 +13,7 @@
 #include <cstdlib>
 
 #include "fe/Integrals.hpp"
+#include "model_discretization_interface.h"
 #include "sem_solver_elastic.h"
 
 template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE,
@@ -153,23 +154,9 @@ void SEMsolverElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES>::
     uznLocal[i] = uznGlobal(globalIdx, i2);
   }
 
-  float cornerCoords[8][3];
-  int I = 0;
-  int nodes_corner[2] = {0, m_mesh.getOrder()};
-  for (int k : nodes_corner)
-  {
-    for (int j : nodes_corner)
-    {
-      for (int i : nodes_corner)
-      {
-        int nodeIdx = m_mesh.globalNodeIndex(elementNumber, i, j, k);
-        cornerCoords[I][0] = m_mesh.nodeCoord(nodeIdx, 0);
-        cornerCoords[I][1] = m_mesh.nodeCoord(nodeIdx, 1);
-        cornerCoords[I][2] = m_mesh.nodeCoord(nodeIdx, 2);
-        I++;
-      }
-    }
-  }
+  typename INTEGRAL_TYPE::TransformType transformData;
+  model_discretization_interface::gatherTransformData(elementNumber, m_mesh,
+                                                      transformData);
 
   float CTTI[6][6];
   if constexpr (!IS_MODEL_ON_NODES)
@@ -203,7 +190,7 @@ void SEMsolverElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES>::
 
   CJPacked CJflat[3 * 3 * 6];
   INTEGRAL_TYPE::computeStiffNessTermwithJac(
-      cornerCoords,
+      transformData,
       [&](int qa, int qb, int qc, float const(&J)[3][3]) {
         if constexpr (IS_MODEL_ON_NODES)
         {
@@ -276,7 +263,7 @@ void SEMsolverElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES>::
         }
       },
 
-      [&](int i, int j, float val, float(&J)[3][3], const int p, const int r) {
+      [&](int i, int j, float val, const int p, const int r) {
         const int idx = p * 3 + r;
 
 #ifdef __CUDACC__
@@ -420,23 +407,9 @@ void SEMsolverElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE,
 
   int dim = m_mesh.getOrder() + 1;
 
-  float cornerCoords[8][3];
-  int I = 0;
-  int nodes_corner[2] = {0, m_mesh.getOrder()};
-  for (int k : nodes_corner)
-  {
-    for (int j : nodes_corner)
-    {
-      for (int i : nodes_corner)
-      {
-        int nodeIdx = m_mesh.globalNodeIndex(elementNumber, i, j, k);
-        cornerCoords[I][0] = m_mesh.nodeCoord(nodeIdx, 0);
-        cornerCoords[I][2] = m_mesh.nodeCoord(nodeIdx, 2);
-        cornerCoords[I][1] = m_mesh.nodeCoord(nodeIdx, 1);
-        I++;
-      }
-    }
-  }
+  typename INTEGRAL_TYPE::TransformType transformData;
+  model_discretization_interface::gatherTransformData(elementNumber, m_mesh,
+                                                      transformData);
 
   real_t density = 0.0f;
   if constexpr (!IS_MODEL_ON_NODES)
@@ -445,7 +418,7 @@ void SEMsolverElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE,
   }
 
   INTEGRAL_TYPE::computeMassTerm(
-      cornerCoords,
+      transformData,
       [&](const int j, const real_t val) { massMatrixLocal[j] += val; });
 
   for (int i = 0; i < m_mesh.getNumberOfPointsPerElement(); ++i)

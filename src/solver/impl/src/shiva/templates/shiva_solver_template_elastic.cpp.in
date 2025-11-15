@@ -3,10 +3,10 @@
 
 #include <@MODEL_HEADER@>
 
-#include "sem_solver_impl.h"
+#include "sem_solver_elastic_impl.h"
 
 constexpr int ORDER = @ORDER@;
 
-template class SEMsolver<ORDER, 
+template class SEMsolverElastic<ORDER, 
                          IntegralTypeSelector<ORDER, IntegralType::SHIVA>::type,
                          model::@MODEL_CLASS@<@MODEL_TEMPLATE_PARAMS@>, @MODEL_ON_NODES@>;
