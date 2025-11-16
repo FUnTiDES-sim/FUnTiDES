@@ -191,7 +191,8 @@ void SEMsolverElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES>::
   CJPacked CJflat[3 * 3 * 6];
   INTEGRAL_TYPE::computeStiffNessTermwithJac(
       transformData,
-      [&](int qa, int qb, int qc, float const(&J)[3][3]) {
+      [&](int qa, int qb, int qc, float const(&J)[3][3]) 
+      {
         if constexpr (IS_MODEL_ON_NODES)
         {
           int const gIndex = m_mesh.globalNodeIndex(elementNumber, qa, qb, qc);
@@ -262,8 +263,8 @@ void SEMsolverElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES>::
           }
         }
       },
-
-      [&](int i, int j, float val, const int p, const int r) {
+      [&](int i, int j, float val, const int p, const int r) 
+      {
         const int idx = p * 3 + r;
 
 #ifdef __CUDACC__
