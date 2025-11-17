@@ -1,85 +1,106 @@
-#ifndef FDTDUTILS_HPP
-#define FDTDUTILS_HPP
+#ifndef FDTD_PML_HPP
+#define FDTD_PML_HPP
 
-#include <data_type.h>
-
-#include "FDTDdata.hpp"
-#include "FDTDkernels.hpp"
+#include "data_type.h"
+#include "fd_macros.h"
 
 using namespace std;
 
-using namespace std;
-
-struct FDTDUtils
+namespace fdtd
 {
-  void init_coef(int L, float dx, vectorReal &coef)
+namespace abckernel
+{
+struct FdtdAbcKernels
+{
+  vectorReal eta;
+  vectorReal spongeArray;
+  //------------------------------------------------------------------
+  // sponge boundary
+  //------------------------------------------------------------------
+  // define sponge boundary
+  void defineSpongeBoundary(int nx, int ny, int nz)
   {
-    float dx2 = dx * dx;
-    switch (L)
+    const int L = 20;
+    const float alpha = -0.00015;
+    // const float alpha = -0.00035;
+    //  compute sponge boundary terms
+    //  intailize to 1
+    for (int k = 0; k < nz; k++)
     {
-      case 1:
-        coef[0] = -2.f / dx2;
-        coef[1] = 1.f / dx2;
-        break;
-      case 2:
-        coef[0] = -5.f / 2.f / dx2;
-        coef[1] = 4.f / 3.f / dx2;
-        coef[2] = -1.f / 12.f / dx2;
-        break;
-      case 3:
-        coef[0] = -49.f / 18.f / dx2;
-        coef[1] = 3.f / 2.f / dx2;
-        coef[2] = -3. / 20. / dx2;
-        coef[3] = 1. / 90. / dx2;
-        break;
-      case 4:
-        coef[0] = -205.f / 72.f / dx2;
-        coef[1] = 8.f / 5.f / dx2;
-        coef[2] = -1.f / 5.f / dx2;
-        coef[3] = 8.f / 315.f / dx2;
-        coef[4] = -1.f / 560.f / dx2;
-        break;
-      case 5:
-        coef[0] = -5269.f / 1800.f / dx2;
-        coef[1] = 5.f / 3.f / dx2;
-        coef[2] = -5.f / 21.f / dx2;
-        coef[3] = 5.f / 126.f / dx2;
-        coef[4] = -5.f / 1008.f / dx2;
-        coef[5] = 1.f / 3150.f / dx2;
-        break;
-      case 6:
-        coef[0] = -5369.f / 1800.f / dx2;
-        coef[1] = 12.f / 7.f / dx2;
-        coef[2] = -15.f / 56.f / dx2;
-        coef[3] = 10.f / 189.f / dx2;
-        coef[4] = -1.f / 112.f / dx2;
-        coef[5] = 2.f / 1925.f / dx2;
-        coef[6] = 1.f / 1663.f / dx2;
-        break;
+      for (int j = 0; j < ny; j++)
+      {
+        for (int i = 0; i < nx; i++)
+        {
+          spongeArray(IDX3(i, j, k)) = 1;
+        }
+        for (int i = 0; i < nx; i++)
+        {
+          spongeArray(IDX3(i, j, k)) = 1;
+        }
+      }
     }
-  }
-  float compute_dt_sch(const float vmax, vectorReal &coefx, vectorReal &coefy,
-                       vectorReal &coefz)
-  {
-    float ftmp = 0.;
-    float cfl = 0.8;
-    ftmp += fabsf(coefx[0]) + fabsf(coefy[0]) + fabsf(coefz[0]);
-    for (int i = 1; i < coefx.extent(0); i++)
+
+    // X boundary
+    for (int k = L; k < nz - L; k++)
     {
-      ftmp += 2.f * fabsf(coefx[i]);
+      for (int j = L; j < ny - L; j++)
+      {
+        for (int i = 0; i < L; i++)
+        {
+          // spongeArray(IDX3(i,j,k))= exp(alpha*pow((L-i)*dx,2));
+          spongeArray(IDX3(i, j, k)) = exp(alpha * pow((L - i), 2));
+          // printf("spongeArray(%d,%d,%d)=%f\n",i,j,k,spongeArray(IDX3(i, j,
+          // k)));
+        }
+        for (int i = nx - L; i < nx; i++)
+        {
+          // spongeArray(IDX3(i,j,k))= exp(alpha*pow((L-(nx-i))*dx,2));
+          spongeArray(IDX3(i, j, k)) = exp(alpha * pow((L - (nx - i)), 2));
+        }
+      }
     }
-    for (int i = 1; i < coefy.extent(0); i++)
+
+    // Y boundary
+    for (int k = L; k < nz - L; k++)
     {
-      ftmp += 2.f * fabsf(coefy[i]);
+      for (int i = L; i < nx - L; i++)
+      {
+        for (int j = 0; j < L; j++)
+        {
+          // spongeArray(IDX3(i,j,k))= exp(alpha*pow((L-j)*dy,2));
+          spongeArray(IDX3(i, j, k)) = exp(alpha * pow((L - j), 2));
+        }
+        for (int j = ny - L; j < ny; j++)
+        {
+          // spongeArray(IDX3(i,j,k))= exp(alpha*pow((L-(ny-j))*dy,2));
+          spongeArray(IDX3(i, j, k)) = exp(alpha * pow((L - (ny - j)), 2));
+        }
+      }
     }
-    for (int i = 1; i < coefz.extent(0); i++)
+
+    // Z boundary
+    for (int j = L; j < ny - L; j++)
     {
-      ftmp += 2.f * fabsf(coefz[i]);
+      for (int i = L; i < nx - L; i++)
+      {
+        for (int k = 0; k < L; k++)
+        {
+          // spongeArray(IDX3(i,j,k))= exp(alpha*pow((L-k))*dz,2));
+          spongeArray(IDX3(i, j, k)) = exp(alpha * pow((L - k), 2));
+        }
+        for (int k = nz - L; k < nz; k++)
+        {
+          // spongeArray(IDX3(i,j,k))= exp(alpha*pow((L-(nz-k))*dz,2));
+          spongeArray(IDX3(i, j, k)) = exp(alpha * pow((L - (nz - k)), 2));
+        }
+      }
     }
-    printf(" coefs computed\n");
-    return 2 * cfl / (sqrtf(ftmp) * vmax);
   }
 
+  //------------------------------------------------------------------
+  // PML
+  //------------------------------------------------------------------
+  // Initialize the PML profile
   void pml_profile_init(vector<float> &profile, int i_min, int i_max,
                         int n_first, int n_last, float scale)
   {
@@ -208,48 +229,8 @@ struct FDTDUtils
         nx, ny, nz, eta, etax, etay, etaz, 1, nx, 1, ny, x1 + 1, x2, x5 + 1, x6,
         y1 + 1, y2, y3 + 1, y4, y5 + 1, y6, z1 + 1, z2, z3 + 1, z4, z5 + 1, z6);
   }
-
-  void output(FDTDGRIDS &myGrids, arrayReal const &pnGlobal, int itSample,
-              const int &i1, const bool saveSnapShots)
-  {
-    if (itSample % 50 == 0)
-    {
-      FDFENCE
-
-      printf("TimeStep=%d\t; Pressure value at source [%d %d %d] = %f\n",
-             itSample, myGrids.xs, myGrids.ys, myGrids.zs,
-             pnGlobal(IDX3_l(myGrids.xs, myGrids.ys, myGrids.zs), i1));
-      // #ifdef FD_SAVE_SNAPSHOTS
-      if (saveSnapShots)
-        write_io(myGrids, 0, myGrids.nx, myGrids.ny / 2, myGrids.ny / 2, 0,
-                 myGrids.nz, pnGlobal, itSample, i1);
-      // #endif
-    }
-  }
-
-  void write_io(FDTDGRIDS &myGrids, int x0, int x1, int y0, int y1, int z0,
-                int z1, arrayReal const &pnGlobal, int istep, const int &i1)
-  {
-    char filename_buf[32];
-    snprintf(filename_buf, sizeof(filename_buf), "snapshot_it_%d.H@", istep);
-    FILE *snapshot_file = fopen(filename_buf, "wb");
-    // printf("write snapshot for: x=[%d %d], y=[%d %d], z=[%d
-    // %d]\n",x0,x1,y0,y1,z0,z1);
-
-    for (int k = z0; k < z1; ++k)
-    {
-      for (int j = y0; j < y1 + 1; ++j)
-      {
-        for (int i = x0; i < x1; ++i)
-        {
-          fwrite(&pnGlobal(IDX3_l(i, j, k), i1), sizeof(float), 1,
-                 snapshot_file);
-        }
-      }
-    }
-    // Clean up
-    fclose(snapshot_file);
-  }
 };
 
-#endif  // FDTDUTILS_HPP
+}  // namespace abckernel
+}  // namespace fdtd
+#endif  // FDTD_PML_HPP
