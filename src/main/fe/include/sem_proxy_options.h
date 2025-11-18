@@ -13,11 +13,12 @@ class SemProxyOptions
   float lx = 2000.f, ly = 2000.f, lz = 2000.f;
   float srcx = 1010.f, srcy = 1010.f, srcz = 1010.f;
   float rcvx = 1410.f, rcvy = 1010.f, rcvz = 1010.f;
-  std::string implem = "makutu";  // makutu|shiva
-  std::string method = "sem";     // sem|dg
-  std::string mesh = "cartesian";
-  float dt = 0.006;
-  float timemax = 0.7;
+  std::string implem = "makutu";          // makutu|shiva
+  std::string method = "sem";             // sem|dg
+  std::string mesh_type = "unstruct";     // struct||unstruct
+  std::string mesh_format = "cartesian";  // cartesian||sep
+  float dt = 0.002;
+  float timemax = 1.0;
   bool autodt = false;
   // snapshots
   bool snapshots = false;
@@ -29,6 +30,8 @@ class SemProxyOptions
   // Boolean to tell if the model is charged on nodes or on element
   bool isModelOnNodes = false;
   bool isElastic = false;
+  // sep files options
+  std::string sepfile = "sepfile not defined";
 
   void validate() const
   {
@@ -56,8 +59,10 @@ class SemProxyOptions
         "implem", "Implementation: makutu|shiva",
         cxxopts::value<std::string>(o.implem))(
         "method", "Method: sem|dg", cxxopts::value<std::string>(o.method))(
-        "mesh", "Mesh: cartesian|ucartesian",
-        cxxopts::value<std::string>(o.mesh))(
+        "mesh-type", "Mesh: struct or unstruct",
+        cxxopts::value<std::string>(o.mesh_type))(
+        "mesh-format", "Mesh formating for loading (cartesian | sep)",
+        cxxopts::value<std::string>(o.mesh_format))(
         "dt", "Time step selection in s (default = 0.001s)",
         cxxopts::value<float>(o.dt))(
         "timemax", "Duration of the simulation in s (default = 1.5s)",
@@ -78,6 +83,7 @@ class SemProxyOptions
         "Boolean to tell if the model is charged on nodes (true) or on element "
         "(false)",
         cxxopts::value<bool>(o.isModelOnNodes))(
-        "is-elastic", "Elastic simulation", cxxopts::value<bool>(o.isElastic));
+        "is-elastic", "Elastic simulation", cxxopts::value<bool>(o.isElastic))(
+        "sepfile", "Sep header file", cxxopts::value<string>(o.sepfile));
   }
 };

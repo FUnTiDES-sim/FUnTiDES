@@ -11,9 +11,11 @@
 #include <cartesian_unstruct_builder.h>
 #include <sem_solver_acoustic.h>
 #include <sem_solver_elastic.h>
+#include <sep_builder.h>
 #include <source_and_receiver_utils.h>
 
 #include <cxxopts.hpp>
+#include <format>
 #include <iomanip>
 #include <iostream>
 #include <sstream>
@@ -54,7 +56,7 @@ SEMproxy::SEMproxy(const SemProxyOptions& opt)
 
   const SolverFactory::methodType methodType = getMethod(opt.method);
   const SolverFactory::implemType implemType = getImplem(opt.implem);
-  const SolverFactory::meshType meshType = getMesh(opt.mesh);
+  const SolverFactory::meshType meshType = getMesh(opt.mesh_type);
   const SolverFactory::modelLocationType modelLocation =
       isModelOnNodes ? SolverFactory::modelLocationType::OnNodes
                      : SolverFactory::modelLocationType::OnElements;
@@ -98,10 +100,31 @@ SEMproxy::SEMproxy(const SemProxyOptions& opt)
   }
   else if (meshType == SolverFactory::Unstruct)
   {
-    model::CartesianParams<float, int> param(order, ex, ey, ez, lx, ly, lz,
-                                             isModelOnNodes, isElastic);
-    model::CartesianUnstructBuilder<float, int> builder(param);
-    m_mesh = builder.getModel();
+    if (opt.mesh_format == "cartesian")
+    {
+      model::CartesianParams<float, int> param(order, ex, ey, ez, lx, ly, lz,
+                                               isModelOnNodes, isElastic);
+      model::CartesianUnstructBuilder<float, int> builder(param);
+      m_mesh = builder.getModel();
+    }
+    else if (opt.mesh_format == "sep")
+    {
+      model::SepUnstructBuilder<float, int> builder;
+      builder.setOrder(order);
+      builder.setSepFile(opt.sepfile);
+      m_mesh = builder.getModel();
+    }
+    else
+    {
+      std::ostringstream oss;
+      oss << "Incorrect mesh format: " << opt.mesh_format;
+      std::string err_msg = oss.str();
+      throw std::runtime_error(err_msg);
+      // TODO: Use this version when c++ 20 avail
+      // std::string err_msg =
+      //     std::format("Incorrect mesh format: {}", opt.mesh_format);
+      // throw std::runtime_error(err_msg);
+    }
   }
   else
   {
@@ -143,7 +166,7 @@ SEMproxy::SEMproxy(const SemProxyOptions& opt)
   std::cout << "Number of element is " << m_mesh->getNumberOfElements()
             << std::endl;
   std::cout << "Launching the Method " << opt.method << ", the implementation "
-            << opt.implem << " and the mesh is " << opt.mesh << std::endl;
+            << opt.implem << " and the mesh is " << opt.mesh_type << std::endl;
   std::cout << "Model is on " << (isModelOnNodes ? "nodes" : "elements")
             << std::endl;
   std::cout << "Physics type is " << (isElastic ? "elastic" : "acoustic")
@@ -564,8 +587,8 @@ SolverFactory::implemType SEMproxy::getImplem(string implemArg)
 
 SolverFactory::meshType SEMproxy::getMesh(string meshArg)
 {
-  if (meshArg == "cartesian") return SolverFactory::Struct;
-  if (meshArg == "ucartesian") return SolverFactory::Unstruct;
+  if (meshArg == "struct") return SolverFactory::Struct;
+  if (meshArg == "unstruct") return SolverFactory::Unstruct;
 
   std::cout << "Mesh type found is " << meshArg << std::endl;
   throw std::invalid_argument("Mesh type does not follow any valid type.");
