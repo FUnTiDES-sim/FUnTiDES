@@ -3,6 +3,7 @@
 
 #include <model.h>
 
+#include "elasticity_utils.h"
 #include "gllpoints.h"
 
 namespace model
@@ -59,6 +60,12 @@ class ModelStruct : public ModelApi<FloatType, ScalarType>
     hx_ = lx_ / ex_;
     hy_ = ly_ / ey_;
     hz_ = lz_ / ez_;
+
+    if (isElastic_ && !isModelOnNodes_)
+    {
+      // Precompute elasticity tensors if the model is elastic
+      this->initElasticityTensors();
+    }
   }
 
   /**
@@ -346,6 +353,52 @@ class ModelStruct : public ModelApi<FloatType, ScalarType>
   }
 
   /**
+   * @brief Initialize and precompute elasticity tensors
+   * Must be called after construction if using elastic model
+   */
+  void initElasticityTensors()
+  {
+    if (!isElastic_) return;
+
+    int n_element = ex_ * ey_ * ez_;
+
+    model_C_tensor_element_ =
+        array3DReal("model C tensor elem", n_element, 6, 6);
+
+    auto C_tensor = model_C_tensor_element_;
+
+    MAINLOOPHEAD(n_element, i)
+    FloatType CTTI[6][6];
+
+    FloatType vp = 1500.0;
+    FloatType vs = 755.0;
+    FloatType rho = 1.0;
+    FloatType delta = 0.1;
+    FloatType epsilon = 0.2;
+    FloatType gamma = 0.08;
+    FloatType theta = 30.0;
+    FloatType phi = 45.0;
+
+    computeCTensor(vp, vs, rho, delta, epsilon, gamma, theta, phi, CTTI);
+
+    for (int k = 0; k < 6; k++)
+      for (int l = 0; l < 6; l++) C_tensor(i, k, l) = CTTI[k][l];
+    MAINLOOPEND
+  }
+
+  /**
+   * @brief Get the precomputed elasticity tensor C for a given element.
+   * @param e Element index
+   * @param[out] CTTI Output 6x6 tensor (Voigt notation)
+   */
+  PROXY_HOST_DEVICE
+  void getCTensorOnElement(ScalarType e, FloatType CTTI[6][6]) const
+  {
+    for (int i = 0; i < 6; i++)
+      for (int j = 0; j < 6; j++) CTTI[i][j] = model_C_tensor_element_(e, i, j);
+  }
+
+  /**
    * @brief Get the total number of elements in the mesh.
    * @return Total element count
    */
@@ -459,6 +512,8 @@ class ModelStruct : public ModelApi<FloatType, ScalarType>
   FloatType hx_, hy_, hz_;   // element size
   bool isModelOnNodes_;
   bool isElastic_;
+
+  array3DReal model_C_tensor_element_;
 };
 
 }  // namespace model

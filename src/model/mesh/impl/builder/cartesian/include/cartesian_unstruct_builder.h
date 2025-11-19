@@ -355,5 +355,6 @@ class CartesianUnstructBuilder : public ModelBuilderBase<FloatType, ScalarType>
     }
   }
 };
+
 }  // namespace model
 #endif  // SRC_MODEL_CARTESIANMESH_INCLUDE_CARTESIAN_UNSTRUCT_MESH_H_
