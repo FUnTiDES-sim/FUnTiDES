@@ -33,6 +33,8 @@ class CartesianUnstructBuilder : public ModelBuilderBase<FloatType, ScalarType>
     initModels();
   }
 
+  CartesianUnstructBuilder(const SepParams<FloatType, ScalarType> &p);
+
   std::shared_ptr<model::ModelApi<FloatType, ScalarType>> getModel()
       const override
   {
