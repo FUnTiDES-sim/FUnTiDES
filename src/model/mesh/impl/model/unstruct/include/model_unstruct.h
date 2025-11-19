@@ -151,11 +151,6 @@ class ModelUnstruct : public ModelApi<FloatType, ScalarType>
         boundaries_t_(data.boundaries_t_),
         n_points_per_element_((order_ + 1) * (order_ + 1) * (order_ + 1))
   {
-    if (isElastic_ && !isModelOnNodes_)
-    {
-      // Precompute elasticity tensors if the model is elastic
-      this->initElasticityTensors();
-    }
   }
 
   /**
@@ -395,8 +390,7 @@ class ModelUnstruct : public ModelApi<FloatType, ScalarType>
   {
     if (!isElastic_) return;
 
-    model_C_tensor_element_ =
-        array3DReal("model C tensor elem", n_element_, 6, 6);
+    model_C_tensor_element_ = allocateArray3D<array3DReal>(n_element_, 6, 6);
 
     auto C_tensor = model_C_tensor_element_;
     auto vp = model_vp_element_;

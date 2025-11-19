@@ -71,8 +71,15 @@ class CartesianUnstructBuilder : public ModelBuilderBase<FloatType, ScalarType>
     modelData.model_theta_element_ = model_theta_element_;
     modelData.model_phi_element_ = model_phi_element_;
 
-    return std::make_shared<model::ModelUnstruct<FloatType, ScalarType>>(
+    auto model = std::make_shared<model::ModelUnstruct<FloatType, ScalarType>>(
         modelData);
+
+    if (isElastic_ && !isModelOnNodes_)
+    {
+      model->initElasticityTensors();
+    }
+
+    return model;
   }
 
   ~CartesianUnstructBuilder() = default;

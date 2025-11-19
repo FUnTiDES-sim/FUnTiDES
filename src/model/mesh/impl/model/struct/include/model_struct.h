@@ -60,12 +60,6 @@ class ModelStruct : public ModelApi<FloatType, ScalarType>
     hx_ = lx_ / ex_;
     hy_ = ly_ / ey_;
     hz_ = lz_ / ez_;
-
-    if (isElastic_ && !isModelOnNodes_)
-    {
-      // Precompute elasticity tensors if the model is elastic
-      this->initElasticityTensors();
-    }
   }
 
   /**
@@ -362,8 +356,7 @@ class ModelStruct : public ModelApi<FloatType, ScalarType>
 
     int n_element = ex_ * ey_ * ez_;
 
-    model_C_tensor_element_ =
-        array3DReal("model C tensor elem", n_element, 6, 6);
+    model_C_tensor_element_ = allocateArray3D<array3DReal>(n_element, 6, 6);
 
     auto C_tensor = model_C_tensor_element_;
 

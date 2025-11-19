@@ -16,12 +16,10 @@
  * @param[out] CTTI Output 6x6 elasticity tensor (Voigt notation)
  */
 template <typename FloatType>
-KOKKOS_FORCEINLINE_FUNCTION void computeCTensor(FloatType vp, FloatType vs,
-                                                FloatType rho, FloatType delta,
-                                                FloatType epsilon,
-                                                FloatType gamma,
-                                                FloatType theta, FloatType phi,
-                                                FloatType CTTI[6][6])
+PROXY_HOST_DEVICE void computeCTensor(FloatType vp, FloatType vs, FloatType rho,
+                                      FloatType delta, FloatType epsilon,
+                                      FloatType gamma, FloatType theta,
+                                      FloatType phi, FloatType CTTI[6][6])
 {
   FloatType CVTI[6][6] = {0.0};
   CVTI[0][0] = rho * vp * vp * (1.0 + 2.0 * epsilon);
