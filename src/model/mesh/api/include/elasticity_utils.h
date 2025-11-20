@@ -34,8 +34,7 @@ PROXY_HOST_DEVICE void computeCTensor(FloatType vp, FloatType vs, FloatType rho,
   FloatType vp2 = vp * vp;
   FloatType vs2 = vs * vs;
   FloatType diff = vp2 - vs2;
-  CVTI[0][2] =
-      rho * Kokkos::sqrt(diff * diff + 2.0 * vp2 * delta * diff) - rho * vs2;
+  CVTI[0][2] = rho * sqrt(diff * diff + 2.0 * vp2 * delta * diff) - rho * vs2;
   CVTI[1][2] = CVTI[0][2];
   CVTI[2][0] = CVTI[0][2];
   CVTI[2][1] = CVTI[0][2];
@@ -44,11 +43,10 @@ PROXY_HOST_DEVICE void computeCTensor(FloatType vp, FloatType vs, FloatType rho,
   FloatType theta_rad = theta * PI / FloatType(180.0);
   FloatType phi_rad = phi * PI / FloatType(180.0);
 
-  // Calcul des sin/cos (Kokkos gère automatiquement float/double et CPU/GPU)
-  FloatType ctheta = Kokkos::cos(theta_rad);
-  FloatType stheta = Kokkos::sin(theta_rad);
-  FloatType cphi = Kokkos::cos(phi_rad);
-  FloatType sphi = Kokkos::sin(phi_rad);
+  FloatType ctheta = cos(theta_rad);
+  FloatType stheta = sin(theta_rad);
+  FloatType cphi = cos(phi_rad);
+  FloatType sphi = sin(phi_rad);
 
   FloatType R[3][3];
   R[0][0] = ctheta * cphi;

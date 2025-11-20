@@ -358,7 +358,7 @@ class ModelStruct : public ModelApi<FloatType, ScalarType>
 
     model_C_tensor_element_ = allocateArray3D<array3DReal>(n_element, 6, 6);
 
-    auto C_tensor = model_C_tensor_element_;
+    auto& C_tensor = model_C_tensor_element_;
 
     MAINLOOPHEAD(n_element, i)
     FloatType CTTI[6][6];

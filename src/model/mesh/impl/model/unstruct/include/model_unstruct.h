@@ -392,15 +392,15 @@ class ModelUnstruct : public ModelApi<FloatType, ScalarType>
 
     model_C_tensor_element_ = allocateArray3D<array3DReal>(n_element_, 6, 6);
 
-    auto C_tensor = model_C_tensor_element_;
-    auto vp = model_vp_element_;
-    auto vs = model_vs_element_;
-    auto rho = model_rho_element_;
-    auto delta = model_delta_element_;
-    auto epsilon = model_epsilon_element_;
-    auto gamma = model_gamma_element_;
-    auto theta = model_theta_element_;
-    auto phi = model_phi_element_;
+    auto& C_tensor = model_C_tensor_element_;
+    auto& vp = model_vp_element_;
+    auto& vs = model_vs_element_;
+    auto& rho = model_rho_element_;
+    auto& delta = model_delta_element_;
+    auto& epsilon = model_epsilon_element_;
+    auto& gamma = model_gamma_element_;
+    auto& theta = model_theta_element_;
+    auto& phi = model_phi_element_;
 
     MAINLOOPHEAD(n_element_, i)
     FloatType CTTI[6][6];
