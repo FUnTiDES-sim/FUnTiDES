@@ -1,9 +1,9 @@
 #ifndef SRC_MODEL_MODELAPI_INCLUDE_MODEL_STRUCT_H_
 #define SRC_MODEL_MODELAPI_INCLUDE_MODEL_STRUCT_H_
 
+#include <elasticity_utils.h>
 #include <model.h>
 
-#include "elasticity_utils.h"
 #include "gllpoints.h"
 
 namespace model

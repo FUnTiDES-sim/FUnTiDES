@@ -99,8 +99,8 @@ PROXY_HOST_DEVICE void computeCTensor(FloatType vp, FloatType vs, FloatType rho,
 
   FloatType temp[6][6] = {0.0};
   for (int i = 0; i < 6; i++)
-    for (int k = 0; k < 6; k++)
-      for (int j = 0; j < 6; j++) temp[i][j] += M[i][k] * CVTI[k][j];
+    for (int j = 0; j < 6; j++)
+      for (int k = 0; k < 6; k++) temp[i][j] += M[i][k] * CVTI[k][j];
 
   for (int i = 0; i < 6; i++)
     for (int j = i; j < 6; j++)

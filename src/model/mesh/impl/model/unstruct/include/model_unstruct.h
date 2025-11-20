@@ -1,9 +1,8 @@
 #ifndef SRC_MODEL_MODELAPI_INCLUDE_MODEL_UNSTRUCT_H_
 #define SRC_MODEL_MODELAPI_INCLUDE_MODEL_UNSTRUCT_H_
 
+#include <elasticity_utils.h>
 #include <model.h>
-
-#include "elasticity_utils.h"
 
 namespace model
 {

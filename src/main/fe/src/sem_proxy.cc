@@ -108,13 +108,6 @@ SEMproxy::SEMproxy(const SemProxyOptions& opt)
     throw std::runtime_error("Incorrect mesh type (SEMproxy ctor.)");
   }
 
-  // if (isElastic && !isModelOnNodes)
-  // {
-  //   std::cout << "Precomputing elasticity tensors..." << std::endl;
-  //   m_mesh->initElasticityTensors();
-  //   std::cout << "Elasticity tensors precomputed." << std::endl;
-  // }
-
   // time parameters
   if (opt.autodt)
   {

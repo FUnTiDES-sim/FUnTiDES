@@ -10,6 +10,7 @@ target_include_directories(proxy_model_unstruct
 target_link_libraries(proxy_model_unstruct
   PUBLIC
     proxy_model_api
+    proxy_model_common
 )
 
 target_link_kokkos_if_enabled(proxy_model_unstruct)
