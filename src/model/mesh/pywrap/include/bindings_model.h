@@ -133,6 +133,7 @@ void bind_modelunstructdata(py::module_ &m)
                Kokkos::Experimental::python_view_type_t<VECTOR_REAL_VIEW>,
                Kokkos::Experimental::python_view_type_t<VECTOR_REAL_VIEW>,
                Kokkos::Experimental::python_view_type_t<VECTOR_REAL_VIEW>,
+               Kokkos::Experimental::python_view_type_t<ARRAY3D_REAL_VIEW>,
                Kokkos::Experimental::python_view_type_t<VECTOR_REAL_VIEW>>(),
            py::arg("order"), py::arg("n_element"), py::arg("n_node"),
            py::arg("lx"), py::arg("ly"), py::arg("lz"),
@@ -147,7 +148,7 @@ void bind_modelunstructdata(py::module_ &m)
            py::arg("model_gamma_node"), py::arg("model_gamma_element"),
            py::arg("model_phi_node"), py::arg("model_phi_element"),
            py::arg("model_theta_node"), py::arg("model_theta_element"),
-           py::arg("boundaries_t"));
+           py::arg("model_C_tensor_element"), py::arg("boundaries_t"));
 }
 
 }  // namespace model
