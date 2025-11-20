@@ -11,7 +11,7 @@
 #include <cartesian_unstruct_builder.h>
 #include <sem_solver_acoustic.h>
 #include <sem_solver_elastic.h>
-#include <sep_builder.h>
+// #include <sep_builder.h>
 #include <source_and_receiver_utils.h>
 
 #include <cxxopts.hpp>
@@ -109,9 +109,9 @@ SEMproxy::SEMproxy(const SemProxyOptions& opt)
     }
     else if (opt.mesh_format == "sep")
     {
-      model::SepUnstructBuilder<float, int> builder;
-      builder.setOrder(order);
-      builder.setSepFile(opt.sepfile);
+      model::SepParams<float, int> sepreader;
+      sepreader.readSepFile(opt.sepfile);
+      model::CartesianUnstructBuilder<float, int> builder(sepreader);
       m_mesh = builder.getModel();
     }
     else

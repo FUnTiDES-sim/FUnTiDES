@@ -18,7 +18,6 @@ if(COMPILE_SEM)
       discretization
       proxy_solver
       proxy_model_builder_cartesian
-      proxy_model_builder_sep
       proxy_model_struct
       proxy_model_unstruct
       proxy_utils

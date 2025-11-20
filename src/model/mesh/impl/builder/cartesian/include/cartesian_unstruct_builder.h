@@ -5,6 +5,7 @@
 #include <model_unstruct.h>
 
 #include "cartesian_params.h"
+#include "sep_params.h"
 
 namespace model
 {
@@ -33,7 +34,25 @@ class CartesianUnstructBuilder : public ModelBuilderBase<FloatType, ScalarType>
     initModels();
   }
 
-  CartesianUnstructBuilder(const SepParams<FloatType, ScalarType> &p);
+  CartesianUnstructBuilder(const SepParams<FloatType, ScalarType>& p)
+    : ex_(p.getN1()),
+      ey_(p.getN2()),
+      ez_(p.getN3())
+    {
+    lx_ = p.getD1() * ex_;
+    ly_ = p.getD2() * ey_;
+    lz_ = p.getD3() * ez_;
+
+    isModelOnNodes_ = false;
+    isElastic_ = false;
+
+    cout << ex_ << " " << ey_ << " " << ez_ << endl;
+    cout << p.getN1() << " " << p.getN2() << " " << p.getN3() << endl;
+
+    initGlobalNodeList();
+    initNodesCoords();
+    initModels();
+  }
 
   std::shared_ptr<model::ModelApi<FloatType, ScalarType>> getModel()
       const override
