@@ -7,29 +7,17 @@
 namespace model
 {
 template <typename FloatType, typename ScalarType>
-struct SepParams
+class SepParams
 {
  public:
-  SepParams()
-      : order(1),
-        ex(0),
-        ey(0),
-        ez(0),
-        hx(1.0),
-        hy(1.0),
-        hz(1.0),
-        ox(0.0),
-        oy(0.0),
-        oz(0.0),
-        esize(4),
-        is_model_on_node(true),
-        is_elastic(false)
+  SepParams(const std::string& filename)
+      : is_model_on_node(true), is_elastic(false)
   {
+    readSepFile(filename);
   }
 
-  static SepParams readSepFile(const std::string& filename)
+  void readSepFile(const std::string& filename)
   {
-    SepParams params;
     std::ifstream file(filename);
 
     if (!file.is_open())
@@ -74,47 +62,47 @@ struct SepParams
       // Parse parameters
       if (key == "n1")
       {
-        params.ex = static_cast<ScalarType>(std::stoi(value));
+        this->ex = static_cast<ScalarType>(std::stoi(value));
       }
       else if (key == "n2")
       {
-        params.ey = static_cast<ScalarType>(std::stoi(value));
+        this->ey = static_cast<ScalarType>(std::stoi(value));
       }
       else if (key == "n3")
       {
-        params.ez = static_cast<ScalarType>(std::stoi(value));
+        this->ez = static_cast<ScalarType>(std::stoi(value));
       }
       else if (key == "d1")
       {
-        params.hx = static_cast<FloatType>(std::stod(value));
+        this->hx = static_cast<FloatType>(std::stod(value));
       }
       else if (key == "d2")
       {
-        params.hy = static_cast<FloatType>(std::stod(value));
+        this->hy = static_cast<FloatType>(std::stod(value));
       }
       else if (key == "d3")
       {
-        params.hz = static_cast<FloatType>(std::stod(value));
+        this->hz = static_cast<FloatType>(std::stod(value));
       }
       else if (key == "o1")
       {
-        params.ox = static_cast<FloatType>(std::stod(value));
+        this->ox = static_cast<FloatType>(std::stod(value));
       }
       else if (key == "o2")
       {
-        params.oy = static_cast<FloatType>(std::stod(value));
+        this->oy = static_cast<FloatType>(std::stod(value));
       }
       else if (key == "o3")
       {
-        params.oz = static_cast<FloatType>(std::stod(value));
+        this->oz = static_cast<FloatType>(std::stod(value));
       }
       else if (key == "esize")
       {
-        params.esize = std::stoi(value);
+        this->esize = std::stoi(value);
       }
       else if (key == "data_format")
       {
-        params.data_format = value;
+        this->data_format = value;
       }
       else if (key == "in")
       {
@@ -122,46 +110,44 @@ struct SepParams
         if (value[0] == '/' || (value.length() > 1 && value[1] == ':'))
         {
           // Absolute path
-          params.data_file = value;
+          this->data_file = value;
         }
         else
         {
           // Relative path - resolve relative to header directory
-          params.data_file = directory + "/" + value;
+          this->data_file = directory + "/" + value;
         }
       }
       else if (key == "data_label")
       {
-        params.data_label = value;
+        this->data_label = value;
       }
       else if (key == "data_filetype")
       {
-        params.data_filetype = value;
+        this->data_filetype = value;
       }
       else if (key == "order")
       {
-        params.order = std::stoi(value);
+        this->order = std::stoi(value);
       }
       else if (key == "model_on_node")
       {
-        params.is_model_on_node = (value == "true" || value == "1");
+        this->is_model_on_node = (value == "true" || value == "1");
       }
       else if (key == "elastic")
       {
-        params.is_elastic = (value == "true" || value == "1");
+        this->is_elastic = (value == "true" || value == "1");
       }
     }
 
     file.close();
 
     // Validate critical parameters
-    if (params.ex == 0 || params.ey == 0 || params.ez == 0)
+    if (this->ex == 0 || this->ey == 0 || this->ez == 0)
     {
       throw std::runtime_error(
           "Invalid SEP file: missing or invalid dimensions (n1, n2, n3)");
     }
-
-    return params;
   }
 
   void print() const

@@ -109,8 +109,7 @@ SEMproxy::SEMproxy(const SemProxyOptions& opt)
     }
     else if (opt.mesh_format == "sep")
     {
-      model::SepParams<float, int> sepreader;
-      sepreader = sepreader.readSepFile(opt.sepfile);
+      model::SepParams<float, int> sepreader(opt.sepfile);
       model::CartesianUnstructBuilder<float, int> builder(sepreader, order);
       m_mesh = builder.getModel();
     }
