@@ -46,9 +46,6 @@ class CartesianUnstructBuilder : public ModelBuilderBase<FloatType, ScalarType>
     isModelOnNodes_ = false;
     isElastic_ = false;
 
-    cout << ex_ << " " << ey_ << " " << ez_ << endl;
-    cout << p.getN1() << " " << p.getN2() << " " << p.getN3() << endl;
-
     initGlobalNodeList();
     initNodesCoords();
     initModels();
