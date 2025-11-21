@@ -47,9 +47,9 @@ int main(int argc, char *argv[])
     cxxopts::Options options("SEM Proxy", "Runs the SEM simulation.");
     options.allow_unrecognised_options();  // lets Kokkos flags pass
 
-    options.add_options()
-      ("h,help", "Print help message")
-      ("i,input", "Input JSON configuration file", cxxopts::value<std::string>());
+    options.add_options()("h,help", "Print help message")(
+        "i,input", "Input JSON configuration file",
+        cxxopts::value<std::string>());
 
     SemProxyOptions opt;
     SemProxyOptions::bind_cli(options, opt);

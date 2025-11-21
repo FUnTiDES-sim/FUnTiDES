@@ -44,19 +44,24 @@ class SemProxyOptions
   void load_from_json(const std::string& json_path)
   {
     std::ifstream file(json_path);
-    if (!file.is_open()) {
+    if (!file.is_open())
+    {
       throw std::runtime_error("Cannot open JSON file: " + json_path);
     }
 
     nlohmann::json j;
-    try {
+    try
+    {
       file >> j;
-    } catch (const nlohmann::json::exception& e) {
+    }
+    catch (const nlohmann::json::exception& e)
+    {
       throw std::runtime_error("JSON parsing error: " + std::string(e.what()));
     }
 
     // Simulation parameters
-    if (j.contains("simulation")) {
+    if (j.contains("simulation"))
+    {
       auto& sim = j["simulation"];
       if (sim.contains("order")) order = sim["order"];
       if (sim.contains("method")) method = sim["method"];
@@ -68,7 +73,8 @@ class SemProxyOptions
     }
 
     // Domain parameters
-    if (j.contains("domain")) {
+    if (j.contains("domain"))
+    {
       auto& dom = j["domain"];
       if (dom.contains("ex")) ex = dom["ex"];
       if (dom.contains("ey")) ey = dom["ey"];
@@ -79,7 +85,8 @@ class SemProxyOptions
     }
 
     // Source position
-    if (j.contains("source")) {
+    if (j.contains("source"))
+    {
       auto& src = j["source"];
       if (src.contains("x")) srcx = src["x"];
       if (src.contains("y")) srcy = src["y"];
@@ -87,7 +94,8 @@ class SemProxyOptions
     }
 
     // Receiver position
-    if (j.contains("receiver")) {
+    if (j.contains("receiver"))
+    {
       auto& rcv = j["receiver"];
       if (rcv.contains("x")) rcvx = rcv["x"];
       if (rcv.contains("y")) rcvy = rcv["y"];
@@ -95,22 +103,27 @@ class SemProxyOptions
     }
 
     // Snapshots
-    if (j.contains("snapshots")) {
+    if (j.contains("snapshots"))
+    {
       auto& snap = j["snapshots"];
       if (snap.contains("enabled")) snapshots = snap["enabled"];
-      if (snap.contains("time_interval")) snap_time_interval = snap["time_interval"];
+      if (snap.contains("time_interval"))
+        snap_time_interval = snap["time_interval"];
     }
 
     // Boundaries
-    if (j.contains("boundaries")) {
+    if (j.contains("boundaries"))
+    {
       auto& bound = j["boundaries"];
-      if (bound.contains("surface_sponge")) surface_sponge = bound["surface_sponge"];
+      if (bound.contains("surface_sponge"))
+        surface_sponge = bound["surface_sponge"];
       if (bound.contains("size")) boundaries_size = bound["size"];
       if (bound.contains("taper_delta")) taper_delta = bound["taper_delta"];
     }
 
     // Model parameters
-    if (j.contains("model")) {
+    if (j.contains("model"))
+    {
       auto& model = j["model"];
       if (model.contains("is_on_nodes")) isModelOnNodes = model["is_on_nodes"];
       if (model.contains("is_elastic")) isElastic = model["is_elastic"];
