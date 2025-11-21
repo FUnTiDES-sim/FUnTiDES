@@ -114,7 +114,11 @@ class Array3D
   Array3D() : data(0, std::vector<std::vector<T>>(0)) {}
 
   std::vector<T> &operator[](int index) { return data[index]; }
-  T &operator()(size_t X, size_t Y, size_t Z) const { return data[X][Y][Z]; }
+  T &operator()(size_t X, size_t Y, size_t Z) { return data[X][Y][Z]; }
+  const T &operator()(size_t X, size_t Y, size_t Z) const
+  {
+    return data[X][Y][Z];
+  }
 
   size_t extent(int dim) const
   {
