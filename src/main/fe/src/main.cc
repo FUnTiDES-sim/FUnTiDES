@@ -47,7 +47,9 @@ int main(int argc, char *argv[])
     cxxopts::Options options("SEM Proxy", "Runs the SEM simulation.");
     options.allow_unrecognised_options();  // lets Kokkos flags pass
 
-    options.add_options()("h,help", "Print help message");
+    options.add_options()
+      ("h,help", "Print help message")
+      ("i,input", "Input JSON configuration file", cxxopts::value<std::string>());
 
     SemProxyOptions opt;
     SemProxyOptions::bind_cli(options, opt);
@@ -60,13 +62,28 @@ int main(int argc, char *argv[])
       exit(0);
     }
 
+    // Load JSON config if provided
+    if (result.count("input"))
+    {
+      std::string config_path = result["input"].as<std::string>();
+      try
+      {
+        opt.load_from_json(config_path);
+        std::cout << "Configuration loaded from: " << config_path << std::endl;
+      }
+      catch (const std::exception &e)
+      {
+        std::cerr << "Error loading config: " << e.what() << std::endl;
+        return 1;
+      }
+    }
+
     try
     {
       opt.validate();
     }
     catch (const std::exception &e)
     {
-      // your error path (no help printing here)
       std::cerr << "Invalid options: " << e.what() << "\n";
       return 1;
     }

@@ -68,10 +68,119 @@ ctest
 ```
 
 ### Step 3: Run Examples
+#### Using JSON Configuration (Recommended)
 
+The SEM proxy now supports JSON configuration files for easier parameter management:
 ```sh
-# Run SEM simulation with 100 x 100 x 100 elements
-./src/main/semproxy -ex 100
+# Create a configuration file
+cat > config.json << 'EOF'
+{
+  "simulation": {
+    "order": 4,
+    "method": "sem",
+    "implementation": "makutu",
+    "mesh": "cartesian",
+    "dt": 0.006,
+    "timemax": 1.5,
+    "autodt": false
+  },
+  "domain": {
+    "ex": 100,
+    "ey": 100,
+    "ez": 100,
+    "lx": 2000.0,
+    "ly": 2000.0,
+    "lz": 2000.0
+  },
+  "source": {
+    "x": 1010.0,
+    "y": 1010.0,
+    "z": 1010.0
+  },
+  "receiver": {
+    "x": 1410.0,
+    "y": 1010.0,
+    "z": 1010.0
+  },
+  "snapshots": {
+    "enabled": true,
+    "time_interval": 10
+  },
+  "boundaries": {
+    "size": 200.0,
+    "surface_sponge": true,
+    "taper_delta": 0.015
+  },
+  "model": {
+    "is_on_nodes": false,
+    "is_elastic": true
+  }
+}
+EOF
+
+# Run with JSON configuration
+./bin/semproxy -i config.json
+```
+
+#### JSON Configuration Reference
+
+All fields are optional; omitted values use defaults:
+
+| JSON Field | Description | Default |
+|------------|-------------|---------|
+| `simulation.order` | Polynomial order | 2 |
+| `simulation.method` | Method: `sem` or `dg` | `sem` |
+| `simulation.implementation` | Implementation: `makutu` or `shiva` | `makutu` |
+| `simulation.mesh` | Mesh type: `cartesian` or `ucartesian` | `cartesian` |
+| `simulation.dt` | Time step (seconds) | 0.006 |
+| `simulation.timemax` | Simulation duration (seconds) | 0.7 |
+| `simulation.autodt` | Auto-compute dt via CFL | false |
+| `domain.ex`, `domain.ey`, `domain.ez` | Number of elements | 50, 50, 50 |
+| `domain.lx`, `domain.ly`, `domain.lz` | Domain size (meters) | 2000, 2000, 2000 |
+| `source.x`, `source.y`, `source.z` | Source position (meters) | 1010, 1010, 1010 |
+| `receiver.x`, `receiver.y`, `receiver.z` | Receiver position (meters) | 1410, 1010, 1010 |
+| `snapshots.enabled` | Enable snapshots | false |
+| `snapshots.time_interval` | Snapshot interval (iterations) | 10 |
+| `boundaries.size` | Sponge boundary size (meters) | 0.0 |
+| `boundaries.surface_sponge` | Surface as non-sponge | false |
+| `boundaries.taper_delta` | Taper delta coefficient | 0.015 |
+| `model.is_on_nodes` | Model defined on nodes vs elements | false |
+| `model.is_elastic` | Elastic vs acoustic simulation | false |
+
+#### Minimal JSON Example
+```json
+{
+  "simulation": {
+    "order": 6
+  },
+  "domain": {
+    "ex": 100,
+    "ey": 100,
+    "ez": 100
+  }
+}
+```
+
+All other parameters will use default values.
+
+#### Legacy CLI Mode (Still Supported)
+
+Command-line options are still available for backward compatibility:
+```sh
+# Run SEM simulation with CLI options (legacy mode)
+./bin/semproxy --order 4 --ex 100 --ey 100 --ez 100 --lx 2000 --ly 2000 --lz 2000
+
+# Run FD simulation
+./bin/fdproxy
+```
+
+For a full list of CLI options:
+```sh
+./bin/semproxy --help
+```
+
+> **Note**: When using `-i <config.json>`, CLI options are ignored. Use either JSON or CLI, not both.
+
 
 # Run FD simulation
 ./src/main/fdproxy

@@ -11,6 +11,7 @@ if(COMPILE_SEM)
     PRIVATE
       ${CMAKE_CURRENT_SOURCE_DIR}/include
       ${CMAKE_SOURCE_DIR}/external/cxxopts
+      ${CMAKE_SOURCE_DIR}/external/nlohmann
   )
 
   target_link_libraries(semproxy

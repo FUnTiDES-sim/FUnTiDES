@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cxxopts.hpp>
+#include <json.hpp>
 #include <stdexcept>
 #include <string>
 
@@ -37,6 +38,83 @@ class SemProxyOptions
       throw std::runtime_error("ex/ey/ez must be > 0");
     if (lx <= 0 || ly <= 0 || lz <= 0)
       throw std::runtime_error("lx/ly/lz must be > 0");
+  }
+
+  // Load from JSON file
+  void load_from_json(const std::string& json_path)
+  {
+    std::ifstream file(json_path);
+    if (!file.is_open()) {
+      throw std::runtime_error("Cannot open JSON file: " + json_path);
+    }
+
+    nlohmann::json j;
+    try {
+      file >> j;
+    } catch (const nlohmann::json::exception& e) {
+      throw std::runtime_error("JSON parsing error: " + std::string(e.what()));
+    }
+
+    // Simulation parameters
+    if (j.contains("simulation")) {
+      auto& sim = j["simulation"];
+      if (sim.contains("order")) order = sim["order"];
+      if (sim.contains("method")) method = sim["method"];
+      if (sim.contains("implementation")) implem = sim["implementation"];
+      if (sim.contains("mesh")) mesh = sim["mesh"];
+      if (sim.contains("dt")) dt = sim["dt"];
+      if (sim.contains("timemax")) timemax = sim["timemax"];
+      if (sim.contains("autodt")) autodt = sim["autodt"];
+    }
+
+    // Domain parameters
+    if (j.contains("domain")) {
+      auto& dom = j["domain"];
+      if (dom.contains("ex")) ex = dom["ex"];
+      if (dom.contains("ey")) ey = dom["ey"];
+      if (dom.contains("ez")) ez = dom["ez"];
+      if (dom.contains("lx")) lx = dom["lx"];
+      if (dom.contains("ly")) ly = dom["ly"];
+      if (dom.contains("lz")) lz = dom["lz"];
+    }
+
+    // Source position
+    if (j.contains("source")) {
+      auto& src = j["source"];
+      if (src.contains("x")) srcx = src["x"];
+      if (src.contains("y")) srcy = src["y"];
+      if (src.contains("z")) srcz = src["z"];
+    }
+
+    // Receiver position
+    if (j.contains("receiver")) {
+      auto& rcv = j["receiver"];
+      if (rcv.contains("x")) rcvx = rcv["x"];
+      if (rcv.contains("y")) rcvy = rcv["y"];
+      if (rcv.contains("z")) rcvz = rcv["z"];
+    }
+
+    // Snapshots
+    if (j.contains("snapshots")) {
+      auto& snap = j["snapshots"];
+      if (snap.contains("enabled")) snapshots = snap["enabled"];
+      if (snap.contains("time_interval")) snap_time_interval = snap["time_interval"];
+    }
+
+    // Boundaries
+    if (j.contains("boundaries")) {
+      auto& bound = j["boundaries"];
+      if (bound.contains("surface_sponge")) surface_sponge = bound["surface_sponge"];
+      if (bound.contains("size")) boundaries_size = bound["size"];
+      if (bound.contains("taper_delta")) taper_delta = bound["taper_delta"];
+    }
+
+    // Model parameters
+    if (j.contains("model")) {
+      auto& model = j["model"];
+      if (model.contains("is_on_nodes")) isModelOnNodes = model["is_on_nodes"];
+      if (model.contains("is_elastic")) isElastic = model["is_elastic"];
+    }
   }
 
   // Bind CLI flags to this instance (no --help here)
