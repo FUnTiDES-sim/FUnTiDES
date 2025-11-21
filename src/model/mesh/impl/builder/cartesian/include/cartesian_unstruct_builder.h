@@ -34,10 +34,11 @@ class CartesianUnstructBuilder : public ModelBuilderBase<FloatType, ScalarType>
     initModels();
   }
 
-  CartesianUnstructBuilder(const SepParams<FloatType, ScalarType>& p)
+  CartesianUnstructBuilder(const SepParams<FloatType, ScalarType>& p, const int order)
     : ex_(p.getN1()),
       ey_(p.getN2()),
-      ez_(p.getN3())
+      ez_(p.getN3()),
+      order_(order)
     {
     lx_ = p.getD1() * ex_;
     ly_ = p.getD2() * ey_;
