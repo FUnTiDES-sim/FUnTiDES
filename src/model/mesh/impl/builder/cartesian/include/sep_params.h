@@ -4,9 +4,11 @@
 #include <sstream>
 #include <string>
 
-namespace model {
+namespace model
+{
 template <typename FloatType, typename ScalarType>
-struct SepParams {
+struct SepParams
+{
  public:
   SepParams()
       : order(1),
@@ -21,28 +23,35 @@ struct SepParams {
         oz(0.0),
         esize(4),
         is_model_on_node(true),
-        is_elastic(false) {}
+        is_elastic(false)
+  {
+  }
 
-  static SepParams readSepFile(const std::string& filename) {
+  static SepParams readSepFile(const std::string& filename)
+  {
     SepParams params;
     std::ifstream file(filename);
 
-    if (!file.is_open()) {
+    if (!file.is_open())
+    {
       throw std::runtime_error("Cannot open SEP file: " + filename);
     }
 
     std::string line;
     std::string directory = getDirectory(filename);
 
-    while (std::getline(file, line)) {
+    while (std::getline(file, line))
+    {
       // Skip empty lines and comments
-      if (line.empty() || line[0] == '#') {
+      if (line.empty() || line[0] == '#')
+      {
         continue;
       }
 
       // Trim leading whitespace
       size_t start = line.find_first_not_of(" \t");
-      if (start == std::string::npos) {
+      if (start == std::string::npos)
+      {
         continue;
       }
 
@@ -50,7 +59,8 @@ struct SepParams {
 
       // Split by '='
       size_t eq_pos = line.find('=');
-      if (eq_pos == std::string::npos) {
+      if (eq_pos == std::string::npos)
+      {
         continue;
       }
 
@@ -62,46 +72,82 @@ struct SepParams {
       trimString(value);
 
       // Parse parameters
-      if (key == "n1") {
+      if (key == "n1")
+      {
         params.ex = static_cast<ScalarType>(std::stoi(value));
-      } else if (key == "n2") {
+      }
+      else if (key == "n2")
+      {
         params.ey = static_cast<ScalarType>(std::stoi(value));
-      } else if (key == "n3") {
+      }
+      else if (key == "n3")
+      {
         params.ez = static_cast<ScalarType>(std::stoi(value));
-      } else if (key == "d1") {
+      }
+      else if (key == "d1")
+      {
         params.hx = static_cast<FloatType>(std::stod(value));
-      } else if (key == "d2") {
+      }
+      else if (key == "d2")
+      {
         params.hy = static_cast<FloatType>(std::stod(value));
-      } else if (key == "d3") {
+      }
+      else if (key == "d3")
+      {
         params.hz = static_cast<FloatType>(std::stod(value));
-      } else if (key == "o1") {
+      }
+      else if (key == "o1")
+      {
         params.ox = static_cast<FloatType>(std::stod(value));
-      } else if (key == "o2") {
+      }
+      else if (key == "o2")
+      {
         params.oy = static_cast<FloatType>(std::stod(value));
-      } else if (key == "o3") {
+      }
+      else if (key == "o3")
+      {
         params.oz = static_cast<FloatType>(std::stod(value));
-      } else if (key == "esize") {
+      }
+      else if (key == "esize")
+      {
         params.esize = std::stoi(value);
-      } else if (key == "data_format") {
+      }
+      else if (key == "data_format")
+      {
         params.data_format = value;
-      } else if (key == "in") {
+      }
+      else if (key == "in")
+      {
         // Handle data file path - may be relative
-        if (value[0] == '/' || (value.length() > 1 && value[1] == ':')) {
+        if (value[0] == '/' || (value.length() > 1 && value[1] == ':'))
+        {
           // Absolute path
           params.data_file = value;
-        } else {
+        }
+        else
+        {
           // Relative path - resolve relative to header directory
           params.data_file = directory + "/" + value;
         }
-      } else if (key == "data_label") {
+      }
+      else if (key == "data_label")
+      {
         params.data_label = value;
-      } else if (key == "data_filetype") {
+      }
+      else if (key == "data_filetype")
+      {
         params.data_filetype = value;
-      } else if (key == "order") {
+      }
+      else if (key == "order")
+      {
         params.order = std::stoi(value);
-      } else if (key == "model_on_node") {
+      }
+      else if (key == "model_on_node")
+      {
         params.is_model_on_node = (value == "true" || value == "1");
-      } else if (key == "elastic") {
+      }
+      else if (key == "elastic")
+      {
         params.is_elastic = (value == "true" || value == "1");
       }
     }
@@ -109,7 +155,8 @@ struct SepParams {
     file.close();
 
     // Validate critical parameters
-    if (params.ex == 0 || params.ey == 0 || params.ez == 0) {
+    if (params.ex == 0 || params.ey == 0 || params.ez == 0)
+    {
       throw std::runtime_error(
           "Invalid SEP file: missing or invalid dimensions (n1, n2, n3)");
     }
@@ -117,7 +164,8 @@ struct SepParams {
     return params;
   }
 
-  void print() const {
+  void print() const
+  {
     std::cout << "\n=== SEP Header Information ===\n"
               << "Dimensions: n1=" << ex << ", n2=" << ey << ", n3=" << ez
               << "\n"
@@ -162,7 +210,8 @@ struct SepParams {
 
   // Convenience getters for total size
   ScalarType getTotalElements() const { return ex * ey * ez; }
-  size_t getTotalBytes() const {
+  size_t getTotalBytes() const
+  {
     return static_cast<size_t>(ex) * static_cast<size_t>(ey) *
            static_cast<size_t>(ez) * esize;
   }
@@ -192,12 +241,15 @@ struct SepParams {
    * the directory containing the header file. Handles both Unix-style (/)
    * and Windows-style (\\) path separators.
    */
-  static std::string getDirectory(const std::string& filepath) {
+  static std::string getDirectory(const std::string& filepath)
+  {
     size_t pos = filepath.find_last_of("/\\");
-    if (pos == std::string::npos) {
+    if (pos == std::string::npos)
+    {
       return ".";
     }
-    if (pos == 0) {
+    if (pos == 0)
+    {
       return "/";
     }
     return filepath.substr(0, pos);
@@ -208,10 +260,12 @@ struct SepParams {
    *
    * @param str String to trim
    */
-  static void trimString(std::string& str) {
+  static void trimString(std::string& str)
+  {
     // Trim leading whitespace
     size_t start = str.find_first_not_of(" \t\r\n");
-    if (start == std::string::npos) {
+    if (start == std::string::npos)
+    {
       str.clear();
       return;
     }
@@ -219,7 +273,8 @@ struct SepParams {
 
     // Trim trailing whitespace
     size_t end = str.find_last_not_of(" \t\r\n");
-    if (end != std::string::npos) {
+    if (end != std::string::npos)
+    {
       str = str.substr(0, end + 1);
     }
   }
