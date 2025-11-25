@@ -145,13 +145,15 @@ void SEMsolverAcoustic<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES>::
   }
 
   INTEGRAL_TYPE::computeStiffnessTerm(
-      cornerCoords, [&](const int qa, const int qb, const int qc, const int i,
-                        const int j, const real_t val) {
+      cornerCoords,
+      [&](const int qa, const int qb, const int qc) {
         if constexpr (IS_MODEL_ON_NODES)
         {
           int const gIndex = m_mesh.globalNodeIndex(elementNumber, qa, qb, qc);
           inv_density = 1.0f / m_mesh.getModelRhoOnNodes(gIndex);
         }
+      },
+      [&](const int i, const int j, const real_t val) {
         float localIncrement = inv_density * val * pnLocal[j];
         Y[i] += localIncrement;
       });
