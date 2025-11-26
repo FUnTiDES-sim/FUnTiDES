@@ -161,16 +161,9 @@ void SEMsolverElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES>::
   float CTTI[6][6];
   if constexpr (!IS_MODEL_ON_NODES)
   {
-    float const vp = m_mesh.getModelVpOnElement(elementNumber);
-    float const vs = m_mesh.getModelVsOnElement(elementNumber);
-    float const rho = m_mesh.getModelRhoOnElement(elementNumber);
-    float const delta = m_mesh.getModelDeltaOnElement(elementNumber);
-    float const epsilon = m_mesh.getModelEpsilonOnElement(elementNumber);
-    float const gamma = m_mesh.getModelGammaOnElement(elementNumber);
-    float const phi = m_mesh.getModelPhiOnElement(elementNumber);
-    float const theta = m_mesh.getModelThetaOnElement(elementNumber);
-    computeCMatrix(vp, vs, rho, delta, epsilon, gamma, phi, theta, CTTI);
+    m_mesh.getCTensorOnElement(elementNumber, CTTI);
   }
+
 #ifdef __CUDACC__
   // CUDA: use vector types to load 4 floats at once
   struct CJPacked
@@ -183,12 +176,13 @@ void SEMsolverElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES>::
   struct CJPacked
   {
     alignas(16) float a0, a1, a2, a3;
-    float b0, b1, pad[2];
+    float b0, b1;
+    float pad[2];
   };
-
 #endif
 
-  CJPacked CJflat[3 * 3 * 6];
+  CJPacked CJflat[3 * 3];
+
   INTEGRAL_TYPE::computeStiffNessTermwithJac(
       transformData,
       [&](int qa, int qb, int qc, float const(&J)[3][3]) {
@@ -205,6 +199,8 @@ void SEMsolverElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES>::
           float const theta = m_mesh.getModelThetaOnNodes(gIndex);
           computeCMatrix(vp, vs, rho, delta, epsilon, gamma, phi, theta, CTTI);
         }
+
+        // Charger CTTI en cache (code existant inchangé)
         float const C00 = CTTI[0][0], C01 = CTTI[0][1], C02 = CTTI[0][2];
         float const C03 = CTTI[0][3], C04 = CTTI[0][4], C05 = CTTI[0][5];
         float const C11 = CTTI[1][1], C12 = CTTI[1][2], C13 = CTTI[1][3];
@@ -266,11 +262,10 @@ void SEMsolverElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES>::
         const int idx = p * 3 + r;
 
 #ifdef __CUDACC__
-
         const float3 u_local =
             make_float3(uxnLocal[j], uynLocal[j], uznLocal[j]);
 
-        // Charger CJ packed vectors (one instruction each)
+        // Charge CJ packed vectors (one instruction each)
         const float4 a = CJflat[idx].a;
         const float2 b = CJflat[idx].b;
 
@@ -447,50 +442,73 @@ PROXY_HOST_DEVICE void SEMsolverElastic<
                                        float const phi, float const theta,
                                        float (&CTTI)[6][6]) const
 {
-  float CVTI[6][6] = {0.0f};
-  CVTI[0][0] = rho * vp * vp * (1.0f + 2.0f * epsilon);
-  CVTI[1][1] = CVTI[0][0];
-  CVTI[2][2] = rho * vp * vp;
-  CVTI[3][3] = rho * vs * vs;
-  CVTI[4][4] = CVTI[3][3];
-  CVTI[5][5] = rho * vs * vs * (1.0f + 2.0f * gamma);
+  const float rho_vp2 = rho * vp * vp;
+  const float rho_vs2 = rho * vs * vs;
+  const float two_eps = 2.0f * epsilon;
+  const float two_gam = 2.0f * gamma;
 
+  float CVTI[6][6] = {0.0f};
+  CVTI[0][0] = rho_vp2 * (1.0f + two_eps);
+  CVTI[1][1] = CVTI[0][0];
+  CVTI[2][2] = rho_vp2;
+  CVTI[3][3] = rho_vs2;
+  CVTI[4][4] = CVTI[3][3];
+  CVTI[5][5] = rho_vs2 * (1.0f + two_gam);
   CVTI[0][1] = CVTI[0][0] - 2.0f * CVTI[5][5];
   CVTI[1][0] = CVTI[0][1];
 
-  CVTI[0][2] = rho * sqrtf((vp * vp - vs * vs) * (vp * vp - vs * vs) +
-                           2.0f * vp * vp * delta * (vp * vp - vs * vs)) -
-               rho * vs * vs;
+  const float vp2_vs2 = vp * vp - vs * vs;
+  const float sqrt_arg = vp2_vs2 * vp2_vs2 + 2.0f * rho_vp2 * delta * vp2_vs2;
+  CVTI[0][2] = rho * sqrtf(sqrt_arg) - rho_vs2;
   CVTI[1][2] = CVTI[0][2];
   CVTI[2][0] = CVTI[0][2];
   CVTI[2][1] = CVTI[0][2];
 
-  float R[3][3];
-  float ctheta = cosf(theta), stheta = sinf(theta);
-  float cphi = cosf(phi), sphi = sinf(phi);
+  constexpr float DEG_TO_RAD = 3.14159265358979323846f / 180.0f;
+  const float theta_rad = theta * DEG_TO_RAD;
+  const float phi_rad = phi * DEG_TO_RAD;
 
-  R[0][0] = ctheta * cphi;
-  R[0][1] = ctheta * sphi;
+  const float ctheta = cosf(theta_rad);
+  const float stheta = sinf(theta_rad);
+  const float cphi = cosf(phi_rad);
+  const float sphi = sinf(phi_rad);
+
+  const float ct_cp = ctheta * cphi;
+  const float ct_sp = ctheta * sphi;
+  const float st_cp = stheta * cphi;
+  const float st_sp = stheta * sphi;
+
+  float R[3][3];
+  R[0][0] = ct_cp;
+  R[0][1] = ct_sp;
   R[0][2] = -stheta;
   R[1][0] = -sphi;
   R[1][1] = cphi;
   R[1][2] = 0.0f;
-  R[2][0] = stheta * cphi;
-  R[2][1] = stheta * sphi;
+  R[2][0] = st_cp;
+  R[2][1] = st_sp;
   R[2][2] = ctheta;
 
+  const float R00_2 = R[0][0] * R[0][0];
+  const float R01_2 = R[0][1] * R[0][1];
+  const float R02_2 = R[0][2] * R[0][2];
+  const float R10_2 = R[1][0] * R[1][0];
+  const float R11_2 = R[1][1] * R[1][1];
+  const float R12_2 = R[1][2] * R[1][2];
+  const float R20_2 = R[2][0] * R[2][0];
+  const float R21_2 = R[2][1] * R[2][1];
+  const float R22_2 = R[2][2] * R[2][2];
+
   float M[6][6] = {0.0f};
-
-  M[0][0] = R[0][0] * R[0][0];
-  M[0][1] = R[0][1] * R[0][1];
-  M[0][2] = R[0][2] * R[0][2];
-  M[1][0] = R[1][0] * R[1][0];
-  M[1][1] = R[1][1] * R[1][1];
-  M[1][2] = R[1][2] * R[1][2];
-  M[2][0] = R[2][0] * R[2][0];
-  M[2][1] = R[2][1] * R[2][1];
-  M[2][2] = R[2][2] * R[2][2];
-
+  M[0][0] = R00_2;
+  M[0][1] = R01_2;
+  M[0][2] = R02_2;
+  M[1][0] = R10_2;
+  M[1][1] = R11_2;
+  M[1][2] = R12_2;
+  M[2][0] = R20_2;
+  M[2][1] = R21_2;
+  M[2][2] = R22_2;
   M[0][3] = R[0][1] * R[0][2];
   M[0][4] = R[0][0] * R[0][2];
   M[0][5] = R[0][0] * R[0][1];
@@ -500,46 +518,55 @@ PROXY_HOST_DEVICE void SEMsolverElastic<
   M[2][3] = R[2][1] * R[2][2];
   M[2][4] = R[2][0] * R[2][2];
   M[2][5] = R[2][0] * R[2][1];
-
-  M[3][0] = 2 * R[1][0] * R[2][0];
-  M[3][1] = 2 * R[1][1] * R[2][1];
-  M[3][2] = 2 * R[1][2] * R[2][2];
+  M[3][0] = 2.0f * R[1][0] * R[2][0];
+  M[3][1] = 2.0f * R[1][1] * R[2][1];
+  M[3][2] = 2.0f * R[1][2] * R[2][2];
   M[3][3] = R[1][1] * R[2][2] + R[1][2] * R[2][1];
   M[3][4] = R[1][0] * R[2][2] + R[1][2] * R[2][0];
   M[3][5] = R[1][0] * R[2][1] + R[1][1] * R[2][0];
-
-  M[4][0] = 2 * R[0][0] * R[2][0];
-  M[4][1] = 2 * R[0][1] * R[2][1];
-  M[4][2] = 2 * R[0][2] * R[2][2];
+  M[4][0] = 2.0f * R[0][0] * R[2][0];
+  M[4][1] = 2.0f * R[0][1] * R[2][1];
+  M[4][2] = 2.0f * R[0][2] * R[2][2];
   M[4][3] = R[0][1] * R[2][2] + R[0][2] * R[2][1];
   M[4][4] = R[0][0] * R[2][2] + R[0][2] * R[2][0];
   M[4][5] = R[0][0] * R[2][1] + R[0][1] * R[2][0];
-
-  M[5][0] = 2 * R[0][0] * R[1][0];
-  M[5][1] = 2 * R[0][1] * R[1][1];
-  M[5][2] = 2 * R[0][2] * R[1][2];
+  M[5][0] = 2.0f * R[0][0] * R[1][0];
+  M[5][1] = 2.0f * R[0][1] * R[1][1];
+  M[5][2] = 2.0f * R[0][2] * R[1][2];
   M[5][3] = R[0][1] * R[1][2] + R[0][2] * R[1][1];
   M[5][4] = R[0][0] * R[1][2] + R[0][2] * R[1][0];
   M[5][5] = R[0][0] * R[1][1] + R[0][1] * R[1][0];
 
-  // 4. Multiplication CTTI = M * CVTI * M^T (déroulé)
-  float temp[6][6] = {0.0f};
-  for (int i = 0; i < 6; i++)
-    for (int j = 0; j < 6; j++) temp[i][j] = 0.0f;
+  float temp[6][6];
 
+  // M * CVTI
   for (int i = 0; i < 6; i++)
-    for (int k = 0; k < 6; k++)
-      for (int j = 0; j < 6; j++) temp[i][j] += M[i][k] * CVTI[k][j];
-
-  for (int i = 0; i < 6; i++)
-    for (int j = i; j < 6; j++)  // Triangle supérieur
+  {
+    for (int j = 0; j < 6; j++)
     {
-      CTTI[i][j] = 0.0f;
-      for (int k = 0; k < 6; k++) CTTI[i][j] += temp[i][k] * M[j][k];
-      if (i != j) CTTI[j][i] = CTTI[i][j];  // Symétrie
+      float sum = 0.0f;
+      for (int k = 0; k < 6; k++)
+      {
+        sum += M[i][k] * CVTI[k][j];
+      }
+      temp[i][j] = sum;
     }
-}
+  }
 
+  for (int i = 0; i < 6; i++)
+  {
+    for (int j = i; j < 6; j++)
+    {
+      float sum = 0.0f;
+      for (int k = 0; k < 6; k++)
+      {
+        sum += temp[i][k] * M[j][k];
+      }
+      CTTI[i][j] = sum;
+      if (i != j) CTTI[j][i] = sum;
+    }
+  }
+}
 template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE,
           bool IS_MODEL_ON_NODES>
 void SEMsolverElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE,

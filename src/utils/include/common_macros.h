@@ -129,6 +129,10 @@
 #define ARRAY_TYPE_VIEW arrayReal
 #define VECTOR_TYPE_VIEW vectorReal
 
+#define ARRAY3D_INT_VIEW array3DInt
+#define ARRAY3D_REAL_VIEW array3DReal
+#define ARRAY3D_DOUBLE_VIEW array3DDouble
+
 #if defined(USE_KOKKOS)
 #define KOKKOSNAME "v",
 #else

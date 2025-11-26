@@ -1,10 +1,12 @@
 #ifndef SRC_MODEL_MODELAPI_INCLUDE_MODEL_UNSTRUCT_H_
 #define SRC_MODEL_MODELAPI_INCLUDE_MODEL_UNSTRUCT_H_
 
+#include <elasticity_utils.h>
 #include <model.h>
 
 namespace model
 {
+
 template <typename FloatType, typename ScalarType>
 struct ModelUnstructData : public ModelDataBase<FloatType, ScalarType>
 {
@@ -29,7 +31,8 @@ struct ModelUnstructData : public ModelDataBase<FloatType, ScalarType>
       VECTOR_REAL_VIEW model_epsilon_element, VECTOR_REAL_VIEW model_gamma_node,
       VECTOR_REAL_VIEW model_gamma_element, VECTOR_REAL_VIEW model_theta_node,
       VECTOR_REAL_VIEW model_theta_element, VECTOR_REAL_VIEW model_phi_node,
-      VECTOR_REAL_VIEW model_phi_element, VECTOR_REAL_VIEW boundaries_t)
+      VECTOR_REAL_VIEW model_phi_element,
+      ARRAY3D_REAL_VIEW model_C_tensor_element, VECTOR_REAL_VIEW boundaries_t)
       : order_(order),
         n_element_(n_element),
         n_node_(n_node),
@@ -58,6 +61,7 @@ struct ModelUnstructData : public ModelDataBase<FloatType, ScalarType>
         model_theta_element_(model_theta_element),
         model_phi_node_(model_phi_node),
         model_phi_element_(model_phi_element),
+        model_C_tensor_element_(model_C_tensor_element_),
         boundaries_t_(boundaries_t)
   {
   }
@@ -92,6 +96,7 @@ struct ModelUnstructData : public ModelDataBase<FloatType, ScalarType>
   VECTOR_REAL_VIEW model_theta_element_;
   VECTOR_REAL_VIEW model_phi_node_;
   VECTOR_REAL_VIEW model_phi_element_;
+  ARRAY3D_REAL_VIEW model_C_tensor_element_;
   VECTOR_REAL_VIEW boundaries_t_;
 };
 
@@ -144,6 +149,7 @@ class ModelUnstruct final : public ModelApi<FloatType, ScalarType>
         model_phi_element_(data.model_phi_element_),
         model_theta_node_(data.model_theta_node_),
         model_theta_element_(data.model_theta_element_),
+        model_C_tensor_element_(data.model_C_tensor_element_),
         boundaries_t_(data.boundaries_t_),
         n_points_per_element_((order_ + 1) * (order_ + 1) * (order_ + 1))
   {
@@ -417,6 +423,57 @@ class ModelUnstruct final : public ModelApi<FloatType, ScalarType>
   }
 
   /**
+   * @brief Initialize and precompute elasticity tensors
+   * Must be called after construction if using elastic model
+   */
+  void initElasticityTensors()
+  {
+    if (!isElastic_) return;
+
+    model_C_tensor_element_ = allocateArray3D<array3DReal>(n_element_, 6, 6);
+
+    auto& C_tensor = model_C_tensor_element_;
+    auto& vp = model_vp_element_;
+    auto& vs = model_vs_element_;
+    auto& rho = model_rho_element_;
+    auto& delta = model_delta_element_;
+    auto& epsilon = model_epsilon_element_;
+    auto& gamma = model_gamma_element_;
+    auto& theta = model_theta_element_;
+    auto& phi = model_phi_element_;
+
+    MAINLOOPHEAD(n_element_, i)
+    FloatType CTTI[6][6];
+    FloatType vp_val = static_cast<FloatType>(vp[i]);
+    FloatType vs_val = static_cast<FloatType>(vs[i]);
+    FloatType rho_val = static_cast<FloatType>(rho[i]);
+    FloatType delta_val = static_cast<FloatType>(delta[i]);
+    FloatType epsilon_val = static_cast<FloatType>(epsilon[i]);
+    FloatType gamma_val = static_cast<FloatType>(gamma[i]);
+    FloatType theta_val = static_cast<FloatType>(theta[i]);
+    FloatType phi_val = static_cast<FloatType>(phi[i]);
+
+    computeCTensor(vp_val, vs_val, rho_val, delta_val, epsilon_val, gamma_val,
+                   theta_val, phi_val, CTTI);
+
+    for (int k = 0; k < 6; k++)
+      for (int l = 0; l < 6; l++) C_tensor(i, k, l) = CTTI[k][l];
+    MAINLOOPEND
+  }
+
+  /**
+   * @brief Get the precomputed elasticity tensor C for a given element.
+   * @param e Element index
+   * @param[out] CTTI Output 6x6 tensor (Voigt notation)
+   */
+  PROXY_HOST_DEVICE
+  void getCTensorOnElement(ScalarType e, FloatType CTTI[6][6]) const final
+  {
+    for (int i = 0; i < 6; i++)
+      for (int j = 0; j < 6; j++) CTTI[i][j] = model_C_tensor_element_(e, i, j);
+  }
+
+  /**
    * @brief Indicates if the model properties are defined on nodes.
    * @return True if model properties are defined at nodes, false if at elements
    */
@@ -660,6 +717,7 @@ class ModelUnstruct final : public ModelApi<FloatType, ScalarType>
   VECTOR_REAL_VIEW model_gamma_element_;
   VECTOR_REAL_VIEW model_phi_node_;
   VECTOR_REAL_VIEW model_phi_element_;
+  ARRAY3D_REAL_VIEW model_C_tensor_element_;
 
   VECTOR_REAL_VIEW boundaries_t_;
 };

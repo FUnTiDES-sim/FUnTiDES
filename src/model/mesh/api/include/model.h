@@ -216,6 +216,20 @@ class ModelApi
   virtual ScalarType getModelPhiOnElement(ScalarType e) const = 0;
 
   /**
+   * @brief Get the precomputed elasticity tensor C for a given element.
+   * @param e Element index
+   * @param[out] CTTI Output 6x6 tensor (Voigt notation)
+   */
+  PROXY_HOST_DEVICE
+  virtual void getCTensorOnElement(ScalarType e,
+                                   FloatType CTTI[6][6]) const = 0;
+
+  /**
+   * @brief Precompute elasticity tensors for all nodes/elements.
+   */
+  virtual void initElasticityTensors() = 0;
+
+  /**
    * @brief Get the total number of elements in the mesh.
    * @return Total element count
    */
