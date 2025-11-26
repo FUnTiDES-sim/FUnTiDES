@@ -5,7 +5,7 @@ set -euo pipefail
 EXS="100"
 EYS="100"
 EZS="100"
-IMPLEMS="geos shiva"
+IMPLEMS="makutu shiva"
 MESHES="cartesian ucartesian"
 ORDERS="1 2 3"
 SEMPROXY_BIN="bin/semproxy"
@@ -20,7 +20,7 @@ Options (space-separated lists allowed; quoted):
   --ex        "100"            # values for --ex
   --ey        "100"            # values for --ey
   --ez        "100"            # values for --ez
-  --implem    "geos"        # {classic, optim, geos, shiva}
+  --implem    "makutu"        # {classic, optim, makutu, shiva}
   --mesh      "cartesian"      # {cartesian, ucartesian}
   -o|--order  "1 2 3"          # polynomial orders
   --bin       PATH             # path to semproxy (default: bin/semproxy)
