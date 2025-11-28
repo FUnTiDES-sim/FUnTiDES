@@ -26,6 +26,7 @@ function(print_configuration_summary)
   message(STATUS "Debugging Options:")
   message(STATUS "  FD_SAVE_SNAPSHOTS:    ${FD_SAVE_SNAPSHOTS}")
   message(STATUS "  PRINT_ALLOC_INFO:     ${PRINT_ALLOC_INFO}")
+  message(STATUS "  ENABLE_Shiva:         ${ENABLE_Shiva}")
   message(STATUS "")
   
   message(STATUS "Build Options:")
