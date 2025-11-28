@@ -141,9 +141,9 @@ std::unique_ptr<SEMSolverBase> createSolver(
       case MAKUTU:
         return make_sem_solver<IntegralType::MAKUTU>(order, mesh, modelLocation,
                                                      physicType);
-        // case SHIVA:
-        //   return make_sem_solver<IntegralType::SHIVA>(order, mesh,
-        //   modelLocation);
+      case SHIVA:
+        return make_sem_solver<IntegralType::SHIVA>(order, mesh, modelLocation,
+                                                    physicType);
     }
   }
 

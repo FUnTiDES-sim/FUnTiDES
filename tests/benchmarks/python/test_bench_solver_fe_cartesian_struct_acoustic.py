@@ -41,10 +41,6 @@ class TestSolverStructAcoustic:
 
         model = builder.get_model()
 
-        # TODO remove when we reactivate SHIVA
-        if implem == Solver.ImplemType.SHIVA:
-            return
-
         model_location = (
             Solver.ModelLocationType.ONNODES
             if on_nodes
@@ -78,10 +74,6 @@ class TestSolverStructAcoustic:
         f0 = 5.0
 
         model = builder.get_model()
-
-        # TODO remove when we reactivate SHIVA
-        if implem == Solver.ImplemType.SHIVA:
-            return
 
         model_location = (
             Solver.ModelLocationType.ONNODES

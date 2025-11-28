@@ -1,4 +1,7 @@
 if(COMPILE_FD)
+
+  set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
+
   add_executable(fdproxy
                  src/main.cc
                  src/fd_proxy.cc
@@ -18,5 +21,6 @@ if(COMPILE_FD)
       fd_discretization
   )
 
-  target_link_kokkos_if_enabled(fdproxy)
+  install(TARGETS fdproxy
+        RUNTIME DESTINATION bin)
 endif()
