@@ -1,7 +1,8 @@
 #pragma once
 
-#include "finiteElement/makutu/Qk_Hexahedron_Lagrange_GaussLobatto.hpp"
 #include <type_traits>
+
+#include "finiteElement/makutu/Qk_Hexahedron_Lagrange_GaussLobatto.hpp"
 
 #ifdef ENABLE_Shiva
 #include "shiva/geometry/mapping/LinearTransform.hpp"
@@ -19,7 +20,8 @@ enum class transform_types
 {
 #ifdef ENABLE_Shiva
   shiva_linear_transform,           /// shiva linear transform
-  shiva_uniform_scaling_transform,  /// shiva uniform scaling transform (single h value)
+  shiva_uniform_scaling_transform,  /// shiva uniform scaling transform (single
+                                    /// h value)
   shiva_scaling_transform,          /// shiva scaling transform (hx, hy, hz)
 #endif
   linear_transform,  /// simple linear transform struct used in makutu kernel
@@ -28,15 +30,19 @@ enum class transform_types
 
 namespace detail
 {
-  // Helper to detect if a type has a `data` member of type float[8][3]
-  template <typename T, typename = void>
-  struct is_makutu_transform : std::false_type {};
+// Helper to detect if a type has a `data` member of type float[8][3]
+template <typename T, typename = void>
+struct is_makutu_transform : std::false_type
+{
+};
 
-  template <typename T>
-  struct is_makutu_transform<T,
-      std::enable_if_t<std::is_same_v<decltype(T::data), float[8][3]>>>
-      : std::true_type {};
-}
+template <typename T>
+struct is_makutu_transform<
+    T, std::enable_if_t<std::is_same_v<decltype(T::data), float[8][3]>>>
+    : std::true_type
+{
+};
+}  // namespace detail
 
 /**
  * @brief Template struct to select the transform type enumeration value
@@ -52,8 +58,8 @@ struct transform_type_selector
 
 // Specialization for makutu TransformType (detected by float data[8][3] member)
 template <typename T>
-struct transform_type_selector<T,
-    std::enable_if_t<detail::is_makutu_transform<T>::value>>
+struct transform_type_selector<
+    T, std::enable_if_t<detail::is_makutu_transform<T>::value>>
 {
   static constexpr transform_types type = transform_types::linear_transform;
 };
@@ -63,8 +69,7 @@ struct transform_type_selector<T,
 // Specialization for shiva::geometry::LinearTransform
 template <typename REAL_TYPE, typename INTERPOLATED_SHAPE>
 struct transform_type_selector<
-    shiva::geometry::LinearTransform<REAL_TYPE, INTERPOLATED_SHAPE>,
-    void>
+    shiva::geometry::LinearTransform<REAL_TYPE, INTERPOLATED_SHAPE>, void>
 {
   static constexpr transform_types type =
       transform_types::shiva_linear_transform;
@@ -72,9 +77,8 @@ struct transform_type_selector<
 
 // Specialization for shiva::geometry::UniformScaling
 template <typename REAL_TYPE>
-struct transform_type_selector<
-    shiva::geometry::UniformScaling<REAL_TYPE, void>,
-    void>
+struct transform_type_selector<shiva::geometry::UniformScaling<REAL_TYPE, void>,
+                               void>
 {
   static constexpr transform_types type =
       transform_types::shiva_uniform_scaling_transform;
@@ -116,8 +120,8 @@ static constexpr PROXY_HOST_DEVICE void gatherTransformData(
   }
   else
 #endif
-  if constexpr (transform_type_selector<TT>::type ==
-                transform_types::linear_transform)
+      if constexpr (transform_type_selector<TT>::type ==
+                    transform_types::linear_transform)
   {
     typename MESH_TYPE::IndexType elementIndex =
         mesh.elementIndex(elementNumber);
