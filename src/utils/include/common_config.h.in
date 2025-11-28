@@ -16,6 +16,9 @@
 // Enables python wrapping code
 #cmakedefine ENABLE_PYWRAP
 
+// Enables Shiva
+#cmakedefine ENABLE_Shiva
+
 // Enable save snapshots of wavefields in FD-proxy (for debugging)
 #cmakedefine FD_SAVE_SNAPSHOTS
 

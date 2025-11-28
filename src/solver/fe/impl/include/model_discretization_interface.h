@@ -1,8 +1,9 @@
 #pragma once
 
 #include "finiteElement/makutu/Qk_Hexahedron_Lagrange_GaussLobatto.hpp"
+#include <type_traits>
 
-#ifdef ENABLE_SHIVA
+#ifdef ENABLE_Shiva
 #include "shiva/geometry/mapping/LinearTransform.hpp"
 #include "shiva/geometry/mapping/UniformScaling.hpp"
 #endif
@@ -16,94 +17,70 @@ namespace model_discretization_interface
  */
 enum class transform_types
 {
-#ifdef ENABLE_SHIVA
+#ifdef ENABLE_Shiva
   shiva_linear_transform,           /// shiva linear transform
-  shiva_uniform_scaling_transform,  /// shiva uniform scaling transform (single
-                                    /// h value)
+  shiva_uniform_scaling_transform,  /// shiva uniform scaling transform (single h value)
   shiva_scaling_transform,          /// shiva scaling transform (hx, hy, hz)
 #endif
   linear_transform,  /// simple linear transform struct used in makutu kernel
   invalid_transform  /// invalid transform type
 };
 
+namespace detail
+{
+  // Helper to detect if a type has a `data` member of type float[8][3]
+  template <typename T, typename = void>
+  struct is_makutu_transform : std::false_type {};
+
+  template <typename T>
+  struct is_makutu_transform<T,
+      std::enable_if_t<std::is_same_v<decltype(T::data), float[8][3]>>>
+      : std::true_type {};
+}
+
 /**
  * @brief Template struct to select the transform type enumeration value
  *        corresponding to a given transform data structure type.
  * @tparam TRANSFORM_TYPE The transform data structure type.
  */
-template <typename>
+template <typename T, typename = void>
 struct transform_type_selector
 {
   /// define the transform type as invalid by default
   static constexpr transform_types type = transform_types::invalid_transform;
 };
 
-#ifdef ENABLE_SHIVA
-/**
- * @brief Specialization of transform_type_selector for
- * shiva::geometry::LinearTransform
- * @tparam REAL_TYPE The floating point type used in the LinearTransform
- * @tparam INTERPOLATED_SHAPE The interpolated shape type used in the
- * LinearTransform
- */
-template <typename REAL_TYPE, typename INTERPOLATED_SHAPE>
-    struct transform_type_selector
-        shiva::geometry::LinearTransform<REAL_TYPE, INTERPOLATED_SHAPE> >
+// Specialization for makutu TransformType (detected by float data[8][3] member)
+template <typename T>
+struct transform_type_selector<T,
+    std::enable_if_t<detail::is_makutu_transform<T>::value>>
 {
-  /// define the transform type as shiva_linear_transform
+  static constexpr transform_types type = transform_types::linear_transform;
+};
+
+#ifdef ENABLE_Shiva
+
+// Specialization for shiva::geometry::LinearTransform
+template <typename REAL_TYPE, typename INTERPOLATED_SHAPE>
+struct transform_type_selector<
+    shiva::geometry::LinearTransform<REAL_TYPE, INTERPOLATED_SHAPE>,
+    void>
+{
   static constexpr transform_types type =
       transform_types::shiva_linear_transform;
 };
 
-/**
- * @brief Specialization of transform_type_selector for
- * shiva::geometry::UniformScaling
- * @tparam REAL_TYPE The floating point type used in the UniformScaling
- */
+// Specialization for shiva::geometry::UniformScaling
 template <typename REAL_TYPE>
-    struct transform_type_selector
-        shiva::geometry::UniformScaling<REAL_TYPE, void> >
+struct transform_type_selector<
+    shiva::geometry::UniformScaling<REAL_TYPE, void>,
+    void>
 {
-  /// define the transform type as shiva_uniform_scaling_transform
   static constexpr transform_types type =
       transform_types::shiva_uniform_scaling_transform;
 };
+
 #endif
-
-template <>
-struct transform_type_selector<
-    Q1_Hexahedron_Lagrange_GaussLobatto::TransformType>
-{
-  static constexpr transform_types type = transform_types::linear_transform;
-};
-
-template <>
-struct transform_type_selector<
-    Q2_Hexahedron_Lagrange_GaussLobatto::TransformType>
-{
-  static constexpr transform_types type = transform_types::linear_transform;
-};
-
-template <>
-struct transform_type_selector<
-    Q3_Hexahedron_Lagrange_GaussLobatto::TransformType>
-{
-  static constexpr transform_types type = transform_types::linear_transform;
-};
-
-template <>
-struct transform_type_selector<
-    Q4_Hexahedron_Lagrange_GaussLobatto::TransformType>
-{
-  static constexpr transform_types type = transform_types::linear_transform;
-};
-
-template <>
-struct transform_type_selector<
-    Q5_Hexahedron_Lagrange_GaussLobatto::TransformType>
-{
-  static constexpr transform_types type = transform_types::linear_transform;
-};
 
 /**
  * @brief Gathers the transform data for a given element from the mesh into the
@@ -116,7 +93,7 @@ static constexpr PROXY_HOST_DEVICE void gatherTransformData(
 {
   using TT = std::remove_cv_t<TRANSFORM_TYPE>;
 
-#ifdef ENABLE_SHIVA
+#ifdef ENABLE_Shiva
   if constexpr (transform_type_selector<TT>::type ==
                 transform_types::shiva_linear_transform)
   {
@@ -139,8 +116,8 @@ static constexpr PROXY_HOST_DEVICE void gatherTransformData(
   }
   else
 #endif
-      if constexpr (transform_type_selector<TT>::type ==
-                    transform_types::linear_transform)
+  if constexpr (transform_type_selector<TT>::type ==
+                transform_types::linear_transform)
   {
     typename MESH_TYPE::IndexType elementIndex =
         mesh.elementIndex(elementNumber);
