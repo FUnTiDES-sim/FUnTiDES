@@ -142,8 +142,14 @@ std::unique_ptr<SEMSolverBase> createSolver(
         return make_sem_solver<IntegralType::MAKUTU>(order, mesh, modelLocation,
                                                      physicType);
       case SHIVA:
+#ifdef ENABLE_Shiva
         return make_sem_solver<IntegralType::SHIVA>(order, mesh, modelLocation,
                                                     physicType);
+#else
+        throw std::runtime_error(
+            "Shiva is not compiled. Cannot be used, please compile with "
+            "ENABLE_Shiva=ON");
+#endif  // ENABLE_Shiva
     }
   }
 
