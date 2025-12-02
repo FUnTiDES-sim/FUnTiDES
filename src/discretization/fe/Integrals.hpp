@@ -1,7 +1,10 @@
 #pragma once
 
 #include "finiteElement/makutu/Qk_Hexahedron_Lagrange_GaussLobatto.hpp"
+
+#ifdef ENABLE_Shiva
 #include "finiteElement/shiva/SEMQkGLIntegralsShiva.hpp"
+#endif
 
 template <int ORDER, int METHOD_TYPE>
 struct IntegralTypeSelector;
@@ -22,6 +25,7 @@ struct IntegralTypeSelector<ORDER, IntegralType::MAKUTU>
       typename Qk_Hexahedron_Lagrange_GaussLobatto_Selector<ORDER>::type;
 };
 
+#ifdef ENABLE_Shiva
 template <int ORDER>
 struct IntegralTypeSelector<ORDER, IntegralType::SHIVA>
 {
@@ -39,3 +43,4 @@ struct IntegralTypeSelector<ORDER, IntegralType::SHIVA>
 
   using type = SEMQkGLIntegralsShiva<ORDER, TransformType, ParentElementType>;
 };
+#endif

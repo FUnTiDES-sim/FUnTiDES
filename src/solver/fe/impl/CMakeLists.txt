@@ -2,8 +2,11 @@ add_library(proxy_solver)
 
 add_subdirectory(src/makutu)
 target_sources(proxy_solver PRIVATE ${MAKUTU_GENERATED_SOURCES})
-add_subdirectory(src/shiva)
-target_sources(proxy_solver PRIVATE ${SHIVA_GENERATED_SOURCES})
+
+if (ENABLE_Shiva)
+  add_subdirectory(src/shiva)
+  target_sources(proxy_solver PRIVATE ${SHIVA_GENERATED_SOURCES})
+endif()
 
 target_sources(proxy_solver PRIVATE 
      src/solver_factory.cc
