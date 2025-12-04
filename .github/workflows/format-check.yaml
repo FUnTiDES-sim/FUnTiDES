@@ -9,7 +9,11 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        path: ['src', 'tests']
+        path:
+          - check: 'src'
+            exclude: ''
+          - check: 'tests'
+            exclude: '\*.H$'
 
     steps:
       - name: Checkout
