@@ -24,13 +24,15 @@ using SepParamsDoubleSizeT = SepParams<double, size_t>;
 
 const std::string kTestDataDir = "tests/units/data/sep/";
 
+const std::string v_model = "velocity_model.H";
+
 // =============================================================================
 // Static File Tests - Velocity Model
 // =============================================================================
 
 TEST(SepParamsVelocityModel, ParsesDimensions)
 {
-  SepParamsFloat params(kTestDataDir + "velocity_model.H");
+  SepParamsFloat params(kTestDataDir + v_model);
 
   EXPECT_EQ(params.getN1(), 201);
   EXPECT_EQ(params.getN2(), 401);
@@ -39,7 +41,7 @@ TEST(SepParamsVelocityModel, ParsesDimensions)
 
 TEST(SepParamsVelocityModel, ParsesSpacing)
 {
-  SepParamsFloat params(kTestDataDir + "velocity_model.H");
+  SepParamsFloat params(kTestDataDir + v_model);
 
   EXPECT_FLOAT_EQ(params.getD1(), 10.0f);
   EXPECT_FLOAT_EQ(params.getD2(), 10.0f);
@@ -48,7 +50,7 @@ TEST(SepParamsVelocityModel, ParsesSpacing)
 
 TEST(SepParamsVelocityModel, ParsesOrigin)
 {
-  SepParamsFloat params(kTestDataDir + "velocity_model.H");
+  SepParamsFloat params(kTestDataDir + v_model);
 
   EXPECT_FLOAT_EQ(params.getO1(), 0.0f);
   EXPECT_FLOAT_EQ(params.getO2(), 0.0f);
@@ -57,7 +59,7 @@ TEST(SepParamsVelocityModel, ParsesOrigin)
 
 TEST(SepParamsVelocityModel, ParsesDataFormat)
 {
-  SepParamsFloat params(kTestDataDir + "velocity_model.H");
+  SepParamsFloat params(kTestDataDir + v_model);
 
   EXPECT_EQ(params.getEsize(), 4);
   EXPECT_EQ(params.getDataFormat(), "native_float");
@@ -65,14 +67,14 @@ TEST(SepParamsVelocityModel, ParsesDataFormat)
 
 TEST(SepParamsVelocityModel, ParsesDataLabel)
 {
-  SepParamsFloat params(kTestDataDir + "velocity_model.H");
+  SepParamsFloat params(kTestDataDir + v_model);
 
   EXPECT_EQ(params.getDataLabel(), "Velocity (m/s)");
 }
 
 TEST(SepParamsVelocityModel, ParsesDataFile)
 {
-  SepParamsFloat params(kTestDataDir + "velocity_model.H");
+  SepParamsFloat params(kTestDataDir + v_model);
 
   std::string expected = kTestDataDir + "velocity_3d.bin";
   EXPECT_EQ(params.getDataFile(), expected);
@@ -80,35 +82,35 @@ TEST(SepParamsVelocityModel, ParsesDataFile)
 
 TEST(SepParamsVelocityModel, ParsesOrder)
 {
-  SepParamsFloat params(kTestDataDir + "velocity_model.H");
+  SepParamsFloat params(kTestDataDir + v_model);
 
   EXPECT_EQ(params.getOrder(), 3);
 }
 
 TEST(SepParamsVelocityModel, ParsesModelOnNode)
 {
-  SepParamsFloat params(kTestDataDir + "velocity_model.H");
+  SepParamsFloat params(kTestDataDir + v_model);
 
   EXPECT_TRUE(params.isModelOnNode());
 }
 
 TEST(SepParamsVelocityModel, ParsesElastic)
 {
-  SepParamsFloat params(kTestDataDir + "velocity_model.H");
+  SepParamsFloat params(kTestDataDir + v_model);
 
   EXPECT_FALSE(params.isElastic());
 }
 
 TEST(SepParamsVelocityModel, CalculatesTotalElements)
 {
-  SepParamsFloat params(kTestDataDir + "velocity_model.H");
+  SepParamsFloat params(kTestDataDir + v_model);
 
   EXPECT_EQ(params.getTotalElements(), 201 * 401 * 101);
 }
 
 TEST(SepParamsVelocityModel, CalculatesTotalBytes)
 {
-  SepParamsFloat params(kTestDataDir + "velocity_model.H");
+  SepParamsFloat params(kTestDataDir + v_model);
 
   size_t expected = static_cast<size_t>(201) * 401 * 101 * 4;
   EXPECT_EQ(params.getTotalBytes(), expected);
@@ -303,7 +305,7 @@ TEST(SepParamsMinimal, CalculatesTotalElements)
 
 TEST(SepParamsTemplates, WorksWithFloatInt)
 {
-  SepParamsFloat params(kTestDataDir + "velocity_model.H");
+  SepParamsFloat params(kTestDataDir + v_model);
 
   EXPECT_EQ(params.getN1(), 201);
   EXPECT_FLOAT_EQ(params.getD1(), 10.0f);
@@ -311,7 +313,7 @@ TEST(SepParamsTemplates, WorksWithFloatInt)
 
 TEST(SepParamsTemplates, WorksWithDoubleInt)
 {
-  SepParamsDouble params(kTestDataDir + "velocity_model.H");
+  SepParamsDouble params(kTestDataDir + v_model);
 
   EXPECT_EQ(params.getN1(), 201);
   EXPECT_DOUBLE_EQ(params.getD1(), 10.0);
@@ -319,7 +321,7 @@ TEST(SepParamsTemplates, WorksWithDoubleInt)
 
 TEST(SepParamsTemplates, WorksWithFloatSizeT)
 {
-  SepParamsSizeT params(kTestDataDir + "velocity_model.H");
+  SepParamsSizeT params(kTestDataDir + v_model);
 
   EXPECT_EQ(params.getN1(), 201UL);
   EXPECT_FLOAT_EQ(params.getD1(), 10.0f);
@@ -327,7 +329,7 @@ TEST(SepParamsTemplates, WorksWithFloatSizeT)
 
 TEST(SepParamsTemplates, WorksWithDoubleSizeT)
 {
-  SepParamsDoubleSizeT params(kTestDataDir + "velocity_model.H");
+  SepParamsDoubleSizeT params(kTestDataDir + v_model);
 
   EXPECT_EQ(params.getN1(), 201UL);
   EXPECT_DOUBLE_EQ(params.getD1(), 10.0);

@@ -3,11 +3,40 @@
 
 #include <fstream>
 #include <iostream>
+#include <limits>
 #include <sstream>
 #include <string>
 
 namespace model
 {
+
+template <typename T>
+constexpr T invalid_value();
+
+template <>
+constexpr int invalid_value<int>()
+{
+  return std::numeric_limits<int>::min();  // e.g. -2147483648
+}
+
+template <>
+constexpr float invalid_value<float>()
+{
+  return std::numeric_limits<float>::quiet_NaN();
+}
+
+template <>
+constexpr double invalid_value<double>()
+{
+  return std::numeric_limits<double>::quiet_NaN();
+}
+
+template <>
+constexpr unsigned long invalid_value<unsigned long>()
+{
+  return std::numeric_limits<unsigned long>::max();  // e.g. 0xFFFFFFFFFFFFFFFF
+}
+
 template <typename FloatType, typename ScalarType>
 class SepParams
 {
@@ -64,39 +93,39 @@ class SepParams
       // Parse parameters
       if (key == "n1")
       {
-        this->ex = static_cast<ScalarType>(std::stoi(value));
+        this->ex_ = static_cast<ScalarType>(std::stoi(value));
       }
       else if (key == "n2")
       {
-        this->ey = static_cast<ScalarType>(std::stoi(value));
+        this->ey_ = static_cast<ScalarType>(std::stoi(value));
       }
       else if (key == "n3")
       {
-        this->ez = static_cast<ScalarType>(std::stoi(value));
+        this->ez_ = static_cast<ScalarType>(std::stoi(value));
       }
       else if (key == "d1")
       {
-        this->hx = static_cast<FloatType>(std::stod(value));
+        this->hx_ = static_cast<FloatType>(std::stod(value));
       }
       else if (key == "d2")
       {
-        this->hy = static_cast<FloatType>(std::stod(value));
+        this->hy_ = static_cast<FloatType>(std::stod(value));
       }
       else if (key == "d3")
       {
-        this->hz = static_cast<FloatType>(std::stod(value));
+        this->hz_ = static_cast<FloatType>(std::stod(value));
       }
       else if (key == "o1")
       {
-        this->ox = static_cast<FloatType>(std::stod(value));
+        this->ox_ = static_cast<FloatType>(std::stod(value));
       }
       else if (key == "o2")
       {
-        this->oy = static_cast<FloatType>(std::stod(value));
+        this->oy_ = static_cast<FloatType>(std::stod(value));
       }
       else if (key == "o3")
       {
-        this->oz = static_cast<FloatType>(std::stod(value));
+        this->oz_ = static_cast<FloatType>(std::stod(value));
       }
       else if (key == "esize")
       {
@@ -108,15 +137,12 @@ class SepParams
       }
       else if (key == "in")
       {
-        // Handle data file path - may be relative
         if (value[0] == '/' || (value.length() > 1 && value[1] == ':'))
         {
-          // Absolute path
           this->data_file = value;
         }
         else
         {
-          // Relative path - resolve relative to header directory
           this->data_file = directory + "/" + value;
         }
       }
@@ -145,21 +171,47 @@ class SepParams
     file.close();
 
     // Validate critical parameters
-    if (this->ex == 0 || this->ey == 0 || this->ez == 0)
+    if (this->ex_ == invalid_value<ScalarType>() ||
+        this->ey_ == invalid_value<ScalarType>() ||
+        this->ez_ == invalid_value<ScalarType>())
     {
       throw std::runtime_error(
-          "Invalid SEP file: missing or invalid dimensions (n1, n2, n3)");
+          "Invalid SEP file: missing dimensions (n1, n2, n3)");
+    }
+
+    else if (this->ex_ <= 0 ||
+        this->ey_ <= 0 ||
+        this->ez_ <= 0 )
+    {
+      throw std::runtime_error(
+          "Invalid SEP file: invalid dimensions (n1, n2, n3)");
+    }
+
+    else if (this->hx_ == invalid_value<FloatType>() ||
+        this->hy_ == invalid_value<FloatType>() ||
+        this->hz_ == invalid_value<FloatType>())
+    {
+      throw std::runtime_error(
+          "Invalid SEP file: missing dimensions (d1, d2, d3)");
+    }
+
+    else if (this->hx_ <= 0 ||
+        this->hy_ <= 0 ||
+        this->hz_ <= 0 )
+    {
+      throw std::runtime_error(
+          "Invalid SEP file: invalid dimensions (d1, d2, d3)");
     }
   }
 
   void print() const
   {
     std::cout << "\n=== SEP Header Information ===\n"
-              << "Dimensions: n1=" << ex << ", n2=" << ey << ", n3=" << ez
+              << "Dimensions: n1=" << ex_ << ", n2=" << ey_ << ", n3=" << ez_
               << "\n"
-              << "Spacing:    d1=" << hx << ", d2=" << hy << ", d3=" << hz
+              << "Spacing:    d1=" << hx_ << ", d2=" << hy_ << ", d3=" << hz_
               << "\n"
-              << "Origin:     o1=" << ox << ", o2=" << oy << ", o3=" << oz
+              << "Origin:     o1=" << ox_ << ", o2=" << oy_ << ", o3=" << oz_
               << "\n"
               << "Data format: " << data_format << " (esize=" << esize
               << " bytes)\n"
@@ -174,17 +226,17 @@ class SepParams
   }
 
   // Getter methods
-  ScalarType getN1() const { return ex; }
-  ScalarType getN2() const { return ey; }
-  ScalarType getN3() const { return ez; }
+  ScalarType getN1() const { return ex_; }
+  ScalarType getN2() const { return ey_; }
+  ScalarType getN3() const { return ez_; }
 
-  FloatType getD1() const { return hx; }
-  FloatType getD2() const { return hy; }
-  FloatType getD3() const { return hz; }
+  FloatType getD1() const { return hx_; }
+  FloatType getD2() const { return hy_; }
+  FloatType getD3() const { return hz_; }
 
-  FloatType getO1() const { return ox; }
-  FloatType getO2() const { return oy; }
-  FloatType getO3() const { return oz; }
+  FloatType getO1() const { return ox_; }
+  FloatType getO2() const { return oy_; }
+  FloatType getO3() const { return oz_; }
 
   int getEsize() const { return esize; }
   const std::string& getDataFormat() const { return data_format; }
@@ -197,18 +249,20 @@ class SepParams
   bool isElastic() const { return is_elastic; }
 
   // Convenience getters for total size
-  ScalarType getTotalElements() const { return ex * ey * ez; }
+  ScalarType getTotalElements() const { return ex_ * ey_ * ez_; }
   size_t getTotalBytes() const
   {
-    return static_cast<size_t>(ex) * static_cast<size_t>(ey) *
-           static_cast<size_t>(ez) * esize;
+    return static_cast<size_t>(ex_) * static_cast<size_t>(ey_) *
+           static_cast<size_t>(ez_) * esize;
   }
 
  private:
   int order;
-  ScalarType ex, ey, ez;
-  FloatType hx, hy, hz;
-  FloatType ox, oy, oz;
+  ScalarType ex_{invalid_value<ScalarType>()}, ey_{invalid_value<ScalarType>()},
+      ez_{invalid_value<ScalarType>()};
+  FloatType hx_{invalid_value<FloatType>()}, hy_{invalid_value<FloatType>()},
+      hz_{invalid_value<FloatType>()};
+  FloatType ox_, oy_, oz_;
   std::string data_format, data_file, data_label, data_filetype;
   int esize;
   bool is_model_on_node;
