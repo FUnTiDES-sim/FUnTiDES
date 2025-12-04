@@ -13,7 +13,7 @@ jobs:
           - check: 'src'
             exclude: ''
           - check: 'tests'
-            exclude: '\*.H$'
+            exclude: '.*\.H$'
 
     steps:
       - name: Checkout
