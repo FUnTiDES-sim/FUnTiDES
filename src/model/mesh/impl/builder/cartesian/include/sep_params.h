@@ -1,4 +1,6 @@
-#pragma once
+#ifndef SRC_MODEL_MESH_IMPLEM_BUILDER_CARTESIAN_INCUDE_SEPPARAMS_H_
+#define SRC_MODEL_MESH_IMPLEM_BUILDER_CARTESIAN_INCUDE_SEPPARAMS_H_
+
 #include <fstream>
 #include <iostream>
 #include <sstream>
@@ -266,3 +268,5 @@ class SepParams
   }
 };
 }  // namespace model
+
+#endif  // SRC_MODEL_MESH_IMPLEM_BUILDER_CARTESIAN_INCUDE_SEPPARAMS_H_
