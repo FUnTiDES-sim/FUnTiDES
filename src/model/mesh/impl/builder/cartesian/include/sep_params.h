@@ -1,11 +1,14 @@
 #ifndef SRC_MODEL_MESH_IMPLEM_BUILDER_CARTESIAN_INCUDE_SEPPARAMS_H_
 #define SRC_MODEL_MESH_IMPLEM_BUILDER_CARTESIAN_INCUDE_SEPPARAMS_H_
 
+#include <algorithm>
+#include <cstring>
 #include <fstream>
 #include <iostream>
 #include <limits>
 #include <sstream>
 #include <string>
+#include <vector>
 
 #include "utils.h"
 
@@ -175,6 +178,240 @@ class SepParams
     }
   }
 
+  /**
+   * @brief Read binary data file and return as vector
+   *
+   * SEP format stores data in Fortran order (column-major):
+   *   - n1 (x) is the fastest varying axis
+   *   - n2 (y) is the middle axis
+   *   - n3 (z) is the slowest varying axis
+   *
+   * This method reads the data and returns it with the loop order:
+   *   for z in [0, n3):
+   *     for y in [0, n2):
+   *       for x in [0, n1):
+   *         data[z * n1 * n2 + y * n1 + x]
+   *
+   * @tparam T Output data type (float or double)
+   * @return std::vector<T> containing the model values
+   * @throws std::runtime_error if file cannot be opened or read
+   */
+  template <typename T>
+  std::vector<T> readBinaryData() const
+  {
+    std::ifstream file(data_file, std::ios::binary);
+    if (!file.is_open())
+    {
+      throw std::runtime_error("Cannot open binary data file: " + data_file);
+    }
+
+    const size_t total_elements = static_cast<size_t>(ex_) * ey_ * ez_;
+    std::vector<T> data(total_elements);
+
+    // Determine if we need to convert data types
+    const bool is_xdr = (data_format.find("xdr") != std::string::npos);
+
+    if (esize == sizeof(T) && !is_xdr)
+    {
+      // Direct read - same size, native format
+      file.read(reinterpret_cast<char*>(data.data()),
+                total_elements * sizeof(T));
+    }
+    else if (esize == 4)
+    {
+      // Read as float, convert if needed
+      std::vector<float> temp(total_elements);
+      file.read(reinterpret_cast<char*>(temp.data()),
+                total_elements * sizeof(float));
+
+      if (is_xdr)
+      {
+        swapEndianness(temp.data(), total_elements);
+      }
+
+      // Convert to output type
+      std::transform(temp.begin(), temp.end(), data.begin(),
+                     [](float val) { return static_cast<T>(val); });
+    }
+    else if (esize == 8)
+    {
+      // Read as double, convert if needed
+      std::vector<double> temp(total_elements);
+      file.read(reinterpret_cast<char*>(temp.data()),
+                total_elements * sizeof(double));
+
+      if (is_xdr)
+      {
+        swapEndianness(temp.data(), total_elements);
+      }
+
+      // Convert to output type
+      std::transform(temp.begin(), temp.end(), data.begin(),
+                     [](double val) { return static_cast<T>(val); });
+    }
+    else
+    {
+      throw std::runtime_error("Unsupported esize: " + std::to_string(esize));
+    }
+
+    if (!file)
+    {
+      throw std::runtime_error("Error reading binary data file: " + data_file);
+    }
+
+    file.close();
+    return data;
+  }
+
+  /**
+   * @brief Read binary data and reorder from SEP (Fortran) to C order
+   *
+   * SEP stores data as [n1][n2][n3] (Fortran order, n1 fastest)
+   * This returns data as [n3][n2][n1] (C order, n3 fastest... wait no)
+   *
+   * Actually, this reorders so the output index is:
+   *   output[ix + iy * n1 + iz * n1 * n2] = sep_data[ix + iy * n1 + iz * n1 *
+   * n2]
+   *
+   * Since SEP is already stored with x as inner loop, this matches your
+   * requested order: x (inner), y (middle), z (outer)
+   *
+   * @tparam T Output data type
+   * @return std::vector<T> with data ordered as [z][y][x] (x varies fastest)
+   */
+  template <typename T>
+  std::vector<T> readBinaryDataXYZ() const
+  {
+    // SEP format already stores data with n1 (x) as fastest varying
+    // So the native read order matches: for z { for y { for x { } } }
+    return readBinaryData<T>();
+  }
+
+  /**
+   * @brief Read binary data and reorder to ZYX order (z varies fastest)
+   *
+   * Reorders data so that:
+   *   output[iz + iy * n3 + ix * n3 * n2]
+   * corresponds to position (ix, iy, iz) in the model
+   *
+   * @tparam T Output data type
+   * @return std::vector<T> with data ordered as [x][y][z] (z varies fastest)
+   */
+  template <typename T>
+  std::vector<T> readBinaryDataZYX() const
+  {
+    std::vector<T> sep_data = readBinaryData<T>();
+    std::vector<T> reordered(sep_data.size());
+
+    const size_t nx = static_cast<size_t>(ex_);
+    const size_t ny = static_cast<size_t>(ey_);
+    const size_t nz = static_cast<size_t>(ez_);
+
+    // Reorder from [z][y][x] to [x][y][z]
+    for (size_t iz = 0; iz < nz; ++iz)
+    {
+      for (size_t iy = 0; iy < ny; ++iy)
+      {
+        for (size_t ix = 0; ix < nx; ++ix)
+        {
+          // SEP index: x + y * nx + z * nx * ny
+          const size_t sep_idx = ix + iy * nx + iz * nx * ny;
+          // New index: z + y * nz + x * nz * ny
+          const size_t new_idx = iz + iy * nz + ix * nz * ny;
+          reordered[new_idx] = sep_data[sep_idx];
+        }
+      }
+    }
+
+    return reordered;
+  }
+
+  /**
+   * @brief Get value at specific grid position
+   *
+   * @param data The data vector (from readBinaryData)
+   * @param ix Index along x (n1) axis
+   * @param iy Index along y (n2) axis
+   * @param iz Index along z (n3) axis
+   * @return Value at (ix, iy, iz)
+   */
+  template <typename T>
+  T getValue(const std::vector<T>& data, ScalarType ix, ScalarType iy,
+             ScalarType iz) const
+  {
+    const size_t idx = static_cast<size_t>(ix) + static_cast<size_t>(iy) * ex_ +
+                       static_cast<size_t>(iz) * ex_ * ey_;
+    return data[idx];
+  }
+
+  /**
+   * @brief Read a single XY slice at given z index
+   *
+   * @tparam T Output data type
+   * @param iz Z index of the slice
+   * @return std::vector<T> containing n1 * n2 values
+   */
+  template <typename T>
+  std::vector<T> readSliceXY(ScalarType iz) const
+  {
+    if (iz < 0 || iz >= ez_)
+    {
+      throw std::runtime_error("Slice index out of range: " +
+                               std::to_string(iz));
+    }
+
+    std::ifstream file(data_file, std::ios::binary);
+    if (!file.is_open())
+    {
+      throw std::runtime_error("Cannot open binary data file: " + data_file);
+    }
+
+    const size_t slice_elements = static_cast<size_t>(ex_) * ey_;
+    const size_t offset = static_cast<size_t>(iz) * slice_elements * esize;
+
+    file.seekg(offset, std::ios::beg);
+
+    std::vector<T> slice(slice_elements);
+    const bool is_xdr = (data_format.find("xdr") != std::string::npos);
+
+    if (esize == sizeof(T) && !is_xdr)
+    {
+      file.read(reinterpret_cast<char*>(slice.data()),
+                slice_elements * sizeof(T));
+    }
+    else if (esize == 4)
+    {
+      std::vector<float> temp(slice_elements);
+      file.read(reinterpret_cast<char*>(temp.data()),
+                slice_elements * sizeof(float));
+      if (is_xdr)
+      {
+        swapEndianness(temp.data(), slice_elements);
+      }
+      std::transform(temp.begin(), temp.end(), slice.begin(),
+                     [](float val) { return static_cast<T>(val); });
+    }
+    else if (esize == 8)
+    {
+      std::vector<double> temp(slice_elements);
+      file.read(reinterpret_cast<char*>(temp.data()),
+                slice_elements * sizeof(double));
+      if (is_xdr)
+      {
+        swapEndianness(temp.data(), slice_elements);
+      }
+      std::transform(temp.begin(), temp.end(), slice.begin(),
+                     [](double val) { return static_cast<T>(val); });
+    }
+
+    if (!file)
+    {
+      throw std::runtime_error("Error reading slice from: " + data_file);
+    }
+
+    return slice;
+  }
+
   void print() const
   {
     std::cout << "\n=== SEP Header Information ===\n"
@@ -242,19 +479,39 @@ class SepParams
   bool is_elastic;
 
   /**
+   * @brief Swap endianness for XDR format (big-endian to native)
+   *
+   * @tparam T Data type (float or double)
+   * @param data Pointer to data array
+   * @param count Number of elements
+   */
+  template <typename T>
+  static void swapEndianness(T* data, size_t count)
+  {
+    constexpr size_t size = sizeof(T);
+    auto* bytes = reinterpret_cast<char*>(data);
+
+    for (size_t i = 0; i < count; ++i)
+    {
+      char* element = bytes + i * size;
+      for (size_t j = 0; j < size / 2; ++j)
+      {
+        std::swap(element[j], element[size - 1 - j]);
+      }
+    }
+  }
+
+  /**
+   * @brief Check if system is little-endian
+   */
+  static bool isLittleEndian()
+  {
+    const uint32_t test = 1;
+    return *reinterpret_cast<const char*>(&test) == 1;
+  }
+
+  /**
    * @brief Extract directory path from a file path
-   *
-   * @param filepath Full or relative file path
-   *
-   * @return Directory component of the path
-   *   - Returns "." for files in current directory
-   *   - Returns "/" for root directory files
-   *   - Returns the directory path otherwise
-   *
-   * @details
-   * Used internally to resolve relative paths of data files relative to
-   * the directory containing the header file. Handles both Unix-style (/)
-   * and Windows-style (\\) path separators.
    */
   static std::string getDirectory(const std::string& filepath)
   {
@@ -272,12 +529,9 @@ class SepParams
 
   /**
    * @brief Trim leading and trailing whitespace from a string in-place
-   *
-   * @param str String to trim
    */
   static void trimString(std::string& str)
   {
-    // Trim leading whitespace
     size_t start = str.find_first_not_of(" \t\r\n");
     if (start == std::string::npos)
     {
@@ -286,7 +540,6 @@ class SepParams
     }
     str = str.substr(start);
 
-    // Trim trailing whitespace
     size_t end = str.find_last_not_of(" \t\r\n");
     if (end != std::string::npos)
     {
@@ -294,6 +547,7 @@ class SepParams
     }
   }
 };
+
 }  // namespace model
 
 #endif  // SRC_MODEL_MESH_IMPLEM_BUILDER_CARTESIAN_INCUDE_SEPPARAMS_H_
