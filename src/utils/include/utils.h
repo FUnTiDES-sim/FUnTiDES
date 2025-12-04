@@ -60,4 +60,36 @@ struct SolverUtils
     return sourceTerm;
   }
 };
+
+namespace utils
+{
+
+template <typename T>
+constexpr T invalid_value();
+
+template <>
+constexpr int invalid_value<int>()
+{
+  return std::numeric_limits<int>::min();
+}
+
+template <>
+constexpr float invalid_value<float>()
+{
+  return std::numeric_limits<float>::quiet_NaN();
+}
+
+template <>
+constexpr double invalid_value<double>()
+{
+  return std::numeric_limits<double>::quiet_NaN();
+}
+
+template <>
+constexpr unsigned long invalid_value<unsigned long>()
+{
+  return std::numeric_limits<unsigned long>::max();
+}
+}  // namespace utils
+
 #endif  // UTILS_HPP_

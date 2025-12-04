@@ -7,35 +7,10 @@
 #include <sstream>
 #include <string>
 
+#include "utils.h"
+
 namespace model
 {
-
-template <typename T>
-constexpr T invalid_value();
-
-template <>
-constexpr int invalid_value<int>()
-{
-  return std::numeric_limits<int>::min();  // e.g. -2147483648
-}
-
-template <>
-constexpr float invalid_value<float>()
-{
-  return std::numeric_limits<float>::quiet_NaN();
-}
-
-template <>
-constexpr double invalid_value<double>()
-{
-  return std::numeric_limits<double>::quiet_NaN();
-}
-
-template <>
-constexpr unsigned long invalid_value<unsigned long>()
-{
-  return std::numeric_limits<unsigned long>::max();  // e.g. 0xFFFFFFFFFFFFFFFF
-}
 
 template <typename FloatType, typename ScalarType>
 class SepParams
@@ -171,33 +146,29 @@ class SepParams
     file.close();
 
     // Validate critical parameters
-    if (this->ex_ == invalid_value<ScalarType>() ||
-        this->ey_ == invalid_value<ScalarType>() ||
-        this->ez_ == invalid_value<ScalarType>())
+    if (this->ex_ == utils::invalid_value<ScalarType>() ||
+        this->ey_ == utils::invalid_value<ScalarType>() ||
+        this->ez_ == utils::invalid_value<ScalarType>())
     {
       throw std::runtime_error(
           "Invalid SEP file: missing dimensions (n1, n2, n3)");
     }
 
-    else if (this->ex_ <= 0 ||
-        this->ey_ <= 0 ||
-        this->ez_ <= 0 )
+    else if (this->ex_ <= 0 || this->ey_ <= 0 || this->ez_ <= 0)
     {
       throw std::runtime_error(
           "Invalid SEP file: invalid dimensions (n1, n2, n3)");
     }
 
-    else if (this->hx_ == invalid_value<FloatType>() ||
-        this->hy_ == invalid_value<FloatType>() ||
-        this->hz_ == invalid_value<FloatType>())
+    else if (this->hx_ == utils::invalid_value<FloatType>() ||
+             this->hy_ == utils::invalid_value<FloatType>() ||
+             this->hz_ == utils::invalid_value<FloatType>())
     {
       throw std::runtime_error(
           "Invalid SEP file: missing dimensions (d1, d2, d3)");
     }
 
-    else if (this->hx_ <= 0 ||
-        this->hy_ <= 0 ||
-        this->hz_ <= 0 )
+    else if (this->hx_ <= 0 || this->hy_ <= 0 || this->hz_ <= 0)
     {
       throw std::runtime_error(
           "Invalid SEP file: invalid dimensions (d1, d2, d3)");
@@ -258,10 +229,12 @@ class SepParams
 
  private:
   int order;
-  ScalarType ex_{invalid_value<ScalarType>()}, ey_{invalid_value<ScalarType>()},
-      ez_{invalid_value<ScalarType>()};
-  FloatType hx_{invalid_value<FloatType>()}, hy_{invalid_value<FloatType>()},
-      hz_{invalid_value<FloatType>()};
+  ScalarType ex_{utils::invalid_value<ScalarType>()},
+      ey_{utils::invalid_value<ScalarType>()},
+      ez_{utils::invalid_value<ScalarType>()};
+  FloatType hx_{utils::invalid_value<FloatType>()},
+      hy_{utils::invalid_value<FloatType>()},
+      hz_{utils::invalid_value<FloatType>()};
   FloatType ox_, oy_, oz_;
   std::string data_format, data_file, data_label, data_filetype;
   int esize;

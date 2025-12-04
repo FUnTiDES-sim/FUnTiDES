@@ -10,6 +10,7 @@ target_include_directories(proxy_model_builder_cartesian PUBLIC
 target_link_libraries(proxy_model_builder_cartesian PUBLIC
   proxy_model_struct
   proxy_model_unstruct
+  proxy_utils
 )
 
 target_link_kokkos_if_enabled(proxy_model_builder_cartesian)
