@@ -6,16 +6,18 @@
  * Run: python generate_sep_test_data.py tests/units/data/sep/
  */
 
-#include "sep_params.h"
-
 #include <gtest/gtest.h>
 
 #include <cmath>
 #include <string>
 #include <vector>
 
-namespace model {
-namespace {
+#include "sep_params.h"
+
+namespace model
+{
+namespace
+{
 
 // Type alias
 using SepParamsFloat = SepParams<float, int>;
@@ -31,9 +33,11 @@ constexpr double kDoubleTol = 1e-10;
 // Test: Index-based data (value = ix + iy*1000 + iz*1000000)
 // =============================================================================
 
-class SepParamsBinaryIndexTest : public ::testing::Test {
+class SepParamsBinaryIndexTest : public ::testing::Test
+{
  protected:
-  void SetUp() override {
+  void SetUp() override
+  {
     params_ = std::make_unique<SepParamsFloat>(kTestDataDir + "test_index.H");
     data_ = params_->readBinaryData<float>();
   }
@@ -42,23 +46,27 @@ class SepParamsBinaryIndexTest : public ::testing::Test {
   std::vector<float> data_;
 };
 
-TEST_F(SepParamsBinaryIndexTest, ReadsDimensions) {
+TEST_F(SepParamsBinaryIndexTest, ReadsDimensions)
+{
   EXPECT_EQ(params_->getN1(), 10);
   EXPECT_EQ(params_->getN2(), 8);
   EXPECT_EQ(params_->getN3(), 5);
 }
 
-TEST_F(SepParamsBinaryIndexTest, ReadsCorrectSize) {
+TEST_F(SepParamsBinaryIndexTest, ReadsCorrectSize)
+{
   EXPECT_EQ(data_.size(), 10 * 8 * 5);
 }
 
-TEST_F(SepParamsBinaryIndexTest, ReadsOrigin) {
+TEST_F(SepParamsBinaryIndexTest, ReadsOrigin)
+{
   // Value at (0,0,0) should be 0
   float val = params_->getValue(data_, 0, 0, 0);
   EXPECT_FLOAT_EQ(val, 0.0f);
 }
 
-TEST_F(SepParamsBinaryIndexTest, ReadsXAxis) {
+TEST_F(SepParamsBinaryIndexTest, ReadsXAxis)
+{
   // Value at (1,0,0) should be 1
   float val = params_->getValue(data_, 1, 0, 0);
   EXPECT_FLOAT_EQ(val, 1.0f);
@@ -68,7 +76,8 @@ TEST_F(SepParamsBinaryIndexTest, ReadsXAxis) {
   EXPECT_FLOAT_EQ(val, 5.0f);
 }
 
-TEST_F(SepParamsBinaryIndexTest, ReadsYAxis) {
+TEST_F(SepParamsBinaryIndexTest, ReadsYAxis)
+{
   // Value at (0,1,0) should be 1000
   float val = params_->getValue(data_, 0, 1, 0);
   EXPECT_FLOAT_EQ(val, 1000.0f);
@@ -78,7 +87,8 @@ TEST_F(SepParamsBinaryIndexTest, ReadsYAxis) {
   EXPECT_FLOAT_EQ(val, 3000.0f);
 }
 
-TEST_F(SepParamsBinaryIndexTest, ReadsZAxis) {
+TEST_F(SepParamsBinaryIndexTest, ReadsZAxis)
+{
   // Value at (0,0,1) should be 1000000
   float val = params_->getValue(data_, 0, 0, 1);
   EXPECT_FLOAT_EQ(val, 1000000.0f);
@@ -88,7 +98,8 @@ TEST_F(SepParamsBinaryIndexTest, ReadsZAxis) {
   EXPECT_FLOAT_EQ(val, 2000000.0f);
 }
 
-TEST_F(SepParamsBinaryIndexTest, ReadsMixedIndices) {
+TEST_F(SepParamsBinaryIndexTest, ReadsMixedIndices)
+{
   // Value at (5,3,2) should be 5 + 3*1000 + 2*1000000 = 2003005
   float val = params_->getValue(data_, 5, 3, 2);
   EXPECT_FLOAT_EQ(val, 2003005.0f);
@@ -98,7 +109,8 @@ TEST_F(SepParamsBinaryIndexTest, ReadsMixedIndices) {
   EXPECT_FLOAT_EQ(val, 4007009.0f);
 }
 
-TEST_F(SepParamsBinaryIndexTest, DirectIndexAccess) {
+TEST_F(SepParamsBinaryIndexTest, DirectIndexAccess)
+{
   // Verify direct array access matches getValue
   // SEP order: data[ix + iy * n1 + iz * n1 * n2]
   int n1 = params_->getN1();
@@ -115,9 +127,11 @@ TEST_F(SepParamsBinaryIndexTest, DirectIndexAccess) {
 // Test: Coordinate-based data (value = x + y + z physical coordinates)
 // =============================================================================
 
-class SepParamsBinaryCoordTest : public ::testing::Test {
+class SepParamsBinaryCoordTest : public ::testing::Test
+{
  protected:
-  void SetUp() override {
+  void SetUp() override
+  {
     params_ = std::make_unique<SepParamsFloat>(kTestDataDir + "test_coords.H");
     data_ = params_->readBinaryData<float>();
   }
@@ -126,43 +140,50 @@ class SepParamsBinaryCoordTest : public ::testing::Test {
   std::vector<float> data_;
 };
 
-TEST_F(SepParamsBinaryCoordTest, ReadsDimensions) {
+TEST_F(SepParamsBinaryCoordTest, ReadsDimensions)
+{
   EXPECT_EQ(params_->getN1(), 20);
   EXPECT_EQ(params_->getN2(), 15);
   EXPECT_EQ(params_->getN3(), 10);
 }
 
-TEST_F(SepParamsBinaryCoordTest, ReadsSpacing) {
+TEST_F(SepParamsBinaryCoordTest, ReadsSpacing)
+{
   EXPECT_FLOAT_EQ(params_->getD1(), 10.0f);
   EXPECT_FLOAT_EQ(params_->getD2(), 10.0f);
   EXPECT_FLOAT_EQ(params_->getD3(), 5.0f);
 }
 
-TEST_F(SepParamsBinaryCoordTest, ReadsOriginValue) {
+TEST_F(SepParamsBinaryCoordTest, ReadsOriginValue)
+{
   // At (0,0,0), coord = (0,0,0), sum = 0
   float val = params_->getValue(data_, 0, 0, 0);
   EXPECT_FLOAT_EQ(val, 0.0f);
 }
 
-TEST_F(SepParamsBinaryCoordTest, ReadsXCoordinate) {
+TEST_F(SepParamsBinaryCoordTest, ReadsXCoordinate)
+{
   // At (1,0,0), coord = (10,0,0), sum = 10
   float val = params_->getValue(data_, 1, 0, 0);
   EXPECT_FLOAT_EQ(val, 10.0f);
 }
 
-TEST_F(SepParamsBinaryCoordTest, ReadsYCoordinate) {
+TEST_F(SepParamsBinaryCoordTest, ReadsYCoordinate)
+{
   // At (0,1,0), coord = (0,10,0), sum = 10
   float val = params_->getValue(data_, 0, 1, 0);
   EXPECT_FLOAT_EQ(val, 10.0f);
 }
 
-TEST_F(SepParamsBinaryCoordTest, ReadsZCoordinate) {
+TEST_F(SepParamsBinaryCoordTest, ReadsZCoordinate)
+{
   // At (0,0,1), coord = (0,0,5), sum = 5
   float val = params_->getValue(data_, 0, 0, 1);
   EXPECT_FLOAT_EQ(val, 5.0f);
 }
 
-TEST_F(SepParamsBinaryCoordTest, ReadsMixedCoordinates) {
+TEST_F(SepParamsBinaryCoordTest, ReadsMixedCoordinates)
+{
   // At (10,7,5), coord = (100,70,25), sum = 195
   float val = params_->getValue(data_, 10, 7, 5);
   EXPECT_FLOAT_EQ(val, 195.0f);
@@ -172,14 +193,16 @@ TEST_F(SepParamsBinaryCoordTest, ReadsMixedCoordinates) {
 // Test: Constant velocity model
 // =============================================================================
 
-TEST(SepParamsBinaryConstant, ReadsConstantValue) {
+TEST(SepParamsBinaryConstant, ReadsConstantValue)
+{
   SepParamsFloat params(kTestDataDir + "test_constant_vp.H");
   std::vector<float> data = params.readBinaryData<float>();
 
   EXPECT_EQ(data.size(), 50 * 50 * 25);
 
   // All values should be 2500
-  for (size_t i = 0; i < data.size(); ++i) {
+  for (size_t i = 0; i < data.size(); ++i)
+  {
     EXPECT_FLOAT_EQ(data[i], 2500.0f) << "Mismatch at index " << i;
   }
 }
@@ -188,7 +211,8 @@ TEST(SepParamsBinaryConstant, ReadsConstantValue) {
 // Test: Layered velocity model
 // =============================================================================
 
-TEST(SepParamsBinaryLayered, ReadsLayerValues) {
+TEST(SepParamsBinaryLayered, ReadsLayerValues)
+{
   SepParamsFloat params(kTestDataDir + "test_layered_vp.H");
   std::vector<float> data = params.readBinaryData<float>();
 
@@ -220,8 +244,10 @@ TEST(SepParamsBinaryLayered, ReadsLayerValues) {
   EXPECT_FLOAT_EQ(val, 3000.0f);
 
   // Verify layers are constant in x and y
-  for (int iy = 0; iy < n2; ++iy) {
-    for (int ix = 0; ix < n1; ++ix) {
+  for (int iy = 0; iy < n2; ++iy)
+  {
+    for (int ix = 0; ix < n1; ++ix)
+    {
       EXPECT_FLOAT_EQ(params.getValue(data, ix, iy, 5), 1500.0f);
     }
   }
@@ -231,7 +257,8 @@ TEST(SepParamsBinaryLayered, ReadsLayerValues) {
 // Test: Double precision data
 // =============================================================================
 
-TEST(SepParamsBinaryDouble, ReadsDoublePrecision) {
+TEST(SepParamsBinaryDouble, ReadsDoublePrecision)
+{
   SepParams<double, int> params(kTestDataDir + "test_double.H");
 
   EXPECT_EQ(params.getEsize(), 8);
@@ -251,7 +278,8 @@ TEST(SepParamsBinaryDouble, ReadsDoublePrecision) {
 // Test: XDR (big-endian) format
 // =============================================================================
 
-TEST(SepParamsBinaryXdr, ReadsXdrFormat) {
+TEST(SepParamsBinaryXdr, ReadsXdrFormat)
+{
   SepParamsFloat params(kTestDataDir + "test_xdr.H");
   std::vector<float> data = params.readBinaryData<float>();
 
@@ -272,7 +300,8 @@ TEST(SepParamsBinaryXdr, ReadsXdrFormat) {
 // Test: Single value (1x1x1 edge case)
 // =============================================================================
 
-TEST(SepParamsBinarySingle, ReadsSingleValue) {
+TEST(SepParamsBinarySingle, ReadsSingleValue)
+{
   SepParamsFloat params(kTestDataDir + "test_single.H");
   std::vector<float> data = params.readBinaryData<float>();
 
@@ -287,7 +316,8 @@ TEST(SepParamsBinarySingle, ReadsSingleValue) {
 // Test: Non-zero origin
 // =============================================================================
 
-TEST(SepParamsBinaryOrigin, ReadsNonZeroOrigin) {
+TEST(SepParamsBinaryOrigin, ReadsNonZeroOrigin)
+{
   SepParamsFloat params(kTestDataDir + "test_origin.H");
 
   EXPECT_FLOAT_EQ(params.getO1(), 100.0f);
@@ -309,7 +339,8 @@ TEST(SepParamsBinaryOrigin, ReadsNonZeroOrigin) {
 // Test: Slice reading
 // =============================================================================
 
-TEST(SepParamsBinarySlice, ReadsSliceXY) {
+TEST(SepParamsBinarySlice, ReadsSliceXY)
+{
   SepParamsFloat params(kTestDataDir + "test_index.H");
 
   int n1 = params.getN1();
@@ -321,8 +352,10 @@ TEST(SepParamsBinarySlice, ReadsSliceXY) {
   EXPECT_EQ(slice.size(), n1 * n2);
 
   // All values in this slice should have iz=2, so base = 2*1000000
-  for (int iy = 0; iy < n2; ++iy) {
-    for (int ix = 0; ix < n1; ++ix) {
+  for (int iy = 0; iy < n2; ++iy)
+  {
+    for (int ix = 0; ix < n1; ++ix)
+    {
       float expected = ix + iy * 1000.0f + 2.0f * 1000000.0f;
       size_t idx = ix + iy * n1;
       EXPECT_FLOAT_EQ(slice[idx], expected)
@@ -331,7 +364,8 @@ TEST(SepParamsBinarySlice, ReadsSliceXY) {
   }
 }
 
-TEST(SepParamsBinarySlice, SliceOutOfRangeThrows) {
+TEST(SepParamsBinarySlice, SliceOutOfRangeThrows)
+{
   SepParamsFloat params(kTestDataDir + "test_index.H");
 
   // n3 = 5, so valid indices are 0-4
@@ -343,7 +377,8 @@ TEST(SepParamsBinarySlice, SliceOutOfRangeThrows) {
 // Test: Type conversion
 // =============================================================================
 
-TEST(SepParamsBinaryConvert, FloatToDouble) {
+TEST(SepParamsBinaryConvert, FloatToDouble)
+{
   SepParamsFloat params(kTestDataDir + "test_index.H");
 
   // Read float data as double
@@ -360,7 +395,8 @@ TEST(SepParamsBinaryConvert, FloatToDouble) {
 // Test: Error handling
 // =============================================================================
 
-TEST(SepParamsBinaryError, MissingDataFileThrows) {
+TEST(SepParamsBinaryError, MissingDataFileThrows)
+{
   // Create a header pointing to non-existent binary file
   // This would require creating a temp file, skip for now
 }
