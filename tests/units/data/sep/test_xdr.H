@@ -12,6 +12,3 @@ esize=4
 data_format=xdr_float
 data_label=XDR format test
 in=test_xdr.bin
-order=3
-model_on_node=true
-elastic=false

@@ -12,6 +12,3 @@ esize=4
 data_format=native_float
 data_label=Velocity (m/s)
 in=test_constant_vp.bin
-order=3
-model_on_node=true
-elastic=false

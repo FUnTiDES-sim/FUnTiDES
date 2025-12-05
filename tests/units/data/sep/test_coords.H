@@ -12,6 +12,3 @@ esize=4
 data_format=native_float
 data_label=Coordinate sum x+y+z
 in=test_coords.bin
-order=3
-model_on_node=true
-elastic=false

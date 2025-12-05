@@ -12,6 +12,3 @@ esize=8
 data_format=native_double
 data_label=Double precision test
 in=test_double.bin
-order=3
-model_on_node=true
-elastic=false

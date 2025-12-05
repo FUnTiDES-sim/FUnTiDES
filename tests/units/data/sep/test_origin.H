@@ -12,6 +12,3 @@ esize=4
 data_format=native_float
 data_label=Non-zero origin test
 in=test_origin.bin
-order=3
-model_on_node=true
-elastic=false
