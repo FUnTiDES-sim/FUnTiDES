@@ -14,6 +14,3 @@ esize=4
 data_format=native_float
 data_label=Density (kg/m3)
 in=density_3d.bin
-order=4
-model_on_node=true
-elastic=false

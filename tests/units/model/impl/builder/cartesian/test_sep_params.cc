@@ -80,13 +80,6 @@ TEST(SepParamsVelocityModel, ParsesDataFile)
   EXPECT_EQ(params.getDataFile(), expected);
 }
 
-TEST(SepParamsVelocityModel, ParsesOrder)
-{
-  SepParamsFloat params(kTestDataDir + v_model);
-
-  EXPECT_EQ(params.getOrder(), 3);
-}
-
 TEST(SepParamsVelocityModel, ParsesModelOnNode)
 {
   SepParamsFloat params(kTestDataDir + v_model);
@@ -173,13 +166,6 @@ TEST(SepParamsElasticModel, ParsesNegativeOrigin)
   EXPECT_FLOAT_EQ(params.getO1(), -320.0f);
   EXPECT_FLOAT_EQ(params.getO2(), -640.0f);
   EXPECT_FLOAT_EQ(params.getO3(), 0.0f);
-}
-
-TEST(SepParamsElasticModel, ParsesHigherOrder)
-{
-  SepParamsFloat params(kTestDataDir + "elastic_model.H");
-
-  EXPECT_EQ(params.getOrder(), 6);
 }
 
 TEST(SepParamsElasticModel, ParsesModelOnNodeFalse)

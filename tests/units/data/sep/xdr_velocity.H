@@ -15,6 +15,3 @@ data_format=xdr_float
 data_label=P-wave velocity (m/s)
 data_filetype=xdr_float
 in=vp_xdr.bin
-order=4
-model_on_node=true
-elastic=false
