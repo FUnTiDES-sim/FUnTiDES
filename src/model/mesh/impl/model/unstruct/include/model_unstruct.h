@@ -70,6 +70,7 @@ struct ModelUnstructData : public ModelDataBase<FloatType, ScalarType>
   ScalarType n_element_;
   ScalarType n_node_;
   FloatType lx_, ly_, lz_;
+  FloatType ox_, oy_, oz_;
   bool isModelOnNodes_;
   bool isElastic_;
 
