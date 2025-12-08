@@ -104,6 +104,7 @@ class SEMsolverElastic : public SEMSolverBase
    * @brief Compute one time step of the elastic wave equation solver.
    *
    * Advances the displacement field using explicit time integration.
+   * If an element type mask is set, only processes elements of the specified type.
    *
    * @param dt Delta time for this iteration.
    * @param timeSample Current time index into the RHS (source) term.
@@ -138,6 +139,13 @@ class SEMsolverElastic : public SEMSolverBase
    * @brief Compute the global mass matrix, accounting for the model.
    */
   void computeGlobalMassMatrix() override;
+
+  /* @brief Get the global mass matrix (read-only access).
+   * 
+   * @return Const reference to the mass matrix view.
+   */
+  const VECTOR_REAL_VIEW& getMassMatrix() const { return massMatrixGlobal; }
+
 
   /**
    * @brief Output displacement values at a specific time step.
@@ -222,6 +230,21 @@ class SEMsolverElastic : public SEMSolverBase
                       float const phi, float const theta,
                       float (&C)[6][6]) const;
 
+  /**
+   * @brief Set element type mask for selective computation.
+   *
+   * When set, only elements where elementType[i] == myType are processed.
+   * If nullptr (default), all elements are processed.
+   * Used by acoustoelastic solver to restrict elastic solver to solid regions.
+   *
+   * @param elementType Pointer to integer array (one entry per element, values: 1=acoustic, 2=elastic).
+   * @param myType Element type to process (2 for elastic).
+   */
+  void setElementMask(const VECTOR_INT_VIEW *elementType, int myType) {
+    m_elementType = elementType;
+    m_myType = myType;
+  }
+
  private:
   MESH_TYPE m_mesh;  ///< Computational mesh
 
@@ -240,6 +263,10 @@ class SEMsolverElastic : public SEMSolverBase
   VECTOR_REAL_VIEW uxGlobal;  ///< Global displacment X-component work vector
   VECTOR_REAL_VIEW uyGlobal;  ///< Global displacment Y-component work vector
   VECTOR_REAL_VIEW uzGlobal;  ///< Global displacment Z-component work vector
+
+  /// Element type mask for selective computation (nullptr = process all elements)
+  const VECTOR_INT_VIEW *m_elementType{nullptr};
+  int m_myType{0};  ///< Element type this solver should process (2 for elastic)
 };
 
 #endif  // SEM_SOLVER_ELASTIC_HPP_
