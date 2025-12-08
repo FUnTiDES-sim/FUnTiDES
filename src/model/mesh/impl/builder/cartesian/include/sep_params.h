@@ -71,27 +71,27 @@ class SepParams
       // Parse parameters
       if (key == "n1")
       {
-        this->ex_ = static_cast<ScalarType>(std::stoi(value));
+        this->n1_ = static_cast<ScalarType>(std::stoi(value));
       }
       else if (key == "n2")
       {
-        this->ey_ = static_cast<ScalarType>(std::stoi(value));
+        this->n2_ = static_cast<ScalarType>(std::stoi(value));
       }
       else if (key == "n3")
       {
-        this->ez_ = static_cast<ScalarType>(std::stoi(value));
+        this->n3_ = static_cast<ScalarType>(std::stoi(value));
       }
       else if (key == "d1")
       {
-        this->hx_ = static_cast<FloatType>(std::stod(value));
+        this->d1_ = static_cast<FloatType>(std::stod(value));
       }
       else if (key == "d2")
       {
-        this->hy_ = static_cast<FloatType>(std::stod(value));
+        this->d2_ = static_cast<FloatType>(std::stod(value));
       }
       else if (key == "d3")
       {
-        this->hz_ = static_cast<FloatType>(std::stod(value));
+        this->d3_ = static_cast<FloatType>(std::stod(value));
       }
       else if (key == "o1")
       {
@@ -149,29 +149,29 @@ class SepParams
     file.close();
 
     // Validate critical parameters
-    if (this->ex_ == utils::invalid_value<ScalarType>() ||
-        this->ey_ == utils::invalid_value<ScalarType>() ||
-        this->ez_ == utils::invalid_value<ScalarType>())
+    if (this->n1_ == utils::invalid_value<ScalarType>() ||
+        this->n2_ == utils::invalid_value<ScalarType>() ||
+        this->n3_ == utils::invalid_value<ScalarType>())
     {
       throw std::runtime_error(
           "Invalid SEP file: missing dimensions (n1, n2, n3)");
     }
 
-    else if (this->ex_ <= 0 || this->ey_ <= 0 || this->ez_ <= 0)
+    else if (this->n1_ <= 0 || this->n2_ <= 0 || this->n3_ <= 0)
     {
       throw std::runtime_error(
           "Invalid SEP file: invalid dimensions (n1, n2, n3)");
     }
 
-    else if (this->hx_ == utils::invalid_value<FloatType>() ||
-             this->hy_ == utils::invalid_value<FloatType>() ||
-             this->hz_ == utils::invalid_value<FloatType>())
+    else if (this->d1_ == utils::invalid_value<FloatType>() ||
+             this->d2_ == utils::invalid_value<FloatType>() ||
+             this->d3_ == utils::invalid_value<FloatType>())
     {
       throw std::runtime_error(
           "Invalid SEP file: missing dimensions (d1, d2, d3)");
     }
 
-    else if (this->hx_ <= 0 || this->hy_ <= 0 || this->hz_ <= 0)
+    else if (this->d1_ <= 0 || this->d2_ <= 0 || this->d3_ <= 0)
     {
       throw std::runtime_error(
           "Invalid SEP file: invalid dimensions (d1, d2, d3)");
@@ -205,7 +205,7 @@ class SepParams
       throw std::runtime_error("Cannot open binary data file: " + data_file);
     }
 
-    const size_t total_elements = static_cast<size_t>(ex_) * ey_ * ez_;
+    const size_t total_elements = static_cast<size_t>(n1_) * n2_ * n3_;
     std::vector<T> data(total_elements);
 
     // Determine if we need to convert data types
@@ -303,9 +303,9 @@ class SepParams
     std::vector<T> sep_data = readBinaryData<T>();
     std::vector<T> reordered(sep_data.size());
 
-    const size_t nx = static_cast<size_t>(ex_);
-    const size_t ny = static_cast<size_t>(ey_);
-    const size_t nz = static_cast<size_t>(ez_);
+    const size_t nx = static_cast<size_t>(n1_);
+    const size_t ny = static_cast<size_t>(n2_);
+    const size_t nz = static_cast<size_t>(n3_);
 
     // Reorder from [z][y][x] to [x][y][z]
     for (size_t iz = 0; iz < nz; ++iz)
@@ -339,8 +339,8 @@ class SepParams
   T getValue(const std::vector<T>& data, ScalarType ix, ScalarType iy,
              ScalarType iz) const
   {
-    const size_t idx = static_cast<size_t>(ix) + static_cast<size_t>(iy) * ex_ +
-                       static_cast<size_t>(iz) * ex_ * ey_;
+    const size_t idx = static_cast<size_t>(ix) + static_cast<size_t>(iy) * n1_ +
+                       static_cast<size_t>(iz) * n1_ * n2_;
     return data[idx];
   }
 
@@ -354,7 +354,7 @@ class SepParams
   template <typename T>
   std::vector<T> readSliceXY(ScalarType iz) const
   {
-    if (iz < 0 || iz >= ez_)
+    if (iz < 0 || iz >= n3_)
     {
       throw std::runtime_error("Slice index out of range: " +
                                std::to_string(iz));
@@ -366,7 +366,7 @@ class SepParams
       throw std::runtime_error("Cannot open binary data file: " + data_file);
     }
 
-    const size_t slice_elements = static_cast<size_t>(ex_) * ey_;
+    const size_t slice_elements = static_cast<size_t>(n1_) * n2_;
     const size_t offset = static_cast<size_t>(iz) * slice_elements * esize;
 
     file.seekg(offset, std::ios::beg);
@@ -415,9 +415,9 @@ class SepParams
   void print() const
   {
     std::cout << "\n=== SEP Header Information ===\n"
-              << "Dimensions: n1=" << ex_ << ", n2=" << ey_ << ", n3=" << ez_
+              << "Dimensions: n1=" << n1_ << ", n2=" << n2_ << ", n3=" << n3_
               << "\n"
-              << "Spacing:    d1=" << hx_ << ", d2=" << hy_ << ", d3=" << hz_
+              << "Spacing:    d1=" << d1_ << ", d2=" << d2_ << ", d3=" << d3_
               << "\n"
               << "Origin:     o1=" << ox_ << ", o2=" << oy_ << ", o3=" << oz_
               << "\n"
@@ -434,13 +434,13 @@ class SepParams
   }
 
   // Getter methods
-  ScalarType getN1() const { return ex_; }
-  ScalarType getN2() const { return ey_; }
-  ScalarType getN3() const { return ez_; }
+  ScalarType getN1() const { return n1_; }
+  ScalarType getN2() const { return n2_; }
+  ScalarType getN3() const { return n3_; }
 
-  FloatType getD1() const { return hx_; }
-  FloatType getD2() const { return hy_; }
-  FloatType getD3() const { return hz_; }
+  FloatType getD1() const { return d1_; }
+  FloatType getD2() const { return d2_; }
+  FloatType getD3() const { return d3_; }
 
   FloatType getO1() const { return ox_; }
   FloatType getO2() const { return oy_; }
@@ -457,21 +457,21 @@ class SepParams
   bool isElastic() const { return is_elastic; }
 
   // Convenience getters for total size
-  ScalarType getTotalElements() const { return ex_ * ey_ * ez_; }
+  ScalarType getTotalElements() const { return n1_ * n2_ * n3_; }
   size_t getTotalBytes() const
   {
-    return static_cast<size_t>(ex_) * static_cast<size_t>(ey_) *
-           static_cast<size_t>(ez_) * esize;
+    return static_cast<size_t>(n1_) * static_cast<size_t>(n2_) *
+           static_cast<size_t>(n3_) * esize;
   }
 
  private:
   int order;
-  ScalarType ex_{utils::invalid_value<ScalarType>()},
-      ey_{utils::invalid_value<ScalarType>()},
-      ez_{utils::invalid_value<ScalarType>()};
-  FloatType hx_{utils::invalid_value<FloatType>()},
-      hy_{utils::invalid_value<FloatType>()},
-      hz_{utils::invalid_value<FloatType>()};
+  ScalarType n1_{utils::invalid_value<ScalarType>()},
+      n2_{utils::invalid_value<ScalarType>()},
+      n3_{utils::invalid_value<ScalarType>()};
+  FloatType d1_{utils::invalid_value<FloatType>()},
+      d2_{utils::invalid_value<FloatType>()},
+      d3_{utils::invalid_value<FloatType>()};
   FloatType ox_, oy_, oz_;
   std::string data_format, data_file, data_label, data_filetype;
   int esize;
