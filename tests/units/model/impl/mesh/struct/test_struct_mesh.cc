@@ -92,9 +92,7 @@ class ModelStructTest : public ::testing::Test
     data_.dz_ = 100.0;
     data_.ox_ = 0.0;
     data_.oy_ = 0.0;
-    // NOTE: oz_ cannot be set due to typo in ModelStructData (oz without
-    // underscore) The default initialization oz{0} in the struct definition
-    // handles this.
+    data_.oz_ = 0.0;
     data_.isModelOnNodes_ = true;
     data_.isElastic_ = false;
 
