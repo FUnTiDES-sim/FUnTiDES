@@ -61,7 +61,7 @@ struct ModelUnstructData : public ModelDataBase<FloatType, ScalarType>
         model_theta_element_(model_theta_element),
         model_phi_node_(model_phi_node),
         model_phi_element_(model_phi_element),
-        model_C_tensor_element_(model_C_tensor_element_),
+        model_C_tensor_element_(model_C_tensor_element),
         boundaries_t_(boundaries_t)
   {
   }
