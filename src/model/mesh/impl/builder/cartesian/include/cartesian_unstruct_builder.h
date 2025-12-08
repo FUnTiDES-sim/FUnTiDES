@@ -31,7 +31,7 @@ class CartesianUnstructBuilder : public ModelBuilderBase<FloatType, ScalarType>
   {
     initGlobalNodeList();
     initNodesCoords();
-    initModels();
+    initModelsUniform();
   }
 
   CartesianUnstructBuilder(const SepParams<FloatType, ScalarType>& p,
@@ -47,7 +47,8 @@ class CartesianUnstructBuilder : public ModelBuilderBase<FloatType, ScalarType>
 
     initGlobalNodeList();
     initNodesCoords();
-    initModels();
+    initModelsFromSep(p);
+    // printModelsToFiles();
   }
 
   std::shared_ptr<model::ModelApi<FloatType, ScalarType>> getModel()
@@ -293,62 +294,63 @@ class CartesianUnstructBuilder : public ModelBuilderBase<FloatType, ScalarType>
     }
   }
 
-  void initModels()
+  /**
+   * @brief Copy data from std::vector to VECTOR_REAL_VIEW
+   *
+   * @param src Source vector (from SEP file)
+   * @param dest Destination view (already allocated)
+   * @param count Number of elements to copy
+   */
+  void copyToView(const std::vector<float>& src, VECTOR_REAL_VIEW& dest,
+                  size_t count)
   {
-    // TODO: Currently this function is not doing much more than
-    // creating uniforms model
-    int n_element = ex_ * ey_ * ez_;
-    int n_node = (ex_ * order_ + 1) * (ey_ * order_ + 1) * (ez_ * order_ + 1);
+    for (size_t i = 0; i < count; ++i)
+    {
+      dest(i) = src[i];
+    }
+  }
+
+  /**
+   * @brief Initialize models from SEP parameter file
+   *
+   * Reads binary velocity data from the SEP file and stores it in
+   * model_vp_element_ or model_vp_node_ depending on isModelOnNodes_.
+   *
+   * @param p SEP parameters containing file path and dimensions
+   */
+  void initModelsFromSep(const SepParams<FloatType, ScalarType>& p)
+  {
+    const int n_element = ex_ * ey_ * ez_;
+
+    // Read velocity model from SEP file
+    std::vector<float> vp_data = p.template readBinaryData<float>();
+
     if (isModelOnNodes_)
     {
-      model_rho_node_ =
-          allocateVector<VECTOR_REAL_VIEW>(n_node, "model rho node");
-      model_vp_node_ =
-          allocateVector<VECTOR_REAL_VIEW>(n_node, "model vp node");
-
-      for (int i = 0; i < n_node; i++)
-      {
-        model_rho_node_[i] = 1;
-        model_vp_node_[i] = 1500;
-      }
-      if (isElastic_)
-      {
-        model_vs_node_ =
-            allocateVector<VECTOR_REAL_VIEW>(n_node, "model vs node");
-        model_delta_node_ =
-            allocateVector<VECTOR_REAL_VIEW>(n_node, "model delta node");
-        model_gamma_node_ =
-            allocateVector<VECTOR_REAL_VIEW>(n_node, "model gamma node");
-        model_epsilon_node_ =
-            allocateVector<VECTOR_REAL_VIEW>(n_node, "model epsilon node");
-        model_theta_node_ =
-            allocateVector<VECTOR_REAL_VIEW>(n_node, "model theta node");
-        model_phi_node_ =
-            allocateVector<VECTOR_REAL_VIEW>(n_node, "model phi node");
-
-        for (int i = 0; i < n_node; i++)
-        {
-          model_vs_node_[i] = 755;
-          model_delta_node_[i] = 0.2;
-          model_epsilon_node_[i] = 0.3;
-          model_gamma_node_[i] = 0.08;
-          model_theta_node_[i] = 30;
-          model_phi_node_[i] = 45;
-        }
-      }
+      throw std::runtime_error(
+          "[Cartesian Builder] Cannot init model on nodes from sep files.");
     }
-
     else
     {
-      model_rho_element_ =
-          allocateVector<VECTOR_REAL_VIEW>(n_element, "model rho elem");
+      if (static_cast<size_t>(n_element) != vp_data.size())
+      {
+        throw std::runtime_error("SEP data size (" +
+                                 std::to_string(vp_data.size()) +
+                                 ") does not match expected element count (" +
+                                 std::to_string(n_element) + ")");
+      }
+
       model_vp_element_ =
           allocateVector<VECTOR_REAL_VIEW>(n_element, "model vp elem");
+      model_rho_element_ =
+          allocateVector<VECTOR_REAL_VIEW>(n_element, "model rho elem");
 
+      copyToView(vp_data, model_vp_element_, n_element);
+
+      // Initialize rho with uniform value
       for (int i = 0; i < n_element; i++)
       {
-        model_rho_element_[i] = 1;
-        model_vp_element_[i] = 1500;
+        model_rho_element_(i) = 1.0f;
       }
 
       if (isElastic_)
@@ -368,14 +370,179 @@ class CartesianUnstructBuilder : public ModelBuilderBase<FloatType, ScalarType>
 
         for (int i = 0; i < n_element; i++)
         {
-          model_vs_element_[i] = 755;
-          model_delta_element_[i] = 0.2;
-          model_epsilon_element_[i] = 0.3;
-          model_gamma_element_[i] = 0.08;
-          model_theta_element_[i] = 30;
-          model_phi_element_[i] = 45;
+          model_vs_element_(i) = 755.0f;
+          model_delta_element_(i) = 0.2f;
+          model_epsilon_element_(i) = 0.3f;
+          model_gamma_element_(i) = 0.08f;
+          model_theta_element_(i) = 30.0f;
+          model_phi_element_(i) = 45.0f;
         }
       }
+    }
+  }
+
+  /**
+   * @brief Initialize models with uniform values
+   *
+   * Creates velocity and density models with constant values throughout
+   * the domain. Used when no external model file is provided.
+   */
+  void initModelsUniform()
+  {
+    int n_element = ex_ * ey_ * ez_;
+    int n_node = (ex_ * order_ + 1) * (ey_ * order_ + 1) * (ez_ * order_ + 1);
+
+    if (isModelOnNodes_)
+    {
+      model_rho_node_ =
+          allocateVector<VECTOR_REAL_VIEW>(n_node, "model rho node");
+      model_vp_node_ =
+          allocateVector<VECTOR_REAL_VIEW>(n_node, "model vp node");
+
+      for (int i = 0; i < n_node; i++)
+      {
+        model_rho_node_(i) = 1.0f;
+        model_vp_node_(i) = 1500.0f;
+      }
+
+      if (isElastic_)
+      {
+        model_vs_node_ =
+            allocateVector<VECTOR_REAL_VIEW>(n_node, "model vs node");
+        model_delta_node_ =
+            allocateVector<VECTOR_REAL_VIEW>(n_node, "model delta node");
+        model_gamma_node_ =
+            allocateVector<VECTOR_REAL_VIEW>(n_node, "model gamma node");
+        model_epsilon_node_ =
+            allocateVector<VECTOR_REAL_VIEW>(n_node, "model epsilon node");
+        model_theta_node_ =
+            allocateVector<VECTOR_REAL_VIEW>(n_node, "model theta node");
+        model_phi_node_ =
+            allocateVector<VECTOR_REAL_VIEW>(n_node, "model phi node");
+
+        for (int i = 0; i < n_node; i++)
+        {
+          model_vs_node_(i) = 755.0f;
+          model_delta_node_(i) = 0.2f;
+          model_epsilon_node_(i) = 0.3f;
+          model_gamma_node_(i) = 0.08f;
+          model_theta_node_(i) = 30.0f;
+          model_phi_node_(i) = 45.0f;
+        }
+      }
+    }
+    else
+    {
+      model_rho_element_ =
+          allocateVector<VECTOR_REAL_VIEW>(n_element, "model rho elem");
+      model_vp_element_ =
+          allocateVector<VECTOR_REAL_VIEW>(n_element, "model vp elem");
+
+      for (int i = 0; i < n_element; i++)
+      {
+        model_rho_element_(i) = 1.0f;
+        model_vp_element_(i) = 1500.0f;
+      }
+
+      if (isElastic_)
+      {
+        model_vs_element_ =
+            allocateVector<VECTOR_REAL_VIEW>(n_element, "model vs element");
+        model_delta_element_ =
+            allocateVector<VECTOR_REAL_VIEW>(n_element, "model delta element");
+        model_gamma_element_ =
+            allocateVector<VECTOR_REAL_VIEW>(n_element, "model gamma element");
+        model_epsilon_element_ = allocateVector<VECTOR_REAL_VIEW>(
+            n_element, "model epsilon element");
+        model_theta_element_ =
+            allocateVector<VECTOR_REAL_VIEW>(n_element, "model theta element");
+        model_phi_element_ =
+            allocateVector<VECTOR_REAL_VIEW>(n_element, "model phi element");
+
+        for (int i = 0; i < n_element; i++)
+        {
+          model_vs_element_(i) = 755.0f;
+          model_delta_element_(i) = 0.2f;
+          model_epsilon_element_(i) = 0.3f;
+          model_gamma_element_(i) = 0.08f;
+          model_theta_element_(i) = 30.0f;
+          model_phi_element_(i) = 45.0f;
+        }
+      }
+    }
+  }
+
+  void printModelsToFiles() const
+  {
+    // Print vp_element
+    if (model_vp_element_.extent(0) > 0)
+    {
+      auto host_vp = Kokkos::create_mirror_view_and_copy(Kokkos::HostSpace(),
+                                                         model_vp_element_);
+      std::ofstream file_vp_elem("model_vp_element.txt");
+      for (size_t i = 0; i < host_vp.extent(0); i++)
+      {
+        file_vp_elem << i << " " << host_vp(i) << "\n";
+      }
+      file_vp_elem.close();
+    }
+
+    // Print vp_node
+    if (model_vp_node_.extent(0) > 0)
+    {
+      auto host_vp = Kokkos::create_mirror_view_and_copy(Kokkos::HostSpace(),
+                                                         model_vp_node_);
+      std::ofstream file_vp_node("model_vp_node.txt");
+      for (size_t i = 0; i < host_vp.extent(0); i++)
+      {
+        file_vp_node << i << " " << host_vp(i) << "\n";
+      }
+      file_vp_node.close();
+    }
+
+    // Print rho_element
+    if (model_rho_element_.extent(0) > 0)
+    {
+      auto host_rho = Kokkos::create_mirror_view_and_copy(Kokkos::HostSpace(),
+                                                          model_rho_element_);
+      std::ofstream file_rho_elem("model_rho_element.txt");
+      for (size_t i = 0; i < host_rho.extent(0); i++)
+      {
+        file_rho_elem << i << " " << host_rho(i) << "\n";
+      }
+      file_rho_elem.close();
+    }
+
+    // Print rho_node
+    if (model_rho_node_.extent(0) > 0)
+    {
+      auto host_rho = Kokkos::create_mirror_view_and_copy(Kokkos::HostSpace(),
+                                                          model_rho_node_);
+      std::ofstream file_rho_node("model_rho_node.txt");
+      for (size_t i = 0; i < host_rho.extent(0); i++)
+      {
+        file_rho_node << i << " " << host_rho(i) << "\n";
+      }
+      file_rho_node.close();
+    }
+
+    // Print nodes coordinates
+    if (nodes_coords_x_.extent(0) > 0)
+    {
+      auto host_x = Kokkos::create_mirror_view_and_copy(Kokkos::HostSpace(),
+                                                        nodes_coords_x_);
+      auto host_y = Kokkos::create_mirror_view_and_copy(Kokkos::HostSpace(),
+                                                        nodes_coords_y_);
+      auto host_z = Kokkos::create_mirror_view_and_copy(Kokkos::HostSpace(),
+                                                        nodes_coords_z_);
+
+      std::ofstream file_coords("nodes_coords.txt");
+      for (size_t i = 0; i < host_x.extent(0); i++)
+      {
+        file_coords << i << " " << host_x(i) << " " << host_y(i) << " "
+                    << host_z(i) << "\n";
+      }
+      file_coords.close();
     }
   }
 };
