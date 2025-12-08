@@ -690,6 +690,7 @@ class ModelUnstruct final : public ModelApi<FloatType, ScalarType>
   ScalarType n_element_;
   ScalarType n_node_;
   FloatType lx_, ly_, lz_;
+  FloatType ox_, oy_, oz_;   // cartesian origins
   int n_points_per_element_;  // Added missing member
   bool isModelOnNodes_;
   bool isElastic_;
