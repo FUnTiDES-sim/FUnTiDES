@@ -2,8 +2,10 @@
 
 #include <string>
 
-namespace solver {
-namespace fe {
+namespace solver
+{
+namespace fe
+{
 
 enum methodType
 {
