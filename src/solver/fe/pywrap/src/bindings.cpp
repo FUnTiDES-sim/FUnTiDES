@@ -1,42 +1,41 @@
-#include <common_macros.h>
 #include <pybind11/numpy.h>
 #include <pybind11/pybind11.h>
 #include <pybind11/stl.h>
-#include <sem_solver_acoustic.h>
-#include <sem_solver_elastic.h>
-#include <solver_factory.h>
 
 #include <KokkosExp_InterOp.hpp>
 
+#include "common_macros.h"
+#include "sem_solver.h"
+#include "solver_factory.h"
+
 namespace py = pybind11;
+
+using namespace solver::fe;
 
 PYBIND11_MODULE(solver, m)
 {
   // Create submodule 'solver'
   m.attr("__name__") = "pyfuntides.solver";
 
-  // Bind enums
-  // (!they are not python enums, just to select the template at runtime!)
-  py::enum_<SolverFactory::methodType>(m, "MethodType")
-      .value("SEM", SolverFactory::SEM)
-      .value("DG", SolverFactory::DG);
+  // Bind enums from solver::fe namespace
+  py::enum_<methodType>(m, "MethodType").value("SEM", kSem).value("DG", kDg);
 
-  py::enum_<SolverFactory::implemType>(m, "ImplemType")
-      .value("MAKUTU", SolverFactory::MAKUTU)
-      .value("SHIVA", SolverFactory::SHIVA);
+  py::enum_<implemType>(m, "ImplemType")
+      .value("MAKUTU", kMakutu)
+      .value("SHIVA", kShiva);
 
-  py::enum_<SolverFactory::meshType>(m, "MeshType")
-      .value("STRUCT", SolverFactory::Struct)
-      .value("UNSTRUCT", SolverFactory::Unstruct);
+  py::enum_<meshType>(m, "MeshType")
+      .value("STRUCT", kStruct)
+      .value("UNSTRUCT", kUnstruct);
 
-  py::enum_<SolverFactory::modelLocationType>(m, "ModelLocationType")
-      .value("ONNODES", SolverFactory::modelLocationType::OnNodes)
-      .value("ONELEMENTS", SolverFactory::modelLocationType::OnElements)
+  py::enum_<modelLocationType>(m, "ModelLocationType")
+      .value("ONNODES", kOnNodes)
+      .value("ONELEMENTS", kOnElements)
       .export_values();
 
-  py::enum_<SolverFactory::physicType>(m, "PhysicType")
-      .value("ACOUSTIC", SolverFactory::Acoustic)
-      .value("ELASTIC", SolverFactory::Elastic)
+  py::enum_<physicType>(m, "PhysicType")
+      .value("ACOUSTIC", kAcoustic)
+      .value("ELASTIC", kElastic)
       .export_values();
 
   // Bind DataStruct
@@ -92,17 +91,14 @@ PYBIND11_MODULE(solver, m)
            py::arg("my_element_source"), py::arg("field_global"),
            py::arg("field_name"));
 
-  // Bind Solver factory function (returns shared_ptr<SolverBase>)
+  // Bind Solver factory function (returns shared_ptr<SEMSolverBase>)
   m.def(
       "create_solver",
-      [](SolverFactory::methodType methodType,
-         SolverFactory::implemType implemType, SolverFactory::meshType meshType,
-         SolverFactory::modelLocationType modelLocation,
-         SolverFactory::physicType physicType, int order) {
-        auto solver = SolverFactory::createSolver(
-            methodType, implemType, meshType, modelLocation, physicType, order);
-        return std::shared_ptr<SEMSolverBase>(
-            std::move(solver));  // pyfwi needs to do solver2 = solver1
+      [](methodType method, implemType implem, meshType mesh,
+         modelLocationType modelLocation, physicType physic, int order) {
+        auto solver = SolverFactory::createSolver(method, implem, mesh,
+                                                  modelLocation, physic, order);
+        return std::shared_ptr<SEMSolverBase>(std::move(solver));
       },
       py::arg("method_type"), py::arg("implem_type"), py::arg("mesh_type"),
       py::arg("model_location"), py::arg("physic_type"), py::arg("order"));
