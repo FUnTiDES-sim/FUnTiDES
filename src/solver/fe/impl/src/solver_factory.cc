@@ -35,14 +35,14 @@ static std::unique_ptr<SEMSolverBase> make_sem_solver(
     int order, meshType mesh, modelLocationType modelLocation,
     physicType physic)
 {
-  bool isModelOnNodes = (modelLocation == OnNodes);
+  bool isModelOnNodes = (modelLocation == kOnNodes);
 
   switch (mesh)
   {
-    case Struct:
+    case kStruct:
       switch (physic)
       {
-        case Acoustic:
+        case kAcoustic:
           return orderDispatch(
               order,
               [isModelOnNodes](auto orderIC) -> std::unique_ptr<SEMSolverBase> {
@@ -61,7 +61,7 @@ static std::unique_ptr<SEMSolverBase> make_sem_solver(
                       ORDER, SelectedIntegral, MeshT, false>>();
                 }
               });
-        case Elastic:
+        case kElastic:
           return orderDispatch(
               order,
               [isModelOnNodes](auto orderIC) -> std::unique_ptr<SEMSolverBase> {
@@ -81,10 +81,10 @@ static std::unique_ptr<SEMSolverBase> make_sem_solver(
                 }
               });
       }
-    case Unstruct:
+    case kUnstruct:
       switch (physic)
       {
-        case Acoustic:
+        case kAcoustic:
           return orderDispatch(
               order,
               [isModelOnNodes](auto orderIC) -> std::unique_ptr<SEMSolverBase> {
@@ -103,7 +103,7 @@ static std::unique_ptr<SEMSolverBase> make_sem_solver(
                       ORDER, SelectedIntegral, MeshT, false>>();
                 }
               });
-        case Elastic:
+        case kElastic:
           return orderDispatch(
               order,
               [isModelOnNodes](auto orderIC) -> std::unique_ptr<SEMSolverBase> {
@@ -134,14 +134,14 @@ std::unique_ptr<SEMSolverBase> createSolver(
     meshType const mesh, modelLocationType const modelLocation,
     physicType const physicType, int const order)
 {
-  if (methodType == SEM)
+  if (methodType == kSem)
   {
     switch (implemType)
     {
-      case MAKUTU:
+      case kMakutu:
         return make_sem_solver<IntegralType::MAKUTU>(order, mesh, modelLocation,
                                                      physicType);
-      case SHIVA:
+      case kShiva:
 #ifdef ENABLE_Shiva
         return make_sem_solver<IntegralType::SHIVA>(order, mesh, modelLocation,
                                                     physicType);

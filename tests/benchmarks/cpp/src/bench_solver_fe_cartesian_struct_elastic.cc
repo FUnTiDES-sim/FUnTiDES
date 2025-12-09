@@ -117,11 +117,11 @@ BENCHMARK_TEMPLATE_METHOD_F(SolverStructFixture, FEInit)
   auto model = this->createModel();
 
   auto solver = SolverFactory::createSolver(
-      solver::fe::methodType::SEM, this->implem_,
-      solver::fe::meshType::Struct,
-      this->isModelOnNodes_ ? solver::fe::modelLocationType::OnNodes
-                            : solver::fe::modelLocationType::OnElements,
-      solver::fe::physicType::Elastic, this->order);
+      solver::fe::methodType::kSem, this->implem_,
+      solver::fe::meshType::kStruct,
+      this->isModelOnNodes_ ? solver::fe::modelLocationType::kOnNodes
+                            : solver::fe::modelLocationType::kOnElements,
+      solver::fe::physicType::kElastic, this->order);
 
   // Bench
   for (auto _ : state)
@@ -141,11 +141,11 @@ BENCHMARK_TEMPLATE_METHOD_F(SolverStructFixture, OneStep)
   auto model = this->createModel();
 
   auto solver = SolverFactory::createSolver(
-      solver::fe::methodType::SEM, this->implem_,
-      solver::fe::meshType::Struct,
-      this->isModelOnNodes_ ? solver::fe::modelLocationType::OnNodes
-                            : solver::fe::modelLocationType::OnElements,
-      solver::fe::physicType::Elastic, this->order);
+      solver::fe::methodType::kSem, this->implem_,
+      solver::fe::meshType::kStruct,
+      this->isModelOnNodes_ ? solver::fe::modelLocationType::kOnNodes
+                            : solver::fe::modelLocationType::kOnElements,
+      solver::fe::physicType::kElastic, this->order);
 
   solver->computeFEInit(*model, this->sponge_size, this->surface_sponge,
                         this->taper_delta);
@@ -188,12 +188,12 @@ BENCHMARK_TEMPLATE_METHOD_F(SolverStructFixture, OneStep)
 BENCHMARK_FOR_ALL_ORDERS(
     SolverStructFixture, FEInit,
     BuilderConfig,
-        ->ArgsProduct({{0, 1}, {solver::fe::implemType::MAKUTU}})
+        ->ArgsProduct({{0, 1}, {solver::fe::implemType::kMakutu}})
         ->Unit(benchmark::kMillisecond))
 BENCHMARK_FOR_ALL_ORDERS(
     SolverStructFixture, OneStep,
     BuilderConfig,
-        ->ArgsProduct({{0, 1}, {solver::fe::implemType::MAKUTU}})
+        ->ArgsProduct({{0, 1}, {solver::fe::implemType::kMakutu}})
         ->Unit(benchmark::kMillisecond))
 
 }  // namespace bench

@@ -7,37 +7,37 @@ namespace fe {
 
 enum methodType
 {
-  SEM,
-  DG
+  kSem,
+  kDg
 };
 enum implemType
 {
-  MAKUTU,
-  SHIVA
+  kMakutu,
+  kShiva
 };
 enum meshType
 {
-  Struct,
-  Unstruct
+  kStruct,
+  kUnstruct
 };
 enum modelLocationType
 {
-  OnNodes,
-  OnElements
+  kOnNodes,
+  kOnElements
 };
 enum physicType
 {
-  Acoustic,
-  Elastic
+  kAcoustic,
+  kElastic
 };
 
 inline std::string to_string(methodType m)
 {
   switch (m)
   {
-    case SEM:
+    case kSem:
       return "SEM";
-    case DG:
+    case kDg:
       return "DG";
     default:
       return "Unknown";
@@ -48,9 +48,9 @@ inline std::string to_string(implemType i)
 {
   switch (i)
   {
-    case MAKUTU:
+    case kMakutu:
       return "MAKUTU";
-    case SHIVA:
+    case kShiva:
       return "SHIVA";
     default:
       return "Unknown";
@@ -61,9 +61,9 @@ inline std::string to_string(meshType m)
 {
   switch (m)
   {
-    case Struct:
+    case kStruct:
       return "Struct";
-    case Unstruct:
+    case kUnstruct:
       return "Unstruct";
     default:
       return "Unknown";
@@ -74,9 +74,9 @@ inline std::string to_string(modelLocationType loc)
 {
   switch (loc)
   {
-    case OnNodes:
+    case kOnNodes:
       return "OnNodes";
-    case OnElements:
+    case kOnElements:
       return "OnElements";
     default:
       return "Unknown";
@@ -87,9 +87,9 @@ inline std::string to_string(physicType p)
 {
   switch (p)
   {
-    case Acoustic:
+    case kAcoustic:
       return "Acoustic";
-    case Elastic:
+    case kElastic:
       return "Elastic";
     default:
       return "Unknown";
