@@ -52,12 +52,12 @@ class SolverStructFixture : public benchmark::Fixture
   static constexpr int time_sample = 1;
   static constexpr int n_time_steps = 1500;
   static constexpr float f0 = 5.0f;
-  SolverFactory::implemType implem_;
+  solver::fe::implemType implem_;
 
   void SetUp(const ::benchmark::State& state) override
   {
     isModelOnNodes_ = state.range(0);
-    implem_ = static_cast<SolverFactory::implemType>(state.range(1));
+    implem_ = static_cast<solver::fe::implemType>(state.range(1));
   }
 
   std::shared_ptr<model::ModelApi<float, int>> createModel()
@@ -109,11 +109,11 @@ BENCHMARK_TEMPLATE_METHOD_F(SolverStructFixture, FEInit)
   auto model = this->createModel();
 
   auto solver = SolverFactory::createSolver(
-      SolverFactory::methodType::SEM, this->implem_,
-      SolverFactory::meshType::Struct,
-      this->isModelOnNodes_ ? SolverFactory::modelLocationType::OnNodes
-                            : SolverFactory::modelLocationType::OnElements,
-      SolverFactory::physicType::Acoustic, this->order);
+      solver::fe::methodType::SEM, this->implem_,
+      solver::fe::meshType::Struct,
+      this->isModelOnNodes_ ? solver::fe::modelLocationType::OnNodes
+                            : solver::fe::modelLocationType::OnElements,
+      solver::fe::physicType::Acoustic, this->order);
 
   // Bench
   for (auto _ : state)
@@ -133,11 +133,11 @@ BENCHMARK_TEMPLATE_METHOD_F(SolverStructFixture, OneStep)
   auto model = this->createModel();
 
   auto solver = SolverFactory::createSolver(
-      SolverFactory::methodType::SEM, this->implem_,
-      SolverFactory::meshType::Struct,
-      this->isModelOnNodes_ ? SolverFactory::modelLocationType::OnNodes
-                            : SolverFactory::modelLocationType::OnElements,
-      SolverFactory::physicType::Acoustic, this->order);
+      solver::fe::methodType::SEM, this->implem_,
+      solver::fe::meshType::Struct,
+      this->isModelOnNodes_ ? solver::fe::modelLocationType::OnNodes
+                            : solver::fe::modelLocationType::OnElements,
+      solver::fe::physicType::Acoustic, this->order);
 
   solver->computeFEInit(*model, this->sponge_size, this->surface_sponge,
                         this->taper_delta);
@@ -176,14 +176,14 @@ BENCHMARK_TEMPLATE_METHOD_F(SolverStructFixture, OneStep)
 BENCHMARK_FOR_ALL_ORDERS(SolverStructFixture, FEInit,
                          BuilderConfig,
                              ->ArgsProduct({{0, 1},
-                                            {SolverFactory::implemType::MAKUTU,
-                                             SolverFactory::implemType::SHIVA}})
+                                            {solver::fe::implemType::MAKUTU,
+                                             solver::fe::implemType::SHIVA}})
                              ->Unit(benchmark::kMillisecond))
 BENCHMARK_FOR_ALL_ORDERS(SolverStructFixture, OneStep,
                          BuilderConfig,
                              ->ArgsProduct({{0, 1},
-                                            {SolverFactory::implemType::MAKUTU,
-                                             SolverFactory::implemType::SHIVA}})
+                                            {solver::fe::implemType::MAKUTU,
+                                             solver::fe::implemType::SHIVA}})
                              ->Unit(benchmark::kMillisecond))
 
 }  // namespace bench

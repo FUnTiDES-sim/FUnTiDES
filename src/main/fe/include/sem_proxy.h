@@ -9,17 +9,19 @@
 #define SEMPROXY_HPP_
 
 #include <data_type.h>
-#include <model_struct.h>
-#include <model_unstruct.h>
-#include <solver_factory.h>
 #include <utils.h>
 
 #include <memory>
 #include <string>
 #include <variant>
 
+#include "model_struct.h"
+#include "model_unstruct.h"
+#include "sem_enums.h"
 #include "sem_io_controller.h"
 #include "sem_proxy_options.h"
+#include "sem_solver_base.h"
+#include "solver_factory.h"
 
 /**
  * @class SEMproxy
@@ -152,9 +154,9 @@ class SEMproxy
 
   // private methods to pars argv options
   int getPhysic(string physicArg);
-  SolverFactory::implemType getImplem(string implemArg);
-  SolverFactory::methodType getMethod(string methodArg);
-  SolverFactory::meshType getMesh(string meshArg);
+  solver::fe::implemType getImplem(string implemArg);
+  solver::fe::methodType getMethod(string methodArg);
+  solver::fe::meshType getMesh(string meshArg);
 };
 
 #endif /* SEMPROXY_HPP_ */
