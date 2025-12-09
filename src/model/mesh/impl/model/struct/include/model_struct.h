@@ -22,6 +22,7 @@ struct ModelStructData final : public ModelDataBase<FloatType, ScalarType>
 
   ScalarType ex_, ey_, ez_;
   FloatType dx_, dy_, dz_;
+  FloatType ox_{0}, oy_{0}, oz_{0};
   bool isModelOnNodes_;
   bool isElastic_;
 };
@@ -50,6 +51,9 @@ class ModelStruct : public ModelApi<FloatType, ScalarType>
       : ex_(data.ex_),
         ey_(data.ey_),
         ez_(data.ez_),
+        ox_(data.ox_),
+        oy_(data.oy_),
+        oz_(data.oz_),
         lx_(data.dx_),
         ly_(data.dy_),
         lz_(data.dz_),
@@ -550,6 +554,7 @@ class ModelStruct : public ModelApi<FloatType, ScalarType>
   ScalarType nx_, ny_, nz_;  // Nb nodes in each direction
   FloatType lx_, ly_, lz_;   // domain size
   FloatType hx_, hy_, hz_;   // element size
+  FloatType ox_, oy_, oz_;   // cartesian origins
   bool isModelOnNodes_;
   bool isElastic_;
 
