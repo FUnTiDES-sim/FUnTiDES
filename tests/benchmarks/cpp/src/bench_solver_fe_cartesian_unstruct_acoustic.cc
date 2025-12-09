@@ -8,7 +8,7 @@
 #include "cartesian_unstruct_builder.h"
 #include "data_type.h"
 #include "model.h"
-#include "sem_solver_acoustic.h"
+#include "sem_solver.h"
 #include "solver_factory.h"
 #include "utils.h"
 

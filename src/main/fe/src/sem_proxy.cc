@@ -9,8 +9,6 @@
 
 #include <cartesian_struct_builder.h>
 #include <cartesian_unstruct_builder.h>
-#include <sem_solver_acoustic.h>
-#include <sem_solver_elastic.h>
 #include <source_and_receiver_utils.h>
 
 #include <cxxopts.hpp>
@@ -18,6 +16,8 @@
 #include <iostream>
 #include <sstream>
 #include <variant>
+
+#include "sem_solver.h"
 
 using namespace SourceAndReceiverUtils;
 
