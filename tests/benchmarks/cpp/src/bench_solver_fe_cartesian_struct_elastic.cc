@@ -185,16 +185,16 @@ BENCHMARK_TEMPLATE_METHOD_F(SolverStructFixture, OneStep)
 
 // Instantiate for all order/isModelOnNodes/implemType combinations
 // TODO add solver::fe::implemType::SHIVA when reactivated in compilation
-BENCHMARK_FOR_ALL_ORDERS(
-    SolverStructFixture, FEInit,
-    BuilderConfig,
-        ->ArgsProduct({{0, 1}, {solver::fe::implemType::kMakutu}})
-        ->Unit(benchmark::kMillisecond))
-BENCHMARK_FOR_ALL_ORDERS(
-    SolverStructFixture, OneStep,
-    BuilderConfig,
-        ->ArgsProduct({{0, 1}, {solver::fe::implemType::kMakutu}})
-        ->Unit(benchmark::kMillisecond))
+BENCHMARK_FOR_ALL_ORDERS(SolverStructFixture, FEInit,
+                         BuilderConfig,
+                             ->ArgsProduct({{0, 1},
+                                            {solver::fe::implemType::kMakutu}})
+                             ->Unit(benchmark::kMillisecond))
+BENCHMARK_FOR_ALL_ORDERS(SolverStructFixture, OneStep,
+                         BuilderConfig,
+                             ->ArgsProduct({{0, 1},
+                                            {solver::fe::implemType::kMakutu}})
+                             ->Unit(benchmark::kMillisecond))
 
 }  // namespace bench
 }  // namespace model
