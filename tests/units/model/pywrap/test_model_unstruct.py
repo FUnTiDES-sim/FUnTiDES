@@ -91,6 +91,13 @@ class UnstructData:
             [self.n_elements], dtype=float_type, space=self.memspace, layout=self.layout
         )
 
+        self.kk_model_C_tensor_element = kokkos.array(
+            [self.n_elements, 6, 6],
+            dtype=float_type,
+            space=self.memspace,
+            layout=self.layout,
+        )
+
         # boundaries
         self.kk_boundaries = kokkos.array(
             [self.n_elements], dtype=float_type, space=self.memspace, layout=self.layout
@@ -226,6 +233,7 @@ def unstruct(request):
         ud.kk_model_theta_element,
         ud.kk_model_phi_node,
         ud.kk_model_phi_element,
+        ud.kk_model_C_tensor_element,
         ud.kk_boundaries,
     )
 

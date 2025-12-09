@@ -146,8 +146,8 @@ void bind_modelunstructdata(py::module_ &m)
            py::arg("model_delta_node"), py::arg("model_delta_element"),
            py::arg("model_epsilon_node"), py::arg("model_epsilon_element"),
            py::arg("model_gamma_node"), py::arg("model_gamma_element"),
-           py::arg("model_phi_node"), py::arg("model_phi_element"),
            py::arg("model_theta_node"), py::arg("model_theta_element"),
+           py::arg("model_phi_node"), py::arg("model_phi_element"),
            py::arg("model_C_tensor_element"), py::arg("boundaries_t"));
 }
 
