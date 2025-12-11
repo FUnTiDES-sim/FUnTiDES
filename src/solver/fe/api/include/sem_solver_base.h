@@ -1,14 +1,27 @@
+/**
+ * @file sem_solver_base.h
+ * @brief Base API class for Spectral Element Method (SEM) solvers.
+ */
 
 #ifndef SEM_SOLVERBASE_HPP_
 #define SEM_SOLVERBASE_HPP_
 
-#include <solver_base.h>
-
 #include <cmath>
 
-class SEMSolverBase : public SolverBase
+class SEMSolverBase
 {
  public:
+
+ /**
+  * @brief Data structure for passing arrays to the solver.
+  */
+  struct DataStruct
+  {
+    virtual ~DataStruct() = default;
+
+    virtual void print() const = 0;
+  };
+
   /**
    * @brief Initialize all finite element structures:
    * basis functions, integrals, global arrays, and sponge boundaries.
@@ -54,27 +67,33 @@ class SEMSolverBase : public SolverBase
   virtual void computeGlobalMassMatrix() = 0;
 
   /**
-   * @brief Outputs solution field values at a specific time step
+   * @brief Compute one step of the solver
+   * 
+   * @param dt Delta time for this iteration.
+   * @param timeSample Current time index into the RHS (source) term.
+   * @param data DataStruct containing all necessary arrays.
+   */
+  virtual void computeOneStep(const float &dt, const int &timeSample,
+                              DataStruct &data) = 0;
+
+  /**
+   * @brief Outputs solution field values at a specific time step.
    *
    * This pure virtual function is responsible for writing or displaying
    * solution values for a given field at a particular time step. It must be
    * implemented by derived classes to define the specific output behavior.
    *
-   * @param[in] indexTimeStep The index of the current time step for which
-   *                          solution values are being output
-   * @param[in,out] i1 Index variable (corresponding to the time n of the
-   * solution)
-   * @param[in,out] myElementSource Index or identifier of the source element
-   *                                being processed
+   * @param[in] t The index of the current time step for which
+   *              solution values are being output
+   * @param[in] e Index of the source element being processed
    * @param[in] field Constant view of the array containing the field values
    *                  to be output
    * @param[in] fieldName Name/identifier of the field being output (as a
    *                      C-string)
    */
-
-  virtual void outputSolutionValues(const int &indexTimeStep, int &i1,
-                                    int &myElementSource,
-                                    const ARRAY_REAL_VIEW &field,
+  virtual void outputSolutionValues(const int &t,
+                                    const int &e,
+                                    const VECTOR_REAL_VIEW &field,
                                     const char *fieldName) = 0;
 };
 

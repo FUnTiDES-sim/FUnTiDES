@@ -42,22 +42,22 @@ void SEMsolverAcoustic<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES>::
 {
   // Cast to the specific DataStruct type
   auto &myData = dynamic_cast<SEMsolverDataAcoustic &>(data);
+  const auto &rhs = myData.m_rhs;
+  const auto &wavefield = myData.m_wavefield;
 
-  int const &i1 = myData.m_i1;
-  int const &i2 = myData.m_i2;
-  ARRAY_REAL_VIEW const &rhsTerm = myData.m_rhsTerm;
-  ARRAY_REAL_VIEW const &pnGlobal = myData.m_pnGlobal;
-  VECTOR_INT_VIEW const &rhsElement = myData.m_rhsElement;
-  ARRAY_REAL_VIEW const &rhsWeights = myData.m_rhsWeights;
+  ARRAY_REAL_VIEW const &rhsTerm = rhs.m_term;
+  VECTOR_INT_VIEW const &rhsElement = rhs.m_element;
+  ARRAY_REAL_VIEW const &rhsWeights = rhs.m_weights;
+  VECTOR_REAL_VIEW const &pnGlobalPrev = wavefield.m_pnGlobalPrev;
+  VECTOR_REAL_VIEW const &pnGlobalCurr = wavefield.m_pnGlobalCurr;
 
   resetGlobalVectors(m_mesh.getNumberOfNodes());
   FENCE
-  applyRHSTerm(timeSample, dt, i2, rhsTerm, rhsElement, rhsWeights);
+  applyRHSTerm(timeSample, dt, rhsTerm, rhsElement, rhsWeights);
   FENCE
-  computeElementContributions(i2, pnGlobal);
+  computeElementContributions(pnGlobalCurr);
   FENCE
-  updatePressureField(dt, i1, i2, pnGlobal);
-  FENCE
+  updatePressureField(dt, pnGlobalPrev, pnGlobalCurr);
 }
 
 template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE,
@@ -72,7 +72,7 @@ void SEMsolverAcoustic<ORDER, INTEGRAL_TYPE, MESH_TYPE,
 template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE,
           bool IS_MODEL_ON_NODES>
 void SEMsolverAcoustic<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES>::
-    applyRHSTerm(int timeSample, float dt, int i2,
+    applyRHSTerm(int timeSample, float dt,
                  const ARRAY_REAL_VIEW &rhsTerm,
                  const VECTOR_INT_VIEW &rhsElement,
                  const ARRAY_REAL_VIEW &rhsWeights)
@@ -101,7 +101,7 @@ void SEMsolverAcoustic<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES>::
 template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE,
           bool IS_MODEL_ON_NODES>
 void SEMsolverAcoustic<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES>::
-    computeElementContributions(int i2, const ARRAY_REAL_VIEW &pnGlobal)
+    computeElementContributions(const VECTOR_REAL_VIEW &pnGlobalCurr)
 {
   MAINLOOPHEAD(m_mesh.getNumberOfElements(), elementNumber)
 
@@ -120,7 +120,7 @@ void SEMsolverAcoustic<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES>::
       {
         int const globalIdx = m_mesh.globalNodeIndex(elementNumber, i, j, k);
         int const localIdx = i + j * dim + k * dim * dim;
-        pnLocal[localIdx] = pnGlobal(globalIdx, i2);
+        pnLocal[localIdx] = pnGlobalCurr(globalIdx);
       }
     }
   }
@@ -169,16 +169,17 @@ void SEMsolverAcoustic<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES>::
 template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE,
           bool IS_MODEL_ON_NODES>
 void SEMsolverAcoustic<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES>::
-    updatePressureField(float dt, int i1, int i2,
-                        const ARRAY_REAL_VIEW &pnGlobal)
+    updatePressureField(float dt,
+                        const VECTOR_REAL_VIEW &pnGlobalPrev,
+                        const VECTOR_REAL_VIEW &pnGlobalCurr)
 {
   float const dt2 = dt * dt;
   LOOPHEAD(m_mesh.getNumberOfNodes(), I)
   {
-    pnGlobal(I, i1) = 2 * pnGlobal(I, i2) - pnGlobal(I, i1) -
+    pnGlobalPrev = 2 * pnGlobalCurr - pnGlobalPrev -
                       dt2 * yGlobal[I] / massMatrixGlobal[I];
-    pnGlobal(I, i1) *= spongeTaperCoeff(I);
-    pnGlobal(I, i2) *= spongeTaperCoeff(I);
+    pnGlobalPrev *= spongeTaperCoeff(I);
+    pnGlobalCurr *= spongeTaperCoeff(I);
   }
   LOOPEND
 }
@@ -186,16 +187,16 @@ void SEMsolverAcoustic<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES>::
 template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE,
           bool IS_MODEL_ON_NODES>
 void SEMsolverAcoustic<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES>::
-    outputSolutionValues(const int &indexTimeStep, int &i1,
+    outputSolutionValues(const int &indexTimeStep,
                          int &myElementSource,
-                         const ARRAY_REAL_VIEW &fieldGlobal,
+                         const VECTOR_REAL_VIEW &field,
                          const char *fieldName)  // ← Nouveau paramètre
 {
-  cout << "TimeStep=" << indexTimeStep << ";  " << fieldName
+  std::cout << "TimeStep=" << indexTimeStep << ";  " << fieldName
        << " @ elementSource location " << myElementSource
        << " after computeOneStep = "
-       << fieldGlobal(m_mesh.globalNodeIndex(myElementSource, 0, 0, 0), i1)
-       << endl;
+       << field(m_mesh.globalNodeIndex(myElementSource, 0, 0, 0))
+       << std::endl;
 }
 
 template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE,

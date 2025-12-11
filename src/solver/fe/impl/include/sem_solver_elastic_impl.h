@@ -51,26 +51,32 @@ void SEMsolverElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES>::
 {
   // Cast to the specific DataStruct type
   auto &myData = dynamic_cast<SEMsolverDataElastic &>(data);
+  const auto &rhs = myData.m_rhs;
+  const auto &wavefield = myData.m_wavefield;
 
-  int const &i1 = myData.m_i1;
-  int const &i2 = myData.m_i2;
-  ARRAY_REAL_VIEW const &rhsTermx = myData.m_rhsTermx;
-  ARRAY_REAL_VIEW const &rhsTermy = myData.m_rhsTermy;
-  ARRAY_REAL_VIEW const &rhsTermz = myData.m_rhsTermz;
-  ARRAY_REAL_VIEW const &uxnGlobal = myData.m_uxnGlobal;
-  ARRAY_REAL_VIEW const &uynGlobal = myData.m_uynGlobal;
-  ARRAY_REAL_VIEW const &uznGlobal = myData.m_uznGlobal;
-  VECTOR_INT_VIEW const &rhsElement = myData.m_rhsElement;
-  ARRAY_REAL_VIEW const &rhsWeights = myData.m_rhsWeights;
+  ARRAY_REAL_VIEW const &rhsTermx = rhs.m_termx;
+  ARRAY_REAL_VIEW const &rhsTermy = rhs.m_termy;
+  ARRAY_REAL_VIEW const &rhsTermz = rhs.m_termz;
+  VECTOR_INT_VIEW const &rhsElement = rhs.m_element;
+  ARRAY_REAL_VIEW const &rhsWeights = rhs.m_weights;
+  VECTOR_REAL_VIEW const &uxnGlobalPrev = wavefield.m_uxnGlobalPrev;
+  VECTOR_REAL_VIEW const &uxnGlobalCurr = wavefield.m_uxnGlobalCurr;
+  VECTOR_REAL_VIEW const &uynGlobalPrev = wavefield.m_uynGlobalPrev;
+  VECTOR_REAL_VIEW const &uynGlobalCurr = wavefield.m_uynGlobalCurr;
+  VECTOR_REAL_VIEW const &uznGlobalPrev = wavefield.m_uznGlobalPrev
+  VECTOR_REAL_VIEW const &uznGlobalCurr = wavefield.m_uznGlobalCurr;
 
   resetGlobalVectors(m_mesh.getNumberOfNodes());
   FENCE
-  applyRHSTerm(timeSample, dt, i2, rhsTermx, rhsTermy, rhsTermz, rhsElement,
+  applyRHSTerm(timeSample, dt, rhsTermx, rhsTermy, rhsTermz, rhsElement,
                rhsWeights);
   FENCE
-  computeElementContributions(i2, uxnGlobal, uynGlobal, uznGlobal);
+  computeElementContributions(uxnGlobalCurr, uynGlobalCurr, uznGlobalCurr);
   FENCE
-  updateDisplacementField(dt, i1, i2, uxnGlobal, uynGlobal, uznGlobal);
+  updateDisplacementField(dt,
+    uxnGlobalPrev, uxnGlobalCurr,
+    uynGlobalPrev, uynGlobalCurr,
+    uznGlobalPrev, uznGlobalCurr);
   FENCE
 }
 
@@ -91,7 +97,7 @@ void SEMsolverElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE,
 template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE,
           bool IS_MODEL_ON_NODES>
 void SEMsolverElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES>::
-    applyRHSTerm(int timeSample, float dt, int i2,
+    applyRHSTerm(int timeSample, float dt,
                  const ARRAY_REAL_VIEW &rhsTermx,
                  const ARRAY_REAL_VIEW &rhsTermy,
                  const ARRAY_REAL_VIEW &rhsTermz,
@@ -126,9 +132,9 @@ void SEMsolverElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES>::
 template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE,
           bool IS_MODEL_ON_NODES>
 void SEMsolverElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES>::
-    computeElementContributions(int i2, const ARRAY_REAL_VIEW &uxnGlobal,
-                                const ARRAY_REAL_VIEW &uynGlobal,
-                                const ARRAY_REAL_VIEW &uznGlobal)
+    computeElementContributions(const ARRAY_REAL_VIEW &uxnGlobalCurr,
+                                const ARRAY_REAL_VIEW &uynGlobalCurr,
+                                const ARRAY_REAL_VIEW &uznGlobalCurr)
 {
   MAINLOOPHEAD(m_mesh.getNumberOfElements(), elementNumber)
 
@@ -149,9 +155,9 @@ void SEMsolverElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES>::
     int z = (i / dim) % dim;
     int y = i / (dim * dim);
     int const globalIdx = m_mesh.globalNodeIndex(elementNumber, x, y, z);
-    uxnLocal[i] = uxnGlobal(globalIdx, i2);
-    uynLocal[i] = uynGlobal(globalIdx, i2);
-    uznLocal[i] = uznGlobal(globalIdx, i2);
+    uxnLocal[i] = uxnGlobalCurr(globalIdx);
+    uynLocal[i] = uynGlobalCurr(globalIdx);
+    uznLocal[i] = uznGlobalCurr(globalIdx);
   }
 
   typename INTEGRAL_TYPE::TransformType transformData;
@@ -317,26 +323,29 @@ void SEMsolverElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES>::
 template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE,
           bool IS_MODEL_ON_NODES>
 void SEMsolverElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES>::
-    updateDisplacementField(float dt, int i1, int i2,
-                            const ARRAY_REAL_VIEW &uxnGlobal,
-                            const ARRAY_REAL_VIEW &uynGlobal,
-                            const ARRAY_REAL_VIEW &uznGlobal)
+    updateDisplacementField(float dt,
+                            const VECTOR_REAL_VIEW &uxnGlobalPrev,
+                            const VECTOR_REAL_VIEW &uxnGlobalCurr,
+                            const VECTOR_REAL_VIEW &uynGlobalPrev,
+                            const VECTOR_REAL_VIEW &uynGlobalCurr,
+                            const VECTOR_REAL_VIEW &uznGlobalPrev,
+                            const VECTOR_REAL_VIEW &uznGlobalCurr)
 {
   float const dt2 = dt * dt;
   LOOPHEAD(m_mesh.getNumberOfNodes(), I)
   {
-    uxnGlobal(I, i1) = 2 * uxnGlobal(I, i2) - uxnGlobal(I, i1) -
+    weightsuxnGlobalPrev[I] = 2 * weightsuxnGlobalCurr[I] - weightsuxnGlobalPrev[I] -
                        dt2 * uxGlobal[I] / massMatrixGlobal[I];
-    uxnGlobal(I, i1) *= spongeTaperCoeff(I);
-    uxnGlobal(I, i2) *= spongeTaperCoeff(I);
-    uynGlobal(I, i1) = 2 * uynGlobal(I, i2) - uynGlobal(I, i1) -
+    weightsuxnGlobalPrev[I] *= spongeTaperCoeff(I);
+    weightsuxnGlobalCurr[I] *= spongeTaperCoeff(I);
+    weightsuynGlobalPrev[I] = 2 * weightsuynGlobalCurr[I] - weightsuynGlobalPrev[I] -
                        dt2 * uyGlobal[I] / massMatrixGlobal[I];
-    uynGlobal(I, i1) *= spongeTaperCoeff(I);
-    uynGlobal(I, i2) *= spongeTaperCoeff(I);
-    uznGlobal(I, i1) = 2 * uznGlobal(I, i2) - uznGlobal(I, i1) -
+    weightsuynGlobalPrev[I] *= spongeTaperCoeff(I);
+    weightsuynGlobalCurr[I] *= spongeTaperCoeff(I);
+    weightsuznGlobalPrev[I] = 2 * weightsuznGlobalCurr[I] - weightsuznGlobalPrev[I] -
                        dt2 * uzGlobal[I] / massMatrixGlobal[I];
-    uznGlobal(I, i1) *= spongeTaperCoeff(I);
-    uznGlobal(I, i2) *= spongeTaperCoeff(I);
+    weightsuznGlobalPrev[I] *= spongeTaperCoeff(I);
+    weightsuznGlobalCurr[I] *= spongeTaperCoeff(I);
   }
   LOOPEND
 }
@@ -344,15 +353,15 @@ void SEMsolverElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES>::
 template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE,
           bool IS_MODEL_ON_NODES>
 void SEMsolverElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES>::
-    outputSolutionValues(const int &indexTimeStep, int &i1,
+    outputSolutionValues(const int &indexTimeStep,
                          int &myElementSource,
-                         const ARRAY_REAL_VIEW &fieldGlobal,
+                         const VECTOR_REAL_VIEW &field,
                          const char *fieldName)
 {
   cout << "TimeStep=" << indexTimeStep << ";  " << fieldName
        << " @ elementSource location " << myElementSource
        << " after computeOneStep = "
-       << fieldGlobal(m_mesh.globalNodeIndex(myElementSource, 0, 0, 0), i1)
+       << fieldGlobal(m_mesh.globalNodeIndex(myElementSource, 0, 0, 0))
        << endl;
 }
 

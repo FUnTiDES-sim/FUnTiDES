@@ -88,8 +88,6 @@ class SEMproxy
   void saveSnapshot(int timestep);
 
  private:
-  int i1 = 0;
-  int i2 = 1;
 
   // proper to cartesian mesh
   // or any structured mesh
@@ -123,20 +121,24 @@ class SEMproxy
 
   // arrays
   arrayReal myRHSTerm;
-  arrayReal pnGlobal;
+  vectorReal pnGlobalPrev;
+  vectorReal pnGlobalCurr;
   vectorInt rhsElement;
   vectorInt rhsElementRcv;
   arrayReal rhsWeights;
   arrayReal rhsWeightsRcv;
   arrayReal pnAtReceiver;
-  // elastic arrays
 
+  // elastic arrays
   arrayReal myRHSTermx;
   arrayReal myRHSTermy;
   arrayReal myRHSTermz;
-  arrayReal uxnGlobal;
-  arrayReal uynGlobal;
-  arrayReal uznGlobal;
+  vectorReal uxnGlobalPrev;
+  vectorReal uynGlobalPrev;
+  vectorReal uznGlobalPrev;
+  vectorReal uxnGlobalCurr;
+  vectorReal uynGlobalCurr;
+  vectorReal uznGlobalCurr;
   arrayReal uxnAtReceiver;
   arrayReal uynAtReceiver;
   arrayReal uznAtReceiver;

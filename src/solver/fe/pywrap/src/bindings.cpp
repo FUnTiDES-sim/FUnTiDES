@@ -39,6 +39,62 @@ PYBIND11_MODULE(solver, m)
       .value("ELASTIC", SolverFactory::Elastic)
       .export_values();
 
+  // Bind Wavefield (base class)
+  py::class_<Wavefield, std::shared_ptr<Wavefield>>(m, "Wavefield")
+      .def("advance", &Wavefield::advance)
+      .def("print", &Wavefield::print);
+
+  // Bind WavefieldAcoustic (inherits from Wavefield)
+  py::class_<WavefieldAcoustic, Wavefield, std::shared_ptr<WavefieldAcoustic>>(
+      m, "WavefieldAcoustic")
+      .def(
+        py::init<Kokkos::Experimental::python_view_type_t<VECTOR_REAL_VIEW>,
+                 Kokkos::Experimental::python_view_type_t<VECTOR_REAL_VIEW>>(),
+        py::arg("pn_global_prev"), py::arg("pn_global_curr"))
+      .def("advance", &WavefieldAcoustic::advance)
+      .def("print", &WavefieldAcoustic::print)
+
+  // Bind WavefieldElastic (inherits from Wavefield)
+  py::class_<WavefieldElastic, Wavefield, std::shared_ptr<WavefieldElastic>>(
+      m, "WavefieldElastic")
+      .def(
+        py::init<Kokkos::Experimental::python_view_type_t<VECTOR_REAL_VIEW>,
+                 Kokkos::Experimental::python_view_type_t<VECTOR_REAL_VIEW>,
+                 Kokkos::Experimental::python_view_type_t<VECTOR_REAL_VIEW>,
+                 Kokkos::Experimental::python_view_type_t<VECTOR_REAL_VIEW>,
+                 Kokkos::Experimental::python_view_type_t<VECTOR_REAL_VIEW>,
+                 Kokkos::Experimental::python_view_type_t<VECTOR_REAL_VIEW>>(),
+        py::arg("uxn_global_prev"), py::arg("uxn_global_curr"),
+        py::arg("uyn_global_prev"), py::arg("uyn_global_curr"),
+        py::arg("uzn_global_prev"), py::arg("uzn_global_curr"))
+      .def("advance", &WavefieldElastic::advance)
+      .def("print", &WavefieldElastic::print)
+
+  // Bind Rhs (base class)
+  py::class_<Rhs, std::shared_ptr<Rhs>>(m, "Rhs")
+      .def("print", &Rhs::print);
+
+  // Bind RhsAcoustic (inherits from Rhs)
+  py::class_<RhsAcoustic, Rhs, std::shared_ptr<RhsAcoustic>>(m, "RhsAcoustic")
+      .def(py::init<
+               Kokkos::Experimental::python_view_type_t<ARRAY_REAL_VIEW>,
+               Kokkos::Experimental::python_view_type_t<VECTOR_INT_VIEW>,
+               Kokkos::Experimental::python_view_type_t<ARRAY_REAL_VIEW>>(),
+           py::arg("term"), py::arg("element"), py::arg("weights"))
+      .def("print", &RhsAcoustic::print);
+  
+  // Bind RhsElastic (inherits from Rhs)
+  py::class_<RhsElastic, Rhs, std::shared_ptr<RhsElastic>>(m, "RhsElastic")
+      .def(py::init<
+               Kokkos::Experimental::python_view_type_t<ARRAY_REAL_VIEW>,
+               Kokkos::Experimental::python_view_type_t<ARRAY_REAL_VIEW>,
+               Kokkos::Experimental::python_view_type_t<ARRAY_REAL_VIEW>,
+               Kokkos::Experimental::python_view_type_t<VECTOR_INT_VIEW>,
+               Kokkos::Experimental::python_view_type_t<ARRAY_REAL_VIEW>>(),
+           py::arg("termx"), py::arg("termy"), py::arg("termz"),
+           py::arg("element"), py::arg("weights"))
+      .def("print", &RhsElastic::print);
+
   // Bind DataStruct
   py::class_<SolverBase::DataStruct, std::shared_ptr<SolverBase::DataStruct>>(
       m, "DataStruct")
@@ -47,38 +103,23 @@ PYBIND11_MODULE(solver, m)
   // Bind SEMsolverDataAcoustic (inherits from SolverBase::DataStruct)
   py::class_<SEMsolverDataAcoustic, SolverBase::DataStruct,
              std::shared_ptr<SEMsolverDataAcoustic>>(m, "SEMsolverDataAcoustic")
-      .def(
-          py::init<int, int,
-                   Kokkos::Experimental::python_view_type_t<ARRAY_REAL_VIEW>,
-                   Kokkos::Experimental::python_view_type_t<ARRAY_REAL_VIEW>,
-                   Kokkos::Experimental::python_view_type_t<VECTOR_INT_VIEW>,
-                   Kokkos::Experimental::python_view_type_t<ARRAY_REAL_VIEW>>(),
-          py::arg("i1"), py::arg("i2"), py::arg("rhs_term"),
-          py::arg("pn_global"), py::arg("rhs_element"), py::arg("rhs_weights"))
-      .def("print", &SEMsolverDataAcoustic::print)
-      .def_readwrite("i1", &SEMsolverDataAcoustic::m_i1)
-      .def_readwrite("i2", &SEMsolverDataAcoustic::m_i2);
+      .def(py::init<WavefieldAcoustic,RhsAcoustic>(),
+           py::arg("wavefield"), py::arg("rhs"))
+      .def("print", &SEMsolverDataAcoustic::print);
+
+  // Bind SEMsolverDataElastic (inherits from SolverBase::DataStruct)
+  py::class_<SEMsolverDataElastic, SolverBase::DataStruct,
+             std::shared_ptr<SEMsolverDataElastic>>(m, "SEMsolverDataElastic")
+      .def(py::init<WavefieldElastic,RhsElastic>(),
+          py::arg("wavefield"), py::arg("rhs"))
+      .def("print", &SEMsolverDataElastic::print);
 
   // Bind SEMSolverDataElastic (inherits from SolverBase::DataStruct)
   py::class_<SEMsolverDataElastic, SolverBase::DataStruct,
              std::shared_ptr<SEMsolverDataElastic>>(m, "SEMsolverDataElastic")
-      .def(
-          py::init<int, int,
-                   Kokkos::Experimental::python_view_type_t<ARRAY_REAL_VIEW>,
-                   Kokkos::Experimental::python_view_type_t<ARRAY_REAL_VIEW>,
-                   Kokkos::Experimental::python_view_type_t<ARRAY_REAL_VIEW>,
-                   Kokkos::Experimental::python_view_type_t<ARRAY_REAL_VIEW>,
-                   Kokkos::Experimental::python_view_type_t<ARRAY_REAL_VIEW>,
-                   Kokkos::Experimental::python_view_type_t<ARRAY_REAL_VIEW>,
-                   Kokkos::Experimental::python_view_type_t<VECTOR_INT_VIEW>,
-                   Kokkos::Experimental::python_view_type_t<ARRAY_REAL_VIEW>>(),
-          py::arg("i1"), py::arg("i2"), py::arg("rhs_termx"),
-          py::arg("rhs_termy"), py::arg("rhs_termz"), py::arg("uxn_global"),
-          py::arg("uyn_global"), py::arg("uzn_global"), py::arg("rhs_element"),
-          py::arg("rhs_weights"))
-      .def("print", &SEMsolverDataElastic::print)
-      .def_readwrite("i1", &SEMsolverDataElastic::m_i1)
-      .def_readwrite("i2", &SEMsolverDataElastic::m_i2);
+      .def(py::init<WavefieldElastic,RhsElastic>(),
+           py::arg("wavefield"), py::arg("rhs"))
+      .def("print", &SEMsolverDataElastic::print);
 
   // Bind SEMSolverBase
   py::class_<SEMSolverBase, std::shared_ptr<SEMSolverBase>>(m, "SEMSolverBase")
@@ -88,7 +129,7 @@ PYBIND11_MODULE(solver, m)
       .def("compute_one_step", &SEMSolverBase::computeOneStep, py::arg("dt"),
            py::arg("time_sample"), py::arg("data"))
       .def("output_solution_values", &SEMSolverBase::outputSolutionValues,
-           py::arg("index_time_step"), py::arg("i1"),
+           py::arg("index_time_step"),
            py::arg("my_element_source"), py::arg("field_global"),
            py::arg("field_name"));
 

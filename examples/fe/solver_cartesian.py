@@ -491,14 +491,12 @@ def source_term(time_n, f0):
     return pulse
 
 
-def get_snapshot(i1, nx, ny, nz, pnGlobal, normalize=False):
+def get_snapshot(nx, ny, nz, pnGlobal, normalize=False):
     """
     Extracts a 2D snapshot from a 3D global array at a specified index, with optional normalization.
 
     Parameters
     ----------
-    i1 : int
-        Index for the pressure field.
     nx : int
         Number of grid points in the x-direction.
     ny : int
@@ -506,7 +504,7 @@ def get_snapshot(i1, nx, ny, nz, pnGlobal, normalize=False):
     nz : int
         Number of grid points in the z-direction.
     pnGlobal : np.ndarray
-        The global 3D array of shape (nx * ny * nz, N), where N >= i1 + 1.
+        The global wavefield array of shape (nx * ny * nz).
     normalize : bool
         If True, normalize the resulting 2D grid by its maximum absolute value (default: False).
 
@@ -521,7 +519,7 @@ def get_snapshot(i1, nx, ny, nz, pnGlobal, normalize=False):
     for I in range(offset, offset + nx * nz):
         i = (I - offset) % nx
         j = int((I - offset - i) / nx)
-        grid[i, j] = pnGlobal[I, i1]
+        grid[i, j] = pnGlobal[I]
 
     if normalize:
         maxvalue = np.abs(grid).max()
@@ -576,14 +574,14 @@ def plot_snapshot(i1, nx, ny, nz, pnGlobal, im, t):
     nx, ny, nz : int
         Grid dimensions.
     pnGlobal : np.ndarray
-        Pressure field array.
+        Pressure field array of shape (nx * ny * nz).
     im : matplotlib.image.AxesImage
         The image object for updating the plot.
     t : int
         Current time step.
     """
 
-    grid = get_snapshot(i1, nx, ny, nz, pnGlobal, False)
+    grid = get_snapshot(nx, ny, nz, pnGlobal, False)
     im.set_array(grid)  # Update plot with new values
     plt.draw()  # Redraw the figure with updated data
     plt.ioff()
@@ -605,19 +603,20 @@ def allocate_pressure(n_dof, memspace, layout):
 
     Returns
     -------
-    kk_pnGlobal : kokkos array
-        The Kokkos array for pressure.
-    pnGlobal : np.ndarray
-        The numpy array view of the pressure.
+    (kk_pnGlobal_prev, pnGlobal_prev) : tuple
+        Kokkos array and numpy view for pressure at previous time step.
+    (kk_pnGlobal_curr, pnGlobal_curr) : tuple
+        Kokkos array and numpy view for pressure at current time step.
     """
 
-    kk_pnGlobal = kokkos.array(
-        [n_dof, 2], dtype=kokkos.float32, space=memspace, layout=layout
-    )
-    pnGlobal = np.array(kk_pnGlobal, copy=False)
-    pnGlobal[:] = 0.0
+    kk_pnGlobal_curr = kokkos.array(n_dof, dtype=kokkos.float32, space=memspace, layout=layout)
+    pnGlobal_curr = np.array(kk_pnGlobal_curr, copy=False)
+    pnGlobal_curr[:] = 0.0
+    kk_pnGlobal_prev = kokkos.array(n_dof, dtype=kokkos.float32, space=memspace, layout=layout)
+    pnGlobal_prev = np.array(kk_pnGlobal_prev, copy=False)
+    pnGlobal_prev[:] = 0.0
 
-    return kk_pnGlobal, pnGlobal
+    return (kk_pnGlobal_prev, pnGlobal_prev), (kk_pnGlobal_curr, pnGlobal_curr)
 
 
 def allocate_rhs_term(n_rhs, n_time_steps, dt, f0, memspace, layout):
@@ -726,16 +725,18 @@ def allocate_rhs_element(n_rhs, ex, ey, ez, memspace, layout):
     return kk_RHSElement, RHSElement
 
 
-def create_solver_data(kk_RHSTerm, kk_pnGlobal, kk_RHSElement, kk_RHSWeights):
+def create_solver_data(kk_RHSTerm, kk_pnGlobal_prev, kk_pnGlobal_curr, kk_RHSElement, kk_RHSWeights):
     """
-    Create SEMsolverData instance and return it along with i1 and i2.
+    Create SEMsolverData instance.
 
     Parameters
     ----------
     kk_RHSTerm : kokkos array
         The Kokkos array for the source term.
-    kk_pnGlobal : kokkos array
-        The Kokkos array for pressure.
+    kk_pnGlobal_prev : kokkos array
+        The Kokkos array for pressure at previous time step.
+    kk_pnGlobal_curr : kokkos array
+        The Kokkos array for pressure at current time step.
     kk_RHSElement : kokkos array
         The Kokkos array for the element indices.
     kk_RHSWeights : kokkos array
@@ -747,14 +748,10 @@ def create_solver_data(kk_RHSTerm, kk_pnGlobal, kk_RHSElement, kk_RHSWeights):
         The SEMsolverData instance.
     """
 
-    data = Solver.SEMsolverData(
-        0,
-        1,
-        kk_RHSTerm,
-        kk_pnGlobal,
-        kk_RHSElement,
-        kk_RHSWeights,
-    )
+    wavefield = WavefieldAcoustic(kk_pnGlobal_prev, kk_pnGlobal_curr)
+    rhs = RhsAcoustic(kk_RHSElement, kk_RHSWeights, kk_RHSTerm)
+
+    data = Solver.SEMsolverData(wavefield, rhs)
     data.print()
 
     return data
@@ -767,12 +764,10 @@ def compute_step(
     data,
     iteration_times,
     n_time_steps,
-    i1,
-    i2,
     nx,
     ny,
     nz,
-    pnGlobal,
+    pnGlobal_curr,
     im,
 ):
     """
@@ -792,19 +787,12 @@ def compute_step(
         List to append iteration time.
     n_time_steps : int
         Total number of time steps.
-    i1, i2 : int
-        Indices for pressure fields.
     nx, ny, nz : int
         Grid dimensions for the plot.
-    pnGlobal : np.ndarray
-        Pressure field array.
+    pnGlobal_curr : np.ndarray
+        The current pressure field array as numpy view.
     im : matplotlib.image.AxesImage
         The image object for updating the plot.
-
-    Returns
-    -------
-    i1, i2 : int
-        Updated indices for pressure fields.
     """
 
     iter_start = time.time()
@@ -817,13 +805,8 @@ def compute_step(
     if time_sample % 100 == 0:
         print(f"Time {time_sample} / {n_time_steps}")
     if time_sample % 10 == 0:
-        plot_snapshot(i1, nx, ny, nz, pnGlobal, im, time_sample)
-    tmp = i1
-    i1 = i2
-    i2 = tmp
-    data.i1 = i1
-    data.i2 = i2
-    return i1, i2
+        plot_snapshot(i1, nx, ny, nz, pnGlobal_curr, im, time_sample)
+    data.wavefield.advance()
 
 
 def main():
@@ -901,7 +884,7 @@ def main():
 
     # allocate pressure
     print("Allocating Pressure...")
-    kk_pnGlobal, pnGlobal = allocate_pressure(n_dof, memspace, layout)
+    (kk_pnGlobal_prev, _), (kk_pnGlobal_curr, pnGlobal_curr) = allocate_pressure(n_dof, memspace, layout)
     print("Pressure allocated")
 
     # allocate RHS arrays
@@ -925,27 +908,22 @@ def main():
 
     # Create solver data instance
     print("Creating solver data...")
-    data = create_solver_data(kk_RHSTerm, kk_pnGlobal, kk_RHSElement, kk_RHSWeights)
+    data = create_solver_data(kk_RHSTerm, kk_pnGlobal_prev, kk_pnGlobal_curr, kk_RHSElement, kk_RHSWeights)
     print("Solver data created")
-
-    i1 = data.i1
-    i2 = data.i2
 
     # Loop over time steps
     for time_sample in range(n_time_steps):
-        i1, i2 = compute_step(
+        compute_step(
             time_sample,
             dt,
             solver,
             data,
             iteration_times,
             n_time_steps,
-            i1,
-            i2,
             nx,
             ny,
             nz,
-            pnGlobal,
+            pnGlobal_curr,
             im,
         )
 
@@ -964,7 +942,8 @@ def main():
     print("=========================================")
 
     # release kokkos arrays and vectors
-    del kk_pnGlobal
+    del kk_pnGlobal_curr
+    del kk_pnGlobal_prev
     del kk_RHSTerm
     del kk_RHSElement
     del kk_RHSWeights

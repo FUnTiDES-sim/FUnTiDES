@@ -1,13 +1,7 @@
-//************************************************************************
-//   proxy application v.0.0.1
-//
-//  SEMsolver.hpp: simple 2D acoustic wave equation solver
-//
-//  The SEMsolver class serves as a base class for the Spectral Element Method
-//  solver. It provides core functionality to initialize FE operators,
-//  advance pressure fields, apply forcing terms, and handle absorbing
-//  boundaries.
-//************************************************************************
+/**
+ * @file sem_solver_acoustic.h
+ * @brief Spectral Element Method (SEM) solver for acoustic wave propagation.
+ */
 
 #ifndef SEM_SOLVER_ACOUSTIC_HPP_
 #define SEM_SOLVER_ACOUSTIC_HPP_
@@ -15,38 +9,31 @@
 #include <data_type.h>
 #include <model.h>
 #include <sem_solver_base.h>
+#include "wavefield_acoustic.h"
+#include "rhs_acoustic.h"
 
 #include <cmath>
 
+/**
+ * @brief Data structure for acoustic SEM solver.
+ */
 struct SEMsolverDataAcoustic : public SolverBase::DataStruct
 {
-  SEMsolverDataAcoustic(int i1, int i2, ARRAY_REAL_VIEW rhsTerm,
-                        ARRAY_REAL_VIEW pnGlobal, VECTOR_INT_VIEW rhsElement,
-                        ARRAY_REAL_VIEW rhsWeights)
-      : m_i1(i1),
-        m_i2(i2),
-        m_rhsTerm(rhsTerm),
-        m_pnGlobal(pnGlobal),
-        m_rhsElement(rhsElement),
-        m_rhsWeights(rhsWeights)
+  SEMsolverDataAcoustic(WavefieldAcoustic wavefield,
+                        RhsAcoustic rhs)
+      : m_rhs(rhs),
+        m_wavefield(wavefield)
   {
   }
 
   void print() const override
   {
-    std::cout << "SEMsolverData: i1=" << m_i1 << ", i2=" << m_i2 << std::endl;
-    std::cout << "RHS Term size: " << m_rhsTerm.extent(0) << std::endl;
-    std::cout << "Pn Global size: " << m_pnGlobal.extent(0) << std::endl;
-    std::cout << "RHS Element size: " << m_rhsElement.extent(0) << std::endl;
-    std::cout << "RHS Weights size: " << m_rhsWeights.extent(0) << std::endl;
+    m_rhs.print();
+    wavefield.print();
   }
 
-  int m_i1;                      ///< Previous time step index
-  int m_i2;                      ///< Current time step index
-  ARRAY_REAL_VIEW m_rhsTerm;     ///< RHS forcing term
-  ARRAY_REAL_VIEW m_pnGlobal;    ///< Pressure field
-  VECTOR_INT_VIEW m_rhsElement;  ///< Source element indices
-  ARRAY_REAL_VIEW m_rhsWeights;  ///< Forcing weights per node
+  WavefieldAcoustic m_wavefield;   ///< Acoustic wavefield data
+  RhsAcoustic m_rhs;               ///< Acoustic RHS data
 };
 
 /**
@@ -127,26 +114,26 @@ class SEMsolverAcoustic : public SEMSolverBase
    *
    * Typically used for recording seismograms or snapshots.
    *
-   * @param indexTimeStep Time index to output.
-   * @param i1 Index for displacement buffer.
-   * @param myElementSource Element containing the receiver.
+   * @param t Time step index to output.
+   * @param e Element containing the receiver.
    * @param field The field to output
    * @param fieldName The name of the field to output (here it can be pnGlobal)
    */
-  void outputSolutionValues(const int &indexTimeStep, int &i1,
-                            int &myElementSource, const ARRAY_REAL_VIEW &field,
+  void outputSolutionValues(const int &t,
+                            const int &e,
+                            const VECTOR_REAL_VIEW &field,
                             const char *fieldName) override;
+
   /**
    * @brief Apply external forcing to the global displacement field.
    *
    * @param timeSample Current time sample index.
    * @param dt Delta time for this iteration.
-   * @param i2 Current displacement index.
    * @param rhsTerm RHS forcing term array.
    * @param rhsElement Indices of source elements.
    * @param rhsWeights Forcing weights per node.
    */
-  void applyRHSTerm(int timeSample, float dt, int i2,
+  void applyRHSTerm(int timeSample, float dt,
                     const ARRAY_REAL_VIEW &rhsTerm,
                     const VECTOR_INT_VIEW &rhsElement,
                     const ARRAY_REAL_VIEW &rhsWeights);
@@ -154,10 +141,9 @@ class SEMsolverAcoustic : public SEMSolverBase
   /**
    * @brief Assemble local element contributions to global FE vectors.
    *
-   * @param i2 Current displacement field index.
-   * @param pnGlobal Global pressure field.
+   * @param pnGlobalCurr Global pressure field at current time step.
    */
-  void computeElementContributions(int i2, const ARRAY_REAL_VIEW &pnGlobal);
+  void computeElementContributions(const VECTOR_REAL_VIEW &pnGlobalCurr);
 
   /**
    * @brief Update the global pressure field at interior nodes.
@@ -165,12 +151,12 @@ class SEMsolverAcoustic : public SEMSolverBase
    * Applies the time integration scheme for acoustic wave propagation.
    *
    * @param dt Delta time for this iteration.
-   * @param i1 Previous time step index.
-   * @param i2 Current time step index.
-   * @param pnGlobal Pressure field array (updated in-place).
+   * @param pnGlobalPrev Pressure field at previous time step.
+   * @param pnGlobalCurr Pressure field at current time step (updated in-place).
    */
-  void updatePressureField(float dt, int i1, int i2,
-                           const ARRAY_REAL_VIEW &pnGlobal);
+  void updatePressureField(float dt,
+                           const VECTOR_REAL_VIEW &pnGlobalPrev,
+                           const VECTOR_REAL_VIEW &pnGlobalCurr);
 
  private:
   MESH_TYPE m_mesh;  ///< Computational mesh

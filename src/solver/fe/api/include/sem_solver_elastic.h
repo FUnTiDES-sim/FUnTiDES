@@ -1,9 +1,16 @@
+/**
+ * @file sem_solver_elastic.h
+ * @brief Spectral Element Method (SEM) solver for elastic wave propagation.
+ */
+
 #ifndef SEM_SOLVER_ELASTIC_HPP_
 #define SEM_SOLVER_ELASTIC_HPP_
 
 #include <data_type.h>
 #include <model.h>
 #include <sem_solver_base.h>
+#include "wavefield_elastic.h"
+#include "rhs_elastic.h"
 
 #include <cmath>
 
@@ -15,48 +22,21 @@
  */
 struct SEMsolverDataElastic : public SolverBase::DataStruct
 {
-  SEMsolverDataElastic(int i1, int i2, ARRAY_REAL_VIEW rhsTermx,
-                       ARRAY_REAL_VIEW rhsTermy, ARRAY_REAL_VIEW rhsTermz,
-                       ARRAY_REAL_VIEW uxnGlobal, ARRAY_REAL_VIEW uynGlobal,
-                       ARRAY_REAL_VIEW uznGlobal, VECTOR_INT_VIEW rhsElement,
-                       ARRAY_REAL_VIEW rhsWeights)
-      : m_i1(i1),
-        m_i2(i2),
-        m_rhsTermx(rhsTermx),
-        m_rhsTermy(rhsTermy),
-        m_rhsTermz(rhsTermz),
-        m_uxnGlobal(uxnGlobal),
-        m_uynGlobal(uynGlobal),
-        m_uznGlobal(uznGlobal),
-        m_rhsElement(rhsElement),
-        m_rhsWeights(rhsWeights)
+  SEMsolverDataElastic(WavefieldElastic wavefield,
+                       RhsElastic rhs)
+      : m_wavefield(wavefield),
+        m_rhs(rhs)
   {
   }
 
   void print() const override
   {
-    std::cout << "SEMsolverDataElastic: i1=" << m_i1 << ", i2=" << m_i2
-              << std::endl;
-    std::cout << "RHSx Term size: " << m_rhsTermx.extent(0) << std::endl;
-    std::cout << "RHSy Term size: " << m_rhsTermy.extent(0) << std::endl;
-    std::cout << "RHSz Term size: " << m_rhsTermz.extent(0) << std::endl;
-    std::cout << "Uxn Global size: " << m_uxnGlobal.extent(0) << std::endl;
-    std::cout << "Uyn Global size: " << m_uynGlobal.extent(0) << std::endl;
-    std::cout << "Uzn Global size: " << m_uznGlobal.extent(0) << std::endl;
-    std::cout << "RHS Element size: " << m_rhsElement.extent(0) << std::endl;
-    std::cout << "RHS Weights size: " << m_rhsWeights.extent(0) << std::endl;
+    m_wavefield.print();
+    m_rhs.print();
   }
 
-  int m_i1;                      ///< Previous time step index
-  int m_i2;                      ///< Current time step index
-  ARRAY_REAL_VIEW m_rhsTermx;    ///< X-component forcing term
-  ARRAY_REAL_VIEW m_rhsTermy;    ///< Y-component forcing term
-  ARRAY_REAL_VIEW m_rhsTermz;    ///< Z-component forcing term
-  ARRAY_REAL_VIEW m_uxnGlobal;   ///< X-displacement field
-  ARRAY_REAL_VIEW m_uynGlobal;   ///< Y-displacement field
-  ARRAY_REAL_VIEW m_uznGlobal;   ///< Z-displacement field
-  VECTOR_INT_VIEW m_rhsElement;  ///< Source element indices
-  ARRAY_REAL_VIEW m_rhsWeights;  ///< Forcing weights per node
+  WavefieldElastic m_wavefield;   ///< Elastic wavefield data
+  RhsElastic m_rhs;               ///< Elastic RHS data
 };
 
 /**
@@ -145,13 +125,12 @@ class SEMsolverElastic : public SEMSolverBase
    * Typically used for recording seismograms or snapshots.
    *
    * @param indexTimeStep Time index to output.
-   * @param i1 Index for displacement buffer.
    * @param myElementSource Element containing the receiver.
    * @param field The field to output
    * @param fieldName The name of the field to output (here it can be uxnGlobal,
    * uynGloba, uznGlobal)
    */
-  void outputSolutionValues(const int &indexTimeStep, int &i1,
+  void outputSolutionValues(const int &indexTimeStep,
                             int &myElementSource,
                             const ARRAY_REAL_VIEW &uxnGlobal,
                             const char *fieldName) override;
@@ -161,14 +140,13 @@ class SEMsolverElastic : public SEMSolverBase
    *
    * @param timeSample Current time sample index.
    * @param dt Delta time for this iteration.
-   * @param i2 Current displacement index.
    * @param rhsTermx X-component RHS forcing term array.
    * @param rhsTermy Y-component RHS forcing term array.
    * @param rhsTermz Z-component RHS forcing term array.
    * @param rhsElement Indices of source elements.
    * @param rhsWeights Forcing weights per node.
    */
-  void applyRHSTerm(int timeSample, float dt, int i2,
+  void applyRHSTerm(int timeSample, float dt,
                     const ARRAY_REAL_VIEW &rhsTermx,
                     const ARRAY_REAL_VIEW &rhsTermy,
                     const ARRAY_REAL_VIEW &rhsTermz,
@@ -178,14 +156,13 @@ class SEMsolverElastic : public SEMSolverBase
   /**
    * @brief Assemble local element contributions to global FE vectors.
    *
-   * @param i2 Current displacement field index.
-   * @param uxnGlobal Global displacement in x direction  field.
-   * @param uynGlobal Global displacement in y direction  field.
-   * @param uznGlobal Global displacement in z direction  field.
+   * @param uxnGlobalCurr Global displacement in x direction field at current time step.
+   * @param uynGlobalCurr Global displacement in y direction field at current time step.
+   * @param uznGlobalCurr Global displacement in z direction field at current time step.
    */
-  void computeElementContributions(int i2, const ARRAY_REAL_VIEW &uxnGlobal,
-                                   const ARRAY_REAL_VIEW &uynGlobal,
-                                   const ARRAY_REAL_VIEW &uznGlobal);
+  void computeElementContributions(const VECTOR_REAL_VIEW &uxnGlobalCurr,
+                                   const VECTOR_REAL_VIEW &uynGlobalCurr,
+                                   const VECTOR_REAL_VIEW &uznGlobalCurr);
 
   /**
    * @brief Update the global displacement field at interior nodes.
@@ -193,16 +170,20 @@ class SEMsolverElastic : public SEMSolverBase
    * Applies the time integration scheme for elastic wave propagation.
    *
    * @param dt Delta time for this iteration.
-   * @param i1 Previous time step index.
-   * @param i2 Current time step index.
-   * @param uxnGlobal X-displacement field array (updated in-place).
-   * @param uynGlobal Y-displacement field array (updated in-place).
-   * @param uznGlobal Z-displacement field array (updated in-place).
+   * @param uxnGlobalPrev X-displacement field array at previous time step.
+   * @param uxnGlobalCurr X-displacement field array at current time step (updated in-place).
+   * @param uynGlobalPrev Y-displacement field array at previous time step.
+   * @param uynGlobalCurr Y-displacement field array at current time step (updated in-place).
+   * @param uznGlobalPrev Z-displacement field array at previous time step.
+   * @param uznGlobalCurr Z-displacement field array at current time step (updated in-place).
    */
-  void updateDisplacementField(float dt, int i1, int i2,
-                               const ARRAY_REAL_VIEW &uxnGlobal,
-                               const ARRAY_REAL_VIEW &uynGlobal,
-                               const ARRAY_REAL_VIEW &uznGlobal);
+  void updateDisplacementField(float dt,
+                               const VECTOR_REAL_VIEW &uxnGlobalPrev,
+                               const VECTOR_REAL_VIEW &uxnGlobalCurr,
+                               const VECTOR_REAL_VIEW &uynGlobalPrev,
+                               const VECTOR_REAL_VIEW &uynGlobalCurr,
+                               const VECTOR_REAL_VIEW &uznGlobalPrev,
+                               const VECTOR_REAL_VIEW &uznGlobalCurr);
 
   /**
    * @brief Compute the elasticity matrix at a given node.
