@@ -8,7 +8,7 @@
 constexpr int ORDER = @ORDER@;
 
 template class solver::fe::SEMsolver<ORDER,
-                         IntegralTypeSelector<ORDER, solver::fe::kShiva>::type,
+                         IntegralTypeSelector<ORDER, IntegralType::SHIVA>::type,
                          model::@MODEL_CLASS@<@MODEL_TEMPLATE_PARAMS@>,
                          @MODEL_ON_NODES@,
-                         solver::fe::kAcoustic>;
+                         solver::fe::enums::kAcoustic>;
