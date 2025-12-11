@@ -50,30 +50,26 @@ std::unique_ptr<SEMSolverBase> makeSolverStruct(bool isModelOnNodes,
   {
     if (isModelOnNodes)
     {
-      return std::make_unique<
-          solver::fe::SEMsolver<ORDER, SelectedIntegral, MeshT, true,
-                                physicType::kAcoustic>>();
+      return std::make_unique<solver::fe::SEMsolver<
+          ORDER, SelectedIntegral, MeshT, true, physicType::kAcoustic>>();
     }
     else
     {
-      return std::make_unique<
-          solver::fe::SEMsolver<ORDER, SelectedIntegral, MeshT, false,
-                                physicType::kAcoustic>>();
+      return std::make_unique<solver::fe::SEMsolver<
+          ORDER, SelectedIntegral, MeshT, false, physicType::kAcoustic>>();
     }
   }
   else  // kElastic
   {
     if (isModelOnNodes)
     {
-      return std::make_unique<
-          solver::fe::SEMsolver<ORDER, SelectedIntegral, MeshT, true,
-                                physicType::kElastic>>();
+      return std::make_unique<solver::fe::SEMsolver<
+          ORDER, SelectedIntegral, MeshT, true, physicType::kElastic>>();
     }
     else
     {
-      return std::make_unique<
-          solver::fe::SEMsolver<ORDER, SelectedIntegral, MeshT, false,
-                                physicType::kElastic>>();
+      return std::make_unique<solver::fe::SEMsolver<
+          ORDER, SelectedIntegral, MeshT, false, physicType::kElastic>>();
     }
   }
 }
@@ -92,30 +88,26 @@ std::unique_ptr<SEMSolverBase> makeSolverUnstruct(bool isModelOnNodes,
   {
     if (isModelOnNodes)
     {
-      return std::make_unique<
-          solver::fe::SEMsolver<ORDER, SelectedIntegral, MeshT, true,
-                                physicType::kAcoustic>>();
+      return std::make_unique<solver::fe::SEMsolver<
+          ORDER, SelectedIntegral, MeshT, true, physicType::kAcoustic>>();
     }
     else
     {
-      return std::make_unique<
-          solver::fe::SEMsolver<ORDER, SelectedIntegral, MeshT, false,
-                                physicType::kAcoustic>>();
+      return std::make_unique<solver::fe::SEMsolver<
+          ORDER, SelectedIntegral, MeshT, false, physicType::kAcoustic>>();
     }
   }
   else  // kElastic
   {
     if (isModelOnNodes)
     {
-      return std::make_unique<
-          solver::fe::SEMsolver<ORDER, SelectedIntegral, MeshT, true,
-                                physicType::kElastic>>();
+      return std::make_unique<solver::fe::SEMsolver<
+          ORDER, SelectedIntegral, MeshT, true, physicType::kElastic>>();
     }
     else
     {
-      return std::make_unique<
-          solver::fe::SEMsolver<ORDER, SelectedIntegral, MeshT, false,
-                                physicType::kElastic>>();
+      return std::make_unique<solver::fe::SEMsolver<
+          ORDER, SelectedIntegral, MeshT, false, physicType::kElastic>>();
     }
   }
 }

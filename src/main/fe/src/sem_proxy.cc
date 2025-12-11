@@ -57,12 +57,11 @@ SEMproxy::SEMproxy(const SemProxyOptions& opt)
   const methodType methodType = getMethod(opt.method);
   const implemType implemType = getImplem(opt.implem);
   const meshType meshType = getMesh(opt.mesh);
-  const modelLocationType modelLocation =
-      isModelOnNodes ? modelLocationType::kOnNodes
-                     : modelLocationType::kOnElements;
+  const modelLocationType modelLocation = isModelOnNodes
+                                              ? modelLocationType::kOnNodes
+                                              : modelLocationType::kOnElements;
   const physicType physicType =
-      isElastic ? physicType::kElastic
-                : physicType::kAcoustic;
+      isElastic ? physicType::kElastic : physicType::kAcoustic;
 
   float lx = domain_size_[0];
   float ly = domain_size_[1];
