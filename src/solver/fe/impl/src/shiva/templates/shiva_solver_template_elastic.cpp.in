@@ -11,4 +11,4 @@ template class solver::fe::SEMsolver<ORDER,
                          IntegralTypeSelector<ORDER, IntegralType::SHIVA>::type,
                          model::@MODEL_CLASS@<@MODEL_TEMPLATE_PARAMS@>,
                          @MODEL_ON_NODES@,
-                         solver::fe::enums::kElastic>;
+                         solver::fe::enums::physicType::kElastic>;
