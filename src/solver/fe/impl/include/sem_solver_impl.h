@@ -184,7 +184,7 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES,
                                                       transformData);
 
   // Physics-specific element contribution computation
-  if constexpr (PHYSICS == kAcoustic)
+  if constexpr (PHYSICS == enums::physicType::kAcoustic)
   {
     // Acoustic: scalar stiffness term with 1/rho coefficient
     real_t inv_density = 0.0f;
@@ -208,7 +208,7 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES,
           localWork[0][i] += localIncrement;
         });
   }
-  else if constexpr (PHYSICS == kElastic)
+  else if constexpr (PHYSICS == enums::physicType::kElastic)
   {
     // Elastic: tensor stiffness with elasticity matrix
     float CTTI[6][6];
@@ -430,7 +430,7 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES,
   real_t model_factor = 0.0f;
   if constexpr (!IS_MODEL_ON_NODES)
   {
-    if constexpr (PHYSICS == kAcoustic)
+    if constexpr (PHYSICS == enums::physicType::kAcoustic)
     {
       // Acoustic: 1/(vp^2 * rho)
       model_factor = 1.0f / (m_mesh.getModelVpOnElement(elementNumber) *
@@ -453,7 +453,7 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES,
 
     if constexpr (IS_MODEL_ON_NODES)
     {
-      if constexpr (PHYSICS == kAcoustic)
+      if constexpr (PHYSICS == enums::physicType::kAcoustic)
       {
         model_factor = 1.0f / (m_mesh.getModelVpOnNodes(gIndex) *
                                m_mesh.getModelVpOnNodes(gIndex) *

@@ -6,28 +6,30 @@ namespace solver
 {
 namespace fe
 {
+namespace enums
+{
 
-enum methodType
+enum class methodType
 {
   kSem,
   kDg
 };
-enum implemType
+enum class implemType
 {
   kMakutu,
   kShiva
 };
-enum meshType
+enum class meshType
 {
   kStruct,
   kUnstruct
 };
-enum modelLocationType
+enum class modelLocationType
 {
   kOnNodes,
   kOnElements
 };
-enum physicType
+enum class physicType
 {
   kAcoustic,
   kElastic
@@ -37,9 +39,9 @@ inline std::string to_string(methodType m)
 {
   switch (m)
   {
-    case kSem:
+    case methodType::kSem:
       return "SEM";
-    case kDg:
+    case methodType::kDg:
       return "DG";
     default:
       return "Unknown";
@@ -50,9 +52,9 @@ inline std::string to_string(implemType i)
 {
   switch (i)
   {
-    case kMakutu:
+    case implemType::kMakutu:
       return "MAKUTU";
-    case kShiva:
+    case implemType::kShiva:
       return "SHIVA";
     default:
       return "Unknown";
@@ -63,9 +65,9 @@ inline std::string to_string(meshType m)
 {
   switch (m)
   {
-    case kStruct:
+    case meshType::kStruct:
       return "Struct";
-    case kUnstruct:
+    case meshType::kUnstruct:
       return "Unstruct";
     default:
       return "Unknown";
@@ -76,9 +78,9 @@ inline std::string to_string(modelLocationType loc)
 {
   switch (loc)
   {
-    case kOnNodes:
+    case modelLocationType::kOnNodes:
       return "OnNodes";
-    case kOnElements:
+    case modelLocationType::kOnElements:
       return "OnElements";
     default:
       return "Unknown";
@@ -89,14 +91,14 @@ inline std::string to_string(physicType p)
 {
   switch (p)
   {
-    case kAcoustic:
+    case physicType::kAcoustic:
       return "Acoustic";
-    case kElastic:
+    case physicType::kElastic:
       return "Elastic";
     default:
       return "Unknown";
   }
 }
-
+}  // namespace enums
 }  // namespace fe
 }  // namespace solver

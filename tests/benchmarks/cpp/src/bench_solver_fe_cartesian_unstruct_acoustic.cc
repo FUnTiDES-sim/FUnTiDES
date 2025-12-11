@@ -12,6 +12,9 @@
 #include "solver_factory.h"
 #include "utils.h"
 
+using namespace solver::fe;
+using namespace solver::fe::enums;
+
 namespace model
 {
 namespace bench
@@ -55,12 +58,12 @@ class SolverUnstructFixture : public benchmark::Fixture
   static constexpr int time_sample = 1;
   static constexpr int n_time_steps = 1500;
   static constexpr float f0 = 5.0f;
-  solver::fe::implemType implem_;
+  implemType implem_;
 
   void SetUp(const ::benchmark::State& state) override
   {
     isModelOnNodes_ = state.range(0);
-    implem_ = static_cast<solver::fe::implemType>(state.range(1));
+    implem_ = static_cast<implemType>(state.range(1));
   }
 
   std::shared_ptr<model::ModelApi<float, int>> createModel()
@@ -74,9 +77,8 @@ class SolverUnstructFixture : public benchmark::Fixture
   void setLabel(benchmark::State& state) const
   {
     state.SetLabel("Order=" + std::to_string(order) +
-                   " OnNodes=" + std::to_string(isModelOnNodes_) +
-                   " Implem=" + std::to_string(implem_) +
-                   " IsElastic=" + std::to_string(false));
+                   " OnNodes=" + to_string(isModelOnNodes_) + " Implem=" +
+                   to_string(implem_) + " IsElastic=" + std::to_string(false));
   }
 };
 
@@ -110,11 +112,10 @@ BENCHMARK_TEMPLATE_METHOD_F(SolverUnstructFixture, FEInit)
   auto model = this->createModel();
 
   auto solver = SolverFactory::createSolver(
-      solver::fe::methodType::kSem, this->implem_,
-      solver::fe::meshType::kUnstruct,
-      this->isModelOnNodes_ ? solver::fe::modelLocationType::kOnNodes
-                            : solver::fe::modelLocationType::kOnElements,
-      solver::fe::physicType::kAcoustic, this->order);
+      methodType::kSem, this->implem_, meshType::kUnstruct,
+      this->isModelOnNodes_ ? modelLocationType::kOnNodes
+                            : modelLocationType::kOnElements,
+      physicType::kAcoustic, this->order);
 
   // Bench
   for (auto _ : state)
@@ -134,11 +135,10 @@ BENCHMARK_TEMPLATE_METHOD_F(SolverUnstructFixture, OneStep)
   auto model = this->createModel();
 
   auto solver = SolverFactory::createSolver(
-      solver::fe::methodType::kSem, this->implem_,
-      solver::fe::meshType::kUnstruct,
-      this->isModelOnNodes_ ? solver::fe::modelLocationType::kOnNodes
-                            : solver::fe::modelLocationType::kOnElements,
-      solver::fe::physicType::kAcoustic, this->order);
+      methodType::kSem, this->implem_, meshType::kUnstruct,
+      this->isModelOnNodes_ ? modelLocationType::kOnNodes
+                            : modelLocationType::kOnElements,
+      physicType::kAcoustic, this->order);
 
   solver->computeFEInit(*model, this->sponge_size, this->surface_sponge,
                         this->taper_delta);
@@ -174,18 +174,20 @@ BENCHMARK_TEMPLATE_METHOD_F(SolverUnstructFixture, OneStep)
 }
 
 // Instantiate for all order/isModelOnNodes/implemType combinations
-BENCHMARK_FOR_ALL_ORDERS(SolverUnstructFixture, FEInit,
-                         BuilderConfig,
-                             ->ArgsProduct({{0, 1},
-                                            {solver::fe::implemType::kMakutu,
-                                             solver::fe::implemType::kShiva}})
-                             ->Unit(benchmark::kMillisecond))
-BENCHMARK_FOR_ALL_ORDERS(SolverUnstructFixture, OneStep,
-                         BuilderConfig,
-                             ->ArgsProduct({{0, 1},
-                                            {solver::fe::implemType::kMakutu,
-                                             solver::fe::implemType::kShiva}})
-                             ->Unit(benchmark::kMillisecond))
+BENCHMARK_FOR_ALL_ORDERS(
+    SolverUnstructFixture, FEInit,
+    BuilderConfig,
+        ->ArgsProduct({{0, 1},
+                       {static_cast<int64_t>(implemType::kMakutu),
+                        static_cast<int64_t>(implemType::kShiva)}})
+        ->Unit(benchmark::kMillisecond))
+BENCHMARK_FOR_ALL_ORDERS(
+    SolverUnstructFixture, OneStep,
+    BuilderConfig,
+        ->ArgsProduct({{0, 1},
+                       {static_cast<int64_t>(implemType::kMakutu),
+                        static_cast<int64_t>(implemType::kShiva)}})
+        ->Unit(benchmark::kMillisecond))
 
 }  // namespace bench
 }  // namespace model

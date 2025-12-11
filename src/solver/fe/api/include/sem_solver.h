@@ -8,11 +8,14 @@
 
 #include <array>
 #include <cmath>
+#include "sem_enums.h"
 
 namespace solver
 {
 namespace fe
 {
+
+using physicType = solver::fe::enums::physicType;
 
 //============================================================================
 // Physics Traits - Compile-time properties for each physics type
@@ -31,7 +34,7 @@ struct PhysicsTraits;
  * Acoustic wave propagation uses a single scalar pressure field.
  */
 template <>
-struct PhysicsTraits<kAcoustic>
+struct PhysicsTraits<enums::physicType::kAcoustic>
 {
   /// Number of solution fields (1 for pressure)
   static constexpr int kNumFields = 1;
@@ -52,7 +55,7 @@ struct PhysicsTraits<kAcoustic>
  * Elastic wave propagation uses three displacement components (ux, uy, uz).
  */
 template <>
-struct PhysicsTraits<kElastic>
+struct PhysicsTraits<enums::physicType::kElastic>
 {
   /// Number of solution fields (3 for displacement vector)
   static constexpr int kNumFields = 3;
@@ -90,7 +93,7 @@ struct SEMsolverData : public SolverBase::DataStruct
   /**
    * @brief Constructor for acoustic physics (single field).
    */
-  template <physicType P = PHYSICS, typename = std::enable_if_t<P == kAcoustic>>
+  template <physicType P = PHYSICS, typename = std::enable_if_t<P == enums::physicType::kAcoustic>>
   SEMsolverData(int i1, int i2, ARRAY_REAL_VIEW rhsTerm,
                 ARRAY_REAL_VIEW fieldGlobal, VECTOR_INT_VIEW rhsElement,
                 ARRAY_REAL_VIEW rhsWeights)
@@ -103,7 +106,7 @@ struct SEMsolverData : public SolverBase::DataStruct
   /**
    * @brief Constructor for elastic physics (three fields).
    */
-  template <physicType P = PHYSICS, typename = std::enable_if_t<P == kElastic>>
+  template <physicType P = PHYSICS, typename = std::enable_if_t<P == enums::physicType::kElastic>>
   SEMsolverData(int i1, int i2, ARRAY_REAL_VIEW rhsTermx,
                 ARRAY_REAL_VIEW rhsTermy, ARRAY_REAL_VIEW rhsTermz,
                 ARRAY_REAL_VIEW uxnGlobal, ARRAY_REAL_VIEW uynGlobal,
@@ -151,8 +154,8 @@ struct SEMsolverData : public SolverBase::DataStruct
 // Backward Compatibility Type Aliases for Data Structures
 //============================================================================
 
-using SEMsolverDataAcoustic = SEMsolverData<kAcoustic>;
-using SEMsolverDataElastic = SEMsolverData<kElastic>;
+using SEMsolverDataAcoustic = SEMsolverData<enums::physicType::kAcoustic>;
+using SEMsolverDataElastic = SEMsolverData<enums::physicType::kElastic>;
 
 //============================================================================
 // Unified SEM Solver Class
@@ -266,7 +269,7 @@ class SEMsolver : public SEMSolverBase
    * @param theta Dip angle (radians).
    * @param C Output 6x6 elasticity matrix.
    */
-  template <physicType P = PHYSICS, typename = std::enable_if_t<P == kElastic>>
+  template <physicType P = PHYSICS, typename = std::enable_if_t<P == enums::physicType::kElastic>>
   PROXY_HOST_DEVICE void computeCMatrix(float vp, float vs, float rho,
                                         float delta, float epsilon, float gamma,
                                         float phi, float theta,
@@ -304,7 +307,7 @@ class SEMsolver : public SEMSolverBase
 template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE,
           bool IS_MODEL_ON_NODES>
 using SEMsolverAcoustic =
-    SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, kAcoustic>;
+    SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, enums::physicType::kAcoustic>;
 
 /**
  * @brief Type alias for elastic solver (backward compatibility).
@@ -312,7 +315,7 @@ using SEMsolverAcoustic =
 template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE,
           bool IS_MODEL_ON_NODES>
 using SEMsolverElastic =
-    SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, kElastic>;
+    SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, enums::physicType::kElastic>;
 
 }  // namespace fe
 }  // namespace solver

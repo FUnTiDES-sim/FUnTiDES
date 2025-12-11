@@ -7,7 +7,7 @@
 #include "sem_enums.h"
 #include "sem_solver_base.h"
 
-using namespace solver::fe;
+using namespace solver::fe::enums;
 
 namespace SolverFactory
 {

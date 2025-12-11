@@ -5,6 +5,8 @@
 
 #include "sem_solver.h"
 
+using namespace solver::fe::enums;
+
 namespace SolverFactory
 {
 
@@ -44,30 +46,34 @@ std::unique_ptr<SEMSolverBase> makeSolverStruct(bool isModelOnNodes,
   using MeshT = model::ModelStruct<float, int, ORDER>;
   using SelectedIntegral = typename IntegralTypeSelector<ORDER, ImplTag>::type;
 
-  if (physic == kAcoustic)
+  if (physic == physicType::kAcoustic)
   {
     if (isModelOnNodes)
     {
-      return std::make_unique<solver::fe::SEMsolver<ORDER, SelectedIntegral,
-                                                    MeshT, true, kAcoustic>>();
+      return std::make_unique<
+          solver::fe::SEMsolver<ORDER, SelectedIntegral, MeshT, true,
+                                physicType::kAcoustic>>();
     }
     else
     {
-      return std::make_unique<solver::fe::SEMsolver<ORDER, SelectedIntegral,
-                                                    MeshT, false, kAcoustic>>();
+      return std::make_unique<
+          solver::fe::SEMsolver<ORDER, SelectedIntegral, MeshT, false,
+                                physicType::kAcoustic>>();
     }
   }
   else  // kElastic
   {
     if (isModelOnNodes)
     {
-      return std::make_unique<solver::fe::SEMsolver<ORDER, SelectedIntegral,
-                                                    MeshT, true, kElastic>>();
+      return std::make_unique<
+          solver::fe::SEMsolver<ORDER, SelectedIntegral, MeshT, true,
+                                physicType::kElastic>>();
     }
     else
     {
-      return std::make_unique<solver::fe::SEMsolver<ORDER, SelectedIntegral,
-                                                    MeshT, false, kElastic>>();
+      return std::make_unique<
+          solver::fe::SEMsolver<ORDER, SelectedIntegral, MeshT, false,
+                                physicType::kElastic>>();
     }
   }
 }
@@ -82,30 +88,34 @@ std::unique_ptr<SEMSolverBase> makeSolverUnstruct(bool isModelOnNodes,
   using MeshT = model::ModelUnstruct<float, int>;
   using SelectedIntegral = typename IntegralTypeSelector<ORDER, ImplTag>::type;
 
-  if (physic == kAcoustic)
+  if (physic == physicType::kAcoustic)
   {
     if (isModelOnNodes)
     {
-      return std::make_unique<solver::fe::SEMsolver<ORDER, SelectedIntegral,
-                                                    MeshT, true, kAcoustic>>();
+      return std::make_unique<
+          solver::fe::SEMsolver<ORDER, SelectedIntegral, MeshT, true,
+                                physicType::kAcoustic>>();
     }
     else
     {
-      return std::make_unique<solver::fe::SEMsolver<ORDER, SelectedIntegral,
-                                                    MeshT, false, kAcoustic>>();
+      return std::make_unique<
+          solver::fe::SEMsolver<ORDER, SelectedIntegral, MeshT, false,
+                                physicType::kAcoustic>>();
     }
   }
   else  // kElastic
   {
     if (isModelOnNodes)
     {
-      return std::make_unique<solver::fe::SEMsolver<ORDER, SelectedIntegral,
-                                                    MeshT, true, kElastic>>();
+      return std::make_unique<
+          solver::fe::SEMsolver<ORDER, SelectedIntegral, MeshT, true,
+                                physicType::kElastic>>();
     }
     else
     {
-      return std::make_unique<solver::fe::SEMsolver<ORDER, SelectedIntegral,
-                                                    MeshT, false, kElastic>>();
+      return std::make_unique<
+          solver::fe::SEMsolver<ORDER, SelectedIntegral, MeshT, false,
+                                physicType::kElastic>>();
     }
   }
 }
@@ -118,17 +128,17 @@ std::unique_ptr<SEMSolverBase> makeSemSolver(int order, meshType mesh,
                                              modelLocationType modelLocation,
                                              physicType physic)
 {
-  bool const isModelOnNodes = (modelLocation == kOnNodes);
+  bool const isModelOnNodes = (modelLocation == modelLocationType::kOnNodes);
 
   switch (mesh)
   {
-    case kStruct:
+    case meshType::kStruct:
       return orderDispatch(order, [&](auto orderIC) {
         constexpr int ORDER = decltype(orderIC)::value;
         return makeSolverStruct<ImplTag, ORDER>(isModelOnNodes, physic);
       });
 
-    case kUnstruct:
+    case meshType::kUnstruct:
       return orderDispatch(order, [&](auto orderIC) {
         constexpr int ORDER = decltype(orderIC)::value;
         return makeSolverUnstruct<ImplTag, ORDER>(isModelOnNodes, physic);
@@ -146,14 +156,14 @@ std::unique_ptr<SEMSolverBase> createSolver(
     meshType const mesh, modelLocationType const modelLocation,
     physicType const physicType, int const order)
 {
-  if (methodType == kSem)
+  if (methodType == methodType::kSem)
   {
     switch (implemType)
     {
-      case kMakutu:
+      case implemType::kMakutu:
         return makeSemSolver<IntegralType::MAKUTU>(order, mesh, modelLocation,
                                                    physicType);
-      case kShiva:
+      case implemType::kShiva:
 #ifdef ENABLE_Shiva
         return makeSemSolver<IntegralType::SHIVA>(order, mesh, modelLocation,
                                                   physicType);
