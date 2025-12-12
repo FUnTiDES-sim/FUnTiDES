@@ -1,16 +1,14 @@
 #ifndef SRC_SOLVER_FE_API_INCLUDE_SEMSOLVER_H_
 #define SRC_SOLVER_FE_API_INCLUDE_SEMSOLVER_H_
 
-#include <data_type.h>
-#include <model.h>
-#include <sem_enums.h>
-#include <sem_solver_base.h>
-
 #include <array>
 #include <cmath>
 
-#include "sem_enums.h"
+#include "data_type.h"
+#include "model.h"
 #include "physics_traits.h"
+#include "sem_enums.h"
+#include "sem_solver_base.h"
 
 namespace solver
 {

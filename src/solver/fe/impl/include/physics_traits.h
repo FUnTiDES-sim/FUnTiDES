@@ -1,3 +1,9 @@
+#pragma once
+
+#include "sem_enums.h"
+#include "sem_solver.h"
+#include "solver_base.h"
+
 namespace solver
 {
 namespace fe
