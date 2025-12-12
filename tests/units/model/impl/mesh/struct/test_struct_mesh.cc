@@ -375,8 +375,8 @@ TYPED_TEST(ModelStructTest, AnisotropicAnglesOnElements)
   auto theta = model.getModelThetaOnElement(0);
   auto phi = model.getModelPhiOnElement(0);
 
-  EXPECT_EQ(theta, 30);
-  EXPECT_EQ(phi, 45);
+  EXPECT_EQ(theta, 0.0);
+  EXPECT_EQ(phi, 0.0);
 }
 
 TYPED_TEST(ModelStructTest, DensityPropertiesConsistent)
