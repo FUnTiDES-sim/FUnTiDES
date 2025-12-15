@@ -11,8 +11,8 @@ class SemProxyOptions
   int order = 2;
   int ex = 50, ey = 50, ez = 50;
   float lx = 2000.f, ly = 2000.f, lz = 2000.f;
-  float srcx = 1010.f, srcy = 1010.f, srcz = 1010.f;
-  float rcvx = 1410.f, rcvy = 1010.f, rcvz = 1010.f;
+  float srcx = 1005.f, srcy = 1005.f, srcz = 1005.f;
+  float rcvx = 1405.f, rcvy = 1005.f, rcvz = 1005.f;
   std::string implem = "makutu";  // makutu|shiva
   std::string method = "sem";     // sem|dg
   std::string mesh = "cartesian";

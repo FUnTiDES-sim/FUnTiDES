@@ -189,7 +189,7 @@ void SEMproxy::run()
       // Save slice in dat format
       if (is_snapshots_ && indexTimeSample % snap_time_interval_ == 0)
       {
-        saveSnapshot(indexTimeSample);
+        saveSnapshot(indexTimeSample, pnGlobal);
       }
 
       // Save pressure at receiver
@@ -247,7 +247,7 @@ void SEMproxy::run()
   {
     SEMsolverDataElastic solverData(i1, i2, myRHSTermx, myRHSTermy, myRHSTermz,
                                     uxnGlobal, uynGlobal, uznGlobal, rhsElement,
-                                    rhsWeights);
+                                    rhsWeightsX, rhsWeightsY, rhsWeightsZ);
 
     for (int indexTimeSample = 0; indexTimeSample < num_sample_;
          indexTimeSample++)
@@ -271,7 +271,7 @@ void SEMproxy::run()
       // Save slice in dat format
       if (is_snapshots_ && indexTimeSample % snap_time_interval_ == 0)
       {
-        saveSnapshot(indexTimeSample);
+        saveSnapshot(indexTimeSample,uxnGlobal);
       }
 
       // Save pressure at receiver
@@ -383,6 +383,12 @@ void SEMproxy::init_arrays()
     uynAtReceiver =
         allocateArray2D<arrayReal>(1, num_sample_, "uynAtReceiver ");
     uznAtReceiver = allocateArray2D<arrayReal>(1, num_sample_, "uznAtReceiver");
+    rhsWeightsX = allocateArray2D<arrayReal>(
+        myNumberOfRHS, m_mesh->getNumberOfPointsPerElement(), "RHSWeightX");
+    rhsWeightsY = allocateArray2D<arrayReal>(
+        myNumberOfRHS, m_mesh->getNumberOfPointsPerElement(), "RHSWeightY");
+    rhsWeightsZ = allocateArray2D<arrayReal>(
+        myNumberOfRHS, m_mesh->getNumberOfPointsPerElement(), "RHSWeightZ");
   }
   // Receiver
   rhsElementRcv = allocateVector<vectorInt>(1, "rhsElementRcv");
@@ -467,7 +473,29 @@ void SEMproxy::init_source()
 
   int order = m_mesh->getOrder();
 
+  if (isElastic_)
+{
+  float M0 = 0.75 / 2000.0;
+  
   switch (order)
+  {
+    case 1:
+      SourceAndReceiverUtils::ComputeSourceMomentWeights<1>(
+          cornerCoords, src_coord_, rhsWeightsX, rhsWeightsY, rhsWeightsZ, M0);
+      break;
+    case 2:
+      SourceAndReceiverUtils::ComputeSourceMomentWeights<2>(
+          cornerCoords, src_coord_, rhsWeightsX, rhsWeightsY, rhsWeightsZ, M0);
+      break;
+    case 3:
+      SourceAndReceiverUtils::ComputeSourceMomentWeights<3>(
+          cornerCoords, src_coord_, rhsWeightsX, rhsWeightsY, rhsWeightsZ, M0);
+      break;
+  }
+}
+else
+{
+    switch (order)
   {
     case 1:
       SourceAndReceiverUtils::ComputeRHSWeights<1>(cornerCoords, src_coord_,
@@ -484,6 +512,10 @@ void SEMproxy::init_source()
     default:
       throw std::runtime_error("Unsupported order: " + std::to_string(order));
   }
+
+ 
+}
+
 
   // Receiver computation
   int receiver_index = floor((rcv_coord_[0] * ex) / lx) +
@@ -532,11 +564,11 @@ void SEMproxy::init_source()
   }
 }
 
-void SEMproxy::saveSnapshot(int timestep)
+void SEMproxy::saveSnapshot(int timestep, ARRAY_REAL_VIEW outputVector)
 {
 #ifdef USE_KOKKOS
-  auto nb_nodes = pnGlobal.extent(0);
-  auto subview = Kokkos::subview(pnGlobal, Kokkos::ALL(), i1);
+  auto nb_nodes = outputVector.extent(0);
+  auto subview = Kokkos::subview(outputVector, Kokkos::ALL(), i1);
 
   vectorReal subset("snapshot_cpy", nb_nodes);
   // Use a parallel copy to handle the strided layout

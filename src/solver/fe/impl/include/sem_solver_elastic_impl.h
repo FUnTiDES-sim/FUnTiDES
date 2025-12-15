@@ -61,12 +61,14 @@ void SEMsolverElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES>::
   ARRAY_REAL_VIEW const &uynGlobal = myData.m_uynGlobal;
   ARRAY_REAL_VIEW const &uznGlobal = myData.m_uznGlobal;
   VECTOR_INT_VIEW const &rhsElement = myData.m_rhsElement;
-  ARRAY_REAL_VIEW const &rhsWeights = myData.m_rhsWeights;
+  ARRAY_REAL_VIEW const &rhsWeightsX = myData.m_rhsWeightsX;
+  ARRAY_REAL_VIEW const &rhsWeightsY = myData.m_rhsWeightsY;
+  ARRAY_REAL_VIEW const &rhsWeightsZ = myData.m_rhsWeightsZ;
 
   resetGlobalVectors(m_mesh.getNumberOfNodes());
   FENCE
   applyRHSTerm(timeSample, dt, i2, rhsTermx, rhsTermy, rhsTermz, rhsElement,
-               rhsWeights);
+               rhsWeightsX, rhsWeightsY, rhsWeightsZ);
   FENCE
   computeElementContributions(i2, uxnGlobal, uynGlobal, uznGlobal);
   FENCE
@@ -96,7 +98,9 @@ void SEMsolverElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES>::
                  const ARRAY_REAL_VIEW &rhsTermy,
                  const ARRAY_REAL_VIEW &rhsTermz,
                  const VECTOR_INT_VIEW &rhsElement,
-                 const ARRAY_REAL_VIEW &rhsWeights)
+                 const ARRAY_REAL_VIEW &rhsWeightsX,
+                 const ARRAY_REAL_VIEW &rhsWeightsY,
+                 const ARRAY_REAL_VIEW &rhsWeightsZ)
 {
   float const dt2 = dt * dt;
   int nb_rhs_element = rhsElement.extent(0);
@@ -110,9 +114,9 @@ void SEMsolverElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES>::
         {
           int localNodeId = x + y * (ORDER + 1) + z * (ORDER + 1) * (ORDER + 1);
           int nodeRHS = m_mesh.globalNodeIndex(rhsElement[i], x, y, z);
-          float sourcex = rhsTermx(i, timeSample) * rhsWeights(i, localNodeId);
-          float sourcey = rhsTermy(i, timeSample) * rhsWeights(i, localNodeId);
-          float sourcez = rhsTermz(i, timeSample) * rhsWeights(i, localNodeId);
+          float sourcex = rhsTermx(i, timeSample) * rhsWeightsX(i, localNodeId);
+          float sourcey = rhsTermy(i, timeSample) * rhsWeightsY(i, localNodeId);
+          float sourcez = rhsTermz(i, timeSample) * rhsWeightsZ(i, localNodeId);
           uxGlobal(nodeRHS) -= sourcex;
           uyGlobal(nodeRHS) -= sourcey;
           uzGlobal(nodeRHS) -= sourcez;
@@ -132,7 +136,6 @@ void SEMsolverElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES>::
 {
   MAINLOOPHEAD(m_mesh.getNumberOfElements(), elementNumber)
 
-  // Guard for extra threads (Kokkos might launch more than needed)
   if (elementNumber >= m_mesh.getNumberOfElements()) return;
 
   float uxnLocal[nPointsElement] = {0};
@@ -158,146 +161,70 @@ void SEMsolverElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES>::
   model_discretization_interface::gatherTransformData(elementNumber, m_mesh,
                                                       transformData);
 
-  float CTTI[6][6];
+  // Get material properties
+  float vp, vs, rho, mu, lambda;
   if constexpr (!IS_MODEL_ON_NODES)
   {
-    m_mesh.getCTensorOnElement(elementNumber, CTTI);
+    vp = m_mesh.getModelVpOnElement(elementNumber);
+    vs = m_mesh.getModelVsOnElement(elementNumber);
+    rho = m_mesh.getModelRhoOnElement(elementNumber);
+    mu = rho * vs * vs;
+    lambda = rho * (vp * vp - 2.0f * vs * vs);
   }
 
-#ifdef __CUDACC__
-  // CUDA: use vector types to load 4 floats at once
-  struct CJPacked
-  {
-    float4 a;
-    float2 b;
-  };  // a.x,a.y,a.z,a.w -> v0..v3 ; b.x,b.y -> v4,v5
-#else
-  // Fallback portable layout (same memory footprint, aligned to 16 bytes)
-  struct CJPacked
-  {
-    alignas(16) float a0, a1, a2, a3;
-    float b0, b1;
-    float pad[2];
-  };
-#endif
-
-  CJPacked CJflat[3 * 3];
+  // Storage for R_ij tensors at each quadrature point
+  float Rxx[3][3], Ryy[3][3], Rzz[3][3];
+  float Rxy[3][3], Rxz[3][3], Ryz[3][3];
 
   INTEGRAL_TYPE::computeStiffNessTermwithJac(
       transformData,
       [&](int qa, int qb, int qc, float const(&J)[3][3]) {
+        // Update material properties for model on nodes
         if constexpr (IS_MODEL_ON_NODES)
         {
           int const gIndex = m_mesh.globalNodeIndex(elementNumber, qa, qb, qc);
-          float const vp = m_mesh.getModelVpOnNodes(gIndex);
-          float const vs = m_mesh.getModelVsOnNodes(gIndex);
-          float const rho = m_mesh.getModelRhoOnNodes(gIndex);
-          float const delta = m_mesh.getModelDeltaOnNodes(gIndex);
-          float const epsilon = m_mesh.getModelEpsilonOnNodes(gIndex);
-          float const gamma = m_mesh.getModelGammaOnNodes(gIndex);
-          float const phi = m_mesh.getModelPhiOnNodes(gIndex);
-          float const theta = m_mesh.getModelThetaOnNodes(gIndex);
-          computeCMatrix(vp, vs, rho, delta, epsilon, gamma, phi, theta, CTTI);
+          vp = m_mesh.getModelVpOnNodes(gIndex);
+          vs = m_mesh.getModelVsOnNodes(gIndex);
+          rho = m_mesh.getModelRhoOnNodes(gIndex);
+          mu = rho * vs * vs;
+          lambda = rho * (vp * vp - 2.0f * vs * vs);
         }
 
-        // Charger CTTI en cache (code existant inchangé)
-        float const C00 = CTTI[0][0], C01 = CTTI[0][1], C02 = CTTI[0][2];
-        float const C03 = CTTI[0][3], C04 = CTTI[0][4], C05 = CTTI[0][5];
-        float const C11 = CTTI[1][1], C12 = CTTI[1][2], C13 = CTTI[1][3];
-        float const C14 = CTTI[1][4], C15 = CTTI[1][5];
-        float const C22 = CTTI[2][2], C23 = CTTI[2][3], C24 = CTTI[2][4],
-                    C25 = CTTI[2][5];
-        float const C33 = CTTI[3][3], C34 = CTTI[3][4], C35 = CTTI[3][5];
-        float const C44 = CTTI[4][4], C45 = CTTI[4][5];
-        float const C55 = CTTI[5][5];
-
+        // Compute R_ij for all direction pairs (p,r)
         for (int p = 0; p < 3; ++p)
         {
-          const float Jp0 = J[p][0], Jp1 = J[p][1], Jp2 = J[p][2];
           for (int r = 0; r < 3; ++r)
           {
-            const float Jr0 = J[r][0], Jr1 = J[r][1], Jr2 = J[r][2];
+            // J[p] = gradient of basis function p in physical space
+            // J[p][0] = dN_p/dx, J[p][1] = dN_p/dy, J[p][2] = dN_p/dz
+            float const Jp0 = J[p][0], Jp1 = J[p][1], Jp2 = J[p][2];
+            float const Jr0 = J[r][0], Jr1 = J[r][1], Jr2 = J[r][2];
 
-            // precompute products
-            const float p0r0 = Jp0 * Jr0, p0r1 = Jp0 * Jr1, p0r2 = Jp0 * Jr2;
-            const float p1r0 = Jp1 * Jr0, p1r1 = Jp1 * Jr1, p1r2 = Jp1 * Jr2;
-            const float p2r0 = Jp2 * Jr0, p2r1 = Jp2 * Jr1, p2r2 = Jp2 * Jr2;
-
-            const int idx = p * 3 + r;  // 0..8
-
-            float v0 = C00 * p0r0 + C05 * p0r1 + C04 * p0r2 + C05 * p1r0 +
-                       C55 * p1r1 + C45 * p1r2 + C04 * p2r0 + C45 * p2r1 +
-                       C44 * p2r2;  // Rxx
-            float v1 = C55 * p0r0 + C15 * p0r1 + C35 * p0r2 + C15 * p1r0 +
-                       C11 * p1r1 + C13 * p1r2 + C35 * p2r0 + C13 * p2r1 +
-                       C33 * p2r2;  // Ryy
-            float v2 = C44 * p0r0 + C34 * p0r1 + C24 * p0r2 + C34 * p1r0 +
-                       C33 * p1r1 + C23 * p1r2 + C24 * p2r0 + C23 * p2r1 +
-                       C22 * p2r2;  // Rzz
-            float v3 = C05 * p0r0 + C01 * p0r1 + C03 * p0r2 + C55 * p1r0 +
-                       C15 * p1r1 + C35 * p1r2 + C45 * p2r0 + C14 * p2r1 +
-                       C34 * p2r2;  // Rxy
-            float v4 = C04 * p0r0 + C03 * p0r1 + C02 * p0r2 + C45 * p1r0 +
-                       C35 * p1r1 + C25 * p1r2 + C44 * p2r0 + C34 * p2r1 +
-                       C24 * p2r2;  // Rxz
-            float v5 = C45 * p0r0 + C35 * p0r1 + C25 * p0r2 + C14 * p1r0 +
-                       C13 * p1r1 + C12 * p1r2 + C34 * p2r0 + C33 * p2r1 +
-                       C23 * p2r2;  // Ryz
-
-#ifdef __CUDACC__
-            CJflat[idx].a = make_float4(v0, v1, v2, v3);
-            CJflat[idx].b = make_float2(v4, v5);
-#else
-            CJflat[idx].a0 = v0;
-            CJflat[idx].a1 = v1;
-            CJflat[idx].a2 = v2;
-            CJflat[idx].a3 = v3;
-            CJflat[idx].b0 = v4;
-            CJflat[idx].b1 = v5;
-#endif
+            // Isotropic elasticity tensor components
+            Rxx[p][r] = (lambda + 2.0f * mu) * Jp0 * Jr0 + 
+                        mu * (Jp1 * Jr1 + Jp2 * Jr2);
+            Ryy[p][r] = (lambda + 2.0f * mu) * Jp1 * Jr1 + 
+                        mu * (Jp0 * Jr0 + Jp2 * Jr2);
+            Rzz[p][r] = (lambda + 2.0f * mu) * Jp2 * Jr2 + 
+                        mu * (Jp0 * Jr0 + Jp1 * Jr1);
+            Rxy[p][r] = lambda * Jp0 * Jr1 + mu * Jp1 * Jr0;
+            Rxz[p][r] = lambda * Jp0 * Jr2 + mu * Jp2 * Jr0;
+            Ryz[p][r] = lambda * Jp1 * Jr2 + mu * Jp2 * Jr1;
           }
         }
       },
       [&](int i, int j, float val, const int p, const int r) {
-        const int idx = p * 3 + r;
+        // Apply stiffness matrix
+        float const Rxx_ij = val * Rxx[p][r];
+        float const Ryy_ij = val * Ryy[p][r];
+        float const Rzz_ij = val * Rzz[p][r];
+        float const Rxy_ij = val * Rxy[p][r];
+        float const Rxz_ij = val * Rxz[p][r];
+        float const Ryz_ij = val * Ryz[p][r];
 
-#ifdef __CUDACC__
-        const float3 u_local =
-            make_float3(uxnLocal[j], uynLocal[j], uznLocal[j]);
-
-        // Charge CJ packed vectors (one instruction each)
-        const float4 a = CJflat[idx].a;
-        const float2 b = CJflat[idx].b;
-
-        // a.x = Rxx, a.y = Ryy, a.z = Rzz, a.w = Rxy, b.x = Rxz, b.y = Ryz
-        float *__restrict__ ux_ptr = &ux[i];
-        float *__restrict__ uy_ptr = &uy[i];
-        float *__restrict__ uz_ptr = &uz[i];
-
-        // Accumulation with FMA
-        *ux_ptr += fmaf(val * a.x, u_local.x,
-                        fmaf(val * a.w, u_local.y, val * b.x * u_local.z));
-        *uy_ptr += fmaf(val * a.w, u_local.x,
-                        fmaf(val * a.y, u_local.y, val * b.y * u_local.z));
-        *uz_ptr += fmaf(val * b.x, u_local.x,
-                        fmaf(val * b.y, u_local.y, val * a.z * u_local.z));
-#else
-        // Portable version
-        const float uxj = uxnLocal[j];
-        const float uyj = uynLocal[j];
-        const float uzj = uznLocal[j];
-
-        const float rxx = CJflat[idx].a0;
-        const float ryy = CJflat[idx].a1;
-        const float rzz = CJflat[idx].a2;
-        const float rxy = CJflat[idx].a3;
-        const float rxz = CJflat[idx].b0;
-        const float ryz = CJflat[idx].b1;
-
-        ux[i] += fmaf(val * rxx, uxj, fmaf(val * rxy, uyj, val * rxz * uzj));
-        uy[i] += fmaf(val * rxy, uxj, fmaf(val * ryy, uyj, val * ryz * uzj));
-        uz[i] += fmaf(val * rxz, uxj, fmaf(val * ryz, uyj, val * rzz * uzj));
-#endif
+        ux[i] += Rxx_ij * uxnLocal[j] + Rxy_ij * uynLocal[j] + Rxz_ij * uznLocal[j];
+        uy[i] += Rxy_ij * uxnLocal[j] + Ryy_ij * uynLocal[j] + Ryz_ij * uznLocal[j];
+        uz[i] += Rxz_ij * uxnLocal[j] + Ryz_ij * uynLocal[j] + Rzz_ij * uznLocal[j];
       });
 
   for (int i = 0; i < m_mesh.getNumberOfPointsPerElement(); ++i)

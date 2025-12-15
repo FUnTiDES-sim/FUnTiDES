@@ -19,7 +19,8 @@ struct SEMsolverDataElastic : public SolverBase::DataStruct
                        ARRAY_REAL_VIEW rhsTermy, ARRAY_REAL_VIEW rhsTermz,
                        ARRAY_REAL_VIEW uxnGlobal, ARRAY_REAL_VIEW uynGlobal,
                        ARRAY_REAL_VIEW uznGlobal, VECTOR_INT_VIEW rhsElement,
-                       ARRAY_REAL_VIEW rhsWeights)
+                       ARRAY_REAL_VIEW rhsWeightsX, ARRAY_REAL_VIEW rhsWeightsY,
+                       ARRAY_REAL_VIEW rhsWeightsZ)
       : m_i1(i1),
         m_i2(i2),
         m_rhsTermx(rhsTermx),
@@ -29,7 +30,9 @@ struct SEMsolverDataElastic : public SolverBase::DataStruct
         m_uynGlobal(uynGlobal),
         m_uznGlobal(uznGlobal),
         m_rhsElement(rhsElement),
-        m_rhsWeights(rhsWeights)
+        m_rhsWeightsX(rhsWeightsX),
+        m_rhsWeightsY(rhsWeightsY),
+        m_rhsWeightsZ(rhsWeightsZ)
   {
   }
 
@@ -44,7 +47,7 @@ struct SEMsolverDataElastic : public SolverBase::DataStruct
     std::cout << "Uyn Global size: " << m_uynGlobal.extent(0) << std::endl;
     std::cout << "Uzn Global size: " << m_uznGlobal.extent(0) << std::endl;
     std::cout << "RHS Element size: " << m_rhsElement.extent(0) << std::endl;
-    std::cout << "RHS Weights size: " << m_rhsWeights.extent(0) << std::endl;
+    std::cout << "RHS Weights size: " << m_rhsWeightsX.extent(0) << std::endl;
   }
 
   int m_i1;                      ///< Previous time step index
@@ -56,7 +59,9 @@ struct SEMsolverDataElastic : public SolverBase::DataStruct
   ARRAY_REAL_VIEW m_uynGlobal;   ///< Y-displacement field
   ARRAY_REAL_VIEW m_uznGlobal;   ///< Z-displacement field
   VECTOR_INT_VIEW m_rhsElement;  ///< Source element indices
-  ARRAY_REAL_VIEW m_rhsWeights;  ///< Forcing weights per node
+  ARRAY_REAL_VIEW m_rhsWeightsX;  ///< Forcing weights per node
+  ARRAY_REAL_VIEW m_rhsWeightsY;  ///< Forcing weights per node
+  ARRAY_REAL_VIEW m_rhsWeightsZ;  ///< Forcing weights per node
 };
 
 /**
@@ -173,7 +178,9 @@ class SEMsolverElastic : public SEMSolverBase
                     const ARRAY_REAL_VIEW &rhsTermy,
                     const ARRAY_REAL_VIEW &rhsTermz,
                     const VECTOR_INT_VIEW &rhsElement,
-                    const ARRAY_REAL_VIEW &rhsWeights);
+                    const ARRAY_REAL_VIEW &rhsWeightsX,
+                    const ARRAY_REAL_VIEW &rhsWeightsY,
+                    const ARRAY_REAL_VIEW &rhsWeightsZ);
 
   /**
    * @brief Assemble local element contributions to global FE vectors.

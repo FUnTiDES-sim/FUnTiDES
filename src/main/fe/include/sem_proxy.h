@@ -85,7 +85,7 @@ class SEMproxy
    */
   float find_cfl_dt(float cfl_factor);
 
-  void saveSnapshot(int timestep);
+  void saveSnapshot(int timestep, ARRAY_REAL_VIEW outputVector);
 
  private:
   int i1 = 0;
@@ -127,6 +127,9 @@ class SEMproxy
   vectorInt rhsElement;
   vectorInt rhsElementRcv;
   arrayReal rhsWeights;
+  arrayReal rhsWeightsX;
+  arrayReal rhsWeightsY;
+  arrayReal rhsWeightsZ;
   arrayReal rhsWeightsRcv;
   arrayReal pnAtReceiver;
   // elastic arrays
