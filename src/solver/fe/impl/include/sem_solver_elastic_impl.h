@@ -200,16 +200,16 @@ void SEMsolverElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES>::
             float const Jp0 = J[p][0], Jp1 = J[p][1], Jp2 = J[p][2];
             float const Jr0 = J[r][0], Jr1 = J[r][1], Jr2 = J[r][2];
 
-            // Isotropic elasticity tensor components
+            // Correct isotropic elasticity tensor components (Voigt)
             Rxx[p][r] = (lambda + 2.0f * mu) * Jp0 * Jr0 + 
-                        mu * (Jp1 * Jr1 + Jp2 * Jr2);
+                        lambda * (Jp1 * Jr1 + Jp2 * Jr2);
             Ryy[p][r] = (lambda + 2.0f * mu) * Jp1 * Jr1 + 
-                        mu * (Jp0 * Jr0 + Jp2 * Jr2);
+                        lambda * (Jp0 * Jr0 + Jp2 * Jr2);
             Rzz[p][r] = (lambda + 2.0f * mu) * Jp2 * Jr2 + 
-                        mu * (Jp0 * Jr0 + Jp1 * Jr1);
-            Rxy[p][r] = lambda * Jp0 * Jr1 + mu * Jp1 * Jr0;
-            Rxz[p][r] = lambda * Jp0 * Jr2 + mu * Jp2 * Jr0;
-            Ryz[p][r] = lambda * Jp1 * Jr2 + mu * Jp2 * Jr1;
+                        lambda * (Jp0 * Jr0 + Jp1 * Jr1);
+            Rxy[p][r] = mu * (Jp0 * Jr1 + Jp1 * Jr0);
+            Rxz[p][r] = mu * (Jp0 * Jr2 + Jp2 * Jr0);
+            Ryz[p][r] = mu * (Jp1 * Jr2 + Jp2 * Jr1);
           }
         }
       },

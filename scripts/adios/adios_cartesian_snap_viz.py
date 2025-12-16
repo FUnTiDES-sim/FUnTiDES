@@ -404,6 +404,8 @@ def main():
                         help='Create animation of all timesteps')
     parser.add_argument('--global-scale', action='store_true',
                         help='Use global min/max for all timesteps (default: per-timestep scale)')
+    parser.add_argument('--val_clip', type=float,, default=1.0,
+                        help='Multiply amplitudes by this value (used to highlight small values)')
 
     args = parser.parse_args()
 
@@ -429,6 +431,11 @@ def main():
         vmax = None
         print(f"\nUsing per-timestep scaling (each plot has its own min/max)")
 
+    mult = 1.0
+    # Clip colorscale
+    if args.val_clip /= 1.0:
+        mult *= args.val_clip
+
     # Create animation if requested (always uses global scale for consistency)
     if args.animate:
         anim_file = os.path.join(args.output, 'pressure_animation.gif')
@@ -437,7 +444,7 @@ def main():
         anim_vmin = min(d.min() for d in data_list)
         anim_vmax = max(d.max() for d in data_list)
         create_animation(data_list, timestep_list, anim_file, mode=mode, cmap=args.cmap,
-                        vmin=anim_vmin, vmax=anim_vmax)
+                        vmin=mult*anim_vmin, vmax=mult*anim_vmax)
 
     # Create individual plots
     print(f"\nCreating plots in {args.output}/...")
@@ -446,9 +453,9 @@ def main():
         output_file = os.path.join(args.output, f'pressure_step_{timestep:05d}.png')
 
         if args.slice:
-            plot_2d_slices(data, timestep, output_file, cmap=args.cmap, vmin=vmin, vmax=vmax)
+            plot_2d_slices(data, timestep, output_file, cmap=args.cmap, vmin=mult*vmin, vmax=mult*vmax)
         else:
-            plot_3d_volume(data, timestep, output_file, cmap=args.cmap, vmin=vmin, vmax=vmax)
+            plot_3d_volume(data, timestep, output_file, cmap=args.cmap, vmin=mult*vmin, vmax=mult*vmax)
 
     print(f"\nDone! Created {len(data_list)} plots in {args.output}/")
 

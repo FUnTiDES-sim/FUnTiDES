@@ -213,7 +213,7 @@ class ModelStruct : public ModelApi<FloatType, ScalarType>
   FloatType getModelVpOnNodes(ScalarType n) const
   {
     // TODO: Not returning magic number
-    return 1500;
+    return 2500;
   }
 
   /**
@@ -225,7 +225,7 @@ class ModelStruct : public ModelApi<FloatType, ScalarType>
   FloatType getModelVpOnElement(ScalarType e) const
   {
     // TODO: Not returning a magic number
-    return 1500;
+    return 2500;
   }
 
   /**
@@ -414,7 +414,7 @@ class ModelStruct : public ModelApi<FloatType, ScalarType>
     MAINLOOPHEAD(n_element, i)
     FloatType CTTI[6][6];
 
-    FloatType vp = 1500.0;
+    FloatType vp = 2500.0;
     FloatType vs = 755.0;
     FloatType rho = 1.0;
     FloatType delta = 0.;
@@ -540,7 +540,7 @@ class ModelStruct : public ModelApi<FloatType, ScalarType>
   FloatType getMaxSpeed() const
   {
     // TODO: introduce proper model.
-    return 1500;
+    return 2500;
   }
 
   PROXY_HOST_DEVICE
