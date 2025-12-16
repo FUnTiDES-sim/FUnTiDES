@@ -404,7 +404,7 @@ def main():
                         help='Create animation of all timesteps')
     parser.add_argument('--global-scale', action='store_true',
                         help='Use global min/max for all timesteps (default: per-timestep scale)')
-    parser.add_argument('--val_clip', type=float,, default=1.0,
+    parser.add_argument('--val_clip', type=float, default=1.0,
                         help='Multiply amplitudes by this value (used to highlight small values)')
 
     args = parser.parse_args()
@@ -433,7 +433,7 @@ def main():
 
     mult = 1.0
     # Clip colorscale
-    if args.val_clip /= 1.0:
+    if args.val_clip != 1.0:
         mult *= args.val_clip
 
     # Create animation if requested (always uses global scale for consistency)
