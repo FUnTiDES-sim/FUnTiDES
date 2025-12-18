@@ -63,7 +63,7 @@ class SEMproxy
   void saveSlice(const VECTOR_REAL_VIEW& host_slice, int sizex, int sizey,
                  const std::string& filepath) const;
 
-  void saveSnapshot(int timesample) const;
+  void saveSnapshot(int timesample, ARRAY_REAL_VIEW OutputSolution) const;
 
   /**
    * @brief Computes optimal time step using CFL stability condition for seismic
