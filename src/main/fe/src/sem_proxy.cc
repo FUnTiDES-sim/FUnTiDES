@@ -475,17 +475,21 @@ void SEMproxy::init_source()
 
   if (isElastic_)
 {
-  float M0 = 0.75 / 2000.0;
+  float M0 = 1.0;//0.75 / 2000.0;
   
   switch (order)
   {
     case 1:
       SourceAndReceiverUtils::ComputeSourceMomentWeights<1>(
           cornerCoords, src_coord_, rhsWeightsX, rhsWeightsY, rhsWeightsZ, M0);
+      SourceAndReceiverUtils::ComputeRHSWeights<1>(cornerCoords, src_coord_,
+                                                   rhsWeightsX);
       break;
     case 2:
       SourceAndReceiverUtils::ComputeSourceMomentWeights<2>(
           cornerCoords, src_coord_, rhsWeightsX, rhsWeightsY, rhsWeightsZ, M0);
+      SourceAndReceiverUtils::ComputeRHSWeights<2>(cornerCoords, src_coord_,
+                                                   rhsWeightsX);
       break;
     case 3:
       SourceAndReceiverUtils::ComputeSourceMomentWeights<3>(

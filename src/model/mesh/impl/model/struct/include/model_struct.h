@@ -225,7 +225,7 @@ class ModelStruct : public ModelApi<FloatType, ScalarType>
   FloatType getModelVpOnElement(ScalarType e) const
   {
     // TODO: Not returning a magic number
-    return 2500;
+    return 1500;
   }
 
   /**

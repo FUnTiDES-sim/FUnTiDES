@@ -7,45 +7,69 @@ using namespace std::chrono;
 
 struct SolverUtils
 {
-  float evaluateRicker(float const& time_n, float const& f0, int order)
+float evaluateRicker(float const& time_n, float const& f0, int order)
+{
+  float const o_tpeak = 1.0 / f0;  // tdelay dans Gar6more
+  
+  // Fenêtre temporelle : active seulement entre [0, 2*tdelay]
+  if ((time_n <= 0.0f) || (time_n >= 2.0f * o_tpeak))
   {
-    float const o_tpeak = 1.0 / f0;
-    float pulse = 0.0;
-    if ((time_n <= -0.9 * o_tpeak) || (time_n >= 2.9 * o_tpeak))
-    {
-      return pulse;
-    }
-
-    constexpr float pi = M_PI;
-    float const lam = (f0 * pi) * (f0 * pi);
-
-    switch (order)
-    {
-      case 2: {
-        pulse = 2.0 * lam *
-                (2.0 * lam * (time_n - o_tpeak) * (time_n - o_tpeak) - 1.0) *
-                exp(-lam * (time_n - o_tpeak) * (time_n - o_tpeak));
-      }
-      break;
-      case 1: {
-        pulse = -2.0 * lam * (time_n - o_tpeak) *
-                exp(-lam * (time_n - o_tpeak) * (time_n - o_tpeak));
-      }
-      break;
-      case 0: {
-        pulse = -(time_n - o_tpeak) *
-                exp(-2 * lam * (time_n - o_tpeak) * (time_n - o_tpeak));
-      }
-      break;
-      default:
-        std::cout
-            << "This option is not supported yet, rickerOrder must be 0, 1 or 2"
-            << std::endl;
-        break;
-    }
-
-    return pulse;
+    return 0.0f;
   }
+  
+  constexpr float pi = M_PI;
+  float const alpha = -(f0 * pi) * (f0 * pi);  // alpha = -(π*f0)²
+  float const time_d = time_n - o_tpeak;        // t1 dans Gar6more
+  float const gaussian = exp(alpha * time_d * time_d);
+  int const sgn = (order % 2 == 0) ? 1 : -1;    // (-1)^(deriv+1)
+  
+  float pulse = 0.0f;
+  
+  switch(order)
+  {
+    case 0:
+      pulse = sgn * gaussian;
+      break;
+      
+    case 1:
+      pulse = sgn * (2.0f * alpha * time_d) * gaussian;
+      break;
+      
+    case 2:
+    {
+      float const alpha2 = alpha * alpha;
+      float const time_d2 = time_d * time_d;
+      pulse = sgn * (2.0f * alpha + 4.0f * alpha2 * time_d2) * gaussian;
+      break;
+    }
+    
+    case 3:
+    {
+      float const alpha2 = alpha * alpha;
+      float const alpha3 = alpha2 * alpha;
+      float const time_d3 = time_d * time_d * time_d;
+      pulse = sgn * (12.0f * alpha2 * time_d + 8.0f * alpha3 * time_d3) * gaussian;
+      break;
+    }
+    
+    case 4:
+    {
+      float const alpha2 = alpha * alpha;
+      float const alpha3 = alpha2 * alpha;
+      float const alpha4 = alpha3 * alpha;
+      float const time_d2 = time_d * time_d;
+      float const time_d4 = time_d2 * time_d2;
+      pulse = sgn * (12.0f * alpha2 + 48.0f * alpha3 * time_d2 + 16.0f * alpha4 * time_d4) * gaussian;
+      break;
+    }
+    
+    default:
+      std::cout << "rickerOrder must be between 0 and 4" << std::endl;
+      break;
+  }
+  
+  return pulse;
+}
 
   std::vector<float> computeSourceTerm(const int nSamples,
                                        const float timeSample, const float f0,

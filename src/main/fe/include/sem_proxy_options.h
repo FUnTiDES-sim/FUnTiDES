@@ -11,13 +11,13 @@ class SemProxyOptions
   int order = 2;
   int ex = 50, ey = 50, ez = 50;
   float lx = 2000.f, ly = 2000.f, lz = 2000.f;
-  float srcx = 1005.f, srcy = 1005.f, srcz = 1005.f;
-  float rcvx = 1405.f, rcvy = 1005.f, rcvz = 1005.f;
+  float srcx = 1007.f, srcy = 1007.f, srcz = 1007.f;
+  float rcvx = 1407.f, rcvy = 1007.f, rcvz = 1007.f;
   std::string implem = "makutu";  // makutu|shiva
   std::string method = "sem";     // sem|dg
   std::string mesh = "cartesian";
-  float dt = 0.006;
-  float timemax = 0.7;
+  float dt = 0.003;
+  float timemax = 0.8;
   bool autodt = false;
   // snapshots
   bool snapshots = false;

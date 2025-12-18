@@ -115,8 +115,8 @@ void SEMsolverElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES>::
           int localNodeId = x + y * (ORDER + 1) + z * (ORDER + 1) * (ORDER + 1);
           int nodeRHS = m_mesh.globalNodeIndex(rhsElement[i], x, y, z);
           float sourcex = rhsTermx(i, timeSample) * rhsWeightsX(i, localNodeId);
-          float sourcey = rhsTermy(i, timeSample) * rhsWeightsY(i, localNodeId);
-          float sourcez = rhsTermz(i, timeSample) * rhsWeightsZ(i, localNodeId);
+          float sourcey = rhsTermy(i, timeSample) * rhsWeightsX(i, localNodeId);
+          float sourcez = rhsTermz(i, timeSample) * rhsWeightsX(i, localNodeId);
           uxGlobal(nodeRHS) -= sourcex;
           uyGlobal(nodeRHS) -= sourcey;
           uzGlobal(nodeRHS) -= sourcez;
