@@ -213,7 +213,8 @@ TYPED_TEST(ModelStructTest, VertexCoordinates)
   typename TestFixture::FloatType coords[3];
 
   // Test all 8 vertices of the first element (cube from (0,0,0) to (10,10,10))
-  // Each element has size 10x10x10 since domain is 100x100x100 with 10 elements per dimension
+  // Each element has size 10x10x10 since domain is 100x100x100 with 10 elements
+  // per dimension
 
   // Vertex 0: (0, 0, 0)
   auto dof_global0 = std::array<int, 3>{0, 0, 0};
