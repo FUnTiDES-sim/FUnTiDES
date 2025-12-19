@@ -210,14 +210,66 @@ TYPED_TEST(ModelStructTest, GlobalVertexIndex)
 TYPED_TEST(ModelStructTest, VertexCoordinates)
 {
   auto& model = *this->model_;
-
-  auto dof_global = std::array<int, 3>{0, 0, 0};
   typename TestFixture::FloatType coords[3];
-  model.vertexCoords(dof_global, coords);
 
+  // Test all 8 vertices of the first element (cube from (0,0,0) to (10,10,10))
+  // Each element has size 10x10x10 since domain is 100x100x100 with 10 elements per dimension
+
+  // Vertex 0: (0, 0, 0)
+  auto dof_global0 = std::array<int, 3>{0, 0, 0};
+  model.vertexCoords(dof_global0, coords);
   EXPECT_EQ(coords[0], 0.0);
   EXPECT_EQ(coords[1], 0.0);
   EXPECT_EQ(coords[2], 0.0);
+
+  // Vertex 1: (1, 0, 0) -> (10, 0, 0)
+  auto dof_global1 = std::array<int, 3>{1, 0, 0};
+  model.vertexCoords(dof_global1, coords);
+  EXPECT_EQ(coords[0], 10.0);
+  EXPECT_EQ(coords[1], 0.0);
+  EXPECT_EQ(coords[2], 0.0);
+
+  // Vertex 2: (0, 1, 0) -> (0, 10, 0)
+  auto dof_global2 = std::array<int, 3>{0, 1, 0};
+  model.vertexCoords(dof_global2, coords);
+  EXPECT_EQ(coords[0], 0.0);
+  EXPECT_EQ(coords[1], 10.0);
+  EXPECT_EQ(coords[2], 0.0);
+
+  // Vertex 3: (1, 1, 0) -> (10, 10, 0)
+  auto dof_global3 = std::array<int, 3>{1, 1, 0};
+  model.vertexCoords(dof_global3, coords);
+  EXPECT_EQ(coords[0], 10.0);
+  EXPECT_EQ(coords[1], 10.0);
+  EXPECT_EQ(coords[2], 0.0);
+
+  // Vertex 4: (0, 0, 1) -> (0, 0, 10)
+  auto dof_global4 = std::array<int, 3>{0, 0, 1};
+  model.vertexCoords(dof_global4, coords);
+  EXPECT_EQ(coords[0], 0.0);
+  EXPECT_EQ(coords[1], 0.0);
+  EXPECT_EQ(coords[2], 10.0);
+
+  // Vertex 5: (1, 0, 1) -> (10, 0, 10)
+  auto dof_global5 = std::array<int, 3>{1, 0, 1};
+  model.vertexCoords(dof_global5, coords);
+  EXPECT_EQ(coords[0], 10.0);
+  EXPECT_EQ(coords[1], 0.0);
+  EXPECT_EQ(coords[2], 10.0);
+
+  // Vertex 6: (0, 1, 1) -> (0, 10, 10)
+  auto dof_global6 = std::array<int, 3>{0, 1, 1};
+  model.vertexCoords(dof_global6, coords);
+  EXPECT_EQ(coords[0], 0.0);
+  EXPECT_EQ(coords[1], 10.0);
+  EXPECT_EQ(coords[2], 10.0);
+
+  // Vertex 7: (1, 1, 1) -> (10, 10, 10)
+  auto dof_global7 = std::array<int, 3>{1, 1, 1};
+  model.vertexCoords(dof_global7, coords);
+  EXPECT_EQ(coords[0], 10.0);
+  EXPECT_EQ(coords[1], 10.0);
+  EXPECT_EQ(coords[2], 10.0);
 }
 
 TYPED_TEST(ModelStructTest, NodeCoordAtOrigin)
