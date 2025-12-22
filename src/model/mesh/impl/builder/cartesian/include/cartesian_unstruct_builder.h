@@ -117,15 +117,15 @@ class CartesianUnstructBuilder : public ModelBuilderBase<FloatType, ScalarType>
 
   void initGlobalNodeList()
   {
-    int nodes_x = order_ + 1;
-    int nodes_y = order_ + 1;
-    int nodes_z = order_ + 1;
-    int total_nodes = nodes_x * nodes_y * nodes_z;
+    int n_corner = 8;
+
     global_node_index_ = allocateArray2D<ARRAY_INT_VIEW>(
-        ex_ * ey_ * ez_, total_nodes, "global node index");
-    int nx = ex_ * order_ + 1;  // Total nodes in x direction
-    int ny = ey_ * order_ + 1;  // Total nodes in y direction
-    int nz = ez_ * order_ + 1;  // Total nodes in z direction
+        ex_ * ey_ * ez_, n_corner, "global corner index");
+
+    // Global grid dimensions for corners only (number of elements + 1)
+    int nx = ex_ + 1;
+    int ny = ey_ + 1;
+    int nz = ez_ + 1;
 
     for (int k = 0; k < ez_; k++)
     {
@@ -134,18 +134,17 @@ class CartesianUnstructBuilder : public ModelBuilderBase<FloatType, ScalarType>
         for (int i = 0; i < ex_; i++)
         {
           int elementNum = i + j * ex_ + k * ex_ * ey_;
-          // Corrected offset calculation
-          int offset = i * order_ + j * order_ * nx + k * order_ * nx * ny;
 
-          for (int m = 0; m < order_ + 1; m++)
-          {  // z-direction
-            for (int n = 0; n < order_ + 1; n++)
-            {  // y-direction
-              for (int l = 0; l < order_ + 1; l++)
-              {  // x-direction
-                int dofLocal =
-                    l + n * (order_ + 1) + m * (order_ + 1) * (order_ + 1);
-                int dofGlobal = offset + l + n * nx + m * nx * ny;
+          for (int m = 0; m < 2; m++)
+          {
+            for (int n = 0; n < 2; n++)
+            {
+              for (int l = 0; l < 2; l++)
+              {
+                // Local index within the 8-node element (0 to 7)
+                int dofLocal = l + n * 2 + m * 4;
+                int dofGlobal = (i + l) + (j + n) * nx + (k + m) * nx * ny;
+
                 global_node_index_(elementNum, dofLocal) = dofGlobal;
               }
             }
@@ -154,7 +153,6 @@ class CartesianUnstructBuilder : public ModelBuilderBase<FloatType, ScalarType>
       }
     }
   }
-
   void getCoordInOneDirection(const int& h, const int& n_element, float* coord)
   {
     float xi[MAX_ORDER + 1];

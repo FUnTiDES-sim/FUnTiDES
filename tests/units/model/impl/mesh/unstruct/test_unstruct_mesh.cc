@@ -293,5 +293,109 @@ TYPED_TEST(ModelUnstructTest, TemplateParameterizations)
   SUCCEED();
 }
 
+// ============================================================================
+// Connectivity and Corner Logic Tests
+// ============================================================================
+
+TYPED_TEST(ModelUnstructTest, CornerNodeConnectivity)
+{
+  using FloatType = typename TestFixture::FloatType;
+  using ScalarType = typename TestFixture::ScalarType;
+
+  // 1. Setup a small 2x1x1 mesh (2 elements in X, 1 in Y, 1 in Z)
+  const int ex = 2, ey = 1, ez = 1;
+  const int order = 1;
+  const int nodes_per_dim = 2;
+  const int total_nodes_per_element =
+      nodes_per_dim * nodes_per_dim * nodes_per_dim;  // Now using nodes_per_dim
+
+  const int nx = ex + 1;                        // 3
+  const int ny = ey + 1;                        // 2
+  const int nz = ez + 1;                        // 2
+  const int total_global_nodes = nx * ny * nz;  // Now using nz
+
+  // Allocate View
+  ARRAY_INT_VIEW global_node_index("global_node_index", ex * ey * ez,
+                                   total_nodes_per_element);
+
+  for (int k = 0; k < ez; k++)
+  {
+    for (int j = 0; j < ey; j++)
+    {
+      for (int i = 0; i < ex; i++)
+      {
+        int elementNum = i + j * ex + k * ex * ey;
+        for (int m = 0; m < nodes_per_dim; m++)
+        {  // Use nodes_per_dim instead of literal 2
+          for (int n = 0; n < nodes_per_dim; n++)
+          {
+            for (int l = 0; l < nodes_per_dim; l++)
+            {
+              int dofLocal =
+                  l + n * nodes_per_dim + m * (nodes_per_dim * nodes_per_dim);
+              int dofGlobal = (i + l) + (j + n) * nx + (k + m) * nx * ny;
+              global_node_index(elementNum, dofLocal) = dofGlobal;
+            }
+          }
+        }
+      }
+    }
+  }
+
+  ModelUnstructData<FloatType, ScalarType> data;
+  data.order_ = order;
+  data.n_element_ = ex * ey * ez;
+  data.n_node_ = total_global_nodes;
+  data.global_node_index_ = global_node_index;
+
+  ModelUnstruct<FloatType, ScalarType> model(data);
+
+  // Verify indices
+  EXPECT_EQ(model.globalNodeIndex(0, 0, 0, 0), 0);
+  EXPECT_EQ(model.globalNodeIndex(0, 1, 0, 0), 1);
+
+  // Shared node check
+  ScalarType sharedNode0 = model.globalNodeIndex(0, 1, 0, 0);
+  ScalarType sharedNode1 = model.globalNodeIndex(1, 0, 0, 0);
+  EXPECT_EQ(sharedNode0, sharedNode1);
+}
+
+TYPED_TEST(ModelUnstructTest, CornerGridBoundaryIndices)
+{
+  using FloatType = typename TestFixture::FloatType;
+  using ScalarType = typename TestFixture::ScalarType;
+
+  const int ex = 2, ey = 2, ez = 2;
+  const int nx = 3, ny = 3, nz = 3;
+  const int total_elements = ex * ey * ez;
+  const int total_nodes = nx * ny * nz;  // nz is now used here
+
+  ARRAY_INT_VIEW global_node_index("indices", total_elements, 8);
+
+  for (int k = 0; k < ez; ++k)
+    for (int j = 0; j < ey; ++j)
+      for (int i = 0; i < ex; ++i)
+      {
+        int e = i + j * ex + k * ex * ey;
+        for (int m = 0; m < 2; ++m)
+          for (int n = 0; n < 2; ++n)
+            for (int l = 0; l < 2; ++l)
+              global_node_index(e, l + n * 2 + m * 4) =
+                  (i + l) + (j + n) * nx + (k + m) * nx * ny;
+      }
+
+  ModelUnstructData<FloatType, ScalarType> data;
+  data.order_ = 1;
+  data.n_element_ = total_elements;
+  data.n_node_ = total_nodes;
+  data.global_node_index_ = global_node_index;
+
+  ModelUnstruct<FloatType, ScalarType> model(data);
+
+  // Check the last node (2x2x2 mesh with 3x3x3 nodes should end at index 26)
+  ScalarType lastNode = model.globalNodeIndex(7, 1, 1, 1);
+  EXPECT_EQ(lastNode, 26);
+}
+
 }  // namespace
 }  // namespace model
