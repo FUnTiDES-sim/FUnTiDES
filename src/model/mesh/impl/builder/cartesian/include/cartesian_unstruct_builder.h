@@ -312,11 +312,11 @@ class CartesianUnstructBuilder : public ModelBuilderBase<FloatType, ScalarType>
         for (int i = 0; i < n_node; i++)
         {
           model_vs_node_[i] = 755;
-          model_delta_node_[i] = 0.2;
-          model_epsilon_node_[i] = 0.3;
-          model_gamma_node_[i] = 0.08;
-          model_theta_node_[i] = 30;
-          model_phi_node_[i] = 45;
+          model_delta_node_[i] = 0.0;
+          model_epsilon_node_[i] = 0.0;
+          model_gamma_node_[i] = 0.0;
+          model_theta_node_[i] = 0.0;
+          model_phi_node_[i] = 0.0;
         }
       }
     }
@@ -352,11 +352,11 @@ class CartesianUnstructBuilder : public ModelBuilderBase<FloatType, ScalarType>
         for (int i = 0; i < n_element; i++)
         {
           model_vs_element_[i] = 755;
-          model_delta_element_[i] = 0.2;
-          model_epsilon_element_[i] = 0.3;
-          model_gamma_element_[i] = 0.08;
-          model_theta_element_[i] = 30;
-          model_phi_element_[i] = 45;
+          model_delta_element_[i] = 0.0;
+          model_epsilon_element_[i] = 0.0;
+          model_gamma_element_[i] = 0.0;
+          model_theta_element_[i] = 0.0;
+          model_phi_element_[i] = 0.0;
         }
       }
     }
