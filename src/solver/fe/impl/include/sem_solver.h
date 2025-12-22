@@ -4,7 +4,6 @@
 #include <array>
 #include <cmath>
 
-
 #include "data_type.h"
 #include "model.h"
 #include "physics_traits.h"
