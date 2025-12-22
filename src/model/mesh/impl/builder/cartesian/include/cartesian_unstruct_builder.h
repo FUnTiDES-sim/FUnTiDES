@@ -26,10 +26,19 @@ class CartesianUnstructBuilder : public ModelBuilderBase<FloatType, ScalarType>
         order_(p.order),
         isModelOnNodes_(p.isModelOnNodes),
         isElastic_(p.isElastic)
-
   {
-    initGlobalNodeList();
-    initNodesCoords();
+    if (isModelOnNodes_)
+    {
+      // Legacy behavior: Full GLL mesh
+      initGlobalNodeList();
+      initNodesCoords();
+    }
+    else
+    {
+      // Optimized behavior: Only element corners (Order 1 geometry)
+      initGlobalCornerNodeList();
+      initCornerNodesCoords();
+    }
     initModels();
   }
 
@@ -38,10 +47,21 @@ class CartesianUnstructBuilder : public ModelBuilderBase<FloatType, ScalarType>
   {
     model::ModelUnstructData<FloatType, ScalarType> modelData;
 
-    modelData.order_ = order_;
+    // IMPORTANT: If properties are on elements, we treat the mesh as Order 1
+    // so the ModelUnstruct class correctly indexes the 8 corners.
+    modelData.order_ = isModelOnNodes_ ? order_ : 1;
     modelData.n_element_ = ex_ * ey_ * ez_;
-    modelData.n_node_ =
-        (ex_ * order_ + 1) * (ey_ * order_ + 1) * (ez_ * order_ + 1);
+
+    if (isModelOnNodes_)
+    {
+      modelData.n_node_ =
+          (ex_ * order_ + 1) * (ey_ * order_ + 1) * (ez_ * order_ + 1);
+    }
+    else
+    {
+      modelData.n_node_ = (ex_ + 1) * (ey_ + 1) * (ez_ + 1);
+    }
+
     modelData.lx_ = lx_;
     modelData.ly_ = ly_;
     modelData.lz_ = lz_;
@@ -54,6 +74,7 @@ class CartesianUnstructBuilder : public ModelBuilderBase<FloatType, ScalarType>
     modelData.isModelOnNodes_ = isModelOnNodes_;
     modelData.isElastic_ = isElastic_;
 
+    // Map properties
     modelData.model_vp_node_ = model_vp_node_;
     modelData.model_rho_node_ = model_rho_node_;
     modelData.model_vs_node_ = model_vs_node_;
@@ -62,6 +83,7 @@ class CartesianUnstructBuilder : public ModelBuilderBase<FloatType, ScalarType>
     modelData.model_gamma_node_ = model_gamma_node_;
     modelData.model_theta_node_ = model_theta_node_;
     modelData.model_phi_node_ = model_phi_node_;
+
     modelData.model_vp_element_ = model_vp_element_;
     modelData.model_rho_element_ = model_rho_element_;
     modelData.model_vs_element_ = model_vs_element_;
@@ -95,37 +117,29 @@ class CartesianUnstructBuilder : public ModelBuilderBase<FloatType, ScalarType>
   VECTOR_REAL_VIEW nodes_coords_x_;
   VECTOR_REAL_VIEW nodes_coords_y_;
   VECTOR_REAL_VIEW nodes_coords_z_;
+
   // Models view
-  VECTOR_REAL_VIEW model_vp_node_;
-  VECTOR_REAL_VIEW model_vp_element_;
-  VECTOR_REAL_VIEW model_rho_node_;
-  VECTOR_REAL_VIEW model_rho_element_;
-  VECTOR_REAL_VIEW model_vs_node_;
-  VECTOR_REAL_VIEW model_vs_element_;
-  VECTOR_REAL_VIEW model_delta_node_;
-  VECTOR_REAL_VIEW model_delta_element_;
-  VECTOR_REAL_VIEW model_epsilon_node_;
-  VECTOR_REAL_VIEW model_epsilon_element_;
-  VECTOR_REAL_VIEW model_gamma_node_;
-  VECTOR_REAL_VIEW model_gamma_element_;
-  VECTOR_REAL_VIEW model_theta_node_;
-  VECTOR_REAL_VIEW model_theta_element_;
-  VECTOR_REAL_VIEW model_phi_node_;
-  VECTOR_REAL_VIEW model_phi_element_;
+  VECTOR_REAL_VIEW model_vp_node_, model_vp_element_;
+  VECTOR_REAL_VIEW model_rho_node_, model_rho_element_;
+  VECTOR_REAL_VIEW model_vs_node_, model_vs_element_;
+  VECTOR_REAL_VIEW model_delta_node_, model_delta_element_;
+  VECTOR_REAL_VIEW model_epsilon_node_, model_epsilon_element_;
+  VECTOR_REAL_VIEW model_gamma_node_, model_gamma_element_;
+  VECTOR_REAL_VIEW model_theta_node_, model_theta_element_;
+  VECTOR_REAL_VIEW model_phi_node_, model_phi_element_;
 
-  VECTOR_REAL_VIEW boundaries_t_;
+  // ==========================================================================
+  // OPTIMIZED CORNER-ONLY INITIALIZATION (Order 1)
+  // ==========================================================================
 
-  void initGlobalNodeList()
+  void initGlobalCornerNodeList()
   {
     int n_corner = 8;
-
     global_node_index_ = allocateArray2D<ARRAY_INT_VIEW>(
         ex_ * ey_ * ez_, n_corner, "global corner index");
 
-    // Global grid dimensions for corners only (number of elements + 1)
     int nx = ex_ + 1;
     int ny = ey_ + 1;
-    int nz = ez_ + 1;
 
     for (int k = 0; k < ez_; k++)
     {
@@ -134,17 +148,14 @@ class CartesianUnstructBuilder : public ModelBuilderBase<FloatType, ScalarType>
         for (int i = 0; i < ex_; i++)
         {
           int elementNum = i + j * ex_ + k * ex_ * ey_;
-
           for (int m = 0; m < 2; m++)
           {
             for (int n = 0; n < 2; n++)
             {
               for (int l = 0; l < 2; l++)
               {
-                // Local index within the 8-node element (0 to 7)
                 int dofLocal = l + n * 2 + m * 4;
                 int dofGlobal = (i + l) + (j + n) * nx + (k + m) * nx * ny;
-
                 global_node_index_(elementNum, dofLocal) = dofGlobal;
               }
             }
@@ -153,31 +164,102 @@ class CartesianUnstructBuilder : public ModelBuilderBase<FloatType, ScalarType>
       }
     }
   }
-  void getCoordInOneDirection(const int& h, const int& n_element, float* coord)
+
+  void initCornerNodesCoords()
+  {
+    int nx = ex_ + 1;
+    int ny = ey_ + 1;
+    int nz = ez_ + 1;
+    int total_nodes = nx * ny * nz;
+
+    nodes_coords_x_ = allocateVector<VECTOR_REAL_VIEW>(total_nodes, "coords x");
+    nodes_coords_y_ = allocateVector<VECTOR_REAL_VIEW>(total_nodes, "coords y");
+    nodes_coords_z_ = allocateVector<VECTOR_REAL_VIEW>(total_nodes, "coords z");
+
+    auto dx = lx_ / static_cast<double>(ex_);
+    auto dy = ly_ / static_cast<double>(ey_);
+    auto dz = lz_ / static_cast<double>(ez_);
+
+    for (int k = 0; k < nz; k++)
+    {
+      for (int j = 0; j < ny; j++)
+      {
+        for (int i = 0; i < nx; i++)
+        {
+          int idx = i + j * nx + k * nx * ny;
+          nodes_coords_x_(idx) = i * dx;
+          nodes_coords_y_(idx) = j * dy;
+          nodes_coords_z_(idx) = k * dz;
+        }
+      }
+    }
+  }
+
+  // ==========================================================================
+  // HIGH-ORDER GLL INITIALIZATION
+  // ==========================================================================
+
+  void initGlobalNodeList()
+  {
+    int n_local = (order_ + 1) * (order_ + 1) * (order_ + 1);
+    global_node_index_ = allocateArray2D<ARRAY_INT_VIEW>(
+        ex_ * ey_ * ez_, n_local, "global node index");
+
+    int nx = ex_ * order_ + 1;
+    int ny = ey_ * order_ + 1;
+
+    for (int k = 0; k < ez_; k++)
+    {
+      for (int j = 0; j < ey_; j++)
+      {
+        for (int i = 0; i < ex_; i++)
+        {
+          int elementNum = i + j * ex_ + k * ex_ * ey_;
+          int offset = i * order_ + j * order_ * nx + k * order_ * nx * ny;
+
+          for (int m = 0; m <= order_; m++)
+          {
+            for (int n = 0; n <= order_; n++)
+            {
+              for (int l = 0; l <= order_; l++)
+              {
+                int dofLocal =
+                    l + n * (order_ + 1) + m * (order_ + 1) * (order_ + 1);
+                int dofGlobal = offset + l + n * nx + m * nx * ny;
+                global_node_index_(elementNum, dofLocal) = dofGlobal;
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+
+  void getCoordInOneDirection(const FloatType h, const int n_element,
+                              float* coord)
   {
     float xi[MAX_ORDER + 1];
-
     switch (order_)
     {
       case 1:
-        xi[0] = -1.f;
-        xi[1] = 1.f;
+        xi[0] = -1.0f;
+        xi[1] = 1.0f;
         break;
       case 2:
-        xi[0] = -1.f;
-        xi[1] = 0.f;
-        xi[2] = 1.f;
+        xi[0] = -1.0f;
+        xi[1] = 0.0f;
+        xi[2] = 1.0f;
         break;
       case 3: {
-        static constexpr float sqrt5 = 2.2360679774997897f;
+        static constexpr float inv_sqrt5 = 0.4472135955f;
         xi[0] = -1.0f;
-        xi[1] = -1.f / sqrt5;
-        xi[2] = 1.f / sqrt5;
-        xi[3] = 1.f;
+        xi[1] = -inv_sqrt5;
+        xi[2] = inv_sqrt5;
+        xi[3] = 1.0f;
         break;
       }
       case 4: {
-        static constexpr float sqrt3_7 = 0.6546536707079771f;
+        static constexpr float sqrt3_7 = 0.6546536707f;
         xi[0] = -1.0f;
         xi[1] = -sqrt3_7;
         xi[2] = 0.0f;
@@ -186,14 +268,14 @@ class CartesianUnstructBuilder : public ModelBuilderBase<FloatType, ScalarType>
         break;
       }
       case 5: {
-        static constexpr float sqrt__7_plus_2sqrt7__ = 3.50592393273573196f;
-        static constexpr float sqrt__7_mins_2sqrt7__ = 1.30709501485960033f;
-        static constexpr float sqrt_inv21 = 0.218217890235992381f;
+        static constexpr float s_inv21 = 0.2182178902f;
+        static constexpr float s7p = 3.5059239327f;
+        static constexpr float s7m = 1.3070950148f;
         xi[0] = -1.0f;
-        xi[1] = -sqrt_inv21 * sqrt__7_plus_2sqrt7__;
-        xi[2] = -sqrt_inv21 * sqrt__7_mins_2sqrt7__;
-        xi[3] = sqrt_inv21 * sqrt__7_mins_2sqrt7__;
-        xi[4] = sqrt_inv21 * sqrt__7_plus_2sqrt7__;
+        xi[1] = -s_inv21 * s7p;
+        xi[2] = -s_inv21 * s7m;
+        xi[3] = s_inv21 * s7m;
+        xi[4] = s_inv21 * s7p;
         xi[5] = 1.0f;
         break;
       }
@@ -201,71 +283,51 @@ class CartesianUnstructBuilder : public ModelBuilderBase<FloatType, ScalarType>
         break;
     }
 
-    int i = n_element;
-    float x0 = i * h;
-    float x1 = (i + 1) * h;
-    float b = (x1 + x0) / 2.f;
-    float a = b - x0;
-
-    for (int j = 0; j < order_ + 1; j++)
-    {
-      coord[j] = a * xi[j] + b;
-    }
+    float x0 = static_cast<float>(n_element) * h;
+    float x1 = static_cast<float>(n_element + 1) * h;
+    float mid = (x1 + x0) * 0.5f;
+    float hw = (x1 - x0) * 0.5f;
+    for (int j = 0; j <= order_; j++) coord[j] = hw * xi[j] + mid;
   }
 
   void initNodesCoords()
   {
-    int nodes_x = ex_ * order_ + 1;
-    int nodes_y = ey_ * order_ + 1;
-    int nodes_z = ez_ * order_ + 1;
-    int total_nodes = nodes_x * nodes_y * nodes_z;
+    int nx = ex_ * order_ + 1;
+    int ny = ey_ * order_ + 1;
+    int nz = ez_ * order_ + 1;
+    int total_nodes = nx * ny * nz;
 
-    // Init the structure within mesh
-    nodes_coords_x_ =
-        allocateVector<VECTOR_REAL_VIEW>(total_nodes, "nodes coords x");
-    nodes_coords_y_ =
-        allocateVector<VECTOR_REAL_VIEW>(total_nodes, "nodes coords y");
-    nodes_coords_z_ =
-        allocateVector<VECTOR_REAL_VIEW>(total_nodes, "nodes coords z");
+    nodes_coords_x_ = allocateVector<VECTOR_REAL_VIEW>(total_nodes, "coords x");
+    nodes_coords_y_ = allocateVector<VECTOR_REAL_VIEW>(total_nodes, "coords y");
+    nodes_coords_z_ = allocateVector<VECTOR_REAL_VIEW>(total_nodes, "coords z");
 
-    float coord_x[MAX_ORDER + 1];
-    float coord_y[MAX_ORDER + 1];
-    float coord_z[MAX_ORDER + 1];
-
+    float cx[MAX_ORDER + 1], cy[MAX_ORDER + 1], cz[MAX_ORDER + 1];
     auto hx = lx_ / ex_;
     auto hy = ly_ / ey_;
     auto hz = lz_ / ez_;
 
     for (int n = 0; n < ez_; n++)
     {
-      getCoordInOneDirection(hz, n, coord_z);
+      getCoordInOneDirection(hz, n, cz);
       for (int m = 0; m < ey_; m++)
       {
-        getCoordInOneDirection(hy, m, coord_y);
+        getCoordInOneDirection(hy, m, cy);
         for (int l = 0; l < ex_; l++)
         {
-          getCoordInOneDirection(hx, l, coord_x);
-
-          for (int k = 0; k < order_ + 1; k++)
+          getCoordInOneDirection(hx, l, cx);
+          for (int k = 0; k <= order_; k++)
           {
-            for (int j = 0; j < order_ + 1; j++)
+            for (int j = 0; j <= order_; j++)
             {
-              for (int i = 0; i < order_ + 1; i++)
+              for (int i = 0; i <= order_; i++)
               {
-                int global_i = l * order_ + i;
-                int global_j = m * order_ + j;
-                int global_k = n * order_ + k;
-
-                int global_node_index = global_i + global_j * nodes_x +
-                                        global_k * nodes_x * nodes_y;
-
-                if (global_i < nodes_x && global_j < nodes_y &&
-                    global_k < nodes_z)
-                {
-                  nodes_coords_x_(global_node_index) = coord_x[i];
-                  nodes_coords_y_(global_node_index) = coord_y[j];
-                  nodes_coords_z_(global_node_index) = coord_z[k];
-                }
+                int gi = l * order_ + i;
+                int gj = m * order_ + j;
+                int gk = n * order_ + k;
+                int idx = gi + gj * nx + gk * nx * ny;
+                nodes_coords_x_(idx) = cx[i];
+                nodes_coords_y_(idx) = cy[j];
+                nodes_coords_z_(idx) = cz[k];
               }
             }
           }
@@ -276,90 +338,57 @@ class CartesianUnstructBuilder : public ModelBuilderBase<FloatType, ScalarType>
 
   void initModels()
   {
-    // TODO: Currently this function is not doing much more than
-    // creating uniforms model
     int n_element = ex_ * ey_ * ez_;
-    int n_node = (ex_ * order_ + 1) * (ey_ * order_ + 1) * (ez_ * order_ + 1);
     if (isModelOnNodes_)
     {
-      model_rho_node_ =
-          allocateVector<VECTOR_REAL_VIEW>(n_node, "model rho node");
-      model_vp_node_ =
-          allocateVector<VECTOR_REAL_VIEW>(n_node, "model vp node");
+      int n_node = (ex_ * order_ + 1) * (ey_ * order_ + 1) * (ez_ * order_ + 1);
+      model_rho_node_ = allocateVector<VECTOR_REAL_VIEW>(n_node, "rho node");
+      model_vp_node_ = allocateVector<VECTOR_REAL_VIEW>(n_node, "vp node");
+      Kokkos::deep_copy(model_rho_node_, 1.0);
+      Kokkos::deep_copy(model_vp_node_, 1500.0);
 
-      for (int i = 0; i < n_node; i++)
-      {
-        model_rho_node_[i] = 1;
-        model_vp_node_[i] = 1500;
-      }
       if (isElastic_)
       {
-        model_vs_node_ =
-            allocateVector<VECTOR_REAL_VIEW>(n_node, "model vs node");
+        model_vs_node_ = allocateVector<VECTOR_REAL_VIEW>(n_node, "vs node");
         model_delta_node_ =
-            allocateVector<VECTOR_REAL_VIEW>(n_node, "model delta node");
-        model_gamma_node_ =
-            allocateVector<VECTOR_REAL_VIEW>(n_node, "model gamma node");
+            allocateVector<VECTOR_REAL_VIEW>(n_node, "delta node");
         model_epsilon_node_ =
-            allocateVector<VECTOR_REAL_VIEW>(n_node, "model epsilon node");
+            allocateVector<VECTOR_REAL_VIEW>(n_node, "eps node");
+        model_gamma_node_ =
+            allocateVector<VECTOR_REAL_VIEW>(n_node, "gamma node");
         model_theta_node_ =
-            allocateVector<VECTOR_REAL_VIEW>(n_node, "model theta node");
-        model_phi_node_ =
-            allocateVector<VECTOR_REAL_VIEW>(n_node, "model phi node");
-
-        for (int i = 0; i < n_node; i++)
-        {
-          model_vs_node_[i] = 755;
-          model_delta_node_[i] = 0.0;
-          model_epsilon_node_[i] = 0.0;
-          model_gamma_node_[i] = 0.0;
-          model_theta_node_[i] = 0.0;
-          model_phi_node_[i] = 0.0;
-        }
+            allocateVector<VECTOR_REAL_VIEW>(n_node, "theta node");
+        model_phi_node_ = allocateVector<VECTOR_REAL_VIEW>(n_node, "phi node");
+        Kokkos::deep_copy(model_vs_node_, 755.0);
       }
     }
-
     else
     {
       model_rho_element_ =
-          allocateVector<VECTOR_REAL_VIEW>(n_element, "model rho elem");
+          allocateVector<VECTOR_REAL_VIEW>(n_element, "rho elem");
       model_vp_element_ =
-          allocateVector<VECTOR_REAL_VIEW>(n_element, "model vp elem");
-
-      for (int i = 0; i < n_element; i++)
-      {
-        model_rho_element_[i] = 1;
-        model_vp_element_[i] = 1500;
-      }
+          allocateVector<VECTOR_REAL_VIEW>(n_element, "vp elem");
+      Kokkos::deep_copy(model_rho_element_, 1.0);
+      Kokkos::deep_copy(model_vp_element_, 1500.0);
 
       if (isElastic_)
       {
         model_vs_element_ =
-            allocateVector<VECTOR_REAL_VIEW>(n_element, "model vs element");
+            allocateVector<VECTOR_REAL_VIEW>(n_element, "vs element");
         model_delta_element_ =
-            allocateVector<VECTOR_REAL_VIEW>(n_element, "model delta element");
+            allocateVector<VECTOR_REAL_VIEW>(n_element, "delta element");
+        model_epsilon_element_ =
+            allocateVector<VECTOR_REAL_VIEW>(n_element, "eps element");
         model_gamma_element_ =
-            allocateVector<VECTOR_REAL_VIEW>(n_element, "model gamma element");
-        model_epsilon_element_ = allocateVector<VECTOR_REAL_VIEW>(
-            n_element, "model epsilon element");
+            allocateVector<VECTOR_REAL_VIEW>(n_element, "gamma element");
         model_theta_element_ =
-            allocateVector<VECTOR_REAL_VIEW>(n_element, "model theta element");
+            allocateVector<VECTOR_REAL_VIEW>(n_element, "theta element");
         model_phi_element_ =
-            allocateVector<VECTOR_REAL_VIEW>(n_element, "model phi element");
-
-        for (int i = 0; i < n_element; i++)
-        {
-          model_vs_element_[i] = 755;
-          model_delta_element_[i] = 0.0;
-          model_epsilon_element_[i] = 0.0;
-          model_gamma_element_[i] = 0.0;
-          model_theta_element_[i] = 0.0;
-          model_phi_element_[i] = 0.0;
-        }
+            allocateVector<VECTOR_REAL_VIEW>(n_element, "phi element");
+        Kokkos::deep_copy(model_vs_element_, 755.0);
       }
     }
   }
 };
-
 }  // namespace model
-#endif  // SRC_MODEL_CARTESIANMESH_INCLUDE_CARTESIAN_UNSTRUCT_MESH_H_
+#endif
