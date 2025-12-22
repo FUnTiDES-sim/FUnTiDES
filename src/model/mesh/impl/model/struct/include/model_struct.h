@@ -123,9 +123,9 @@ class ModelStruct : public ModelApi<FloatType, ScalarType>
   PROXY_HOST_DEVICE
   void vertexCoords(IndexType dofGlobal, FloatType* const coords) const
   {
-    coords[0] = dofGlobal[0] * ex_;
-    coords[1] = dofGlobal[1] * ey_;
-    coords[2] = dofGlobal[2] * ez_;
+    coords[0] = dofGlobal[0] * hx_;
+    coords[1] = dofGlobal[1] * hy_;
+    coords[2] = dofGlobal[2] * hz_;
   }
 
   /**
@@ -285,7 +285,7 @@ class ModelStruct : public ModelApi<FloatType, ScalarType>
   FloatType getModelDeltaOnNodes(ScalarType n) const
   {
     // TODO: Not returning magic number
-    return 0.1;
+    return 0.0;
   }
 
   /**
@@ -297,7 +297,7 @@ class ModelStruct : public ModelApi<FloatType, ScalarType>
   FloatType getModelDeltaOnElement(ScalarType e) const
   {
     // TODO: Not returning a magic number
-    return 0.1;
+    return 0.0;
   }
 
   /**
@@ -309,7 +309,7 @@ class ModelStruct : public ModelApi<FloatType, ScalarType>
   FloatType getModelEpsilonOnNodes(ScalarType n) const
   {
     // TODO: Not returning magic number
-    return 0.2;
+    return 0.0;
   }
 
   /**
@@ -321,7 +321,7 @@ class ModelStruct : public ModelApi<FloatType, ScalarType>
   FloatType getModelEpsilonOnElement(ScalarType e) const
   {
     // TODO: Not returning a magic number
-    return 0.2;
+    return 0.0;
   }
 
   /**
@@ -333,7 +333,7 @@ class ModelStruct : public ModelApi<FloatType, ScalarType>
   FloatType getModelGammaOnNodes(ScalarType n) const
   {
     // TODO: Not returning magic number
-    return 0.08;
+    return 0.0;
   }
 
   /**
@@ -345,7 +345,7 @@ class ModelStruct : public ModelApi<FloatType, ScalarType>
   FloatType getModelGammaOnElement(ScalarType e) const
   {
     // TODO: Not returning a magic number
-    return 0.08;
+    return 0.0;
   }
 
   /**
@@ -357,7 +357,7 @@ class ModelStruct : public ModelApi<FloatType, ScalarType>
   ScalarType getModelThetaOnNodes(ScalarType n) const
   {
     // TODO: Not returning magic number
-    return 30;
+    return 0;
   }
 
   /**
@@ -370,7 +370,7 @@ class ModelStruct : public ModelApi<FloatType, ScalarType>
   ScalarType getModelThetaOnElement(ScalarType e) const
   {
     // TODO: Not returning a magic number
-    return 30;
+    return 0;
   }
 
   /**
@@ -394,7 +394,7 @@ class ModelStruct : public ModelApi<FloatType, ScalarType>
   ScalarType getModelPhiOnElement(ScalarType e) const
   {
     // TODO: Not returning a magic number
-    return 45;
+    return 0.0;
   }
 
   /**
@@ -417,11 +417,11 @@ class ModelStruct : public ModelApi<FloatType, ScalarType>
     FloatType vp = 1500.0;
     FloatType vs = 755.0;
     FloatType rho = 1.0;
-    FloatType delta = 0.1;
-    FloatType epsilon = 0.2;
-    FloatType gamma = 0.08;
-    FloatType theta = 30.0;
-    FloatType phi = 45.0;
+    FloatType delta = 0.;
+    FloatType epsilon = 0.;
+    FloatType gamma = 0.0;
+    FloatType theta = 0.0;
+    FloatType phi = 0.0;
 
     computeCTensor(vp, vs, rho, delta, epsilon, gamma, theta, phi, CTTI);
 
