@@ -183,12 +183,22 @@ class ModelUnstruct final : public ModelApi<FloatType, ScalarType>
    * @return Global vertex index
    */
   PROXY_HOST_DEVICE
-  IndexType globalVertexIndex(IndexType e, int const i, int const j,
-                              int const k) const
+  IndexType globalVertexIndex(IndexType e, int const i, int const j, int const k) const
   {
-    const auto localDofIndex =
-        i + j * (order_ + 1) + k * (order_ + 1) * (order_ + 1);
-    return global_node_index_(e, localDofIndex);
+    // i, j, k here are ALWAYS logic corners (0 or 1) coming from gatherTransformData
+    if (global_node_index_.extent(1) == 8)
+    {
+        return global_node_index_(e, i + j * 2 + k * 4);
+    }
+    else
+    {
+        // Standard high-order layout: corners are at 0 and order_
+        int li = i * static_cast<int>(order_);
+        int lj = j * static_cast<int>(order_);
+        int lk = k * static_cast<int>(order_);
+        const int p1 = static_cast<int>(order_) + 1;
+        return global_node_index_(e, li + lj * p1 + lk * p1 * p1);
+    }
   }
 
   /**
@@ -240,9 +250,22 @@ class ModelUnstruct final : public ModelApi<FloatType, ScalarType>
   PROXY_HOST_DEVICE
   ScalarType globalNodeIndex(ScalarType e, int i, int j, int k) const final
   {
-    const auto localDofIndex =
-        i + j * (order_ + 1) + k * (order_ + 1) * (order_ + 1);
-    return global_node_index_(e, localDofIndex);  // Fixed: was elementIndex
+    // Check the actual width of the allocated connectivity table
+    if (global_node_index_.extent(1) == 8)
+    {
+      // OPTIMIZED CASE: Table only has corners.
+      int li = (i == 0) ? 0 : 1;
+      int lj = (j == 0) ? 0 : 1;
+      int lk = (k == 0) ? 0 : 1;
+      return global_node_index_(e, li + lj * 2 + lk * 4);
+    }
+    else
+    {
+      // STANDARD CASE: Table has (order_ + 1)^3 columns.
+      const int p1 = static_cast<int>(order_) + 1;
+      const auto localDofIndex = i + j * p1 + k * p1 * p1;
+      return global_node_index_(e, localDofIndex);
+    }
   }
 
   /**
