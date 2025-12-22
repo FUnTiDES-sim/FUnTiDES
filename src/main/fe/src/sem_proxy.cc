@@ -190,7 +190,7 @@ void SEMproxy::run()
       // Save slice in dat format
       if (is_snapshots_ && indexTimeSample % snap_time_interval_ == 0)
       {
-        saveSnapshot(indexTimeSample);
+        saveSnapshot(indexTimeSample, pnGlobal);
       }
 
       // Save pressure at receiver
@@ -272,7 +272,7 @@ void SEMproxy::run()
       // Save slice in dat format
       if (is_snapshots_ && indexTimeSample % snap_time_interval_ == 0)
       {
-        saveSnapshot(indexTimeSample);
+        saveSnapshot(indexTimeSample, uxnGlobal);
       }
 
       // Save pressure at receiver
@@ -533,11 +533,11 @@ void SEMproxy::init_source()
   }
 }
 
-void SEMproxy::saveSnapshot(int timestep)
+void SEMproxy::saveSnapshot(int timestep, ARRAY_REAL_VIEW data) const
 {
 #ifdef USE_KOKKOS
-  auto nb_nodes = pnGlobal.extent(0);
-  auto subview = Kokkos::subview(pnGlobal, Kokkos::ALL(), i1);
+  auto nb_nodes = data.extent(0);
+  auto subview = Kokkos::subview(data, Kokkos::ALL(), i1);
 
   vectorReal subset("snapshot_cpy", nb_nodes);
   // Use a parallel copy to handle the strided layout
@@ -546,8 +546,8 @@ void SEMproxy::saveSnapshot(int timestep)
       KOKKOS_LAMBDA(int i) { subset(i) = subview(i); });
   Kokkos::fence();
 #else
-  auto nb_nodes = pnGlobal[0].size();
-  auto& subview = pnGlobal[i1];
+  auto nb_nodes = data[0].size();
+  auto& subview = data[i1];
   vectorReal subset(subview.begin(), subview.end());
 #endif  // USE_KOKKOS
 
