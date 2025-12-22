@@ -4,6 +4,7 @@
 #include <array>
 #include <cmath>
 
+
 #include "data_type.h"
 #include "model.h"
 #include "physics_traits.h"
@@ -35,7 +36,7 @@ namespace fe
  * @tparam PHYSICS Physics type (kAcoustic or kElastic)
  */
 template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE,
-          bool IS_MODEL_ON_NODES, physicType PHYSICS>
+          bool IS_MODEL_ON_NODES, enums::physicType PHYSICS>
 class SEMsolver : public SEMSolverBase
 {
  public:

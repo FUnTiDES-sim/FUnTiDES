@@ -5,12 +5,14 @@
 #include <KokkosExp_InterOp.hpp>
 
 #include "common_macros.h"
+#include "sem_enums.h"
 #include "sem_solver.h"
 #include "solver_factory.h"
 
 namespace py = pybind11;
 
 using namespace solver::fe;
+using namespace solver::fe::enums;
 
 PYBIND11_MODULE(solver, m)
 {
@@ -18,24 +20,26 @@ PYBIND11_MODULE(solver, m)
   m.attr("__name__") = "pyfuntides.solver";
 
   // Bind enums from solver::fe namespace
-  py::enum_<methodType>(m, "MethodType").value("SEM", kSem).value("DG", kDg);
+  py::enum_<methodType>(m, "MethodType")
+      .value("SEM", methodType::kSem)
+      .value("DG", methodType::kDg);
 
   py::enum_<implemType>(m, "ImplemType")
-      .value("MAKUTU", kMakutu)
-      .value("SHIVA", kShiva);
+      .value("MAKUTU", implemType::kMakutu)
+      .value("SHIVA", implemType::kShiva);
 
   py::enum_<meshType>(m, "MeshType")
-      .value("STRUCT", kStruct)
-      .value("UNSTRUCT", kUnstruct);
+      .value("STRUCT", meshType::kStruct)
+      .value("UNSTRUCT", meshType::kUnstruct);
 
   py::enum_<modelLocationType>(m, "ModelLocationType")
-      .value("ONNODES", kOnNodes)
-      .value("ONELEMENTS", kOnElements)
+      .value("ONNODES", modelLocationType::kOnNodes)
+      .value("ONELEMENTS", modelLocationType::kOnElements)
       .export_values();
 
   py::enum_<physicType>(m, "PhysicType")
-      .value("ACOUSTIC", kAcoustic)
-      .value("ELASTIC", kElastic)
+      .value("ACOUSTIC", physicType::kAcoustic)
+      .value("ELASTIC", physicType::kElastic)
       .export_values();
 
   // Bind DataStruct

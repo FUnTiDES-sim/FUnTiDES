@@ -29,7 +29,7 @@ namespace fe
 //============================================================================
 
 template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE,
-          bool IS_MODEL_ON_NODES, physicType PHYSICS>
+          bool IS_MODEL_ON_NODES, enums::physicType PHYSICS>
 void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES,
                PHYSICS>::computeFEInit(model::ModelApi<float, int>& mesh_in,
                                        const std::array<float, 3>& sponge_size,
