@@ -1,105 +1,39 @@
-#pragma once
+#ifndef SRC_SOLVER_FE_IMPL_INCLUDE_SOLVERFACTORY_H_
+#define SRC_SOLVER_FE_IMPL_INCLUDE_SOLVERFACTORY_H_
 
 #include <fe/Integrals.hpp>
 #include <memory>
 
+#include "sem_enums.h"
 #include "sem_solver_base.h"
+
+using namespace solver::fe::enums;
 
 namespace SolverFactory
 {
-enum methodType
-{
-  SEM,
-  DG
-};
-enum implemType
-{
-  MAKUTU,
-  SHIVA
-};
-enum meshType
-{
-  Struct,
-  Unstruct
-};
-enum modelLocationType
-{
-  OnNodes,
-  OnElements
-};
-enum physicType
-{
-  Acoustic,
-  Elastic
-};
 
-inline std::string to_string(methodType m)
-{
-  switch (m)
-  {
-    case SEM:
-      return "SEM";
-    case DG:
-      return "DG";
-    default:
-      return "Unknown";
-  }
-}
+/**
+ * @brief Creates a SEM solver instance based on the specified configuration.
+ *
+ * This factory function creates the appropriate solver type based on the
+ * method type, implementation type, mesh type, model location, physics type,
+ * and polynomial order.
+ *
+ * @param methodType The numerical method (SEM or DG)
+ * @param implemType The implementation backend (Makutu or Shiva)
+ * @param meshType The mesh type (Struct or Unstruct)
+ * @param modelLocation Where model parameters are stored (OnNodes or
+ * OnElements)
+ * @param physicType The physics type (Acoustic or Elastic)
+ * @param order The polynomial order of spectral elements
+ * @return A unique pointer to the created solver
+ * @throws std::runtime_error if the configuration is unsupported
+ */
+std::unique_ptr<SEMSolverBase> createSolver(methodType methodType,
+                                            implemType implemType,
+                                            meshType meshType,
+                                            modelLocationType modelLocation,
+                                            physicType physicType, int order);
 
-inline std::string to_string(implemType i)
-{
-  switch (i)
-  {
-    case MAKUTU:
-      return "MAKUTU";
-    case SHIVA:
-      return "SHIVA";
-    default:
-      return "Unknown";
-  }
-}
-
-inline std::string to_string(meshType m)
-{
-  switch (m)
-  {
-    case Struct:
-      return "Struct";
-    case Unstruct:
-      return "Unstruct";
-    default:
-      return "Unknown";
-  }
-}
-
-inline std::string to_string(modelLocationType loc)
-{
-  switch (loc)
-  {
-    case OnNodes:
-      return "OnNodes";
-    case OnElements:
-      return "OnElements";
-    default:
-      return "Unknown";
-  }
-}
-
-inline std::string to_string(physicType p)
-{
-  switch (p)
-  {
-    case Acoustic:
-      return "Acoustic";
-    case Elastic:
-      return "Elastic";
-    default:
-      return "Unknown";
-  }
-}
-
-std::unique_ptr<SEMSolverBase> createSolver(
-    methodType const methodType, implemType const implemType,
-    meshType const meshType, modelLocationType const modelLocation,
-    physicType const physicType, int const order);
 }  // namespace SolverFactory
+#endif  // SRC_SOLVER_FE_IMPL_INCLUDE_SOLVERFACTORY_H_

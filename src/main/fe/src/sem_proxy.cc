@@ -9,8 +9,6 @@
 
 #include <cartesian_struct_builder.h>
 #include <cartesian_unstruct_builder.h>
-#include <sem_solver_acoustic.h>
-#include <sem_solver_elastic.h>
 #include <source_and_receiver_utils.h>
 
 #include <cxxopts.hpp>
@@ -19,7 +17,11 @@
 #include <sstream>
 #include <variant>
 
+#include "sem_solver.h"
+
 using namespace SourceAndReceiverUtils;
+using namespace solver::fe;
+using namespace solver::fe::enums;
 
 SEMproxy::SEMproxy(const SemProxyOptions& opt)
 {
@@ -52,15 +54,14 @@ SEMproxy::SEMproxy(const SemProxyOptions& opt)
   cout << boolalpha;
   bool isElastic = isElastic_;
 
-  const SolverFactory::methodType methodType = getMethod(opt.method);
-  const SolverFactory::implemType implemType = getImplem(opt.implem);
-  const SolverFactory::meshType meshType = getMesh(opt.mesh);
-  const SolverFactory::modelLocationType modelLocation =
-      isModelOnNodes ? SolverFactory::modelLocationType::OnNodes
-                     : SolverFactory::modelLocationType::OnElements;
-  const SolverFactory::physicType physicType =
-      isElastic ? SolverFactory::physicType::Elastic
-                : SolverFactory::physicType::Acoustic;
+  const methodType methodType = getMethod(opt.method);
+  const implemType implemType = getImplem(opt.implem);
+  const meshType meshType = getMesh(opt.mesh);
+  const modelLocationType modelLocation = isModelOnNodes
+                                              ? modelLocationType::kOnNodes
+                                              : modelLocationType::kOnElements;
+  const physicType physicType =
+      isElastic ? physicType::kElastic : physicType::kAcoustic;
 
   float lx = domain_size_[0];
   float ly = domain_size_[1];
@@ -69,7 +70,7 @@ SEMproxy::SEMproxy(const SemProxyOptions& opt)
   int ey = nb_elements_[1];
   int ez = nb_elements_[2];
 
-  if (meshType == SolverFactory::Struct)
+  if (meshType == meshType::kStruct)
   {
     switch (order)
     {
@@ -96,7 +97,7 @@ SEMproxy::SEMproxy(const SemProxyOptions& opt)
             "Order other than 1 2 3 is not supported (semproxy)");
     }
   }
-  else if (meshType == SolverFactory::Unstruct)
+  else if (meshType == meshType::kUnstruct)
   {
     model::CartesianParams<float, int> param(order, ex, ey, ez, lx, ly, lz,
                                              isModelOnNodes, isElastic);
@@ -553,28 +554,28 @@ void SEMproxy::saveSnapshot(int timestep, ARRAY_REAL_VIEW data) const
   io_ctrl_->saveSnapshot(subset, timestep);
 }
 
-SolverFactory::implemType SEMproxy::getImplem(string implemArg)
+implemType SEMproxy::getImplem(string implemArg)
 {
-  if (implemArg == "makutu") return SolverFactory::MAKUTU;
-  if (implemArg == "shiva") return SolverFactory::SHIVA;
+  if (implemArg == "makutu") return implemType::kMakutu;
+  if (implemArg == "shiva") return implemType::kShiva;
 
   throw std::invalid_argument(
       "Implentation type does not follow any valid type.");
 }
 
-SolverFactory::meshType SEMproxy::getMesh(string meshArg)
+meshType SEMproxy::getMesh(string meshArg)
 {
-  if (meshArg == "cartesian") return SolverFactory::Struct;
-  if (meshArg == "ucartesian") return SolverFactory::Unstruct;
+  if (meshArg == "cartesian") return meshType::kStruct;
+  if (meshArg == "ucartesian") return meshType::kUnstruct;
 
   std::cout << "Mesh type found is " << meshArg << std::endl;
   throw std::invalid_argument("Mesh type does not follow any valid type.");
 }
 
-SolverFactory::methodType SEMproxy::getMethod(string methodArg)
+methodType SEMproxy::getMethod(string methodArg)
 {
-  if (methodArg == "sem") return SolverFactory::SEM;
-  if (methodArg == "dg") return SolverFactory::DG;
+  if (methodArg == "sem") return methodType::kSem;
+  if (methodArg == "dg") return methodType::kDg;
 
   throw std::invalid_argument("Method type does not follow any valid type.");
 }
