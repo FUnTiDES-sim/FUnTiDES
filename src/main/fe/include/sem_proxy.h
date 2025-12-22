@@ -5,21 +5,25 @@
 //
 //************************************************************************
 
-#ifndef SEMPROXY_HPP_
-#define SEMPROXY_HPP_
+#ifndef SRC_MAIN_FE_INCLUDE_SEMPROXY_H_
+#define SRC_MAIN_FE_INCLUDE_SEMPROXY_H_
 
 #include <data_type.h>
-#include <model_struct.h>
-#include <model_unstruct.h>
-#include <solver_factory.h>
 #include <utils.h>
 
 #include <memory>
 #include <string>
 #include <variant>
 
+#include "model_struct.h"
+#include "model_unstruct.h"
+#include "sem_enums.h"
 #include "sem_io_controller.h"
 #include "sem_proxy_options.h"
+#include "sem_solver_base.h"
+#include "solver_factory.h"
+
+using namespace solver::fe::enums;
 
 /**
  * @class SEMproxy
@@ -152,9 +156,9 @@ class SEMproxy
 
   // private methods to pars argv options
   int getPhysic(string physicArg);
-  SolverFactory::implemType getImplem(string implemArg);
-  SolverFactory::methodType getMethod(string methodArg);
-  SolverFactory::meshType getMesh(string meshArg);
+  implemType getImplem(string implemArg);
+  methodType getMethod(string methodArg);
+  meshType getMesh(string meshArg);
 };
 
-#endif /* SEMPROXY_HPP_ */
+#endif  // SRC_MAIN_FE_INCLUDE_SEMPROXY_H_
