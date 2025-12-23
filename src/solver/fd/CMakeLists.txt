@@ -24,12 +24,10 @@ target_include_directories(fd_solver PRIVATE
 
 target_link_libraries(fd_solver PUBLIC
     fd_grid
+    proxy_utils
 )
 
-# Optional: Add Kokkos support if available
-if(USE_KOKKOS)
-    target_link_libraries(fd_solver PUBLIC Kokkos::kokkos)
-endif()
+target_link_kokkos_if_enabled(fd_solver)
 
 # Installation rules
 install(TARGETS fd_solver
