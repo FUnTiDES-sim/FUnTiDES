@@ -7,12 +7,12 @@ template <typename Coord, typename Index>
 struct CartesianParams
 {
   int order;
-
   Index ex, ey, ez;
   Coord lx, ly, lz;
-
   bool isModelOnNodes;
   bool isElastic;
+
+  Coord origin_x{0}, origin_y{0}, origin_z{0};
 
   CartesianParams() = default;
 
