@@ -4,9 +4,6 @@
 // Enable use of Vector (CMake option)
 #cmakedefine USE_VECTOR
 
-// Enables use of KOKOS (CMake option)
-#cmakedefine USE_KOKKOS
-
 // Enables use of ENABLE_HIP (CMake option)
 #cmakedefine ENABLE_HIP
 

@@ -94,7 +94,7 @@ function(add_benchmark name)
         --kokkos-threads=${t}
         --benchmark_out=${BENCHMARK_RESULTS_DIR}/${test_name}.json
         --benchmark_out_format=json
-        --benchmark_min_time=10
+        --benchmark_min_time=10s
     )
     set_tests_properties(${test_name}
       PROPERTIES
