@@ -1,62 +1,71 @@
-# ADIOS2.cmake - Configuration for ADIOS2 with minimal dependencies
-# All external dependencies disabled for submodule-only build
+# ADIOS2.cmake - Minimal Configuration for BP5 File I/O only
 
 if(NOT TARGET adios2::adios2)
-    message(STATUS "Configuring ADIOS2 with minimal dependencies")
+    message(STATUS "Configuring ADIOS2 for minimal BP5 File I/O")
 
-    # Set ADIOS2 build options - disable all external dependencies
-    set(ADIOS2_USE_MPI OFF CACHE BOOL "Disable MPI support")
-    set(ADIOS2_USE_HDF5 OFF CACHE BOOL "Disable HDF5 engine")
-    set(ADIOS2_USE_Python OFF CACHE BOOL "Disable Python bindings")
-    set(ADIOS2_USE_Fortran OFF CACHE BOOL "Disable Fortran bindings")
-    set(ADIOS2_USE_SST OFF CACHE BOOL "Disable SST engine")
-    set(ADIOS2_USE_DataMan OFF CACHE BOOL "Disable DataMan engine")
-    set(ADIOS2_USE_DataSpaces OFF CACHE BOOL "Disable DataSpaces engine")
-    set(ADIOS2_USE_ZeroMQ OFF CACHE BOOL "Disable ZeroMQ")
-    set(ADIOS2_USE_Profiling OFF CACHE BOOL "Disable profiling")
-    set(ADIOS2_USE_SysVShMem OFF CACHE BOOL "Disable SysV shared memory")
-    set(ADIOS2_USE_UCX OFF CACHE BOOL "Disable UCX")
-    set(ADIOS2_USE_IME OFF CACHE BOOL "Disable IME")
-    set(ADIOS2_USE_DAOS OFF CACHE BOOL "Disable DAOS")
-    set(ADIOS2_USE_GPU_Support OFF CACHE BOOL "Disable GPU support")
-    set(ADIOS2_USE_CUDA OFF CACHE BOOL "Disable CUDA")
-    set(ADIOS2_USE_Kokkos OFF CACHE BOOL "Disable Kokkos")
-    set(ADIOS2_USE_OpenMP OFF CACHE BOOL "Enable OpenMP for compression")
-    set(ADIOS2_USE_Blosc2 OFF CACHE BOOL "Enable Blosc compression")
-    set(ADIOS2_USE_BZip2 OFF CACHE BOOL "Disable BZip2 compression")
-    set(ADIOS2_USE_ZFP OFF CACHE BOOL "Disable ZFP compression")
-    set(ADIOS2_USE_SZ OFF CACHE BOOL "Disable SZ compression")
-    set(ADIOS2_USE_MGARD OFF CACHE BOOL "Disable MGARD compression")
-    set(ADIOS2_USE_PNG OFF CACHE BOOL "Disable PNG support")
-    set(ADIOS2_USE_FFTW OFF CACHE BOOL "Disable FFTW")
-    set(ADIOS2_USE_Catalyst OFF CACHE BOOL "Disable Catalyst")
-    set(ADIOS2_USE_VTK OFF CACHE BOOL "Disable VTK")
+    # 1. Disable Parallelism and Language Bindings
+    set(ADIOS2_USE_MPI OFF CACHE BOOL "Disable MPI" FORCE)
+    set(ADIOS2_USE_Python OFF CACHE BOOL "Disable Python" FORCE)
+    set(ADIOS2_USE_Fortran OFF CACHE BOOL "Disable Fortran" FORCE)
 
-    # Build configuration
-    set(BUILD_TESTING OFF CACHE BOOL "Disable testing")
-    set(ADIOS2_BUILD_TESTING OFF CACHE BOOL "Disable ADIOS2 testing")
-    set(ADIOS2_BUILD_EXAMPLES OFF CACHE BOOL "Disable ADIOS2 examples")
-    set(BUILD_SHARED_LIBS OFF CACHE BOOL "Build static libraries")
+    # 2. Disable Network/Staging Engines (Removes EVPath, ENet, Dill, FFS, Atl)
+    set(ADIOS2_USE_SST OFF CACHE BOOL "Disable SST Staging" FORCE)
+    set(ADIOS2_USE_SSC OFF CACHE BOOL "Disable SSC Staging" FORCE)
+    set(ADIOS2_USE_DataMan OFF CACHE BOOL "Disable DataMan" FORCE)
+    set(ADIOS2_USE_DataSpaces OFF CACHE BOOL "Disable DataSpaces" FORCE)
+    set(ADIOS2_USE_ZeroMQ OFF CACHE BOOL "Disable ZeroMQ" FORCE)
+    set(ADIOS2_USE_HDF5 OFF CACHE BOOL "Disable HDF5" FORCE)
 
-    # Force disable all test building
-    set(ADIOS2_BUILD_TESTING_SERIAL OFF CACHE BOOL "Disable serial tests")
-    set(ADIOS2_BUILD_TESTING_MPI OFF CACHE BOOL "Disable MPI tests")
+    # 3. Disable Legacy/Unused Engines (Keep only BP5)
+    set(ADIOS2_USE_BP3 OFF CACHE BOOL "Disable BP3" FORCE)
+    set(ADIOS2_USE_BP4 OFF CACHE BOOL "Disable BP4" FORCE)
+    # Note: BP5 is usually ON by default, but we leave it implicitly enabled.
 
-    # Prevent CTest from being included
-    set(BUILD_TESTING OFF)
-    set_property(GLOBAL PROPERTY CTEST_TARGETS_ADDED 1)
+    # 4. Disable Compression & External Libs (Speeds up compile)
+    set(ADIOS2_USE_Blosc2 OFF CACHE BOOL "Disable Blosc2" FORCE)
+    set(ADIOS2_USE_BZip2 OFF CACHE BOOL "Disable BZip2" FORCE)
+    set(ADIOS2_USE_ZFP OFF CACHE BOOL "Disable ZFP" FORCE)
+    set(ADIOS2_USE_SZ OFF CACHE BOOL "Disable SZ" FORCE)
+    set(ADIOS2_USE_PNG OFF CACHE BOOL "Disable PNG" FORCE)
+    set(ADIOS2_USE_MGARD OFF CACHE BOOL "Disable MGARD" FORCE)
 
-    # Add ADIOS2 subdirectory
+    # 5. Disable System/Hardware features
+    set(ADIOS2_USE_SysVShMem OFF CACHE BOOL "Disable SysV Shared Mem" FORCE)
+    set(ADIOS2_USE_UCX OFF CACHE BOOL "Disable UCX" FORCE)
+    set(ADIOS2_USE_DAOS OFF CACHE BOOL "Disable DAOS" FORCE)
+    set(ADIOS2_USE_IME OFF CACHE BOOL "Disable IME" FORCE)
+    set(ADIOS2_USE_CUDA OFF CACHE BOOL "Disable CUDA in ADIOS" FORCE)
+    set(ADIOS2_USE_Kokkos OFF CACHE BOOL "Disable Kokkos in ADIOS" FORCE)
+    set(ADIOS2_USE_Profiling OFF CACHE BOOL "Disable internal profiling" FORCE)
+
+    # 6. Disable Tools, Tests and Examples
+    set(ADIOS2_BUILD_EXAMPLES OFF CACHE BOOL "Disable Examples" FORCE)
+    set(ADIOS2_BUILD_TESTING OFF CACHE BOOL "Disable Testing" FORCE)
+    set(ADIOS2_INSTALL_GENERATE_CONFIG OFF CACHE BOOL "Disable Config Generation" FORCE)
+
+    # Prevent ADIOS from building its own tools (bpls, adios_reorganize, etc)
+    # This saves significant compilation time
+    set(ADIOS2_TOOL_BPLS OFF CACHE BOOL "Disable bpls tool" FORCE)
+    set(ADIOS2_TOOL_REORGANIZE OFF CACHE BOOL "Disable reorganize tool" FORCE)
+
+    # --------------------------------------------------------
+    # Add Subdirectory
+    # --------------------------------------------------------
     if(EXISTS ${CMAKE_SOURCE_DIR}/external/ADIOS2/CMakeLists.txt)
+        # Prevent CTest from interfering
+        set(BUILD_TESTING_SAVED ${BUILD_TESTING})
+        set(BUILD_TESTING OFF)
+
         add_subdirectory(${CMAKE_SOURCE_DIR}/external/ADIOS2
-                        ${CMAKE_BINARY_DIR}/external/ADIOS2)
+                        ${CMAKE_BINARY_DIR}/external/ADIOS2
+                        EXCLUDE_FROM_ALL) # Prevents installing unused artifacts
 
-    # Create alias for consistent naming
-    if(TARGET adios2)
-        add_library(adios2::adios2 ALIAS adios2)
-    endif()
+        set(BUILD_TESTING ${BUILD_TESTING_SAVED})
 
-        message(STATUS "ADIOS2 configured successfully with minimal dependencies")
+        if(TARGET adios2_cxx11)
+            add_library(adios2::adios2 ALIAS adios2_cxx11)
+            message(STATUS "ADIOS2 configured. Target: adios2::adios2")
+        endif()
     else()
         message(WARNING "ADIOS2 submodule not found at external/ADIOS2")
     endif()
