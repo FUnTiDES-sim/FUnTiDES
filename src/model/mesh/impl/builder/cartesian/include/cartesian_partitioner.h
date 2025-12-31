@@ -37,61 +37,55 @@ template <typename FloatType, typename ScalarType>
 class CartesianXPartitioner : public PartitioningStrategy<FloatType, ScalarType>
 {
  public:
-  // @brief Partition domain along X-axis.
-  //
-  // @param[in] global Global mesh parameters with global origin and dimensions
-  // @param[in] rank Current MPI rank (0-based)
-  // @param[in] size Total number of ranks
-  //
-  // @return Local parameters with:
-  //   - ex: local element count
-  //   - lx: local physical size
-  //   - origin_x: global origin of this subdomain
-  //   - y, z parameters: copied from global (unchanged)
-  //
-  // @throws std::invalid_argument if rank < 0 or rank >= size
   CartesianParams<FloatType, ScalarType> partition(
       const CartesianParams<FloatType, ScalarType>& global, int rank,
       int size) const override
   {
+    // Validation
     if (size <= 0)
     {
       throw std::invalid_argument("CartesianPartitioner: size must be > 0");
     }
     if (rank < 0 || rank >= size)
     {
-      throw std::invalid_argument("Invalid rank: " + std::to_string(rank) +
-                                  " for size: " + std::to_string(size));
+      throw std::invalid_argument(
+          "CartesianPartitioner: rank must be between 0 and size-1");
     }
 
-    auto local = global;  // Copy global settings
+    auto local = global;
 
-    // Compute local element count
+    // 1D Decomposition along X axis
     ScalarType base_ex = global.ex / size;
     ScalarType remainder = global.ex % size;
 
+    // Determine local element count
     local.ex = base_ex + (rank < remainder ? 1 : 0);
 
-    // Compute global element offset
+    // Calculate Global Offset (in elements)
     ScalarType element_offset_x =
-        rank * base_ex + std::min(static_cast<ScalarType>(rank), remainder);
+        rank * base_ex + std::min((ScalarType)rank, remainder);
 
-    // Element size
+    // Calculate Element Size
     FloatType dx = global.lx / global.ex;
 
-    // Set local physical parameters
+    // Set Local Physical Size
     local.lx = local.ex * dx;
 
-    // CRITICAL: Set global origin for this subdomain
-    // This ensures nodeCoord() returns absolute global coordinates
+    // Critical: Set Global Origin for this subdomain
     local.origin_x = global.origin_x + element_offset_x * dx;
     local.origin_y = global.origin_y;
     local.origin_z = global.origin_z;
 
+    // Store global dimensions for reference (explicitly set from input local
+    // dims) Note: We use global.lx because 'global' represents the full domain
+    // here.
+    local.global_lx = global.lx;
+    local.global_ly = global.ly;
+    local.global_lz = global.lz;
+
     return local;
   }
 };
-
 }  // namespace model
 
 #endif  // SRC_MODEL_MESH_IMPL_BUILDER_CARTESIAN_INCLUDE_CARTESIAN_PARTITIONER_H_
