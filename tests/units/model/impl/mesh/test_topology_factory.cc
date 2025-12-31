@@ -28,18 +28,25 @@ class MockMesh : public model::ModelApi<FloatType, ScalarType>
   }
 
   // Required by TopologyFactory
+  // Guarded to prevent "calling __host__ function from __device__" warnings
   PROXY_HOST_DEVICE FloatType nodeCoord(ScalarType i, int dim) const override
   {
+#if !defined(__CUDA_ARCH__) && !defined(__HIP_DEVICE_COMPILE__)
     if (i < 0 || i >= static_cast<ScalarType>(nodes.size())) return 0.0;
     if (dim == 0) return nodes[i].x;
     if (dim == 1) return nodes[i].y;
     if (dim == 2) return nodes[i].z;
+#endif
     return 0.0;
   }
 
   PROXY_HOST_DEVICE ScalarType getNumberOfNodes() const override
   {
+#if !defined(__CUDA_ARCH__) && !defined(__HIP_DEVICE_COMPILE__)
     return static_cast<ScalarType>(nodes.size());
+#else
+    return 0;
+#endif
   }
 
   PROXY_HOST_DEVICE FloatType getMinSpacing() const override
@@ -165,30 +172,20 @@ TEST_F(TopologyFactoryTest, SingleRankReturnsEmptySharedNodes)
 
 TEST_F(TopologyFactoryTest, LeftBoundaryDetection)
 {
-  // Rank 1 of 3 (Middle rank)
-  // Left boundary at x=10.0, Right at x=20.0
-  // Nodes: 10.0 (Left), 15.0 (Inner), 20.0 (Right)
+  mesh.addNode(10.0f, 0.0f, 0.0f);  // Left
+  mesh.addNode(15.0f, 0.0f, 0.0f);
+  mesh.addNode(20.0f, 0.0f, 0.0f);  // Right
 
-  mesh.addNode(10.0f, 0.0f, 0.0f);  // Index 0
-  mesh.addNode(15.0f, 0.0f, 0.0f);  // Index 1
-  mesh.addNode(20.0f, 0.0f, 0.0f);  // Index 2
-
-  float origin_x = 10.0f;
-  float width_x = 10.0f;
-
-  auto topo = TopologyFactory::createFromMesh(mesh, 1, 3, origin_x, width_x);
+  auto topo = TopologyFactory::createFromMesh(mesh, 1, 3, 10.0f, 10.0f);
 
   EXPECT_TRUE(topo.isDistributed());
-
-  // Should share with Rank 0 (Left)
   ASSERT_TRUE(topo.sharedNodes.count(0));
   EXPECT_EQ(topo.sharedNodes[0].size(), 1);
-  EXPECT_EQ(topo.sharedNodes[0][0], 0);  // Node index 0 is at 10.0
+  EXPECT_EQ(topo.sharedNodes[0][0], 0);
 
-  // Should share with Rank 2 (Right)
   ASSERT_TRUE(topo.sharedNodes.count(2));
   EXPECT_EQ(topo.sharedNodes[2].size(), 1);
-  EXPECT_EQ(topo.sharedNodes[2][0], 2);  // Node index 2 is at 20.0
+  EXPECT_EQ(topo.sharedNodes[2][0], 2);
 }
 
 TEST_F(TopologyFactoryTest, AutoToleranceFromSpacing)
@@ -196,24 +193,20 @@ TEST_F(TopologyFactoryTest, AutoToleranceFromSpacing)
   mesh.minSpacing = 0.1f;
   mesh.addNode(10.000001f, 0.0f, 0.0f);  // Slightly off but within tolerance
 
-  float origin_x = 10.0f;
-
   // Should detect using auto-computed tolerance (0.1 * 1e-4)
   // 1e-6 < 1e-5, so should match
 
-  auto topo = TopologyFactory::createFromMesh(mesh, 1, 2, origin_x, 10.0f);
+  auto topo = TopologyFactory::createFromMesh(mesh, 1, 2, 10.0f, 10.0f);
 
   EXPECT_FALSE(topo.sharedNodes[0].empty());
 }
 
 TEST_F(TopologyFactoryTest, ThrowsOnMissingBoundaryNodes)
 {
-  // Rank 1 expects a left neighbor at x=10.0
-  // But mesh only has nodes at 15.0 and 20.0
   mesh.addNode(15.0f, 0.0f, 0.0f);
   mesh.addNode(20.0f, 0.0f, 0.0f);
 
-  // CHANGE: Expect logic_error instead of runtime_error
+  // Expect logic_error (topology inconsistency)
   EXPECT_THROW(
       { TopologyFactory::createFromMesh(mesh, 1, 3, 10.0f, 10.0f); },
       std::logic_error);
@@ -221,18 +214,11 @@ TEST_F(TopologyFactoryTest, ThrowsOnMissingBoundaryNodes)
 
 TEST_F(TopologyFactoryTest, ThrowsOnAmbiguousBoundary)
 {
-  // A single node satisfying both left and right conditions
   mesh.addNode(10.0f, 0.0f, 0.0f);
 
-  // Define domain [10.0, 10.0 + epsilon] where width is smaller than tolerance
-  // This makes the node appear on both Left and Right boundaries
-  // simultaneously.
-
-  // CHANGE: Use non-zero width to pass input validation
+  // Width 1e-7 is < tolerance 1e-6, so node is detected on BOTH boundaries
   float width = 1e-7f;
 
-  // CHANGE: Expect logic_error (topology failure) instead of invalid_argument
-  // (bad input)
   EXPECT_THROW(
       { TopologyFactory::createFromMesh(mesh, 1, 3, 10.0f, width); },
       std::logic_error);

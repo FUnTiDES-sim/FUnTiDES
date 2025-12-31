@@ -9,6 +9,8 @@
 #include "model.h"
 #include "parallel_topology.h"
 
+using namespace utils;
+
 // @brief Configuration for boundary detection tolerance.
 //
 // Controls how TopologyFactory identifies boundary nodes by comparing
@@ -96,13 +98,12 @@ class TopologyFactory
     topo.myRank = rank;
     topo.numRanks = size;
 
-    // Serial case: no topology needed
     if (size <= 1)
     {
       return topo;
     }
 
-    // Auto-compute tolerance from mesh spacing
+    // Auto-compute tolerance
     if (tol.auto_compute)
     {
       try
@@ -115,7 +116,6 @@ class TopologyFactory
       }
       catch (...)
       {
-        // If getMinSpacing() not available, use provided tolerance
         tol.auto_compute = false;
       }
     }
@@ -128,7 +128,6 @@ class TopologyFactory
 
     ScalarType numNodes = mesh.getNumberOfNodes();
 
-    // Scan all nodes to find boundaries
     for (ScalarType i = 0; i < numNodes; ++i)
     {
       FloatType x = mesh.nodeCoord(i, 0);
@@ -136,16 +135,10 @@ class TopologyFactory
       bool onLeft = hasLeft && (std::abs(x - left_x) < tol.absolute);
       bool onRight = hasRight && (std::abs(x - right_x) < tol.absolute);
 
-      // VALIDATION: Node cannot be on both boundaries
       if (onLeft && onRight)
       {
-        throw std::logic_error(
-            "Topology Error: Node " + std::to_string(i) +
-            " detected on both left and right boundaries at x=" +
-            std::to_string(x) +
-            ". Domain width may be too small "
-            "or tolerance too large. Check tolerance=" +
-            std::to_string(tol.absolute));
+        throw std::logic_error("Topology Error: Node " + std::to_string(i) +
+                               " detected on both left and right boundaries.");
       }
 
       if (onLeft)
@@ -158,25 +151,16 @@ class TopologyFactory
       }
     }
 
-    // VALIDATION: Expected boundaries must exist
+    // Validation
     if (hasLeft && topo.sharedNodes[rank - 1].empty())
     {
       throw std::logic_error("Topology Error: Rank " + std::to_string(rank) +
-                             " has left neighbor (rank " +
-                             std::to_string(rank - 1) +
-                             ") but found 0 nodes on left boundary at x=" +
-                             std::to_string(left_x) + ". Check tolerance=" +
-                             std::to_string(tol.absolute) + " or domain size.");
+                             " missing left boundary nodes.");
     }
-
     if (hasRight && topo.sharedNodes[rank + 1].empty())
     {
       throw std::logic_error("Topology Error: Rank " + std::to_string(rank) +
-                             " has right neighbor (rank " +
-                             std::to_string(rank + 1) +
-                             ") but found 0 nodes on right boundary at x=" +
-                             std::to_string(right_x) + ". Check tolerance=" +
-                             std::to_string(tol.absolute) + " or domain size.");
+                             " missing right boundary nodes.");
     }
 
     return topo;
