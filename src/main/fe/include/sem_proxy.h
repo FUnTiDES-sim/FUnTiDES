@@ -40,7 +40,7 @@ class SEMproxy
   /**
    * @brief Destructor of the SEMproxy class
    */
-  ~SEMproxy(){};
+  ~SEMproxy() {}
 
   /**
    * @brief Initialize the simulation.

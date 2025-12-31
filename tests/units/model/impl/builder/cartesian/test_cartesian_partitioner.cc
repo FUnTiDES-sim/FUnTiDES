@@ -234,6 +234,7 @@ TEST_F(TopologyFactoryTest, ThrowsOnAmbiguousBoundary)
   // CHANGE: Expect logic_error (topology failure) instead of invalid_argument
   // (bad input)
   EXPECT_THROW(
+
       { TopologyFactory::createFromMesh(mesh, 1, 3, 10.0f, width); },
       std::logic_error);
 }

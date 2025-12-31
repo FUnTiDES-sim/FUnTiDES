@@ -193,10 +193,12 @@ TEST_F(TopologyFactoryTest, AutoToleranceFromSpacing)
   mesh.minSpacing = 0.1f;
   mesh.addNode(10.000001f, 0.0f, 0.0f);  // Slightly off but within tolerance
 
+  float origin_x = 10.0f;
+
   // Should detect using auto-computed tolerance (0.1 * 1e-4)
   // 1e-6 < 1e-5, so should match
 
-  auto topo = TopologyFactory::createFromMesh(mesh, 1, 2, 10.0f, 10.0f);
+  auto topo = TopologyFactory::createFromMesh(mesh, 1, 2, origin_x, 10.0f);
 
   EXPECT_FALSE(topo.sharedNodes[0].empty());
 }

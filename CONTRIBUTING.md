@@ -21,18 +21,18 @@ Our code style is based on **Google C++ Style Guide** with the following custom 
 
 **1. Install clang-format**
 
-We use version 13 of clang-format.
+We use version 18 of clang-format.
 
 ```bash
 # Ubuntu/Debian
-sudo apt install clang-format-13
+sudo apt install clang-format-18
 
 # macOS
-brew install clang-format@13
+brew install clang-format@18
 
 # Python (cross-platform)
 #   - clang only 
-pip install clang-format==13
+pip install clang-format==18
 #   - all dev requirements at once
 pip install -r requirements-dev.txt
 
