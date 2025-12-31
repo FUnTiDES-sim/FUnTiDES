@@ -4,7 +4,7 @@
 #include <map>
 #include <vector>
 
-namespace utils 
+namespace utils
 {
 
 // @brief Describes the distributed connectivity of the mesh.
@@ -44,6 +44,6 @@ struct ParallelTopology
   }
 };
 
-}  // namespace utils 
+}  // namespace utils
 
 #endif  // SRC_UTILS_INCLUDE_PARALLEL_TOPOLOGY_H_
