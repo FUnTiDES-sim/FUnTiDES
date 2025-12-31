@@ -54,6 +54,10 @@ class CartesianXPartitioner : public PartitioningStrategy<FloatType, ScalarType>
       const CartesianParams<FloatType, ScalarType>& global, int rank,
       int size) const override
   {
+    if (size <= 0)
+    {
+      throw std::invalid_argument("CartesianPartitioner: size must be > 0");
+    }
     if (rank < 0 || rank >= size)
     {
       throw std::invalid_argument("Invalid rank: " + std::to_string(rank) +

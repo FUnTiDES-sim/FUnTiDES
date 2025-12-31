@@ -12,6 +12,7 @@ struct CartesianParams
   bool isModelOnNodes;
   bool isElastic;
 
+  Coord global_lx{0}, global_ly{0}, global_lz{0};
   Coord origin_x{0}, origin_y{0}, origin_z{0};
 
   CartesianParams() = default;
