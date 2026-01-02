@@ -70,6 +70,7 @@ class Array2D
   Array2D() : data(0, std::vector<T>(0)) {}
 
   std::vector<T> &operator[](int index) { return data[index]; }
+  const std::vector<T> &operator[](int index) const { return data[index]; }
   T &operator()(int row, int col) { return data[row][col]; }
   T &operator()(int row, int col) const
   {
