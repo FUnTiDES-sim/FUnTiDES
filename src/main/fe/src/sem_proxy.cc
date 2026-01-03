@@ -558,6 +558,7 @@ implemType SEMproxy::getImplem(string implemArg)
 {
   if (implemArg == "makutu") return implemType::kMakutu;
   if (implemArg == "shiva") return implemType::kShiva;
+  if (implemArg == "tensorial") return implemType::kTensorial;
 
   throw std::invalid_argument(
       "Implentation type does not follow any valid type.");

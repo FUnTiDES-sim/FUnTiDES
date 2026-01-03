@@ -165,6 +165,10 @@ std::unique_ptr<SEMSolverBase> createSolver(
             "ENABLE_Shiva=ON");
 #endif  // ENABLE_Shiva
 
+      case implemType::kTensorial:
+        return makeSemSolver<IntegralType::TENSORIAL>(order, mesh, modelLocation,
+                                                       physicType);
+
       default:
         throw std::runtime_error("Unknown implementation type: " +
                                  to_string(implemType));

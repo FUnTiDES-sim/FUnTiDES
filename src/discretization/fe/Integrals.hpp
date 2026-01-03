@@ -1,6 +1,7 @@
 #pragma once
 
 #include "finiteElement/makutu/Qk_Hexahedron_Lagrange_GaussLobatto.hpp"
+#include "finiteElement/tensorial/Qk_Hexahedron_Tensorial.hpp"
 
 #ifdef ENABLE_Shiva
 #include "finiteElement/shiva/SEMQkGLIntegralsShiva.hpp"
@@ -14,7 +15,8 @@ namespace IntegralType
 enum
 {
   MAKUTU,
-  SHIVA
+  SHIVA,
+  TENSORIAL
 };
 }
 
@@ -44,3 +46,11 @@ struct IntegralTypeSelector<ORDER, IntegralType::SHIVA>
   using type = SEMQkGLIntegralsShiva<ORDER, TransformType, ParentElementType>;
 };
 #endif
+
+// Tensorial selector - uses O(n^4) algorithm
+template <int ORDER>
+struct IntegralTypeSelector<ORDER, IntegralType::TENSORIAL>
+{
+  using type =
+      typename Qk_Hexahedron_Lagrange_GaussLobatto_Tensorial_Selector<ORDER>::type;
+};

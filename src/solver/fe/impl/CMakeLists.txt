@@ -8,7 +8,10 @@ if (ENABLE_Shiva)
   target_sources(proxy_solver PRIVATE ${SHIVA_GENERATED_SOURCES})
 endif()
 
-target_sources(proxy_solver PRIVATE 
+add_subdirectory(src/tensorial)
+target_sources(proxy_solver PRIVATE ${TENSORIAL_GENERATED_SOURCES})
+
+target_sources(proxy_solver PRIVATE
      src/solver_factory.cc
 )
 

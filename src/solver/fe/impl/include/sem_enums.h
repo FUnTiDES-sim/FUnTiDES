@@ -17,7 +17,8 @@ enum class methodType
 enum class implemType
 {
   kMakutu,
-  kShiva
+  kShiva,
+  kTensorial
 };
 enum class meshType
 {
@@ -56,6 +57,8 @@ inline std::string to_string(implemType i)
       return "MAKUTU";
     case implemType::kShiva:
       return "SHIVA";
+    case implemType::kTensorial:
+      return "TENSORIAL";
     default:
       return "Unknown";
   }
