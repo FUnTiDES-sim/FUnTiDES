@@ -28,8 +28,10 @@ std::unique_ptr<SEMSolverBase> orderDispatch(int const order, FUNC&& func)
       return func(std::integral_constant<int, 2>{});
     case 3:
       return func(std::integral_constant<int, 3>{});
-    // case 4:
-    //   return func(std::integral_constant<int, 4>{});
+    case 4:
+      return func(std::integral_constant<int, 4>{});
+    case 5:
+      return func(std::integral_constant<int, 5>{});
     default:
       throw std::runtime_error("Unsupported polynomial order: " +
                                std::to_string(order));

@@ -3,7 +3,7 @@
 # ============================================================================
 
 # Define polynomial orders
-set(ORDERS 1 2 3)
+set(ORDERS 1 2 3 4 5)
 
 # Define mesh types
 set(MESH_TYPES "struct" "unstruct")

@@ -92,9 +92,21 @@ SEMproxy::SEMproxy(const SemProxyOptions& opt)
         m_mesh = builder.getModel();
         break;
       }
+      case 4: {
+        model::CartesianStructBuilder<float, int, 4> builder(
+            ex, lx, ey, ly, ez, lz, isModelOnNodes, isElastic);
+        m_mesh = builder.getModel();
+        break;
+      }
+      case 5: {
+        model::CartesianStructBuilder<float, int, 5> builder(
+            ex, lx, ey, ly, ez, lz, isModelOnNodes, isElastic);
+        m_mesh = builder.getModel();
+        break;
+      }
       default:
         throw std::runtime_error(
-            "Order other than 1 2 3 is not supported (semproxy)");
+            "Order other than 1 2 3 4 5 is not supported (semproxy)");
     }
   }
   else if (meshType == meshType::kUnstruct)
@@ -482,6 +494,14 @@ void SEMproxy::init_source()
       SourceAndReceiverUtils::ComputeRHSWeights<3>(cornerCoords, src_coord_,
                                                    rhsWeights);
       break;
+    case 4:
+      SourceAndReceiverUtils::ComputeRHSWeights<4>(cornerCoords, src_coord_,
+                                                   rhsWeights);
+      break;
+    case 5:
+      SourceAndReceiverUtils::ComputeRHSWeights<5>(cornerCoords, src_coord_,
+                                                   rhsWeights);
+      break;
     default:
       throw std::runtime_error("Unsupported order: " + std::to_string(order));
   }
@@ -526,6 +546,14 @@ void SEMproxy::init_source()
       break;
     case 3:
       SourceAndReceiverUtils::ComputeRHSWeights<3>(cornerCoordsRcv, rcv_coord_,
+                                                   rhsWeightsRcv);
+      break;
+    case 4:
+      SourceAndReceiverUtils::ComputeRHSWeights<4>(cornerCoordsRcv, rcv_coord_,
+                                                   rhsWeightsRcv);
+      break;
+    case 5:
+      SourceAndReceiverUtils::ComputeRHSWeights<5>(cornerCoordsRcv, rcv_coord_,
                                                    rhsWeightsRcv);
       break;
     default:

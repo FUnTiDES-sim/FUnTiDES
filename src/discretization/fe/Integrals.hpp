@@ -36,7 +36,12 @@ struct IntegralTypeSelector<ORDER, IntegralType::SHIVA>
                                LagrangeBasis<float, 1, EqualSpacing>,
                                LagrangeBasis<float, 1, EqualSpacing>,
                                LagrangeBasis<float, 1, EqualSpacing> > >;
-
+emplate <int ORDER>
+struct IntegralTypeSelector<ORDER, IntegralType::MAKUTU>
+{
+  using type =
+      typename Qk_Hexahedron_Lagrange_GaussLobatto_Selector<ORDER>::type;
+};
   using ParentElementType =
       ParentElement<float, Cube<float>,
                     LagrangeBasis<float, ORDER, EqualSpacing>,
