@@ -11,7 +11,9 @@ class CartesianStructBuilder : public ModelBuilderBase<FloatType, ScalarType>
  public:
   CartesianStructBuilder(ScalarType ex, FloatType lx, ScalarType ey,
                          FloatType ly, ScalarType ez, FloatType lz,
-                         bool isModelOnNodes, bool isElastic)
+                         bool isModelOnNodes, bool isElastic,
+                         FloatType ox = 0.0, FloatType oy = 0.0,
+                         FloatType oz = 0.0)
       : ex_(ex),
         ey_(ey),
         ez_(ez),
@@ -19,7 +21,10 @@ class CartesianStructBuilder : public ModelBuilderBase<FloatType, ScalarType>
         ly_(ly),
         lz_(lz),
         isModelOnNodes_(isModelOnNodes),
-        isElastic_(isElastic)
+        isElastic_(isElastic),
+        ox_(ox),
+        oy_(oy),
+        oz_(oz)
   {
   }
 
@@ -36,6 +41,12 @@ class CartesianStructBuilder : public ModelBuilderBase<FloatType, ScalarType>
     data.dx_ = lx_;
     data.dy_ = ly_;
     data.dz_ = lz_;
+
+    // Pass origin to data
+    data.ox_ = ox_;
+    data.oy_ = oy_;
+    data.oz_ = oz_;
+
     data.isModelOnNodes_ = isModelOnNodes_;
     data.isElastic_ = isElastic_;
 
@@ -56,5 +67,7 @@ class CartesianStructBuilder : public ModelBuilderBase<FloatType, ScalarType>
   FloatType lx_, ly_, lz_;
   bool isModelOnNodes_;
   bool isElastic_;
+  // New members
+  FloatType ox_, oy_, oz_;
 };
 }  // namespace model

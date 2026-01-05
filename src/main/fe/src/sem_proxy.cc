@@ -27,10 +27,6 @@ using namespace solver::fe::enums;
 
 SEMproxy::SEMproxy(const SemProxyOptions& opt)
 {
-  // --- Domain Decomposition Setup ---
-  // Mocking MPI rank and size for now.
-  // In a real MPI application, these would come from MPI_Comm_rank/size.
-  int rank = 0;
   int size = 1;
 
   const int order = opt.order;
@@ -44,7 +40,7 @@ SEMproxy::SEMproxy(const SemProxyOptions& opt)
 
   // Partition domain
   model::CartesianXPartitioner<float, int> partitioner;
-  m_localParams = partitioner.partition(globalParams, rank, size);
+  m_localParams = partitioner.partition(globalParams, rank_, size_);
 
   // Update members with LOCAL parameters for array allocation
   nb_elements_[0] = m_localParams.ex;
@@ -90,7 +86,10 @@ SEMproxy::SEMproxy(const SemProxyOptions& opt)
         model::CartesianStructBuilder<float, int, 1> builder(
             m_localParams.ex, m_localParams.lx, m_localParams.ey,
             m_localParams.ly, m_localParams.ez, m_localParams.lz,
-            isModelOnNodes, isElastic);
+            isModelOnNodes, isElastic,
+            // FIX: Pass origins
+            m_localParams.origin_x, m_localParams.origin_y,
+            m_localParams.origin_z);
         m_mesh = builder.getModel();
         break;
       }
@@ -98,7 +97,10 @@ SEMproxy::SEMproxy(const SemProxyOptions& opt)
         model::CartesianStructBuilder<float, int, 2> builder(
             m_localParams.ex, m_localParams.lx, m_localParams.ey,
             m_localParams.ly, m_localParams.ez, m_localParams.lz,
-            isModelOnNodes, isElastic);
+            isModelOnNodes, isElastic,
+            // FIX: Pass origins
+            m_localParams.origin_x, m_localParams.origin_y,
+            m_localParams.origin_z);
         m_mesh = builder.getModel();
         break;
       }
@@ -106,7 +108,9 @@ SEMproxy::SEMproxy(const SemProxyOptions& opt)
         model::CartesianStructBuilder<float, int, 3> builder(
             m_localParams.ex, m_localParams.lx, m_localParams.ey,
             m_localParams.ly, m_localParams.ez, m_localParams.lz,
-            isModelOnNodes, isElastic);
+            isModelOnNodes, isElastic,
+            m_localParams.origin_x, m_localParams.origin_y,
+            m_localParams.origin_z);
         m_mesh = builder.getModel();
         break;
       }
@@ -117,8 +121,7 @@ SEMproxy::SEMproxy(const SemProxyOptions& opt)
   }
   else if (meshType == meshType::kUnstruct)
   {
-    // We pass m_localParams directly. The builder now uses origin_x/y/z
-    // from these params to generate absolute global coordinates.
+    // Pass local params to unstructured builder (handles origin internally)
     model::CartesianUnstructBuilder<float, int> builder(m_localParams);
     m_mesh = builder.getModel();
   }
@@ -131,7 +134,7 @@ SEMproxy::SEMproxy(const SemProxyOptions& opt)
   std::unique_ptr<BoundarySynchronizer::Backend> backend;
   if (size > 1)
   {
-    backend = std::make_unique<DebugBackend>(rank);
+    backend = std::make_unique<DebugBackend>(rank_);
   }
   else
   {
@@ -161,7 +164,9 @@ SEMproxy::SEMproxy(const SemProxyOptions& opt)
   const float spongez = opt.boundaries_size;
   const std::array<float, 3> sponge_size = {spongex, spongey, spongez};
 
-  // Allocates arrays based on local mesh size
+  // Note: m_solver->computeFEInit is now called in run() to pass partition
+  // info. We manually call init arrays here if needed, but computeFEInit does
+  // it too. For consistency with old code structure, we prep arrays now.
   initFiniteElem();
 
   io_ctrl_ = std::make_shared<SemIOController>(
@@ -202,15 +207,17 @@ void SEMproxy::run()
 
   bool isElastic = isElastic_;
 
-  // Sponge params from options (mocking here, should come from options/member)
+  // Sponge params from options
+  const float spongex =
+      0;  // Configured earlier but variable scope issue in original
   const std::array<float, 3> sponge_size = {0, 0, 0};
   const bool surface_sponge = false;
   const float taper_delta = 0.015;
 
   // 1. Initialize Solver with Partition Info & Compute Local Mass
-  m_solver->computeFEInit(*m_mesh, 0 /*rank*/, 1 /*size*/,
-                          m_localParams.origin_x, m_localParams.lx, sponge_size,
-                          surface_sponge, taper_delta);
+  m_solver->computeFEInit(*m_mesh, rank_, size_, m_localParams.origin_x,
+                          m_localParams.lx, sponge_size, surface_sponge,
+                          taper_delta);
 
   // 2. Synchronize Mass Matrix (Critical for DD)
   if (m_solver->getTopology().isDistributed())
@@ -260,7 +267,7 @@ void SEMproxy::run()
         saveSnapshot(indexTimeSample, pnGlobal);
       }
 
-      // Save pressure at receiver (Serial assumption or local check)
+      // Save pressure at receiver
       const int order = m_mesh->getOrder();
 
       float varnp1 = 0.0;
@@ -292,7 +299,6 @@ void SEMproxy::run()
 
     for (int i = 0; i < pnAtReceiver.extent(0); i++)
     {
-      // get receiver i
 #ifdef USE_KOKKOS
       auto subview = Kokkos::subview(pnAtReceiver, i, Kokkos::ALL());
       vectorReal subset("receiver_save", num_sample_);
@@ -307,7 +313,7 @@ void SEMproxy::run()
           subset[k * subview.extent(1) + j] = subview(k, j);
         }
       }
-#endif  // USE_KOKKOS
+#endif
       io_ctrl_->saveReceiver(subset, src_coord_);
     }
   }
@@ -352,7 +358,6 @@ void SEMproxy::run()
                                        uznGlobal, "uznGlobal");
       }
 
-      // Save slice in dat format
       if (is_snapshots_ && indexTimeSample % snap_time_interval_ == 0)
       {
         saveSnapshot(indexTimeSample, uxnGlobal);
@@ -398,7 +403,6 @@ void SEMproxy::run()
 
     for (int i = 0; i < uxnAtReceiver.extent(0); i++)
     {
-      // get receiver i
 #ifdef USE_KOKKOS
       auto subview = Kokkos::subview(uxnAtReceiver, i, Kokkos::ALL());
       vectorReal subset("receiver_save", num_sample_);

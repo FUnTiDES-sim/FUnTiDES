@@ -89,8 +89,12 @@ class SEMproxy
   int i1 = 0;
   int i2 = 1;
 
-  // Domain Decomposition Parameters
+  // Domain Decomposition Parameter
+  // Mocking MPI rank and size for now.
+  // In a real MPI application, these would come from MPI_Comm_rank/size.
   model::CartesianParams<float, int> m_localParams;
+  int rank_ {0};
+  int size_ {1};
 
   // proper to cartesian mesh
   // or any structured mesh
