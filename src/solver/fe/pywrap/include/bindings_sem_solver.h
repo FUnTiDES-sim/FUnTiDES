@@ -73,8 +73,7 @@ void bind_sem_solver_base(py::module_ &m)
       .def("compute_one_step", &SEMSolverBase::computeOneStep, py::arg("dt"),
            py::arg("time_sample"), py::arg("data"))
       .def("output_solution_values", &SEMSolverBase::outputSolutionValues,
-           py::arg("index_time_step"), py::arg("i1"),
-           py::arg("my_element_source"), py::arg("field_global"),
+           py::arg("t"), py::arg("e"), py::arg("field_global"),
            py::arg("field_name"));
 }
 

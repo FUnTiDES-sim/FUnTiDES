@@ -89,13 +89,9 @@ struct SEMsolverData : public SolverBase::DataStruct
    */
   template <physicType P = PHYSICS,
             typename = std::enable_if_t<P == enums::physicType::kAcoustic>>
-  SEMsolverData(int i1, int i2, ARRAY_REAL_VIEW rhsTerm,
-                ARRAY_REAL_VIEW fieldGlobal, VECTOR_INT_VIEW rhsElement,
-                ARRAY_REAL_VIEW rhsWeights)
-      : m_i1(i1), m_i2(i2), m_rhsElement(rhsElement), m_rhsWeights(rhsWeights)
+  SEMsolverData(WavefieldAcoustic wavefield, RhsAcoustic rhs)
+      : m_wavefield(wavefield), m_rhs(rhs)
   {
-    m_rhsTerms[0] = rhsTerm;
-    m_fieldsGlobal[0] = fieldGlobal;
   }
 
   /**
@@ -103,47 +99,46 @@ struct SEMsolverData : public SolverBase::DataStruct
    */
   template <physicType P = PHYSICS,
             typename = std::enable_if_t<P == enums::physicType::kElastic>>
-  SEMsolverData(int i1, int i2, ARRAY_REAL_VIEW rhsTermx,
-                ARRAY_REAL_VIEW rhsTermy, ARRAY_REAL_VIEW rhsTermz,
-                ARRAY_REAL_VIEW uxnGlobal, ARRAY_REAL_VIEW uynGlobal,
-                ARRAY_REAL_VIEW uznGlobal, VECTOR_INT_VIEW rhsElement,
-                ARRAY_REAL_VIEW rhsWeights)
-      : m_i1(i1), m_i2(i2), m_rhsElement(rhsElement), m_rhsWeights(rhsWeights)
+  SEMsolverData(WavefieldElastic wavefield, RhsElastic rhs)
+      : m_wavefield(wavefield), m_rhs(rhs)
   {
-    m_rhsTerms[0] = rhsTermx;
-    m_rhsTerms[1] = rhsTermy;
-    m_rhsTerms[2] = rhsTermz;
-    m_fieldsGlobal[0] = uxnGlobal;
-    m_fieldsGlobal[1] = uynGlobal;
-    m_fieldsGlobal[2] = uznGlobal;
+  }
+
+  ARRAY_REAL_VIEW getRhsTerm(int i) const { return m_rhs.getTerm(i); }
+
+  VECTOR_INT_VIEW getRhsElement() const { return m_rhsElement; }
+
+  ARRAY_REAL_VIEW getRhsWeights() const { return m_rhsWeights; }
+
+  VECTOR_REAL_VIEW getCurrentField(int i) const
+  {
+    return m_wavefield.getCurrentField(i);
+  }
+
+  VECTOR_REAL_VIEW getPreviousField(int i) const
+  {
+    return m_wavefield.getPreviousField(i);
   }
 
   void print() const override
   {
-    std::cout << "SEMsolverData<" << Traits::kName << ">: i1=" << m_i1
-              << ", i2=" << m_i2 << std::endl;
+    std::cout << "SEMsolverData<" << Traits::kName << ">" << std::endl;
     for (int f = 0; f < kNumFields; ++f)
     {
       std::cout << "Field[" << f << "] (" << Traits::kFieldNames[f]
-                << ") size: " << m_fieldsGlobal[f].extent(0) << std::endl;
+                << ") size: " << getCurrentField(f).extent(0) << std::endl;
     }
     for (int r = 0; r < kNumRhs; ++r)
     {
-      std::cout << "RHS[" << r << "] size: " << m_rhsTerms[r].extent(0)
+      std::cout << "RHS[" << r << "] size: " << getRhsTerm(r).extent(0)
                 << std::endl;
     }
-    std::cout << "RHS Element size: " << m_rhsElement.extent(0) << std::endl;
-    std::cout << "RHS Weights size: " << m_rhsWeights.extent(0) << std::endl;
+    std::cout << "RHS Element size: " << getRhsElement().extent(0) << std::endl;
+    std::cout << "RHS Weights size: " << getRhsWeights().extent(0) << std::endl;
   }
 
-  int m_i1;  ///< Previous time step index
-  int m_i2;  ///< Current time step index
-
-  std::array<ARRAY_REAL_VIEW, kNumRhs> m_rhsTerms;  ///< RHS forcing terms
-  std::array<ARRAY_REAL_VIEW, kNumFields> m_fieldsGlobal;  ///< Solution fields
-
-  VECTOR_INT_VIEW m_rhsElement;  ///< Source element indices
-  ARRAY_REAL_VIEW m_rhsWeights;  ///< Forcing weights per node
+  Wavefield m_wavefield;  ///< Wavefield data
+  Rhs m_rhs;              ///< RHS data
 };
 
 //============================================================================

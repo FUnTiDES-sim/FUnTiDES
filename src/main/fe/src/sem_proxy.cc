@@ -169,8 +169,9 @@ void SEMproxy::run()
 
   if (!isElastic)
   {
-    SEMsolverDataAcoustic solverData(i1, i2, myRHSTerm, pnGlobal, rhsElement,
-                                     rhsWeights);
+    WavefieldAcoustic wavefield(pnGlobalPrev, pnGlobalCurr);
+    RhsAcoustic rhs(myRHSTerm, rhsElement, rhsWeights);
+    SEMsolverDataAcoustic solverData(wavefield, rhs);
 
     for (int indexTimeSample = 0; indexTimeSample < num_sample_;
          indexTimeSample++)
@@ -183,14 +184,14 @@ void SEMproxy::run()
 
       if (indexTimeSample % 50 == 0)
       {
-        m_solver->outputSolutionValues(indexTimeSample, i1, rhsElement[0],
-                                       pnGlobal, "pnGlobal");
+        m_solver->outputSolutionValues(indexTimeSample, rhsElement[0],
+                                       pnGlobalPrev, "pnGlobal");
       }
 
       // Save slice in dat format
       if (is_snapshots_ && indexTimeSample % snap_time_interval_ == 0)
       {
-        saveSnapshot(indexTimeSample, pnGlobal);
+        saveSnapshot(indexTimeSample, pnGlobalPrev);
       }
 
       // Save pressure at receiver
@@ -207,18 +208,14 @@ void SEMproxy::run()
             int globalNodeOnElement =
                 i + j * (order + 1) + k * (order + 1) * (order + 1);
             varnp1 +=
-                pnGlobal(nodeIdx, i2) * rhsWeightsRcv(0, globalNodeOnElement);
+                pnGlobalCurr(nodeIdx) * rhsWeightsRcv(0, globalNodeOnElement);
           }
         }
       }
 
       pnAtReceiver(0, indexTimeSample) = varnp1;
 
-      swap(i1, i2);
-
-      auto tmp = solverData.m_i1;
-      solverData.m_i1 = solverData.m_i2;
-      solverData.m_i2 = tmp;
+      wavefield.swap();
 
       totalOutputTime += system_clock::now() - startOutputTime;
     }
@@ -246,9 +243,10 @@ void SEMproxy::run()
   }
   else
   {
-    SEMsolverDataElastic solverData(i1, i2, myRHSTermx, myRHSTermy, myRHSTermz,
-                                    uxnGlobal, uynGlobal, uznGlobal, rhsElement,
-                                    rhsWeights);
+    WavefieldElastic wavefield(uxnGlobalPrev, uxnGlobalCurr, uynGlobalPrev,
+                               uynGlobalCurr, uznGlobalPrev, uznGlobalCurr);
+    RhsElastic rhs(myRHSTermx, myRHSTermy, myRHSTermz, rhsElement, rhsWeights);
+    SEMsolverDataElastic solverData(wavefield, rhs);
 
     for (int indexTimeSample = 0; indexTimeSample < num_sample_;
          indexTimeSample++)
@@ -261,18 +259,18 @@ void SEMproxy::run()
 
       if (indexTimeSample % 50 == 0)
       {
-        m_solver->outputSolutionValues(indexTimeSample, i1, rhsElement[0],
-                                       uxnGlobal, "uxnGlobal");
-        m_solver->outputSolutionValues(indexTimeSample, i1, rhsElement[0],
-                                       uynGlobal, "uynGlobal");
-        m_solver->outputSolutionValues(indexTimeSample, i1, rhsElement[0],
-                                       uznGlobal, "uznGlobal");
+        m_solver->outputSolutionValues(indexTimeSample, rhsElement[0],
+                                       uxnGlobalPrev, "uxnGlobal");
+        m_solver->outputSolutionValues(indexTimeSample, rhsElement[0],
+                                       uynGlobalPrev, "uynGlobal");
+        m_solver->outputSolutionValues(indexTimeSample, rhsElement[0],
+                                       uznGlobalPrev, "uznGlobal");
       }
 
       // Save slice in dat format
       if (is_snapshots_ && indexTimeSample % snap_time_interval_ == 0)
       {
-        saveSnapshot(indexTimeSample, uxnGlobal);
+        saveSnapshot(indexTimeSample, uxnGlobalPrev);
       }
 
       // Save pressure at receiver
@@ -290,12 +288,12 @@ void SEMproxy::run()
             int nodeIdx = m_mesh->globalNodeIndex(rhsElementRcv[0], i, j, k);
             int globalNodeOnElement =
                 i + j * (order + 1) + k * (order + 1) * (order + 1);
-            varuxnp1 +=
-                uxnGlobal(nodeIdx, i2) * rhsWeightsRcv(0, globalNodeOnElement);
-            varyunp1 +=
-                uynGlobal(nodeIdx, i2) * rhsWeightsRcv(0, globalNodeOnElement);
-            varuznp1 +=
-                uznGlobal(nodeIdx, i2) * rhsWeightsRcv(0, globalNodeOnElement);
+            varuxnp1 += uxnGlobalCurr(nodeIdx, i2) *
+                        rhsWeightsRcv(0, globalNodeOnElement);
+            varyunp1 += uynGlobalCurr(nodeIdx, i2) *
+                        rhsWeightsRcv(0, globalNodeOnElement);
+            varuznp1 += uznGlobalCurr(nodeIdx, i2) *
+                        rhsWeightsRcv(0, globalNodeOnElement);
           }
         }
       }
@@ -304,11 +302,7 @@ void SEMproxy::run()
       uynAtReceiver(0, indexTimeSample) = varyunp1;
       uznAtReceiver(0, indexTimeSample) = varuznp1;
 
-      swap(i1, i2);
-
-      auto tmp = solverData.m_i1;
-      solverData.m_i1 = solverData.m_i2;
-      solverData.m_i2 = tmp;
+      wavefield.swap();
 
       totalOutputTime += system_clock::now() - startOutputTime;
     }
@@ -353,17 +347,19 @@ void SEMproxy::run()
 void SEMproxy::init_arrays()
 {
   cout << "Allocate host memory for source and pressure values ..." << endl;
+  const auto n_nodes = m_mesh->getNumberOfNodes();
+  const auto n_elements = m_mesh->getNumberOfElements();
 
   rhsElement = allocateVector<vectorInt>(myNumberOfRHS, "rhsElement");
-  rhsWeights = allocateArray2D<arrayReal>(
-      myNumberOfRHS, m_mesh->getNumberOfPointsPerElement(), "RHSWeight");
+  rhsWeights =
+      allocateArray2D<arrayReal>(myNumberOfRHS, n_elements, "RHSWeight");
 
   if (!isElastic_)
   {
     myRHSTerm =
         allocateArray2D<arrayReal>(myNumberOfRHS, num_sample_, "RHSTerm");
-    pnGlobal =
-        allocateArray2D<arrayReal>(m_mesh->getNumberOfNodes(), 2, "pnGlobal");
+    pnGlobalCurr = allocateVector<arrayReal>(n_nodes, "pnGlobalCurr");
+    pnGlobalPrev = allocateVector<arrayReal>(n_nodes, "pnGlobalPrev");
     pnAtReceiver = allocateArray2D<arrayReal>(1, num_sample_, "pnAtReceiver");
   }
   else
@@ -374,12 +370,12 @@ void SEMproxy::init_arrays()
         allocateArray2D<arrayReal>(myNumberOfRHS, num_sample_, "RHSTermy");
     myRHSTermz =
         allocateArray2D<arrayReal>(myNumberOfRHS, num_sample_, "RHSTermz");
-    uxnGlobal =
-        allocateArray2D<arrayReal>(m_mesh->getNumberOfNodes(), 2, "uxnGlobal");
-    uynGlobal =
-        allocateArray2D<arrayReal>(m_mesh->getNumberOfNodes(), 2, "uynGlobal");
-    uznGlobal =
-        allocateArray2D<arrayReal>(m_mesh->getNumberOfNodes(), 2, "uznGlobal");
+    uxnGlobalCurr = allocateVector<arrayReal>(n_nodes, "uxnGlobalCurr");
+    uynGlobalCurr = allocateVector<arrayReal>(n_nodes, "uynGlobalCurr");
+    uznGlobalCurr = allocateVector<arrayReal>(n_nodes, "uznGlobalCurr");
+    uxnGlobalPrev = allocateVector<arrayReal>(n_nodes, "uxnGlobalPrev");
+    uynGlobalPrev = allocateVector<arrayReal>(n_nodes, "uynGlobalPrev");
+    uznGlobalPrev = allocateVector<arrayReal>(n_nodes, "uznGlobalPrev");
     uxnAtReceiver = allocateArray2D<arrayReal>(1, num_sample_, "uxnAtReceiver");
     uynAtReceiver =
         allocateArray2D<arrayReal>(1, num_sample_, "uynAtReceiver ");
@@ -533,22 +529,18 @@ void SEMproxy::init_source()
   }
 }
 
-void SEMproxy::saveSnapshot(int timestep, ARRAY_REAL_VIEW data) const
+void SEMproxy::saveSnapshot(int timestep, VECTOR_REAL_VIEW data) const
 {
 #ifdef USE_KOKKOS
   auto nb_nodes = data.extent(0);
-  auto subview = Kokkos::subview(data, Kokkos::ALL(), i1);
 
   vectorReal subset("snapshot_cpy", nb_nodes);
   // Use a parallel copy to handle the strided layout
   Kokkos::parallel_for(
-      "copy_column", nb_nodes,
-      KOKKOS_LAMBDA(int i) { subset(i) = subview(i); });
+      "copy_column", nb_nodes, KOKKOS_LAMBDA(int i) { subset(i) = data(i); });
   Kokkos::fence();
 #else
-  auto nb_nodes = data[0].size();
-  auto& subview = data[i1];
-  vectorReal subset(subview.begin(), subview.end());
+  vectorReal subset(data.begin(), data.end());
 #endif  // USE_KOKKOS
 
   io_ctrl_->saveSnapshot(subset, timestep);
