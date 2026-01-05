@@ -124,9 +124,9 @@ class ModelStruct : public ModelApi<FloatType, ScalarType>
   PROXY_HOST_DEVICE
   void vertexCoords(IndexType dofGlobal, FloatType* const coords) const
   {
-    coords[0] = dofGlobal[0] * hx_;
-    coords[1] = dofGlobal[1] * hy_;
-    coords[2] = dofGlobal[2] * hz_;
+    coords[0] = dofGlobal[0] * hx_ + ox_;
+    coords[1] = dofGlobal[1] * hy_ + oy_;
+    coords[2] = dofGlobal[2] * hz_ + oz_;
   }
 
   /**

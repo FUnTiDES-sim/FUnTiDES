@@ -142,6 +142,7 @@ class CartesianUnstructBuilder : public ModelBuilderBase<FloatType, ScalarType>
     }
   }
 
+  // Use FloatType for h to prevent integer truncation
   void getCoordInOneDirection(FloatType h, const int& n_element, float* coord,
                               FloatType offset)
   {
@@ -191,15 +192,11 @@ class CartesianUnstructBuilder : public ModelBuilderBase<FloatType, ScalarType>
         break;
     }
 
-    int i = n_element;
-    float x0 = i * h;
-    float x1 = (i + 1) * h;
-    float b = (x1 + x0) / 2.f;
-    float a = b - x0;
+    FloatType elementStart = n_element * h;
 
     for (int j = 0; j < order_ + 1; j++)
     {
-      coord[j] = a * xi[j] + b + offset;
+      coord[j] = elementStart + (xi[j] + 1.0f) * h * 0.5f + offset;
     }
   }
 

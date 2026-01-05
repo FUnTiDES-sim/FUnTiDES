@@ -86,10 +86,8 @@ SEMproxy::SEMproxy(const SemProxyOptions& opt)
         model::CartesianStructBuilder<float, int, 1> builder(
             m_localParams.ex, m_localParams.lx, m_localParams.ey,
             m_localParams.ly, m_localParams.ez, m_localParams.lz,
-            isModelOnNodes, isElastic,
-            // FIX: Pass origins
-            m_localParams.origin_x, m_localParams.origin_y,
-            m_localParams.origin_z);
+            isModelOnNodes, isElastic, m_localParams.origin_x,
+            m_localParams.origin_y, m_localParams.origin_z);
         m_mesh = builder.getModel();
         break;
       }
@@ -97,10 +95,8 @@ SEMproxy::SEMproxy(const SemProxyOptions& opt)
         model::CartesianStructBuilder<float, int, 2> builder(
             m_localParams.ex, m_localParams.lx, m_localParams.ey,
             m_localParams.ly, m_localParams.ez, m_localParams.lz,
-            isModelOnNodes, isElastic,
-            // FIX: Pass origins
-            m_localParams.origin_x, m_localParams.origin_y,
-            m_localParams.origin_z);
+            isModelOnNodes, isElastic, m_localParams.origin_x,
+            m_localParams.origin_y, m_localParams.origin_z);
         m_mesh = builder.getModel();
         break;
       }
@@ -223,6 +219,10 @@ void SEMproxy::run()
   {
     m_syncer->synchronize(m_solver->getMassMatrix(), m_solver->getTopology());
   }
+
+  auto& M = m_solver->getMassMatrix();
+  // Get the global node index of the first node of the source element
+  int debugNodeIdx = m_mesh->globalNodeIndex(myElementSource, 0, 0, 0);
 
   if (!isElastic)
   {
@@ -659,6 +659,26 @@ void SEMproxy::init_source()
     default:
       throw std::runtime_error("Unsupported order: " + std::to_string(order));
   }
+
+  std::cout << "\n--- DEBUG INFO ---" << std::endl;
+  std::cout << "Source Element: " << rhsElement[0] << std::endl;
+  std::cout << "Source Coord: " << src_coord_[0] << " " << src_coord_[1] << " "
+            << src_coord_[2] << std::endl;
+
+  // Print Corner Coordinates of the source element
+  std::cout << "Corner Coords (Node 0): " << cornerCoords[0][0] << ", "
+            << cornerCoords[0][1] << ", " << cornerCoords[0][2] << std::endl;
+  std::cout << "Corner Coords (Node 7): " << cornerCoords[7][0] << ", "
+            << cornerCoords[7][1] << ", " << cornerCoords[7][2] << std::endl;
+
+  // Print Calculated Weights
+  std::cout << "RHS Weights: ";
+  for (int k = 0; k < m_mesh->getNumberOfPointsPerElement(); ++k)
+  {
+    std::cout << rhsWeights(0, k) << " ";
+  }
+  std::cout << std::endl;
+  std::cout << "------------------\n" << std::endl;
 }
 
 void SEMproxy::saveSnapshot(int timestep, ARRAY_REAL_VIEW data) const
