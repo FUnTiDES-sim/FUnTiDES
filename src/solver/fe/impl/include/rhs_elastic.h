@@ -21,6 +21,7 @@ struct RhsElastic : public Rhs
   {
   }
 
+  // TODO use template + constexpr if when C++20 is available
   ARRAY_REAL_VIEW getTerm(int i) const override
   {
     switch (i)
