@@ -108,9 +108,8 @@ SEMproxy::SEMproxy(const SemProxyOptions& opt)
         model::CartesianStructBuilder<float, int, 3> builder(
             m_localParams.ex, m_localParams.lx, m_localParams.ey,
             m_localParams.ly, m_localParams.ez, m_localParams.lz,
-            isModelOnNodes, isElastic,
-            m_localParams.origin_x, m_localParams.origin_y,
-            m_localParams.origin_z);
+            isModelOnNodes, isElastic, m_localParams.origin_x,
+            m_localParams.origin_y, m_localParams.origin_z);
         m_mesh = builder.getModel();
         break;
       }
