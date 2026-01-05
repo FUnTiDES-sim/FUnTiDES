@@ -11,15 +11,27 @@ namespace fe
 {
 /**
  * @brief Acoustic wavefield data structure.
+ * Arrays are kept flat for easy cpp-python-fortran interop.
  */
 struct WavefieldAcoustic : public Wavefield
 {
-  Wavefield(VECTOR_REAL_VIEW pnGlobalPrev, VECTOR_REAL_VIEW pnGlobalCurr)
+  WavefieldAcoustic(VECTOR_REAL_VIEW pnGlobalPrev,
+                    VECTOR_REAL_VIEW pnGlobalCurr)
       : m_pnGlobalPrev(pnGlobalPrev), m_pnGlobalCurr(pnGlobalCurr)
   {
   }
 
-  void advance() override { std::swap(m_pnGlobalPrev, m_pnGlobalCurr); }
+  VECTOR_REAL_VIEW getCurrentField(int i) const override
+  {
+    return m_pnGlobalCurr;
+  }
+
+  VECTOR_REAL_VIEW getPreviousField(int i) const override
+  {
+    return m_pnGlobalPrev;
+  }
+
+  void swap() override { std::swap(m_pnGlobalPrev, m_pnGlobalCurr); }
 
   void print() const override
   {
@@ -29,8 +41,8 @@ struct WavefieldAcoustic : public Wavefield
               << std::endl;
   }
 
-  ARRAY_REAL_VIEW m_pnGlobalPrev;  ///< Pressure field at previous time step
-  ARRAY_REAL_VIEW m_pnGlobalCurr;  ///< Pressure field at current time step
+  VECTOR_REAL_VIEW m_pnGlobalPrev;  ///< Pressure field at previous time step
+  VECTOR_REAL_VIEW m_pnGlobalCurr;  ///< Pressure field at current time step
 };
 }  // namespace fe
 }  // namespace solver

@@ -2,6 +2,7 @@
 #define RHS_ACOUSTIC_H_
 
 #include <data_type.h>
+
 #include "rhs.h"
 
 /**
@@ -9,14 +10,13 @@
  */
 struct RhsAcoustic : public Rhs
 {
-  RhsAcoustic(ARRAY_REAL_VIEW term,
-              VECTOR_INT_VIEW element,
+  RhsAcoustic(ARRAY_REAL_VIEW term, VECTOR_INT_VIEW element,
               ARRAY_REAL_VIEW weights)
-      : m_term(term),
-        m_element(element),
-        m_weights(weights)
+      : m_term(term), m_element(element), m_weights(weights)
   {
   }
+
+  ARRAY_REAL_VIEW getTerm(int i) const override { return m_term; }
 
   void print() const override
   {

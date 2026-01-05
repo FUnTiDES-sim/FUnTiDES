@@ -13,9 +13,24 @@ struct Wavefield
   virtual ~Wavefield() = default;
 
   /**
-   * @brief Swap data to advance the wavefield to the next time step.
+   * @brief Get the current field at a specific index.
+   * @param i The index of the field to retrieve.
+   * @return The requested current field.
    */
-  virtual void advance() = 0;
+  virtual VECTOR_REAL_VIEW getCurrentField(int i) const = 0;
+
+  /**
+   * @brief Get the previous field at a specific index.
+   * @param i The index of the field to retrieve.
+   * @return The requested current field.
+   */
+  virtual VECTOR_REAL_VIEW getPreviousField(int i) const = 0;
+
+  /**
+   * @brief Swap data to advance the wavefield to the next time step.
+   * This method should exchange the current and previous field data.
+   */
+  virtual void swap() = 0;
 
   virtual void print() const = 0;
 };

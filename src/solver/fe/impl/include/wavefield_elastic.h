@@ -11,6 +11,7 @@ namespace fe
 {
 /**
  * @brief Elastic wavefield data structure.
+ * Arrays are kept flat for easy cpp-python-fortran interop.
  */
 struct WavefieldElastic : public Wavefield
 {
@@ -29,7 +30,37 @@ struct WavefieldElastic : public Wavefield
   {
   }
 
-  void advance() override
+  VECTOR_REAL_VIEW getCurrentField(int i) const override
+  {
+    switch (i)
+    {
+      case 0:
+        return m_uxnGlobalCurr;
+      case 1:
+        return m_uynGlobalCurr;
+      case 2:
+        return m_uznGlobalCurr;
+      default:
+        throw std::out_of_range("Invalid field index for elastic wavefield");
+    }
+  }
+
+  VECTOR_REAL_VIEW getPreviousField(int i) const override
+  {
+    switch (i)
+    {
+      case 0:
+        return m_uxnGlobalPrev;
+      case 1:
+        return m_uynGlobalPrev;
+      case 2:
+        return m_uznGlobalPrev;
+      default:
+        throw std::out_of_range("Invalid field index for elastic wavefield");
+    }
+  }
+
+  void swap() override
   {
     std::swap(m_uxnGlobalPrev, m_uxnGlobalCurr);
     std::swap(m_uynGlobalPrev, m_uynGlobalCurr);

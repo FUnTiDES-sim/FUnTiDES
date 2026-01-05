@@ -2,6 +2,7 @@
 #define RHS_ELASTIC_H_
 
 #include <data_type.h>
+
 #include "rhs.h"
 
 /**
@@ -9,10 +10,8 @@
  */
 struct RhsElastic : public Rhs
 {
-  RhsElastic(ARRAY_REAL_VIEW termx,
-             ARRAY_REAL_VIEW termy,
-             ARRAY_REAL_VIEW termz,
-             VECTOR_INT_VIEW element,
+  RhsElastic(ARRAY_REAL_VIEW termx, ARRAY_REAL_VIEW termy,
+             ARRAY_REAL_VIEW termz, VECTOR_INT_VIEW element,
              ARRAY_REAL_VIEW weights)
       : m_termx(termx),
         m_termy(termy),
@@ -20,6 +19,21 @@ struct RhsElastic : public Rhs
         m_element(element),
         m_weights(weights)
   {
+  }
+
+  ARRAY_REAL_VIEW getTerm(int i) const override
+  {
+    switch (i)
+    {
+      case 0:
+        return m_termx;
+      case 1:
+        return m_termy;
+      case 2:
+        return m_termz;
+      default:
+        throw std::out_of_range("Invalid RHS term index for elastic RHS");
+    }
   }
 
   void print() const override
