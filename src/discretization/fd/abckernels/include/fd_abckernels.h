@@ -23,6 +23,13 @@ struct FdtdAbcKernels
     const int L = 20;
     const float alpha = -0.00015;
     // const float alpha = -0.00035;
+
+    // Allocate spongeArray if not already allocated
+    if (spongeArray.extent(0) == 0)
+    {
+      spongeArray = allocateVector<vectorReal>(nx * ny * nz, "spongeArray");
+    }
+
     //  compute sponge boundary terms
     //  intailize to 1
     for (int k = 0; k < nz; k++)
@@ -101,7 +108,7 @@ struct FdtdAbcKernels
   // PML
   //------------------------------------------------------------------
   // Initialize the PML profile
-  void pml_profile_init(vector<float> &profile, int i_min, int i_max,
+  void pml_profile_init(Kokkos::View<float*> profile, int i_min, int i_max,
                         int n_first, int n_last, float scale)
   {
     int n = i_max - i_min + 1;
@@ -112,50 +119,80 @@ struct FdtdAbcKernels
     int last_beg = n - n_last + 1 + shift;
     int last_end = n + shift;
 
-#pragma omp parallel for
-    for (int i = i_min; i <= i_max; ++i)
-    {
-      profile[i] = 0.f;
-    }
+    // Zero initialization using Kokkos
+    Kokkos::parallel_for("pml_profile_init_zero",
+      Kokkos::RangePolicy<>(i_min, i_max + 1),
+      KOKKOS_LAMBDA(int i) {
+        profile(i) = 0.f;
+      });
 
     float tmp = scale / POW2(first_end - first_beg + 1);
-#pragma omp parallel for
-    for (int i = 1; i <= first_end - first_beg + 1; ++i)
-    {
-      profile[first_end - i + 1] = POW2(i) * tmp;
-    }
 
-#pragma omp parallel for
-    for (int i = 1; i <= last_end - last_beg + 1; ++i)
-    {
-      profile[last_beg + i - 1] = POW2(i) * tmp;
-    }
+    // First boundary
+    Kokkos::parallel_for("pml_profile_init_first",
+      Kokkos::RangePolicy<>(1, first_end - first_beg + 2),
+      KOKKOS_LAMBDA(int i) {
+        profile(first_end - i + 1) = POW2(i) * tmp;
+      });
+
+    // Last boundary
+    Kokkos::parallel_for("pml_profile_init_last",
+      Kokkos::RangePolicy<>(1, last_end - last_beg + 2),
+      KOKKOS_LAMBDA(int i) {
+        profile(last_beg + i - 1) = POW2(i) * tmp;
+      });
+
+    Kokkos::fence();
   }
 
   void pml_profile_extend(int nx, int ny, int nz, vectorReal &eta,
-                          const vector<float> &etax, const vector<float> &etay,
-                          const vector<float> &etaz, int xbeg, int xend,
+                          const Kokkos::View<float*> &etax,
+                          const Kokkos::View<float*> &etay,
+                          const Kokkos::View<float*> &etaz,
+                          int xbeg, int xend,
                           int ybeg, int yend, int zbeg, int zend)
   {
     const int n_ghost = 1;
-#pragma omp parallel for collapse(3)
-    for (int ix = xbeg - n_ghost; ix <= xend + n_ghost; ++ix)
-    {
-      for (int iy = ybeg - n_ghost; iy <= yend + n_ghost; ++iy)
-      {
-        for (int iz = zbeg - n_ghost; iz <= zend + n_ghost; ++iz)
-        {
-          eta[(nz + 2) * (ny + 2) * ix + (nz + 2) * (iy) + iz] =
-              etax[ix] + etay[iy] + etaz[iz];
-        }
-      }
+
+    // Skip if any input bounds are negative (disabled regions)
+    if (xbeg < 0 || xend < 0 || ybeg < 0 || yend < 0 || zbeg < 0 || zend < 0) {
+      return;
     }
+
+    // Ensure non-negative bounds for MDRangePolicy
+    // Clamp to valid ranges [0, nx+2] for x, [0, ny+2] for y, [0, nz+2] for z
+    int ix_start = (xbeg - n_ghost) > 0 ? (xbeg - n_ghost) : 0;
+    int iy_start = (ybeg - n_ghost) > 0 ? (ybeg - n_ghost) : 0;
+    int iz_start = (zbeg - n_ghost) > 0 ? (zbeg - n_ghost) : 0;
+
+    int ix_end = (xend + n_ghost + 1) < (nx + 2) ? (xend + n_ghost + 1) : (nx + 2);
+    int iy_end = (yend + n_ghost + 1) < (ny + 2) ? (yend + n_ghost + 1) : (ny + 2);
+    int iz_end = (zend + n_ghost + 1) < (nz + 2) ? (zend + n_ghost + 1) : (nz + 2);
+
+    // Skip if any dimension has invalid range
+    if (ix_start >= ix_end || iy_start >= iy_end || iz_start >= iz_end) {
+      return;
+    }
+
+    // Use Kokkos parallel_for with MDRangePolicy for 3D iteration
+    Kokkos::parallel_for("pml_profile_extend",
+      Kokkos::MDRangePolicy<Kokkos::Rank<3>>(
+        {ix_start, iy_start, iz_start},
+        {ix_end, iy_end, iz_end}
+      ),
+      KOKKOS_LAMBDA(int ix, int iy, int iz) {
+        eta((nz + 2) * (ny + 2) * ix + (nz + 2) * (iy) + iz) =
+            etax(ix) + etay(iy) + etaz(iz);
+      });
+
+    Kokkos::fence();
   }
 
   void pml_profile_extend_all(int nx, int ny, int nz, vectorReal &eta,
-                              const vector<float> &etax,
-                              const vector<float> &etay,
-                              const vector<float> &etaz, int xmin, int xmax,
+                              const Kokkos::View<float*> &etax,
+                              const Kokkos::View<float*> &etay,
+                              const Kokkos::View<float*> &etaz,
+                              int xmin, int xmax,
                               int ymin, int ymax, int x1, int x2, int x5,
                               int x6, int y1, int y2, int y3, int y4, int y5,
                               int y6, int z1, int z2, int z3, int z4, int z5,
@@ -193,36 +230,34 @@ struct FdtdAbcKernels
                 int z5, int z6, float dx, float dy, float dz, float dt_sch,
                 float vmax, vectorReal &eta)
   {
-#pragma omp parallel for collapse(3)
-    for (int i = -1; i < nx + 1; ++i)
-    {
-      for (int j = -1; j < ny + 1; ++j)
-      {
-        for (int k = -1; k < nz + 1; ++k)
-        {
-          eta[(nz + 2) * (ny + 2) * (i + 1) + (nz + 2) * (j + 1) + (k + 1)] =
-              0.f;
-        }
-      }
-    }
+    // Zero initialization using Kokkos parallel_for
+    // MDRangePolicy requires non-negative indices, so we iterate from 0
+    Kokkos::parallel_for("init_eta_zero",
+      Kokkos::MDRangePolicy<Kokkos::Rank<3>>(
+        {0, 0, 0},
+        {nx + 2, ny + 2, nz + 2}
+      ),
+      KOKKOS_LAMBDA(int i, int j, int k) {
+        eta((nz + 2) * (ny + 2) * i + (nz + 2) * j + k) = 0.f;
+      });
 
-    vector<float> etax(nx + 2);
-    vector<float> etay(ny + 2);
-    vector<float> etaz(nz + 2);
+    Kokkos::fence();
+
+    // Allocate Kokkos::View instead of std::vector
+    Kokkos::View<float*> etax("etax", nx + 2);
+    Kokkos::View<float*> etay("etay", ny + 2);
+    Kokkos::View<float*> etaz("etaz", nz + 2);
 
     // etax
     float param = dt_sch * 3.f * vmax * logf(1000.f) / (2.f * ndampx * dx);
-    // printf("param=%f\n",param);
     pml_profile_init(etax, 0, nx + 1, ndampx, ndampx, param);
 
     // etay
     param = dt_sch * 3.f * vmax * logf(1000.f) / (2.f * ndampy * dy);
-    // printf("param=%f\n",param);
     pml_profile_init(etay, 0, ny + 1, ndampy, ndampy, param);
 
     // etaz
     param = dt_sch * 3.f * vmax * logf(1000.f) / (2.f * ndampz * dz);
-    // printf("param=%f\n",param);
     pml_profile_init(etaz, 0, nz + 1, ndampz, ndampz, param);
 
     (void)pml_profile_extend_all(

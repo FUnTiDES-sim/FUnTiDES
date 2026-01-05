@@ -12,9 +12,8 @@ import sys
 
 try:
     from pyfuntides import fd_solver
-    import kokkos
 except ImportError as e:
-    print(f"Error: Could not import required modules: {e}")
+    print(f"Error: Could not import fd_solver module: {e}")
     print("Make sure the FD solver Python bindings are built and installed.")
     sys.exit(1)
 
@@ -26,10 +25,12 @@ def main():
     print("FD Solver Python Bindings Example")
     print("=" * 70)
 
-    # Initialize Kokkos (required for CUDA builds)
+    # =========================================================================
+    # Step 0: Initialize Kokkos
+    # =========================================================================
     print("\n[0] Initializing Kokkos...")
-    kokkos.initialize()
-    print("  ✓ Kokkos initialized")
+    fd_solver.initialize_kokkos()
+    print(f"  ✓ Kokkos initialized (is_initialized={fd_solver.is_kokkos_initialized()})")
 
     # =========================================================================
     # Step 1: Configure simulation options
@@ -71,8 +72,9 @@ def main():
     options.time.method = "FDTD"
 
     # Boundary conditions
-    options.boundary.use_pml = False
-    options.boundary.use_sponge = True
+    options.boundary.use_pml = True
+    options.boundary.pml_size = 2
+    options.boundary.use_sponge = False
     options.boundary.sponge_size = 20
     options.boundary.sponge_alpha = 0.015
 
@@ -149,8 +151,7 @@ def main():
         # Compute time step (simple CFL)
         vmax = options.velocity.vmax
         dt = 0.5 * min(dx, dy, dz) / vmax
-        abckernels.definePML(nx, ny, nz, stencils.lx, stencils.ly, stencils.lz,
-                            dx, dy, dz, options.boundary.pml_size, dt)
+        abckernels.definePML(grids, nx, ny, nz, dx, dy, dz, dt, vmax)
         print(f"  ✓ PML boundary initialized (size={options.boundary.pml_size})")
 
     # =========================================================================
@@ -208,6 +209,7 @@ def main():
 
     i1, i2 = 0, 1
     for itime in range(n_demo_steps):
+        print(itime)
         if options.boundary.use_sponge:
             solver.compute_one_stepSB(itime, i1, i2)
         else:
@@ -227,9 +229,11 @@ def main():
     print("FD Solver Python bindings example completed successfully!")
     print("=" * 70)
 
-    # Finalize Kokkos
+    # =========================================================================
+    # Step 10: Finalize Kokkos
+    # =========================================================================
     print("\n[10] Finalizing Kokkos...")
-    kokkos.finalize()
+    fd_solver.finalize_kokkos()
     print("  ✓ Kokkos finalized")
 
     return 0

@@ -2,6 +2,7 @@
 #include <pybind11/pybind11.h>
 #include <pybind11/stl.h>
 
+#include <Kokkos_Core.hpp>
 #include <KokkosExp_InterOp.hpp>
 
 #include <memory>
@@ -18,11 +19,36 @@
 
 namespace py = pybind11;
 
+// Helper functions for Kokkos initialization/finalization
+// Note: We expose these as Python functions instead of using static initialization
+// because Kokkos CUDA backend requires explicit initialization before use
+
 PYBIND11_MODULE(fd_solver, m)
 {
   // Create submodule 'fd_solver'
   m.attr("__name__") = "pyfuntides.fd_solver";
   m.doc() = "Python bindings for FUnTiDES Finite Difference (FD) solver";
+
+  // ============================================================================
+  // Kokkos Initialization/Finalization
+  // ============================================================================
+
+  m.def("initialize_kokkos", []() {
+    if (!Kokkos::is_initialized()) {
+      Kokkos::InitializationSettings settings;
+      Kokkos::initialize(settings);
+    }
+  }, "Initialize Kokkos runtime (call this before using the solver)");
+
+  m.def("finalize_kokkos", []() {
+    if (Kokkos::is_initialized()) {
+      Kokkos::finalize();
+    }
+  }, "Finalize Kokkos runtime (call this after you're done)");
+
+  m.def("is_kokkos_initialized", []() {
+    return Kokkos::is_initialized();
+  }, "Check if Kokkos is initialized");
 
   // ============================================================================
   // FDTD Options and Configuration
@@ -198,6 +224,50 @@ PYBIND11_MODULE(fd_solver, m)
            &fdtd::abckernel::FdtdAbcKernels::defineSpongeBoundary,
            py::arg("nx"), py::arg("ny"), py::arg("nz"),
            "Define sponge boundary conditions")
+      .def("definePML",
+           [](fdtd::abckernel::FdtdAbcKernels& self,
+              model::fdgrid::FdtdGrids& grids,
+              int nx, int ny, int nz,
+              float dx, float dy, float dz, float dt, float vmax) {
+             // Allocate eta array if not already allocated
+             if (self.eta.extent(0) == 0) {
+               self.eta = allocateVector<vectorReal>((nx + 2) * (ny + 2) * (nz + 2), "eta");
+             }
+
+             // Get boundary parameters from grids
+             int ndampx = grids.ndampx();
+             int ndampy = grids.ndampy();
+             int ndampz = grids.ndampz();
+             int x1 = grids.x1();
+             int x2 = grids.x2();
+             int x3 = grids.x3();
+             int x4 = grids.x4();
+             int x5 = grids.x5();
+             int x6 = grids.x6();
+             int y1 = grids.y1();
+             int y2 = grids.y2();
+             int y3 = grids.y3();
+             int y4 = grids.y4();
+             int y5 = grids.y5();
+             int y6 = grids.y6();
+             int z1 = grids.z1();
+             int z2 = grids.z2();
+             int z3 = grids.z3();
+             int z4 = grids.z4();
+             int z5 = grids.z5();
+             int z6 = grids.z6();
+
+             // Initialize PML
+             self.init_eta(nx, ny, nz, ndampx, ndampy, ndampz,
+                          x1, x2, x3, x4, x5, x6,
+                          y1, y2, y3, y4, y5, y6,
+                          z1, z2, z3, z4, z5, z6,
+                          dx, dy, dz, dt, vmax, self.eta);
+           },
+           py::arg("grids"), py::arg("nx"), py::arg("ny"), py::arg("nz"),
+           py::arg("dx"), py::arg("dy"), py::arg("dz"),
+           py::arg("dt"), py::arg("vmax"),
+           "Define PML boundary conditions")
       .def_readonly("eta", &fdtd::abckernel::FdtdAbcKernels::eta,
                     "PML damping coefficient array")
       .def_readonly("spongeArray", &fdtd::abckernel::FdtdAbcKernels::spongeArray,
@@ -215,7 +285,28 @@ PYBIND11_MODULE(fd_solver, m)
       .def("nz", &model::fdgrid::FdtdGrids::nz, "Get grid size in z")
       .def("dx", &model::fdgrid::FdtdGrids::dx, "Get grid spacing in x")
       .def("dy", &model::fdgrid::FdtdGrids::dy, "Get grid spacing in y")
-      .def("dz", &model::fdgrid::FdtdGrids::dz, "Get grid spacing in z");
+      .def("dz", &model::fdgrid::FdtdGrids::dz, "Get grid spacing in z")
+      .def("ndampx", &model::fdgrid::FdtdGrids::ndampx, "Get PML damping size in x")
+      .def("ndampy", &model::fdgrid::FdtdGrids::ndampy, "Get PML damping size in y")
+      .def("ndampz", &model::fdgrid::FdtdGrids::ndampz, "Get PML damping size in z")
+      .def("x1", &model::fdgrid::FdtdGrids::x1, "Get x1 boundary index")
+      .def("x2", &model::fdgrid::FdtdGrids::x2, "Get x2 boundary index")
+      .def("x3", &model::fdgrid::FdtdGrids::x3, "Get x3 boundary index")
+      .def("x4", &model::fdgrid::FdtdGrids::x4, "Get x4 boundary index")
+      .def("x5", &model::fdgrid::FdtdGrids::x5, "Get x5 boundary index")
+      .def("x6", &model::fdgrid::FdtdGrids::x6, "Get x6 boundary index")
+      .def("y1", &model::fdgrid::FdtdGrids::y1, "Get y1 boundary index")
+      .def("y2", &model::fdgrid::FdtdGrids::y2, "Get y2 boundary index")
+      .def("y3", &model::fdgrid::FdtdGrids::y3, "Get y3 boundary index")
+      .def("y4", &model::fdgrid::FdtdGrids::y4, "Get y4 boundary index")
+      .def("y5", &model::fdgrid::FdtdGrids::y5, "Get y5 boundary index")
+      .def("y6", &model::fdgrid::FdtdGrids::y6, "Get y6 boundary index")
+      .def("z1", &model::fdgrid::FdtdGrids::z1, "Get z1 boundary index")
+      .def("z2", &model::fdgrid::FdtdGrids::z2, "Get z2 boundary index")
+      .def("z3", &model::fdgrid::FdtdGrids::z3, "Get z3 boundary index")
+      .def("z4", &model::fdgrid::FdtdGrids::z4, "Get z4 boundary index")
+      .def("z5", &model::fdgrid::FdtdGrids::z5, "Get z5 boundary index")
+      .def("z6", &model::fdgrid::FdtdGrids::z6, "Get z6 boundary index");
 
   // ============================================================================
   // FdtdSolver - Main Solver Class
