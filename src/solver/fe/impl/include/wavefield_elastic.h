@@ -2,8 +2,13 @@
 #define WAVEFIELD_ELASTIC_H_
 
 #include <data_type.h>
+
 #include "wavefield.h"
 
+namespace solver
+{
+namespace fe
+{
 /**
  * @brief Elastic wavefield data structure.
  */
@@ -33,20 +38,34 @@ struct WavefieldElastic : public Wavefield
 
   void print() const override
   {
-    std::cout << "Ux Global Prev size: " << m_uxnGlobalPrev.extent(0) << std::endl;
-    std::cout << "Ux Global Curr size: " << m_uxnGlobalCurr.extent(0) << std::endl;
-    std::cout << "Uy Global Prev size: " << m_uynGlobalPrev.extent(0) << std::endl;
-    std::cout << "Uy Global Curr size: " << m_uynGlobalCurr.extent(0) << std::endl;
-    std::cout << "Uz Global Prev size: " << m_uznGlobalPrev.extent(0) << std::endl;
-    std::cout << "Uz Global Curr size: " << m_uznGlobalCurr.extent(0) << std::endl;
+    std::cout << "Ux Global Prev size: " << m_uxnGlobalPrev.extent(0)
+              << std::endl;
+    std::cout << "Ux Global Curr size: " << m_uxnGlobalCurr.extent(0)
+              << std::endl;
+    std::cout << "Uy Global Prev size: " << m_uynGlobalPrev.extent(0)
+              << std::endl;
+    std::cout << "Uy Global Curr size: " << m_uynGlobalCurr.extent(0)
+              << std::endl;
+    std::cout << "Uz Global Prev size: " << m_uznGlobalPrev.extent(0)
+              << std::endl;
+    std::cout << "Uz Global Curr size: " << m_uznGlobalCurr.extent(0)
+              << std::endl;
   }
 
-  VECTOR_REAL_VIEW m_uxnGlobalPrev;  ///< Displacement field in x at previous time step
-  VECTOR_REAL_VIEW m_uxnGlobalCurr;  ///< Displacement field in x at current time step
-  VECTOR_REAL_VIEW m_uynGlobalPrev;  ///< Displacement field in y at previous time step
-  VECTOR_REAL_VIEW m_uynGlobalCurr;  ///< Displacement field in y at current time step
-  VECTOR_REAL_VIEW m_uznGlobalPrev;  ///< Displacement field in z at previous time step
-  VECTOR_REAL_VIEW m_uznGlobalCurr;  ///< Displacement field in z at current time step
+  VECTOR_REAL_VIEW
+  m_uxnGlobalPrev;  ///< Displacement field in x at previous time step
+  VECTOR_REAL_VIEW
+  m_uxnGlobalCurr;  ///< Displacement field in x at current time step
+  VECTOR_REAL_VIEW
+  m_uynGlobalPrev;  ///< Displacement field in y at previous time step
+  VECTOR_REAL_VIEW
+  m_uynGlobalCurr;  ///< Displacement field in y at current time step
+  VECTOR_REAL_VIEW
+  m_uznGlobalPrev;  ///< Displacement field in z at previous time step
+  VECTOR_REAL_VIEW
+  m_uznGlobalCurr;  ///< Displacement field in z at current time step
 };
+}  // namespace fe
+}  // namespace solver
 
 #endif  // WAVEFIELD_ELASTIC_H_
