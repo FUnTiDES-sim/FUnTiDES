@@ -42,3 +42,6 @@ install(DIRECTORY include/
     DESTINATION include
     FILES_MATCHING PATTERN "*.h"
 )
+
+# Python wrapper
+add_subdirectory(pywrap)
