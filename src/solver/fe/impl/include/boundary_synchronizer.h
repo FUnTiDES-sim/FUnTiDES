@@ -9,6 +9,8 @@
 
 #include "parallel_topology.h"
 
+using namespace utils;
+
 // @brief Handles data exchange at partition boundaries.
 //
 // Manages synchronization of boundary node values across distributed ranks.

@@ -18,6 +18,7 @@
 #include "fe/Integrals.hpp"
 #include "model_discretization_interface.h"
 #include "sem_solver.h"
+#include "topology_factory.h"
 
 namespace solver
 {
@@ -32,6 +33,8 @@ template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE,
           bool IS_MODEL_ON_NODES, enums::physicType PHYSICS>
 void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES,
                PHYSICS>::computeFEInit(model::ModelApi<float, int>& mesh_in,
+                                       int rank, int size, float origin_x,
+                                       float local_lx,
                                        const std::array<float, 3>& sponge_size,
                                        const bool surface_sponge,
                                        const float taper_delta)
@@ -53,33 +56,61 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES,
 
   allocateFEarrays();
   initFEarrays();
+
+  // 1. Discover Topology (DD)
+  m_topology =
+      TopologyFactory::createFromMesh(m_mesh, rank, size, origin_x, local_lx);
+
+  // 2. Compute Local Mass Matrix
   computeGlobalMassMatrix();
+
+  // NOTE: If distributed, caller MUST synchronize the mass matrix
+  // immediately after this function returns using BoundarySynchronizer.
 }
 
 //============================================================================
-// computeOneStep - Main time stepping routine
+// Compute Forces (Phase 1)
 //============================================================================
 
 template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE,
-          bool IS_MODEL_ON_NODES, physicType PHYSICS>
+          bool IS_MODEL_ON_NODES, enums::physicType PHYSICS>
 void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES,
-               PHYSICS>::computeOneStep(const float& dt, const int& timeSample,
+               PHYSICS>::computeForces(const float& dt, const int& timeSample,
+                                       SolverBase::DataStruct& data)
+{
+  auto& myData = dynamic_cast<DataType&>(data);
+
+  // 1. Reset Global Vectors (Force Accumulators)
+  resetGlobalVectors(m_mesh.getNumberOfNodes());
+  FENCE
+
+  // 2. Apply RHS (Source Terms)
+  applyRHSTerm(timeSample, dt, myData.m_i2, myData);
+  FENCE
+
+  // 3. Compute Element Contributions (Stiffness Matrix)
+  computeElementContributions(myData.m_i2, myData);
+  FENCE
+
+  // NOTE: In distributed mode, caller MUST synchronize the force vectors
+  // after this method returns and before calling updateSolution.
+}
+
+//============================================================================
+// Update Solution (Phase 2)
+//============================================================================
+
+template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE,
+          bool IS_MODEL_ON_NODES, enums::physicType PHYSICS>
+void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES,
+               PHYSICS>::updateSolution(const float& dt, const int& i1,
+                                        const int& i2,
                                         SolverBase::DataStruct& data)
 {
   auto& myData = dynamic_cast<DataType&>(data);
 
-  int const& i1 = myData.m_i1;
-  int const& i2 = myData.m_i2;
-
-  resetGlobalVectors(m_mesh.getNumberOfNodes());
-  FENCE
-
-  applyRHSTerm(timeSample, dt, i2, myData);
-  FENCE
-
-  computeElementContributions(i2, myData);
-  FENCE
-
+  // 4. Update Fields (M^-1 * F)
+  // Assumes F (force vectors) has been fully synchronized.
   updateFields(dt, i1, i2, myData);
   FENCE
 }
@@ -735,4 +766,4 @@ SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES,
 }  // namespace fe
 }  // namespace solver
 
-#endif  // SRC_SOLVER_FE_IMPL_INCLUDE_SEM_SOLVER_IMPL_H_
+#endif  // SRC_SOLVER_FE_IMPL_INCLUDE_SEMSOLVERIMPL_H_

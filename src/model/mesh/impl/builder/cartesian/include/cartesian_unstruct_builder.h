@@ -25,7 +25,12 @@ class CartesianUnstructBuilder : public ModelBuilderBase<FloatType, ScalarType>
         lz_(p.lz),
         order_(p.order),
         isModelOnNodes_(p.isModelOnNodes),
-        isElastic_(p.isElastic)
+        isElastic_(p.isElastic),
+        // --- ADDED: Capture Origins from Params ---
+        origin_x_(p.origin_x),
+        origin_y_(p.origin_y),
+        origin_z_(p.origin_z)
+  // ------------------------------------------
 
   {
     initGlobalNodeList();
@@ -36,40 +41,16 @@ class CartesianUnstructBuilder : public ModelBuilderBase<FloatType, ScalarType>
   std::shared_ptr<model::ModelApi<FloatType, ScalarType>> getModel()
       const override
   {
-    model::ModelUnstructData<FloatType, ScalarType> modelData;
-
-    modelData.order_ = order_;
-    modelData.n_element_ = ex_ * ey_ * ez_;
-    modelData.n_node_ =
-        (ex_ * order_ + 1) * (ey_ * order_ + 1) * (ez_ * order_ + 1);
-    modelData.lx_ = lx_;
-    modelData.ly_ = ly_;
-    modelData.lz_ = lz_;
-
-    modelData.global_node_index_ = global_node_index_;
-    modelData.nodes_coords_x_ = nodes_coords_x_;
-    modelData.nodes_coords_y_ = nodes_coords_y_;
-    modelData.nodes_coords_z_ = nodes_coords_z_;
-
-    modelData.isModelOnNodes_ = isModelOnNodes_;
-    modelData.isElastic_ = isElastic_;
-
-    modelData.model_vp_node_ = model_vp_node_;
-    modelData.model_rho_node_ = model_rho_node_;
-    modelData.model_vs_node_ = model_vs_node_;
-    modelData.model_delta_node_ = model_delta_node_;
-    modelData.model_epsilon_node_ = model_epsilon_node_;
-    modelData.model_gamma_node_ = model_gamma_node_;
-    modelData.model_theta_node_ = model_theta_node_;
-    modelData.model_phi_node_ = model_phi_node_;
-    modelData.model_vp_element_ = model_vp_element_;
-    modelData.model_rho_element_ = model_rho_element_;
-    modelData.model_vs_element_ = model_vs_element_;
-    modelData.model_delta_element_ = model_delta_element_;
-    modelData.model_epsilon_element_ = model_epsilon_element_;
-    modelData.model_gamma_element_ = model_gamma_element_;
-    modelData.model_theta_element_ = model_theta_element_;
-    modelData.model_phi_element_ = model_phi_element_;
+    model::ModelUnstructData<FloatType, ScalarType> modelData(
+        order_, ex_ * ey_ * ez_,
+        (ex_ * order_ + 1) * (ey_ * order_ + 1) * (ez_ * order_ + 1), lx_, ly_,
+        lz_, isModelOnNodes_, isElastic_, global_node_index_, nodes_coords_x_,
+        nodes_coords_y_, nodes_coords_z_, model_vp_node_, model_vp_element_,
+        model_rho_node_, model_rho_element_, model_vs_node_, model_vs_element_,
+        model_delta_node_, model_delta_element_, model_epsilon_node_,
+        model_epsilon_element_, model_gamma_node_, model_gamma_element_,
+        model_theta_node_, model_theta_element_, model_phi_node_,
+        model_phi_element_, model_C_tensor_element_, boundaries_t_);
 
     auto model = std::make_shared<model::ModelUnstruct<FloatType, ScalarType>>(
         modelData);
@@ -87,6 +68,10 @@ class CartesianUnstructBuilder : public ModelBuilderBase<FloatType, ScalarType>
  private:
   ScalarType ex_, ey_, ez_;
   FloatType lx_, ly_, lz_;
+
+  FloatType origin_x_{0}, origin_y_{0}, origin_z_{0};
+  // -----------------------------
+
   int order_;
   bool isModelOnNodes_;
   bool isElastic_;
@@ -114,6 +99,8 @@ class CartesianUnstructBuilder : public ModelBuilderBase<FloatType, ScalarType>
   VECTOR_REAL_VIEW model_phi_element_;
 
   VECTOR_REAL_VIEW boundaries_t_;
+
+  ARRAY3D_REAL_VIEW model_C_tensor_element_;
 
   void initGlobalNodeList()
   {
@@ -155,7 +142,9 @@ class CartesianUnstructBuilder : public ModelBuilderBase<FloatType, ScalarType>
     }
   }
 
-  void getCoordInOneDirection(const int& h, const int& n_element, float* coord)
+  // --- MODIFIED: Added offset parameter ---
+  void getCoordInOneDirection(const int& h, const int& n_element, float* coord,
+                              FloatType offset)
   {
     float xi[MAX_ORDER + 1];
 
@@ -211,7 +200,8 @@ class CartesianUnstructBuilder : public ModelBuilderBase<FloatType, ScalarType>
 
     for (int j = 0; j < order_ + 1; j++)
     {
-      coord[j] = a * xi[j] + b;
+      // --- MODIFIED: Apply offset here ---
+      coord[j] = a * xi[j] + b + offset;
     }
   }
 
@@ -240,13 +230,16 @@ class CartesianUnstructBuilder : public ModelBuilderBase<FloatType, ScalarType>
 
     for (int n = 0; n < ez_; n++)
     {
-      getCoordInOneDirection(hz, n, coord_z);
+      // --- MODIFIED: Pass origin Z ---
+      getCoordInOneDirection(hz, n, coord_z, origin_z_);
       for (int m = 0; m < ey_; m++)
       {
-        getCoordInOneDirection(hy, m, coord_y);
+        // --- MODIFIED: Pass origin Y ---
+        getCoordInOneDirection(hy, m, coord_y, origin_y_);
         for (int l = 0; l < ex_; l++)
         {
-          getCoordInOneDirection(hx, l, coord_x);
+          // --- MODIFIED: Pass origin X ---
+          getCoordInOneDirection(hx, l, coord_x, origin_x_);
 
           for (int k = 0; k < order_ + 1; k++)
           {
