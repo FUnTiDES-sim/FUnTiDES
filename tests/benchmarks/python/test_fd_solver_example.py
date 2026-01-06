@@ -79,7 +79,7 @@ def main():
     options.boundary.sponge_alpha = 0.015
 
     # Output
-    options.output.save_snapshots = False
+    options.output.save_snapshots = True
     options.output.snapshot_interval = 10
 
     print(f"  Grid size: {options.grid.nx} x {options.grid.ny} x {options.grid.nz}")
