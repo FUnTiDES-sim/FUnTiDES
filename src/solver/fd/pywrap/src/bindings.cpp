@@ -387,4 +387,44 @@ PYBIND11_MODULE(fd_solver, m)
       "  dt: Time step size (s)\n"
       "  f0: Source frequency (Hz)\n"
       "  source_order: Derivative order (0, 1, or 2)\n");
+
+  m.def(
+      "get_wavefield_snapshot",
+      [](fdtd::kernel::FdtdKernels& kernels, int nx, int ny, int nz,
+         int lx, int ly, int lz, int buffer_idx) {
+        // Get the extended grid dimensions
+        int ext_nx = nx + 2 * lx;
+        int ext_ny = ny + 2 * ly;
+        int ext_nz = nz + 2 * lz;
+
+        // Create numpy array for the interior domain (without ghost cells)
+        py::array_t<float> result({nx, ny, nz});
+        auto r = result.mutable_unchecked<3>();
+
+        // Copy data from Kokkos array to numpy array
+        // pnGlobal indexing: IDX3_l(i,j,k) where i,j,k can be negative
+        auto pn = kernels.pnGlobal;
+
+        for (int i = 0; i < nx; i++) {
+          for (int j = 0; j < ny; j++) {
+            for (int k = 0; k < nz; k++) {
+              // Calculate index in the extended grid (with ghost cells)
+              int idx = (i + lx) * (ext_ny * ext_nz) + (j + ly) * ext_nz + (k + lz);
+              r(i, j, k) = pn(idx, buffer_idx);
+            }
+          }
+        }
+
+        return result;
+      },
+      py::arg("kernels"), py::arg("nx"), py::arg("ny"), py::arg("nz"),
+      py::arg("lx"), py::arg("ly"), py::arg("lz"), py::arg("buffer_idx"),
+      "Extract wavefield snapshot as numpy array\n\n"
+      "Parameters:\n"
+      "  kernels: FdtdKernels object\n"
+      "  nx, ny, nz: Interior grid dimensions\n"
+      "  lx, ly, lz: Stencil half-widths\n"
+      "  buffer_idx: Buffer index (0 or 1)\n"
+      "Returns:\n"
+      "  NumPy array of shape (nx, ny, nz) containing the pressure field\n");
 }

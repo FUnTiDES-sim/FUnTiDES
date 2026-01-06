@@ -9,6 +9,8 @@ This script shows how to:
 """
 
 import sys
+import numpy as np
+import os
 
 try:
     from pyfuntides import fd_solver
@@ -16,6 +18,30 @@ except ImportError as e:
     print(f"Error: Could not import fd_solver module: {e}")
     print("Make sure the FD solver Python bindings are built and installed.")
     sys.exit(1)
+
+
+def save_snapshot(kernels, nx, ny, nz, lx, ly, lz, itime, buffer_idx, output_dir="snapshots"):
+    """Save wavefield snapshot to disk.
+
+    Args:
+        kernels: FdtdKernels object containing the wavefield
+        nx, ny, nz: Grid dimensions
+        lx, ly, lz: Stencil half-widths
+        itime: Current time step
+        buffer_idx: Current buffer index (0 or 1)
+        output_dir: Directory to save snapshots
+    """
+    # Create output directory if it doesn't exist
+    os.makedirs(output_dir, exist_ok=True)
+
+    # Extract wavefield snapshot using the C++ helper function
+    wavefield = fd_solver.get_wavefield_snapshot(kernels, nx, ny, nz, lx, ly, lz, buffer_idx)
+
+    # Save as numpy binary file
+    filename = os.path.join(output_dir, f"wavefield_{itime:06d}.npy")
+    np.save(filename, wavefield)
+
+    return filename
 
 
 def main():
@@ -207,6 +233,9 @@ def main():
     n_demo_steps = min(1000, n_steps)
     print(f"\n  Running {n_demo_steps} time steps as demonstration...")
 
+    # Initialize snapshot counter
+    n_snapshots_saved = 0
+
     i1, i2 = 0, 1
     for itime in range(n_demo_steps):
         if options.boundary.use_sponge:
@@ -215,10 +244,20 @@ def main():
             solver.compute_one_stepPML(itime, i1, i2)
         i1, i2 = i2, i1  # Swap buffers
 
+        # Save snapshot if enabled and at the right interval
+        if options.output.save_snapshots and (itime % options.output.snapshot_interval == 0):
+            filename = save_snapshot(kernels, nx, ny, nz, stencils.lx, stencils.ly, stencils.lz, itime, i2)
+            n_snapshots_saved += 1
+            if n_snapshots_saved <= 3:  # Only print first few to avoid spam
+                print(f"    Saved snapshot: {filename}")
+
         if (itime + 1) % 5 == 0:
             print(f"    Completed time step {itime + 1}/{n_demo_steps}")
 
     print(f"  ✓ Time-stepping completed successfully")
+
+    if options.output.save_snapshots:
+        print(f"  ✓ Saved {n_snapshots_saved} snapshots to 'snapshots/' directory")
 
     # Note: For a full simulation, continue the loop and add output routines
     print("\n  Note: Full simulation would continue for all", n_steps, "time steps")
