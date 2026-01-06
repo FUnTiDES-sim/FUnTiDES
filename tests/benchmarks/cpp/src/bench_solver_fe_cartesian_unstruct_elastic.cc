@@ -1,7 +1,6 @@
 #include <benchmark/benchmark.h>
 
 #include <array>
-#include <cstdint>
 #include <memory>
 
 #include "bench_macros.h"
@@ -35,6 +34,12 @@ template <typename T>
 class SolverUnstructFixture : public benchmark::Fixture
 {
  protected:
+  // domain decomposition (Mock Serial)
+  static constexpr int rank = 0;
+  static constexpr int size = 1;
+  static constexpr float origin = 0.0f;
+  float local_l = 2000.0f;
+
   // model
   static constexpr int ex = 100;
   static constexpr int ey = 100;
@@ -65,6 +70,7 @@ class SolverUnstructFixture : public benchmark::Fixture
   {
     isModelOnNodes_ = state.range(0);
     implem_ = static_cast<implemType>(state.range(1));
+    local_l = lx;
   }
 
   std::shared_ptr<model::ModelApi<float, int>> createModel()
@@ -129,8 +135,10 @@ BENCHMARK_TEMPLATE_METHOD_F(SolverUnstructFixture, FEInit)
   // Bench
   for (auto _ : state)
   {
-    solver->computeFEInit(*model, this->sponge_size, this->surface_sponge,
-                          this->taper_delta);
+    // Updated signature
+    solver->computeFEInit(*model, this->rank, this->size, this->origin,
+                          this->local_l, this->sponge_size,
+                          this->surface_sponge, this->taper_delta);
   }
 
   // Label
@@ -149,7 +157,9 @@ BENCHMARK_TEMPLATE_METHOD_F(SolverUnstructFixture, OneStep)
                             : modelLocationType::kOnElements,
       physicType::kElastic, this->order);
 
-  solver->computeFEInit(*model, this->sponge_size, this->surface_sponge,
+  // Updated signature
+  solver->computeFEInit(*model, this->rank, this->size, this->origin,
+                        this->local_l, this->sponge_size, this->surface_sponge,
                         this->taper_delta);
 
   BenchmarkArrays arrays(this->n_rhs, this->n_time_steps, this->n_dof,

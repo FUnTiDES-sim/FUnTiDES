@@ -34,6 +34,12 @@ template <typename T>
 class SolverStructFixture : public benchmark::Fixture
 {
  protected:
+  // domain decomposition
+  static constexpr int rank = 0;
+  static constexpr int size = 1;  // Fixed: Size must be >= 1
+  static constexpr float origin = 0.0f;
+  float local_l = 2000.0f;
+
   // model
   static constexpr int ex = 100;
   static constexpr int ey = 100;
@@ -62,6 +68,7 @@ class SolverStructFixture : public benchmark::Fixture
   {
     isModelOnNodes_ = state.range(0);
     implem_ = static_cast<implemType>(state.range(1));
+    local_l = domain_size;  // Fixed: Use domain_size, lx was undefined
   }
 
   std::shared_ptr<model::ModelApi<float, int>> createModel()
@@ -70,6 +77,7 @@ class SolverStructFixture : public benchmark::Fixture
     float hy = domain_size / ey;
     float hz = domain_size / ez;
 
+    // Note: Builder defaults origins to 0.0, which matches our serial setup
     typename T::Builder builder(ex, hx, ey, hy, ez, hz, isModelOnNodes_, false);
     return builder.getModel();
   }
@@ -120,8 +128,11 @@ BENCHMARK_TEMPLATE_METHOD_F(SolverStructFixture, FEInit)
   // Bench
   for (auto _ : state)
   {
-    solver->computeFEInit(*model, this->sponge_size, this->surface_sponge,
-                          this->taper_delta);
+    // Updated signature: pass model + 7 args (rank, size, origin, local_l,
+    // sponge...)
+    solver->computeFEInit(*model, this->rank, this->size, this->origin,
+                          this->local_l, this->sponge_size,
+                          this->surface_sponge, this->taper_delta);
   }
 
   // Label
@@ -140,7 +151,9 @@ BENCHMARK_TEMPLATE_METHOD_F(SolverStructFixture, OneStep)
                             : modelLocationType::kOnElements,
       physicType::kAcoustic, this->order);
 
-  solver->computeFEInit(*model, this->sponge_size, this->surface_sponge,
+  // Updated signature here as well
+  solver->computeFEInit(*model, this->rank, this->size, this->origin,
+                        this->local_l, this->sponge_size, this->surface_sponge,
                         this->taper_delta);
 
   BenchmarkArrays arrays(this->n_rhs, this->n_time_steps, this->n_dof,
