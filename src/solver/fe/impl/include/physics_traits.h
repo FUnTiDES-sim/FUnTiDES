@@ -1,8 +1,13 @@
 #pragma once
+#include <memory>
 
 #include "sem_enums.h"
 #include "sem_solver.h"
 #include "solver_base.h"
+#include "wavefield_acoustic.h"
+#include "wavefield_elastic.h"
+#include "rhs_acoustic.h"
+#include "rhs_elastic.h"
 
 namespace solver
 {
@@ -89,7 +94,7 @@ struct SEMsolverData : public SolverBase::DataStruct
    */
   template <physicType P = PHYSICS,
             typename = std::enable_if_t<P == enums::physicType::kAcoustic>>
-  SEMsolverData(WavefieldAcoustic wavefield, RhsAcoustic rhs)
+  SEMsolverData(std::shared_ptr<WavefieldAcoustic> wavefield, std::shared_ptr<RhsAcoustic> rhs)
       : m_wavefield(wavefield), m_rhs(rhs)
   {
   }
@@ -99,25 +104,25 @@ struct SEMsolverData : public SolverBase::DataStruct
    */
   template <physicType P = PHYSICS,
             typename = std::enable_if_t<P == enums::physicType::kElastic>>
-  SEMsolverData(WavefieldElastic wavefield, RhsElastic rhs)
+  SEMsolverData(std::shared_ptr<WavefieldElastic> wavefield, std::shared_ptr<RhsElastic> rhs)
       : m_wavefield(wavefield), m_rhs(rhs)
   {
   }
 
-  ARRAY_REAL_VIEW getRhsTerm(int i) const { return m_rhs.getTerm(i); }
+  ARRAY_REAL_VIEW getRhsTerm(int i) const { return m_rhs->getTerm(i); }
 
-  VECTOR_INT_VIEW getRhsElement() const { return m_rhsElement; }
+  VECTOR_INT_VIEW getRhsElement() const { return m_rhs->getElement(); }
 
-  ARRAY_REAL_VIEW getRhsWeights() const { return m_rhsWeights; }
+  ARRAY_REAL_VIEW getRhsWeights() const { return m_rhs->getWeights(); }
 
   VECTOR_REAL_VIEW getCurrentField(int i) const
   {
-    return m_wavefield.getCurrentField(i);
+    return m_wavefield->getCurrentField(i);
   }
 
   VECTOR_REAL_VIEW getPreviousField(int i) const
   {
-    return m_wavefield.getPreviousField(i);
+    return m_wavefield->getPreviousField(i);
   }
 
   void print() const override
@@ -137,8 +142,8 @@ struct SEMsolverData : public SolverBase::DataStruct
     std::cout << "RHS Weights size: " << getRhsWeights().extent(0) << std::endl;
   }
 
-  Wavefield m_wavefield;  ///< Wavefield data
-  Rhs m_rhs;              ///< RHS data
+  std::shared_ptr<Wavefield> m_wavefield;  ///< Wavefield data
+  std::shared_ptr<Rhs> m_rhs;              ///< RHS data
 };
 
 //============================================================================

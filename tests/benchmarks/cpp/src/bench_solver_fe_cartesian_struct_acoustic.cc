@@ -12,6 +12,8 @@
 #include "sem_solver.h"
 #include "solver_factory.h"
 #include "utils.h"
+#include "wavefield_acoustic.h"
+#include "rhs_acoustic.h"
 
 using namespace solver::fe;
 using namespace solver::fe::enums;
@@ -88,7 +90,8 @@ struct BenchmarkArrays
   arrayReal rhsTerm;
   vectorInt rhsElement;
   arrayReal rhsWeights;
-  arrayReal pnGlobal;
+  vectorReal pnGlobalPrev;
+  vectorReal pnGlobalCurr;
   arrayReal rhsLocation;
 
   BenchmarkArrays(int n_rhs, int n_time_steps, int n_dof,
@@ -98,7 +101,8 @@ struct BenchmarkArrays
     rhsElement = allocateVector<vectorInt>(n_rhs, "rhsElement");
     rhsWeights =
         allocateArray2D<arrayReal>(n_rhs, nb_points_per_element, "rhsWeights");
-    pnGlobal = allocateArray2D<arrayReal>(n_dof, 2, "pnGlobal");
+    pnGlobalPrev = allocateVector<vectorReal>(n_dof, "pnGlobalPrev");
+    pnGlobalCurr = allocateVector<vectorReal>(n_dof, "pnGlobalCurr");
     rhsLocation = allocateArray2D<arrayReal>(1, 3, "rhsLocation");
 
     FENCE
@@ -160,8 +164,9 @@ BENCHMARK_TEMPLATE_METHOD_F(SolverStructFixture, OneStep)
     arrays.rhsTerm(0, j) = sourceTerm[j];
   }
 
-  SEMsolverDataAcoustic data(0, 1, arrays.rhsTerm, arrays.pnGlobal,
-                             arrays.rhsElement, arrays.rhsWeights);
+  auto wavefield = std::make_shared<WavefieldAcoustic>(arrays.pnGlobalPrev, arrays.pnGlobalCurr);
+  auto rhs = std::make_shared<RhsAcoustic>(arrays.rhsTerm, arrays.rhsElement, arrays.rhsWeights);
+  SEMsolverDataAcoustic data(wavefield, rhs);
 
   // Bench
   for (auto _ : state)

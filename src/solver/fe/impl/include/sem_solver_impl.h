@@ -579,7 +579,7 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES,
                                               const char* fieldName)
 {
   cout << "TimeStep=" << t << ";  " << fieldName << " @ elementSource location "
-       << efficient << " after computeOneStep = "
+       << e << " after computeOneStep = "
        << fieldGlobal(m_mesh.globalNodeIndex(e, 0, 0, 0)) << endl;
 }
 

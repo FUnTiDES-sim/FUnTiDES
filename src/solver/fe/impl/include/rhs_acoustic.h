@@ -18,6 +18,10 @@ struct RhsAcoustic : public Rhs
 
   ARRAY_REAL_VIEW getTerm(int i) const override { return m_term; }
 
+  VECTOR_INT_VIEW getElement() const { return m_element; }
+
+  ARRAY_REAL_VIEW getWeights() const { return m_weights; }
+
   void print() const override
   {
     std::cout << "RHS Term size:    " << m_term.extent(0) << std::endl;

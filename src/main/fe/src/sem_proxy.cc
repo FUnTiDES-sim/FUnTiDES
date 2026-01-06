@@ -16,6 +16,7 @@
 #include <iostream>
 #include <sstream>
 #include <variant>
+#include <memory>
 
 #include "sem_solver.h"
 
@@ -169,8 +170,8 @@ void SEMproxy::run()
 
   if (!isElastic)
   {
-    WavefieldAcoustic wavefield(pnGlobalPrev, pnGlobalCurr);
-    RhsAcoustic rhs(myRHSTerm, rhsElement, rhsWeights);
+    auto wavefield = std::make_shared<WavefieldAcoustic>(pnGlobalPrev, pnGlobalCurr);
+    auto rhs = std::make_shared<RhsAcoustic>(myRHSTerm, rhsElement, rhsWeights);
     SEMsolverDataAcoustic solverData(wavefield, rhs);
 
     for (int indexTimeSample = 0; indexTimeSample < num_sample_;
@@ -215,7 +216,7 @@ void SEMproxy::run()
 
       pnAtReceiver(0, indexTimeSample) = varnp1;
 
-      wavefield.swap();
+      wavefield->swap();
 
       totalOutputTime += system_clock::now() - startOutputTime;
     }
@@ -243,9 +244,11 @@ void SEMproxy::run()
   }
   else
   {
-    WavefieldElastic wavefield(uxnGlobalPrev, uxnGlobalCurr, uynGlobalPrev,
-                               uynGlobalCurr, uznGlobalPrev, uznGlobalCurr);
-    RhsElastic rhs(myRHSTermx, myRHSTermy, myRHSTermz, rhsElement, rhsWeights);
+    auto wavefield = std::make_shared<WavefieldElastic>(
+      uxnGlobalPrev, uxnGlobalCurr, uynGlobalPrev, uynGlobalCurr,
+      uynGlobalPrev, uznGlobalCurr);
+    auto rhs = std::make_shared<RhsElastic>(myRHSTermx, myRHSTermy, myRHSTermz,
+                        rhsElement, rhsWeights);
     SEMsolverDataElastic solverData(wavefield, rhs);
 
     for (int indexTimeSample = 0; indexTimeSample < num_sample_;
@@ -288,11 +291,11 @@ void SEMproxy::run()
             int nodeIdx = m_mesh->globalNodeIndex(rhsElementRcv[0], i, j, k);
             int globalNodeOnElement =
                 i + j * (order + 1) + k * (order + 1) * (order + 1);
-            varuxnp1 += uxnGlobalCurr(nodeIdx, i2) *
+            varuxnp1 += uxnGlobalCurr(nodeIdx) *
                         rhsWeightsRcv(0, globalNodeOnElement);
-            varyunp1 += uynGlobalCurr(nodeIdx, i2) *
+            varyunp1 += uynGlobalCurr(nodeIdx) *
                         rhsWeightsRcv(0, globalNodeOnElement);
-            varuznp1 += uznGlobalCurr(nodeIdx, i2) *
+            varuznp1 += uznGlobalCurr(nodeIdx) *
                         rhsWeightsRcv(0, globalNodeOnElement);
           }
         }
@@ -302,7 +305,7 @@ void SEMproxy::run()
       uynAtReceiver(0, indexTimeSample) = varyunp1;
       uznAtReceiver(0, indexTimeSample) = varuznp1;
 
-      wavefield.swap();
+      wavefield->swap();
 
       totalOutputTime += system_clock::now() - startOutputTime;
     }
@@ -358,8 +361,8 @@ void SEMproxy::init_arrays()
   {
     myRHSTerm =
         allocateArray2D<arrayReal>(myNumberOfRHS, num_sample_, "RHSTerm");
-    pnGlobalCurr = allocateVector<arrayReal>(n_nodes, "pnGlobalCurr");
-    pnGlobalPrev = allocateVector<arrayReal>(n_nodes, "pnGlobalPrev");
+    pnGlobalCurr = allocateVector<vectorReal>(n_nodes, "pnGlobalCurr");
+    pnGlobalPrev = allocateVector<vectorReal>(n_nodes, "pnGlobalPrev");
     pnAtReceiver = allocateArray2D<arrayReal>(1, num_sample_, "pnAtReceiver");
   }
   else
@@ -370,12 +373,12 @@ void SEMproxy::init_arrays()
         allocateArray2D<arrayReal>(myNumberOfRHS, num_sample_, "RHSTermy");
     myRHSTermz =
         allocateArray2D<arrayReal>(myNumberOfRHS, num_sample_, "RHSTermz");
-    uxnGlobalCurr = allocateVector<arrayReal>(n_nodes, "uxnGlobalCurr");
-    uynGlobalCurr = allocateVector<arrayReal>(n_nodes, "uynGlobalCurr");
-    uznGlobalCurr = allocateVector<arrayReal>(n_nodes, "uznGlobalCurr");
-    uxnGlobalPrev = allocateVector<arrayReal>(n_nodes, "uxnGlobalPrev");
-    uynGlobalPrev = allocateVector<arrayReal>(n_nodes, "uynGlobalPrev");
-    uznGlobalPrev = allocateVector<arrayReal>(n_nodes, "uznGlobalPrev");
+    uxnGlobalCurr = allocateVector<vectorReal>(n_nodes, "uxnGlobalCurr");
+    uynGlobalCurr = allocateVector<vectorReal>(n_nodes, "uynGlobalCurr");
+    uznGlobalCurr = allocateVector<vectorReal>(n_nodes, "uznGlobalCurr");
+    uxnGlobalPrev = allocateVector<vectorReal>(n_nodes, "uxnGlobalPrev");
+    uynGlobalPrev = allocateVector<vectorReal>(n_nodes, "uynGlobalPrev");
+    uznGlobalPrev = allocateVector<vectorReal>(n_nodes, "uznGlobalPrev");
     uxnAtReceiver = allocateArray2D<arrayReal>(1, num_sample_, "uxnAtReceiver");
     uynAtReceiver =
         allocateArray2D<arrayReal>(1, num_sample_, "uynAtReceiver ");

@@ -37,6 +37,10 @@ struct RhsElastic : public Rhs
     }
   }
 
+  VECTOR_INT_VIEW getElement() const { return m_element; }
+
+  ARRAY_REAL_VIEW getWeights() const { return m_weights; }
+
   void print() const override
   {
     std::cout << "RHSx Term size:   " << m_termx.extent(0) << std::endl;

@@ -5,6 +5,7 @@
 #include "bindings_sem_enums.h"
 #include "bindings_sem_solver.h"
 #include "bindings_wavefield.h"
+#include "bindings_rhs.h"
 #include "common_macros.h"
 
 namespace py = pybind11;
@@ -16,6 +17,11 @@ PYBIND11_MODULE(solver, m)
 
   // Bind Enums
   solver::fe::bind_all_sem_enums(m);
+
+  // Bind RHS
+  solver::fe::bind_rhs_base(m);
+  solver::fe::bind_rhs_acoustic(m);
+  solver::fe::bind_rhs_elastic(m);
 
   // Bind Wavefield
   solver::fe::bind_wavefield_base(m);

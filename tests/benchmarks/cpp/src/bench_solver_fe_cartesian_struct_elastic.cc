@@ -12,6 +12,8 @@
 #include "sem_solver.h"
 #include "solver_factory.h"
 #include "utils.h"
+#include "wavefield_elastic.h"
+#include "rhs_elastic.h"
 
 using namespace solver::fe;
 using namespace solver::fe::enums;
@@ -90,9 +92,12 @@ struct BenchmarkArrays
   arrayReal rhsTermz;
   vectorInt rhsElement;
   arrayReal rhsWeights;
-  arrayReal uxnGlobal;
-  arrayReal uynGlobal;
-  arrayReal uznGlobal;
+  vectorReal uxnGlobalPrev;
+  vectorReal uynGlobalPrev;
+  vectorReal uznGlobalPrev;
+  vectorReal uxnGlobalCurr;
+  vectorReal uynGlobalCurr;
+  vectorReal uznGlobalCurr;
   arrayReal rhsLocation;
 
   BenchmarkArrays(int n_rhs, int n_time_steps, int n_dof,
@@ -104,9 +109,12 @@ struct BenchmarkArrays
     rhsElement = allocateVector<vectorInt>(n_rhs, "rhsElement");
     rhsWeights =
         allocateArray2D<arrayReal>(n_rhs, nb_points_per_element, "rhsWeights");
-    uxnGlobal = allocateArray2D<arrayReal>(n_dof, 2, "uxnGlobal");
-    uynGlobal = allocateArray2D<arrayReal>(n_dof, 2, "uynGlobal");
-    uznGlobal = allocateArray2D<arrayReal>(n_dof, 2, "uznGlobal");
+    uxnGlobalPrev = allocateVector<vectorReal>(n_dof, "uxnGlobalPrev");
+    uynGlobalPrev = allocateVector<vectorReal>(n_dof, "uynGlobalPrev");
+    uznGlobalPrev = allocateVector<vectorReal>(n_dof, "uznGlobalPrev");
+    uxnGlobalCurr = allocateVector<vectorReal>(n_dof, "uxnGlobalCurr");
+    uynGlobalCurr = allocateVector<vectorReal>(n_dof, "uynGlobalCurr");
+    uznGlobalCurr = allocateVector<vectorReal>(n_dof, "uznGlobalCurr");
     rhsLocation = allocateArray2D<arrayReal>(1, 3, "rhsLocation");
 
     FENCE
@@ -170,9 +178,12 @@ BENCHMARK_TEMPLATE_METHOD_F(SolverStructFixture, OneStep)
     arrays.rhsTermz(0, j) = sourceTerm[j];
   }
 
-  SEMsolverDataElastic data(
-      0, 1, arrays.rhsTermx, arrays.rhsTermy, arrays.rhsTermz, arrays.uxnGlobal,
-      arrays.uynGlobal, arrays.uznGlobal, arrays.rhsElement, arrays.rhsWeights);
+  auto wavefield = std::make_shared<WavefieldElastic>(
+      arrays.uxnGlobalPrev, arrays.uynGlobalPrev, arrays.uznGlobalPrev,
+      arrays.uxnGlobalCurr, arrays.uynGlobalCurr, arrays.uznGlobalCurr);
+  auto rhs = std::make_shared<RhsElastic>(
+      arrays.rhsTermx, arrays.rhsTermy, arrays.rhsTermz, arrays.rhsElement, arrays.rhsWeights);
+  SEMsolverDataElastic data(wavefield, rhs);
 
   // Bench
   for (auto _ : state)
