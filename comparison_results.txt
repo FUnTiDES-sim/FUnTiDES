@@ -1,0 +1,57 @@
+NUMERICAL COMPARISON: makutu vs tensorial implementation
+===========================================================
+
+Test Parameters:
+- Order: 2
+- Elements: 100x100x100 (1,000,000 total)
+- Domain: 2000x2000x2000
+- Time: 0-1s with dt=0.001
+- Source element: 505050
+
+PRESSURE VALUES AT SOURCE LOCATION (pnGlobal @ element 505050):
+----------------------------------------------------------------
+
+TimeStep | Makutu         | Tensorial      | Difference     | Rel. Error (%)
+---------|----------------|----------------|----------------|----------------
+0        |  0.0000000     |  0.0000000     |  0.0000000     | N/A
+50       |  0.0445568     | -0.00059062    |  0.0451474     | 101.33%
+100      |  0.545775      | -0.0107013     |  0.556476      | 101.96%
+150      |  0.73782       | -0.030706      |  0.768526      | 104.16%
+200      | -2.04422       |  0.0529869     | -2.09721       | 102.59%
+250      | -0.364575      |  0.0320663     | -0.396641      | 108.79%
+300      |  0.915394      | -0.0452374     |  0.960631      | 104.94%
+350      |  0.159309      |  0.00530503    |  0.154004      | 96.67%
+400      |  0.00537619    | -0.00452904    |  0.00990523    | 184.23%
+450      |  4.31458e-05   |  0.00180875    | -0.00176560    | 97.62%
+500      | -6.44972e-06   | -0.000187041   |  0.000180591   | 96.55%
+550      | -8.46755e-06   | -0.000739474   |  0.000731007   | 98.86%
+600      | -6.14483e-06   |  0.00104163    | -0.00104777    | 99.41%
+650      | -1.65409e-06   | -0.00126997    |  0.00126832    | 99.87%
+
+SUMMARY:
+========
+
+The numerical results are SIGNIFICANTLY DIFFERENT between the two implementations!
+
+Key observations:
+1. At early timesteps (50-300), the magnitudes differ by 1-2 orders of magnitude
+2. The sign is often opposite between implementations
+3. Relative errors exceed 100% for most timesteps
+4. Even at late timesteps (where values are small), the differences remain substantial
+
+This suggests:
+- The tensorial implementation produces results ~50x smaller in magnitude than makutu
+- There may be a fundamental difference in how the two implementations compute
+- Possible issues: scaling factor, mass matrix handling, different numerical scheme
+
+PERFORMANCE:
+===========
+- Makutu kernel time:     1.887 seconds
+- Tensorial kernel time:  2.773 seconds
+- Difference:             +0.886 seconds (47% slower)
+
+CONCLUSION:
+===========
+❌ The implementations do NOT produce numerically equivalent results.
+The tensorial implementation appears to have a bug or uses a fundamentally
+different numerical approach than makutu.

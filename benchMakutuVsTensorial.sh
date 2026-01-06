@@ -1,0 +1,10 @@
+./semproxy --order 1 --ex 200 --ey 200 --ez 200 --lx 2000 --ly 2000 --lz 2000 -timemax 1 --dt 0.001 --implem makutu
+./semproxy --order 1 --ex 200 --ey 200 --ez 200 --lx 2000 --ly 2000 --lz 2000 -timemax 1 --dt 0.001 --implem tensorial
+./semproxy --order 2 --ex 100 --ey 100 --ez 100 --lx 2000 --ly 2000 --lz 2000 -timemax 1 --dt 0.001 --implem makutu
+./semproxy --order 2 --ex 100 --ey 100 --ez 100 --lx 2000 --ly 2000 --lz 2000 -timemax 1 --dt 0.001 --implem tensorial
+./semproxy --order 3 --ex 60 --ey 60 --ez 60 --lx 2000 --ly 2000 --lz 2000 -timemax 1 --dt 0.001 --implem makutu
+./semproxy --order 3 --ex 60 --ey 60 --ez 60 --lx 2000 --ly 2000 --lz 2000 -timemax 1 --dt 0.001 --implem tensorial
+./semproxy --order 4 --ex 40 --ey 40 --ez 40 --lx 2000 --ly 2000 --lz 2000 -timemax 1 --dt 0.001 --implem makutu
+./semproxy --order 4 --ex 40 --ey 40 --ez 40 --lx 2000 --ly 2000 --lz 2000 -timemax 1 --dt 0.001 --implem tensorial
+./semproxy --order 5 --ex 30 --ey 30 --ez 30 --lx 2000 --ly 2000 --lz 2000 -timemax 1 --dt 0.001 --implem makutu
+./semproxy --order 5 --ex 30 --ey 30 --ez 30 --lx 2000 --ly 2000 --lz 2000 -timemax 1 --dt 0.001 --implem tensorial
