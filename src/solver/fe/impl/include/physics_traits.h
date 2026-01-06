@@ -1,13 +1,13 @@
 #pragma once
 #include <memory>
 
+#include "rhs_acoustic.h"
+#include "rhs_elastic.h"
 #include "sem_enums.h"
 #include "sem_solver.h"
 #include "solver_base.h"
 #include "wavefield_acoustic.h"
 #include "wavefield_elastic.h"
-#include "rhs_acoustic.h"
-#include "rhs_elastic.h"
 
 namespace solver
 {
@@ -94,7 +94,8 @@ struct SEMsolverData : public SolverBase::DataStruct
    */
   template <physicType P = PHYSICS,
             typename = std::enable_if_t<P == enums::physicType::kAcoustic>>
-  SEMsolverData(std::shared_ptr<WavefieldAcoustic> wavefield, std::shared_ptr<RhsAcoustic> rhs)
+  SEMsolverData(std::shared_ptr<WavefieldAcoustic> wavefield,
+                std::shared_ptr<RhsAcoustic> rhs)
       : m_wavefield(wavefield), m_rhs(rhs)
   {
   }
@@ -104,7 +105,8 @@ struct SEMsolverData : public SolverBase::DataStruct
    */
   template <physicType P = PHYSICS,
             typename = std::enable_if_t<P == enums::physicType::kElastic>>
-  SEMsolverData(std::shared_ptr<WavefieldElastic> wavefield, std::shared_ptr<RhsElastic> rhs)
+  SEMsolverData(std::shared_ptr<WavefieldElastic> wavefield,
+                std::shared_ptr<RhsElastic> rhs)
       : m_wavefield(wavefield), m_rhs(rhs)
   {
   }

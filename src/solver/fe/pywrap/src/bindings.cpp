@@ -2,10 +2,10 @@
 #include <pybind11/pybind11.h>
 #include <pybind11/stl.h>
 
+#include "bindings_rhs.h"
 #include "bindings_sem_enums.h"
 #include "bindings_sem_solver.h"
 #include "bindings_wavefield.h"
-#include "bindings_rhs.h"
 #include "common_macros.h"
 
 namespace py = pybind11;

@@ -14,9 +14,9 @@
 #include <cxxopts.hpp>
 #include <iomanip>
 #include <iostream>
+#include <memory>
 #include <sstream>
 #include <variant>
-#include <memory>
 
 #include "sem_solver.h"
 
@@ -170,7 +170,8 @@ void SEMproxy::run()
 
   if (!isElastic)
   {
-    auto wavefield = std::make_shared<WavefieldAcoustic>(pnGlobalPrev, pnGlobalCurr);
+    auto wavefield =
+        std::make_shared<WavefieldAcoustic>(pnGlobalPrev, pnGlobalCurr);
     auto rhs = std::make_shared<RhsAcoustic>(myRHSTerm, rhsElement, rhsWeights);
     SEMsolverDataAcoustic solverData(wavefield, rhs);
 
@@ -245,10 +246,10 @@ void SEMproxy::run()
   else
   {
     auto wavefield = std::make_shared<WavefieldElastic>(
-      uxnGlobalPrev, uxnGlobalCurr, uynGlobalPrev, uynGlobalCurr,
-      uynGlobalPrev, uznGlobalCurr);
+        uxnGlobalPrev, uxnGlobalCurr, uynGlobalPrev, uynGlobalCurr,
+        uynGlobalPrev, uznGlobalCurr);
     auto rhs = std::make_shared<RhsElastic>(myRHSTermx, myRHSTermy, myRHSTermz,
-                        rhsElement, rhsWeights);
+                                            rhsElement, rhsWeights);
     SEMsolverDataElastic solverData(wavefield, rhs);
 
     for (int indexTimeSample = 0; indexTimeSample < num_sample_;
@@ -291,12 +292,12 @@ void SEMproxy::run()
             int nodeIdx = m_mesh->globalNodeIndex(rhsElementRcv[0], i, j, k);
             int globalNodeOnElement =
                 i + j * (order + 1) + k * (order + 1) * (order + 1);
-            varuxnp1 += uxnGlobalCurr(nodeIdx) *
-                        rhsWeightsRcv(0, globalNodeOnElement);
-            varyunp1 += uynGlobalCurr(nodeIdx) *
-                        rhsWeightsRcv(0, globalNodeOnElement);
-            varuznp1 += uznGlobalCurr(nodeIdx) *
-                        rhsWeightsRcv(0, globalNodeOnElement);
+            varuxnp1 +=
+                uxnGlobalCurr(nodeIdx) * rhsWeightsRcv(0, globalNodeOnElement);
+            varyunp1 +=
+                uynGlobalCurr(nodeIdx) * rhsWeightsRcv(0, globalNodeOnElement);
+            varuznp1 +=
+                uznGlobalCurr(nodeIdx) * rhsWeightsRcv(0, globalNodeOnElement);
           }
         }
       }
