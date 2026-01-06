@@ -89,7 +89,7 @@ class TestSolverStruct:
             kk_RHSWeights, _ = Utils.allocate_rhs_weight(n_rhs, model)
             kk_RHSTerm, _ = Utils.allocate_rhs_term(n_rhs, n_time_steps, dt, f0)
             wavefield = Solver.WavefieldAcoustic(kk_pnGlobalPrev, kk_pnGlobalCurr)
-            rhs = Solver.RHSAcoustic(kk_RHSTerm, kk_RHSElement, kk_RHSWeights)
+            rhs = Solver.RhsAcoustic(kk_RHSTerm, kk_RHSElement, kk_RHSWeights)
             data = Solver.SEMsolverDataAcoustic(wavefield, rhs)
         else:
             kk_uxnGlobalPrev, _, kk_uxnGlobalCurr, _ = Utils.allocate_displacementx(sd.n_dof)
@@ -105,6 +105,6 @@ class TestSolverStruct:
                 kk_uynGlobalPrev, kk_uynGlobalCurr,
                 kk_uznGlobalPrev, kk_uznGlobalCurr
             )
-            rhs = Solver.RHSElastic(kk_RHSTermx, kk_RHSTermy, kk_RHSTermz, kk_RHSElement, kk_RHSWeights)
+            rhs = Solver.RhsElastic(kk_RHSTermx, kk_RHSTermy, kk_RHSTermz, kk_RHSElement, kk_RHSWeights)
             data = Solver.SEMsolverDataElastic(wavefield, rhs)
         solver.compute_one_step(dt, time_sample, data)
