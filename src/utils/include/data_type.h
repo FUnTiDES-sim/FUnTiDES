@@ -36,6 +36,7 @@ class Vector
 
   // Element access
   T &operator()(int index) { return data_[index]; }
+  const T &operator()(int index) const { return data_[index]; }
   T &operator[](int index) { return data_[index]; }
   const T &operator[](int index) const { return data_[index]; }
 
