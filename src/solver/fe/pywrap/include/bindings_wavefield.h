@@ -22,7 +22,7 @@ void bind_wavefield_base(py::module_ &m)
 {
   // Bind Wavefield (base class)
   py::class_<Wavefield, std::shared_ptr<Wavefield>>(m, "Wavefield")
-      .def("advance", &Wavefield::advance)
+      .def("swap", &Wavefield::swap)
       .def("print", &Wavefield::print);
 }
 
@@ -35,8 +35,8 @@ void bind_wavefield_acoustic(py::module_ &m)
                Kokkos::Experimental::python_view_type_t<VECTOR_REAL_VIEW>,
                Kokkos::Experimental::python_view_type_t<VECTOR_REAL_VIEW>>(),
            py::arg("pn_global_prev"), py::arg("pn_global_curr"))
-      .def("advance", &WavefieldAcoustic::advance)
-      .def("print", &WavefieldAcoustic::print)
+      .def("swap", &WavefieldAcoustic::swap)
+      .def("print", &WavefieldAcoustic::print);
 }
 
 void bind_wavefield_elastic(py::module_ &m)
@@ -54,8 +54,8 @@ void bind_wavefield_elastic(py::module_ &m)
            py::arg("uxn_global_prev"), py::arg("uxn_global_curr"),
            py::arg("uyn_global_prev"), py::arg("uyn_global_curr"),
            py::arg("uzn_global_prev"), py::arg("uzn_global_curr"))
-      .def("advance", &WavefieldElastic::advance)
-      .def("print", &WavefieldElastic::print)
+      .def("swap", &WavefieldElastic::swap)
+      .def("print", &WavefieldElastic::print);
 }
 
 }  // namespace fe

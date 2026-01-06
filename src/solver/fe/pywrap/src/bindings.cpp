@@ -6,7 +6,6 @@
 #include "bindings_sem_enums.h"
 #include "bindings_sem_solver.h"
 #include "bindings_wavefield.h"
-#include "common_macros.h"
 
 namespace py = pybind11;
 

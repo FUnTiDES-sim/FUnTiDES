@@ -7,6 +7,7 @@
 #include <KokkosExp_InterOp.hpp>
 
 #include "common_macros.h"
+#include "data_type.h"
 #include "rhs.h"
 #include "rhs_acoustic.h"
 #include "rhs_elastic.h"
