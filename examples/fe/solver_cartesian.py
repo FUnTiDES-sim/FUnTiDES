@@ -5,6 +5,7 @@ This module runs the solver using a cartesian model with:
   - Structured or unstructured cartesian mesh
   - Polynomial order 1, 2 or 3
   - Implementation type: CLASSIC, MAKUTU, OPTIM or SHIVA
+  - Only accoustic physics is implemented for now
 It demonstrates usage of pybind11 wrapped C++ classes and functions from the proxys library.
 For help run with the --help option.
 """
@@ -359,15 +360,15 @@ def create_structured_model(e, l, order, on_nodes):
     match order:
         case 1:
             builder = CartesianStructBuilderFI1(
-                e[0], l[0], e[1], l[1], e[2], l[2], on_nodes
+                e[0], l[0], e[1], l[1], e[2], l[2], on_nodes, False
             )
         case 2:
             builder = CartesianStructBuilderFI2(
-                e[0], l[0], e[1], l[1], e[2], l[2], on_nodes
+                e[0], l[0], e[1], l[1], e[2], l[2], on_nodes, False
             )
         case 3:
             builder = CartesianStructBuilderFI3(
-                e[0], l[0], e[1], l[1], e[2], l[2], on_nodes
+                e[0], l[0], e[1], l[1], e[2], l[2], on_nodes, False
             )
         case _:
             raise ValueError(
@@ -450,7 +451,7 @@ def create_solver(implem_type, model_type, order, on_nodes):
     )
 
     return Solver.create_solver(
-        Solver.MethodType.SEM, impl, model, model_location, order
+        Solver.MethodType.SEM, impl, model, model_location, Solver.PhysicType.ACOUSTIC, order
     )
 
 
@@ -491,14 +492,12 @@ def source_term(time_n, f0):
     return pulse
 
 
-def get_snapshot(i1, nx, ny, nz, pnGlobal, normalize=False):
+def get_snapshot(nx, ny, nz, pnGlobal, normalize=False):
     """
     Extracts a 2D snapshot from a 3D global array at a specified index, with optional normalization.
 
     Parameters
     ----------
-    i1 : int
-        Index for the pressure field.
     nx : int
         Number of grid points in the x-direction.
     ny : int
@@ -506,7 +505,7 @@ def get_snapshot(i1, nx, ny, nz, pnGlobal, normalize=False):
     nz : int
         Number of grid points in the z-direction.
     pnGlobal : np.ndarray
-        The global 3D array of shape (nx * ny * nz, N), where N >= i1 + 1.
+        The pressure field array.
     normalize : bool
         If True, normalize the resulting 2D grid by its maximum absolute value (default: False).
 
@@ -521,7 +520,7 @@ def get_snapshot(i1, nx, ny, nz, pnGlobal, normalize=False):
     for I in range(offset, offset + nx * nz):
         i = (I - offset) % nx
         j = int((I - offset - i) / nx)
-        grid[i, j] = pnGlobal[I, i1]
+        grid[i, j] = pnGlobal[I]
 
     if normalize:
         maxvalue = np.abs(grid).max()
@@ -565,14 +564,12 @@ def setup_plot(nx, nz, cmpvalue=0.15):
     return fig, ax, im
 
 
-def plot_snapshot(i1, nx, ny, nz, pnGlobal, im, t):
+def plot_snapshot(nx, ny, nz, pnGlobal, im, t):
     """
     Plot and save a snapshot of the simulation at the given time step.
 
     Parameters
     ----------
-    i1 : int
-        Index for the pressure field.
     nx, ny, nz : int
         Grid dimensions.
     pnGlobal : np.ndarray
@@ -583,7 +580,7 @@ def plot_snapshot(i1, nx, ny, nz, pnGlobal, im, t):
         Current time step.
     """
 
-    grid = get_snapshot(i1, nx, ny, nz, pnGlobal, False)
+    grid = get_snapshot(nx, ny, nz, pnGlobal, False)
     im.set_array(grid)  # Update plot with new values
     plt.draw()  # Redraw the figure with updated data
     plt.ioff()
@@ -605,19 +602,29 @@ def allocate_pressure(n_dof, memspace, layout):
 
     Returns
     -------
-    kk_pnGlobal : kokkos array
-        The Kokkos array for pressure.
-    pnGlobal : np.ndarray
-        The numpy array view of the pressure.
+    kk_pnGlobalPrev : kokkos array
+        The Kokkos array for previous timestep pressure.
+    pnGlobalPrev : np.ndarray
+        The numpy array view of the previous timestep pressure.
+    kk_pnGlobalCurr : kokkos array
+        The Kokkos array for current timestep pressure.
+    pnGlobalCurr : np.ndarray
+        The numpy array view of the current timestep pressure.
     """
 
-    kk_pnGlobal = kokkos.array(
-        [n_dof, 2], dtype=kokkos.float32, space=memspace, layout=layout
+    kk_pnGlobalPrev = kokkos.array(
+        [n_dof], dtype=kokkos.float32, space=memspace, layout=layout
     )
-    pnGlobal = np.array(kk_pnGlobal, copy=False)
-    pnGlobal[:] = 0.0
+    pnGlobalPrev = np.array(kk_pnGlobalPrev, copy=False)
+    pnGlobalPrev[:] = 0.0
+    kk_pnGlobalCurr = kokkos.array(
+        [n_dof], dtype=kokkos.float32, space=memspace, layout=layout
+    )
+    pnGlobalCurr = np.array(kk_pnGlobalCurr, copy=False)
+    pnGlobalCurr[:] = 0.0
 
-    return kk_pnGlobal, pnGlobal
+
+    return kk_pnGlobalPrev, pnGlobalPrev, kk_pnGlobalCurr, pnGlobalCurr
 
 
 def allocate_rhs_term(n_rhs, n_time_steps, dt, f0, memspace, layout):
@@ -726,16 +733,18 @@ def allocate_rhs_element(n_rhs, ex, ey, ez, memspace, layout):
     return kk_RHSElement, RHSElement
 
 
-def create_solver_data(kk_RHSTerm, kk_pnGlobal, kk_RHSElement, kk_RHSWeights):
+def create_solver_data(kk_RHSTerm, kk_pnGlobalPrev, kk_pnGlobalCurr, kk_RHSElement, kk_RHSWeights):
     """
-    Create SEMsolverData instance and return it along with i1 and i2.
+    Create SEMsolverData instance and associated wavefield and rhs.
 
     Parameters
     ----------
     kk_RHSTerm : kokkos array
         The Kokkos array for the source term.
-    kk_pnGlobal : kokkos array
-        The Kokkos array for pressure.
+    kk_pnGlobalPrev : kokkos array
+        The Kokkos array for previous timestep pressure.
+    kk_pnGlobalCurr : kokkos array
+        The Kokkos array for current timestep pressure.
     kk_RHSElement : kokkos array
         The Kokkos array for the element indices.
     kk_RHSWeights : kokkos array
@@ -743,21 +752,20 @@ def create_solver_data(kk_RHSTerm, kk_pnGlobal, kk_RHSElement, kk_RHSWeights):
 
     Returns
     -------
-    data : Solver.SEMsolverData
-        The SEMsolverData instance.
+    wavefield : Solver.WavefieldAcoustic
+        The Wavefield instance for acoustic propagation.
+    rhs : Solver.RhsAcoustic
+        The Rhs instance for acoustic propagation.
+    data : Solver.SEMsolverDataAcoustic
+        The SEMsolverData instance for acoustic propagation.
     """
 
-    data = Solver.SEMsolverData(
-        0,
-        1,
-        kk_RHSTerm,
-        kk_pnGlobal,
-        kk_RHSElement,
-        kk_RHSWeights,
-    )
+    wavefield = Solver.WavefieldAcoustic(kk_pnGlobalPrev, kk_pnGlobalCurr)
+    rhs = Solver.RhsAcoustic(kk_RHSTerm, kk_RHSElement, kk_RHSWeights)
+    data = Solver.SEMsolverDataAcoustic(wavefield, rhs)
     data.print()
 
-    return data
+    return wavefield, rhs, data
 
 
 def compute_step(
@@ -767,8 +775,6 @@ def compute_step(
     data,
     iteration_times,
     n_time_steps,
-    i1,
-    i2,
     nx,
     ny,
     nz,
@@ -797,7 +803,7 @@ def compute_step(
     nx, ny, nz : int
         Grid dimensions for the plot.
     pnGlobal : np.ndarray
-        Pressure field array.
+        Pressure field array (for python plots).
     im : matplotlib.image.AxesImage
         The image object for updating the plot.
 
@@ -817,13 +823,7 @@ def compute_step(
     if time_sample % 100 == 0:
         print(f"Time {time_sample} / {n_time_steps}")
     if time_sample % 10 == 0:
-        plot_snapshot(i1, nx, ny, nz, pnGlobal, im, time_sample)
-    tmp = i1
-    i1 = i2
-    i2 = tmp
-    data.i1 = i1
-    data.i2 = i2
-    return i1, i2
+        plot_snapshot(nx, ny, nz, pnGlobal, im, time_sample)
 
 
 def main():
@@ -901,7 +901,7 @@ def main():
 
     # allocate pressure
     print("Allocating Pressure...")
-    kk_pnGlobal, pnGlobal = allocate_pressure(n_dof, memspace, layout)
+    kk_pnGlobalPrev, pnGlobalPrev, kk_pnGlobalCurr, pnGlobalCurr = allocate_pressure(n_dof, memspace, layout)
     print("Pressure allocated")
 
     # allocate RHS arrays
@@ -925,29 +925,27 @@ def main():
 
     # Create solver data instance
     print("Creating solver data...")
-    data = create_solver_data(kk_RHSTerm, kk_pnGlobal, kk_RHSElement, kk_RHSWeights)
+    wavefield, rhs, data = create_solver_data(kk_RHSTerm, kk_pnGlobalPrev, kk_pnGlobalCurr, kk_RHSElement, kk_RHSWeights)
     print("Solver data created")
-
-    i1 = data.i1
-    i2 = data.i2
 
     # Loop over time steps
     for time_sample in range(n_time_steps):
-        i1, i2 = compute_step(
+        compute_step(
             time_sample,
             dt,
             solver,
             data,
             iteration_times,
             n_time_steps,
-            i1,
-            i2,
             nx,
             ny,
             nz,
-            pnGlobal,
+            pnGlobalPrev,
             im,
         )
+
+        # Swap pressure arrays for next iteration
+        wavefield.swap()
 
     # Print final timing statistics
     end_time = time.time()
