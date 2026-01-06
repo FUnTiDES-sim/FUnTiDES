@@ -9,11 +9,11 @@
 #include "cartesian_unstruct_builder.h"
 #include "data_type.h"
 #include "model.h"
+#include "rhs_elastic.h"
 #include "sem_solver.h"
 #include "solver_factory.h"
 #include "utils.h"
 #include "wavefield_elastic.h"
-#include "rhs_elastic.h"
 
 using namespace solver::fe;
 using namespace solver::fe::enums;
@@ -182,8 +182,9 @@ BENCHMARK_TEMPLATE_METHOD_F(SolverUnstructFixture, OneStep)
   auto wavefield = std::make_shared<WavefieldElastic>(
       arrays.uxnGlobalPrev, arrays.uynGlobalPrev, arrays.uznGlobalPrev,
       arrays.uxnGlobalCurr, arrays.uynGlobalCurr, arrays.uznGlobalCurr);
-  auto rhs = std::make_shared<RhsElastic>(
-      arrays.rhsTermx, arrays.rhsTermy, arrays.rhsTermz, arrays.rhsElement, arrays.rhsWeights);
+  auto rhs = std::make_shared<RhsElastic>(arrays.rhsTermx, arrays.rhsTermy,
+                                          arrays.rhsTermz, arrays.rhsElement,
+                                          arrays.rhsWeights);
   SEMsolverDataElastic data(wavefield, rhs);
 
   // Bench

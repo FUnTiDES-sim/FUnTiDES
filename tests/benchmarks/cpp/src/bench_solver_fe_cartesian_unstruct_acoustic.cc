@@ -8,11 +8,11 @@
 #include "cartesian_unstruct_builder.h"
 #include "data_type.h"
 #include "model.h"
+#include "rhs_acoustic.h"
 #include "sem_solver.h"
 #include "solver_factory.h"
 #include "utils.h"
 #include "wavefield_acoustic.h"
-#include "rhs_acoustic.h"
 
 using namespace solver::fe;
 using namespace solver::fe::enums;
@@ -164,9 +164,10 @@ BENCHMARK_TEMPLATE_METHOD_F(SolverUnstructFixture, OneStep)
     arrays.rhsTerm(0, j) = sourceTerm[j];
   }
 
-  auto wavefield =
-      std::make_shared<WavefieldAcoustic>(arrays.pnGlobalPrev, arrays.pnGlobalCurr);
-  auto rhs = std::make_shared<RhsAcoustic>(arrays.rhsTerm, arrays.rhsElement, arrays.rhsWeights);
+  auto wavefield = std::make_shared<WavefieldAcoustic>(arrays.pnGlobalPrev,
+                                                       arrays.pnGlobalCurr);
+  auto rhs = std::make_shared<RhsAcoustic>(arrays.rhsTerm, arrays.rhsElement,
+                                           arrays.rhsWeights);
   SEMsolverDataAcoustic data(wavefield, rhs);
 
   // Bench
