@@ -36,7 +36,7 @@ class SolverStructFixture : public benchmark::Fixture
  protected:
   // domain decomposition
   static constexpr int rank = 0;
-  static constexpr int size = 1;  // Fixed: Size must be >= 1
+  static constexpr int size = 1;
   static constexpr float origin = 0.0f;
   float local_l = 2000.0f;
 
@@ -68,7 +68,7 @@ class SolverStructFixture : public benchmark::Fixture
   {
     isModelOnNodes_ = state.range(0);
     implem_ = static_cast<implemType>(state.range(1));
-    local_l = domain_size;  // Fixed: Use domain_size, lx was undefined
+    local_l = domain_size;
   }
 
   std::shared_ptr<model::ModelApi<float, int>> createModel()

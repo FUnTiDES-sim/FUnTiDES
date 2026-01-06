@@ -26,12 +26,9 @@ class CartesianUnstructBuilder : public ModelBuilderBase<FloatType, ScalarType>
         order_(p.order),
         isModelOnNodes_(p.isModelOnNodes),
         isElastic_(p.isElastic),
-        // --- ADDED: Capture Origins from Params ---
         origin_x_(p.origin_x),
         origin_y_(p.origin_y),
         origin_z_(p.origin_z)
-  // ------------------------------------------
-
   {
     initGlobalNodeList();
     initNodesCoords();
@@ -70,7 +67,6 @@ class CartesianUnstructBuilder : public ModelBuilderBase<FloatType, ScalarType>
   FloatType lx_, ly_, lz_;
 
   FloatType origin_x_{0}, origin_y_{0}, origin_z_{0};
-  // -----------------------------
 
   int order_;
   bool isModelOnNodes_;

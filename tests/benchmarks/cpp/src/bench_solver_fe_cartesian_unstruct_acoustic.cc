@@ -86,7 +86,7 @@ class SolverUnstructFixture : public benchmark::Fixture
   {
     isModelOnNodes_ = state.range(0);
     implem_ = static_cast<implemType>(state.range(1));
-    local_l = lx;  // Fixed: Initialize local_l
+    local_l = lx;
   }
 
   std::shared_ptr<model::ModelApi<float, int>> createModel()

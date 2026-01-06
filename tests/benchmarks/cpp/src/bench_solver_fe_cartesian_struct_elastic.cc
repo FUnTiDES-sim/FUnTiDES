@@ -68,7 +68,7 @@ class SolverStructFixture : public benchmark::Fixture
   {
     isModelOnNodes_ = state.range(0);
     implem_ = static_cast<implemType>(state.range(1));
-    local_l = domain_size;  // Fixed: use domain_size
+    local_l = domain_size;
   }
 
   std::shared_ptr<model::ModelApi<float, int>> createModel()
