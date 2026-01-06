@@ -86,6 +86,8 @@ PYBIND11_MODULE(solver, m)
   // Bind SEMSolverBase
   py::class_<SEMSolverBase, std::shared_ptr<SEMSolverBase>>(m, "SEMSolverBase")
       .def("compute_fe_init", &SEMSolverBase::computeFEInit, py::arg("model"),
+           py::arg("rank"), py::arg("size"), py::arg("origin_x"),
+           py::arg("local_lx"),
            py::arg("sponge_size") = std::array<float, 3>{0.0f, 0.0f, 0.0f},
            py::arg("sponge_surface") = true, py::arg("taper_delta") = 0)
       .def("compute_one_step", &SEMSolverBase::computeOneStep, py::arg("dt"),
