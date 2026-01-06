@@ -80,6 +80,13 @@ print("\n" + "=" * 50)
 print("✓ All basic tests passed!")
 print("=" * 50)
 
+# Clean up Kokkos objects before finalizing
+print("\nCleaning up Kokkos objects...")
+del kernels
+del grids
+del stencils
+del options
+
 # Finalize
 fd_solver.finalize_kokkos()
-print("\nKokkos finalized")
+print("Kokkos finalized")

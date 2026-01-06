@@ -60,10 +60,20 @@ except Exception as e:
     print(f"  ✗ PML initialization failed: {e}")
     import traceback
     traceback.print_exc()
+    # Clean up before finalizing
+    del abckernels
+    del grids
+    del options
     fd_solver.finalize_kokkos()
     sys.exit(1)
 
+# Clean up Kokkos objects before finalizing
+print("\nCleaning up Kokkos objects...")
+del abckernels
+del grids
+del options
+
 # Finalize
-print("\nFinalizing Kokkos...")
+print("Finalizing Kokkos...")
 fd_solver.finalize_kokkos()
 print("  Done!")

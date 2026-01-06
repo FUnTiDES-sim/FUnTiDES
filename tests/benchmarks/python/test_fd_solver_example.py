@@ -40,9 +40,9 @@ def main():
     options = fd_solver.FdtdOptions()
 
     # Grid configuration
-    options.grid.nx = 100
-    options.grid.ny = 100
-    options.grid.nz = 100
+    options.grid.nx = 200
+    options.grid.ny = 200
+    options.grid.nz = 200
     options.grid.dx = 10.0  # meters
     options.grid.dy = 10.0
     options.grid.dz = 10.0
@@ -57,7 +57,7 @@ def main():
     # Source configuration
     options.source.xs = 50  # Source at grid center
     options.source.ys = 50
-    options.source.zs = 50
+    options.source.zs = 10
     options.source.f0 = 10.0  # 10 Hz source
     options.source.source_order = 2
 
@@ -68,7 +68,7 @@ def main():
 
     # Time stepping
     options.time.time_step = 0.0  # Auto-compute from CFL
-    options.time.time_max = 0.5  # 0.5 seconds
+    options.time.time_max = 1  # 0.5 seconds
     options.time.method = "FDTD"
 
     # Boundary conditions
@@ -204,12 +204,11 @@ def main():
     print(f"  Using {'sponge' if options.boundary.use_sponge else 'PML'} boundary conditions")
 
     # Run a few time steps as demonstration
-    n_demo_steps = min(10, n_steps)
+    n_demo_steps = min(1000, n_steps)
     print(f"\n  Running {n_demo_steps} time steps as demonstration...")
 
     i1, i2 = 0, 1
     for itime in range(n_demo_steps):
-        print(itime)
         if options.boundary.use_sponge:
             solver.compute_one_stepSB(itime, i1, i2)
         else:
@@ -230,9 +229,18 @@ def main():
     print("=" * 70)
 
     # =========================================================================
-    # Step 10: Finalize Kokkos
+    # Step 10: Clean up and finalize Kokkos
     # =========================================================================
-    print("\n[10] Finalizing Kokkos...")
+    print("\n[10] Cleaning up Kokkos objects...")
+    del solver
+    del source_receivers
+    del abckernels
+    del kernels
+    del stencils
+    del grids
+    del options
+
+    print("\n[11] Finalizing Kokkos...")
     fd_solver.finalize_kokkos()
     print("  ✓ Kokkos finalized")
 
