@@ -35,11 +35,12 @@ struct FdtdKernels
       }
     }
   }
+
   // add RHS term
   int addRHS(const int itSample, int &cb, int const &nx, int const &ny,
              int const &nz, int const &lx, int const &ly, int const &lz,
              int const &xs, int const &ys, int const &zs, vectorReal const &vp,
-             vectorReal const &RHSTerm, arrayReal const &pnGlobal) const
+             vectorReal const &RHSTerm, arrayReal &pnGlobal) const
   {
     // CREATEVIEWRHS
     LOOP3DHEAD(xs, ys, zs, xs + 1, ys + 1, zs + 1)
@@ -54,7 +55,7 @@ struct FdtdKernels
               const int x4, const int y3, const int y4, const int z3,
               const int z4, const double coef0, vectorReal const &coefx,
               vectorReal const &coefy, vectorReal const &coefz,
-              vectorReal const &vp, arrayReal const &pnGlobal) const
+              vectorReal const &vp, arrayReal &pnGlobal) const
   {
     LOOP3DHEAD(x3, y3, z3, x4, y4, z4)
     float lapx = 0;
@@ -147,7 +148,7 @@ struct FdtdKernels
                   int const &lx, int const &ly, int const &lz, const int x3,
                   const int x4, const int y3, const int y4, const int z3,
                   const int z4, vectorReal const &spongeArray,
-                  arrayReal const &pnGlobal) const
+                  arrayReal &pnGlobal) const
   {
     // CREATEVIEWSPONGE
     LOOP3DHEAD(x3, y3, z3, x4, y4, z4)
@@ -162,4 +163,4 @@ struct FdtdKernels
 
 }  // namespace kernel
 }  // namespace fdtd
-#endif  // FDTD_KERNELS_H
+#endif  // FDTD_KERNEL_HPP

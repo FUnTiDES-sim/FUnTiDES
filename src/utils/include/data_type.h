@@ -36,10 +36,10 @@ class Vector
 
   // Element access
   T &operator()(int index) { return data_[index]; }
+  const T &operator()(int index) const { return data_[index]; }
   T &operator[](int index) { return data_[index]; }
   const T &operator[](int index) const { return data_[index]; }
 
-  // Assignment operator (fixed - was incorrect)
   Vector &operator=(const Vector &other)
   {
     if (this != &other)
@@ -72,10 +72,7 @@ class Array2D
   std::vector<T> &operator[](int index) { return data[index]; }
   const std::vector<T> &operator[](int index) const { return data[index]; }
   T &operator()(int row, int col) { return data[row][col]; }
-  T &operator()(int row, int col) const
-  {
-    return const_cast<T &>(data[row][col]);
-  }
+  const T &operator()(int row, int col) const { return data[row][col]; }
   T &operator=(const T &data) { return *this; };
 
   size_t extent(int dim) const
@@ -156,8 +153,6 @@ using array3DDouble = Array3D<double>;
 #endif
 
 #include <Kokkos_Core.hpp>
-// #define MemSpace Kokkos::SharedSpace
-//  #define MemSpace Kokkos::CudaUVMSpace
 
 #ifdef ENABLE_CUDA
 #define MemSpace Kokkos::SharedSpace
@@ -259,13 +254,6 @@ void printBMatrix(const int &element, T &B)
     printf("%f, %f, %f\n\n", B[4], B[3], B[2]);
   }
 }
-
-// float jacobianTime=0;
-// float detJTime=0;
-// float massMatrixTime=0;
-// float BTime=0;
-// float gradPhiBGradPhiTime=0;
-// float stiffnessTime=0;
 
 #define timewatch(timepoint)                                \
   chrono::time_point<std::chrono::system_clock> timepoint = \

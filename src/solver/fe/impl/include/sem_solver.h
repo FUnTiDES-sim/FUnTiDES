@@ -75,7 +75,6 @@ class SEMsolver : public SEMSolverBase
           "synchronize() -> updateSolution().");
     }
 
-    // Fix: Cast to concrete DataType to access m_i1 and m_i2
     auto& myData = dynamic_cast<DataType&>(data);
 
     computeForces(dt, timeSample, data);
@@ -94,7 +93,7 @@ class SEMsolver : public SEMSolverBase
 
   void applyRHSTerm(int timeSample, float dt, int i2, const DataType& data);
   void computeElementContributions(int i2, const DataType& data);
-  void updateFields(float dt, int i1, int i2, const DataType& data);
+  void updateFields(float dt, int i1, int i2, DataType& data);
 
   template <physicType P = PHYSICS,
             typename = std::enable_if_t<P == enums::physicType::kElastic>>
