@@ -544,7 +544,7 @@ void SEMproxy::saveSnapshot(int timestep, VECTOR_REAL_VIEW data) const
       "copy_column", nb_nodes, KOKKOS_LAMBDA(int i) { subset(i) = data(i); });
   Kokkos::fence();
 #else
-  vectorReal subset(data.begin(), data.end());
+  auto& subset = data;
 #endif  // USE_KOKKOS
 
   io_ctrl_->saveSnapshot(subset, timestep);
