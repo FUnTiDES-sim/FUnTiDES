@@ -1,5 +1,5 @@
-#ifndef FDTD_KERNEL_HPP
-#define FDTD_KERNEL_HPP
+#ifndef FDTD_KERNEL_H
+#define FDTD_KERNEL_H
 
 #include "data_type.h"
 #include "fd_abckernels.h"
@@ -163,4 +163,4 @@ struct FdtdKernels
 
 }  // namespace kernel
 }  // namespace fdtd
-#endif  // FDTD_KERNEL_HPP
+#endif  // FDTD_KERNEL_H

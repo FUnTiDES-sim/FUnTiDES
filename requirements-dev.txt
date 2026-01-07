@@ -4,4 +4,4 @@ pytest-benchmark
 pygal
 ruff
 scipy
-clang-format==13
+clang-format==18

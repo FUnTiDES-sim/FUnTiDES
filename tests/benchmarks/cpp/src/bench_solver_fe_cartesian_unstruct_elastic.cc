@@ -135,7 +135,6 @@ BENCHMARK_TEMPLATE_METHOD_F(SolverUnstructFixture, FEInit)
   // Bench
   for (auto _ : state)
   {
-    // Updated signature
     solver->computeFEInit(*model, this->rank, this->size, this->origin,
                           this->local_l, this->sponge_size,
                           this->surface_sponge, this->taper_delta);
@@ -157,7 +156,6 @@ BENCHMARK_TEMPLATE_METHOD_F(SolverUnstructFixture, OneStep)
                             : modelLocationType::kOnElements,
       physicType::kElastic, this->order);
 
-  // Updated signature
   solver->computeFEInit(*model, this->rank, this->size, this->origin,
                         this->local_l, this->sponge_size, this->surface_sponge,
                         this->taper_delta);

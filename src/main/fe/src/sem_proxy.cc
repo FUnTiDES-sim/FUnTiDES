@@ -127,15 +127,10 @@ SEMproxy::SEMproxy(const SemProxyOptions& opt)
 
   // 3. Initialize Synchronizer
   std::unique_ptr<BoundarySynchronizer::Backend> backend;
-  if (size > 1)
-  {
-    backend = std::make_unique<DebugBackend>(rank_);
-  }
-  else
-  {
-    backend = std::make_unique<SerialBackend>();
-  }
-  m_syncer = std::make_unique<BoundarySynchronizer>(std::move(backend));
+  m_syncer = (size_ > 1) ? std::make_unique<BoundarySynchronizer>(
+                               std::make_unique<DebugBackend>(rank_))
+                         : std::make_unique<BoundarySynchronizer>(
+                               std::make_unique<SerialBackend>());
 
   // time parameters
   if (opt.autodt)

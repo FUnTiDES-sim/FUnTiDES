@@ -63,11 +63,10 @@ class CartesianStructBuilder : public ModelBuilderBase<FloatType, ScalarType>
   }
 
  private:
-  ScalarType ex_, ey_, ez_;
-  FloatType lx_, ly_, lz_;
+  FloatType ox_, oy_, oz_;   //< origin coordinate in 3D
+  ScalarType ex_, ey_, ez_;  //< number of elements for each axis
+  FloatType lx_, ly_, lz_;   //< domain size
   bool isModelOnNodes_;
   bool isElastic_;
-  // New members
-  FloatType ox_, oy_, oz_;
 };
 }  // namespace model
