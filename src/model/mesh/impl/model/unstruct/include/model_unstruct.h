@@ -191,7 +191,8 @@ class ModelUnstruct final : public ModelApi<FloatType, ScalarType>
     int local_k = k * order_;
 
     const auto localDofIndex = local_i + local_j * (order_ + 1) +
-                               local_k * (order_ + 1) * (order_ + 1);    return global_node_index_(e, localDofIndex);
+                               local_k * (order_ + 1) * (order_ + 1);
+    return global_node_index_(e, localDofIndex);
   }
 
   /**

@@ -155,7 +155,8 @@ class CartesianUnstructBuilder : public ModelBuilderBase<FloatType, ScalarType>
     }
   }
 
-  void getCoordInOneDirection(const int& h, const int& n_element, float* coord, FloatType offset)
+  void getCoordInOneDirection(const int& h, const int& n_element, float* coord,
+                              FloatType offset)
   {
     float xi[MAX_ORDER + 1];
 
@@ -241,13 +242,13 @@ class CartesianUnstructBuilder : public ModelBuilderBase<FloatType, ScalarType>
 
     for (int n = 0; n < ez_; n++)
     {
-      getCoordInOneDirection(hz, n, coord_z,0);
+      getCoordInOneDirection(hz, n, coord_z, 0);
       for (int m = 0; m < ey_; m++)
       {
-        getCoordInOneDirection(hy, m, coord_y,0);
+        getCoordInOneDirection(hy, m, coord_y, 0);
         for (int l = 0; l < ex_; l++)
         {
-          getCoordInOneDirection(hx, l, coord_x,0);
+          getCoordInOneDirection(hx, l, coord_x, 0);
 
           for (int k = 0; k < order_ + 1; k++)
           {
