@@ -46,6 +46,10 @@ struct PhysicsTraits<enums::physicType::kAcoustic>
 
   /// Primary field name
   static constexpr const char* kFieldNames[1] = {"pressure"};
+
+  /// Concrete types for device access
+  using WavefieldType = WavefieldAcoustic*;
+  using RhsType = RhsAcoustic*;
 };
 
 /**
@@ -67,6 +71,10 @@ struct PhysicsTraits<enums::physicType::kElastic>
 
   /// Field names for each component
   static constexpr const char* kFieldNames[3] = {"ux", "uy", "uz"};
+
+  /// Concrete types for device access
+  using WavefieldType = WavefieldElastic*;
+  using RhsType = RhsElastic*;
 };
 
 //============================================================================
@@ -88,6 +96,10 @@ struct SEMsolverData : public SolverBase::DataStruct
   using Traits = PhysicsTraits<PHYSICS>;
   static constexpr int kNumFields = Traits::kNumFields;
   static constexpr int kNumRhs = Traits::kNumRhsComponents;
+
+  // Use concrete types from PhysicsTraits to avoid virtual dispatch on device
+  using WavefieldType = typename Traits::WavefieldType;
+  using RhsType = typename Traits::RhsType;
 
   /**
    * @brief Constructor for acoustic physics (single field).
@@ -159,8 +171,8 @@ struct SEMsolverData : public SolverBase::DataStruct
     std::cout << "RHS Weights size: " << getRhsWeights().extent(0) << std::endl;
   }
 
-  Wavefield* m_wavefield;  ///< Wavefield data (raw pointer for device access)
-  Rhs* m_rhs;              ///< RHS data (raw pointer for device access)
+  WavefieldType m_wavefield;  ///< Concrete wavefield type (no virtual dispatch)
+  RhsType m_rhs;              ///< Concrete RHS type (no virtual dispatch)
 };
 
 //============================================================================
