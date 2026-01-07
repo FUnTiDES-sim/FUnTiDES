@@ -45,7 +45,7 @@ struct WavefieldElastic : public Wavefield
       case 2:
         return m_uznGlobalCurr;
       default:
-        throw std::out_of_range("Invalid field index for elastic wavefield");
+        return m_uxnGlobalCurr; // make it cuda happy
     }
   }
 
@@ -64,7 +64,7 @@ struct WavefieldElastic : public Wavefield
       case 2:
         return m_uznGlobalPrev;
       default:
-        throw std::out_of_range("Invalid field index for elastic wavefield");
+        return m_uxnGlobalCurr; // make it cuda happy
     }
   }
 
