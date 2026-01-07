@@ -31,6 +31,9 @@ struct WavefieldElastic : public Wavefield
   }
 
   // TODO use template + constexpr if when C++20 is available
+#ifdef USE_KOKKOS
+  KOKKOS_FORCEINLINE_FUNCTION
+#endif
   VECTOR_REAL_VIEW getCurrentField(int i) const override
   {
     switch (i)
@@ -47,6 +50,9 @@ struct WavefieldElastic : public Wavefield
   }
 
   // TODO use template + constexpr if when C++20 is available
+#ifdef USE_KOKKOS
+  KOKKOS_FORCEINLINE_FUNCTION
+#endif
   VECTOR_REAL_VIEW getPreviousField(int i) const override
   {
     switch (i)
