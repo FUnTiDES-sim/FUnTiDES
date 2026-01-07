@@ -186,9 +186,12 @@ class ModelUnstruct final : public ModelApi<FloatType, ScalarType>
   IndexType globalVertexIndex(IndexType e, int const i, int const j,
                               int const k) const
   {
-    const auto localDofIndex =
-        i + j * (order_ + 1) + k * (order_ + 1) * (order_ + 1);
-    return global_node_index_(e, localDofIndex);
+    int local_i = i * order_;
+    int local_j = j * order_;
+    int local_k = k * order_;
+
+    const auto localDofIndex = local_i + local_j * (order_ + 1) +
+                               local_k * (order_ + 1) * (order_ + 1);    return global_node_index_(e, localDofIndex);
   }
 
   /**

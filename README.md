@@ -62,10 +62,31 @@ Benchmarks only, results will be stored in results generated in `build/Benchmark
 ctest -L benchmark
 ```
 
-Or just both
+Validation tests (compare against analytical solutions)
+```sh
+# All 24 tests (2 mesh types × 3 orders × 2 physics × 2 model-on-nodes)
+make validate
+
+# Quick validation (12 tests, without model-on-nodes)
+make validate_no_model_on_nodes
+
+# Specific groups
+make validate_acoustic      # Acoustic tests only
+make validate_cartesian     # Cartesian mesh tests only
+
+# Fine-grained filtering
+ctest -L validation_acoustic        # Acoustic tests
+ctest -L order2                     # Order 2 tests
+ctest -L mesh_ucartesian            # Ucartesian mesh tests
+ctest -R acoustic_order2_cartesian  # Specific test
+```
+
+Or just all tests
 ```sh
 ctest
 ```
+
+> **Note**: Validation tests require analytical reference solutions in `tests/analyticalsolution/` (P.dat for acoustic, Ux.dat for elastic).
 
 ### Step 3: Run Examples
 
@@ -75,6 +96,9 @@ ctest
 
 # Run FD simulation
 ./src/main/fdproxy
+
+# Run validation with custom parameters
+./validate_solution --order 2 --mesh ucartesian --elastic --is-model-on-nodes
 ```
 
 ---
