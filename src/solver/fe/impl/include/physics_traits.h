@@ -96,7 +96,7 @@ struct SEMsolverData : public SolverBase::DataStruct
             typename = std::enable_if_t<P == enums::physicType::kAcoustic>>
   SEMsolverData(std::shared_ptr<WavefieldAcoustic> wavefield,
                 std::shared_ptr<RhsAcoustic> rhs)
-      : m_wavefield(wavefield.get()), m_rhs(rhs)
+      : m_wavefield(wavefield.get()), m_rhs(rhs.get())
   {
   }
 
@@ -107,14 +107,23 @@ struct SEMsolverData : public SolverBase::DataStruct
             typename = std::enable_if_t<P == enums::physicType::kElastic>>
   SEMsolverData(std::shared_ptr<WavefieldElastic> wavefield,
                 std::shared_ptr<RhsElastic> rhs)
-      : m_wavefield(wavefield.get()), m_rhs(rhs)
+      : m_wavefield(wavefield.get()), m_rhs(rhs.get())
   {
   }
 
+#ifdef USE_KOKKOS
+  KOKKOS_FORCEINLINE_FUNCTION
+#endif
   ARRAY_REAL_VIEW getRhsTerm(int i) const { return m_rhs->getTerm(i); }
 
+#ifdef USE_KOKKOS
+  KOKKOS_FORCEINLINE_FUNCTION
+#endif
   VECTOR_INT_VIEW getRhsElement() const { return m_rhs->getElement(); }
 
+#ifdef USE_KOKKOS
+  KOKKOS_FORCEINLINE_FUNCTION
+#endif
   ARRAY_REAL_VIEW getRhsWeights() const { return m_rhs->getWeights(); }
 
 #ifdef USE_KOKKOS
@@ -150,8 +159,8 @@ struct SEMsolverData : public SolverBase::DataStruct
     std::cout << "RHS Weights size: " << getRhsWeights().extent(0) << std::endl;
   }
 
-  Wavefield* m_wavefield;              ///< Raw pointer for device access
-  std::shared_ptr<Rhs> m_rhs;          ///< RHS data
+  Wavefield* m_wavefield; ///< Wavefield data (raw pointer for device access)
+  Rhs* m_rhs;             ///< RHS data (raw pointer for device access)
 };
 
 //============================================================================

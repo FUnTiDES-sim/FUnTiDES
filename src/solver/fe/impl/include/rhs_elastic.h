@@ -22,6 +22,9 @@ struct RhsElastic : public Rhs
   }
 
   // TODO use template + constexpr if when C++20 is available
+#ifdef USE_KOKKOS
+  KOKKOS_FORCEINLINE_FUNCTION
+#endif
   ARRAY_REAL_VIEW getTerm(int i) const override
   {
     switch (i)
@@ -33,12 +36,18 @@ struct RhsElastic : public Rhs
       case 2:
         return m_termz;
       default:
-        throw std::out_of_range("Invalid RHS term index for elastic RHS");
+        return m_termx; // make it cuda happy
     }
   }
 
+#ifdef USE_KOKKOS
+  KOKKOS_FORCEINLINE_FUNCTION
+#endif
   VECTOR_INT_VIEW getElement() const { return m_element; }
 
+#ifdef USE_KOKKOS
+  KOKKOS_FORCEINLINE_FUNCTION
+#endif
   ARRAY_REAL_VIEW getWeights() const { return m_weights; }
 
   void print() const override

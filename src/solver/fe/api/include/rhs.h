@@ -13,18 +13,27 @@ struct Rhs
    * @param i The index of the term to retrieve.
    * @return The requested RHS term.
    */
+#ifdef USE_KOKKOS
+  KOKKOS_FORCEINLINE_FUNCTION
+#endif
   virtual ARRAY_REAL_VIEW getTerm(int i) const = 0;
 
   /**
    * @brief Get the element indices associated with the RHS.
    * @return The element indices.
    */
+#ifdef USE_KOKKOS
+  KOKKOS_FORCEINLINE_FUNCTION
+#endif
   virtual VECTOR_INT_VIEW getElement() const = 0;
 
   /**
    * @brief Get the weights associated with the RHS.
    * @return The weights.
    */
+#ifdef USE_KOKKOS
+  KOKKOS_FORCEINLINE_FUNCTION
+#endif
   virtual ARRAY_REAL_VIEW getWeights() const = 0;
 
   virtual void print() const = 0;
