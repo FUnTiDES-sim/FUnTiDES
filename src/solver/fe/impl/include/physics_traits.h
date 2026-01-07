@@ -117,11 +117,17 @@ struct SEMsolverData : public SolverBase::DataStruct
 
   ARRAY_REAL_VIEW getRhsWeights() const { return m_rhs->getWeights(); }
 
+#ifdef USE_KOKKOS
+  KOKKOS_FORCEINLINE_FUNCTION
+#endif
   VECTOR_REAL_VIEW getCurrentField(int i) const
   {
     return m_wavefield->getCurrentField(i);
   }
 
+#ifdef USE_KOKKOS
+  KOKKOS_FORCEINLINE_FUNCTION
+#endif
   VECTOR_REAL_VIEW getPreviousField(int i) const
   {
     return m_wavefield->getPreviousField(i);
