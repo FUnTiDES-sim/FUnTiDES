@@ -159,8 +159,8 @@ struct SEMsolverData : public SolverBase::DataStruct
     std::cout << "RHS Weights size: " << getRhsWeights().extent(0) << std::endl;
   }
 
-  Wavefield* m_wavefield; ///< Wavefield data (raw pointer for device access)
-  Rhs* m_rhs;             ///< RHS data (raw pointer for device access)
+  Wavefield* m_wavefield;  ///< Wavefield data (raw pointer for device access)
+  Rhs* m_rhs;              ///< RHS data (raw pointer for device access)
 };
 
 //============================================================================

@@ -36,7 +36,7 @@ struct RhsElastic : public Rhs
       case 2:
         return m_termz;
       default:
-        return m_termx; // make it cuda happy
+        return m_termx;  // make it cuda happy
     }
   }
 

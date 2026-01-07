@@ -45,7 +45,7 @@ struct WavefieldElastic : public Wavefield
       case 2:
         return m_uznGlobalCurr;
       default:
-        return m_uxnGlobalCurr; // make it cuda happy
+        return m_uxnGlobalCurr;  // make it cuda happy
     }
   }
 
@@ -64,7 +64,7 @@ struct WavefieldElastic : public Wavefield
       case 2:
         return m_uznGlobalPrev;
       default:
-        return m_uxnGlobalCurr; // make it cuda happy
+        return m_uxnGlobalCurr;  // make it cuda happy
     }
   }
 
