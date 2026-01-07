@@ -96,7 +96,7 @@ struct SEMsolverData : public SolverBase::DataStruct
             typename = std::enable_if_t<P == enums::physicType::kAcoustic>>
   SEMsolverData(std::shared_ptr<WavefieldAcoustic> wavefield,
                 std::shared_ptr<RhsAcoustic> rhs)
-      : m_wavefield(wavefield), m_rhs(rhs)
+      : m_wavefield(wavefield.get()), m_rhs(rhs)
   {
   }
 
@@ -107,7 +107,7 @@ struct SEMsolverData : public SolverBase::DataStruct
             typename = std::enable_if_t<P == enums::physicType::kElastic>>
   SEMsolverData(std::shared_ptr<WavefieldElastic> wavefield,
                 std::shared_ptr<RhsElastic> rhs)
-      : m_wavefield(wavefield), m_rhs(rhs)
+      : m_wavefield(wavefield.get()), m_rhs(rhs)
   {
   }
 
@@ -150,8 +150,8 @@ struct SEMsolverData : public SolverBase::DataStruct
     std::cout << "RHS Weights size: " << getRhsWeights().extent(0) << std::endl;
   }
 
-  std::shared_ptr<Wavefield> m_wavefield;  ///< Wavefield data
-  std::shared_ptr<Rhs> m_rhs;              ///< RHS data
+  Wavefield* m_wavefield;              ///< Raw pointer for device access
+  std::shared_ptr<Rhs> m_rhs;          ///< RHS data
 };
 
 //============================================================================
