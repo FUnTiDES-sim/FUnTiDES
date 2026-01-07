@@ -1,5 +1,4 @@
 #pragma once
-#include <memory>
 
 #include "rhs_acoustic.h"
 #include "rhs_elastic.h"
@@ -48,8 +47,8 @@ struct PhysicsTraits<enums::physicType::kAcoustic>
   static constexpr const char* kFieldNames[1] = {"pressure"};
 
   /// Concrete types for device access
-  using WavefieldType = WavefieldAcoustic*;
-  using RhsType = RhsAcoustic*;
+  using WavefieldType = WavefieldAcoustic;
+  using RhsType = RhsAcoustic;
 };
 
 /**
@@ -73,8 +72,8 @@ struct PhysicsTraits<enums::physicType::kElastic>
   static constexpr const char* kFieldNames[3] = {"ux", "uy", "uz"};
 
   /// Concrete types for device access
-  using WavefieldType = WavefieldElastic*;
-  using RhsType = RhsElastic*;
+  using WavefieldType = WavefieldElastic;
+  using RhsType = RhsElastic;
 };
 
 //============================================================================
@@ -106,9 +105,9 @@ struct SEMsolverData : public SolverBase::DataStruct
    */
   template <physicType P = PHYSICS,
             typename = std::enable_if_t<P == enums::physicType::kAcoustic>>
-  SEMsolverData(std::shared_ptr<WavefieldAcoustic> wavefield,
-                std::shared_ptr<RhsAcoustic> rhs)
-      : m_wavefield(wavefield.get()), m_rhs(rhs.get())
+  SEMsolverData(const WavefieldAcoustic& wavefield,
+                const RhsAcoustic& rhs)
+      : m_wavefield(wavefield), m_rhs(rhs)
   {
   }
 
@@ -117,33 +116,33 @@ struct SEMsolverData : public SolverBase::DataStruct
    */
   template <physicType P = PHYSICS,
             typename = std::enable_if_t<P == enums::physicType::kElastic>>
-  SEMsolverData(std::shared_ptr<WavefieldElastic> wavefield,
-                std::shared_ptr<RhsElastic> rhs)
-      : m_wavefield(wavefield.get()), m_rhs(rhs.get())
+  SEMsolverData(const WavefieldElastic& wavefield,
+                const RhsElastic& rhs)
+      : m_wavefield(wavefield), m_rhs(rhs)
   {
   }
 
 #ifdef USE_KOKKOS
   KOKKOS_FORCEINLINE_FUNCTION
 #endif
-  ARRAY_REAL_VIEW getRhsTerm(int i) const { return m_rhs->getTerm(i); }
+  ARRAY_REAL_VIEW getRhsTerm(int i) const { return m_rhs.getTerm(i); }
 
 #ifdef USE_KOKKOS
   KOKKOS_FORCEINLINE_FUNCTION
 #endif
-  VECTOR_INT_VIEW getRhsElement() const { return m_rhs->getElement(); }
+  VECTOR_INT_VIEW getRhsElement() const { return m_rhs.getElement(); }
 
 #ifdef USE_KOKKOS
   KOKKOS_FORCEINLINE_FUNCTION
 #endif
-  ARRAY_REAL_VIEW getRhsWeights() const { return m_rhs->getWeights(); }
+  ARRAY_REAL_VIEW getRhsWeights() const { return m_rhs.getWeights(); }
 
 #ifdef USE_KOKKOS
   KOKKOS_FORCEINLINE_FUNCTION
 #endif
   VECTOR_REAL_VIEW getCurrentField(int i) const
   {
-    return m_wavefield->getCurrentField(i);
+    return m_wavefield.getCurrentField(i);
   }
 
 #ifdef USE_KOKKOS
@@ -151,7 +150,7 @@ struct SEMsolverData : public SolverBase::DataStruct
 #endif
   VECTOR_REAL_VIEW getPreviousField(int i) const
   {
-    return m_wavefield->getPreviousField(i);
+    return m_wavefield.getPreviousField(i);
   }
 
   void print() const override
@@ -171,8 +170,8 @@ struct SEMsolverData : public SolverBase::DataStruct
     std::cout << "RHS Weights size: " << getRhsWeights().extent(0) << std::endl;
   }
 
-  WavefieldType m_wavefield;  ///< Concrete wavefield type (no virtual dispatch)
-  RhsType m_rhs;              ///< Concrete RHS type (no virtual dispatch)
+  WavefieldType m_wavefield;  ///< Wavefield stored by value for GPU (lightweight view handles)
+  RhsType m_rhs;              ///< RHS stored by value for GPU (lightweight view handles)
 };
 
 //============================================================================

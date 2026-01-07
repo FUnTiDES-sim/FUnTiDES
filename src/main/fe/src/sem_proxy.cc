@@ -170,9 +170,8 @@ void SEMproxy::run()
 
   if (!isElastic)
   {
-    auto wavefield =
-        std::make_shared<WavefieldAcoustic>(pnGlobalPrev, pnGlobalCurr);
-    auto rhs = std::make_shared<RhsAcoustic>(myRHSTerm, rhsElement, rhsWeights);
+    WavefieldAcoustic wavefield(pnGlobalPrev, pnGlobalCurr);
+    RhsAcoustic rhs(myRHSTerm, rhsElement, rhsWeights);
     SEMsolverDataAcoustic solverData(wavefield, rhs);
 
     for (int indexTimeSample = 0; indexTimeSample < num_sample_;
@@ -217,7 +216,7 @@ void SEMproxy::run()
 
       pnAtReceiver(0, indexTimeSample) = varnp1;
 
-      wavefield->swap();
+      wavefield.swap();
 
       totalOutputTime += system_clock::now() - startOutputTime;
     }
@@ -245,11 +244,11 @@ void SEMproxy::run()
   }
   else
   {
-    auto wavefield = std::make_shared<WavefieldElastic>(
+    WavefieldElastic wavefield(
         uxnGlobalPrev, uxnGlobalCurr, uynGlobalPrev, uynGlobalCurr,
         uynGlobalPrev, uznGlobalCurr);
-    auto rhs = std::make_shared<RhsElastic>(myRHSTermx, myRHSTermy, myRHSTermz,
-                                            rhsElement, rhsWeights);
+    RhsElastic rhs(myRHSTermx, myRHSTermy, myRHSTermz,
+                   rhsElement, rhsWeights);
     SEMsolverDataElastic solverData(wavefield, rhs);
 
     for (int indexTimeSample = 0; indexTimeSample < num_sample_;
@@ -306,7 +305,7 @@ void SEMproxy::run()
       uynAtReceiver(0, indexTimeSample) = varyunp1;
       uznAtReceiver(0, indexTimeSample) = varuznp1;
 
-      wavefield->swap();
+      wavefield.swap();
 
       totalOutputTime += system_clock::now() - startOutputTime;
     }
@@ -353,10 +352,11 @@ void SEMproxy::init_arrays()
   cout << "Allocate host memory for source and pressure values ..." << endl;
   const auto n_nodes = m_mesh->getNumberOfNodes();
   const auto n_elements = m_mesh->getNumberOfElements();
+  const auto n_points_per_element = m_mesh->getNumberOfPointsPerElement();
 
   rhsElement = allocateVector<vectorInt>(myNumberOfRHS, "rhsElement");
   rhsWeights =
-      allocateArray2D<arrayReal>(myNumberOfRHS, n_elements, "RHSWeight");
+      allocateArray2D<arrayReal>(myNumberOfRHS, n_points_per_element, "RHSWeight");
 
   if (!isElastic_)
   {
