@@ -67,7 +67,6 @@ class CartesianUnstructBuilder : public ModelBuilderBase<FloatType, ScalarType>
   ScalarType ex_, ey_, ez_;
   FloatType lx_, ly_, lz_;
 
-
   int order_;
   bool isModelOnNodes_;
   bool isElastic_;
