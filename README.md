@@ -67,14 +67,14 @@ Or just both
 ctest
 ```
 
-### Step 3: Run Examples
+### Step 3: Run Examples inside folder build/bin
 
 ```sh
 # Run SEM simulation with 100 x 100 x 100 elements
-./src/main/semproxy -ex 100
+./funtidessem -ex 100 -ey 100 -ez 100
 
 # Run FD simulation
-./src/main/fdproxy
+./funtidesfd
 ```
 
 ---
