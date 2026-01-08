@@ -21,17 +21,13 @@ struct WavefieldAcoustic : public Wavefield
   {
   }
 
-#ifdef USE_KOKKOS
-  KOKKOS_FORCEINLINE_FUNCTION
-#endif
+  PROXY_HOST_DEVICE
   VECTOR_REAL_VIEW getCurrentField(int i) const override
   {
     return m_pnGlobalCurr;
   }
 
-#ifdef USE_KOKKOS
-  KOKKOS_FORCEINLINE_FUNCTION
-#endif
+  PROXY_HOST_DEVICE
   VECTOR_REAL_VIEW getPreviousField(int i) const override
   {
     return m_pnGlobalPrev;

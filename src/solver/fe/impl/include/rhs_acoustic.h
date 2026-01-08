@@ -16,19 +16,13 @@ struct RhsAcoustic : public Rhs
   {
   }
 
-#ifdef USE_KOKKOS
-  KOKKOS_FORCEINLINE_FUNCTION
-#endif
+  PROXY_HOST_DEVICE
   ARRAY_REAL_VIEW getTerm(int i) const override { return m_term; }
 
-#ifdef USE_KOKKOS
-  KOKKOS_FORCEINLINE_FUNCTION
-#endif
+  PROXY_HOST_DEVICE
   VECTOR_INT_VIEW getElement() const { return m_element; }
 
-#ifdef USE_KOKKOS
-  KOKKOS_FORCEINLINE_FUNCTION
-#endif
+  PROXY_HOST_DEVICE
   ARRAY_REAL_VIEW getWeights() const { return m_weights; }
 
   void print() const override

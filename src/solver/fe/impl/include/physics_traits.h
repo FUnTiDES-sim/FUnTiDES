@@ -122,32 +122,22 @@ struct SEMsolverData : public SolverBase::DataStruct
   {
   }
 
-#ifdef USE_KOKKOS
-  KOKKOS_FORCEINLINE_FUNCTION
-#endif
+  PROXY_HOST_DEVICE
   ARRAY_REAL_VIEW getRhsTerm(int i) const { return m_rhs.getTerm(i); }
 
-#ifdef USE_KOKKOS
-  KOKKOS_FORCEINLINE_FUNCTION
-#endif
+  PROXY_HOST_DEVICE
   VECTOR_INT_VIEW getRhsElement() const { return m_rhs.getElement(); }
 
-#ifdef USE_KOKKOS
-  KOKKOS_FORCEINLINE_FUNCTION
-#endif
+  PROXY_HOST_DEVICE
   ARRAY_REAL_VIEW getRhsWeights() const { return m_rhs.getWeights(); }
 
-#ifdef USE_KOKKOS
-  KOKKOS_FORCEINLINE_FUNCTION
-#endif
+  PROXY_HOST_DEVICE
   VECTOR_REAL_VIEW getCurrentField(int i) const
   {
     return m_wavefield.getCurrentField(i);
   }
 
-#ifdef USE_KOKKOS
-  KOKKOS_FORCEINLINE_FUNCTION
-#endif
+  PROXY_HOST_DEVICE
   VECTOR_REAL_VIEW getPreviousField(int i) const
   {
     return m_wavefield.getPreviousField(i);

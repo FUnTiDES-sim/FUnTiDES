@@ -22,9 +22,7 @@ struct RhsElastic : public Rhs
   }
 
   // TODO use template + constexpr if when C++20 is available
-#ifdef USE_KOKKOS
-  KOKKOS_FORCEINLINE_FUNCTION
-#endif
+  PROXY_HOST_DEVICE
   ARRAY_REAL_VIEW getTerm(int i) const override
   {
     switch (i)
@@ -40,14 +38,10 @@ struct RhsElastic : public Rhs
     }
   }
 
-#ifdef USE_KOKKOS
-  KOKKOS_FORCEINLINE_FUNCTION
-#endif
+  PROXY_HOST_DEVICE
   VECTOR_INT_VIEW getElement() const { return m_element; }
 
-#ifdef USE_KOKKOS
-  KOKKOS_FORCEINLINE_FUNCTION
-#endif
+  PROXY_HOST_DEVICE
   ARRAY_REAL_VIEW getWeights() const { return m_weights; }
 
   void print() const override

@@ -17,9 +17,7 @@ struct Wavefield
    * @param i The index of the field to retrieve.
    * @return The requested current field.
    */
-#ifdef USE_KOKKOS
-  KOKKOS_FORCEINLINE_FUNCTION
-#endif
+  PROXY_HOST_DEVICE
   virtual VECTOR_REAL_VIEW getCurrentField(int i) const = 0;
 
   /**
@@ -27,9 +25,7 @@ struct Wavefield
    * @param i The index of the field to retrieve.
    * @return The requested current field.
    */
-#ifdef USE_KOKKOS
-  KOKKOS_FORCEINLINE_FUNCTION
-#endif
+  PROXY_HOST_DEVICE
   virtual VECTOR_REAL_VIEW getPreviousField(int i) const = 0;
 
   /**
