@@ -178,12 +178,11 @@ BENCHMARK_TEMPLATE_METHOD_F(SolverStructFixture, OneStep)
     arrays.rhsTermz(0, j) = sourceTerm[j];
   }
 
-  auto wavefield = std::make_shared<WavefieldElastic>(
-      arrays.uxnGlobalPrev, arrays.uynGlobalPrev, arrays.uznGlobalPrev,
-      arrays.uxnGlobalCurr, arrays.uynGlobalCurr, arrays.uznGlobalCurr);
-  auto rhs = std::make_shared<RhsElastic>(arrays.rhsTermx, arrays.rhsTermy,
-                                          arrays.rhsTermz, arrays.rhsElement,
-                                          arrays.rhsWeights);
+  auto wavefield = WavefieldElastic(arrays.uxnGlobalPrev, arrays.uynGlobalPrev,
+                                    arrays.uznGlobalPrev, arrays.uxnGlobalCurr,
+                                    arrays.uynGlobalCurr, arrays.uznGlobalCurr);
+  auto rhs = RhsElastic(arrays.rhsTermx, arrays.rhsTermy, arrays.rhsTermz,
+                        arrays.rhsElement, arrays.rhsWeights);
   SEMsolverDataElastic data(wavefield, rhs);
 
   // Bench

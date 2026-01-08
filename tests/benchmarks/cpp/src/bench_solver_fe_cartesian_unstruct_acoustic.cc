@@ -164,10 +164,8 @@ BENCHMARK_TEMPLATE_METHOD_F(SolverUnstructFixture, OneStep)
     arrays.rhsTerm(0, j) = sourceTerm[j];
   }
 
-  auto wavefield = std::make_shared<WavefieldAcoustic>(arrays.pnGlobalPrev,
-                                                       arrays.pnGlobalCurr);
-  auto rhs = std::make_shared<RhsAcoustic>(arrays.rhsTerm, arrays.rhsElement,
-                                           arrays.rhsWeights);
+  auto wavefield = WavefieldAcoustic(arrays.pnGlobalPrev, arrays.pnGlobalCurr);
+  auto rhs = RhsAcoustic(arrays.rhsTerm, arrays.rhsElement, arrays.rhsWeights);
   SEMsolverDataAcoustic data(wavefield, rhs);
 
   // Bench
