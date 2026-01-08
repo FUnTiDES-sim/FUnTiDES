@@ -204,10 +204,12 @@ ComparisonResult compare_solutions(const std::vector<double>& numerical,
 
   // Print location of maximum error for debugging
   std::cout << "\nMaximum error location:" << std::endl;
-  std::cout << "  Point index: " << max_error_index << std::endl;
-  std::cout << "  Numerical value: " << num_data[max_error_index] << std::endl;
-  std::cout << "  Analytical value: " << ana_data[max_error_index] << std::endl;
-  std::cout << "  Absolute difference: " << result.linf_error << std::endl;
+  std::cout << "  Point index:           " << max_error_index << std::endl;
+  std::cout << "  Numerical value:       " << num_data[max_error_index]
+            << std::endl;
+  std::cout << "  Analytical value:      " << ana_data[max_error_index]
+            << std::endl;
+  std::cout << "  Absolute difference:   " << result.linf_error << std::endl;
 
   return result;
 }
