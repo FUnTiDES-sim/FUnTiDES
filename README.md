@@ -87,6 +87,7 @@ ctest
 ```
 
 > **Note**: Validation tests require analytical reference solutions in `tests/analyticalsolution/` (P.dat for acoustic, Ux.dat for elastic).
+            You also need to install adios2 python module to run the validation tests as it runs a python script for receiver output.
 
 ### Step 3: Run Examples
 
