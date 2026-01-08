@@ -244,11 +244,9 @@ void SEMproxy::run()
   }
   else
   {
-    WavefieldElastic wavefield(
-        uxnGlobalPrev, uxnGlobalCurr, uynGlobalPrev, uynGlobalCurr,
-        uynGlobalPrev, uznGlobalCurr);
-    RhsElastic rhs(myRHSTermx, myRHSTermy, myRHSTermz,
-                   rhsElement, rhsWeights);
+    WavefieldElastic wavefield(uxnGlobalPrev, uxnGlobalCurr, uynGlobalPrev,
+                               uynGlobalCurr, uynGlobalPrev, uznGlobalCurr);
+    RhsElastic rhs(myRHSTermx, myRHSTermy, myRHSTermz, rhsElement, rhsWeights);
     SEMsolverDataElastic solverData(wavefield, rhs);
 
     for (int indexTimeSample = 0; indexTimeSample < num_sample_;
@@ -355,8 +353,8 @@ void SEMproxy::init_arrays()
   const auto n_points_per_element = m_mesh->getNumberOfPointsPerElement();
 
   rhsElement = allocateVector<vectorInt>(myNumberOfRHS, "rhsElement");
-  rhsWeights =
-      allocateArray2D<arrayReal>(myNumberOfRHS, n_points_per_element, "RHSWeight");
+  rhsWeights = allocateArray2D<arrayReal>(myNumberOfRHS, n_points_per_element,
+                                          "RHSWeight");
 
   if (!isElastic_)
   {
