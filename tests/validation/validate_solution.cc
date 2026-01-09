@@ -267,7 +267,7 @@ int main(int argc, char* argv[])
 
 #ifndef FUNTIDES_EXECUTABLE
 // Fallback if not defined by CMake (for manual compilation)
-#define FUNTIDES_EXECUTABLE "./bin/semproxy"
+#define FUNTIDES_EXECUTABLE "./bin/funtidessem"
 #endif
 
 #ifndef EXTRACT_RECEIVERS_SCRIPT
