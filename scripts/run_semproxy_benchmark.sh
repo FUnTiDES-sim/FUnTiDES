@@ -8,7 +8,7 @@ EZS="100"
 IMPLEMS="makutu shiva"
 MESHES="cartesian ucartesian"
 ORDERS="1 2 3"
-FUNTIDESSEM_BIN="bin/funtidessem"
+FUNTIDESSEM_BIN="bin/funtides-sem"
 CSV_OUT="results.csv"
 DRY_RUN=0
 
@@ -23,7 +23,7 @@ Options (space-separated lists allowed; quoted):
   --implem    "makutu"        # {classic, optim, makutu, shiva}
   --mesh      "cartesian"      # {cartesian, ucartesian}
   -o|--order  "1 2 3"          # polynomial orders
-  --bin       PATH             # path to funtidessem (default: bin/funtidessem)
+  --bin       PATH             # path to funtides-sem (default: bin/funtides-sem)
   --out       FILE             # CSV output file (default: results.csv)
   --dry-run                    # print commands but don't execute
   -h|--help                    # show this help
@@ -58,7 +58,7 @@ done
 
 # Check binary exists
 if [[ ! -x "$FUNTIDESSEM_BIN" ]]; then
-  echo "Error: funtidessem binary not found or not executable at: $FUNTIDESSEM_BIN" >&2
+  echo "Error: funtides-sem binary not found or not executable at: $FUNTIDESSEM_BIN" >&2
   exit 1
 fi
 
