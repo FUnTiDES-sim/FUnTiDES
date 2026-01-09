@@ -5,3 +5,4 @@ pygal
 ruff
 scipy
 clang-format==18
+adios2

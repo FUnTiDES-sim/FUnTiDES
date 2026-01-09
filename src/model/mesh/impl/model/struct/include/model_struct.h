@@ -397,7 +397,7 @@ class ModelStruct : public ModelApi<FloatType, ScalarType>
   ScalarType getModelPhiOnNodes(ScalarType n) const
   {
     // TODO: Not returning magic number
-    return 45;
+    return 0.0;
   }
 
   /**
