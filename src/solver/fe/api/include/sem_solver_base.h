@@ -19,8 +19,6 @@ class SEMSolverBase : public SolverBase
    * basis functions, integrals, global arrays, and sponge boundaries.
    *
    * @param mesh BaseMesh structure containing the domain information.
-   * @param rank Current MPI rank.
-   * @param size Total number of MPI ranks.
    * @param origin_x Local subdomain origin in X (for topology discovery).
    * @param local_lx Local subdomain width in X (for topology discovery).
    * @param sponge_size Thickness (in elements) of absorbing sponge layers
@@ -29,8 +27,8 @@ class SEMSolverBase : public SolverBase
    *                       for geophysics to preserve natural reflections).
    * @param taper_delta_ Attenuation parameter for sponge layers.
    */
-  virtual void computeFEInit(model::ModelApi<float, int>& mesh, int rank,
-                             int size, float origin_x, float local_lx,
+  virtual void computeFEInit(model::ModelApi<float, int>& mesh, float origin_x,
+                             float local_lx,
                              const std::array<float, 3>& sponge_size,
                              const bool surface_sponge,
                              const float taper_delta_) = 0;
@@ -109,12 +107,6 @@ class SEMSolverBase : public SolverBase
    * @param component Component index (0 to getNumComponents()-1).
    */
   virtual VECTOR_REAL_VIEW& getForceVector(int component) = 0;
-
-  /**
-   * @brief Access the distributed topology.
-   * Used by the orchestrator to know which nodes to exchange.
-   */
-  virtual const utils::ParallelTopology& getTopology() const = 0;
 
   /**
    * @brief Phase 1 of time step: Compute local forces (Stiffness + Source).

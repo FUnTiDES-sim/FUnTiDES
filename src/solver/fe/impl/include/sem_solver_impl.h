@@ -9,7 +9,6 @@
 #include "fe/Integrals.hpp"
 #include "model_discretization_interface.h"
 #include "sem_solver.h"
-#include "topology_factory.h"
 
 namespace solver
 {
@@ -24,8 +23,7 @@ template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE,
           bool IS_MODEL_ON_NODES, enums::physicType PHYSICS>
 void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES,
                PHYSICS>::computeFEInit(model::ModelApi<float, int>& mesh_in,
-                                       int rank, int size, float origin_x,
-                                       float local_lx,
+                                       float origin_x, float local_lx,
                                        const std::array<float, 3>& sponge_size,
                                        const bool surface_sponge,
                                        const float taper_delta)
@@ -48,11 +46,7 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES,
   allocateFEarrays();
   initFEarrays();
 
-  // 1. Discover Topology (DD)
-  m_topology =
-      TopologyFactory::createFromMesh(m_mesh, rank, size, origin_x, local_lx);
-
-  // 2. Compute Local Mass Matrix
+  // Compute Local Mass Matrix
   computeGlobalMassMatrix();
 }
 

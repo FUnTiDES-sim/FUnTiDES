@@ -42,16 +42,10 @@ class SEMsolver : public SEMSolverBase
     return workVectorsGlobal_[c];
   }
 
-  const utils::ParallelTopology& getTopology() const override
-  {
-    return m_topology;
-  }
-
   // -------------------------------------
 
-  void computeFEInit(model::ModelApi<float, int>& mesh, int rank, int size,
-                     float origin_x, float local_lx,
-                     const std::array<float, 3>& sponge_size,
+  void computeFEInit(model::ModelApi<float, int>& mesh, float origin_x,
+                     float local_lx, const std::array<float, 3>& sponge_size,
                      const bool surface_sponge,
                      const float taper_delta) override;
 
@@ -66,9 +60,9 @@ class SEMsolver : public SEMSolverBase
    * @throws std::runtime_error if called in distributed mode.
    */
   void computeOneStep(const float& dt, const int& timeSample,
-                      DataStruct& data) override
+                      DataStruct& data, bool isDistributed=false) override
   {
-    if (m_topology.isDistributed())
+    if (isDistributed)
     {
       throw std::runtime_error(
           "computeOneStep called in distributed mode. Use computeForces() -> "
@@ -104,7 +98,6 @@ class SEMsolver : public SEMSolverBase
 
  private:
   MESH_TYPE m_mesh;
-  utils::ParallelTopology m_topology;
 
   static constexpr int kPointsPerElement =
       (ORDER + 1) * (ORDER + 1) * (ORDER + 1);

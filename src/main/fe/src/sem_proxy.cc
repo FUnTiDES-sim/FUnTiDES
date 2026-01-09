@@ -204,16 +204,17 @@ void SEMproxy::run()
   const bool surface_sponge = false;
   const float taper_delta = 0.015;
 
-  // 1. Initialize Solver with Partition Info & Compute Local Mass
-  m_solver->computeFEInit(*m_mesh, rank_, size_, m_localParams.origin_x,
-                          m_localParams.lx, sponge_size, surface_sponge,
-                          taper_delta);
+  // Initialize Solver with Partition Info & Compute Local Mass
+  m_solver->computeFEInit(*m_mesh, m_localParams.origin_x, m_localParams.lx,
+                          sponge_size, surface_sponge, taper_delta);
 
-  // 2. Synchronize Mass Matrix (Critical for DD)
-  if (m_solver->getTopology().isDistributed())
-  {
-    m_syncer->synchronize(m_solver->getMassMatrix(), m_solver->getTopology());
-  }
+  // Synchronize Mass Matrix (Critical for DD)
+  // TODO: Getting it work within semproxy
+  // if (m_solver->getTopology().isDistributed())
+  // {
+  //   m_syncer->synchronize(m_solver->getMassMatrix(),
+  //   m_solver->getTopology());
+  // }
 
   auto& M = m_solver->getMassMatrix();
   // Get the global node index of the first node of the source element
@@ -229,24 +230,23 @@ void SEMproxy::run()
     {
       startComputeTime = system_clock::now();
 
-      // A. Compute Local Forces
+      // Compute Local Forces
       m_solver->computeForces(dt_, indexTimeSample, solverData);
 
-      // B. Synchronize Forces
-      if (m_solver->getTopology().isDistributed())
-      {
-        for (int c = 0; c < m_solver->getNumComponents(); ++c)
-        {
-          m_syncer->synchronize(m_solver->getForceVector(c),
-                                m_solver->getTopology());
-        }
-      }
+      // Synchronize Forces
+      // TODO: Getting it work within semproxy
+      // if (m_solver->getTopology().isDistributed())
+      // {
+      //   for (int c = 0; c < m_solver->getNumComponents(); ++c)
+      //   {
+      //     m_syncer->synchronize(m_solver->getForceVector(c),
+      //                           m_solver->getTopology());
+      //   }
+      // }
 
-      // C. Update Solution
       m_solver->updateSolution(dt_, i1, i2, solverData);
 
       totalComputeTime += system_clock::now() - startComputeTime;
-
       startOutputTime = system_clock::now();
 
       if (indexTimeSample % 50 == 0)
@@ -322,24 +322,24 @@ void SEMproxy::run()
     {
       startComputeTime = system_clock::now();
 
-      // A. Compute Local Forces
+      // Compute Local Forces
       m_solver->computeForces(dt_, indexTimeSample, solverData);
 
-      // B. Synchronize Forces
-      if (m_solver->getTopology().isDistributed())
-      {
-        for (int c = 0; c < m_solver->getNumComponents(); ++c)
-        {
-          m_syncer->synchronize(m_solver->getForceVector(c),
-                                m_solver->getTopology());
-        }
-      }
+      // Synchronize Forces
+      // TODO: Getting it work within semproxy
+      // if (m_solver->getTopology().isDistributed())
+      // {
+      //   for (int c = 0; c < m_solver->getNumComponents(); ++c)
+      //   {
+      //     m_syncer->synchronize(m_solver->getForceVector(c),
+      //                           m_solver->getTopology());
+      //   }
+      // }
 
-      // C. Update Solution
+      // Update Solution
       m_solver->updateSolution(dt_, i1, i2, solverData);
 
       totalComputeTime += system_clock::now() - startComputeTime;
-
       startOutputTime = system_clock::now();
 
       if (indexTimeSample % 50 == 0)
