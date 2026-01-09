@@ -118,7 +118,7 @@ class FdtdOptions
     bool use_sponge{false};      ///< Enable PML boundary conditions
     int pml_size{4};             ///< Thickness of PML layers (grid points)
     int sponge_size{20};         ///< Thickness of sponge layers (grid points)
-    float sponge_alpha{0.015f};  ///< Damping coefficient for sponge
+    float sponge_alpha{-0.00015f};  ///< Damping coefficient for sponge
   } boundary;
 
   /**
@@ -312,9 +312,9 @@ class FdtdOptions
     {
       throw std::runtime_error("Sponge size cannot be negative");
     }
-    if (boundary.sponge_alpha < 0.f)
+    if (boundary.sponge_alpha > 0.f)
     {
-      throw std::runtime_error("Sponge damping coefficient cannot be negative");
+      throw std::runtime_error("Sponge damping coefficient cannot be positive");
     }
     if (!boundary.use_pml && !boundary.use_sponge)
     {
