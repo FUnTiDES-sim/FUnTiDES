@@ -12,7 +12,7 @@ RESULTS_FILE="$BUILD_DIR/timing_results.md"
 > "$RESULTS_FILE"
 
 # Write markdown table header
-echo "| Type     | Grid       | X   | Y   | Z   | Param | Time 1   | Time 2  | Time 3  |" >> "$RESULTS_FILE"
+echo "| Type     | Grid       | X   | Y   | Z   | Param | Initial  | Compute | Total   |" >> "$RESULTS_FILE"
 echo "|----------|------------|-----|-----|-----|-------|----------|---------|---------|" >> "$RESULTS_FILE"
 
 # Function to run benchmark and extract timing
