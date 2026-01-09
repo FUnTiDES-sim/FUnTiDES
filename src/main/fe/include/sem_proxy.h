@@ -10,6 +10,7 @@
 
 #include "boundary_synchronizer.h"
 #include "cartesian_params.h"
+#include "distributed_ctx.h"
 #include "model_struct.h"
 #include "model_unstruct.h"
 #include "sem_enums.h"
@@ -93,8 +94,8 @@ class SEMproxy
   // Mocking MPI rank and size for now.
   // In a real MPI application, these would come from MPI_Comm_rank/size.
   model::CartesianParams<float, int> m_localParams;
-  int rank_{0};
-  int size_{1};
+  utils::DistributedContext dist_ctx_;
+  utils::ParallelTopology par_topology_;
 
   // proper to cartesian mesh
   // or any structured mesh

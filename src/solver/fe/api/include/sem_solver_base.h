@@ -27,8 +27,7 @@ class SEMSolverBase : public SolverBase
    *                       for geophysics to preserve natural reflections).
    * @param taper_delta_ Attenuation parameter for sponge layers.
    */
-  virtual void computeFEInit(model::ModelApi<float, int>& mesh, float origin_x,
-                             float local_lx,
+  virtual void computeFEInit(model::ModelApi<float, int>& mesh,
                              const std::array<float, 3>& sponge_size,
                              const bool surface_sponge,
                              const float taper_delta_) = 0;

@@ -44,8 +44,8 @@ class SEMsolver : public SEMSolverBase
 
   // -------------------------------------
 
-  void computeFEInit(model::ModelApi<float, int>& mesh, float origin_x,
-                     float local_lx, const std::array<float, 3>& sponge_size,
+  void computeFEInit(model::ModelApi<float, int>& mesh,
+                     const std::array<float, 3>& sponge_size,
                      const bool surface_sponge,
                      const float taper_delta) override;
 
@@ -59,8 +59,8 @@ class SEMsolver : public SEMSolverBase
    * @brief Legacy/Serial wrapper.
    * @throws std::runtime_error if called in distributed mode.
    */
-  void computeOneStep(const float& dt, const int& timeSample,
-                      DataStruct& data, bool isDistributed=false) override
+  void computeOneStep(const float& dt, const int& timeSample, DataStruct& data,
+                      bool isDistributed = false) override
   {
     if (isDistributed)
     {

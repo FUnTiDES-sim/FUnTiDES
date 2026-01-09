@@ -23,7 +23,6 @@ template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE,
           bool IS_MODEL_ON_NODES, enums::physicType PHYSICS>
 void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES,
                PHYSICS>::computeFEInit(model::ModelApi<float, int>& mesh_in,
-                                       float origin_x, float local_lx,
                                        const std::array<float, 3>& sponge_size,
                                        const bool surface_sponge,
                                        const float taper_delta)

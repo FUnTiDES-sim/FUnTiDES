@@ -7,17 +7,19 @@
 namespace utils
 {
 
-// @brief Describes the distributed connectivity of the mesh.
-//
-// Contains lists of local node indices shared with neighbor ranks.
-// Used to identify boundary nodes that require synchronization during
-// distributed execution.
-//
-// @details
-// For each neighbor rank, stores a vector of local node indices that
-// lie on the partition boundary. This information is discovered by
-// TopologyFactory and used by BoundarySynchronizer to coordinate
-// data exchange.
+/**
+ * @brief Describes the distributed connectivity of the mesh.
+ *
+ * Contains lists of local node indices shared with neighbor ranks.
+ * Used to identify boundary nodes that require synchronization during
+ * distributed execution.
+ *
+ * @details
+ * For each neighbor rank, stores a vector of local node indices that
+ * lie on the partition boundary. This information is discovered by
+ * TopologyFactory and used by BoundarySynchronizer to coordinate
+ * data exchange.
+ */
 struct ParallelTopology
 {
   int myRank = 0;    //< Current MPI rank (0-based)

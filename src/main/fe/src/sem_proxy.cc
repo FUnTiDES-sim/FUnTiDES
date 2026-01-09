@@ -20,6 +20,7 @@
 #include <variant>
 
 #include "sem_solver.h"
+#include "topology_factory.h"
 
 using namespace SourceAndReceiverUtils;
 using namespace solver::fe;
@@ -27,11 +28,9 @@ using namespace solver::fe::enums;
 
 SEMproxy::SEMproxy(const SemProxyOptions& opt)
 {
-  int size = 1;
-
   const int order = opt.order;
 
-  // 1. Partition Logic
+  // Partition Logic
   // Create Global Params
   model::CartesianParams<float, int> globalParams(
       opt.order, opt.ex, opt.ey, opt.ez, opt.lx, opt.ly, opt.lz,
@@ -40,7 +39,8 @@ SEMproxy::SEMproxy(const SemProxyOptions& opt)
 
   // Partition domain
   model::CartesianXPartitioner<float, int> partitioner;
-  m_localParams = partitioner.partition(globalParams, rank_, size_);
+  m_localParams =
+      partitioner.partition(globalParams, dist_ctx_.rank, dist_ctx_.size);
 
   // Update members with LOCAL parameters for array allocation
   nb_elements_[0] = m_localParams.ex;
@@ -77,7 +77,7 @@ SEMproxy::SEMproxy(const SemProxyOptions& opt)
   const physicType physicType =
       isElastic ? physicType::kElastic : physicType::kAcoustic;
 
-  // 2. Build Mesh using LOCAL parameters
+  // Build Mesh using LOCAL parameters
   if (meshType == meshType::kStruct)
   {
     switch (order)
@@ -125,12 +125,18 @@ SEMproxy::SEMproxy(const SemProxyOptions& opt)
     throw std::runtime_error("Incorrect mesh type (SEMproxy ctor.)");
   }
 
-  // 3. Initialize Synchronizer
+  // Init topology
+  par_topology_ =
+      TopologyFactory::createFromMesh(*m_mesh, dist_ctx_.rank, dist_ctx_.size,
+                                      m_localParams.origin_x, m_localParams.lx);
+
+  // Initialize Synchronizer
   std::unique_ptr<BoundarySynchronizer::Backend> backend;
-  m_syncer = (size_ > 1) ? std::make_unique<BoundarySynchronizer>(
-                               std::make_unique<DebugBackend>(rank_))
-                         : std::make_unique<BoundarySynchronizer>(
-                               std::make_unique<SerialBackend>());
+  m_syncer = (dist_ctx_.rank > 1)
+                 ? std::make_unique<BoundarySynchronizer>(
+                       std::make_unique<DebugBackend>(dist_ctx_.rank))
+                 : std::make_unique<BoundarySynchronizer>(
+                       std::make_unique<SerialBackend>());
 
   // time parameters
   if (opt.autodt)
@@ -205,16 +211,13 @@ void SEMproxy::run()
   const float taper_delta = 0.015;
 
   // Initialize Solver with Partition Info & Compute Local Mass
-  m_solver->computeFEInit(*m_mesh, m_localParams.origin_x, m_localParams.lx,
-                          sponge_size, surface_sponge, taper_delta);
+  m_solver->computeFEInit(*m_mesh, sponge_size, surface_sponge, taper_delta);
 
   // Synchronize Mass Matrix (Critical for DD)
-  // TODO: Getting it work within semproxy
-  // if (m_solver->getTopology().isDistributed())
-  // {
-  //   m_syncer->synchronize(m_solver->getMassMatrix(),
-  //   m_solver->getTopology());
-  // }
+  if (par_topology_.isDistributed())
+  {
+    m_syncer->synchronize(m_solver->getMassMatrix(), par_topology_);
+  }
 
   auto& M = m_solver->getMassMatrix();
   // Get the global node index of the first node of the source element
@@ -234,15 +237,13 @@ void SEMproxy::run()
       m_solver->computeForces(dt_, indexTimeSample, solverData);
 
       // Synchronize Forces
-      // TODO: Getting it work within semproxy
-      // if (m_solver->getTopology().isDistributed())
-      // {
-      //   for (int c = 0; c < m_solver->getNumComponents(); ++c)
-      //   {
-      //     m_syncer->synchronize(m_solver->getForceVector(c),
-      //                           m_solver->getTopology());
-      //   }
-      // }
+      if (par_topology_.isDistributed())
+      {
+        for (int c = 0; c < m_solver->getNumComponents(); ++c)
+        {
+          m_syncer->synchronize(m_solver->getForceVector(c), par_topology_);
+        }
+      }
 
       m_solver->updateSolution(dt_, i1, i2, solverData);
 
@@ -327,14 +328,13 @@ void SEMproxy::run()
 
       // Synchronize Forces
       // TODO: Getting it work within semproxy
-      // if (m_solver->getTopology().isDistributed())
-      // {
-      //   for (int c = 0; c < m_solver->getNumComponents(); ++c)
-      //   {
-      //     m_syncer->synchronize(m_solver->getForceVector(c),
-      //                           m_solver->getTopology());
-      //   }
-      // }
+      if (par_topology_.isDistributed())
+      {
+        for (int c = 0; c < m_solver->getNumComponents(); ++c)
+        {
+          m_syncer->synchronize(m_solver->getForceVector(c), par_topology_);
+        }
+      }
 
       // Update Solution
       m_solver->updateSolution(dt_, i1, i2, solverData);
