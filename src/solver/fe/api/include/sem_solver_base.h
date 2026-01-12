@@ -54,6 +54,12 @@ class SEMSolverBase : public SolverBase
   virtual void computeGlobalMassMatrix() = 0;
 
   /**
+   * @brief Compute the global damping matrix.
+   *  once at the beginning of the simulation.
+   */
+  virtual void computeDampingMatrix() = 0;
+
+  /**
    * @brief Outputs solution field values at a specific time step
    *
    * This pure virtual function is responsible for writing or displaying

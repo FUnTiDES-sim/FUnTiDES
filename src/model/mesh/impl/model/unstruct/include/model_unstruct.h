@@ -4,8 +4,95 @@
 #include <elasticity_utils.h>
 #include <model.h>
 
+#include <algorithm>
+#include <array>
+#include <map>
+#include <vector>
+
 namespace model
 {
+
+// Temporary structure for construction (CPU only)
+template <typename ScalarType>
+struct FaceDataTemp
+{
+  std::vector<ScalarType> dofs;
+  ScalarType elem_owner = -1;
+  ScalarType elem_neighbor = -1;
+  int local_face_owner = -1;
+  int local_face_neighbor = -1;
+
+  bool isBoundary() const { return elem_neighbor == -1; }
+};
+
+// GPU-compatible face connectivity using project macros
+template <typename ScalarType>
+struct FaceConnectivity
+{
+  // Kokkos Views (GPU-compatible)
+  ARRAY_INT_VIEW elem_to_faces_;     // [n_element][6] -> global_face
+  ARRAY_INT_VIEW face_dofs_;         // [n_faces][ndofs_per_face] -> global_node
+  VECTOR_INT_VIEW face_elem_owner_;  // [n_faces] -> elem_owner
+  VECTOR_INT_VIEW
+      face_elem_neighbor_;  // [n_faces] -> elem_neighbor (-1 if boundary)
+  VECTOR_INT_VIEW face_local_owner_;     // [n_faces] -> local_face_owner
+  VECTOR_INT_VIEW face_local_neighbor_;  // [n_faces] -> local_face_neighbor
+
+  int n_faces_ = 0;
+  int ndofs_per_face_ = 0;
+
+  PROXY_HOST_DEVICE
+  ScalarType numFaces() const { return n_faces_; }
+
+  // Map 1: (elem, local_face) -> global_face
+  PROXY_HOST_DEVICE
+  ScalarType globalFace(ScalarType elem, int local_face) const
+  {
+    return elem_to_faces_(elem, local_face);
+  }
+
+  // Map 2: (global_face, local_dof) -> global_node
+  PROXY_HOST_DEVICE
+  ScalarType globalNode(ScalarType face_id, int local_dof) const
+  {
+    return face_dofs_(face_id, local_dof);
+  }
+
+  // Check if boundary
+  PROXY_HOST_DEVICE
+  bool isBoundary(ScalarType face_id) const
+  {
+    return face_elem_neighbor_(face_id) == -1;
+  }
+
+  // Get owner element
+  PROXY_HOST_DEVICE
+  ScalarType elemOwner(ScalarType face_id) const
+  {
+    return face_elem_owner_(face_id);
+  }
+
+  // Get neighbor element
+  PROXY_HOST_DEVICE
+  ScalarType elemNeighbor(ScalarType face_id) const
+  {
+    return face_elem_neighbor_(face_id);
+  }
+
+  // Get local face number on owner element
+  PROXY_HOST_DEVICE
+  int localFaceOwner(ScalarType face_id) const
+  {
+    return face_local_owner_(face_id);
+  }
+
+  // Get local face number on neighbor element
+  PROXY_HOST_DEVICE
+  int localFaceNeighbor(ScalarType face_id) const
+  {
+    return face_local_neighbor_(face_id);
+  }
+};
 
 template <typename FloatType, typename ScalarType>
 struct ModelUnstructData : public ModelDataBase<FloatType, ScalarType>
@@ -220,16 +307,16 @@ class ModelUnstruct final : public ModelApi<FloatType, ScalarType>
     switch (dim)
     {
       case 0: {
-        return nodes_coords_x_[dofGlobal];  // Fixed: was dofGlobalIndex
+        return nodes_coords_x_[dofGlobal];
       }
       case 1: {
-        return nodes_coords_y_[dofGlobal];  // Fixed: was dofGlobalIndex
+        return nodes_coords_y_[dofGlobal];
       }
       case 2: {
-        return nodes_coords_z_[dofGlobal];  // Fixed: was dofGlobalIndex
+        return nodes_coords_z_[dofGlobal];
       }
       default:
-        return FloatType(-1);  // Cast to proper type
+        return FloatType(-1);
     }
   }
 
@@ -246,7 +333,7 @@ class ModelUnstruct final : public ModelApi<FloatType, ScalarType>
   {
     const auto localDofIndex =
         i + j * (order_ + 1) + k * (order_ + 1) * (order_ + 1);
-    return global_node_index_(e, localDofIndex);  // Fixed: was elementIndex
+    return global_node_index_(e, localDofIndex);
   }
 
   /**
@@ -256,7 +343,7 @@ class ModelUnstruct final : public ModelApi<FloatType, ScalarType>
    */
   PROXY_HOST_DEVICE
   FloatType getModelVpOnNodes(ScalarType n) const final
-  {  // Added const, removed virtual
+  {
     return model_vp_node_[n];
   }
 
@@ -267,8 +354,8 @@ class ModelUnstruct final : public ModelApi<FloatType, ScalarType>
    */
   PROXY_HOST_DEVICE
   FloatType getModelVpOnElement(ScalarType e) const final
-  {                               // Added const, removed virtual, fixed typo
-    return model_vp_element_[e];  // Fixed: was "reutrn"
+  {
+    return model_vp_element_[e];
   }
 
   /**
@@ -278,7 +365,7 @@ class ModelUnstruct final : public ModelApi<FloatType, ScalarType>
    */
   PROXY_HOST_DEVICE
   FloatType getModelRhoOnNodes(ScalarType n) const final
-  {  // Added const, removed virtual
+  {
     return model_rho_node_[n];
   }
 
@@ -289,7 +376,7 @@ class ModelUnstruct final : public ModelApi<FloatType, ScalarType>
    */
   PROXY_HOST_DEVICE
   FloatType getModelRhoOnElement(ScalarType e) const final
-  {  // Added const, removed virtual
+  {
     return model_rho_element_[e];
   }
 
@@ -497,20 +584,14 @@ class ModelUnstruct final : public ModelApi<FloatType, ScalarType>
    * @return Total element count
    */
   PROXY_HOST_DEVICE
-  ScalarType getNumberOfElements() const final
-  {  // Added const, removed virtual
-    return n_element_;
-  }
+  ScalarType getNumberOfElements() const final { return n_element_; }
 
   /**
    * @brief Get the total number of global nodes in the mesh.
    * @return Total node count
    */
   PROXY_HOST_DEVICE
-  ScalarType getNumberOfNodes() const final
-  {  // Added const, removed virtual
-    return n_node_;
-  }
+  ScalarType getNumberOfNodes() const final { return n_node_; }
 
   /**
    * @brief Get the number of interpolation points per element.
@@ -527,10 +608,7 @@ class ModelUnstruct final : public ModelApi<FloatType, ScalarType>
    * @return ORDER
    */
   PROXY_HOST_DEVICE
-  int getOrder() const final
-  {
-    return static_cast<int>(order_);  // Cast to int for consistency
-  }
+  int getOrder() const final { return static_cast<int>(order_); }
 
   /**
    * @brief Get the boundary type of a given node.
@@ -551,11 +629,82 @@ class ModelUnstruct final : public ModelApi<FloatType, ScalarType>
    * @param[out] v Output array (size 3) holding the normal vector
    */
   PROXY_HOST_DEVICE
-  void faceNormal(ScalarType e, int dir, int face, FloatType v[3]) const final
+  void faceNormal(ScalarType e, int local_face, FloatType v[3]) const
   {
-    // TODO: Implement actual face normal computation
-    // throw std::runtime_error("FaceNormal not implemented");
-    return;
+    // Get 3 corners of the face (sufficient to define the plane)
+    ScalarType n0 = globalNodeIndex(e, 0, 0, 0);  // Will be overwritten
+    ScalarType n1 = globalNodeIndex(e, 0, 0, 0);
+    ScalarType n2 = globalNodeIndex(e, 0, 0, 0);
+
+    const int o = order_;
+
+    // Get corners based on face orientation
+    switch (local_face)
+    {
+      case 0:  // x- face
+        n0 = globalNodeIndex(e, 0, 0, 0);
+        n1 = globalNodeIndex(e, 0, o, 0);
+        n2 = globalNodeIndex(e, 0, 0, o);
+        break;
+      case 1:  // x+ face
+        n0 = globalNodeIndex(e, o, 0, 0);
+        n1 = globalNodeIndex(e, o, 0, o);
+        n2 = globalNodeIndex(e, o, o, 0);
+        break;
+      case 2:  // y- face
+        n0 = globalNodeIndex(e, 0, 0, 0);
+        n1 = globalNodeIndex(e, 0, 0, o);
+        n2 = globalNodeIndex(e, o, 0, 0);
+        break;
+      case 3:  // y+ face
+        n0 = globalNodeIndex(e, 0, o, 0);
+        n1 = globalNodeIndex(e, o, o, 0);
+        n2 = globalNodeIndex(e, 0, o, o);
+        break;
+      case 4:  // z- face
+        n0 = globalNodeIndex(e, 0, 0, 0);
+        n1 = globalNodeIndex(e, o, 0, 0);
+        n2 = globalNodeIndex(e, 0, o, 0);
+        break;
+      case 5:  // z+ face
+        n0 = globalNodeIndex(e, 0, 0, o);
+        n1 = globalNodeIndex(e, 0, o, o);
+        n2 = globalNodeIndex(e, o, 0, o);
+        break;
+    }
+
+    // Get coordinates
+    FloatType p0[3], p1[3], p2[3];
+    for (int d = 0; d < 3; ++d)
+    {
+      p0[d] = nodeCoord(n0, d);
+      p1[d] = nodeCoord(n1, d);
+      p2[d] = nodeCoord(n2, d);
+    }
+
+    // Two tangent vectors
+    FloatType t1[3], t2[3];
+    t1[0] = p1[0] - p0[0];
+    t1[1] = p1[1] - p0[1];
+    t1[2] = p1[2] - p0[2];
+
+    t2[0] = p2[0] - p0[0];
+    t2[1] = p2[1] - p0[1];
+    t2[2] = p2[2] - p0[2];
+
+    // Cross product: v = t1 × t2
+    v[0] = t1[1] * t2[2] - t1[2] * t2[1];
+    v[1] = t1[2] * t2[0] - t1[0] * t2[2];
+    v[2] = t1[0] * t2[1] - t1[1] * t2[0];
+
+    // Normalize
+    FloatType norm = sqrt(v[0] * v[0] + v[1] * v[1] + v[2] * v[2]);
+    if (norm > 1e-12)
+    {
+      v[0] /= norm;
+      v[1] /= norm;
+      v[2] /= norm;
+    }
   }
 
   /**
@@ -690,6 +839,109 @@ class ModelUnstruct final : public ModelApi<FloatType, ScalarType>
     return max(maxSpeedElem, maxSpeedNode);
   }
 
+  // ============================================================================
+  // FACE CONNECTIVITY FUNCTIONS
+  // ============================================================================
+
+  /**
+   * @brief Build face connectivity map for the unstructured mesh
+   * Must be called after construction if face information is needed
+   * Constructs two maps:
+   * - Map 1: (element, local_face) -> global_face
+   * - Map 2: (global_face, local_dof) -> global_node
+   */
+  void buildFaceConnectivity()
+  {
+    // Step 1: Build on CPU using temporary structures
+    std::vector<FaceDataTemp<ScalarType>> faces_temp;
+    std::vector<std::vector<ScalarType>> elem_to_faces_temp(n_element_);
+
+    using FaceKey = std::array<ScalarType, 4>;
+    std::map<FaceKey, ScalarType> face_map;
+
+    // Construction loop
+    for (ScalarType elem = 0; elem < n_element_; ++elem)
+    {
+      elem_to_faces_temp[elem].resize(6);
+
+      for (int local_face = 0; local_face < 6; ++local_face)
+      {
+        auto corners = extractFaceCorners(elem, local_face);
+        auto face_key = makeFaceKey(corners);
+
+        auto it = face_map.find(face_key);
+        if (it == face_map.end())
+        {
+          // New face
+          ScalarType face_id = faces_temp.size();
+          face_map[face_key] = face_id;
+
+          FaceDataTemp<ScalarType> face;
+          face.dofs = extractFaceDofs(elem, local_face);
+          face.elem_owner = elem;
+          face.local_face_owner = local_face;
+          faces_temp.push_back(face);
+
+          elem_to_faces_temp[elem][local_face] = face_id;
+        }
+        else
+        {
+          // Face already seen (internal face)
+          ScalarType face_id = it->second;
+          faces_temp[face_id].elem_neighbor = elem;
+          faces_temp[face_id].local_face_neighbor = local_face;
+
+          elem_to_faces_temp[elem][local_face] = face_id;
+        }
+      }
+    }
+
+    // Step 2: Copy to Kokkos Views (GPU-compatible)
+    copyToKokkosViews(faces_temp, elem_to_faces_temp);
+  }
+
+  /**
+   * @brief Get global face number from element and local face (GPU-compatible)
+   * @param elem Element index
+   * @param local_face Local face number (0-5)
+   * @return Global face index
+   */
+  PROXY_HOST_DEVICE
+  ScalarType getGlobalFace(ScalarType elem, int local_face) const
+  {
+    return face_connectivity_.globalFace(elem, local_face);
+  }
+
+  /**
+   * @brief Get global node number from face and local DOF (GPU-compatible)
+   * @param face_global Global face index
+   * @param local_dof Local DOF index on the face (0 to (order+1)² - 1)
+   * @return Global node index
+   */
+  PROXY_HOST_DEVICE
+  ScalarType getGlobalNodeFromFace(ScalarType face_global, int local_dof) const
+  {
+    return face_connectivity_.globalNode(face_global, local_dof);
+  }
+
+  /**
+   * @brief Check if a face is on the boundary (GPU-compatible)
+   * @param face_global Global face index
+   * @return True if boundary face, false otherwise
+   */
+  PROXY_HOST_DEVICE
+  bool isBoundaryFace(ScalarType face_global) const
+  {
+    return face_connectivity_.isBoundary(face_global);
+  }
+
+  /**
+   * @brief Get total number of faces (GPU-compatible)
+   * @return Number of faces in the mesh
+   */
+  PROXY_HOST_DEVICE
+  ScalarType getNumberOfFaces() const { return face_connectivity_.numFaces(); }
+
  private:
   ScalarType order_;
   ScalarType n_element_;
@@ -724,8 +976,188 @@ class ModelUnstruct final : public ModelApi<FloatType, ScalarType>
   VECTOR_REAL_VIEW model_phi_node_;
   VECTOR_REAL_VIEW model_phi_element_;
   ARRAY3D_REAL_VIEW model_C_tensor_element_;
-
   VECTOR_REAL_VIEW boundaries_t_;
+
+  // Face connectivity (GPU-compatible)
+  FaceConnectivity<ScalarType> face_connectivity_;
+
+  /**
+   * @brief Copy temporary CPU structures to Kokkos Views
+   */
+  void copyToKokkosViews(
+      const std::vector<FaceDataTemp<ScalarType>>& faces_temp,
+      const std::vector<std::vector<ScalarType>>& elem_to_faces_temp)
+  {
+    int n_faces = faces_temp.size();
+    int ndofs_per_face = (order_ + 1) * (order_ + 1);
+
+    face_connectivity_.n_faces_ = n_faces;
+    face_connectivity_.ndofs_per_face_ = ndofs_per_face;
+
+    // Allocate Kokkos Views
+    face_connectivity_.elem_to_faces_ =
+        allocateArray2D<ARRAY_INT_VIEW>(n_element_, 6);
+    face_connectivity_.face_dofs_ =
+        allocateArray2D<ARRAY_INT_VIEW>(n_faces, ndofs_per_face);
+    face_connectivity_.face_elem_owner_ =
+        allocateVector<VECTOR_INT_VIEW>(n_faces);
+    face_connectivity_.face_elem_neighbor_ =
+        allocateVector<VECTOR_INT_VIEW>(n_faces);
+    face_connectivity_.face_local_owner_ =
+        allocateVector<VECTOR_INT_VIEW>(n_faces);
+    face_connectivity_.face_local_neighbor_ =
+        allocateVector<VECTOR_INT_VIEW>(n_faces);
+
+    // Create mirror views for filling on host
+    auto elem_to_faces_h =
+        Kokkos::create_mirror_view(face_connectivity_.elem_to_faces_);
+    auto face_dofs_h =
+        Kokkos::create_mirror_view(face_connectivity_.face_dofs_);
+    auto face_elem_owner_h =
+        Kokkos::create_mirror_view(face_connectivity_.face_elem_owner_);
+    auto face_elem_neighbor_h =
+        Kokkos::create_mirror_view(face_connectivity_.face_elem_neighbor_);
+    auto face_local_owner_h =
+        Kokkos::create_mirror_view(face_connectivity_.face_local_owner_);
+    auto face_local_neighbor_h =
+        Kokkos::create_mirror_view(face_connectivity_.face_local_neighbor_);
+
+    // Fill mirror views from temp data
+    for (ScalarType elem = 0; elem < n_element_; ++elem)
+    {
+      for (int lf = 0; lf < 6; ++lf)
+      {
+        elem_to_faces_h(elem, lf) = elem_to_faces_temp[elem][lf];
+      }
+    }
+
+    for (int face_id = 0; face_id < n_faces; ++face_id)
+    {
+      const auto& face = faces_temp[face_id];
+
+      face_elem_owner_h(face_id) = face.elem_owner;
+      face_elem_neighbor_h(face_id) = face.elem_neighbor;
+      face_local_owner_h(face_id) = face.local_face_owner;
+      face_local_neighbor_h(face_id) = face.local_face_neighbor;
+
+      for (int dof = 0; dof < ndofs_per_face; ++dof)
+      {
+        face_dofs_h(face_id, dof) = face.dofs[dof];
+      }
+    }
+
+    // Deep copy to device
+    Kokkos::deep_copy(face_connectivity_.elem_to_faces_, elem_to_faces_h);
+    Kokkos::deep_copy(face_connectivity_.face_dofs_, face_dofs_h);
+    Kokkos::deep_copy(face_connectivity_.face_elem_owner_, face_elem_owner_h);
+    Kokkos::deep_copy(face_connectivity_.face_elem_neighbor_,
+                      face_elem_neighbor_h);
+    Kokkos::deep_copy(face_connectivity_.face_local_owner_, face_local_owner_h);
+    Kokkos::deep_copy(face_connectivity_.face_local_neighbor_,
+                      face_local_neighbor_h);
+  }
+
+  /**
+   * @brief Extract the 4 corner vertices for a face
+   * Face numbering convention:
+   * 0: x- (left)   1: x+ (right)
+   * 2: y- (front)  3: y+ (back)
+   * 4: z- (bottom) 5: z+ (top)
+   */
+  std::array<ScalarType, 4> extractFaceCorners(ScalarType elem,
+                                               int local_face) const
+  {
+    const int o = order_;
+
+    switch (local_face)
+    {
+      case 0:  // x- (i=0)
+        return {
+            globalVertexIndex(elem, 0, 0, 0), globalVertexIndex(elem, 0, 1, 0),
+            globalVertexIndex(elem, 0, 1, 1), globalVertexIndex(elem, 0, 0, 1)};
+      case 1:  // x+ (i=1)
+        return {
+            globalVertexIndex(elem, 1, 0, 0), globalVertexIndex(elem, 1, 1, 0),
+            globalVertexIndex(elem, 1, 1, 1), globalVertexIndex(elem, 1, 0, 1)};
+      case 2:  // y- (j=0)
+        return {
+            globalVertexIndex(elem, 0, 0, 0), globalVertexIndex(elem, 1, 0, 0),
+            globalVertexIndex(elem, 1, 0, 1), globalVertexIndex(elem, 0, 0, 1)};
+      case 3:  // y+ (j=1)
+        return {
+            globalVertexIndex(elem, 0, 1, 0), globalVertexIndex(elem, 1, 1, 0),
+            globalVertexIndex(elem, 1, 1, 1), globalVertexIndex(elem, 0, 1, 1)};
+      case 4:  // z- (k=0)
+        return {
+            globalVertexIndex(elem, 0, 0, 0), globalVertexIndex(elem, 1, 0, 0),
+            globalVertexIndex(elem, 1, 1, 0), globalVertexIndex(elem, 0, 1, 0)};
+      case 5:  // z+ (k=1)
+        return {
+            globalVertexIndex(elem, 0, 0, 1), globalVertexIndex(elem, 1, 0, 1),
+            globalVertexIndex(elem, 1, 1, 1), globalVertexIndex(elem, 0, 1, 1)};
+    }
+    return {};
+  }
+
+  /**
+   * @brief Extract ALL DOFs on a face in lexicographic order
+   */
+  std::vector<ScalarType> extractFaceDofs(ScalarType elem, int local_face) const
+  {
+    const int o = order_;
+    const int ndofs = (o + 1) * (o + 1);
+    std::vector<ScalarType> dofs;
+    dofs.reserve(ndofs);
+
+    switch (local_face)
+    {
+      case 0:  // x- (i=0, varies j then k)
+        for (int k = 0; k <= o; ++k)
+          for (int j = 0; j <= o; ++j)
+            dofs.push_back(globalNodeIndex(elem, 0, j, k));
+        break;
+
+      case 1:  // x+ (i=order, varies j then k)
+        for (int k = 0; k <= o; ++k)
+          for (int j = 0; j <= o; ++j)
+            dofs.push_back(globalNodeIndex(elem, o, j, k));
+        break;
+
+      case 2:  // y- (j=0, varies i then k)
+        for (int k = 0; k <= o; ++k)
+          for (int i = 0; i <= o; ++i)
+            dofs.push_back(globalNodeIndex(elem, i, 0, k));
+        break;
+
+      case 3:  // y+ (j=order, varies i then k)
+        for (int k = 0; k <= o; ++k)
+          for (int i = 0; i <= o; ++i)
+            dofs.push_back(globalNodeIndex(elem, i, o, k));
+        break;
+
+      case 4:  // z- (k=0, varies i then j)
+        for (int j = 0; j <= o; ++j)
+          for (int i = 0; i <= o; ++i)
+            dofs.push_back(globalNodeIndex(elem, i, j, 0));
+        break;
+
+      case 5:  // z+ (k=order, varies i then j)
+        for (int j = 0; j <= o; ++j)
+          for (int i = 0; i <= o; ++i)
+            dofs.push_back(globalNodeIndex(elem, i, j, o));
+        break;
+    }
+    return dofs;
+  }
+
+  /**
+   * @brief Create canonical face key (sorted vertices for uniqueness)
+   */
+  std::array<ScalarType, 4> makeFaceKey(std::array<ScalarType, 4> corners) const
+  {
+    std::sort(corners.begin(), corners.end());
+    return corners;
+  }
 };
 }  // namespace model
 

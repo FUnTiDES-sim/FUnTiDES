@@ -79,6 +79,7 @@ class SEMsolver : public SEMSolverBase
   void initSpongeValues() override;
   void resetGlobalVectors(int numNodes) override;
   void computeGlobalMassMatrix() override;
+  void computeDampingMatrix() override;
 
   void outputSolutionValues(const int& indexTimeStep, int& i1,
                             int& myElementSource, const ARRAY_REAL_VIEW& field,
@@ -150,6 +151,8 @@ class SEMsolver : public SEMSolverBase
 
   VECTOR_REAL_VIEW spongeTaperCoeff_;  ///< Sponge tapering coefficients
   VECTOR_REAL_VIEW massMatrixGlobal_;  ///< Global mass matrix
+  std::array<VECTOR_REAL_VIEW, kNumFields>
+      dampingMatrixGlobal_;  ///< Global damping matrix (one per field)
 
   /// Work vectors for accumulating element contributions
   /// Size is kNumFields (1 for acoustic, 3 for elastic)

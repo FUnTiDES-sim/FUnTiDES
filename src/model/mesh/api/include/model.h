@@ -273,8 +273,7 @@ class ModelApi
    * @param[out] v Output array (size 3) holding the normal vector
    */
   PROXY_HOST_DEVICE
-  virtual void faceNormal(ScalarType e, int dir, int face,
-                          FloatType v[3]) const = 0;
+  virtual void faceNormal(ScalarType e, int face, FloatType v[3]) const = 0;
 
   /**
    * @brief Get the size of the domain in the specified dimension.

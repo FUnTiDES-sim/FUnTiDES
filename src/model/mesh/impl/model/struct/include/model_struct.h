@@ -485,22 +485,47 @@ class ModelStruct : public ModelApi<FloatType, ScalarType>
   PROXY_HOST_DEVICE
   BoundaryFlag boundaryType(ScalarType n) const
   {
-    // throw std::runtime_error("boundaryType not implemented (model struct)");
     return BoundaryFlag::InteriorNode;
   }
 
   /**
    * @brief Compute the outward unit normal vector of an element face.
+   * Face convention: 0:x-, 1:x+, 2:y-, 3:y+, 4:z-, 5:z+
    * @param e Element index
    * @param dir Axis direction (0 = x, 1 = y, 2 = z)
    * @param face 1 = negative side, 2 = positive side in that direction
    * @param[out] v Output array (size 3) holding the normal vector
    */
   PROXY_HOST_DEVICE
-  void faceNormal(ScalarType e, int dir, int face, FloatType v[3]) const
+  void faceNormal(ScalarType e, int local_face, FloatType v[3]) const
   {
-    // throw std::runtime_error("faceNormal not implemented (model struct)");
-    return;
+    // Initialize to zero
+    v[0] = 0.0;
+    v[1] = 0.0;
+    v[2] = 0.0;
+
+    // Set normal based on local face number
+    switch (local_face)
+    {
+      case 0:
+        v[0] = -1.0;
+        break;  // x- face
+      case 1:
+        v[0] = +1.0;
+        break;  // x+ face
+      case 2:
+        v[1] = -1.0;
+        break;  // y- face
+      case 3:
+        v[1] = +1.0;
+        break;  // y+ face
+      case 4:
+        v[2] = -1.0;
+        break;  // z- face
+      case 5:
+        v[2] = +1.0;
+        break;  // z+ face
+    }
   }
 
   /**
@@ -548,6 +573,179 @@ class ModelStruct : public ModelApi<FloatType, ScalarType>
 
   PROXY_HOST_DEVICE
   bool isElastic() const { return isElastic_; }
+
+  // ============================================================================
+  // FACE CONNECTIVITY FUNCTIONS (Optimized for Cartesian mesh)
+  // ============================================================================
+
+  /**
+   * @brief Get global face number from element and local face (direct
+   * calculation) No construction needed - computed on-the-fly for Cartesian
+   * meshes Face numbering convention: 0: x- (left)   1: x+ (right) 2: y-
+   * (front)  3: y+ (back) 4: z- (bottom) 5: z+ (top)
+   *
+   * @param elem_linear Linear element index
+   * @param local_face Local face number (0-5)
+   * @return Global face index
+   */
+  PROXY_HOST_DEVICE
+  ScalarType getGlobalFace(ScalarType elem_linear, int local_face) const
+  {
+    // Convert to 3D indices
+    ScalarType ez = elem_linear / (ex_ * ey_);
+    ScalarType tmp = elem_linear % (ex_ * ey_);
+    ScalarType ey = tmp / ex_;
+    ScalarType ex = tmp % ex_;
+
+    // Number of faces per direction
+    ScalarType num_faces_x = (ex_ + 1) * ey_ * ez_;
+    ScalarType num_faces_y = ex_ * (ey_ + 1) * ez_;
+
+    // Offsets for each face type
+    ScalarType offset_x = 0;
+    ScalarType offset_y = num_faces_x;
+    ScalarType offset_z = num_faces_x + num_faces_y;
+
+    switch (local_face)
+    {
+      case 0:  // Face x- : face ex in x
+        return offset_x + ex + ey * (ex_ + 1) + ez * (ex_ + 1) * ey_;
+
+      case 1:  // Face x+ : face ex+1 in x
+        return offset_x + (ex + 1) + ey * (ex_ + 1) + ez * (ex_ + 1) * ey_;
+
+      case 2:  // Face y- : face ey in y
+        return offset_y + ex + ey * ex_ + ez * ex_ * (ey_ + 1);
+
+      case 3:  // Face y+ : face ey+1 in y
+        return offset_y + ex + (ey + 1) * ex_ + ez * ex_ * (ey_ + 1);
+
+      case 4:  // Face z- : face ez in z
+        return offset_z + ex + ey * ex_ + ez * ex_ * ey_;
+
+      case 5:  // Face z+ : face ez+1 in z
+        return offset_z + ex + ey * ex_ + (ez + 1) * ex_ * ey_;
+
+      default:
+        return -1;
+    }
+  }
+
+  /**
+   * @brief Get global node from face and local DOF (direct calculation)
+   * @param face_global Global face index
+   * @param local_dof Local DOF on face (0 to (Order+1)² - 1)
+   * @return Global node index
+   */
+  PROXY_HOST_DEVICE
+  ScalarType getGlobalNodeFromFace(ScalarType face_global, int local_dof) const
+  {
+    ScalarType num_faces_x = (ex_ + 1) * ey_ * ez_;
+    ScalarType num_faces_y = ex_ * (ey_ + 1) * ez_;
+
+    if (face_global < num_faces_x)
+    {
+      // Face in X direction
+      ScalarType face_idx = face_global;
+      ScalarType i = face_idx % (ex_ + 1);
+      ScalarType j = (face_idx / (ex_ + 1)) % ey_;
+      ScalarType k = face_idx / ((ex_ + 1) * ey_);
+
+      // Convert local_dof to (dj, dk) on the face
+      int dj = local_dof % (Order + 1);
+      int dk = local_dof / (Order + 1);
+
+      // Global node
+      ScalarType ni = i;
+      ScalarType nj = j * Order + dj;
+      ScalarType nk = k * Order + dk;
+
+      return ni + nj * nx_ + nk * nx_ * ny_;
+    }
+    else if (face_global < num_faces_x + num_faces_y)
+    {
+      // Face in Y direction
+      ScalarType face_idx = face_global - num_faces_x;
+      ScalarType i = face_idx % ex_;
+      ScalarType j = (face_idx / ex_) % (ey_ + 1);
+      ScalarType k = face_idx / (ex_ * (ey_ + 1));
+
+      // Convert local_dof to (di, dk) on the face
+      int di = local_dof % (Order + 1);
+      int dk = local_dof / (Order + 1);
+
+      // Global node
+      ScalarType ni = i * Order + di;
+      ScalarType nj = j;
+      ScalarType nk = k * Order + dk;
+
+      return ni + nj * nx_ + nk * nx_ * ny_;
+    }
+    else
+    {
+      // Face in Z direction
+      ScalarType face_idx = face_global - num_faces_x - num_faces_y;
+      ScalarType i = face_idx % ex_;
+      ScalarType j = (face_idx / ex_) % ey_;
+      ScalarType k = face_idx / (ex_ * ey_);
+
+      // Convert local_dof to (di, dj) on the face
+      int di = local_dof % (Order + 1);
+      int dj = local_dof / (Order + 1);
+
+      // Global node
+      ScalarType ni = i * Order + di;
+      ScalarType nj = j * Order + dj;
+      ScalarType nk = k;
+
+      return ni + nj * nx_ + nk * nx_ * ny_;
+    }
+  }
+
+  /**
+   * @brief Check if a face is on the boundary
+   * @param face_global Global face index
+   * @return True if boundary face, false otherwise
+   */
+  PROXY_HOST_DEVICE
+  bool isBoundaryFace(ScalarType face_global) const
+  {
+    ScalarType num_faces_x = (ex_ + 1) * ey_ * ez_;
+    ScalarType num_faces_y = ex_ * (ey_ + 1) * ez_;
+
+    if (face_global < num_faces_x)
+    {
+      // Face in X direction
+      ScalarType i = face_global % (ex_ + 1);
+      return (i == 0 || i == ex_);
+    }
+    else if (face_global < num_faces_x + num_faces_y)
+    {
+      // Face in Y direction
+      ScalarType face_idx = face_global - num_faces_x;
+      ScalarType j = (face_idx / ex_) % (ey_ + 1);
+      return (j == 0 || j == ey_);
+    }
+    else
+    {
+      // Face in Z direction
+      ScalarType face_idx = face_global - num_faces_x - num_faces_y;
+      ScalarType k = face_idx / (ex_ * ey_);
+      return (k == 0 || k == ez_);
+    }
+  }
+
+  /**
+   * @brief Get total number of faces
+   * @return Number of faces in the mesh
+   */
+  PROXY_HOST_DEVICE
+  ScalarType getNumberOfFaces() const
+  {
+    return (ex_ + 1) * ey_ * ez_ +  // Faces in X
+           ex_ * (ey_ + 1) * ez_ +  // Faces in Y
+           ex_ * ey_ * (ez_ + 1);   // Faces in Z
+  }
 
  private:
   ScalarType ex_, ey_, ez_;  // Nb elements in each direction

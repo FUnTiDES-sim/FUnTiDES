@@ -54,6 +54,7 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES,
   allocateFEarrays();
   initFEarrays();
   computeGlobalMassMatrix();
+  computeDampingMatrix();
 }
 
 //============================================================================
@@ -390,9 +391,14 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES,
   {
     for (int f = 0; f < kNumFields; ++f)
     {
+      real_t dampingRatio =
+          dt * dampingMatrixGlobal_[f][I] / massMatrixGlobal_[I];
+
       data.m_fieldsGlobal[f](I, i1) =
-          2 * data.m_fieldsGlobal[f](I, i2) - data.m_fieldsGlobal[f](I, i1) -
+          (2.0 - dampingRatio) * data.m_fieldsGlobal[f](I, i2) -
+          (1.0 - dampingRatio) * data.m_fieldsGlobal[f](I, i1) -
           dt2 * workVectorsGlobal_[f][I] / massMatrixGlobal_[I];
+
       data.m_fieldsGlobal[f](I, i1) *= spongeTaperCoeff_(I);
       data.m_fieldsGlobal[f](I, i2) *= spongeTaperCoeff_(I);
     }
@@ -473,6 +479,124 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES,
 }
 
 //============================================================================
+// computeGlobalDampingMatrix - Assemble damping matrix
+//============================================================================
+
+template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE,
+          bool IS_MODEL_ON_NODES, physicType PHYSICS>
+void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES,
+               PHYSICS>::computeDampingMatrix()
+{
+  MAINLOOPHEAD(m_mesh.getNumberOfElements(), elementNumber)
+  // Guard for extra threads (Kokkos might launch more than needed)
+  if (elementNumber >= m_mesh.getNumberOfElements()) return;
+
+  for (int i = 0; i < 6; ++i)
+  {
+    // Get global face index
+    int f = m_mesh.getGlobalFace(elementNumber, i);
+
+    // Only process boundary faces for ABC
+    if (!m_mesh.isBoundaryFace(f)) continue;
+
+    // Get corner coordinates of the face (4 corners for a quad face)
+    float coords[4][3];
+    for (int j = 0; j < 4; ++j)
+    {
+      int const globalNodeIndex = m_mesh.getGlobalNodeFromFace(
+          f, INTEGRAL_TYPE::meshIndexToLinearIndex2D(j));
+
+      for (int d = 0; d < 3; ++d)
+      {
+        coords[j][d] = m_mesh.nodeCoord(globalNodeIndex, d);
+      }
+    }
+
+    if constexpr (PHYSICS == enums::physicType::kAcoustic)
+    {
+      // Get material properties for this face
+      real_t model_rho = 0.0f;
+      real_t model_vp = 0.0f;
+      if constexpr (IS_MODEL_ON_NODES)
+      {
+        // Average material properties from face corners
+        for (int j = 0; j < 4; ++j)
+        {
+          int const globalNodeIndex = m_mesh.getGlobalNodeFromFace(
+              f, INTEGRAL_TYPE::meshIndexToLinearIndex2D(j));
+          model_rho += m_mesh.getModelRhoOnNodes(globalNodeIndex);
+          model_vp += m_mesh.getModelVpOnNodes(globalNodeIndex);
+        }
+        model_rho /= 4.0f;
+        model_vp /= 4.0f;
+      }
+      else
+      {
+        model_rho = m_mesh.getModelRhoOnElement(elementNumber);
+        model_vp = m_mesh.getModelVpOnElement(elementNumber);
+      }
+
+      // Compute damping coefficient
+      real_t alpha = 1.0 / (model_rho * model_vp);
+
+      // Apply damping to all DOFs on the boundary face
+      constexpr int numNodesPerFace = (ORDER + 1) * (ORDER + 1);
+      for (int q = 0; q < numNodesPerFace; ++q)
+      {
+        int const globalNodeIndex = m_mesh.getGlobalNodeFromFace(f, q);
+        real_t localIncrement =
+            alpha * INTEGRAL_TYPE::computeDampingTerm(q, coords);
+
+        ATOMICADD(dampingMatrixGlobal_[0][globalNodeIndex], localIncrement);
+      }
+    }
+
+    else
+    {
+      float normal[3];
+      m_mesh.faceNormal(elementNumber, i, normal);
+      real_t nx = normal[0], ny = normal[1], nz = normal[2];
+
+      real_t density, velocityVp, velocityVs;
+      if constexpr (IS_MODEL_ON_NODES)
+      {
+        // Use element values for simplicity (or average from corners)
+        density = m_mesh.getModelRhoOnElement(elementNumber);
+        velocityVp = m_mesh.getModelVpOnElement(elementNumber);
+        velocityVs = m_mesh.getModelVsOnElement(elementNumber);
+      }
+      else
+      {
+        density = m_mesh.getModelRhoOnElement(elementNumber);
+        velocityVp = m_mesh.getModelVpOnElement(elementNumber);
+        velocityVs = m_mesh.getModelVsOnElement(elementNumber);
+      }
+
+      // Apply damping to all DOFs on face
+      constexpr int numNodesPerFace = (ORDER + 1) * (ORDER + 1);
+      for (int q = 0; q < numNodesPerFace; ++q)
+      {
+        int const globalNodeIndex = m_mesh.getGlobalNodeFromFace(f, q);
+        real_t aux = density * INTEGRAL_TYPE::computeDampingTerm(q, coords);
+
+        real_t localIncrementx = aux * (velocityVp * fabs(nx) +
+                                        velocityVs * sqrt(ny * ny + nz * nz));
+        real_t localIncrementy = aux * (velocityVp * fabs(ny) +
+                                        velocityVs * sqrt(nx * nx + nz * nz));
+        real_t localIncrementz = aux * (velocityVp * fabs(nz) +
+                                        velocityVs * sqrt(nx * nx + ny * ny));
+
+        ATOMICADD(dampingMatrixGlobal_[0][globalNodeIndex], localIncrementx);
+        ATOMICADD(dampingMatrixGlobal_[1][globalNodeIndex], localIncrementy);
+        ATOMICADD(dampingMatrixGlobal_[2][globalNodeIndex], localIncrementz);
+      }
+    }
+  }
+
+  MAINLOOPEND
+}
+
+//============================================================================
 // allocateFEarrays - Allocate memory for FE arrays
 //============================================================================
 
@@ -484,6 +608,14 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES,
   // Shared arrays
   massMatrixGlobal_ = allocateVector<VECTOR_REAL_VIEW>(
       m_mesh.getNumberOfNodes(), "massMatrixGlobal");
+
+  static constexpr const char* dampingNames[3] = {"dampingX", "dampingY",
+                                                  "dampingZ"};
+  for (int f = 0; f < kNumFields; ++f)
+  {
+    dampingMatrixGlobal_[f] = allocateVector<VECTOR_REAL_VIEW>(
+        m_mesh.getNumberOfNodes(), dampingNames[f]);
+  }
 
   // Allocate work vectors for each field
   static constexpr const char* workVectorNames[3] = {"workVec0", "workVec1",

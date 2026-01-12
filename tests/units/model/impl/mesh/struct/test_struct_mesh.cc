@@ -557,7 +557,7 @@ TYPED_TEST(ModelStructTest, FaceNormal)
 
   typename TestFixture::FloatType normal[3] = {0.0, 0.0, 0.0};
   // Should not crash - current implementation is a no-op
-  model.faceNormal(0, 0, 1, normal);
+  model.faceNormal(0, 1, normal);
   SUCCEED();
 }
 
