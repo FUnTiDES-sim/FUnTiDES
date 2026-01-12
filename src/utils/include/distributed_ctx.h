@@ -12,7 +12,7 @@ namespace utils
  * */
 struct DistributedContext
 {
-  int rank{0};    //< Current rank
+  int rank{0};  //< Current rank
   int size{1};  //< Total number of rank
 };
 
