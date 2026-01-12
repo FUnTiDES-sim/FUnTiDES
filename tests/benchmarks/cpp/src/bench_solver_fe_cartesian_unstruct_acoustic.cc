@@ -144,9 +144,8 @@ BENCHMARK_TEMPLATE_METHOD_F(SolverUnstructFixture, FEInit)
   // Bench
   for (auto _ : state)
   {
-    solver->computeFEInit(*model, this->rank, this->size, this->origin,
-                          this->local_l, this->sponge_size,
-                          this->surface_sponge, this->taper_delta);
+    solver->computeFEInit(*model, this->sponge_size, this->surface_sponge,
+                          this->taper_delta);
   }
 
   // Label
@@ -165,8 +164,7 @@ BENCHMARK_TEMPLATE_METHOD_F(SolverUnstructFixture, OneStep)
                             : modelLocationType::kOnElements,
       physicType::kAcoustic, this->order);
 
-  solver->computeFEInit(*model, this->rank, this->size, this->origin,
-                        this->local_l, this->sponge_size, this->surface_sponge,
+  solver->computeFEInit(*model, this->sponge_size, this->surface_sponge,
                         this->taper_delta);
 
   BenchmarkArrays arrays(this->n_rhs, this->n_time_steps, this->n_dof,
@@ -192,7 +190,8 @@ BENCHMARK_TEMPLATE_METHOD_F(SolverUnstructFixture, OneStep)
   // Bench
   for (auto _ : state)
   {
-    solver->computeOneStep(this->dt, this->time_sample, data);
+    solver->computeForces(this->dt, this->time_sample, data);
+    solver->updateSolution(this->dt, 0, 1, data);
   }
 
   // Label
