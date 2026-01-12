@@ -88,8 +88,10 @@ PYBIND11_MODULE(solver, m)
       .def("compute_fe_init", &SEMSolverBase::computeFEInit, py::arg("model"),
            py::arg("sponge_size") = std::array<float, 3>{0.0f, 0.0f, 0.0f},
            py::arg("sponge_surface") = true, py::arg("taper_delta") = 0)
-      .def("compute_one_step", &SEMSolverBase::computeOneStep, py::arg("dt"),
+      .def("compute_forces", &SEMSolverBase::computeForces, py::arg("dt"),
            py::arg("time_sample"), py::arg("data"))
+      .def("update_solution", &SEMSolverBase::updateSolution, py::arg("dt"),
+           py::arg("i1"), py::arg("i2"), py::arg("data"))
       .def("output_solution_values", &SEMSolverBase::outputSolutionValues,
            py::arg("index_time_step"), py::arg("i1"),
            py::arg("my_element_source"), py::arg("field_global"),
