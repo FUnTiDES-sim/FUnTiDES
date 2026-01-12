@@ -89,14 +89,15 @@ ctest
 > **Note**: Validation tests require analytical reference solutions in `tests/analyticalsolution/` (P.dat for acoustic, Ux.dat for elastic).
             You also need to install adios2 python module to run the validation tests as it runs a python script for receiver output.
 
-### Step 3: Run Examples
+### Step 3: Run Examples inside folder build/bin
+
 
 ```sh
 # Run SEM simulation with 100 x 100 x 100 elements
-./src/main/semproxy -ex 100
+./funtidessem -ex 100 -ey 100 -ez 100
 
 # Run FD simulation
-./src/main/fdproxy
+./funtidesfd
 
 # Run validation with custom parameters
 ./validate_solution --order 2 --mesh ucartesian --elastic --is-model-on-nodes

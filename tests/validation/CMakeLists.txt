@@ -10,7 +10,7 @@ add_executable(validate_solution
 # This ensures the validation works regardless of the build directory name
 # Reference files are stored in tests/analyticalsolution/
 target_compile_definitions(validate_solution PRIVATE
-    FUNTIDES_EXECUTABLE="${CMAKE_BINARY_DIR}/bin/semproxy"
+    FUNTIDES_EXECUTABLE="${CMAKE_BINARY_DIR}/bin/funtides-sem"
     EXTRACT_RECEIVERS_SCRIPT="${CMAKE_SOURCE_DIR}/scripts/adios/adios_single_receiver_viz.py"
     VALIDATION_REFERENCE_ACOUSTIC="${CMAKE_SOURCE_DIR}/tests/validation/analyticalsolution/P.dat"
     VALIDATION_REFERENCE_ELASTIC="${CMAKE_SOURCE_DIR}/tests/validation/analyticalsolution/Ux.dat"
@@ -28,7 +28,7 @@ set(VALIDATION_TOLERANCE_ELASTIC "0.2" CACHE STRING "Elastic validation toleranc
 # Runs all validation tests
 add_custom_target(validate
     COMMAND ${CMAKE_CTEST_COMMAND} -L validation --output-on-failure
-    DEPENDS validate_solution semproxy
+    DEPENDS validate_solution funtides-sem
     WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
     COMMENT "Running all validation tests (24 tests: 2 meshes × 3 orders × 2 types × 2 model-on-nodes)"
 )
@@ -36,7 +36,7 @@ add_custom_target(validate
 # Acoustic only tests
 add_custom_target(validate_acoustic
     COMMAND ${CMAKE_CTEST_COMMAND} -L "validation_acoustic" --output-on-failure
-    DEPENDS validate_solution semproxy
+    DEPENDS validate_solution funtides-sem
     WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
     COMMENT "Running acoustic validation tests"
 )
@@ -44,7 +44,7 @@ add_custom_target(validate_acoustic
 # Elastic only tests
 add_custom_target(validate_elastic
     COMMAND ${CMAKE_CTEST_COMMAND} -L "validation_elastic" --output-on-failure
-    DEPENDS validate_solution semproxy
+    DEPENDS validate_solution funtides-sem
     WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
     COMMENT "Running elastic validation tests"
 )
@@ -52,7 +52,7 @@ add_custom_target(validate_elastic
 # Cartesian mesh only tests
 add_custom_target(validate_cartesian
     COMMAND ${CMAKE_CTEST_COMMAND} -L "mesh_cartesian" --output-on-failure
-    DEPENDS validate_solution semproxy
+    DEPENDS validate_solution funtides-sem
     WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
     COMMENT "Running cartesian mesh validation tests"
 )
@@ -60,7 +60,7 @@ add_custom_target(validate_cartesian
 # Ucartesian mesh only tests
 add_custom_target(validate_ucartesian
     COMMAND ${CMAKE_CTEST_COMMAND} -L "mesh_ucartesian" --output-on-failure
-    DEPENDS validate_solution semproxy
+    DEPENDS validate_solution funtides-sem
     WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
     COMMENT "Running ucartesian mesh validation tests"
 )
@@ -68,7 +68,7 @@ add_custom_target(validate_ucartesian
 # Model on nodes tests
 add_custom_target(validate_model_on_nodes
     COMMAND ${CMAKE_CTEST_COMMAND} -L "model_on_nodes" --output-on-failure
-    DEPENDS validate_solution semproxy
+    DEPENDS validate_solution funtides-sem
     WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
     COMMENT "Running model-on-nodes validation tests"
 )
@@ -76,7 +76,7 @@ add_custom_target(validate_model_on_nodes
 # Model NOT on nodes tests
 add_custom_target(validate_no_model_on_nodes
     COMMAND ${CMAKE_CTEST_COMMAND} -L "no_model_on_nodes" --output-on-failure
-    DEPENDS validate_solution semproxy
+    DEPENDS validate_solution funtides-sem
     WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
     COMMENT "Running validation tests without model-on-nodes"
 )
