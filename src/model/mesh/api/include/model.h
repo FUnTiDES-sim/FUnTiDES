@@ -316,6 +316,13 @@ class ModelApi
    */
   PROXY_HOST_DEVICE
   virtual bool isElastic() const = 0;
+
+  /**
+   * @brief Build face connectivity for absorbing boundary conditions
+   * For unstructured meshes: constructs face maps
+   * For structured meshes: no-op (direct calculation)
+   */
+  virtual void buildFaceConnectivity() = 0;
 };
 
 }  // namespace model

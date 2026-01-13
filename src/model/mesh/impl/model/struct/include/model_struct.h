@@ -509,22 +509,22 @@ class ModelStruct : public ModelApi<FloatType, ScalarType>
     {
       case 0:
         v[0] = -1.0;
-        break;  // x- face
+        break;
       case 1:
         v[0] = +1.0;
-        break;  // x+ face
+        break;
       case 2:
         v[1] = -1.0;
-        break;  // y- face
+        break;
       case 3:
         v[1] = +1.0;
-        break;  // y+ face
+        break;
       case 4:
         v[2] = -1.0;
-        break;  // z- face
+        break;
       case 5:
         v[2] = +1.0;
-        break;  // z+ face
+        break;
     }
   }
 
@@ -608,22 +608,22 @@ class ModelStruct : public ModelApi<FloatType, ScalarType>
 
     switch (local_face)
     {
-      case 0:  // Face x- : face ex in x
+      case 0:
         return offset_x + ex + ey * (ex_ + 1) + ez * (ex_ + 1) * ey_;
 
-      case 1:  // Face x+ : face ex+1 in x
+      case 1:
         return offset_x + (ex + 1) + ey * (ex_ + 1) + ez * (ex_ + 1) * ey_;
 
-      case 2:  // Face y- : face ey in y
+      case 2:
         return offset_y + ex + ey * ex_ + ez * ex_ * (ey_ + 1);
 
-      case 3:  // Face y+ : face ey+1 in y
+      case 3:
         return offset_y + ex + (ey + 1) * ex_ + ez * ex_ * (ey_ + 1);
 
-      case 4:  // Face z- : face ez in z
+      case 4:
         return offset_z + ex + ey * ex_ + ez * ex_ * ey_;
 
-      case 5:  // Face z+ : face ez+1 in z
+      case 5:
         return offset_z + ex + ey * ex_ + (ez + 1) * ex_ * ey_;
 
       default:
@@ -651,12 +651,11 @@ class ModelStruct : public ModelApi<FloatType, ScalarType>
       ScalarType j = (face_idx / (ex_ + 1)) % ey_;
       ScalarType k = face_idx / ((ex_ + 1) * ey_);
 
-      // Convert local_dof to (dj, dk) on the face
       int dj = local_dof % (Order + 1);
       int dk = local_dof / (Order + 1);
 
-      // Global node
-      ScalarType ni = i;
+      // CORRECTION: multiplier par Order
+      ScalarType ni = i * Order;
       ScalarType nj = j * Order + dj;
       ScalarType nk = k * Order + dk;
 
@@ -670,13 +669,11 @@ class ModelStruct : public ModelApi<FloatType, ScalarType>
       ScalarType j = (face_idx / ex_) % (ey_ + 1);
       ScalarType k = face_idx / (ex_ * (ey_ + 1));
 
-      // Convert local_dof to (di, dk) on the face
       int di = local_dof % (Order + 1);
       int dk = local_dof / (Order + 1);
 
-      // Global node
       ScalarType ni = i * Order + di;
-      ScalarType nj = j;
+      ScalarType nj = j * Order;
       ScalarType nk = k * Order + dk;
 
       return ni + nj * nx_ + nk * nx_ * ny_;
@@ -689,14 +686,12 @@ class ModelStruct : public ModelApi<FloatType, ScalarType>
       ScalarType j = (face_idx / ex_) % ey_;
       ScalarType k = face_idx / (ex_ * ey_);
 
-      // Convert local_dof to (di, dj) on the face
       int di = local_dof % (Order + 1);
       int dj = local_dof / (Order + 1);
 
-      // Global node
       ScalarType ni = i * Order + di;
       ScalarType nj = j * Order + dj;
-      ScalarType nk = k;
+      ScalarType nk = k * Order;
 
       return ni + nj * nx_ + nk * nx_ * ny_;
     }
@@ -742,9 +737,17 @@ class ModelStruct : public ModelApi<FloatType, ScalarType>
   PROXY_HOST_DEVICE
   ScalarType getNumberOfFaces() const
   {
-    return (ex_ + 1) * ey_ * ez_ +  // Faces in X
-           ex_ * (ey_ + 1) * ez_ +  // Faces in Y
-           ex_ * ey_ * (ez_ + 1);   // Faces in Z
+    return (ex_ + 1) * ey_ * ez_ + ex_ * (ey_ + 1) * ez_ +
+           ex_ * ey_ * (ez_ + 1);
+  }
+
+  /**
+   * @brief Build face connectivity for absorbing boundary conditions
+   * For structured Cartesian meshes: no construction needed
+   */
+  void buildFaceConnectivity() override
+  {
+    // Nothing to do - faces computed on-the-fly
   }
 
  private:

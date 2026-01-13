@@ -109,6 +109,9 @@ SEMproxy::SEMproxy(const SemProxyOptions& opt)
     throw std::runtime_error("Incorrect mesh type (SEMproxy ctor.)");
   }
 
+  // Build face connectivity for ABCs
+  m_mesh->buildFaceConnectivity();
+
   // time parameters
   if (opt.autodt)
   {

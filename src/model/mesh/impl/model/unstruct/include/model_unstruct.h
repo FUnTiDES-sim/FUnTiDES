@@ -25,18 +25,16 @@ struct FaceDataTemp
   bool isBoundary() const { return elem_neighbor == -1; }
 };
 
-// GPU-compatible face connectivity using project macros
 template <typename ScalarType>
 struct FaceConnectivity
 {
-  // Kokkos Views (GPU-compatible)
-  ARRAY_INT_VIEW elem_to_faces_;     // [n_element][6] -> global_face
-  ARRAY_INT_VIEW face_dofs_;         // [n_faces][ndofs_per_face] -> global_node
-  VECTOR_INT_VIEW face_elem_owner_;  // [n_faces] -> elem_owner
+  ARRAY_INT_VIEW elem_to_faces_;
+  ARRAY_INT_VIEW face_dofs_;
+  VECTOR_INT_VIEW face_elem_owner_;
   VECTOR_INT_VIEW
-      face_elem_neighbor_;  // [n_faces] -> elem_neighbor (-1 if boundary)
-  VECTOR_INT_VIEW face_local_owner_;     // [n_faces] -> local_face_owner
-  VECTOR_INT_VIEW face_local_neighbor_;  // [n_faces] -> local_face_neighbor
+  face_elem_neighbor_;
+  VECTOR_INT_VIEW face_local_owner_;
+  VECTOR_INT_VIEW face_local_neighbor_;
 
   int n_faces_ = 0;
   int ndofs_per_face_ = 0;
@@ -44,49 +42,82 @@ struct FaceConnectivity
   PROXY_HOST_DEVICE
   ScalarType numFaces() const { return n_faces_; }
 
-  // Map 1: (elem, local_face) -> global_face
+  /**
+   * @brief Map element and local face to global face index
+   * @param elem Element index
+   * @param local_face Local face number (0-5: 0=x-, 1=x+, 2=y-, 3=y+, 4=z-,
+   * 5=z+)
+   * @return Global face index
+   */
   PROXY_HOST_DEVICE
   ScalarType globalFace(ScalarType elem, int local_face) const
   {
     return elem_to_faces_(elem, local_face);
   }
 
-  // Map 2: (global_face, local_dof) -> global_node
+  /**
+   * @brief Map global face and local DOF to global node index
+   * @param face_id Global face index
+   * @param local_dof Local DOF on face (0 to (order+1)²-1, lexicographic
+   * ordering)
+   * @return Global node index
+   */
   PROXY_HOST_DEVICE
   ScalarType globalNode(ScalarType face_id, int local_dof) const
   {
     return face_dofs_(face_id, local_dof);
   }
 
-  // Check if boundary
+  /**
+   * @brief Check if a face is on the domain boundary
+   * @param face_id Global face index
+   * @return True if boundary face (no neighbor element), false if internal
+   */
   PROXY_HOST_DEVICE
   bool isBoundary(ScalarType face_id) const
   {
     return face_elem_neighbor_(face_id) == -1;
   }
 
-  // Get owner element
+  /**
+   * @brief Get the owner element of a face
+   * @param face_id Global face index
+   * @return Element index of the owner (first element encountered during
+   * construction)
+   */
   PROXY_HOST_DEVICE
   ScalarType elemOwner(ScalarType face_id) const
   {
     return face_elem_owner_(face_id);
   }
 
-  // Get neighbor element
+  /**
+   * @brief Get the neighbor element of a face
+   * @param face_id Global face index
+   * @return Element index of the neighbor, or -1 if boundary face
+   */
   PROXY_HOST_DEVICE
   ScalarType elemNeighbor(ScalarType face_id) const
   {
     return face_elem_neighbor_(face_id);
   }
 
-  // Get local face number on owner element
+  /**
+   * @brief Get the local face number on the owner element
+   * @param face_id Global face index
+   * @return Local face number (0-5) on the owner element
+   */
   PROXY_HOST_DEVICE
   int localFaceOwner(ScalarType face_id) const
   {
     return face_local_owner_(face_id);
   }
 
-  // Get local face number on neighbor element
+  /**
+   * @brief Get the local face number on the neighbor element
+   * @param face_id Global face index
+   * @return Local face number (0-5) on the neighbor element, or -1 if boundary
+   */
   PROXY_HOST_DEVICE
   int localFaceNeighbor(ScalarType face_id) const
   {
@@ -97,7 +128,6 @@ struct FaceConnectivity
 template <typename FloatType, typename ScalarType>
 struct ModelUnstructData : public ModelDataBase<FloatType, ScalarType>
 {
-  // GPU-compatible special member functions
   PROXY_HOST_DEVICE ModelUnstructData() = default;
   PROXY_HOST_DEVICE ~ModelUnstructData() = default;
   PROXY_HOST_DEVICE ModelUnstructData(const ModelUnstructData&) = default;
@@ -641,32 +671,32 @@ class ModelUnstruct final : public ModelApi<FloatType, ScalarType>
     // Get corners based on face orientation
     switch (local_face)
     {
-      case 0:  // x- face
+      case 0:
         n0 = globalNodeIndex(e, 0, 0, 0);
         n1 = globalNodeIndex(e, 0, o, 0);
         n2 = globalNodeIndex(e, 0, 0, o);
         break;
-      case 1:  // x+ face
+      case 1:
         n0 = globalNodeIndex(e, o, 0, 0);
         n1 = globalNodeIndex(e, o, 0, o);
         n2 = globalNodeIndex(e, o, o, 0);
         break;
-      case 2:  // y- face
+      case 2:
         n0 = globalNodeIndex(e, 0, 0, 0);
         n1 = globalNodeIndex(e, 0, 0, o);
         n2 = globalNodeIndex(e, o, 0, 0);
         break;
-      case 3:  // y+ face
+      case 3:
         n0 = globalNodeIndex(e, 0, o, 0);
         n1 = globalNodeIndex(e, o, o, 0);
         n2 = globalNodeIndex(e, 0, o, o);
         break;
-      case 4:  // z- face
+      case 4:
         n0 = globalNodeIndex(e, 0, 0, 0);
         n1 = globalNodeIndex(e, o, 0, 0);
         n2 = globalNodeIndex(e, 0, o, 0);
         break;
-      case 5:  // z+ face
+      case 5:
         n0 = globalNodeIndex(e, 0, 0, o);
         n1 = globalNodeIndex(e, 0, o, o);
         n2 = globalNodeIndex(e, o, 0, o);
@@ -850,7 +880,7 @@ class ModelUnstruct final : public ModelApi<FloatType, ScalarType>
    * - Map 1: (element, local_face) -> global_face
    * - Map 2: (global_face, local_dof) -> global_node
    */
-  void buildFaceConnectivity()
+  void buildFaceConnectivity() override
   {
     // Step 1: Build on CPU using temporary structures
     std::vector<FaceDataTemp<ScalarType>> faces_temp;
@@ -1111,37 +1141,37 @@ class ModelUnstruct final : public ModelApi<FloatType, ScalarType>
 
     switch (local_face)
     {
-      case 0:  // x- (i=0, varies j then k)
+      case 0:
         for (int k = 0; k <= o; ++k)
           for (int j = 0; j <= o; ++j)
             dofs.push_back(globalNodeIndex(elem, 0, j, k));
         break;
 
-      case 1:  // x+ (i=order, varies j then k)
+      case 1:
         for (int k = 0; k <= o; ++k)
           for (int j = 0; j <= o; ++j)
             dofs.push_back(globalNodeIndex(elem, o, j, k));
         break;
 
-      case 2:  // y- (j=0, varies i then k)
+      case 2:
         for (int k = 0; k <= o; ++k)
           for (int i = 0; i <= o; ++i)
             dofs.push_back(globalNodeIndex(elem, i, 0, k));
         break;
 
-      case 3:  // y+ (j=order, varies i then k)
+      case 3:
         for (int k = 0; k <= o; ++k)
           for (int i = 0; i <= o; ++i)
             dofs.push_back(globalNodeIndex(elem, i, o, k));
         break;
 
-      case 4:  // z- (k=0, varies i then j)
+      case 4:
         for (int j = 0; j <= o; ++j)
           for (int i = 0; i <= o; ++i)
             dofs.push_back(globalNodeIndex(elem, i, j, 0));
         break;
 
-      case 5:  // z+ (k=order, varies i then j)
+      case 5:
         for (int j = 0; j <= o; ++j)
           for (int i = 0; i <= o; ++i)
             dofs.push_back(globalNodeIndex(elem, i, j, o));
