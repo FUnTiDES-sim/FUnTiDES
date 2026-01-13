@@ -8,7 +8,7 @@ EZS="100"
 IMPLEMS="makutu shiva"
 MESHES="cartesian ucartesian"
 ORDERS="1 2 3"
-SEMPROXY_BIN="bin/semproxy"
+FUNTIDESSEM_BIN="bin/funtides-sem"
 CSV_OUT="results.csv"
 DRY_RUN=0
 
@@ -23,7 +23,7 @@ Options (space-separated lists allowed; quoted):
   --implem    "makutu"        # {classic, optim, makutu, shiva}
   --mesh      "cartesian"      # {cartesian, ucartesian}
   -o|--order  "1 2 3"          # polynomial orders
-  --bin       PATH             # path to semproxy (default: bin/semproxy)
+  --bin       PATH             # path to funtides-sem (default: bin/funtides-sem)
   --out       FILE             # CSV output file (default: results.csv)
   --dry-run                    # print commands but don't execute
   -h|--help                    # show this help
@@ -47,7 +47,7 @@ while true; do
     --implem)   IMPLEMS="$2"; shift 2 ;;
     --mesh)     MESHES="$2"; shift 2 ;;
     -o|--order) ORDERS="$2"; shift 2 ;;
-    --bin)      SEMPROXY_BIN="$2"; shift 2 ;;
+    --bin)      FUNTIDESSEM_BIN="$2"; shift 2 ;;
     --out)      CSV_OUT="$2"; shift 2 ;;
     --dry-run)  DRY_RUN=1; shift ;;
     -h|--help)  usage; exit 0 ;;
@@ -57,8 +57,8 @@ while true; do
 done
 
 # Check binary exists
-if [[ ! -x "$SEMPROXY_BIN" ]]; then
-  echo "Error: semproxy binary not found or not executable at: $SEMPROXY_BIN" >&2
+if [[ ! -x "$FUNTIDESSEM_BIN" ]]; then
+  echo "Error: funtides-sem binary not found or not executable at: $FUNTIDESSEM_BIN" >&2
   exit 1
 fi
 
@@ -73,7 +73,7 @@ for order in $ORDERS; do
       for ey in $EYS; do
         for ez in $EZS; do
           for implem in $IMPLEMS; do
-            cmd=( "$SEMPROXY_BIN"
+            cmd=( "$FUNTIDESSEM_BIN"
                   --ex "$ex" --ey "$ey" --ez "$ez"
                   --implem "$implem"
                   --mesh "$mesh"
