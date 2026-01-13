@@ -2,18 +2,18 @@ if(COMPILE_SEM)
 
   set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
 
-  add_executable(semproxy
+  add_executable(funtides-sem
     src/main.cc
     src/sem_proxy.cc
   )
 
-  target_include_directories(semproxy
+  target_include_directories(funtides-sem
     PRIVATE
       ${CMAKE_CURRENT_SOURCE_DIR}/include
       ${CMAKE_SOURCE_DIR}/external/cxxopts
   )
 
-  target_link_libraries(semproxy
+  target_link_libraries(funtides-sem
     PRIVATE
       discretization
       proxy_solver
@@ -25,7 +25,7 @@ if(COMPILE_SEM)
       ${STDCXXFS_LIB}
   )
 
-install(TARGETS semproxy
+install(TARGETS funtides-sem
         RUNTIME DESTINATION bin)
 
 endif()
