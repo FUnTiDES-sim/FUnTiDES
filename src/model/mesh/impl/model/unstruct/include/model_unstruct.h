@@ -25,14 +25,14 @@ struct FaceDataTemp
   bool isBoundary() const { return elem_neighbor == -1; }
 };
 
+// GPU-compatible face connectivity using project macros
 template <typename ScalarType>
 struct FaceConnectivity
 {
   ARRAY_INT_VIEW elem_to_faces_;
   ARRAY_INT_VIEW face_dofs_;
   VECTOR_INT_VIEW face_elem_owner_;
-  VECTOR_INT_VIEW
-  face_elem_neighbor_;
+  VECTOR_INT_VIEW face_elem_neighbor_;
   VECTOR_INT_VIEW face_local_owner_;
   VECTOR_INT_VIEW face_local_neighbor_;
 
@@ -219,7 +219,7 @@ struct ModelUnstructData : public ModelDataBase<FloatType, ScalarType>
 };
 
 /**
- * @brief Abstract base class representing a structured 3D mesh.
+ * @brief Unstructured 3D mesh implementation
  */
 template <typename FloatType, typename ScalarType>
 class ModelUnstruct final : public ModelApi<FloatType, ScalarType>
@@ -336,15 +336,12 @@ class ModelUnstruct final : public ModelApi<FloatType, ScalarType>
   {
     switch (dim)
     {
-      case 0: {
+      case 0:
         return nodes_coords_x_[dofGlobal];
-      }
-      case 1: {
+      case 1:
         return nodes_coords_y_[dofGlobal];
-      }
-      case 2: {
+      case 2:
         return nodes_coords_z_[dofGlobal];
-      }
       default:
         return FloatType(-1);
     }
@@ -366,110 +363,59 @@ class ModelUnstruct final : public ModelApi<FloatType, ScalarType>
     return global_node_index_(e, localDofIndex);
   }
 
-  /**
-   * @brief Get the P-wave velocity value at a global node.
-   * @param n Global node index
-   * @return Model P-wave velocity value at the node
-   */
   PROXY_HOST_DEVICE
   FloatType getModelVpOnNodes(ScalarType n) const final
   {
     return model_vp_node_[n];
   }
 
-  /**
-   * @brief Get the average P-wave velocity value on a given element.
-   * @param e Element index
-   * @return Model P-wave velocity value for the element
-   */
   PROXY_HOST_DEVICE
   FloatType getModelVpOnElement(ScalarType e) const final
   {
     return model_vp_element_[e];
   }
 
-  /**
-   * @brief Get the density value at a global node.
-   * @param n Global node index
-   * @return Model density value at the node
-   */
   PROXY_HOST_DEVICE
   FloatType getModelRhoOnNodes(ScalarType n) const final
   {
     return model_rho_node_[n];
   }
 
-  /**
-   * @brief Get the average density value on a given element.
-   * @param e Element index
-   * @return Model density value for the element
-   */
   PROXY_HOST_DEVICE
   FloatType getModelRhoOnElement(ScalarType e) const final
   {
     return model_rho_element_[e];
   }
 
-  /**
-   * @brief Get the average S-wave velocity value at a global node.
-   * @param n Global node index
-   * @return Model S-wave velocity value at the node
-   */
   PROXY_HOST_DEVICE
   FloatType getModelVsOnNodes(ScalarType n) const final
   {
     return model_vs_node_[n];
   }
 
-  /**
-   * @brief Get the average S-wave velocity value on a given element.
-   * @param e Element index
-   * @return Model S-wave velocity value for the element
-   */
   PROXY_HOST_DEVICE
   FloatType getModelVsOnElement(ScalarType e) const final
   {
     return model_vs_element_[e];
   }
 
-  /**
-   * @brief Get the average Thomsen parameter delta value at a global node.
-   * @param n Global node index
-   * @return Model Thomsen paramter delta value for the node
-   */
   PROXY_HOST_DEVICE
   FloatType getModelDeltaOnNodes(ScalarType n) const final
   {
     return model_delta_node_[n];
   }
 
-  /**
-   * @brief Get the average Thomsen parameter delta value on a given element.
-   * @param e Element index
-   * @return Model Thomsen paramter delta value for the element
-   */
   PROXY_HOST_DEVICE
   FloatType getModelDeltaOnElement(ScalarType e) const final
   {
     return model_delta_element_[e];
   }
 
-  /**
-   * @brief Get the average Thomsen parameter epsilon value at a global node.
-   * @param n Global node index
-   * @return Model Thomsen paramter epsilon value for the node
-   */
   PROXY_HOST_DEVICE
   FloatType getModelEpsilonOnNodes(ScalarType n) const final
   {
     return model_epsilon_node_[n];
   }
-
-  /**
-   * @brief Get the average Thomsen parameter epsilon value on a given element.
-   * @param e Element index
-   * @return Model Thomsen paramter epsilon value for the element
-   */
 
   PROXY_HOST_DEVICE
   FloatType getModelEpsilonOnElement(ScalarType e) const final
@@ -477,77 +423,42 @@ class ModelUnstruct final : public ModelApi<FloatType, ScalarType>
     return model_epsilon_element_[e];
   }
 
-  /**
-   * @brief Get the average Thomsen parameter gamma value at a global node.
-   * @param n Global node index
-   * @return Model Thomsen paramter gamma value for the node
-   */
   PROXY_HOST_DEVICE
   FloatType getModelGammaOnNodes(ScalarType n) const final
   {
     return model_gamma_node_[n];
   }
 
-  /**
-   * @brief Get the average Thomsen parameter gamma value on a given element.
-   * @param e Element index
-   * @return Model Thomsen paramter gamma value for the element
-   */
   PROXY_HOST_DEVICE
   FloatType getModelGammaOnElement(ScalarType e) const final
   {
     return model_gamma_element_[e];
   }
 
-  /**
-   * @brief Get the average anisotropic parameter phi value at a global node.
-   * @param n Global node index
-   * @return Model anisotropic paramter phi value for the node
-   */
   PROXY_HOST_DEVICE
   ScalarType getModelPhiOnNodes(ScalarType n) const final
   {
     return model_phi_node_[n];
   }
 
-  /**
-   * @brief Get the average anisotropic parameter phi value on a given element.
-   * @param e Element index
-   * @return Model anisotropic paramter phi value for the element
-   */
   PROXY_HOST_DEVICE
   ScalarType getModelPhiOnElement(ScalarType e) const final
   {
     return model_phi_element_[e];
   }
 
-  /**
-   * @brief Get the average anisotropic parameter theta value at a global node.
-   * @param n Global node index
-   * @return Model anisotropic paramter theta value for the node
-   */
   PROXY_HOST_DEVICE
   ScalarType getModelThetaOnNodes(ScalarType n) const final
   {
     return model_theta_node_[n];
   }
 
-  /**
-   * @brief Get the average anisotropic parameter theta value on a given
-   * element.
-   * @param e Element index
-   * @return Model anisotropic paramter theta value for the element
-   */
   PROXY_HOST_DEVICE
   ScalarType getModelThetaOnElement(ScalarType e) const final
   {
     return model_theta_element_[e];
   }
 
-  /**
-   * @brief Initialize and precompute elasticity tensors
-   * Must be called after construction if using elastic model
-   */
   void initElasticityTensors()
   {
     if (!isElastic_) return;
@@ -583,11 +494,6 @@ class ModelUnstruct final : public ModelApi<FloatType, ScalarType>
     MAINLOOPEND
   }
 
-  /**
-   * @brief Get the precomputed elasticity tensor C for a given element.
-   * @param e Element index
-   * @param[out] CTTI Output 6x6 tensor (Voigt notation)
-   */
   PROXY_HOST_DEVICE
   void getCTensorOnElement(ScalarType e, FloatType CTTI[6][6]) const final
   {
@@ -595,80 +501,39 @@ class ModelUnstruct final : public ModelApi<FloatType, ScalarType>
       for (int j = 0; j < 6; j++) CTTI[i][j] = model_C_tensor_element_(e, i, j);
   }
 
-  /**
-   * @brief Indicates if the model properties are defined on nodes.
-   * @return True if model properties are defined at nodes, false if at elements
-   */
   PROXY_HOST_DEVICE
   bool isModelOnNodes() const final { return isModelOnNodes_; }
 
-  /**
-   * @brief Indicates if the model is elastic.
-   * @return True if the model is elastic, false otherwise
-   */
   PROXY_HOST_DEVICE
   bool isElastic() const final { return isElastic_; }
 
-  /**
-   * @brief Get the total number of elements in the mesh.
-   * @return Total element count
-   */
   PROXY_HOST_DEVICE
   ScalarType getNumberOfElements() const final { return n_element_; }
 
-  /**
-   * @brief Get the total number of global nodes in the mesh.
-   * @return Total node count
-   */
   PROXY_HOST_DEVICE
   ScalarType getNumberOfNodes() const final { return n_node_; }
 
-  /**
-   * @brief Get the number of interpolation points per element.
-   * @return Number of interpolation points in one element
-   */
   PROXY_HOST_DEVICE
   int getNumberOfPointsPerElement() const final
   {
     return n_points_per_element_;
   }
 
-  /**
-   * @brief Get the polynomial order of the elements.
-   * @return ORDER
-   */
   PROXY_HOST_DEVICE
   int getOrder() const final { return static_cast<int>(order_); }
 
-  /**
-   * @brief Get the boundary type of a given node.
-   * @param n Global node index
-   * @return A combination of BoundaryFlag values
-   */
   PROXY_HOST_DEVICE
   BoundaryFlag boundaryType(ScalarType n) const final
   {
     return static_cast<BoundaryFlag>(boundaries_t_[n]);
   }
 
-  /**
-   * @brief Compute the outward unit normal vector of an element face.
-   * @param e Element index
-   * @param dir Axis direction (0 = x, 1 = y, 2 = z)
-   * @param face 1 = negative side, 2 = positive side in that direction
-   * @param[out] v Output array (size 3) holding the normal vector
-   */
   PROXY_HOST_DEVICE
   void faceNormal(ScalarType e, int local_face, FloatType v[3]) const
   {
-    // Get 3 corners of the face (sufficient to define the plane)
-    ScalarType n0 = globalNodeIndex(e, 0, 0, 0);  // Will be overwritten
-    ScalarType n1 = globalNodeIndex(e, 0, 0, 0);
-    ScalarType n2 = globalNodeIndex(e, 0, 0, 0);
-
+    ScalarType n0, n1, n2;
     const int o = order_;
 
-    // Get corners based on face orientation
     switch (local_face)
     {
       case 0:
@@ -701,9 +566,11 @@ class ModelUnstruct final : public ModelApi<FloatType, ScalarType>
         n1 = globalNodeIndex(e, 0, o, o);
         n2 = globalNodeIndex(e, o, 0, o);
         break;
+      default:
+        v[0] = v[1] = v[2] = 0.0;
+        return;
     }
 
-    // Get coordinates
     FloatType p0[3], p1[3], p2[3];
     for (int d = 0; d < 3; ++d)
     {
@@ -712,22 +579,18 @@ class ModelUnstruct final : public ModelApi<FloatType, ScalarType>
       p2[d] = nodeCoord(n2, d);
     }
 
-    // Two tangent vectors
     FloatType t1[3], t2[3];
     t1[0] = p1[0] - p0[0];
     t1[1] = p1[1] - p0[1];
     t1[2] = p1[2] - p0[2];
-
     t2[0] = p2[0] - p0[0];
     t2[1] = p2[1] - p0[1];
     t2[2] = p2[2] - p0[2];
 
-    // Cross product: v = t1 × t2
     v[0] = t1[1] * t2[2] - t1[2] * t2[1];
     v[1] = t1[2] * t2[0] - t1[0] * t2[2];
     v[2] = t1[0] * t2[1] - t1[1] * t2[0];
 
-    // Normalize
     FloatType norm = sqrt(v[0] * v[0] + v[1] * v[1] + v[2] * v[2]);
     if (norm > 1e-12)
     {
@@ -737,11 +600,6 @@ class ModelUnstruct final : public ModelApi<FloatType, ScalarType>
     }
   }
 
-  /**
-   * @brief Get the size of the domain in the specified dimension.
-   * @param dim The dimension index (0 for X, 1 for Y, 2 for Z).
-   * @return The size of the domain along the specified dimension.
-   */
   PROXY_HOST_DEVICE
   FloatType domainSize(int dim) const final
   {
@@ -758,40 +616,12 @@ class ModelUnstruct final : public ModelApi<FloatType, ScalarType>
     }
   }
 
-  /**
-   * @brief Computes the minimum spacing between neighboring quadrature points.
-   *
-   * This function calculates the minimum Euclidean distance between adjacent
-   * quadrature points in the spectral element mesh. Since all elements have
-   * identical size and shape, the minimum spacing is computed by examining only
-   * the first element (e=0), avoiding redundant calculations across all
-   * elements.
-   *
-   * The algorithm checks spacing in three directions:
-   * - i-direction: spacing between points (i, j, k) and (i+1, j, k)
-   * - j-direction: spacing between points (i, j, k) and (i, j+1, k)
-   * - k-direction: spacing between points (i, j, k) and (i, j, k+1)
-   *
-   * For each neighboring pair, the 3D Euclidean distance is computed:
-   * distance = sqrt((x2-x1)² + (y2-y1)² + (z2-z1)²)
-   *
-   * @return The minimum spacing (in physical coordinates) between any two
-   *         neighboring quadrature points in the mesh.
-   *
-   * @note This function assumes all elements are identical in size and shape.
-   * @note Only checks direct neighbors along grid lines, not diagonal
-   * neighbors.
-   * @note Complexity: O(order³) instead of O(n_element × order³)
-   */
   PROXY_HOST_DEVICE
   FloatType getMinSpacing() const final
   {
     FloatType minSpacing = std::numeric_limits<FloatType>::max();
-
-    // Since all elements are the same size, only check the first element
     constexpr ScalarType e = 0;
 
-    // Check i-direction spacing
     for (int k = 0; k <= order_; ++k)
     {
       for (int j = 0; j <= order_; ++j)
@@ -809,7 +639,6 @@ class ModelUnstruct final : public ModelApi<FloatType, ScalarType>
       }
     }
 
-    // Check j-direction spacing
     for (int k = 0; k <= order_; ++k)
     {
       for (int i = 0; i <= order_; ++i)
@@ -827,7 +656,6 @@ class ModelUnstruct final : public ModelApi<FloatType, ScalarType>
       }
     }
 
-    // Check k-direction spacing
     for (int j = 0; j <= order_; ++j)
     {
       for (int i = 0; i <= order_; ++i)
@@ -882,7 +710,7 @@ class ModelUnstruct final : public ModelApi<FloatType, ScalarType>
    */
   void buildFaceConnectivity() override
   {
-    // Step 1: Build on CPU using temporary structures
+    // Step 1: Build temporary structures on CPU
     std::vector<FaceDataTemp<ScalarType>> faces_temp;
     std::vector<std::vector<ScalarType>> elem_to_faces_temp(n_element_);
 
@@ -926,12 +754,56 @@ class ModelUnstruct final : public ModelApi<FloatType, ScalarType>
       }
     }
 
-    // Step 2: Copy to Kokkos Views (GPU-compatible)
-    copyToKokkosViews(faces_temp, elem_to_faces_temp);
+    // Step 2: Allocate and fill Views
+    int n_faces = faces_temp.size();
+    int ndofs_per_face = (order_ + 1) * (order_ + 1);
+
+    face_connectivity_.n_faces_ = n_faces;
+    face_connectivity_.ndofs_per_face_ = ndofs_per_face;
+
+    // Allocate Views
+    face_connectivity_.elem_to_faces_ =
+        allocateArray2D<ARRAY_INT_VIEW>(n_element_, 6);
+    face_connectivity_.face_dofs_ =
+        allocateArray2D<ARRAY_INT_VIEW>(n_faces, ndofs_per_face);
+    face_connectivity_.face_elem_owner_ =
+        allocateVector<VECTOR_INT_VIEW>(n_faces);
+    face_connectivity_.face_elem_neighbor_ =
+        allocateVector<VECTOR_INT_VIEW>(n_faces);
+    face_connectivity_.face_local_owner_ =
+        allocateVector<VECTOR_INT_VIEW>(n_faces);
+    face_connectivity_.face_local_neighbor_ =
+        allocateVector<VECTOR_INT_VIEW>(n_faces);
+
+    // Fill Views directly
+    for (ScalarType elem = 0; elem < n_element_; ++elem)
+    {
+      for (int lf = 0; lf < 6; ++lf)
+      {
+        face_connectivity_.elem_to_faces_(elem, lf) =
+            elem_to_faces_temp[elem][lf];
+      }
+    }
+
+    for (int face_id = 0; face_id < n_faces; ++face_id)
+    {
+      const auto& face = faces_temp[face_id];
+
+      face_connectivity_.face_elem_owner_(face_id) = face.elem_owner;
+      face_connectivity_.face_elem_neighbor_(face_id) = face.elem_neighbor;
+      face_connectivity_.face_local_owner_(face_id) = face.local_face_owner;
+      face_connectivity_.face_local_neighbor_(face_id) =
+          face.local_face_neighbor;
+
+      for (int dof = 0; dof < ndofs_per_face; ++dof)
+      {
+        face_connectivity_.face_dofs_(face_id, dof) = face.dofs[dof];
+      }
+    }
   }
 
   /**
-   * @brief Get global face number from element and local face (GPU-compatible)
+   * @brief Get global face number from element and local face
    * @param elem Element index
    * @param local_face Local face number (0-5)
    * @return Global face index
@@ -943,7 +815,7 @@ class ModelUnstruct final : public ModelApi<FloatType, ScalarType>
   }
 
   /**
-   * @brief Get global node number from face and local DOF (GPU-compatible)
+   * @brief Get global node number from face and local DOF
    * @param face_global Global face index
    * @param local_dof Local DOF index on the face (0 to (order+1)² - 1)
    * @return Global node index
@@ -955,7 +827,7 @@ class ModelUnstruct final : public ModelApi<FloatType, ScalarType>
   }
 
   /**
-   * @brief Check if a face is on the boundary (GPU-compatible)
+   * @brief Check if a face is on the boundary
    * @param face_global Global face index
    * @return True if boundary face, false otherwise
    */
@@ -966,7 +838,7 @@ class ModelUnstruct final : public ModelApi<FloatType, ScalarType>
   }
 
   /**
-   * @brief Get total number of faces (GPU-compatible)
+   * @brief Get total number of faces
    * @return Number of faces in the mesh
    */
   PROXY_HOST_DEVICE
@@ -977,18 +849,16 @@ class ModelUnstruct final : public ModelApi<FloatType, ScalarType>
   ScalarType n_element_;
   ScalarType n_node_;
   FloatType lx_, ly_, lz_;
-  FloatType ox_, oy_, oz_;    // cartesian origins
-  int n_points_per_element_;  // Added missing member
+  FloatType ox_, oy_, oz_;
+  int n_points_per_element_;
   bool isModelOnNodes_;
   bool isElastic_;
 
-  // Coordinates and index map views
   ARRAY_INT_VIEW global_node_index_;
   VECTOR_REAL_VIEW nodes_coords_x_;
   VECTOR_REAL_VIEW nodes_coords_y_;
   VECTOR_REAL_VIEW nodes_coords_z_;
 
-  // Models view
   VECTOR_REAL_VIEW model_vp_node_;
   VECTOR_REAL_VIEW model_vp_element_;
   VECTOR_REAL_VIEW model_rho_node_;
@@ -1008,84 +878,7 @@ class ModelUnstruct final : public ModelApi<FloatType, ScalarType>
   ARRAY3D_REAL_VIEW model_C_tensor_element_;
   VECTOR_REAL_VIEW boundaries_t_;
 
-  // Face connectivity (GPU-compatible)
   FaceConnectivity<ScalarType> face_connectivity_;
-
-  /**
-   * @brief Copy temporary CPU structures to Kokkos Views
-   */
-  void copyToKokkosViews(
-      const std::vector<FaceDataTemp<ScalarType>>& faces_temp,
-      const std::vector<std::vector<ScalarType>>& elem_to_faces_temp)
-  {
-    int n_faces = faces_temp.size();
-    int ndofs_per_face = (order_ + 1) * (order_ + 1);
-
-    face_connectivity_.n_faces_ = n_faces;
-    face_connectivity_.ndofs_per_face_ = ndofs_per_face;
-
-    // Allocate Kokkos Views
-    face_connectivity_.elem_to_faces_ =
-        allocateArray2D<ARRAY_INT_VIEW>(n_element_, 6);
-    face_connectivity_.face_dofs_ =
-        allocateArray2D<ARRAY_INT_VIEW>(n_faces, ndofs_per_face);
-    face_connectivity_.face_elem_owner_ =
-        allocateVector<VECTOR_INT_VIEW>(n_faces);
-    face_connectivity_.face_elem_neighbor_ =
-        allocateVector<VECTOR_INT_VIEW>(n_faces);
-    face_connectivity_.face_local_owner_ =
-        allocateVector<VECTOR_INT_VIEW>(n_faces);
-    face_connectivity_.face_local_neighbor_ =
-        allocateVector<VECTOR_INT_VIEW>(n_faces);
-
-    // Create mirror views for filling on host
-    auto elem_to_faces_h =
-        Kokkos::create_mirror_view(face_connectivity_.elem_to_faces_);
-    auto face_dofs_h =
-        Kokkos::create_mirror_view(face_connectivity_.face_dofs_);
-    auto face_elem_owner_h =
-        Kokkos::create_mirror_view(face_connectivity_.face_elem_owner_);
-    auto face_elem_neighbor_h =
-        Kokkos::create_mirror_view(face_connectivity_.face_elem_neighbor_);
-    auto face_local_owner_h =
-        Kokkos::create_mirror_view(face_connectivity_.face_local_owner_);
-    auto face_local_neighbor_h =
-        Kokkos::create_mirror_view(face_connectivity_.face_local_neighbor_);
-
-    // Fill mirror views from temp data
-    for (ScalarType elem = 0; elem < n_element_; ++elem)
-    {
-      for (int lf = 0; lf < 6; ++lf)
-      {
-        elem_to_faces_h(elem, lf) = elem_to_faces_temp[elem][lf];
-      }
-    }
-
-    for (int face_id = 0; face_id < n_faces; ++face_id)
-    {
-      const auto& face = faces_temp[face_id];
-
-      face_elem_owner_h(face_id) = face.elem_owner;
-      face_elem_neighbor_h(face_id) = face.elem_neighbor;
-      face_local_owner_h(face_id) = face.local_face_owner;
-      face_local_neighbor_h(face_id) = face.local_face_neighbor;
-
-      for (int dof = 0; dof < ndofs_per_face; ++dof)
-      {
-        face_dofs_h(face_id, dof) = face.dofs[dof];
-      }
-    }
-
-    // Deep copy to device
-    Kokkos::deep_copy(face_connectivity_.elem_to_faces_, elem_to_faces_h);
-    Kokkos::deep_copy(face_connectivity_.face_dofs_, face_dofs_h);
-    Kokkos::deep_copy(face_connectivity_.face_elem_owner_, face_elem_owner_h);
-    Kokkos::deep_copy(face_connectivity_.face_elem_neighbor_,
-                      face_elem_neighbor_h);
-    Kokkos::deep_copy(face_connectivity_.face_local_owner_, face_local_owner_h);
-    Kokkos::deep_copy(face_connectivity_.face_local_neighbor_,
-                      face_local_neighbor_h);
-  }
 
   /**
    * @brief Extract the 4 corner vertices for a face
@@ -1097,31 +890,29 @@ class ModelUnstruct final : public ModelApi<FloatType, ScalarType>
   std::array<ScalarType, 4> extractFaceCorners(ScalarType elem,
                                                int local_face) const
   {
-    const int o = order_;
-
     switch (local_face)
     {
-      case 0:  // x- (i=0)
+      case 0:  // x-
         return {
             globalVertexIndex(elem, 0, 0, 0), globalVertexIndex(elem, 0, 1, 0),
             globalVertexIndex(elem, 0, 1, 1), globalVertexIndex(elem, 0, 0, 1)};
-      case 1:  // x+ (i=1)
+      case 1:  // x+
         return {
             globalVertexIndex(elem, 1, 0, 0), globalVertexIndex(elem, 1, 1, 0),
             globalVertexIndex(elem, 1, 1, 1), globalVertexIndex(elem, 1, 0, 1)};
-      case 2:  // y- (j=0)
+      case 2:  // y-
         return {
             globalVertexIndex(elem, 0, 0, 0), globalVertexIndex(elem, 1, 0, 0),
             globalVertexIndex(elem, 1, 0, 1), globalVertexIndex(elem, 0, 0, 1)};
-      case 3:  // y+ (j=1)
+      case 3:  // y+
         return {
             globalVertexIndex(elem, 0, 1, 0), globalVertexIndex(elem, 1, 1, 0),
             globalVertexIndex(elem, 1, 1, 1), globalVertexIndex(elem, 0, 1, 1)};
-      case 4:  // z- (k=0)
+      case 4:  // z-
         return {
             globalVertexIndex(elem, 0, 0, 0), globalVertexIndex(elem, 1, 0, 0),
             globalVertexIndex(elem, 1, 1, 0), globalVertexIndex(elem, 0, 1, 0)};
-      case 5:  // z+ (k=1)
+      case 5:  // z+
         return {
             globalVertexIndex(elem, 0, 0, 1), globalVertexIndex(elem, 1, 0, 1),
             globalVertexIndex(elem, 1, 1, 1), globalVertexIndex(elem, 0, 1, 1)};
@@ -1141,37 +932,32 @@ class ModelUnstruct final : public ModelApi<FloatType, ScalarType>
 
     switch (local_face)
     {
-      case 0:
+      case 0:  // x-
         for (int k = 0; k <= o; ++k)
           for (int j = 0; j <= o; ++j)
             dofs.push_back(globalNodeIndex(elem, 0, j, k));
         break;
-
-      case 1:
+      case 1:  // x+
         for (int k = 0; k <= o; ++k)
           for (int j = 0; j <= o; ++j)
             dofs.push_back(globalNodeIndex(elem, o, j, k));
         break;
-
-      case 2:
+      case 2:  // y-
         for (int k = 0; k <= o; ++k)
           for (int i = 0; i <= o; ++i)
             dofs.push_back(globalNodeIndex(elem, i, 0, k));
         break;
-
-      case 3:
+      case 3:  // y+
         for (int k = 0; k <= o; ++k)
           for (int i = 0; i <= o; ++i)
             dofs.push_back(globalNodeIndex(elem, i, o, k));
         break;
-
-      case 4:
+      case 4:  // z-
         for (int j = 0; j <= o; ++j)
           for (int i = 0; i <= o; ++i)
             dofs.push_back(globalNodeIndex(elem, i, j, 0));
         break;
-
-      case 5:
+      case 5:  // z+
         for (int j = 0; j <= o; ++j)
           for (int i = 0; i <= o; ++i)
             dofs.push_back(globalNodeIndex(elem, i, j, o));
@@ -1189,6 +975,7 @@ class ModelUnstruct final : public ModelApi<FloatType, ScalarType>
     return corners;
   }
 };
+
 }  // namespace model
 
 #endif  // SRC_MODEL_MODELAPI_INCLUDE_MODEL_UNSTRUCT_H_
