@@ -42,89 +42,48 @@ struct FaceConnectivity
   PROXY_HOST_DEVICE
   ScalarType numFaces() const { return n_faces_; }
 
-  /**
-   * @brief Map element and local face to global face index
-   * @param elem Element index
-   * @param local_face Local face number (0-5: 0=x-, 1=x+, 2=y-, 3=y+, 4=z-,
-   * 5=z+)
-   * @return Global face index
-   */
   PROXY_HOST_DEVICE
   ScalarType globalFace(ScalarType elem, int local_face) const
   {
-    return elem_to_faces_(elem, local_face);
+    return elem_to_faces_(elem, local_face);  // OK - ARRAY a operator() const
   }
 
-  /**
-   * @brief Map global face and local DOF to global node index
-   * @param face_id Global face index
-   * @param local_dof Local DOF on face (0 to (order+1)²-1, lexicographic
-   * ordering)
-   * @return Global node index
-   */
   PROXY_HOST_DEVICE
   ScalarType globalNode(ScalarType face_id, int local_dof) const
   {
-    return face_dofs_(face_id, local_dof);
+    return face_dofs_(face_id, local_dof);  // OK - ARRAY a operator() const
   }
 
-  /**
-   * @brief Check if a face is on the domain boundary
-   * @param face_id Global face index
-   * @return True if boundary face (no neighbor element), false if internal
-   */
   PROXY_HOST_DEVICE
   bool isBoundary(ScalarType face_id) const
   {
-    return face_elem_neighbor_(face_id) == -1;
+    return face_elem_neighbor_[face_id] == -1;  // ← Changé () en []
   }
 
-  /**
-   * @brief Get the owner element of a face
-   * @param face_id Global face index
-   * @return Element index of the owner (first element encountered during
-   * construction)
-   */
   PROXY_HOST_DEVICE
   ScalarType elemOwner(ScalarType face_id) const
   {
-    return face_elem_owner_(face_id);
+    return face_elem_owner_[face_id];  // ← Changé () en []
   }
 
-  /**
-   * @brief Get the neighbor element of a face
-   * @param face_id Global face index
-   * @return Element index of the neighbor, or -1 if boundary face
-   */
   PROXY_HOST_DEVICE
   ScalarType elemNeighbor(ScalarType face_id) const
   {
-    return face_elem_neighbor_(face_id);
+    return face_elem_neighbor_[face_id];  // ← Changé () en []
   }
 
-  /**
-   * @brief Get the local face number on the owner element
-   * @param face_id Global face index
-   * @return Local face number (0-5) on the owner element
-   */
   PROXY_HOST_DEVICE
   int localFaceOwner(ScalarType face_id) const
   {
-    return face_local_owner_(face_id);
+    return face_local_owner_[face_id];  // ← Changé () en []
   }
 
-  /**
-   * @brief Get the local face number on the neighbor element
-   * @param face_id Global face index
-   * @return Local face number (0-5) on the neighbor element, or -1 if boundary
-   */
   PROXY_HOST_DEVICE
   int localFaceNeighbor(ScalarType face_id) const
   {
-    return face_local_neighbor_(face_id);
+    return face_local_neighbor_[face_id];  // ← Changé () en []
   }
 };
-
 template <typename FloatType, typename ScalarType>
 struct ModelUnstructData : public ModelDataBase<FloatType, ScalarType>
 {
