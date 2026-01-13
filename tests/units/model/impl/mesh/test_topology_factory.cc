@@ -27,8 +27,6 @@ class MockMesh : public model::ModelApi<FloatType, ScalarType>
     nodes.push_back({x, y, z});
   }
 
-  // Required by TopologyFactory
-  // Guarded to prevent "calling __host__ function from __device__" warnings
   PROXY_HOST_DEVICE FloatType nodeCoord(ScalarType i, int dim) const override
   {
 #if !defined(__CUDA_ARCH__) && !defined(__HIP_DEVICE_COMPILE__)
