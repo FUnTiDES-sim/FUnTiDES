@@ -129,7 +129,7 @@ class MockMesh : public model::ModelApi<FloatType, ScalarType>
   }
   PROXY_HOST_DEVICE int getNumberOfPointsPerElement() const override
   {
-    return 0;
+    return 27;
   }
   PROXY_HOST_DEVICE int getOrder() const override { return 1; }
   PROXY_HOST_DEVICE model::BoundaryFlag boundaryType(ScalarType) const override
