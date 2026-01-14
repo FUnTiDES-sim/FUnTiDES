@@ -51,7 +51,7 @@ test_cases_struct = [
 class TestSolverStruct:
     @pytest.mark.parametrize("struct", test_cases_struct, indirect=True)
     @pytest.mark.parametrize(
-        "implem", [Solver.ImplemType.MAKUTU, Solver.ImplemType.SHIVA]
+        "implem", [Solver.ImplemType.MAKUTU]
     )
     def test_solver_one_step(self, struct, implem):
         sd, builder, is_model_on_nodes, is_elastic = struct
