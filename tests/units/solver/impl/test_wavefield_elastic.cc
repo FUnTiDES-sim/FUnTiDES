@@ -37,22 +37,22 @@ class WavefieldElasticTest : public ::testing::Test
     // Initialize with test values
     for (size_t i = 0; i < size1; ++i)
     {
-      uxPrevField(i) = static_cast<float>(i);
-      uxCurrField(i) = static_cast<float>(i * 2);
-      uyPrevField(i) = static_cast<float>(i * 3);
-      uyCurrField(i) = static_cast<float>(i * 4);
-      uzPrevField(i) = static_cast<float>(i * 5);
-      uzCurrField(i) = static_cast<float>(i * 6);
+      uxPrevField(i) = i;
+      uxCurrField(i) = i * 2;
+      uyPrevField(i) = i * 3;
+      uyCurrField(i) = i * 4;
+      uzPrevField(i) = i * 5;
+      uzCurrField(i) = i * 6;
     }
 
     for (size_t i = 0; i < size2; ++i)
     {
-      uxPrevField2(i) = static_cast<float>(i * 7);
-      uxCurrField2(i) = static_cast<float>(i * 8);
-      uyPrevField2(i) = static_cast<float>(i * 9);
-      uyCurrField2(i) = static_cast<float>(i * 10);
-      uzPrevField2(i) = static_cast<float>(i * 11);
-      uzCurrField2(i) = static_cast<float>(i * 12);
+      uxPrevField2(i) = i * 7;
+      uxCurrField2(i) = i * 8;
+      uyPrevField2(i) = i * 9;
+      uyCurrField2(i) = i * 10;
+      uzPrevField2(i) = i * 11;
+      uzCurrField2(i) = i * 12;
     }
   }
 
@@ -220,9 +220,9 @@ TEST_F(WavefieldElasticTest, GetCurrentField)
 
   for (size_t i = 0; i < size1; ++i)
   {
-    EXPECT_FLOAT_EQ(currentX(i), static_cast<float>(i * 2));
-    EXPECT_FLOAT_EQ(currentY(i), static_cast<float>(i * 4));
-    EXPECT_FLOAT_EQ(currentZ(i), static_cast<float>(i * 6));
+    EXPECT_FLOAT_EQ(currentX(i), i * 2);
+    EXPECT_FLOAT_EQ(currentY(i), i * 4);
+    EXPECT_FLOAT_EQ(currentZ(i), i * 6);
   }
 }
 
@@ -241,9 +241,9 @@ TEST_F(WavefieldElasticTest, GetPreviousField)
 
   for (size_t i = 0; i < size1; ++i)
   {
-    EXPECT_FLOAT_EQ(previousX(i), static_cast<float>(i));
-    EXPECT_FLOAT_EQ(previousY(i), static_cast<float>(i * 3));
-    EXPECT_FLOAT_EQ(previousZ(i), static_cast<float>(i * 5));
+    EXPECT_FLOAT_EQ(previousX(i), i);
+    EXPECT_FLOAT_EQ(previousY(i), i * 3);
+    EXPECT_FLOAT_EQ(previousZ(i), i * 5);
   }
 }
 
@@ -274,12 +274,12 @@ TEST_F(WavefieldElasticTest, Swap)
   // Verify all elements were swapped
   for (size_t i = 0; i < size1; ++i)
   {
-    EXPECT_FLOAT_EQ(wavefield.m_uxnGlobalPrev(i), static_cast<float>(i * 2));
-    EXPECT_FLOAT_EQ(wavefield.m_uxnGlobalCurr(i), static_cast<float>(i));
-    EXPECT_FLOAT_EQ(wavefield.m_uynGlobalPrev(i), static_cast<float>(i * 4));
-    EXPECT_FLOAT_EQ(wavefield.m_uynGlobalCurr(i), static_cast<float>(i * 3));
-    EXPECT_FLOAT_EQ(wavefield.m_uznGlobalPrev(i), static_cast<float>(i * 6));
-    EXPECT_FLOAT_EQ(wavefield.m_uznGlobalCurr(i), static_cast<float>(i * 5));
+    EXPECT_FLOAT_EQ(wavefield.m_uxnGlobalPrev(i), i * 2);
+    EXPECT_FLOAT_EQ(wavefield.m_uxnGlobalCurr(i), i);
+    EXPECT_FLOAT_EQ(wavefield.m_uynGlobalPrev(i), i * 4);
+    EXPECT_FLOAT_EQ(wavefield.m_uynGlobalCurr(i), i * 3);
+    EXPECT_FLOAT_EQ(wavefield.m_uznGlobalPrev(i), i * 6);
+    EXPECT_FLOAT_EQ(wavefield.m_uznGlobalCurr(i), i * 5);
   }
 }
 
@@ -355,12 +355,12 @@ TEST_F(WavefieldElasticTest, CopyConstructorAfterSwap)
   // Verify copy has the swapped state
   for (size_t i = 0; i < size1; ++i)
   {
-    EXPECT_FLOAT_EQ(copy.m_uxnGlobalPrev(i), static_cast<float>(i * 2));
-    EXPECT_FLOAT_EQ(copy.m_uxnGlobalCurr(i), static_cast<float>(i));
-    EXPECT_FLOAT_EQ(copy.m_uynGlobalPrev(i), static_cast<float>(i * 4));
-    EXPECT_FLOAT_EQ(copy.m_uynGlobalCurr(i), static_cast<float>(i * 3));
-    EXPECT_FLOAT_EQ(copy.m_uznGlobalPrev(i), static_cast<float>(i * 6));
-    EXPECT_FLOAT_EQ(copy.m_uznGlobalCurr(i), static_cast<float>(i * 5));
+    EXPECT_FLOAT_EQ(copy.m_uxnGlobalPrev(i), i * 2);
+    EXPECT_FLOAT_EQ(copy.m_uxnGlobalCurr(i), i);
+    EXPECT_FLOAT_EQ(copy.m_uynGlobalPrev(i), i * 4);
+    EXPECT_FLOAT_EQ(copy.m_uynGlobalCurr(i), i * 3);
+    EXPECT_FLOAT_EQ(copy.m_uznGlobalPrev(i), i * 6);
+    EXPECT_FLOAT_EQ(copy.m_uznGlobalCurr(i), i * 5);
   }
 }
 

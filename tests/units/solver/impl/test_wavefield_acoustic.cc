@@ -28,14 +28,14 @@ class WavefieldAcousticTest : public ::testing::Test
     // Initialize with test values
     for (size_t i = 0; i < size1; ++i)
     {
-      prevField(i) = static_cast<float>(i);
-      currField(i) = static_cast<float>(i * 2);
+      prevField(i) = i;
+      currField(i) = i * 2;
     }
 
     for (size_t i = 0; i < size2; ++i)
     {
-      prevField2(i) = static_cast<float>(i * 3);
-      currField2(i) = static_cast<float>(i * 4);
+      prevField2(i) = i * 3;
+      currField2(i) = i * 4;
     }
   }
 
@@ -144,7 +144,7 @@ TEST_F(WavefieldAcousticTest, GetCurrentField)
   EXPECT_EQ(current.extent(0), size1);
   for (size_t i = 0; i < size1; ++i)
   {
-    EXPECT_FLOAT_EQ(current(i), static_cast<float>(i * 2));
+    EXPECT_FLOAT_EQ(current(i), i * 2);
   }
 }
 
@@ -157,7 +157,7 @@ TEST_F(WavefieldAcousticTest, GetPreviousField)
   EXPECT_EQ(previous.extent(0), size1);
   for (size_t i = 0; i < size1; ++i)
   {
-    EXPECT_FLOAT_EQ(previous(i), static_cast<float>(i));
+    EXPECT_FLOAT_EQ(previous(i), i);
   }
 }
 
@@ -179,8 +179,8 @@ TEST_F(WavefieldAcousticTest, Swap)
   // Verify all elements were swapped
   for (size_t i = 0; i < size1; ++i)
   {
-    EXPECT_FLOAT_EQ(wavefield.m_pnGlobalPrev(i), static_cast<float>(i * 2));
-    EXPECT_FLOAT_EQ(wavefield.m_pnGlobalCurr(i), static_cast<float>(i));
+    EXPECT_FLOAT_EQ(wavefield.m_pnGlobalPrev(i), i * 2);
+    EXPECT_FLOAT_EQ(wavefield.m_pnGlobalCurr(i), i);
   }
 }
 
@@ -237,8 +237,8 @@ TEST_F(WavefieldAcousticTest, CopyConstructorAfterSwap)
   // Verify copy has the swapped state
   for (size_t i = 0; i < size1; ++i)
   {
-    EXPECT_FLOAT_EQ(copy.m_pnGlobalPrev(i), static_cast<float>(i * 2));
-    EXPECT_FLOAT_EQ(copy.m_pnGlobalCurr(i), static_cast<float>(i));
+    EXPECT_FLOAT_EQ(copy.m_pnGlobalPrev(i), i * 2);
+    EXPECT_FLOAT_EQ(copy.m_pnGlobalCurr(i), i);
   }
 }
 
