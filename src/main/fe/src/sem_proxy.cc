@@ -245,7 +245,7 @@ void SEMproxy::run()
   else
   {
     WavefieldElastic wavefield(uxnGlobalPrev, uxnGlobalCurr, uynGlobalPrev,
-                               uynGlobalCurr, uynGlobalPrev, uznGlobalCurr);
+                               uynGlobalCurr, uznGlobalPrev, uznGlobalCurr);
     RhsElastic rhs(myRHSTermx, myRHSTermy, myRHSTermz, rhsElement, rhsWeights);
     SEMsolverDataElastic solverData(wavefield, rhs);
 
