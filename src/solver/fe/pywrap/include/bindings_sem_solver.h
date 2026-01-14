@@ -39,7 +39,8 @@ void bind_acoustic_solver_data(py::module_ &m)
              return new SEMsolverDataAcoustic(wavefield.get(), rhs.get());
            }),
            py::arg("wavefield"), py::arg("rhs"),
-           py::keep_alive<1, 2>(),  // Keep wavefield alive with SEMsolverDataAcoustic
+           py::keep_alive<1, 2>(),  // Keep wavefield alive with
+                                    // SEMsolverDataAcoustic
            py::keep_alive<1, 3>())  // Keep rhs alive with SEMsolverDataAcoustic
       .def("print", &SEMsolverDataAcoustic::print);
 }
@@ -54,7 +55,8 @@ void bind_elastic_solver_data(py::module_ &m)
              return new SEMsolverDataElastic(wavefield.get(), rhs.get());
            }),
            py::arg("wavefield"), py::arg("rhs"),
-           py::keep_alive<1, 2>(),  // Keep wavefield alive with SEMsolverDataElastic
+           py::keep_alive<1, 2>(),  // Keep wavefield alive with
+                                    // SEMsolverDataElastic
            py::keep_alive<1, 3>())  // Keep rhs alive with SEMsolverDataElastic
       .def("print", &SEMsolverDataElastic::print);
 }

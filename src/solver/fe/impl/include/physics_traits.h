@@ -159,7 +159,7 @@ struct SEMsolverData : public SolverBase::DataStruct
   }
 
   WavefieldType* m_wavefield;  ///< Wavefield pointer for CPU/GPU compatibility
-  RhsType* m_rhs;  ///< RHS pointer for CPU/GPU compatibility
+  RhsType* m_rhs;              ///< RHS pointer for CPU/GPU compatibility
 };
 
 //============================================================================

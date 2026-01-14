@@ -244,9 +244,11 @@ void SEMproxy::run()
   }
   else
   {
-    auto* wavefield = new WavefieldElastic(uxnGlobalPrev, uxnGlobalCurr, uynGlobalPrev,
-                               uynGlobalCurr, uynGlobalPrev, uznGlobalCurr);
-    auto* rhs = new RhsElastic(myRHSTermx, myRHSTermy, myRHSTermz, rhsElement, rhsWeights);
+    auto* wavefield =
+        new WavefieldElastic(uxnGlobalPrev, uxnGlobalCurr, uynGlobalPrev,
+                             uynGlobalCurr, uynGlobalPrev, uznGlobalCurr);
+    auto* rhs = new RhsElastic(myRHSTermx, myRHSTermy, myRHSTermz, rhsElement,
+                               rhsWeights);
     SEMsolverDataElastic solverData(wavefield, rhs);
 
     for (int indexTimeSample = 0; indexTimeSample < num_sample_;
