@@ -239,13 +239,12 @@ def get_solver_model_type(model_type):
         enum_value = ModelType[model_type]
     except KeyError:
         raise ValueError(f"Unknown python model type: {model_type}")
-    match enum_value:
-        case ModelType.STRUCTURED:
-            return Solver.MeshType.STRUCT
-        case ModelType.UNSTRUCTURED:
-            return Solver.MeshType.UNSTRUCT
-        case _:
-            raise ValueError(f"Unknown solver model type for: {enum_value.name}")
+    if enum_value == ModelType.STRUCTURED:
+        return Solver.MeshType.STRUCT
+    elif enum_value == ModelType.UNSTRUCTURED:
+        return Solver.MeshType.UNSTRUCT
+    else:
+        raise ValueError(f"Unknown solver model type for: {enum_value.name}")
 
 
 def get_solver_implem_type(implem_type):
@@ -273,19 +272,18 @@ def get_solver_implem_type(implem_type):
         enum_value = ImplemType[implem_type]
     except KeyError:
         raise ValueError(f"Unknown python implementation type: {implem_type}")
-    match enum_value:
-        case ImplemType.CLASSIC:
-            return Solver.ImplemType.CLASSIC
-        case ImplemType.MAKUTU:
-            return Solver.ImplemType.MAKUTU
-        case ImplemType.OPTIM:
-            return Solver.ImplemType.OPTIM
-        case ImplemType.SHIVA:
-            return Solver.ImplemType.SHIVA
-        case _:
-            raise ValueError(
-                f"Unknown solver implementation type for: {enum_value.name}"
-            )
+    if enum_value == ImplemType.CLASSIC:
+        return Solver.ImplemType.CLASSIC
+    elif enum_value == ImplemType.MAKUTU:
+        return Solver.ImplemType.MAKUTU
+    elif enum_value == ImplemType.OPTIM:
+        return Solver.ImplemType.OPTIM
+    elif enum_value == ImplemType.SHIVA:
+        return Solver.ImplemType.SHIVA
+    else:
+        raise ValueError(
+            f"Unknown solver implementation type for: {enum_value.name}"
+        )
 
 
 def create_model(model_type, e, h, l, order, on_nodes):
@@ -322,13 +320,12 @@ def create_model(model_type, e, h, l, order, on_nodes):
         enum_value = ModelType[model_type]
     except KeyError:
         raise ValueError(f"Unknown python model type: {model_type}")
-    match enum_value:
-        case ModelType.STRUCTURED:
-            return create_structured_model(e, l, order, on_nodes)
-        case ModelType.UNSTRUCTURED:
-            return create_unstructured_model(e, l, order, on_nodes)
-        case _:
-            raise ValueError(f"Unknown model type: {enum_value.name}")
+    if enum_value == ModelType.STRUCTURED:
+        return create_structured_model(e, l, order, on_nodes)
+    elif enum_value == ModelType.UNSTRUCTURED:
+        return create_unstructured_model(e, l, order, on_nodes)
+    else:
+        raise ValueError(f"Unknown model type: {enum_value.name}")
 
 
 def create_structured_model(e, l, order, on_nodes):
@@ -357,23 +354,22 @@ def create_structured_model(e, l, order, on_nodes):
         If the order is not 1, 2, or 3.
     """
 
-    match order:
-        case 1:
-            builder = CartesianStructBuilderFI1(
-                e[0], l[0], e[1], l[1], e[2], l[2], on_nodes, False
-            )
-        case 2:
-            builder = CartesianStructBuilderFI2(
-                e[0], l[0], e[1], l[1], e[2], l[2], on_nodes, False
-            )
-        case 3:
-            builder = CartesianStructBuilderFI3(
-                e[0], l[0], e[1], l[1], e[2], l[2], on_nodes, False
-            )
-        case _:
-            raise ValueError(
-                f"Order {order} is not wrapped by pybind11 (only 1, 2, 3 supported)"
-            )
+    if order == 1:
+        builder = CartesianStructBuilderFI1(
+            e[0], l[0], e[1], l[1], e[2], l[2], on_nodes, False
+        )
+    elif order == 2:
+        builder = CartesianStructBuilderFI2(
+            e[0], l[0], e[1], l[1], e[2], l[2], on_nodes, False
+        )
+    elif order == 3:
+        builder = CartesianStructBuilderFI3(
+            e[0], l[0], e[1], l[1], e[2], l[2], on_nodes, False
+        )
+    else:
+        raise ValueError(
+            f"Order {order} is not wrapped by pybind11 (only 1, 2, 3 supported)"
+        )
     return builder.get_model()
 
 
