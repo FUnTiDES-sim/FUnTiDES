@@ -164,8 +164,8 @@ BENCHMARK_TEMPLATE_METHOD_F(SolverStructFixture, OneStep)
     arrays.rhsTerm(0, j) = sourceTerm[j];
   }
 
-  auto wavefield = WavefieldAcoustic(arrays.pnGlobalPrev, arrays.pnGlobalCurr);
-  auto rhs = RhsAcoustic(arrays.rhsTerm, arrays.rhsElement, arrays.rhsWeights);
+  auto* wavefield = new WavefieldAcoustic(arrays.pnGlobalPrev, arrays.pnGlobalCurr);
+  auto* rhs = new RhsAcoustic(arrays.rhsTerm, arrays.rhsElement, arrays.rhsWeights);
   SEMsolverDataAcoustic data(wavefield, rhs);
 
   // Bench

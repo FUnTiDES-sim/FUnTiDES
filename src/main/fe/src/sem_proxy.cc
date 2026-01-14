@@ -170,8 +170,8 @@ void SEMproxy::run()
 
   if (!isElastic)
   {
-    WavefieldAcoustic wavefield(pnGlobalPrev, pnGlobalCurr);
-    RhsAcoustic rhs(myRHSTerm, rhsElement, rhsWeights);
+    auto* wavefield = new WavefieldAcoustic(pnGlobalPrev, pnGlobalCurr);
+    auto* rhs = new RhsAcoustic(myRHSTerm, rhsElement, rhsWeights);
     SEMsolverDataAcoustic solverData(wavefield, rhs);
 
     for (int indexTimeSample = 0; indexTimeSample < num_sample_;
@@ -216,7 +216,7 @@ void SEMproxy::run()
 
       pnAtReceiver(0, indexTimeSample) = varnp1;
 
-      wavefield.swap();
+      wavefield->swap();
 
       totalOutputTime += system_clock::now() - startOutputTime;
     }
@@ -244,9 +244,9 @@ void SEMproxy::run()
   }
   else
   {
-    WavefieldElastic wavefield(uxnGlobalPrev, uxnGlobalCurr, uynGlobalPrev,
+    auto* wavefield = new WavefieldElastic(uxnGlobalPrev, uxnGlobalCurr, uynGlobalPrev,
                                uynGlobalCurr, uynGlobalPrev, uznGlobalCurr);
-    RhsElastic rhs(myRHSTermx, myRHSTermy, myRHSTermz, rhsElement, rhsWeights);
+    auto* rhs = new RhsElastic(myRHSTermx, myRHSTermy, myRHSTermz, rhsElement, rhsWeights);
     SEMsolverDataElastic solverData(wavefield, rhs);
 
     for (int indexTimeSample = 0; indexTimeSample < num_sample_;
@@ -303,7 +303,7 @@ void SEMproxy::run()
       uynAtReceiver(0, indexTimeSample) = varyunp1;
       uznAtReceiver(0, indexTimeSample) = varuznp1;
 
-      wavefield.swap();
+      wavefield->swap();
 
       totalOutputTime += system_clock::now() - startOutputTime;
     }
