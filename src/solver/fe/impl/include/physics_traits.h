@@ -141,6 +141,8 @@ struct SEMsolverData : public SolverBase::DataStruct
     return m_wavefield.getPreviousField(i);
   }
 
+  void swapWavefields() { m_wavefield.swap(); }
+
   void print() const override
   {
     std::cout << "SEMsolverData<" << Traits::kName << ">" << std::endl;

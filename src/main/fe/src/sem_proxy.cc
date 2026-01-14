@@ -216,7 +216,7 @@ void SEMproxy::run()
 
       pnAtReceiver(0, indexTimeSample) = varnp1;
 
-      wavefield.swap();
+      solverData.swapWavefields();
 
       totalOutputTime += system_clock::now() - startOutputTime;
     }
@@ -303,7 +303,7 @@ void SEMproxy::run()
       uynAtReceiver(0, indexTimeSample) = varyunp1;
       uznAtReceiver(0, indexTimeSample) = varuznp1;
 
-      wavefield.swap();
+      solverData.swapWavefields();
 
       totalOutputTime += system_clock::now() - startOutputTime;
     }

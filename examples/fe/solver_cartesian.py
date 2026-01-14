@@ -945,7 +945,7 @@ def main():
         )
 
         # Swap pressure arrays for next iteration
-        wavefield.swap()
+        data.swap_wavefields()
 
     # Print final timing statistics
     end_time = time.time()

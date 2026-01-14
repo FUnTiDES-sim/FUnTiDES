@@ -35,6 +35,7 @@ void bind_acoustic_solver_data(py::module_ &m)
              std::shared_ptr<SEMsolverDataAcoustic>>(m, "SEMsolverDataAcoustic")
       .def(py::init<const WavefieldAcoustic &, const RhsAcoustic &>(),
            py::arg("wavefield"), py::arg("rhs"))
+      .def("swap_wavefields", &SEMsolverDataAcoustic::swapWavefields)
       .def("print", &SEMsolverDataAcoustic::print);
 }
 
@@ -44,6 +45,7 @@ void bind_elastic_solver_data(py::module_ &m)
              std::shared_ptr<SEMsolverDataElastic>>(m, "SEMsolverDataElastic")
       .def(py::init<const WavefieldElastic &, const RhsElastic &>(),
            py::arg("wavefield"), py::arg("rhs"))
+      .def("swap_wavefields", &SEMsolverDataElastic::swapWavefields)
       .def("print", &SEMsolverDataElastic::print);
 }
 
