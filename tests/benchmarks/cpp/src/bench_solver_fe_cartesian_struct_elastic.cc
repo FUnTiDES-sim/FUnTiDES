@@ -178,11 +178,11 @@ BENCHMARK_TEMPLATE_METHOD_F(SolverStructFixture, OneStep)
     arrays.rhsTermz(0, j) = sourceTerm[j];
   }
 
-  auto* wavefield = new WavefieldElastic(arrays.uxnGlobalPrev, arrays.uynGlobalPrev,
-                                    arrays.uznGlobalPrev, arrays.uxnGlobalCurr,
-                                    arrays.uynGlobalCurr, arrays.uznGlobalCurr);
+  auto* wavefield = new WavefieldElastic(
+      arrays.uxnGlobalPrev, arrays.uynGlobalPrev, arrays.uznGlobalPrev,
+      arrays.uxnGlobalCurr, arrays.uynGlobalCurr, arrays.uznGlobalCurr);
   auto* rhs = new RhsElastic(arrays.rhsTermx, arrays.rhsTermy, arrays.rhsTermz,
-                        arrays.rhsElement, arrays.rhsWeights);
+                             arrays.rhsElement, arrays.rhsWeights);
   SEMsolverDataElastic data(wavefield, rhs);
 
   // Bench
