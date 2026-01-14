@@ -33,15 +33,8 @@ void bind_acoustic_solver_data(py::module_ &m)
 {
   py::class_<SEMsolverDataAcoustic, SolverBase::DataStruct,
              std::shared_ptr<SEMsolverDataAcoustic>>(m, "SEMsolverDataAcoustic")
-      .def(py::init([](std::shared_ptr<WavefieldAcoustic> wavefield,
-                       std::shared_ptr<RhsAcoustic> rhs) {
-             // Get raw pointers from shared_ptr - Python manages lifetime
-             return new SEMsolverDataAcoustic(wavefield.get(), rhs.get());
-           }),
-           py::arg("wavefield"), py::arg("rhs"),
-           py::keep_alive<1, 2>(),  // Keep wavefield alive with
-                                    // SEMsolverDataAcoustic
-           py::keep_alive<1, 3>())  // Keep rhs alive with SEMsolverDataAcoustic
+      .def(py::init<const WavefieldAcoustic &, const RhsAcoustic &>(),
+           py::arg("wavefield"), py::arg("rhs"))
       .def("print", &SEMsolverDataAcoustic::print);
 }
 
@@ -49,15 +42,8 @@ void bind_elastic_solver_data(py::module_ &m)
 {
   py::class_<SEMsolverDataElastic, SolverBase::DataStruct,
              std::shared_ptr<SEMsolverDataElastic>>(m, "SEMsolverDataElastic")
-      .def(py::init([](std::shared_ptr<WavefieldElastic> wavefield,
-                       std::shared_ptr<RhsElastic> rhs) {
-             // Get raw pointers from shared_ptr - Python manages lifetime
-             return new SEMsolverDataElastic(wavefield.get(), rhs.get());
-           }),
-           py::arg("wavefield"), py::arg("rhs"),
-           py::keep_alive<1, 2>(),  // Keep wavefield alive with
-                                    // SEMsolverDataElastic
-           py::keep_alive<1, 3>())  // Keep rhs alive with SEMsolverDataElastic
+      .def(py::init<const WavefieldElastic &, const RhsElastic &>(),
+           py::arg("wavefield"), py::arg("rhs"))
       .def("print", &SEMsolverDataElastic::print);
 }
 

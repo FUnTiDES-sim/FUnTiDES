@@ -105,7 +105,7 @@ struct SEMsolverData : public SolverBase::DataStruct
    */
   template <physicType P = PHYSICS,
             typename = std::enable_if_t<P == enums::physicType::kAcoustic>>
-  SEMsolverData(WavefieldAcoustic* wavefield, RhsAcoustic* rhs)
+  SEMsolverData(const WavefieldAcoustic& wavefield, const RhsAcoustic& rhs)
       : m_wavefield(wavefield), m_rhs(rhs)
   {
   }
@@ -115,30 +115,30 @@ struct SEMsolverData : public SolverBase::DataStruct
    */
   template <physicType P = PHYSICS,
             typename = std::enable_if_t<P == enums::physicType::kElastic>>
-  SEMsolverData(WavefieldElastic* wavefield, RhsElastic* rhs)
+  SEMsolverData(const WavefieldElastic& wavefield, const RhsElastic& rhs)
       : m_wavefield(wavefield), m_rhs(rhs)
   {
   }
 
   PROXY_HOST_DEVICE
-  ARRAY_REAL_VIEW getRhsTerm(int i) const { return m_rhs->getTerm(i); }
+  ARRAY_REAL_VIEW getRhsTerm(int i) const { return m_rhs.getTerm(i); }
 
   PROXY_HOST_DEVICE
-  VECTOR_INT_VIEW getRhsElement() const { return m_rhs->getElement(); }
+  VECTOR_INT_VIEW getRhsElement() const { return m_rhs.getElement(); }
 
   PROXY_HOST_DEVICE
-  ARRAY_REAL_VIEW getRhsWeights() const { return m_rhs->getWeights(); }
+  ARRAY_REAL_VIEW getRhsWeights() const { return m_rhs.getWeights(); }
 
   PROXY_HOST_DEVICE
   VECTOR_REAL_VIEW getCurrentField(int i) const
   {
-    return m_wavefield->getCurrentField(i);
+    return m_wavefield.getCurrentField(i);
   }
 
   PROXY_HOST_DEVICE
   VECTOR_REAL_VIEW getPreviousField(int i) const
   {
-    return m_wavefield->getPreviousField(i);
+    return m_wavefield.getPreviousField(i);
   }
 
   void print() const override
@@ -158,8 +158,9 @@ struct SEMsolverData : public SolverBase::DataStruct
     std::cout << "RHS Weights size: " << getRhsWeights().extent(0) << std::endl;
   }
 
-  WavefieldType* m_wavefield;  ///< Wavefield pointer for CPU/GPU compatibility
-  RhsType* m_rhs;              ///< RHS pointer for CPU/GPU compatibility
+  WavefieldType m_wavefield;  ///< Wavefield stored by value for GPU
+                              ///< (lightweight view handles)
+  RhsType m_rhs;  ///< RHS stored by value for GPU (lightweight view handles)
 };
 
 //============================================================================
