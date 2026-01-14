@@ -81,12 +81,12 @@ TEST_F(WavefieldElasticTest, Constructor)
   // Verify data is correctly stored
   for (size_t i = 0; i < size1; ++i)
   {
-    EXPECT_FLOAT_EQ(wavefield.m_uxnGlobalPrev(i), static_cast<float>(i));
-    EXPECT_FLOAT_EQ(wavefield.m_uxnGlobalCurr(i), static_cast<float>(i * 2));
-    EXPECT_FLOAT_EQ(wavefield.m_uynGlobalPrev(i), static_cast<float>(i * 3));
-    EXPECT_FLOAT_EQ(wavefield.m_uynGlobalCurr(i), static_cast<float>(i * 4));
-    EXPECT_FLOAT_EQ(wavefield.m_uznGlobalPrev(i), static_cast<float>(i * 5));
-    EXPECT_FLOAT_EQ(wavefield.m_uznGlobalCurr(i), static_cast<float>(i * 6));
+    EXPECT_FLOAT_EQ(wavefield.m_uxnGlobalPrev(i), i);
+    EXPECT_FLOAT_EQ(wavefield.m_uxnGlobalCurr(i), i * 2);
+    EXPECT_FLOAT_EQ(wavefield.m_uynGlobalPrev(i), i * 3);
+    EXPECT_FLOAT_EQ(wavefield.m_uynGlobalCurr(i), i * 4);
+    EXPECT_FLOAT_EQ(wavefield.m_uznGlobalPrev(i), i * 5);
+    EXPECT_FLOAT_EQ(wavefield.m_uznGlobalCurr(i), i * 6);
   }
 }
 
@@ -196,12 +196,12 @@ TEST_F(WavefieldElasticTest, CopyAssignmentSelfAssignment)
 
   for (size_t i = 0; i < size1; ++i)
   {
-    EXPECT_FLOAT_EQ(wavefield.m_uxnGlobalPrev(i), static_cast<float>(i));
-    EXPECT_FLOAT_EQ(wavefield.m_uxnGlobalCurr(i), static_cast<float>(i * 2));
-    EXPECT_FLOAT_EQ(wavefield.m_uynGlobalPrev(i), static_cast<float>(i * 3));
-    EXPECT_FLOAT_EQ(wavefield.m_uynGlobalCurr(i), static_cast<float>(i * 4));
-    EXPECT_FLOAT_EQ(wavefield.m_uznGlobalPrev(i), static_cast<float>(i * 5));
-    EXPECT_FLOAT_EQ(wavefield.m_uznGlobalCurr(i), static_cast<float>(i * 6));
+    EXPECT_FLOAT_EQ(wavefield.m_uxnGlobalPrev(i), i);
+    EXPECT_FLOAT_EQ(wavefield.m_uxnGlobalCurr(i), i * 2);
+    EXPECT_FLOAT_EQ(wavefield.m_uynGlobalPrev(i), i * 3);
+    EXPECT_FLOAT_EQ(wavefield.m_uynGlobalCurr(i), i * 4);
+    EXPECT_FLOAT_EQ(wavefield.m_uznGlobalPrev(i), i * 5);
+    EXPECT_FLOAT_EQ(wavefield.m_uznGlobalCurr(i), i * 6);
   }
 }
 
