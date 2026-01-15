@@ -488,12 +488,12 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES,
 {
   MAINLOOPHEAD(m_mesh.getNumberOfElements(), elementNumber)
   if (elementNumber >= m_mesh.getNumberOfElements()) return;
-
   for (int i = 0; i < 6; ++i)
   {
-    int f = m_mesh.getGlobalFace(elementNumber, i);
+    // Cast i to CubicFace enum
+    int f = m_mesh.getGlobalFace(elementNumber, static_cast<model::CubicFace>(i));
     if (!m_mesh.isBoundaryFace(f)) continue;
-
+    
     // Get corner coordinates of the face
     float coords[4][3];
     for (int j = 0; j < 4; ++j)
@@ -505,20 +505,18 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES,
         coords[j][d] = m_mesh.nodeCoord(globalNodeIndex, d);
       }
     }
-
+    
     if constexpr (PHYSICS == enums::physicType::kAcoustic)
     {
       real_t model_rho = 0.0f;
       real_t model_vp = 0.0f;
       real_t alpha = 0.0f;
-
       if constexpr (!IS_MODEL_ON_NODES)
       {
         model_rho = m_mesh.getModelRhoOnElement(elementNumber);
         model_vp = m_mesh.getModelVpOnElement(elementNumber);
         alpha = 1.0 / (model_rho * model_vp);
       }
-
       constexpr int numNodesPerFace = (ORDER + 1) * (ORDER + 1);
       for (int q = 0; q < numNodesPerFace; ++q)
       {
@@ -537,9 +535,10 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES,
     else  // Elastic
     {
       float normal[3];
-      m_mesh.faceNormal(elementNumber, i, normal);
+      // Cast i to CubicFace enum for faceNormal
+      m_mesh.faceNormal(elementNumber, static_cast<model::CubicFace>(i), normal);
       real_t nx = normal[0], ny = normal[1], nz = normal[2];
-
+      
       real_t density, velocityVp, velocityVs;
       if constexpr (!IS_MODEL_ON_NODES)
       {
@@ -547,7 +546,6 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES,
         velocityVp = m_mesh.getModelVpOnElement(elementNumber);
         velocityVs = m_mesh.getModelVsOnElement(elementNumber);
       }
-
       constexpr int numNodesPerFace = (ORDER + 1) * (ORDER + 1);
       for (int q = 0; q < numNodesPerFace; ++q)
       {
@@ -559,21 +557,18 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES,
           velocityVs = m_mesh.getModelVsOnNodes(globalNodeIndex);
         }
         real_t aux = density * INTEGRAL_TYPE::computeDampingTerm(q, coords);
-
         real_t localIncrementx = aux * (velocityVp * fabs(nx) +
                                         velocityVs * sqrt(ny * ny + nz * nz));
         real_t localIncrementy = aux * (velocityVp * fabs(ny) +
                                         velocityVs * sqrt(nx * nx + nz * nz));
         real_t localIncrementz = aux * (velocityVp * fabs(nz) +
                                         velocityVs * sqrt(nx * nx + ny * ny));
-
         ATOMICADD(dampingMatrixGlobal_[0][globalNodeIndex], localIncrementx);
         ATOMICADD(dampingMatrixGlobal_[1][globalNodeIndex], localIncrementy);
         ATOMICADD(dampingMatrixGlobal_[2][globalNodeIndex], localIncrementz);
       }
     }
   }
-
   MAINLOOPEND
 }
 //============================================================================
