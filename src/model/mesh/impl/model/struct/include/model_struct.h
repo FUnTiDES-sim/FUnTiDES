@@ -3,6 +3,7 @@
 
 #include <elasticity_utils.h>
 #include <model.h>
+
 #include "gllpoints.h"
 
 namespace model
@@ -15,7 +16,8 @@ struct ModelStructData final : public ModelDataBase<FloatType, ScalarType>
   PROXY_HOST_DEVICE ModelStructData() = default;
   PROXY_HOST_DEVICE ~ModelStructData() = default;
   PROXY_HOST_DEVICE ModelStructData(const ModelStructData&) = default;
-  PROXY_HOST_DEVICE ModelStructData& operator=(const ModelStructData&) = default;
+  PROXY_HOST_DEVICE ModelStructData& operator=(const ModelStructData&) =
+      default;
 
   ScalarType ex_, ey_, ez_;
   FloatType dx_, dy_, dz_;
@@ -35,7 +37,8 @@ class ModelStruct : public ModelApi<FloatType, ScalarType>
 
   PROXY_HOST_DEVICE ModelStruct() = default;
 
-  PROXY_HOST_DEVICE ModelStruct(const ModelStructData<FloatType, ScalarType>& data)
+  PROXY_HOST_DEVICE ModelStruct(
+      const ModelStructData<FloatType, ScalarType>& data)
       : ex_(data.ex_),
         ey_(data.ey_),
         ez_(data.ez_),
@@ -73,7 +76,8 @@ class ModelStruct : public ModelApi<FloatType, ScalarType>
   }
 
   PROXY_HOST_DEVICE
-  IndexType globalVertexIndex(IndexType e, int const i, int const j, int const k) const
+  IndexType globalVertexIndex(IndexType e, int const i, int const j,
+                              int const k) const
   {
     return {e[0] + i, e[1] + j, e[2] + k};
   }
@@ -104,7 +108,8 @@ class ModelStruct : public ModelApi<FloatType, ScalarType>
     int elemIdx = nodeIdx[dim] / Order;
     int localIdx = nodeIdx[dim] % Order;
 
-    if (localIdx == Order && elemIdx < (dim == 0 ? ex_ : (dim == 1 ? ey_ : ez_)) - 1)
+    if (localIdx == Order &&
+        elemIdx < (dim == 0 ? ex_ : (dim == 1 ? ey_ : ez_)) - 1)
     {
       elemIdx++;
       localIdx = 0;
@@ -113,7 +118,8 @@ class ModelStruct : public ModelApi<FloatType, ScalarType>
     FloatType gllPoint = GLLPoints::get(Order, localIdx);
     FloatType elementSize = (dim == 0) ? hx_ : ((dim == 1) ? hy_ : hz_);
     FloatType elementStart = elemIdx * elementSize;
-    FloatType physicalCoord = elementStart + (gllPoint + 1.0) * elementSize * 0.5;
+    FloatType physicalCoord =
+        elementStart + (gllPoint + 1.0) * elementSize * 0.5;
 
     return physicalCoord;
   }
@@ -133,22 +139,70 @@ class ModelStruct : public ModelApi<FloatType, ScalarType>
     return ix + iy * nx_ + iz * nx_ * ny_;
   }
 
-  PROXY_HOST_DEVICE FloatType getModelVpOnNodes(ScalarType n) const { return 1500; }
-  PROXY_HOST_DEVICE FloatType getModelVpOnElement(ScalarType e) const { return 1500; }
-  PROXY_HOST_DEVICE FloatType getModelRhoOnNodes(ScalarType n) const { return 1; }
-  PROXY_HOST_DEVICE FloatType getModelRhoOnElement(ScalarType e) const { return 1; }
-  PROXY_HOST_DEVICE FloatType getModelVsOnNodes(ScalarType n) const { return 755; }
-  PROXY_HOST_DEVICE FloatType getModelVsOnElement(ScalarType e) const { return 755; }
-  PROXY_HOST_DEVICE FloatType getModelDeltaOnNodes(ScalarType n) const { return 0.0; }
-  PROXY_HOST_DEVICE FloatType getModelDeltaOnElement(ScalarType e) const { return 0.0; }
-  PROXY_HOST_DEVICE FloatType getModelEpsilonOnNodes(ScalarType n) const { return 0.0; }
-  PROXY_HOST_DEVICE FloatType getModelEpsilonOnElement(ScalarType e) const { return 0.0; }
-  PROXY_HOST_DEVICE FloatType getModelGammaOnNodes(ScalarType n) const { return 0.0; }
-  PROXY_HOST_DEVICE FloatType getModelGammaOnElement(ScalarType e) const { return 0.0; }
-  PROXY_HOST_DEVICE ScalarType getModelThetaOnNodes(ScalarType n) const { return 0; }
-  PROXY_HOST_DEVICE ScalarType getModelThetaOnElement(ScalarType e) const { return 0; }
-  PROXY_HOST_DEVICE ScalarType getModelPhiOnNodes(ScalarType n) const { return 0.0; }
-  PROXY_HOST_DEVICE ScalarType getModelPhiOnElement(ScalarType e) const { return 0.0; }
+  PROXY_HOST_DEVICE FloatType getModelVpOnNodes(ScalarType n) const
+  {
+    return 1500;
+  }
+  PROXY_HOST_DEVICE FloatType getModelVpOnElement(ScalarType e) const
+  {
+    return 1500;
+  }
+  PROXY_HOST_DEVICE FloatType getModelRhoOnNodes(ScalarType n) const
+  {
+    return 1;
+  }
+  PROXY_HOST_DEVICE FloatType getModelRhoOnElement(ScalarType e) const
+  {
+    return 1;
+  }
+  PROXY_HOST_DEVICE FloatType getModelVsOnNodes(ScalarType n) const
+  {
+    return 755;
+  }
+  PROXY_HOST_DEVICE FloatType getModelVsOnElement(ScalarType e) const
+  {
+    return 755;
+  }
+  PROXY_HOST_DEVICE FloatType getModelDeltaOnNodes(ScalarType n) const
+  {
+    return 0.0;
+  }
+  PROXY_HOST_DEVICE FloatType getModelDeltaOnElement(ScalarType e) const
+  {
+    return 0.0;
+  }
+  PROXY_HOST_DEVICE FloatType getModelEpsilonOnNodes(ScalarType n) const
+  {
+    return 0.0;
+  }
+  PROXY_HOST_DEVICE FloatType getModelEpsilonOnElement(ScalarType e) const
+  {
+    return 0.0;
+  }
+  PROXY_HOST_DEVICE FloatType getModelGammaOnNodes(ScalarType n) const
+  {
+    return 0.0;
+  }
+  PROXY_HOST_DEVICE FloatType getModelGammaOnElement(ScalarType e) const
+  {
+    return 0.0;
+  }
+  PROXY_HOST_DEVICE ScalarType getModelThetaOnNodes(ScalarType n) const
+  {
+    return 0;
+  }
+  PROXY_HOST_DEVICE ScalarType getModelThetaOnElement(ScalarType e) const
+  {
+    return 0;
+  }
+  PROXY_HOST_DEVICE ScalarType getModelPhiOnNodes(ScalarType n) const
+  {
+    return 0.0;
+  }
+  PROXY_HOST_DEVICE ScalarType getModelPhiOnElement(ScalarType e) const
+  {
+    return 0.0;
+  }
 
   void initElasticityTensors()
   {
@@ -175,26 +229,51 @@ class ModelStruct : public ModelApi<FloatType, ScalarType>
       for (int j = 0; j < 6; j++) CTTI[i][j] = model_C_tensor_element_(e, i, j);
   }
 
-  PROXY_HOST_DEVICE ScalarType getNumberOfElements() const { return ex_ * ey_ * ez_; }
-  PROXY_HOST_DEVICE ScalarType getNumberOfNodes() const { return (Order * ex_ + 1) * (Order * ey_ + 1) * (Order * ez_ + 1); }
-  PROXY_HOST_DEVICE int getNumberOfPointsPerElement() const { return (Order + 1) * (Order + 1) * (Order + 1); }
+  PROXY_HOST_DEVICE ScalarType getNumberOfElements() const
+  {
+    return ex_ * ey_ * ez_;
+  }
+  PROXY_HOST_DEVICE ScalarType getNumberOfNodes() const
+  {
+    return (Order * ex_ + 1) * (Order * ey_ + 1) * (Order * ez_ + 1);
+  }
+  PROXY_HOST_DEVICE int getNumberOfPointsPerElement() const
+  {
+    return (Order + 1) * (Order + 1) * (Order + 1);
+  }
   PROXY_HOST_DEVICE int getOrder() const { return Order; }
-  PROXY_HOST_DEVICE BoundaryFlag boundaryType(ScalarType n) const { return BoundaryFlag::InteriorNode; }
+  PROXY_HOST_DEVICE BoundaryFlag boundaryType(ScalarType n) const
+  {
+    return BoundaryFlag::InteriorNode;
+  }
 
   PROXY_HOST_DEVICE
-  void faceNormal(ScalarType e, CubicFace local_face, FloatType v[3]) const final
+  void faceNormal(ScalarType e, CubicFace local_face,
+                  FloatType v[3]) const final
   {
-    v[0] = 0.0; v[1] = 0.0; v[2] = 0.0;
-    
+    v[0] = 0.0;
+    v[1] = 0.0;
+    v[2] = 0.0;
+
     int direction = static_cast<int>(local_face) / 2;  // 0=x, 1=y, 2=z
     FloatType sign = (static_cast<int>(local_face) % 2) ? +1.0 : -1.0;
-    
+
     v[direction] = sign;
   }
 
   PROXY_HOST_DEVICE FloatType domainSize(int dim) const
   {
-    switch (dim) { case 0: return lx_; case 1: return ly_; case 2: return lz_; default: return -1; }
+    switch (dim)
+    {
+      case 0:
+        return lx_;
+      case 1:
+        return ly_;
+      case 2:
+        return lz_;
+      default:
+        return -1;
+    }
   }
 
   PROXY_HOST_DEVICE FloatType getMinSpacing() const
@@ -231,17 +310,17 @@ class ModelStruct : public ModelApi<FloatType, ScalarType>
 
     switch (local_face)
     {
-      case CubicFace::XMinus:
+      case CubicFace::kXMinus:
         return offset_x + ex + ey * (ex_ + 1) + ez * (ex_ + 1) * ey_;
-      case CubicFace::XPlus:
+      case CubicFace::kXPlus:
         return offset_x + (ex + 1) + ey * (ex_ + 1) + ez * (ex_ + 1) * ey_;
-      case CubicFace::YMinus:
+      case CubicFace::kYMinus:
         return offset_y + ex + ey * ex_ + ez * ex_ * (ey_ + 1);
-      case CubicFace::YPlus:
+      case CubicFace::kYPlus:
         return offset_y + ex + (ey + 1) * ex_ + ez * ex_ * (ey_ + 1);
-      case CubicFace::ZMinus:
+      case CubicFace::kZMinus:
         return offset_z + ex + ey * ex_ + ez * ex_ * ey_;
-      case CubicFace::ZPlus:
+      case CubicFace::kZPlus:
         return offset_z + ex + ey * ex_ + (ez + 1) * ex_ * ey_;
       default:
         return -1;
@@ -332,7 +411,8 @@ class ModelStruct : public ModelApi<FloatType, ScalarType>
   PROXY_HOST_DEVICE
   ScalarType getNumberOfFaces() const
   {
-    return (ex_ + 1) * ey_ * ez_ + ex_ * (ey_ + 1) * ez_ + ex_ * ey_ * (ez_ + 1);
+    return (ex_ + 1) * ey_ * ez_ + ex_ * (ey_ + 1) * ez_ +
+           ex_ * ey_ * (ez_ + 1);
   }
 
   void buildFaceConnectivity() override

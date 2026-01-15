@@ -2,9 +2,10 @@
 #define SRC_MODEL_MESH_MODEL_UNSTRUCTURED_FACE_CONNECTIVITY_UNSTRUCT_H_
 
 #include <model.h>
+
+#include <algorithm>
 #include <array>
 #include <map>
-#include <algorithm>
 
 namespace model
 {
@@ -81,37 +82,38 @@ namespace FaceConnectivityUtils
  * @brief Extract the 4 corner vertices for a face
  */
 template <typename ScalarType, typename MeshType>
-std::array<ScalarType, 4> extractFaceCorners(
-    const MeshType* mesh, ScalarType elem, CubicFace local_face)
+std::array<ScalarType, 4> extractFaceCorners(const MeshType* mesh,
+                                             ScalarType elem,
+                                             CubicFace local_face)
 {
   switch (local_face)
   {
-    case CubicFace::XMinus:
+    case CubicFace::kXMinus:
       return {mesh->globalVertexIndex(elem, 0, 0, 0),
               mesh->globalVertexIndex(elem, 0, 1, 0),
               mesh->globalVertexIndex(elem, 0, 1, 1),
               mesh->globalVertexIndex(elem, 0, 0, 1)};
-    case CubicFace::XPlus:
+    case CubicFace::kXPlus:
       return {mesh->globalVertexIndex(elem, 1, 0, 0),
               mesh->globalVertexIndex(elem, 1, 1, 0),
               mesh->globalVertexIndex(elem, 1, 1, 1),
               mesh->globalVertexIndex(elem, 1, 0, 1)};
-    case CubicFace::YMinus:
+    case CubicFace::kYMinus:
       return {mesh->globalVertexIndex(elem, 0, 0, 0),
               mesh->globalVertexIndex(elem, 1, 0, 0),
               mesh->globalVertexIndex(elem, 1, 0, 1),
               mesh->globalVertexIndex(elem, 0, 0, 1)};
-    case CubicFace::YPlus:
+    case CubicFace::kYPlus:
       return {mesh->globalVertexIndex(elem, 0, 1, 0),
               mesh->globalVertexIndex(elem, 1, 1, 0),
               mesh->globalVertexIndex(elem, 1, 1, 1),
               mesh->globalVertexIndex(elem, 0, 1, 1)};
-    case CubicFace::ZMinus:
+    case CubicFace::kZMinus:
       return {mesh->globalVertexIndex(elem, 0, 0, 0),
               mesh->globalVertexIndex(elem, 1, 0, 0),
               mesh->globalVertexIndex(elem, 1, 1, 0),
               mesh->globalVertexIndex(elem, 0, 1, 0)};
-    case CubicFace::ZPlus:
+    case CubicFace::kZPlus:
       return {mesh->globalVertexIndex(elem, 0, 0, 1),
               mesh->globalVertexIndex(elem, 1, 0, 1),
               mesh->globalVertexIndex(elem, 1, 1, 1),

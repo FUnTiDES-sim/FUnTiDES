@@ -3,11 +3,12 @@
 
 #include <elasticity_utils.h>
 #include <model.h>
-#include "face_connectivity_unstruct.h"
 
 #include <algorithm>
 #include <array>
 #include <map>
+
+#include "face_connectivity_unstruct.h"
 
 namespace model
 {
@@ -18,7 +19,8 @@ struct ModelUnstructData : public ModelDataBase<FloatType, ScalarType>
   PROXY_HOST_DEVICE ModelUnstructData() = default;
   PROXY_HOST_DEVICE ~ModelUnstructData() = default;
   PROXY_HOST_DEVICE ModelUnstructData(const ModelUnstructData&) = default;
-  PROXY_HOST_DEVICE ModelUnstructData& operator=(const ModelUnstructData&) = default;
+  PROXY_HOST_DEVICE ModelUnstructData& operator=(const ModelUnstructData&) =
+      default;
 
   PROXY_HOST_DEVICE
   ModelUnstructData(
@@ -113,7 +115,8 @@ class ModelUnstruct final : public ModelApi<FloatType, ScalarType>
 
   PROXY_HOST_DEVICE ModelUnstruct() = default;
 
-  PROXY_HOST_DEVICE ModelUnstruct(const ModelUnstructData<FloatType, ScalarType>& data)
+  PROXY_HOST_DEVICE ModelUnstruct(
+      const ModelUnstructData<FloatType, ScalarType>& data)
       : order_(data.order_),
         n_element_(data.n_element_),
         n_node_(data.n_node_),
@@ -155,7 +158,8 @@ class ModelUnstruct final : public ModelApi<FloatType, ScalarType>
   IndexType elementIndex(const int linearIndex) const { return linearIndex; }
 
   PROXY_HOST_DEVICE
-  IndexType globalVertexIndex(IndexType e, int const i, int const j, int const k) const
+  IndexType globalVertexIndex(IndexType e, int const i, int const j,
+                              int const k) const
   {
     int local_i = i * order_;
     int local_j = j * order_;
@@ -178,36 +182,89 @@ class ModelUnstruct final : public ModelApi<FloatType, ScalarType>
   {
     switch (dim)
     {
-      case 0: return nodes_coords_x_[dofGlobal];
-      case 1: return nodes_coords_y_[dofGlobal];
-      case 2: return nodes_coords_z_[dofGlobal];
-      default: return FloatType(-1);
+      case 0:
+        return nodes_coords_x_[dofGlobal];
+      case 1:
+        return nodes_coords_y_[dofGlobal];
+      case 2:
+        return nodes_coords_z_[dofGlobal];
+      default:
+        return FloatType(-1);
     }
   }
 
   PROXY_HOST_DEVICE
   ScalarType globalNodeIndex(ScalarType e, int i, int j, int k) const final
   {
-    const auto localDofIndex = i + j * (order_ + 1) + k * (order_ + 1) * (order_ + 1);
+    const auto localDofIndex =
+        i + j * (order_ + 1) + k * (order_ + 1) * (order_ + 1);
     return global_node_index_(e, localDofIndex);
   }
 
-  PROXY_HOST_DEVICE FloatType getModelVpOnNodes(ScalarType n) const final { return model_vp_node_[n]; }
-  PROXY_HOST_DEVICE FloatType getModelVpOnElement(ScalarType e) const final { return model_vp_element_[e]; }
-  PROXY_HOST_DEVICE FloatType getModelRhoOnNodes(ScalarType n) const final { return model_rho_node_[n]; }
-  PROXY_HOST_DEVICE FloatType getModelRhoOnElement(ScalarType e) const final { return model_rho_element_[e]; }
-  PROXY_HOST_DEVICE FloatType getModelVsOnNodes(ScalarType n) const final { return model_vs_node_[n]; }
-  PROXY_HOST_DEVICE FloatType getModelVsOnElement(ScalarType e) const final { return model_vs_element_[e]; }
-  PROXY_HOST_DEVICE FloatType getModelDeltaOnNodes(ScalarType n) const final { return model_delta_node_[n]; }
-  PROXY_HOST_DEVICE FloatType getModelDeltaOnElement(ScalarType e) const final { return model_delta_element_[e]; }
-  PROXY_HOST_DEVICE FloatType getModelEpsilonOnNodes(ScalarType n) const final { return model_epsilon_node_[n]; }
-  PROXY_HOST_DEVICE FloatType getModelEpsilonOnElement(ScalarType e) const final { return model_epsilon_element_[e]; }
-  PROXY_HOST_DEVICE FloatType getModelGammaOnNodes(ScalarType n) const final { return model_gamma_node_[n]; }
-  PROXY_HOST_DEVICE FloatType getModelGammaOnElement(ScalarType e) const final { return model_gamma_element_[e]; }
-  PROXY_HOST_DEVICE ScalarType getModelPhiOnNodes(ScalarType n) const final { return model_phi_node_[n]; }
-  PROXY_HOST_DEVICE ScalarType getModelPhiOnElement(ScalarType e) const final { return model_phi_element_[e]; }
-  PROXY_HOST_DEVICE ScalarType getModelThetaOnNodes(ScalarType n) const final { return model_theta_node_[n]; }
-  PROXY_HOST_DEVICE ScalarType getModelThetaOnElement(ScalarType e) const final { return model_theta_element_[e]; }
+  PROXY_HOST_DEVICE FloatType getModelVpOnNodes(ScalarType n) const final
+  {
+    return model_vp_node_[n];
+  }
+  PROXY_HOST_DEVICE FloatType getModelVpOnElement(ScalarType e) const final
+  {
+    return model_vp_element_[e];
+  }
+  PROXY_HOST_DEVICE FloatType getModelRhoOnNodes(ScalarType n) const final
+  {
+    return model_rho_node_[n];
+  }
+  PROXY_HOST_DEVICE FloatType getModelRhoOnElement(ScalarType e) const final
+  {
+    return model_rho_element_[e];
+  }
+  PROXY_HOST_DEVICE FloatType getModelVsOnNodes(ScalarType n) const final
+  {
+    return model_vs_node_[n];
+  }
+  PROXY_HOST_DEVICE FloatType getModelVsOnElement(ScalarType e) const final
+  {
+    return model_vs_element_[e];
+  }
+  PROXY_HOST_DEVICE FloatType getModelDeltaOnNodes(ScalarType n) const final
+  {
+    return model_delta_node_[n];
+  }
+  PROXY_HOST_DEVICE FloatType getModelDeltaOnElement(ScalarType e) const final
+  {
+    return model_delta_element_[e];
+  }
+  PROXY_HOST_DEVICE FloatType getModelEpsilonOnNodes(ScalarType n) const final
+  {
+    return model_epsilon_node_[n];
+  }
+  PROXY_HOST_DEVICE FloatType getModelEpsilonOnElement(ScalarType e) const final
+  {
+    return model_epsilon_element_[e];
+  }
+  PROXY_HOST_DEVICE FloatType getModelGammaOnNodes(ScalarType n) const final
+  {
+    return model_gamma_node_[n];
+  }
+  PROXY_HOST_DEVICE FloatType getModelGammaOnElement(ScalarType e) const final
+  {
+    return model_gamma_element_[e];
+  }
+  PROXY_HOST_DEVICE ScalarType getModelPhiOnNodes(ScalarType n) const final
+  {
+    return model_phi_node_[n];
+  }
+  PROXY_HOST_DEVICE ScalarType getModelPhiOnElement(ScalarType e) const final
+  {
+    return model_phi_element_[e];
+  }
+  PROXY_HOST_DEVICE ScalarType getModelThetaOnNodes(ScalarType n) const final
+  {
+    return model_theta_node_[n];
+  }
+  PROXY_HOST_DEVICE ScalarType getModelThetaOnElement(ScalarType e) const final
+  {
+    return model_theta_element_[e];
+  }
 
   void initElasticityTensors()
   {
@@ -225,10 +282,11 @@ class ModelUnstruct final : public ModelApi<FloatType, ScalarType>
 
     MAINLOOPHEAD(n_element_, i)
     FloatType CTTI[6][6];
-    computeCTensor(static_cast<FloatType>(vp[i]), static_cast<FloatType>(vs[i]),
-                   static_cast<FloatType>(rho[i]), static_cast<FloatType>(delta[i]),
-                   static_cast<FloatType>(epsilon[i]), static_cast<FloatType>(gamma[i]),
-                   static_cast<FloatType>(theta[i]), static_cast<FloatType>(phi[i]), CTTI);
+    computeCTensor(
+        static_cast<FloatType>(vp[i]), static_cast<FloatType>(vs[i]),
+        static_cast<FloatType>(rho[i]), static_cast<FloatType>(delta[i]),
+        static_cast<FloatType>(epsilon[i]), static_cast<FloatType>(gamma[i]),
+        static_cast<FloatType>(theta[i]), static_cast<FloatType>(phi[i]), CTTI);
     for (int k = 0; k < 6; k++)
       for (int l = 0; l < 6; l++) C_tensor(i, k, l) = CTTI[k][l];
     MAINLOOPEND
@@ -241,51 +299,67 @@ class ModelUnstruct final : public ModelApi<FloatType, ScalarType>
       for (int j = 0; j < 6; j++) CTTI[i][j] = model_C_tensor_element_(e, i, j);
   }
 
-  PROXY_HOST_DEVICE bool isModelOnNodes() const final { return isModelOnNodes_; }
+  PROXY_HOST_DEVICE bool isModelOnNodes() const final
+  {
+    return isModelOnNodes_;
+  }
   PROXY_HOST_DEVICE bool isElastic() const final { return isElastic_; }
-  PROXY_HOST_DEVICE ScalarType getNumberOfElements() const final { return n_element_; }
-  PROXY_HOST_DEVICE ScalarType getNumberOfNodes() const final { return n_node_; }
-  PROXY_HOST_DEVICE int getNumberOfPointsPerElement() const final { return n_points_per_element_; }
-  PROXY_HOST_DEVICE int getOrder() const final { return static_cast<int>(order_); }
+  PROXY_HOST_DEVICE ScalarType getNumberOfElements() const final
+  {
+    return n_element_;
+  }
+  PROXY_HOST_DEVICE ScalarType getNumberOfNodes() const final
+  {
+    return n_node_;
+  }
+  PROXY_HOST_DEVICE int getNumberOfPointsPerElement() const final
+  {
+    return n_points_per_element_;
+  }
+  PROXY_HOST_DEVICE int getOrder() const final
+  {
+    return static_cast<int>(order_);
+  }
   PROXY_HOST_DEVICE BoundaryFlag boundaryType(ScalarType n) const final
   {
     return static_cast<BoundaryFlag>(boundaries_t_[n]);
   }
 
   PROXY_HOST_DEVICE
-  void faceNormal(ScalarType e, CubicFace local_face, FloatType v[3]) const final
+  void faceNormal(ScalarType e, CubicFace local_face,
+                  FloatType v[3]) const final
   {
     ScalarType n0, n1, n2;
     const int o = order_;
 
     switch (local_face)
     {
-      case CubicFace::XMinus:
+      case CubicFace::kXMinus:
         n0 = globalNodeIndex(e, 0, 0, 0);
         n1 = globalNodeIndex(e, 0, o, 0);
         n2 = globalNodeIndex(e, 0, 0, o);
         break;
-      case CubicFace::XPlus:
+      case CubicFace::kXPlus:
         n0 = globalNodeIndex(e, o, 0, 0);
         n1 = globalNodeIndex(e, o, 0, o);
         n2 = globalNodeIndex(e, o, o, 0);
         break;
-      case CubicFace::YMinus:
+      case CubicFace::kYMinus:
         n0 = globalNodeIndex(e, 0, 0, 0);
         n1 = globalNodeIndex(e, 0, 0, o);
         n2 = globalNodeIndex(e, o, 0, 0);
         break;
-      case CubicFace::YPlus:
+      case CubicFace::kYPlus:
         n0 = globalNodeIndex(e, 0, o, 0);
         n1 = globalNodeIndex(e, o, o, 0);
         n2 = globalNodeIndex(e, 0, o, o);
         break;
-      case CubicFace::ZMinus:
+      case CubicFace::kZMinus:
         n0 = globalNodeIndex(e, 0, 0, 0);
         n1 = globalNodeIndex(e, o, 0, 0);
         n2 = globalNodeIndex(e, 0, o, 0);
         break;
-      case CubicFace::ZPlus:
+      case CubicFace::kZPlus:
         n0 = globalNodeIndex(e, 0, 0, o);
         n1 = globalNodeIndex(e, 0, o, o);
         n2 = globalNodeIndex(e, o, 0, o);
@@ -301,20 +375,39 @@ class ModelUnstruct final : public ModelApi<FloatType, ScalarType>
     }
 
     FloatType t1[3], t2[3];
-    t1[0] = p1[0] - p0[0]; t1[1] = p1[1] - p0[1]; t1[2] = p1[2] - p0[2];
-    t2[0] = p2[0] - p0[0]; t2[1] = p2[1] - p0[1]; t2[2] = p2[2] - p0[2];
+    t1[0] = p1[0] - p0[0];
+    t1[1] = p1[1] - p0[1];
+    t1[2] = p1[2] - p0[2];
+    t2[0] = p2[0] - p0[0];
+    t2[1] = p2[1] - p0[1];
+    t2[2] = p2[2] - p0[2];
 
     v[0] = t1[1] * t2[2] - t1[2] * t2[1];
     v[1] = t1[2] * t2[0] - t1[0] * t2[2];
     v[2] = t1[0] * t2[1] - t1[1] * t2[0];
 
     FloatType norm = sqrt(v[0] * v[0] + v[1] * v[1] + v[2] * v[2]);
-    if (norm > 1e-12) { v[0] /= norm; v[1] /= norm; v[2] /= norm; }
+    if (norm > 1e-12)
+    {
+      v[0] /= norm;
+      v[1] /= norm;
+      v[2] /= norm;
+    }
   }
 
   PROXY_HOST_DEVICE FloatType domainSize(int dim) const final
   {
-    switch (dim) { case 0: return lx_; case 1: return ly_; case 2: return lz_; default: return FloatType(-1); }
+    switch (dim)
+    {
+      case 0:
+        return lx_;
+      case 1:
+        return ly_;
+      case 2:
+        return lz_;
+      default:
+        return FloatType(-1);
+    }
   }
 
   PROXY_HOST_DEVICE FloatType getMinSpacing() const final
@@ -366,9 +459,19 @@ class ModelUnstruct final : public ModelApi<FloatType, ScalarType>
     FloatType maxSpeedNode = std::numeric_limits<FloatType>::lowest();
     FloatType maxSpeedElem = std::numeric_limits<FloatType>::lowest();
 
-    if (model_vp_node_.extent(0) > 0) { FIND_MAX_1D(model_vp_node_, n_node_, maxSpeedNode); }
-    else if (model_vp_element_.extent(0) > 0) { FIND_MAX_1D(model_vp_element_, n_element_, maxSpeedElem); }
-    else { throw std::runtime_error("No model initialized (model unstruct getMaxSpeed)."); }
+    if (model_vp_node_.extent(0) > 0)
+    {
+      FIND_MAX_1D(model_vp_node_, n_node_, maxSpeedNode);
+    }
+    else if (model_vp_element_.extent(0) > 0)
+    {
+      FIND_MAX_1D(model_vp_element_, n_element_, maxSpeedElem);
+    }
+    else
+    {
+      throw std::runtime_error(
+          "No model initialized (model unstruct getMaxSpeed).");
+    }
     return max(maxSpeedElem, maxSpeedNode);
   }
 
@@ -376,130 +479,148 @@ class ModelUnstruct final : public ModelApi<FloatType, ScalarType>
   // FACE CONNECTIVITY FUNCTIONS
   // ============================================================================
 
-void buildFaceConnectivity() override
-{
-  using namespace FaceConnectivityUtils;
-  
-  // Pre-allocate with maximum possible size using project types
-  const ScalarType max_faces = n_element_ * 6;  // Upper bound
-  const int ndofs_per_face = (order_ + 1) * (order_ + 1);
-  
-  // Temporary arrays for construction (allocated with project's macros)
-  auto elem_to_faces_temp = allocateArray2D<ARRAY_INT_VIEW>(n_element_, 6);
-  auto face_dofs_temp = allocateArray2D<ARRAY_INT_VIEW>(max_faces, ndofs_per_face);
-  auto face_elem_owner_temp = allocateVector<VECTOR_INT_VIEW>(max_faces);
-  auto face_elem_neighbor_temp = allocateVector<VECTOR_INT_VIEW>(max_faces);
-  auto face_local_owner_temp = allocateVector<VECTOR_INT_VIEW>(max_faces);
-  auto face_local_neighbor_temp = allocateVector<VECTOR_INT_VIEW>(max_faces);
-
-  // Initialize neighbor to -1 (boundary marker)
-  for (ScalarType i = 0; i < max_faces; ++i)
-    face_elem_neighbor_temp(i) = -1;
-
-  // Map for face uniqueness (only std::map remains, needed for search)
-  using FaceKey = std::array<ScalarType, 4>;
-  std::map<FaceKey, ScalarType> face_map;
-
-  ScalarType face_count = 0;
-
-  // Build face connectivity
-  for (ScalarType elem = 0; elem < n_element_; ++elem)
+  void buildFaceConnectivity() override
   {
-    for (int lf = 0; lf < 6; ++lf)
+    using namespace FaceConnectivityUtils;
+
+    // Pre-allocate with maximum possible size using project types
+    const ScalarType max_faces = n_element_ * 6;  // Upper bound
+    const int ndofs_per_face = (order_ + 1) * (order_ + 1);
+
+    // Temporary arrays for construction (allocated with project's macros)
+    auto elem_to_faces_temp = allocateArray2D<ARRAY_INT_VIEW>(n_element_, 6);
+    auto face_dofs_temp =
+        allocateArray2D<ARRAY_INT_VIEW>(max_faces, ndofs_per_face);
+    auto face_elem_owner_temp = allocateVector<VECTOR_INT_VIEW>(max_faces);
+    auto face_elem_neighbor_temp = allocateVector<VECTOR_INT_VIEW>(max_faces);
+    auto face_local_owner_temp = allocateVector<VECTOR_INT_VIEW>(max_faces);
+    auto face_local_neighbor_temp = allocateVector<VECTOR_INT_VIEW>(max_faces);
+
+    // Initialize neighbor to -1 (boundary marker)
+    for (ScalarType i = 0; i < max_faces; ++i) face_elem_neighbor_temp(i) = -1;
+
+    // Map for face uniqueness (only std::map remains, needed for search)
+    using FaceKey = std::array<ScalarType, 4>;
+    std::map<FaceKey, ScalarType> face_map;
+
+    ScalarType face_count = 0;
+
+    // Build face connectivity
+    for (ScalarType elem = 0; elem < n_element_; ++elem)
     {
-      CubicFace local_face = static_cast<CubicFace>(lf);
-      auto corners = extractFaceCorners(this, elem, local_face);
-      auto face_key = makeFaceKey(corners);
-
-      auto it = face_map.find(face_key);
-      if (it == face_map.end())
+      for (int lf = 0; lf < 6; ++lf)
       {
-        // New face
-        ScalarType face_id = face_count++;
-        face_map[face_key] = face_id;
+        CubicFace local_face = static_cast<CubicFace>(lf);
+        auto corners = extractFaceCorners(this, elem, local_face);
+        auto face_key = makeFaceKey(corners);
 
-        // Fill face DOFs directly (inline instead of function call)
-        const int o = order_;
-        int idx = 0;
-        switch (local_face)
+        auto it = face_map.find(face_key);
+        if (it == face_map.end())
         {
-          case CubicFace::XMinus:
-            for (int k = 0; k <= o; ++k)
-              for (int j = 0; j <= o; ++j)
-                face_dofs_temp(face_id, idx++) = globalNodeIndex(elem, 0, j, k);
-            break;
-          case CubicFace::XPlus:
-            for (int k = 0; k <= o; ++k)
-              for (int j = 0; j <= o; ++j)
-                face_dofs_temp(face_id, idx++) = globalNodeIndex(elem, o, j, k);
-            break;
-          case CubicFace::YMinus:
-            for (int k = 0; k <= o; ++k)
-              for (int i = 0; i <= o; ++i)
-                face_dofs_temp(face_id, idx++) = globalNodeIndex(elem, i, 0, k);
-            break;
-          case CubicFace::YPlus:
-            for (int k = 0; k <= o; ++k)
-              for (int i = 0; i <= o; ++i)
-                face_dofs_temp(face_id, idx++) = globalNodeIndex(elem, i, o, k);
-            break;
-          case CubicFace::ZMinus:
-            for (int j = 0; j <= o; ++j)
-              for (int i = 0; i <= o; ++i)
-                face_dofs_temp(face_id, idx++) = globalNodeIndex(elem, i, j, 0);
-            break;
-          case CubicFace::ZPlus:
-            for (int j = 0; j <= o; ++j)
-              for (int i = 0; i <= o; ++i)
-                face_dofs_temp(face_id, idx++) = globalNodeIndex(elem, i, j, o);
-            break;
-        }
+          // New face
+          ScalarType face_id = face_count++;
+          face_map[face_key] = face_id;
 
-        face_elem_owner_temp(face_id) = elem;
-        face_local_owner_temp(face_id) = lf;
-        
-        elem_to_faces_temp(elem, lf) = face_id;
-      }
-      else
-      {
-        // Face already seen (internal face)
-        ScalarType face_id = it->second;
-        face_elem_neighbor_temp(face_id) = elem;
-        face_local_neighbor_temp(face_id) = lf;
-        elem_to_faces_temp(elem, lf) = face_id;
+          // Fill face DOFs directly (inline instead of function call)
+          const int o = order_;
+          int idx = 0;
+          switch (local_face)
+          {
+            case CubicFace::kXMinus:
+              for (int k = 0; k <= o; ++k)
+                for (int j = 0; j <= o; ++j)
+                  face_dofs_temp(face_id, idx++) =
+                      globalNodeIndex(elem, 0, j, k);
+              break;
+            case CubicFace::kXPlus:
+              for (int k = 0; k <= o; ++k)
+                for (int j = 0; j <= o; ++j)
+                  face_dofs_temp(face_id, idx++) =
+                      globalNodeIndex(elem, o, j, k);
+              break;
+            case CubicFace::kYMinus:
+              for (int k = 0; k <= o; ++k)
+                for (int i = 0; i <= o; ++i)
+                  face_dofs_temp(face_id, idx++) =
+                      globalNodeIndex(elem, i, 0, k);
+              break;
+            case CubicFace::kYPlus:
+              for (int k = 0; k <= o; ++k)
+                for (int i = 0; i <= o; ++i)
+                  face_dofs_temp(face_id, idx++) =
+                      globalNodeIndex(elem, i, o, k);
+              break;
+            case CubicFace::kZMinus:
+              for (int j = 0; j <= o; ++j)
+                for (int i = 0; i <= o; ++i)
+                  face_dofs_temp(face_id, idx++) =
+                      globalNodeIndex(elem, i, j, 0);
+              break;
+            case CubicFace::kZPlus:
+              for (int j = 0; j <= o; ++j)
+                for (int i = 0; i <= o; ++i)
+                  face_dofs_temp(face_id, idx++) =
+                      globalNodeIndex(elem, i, j, o);
+              break;
+          }
+
+          face_elem_owner_temp(face_id) = elem;
+          face_local_owner_temp(face_id) = lf;
+
+          elem_to_faces_temp(elem, lf) = face_id;
+        }
+        else
+        {
+          // Face already seen (internal face)
+          ScalarType face_id = it->second;
+          face_elem_neighbor_temp(face_id) = elem;
+          face_local_neighbor_temp(face_id) = lf;
+          elem_to_faces_temp(elem, lf) = face_id;
+        }
       }
     }
+
+    // Allocate final arrays with exact size
+    const int n_faces = face_count;
+
+    face_connectivity_.n_faces_ = n_faces;
+    face_connectivity_.ndofs_per_face_ = ndofs_per_face;
+
+    face_connectivity_.elem_to_faces_ =
+        allocateArray2D<ARRAY_INT_VIEW>(n_element_, 6);
+    face_connectivity_.face_dofs_ =
+        allocateArray2D<ARRAY_INT_VIEW>(n_faces, ndofs_per_face);
+    face_connectivity_.face_elem_owner_ =
+        allocateVector<VECTOR_INT_VIEW>(n_faces);
+    face_connectivity_.face_elem_neighbor_ =
+        allocateVector<VECTOR_INT_VIEW>(n_faces);
+    face_connectivity_.face_local_owner_ =
+        allocateVector<VECTOR_INT_VIEW>(n_faces);
+    face_connectivity_.face_local_neighbor_ =
+        allocateVector<VECTOR_INT_VIEW>(n_faces);
+
+    // Copy to final arrays (only the used portion)
+    for (ScalarType elem = 0; elem < n_element_; ++elem)
+      for (int lf = 0; lf < 6; ++lf)
+        face_connectivity_.elem_to_faces_(elem, lf) =
+            elem_to_faces_temp(elem, lf);
+
+    for (int face_id = 0; face_id < n_faces; ++face_id)
+    {
+      face_connectivity_.face_elem_owner_(face_id) =
+          face_elem_owner_temp(face_id);
+      face_connectivity_.face_elem_neighbor_(face_id) =
+          face_elem_neighbor_temp(face_id);
+      face_connectivity_.face_local_owner_(face_id) =
+          face_local_owner_temp(face_id);
+      face_connectivity_.face_local_neighbor_(face_id) =
+          face_local_neighbor_temp(face_id);
+
+      for (int dof = 0; dof < ndofs_per_face; ++dof)
+        face_connectivity_.face_dofs_(face_id, dof) =
+            face_dofs_temp(face_id, dof);
+    }
   }
-
-  // Allocate final arrays with exact size
-  const int n_faces = face_count;
-  
-  face_connectivity_.n_faces_ = n_faces;
-  face_connectivity_.ndofs_per_face_ = ndofs_per_face;
-
-  face_connectivity_.elem_to_faces_ = allocateArray2D<ARRAY_INT_VIEW>(n_element_, 6);
-  face_connectivity_.face_dofs_ = allocateArray2D<ARRAY_INT_VIEW>(n_faces, ndofs_per_face);
-  face_connectivity_.face_elem_owner_ = allocateVector<VECTOR_INT_VIEW>(n_faces);
-  face_connectivity_.face_elem_neighbor_ = allocateVector<VECTOR_INT_VIEW>(n_faces);
-  face_connectivity_.face_local_owner_ = allocateVector<VECTOR_INT_VIEW>(n_faces);
-  face_connectivity_.face_local_neighbor_ = allocateVector<VECTOR_INT_VIEW>(n_faces);
-
-  // Copy to final arrays (only the used portion)
-  for (ScalarType elem = 0; elem < n_element_; ++elem)
-    for (int lf = 0; lf < 6; ++lf)
-      face_connectivity_.elem_to_faces_(elem, lf) = elem_to_faces_temp(elem, lf);
-
-  for (int face_id = 0; face_id < n_faces; ++face_id)
-  {
-    face_connectivity_.face_elem_owner_(face_id) = face_elem_owner_temp(face_id);
-    face_connectivity_.face_elem_neighbor_(face_id) = face_elem_neighbor_temp(face_id);
-    face_connectivity_.face_local_owner_(face_id) = face_local_owner_temp(face_id);
-    face_connectivity_.face_local_neighbor_(face_id) = face_local_neighbor_temp(face_id);
-
-    for (int dof = 0; dof < ndofs_per_face; ++dof)
-      face_connectivity_.face_dofs_(face_id, dof) = face_dofs_temp(face_id, dof);
-  }
-}
   PROXY_HOST_DEVICE
   ScalarType getGlobalFace(ScalarType elem, CubicFace local_face) const
   {

@@ -36,12 +36,12 @@ enum BoundaryFlag : uint8_t
  */
 enum class CubicFace : int
 {
-  XMinus = 0,
-  XPlus = 1,
-  YMinus = 2,
-  YPlus = 3,
-  ZMinus = 4,
-  ZPlus = 5
+  kXMinus = 0,
+  kXPlus = 1,
+  kYMinus = 2,
+  kYPlus = 3,
+  kZMinus = 4,
+  kZPlus = 5
 };
 
 /**
@@ -52,7 +52,9 @@ class ModelApi
 {
  public:
   PROXY_HOST_DEVICE ModelApi() = default;
-  PROXY_HOST_DEVICE ModelApi(const ModelDataBase<ScalarType, FloatType>& data) {}
+  PROXY_HOST_DEVICE ModelApi(const ModelDataBase<ScalarType, FloatType>& data)
+  {
+  }
   PROXY_HOST_DEVICE ModelApi(const ModelApi&) = default;
   PROXY_HOST_DEVICE ModelApi& operator=(const ModelApi&) = default;
   PROXY_HOST_DEVICE ~ModelApi() = default;
@@ -61,27 +63,43 @@ class ModelApi
   virtual FloatType nodeCoord(ScalarType dofGlobal, int dim) const = 0;
 
   PROXY_HOST_DEVICE
-  virtual ScalarType globalNodeIndex(ScalarType e, int i, int j, int k) const = 0;
+  virtual ScalarType globalNodeIndex(ScalarType e, int i, int j,
+                                     int k) const = 0;
 
   PROXY_HOST_DEVICE virtual FloatType getModelVpOnNodes(ScalarType n) const = 0;
-  PROXY_HOST_DEVICE virtual FloatType getModelVpOnElement(ScalarType e) const = 0;
-  PROXY_HOST_DEVICE virtual FloatType getModelRhoOnNodes(ScalarType n) const = 0;
-  PROXY_HOST_DEVICE virtual FloatType getModelRhoOnElement(ScalarType e) const = 0;
+  PROXY_HOST_DEVICE virtual FloatType getModelVpOnElement(
+      ScalarType e) const = 0;
+  PROXY_HOST_DEVICE virtual FloatType getModelRhoOnNodes(
+      ScalarType n) const = 0;
+  PROXY_HOST_DEVICE virtual FloatType getModelRhoOnElement(
+      ScalarType e) const = 0;
   PROXY_HOST_DEVICE virtual FloatType getModelVsOnNodes(ScalarType n) const = 0;
-  PROXY_HOST_DEVICE virtual FloatType getModelVsOnElement(ScalarType e) const = 0;
-  PROXY_HOST_DEVICE virtual FloatType getModelDeltaOnNodes(ScalarType n) const = 0;
-  PROXY_HOST_DEVICE virtual FloatType getModelDeltaOnElement(ScalarType e) const = 0;
-  PROXY_HOST_DEVICE virtual FloatType getModelEpsilonOnNodes(ScalarType n) const = 0;
-  PROXY_HOST_DEVICE virtual FloatType getModelEpsilonOnElement(ScalarType e) const = 0;
-  PROXY_HOST_DEVICE virtual FloatType getModelGammaOnNodes(ScalarType n) const = 0;
-  PROXY_HOST_DEVICE virtual FloatType getModelGammaOnElement(ScalarType e) const = 0;
-  PROXY_HOST_DEVICE virtual ScalarType getModelThetaOnNodes(ScalarType n) const = 0;
-  PROXY_HOST_DEVICE virtual ScalarType getModelThetaOnElement(ScalarType e) const = 0;
-  PROXY_HOST_DEVICE virtual ScalarType getModelPhiOnNodes(ScalarType n) const = 0;
-  PROXY_HOST_DEVICE virtual ScalarType getModelPhiOnElement(ScalarType e) const = 0;
+  PROXY_HOST_DEVICE virtual FloatType getModelVsOnElement(
+      ScalarType e) const = 0;
+  PROXY_HOST_DEVICE virtual FloatType getModelDeltaOnNodes(
+      ScalarType n) const = 0;
+  PROXY_HOST_DEVICE virtual FloatType getModelDeltaOnElement(
+      ScalarType e) const = 0;
+  PROXY_HOST_DEVICE virtual FloatType getModelEpsilonOnNodes(
+      ScalarType n) const = 0;
+  PROXY_HOST_DEVICE virtual FloatType getModelEpsilonOnElement(
+      ScalarType e) const = 0;
+  PROXY_HOST_DEVICE virtual FloatType getModelGammaOnNodes(
+      ScalarType n) const = 0;
+  PROXY_HOST_DEVICE virtual FloatType getModelGammaOnElement(
+      ScalarType e) const = 0;
+  PROXY_HOST_DEVICE virtual ScalarType getModelThetaOnNodes(
+      ScalarType n) const = 0;
+  PROXY_HOST_DEVICE virtual ScalarType getModelThetaOnElement(
+      ScalarType e) const = 0;
+  PROXY_HOST_DEVICE virtual ScalarType getModelPhiOnNodes(
+      ScalarType n) const = 0;
+  PROXY_HOST_DEVICE virtual ScalarType getModelPhiOnElement(
+      ScalarType e) const = 0;
 
   PROXY_HOST_DEVICE
-  virtual void getCTensorOnElement(ScalarType e, FloatType CTTI[6][6]) const = 0;
+  virtual void getCTensorOnElement(ScalarType e,
+                                   FloatType CTTI[6][6]) const = 0;
 
   virtual void initElasticityTensors() = 0;
 
@@ -98,7 +116,8 @@ class ModelApi
    * @param[out] v Output array (size 3) holding the normal vector
    */
   PROXY_HOST_DEVICE
-  virtual void faceNormal(ScalarType e, CubicFace face, FloatType v[3]) const = 0;
+  virtual void faceNormal(ScalarType e, CubicFace face,
+                          FloatType v[3]) const = 0;
 
   PROXY_HOST_DEVICE virtual FloatType domainSize(int dim) const = 0;
   PROXY_HOST_DEVICE virtual FloatType getMinSpacing() const = 0;

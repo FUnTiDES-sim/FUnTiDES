@@ -557,37 +557,37 @@ TYPED_TEST(ModelStructTest, FaceNormal)
   typename TestFixture::FloatType normal[3] = {0.0, 0.0, 0.0};
   
   // Test XPlus face normal
-  model.faceNormal(0, CubicFace::XPlus, normal);
+  model.faceNormal(0, CubicFace::kXPlus, normal);
   EXPECT_NEAR(normal[0], 1.0, 1e-6);
   EXPECT_NEAR(normal[1], 0.0, 1e-6);
   EXPECT_NEAR(normal[2], 0.0, 1e-6);
   
   // Test XMinus face normal
-  model.faceNormal(0, CubicFace::XMinus, normal);
+  model.faceNormal(0, CubicFace::kXMinus, normal);
   EXPECT_NEAR(normal[0], -1.0, 1e-6);
   EXPECT_NEAR(normal[1], 0.0, 1e-6);
   EXPECT_NEAR(normal[2], 0.0, 1e-6);
   
   // Test YPlus face normal
-  model.faceNormal(0, CubicFace::YPlus, normal);
+  model.faceNormal(0, CubicFace::kYPlus, normal);
   EXPECT_NEAR(normal[0], 0.0, 1e-6);
   EXPECT_NEAR(normal[1], 1.0, 1e-6);
   EXPECT_NEAR(normal[2], 0.0, 1e-6);
   
   // Test YMinus face normal
-  model.faceNormal(0, CubicFace::YMinus, normal);
+  model.faceNormal(0, CubicFace::kYMinus, normal);
   EXPECT_NEAR(normal[0], 0.0, 1e-6);
   EXPECT_NEAR(normal[1], -1.0, 1e-6);
   EXPECT_NEAR(normal[2], 0.0, 1e-6);
   
   // Test ZPlus face normal
-  model.faceNormal(0, CubicFace::ZPlus, normal);
+  model.faceNormal(0, CubicFace::kZPlus, normal);
   EXPECT_NEAR(normal[0], 0.0, 1e-6);
   EXPECT_NEAR(normal[1], 0.0, 1e-6);
   EXPECT_NEAR(normal[2], 1.0, 1e-6);
   
   // Test ZMinus face normal
-  model.faceNormal(0, CubicFace::ZMinus, normal);
+  model.faceNormal(0, CubicFace::kZMinus, normal);
   EXPECT_NEAR(normal[0], 0.0, 1e-6);
   EXPECT_NEAR(normal[1], 0.0, 1e-6);
   EXPECT_NEAR(normal[2], -1.0, 1e-6);

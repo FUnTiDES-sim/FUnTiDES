@@ -491,9 +491,10 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES,
   for (int i = 0; i < 6; ++i)
   {
     // Cast i to CubicFace enum
-    int f = m_mesh.getGlobalFace(elementNumber, static_cast<model::CubicFace>(i));
+    int f =
+        m_mesh.getGlobalFace(elementNumber, static_cast<model::CubicFace>(i));
     if (!m_mesh.isBoundaryFace(f)) continue;
-    
+
     // Get corner coordinates of the face
     float coords[4][3];
     for (int j = 0; j < 4; ++j)
@@ -505,7 +506,7 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES,
         coords[j][d] = m_mesh.nodeCoord(globalNodeIndex, d);
       }
     }
-    
+
     if constexpr (PHYSICS == enums::physicType::kAcoustic)
     {
       real_t model_rho = 0.0f;
@@ -536,9 +537,10 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES,
     {
       float normal[3];
       // Cast i to CubicFace enum for faceNormal
-      m_mesh.faceNormal(elementNumber, static_cast<model::CubicFace>(i), normal);
+      m_mesh.faceNormal(elementNumber, static_cast<model::CubicFace>(i),
+                        normal);
       real_t nx = normal[0], ny = normal[1], nz = normal[2];
-      
+
       real_t density, velocityVp, velocityVs;
       if constexpr (!IS_MODEL_ON_NODES)
       {
