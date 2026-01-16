@@ -711,5 +711,189 @@ TYPED_TEST(ModelStructTest, UniformMeshProperties)
   EXPECT_EQ(model.domainSize(2) / 10.0, 10.0);
 }
 
+// ============================================================================
+// Face Connectivity Tests (Cartesian meshes - computed on-the-fly)
+// ============================================================================
+
+TYPED_TEST(ModelStructTest, FaceConnectivityMethodsExist)
+{
+  using ModelStructType = typename TestFixture::ModelStructType;
+
+  static_assert(std::is_member_function_pointer_v<
+                decltype(&ModelStructType::buildFaceConnectivity)>);
+  static_assert(std::is_member_function_pointer_v<
+                decltype(&ModelStructType::getGlobalFace)>);
+  static_assert(std::is_member_function_pointer_v<
+                decltype(&ModelStructType::getGlobalNodeFromFace)>);
+  static_assert(std::is_member_function_pointer_v<
+                decltype(&ModelStructType::isBoundaryFace)>);
+  static_assert(std::is_member_function_pointer_v<
+                decltype(&ModelStructType::getNumberOfFaces)>);
+  SUCCEED();
+}
+
+TYPED_TEST(ModelStructTest, BuildFaceConnectivityDoesNothing)
+{
+  auto& model = *this->model_;
+  // For Cartesian meshes, buildFaceConnectivity is a no-op
+  // (faces computed on-the-fly)
+  model.buildFaceConnectivity();
+  SUCCEED();
+}
+
+TYPED_TEST(ModelStructTest, GetNumberOfFacesCartesian)
+{
+  auto& model = *this->model_;
+  
+  // For 10x10x10 Cartesian mesh:
+  // - X-direction faces: (10+1) * 10 * 10 = 1100
+  // - Y-direction faces: 10 * (10+1) * 10 = 1100
+  // - Z-direction faces: 10 * 10 * (10+1) = 1100
+  // Total: 3300 faces
+  auto expected_faces = (10 + 1) * 10 * 10 + 10 * (10 + 1) * 10 + 10 * 10 * (10 + 1);
+  EXPECT_EQ(model.getNumberOfFaces(), expected_faces);
+}
+
+TYPED_TEST(ModelStructTest, GetGlobalFaceAllLocalFaces)
+{
+  auto& model = *this->model_;
+  
+  // Test first element (element 0)
+  auto face_xminus = model.getGlobalFace(0, CubicFace::kXMinus);
+  auto face_xplus = model.getGlobalFace(0, CubicFace::kXPlus);
+  auto face_yminus = model.getGlobalFace(0, CubicFace::kYMinus);
+  auto face_yplus = model.getGlobalFace(0, CubicFace::kYPlus);
+  auto face_zminus = model.getGlobalFace(0, CubicFace::kZMinus);
+  auto face_zplus = model.getGlobalFace(0, CubicFace::kZPlus);
+  
+  // All faces should be valid (>= 0)
+  EXPECT_GE(face_xminus, 0);
+  EXPECT_GE(face_xplus, 0);
+  EXPECT_GE(face_yminus, 0);
+  EXPECT_GE(face_yplus, 0);
+  EXPECT_GE(face_zminus, 0);
+  EXPECT_GE(face_zplus, 0);
+  
+  // All faces should be different
+  EXPECT_NE(face_xminus, face_xplus);
+  EXPECT_NE(face_yminus, face_yplus);
+  EXPECT_NE(face_zminus, face_zplus);
+}
+
+TYPED_TEST(ModelStructTest, BoundaryFaceDetectionCartesian)
+{
+  auto& model = *this->model_;
+  
+  // Element 0 is at corner (0,0,0) - has 3 boundary faces
+  auto face_xminus = model.getGlobalFace(0, CubicFace::kXMinus);
+  auto face_yminus = model.getGlobalFace(0, CubicFace::kYMinus);
+  auto face_zminus = model.getGlobalFace(0, CubicFace::kZMinus);
+  
+  EXPECT_TRUE(model.isBoundaryFace(face_xminus));  // x = 0 boundary
+  EXPECT_TRUE(model.isBoundaryFace(face_yminus));  // y = 0 boundary
+  EXPECT_TRUE(model.isBoundaryFace(face_zminus));  // z = 0 boundary
+  
+  // Other faces of element 0 are internal
+  auto face_xplus = model.getGlobalFace(0, CubicFace::kXPlus);
+  auto face_yplus = model.getGlobalFace(0, CubicFace::kYPlus);
+  auto face_zplus = model.getGlobalFace(0, CubicFace::kZPlus);
+  
+  EXPECT_FALSE(model.isBoundaryFace(face_xplus));
+  EXPECT_FALSE(model.isBoundaryFace(face_yplus));
+  EXPECT_FALSE(model.isBoundaryFace(face_zplus));
+}
+
+TYPED_TEST(ModelStructTest, GetGlobalNodeFromFaceReturnsValidNodes)
+{
+  auto& model = *this->model_;
+  constexpr int Order = TestFixture::Order;
+  
+  // Test first face of first element
+  auto face0 = model.getGlobalFace(0, CubicFace::kXMinus);
+  
+  // Each face has (Order+1)² nodes
+  int ndofs_per_face = (Order + 1) * (Order + 1);
+  
+  for (int local_dof = 0; local_dof < ndofs_per_face; ++local_dof) {
+    auto global_node = model.getGlobalNodeFromFace(face0, local_dof);
+    
+    // Node should be in valid range
+    EXPECT_GE(global_node, 0);
+    EXPECT_LT(global_node, model.getNumberOfNodes());
+  }
+}
+
+TYPED_TEST(ModelStructTest, AdjacentElementsShareFaceCartesian)
+{
+  auto& model = *this->model_;
+  
+  // Element 0: (0,0,0)
+  // Element 1: (1,0,0) - adjacent in X direction
+  
+  // XPlus face of element 0 should equal XMinus face of element 1
+  auto face_elem0_xplus = model.getGlobalFace(0, CubicFace::kXPlus);
+  auto face_elem1_xminus = model.getGlobalFace(1, CubicFace::kXMinus);
+  
+  EXPECT_EQ(face_elem0_xplus, face_elem1_xminus);
+}
+
+// ============================================================================
+// Documentation Tests
+// ============================================================================
+
+TYPED_TEST(ModelStructTest, StructuredVsUnstructuredComparison)
+{
+  // ModelStruct: Structured Cartesian mesh
+  // - Regular grid topology
+  // - Face connectivity computed on-the-fly via formulas
+  // - No explicit storage needed for face tables
+  // - Optimal for uniform domains
+  //
+  // ModelUnstruct: Unstructured mesh
+  // - Arbitrary topology
+  // - Face connectivity built explicitly and stored
+  // - Requires memory for connectivity tables
+  // - Handles complex geometries
+  SUCCEED();
+}
+
+TYPED_TEST(ModelStructTest, FaceConnectivityDocumentation)
+{
+  // Cartesian mesh face connectivity (ModelStruct):
+  //
+  // Key difference from unstructured meshes:
+  // - Face IDs computed on-the-fly using arithmetic formulas
+  // - No explicit storage needed (zero memory overhead)
+  // - buildFaceConnectivity() is a no-op
+  //
+  // Face numbering scheme:
+  // 1. X-direction faces: [0, num_faces_x)
+  // 2. Y-direction faces: [num_faces_x, num_faces_x + num_faces_y)
+  // 3. Z-direction faces: [num_faces_x + num_faces_y, total_faces)
+  //
+  // Where:
+  // - num_faces_x = (ex + 1) * ey * ez
+  // - num_faces_y = ex * (ey + 1) * ez
+  // - num_faces_z = ex * ey * (ez + 1)
+  //
+  // Boundary detection:
+  // - X-faces: i == 0 or i == ex
+  // - Y-faces: j == 0 or j == ey
+  // - Z-faces: k == 0 or k == ez
+  //
+  // Usage is identical to unstructured meshes:
+  //   for each element:
+  //     for each local face (0-5):
+  //       face_id = getGlobalFace(element, local_face)
+  //       if isBoundaryFace(face_id):
+  //         // Apply boundary condition
+  //
+  // Performance benefit:
+  // - O(1) face lookup vs O(1) table lookup
+  // - Zero memory overhead for face storage
+  // - Cache-friendly arithmetic operations
+  SUCCEED();
+}
+
 }  // namespace
 }  // namespace model
