@@ -1,5 +1,5 @@
-#ifndef SRC_MODEL_MESH_MODEL_STRUCTURED_MODEL_STRUCT_H_
-#define SRC_MODEL_MESH_MODEL_STRUCTURED_MODEL_STRUCT_H_
+#ifndef SRC_MODEL_MESH_IMPL_MODEL_STRUCT_MODEL_STRUCT_H_
+#define SRC_MODEL_MESH_IMPL_MODEL_STRUCT_MODEL_STRUCT_H_
 
 #include <elasticity_utils.h>
 #include <model.h>
@@ -707,4 +707,4 @@ class ModelStruct : public ModelApi<FloatType, ScalarType>
 };
 
 }  // namespace model
-#endif  // SRC_MODEL_MESH_MODEL_STRUCTURED_MODEL_STRUCT_H_
+#endif  // SRC_MODEL_MESH_IMPL_MODEL_STRUCT_MODEL_STRUCT_H_

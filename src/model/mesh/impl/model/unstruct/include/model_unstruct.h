@@ -1,5 +1,5 @@
-#ifndef SRC_MODEL_MESH_MODEL_UNSTRUCTURED_MODEL_UNSTRUCT_H_
-#define SRC_MODEL_MESH_MODEL_UNSTRUCTURED_MODEL_UNSTRUCT_H_
+#ifndef SRC_MODEL_MESH_IMPL_MODEL_UNSTRUCT_MODEL_UNSTRUCT_H_
+#define SRC_MODEL_MESH_IMPL_MODEL_UNSTRUCT_MODEL_UNSTRUCT_H_
 
 #include <elasticity_utils.h>
 #include <model.h>
@@ -932,4 +932,4 @@ class ModelUnstruct final : public ModelApi<FloatType, ScalarType>
 
 }  // namespace model
 
-#endif  // SRC_MODEL_MESH_MODEL_UNSTRUCTURED_MODEL_UNSTRUCT_H_
+#endif  // SRC_MODEL_MESH_IMPL_MODEL_UNSTRUCT_MODEL_UNSTRUCT_H_
