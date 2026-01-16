@@ -744,20 +744,21 @@ TYPED_TEST(ModelStructTest, BuildFaceConnectivityDoesNothing)
 TYPED_TEST(ModelStructTest, GetNumberOfFacesCartesian)
 {
   auto& model = *this->model_;
-  
+
   // For 10x10x10 Cartesian mesh:
   // - X-direction faces: (10+1) * 10 * 10 = 1100
   // - Y-direction faces: 10 * (10+1) * 10 = 1100
   // - Z-direction faces: 10 * 10 * (10+1) = 1100
   // Total: 3300 faces
-  auto expected_faces = (10 + 1) * 10 * 10 + 10 * (10 + 1) * 10 + 10 * 10 * (10 + 1);
+  auto expected_faces =
+      (10 + 1) * 10 * 10 + 10 * (10 + 1) * 10 + 10 * 10 * (10 + 1);
   EXPECT_EQ(model.getNumberOfFaces(), expected_faces);
 }
 
 TYPED_TEST(ModelStructTest, GetGlobalFaceAllLocalFaces)
 {
   auto& model = *this->model_;
-  
+
   // Test first element (element 0)
   auto face_xminus = model.getGlobalFace(0, CubicFace::kXMinus);
   auto face_xplus = model.getGlobalFace(0, CubicFace::kXPlus);
@@ -765,7 +766,7 @@ TYPED_TEST(ModelStructTest, GetGlobalFaceAllLocalFaces)
   auto face_yplus = model.getGlobalFace(0, CubicFace::kYPlus);
   auto face_zminus = model.getGlobalFace(0, CubicFace::kZMinus);
   auto face_zplus = model.getGlobalFace(0, CubicFace::kZPlus);
-  
+
   // All faces should be valid (>= 0)
   EXPECT_GE(face_xminus, 0);
   EXPECT_GE(face_xplus, 0);
@@ -773,7 +774,7 @@ TYPED_TEST(ModelStructTest, GetGlobalFaceAllLocalFaces)
   EXPECT_GE(face_yplus, 0);
   EXPECT_GE(face_zminus, 0);
   EXPECT_GE(face_zplus, 0);
-  
+
   // All faces should be different
   EXPECT_NE(face_xminus, face_xplus);
   EXPECT_NE(face_yminus, face_yplus);
@@ -783,21 +784,21 @@ TYPED_TEST(ModelStructTest, GetGlobalFaceAllLocalFaces)
 TYPED_TEST(ModelStructTest, BoundaryFaceDetectionCartesian)
 {
   auto& model = *this->model_;
-  
+
   // Element 0 is at corner (0,0,0) - has 3 boundary faces
   auto face_xminus = model.getGlobalFace(0, CubicFace::kXMinus);
   auto face_yminus = model.getGlobalFace(0, CubicFace::kYMinus);
   auto face_zminus = model.getGlobalFace(0, CubicFace::kZMinus);
-  
+
   EXPECT_TRUE(model.isBoundaryFace(face_xminus));  // x = 0 boundary
   EXPECT_TRUE(model.isBoundaryFace(face_yminus));  // y = 0 boundary
   EXPECT_TRUE(model.isBoundaryFace(face_zminus));  // z = 0 boundary
-  
+
   // Other faces of element 0 are internal
   auto face_xplus = model.getGlobalFace(0, CubicFace::kXPlus);
   auto face_yplus = model.getGlobalFace(0, CubicFace::kYPlus);
   auto face_zplus = model.getGlobalFace(0, CubicFace::kZPlus);
-  
+
   EXPECT_FALSE(model.isBoundaryFace(face_xplus));
   EXPECT_FALSE(model.isBoundaryFace(face_yplus));
   EXPECT_FALSE(model.isBoundaryFace(face_zplus));
@@ -807,16 +808,17 @@ TYPED_TEST(ModelStructTest, GetGlobalNodeFromFaceReturnsValidNodes)
 {
   auto& model = *this->model_;
   constexpr int Order = TestFixture::Order;
-  
+
   // Test first face of first element
   auto face0 = model.getGlobalFace(0, CubicFace::kXMinus);
-  
+
   // Each face has (Order+1)² nodes
   int ndofs_per_face = (Order + 1) * (Order + 1);
-  
-  for (int local_dof = 0; local_dof < ndofs_per_face; ++local_dof) {
+
+  for (int local_dof = 0; local_dof < ndofs_per_face; ++local_dof)
+  {
     auto global_node = model.getGlobalNodeFromFace(face0, local_dof);
-    
+
     // Node should be in valid range
     EXPECT_GE(global_node, 0);
     EXPECT_LT(global_node, model.getNumberOfNodes());
@@ -826,14 +828,14 @@ TYPED_TEST(ModelStructTest, GetGlobalNodeFromFaceReturnsValidNodes)
 TYPED_TEST(ModelStructTest, AdjacentElementsShareFaceCartesian)
 {
   auto& model = *this->model_;
-  
+
   // Element 0: (0,0,0)
   // Element 1: (1,0,0) - adjacent in X direction
-  
+
   // XPlus face of element 0 should equal XMinus face of element 1
   auto face_elem0_xplus = model.getGlobalFace(0, CubicFace::kXPlus);
   auto face_elem1_xminus = model.getGlobalFace(1, CubicFace::kXMinus);
-  
+
   EXPECT_EQ(face_elem0_xplus, face_elem1_xminus);
 }
 
