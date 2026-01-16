@@ -22,11 +22,11 @@ struct ModelDataBase
  */
 enum BoundaryFlag : uint8_t
 {
-  InteriorNode = 0,
-  Damping = 1 << 0,
-  Sponge = 1 << 1,
-  Surface = 1 << 2,
-  Ghost = 1 << 3
+  InteriorNode = 0,  ///< Node inside the domain
+  Damping = 1 << 0,  ///< Node in damping boundary zone
+  Sponge = 1 << 1,   ///< Node in sponge layer
+  Surface = 1 << 2,  ///< Node on a free surface
+  Ghost = 1 << 3     ///< Ghost node for halo/exchange
 };
 
 /**
@@ -36,12 +36,12 @@ enum BoundaryFlag : uint8_t
  */
 enum class CubicFace : int
 {
-  kXMinus = 0,
-  kXPlus = 1,
-  kYMinus = 2,
-  kYPlus = 3,
-  kZMinus = 4,
-  kZPlus = 5
+  kXMinus = 0,  ///< Face at x = x_min (left face, normal = [-1, 0, 0])
+  kXPlus = 1,   ///< Face at x = x_max (right face, normal = [+1, 0, 0])
+  kYMinus = 2,  ///< Face at y = y_min (front face, normal = [0, -1, 0])
+  kYPlus = 3,   ///< Face at y = y_max (back face, normal = [0, +1, 0])
+  kZMinus = 4,  ///< Face at z = z_min (bottom face, normal = [0, 0, -1])
+  kZPlus = 5    ///< Face at z = z_max (top face, normal = [0, 0, +1])
 };
 
 /**
