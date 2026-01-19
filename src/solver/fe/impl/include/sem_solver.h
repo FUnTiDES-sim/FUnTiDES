@@ -59,18 +59,16 @@ class SEMsolver : public SEMSolverBase
    * @brief Legacy/Serial wrapper.
    * @throws std::runtime_error if called in distributed mode.
    */
-  void computeOneStep(const float& dt, const int& timeSample, DataStruct& data,
-                      bool isDistributed = false) override
+  void computeOneStep(const float& dt, const int& timeSample,
+                      DataStruct& data) override
   {
-    if (isDistributed)
+    auto& myData = dynamic_cast<DataType&>(data);
+    if (myData.isDistributed)
     {
       throw std::runtime_error(
           "computeOneStep called in distributed mode. Use computeForces() -> "
           "synchronize() -> updateSolution().");
     }
-
-    auto& myData = dynamic_cast<DataType&>(data);
-
     computeForces(dt, timeSample, data);
     updateSolution(dt, myData.m_i1, myData.m_i2, data);
   }

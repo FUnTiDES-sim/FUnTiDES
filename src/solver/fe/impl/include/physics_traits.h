@@ -107,7 +107,7 @@ struct SEMsolverData : public SolverBase::DataStruct
                 ARRAY_REAL_VIEW rhsTermy, ARRAY_REAL_VIEW rhsTermz,
                 ARRAY_REAL_VIEW uxnGlobal, ARRAY_REAL_VIEW uynGlobal,
                 ARRAY_REAL_VIEW uznGlobal, VECTOR_INT_VIEW rhsElement,
-                ARRAY_REAL_VIEW rhsWeights)
+                ARRAY_REAL_VIEW rhsWeights, bool isDistributed = false)
       : m_i1(i1), m_i2(i2), m_rhsElement(rhsElement), m_rhsWeights(rhsWeights)
   {
     m_rhsTerms[0] = rhsTermx;
@@ -141,6 +141,8 @@ struct SEMsolverData : public SolverBase::DataStruct
 
   std::array<ARRAY_REAL_VIEW, kNumRhs> m_rhsTerms;  ///< RHS forcing terms
   std::array<ARRAY_REAL_VIEW, kNumFields> m_fieldsGlobal;  ///< Solution fields
+
+  bool isDistributed{false};
 
   VECTOR_INT_VIEW m_rhsElement;  ///< Source element indices
   ARRAY_REAL_VIEW m_rhsWeights;  ///< Forcing weights per node
