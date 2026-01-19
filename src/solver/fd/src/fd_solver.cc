@@ -87,13 +87,13 @@ void FdtdSolver::compute_one_stepPML(int itime, int i1, int i2)
 
   // update PML
   // up
-  //m_kernels.pml3D(i1, i2, m_grids.nx(), m_grids.ny(), m_grids.nz(),
-  //                m_stencils.lx, m_stencils.ly, m_stencils.lz, m_grids.x1(),
-  //                m_grids.x6(), m_grids.y1(), m_grids.y6(), m_grids.z1(),
-  //                m_grids.z2(), m_stencils.coef0, m_grids.hdx_2(),
-  //                m_grids.hdy_2(), m_grids.hdz_2(), m_stencils.coefx,
-  //                m_stencils.coefy, m_stencils.coefz, m_grids.vp(),
-  //                m_abckernels.eta, m_kernels.phi, m_kernels.pnGlobal);
+  m_kernels.pml3D(i1, i2, m_grids.nx(), m_grids.ny(), m_grids.nz(),
+                  m_stencils.lx, m_stencils.ly, m_stencils.lz, m_grids.x1(),
+                  m_grids.x6(), m_grids.y1(), m_grids.y6(), m_grids.z1(),
+                  m_grids.z2(), m_stencils.coef0, m_grids.hdx_2(),
+                  m_grids.hdy_2(), m_grids.hdz_2(), m_stencils.coefx,
+                  m_stencils.coefy, m_stencils.coefz, m_grids.vp(),
+                  m_abckernels.eta, m_kernels.phi, m_kernels.pnGlobal);
   // update front
   m_kernels.pml3D(i1, i2, m_grids.nx(), m_grids.ny(), m_grids.nz(),
                   m_stencils.lx, m_stencils.ly, m_stencils.lz, m_grids.x1(),
