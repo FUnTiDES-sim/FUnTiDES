@@ -14,10 +14,11 @@ import os
 import time
 from datetime import datetime
 from enum import Enum
+import sys
 
 import matplotlib.pyplot as plt
 import numpy as np
-import kokkos # must be imported after matplotlib to avoid conflicts
+import kokkos  # must be imported after matplotlib to avoid conflicts
 import pyfuntides.model as Model
 import pyfuntides.solver as Solver
 
@@ -88,6 +89,24 @@ class ImplemType(Enum):
     SHIVA = "Shiva"
 
 
+def detect_default_memspace():
+    """
+    Attempts to detect the default memory space expected by the C++ solver bindings
+    by inspecting the docstring of the data constructor.
+    Returns MemSpace.GPU.name if CUDA types are found, otherwise MemSpace.CPU.name.
+    """
+    try:
+        # Check the docstring of the __init__ method for C++ signature
+        doc = Solver.SEMsolverDataAcoustic.__init__.__doc__
+        if doc and ("CudaUVMSpace" in doc or "CudaSpace" in doc):
+            return MemSpace.GPU.name
+        if doc and "HostSpace" in doc:
+            return MemSpace.CPU.name
+    except Exception:
+        pass
+    return MemSpace.CPU.name
+
+
 def parse_args():
     """
     Parses command line arguments.
@@ -98,14 +117,17 @@ def parse_args():
         Parsed command line arguments.
     """
 
+    # Auto-detect default memory space based on compiled C++ bindings
+    default_mem = detect_default_memspace()
+
     parser = argparse.ArgumentParser(
         description="Run FE Cartesian solver with Kokkos memspace selection."
     )
     parser.add_argument(
         "--mem",
         choices=[e.name for e in MemSpace],
-        default=MemSpace.CPU.name,
-        help=f"Choose Kokkos memspace: {', '.join(e.name for e in MemSpace)} (default: {MemSpace.CPU.name})",
+        default=default_mem,
+        help=f"Choose Kokkos memspace: {', '.join(e.name for e in MemSpace)} (default: {default_mem} [auto-detected])",
     )
     parser.add_argument(
         "--model",
@@ -179,6 +201,25 @@ def parse_args():
         action="store_true",
         default=False,
         help="Whether to apply model on nodes (default: False)",
+    )
+    # Sponge boundary arguments
+    parser.add_argument(
+        "--boundaries_size",
+        type=float,
+        default=0.0,
+        help="Size of absorbing boundaries in meters (default: 0)",
+    )
+    parser.add_argument(
+        "--surface_sponge",
+        action="store_true",
+        default=False,
+        help="Enable sponge at the free surface (default: False)",
+    )
+    parser.add_argument(
+        "--taper_delta",
+        type=float,
+        default=0.015,
+        help="Taper delta for sponge boundaries (default: 0.015)",
     )
     return parser.parse_args()
 
@@ -359,15 +400,15 @@ def create_structured_model(e, l, order, on_nodes):
     match order:
         case 1:
             builder = CartesianStructBuilderFI1(
-                e[0], l[0], e[1], l[1], e[2], l[2], on_nodes
+                e[0], l[0], e[1], l[1], e[2], l[2], on_nodes, False
             )
         case 2:
             builder = CartesianStructBuilderFI2(
-                e[0], l[0], e[1], l[1], e[2], l[2], on_nodes
+                e[0], l[0], e[1], l[1], e[2], l[2], on_nodes, False
             )
         case 3:
             builder = CartesianStructBuilderFI3(
-                e[0], l[0], e[1], l[1], e[2], l[2], on_nodes
+                e[0], l[0], e[1], l[1], e[2], l[2], on_nodes, False
             )
         case _:
             raise ValueError(
@@ -411,6 +452,7 @@ def create_unstructured_model(e, l, order, on_nodes):
     params.lx, params.ly, params.lz = l
     params.order = order
     params.is_model_on_nodes = on_nodes
+    params.is_elastic = False
     builder = CartesianUnstructBuilder(params)
     return builder.get_model()
 
@@ -448,9 +490,11 @@ def create_solver(implem_type, model_type, order, on_nodes):
         if on_nodes
         else Solver.ModelLocationType.ONELEMENTS
     )
+    # We are running an acoustic simulation in this example
+    physic_type = Solver.PhysicType.ACOUSTIC
 
     return Solver.create_solver(
-        Solver.MethodType.SEM, impl, model, model_location, order
+        Solver.MethodType.SEM, impl, model, model_location, physic_type, order
     )
 
 
@@ -728,7 +772,7 @@ def allocate_rhs_element(n_rhs, ex, ey, ez, memspace, layout):
 
 def create_solver_data(kk_RHSTerm, kk_pnGlobal, kk_RHSElement, kk_RHSWeights):
     """
-    Create SEMsolverData instance and return it along with i1 and i2.
+    Create SEMsolverDataAcoustic instance and return it along with i1 and i2.
 
     Parameters
     ----------
@@ -743,21 +787,29 @@ def create_solver_data(kk_RHSTerm, kk_pnGlobal, kk_RHSElement, kk_RHSWeights):
 
     Returns
     -------
-    data : Solver.SEMsolverData
+    data : Solver.SEMsolverDataAcoustic
         The SEMsolverData instance.
     """
 
-    data = Solver.SEMsolverData(
-        0,
-        1,
-        kk_RHSTerm,
-        kk_pnGlobal,
-        kk_RHSElement,
-        kk_RHSWeights,
-    )
-    data.print()
-
-    return data
+    try:
+        # We use SEMsolverDataAcoustic here because we are solving the acoustic wave equation.
+        data = Solver.SEMsolverDataAcoustic(
+            0,
+            1,
+            kk_RHSTerm,
+            kk_pnGlobal,
+            kk_RHSElement,
+            kk_RHSWeights,
+        )
+        data.print()
+        return data
+    except TypeError as e:
+        print("\n\033[91mERROR: Failed to create solver data due to type mismatch.\033[0m")
+        print(f"Details: {e}")
+        print("\033[93mHINT: This usually happens when the Python Kokkos memory space/layout")
+        print("does not match the C++ compiled library configuration.\033[0m")
+        print("Try running with a different memory space option (e.g. --mem GPU vs --mem CPU).")
+        sys.exit(1)
 
 
 def compute_step(
@@ -777,6 +829,8 @@ def compute_step(
 ):
     """
     Perform a single time step of the simulation, update timing, plot, and swap indices.
+    This now uses the split-phase approach (compute_forces + update_solution)
+    which mimics the Domain Decomposition logic in C++.
 
     Parameters
     ----------
@@ -786,7 +840,7 @@ def compute_step(
         Time step size.
     solver : Solver.Solver
         The solver instance.
-    data : Solver.SEMsolverData
+    data : Solver.SEMsolverDataAcoustic
         The SEMsolverData instance.
     iteration_times : list
         List to append iteration time.
@@ -808,9 +862,20 @@ def compute_step(
     """
 
     iter_start = time.time()
-    solver.compute_one_step(dt, time_sample, data)
+
+    # 1. Compute forces (RHS of the equation)
+    solver.compute_forces(dt, time_sample, data)
+
+    # 2. Synchronize boundaries (Placeholder for distributed logic)
+    # In C++, the BoundarySynchronizer is called here.
+    # m_syncer->synchronize(m_solver->getForceVector(c), par_topology_);
+
+    # 3. Update solution using mass matrix and accumulated forces
+    solver.update_solution(dt, i1, i2, data)
+
     iter_time = time.time() - iter_start
     iteration_times.append(iter_time)
+
     if time_sample % 1000 == 0:
         print(f"Average iteration time: {np.mean(iteration_times):.4f} seconds")
         print()
@@ -818,6 +883,8 @@ def compute_step(
         print(f"Time {time_sample} / {n_time_steps}")
     if time_sample % 10 == 0:
         plot_snapshot(i1, nx, ny, nz, pnGlobal, im, time_sample)
+
+    # Swap indices
     tmp = i1
     i1 = i2
     i2 = tmp
@@ -864,6 +931,7 @@ def main():
     print(f"dt                           : {dt}")
     print(f"n_time_steps                 : {n_time_steps}")
     print(f"n_rhs                        : {n_rhs}")
+    print(f"boundaries size              : {args.boundaries_size}")
     print("=========================================")
 
     # Setup graphic display
@@ -896,7 +964,13 @@ def main():
 
     # Initialize model
     print("Initializing model...")
-    solver.compute_fe_init(model)
+    # compute_fe_init with sponge parameters
+    sponge_size = [args.boundaries_size, args.boundaries_size, args.boundaries_size]
+    # In C++, surface_sponge is a boolean (true/false).
+    # Here we invert it if the argument logic matches "sponge-surface" vs "surface_sponge"
+    # Logic in C++: const double distToFrontierX = (surface_sponge_) ? ... : ...
+    # Here we pass it directly.
+    solver.compute_fe_init(model, sponge_size, args.surface_sponge, args.taper_delta)
     print("Model initialized")
 
     # allocate pressure
@@ -964,12 +1038,21 @@ def main():
     print("=========================================")
 
     # release kokkos arrays and vectors
+    del data
+    del solver
+    del model
+
+    # release explicit views
     del kk_pnGlobal
     del kk_RHSTerm
     del kk_RHSElement
     del kk_RHSWeights
-    del solver
-    del model
+
+    # release numpy wrappers which might hold references to views
+    del pnGlobal
+    del rhsTerm
+    del RHSElement
+    del rhsWeights
 
     kokkos.finalize()
     print("End of  computation")
