@@ -80,8 +80,7 @@ class SEMsolver : public SEMSolverBase
   void resetGlobalVectors(int numNodes) override;
   void computeGlobalMassMatrix() override;
 
-  void outputSolutionValues(const int& indexTimeStep, int& i1,
-                            int& myElementSource, const ARRAY_REAL_VIEW& field,
+  void outputSolutionValues(const int& t, int& e, const VECTOR_REAL_VIEW& field,
                             const char* fieldName) override;
 
   /**
@@ -89,28 +88,24 @@ class SEMsolver : public SEMSolverBase
    *
    * @param timeSample Current time sample index.
    * @param dt Delta time for this iteration.
-   * @param i2 Current field index.
    * @param data Data structure containing RHS terms and fields.
    */
-  void applyRHSTerm(int timeSample, float dt, int i2, const DataType& data);
+  void applyRHSTerm(int timeSample, float dt, const DataType& data);
 
   /**
    * @brief Assemble local element contributions to global FE vectors.
    *
-   * @param i2 Current field index.
    * @param data Data structure containing solution fields.
    */
-  void computeElementContributions(int i2, const DataType& data);
+  void computeElementContributions(const DataType& data);
 
   /**
    * @brief Update the global solution fields at interior nodes.
    *
    * @param dt Delta time for this iteration.
-   * @param i1 Previous time step index.
-   * @param i2 Current time step index.
    * @param data Data structure containing solution fields.
    */
-  void updateFields(float dt, int i1, int i2, const DataType& data);
+  void updateFields(float dt, const DataType& data);
 
   /**
    * @brief Compute the elasticity matrix at a given node (elastic only).
