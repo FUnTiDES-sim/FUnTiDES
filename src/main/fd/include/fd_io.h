@@ -43,10 +43,11 @@ struct FdtdIo
              m_kernels.pnGlobal(IDX3_l(xs - 1, ys, zs), i1),
              m_kernels.pnGlobal(IDX3_l(xs, ys, zs), i1),
              m_kernels.pnGlobal(IDX3_l(xs + 1, ys, zs), i1));
-      if (saveSnapShots)
+      std::cout.flush();
+    }
+    if (saveSnapShots)
         WriteSnapshot(0, nx, ny / 2, ny / 2, 0, nz, itSample, i1, m_grids,
                       m_kernels, m_stencils, m_opt);
-    }
   }
 
   // write snapshot to file

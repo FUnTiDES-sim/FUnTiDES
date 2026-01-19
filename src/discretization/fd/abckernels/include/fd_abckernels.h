@@ -44,9 +44,9 @@ struct FdtdAbcKernels
     }
 
     // X boundary
-    for (int k = L; k < nz - L; k++)
+    for (int k =0; k < nz ; k++)
     {
-      for (int j = L; j < ny - L; j++)
+      for (int j = 0 ; j < ny; j++)
       {
         for (int i = 0; i < L; i++)
         {
@@ -63,9 +63,9 @@ struct FdtdAbcKernels
     }
 
     // Y boundary
-    for (int k = L; k < nz - L; k++)
+    for (int k = 0; k < nz ; k++)
     {
-      for (int i = L; i < nx - L; i++)
+      for (int i = 0; i < nx; i++)
       {
         for (int j = 0; j < L; j++)
         {
@@ -81,9 +81,9 @@ struct FdtdAbcKernels
     }
 
     // Z boundary
-    for (int j = L; j < ny - L; j++)
+    for (int j = 0; j < ny; j++)
     {
-      for (int i = L; i < nx - L; i++)
+      for (int i = 0; i < nx; i++)
       {
         //for (int k = 0; k < L; k++)
         //{
