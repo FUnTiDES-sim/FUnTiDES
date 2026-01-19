@@ -18,12 +18,8 @@ struct FdtdAbcKernels
   // sponge boundary
   //------------------------------------------------------------------
   // define sponge boundary
-  void defineSpongeBoundary(int nx, int ny, int nz)
+  void defineSpongeBoundary(int nx, int ny, int nz,int L=20,float alpha=-0.0015)
   {
-    const int L = 20;
-    const float alpha = -0.00015;
-    // const float alpha = -0.00035;
-
     // Allocate spongeArray if not already allocated
     if (spongeArray.extent(0) == 0)
     {
@@ -56,8 +52,7 @@ struct FdtdAbcKernels
         {
           // spongeArray(IDX3(i,j,k))= exp(alpha*pow((L-i)*dx,2));
           spongeArray(IDX3(i, j, k)) = exp(alpha * pow((L - i), 2));
-          // printf("spongeArray(%d,%d,%d)=%f\n",i,j,k,spongeArray(IDX3(i, j,
-          // k)));
+           //printf("spongeArray(%d,%d,%d)=%f\n",i,j,k,spongeArray(IDX3(i, j,k)));
         }
         for (int i = nx - L; i < nx; i++)
         {
@@ -90,11 +85,11 @@ struct FdtdAbcKernels
     {
       for (int i = L; i < nx - L; i++)
       {
-        for (int k = 0; k < L; k++)
-        {
-          // spongeArray(IDX3(i,j,k))= exp(alpha*pow((L-k))*dz,2));
-          spongeArray(IDX3(i, j, k)) = exp(alpha * pow((L - k), 2));
-        }
+        //for (int k = 0; k < L; k++)
+        //{
+        //  // spongeArray(IDX3(i,j,k))= exp(alpha*pow((L-k))*dz,2));
+        //  spongeArray(IDX3(i, j, k)) = exp(alpha * pow((L - k), 2));
+        //}
         for (int k = nz - L; k < nz; k++)
         {
           // spongeArray(IDX3(i,j,k))= exp(alpha*pow((L-(nz-k))*dz,2));

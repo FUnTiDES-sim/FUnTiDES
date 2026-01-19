@@ -212,15 +212,19 @@ void FdtdProxy::InitializeSource()
 void FdtdProxy::InitializeBoundaries()
 {
   std::cout << "boundary init" << std::endl;
+  std::cout << "usePML=" << opt_.boundary.use_pml
+            << " useSponge=" << opt_.boundary.use_sponge << std::endl;
   // abckernels_.Initialize(opt_);
   if (opt_.boundary.use_sponge)
   {
     int nx = grids_.nx();
     int ny = grids_.ny();
     int nz = grids_.nz();
-    abckernels_.spongeArray =
-        allocateVector<vectorReal>(nx * ny * nz, "spongeArray");
-    abckernels_.defineSpongeBoundary(nx, ny, nz);
+    int L = opt_.boundary.sponge_size;
+    float alpha = opt_.boundary.sponge_alpha;
+    abckernels_.spongeArray = allocateVector<vectorReal>(nx * ny * nz, "spongeArray");
+    abckernels_.defineSpongeBoundary(nx, ny, nz, L, alpha);
+    printf("Sponge params: nx=%d ny=%d nz=%d L=%d alpha=%f\n", nx, ny, nz, L, alpha);
     std::cout << "sponge boundary init done" << std::endl;
   }
   if (opt_.boundary.use_pml)
@@ -255,16 +259,13 @@ void FdtdProxy::InitializeBoundaries()
     float dt_sch = 0.001f;
     float vmax = opt_.velocity.vmax;
 
-    printf("PML params: nx=%d ny=%d nz=%d ndampx=%d ndampy=%d ndampz=%d\n", nx,
-           ny, nz, ndampx, ndampy, ndampz);
     // allocate eta array
-    abckernels_.eta =
-        allocateVector<vectorReal>((nx + 2) * (ny + 2) * (nz + 2), "eta");
+    abckernels_.eta =allocateVector<vectorReal>((nx + 2) * (ny + 2) * (nz + 2), "eta");
     vectorReal& eta = abckernels_.eta;
     abckernels_.init_eta(nx, ny, nz, ndampx, ndampy, ndampz, x1, x2, x3, x4, x5,
                          x6, y1, y2, y3, y4, y5, y6, z1, z2, z3, z4, z5, z6, dx,
                          dy, dz, dt_sch, vmax, eta);
-    std::cout << "PML boundary init done" << std::endl;
+    //std::cout << "PML boundary init done" << std::endl;
   }
   PrintSeparator();
 }
@@ -293,6 +294,7 @@ void FdtdProxy::Run()
   {
     // Compute one time step
     auto start_compute_time = system_clock::now();
+   
     if (opt_.boundary.use_sponge)
     {
       solver_.compute_one_stepSB(index_time_sample, time_index_current_,

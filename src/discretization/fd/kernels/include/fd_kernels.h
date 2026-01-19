@@ -77,8 +77,7 @@ struct FdtdKernels
     }
     pnGlobal(IDX3_l(i, j, k), ca) =
         2. * pnGlobal(IDX3_l(i, j, k), cb) - pnGlobal(IDX3_l(i, j, k), ca) +
-        vp[IDX3(i, j, k)] *
-            (coef0 * pnGlobal(IDX3_l(i, j, k), cb) + lapx + lapy + lapz);
+        vp[IDX3(i, j, k)]*(coef0 * pnGlobal(IDX3_l(i, j, k), cb) + lapx + lapy + lapz);
     LOOP3DEND
     return 0;
   }
@@ -144,17 +143,13 @@ struct FdtdKernels
 
   // apply sponge boundary to wavefield
   int applySponge(int &ca, int &cb, int const &nx, int const &ny, int const &nz,
-                  int const &lx, int const &ly, int const &lz, const int x3,
-                  const int x4, const int y3, const int y4, const int z3,
-                  const int z4, vectorReal const &spongeArray,
+                  int const &lx, int const &ly, int const &lz,
+                  vectorReal const &spongeArray,
                   arrayReal const &pnGlobal) const
   {
-    // CREATEVIEWSPONGE
-    LOOP3DHEAD(x3, y3, z3, x4, y4, z4)
-    pnGlobal(IDX3_l(i, j, k), ca) =
-        pnGlobal(IDX3_l(i, j, k), ca);  // * spongeArray(IDX3(i, j, k));
-    pnGlobal(IDX3_l(i, j, k), cb) =
-        pnGlobal(IDX3_l(i, j, k), cb);  // * spongeArray(IDX3(i, j, k));
+    LOOP3DHEAD(0, 0, 0, nx, ny, nz)
+    pnGlobal(IDX3_l(i, j, k), ca) = pnGlobal(IDX3_l(i, j, k), ca) * spongeArray(IDX3(i, j, k));
+    pnGlobal(IDX3_l(i, j, k), cb) = pnGlobal(IDX3_l(i, j, k), cb) * spongeArray(IDX3(i, j, k));
     LOOP3DEND
     return 0;
   }
