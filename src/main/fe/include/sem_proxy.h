@@ -62,7 +62,7 @@ class SEMproxy
   void saveSlice(const VECTOR_REAL_VIEW& host_slice, int sizex, int sizey,
                  const std::string& filepath) const;
 
-  void saveSnapshot(int timesample, ARRAY_REAL_VIEW data) const;
+  void saveSnapshot(int timesample, VECTOR_REAL_VIEW data) const;
 
   /**
    * @brief Computes optimal time step using CFL stability condition for seismic
@@ -87,9 +87,6 @@ class SEMproxy
   void saveSnapshot(int timestep);
 
  private:
-  int i1 = 0;
-  int i2 = 1;
-
   // Domain Decomposition Parameter
   // Mocking MPI rank and size for now.
   // In a real MPI application, these would come from MPI_Comm_rank/size.
@@ -133,20 +130,24 @@ class SEMproxy
 
   // arrays
   arrayReal myRHSTerm;
-  arrayReal pnGlobal;
+  vectorReal pnGlobalPrev;
+  vectorReal pnGlobalCurr;
   vectorInt rhsElement;
   vectorInt rhsElementRcv;
   arrayReal rhsWeights;
   arrayReal rhsWeightsRcv;
   arrayReal pnAtReceiver;
-  // elastic arrays
 
+  // elastic arrays
   arrayReal myRHSTermx;
   arrayReal myRHSTermy;
   arrayReal myRHSTermz;
-  arrayReal uxnGlobal;
-  arrayReal uynGlobal;
-  arrayReal uznGlobal;
+  vectorReal uxnGlobalPrev;
+  vectorReal uynGlobalPrev;
+  vectorReal uznGlobalPrev;
+  vectorReal uxnGlobalCurr;
+  vectorReal uynGlobalCurr;
+  vectorReal uznGlobalCurr;
   arrayReal uxnAtReceiver;
   arrayReal uynAtReceiver;
   arrayReal uznAtReceiver;

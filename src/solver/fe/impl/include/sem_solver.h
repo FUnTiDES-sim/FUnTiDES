@@ -52,8 +52,7 @@ class SEMsolver : public SEMSolverBase
   // Split-phase methods for DD
   void computeForces(const float& dt, const int& timeSample,
                      DataStruct& data) override;
-  void updateSolution(const float& dt, const int& i1, const int& i2,
-                      DataStruct& data) override;
+  void updateSolution(const float& dt, DataStruct& data) override;
 
   /**
    * @brief Legacy/Serial wrapper.
@@ -70,7 +69,7 @@ class SEMsolver : public SEMSolverBase
           "synchronize() -> updateSolution().");
     }
     computeForces(dt, timeSample, data);
-    updateSolution(dt, myData.m_i1, myData.m_i2, data);
+    updateSolution(dt, data);
   }
 
   void initFEarrays() override;
@@ -79,14 +78,48 @@ class SEMsolver : public SEMSolverBase
   void resetGlobalVectors(int numNodes) override;
   void computeGlobalMassMatrix() override;
 
-  void outputSolutionValues(const int& indexTimeStep, int& i1,
-                            int& myElementSource, const ARRAY_REAL_VIEW& field,
+  void outputSolutionValues(const int& t, int& e, const VECTOR_REAL_VIEW& field,
                             const char* fieldName) override;
 
-  void applyRHSTerm(int timeSample, float dt, int i2, const DataType& data);
-  void computeElementContributions(int i2, const DataType& data);
-  void updateFields(float dt, int i1, int i2, DataType& data);
+  /**
+   * @brief Apply external forcing to the global fields.
+   *
+   * @param timeSample Current time sample index.
+   * @param dt Delta time for this iteration.
+   * @param data Data structure containing RHS terms and fields.
+   */
+  void applyRHSTerm(int timeSample, float dt, const DataType& data);
 
+  /**
+   * @brief Assemble local element contributions to global FE vectors.
+   *
+   * @param data Data structure containing solution fields.
+   */
+  void computeElementContributions(const DataType& data);
+
+  /**
+   * @brief Update the global solution fields at interior nodes.
+   *
+   * @param dt Delta time for this iteration.
+   * @param data Data structure containing solution fields.
+   */
+  void updateFields(float dt, const DataType& data);
+
+  /**
+   * @brief Compute the elasticity matrix at a given node (elastic only).
+   *
+   * This method is only compiled for elastic physics.
+   *
+   * @param vp P-wave velocity.
+   * @param vs S-wave velocity.
+   * @param rho Density.
+   * @param delta Thomsen parameter delta.
+   * @param epsilon Thomsen parameter epsilon.
+   * @param gamma Thomsen parameter gamma.
+   * @param phi Azimuthal angle (radians).
+   * @param theta Dip angle (radians).
+   * @param C Output 6x6 elasticity matrix.
+   */
   template <physicType P = PHYSICS,
             typename = std::enable_if_t<P == enums::physicType::kElastic>>
   PROXY_HOST_DEVICE void computeCMatrix(float vp, float vs, float rho,

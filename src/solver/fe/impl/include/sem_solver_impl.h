@@ -64,10 +64,10 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES,
   resetGlobalVectors(m_mesh.getNumberOfNodes());
   FENCE
 
-  applyRHSTerm(timeSample, dt, myData.m_i2, myData);
+  applyRHSTerm(timeSample, dt, myData);
   FENCE
 
-  computeElementContributions(myData.m_i2, myData);
+  computeElementContributions(myData);
   FENCE
 }
 
@@ -78,12 +78,11 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES,
 template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE,
           bool IS_MODEL_ON_NODES, enums::physicType PHYSICS>
 void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES,
-               PHYSICS>::updateSolution(const float& dt, const int& i1,
-                                        const int& i2,
+               PHYSICS>::updateSolution(const float& dt,
                                         SolverBase::DataStruct& data)
 {
   auto& myData = dynamic_cast<DataType&>(data);
-  updateFields(dt, i1, i2, myData);
+  updateFields(dt, myData);
   FENCE
 }
 
@@ -113,10 +112,10 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES,
 template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE,
           bool IS_MODEL_ON_NODES, physicType PHYSICS>
 void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES,
-               PHYSICS>::applyRHSTerm(int timeSample, float dt, int i2,
+               PHYSICS>::applyRHSTerm(int timeSample, float dt,
                                       const DataType& data)
 {
-  int nb_rhs_element = data.m_rhsElement.extent(0);
+  int nb_rhs_element = data.getRhsElement().extent(0);
 
   LOOPHEAD(nb_rhs_element, i)
   {
@@ -127,12 +126,13 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES,
         for (int x = 0; x < ORDER + 1; x++)
         {
           int localNodeId = x + y * (ORDER + 1) + z * (ORDER + 1) * (ORDER + 1);
-          int nodeRHS = m_mesh.globalNodeIndex(data.m_rhsElement[i], x, y, z);
+          int nodeRHS =
+              m_mesh.globalNodeIndex(data.getRhsElement()[i], x, y, z);
 
           for (int f = 0; f < kNumRhs; ++f)
           {
-            float source = data.m_rhsTerms[f](i, timeSample) *
-                           data.m_rhsWeights(i, localNodeId);
+            float source = data.getRhsTerm(f)(i, timeSample) *
+                           data.getRhsWeights()(i, localNodeId);
             workVectorsGlobal_[f](nodeRHS) -= source;
           }
         }
@@ -149,8 +149,7 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES,
 template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE,
           bool IS_MODEL_ON_NODES, physicType PHYSICS>
 void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES,
-               PHYSICS>::computeElementContributions(int i2,
-                                                     const DataType& data)
+               PHYSICS>::computeElementContributions(const DataType& data)
 {
   MAINLOOPHEAD(m_mesh.getNumberOfElements(), elementNumber)
 
@@ -171,7 +170,7 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES,
 
         for (int f = 0; f < kNumFields; ++f)
         {
-          localFields[f][localIdx] = data.m_fieldsGlobal[f](globalIdx, i2);
+          localFields[f][localIdx] = data.getCurrentField(f)(globalIdx);
         }
       }
     }
@@ -363,7 +362,7 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES,
 template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE,
           bool IS_MODEL_ON_NODES, physicType PHYSICS>
 void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES,
-               PHYSICS>::updateFields(float dt, int i1, int i2, DataType& data)
+               PHYSICS>::updateFields(float dt, const DataType& data)
 {
   float const dt2 = dt * dt;
 
@@ -371,11 +370,11 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES,
   {
     for (int f = 0; f < kNumFields; ++f)
     {
-      data.m_fieldsGlobal[f](I, i1) =
-          2 * data.m_fieldsGlobal[f](I, i2) - data.m_fieldsGlobal[f](I, i1) -
+      data.getPreviousField(f)(I) =
+          2 * data.getCurrentField(f)(I) - data.getPreviousField(f)(I) -
           dt2 * workVectorsGlobal_[f][I] / massMatrixGlobal_[I];
-      data.m_fieldsGlobal[f](I, i1) *= spongeTaperCoeff_(I);
-      data.m_fieldsGlobal[f](I, i2) *= spongeTaperCoeff_(I);
+      data.getPreviousField(f)(I) *= spongeTaperCoeff_(I);
+      data.getCurrentField(f)(I) *= spongeTaperCoeff_(I);
     }
   }
   LOOPEND
@@ -550,17 +549,14 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES,
 template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE,
           bool IS_MODEL_ON_NODES, physicType PHYSICS>
 void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES,
-               PHYSICS>::outputSolutionValues(const int& indexTimeStep, int& i1,
-                                              int& myElementSource,
-                                              const ARRAY_REAL_VIEW&
+               PHYSICS>::outputSolutionValues(const int& t, int& e,
+                                              const VECTOR_REAL_VIEW&
                                                   fieldGlobal,
                                               const char* fieldName)
 {
-  cout << "TimeStep=" << indexTimeStep << ";  " << fieldName
-       << " @ elementSource location " << myElementSource
-       << " after computeOneStep = "
-       << fieldGlobal(m_mesh.globalNodeIndex(myElementSource, 0, 0, 0), i1)
-       << endl;
+  cout << "TimeStep=" << t << ";  " << fieldName << " @ elementSource location "
+       << e << " after computeOneStep = "
+       << fieldGlobal(m_mesh.globalNodeIndex(e, 0, 0, 0)) << endl;
 }
 
 //============================================================================
