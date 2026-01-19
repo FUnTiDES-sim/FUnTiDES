@@ -23,7 +23,7 @@ def run_once(threads, extra_pytest_args, bench_root, prefix, verbose):
 
     cmd.extend([
         "tests/benchmarks/python",
-        "--threads", str(threads),
+        f"--kokkos-num-threads={threads}",
         "--benchmark-only",
         f"--benchmark-storage=file://{out_dir}",
         f"--benchmark-save={out_file}",

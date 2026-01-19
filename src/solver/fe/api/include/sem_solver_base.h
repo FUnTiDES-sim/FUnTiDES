@@ -66,21 +66,17 @@ class SEMSolverBase : public SolverBase
    * solution values for a given field at a particular time step. It must be
    * implemented by derived classes to define the specific output behavior.
    *
-   * @param[in] indexTimeStep The index of the current time step for which
-   *                          solution values are being output
-   * @param[in,out] i1 Index variable (corresponding to the time n of the
-   * solution)
-   * @param[in,out] myElementSource Index or identifier of the source element
-   *                                being processed
+   * @param[in] t The index of the current time step for which
+   *              solution values are being output
+   * @param[in] e Index of the source element being processed
    * @param[in] field Constant view of the array containing the field values
    *                  to be output
    * @param[in] fieldName Name/identifier of the field being output (as a
    *                      C-string)
    */
 
-  virtual void outputSolutionValues(const int &indexTimeStep, int &i1,
-                                    int &myElementSource,
-                                    const ARRAY_REAL_VIEW &field,
+  virtual void outputSolutionValues(const int &t, int &e,
+                                    const VECTOR_REAL_VIEW &field,
                                     const char *fieldName) = 0;
 };
 
