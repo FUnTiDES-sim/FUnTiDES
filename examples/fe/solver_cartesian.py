@@ -98,7 +98,7 @@ def detect_default_memspace():
     """
     try:
         # Check the docstring of the __init__ method for C++ signature
-        doc = Solver.SEMsolverDataAcoustic.__init__.__doc__
+        doc = Solver.WavefieldAcoustic.__init__.__doc__
         if doc and ("CudaUVMSpace" in doc or "CudaSpace" in doc):
             return MemSpace.GPU.name
         if doc and "HostSpace" in doc:
@@ -865,7 +865,7 @@ def compute_step(
     # m_syncer->synchronize(m_solver->getForceVector(c), par_topology_);
 
     # 3. Update solution using mass matrix and accumulated forces
-    solver.update_solution(dt, i1, i2, data)
+    solver.update_solution(dt, data)
 
     iter_time = time.time() - iter_start
     iteration_times.append(iter_time)
@@ -1027,13 +1027,15 @@ def main():
     del model
 
     # release explicit views
-    del kk_pnGlobal
+    del kk_pnGlobalPrev
+    del kk_pnGlobalCurr
     del kk_RHSTerm
     del kk_RHSElement
     del kk_RHSWeights
 
     # release numpy wrappers which might hold references to views
-    del pnGlobal
+    del pnGlobalPrev
+    del pnGlobalCurr
     del rhsTerm
     del RHSElement
     del rhsWeights

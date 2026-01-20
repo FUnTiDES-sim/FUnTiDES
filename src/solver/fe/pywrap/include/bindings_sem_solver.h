@@ -57,6 +57,10 @@ void bind_sem_solver_base(py::module_ &m)
            py::arg("sponge_surface") = true, py::arg("taper_delta") = 0)
       .def("compute_one_step", &SEMSolverBase::computeOneStep, py::arg("dt"),
            py::arg("time_sample"), py::arg("data"))
+      .def("compute_forces", &SEMSolverBase::computeForces, py::arg("dt"),
+           py::arg("time_sample"), py::arg("data"))
+      .def("update_solution", &SEMSolverBase::updateSolution, py::arg("dt"),
+           py::arg("data"))
       .def("output_solution_values", &SEMSolverBase::outputSolutionValues,
            py::arg("t"), py::arg("e"), py::arg("field_global"),
            py::arg("field_name"));
