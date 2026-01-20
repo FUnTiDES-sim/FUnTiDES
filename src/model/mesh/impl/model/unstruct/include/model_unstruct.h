@@ -66,11 +66,12 @@ struct ModelUnstructData : public ModelDataBase<FloatType, ScalarType>
   {
   }
 
+  FloatType origin_x_{0}, origin_y_{0}, origin_z_{0};
+  FloatType ox_, oy_, oz_;
   ScalarType order_;
   ScalarType n_element_;
   ScalarType n_node_;
   FloatType lx_, ly_, lz_;
-  FloatType ox_, oy_, oz_;
   bool isModelOnNodes_;
   bool isElastic_;
 
@@ -128,6 +129,9 @@ class ModelUnstruct final : public ModelApi<FloatType, ScalarType>
         lx_(data.lx_),
         ly_(data.ly_),
         lz_(data.lz_),
+        ox_(data.origin_x_),
+        oy_(data.origin_y_),
+        oz_(data.origin_z_),
         isModelOnNodes_(data.isModelOnNodes_),
         isElastic_(data.isElastic_),
         global_node_index_(data.global_node_index_),
@@ -220,13 +224,13 @@ class ModelUnstruct final : public ModelApi<FloatType, ScalarType>
     switch (dim)
     {
       case 0: {
-        return nodes_coords_x_[dofGlobal];  // Fixed: was dofGlobalIndex
+        return nodes_coords_x_[dofGlobal];
       }
       case 1: {
-        return nodes_coords_y_[dofGlobal];  // Fixed: was dofGlobalIndex
+        return nodes_coords_y_[dofGlobal];
       }
       case 2: {
-        return nodes_coords_z_[dofGlobal];  // Fixed: was dofGlobalIndex
+        return nodes_coords_z_[dofGlobal];
       }
       default:
         return FloatType(-1);  // Cast to proper type

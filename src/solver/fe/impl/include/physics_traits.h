@@ -115,8 +115,9 @@ struct SEMsolverData : public SolverBase::DataStruct
    */
   template <physicType P = PHYSICS,
             typename = std::enable_if_t<P == enums::physicType::kElastic>>
-  SEMsolverData(const WavefieldElastic& wavefield, const RhsElastic& rhs)
-      : m_wavefield(wavefield), m_rhs(rhs)
+  SEMsolverData(const WavefieldElastic& wavefield, const RhsElastic& rhs,
+                const bool isDistributed = false)
+      : m_wavefield(wavefield), m_rhs(rhs), isDistributed(isDistributed)
   {
   }
 
@@ -160,6 +161,7 @@ struct SEMsolverData : public SolverBase::DataStruct
     std::cout << "RHS Weights size: " << getRhsWeights().extent(0) << std::endl;
   }
 
+  bool isDistributed{false};
   WavefieldType m_wavefield;  ///< Wavefield stored by value for GPU
                               ///< (lightweight view handles)
   RhsType m_rhs;  ///< RHS stored by value for GPU (lightweight view handles)

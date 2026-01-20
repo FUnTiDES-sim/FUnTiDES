@@ -1,12 +1,3 @@
-//************************************************************************
-//   FUnTiDES - Finite/Unstructured waveform propagation
-//
-//  sem_solver_impl.h: Unified SEM solver implementation
-//
-//  Template implementation for the unified SEMsolver class supporting
-//  both acoustic and elastic wave propagation.
-//************************************************************************
-
 #ifndef SRC_SOLVER_FE_IMPL_INCLUDE_SEMSOLVERIMPL_H_
 #define SRC_SOLVER_FE_IMPL_INCLUDE_SEMSOLVERIMPL_H_
 
@@ -53,18 +44,20 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES,
 
   allocateFEarrays();
   initFEarrays();
+
+  // Compute Local Mass Matrix
   computeGlobalMassMatrix();
 }
 
 //============================================================================
-// computeOneStep - Main time stepping routine
+// Compute Forces (Phase 1)
 //============================================================================
 
 template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE,
-          bool IS_MODEL_ON_NODES, physicType PHYSICS>
+          bool IS_MODEL_ON_NODES, enums::physicType PHYSICS>
 void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES,
-               PHYSICS>::computeOneStep(const float& dt, const int& timeSample,
-                                        SolverBase::DataStruct& data)
+               PHYSICS>::computeForces(const float& dt, const int& timeSample,
+                                       SolverBase::DataStruct& data)
 {
   auto& myData = dynamic_cast<DataType&>(data);
 
@@ -76,13 +69,25 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES,
 
   computeElementContributions(myData);
   FENCE
+}
 
+//============================================================================
+// Update Solution (Phase 2)
+//============================================================================
+
+template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE,
+          bool IS_MODEL_ON_NODES, enums::physicType PHYSICS>
+void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES,
+               PHYSICS>::updateSolution(const float& dt,
+                                        SolverBase::DataStruct& data)
+{
+  auto& myData = dynamic_cast<DataType&>(data);
   updateFields(dt, myData);
   FENCE
 }
 
 //============================================================================
-// resetGlobalVectors - Zero out work vectors
+// resetGlobalVectors
 //============================================================================
 
 template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE,
@@ -101,7 +106,7 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES,
 }
 
 //============================================================================
-// applyRHSTerm - Apply source forcing terms
+// applyRHSTerm
 //============================================================================
 
 template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE,
@@ -124,7 +129,6 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES,
           int nodeRHS =
               m_mesh.globalNodeIndex(data.getRhsElement()[i], x, y, z);
 
-          // Apply RHS for each field component
           for (int f = 0; f < kNumRhs; ++f)
           {
             float source = data.getRhsTerm(f)(i, timeSample) *
@@ -139,7 +143,7 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES,
 }
 
 //============================================================================
-// computeElementContributions - Assemble element contributions
+// computeElementContributions
 //============================================================================
 
 template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE,
@@ -149,16 +153,12 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES,
 {
   MAINLOOPHEAD(m_mesh.getNumberOfElements(), elementNumber)
 
-  // Guard for extra threads (Kokkos might launch more than needed)
   if (elementNumber >= m_mesh.getNumberOfElements()) return;
 
   int const dim = m_mesh.getOrder() + 1;
-
-  // Local field arrays - size depends on physics
   float localFields[kNumFields][kPointsPerElement] = {{0}};
   float localWork[kNumFields][kPointsPerElement] = {{0}};
 
-  // Gather global to local
   for (int i = 0; i < dim; ++i)
   {
     for (int j = 0; j < dim; ++j)
@@ -180,10 +180,8 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES,
   model_discretization_interface::gatherTransformData(elementNumber, m_mesh,
                                                       transformData);
 
-  // Physics-specific element contribution computation
   if constexpr (PHYSICS == enums::physicType::kAcoustic)
   {
-    // Acoustic: scalar stiffness term with 1/rho coefficient
     real_t inv_density = 0.0f;
     if constexpr (!IS_MODEL_ON_NODES)
     {
@@ -207,14 +205,12 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES,
   }
   else if constexpr (PHYSICS == enums::physicType::kElastic)
   {
-    // Elastic: tensor stiffness with elasticity matrix
     float CTTI[6][6];
     if constexpr (!IS_MODEL_ON_NODES)
     {
       m_mesh.getCTensorOnElement(elementNumber, CTTI);
     }
 
-    // Packed structure for efficient memory access
 #ifdef __CUDACC__
     struct CJPacked
     {
@@ -229,7 +225,6 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES,
       float pad[2];
     };
 #endif
-
     CJPacked CJflat[3 * 3];
 
     INTEGRAL_TYPE::computeStiffNessTermwithJac(
@@ -251,7 +246,6 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES,
                            CTTI);
           }
 
-          // Load CTTI into cache
           float const C00 = CTTI[0][0], C01 = CTTI[0][1], C02 = CTTI[0][2];
           float const C03 = CTTI[0][3], C04 = CTTI[0][4], C05 = CTTI[0][5];
           float const C11 = CTTI[1][1], C12 = CTTI[1][2], C13 = CTTI[1][3];
@@ -268,32 +262,29 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES,
             for (int r = 0; r < 3; ++r)
             {
               const float Jr0 = J[r][0], Jr1 = J[r][1], Jr2 = J[r][2];
-
-              // Precompute products
               const float p0r0 = Jp0 * Jr0, p0r1 = Jp0 * Jr1, p0r2 = Jp0 * Jr2;
               const float p1r0 = Jp1 * Jr0, p1r1 = Jp1 * Jr1, p1r2 = Jp1 * Jr2;
               const float p2r0 = Jp2 * Jr0, p2r1 = Jp2 * Jr1, p2r2 = Jp2 * Jr2;
-
               const int idx = p * 3 + r;
 
               float v0 = C00 * p0r0 + C05 * p0r1 + C04 * p0r2 + C05 * p1r0 +
                          C55 * p1r1 + C45 * p1r2 + C04 * p2r0 + C45 * p2r1 +
-                         C44 * p2r2;  // Rxx
+                         C44 * p2r2;
               float v1 = C55 * p0r0 + C15 * p0r1 + C35 * p0r2 + C15 * p1r0 +
                          C11 * p1r1 + C13 * p1r2 + C35 * p2r0 + C13 * p2r1 +
-                         C33 * p2r2;  // Ryy
+                         C33 * p2r2;
               float v2 = C44 * p0r0 + C34 * p0r1 + C24 * p0r2 + C34 * p1r0 +
                          C33 * p1r1 + C23 * p1r2 + C24 * p2r0 + C23 * p2r1 +
-                         C22 * p2r2;  // Rzz
+                         C22 * p2r2;
               float v3 = C05 * p0r0 + C01 * p0r1 + C03 * p0r2 + C55 * p1r0 +
                          C15 * p1r1 + C35 * p1r2 + C45 * p2r0 + C14 * p2r1 +
-                         C34 * p2r2;  // Rxy
+                         C34 * p2r2;
               float v4 = C04 * p0r0 + C03 * p0r1 + C02 * p0r2 + C45 * p1r0 +
                          C35 * p1r1 + C25 * p1r2 + C44 * p2r0 + C34 * p2r1 +
-                         C24 * p2r2;  // Rxz
+                         C24 * p2r2;
               float v5 = C45 * p0r0 + C35 * p0r1 + C25 * p0r2 + C14 * p1r0 +
                          C13 * p1r1 + C12 * p1r2 + C34 * p2r0 + C33 * p2r1 +
-                         C23 * p2r2;  // Ryz
+                         C23 * p2r2;
 
 #ifdef __CUDACC__
               CJflat[idx].a = make_float4(v0, v1, v2, v3);
@@ -311,14 +302,11 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES,
         },
         [&](int i, int j, float val, const int p, const int r) {
           const int idx = p * 3 + r;
-
 #ifdef __CUDACC__
           const float3 u_local = make_float3(
               localFields[0][j], localFields[1][j], localFields[2][j]);
-
           const float4 a = CJflat[idx].a;
           const float2 b = CJflat[idx].b;
-
           localWork[0][i] +=
               fmaf(val * a.x, u_local.x,
                    fmaf(val * a.w, u_local.y, val * b.x * u_local.z));
@@ -332,14 +320,12 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES,
           const float uxj = localFields[0][j];
           const float uyj = localFields[1][j];
           const float uzj = localFields[2][j];
-
           const float rxx = CJflat[idx].a0;
           const float ryy = CJflat[idx].a1;
           const float rzz = CJflat[idx].a2;
           const float rxy = CJflat[idx].a3;
           const float rxz = CJflat[idx].b0;
           const float ryz = CJflat[idx].b1;
-
           localWork[0][i] +=
               fmaf(val * rxx, uxj, fmaf(val * rxy, uyj, val * rxz * uzj));
           localWork[1][i] +=
@@ -350,7 +336,6 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES,
         });
   }
 
-  // Scatter local to global
   for (int i = 0; i < dim; ++i)
   {
     for (int j = 0; j < dim; ++j)
@@ -367,7 +352,6 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES,
       }
     }
   }
-
   MAINLOOPEND
 }
 
@@ -407,11 +391,9 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES,
 {
   MAINLOOPHEAD(m_mesh.getNumberOfElements(), elementNumber)
 
-  // Guard for extra threads (Kokkos might launch more than needed)
   if (elementNumber >= m_mesh.getNumberOfElements()) return;
 
   float massMatrixLocal[kPointsPerElement] = {0};
-
   int const dim = m_mesh.getOrder() + 1;
 
   typename INTEGRAL_TYPE::TransformType transformData;
@@ -422,20 +404,17 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES,
       transformData,
       [&](const int j, const real_t val) { massMatrixLocal[j] += val; });
 
-  // Physics-specific mass matrix scaling
   real_t model_factor = 0.0f;
   if constexpr (!IS_MODEL_ON_NODES)
   {
     if constexpr (PHYSICS == enums::physicType::kAcoustic)
     {
-      // Acoustic: 1/(vp^2 * rho)
       model_factor = 1.0f / (m_mesh.getModelVpOnElement(elementNumber) *
                              m_mesh.getModelVpOnElement(elementNumber) *
                              m_mesh.getModelRhoOnElement(elementNumber));
     }
     else
     {
-      // Elastic: rho (density)
       model_factor = m_mesh.getModelRhoOnElement(elementNumber);
     }
   }
@@ -477,11 +456,9 @@ template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE,
 void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES,
                PHYSICS>::allocateFEarrays()
 {
-  // Shared arrays
   massMatrixGlobal_ = allocateVector<VECTOR_REAL_VIEW>(
       m_mesh.getNumberOfNodes(), "massMatrixGlobal");
 
-  // Allocate work vectors for each field
   static constexpr const char* workVectorNames[3] = {"workVec0", "workVec1",
                                                      "workVec2"};
   for (int f = 0; f < kNumFields; ++f)
@@ -490,7 +467,6 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES,
         m_mesh.getNumberOfNodes(), workVectorNames[f]);
   }
 
-  // Sponge allocation
   spongeTaperCoeff_ = allocateVector<VECTOR_REAL_VIEW>(
       m_mesh.getNumberOfNodes(), "spongeTaperCoeff");
 }
@@ -728,4 +704,4 @@ SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES,
 }  // namespace fe
 }  // namespace solver
 
-#endif  // SRC_SOLVER_FE_IMPL_INCLUDE_SEM_SOLVER_IMPL_H_
+#endif  // SRC_SOLVER_FE_IMPL_INCLUDE_SEMSOLVERIMPL_H_

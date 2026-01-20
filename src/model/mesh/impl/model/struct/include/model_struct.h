@@ -23,6 +23,7 @@ struct ModelStructData final : public ModelDataBase<FloatType, ScalarType>
   ScalarType ex_, ey_, ez_;
   FloatType dx_, dy_, dz_;
   FloatType ox_{0}, oy_{0}, oz_{0};
+
   bool isModelOnNodes_;
   bool isElastic_;
 };
@@ -123,9 +124,9 @@ class ModelStruct : public ModelApi<FloatType, ScalarType>
   PROXY_HOST_DEVICE
   void vertexCoords(IndexType dofGlobal, FloatType* const coords) const
   {
-    coords[0] = dofGlobal[0] * hx_;
-    coords[1] = dofGlobal[1] * hy_;
-    coords[2] = dofGlobal[2] * hz_;
+    coords[0] = dofGlobal[0] * hx_ + ox_;
+    coords[1] = dofGlobal[1] * hy_ + oy_;
+    coords[2] = dofGlobal[2] * hz_ + oz_;
   }
 
   /**
@@ -177,6 +178,20 @@ class ModelStruct : public ModelApi<FloatType, ScalarType>
     // Transform from [-1, 1] to physical coordinates
     FloatType physicalCoord =
         elementStart + (gllPoint + 1.0) * elementSize * 0.5;
+
+    // offset with local origin
+    switch (dim)
+    {
+      case 0:
+        physicalCoord += ox_;
+        break;
+      case 1:
+        physicalCoord += oy_;
+        break;
+      case 2:
+        physicalCoord += oz_;
+        break;
+    }
 
     return physicalCoord;
   }

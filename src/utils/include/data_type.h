@@ -106,13 +106,6 @@ void printBMatrix(const int &element, T &B)
   }
 }
 
-// float jacobianTime=0;
-// float detJTime=0;
-// float massMatrixTime=0;
-// float BTime=0;
-// float gradPhiBGradPhiTime=0;
-// float stiffnessTime=0;
-
 #define timewatch(timepoint)                                \
   chrono::time_point<std::chrono::system_clock> timepoint = \
       chrono::system_clock::now();
