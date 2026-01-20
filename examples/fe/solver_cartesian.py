@@ -957,6 +957,7 @@ def main():
     # Logic in C++: const double distToFrontierX = (surface_sponge_) ? ... : ...
     # Here we pass it directly.
     solver.compute_fe_init(model, sponge_size, args.surface_sponge, args.taper_delta)
+    # m_syncer->synchronize(m_solver->getMassMatrix(c), par_topology_);
     print("Model initialized")
 
     # allocate pressure
