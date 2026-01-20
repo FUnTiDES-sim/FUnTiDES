@@ -63,7 +63,30 @@ void bind_sem_solver_base(py::module_ &m)
            py::arg("data"))
       .def("output_solution_values", &SEMSolverBase::outputSolutionValues,
            py::arg("t"), py::arg("e"), py::arg("field_global"),
-           py::arg("field_name"));
+           py::arg("field_name"))
+
+      // --- Domain Decomposition Interface ---
+      .def("get_num_components", &SEMSolverBase::getNumComponents)
+
+      .def("get_mass_matrix",
+           [](SEMSolverBase &self) -> py::array_t<float> {
+             auto &v = self.getMassMatrix();
+             return py::array_t<float>(
+                 {static_cast<ssize_t>(v.extent(0))},  // Shape
+                 {sizeof(float)},                      // Strides
+                 v.data(),                             // Pointer to memory
+                 py::cast(&self)  // Parent object (keep alive)
+             );
+           })
+      .def(
+          "get_force_vector",
+          [](SEMSolverBase &self, int component) -> py::array_t<float> {
+            auto &v = self.getForceVector(component);
+            return py::array_t<float>({static_cast<ssize_t>(v.extent(0))},
+                                      {sizeof(float)}, v.data(),
+                                      py::cast(&self));
+          },
+          py::arg("component"));
 }
 
 void bind_solver_factory(py::module_ &m)
