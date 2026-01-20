@@ -196,7 +196,7 @@ BENCHMARK_TEMPLATE_METHOD_F(SolverUnstructFixture, OneStep)
   for (auto _ : state)
   {
     solver->computeForces(this->dt, this->time_sample, data);
-    solver->updateSolution(this->dt, 0, 1, data);
+    solver->updateSolution(this->dt, data);
   }
 
   // Label
