@@ -223,6 +223,7 @@ PYBIND11_MODULE(fd_solver, m)
       .def("defineSpongeBoundary",
            &fdtd::abckernel::FdtdAbcKernels::defineSpongeBoundary,
            py::arg("nx"), py::arg("ny"), py::arg("nz"),
+           py::arg("L") = 20, py::arg("alpha") = -0.0015f,
            "Define sponge boundary conditions")
       .def("definePML",
            [](fdtd::abckernel::FdtdAbcKernels& self,
