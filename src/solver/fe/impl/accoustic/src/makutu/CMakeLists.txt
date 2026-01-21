@@ -24,8 +24,8 @@ generate_solver_implementations(
     SOLVER_NAME "makutu"
     ORDERS ${ORDERS}
     MESH_TYPES ${MESH_TYPES}
-    MODEL_TYPES "acoustic"
-    PHYSIC_TYPES ${PHYSIC_TYPES}
+    MODEL_TYPES ${MODEL_TYPES}
+    PHYSIC_TYPES "acoustic"
     OUTPUT_DIR "${CMAKE_CURRENT_BINARY_DIR}"
     OUTPUT_VAR MAKUTU_GENERATED_SOURCES
 )

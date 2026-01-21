@@ -1,6 +1,5 @@
 #ifndef SOLVER_FE_API_INCLUDE_SOLVER_H_
 #define SOLVER_FE_API_INCLUDE_SOLVER_H_
-#include <solver_base.h>
 
 #include <array>
 #include <cmath>
