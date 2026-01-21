@@ -24,14 +24,14 @@ namespace fe
 
 void bind_data_struct(py::module_ &m)
 {
-  py::class_<SolverBase::DataStruct, std::shared_ptr<SolverBase::DataStruct>>(
+  py::class_<Solver::DataStruct, std::shared_ptr<Solver::DataStruct>>(
       m, "DataStruct")
-      .def("print", &SolverBase::DataStruct::print);
+      .def("print", &Solver::DataStruct::print);
 }
 
 void bind_acoustic_solver_data(py::module_ &m)
 {
-  py::class_<SEMsolverDataAcoustic, SolverBase::DataStruct,
+  py::class_<SEMsolverDataAcoustic, Solver::DataStruct,
              std::shared_ptr<SEMsolverDataAcoustic>>(m, "SEMsolverDataAcoustic")
       .def(py::init<const WavefieldAcoustic &, const RhsAcoustic &>(),
            py::arg("wavefield"), py::arg("rhs"))
@@ -41,7 +41,7 @@ void bind_acoustic_solver_data(py::module_ &m)
 
 void bind_elastic_solver_data(py::module_ &m)
 {
-  py::class_<SEMsolverDataElastic, SolverBase::DataStruct,
+  py::class_<SEMsolverDataElastic, Solver::DataStruct,
              std::shared_ptr<SEMsolverDataElastic>>(m, "SEMsolverDataElastic")
       .def(py::init<const WavefieldElastic &, const RhsElastic &>(),
            py::arg("wavefield"), py::arg("rhs"))
@@ -70,8 +70,8 @@ void bind_solver_factory(py::module_ &m)
 {
   m.def(
       "create_solver",
-      [](methodType method, implemType implem, meshType mesh,
-         modelLocationType modelLocation, physicType physic, int order) {
+      [](enums::methodType method, enums::implemType implem, enums::meshType mesh,
+         enums::modelLocationType modelLocation, enums::physicType physic, int order) {
         auto solver = solver_factory::createSolver(
             method, implem, mesh, modelLocation, physic, order);
         return std::shared_ptr<Solver>(std::move(solver));

@@ -5,12 +5,14 @@
 
 #include "physics_traits_acoustic.h"
 #include "physics_traits_elastic.h"
-#include "solver_base.h"
+#include "solver.h"
 
 namespace solver
 {
 namespace fe
 {
+
+using physicType = enums::physicType;
 
 //============================================================================
 // Unified Data Structure
@@ -26,11 +28,11 @@ namespace fe
  * @tparam PHYSICS The physics type (kAcoustic or kElastic)
  */
 template <physicType PHYSICS>
-struct SEMsolverData : public SolverBase::DataStruct
+struct SEMsolverData : public Solver::DataStruct
 {
   using Traits = PhysicsTraits<PHYSICS>;
-  static constexpr int kNumFields = Traits::kNumFields;
-  static constexpr int kNumRhs = Traits::kNumRhsComponents;
+  static constexpr int kNumFields = Traits::WavefieldType::kNumFields;
+  static constexpr int kNumRhs = Traits::RhsType::kNumRhsComponents;
 
   // Use concrete types from PhysicsTraits to avoid virtual dispatch on device
   using WavefieldType = typename Traits::WavefieldType;
@@ -85,7 +87,7 @@ struct SEMsolverData : public SolverBase::DataStruct
     std::cout << "SEMsolverData<" << Traits::kName << ">" << std::endl;
     for (int f = 0; f < kNumFields; ++f)
     {
-      std::cout << "Field[" << f << "] (" << Traits::kFieldNames[f]
+      std::cout << "Field[" << f << "] (" << Traits::WavefieldType::kFieldNames[f]
                 << ") size: " << getCurrentField(f).extent(0) << std::endl;
     }
     for (int r = 0; r < kNumRhs; ++r)

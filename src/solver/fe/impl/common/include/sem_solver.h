@@ -9,6 +9,7 @@
 #include "parallel_topology.h"
 #include "physics_traits.h"
 #include "sem_enums.h"
+#include "sem_solver_data.h"
 #include "solver.h"
 
 namespace solver
@@ -24,8 +25,8 @@ class SEMsolver : public Solver
   using Traits = PhysicsTraits<PHYSICS>;
   using DataType = SEMsolverData<PHYSICS>;
 
-  static constexpr int kNumFields = Traits::kNumFields;
-  static constexpr int kNumRhs = Traits::kNumRhsComponents;
+  static constexpr int kNumFields = Traits::WavefieldType::kNumFields;
+  static constexpr int kNumRhs = Traits::RhsType::kNumRhsComponents;
 
   SEMsolver() = default;
   ~SEMsolver() = default;

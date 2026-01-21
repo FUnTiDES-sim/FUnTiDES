@@ -5,6 +5,7 @@
 #include <cmath>
 #include <vector>
 
+#include "model.h"
 #include "parallel_topology.h"
 
 namespace solver

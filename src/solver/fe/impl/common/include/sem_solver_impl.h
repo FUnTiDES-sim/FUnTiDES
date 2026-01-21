@@ -56,7 +56,7 @@ template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE,
           bool IS_MODEL_ON_NODES, enums::physicType PHYSICS>
 void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES,
                PHYSICS>::computeForces(const float& dt, const int& timeSample,
-                                       SolverBase::DataStruct& data)
+                                       Solver::DataStruct& data)
 {
   auto& myData = dynamic_cast<DataType&>(data);
 
@@ -78,7 +78,7 @@ template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE,
           bool IS_MODEL_ON_NODES, enums::physicType PHYSICS>
 void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES,
                PHYSICS>::updateSolution(const float& dt,
-                                        SolverBase::DataStruct& data)
+                                        Solver::DataStruct& data)
 {
   auto& myData = dynamic_cast<DataType&>(data);
   updateFields(dt, myData);

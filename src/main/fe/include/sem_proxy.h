@@ -15,7 +15,7 @@
 #include "sem_enums.h"
 #include "sem_io_controller.h"
 #include "sem_proxy_options.h"
-#include "sem_solver_base.h"
+#include "sem_solver.h"
 #include "solver_factory.h"
 
 using namespace solver::fe::enums;
@@ -120,10 +120,10 @@ class SEMproxy
   int myElementSource = 0;
 
   std::shared_ptr<model::ModelApi<float, int>> m_mesh;
-  std::unique_ptr<Solver> m_solver;
+  std::unique_ptr<solver::fe::Solver> m_solver;
 
   // Boundary Synchronizer for DD
-  std::unique_ptr<BoundarySynchronizer> m_syncer;
+  std::unique_ptr<solver::fe::BoundarySynchronizer> m_syncer;
 
   SolverUtils myUtils;
 
