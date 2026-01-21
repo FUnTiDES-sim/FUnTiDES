@@ -1,6 +1,9 @@
-#ifndef RHS_H_
-#define RHS_H_
-
+#ifndef SOLVER_FE_API_INCLUDE_RHS_H_
+#define SOLVER_FE_API_INCLUDE_RHS_H_
+namespace solver
+{
+namespace fe
+{
 /**
  * @brief Base RHS data structure.
  */
@@ -32,5 +35,6 @@ struct Rhs
 
   virtual void print() const = 0;
 };
-
-#endif  // RHS_H_
+}  // namespace fe
+}  // namespace solver
+#endif  // SOLVER_FE_API_INCLUDE_RHS_H_

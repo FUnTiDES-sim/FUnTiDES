@@ -1,0 +1,30 @@
+#ifndef SOLVER_FE_IMPL_INCLUDE_PHYSICS_TRAITS_ELASTIC_H_
+#define SOLVER_FE_IMPL_INCLUDE_PHYSICS_TRAITS_ELASTIC_H_
+#include "physics_traits_base.h"
+#include "rhs_elastic.h"
+#include "wavefield_elastic.h"
+
+namespace solver
+{
+namespace fe
+{
+
+/**
+ * @brief Specialization for elastic physics.
+ *
+ * Elastic wave propagation uses three displacement components (ux, uy, uz).
+ */
+template <>
+struct PhysicsTraits<enums::physicType::kElastic>
+{
+  /// Human-readable name for logging
+  static constexpr const char* kName = "Elastic";
+
+  /// Concrete types for device access
+  using WavefieldType = WavefieldElastic;
+  using RhsType = RhsElastic;
+};
+
+}  // namespace fe
+}  // namespace solver
+#endif  // SOLVER_FE_IMPL_INCLUDE_PHYSICS_TRAITS_ELASTIC_H_

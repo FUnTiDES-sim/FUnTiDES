@@ -1,6 +1,5 @@
-#ifndef SRC_MAIN_FE_INCLUDE_SEMPROXY_H_
-#define SRC_MAIN_FE_INCLUDE_SEMPROXY_H_
-
+#ifndef MAIN_FE_INCLUDE_SEM_PROXY_H_
+#define MAIN_FE_INCLUDE_SEM_PROXY_H_
 #include <data_type.h>
 #include <utils.h>
 
@@ -121,7 +120,7 @@ class SEMproxy
   int myElementSource = 0;
 
   std::shared_ptr<model::ModelApi<float, int>> m_mesh;
-  std::unique_ptr<SEMSolverBase> m_solver;
+  std::unique_ptr<Solver> m_solver;
 
   // Boundary Synchronizer for DD
   std::unique_ptr<BoundarySynchronizer> m_syncer;
@@ -167,5 +166,4 @@ class SEMproxy
   methodType getMethod(string methodArg);
   meshType getMesh(string meshArg);
 };
-
-#endif  // SRC_MAIN_FE_INCLUDE_SEMPROXY_H_
+#endif  // MAIN_FE_INCLUDE_SEM_PROXY_H_
