@@ -1,6 +1,5 @@
-#ifndef SOLVER_FE_IMPL_INCLUDE_SEM_SOLVER_DATA_H_
-#define SOLVER_FE_IMPL_INCLUDE_SEM_SOLVER_DATA_H_
-
+#ifndef SOLVER_FE_IMPL_COMMON_INCLUDE_SEM_SOLVER_DATA_H_
+#define SOLVER_FE_IMPL_COMMON_INCLUDE_SEM_SOLVER_DATA_H_
 #include <iostream>
 
 #include "physics_traits_acoustic.h"
@@ -87,7 +86,8 @@ struct SEMsolverData : public Solver::DataStruct
     std::cout << "SEMsolverData<" << Traits::kName << ">" << std::endl;
     for (int f = 0; f < kNumFields; ++f)
     {
-      std::cout << "Field[" << f << "] (" << Traits::WavefieldType::kFieldNames[f]
+      std::cout << "Field[" << f << "] ("
+                << Traits::WavefieldType::kFieldNames[f]
                 << ") size: " << getCurrentField(f).extent(0) << std::endl;
     }
     for (int r = 0; r < kNumRhs; ++r)
@@ -114,4 +114,4 @@ using SEMsolverDataElastic = SEMsolverData<enums::physicType::kElastic>;
 
 }  // namespace fe
 }  // namespace solver
-#endif  // SOLVER_FE_IMPL_INCLUDE_SEM_SOLVER_DATA_H_
+#endif  // SOLVER_FE_IMPL_COMMON_INCLUDE_SEM_SOLVER_DATA_H_

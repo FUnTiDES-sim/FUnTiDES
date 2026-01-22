@@ -1,5 +1,5 @@
-#ifndef SOLVER_FE_IMPL_INCLUDE_WAVEFIELD_ELASTIC_H_
-#define SOLVER_FE_IMPL_INCLUDE_WAVEFIELD_ELASTIC_H_
+#ifndef SOLVER_FE_IMPL_ELASTIC_INCLUDE_WAVEFIELD_ELASTIC_H_
+#define SOLVER_FE_IMPL_ELASTIC_INCLUDE_WAVEFIELD_ELASTIC_H_
 #include <data_type.h>
 
 #include "wavefield.h"
@@ -14,7 +14,6 @@ namespace fe
  */
 struct WavefieldElastic : public Wavefield
 {
-
   /// Field names for each component
   static constexpr const char* kFieldNames[3] = {"ux", "uy", "uz"};
   /// Number of solution fields (3 for displacement vector)
@@ -107,4 +106,4 @@ struct WavefieldElastic : public Wavefield
 };
 }  // namespace fe
 }  // namespace solver
-#endif  // SOLVER_FE_IMPL_INCLUDE_WAVEFIELD_ELASTIC_H_
+#endif  // SOLVER_FE_IMPL_ELASTIC_INCLUDE_WAVEFIELD_ELASTIC_H_

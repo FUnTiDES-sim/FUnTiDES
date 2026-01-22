@@ -1,6 +1,5 @@
-#ifndef SOLVER_FE_IMPL_INCLUDE_SEM_ENUMS_H_
-#define SOLVER_FE_IMPL_INCLUDE_SEM_ENUMS_H_
-
+#ifndef SOLVER_FE_IMPL_COMMON_INCLUDE_SEM_ENUMS_H_
+#define SOLVER_FE_IMPL_COMMON_INCLUDE_SEM_ENUMS_H_
 #include <string>
 
 namespace solver
@@ -104,4 +103,4 @@ inline std::string to_string(physicType p)
 }  // namespace enums
 }  // namespace fe
 }  // namespace solver
-#endif
+#endif  // SOLVER_FE_IMPL_COMMON_INCLUDE_SEM_ENUMS_H_

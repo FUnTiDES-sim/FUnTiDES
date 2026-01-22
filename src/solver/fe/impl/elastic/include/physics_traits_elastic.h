@@ -1,5 +1,5 @@
-#ifndef SOLVER_FE_IMPL_INCLUDE_PHYSICS_TRAITS_ELASTIC_H_
-#define SOLVER_FE_IMPL_INCLUDE_PHYSICS_TRAITS_ELASTIC_H_
+#ifndef SOLVER_FE_IMPL_ELASTIC_INCLUDE_PHYSICS_TRAITS_ELASTIC_H_
+#define SOLVER_FE_IMPL_ELASTIC_INCLUDE_PHYSICS_TRAITS_ELASTIC_H_
 #include "physics_traits.h"
 #include "rhs_elastic.h"
 #include "wavefield_elastic.h"
@@ -27,4 +27,4 @@ struct PhysicsTraits<enums::physicType::kElastic>
 
 }  // namespace fe
 }  // namespace solver
-#endif  // SOLVER_FE_IMPL_INCLUDE_PHYSICS_TRAITS_ELASTIC_H_
+#endif  // SOLVER_FE_IMPL_ELASTIC_INCLUDE_PHYSICS_TRAITS_ELASTIC_H_

@@ -1,5 +1,5 @@
-#ifndef SOLVER_FE_IMPL_INCLUDE_MODEL_DISCRETIZATION_INTERFACE_H_
-#define SOLVER_FE_IMPL_INCLUDE_MODEL_DISCRETIZATION_INTERFACE_H_
+#ifndef SOLVER_FE_IMPL_COMMON_INCLUDE_MODEL_DISCRETIZATION_INTERFACE_H_
+#define SOLVER_FE_IMPL_COMMON_INCLUDE_MODEL_DISCRETIZATION_INTERFACE_H_
 #include <type_traits>
 
 #include "finiteElement/makutu/Qk_Hexahedron_Lagrange_GaussLobatto.hpp"
@@ -149,4 +149,4 @@ static constexpr PROXY_HOST_DEVICE void gatherTransformData(
 }  // namespace model_discretization_interface
 }  // namespace fe
 }  // namespace solver
-#endif  // SOLVER_FE_IMPL_INCLUDE_MODEL_DISCRETIZATION_INTERFACE_H_
+#endif  // SOLVER_FE_IMPL_COMMON_INCLUDE_MODEL_DISCRETIZATION_INTERFACE_H_

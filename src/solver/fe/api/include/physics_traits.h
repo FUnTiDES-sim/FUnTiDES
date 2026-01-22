@@ -5,7 +5,7 @@ namespace solver
 {
 namespace fe
 {
-  
+
 namespace enums
 {
 // Forward declaration - full definition in sem_enums.h
@@ -20,7 +20,7 @@ enum class physicType : int;
  * - RhsType: Concrete RHS type for device access
  *
  * @tparam PHYSICS The physics type (kAcoustic, kElastic, etc.)
- * 
+ *
  * Note: physicType enum is forward declared. Include sem_enums.h
  * or physics-specific trait headers for full definitions.
  */

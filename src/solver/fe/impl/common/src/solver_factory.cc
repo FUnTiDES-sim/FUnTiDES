@@ -16,7 +16,6 @@ namespace solver_factory
 
 namespace feenum = solver::fe::enums;
 
-
 /**
  * @brief Dispatches to the correct template instantiation based on runtime
  * order.
@@ -44,7 +43,8 @@ std::unique_ptr<Solver> orderDispatch(int const order, FUNC&& func)
  * @brief Creates solver for structured mesh.
  */
 template <auto ImplTag, int ORDER>
-std::unique_ptr<Solver> makeSolverStruct(bool isModelOnNodes, feenum::physicType physic)
+std::unique_ptr<Solver> makeSolverStruct(bool isModelOnNodes,
+                                         feenum::physicType physic)
 {
   using MeshT = model::ModelStruct<float, int, ORDER>;
   using SelectedIntegral = typename IntegralTypeSelector<ORDER, ImplTag>::type;
@@ -53,26 +53,30 @@ std::unique_ptr<Solver> makeSolverStruct(bool isModelOnNodes, feenum::physicType
   {
     if (isModelOnNodes)
     {
-      return std::make_unique<solver::fe::SEMsolver<
-          ORDER, SelectedIntegral, MeshT, true, feenum::physicType::kAcoustic>>();
+      return std::make_unique<
+          solver::fe::SEMsolver<ORDER, SelectedIntegral, MeshT, true,
+                                feenum::physicType::kAcoustic>>();
     }
     else
     {
-      return std::make_unique<solver::fe::SEMsolver<
-          ORDER, SelectedIntegral, MeshT, false, feenum::physicType::kAcoustic>>();
+      return std::make_unique<
+          solver::fe::SEMsolver<ORDER, SelectedIntegral, MeshT, false,
+                                feenum::physicType::kAcoustic>>();
     }
   }
   else  // kElastic
   {
     if (isModelOnNodes)
     {
-      return std::make_unique<solver::fe::SEMsolver<
-          ORDER, SelectedIntegral, MeshT, true, feenum::physicType::kElastic>>();
+      return std::make_unique<
+          solver::fe::SEMsolver<ORDER, SelectedIntegral, MeshT, true,
+                                feenum::physicType::kElastic>>();
     }
     else
     {
-      return std::make_unique<solver::fe::SEMsolver<
-          ORDER, SelectedIntegral, MeshT, false, feenum::physicType::kElastic>>();
+      return std::make_unique<
+          solver::fe::SEMsolver<ORDER, SelectedIntegral, MeshT, false,
+                                feenum::physicType::kElastic>>();
     }
   }
 }
@@ -91,26 +95,30 @@ std::unique_ptr<Solver> makeSolverUnstruct(bool isModelOnNodes,
   {
     if (isModelOnNodes)
     {
-      return std::make_unique<solver::fe::SEMsolver<
-          ORDER, SelectedIntegral, MeshT, true, feenum::physicType::kAcoustic>>();
+      return std::make_unique<
+          solver::fe::SEMsolver<ORDER, SelectedIntegral, MeshT, true,
+                                feenum::physicType::kAcoustic>>();
     }
     else
     {
-      return std::make_unique<solver::fe::SEMsolver<
-          ORDER, SelectedIntegral, MeshT, false, feenum::physicType::kAcoustic>>();
+      return std::make_unique<
+          solver::fe::SEMsolver<ORDER, SelectedIntegral, MeshT, false,
+                                feenum::physicType::kAcoustic>>();
     }
   }
   else  // kElastic
   {
     if (isModelOnNodes)
     {
-      return std::make_unique<solver::fe::SEMsolver<
-          ORDER, SelectedIntegral, MeshT, true, feenum::physicType::kElastic>>();
+      return std::make_unique<
+          solver::fe::SEMsolver<ORDER, SelectedIntegral, MeshT, true,
+                                feenum::physicType::kElastic>>();
     }
     else
     {
-      return std::make_unique<solver::fe::SEMsolver<
-          ORDER, SelectedIntegral, MeshT, false, feenum::physicType::kElastic>>();
+      return std::make_unique<
+          solver::fe::SEMsolver<ORDER, SelectedIntegral, MeshT, false,
+                                feenum::physicType::kElastic>>();
     }
   }
 }
@@ -123,7 +131,8 @@ std::unique_ptr<Solver> makeSemSolver(int order, feenum::meshType mesh,
                                       feenum::modelLocationType modelLocation,
                                       feenum::physicType physic)
 {
-  bool const isModelOnNodes = (modelLocation == feenum::modelLocationType::kOnNodes);
+  bool const isModelOnNodes =
+      (modelLocation == feenum::modelLocationType::kOnNodes);
 
   switch (mesh)
   {
@@ -144,12 +153,10 @@ std::unique_ptr<Solver> makeSemSolver(int order, feenum::meshType mesh,
   }
 }
 
-std::unique_ptr<Solver> createSolver(feenum::methodType const methodType,
-                                     feenum::implemType const implemType,
-                                     feenum::meshType const mesh,
-                                     feenum::modelLocationType const modelLocation,
-                                     feenum::physicType const physicType,
-                                     int const order)
+std::unique_ptr<Solver> createSolver(
+    feenum::methodType const methodType, feenum::implemType const implemType,
+    feenum::meshType const mesh, feenum::modelLocationType const modelLocation,
+    feenum::physicType const physicType, int const order)
 {
   if (methodType == feenum::methodType::kSem)
   {
@@ -179,7 +186,7 @@ std::unique_ptr<Solver> createSolver(feenum::methodType const methodType,
       "Unsupported solver configuration: methodType=" + to_string(methodType) +
       ", implemType=" + to_string(implemType) +
       ", physicType=" + to_string(physicType));
-} // namespace solver_factory
-}
-}
-}
+}  // namespace solver_factory
+}  // namespace solver_factory
+}  // namespace fe
+}  // namespace solver

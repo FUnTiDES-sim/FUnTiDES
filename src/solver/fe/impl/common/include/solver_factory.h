@@ -1,5 +1,5 @@
-#ifndef SOLVER_FE_IMPL_INCLUDE_SOLVER_FACTORY_H_
-#define SOLVER_FE_IMPL_INCLUDE_SOLVER_FACTORY_H_
+#ifndef SOLVER_FE_IMPL_COMMON_INCLUDE_SOLVER_FACTORY_H_
+#define SOLVER_FE_IMPL_COMMON_INCLUDE_SOLVER_FACTORY_H_
 #include <fe/Integrals.hpp>
 #include <memory>
 
@@ -40,4 +40,4 @@ std::unique_ptr<Solver> createSolver(feenum::methodType methodType,
 }  // namespace solver_factory
 }  // namespace fe
 }  // namespace solver
-#endif  // SOLVER_FE_IMPL_INCLUDE_SOLVER_FACTORY_H_
+#endif  // SOLVER_FE_IMPL_COMMON_INCLUDE_SOLVER_FACTORY_H_
