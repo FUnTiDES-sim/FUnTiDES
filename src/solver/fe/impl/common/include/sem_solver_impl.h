@@ -1,6 +1,5 @@
-#ifndef SRC_SOLVER_FE_IMPL_INCLUDE_SEMSOLVERIMPL_H_
-#define SRC_SOLVER_FE_IMPL_INCLUDE_SEMSOLVERIMPL_H_
-
+#ifndef SOLVER_FE_IMPL_COMMON_INCLUDE_SEM_SOLVER_IMPL_H_
+#define SOLVER_FE_IMPL_COMMON_INCLUDE_SEM_SOLVER_IMPL_H_
 #include <data_type.h>
 
 #include <array>
@@ -57,7 +56,7 @@ template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE,
           bool IS_MODEL_ON_NODES, enums::physicType PHYSICS>
 void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES,
                PHYSICS>::computeForces(const float& dt, const int& timeSample,
-                                       SolverBase::DataStruct& data)
+                                       Solver::DataStruct& data)
 {
   auto& myData = dynamic_cast<DataType&>(data);
 
@@ -79,7 +78,7 @@ template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE,
           bool IS_MODEL_ON_NODES, enums::physicType PHYSICS>
 void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES,
                PHYSICS>::updateSolution(const float& dt,
-                                        SolverBase::DataStruct& data)
+                                        Solver::DataStruct& data)
 {
   auto& myData = dynamic_cast<DataType&>(data);
   updateFields(dt, myData);
@@ -703,5 +702,4 @@ SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES,
 
 }  // namespace fe
 }  // namespace solver
-
-#endif  // SRC_SOLVER_FE_IMPL_INCLUDE_SEMSOLVERIMPL_H_
+#endif  // SOLVER_FE_IMPL_COMMON_INCLUDE_SEM_SOLVER_IMPL_H_

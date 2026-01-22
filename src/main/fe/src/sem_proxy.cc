@@ -152,8 +152,8 @@ SEMproxy::SEMproxy(const SemProxyOptions& opt)
   timemax_ = opt.timemax;
   num_sample_ = timemax_ / dt_;
 
-  m_solver = SolverFactory::createSolver(methodType, implemType, meshType,
-                                         modelLocation, physicType, order);
+  m_solver = solver_factory::createSolver(methodType, implemType, meshType,
+                                          modelLocation, physicType, order);
 
   // Setup Sponge Parameters
   const float spongex = opt.boundaries_size;

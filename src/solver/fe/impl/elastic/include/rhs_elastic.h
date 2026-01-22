@@ -1,15 +1,21 @@
-#ifndef RHS_ELASTIC_H_
-#define RHS_ELASTIC_H_
-
+#ifndef SOLVER_FE_IMPL_ELASTIC_INCLUDE_RHS_ELASTIC_H_
+#define SOLVER_FE_IMPL_ELASTIC_INCLUDE_RHS_ELASTIC_H_
 #include <data_type.h>
 
 #include "rhs.h"
 
+namespace solver
+{
+namespace fe
+{
 /**
  * @brief Elastic RHS data structure.
  */
 struct RhsElastic : public Rhs
 {
+  /// Number of RHS (source) components
+  static constexpr int kNumRhsComponents = 3;
+
   RhsElastic(ARRAY_REAL_VIEW termx, ARRAY_REAL_VIEW termy,
              ARRAY_REAL_VIEW termz, VECTOR_INT_VIEW element,
              ARRAY_REAL_VIEW weights)
@@ -20,6 +26,8 @@ struct RhsElastic : public Rhs
         m_weights(weights)
   {
   }
+
+  int getNumRhsComponents() const override final { return kNumRhsComponents; }
 
   // TODO use template + constexpr if when C++20 is available
   PROXY_HOST_DEVICE
@@ -59,5 +67,6 @@ struct RhsElastic : public Rhs
   VECTOR_INT_VIEW m_element;  ///< Source element indices
   ARRAY_REAL_VIEW m_weights;  ///< Forcing weights per node
 };
-
-#endif  // RHS_ELASTIC_H_
+}  // namespace fe
+}  // namespace solver
+#endif  // SOLVER_FE_IMPL_ELASTIC_INCLUDE_RHS_ELASTIC_H_

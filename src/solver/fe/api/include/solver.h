@@ -1,18 +1,37 @@
-#ifndef SEM_SOLVERBASE_HPP_
-#define SEM_SOLVERBASE_HPP_
-
-#include <solver_base.h>
+#ifndef SOLVER_FE_API_INCLUDE_SOLVER_H_
+#define SOLVER_FE_API_INCLUDE_SOLVER_H_
 
 #include <array>
 #include <cmath>
 #include <vector>
 
+#include "model.h"
 #include "parallel_topology.h"
 
-class SEMSolverBase : public SolverBase
+namespace solver
+{
+namespace fe
+{
+/**
+ * @brief Base FE solver.
+ */
+class Solver
 {
  public:
-  virtual ~SEMSolverBase() = default;
+  Solver() = default;
+  virtual ~Solver() = default;
+
+  struct DataStruct
+  {
+    // Base structure for data passed to the solver
+    virtual ~DataStruct() = default;
+
+    virtual void print() const = 0;
+  };
+
+  // Pure virtual function to compute one step of the solver
+  virtual void computeOneStep(const float& dt, const int& timeSample,
+                              DataStruct& data) = 0;
 
   /**
    * @brief Initialize all finite element structures:
@@ -121,5 +140,6 @@ class SEMSolverBase : public SolverBase
    */
   virtual void updateSolution(const float& dt, DataStruct& data) = 0;
 };
-
-#endif  // SEM_SOLVERBASE_HPP_
+}  // namespace fe
+}  // namespace solver
+#endif  // SOLVER_FE_API_INCLUDE_SOLVER_H_
