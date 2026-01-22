@@ -34,6 +34,13 @@ struct WavefieldElastic : public Wavefield
   {
   }
 
+  int getNumFields() const override final { return kNumFields; }
+
+  const char* const* getFieldNames() const override final
+  {
+    return kFieldNames;
+  }
+
   // TODO use template + constexpr if when C++20 is available
   PROXY_HOST_DEVICE
   VECTOR_REAL_VIEW getCurrentField(int i) const override

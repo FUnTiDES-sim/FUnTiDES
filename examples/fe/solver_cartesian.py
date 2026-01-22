@@ -5,7 +5,7 @@ This module runs the solver using a cartesian model with:
   - Structured or unstructured cartesian mesh
   - Polynomial order 1, 2 or 3
   - Implementation type: CLASSIC, MAKUTU, OPTIM or SHIVA
-  - Only accoustic physics is implemented for now
+  - Only acoustic physics is implemented for now
 It demonstrates usage of pybind11 wrapped C++ classes and functions from the proxys library.
 For help run with the --help option.
 """

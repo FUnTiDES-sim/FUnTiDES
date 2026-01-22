@@ -22,6 +22,8 @@ struct RhsAcoustic : public Rhs
   {
   }
 
+  int getNumRhsComponents() const override final { return kNumRhsComponents; }
+
   PROXY_HOST_DEVICE
   ARRAY_REAL_VIEW getTerm(int i) const override { return m_term; }
 

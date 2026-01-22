@@ -1,6 +1,6 @@
 add_library(proxy_solver)
 
-add_subdirectory(accoustic)
+add_subdirectory(acoustic)
 add_subdirectory(common)
 add_subdirectory(elastic)
 

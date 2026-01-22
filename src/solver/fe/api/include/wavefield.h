@@ -12,6 +12,18 @@ struct Wavefield
   virtual ~Wavefield() = default;
 
   /**
+   * @brief Get the number of solution fields in this wavefield.
+   * @return The number of fields.
+   */
+  virtual int getNumFields() const = 0;
+
+  /**
+   * @brief Get the names of the solution fields.
+   * @return Pointer to array of field names.
+   */
+  virtual const char* const* getFieldNames() const = 0;
+
+  /**
    * @brief Get the current field at a specific index.
    * @param i The index of the field to retrieve.
    * @return The requested current field.

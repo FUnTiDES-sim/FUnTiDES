@@ -27,6 +27,8 @@ struct RhsElastic : public Rhs
   {
   }
 
+  int getNumRhsComponents() const override final { return kNumRhsComponents; }
+
   // TODO use template + constexpr if when C++20 is available
   PROXY_HOST_DEVICE
   ARRAY_REAL_VIEW getTerm(int i) const override

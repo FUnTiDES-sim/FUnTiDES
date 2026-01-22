@@ -16,6 +16,7 @@ enum class physicType : int;
  * @brief Compile-time properties for each physics type.
  *
  * All specializations MUST define:
+ * - kName: Human-readable name for logging (const char*)
  * - WavefieldType: Concrete wavefield type for device access
  * - RhsType: Concrete RHS type for device access
  *
@@ -27,6 +28,7 @@ enum class physicType : int;
 template <enums::physicType PHYSICS>
 struct PhysicsTraits
 {
+  static constexpr const char* kName = "";
   using WavefieldType = void;
   using RhsType = void;
 

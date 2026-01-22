@@ -12,6 +12,12 @@ struct Rhs
   virtual ~Rhs() = default;
 
   /**
+   * @brief Get the number of RHS components.
+   * @return The number of RHS components.
+   */
+  virtual int getNumRhsComponents() const = 0;
+
+  /**
    * @brief Get a specific RHS term.
    * @param i The index of the term to retrieve.
    * @return The requested RHS term.

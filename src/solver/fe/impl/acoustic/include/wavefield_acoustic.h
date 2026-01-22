@@ -26,6 +26,13 @@ struct WavefieldAcoustic : public Wavefield
   {
   }
 
+  int getNumFields() const override final { return kNumFields; }
+
+  const char* const* getFieldNames() const override final
+  {
+    return kFieldNames;
+  }
+
   PROXY_HOST_DEVICE
   VECTOR_REAL_VIEW getCurrentField(int i) const override
   {
