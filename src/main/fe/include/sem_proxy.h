@@ -1,13 +1,5 @@
-//************************************************************************
-//   proxy application v.0.0.1
-//
-//  semproxy.hpp: the main interface of SEM proxy application
-//
-//************************************************************************
-
-#ifndef SRC_MAIN_FE_INCLUDE_SEMPROXY_H_
-#define SRC_MAIN_FE_INCLUDE_SEMPROXY_H_
-
+#ifndef MAIN_FE_INCLUDE_SEM_PROXY_H_
+#define MAIN_FE_INCLUDE_SEM_PROXY_H_
 #include <data_type.h>
 #include <utils.h>
 
@@ -15,12 +7,15 @@
 #include <string>
 #include <variant>
 
+#include "boundary_synchronizer.h"
+#include "cartesian_params.h"
+#include "distributed_ctx.h"
 #include "model_struct.h"
 #include "model_unstruct.h"
 #include "sem_enums.h"
 #include "sem_io_controller.h"
 #include "sem_proxy_options.h"
-#include "sem_solver_base.h"
+#include "sem_solver.h"
 #include "solver_factory.h"
 
 using namespace solver::fe::enums;
@@ -28,7 +23,6 @@ using namespace solver::fe::enums;
 /**
  * @class SEMproxy
  */
-
 class SEMproxy
 {
  public:
@@ -40,7 +34,7 @@ class SEMproxy
   /**
    * @brief Destructor of the SEMproxy class
    */
-  ~SEMproxy(){};
+  ~SEMproxy() {}
 
   /**
    * @brief Initialize the simulation.
@@ -92,6 +86,13 @@ class SEMproxy
   void saveSnapshot(int timestep);
 
  private:
+  // Domain Decomposition Parameter
+  // Mocking MPI rank and size for now.
+  // In a real MPI application, these would come from MPI_Comm_rank/size.
+  model::CartesianParams<float, int> m_localParams;
+  utils::DistributedContext dist_ctx_;
+  utils::ParallelTopology par_topology_;
+
   // proper to cartesian mesh
   // or any structured mesh
   int nb_elements_[3] = {0};
@@ -119,7 +120,11 @@ class SEMproxy
   int myElementSource = 0;
 
   std::shared_ptr<model::ModelApi<float, int>> m_mesh;
-  std::unique_ptr<SEMSolverBase> m_solver;
+  std::unique_ptr<solver::fe::Solver> m_solver;
+
+  // Boundary Synchronizer for DD
+  std::unique_ptr<solver::fe::BoundarySynchronizer> m_syncer;
+
   SolverUtils myUtils;
 
   // arrays
@@ -161,5 +166,4 @@ class SEMproxy
   methodType getMethod(string methodArg);
   meshType getMesh(string meshArg);
 };
-
-#endif  // SRC_MAIN_FE_INCLUDE_SEMPROXY_H_
+#endif  // MAIN_FE_INCLUDE_SEM_PROXY_H_

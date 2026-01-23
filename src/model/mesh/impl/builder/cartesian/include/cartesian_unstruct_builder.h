@@ -25,8 +25,10 @@ class CartesianUnstructBuilder : public ModelBuilderBase<FloatType, ScalarType>
         lz_(p.lz),
         order_(p.order),
         isModelOnNodes_(p.isModelOnNodes),
-        isElastic_(p.isElastic)
-
+        isElastic_(p.isElastic),
+        ox_(p.origin_x),
+        oy_(p.origin_y),
+        oz_(p.origin_z)
   {
     initGlobalNodeList();
     initNodesCoords();
@@ -36,40 +38,16 @@ class CartesianUnstructBuilder : public ModelBuilderBase<FloatType, ScalarType>
   std::shared_ptr<model::ModelApi<FloatType, ScalarType>> getModel()
       const override
   {
-    model::ModelUnstructData<FloatType, ScalarType> modelData;
-
-    modelData.order_ = order_;
-    modelData.n_element_ = ex_ * ey_ * ez_;
-    modelData.n_node_ =
-        (ex_ * order_ + 1) * (ey_ * order_ + 1) * (ez_ * order_ + 1);
-    modelData.lx_ = lx_;
-    modelData.ly_ = ly_;
-    modelData.lz_ = lz_;
-
-    modelData.global_node_index_ = global_node_index_;
-    modelData.nodes_coords_x_ = nodes_coords_x_;
-    modelData.nodes_coords_y_ = nodes_coords_y_;
-    modelData.nodes_coords_z_ = nodes_coords_z_;
-
-    modelData.isModelOnNodes_ = isModelOnNodes_;
-    modelData.isElastic_ = isElastic_;
-
-    modelData.model_vp_node_ = model_vp_node_;
-    modelData.model_rho_node_ = model_rho_node_;
-    modelData.model_vs_node_ = model_vs_node_;
-    modelData.model_delta_node_ = model_delta_node_;
-    modelData.model_epsilon_node_ = model_epsilon_node_;
-    modelData.model_gamma_node_ = model_gamma_node_;
-    modelData.model_theta_node_ = model_theta_node_;
-    modelData.model_phi_node_ = model_phi_node_;
-    modelData.model_vp_element_ = model_vp_element_;
-    modelData.model_rho_element_ = model_rho_element_;
-    modelData.model_vs_element_ = model_vs_element_;
-    modelData.model_delta_element_ = model_delta_element_;
-    modelData.model_epsilon_element_ = model_epsilon_element_;
-    modelData.model_gamma_element_ = model_gamma_element_;
-    modelData.model_theta_element_ = model_theta_element_;
-    modelData.model_phi_element_ = model_phi_element_;
+    model::ModelUnstructData<FloatType, ScalarType> modelData(
+        order_, ex_ * ey_ * ez_,
+        (ex_ * order_ + 1) * (ey_ * order_ + 1) * (ez_ * order_ + 1), lx_, ly_,
+        lz_, isModelOnNodes_, isElastic_, global_node_index_, nodes_coords_x_,
+        nodes_coords_y_, nodes_coords_z_, model_vp_node_, model_vp_element_,
+        model_rho_node_, model_rho_element_, model_vs_node_, model_vs_element_,
+        model_delta_node_, model_delta_element_, model_epsilon_node_,
+        model_epsilon_element_, model_gamma_node_, model_gamma_element_,
+        model_theta_node_, model_theta_element_, model_phi_node_,
+        model_phi_element_, model_C_tensor_element_, boundaries_t_);
 
     auto model = std::make_shared<model::ModelUnstruct<FloatType, ScalarType>>(
         modelData);
@@ -86,8 +64,10 @@ class CartesianUnstructBuilder : public ModelBuilderBase<FloatType, ScalarType>
   ~CartesianUnstructBuilder() = default;
 
  private:
+  FloatType ox_{0}, oy_{0}, oz_{0};
   ScalarType ex_, ey_, ez_;
   FloatType lx_, ly_, lz_;
+
   int order_;
   bool isModelOnNodes_;
   bool isElastic_;
@@ -115,6 +95,8 @@ class CartesianUnstructBuilder : public ModelBuilderBase<FloatType, ScalarType>
   VECTOR_REAL_VIEW model_phi_element_;
 
   VECTOR_REAL_VIEW boundaries_t_;
+
+  ARRAY3D_REAL_VIEW model_C_tensor_element_;
 
   void initGlobalNodeList()
   {
@@ -156,7 +138,8 @@ class CartesianUnstructBuilder : public ModelBuilderBase<FloatType, ScalarType>
     }
   }
 
-  void getCoordInOneDirection(const int& h, const int& n_element, float* coord,
+  // Use FloatType for h to prevent integer truncation
+  void getCoordInOneDirection(FloatType h, const int& n_element, float* coord,
                               FloatType offset)
   {
     float xi[MAX_ORDER + 1];
@@ -210,6 +193,7 @@ class CartesianUnstructBuilder : public ModelBuilderBase<FloatType, ScalarType>
     float x1 = (i + 1) * h;
     float b = (x1 + x0) / 2.f;
     float a = b - x0;
+
     FloatType elementStart = n_element * h;
 
     for (int j = 0; j < order_ + 1; j++)

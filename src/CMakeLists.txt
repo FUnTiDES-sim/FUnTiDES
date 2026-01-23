@@ -10,7 +10,7 @@ endif()
 
 
 # Collect all sources
-set(DIRS "${CMAKE_SOURCE_DIR}/src" "${CMAKE_SOURCE_DIR}/test")
+set(DIRS "${CMAKE_SOURCE_DIR}/src" "${CMAKE_SOURCE_DIR}/tests")
 set(EXTS cpp hpp cxx hxx cc c h hh)
 
 set(GLOBS "")

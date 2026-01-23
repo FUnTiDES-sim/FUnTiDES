@@ -1,5 +1,5 @@
-#pragma once
-
+#ifndef SOLVER_FE_PYWRAP_INCLUDE_BINDINGS_WAVEFIELD_H_
+#define SOLVER_FE_PYWRAP_INCLUDE_BINDINGS_WAVEFIELD_H_
 #include <pybind11/numpy.h>
 #include <pybind11/pybind11.h>
 #include <pybind11/stl.h>
@@ -60,3 +60,4 @@ void bind_wavefield_elastic(py::module_ &m)
 
 }  // namespace fe
 }  // namespace solver
+#endif  // SOLVER_FE_PYWRAP_INCLUDE_BINDINGS_WAVEFIELD_H_

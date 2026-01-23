@@ -1,7 +1,6 @@
 #include <benchmark/benchmark.h>
 
 #include <array>
-#include <cstdint>
 #include <memory>
 
 #include "bench_macros.h"
@@ -37,6 +36,12 @@ template <typename T>
 class SolverUnstructFixture : public benchmark::Fixture
 {
  protected:
+  // domain decomposition (Mock Serial)
+  static constexpr int rank = 0;
+  static constexpr int size = 1;
+  static constexpr float origin = 0.0f;
+  float local_l = 2000.0f;
+
   // model
   static constexpr int ex = 100;
   static constexpr int ey = 100;
@@ -67,6 +72,7 @@ class SolverUnstructFixture : public benchmark::Fixture
   {
     isModelOnNodes_ = state.range(0);
     implem_ = static_cast<implemType>(state.range(1));
+    local_l = lx;
   }
 
   std::shared_ptr<model::ModelApi<float, int>> createModel()
@@ -128,7 +134,7 @@ BENCHMARK_TEMPLATE_METHOD_F(SolverUnstructFixture, FEInit)
   // Prepare
   auto model = this->createModel();
 
-  auto solver = SolverFactory::createSolver(
+  auto solver = solver_factory::createSolver(
       methodType::kSem, this->implem_, meshType::kUnstruct,
       this->isModelOnNodes_ ? modelLocationType::kOnNodes
                             : modelLocationType::kOnElements,
@@ -151,7 +157,7 @@ BENCHMARK_TEMPLATE_METHOD_F(SolverUnstructFixture, OneStep)
   // Prepare
   auto model = this->createModel();
 
-  auto solver = SolverFactory::createSolver(
+  auto solver = solver_factory::createSolver(
       methodType::kSem, this->implem_, meshType::kUnstruct,
       this->isModelOnNodes_ ? modelLocationType::kOnNodes
                             : modelLocationType::kOnElements,
@@ -189,7 +195,8 @@ BENCHMARK_TEMPLATE_METHOD_F(SolverUnstructFixture, OneStep)
   // Bench
   for (auto _ : state)
   {
-    solver->computeOneStep(this->dt, this->time_sample, data);
+    solver->computeForces(this->dt, this->time_sample, data);
+    solver->updateSolution(this->dt, data);
   }
 
   // Label
