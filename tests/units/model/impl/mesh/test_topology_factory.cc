@@ -210,8 +210,9 @@ TEST_F(TopologyFactoryTest, ThrowsOnMissingBoundaryNodes)
   mesh.addNode(20.0f, 0.0f, 0.0f);
 
   // Expect logic_error (topology inconsistency)
-  EXPECT_THROW({ TopologyFactory::createFromMesh(mesh, 1, 3, 10.0f, 10.0f); },
-               std::logic_error);
+  EXPECT_THROW(
+      { TopologyFactory::createFromMesh(mesh, 1, 3, 10.0f, 10.0f); },
+      std::logic_error);
 }
 
 TEST_F(TopologyFactoryTest, ThrowsOnAmbiguousBoundary)
@@ -221,8 +222,9 @@ TEST_F(TopologyFactoryTest, ThrowsOnAmbiguousBoundary)
   // Width 1e-7 is < tolerance 1e-6, so node is detected on BOTH boundaries
   float width = 1e-7f;
 
-  EXPECT_THROW({ TopologyFactory::createFromMesh(mesh, 1, 3, 10.0f, width); },
-               std::logic_error);
+  EXPECT_THROW(
+      { TopologyFactory::createFromMesh(mesh, 1, 3, 10.0f, width); },
+      std::logic_error);
 }
 
 }  // namespace

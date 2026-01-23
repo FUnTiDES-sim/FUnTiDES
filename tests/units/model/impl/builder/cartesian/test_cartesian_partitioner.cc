@@ -217,8 +217,9 @@ TEST_F(TopologyFactoryTest, ThrowsOnMissingBoundaryNodes)
   mesh.addNode(20.0f, 0.0f, 0.0f);
 
   // CHANGE: Expect logic_error instead of runtime_error
-  EXPECT_THROW({ TopologyFactory::createFromMesh(mesh, 1, 3, 10.0f, 10.0f); },
-               std::logic_error);
+  EXPECT_THROW(
+      { TopologyFactory::createFromMesh(mesh, 1, 3, 10.0f, 10.0f); },
+      std::logic_error);
 }
 
 TEST_F(TopologyFactoryTest, ThrowsOnAmbiguousBoundary)
