@@ -542,15 +542,6 @@ TYPED_TEST(ModelStructTest, IsElasticInitialization)
 // Boundary Tests
 // ============================================================================
 
-TYPED_TEST(ModelStructTest, BoundaryType)
-{
-  auto& model = *this->model_;
-
-  // Default implementation returns InteriorNode
-  auto boundary = model.boundaryType(0);
-  EXPECT_EQ(boundary, BoundaryFlag::InteriorNode);
-}
-
 TYPED_TEST(ModelStructTest, FaceNormal)
 {
   auto& model = *this->model_;

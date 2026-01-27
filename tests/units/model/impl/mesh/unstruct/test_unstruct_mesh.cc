@@ -238,8 +238,6 @@ TYPED_TEST(ModelUnstructTest, BoundaryMethodsExist)
   using ModelUnstructType = typename TestFixture::ModelUnstructType;
 
   static_assert(std::is_member_function_pointer_v<
-                decltype(&ModelUnstructType::boundaryType)>);
-  static_assert(std::is_member_function_pointer_v<
                 decltype(&ModelUnstructType::faceNormal)>);
   SUCCEED();
 }

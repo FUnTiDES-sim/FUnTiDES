@@ -29,6 +29,7 @@ class SemProxyOptions
   // Boolean to tell if the model is charged on nodes or on element
   bool isModelOnNodes = false;
   bool isElastic = false;
+  bool free_surface = false;
 
   void validate() const
   {
@@ -78,6 +79,9 @@ class SemProxyOptions
         "Boolean to tell if the model is charged on nodes (true) or on element "
         "(false)",
         cxxopts::value<bool>(o.isModelOnNodes))(
-        "is-elastic", "Elastic simulation", cxxopts::value<bool>(o.isElastic));
+        "is-elastic", "Elastic simulation", cxxopts::value<bool>(o.isElastic))(
+        "free-surface",
+        "Enable free surface on top boundary (Z+). Default: true",
+        cxxopts::value<bool>(o.free_surface));
   }
 };

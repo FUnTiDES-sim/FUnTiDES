@@ -73,7 +73,8 @@ class ModelStruct : public ModelApi<FloatType, ScalarType>
         ly_(data.dy_),
         lz_(data.dz_),
         isModelOnNodes_(data.isModelOnNodes_),
-        isElastic_(data.isElastic_)
+        isElastic_(data.isElastic_),
+        freeSurfaceEnabled_(true)
   {
     nx_ = Order * ex_ + 1;
     ny_ = Order * ey_ + 1;
@@ -82,6 +83,12 @@ class ModelStruct : public ModelApi<FloatType, ScalarType>
     hx_ = lx_ / ex_;
     hy_ = ly_ / ey_;
     hz_ = lz_ / ez_;
+
+    // Pre-compute face offsets for optimization
+    num_faces_x_ = (ex_ + 1) * ey_ * ez_;
+    num_faces_y_ = ex_ * (ey_ + 1) * ez_;
+    offset_y_ = num_faces_x_;
+    offset_z_ = num_faces_x_ + num_faces_y_;
   }
 
   PROXY_HOST_DEVICE ModelStruct(const ModelStruct&) = default;
@@ -443,16 +450,6 @@ class ModelStruct : public ModelApi<FloatType, ScalarType>
   PROXY_HOST_DEVICE int getOrder() const { return Order; }
 
   /**
-   * @brief Get boundary condition type for node
-   * @param n Node index
-   * @return Always InteriorNode (boundary detection not implemented)
-   */
-  PROXY_HOST_DEVICE BoundaryFlag boundaryType(ScalarType n) const
-  {
-    return BoundaryFlag::InteriorNode;
-  }
-
-  /**
    * @brief Compute outward normal vector for element face
    *
    * For Cartesian meshes, normals are axis-aligned: ±[1,0,0], ±[0,1,0],
@@ -543,6 +540,8 @@ class ModelStruct : public ModelApi<FloatType, ScalarType>
    * - Y-direction faces: [(ex+1)*ey*ez, (ex+1)*ey*ez + ex*(ey+1)*ez)
    * - Z-direction faces: [remaining...]
    *
+   * Uses pre-computed offsets for optimization.
+   *
    * @param elem_linear Element linear index
    * @param local_face Local face identifier (0-5)
    * @return Global face ID
@@ -555,26 +554,20 @@ class ModelStruct : public ModelApi<FloatType, ScalarType>
     ScalarType ey = tmp / ex_;
     ScalarType ex = tmp % ex_;
 
-    ScalarType num_faces_x = (ex_ + 1) * ey_ * ez_;
-    ScalarType num_faces_y = ex_ * (ey_ + 1) * ez_;
-    ScalarType offset_x = 0;
-    ScalarType offset_y = num_faces_x;
-    ScalarType offset_z = num_faces_x + num_faces_y;
-
     switch (local_face)
     {
       case CubicFace::kXMinus:
-        return offset_x + ex + ey * (ex_ + 1) + ez * (ex_ + 1) * ey_;
+        return ex + ey * (ex_ + 1) + ez * (ex_ + 1) * ey_;
       case CubicFace::kXPlus:
-        return offset_x + (ex + 1) + ey * (ex_ + 1) + ez * (ex_ + 1) * ey_;
+        return (ex + 1) + ey * (ex_ + 1) + ez * (ex_ + 1) * ey_;
       case CubicFace::kYMinus:
-        return offset_y + ex + ey * ex_ + ez * ex_ * (ey_ + 1);
+        return offset_y_ + ex + ey * ex_ + ez * ex_ * (ey_ + 1);
       case CubicFace::kYPlus:
-        return offset_y + ex + (ey + 1) * ex_ + ez * ex_ * (ey_ + 1);
+        return offset_y_ + ex + (ey + 1) * ex_ + ez * ex_ * (ey_ + 1);
       case CubicFace::kZMinus:
-        return offset_z + ex + ey * ex_ + ez * ex_ * ey_;
+        return offset_z_ + ex + ey * ex_ + ez * ex_ * ey_;
       case CubicFace::kZPlus:
-        return offset_z + ex + ey * ex_ + (ez + 1) * ex_ * ey_;
+        return offset_z_ + ex + ey * ex_ + (ez + 1) * ex_ * ey_;
       default:
         return -1;
     }
@@ -583,6 +576,8 @@ class ModelStruct : public ModelApi<FloatType, ScalarType>
   /**
    * @brief Get global node index from face and local DOF (computed on-the-fly)
    *
+   * Uses pre-computed offsets for optimization.
+   *
    * @param face_global Global face ID
    * @param local_dof Local node index on face [0, (Order+1)²)
    * @return Global node index
@@ -590,10 +585,7 @@ class ModelStruct : public ModelApi<FloatType, ScalarType>
   PROXY_HOST_DEVICE
   ScalarType getGlobalNodeFromFace(ScalarType face_global, int local_dof) const
   {
-    ScalarType num_faces_x = (ex_ + 1) * ey_ * ez_;
-    ScalarType num_faces_y = ex_ * (ey_ + 1) * ez_;
-
-    if (face_global < num_faces_x)
+    if (face_global < num_faces_x_)
     {
       // X-direction face
       ScalarType face_idx = face_global;
@@ -610,10 +602,10 @@ class ModelStruct : public ModelApi<FloatType, ScalarType>
 
       return ni + nj * nx_ + nk * nx_ * ny_;
     }
-    else if (face_global < num_faces_x + num_faces_y)
+    else if (face_global < offset_z_)
     {
       // Y-direction face
-      ScalarType face_idx = face_global - num_faces_x;
+      ScalarType face_idx = face_global - offset_y_;
       ScalarType i = face_idx % ex_;
       ScalarType j = (face_idx / ex_) % (ey_ + 1);
       ScalarType k = face_idx / (ex_ * (ey_ + 1));
@@ -630,7 +622,7 @@ class ModelStruct : public ModelApi<FloatType, ScalarType>
     else
     {
       // Z-direction face
-      ScalarType face_idx = face_global - num_faces_x - num_faces_y;
+      ScalarType face_idx = face_global - offset_z_;
       ScalarType i = face_idx % ex_;
       ScalarType j = (face_idx / ex_) % ey_;
       ScalarType k = face_idx / (ex_ * ey_);
@@ -654,29 +646,28 @@ class ModelStruct : public ModelApi<FloatType, ScalarType>
    * - Y-faces: boundary if j=0 or j=ey
    * - Z-faces: boundary if k=0 or k=ez
    *
+   * Uses pre-computed offsets for optimization.
+   *
    * @param face_global Global face ID
    * @return True if boundary face
    */
   PROXY_HOST_DEVICE
   bool isBoundaryFace(ScalarType face_global) const
   {
-    ScalarType num_faces_x = (ex_ + 1) * ey_ * ez_;
-    ScalarType num_faces_y = ex_ * (ey_ + 1) * ez_;
-
-    if (face_global < num_faces_x)
+    if (face_global < num_faces_x_)
     {
       ScalarType i = face_global % (ex_ + 1);
       return (i == 0 || i == ex_);
     }
-    else if (face_global < num_faces_x + num_faces_y)
+    else if (face_global < offset_z_)
     {
-      ScalarType face_idx = face_global - num_faces_x;
+      ScalarType face_idx = face_global - offset_y_;
       ScalarType j = (face_idx / ex_) % (ey_ + 1);
       return (j == 0 || j == ey_);
     }
     else
     {
-      ScalarType face_idx = face_global - num_faces_x - num_faces_y;
+      ScalarType face_idx = face_global - offset_z_;
       ScalarType k = face_idx / (ex_ * ey_);
       return (k == 0 || k == ez_);
     }
@@ -695,8 +686,7 @@ class ModelStruct : public ModelApi<FloatType, ScalarType>
   PROXY_HOST_DEVICE
   ScalarType getNumberOfFaces() const
   {
-    return (ex_ + 1) * ey_ * ez_ + ex_ * (ey_ + 1) * ez_ +
-           ex_ * ey_ * (ez_ + 1);
+    return offset_z_ + ex_ * ey_ * (ez_ + 1);
   }
 
   /**
@@ -710,6 +700,58 @@ class ModelStruct : public ModelApi<FloatType, ScalarType>
     // Nothing to do - faces computed on-the-fly for Cartesian meshes
   }
 
+  /**
+   * @brief Check if node is on free surface
+   * @param n Node index
+   * @return True if free surface node
+   */
+  PROXY_HOST_DEVICE
+  bool isFreeSurface(ScalarType n) const override
+  {
+    return freeSurfaceTag_[n] == 1;
+  }
+
+  /**
+   * @brief Enable or disable free surface condition
+   * @param enable True to enable free surface, false to disable
+   */
+  void setFreeSurfaceEnabled(bool enable) override
+  {
+    freeSurfaceEnabled_ = enable;
+  }
+
+  /**
+   * @brief Initialize free surface node tags based on mesh geometry
+   *
+   * Marks nodes as free surface if they are located at the top of the domain
+   * (z = oz_ + lz_) within a small tolerance.
+   * Considers the freeSurfaceEnabled_ flag to determine if marking is applied.
+   *
+   * Optimized with parallel loop for GPU execution.
+   */
+  void initFreeSurface() override
+  {
+    // Allocate
+    freeSurfaceTag_ =
+        allocateVector<VECTOR_INT_VIEW>(getNumberOfNodes(), "freeSurfaceTag");
+
+    FloatType tol = getMinSpacing() * 1e-4;
+    FloatType z_max = oz_ + lz_;
+    bool enabled = freeSurfaceEnabled_;
+
+    // Capture for kernel
+    auto tag = freeSurfaceTag_;
+    auto mesh_copy = *this;
+
+    LOOPHEAD(getNumberOfNodes(), n)
+    {
+      FloatType z = mesh_copy.nodeCoord(n, 2);
+      bool is_top = (fabs(z - z_max) < tol);
+      tag[n] = (is_top && enabled) ? 1 : 0;
+    }
+    LOOPEND
+  }
+
  private:
   ScalarType ex_, ey_, ez_;
   ScalarType nx_, ny_, nz_;
@@ -718,7 +760,16 @@ class ModelStruct : public ModelApi<FloatType, ScalarType>
   FloatType ox_, oy_, oz_;
   bool isModelOnNodes_;
   bool isElastic_;
+
+  // Pre-computed face offsets for optimization
+  ScalarType num_faces_x_;
+  ScalarType num_faces_y_;
+  ScalarType offset_y_;
+  ScalarType offset_z_;
+
   array3DReal model_C_tensor_element_;
+  VECTOR_INT_VIEW freeSurfaceTag_;
+  bool freeSurfaceEnabled_;
 };
 
 }  // namespace model

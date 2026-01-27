@@ -132,16 +132,22 @@ class MockMesh : public model::ModelApi<FloatType, ScalarType>
     return 27;
   }
   PROXY_HOST_DEVICE int getOrder() const override { return 1; }
-  PROXY_HOST_DEVICE model::BoundaryFlag boundaryType(ScalarType) const override
-  {
-    return model::BoundaryFlag::InteriorNode;
-  }
+
   PROXY_HOST_DEVICE void faceNormal(ScalarType, model::CubicFace,
                                     FloatType[3]) const override
   {
   }
 
   virtual void buildFaceConnectivity() override {}
+
+  PROXY_HOST_DEVICE bool isFreeSurface(ScalarType n) const override
+  {
+    return 1;
+  }
+
+  void setFreeSurfaceEnabled(bool enable) override {}
+
+  void initFreeSurface() override {}
 
   PROXY_HOST_DEVICE FloatType domainSize(int) const override { return 0; }
   virtual FloatType getMaxSpeed() const override { return 0; }

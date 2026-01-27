@@ -43,6 +43,7 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES,
 
   allocateFEarrays();
   initFEarrays();
+  m_mesh.initFreeSurface();
 
   // Compute Local Mass Matrix
   computeGlobalMassMatrix();
@@ -367,24 +368,71 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES,
 {
   float const dt2 = dt * dt;
 
-  LOOPHEAD(m_mesh.getNumberOfNodes(), I)
+  if constexpr (PHYSICS == enums::physicType::kAcoustic)
   {
-    for (int f = 0; f < kNumFields; ++f)
+    // ===== ACOUSTIC VERSION =====
+    LOOPHEAD(m_mesh.getNumberOfNodes(), I)
     {
-      data.getPreviousField(f)(I) =
-          (2 * massMatrixGlobal_[I] * data.getCurrentField(f)(I) -
-           (massMatrixGlobal_[I] - 0.5 * dt * dampingMatrixGlobal_[f][I]) *
-               data.getPreviousField(f)(I) -
-           dt2 * workVectorsGlobal_[f][I]) /
-          (massMatrixGlobal_[I] + 0.5 * dt * dampingMatrixGlobal_[f][I]);
-      data.getPreviousField(f)(I) *= spongeTaperCoeff_(I);
-      data.getCurrentField(f)(I) *= spongeTaperCoeff_(I);
+      if (m_mesh.isFreeSurface(I))
+      {
+        // Force p = 0 on free surface
+        data.getCurrentField(0)(I) = 0.0f;
+        data.getPreviousField(0)(I) = 0.0f;
+      }
+      else
+      {
+        // Normal time integration with damping
+        data.getPreviousField(0)(I) =
+            (2 * massMatrixGlobal_[I] * data.getCurrentField(0)(I) -
+             (massMatrixGlobal_[I] - 0.5 * dt * dampingMatrixGlobal_[0][I]) *
+                 data.getPreviousField(0)(I) -
+             dt2 * workVectorsGlobal_[0][I]) /
+            (massMatrixGlobal_[I] + 0.5 * dt * dampingMatrixGlobal_[0][I]);
+        data.getPreviousField(0)(I) *= spongeTaperCoeff_(I);
+        data.getCurrentField(0)(I) *= spongeTaperCoeff_(I);
+      }
     }
+    LOOPEND
   }
-
-  LOOPEND
+  else  // ELASTIC
+  {
+    // ===== ELASTIC VERSION =====
+    LOOPHEAD(m_mesh.getNumberOfNodes(), I)
+    {
+      if (m_mesh.isFreeSurface(I))
+      {
+        // Free surface: no damping (dampingMatrixGlobal is 0 from
+        // computeDampingMatrix)
+        for (int f = 0; f < kNumFields; ++f)
+        {
+          data.getPreviousField(f)(I) =
+              (2 * massMatrixGlobal_[I] * data.getCurrentField(f)(I) -
+               massMatrixGlobal_[I] * data.getPreviousField(f)(I) -
+               dt2 * workVectorsGlobal_[f][I]) /
+              massMatrixGlobal_[I];
+          data.getPreviousField(f)(I) *= spongeTaperCoeff_(I);
+          data.getCurrentField(f)(I) *= spongeTaperCoeff_(I);
+        }
+      }
+      else
+      {
+        // Normal time integration with damping
+        for (int f = 0; f < kNumFields; ++f)
+        {
+          data.getPreviousField(f)(I) =
+              (2 * massMatrixGlobal_[I] * data.getCurrentField(f)(I) -
+               (massMatrixGlobal_[I] - 0.5 * dt * dampingMatrixGlobal_[f][I]) *
+                   data.getPreviousField(f)(I) -
+               dt2 * workVectorsGlobal_[f][I]) /
+              (massMatrixGlobal_[I] + 0.5 * dt * dampingMatrixGlobal_[f][I]);
+          data.getPreviousField(f)(I) *= spongeTaperCoeff_(I);
+          data.getCurrentField(f)(I) *= spongeTaperCoeff_(I);
+        }
+      }
+    }
+    LOOPEND
+  }
 }
-
 //============================================================================
 // computeGlobalMassMatrix - Assemble mass matrix
 //============================================================================
@@ -497,6 +545,13 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES,
       for (int q = 0; q < numNodesPerFace; ++q)
       {
         int const globalNodeIndex = m_mesh.getGlobalNodeFromFace(f, q);
+
+        // NEW: Skip free surface nodes (no damping on free surface)
+        if (m_mesh.isFreeSurface(globalNodeIndex))
+        {
+          continue;
+        }
+
         if constexpr (IS_MODEL_ON_NODES)
         {
           model_rho = m_mesh.getModelRhoOnNodes(globalNodeIndex);
@@ -527,6 +582,13 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES,
       for (int q = 0; q < numNodesPerFace; ++q)
       {
         int const globalNodeIndex = m_mesh.getGlobalNodeFromFace(f, q);
+
+        // NEW: Skip free surface nodes (no damping on free surface)
+        if (m_mesh.isFreeSurface(globalNodeIndex))
+        {
+          continue;
+        }
+
         if constexpr (IS_MODEL_ON_NODES)
         {
           density = m_mesh.getModelRhoOnNodes(globalNodeIndex);
@@ -547,8 +609,7 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES,
     }
   }
   MAINLOOPEND
-}
-//============================================================================
+}  //============================================================================
 // allocateFEarrays - Allocate memory for FE arrays
 //============================================================================
 

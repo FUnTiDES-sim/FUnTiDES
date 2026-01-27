@@ -108,6 +108,7 @@ class SEMproxy
 
   // physics
   bool isElastic_;
+  bool freeSurface_;
 
   // time parameters
   float dt_;

@@ -521,16 +521,6 @@ class ModelUnstruct final : public ModelApi<FloatType, ScalarType>
   }
 
   /**
-   * @brief Get boundary condition type for node
-   * @param n Node index
-   * @return Boundary flag
-   */
-  PROXY_HOST_DEVICE BoundaryFlag boundaryType(ScalarType n) const final
-  {
-    return static_cast<BoundaryFlag>(boundaries_t_[n]);
-  }
-
-  /**
    * @brief Compute outward normal vector for element face
    * @param e Element index
    * @param local_face Face identifier (kXMinus, kXPlus, etc.)
@@ -900,6 +890,57 @@ class ModelUnstruct final : public ModelApi<FloatType, ScalarType>
   PROXY_HOST_DEVICE
   ScalarType getNumberOfFaces() const { return face_connectivity_.numFaces(); }
 
+  /**
+   * @brief Check if node is on free surface
+   * @param n Node index
+   * @return True if free surface node, false otherwise
+   */
+  PROXY_HOST_DEVICE
+  bool isFreeSurface(ScalarType n) const override
+  {
+    return freeSurfaceTag_[n] == 1;
+  }
+
+  /**
+   * @brief Enable or disable free surface marking
+   * @param enable True to enable free surface, false to disable
+   */
+  void setFreeSurfaceEnabled(bool enable) override
+  {
+    freeSurfaceEnabled_ = enable;
+  }
+
+  /**
+   * @brief Initialize free surface node tags based on mesh geometry
+   *
+   * Marks nodes as free surface if they are located at the top of the domain
+   * (z = oz_ + lz_) within a small tolerance.
+   * Considers the freeSurfaceEnabled_ flag to determine if marking is applied.
+   */
+
+  void initFreeSurface() override
+  {
+    // Allocate
+    freeSurfaceTag_ =
+        allocateVector<VECTOR_INT_VIEW>(getNumberOfNodes(), "freeSurfaceTag");
+
+    FloatType tol = getMinSpacing() * 1e-4;
+    FloatType z_max = oz_ + lz_;
+    bool enabled = freeSurfaceEnabled_;
+
+    // Capture pour le kernel
+    auto tag = freeSurfaceTag_;
+    auto mesh_copy = *this;  // Copie pour capture dans lambda
+
+    LOOPHEAD(getNumberOfNodes(), n)
+    {
+      FloatType z = mesh_copy.nodeCoord(n, 2);
+      bool is_top = (fabs(z - z_max) < tol);
+      tag[n] = (is_top && enabled) ? 1 : 0;
+    }
+    LOOPEND
+  }
+
  private:
   ScalarType order_;
   ScalarType n_element_;
@@ -933,6 +974,8 @@ class ModelUnstruct final : public ModelApi<FloatType, ScalarType>
   VECTOR_REAL_VIEW model_phi_element_;
   ARRAY3D_REAL_VIEW model_C_tensor_element_;
   VECTOR_REAL_VIEW boundaries_t_;
+  VECTOR_INT_VIEW freeSurfaceTag_;
+  bool freeSurfaceEnabled_;
 
   FaceConnectivity<ScalarType> face_connectivity_;
 };

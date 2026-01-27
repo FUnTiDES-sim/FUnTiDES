@@ -33,22 +33,6 @@ struct ModelDataBase
 };
 
 /**
- * @enum BoundaryFlag
- * @brief Flags representing the boundary condition type of a mesh node.
- *
- * These flags can be combined using bitwise OR operations to indicate
- * multiple boundary conditions at a single node.
- */
-enum BoundaryFlag : uint8_t
-{
-  InteriorNode = 0,  ///< Node inside the domain
-  Damping = 1 << 0,  ///< Node in damping boundary zone
-  Sponge = 1 << 1,   ///< Node in sponge layer
-  Surface = 1 << 2,  ///< Node on a free surface
-  Ghost = 1 << 3     ///< Ghost node for halo/exchange
-};
-
-/**
  * @enum CubicFace
  * @brief Local face identifiers for cubic elements
  *
@@ -285,13 +269,6 @@ class ModelApi
   PROXY_HOST_DEVICE virtual int getOrder() const = 0;
 
   /**
-   * @brief Get the boundary condition type for a node
-   * @param n Node index
-   * @return BoundaryFlag indicating the boundary type(s)
-   */
-  PROXY_HOST_DEVICE virtual BoundaryFlag boundaryType(ScalarType n) const = 0;
-
-  /**
    * @brief Compute the outward unit normal vector of an element face.
    * @param e Element index
    * @param face Face identifier (using CubicFace enum)
@@ -339,6 +316,29 @@ class ModelApi
    * faces lie on absorbing boundaries and their connectivity information.
    */
   virtual void buildFaceConnectivity() = 0;
+
+  /**
+   * @brief Check if node is on free surface
+   * @param n Node index
+   * @return True if on free surface (top boundary)
+   */
+  PROXY_HOST_DEVICE
+  virtual bool isFreeSurface(ScalarType n) const = 0;
+
+  /**
+   * @brief Enable/disable free surface on top boundary
+   * @param enable True to enable free surface BC, false for absorbing
+   * everywhere
+   */
+  virtual void setFreeSurfaceEnabled(bool enable) = 0;
+
+  /**
+   * @brief Initialize free surface detection
+   *
+   * Marks nodes on top boundary (Z+) as free surface.
+   * Called once during mesh setup.
+   */
+  virtual void initFreeSurface() = 0;
 };
 
 }  // namespace model
