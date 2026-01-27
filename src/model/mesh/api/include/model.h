@@ -15,11 +15,12 @@ namespace model
 /**
  * @struct ModelDataBase
  * @brief Base structure for model data storage
- * 
+ *
  * This structure serves as a base for storing model-specific data
  * that can be passed to ModelApi implementations.
- * 
- * @tparam FloatType Floating-point type for physical quantities (e.g., float, double)
+ *
+ * @tparam FloatType Floating-point type for physical quantities (e.g., float,
+ * double)
  * @tparam ScalarType Integer type for indices (e.g., int, size_t)
  */
 template <typename FloatType, typename ScalarType>
@@ -34,7 +35,7 @@ struct ModelDataBase
 /**
  * @enum BoundaryFlag
  * @brief Flags representing the boundary condition type of a mesh node.
- * 
+ *
  * These flags can be combined using bitwise OR operations to indicate
  * multiple boundary conditions at a single node.
  */
@@ -50,7 +51,7 @@ enum BoundaryFlag : uint8_t
 /**
  * @enum CubicFace
  * @brief Local face identifiers for cubic elements
- * 
+ *
  * Convention: even indices = minus faces, odd indices = plus faces.
  * Face normals point outward from the element.
  */
@@ -67,13 +68,14 @@ enum class CubicFace : int
 /**
  * @class ModelApi
  * @brief Abstract base class representing a 3D mesh and material model.
- * 
+ *
  * This class provides a unified interface for accessing mesh geometry,
  * material properties, and boundary conditions. Implementations can
  * represent structured or unstructured meshes with various material models
  * (acoustic, elastic, anisotropic, etc.).
- * 
- * @tparam FloatType Floating-point type for physical quantities (e.g., float, double)
+ *
+ * @tparam FloatType Floating-point type for physical quantities (e.g., float,
+ * double)
  * @tparam ScalarType Integer type for indices (e.g., int, size_t)
  */
 template <typename FloatType, typename ScalarType>
@@ -81,7 +83,7 @@ class ModelApi
 {
  public:
   PROXY_HOST_DEVICE ModelApi() = default;
-  
+
   /**
    * @brief Construct ModelApi from model data
    * @param data Model-specific data structure
@@ -89,7 +91,7 @@ class ModelApi
   PROXY_HOST_DEVICE ModelApi(const ModelDataBase<ScalarType, FloatType>& data)
   {
   }
-  
+
   PROXY_HOST_DEVICE ModelApi(const ModelApi&) = default;
   PROXY_HOST_DEVICE ModelApi& operator=(const ModelApi&) = default;
   PROXY_HOST_DEVICE ~ModelApi() = default;
@@ -121,7 +123,7 @@ class ModelApi
    * @return P-wave velocity (Vp) in m/s
    */
   PROXY_HOST_DEVICE virtual FloatType getModelVpOnNodes(ScalarType n) const = 0;
-  
+
   /**
    * @brief Get P-wave velocity for an element
    * @param e Element index
@@ -129,7 +131,7 @@ class ModelApi
    */
   PROXY_HOST_DEVICE virtual FloatType getModelVpOnElement(
       ScalarType e) const = 0;
-  
+
   /**
    * @brief Get density at a node
    * @param n Node index
@@ -137,7 +139,7 @@ class ModelApi
    */
   PROXY_HOST_DEVICE virtual FloatType getModelRhoOnNodes(
       ScalarType n) const = 0;
-  
+
   /**
    * @brief Get density for an element
    * @param e Element index
@@ -145,14 +147,14 @@ class ModelApi
    */
   PROXY_HOST_DEVICE virtual FloatType getModelRhoOnElement(
       ScalarType e) const = 0;
-  
+
   /**
    * @brief Get S-wave velocity at a node
    * @param n Node index
    * @return S-wave velocity (Vs) in m/s
    */
   PROXY_HOST_DEVICE virtual FloatType getModelVsOnNodes(ScalarType n) const = 0;
-  
+
   /**
    * @brief Get S-wave velocity for an element
    * @param e Element index
@@ -160,7 +162,7 @@ class ModelApi
    */
   PROXY_HOST_DEVICE virtual FloatType getModelVsOnElement(
       ScalarType e) const = 0;
-  
+
   /**
    * @brief Get Thomsen delta parameter at a node (anisotropy)
    * @param n Node index
@@ -168,7 +170,7 @@ class ModelApi
    */
   PROXY_HOST_DEVICE virtual FloatType getModelDeltaOnNodes(
       ScalarType n) const = 0;
-  
+
   /**
    * @brief Get Thomsen delta parameter for an element (anisotropy)
    * @param e Element index
@@ -176,7 +178,7 @@ class ModelApi
    */
   PROXY_HOST_DEVICE virtual FloatType getModelDeltaOnElement(
       ScalarType e) const = 0;
-  
+
   /**
    * @brief Get Thomsen epsilon parameter at a node (anisotropy)
    * @param n Node index
@@ -184,7 +186,7 @@ class ModelApi
    */
   PROXY_HOST_DEVICE virtual FloatType getModelEpsilonOnNodes(
       ScalarType n) const = 0;
-  
+
   /**
    * @brief Get Thomsen epsilon parameter for an element (anisotropy)
    * @param e Element index
@@ -192,7 +194,7 @@ class ModelApi
    */
   PROXY_HOST_DEVICE virtual FloatType getModelEpsilonOnElement(
       ScalarType e) const = 0;
-  
+
   /**
    * @brief Get Thomsen gamma parameter at a node (anisotropy)
    * @param n Node index
@@ -200,7 +202,7 @@ class ModelApi
    */
   PROXY_HOST_DEVICE virtual FloatType getModelGammaOnNodes(
       ScalarType n) const = 0;
-  
+
   /**
    * @brief Get Thomsen gamma parameter for an element (anisotropy)
    * @param e Element index
@@ -208,7 +210,7 @@ class ModelApi
    */
   PROXY_HOST_DEVICE virtual FloatType getModelGammaOnElement(
       ScalarType e) const = 0;
-  
+
   /**
    * @brief Get theta angle at a node (anisotropy orientation)
    * @param n Node index
@@ -216,7 +218,7 @@ class ModelApi
    */
   PROXY_HOST_DEVICE virtual ScalarType getModelThetaOnNodes(
       ScalarType n) const = 0;
-  
+
   /**
    * @brief Get theta angle for an element (anisotropy orientation)
    * @param e Element index
@@ -224,7 +226,7 @@ class ModelApi
    */
   PROXY_HOST_DEVICE virtual ScalarType getModelThetaOnElement(
       ScalarType e) const = 0;
-  
+
   /**
    * @brief Get phi angle at a node (anisotropy orientation)
    * @param n Node index
@@ -232,7 +234,7 @@ class ModelApi
    */
   PROXY_HOST_DEVICE virtual ScalarType getModelPhiOnNodes(
       ScalarType n) const = 0;
-  
+
   /**
    * @brief Get phi angle for an element (anisotropy orientation)
    * @param e Element index
@@ -252,7 +254,7 @@ class ModelApi
 
   /**
    * @brief Initialize and compute elasticity tensors for all elements
-   * 
+   *
    * This method should be called after model properties are set and
    * before running simulations requiring elasticity tensors.
    */
@@ -263,25 +265,25 @@ class ModelApi
    * @return Number of elements
    */
   PROXY_HOST_DEVICE virtual ScalarType getNumberOfElements() const = 0;
-  
+
   /**
    * @brief Get the total number of nodes in the mesh
    * @return Number of nodes
    */
   PROXY_HOST_DEVICE virtual ScalarType getNumberOfNodes() const = 0;
-  
+
   /**
    * @brief Get the number of quadrature/collocation points per element
    * @return Number of points per element ((order+1)^3 for 3D hex elements)
    */
   PROXY_HOST_DEVICE virtual int getNumberOfPointsPerElement() const = 0;
-  
+
   /**
    * @brief Get the polynomial order of the spectral element basis
    * @return Polynomial order (e.g., 4 for P4 elements)
    */
   PROXY_HOST_DEVICE virtual int getOrder() const = 0;
-  
+
   /**
    * @brief Get the boundary condition type for a node
    * @param n Node index
@@ -305,25 +307,25 @@ class ModelApi
    * @return Domain extent in the specified dimension
    */
   PROXY_HOST_DEVICE virtual FloatType domainSize(int dim) const = 0;
-  
+
   /**
    * @brief Get the minimum grid spacing in the mesh
    * @return Minimum spacing between nodes in meters
    */
   PROXY_HOST_DEVICE virtual FloatType getMinSpacing() const = 0;
-  
+
   /**
    * @brief Get the maximum wave speed in the model
    * @return Maximum speed (typically max Vp) in m/s
    */
   virtual FloatType getMaxSpeed() const = 0;
-  
+
   /**
    * @brief Check if material properties are defined on nodes
    * @return true if properties are at nodes, false if at element centers
    */
   PROXY_HOST_DEVICE virtual bool isModelOnNodes() const = 0;
-  
+
   /**
    * @brief Check if the model includes elastic (shear) properties
    * @return true for elastic models, false for acoustic models
@@ -332,7 +334,7 @@ class ModelApi
 
   /**
    * @brief Build face connectivity for absorbing boundary conditions
-   * 
+   *
    * This method constructs data structures that identify which element
    * faces lie on absorbing boundaries and their connectivity information.
    */
