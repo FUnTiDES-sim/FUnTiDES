@@ -166,6 +166,16 @@ class SEMproxy
   implemType getImplem(string implemArg);
   methodType getMethod(string methodArg);
   meshType getMesh(string meshArg);
+
+  // private methods for init
+  void init_mpi(int* mpi_init);
+  void init_sim_params(const SemProxyOptions& opt);
+  void init_mesh_params(const SemProxyOptions& opt);
+  void init_topology();
+  void init_sync();
+  void init_time_params(const SemProxyOptions& opt);
+
+  void display_init_msg(const SemProxyOptions& opt);
 };
 
 #endif  // SRC_MAIN_FE_INCLUDE_SEMPROXY_H_

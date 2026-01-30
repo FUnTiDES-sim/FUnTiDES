@@ -17,3 +17,12 @@ add_gtest(rhs_elastic_test
   test_rhs_elastic.cc
   proxy_solver
 )
+
+add_executable(test_mpi_partitioning test_mpi_partitioning.cc)
+target_link_libraries(test_mpi_partitioning
+    PRIVATE
+    proxy_model_builder_cartesian
+    gtest
+    MPI::MPI_CXX
+)
+add_test(NAME test_mpi_partitioning COMMAND test_mpi_partitioning)
