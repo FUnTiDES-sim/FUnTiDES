@@ -20,6 +20,7 @@
 #include <sstream>
 #include <variant>
 
+#include "mpi_backend.h"
 #include "sem_solver.h"
 #include "topology_factory.h"
 
@@ -29,6 +30,20 @@ using namespace solver::fe::enums;
 
 SEMproxy::SEMproxy(const SemProxyOptions& opt)
 {
+  // Init MPI parameters
+  int mpi_initialized = 0;
+  MPI_Initialized(&mpi_initialized);
+  if (mpi_initialized)
+  {
+    MPI_Comm_rank(MPI_COMM_WORLD, &dist_ctx_.rank);
+    MPI_Comm_size(MPI_COMM_WORLD, &dist_ctx_.size);
+  }
+  else
+  {
+    dist_ctx_.rank = 0;
+    dist_ctx_.size = 1;
+  }
+
   const int order = opt.order;
 
   // Partition Logic
@@ -132,12 +147,23 @@ SEMproxy::SEMproxy(const SemProxyOptions& opt)
                                       m_localParams.origin_x, m_localParams.lx);
 
   // Initialize Synchronizer
-  std::unique_ptr<BoundarySynchronizer::Backend> backend;
-  m_syncer = (dist_ctx_.rank > 1)
-                 ? std::make_unique<BoundarySynchronizer>(
-                       std::make_unique<DebugBackend>(dist_ctx_.rank))
-                 : std::make_unique<BoundarySynchronizer>(
-                       std::make_unique<SerialBackend>());
+  if (dist_ctx_.size > 1)
+  {
+    m_syncer = std::make_unique<BoundarySynchronizer>(
+        std::make_unique<solver::fe::MPIBackend>());
+
+    if (dist_ctx_.rank == 0)
+    {
+      std::cout << "MPI Enabled: Using MPIBackend for " << dist_ctx_.size
+                << " ranks." << std::endl;
+    }
+  }
+  else
+  {
+    // Fallback for serial
+    m_syncer = std::make_unique<BoundarySynchronizer>(
+        std::make_unique<SerialBackend>());
+  }
 
   // time parameters
   if (opt.autodt)

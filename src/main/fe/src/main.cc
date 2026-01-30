@@ -4,6 +4,8 @@
 //  main.cpp: this main file is simply a driver
 //************************************************************************
 
+#include <mpi.h>
+
 #include "sem_proxy.h"
 #include "sem_proxy_options.h"
 
@@ -36,6 +38,10 @@ void compute_loop(SEMproxy &semsim) { compute(semsim); }
 int main(int argc, char *argv[])
 {
   startInitTime = system_clock::now();
+
+  // mpi
+  int provided;
+  MPI_Init_thread(&argc, &argv, MPI_THREAD_FUNNELED, &provided);
 
 #ifdef USE_KOKKOS
   setenv("OMP_PROC_BIND", "spread", 1);

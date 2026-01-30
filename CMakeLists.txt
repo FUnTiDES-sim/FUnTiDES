@@ -25,6 +25,7 @@ include(cmake/KokkosConfig.cmake)
 include(cmake/ADIOS2Config.cmake)
 include(cmake/GoogleTestConfig.cmake)
 include(cmake/GoogleBenchConfig.cmake)
+include(cmake/MPIConfig.cmake)
 
 #--------------------------------------------------------
 # Custom cmake functions
