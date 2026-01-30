@@ -1,80 +1,17 @@
-#pragma once
+#ifndef SOLVER_FE_IMPL_COMMON_INCLUDE_SEM_SOLVER_DATA_H_
+#define SOLVER_FE_IMPL_COMMON_INCLUDE_SEM_SOLVER_DATA_H_
+#include <iostream>
 
-#include "rhs_acoustic.h"
-#include "rhs_elastic.h"
-#include "sem_enums.h"
-#include "sem_solver.h"
-#include "solver_base.h"
-#include "wavefield_acoustic.h"
-#include "wavefield_elastic.h"
+#include "physics_traits_acoustic.h"
+#include "physics_traits_elastic.h"
+#include "solver.h"
 
 namespace solver
 {
 namespace fe
 {
 
-using physicType = solver::fe::enums::physicType;
-
-//============================================================================
-// Physics Traits - Compile-time properties for each physics type
-//============================================================================
-
-/**
- * @brief Primary template for physics traits.
- * @tparam PHYSICS The physics type (kAcoustic or kElastic)
- */
-template <physicType PHYSICS>
-struct PhysicsTraits;
-
-/**
- * @brief Specialization for acoustic physics.
- *
- * Acoustic wave propagation uses a single scalar pressure field.
- */
-template <>
-struct PhysicsTraits<enums::physicType::kAcoustic>
-{
-  /// Number of solution fields (1 for pressure)
-  static constexpr int kNumFields = 1;
-
-  /// Number of RHS (source) components
-  static constexpr int kNumRhsComponents = 1;
-
-  /// Human-readable name for logging
-  static constexpr const char* kName = "Acoustic";
-
-  /// Primary field name
-  static constexpr const char* kFieldNames[1] = {"pressure"};
-
-  /// Concrete types for device access
-  using WavefieldType = WavefieldAcoustic;
-  using RhsType = RhsAcoustic;
-};
-
-/**
- * @brief Specialization for elastic physics.
- *
- * Elastic wave propagation uses three displacement components (ux, uy, uz).
- */
-template <>
-struct PhysicsTraits<enums::physicType::kElastic>
-{
-  /// Number of solution fields (3 for displacement vector)
-  static constexpr int kNumFields = 3;
-
-  /// Number of RHS (source) components
-  static constexpr int kNumRhsComponents = 3;
-
-  /// Human-readable name for logging
-  static constexpr const char* kName = "Elastic";
-
-  /// Field names for each component
-  static constexpr const char* kFieldNames[3] = {"ux", "uy", "uz"};
-
-  /// Concrete types for device access
-  using WavefieldType = WavefieldElastic;
-  using RhsType = RhsElastic;
-};
+using physicType = enums::physicType;
 
 //============================================================================
 // Unified Data Structure
@@ -90,11 +27,11 @@ struct PhysicsTraits<enums::physicType::kElastic>
  * @tparam PHYSICS The physics type (kAcoustic or kElastic)
  */
 template <physicType PHYSICS>
-struct SEMsolverData : public SolverBase::DataStruct
+struct SEMsolverData : public Solver::DataStruct
 {
   using Traits = PhysicsTraits<PHYSICS>;
-  static constexpr int kNumFields = Traits::kNumFields;
-  static constexpr int kNumRhs = Traits::kNumRhsComponents;
+  static constexpr int kNumFields = Traits::WavefieldType::kNumFields;
+  static constexpr int kNumRhs = Traits::RhsType::kNumRhsComponents;
 
   // Use concrete types from PhysicsTraits to avoid virtual dispatch on device
   using WavefieldType = typename Traits::WavefieldType;
@@ -149,7 +86,8 @@ struct SEMsolverData : public SolverBase::DataStruct
     std::cout << "SEMsolverData<" << Traits::kName << ">" << std::endl;
     for (int f = 0; f < kNumFields; ++f)
     {
-      std::cout << "Field[" << f << "] (" << Traits::kFieldNames[f]
+      std::cout << "Field[" << f << "] ("
+                << Traits::WavefieldType::kFieldNames[f]
                 << ") size: " << getCurrentField(f).extent(0) << std::endl;
     }
     for (int r = 0; r < kNumRhs; ++r)
@@ -176,3 +114,4 @@ using SEMsolverDataElastic = SEMsolverData<enums::physicType::kElastic>;
 
 }  // namespace fe
 }  // namespace solver
+#endif  // SOLVER_FE_IMPL_COMMON_INCLUDE_SEM_SOLVER_DATA_H_

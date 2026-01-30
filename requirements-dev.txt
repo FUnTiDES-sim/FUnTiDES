@@ -4,5 +4,5 @@ pytest-benchmark
 pygal
 ruff
 scipy
-clang-format==18
+clang-format==18.1.8
 adios2
