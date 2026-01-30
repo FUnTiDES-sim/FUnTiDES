@@ -1,6 +1,5 @@
-#ifndef WAVEFIELD_ACOUSTIC_H_
-#define WAVEFIELD_ACOUSTIC_H_
-
+#ifndef SOLVER_FE_IMPL_INCLUDE_WAVEFIELD_ACOUSTIC_H_
+#define SOLVER_FE_IMPL_INCLUDE_WAVEFIELD_ACOUSTIC_H_
 #include <data_type.h>
 
 #include "wavefield.h"
@@ -15,10 +14,23 @@ namespace fe
  */
 struct WavefieldAcoustic : public Wavefield
 {
+  /// Number of solution fields (1 for pressure)
+  static constexpr int kNumFields = 1;
+
+  /// Primary field name
+  static constexpr const char* kFieldNames[1] = {"pressure"};
+
   WavefieldAcoustic(VECTOR_REAL_VIEW pnGlobalPrev,
                     VECTOR_REAL_VIEW pnGlobalCurr)
       : m_pnGlobalPrev(pnGlobalPrev), m_pnGlobalCurr(pnGlobalCurr)
   {
+  }
+
+  int getNumFields() const override final { return kNumFields; }
+
+  const char* const* getFieldNames() const override final
+  {
+    return kFieldNames;
   }
 
   PROXY_HOST_DEVICE
@@ -48,5 +60,4 @@ struct WavefieldAcoustic : public Wavefield
 };
 }  // namespace fe
 }  // namespace solver
-
-#endif  // WAVEFIELD_ACOUSTIC_H_
+#endif  // SOLVER_FE_IMPL_INCLUDE_WAVEFIELD_ACOUSTIC_H_

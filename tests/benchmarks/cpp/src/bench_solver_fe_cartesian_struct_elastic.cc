@@ -135,7 +135,7 @@ BENCHMARK_TEMPLATE_METHOD_F(SolverStructFixture, FEInit)
   // Prepare
   auto model = this->createModel();
 
-  auto solver = SolverFactory::createSolver(
+  auto solver = solver_factory::createSolver(
       methodType::kSem, this->implem_, meshType::kStruct,
       this->isModelOnNodes_ ? modelLocationType::kOnNodes
                             : modelLocationType::kOnElements,
@@ -158,7 +158,7 @@ BENCHMARK_TEMPLATE_METHOD_F(SolverStructFixture, OneStep)
   // Prepare
   auto model = this->createModel();
 
-  auto solver = SolverFactory::createSolver(
+  auto solver = solver_factory::createSolver(
       methodType::kSem, this->implem_, meshType::kStruct,
       this->isModelOnNodes_ ? modelLocationType::kOnNodes
                             : modelLocationType::kOnElements,

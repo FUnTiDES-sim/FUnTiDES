@@ -1,16 +1,19 @@
-#ifndef SRC_SOLVER_FE_IMPL_INCLUDE_SOLVERFACTORY_H_
-#define SRC_SOLVER_FE_IMPL_INCLUDE_SOLVERFACTORY_H_
-
+#ifndef SOLVER_FE_IMPL_COMMON_INCLUDE_SOLVER_FACTORY_H_
+#define SOLVER_FE_IMPL_COMMON_INCLUDE_SOLVER_FACTORY_H_
 #include <fe/Integrals.hpp>
 #include <memory>
 
 #include "sem_enums.h"
-#include "sem_solver_base.h"
+#include "solver.h"
 
-using namespace solver::fe::enums;
-
-namespace SolverFactory
+namespace solver
 {
+namespace fe
+{
+namespace solver_factory
+{
+
+namespace feenum = solver::fe::enums;
 
 /**
  * @brief Creates a SEM solver instance based on the specified configuration.
@@ -29,11 +32,12 @@ namespace SolverFactory
  * @return A unique pointer to the created solver
  * @throws std::runtime_error if the configuration is unsupported
  */
-std::unique_ptr<SEMSolverBase> createSolver(methodType methodType,
-                                            implemType implemType,
-                                            meshType meshType,
-                                            modelLocationType modelLocation,
-                                            physicType physicType, int order);
-
-}  // namespace SolverFactory
-#endif  // SRC_SOLVER_FE_IMPL_INCLUDE_SOLVERFACTORY_H_
+std::unique_ptr<Solver> createSolver(feenum::methodType methodType,
+                                     feenum::implemType implemType,
+                                     feenum::meshType meshType,
+                                     feenum::modelLocationType modelLocation,
+                                     feenum::physicType physicType, int order);
+}  // namespace solver_factory
+}  // namespace fe
+}  // namespace solver
+#endif  // SOLVER_FE_IMPL_COMMON_INCLUDE_SOLVER_FACTORY_H_

@@ -1,5 +1,5 @@
-#pragma once
-
+#ifndef SOLVER_FE_IMPL_COMMON_INCLUDE_SEM_ENUMS_H_
+#define SOLVER_FE_IMPL_COMMON_INCLUDE_SEM_ENUMS_H_
 #include <string>
 
 namespace solver
@@ -29,7 +29,7 @@ enum class modelLocationType
   kOnNodes,
   kOnElements
 };
-enum class physicType
+enum class physicType : int
 {
   kAcoustic,
   kElastic
@@ -99,6 +99,8 @@ inline std::string to_string(physicType p)
       return "Unknown";
   }
 }
+
 }  // namespace enums
 }  // namespace fe
 }  // namespace solver
+#endif  // SOLVER_FE_IMPL_COMMON_INCLUDE_SEM_ENUMS_H_

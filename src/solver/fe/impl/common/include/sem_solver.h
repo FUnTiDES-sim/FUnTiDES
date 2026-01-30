@@ -1,6 +1,5 @@
-#ifndef SRC_SOLVER_FE_API_INCLUDE_SEMSOLVER_H_
-#define SRC_SOLVER_FE_API_INCLUDE_SEMSOLVER_H_
-
+#ifndef SOLVER_FE_IMPL_COMMON_INCLUDE_SEM_SOLVER_H_
+#define SOLVER_FE_IMPL_COMMON_INCLUDE_SEM_SOLVER_H_
 #include <array>
 #include <cmath>
 #include <stdexcept>
@@ -10,7 +9,8 @@
 #include "parallel_topology.h"
 #include "physics_traits.h"
 #include "sem_enums.h"
-#include "sem_solver_base.h"
+#include "sem_solver_data.h"
+#include "solver.h"
 
 namespace solver
 {
@@ -19,14 +19,14 @@ namespace fe
 
 template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE,
           bool IS_MODEL_ON_NODES, enums::physicType PHYSICS>
-class SEMsolver : public SEMSolverBase
+class SEMsolver : public Solver
 {
  public:
   using Traits = PhysicsTraits<PHYSICS>;
   using DataType = SEMsolverData<PHYSICS>;
 
-  static constexpr int kNumFields = Traits::kNumFields;
-  static constexpr int kNumRhs = Traits::kNumRhsComponents;
+  static constexpr int kNumFields = Traits::WavefieldType::kNumFields;
+  static constexpr int kNumRhs = Traits::RhsType::kNumRhsComponents;
 
   SEMsolver() = default;
   ~SEMsolver() = default;
@@ -159,5 +159,4 @@ using SEMsolverElastic =
 
 }  // namespace fe
 }  // namespace solver
-
-#endif  // SRC_SOLVER_FE_API_INCLUDE_SEMSOLVER_H_
+#endif  // SOLVER_FE_IMPL_COMMON_INCLUDE_SEM_SOLVER_H_

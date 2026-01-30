@@ -1,6 +1,5 @@
-#ifndef WAVEFIELD_H_
-#define WAVEFIELD_H_
-
+#ifndef SOLVER_FE_API_INCLUDE_WAVEFIELD_H_
+#define SOLVER_FE_API_INCLUDE_WAVEFIELD_H_
 namespace solver
 {
 namespace fe
@@ -11,6 +10,18 @@ namespace fe
 struct Wavefield
 {
   virtual ~Wavefield() = default;
+
+  /**
+   * @brief Get the number of solution fields in this wavefield.
+   * @return The number of fields.
+   */
+  virtual int getNumFields() const = 0;
+
+  /**
+   * @brief Get the names of the solution fields.
+   * @return Pointer to array of field names.
+   */
+  virtual const char* const* getFieldNames() const = 0;
 
   /**
    * @brief Get the current field at a specific index.
@@ -38,5 +49,4 @@ struct Wavefield
 };
 }  // namespace fe
 }  // namespace solver
-
-#endif  // WAVEFIELD_H_
+#endif  // SOLVER_FE_API_INCLUDE_WAVEFIELD_H_

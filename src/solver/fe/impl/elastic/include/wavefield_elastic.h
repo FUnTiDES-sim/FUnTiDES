@@ -1,6 +1,5 @@
-#ifndef WAVEFIELD_ELASTIC_H_
-#define WAVEFIELD_ELASTIC_H_
-
+#ifndef SOLVER_FE_IMPL_ELASTIC_INCLUDE_WAVEFIELD_ELASTIC_H_
+#define SOLVER_FE_IMPL_ELASTIC_INCLUDE_WAVEFIELD_ELASTIC_H_
 #include <data_type.h>
 
 #include "wavefield.h"
@@ -15,6 +14,11 @@ namespace fe
  */
 struct WavefieldElastic : public Wavefield
 {
+  /// Field names for each component
+  static constexpr const char* kFieldNames[3] = {"ux", "uy", "uz"};
+  /// Number of solution fields (3 for displacement vector)
+  static constexpr int kNumFields = 3;
+
   WavefieldElastic(VECTOR_REAL_VIEW uxnGlobalPrev,
                    VECTOR_REAL_VIEW uxnGlobalCurr,
                    VECTOR_REAL_VIEW uynGlobalPrev,
@@ -28,6 +32,13 @@ struct WavefieldElastic : public Wavefield
         m_uznGlobalPrev(uznGlobalPrev),
         m_uznGlobalCurr(uznGlobalCurr)
   {
+  }
+
+  int getNumFields() const override final { return kNumFields; }
+
+  const char* const* getFieldNames() const override final
+  {
+    return kFieldNames;
   }
 
   // TODO use template + constexpr if when C++20 is available
@@ -102,5 +113,4 @@ struct WavefieldElastic : public Wavefield
 };
 }  // namespace fe
 }  // namespace solver
-
-#endif  // WAVEFIELD_ELASTIC_H_
+#endif  // SOLVER_FE_IMPL_ELASTIC_INCLUDE_WAVEFIELD_ELASTIC_H_

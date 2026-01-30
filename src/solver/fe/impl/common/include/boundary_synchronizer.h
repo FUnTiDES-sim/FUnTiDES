@@ -1,6 +1,5 @@
-#ifndef SRC_SOLVER_FE_IMPL_INCLUDE_BOUNDARY_SYNCHRONIZER_H_
-#define SRC_SOLVER_FE_IMPL_INCLUDE_BOUNDARY_SYNCHRONIZER_H_
-
+#ifndef SOLVER_FE_IMPL_INCLUDE_BOUNDARY_SYNCHRONIZER_H_
+#define SOLVER_FE_IMPL_INCLUDE_BOUNDARY_SYNCHRONIZER_H_
 #include <iostream>
 #include <map>
 #include <memory>
@@ -11,6 +10,10 @@
 
 using namespace utils;
 
+namespace solver
+{
+namespace fe
+{
 // @brief Handles data exchange at partition boundaries.
 //
 // Manages synchronization of boundary node values across distributed ranks.
@@ -297,5 +300,6 @@ class DebugBackend : public BoundarySynchronizer::Backend
     }
   }
 };
-
-#endif  // SRC_SOLVER_FE_IMPL_INCLUDE_BOUNDARY_SYNCHRONIZER_H_
+}  // namespace fe
+}  // namespace solver
+#endif  // SOLVER_FE_IMPL_INCLUDE_BOUNDARY_SYNCHRONIZER_H_
