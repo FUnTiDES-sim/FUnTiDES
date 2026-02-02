@@ -26,6 +26,6 @@ target_link_libraries(test_mpi_partitioning
     gtest
     MPI::MPI_CXX
 )
-endif()
 
 add_test(NAME test_mpi_partitioning COMMAND test_mpi_partitioning)
+endif()
