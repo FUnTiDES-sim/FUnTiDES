@@ -18,6 +18,7 @@ add_gtest(rhs_elastic_test
   proxy_solver
 )
 
+if(USE_MPI)
 add_executable(test_mpi_partitioning test_mpi_partitioning.cc)
 target_link_libraries(test_mpi_partitioning
     PRIVATE
@@ -25,4 +26,6 @@ target_link_libraries(test_mpi_partitioning
     gtest
     MPI::MPI_CXX
 )
+endif()
+
 add_test(NAME test_mpi_partitioning COMMAND test_mpi_partitioning)

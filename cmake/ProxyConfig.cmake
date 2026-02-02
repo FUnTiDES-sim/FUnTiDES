@@ -11,6 +11,7 @@ option(USE_VECTOR "Use vectors." OFF)
 option(USE_KOKKOS "Use KOKKOS to parallelise loops" OFF)
 option(USE_KOKKOS_TEAMS "use hierarchical parallelism in Kokkos" OFF)
 option(ENABLE_CUDA "Enable cuda compilation" OFF)
+option(USE_MPI "Enable MPI compilation" OFF)
 
 # Python wrapping
 option(ENABLE_PYWRAP "Enable python binding compilation with pybind11" OFF)

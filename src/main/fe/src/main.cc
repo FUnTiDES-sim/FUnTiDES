@@ -3,8 +3,9 @@
 //
 //  main.cpp: this main file is simply a driver
 //************************************************************************
-
+#ifdef USE_MPI
 #include <mpi.h>
+#endif
 
 #include "sem_proxy.h"
 #include "sem_proxy_options.h"
@@ -39,9 +40,11 @@ int main(int argc, char *argv[])
 {
   startInitTime = system_clock::now();
 
+#ifdef USE_MPI
   // mpi
   int provided;
   MPI_Init_thread(&argc, &argv, MPI_THREAD_FUNNELED, &provided);
+#endif
 
 #ifdef USE_KOKKOS
   setenv("OMP_PROC_BIND", "spread", 1);

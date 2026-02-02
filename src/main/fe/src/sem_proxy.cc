@@ -20,13 +20,16 @@
 #include <sstream>
 #include <variant>
 
+#ifdef USE_MPI
 #include "mpi_backend.h"
+#endif
 #include "sem_solver.h"
 #include "topology_factory.h"
 
 using namespace SourceAndReceiverUtils;
 using namespace solver::fe;
 using namespace solver::fe::enums;
+using namespace solver::fe::solver_factory;
 
 SEMproxy::SEMproxy(const SemProxyOptions& opt)
 {
@@ -48,8 +51,8 @@ SEMproxy::SEMproxy(const SemProxyOptions& opt)
   const physicType physicType =
       opt.isElastic ? physicType::kElastic : physicType::kAcoustic;
 
-  m_solver = SolverFactory::createSolver(methodType, implemType, meshType,
-                                         modelLocation, physicType, opt.order);
+  m_solver = createSolver(methodType, implemType, meshType, modelLocation,
+                          physicType, opt.order);
 
   // Setup Sponge Parameters
   const float spongex = opt.boundaries_size;
@@ -607,6 +610,7 @@ float SEMproxy::find_cfl_dt(float cfl_factor)
 
 void SEMproxy::init_mpi(int* mpi_init)
 {
+#ifdef USE_MPI
   MPI_Initialized(mpi_init);
   if (mpi_init)
   {
@@ -618,6 +622,10 @@ void SEMproxy::init_mpi(int* mpi_init)
     dist_ctx_.rank = 0;
     dist_ctx_.size = 1;
   }
+#else
+  dist_ctx_.rank = 0;
+  dist_ctx_.size = 1;
+#endif
 }
 
 void SEMproxy::init_sim_params(const SemProxyOptions& opt)
@@ -722,6 +730,7 @@ void SEMproxy::init_topology()
 
 void SEMproxy::init_sync()
 {
+#if USE_MPI
   if (dist_ctx_.size > 1)
   {
     m_syncer = std::make_unique<BoundarySynchronizer>(
@@ -739,6 +748,10 @@ void SEMproxy::init_sync()
     m_syncer = std::make_unique<BoundarySynchronizer>(
         std::make_unique<SerialBackend>());
   }
+#else
+  m_syncer =
+      std::make_unique<BoundarySynchronizer>(std::make_unique<SerialBackend>());
+#endif
 }
 
 void SEMproxy::init_time_params(const SemProxyOptions& opt)
