@@ -66,10 +66,10 @@ void bind_sem_solver_base(py::module_ &m)
            py::arg("field_name"))
 
       // --- Domain Decomposition Interface ---
-      .def("get_num_components", &SEMSolverBase::getNumComponents)
+      .def("get_num_components", &Solver::getNumComponents)
 
       .def("get_mass_matrix",
-           [](SEMSolverBase &self) -> py::array_t<float> {
+           [](Solver &self) -> py::array_t<float> {
              auto &v = self.getMassMatrix();
              return py::array_t<float>(
                  {static_cast<ssize_t>(v.extent(0))},  // Shape
@@ -80,7 +80,7 @@ void bind_sem_solver_base(py::module_ &m)
            })
       .def(
           "get_force_vector",
-          [](SEMSolverBase &self, int component) -> py::array_t<float> {
+          [](Solver &self, int component) -> py::array_t<float> {
             auto &v = self.getForceVector(component);
             return py::array_t<float>({static_cast<ssize_t>(v.extent(0))},
                                       {sizeof(float)}, v.data(),
