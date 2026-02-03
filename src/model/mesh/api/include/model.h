@@ -32,6 +32,18 @@ enum BoundaryFlag : uint8_t
 };
 
 /**
+ * @enum AnisotropyType
+ * @brief Flags representing the anisotropy type of the medium at a mesh node or
+ * element.
+ */
+enum AnisotropyType : uint8_t
+{
+  kIso = 0,       ///< Isotropic medium
+  kVTI = 1 << 0,  ///< Vertically Transverse Isotropic medium
+  kTTI = 1 << 1   ///< Tilted Transverse Isotropic medium
+};
+
+/**
  * @brief Abstract base class representing a structured 3D mesh.
  */
 template <typename FloatType, typename ScalarType>
@@ -228,7 +240,7 @@ class ModelApi
   /**
    * @brief Precompute elasticity tensors for all nodes/elements.
    */
-  virtual void initElasticityTensors() = 0;
+  virtual void initElasticityTensors(AnisotropyType anisotropy_type) = 0;
 
   /**
    * @brief Get the total number of elements in the mesh.

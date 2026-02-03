@@ -54,11 +54,6 @@ class CartesianStructBuilder : public ModelBuilderBase<FloatType, ScalarType>
         std::make_shared<model::ModelStruct<FloatType, ScalarType, Order>>(
             data);
 
-    if (isElastic_ && !isModelOnNodes_)
-    {
-      model->initElasticityTensors();
-    }
-
     return model;
   }
 

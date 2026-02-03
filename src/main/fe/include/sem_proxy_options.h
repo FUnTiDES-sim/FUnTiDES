@@ -16,6 +16,7 @@ class SemProxyOptions
   std::string implem = "makutu";  // makutu|shiva
   std::string method = "sem";     // sem|dg
   std::string mesh = "cartesian";
+  std::string anisotropy = "iso";  // iso|vti|tti
   float dt = 0.006;
   float timemax = 0.7;
   bool autodt = false;
@@ -78,6 +79,8 @@ class SemProxyOptions
         "Boolean to tell if the model is charged on nodes (true) or on element "
         "(false)",
         cxxopts::value<bool>(o.isModelOnNodes))(
-        "is-elastic", "Elastic simulation", cxxopts::value<bool>(o.isElastic));
+        "is-elastic", "Elastic simulation", cxxopts::value<bool>(o.isElastic))(
+        "anisotropy", "Anisotropy type for elastic: iso|vti|tti (default=iso)",
+        cxxopts::value<std::string>(o.anisotropy));
   }
 };
