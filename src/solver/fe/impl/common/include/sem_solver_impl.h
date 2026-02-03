@@ -158,11 +158,11 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES,
     }
     else if (anisotropyType_ == model::AnisotropyType::kVTI)
     {
-      computeElementContributions_VTI(data);
+      computeElementContributions_Vti(data);
     }
     else  // kTTI
     {
-      computeElementContributions_TTI(data);
+      computeElementContributions_Tti(data);
     }
   }
   else  // Elastic - DISPATCH
@@ -430,7 +430,7 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES,
 template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE,
           bool IS_MODEL_ON_NODES, physicType PHYSICS>
 void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES,
-               PHYSICS>::computeElementContributions_VTI(const DataType& data)
+               PHYSICS>::computeElementContributions_Vti(const DataType& data)
 {
   MAINLOOPHEAD(m_mesh.getNumberOfElements(), elementNumber)
 
@@ -621,7 +621,7 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES,
 template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE,
           bool IS_MODEL_ON_NODES, physicType PHYSICS>
 void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES,
-               PHYSICS>::computeElementContributions_TTI(const DataType& data)
+               PHYSICS>::computeElementContributions_Tti(const DataType& data)
 {
   if constexpr (PHYSICS != enums::physicType::kElastic)
   {

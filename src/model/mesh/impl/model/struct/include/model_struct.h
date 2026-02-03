@@ -425,6 +425,8 @@ class ModelStruct : public ModelApi<FloatType, ScalarType>
     if (anisotropy_type == AnisotropyType::kIso ||
         anisotropy_type == AnisotropyType::kVTI)
     {
+      // No precomputation needed for ISOTROPIC and VTI, computed on-the-fly
+      // inside solver
       return;
     }
 

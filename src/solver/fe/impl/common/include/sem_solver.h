@@ -106,8 +106,8 @@ class SEMsolver : public Solver
   void updateFields(float dt, const DataType& data);
 
   void computeElementContributions_Iso(const DataType& data);
-  void computeElementContributions_VTI(const DataType& data);
-  void computeElementContributions_TTI(const DataType& data);
+  void computeElementContributions_Vti(const DataType& data);
+  void computeElementContributions_Tti(const DataType& data);
 
   /**
    * @brief Compute the elasticity matrix at a given node (elastic only).
