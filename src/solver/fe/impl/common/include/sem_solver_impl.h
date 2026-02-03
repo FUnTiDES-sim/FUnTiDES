@@ -165,7 +165,7 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES,
       computeElementContributions_Tti(data);
     }
   }
-  else  // Elastic - DISPATCH
+  else  // Acoustic - DISPATCH
   {
     MAINLOOPHEAD(m_mesh.getNumberOfElements(), elementNumber)
 
