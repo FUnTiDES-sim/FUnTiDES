@@ -381,8 +381,8 @@ int main(int argc, char* argv[])
                    " --ex " + std::to_string(elements_per_direction) +
                    " --ey " + std::to_string(elements_per_direction) +
                    " --ez " + std::to_string(elements_per_direction) +
-                   " --implem makutu --dt 0.001" + elastic_flag +
-                   model_on_nodes_flag;
+                   " --implem makutu --dt 0.001 --anisotropy iso " +
+                   elastic_flag + model_on_nodes_flag;
 
   // Select reference file based on test type
   std::string test_type = is_elastic ? "elastic" : "acoustic";

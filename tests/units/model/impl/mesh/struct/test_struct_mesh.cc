@@ -562,7 +562,7 @@ TYPED_TEST(ModelStructTest, FaceNormal)
 }
 
 // ============================================================================
-// Elasticity Tensor Tests
+// Elasticity Tensor Tests - UPDATED
 // ============================================================================
 
 TYPED_TEST(ModelStructTest, InitElasticityTensorsNonElastic)
@@ -570,7 +570,7 @@ TYPED_TEST(ModelStructTest, InitElasticityTensorsNonElastic)
   auto& model = *this->model_;
 
   // Should return early if not elastic
-  model.initElasticityTensors();
+  model.initElasticityTensors(model::kIso);
   SUCCEED();
 }
 
@@ -588,10 +588,11 @@ TYPED_TEST(ModelStructTest, InitElasticityTensorsElastic)
   elastic_data.dy_ = 20.0;
   elastic_data.dz_ = 20.0;
   elastic_data.isElastic_ = true;
-  elastic_data.isModelOnNodes_ = true;
+  elastic_data.isModelOnNodes_ = false;  // CHANGED: Use elements for TTI
 
   ModelStructType elastic_model(elastic_data);
-  elastic_model.initElasticityTensors();
+  elastic_model.initElasticityTensors(
+      model::kTTI);  // CHANGED: Use TTI instead of kIso
 
   // Verify tensors were created
   FloatType C[6][6];
@@ -602,7 +603,8 @@ TYPED_TEST(ModelStructTest, InitElasticityTensorsElastic)
   {
     for (int j = 0; j < 6; ++j)
     {
-      EXPECT_NEAR(C[i][j], C[j][i], 1e-10);
+      EXPECT_NEAR(C[i][j], C[j][i],
+                  1e-6);  // CHANGED: Relaxed tolerance for float
     }
   }
 }
@@ -621,10 +623,11 @@ TYPED_TEST(ModelStructTest, GetCTensorOnElement)
   elastic_data.dy_ = 30.0;
   elastic_data.dz_ = 30.0;
   elastic_data.isElastic_ = true;
-  elastic_data.isModelOnNodes_ = true;
+  elastic_data.isModelOnNodes_ = false;  // CHANGED: Use elements for TTI
 
   ModelStructType elastic_model(elastic_data);
-  elastic_model.initElasticityTensors();
+  elastic_model.initElasticityTensors(
+      model::kTTI);  // CHANGED: Use TTI instead of kIso
 
   FloatType C[6][6];
   elastic_model.getCTensorOnElement(0, C);

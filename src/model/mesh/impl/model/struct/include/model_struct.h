@@ -414,35 +414,48 @@ class ModelStruct : public ModelApi<FloatType, ScalarType>
 
   /**
    * @brief Initialize and precompute elasticity tensors
+   * @param anisotropy_type Type of anisotropy in the model
    * Must be called after construction if using elastic model
+   * Only precomputes tensors for TTI; ISOTROPIC and VTI are computed on-the-fly
    */
-  void initElasticityTensors()
+  void initElasticityTensors(AnisotropyType anisotropy_type) override
   {
     if (!isElastic_) return;
 
-    int n_element = ex_ * ey_ * ez_;
+    if (anisotropy_type == AnisotropyType::kIso ||
+        anisotropy_type == AnisotropyType::kVTI)
+    {
+      // No precomputation needed for ISOTROPIC and VTI, computed on-the-fly
+      // inside solver
+      return;
+    }
 
-    model_C_tensor_element_ = allocateArray3D<array3DReal>(n_element, 6, 6);
+    if (anisotropy_type == AnisotropyType::kTTI)
+    {
+      int n_element = ex_ * ey_ * ez_;
 
-    auto& C_tensor = model_C_tensor_element_;
+      model_C_tensor_element_ = allocateArray3D<array3DReal>(n_element, 6, 6);
 
-    MAINLOOPHEAD(n_element, i)
-    FloatType CTTI[6][6];
+      auto& C_tensor = model_C_tensor_element_;
 
-    FloatType vp = 1500.0;
-    FloatType vs = 755.0;
-    FloatType rho = 1.0;
-    FloatType delta = 0.;
-    FloatType epsilon = 0.;
-    FloatType gamma = 0.0;
-    FloatType theta = 0.0;
-    FloatType phi = 0.0;
+      MAINLOOPHEAD(n_element, i)
+      FloatType CTTI[6][6];
 
-    computeCTensor(vp, vs, rho, delta, epsilon, gamma, theta, phi, CTTI);
+      FloatType vp = 1500.0;
+      FloatType vs = 755.0;
+      FloatType rho = 1.0;
+      FloatType delta = 0.;
+      FloatType epsilon = 0.;
+      FloatType gamma = 0.0;
+      FloatType theta = 0.0;
+      FloatType phi = 0.0;
 
-    for (int k = 0; k < 6; k++)
-      for (int l = 0; l < 6; l++) C_tensor(i, k, l) = CTTI[k][l];
-    MAINLOOPEND
+      computeCTensor(vp, vs, rho, delta, epsilon, gamma, theta, phi, CTTI);
+
+      for (int k = 0; k < 6; k++)
+        for (int l = 0; l < 6; l++) C_tensor(i, k, l) = CTTI[k][l];
+      MAINLOOPEND
+    }
   }
 
   /**

@@ -105,6 +105,10 @@ class SEMsolver : public Solver
    */
   void updateFields(float dt, const DataType& data);
 
+  void computeElementContributions_Iso(const DataType& data);
+  void computeElementContributions_Vti(const DataType& data);
+  void computeElementContributions_Tti(const DataType& data);
+
   /**
    * @brief Compute the elasticity matrix at a given node (elastic only).
    *
@@ -127,6 +131,11 @@ class SEMsolver : public Solver
                                         float phi, float theta,
                                         float (&C)[6][6]) const;
 
+  /**
+   * @brief Set the anisotropy type for the solver.
+   */
+  void setAnisotropyType(model::AnisotropyType type) { anisotropyType_ = type; }
+
  private:
   MESH_TYPE m_mesh;
 
@@ -136,6 +145,7 @@ class SEMsolver : public Solver
   float sponge_size_[3];
   bool surface_sponge_;
   float taper_delta_;
+  model::AnisotropyType anisotropyType_;
 
   INTEGRAL_TYPE myQkIntegrals_;
 
