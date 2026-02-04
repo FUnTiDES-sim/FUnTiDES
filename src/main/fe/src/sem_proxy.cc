@@ -79,6 +79,8 @@ SEMproxy::SEMproxy(const SemProxyOptions& opt)
   const physicType physicType =
       isElastic ? physicType::kElastic : physicType::kAcoustic;
 
+  const model::AnisotropyType anisotropyType = getAnisotropy(opt.anisotropy);
+
   // Build Mesh using LOCAL parameters
   if (meshType == meshType::kStruct)
   {
@@ -156,6 +158,18 @@ SEMproxy::SEMproxy(const SemProxyOptions& opt)
   m_solver = solver_factory::createSolver(methodType, implemType, meshType,
                                           modelLocation, physicType, order);
 
+  if (isElastic)
+  {
+    m_solver->setAnisotropyType(anisotropyType);
+
+    // Initialize elasticity tensors ONLY for TTI on elements
+    // (ISO and VTI are computed on-the-fly, TTI on nodes also on-the-fly)
+    if (anisotropyType == model::AnisotropyType::kTTI && !isModelOnNodes)
+    {
+      m_mesh->initElasticityTensors(anisotropyType);
+    }
+  }
+
   // Setup Sponge Parameters
   const float spongex = opt.boundaries_size;
   const float spongey = opt.boundaries_size;
@@ -190,6 +204,11 @@ SEMproxy::SEMproxy(const SemProxyOptions& opt)
   std::cout << "Order of approximation will be " << order << std::endl;
   std::cout << "Time step is " << dt_ << "s" << std::endl;
   std::cout << "Simulated time is " << timemax_ << "s" << std::endl;
+
+  if (isElastic)
+  {
+    std::cout << "Anisotropy type is " << opt.anisotropy << std::endl;
+  }
 
   if (is_snapshots_)
   {
@@ -723,6 +742,16 @@ methodType SEMproxy::getMethod(string methodArg)
   if (methodArg == "dg") return methodType::kDg;
 
   throw std::invalid_argument("Method type does not follow any valid type.");
+}
+
+model::AnisotropyType SEMproxy::getAnisotropy(string anisotropyArg)
+{
+  if (anisotropyArg == "iso") return model::AnisotropyType::kIso;
+  if (anisotropyArg == "vti") return model::AnisotropyType::kVTI;
+  if (anisotropyArg == "tti") return model::AnisotropyType::kTTI;
+
+  throw std::invalid_argument(
+      "Anisotropy type does not follow any valid type.");
 }
 
 float SEMproxy::find_cfl_dt(float cfl_factor)

@@ -50,17 +50,19 @@ enum class CubicFace : int
 };
 
 /**
- * @class ModelApi
- * @brief Abstract base class representing a 3D mesh and material model.
- *
- * This class provides a unified interface for accessing mesh geometry,
- * material properties, and boundary conditions. Implementations can
- * represent structured or unstructured meshes with various material models
- * (acoustic, elastic, anisotropic, etc.).
- *
- * @tparam FloatType Floating-point type for physical quantities (e.g., float,
- * double)
- * @tparam ScalarType Integer type for indices (e.g., int, size_t)
+ * @enum AnisotropyType
+ * @brief Flags representing the anisotropy type of the medium at a mesh node or
+ * element.
+ */
+enum AnisotropyType : uint8_t
+{
+  kIso = 0,       ///< Isotropic medium
+  kVTI = 1 << 0,  ///< Vertically Transverse Isotropic medium
+  kTTI = 1 << 1   ///< Tilted Transverse Isotropic medium
+};
+
+/**
+ * @brief Abstract base class representing a structured 3D mesh.
  */
 template <typename FloatType, typename ScalarType>
 class ModelApi
@@ -242,7 +244,7 @@ class ModelApi
    * This method should be called after model properties are set and
    * before running simulations requiring elasticity tensors.
    */
-  virtual void initElasticityTensors() = 0;
+  virtual void initElasticityTensors(AnisotropyType anisotropy_type) = 0;
 
   /**
    * @brief Get the total number of elements in the mesh

@@ -153,6 +153,8 @@ class Solver
    * synchronization).
    */
   virtual void updateSolution(const float& dt, DataStruct& data) = 0;
+
+  virtual void setAnisotropyType(model::AnisotropyType type) = 0;
 };
 }  // namespace fe
 }  // namespace solver

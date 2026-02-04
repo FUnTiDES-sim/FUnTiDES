@@ -122,7 +122,7 @@ class MockMesh : public model::ModelApi<FloatType, ScalarType>
                                              FloatType[6][6]) const override
   {
   }
-  virtual void initElasticityTensors() override {}
+  virtual void initElasticityTensors(model::AnisotropyType a) override {}
   PROXY_HOST_DEVICE ScalarType getNumberOfElements() const override
   {
     return 0;

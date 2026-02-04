@@ -166,5 +166,6 @@ class SEMproxy
   implemType getImplem(string implemArg);
   methodType getMethod(string methodArg);
   meshType getMesh(string meshArg);
+  model::AnisotropyType getAnisotropy(std::string anisotropyArg);
 };
 #endif  // MAIN_FE_INCLUDE_SEM_PROXY_H_

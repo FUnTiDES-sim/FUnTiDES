@@ -431,30 +431,50 @@ class ModelUnstruct final : public ModelApi<FloatType, ScalarType>
    * Computes the 6x6 Voigt elasticity tensor from material properties.
    * Only executed if isElastic_ is true.
    */
-  void initElasticityTensors()
+  void initElasticityTensors(AnisotropyType anisotropy_type) final
   {
     if (!isElastic_) return;
-    model_C_tensor_element_ = allocateArray3D<array3DReal>(n_element_, 6, 6);
-    auto& C_tensor = model_C_tensor_element_;
-    auto& vp = model_vp_element_;
-    auto& vs = model_vs_element_;
-    auto& rho = model_rho_element_;
-    auto& delta = model_delta_element_;
-    auto& epsilon = model_epsilon_element_;
-    auto& gamma = model_gamma_element_;
-    auto& theta = model_theta_element_;
-    auto& phi = model_phi_element_;
 
-    MAINLOOPHEAD(n_element_, i)
-    FloatType CTTI[6][6];
-    computeCTensor(
-        static_cast<FloatType>(vp[i]), static_cast<FloatType>(vs[i]),
-        static_cast<FloatType>(rho[i]), static_cast<FloatType>(delta[i]),
-        static_cast<FloatType>(epsilon[i]), static_cast<FloatType>(gamma[i]),
-        static_cast<FloatType>(theta[i]), static_cast<FloatType>(phi[i]), CTTI);
-    for (int k = 0; k < 6; k++)
-      for (int l = 0; l < 6; l++) C_tensor(i, k, l) = CTTI[k][l];
-    MAINLOOPEND
+    if (anisotropy_type == AnisotropyType::kIso ||
+        anisotropy_type == AnisotropyType::kVTI)
+    {
+      // No precomputation needed for ISOTROPIC and VTI, computed on-the-fly
+      // inside solver
+      return;
+    }
+
+    if (anisotropy_type == AnisotropyType::kTTI)
+    {
+      model_C_tensor_element_ = allocateArray3D<array3DReal>(n_element_, 6, 6);
+
+      auto& C_tensor = model_C_tensor_element_;
+      auto& vp = model_vp_element_;
+      auto& vs = model_vs_element_;
+      auto& rho = model_rho_element_;
+      auto& delta = model_delta_element_;
+      auto& epsilon = model_epsilon_element_;
+      auto& gamma = model_gamma_element_;
+      auto& theta = model_theta_element_;
+      auto& phi = model_phi_element_;
+
+      MAINLOOPHEAD(n_element_, i)
+      FloatType CTTI[6][6];
+      FloatType vp_val = static_cast<FloatType>(vp[i]);
+      FloatType vs_val = static_cast<FloatType>(vs[i]);
+      FloatType rho_val = static_cast<FloatType>(rho[i]);
+      FloatType delta_val = static_cast<FloatType>(delta[i]);
+      FloatType epsilon_val = static_cast<FloatType>(epsilon[i]);
+      FloatType gamma_val = static_cast<FloatType>(gamma[i]);
+      FloatType theta_val = static_cast<FloatType>(theta[i]);
+      FloatType phi_val = static_cast<FloatType>(phi[i]);
+
+      computeCTensor(vp_val, vs_val, rho_val, delta_val, epsilon_val, gamma_val,
+                     theta_val, phi_val, CTTI);
+
+      for (int k = 0; k < 6; k++)
+        for (int l = 0; l < 6; l++) C_tensor(i, k, l) = CTTI[k][l];
+      MAINLOOPEND
+    }
   }
 
   /**

@@ -52,12 +52,6 @@ class CartesianUnstructBuilder : public ModelBuilderBase<FloatType, ScalarType>
     auto model = std::make_shared<model::ModelUnstruct<FloatType, ScalarType>>(
         modelData);
 
-    model->buildFaceConnectivity();
-    if (isElastic_ && !isModelOnNodes_)
-    {
-      model->initElasticityTensors();
-    }
-
     return model;
   }
 
