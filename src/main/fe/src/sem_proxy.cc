@@ -622,6 +622,7 @@ void SEMproxy::init_mpi(int* mpi_init)
     dist_ctx_.rank = 0;
     dist_ctx_.size = 1;
   }
+  std::cout << "[rank " << dist_ctx_.rank << "] size " << dist_ctx_.size << std::endl;
 #else
   dist_ctx_.rank = 0;
   dist_ctx_.size = 1;
