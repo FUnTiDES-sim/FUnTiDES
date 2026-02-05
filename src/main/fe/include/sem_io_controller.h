@@ -25,7 +25,16 @@ class SemIOController
   adios2::Operator compressor_op_;
   adios2::Operator receiver_op_;
 
+  std::string rcv_file_{"rcv_not_set.bp"};
+  std::string snap_file_{"snap_not_set.bp"};
+
   void initAdios() { adios_ = adios2::ADIOS(); }
+
+  void configureFilesName(const int rank)
+  {
+    rcv_file_ = "rcv_" + std::to_string(rank) + ".bp";
+    snap_file_ = "snap_" + std::to_string(rank) + ".bp";
+  }
 
   void configureIO()
   {
@@ -89,9 +98,10 @@ class SemIOController
 
  public:
   SemIOController(const size_t nb_nodes, const size_t nb_iter,
-                  const size_t nb_receiver)
+                  const size_t nb_receiver, const int rank)
   {
     initAdios();
+    configureFilesName(rank);
     configureIO();
     launchWriters();
     defineVariable(nb_nodes, nb_iter, nb_receiver);

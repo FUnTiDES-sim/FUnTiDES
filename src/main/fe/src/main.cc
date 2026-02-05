@@ -91,12 +91,15 @@ int main(int argc, char *argv[])
     SEMproxy semsim(opt);
 
     compute_loop(semsim);
-
 #ifdef USE_KOKKOS
   }
   Kokkos::finalize();
 #endif
 
+#ifdef USE_MPI
+    MPI_Barrier(MPI_COMM_WORLD);
+    MPI_Finalize();
+#endif
   cout << "Elapsed TotalExe Time : "
        << (system_clock::now() - startInitTime).count() / 1E9 << " seconds.\n"
        << endl;

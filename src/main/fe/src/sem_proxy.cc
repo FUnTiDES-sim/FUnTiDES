@@ -68,7 +68,7 @@ SEMproxy::SEMproxy(const SemProxyOptions& opt)
 
   io_ctrl_ = std::make_shared<SemIOController>(
       static_cast<size_t>(m_mesh->getNumberOfNodes()),
-      static_cast<size_t>(num_sample_), static_cast<size_t>(1));
+      static_cast<size_t>(num_sample_), static_cast<size_t>(1), dist_ctx_.rank);
 
   // snapshots settings
   is_snapshots_ = opt.snapshots;
@@ -666,6 +666,16 @@ void SEMproxy::init_sim_params(const SemProxyOptions& opt)
   rcv_coord_[2] = opt.rcvz;
 
   isElastic_ = opt.isElastic;
+
+  std::cout << "Debug Print :" << std::endl;
+  std::cout << "    Rank " << dist_ctx_.rank << "/" << dist_ctx_.size << std::endl;
+  std::cout << "    Local lx " << m_localParams.lx << std::endl;
+  std::cout << "    Local ly " << m_localParams.ly << std::endl;
+  std::cout << "    Local lz " << m_localParams.lz << std::endl;
+  std::cout << "    Local ex " << m_localParams.ex << std::endl;
+  std::cout << "    Local ey " << m_localParams.ey << std::endl;
+  std::cout << "    Local ez " << m_localParams.ez << std::endl;
+
 }
 
 void SEMproxy::init_mesh_params(const SemProxyOptions& opt)
