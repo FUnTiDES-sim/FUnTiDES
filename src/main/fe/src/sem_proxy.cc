@@ -204,166 +204,648 @@ void SEMproxy::run()
             int nodeIdx = m_mesh->globalNodeIndex(rhsElementRcv[0], i, j, k);
             int globalNodeOnElement =
                 i + j * (order + 1) + k * (order + 1) * (order + 1);
-#!/usr/bin/env python3
-"""
-Simple BP5 Visualization Script
-Reads BP5 directory and plots all timesteps
-"""
+            varnp1 +=
+                pnGlobalCurr(nodeIdx) * rhsWeightsRcv(0, globalNodeOnElement);
+          }
+        }
+      }
 
-import sys
-import os
-import numpy as np
-import matplotlib.pyplot as plt
-from matplotlib.colors import Normalize
-import argparse
+      pnAtReceiver(0, indexTimeSample) = varnp1;
 
+      solverData.swapWavefields();
 
-def read_bp5_file(bp_dir, nx, ny, nz):
-    """Read all timesteps from BP5 data.0 file"""
+      totalOutputTime += system_clock::now() - startOutputTime;
+    }
 
-    data_file = os.path.join(bp_dir, "data.0")
+    for (int i = 0; i < pnAtReceiver.extent(0); i++)
+    {
+#ifdef USE_KOKKOS
+      auto subview = Kokkos::subview(pnAtReceiver, i, Kokkos::ALL());
+      vectorReal subset("receiver_save", num_sample_);
+      Kokkos::deep_copy(subset, subview);
+#else
+      auto& subview = pnAtReceiver;
+      vectorReal subset(subview.extent(0) * subview.extent(1));
+      for (size_t k = 0; k < subview.extent(0); ++k)
+      {
+        for (size_t j = 0; j < subview.extent(1); ++j)
+        {
+          subset[k * subview.extent(1) + j] = subview(k, j);
+        }
+      }
+#endif
+      io_ctrl_->saveReceiver(subset, src_coord_);
+    }
+  }
+  else
+  {
+    WavefieldElastic wavefield(uxnGlobalPrev, uxnGlobalCurr, uynGlobalPrev,
+                               uynGlobalCurr, uznGlobalPrev, uznGlobalCurr);
+    RhsElastic rhs(myRHSTermx, myRHSTermy, myRHSTermz, rhsElement, rhsWeights);
+    SEMsolverDataElastic solverData(wavefield, rhs);
 
-    if not os.path.exists(data_file):
-        print(f"Error: {data_file} not found")
-        return None, None
+    for (int indexTimeSample = 0; indexTimeSample < num_sample_;
+         indexTimeSample++)
+    {
+      startComputeTime = system_clock::now();
 
-    print(f"Reading {data_file}...")
+      // Compute Local Forces
+      m_solver->computeForces(dt_, indexTimeSample, solverData);
 
-    # Read raw binary file
-    with open(data_file, 'rb') as f:
-        raw_data = f.read()
+      // Synchronize Forces
+      // TODO: Getting it work within semproxy
+      if (par_topology_.isDistributed())
+      {
+        for (int c = 0; c < m_solver->getNumComponents(); ++c)
+        {
+          m_syncer->synchronize(m_solver->getForceVector(c), par_topology_);
+        }
+      }
 
-    # Convert to float32 array
-    num_floats = len(raw_data) // 4
-    data_array = np.frombuffer(raw_data, dtype=np.float32, count=num_floats)
+      // Update Solution
+      m_solver->updateSolution(dt_, solverData);
 
-    print(f"Total floats read: {num_floats}")
-    print(f"Grid size: {nx} x {ny} x {nz} = {nx*ny*nz} per timestep")
+      totalComputeTime += system_clock::now() - startComputeTime;
+      startOutputTime = system_clock::now();
 
-    # Calculate timesteps
-    values_per_step = nx * ny * nz
-    num_steps = num_floats // values_per_step
-    remainder = num_floats % values_per_step
+      if (indexTimeSample % 50 == 0)
+      {
+        m_solver->outputSolutionValues(indexTimeSample, rhsElement[0],
+                                       uxnGlobalPrev, "uxnGlobal");
+        m_solver->outputSolutionValues(indexTimeSample, rhsElement[0],
+                                       uynGlobalPrev, "uynGlobal");
+        m_solver->outputSolutionValues(indexTimeSample, rhsElement[0],
+                                       uznGlobalPrev, "uznGlobal");
+      }
 
-    print(f"Timesteps: {num_steps} complete + {remainder} remainder")
+      if (is_snapshots_ && indexTimeSample % snap_time_interval_ == 0)
+      {
+        saveSnapshot(indexTimeSample, uxnGlobalPrev);
+      }
 
-    # Extract all timesteps
-    data_list = []
-    for step in range(num_steps):
-        start = step * values_per_step
-        end = start + values_per_step
-        step_data = data_array[start:end].reshape((nx, ny, nz))
-        data_list.append(step_data)
+      // Save pressure at receiver
+      const int order = m_mesh->getOrder();
 
-    print(f"Extracted {len(data_list)} timesteps")
-    return data_list, np.arange(len(data_list))
+      float varuxnp1 = 0.0;
+      float varyunp1 = 0.0;
+      float varuznp1 = 0.0;
+      for (int i = 0; i < order + 1; i++)
+      {
+        for (int j = 0; j < order + 1; j++)
+        {
+          for (int k = 0; k < order + 1; k++)
+          {
+            int nodeIdx = m_mesh->globalNodeIndex(rhsElementRcv[0], i, j, k);
+            int globalNodeOnElement =
+                i + j * (order + 1) + k * (order + 1) * (order + 1);
+            varuxnp1 +=
+                uxnGlobalCurr(nodeIdx) * rhsWeightsRcv(0, globalNodeOnElement);
+            varyunp1 +=
+                uynGlobalCurr(nodeIdx) * rhsWeightsRcv(0, globalNodeOnElement);
+            varuznp1 +=
+                uznGlobalCurr(nodeIdx) * rhsWeightsRcv(0, globalNodeOnElement);
+          }
+        }
+      }
 
+      uxnAtReceiver(0, indexTimeSample) = varuxnp1;
+      uynAtReceiver(0, indexTimeSample) = varyunp1;
+      uznAtReceiver(0, indexTimeSample) = varuznp1;
 
-def plot_slices(data_3d, timestep, output_file, vmin=None, vmax=None):
-    """Plot XY, XZ, YZ slices"""
+      solverData.swapWavefields();
 
-    nx, ny, nz = data_3d.shape
-    mid_x = nx // 2
-    mid_y = ny // 2
-    mid_z = nz // 2
+      totalOutputTime += system_clock::now() - startOutputTime;
+    }
 
-    # Get slices
-    slice_xy = data_3d[:, :, mid_z]  # XY at middle Z
-    slice_xz = data_3d[:, mid_y, :]  # XZ at middle Y
-    slice_yz = data_3d[mid_x, :, :]  # YZ at middle X
+    for (int i = 0; i < uxnAtReceiver.extent(0); i++)
+    {
+#ifdef USE_KOKKOS
+      auto subview = Kokkos::subview(uxnAtReceiver, i, Kokkos::ALL());
+      vectorReal subset("receiver_save", num_sample_);
+      Kokkos::deep_copy(subset, subview);
+#else
+      auto& subview = pnAtReceiver;
+      vectorReal subset(subview.extent(0) * subview.extent(1));
+      for (size_t k = 0; k < subview.extent(0); ++k)
+      {
+        for (size_t j = 0; j < subview.extent(1); ++j)
+        {
+          subset[k * subview.extent(1) + j] = subview(k, j);
+        }
+      }
+#endif  // USE_KOKKOS
+      io_ctrl_->saveReceiver(subset, src_coord_);
+    }
+  }
 
-    if vmin is None:
-        vmin = data_3d.min()
-    if vmax is None:
-        vmax = data_3d.max()
+  float kerneltime_ms = time_point_cast<microseconds>(totalComputeTime)
+                            .time_since_epoch()
+                            .count();
+  float outputtime_ms =
+      time_point_cast<microseconds>(totalOutputTime).time_since_epoch().count();
 
-    fig, axes = plt.subplots(2, 2, figsize=(12, 10))
+  cout << "------------------------------------------------ " << endl;
+  cout << "\n---- Elapsed Kernel Time : " << kerneltime_ms / 1E6 << " seconds."
+       << endl;
+  cout << "---- Elapsed Output Time : " << outputtime_ms / 1E6 << " seconds."
+       << endl;
+  cout << "------------------------------------------------ " << endl;
+}
 
-    # XY slice
-    im1 = axes[0, 0].imshow(slice_xy.T, origin='lower', cmap='seismic', vmin=vmin, vmax=vmax)
-    axes[0, 0].set_title(f'XY Slice (Z={mid_z})')
-    axes[0, 0].set_xlabel('X')
-    axes[0, 0].set_ylabel('Y')
-    plt.colorbar(im1, ax=axes[0, 0])
+// Initialize arrays
+void SEMproxy::init_arrays()
+{
+  cout << "Allocate host memory for source and pressure values ..." << endl;
+  const auto n_nodes = m_mesh->getNumberOfNodes();
+  const auto n_elements = m_mesh->getNumberOfElements();
+  const auto n_points_per_element = m_mesh->getNumberOfPointsPerElement();
 
-    # XZ slice
-    im2 = axes[0, 1].imshow(slice_xz.T, origin='lower', cmap='seismic', vmin=vmin, vmax=vmax)
-    axes[0, 1].set_title(f'XZ Slice (Y={mid_y})')
-    axes[0, 1].set_xlabel('X')
-    axes[0, 1].set_ylabel('Z')
-    plt.colorbar(im2, ax=axes[0, 1])
+  rhsElement = allocateVector<vectorInt>(myNumberOfRHS, "rhsElement");
+  rhsWeights = allocateArray2D<arrayReal>(myNumberOfRHS, n_points_per_element,
+                                          "RHSWeight");
 
-    # YZ slice
-    im3 = axes[1, 0].imshow(slice_yz.T, origin='lower', cmap='seismic', vmin=vmin, vmax=vmax)
-    axes[1, 0].set_title(f'YZ Slice (X={mid_x})')
-    axes[1, 0].set_xlabel('Y')
-    axes[1, 0].set_ylabel('Z')
-    plt.colorbar(im3, ax=axes[1, 0])
+  if (!isElastic_)
+  {
+    myRHSTerm =
+        allocateArray2D<arrayReal>(myNumberOfRHS, num_sample_, "RHSTerm");
+    pnGlobalCurr = allocateVector<vectorReal>(n_nodes, "pnGlobalCurr");
+    pnGlobalPrev = allocateVector<vectorReal>(n_nodes, "pnGlobalPrev");
+    pnAtReceiver = allocateArray2D<arrayReal>(1, num_sample_, "pnAtReceiver");
+  }
+  else
+  {
+    myRHSTermx =
+        allocateArray2D<arrayReal>(myNumberOfRHS, num_sample_, "RHSTermx");
+    myRHSTermy =
+        allocateArray2D<arrayReal>(myNumberOfRHS, num_sample_, "RHSTermy");
+    myRHSTermz =
+        allocateArray2D<arrayReal>(myNumberOfRHS, num_sample_, "RHSTermz");
+    uxnGlobalCurr = allocateVector<vectorReal>(n_nodes, "uxnGlobalCurr");
+    uynGlobalCurr = allocateVector<vectorReal>(n_nodes, "uynGlobalCurr");
+    uznGlobalCurr = allocateVector<vectorReal>(n_nodes, "uznGlobalCurr");
+    uxnGlobalPrev = allocateVector<vectorReal>(n_nodes, "uxnGlobalPrev");
+    uynGlobalPrev = allocateVector<vectorReal>(n_nodes, "uynGlobalPrev");
+    uznGlobalPrev = allocateVector<vectorReal>(n_nodes, "uznGlobalPrev");
+    uxnAtReceiver = allocateArray2D<arrayReal>(1, num_sample_, "uxnAtReceiver");
+    uynAtReceiver =
+        allocateArray2D<arrayReal>(1, num_sample_, "uynAtReceiver ");
+    uznAtReceiver = allocateArray2D<arrayReal>(1, num_sample_, "uznAtReceiver");
+  }
+  // Receiver
+  rhsElementRcv = allocateVector<vectorInt>(1, "rhsElementRcv");
+  rhsWeightsRcv = allocateArray2D<arrayReal>(
+      1, m_mesh->getNumberOfPointsPerElement(), "RHSWeightRcv");
+}
 
-    # Statistics
-    axes[1, 1].axis('off')
-    stats = f"""
-Timestep: {timestep}
-Grid: {nx} x {ny} x {nz}
+// Initialize sources
+void SEMproxy::init_source()
+{
+  arrayReal myRHSLocation = allocateArray2D<arrayReal>(1, 3, "RHSLocation");
+  // std::cout << "All source are currently are coded on element 50." <<
+  // std::endl;
+  std::cout << "All source are currently are coded on middle element."
+            << std::endl;
+  int ex = nb_elements_[0];
+  int ey = nb_elements_[1];
+  int ez = nb_elements_[2];
 
-Min:  {data_3d.min():.6e}
-Max:  {data_3d.max():.6e}
-Mean: {data_3d.mean():.6e}
-Std:  {data_3d.std():.6e}
-    """
-    axes[1, 1].text(0.1, 0.5, stats, fontsize=10, family='monospace')
+  int lx = domain_size_[0];
+  int ly = domain_size_[1];
+  int lz = domain_size_[2];
 
-    fig.suptitle(f'Pressure Field - Timestep {timestep}')
-    plt.tight_layout()
-    plt.savefig(output_file, dpi=100, bbox_inches='tight')
-    plt.close()
+  // NOTE: In DD, we need to adjust source coordinate relative to local origin
+  // to find correct local element.
+  // However, since we are using local params for ex/lx calculation here,
+  // we just need to ensure src_coord_ is treated correctly.
+  // The current logic calculates index relative to the local mesh.
+  // We need to shift the coordinate by origin_x.
 
-    print(f"  Saved: {output_file}")
+  float relative_src_x = src_coord_[0] - m_localParams.origin_x;
+  float relative_src_y = src_coord_[1] - m_localParams.origin_y;
+  float relative_src_z = src_coord_[2] - m_localParams.origin_z;
 
+  // Simple check: is source on this rank?
+  bool sourceOnThisRank = (relative_src_x >= 0 && relative_src_x < lx);
+  // Note: Y and Z not partitioned in 1D case, so check logic is simpler.
 
-def main():
-    parser = argparse.ArgumentParser(description='Visualize BP5 pressure field data')
-    parser.add_argument('nx', type=int, help='Grid X dimension')
-    parser.add_argument('ny', type=int, help='Grid Y dimension')
-    parser.add_argument('nz', type=int, help='Grid Z dimension')
-    parser.add_argument('--file', default='snapshots.bp', help='BP5 directory path')
-    parser.add_argument('--output', default='plots', help='Output directory')
-    parser.add_argument('--global-scale', action='store_true', help='Use global min/max')
-    parser.add_argument('--skip', type=int, default=1, help='Plot every Nth timestep')
+  int source_index = 0;
+  if (sourceOnThisRank)
+  {
+    source_index = floor((relative_src_x * ex) / lx) +
+                   floor((relative_src_y * ey) / ly) * ex +
+                   floor((relative_src_z * ez) / lz) * ey * ex;
+  }
+  else
+  {
+    // Point to a safe dummy element (e.g. 0) but we will zero out weights?
+    // Or we can rely on weight computation finding it outside.
+    // For proxy simplicity, if not local, we just calculate 'an' index.
+    // This logic should ideally be robust.
+    source_index = 0;  // Placeholder
+  }
 
-    args = parser.parse_args()
+  for (int i = 0; i < 1; i++)
+  {
+    rhsElement[i] = source_index;
+  }
 
-    # Read data
-    data_list, timesteps = read_bp5_file(args.file, args.nx, args.ny, args.nz)
+  // Get coordinates of the corners of the source element
+  float cornerCoords[8][3];
+  int I = 0;
+  int nodes_corner[2] = {0, m_mesh->getOrder()};
+  for (int k : nodes_corner)
+  {
+    for (int j : nodes_corner)
+    {
+      for (int i : nodes_corner)
+      {
+        int nodeIdx = m_mesh->globalNodeIndex(rhsElement[0], i, j, k);
+        cornerCoords[I][0] = m_mesh->nodeCoord(nodeIdx, 0);
+        cornerCoords[I][2] = m_mesh->nodeCoord(nodeIdx, 2);
+        cornerCoords[I][1] = m_mesh->nodeCoord(nodeIdx, 1);
+        I++;
+      }
+    }
+  }
 
-    if data_list is None:
-        print("Failed to read data")
-        return 1
+  // initialize source term
+  vector<float> sourceTerm =
+      myUtils.computeSourceTerm(num_sample_, dt_, f0, sourceOrder);
+  if (!isElastic_)
+  {
+    for (int j = 0; j < num_sample_; j++)
+    {
+      myRHSTerm(0, j) = sourceTerm[j];
+      if (j % 100 == 0)
+        cout << "Sample " << j << "\t: sourceTerm = " << sourceTerm[j] << endl;
+    }
+  }
+  else
+  {
+    for (int j = 0; j < num_sample_; j++)
+    {
+      myRHSTermx(0, j) = sourceTerm[j];
+      myRHSTermy(0, j) = sourceTerm[j];
+      myRHSTermz(0, j) = sourceTerm[j];
+      if (j % 100 == 0)
+        cout << "Sample " << j << "\t: sourceTerm = " << sourceTerm[j] << endl;
+    }
+  }
 
-    # Create output dir
-    os.makedirs(args.output, exist_ok=True)
+  // get element number of source term
+  myElementSource = rhsElement[0];
+  cout << "Element number for the source location: " << myElementSource << endl
+       << endl;
 
-    # Determine color scale
-    if args.global_scale:
-        vmin = min(d.min() for d in data_list)
-        vmax = max(d.max() for d in data_list)
-        print(f"Global scale: [{vmin:.6e}, {vmax:.6e}]")
-    else:
-        vmin = None
-        vmax = None
+  int order = m_mesh->getOrder();
 
-    # Plot timesteps
-    print(f"\nCreating plots (skip={args.skip})...")
-    for i, (data, ts) in enumerate(zip(data_list, timesteps)):
-        if i % args.skip != 0:
-            continue
+  // Compute Weights: If source is not local, weights will be ~0 or we should
+  // explicit zero them
+  if (sourceOnThisRank)
+  {
+    switch (order)
+    {
+      case 1:
+        SourceAndReceiverUtils::ComputeRHSWeights<1>(cornerCoords, src_coord_,
+                                                     rhsWeights);
+        break;
+      case 2:
+        SourceAndReceiverUtils::ComputeRHSWeights<2>(cornerCoords, src_coord_,
+                                                     rhsWeights);
+        break;
+      case 3:
+        SourceAndReceiverUtils::ComputeRHSWeights<3>(cornerCoords, src_coord_,
+                                                     rhsWeights);
+        break;
+      default:
+        throw std::runtime_error("Unsupported order: " + std::to_string(order));
+    }
+  }
+  else
+  {
+    // Zero weights if source is not on this rank
+    for (int k = 0; k < m_mesh->getNumberOfPointsPerElement(); ++k)
+      rhsWeights(0, k) = 0.0f;
+  }
 
-        output_file = os.path.join(args.output, f'pressure_{ts:06d}.png')
-        plot_slices(data, ts, output_file, vmin=vmin, vmax=vmax)
+  // Receiver computation
+  // Similar logic for receiver
+  float relative_rcv_x = rcv_coord_[0] - m_localParams.origin_x;
+  int receiver_index = floor((relative_rcv_x * ex) / lx) +
+                       floor((rcv_coord_[1] * ey) / ly) * ex +
+                       floor((rcv_coord_[2] * ez) / lz) * ey * ex;
 
-    print(f"\nDone! Plots saved to {args.output}/")
-    return 0
+  // Clamp index to avoid segfaults during testing if receiver is out of bounds
+  if (receiver_index < 0) receiver_index = 0;
+  if (receiver_index >= m_mesh->getNumberOfElements()) receiver_index = 0;
 
+  for (int i = 0; i < 1; i++)
+  {
+    rhsElementRcv[i] = receiver_index;
+  }
 
-if __name__ == '__main__':
-    sys.exit(main())
+  // Get coordinates of the corners of the receiver element
+  float cornerCoordsRcv[8][3];
+  I = 0;
+  for (int k : nodes_corner)
+  {
+    for (int j : nodes_corner)
+    {
+      for (int i : nodes_corner)
+      {
+        int nodeIdx = m_mesh->globalNodeIndex(rhsElementRcv[0], i, j, k);
+        cornerCoordsRcv[I][0] = m_mesh->nodeCoord(nodeIdx, 0);
+        cornerCoordsRcv[I][2] = m_mesh->nodeCoord(nodeIdx, 2);
+        cornerCoordsRcv[I][1] = m_mesh->nodeCoord(nodeIdx, 1);
+        I++;
+      }
+    }
+  }
+
+  switch (order)
+  {
+    case 1:
+      SourceAndReceiverUtils::ComputeRHSWeights<1>(cornerCoordsRcv, rcv_coord_,
+                                                   rhsWeightsRcv);
+      break;
+    case 2:
+      SourceAndReceiverUtils::ComputeRHSWeights<2>(cornerCoordsRcv, rcv_coord_,
+                                                   rhsWeightsRcv);
+      break;
+    case 3:
+      SourceAndReceiverUtils::ComputeRHSWeights<3>(cornerCoordsRcv, rcv_coord_,
+                                                   rhsWeightsRcv);
+      break;
+    default:
+      throw std::runtime_error("Unsupported order: " + std::to_string(order));
+  }
+
+  std::cout << "\n--- DEBUG INFO ---" << std::endl;
+  std::cout << "Source Element: " << rhsElement[0] << std::endl;
+  std::cout << "Source Coord: " << src_coord_[0] << " " << src_coord_[1] << " "
+            << src_coord_[2] << std::endl;
+
+  // Print Corner Coordinates of the source element
+  std::cout << "Corner Coords (Node 0): " << cornerCoords[0][0] << ", "
+            << cornerCoords[0][1] << ", " << cornerCoords[0][2] << std::endl;
+  std::cout << "Corner Coords (Node 7): " << cornerCoords[7][0] << ", "
+            << cornerCoords[7][1] << ", " << cornerCoords[7][2] << std::endl;
+
+  // Print Calculated Weights
+  std::cout << "RHS Weights: ";
+  for (int k = 0; k < m_mesh->getNumberOfPointsPerElement(); ++k)
+  {
+    std::cout << rhsWeights(0, k) << " ";
+  }
+  std::cout << std::endl;
+  std::cout << "------------------\n" << std::endl;
+}
+
+void SEMproxy::saveSnapshot(int timestep, VECTOR_REAL_VIEW data) const
+{
+#ifdef USE_KOKKOS
+  auto nb_nodes = data.extent(0);
+
+  vectorReal subset("snapshot_cpy", nb_nodes);
+  // Use a parallel copy to handle the strided layout
+  Kokkos::parallel_for(
+      "copy_column", nb_nodes, KOKKOS_LAMBDA(int i) { subset(i) = data(i); });
+  Kokkos::fence();
+#else
+  auto& subset = data;
+#endif  // USE_KOKKOS
+
+  io_ctrl_->saveSnapshot(subset, timestep);
+}
+
+implemType SEMproxy::getImplem(string implemArg)
+{
+  if (implemArg == "makutu") return implemType::kMakutu;
+  if (implemArg == "shiva") return implemType::kShiva;
+
+  throw std::invalid_argument(
+      "Implentation type does not follow any valid type.");
+}
+
+meshType SEMproxy::getMesh(string meshArg)
+{
+  if (meshArg == "cartesian") return meshType::kStruct;
+  if (meshArg == "ucartesian") return meshType::kUnstruct;
+
+  std::cout << "Mesh type found is " << meshArg << std::endl;
+  throw std::invalid_argument("Mesh type does not follow any valid type.");
+}
+
+methodType SEMproxy::getMethod(string methodArg)
+{
+  if (methodArg == "sem") return methodType::kSem;
+  if (methodArg == "dg") return methodType::kDg;
+
+  throw std::invalid_argument("Method type does not follow any valid type.");
+}
+
+float SEMproxy::find_cfl_dt(float cfl_factor)
+{
+  float sqrtDim3 = 1.73;  // to change for 2d
+  float min_spacing = m_mesh->getMinSpacing();
+  float v_max = m_mesh->getMaxSpeed();
+
+  float dt = cfl_factor * min_spacing / (sqrtDim3 * v_max);
+
+  return dt;
+}
+
+void SEMproxy::init_mpi(int* mpi_init)
+{
+#ifdef USE_MPI
+  MPI_Initialized(mpi_init);
+  if (mpi_init)
+  {
+    MPI_Comm_rank(MPI_COMM_WORLD, &dist_ctx_.rank);
+    MPI_Comm_size(MPI_COMM_WORLD, &dist_ctx_.size);
+  }
+  else
+  {
+    dist_ctx_.rank = 0;
+    dist_ctx_.size = 1;
+  }
+  std::cout << "[rank " << dist_ctx_.rank << "] size " << dist_ctx_.size
+            << std::endl;
+#else
+  dist_ctx_.rank = 0;
+  dist_ctx_.size = 1;
+#endif
+}
+
+void SEMproxy::init_sim_params(const SemProxyOptions& opt)
+{
+  // Partition Logic
+  // Create Global Params
+  model::CartesianParams<float, int> globalParams(
+      opt.order, opt.ex, opt.ey, opt.ez, opt.lx, opt.ly, opt.lz,
+      opt.isModelOnNodes, opt.isElastic);
+  globalParams.origin_x = 0;  // Global start
+
+  // Partition domain
+  model::CartesianXPartitioner<float, int> partitioner;
+  m_localParams =
+      partitioner.partition(globalParams, dist_ctx_.rank, dist_ctx_.size);
+
+  // Update members with LOCAL parameters for array allocation
+  nb_elements_[0] = m_localParams.ex;
+  nb_elements_[1] = m_localParams.ey;
+  nb_elements_[2] = m_localParams.ez;
+  nb_nodes_[0] = m_localParams.ex * opt.order + 1;
+  nb_nodes_[1] = m_localParams.ey * opt.order + 1;
+  nb_nodes_[2] = m_localParams.ez * opt.order + 1;
+
+  // Use local dimensions for domain size check logic
+  domain_size_[0] = m_localParams.lx;
+  domain_size_[1] = m_localParams.ly;
+  domain_size_[2] = m_localParams.lz;
+
+  src_coord_[0] = opt.srcx;
+  src_coord_[1] = opt.srcy;
+  src_coord_[2] = opt.srcz;
+
+  rcv_coord_[0] = opt.rcvx;
+  rcv_coord_[1] = opt.rcvy;
+  rcv_coord_[2] = opt.rcvz;
+
+  isElastic_ = opt.isElastic;
+
+  std::cout << "Debug Print :" << std::endl;
+  std::cout << "    Rank " << dist_ctx_.rank << "/" << dist_ctx_.size
+            << std::endl;
+  std::cout << "    Local lx " << m_localParams.lx << std::endl;
+  std::cout << "    Local ly " << m_localParams.ly << std::endl;
+  std::cout << "    Local lz " << m_localParams.lz << std::endl;
+  std::cout << "    Local ex " << m_localParams.ex << std::endl;
+  std::cout << "    Local ey " << m_localParams.ey << std::endl;
+  std::cout << "    Local ez " << m_localParams.ez << std::endl;
+}
+
+void SEMproxy::init_mesh_params(const SemProxyOptions& opt)
+{
+  const methodType methodType = getMethod(opt.method);
+  const implemType implemType = getImplem(opt.implem);
+  const meshType meshType = getMesh(opt.mesh);
+
+  // Build Mesh using LOCAL parameters
+  if (meshType == meshType::kStruct)
+  {
+    switch (opt.order)
+    {
+      case 1: {
+        model::CartesianStructBuilder<float, int, 1> builder(
+            m_localParams.ex, m_localParams.lx, m_localParams.ey,
+            m_localParams.ly, m_localParams.ez, m_localParams.lz,
+            opt.isModelOnNodes, opt.isElastic, m_localParams.origin_x,
+            m_localParams.origin_y, m_localParams.origin_z);
+        m_mesh = builder.getModel();
+        break;
+      }
+      case 2: {
+        model::CartesianStructBuilder<float, int, 2> builder(
+            m_localParams.ex, m_localParams.lx, m_localParams.ey,
+            m_localParams.ly, m_localParams.ez, m_localParams.lz,
+            opt.isModelOnNodes, opt.isElastic, m_localParams.origin_x,
+            m_localParams.origin_y, m_localParams.origin_z);
+        m_mesh = builder.getModel();
+        break;
+      }
+      case 3: {
+        model::CartesianStructBuilder<float, int, 3> builder(
+            m_localParams.ex, m_localParams.lx, m_localParams.ey,
+            m_localParams.ly, m_localParams.ez, m_localParams.lz,
+            opt.isModelOnNodes, opt.isElastic, m_localParams.origin_x,
+            m_localParams.origin_y, m_localParams.origin_z);
+        m_mesh = builder.getModel();
+        break;
+      }
+      default:
+        throw std::runtime_error(
+            "Order other than 1 2 3 is not supported (semproxy)");
+    }
+  }
+  else if (meshType == meshType::kUnstruct)
+  {
+    // Pass local params to unstructured builder (handles origin internally)
+    model::CartesianUnstructBuilder<float, int> builder(m_localParams);
+    m_mesh = builder.getModel();
+  }
+  else
+  {
+    throw std::runtime_error("Incorrect mesh type (SEMproxy ctor.)");
+  }
+}
+
+void SEMproxy::init_topology()
+{
+  par_topology_ =
+      TopologyFactory::createFromMesh(*m_mesh, dist_ctx_.rank, dist_ctx_.size,
+                                      m_localParams.origin_x, m_localParams.lx);
+}
+
+void SEMproxy::init_sync()
+{
+#if USE_MPI
+  if (dist_ctx_.size > 1)
+  {
+    m_syncer = std::make_unique<BoundarySynchronizer>(
+        std::make_unique<solver::fe::MPIBackend>());
+
+    if (dist_ctx_.rank == 0)
+    {
+      std::cout << "MPI Enabled: Using MPIBackend for " << dist_ctx_.size
+                << " ranks." << std::endl;
+    }
+  }
+  else
+  {
+    // Fallback for serial
+    m_syncer = std::make_unique<BoundarySynchronizer>(
+        std::make_unique<SerialBackend>());
+  }
+#else
+  m_syncer =
+      std::make_unique<BoundarySynchronizer>(std::make_unique<SerialBackend>());
+#endif
+}
+
+void SEMproxy::init_time_params(const SemProxyOptions& opt)
+{
+  if (opt.autodt)
+  {
+    float cfl_factor = (opt.order == 2) ? 0.5 : 0.7;
+    dt_ = find_cfl_dt(cfl_factor);
+  }
+  else
+  {
+    dt_ = opt.dt;
+  }
+  timemax_ = opt.timemax;
+  num_sample_ = timemax_ / dt_;
+}
+
+void SEMproxy::display_init_msg(const SemProxyOptions& opt)
+{
+  std::cout << "Number of node is " << m_mesh->getNumberOfNodes() << std::endl;
+  std::cout << "Number of element is " << m_mesh->getNumberOfElements()
+            << std::endl;
+  std::cout << "Launching the Method " << opt.method << ", the implementation "
+            << opt.implem << " and the mesh is " << opt.mesh << std::endl;
+  std::cout << "Model is on " << (opt.isModelOnNodes ? "nodes" : "elements")
+            << std::endl;
+  std::cout << "Physics type is " << (opt.isElastic ? "elastic" : "acoustic")
+            << std::endl;
+  std::cout << "Order of approximation will be " << opt.order << std::endl;
+  std::cout << "Time step is " << dt_ << "s" << std::endl;
+  std::cout << "Simulated time is " << timemax_ << "s" << std::endl;
+
+  if (is_snapshots_)
+  {
+    std::cout << "Snapshots enable every " << snap_time_interval_
+              << " iteration." << std::endl;
+  }
+}
