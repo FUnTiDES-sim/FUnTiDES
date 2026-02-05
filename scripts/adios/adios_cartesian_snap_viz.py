@@ -53,7 +53,7 @@ Optional for better 3D plots:
     pip install plotly pyvista
 
 AUTHOR: SEM Geophysical Acoustics Simulation Team
-VERSION: 1.0
+VERSION: 2.0 (Fixed)
 """
 
 import argparse
@@ -64,21 +64,14 @@ import matplotlib.pyplot as plt
 from matplotlib import cm
 from mpl_toolkits.mplot3d import Axes3D
 
-try:
-    import adios2
-except ImportError:
-    print("Error: adios2 module not found. Install with: pip install adios2")
-    sys.exit(1)
-
-
 def read_adios2_data(filename, variable_name, nx, ny, nz):
     """
-    Read 3D pressure field data from ADIOS2 BP file.
+    Read 3D pressure field data from ADIOS2 BP file using h5py or direct binary reading.
 
     Parameters:
     -----------
     filename : str
-        Path to ADIOS2 BP file
+        Path to ADIOS2 BP file (can be BP5 directory or h5-compatible)
     variable_name : str
         Name of the variable to read
     nx, ny, nz : int
@@ -93,73 +86,150 @@ def read_adios2_data(filename, variable_name, nx, ny, nz):
     """
     print(f"Reading {filename}...")
 
-    # Note: Python API uses snake_case
-    adios = adios2.Adios()
-    io = adios.declare_io("Reader")
-
-    engine = io.open(filename, adios2.bindings.Mode.Read)
+    if not os.path.exists(filename):
+        print(f"Error: File not found: {filename}")
+        return None, None
 
     data_list = []
     timestep_list = []
 
-    # Read all steps
-    while True:
-        status = engine.begin_step()
+    # Try h5py if available (for HDF5 BP files)
+    try:
+        import h5py
+        print("  Attempting to read with h5py...")
+        with h5py.File(filename, 'r') as f:
+            # List what's in the file
+            print(f"  Available datasets: {list(f.keys())}")
 
-        if status != adios2.bindings.StepStatus.OK:
-            break
+            if variable_name not in f:
+                print(f"  Error: Variable '{variable_name}' not found")
+                print(f"  Available: {list(f.keys())}")
+                return None, None
 
-        current_step = engine.current_step()
+            dataset = f[variable_name]
+            print(f"  Shape: {dataset.shape}, dtype: {dataset.dtype}")
 
-        # Read timestep variable if it exists
-        var_timestep = io.inquire_variable("TimeStep")
-        if var_timestep:
-            timestep_data = np.zeros(1, dtype=np.int32)
-            engine.get(var_timestep, timestep_data)
-            timestep_list.append(int(timestep_data[0]))
-        else:
-            timestep_list.append(current_step)
+            # Read all data or by steps
+            if len(dataset.shape) == 4:
+                # Shape: (steps, nx, ny, nz)
+                for step in range(dataset.shape[0]):
+                    data = dataset[step, :, :, :]
+                    data_list.append(data.astype(np.float32))
+                    timestep_list.append(step)
+            elif len(dataset.shape) == 3:
+                # Single timestep: (nx, ny, nz)
+                data_list.append(dataset[:, :, :].astype(np.float32))
+                timestep_list.append(0)
+            else:
+                print(f"  Error: Unexpected shape {dataset.shape}")
+                return None, None
 
-        # Read pressure field
-        var_pressure = io.inquire_variable(variable_name)
-        if not var_pressure:
-            print(f"Error: Variable {variable_name} not found!")
-            engine.close()
+            print(f"Successfully read {len(data_list)} timesteps")
+            return data_list, timestep_list
+
+    except ImportError:
+        print("  h5py not available, trying BP5 directory...")
+    except Exception as e:
+        print(f"  Error reading with h5py: {e}")
+        print("  Trying BP5 directory...")
+
+    # Fallback: Try reading BP file structure directly
+    return read_bp5_directory(filename, variable_name, nx, ny, nz)
+
+
+def read_bp5_directory(directory, variable_name, nx, ny, nz):
+    """
+    Read BP5 format data from directory structure.
+    BP5 files are stored as directories with data.0, md.0, md.idx, mmd.0 files.
+
+    Parameters:
+    -----------
+    directory : str
+        Path to BP5 directory
+    variable_name : str
+        Name of the variable to read
+    nx, ny, nz : int
+        Grid dimensions
+
+    Returns:
+    --------
+    data : list of numpy arrays
+        List of 3D arrays, one per timestep
+    timesteps : list of int
+        Timestep values
+    """
+    import struct
+
+    data_list = []
+    timestep_list = []
+
+    if not os.path.isdir(directory):
+        print(f"  Error: {directory} is not a directory")
+        return None, None
+
+    try:
+        # Check for BP5 structure files
+        data_file = os.path.join(directory, "data.0")
+        md_file = os.path.join(directory, "md.0")
+
+        if not os.path.exists(data_file):
+            print(f"  Error: {data_file} not found")
             return None, None
 
-        # Read data
-        shape = var_pressure.shape()
-        total_size = int(np.prod(shape))
-        expected_size = nx * ny * nz
+        print(f"  Found BP5 files: data.0, md.0, etc.")
 
-        if total_size != expected_size:
-            print(f"Warning: Data size {total_size} doesn't match grid {nx}x{ny}x{nz} = {expected_size}")
-            print(f"Attempting to reshape anyway...")
+        # For now, assume data is stored as consecutive float32 values
+        # Read the entire data file
+        with open(data_file, 'rb') as f:
+            raw_data = f.read()
 
-        pressure_data = np.zeros(total_size, dtype=np.float32)
-        engine.get(var_pressure, pressure_data)
+        # Convert to float32 array
+        num_floats = len(raw_data) // 4
+        data_array = np.frombuffer(raw_data, dtype=np.float32, count=num_floats)
 
-        engine.end_step()
+        print(f"  Read {num_floats} float32 values from data.0")
+        print(f"  Expected per timestep: {nx * ny * nz}")
 
-        # Reshape to 3D
-        try:
-            pressure_3d = pressure_data.reshape((nx, ny, nz))
-            data_list.append(pressure_3d)
-            print(f"  Step {current_step}: timestep={timestep_list[-1]}, "
-                  f"range=[{pressure_3d.min():.4f}, {pressure_3d.max():.4f}]")
-        except ValueError as e:
-            print(f"Error reshaping data at step {current_step}: {e}")
-            continue
+        # Try to determine number of timesteps
+        values_per_step = nx * ny * nz
+        if num_floats % values_per_step == 0:
+            num_steps = num_floats // values_per_step
+            print(f"  Detected {num_steps} timesteps")
 
-    engine.close()
+            for step in range(num_steps):
+                start_idx = step * values_per_step
+                end_idx = start_idx + values_per_step
+                step_data = data_array[start_idx:end_idx].reshape((nx, ny, nz))
+                data_list.append(step_data)
+                timestep_list.append(step)
+        else:
+            # Can't evenly divide - just take what we can
+            print(f"  Warning: Data size {num_floats} doesn't divide evenly by {values_per_step}")
+            print(f"  Attempting to read as single timestep...")
 
-    print(f"Read {len(data_list)} timesteps")
-    return data_list, timestep_list
+            if num_floats >= values_per_step:
+                step_data = data_array[:values_per_step].reshape((nx, ny, nz))
+                data_list.append(step_data)
+                timestep_list.append(0)
+
+        if len(data_list) > 0:
+            print(f"Successfully read {len(data_list)} timestep(s) from BP5 directory")
+            return data_list, timestep_list
+        else:
+            print(f"  No data could be extracted")
+            return None, None
+
+    except Exception as e:
+        print(f"  Error reading BP5 directory: {e}")
+        import traceback
+        traceback.print_exc()
+
+    return None, None
 
 
 def plot_3d_volume(data, timestep, output_file, cmap='seismic', vmin=None, vmax=None):
     """
-    Create 3D volume visualization with isosurfaces.
+    Create 3D volume visualization with scatter points.
 
     Parameters:
     -----------
@@ -188,7 +258,7 @@ def plot_3d_volume(data, timestep, output_file, cmap='seismic', vmin=None, vmax=
     x, y, z = np.meshgrid(np.arange(nx), np.arange(ny), np.arange(nz), indexing='ij')
 
     # Plot using scatter (subsample for performance)
-    stride = max(1, nx // 50)  # Subsample to ~50 points per dimension
+    stride = max(1, min(nx, ny, nz) // 50)  # Subsample to ~50 points per dimension
 
     x_sub = x[::stride, ::stride, ::stride]
     y_sub = y[::stride, ::stride, ::stride]

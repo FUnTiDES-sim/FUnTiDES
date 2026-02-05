@@ -4,7 +4,11 @@ if(NOT TARGET adios2::adios2)
     message(STATUS "Configuring ADIOS2 for minimal BP5 File I/O")
 
     # 1. Disable Parallelism and Language Bindings
-    set(ADIOS2_USE_MPI OFF CACHE BOOL "Disable MPI" FORCE)
+    if(USE_MPI)
+        set(ADIOS2_USE_MPI ON CACHE BOOL "Enable MPI" FORCE)
+    else()
+        set(ADIOS2_USE_MPI OFF CACHE BOOL "Disable MPI" FORCE)
+    endif()
     set(ADIOS2_USE_Python OFF CACHE BOOL "Disable Python" FORCE)
     set(ADIOS2_USE_Fortran OFF CACHE BOOL "Disable Fortran" FORCE)
 
