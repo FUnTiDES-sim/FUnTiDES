@@ -39,6 +39,7 @@ SEMproxy::SEMproxy(const SemProxyOptions& opt)
 
   init_sim_params(opt);
   init_mesh_params(opt);
+  init_topology();
   init_sync();
   init_time_params(opt);
 

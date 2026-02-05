@@ -122,14 +122,14 @@ class BoundarySynchronizer
 
     try
     {
-      // 1. Pack boundary values
+      // Pack boundary values
       auto sendBufs = pack(field, topo);
 
-      // 2. Exchange with neighbors
+      // Exchange with neighbors
       std::map<int, std::vector<float>> recvBufs;
       m_backend->exchange(sendBufs, recvBufs);
 
-      // 3. Accumulate (sum) received values
+      // Accumulate (sum) received values
       accumulate(field, recvBufs, topo);
     }
     catch (const std::exception& e)
