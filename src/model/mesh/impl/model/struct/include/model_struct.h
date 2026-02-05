@@ -516,7 +516,7 @@ class ModelStruct : public ModelApi<FloatType, ScalarType>
   PROXY_HOST_DEVICE
   BoundaryFlag boundaryType(ScalarType n) const override
   {
-    if (boundaries_t_.size() == 0)
+    if (boundaries_t_.extent(0) == 0)
     {
       return BoundaryFlag::InteriorNode;
     }
@@ -534,7 +534,7 @@ class ModelStruct : public ModelApi<FloatType, ScalarType>
   PROXY_HOST_DEVICE
   bool isFreeSurface(ScalarType n) const override
   {
-    if (boundaries_t_.size() == 0) return false;
+    if (boundaries_t_.extent(0) == 0) return false;
     return (boundaries_t_(n) == static_cast<uint8_t>(BoundaryFlag::Surface));
   }
 
