@@ -32,6 +32,15 @@ struct ModelDataBase
   PROXY_HOST_DEVICE ModelDataBase& operator=(const ModelDataBase&) = default;
 };
 
+enum BoundaryFlag : int
+{
+  InteriorNode = 0,  ///< Node inside the domain
+  Damping = 1,       ///< Node in damping boundary zone
+  Sponge = 2,        ///< Node in sponge layer
+  Surface = 3,       ///< Node on a free surface
+  Ghost = 4          ///< Ghost node for halo/exchange
+};
+
 /**
  * @enum CubicFace
  * @brief Local face identifiers for cubic elements
@@ -102,6 +111,21 @@ class ModelApi
   PROXY_HOST_DEVICE
   virtual ScalarType globalNodeIndex(ScalarType e, int i, int j,
                                      int k) const = 0;
+
+  /**
+   * @brief Get the boundary type of a given node.
+   * @param n Global node index
+   * @return A combination of BoundaryFlag values
+   */
+  PROXY_HOST_DEVICE
+  virtual BoundaryFlag boundaryType(ScalarType n) const = 0;
+
+  /**
+   * @brief Initialize boundary flags based on node positions
+   * @param free_surface_on_top If true, mark top (Z+) as Surface, else as
+   * Damping
+   */
+  virtual void initializeBoundaryFlags(bool free_surface_on_top) = 0;
 
   /**
    * @brief Get P-wave velocity at a node

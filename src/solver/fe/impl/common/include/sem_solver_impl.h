@@ -43,6 +43,7 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES,
 
   allocateFEarrays();
   initFEarrays();
+
   m_mesh.initFreeSurface();
 
   // Compute Local Mass Matrix
@@ -65,10 +66,8 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES,
 
   resetGlobalVectors(m_mesh.getNumberOfNodes());
   FENCE
-
   applyRHSTerm(timeSample, dt, myData);
   FENCE
-
   computeElementContributions(myData);
   FENCE
 }
@@ -119,6 +118,8 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES,
 {
   int nb_rhs_element = data.getRhsElement().extent(0);
 
+  auto mesh_local = m_mesh;  // Capture mesh for lambda
+
   LOOPHEAD(nb_rhs_element, i)
   {
     for (int z = 0; z < ORDER + 1; z++)
@@ -129,7 +130,7 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES,
         {
           int localNodeId = x + y * (ORDER + 1) + z * (ORDER + 1) * (ORDER + 1);
           int nodeRHS =
-              m_mesh.globalNodeIndex(data.getRhsElement()[i], x, y, z);
+              mesh_local.globalNodeIndex(data.getRhsElement()[i], x, y, z);
 
           for (int f = 0; f < kNumRhs; ++f)
           {
@@ -170,11 +171,13 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES,
   }
   else  // Acoustic - DISPATCH
   {
-    MAINLOOPHEAD(m_mesh.getNumberOfElements(), elementNumber)
+    auto mesh_local = m_mesh;
 
-    if (elementNumber >= m_mesh.getNumberOfElements()) return;
+    MAINLOOPHEAD(mesh_local.getNumberOfElements(), elementNumber)
 
-    int const dim = m_mesh.getOrder() + 1;
+    if (elementNumber >= mesh_local.getNumberOfElements()) return;
+
+    int const dim = mesh_local.getOrder() + 1;
     float localFields[kNumFields][kPointsPerElement] = {{0}};
     float localWork[kNumFields][kPointsPerElement] = {{0}};
 
@@ -184,7 +187,8 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES,
       {
         for (int k = 0; k < dim; ++k)
         {
-          int const globalIdx = m_mesh.globalNodeIndex(elementNumber, i, j, k);
+          int const globalIdx =
+              mesh_local.globalNodeIndex(elementNumber, i, j, k);
           int const localIdx = i + j * dim + k * dim * dim;
 
           for (int f = 0; f < kNumFields; ++f)
@@ -196,13 +200,13 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES,
     }
 
     typename INTEGRAL_TYPE::TransformType transformData;
-    model_discretization_interface::gatherTransformData(elementNumber, m_mesh,
-                                                        transformData);
+    model_discretization_interface::gatherTransformData(
+        elementNumber, mesh_local, transformData);
 
     real_t inv_density = 0.0f;
     if constexpr (!IS_MODEL_ON_NODES)
     {
-      inv_density = 1.0f / m_mesh.getModelRhoOnElement(elementNumber);
+      inv_density = 1.0f / mesh_local.getModelRhoOnElement(elementNumber);
     }
 
     INTEGRAL_TYPE::computeStiffnessTerm(
@@ -211,8 +215,8 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES,
           if constexpr (IS_MODEL_ON_NODES)
           {
             int const gIndex =
-                m_mesh.globalNodeIndex(elementNumber, qa, qb, qc);
-            inv_density = 1.0f / m_mesh.getModelRhoOnNodes(gIndex);
+                mesh_local.globalNodeIndex(elementNumber, qa, qb, qc);
+            inv_density = 1.0f / mesh_local.getModelRhoOnNodes(gIndex);
           }
         },
         [&](const int i, const int j, const real_t val) {
@@ -226,7 +230,8 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES,
       {
         for (int k = 0; k < dim; ++k)
         {
-          int const globalIdx = m_mesh.globalNodeIndex(elementNumber, i, j, k);
+          int const globalIdx =
+              mesh_local.globalNodeIndex(elementNumber, i, j, k);
           int const localIdx = i + j * dim + k * dim * dim;
 
           for (int f = 0; f < kNumFields; ++f)
@@ -253,11 +258,13 @@ template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE,
 void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES,
                PHYSICS>::computeElementContributions_Iso(const DataType& data)
 {
-  MAINLOOPHEAD(m_mesh.getNumberOfElements(), elementNumber)
+  auto mesh_local = m_mesh;
 
-  if (elementNumber >= m_mesh.getNumberOfElements()) return;
+  MAINLOOPHEAD(mesh_local.getNumberOfElements(), elementNumber)
 
-  int const dim = m_mesh.getOrder() + 1;
+  if (elementNumber >= mesh_local.getNumberOfElements()) return;
+
+  int const dim = mesh_local.getOrder() + 1;
   float localFields[kNumFields][kPointsPerElement] = {{0}};
   float localWork[kNumFields][kPointsPerElement] = {{0}};
 
@@ -267,7 +274,8 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES,
     {
       for (int k = 0; k < dim; ++k)
       {
-        int const globalIdx = m_mesh.globalNodeIndex(elementNumber, i, j, k);
+        int const globalIdx =
+            mesh_local.globalNodeIndex(elementNumber, i, j, k);
         int const localIdx = i + j * dim + k * dim * dim;
 
         for (int f = 0; f < kNumFields; ++f)
@@ -279,7 +287,7 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES,
   }
 
   typename INTEGRAL_TYPE::TransformType transformData;
-  model_discretization_interface::gatherTransformData(elementNumber, m_mesh,
+  model_discretization_interface::gatherTransformData(elementNumber, mesh_local,
                                                       transformData);
 
 #ifdef __CUDACC__
@@ -305,16 +313,17 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES,
         float vp, vs, rho;
         if constexpr (IS_MODEL_ON_NODES)
         {
-          int const gIndex = m_mesh.globalNodeIndex(elementNumber, qa, qb, qc);
-          vp = m_mesh.getModelVpOnNodes(gIndex);
-          vs = m_mesh.getModelVsOnNodes(gIndex);
-          rho = m_mesh.getModelRhoOnNodes(gIndex);
+          int const gIndex =
+              mesh_local.globalNodeIndex(elementNumber, qa, qb, qc);
+          vp = mesh_local.getModelVpOnNodes(gIndex);
+          vs = mesh_local.getModelVsOnNodes(gIndex);
+          rho = mesh_local.getModelRhoOnNodes(gIndex);
         }
         else
         {
-          vp = m_mesh.getModelVpOnElement(elementNumber);
-          vs = m_mesh.getModelVsOnElement(elementNumber);
-          rho = m_mesh.getModelRhoOnElement(elementNumber);
+          vp = mesh_local.getModelVpOnElement(elementNumber);
+          vs = mesh_local.getModelVsOnElement(elementNumber);
+          rho = mesh_local.getModelRhoOnElement(elementNumber);
         }
 
         // Lamé parameters
@@ -409,7 +418,8 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES,
     {
       for (int k = 0; k < dim; ++k)
       {
-        int const globalIdx = m_mesh.globalNodeIndex(elementNumber, i, j, k);
+        int const globalIdx =
+            mesh_local.globalNodeIndex(elementNumber, i, j, k);
         int const localIdx = i + j * dim + k * dim * dim;
 
         for (int f = 0; f < kNumFields; ++f)
@@ -435,11 +445,13 @@ template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE,
 void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES,
                PHYSICS>::computeElementContributions_Vti(const DataType& data)
 {
-  MAINLOOPHEAD(m_mesh.getNumberOfElements(), elementNumber)
+  auto mesh_local = m_mesh;
 
-  if (elementNumber >= m_mesh.getNumberOfElements()) return;
+  MAINLOOPHEAD(mesh_local.getNumberOfElements(), elementNumber)
 
-  int const dim = m_mesh.getOrder() + 1;
+  if (elementNumber >= mesh_local.getNumberOfElements()) return;
+
+  int const dim = mesh_local.getOrder() + 1;
   float localFields[kNumFields][kPointsPerElement] = {{0}};
   float localWork[kNumFields][kPointsPerElement] = {{0}};
 
@@ -449,7 +461,8 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES,
     {
       for (int k = 0; k < dim; ++k)
       {
-        int const globalIdx = m_mesh.globalNodeIndex(elementNumber, i, j, k);
+        int const globalIdx =
+            mesh_local.globalNodeIndex(elementNumber, i, j, k);
         int const localIdx = i + j * dim + k * dim * dim;
 
         for (int f = 0; f < kNumFields; ++f)
@@ -461,7 +474,7 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES,
   }
 
   typename INTEGRAL_TYPE::TransformType transformData;
-  model_discretization_interface::gatherTransformData(elementNumber, m_mesh,
+  model_discretization_interface::gatherTransformData(elementNumber, mesh_local,
                                                       transformData);
 
 #ifdef __CUDACC__
@@ -488,22 +501,23 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES,
 
         if constexpr (IS_MODEL_ON_NODES)
         {
-          int const gIndex = m_mesh.globalNodeIndex(elementNumber, qa, qb, qc);
-          vp = m_mesh.getModelVpOnNodes(gIndex);
-          vs = m_mesh.getModelVsOnNodes(gIndex);
-          rho = m_mesh.getModelRhoOnNodes(gIndex);
-          delta = m_mesh.getModelDeltaOnNodes(gIndex);
-          epsilon = m_mesh.getModelEpsilonOnNodes(gIndex);
-          gamma = m_mesh.getModelGammaOnNodes(gIndex);
+          int const gIndex =
+              mesh_local.globalNodeIndex(elementNumber, qa, qb, qc);
+          vp = mesh_local.getModelVpOnNodes(gIndex);
+          vs = mesh_local.getModelVsOnNodes(gIndex);
+          rho = mesh_local.getModelRhoOnNodes(gIndex);
+          delta = mesh_local.getModelDeltaOnNodes(gIndex);
+          epsilon = mesh_local.getModelEpsilonOnNodes(gIndex);
+          gamma = mesh_local.getModelGammaOnNodes(gIndex);
         }
         else
         {
-          vp = m_mesh.getModelVpOnElement(elementNumber);
-          vs = m_mesh.getModelVsOnElement(elementNumber);
-          rho = m_mesh.getModelRhoOnElement(elementNumber);
-          delta = m_mesh.getModelDeltaOnElement(elementNumber);
-          epsilon = m_mesh.getModelEpsilonOnElement(elementNumber);
-          gamma = m_mesh.getModelGammaOnElement(elementNumber);
+          vp = mesh_local.getModelVpOnElement(elementNumber);
+          vs = mesh_local.getModelVsOnElement(elementNumber);
+          rho = mesh_local.getModelRhoOnElement(elementNumber);
+          delta = mesh_local.getModelDeltaOnElement(elementNumber);
+          epsilon = mesh_local.getModelEpsilonOnElement(elementNumber);
+          gamma = mesh_local.getModelGammaOnElement(elementNumber);
         }
 
         // Compute 5 independent VTI coefficients - that's it!
@@ -605,7 +619,8 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES,
     {
       for (int k = 0; k < dim; ++k)
       {
-        int const globalIdx = m_mesh.globalNodeIndex(elementNumber, i, j, k);
+        int const globalIdx =
+            mesh_local.globalNodeIndex(elementNumber, i, j, k);
         int const localIdx = i + j * dim + k * dim * dim;
 
         for (int f = 0; f < kNumFields; ++f)
@@ -631,11 +646,13 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES,
   }
   else
   {
-    MAINLOOPHEAD(m_mesh.getNumberOfElements(), elementNumber)
+    auto mesh_local = m_mesh;
 
-    if (elementNumber >= m_mesh.getNumberOfElements()) return;
+    MAINLOOPHEAD(mesh_local.getNumberOfElements(), elementNumber)
 
-    int const dim = m_mesh.getOrder() + 1;
+    if (elementNumber >= mesh_local.getNumberOfElements()) return;
+
+    int const dim = mesh_local.getOrder() + 1;
     float localFields[kNumFields][kPointsPerElement] = {{0}};
     float localWork[kNumFields][kPointsPerElement] = {{0}};
 
@@ -645,7 +662,8 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES,
       {
         for (int k = 0; k < dim; ++k)
         {
-          int const globalIdx = m_mesh.globalNodeIndex(elementNumber, i, j, k);
+          int const globalIdx =
+              mesh_local.globalNodeIndex(elementNumber, i, j, k);
           int const localIdx = i + j * dim + k * dim * dim;
 
           for (int f = 0; f < kNumFields; ++f)
@@ -657,15 +675,15 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES,
     }
 
     typename INTEGRAL_TYPE::TransformType transformData;
-    model_discretization_interface::gatherTransformData(elementNumber, m_mesh,
-                                                        transformData);
+    model_discretization_interface::gatherTransformData(
+        elementNumber, mesh_local, transformData);
 
     float CTTI[6][6];
 
     // For elements, preload tensor
     if constexpr (!IS_MODEL_ON_NODES)
     {
-      m_mesh.getCTensorOnElement(elementNumber, CTTI);
+      mesh_local.getCTensorOnElement(elementNumber, CTTI);
     }
 
 #ifdef __CUDACC__
@@ -691,15 +709,15 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES,
           if constexpr (IS_MODEL_ON_NODES)
           {
             int const gIndex =
-                m_mesh.globalNodeIndex(elementNumber, qa, qb, qc);
-            float const vp = m_mesh.getModelVpOnNodes(gIndex);
-            float const vs = m_mesh.getModelVsOnNodes(gIndex);
-            float const rho = m_mesh.getModelRhoOnNodes(gIndex);
-            float const delta = m_mesh.getModelDeltaOnNodes(gIndex);
-            float const epsilon = m_mesh.getModelEpsilonOnNodes(gIndex);
-            float const gamma = m_mesh.getModelGammaOnNodes(gIndex);
-            float const phi = m_mesh.getModelPhiOnNodes(gIndex);
-            float const theta = m_mesh.getModelThetaOnNodes(gIndex);
+                mesh_local.globalNodeIndex(elementNumber, qa, qb, qc);
+            float const vp = mesh_local.getModelVpOnNodes(gIndex);
+            float const vs = mesh_local.getModelVsOnNodes(gIndex);
+            float const rho = mesh_local.getModelRhoOnNodes(gIndex);
+            float const delta = mesh_local.getModelDeltaOnNodes(gIndex);
+            float const epsilon = mesh_local.getModelEpsilonOnNodes(gIndex);
+            float const gamma = mesh_local.getModelGammaOnNodes(gIndex);
+            float const phi = mesh_local.getModelPhiOnNodes(gIndex);
+            float const theta = mesh_local.getModelThetaOnNodes(gIndex);
             computeCMatrix(vp, vs, rho, delta, epsilon, gamma, phi, theta,
                            CTTI);
           }
@@ -800,7 +818,8 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES,
       {
         for (int k = 0; k < dim; ++k)
         {
-          int const globalIdx = m_mesh.globalNodeIndex(elementNumber, i, j, k);
+          int const globalIdx =
+              mesh_local.globalNodeIndex(elementNumber, i, j, k);
           int const localIdx = i + j * dim + k * dim * dim;
 
           for (int f = 0; f < kNumFields; ++f)
@@ -825,12 +844,14 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES,
 {
   float const dt2 = dt * dt;
 
+  auto mesh_local = m_mesh;
+
   if constexpr (PHYSICS == enums::physicType::kAcoustic)
   {
     // ===== ACOUSTIC VERSION =====
-    LOOPHEAD(m_mesh.getNumberOfNodes(), I)
+    LOOPHEAD(mesh_local.getNumberOfNodes(), I)
     {
-      if (m_mesh.isFreeSurface(I))
+      if (mesh_local.isFreeSurface(I))
       {
         // Force p = 0 on free surface
         data.getCurrentField(0)(I) = 0.0f;
@@ -854,9 +875,9 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES,
   else  // ELASTIC
   {
     // ===== ELASTIC VERSION =====
-    LOOPHEAD(m_mesh.getNumberOfNodes(), I)
+    LOOPHEAD(mesh_local.getNumberOfNodes(), I)
     {
-      if (m_mesh.isFreeSurface(I))
+      if (mesh_local.isFreeSurface(I))
       {
         // Free surface: no damping (dampingMatrixGlobal is 0 from
         // computeDampingMatrix)
@@ -899,15 +920,17 @@ template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE,
 void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES,
                PHYSICS>::computeGlobalMassMatrix()
 {
-  MAINLOOPHEAD(m_mesh.getNumberOfElements(), elementNumber)
+  auto mesh_local = m_mesh;
 
-  if (elementNumber >= m_mesh.getNumberOfElements()) return;
+  MAINLOOPHEAD(mesh_local.getNumberOfElements(), elementNumber)
+
+  if (elementNumber >= mesh_local.getNumberOfElements()) return;
 
   float massMatrixLocal[kPointsPerElement] = {0};
-  int const dim = m_mesh.getOrder() + 1;
+  int const dim = mesh_local.getOrder() + 1;
 
   typename INTEGRAL_TYPE::TransformType transformData;
-  model_discretization_interface::gatherTransformData(elementNumber, m_mesh,
+  model_discretization_interface::gatherTransformData(elementNumber, mesh_local,
                                                       transformData);
 
   INTEGRAL_TYPE::computeMassTerm(
@@ -919,34 +942,34 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES,
   {
     if constexpr (PHYSICS == enums::physicType::kAcoustic)
     {
-      model_factor = 1.0f / (m_mesh.getModelVpOnElement(elementNumber) *
-                             m_mesh.getModelVpOnElement(elementNumber) *
-                             m_mesh.getModelRhoOnElement(elementNumber));
+      model_factor = 1.0f / (mesh_local.getModelVpOnElement(elementNumber) *
+                             mesh_local.getModelVpOnElement(elementNumber) *
+                             mesh_local.getModelRhoOnElement(elementNumber));
     }
     else
     {
-      model_factor = m_mesh.getModelRhoOnElement(elementNumber);
+      model_factor = mesh_local.getModelRhoOnElement(elementNumber);
     }
   }
 
-  for (int i = 0; i < m_mesh.getNumberOfPointsPerElement(); ++i)
+  for (int i = 0; i < mesh_local.getNumberOfPointsPerElement(); ++i)
   {
     int x = i % dim;
     int z = (i / dim) % dim;
     int y = i / (dim * dim);
-    int const gIndex = m_mesh.globalNodeIndex(elementNumber, x, y, z);
+    int const gIndex = mesh_local.globalNodeIndex(elementNumber, x, y, z);
 
     if constexpr (IS_MODEL_ON_NODES)
     {
       if constexpr (PHYSICS == enums::physicType::kAcoustic)
       {
-        model_factor = 1.0f / (m_mesh.getModelVpOnNodes(gIndex) *
-                               m_mesh.getModelVpOnNodes(gIndex) *
-                               m_mesh.getModelRhoOnNodes(gIndex));
+        model_factor = 1.0f / (mesh_local.getModelVpOnNodes(gIndex) *
+                               mesh_local.getModelVpOnNodes(gIndex) *
+                               mesh_local.getModelRhoOnNodes(gIndex));
       }
       else
       {
-        model_factor = m_mesh.getModelRhoOnNodes(gIndex);
+        model_factor = mesh_local.getModelRhoOnNodes(gIndex);
       }
     }
 
@@ -966,55 +989,64 @@ template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE,
 void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES,
                PHYSICS>::computeDampingMatrix()
 {
-  MAINLOOPHEAD(m_mesh.getNumberOfElements(), elementNumber)
-  if (elementNumber >= m_mesh.getNumberOfElements()) return;
+  auto mesh_local = m_mesh;
+
+  MAINLOOPHEAD(mesh_local.getNumberOfElements(), elementNumber)
+  if (elementNumber >= mesh_local.getNumberOfElements()) return;
+
   for (int i = 0; i < 6; ++i)
   {
-    // Cast i to CubicFace enum
-    int f =
-        m_mesh.getGlobalFace(elementNumber, static_cast<model::CubicFace>(i));
-    if (!m_mesh.isBoundaryFace(f)) continue;
+    // Get global face ID for this element face
+    int f = mesh_local.getGlobalFace(elementNumber,
+                                     static_cast<model::CubicFace>(i));
 
-    // Get corner coordinates of the face
+    // Skip internal faces (only process boundary faces)
+    if (!mesh_local.isBoundaryFace(f)) continue;
+
+    // Get corner coordinates of the face for integration
     float coords[4][3];
     for (int j = 0; j < 4; ++j)
     {
-      int const globalNodeIndex = m_mesh.getGlobalNodeFromFace(
+      int const globalNodeIndex = mesh_local.getGlobalNodeFromFace(
           f, INTEGRAL_TYPE::meshIndexToLinearIndex2D(j));
       for (int d = 0; d < 3; ++d)
       {
-        coords[j][d] = m_mesh.nodeCoord(globalNodeIndex, d);
+        coords[j][d] = mesh_local.nodeCoord(globalNodeIndex, d);
       }
     }
 
     if constexpr (PHYSICS == enums::physicType::kAcoustic)
     {
+      // Acoustic damping
       real_t model_rho = 0.0f;
       real_t model_vp = 0.0f;
       real_t alpha = 0.0f;
+
       if constexpr (!IS_MODEL_ON_NODES)
       {
-        model_rho = m_mesh.getModelRhoOnElement(elementNumber);
-        model_vp = m_mesh.getModelVpOnElement(elementNumber);
+        model_rho = mesh_local.getModelRhoOnElement(elementNumber);
+        model_vp = mesh_local.getModelVpOnElement(elementNumber);
         alpha = 1.0 / (model_rho * model_vp);
       }
+
       constexpr int numNodesPerFace = (ORDER + 1) * (ORDER + 1);
       for (int q = 0; q < numNodesPerFace; ++q)
       {
-        int const globalNodeIndex = m_mesh.getGlobalNodeFromFace(f, q);
+        int const globalNodeIndex = mesh_local.getGlobalNodeFromFace(f, q);
 
-        // NEW: Skip free surface nodes (no damping on free surface)
-        if (m_mesh.isFreeSurface(globalNodeIndex))
+        // Skip free surface nodes (no damping on free surface)
+        if (mesh_local.isFreeSurface(globalNodeIndex))
         {
           continue;
         }
 
         if constexpr (IS_MODEL_ON_NODES)
         {
-          model_rho = m_mesh.getModelRhoOnNodes(globalNodeIndex);
-          model_vp = m_mesh.getModelVpOnNodes(globalNodeIndex);
+          model_rho = mesh_local.getModelRhoOnNodes(globalNodeIndex);
+          model_vp = mesh_local.getModelVpOnNodes(globalNodeIndex);
           alpha = 1.0 / (model_rho * model_vp);
         }
+
         real_t localIncrement =
             alpha * INTEGRAL_TYPE::computeDampingTerm(q, coords);
         ATOMICADD(dampingMatrixGlobal_[0][globalNodeIndex], localIncrement);
@@ -1022,36 +1054,39 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES,
     }
     else  // Elastic
     {
+      // Elastic damping
       float normal[3];
-      // Cast i to CubicFace enum for faceNormal
-      m_mesh.faceNormal(elementNumber, static_cast<model::CubicFace>(i),
-                        normal);
+      mesh_local.faceNormal(elementNumber, static_cast<model::CubicFace>(i),
+                            normal);
       real_t nx = normal[0], ny = normal[1], nz = normal[2];
 
       real_t density, velocityVp, velocityVs;
+
       if constexpr (!IS_MODEL_ON_NODES)
       {
-        density = m_mesh.getModelRhoOnElement(elementNumber);
-        velocityVp = m_mesh.getModelVpOnElement(elementNumber);
-        velocityVs = m_mesh.getModelVsOnElement(elementNumber);
+        density = mesh_local.getModelRhoOnElement(elementNumber);
+        velocityVp = mesh_local.getModelVpOnElement(elementNumber);
+        velocityVs = mesh_local.getModelVsOnElement(elementNumber);
       }
+
       constexpr int numNodesPerFace = (ORDER + 1) * (ORDER + 1);
       for (int q = 0; q < numNodesPerFace; ++q)
       {
-        int const globalNodeIndex = m_mesh.getGlobalNodeFromFace(f, q);
+        int const globalNodeIndex = mesh_local.getGlobalNodeFromFace(f, q);
 
-        // NEW: Skip free surface nodes (no damping on free surface)
-        if (m_mesh.isFreeSurface(globalNodeIndex))
+        // Skip free surface nodes (no damping on free surface)
+        if (mesh_local.isFreeSurface(globalNodeIndex))
         {
           continue;
         }
 
         if constexpr (IS_MODEL_ON_NODES)
         {
-          density = m_mesh.getModelRhoOnNodes(globalNodeIndex);
-          velocityVp = m_mesh.getModelVpOnNodes(globalNodeIndex);
-          velocityVs = m_mesh.getModelVsOnNodes(globalNodeIndex);
+          density = mesh_local.getModelRhoOnNodes(globalNodeIndex);
+          velocityVp = mesh_local.getModelVpOnNodes(globalNodeIndex);
+          velocityVs = mesh_local.getModelVsOnNodes(globalNodeIndex);
         }
+
         real_t aux = density * INTEGRAL_TYPE::computeDampingTerm(q, coords);
         real_t localIncrementx = aux * (velocityVp * fabs(nx) +
                                         velocityVs * sqrt(ny * ny + nz * nz));
@@ -1059,6 +1094,7 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES,
                                         velocityVs * sqrt(nx * nx + nz * nz));
         real_t localIncrementz = aux * (velocityVp * fabs(nz) +
                                         velocityVs * sqrt(nx * nx + ny * ny));
+
         ATOMICADD(dampingMatrixGlobal_[0][globalNodeIndex], localIncrementx);
         ATOMICADD(dampingMatrixGlobal_[1][globalNodeIndex], localIncrementy);
         ATOMICADD(dampingMatrixGlobal_[2][globalNodeIndex], localIncrementz);
@@ -1066,7 +1102,9 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES,
     }
   }
   MAINLOOPEND
-}  //============================================================================
+}
+
+//============================================================================
 // allocateFEarrays - Allocate memory for FE arrays
 //============================================================================
 

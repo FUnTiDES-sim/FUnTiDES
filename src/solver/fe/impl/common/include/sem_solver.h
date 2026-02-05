@@ -5,6 +5,7 @@
 #include <stdexcept>
 
 #include "data_type.h"
+#include "face_connectivity_unstruct.h"
 #include "model.h"
 #include "parallel_topology.h"
 #include "physics_traits.h"

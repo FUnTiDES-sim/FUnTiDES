@@ -54,6 +54,10 @@ class CartesianStructBuilder : public ModelBuilderBase<FloatType, ScalarType>
         std::make_shared<model::ModelStruct<FloatType, ScalarType, Order>>(
             data);
 
+    model->buildFaceConnectivity();
+
+    model->initializeBoundaryFlags(true);  // true = free surface on top
+
     return model;
   }
 

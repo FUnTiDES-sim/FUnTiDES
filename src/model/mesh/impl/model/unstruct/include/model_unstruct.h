@@ -617,6 +617,82 @@ class ModelUnstruct final : public ModelApi<FloatType, ScalarType>
   }
 
   /**
+   * @brief Get boundary type flag for a node
+   * @param n Node index
+   * @return BoundaryFlag enum value
+   */
+  PROXY_HOST_DEVICE
+  BoundaryFlag boundaryType(ScalarType n) const override
+  {
+    if (boundaries_t_.extent(0) == 0) return BoundaryFlag::InteriorNode;
+    return static_cast<BoundaryFlag>(static_cast<uint8_t>(boundaries_t_[n]));
+  }
+
+  /**
+   * @brief Initialize boundary flags based on node positions
+   *
+   * Detects boundary nodes using geometry and marks them:
+   * - Nodes at global domain edges are boundary nodes
+   * - Top surface (Z+) marked as Surface if free_surface_on_top=true
+   * - Other boundaries marked as Damping (absorbing boundary)
+   * - Interior nodes (including MPI inter-domain boundaries) marked as
+   * InteriorNode
+   *
+   * This geometric detection is MPI-safe: only nodes at the GLOBAL domain
+   * boundaries are marked, not nodes at MPI partition boundaries.
+   *
+   * @param free_surface_on_top If true, mark top (Z+) as Surface, else as
+   * Damping
+   */
+  void initializeBoundaryFlags(bool free_surface_on_top) override
+  {
+    // Allocate if empty
+    if (boundaries_t_.extent(0) == 0)
+    {
+      boundaries_t_ = allocateVector<VECTOR_REAL_VIEW>(n_node_, "boundaries_t");
+    }
+
+    FloatType tol = getMinSpacing() * 1e-4;
+    bool enabled_fs = free_surface_on_top;
+
+    // Capture pour le kernel
+    auto boundaries = boundaries_t_;
+    auto mesh_copy = *this;
+
+    LOOPHEAD(n_node_, n)
+    {
+      FloatType x = mesh_copy.nodeCoord(n, 0);
+      FloatType y = mesh_copy.nodeCoord(n, 1);
+      FloatType z = mesh_copy.nodeCoord(n, 2);
+
+      // Check if at GLOBAL domain boundary
+      bool at_xmin = (fabs(x - mesh_copy.ox_) < tol);
+      bool at_xmax = (fabs(x - (mesh_copy.ox_ + mesh_copy.lx_)) < tol);
+      bool at_ymin = (fabs(y - mesh_copy.oy_) < tol);
+      bool at_ymax = (fabs(y - (mesh_copy.oy_ + mesh_copy.ly_)) < tol);
+      bool at_zmin = (fabs(z - mesh_copy.oz_) < tol);
+      bool at_zmax = (fabs(z - (mesh_copy.oz_ + mesh_copy.lz_)) < tol);
+
+      bool on_boundary =
+          at_xmin || at_xmax || at_ymin || at_ymax || at_zmin || at_zmax;
+
+      if (!on_boundary)
+      {
+        boundaries[n] = static_cast<FloatType>(BoundaryFlag::InteriorNode);
+      }
+      else if (at_zmax && enabled_fs)
+      {
+        boundaries[n] = static_cast<FloatType>(BoundaryFlag::Surface);
+      }
+      else
+      {
+        boundaries[n] = static_cast<FloatType>(BoundaryFlag::Damping);
+      }
+    }
+    LOOPEND
+  }
+
+  /**
    * @brief Get domain size in specified dimension
    * @param dim Dimension (0=x, 1=y, 2=z)
    * @return Domain size (meters)
@@ -727,147 +803,8 @@ class ModelUnstruct final : public ModelApi<FloatType, ScalarType>
    */
   void buildFaceConnectivity() override
   {
-    using namespace FaceConnectivityUtils;
-
-    // Pre-allocate with maximum possible size using project types
-    const ScalarType max_faces = n_element_ * 6;  // Upper bound
-    const int ndofs_per_face = (order_ + 1) * (order_ + 1);
-
-    // Temporary arrays for construction
-    auto elem_to_faces_temp = allocateArray2D<ARRAY_INT_VIEW>(n_element_, 6);
-    auto face_dofs_temp =
-        allocateArray2D<ARRAY_INT_VIEW>(max_faces, ndofs_per_face);
-    auto face_elem_owner_temp = allocateVector<VECTOR_INT_VIEW>(max_faces);
-    auto face_elem_neighbor_temp = allocateVector<VECTOR_INT_VIEW>(max_faces);
-    auto face_local_owner_temp = allocateVector<VECTOR_INT_VIEW>(max_faces);
-    auto face_local_neighbor_temp = allocateVector<VECTOR_INT_VIEW>(max_faces);
-
-    // Initialize neighbor to -1 (boundary marker)
-    for (ScalarType i = 0; i < max_faces; ++i) face_elem_neighbor_temp(i) = -1;
-
-    // Map for face uniqueness
-    using FaceKey = std::array<ScalarType, 4>;
-    std::map<FaceKey, ScalarType> face_map;
-
-    ScalarType face_count = 0;
-
-    // Build face connectivity
-    for (ScalarType elem = 0; elem < n_element_; ++elem)
-    {
-      for (int lf = 0; lf < 6; ++lf)
-      {
-        CubicFace local_face = static_cast<CubicFace>(lf);
-        auto corners = extractFaceCorners(this, elem, local_face);
-        auto face_key = makeFaceKey(corners);
-
-        auto it = face_map.find(face_key);
-        if (it == face_map.end())
-        {
-          // New face
-          ScalarType face_id = face_count++;
-          face_map[face_key] = face_id;
-
-          // Fill face DOFs directly
-          const int o = order_;
-          int idx = 0;
-          switch (local_face)
-          {
-            case CubicFace::kXMinus:
-              for (int k = 0; k <= o; ++k)
-                for (int j = 0; j <= o; ++j)
-                  face_dofs_temp(face_id, idx++) =
-                      globalNodeIndex(elem, 0, j, k);
-              break;
-            case CubicFace::kXPlus:
-              for (int k = 0; k <= o; ++k)
-                for (int j = 0; j <= o; ++j)
-                  face_dofs_temp(face_id, idx++) =
-                      globalNodeIndex(elem, o, j, k);
-              break;
-            case CubicFace::kYMinus:
-              for (int k = 0; k <= o; ++k)
-                for (int i = 0; i <= o; ++i)
-                  face_dofs_temp(face_id, idx++) =
-                      globalNodeIndex(elem, i, 0, k);
-              break;
-            case CubicFace::kYPlus:
-              for (int k = 0; k <= o; ++k)
-                for (int i = 0; i <= o; ++i)
-                  face_dofs_temp(face_id, idx++) =
-                      globalNodeIndex(elem, i, o, k);
-              break;
-            case CubicFace::kZMinus:
-              for (int j = 0; j <= o; ++j)
-                for (int i = 0; i <= o; ++i)
-                  face_dofs_temp(face_id, idx++) =
-                      globalNodeIndex(elem, i, j, 0);
-              break;
-            case CubicFace::kZPlus:
-              for (int j = 0; j <= o; ++j)
-                for (int i = 0; i <= o; ++i)
-                  face_dofs_temp(face_id, idx++) =
-                      globalNodeIndex(elem, i, j, o);
-              break;
-          }
-
-          face_elem_owner_temp(face_id) = elem;
-          face_local_owner_temp(face_id) = lf;
-
-          elem_to_faces_temp(elem, lf) = face_id;
-        }
-        else
-        {
-          // Face already seen (internal face)
-          ScalarType face_id = it->second;
-          face_elem_neighbor_temp(face_id) = elem;
-          face_local_neighbor_temp(face_id) = lf;
-          elem_to_faces_temp(elem, lf) = face_id;
-        }
-      }
-    }
-
-    // Allocate final arrays with exact size
-    const int n_faces = face_count;
-
-    face_connectivity_.n_faces_ = n_faces;
-    face_connectivity_.ndofs_per_face_ = ndofs_per_face;
-
-    face_connectivity_.elem_to_faces_ =
-        allocateArray2D<ARRAY_INT_VIEW>(n_element_, 6);
-    face_connectivity_.face_dofs_ =
-        allocateArray2D<ARRAY_INT_VIEW>(n_faces, ndofs_per_face);
-    face_connectivity_.face_elem_owner_ =
-        allocateVector<VECTOR_INT_VIEW>(n_faces);
-    face_connectivity_.face_elem_neighbor_ =
-        allocateVector<VECTOR_INT_VIEW>(n_faces);
-    face_connectivity_.face_local_owner_ =
-        allocateVector<VECTOR_INT_VIEW>(n_faces);
-    face_connectivity_.face_local_neighbor_ =
-        allocateVector<VECTOR_INT_VIEW>(n_faces);
-
-    // Copy to final arrays
-    for (ScalarType elem = 0; elem < n_element_; ++elem)
-      for (int lf = 0; lf < 6; ++lf)
-        face_connectivity_.elem_to_faces_(elem, lf) =
-            elem_to_faces_temp(elem, lf);
-
-    for (int face_id = 0; face_id < n_faces; ++face_id)
-    {
-      face_connectivity_.face_elem_owner_(face_id) =
-          face_elem_owner_temp(face_id);
-      face_connectivity_.face_elem_neighbor_(face_id) =
-          face_elem_neighbor_temp(face_id);
-      face_connectivity_.face_local_owner_(face_id) =
-          face_local_owner_temp(face_id);
-      face_connectivity_.face_local_neighbor_(face_id) =
-          face_local_neighbor_temp(face_id);
-
-      for (int dof = 0; dof < ndofs_per_face; ++dof)
-        face_connectivity_.face_dofs_(face_id, dof) =
-            face_dofs_temp(face_id, dof);
-    }
+    face_connectivity_ = FaceConnectivity<FloatType, ScalarType>::build(*this);
   }
-
   /**
    * @brief Get global face ID from element and local face
    * @param elem Element index
@@ -877,7 +814,7 @@ class ModelUnstruct final : public ModelApi<FloatType, ScalarType>
   PROXY_HOST_DEVICE
   ScalarType getGlobalFace(ScalarType elem, CubicFace local_face) const
   {
-    return face_connectivity_.globalFace(elem, local_face);
+    return face_connectivity_.getGlobalFace(elem, local_face);
   }
 
   /**
@@ -889,7 +826,7 @@ class ModelUnstruct final : public ModelApi<FloatType, ScalarType>
   PROXY_HOST_DEVICE
   ScalarType getGlobalNodeFromFace(ScalarType face_global, int local_dof) const
   {
-    return face_connectivity_.globalNode(face_global, local_dof);
+    return face_connectivity_.getGlobalNodeFromFace(face_global, local_dof);
   }
 
   /**
@@ -900,7 +837,7 @@ class ModelUnstruct final : public ModelApi<FloatType, ScalarType>
   PROXY_HOST_DEVICE
   bool isBoundaryFace(ScalarType face_global) const
   {
-    return face_connectivity_.isBoundary(face_global);
+    return face_connectivity_.isBoundaryFace(face_global);
   }
 
   /**
@@ -908,7 +845,10 @@ class ModelUnstruct final : public ModelApi<FloatType, ScalarType>
    * @return Number of unique faces
    */
   PROXY_HOST_DEVICE
-  ScalarType getNumberOfFaces() const { return face_connectivity_.numFaces(); }
+  ScalarType getNumberOfFaces() const
+  {
+    return face_connectivity_.getNumberOfFaces();
+  }
 
   /**
    * @brief Check if node is on free surface
@@ -997,7 +937,7 @@ class ModelUnstruct final : public ModelApi<FloatType, ScalarType>
   VECTOR_INT_VIEW freeSurfaceTag_;
   bool freeSurfaceEnabled_;
 
-  FaceConnectivity<ScalarType> face_connectivity_;
+  FaceConnectivity<FloatType, ScalarType> face_connectivity_;
 };
 
 }  // namespace model
