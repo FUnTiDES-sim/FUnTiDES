@@ -28,12 +28,11 @@ class FaceConnectivity
    */
   static FaceConnectivity build(const ModelApi<FloatType, ScalarType>& mesh);
 
-  *@brief Get total number of unique faces in
-          the mesh* @ return Number of faces *
-      / PROXY_HOST_DEVICE ScalarType getNumberOfFaces() const
-  {
-    return n_faces_;
-  }
+  /**
+   * @brief Get total number of unique faces in the mesh
+   * @ return Number of faces
+   */
+  PROXY_HOST_DEVICE ScalarType getNumberOfFaces() const { return n_faces_; }
 
   /**
    * @brief Get number of degrees of freedom (nodes) per face
