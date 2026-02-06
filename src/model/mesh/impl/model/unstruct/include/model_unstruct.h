@@ -83,11 +83,11 @@ struct ModelUnstructData : public ModelDataBase<FloatType, ScalarType>
   ScalarType n_element_;
   ScalarType n_node_;
   FloatType lx_, ly_, lz_;  // Local dimensions
-  
+
   // AJOUTER : Global domain bounds (for MPI)
   FloatType ox_global_{0}, oy_global_{0}, oz_global_{0};  // Global origin
   FloatType lx_global_{0}, ly_global_{0}, lz_global_{0};  // Global size
-  
+
   bool isModelOnNodes_;
   bool isElastic_;
 
@@ -675,7 +675,8 @@ class ModelUnstruct final : public ModelApi<FloatType, ScalarType>
       bool at_zmin = (fabs(z - z_min_global) < tol);
       bool at_zmax = (fabs(z - z_max_global) < tol);
 
-      bool on_boundary = at_xmin || at_xmax || at_ymin || at_ymax || at_zmin || at_zmax;
+      bool on_boundary =
+          at_xmin || at_xmax || at_ymin || at_ymax || at_zmin || at_zmax;
 
       if (!on_boundary)
       {
@@ -891,7 +892,7 @@ class ModelUnstruct final : public ModelApi<FloatType, ScalarType>
 
     // Capture pour le kernel
     auto tag = freeSurfaceTag_;
-    auto mesh_copy = *this;  
+    auto mesh_copy = *this;
 
     LOOPHEAD(getNumberOfNodes(), n)
     {

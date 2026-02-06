@@ -25,7 +25,7 @@ struct ModelStructData final : public ModelDataBase<FloatType, ScalarType>
   ScalarType ex_, ey_, ez_;
   FloatType dx_, dy_, dz_;
   FloatType ox_{0}, oy_{0}, oz_{0};  // Local origin
-  
+
   // AJOUTER : Global domain bounds (for MPI)
   FloatType ox_global_{0}, oy_global_{0}, oz_global_{0};  // Global origin
   FloatType lx_global_{0}, ly_global_{0}, lz_global_{0};  // Global size
@@ -59,26 +59,26 @@ class ModelStruct : public ModelApi<FloatType, ScalarType>
    * @brief Construct from data structure
    * @param data Mesh configuration parameters
    */
-PROXY_HOST_DEVICE ModelStruct(
-    const ModelStructData<FloatType, ScalarType>& data)
-    : ex_(data.ex_),
-      ey_(data.ey_),
-      ez_(data.ez_),
-      ox_(data.ox_),
-      oy_(data.oy_),
-      oz_(data.oz_),
-      lx_(data.dx_),
-      ly_(data.dy_),
-      lz_(data.dz_),
-      ox_global_(data.ox_global_),
-      oy_global_(data.oy_global_),
-      oz_global_(data.oz_global_),
-      lx_global_(data.lx_global_),
-      ly_global_(data.ly_global_),
-      lz_global_(data.lz_global_),
-      isModelOnNodes_(data.isModelOnNodes_),
-      isElastic_(data.isElastic_),
-      free_surface_enabled_(true)
+  PROXY_HOST_DEVICE ModelStruct(
+      const ModelStructData<FloatType, ScalarType>& data)
+      : ex_(data.ex_),
+        ey_(data.ey_),
+        ez_(data.ez_),
+        ox_(data.ox_),
+        oy_(data.oy_),
+        oz_(data.oz_),
+        lx_(data.dx_),
+        ly_(data.dy_),
+        lz_(data.dz_),
+        ox_global_(data.ox_global_),
+        oy_global_(data.oy_global_),
+        oz_global_(data.oz_global_),
+        lx_global_(data.lx_global_),
+        ly_global_(data.ly_global_),
+        lz_global_(data.lz_global_),
+        isModelOnNodes_(data.isModelOnNodes_),
+        isElastic_(data.isElastic_),
+        free_surface_enabled_(true)
   {
     nx_ = Order * ex_ + 1;
     ny_ = Order * ey_ + 1;
@@ -574,59 +574,60 @@ PROXY_HOST_DEVICE ModelStruct(
    * Computes boundary flags geometrically based on node positions
    * and stores them in a GPU-accessible array.
    */
-void initFreeSurface() override
-{
-  // Allocate boundary flags array
-  boundaries_t_ =
-      allocateVector<VECTOR_REAL_VIEW>(getNumberOfNodes(), "boundaries");
-
-  FloatType tol = getMinSpacing() * 1e-4;
-  bool enabled = free_surface_enabled_;
-
-  // UTILISER LES COORDONNÉES GLOBALES
-  FloatType x_min_global = ox_global_;
-  FloatType x_max_global = ox_global_ + lx_global_;
-  FloatType y_min_global = oy_global_;
-  FloatType y_max_global = oy_global_ + ly_global_;
-  FloatType z_min_global = oz_global_;
-  FloatType z_max_global = oz_global_ + lz_global_;
-
-  // Capture for GPU kernel
-  auto boundaries = boundaries_t_;
-  auto mesh_copy = *this;
-
-  LOOPHEAD(getNumberOfNodes(), n)
+  void initFreeSurface() override
   {
-    // Get physical coordinates
-    FloatType x = mesh_copy.nodeCoord(n, 0);
-    FloatType y = mesh_copy.nodeCoord(n, 1);
-    FloatType z = mesh_copy.nodeCoord(n, 2);
+    // Allocate boundary flags array
+    boundaries_t_ =
+        allocateVector<VECTOR_REAL_VIEW>(getNumberOfNodes(), "boundaries");
 
-    // Check if at GLOBAL domain boundary
-    bool at_xmin = (fabs(x - x_min_global) < tol);
-    bool at_xmax = (fabs(x - x_max_global) < tol);
-    bool at_ymin = (fabs(y - y_min_global) < tol);
-    bool at_ymax = (fabs(y - y_max_global) < tol);
-    bool at_zmin = (fabs(z - z_min_global) < tol);
-    bool at_zmax = (fabs(z - z_max_global) < tol);
+    FloatType tol = getMinSpacing() * 1e-4;
+    bool enabled = free_surface_enabled_;
 
-    bool on_boundary = at_xmin || at_xmax || at_ymin || at_ymax || at_zmin || at_zmax;
+    // UTILISER LES COORDONNÉES GLOBALES
+    FloatType x_min_global = ox_global_;
+    FloatType x_max_global = ox_global_ + lx_global_;
+    FloatType y_min_global = oy_global_;
+    FloatType y_max_global = oy_global_ + ly_global_;
+    FloatType z_min_global = oz_global_;
+    FloatType z_max_global = oz_global_ + lz_global_;
 
-    if (!on_boundary)
+    // Capture for GPU kernel
+    auto boundaries = boundaries_t_;
+    auto mesh_copy = *this;
+
+    LOOPHEAD(getNumberOfNodes(), n)
     {
-      boundaries(n) = static_cast<uint8_t>(BoundaryFlag::InteriorNode);
+      // Get physical coordinates
+      FloatType x = mesh_copy.nodeCoord(n, 0);
+      FloatType y = mesh_copy.nodeCoord(n, 1);
+      FloatType z = mesh_copy.nodeCoord(n, 2);
+
+      // Check if at GLOBAL domain boundary
+      bool at_xmin = (fabs(x - x_min_global) < tol);
+      bool at_xmax = (fabs(x - x_max_global) < tol);
+      bool at_ymin = (fabs(y - y_min_global) < tol);
+      bool at_ymax = (fabs(y - y_max_global) < tol);
+      bool at_zmin = (fabs(z - z_min_global) < tol);
+      bool at_zmax = (fabs(z - z_max_global) < tol);
+
+      bool on_boundary =
+          at_xmin || at_xmax || at_ymin || at_ymax || at_zmin || at_zmax;
+
+      if (!on_boundary)
+      {
+        boundaries(n) = static_cast<uint8_t>(BoundaryFlag::InteriorNode);
+      }
+      else if (at_zmax && enabled)
+      {
+        boundaries(n) = static_cast<uint8_t>(BoundaryFlag::Surface);
+      }
+      else
+      {
+        boundaries(n) = static_cast<uint8_t>(BoundaryFlag::Damping);
+      }
     }
-    else if (at_zmax && enabled)
-    {
-      boundaries(n) = static_cast<uint8_t>(BoundaryFlag::Surface);
-    }
-    else
-    {
-      boundaries(n) = static_cast<uint8_t>(BoundaryFlag::Damping);
-    }
+    LOOPEND
   }
-  LOOPEND
-}
 
   // ============================================================================
   // FACE CONNECTIVITY FUNCTIONS (Computed on-the-fly for Cartesian meshes)

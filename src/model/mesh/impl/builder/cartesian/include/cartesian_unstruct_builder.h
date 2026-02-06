@@ -47,20 +47,15 @@ class CartesianUnstructBuilder : public ModelBuilderBase<FloatType, ScalarType>
   {
     model::ModelUnstructData<FloatType, ScalarType> modelData(
         order_, ex_ * ey_ * ez_,
-        (ex_ * order_ + 1) * (ey_ * order_ + 1) * (ez_ * order_ + 1), 
-        lx_, ly_, lz_,  // Local dimensions
-        isModelOnNodes_, isElastic_, 
-        global_node_index_, 
-        nodes_coords_x_, nodes_coords_y_, nodes_coords_z_, 
-        model_vp_node_, model_vp_element_,
-        model_rho_node_, model_rho_element_, 
-        model_vs_node_, model_vs_element_,
-        model_delta_node_, model_delta_element_, 
-        model_epsilon_node_, model_epsilon_element_, 
-        model_gamma_node_, model_gamma_element_,
-        model_theta_node_, model_theta_element_, 
-        model_phi_node_, model_phi_element_, 
-        model_C_tensor_element_, boundaries_t_);
+        (ex_ * order_ + 1) * (ey_ * order_ + 1) * (ez_ * order_ + 1), lx_, ly_,
+        lz_,  // Local dimensions
+        isModelOnNodes_, isElastic_, global_node_index_, nodes_coords_x_,
+        nodes_coords_y_, nodes_coords_z_, model_vp_node_, model_vp_element_,
+        model_rho_node_, model_rho_element_, model_vs_node_, model_vs_element_,
+        model_delta_node_, model_delta_element_, model_epsilon_node_,
+        model_epsilon_element_, model_gamma_node_, model_gamma_element_,
+        model_theta_node_, model_theta_element_, model_phi_node_,
+        model_phi_element_, model_C_tensor_element_, boundaries_t_);
 
     // AJOUTER : Set origins (local et global)
     modelData.ox_ = ox_;
@@ -89,10 +84,10 @@ class CartesianUnstructBuilder : public ModelBuilderBase<FloatType, ScalarType>
   ~CartesianUnstructBuilder() = default;
 
  private:
-  FloatType ox_{0}, oy_{0}, oz_{0};  // Local origin
+  FloatType ox_{0}, oy_{0}, oz_{0};                       // Local origin
   FloatType global_ox_{0}, global_oy_{0}, global_oz_{0};  // Global origin
   ScalarType ex_, ey_, ez_;
-  FloatType lx_, ly_, lz_;  // Local dimensions
+  FloatType lx_, ly_, lz_;                                // Local dimensions
   FloatType global_lx_{0}, global_ly_{0}, global_lz_{0};  // Global dimensions
 
   int order_;

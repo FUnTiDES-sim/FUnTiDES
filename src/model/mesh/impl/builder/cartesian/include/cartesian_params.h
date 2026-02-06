@@ -15,7 +15,7 @@ struct CartesianParams
   // Global domain info (for MPI decomposition)
   Coord global_lx{0}, global_ly{0}, global_lz{0};
   Coord global_origin_x{0}, global_origin_y{0}, global_origin_z{0};
-  
+
   // Local subdomain origin
   Coord origin_x{0}, origin_y{0}, origin_z{0};
 

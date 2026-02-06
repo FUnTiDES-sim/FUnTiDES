@@ -16,9 +16,8 @@ class CartesianStructBuilder : public ModelBuilderBase<FloatType, ScalarType>
                          FloatType oz = 0.0,
                          // AJOUTER : paramètres globaux (optionnels)
                          FloatType global_lx = -1.0, FloatType global_ly = -1.0,
-                         FloatType global_lz = -1.0,
-                         FloatType global_ox = 0.0, FloatType global_oy = 0.0,
-                         FloatType global_oz = 0.0)
+                         FloatType global_lz = -1.0, FloatType global_ox = 0.0,
+                         FloatType global_oy = 0.0, FloatType global_oz = 0.0)
       : ex_(ex),
         ey_(ey),
         ez_(ez),
@@ -57,7 +56,7 @@ class CartesianStructBuilder : public ModelBuilderBase<FloatType, ScalarType>
     data.ox_ = ox_;
     data.oy_ = oy_;
     data.oz_ = oz_;
-    
+
     // AJOUTER : Global bounds
     data.ox_global_ = global_ox_;
     data.oy_global_ = global_oy_;
@@ -80,7 +79,7 @@ class CartesianStructBuilder : public ModelBuilderBase<FloatType, ScalarType>
   }
 
  private:
-  FloatType ox_, oy_, oz_;   // Local origin coordinate in 3D
+  FloatType ox_, oy_, oz_;  // Local origin coordinate in 3D
   FloatType global_ox_, global_oy_, global_oz_;  // Global origin
   ScalarType ex_, ey_, ez_;  // Number of elements for each axis (local)
   FloatType lx_, ly_, lz_;   // Domain size (local)
