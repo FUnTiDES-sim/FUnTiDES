@@ -4,11 +4,6 @@
 
 #include "finiteElement/makutu/Qk_Hexahedron_Lagrange_GaussLobatto.hpp"
 
-#ifdef ENABLE_Shiva
-#include "shiva/geometry/mapping/LinearTransform.hpp"
-#include "shiva/geometry/mapping/UniformScaling.hpp"
-#endif
-
 namespace solver
 {
 namespace fe
@@ -22,12 +17,6 @@ namespace model_discretization_interface
  */
 enum class transform_types
 {
-#ifdef ENABLE_Shiva
-  shiva_linear_transform,           /// shiva linear transform
-  shiva_uniform_scaling_transform,  /// shiva uniform scaling transform (single
-                                    /// h value)
-  shiva_scaling_transform,          /// shiva scaling transform (hx, hy, hz)
-#endif
   linear_transform,  /// simple linear transform struct used in makutu kernel
   invalid_transform  /// invalid transform type
 };
@@ -68,28 +57,6 @@ struct transform_type_selector<
   static constexpr transform_types type = transform_types::linear_transform;
 };
 
-#ifdef ENABLE_Shiva
-
-// Specialization for shiva::geometry::LinearTransform
-template <typename REAL_TYPE, typename INTERPOLATED_SHAPE>
-struct transform_type_selector<
-    shiva::geometry::LinearTransform<REAL_TYPE, INTERPOLATED_SHAPE>, void>
-{
-  static constexpr transform_types type =
-      transform_types::shiva_linear_transform;
-};
-
-// Specialization for shiva::geometry::UniformScaling
-template <typename REAL_TYPE>
-struct transform_type_selector<shiva::geometry::UniformScaling<REAL_TYPE, void>,
-                               void>
-{
-  static constexpr transform_types type =
-      transform_types::shiva_uniform_scaling_transform;
-};
-
-#endif
-
 /**
  * @brief Gathers the transform data for a given element from the mesh into the
  *        provided transform data structure.
@@ -101,30 +68,7 @@ static constexpr PROXY_HOST_DEVICE void gatherTransformData(
 {
   using TT = std::remove_cv_t<TRANSFORM_TYPE>;
 
-#ifdef ENABLE_Shiva
   if constexpr (transform_type_selector<TT>::type ==
-                transform_types::shiva_linear_transform)
-  {
-    typename MESH_TYPE::IndexType const elementIndex =
-        mesh.elementIndex(elementNumber);
-    typename TRANSFORM_TYPE::DataType& cellCoordData = transformData.getData();
-    for (int k = 0; k < 2; ++k)
-    {
-      for (int j = 0; j < 2; ++j)
-      {
-        for (int i = 0; i < 2; ++i)
-        {
-          typename MESH_TYPE::IndexType const vertexIndex =
-              mesh.globalVertexIndex(elementIndex, i, j, k);
-          float* const coords = &cellCoordData(i, j, k, 0);
-          mesh.vertexCoords(vertexIndex, coords);
-        }
-      }
-    }
-  }
-  else
-#endif
-      if constexpr (transform_type_selector<TT>::type ==
                     transform_types::linear_transform)
   {
     typename MESH_TYPE::IndexType elementIndex =

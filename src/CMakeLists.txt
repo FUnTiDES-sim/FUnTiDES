@@ -23,8 +23,7 @@ endforeach()
 
 file(GLOB_RECURSE ALL_SOURCE_FILES ${GLOBS})
 
-# Example: filter out files whose path contains "Shiva" or "SEMKernels"
-list(FILTER ALL_SOURCE_FILES EXCLUDE REGEX "Shiva")
+# Example: filter out files whose path contains "SEMKernels"
 list(FILTER ALL_SOURCE_FILES EXCLUDE REGEX "SEMKernels")
 
 # Make the format target

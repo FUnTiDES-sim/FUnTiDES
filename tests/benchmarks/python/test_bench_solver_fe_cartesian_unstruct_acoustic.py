@@ -75,7 +75,7 @@ class TestSolverUnstructAcoustic:
     @pytest.mark.benchmark(group=Groups.BenchmarkGroup.COMPUTE_FE_INIT.name)
     @pytest.mark.parametrize("unstruct", test_cases, indirect=True)
     @pytest.mark.parametrize(
-        "implem", [Solver.ImplemType.MAKUTU, Solver.ImplemType.SHIVA]
+        "implem", [Solver.ImplemType.MAKUTU]
     )
     def test_solver_fe_init(self, unstruct, implem, benchmark):
         sd, _, builder, on_nodes, is_elastic = unstruct
@@ -104,7 +104,7 @@ class TestSolverUnstructAcoustic:
     @pytest.mark.benchmark(group=Groups.BenchmarkGroup.COMPUTE_ONE_STEP.name)
     @pytest.mark.parametrize("unstruct", test_cases, indirect=True)
     @pytest.mark.parametrize(
-        "implem", [Solver.ImplemType.MAKUTU, Solver.ImplemType.SHIVA]
+        "implem", [Solver.ImplemType.MAKUTU]
     )
     def test_solver_one_step(self, unstruct, implem, benchmark):
         sd, _, builder, on_nodes, is_elastic = unstruct

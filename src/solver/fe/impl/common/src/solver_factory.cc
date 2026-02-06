@@ -165,16 +165,6 @@ std::unique_ptr<Solver> createSolver(
       case feenum::implemType::kMakutu:
         return makeSemSolver<IntegralType::MAKUTU>(order, mesh, modelLocation,
                                                    physicType);
-      case feenum::implemType::kShiva:
-#ifdef ENABLE_Shiva
-        return makeSemSolver<IntegralType::SHIVA>(order, mesh, modelLocation,
-                                                  physicType);
-#else
-        throw std::runtime_error(
-            "Shiva is not compiled. Cannot be used, please compile with "
-            "ENABLE_Shiva=ON");
-#endif  // ENABLE_Shiva
-
       default:
         throw std::runtime_error("Unknown implementation type: " +
                                  to_string(implemType));
