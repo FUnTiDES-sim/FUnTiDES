@@ -69,7 +69,7 @@ static constexpr PROXY_HOST_DEVICE void gatherTransformData(
   using TT = std::remove_cv_t<TRANSFORM_TYPE>;
 
   if constexpr (transform_type_selector<TT>::type ==
-                    transform_types::linear_transform)
+                transform_types::linear_transform)
   {
     typename MESH_TYPE::IndexType elementIndex =
         mesh.elementIndex(elementNumber);

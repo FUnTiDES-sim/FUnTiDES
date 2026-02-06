@@ -191,14 +191,12 @@ BENCHMARK_TEMPLATE_METHOD_F(SolverStructFixture, OneStep)
 BENCHMARK_FOR_ALL_ORDERS(
     SolverStructFixture, FEInit,
     BuilderConfig,
-        ->ArgsProduct({{0, 1},
-                       {static_cast<int64_t>(implemType::kMakutu)}})
+        ->ArgsProduct({{0, 1}, {static_cast<int64_t>(implemType::kMakutu)}})
         ->Unit(benchmark::kMillisecond))
 BENCHMARK_FOR_ALL_ORDERS(
     SolverStructFixture, OneStep,
     BuilderConfig,
-        ->ArgsProduct({{0, 1},
-                       {static_cast<int64_t>(implemType::kMakutu)}})
+        ->ArgsProduct({{0, 1}, {static_cast<int64_t>(implemType::kMakutu)}})
         ->Unit(benchmark::kMillisecond))
 
 }  // namespace bench
