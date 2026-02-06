@@ -15,12 +15,6 @@ namespace model
 
 /**
  * @brief Data structure for unstructured mesh initialization
- *
- * Contains all necessary data to construct an unstructured mesh including
- * connectivity, coordinates, and material properties.
- *
- * @tparam FloatType Floating point type for coordinates and properties
- * @tparam ScalarType Integer type for indices and counts
  */
 template <typename FloatType, typename ScalarType>
 struct ModelUnstructData : public ModelDataBase<FloatType, ScalarType>
@@ -84,47 +78,46 @@ struct ModelUnstructData : public ModelDataBase<FloatType, ScalarType>
   }
 
   FloatType origin_x_{0}, origin_y_{0}, origin_z_{0};
-  FloatType ox_, oy_, oz_;
+  FloatType ox_, oy_, oz_;  // Local origin
   ScalarType order_;
   ScalarType n_element_;
   ScalarType n_node_;
-  FloatType lx_, ly_, lz_;
+  FloatType lx_, ly_, lz_;  // Local dimensions
+  
+  // AJOUTER : Global domain bounds (for MPI)
+  FloatType ox_global_{0}, oy_global_{0}, oz_global_{0};  // Global origin
+  FloatType lx_global_{0}, ly_global_{0}, lz_global_{0};  // Global size
+  
   bool isModelOnNodes_;
   bool isElastic_;
 
-  ARRAY_INT_VIEW global_node_index_;  ///< Element-to-node connectivity
-  VECTOR_REAL_VIEW nodes_coords_x_;   ///< Node x-coordinates
-  VECTOR_REAL_VIEW nodes_coords_y_;   ///< Node y-coordinates
-  VECTOR_REAL_VIEW nodes_coords_z_;   ///< Node z-coordinates
+  ARRAY_INT_VIEW global_node_index_;
+  VECTOR_REAL_VIEW nodes_coords_x_;
+  VECTOR_REAL_VIEW nodes_coords_y_;
+  VECTOR_REAL_VIEW nodes_coords_z_;
 
-  VECTOR_REAL_VIEW model_vp_node_;            ///< P-wave velocity on nodes
-  VECTOR_REAL_VIEW model_vp_element_;         ///< P-wave velocity on elements
-  VECTOR_REAL_VIEW model_rho_node_;           ///< Density on nodes
-  VECTOR_REAL_VIEW model_rho_element_;        ///< Density on elements
-  VECTOR_REAL_VIEW model_vs_node_;            ///< S-wave velocity on nodes
-  VECTOR_REAL_VIEW model_vs_element_;         ///< S-wave velocity on elements
-  VECTOR_REAL_VIEW model_delta_node_;         ///< Thomsen delta on nodes
-  VECTOR_REAL_VIEW model_delta_element_;      ///< Thomsen delta on elements
-  VECTOR_REAL_VIEW model_epsilon_node_;       ///< Thomsen epsilon on nodes
-  VECTOR_REAL_VIEW model_epsilon_element_;    ///< Thomsen epsilon on elements
-  VECTOR_REAL_VIEW model_gamma_node_;         ///< Thomsen gamma on nodes
-  VECTOR_REAL_VIEW model_gamma_element_;      ///< Thomsen gamma on elements
-  VECTOR_REAL_VIEW model_theta_node_;         ///< Tilt angle on nodes
-  VECTOR_REAL_VIEW model_theta_element_;      ///< Tilt angle on elements
-  VECTOR_REAL_VIEW model_phi_node_;           ///< Azimuth angle on nodes
-  VECTOR_REAL_VIEW model_phi_element_;        ///< Azimuth angle on elements
-  ARRAY3D_REAL_VIEW model_C_tensor_element_;  ///< Elasticity tensor on elements
-  VECTOR_REAL_VIEW boundaries_t_;             ///< Boundary condition flags
+  VECTOR_REAL_VIEW model_vp_node_;
+  VECTOR_REAL_VIEW model_vp_element_;
+  VECTOR_REAL_VIEW model_rho_node_;
+  VECTOR_REAL_VIEW model_rho_element_;
+  VECTOR_REAL_VIEW model_vs_node_;
+  VECTOR_REAL_VIEW model_vs_element_;
+  VECTOR_REAL_VIEW model_delta_node_;
+  VECTOR_REAL_VIEW model_delta_element_;
+  VECTOR_REAL_VIEW model_epsilon_node_;
+  VECTOR_REAL_VIEW model_epsilon_element_;
+  VECTOR_REAL_VIEW model_gamma_node_;
+  VECTOR_REAL_VIEW model_gamma_element_;
+  VECTOR_REAL_VIEW model_theta_node_;
+  VECTOR_REAL_VIEW model_theta_element_;
+  VECTOR_REAL_VIEW model_phi_node_;
+  VECTOR_REAL_VIEW model_phi_element_;
+  ARRAY3D_REAL_VIEW model_C_tensor_element_;
+  VECTOR_REAL_VIEW boundaries_t_;
 };
 
 /**
  * @brief Unstructured 3D hexahedral mesh implementation
- *
- * Supports arbitrary mesh topologies with explicit connectivity arrays.
- * Compatible with GPU/CPU execution via Kokkos.
- *
- * @tparam FloatType Floating point type (float or double)
- * @tparam ScalarType Integer type for indexing
  */
 template <typename FloatType, typename ScalarType>
 class ModelUnstruct final : public ModelApi<FloatType, ScalarType>
@@ -132,14 +125,10 @@ class ModelUnstruct final : public ModelApi<FloatType, ScalarType>
  public:
   using IndexType = int;
 
-  /**
-   * @brief Default constructor
-   */
   PROXY_HOST_DEVICE ModelUnstruct() = default;
 
   /**
    * @brief Construct from data structure
-   * @param data Complete mesh data
    */
   PROXY_HOST_DEVICE ModelUnstruct(
       const ModelUnstructData<FloatType, ScalarType>& data)
@@ -149,9 +138,16 @@ class ModelUnstruct final : public ModelApi<FloatType, ScalarType>
         lx_(data.lx_),
         ly_(data.ly_),
         lz_(data.lz_),
-        ox_(data.origin_x_),
-        oy_(data.origin_y_),
-        oz_(data.origin_z_),
+        ox_(data.ox_),
+        oy_(data.oy_),
+        oz_(data.oz_),
+        // AJOUTER : Global bounds
+        ox_global_(data.ox_global_),
+        oy_global_(data.oy_global_),
+        oz_global_(data.oz_global_),
+        lx_global_(data.lx_global_),
+        ly_global_(data.ly_global_),
+        lz_global_(data.lz_global_),
         isModelOnNodes_(data.isModelOnNodes_),
         isElastic_(data.isElastic_),
         global_node_index_(data.global_node_index_),
@@ -646,7 +642,6 @@ class ModelUnstruct final : public ModelApi<FloatType, ScalarType>
    */
   void initializeBoundaryFlags(bool free_surface_on_top) override
   {
-    // Allocate if empty
     if (boundaries_t_.extent(0) == 0)
     {
       boundaries_t_ = allocateVector<VECTOR_REAL_VIEW>(n_node_, "boundaries_t");
@@ -655,7 +650,14 @@ class ModelUnstruct final : public ModelApi<FloatType, ScalarType>
     FloatType tol = getMinSpacing() * 1e-4;
     bool enabled_fs = free_surface_on_top;
 
-    // Capture pour le kernel
+    // UTILISER LES COORDONNÉES GLOBALES
+    FloatType x_min_global = ox_global_;
+    FloatType x_max_global = ox_global_ + lx_global_;
+    FloatType y_min_global = oy_global_;
+    FloatType y_max_global = oy_global_ + ly_global_;
+    FloatType z_min_global = oz_global_;
+    FloatType z_max_global = oz_global_ + lz_global_;
+
     auto boundaries = boundaries_t_;
     auto mesh_copy = *this;
 
@@ -666,15 +668,14 @@ class ModelUnstruct final : public ModelApi<FloatType, ScalarType>
       FloatType z = mesh_copy.nodeCoord(n, 2);
 
       // Check if at GLOBAL domain boundary
-      bool at_xmin = (fabs(x - mesh_copy.ox_) < tol);
-      bool at_xmax = (fabs(x - (mesh_copy.ox_ + mesh_copy.lx_)) < tol);
-      bool at_ymin = (fabs(y - mesh_copy.oy_) < tol);
-      bool at_ymax = (fabs(y - (mesh_copy.oy_ + mesh_copy.ly_)) < tol);
-      bool at_zmin = (fabs(z - mesh_copy.oz_) < tol);
-      bool at_zmax = (fabs(z - (mesh_copy.oz_ + mesh_copy.lz_)) < tol);
+      bool at_xmin = (fabs(x - x_min_global) < tol);
+      bool at_xmax = (fabs(x - x_max_global) < tol);
+      bool at_ymin = (fabs(y - y_min_global) < tol);
+      bool at_ymax = (fabs(y - y_max_global) < tol);
+      bool at_zmin = (fabs(z - z_min_global) < tol);
+      bool at_zmax = (fabs(z - z_max_global) < tol);
 
-      bool on_boundary =
-          at_xmin || at_xmax || at_ymin || at_ymax || at_zmin || at_zmax;
+      bool on_boundary = at_xmin || at_xmax || at_ymin || at_ymax || at_zmin || at_zmax;
 
       if (!on_boundary)
       {
@@ -885,12 +886,12 @@ class ModelUnstruct final : public ModelApi<FloatType, ScalarType>
         allocateVector<VECTOR_INT_VIEW>(getNumberOfNodes(), "freeSurfaceTag");
 
     FloatType tol = getMinSpacing() * 1e-4;
-    FloatType z_max = oz_ + lz_;
+    FloatType z_max = oz_global_ + lz_global_;
     bool enabled = freeSurfaceEnabled_;
 
     // Capture pour le kernel
     auto tag = freeSurfaceTag_;
-    auto mesh_copy = *this;  // Copie pour capture dans lambda
+    auto mesh_copy = *this;  
 
     LOOPHEAD(getNumberOfNodes(), n)
     {
@@ -907,6 +908,9 @@ class ModelUnstruct final : public ModelApi<FloatType, ScalarType>
   ScalarType n_node_;
   FloatType lx_, ly_, lz_;
   FloatType ox_, oy_, oz_;
+  FloatType ox_global_, oy_global_, oz_global_;  // Global origin
+  FloatType lx_global_, ly_global_, lz_global_;  // Global size
+
   int n_points_per_element_;
   bool isModelOnNodes_;
   bool isElastic_;
