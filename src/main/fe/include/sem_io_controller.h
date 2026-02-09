@@ -32,10 +32,7 @@ class SemIOController
   std::string rcv_file_{"rcv_not_set.bp"};
   std::string snap_file_{"snap_not_set.bp"};
 
-  void initAdios()
-  {
-    adios_ = adios2::ADIOS();
-  }
+  void initAdios() { adios_ = adios2::ADIOS(); }
 
   void configureFilesName()
   {
@@ -85,7 +82,7 @@ class SemIOController
     pn_ = async_io_.DefineVariable<float>("PressureField", global_dims,
                                           start_offsets, local_dims);
 
-    timestep_ = async_io_.DefineVariable<int>("TimeStep");
+    timestep_ = async_io_.DefineVariable<int>("TimeStep", {1}, {0}, {1});
   }
 
   void attachOperator()
@@ -139,7 +136,11 @@ class SemIOController
   void saveSnapshot(const vectorReal& pnGlobal, const int timestep)
   {
     snaps_writer_.BeginStep();
-    snaps_writer_.Put(timestep_, timestep);
+
+    // Wrap scalar in array
+    int ts_value[1] = {timestep};
+    snaps_writer_.Put(timestep_, ts_value);
+
     snaps_writer_.Put(pn_, pnGlobal.data());
     snaps_writer_.EndStep();
   }

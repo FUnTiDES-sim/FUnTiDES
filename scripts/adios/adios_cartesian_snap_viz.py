@@ -190,27 +190,24 @@ def read_bp5_directory(directory, variable_name, nx, ny, nz):
         print(f"  Read {num_floats} float32 values from data.0")
         print(f"  Expected per timestep: {nx * ny * nz}")
 
-        # Try to determine number of timesteps
+        # Determine number of timesteps
         values_per_step = nx * ny * nz
-        if num_floats % values_per_step == 0:
-            num_steps = num_floats // values_per_step
-            print(f"  Detected {num_steps} timesteps")
+        num_steps = num_floats // values_per_step  # Integer division - floor
+        remainder = num_floats % values_per_step
 
+        print(f"  Detected {num_steps} complete timesteps + {remainder} remainder values")
+
+        if num_steps > 0:
             for step in range(num_steps):
                 start_idx = step * values_per_step
                 end_idx = start_idx + values_per_step
                 step_data = data_array[start_idx:end_idx].reshape((nx, ny, nz))
                 data_list.append(step_data)
                 timestep_list.append(step)
+            print(f"  Successfully read {num_steps} complete timesteps")
         else:
-            # Can't evenly divide - just take what we can
-            print(f"  Warning: Data size {num_floats} doesn't divide evenly by {values_per_step}")
-            print(f"  Attempting to read as single timestep...")
-
-            if num_floats >= values_per_step:
-                step_data = data_array[:values_per_step].reshape((nx, ny, nz))
-                data_list.append(step_data)
-                timestep_list.append(0)
+            print(f"  Error: Not enough data for even one timestep")
+            return None, None
 
         if len(data_list) > 0:
             print(f"Successfully read {len(data_list)} timestep(s) from BP5 directory")
