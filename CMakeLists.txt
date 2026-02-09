@@ -21,11 +21,11 @@ include(cmake/ProxyConfig.cmake)    # This must go *before* other configurations
 # Configure
 #--------------------------------------------------------
 include(cmake/PywrapConfig.cmake)   # This must go *before* kokkos and adios configurations
+include(cmake/MPIConfig.cmake)      # This must go *before* adios configuration
 include(cmake/KokkosConfig.cmake)
 include(cmake/ADIOS2Config.cmake)
 include(cmake/GoogleTestConfig.cmake)
 include(cmake/GoogleBenchConfig.cmake)
-include(cmake/MPIConfig.cmake)
 
 #--------------------------------------------------------
 # Custom cmake functions

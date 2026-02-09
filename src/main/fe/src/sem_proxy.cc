@@ -54,92 +54,16 @@ SEMproxy::SEMproxy(const SemProxyOptions& opt)
 
   m_solver = createSolver(methodType, implemType, meshType, modelLocation,
                           physicType, opt.order);
+
   const model::AnisotropyType anisotropyType = getAnisotropy(opt.anisotropy);
 
-  // Build Mesh using LOCAL parameters
-  if (meshType == meshType::kStruct)
-  {
-    switch (order)
-    {
-      case 1: {
-        model::CartesianStructBuilder<float, int, 1> builder(
-            m_localParams.ex, m_localParams.lx, m_localParams.ey,
-            m_localParams.ly, m_localParams.ez, m_localParams.lz,
-            isModelOnNodes, isElastic, m_localParams.origin_x,
-            m_localParams.origin_y, m_localParams.origin_z);
-        m_mesh = builder.getModel();
-        break;
-      }
-      case 2: {
-        model::CartesianStructBuilder<float, int, 2> builder(
-            m_localParams.ex, m_localParams.lx, m_localParams.ey,
-            m_localParams.ly, m_localParams.ez, m_localParams.lz,
-            isModelOnNodes, isElastic, m_localParams.origin_x,
-            m_localParams.origin_y, m_localParams.origin_z);
-        m_mesh = builder.getModel();
-        break;
-      }
-      case 3: {
-        model::CartesianStructBuilder<float, int, 3> builder(
-            m_localParams.ex, m_localParams.lx, m_localParams.ey,
-            m_localParams.ly, m_localParams.ez, m_localParams.lz,
-            isModelOnNodes, isElastic, m_localParams.origin_x,
-            m_localParams.origin_y, m_localParams.origin_z);
-        m_mesh = builder.getModel();
-        break;
-      }
-      default:
-        throw std::runtime_error(
-            "Order other than 1 2 3 is not supported (semproxy)");
-    }
-  }
-  else if (meshType == meshType::kUnstruct)
-  {
-    // Pass local params to unstructured builder (handles origin internally)
-    model::CartesianUnstructBuilder<float, int> builder(m_localParams);
-    m_mesh = builder.getModel();
-  }
-  else
-  {
-    throw std::runtime_error("Incorrect mesh type (SEMproxy ctor.)");
-  }
-
-  // Init topology
-  par_topology_ =
-      TopologyFactory::createFromMesh(*m_mesh, dist_ctx_.rank, dist_ctx_.size,
-                                      m_localParams.origin_x, m_localParams.lx);
-
-  // Initialize Synchronizer
-  std::unique_ptr<BoundarySynchronizer::Backend> backend;
-  m_syncer = (dist_ctx_.rank > 1)
-                 ? std::make_unique<BoundarySynchronizer>(
-                       std::make_unique<DebugBackend>(dist_ctx_.rank))
-                 : std::make_unique<BoundarySynchronizer>(
-                       std::make_unique<SerialBackend>());
-
-  // time parameters
-  if (opt.autodt)
-  {
-    float cfl_factor = (order == 2) ? 0.5 : 0.7;
-    dt_ = find_cfl_dt(cfl_factor);
-  }
-  else
-  {
-    dt_ = opt.dt;
-  }
-  timemax_ = opt.timemax;
-  num_sample_ = timemax_ / dt_;
-
-  m_solver = solver_factory::createSolver(methodType, implemType, meshType,
-                                          modelLocation, physicType, order);
-
-  if (isElastic)
+  if (opt.isElastic)
   {
     m_solver->setAnisotropyType(anisotropyType);
 
     // Initialize elasticity tensors ONLY for TTI on elements
     // (ISO and VTI are computed on-the-fly, TTI on nodes also on-the-fly)
-    if (anisotropyType == model::AnisotropyType::kTTI && !isModelOnNodes)
+    if (anisotropyType == model::AnisotropyType::kTTI && !opt.isModelOnNodes)
     {
       m_mesh->initElasticityTensors(anisotropyType);
     }
@@ -210,30 +134,6 @@ SEMproxy::SEMproxy(const SemProxyOptions& opt)
   {
     snap_time_interval_ = opt.snap_time_interval;
   }
-
-  std::cout << "Number of node is " << m_mesh->getNumberOfNodes() << std::endl;
-  std::cout << "Number of element is " << m_mesh->getNumberOfElements()
-            << std::endl;
-  std::cout << "Launching the Method " << opt.method << ", the implementation "
-            << opt.implem << " and the mesh is " << opt.mesh << std::endl;
-  std::cout << "Model is on " << (isModelOnNodes ? "nodes" : "elements")
-            << std::endl;
-  std::cout << "Physics type is " << (isElastic ? "elastic" : "acoustic")
-            << std::endl;
-  std::cout << "Order of approximation will be " << order << std::endl;
-  std::cout << "Time step is " << dt_ << "s" << std::endl;
-  std::cout << "Simulated time is " << timemax_ << "s" << std::endl;
-
-  if (isElastic)
-  {
-    std::cout << "Anisotropy type is " << opt.anisotropy << std::endl;
-  }
-
-  if (is_snapshots_)
-  {
-    std::cout << "Snapshots enable every " << snap_time_interval_
-              << " iteration." << std::endl;
-  }
 }
 
 void SEMproxy::run()
@@ -301,7 +201,6 @@ void SEMproxy::run()
       if (is_snapshots_ && indexTimeSample % snap_time_interval_ == 0)
       {
         MPI_Barrier(MPI_COMM_WORLD);
-        std::cout << "Save snapshot." << std::endl;
         saveSnapshot(indexTimeSample, pnGlobalPrev);
       }
 

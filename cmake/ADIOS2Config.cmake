@@ -5,8 +5,10 @@ if(NOT TARGET adios2::adios2)
 
     # 1. Disable Parallelism and Language Bindings
     if(USE_MPI)
+        message(STATUS "ADIOS2 is configured with MPI")
         set(ADIOS2_USE_MPI ON CACHE BOOL "Enable MPI" FORCE)
     else()
+        message(STATUS "ADIOS2 is configured without MPI")
         set(ADIOS2_USE_MPI OFF CACHE BOOL "Disable MPI" FORCE)
     endif()
     set(ADIOS2_USE_Python OFF CACHE BOOL "Disable Python" FORCE)

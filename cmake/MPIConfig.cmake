@@ -1,4 +1,5 @@
 if(USE_MPI)
+message(STATUS "Compile with mpi.")
 find_package(MPI REQUIRED)
 add_compile_definitions(USE_MPI)
 endif()
