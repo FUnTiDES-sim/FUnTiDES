@@ -19,6 +19,7 @@ class MockMesh : public model::ModelApi<FloatType, ScalarType>
   {
     FloatType x, y, z;
   };
+
   std::vector<Node> nodes;
   FloatType minSpacing = 1.0;
 
@@ -127,7 +128,10 @@ class MockMesh : public model::ModelApi<FloatType, ScalarType>
                                              FloatType[6][6]) const override
   {
   }
-  virtual void initElasticityTensors() override {}
+  virtual void initElasticityTensors(
+      model::AnisotropyType anisotropy_type) override
+  {
+  }
   PROXY_HOST_DEVICE ScalarType getNumberOfElements() const override
   {
     return 0;

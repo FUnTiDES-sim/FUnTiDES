@@ -175,5 +175,6 @@ class SEMproxy
   void init_time_params(const SemProxyOptions& opt);
 
   void display_init_msg(const SemProxyOptions& opt);
+  model::AnisotropyType getAnisotropy(std::string anisotropyArg);
 };
 #endif  // MAIN_FE_INCLUDE_SEM_PROXY_H_
