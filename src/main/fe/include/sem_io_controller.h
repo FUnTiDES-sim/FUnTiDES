@@ -32,7 +32,14 @@ class SemIOController
   std::string rcv_file_{"rcv_not_set.bp"};
   std::string snap_file_{"snap_not_set.bp"};
 
-  void initAdios() { adios_ = adios2::ADIOS(MPI_COMM_WORLD); }
+  void initAdios()
+  {
+#ifdef USE_MPI
+    adios_ = adios2::ADIOS(MPI_COMM_WORLD);
+#else
+    adios_ = adios2::ADIOS();
+#endif
+  }
 
   void configureFilesName()
   {
