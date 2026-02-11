@@ -4,6 +4,7 @@
 #include <elasticity_utils.h>
 #include <model.h>
 
+#include "face_connectivity_struct.h"
 #include "gllpoints.h"
 
 namespace model
@@ -25,10 +26,7 @@ struct ModelStructData final : public ModelDataBase<FloatType, ScalarType>
   ScalarType ex_, ey_, ez_;
   FloatType dx_, dy_, dz_;
   FloatType ox_{0}, oy_{0}, oz_{0};  // Local origin
-
-  // AJOUTER : Global domain bounds (for MPI)
-  FloatType ox_global_{0}, oy_global_{0}, oz_global_{0};  // Global origin
-  FloatType lx_global_{0}, ly_global_{0}, lz_global_{0};  // Global size
+  VECTOR_REAL_VIEW boundaries_t_;
 
   bool isModelOnNodes_;
   bool isElastic_;
@@ -70,13 +68,8 @@ class ModelStruct : public ModelApi<FloatType, ScalarType>
         lx_(data.dx_),
         ly_(data.dy_),
         lz_(data.dz_),
-        ox_global_(data.ox_global_),
-        oy_global_(data.oy_global_),
-        oz_global_(data.oz_global_),
-        lx_global_(data.lx_global_),
-        ly_global_(data.ly_global_),
-        lz_global_(data.lz_global_),
         isModelOnNodes_(data.isModelOnNodes_),
+        boundaries_t_(data.boundaries_t_),
         isElastic_(data.isElastic_),
         free_surface_enabled_(true)
   {
@@ -576,55 +569,44 @@ class ModelStruct : public ModelApi<FloatType, ScalarType>
    */
   void initFreeSurface() override
   {
-    // Allocate boundary flags array
+    // Si déjà pré-calculé par le builder (mode MPI) → rien à faire
+    if (boundaries_t_.extent(0) > 0) return;
+
+    // Fallback : mode séquentiel, local == global
     boundaries_t_ =
         allocateVector<VECTOR_REAL_VIEW>(getNumberOfNodes(), "boundaries");
 
     FloatType tol = getMinSpacing() * 1e-4;
+    FloatType x_min = ox_, x_max = ox_ + lx_;
+    FloatType y_min = oy_, y_max = oy_ + ly_;
+    FloatType z_min = oz_, z_max = oz_ + lz_;
     bool enabled = free_surface_enabled_;
 
-    // UTILISER LES COORDONNÉES GLOBALES
-    FloatType x_min_global = ox_global_;
-    FloatType x_max_global = ox_global_ + lx_global_;
-    FloatType y_min_global = oy_global_;
-    FloatType y_max_global = oy_global_ + ly_global_;
-    FloatType z_min_global = oz_global_;
-    FloatType z_max_global = oz_global_ + lz_global_;
-
-    // Capture for GPU kernel
     auto boundaries = boundaries_t_;
     auto mesh_copy = *this;
 
     LOOPHEAD(getNumberOfNodes(), n)
     {
-      // Get physical coordinates
       FloatType x = mesh_copy.nodeCoord(n, 0);
       FloatType y = mesh_copy.nodeCoord(n, 1);
       FloatType z = mesh_copy.nodeCoord(n, 2);
 
-      // Check if at GLOBAL domain boundary
-      bool at_xmin = (fabs(x - x_min_global) < tol);
-      bool at_xmax = (fabs(x - x_max_global) < tol);
-      bool at_ymin = (fabs(y - y_min_global) < tol);
-      bool at_ymax = (fabs(y - y_max_global) < tol);
-      bool at_zmin = (fabs(z - z_min_global) < tol);
-      bool at_zmax = (fabs(z - z_max_global) < tol);
+      bool at_xmin = (fabs(x - x_min) < tol);
+      bool at_xmax = (fabs(x - x_max) < tol);
+      bool at_ymin = (fabs(y - y_min) < tol);
+      bool at_ymax = (fabs(y - y_max) < tol);
+      bool at_zmin = (fabs(z - z_min) < tol);
+      bool at_zmax = (fabs(z - z_max) < tol);
 
       bool on_boundary =
           at_xmin || at_xmax || at_ymin || at_ymax || at_zmin || at_zmax;
 
       if (!on_boundary)
-      {
         boundaries(n) = static_cast<uint8_t>(BoundaryFlag::InteriorNode);
-      }
       else if (at_zmax && enabled)
-      {
         boundaries(n) = static_cast<uint8_t>(BoundaryFlag::Surface);
-      }
       else
-      {
         boundaries(n) = static_cast<uint8_t>(BoundaryFlag::Damping);
-      }
     }
     LOOPEND
   }
@@ -639,29 +621,7 @@ class ModelStruct : public ModelApi<FloatType, ScalarType>
   PROXY_HOST_DEVICE
   ScalarType getGlobalFace(ScalarType elem_linear, CubicFace local_face) const
   {
-    ScalarType elem_k = elem_linear / (ex_ * ey_);
-    ScalarType tmp = elem_linear % (ex_ * ey_);
-    ScalarType elem_j = tmp / ex_;
-    ScalarType elem_i = tmp % ex_;
-
-    switch (local_face)
-    {
-      case CubicFace::kXMinus:
-        return elem_i + elem_j * (ex_ + 1) + elem_k * (ex_ + 1) * ey_;
-      case CubicFace::kXPlus:
-        return (elem_i + 1) + elem_j * (ex_ + 1) + elem_k * (ex_ + 1) * ey_;
-      case CubicFace::kYMinus:
-        return offset_y_ + elem_i + elem_j * ex_ + elem_k * ex_ * (ey_ + 1);
-      case CubicFace::kYPlus:
-        return offset_y_ + elem_i + (elem_j + 1) * ex_ +
-               elem_k * ex_ * (ey_ + 1);
-      case CubicFace::kZMinus:
-        return offset_z_ + elem_i + elem_j * ex_ + elem_k * ex_ * ey_;
-      case CubicFace::kZPlus:
-        return offset_z_ + elem_i + elem_j * ex_ + (elem_k + 1) * ex_ * ey_;
-      default:
-        return -1;
-    }
+    return face_connectivity_.getGlobalFace(elem_linear, local_face);
   }
 
   /**
@@ -670,57 +630,7 @@ class ModelStruct : public ModelApi<FloatType, ScalarType>
   PROXY_HOST_DEVICE
   ScalarType getGlobalNodeFromFace(ScalarType face_global, int local_dof) const
   {
-    if (face_global < num_faces_x_)
-    {
-      // X-direction face
-      ScalarType face_idx = face_global;
-      ScalarType i = face_idx % (ex_ + 1);
-      ScalarType j = (face_idx / (ex_ + 1)) % ey_;
-      ScalarType k = face_idx / ((ex_ + 1) * ey_);
-
-      int dj = local_dof % (Order + 1);
-      int dk = local_dof / (Order + 1);
-
-      ScalarType ni = i * Order;
-      ScalarType nj = j * Order + dj;
-      ScalarType nk = k * Order + dk;
-
-      return ni + nj * nx_ + nk * nx_ * ny_;
-    }
-    else if (face_global < offset_z_)
-    {
-      // Y-direction face
-      ScalarType face_idx = face_global - offset_y_;
-      ScalarType i = face_idx % ex_;
-      ScalarType j = (face_idx / ex_) % (ey_ + 1);
-      ScalarType k = face_idx / (ex_ * (ey_ + 1));
-
-      int di = local_dof % (Order + 1);
-      int dk = local_dof / (Order + 1);
-
-      ScalarType ni = i * Order + di;
-      ScalarType nj = j * Order;
-      ScalarType nk = k * Order + dk;
-
-      return ni + nj * nx_ + nk * nx_ * ny_;
-    }
-    else
-    {
-      // Z-direction face
-      ScalarType face_idx = face_global - offset_z_;
-      ScalarType i = face_idx % ex_;
-      ScalarType j = (face_idx / ex_) % ey_;
-      ScalarType k = face_idx / (ex_ * ey_);
-
-      int di = local_dof % (Order + 1);
-      int dj = local_dof / (Order + 1);
-
-      ScalarType ni = i * Order + di;
-      ScalarType nj = j * Order + dj;
-      ScalarType nk = k * Order;
-
-      return ni + nj * nx_ + nk * nx_ * ny_;
-    }
+    return face_connectivity_.getGlobalNodeFromFace(face_global, local_dof);
   }
 
   /**
@@ -729,23 +639,7 @@ class ModelStruct : public ModelApi<FloatType, ScalarType>
   PROXY_HOST_DEVICE
   bool isBoundaryFace(ScalarType face_global) const
   {
-    if (face_global < num_faces_x_)
-    {
-      ScalarType i = face_global % (ex_ + 1);
-      return (i == 0 || i == ex_);
-    }
-    else if (face_global < offset_z_)
-    {
-      ScalarType face_idx = face_global - offset_y_;
-      ScalarType j = (face_idx / ex_) % (ey_ + 1);
-      return (j == 0 || j == ey_);
-    }
-    else
-    {
-      ScalarType face_idx = face_global - offset_z_;
-      ScalarType k = face_idx / (ex_ * ey_);
-      return (k == 0 || k == ez_);
-    }
+    return face_connectivity_.isBoundaryFace(face_global);
   }
 
   /**
@@ -762,7 +656,9 @@ class ModelStruct : public ModelApi<FloatType, ScalarType>
    */
   void buildFaceConnectivity() override
   {
-    // Nothing to do - faces computed on-the-fly
+    face_connectivity_ =
+        FaceConnectivityStruct<FloatType, ScalarType, Order>(ex_, ey_, ez_)
+            .build(*this);
   }
 
  private:
@@ -771,8 +667,6 @@ class ModelStruct : public ModelApi<FloatType, ScalarType>
   FloatType lx_, ly_, lz_;
   FloatType hx_, hy_, hz_;
   FloatType ox_, oy_, oz_;
-  FloatType ox_global_, oy_global_, oz_global_;  // Global origin
-  FloatType lx_global_, ly_global_, lz_global_;  // Global size
 
   bool isModelOnNodes_;
   bool isElastic_;
@@ -788,6 +682,7 @@ class ModelStruct : public ModelApi<FloatType, ScalarType>
 
   // Boundary flags array (pre-computed in initFreeSurface())
   VECTOR_REAL_VIEW boundaries_t_;
+  FaceConnectivity<FloatType, ScalarType> face_connectivity_;
 };
 
 }  // namespace model

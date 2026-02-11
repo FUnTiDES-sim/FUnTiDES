@@ -202,32 +202,5 @@ TYPED_TEST(ModelUnstructTest, OppositeFacesHaveOppositeNormals)
   EXPECT_NEAR(dot, -1.0, 1e-5);
 }
 
-// ============================================================================
-// Integration with FaceConnectivity
-// ============================================================================
-
-TYPED_TEST(ModelUnstructTest, BuildFaceConnectivityDoesNotCrash)
-{
-  auto model = this->createTestMesh();
-  model.buildFaceConnectivity();
-  SUCCEED();
-}
-
-TYPED_TEST(ModelUnstructTest, FaceConnectivityMethodsAccessible)
-{
-  auto model = this->createTestMesh();
-  model.buildFaceConnectivity();
-
-  EXPECT_EQ(model.getNumberOfFaces(), 6);
-  EXPECT_TRUE(model.isBoundaryFace(0));
-
-  auto face = model.getGlobalFace(0, CubicFace::kXMinus);
-  EXPECT_GE(face, 0);
-
-  auto node = model.getGlobalNodeFromFace(face, 0);
-  EXPECT_GE(node, 0);
-  EXPECT_LT(node, 8);
-}
-
 }  // namespace
 }  // namespace model

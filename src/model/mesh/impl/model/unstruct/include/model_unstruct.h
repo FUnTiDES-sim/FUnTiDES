@@ -84,10 +84,6 @@ struct ModelUnstructData : public ModelDataBase<FloatType, ScalarType>
   ScalarType n_node_;
   FloatType lx_, ly_, lz_;  // Local dimensions
 
-  // AJOUTER : Global domain bounds (for MPI)
-  FloatType ox_global_{0}, oy_global_{0}, oz_global_{0};  // Global origin
-  FloatType lx_global_{0}, ly_global_{0}, lz_global_{0};  // Global size
-
   bool isModelOnNodes_;
   bool isElastic_;
 
@@ -141,13 +137,6 @@ class ModelUnstruct final : public ModelApi<FloatType, ScalarType>
         ox_(data.ox_),
         oy_(data.oy_),
         oz_(data.oz_),
-        // AJOUTER : Global bounds
-        ox_global_(data.ox_global_),
-        oy_global_(data.oy_global_),
-        oz_global_(data.oz_global_),
-        lx_global_(data.lx_global_),
-        ly_global_(data.ly_global_),
-        lz_global_(data.lz_global_),
         isModelOnNodes_(data.isModelOnNodes_),
         isElastic_(data.isElastic_),
         global_node_index_(data.global_node_index_),
@@ -642,21 +631,17 @@ class ModelUnstruct final : public ModelApi<FloatType, ScalarType>
    */
   void initializeBoundaryFlags(bool free_surface_on_top) override
   {
-    if (boundaries_t_.extent(0) == 0)
-    {
-      boundaries_t_ = allocateVector<VECTOR_REAL_VIEW>(n_node_, "boundaries_t");
-    }
+    // Si déjà pré-calculé par le builder (mode MPI) → rien à faire
+    if (boundaries_t_.extent(0) > 0) return;
+
+    // Fallback : mode séquentiel, coordonnées locales == globales
+    boundaries_t_ = allocateVector<VECTOR_REAL_VIEW>(n_node_, "boundaries_t");
 
     FloatType tol = getMinSpacing() * 1e-4;
+    FloatType x_min = ox_, x_max = ox_ + lx_;
+    FloatType y_min = oy_, y_max = oy_ + ly_;
+    FloatType z_min = oz_, z_max = oz_ + lz_;
     bool enabled_fs = free_surface_on_top;
-
-    // UTILISER LES COORDONNÉES GLOBALES
-    FloatType x_min_global = ox_global_;
-    FloatType x_max_global = ox_global_ + lx_global_;
-    FloatType y_min_global = oy_global_;
-    FloatType y_max_global = oy_global_ + ly_global_;
-    FloatType z_min_global = oz_global_;
-    FloatType z_max_global = oz_global_ + lz_global_;
 
     auto boundaries = boundaries_t_;
     auto mesh_copy = *this;
@@ -667,29 +652,22 @@ class ModelUnstruct final : public ModelApi<FloatType, ScalarType>
       FloatType y = mesh_copy.nodeCoord(n, 1);
       FloatType z = mesh_copy.nodeCoord(n, 2);
 
-      // Check if at GLOBAL domain boundary
-      bool at_xmin = (fabs(x - x_min_global) < tol);
-      bool at_xmax = (fabs(x - x_max_global) < tol);
-      bool at_ymin = (fabs(y - y_min_global) < tol);
-      bool at_ymax = (fabs(y - y_max_global) < tol);
-      bool at_zmin = (fabs(z - z_min_global) < tol);
-      bool at_zmax = (fabs(z - z_max_global) < tol);
+      bool at_xmin = (fabs(x - x_min) < tol);
+      bool at_xmax = (fabs(x - x_max) < tol);
+      bool at_ymin = (fabs(y - y_min) < tol);
+      bool at_ymax = (fabs(y - y_max) < tol);
+      bool at_zmin = (fabs(z - z_min) < tol);
+      bool at_zmax = (fabs(z - z_max) < tol);
 
       bool on_boundary =
           at_xmin || at_xmax || at_ymin || at_ymax || at_zmin || at_zmax;
 
       if (!on_boundary)
-      {
         boundaries[n] = static_cast<FloatType>(BoundaryFlag::InteriorNode);
-      }
       else if (at_zmax && enabled_fs)
-      {
         boundaries[n] = static_cast<FloatType>(BoundaryFlag::Surface);
-      }
       else
-      {
         boundaries[n] = static_cast<FloatType>(BoundaryFlag::Damping);
-      }
     }
     LOOPEND
   }
@@ -805,7 +783,8 @@ class ModelUnstruct final : public ModelApi<FloatType, ScalarType>
    */
   void buildFaceConnectivity() override
   {
-    face_connectivity_ = FaceConnectivity<FloatType, ScalarType>::build(*this);
+    face_connectivity_ =
+        FaceConnectivityUnstruct<FloatType, ScalarType>().build(*this);
   }
   /**
    * @brief Get global face ID from element and local face
@@ -882,23 +861,22 @@ class ModelUnstruct final : public ModelApi<FloatType, ScalarType>
 
   void initFreeSurface() override
   {
-    // Allocate
+    if (freeSurfaceTag_.extent(0) > 0) return;
+
     freeSurfaceTag_ =
         allocateVector<VECTOR_INT_VIEW>(getNumberOfNodes(), "freeSurfaceTag");
 
     FloatType tol = getMinSpacing() * 1e-4;
-    FloatType z_max = oz_global_ + lz_global_;
+    FloatType z_max = oz_ + lz_;
     bool enabled = freeSurfaceEnabled_;
 
-    // Capture pour le kernel
     auto tag = freeSurfaceTag_;
     auto mesh_copy = *this;
 
     LOOPHEAD(getNumberOfNodes(), n)
     {
       FloatType z = mesh_copy.nodeCoord(n, 2);
-      bool is_top = (fabs(z - z_max) < tol);
-      tag[n] = (is_top && enabled) ? 1 : 0;
+      tag[n] = (fabs(z - z_max) < tol && enabled) ? 1 : 0;
     }
     LOOPEND
   }
@@ -909,8 +887,6 @@ class ModelUnstruct final : public ModelApi<FloatType, ScalarType>
   ScalarType n_node_;
   FloatType lx_, ly_, lz_;
   FloatType ox_, oy_, oz_;
-  FloatType ox_global_, oy_global_, oz_global_;  // Global origin
-  FloatType lx_global_, ly_global_, lz_global_;  // Global size
 
   int n_points_per_element_;
   bool isModelOnNodes_;

@@ -29,7 +29,7 @@ class CartesianStructBuilder : public ModelBuilderBase<FloatType, ScalarType>
         ox_(ox),
         oy_(oy),
         oz_(oz),
-        global_lx_(global_lx < 0 ? lx : global_lx),  // Si pas fourni, = local
+        global_lx_(global_lx < 0 ? lx : global_lx),
         global_ly_(global_ly < 0 ? ly : global_ly),
         global_lz_(global_lz < 0 ? lz : global_lz),
         global_ox_(global_ox),
@@ -47,33 +47,65 @@ class CartesianStructBuilder : public ModelBuilderBase<FloatType, ScalarType>
     data.ex_ = ex_;
     data.ey_ = ey_;
     data.ez_ = ez_;
-
     data.dx_ = lx_;
     data.dy_ = ly_;
     data.dz_ = lz_;
-
-    // Local origin
     data.ox_ = ox_;
     data.oy_ = oy_;
     data.oz_ = oz_;
-
-    // AJOUTER : Global bounds
-    data.ox_global_ = global_ox_;
-    data.oy_global_ = global_oy_;
-    data.oz_global_ = global_oz_;
-    data.lx_global_ = global_lx_;
-    data.ly_global_ = global_ly_;
-    data.lz_global_ = global_lz_;
-
     data.isModelOnNodes_ = isModelOnNodes_;
     data.isElastic_ = isElastic_;
 
+    // -------------------------------------------------------------------------
+    // Pré-calcul boundaries_t_ avec coordonnées GLOBALES
+    // On instancie un modèle temporaire pour utiliser nodeCoord()
+    // -------------------------------------------------------------------------
+    auto temp_model = model::ModelStruct<FloatType, ScalarType, Order>(data);
+
+    const int n_node = temp_model.getNumberOfNodes();
+    FloatType tol = temp_model.getMinSpacing() * 1e-4;
+
+    FloatType x_min = global_ox_, x_max = global_ox_ + global_lx_;
+    FloatType y_min = global_oy_, y_max = global_oy_ + global_ly_;
+    FloatType z_min = global_oz_, z_max = global_oz_ + global_lz_;
+
+    auto boundaries_t =
+        allocateVector<VECTOR_REAL_VIEW>(n_node, "boundaries_t");
+
+    for (int n = 0; n < n_node; ++n)
+    {
+      FloatType x = temp_model.nodeCoord(n, 0);
+      FloatType y = temp_model.nodeCoord(n, 1);
+      FloatType z = temp_model.nodeCoord(n, 2);
+
+      bool at_xmin = (fabs(x - x_min) < tol);
+      bool at_xmax = (fabs(x - x_max) < tol);
+      bool at_ymin = (fabs(y - y_min) < tol);
+      bool at_ymax = (fabs(y - y_max) < tol);
+      bool at_zmin = (fabs(z - z_min) < tol);
+      bool at_zmax = (fabs(z - z_max) < tol);
+
+      bool on_boundary =
+          at_xmin || at_xmax || at_ymin || at_ymax || at_zmin || at_zmax;
+
+      if (!on_boundary)
+        boundaries_t(n) = static_cast<FloatType>(BoundaryFlag::InteriorNode);
+      else if (at_zmax)
+        boundaries_t(n) = static_cast<FloatType>(BoundaryFlag::Surface);
+      else
+        boundaries_t(n) = static_cast<FloatType>(BoundaryFlag::Damping);
+    }
+
+    data.boundaries_t_ = boundaries_t;
+
+    // -------------------------------------------------------------------------
+    // Construction du modèle final avec boundaries pré-calculées
+    // -------------------------------------------------------------------------
     auto model =
         std::make_shared<model::ModelStruct<FloatType, ScalarType, Order>>(
             data);
 
     model->buildFaceConnectivity();
-    model->initializeBoundaryFlags(true);  // true = free surface on top
 
     return model;
   }
