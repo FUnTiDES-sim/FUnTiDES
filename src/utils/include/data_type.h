@@ -83,13 +83,8 @@ void printJMatrix(const int &element, T &J, string matrixname, Args... args)
   {
     (cout << ... << args) << '\n';
     printf("%s at element %d\n", matrixname.c_str(), element);
-#ifdef USE_SHIVA
-    for (int l = 0; l < 3; l++)
-      printf("%f, %f, %f\n", J(l, 0), J(l, 1), J(l, 2));
-#else
     for (int l = 0; l < 3; l++)
       printf("%f, %f, %f\n", J[l][0], J[l][1], J[l][2]);
-#endif
   }
 }
 
