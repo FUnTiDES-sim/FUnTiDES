@@ -205,7 +205,6 @@ BENCHMARK_TEMPLATE_METHOD_F(SolverStructFixture, OneStep)
 }
 
 // Instantiate for all order/isModelOnNodes/implemType combinations
-// TODO add implemType::SHIVA when reactivated in compilation
 BENCHMARK_FOR_ALL_ORDERS(
     SolverStructFixture, FEInit,
     BuilderConfig,

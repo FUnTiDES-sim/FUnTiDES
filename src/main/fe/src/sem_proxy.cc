@@ -721,7 +721,6 @@ void SEMproxy::saveSnapshot(int timestep, VECTOR_REAL_VIEW data) const
 implemType SEMproxy::getImplem(string implemArg)
 {
   if (implemArg == "makutu") return implemType::kMakutu;
-  if (implemArg == "shiva") return implemType::kShiva;
 
   throw std::invalid_argument(
       "Implentation type does not follow any valid type.");

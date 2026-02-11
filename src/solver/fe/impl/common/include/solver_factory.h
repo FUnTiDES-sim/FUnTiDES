@@ -23,7 +23,7 @@ namespace feenum = solver::fe::enums;
  * and polynomial order.
  *
  * @param methodType The numerical method (SEM or DG)
- * @param implemType The implementation backend (Makutu or Shiva)
+ * @param implemType The implementation backend (Makutu)
  * @param meshType The mesh type (Struct or Unstruct)
  * @param modelLocation Where model parameters are stored (OnNodes or
  * OnElements)

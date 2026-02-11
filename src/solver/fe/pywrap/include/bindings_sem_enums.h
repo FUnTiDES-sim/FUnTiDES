@@ -22,8 +22,7 @@ void bind_method_type(py::module_ &m)
 void bind_implem_type(py::module_ &m)
 {
   py::enum_<enums::implemType>(m, "ImplemType")
-      .value("MAKUTU", enums::implemType::kMakutu)
-      .value("SHIVA", enums::implemType::kShiva);
+      .value("MAKUTU", enums::implemType::kMakutu);
 }
 
 void bind_mesh_type(py::module_ &m)
