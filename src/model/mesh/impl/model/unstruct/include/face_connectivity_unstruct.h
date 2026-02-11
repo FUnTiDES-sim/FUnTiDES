@@ -10,26 +10,41 @@
 namespace model
 {
 
+/**
+ * @brief Face connectivity for unstructured meshes
+ *
+ * Implémente FaceConnectivityApi via des Kokkos views pré-calculées dans
+ * build(). Toutes les méthodes lisent directement dans ces views — même
+ * pattern que FaceConnectivityStruct mais avec stockage explicite au lieu
+ * de formules cartésiennes.
+ *
+ * @tparam FloatType Floating point type
+ * @tparam ScalarType Integer type for indexing
+ */
 template <typename FloatType, typename ScalarType>
 class FaceConnectivityUnstruct
     : public FaceConnectivityApi<FloatType, ScalarType>
 {
  public:
-  FaceConnectivity<FloatType, ScalarType> build(
-      const ModelApi<FloatType, ScalarType>& mesh) const override
-  {
-    FaceConnectivity<FloatType, ScalarType> result;
+  FaceConnectivityUnstruct() = default;
 
+  /**
+   * @brief Construit toutes les tables de connectivité depuis le maillage
+   *
+   * Utilise une map pour identifier les faces partagées entre éléments.
+   * Doit être appelé avant tout accès aux méthodes de l'API.
+   */
+  void build(const ModelApi<FloatType, ScalarType>& mesh)
+  {
     const ScalarType n_element = mesh.getNumberOfElements();
     const int order = mesh.getOrder();
     const ScalarType max_faces = n_element * 6;
-    const int ndofs_per_face = (order + 1) * (order + 1);
+    ndofs_per_face_ = (order + 1) * (order + 1);
 
-    result.ndofs_per_face_ = ndofs_per_face;
-
+    // Tableaux temporaires à taille maximale
     auto elem_to_faces_temp = allocateArray2D<ARRAY_INT_VIEW>(n_element, 6);
     auto face_dofs_temp =
-        allocateArray2D<ARRAY_INT_VIEW>(max_faces, ndofs_per_face);
+        allocateArray2D<ARRAY_INT_VIEW>(max_faces, ndofs_per_face_);
     auto face_elem_owner_temp = allocateVector<VECTOR_INT_VIEW>(max_faces);
     auto face_elem_neighbor_temp = allocateVector<VECTOR_INT_VIEW>(max_faces);
     auto face_local_owner_temp = allocateVector<VECTOR_INT_VIEW>(max_faces);
@@ -55,6 +70,7 @@ class FaceConnectivityUnstruct
           ScalarType face_id = face_count++;
           face_map[face_key] = face_id;
 
+          // Remplissage face_dofs
           int idx = 0;
           switch (local_face)
           {
@@ -110,34 +126,96 @@ class FaceConnectivityUnstruct
       }
     }
 
-    // Allocate final arrays with exact size
-    result.n_faces_ = face_count;
-    result.elem_to_faces_ = allocateArray2D<ARRAY_INT_VIEW>(n_element, 6);
-    result.face_dofs_ =
-        allocateArray2D<ARRAY_INT_VIEW>(face_count, ndofs_per_face);
-    result.face_elem_owner_ = allocateVector<VECTOR_INT_VIEW>(face_count);
-    result.face_elem_neighbor_ = allocateVector<VECTOR_INT_VIEW>(face_count);
-    result.face_local_owner_ = allocateVector<VECTOR_INT_VIEW>(face_count);
-    result.face_local_neighbor_ = allocateVector<VECTOR_INT_VIEW>(face_count);
+    // Allocation finale à la taille exacte + copie
+    n_faces_ = face_count;
+    elem_to_faces_ = allocateArray2D<ARRAY_INT_VIEW>(n_element, 6);
+    face_dofs_ = allocateArray2D<ARRAY_INT_VIEW>(face_count, ndofs_per_face_);
+    face_elem_owner_ = allocateVector<VECTOR_INT_VIEW>(face_count);
+    face_elem_neighbor_ = allocateVector<VECTOR_INT_VIEW>(face_count);
+    face_local_owner_ = allocateVector<VECTOR_INT_VIEW>(face_count);
+    face_local_neighbor_ = allocateVector<VECTOR_INT_VIEW>(face_count);
 
     for (ScalarType elem = 0; elem < n_element; ++elem)
       for (int lf = 0; lf < 6; ++lf)
-        result.elem_to_faces_(elem, lf) = elem_to_faces_temp(elem, lf);
+        elem_to_faces_(elem, lf) = elem_to_faces_temp(elem, lf);
 
-    for (ScalarType face_id = 0; face_id < face_count; ++face_id)
+    for (ScalarType f = 0; f < face_count; ++f)
     {
-      result.face_elem_owner_(face_id) = face_elem_owner_temp(face_id);
-      result.face_elem_neighbor_(face_id) = face_elem_neighbor_temp(face_id);
-      result.face_local_owner_(face_id) = face_local_owner_temp(face_id);
-      result.face_local_neighbor_(face_id) = face_local_neighbor_temp(face_id);
-      for (int dof = 0; dof < ndofs_per_face; ++dof)
-        result.face_dofs_(face_id, dof) = face_dofs_temp(face_id, dof);
+      face_elem_owner_(f) = face_elem_owner_temp(f);
+      face_elem_neighbor_(f) = face_elem_neighbor_temp(f);
+      face_local_owner_(f) = face_local_owner_temp(f);
+      face_local_neighbor_(f) = face_local_neighbor_temp(f);
+      for (int dof = 0; dof < ndofs_per_face_; ++dof)
+        face_dofs_(f, dof) = face_dofs_temp(f, dof);
     }
+  }
 
-    return result;
+  // ==========================================================================
+  // Implémentation de FaceConnectivityApi — lecture dans les views
+  // ==========================================================================
+
+  PROXY_HOST_DEVICE ScalarType getNumberOfFaces() const override
+  {
+    return n_faces_;
+  }
+
+  PROXY_HOST_DEVICE int getDofsPerFace() const override
+  {
+    return ndofs_per_face_;
+  }
+
+  PROXY_HOST_DEVICE ScalarType
+  getGlobalFace(ScalarType elem, CubicFace local_face) const override
+  {
+    return elem_to_faces_(elem, static_cast<int>(local_face));
+  }
+
+  PROXY_HOST_DEVICE ScalarType
+  getGlobalNodeFromFace(ScalarType face_id, int local_dof) const override
+  {
+    return face_dofs_(face_id, local_dof);
+  }
+
+  PROXY_HOST_DEVICE bool isBoundaryFace(ScalarType face_id) const override
+  {
+    return face_elem_neighbor_(face_id) == -1;
+  }
+
+  PROXY_HOST_DEVICE ScalarType elemOwner(ScalarType face_id) const override
+  {
+    return face_elem_owner_(face_id);
+  }
+
+  PROXY_HOST_DEVICE ScalarType elemNeighbor(ScalarType face_id) const override
+  {
+    return face_elem_neighbor_(face_id);
+  }
+
+  PROXY_HOST_DEVICE int localFaceOwner(ScalarType face_id) const override
+  {
+    return face_local_owner_(face_id);
+  }
+
+  PROXY_HOST_DEVICE int localFaceNeighbor(ScalarType face_id) const override
+  {
+    return face_local_neighbor_(face_id);
   }
 
  private:
+  ScalarType n_faces_ = 0;
+  int ndofs_per_face_ = 0;
+
+  ARRAY_INT_VIEW elem_to_faces_;
+  ARRAY_INT_VIEW face_dofs_;
+  VECTOR_INT_VIEW face_elem_owner_;
+  VECTOR_INT_VIEW face_elem_neighbor_;
+  VECTOR_INT_VIEW face_local_owner_;
+  VECTOR_INT_VIEW face_local_neighbor_;
+
+  // ------------------------------------------------------------------
+  // Helpers privés pour le build
+  // ------------------------------------------------------------------
+
   static std::array<ScalarType, 4> extractFaceCorners(
       const ModelApi<FloatType, ScalarType>& mesh, ScalarType elem,
       CubicFace local_face)

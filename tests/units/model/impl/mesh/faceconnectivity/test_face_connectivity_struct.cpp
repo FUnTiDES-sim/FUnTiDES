@@ -70,88 +70,87 @@ TYPED_TEST(FaceConnectivityStructTest, BuildFromSingleCube)
 {
   using F = typename TestFixture::FloatType;
   using S = typename TestFixture::ScalarType;
-  auto fc =
-      FaceConnectivityStruct<F, S, 1>(1, 1, 1).build(createSingleCube<F, S>());
+  FaceConnectivityStruct<F, S> fc(1, 1, 1, 1);
   testSingleCubeFaceCount<F, S>(fc);
 }
+
 TYPED_TEST(FaceConnectivityStructTest, BuildFromTwoAdjacentCubes)
 {
   using F = typename TestFixture::FloatType;
   using S = typename TestFixture::ScalarType;
-  auto fc = FaceConnectivityStruct<F, S, 1>(2, 1, 1).build(
-      createTwoAdjacentCubes<F, S>());
+  FaceConnectivityStruct<F, S> fc(2, 1, 1, 1);
   testTwoAdjacentCubesFaceCount<F, S>(fc);
 }
+
 TYPED_TEST(FaceConnectivityStructTest, GetGlobalFaceReturnsValidIds)
 {
   using F = typename TestFixture::FloatType;
   using S = typename TestFixture::ScalarType;
-  auto fc =
-      FaceConnectivityStruct<F, S, 1>(1, 1, 1).build(createSingleCube<F, S>());
+  FaceConnectivityStruct<F, S> fc(1, 1, 1, 1);
   testGlobalFaceIds<F, S>(fc);
 }
+
 TYPED_TEST(FaceConnectivityStructTest, GetGlobalFaceUniqueness)
 {
   using F = typename TestFixture::FloatType;
   using S = typename TestFixture::ScalarType;
-  auto fc =
-      FaceConnectivityStruct<F, S, 1>(1, 1, 1).build(createSingleCube<F, S>());
+  FaceConnectivityStruct<F, S> fc(1, 1, 1, 1);
   testGlobalFaceUniqueness<F, S>(fc);
 }
+
 TYPED_TEST(FaceConnectivityStructTest, SingleCubeAllFacesAreBoundary)
 {
   using F = typename TestFixture::FloatType;
   using S = typename TestFixture::ScalarType;
-  auto fc =
-      FaceConnectivityStruct<F, S, 1>(1, 1, 1).build(createSingleCube<F, S>());
+  FaceConnectivityStruct<F, S> fc(1, 1, 1, 1);
   testSingleCubeAllBoundary<F, S>(fc);
 }
+
 TYPED_TEST(FaceConnectivityStructTest, TwoCubesSharedFaceNotBoundary)
 {
   using F = typename TestFixture::FloatType;
   using S = typename TestFixture::ScalarType;
-  auto fc = FaceConnectivityStruct<F, S, 1>(2, 1, 1).build(
-      createTwoAdjacentCubes<F, S>());
+  FaceConnectivityStruct<F, S> fc(2, 1, 1, 1);
   testSharedFaceNotBoundary<F, S>(fc);
 }
+
 TYPED_TEST(FaceConnectivityStructTest, TwoCubesCountBoundaryFaces)
 {
   using F = typename TestFixture::FloatType;
   using S = typename TestFixture::ScalarType;
-  auto fc = FaceConnectivityStruct<F, S, 1>(2, 1, 1).build(
-      createTwoAdjacentCubes<F, S>());
+  FaceConnectivityStruct<F, S> fc(2, 1, 1, 1);
   testBoundaryFaceCount<F, S>(fc);
 }
+
 TYPED_TEST(FaceConnectivityStructTest, FaceNodesValid)
 {
   using F = typename TestFixture::FloatType;
   using S = typename TestFixture::ScalarType;
-  auto fc =
-      FaceConnectivityStruct<F, S, 1>(1, 1, 1).build(createSingleCube<F, S>());
+  FaceConnectivityStruct<F, S> fc(1, 1, 1, 1);
   testFaceNodes<F, S>(fc, 8);
 }
+
 TYPED_TEST(FaceConnectivityStructTest, FaceNodesUnique)
 {
   using F = typename TestFixture::FloatType;
   using S = typename TestFixture::ScalarType;
-  auto fc =
-      FaceConnectivityStruct<F, S, 1>(1, 1, 1).build(createSingleCube<F, S>());
+  FaceConnectivityStruct<F, S> fc(1, 1, 1, 1);
   testFaceNodesUnique<F, S>(fc);
 }
+
 TYPED_TEST(FaceConnectivityStructTest, InternalFaceHasTwoOwners)
 {
   using F = typename TestFixture::FloatType;
   using S = typename TestFixture::ScalarType;
-  auto fc = FaceConnectivityStruct<F, S, 1>(2, 1, 1).build(
-      createTwoAdjacentCubes<F, S>());
+  FaceConnectivityStruct<F, S> fc(2, 1, 1, 1);
   testInternalFaceOwners<F, S>(fc);
 }
+
 TYPED_TEST(FaceConnectivityStructTest, BoundaryFaceHasNoNeighbor)
 {
   using F = typename TestFixture::FloatType;
   using S = typename TestFixture::ScalarType;
-  auto fc =
-      FaceConnectivityStruct<F, S, 1>(1, 1, 1).build(createSingleCube<F, S>());
+  FaceConnectivityStruct<F, S> fc(1, 1, 1, 1);
   testBoundaryFaceNoNeighbor<F, S>(fc);
 }
 

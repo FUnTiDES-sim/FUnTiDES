@@ -783,8 +783,9 @@ class ModelUnstruct final : public ModelApi<FloatType, ScalarType>
    */
   void buildFaceConnectivity() override
   {
-    face_connectivity_ =
-        FaceConnectivityUnstruct<FloatType, ScalarType>().build(*this);
+    if (face_connectivity_.getNumberOfFaces() > 0) return;
+
+    face_connectivity_.build(*this);
   }
   /**
    * @brief Get global face ID from element and local face
@@ -918,7 +919,7 @@ class ModelUnstruct final : public ModelApi<FloatType, ScalarType>
   VECTOR_INT_VIEW freeSurfaceTag_;
   bool freeSurfaceEnabled_;
 
-  FaceConnectivity<FloatType, ScalarType> face_connectivity_;
+  FaceConnectivityUnstruct<FloatType, ScalarType> face_connectivity_;
 };
 
 }  // namespace model

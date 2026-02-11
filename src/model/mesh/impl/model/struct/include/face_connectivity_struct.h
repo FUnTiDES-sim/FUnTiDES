@@ -7,203 +7,249 @@ namespace model
 {
 
 /**
- * @brief Face connectivity implementation for structured Cartesian meshes
+ * @brief Face connectivity for structured Cartesian meshes — fully on-the-fly
  *
- * Computes all face data using index formulas instead of a hash map.
- * Owner/neighbor relationships are derived deterministically from
- * the Cartesian topology.
+ * Toutes les méthodes de FaceConnectivityApi sont implémentées par
+ * arithmétique pure. Aucune Kokkos view, aucune allocation.
+ * Stocke uniquement ex_, ey_, ez_, order_, nx_, ny_, offset_y_, offset_z_.
  *
  * @tparam FloatType Floating point type
  * @tparam ScalarType Integer type for indexing
- * @tparam Order Polynomial order of spectral elements
  */
-template <typename FloatType, typename ScalarType, int Order>
+template <typename FloatType, typename ScalarType>
 class FaceConnectivityStruct : public FaceConnectivityApi<FloatType, ScalarType>
 {
  public:
-  FaceConnectivityStruct() = default;
+  PROXY_HOST_DEVICE FaceConnectivityStruct() = default;
 
-  FaceConnectivityStruct(ScalarType ex, ScalarType ey, ScalarType ez)
-      : ex_(ex), ey_(ey), ez_(ez)
+  PROXY_HOST_DEVICE
+  FaceConnectivityStruct(ScalarType ex, ScalarType ey, ScalarType ez, int order)
+      : ex_(ex), ey_(ey), ez_(ez), order_(order)
   {
-    num_faces_x_ = (ex_ + 1) * ey_ * ez_;
-    num_faces_y_ = ex_ * (ey_ + 1) * ez_;
-    offset_y_ = num_faces_x_;
-    offset_z_ = num_faces_x_ + num_faces_y_;
+    nx_ = order_ * ex_ + 1;
+    ny_ = order_ * ey_ + 1;
+    offset_y_ = (ex_ + 1) * ey_ * ez_;
+    offset_z_ = offset_y_ + ex_ * (ey_ + 1) * ez_;
   }
 
-  FaceConnectivity<FloatType, ScalarType> build(
-      const ModelApi<FloatType, ScalarType>& mesh) const override
+  // ==========================================================================
+  // Implémentation de FaceConnectivityApi — tout on-the-fly
+  // ==========================================================================
+
+  PROXY_HOST_DEVICE ScalarType getNumberOfFaces() const override
   {
-    const ScalarType n_element = mesh.getNumberOfElements();
-    const int ndofs_per_face = (Order + 1) * (Order + 1);
-    const ScalarType n_faces = offset_z_ + ex_ * ey_ * (ez_ + 1);
+    return offset_z_ + ex_ * ey_ * (ez_ + 1);
+  }
 
-    FaceConnectivity<FloatType, ScalarType> result;
-    result.ndofs_per_face_ = ndofs_per_face;
-    result.n_faces_ = n_faces;
+  PROXY_HOST_DEVICE int getDofsPerFace() const override
+  {
+    return (order_ + 1) * (order_ + 1);
+  }
 
-    result.elem_to_faces_ = allocateArray2D<ARRAY_INT_VIEW>(n_element, 6);
-    result.face_dofs_ =
-        allocateArray2D<ARRAY_INT_VIEW>(n_faces, ndofs_per_face);
-    result.face_elem_owner_ = allocateVector<VECTOR_INT_VIEW>(n_faces);
-    result.face_elem_neighbor_ = allocateVector<VECTOR_INT_VIEW>(n_faces);
-    result.face_local_owner_ = allocateVector<VECTOR_INT_VIEW>(n_faces);
-    result.face_local_neighbor_ = allocateVector<VECTOR_INT_VIEW>(n_faces);
+  PROXY_HOST_DEVICE ScalarType
+  getGlobalFace(ScalarType elem, CubicFace local_face) const override
+  {
+    ScalarType elem_k = elem / (ex_ * ey_);
+    ScalarType tmp = elem % (ex_ * ey_);
+    ScalarType elem_j = tmp / ex_;
+    ScalarType elem_i = tmp % ex_;
 
-    // Initialize all neighbors to -1 (boundary marker)
-    for (ScalarType f = 0; f < n_faces; ++f) result.face_elem_neighbor_(f) = -1;
-
-    // -----------------------------------------------------------------------
-    // Boucle 1 : elem_to_faces + face_dofs
-    // -----------------------------------------------------------------------
-    for (ScalarType elem = 0; elem < n_element; ++elem)
+    switch (local_face)
     {
-      ScalarType elem_k = elem / (ex_ * ey_);
-      ScalarType tmp = elem % (ex_ * ey_);
-      ScalarType elem_j = tmp / ex_;
-      ScalarType elem_i = tmp % ex_;
+      case CubicFace::kXMinus:
+        return elem_i + elem_j * (ex_ + 1) + elem_k * (ex_ + 1) * ey_;
+      case CubicFace::kXPlus:
+        return (elem_i + 1) + elem_j * (ex_ + 1) + elem_k * (ex_ + 1) * ey_;
+      case CubicFace::kYMinus:
+        return offset_y_ + elem_i + elem_j * ex_ + elem_k * ex_ * (ey_ + 1);
+      case CubicFace::kYPlus:
+        return offset_y_ + elem_i + (elem_j + 1) * ex_ +
+               elem_k * ex_ * (ey_ + 1);
+      case CubicFace::kZMinus:
+        return offset_z_ + elem_i + elem_j * ex_ + elem_k * ex_ * ey_;
+      case CubicFace::kZPlus:
+        return offset_z_ + elem_i + elem_j * ex_ + (elem_k + 1) * ex_ * ey_;
+      default:
+        return -1;
+    }
+  }
 
-      // elem_to_faces via formules cartésiennes
-      result.elem_to_faces_(elem, static_cast<int>(CubicFace::kXMinus)) =
-          elem_i + elem_j * (ex_ + 1) + elem_k * (ex_ + 1) * ey_;
-      result.elem_to_faces_(elem, static_cast<int>(CubicFace::kXPlus)) =
-          (elem_i + 1) + elem_j * (ex_ + 1) + elem_k * (ex_ + 1) * ey_;
-      result.elem_to_faces_(elem, static_cast<int>(CubicFace::kYMinus)) =
-          offset_y_ + elem_i + elem_j * ex_ + elem_k * ex_ * (ey_ + 1);
-      result.elem_to_faces_(elem, static_cast<int>(CubicFace::kYPlus)) =
-          offset_y_ + elem_i + (elem_j + 1) * ex_ + elem_k * ex_ * (ey_ + 1);
-      result.elem_to_faces_(elem, static_cast<int>(CubicFace::kZMinus)) =
-          offset_z_ + elem_i + elem_j * ex_ + elem_k * ex_ * ey_;
-      result.elem_to_faces_(elem, static_cast<int>(CubicFace::kZPlus)) =
-          offset_z_ + elem_i + elem_j * ex_ + (elem_k + 1) * ex_ * ey_;
+  /**
+   * @brief Reconstruction du nœud global depuis face_id + local_dof
+   *
+   * Convention locale des DOFs :
+   *   X-face : for k in [0,order], for j in [0,order] → local_dof =
+   * k*(order+1)+j Y-face : for k in [0,order], for i in [0,order] → local_dof =
+   * k*(order+1)+i Z-face : for j in [0,order], for i in [0,order] → local_dof =
+   * j*(order+1)+i
+   */
+  PROXY_HOST_DEVICE ScalarType
+  getGlobalNodeFromFace(ScalarType face_id, int local_dof) const override
+  {
+    ScalarType ix, iy, iz;
 
-      // face_dofs pour chaque face locale
-      for (int lf = 0; lf < 6; ++lf)
-      {
-        CubicFace local_face = static_cast<CubicFace>(lf);
-        ScalarType face_id = result.elem_to_faces_(elem, lf);
-        int idx = 0;
+    if (face_id < offset_y_)  // X-face
+    {
+      ScalarType i_face = face_id % (ex_ + 1);
+      ScalarType j_face = (face_id / (ex_ + 1)) % ey_;
+      ScalarType k_face = face_id / ((ex_ + 1) * ey_);
 
-        switch (local_face)
-        {
-          case CubicFace::kXMinus:
-            for (int k = 0; k <= Order; ++k)
-              for (int j = 0; j <= Order; ++j)
-                result.face_dofs_(face_id, idx++) =
-                    mesh.globalNodeIndex(elem, 0, j, k);
-            break;
-          case CubicFace::kXPlus:
-            for (int k = 0; k <= Order; ++k)
-              for (int j = 0; j <= Order; ++j)
-                result.face_dofs_(face_id, idx++) =
-                    mesh.globalNodeIndex(elem, Order, j, k);
-            break;
-          case CubicFace::kYMinus:
-            for (int k = 0; k <= Order; ++k)
-              for (int i = 0; i <= Order; ++i)
-                result.face_dofs_(face_id, idx++) =
-                    mesh.globalNodeIndex(elem, i, 0, k);
-            break;
-          case CubicFace::kYPlus:
-            for (int k = 0; k <= Order; ++k)
-              for (int i = 0; i <= Order; ++i)
-                result.face_dofs_(face_id, idx++) =
-                    mesh.globalNodeIndex(elem, i, Order, k);
-            break;
-          case CubicFace::kZMinus:
-            for (int j = 0; j <= Order; ++j)
-              for (int i = 0; i <= Order; ++i)
-                result.face_dofs_(face_id, idx++) =
-                    mesh.globalNodeIndex(elem, i, j, 0);
-            break;
-          case CubicFace::kZPlus:
-            for (int j = 0; j <= Order; ++j)
-              for (int i = 0; i <= Order; ++i)
-                result.face_dofs_(face_id, idx++) =
-                    mesh.globalNodeIndex(elem, i, j, Order);
-            break;
-        }
-      }
+      ScalarType j_local = local_dof % (order_ + 1);
+      ScalarType k_local = local_dof / (order_ + 1);
+
+      ix = i_face * order_;
+      iy = j_face * order_ + j_local;
+      iz = k_face * order_ + k_local;
+    }
+    else if (face_id < offset_z_)  // Y-face
+    {
+      ScalarType local = face_id - offset_y_;
+      ScalarType i_face = local % ex_;
+      ScalarType j_face = (local / ex_) % (ey_ + 1);
+      ScalarType k_face = local / (ex_ * (ey_ + 1));
+
+      ScalarType i_local = local_dof % (order_ + 1);
+      ScalarType k_local = local_dof / (order_ + 1);
+
+      ix = i_face * order_ + i_local;
+      iy = j_face * order_;
+      iz = k_face * order_ + k_local;
+    }
+    else  // Z-face
+    {
+      ScalarType local = face_id - offset_z_;
+      ScalarType i_face = local % ex_;
+      ScalarType j_face = (local / ex_) % ey_;
+      ScalarType k_face = local / (ex_ * ey_);
+
+      ScalarType i_local = local_dof % (order_ + 1);
+      ScalarType j_local = local_dof / (order_ + 1);
+
+      ix = i_face * order_ + i_local;
+      iy = j_face * order_ + j_local;
+      iz = k_face * order_;
     }
 
-    // -----------------------------------------------------------------------
-    // Boucle 2 : owner/neighbor de façon déterministe
-    //
-    // Principe : on ne traite que les faces kXMinus/kYMinus/kZMinus
-    // car chaque face interne est partagée par exactement 2 éléments :
-    //   kXPlus(elem_i)  == kXMinus(elem_i+1)  → traité via elem_i+1
-    //   kYPlus(elem_j)  == kYMinus(elem_j+1)  → traité via elem_j+1
-    //   kZPlus(elem_k)  == kZMinus(elem_k+1)  → traité via elem_k+1
-    // Les faces Plus en bord de domaine restent à neighbor=-1 (boundary)
-    // -----------------------------------------------------------------------
-    for (ScalarType elem = 0; elem < n_element; ++elem)
+    return ix + iy * nx_ + iz * nx_ * ny_;
+  }
+
+  PROXY_HOST_DEVICE bool isBoundaryFace(ScalarType face_id) const override
+  {
+    if (face_id < offset_y_)
     {
-      ScalarType elem_k = elem / (ex_ * ey_);
-      ScalarType tmp = elem % (ex_ * ey_);
-      ScalarType elem_j = tmp / ex_;
-      ScalarType elem_i = tmp % ex_;
-
-      // kXMinus : owner=elem, neighbor=elem(i-1) si existe
-      {
-        ScalarType face =
-            result.elem_to_faces_(elem, static_cast<int>(CubicFace::kXMinus));
-        result.face_elem_owner_(face) = elem;
-        result.face_local_owner_(face) = static_cast<int>(CubicFace::kXMinus);
-        if (elem_i > 0)
-        {
-          ScalarType neighbor =
-              (elem_i - 1) + elem_j * ex_ + elem_k * ex_ * ey_;
-          result.face_elem_neighbor_(face) = neighbor;
-          result.face_local_neighbor_(face) =
-              static_cast<int>(CubicFace::kXPlus);
-        }
-      }
-
-      // kYMinus : owner=elem, neighbor=elem(j-1) si existe
-      {
-        ScalarType face =
-            result.elem_to_faces_(elem, static_cast<int>(CubicFace::kYMinus));
-        result.face_elem_owner_(face) = elem;
-        result.face_local_owner_(face) = static_cast<int>(CubicFace::kYMinus);
-        if (elem_j > 0)
-        {
-          ScalarType neighbor =
-              elem_i + (elem_j - 1) * ex_ + elem_k * ex_ * ey_;
-          result.face_elem_neighbor_(face) = neighbor;
-          result.face_local_neighbor_(face) =
-              static_cast<int>(CubicFace::kYPlus);
-        }
-      }
-
-      // kZMinus : owner=elem, neighbor=elem(k-1) si existe
-      {
-        ScalarType face =
-            result.elem_to_faces_(elem, static_cast<int>(CubicFace::kZMinus));
-        result.face_elem_owner_(face) = elem;
-        result.face_local_owner_(face) = static_cast<int>(CubicFace::kZMinus);
-        if (elem_k > 0)
-        {
-          ScalarType neighbor =
-              elem_i + elem_j * ex_ + (elem_k - 1) * ex_ * ey_;
-          result.face_elem_neighbor_(face) = neighbor;
-          result.face_local_neighbor_(face) =
-              static_cast<int>(CubicFace::kZPlus);
-        }
-      }
+      ScalarType i = face_id % (ex_ + 1);
+      return (i == 0 || i == ex_);
     }
+    else if (face_id < offset_z_)
+    {
+      ScalarType local = face_id - offset_y_;
+      ScalarType j = (local / ex_) % (ey_ + 1);
+      return (j == 0 || j == ey_);
+    }
+    else
+    {
+      ScalarType local = face_id - offset_z_;
+      ScalarType k = local / (ex_ * ey_);
+      return (k == 0 || k == ez_);
+    }
+  }
 
-    return result;
+  PROXY_HOST_DEVICE ScalarType elemOwner(ScalarType face_id) const override
+  {
+    if (face_id < offset_y_)
+    {
+      ScalarType i = face_id % (ex_ + 1);
+      ScalarType j = (face_id / (ex_ + 1)) % ey_;
+      ScalarType k = face_id / ((ex_ + 1) * ey_);
+      ScalarType ei = (i < ex_) ? i : i - 1;
+      return ei + j * ex_ + k * ex_ * ey_;
+    }
+    else if (face_id < offset_z_)
+    {
+      ScalarType local = face_id - offset_y_;
+      ScalarType i = local % ex_;
+      ScalarType j = (local / ex_) % (ey_ + 1);
+      ScalarType k = local / (ex_ * (ey_ + 1));
+      ScalarType ej = (j < ey_) ? j : j - 1;
+      return i + ej * ex_ + k * ex_ * ey_;
+    }
+    else
+    {
+      ScalarType local = face_id - offset_z_;
+      ScalarType i = local % ex_;
+      ScalarType j = (local / ex_) % ey_;
+      ScalarType k = local / (ex_ * ey_);
+      ScalarType ek = (k < ez_) ? k : k - 1;
+      return i + j * ex_ + ek * ex_ * ey_;
+    }
+  }
+
+  PROXY_HOST_DEVICE ScalarType elemNeighbor(ScalarType face_id) const override
+  {
+    if (isBoundaryFace(face_id)) return -1;
+
+    if (face_id < offset_y_)
+    {
+      ScalarType i = face_id % (ex_ + 1);
+      ScalarType j = (face_id / (ex_ + 1)) % ey_;
+      ScalarType k = face_id / ((ex_ + 1) * ey_);
+      return (i - 1) + j * ex_ + k * ex_ * ey_;
+    }
+    else if (face_id < offset_z_)
+    {
+      ScalarType local = face_id - offset_y_;
+      ScalarType i = local % ex_;
+      ScalarType j = (local / ex_) % (ey_ + 1);
+      ScalarType k = local / (ex_ * (ey_ + 1));
+      return i + (j - 1) * ex_ + k * ex_ * ey_;
+    }
+    else
+    {
+      ScalarType local = face_id - offset_z_;
+      ScalarType i = local % ex_;
+      ScalarType j = (local / ex_) % ey_;
+      ScalarType k = local / (ex_ * ey_);
+      return i + j * ex_ + (k - 1) * ex_ * ey_;
+    }
+  }
+
+  PROXY_HOST_DEVICE int localFaceOwner(ScalarType face_id) const override
+  {
+    if (face_id < offset_y_)
+    {
+      ScalarType i = face_id % (ex_ + 1);
+      return (i < ex_) ? static_cast<int>(CubicFace::kXMinus)
+                       : static_cast<int>(CubicFace::kXPlus);
+    }
+    else if (face_id < offset_z_)
+    {
+      ScalarType local = face_id - offset_y_;
+      ScalarType j = (local / ex_) % (ey_ + 1);
+      return (j < ey_) ? static_cast<int>(CubicFace::kYMinus)
+                       : static_cast<int>(CubicFace::kYPlus);
+    }
+    else
+    {
+      ScalarType local = face_id - offset_z_;
+      ScalarType k = local / (ex_ * ey_);
+      return (k < ez_) ? static_cast<int>(CubicFace::kZMinus)
+                       : static_cast<int>(CubicFace::kZPlus);
+    }
+  }
+
+  PROXY_HOST_DEVICE int localFaceNeighbor(ScalarType face_id) const override
+  {
+    if (isBoundaryFace(face_id)) return -1;
+    return localFaceOwner(face_id) ^
+           1;  // XMinus↔XPlus, YMinus↔YPlus, ZMinus↔ZPlus
   }
 
  private:
   ScalarType ex_{0}, ey_{0}, ez_{0};
-
-  // Pre-computed face offsets
-  ScalarType num_faces_x_{0};
-  ScalarType num_faces_y_{0};
-  ScalarType offset_y_{0};
-  ScalarType offset_z_{0};
+  ScalarType nx_{0}, ny_{0};
+  ScalarType offset_y_{0}, offset_z_{0};
+  int order_{0};
+  // Zéro Kokkos view — zéro allocation
 };
 
 }  // namespace model
