@@ -365,6 +365,32 @@ class ModelApi
    * Called once during mesh setup.
    */
   virtual void initFreeSurface() = 0;
+
+  /**
+   * @brief Get total number of faces
+   */
+  PROXY_HOST_DEVICE
+  virtual ScalarType getNumberOfFaces() const = 0;
+
+  /**
+   * @brief Check if face is on boundary
+   */
+  PROXY_HOST_DEVICE
+  virtual bool isBoundaryFace(ScalarType face_id) const = 0;
+
+  /**
+   * @brief Get global face ID from element and local face
+   */
+  PROXY_HOST_DEVICE
+  virtual ScalarType getGlobalFace(ScalarType elem,
+                                   CubicFace local_face) const = 0;
+
+  /**
+   * @brief Get global node index from face and local DOF
+   */
+  PROXY_HOST_DEVICE
+  virtual ScalarType getGlobalNodeFromFace(ScalarType face_global,
+                                           int local_dof) const = 0;
 };
 
 }  // namespace model

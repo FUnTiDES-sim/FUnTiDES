@@ -797,7 +797,7 @@ class ModelUnstruct final : public ModelApi<FloatType, ScalarType>
    * @return Global face ID
    */
   PROXY_HOST_DEVICE
-  ScalarType getGlobalFace(ScalarType elem, CubicFace local_face) const
+  ScalarType getGlobalFace(ScalarType elem, CubicFace local_face) const override
   {
     return face_connectivity_.getGlobalFace(elem, local_face);
   }
@@ -809,7 +809,8 @@ class ModelUnstruct final : public ModelApi<FloatType, ScalarType>
    * @return Global node index
    */
   PROXY_HOST_DEVICE
-  ScalarType getGlobalNodeFromFace(ScalarType face_global, int local_dof) const
+  ScalarType getGlobalNodeFromFace(ScalarType face_global,
+                                   int local_dof) const override
   {
     return face_connectivity_.getGlobalNodeFromFace(face_global, local_dof);
   }
@@ -820,7 +821,7 @@ class ModelUnstruct final : public ModelApi<FloatType, ScalarType>
    * @return True if boundary face (no neighbor element)
    */
   PROXY_HOST_DEVICE
-  bool isBoundaryFace(ScalarType face_global) const
+  bool isBoundaryFace(ScalarType face_global) const override
   {
     return face_connectivity_.isBoundaryFace(face_global);
   }
@@ -830,7 +831,7 @@ class ModelUnstruct final : public ModelApi<FloatType, ScalarType>
    * @return Number of unique faces
    */
   PROXY_HOST_DEVICE
-  ScalarType getNumberOfFaces() const
+  ScalarType getNumberOfFaces() const override
   {
     return face_connectivity_.getNumberOfFaces();
   }

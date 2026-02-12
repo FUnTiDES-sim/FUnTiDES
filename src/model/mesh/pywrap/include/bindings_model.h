@@ -53,7 +53,12 @@ void bind_modelapi(py::module_ &m)
       .def("face_normal", &T::faceNormal)
       .def("domain_size", &T::domainSize)
       .def("get_min_spacing", &T::getMinSpacing)
-      .def("get_max_speed", &T::getMaxSpeed);
+      .def("get_max_speed", &T::getMaxSpeed)
+      .def("build_face_connectivity", &T::buildFaceConnectivity)
+      .def("get_number_of_faces", &T::getNumberOfFaces)
+      .def("is_boundary_face", &T::isBoundaryFace)
+      .def("get_global_node_from_face", &T::getGlobalNodeFromFace)
+      .def("get_global_face", &T::getGlobalFace);
 }
 
 // templated binder for one ModelStruct instantiation

@@ -436,24 +436,24 @@ class ModelStruct : public ModelApi<FloatType, ScalarType>
         FaceConnectivityStruct<FloatType, ScalarType>(ex_, ey_, ez_, Order);
   }
 
-  PROXY_HOST_DEVICE ScalarType getNumberOfFaces() const
+  PROXY_HOST_DEVICE ScalarType getNumberOfFaces() const override
   {
     return face_connectivity_.getNumberOfFaces();
   }
 
-  PROXY_HOST_DEVICE ScalarType getGlobalFace(ScalarType elem,
-                                             CubicFace local_face) const
+  PROXY_HOST_DEVICE ScalarType
+  getGlobalFace(ScalarType elem, CubicFace local_face) const override
   {
     return face_connectivity_.getGlobalFace(elem, local_face);
   }
 
-  PROXY_HOST_DEVICE ScalarType getGlobalNodeFromFace(ScalarType face_id,
-                                                     int local_dof) const
+  PROXY_HOST_DEVICE ScalarType
+  getGlobalNodeFromFace(ScalarType face_id, int local_dof) const override
   {
     return face_connectivity_.getGlobalNodeFromFace(face_id, local_dof);
   }
 
-  PROXY_HOST_DEVICE bool isBoundaryFace(ScalarType face_id) const
+  PROXY_HOST_DEVICE bool isBoundaryFace(ScalarType face_id) const override
   {
     return face_connectivity_.isBoundaryFace(face_id);
   }

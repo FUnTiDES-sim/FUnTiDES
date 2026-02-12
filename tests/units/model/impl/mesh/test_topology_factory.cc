@@ -165,6 +165,22 @@ class MockMesh : public model::ModelApi<FloatType, ScalarType>
 
   void initFreeSurface() override {}
 
+  PROXY_HOST_DEVICE ScalarType getGlobalNodeFromFace(ScalarType,
+                                                     int) const override
+  {
+    return 0;
+  }
+  PROXY_HOST_DEVICE ScalarType getGlobalFace(ScalarType,
+                                             model::CubicFace) const override
+  {
+    return 0;
+  }
+  PROXY_HOST_DEVICE bool isBoundaryFace(ScalarType) const override
+  {
+    return true;
+  }
+  PROXY_HOST_DEVICE ScalarType getNumberOfFaces() const override { return 0; }
+
   PROXY_HOST_DEVICE FloatType domainSize(int) const override { return 0; }
   virtual FloatType getMaxSpeed() const override { return 0; }
   PROXY_HOST_DEVICE bool isModelOnNodes() const override { return true; }
