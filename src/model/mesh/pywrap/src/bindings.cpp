@@ -16,10 +16,10 @@ PYBIND11_MODULE(model, m)
   // Create submodule 'model'
   m.attr("__name__") = "pyfuntides.model";
 
-  bindings::bindFaceConnectivityUnstruct<float, int>(m, "Float_Int");
-  bindings::bindFaceConnectivityUnstruct<double, int>(m, "Double_Int");
-  bindings::bindFaceConnectivityUnstruct<float, long>(m, "Float_Long");
-  bindings::bindFaceConnectivityUnstruct<double, long>(m, "Double_Long");
+  bindings::bindFaceConnectivityUnstruct<float, int>(m);
+  bindings::bindFaceConnectivityUnstruct<double, int>(m);
+  bindings::bindFaceConnectivityUnstruct<float, long>(m);
+  bindings::bindFaceConnectivityUnstruct<double, long>(m);
 
   // Bind ModelApi
   model::bind_modelapi<float, int>(m);
