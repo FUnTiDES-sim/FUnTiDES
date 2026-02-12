@@ -3,6 +3,8 @@
 
 #include <pybind11/pybind11.h>
 
+#include <KokkosExp_InterOp.hpp>
+
 #include "face_connectivity_unstruct.h"
 
 namespace py = pybind11;
@@ -11,7 +13,7 @@ namespace bindings
 {
 
 template <typename FloatType, typename ScalarType>
-void bindFaceConnectivityUnstruct(py::module& m)
+void bindFaceConnectivityUnstruct(py::module &m)
 {
   using FaceConnData =
       model::FaceConnectivityUnstructData<FloatType, ScalarType>;
@@ -27,17 +29,69 @@ void bindFaceConnectivityUnstruct(py::module& m)
       .def(py::init<>())
       .def_readwrite("n_faces", &FaceConnData::n_faces)
       .def_readwrite("ndofs_per_face", &FaceConnData::ndofs_per_face)
-      .def_readwrite("elem_to_faces", &FaceConnData::elem_to_faces)
-      .def_readwrite("face_dofs", &FaceConnData::face_dofs)
-      .def_readwrite("face_elem_owner", &FaceConnData::face_elem_owner)
-      .def_readwrite("face_elem_neighbor", &FaceConnData::face_elem_neighbor)
-      .def_readwrite("face_local_owner", &FaceConnData::face_local_owner)
-      .def_readwrite("face_local_neighbor", &FaceConnData::face_local_neighbor);
+      .def_property(
+          "elem_to_faces",
+          [](FaceConnData &self) -> Kokkos::Experimental::python_view_type_t<
+                                     decltype(self.elem_to_faces)> {
+            return self.elem_to_faces;
+          },
+          [](FaceConnData &self, Kokkos::Experimental::python_view_type_t<
+                                     decltype(self.elem_to_faces)>
+                                     v) { self.elem_to_faces = v; })
 
+      .def_property(
+          "face_dofs",
+          [](FaceConnData &self) -> Kokkos::Experimental::python_view_type_t<
+                                     decltype(self.face_dofs)> {
+            return self.face_dofs;
+          },
+          [](FaceConnData &self,
+             Kokkos::Experimental::python_view_type_t<decltype(self.face_dofs)>
+                 v) { self.face_dofs = v; })
+
+      .def_property(
+          "face_elem_owner",
+          [](FaceConnData &self) -> Kokkos::Experimental::python_view_type_t<
+                                     decltype(self.face_elem_owner)> {
+            return self.face_elem_owner;
+          },
+          [](FaceConnData &self, Kokkos::Experimental::python_view_type_t<
+                                     decltype(self.face_elem_owner)>
+                                     v) { self.face_elem_owner = v; })
+
+      .def_property(
+          "face_elem_neighbor",
+          [](FaceConnData &self) -> Kokkos::Experimental::python_view_type_t<
+                                     decltype(self.face_elem_neighbor)> {
+            return self.face_elem_neighbor;
+          },
+          [](FaceConnData &self, Kokkos::Experimental::python_view_type_t<
+                                     decltype(self.face_elem_neighbor)>
+                                     v) { self.face_elem_neighbor = v; })
+
+      .def_property(
+          "face_local_owner",
+          [](FaceConnData &self) -> Kokkos::Experimental::python_view_type_t<
+                                     decltype(self.face_local_owner)> {
+            return self.face_local_owner;
+          },
+          [](FaceConnData &self, Kokkos::Experimental::python_view_type_t<
+                                     decltype(self.face_local_owner)>
+                                     v) { self.face_local_owner = v; })
+
+      .def_property(
+          "face_local_neighbor",
+          [](FaceConnData &self) -> Kokkos::Experimental::python_view_type_t<
+                                     decltype(self.face_local_neighbor)> {
+            return self.face_local_neighbor;
+          },
+          [](FaceConnData &self, Kokkos::Experimental::python_view_type_t<
+                                     decltype(self.face_local_neighbor)>
+                                     v) { self.face_local_neighbor = v; });
   // Bind Class
   py::class_<FaceConn>(m, class_name.c_str())
       .def(py::init<>())
-      .def(py::init<const FaceConnData&>())
+      .def(py::init<const FaceConnData &>())
       .def("build", &FaceConn::build)
       .def("get_number_of_faces", &FaceConn::getNumberOfFaces)
       .def("is_boundary_face", &FaceConn::isBoundaryFace)
