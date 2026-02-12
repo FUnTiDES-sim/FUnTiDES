@@ -564,18 +564,19 @@ class TestModelUnstruct:
         assert n_faces > 0
         assert n_faces < data.n_elements * 6
     
-    @pytest.mark.parametrize("unstruct", test_cases[:1], indirect=True)
-    def test_face_connectivity_manual_injection(self, unstruct):
+@pytest.mark.parametrize("unstruct", test_cases[:1], indirect=True)
+def test_face_connectivity_manual_injection(self, unstruct):
         """Test manual injection of FaceConnectivityUnstructData"""
         data, model_cls, params = unstruct
         class_name = params.__class__.__name__
         suffix = class_name.replace("ModelUnstructData_", "")
         fc_data_cls = getattr(Model, f'FaceConnectivityUnstructData_{suffix}')
         fc_data = fc_data_cls()
+        fc_data.n_faces = 1234 
         params.face_connectivity = fc_data
+        assert params.face_connectivity.n_faces == 1234
         model = model_cls(params)
-        assert model is not None
-        assert model.get_number_of_faces() == 0
+        assert model.get_number_of_faces() == 1234
         model.build_face_connectivity()
         assert model.get_number_of_faces() > 0
-
+        assert model.get_number_of_faces() != 1234 
