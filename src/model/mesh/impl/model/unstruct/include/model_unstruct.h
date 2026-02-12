@@ -631,10 +631,8 @@ class ModelUnstruct final : public ModelApi<FloatType, ScalarType>
    */
   void initializeBoundaryFlags(bool free_surface_on_top) override
   {
-    // Si déjà pré-calculé par le builder (mode MPI) → rien à faire
     if (boundaries_t_.extent(0) > 0) return;
 
-    // Fallback : mode séquentiel, coordonnées locales == globales
     boundaries_t_ = allocateVector<VECTOR_REAL_VIEW>(n_node_, "boundaries_t");
 
     FloatType tol = getMinSpacing() * 1e-4;

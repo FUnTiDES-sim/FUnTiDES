@@ -9,9 +9,9 @@ namespace model
 /**
  * @brief Face connectivity for structured Cartesian meshes — fully on-the-fly
  *
- * Toutes les méthodes de FaceConnectivityApi sont implémentées par
- * arithmétique pure. Aucune Kokkos view, aucune allocation.
- * Stocke uniquement ex_, ey_, ez_, order_, nx_, ny_, offset_y_, offset_z_.
+ * All FaceConnectivityApi methods are implemented using pure arithmetic.
+ * No Kokkos views, no allocations.
+ * Only stores ex_, ey_, ez_, order_, nx_, ny_, offset_y_, offset_z_.
  *
  * @tparam FloatType Floating point type
  * @tparam ScalarType Integer type for indexing
@@ -33,7 +33,7 @@ class FaceConnectivityStruct : public FaceConnectivityApi<FloatType, ScalarType>
   }
 
   // ==========================================================================
-  // Implémentation de FaceConnectivityApi — tout on-the-fly
+  // Implementation of FaceConnectivityApi — all on-the-fly
   // ==========================================================================
 
   PROXY_HOST_DEVICE ScalarType getNumberOfFaces() const override
@@ -75,9 +75,9 @@ class FaceConnectivityStruct : public FaceConnectivityApi<FloatType, ScalarType>
   }
 
   /**
-   * @brief Reconstruction du nœud global depuis face_id + local_dof
+   * @brief Reconstruct the global node from face_id + local_dof
    *
-   * Convention locale des DOFs :
+   * Local DOF convention:
    *   X-face : for k in [0,order], for j in [0,order] → local_dof =
    * k*(order+1)+j Y-face : for k in [0,order], for i in [0,order] → local_dof =
    * k*(order+1)+i Z-face : for j in [0,order], for i in [0,order] → local_dof =
@@ -133,6 +133,13 @@ class FaceConnectivityStruct : public FaceConnectivityApi<FloatType, ScalarType>
     return ix + iy * nx_ + iz * nx_ * ny_;
   }
 
+  /**
+   * @brief Determine if a face is on the boundary (no neighbor)
+   *  - X-face is boundary if i_face == 0 or i_face == ex
+   *  - Y-face is boundary if j_face == 0 or j_face == ey
+   *  - Z-face is boundary if k_face == 0 or k_face == ez
+   * @return True if boundary face
+   */
   PROXY_HOST_DEVICE bool isBoundaryFace(ScalarType face_id) const override
   {
     if (face_id < offset_y_)
@@ -154,6 +161,11 @@ class FaceConnectivityStruct : public FaceConnectivityApi<FloatType, ScalarType>
     }
   }
 
+  /**
+   * @brief Get owner element of a face
+   * @param face_id Global face ID
+   * @return Owner element index or -1 if boundary
+   */
   PROXY_HOST_DEVICE ScalarType elemOwner(ScalarType face_id) const override
   {
     if (face_id < offset_y_)
@@ -184,6 +196,11 @@ class FaceConnectivityStruct : public FaceConnectivityApi<FloatType, ScalarType>
     }
   }
 
+  /**
+   * @brief Get neighbor element of a face (-1 if boundary)
+   * * @param face_id Global face ID
+   * * @return Neighbor element index or -1 if boundary
+   */
   PROXY_HOST_DEVICE ScalarType elemNeighbor(ScalarType face_id) const override
   {
     if (isBoundaryFace(face_id)) return -1;
@@ -213,6 +230,11 @@ class FaceConnectivityStruct : public FaceConnectivityApi<FloatType, ScalarType>
     }
   }
 
+  /**
+   * @brief Get local face index of the owner element
+   * @param face_id Global face ID
+   * @return Local face index (0-5) in owner element
+   */
   PROXY_HOST_DEVICE int localFaceOwner(ScalarType face_id) const override
   {
     if (face_id < offset_y_)
@@ -237,6 +259,11 @@ class FaceConnectivityStruct : public FaceConnectivityApi<FloatType, ScalarType>
     }
   }
 
+  /**
+   * @brief Get local face index of the neighbor element
+   * @param face_id Global face ID
+   * @return Local face index (0-5) in neighbor element, or -1 if boundary
+   */
   PROXY_HOST_DEVICE int localFaceNeighbor(ScalarType face_id) const override
   {
     if (isBoundaryFace(face_id)) return -1;
@@ -249,7 +276,7 @@ class FaceConnectivityStruct : public FaceConnectivityApi<FloatType, ScalarType>
   ScalarType nx_{0}, ny_{0};
   ScalarType offset_y_{0}, offset_z_{0};
   int order_{0};
-  // Zéro Kokkos view — zéro allocation
+  // Zero Kokkos views — zero allocations
 };
 
 }  // namespace model
