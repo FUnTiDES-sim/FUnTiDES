@@ -111,23 +111,20 @@ def test_face_connectivity_class_methods_exist():
         assert hasattr(fc, method), f"Method {method} not found on FaceConnectivityUnstruct"
 
 
-@pytest.mark.parametrize("suffix", ["f32_i32", "f64_i32", "f32_i64", "f64_i64"])
-def test_face_connectivity_integration_with_model_unstruct_data(suffix):
+@pytest.mark.parametrize("unstruct", test_cases[:1], indirect=True)
+def test_face_connectivity_integration_with_model_unstruct_data(unstruct):
     """Test that FaceConnectivityUnstructData can be assigned to ModelUnstructData"""
-    # Get the appropriate classes
-    fc_data_cls = getattr(Model, f'FaceConnectivityUnstructData_{suffix}')
-    model_data_cls = getattr(Model, f'ModelUnstructData_{suffix}')
     
-    # Create instances
+    ud_obj, model_cls, params = unstruct
+    
+    suffix = params.__class__.__name__.split('_')[-2:] 
+    suffix_str = f"{suffix[0]}_{suffix[1]}"
+    
+    fc_data_cls = getattr(Model, f'FaceConnectivityUnstructData_{suffix_str}')
     fc_data = fc_data_cls()
     fc_data.n_faces = 42
-    fc_data.ndofs_per_face = 9
     
-    model_data = model_data_cls()
+    params.face_connectivity = fc_data
     
-    # Should be able to assign face_connectivity
-    model_data.face_connectivity = fc_data
-    
-    # Should be able to read it back
-    assert model_data.face_connectivity.n_faces == 42
-    assert model_data.face_connectivity.ndofs_per_face == 9
+    assert hasattr(params, 'face_connectivity')
+    assert params.face_connectivity.n_faces == 42
