@@ -546,3 +546,36 @@ class TestModelUnstruct:
         model = model_cls(params)
 
         assert model.get_max_speed() == 3600.0
+
+    @pytest.mark.parametrize("unstruct", test_cases, indirect=True)
+    def test_face_connectivity_member_exists(self, unstruct):
+        """Test that ModelUnstructData has face_connectivity member"""
+        _, _, params = unstruct
+        assert hasattr(params, 'face_connectivity')
+    
+    @pytest.mark.parametrize("unstruct", test_cases, indirect=True)
+    def test_face_connectivity_workflow(self, unstruct):
+        """Test complete face connectivity workflow"""
+        data, model_cls, params = unstruct
+        model = model_cls(params)
+        assert model.get_number_of_faces() == 0
+        model.build_face_connectivity()
+        n_faces = model.get_number_of_faces()
+        assert n_faces > 0
+        assert n_faces < data.n_elements * 6
+    
+    @pytest.mark.parametrize("unstruct", test_cases[:1], indirect=True)
+    def test_face_connectivity_manual_injection(self, unstruct):
+        """Test manual injection of FaceConnectivityUnstructData"""
+        data, model_cls, params = unstruct
+        class_name = params.__class__.__name__
+        suffix = class_name.replace("ModelUnstructData_", "")
+        fc_data_cls = getattr(Model, f'FaceConnectivityUnstructData_{suffix}')
+        fc_data = fc_data_cls()
+        params.face_connectivity = fc_data
+        model = model_cls(params)
+        assert model is not None
+        assert model.get_number_of_faces() == 0
+        model.build_face_connectivity()
+        assert model.get_number_of_faces() > 0
+
