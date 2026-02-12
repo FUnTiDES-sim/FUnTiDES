@@ -43,7 +43,9 @@ struct ModelUnstructData : public ModelDataBase<FloatType, ScalarType>
       VECTOR_REAL_VIEW model_gamma_element, VECTOR_REAL_VIEW model_theta_node,
       VECTOR_REAL_VIEW model_theta_element, VECTOR_REAL_VIEW model_phi_node,
       VECTOR_REAL_VIEW model_phi_element,
-      ARRAY3D_REAL_VIEW model_C_tensor_element, VECTOR_REAL_VIEW boundaries_t)
+      ARRAY3D_REAL_VIEW model_C_tensor_element, VECTOR_REAL_VIEW boundaries_t,
+      FaceConnectivityUnstructData<FloatType, ScalarType> face_connectivity =
+          {})
       : order_(order),
         n_element_(n_element),
         n_node_(n_node),
@@ -73,7 +75,8 @@ struct ModelUnstructData : public ModelDataBase<FloatType, ScalarType>
         model_phi_node_(model_phi_node),
         model_phi_element_(model_phi_element),
         model_C_tensor_element_(model_C_tensor_element),
-        boundaries_t_(boundaries_t)
+        boundaries_t_(boundaries_t),
+        face_connectivity_(face_connectivity)
   {
   }
 
@@ -110,6 +113,7 @@ struct ModelUnstructData : public ModelDataBase<FloatType, ScalarType>
   VECTOR_REAL_VIEW model_phi_element_;
   ARRAY3D_REAL_VIEW model_C_tensor_element_;
   VECTOR_REAL_VIEW boundaries_t_;
+  FaceConnectivityUnstructData<FloatType, ScalarType> face_connectivity_;
 };
 
 /**
@@ -161,6 +165,7 @@ class ModelUnstruct final : public ModelApi<FloatType, ScalarType>
         model_theta_element_(data.model_theta_element_),
         model_C_tensor_element_(data.model_C_tensor_element_),
         boundaries_t_(data.boundaries_t_),
+        face_connectivity_(data.face_connectivity_),
         n_points_per_element_((order_ + 1) * (order_ + 1) * (order_ + 1))
   {
   }

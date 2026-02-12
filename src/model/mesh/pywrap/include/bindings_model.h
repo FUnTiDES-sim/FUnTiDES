@@ -7,6 +7,7 @@
 #include <KokkosExp_InterOp.hpp>
 #include <string>
 
+#include "bindings_face_connectivity.h"  // NEW: Include face connectivity bindings
 #include "bindings_utils.h"
 #include "common_macros.h"
 #include "model.h"
@@ -109,45 +110,55 @@ void bind_modelunstructdata(py::module_ &m)
       model_class_name<FloatType, ScalarType>("ModelUnstructData");
 
   py::class_<Data>(m, name.c_str())
-      .def(
-          py::init<ScalarType, ScalarType, ScalarType, FloatType, FloatType,
-                   FloatType, bool, bool,
-                   Kokkos::Experimental::python_view_type_t<ARRAY_INT_VIEW>,
-                   Kokkos::Experimental::python_view_type_t<VECTOR_REAL_VIEW>,
-                   Kokkos::Experimental::python_view_type_t<VECTOR_REAL_VIEW>,
-                   Kokkos::Experimental::python_view_type_t<VECTOR_REAL_VIEW>,
-                   Kokkos::Experimental::python_view_type_t<VECTOR_REAL_VIEW>,
-                   Kokkos::Experimental::python_view_type_t<VECTOR_REAL_VIEW>,
-                   Kokkos::Experimental::python_view_type_t<VECTOR_REAL_VIEW>,
-                   Kokkos::Experimental::python_view_type_t<VECTOR_REAL_VIEW>,
-                   Kokkos::Experimental::python_view_type_t<VECTOR_REAL_VIEW>,
-                   Kokkos::Experimental::python_view_type_t<VECTOR_REAL_VIEW>,
-                   Kokkos::Experimental::python_view_type_t<VECTOR_REAL_VIEW>,
-                   Kokkos::Experimental::python_view_type_t<VECTOR_REAL_VIEW>,
-                   Kokkos::Experimental::python_view_type_t<VECTOR_REAL_VIEW>,
-                   Kokkos::Experimental::python_view_type_t<VECTOR_REAL_VIEW>,
-                   Kokkos::Experimental::python_view_type_t<VECTOR_REAL_VIEW>,
-                   Kokkos::Experimental::python_view_type_t<VECTOR_REAL_VIEW>,
-                   Kokkos::Experimental::python_view_type_t<VECTOR_REAL_VIEW>,
-                   Kokkos::Experimental::python_view_type_t<VECTOR_REAL_VIEW>,
-                   Kokkos::Experimental::python_view_type_t<VECTOR_REAL_VIEW>,
-                   Kokkos::Experimental::python_view_type_t<VECTOR_REAL_VIEW>,
-                   Kokkos::Experimental::python_view_type_t<ARRAY3D_REAL_VIEW>,
-                   Kokkos::Experimental::python_view_type_t<VECTOR_REAL_VIEW>>()
-              py::arg("order"),
-          py::arg("n_element"), py::arg("n_node"), py::arg("lx"), py::arg("ly"),
-          py::arg("lz"), py::arg("is_model_on_nodes"), py::arg("is_elastic"),
-          py::arg("global_node_index"), py::arg("nodes_coords_x"),
-          py::arg("nodes_coords_y"), py::arg("nodes_coords_z"),
-          py::arg("model_vp_node"), py::arg("model_vp_element"),
-          py::arg("model_rho_node"), py::arg("model_rho_element"),
-          py::arg("model_vs_node"), py::arg("model_vs_element"),
-          py::arg("model_delta_node"), py::arg("model_delta_element"),
-          py::arg("model_epsilon_node"), py::arg("model_epsilon_element"),
-          py::arg("model_gamma_node"), py::arg("model_gamma_element"),
-          py::arg("model_theta_node"), py::arg("model_theta_element"),
-          py::arg("model_phi_node"), py::arg("model_phi_element"),
-          py::arg("model_C_tensor_element"), py::arg("boundaries_t"));
+      .def(py::init<>())
+
+      // Mesh topology
+      .def_readwrite("order", &Data::order_)
+      .def_readwrite("n_element", &Data::n_element_)
+      .def_readwrite("n_node", &Data::n_node_)
+      .def_readwrite("lx", &Data::lx_)
+      .def_readwrite("ly", &Data::ly_)
+      .def_readwrite("lz", &Data::lz_)
+      .def_readwrite("ox", &Data::ox_)
+      .def_readwrite("oy", &Data::oy_)
+      .def_readwrite("oz", &Data::oz_)
+
+      // Flags
+      .def_readwrite("is_model_on_nodes", &Data::isModelOnNodes_)
+      .def_readwrite("is_elastic", &Data::isElastic_)
+
+      // Connectivity
+      .def_readwrite("global_node_index", &Data::global_node_index_)
+      .def_readwrite("nodes_coords_x", &Data::nodes_coords_x_)
+      .def_readwrite("nodes_coords_y", &Data::nodes_coords_y_)
+      .def_readwrite("nodes_coords_z", &Data::nodes_coords_z_)
+
+      // Material properties
+      .def_readwrite("model_vp_node", &Data::model_vp_node_)
+      .def_readwrite("model_vp_element", &Data::model_vp_element_)
+      .def_readwrite("model_rho_node", &Data::model_rho_node_)
+      .def_readwrite("model_rho_element", &Data::model_rho_element_)
+      .def_readwrite("model_vs_node", &Data::model_vs_node_)
+      .def_readwrite("model_vs_element", &Data::model_vs_element_)
+      .def_readwrite("model_delta_node", &Data::model_delta_node_)
+      .def_readwrite("model_delta_element", &Data::model_delta_element_)
+      .def_readwrite("model_epsilon_node", &Data::model_epsilon_node_)
+      .def_readwrite("model_epsilon_element", &Data::model_epsilon_element_)
+      .def_readwrite("model_gamma_node", &Data::model_gamma_node_)
+      .def_readwrite("model_gamma_element", &Data::model_gamma_element_)
+      .def_readwrite("model_theta_node", &Data::model_theta_node_)
+      .def_readwrite("model_theta_element", &Data::model_theta_element_)
+      .def_readwrite("model_phi_node", &Data::model_phi_node_)
+      .def_readwrite("model_phi_element", &Data::model_phi_element_)
+      .def_readwrite("model_C_tensor_element", &Data::model_C_tensor_element_)
+
+      // Boundary flags
+      .def_readwrite("boundaries_t", &Data::boundaries_t_)
+
+      // Face connectivity (uses FaceConnectivityUnstructData)
+      .def_readwrite(
+          "face_connectivity", &Data::face_connectivity_,
+          "Face connectivity data (can be filled from external source)");
 }
 
 }  // namespace model

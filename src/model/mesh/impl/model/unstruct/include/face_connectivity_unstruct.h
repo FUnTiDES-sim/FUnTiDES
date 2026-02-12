@@ -11,7 +11,31 @@ namespace model
 {
 
 /**
+ * @brief Data structure for unstructured face connectivity initialization
+ *
+ * Public members allow direct injection from Python (e.g., from HDF5 files).
+ * Same pattern as ModelUnstructData.
+ */
+template <typename FloatType, typename ScalarType>
+struct FaceConnectivityUnstructData
+{
+  ScalarType n_faces = 0;
+  int ndofs_per_face = 0;
+
+  ARRAY_INT_VIEW elem_to_faces;
+  ARRAY_INT_VIEW face_dofs;
+  VECTOR_INT_VIEW face_elem_owner;
+  VECTOR_INT_VIEW face_elem_neighbor;
+  VECTOR_INT_VIEW face_local_owner;
+  VECTOR_INT_VIEW face_local_neighbor;
+};
+
+/**
  * @brief Face connectivity for unstructured meshes
+ *
+ * Implements FaceConnectivityApi via pre-computed Kokkos views.
+ * Can be constructed from FaceConnectivityUnstructData or built from mesh.
+ *
  * @tparam FloatType Floating point type
  * @tparam ScalarType Integer type for indexing
  */
@@ -23,17 +47,27 @@ class FaceConnectivityUnstruct
   FaceConnectivityUnstruct() = default;
 
   /**
-   * @brief Build face connectivity from the mesh
-   * - Extracts faces from elements, identifies unique faces, and fills
-   * connectivity tables.
-   * - Uses a map to identify unique faces based on their corner nodes.
-   * - Stores: * - elem_to_faces_(elem, local_face) → global_face_id *
-   * - face_dofs_(face_id, local_dof) → global_node_id *
-   * - face_elem_owner_(face_id) → owner element index *
-   * - face_elem_neighbor_(face_id) → neighbor element index or -1 if boundary *
-   * - face_local_owner_(face_id) → local face index in owner element *
-   * - face_local_neighbor_(face_id) → local face index in neighbor element or
-   * -1 if boundary
+   * @brief Construct from data structure (for Python injection)
+   */
+  PROXY_HOST_DEVICE
+  FaceConnectivityUnstruct(
+      const FaceConnectivityUnstructData<FloatType, ScalarType>& data)
+      : n_faces_(data.n_faces),
+        ndofs_per_face_(data.ndofs_per_face),
+        elem_to_faces_(data.elem_to_faces),
+        face_dofs_(data.face_dofs),
+        face_elem_owner_(data.face_elem_owner),
+        face_elem_neighbor_(data.face_elem_neighbor),
+        face_local_owner_(data.face_local_owner),
+        face_local_neighbor_(data.face_local_neighbor)
+  {
+  }
+
+  /**
+   * @brief Build face connectivity from mesh
+   *
+   * Extracts faces from elements, identifies unique faces, and fills
+   * connectivity tables using a map-based approach.
    */
   void build(const ModelApi<FloatType, ScalarType>& mesh)
   {
@@ -42,6 +76,7 @@ class FaceConnectivityUnstruct
     const ScalarType max_faces = n_element * 6;
     ndofs_per_face_ = (order + 1) * (order + 1);
 
+    // Temporary arrays at maximum size
     auto elem_to_faces_temp = allocateArray2D<ARRAY_INT_VIEW>(n_element, 6);
     auto face_dofs_temp =
         allocateArray2D<ARRAY_INT_VIEW>(max_faces, ndofs_per_face_);
@@ -70,7 +105,7 @@ class FaceConnectivityUnstruct
           ScalarType face_id = face_count++;
           face_map[face_key] = face_id;
 
-          // Remplissage face_dofs
+          // Fill face DOFs
           int idx = 0;
           switch (local_face)
           {
@@ -126,6 +161,7 @@ class FaceConnectivityUnstruct
       }
     }
 
+    // Final allocation at exact size + copy
     n_faces_ = face_count;
     elem_to_faces_ = allocateArray2D<ARRAY_INT_VIEW>(n_element, 6);
     face_dofs_ = allocateArray2D<ARRAY_INT_VIEW>(face_count, ndofs_per_face_);
@@ -149,93 +185,52 @@ class FaceConnectivityUnstruct
     }
   }
 
-  /**
-   * @brief Get total number of unique faces in the mesh
-   * @return Number of faces
-   */
+  // ==========================================================================
+  // FaceConnectivityApi implementation
+  // ==========================================================================
+
   PROXY_HOST_DEVICE ScalarType getNumberOfFaces() const override
   {
     return n_faces_;
   }
 
-  /**
-   * @brief Get number of DOFs (nodes) per face
-   * @return Number of DOFs per face
-   */
   PROXY_HOST_DEVICE int getDofsPerFace() const override
   {
     return ndofs_per_face_;
   }
 
-  /**
-   * @brief Get global face ID from element and local face
-   * @param elem Element index
-   * @param local_face Local face identifier
-   * @return Global face ID
-   */
   PROXY_HOST_DEVICE ScalarType
   getGlobalFace(ScalarType elem, CubicFace local_face) const override
   {
     return elem_to_faces_(elem, static_cast<int>(local_face));
   }
 
-  /**
-   * @brief Get global node index from face and local DOF
-   * @param face_id Global face ID
-   * @param local_dof Local DOF index on face [0, (order+1)²)
-   * @return Global node index
-   */
   PROXY_HOST_DEVICE ScalarType
   getGlobalNodeFromFace(ScalarType face_id, int local_dof) const override
   {
     return face_dofs_(face_id, local_dof);
   }
 
-  /**
-   * @brief Check if face is on domain boundary (no neighbor)
-   * @param face_id Global face ID
-   * @return True if boundary face
-   */
   PROXY_HOST_DEVICE bool isBoundaryFace(ScalarType face_id) const override
   {
     return face_elem_neighbor_(face_id) == -1;
   }
 
-  /**
-   * @brief Get owner element of a face
-   * @param face_id Global face ID
-   * @return Owner element index
-   */
   PROXY_HOST_DEVICE ScalarType elemOwner(ScalarType face_id) const override
   {
     return face_elem_owner_(face_id);
   }
 
-  /**
-   * @brief Get neighbor element of a face (-1 if boundary)
-   * @param face_id Global face ID
-   * @return Neighbor element index, or -1 if boundary
-   */
   PROXY_HOST_DEVICE ScalarType elemNeighbor(ScalarType face_id) const override
   {
     return face_elem_neighbor_(face_id);
   }
 
-  /**
-   * @brief Get local face index of the owner element
-   * @param face_id Global face ID
-   * @return Local face index (0-5) in owner element
-   */
   PROXY_HOST_DEVICE int localFaceOwner(ScalarType face_id) const override
   {
     return face_local_owner_(face_id);
   }
 
-  /**
-   * @brief Get local face index of the neighbor element (-1 if boundary)
-   * @param face_id Global face ID
-   * @return Local face index (0-5) in neighbor element, or -1 if boundary
-   */
   PROXY_HOST_DEVICE int localFaceNeighbor(ScalarType face_id) const override
   {
     return face_local_neighbor_(face_id);
@@ -252,10 +247,7 @@ class FaceConnectivityUnstruct
   VECTOR_INT_VIEW face_local_owner_;
   VECTOR_INT_VIEW face_local_neighbor_;
 
-  // ------------------------------------------------------------------
-  // Helpers for the build process
-  // ------------------------------------------------------------------
-
+  // Helper methods for build()
   static std::array<ScalarType, 4> extractFaceCorners(
       const ModelApi<FloatType, ScalarType>& mesh, ScalarType elem,
       CubicFace local_face)
