@@ -34,7 +34,7 @@ else()
   message(STATUS "Kokkos Activated. Source are at ${Kokkos_SOURCE_DIR}.")
 
   if(ENABLE_PYWRAP)
-    # Enabling pykokkos-base and reused Kokkos build above
+    # Enabling pykokkose and reused Kokkos build above
     set(ENABLE_MEMORY_TRAITS OFF)
     set(Kokkos_ENABLE_PYTHON ON)
     set(Kokkos_ENABLE_DEBUG OFF)
@@ -44,10 +44,10 @@ else()
     set(ENABLE_INTERNAL_PYBIND11 OFF CACHE BOOL "" FORCE)
     set(Kokkos_DIR "${Kokkos_BINARY_DIR}" CACHE PATH "Use external Kokkos build")
     message(STATUS "Enabling pykokkos base.")
-    add_subdirectory(external/pykokkos-base)
+    add_subdirectory(external/pykokkos)
 
-    # Installing pykokkos-base python lib
-    set(PYKOKKOS_BUILD_DIR "${CMAKE_BINARY_DIR}/external/pykokkos-base/kokkos")
+    # Installing pykokkos python lib
+    set(PYKOKKOS_BUILD_DIR "${CMAKE_BINARY_DIR}/external/pykokkos/kokkos")
     file(GLOB PYKOKKOS_MODULE_SO "${PYKOKKOS_BUILD_DIR}/libpykokkos*.so")
     message(STATUS "Installing pykokkos module: ${PYKOKKOS_MODULE_SO}")
     install(
