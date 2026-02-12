@@ -9,9 +9,6 @@ namespace model
 /**
  * @brief Abstract interface for face connectivity
  *
- * Full virtual API — exactement le même pattern que ModelApi.
- * FaceConnectivityStruct implémente tout on-the-fly via formules cartésiennes.
- * FaceConnectivityUnstruct implémente tout via des Kokkos views pré-calculées.
  */
 template <typename FloatType, typename ScalarType>
 class FaceConnectivityApi

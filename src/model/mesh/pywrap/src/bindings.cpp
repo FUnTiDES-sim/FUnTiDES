@@ -16,17 +16,10 @@ PYBIND11_MODULE(model, m)
   // Create submodule 'model'
   m.attr("__name__") = "pyfuntides.model";
 
-  // =========================================================================
-  // NOUVEAU: Bind FaceConnectivity FIRST (required by ModelUnstructData)
-  // =========================================================================
   bindings::bindFaceConnectivityUnstruct<float, int>(m, "Float_Int");
   bindings::bindFaceConnectivityUnstruct<double, int>(m, "Double_Int");
   bindings::bindFaceConnectivityUnstruct<float, long>(m, "Float_Long");
   bindings::bindFaceConnectivityUnstruct<double, long>(m, "Double_Long");
-
-  // =========================================================================
-  // Rest unchanged
-  // =========================================================================
 
   // Bind ModelApi
   model::bind_modelapi<float, int>(m);
@@ -65,12 +58,13 @@ PYBIND11_MODULE(model, m)
   model::bind_modelunstructdata<float, long>(m);
   model::bind_modelunstructdata<double, long>(m);
 
-  // Rest unchanged...
+  // Bind ModelBuilderBase
   model::bind_modelbuilderbase<float, int>(m);
   model::bind_modelbuilderbase<double, int>(m);
   model::bind_modelbuilderbase<float, long>(m);
   model::bind_modelbuilderbase<double, long>(m);
 
+  // Bind CartesianStructBuilder
   for (int order = 1; order <= 3; ++order)
   {
     model::orderDispatch(order, [&](auto order_tag) {
@@ -83,10 +77,13 @@ PYBIND11_MODULE(model, m)
     });
   }
 
+  // Bind CartesianParams
   model::bind_cartesian_unstruct_params<float, int>(m);
   model::bind_cartesian_unstruct_params<double, int>(m);
   model::bind_cartesian_unstruct_params<float, long>(m);
   model::bind_cartesian_unstruct_params<double, long>(m);
+
+  // Bind CartesianUnstructBuilder
 
   model::bind_cartesian_unstruct_builder<float, int>(m);
   model::bind_cartesian_unstruct_builder<double, int>(m);

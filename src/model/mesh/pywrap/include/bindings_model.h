@@ -7,7 +7,6 @@
 #include <KokkosExp_InterOp.hpp>
 #include <string>
 
-#include "bindings_face_connectivity.h"
 #include "bindings_utils.h"
 #include "common_macros.h"
 #include "face_connectivity_unstruct.h"
