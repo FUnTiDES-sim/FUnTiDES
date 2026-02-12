@@ -44,10 +44,10 @@ else()
     set(ENABLE_INTERNAL_PYBIND11 OFF CACHE BOOL "" FORCE)
     set(Kokkos_DIR "${Kokkos_BINARY_DIR}" CACHE PATH "Use external Kokkos build")
     message(STATUS "Enabling pykokkos base.")
-    add_subdirectory(external/pykokkos)
+    add_subdirectory(external/pykokkos/base)
 
     # Installing pykokkos python lib
-    set(PYKOKKOS_BUILD_DIR "${CMAKE_BINARY_DIR}/external/pykokkos/kokkos")
+    set(PYKOKKOS_BUILD_DIR "${CMAKE_BINARY_DIR}/external/pykokkos/base/kokkos")
     file(GLOB PYKOKKOS_MODULE_SO "${PYKOKKOS_BUILD_DIR}/libpykokkos*.so")
     message(STATUS "Installing pykokkos module: ${PYKOKKOS_MODULE_SO}")
     install(
