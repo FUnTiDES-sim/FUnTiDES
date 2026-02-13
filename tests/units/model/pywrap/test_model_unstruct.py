@@ -564,19 +564,44 @@ class TestModelUnstruct:
         assert n_faces > 0
         assert n_faces < data.n_elements * 6
     
-@pytest.mark.parametrize("unstruct", test_cases[:1], indirect=True)
-def test_face_connectivity_manual_injection(self, unstruct):
-        """Test manual injection of FaceConnectivityUnstructData"""
+    @pytest.mark.parametrize("unstruct", test_cases[:1], indirect=True)
+    def test_face_connectivity_injection_preserves_data(self, unstruct):
+        """Test that pre-filled face connectivity is preserved"""
         data, model_cls, params = unstruct
         class_name = params.__class__.__name__
         suffix = class_name.replace("ModelUnstructData_", "")
         fc_data_cls = getattr(Model, f'FaceConnectivityUnstructData_{suffix}')
+        
+        # Inject pre-filled data (simulating HDF5 load for example)
         fc_data = fc_data_cls()
         fc_data.n_faces = 1234 
         params.face_connectivity = fc_data
-        assert params.face_connectivity.n_faces == 1234
+        
+        # Verify data is preserved
         model = model_cls(params)
         assert model.get_number_of_faces() == 1234
+        
+        # buildFaceConnectivity should skip if already filled
+        model.build_face_connectivity()
+        assert model.get_number_of_faces() == 1234  # Still 1234!
+    
+    @pytest.mark.parametrize("unstruct", test_cases[:1], indirect=True)
+    def test_face_connectivity_injection_empty_then_build(self, unstruct):
+        """Test that empty injection + build works"""
+        data, model_cls, params = unstruct
+        class_name = params.__class__.__name__
+        suffix = class_name.replace("ModelUnstructData_", "")
+        fc_data_cls = getattr(Model, f'FaceConnectivityUnstructData_{suffix}')
+        
+        # Inject empty face connectivity
+        fc_data = fc_data_cls()
+        params.face_connectivity = fc_data
+        
+        # Should be empty initially
+        model = model_cls(params)
+        assert model.get_number_of_faces() == 0
+        
+        # Build should fill it
         model.build_face_connectivity()
         assert model.get_number_of_faces() > 0
-        assert model.get_number_of_faces() != 1234 
+        assert model.get_number_of_faces() != 1234

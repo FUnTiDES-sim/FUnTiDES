@@ -111,7 +111,6 @@ def test_face_connectivity_class_methods_exist():
         assert hasattr(fc, method), f"Method {method} not found on FaceConnectivityUnstruct"
 
 
-@pytest.mark.parametrize("suffix", ["f32_i32", "f64_i32", "f32_i64", "f64_i64"])
 def test_face_connectivity_data_members_accessible():
     """Test that FaceConnectivityUnstructData members are accessible"""
     fc_data = Model.FaceConnectivityUnstructData_f32_i32()
