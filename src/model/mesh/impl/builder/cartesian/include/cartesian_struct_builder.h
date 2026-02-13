@@ -56,10 +56,6 @@ class CartesianStructBuilder : public ModelBuilderBase<FloatType, ScalarType>
     data.isModelOnNodes_ = isModelOnNodes_;
     data.isElastic_ = isElastic_;
 
-    // -------------------------------------------------------------------------
-    // Pré-calcul boundaries_t_ avec coordonnées GLOBALES
-    // On instancie un modèle temporaire pour utiliser nodeCoord()
-    // -------------------------------------------------------------------------
     auto temp_model = model::ModelStruct<FloatType, ScalarType, Order>(data);
 
     const int n_node = temp_model.getNumberOfNodes();
@@ -98,9 +94,6 @@ class CartesianStructBuilder : public ModelBuilderBase<FloatType, ScalarType>
 
     data.boundaries_t_ = boundaries_t;
 
-    // -------------------------------------------------------------------------
-    // Construction du modèle final avec boundaries pré-calculées
-    // -------------------------------------------------------------------------
     auto model =
         std::make_shared<model::ModelStruct<FloatType, ScalarType, Order>>(
             data);

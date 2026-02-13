@@ -420,10 +420,6 @@ class ModelStruct : public ModelApi<FloatType, ScalarType>
     LOOPEND
   }
 
-  // ============================================================================
-  // FACE CONNECTIVITY — délégation à FaceConnectivityStruct (tout on-the-fly)
-  // ============================================================================
-
   /**
    * @brief Build face connectivity
    *
@@ -492,7 +488,6 @@ class ModelStruct : public ModelApi<FloatType, ScalarType>
   array3DReal model_C_tensor_element_;
   VECTOR_REAL_VIEW boundaries_t_;
 
-  // Stocke seulement 3 entiers — zéro allocation pour la face connectivity
   FaceConnectivityStruct<FloatType, ScalarType> face_connectivity_;
 };
 
