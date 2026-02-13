@@ -6,6 +6,7 @@
 #include <string>
 
 #include "bindings_builder.h"
+#include "bindings_face_connectivity.h"
 #include "bindings_model.h"
 
 namespace py = pybind11;
@@ -14,6 +15,11 @@ PYBIND11_MODULE(model, m)
 {
   // Create submodule 'model'
   m.attr("__name__") = "pyfuntides.model";
+
+  bindings::bindFaceConnectivityUnstruct<float, int>(m);
+  bindings::bindFaceConnectivityUnstruct<double, int>(m);
+  bindings::bindFaceConnectivityUnstruct<float, long>(m);
+  bindings::bindFaceConnectivityUnstruct<double, long>(m);
 
   // Bind ModelApi
   model::bind_modelapi<float, int>(m);
@@ -46,7 +52,7 @@ PYBIND11_MODULE(model, m)
   model::bind_modelunstruct<float, long>(m);
   model::bind_modelunstruct<double, long>(m);
 
-  // Bind ModelUnstructData
+  // Bind ModelUnstructData (now depends on FaceConnectivityUnstructData)
   model::bind_modelunstructdata<float, int>(m);
   model::bind_modelunstructdata<double, int>(m);
   model::bind_modelunstructdata<float, long>(m);
@@ -78,6 +84,7 @@ PYBIND11_MODULE(model, m)
   model::bind_cartesian_unstruct_params<double, long>(m);
 
   // Bind CartesianUnstructBuilder
+
   model::bind_cartesian_unstruct_builder<float, int>(m);
   model::bind_cartesian_unstruct_builder<double, int>(m);
   model::bind_cartesian_unstruct_builder<float, long>(m);

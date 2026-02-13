@@ -80,6 +80,12 @@ class Solver
   virtual void computeGlobalMassMatrix() = 0;
 
   /**
+   * @brief Compute the global damping matrix.
+   *  once at the beginning of the simulation.
+   */
+  virtual void computeDampingMatrix() = 0;
+
+  /**
    * @brief Outputs solution field values at a specific time step
    *
    * This pure virtual function is responsible for writing or displaying
@@ -112,6 +118,14 @@ class Solver
    * initialization.
    */
   virtual VECTOR_REAL_VIEW& getMassMatrix() = 0;
+
+  /**
+   * @brief Access the Global Damping Matrix.
+   * Used by the orchestrator to synchronize damping values at boundaries after
+   * initialization.
+   */
+
+  virtual VECTOR_REAL_VIEW& getDampingMatrix(int c) = 0;
 
   /**
    * @brief Access a Force Vector component.
