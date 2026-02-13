@@ -6,7 +6,7 @@ on:
 jobs:
   format-check:
     name: Code Formatting Check
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-latest
     strategy:
       matrix:
         path: ['src', 'tests']
