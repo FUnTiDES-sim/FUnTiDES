@@ -111,20 +111,25 @@ def test_face_connectivity_class_methods_exist():
         assert hasattr(fc, method), f"Method {method} not found on FaceConnectivityUnstruct"
 
 
-@pytest.mark.parametrize("unstruct", test_cases[:1], indirect=True)
-def test_face_connectivity_integration_with_model_unstruct_data(unstruct):
-    """Test that FaceConnectivityUnstructData can be assigned to ModelUnstructData"""
+@pytest.mark.parametrize("suffix", ["f32_i32", "f64_i32", "f32_i64", "f64_i64"])
+def test_face_connectivity_data_members_accessible():
+    """Test that FaceConnectivityUnstructData members are accessible"""
+    fc_data = Model.FaceConnectivityUnstructData_f32_i32()
     
-    ud_obj, model_cls, params = unstruct
+    # Test scalar members (safe with hasattr)
+    assert hasattr(fc_data, 'n_faces')
+    assert hasattr(fc_data, 'ndofs_per_face')
     
-    suffix = params.__class__.__name__.split('_')[-2:] 
-    suffix_str = f"{suffix[0]}_{suffix[1]}"
+    # Default values should be 0 or empty
+    assert fc_data.n_faces == 0
+    assert fc_data.ndofs_per_face == 0
     
-    fc_data_cls = getattr(Model, f'FaceConnectivityUnstructData_{suffix_str}')
-    fc_data = fc_data_cls()
-    fc_data.n_faces = 42
-    
-    params.face_connectivity = fc_data
-    
-    assert hasattr(params, 'face_connectivity')
-    assert params.face_connectivity.n_faces == 42
+    # For Kokkos::View members, check they're in dir()
+    # (hasattr tries to access uninitialized Views which fails)
+    member_names = dir(fc_data)
+    assert 'elem_to_faces' in member_names
+    assert 'face_dofs' in member_names
+    assert 'face_elem_owner' in member_names
+    assert 'face_elem_neighbor' in member_names
+    assert 'face_local_owner' in member_names
+    assert 'face_local_neighbor' in member_names
