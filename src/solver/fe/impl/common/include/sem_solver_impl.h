@@ -1,5 +1,5 @@
-#ifndef SOLVER_FE_IMPL_COMMON_INCLUDE_SEM_SOLVER_IMPL_H_
-#define SOLVER_FE_IMPL_COMMON_INCLUDE_SEM_SOLVER_IMPL_H_
+#ifndef FUNTIDES_SOLVER_FE_IMPL_COMMON_INCLUDE_SEM_SOLVER_IMPL_H_
+#define FUNTIDES_SOLVER_FE_IMPL_COMMON_INCLUDE_SEM_SOLVER_IMPL_H_
 #include <data_type.h>
 
 #include <array>
@@ -331,14 +331,6 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES,
         float const lambda = rho * (vp * vp - 2.0f * vs * vs);
         float const lambda_plus_2mu = lambda + 2.0f * mu;
 
-        // Isotropie : C a une structure très simple
-        // C = [ λ+2μ   λ     λ     0   0   0 ]
-        //     [  λ   λ+2μ   λ     0   0   0 ]
-        //     [  λ     λ   λ+2μ   0   0   0 ]
-        //     [  0     0     0    μ   0   0 ]
-        //     [  0     0     0    0   μ   0 ]
-        //     [  0     0     0    0   0   μ ]
-
         for (int p = 0; p < 3; ++p)
         {
           float const Jp0 = J[p][0], Jp1 = J[p][1], Jp2 = J[p][2];
@@ -348,8 +340,6 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES,
             float const Jr0 = J[r][0], Jr1 = J[r][1], Jr2 = J[r][2];
             int const idx = p * 3 + r;
 
-            // Application directe de la structure isotrope
-            // v0 = C00*p0r0 + C55*p1r1 + C44*p2r2
             float const v0 =
                 lambda_plus_2mu * Jp0 * Jr0 + mu * (Jp1 * Jr1 + Jp2 * Jr2);
             float const v1 =
@@ -357,8 +347,6 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES,
             float const v2 =
                 mu * (Jp0 * Jr0 + Jp1 * Jr1) + lambda_plus_2mu * Jp2 * Jr2;
 
-            // Termes de couplage (cisaillement)
-            // v3 = C01*p0r1 + C55*p1r0  (car C05=C15=C35=C45=0)
             float const v3 = lambda * Jp0 * Jr1 + mu * Jp1 * Jr0;
             float const v4 = lambda * Jp0 * Jr2 + mu * Jp2 * Jr0;
             float const v5 = lambda * Jp1 * Jr2 + mu * Jp2 * Jr1;
@@ -434,10 +422,6 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES,
 
 //============================================================================
 // computeElementContributions_VTI - VTI
-//============================================================================
-
-//============================================================================
-// computeElementContributions_VTI - VTI OPTIMIZED
 //============================================================================
 
 template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE,
@@ -520,7 +504,7 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES,
           gamma = mesh_local.getModelGammaOnElement(elementNumber);
         }
 
-        // Compute 5 independent VTI coefficients - that's it!
+        // Compute 5 independent VTI coefficients
         float const rho_vp2 = rho * vp * vp;
         float const rho_vs2 = rho * vs * vs;
         float const c33 = rho_vp2;
@@ -534,15 +518,6 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES,
         float const c13 = rho * sqrtf(sqrt_arg) - rho_vs2;
         float const c12 = c11 - 2.0f * c66;
 
-        // VTI structure (z is symmetry axis):
-        // C = [ c11  c12  c13   0    0    0  ]
-        //     [ c12  c11  c13   0    0    0  ]
-        //     [ c13  c13  c33   0    0    0  ]
-        //     [  0    0    0   c44   0    0  ]
-        //     [  0    0    0    0   c44   0  ]
-        //     [  0    0    0    0    0   c66 ]
-
-        // Apply VTI structure directly (many zeros!)
         for (int p = 0; p < 3; ++p)
         {
           float const Jp0 = J[p][0], Jp1 = J[p][1], Jp2 = J[p][2];
@@ -555,14 +530,12 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES,
             float const p2r0 = Jp2 * Jr0, p2r1 = Jp2 * Jr1, p2r2 = Jp2 * Jr2;
             int const idx = p * 3 + r;
 
-            // Simplified products using VTI structure
-            // (C03=C04=C05=C14=C15=C23=C24=C25=C34=C35=C45=0)
             float const v0 = c11 * p0r0 + c66 * p1r1 + c44 * p2r2;
             float const v1 = c66 * p0r0 + c11 * p1r1 + c44 * p2r2;
             float const v2 = c44 * p0r0 + c44 * p1r1 + c33 * p2r2;
-            float const v3 = c66 * p0r1 + c12 * p1r0;  // xy coupling
-            float const v4 = c44 * p0r2 + c13 * p2r0;  // xz coupling
-            float const v5 = c44 * p1r2 + c13 * p2r1;  // yz coupling
+            float const v3 = c66 * p0r1 + c12 * p1r0;
+            float const v4 = c44 * p0r2 + c13 * p2r0;
+            float const v5 = c44 * p1r2 + c13 * p2r1;
 
 #ifdef __CUDACC__
             CJflat[idx].a = make_float4(v0, v1, v2, v3);
@@ -1369,4 +1342,4 @@ SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES,
 
 }  // namespace fe
 }  // namespace solver
-#endif  // SOLVER_FE_IMPL_COMMON_INCLUDE_SEM_SOLVER_IMPL_H_
+#endif  // FUNTIDES_SOLVER_FE_IMPL_COMMON_INCLUDE_SEM_SOLVER_IMPL_H_

@@ -1,3 +1,6 @@
+#ifndef FUNTIDES_SOLVER_FD_INCLUDE_FD_SOLVER_H_
+#define FUNTIDES_SOLVER_FD_INCLUDE_FD_SOLVER_H_
+
 //************************************************************************
 //   proxy application v.0.0.1
 //
@@ -62,3 +65,5 @@ class FdtdSolver
 };
 
 #endif /* FDTD_SOLVER_HPP_ */
+
+#endif  // FUNTIDES_SOLVER_FD_INCLUDE_FD_SOLVER_H_

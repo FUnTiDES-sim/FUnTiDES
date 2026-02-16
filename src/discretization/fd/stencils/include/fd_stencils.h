@@ -1,6 +1,5 @@
-#ifndef FDTD_STENCILS_H
-#define FDTD_STENCILS_H
-
+#ifndef FUNTIDES_DISCRETIZATION_FD_STENCILS_INCLUDE_FD_STENCILS_H_
+#define FUNTIDES_DISCRETIZATION_FD_STENCILS_INCLUDE_FD_STENCILS_H_
 #include <data_type.h>
 
 #include <cmath>
@@ -135,5 +134,4 @@ struct FdtdStencils
 
 }  // namespace stencils
 }  // namespace fdtd
-
-#endif  // FDTD_STENCILS_H
+#endif  // FUNTIDES_DISCRETIZATION_FD_STENCILS_INCLUDE_FD_STENCILS_H_

@@ -1,3 +1,6 @@
+#ifndef FUNTIDES_MAIN_FE_INCLUDE_SEM_PROXY_OPTIONS_H_
+#define FUNTIDES_MAIN_FE_INCLUDE_SEM_PROXY_OPTIONS_H_
+
 #pragma once
 
 #include <cxxopts.hpp>
@@ -88,3 +91,5 @@ class SemProxyOptions
         cxxopts::value<std::string>(o.anisotropy));
   }
 };
+
+#endif  // FUNTIDES_MAIN_FE_INCLUDE_SEM_PROXY_OPTIONS_H_

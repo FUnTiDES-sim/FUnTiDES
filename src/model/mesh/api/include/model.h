@@ -1,6 +1,5 @@
-#ifndef SRC_MODEL_MODELAPI_INCLUDE_MODEL_API_H_
-#define SRC_MODEL_MODELAPI_INCLUDE_MODEL_API_H_
-
+#ifndef FUNTIDES_MODEL_MESH_API_INCLUDE_MODEL_H_
+#define FUNTIDES_MODEL_MESH_API_INCLUDE_MODEL_H_
 #include "data_type.h"
 #include "parallel_topology.h"
 #include "sem_macros.h"
@@ -394,4 +393,4 @@ class ModelApi
 };
 
 }  // namespace model
-#endif  // SRC_MODEL_MODELAPI_INCLUDE_MODEL_API_H_
+#endif  // FUNTIDES_MODEL_MESH_API_INCLUDE_MODEL_H_

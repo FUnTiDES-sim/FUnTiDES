@@ -1,5 +1,5 @@
-#ifndef SOLVER_FE_API_INCLUDE_RHS_H_
-#define SOLVER_FE_API_INCLUDE_RHS_H_
+#ifndef FUNTIDES_SOLVER_FE_API_INCLUDE_RHS_H_
+#define FUNTIDES_SOLVER_FE_API_INCLUDE_RHS_H_
 namespace solver
 {
 namespace fe
@@ -43,4 +43,4 @@ struct Rhs
 };
 }  // namespace fe
 }  // namespace solver
-#endif  // SOLVER_FE_API_INCLUDE_RHS_H_
+#endif  // FUNTIDES_SOLVER_FE_API_INCLUDE_RHS_H_

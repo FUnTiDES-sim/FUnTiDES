@@ -1,5 +1,5 @@
-#ifndef SOLVER_FE_PYWRAP_INCLUDE_BINDINGS_SEM_ENUMS_H_
-#define SOLVER_FE_PYWRAP_INCLUDE_BINDINGS_SEM_ENUMS_H_
+#ifndef FUNTIDES_SOLVER_FE_PYWRAP_INCLUDE_BINDINGS_SEM_ENUMS_H_
+#define FUNTIDES_SOLVER_FE_PYWRAP_INCLUDE_BINDINGS_SEM_ENUMS_H_
 #include <pybind11/pybind11.h>
 #include <pybind11/stl.h>
 
@@ -59,4 +59,4 @@ void bind_all_sem_enums(py::module_ &m)
 
 }  // namespace fe
 }  // namespace solver
-#endif  // SOLVER_FE_PYWRAP_INCLUDE_BINDINGS_SEM_ENUMS_H_
+#endif  // FUNTIDES_SOLVER_FE_PYWRAP_INCLUDE_BINDINGS_SEM_ENUMS_H_

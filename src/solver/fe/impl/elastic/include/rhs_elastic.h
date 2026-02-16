@@ -1,5 +1,5 @@
-#ifndef SOLVER_FE_IMPL_ELASTIC_INCLUDE_RHS_ELASTIC_H_
-#define SOLVER_FE_IMPL_ELASTIC_INCLUDE_RHS_ELASTIC_H_
+#ifndef FUNTIDES_SOLVER_FE_IMPL_ELASTIC_INCLUDE_RHS_ELASTIC_H_
+#define FUNTIDES_SOLVER_FE_IMPL_ELASTIC_INCLUDE_RHS_ELASTIC_H_
 #include <data_type.h>
 
 #include "rhs.h"
@@ -69,4 +69,4 @@ struct RhsElastic : public Rhs
 };
 }  // namespace fe
 }  // namespace solver
-#endif  // SOLVER_FE_IMPL_ELASTIC_INCLUDE_RHS_ELASTIC_H_
+#endif  // FUNTIDES_SOLVER_FE_IMPL_ELASTIC_INCLUDE_RHS_ELASTIC_H_

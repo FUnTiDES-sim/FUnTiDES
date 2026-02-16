@@ -2,9 +2,8 @@
  * @file fdtd_model_io.h
  * @brief Model file I/O operations
  */
-#ifndef SRC_MODEL_GRID_INCLUDE_FDTD_MODEL_IO_H_
-#define SRC_MODEL_GRID_INCLUDE_FDTD_MODEL_IO_H_
-
+#ifndef FUNTIDES_MODEL_GRID_INCLUDE_FD_MODEL_IO_H_
+#define FUNTIDES_MODEL_GRID_INCLUDE_FD_MODEL_IO_H_
 #include <fstream>
 #include <stdexcept>
 #include <string>
@@ -253,5 +252,4 @@ class ModelIO
 
 }  // namespace fdgrid
 }  // namespace model
-
-#endif  // SRC_MODEL_GRID_INCLUDE_FDTD_MODEL_IO_H_
+#endif  // FUNTIDES_MODEL_GRID_INCLUDE_FD_MODEL_IO_H_

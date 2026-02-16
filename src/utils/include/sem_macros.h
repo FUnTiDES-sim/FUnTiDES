@@ -1,6 +1,5 @@
-#ifndef SEM_MACROS_HPP_
-#define SEM_MACROS_HPP_
-
+#ifndef FUNTIDES_UTILS_INCLUDE_SEM_MACROS_H_
+#define FUNTIDES_UTILS_INCLUDE_SEM_MACROS_H_
 #include "common_config.h"
 
 // define Macros test SEM proxy 2D case
@@ -29,5 +28,4 @@
 #else
 #define FENCE
 #endif
-
-#endif  // SEM_MACROS_HPP_
+#endif  // FUNTIDES_UTILS_INCLUDE_SEM_MACROS_H_

@@ -1,5 +1,5 @@
-#ifndef SOLVER_FE_PYWRAP_INCLUDE_BINDINGS_SEM_SOLVER_H_
-#define SOLVER_FE_PYWRAP_INCLUDE_BINDINGS_SEM_SOLVER_H_
+#ifndef FUNTIDES_SOLVER_FE_PYWRAP_INCLUDE_BINDINGS_SEM_SOLVER_H_
+#define FUNTIDES_SOLVER_FE_PYWRAP_INCLUDE_BINDINGS_SEM_SOLVER_H_
 #include <pybind11/numpy.h>
 #include <pybind11/pybind11.h>
 #include <pybind11/stl.h>
@@ -83,4 +83,4 @@ void bind_solver_factory(py::module_ &m)
 
 }  // namespace fe
 }  // namespace solver
-#endif  // SOLVER_FE_PYWRAP_INCLUDE_BINDINGS_SEM_SOLVER_H_
+#endif  // FUNTIDES_SOLVER_FE_PYWRAP_INCLUDE_BINDINGS_SEM_SOLVER_H_
