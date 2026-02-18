@@ -1,6 +1,5 @@
-#ifndef DATATYPE_KOKKOS_HPP_
-#define DATATYPE_KOKKOS_HPP_
-
+#ifndef FUNTIDES_UTILS_INCLUDE_DATA_TYPE_KOKKOS_H_
+#define FUNTIDES_UTILS_INCLUDE_DATA_TYPE_KOKKOS_H_
 #include "Kokkos_Core_fwd.hpp"
 
 #ifdef ENABLE_HIP
@@ -28,5 +27,4 @@ typedef Kokkos::View<double **, Layout, MemSpace> arrayDouble;
 typedef Kokkos::View<int ***, Layout, MemSpace> array3DInt;
 typedef Kokkos::View<float ***, Layout, MemSpace> array3DReal;
 typedef Kokkos::View<double ***, Layout, MemSpace> array3DDouble;
-
-#endif  // DATATYPE_KOKKOS_HPP_
+#endif  // FUNTIDES_UTILS_INCLUDE_DATA_TYPE_KOKKOS_H_

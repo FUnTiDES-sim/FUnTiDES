@@ -1,3 +1,6 @@
+#ifndef FUNTIDES_MAIN_FE_INCLUDE_SEM_IO_CONTROLLER_H_
+#define FUNTIDES_MAIN_FE_INCLUDE_SEM_IO_CONTROLLER_H_
+
 #include <adios2.h>
 #include <data_type.h>
 
@@ -122,3 +125,5 @@ class SemIOController
     snaps_writer_.EndStep();
   }
 };
+
+#endif  // FUNTIDES_MAIN_FE_INCLUDE_SEM_IO_CONTROLLER_H_

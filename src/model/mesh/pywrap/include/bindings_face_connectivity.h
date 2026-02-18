@@ -1,6 +1,5 @@
-#ifndef BINDINGS_FACE_CONNECTIVITY_H_
-#define BINDINGS_FACE_CONNECTIVITY_H_
-
+#ifndef FUNTIDES_MODEL_MESH_PYWRAP_INCLUDE_BINDINGS_FACE_CONNECTIVITY_H_
+#define FUNTIDES_MODEL_MESH_PYWRAP_INCLUDE_BINDINGS_FACE_CONNECTIVITY_H_
 #include <pybind11/pybind11.h>
 
 #include <KokkosExp_InterOp.hpp>
@@ -100,4 +99,4 @@ void bindFaceConnectivityUnstruct(py::module &m)
 }
 
 }  // namespace bindings
-#endif  // BINDINGS_FACE_CONNECTIVITY_H_
+#endif  // FUNTIDES_MODEL_MESH_PYWRAP_INCLUDE_BINDINGS_FACE_CONNECTIVITY_H_

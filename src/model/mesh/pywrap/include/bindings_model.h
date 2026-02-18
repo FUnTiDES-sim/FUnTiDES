@@ -1,3 +1,6 @@
+#ifndef FUNTIDES_MODEL_MESH_PYWRAP_INCLUDE_BINDINGS_MODEL_H_
+#define FUNTIDES_MODEL_MESH_PYWRAP_INCLUDE_BINDINGS_MODEL_H_
+
 #pragma once
 
 #include <pybind11/numpy.h>
@@ -162,3 +165,5 @@ void bind_modelunstructdata(py::module_ &m)
 }
 
 }  // namespace model
+
+#endif  // FUNTIDES_MODEL_MESH_PYWRAP_INCLUDE_BINDINGS_MODEL_H_

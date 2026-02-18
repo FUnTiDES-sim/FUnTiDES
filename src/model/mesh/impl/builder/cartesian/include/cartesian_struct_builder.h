@@ -1,3 +1,6 @@
+#ifndef FUNTIDES_MODEL_MESH_IMPL_BUILDER_CARTESIAN_INCLUDE_CARTESIAN_STRUCT_BUILDER_H_
+#define FUNTIDES_MODEL_MESH_IMPL_BUILDER_CARTESIAN_INCLUDE_CARTESIAN_STRUCT_BUILDER_H_
+
 #pragma once
 
 #include <builder.h>
@@ -113,3 +116,5 @@ class CartesianStructBuilder : public ModelBuilderBase<FloatType, ScalarType>
   bool isElastic_;
 };
 }  // namespace model
+
+#endif  // FUNTIDES_MODEL_MESH_IMPL_BUILDER_CARTESIAN_INCLUDE_CARTESIAN_STRUCT_BUILDER_H_

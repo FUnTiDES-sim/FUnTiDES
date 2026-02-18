@@ -1,3 +1,6 @@
+#ifndef FUNTIDES_DISCRETIZATION_FE_INTEGRALS_H_
+#define FUNTIDES_DISCRETIZATION_FE_INTEGRALS_H_
+
 #pragma once
 
 #include "finiteElement/makutu/Qk_Hexahedron_Lagrange_GaussLobatto.hpp"
@@ -19,3 +22,5 @@ struct IntegralTypeSelector<ORDER, IntegralType::MAKUTU>
   using type =
       typename Qk_Hexahedron_Lagrange_GaussLobatto_Selector<ORDER>::type;
 };
+
+#endif  // FUNTIDES_DISCRETIZATION_FE_INTEGRALS_H_

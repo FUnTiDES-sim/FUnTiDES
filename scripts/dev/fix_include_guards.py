@@ -139,7 +139,8 @@ def fix_include_guards(filepath: Path, src_root: Path, project_name: str = "", d
     
     if not ifndef_line:
         print(f"⚠️  No include guard found in {filepath}")
-        return False
+        print(f" Add incluide guards in {filepath}")
+        return add_include_guards(filepath, src_root, project_name, dry_run)
     
     # Extract current guard name
     current_guard = re.search(r'#\s*ifndef\s+([A-Za-z0-9_]+)', ifndef_line).group(1)
@@ -193,6 +194,37 @@ def fix_include_guards(filepath: Path, src_root: Path, project_name: str = "", d
         print(f"❌ Error writing {filepath}: {e}")
         return False
 
+def add_include_guards(filepath: Path, src_root: Path, project_name: str = "", dry_run: bool = False) -> bool:
+    """
+    Add include guards to a file that doesn't have them.
+    
+    Returns:
+        True if the file was modified, False otherwise
+    """
+    try:
+        with open(filepath, 'r', encoding='utf-8') as f:
+            content = f.read()
+    except Exception as e:
+        print(f"❌ Error reading {filepath}: {e}")
+        return False
+
+    guard_name = generate_guard_name(filepath, src_root, project_name)
+
+    print(f" {filepath.relative_to(src_root.parent)}:")
+    print(f"   Adding guard: {guard_name}")
+
+    if dry_run:
+        return True
+
+    new_content = f"#ifndef {guard_name}\n#define {guard_name}\n\n{content.rstrip()}\n\n#endif  // {guard_name}\n"
+
+    try:
+        with open(filepath, 'w', encoding='utf-8') as f:
+            f.write(new_content)
+        return True
+    except Exception as e:
+        print(f"❌ Error writing {filepath}: {e}")
+        return False
 
 def main():
     import argparse
@@ -228,6 +260,8 @@ Examples:
     
     extensions = [f".{ext.strip()}" for ext in args.extensions.split(',')]
     exclude_dirs = args.exclude
+
+    exclude_dirs = [d.strip("/") for d in args.exclude]
     
     print(f"🔍 Searching for header files in {src_root}")
     print(f"   Extensions: {', '.join(extensions)}")

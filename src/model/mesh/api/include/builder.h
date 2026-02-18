@@ -1,3 +1,6 @@
+#ifndef FUNTIDES_MODEL_MESH_API_INCLUDE_BUILDER_H_
+#define FUNTIDES_MODEL_MESH_API_INCLUDE_BUILDER_H_
+
 #pragma once
 
 #include <model.h>
@@ -19,3 +22,5 @@ class ModelBuilderBase
       const = 0;
 };
 }  // namespace model
+
+#endif  // FUNTIDES_MODEL_MESH_API_INCLUDE_BUILDER_H_

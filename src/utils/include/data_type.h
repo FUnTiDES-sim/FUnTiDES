@@ -1,6 +1,5 @@
-#ifndef DATATYPE_HPP_
-#define DATATYPE_HPP_
-
+#ifndef FUNTIDES_UTILS_INCLUDE_DATA_TYPE_H_
+#define FUNTIDES_UTILS_INCLUDE_DATA_TYPE_H_
 #include <chrono>
 #include <cmath>
 #include <fstream>
@@ -106,5 +105,4 @@ void printBMatrix(const int &element, T &B)
       chrono::system_clock::now();
 #define accumtime(accumulatedtime, starttime) \
   accumulatedtime += (chrono::system_clock::now() - starttime).count();
-
-#endif  // DATATYPE_HPP_
+#endif  // FUNTIDES_UTILS_INCLUDE_DATA_TYPE_H_

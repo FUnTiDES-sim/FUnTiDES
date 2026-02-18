@@ -1,6 +1,5 @@
-#ifndef SRC_MODEL_MESH_API_INCLUDE_PARTITIONING_H_
-#define SRC_MODEL_MESH_API_INCLUDE_PARTITIONING_H_
-
+#ifndef FUNTIDES_MODEL_MESH_API_INCLUDE_PARTITIONING_H_
+#define FUNTIDES_MODEL_MESH_API_INCLUDE_PARTITIONING_H_
 #include "cartesian_params.h"
 
 namespace model
@@ -45,5 +44,4 @@ class PartitioningStrategy
 };
 
 }  // namespace model
-
-#endif  // SRC_MODEL_MESH_API_INCLUDE_PARTITIONING_H_
+#endif  // FUNTIDES_MODEL_MESH_API_INCLUDE_PARTITIONING_H_

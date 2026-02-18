@@ -1,5 +1,5 @@
-#ifndef SOLVER_FE_IMPL_COMMON_INCLUDE_SEM_SOLVER_H_
-#define SOLVER_FE_IMPL_COMMON_INCLUDE_SEM_SOLVER_H_
+#ifndef FUNTIDES_SOLVER_FE_IMPL_COMMON_INCLUDE_SEM_SOLVER_H_
+#define FUNTIDES_SOLVER_FE_IMPL_COMMON_INCLUDE_SEM_SOLVER_H_
 #include <array>
 #include <cmath>
 #include <stdexcept>
@@ -177,4 +177,4 @@ using SEMsolverElastic =
 
 }  // namespace fe
 }  // namespace solver
-#endif  // SOLVER_FE_IMPL_COMMON_INCLUDE_SEM_SOLVER_H_
+#endif  // FUNTIDES_SOLVER_FE_IMPL_COMMON_INCLUDE_SEM_SOLVER_H_

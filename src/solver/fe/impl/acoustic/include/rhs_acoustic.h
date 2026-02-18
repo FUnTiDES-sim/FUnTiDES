@@ -1,5 +1,5 @@
-#ifndef SOLVER_FE_IMPL_INCLUDE_RHS_ACOUSTIC_H_
-#define SOLVER_FE_IMPL_INCLUDE_RHS_ACOUSTIC_H_
+#ifndef FUNTIDES_SOLVER_FE_IMPL_ACOUSTIC_INCLUDE_RHS_ACOUSTIC_H_
+#define FUNTIDES_SOLVER_FE_IMPL_ACOUSTIC_INCLUDE_RHS_ACOUSTIC_H_
 #include <data_type.h>
 
 #include "rhs.h"
@@ -46,4 +46,4 @@ struct RhsAcoustic : public Rhs
 };
 }  // namespace fe
 }  // namespace solver
-#endif  // SOLVER_FE_IMPL_INCLUDE_RHS_ACOUSTIC_H_
+#endif  // FUNTIDES_SOLVER_FE_IMPL_ACOUSTIC_INCLUDE_RHS_ACOUSTIC_H_
