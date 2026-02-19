@@ -25,6 +25,13 @@ else()
     message(STATUS "Activating CUDA with Kokkos.")
   endif()
 
+  if(ENABLE_HIP)
+    set(Kokkos_ENABLE_HIP ON CACHE BOOL "" FORCE)
+    set(Kokkos_ENABLE_HIP_RELOCATABLE_DEVICE_CODE OFF CACHE BOOL "" FORCE)
+    message(STATUS "Activating HIP with Kokkos.")
+  endif()
+
+
   if(CMAKE_BUILD_TYPE STREQUAL "Debug" OR CMAKE_BUILD_TYPE STREQUAL "RelWithDebInfo")
     message(STATUS "Activating Kokkos debug mode")
     set(Kokkos_ENABLE_DEBUG ON CACHE BOOL "" FORCE)
