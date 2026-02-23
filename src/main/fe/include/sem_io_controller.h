@@ -4,7 +4,7 @@
 #include <cstddef>
 
 #include "adios2/common/ADIOSTypes.h"
-#include "adios2/cxx11/Operator.h"
+#include "adios2/cxx/Operator.h"
 
 #ifdef USE_MPI
 #include <mpi.h>

@@ -617,6 +617,7 @@ void SEMproxy::init_source()
 void SEMproxy::saveSnapshot(int timestep, VECTOR_REAL_VIEW data) const
 {
 #ifdef USE_KOKKOS
+  Kokkos::fence();
   auto nb_nodes = data.extent(0);
 
   vectorReal subset("snapshot_cpy", nb_nodes);
