@@ -2,8 +2,6 @@
 
 find_package(ADIOS2 REQUIRED)
 
-
-
 # if(NOT TARGET adios2::adios2)
 #     message(STATUS "Configuring ADIOS2 for minimal BP5 File I/O")
 
