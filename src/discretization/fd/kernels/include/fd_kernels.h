@@ -1,6 +1,5 @@
-#ifndef FDTD_KERNEL_H
-#define FDTD_KERNEL_H
-
+#ifndef FUNTIDES_DISCRETIZATION_FD_KERNELS_INCLUDE_FD_KERNELS_H_
+#define FUNTIDES_DISCRETIZATION_FD_KERNELS_INCLUDE_FD_KERNELS_H_
 #include "data_type.h"
 #include "fd_abckernels.h"
 #include "fd_macros.h"
@@ -163,4 +162,4 @@ struct FdtdKernels
 
 }  // namespace kernel
 }  // namespace fdtd
-#endif  // FDTD_KERNEL_H
+#endif  // FUNTIDES_DISCRETIZATION_FD_KERNELS_INCLUDE_FD_KERNELS_H_

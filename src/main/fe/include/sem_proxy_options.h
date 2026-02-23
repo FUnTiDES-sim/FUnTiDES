@@ -1,3 +1,6 @@
+#ifndef FUNTIDES_MAIN_FE_INCLUDE_SEM_PROXY_OPTIONS_H_
+#define FUNTIDES_MAIN_FE_INCLUDE_SEM_PROXY_OPTIONS_H_
+
 #pragma once
 
 #include <cxxopts.hpp>
@@ -30,6 +33,7 @@ class SemProxyOptions
   // Boolean to tell if the model is charged on nodes or on element
   bool isModelOnNodes = false;
   bool isElastic = false;
+  bool free_surface = false;
 
   void validate() const
   {
@@ -80,7 +84,12 @@ class SemProxyOptions
         "(false)",
         cxxopts::value<bool>(o.isModelOnNodes))(
         "is-elastic", "Elastic simulation", cxxopts::value<bool>(o.isElastic))(
+        "free-surface",
+        "Enable free surface on top boundary (Z+). Default: true",
+        cxxopts::value<bool>(o.free_surface))(
         "anisotropy", "Anisotropy type for elastic: iso|vti|tti (default=iso)",
         cxxopts::value<std::string>(o.anisotropy));
   }
 };
+
+#endif  // FUNTIDES_MAIN_FE_INCLUDE_SEM_PROXY_OPTIONS_H_

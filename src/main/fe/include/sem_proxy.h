@@ -1,5 +1,5 @@
-#ifndef MAIN_FE_INCLUDE_SEM_PROXY_H_
-#define MAIN_FE_INCLUDE_SEM_PROXY_H_
+#ifndef FUNTIDES_MAIN_FE_INCLUDE_SEM_PROXY_H_
+#define FUNTIDES_MAIN_FE_INCLUDE_SEM_PROXY_H_
 #include <data_type.h>
 #include <utils.h>
 
@@ -108,6 +108,7 @@ class SEMproxy
 
   // physics
   bool isElastic_;
+  bool freeSurface_;
 
   // time parameters
   float dt_;
@@ -167,4 +168,4 @@ class SEMproxy
   meshType getMesh(string meshArg);
   model::AnisotropyType getAnisotropy(std::string anisotropyArg);
 };
-#endif  // MAIN_FE_INCLUDE_SEM_PROXY_H_
+#endif  // FUNTIDES_MAIN_FE_INCLUDE_SEM_PROXY_H_

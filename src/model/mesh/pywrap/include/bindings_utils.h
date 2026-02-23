@@ -1,3 +1,6 @@
+#ifndef FUNTIDES_MODEL_MESH_PYWRAP_INCLUDE_BINDINGS_UTILS_H_
+#define FUNTIDES_MODEL_MESH_PYWRAP_INCLUDE_BINDINGS_UTILS_H_
+
 #pragma once
 
 #include <string>
@@ -79,3 +82,5 @@ std::string model_class_name(std::string basename)
 }
 
 }  // namespace model
+
+#endif  // FUNTIDES_MODEL_MESH_PYWRAP_INCLUDE_BINDINGS_UTILS_H_

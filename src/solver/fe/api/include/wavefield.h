@@ -1,5 +1,5 @@
-#ifndef SOLVER_FE_API_INCLUDE_WAVEFIELD_H_
-#define SOLVER_FE_API_INCLUDE_WAVEFIELD_H_
+#ifndef FUNTIDES_SOLVER_FE_API_INCLUDE_WAVEFIELD_H_
+#define FUNTIDES_SOLVER_FE_API_INCLUDE_WAVEFIELD_H_
 namespace solver
 {
 namespace fe
@@ -49,4 +49,4 @@ struct Wavefield
 };
 }  // namespace fe
 }  // namespace solver
-#endif  // SOLVER_FE_API_INCLUDE_WAVEFIELD_H_
+#endif  // FUNTIDES_SOLVER_FE_API_INCLUDE_WAVEFIELD_H_

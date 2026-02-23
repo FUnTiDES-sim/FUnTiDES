@@ -66,6 +66,7 @@ SEMproxy::SEMproxy(const SemProxyOptions& opt)
 
   bool isModelOnNodes = opt.isModelOnNodes;
   isElastic_ = opt.isElastic;
+  freeSurface_ = opt.free_surface;
   cout << boolalpha;
   bool isElastic = isElastic_;
 
@@ -231,15 +232,22 @@ void SEMproxy::run()
   const float taper_delta = 0.015;
 
   // Initialize Solver with Partition Info & Compute Local Mass
+
+  bool freeSurface = freeSurface_;
+  m_mesh->setFreeSurfaceEnabled(freeSurface);
+
   m_solver->computeFEInit(*m_mesh, sponge_size, surface_sponge, taper_delta);
 
   // Synchronize Mass Matrix (Critical for DD)
   if (par_topology_.isDistributed())
   {
     m_syncer->synchronize(m_solver->getMassMatrix(), par_topology_);
+    for (int c = 0; c < m_solver->getNumComponents(); ++c)
+    {
+      m_syncer->synchronize(m_solver->getDampingMatrix(c), par_topology_);
+    }
   }
 
-  auto& M = m_solver->getMassMatrix();
   // Get the global node index of the first node of the source element
   int debugNodeIdx = m_mesh->globalNodeIndex(myElementSource, 0, 0, 0);
 

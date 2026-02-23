@@ -1,5 +1,5 @@
-#ifndef SOLVER_FE_IMPL_COMMON_INCLUDE_SEM_SOLVER_DATA_H_
-#define SOLVER_FE_IMPL_COMMON_INCLUDE_SEM_SOLVER_DATA_H_
+#ifndef FUNTIDES_SOLVER_FE_IMPL_COMMON_INCLUDE_SEM_SOLVER_DATA_H_
+#define FUNTIDES_SOLVER_FE_IMPL_COMMON_INCLUDE_SEM_SOLVER_DATA_H_
 #include <iostream>
 
 #include "physics_traits_acoustic.h"
@@ -114,4 +114,4 @@ using SEMsolverDataElastic = SEMsolverData<enums::physicType::kElastic>;
 
 }  // namespace fe
 }  // namespace solver
-#endif  // SOLVER_FE_IMPL_COMMON_INCLUDE_SEM_SOLVER_DATA_H_
+#endif  // FUNTIDES_SOLVER_FE_IMPL_COMMON_INCLUDE_SEM_SOLVER_DATA_H_

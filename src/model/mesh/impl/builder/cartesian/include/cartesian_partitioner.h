@@ -1,6 +1,5 @@
-#ifndef SRC_MODEL_MESH_IMPL_BUILDER_CARTESIAN_INCLUDE_CARTESIAN_PARTITIONER_H_
-#define SRC_MODEL_MESH_IMPL_BUILDER_CARTESIAN_INCLUDE_CARTESIAN_PARTITIONER_H_
-
+#ifndef FUNTIDES_MODEL_MESH_IMPL_BUILDER_CARTESIAN_INCLUDE_CARTESIAN_PARTITIONER_H_
+#define FUNTIDES_MODEL_MESH_IMPL_BUILDER_CARTESIAN_INCLUDE_CARTESIAN_PARTITIONER_H_
 #include <algorithm>
 #include <cmath>
 #include <stdexcept>
@@ -90,9 +89,14 @@ class CartesianXPartitioner
     local.global_ly = global.ly;
     local.global_lz = global.lz;
 
+    // Store global origins
+    local.global_origin_x = global.origin_x;
+    local.global_origin_y = global.origin_y;
+    local.global_origin_z = global.origin_z;
+
     return local;
   }
 };
 
 }  // namespace model
-#endif  // SRC_MODEL_MESH_IMPL_BUILDER_CARTESIAN_INCLUDE_CARTESIAN_PARTITIONER_H_
+#endif  // FUNTIDES_MODEL_MESH_IMPL_BUILDER_CARTESIAN_INCLUDE_CARTESIAN_PARTITIONER_H_

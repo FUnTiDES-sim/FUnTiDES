@@ -1,3 +1,6 @@
+#ifndef FUNTIDES_MODEL_MESH_PYWRAP_INCLUDE_BINDINGS_BUILDER_H_
+#define FUNTIDES_MODEL_MESH_PYWRAP_INCLUDE_BINDINGS_BUILDER_H_
+
 #pragma once
 
 #include <pybind11/numpy.h>
@@ -90,3 +93,5 @@ void bind_cartesian_unstruct_builder(py::module_ &m)
 }
 
 }  // namespace model
+
+#endif  // FUNTIDES_MODEL_MESH_PYWRAP_INCLUDE_BINDINGS_BUILDER_H_

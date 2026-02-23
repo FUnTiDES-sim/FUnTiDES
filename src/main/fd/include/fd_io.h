@@ -1,6 +1,5 @@
-#ifndef FDTD_IO_H_
-#define FDTD_IO_H_
-
+#ifndef FUNTIDES_MAIN_FD_INCLUDE_FD_IO_H_
+#define FUNTIDES_MAIN_FD_INCLUDE_FD_IO_H_
 #include <cstdio>
 #include <vector>
 
@@ -107,5 +106,4 @@ struct FdtdIo
 
 }  // namespace io
 }  // namespace fdtd
-
-#endif  // FDTD_IO.H_
+#endif  // FUNTIDES_MAIN_FD_INCLUDE_FD_IO_H_

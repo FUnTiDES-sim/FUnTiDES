@@ -1,5 +1,5 @@
-#ifndef SOLVER_FE_PYWRAP_INCLUDE_BINDINGS_SEM_SOLVER_H_
-#define SOLVER_FE_PYWRAP_INCLUDE_BINDINGS_SEM_SOLVER_H_
+#ifndef FUNTIDES_SOLVER_FE_PYWRAP_INCLUDE_BINDINGS_SEM_SOLVER_H_
+#define FUNTIDES_SOLVER_FE_PYWRAP_INCLUDE_BINDINGS_SEM_SOLVER_H_
 #include <pybind11/numpy.h>
 #include <pybind11/pybind11.h>
 #include <pybind11/stl.h>
@@ -61,6 +61,11 @@ void bind_sem_solver_base(py::module_ &m)
            py::arg("time_sample"), py::arg("data"))
       .def("update_solution", &Solver::updateSolution, py::arg("dt"),
            py::arg("data"))
+      .def("get_mass_matrix",
+           [](Solver& self) -> Kokkos::Experimental::python_view_type_t<VECTOR_REAL_VIEW> {
+             return self.getMassMatrix();
+           },
+           py::return_value_policy::reference_internal)
       .def("output_solution_values", &Solver::outputSolutionValues,
            py::arg("t"), py::arg("e"), py::arg("field_global"),
            py::arg("field_name"));
@@ -83,4 +88,4 @@ void bind_solver_factory(py::module_ &m)
 
 }  // namespace fe
 }  // namespace solver
-#endif  // SOLVER_FE_PYWRAP_INCLUDE_BINDINGS_SEM_SOLVER_H_
+#endif  // FUNTIDES_SOLVER_FE_PYWRAP_INCLUDE_BINDINGS_SEM_SOLVER_H_

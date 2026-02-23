@@ -2,9 +2,8 @@
  * @file fdtd_velocity_model.h
  * @brief Velocity model storage and initialization
  */
-#ifndef SRC_MODEL_GRID_INCLUDE_FDTD_VELOCITY_MODEL_H_
-#define SRC_MODEL_GRID_INCLUDE_FDTD_VELOCITY_MODEL_H_
-
+#ifndef FUNTIDES_MODEL_GRID_INCLUDE_FD_VELOCITY_MODEL_H_
+#define FUNTIDES_MODEL_GRID_INCLUDE_FD_VELOCITY_MODEL_H_
 #include <data_type.h>
 #include <fd_options.h>
 
@@ -127,5 +126,4 @@ class VelocityModel
 
 }  // namespace fdgrid
 }  // namespace model
-
-#endif  // SRC_MODEL_GRID_INCLUDE_FDTD_VELOCITY_MODEL_H_
+#endif  // FUNTIDES_MODEL_GRID_INCLUDE_FD_VELOCITY_MODEL_H_
