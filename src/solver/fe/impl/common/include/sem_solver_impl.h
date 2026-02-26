@@ -951,6 +951,7 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES,
   }
 
   MAINLOOPEND
+  // exit(2);
 }
 
 //============================================================================

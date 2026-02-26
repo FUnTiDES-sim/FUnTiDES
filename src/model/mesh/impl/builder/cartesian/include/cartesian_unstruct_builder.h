@@ -1,9 +1,11 @@
-#ifndef FUNTIDES_MODEL_MESH_IMPL_BUILDER_CARTESIAN_INCLUDE_CARTESIAN_UNSTRUCT_BUILDER_H_
-#define FUNTIDES_MODEL_MESH_IMPL_BUILDER_CARTESIAN_INCLUDE_CARTESIAN_UNSTRUCT_BUILDER_H_
+#ifndef SRC_MODEL_CARTESIANMESH_INCLUDE_CARTESIAN_UNSTRUCT_MESH_H_
+#define SRC_MODEL_CARTESIANMESH_INCLUDE_CARTESIAN_UNSTRUCT_MESH_H_
+
 #include <builder.h>
 #include <model_unstruct.h>
 
 #include "cartesian_params.h"
+#include "fill_model_from_file.h"
 
 namespace model
 {
@@ -33,7 +35,8 @@ class CartesianUnstructBuilder : public ModelBuilderBase<FloatType, ScalarType>
         global_lz_(p.global_lz > 0 ? p.global_lz : p.lz),
         global_ox_(p.global_lx > 0 ? p.global_origin_x : p.origin_x),
         global_oy_(p.global_ly > 0 ? p.global_origin_y : p.origin_y),
-        global_oz_(p.global_lz > 0 ? p.global_origin_z : p.origin_z)
+        global_oz_(p.global_lz > 0 ? p.global_origin_z : p.origin_z),
+        model_file_(p.model_file)
   {
     initGlobalNodeList();
     initNodesCoords();
@@ -46,10 +49,6 @@ class CartesianUnstructBuilder : public ModelBuilderBase<FloatType, ScalarType>
     const int n_node =
         (ex_ * order_ + 1) * (ey_ * order_ + 1) * (ez_ * order_ + 1);
 
-    // -------------------------------------------------------------------------
-    // Pré-calcul boundaries_t_ et freeSurfaceTag_ avec coordonnées GLOBALES
-    // Le modèle n'a pas besoin de connaître les bornes globales
-    // -------------------------------------------------------------------------
     FloatType hz = lz_ / ez_;
     FloatType hx = lx_ / ex_;
     FloatType hy = ly_ / ey_;
@@ -90,9 +89,6 @@ class CartesianUnstructBuilder : public ModelBuilderBase<FloatType, ScalarType>
       freeSurfaceTag(n) = at_zmax ? 1 : 0;
     }
 
-    // -------------------------------------------------------------------------
-    // Construction du modèle — pas de coordonnées globales passées
-    // -------------------------------------------------------------------------
     model::ModelUnstructData<FloatType, ScalarType> modelData(
         order_, ex_ * ey_ * ez_, n_node, lx_, ly_, lz_, isModelOnNodes_,
         isElastic_, global_node_index_, nodes_coords_x_, nodes_coords_y_,
@@ -126,6 +122,8 @@ class CartesianUnstructBuilder : public ModelBuilderBase<FloatType, ScalarType>
   int order_;
   bool isModelOnNodes_;
   bool isElastic_;
+
+  std::string model_file_;
 
   ARRAY_INT_VIEW global_node_index_;
   VECTOR_REAL_VIEW nodes_coords_x_;
@@ -399,8 +397,33 @@ class CartesianUnstructBuilder : public ModelBuilderBase<FloatType, ScalarType>
         }
       }
     }
+    if (!model_file_.empty())
+    {
+      if (isModelOnNodes_)
+      {
+        throw std::runtime_error(
+            "[CartesianUnstructBuilder] model_file only supported with "
+            "isModelOnNodes=false for now.");
+      }
+      model::fillModelFromFile<FloatType>(
+          model_file_, model_vp_element_, model_rho_element_, model_vs_element_,
+          model_delta_element_, model_epsilon_element_, model_gamma_element_,
+          model_theta_element_, model_phi_element_);
+
+      std::cout << "[Model] vp[0]=" << model_vp_element_[0]
+                << " vp[mid]=" << model_vp_element_[n_element / 2]
+                << " vp[last]=" << model_vp_element_[n_element - 1]
+                << std::endl;
+
+      // Vérification cohérence
+      if (model_vp_element_.extent(0) != static_cast<size_t>(n_element))
+        throw std::runtime_error("[CartesianUnstructBuilder] model_file has " +
+                                 std::to_string(model_vp_element_.extent(0)) +
+                                 " elements but mesh has " +
+                                 std::to_string(n_element));
+    }
   }
 };
 
 }  // namespace model
-#endif  // FUNTIDES_MODEL_MESH_IMPL_BUILDER_CARTESIAN_INCLUDE_CARTESIAN_UNSTRUCT_BUILDER_H_
+#endif  // SRC_MODEL_CARTESIANMESH_INCLUDE_CARTESIAN_UNSTRUCT_MESH_H_

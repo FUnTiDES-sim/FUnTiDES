@@ -14,8 +14,8 @@ class SemProxyOptions
   int order = 2;
   int ex = 50, ey = 50, ez = 50;
   float lx = 2000.f, ly = 2000.f, lz = 2000.f;
-  float srcx = 1010.f, srcy = 1010.f, srcz = 1010.f;
-  float rcvx = 1310.f, rcvy = 1310.f, rcvz = 1310.f;
+  float srcx = 10000.01f, srcy = 10000.01f, srcz = 500.f;
+  float rcvx = 14000.01f, rcvy = 14000.01f, rcvz = 3000.f;
   std::string implem = "makutu";  // makutu
   std::string method = "sem";     // sem
   std::string mesh = "cartesian";
@@ -25,7 +25,7 @@ class SemProxyOptions
   bool autodt = false;
   // snapshots
   bool snapshots = false;
-  int snap_time_interval = 10;
+  int snap_time_interval = 500;
   // sponge boundaries parameters
   float boundaries_size = 0;
   bool surface_sponge = false;
@@ -34,6 +34,7 @@ class SemProxyOptions
   bool isModelOnNodes = false;
   bool isElastic = false;
   bool free_surface = false;
+  std::string model_file{""};
 
   void validate() const
   {
@@ -88,7 +89,9 @@ class SemProxyOptions
         "Enable free surface on top boundary (Z+). Default: true",
         cxxopts::value<bool>(o.free_surface))(
         "anisotropy", "Anisotropy type for elastic: iso|vti|tti (default=iso)",
-        cxxopts::value<std::string>(o.anisotropy));
+        cxxopts::value<std::string>(o.anisotropy))(
+        "model-file", "Path to .ftmd heterogeneous model file (optional)",
+        cxxopts::value<std::string>(o.model_file));
   }
 };
 

@@ -10,6 +10,7 @@ struct CartesianParams
   Coord lx, ly, lz;
   bool isModelOnNodes;
   bool isElastic;
+  std::string model_file;
 
   // Global domain info (for MPI decomposition)
   Coord global_lx{0}, global_ly{0}, global_lz{0};
@@ -30,7 +31,8 @@ struct CartesianParams
         ly(ly_),
         lz(lz_),
         isModelOnNodes(isModelOnNodes_),
-        isElastic(isElastic_)
+        isElastic(isElastic_),
+        model_file{""}
   {
   }
 };
