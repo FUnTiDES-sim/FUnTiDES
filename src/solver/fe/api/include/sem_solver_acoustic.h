@@ -1,3 +1,14 @@
+//************************************************************************
+//   proxy application v.0.0.1
+//
+//  SEMsolver.hpp: simple 2D acoustic wave equation solver
+//
+//  The SEMsolver class serves as a base class for the Spectral Element Method
+//  solver. It provides core functionality to initialize FE operators,
+//  advance pressure fields, apply forcing terms, and handle absorbing
+//  boundaries.
+//************************************************************************
+
 #ifndef SEM_SOLVER_ACOUSTIC_HPP_
 #define SEM_SOLVER_ACOUSTIC_HPP_
 
@@ -73,10 +84,9 @@ class SEMsolverAcoustic : public SEMSolverBase
                      const float taper_delta_) override;
 
   /**
-   * @brief Compute one time step of the acoustic wave equation solver.
+   * @brief Compute one time step of the elastic wave equation solver.
    *
-   * Advances the pressure field using explicit time integration.
-   * If an element type mask is set, only processes elements of the specified type.
+   * Advances the displacement field using explicit time integration.
    *
    * @param dt Delta time for this iteration.
    * @param timeSample Current time index into the RHS (source) term.
@@ -126,9 +136,8 @@ class SEMsolverAcoustic : public SEMSolverBase
   void outputSolutionValues(const int &indexTimeStep, int &i1,
                             int &myElementSource, const ARRAY_REAL_VIEW &field,
                             const char *fieldName) override;
-
   /**
-   * @brief Apply external forcing to the global pressure field.
+   * @brief Apply external forcing to the global displacement field.
    *
    * @param timeSample Current time sample index.
    * @param dt Delta time for this iteration.
@@ -163,21 +172,6 @@ class SEMsolverAcoustic : public SEMSolverBase
   void updatePressureField(float dt, int i1, int i2,
                            const ARRAY_REAL_VIEW &pnGlobal);
 
-  /**
-   * @brief Set element type mask for selective computation.
-   *
-   * When set, only elements where elementType[i] == myType are processed.
-   * If nullptr (default), all elements are processed.
-   * Used by acoustoelastic solver to restrict acoustic solver to fluid regions.
-   *
-   * @param elementType Pointer to integer array (one entry per element, values: 1=acoustic, 2=elastic).
-   * @param myType Element type to process (1 for acoustic).
-   */
-  void setElementMask(const VECTOR_INT_VIEW *elementType, int myType) {
-    m_elementType = elementType;
-    m_myType = myType;
-  }
-
  private:
   MESH_TYPE m_mesh;  ///< Computational mesh
 
@@ -194,10 +188,6 @@ class SEMsolverAcoustic : public SEMSolverBase
   VECTOR_REAL_VIEW spongeTaperCoeff;  ///< Sponge tapering coefficients
   VECTOR_REAL_VIEW massMatrixGlobal;  ///< Global mass matrix
   VECTOR_REAL_VIEW yGlobal;           ///< Global pressure work vector
-
-  /// Element type mask for selective computation (nullptr = process all elements)
-  const VECTOR_INT_VIEW *m_elementType{nullptr};
-  int m_myType{0};  ///< Element type this solver should process (1 for acoustic)
 };
 
 #endif  // SEM_SOLVER_ACOUSTIC_HPP_

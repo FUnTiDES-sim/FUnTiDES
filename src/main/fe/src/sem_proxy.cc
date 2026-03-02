@@ -49,6 +49,7 @@ SEMproxy::SEMproxy(const SemProxyOptions& opt)
 
   bool isModelOnNodes = opt.isModelOnNodes;
   isElastic_ = opt.isElastic;
+  cout << boolalpha;
   bool isElastic = isElastic_;
 
   const SolverFactory::methodType methodType = getMethod(opt.method);

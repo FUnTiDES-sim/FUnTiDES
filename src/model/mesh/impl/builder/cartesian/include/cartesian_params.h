@@ -13,8 +13,6 @@ struct CartesianParams
 
   bool isModelOnNodes;
   bool isElastic;
-  bool isAcoustoElastic;
-  float elastoAcousticBoundaryPosition;
 
   CartesianParams() = default;
 
@@ -28,9 +26,7 @@ struct CartesianParams
         ly(ly_),
         lz(lz_),
         isModelOnNodes(isModelOnNodes_),
-        isElastic(isElastic_),
-        isAcoustoElastic(isAcoustoElastic_),
-        elastoAcousticBoundaryPosition(elastoAcousticBoundaryPosition_)
+        isElastic(isElastic_)
 
   {
   }

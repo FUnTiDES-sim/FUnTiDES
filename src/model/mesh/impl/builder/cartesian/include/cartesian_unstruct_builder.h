@@ -25,9 +25,7 @@ class CartesianUnstructBuilder : public ModelBuilderBase<FloatType, ScalarType>
         lz_(p.lz),
         order_(p.order),
         isModelOnNodes_(p.isModelOnNodes),
-        isElastic_(p.isElastic),
-        isAcoustoElastic_(p.isAcoustoElastic),
-        elastoAcousticBoundaryPosition_(p.elastoAcousticBoundaryPosition)
+        isElastic_(p.isElastic)
 
   {
     initGlobalNodeList();
@@ -76,7 +74,7 @@ class CartesianUnstructBuilder : public ModelBuilderBase<FloatType, ScalarType>
     auto model = std::make_shared<model::ModelUnstruct<FloatType, ScalarType>>(
         modelData);
 
-    if (isElastic_ && !isModelOnNodes_ || isAcoustoElastic_ && !isModelOnNodes_)
+    if (isElastic_ && !isModelOnNodes_)
     {
       model->initElasticityTensors();
     }
@@ -92,8 +90,6 @@ class CartesianUnstructBuilder : public ModelBuilderBase<FloatType, ScalarType>
   int order_;
   bool isModelOnNodes_;
   bool isElastic_;
-  bool isAcoustoElastic_;
-  FloatType elastoAcousticBoundaryPosition_;
 
   ARRAY_INT_VIEW global_node_index_;
   VECTOR_REAL_VIEW nodes_coords_x_;
@@ -284,48 +280,36 @@ class CartesianUnstructBuilder : public ModelBuilderBase<FloatType, ScalarType>
   {
     // TODO: Currently this function is not doing much more than
     // creating uniforms model
-  int n_element = ex_ * ey_ * ez_;
-  int n_node = (ex_ * order_ + 1) * (ey_ * order_ + 1) * (ez_ * order_ + 1);
-  
-  if (isModelOnNodes_)
-  {
-    model_rho_node_ = allocateVector<VECTOR_REAL_VIEW>(n_node, "model rho node");
-    model_vp_node_ = allocateVector<VECTOR_REAL_VIEW>(n_node, "model vp node");
-
-    if (isElastic_ || isAcoustoElastic_) 
+    int n_element = ex_ * ey_ * ez_;
+    int n_node = (ex_ * order_ + 1) * (ey_ * order_ + 1) * (ez_ * order_ + 1);
+    if (isModelOnNodes_)
     {
-      model_vs_node_ = allocateVector<VECTOR_REAL_VIEW>(n_node, "model vs node");
-      model_delta_node_ = allocateVector<VECTOR_REAL_VIEW>(n_node, "model delta node");
-      model_gamma_node_ = allocateVector<VECTOR_REAL_VIEW>(n_node, "model gamma node");
-      model_epsilon_node_ = allocateVector<VECTOR_REAL_VIEW>(n_node, "model epsilon node");
-      model_theta_node_ = allocateVector<VECTOR_REAL_VIEW>(n_node, "model theta node");
-      model_phi_node_ = allocateVector<VECTOR_REAL_VIEW>(n_node, "model phi node");
-    }
+      model_rho_node_ =
+          allocateVector<VECTOR_REAL_VIEW>(n_node, "model rho node");
+      model_vp_node_ =
+          allocateVector<VECTOR_REAL_VIEW>(n_node, "model vp node");
 
-   
-    for (int i = 0; i < n_node; i++)
-    {
-      float z = nodes_coords_z_[i];  
-      
-      if (isAcoustoElastic_ && z < elastoAcousticBoundaryPosition_)
+      for (int i = 0; i < n_node; i++)
       {
-        model_rho_node_[i] = 1.0;
+        model_rho_node_[i] = 1;
         model_vp_node_[i] = 1500;
-        model_vs_node_[i] = 0.0;
-        if (isElastic_ || isAcoustoElastic_)
-        {
-          model_delta_node_[i] = 0;
-          model_epsilon_node_[i] = 0;
-          model_gamma_node_[i] = 0;
-          model_theta_node_[i] = 0;
-          model_phi_node_[i] = 0;
-        }
       }
-      else
+      if (isElastic_)
       {
-        model_rho_node_[i] = 1.0;
-        model_vp_node_[i] = 1500;
-        if (isElastic_ || isAcoustoElastic_)
+        model_vs_node_ =
+            allocateVector<VECTOR_REAL_VIEW>(n_node, "model vs node");
+        model_delta_node_ =
+            allocateVector<VECTOR_REAL_VIEW>(n_node, "model delta node");
+        model_gamma_node_ =
+            allocateVector<VECTOR_REAL_VIEW>(n_node, "model gamma node");
+        model_epsilon_node_ =
+            allocateVector<VECTOR_REAL_VIEW>(n_node, "model epsilon node");
+        model_theta_node_ =
+            allocateVector<VECTOR_REAL_VIEW>(n_node, "model theta node");
+        model_phi_node_ =
+            allocateVector<VECTOR_REAL_VIEW>(n_node, "model phi node");
+
+        for (int i = 0; i < n_node; i++)
         {
           model_vs_node_[i] = 755;
           model_delta_node_[i] = 0.2;
@@ -336,60 +320,43 @@ class CartesianUnstructBuilder : public ModelBuilderBase<FloatType, ScalarType>
         }
       }
     }
-  }
-  else  
-  {
-    model_rho_element_ = allocateVector<VECTOR_REAL_VIEW>(n_element, "model rho elem");
-    model_vp_element_ = allocateVector<VECTOR_REAL_VIEW>(n_element, "model vp elem");
 
-    if (isElastic_ || isAcoustoElastic_)  
+    else
     {
-      model_vs_element_ = allocateVector<VECTOR_REAL_VIEW>(n_element, "model vs element");
-      model_delta_element_ = allocateVector<VECTOR_REAL_VIEW>(n_element, "model delta element");
-      model_gamma_element_ = allocateVector<VECTOR_REAL_VIEW>(n_element, "model gamma element");
-      model_epsilon_element_ = allocateVector<VECTOR_REAL_VIEW>(n_element, "model epsilon element");
-      model_theta_element_ = allocateVector<VECTOR_REAL_VIEW>(n_element, "model theta element");
-      model_phi_element_ = allocateVector<VECTOR_REAL_VIEW>(n_element, "model phi element");
-    }
+      model_rho_element_ =
+          allocateVector<VECTOR_REAL_VIEW>(n_element, "model rho elem");
+      model_vp_element_ =
+          allocateVector<VECTOR_REAL_VIEW>(n_element, "model vp elem");
 
-    for (int elem = 0; elem < n_element; elem++)
-    {
-      float z_center = 0.0f;
-      int nodes_per_elem = (order_ + 1) * (order_ + 1) * (order_ + 1);
-      for (int node_local = 0; node_local < nodes_per_elem; node_local++)
+      for (int i = 0; i < n_element; i++)
       {
-        int node_global = global_node_index_(elem, node_local);
-        z_center += nodes_coords_z_[node_global];
+        model_rho_element_[i] = 1;
+        model_vp_element_[i] = 1500;
       }
-      z_center /= nodes_per_elem;  
-      
-      if (isAcoustoElastic_ && z_center < elastoAcousticBoundaryPosition_)
+
+      if (isElastic_)
       {
-        model_rho_element_[elem] = 1.0;
-        model_vp_element_[elem] = 1500;
-        model_vs_element_[elem] = 0;
-        if (isElastic_ || isAcoustoElastic_)
+        model_vs_element_ =
+            allocateVector<VECTOR_REAL_VIEW>(n_element, "model vs element");
+        model_delta_element_ =
+            allocateVector<VECTOR_REAL_VIEW>(n_element, "model delta element");
+        model_gamma_element_ =
+            allocateVector<VECTOR_REAL_VIEW>(n_element, "model gamma element");
+        model_epsilon_element_ = allocateVector<VECTOR_REAL_VIEW>(
+            n_element, "model epsilon element");
+        model_theta_element_ =
+            allocateVector<VECTOR_REAL_VIEW>(n_element, "model theta element");
+        model_phi_element_ =
+            allocateVector<VECTOR_REAL_VIEW>(n_element, "model phi element");
+
+        for (int i = 0; i < n_element; i++)
         {
-          model_delta_element_[elem] = 0;
-          model_epsilon_element_[elem] = 0;
-          model_gamma_element_[elem] = 0;
-          model_theta_element_[elem] = 0;
-          model_phi_element_[elem] = 0;
-        }
-      }
-      else
-      {
-        
-        model_rho_element_[elem] = 1.0;
-        model_vp_element_[elem] = 1500;
-        if (isElastic_ || isAcoustoElastic_)
-        {
-          model_vs_element_[elem] = 755;
-          model_delta_element_[elem] = 0.2;
-          model_epsilon_element_[elem] = 0.3;
-          model_gamma_element_[elem] = 0.08;
-          model_theta_element_[elem] = 30;
-          model_phi_element_[elem] = 45;
+          model_vs_element_[i] = 755;
+          model_delta_element_[i] = 0.2;
+          model_epsilon_element_[i] = 0.3;
+          model_gamma_element_[i] = 0.08;
+          model_theta_element_[i] = 30;
+          model_phi_element_[i] = 45;
         }
       }
     }

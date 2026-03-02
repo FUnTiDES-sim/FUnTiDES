@@ -19,8 +19,7 @@ class CartesianStructBuilder : public ModelBuilderBase<FloatType, ScalarType>
         ly_(ly),
         lz_(lz),
         isModelOnNodes_(isModelOnNodes),
-        isElastic_(isElastic),
-        isAcoustoElastic_(isAcoustoElastic_)
+        isElastic_(isElastic)
   {
   }
 
@@ -39,13 +38,12 @@ class CartesianStructBuilder : public ModelBuilderBase<FloatType, ScalarType>
     data.dz_ = lz_;
     data.isModelOnNodes_ = isModelOnNodes_;
     data.isElastic_ = isElastic_;
-    data.isAcoustoElastic_ = isAcoustoElastic_;
 
     auto model =
         std::make_shared<model::ModelStruct<FloatType, ScalarType, Order>>(
             data);
 
-    if (isElastic_ && !isModelOnNodes_ || isAcoustoElastic_ && !isModelOnNodes_)
+    if (isElastic_ && !isModelOnNodes_)
     {
       model->initElasticityTensors();
     }
@@ -58,6 +56,5 @@ class CartesianStructBuilder : public ModelBuilderBase<FloatType, ScalarType>
   FloatType lx_, ly_, lz_;
   bool isModelOnNodes_;
   bool isElastic_;
-  bool isAcoustoElastic_;
 };
 }  // namespace model
