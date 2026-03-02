@@ -2,9 +2,8 @@
  * @file fdtd_grids.h
  * @brief FDTD grid facade (backward compatibility wrapper)
  */
-#ifndef SRC_MODEL_GRID_INCLUDE_FDTD_GRIDS_H_
-#define SRC_MODEL_GRID_INCLUDE_FDTD_GRIDS_H_
-
+#ifndef FUNTIDES_MODEL_GRID_INCLUDE_FD_GRIDS_H_
+#define FUNTIDES_MODEL_GRID_INCLUDE_FD_GRIDS_H_
 #include <fd_options.h>
 
 #include "fd_boundary.h"
@@ -162,5 +161,4 @@ class FdtdGrids
 
 }  // namespace fdgrid
 }  // namespace model
-
-#endif  // SRC_MODEL_GRID_INCLUDE_FDTD_GRIDS_H_
+#endif  // FUNTIDES_MODEL_GRID_INCLUDE_FD_GRIDS_H_

@@ -4,9 +4,6 @@
 // Enable use of Vector (CMake option)
 #cmakedefine USE_VECTOR
 
-// Enables use of KOKOS (CMake option)
-#cmakedefine USE_KOKKOS
-
 // Enables use of ENABLE_HIP (CMake option)
 #cmakedefine ENABLE_HIP
 
@@ -15,9 +12,6 @@
 
 // Enables python wrapping code
 #cmakedefine ENABLE_PYWRAP
-
-// Enables Shiva
-#cmakedefine ENABLE_Shiva
 
 // Enable save snapshots of wavefields in FD-proxy (for debugging)
 #cmakedefine FD_SAVE_SNAPSHOTS

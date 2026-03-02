@@ -1,18 +1,22 @@
-#ifndef SRC_MODEL_CARTESIANUNSTRUCTMESH_INCLUDE_CARTESIAN_UNSTRUCT_PARAMS_H_
-#define SRC_MODEL_CARTESIANUNSTRUCTMESH_INCLUDE_CARTESIAN_UNSTRUCT_PARAMS_H_
-
+#ifndef FUNTIDES_MODEL_MESH_IMPL_BUILDER_CARTESIAN_INCLUDE_CARTESIAN_PARAMS_H_
+#define FUNTIDES_MODEL_MESH_IMPL_BUILDER_CARTESIAN_INCLUDE_CARTESIAN_PARAMS_H_
 namespace model
 {
 template <typename Coord, typename Index>
 struct CartesianParams
 {
   int order;
-
   Index ex, ey, ez;
   Coord lx, ly, lz;
-
   bool isModelOnNodes;
   bool isElastic;
+
+  // Global domain info (for MPI decomposition)
+  Coord global_lx{0}, global_ly{0}, global_lz{0};
+  Coord global_origin_x{0}, global_origin_y{0}, global_origin_z{0};
+
+  // Local subdomain origin
+  Coord origin_x{0}, origin_y{0}, origin_z{0};
 
   CartesianParams() = default;
 
@@ -27,9 +31,8 @@ struct CartesianParams
         lz(lz_),
         isModelOnNodes(isModelOnNodes_),
         isElastic(isElastic_)
-
   {
   }
 };
 }  // namespace model
-#endif  // SRC_MODEL_CARTESIANUNSTRUCTMESH_INCLUDE_CARTESIAN_UNSTRUCT_PARAMS_H_
+#endif  // FUNTIDES_MODEL_MESH_IMPL_BUILDER_CARTESIAN_INCLUDE_CARTESIAN_PARAMS_H_

@@ -91,6 +91,13 @@ class UnstructData:
             [self.n_elements], dtype=float_type, space=self.memspace, layout=self.layout
         )
 
+        self.kk_model_C_tensor_element = kokkos.array(
+            [self.n_elements, 6, 6],
+            dtype=float_type,
+            space=self.memspace,
+            layout=self.layout,
+        )
+
         # boundaries
         self.kk_boundaries = kokkos.array(
             [self.n_elements], dtype=float_type, space=self.memspace, layout=self.layout
@@ -226,6 +233,7 @@ def unstruct(request):
         ud.kk_model_theta_element,
         ud.kk_model_phi_node,
         ud.kk_model_phi_element,
+        ud.kk_model_C_tensor_element,
         ud.kk_boundaries,
     )
 
@@ -538,3 +546,62 @@ class TestModelUnstruct:
         model = model_cls(params)
 
         assert model.get_max_speed() == 3600.0
+
+    @pytest.mark.parametrize("unstruct", test_cases, indirect=True)
+    def test_face_connectivity_member_exists(self, unstruct):
+        """Test that ModelUnstructData has face_connectivity member"""
+        _, _, params = unstruct
+        assert hasattr(params, 'face_connectivity')
+    
+    @pytest.mark.parametrize("unstruct", test_cases, indirect=True)
+    def test_face_connectivity_workflow(self, unstruct):
+        """Test complete face connectivity workflow"""
+        data, model_cls, params = unstruct
+        model = model_cls(params)
+        assert model.get_number_of_faces() == 0
+        model.build_face_connectivity()
+        n_faces = model.get_number_of_faces()
+        assert n_faces > 0
+        assert n_faces < data.n_elements * 6
+    
+    @pytest.mark.parametrize("unstruct", test_cases[:1], indirect=True)
+    def test_face_connectivity_injection_preserves_data(self, unstruct):
+        """Test that pre-filled face connectivity is preserved"""
+        data, model_cls, params = unstruct
+        class_name = params.__class__.__name__
+        suffix = class_name.replace("ModelUnstructData_", "")
+        fc_data_cls = getattr(Model, f'FaceConnectivityUnstructData_{suffix}')
+        
+        # Inject pre-filled data (simulating HDF5 load for example)
+        fc_data = fc_data_cls()
+        fc_data.n_faces = 1234 
+        params.face_connectivity = fc_data
+        
+        # Verify data is preserved
+        model = model_cls(params)
+        assert model.get_number_of_faces() == 1234
+        
+        # buildFaceConnectivity should skip if already filled
+        model.build_face_connectivity()
+        assert model.get_number_of_faces() == 1234  # Still 1234!
+    
+    @pytest.mark.parametrize("unstruct", test_cases[:1], indirect=True)
+    def test_face_connectivity_injection_empty_then_build(self, unstruct):
+        """Test that empty injection + build works"""
+        data, model_cls, params = unstruct
+        class_name = params.__class__.__name__
+        suffix = class_name.replace("ModelUnstructData_", "")
+        fc_data_cls = getattr(Model, f'FaceConnectivityUnstructData_{suffix}')
+        
+        # Inject empty face connectivity
+        fc_data = fc_data_cls()
+        params.face_connectivity = fc_data
+        
+        # Should be empty initially
+        model = model_cls(params)
+        assert model.get_number_of_faces() == 0
+        
+        # Build should fill it
+        model.build_face_connectivity()
+        assert model.get_number_of_faces() > 0
+        assert model.get_number_of_faces() != 1234

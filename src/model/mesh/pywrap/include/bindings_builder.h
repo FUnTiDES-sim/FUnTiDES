@@ -1,3 +1,6 @@
+#ifndef FUNTIDES_MODEL_MESH_PYWRAP_INCLUDE_BINDINGS_BUILDER_H_
+#define FUNTIDES_MODEL_MESH_PYWRAP_INCLUDE_BINDINGS_BUILDER_H_
+
 #pragma once
 
 #include <pybind11/numpy.h>
@@ -40,10 +43,11 @@ void bind_cartesian_struct_builder(py::module_ &m)
 
   py::class_<T, Base, std::shared_ptr<T>>(m, name.c_str())
       .def(py::init<ScalarType, FloatType, ScalarType, FloatType, ScalarType,
-                    FloatType, bool, bool>(),
+                    FloatType, bool, bool, FloatType, FloatType, FloatType>(),
            py::arg("ex"), py::arg("hx"), py::arg("ey"), py::arg("hy"),
            py::arg("ez"), py::arg("hz"), py::arg("is_model_on_nodes"),
-           py::arg("is_elastic"));
+           py::arg("is_elastic"), py::arg("ox") = 0.0, py::arg("oy") = 0.0,
+           py::arg("oz") = 0.0);
 }
 
 // template binder for CartesianParams
@@ -67,6 +71,9 @@ void bind_cartesian_unstruct_params(py::module_ &m)
       .def_readwrite("lx", &Params::lx)
       .def_readwrite("ly", &Params::ly)
       .def_readwrite("lz", &Params::lz)
+      .def_readwrite("origin_x", &Params::origin_x)
+      .def_readwrite("origin_y", &Params::origin_y)
+      .def_readwrite("origin_z", &Params::origin_z)
       .def_readwrite("is_model_on_nodes", &Params::isModelOnNodes)
       .def_readwrite("is_elastic", &Params::isElastic);
 }
@@ -86,3 +93,5 @@ void bind_cartesian_unstruct_builder(py::module_ &m)
 }
 
 }  // namespace model
+
+#endif  // FUNTIDES_MODEL_MESH_PYWRAP_INCLUDE_BINDINGS_BUILDER_H_

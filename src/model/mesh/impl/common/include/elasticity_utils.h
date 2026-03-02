@@ -1,19 +1,98 @@
-#ifndef ELASTICITY_UTILS_H
-#define ELASTICITY_UTILS_H
-
+#ifndef FUNTIDES_MODEL_MESH_IMPL_COMMON_INCLUDE_ELASTICITY_UTILS_H_
+#define FUNTIDES_MODEL_MESH_IMPL_COMMON_INCLUDE_ELASTICITY_UTILS_H_
 #include <data_type.h>
 
 /**
- * @brief Compute the elasticity tensor C from Thomsen parameters
- * @param vp P-wave velocity
- * @param vs S-wave velocity
- * @param rho Density
- * @param delta Thomsen parameter delta
- * @param epsilon Thomsen parameter epsilon
- * @param gamma Thomsen parameter gamma
- * @param theta Rotation angle theta (degrees)
- * @param phi Rotation angle phi (degrees)
- * @param[out] CTTI Output 6x6 elasticity tensor (Voigt notation)
+ * @brief Compute isotropic elasticity coefficients (Lamé parameters)
+ */
+template <typename FloatType>
+PROXY_HOST_DEVICE void computeIsotropicCoefficients(FloatType vp, FloatType vs,
+                                                    FloatType rho,
+                                                    FloatType& lambda,
+                                                    FloatType& mu)
+{
+  mu = rho * vs * vs;
+  lambda = rho * (vp * vp - FloatType(2.0) * vs * vs);
+}
+
+/**
+ * @brief Build isotropic elasticity tensor in Voigt notation
+ */
+template <typename FloatType>
+PROXY_HOST_DEVICE void buildIsotropicTensor(FloatType lambda, FloatType mu,
+                                            FloatType C[6][6])
+{
+  for (int i = 0; i < 6; i++)
+    for (int j = 0; j < 6; j++) C[i][j] = FloatType(0.0);
+
+  FloatType const lambda_plus_2mu = lambda + FloatType(2.0) * mu;
+  C[0][0] = lambda_plus_2mu;
+  C[1][1] = lambda_plus_2mu;
+  C[2][2] = lambda_plus_2mu;
+  C[3][3] = mu;
+  C[4][4] = mu;
+  C[5][5] = mu;
+
+  C[0][1] = lambda;
+  C[1][0] = lambda;
+  C[0][2] = lambda;
+  C[2][0] = lambda;
+  C[1][2] = lambda;
+  C[2][1] = lambda;
+}
+
+/**
+ * @brief Compute VTI elasticity coefficients (no rotation)
+ */
+template <typename FloatType>
+PROXY_HOST_DEVICE void computeVTICoefficients(
+    FloatType vp, FloatType vs, FloatType rho, FloatType delta,
+    FloatType epsilon, FloatType gamma, FloatType& c11, FloatType& c12,
+    FloatType& c13, FloatType& c33, FloatType& c44, FloatType& c66)
+{
+  FloatType const rho_vp2 = rho * vp * vp;
+  FloatType const rho_vs2 = rho * vs * vs;
+
+  c33 = rho_vp2;
+  c44 = rho_vs2;
+  c11 = rho_vp2 * (FloatType(1.0) + FloatType(2.0) * epsilon);
+  c66 = rho_vs2 * (FloatType(1.0) + FloatType(2.0) * gamma);
+
+  FloatType const vp2_vs2 = vp * vp - vs * vs;
+  FloatType const sqrt_arg =
+      vp2_vs2 * vp2_vs2 + FloatType(2.0) * rho_vp2 * delta * vp2_vs2;
+  c13 = rho * sqrt(sqrt_arg) - rho_vs2;
+  c12 = c11 - FloatType(2.0) * c66;
+}
+
+/**
+ * @brief Build VTI elasticity tensor in Voigt notation (no rotation)
+ */
+template <typename FloatType>
+PROXY_HOST_DEVICE void buildVTITensor(FloatType c11, FloatType c12,
+                                      FloatType c13, FloatType c33,
+                                      FloatType c44, FloatType c66,
+                                      FloatType C[6][6])
+{
+  for (int i = 0; i < 6; i++)
+    for (int j = 0; j < 6; j++) C[i][j] = FloatType(0.0);
+
+  C[0][0] = c11;
+  C[1][1] = c11;
+  C[2][2] = c33;
+  C[0][1] = c12;
+  C[1][0] = c12;
+  C[0][2] = c13;
+  C[2][0] = c13;
+  C[1][2] = c13;
+  C[2][1] = c13;
+  C[3][3] = c44;
+  C[4][4] = c44;
+  C[5][5] = c66;
+}
+
+/**
+ * @brief Compute the full TTI elasticity tensor (VTI + rotation)
  */
 template <typename FloatType>
 PROXY_HOST_DEVICE void computeCTensor(FloatType vp, FloatType vs, FloatType rho,
@@ -110,5 +189,4 @@ PROXY_HOST_DEVICE void computeCTensor(FloatType vp, FloatType vs, FloatType rho,
       if (i != j) CTTI[j][i] = CTTI[i][j];
     }
 }
-
-#endif  // ELASTICITY_UTILS_H
+#endif  // FUNTIDES_MODEL_MESH_IMPL_COMMON_INCLUDE_ELASTICITY_UTILS_H_

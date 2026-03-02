@@ -1,6 +1,5 @@
-#ifndef SRC_MODEL_CARTESIANMESH_INCLUDE_CARTESIAN_UNSTRUCT_MESH_H_
-#define SRC_MODEL_CARTESIANMESH_INCLUDE_CARTESIAN_UNSTRUCT_MESH_H_
-
+#ifndef FUNTIDES_MODEL_MESH_IMPL_BUILDER_CARTESIAN_INCLUDE_CARTESIAN_UNSTRUCT_BUILDER_H_
+#define FUNTIDES_MODEL_MESH_IMPL_BUILDER_CARTESIAN_INCLUDE_CARTESIAN_UNSTRUCT_BUILDER_H_
 #include <builder.h>
 #include <model_unstruct.h>
 
@@ -25,8 +24,16 @@ class CartesianUnstructBuilder : public ModelBuilderBase<FloatType, ScalarType>
         lz_(p.lz),
         order_(p.order),
         isModelOnNodes_(p.isModelOnNodes),
-        isElastic_(p.isElastic)
-
+        isElastic_(p.isElastic),
+        ox_(p.origin_x),
+        oy_(p.origin_y),
+        oz_(p.origin_z),
+        global_lx_(p.global_lx > 0 ? p.global_lx : p.lx),
+        global_ly_(p.global_ly > 0 ? p.global_ly : p.ly),
+        global_lz_(p.global_lz > 0 ? p.global_lz : p.lz),
+        global_ox_(p.global_lx > 0 ? p.global_origin_x : p.origin_x),
+        global_oy_(p.global_ly > 0 ? p.global_origin_y : p.origin_y),
+        global_oz_(p.global_lz > 0 ? p.global_origin_z : p.origin_z)
   {
     initGlobalNodeList();
     initNodesCoords();
@@ -36,48 +43,73 @@ class CartesianUnstructBuilder : public ModelBuilderBase<FloatType, ScalarType>
   std::shared_ptr<model::ModelApi<FloatType, ScalarType>> getModel()
       const override
   {
-    model::ModelUnstructData<FloatType, ScalarType> modelData;
-
-    modelData.order_ = order_;
-    modelData.n_element_ = ex_ * ey_ * ez_;
-    modelData.n_node_ =
+    const int n_node =
         (ex_ * order_ + 1) * (ey_ * order_ + 1) * (ez_ * order_ + 1);
-    modelData.lx_ = lx_;
-    modelData.ly_ = ly_;
-    modelData.lz_ = lz_;
 
-    modelData.global_node_index_ = global_node_index_;
-    modelData.nodes_coords_x_ = nodes_coords_x_;
-    modelData.nodes_coords_y_ = nodes_coords_y_;
-    modelData.nodes_coords_z_ = nodes_coords_z_;
+    // -------------------------------------------------------------------------
+    // Pré-calcul boundaries_t_ et freeSurfaceTag_ avec coordonnées GLOBALES
+    // Le modèle n'a pas besoin de connaître les bornes globales
+    // -------------------------------------------------------------------------
+    FloatType hz = lz_ / ez_;
+    FloatType hx = lx_ / ex_;
+    FloatType hy = ly_ / ey_;
+    FloatType tol = std::min({hx, hy, hz}) * 1e-4;
 
-    modelData.isModelOnNodes_ = isModelOnNodes_;
-    modelData.isElastic_ = isElastic_;
+    FloatType x_min = global_ox_, x_max = global_ox_ + global_lx_;
+    FloatType y_min = global_oy_, y_max = global_oy_ + global_ly_;
+    FloatType z_min = global_oz_, z_max = global_oz_ + global_lz_;
 
-    modelData.model_vp_node_ = model_vp_node_;
-    modelData.model_rho_node_ = model_rho_node_;
-    modelData.model_vs_node_ = model_vs_node_;
-    modelData.model_delta_node_ = model_delta_node_;
-    modelData.model_epsilon_node_ = model_epsilon_node_;
-    modelData.model_gamma_node_ = model_gamma_node_;
-    modelData.model_theta_node_ = model_theta_node_;
-    modelData.model_phi_node_ = model_phi_node_;
-    modelData.model_vp_element_ = model_vp_element_;
-    modelData.model_rho_element_ = model_rho_element_;
-    modelData.model_vs_element_ = model_vs_element_;
-    modelData.model_delta_element_ = model_delta_element_;
-    modelData.model_epsilon_element_ = model_epsilon_element_;
-    modelData.model_gamma_element_ = model_gamma_element_;
-    modelData.model_theta_element_ = model_theta_element_;
-    modelData.model_phi_element_ = model_phi_element_;
+    auto boundaries_t =
+        allocateVector<VECTOR_REAL_VIEW>(n_node, "boundaries_t");
+    auto freeSurfaceTag =
+        allocateVector<VECTOR_INT_VIEW>(n_node, "freeSurfaceTag");
+
+    for (int n = 0; n < n_node; ++n)
+    {
+      FloatType x = nodes_coords_x_(n);
+      FloatType y = nodes_coords_y_(n);
+      FloatType z = nodes_coords_z_(n);
+
+      bool at_xmin = (fabs(x - x_min) < tol);
+      bool at_xmax = (fabs(x - x_max) < tol);
+      bool at_ymin = (fabs(y - y_min) < tol);
+      bool at_ymax = (fabs(y - y_max) < tol);
+      bool at_zmin = (fabs(z - z_min) < tol);
+      bool at_zmax = (fabs(z - z_max) < tol);
+
+      bool on_boundary =
+          at_xmin || at_xmax || at_ymin || at_ymax || at_zmin || at_zmax;
+
+      if (!on_boundary)
+        boundaries_t(n) = static_cast<FloatType>(BoundaryFlag::InteriorNode);
+      else if (at_zmax)
+        boundaries_t(n) = static_cast<FloatType>(BoundaryFlag::Surface);
+      else
+        boundaries_t(n) = static_cast<FloatType>(BoundaryFlag::Damping);
+
+      freeSurfaceTag(n) = at_zmax ? 1 : 0;
+    }
+
+    // -------------------------------------------------------------------------
+    // Construction du modèle — pas de coordonnées globales passées
+    // -------------------------------------------------------------------------
+    model::ModelUnstructData<FloatType, ScalarType> modelData(
+        order_, ex_ * ey_ * ez_, n_node, lx_, ly_, lz_, isModelOnNodes_,
+        isElastic_, global_node_index_, nodes_coords_x_, nodes_coords_y_,
+        nodes_coords_z_, model_vp_node_, model_vp_element_, model_rho_node_,
+        model_rho_element_, model_vs_node_, model_vs_element_,
+        model_delta_node_, model_delta_element_, model_epsilon_node_,
+        model_epsilon_element_, model_gamma_node_, model_gamma_element_,
+        model_theta_node_, model_theta_element_, model_phi_node_,
+        model_phi_element_, model_C_tensor_element_, boundaries_t);
+
+    modelData.ox_ = ox_;
+    modelData.oy_ = oy_;
+    modelData.oz_ = oz_;
 
     auto model = std::make_shared<model::ModelUnstruct<FloatType, ScalarType>>(
         modelData);
-
-    if (isElastic_ && !isModelOnNodes_)
-    {
-      model->initElasticityTensors();
-    }
+    model->buildFaceConnectivity();
 
     return model;
   }
@@ -85,8 +117,12 @@ class CartesianUnstructBuilder : public ModelBuilderBase<FloatType, ScalarType>
   ~CartesianUnstructBuilder() = default;
 
  private:
+  FloatType ox_{0}, oy_{0}, oz_{0};                       // Local origin
+  FloatType global_ox_{0}, global_oy_{0}, global_oz_{0};  // Global origin
   ScalarType ex_, ey_, ez_;
-  FloatType lx_, ly_, lz_;
+  FloatType lx_, ly_, lz_;                                // Local dimensions
+  FloatType global_lx_{0}, global_ly_{0}, global_lz_{0};  // Global dimensions
+
   int order_;
   bool isModelOnNodes_;
   bool isElastic_;
@@ -95,7 +131,7 @@ class CartesianUnstructBuilder : public ModelBuilderBase<FloatType, ScalarType>
   VECTOR_REAL_VIEW nodes_coords_x_;
   VECTOR_REAL_VIEW nodes_coords_y_;
   VECTOR_REAL_VIEW nodes_coords_z_;
-  // Models view
+
   VECTOR_REAL_VIEW model_vp_node_;
   VECTOR_REAL_VIEW model_vp_element_;
   VECTOR_REAL_VIEW model_rho_node_;
@@ -112,8 +148,7 @@ class CartesianUnstructBuilder : public ModelBuilderBase<FloatType, ScalarType>
   VECTOR_REAL_VIEW model_theta_element_;
   VECTOR_REAL_VIEW model_phi_node_;
   VECTOR_REAL_VIEW model_phi_element_;
-
-  VECTOR_REAL_VIEW boundaries_t_;
+  ARRAY3D_REAL_VIEW model_C_tensor_element_;
 
   void initGlobalNodeList()
   {
@@ -155,7 +190,9 @@ class CartesianUnstructBuilder : public ModelBuilderBase<FloatType, ScalarType>
     }
   }
 
-  void getCoordInOneDirection(const int& h, const int& n_element, float* coord)
+  // Use FloatType for h to prevent integer truncation
+  void getCoordInOneDirection(FloatType h, const int& n_element, float* coord,
+                              FloatType offset)
   {
     float xi[MAX_ORDER + 1];
 
@@ -209,9 +246,11 @@ class CartesianUnstructBuilder : public ModelBuilderBase<FloatType, ScalarType>
     float b = (x1 + x0) / 2.f;
     float a = b - x0;
 
+    FloatType elementStart = n_element * h;
+
     for (int j = 0; j < order_ + 1; j++)
     {
-      coord[j] = a * xi[j] + b;
+      coord[j] = elementStart + (xi[j] + 1.0f) * h * 0.5f + offset;
     }
   }
 
@@ -240,13 +279,13 @@ class CartesianUnstructBuilder : public ModelBuilderBase<FloatType, ScalarType>
 
     for (int n = 0; n < ez_; n++)
     {
-      getCoordInOneDirection(hz, n, coord_z);
+      getCoordInOneDirection(hz, n, coord_z, 0);
       for (int m = 0; m < ey_; m++)
       {
-        getCoordInOneDirection(hy, m, coord_y);
+        getCoordInOneDirection(hy, m, coord_y, 0);
         for (int l = 0; l < ex_; l++)
         {
-          getCoordInOneDirection(hx, l, coord_x);
+          getCoordInOneDirection(hx, l, coord_x, 0);
 
           for (int k = 0; k < order_ + 1; k++)
           {
@@ -312,11 +351,11 @@ class CartesianUnstructBuilder : public ModelBuilderBase<FloatType, ScalarType>
         for (int i = 0; i < n_node; i++)
         {
           model_vs_node_[i] = 755;
-          model_delta_node_[i] = 0.2;
-          model_epsilon_node_[i] = 0.3;
-          model_gamma_node_[i] = 0.08;
-          model_theta_node_[i] = 30;
-          model_phi_node_[i] = 45;
+          model_delta_node_[i] = 0.0;
+          model_epsilon_node_[i] = 0.0;
+          model_gamma_node_[i] = 0.0;
+          model_theta_node_[i] = 0.0;
+          model_phi_node_[i] = 0.0;
         }
       }
     }
@@ -352,11 +391,11 @@ class CartesianUnstructBuilder : public ModelBuilderBase<FloatType, ScalarType>
         for (int i = 0; i < n_element; i++)
         {
           model_vs_element_[i] = 755;
-          model_delta_element_[i] = 0.2;
-          model_epsilon_element_[i] = 0.3;
-          model_gamma_element_[i] = 0.08;
-          model_theta_element_[i] = 30;
-          model_phi_element_[i] = 45;
+          model_delta_element_[i] = 0.0;
+          model_epsilon_element_[i] = 0.0;
+          model_gamma_element_[i] = 0.0;
+          model_theta_element_[i] = 0.0;
+          model_phi_element_[i] = 0.0;
         }
       }
     }
@@ -364,4 +403,4 @@ class CartesianUnstructBuilder : public ModelBuilderBase<FloatType, ScalarType>
 };
 
 }  // namespace model
-#endif  // SRC_MODEL_CARTESIANMESH_INCLUDE_CARTESIAN_UNSTRUCT_MESH_H_
+#endif  // FUNTIDES_MODEL_MESH_IMPL_BUILDER_CARTESIAN_INCLUDE_CARTESIAN_UNSTRUCT_BUILDER_H_

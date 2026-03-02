@@ -1,4 +1,5 @@
 #include <benchmark/benchmark.h>
+#include <stdint.h>
 
 #include <array>
 #include <memory>
@@ -8,9 +9,14 @@
 #include "cartesian_struct_builder.h"
 #include "data_type.h"
 #include "model.h"
-#include "sem_solver_acoustic.h"
+#include "rhs_acoustic.h"
+#include "sem_solver.h"
 #include "solver_factory.h"
 #include "utils.h"
+#include "wavefield_acoustic.h"
+
+using namespace solver::fe;
+using namespace solver::fe::enums;
 
 namespace model
 {
@@ -30,6 +36,12 @@ template <typename T>
 class SolverStructFixture : public benchmark::Fixture
 {
  protected:
+  // domain decomposition
+  static constexpr int rank = 0;
+  static constexpr int size = 1;
+  static constexpr float origin = 0.0f;
+  float local_l = 2000.0f;
+
   // model
   static constexpr int ex = 100;
   static constexpr int ey = 100;
@@ -52,12 +64,13 @@ class SolverStructFixture : public benchmark::Fixture
   static constexpr int time_sample = 1;
   static constexpr int n_time_steps = 1500;
   static constexpr float f0 = 5.0f;
-  SolverFactory::implemType implem_;
+  implemType implem_;
 
   void SetUp(const ::benchmark::State& state) override
   {
     isModelOnNodes_ = state.range(0);
-    implem_ = static_cast<SolverFactory::implemType>(state.range(1));
+    implem_ = static_cast<implemType>(state.range(1));
+    local_l = domain_size;
   }
 
   std::shared_ptr<model::ModelApi<float, int>> createModel()
@@ -66,16 +79,16 @@ class SolverStructFixture : public benchmark::Fixture
     float hy = domain_size / ey;
     float hz = domain_size / ez;
 
+    // Note: Builder defaults origins to 0.0, which matches our serial setup
     typename T::Builder builder(ex, hx, ey, hy, ez, hz, isModelOnNodes_, false);
     return builder.getModel();
   }
 
   void setLabel(benchmark::State& state) const
   {
-    state.SetLabel("Order=" + std::to_string(order) +
-                   " OnNodes=" + std::to_string(isModelOnNodes_) +
-                   " Implem=" + std::to_string(implem_) +
-                   " IsElastic=" + std::to_string(false));
+    state.SetLabel("Order=" + to_string(order) +
+                   " OnNodes=" + to_string(isModelOnNodes_) + " Implem=" +
+                   to_string(implem_) + " IsElastic=" + std::to_string(false));
   }
 };
 
@@ -85,7 +98,8 @@ struct BenchmarkArrays
   arrayReal rhsTerm;
   vectorInt rhsElement;
   arrayReal rhsWeights;
-  arrayReal pnGlobal;
+  vectorReal pnGlobalPrev;
+  vectorReal pnGlobalCurr;
   arrayReal rhsLocation;
 
   BenchmarkArrays(int n_rhs, int n_time_steps, int n_dof,
@@ -95,7 +109,8 @@ struct BenchmarkArrays
     rhsElement = allocateVector<vectorInt>(n_rhs, "rhsElement");
     rhsWeights =
         allocateArray2D<arrayReal>(n_rhs, nb_points_per_element, "rhsWeights");
-    pnGlobal = allocateArray2D<arrayReal>(n_dof, 2, "pnGlobal");
+    pnGlobalPrev = allocateVector<vectorReal>(n_dof, "pnGlobalPrev");
+    pnGlobalCurr = allocateVector<vectorReal>(n_dof, "pnGlobalCurr");
     rhsLocation = allocateArray2D<arrayReal>(1, 3, "rhsLocation");
 
     FENCE
@@ -108,12 +123,11 @@ BENCHMARK_TEMPLATE_METHOD_F(SolverStructFixture, FEInit)
   // Prepare
   auto model = this->createModel();
 
-  auto solver = SolverFactory::createSolver(
-      SolverFactory::methodType::SEM, this->implem_,
-      SolverFactory::meshType::Struct,
-      this->isModelOnNodes_ ? SolverFactory::modelLocationType::OnNodes
-                            : SolverFactory::modelLocationType::OnElements,
-      SolverFactory::physicType::Acoustic, this->order);
+  auto solver = solver_factory::createSolver(
+      methodType::kSem, this->implem_, meshType::kStruct,
+      this->isModelOnNodes_ ? modelLocationType::kOnNodes
+                            : modelLocationType::kOnElements,
+      physicType::kAcoustic, this->order);
 
   // Bench
   for (auto _ : state)
@@ -132,12 +146,11 @@ BENCHMARK_TEMPLATE_METHOD_F(SolverStructFixture, OneStep)
   // Prepare
   auto model = this->createModel();
 
-  auto solver = SolverFactory::createSolver(
-      SolverFactory::methodType::SEM, this->implem_,
-      SolverFactory::meshType::Struct,
-      this->isModelOnNodes_ ? SolverFactory::modelLocationType::OnNodes
-                            : SolverFactory::modelLocationType::OnElements,
-      SolverFactory::physicType::Acoustic, this->order);
+  auto solver = solver_factory::createSolver(
+      methodType::kSem, this->implem_, meshType::kStruct,
+      this->isModelOnNodes_ ? modelLocationType::kOnNodes
+                            : modelLocationType::kOnElements,
+      physicType::kAcoustic, this->order);
 
   solver->computeFEInit(*model, this->sponge_size, this->surface_sponge,
                         this->taper_delta);
@@ -159,13 +172,15 @@ BENCHMARK_TEMPLATE_METHOD_F(SolverStructFixture, OneStep)
     arrays.rhsTerm(0, j) = sourceTerm[j];
   }
 
-  SEMsolverDataAcoustic data(0, 1, arrays.rhsTerm, arrays.pnGlobal,
-                             arrays.rhsElement, arrays.rhsWeights);
+  auto wavefield = WavefieldAcoustic(arrays.pnGlobalPrev, arrays.pnGlobalCurr);
+  auto rhs = RhsAcoustic(arrays.rhsTerm, arrays.rhsElement, arrays.rhsWeights);
+  SEMsolverDataAcoustic data(wavefield, rhs);
 
   // Bench
   for (auto _ : state)
   {
-    solver->computeOneStep(this->dt, this->time_sample, data);
+    solver->computeForces(this->dt, this->time_sample, data);
+    solver->updateSolution(this->dt, data);
   }
 
   // Label
@@ -173,18 +188,16 @@ BENCHMARK_TEMPLATE_METHOD_F(SolverStructFixture, OneStep)
 }
 
 // Instantiate for all order/isModelOnNodes/implemType combinations
-BENCHMARK_FOR_ALL_ORDERS(SolverStructFixture, FEInit,
-                         BuilderConfig,
-                             ->ArgsProduct({{0, 1},
-                                            {SolverFactory::implemType::MAKUTU,
-                                             SolverFactory::implemType::SHIVA}})
-                             ->Unit(benchmark::kMillisecond))
-BENCHMARK_FOR_ALL_ORDERS(SolverStructFixture, OneStep,
-                         BuilderConfig,
-                             ->ArgsProduct({{0, 1},
-                                            {SolverFactory::implemType::MAKUTU,
-                                             SolverFactory::implemType::SHIVA}})
-                             ->Unit(benchmark::kMillisecond))
+BENCHMARK_FOR_ALL_ORDERS(
+    SolverStructFixture, FEInit,
+    BuilderConfig,
+        ->ArgsProduct({{0, 1}, {static_cast<int64_t>(implemType::kMakutu)}})
+        ->Unit(benchmark::kMillisecond))
+BENCHMARK_FOR_ALL_ORDERS(
+    SolverStructFixture, OneStep,
+    BuilderConfig,
+        ->ArgsProduct({{0, 1}, {static_cast<int64_t>(implemType::kMakutu)}})
+        ->Unit(benchmark::kMillisecond))
 
 }  // namespace bench
 }  // namespace model

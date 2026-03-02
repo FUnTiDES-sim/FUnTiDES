@@ -1,0 +1,57 @@
+#ifndef FUNTIDES_SOLVER_FE_PYWRAP_INCLUDE_BINDINGS_RHS_H_
+#define FUNTIDES_SOLVER_FE_PYWRAP_INCLUDE_BINDINGS_RHS_H_
+#include <pybind11/numpy.h>
+#include <pybind11/pybind11.h>
+#include <pybind11/stl.h>
+
+#include <KokkosExp_InterOp.hpp>
+
+#include "common_macros.h"
+#include "data_type.h"
+#include "rhs.h"
+#include "rhs_acoustic.h"
+#include "rhs_elastic.h"
+
+namespace py = pybind11;
+
+namespace solver
+{
+namespace fe
+{
+
+void bind_rhs_base(py::module_ &m)
+{
+  // Bind Rhs (base class)
+  py::class_<Rhs, std::shared_ptr<Rhs>>(m, "Rhs").def("print", &Rhs::print);
+}
+
+void bind_rhs_acoustic(py::module_ &m)
+{
+  // Bind RhsAcoustic (inherits from Rhs)
+  py::class_<RhsAcoustic, Rhs, std::shared_ptr<RhsAcoustic>>(m, "RhsAcoustic")
+      .def(
+          py::init<Kokkos::Experimental::python_view_type_t<ARRAY_REAL_VIEW>,
+                   Kokkos::Experimental::python_view_type_t<VECTOR_INT_VIEW>,
+                   Kokkos::Experimental::python_view_type_t<ARRAY_REAL_VIEW>>(),
+          py::arg("term"), py::arg("element"), py::arg("weights"))
+      .def("print", &RhsAcoustic::print);
+}
+
+void bind_rhs_elastic(py::module_ &m)
+{
+  // Bind RhsElastic (inherits from Rhs)
+  py::class_<RhsElastic, Rhs, std::shared_ptr<RhsElastic>>(m, "RhsElastic")
+      .def(
+          py::init<Kokkos::Experimental::python_view_type_t<ARRAY_REAL_VIEW>,
+                   Kokkos::Experimental::python_view_type_t<ARRAY_REAL_VIEW>,
+                   Kokkos::Experimental::python_view_type_t<ARRAY_REAL_VIEW>,
+                   Kokkos::Experimental::python_view_type_t<VECTOR_INT_VIEW>,
+                   Kokkos::Experimental::python_view_type_t<ARRAY_REAL_VIEW>>(),
+          py::arg("termx"), py::arg("termy"), py::arg("termz"),
+          py::arg("element"), py::arg("weights"))
+      .def("print", &RhsElastic::print);
+}
+
+}  // namespace fe
+}  // namespace solver
+#endif  // FUNTIDES_SOLVER_FE_PYWRAP_INCLUDE_BINDINGS_RHS_H_

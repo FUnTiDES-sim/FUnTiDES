@@ -1,3 +1,6 @@
+#ifndef FUNTIDES_SOLVER_FD_INCLUDE_FD_SOLVER_H_
+#define FUNTIDES_SOLVER_FD_INCLUDE_FD_SOLVER_H_
+
 //************************************************************************
 //   proxy application v.0.0.1
 //
@@ -38,12 +41,14 @@ class FdtdSolver
         m_kernels(kernels),
         m_abckernels(abckernels),
         m_stencils(stencils),
-        m_source_receivers(source_receivers){};
+        m_source_receivers(source_receivers)
+  {
+  }
 
   /**
    * @brief Destructor of the SEMproxy class
    */
-  ~FdtdSolver(){};
+  ~FdtdSolver() {}
 
   // compute one step with sponge boundary
   void compute_one_stepSB(int itime, int i1, int i2);
@@ -60,3 +65,5 @@ class FdtdSolver
 };
 
 #endif /* FDTD_SOLVER_HPP_ */
+
+#endif  // FUNTIDES_SOLVER_FD_INCLUDE_FD_SOLVER_H_

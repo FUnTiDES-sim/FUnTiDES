@@ -62,19 +62,45 @@ Benchmarks only, results will be stored in results generated in `build/Benchmark
 ctest -L benchmark
 ```
 
-Or just both
+Validation tests (compare against analytical solutions)
+```sh
+# All 24 tests (2 mesh types × 3 orders × 2 physics × 2 model-on-nodes)
+make validate
+
+# Quick validation (12 tests, without model-on-nodes)
+make validate_no_model_on_nodes
+
+# Specific groups
+make validate_acoustic      # Acoustic tests only
+make validate_cartesian     # Cartesian mesh tests only
+
+# Fine-grained filtering
+ctest -L validation_acoustic        # Acoustic tests
+ctest -L order2                     # Order 2 tests
+ctest -L mesh_ucartesian            # Ucartesian mesh tests
+ctest -R acoustic_order2_cartesian  # Specific test
+```
+
+Or just all tests
 ```sh
 ctest
 ```
 
-### Step 3: Run Examples
+> **Note**: Validation tests require analytical reference solutions in `tests/analyticalsolution/` (P.dat for acoustic, Ux.dat for elastic).
+            You also need to install adios2 python module to run the validation tests as it runs a python script for receiver output.
+
+### Step 3: Run Examples inside folder build/bin
+
 
 ```sh
 # Run SEM simulation with 100 x 100 x 100 elements
-./src/main/semproxy -ex 100
+./funtidessem -ex 100 -ey 100 -ez 100
 
 # Run FD simulation
-./src/main/fdproxy
+./funtidesfd
+
+# Run validation with custom parameters
+./validate_solution --order 2 --mesh ucartesian --elastic --is-model-on-nodes
 ```
 
 ---
@@ -89,7 +115,6 @@ The following options can be used to configure your build:
 | `COMPILE_SEM`          | Enable compilation of the SEM proxy (default: ON)                           |
 | `ENABLE_CUDA`          | Enable CUDA backend (used by Kokkos)                                        |
 | `ENABLE_PYWRAP`        | Enable Python bindings via pybind11 (experimental)                          |
-| `ENABLE_Shiva`         | Enable Shiva discretization lib (default: ON)                               |
 | `USE_KOKKOS`           | Enable Kokkos support (serial by default, CUDA/OpenMP with flags)           |
 | `USE_VECTOR`           | Use `std::vector` for data arrays (enabled by default unless Kokkos is used)|
 

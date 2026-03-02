@@ -1,1 +1,3 @@
-add_subdirectory(cpp)
+if(NOT ENABLE_CUDA)
+  add_subdirectory(cpp)
+endif()

@@ -10,7 +10,7 @@ endif()
 
 
 # Collect all sources
-set(DIRS "${CMAKE_SOURCE_DIR}/src" "${CMAKE_SOURCE_DIR}/test")
+set(DIRS "${CMAKE_SOURCE_DIR}/src" "${CMAKE_SOURCE_DIR}/tests")
 set(EXTS cpp hpp cxx hxx cc c h hh)
 
 set(GLOBS "")
@@ -23,8 +23,7 @@ endforeach()
 
 file(GLOB_RECURSE ALL_SOURCE_FILES ${GLOBS})
 
-# Example: filter out files whose path contains "Shiva" or "SEMKernels"
-list(FILTER ALL_SOURCE_FILES EXCLUDE REGEX "Shiva")
+# Example: filter out files whose path contains "SEMKernels"
 list(FILTER ALL_SOURCE_FILES EXCLUDE REGEX "SEMKernels")
 
 # Make the format target

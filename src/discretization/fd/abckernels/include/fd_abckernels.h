@@ -1,6 +1,5 @@
-#ifndef FDTD_PML_HPP
-#define FDTD_PML_HPP
-
+#ifndef FUNTIDES_DISCRETIZATION_FD_ABCKERNELS_INCLUDE_FD_ABCKERNELS_H_
+#define FUNTIDES_DISCRETIZATION_FD_ABCKERNELS_INCLUDE_FD_ABCKERNELS_H_
 #include "data_type.h"
 #include "fd_macros.h"
 
@@ -233,4 +232,4 @@ struct FdtdAbcKernels
 
 }  // namespace abckernel
 }  // namespace fdtd
-#endif  // FDTD_PML_HPP
+#endif  // FUNTIDES_DISCRETIZATION_FD_ABCKERNELS_INCLUDE_FD_ABCKERNELS_H_

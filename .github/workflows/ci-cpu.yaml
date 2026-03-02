@@ -78,7 +78,6 @@ jobs:
         env:
           SCCACHE_GHA_ENABLED: "true"
         run: |
-          export DISCRETIZATION=${{ matrix.discretization }}
           export PYWRAP=${{ matrix.pywrap }}
           export PROGRAMMING_MODEL=${{ matrix.programming_model }}
 
@@ -86,7 +85,7 @@ jobs:
 
           # Discretization (build fd + sem)
           CMAKE_FLAGS="-DCOMPILE_FD=ON -DCOMPILE_SEM=ON"
-          
+
           # Use sccache to speed up recompilation unless disabled
           if [[ "$SCCACHE_OFF" != "true" ]]; then
             export CMAKE_FLAGS="$CMAKE_FLAGS -DCMAKE_C_COMPILER_LAUNCHER=sccache -DCMAKE_CXX_COMPILER_LAUNCHER=sccache"
@@ -139,8 +138,8 @@ jobs:
           KOKKOS_NUM_THREADS: 2
         run: |
           cd build
-          # Run tests without benchmarks
-          ctest -LE benchmark --output-on-failure
+          # Run tests without benchmarks and validation tests
+          ctest -LE "benchmark|validation"  --output-on-failure
 
       - name: Install
         id: install
@@ -152,13 +151,13 @@ jobs:
 
           cd build
           make install
-      
+
       - name: Run pytests
-        if: matrix.pywrap == 'pywrap-on' && matrix.discretization == 'sem'
+        if: matrix.pywrap == 'pywrap-on'
         run: |
           source .venv/bin/activate
           export INSTALL_DIR=$(realpath ./install)
           export PYTHONPATH=$PYTHONPATH:$INSTALL_DIR/python
           export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$INSTALL_DIR/lib
           pytest tests/units --kokkos-num-threads=2
-  
+

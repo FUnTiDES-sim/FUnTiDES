@@ -12,10 +12,8 @@
 // Copyright (c) 2025
 // License: [Specify license here]
 //************************************************************************
-
-#ifndef SRC_MAIN_FD_INCLUDE_FDTD_PROXY_HPP_
-#define SRC_MAIN_FD_INCLUDE_FDTD_PROXY_HPP_
-
+#ifndef FUNTIDES_MAIN_FD_INCLUDE_FD_PROXY_H_
+#define FUNTIDES_MAIN_FD_INCLUDE_FD_PROXY_H_
 #include <chrono>
 #include <memory>
 
@@ -189,4 +187,4 @@ class FdtdProxy
 };
 
 }  // namespace fdtd
-#endif  // SRC_MAIN_FD_INCLUDE_FDTD_PROXY_HPP_
+#endif  // FUNTIDES_MAIN_FD_INCLUDE_FD_PROXY_H_

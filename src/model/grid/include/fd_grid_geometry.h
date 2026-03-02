@@ -2,9 +2,8 @@
  * @file fdtd_grid_geometry.h
  * @brief Grid geometry and indexing utilities
  */
-#ifndef SRC_MODEL_GRID_INCLUDE_FDTD_GRID_GEOMETRY_H_
-#define SRC_MODEL_GRID_INCLUDE_FDTD_GRID_GEOMETRY_H_
-
+#ifndef FUNTIDES_MODEL_GRID_INCLUDE_FD_GRID_GEOMETRY_H_
+#define FUNTIDES_MODEL_GRID_INCLUDE_FD_GRID_GEOMETRY_H_
 #include <fd_options.h>
 
 #include <cstddef>
@@ -117,5 +116,4 @@ class GridGeometry
 
 }  // namespace fdgrid
 }  // namespace model
-
-#endif  // SRC_MODEL_GRID_INCLUDE_FDTD_GRID_GEOMETRY_H_
+#endif  // FUNTIDES_MODEL_GRID_INCLUDE_FD_GRID_GEOMETRY_H_

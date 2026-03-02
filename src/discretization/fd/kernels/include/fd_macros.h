@@ -1,6 +1,5 @@
-#ifndef FDTD_MACROS_H
-#define FDTD_MACROS_H
-
+#ifndef FUNTIDES_DISCRETIZATION_FD_KERNELS_INCLUDE_FD_MACROS_H_
+#define FUNTIDES_DISCRETIZATION_FD_KERNELS_INCLUDE_FD_MACROS_H_
 #define POW2(x) ((x) * (x))
 #define IDX3(i, j, k) (nz * ny * (i) + nz * (j) + (k))
 #define IDX3_l(i, j, k)                                                      \
@@ -53,5 +52,4 @@
 #else
 #define FDFENCE
 #endif
-
-#endif  // FDTD_MACROS_H
+#endif  // FUNTIDES_DISCRETIZATION_FD_KERNELS_INCLUDE_FD_MACROS_H_

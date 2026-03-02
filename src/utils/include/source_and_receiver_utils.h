@@ -1,6 +1,5 @@
-#ifndef SOURCEANDRECEIVERUTILS_HPP
-#define SOURCEANDRECEIVERUTILS_HPP
-
+#ifndef FUNTIDES_UTILS_INCLUDE_SOURCE_AND_RECEIVER_UTILS_H_
+#define FUNTIDES_UTILS_INCLUDE_SOURCE_AND_RECEIVER_UTILS_H_
 #include <array>
 
 #include "data_type.h"
@@ -44,5 +43,4 @@ void ComputeRHSWeights(real_t const (&cornerCoords)[8][3],
 }
 
 }  // namespace SourceAndReceiverUtils
-
-#endif  // SOURCEANDRECEIVERUTILS_HPP
+#endif  // FUNTIDES_UTILS_INCLUDE_SOURCE_AND_RECEIVER_UTILS_H_

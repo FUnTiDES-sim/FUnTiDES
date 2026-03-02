@@ -1,6 +1,7 @@
 #include <benchmark/benchmark.h>
 
 #include <array>
+#include <cstdint>
 #include <memory>
 
 #include "bench_macros.h"
@@ -8,9 +9,14 @@
 #include "cartesian_struct_builder.h"
 #include "data_type.h"
 #include "model.h"
-#include "sem_solver_elastic.h"
+#include "rhs_elastic.h"
+#include "sem_solver.h"
 #include "solver_factory.h"
 #include "utils.h"
+#include "wavefield_elastic.h"
+
+using namespace solver::fe;
+using namespace solver::fe::enums;
 
 namespace model
 {
@@ -30,6 +36,12 @@ template <typename T>
 class SolverStructFixture : public benchmark::Fixture
 {
  protected:
+  // domain decomposition (Mock Serial)
+  static constexpr int rank = 0;
+  static constexpr int size = 1;
+  static constexpr float origin = 0.0f;
+  float local_l = 2000.0f;
+
   // model
   static constexpr int ex = 100;
   static constexpr int ey = 100;
@@ -52,12 +64,13 @@ class SolverStructFixture : public benchmark::Fixture
   static constexpr int time_sample = 1;
   static constexpr int n_time_steps = 1500;
   static constexpr float f0 = 5.0f;
-  SolverFactory::implemType implem_;
+  implemType implem_;
 
   void SetUp(const ::benchmark::State& state) override
   {
     isModelOnNodes_ = state.range(0);
-    implem_ = static_cast<SolverFactory::implemType>(state.range(1));
+    implem_ = static_cast<implemType>(state.range(1));
+    local_l = domain_size;
   }
 
   std::shared_ptr<model::ModelApi<float, int>> createModel()
@@ -66,16 +79,16 @@ class SolverStructFixture : public benchmark::Fixture
     float hy = domain_size / ey;
     float hz = domain_size / ez;
 
+    // Origins default to 0.0 in constructor, which is correct for serial mock
     typename T::Builder builder(ex, hx, ey, hy, ez, hz, isModelOnNodes_, true);
     return builder.getModel();
   }
 
   void setLabel(benchmark::State& state) const
   {
-    state.SetLabel("Order=" + std::to_string(order) +
-                   " OnNodes=" + std::to_string(isModelOnNodes_) +
-                   " Implem=" + std::to_string(implem_) +
-                   " IsElastic=" + std::to_string(true));
+    state.SetLabel(
+        "Order=" + to_string(order) + " OnNodes=" + to_string(isModelOnNodes_) +
+        " Implem=" + to_string(implem_) + " IsElastic=" + std::to_string(true));
   }
 };
 
@@ -87,9 +100,12 @@ struct BenchmarkArrays
   arrayReal rhsTermz;
   vectorInt rhsElement;
   arrayReal rhsWeights;
-  arrayReal uxnGlobal;
-  arrayReal uynGlobal;
-  arrayReal uznGlobal;
+  vectorReal uxnGlobalPrev;
+  vectorReal uynGlobalPrev;
+  vectorReal uznGlobalPrev;
+  vectorReal uxnGlobalCurr;
+  vectorReal uynGlobalCurr;
+  vectorReal uznGlobalCurr;
   arrayReal rhsLocation;
 
   BenchmarkArrays(int n_rhs, int n_time_steps, int n_dof,
@@ -101,9 +117,12 @@ struct BenchmarkArrays
     rhsElement = allocateVector<vectorInt>(n_rhs, "rhsElement");
     rhsWeights =
         allocateArray2D<arrayReal>(n_rhs, nb_points_per_element, "rhsWeights");
-    uxnGlobal = allocateArray2D<arrayReal>(n_dof, 2, "uxnGlobal");
-    uynGlobal = allocateArray2D<arrayReal>(n_dof, 2, "uynGlobal");
-    uznGlobal = allocateArray2D<arrayReal>(n_dof, 2, "uznGlobal");
+    uxnGlobalPrev = allocateVector<vectorReal>(n_dof, "uxnGlobalPrev");
+    uynGlobalPrev = allocateVector<vectorReal>(n_dof, "uynGlobalPrev");
+    uznGlobalPrev = allocateVector<vectorReal>(n_dof, "uznGlobalPrev");
+    uxnGlobalCurr = allocateVector<vectorReal>(n_dof, "uxnGlobalCurr");
+    uynGlobalCurr = allocateVector<vectorReal>(n_dof, "uynGlobalCurr");
+    uznGlobalCurr = allocateVector<vectorReal>(n_dof, "uznGlobalCurr");
     rhsLocation = allocateArray2D<arrayReal>(1, 3, "rhsLocation");
 
     FENCE
@@ -116,12 +135,11 @@ BENCHMARK_TEMPLATE_METHOD_F(SolverStructFixture, FEInit)
   // Prepare
   auto model = this->createModel();
 
-  auto solver = SolverFactory::createSolver(
-      SolverFactory::methodType::SEM, this->implem_,
-      SolverFactory::meshType::Struct,
-      this->isModelOnNodes_ ? SolverFactory::modelLocationType::OnNodes
-                            : SolverFactory::modelLocationType::OnElements,
-      SolverFactory::physicType::Elastic, this->order);
+  auto solver = solver_factory::createSolver(
+      methodType::kSem, this->implem_, meshType::kStruct,
+      this->isModelOnNodes_ ? modelLocationType::kOnNodes
+                            : modelLocationType::kOnElements,
+      physicType::kElastic, this->order);
 
   // Bench
   for (auto _ : state)
@@ -140,12 +158,11 @@ BENCHMARK_TEMPLATE_METHOD_F(SolverStructFixture, OneStep)
   // Prepare
   auto model = this->createModel();
 
-  auto solver = SolverFactory::createSolver(
-      SolverFactory::methodType::SEM, this->implem_,
-      SolverFactory::meshType::Struct,
-      this->isModelOnNodes_ ? SolverFactory::modelLocationType::OnNodes
-                            : SolverFactory::modelLocationType::OnElements,
-      SolverFactory::physicType::Elastic, this->order);
+  auto solver = solver_factory::createSolver(
+      methodType::kSem, this->implem_, meshType::kStruct,
+      this->isModelOnNodes_ ? modelLocationType::kOnNodes
+                            : modelLocationType::kOnElements,
+      physicType::kElastic, this->order);
 
   solver->computeFEInit(*model, this->sponge_size, this->surface_sponge,
                         this->taper_delta);
@@ -169,14 +186,18 @@ BENCHMARK_TEMPLATE_METHOD_F(SolverStructFixture, OneStep)
     arrays.rhsTermz(0, j) = sourceTerm[j];
   }
 
-  SEMsolverDataElastic data(
-      0, 1, arrays.rhsTermx, arrays.rhsTermy, arrays.rhsTermz, arrays.uxnGlobal,
-      arrays.uynGlobal, arrays.uznGlobal, arrays.rhsElement, arrays.rhsWeights);
+  auto wavefield = WavefieldElastic(arrays.uxnGlobalPrev, arrays.uynGlobalPrev,
+                                    arrays.uznGlobalPrev, arrays.uxnGlobalCurr,
+                                    arrays.uynGlobalCurr, arrays.uznGlobalCurr);
+  auto rhs = RhsElastic(arrays.rhsTermx, arrays.rhsTermy, arrays.rhsTermz,
+                        arrays.rhsElement, arrays.rhsWeights);
+  SEMsolverDataElastic data(wavefield, rhs);
 
   // Bench
   for (auto _ : state)
   {
-    solver->computeOneStep(this->dt, this->time_sample, data);
+    solver->computeForces(this->dt, this->time_sample, data);
+    solver->updateSolution(this->dt, data);
   }
 
   // Label
@@ -184,16 +205,15 @@ BENCHMARK_TEMPLATE_METHOD_F(SolverStructFixture, OneStep)
 }
 
 // Instantiate for all order/isModelOnNodes/implemType combinations
-// TODO add SolverFactory::implemType::SHIVA when reactivated in compilation
 BENCHMARK_FOR_ALL_ORDERS(
     SolverStructFixture, FEInit,
     BuilderConfig,
-        ->ArgsProduct({{0, 1}, {SolverFactory::implemType::MAKUTU}})
+        ->ArgsProduct({{0, 1}, {static_cast<int64_t>(implemType::kMakutu)}})
         ->Unit(benchmark::kMillisecond))
 BENCHMARK_FOR_ALL_ORDERS(
     SolverStructFixture, OneStep,
     BuilderConfig,
-        ->ArgsProduct({{0, 1}, {SolverFactory::implemType::MAKUTU}})
+        ->ArgsProduct({{0, 1}, {static_cast<int64_t>(implemType::kMakutu)}})
         ->Unit(benchmark::kMillisecond))
 
 }  // namespace bench
