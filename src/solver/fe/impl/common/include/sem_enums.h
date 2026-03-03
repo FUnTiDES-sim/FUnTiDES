@@ -31,7 +31,8 @@ enum class modelLocationType
 enum class physicType : int
 {
   kAcoustic,
-  kElastic
+  kElastic,
+  kAcoustoElastic
 };
 
 inline std::string to_string(methodType m)
@@ -92,6 +93,8 @@ inline std::string to_string(physicType p)
       return "Acoustic";
     case physicType::kElastic:
       return "Elastic";
+    case physicType::kAcoustoElastic:
+      return "AcoustoElastic";
     default:
       return "Unknown";
   }

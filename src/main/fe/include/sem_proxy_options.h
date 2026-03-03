@@ -25,7 +25,7 @@ class SemProxyOptions
   bool autodt = false;
   // snapshots
   bool snapshots = false;
-  int snap_time_interval = 10;
+  int snap_time_interval = 20;
   // sponge boundaries parameters
   float boundaries_size = 0;
   bool surface_sponge = false;
@@ -33,6 +33,8 @@ class SemProxyOptions
   // Boolean to tell if the model is charged on nodes or on element
   bool isModelOnNodes = false;
   bool isElastic = false;
+  bool isAcoustoElastic = false;
+  float acoustoElasticBoundaryZ = 0.f;
   bool free_surface = false;
 
   void validate() const
@@ -84,6 +86,11 @@ class SemProxyOptions
         "(false)",
         cxxopts::value<bool>(o.isModelOnNodes))(
         "is-elastic", "Elastic simulation", cxxopts::value<bool>(o.isElastic))(
+        "is-acousto-elastic", "Acousto-elastic coupled simulation",
+        cxxopts::value<bool>(o.isAcoustoElastic))(
+        "acousto-elastic-boundary-z",
+        "Z coordinate of the fluid–solid interface (meters)",
+        cxxopts::value<float>(o.acoustoElasticBoundaryZ))(
         "free-surface",
         "Enable free surface on top boundary (Z+). Default: true",
         cxxopts::value<bool>(o.free_surface))(

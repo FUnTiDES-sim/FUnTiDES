@@ -25,6 +25,8 @@ class CartesianUnstructBuilder : public ModelBuilderBase<FloatType, ScalarType>
         order_(p.order),
         isModelOnNodes_(p.isModelOnNodes),
         isElastic_(p.isElastic),
+        isAcoustoElastic_(p.isAcoustoElastic),
+        acoustoElasticBoundaryZ_(p.acoustoElasticBoundaryZ),
         ox_(p.origin_x),
         oy_(p.origin_y),
         oz_(p.origin_z),
@@ -126,6 +128,8 @@ class CartesianUnstructBuilder : public ModelBuilderBase<FloatType, ScalarType>
   int order_;
   bool isModelOnNodes_;
   bool isElastic_;
+  bool isAcoustoElastic_{false};
+  FloatType acoustoElasticBoundaryZ_{static_cast<FloatType>(0)};
 
   ARRAY_INT_VIEW global_node_index_;
   VECTOR_REAL_VIEW nodes_coords_x_;
@@ -328,13 +332,10 @@ class CartesianUnstructBuilder : public ModelBuilderBase<FloatType, ScalarType>
       model_vp_node_ =
           allocateVector<VECTOR_REAL_VIEW>(n_node, "model vp node");
 
-      for (int i = 0; i < n_node; i++)
+      if (isAcoustoElastic_)
       {
-        model_rho_node_[i] = 1;
-        model_vp_node_[i] = 1500;
-      }
-      if (isElastic_)
-      {
+        // Bicouche: fluid layer (z >= boundary) + solid layer (z < boundary).
+        // vs is used by the coupled solver to classify elements: vs=0 → fluid.
         model_vs_node_ =
             allocateVector<VECTOR_REAL_VIEW>(n_node, "model vs node");
         model_delta_node_ =
@@ -348,14 +349,54 @@ class CartesianUnstructBuilder : public ModelBuilderBase<FloatType, ScalarType>
         model_phi_node_ =
             allocateVector<VECTOR_REAL_VIEW>(n_node, "model phi node");
 
+        for (int n = 0; n < n_node; ++n)
+        {
+          FloatType z = nodes_coords_z_(n);
+          bool const is_fluid = (z >= acoustoElasticBoundaryZ_);
+          model_rho_node_[n] = is_fluid ? static_cast<FloatType>(1000)
+                                        : static_cast<FloatType>(2000);
+          model_vp_node_[n] = is_fluid ? static_cast<FloatType>(1500)
+                                       : static_cast<FloatType>(3000);
+          model_vs_node_[n] =
+              is_fluid ? static_cast<FloatType>(0) : static_cast<FloatType>(1500);
+          model_delta_node_[n] = 0;
+          model_epsilon_node_[n] = 0;
+          model_gamma_node_[n] = 0;
+          model_theta_node_[n] = 0;
+          model_phi_node_[n] = 0;
+        }
+      }
+      else
+      {
         for (int i = 0; i < n_node; i++)
         {
-          model_vs_node_[i] = 755;
-          model_delta_node_[i] = 0.0;
-          model_epsilon_node_[i] = 0.0;
-          model_gamma_node_[i] = 0.0;
-          model_theta_node_[i] = 0.0;
-          model_phi_node_[i] = 0.0;
+          model_rho_node_[i] = 1;
+          model_vp_node_[i] = 1500;
+        }
+        if (isElastic_)
+        {
+          model_vs_node_ =
+              allocateVector<VECTOR_REAL_VIEW>(n_node, "model vs node");
+          model_delta_node_ =
+              allocateVector<VECTOR_REAL_VIEW>(n_node, "model delta node");
+          model_gamma_node_ =
+              allocateVector<VECTOR_REAL_VIEW>(n_node, "model gamma node");
+          model_epsilon_node_ =
+              allocateVector<VECTOR_REAL_VIEW>(n_node, "model epsilon node");
+          model_theta_node_ =
+              allocateVector<VECTOR_REAL_VIEW>(n_node, "model theta node");
+          model_phi_node_ =
+              allocateVector<VECTOR_REAL_VIEW>(n_node, "model phi node");
+
+          for (int i = 0; i < n_node; i++)
+          {
+            model_vs_node_[i] = 755;
+            model_delta_node_[i] = 0.0;
+            model_epsilon_node_[i] = 0.0;
+            model_gamma_node_[i] = 0.0;
+            model_theta_node_[i] = 0.0;
+            model_phi_node_[i] = 0.0;
+          }
         }
       }
     }
@@ -367,14 +408,10 @@ class CartesianUnstructBuilder : public ModelBuilderBase<FloatType, ScalarType>
       model_vp_element_ =
           allocateVector<VECTOR_REAL_VIEW>(n_element, "model vp elem");
 
-      for (int i = 0; i < n_element; i++)
+      if (isAcoustoElastic_)
       {
-        model_rho_element_[i] = 1;
-        model_vp_element_[i] = 1500;
-      }
-
-      if (isElastic_)
-      {
+        // Bicouche: fluid layer (centroid z >= boundary) + solid layer (z < boundary).
+        // vs is used by the coupled solver to classify elements: vs=0 → fluid.
         model_vs_element_ =
             allocateVector<VECTOR_REAL_VIEW>(n_element, "model vs element");
         model_delta_element_ =
@@ -388,14 +425,63 @@ class CartesianUnstructBuilder : public ModelBuilderBase<FloatType, ScalarType>
         model_phi_element_ =
             allocateVector<VECTOR_REAL_VIEW>(n_element, "model phi element");
 
+        FloatType const hz = lz_ / ez_;
+        for (int k = 0; k < ez_; ++k)
+        {
+          FloatType const centroid_z = oz_ + (k + static_cast<FloatType>(0.5)) * hz;
+          bool const is_fluid = (centroid_z >= acoustoElasticBoundaryZ_);
+          for (int j = 0; j < ey_; ++j)
+          {
+            for (int i = 0; i < ex_; ++i)
+            {
+              int const e = i + j * ex_ + k * ex_ * ey_;
+              model_rho_element_[e] = is_fluid ? static_cast<FloatType>(1000)
+                                               : static_cast<FloatType>(2000);
+              model_vp_element_[e] = is_fluid ? static_cast<FloatType>(1500)
+                                              : static_cast<FloatType>(3000);
+              model_vs_element_[e] =
+                  is_fluid ? static_cast<FloatType>(0) : static_cast<FloatType>(1500);
+              model_delta_element_[e] = 0;
+              model_epsilon_element_[e] = 0;
+              model_gamma_element_[e] = 0;
+              model_theta_element_[e] = 0;
+              model_phi_element_[e] = 0;
+            }
+          }
+        }
+      }
+      else
+      {
         for (int i = 0; i < n_element; i++)
         {
-          model_vs_element_[i] = 755;
-          model_delta_element_[i] = 0.0;
-          model_epsilon_element_[i] = 0.0;
-          model_gamma_element_[i] = 0.0;
-          model_theta_element_[i] = 0.0;
-          model_phi_element_[i] = 0.0;
+          model_rho_element_[i] = 1;
+          model_vp_element_[i] = 1500;
+        }
+
+        if (isElastic_)
+        {
+          model_vs_element_ =
+              allocateVector<VECTOR_REAL_VIEW>(n_element, "model vs element");
+          model_delta_element_ = allocateVector<VECTOR_REAL_VIEW>(
+              n_element, "model delta element");
+          model_gamma_element_ = allocateVector<VECTOR_REAL_VIEW>(
+              n_element, "model gamma element");
+          model_epsilon_element_ = allocateVector<VECTOR_REAL_VIEW>(
+              n_element, "model epsilon element");
+          model_theta_element_ = allocateVector<VECTOR_REAL_VIEW>(
+              n_element, "model theta element");
+          model_phi_element_ =
+              allocateVector<VECTOR_REAL_VIEW>(n_element, "model phi element");
+
+          for (int i = 0; i < n_element; i++)
+          {
+            model_vs_element_[i] = 755;
+            model_delta_element_[i] = 0.0;
+            model_epsilon_element_[i] = 0.0;
+            model_gamma_element_[i] = 0.0;
+            model_theta_element_[i] = 0.0;
+            model_phi_element_[i] = 0.0;
+          }
         }
       }
     }

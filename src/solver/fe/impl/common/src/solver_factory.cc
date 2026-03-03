@@ -4,6 +4,7 @@
 #include <model_unstruct.h>
 
 #include "sem_solver.h"
+#include "sem_solver_acoustoelastic.h"
 
 namespace solver
 {
@@ -64,6 +65,21 @@ std::unique_ptr<Solver> makeSolverStruct(bool isModelOnNodes,
                                 feenum::physicType::kAcoustic>>();
     }
   }
+  else if (physic == feenum::physicType::kAcoustoElastic)
+  {
+    if (isModelOnNodes)
+    {
+      return std::make_unique<
+          solver::fe::SEMsolverAcoustoElastic<ORDER, SelectedIntegral, MeshT,
+                                              true>>();
+    }
+    else
+    {
+      return std::make_unique<
+          solver::fe::SEMsolverAcoustoElastic<ORDER, SelectedIntegral, MeshT,
+                                              false>>();
+    }
+  }
   else  // kElastic
   {
     if (isModelOnNodes)
@@ -104,6 +120,21 @@ std::unique_ptr<Solver> makeSolverUnstruct(bool isModelOnNodes,
       return std::make_unique<
           solver::fe::SEMsolver<ORDER, SelectedIntegral, MeshT, false,
                                 feenum::physicType::kAcoustic>>();
+    }
+  }
+  else if (physic == feenum::physicType::kAcoustoElastic)
+  {
+    if (isModelOnNodes)
+    {
+      return std::make_unique<
+          solver::fe::SEMsolverAcoustoElastic<ORDER, SelectedIntegral, MeshT,
+                                              true>>();
+    }
+    else
+    {
+      return std::make_unique<
+          solver::fe::SEMsolverAcoustoElastic<ORDER, SelectedIntegral, MeshT,
+                                              false>>();
     }
   }
   else  // kElastic

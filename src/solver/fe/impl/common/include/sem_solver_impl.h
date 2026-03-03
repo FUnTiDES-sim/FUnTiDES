@@ -824,6 +824,8 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES,
     // ===== ACOUSTIC VERSION =====
     LOOPHEAD(mesh_local.getNumberOfNodes(), I)
     {
+      // Skip nodes with zero mass (e.g. elastic-only nodes in a coupled solver).
+      if (massMatrixGlobal_[I] <= 0.0f) return;
       if (mesh_local.isFreeSurface(I))
       {
         // Force p = 0 on free surface
@@ -850,6 +852,8 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES,
     // ===== ELASTIC VERSION =====
     LOOPHEAD(mesh_local.getNumberOfNodes(), I)
     {
+      // Skip nodes with zero mass (e.g. acoustic-only nodes in a coupled solver).
+      if (massMatrixGlobal_[I] <= 0.0f) return;
       if (mesh_local.isFreeSurface(I))
       {
         // Free surface: no damping (dampingMatrixGlobal is 0 from
