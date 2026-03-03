@@ -220,7 +220,14 @@ def plot_3d_volume(data, timestep, output_file, cmap='seismic', vmin=None, vmax=
     print(f"Saved: {output_file}")
 
 
-def plot_2d_slices(data, timestep, output_file, cmap='seismic', vmin=None, vmax=None):
+def _compute_vmax(data, percentile=100):
+    """Return a symmetric vmax clipped at the given percentile of abs values."""
+    vmax = float(np.percentile(np.abs(data), percentile))
+    return vmax if vmax > 0 else 1.0
+
+
+def plot_2d_slices(data, timestep, output_file, cmap='seismic', vmin=None, vmax=None,
+                   percentile=100):
     """
     Create 2D slice views through the center of the domain.
 
@@ -235,14 +242,16 @@ def plot_2d_slices(data, timestep, output_file, cmap='seismic', vmin=None, vmax=
     cmap : str
         Colormap name
     vmin, vmax : float
-        Min/max values for colormap
+        Min/max values for colormap (overridden by percentile if not set)
+    percentile : int
+        Clip color scale at this percentile of abs values (default: 100 = true max)
     """
     nx, ny, nz = data.shape
 
-    if vmin is None:
-        vmin = data.min()
-    if vmax is None:
-        vmax = data.max()
+    if vmin is None or vmax is None:
+        _vmax = _compute_vmax(data, percentile)
+        vmin = -_vmax
+        vmax = _vmax
 
     # Get middle slices
     mid_x = nx // 2
@@ -299,6 +308,162 @@ def plot_2d_slices(data, timestep, output_file, cmap='seismic', vmin=None, vmax=
     plt.close()
 
     print(f"Saved: {output_file}")
+
+
+def plot_2d_slices_coupled(pn_data, uz_data, timestep, output_file, cmap='seismic',
+                           percentile=100):
+    """
+    Create side-by-side 2D slice views for the acousto-elastic coupled fields.
+
+    Top row: acoustic pressure p (Pa).
+    Bottom row: vertical elastic displacement uz (m).
+    Each row shows the XY, XZ, and YZ mid-plane slices.
+    Color scales are independent per field (symmetric around zero).
+
+    Parameters:
+    -----------
+    pn_data : numpy array (3D)
+        Acoustic pressure field.
+    uz_data : numpy array (3D)
+        Vertical elastic displacement field.
+    timestep : int
+        Simulation timestep number.
+    output_file : str
+        Output PNG filename.
+    cmap : str
+        Colormap name (default: seismic).
+    percentile : int
+        Clip color scale at this percentile of abs values (default: 100 = true max).
+    """
+    nx, ny, nz = pn_data.shape
+    mid_x, mid_y, mid_z = nx // 2, ny // 2, nz // 2
+
+    fig, axes = plt.subplots(2, 3, figsize=(18, 12))
+
+    def _add_row(row, data, label, unit):
+        vmax = _compute_vmax(data, percentile)
+        vmin = -vmax
+
+        slices = [
+            (data[:, :, mid_z], f'{label} XY Slice (Z={mid_z})', 'X', 'Y'),
+            (data[:, mid_y, :], f'{label} XZ Slice (Y={mid_y})', 'X', 'Z'),
+            (data[mid_x, :, :], f'{label} YZ Slice (X={mid_x})', 'Y', 'Z'),
+        ]
+        for col, (sl, title, xlabel, ylabel) in enumerate(slices):
+            im = axes[row, col].imshow(sl.T, origin='lower', cmap=cmap,
+                                       vmin=vmin, vmax=vmax)
+            axes[row, col].set_title(title)
+            axes[row, col].set_xlabel(xlabel)
+            axes[row, col].set_ylabel(ylabel)
+            plt.colorbar(im, ax=axes[row, col], label=unit)
+
+    _add_row(0, pn_data, 'Pressure p', 'Pa')
+    _add_row(1, uz_data, 'Displacement uz', 'm')
+
+    fig.suptitle(f'Acousto-Elastic Fields 2D Slices - Timestep {timestep}',
+                 fontsize=14, y=0.995)
+    plt.tight_layout()
+    plt.savefig(output_file, dpi=150, bbox_inches='tight')
+    plt.close()
+    print(f"Saved: {output_file}")
+
+
+def create_animation_coupled(pn_list, uz_list, timestep_list, output_file,
+                             cmap='seismic', percentile=100):
+    """
+    Create an animated GIF for acousto-elastic coupled fields.
+
+    Each frame shows a 2x3 grid: top row = pressure (Pa),
+    bottom row = vertical displacement uz (m).
+    Color scales are global (fixed across all frames) and independent per field.
+
+    Parameters:
+    -----------
+    pn_list : list of numpy arrays
+        Acoustic pressure field for each logical timestep.
+    uz_list : list of numpy arrays
+        Vertical elastic displacement field for each logical timestep.
+    timestep_list : list of int
+        Simulation timestep values.
+    output_file : str
+        Output GIF filename.
+    cmap : str
+        Colormap name (default: seismic).
+    percentile : int
+        Clip color scale at this percentile of abs values (default: 100 = true max).
+    """
+    try:
+        from matplotlib.animation import FuncAnimation, PillowWriter
+    except ImportError:
+        print("Error: Animation requires pillow. Install with: pip install pillow")
+        return
+
+    n_frames = len(pn_list)
+    print(f"Creating coupled animation with {n_frames} frames...")
+
+    # Global color ranges: percentile across all frames, fixed for consistency.
+    all_pn = np.concatenate([d.ravel() for d in pn_list])
+    all_uz = np.concatenate([d.ravel() for d in uz_list])
+    pn_vmax = _compute_vmax(all_pn, percentile)
+    uz_vmax = _compute_vmax(all_uz, percentile)
+
+    print(f"  Pressure range:     [{-pn_vmax:.4e}, {pn_vmax:.4e}] Pa")
+    print(f"  Displacement range: [{-uz_vmax:.4e}, {uz_vmax:.4e}] m")
+
+    nx, ny, nz = pn_list[0].shape
+    mid_x, mid_y, mid_z = nx // 2, ny // 2, nz // 2
+
+    fig, axes = plt.subplots(2, 3, figsize=(18, 12))
+    plt.tight_layout(rect=[0, 0, 1, 0.95])
+
+    # Initialize images for blitting.
+    def _slices(data, mid_x, mid_y, mid_z):
+        return [data[:, :, mid_z].T, data[:, mid_y, :].T, data[mid_x, :, :].T]
+
+    ims = []
+    for col, (sl, xlabel, ylabel, title_tpl) in enumerate([
+        (pn_list[0][:, :, mid_z].T, 'X', 'Y', '{label} XY (Z={mid_z})'),
+        (pn_list[0][:, mid_y, :].T, 'X', 'Z', '{label} XZ (Y={mid_y})'),
+        (pn_list[0][mid_x, :, :].T, 'Y', 'Z', '{label} YZ (X={mid_x})'),
+    ]):
+        for row, (vmax, label) in enumerate([(pn_vmax, 'p'), (uz_vmax, 'uz')]):
+            im = axes[row, col].imshow(sl, origin='lower', cmap=cmap,
+                                       vmin=-vmax, vmax=vmax,
+                                       animated=True)
+            axes[row, col].set_xlabel(xlabel)
+            axes[row, col].set_ylabel(ylabel)
+            plt.colorbar(im, ax=axes[row, col],
+                         label='Pa' if row == 0 else 'm')
+            ims.append(im)
+
+    title_obj = fig.suptitle('', fontsize=14)
+
+    def update(frame):
+        pn = pn_list[frame]
+        uz = uz_list[frame]
+        timestep = timestep_list[frame]
+
+        pn_slices = _slices(pn, mid_x, mid_y, mid_z)
+        uz_slices = _slices(uz, mid_x, mid_y, mid_z)
+
+        updated = []
+        idx = 0
+        for col in range(3):
+            ims[idx].set_data(pn_slices[col])
+            ims[idx + 1].set_data(uz_slices[col])
+            updated += [ims[idx], ims[idx + 1]]
+            idx += 2
+
+        title_obj.set_text(
+            f'Acousto-Elastic Fields - Timestep {timestep}')
+        updated.append(title_obj)
+        return updated
+
+    anim = FuncAnimation(fig, update, frames=n_frames, interval=200, blit=False)
+    writer = PillowWriter(fps=5)
+    anim.save(output_file, writer=writer)
+    plt.close()
+    print(f"Animation saved: {output_file}")
 
 
 def create_animation(data_list, timestep_list, output_file, mode='slice', cmap='seismic',
@@ -404,6 +569,12 @@ def main():
                         help='Create animation of all timesteps')
     parser.add_argument('--global-scale', action='store_true',
                         help='Use global min/max for all timesteps (default: per-timestep scale)')
+    parser.add_argument('--coupled', action='store_true',
+                        help='Acousto-elastic mode: ADIOS2 steps alternate pressure/uz; '
+                             'display both fields side by side (requires --slice)')
+    parser.add_argument('--percentile', type=int, default=100,
+                        help='Clip color scale at this percentile of abs values '
+                             '(default: 100 = true max; try 95 or 98 for more contrast)')
 
     args = parser.parse_args()
 
@@ -431,24 +602,43 @@ def main():
 
     # Create animation if requested (always uses global scale for consistency)
     if args.animate:
-        anim_file = os.path.join(args.output, 'pressure_animation.gif')
-        mode = 'slice' if args.slice else 'volume'
-        # Animation needs global scale for consistency
-        anim_vmin = min(d.min() for d in data_list)
-        anim_vmax = max(d.max() for d in data_list)
-        create_animation(data_list, timestep_list, anim_file, mode=mode, cmap=args.cmap,
-                        vmin=anim_vmin, vmax=anim_vmax)
+        if args.coupled:
+            pn_list = data_list[0::2]
+            uz_list = data_list[1::2]
+            ts_list = timestep_list[0::2]
+            anim_file = os.path.join(args.output, 'coupled_animation.gif')
+            create_animation_coupled(pn_list, uz_list, ts_list, anim_file,
+                                     cmap=args.cmap, percentile=args.percentile)
+        else:
+            anim_file = os.path.join(args.output, 'pressure_animation.gif')
+            mode = 'slice' if args.slice else 'volume'
+            anim_vmin = min(d.min() for d in data_list)
+            anim_vmax = max(d.max() for d in data_list)
+            create_animation(data_list, timestep_list, anim_file, mode=mode, cmap=args.cmap,
+                             vmin=anim_vmin, vmax=anim_vmax)
 
     # Create individual plots
     print(f"\nCreating plots in {args.output}/...")
 
-    for i, (data, timestep) in enumerate(zip(data_list, timestep_list)):
-        output_file = os.path.join(args.output, f'pressure_step_{timestep:05d}.png')
+    if args.coupled and args.slice:
+        # Steps alternate: even index = pressure, odd index = uz (same timestep).
+        for i in range(0, len(data_list) - 1, 2):
+            pn_data = data_list[i]
+            uz_data = data_list[i + 1]
+            timestep = timestep_list[i]
+            output_file = os.path.join(args.output,
+                                       f'coupled_step_{timestep:05d}.png')
+            plot_2d_slices_coupled(pn_data, uz_data, timestep, output_file,
+                                   cmap=args.cmap, percentile=args.percentile)
+    else:
+        for i, (data, timestep) in enumerate(zip(data_list, timestep_list)):
+            output_file = os.path.join(args.output, f'pressure_step_{timestep:05d}.png')
 
-        if args.slice:
-            plot_2d_slices(data, timestep, output_file, cmap=args.cmap, vmin=vmin, vmax=vmax)
-        else:
-            plot_3d_volume(data, timestep, output_file, cmap=args.cmap, vmin=vmin, vmax=vmax)
+            if args.slice:
+                plot_2d_slices(data, timestep, output_file, cmap=args.cmap, vmin=vmin, vmax=vmax,
+                               percentile=args.percentile)
+            else:
+                plot_3d_volume(data, timestep, output_file, cmap=args.cmap, vmin=vmin, vmax=vmax)
 
     print(f"\nDone! Created {len(data_list)} plots in {args.output}/")
 
