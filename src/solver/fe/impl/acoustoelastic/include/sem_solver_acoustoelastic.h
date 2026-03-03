@@ -189,8 +189,7 @@ class SEMsolverAcoustoElastic : public Solver
    * node, ready for use in ApplyCouplingAcousticToElastic and
    * ApplyCouplingElasticToAcoustic.
    *
-   * V1: normal direction is (0, 0, 1) everywhere (horizontal bicouche).
-   * General meshes: TODO post-V1 — compute from face geometry.
+   * The face geometry is queried via faceNormal() and works for any mesh.
    */
   void ComputeInterfaceCouplingCoefficients();
 

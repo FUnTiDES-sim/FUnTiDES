@@ -272,7 +272,8 @@ void SEMproxy::run()
                                       uxnGlobalPrev, uxnGlobalCurr,
                                       uynGlobalPrev, uynGlobalCurr,
                                       uznGlobalPrev, uznGlobalCurr);
-    RhsAcoustoElastic rhs(myRHSTerm, rhsElement, rhsWeights);
+    RhsAcoustoElastic rhs(myRHSTerm, rhsElement, rhsWeights, myRHSTermx,
+                          myRHSTermy, myRHSTermz);
     SEMsolverDataAcoustoElastic solverData(wavefield, rhs);
 
     for (int indexTimeSample = 0; indexTimeSample < num_sample_;
@@ -567,9 +568,16 @@ void SEMproxy::init_arrays()
 
   if (isAcoustoElastic_)
   {
-    // Acousto-elastic: acoustic source (fluid domain) + both wavefields.
+    // Acousto-elastic: acoustic + elastic source terms (one may be all zeros),
+    // plus both wavefields (acoustic pressure and elastic displacement).
     myRHSTerm =
         allocateArray2D<arrayReal>(myNumberOfRHS, num_sample_, "RHSTerm");
+    myRHSTermx =
+        allocateArray2D<arrayReal>(myNumberOfRHS, num_sample_, "RHSTermx");
+    myRHSTermy =
+        allocateArray2D<arrayReal>(myNumberOfRHS, num_sample_, "RHSTermy");
+    myRHSTermz =
+        allocateArray2D<arrayReal>(myNumberOfRHS, num_sample_, "RHSTermz");
     pnGlobalCurr = allocateVector<vectorReal>(n_nodes, "pnGlobalCurr");
     pnGlobalPrev = allocateVector<vectorReal>(n_nodes, "pnGlobalPrev");
     pnAtReceiver = allocateArray2D<arrayReal>(1, num_sample_, "pnAtReceiver");
@@ -687,9 +695,40 @@ void SEMproxy::init_source()
   // initialize source term
   vector<float> sourceTerm =
       myUtils.computeSourceTerm(num_sample_, dt_, f0, sourceOrder);
-  if (!isElastic_ || isAcoustoElastic_)
+  if (isAcoustoElastic_)
   {
-    // Acoustic source (also used for acoustoelastic: source in fluid domain).
+    // Auto-detect source domain based on depth vs interface boundary.
+    // z >= acoustoElasticBoundaryZ → fluid (acoustic); otherwise → solid (elastic).
+    bool const sourceInFluid =
+        (src_coord_[2] >= m_localParams.acoustoElasticBoundaryZ);
+    if (sourceInFluid)
+    {
+      cout << "Acousto-elastic source: fluid domain (acoustic)." << endl;
+      for (int j = 0; j < num_sample_; j++)
+      {
+        myRHSTerm(0, j) = sourceTerm[j];
+        if (j % 100 == 0)
+          cout << "Sample " << j << "\t: sourceTerm = " << sourceTerm[j]
+               << endl;
+      }
+    }
+    else
+    {
+      cout << "Acousto-elastic source: solid domain (elastic)." << endl;
+      for (int j = 0; j < num_sample_; j++)
+      {
+        myRHSTermx(0, j) = sourceTerm[j];
+        myRHSTermy(0, j) = sourceTerm[j];
+        myRHSTermz(0, j) = sourceTerm[j];
+        if (j % 100 == 0)
+          cout << "Sample " << j << "\t: sourceTerm = " << sourceTerm[j]
+               << endl;
+      }
+    }
+  }
+  else if (!isElastic_)
+  {
+    // Pure acoustic source.
     for (int j = 0; j < num_sample_; j++)
     {
       myRHSTerm(0, j) = sourceTerm[j];
@@ -699,6 +738,7 @@ void SEMproxy::init_source()
   }
   else
   {
+    // Pure elastic source.
     for (int j = 0; j < num_sample_; j++)
     {
       myRHSTermx(0, j) = sourceTerm[j];

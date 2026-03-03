@@ -299,15 +299,18 @@ void SEMsolverAcoustoElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE,
                               IS_MODEL_ON_NODES>::
     ComputeInterfaceCouplingCoefficients()
 {
-  // V1: horizontal bicouche — outward unit normal (solid→fluid) is (0, 0, 1).
-  // For general meshes the normal should be derived from faceNormal()
-  // (TODO post-V1 — same approach as computeDampingMatrix elastic branch).
-  constexpr float kNx = 0.0f, kNy = 0.0f, kNz = 1.0f;
+  // The coupling coefficient at each interface node is the area-weighted
+  // integral of the solid→fluid unit normal n̂ over the interface faces
+  // adjacent to that node.  n̂ is obtained from faceNormal() on the acoustic
+  // (fluid) element: the inward normal of a fluid element at its interface
+  // face points into the fluid interior, which is the solid→fluid direction.
+  //
+  // This works for any mesh geometry; the horizontal bicouche is a special
+  // case where the result is (0, 0, 1) everywhere.
   constexpr int numNodesPerFace = (ORDER + 1) * (ORDER + 1);
 
   int const nElem = m_mesh_.getNumberOfElements();
 
-  // Host-side sequential loop (mesh face API is not GPU-safe for ModelUnstruct).
   for (int elementNumber = 0; elementNumber < nElem; ++elementNumber)
   {
     if (m_element_type_[elementNumber] != kElementTypeAcoustic) continue;
@@ -326,6 +329,11 @@ void SEMsolverAcoustoElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE,
       }
       if (!is_iface_face) continue;
 
+      // Outward normal of the fluid element at this face = solid→fluid direction.
+      float normal[3];
+      m_mesh_.faceNormal(elementNumber, static_cast<model::CubicFace>(fi),
+                         normal);
+
       // Gather 4 corner node coordinates for face quadrature.
       float coords[4][3];
       for (int j = 0; j < 4; ++j)
@@ -335,15 +343,15 @@ void SEMsolverAcoustoElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE,
         for (int d = 0; d < 3; ++d) coords[j][d] = m_mesh_.nodeCoord(gn, d);
       }
 
-      // Accumulate area-weighted normal at each face node.
+      // Accumulate area-weighted normal at each interface face node.
       for (int q = 0; q < numNodesPerFace; ++q)
       {
         int const gn = m_mesh_.getGlobalNodeFromFace(f, q);
         float const aux =
             static_cast<float>(INTEGRAL_TYPE::computeDampingTerm(q, coords));
-        m_coupling_coeff_x_[gn] += aux * kNx;
-        m_coupling_coeff_y_[gn] += aux * kNy;
-        m_coupling_coeff_z_[gn] += aux * kNz;
+        m_coupling_coeff_x_[gn] += aux * normal[0];
+        m_coupling_coeff_y_[gn] += aux * normal[1];
+        m_coupling_coeff_z_[gn] += aux * normal[2];
       }
     }
   }
@@ -410,7 +418,6 @@ void SEMsolverAcoustoElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE,
   FENCE
 
   // Delegate to each sub-solver using the element type mask.
-  // computeDampingMatrixMasked runs host-side so faceNormal() is safe.
   m_acoustic_solver_.computeDampingMatrixMasked(m_element_type_,
                                                 kElementTypeAcoustic);
   m_elastic_solver_.computeDampingMatrixMasked(m_element_type_,
@@ -433,15 +440,17 @@ void SEMsolverAcoustoElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE,
   SEMsolverData<enums::physicType::kAcoustic> acoustic_data(
       myData.m_wavefield.m_acoustic, myData.m_rhs.m_rhs_acoustic);
   SEMsolverData<enums::physicType::kElastic> elastic_data(
-      myData.m_wavefield.m_elastic, RhsElastic{});
+      myData.m_wavefield.m_elastic, myData.m_rhs.m_rhs_elastic);
 
   resetGlobalVectors(m_mesh_.getNumberOfNodes());
   FENCE
 
-  // Apply acoustic source term, then stiffness contributions for both domains.
+  // Apply source terms, then stiffness contributions for both domains.
   // Sub-solvers skip nodes with zero mass (the other domain), so processing all
   // elements is correct: the wavefield is zero at "wrong domain" nodes.
   m_acoustic_solver_.applyRHSTerm(timeSample, dt, acoustic_data);
+  FENCE
+  m_elastic_solver_.applyRHSTerm(timeSample, dt, elastic_data);
   FENCE
 
   m_acoustic_solver_.computeElementContributions(acoustic_data);
@@ -587,7 +596,7 @@ void SEMsolverAcoustoElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE,
   // stays zero at "wrong domain" nodes (guaranteed by the mass guard in
   // updateFields).
   SEMsolverData<enums::physicType::kElastic> elastic_data(
-      myData.m_wavefield.m_elastic, RhsElastic{});
+      myData.m_wavefield.m_elastic, myData.m_rhs.m_rhs_elastic);
   SEMsolverData<enums::physicType::kAcoustic> acoustic_data(
       myData.m_wavefield.m_acoustic, myData.m_rhs.m_rhs_acoustic);
 
@@ -597,6 +606,10 @@ void SEMsolverAcoustoElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE,
 
   // 1. Reset elastic work vectors.
   m_elastic_solver_.resetGlobalVectors(nNode);
+  FENCE
+
+  // 1b. Apply elastic source term (zero if no solid source).
+  m_elastic_solver_.applyRHSTerm(timeSample, dt, elastic_data);
   FENCE
 
   // 2. Compute elastic stiffness contributions.
