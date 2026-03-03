@@ -195,20 +195,6 @@ class SEMsolverAcoustoElastic : public Solver
   void ComputeInterfaceCouplingCoefficients();
 
   /**
-   * @brief Accumulate stiffness contributions from acoustic elements only.
-   *
-   * @param data Coupled solver data (p_curr read, acoustic work vector written).
-   */
-  void ComputeAcousticElementContributions(const DataType& data);
-
-  /**
-   * @brief Accumulate stiffness contributions from elastic elements only.
-   *
-   * @param data Coupled solver data (u_curr read, elastic work vectors written).
-   */
-  void ComputeElasticElementContributions(const DataType& data);
-
-  /**
    * @brief Apply acoustic pressure as traction on elastic interface nodes.
    *
    * @param data Coupled solver data containing both wavefields.

@@ -85,6 +85,34 @@ class SEMsolver : public Solver
   void computeGlobalMassMatrix() override;
   void computeDampingMatrix() override;
 
+  /**
+   * @brief Assemble mass matrix restricted to elements matching a mask.
+   *
+   * Identical to computeGlobalMassMatrix() but skips elements where
+   * @p elem_mask[e] != @p active_value.  Used by SEMsolverAcoustoElastic to
+   * delegate domain-specific mass matrix assembly to each sub-solver without
+   * duplicating the quadrature kernel.
+   *
+   * @param elem_mask   Per-element integer tag array (size = nElements).
+   * @param active_value Only elements with this tag value are accumulated.
+   */
+  void computeGlobalMassMatrixMasked(const VECTOR_INT_VIEW& elem_mask,
+                                     int active_value);
+
+  /**
+   * @brief Assemble damping matrix restricted to elements matching a mask.
+   *
+   * Parallel variant of computeDampingMatrix() that skips elements where
+   * @p elem_mask[e] != @p active_value.  Used by SEMsolverAcoustoElastic to
+   * delegate domain-specific assembly to each sub-solver without duplicating
+   * the quadrature kernel.
+   *
+   * @param elem_mask   Per-element integer tag array (size = nElements).
+   * @param active_value Only elements with this tag value are accumulated.
+   */
+  void computeDampingMatrixMasked(const VECTOR_INT_VIEW& elem_mask,
+                                  int active_value);
+
   void outputSolutionValues(const int& t, int& e, const VECTOR_REAL_VIEW& field,
                             const char* fieldName) override;
 

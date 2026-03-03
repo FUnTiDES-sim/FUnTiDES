@@ -958,6 +958,79 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES,
 }
 
 //============================================================================
+// computeGlobalMassMatrixMasked - domain-masked mass matrix assembly
+//============================================================================
+
+template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE,
+          bool IS_MODEL_ON_NODES, physicType PHYSICS>
+void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES,
+               PHYSICS>::
+    computeGlobalMassMatrixMasked(const VECTOR_INT_VIEW& elem_mask,
+                                  int active_value)
+{
+  auto mesh_local = m_mesh;
+  auto mask = elem_mask;
+
+  MAINLOOPHEAD(mesh_local.getNumberOfElements(), elementNumber)
+
+  if (elementNumber >= mesh_local.getNumberOfElements()) return;
+  if (mask[elementNumber] != active_value) return;
+
+  float massMatrixLocal[kPointsPerElement] = {0};
+  int const dim = mesh_local.getOrder() + 1;
+
+  typename INTEGRAL_TYPE::TransformType transformData;
+  model_discretization_interface::gatherTransformData(elementNumber, mesh_local,
+                                                      transformData);
+
+  INTEGRAL_TYPE::computeMassTerm(
+      transformData,
+      [&](const int j, const real_t val) { massMatrixLocal[j] += val; });
+
+  real_t model_factor = 0.0f;
+  if constexpr (!IS_MODEL_ON_NODES)
+  {
+    if constexpr (PHYSICS == enums::physicType::kAcoustic)
+    {
+      model_factor = 1.0f / (mesh_local.getModelVpOnElement(elementNumber) *
+                             mesh_local.getModelVpOnElement(elementNumber) *
+                             mesh_local.getModelRhoOnElement(elementNumber));
+    }
+    else
+    {
+      model_factor = mesh_local.getModelRhoOnElement(elementNumber);
+    }
+  }
+
+  for (int i = 0; i < mesh_local.getNumberOfPointsPerElement(); ++i)
+  {
+    int x = i % dim;
+    int z = (i / dim) % dim;
+    int y = i / (dim * dim);
+    int const gIndex = mesh_local.globalNodeIndex(elementNumber, x, y, z);
+
+    if constexpr (IS_MODEL_ON_NODES)
+    {
+      if constexpr (PHYSICS == enums::physicType::kAcoustic)
+      {
+        model_factor = 1.0f / (mesh_local.getModelVpOnNodes(gIndex) *
+                               mesh_local.getModelVpOnNodes(gIndex) *
+                               mesh_local.getModelRhoOnNodes(gIndex));
+      }
+      else
+      {
+        model_factor = mesh_local.getModelRhoOnNodes(gIndex);
+      }
+    }
+
+    massMatrixLocal[i] *= model_factor;
+    ATOMICADD(massMatrixGlobal_[gIndex], massMatrixLocal[i]);
+  }
+
+  MAINLOOPEND
+}
+
+//============================================================================
 // computeGlobalDampingMatrix - Assemble damping matrix
 //============================================================================
 
@@ -969,76 +1042,54 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES,
   auto mesh_local = m_mesh;
 
   MAINLOOPHEAD(mesh_local.getNumberOfElements(), elementNumber)
-  if (elementNumber >= mesh_local.getNumberOfElements()) return;
 
+  constexpr int numNodesPerFace = (ORDER + 1) * (ORDER + 1);
   for (int i = 0; i < 6; ++i)
   {
-    // Get global face ID for this element face
-    int f = mesh_local.getGlobalFace(elementNumber,
-                                     static_cast<model::CubicFace>(i));
-
-    // Skip internal faces (only process boundary faces)
+    int const f = mesh_local.getGlobalFace(elementNumber,
+                                           static_cast<model::CubicFace>(i));
     if (!mesh_local.isBoundaryFace(f)) continue;
 
-    // Get corner coordinates of the face for integration
     float coords[4][3];
     for (int j = 0; j < 4; ++j)
     {
-      int const globalNodeIndex = mesh_local.getGlobalNodeFromFace(
+      int const gn = mesh_local.getGlobalNodeFromFace(
           f, INTEGRAL_TYPE::meshIndexToLinearIndex2D(j));
-      for (int d = 0; d < 3; ++d)
-      {
-        coords[j][d] = mesh_local.nodeCoord(globalNodeIndex, d);
-      }
+      for (int d = 0; d < 3; ++d) coords[j][d] = mesh_local.nodeCoord(gn, d);
     }
 
     if constexpr (PHYSICS == enums::physicType::kAcoustic)
     {
-      // Acoustic damping
-      real_t model_rho = 0.0f;
-      real_t model_vp = 0.0f;
-      real_t alpha = 0.0f;
-
+      real_t model_rho = 0.0f, model_vp = 0.0f, alpha = 0.0f;
       if constexpr (!IS_MODEL_ON_NODES)
       {
         model_rho = mesh_local.getModelRhoOnElement(elementNumber);
         model_vp = mesh_local.getModelVpOnElement(elementNumber);
-        alpha = 1.0 / (model_rho * model_vp);
+        alpha = 1.0f / (model_rho * model_vp);
       }
 
-      constexpr int numNodesPerFace = (ORDER + 1) * (ORDER + 1);
       for (int q = 0; q < numNodesPerFace; ++q)
       {
-        int const globalNodeIndex = mesh_local.getGlobalNodeFromFace(f, q);
-
-        // Skip free surface nodes (no damping on free surface)
-        if (mesh_local.isFreeSurface(globalNodeIndex))
-        {
-          continue;
-        }
-
+        int const gn = mesh_local.getGlobalNodeFromFace(f, q);
+        if (mesh_local.isFreeSurface(gn)) continue;
         if constexpr (IS_MODEL_ON_NODES)
         {
-          model_rho = mesh_local.getModelRhoOnNodes(globalNodeIndex);
-          model_vp = mesh_local.getModelVpOnNodes(globalNodeIndex);
-          alpha = 1.0 / (model_rho * model_vp);
+          model_rho = mesh_local.getModelRhoOnNodes(gn);
+          model_vp = mesh_local.getModelVpOnNodes(gn);
+          alpha = 1.0f / (model_rho * model_vp);
         }
-
-        real_t localIncrement =
-            alpha * INTEGRAL_TYPE::computeDampingTerm(q, coords);
-        ATOMICADD(dampingMatrixGlobal_[0][globalNodeIndex], localIncrement);
+        real_t const incr = alpha * INTEGRAL_TYPE::computeDampingTerm(q, coords);
+        ATOMICADD(dampingMatrixGlobal_[0][gn], incr);
       }
     }
     else  // Elastic
     {
-      // Elastic damping
       float normal[3];
       mesh_local.faceNormal(elementNumber, static_cast<model::CubicFace>(i),
                             normal);
-      real_t nx = normal[0], ny = normal[1], nz = normal[2];
+      real_t const nx = normal[0], ny = normal[1], nz = normal[2];
 
-      real_t density, velocityVp, velocityVs;
-
+      real_t density = 0.0f, velocityVp = 0.0f, velocityVs = 0.0f;
       if constexpr (!IS_MODEL_ON_NODES)
       {
         density = mesh_local.getModelRhoOnElement(elementNumber);
@@ -1046,38 +1097,128 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES,
         velocityVs = mesh_local.getModelVsOnElement(elementNumber);
       }
 
-      constexpr int numNodesPerFace = (ORDER + 1) * (ORDER + 1);
       for (int q = 0; q < numNodesPerFace; ++q)
       {
-        int const globalNodeIndex = mesh_local.getGlobalNodeFromFace(f, q);
-
-        // Skip free surface nodes (no damping on free surface)
-        if (mesh_local.isFreeSurface(globalNodeIndex))
-        {
-          continue;
-        }
-
+        int const gn = mesh_local.getGlobalNodeFromFace(f, q);
+        if (mesh_local.isFreeSurface(gn)) continue;
         if constexpr (IS_MODEL_ON_NODES)
         {
-          density = mesh_local.getModelRhoOnNodes(globalNodeIndex);
-          velocityVp = mesh_local.getModelVpOnNodes(globalNodeIndex);
-          velocityVs = mesh_local.getModelVsOnNodes(globalNodeIndex);
+          density = mesh_local.getModelRhoOnNodes(gn);
+          velocityVp = mesh_local.getModelVpOnNodes(gn);
+          velocityVs = mesh_local.getModelVsOnNodes(gn);
         }
-
-        real_t aux = density * INTEGRAL_TYPE::computeDampingTerm(q, coords);
-        real_t localIncrementx = aux * (velocityVp * fabs(nx) +
-                                        velocityVs * sqrt(ny * ny + nz * nz));
-        real_t localIncrementy = aux * (velocityVp * fabs(ny) +
-                                        velocityVs * sqrt(nx * nx + nz * nz));
-        real_t localIncrementz = aux * (velocityVp * fabs(nz) +
-                                        velocityVs * sqrt(nx * nx + ny * ny));
-
-        ATOMICADD(dampingMatrixGlobal_[0][globalNodeIndex], localIncrementx);
-        ATOMICADD(dampingMatrixGlobal_[1][globalNodeIndex], localIncrementy);
-        ATOMICADD(dampingMatrixGlobal_[2][globalNodeIndex], localIncrementz);
+        real_t const aux = density * INTEGRAL_TYPE::computeDampingTerm(q, coords);
+        ATOMICADD(dampingMatrixGlobal_[0][gn],
+                  aux * (velocityVp * fabs(nx) +
+                         velocityVs * sqrt(ny * ny + nz * nz)));
+        ATOMICADD(dampingMatrixGlobal_[1][gn],
+                  aux * (velocityVp * fabs(ny) +
+                         velocityVs * sqrt(nx * nx + nz * nz)));
+        ATOMICADD(dampingMatrixGlobal_[2][gn],
+                  aux * (velocityVp * fabs(nz) +
+                         velocityVs * sqrt(nx * nx + ny * ny)));
       }
     }
   }
+
+  MAINLOOPEND
+}
+
+//============================================================================
+// computeDampingMatrixMasked - domain-masked damping matrix assembly
+//============================================================================
+
+template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE,
+          bool IS_MODEL_ON_NODES, physicType PHYSICS>
+void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES,
+               PHYSICS>::
+    computeDampingMatrixMasked(const VECTOR_INT_VIEW& elem_mask,
+                               int active_value)
+{
+  auto mesh_local = m_mesh;
+  auto mask = elem_mask;
+
+  MAINLOOPHEAD(mesh_local.getNumberOfElements(), elementNumber)
+
+  if (mask[elementNumber] != active_value) return;
+  constexpr int numNodesPerFace = (ORDER + 1) * (ORDER + 1);
+  for (int i = 0; i < 6; ++i)
+  {
+    int const f = mesh_local.getGlobalFace(elementNumber,
+                                           static_cast<model::CubicFace>(i));
+    if (!mesh_local.isBoundaryFace(f)) continue;
+
+    float coords[4][3];
+    for (int j = 0; j < 4; ++j)
+    {
+      int const gn = mesh_local.getGlobalNodeFromFace(
+          f, INTEGRAL_TYPE::meshIndexToLinearIndex2D(j));
+      for (int d = 0; d < 3; ++d) coords[j][d] = mesh_local.nodeCoord(gn, d);
+    }
+
+    if constexpr (PHYSICS == enums::physicType::kAcoustic)
+    {
+      real_t model_rho = 0.0f, model_vp = 0.0f, alpha = 0.0f;
+      if constexpr (!IS_MODEL_ON_NODES)
+      {
+        model_rho = mesh_local.getModelRhoOnElement(elementNumber);
+        model_vp = mesh_local.getModelVpOnElement(elementNumber);
+        alpha = 1.0f / (model_rho * model_vp);
+      }
+
+      for (int q = 0; q < numNodesPerFace; ++q)
+      {
+        int const gn = mesh_local.getGlobalNodeFromFace(f, q);
+        if (mesh_local.isFreeSurface(gn)) continue;
+        if constexpr (IS_MODEL_ON_NODES)
+        {
+          model_rho = mesh_local.getModelRhoOnNodes(gn);
+          model_vp = mesh_local.getModelVpOnNodes(gn);
+          alpha = 1.0f / (model_rho * model_vp);
+        }
+        real_t const incr = alpha * INTEGRAL_TYPE::computeDampingTerm(q, coords);
+        ATOMICADD(dampingMatrixGlobal_[0][gn], incr);
+      }
+    }
+    else  // Elastic
+    {
+      float normal[3];
+      mesh_local.faceNormal(elementNumber, static_cast<model::CubicFace>(i),
+                            normal);
+      real_t const nx = normal[0], ny = normal[1], nz = normal[2];
+
+      real_t density = 0.0f, velocityVp = 0.0f, velocityVs = 0.0f;
+      if constexpr (!IS_MODEL_ON_NODES)
+      {
+        density = mesh_local.getModelRhoOnElement(elementNumber);
+        velocityVp = mesh_local.getModelVpOnElement(elementNumber);
+        velocityVs = mesh_local.getModelVsOnElement(elementNumber);
+      }
+
+      for (int q = 0; q < numNodesPerFace; ++q)
+      {
+        int const gn = mesh_local.getGlobalNodeFromFace(f, q);
+        if (mesh_local.isFreeSurface(gn)) continue;
+        if constexpr (IS_MODEL_ON_NODES)
+        {
+          density = mesh_local.getModelRhoOnNodes(gn);
+          velocityVp = mesh_local.getModelVpOnNodes(gn);
+          velocityVs = mesh_local.getModelVsOnNodes(gn);
+        }
+        real_t const aux = density * INTEGRAL_TYPE::computeDampingTerm(q, coords);
+        ATOMICADD(dampingMatrixGlobal_[0][gn],
+                  aux * (velocityVp * fabs(nx) +
+                         velocityVs * sqrt(ny * ny + nz * nz)));
+        ATOMICADD(dampingMatrixGlobal_[1][gn],
+                  aux * (velocityVp * fabs(ny) +
+                         velocityVs * sqrt(nx * nx + nz * nz)));
+        ATOMICADD(dampingMatrixGlobal_[2][gn],
+                  aux * (velocityVp * fabs(nz) +
+                         velocityVs * sqrt(nx * nx + ny * ny)));
+      }
+    }
+  }
+
   MAINLOOPEND
 }
 

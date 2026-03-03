@@ -353,8 +353,8 @@ class CartesianUnstructBuilder : public ModelBuilderBase<FloatType, ScalarType>
         {
           FloatType z = nodes_coords_z_(n);
           bool const is_fluid = (z >= acoustoElasticBoundaryZ_);
-          model_rho_node_[n] = is_fluid ? static_cast<FloatType>(1000)
-                                        : static_cast<FloatType>(2000);
+          model_rho_node_[n] = is_fluid ? static_cast<FloatType>(1020)
+                                        : static_cast<FloatType>(2500);
           model_vp_node_[n] = is_fluid ? static_cast<FloatType>(1500)
                                        : static_cast<FloatType>(3000);
           model_vs_node_[n] =
@@ -435,12 +435,12 @@ class CartesianUnstructBuilder : public ModelBuilderBase<FloatType, ScalarType>
             for (int i = 0; i < ex_; ++i)
             {
               int const e = i + j * ex_ + k * ex_ * ey_;
-              model_rho_element_[e] = is_fluid ? static_cast<FloatType>(1000)
-                                               : static_cast<FloatType>(2000);
+              model_rho_element_[e] = is_fluid ? static_cast<FloatType>(1020)
+                                               : static_cast<FloatType>(2500);
               model_vp_element_[e] = is_fluid ? static_cast<FloatType>(1500)
-                                              : static_cast<FloatType>(3000);
+                                              : static_cast<FloatType>(3400);
               model_vs_element_[e] =
-                  is_fluid ? static_cast<FloatType>(0) : static_cast<FloatType>(1500);
+                  is_fluid ? static_cast<FloatType>(0) : static_cast<FloatType>(1963);
               model_delta_element_[e] = 0;
               model_epsilon_element_[e] = 0;
               model_gamma_element_[e] = 0;
