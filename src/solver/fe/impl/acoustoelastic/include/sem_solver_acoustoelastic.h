@@ -103,9 +103,16 @@ class SEMsolverAcoustoElastic : public Solver
 
   int getNumComponents() const override { return 4; }  // p, ux, uy, uz
 
-  VECTOR_REAL_VIEW& getMassMatrix() override
+  /// @brief Returns the acoustic sub-solver mass matrix for DD synchronization.
+  VECTOR_REAL_VIEW& getMassMatrixAcoustic() override
   {
-    return m_acoustic_solver_.getMassMatrix();
+    return m_acoustic_solver_.getMassMatrixAcoustic();
+  }
+
+  /// @brief Returns the elastic sub-solver mass matrix for DD synchronization.
+  VECTOR_REAL_VIEW& getMassMatrixElastic() override
+  {
+    return m_elastic_solver_.getMassMatrixElastic();
   }
 
   VECTOR_REAL_VIEW& getDampingMatrix(int c) override

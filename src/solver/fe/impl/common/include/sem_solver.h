@@ -36,7 +36,8 @@ class SEMsolver : public Solver
 
   int getNumComponents() const override { return kNumFields; }
 
-  VECTOR_REAL_VIEW& getMassMatrix() override { return massMatrixGlobal_; }
+  VECTOR_REAL_VIEW& getMassMatrixAcoustic() override { return massMatrixGlobal_; }
+  VECTOR_REAL_VIEW& getMassMatrixElastic() override { return massMatrixGlobal_; }
 
   VECTOR_REAL_VIEW& getDampingMatrix(int c) override
   {

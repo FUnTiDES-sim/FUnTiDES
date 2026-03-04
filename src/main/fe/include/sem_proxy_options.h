@@ -14,7 +14,7 @@ class SemProxyOptions
   int order = 2;
   int ex = 50, ey = 50, ez = 50;
   float lx = 2000.f, ly = 2000.f, lz = 2000.f;
-  float srcx = 1010.f, srcy = 1010.f, srcz = 1510.f;
+  float srcx = 1010.f, srcy = 1010.f, srcz = 1010.f;
   float rcvx = 1310.f, rcvy = 1310.f, rcvz = 1310.f;
 
   std::string implem = "makutu";  // makutu

@@ -262,7 +262,19 @@ void SEMproxy::run()
   // Synchronize Mass Matrix (Critical for DD)
   if (par_topology_.isDistributed())
   {
-    m_syncer->synchronize(m_solver->getMassMatrix(), par_topology_);
+    if (isAcoustoElastic_)
+    {
+      m_syncer->synchronize(m_solver->getMassMatrixAcoustic(), par_topology_);
+      m_syncer->synchronize(m_solver->getMassMatrixElastic(), par_topology_);
+    }
+    else if (isElastic_)
+    {
+      m_syncer->synchronize(m_solver->getMassMatrixElastic(), par_topology_);
+    }
+    else
+    {
+      m_syncer->synchronize(m_solver->getMassMatrixAcoustic(), par_topology_);
+    }
     for (int c = 0; c < m_solver->getNumComponents(); ++c)
     {
       m_syncer->synchronize(m_solver->getDampingMatrix(c), par_topology_);

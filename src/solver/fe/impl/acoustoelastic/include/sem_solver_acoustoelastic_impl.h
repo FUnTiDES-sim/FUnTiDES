@@ -370,8 +370,8 @@ void SEMsolverAcoustoElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE,
   int const nNode = m_mesh_.getNumberOfNodes();
 
   // Reset sub-solver mass matrices before re-accumulation.
-  auto acoustic_mass = m_acoustic_solver_.getMassMatrix();
-  auto elastic_mass = m_elastic_solver_.getMassMatrix();
+  auto acoustic_mass = m_acoustic_solver_.getMassMatrixAcoustic();
+  auto elastic_mass = m_elastic_solver_.getMassMatrixElastic();
   LOOPHEAD(nNode, i)
   {
     acoustic_mass[i] = 0.0f;
@@ -552,7 +552,7 @@ void SEMsolverAcoustoElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE,
   auto work_ux = m_elastic_solver_.getForceVector(0);
   auto work_uy = m_elastic_solver_.getForceVector(1);
   auto work_uz = m_elastic_solver_.getForceVector(2);
-  auto elastic_mass = m_elastic_solver_.getMassMatrix();
+  auto elastic_mass = m_elastic_solver_.getMassMatrixElastic();
   auto work_p = m_acoustic_solver_.getForceVector(0);
   auto is_iface = m_is_interface_node_;
   auto cx = m_coupling_coeff_x_;
