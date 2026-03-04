@@ -9,6 +9,7 @@
 #include "common_macros.h"
 #include "wavefield.h"
 #include "wavefield_acoustic.h"
+#include "wavefield_acoustoelastic.h"
 #include "wavefield_elastic.h"
 
 namespace py = pybind11;
@@ -56,6 +57,29 @@ void bind_wavefield_elastic(py::module_ &m)
            py::arg("uzn_global_prev"), py::arg("uzn_global_curr"))
       .def("swap", &WavefieldElastic::swap)
       .def("print", &WavefieldElastic::print);
+}
+
+void bind_wavefield_acoustoelastic(py::module_ &m)
+{
+  // Bind WavefieldAcoustoElastic (inherits from Wavefield)
+  py::class_<WavefieldAcoustoElastic, Wavefield,
+             std::shared_ptr<WavefieldAcoustoElastic>>(
+      m, "WavefieldAcoustoElastic")
+      .def(py::init<
+               Kokkos::Experimental::python_view_type_t<VECTOR_REAL_VIEW>,
+               Kokkos::Experimental::python_view_type_t<VECTOR_REAL_VIEW>,
+               Kokkos::Experimental::python_view_type_t<VECTOR_REAL_VIEW>,
+               Kokkos::Experimental::python_view_type_t<VECTOR_REAL_VIEW>,
+               Kokkos::Experimental::python_view_type_t<VECTOR_REAL_VIEW>,
+               Kokkos::Experimental::python_view_type_t<VECTOR_REAL_VIEW>,
+               Kokkos::Experimental::python_view_type_t<VECTOR_REAL_VIEW>,
+               Kokkos::Experimental::python_view_type_t<VECTOR_REAL_VIEW>>(),
+           py::arg("pn_global_prev"),  py::arg("pn_global_curr"),
+           py::arg("uxn_global_prev"), py::arg("uxn_global_curr"),
+           py::arg("uyn_global_prev"), py::arg("uyn_global_curr"),
+           py::arg("uzn_global_prev"), py::arg("uzn_global_curr"))
+      .def("swap",  &WavefieldAcoustoElastic::swap)
+      .def("print", &WavefieldAcoustoElastic::print);
 }
 
 }  // namespace fe
