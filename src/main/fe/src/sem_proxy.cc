@@ -103,7 +103,9 @@ SEMproxy::SEMproxy(const SemProxyOptions& opt)
             m_localParams.ex, m_localParams.lx, m_localParams.ey,
             m_localParams.ly, m_localParams.ez, m_localParams.lz,
             isModelOnNodes, isElastic, m_localParams.origin_x,
-            m_localParams.origin_y, m_localParams.origin_z);
+            m_localParams.origin_y, m_localParams.origin_z,
+            -1.0f, -1.0f, -1.0f, 0.0f, 0.0f, 0.0f,
+            isAcoustoElastic, m_localParams.acoustoElasticBoundaryZ);
         m_mesh = builder.getModel();
         break;
       }
@@ -112,7 +114,9 @@ SEMproxy::SEMproxy(const SemProxyOptions& opt)
             m_localParams.ex, m_localParams.lx, m_localParams.ey,
             m_localParams.ly, m_localParams.ez, m_localParams.lz,
             isModelOnNodes, isElastic, m_localParams.origin_x,
-            m_localParams.origin_y, m_localParams.origin_z);
+            m_localParams.origin_y, m_localParams.origin_z,
+            -1.0f, -1.0f, -1.0f, 0.0f, 0.0f, 0.0f,
+            isAcoustoElastic, m_localParams.acoustoElasticBoundaryZ);
         m_mesh = builder.getModel();
         break;
       }
@@ -121,7 +125,9 @@ SEMproxy::SEMproxy(const SemProxyOptions& opt)
             m_localParams.ex, m_localParams.lx, m_localParams.ey,
             m_localParams.ly, m_localParams.ez, m_localParams.lz,
             isModelOnNodes, isElastic, m_localParams.origin_x,
-            m_localParams.origin_y, m_localParams.origin_z);
+            m_localParams.origin_y, m_localParams.origin_z,
+            -1.0f, -1.0f, -1.0f, 0.0f, 0.0f, 0.0f,
+            isAcoustoElastic, m_localParams.acoustoElasticBoundaryZ);
         m_mesh = builder.getModel();
         break;
       }
