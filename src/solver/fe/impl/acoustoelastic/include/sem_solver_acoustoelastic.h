@@ -57,34 +57,16 @@ struct SEMsolverDataAcoustoElastic : public Solver::DataStruct
 
 /**
  * @brief Acousto-elastic coupled SEM solver (pressure–displacement
- * formulation).
+ * formulation, Komatitsch et al. 2000).
  *
- * Implements the elasto-acoustic coupling of Komatitsch et al. (2000) using
- * an explicit staggered time-stepping scheme:
+ * Staggered explicit scheme: elastic step → A→E coupling → acoustic step →
+ * E→A coupling.  Each sub-solver processes only its own elements via domain
+ * masking.
  *
- *   1. Elastic forces step (includes acoustic pressure traction at interface).
- *   2. Elastic solution update.
- *   3. Acoustic forces step (includes elastic normal acceleration at
- * interface).
- *   4. Acoustic solution update.
- *
- * The two sub-solvers (acoustic and elastic) each process only their own
- * elements via element masking. Interface nodes carry pre-computed outward
- * unit normals (solid→fluid direction).
- *
- * Mass matrix and damping matrix are re-computed with domain masking after the
- * sub-solver initialisation (sub-solvers accumulate over all elements; the
- * override restricts each sub-solver to its own domain).
- *
- * Solution update is delegated to the sub-solvers' updateFields(), which
- * correctly skips nodes whose mass is zero (i.e. nodes belonging to the
- * other domain).
- *
- * @tparam ORDER             Polynomial order of spectral elements (1, 2, or 3).
+ * @tparam ORDER             Polynomial order of spectral elements.
  * @tparam INTEGRAL_TYPE     Quadrature/basis function type (Makutu kernels).
  * @tparam MESH_TYPE         Mesh implementation (ModelStruct or ModelUnstruct).
- * @tparam IS_MODEL_ON_NODES If true, material properties are stored on nodes;
- *                           otherwise they are stored per element.
+ * @tparam IS_MODEL_ON_NODES If true, material properties are stored on nodes.
  */
 template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE,
           bool IS_MODEL_ON_NODES>
@@ -176,49 +158,29 @@ class SEMsolverAcoustoElastic : public Solver
   /// Number of interface nodes (adjacent to both domains).
   int getNumInterfaceNodes() const { return num_interface_nodes_; }
 
-  // -----------------------------------------------------------------------
-  // Methods containing GPU kernels (LOOPHEAD / MAINLOOPHEAD expand to
-  // extended __device__ lambdas under CUDA; those must reside in public
-  // member functions — CUDA constraint on extended lambdas).
-  // -----------------------------------------------------------------------
+  // GPU kernels must reside in public methods (CUDA extended lambda
+  // constraint).
 
-  /**
-   * @brief Identify interface nodes (adjacent to both acoustic and elastic
-   * elements).
-   */
+  /// @brief Identify interface nodes (adjacent to both domains).
   void TagNodes();
 
   /**
-   * @brief Compute per-node interface coupling coefficients.
-   *
-   * For each interface face (between an acoustic and an elastic element),
-   * integrates the outward normal over the face using the same quadrature as
-   * the damping matrix (INTEGRAL_TYPE::computeDampingTerm).  The result is
-   * an area-weighted normal stored in m_coupling_coeff_x/y/z_ at each global
-   * node, ready for use in ApplyCouplingAcousticToElastic and
-   * ApplyCouplingElasticToAcoustic.
-   *
-   * The face geometry is queried via faceNormal() and works for any mesh.
+   * @brief Compute per-node interface coupling coefficients (area-weighted
+   * outward normal integrated over each interface face).
    */
   void ComputeInterfaceCouplingCoefficients();
 
   /**
-   * @brief Apply acoustic pressure as traction on elastic interface nodes.
-   *
-   * Applied POST-Verlet (GEOS style): directly modifies u^{n+1} stored in
-   * elastic getPreviousField().  Explicit dt² and M_e factors are visible.
-   *
-   * @param dt   Time step (used to compute dt²).
-   * @param data Coupled solver data containing both wavefields.
+   * @brief Apply acoustic→elastic coupling post-Verlet.
+   * @param dt   Time step.
+   * @param data Coupled solver data.
    */
   void ApplyCouplingAcousticToElastic(float dt, const DataType& data);
 
   /**
-   * @brief Apply elastic normal acceleration as source on acoustic interface
-   * nodes.
-   *
-   * @param dt   Time step (used to compute acceleration from displacement).
-   * @param data Coupled solver data containing both wavefields.
+   * @brief Apply elastic→acoustic coupling post-Verlet.
+   * @param dt   Time step.
+   * @param data Coupled solver data.
    */
   void ApplyCouplingElasticToAcoustic(float dt, const DataType& data);
 
@@ -237,17 +199,12 @@ class SEMsolverAcoustoElastic : public Solver
   /// Index map from global node index to interface node index (-1 if not).
   VECTOR_INT_VIEW m_interface_node_index_;
 
-  /// Area-weighted interface coupling coefficient — X component.
-  /// Defined for every global node; zero for non-interface nodes.
+  /// Area-weighted outward normal (solid→fluid) per node — X/Y/Z components.
   VECTOR_REAL_VIEW m_coupling_coeff_x_;
-  /// Area-weighted interface coupling coefficient — Y component.
   VECTOR_REAL_VIEW m_coupling_coeff_y_;
-  /// Area-weighted interface coupling coefficient — Z component.
   VECTOR_REAL_VIEW m_coupling_coeff_z_;
 
-  /// Elastic displacement at time n-1 (x component), saved before each
-  /// elastic Verlet step so that the E→A coupling can use the exact GEOS
-  /// finite-difference formula (u^{n+1} - 2*u^n + u^{n-1}) / M_f.
+  /// Elastic displacement at n-1 (saved before elastic Verlet for E→A FD).
   VECTOR_REAL_VIEW m_ux_nm1_;
   VECTOR_REAL_VIEW m_uy_nm1_;
   VECTOR_REAL_VIEW m_uz_nm1_;
@@ -259,11 +216,7 @@ class SEMsolverAcoustoElastic : public Solver
   /// Shear-modulus threshold below which an element is classified as acoustic.
   static constexpr float kMuTolerance = 1.0e-6f;
 
-  /**
-   * @brief Classify each element as acoustic or elastic based on shear modulus.
-   *
-   * An element is acoustic (fluid) when mu = rho * vs^2 < kMuTolerance.
-   */
+  /// @brief Classify each element as acoustic or elastic (mu < kMuTolerance).
   void TagElements();
 };
 
