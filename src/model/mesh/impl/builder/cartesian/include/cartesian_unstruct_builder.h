@@ -59,10 +59,7 @@ class CartesianUnstructBuilder : public ModelBuilderBase<FloatType, ScalarType>
     FloatType y_min = global_oy_, y_max = global_oy_ + global_ly_;
     FloatType z_min = global_oz_, z_max = global_oz_ + global_lz_;
 
-    auto boundaries_t =
-        allocateVector<VECTOR_REAL_VIEW>(n_node, "boundaries_t");
-    auto freeSurfaceTag =
-        allocateVector<VECTOR_INT_VIEW>(n_node, "freeSurfaceTag");
+    auto boundaries_t = allocateVector<VECTOR_INT_VIEW>(n_node, "boundaries_t");
 
     for (int n = 0; n < n_node; ++n)
     {
@@ -81,13 +78,11 @@ class CartesianUnstructBuilder : public ModelBuilderBase<FloatType, ScalarType>
           at_xmin || at_xmax || at_ymin || at_ymax || at_zmin || at_zmax;
 
       if (!on_boundary)
-        boundaries_t(n) = static_cast<FloatType>(BoundaryFlag::InteriorNode);
+        boundaries_t(n) = static_cast<int>(BoundaryFlag::InteriorNode);
       else if (at_zmax)
-        boundaries_t(n) = static_cast<FloatType>(BoundaryFlag::Surface);
+        boundaries_t(n) = static_cast<int>(BoundaryFlag::Surface);
       else
-        boundaries_t(n) = static_cast<FloatType>(BoundaryFlag::Damping);
-
-      freeSurfaceTag(n) = at_zmax ? 1 : 0;
+        boundaries_t(n) = static_cast<int>(BoundaryFlag::Damping);
     }
 
     // -------------------------------------------------------------------------

@@ -25,7 +25,7 @@ struct ModelStructData final : public ModelDataBase<FloatType, ScalarType>
   ScalarType ex_, ey_, ez_;
   FloatType dx_, dy_, dz_;
   FloatType ox_{0}, oy_{0}, oz_{0};  // Local origin
-  VECTOR_REAL_VIEW boundaries_t_;
+  VECTOR_INT_VIEW boundaries_t_;
 
   bool isModelOnNodes_;
   bool isElastic_;
@@ -364,7 +364,7 @@ class ModelStruct : public ModelApi<FloatType, ScalarType>
   bool isFreeSurface(ScalarType n) const override
   {
     if (boundaries_t_.extent(0) == 0) return false;
-    return (boundaries_t_(n) == static_cast<uint8_t>(BoundaryFlag::Surface));
+    return boundaries_t_(n) == static_cast<int>(BoundaryFlag::Surface);
   }
 
   void initializeBoundaryFlags(bool free_surface_on_top) override
@@ -382,7 +382,7 @@ class ModelStruct : public ModelApi<FloatType, ScalarType>
     if (boundaries_t_.extent(0) > 0) return;  // Déjà pré-calculé par le builder
 
     boundaries_t_ =
-        allocateVector<VECTOR_REAL_VIEW>(getNumberOfNodes(), "boundaries");
+        allocateVector<VECTOR_INT_VIEW>(getNumberOfNodes(), "boundaries");
 
     FloatType tol = getMinSpacing() * 1e-4;
     FloatType x_min = ox_, x_max = ox_ + lx_;
@@ -410,11 +410,11 @@ class ModelStruct : public ModelApi<FloatType, ScalarType>
           at_xmin || at_xmax || at_ymin || at_ymax || at_zmin || at_zmax;
 
       if (!on_boundary)
-        boundaries(n) = static_cast<uint8_t>(BoundaryFlag::InteriorNode);
+        boundaries(n) = static_cast<int>(BoundaryFlag::InteriorNode);
       else if (at_zmax && enabled)
-        boundaries(n) = static_cast<uint8_t>(BoundaryFlag::Surface);
+        boundaries(n) = static_cast<int>(BoundaryFlag::Surface);
       else
-        boundaries(n) = static_cast<uint8_t>(BoundaryFlag::Damping);
+        boundaries(n) = static_cast<int>(BoundaryFlag::Damping);
     }
     LOOPEND
   }
@@ -450,7 +450,16 @@ class ModelStruct : public ModelApi<FloatType, ScalarType>
 
   PROXY_HOST_DEVICE bool isBoundaryFace(ScalarType face_id) const override
   {
-    return face_connectivity_.isBoundaryFace(face_id);
+    if (boundaries_t_.extent(0) == 0)
+      return face_connectivity_.isBoundaryFace(face_id);
+    int const n_dofs = face_connectivity_.getDofsPerFace();
+    for (int q = 0; q < n_dofs; ++q)
+    {
+      if (boundaries_t_(getGlobalNodeFromFace(face_id, q)) ==
+          static_cast<int>(BoundaryFlag::InteriorNode))
+        return false;
+    }
+    return true;
   }
 
   PROXY_HOST_DEVICE ScalarType elemOwner(ScalarType face_id) const
@@ -485,7 +494,7 @@ class ModelStruct : public ModelApi<FloatType, ScalarType>
   bool free_surface_enabled_;
 
   array3DReal model_C_tensor_element_;
-  VECTOR_REAL_VIEW boundaries_t_;
+  VECTOR_INT_VIEW boundaries_t_;
 
   FaceConnectivityStruct<FloatType, ScalarType> face_connectivity_;
 };

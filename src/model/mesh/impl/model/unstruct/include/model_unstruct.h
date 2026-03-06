@@ -42,7 +42,7 @@ struct ModelUnstructData : public ModelDataBase<FloatType, ScalarType>
       VECTOR_REAL_VIEW model_gamma_element, VECTOR_REAL_VIEW model_theta_node,
       VECTOR_REAL_VIEW model_theta_element, VECTOR_REAL_VIEW model_phi_node,
       VECTOR_REAL_VIEW model_phi_element,
-      ARRAY3D_REAL_VIEW model_C_tensor_element, VECTOR_REAL_VIEW boundaries_t,
+      ARRAY3D_REAL_VIEW model_C_tensor_element, VECTOR_INT_VIEW boundaries_t,
       FaceConnectivityUnstructData<FloatType, ScalarType> face_connectivity =
           {})
       : order_(order),
@@ -111,7 +111,7 @@ struct ModelUnstructData : public ModelDataBase<FloatType, ScalarType>
   VECTOR_REAL_VIEW model_phi_node_;
   VECTOR_REAL_VIEW model_phi_element_;
   ARRAY3D_REAL_VIEW model_C_tensor_element_;
-  VECTOR_REAL_VIEW boundaries_t_;
+  VECTOR_INT_VIEW boundaries_t_;
   FaceConnectivityUnstructData<FloatType, ScalarType> face_connectivity_;
 };
 
@@ -614,7 +614,7 @@ class ModelUnstruct final : public ModelApi<FloatType, ScalarType>
   BoundaryFlag boundaryType(ScalarType n) const override
   {
     if (boundaries_t_.extent(0) == 0) return BoundaryFlag::InteriorNode;
-    return static_cast<BoundaryFlag>(static_cast<uint8_t>(boundaries_t_[n]));
+    return static_cast<BoundaryFlag>(boundaries_t_[n]);
   }
 
   /**
@@ -637,7 +637,7 @@ class ModelUnstruct final : public ModelApi<FloatType, ScalarType>
   {
     if (boundaries_t_.extent(0) > 0) return;
 
-    boundaries_t_ = allocateVector<VECTOR_REAL_VIEW>(n_node_, "boundaries_t");
+    boundaries_t_ = allocateVector<VECTOR_INT_VIEW>(n_node_, "boundaries_t");
 
     FloatType tol = getMinSpacing() * 1e-4;
     FloatType x_min = ox_, x_max = ox_ + lx_;
@@ -665,11 +665,11 @@ class ModelUnstruct final : public ModelApi<FloatType, ScalarType>
           at_xmin || at_xmax || at_ymin || at_ymax || at_zmin || at_zmax;
 
       if (!on_boundary)
-        boundaries[n] = static_cast<FloatType>(BoundaryFlag::InteriorNode);
+        boundaries[n] = static_cast<int>(BoundaryFlag::InteriorNode);
       else if (at_zmax && enabled_fs)
-        boundaries[n] = static_cast<FloatType>(BoundaryFlag::Surface);
+        boundaries[n] = static_cast<int>(BoundaryFlag::Surface);
       else
-        boundaries[n] = static_cast<FloatType>(BoundaryFlag::Damping);
+        boundaries[n] = static_cast<int>(BoundaryFlag::Damping);
     }
     LOOPEND
   }
@@ -822,7 +822,16 @@ class ModelUnstruct final : public ModelApi<FloatType, ScalarType>
   PROXY_HOST_DEVICE
   bool isBoundaryFace(ScalarType face_global) const override
   {
-    return face_connectivity_.isBoundaryFace(face_global);
+    if (boundaries_t_.extent(0) == 0)
+      return face_connectivity_.isBoundaryFace(face_global);
+    int const n_dofs = face_connectivity_.getDofsPerFace();
+    for (int q = 0; q < n_dofs; ++q)
+    {
+      if (boundaries_t_[getGlobalNodeFromFace(face_global, q)] ==
+          static_cast<int>(BoundaryFlag::InteriorNode))
+        return false;
+    }
+    return true;
   }
 
   /**
@@ -843,7 +852,8 @@ class ModelUnstruct final : public ModelApi<FloatType, ScalarType>
   PROXY_HOST_DEVICE
   bool isFreeSurface(ScalarType n) const override
   {
-    return freeSurfaceTag_[n] == 1;
+    if (boundaries_t_.extent(0) == 0) return false;
+    return boundaries_t_[n] == static_cast<int>(BoundaryFlag::Surface);
   }
 
   /**
@@ -855,34 +865,10 @@ class ModelUnstruct final : public ModelApi<FloatType, ScalarType>
     freeSurfaceEnabled_ = enable;
   }
 
-  /**
-   * @brief Initialize free surface node tags based on mesh geometry
-   *
-   * Marks nodes as free surface if they are located at the top of the domain
-   * (z = oz_ + lz_) within a small tolerance.
-   * Considers the freeSurfaceEnabled_ flag to determine if marking is applied.
-   */
-
+  /// @brief Initialize boundary flags — delegates to initializeBoundaryFlags.
   void initFreeSurface() override
   {
-    if (freeSurfaceTag_.extent(0) > 0) return;
-
-    freeSurfaceTag_ =
-        allocateVector<VECTOR_INT_VIEW>(getNumberOfNodes(), "freeSurfaceTag");
-
-    FloatType tol = getMinSpacing() * 1e-4;
-    FloatType z_max = oz_ + lz_;
-    bool enabled = freeSurfaceEnabled_;
-
-    auto tag = freeSurfaceTag_;
-    auto mesh_copy = *this;
-
-    LOOPHEAD(getNumberOfNodes(), n)
-    {
-      FloatType z = mesh_copy.nodeCoord(n, 2);
-      tag[n] = (fabs(z - z_max) < tol && enabled) ? 1 : 0;
-    }
-    LOOPEND
+    initializeBoundaryFlags(freeSurfaceEnabled_);
   }
 
  private:
@@ -918,8 +904,7 @@ class ModelUnstruct final : public ModelApi<FloatType, ScalarType>
   VECTOR_REAL_VIEW model_phi_node_;
   VECTOR_REAL_VIEW model_phi_element_;
   ARRAY3D_REAL_VIEW model_C_tensor_element_;
-  VECTOR_REAL_VIEW boundaries_t_;
-  VECTOR_INT_VIEW freeSurfaceTag_;
+  VECTOR_INT_VIEW boundaries_t_;
   bool freeSurfaceEnabled_;
 
   FaceConnectivityUnstruct<FloatType, ScalarType> face_connectivity_;

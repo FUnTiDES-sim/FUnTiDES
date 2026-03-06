@@ -36,7 +36,7 @@ class ModelUnstructTest : public ::testing::Test
     data.nodes_coords_z_ = allocateVector<VECTOR_REAL_VIEW>(8);
     data.model_vp_element_ = allocateVector<VECTOR_REAL_VIEW>(1);
     data.model_rho_element_ = allocateVector<VECTOR_REAL_VIEW>(1);
-    data.boundaries_t_ = allocateVector<VECTOR_REAL_VIEW>(8);
+    data.boundaries_t_ = allocateVector<VECTOR_INT_VIEW>(8);
 
     for (int i = 0; i < 8; ++i)
     {
