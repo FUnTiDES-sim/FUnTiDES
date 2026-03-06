@@ -457,17 +457,16 @@ void SEMsolverAcoustoElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE,
   resetGlobalVectors(m_mesh_.getNumberOfNodes());
   FENCE
 
-  // Apply source terms, then stiffness contributions for both domains.
-  // Sub-solvers skip nodes with zero mass (the other domain), so processing all
-  // elements is correct: the wavefield is zero at "wrong domain" nodes.
   m_acoustic_solver_.applyRHSTerm(timeSample, dt, acoustic_data);
   FENCE
   m_elastic_solver_.applyRHSTerm(timeSample, dt, elastic_data);
   FENCE
 
-  m_acoustic_solver_.computeElementContributions(acoustic_data);
+  m_acoustic_solver_.computeElementContributionsMasked(
+      acoustic_data, m_element_type_, kElementTypeAcoustic);
   FENCE
-  m_elastic_solver_.computeElementContributions(elastic_data);
+  m_elastic_solver_.computeElementContributionsMasked(
+      elastic_data, m_element_type_, kElementTypeElastic);
   FENCE
 }
 
