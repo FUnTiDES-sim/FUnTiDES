@@ -100,6 +100,11 @@ void SEMsolverAcoustoElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE,
   m_coupling_coeff_z_ =
       allocateVector<VECTOR_REAL_VIEW>(nNode, "couplingCoeffZ");
 
+  // Elastic u^{n-1} storage for GEOS-exact E→A finite-difference formula.
+  m_ux_nm1_ = allocateVector<VECTOR_REAL_VIEW>(nNode, "uxNm1");
+  m_uy_nm1_ = allocateVector<VECTOR_REAL_VIEW>(nNode, "uyNm1");
+  m_uz_nm1_ = allocateVector<VECTOR_REAL_VIEW>(nNode, "uzNm1");
+
   // Initialise interface arrays to sentinel / zero values.
   LOOPHEAD(nNode, i)
   {
@@ -108,6 +113,9 @@ void SEMsolverAcoustoElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE,
     m_coupling_coeff_x_[i] = 0.0f;
     m_coupling_coeff_y_[i] = 0.0f;
     m_coupling_coeff_z_[i] = 0.0f;
+    m_ux_nm1_[i] = 0.0f;
+    m_uy_nm1_[i] = 0.0f;
+    m_uz_nm1_[i] = 0.0f;
   }
   LOOPEND
 }
@@ -320,14 +328,18 @@ void SEMsolverAcoustoElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE,
       int const f = m_mesh_.getGlobalFace(
           elementNumber, static_cast<model::CubicFace>(fi));
 
-      // Skip faces that do not touch any interface node.
-      bool is_iface_face = false;
-      for (int q = 0; q < numNodesPerFace && !is_iface_face; ++q)
+      // Skip faces where not ALL nodes are interface nodes.
+      // A true fluid–solid interface face has every node shared between the
+      // two domains.  Faces where only a subset of nodes are on the interface
+      // (e.g. lateral faces of a corner element) must be excluded, otherwise
+      // the coupling coefficients pick up spurious x/y contributions.
+      int iface_count = 0;
+      for (int q = 0; q < numNodesPerFace; ++q)
       {
         if (m_is_interface_node_[m_mesh_.getGlobalNodeFromFace(f, q)])
-          is_iface_face = true;
+          ++iface_count;
       }
-      if (!is_iface_face) continue;
+      if (iface_count < numNodesPerFace) continue;
 
       // Outward normal of the fluid element at this face = solid→fluid direction.
       float normal[3];
@@ -494,21 +506,23 @@ template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE,
           bool IS_MODEL_ON_NODES>
 void SEMsolverAcoustoElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE,
                               IS_MODEL_ON_NODES>::
-    ApplyCouplingAcousticToElastic(const DataType& data)
+    ApplyCouplingAcousticToElastic(float dt, const DataType& data)
 {
-  // Pressure traction on the solid at interface node j:
-  //   T = -p * n̂_s  (outward traction, Komatitsch 2000, eq. 3)
+  // GEOS-style post-Verlet A→E coupling (Komatitsch 2000, eq. 3).
   //
-  // Sign convention (see updateFields / applyRHSTerm):
-  //   work = K·u − F_ext  →  update: u^{n+1} = … − dt²·work/M
+  // Applied AFTER the elastic Verlet: u^{n+1} is stored in getPreviousField().
+  // Formula (identical to GEOS AcousticToElastic kernel):
+  //   u^{n+1}[j] += dt² * c[j] * (-p^n[j]) / M_e[j]
   //
-  // F_ext_z = T_z = −p·n_z  →  work_z = K·u_z − (−p·n_z) = K·u_z + p·n_z
-  //   ∴  work_u[j] += p * n[j]  (ADD, not subtract)
+  // c[j] = ∫_Γ ψ_j n̂_f dS  (area-weighted fluid outward normal).
+  // For a horizontal interface with fluid above: c_z < 0, c_x = c_y = 0.
 
-  auto p_curr = data.m_wavefield.m_acoustic.m_pnGlobalCurr;
-  auto work_ux = m_elastic_solver_.getForceVector(0);
-  auto work_uy = m_elastic_solver_.getForceVector(1);
-  auto work_uz = m_elastic_solver_.getForceVector(2);
+  float const dt2 = dt * dt;
+  auto p_curr  = data.m_wavefield.m_acoustic.getCurrentField(0);   // p^n
+  auto u_prev_x = data.m_wavefield.m_elastic.getPreviousField(0);  // u_x^{n+1}
+  auto u_prev_y = data.m_wavefield.m_elastic.getPreviousField(1);  // u_y^{n+1}
+  auto u_prev_z = data.m_wavefield.m_elastic.getPreviousField(2);  // u_z^{n+1}
+  auto M_e     = m_elastic_solver_.getMassMatrixElastic();
   auto is_iface = m_is_interface_node_;
   auto cx = m_coupling_coeff_x_;
   auto cy = m_coupling_coeff_y_;
@@ -517,12 +531,12 @@ void SEMsolverAcoustoElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE,
 
   LOOPHEAD(nNode, j)
   {
-    if (is_iface[j])
+    if (is_iface[j] && M_e[j] > 0.0f)
     {
-      float const p = p_curr(j);
-      work_ux[j] += p * cx[j];
-      work_uy[j] += p * cy[j];
-      work_uz[j] += p * cz[j];
+      float const aux = -p_curr[j] / M_e[j];
+      u_prev_x[j] += dt2 * cx[j] * aux;
+      u_prev_y[j] += dt2 * cy[j] * aux;
+      u_prev_z[j] += dt2 * cz[j] * aux;
     }
   }
   LOOPEND
@@ -536,24 +550,31 @@ template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE,
           bool IS_MODEL_ON_NODES>
 void SEMsolverAcoustoElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE,
                               IS_MODEL_ON_NODES>::
-    ApplyCouplingElasticToAcoustic(float /*dt*/, const DataType& /*data*/)
+    ApplyCouplingElasticToAcoustic(float /*dt*/, const DataType& data)
 {
-  // Kinematic coupling: solid normal acceleration acts as source for acoustic.
+  // Exact GEOS ElasticToAcoustic kernel (Komatitsch 2000, eq. 4).
   //
-  // With corrected A→E sign, work_e = K·u + p·n  (see ApplyCouplingAcousticToElastic).
-  // Newton (solid): M_e·ü_n = −work_e·n  →  ü_n = −(work·n)/M_e = a_n.
+  // Applied AFTER the acoustic Verlet: p^{n+1} is in getPreviousField().
+  // Formula (verbatim from GEOS, no dt², no M_e):
   //
-  // Sign convention (see updateFields / applyRHSTerm):
-  //   work = K·p − F_ext  →  update: p^{n+1} = … − dt²·work/M_f
+  //   fd_f  = u_f^{n+1} - 2*u_f^n + u_f^{n-1}   (FD second-difference)
+  //   p^{n+1} += (cx*fd_x + cy*fd_y + cz*fd_z) / M_f
   //
-  // F_ext_acoustic = ü_n  →  work_p = K_f·p − ü_n
-  //   ∴  work_p[j] -= a_n  (SUBTRACT, not add)
+  // u^{n+1} = elastic getPreviousField() after Verlet + A→E correction.
+  // u^n     = elastic getCurrentField()  (unchanged by FUnTiDES Verlet).
+  // u^{n-1} = m_ux/y/z_nm1_  (saved in step 2.5, before elastic Verlet).
 
-  auto work_ux = m_elastic_solver_.getForceVector(0);
-  auto work_uy = m_elastic_solver_.getForceVector(1);
-  auto work_uz = m_elastic_solver_.getForceVector(2);
-  auto elastic_mass = m_elastic_solver_.getMassMatrixElastic();
-  auto work_p = m_acoustic_solver_.getForceVector(0);
+  auto p_prev  = data.m_wavefield.m_acoustic.getPreviousField(0);  // p^{n+1}
+  auto u_np1_x = data.m_wavefield.m_elastic.getPreviousField(0);   // u_x^{n+1}
+  auto u_np1_y = data.m_wavefield.m_elastic.getPreviousField(1);
+  auto u_np1_z = data.m_wavefield.m_elastic.getPreviousField(2);
+  auto u_n_x   = data.m_wavefield.m_elastic.getCurrentField(0);    // u_x^n
+  auto u_n_y   = data.m_wavefield.m_elastic.getCurrentField(1);
+  auto u_n_z   = data.m_wavefield.m_elastic.getCurrentField(2);
+  auto u_nm1_x = m_ux_nm1_;   // u_x^{n-1}
+  auto u_nm1_y = m_uy_nm1_;
+  auto u_nm1_z = m_uz_nm1_;
+  auto M_f     = m_acoustic_solver_.getMassMatrixAcoustic();
   auto is_iface = m_is_interface_node_;
   auto cx = m_coupling_coeff_x_;
   auto cy = m_coupling_coeff_y_;
@@ -562,16 +583,12 @@ void SEMsolverAcoustoElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE,
 
   LOOPHEAD(nNode, j)
   {
-    if (is_iface[j])
+    if (is_iface[j] && M_f[j] > 0.0f)
     {
-      float const M_e = elastic_mass[j];
-      if (M_e > 0.0f)
-      {
-        float const a_n =
-            -(work_ux[j] * cx[j] + work_uy[j] * cy[j] + work_uz[j] * cz[j]) /
-            M_e;
-        work_p[j] -= a_n;
-      }
+      float const fd_x = u_np1_x[j] - 2.0f * u_n_x[j] + u_nm1_x[j];
+      float const fd_y = u_np1_y[j] - 2.0f * u_n_y[j] + u_nm1_y[j];
+      float const fd_z = u_np1_z[j] - 2.0f * u_n_z[j] + u_nm1_z[j];
+      p_prev[j] += (cx[j] * fd_x + cy[j] * fd_y + cz[j] * fd_z) / M_f[j];
     }
   }
   LOOPEND
@@ -591,10 +608,6 @@ void SEMsolverAcoustoElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE,
   int const nNode = m_mesh_.getNumberOfNodes();
 
   // Sub-solver data views are constructed once and reused throughout the step.
-  // Sub-solvers skip nodes whose mass is zero (the other domain), so calling
-  // computeElementContributions over all elements is correct: the wavefield
-  // stays zero at "wrong domain" nodes (guaranteed by the mass guard in
-  // updateFields).
   SEMsolverData<enums::physicType::kElastic> elastic_data(
       myData.m_wavefield.m_elastic, myData.m_rhs.m_rhs_elastic);
   SEMsolverData<enums::physicType::kAcoustic> acoustic_data(
@@ -612,16 +625,39 @@ void SEMsolverAcoustoElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE,
   m_elastic_solver_.applyRHSTerm(timeSample, dt, elastic_data);
   FENCE
 
-  // 2. Compute elastic stiffness contributions.
-  m_elastic_solver_.computeElementContributions(elastic_data);
+  // 2. Compute elastic stiffness (masked: elastic elements only).
+  //    work_e = K·u_e  (not needed for E→A anymore, but still computed
+  //    for the elastic update itself).
+  m_elastic_solver_.computeElementContributionsMasked(
+      elastic_data, m_element_type_, kElementTypeElastic);
   FENCE
 
-  // 3. Apply coupling A→E: add acoustic pressure traction at interface.
-  ApplyCouplingAcousticToElastic(myData);
-  FENCE
+  // 2.5. Save u^{n-1} = elastic_data.getPreviousField() BEFORE the Verlet
+  //      overwrites it with u^{n+1}.  Used in E→A step for the exact GEOS
+  //      finite-difference formula (u^{n+1} - 2*u^n + u^{n-1}).
+  {
+    auto ux_prev = elastic_data.getPreviousField(0);
+    auto uy_prev = elastic_data.getPreviousField(1);
+    auto uz_prev = elastic_data.getPreviousField(2);
+    auto ux_nm1 = m_ux_nm1_;
+    auto uy_nm1 = m_uy_nm1_;
+    auto uz_nm1 = m_uz_nm1_;
+    LOOPHEAD(nNode, j)
+    {
+      ux_nm1[j] = ux_prev[j];
+      uy_nm1[j] = uy_prev[j];
+      uz_nm1[j] = uz_prev[j];
+    }
+    LOOPEND
+    FENCE
+  }
 
-  // 4. Update elastic displacement fields (u^{n+1} written into u_prev).
+  // 3. Elastic Verlet: u^{n+1} written into elastic_data.getPreviousField().
   m_elastic_solver_.updateFields(dt, elastic_data);
+  FENCE
+
+  // 4. A→E coupling (GEOS post-Verlet): u^{n+1} += dt²·c·(-p^n)/M_e.
+  ApplyCouplingAcousticToElastic(dt, myData);
   FENCE
 
   // =========================================================================
@@ -636,17 +672,19 @@ void SEMsolverAcoustoElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE,
   m_acoustic_solver_.applyRHSTerm(timeSample, dt, acoustic_data);
   FENCE
 
-  // 7. Compute acoustic stiffness contributions.
-  m_acoustic_solver_.computeElementContributions(acoustic_data);
+  // 7. Compute acoustic stiffness (masked: acoustic elements only).
+  m_acoustic_solver_.computeElementContributionsMasked(
+      acoustic_data, m_element_type_, kElementTypeAcoustic);
   FENCE
 
-  // 8. Apply coupling E→A: add elastic normal acceleration at interface.
-  //    Uses elastic work vectors from step 2 (not yet reset).
-  ApplyCouplingElasticToAcoustic(dt, myData);
-  FENCE
-
-  // 9. Update acoustic pressure field (p^{n+1} written into p_prev).
+  // 8. Acoustic Verlet: p^{n+1} written into acoustic_data.getPreviousField().
   m_acoustic_solver_.updateFields(dt, acoustic_data);
+  FENCE
+
+  // 9. E→A coupling (GEOS post-Verlet): p^{n+1} += dt²·(-a_n)/M_f.
+  //    Uses elastic work vectors from step 2 (still available, not yet reset).
+  //    work_e = K·u_e from step 2; p^n = acoustic_data.getCurrentField().
+  ApplyCouplingElasticToAcoustic(dt, myData);
   FENCE
 }
 

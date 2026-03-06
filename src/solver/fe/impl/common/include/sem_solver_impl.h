@@ -171,11 +171,15 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES,
   }
   else  // Acoustic - DISPATCH
   {
-    auto mesh_local = m_mesh;
+    auto mesh_local  = m_mesh;
+    auto mask_local  = m_element_mask_;
+    bool mask_on     = m_mask_enabled_;
+    int  mask_val    = m_mask_active_value_;
 
     MAINLOOPHEAD(mesh_local.getNumberOfElements(), elementNumber)
 
     if (elementNumber >= mesh_local.getNumberOfElements()) return;
+    if (mask_on && mask_local[elementNumber] != mask_val) return;
 
     int const dim = mesh_local.getOrder() + 1;
     float localFields[kNumFields][kPointsPerElement] = {{0}};
@@ -259,10 +263,14 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES,
                PHYSICS>::computeElementContributions_Iso(const DataType& data)
 {
   auto mesh_local = m_mesh;
+  auto mask_local = m_element_mask_;
+  bool mask_on    = m_mask_enabled_;
+  int  mask_val   = m_mask_active_value_;
 
   MAINLOOPHEAD(mesh_local.getNumberOfElements(), elementNumber)
 
   if (elementNumber >= mesh_local.getNumberOfElements()) return;
+  if (mask_on && mask_local[elementNumber] != mask_val) return;
 
   int const dim = mesh_local.getOrder() + 1;
   float localFields[kNumFields][kPointsPerElement] = {{0}};
@@ -430,10 +438,14 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES,
                PHYSICS>::computeElementContributions_Vti(const DataType& data)
 {
   auto mesh_local = m_mesh;
+  auto mask_local = m_element_mask_;
+  bool mask_on    = m_mask_enabled_;
+  int  mask_val   = m_mask_active_value_;
 
   MAINLOOPHEAD(mesh_local.getNumberOfElements(), elementNumber)
 
   if (elementNumber >= mesh_local.getNumberOfElements()) return;
+  if (mask_on && mask_local[elementNumber] != mask_val) return;
 
   int const dim = mesh_local.getOrder() + 1;
   float localFields[kNumFields][kPointsPerElement] = {{0}};
@@ -620,10 +632,14 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES,
   else
   {
     auto mesh_local = m_mesh;
+    auto mask_local = m_element_mask_;
+    bool mask_on    = m_mask_enabled_;
+    int  mask_val   = m_mask_active_value_;
 
     MAINLOOPHEAD(mesh_local.getNumberOfElements(), elementNumber)
 
     if (elementNumber >= mesh_local.getNumberOfElements()) return;
+    if (mask_on && mask_local[elementNumber] != mask_val) return;
 
     int const dim = mesh_local.getOrder() + 1;
     float localFields[kNumFields][kPointsPerElement] = {{0}};
@@ -1028,6 +1044,25 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES,
   }
 
   MAINLOOPEND
+}
+
+//============================================================================
+// computeElementContributionsMasked - domain-masked stiffness assembly
+//============================================================================
+
+template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE,
+          bool IS_MODEL_ON_NODES, physicType PHYSICS>
+void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES,
+               PHYSICS>::
+    computeElementContributionsMasked(const DataType& data,
+                                      const VECTOR_INT_VIEW& elem_mask,
+                                      int active_value)
+{
+  m_element_mask_      = elem_mask;
+  m_mask_active_value_ = active_value;
+  m_mask_enabled_      = true;
+  computeElementContributions(data);
+  m_mask_enabled_ = false;
 }
 
 //============================================================================

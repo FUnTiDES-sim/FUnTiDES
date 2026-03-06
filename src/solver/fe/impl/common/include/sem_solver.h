@@ -134,6 +134,23 @@ class SEMsolver : public Solver
   void computeElementContributions(const DataType& data);
 
   /**
+   * @brief Assemble local element contributions restricted to elements
+   *        matching a mask.
+   *
+   * Identical to computeElementContributions() but skips elements where
+   * @p elem_mask[e] != @p active_value.  Used by SEMsolverAcoustoElastic to
+   * delegate domain-specific stiffness assembly to each sub-solver without
+   * duplicating the quadrature kernel.
+   *
+   * @param data         Data structure containing solution fields.
+   * @param elem_mask    Per-element integer tag array (size = nElements).
+   * @param active_value Only elements with this tag value are accumulated.
+   */
+  void computeElementContributionsMasked(const DataType& data,
+                                         const VECTOR_INT_VIEW& elem_mask,
+                                         int active_value);
+
+  /**
    * @brief Update the global solution fields at interior nodes.
    *
    * @param dt Delta time for this iteration.
@@ -184,6 +201,11 @@ class SEMsolver : public Solver
   model::AnisotropyType anisotropyType_;
 
   INTEGRAL_TYPE myQkIntegrals_;
+
+  // Mask state used by computeElementContributionsMasked.
+  bool            m_mask_enabled_      = false;
+  VECTOR_INT_VIEW m_element_mask_;
+  int             m_mask_active_value_ = 0;
 
   VECTOR_REAL_VIEW spongeTaperCoeff_;
   VECTOR_REAL_VIEW massMatrixGlobal_;

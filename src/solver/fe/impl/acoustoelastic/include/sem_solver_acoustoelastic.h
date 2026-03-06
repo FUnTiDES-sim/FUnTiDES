@@ -203,9 +203,13 @@ class SEMsolverAcoustoElastic : public Solver
   /**
    * @brief Apply acoustic pressure as traction on elastic interface nodes.
    *
+   * Applied POST-Verlet (GEOS style): directly modifies u^{n+1} stored in
+   * elastic getPreviousField().  Explicit dt² and M_e factors are visible.
+   *
+   * @param dt   Time step (used to compute dt²).
    * @param data Coupled solver data containing both wavefields.
    */
-  void ApplyCouplingAcousticToElastic(const DataType& data);
+  void ApplyCouplingAcousticToElastic(float dt, const DataType& data);
 
   /**
    * @brief Apply elastic normal acceleration as source on acoustic interface
@@ -238,6 +242,13 @@ class SEMsolverAcoustoElastic : public Solver
   VECTOR_REAL_VIEW m_coupling_coeff_y_;
   /// Area-weighted interface coupling coefficient — Z component.
   VECTOR_REAL_VIEW m_coupling_coeff_z_;
+
+  /// Elastic displacement at time n-1 (x component), saved before each
+  /// elastic Verlet step so that the E→A coupling can use the exact GEOS
+  /// finite-difference formula (u^{n+1} - 2*u^n + u^{n-1}) / M_f.
+  VECTOR_REAL_VIEW m_ux_nm1_;
+  VECTOR_REAL_VIEW m_uy_nm1_;
+  VECTOR_REAL_VIEW m_uz_nm1_;
 
   int num_acoustic_elements_{0};  ///< Count of acoustic elements
   int num_elastic_elements_{0};   ///< Count of elastic elements
