@@ -23,11 +23,12 @@ namespace fe
 
 template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE,
           bool IS_MODEL_ON_NODES>
-void SEMsolverAcoustoElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE,
-                              IS_MODEL_ON_NODES>::
-    computeFEInit(model::ModelApi<float, int>& mesh_in,
-                  const std::array<float, 3>& sponge_size,
-                  const bool surface_sponge, const float taper_delta)
+void SEMsolverAcoustoElastic<
+    ORDER, INTEGRAL_TYPE, MESH_TYPE,
+    IS_MODEL_ON_NODES>::computeFEInit(model::ModelApi<float, int>& mesh_in,
+                                      const std::array<float, 3>& sponge_size,
+                                      const bool surface_sponge,
+                                      const float taper_delta)
 {
   // --- 1. Store mesh (needed for TagElements, TagNodes, kernels) ---
   if (auto* typed = dynamic_cast<MESH_TYPE*>(&mesh_in))
@@ -79,7 +80,7 @@ void SEMsolverAcoustoElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE,
 template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE,
           bool IS_MODEL_ON_NODES>
 void SEMsolverAcoustoElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE,
-                              IS_MODEL_ON_NODES>::allocateFEarrays()
+                             IS_MODEL_ON_NODES>::allocateFEarrays()
 {
   int const nElem = m_mesh_.getNumberOfElements();
   int const nNode = m_mesh_.getNumberOfNodes();
@@ -127,7 +128,7 @@ void SEMsolverAcoustoElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE,
 template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE,
           bool IS_MODEL_ON_NODES>
 void SEMsolverAcoustoElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE,
-                              IS_MODEL_ON_NODES>::initFEarrays()
+                             IS_MODEL_ON_NODES>::initFEarrays()
 {
   // Sub-solvers handle their own sponge via computeFEInit.
   // The coupled solver's sponge taper is initialised in allocateFEarrays.
@@ -136,7 +137,7 @@ void SEMsolverAcoustoElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE,
 template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE,
           bool IS_MODEL_ON_NODES>
 void SEMsolverAcoustoElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE,
-                              IS_MODEL_ON_NODES>::initSpongeValues()
+                             IS_MODEL_ON_NODES>::initSpongeValues()
 {
   // Sponge taper is owned by each sub-solver; delegate reinitialisation.
   m_acoustic_solver_.initSpongeValues();
@@ -149,9 +150,9 @@ void SEMsolverAcoustoElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE,
 
 template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE,
           bool IS_MODEL_ON_NODES>
-void SEMsolverAcoustoElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE,
-                              IS_MODEL_ON_NODES>::resetGlobalVectors(int
-                                                                         numNodes)
+void SEMsolverAcoustoElastic<
+    ORDER, INTEGRAL_TYPE, MESH_TYPE,
+    IS_MODEL_ON_NODES>::resetGlobalVectors(int numNodes)
 {
   auto acoustic_w0 = m_acoustic_solver_.getForceVector(0);
   auto elastic_w0 = m_elastic_solver_.getForceVector(0);
@@ -175,7 +176,7 @@ void SEMsolverAcoustoElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE,
 template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE,
           bool IS_MODEL_ON_NODES>
 void SEMsolverAcoustoElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE,
-                              IS_MODEL_ON_NODES>::TagElements()
+                             IS_MODEL_ON_NODES>::TagElements()
 {
   int const nElem = m_mesh_.getNumberOfElements();
   int n_acoustic = 0;
@@ -222,7 +223,7 @@ void SEMsolverAcoustoElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE,
 template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE,
           bool IS_MODEL_ON_NODES>
 void SEMsolverAcoustoElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE,
-                              IS_MODEL_ON_NODES>::TagNodes()
+                             IS_MODEL_ON_NODES>::TagNodes()
 {
   int const nNode = m_mesh_.getNumberOfNodes();
   int const nElem = m_mesh_.getNumberOfElements();
@@ -303,9 +304,9 @@ void SEMsolverAcoustoElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE,
 
 template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE,
           bool IS_MODEL_ON_NODES>
-void SEMsolverAcoustoElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE,
-                              IS_MODEL_ON_NODES>::
-    ComputeInterfaceCouplingCoefficients()
+void SEMsolverAcoustoElastic<
+    ORDER, INTEGRAL_TYPE, MESH_TYPE,
+    IS_MODEL_ON_NODES>::ComputeInterfaceCouplingCoefficients()
 {
   // The coupling coefficient at each interface node is the area-weighted
   // integral of the solid→fluid unit normal n̂ over the interface faces
@@ -325,8 +326,8 @@ void SEMsolverAcoustoElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE,
 
     for (int fi = 0; fi < 6; ++fi)
     {
-      int const f = m_mesh_.getGlobalFace(
-          elementNumber, static_cast<model::CubicFace>(fi));
+      int const f = m_mesh_.getGlobalFace(elementNumber,
+                                          static_cast<model::CubicFace>(fi));
 
       // Skip faces where not ALL nodes are interface nodes.
       // A true fluid–solid interface face has every node shared between the
@@ -341,7 +342,8 @@ void SEMsolverAcoustoElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE,
       }
       if (iface_count < numNodesPerFace) continue;
 
-      // Outward normal of the fluid element at this face = solid→fluid direction.
+      // Outward normal of the fluid element at this face = solid→fluid
+      // direction.
       float normal[3];
       m_mesh_.faceNormal(elementNumber, static_cast<model::CubicFace>(fi),
                          normal);
@@ -377,7 +379,7 @@ void SEMsolverAcoustoElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE,
 template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE,
           bool IS_MODEL_ON_NODES>
 void SEMsolverAcoustoElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE,
-                              IS_MODEL_ON_NODES>::computeGlobalMassMatrix()
+                             IS_MODEL_ON_NODES>::computeGlobalMassMatrix()
 {
   int const nNode = m_mesh_.getNumberOfNodes();
 
@@ -410,7 +412,7 @@ void SEMsolverAcoustoElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE,
 template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE,
           bool IS_MODEL_ON_NODES>
 void SEMsolverAcoustoElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE,
-                              IS_MODEL_ON_NODES>::computeDampingMatrix()
+                             IS_MODEL_ON_NODES>::computeDampingMatrix()
 {
   int const nNode = m_mesh_.getNumberOfNodes();
 
@@ -444,8 +446,10 @@ void SEMsolverAcoustoElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE,
 template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE,
           bool IS_MODEL_ON_NODES>
 void SEMsolverAcoustoElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE,
-                              IS_MODEL_ON_NODES>::
-    computeForces(const float& dt, const int& timeSample, DataStruct& data)
+                             IS_MODEL_ON_NODES>::computeForces(const float& dt,
+                                                               const int&
+                                                                   timeSample,
+                                                               DataStruct& data)
 {
   auto& myData = dynamic_cast<DataType&>(data);
 
@@ -477,8 +481,9 @@ void SEMsolverAcoustoElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE,
 template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE,
           bool IS_MODEL_ON_NODES>
 void SEMsolverAcoustoElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE,
-                              IS_MODEL_ON_NODES>::updateSolution(
-    const float& dt, DataStruct& data)
+                             IS_MODEL_ON_NODES>::updateSolution(const float& dt,
+                                                                DataStruct&
+                                                                    data)
 {
   auto& myData = dynamic_cast<DataType&>(data);
 
@@ -503,9 +508,10 @@ void SEMsolverAcoustoElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE,
 
 template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE,
           bool IS_MODEL_ON_NODES>
-void SEMsolverAcoustoElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE,
-                              IS_MODEL_ON_NODES>::
-    ApplyCouplingAcousticToElastic(float dt, const DataType& data)
+void SEMsolverAcoustoElastic<
+    ORDER, INTEGRAL_TYPE, MESH_TYPE,
+    IS_MODEL_ON_NODES>::ApplyCouplingAcousticToElastic(float dt,
+                                                       const DataType& data)
 {
   // GEOS-style post-Verlet A→E coupling (Komatitsch 2000, eq. 3).
   //
@@ -517,11 +523,11 @@ void SEMsolverAcoustoElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE,
   // For a horizontal interface with fluid above: c_z < 0, c_x = c_y = 0.
 
   float const dt2 = dt * dt;
-  auto p_curr  = data.m_wavefield.m_acoustic.getCurrentField(0);   // p^n
+  auto p_curr = data.m_wavefield.m_acoustic.getCurrentField(0);    // p^n
   auto u_prev_x = data.m_wavefield.m_elastic.getPreviousField(0);  // u_x^{n+1}
   auto u_prev_y = data.m_wavefield.m_elastic.getPreviousField(1);  // u_y^{n+1}
   auto u_prev_z = data.m_wavefield.m_elastic.getPreviousField(2);  // u_z^{n+1}
-  auto M_e     = m_elastic_solver_.getMassMatrixElastic();
+  auto M_e = m_elastic_solver_.getMassMatrixElastic();
   auto is_iface = m_is_interface_node_;
   auto cx = m_coupling_coeff_x_;
   auto cy = m_coupling_coeff_y_;
@@ -547,9 +553,10 @@ void SEMsolverAcoustoElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE,
 
 template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE,
           bool IS_MODEL_ON_NODES>
-void SEMsolverAcoustoElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE,
-                              IS_MODEL_ON_NODES>::
-    ApplyCouplingElasticToAcoustic(float /*dt*/, const DataType& data)
+void SEMsolverAcoustoElastic<
+    ORDER, INTEGRAL_TYPE, MESH_TYPE,
+    IS_MODEL_ON_NODES>::ApplyCouplingElasticToAcoustic(float /*dt*/,
+                                                       const DataType& data)
 {
   // Exact GEOS ElasticToAcoustic kernel (Komatitsch 2000, eq. 4).
   //
@@ -563,17 +570,17 @@ void SEMsolverAcoustoElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE,
   // u^n     = elastic getCurrentField()  (unchanged by FUnTiDES Verlet).
   // u^{n-1} = m_ux/y/z_nm1_  (saved in step 2.5, before elastic Verlet).
 
-  auto p_prev  = data.m_wavefield.m_acoustic.getPreviousField(0);  // p^{n+1}
-  auto u_np1_x = data.m_wavefield.m_elastic.getPreviousField(0);   // u_x^{n+1}
+  auto p_prev = data.m_wavefield.m_acoustic.getPreviousField(0);  // p^{n+1}
+  auto u_np1_x = data.m_wavefield.m_elastic.getPreviousField(0);  // u_x^{n+1}
   auto u_np1_y = data.m_wavefield.m_elastic.getPreviousField(1);
   auto u_np1_z = data.m_wavefield.m_elastic.getPreviousField(2);
-  auto u_n_x   = data.m_wavefield.m_elastic.getCurrentField(0);    // u_x^n
-  auto u_n_y   = data.m_wavefield.m_elastic.getCurrentField(1);
-  auto u_n_z   = data.m_wavefield.m_elastic.getCurrentField(2);
-  auto u_nm1_x = m_ux_nm1_;   // u_x^{n-1}
+  auto u_n_x = data.m_wavefield.m_elastic.getCurrentField(0);  // u_x^n
+  auto u_n_y = data.m_wavefield.m_elastic.getCurrentField(1);
+  auto u_n_z = data.m_wavefield.m_elastic.getCurrentField(2);
+  auto u_nm1_x = m_ux_nm1_;  // u_x^{n-1}
   auto u_nm1_y = m_uy_nm1_;
   auto u_nm1_z = m_uz_nm1_;
-  auto M_f     = m_acoustic_solver_.getMassMatrixAcoustic();
+  auto M_f = m_acoustic_solver_.getMassMatrixAcoustic();
   auto is_iface = m_is_interface_node_;
   auto cx = m_coupling_coeff_x_;
   auto cy = m_coupling_coeff_y_;
@@ -599,9 +606,10 @@ void SEMsolverAcoustoElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE,
 
 template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE,
           bool IS_MODEL_ON_NODES>
-void SEMsolverAcoustoElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE,
-                              IS_MODEL_ON_NODES>::
-    computeOneStep(const float& dt, const int& timeSample, DataStruct& data)
+void SEMsolverAcoustoElastic<
+    ORDER, INTEGRAL_TYPE, MESH_TYPE,
+    IS_MODEL_ON_NODES>::computeOneStep(const float& dt, const int& timeSample,
+                                       DataStruct& data)
 {
   auto& myData = dynamic_cast<DataType&>(data);
   int const nNode = m_mesh_.getNumberOfNodes();
@@ -693,10 +701,11 @@ void SEMsolverAcoustoElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE,
 
 template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE,
           bool IS_MODEL_ON_NODES>
-void SEMsolverAcoustoElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE,
-                              IS_MODEL_ON_NODES>::
-    outputSolutionValues(const int& t, int& e, const VECTOR_REAL_VIEW& field,
-                         const char* fieldName)
+void SEMsolverAcoustoElastic<
+    ORDER, INTEGRAL_TYPE, MESH_TYPE,
+    IS_MODEL_ON_NODES>::outputSolutionValues(const int& t, int& e,
+                                             const VECTOR_REAL_VIEW& field,
+                                             const char* fieldName)
 {
   m_acoustic_solver_.outputSolutionValues(t, e, field, fieldName);
 }

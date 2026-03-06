@@ -47,22 +47,25 @@ struct SEMsolverDataAcoustoElastic : public Solver::DataStruct
     m_rhs.print();
   }
 
-  /// Swap previous/current wavefields (call once per time step after computeOneStep).
+  /// Swap previous/current wavefields (call once per time step after
+  /// computeOneStep).
   void swapWavefields() { m_wavefield.swap(); }
 
   WavefieldAcoustoElastic m_wavefield;  ///< Combined wavefield (p + u)
-  RhsAcoustoElastic m_rhs;             ///< Acoustic source
+  RhsAcoustoElastic m_rhs;              ///< Acoustic source
 };
 
 /**
- * @brief Acousto-elastic coupled SEM solver (pressure–displacement formulation).
+ * @brief Acousto-elastic coupled SEM solver (pressure–displacement
+ * formulation).
  *
  * Implements the elasto-acoustic coupling of Komatitsch et al. (2000) using
  * an explicit staggered time-stepping scheme:
  *
  *   1. Elastic forces step (includes acoustic pressure traction at interface).
  *   2. Elastic solution update.
- *   3. Acoustic forces step (includes elastic normal acceleration at interface).
+ *   3. Acoustic forces step (includes elastic normal acceleration at
+ * interface).
  *   4. Acoustic solution update.
  *
  * The two sub-solvers (acoustic and elastic) each process only their own
@@ -154,8 +157,7 @@ class SEMsolverAcoustoElastic : public Solver
   void computeGlobalMassMatrix() override;
   void computeDampingMatrix() override;
 
-  void outputSolutionValues(const int& t, int& e,
-                            const VECTOR_REAL_VIEW& field,
+  void outputSolutionValues(const int& t, int& e, const VECTOR_REAL_VIEW& field,
                             const char* fieldName) override;
 
   void setAnisotropyType(model::AnisotropyType type) override

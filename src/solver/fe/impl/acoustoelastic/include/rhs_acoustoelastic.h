@@ -50,8 +50,7 @@ struct RhsAcoustoElastic : public Rhs
   PROXY_HOST_DEVICE
   ARRAY_REAL_VIEW getTerm(int i) const override
   {
-    if (i == 0)
-      return m_rhs_acoustic.getTerm(0);
+    if (i == 0) return m_rhs_acoustic.getTerm(0);
     return m_rhs_elastic.getTerm(i - 1);
   }
 

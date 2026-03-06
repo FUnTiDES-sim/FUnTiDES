@@ -36,8 +36,14 @@ class SEMsolver : public Solver
 
   int getNumComponents() const override { return kNumFields; }
 
-  VECTOR_REAL_VIEW& getMassMatrixAcoustic() override { return massMatrixGlobal_; }
-  VECTOR_REAL_VIEW& getMassMatrixElastic() override { return massMatrixGlobal_; }
+  VECTOR_REAL_VIEW& getMassMatrixAcoustic() override
+  {
+    return massMatrixGlobal_;
+  }
+  VECTOR_REAL_VIEW& getMassMatrixElastic() override
+  {
+    return massMatrixGlobal_;
+  }
 
   VECTOR_REAL_VIEW& getDampingMatrix(int c) override
   {
@@ -203,9 +209,9 @@ class SEMsolver : public Solver
   INTEGRAL_TYPE myQkIntegrals_;
 
   // Mask state used by computeElementContributionsMasked.
-  bool            m_mask_enabled_      = false;
+  bool m_mask_enabled_ = false;
   VECTOR_INT_VIEW m_element_mask_;
-  int             m_mask_active_value_ = 0;
+  int m_mask_active_value_ = 0;
 
   VECTOR_REAL_VIEW spongeTaperCoeff_;
   VECTOR_REAL_VIEW massMatrixGlobal_;

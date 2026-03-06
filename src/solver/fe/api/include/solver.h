@@ -115,8 +115,9 @@ class Solver
    * @brief Access the acoustic (fluid) mass matrix for DD synchronization.
    *
    * For coupled acousto-elastic solvers, the acoustic and elastic mass matrices
-   * are stored separately and must each be synchronized at partition boundaries.
-   * For single-physics acoustic solvers, this returns the unique mass matrix.
+   * are stored separately and must each be synchronized at partition
+   * boundaries. For single-physics acoustic solvers, this returns the unique
+   * mass matrix.
    */
   virtual VECTOR_REAL_VIEW& getMassMatrixAcoustic() = 0;
 
@@ -124,8 +125,9 @@ class Solver
    * @brief Access the elastic (solid) mass matrix for DD synchronization.
    *
    * For coupled acousto-elastic solvers, the acoustic and elastic mass matrices
-   * are stored separately and must each be synchronized at partition boundaries.
-   * For single-physics elastic solvers, this returns the unique mass matrix.
+   * are stored separately and must each be synchronized at partition
+   * boundaries. For single-physics elastic solvers, this returns the unique
+   * mass matrix.
    */
   virtual VECTOR_REAL_VIEW& getMassMatrixElastic() = 0;
 

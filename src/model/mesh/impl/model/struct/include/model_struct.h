@@ -191,13 +191,15 @@ class ModelStruct : public ModelApi<FloatType, ScalarType>
   // MATERIAL PROPERTIES
   // ============================================================================
 
-  /// @brief Returns Vp at node @p n. Uses stored array when available, else 1500.
+  /// @brief Returns Vp at node @p n. Uses stored array when available, else
+  /// 1500.
   PROXY_HOST_DEVICE FloatType getModelVpOnNodes(ScalarType n) const final
   {
     if (model_vp_node_.extent(0) > 0) return model_vp_node_[n];
     return static_cast<FloatType>(1500);
   }
-  /// @brief Returns Vp of element @p e. Uses stored array when available, else 1500.
+  /// @brief Returns Vp of element @p e. Uses stored array when available, else
+  /// 1500.
   PROXY_HOST_DEVICE FloatType getModelVpOnElement(ScalarType e) const final
   {
     if (model_vp_element_.extent(0) > 0) return model_vp_element_[e];
@@ -209,19 +211,22 @@ class ModelStruct : public ModelApi<FloatType, ScalarType>
     if (model_rho_node_.extent(0) > 0) return model_rho_node_[n];
     return static_cast<FloatType>(1);
   }
-  /// @brief Returns rho of element @p e. Uses stored array when available, else 1.
+  /// @brief Returns rho of element @p e. Uses stored array when available,
+  /// else 1.
   PROXY_HOST_DEVICE FloatType getModelRhoOnElement(ScalarType e) const final
   {
     if (model_rho_element_.extent(0) > 0) return model_rho_element_[e];
     return static_cast<FloatType>(1);
   }
-  /// @brief Returns Vs at node @p n. Uses stored array when available, else 755.
+  /// @brief Returns Vs at node @p n. Uses stored array when available, else
+  /// 755.
   PROXY_HOST_DEVICE FloatType getModelVsOnNodes(ScalarType n) const final
   {
     if (model_vs_node_.extent(0) > 0) return model_vs_node_[n];
     return static_cast<FloatType>(755);
   }
-  /// @brief Returns Vs of element @p e. Uses stored array when available, else 755.
+  /// @brief Returns Vs of element @p e. Uses stored array when available, else
+  /// 755.
   PROXY_HOST_DEVICE FloatType getModelVsOnElement(ScalarType e) const final
   {
     if (model_vs_element_.extent(0) > 0) return model_vs_element_[e];

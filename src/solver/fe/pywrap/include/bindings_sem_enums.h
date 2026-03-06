@@ -43,8 +43,8 @@ void bind_model_location_type(py::module_ &m)
 void bind_physic_type(py::module_ &m)
 {
   py::enum_<enums::physicType>(m, "PhysicType")
-      .value("ACOUSTIC",       enums::physicType::kAcoustic)
-      .value("ELASTIC",        enums::physicType::kElastic)
+      .value("ACOUSTIC", enums::physicType::kAcoustic)
+      .value("ELASTIC", enums::physicType::kElastic)
       .value("ACOUSTOELASTIC", enums::physicType::kAcoustoElastic)
       .export_values();
 }

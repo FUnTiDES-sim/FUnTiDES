@@ -86,10 +86,10 @@ SEMproxy::SEMproxy(const SemProxyOptions& opt)
   const modelLocationType modelLocation = isModelOnNodes
                                               ? modelLocationType::kOnNodes
                                               : modelLocationType::kOnElements;
-  const physicType physicType = isAcoustoElastic
-                                    ? physicType::kAcoustoElastic
-                                    : (isElastic ? physicType::kElastic
-                                                 : physicType::kAcoustic);
+  const physicType physicType =
+      isAcoustoElastic
+          ? physicType::kAcoustoElastic
+          : (isElastic ? physicType::kElastic : physicType::kAcoustic);
 
   const model::AnisotropyType anisotropyType = getAnisotropy(opt.anisotropy);
 
@@ -103,9 +103,9 @@ SEMproxy::SEMproxy(const SemProxyOptions& opt)
             m_localParams.ex, m_localParams.lx, m_localParams.ey,
             m_localParams.ly, m_localParams.ez, m_localParams.lz,
             isModelOnNodes, isElastic, m_localParams.origin_x,
-            m_localParams.origin_y, m_localParams.origin_z,
-            -1.0f, -1.0f, -1.0f, 0.0f, 0.0f, 0.0f,
-            isAcoustoElastic, m_localParams.acoustoElasticBoundaryZ);
+            m_localParams.origin_y, m_localParams.origin_z, -1.0f, -1.0f, -1.0f,
+            0.0f, 0.0f, 0.0f, isAcoustoElastic,
+            m_localParams.acoustoElasticBoundaryZ);
         m_mesh = builder.getModel();
         break;
       }
@@ -114,9 +114,9 @@ SEMproxy::SEMproxy(const SemProxyOptions& opt)
             m_localParams.ex, m_localParams.lx, m_localParams.ey,
             m_localParams.ly, m_localParams.ez, m_localParams.lz,
             isModelOnNodes, isElastic, m_localParams.origin_x,
-            m_localParams.origin_y, m_localParams.origin_z,
-            -1.0f, -1.0f, -1.0f, 0.0f, 0.0f, 0.0f,
-            isAcoustoElastic, m_localParams.acoustoElasticBoundaryZ);
+            m_localParams.origin_y, m_localParams.origin_z, -1.0f, -1.0f, -1.0f,
+            0.0f, 0.0f, 0.0f, isAcoustoElastic,
+            m_localParams.acoustoElasticBoundaryZ);
         m_mesh = builder.getModel();
         break;
       }
@@ -125,9 +125,9 @@ SEMproxy::SEMproxy(const SemProxyOptions& opt)
             m_localParams.ex, m_localParams.lx, m_localParams.ey,
             m_localParams.ly, m_localParams.ez, m_localParams.lz,
             isModelOnNodes, isElastic, m_localParams.origin_x,
-            m_localParams.origin_y, m_localParams.origin_z,
-            -1.0f, -1.0f, -1.0f, 0.0f, 0.0f, 0.0f,
-            isAcoustoElastic, m_localParams.acoustoElasticBoundaryZ);
+            m_localParams.origin_y, m_localParams.origin_z, -1.0f, -1.0f, -1.0f,
+            0.0f, 0.0f, 0.0f, isAcoustoElastic,
+            m_localParams.acoustoElasticBoundaryZ);
         m_mesh = builder.getModel();
         break;
       }
@@ -286,10 +286,9 @@ void SEMproxy::run()
 
   if (isAcoustoElastic)
   {
-    WavefieldAcoustoElastic wavefield(pnGlobalPrev, pnGlobalCurr,
-                                      uxnGlobalPrev, uxnGlobalCurr,
-                                      uynGlobalPrev, uynGlobalCurr,
-                                      uznGlobalPrev, uznGlobalCurr);
+    WavefieldAcoustoElastic wavefield(
+        pnGlobalPrev, pnGlobalCurr, uxnGlobalPrev, uxnGlobalCurr, uynGlobalPrev,
+        uynGlobalCurr, uznGlobalPrev, uznGlobalCurr);
     RhsAcoustoElastic rhs(myRHSTerm, rhsElement, rhsWeights, myRHSTermx,
                           myRHSTermy, myRHSTermz);
     SEMsolverDataAcoustoElastic solverData(wavefield, rhs);
@@ -716,7 +715,8 @@ void SEMproxy::init_source()
   if (isAcoustoElastic_)
   {
     // Auto-detect source domain based on depth vs interface boundary.
-    // z >= acoustoElasticBoundaryZ → fluid (acoustic); otherwise → solid (elastic).
+    // z >= acoustoElasticBoundaryZ → fluid (acoustic); otherwise → solid
+    // (elastic).
     bool const sourceInFluid =
         (src_coord_[2] >= m_localParams.acoustoElasticBoundaryZ);
     if (sourceInFluid)

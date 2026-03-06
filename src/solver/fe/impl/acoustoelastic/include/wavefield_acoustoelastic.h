@@ -27,14 +27,11 @@ struct WavefieldAcoustoElastic : public Wavefield
   /// Field names in order: p, ux, uy, uz
   static constexpr const char* kFieldNames[4] = {"pressure", "ux", "uy", "uz"};
 
-  WavefieldAcoustoElastic(VECTOR_REAL_VIEW pnGlobalPrev,
-                          VECTOR_REAL_VIEW pnGlobalCurr,
-                          VECTOR_REAL_VIEW uxnGlobalPrev,
-                          VECTOR_REAL_VIEW uxnGlobalCurr,
-                          VECTOR_REAL_VIEW uynGlobalPrev,
-                          VECTOR_REAL_VIEW uynGlobalCurr,
-                          VECTOR_REAL_VIEW uznGlobalPrev,
-                          VECTOR_REAL_VIEW uznGlobalCurr)
+  WavefieldAcoustoElastic(
+      VECTOR_REAL_VIEW pnGlobalPrev, VECTOR_REAL_VIEW pnGlobalCurr,
+      VECTOR_REAL_VIEW uxnGlobalPrev, VECTOR_REAL_VIEW uxnGlobalCurr,
+      VECTOR_REAL_VIEW uynGlobalPrev, VECTOR_REAL_VIEW uynGlobalCurr,
+      VECTOR_REAL_VIEW uznGlobalPrev, VECTOR_REAL_VIEW uznGlobalCurr)
       : m_acoustic(pnGlobalPrev, pnGlobalCurr),
         m_elastic(uxnGlobalPrev, uxnGlobalCurr, uynGlobalPrev, uynGlobalCurr,
                   uznGlobalPrev, uznGlobalCurr)

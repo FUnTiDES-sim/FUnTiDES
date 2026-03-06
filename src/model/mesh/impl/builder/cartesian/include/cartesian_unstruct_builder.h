@@ -357,8 +357,8 @@ class CartesianUnstructBuilder : public ModelBuilderBase<FloatType, ScalarType>
                                         : static_cast<FloatType>(2500);
           model_vp_node_[n] = is_fluid ? static_cast<FloatType>(1500)
                                        : static_cast<FloatType>(3000);
-          model_vs_node_[n] =
-              is_fluid ? static_cast<FloatType>(0) : static_cast<FloatType>(1500);
+          model_vs_node_[n] = is_fluid ? static_cast<FloatType>(0)
+                                       : static_cast<FloatType>(1500);
           model_delta_node_[n] = 0;
           model_epsilon_node_[n] = 0;
           model_gamma_node_[n] = 0;
@@ -410,8 +410,9 @@ class CartesianUnstructBuilder : public ModelBuilderBase<FloatType, ScalarType>
 
       if (isAcoustoElastic_)
       {
-        // Bicouche: fluid layer (centroid z >= boundary) + solid layer (z < boundary).
-        // vs is used by the coupled solver to classify elements: vs=0 → fluid.
+        // Bicouche: fluid layer (centroid z >= boundary) + solid layer (z <
+        // boundary). vs is used by the coupled solver to classify elements:
+        // vs=0 → fluid.
         model_vs_element_ =
             allocateVector<VECTOR_REAL_VIEW>(n_element, "model vs element");
         model_delta_element_ =
@@ -428,7 +429,8 @@ class CartesianUnstructBuilder : public ModelBuilderBase<FloatType, ScalarType>
         FloatType const hz = lz_ / ez_;
         for (int k = 0; k < ez_; ++k)
         {
-          FloatType const centroid_z = oz_ + (k + static_cast<FloatType>(0.5)) * hz;
+          FloatType const centroid_z =
+              oz_ + (k + static_cast<FloatType>(0.5)) * hz;
           bool const is_fluid = (centroid_z >= acoustoElasticBoundaryZ_);
           for (int j = 0; j < ey_; ++j)
           {
@@ -439,8 +441,8 @@ class CartesianUnstructBuilder : public ModelBuilderBase<FloatType, ScalarType>
                                                : static_cast<FloatType>(2000);
               model_vp_element_[e] = is_fluid ? static_cast<FloatType>(1500)
                                               : static_cast<FloatType>(3000);
-              model_vs_element_[e] =
-                  is_fluid ? static_cast<FloatType>(0) : static_cast<FloatType>(1500);
+              model_vs_element_[e] = is_fluid ? static_cast<FloatType>(0)
+                                              : static_cast<FloatType>(1500);
               model_delta_element_[e] = 0;
               model_epsilon_element_[e] = 0;
               model_gamma_element_[e] = 0;

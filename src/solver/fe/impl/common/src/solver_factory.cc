@@ -69,15 +69,13 @@ std::unique_ptr<Solver> makeSolverStruct(bool isModelOnNodes,
   {
     if (isModelOnNodes)
     {
-      return std::make_unique<
-          solver::fe::SEMsolverAcoustoElastic<ORDER, SelectedIntegral, MeshT,
-                                              true>>();
+      return std::make_unique<solver::fe::SEMsolverAcoustoElastic<
+          ORDER, SelectedIntegral, MeshT, true>>();
     }
     else
     {
-      return std::make_unique<
-          solver::fe::SEMsolverAcoustoElastic<ORDER, SelectedIntegral, MeshT,
-                                              false>>();
+      return std::make_unique<solver::fe::SEMsolverAcoustoElastic<
+          ORDER, SelectedIntegral, MeshT, false>>();
     }
   }
   else  // kElastic
@@ -126,15 +124,13 @@ std::unique_ptr<Solver> makeSolverUnstruct(bool isModelOnNodes,
   {
     if (isModelOnNodes)
     {
-      return std::make_unique<
-          solver::fe::SEMsolverAcoustoElastic<ORDER, SelectedIntegral, MeshT,
-                                              true>>();
+      return std::make_unique<solver::fe::SEMsolverAcoustoElastic<
+          ORDER, SelectedIntegral, MeshT, true>>();
     }
     else
     {
-      return std::make_unique<
-          solver::fe::SEMsolverAcoustoElastic<ORDER, SelectedIntegral, MeshT,
-                                              false>>();
+      return std::make_unique<solver::fe::SEMsolverAcoustoElastic<
+          ORDER, SelectedIntegral, MeshT, false>>();
     }
   }
   else  // kElastic

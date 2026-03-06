@@ -12,17 +12,14 @@ template <typename FloatType, typename ScalarType, int Order>
 class CartesianStructBuilder : public ModelBuilderBase<FloatType, ScalarType>
 {
  public:
-  CartesianStructBuilder(ScalarType ex, FloatType lx, ScalarType ey,
-                         FloatType ly, ScalarType ez, FloatType lz,
-                         bool isModelOnNodes, bool isElastic,
-                         FloatType ox = 0.0, FloatType oy = 0.0,
-                         FloatType oz = 0.0,
-                         FloatType global_lx = -1.0, FloatType global_ly = -1.0,
-                         FloatType global_lz = -1.0, FloatType global_ox = 0.0,
-                         FloatType global_oy = 0.0, FloatType global_oz = 0.0,
-                         bool isAcoustoElastic = false,
-                         FloatType acoustoElasticBoundaryZ =
-                             static_cast<FloatType>(0))
+  CartesianStructBuilder(
+      ScalarType ex, FloatType lx, ScalarType ey, FloatType ly, ScalarType ez,
+      FloatType lz, bool isModelOnNodes, bool isElastic, FloatType ox = 0.0,
+      FloatType oy = 0.0, FloatType oz = 0.0, FloatType global_lx = -1.0,
+      FloatType global_ly = -1.0, FloatType global_lz = -1.0,
+      FloatType global_ox = 0.0, FloatType global_oy = 0.0,
+      FloatType global_oz = 0.0, bool isAcoustoElastic = false,
+      FloatType acoustoElasticBoundaryZ = static_cast<FloatType>(0))
       : ex_(ex),
         ey_(ey),
         ez_(ez),
@@ -118,12 +115,12 @@ class CartesianStructBuilder : public ModelBuilderBase<FloatType, ScalarType>
         {
           bool const is_fluid =
               (temp_model.nodeCoord(n, 2) >= acoustoElasticBoundaryZ_);
-          data.model_vp_node_[n] =
-              is_fluid ? static_cast<FloatType>(1500) : static_cast<FloatType>(3400);
-          data.model_vs_node_[n] =
-              is_fluid ? static_cast<FloatType>(0) : static_cast<FloatType>(1963);
-          data.model_rho_node_[n] =
-              is_fluid ? static_cast<FloatType>(1020) : static_cast<FloatType>(2500);
+          data.model_vp_node_[n] = is_fluid ? static_cast<FloatType>(1500)
+                                            : static_cast<FloatType>(3400);
+          data.model_vs_node_[n] = is_fluid ? static_cast<FloatType>(0)
+                                            : static_cast<FloatType>(1963);
+          data.model_rho_node_[n] = is_fluid ? static_cast<FloatType>(1020)
+                                             : static_cast<FloatType>(2500);
         }
       }
       else
@@ -151,9 +148,9 @@ class CartesianStructBuilder : public ModelBuilderBase<FloatType, ScalarType>
               data.model_vp_element_[e] = is_fluid
                                               ? static_cast<FloatType>(1500)
                                               : static_cast<FloatType>(3400);
-              data.model_vs_element_[e] =
-                  is_fluid ? static_cast<FloatType>(0)
-                           : static_cast<FloatType>(1963);
+              data.model_vs_element_[e] = is_fluid
+                                              ? static_cast<FloatType>(0)
+                                              : static_cast<FloatType>(1963);
               data.model_rho_element_[e] = is_fluid
                                                ? static_cast<FloatType>(1020)
                                                : static_cast<FloatType>(2500);

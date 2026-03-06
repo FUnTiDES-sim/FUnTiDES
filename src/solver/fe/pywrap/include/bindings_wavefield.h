@@ -74,11 +74,11 @@ void bind_wavefield_acoustoelastic(py::module_ &m)
                Kokkos::Experimental::python_view_type_t<VECTOR_REAL_VIEW>,
                Kokkos::Experimental::python_view_type_t<VECTOR_REAL_VIEW>,
                Kokkos::Experimental::python_view_type_t<VECTOR_REAL_VIEW>>(),
-           py::arg("pn_global_prev"),  py::arg("pn_global_curr"),
+           py::arg("pn_global_prev"), py::arg("pn_global_curr"),
            py::arg("uxn_global_prev"), py::arg("uxn_global_curr"),
            py::arg("uyn_global_prev"), py::arg("uyn_global_curr"),
            py::arg("uzn_global_prev"), py::arg("uzn_global_curr"))
-      .def("swap",  &WavefieldAcoustoElastic::swap)
+      .def("swap", &WavefieldAcoustoElastic::swap)
       .def("print", &WavefieldAcoustoElastic::print);
 }
 

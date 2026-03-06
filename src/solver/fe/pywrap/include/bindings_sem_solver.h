@@ -76,16 +76,20 @@ void bind_sem_solver_base(py::module_ &m)
            py::arg("time_sample"), py::arg("data"))
       .def("update_solution", &Solver::updateSolution, py::arg("dt"),
            py::arg("data"))
-      .def("get_mass_matrix_acoustic",
-           [](Solver& self) -> Kokkos::Experimental::python_view_type_t<VECTOR_REAL_VIEW> {
-             return self.getMassMatrixAcoustic();
-           },
-           py::return_value_policy::reference_internal)
-      .def("get_mass_matrix_elastic",
-           [](Solver& self) -> Kokkos::Experimental::python_view_type_t<VECTOR_REAL_VIEW> {
-             return self.getMassMatrixElastic();
-           },
-           py::return_value_policy::reference_internal)
+      .def(
+          "get_mass_matrix_acoustic",
+          [](Solver &self)
+              -> Kokkos::Experimental::python_view_type_t<VECTOR_REAL_VIEW> {
+            return self.getMassMatrixAcoustic();
+          },
+          py::return_value_policy::reference_internal)
+      .def(
+          "get_mass_matrix_elastic",
+          [](Solver &self)
+              -> Kokkos::Experimental::python_view_type_t<VECTOR_REAL_VIEW> {
+            return self.getMassMatrixElastic();
+          },
+          py::return_value_policy::reference_internal)
       .def("output_solution_values", &Solver::outputSolutionValues,
            py::arg("t"), py::arg("e"), py::arg("field_global"),
            py::arg("field_name"));
