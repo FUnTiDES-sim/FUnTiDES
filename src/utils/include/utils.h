@@ -8,7 +8,7 @@ struct SolverUtils
 {
   float evaluateRicker(float const& time_n, float const& f0, int order)
   {
-    float const o_tpeak = 1.0 / f0;
+    float const o_tpeak = 0.115;//1.0 / f0;
     float pulse = 0.0;
     if ((time_n <= -0.9 * o_tpeak) || (time_n >= 2.9 * o_tpeak))
     {
@@ -19,7 +19,22 @@ struct SolverUtils
     float const lam = (f0 * pi) * (f0 * pi);
 
     switch (order)
-    {
+    {   
+      case 4: {
+          pulse = 4.0 * lam * lam *
+                  (3.0 - 12.0 * lam * (time_n - o_tpeak) * (time_n - o_tpeak) +
+                   4.0 * lam * lam *
+                   (time_n - o_tpeak) * (time_n - o_tpeak) *
+                   (time_n - o_tpeak) * (time_n - o_tpeak)) *
+                  exp(-lam * (time_n - o_tpeak) * (time_n - o_tpeak));
+      }
+      break;
+      case 3: {
+      pulse = 4.0 * lam * lam * (time_n - o_tpeak) *
+            (3.0 - 2.0 * lam * (time_n - o_tpeak) * (time_n - o_tpeak)) *
+            exp(-lam * (time_n - o_tpeak) * (time_n - o_tpeak));
+      }
+      break;
       case 2: {
         pulse = 2.0 * lam *
                 (2.0 * lam * (time_n - o_tpeak) * (time_n - o_tpeak) - 1.0) *
