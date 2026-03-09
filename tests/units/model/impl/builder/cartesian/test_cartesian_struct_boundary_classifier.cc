@@ -13,9 +13,9 @@ namespace test
 // order-1 elements spanning [0, L]^3 with origin at (ox, oy, oz).
 // ---------------------------------------------------------------------------
 static model::ModelStructData<float, int> makeStructData(int ne, float L,
-                                                          float ox = 0.f,
-                                                          float oy = 0.f,
-                                                          float oz = 0.f)
+                                                         float ox = 0.f,
+                                                         float oy = 0.f,
+                                                         float oz = 0.f)
 {
   model::ModelStructData<float, int> data;
   data.ex_ = ne;
@@ -58,7 +58,7 @@ class CartesianStructBoundaryClassifierTest : public ::testing::Test
 
   // Classifier with global == local bounds
   CartesianStructBoundaryClassifier<float, int, 1> classifier{0.f, L, 0.f, L,
-                                                               0.f, L, true};
+                                                              0.f, L, true};
 };
 
 TEST_F(CartesianStructBoundaryClassifierTest, InteriorNodeIsInterior)
@@ -84,8 +84,8 @@ TEST_F(CartesianStructBoundaryClassifierTest,
 TEST_F(CartesianStructBoundaryClassifierTest,
        ZmaxNodesAreDampingWhenFreeSurfaceOff)
 {
-  CartesianStructBoundaryClassifier<float, int, 1> noSurface{0.f, L, 0.f, L,
-                                                              0.f, L, false};
+  CartesianStructBoundaryClassifier<float, int, 1> noSurface{0.f, L, 0.f,  L,
+                                                             0.f, L, false};
   auto flags = noSurface.classify(mesh);
   for (int j = 0; j < ny; ++j)
     for (int i = 0; i < nx; ++i)
@@ -115,9 +115,12 @@ TEST_F(CartesianStructBoundaryClassifierTest, NodeCountsByFlag)
   int n_interior = 0, n_surface = 0, n_damping = 0;
   for (int n = 0; n < mesh.getNumberOfNodes(); ++n)
   {
-    if (flags(n) == static_cast<int>(BoundaryFlag::InteriorNode)) ++n_interior;
-    else if (flags(n) == static_cast<int>(BoundaryFlag::Surface)) ++n_surface;
-    else if (flags(n) == static_cast<int>(BoundaryFlag::Damping)) ++n_damping;
+    if (flags(n) == static_cast<int>(BoundaryFlag::InteriorNode))
+      ++n_interior;
+    else if (flags(n) == static_cast<int>(BoundaryFlag::Surface))
+      ++n_surface;
+    else if (flags(n) == static_cast<int>(BoundaryFlag::Damping))
+      ++n_damping;
   }
   // 3x3x3 = 27 nodes total
   // Interior: only (1,1,1) → 1
@@ -145,9 +148,9 @@ TEST(CartesianStructBoundaryClassifierMpiTest, InternalPartitionFaceIsInterior)
 
   // Global domain is twice as wide in X
   CartesianStructBoundaryClassifier<float, int, 1> classifier{
-      0.f, 4.f,   // global x bounds (local only covers [0,2])
-      0.f, L,     // global y bounds (same as local)
-      0.f, L,     // global z bounds
+      0.f, 4.f,  // global x bounds (local only covers [0,2])
+      0.f, L,    // global y bounds (same as local)
+      0.f, L,    // global z bounds
       true};
 
   auto flags = classifier.classify(mesh);

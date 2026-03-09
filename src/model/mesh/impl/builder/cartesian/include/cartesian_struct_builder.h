@@ -18,10 +18,10 @@ class CartesianStructBuilder : public ModelBuilderBase<FloatType, ScalarType>
                          FloatType ly, ScalarType ez, FloatType lz,
                          bool isModelOnNodes, bool isElastic,
                          FloatType ox = 0.0, FloatType oy = 0.0,
-                         FloatType oz = 0.0,
-                         FloatType global_lx = -1.0, FloatType global_ly = -1.0,
-                         FloatType global_lz = -1.0, FloatType global_ox = 0.0,
-                         FloatType global_oy = 0.0, FloatType global_oz = 0.0)
+                         FloatType oz = 0.0, FloatType global_lx = -1.0,
+                         FloatType global_ly = -1.0, FloatType global_lz = -1.0,
+                         FloatType global_ox = 0.0, FloatType global_oy = 0.0,
+                         FloatType global_oz = 0.0)
       : ex_(ex),
         ey_(ey),
         ez_(ez),
@@ -62,15 +62,16 @@ class CartesianStructBuilder : public ModelBuilderBase<FloatType, ScalarType>
 
     auto temp_model = model::ModelStruct<FloatType, ScalarType, Order>(data);
 
-    data.boundaries_t_ = CartesianStructBoundaryClassifier<FloatType, ScalarType, Order>(
-        global_ox_, global_ox_ + global_lx_,
-        global_oy_, global_oy_ + global_ly_,
-        global_oz_, global_oz_ + global_lz_,
-        free_surface_on_top)
-        .classify(temp_model);
+    data.boundaries_t_ =
+        CartesianStructBoundaryClassifier<FloatType, ScalarType, Order>(
+            global_ox_, global_ox_ + global_lx_, global_oy_,
+            global_oy_ + global_ly_, global_oz_, global_oz_ + global_lz_,
+            free_surface_on_top)
+            .classify(temp_model);
 
     // -------------------------------------------------------------------------
-    // Construct model with local coordinates and dimensions, but use global boundaries for boundary classification.
+    // Construct model with local coordinates and dimensions, but use global
+    // boundaries for boundary classification.
     // -------------------------------------------------------------------------
     auto model =
         std::make_shared<model::ModelStruct<FloatType, ScalarType, Order>>(
@@ -89,7 +90,6 @@ class CartesianStructBuilder : public ModelBuilderBase<FloatType, ScalarType>
   FloatType global_lx_, global_ly_, global_lz_;  // Domain size (global)
   bool isModelOnNodes_;
   bool isElastic_;
-
 };
 }  // namespace model
 

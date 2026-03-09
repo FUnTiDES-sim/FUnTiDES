@@ -20,7 +20,8 @@ class ModelBuilderBase
 
   /**
    * @brief Get the model instance.
-   * @param free_surface_on_top Indicates if the free surface is on top, else we use damping on the top boundary.
+   * @param free_surface_on_top Indicates if the free surface is on top, else we
+   * use damping on the top boundary.
    * @return A shared pointer to the model instance.
    */
   virtual std::shared_ptr<model::ModelApi<FloatType, ScalarType>> getModel(

@@ -13,7 +13,7 @@ namespace test
 static VECTOR_REAL_VIEW makeCoords(std::initializer_list<float> vals)
 {
   auto v = allocateVector<VECTOR_REAL_VIEW>(static_cast<int>(vals.size()),
-                                             "test_coords");
+                                            "test_coords");
   int i = 0;
   for (float val : vals) v(i++) = val;
   return v;
@@ -74,7 +74,8 @@ TEST_F(CartesianUnstructBoundaryClassifierTest, AllSixFacesAreDamping)
 
   auto flags = classifier.classify(5, x, y, z);
   for (int n = 0; n < 5; ++n)
-    EXPECT_EQ(flags(n), static_cast<int>(BoundaryFlag::Damping)) << "node " << n;
+    EXPECT_EQ(flags(n), static_cast<int>(BoundaryFlag::Damping))
+        << "node " << n;
 }
 
 TEST_F(CartesianUnstructBoundaryClassifierTest, MixedNodeTypes)

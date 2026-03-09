@@ -47,21 +47,20 @@ class CartesianUnstructBuilder : public ModelBuilderBase<FloatType, ScalarType>
     const int n_node =
         (ex_ * order_ + 1) * (ey_ * order_ + 1) * (ez_ * order_ + 1);
 
-    const FloatType tol =
-        std::min({lx_ / ex_, ly_ / ey_, lz_ / ez_}) *
-        static_cast<FloatType>(1e-4);
+    const FloatType tol = std::min({lx_ / ex_, ly_ / ey_, lz_ / ez_}) *
+                          static_cast<FloatType>(1e-4);
 
     auto boundaries_t =
         CartesianUnstructBoundaryClassifier<FloatType, ScalarType>(
-            global_ox_, global_ox_ + global_lx_,
-            global_oy_, global_oy_ + global_ly_,
-            global_oz_, global_oz_ + global_lz_,
-            tol, free_surface_on_top)
+            global_ox_, global_ox_ + global_lx_, global_oy_,
+            global_oy_ + global_ly_, global_oz_, global_oz_ + global_lz_, tol,
+            free_surface_on_top)
             .classify(n_node, nodes_coords_x_, nodes_coords_y_,
                       nodes_coords_z_);
 
     // -------------------------------------------------------------------------
-    // Construct model with local coordinates and dimensions, but use global boundaries for boundary classification.
+    // Construct model with local coordinates and dimensions, but use global
+    // boundaries for boundary classification.
     // -------------------------------------------------------------------------
     model::ModelUnstructData<FloatType, ScalarType> modelData(
         order_, ex_ * ey_ * ez_, n_node, lx_, ly_, lz_, isModelOnNodes_,

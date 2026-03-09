@@ -3,11 +3,11 @@
 
 #pragma once
 
-#include <cmath>
-
 #include <data_type.h>
 #include <model.h>
 #include <model_struct.h>
+
+#include <cmath>
 
 namespace model
 {

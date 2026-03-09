@@ -66,7 +66,7 @@ SEMproxy::SEMproxy(const SemProxyOptions& opt)
 
   bool isModelOnNodes = opt.isModelOnNodes;
   isElastic_ = opt.isElastic;
-  freeSurface_ = opt.free_surface; // TODO free surface
+  freeSurface_ = opt.free_surface;
   cout << boolalpha;
   bool isElastic = isElastic_;
 
