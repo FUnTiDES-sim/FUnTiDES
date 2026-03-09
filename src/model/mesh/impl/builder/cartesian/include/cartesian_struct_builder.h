@@ -6,6 +6,8 @@
 #include <builder.h>
 #include <model_struct.h>
 
+#include "cartesian_struct_boundary_classifier.h"
+
 namespace model
 {
 template <typename FloatType, typename ScalarType, int Order>
@@ -61,41 +63,16 @@ class CartesianStructBuilder : public ModelBuilderBase<FloatType, ScalarType>
 
     auto temp_model = model::ModelStruct<FloatType, ScalarType, Order>(data);
 
-    const int n_node = temp_model.getNumberOfNodes();
-    FloatType tol = temp_model.getMinSpacing() * 1e-4;
+    data.boundaries_t_ = CartesianStructBoundaryClassifier<FloatType, ScalarType, Order>(
+        global_ox_, global_ox_ + global_lx_,
+        global_oy_, global_oy_ + global_ly_,
+        global_oz_, global_oz_ + global_lz_,
+        /*free_surface_on_top=*/true)
+        .classify(temp_model);
 
-    FloatType x_min = global_ox_, x_max = global_ox_ + global_lx_;
-    FloatType y_min = global_oy_, y_max = global_oy_ + global_ly_;
-    FloatType z_min = global_oz_, z_max = global_oz_ + global_lz_;
-
-    auto boundaries_t = allocateVector<VECTOR_INT_VIEW>(n_node, "boundaries_t");
-
-    for (int n = 0; n < n_node; ++n)
-    {
-      FloatType x = temp_model.nodeCoord(n, 0);
-      FloatType y = temp_model.nodeCoord(n, 1);
-      FloatType z = temp_model.nodeCoord(n, 2);
-
-      bool at_xmin = (fabs(x - x_min) < tol);
-      bool at_xmax = (fabs(x - x_max) < tol);
-      bool at_ymin = (fabs(y - y_min) < tol);
-      bool at_ymax = (fabs(y - y_max) < tol);
-      bool at_zmin = (fabs(z - z_min) < tol);
-      bool at_zmax = (fabs(z - z_max) < tol);
-
-      bool on_boundary =
-          at_xmin || at_xmax || at_ymin || at_ymax || at_zmin || at_zmax;
-
-      if (!on_boundary)
-        boundaries_t(n) = static_cast<int>(BoundaryFlag::InteriorNode);
-      else if (at_zmax)
-        boundaries_t(n) = static_cast<int>(BoundaryFlag::Surface);
-      else
-        boundaries_t(n) = static_cast<int>(BoundaryFlag::Damping);
-    }
-
-    data.boundaries_t_ = boundaries_t;
-
+    // -------------------------------------------------------------------------
+    // Construct model with local coordinates and dimensions, but use global boundaries for boundary classification.
+    // -------------------------------------------------------------------------
     auto model =
         std::make_shared<model::ModelStruct<FloatType, ScalarType, Order>>(
             data);
@@ -113,6 +90,7 @@ class CartesianStructBuilder : public ModelBuilderBase<FloatType, ScalarType>
   FloatType global_lx_, global_ly_, global_lz_;  // Domain size (global)
   bool isModelOnNodes_;
   bool isElastic_;
+
 };
 }  // namespace model
 

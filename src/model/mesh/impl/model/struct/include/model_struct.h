@@ -64,7 +64,6 @@ class ModelStruct : public ModelApi<FloatType, ScalarType>
         isModelOnNodes_(data.isModelOnNodes_),
         boundaries_t_(data.boundaries_t_),
         isElastic_(data.isElastic_),
-        free_surface_enabled_(true),
         face_connectivity_(data.ex_, data.ey_, data.ez_, Order)
   {
     nx_ = Order * ex_ + 1;
@@ -364,59 +363,7 @@ class ModelStruct : public ModelApi<FloatType, ScalarType>
   bool isFreeSurface(ScalarType n) const override
   {
     if (boundaries_t_.extent(0) == 0) return false;
-    return boundaries_t_(n) == static_cast<int>(BoundaryFlag::Surface);
-  }
-
-  void initializeBoundaryFlags(bool free_surface_on_top) override
-  {
-    free_surface_enabled_ = free_surface_on_top;
-  }
-
-  void setFreeSurfaceEnabled(bool enable) override
-  {
-    free_surface_enabled_ = enable;
-  }
-
-  void initFreeSurface() override
-  {
-    if (boundaries_t_.extent(0) > 0) return;  // Déjà pré-calculé par le builder
-
-    boundaries_t_ =
-        allocateVector<VECTOR_INT_VIEW>(getNumberOfNodes(), "boundaries");
-
-    FloatType tol = getMinSpacing() * 1e-4;
-    FloatType x_min = ox_, x_max = ox_ + lx_;
-    FloatType y_min = oy_, y_max = oy_ + ly_;
-    FloatType z_min = oz_, z_max = oz_ + lz_;
-    bool enabled = free_surface_enabled_;
-
-    auto boundaries = boundaries_t_;
-    auto mesh_copy = *this;
-
-    LOOPHEAD(getNumberOfNodes(), n)
-    {
-      FloatType x = mesh_copy.nodeCoord(n, 0);
-      FloatType y = mesh_copy.nodeCoord(n, 1);
-      FloatType z = mesh_copy.nodeCoord(n, 2);
-
-      bool at_xmin = (fabs(x - x_min) < tol);
-      bool at_xmax = (fabs(x - x_max) < tol);
-      bool at_ymin = (fabs(y - y_min) < tol);
-      bool at_ymax = (fabs(y - y_max) < tol);
-      bool at_zmin = (fabs(z - z_min) < tol);
-      bool at_zmax = (fabs(z - z_max) < tol);
-
-      bool on_boundary =
-          at_xmin || at_xmax || at_ymin || at_ymax || at_zmin || at_zmax;
-
-      if (!on_boundary)
-        boundaries(n) = static_cast<int>(BoundaryFlag::InteriorNode);
-      else if (at_zmax && enabled)
-        boundaries(n) = static_cast<int>(BoundaryFlag::Surface);
-      else
-        boundaries(n) = static_cast<int>(BoundaryFlag::Damping);
-    }
-    LOOPEND
+    return boundaries_t_(n) == static_cast<ScalarType>(BoundaryFlag::Surface);
   }
 
   /**
@@ -456,7 +403,7 @@ class ModelStruct : public ModelApi<FloatType, ScalarType>
     for (int q = 0; q < n_dofs; ++q)
     {
       if (boundaries_t_(getGlobalNodeFromFace(face_id, q)) ==
-          static_cast<int>(BoundaryFlag::InteriorNode))
+          static_cast<ScalarType>(BoundaryFlag::InteriorNode))
         return false;
     }
     return true;
@@ -491,7 +438,6 @@ class ModelStruct : public ModelApi<FloatType, ScalarType>
 
   bool isModelOnNodes_;
   bool isElastic_;
-  bool free_surface_enabled_;
 
   array3DReal model_C_tensor_element_;
   VECTOR_INT_VIEW boundaries_t_;

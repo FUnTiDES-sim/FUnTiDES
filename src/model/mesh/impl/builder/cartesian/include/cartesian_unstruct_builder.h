@@ -4,6 +4,7 @@
 #include <model_unstruct.h>
 
 #include "cartesian_params.h"
+#include "cartesian_unstruct_boundary_classifier.h"
 
 namespace model
 {
@@ -46,47 +47,21 @@ class CartesianUnstructBuilder : public ModelBuilderBase<FloatType, ScalarType>
     const int n_node =
         (ex_ * order_ + 1) * (ey_ * order_ + 1) * (ez_ * order_ + 1);
 
-    // -------------------------------------------------------------------------
-    // Pré-calcul boundaries_t_ et freeSurfaceTag_ avec coordonnées GLOBALES
-    // Le modèle n'a pas besoin de connaître les bornes globales
-    // -------------------------------------------------------------------------
-    FloatType hz = lz_ / ez_;
-    FloatType hx = lx_ / ex_;
-    FloatType hy = ly_ / ey_;
-    FloatType tol = std::min({hx, hy, hz}) * 1e-4;
+    const FloatType tol =
+        std::min({lx_ / ex_, ly_ / ey_, lz_ / ez_}) *
+        static_cast<FloatType>(1e-4);
 
-    FloatType x_min = global_ox_, x_max = global_ox_ + global_lx_;
-    FloatType y_min = global_oy_, y_max = global_oy_ + global_ly_;
-    FloatType z_min = global_oz_, z_max = global_oz_ + global_lz_;
-
-    auto boundaries_t = allocateVector<VECTOR_INT_VIEW>(n_node, "boundaries_t");
-
-    for (int n = 0; n < n_node; ++n)
-    {
-      FloatType x = nodes_coords_x_(n);
-      FloatType y = nodes_coords_y_(n);
-      FloatType z = nodes_coords_z_(n);
-
-      bool at_xmin = (fabs(x - x_min) < tol);
-      bool at_xmax = (fabs(x - x_max) < tol);
-      bool at_ymin = (fabs(y - y_min) < tol);
-      bool at_ymax = (fabs(y - y_max) < tol);
-      bool at_zmin = (fabs(z - z_min) < tol);
-      bool at_zmax = (fabs(z - z_max) < tol);
-
-      bool on_boundary =
-          at_xmin || at_xmax || at_ymin || at_ymax || at_zmin || at_zmax;
-
-      if (!on_boundary)
-        boundaries_t(n) = static_cast<int>(BoundaryFlag::InteriorNode);
-      else if (at_zmax)
-        boundaries_t(n) = static_cast<int>(BoundaryFlag::Surface);
-      else
-        boundaries_t(n) = static_cast<int>(BoundaryFlag::Damping);
-    }
+    auto boundaries_t =
+        CartesianUnstructBoundaryClassifier<FloatType, ScalarType>(
+            global_ox_, global_ox_ + global_lx_,
+            global_oy_, global_oy_ + global_ly_,
+            global_oz_, global_oz_ + global_lz_,
+            tol, /*free_surface_on_top=*/true)
+            .classify(n_node, nodes_coords_x_, nodes_coords_y_,
+                      nodes_coords_z_);
 
     // -------------------------------------------------------------------------
-    // Construction du modèle — pas de coordonnées globales passées
+    // Construct model with local coordinates and dimensions, but use global boundaries for boundary classification.
     // -------------------------------------------------------------------------
     model::ModelUnstructData<FloatType, ScalarType> modelData(
         order_, ex_ * ey_ * ez_, n_node, lx_, ly_, lz_, isModelOnNodes_,

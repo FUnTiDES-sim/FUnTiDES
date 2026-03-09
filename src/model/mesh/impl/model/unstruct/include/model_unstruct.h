@@ -618,63 +618,6 @@ class ModelUnstruct final : public ModelApi<FloatType, ScalarType>
   }
 
   /**
-   * @brief Initialize boundary flags based on node positions
-   *
-   * Detects boundary nodes using geometry and marks them:
-   * - Nodes at global domain edges are boundary nodes
-   * - Top surface (Z+) marked as Surface if free_surface_on_top=true
-   * - Other boundaries marked as Damping (absorbing boundary)
-   * - Interior nodes (including MPI inter-domain boundaries) marked as
-   * InteriorNode
-   *
-   * This geometric detection is MPI-safe: only nodes at the GLOBAL domain
-   * boundaries are marked, not nodes at MPI partition boundaries.
-   *
-   * @param free_surface_on_top If true, mark top (Z+) as Surface, else as
-   * Damping
-   */
-  void initializeBoundaryFlags(bool free_surface_on_top) override
-  {
-    if (boundaries_t_.extent(0) > 0) return;
-
-    boundaries_t_ = allocateVector<VECTOR_INT_VIEW>(n_node_, "boundaries_t");
-
-    FloatType tol = getMinSpacing() * 1e-4;
-    FloatType x_min = ox_, x_max = ox_ + lx_;
-    FloatType y_min = oy_, y_max = oy_ + ly_;
-    FloatType z_min = oz_, z_max = oz_ + lz_;
-    bool enabled_fs = free_surface_on_top;
-
-    auto boundaries = boundaries_t_;
-    auto mesh_copy = *this;
-
-    LOOPHEAD(n_node_, n)
-    {
-      FloatType x = mesh_copy.nodeCoord(n, 0);
-      FloatType y = mesh_copy.nodeCoord(n, 1);
-      FloatType z = mesh_copy.nodeCoord(n, 2);
-
-      bool at_xmin = (fabs(x - x_min) < tol);
-      bool at_xmax = (fabs(x - x_max) < tol);
-      bool at_ymin = (fabs(y - y_min) < tol);
-      bool at_ymax = (fabs(y - y_max) < tol);
-      bool at_zmin = (fabs(z - z_min) < tol);
-      bool at_zmax = (fabs(z - z_max) < tol);
-
-      bool on_boundary =
-          at_xmin || at_xmax || at_ymin || at_ymax || at_zmin || at_zmax;
-
-      if (!on_boundary)
-        boundaries[n] = static_cast<int>(BoundaryFlag::InteriorNode);
-      else if (at_zmax && enabled_fs)
-        boundaries[n] = static_cast<int>(BoundaryFlag::Surface);
-      else
-        boundaries[n] = static_cast<int>(BoundaryFlag::Damping);
-    }
-    LOOPEND
-  }
-
-  /**
    * @brief Get domain size in specified dimension
    * @param dim Dimension (0=x, 1=y, 2=z)
    * @return Domain size (meters)
@@ -828,7 +771,7 @@ class ModelUnstruct final : public ModelApi<FloatType, ScalarType>
     for (int q = 0; q < n_dofs; ++q)
     {
       if (boundaries_t_[getGlobalNodeFromFace(face_global, q)] ==
-          static_cast<int>(BoundaryFlag::InteriorNode))
+          static_cast<ScalarType>(BoundaryFlag::InteriorNode))
         return false;
     }
     return true;
@@ -853,22 +796,7 @@ class ModelUnstruct final : public ModelApi<FloatType, ScalarType>
   bool isFreeSurface(ScalarType n) const override
   {
     if (boundaries_t_.extent(0) == 0) return false;
-    return boundaries_t_[n] == static_cast<int>(BoundaryFlag::Surface);
-  }
-
-  /**
-   * @brief Enable or disable free surface marking
-   * @param enable True to enable free surface, false to disable
-   */
-  void setFreeSurfaceEnabled(bool enable) override
-  {
-    freeSurfaceEnabled_ = enable;
-  }
-
-  /// @brief Initialize boundary flags — delegates to initializeBoundaryFlags.
-  void initFreeSurface() override
-  {
-    initializeBoundaryFlags(freeSurfaceEnabled_);
+    return boundaries_t_[n] == static_cast<ScalarType>(BoundaryFlag::Surface);
   }
 
  private:
@@ -905,7 +833,6 @@ class ModelUnstruct final : public ModelApi<FloatType, ScalarType>
   VECTOR_REAL_VIEW model_phi_element_;
   ARRAY3D_REAL_VIEW model_C_tensor_element_;
   VECTOR_INT_VIEW boundaries_t_;
-  bool freeSurfaceEnabled_;
 
   FaceConnectivityUnstruct<FloatType, ScalarType> face_connectivity_;
 };
