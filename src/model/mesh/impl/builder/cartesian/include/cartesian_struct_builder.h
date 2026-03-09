@@ -3,9 +3,10 @@
 
 #pragma once
 
-#include <algorithm>
 #include <builder.h>
 #include <model_struct.h>
+
+#include <algorithm>
 
 #include "cartesian_struct_boundary_classifier.h"
 
@@ -65,16 +66,14 @@ class CartesianStructBuilder : public ModelBuilderBase<FloatType, ScalarType>
     const int ny = static_cast<int>(ey_) * Order + 1;
     const int nz = static_cast<int>(ez_) * Order + 1;
     const int n_node = nx * ny * nz;
-    const FloatType tol =
-        std::min({lx_ / ex_, ly_ / ey_, lz_ / ez_}) *
-        static_cast<FloatType>(1e-4);
+    const FloatType tol = std::min({lx_ / ex_, ly_ / ey_, lz_ / ez_}) *
+                          static_cast<FloatType>(1e-4);
 
     data.boundaries_t_ =
         CartesianStructBoundaryClassifier<FloatType, ScalarType>(
-            global_ox_, global_ox_ + global_lx_,
-            global_oy_, global_oy_ + global_ly_,
-            global_oz_, global_oz_ + global_lz_,
-            tol, free_surface_on_top)
+            global_ox_, global_ox_ + global_lx_, global_oy_,
+            global_oy_ + global_ly_, global_oz_, global_oz_ + global_lz_, tol,
+            free_surface_on_top)
             .classify(n_node, nx, ny, nz, ox_, oy_, oz_, lx_, ly_, lz_);
 
     // -------------------------------------------------------------------------

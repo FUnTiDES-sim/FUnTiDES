@@ -28,8 +28,8 @@ class CartesianStructBoundaryClassifierTest : public ::testing::Test
 {
  protected:
   // All six faces are global boundaries; free surface on top
-  CartesianStructBoundaryClassifier<float, int> classifier{
-      0.f, L, 0.f, L, 0.f, L, TOL, true};
+  CartesianStructBoundaryClassifier<float, int> classifier{0.f, L, 0.f, L,
+                                                           0.f, L, TOL, true};
 
   VECTOR_INT_VIEW classify() const
   {
@@ -59,10 +59,9 @@ TEST_F(CartesianStructBoundaryClassifierTest,
 TEST_F(CartesianStructBoundaryClassifierTest,
        ZmaxNodesAreDampingWhenFreeSurfaceOff)
 {
-  CartesianStructBoundaryClassifier<float, int> noSurface{
-      0.f, L, 0.f, L, 0.f, L, TOL, false};
-  auto flags =
-      noSurface.classify(N_NODE, NX, NY, NZ, 0.f, 0.f, 0.f, L, L, L);
+  CartesianStructBoundaryClassifier<float, int> noSurface{0.f, L, 0.f, L,
+                                                          0.f, L, TOL, false};
+  auto flags = noSurface.classify(N_NODE, NX, NY, NZ, 0.f, 0.f, 0.f, L, L, L);
   for (int j = 0; j < NY; ++j)
     for (int i = 0; i < NX; ++i)
       EXPECT_EQ(flags(nodeIndex3(NX, NY, i, j, NZ - 1)),
@@ -113,8 +112,7 @@ TEST(CartesianStructBoundaryClassifierMpiTest, InternalPartitionFaceIsInterior)
   // Global x extends to 2*L; local x_max (= L) is NOT a global boundary
   CartesianStructBoundaryClassifier<float, int> classifier{
       0.f, 2 * L, 0.f, L, 0.f, L, TOL, true};
-  auto flags =
-      classifier.classify(N_NODE, NX, NY, NZ, 0.f, 0.f, 0.f, L, L, L);
+  auto flags = classifier.classify(N_NODE, NX, NY, NZ, 0.f, 0.f, 0.f, L, L, L);
 
   // Node at i=NX-1, j=1, k=1: x_max is internal → interior
   EXPECT_EQ(flags(nodeIndex3(NX, NY, NX - 1, 1, 1)),
