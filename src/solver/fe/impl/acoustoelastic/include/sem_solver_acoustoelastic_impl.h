@@ -77,8 +77,6 @@ void SEMsolverAcoustoElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE,
 
   m_element_type_ =
       allocateVector<VECTOR_INT_VIEW>(nElem, "acoustoElasticElementType");
-  m_is_interface_node_ =
-      allocateVector<VECTOR_INT_VIEW>(nNode, "isInterfaceNode");
   m_interface_node_index_ =
       allocateVector<VECTOR_INT_VIEW>(nNode, "interfaceNodeIndex");
 
@@ -95,7 +93,6 @@ void SEMsolverAcoustoElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE,
 
   LOOPHEAD(nNode, i)
   {
-    m_is_interface_node_[i] = 0;
     m_interface_node_index_[i] = -1;
     m_coupling_coeff_x_[i] = 0.0f;
     m_coupling_coeff_y_[i] = 0.0f;
@@ -279,14 +276,12 @@ void SEMsolverAcoustoElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE,
   {
     if (acoustic_count[n] > 0 && elastic_count[n] > 0)
     {
-      m_is_interface_node_[n] = 1;
       m_interface_node_index_[n] = idx;
       m_interface_node_indices_[idx] = n;
       ++idx;
     }
     else
     {
-      m_is_interface_node_[n] = 0;
       m_interface_node_index_[n] = -1;
     }
   }
@@ -320,7 +315,7 @@ void SEMsolverAcoustoElastic<
       int iface_count = 0;
       for (int q = 0; q < numNodesPerFace; ++q)
       {
-        if (m_is_interface_node_[m_mesh_.getGlobalNodeFromFace(f, q)])
+        if (m_interface_node_index_[m_mesh_.getGlobalNodeFromFace(f, q)] >= 0)
           ++iface_count;
       }
       if (iface_count < numNodesPerFace) continue;

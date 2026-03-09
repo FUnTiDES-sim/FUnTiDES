@@ -193,9 +193,6 @@ class SEMsolverAcoustoElastic : public Solver
   /// Per-element type tag (kElementTypeAcoustic or kElementTypeElastic).
   VECTOR_INT_VIEW m_element_type_;
 
-  /// Boolean mask: true if the node lies on the fluid–solid interface.
-  VECTOR_INT_VIEW m_is_interface_node_;
-
   /// Index map from global node index to interface node index (-1 if not).
   VECTOR_INT_VIEW m_interface_node_index_;
 
