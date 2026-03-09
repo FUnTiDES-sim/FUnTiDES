@@ -81,7 +81,7 @@ class SolverStructFixture : public benchmark::Fixture
 
     // Origins default to 0.0 in constructor, which is correct for serial mock
     typename T::Builder builder(ex, hx, ey, hy, ez, hz, isModelOnNodes_, true);
-    return builder.getModel();
+    return builder.getModel(true);
   }
 
   void setLabel(benchmark::State& state) const

@@ -80,7 +80,7 @@ class SolverUnstructFixture : public benchmark::Fixture
     typename T::BuilderParams params(order, ex, ey, ez, lx, ly, lz,
                                      isModelOnNodes_, true);
     typename T::Builder builder(params);
-    return builder.getModel();
+    return builder.getModel(true);
   }
 
   void setLabel(benchmark::State& state) const

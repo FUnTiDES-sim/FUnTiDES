@@ -57,7 +57,7 @@ TYPED_TEST(CartesianStructInputs, GetModelReturnsValidModel)
   typename TypeParam::Type builder(this->ex, this->lx, this->ey, this->ly,
                                    this->ez, this->lz, isModelOnNodes,
                                    isElastic);
-  auto model = builder.getModel();
+  auto model = builder.getModel(true);
 
   // Assert
   ASSERT_NE(model, nullptr);
@@ -85,8 +85,8 @@ TYPED_TEST(CartesianStructInputs, MultipleCallsReturnDifferentInstances)
                                    isElastic);
 
   // Assert
-  auto model1 = builder.getModel();
-  auto model2 = builder.getModel();
+  auto model1 = builder.getModel(true);
+  auto model2 = builder.getModel(true);
   ASSERT_NE(model1, nullptr);
   ASSERT_NE(model2, nullptr);
   EXPECT_NE(model1.get(), model2.get());
@@ -104,7 +104,7 @@ TYPED_TEST(CartesianStructInputs, PolymorphicBehavior)
                                    this->ez, this->lz, isModelOnNodes,
                                    isElastic);
   ModelBuilderBase<float, int>* base_ptr = &builder;
-  auto model = base_ptr->getModel();
+  auto model = base_ptr->getModel(true);
 
   // Assert
   ASSERT_NE(model, nullptr);

@@ -18,8 +18,13 @@ class ModelBuilderBase
 
   static constexpr int MAX_ORDER = 5;
 
-  virtual std::shared_ptr<model::ModelApi<FloatType, ScalarType>> getModel()
-      const = 0;
+  /**
+   * @brief Get the model instance.
+   * @param free_surface_on_top Indicates if the free surface is on top, else we use damping on the top boundary.
+   * @return A shared pointer to the model instance.
+   */
+  virtual std::shared_ptr<model::ModelApi<FloatType, ScalarType>> getModel(
+      bool free_surface_on_top) const = 0;
 };
 }  // namespace model
 

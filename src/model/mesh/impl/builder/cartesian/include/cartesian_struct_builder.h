@@ -19,7 +19,6 @@ class CartesianStructBuilder : public ModelBuilderBase<FloatType, ScalarType>
                          bool isModelOnNodes, bool isElastic,
                          FloatType ox = 0.0, FloatType oy = 0.0,
                          FloatType oz = 0.0,
-                         // AJOUTER : paramètres globaux (optionnels)
                          FloatType global_lx = -1.0, FloatType global_ly = -1.0,
                          FloatType global_lz = -1.0, FloatType global_ox = 0.0,
                          FloatType global_oy = 0.0, FloatType global_oz = 0.0)
@@ -45,8 +44,8 @@ class CartesianStructBuilder : public ModelBuilderBase<FloatType, ScalarType>
 
   ~CartesianStructBuilder() = default;
 
-  std::shared_ptr<model::ModelApi<FloatType, ScalarType>> getModel()
-      const override
+  std::shared_ptr<model::ModelApi<FloatType, ScalarType>> getModel(
+      bool free_surface_on_top) const override
   {
     model::ModelStructData<FloatType, ScalarType> data;
     data.ex_ = ex_;
@@ -67,7 +66,7 @@ class CartesianStructBuilder : public ModelBuilderBase<FloatType, ScalarType>
         global_ox_, global_ox_ + global_lx_,
         global_oy_, global_oy_ + global_ly_,
         global_oz_, global_oz_ + global_lz_,
-        /*free_surface_on_top=*/true)
+        free_surface_on_top)
         .classify(temp_model);
 
     // -------------------------------------------------------------------------

@@ -41,8 +41,8 @@ class CartesianUnstructBuilder : public ModelBuilderBase<FloatType, ScalarType>
     initModels();
   }
 
-  std::shared_ptr<model::ModelApi<FloatType, ScalarType>> getModel()
-      const override
+  std::shared_ptr<model::ModelApi<FloatType, ScalarType>> getModel(
+      bool free_surface_on_top) const override
   {
     const int n_node =
         (ex_ * order_ + 1) * (ey_ * order_ + 1) * (ez_ * order_ + 1);
@@ -56,7 +56,7 @@ class CartesianUnstructBuilder : public ModelBuilderBase<FloatType, ScalarType>
             global_ox_, global_ox_ + global_lx_,
             global_oy_, global_oy_ + global_ly_,
             global_oz_, global_oz_ + global_lz_,
-            tol, /*free_surface_on_top=*/true)
+            tol, free_surface_on_top)
             .classify(n_node, nodes_coords_x_, nodes_coords_y_,
                       nodes_coords_z_);
 
