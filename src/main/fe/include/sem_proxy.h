@@ -34,8 +34,11 @@ class SEMproxy
   /**
    * @brief Destructor of the SEMproxy class
    */
-  ~SEMproxy() {}
-
+  SEMproxy()
+  {
+    io_ctrl_.reset();  // Manually trigger SemIOController destructor (which
+                       // closes engines)
+  }
   /**
    * @brief Initialize the simulation.
    * @post run()

@@ -192,7 +192,7 @@ if __name__ == "__main__":
     if len(sys.argv) > 1:
         bp_file = sys.argv[1]
     else:
-        bp_file = "receivers.bp"
+        bp_file = "receivers"
 
     print(f"Reading ADIOS file: {bp_file}")
     print("=" * 50)

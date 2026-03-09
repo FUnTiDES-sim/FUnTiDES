@@ -49,7 +49,7 @@ class MemSpace(Enum):
     """
 
     CPU = "HostSpace"
-    GPU = "CudaUVMSpace"
+    GPU = "CudaSpace"
 
 
 class ModelType(Enum):
@@ -228,32 +228,24 @@ def parse_args():
 def select_kokkos_memspace(memspace_arg):
     """
     Select the Kokkos memory space and layout.
-
-    Parameters
-    ----------
-    memspace_arg : str
-        The memory space argument, either 'CPU' or 'GPU'.
-
-    Returns
-    -------
-    memspace : kokkos.Space
-        The selected Kokkos memory space.
-    layout : kokkos.Layout
-        The selected Kokkos layout.
     """
-
     try:
         enum_value = MemSpace[memspace_arg]
     except KeyError:
         raise ValueError(f"Unknown python memory space: {memspace_arg}")
+
     if enum_value == MemSpace.CPU:
         memspace = kokkos.HostSpace
         layout = kokkos.LayoutRight
     else:
-        memspace = kokkos.CudaUVMSpace
+        # Prefer SharedSpace (modern UVM), fallback to CudaSpace
+        if hasattr(kokkos, "SharedSpace"):
+            memspace = kokkos.SharedSpace
+        else:
+            memspace = kokkos.CudaSpace
         layout = kokkos.LayoutLeft
-    return memspace, layout
 
+    return memspace, layout
 
 def get_solver_model_type(model_type):
     """
