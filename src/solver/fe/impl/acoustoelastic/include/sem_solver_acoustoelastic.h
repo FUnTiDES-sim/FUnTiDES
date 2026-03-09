@@ -199,6 +199,11 @@ class SEMsolverAcoustoElastic : public Solver
   /// Index map from global node index to interface node index (-1 if not).
   VECTOR_INT_VIEW m_interface_node_index_;
 
+  /// Number of fluid–solid interface nodes.
+  int n_interface_nodes_ = 0;
+  /// Compact list of global interface node indices (size n_interface_nodes_).
+  VECTOR_INT_VIEW m_interface_node_indices_;
+
   /// Area-weighted outward normal (solid→fluid) per node — X/Y/Z components.
   VECTOR_REAL_VIEW m_coupling_coeff_x_;
   VECTOR_REAL_VIEW m_coupling_coeff_y_;
