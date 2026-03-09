@@ -61,7 +61,7 @@ def ae_struct(request):
     sd = AEStructData(order)
     builder_cls = _BUILDER[(order, on_nodes)]
     builder = builder_cls(
-        sd.ex, sd.hx, sd.ey, sd.hy, sd.ez, sd.hz,
+        sd.ex, sd.domain_size, sd.ey, sd.domain_size, sd.ez, sd.domain_size,
         on_nodes,   # is_model_on_nodes
         True,       # is_elastic (ignored for AE — material set by AE branch)
         is_acousto_elastic=True,
