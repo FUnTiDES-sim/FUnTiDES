@@ -175,6 +175,31 @@ class SEMsolver : public Solver
    */
   void updateFields(float dt, const DataType& data);
 
+  /**
+   * @brief Run Verlet update only for a compact subset of nodes.
+   * @param dt        Time step.
+   * @param data      Wavefield data.
+   * @param node_list Compact array of node indices to update.
+   * @param n_nodes   Number of entries in @p node_list.
+   */
+  void updateFieldsFromList(float dt, const DataType& data,
+                            const VECTOR_INT_VIEW& node_list, int n_nodes);
+
+  /**
+   * @brief Read-only access to the f-th work (force) vector.
+   *
+   * After computeElementContributions[FromList], workVectorsGlobal_[f] holds
+   * the assembled RHS + K*u^n for component f.  This accessor lets the
+   * AcoustoElastic solver read the elastic force without friendship.
+   *
+   * @param f Component index (0 <= f < kNumFields).
+   * @return  Const reference to the view.
+   */
+  const VECTOR_REAL_VIEW& getForceVector(int f) const
+  {
+    return workVectorsGlobal_[f];
+  }
+
   void computeElementContributions_Iso(const DataType& data);
   void computeElementContributions_Vti(const DataType& data);
   void computeElementContributions_Tti(const DataType& data);
@@ -228,6 +253,11 @@ class SEMsolver : public Solver
   bool m_list_mode_ = false;
   VECTOR_INT_VIEW m_elem_list_;
   int m_n_elem_list_ = 0;
+
+  // Node list state used by updateFieldsFromList.
+  bool m_node_list_mode_ = false;
+  VECTOR_INT_VIEW m_node_list_;
+  int m_n_node_list_ = 0;
 
   VECTOR_REAL_VIEW spongeTaperCoeff_;
   VECTOR_REAL_VIEW massMatrixGlobal_;

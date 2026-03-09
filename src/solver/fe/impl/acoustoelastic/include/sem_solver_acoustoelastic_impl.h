@@ -87,19 +87,12 @@ void SEMsolverAcoustoElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE,
   m_coupling_coeff_z_ =
       allocateVector<VECTOR_REAL_VIEW>(nNode, "couplingCoeffZ");
 
-  m_ux_nm1_ = allocateVector<VECTOR_REAL_VIEW>(nNode, "uxNm1");
-  m_uy_nm1_ = allocateVector<VECTOR_REAL_VIEW>(nNode, "uyNm1");
-  m_uz_nm1_ = allocateVector<VECTOR_REAL_VIEW>(nNode, "uzNm1");
-
   LOOPHEAD(nNode, i)
   {
     m_interface_node_index_[i] = -1;
     m_coupling_coeff_x_[i] = 0.0f;
     m_coupling_coeff_y_[i] = 0.0f;
     m_coupling_coeff_z_[i] = 0.0f;
-    m_ux_nm1_[i] = 0.0f;
-    m_uy_nm1_[i] = 0.0f;
-    m_uz_nm1_[i] = 0.0f;
   }
   LOOPEND
 }
@@ -286,6 +279,20 @@ void SEMsolverAcoustoElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE,
     }
   }
   FENCE
+
+  // Allocate compact nm1 arrays (one entry per interface node).
+  m_ux_nm1_iface_ =
+      allocateVector<VECTOR_REAL_VIEW>(n_interface_nodes_, "uxNm1Iface");
+  m_uy_nm1_iface_ =
+      allocateVector<VECTOR_REAL_VIEW>(n_interface_nodes_, "uyNm1Iface");
+  m_uz_nm1_iface_ =
+      allocateVector<VECTOR_REAL_VIEW>(n_interface_nodes_, "uzNm1Iface");
+  for (int i = 0; i < n_interface_nodes_; ++i)
+  {
+    m_ux_nm1_iface_[i] = 0.0f;
+    m_uy_nm1_iface_[i] = 0.0f;
+    m_uz_nm1_iface_[i] = 0.0f;
+  }
 }
 
 //============================================================================
@@ -511,19 +518,18 @@ template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE,
           bool IS_MODEL_ON_NODES>
 void SEMsolverAcoustoElastic<
     ORDER, INTEGRAL_TYPE, MESH_TYPE,
-    IS_MODEL_ON_NODES>::ApplyCouplingElasticToAcoustic(float /*dt*/,
-                                                       const DataType& data)
+    IS_MODEL_ON_NODES>::ApplyCouplingElasticToAcoustic(const DataType& data)
 {
-  auto p_prev = data.m_wavefield.m_acoustic.getPreviousField(0);  // p^{n+1}
-  auto u_np1_x = data.m_wavefield.m_elastic.getPreviousField(0);  // u_x^{n+1}
+  auto p_prev = data.m_wavefield.m_acoustic.getPreviousField(0);
+  auto u_np1_x = data.m_wavefield.m_elastic.getPreviousField(0);
   auto u_np1_y = data.m_wavefield.m_elastic.getPreviousField(1);
   auto u_np1_z = data.m_wavefield.m_elastic.getPreviousField(2);
-  auto u_n_x = data.m_wavefield.m_elastic.getCurrentField(0);  // u_x^n
+  auto u_n_x = data.m_wavefield.m_elastic.getCurrentField(0);
   auto u_n_y = data.m_wavefield.m_elastic.getCurrentField(1);
   auto u_n_z = data.m_wavefield.m_elastic.getCurrentField(2);
-  auto u_nm1_x = m_ux_nm1_;  // u_x^{n-1}
-  auto u_nm1_y = m_uy_nm1_;
-  auto u_nm1_z = m_uz_nm1_;
+  auto u_nm1_x = m_ux_nm1_iface_;
+  auto u_nm1_y = m_uy_nm1_iface_;
+  auto u_nm1_z = m_uz_nm1_iface_;
   auto M_f = m_acoustic_solver_.getMassMatrixAcoustic();
   auto cx = m_coupling_coeff_x_;
   auto cy = m_coupling_coeff_y_;
@@ -536,9 +542,9 @@ void SEMsolverAcoustoElastic<
     int const j = iface_list[i];
     if (M_f[j] > 0.0f)
     {
-      float const fd_x = u_np1_x[j] - 2.0f * u_n_x[j] + u_nm1_x[j];
-      float const fd_y = u_np1_y[j] - 2.0f * u_n_y[j] + u_nm1_y[j];
-      float const fd_z = u_np1_z[j] - 2.0f * u_n_z[j] + u_nm1_z[j];
+      float const fd_x = u_np1_x[j] - 2.0f * u_n_x[j] + u_nm1_x[i];
+      float const fd_y = u_np1_y[j] - 2.0f * u_n_y[j] + u_nm1_y[i];
+      float const fd_z = u_np1_z[j] - 2.0f * u_n_z[j] + u_nm1_z[i];
       p_prev[j] += (cx[j] * fd_x + cy[j] * fd_y + cz[j] * fd_z) / M_f[j];
     }
   }
@@ -582,21 +588,24 @@ void SEMsolverAcoustoElastic<
       elastic_data, elastic_elem_list_, num_elastic_elements_);
   FENCE
 
-  // 2.5. Save u^{n-1} = elastic_data.getPreviousField() BEFORE the Verlet
-  //      overwrites it with u^{n+1}.  Used in E→A step for the exact GEOS
-  //      finite-difference formula (u^{n+1} - 2*u^n + u^{n-1}).
+  // 2.5. Save u^{n-1} for interface nodes only (compact array, size
+  // n_interface_nodes_).  getPreviousField() still holds u^{n-1} at this
+  // point; it will be overwritten by the Verlet below.
   {
     auto ux_prev = elastic_data.getPreviousField(0);
     auto uy_prev = elastic_data.getPreviousField(1);
     auto uz_prev = elastic_data.getPreviousField(2);
-    auto ux_nm1 = m_ux_nm1_;
-    auto uy_nm1 = m_uy_nm1_;
-    auto uz_nm1 = m_uz_nm1_;
-    LOOPHEAD(nNode, j)
+    auto iface_list = m_interface_node_indices_;
+    auto ux_nm1 = m_ux_nm1_iface_;
+    auto uy_nm1 = m_uy_nm1_iface_;
+    auto uz_nm1 = m_uz_nm1_iface_;
+    int const n_iface = n_interface_nodes_;
+    LOOPHEAD(n_iface, i)
     {
-      ux_nm1[j] = ux_prev[j];
-      uy_nm1[j] = uy_prev[j];
-      uz_nm1[j] = uz_prev[j];
+      int const j = iface_list[i];
+      ux_nm1[i] = ux_prev[j];
+      uy_nm1[i] = uy_prev[j];
+      uz_nm1[i] = uz_prev[j];
     }
     LOOPEND
     FENCE
@@ -632,7 +641,7 @@ void SEMsolverAcoustoElastic<
   FENCE
 
   // 9. E→A coupling post-Verlet.
-  ApplyCouplingElasticToAcoustic(dt, myData);
+  ApplyCouplingElasticToAcoustic(myData);
   FENCE
 }
 

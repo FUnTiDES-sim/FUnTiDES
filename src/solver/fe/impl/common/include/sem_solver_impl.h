@@ -854,12 +854,17 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES,
   float const dt2 = dt * dt;
 
   auto mesh_local = m_mesh;
+  bool const list_on = m_node_list_mode_;
+  auto list_local = m_node_list_;
 
   if constexpr (PHYSICS == enums::physicType::kAcoustic)
   {
     // ===== ACOUSTIC VERSION =====
-    LOOPHEAD(mesh_local.getNumberOfNodes(), I)
+    int const n_iter = list_on ? m_n_node_list_ : mesh_local.getNumberOfNodes();
+    LOOPHEAD(n_iter, _node_idx)
     {
+      if (_node_idx >= n_iter) return;
+      int const I = list_on ? list_local[_node_idx] : _node_idx;
       // Skip nodes with zero mass (e.g. elastic-only nodes in a coupled
       // solver).
       if (massMatrixGlobal_[I] <= 0.0f) return;
@@ -887,8 +892,12 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES,
   else  // ELASTIC
   {
     // ===== ELASTIC VERSION =====
-    LOOPHEAD(mesh_local.getNumberOfNodes(), I)
+    int const n_iter_el =
+        list_on ? m_n_node_list_ : mesh_local.getNumberOfNodes();
+    LOOPHEAD(n_iter_el, _node_idx)
     {
+      if (_node_idx >= n_iter_el) return;
+      int const I = list_on ? list_local[_node_idx] : _node_idx;
       // Skip nodes with zero mass (e.g. acoustic-only nodes in a coupled
       // solver).
       if (massMatrixGlobal_[I] <= 0.0f) return;
@@ -1102,6 +1111,24 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::
   m_list_mode_ = true;
   computeElementContributions(data);
   m_list_mode_ = false;
+}
+
+//============================================================================
+// updateFieldsFromList - Verlet update restricted to a compact node list
+//============================================================================
+
+template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE,
+          bool IS_MODEL_ON_NODES, physicType PHYSICS>
+void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES,
+               PHYSICS>::updateFieldsFromList(float dt, const DataType& data,
+                                              const VECTOR_INT_VIEW& node_list,
+                                              int n_nodes)
+{
+  m_node_list_ = node_list;
+  m_n_node_list_ = n_nodes;
+  m_node_list_mode_ = true;
+  updateFields(dt, data);
+  m_node_list_mode_ = false;
 }
 
 //============================================================================

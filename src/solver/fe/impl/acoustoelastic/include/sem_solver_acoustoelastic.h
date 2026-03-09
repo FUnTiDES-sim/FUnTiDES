@@ -179,10 +179,9 @@ class SEMsolverAcoustoElastic : public Solver
 
   /**
    * @brief Apply elastic→acoustic coupling post-Verlet.
-   * @param dt   Time step.
    * @param data Coupled solver data.
    */
-  void ApplyCouplingElasticToAcoustic(float dt, const DataType& data);
+  void ApplyCouplingElasticToAcoustic(const DataType& data);
 
  private:
   AcousticSolverType m_acoustic_solver_;  ///< Acoustic sub-solver
@@ -206,10 +205,11 @@ class SEMsolverAcoustoElastic : public Solver
   VECTOR_REAL_VIEW m_coupling_coeff_y_;
   VECTOR_REAL_VIEW m_coupling_coeff_z_;
 
-  /// Elastic displacement at n-1 (saved before elastic Verlet for E→A FD).
-  VECTOR_REAL_VIEW m_ux_nm1_;
-  VECTOR_REAL_VIEW m_uy_nm1_;
-  VECTOR_REAL_VIEW m_uz_nm1_;
+  /// Elastic displacement at time n-1, stored for interface nodes only
+  /// (size = n_interface_nodes_).  Allocated at the end of TagNodes.
+  VECTOR_REAL_VIEW m_ux_nm1_iface_;
+  VECTOR_REAL_VIEW m_uy_nm1_iface_;
+  VECTOR_REAL_VIEW m_uz_nm1_iface_;
 
   int num_acoustic_elements_{0};  ///< Count of acoustic elements
   int num_elastic_elements_{0};   ///< Count of elastic elements
