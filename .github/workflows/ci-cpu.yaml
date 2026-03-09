@@ -19,6 +19,9 @@ jobs:
 
   build:
     runs-on: ubuntu-latest
+    container:
+      image: ghcr.io/FUnTiDES-sim/FUnTiDES/funtides-env:latest
+      options: --user root
     needs: format-check
     strategy:
       matrix:
