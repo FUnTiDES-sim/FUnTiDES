@@ -157,6 +157,17 @@ class SEMsolver : public Solver
                                          int active_value);
 
   /**
+   * @brief Assemble stiffness into workVectorsGlobal_ for a compact list of
+   *        elements, skipping all others.
+   * @param data      Data structure containing solution fields.
+   * @param elem_list Compact array of element indices to process.
+   * @param n_elems   Number of entries in @p elem_list.
+   */
+  void computeElementContributionsFromList(const DataType& data,
+                                           const VECTOR_INT_VIEW& elem_list,
+                                           int n_elems);
+
+  /**
    * @brief Update the global solution fields at interior nodes.
    *
    * @param dt Delta time for this iteration.
@@ -212,6 +223,11 @@ class SEMsolver : public Solver
   bool m_mask_enabled_ = false;
   VECTOR_INT_VIEW m_element_mask_;
   int m_mask_active_value_ = 0;
+
+  // List state used by computeElementContributionsFromList.
+  bool m_list_mode_ = false;
+  VECTOR_INT_VIEW m_elem_list_;
+  int m_n_elem_list_ = 0;
 
   VECTOR_REAL_VIEW spongeTaperCoeff_;
   VECTOR_REAL_VIEW massMatrixGlobal_;

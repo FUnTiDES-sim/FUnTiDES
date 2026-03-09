@@ -198,6 +198,20 @@ void SEMsolverAcoustoElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE,
 
   num_acoustic_elements_ = n_acoustic;
   num_elastic_elements_ = n_elastic;
+
+  acoustic_elem_list_ = allocateVector<VECTOR_INT_VIEW>(num_acoustic_elements_,
+                                                        "acousticElemList");
+  elastic_elem_list_ =
+      allocateVector<VECTOR_INT_VIEW>(num_elastic_elements_, "elasticElemList");
+  int ia = 0;
+  int ie = 0;
+  for (int e = 0; e < nElem; ++e)
+  {
+    if (m_element_type_[e] == kElementTypeAcoustic)
+      acoustic_elem_list_[ia++] = e;
+    else
+      elastic_elem_list_[ie++] = e;
+  }
 }
 
 //============================================================================
@@ -256,6 +270,9 @@ void SEMsolverAcoustoElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE,
     if (acoustic_count[n] > 0 && elastic_count[n] > 0) ++n_interface;
   }
   num_interface_nodes_ = n_interface;
+  n_interface_nodes_ = n_interface;
+  m_interface_node_indices_ = allocateVector<VECTOR_INT_VIEW>(
+      n_interface_nodes_, "interfaceNodeIndices");
 
   int idx = 0;
   for (int n = 0; n < nNode; ++n)
@@ -264,6 +281,7 @@ void SEMsolverAcoustoElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE,
     {
       m_is_interface_node_[n] = 1;
       m_interface_node_index_[n] = idx;
+      m_interface_node_indices_[idx] = n;
       ++idx;
     }
     else
@@ -421,11 +439,11 @@ void SEMsolverAcoustoElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE,
   m_elastic_solver_.applyRHSTerm(timeSample, dt, elastic_data);
   FENCE
 
-  m_acoustic_solver_.computeElementContributionsMasked(
-      acoustic_data, m_element_type_, kElementTypeAcoustic);
+  m_acoustic_solver_.computeElementContributionsFromList(
+      acoustic_data, acoustic_elem_list_, num_acoustic_elements_);
   FENCE
-  m_elastic_solver_.computeElementContributionsMasked(
-      elastic_data, m_element_type_, kElementTypeElastic);
+  m_elastic_solver_.computeElementContributionsFromList(
+      elastic_data, elastic_elem_list_, num_elastic_elements_);
   FENCE
 }
 
@@ -470,15 +488,16 @@ void SEMsolverAcoustoElastic<
   auto u_prev_y = data.m_wavefield.m_elastic.getPreviousField(1);  // u_y^{n+1}
   auto u_prev_z = data.m_wavefield.m_elastic.getPreviousField(2);  // u_z^{n+1}
   auto M_e = m_elastic_solver_.getMassMatrixElastic();
-  auto is_iface = m_is_interface_node_;
   auto cx = m_coupling_coeff_x_;
   auto cy = m_coupling_coeff_y_;
   auto cz = m_coupling_coeff_z_;
-  int const nNode = m_mesh_.getNumberOfNodes();
+  auto iface_list = m_interface_node_indices_;
+  int const n_iface = n_interface_nodes_;
 
-  LOOPHEAD(nNode, j)
+  LOOPHEAD(n_iface, i)
   {
-    if (is_iface[j] && M_e[j] > 0.0f)
+    int const j = iface_list[i];
+    if (M_e[j] > 0.0f)
     {
       float const aux = -p_curr[j] / M_e[j];
       u_prev_x[j] += dt2 * cx[j] * aux;
@@ -511,15 +530,16 @@ void SEMsolverAcoustoElastic<
   auto u_nm1_y = m_uy_nm1_;
   auto u_nm1_z = m_uz_nm1_;
   auto M_f = m_acoustic_solver_.getMassMatrixAcoustic();
-  auto is_iface = m_is_interface_node_;
   auto cx = m_coupling_coeff_x_;
   auto cy = m_coupling_coeff_y_;
   auto cz = m_coupling_coeff_z_;
-  int const nNode = m_mesh_.getNumberOfNodes();
+  auto iface_list = m_interface_node_indices_;
+  int const n_iface = n_interface_nodes_;
 
-  LOOPHEAD(nNode, j)
+  LOOPHEAD(n_iface, i)
   {
-    if (is_iface[j] && M_f[j] > 0.0f)
+    int const j = iface_list[i];
+    if (M_f[j] > 0.0f)
     {
       float const fd_x = u_np1_x[j] - 2.0f * u_n_x[j] + u_nm1_x[j];
       float const fd_y = u_np1_y[j] - 2.0f * u_n_y[j] + u_nm1_y[j];
@@ -562,9 +582,9 @@ void SEMsolverAcoustoElastic<
   m_elastic_solver_.applyRHSTerm(timeSample, dt, elastic_data);
   FENCE
 
-  // 2. Compute elastic stiffness (masked: elastic elements only).
-  m_elastic_solver_.computeElementContributionsMasked(
-      elastic_data, m_element_type_, kElementTypeElastic);
+  // 2. Compute elastic stiffness (list: elastic elements only).
+  m_elastic_solver_.computeElementContributionsFromList(
+      elastic_data, elastic_elem_list_, num_elastic_elements_);
   FENCE
 
   // 2.5. Save u^{n-1} = elastic_data.getPreviousField() BEFORE the Verlet
@@ -607,9 +627,9 @@ void SEMsolverAcoustoElastic<
   m_acoustic_solver_.applyRHSTerm(timeSample, dt, acoustic_data);
   FENCE
 
-  // 7. Compute acoustic stiffness (masked: acoustic elements only).
-  m_acoustic_solver_.computeElementContributionsMasked(
-      acoustic_data, m_element_type_, kElementTypeAcoustic);
+  // 7. Compute acoustic stiffness (list: acoustic elements only).
+  m_acoustic_solver_.computeElementContributionsFromList(
+      acoustic_data, acoustic_elem_list_, num_acoustic_elements_);
   FENCE
 
   // 8. Acoustic Verlet: p^{n+1} written into acoustic_data.getPreviousField().

@@ -218,6 +218,13 @@ class SEMsolverAcoustoElastic : public Solver
   int num_elastic_elements_{0};   ///< Count of elastic elements
   int num_interface_nodes_{0};    ///< Count of interface nodes
 
+  /// @brief Compact list of acoustic element indices (size
+  /// num_acoustic_elements_).
+  VECTOR_INT_VIEW acoustic_elem_list_;
+  /// @brief Compact list of elastic element indices (size
+  /// num_elastic_elements_).
+  VECTOR_INT_VIEW elastic_elem_list_;
+
   /// Shear-modulus threshold below which an element is classified as acoustic.
   static constexpr float kMuTolerance = 1.0e-6f;
 

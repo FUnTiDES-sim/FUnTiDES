@@ -175,11 +175,16 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES,
     auto mask_local = m_element_mask_;
     bool mask_on = m_mask_enabled_;
     int mask_val = m_mask_active_value_;
+    bool const list_on = m_list_mode_;
+    auto list_local = m_elem_list_;
+    int const n_iter =
+        list_on ? m_n_elem_list_ : mesh_local.getNumberOfElements();
 
-    MAINLOOPHEAD(mesh_local.getNumberOfElements(), elementNumber)
+    MAINLOOPHEAD(n_iter, _loop_idx)
 
-    if (elementNumber >= mesh_local.getNumberOfElements()) return;
-    if (mask_on && mask_local[elementNumber] != mask_val) return;
+    if (_loop_idx >= n_iter) return;
+    int const elementNumber = list_on ? list_local[_loop_idx] : _loop_idx;
+    if (!list_on && mask_on && mask_local[elementNumber] != mask_val) return;
 
     int const dim = mesh_local.getOrder() + 1;
     float localFields[kNumFields][kPointsPerElement] = {{0}};
@@ -266,11 +271,16 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES,
   auto mask_local = m_element_mask_;
   bool mask_on = m_mask_enabled_;
   int mask_val = m_mask_active_value_;
+  bool const list_on = m_list_mode_;
+  auto list_local = m_elem_list_;
+  int const n_iter =
+      list_on ? m_n_elem_list_ : mesh_local.getNumberOfElements();
 
-  MAINLOOPHEAD(mesh_local.getNumberOfElements(), elementNumber)
+  MAINLOOPHEAD(n_iter, _loop_idx)
 
-  if (elementNumber >= mesh_local.getNumberOfElements()) return;
-  if (mask_on && mask_local[elementNumber] != mask_val) return;
+  if (_loop_idx >= n_iter) return;
+  int const elementNumber = list_on ? list_local[_loop_idx] : _loop_idx;
+  if (!list_on && mask_on && mask_local[elementNumber] != mask_val) return;
 
   int const dim = mesh_local.getOrder() + 1;
   float localFields[kNumFields][kPointsPerElement] = {{0}};
@@ -441,11 +451,16 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES,
   auto mask_local = m_element_mask_;
   bool mask_on = m_mask_enabled_;
   int mask_val = m_mask_active_value_;
+  bool const list_on = m_list_mode_;
+  auto list_local = m_elem_list_;
+  int const n_iter =
+      list_on ? m_n_elem_list_ : mesh_local.getNumberOfElements();
 
-  MAINLOOPHEAD(mesh_local.getNumberOfElements(), elementNumber)
+  MAINLOOPHEAD(n_iter, _loop_idx)
 
-  if (elementNumber >= mesh_local.getNumberOfElements()) return;
-  if (mask_on && mask_local[elementNumber] != mask_val) return;
+  if (_loop_idx >= n_iter) return;
+  int const elementNumber = list_on ? list_local[_loop_idx] : _loop_idx;
+  if (!list_on && mask_on && mask_local[elementNumber] != mask_val) return;
 
   int const dim = mesh_local.getOrder() + 1;
   float localFields[kNumFields][kPointsPerElement] = {{0}};
@@ -635,11 +650,16 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES,
     auto mask_local = m_element_mask_;
     bool mask_on = m_mask_enabled_;
     int mask_val = m_mask_active_value_;
+    bool const list_on = m_list_mode_;
+    auto list_local = m_elem_list_;
+    int const n_iter =
+        list_on ? m_n_elem_list_ : mesh_local.getNumberOfElements();
 
-    MAINLOOPHEAD(mesh_local.getNumberOfElements(), elementNumber)
+    MAINLOOPHEAD(n_iter, _loop_idx)
 
-    if (elementNumber >= mesh_local.getNumberOfElements()) return;
-    if (mask_on && mask_local[elementNumber] != mask_val) return;
+    if (_loop_idx >= n_iter) return;
+    int const elementNumber = list_on ? list_local[_loop_idx] : _loop_idx;
+    if (!list_on && mask_on && mask_local[elementNumber] != mask_val) return;
 
     int const dim = mesh_local.getOrder() + 1;
     float localFields[kNumFields][kPointsPerElement] = {{0}};
@@ -1064,6 +1084,24 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::
   m_mask_enabled_ = true;
   computeElementContributions(data);
   m_mask_enabled_ = false;
+}
+
+//============================================================================
+// computeElementContributionsFromList - stiffness assembly from compact list
+//============================================================================
+
+template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE,
+          bool IS_MODEL_ON_NODES, physicType PHYSICS>
+void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::
+    computeElementContributionsFromList(const DataType& data,
+                                        const VECTOR_INT_VIEW& elem_list,
+                                        int n_elems)
+{
+  m_elem_list_ = elem_list;
+  m_n_elem_list_ = n_elems;
+  m_list_mode_ = true;
+  computeElementContributions(data);
+  m_list_mode_ = false;
 }
 
 //============================================================================
