@@ -19,10 +19,6 @@ option(ENABLE_PYWRAP "Enable python binding compilation with pybind11" OFF)
 # Debugging options
 option(FD_SAVE_SNAPSHOTS "Save snapshots for FD-proxy" OFF)
 option(PRINT_ALLOC_INFO "Printout memory allocation info" OFF)
-option(ENABLE_Shiva "Enable shiva discretization" OFF)
-if (ENABLE_Shiva)
-    add_compile_definitions(ENABLE_Shiva)
-endif()
 # Build options
 option(BUILD_SHARED_LIBS "Build shared libraries" ON)
 

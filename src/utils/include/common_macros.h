@@ -1,3 +1,6 @@
+#ifndef FUNTIDES_UTILS_INCLUDE_COMMON_MACROS_H_
+#define FUNTIDES_UTILS_INCLUDE_COMMON_MACROS_H_
+
 #include "common_config.h"
 
 // define Macros for function type
@@ -138,3 +141,5 @@
 #else
 #define KOKKOSNAME
 #endif
+
+#endif  // FUNTIDES_UTILS_INCLUDE_COMMON_MACROS_H_

@@ -1,5 +1,5 @@
-#ifndef SOLVER_FE_IMPL_INCLUDE_PHYSICS_TRAITS_ACOUSTIC_H_
-#define SOLVER_FE_IMPL_INCLUDE_PHYSICS_TRAITS_ACOUSTIC_H_
+#ifndef FUNTIDES_SOLVER_FE_IMPL_ACOUSTIC_INCLUDE_PHYSICS_TRAITS_ACOUSTIC_H_
+#define FUNTIDES_SOLVER_FE_IMPL_ACOUSTIC_INCLUDE_PHYSICS_TRAITS_ACOUSTIC_H_
 #include "physics_traits.h"
 #include "rhs_acoustic.h"
 #include "wavefield_acoustic.h"
@@ -27,4 +27,4 @@ struct PhysicsTraits<enums::physicType::kAcoustic>
 
 }  // namespace fe
 }  // namespace solver
-#endif  // SOLVER_FE_IMPL_INCLUDE_PHYSICS_TRAITS_ACOUSTIC_H_
+#endif  // FUNTIDES_SOLVER_FE_IMPL_ACOUSTIC_INCLUDE_PHYSICS_TRAITS_ACOUSTIC_H_

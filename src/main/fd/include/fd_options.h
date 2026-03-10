@@ -12,10 +12,8 @@
 // boundary conditions, and output settings. It provides command-line
 // argument binding and validation functionality.
 //************************************************************************
-
-#ifndef SRC_MAIN_FD_INCLUDE_FDTD_OPTIONS_HPP_
-#define SRC_MAIN_FD_INCLUDE_FDTD_OPTIONS_HPP_
-
+#ifndef FUNTIDES_MAIN_FD_INCLUDE_FD_OPTIONS_H_
+#define FUNTIDES_MAIN_FD_INCLUDE_FD_OPTIONS_H_
 #include <cxxopts.hpp>
 #include <stdexcept>
 #include <string>
@@ -334,5 +332,4 @@ class FdtdOptions
 
 }  // namespace options
 }  // namespace fdtd
-
-#endif  // SRC_MAIN_FD_INCLUDE_FDTD_OPTIONS_HPP_
+#endif  // FUNTIDES_MAIN_FD_INCLUDE_FD_OPTIONS_H_

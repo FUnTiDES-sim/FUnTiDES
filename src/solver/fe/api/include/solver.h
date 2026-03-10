@@ -1,6 +1,5 @@
-#ifndef SOLVER_FE_API_INCLUDE_SOLVER_H_
-#define SOLVER_FE_API_INCLUDE_SOLVER_H_
-
+#ifndef FUNTIDES_SOLVER_FE_API_INCLUDE_SOLVER_H_
+#define FUNTIDES_SOLVER_FE_API_INCLUDE_SOLVER_H_
 #include <array>
 #include <cmath>
 #include <vector>
@@ -80,6 +79,12 @@ class Solver
   virtual void computeGlobalMassMatrix() = 0;
 
   /**
+   * @brief Compute the global damping matrix.
+   *  once at the beginning of the simulation.
+   */
+  virtual void computeDampingMatrix() = 0;
+
+  /**
    * @brief Outputs solution field values at a specific time step
    *
    * This pure virtual function is responsible for writing or displaying
@@ -114,6 +119,14 @@ class Solver
   virtual VECTOR_REAL_VIEW& getMassMatrix() = 0;
 
   /**
+   * @brief Access the Global Damping Matrix.
+   * Used by the orchestrator to synchronize damping values at boundaries after
+   * initialization.
+   */
+
+  virtual VECTOR_REAL_VIEW& getDampingMatrix(int c) = 0;
+
+  /**
    * @brief Access a Force Vector component.
    * Used by the orchestrator to synchronize forces at boundaries during each
    * time step.
@@ -144,4 +157,4 @@ class Solver
 };
 }  // namespace fe
 }  // namespace solver
-#endif  // SOLVER_FE_API_INCLUDE_SOLVER_H_
+#endif  // FUNTIDES_SOLVER_FE_API_INCLUDE_SOLVER_H_

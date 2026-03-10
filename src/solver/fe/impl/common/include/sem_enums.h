@@ -1,5 +1,5 @@
-#ifndef SOLVER_FE_IMPL_COMMON_INCLUDE_SEM_ENUMS_H_
-#define SOLVER_FE_IMPL_COMMON_INCLUDE_SEM_ENUMS_H_
+#ifndef FUNTIDES_SOLVER_FE_IMPL_COMMON_INCLUDE_SEM_ENUMS_H_
+#define FUNTIDES_SOLVER_FE_IMPL_COMMON_INCLUDE_SEM_ENUMS_H_
 #include <string>
 
 namespace solver
@@ -16,8 +16,7 @@ enum class methodType
 };
 enum class implemType
 {
-  kMakutu,
-  kShiva
+  kMakutu
 };
 enum class meshType
 {
@@ -54,8 +53,6 @@ inline std::string to_string(implemType i)
   {
     case implemType::kMakutu:
       return "MAKUTU";
-    case implemType::kShiva:
-      return "SHIVA";
     default:
       return "Unknown";
   }
@@ -103,4 +100,4 @@ inline std::string to_string(physicType p)
 }  // namespace enums
 }  // namespace fe
 }  // namespace solver
-#endif  // SOLVER_FE_IMPL_COMMON_INCLUDE_SEM_ENUMS_H_
+#endif  // FUNTIDES_SOLVER_FE_IMPL_COMMON_INCLUDE_SEM_ENUMS_H_

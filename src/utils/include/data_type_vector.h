@@ -1,6 +1,5 @@
-#ifndef DATATYPE_VECTOR_HPP_
-#define DATATYPE_VECTOR_HPP_
-
+#ifndef FUNTIDES_UTILS_INCLUDE_DATA_TYPE_VECTOR_H_
+#define FUNTIDES_UTILS_INCLUDE_DATA_TYPE_VECTOR_H_
 #include <memory>
 #include <vector>
 
@@ -160,5 +159,4 @@ using arrayDouble = Array2D<double>;
 using array3DInt = Array3D<int>;
 using array3DReal = Array3D<float>;
 using array3DDouble = Array3D<double>;
-
-#endif  // DATATYPE_VECTOR_HPP_
+#endif  // FUNTIDES_UTILS_INCLUDE_DATA_TYPE_VECTOR_H_

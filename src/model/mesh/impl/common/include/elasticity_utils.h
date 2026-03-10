@@ -1,6 +1,5 @@
-#ifndef ELASTICITY_UTILS_H
-#define ELASTICITY_UTILS_H
-
+#ifndef FUNTIDES_MODEL_MESH_IMPL_COMMON_INCLUDE_ELASTICITY_UTILS_H_
+#define FUNTIDES_MODEL_MESH_IMPL_COMMON_INCLUDE_ELASTICITY_UTILS_H_
 #include <data_type.h>
 
 /**
@@ -190,5 +189,4 @@ PROXY_HOST_DEVICE void computeCTensor(FloatType vp, FloatType vs, FloatType rho,
       if (i != j) CTTI[j][i] = CTTI[i][j];
     }
 }
-
-#endif  // ELASTICITY_UTILS_H
+#endif  // FUNTIDES_MODEL_MESH_IMPL_COMMON_INCLUDE_ELASTICITY_UTILS_H_

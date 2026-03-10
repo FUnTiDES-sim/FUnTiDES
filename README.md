@@ -115,7 +115,6 @@ The following options can be used to configure your build:
 | `COMPILE_SEM`          | Enable compilation of the SEM proxy (default: ON)                           |
 | `ENABLE_CUDA`          | Enable CUDA backend (used by Kokkos)                                        |
 | `ENABLE_PYWRAP`        | Enable Python bindings via pybind11 (experimental)                          |
-| `ENABLE_Shiva`         | Enable Shiva discretization lib (default: OFF)                              |
 | `USE_KOKKOS`           | Enable Kokkos support (serial by default, CUDA/OpenMP with flags)           |
 | `USE_VECTOR`           | Use `std::vector` for data arrays (enabled by default unless Kokkos is used)|
 

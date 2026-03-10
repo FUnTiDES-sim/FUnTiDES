@@ -542,23 +542,46 @@ TYPED_TEST(ModelStructTest, IsElasticInitialization)
 // Boundary Tests
 // ============================================================================
 
-TYPED_TEST(ModelStructTest, BoundaryType)
-{
-  auto& model = *this->model_;
-
-  // Default implementation returns InteriorNode
-  auto boundary = model.boundaryType(0);
-  EXPECT_EQ(boundary, BoundaryFlag::InteriorNode);
-}
-
 TYPED_TEST(ModelStructTest, FaceNormal)
 {
   auto& model = *this->model_;
-
   typename TestFixture::FloatType normal[3] = {0.0, 0.0, 0.0};
-  // Should not crash - current implementation is a no-op
-  model.faceNormal(0, 0, 1, normal);
-  SUCCEED();
+
+  // Test XPlus face normal
+  model.faceNormal(0, CubicFace::kXPlus, normal);
+  EXPECT_NEAR(normal[0], 1.0, 1e-6);
+  EXPECT_NEAR(normal[1], 0.0, 1e-6);
+  EXPECT_NEAR(normal[2], 0.0, 1e-6);
+
+  // Test XMinus face normal
+  model.faceNormal(0, CubicFace::kXMinus, normal);
+  EXPECT_NEAR(normal[0], -1.0, 1e-6);
+  EXPECT_NEAR(normal[1], 0.0, 1e-6);
+  EXPECT_NEAR(normal[2], 0.0, 1e-6);
+
+  // Test YPlus face normal
+  model.faceNormal(0, CubicFace::kYPlus, normal);
+  EXPECT_NEAR(normal[0], 0.0, 1e-6);
+  EXPECT_NEAR(normal[1], 1.0, 1e-6);
+  EXPECT_NEAR(normal[2], 0.0, 1e-6);
+
+  // Test YMinus face normal
+  model.faceNormal(0, CubicFace::kYMinus, normal);
+  EXPECT_NEAR(normal[0], 0.0, 1e-6);
+  EXPECT_NEAR(normal[1], -1.0, 1e-6);
+  EXPECT_NEAR(normal[2], 0.0, 1e-6);
+
+  // Test ZPlus face normal
+  model.faceNormal(0, CubicFace::kZPlus, normal);
+  EXPECT_NEAR(normal[0], 0.0, 1e-6);
+  EXPECT_NEAR(normal[1], 0.0, 1e-6);
+  EXPECT_NEAR(normal[2], 1.0, 1e-6);
+
+  // Test ZMinus face normal
+  model.faceNormal(0, CubicFace::kZMinus, normal);
+  EXPECT_NEAR(normal[0], 0.0, 1e-6);
+  EXPECT_NEAR(normal[1], 0.0, 1e-6);
+  EXPECT_NEAR(normal[2], -1.0, 1e-6);
 }
 
 // ============================================================================
@@ -680,6 +703,26 @@ TYPED_TEST(ModelStructTest, UniformMeshProperties)
   EXPECT_EQ(model.domainSize(0) / 10.0, 10.0);
   EXPECT_EQ(model.domainSize(1) / 10.0, 10.0);
   EXPECT_EQ(model.domainSize(2) / 10.0, 10.0);
+}
+
+// ============================================================================
+// Documentation Tests
+// ============================================================================
+
+TYPED_TEST(ModelStructTest, StructuredVsUnstructuredComparison)
+{
+  // ModelStruct: Structured Cartesian mesh
+  // - Regular grid topology
+  // - Face connectivity computed on-the-fly via formulas
+  // - No explicit storage needed for face tables
+  // - Optimal for uniform domains
+  //
+  // ModelUnstruct: Unstructured mesh
+  // - Arbitrary topology
+  // - Face connectivity built explicitly and stored
+  // - Requires memory for connectivity tables
+  // - Handles complex geometries
+  SUCCEED();
 }
 
 }  // namespace

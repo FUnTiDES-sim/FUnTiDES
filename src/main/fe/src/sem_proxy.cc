@@ -151,15 +151,22 @@ void SEMproxy::run()
   const float taper_delta = 0.015;
 
   // Initialize Solver with Partition Info & Compute Local Mass
+
+  bool freeSurface = freeSurface_;
+  m_mesh->setFreeSurfaceEnabled(freeSurface);
+
   m_solver->computeFEInit(*m_mesh, sponge_size, surface_sponge, taper_delta);
 
   // Synchronize Mass Matrix (Critical for DD)
   if (par_topology_.isDistributed())
   {
     m_syncer->synchronize(m_solver->getMassMatrix(), par_topology_);
+    for (int c = 0; c < m_solver->getNumComponents(); ++c)
+    {
+      m_syncer->synchronize(m_solver->getDampingMatrix(c), par_topology_);
+    }
   }
 
-  auto& M = m_solver->getMassMatrix();
   // Get the global node index of the first node of the source element
   int debugNodeIdx = m_mesh->globalNodeIndex(myElementSource, 0, 0, 0);
 
@@ -635,7 +642,6 @@ void SEMproxy::saveSnapshot(int timestep, VECTOR_REAL_VIEW data) const
 implemType SEMproxy::getImplem(string implemArg)
 {
   if (implemArg == "makutu") return implemType::kMakutu;
-  if (implemArg == "shiva") return implemType::kShiva;
 
   throw std::invalid_argument(
       "Implentation type does not follow any valid type.");

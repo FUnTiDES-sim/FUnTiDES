@@ -1,5 +1,5 @@
-#ifndef SOLVER_FE_IMPL_COMMON_INCLUDE_SOLVER_FACTORY_H_
-#define SOLVER_FE_IMPL_COMMON_INCLUDE_SOLVER_FACTORY_H_
+#ifndef FUNTIDES_SOLVER_FE_IMPL_COMMON_INCLUDE_SOLVER_FACTORY_H_
+#define FUNTIDES_SOLVER_FE_IMPL_COMMON_INCLUDE_SOLVER_FACTORY_H_
 #include <fe/Integrals.hpp>
 #include <memory>
 
@@ -23,7 +23,7 @@ namespace feenum = solver::fe::enums;
  * and polynomial order.
  *
  * @param methodType The numerical method (SEM or DG)
- * @param implemType The implementation backend (Makutu or Shiva)
+ * @param implemType The implementation backend (Makutu)
  * @param meshType The mesh type (Struct or Unstruct)
  * @param modelLocation Where model parameters are stored (OnNodes or
  * OnElements)
@@ -40,4 +40,4 @@ std::unique_ptr<Solver> createSolver(feenum::methodType methodType,
 }  // namespace solver_factory
 }  // namespace fe
 }  // namespace solver
-#endif  // SOLVER_FE_IMPL_COMMON_INCLUDE_SOLVER_FACTORY_H_
+#endif  // FUNTIDES_SOLVER_FE_IMPL_COMMON_INCLUDE_SOLVER_FACTORY_H_

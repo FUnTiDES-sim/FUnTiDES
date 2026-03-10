@@ -1,10 +1,11 @@
-#ifndef SOLVER_FE_IMPL_COMMON_INCLUDE_SEM_SOLVER_H_
-#define SOLVER_FE_IMPL_COMMON_INCLUDE_SEM_SOLVER_H_
+#ifndef FUNTIDES_SOLVER_FE_IMPL_COMMON_INCLUDE_SEM_SOLVER_H_
+#define FUNTIDES_SOLVER_FE_IMPL_COMMON_INCLUDE_SEM_SOLVER_H_
 #include <array>
 #include <cmath>
 #include <stdexcept>
 
 #include "data_type.h"
+#include "face_connectivity_unstruct.h"
 #include "model.h"
 #include "parallel_topology.h"
 #include "physics_traits.h"
@@ -36,6 +37,11 @@ class SEMsolver : public Solver
   int getNumComponents() const override { return kNumFields; }
 
   VECTOR_REAL_VIEW& getMassMatrix() override { return massMatrixGlobal_; }
+
+  VECTOR_REAL_VIEW& getDampingMatrix(int c) override
+  {
+    return dampingMatrixGlobal_[c];
+  }
 
   VECTOR_REAL_VIEW& getForceVector(int c) override
   {
@@ -77,6 +83,7 @@ class SEMsolver : public Solver
   void initSpongeValues() override;
   void resetGlobalVectors(int numNodes) override;
   void computeGlobalMassMatrix() override;
+  void computeDampingMatrix() override;
 
   void outputSolutionValues(const int& t, int& e, const VECTOR_REAL_VIEW& field,
                             const char* fieldName) override;
@@ -151,6 +158,7 @@ class SEMsolver : public Solver
 
   VECTOR_REAL_VIEW spongeTaperCoeff_;
   VECTOR_REAL_VIEW massMatrixGlobal_;
+  std::array<VECTOR_REAL_VIEW, kNumFields> dampingMatrixGlobal_;
   std::array<VECTOR_REAL_VIEW, kNumFields> workVectorsGlobal_;
 };
 
@@ -169,4 +177,4 @@ using SEMsolverElastic =
 
 }  // namespace fe
 }  // namespace solver
-#endif  // SOLVER_FE_IMPL_COMMON_INCLUDE_SEM_SOLVER_H_
+#endif  // FUNTIDES_SOLVER_FE_IMPL_COMMON_INCLUDE_SEM_SOLVER_H_

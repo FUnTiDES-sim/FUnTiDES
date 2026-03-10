@@ -1,6 +1,5 @@
-#ifndef ARGSPARSE_HPP
-#define ARGSPARSE_HPP
-
+#ifndef FUNTIDES_UTILS_INCLUDE_ARGS_PARSE_H_
+#define FUNTIDES_UTILS_INCLUDE_ARGS_PARSE_H_
 #include <algorithm>  // Pour std::find
 #include <string>
 
@@ -46,5 +45,4 @@ inline bool cmdOptionExists(char **begin, char **end, const std::string &option)
            return std::string(arg) == option;
          }) != end;
 }
-
-#endif  // ARGSPARSE_HPP
+#endif  // FUNTIDES_UTILS_INCLUDE_ARGS_PARSE_H_

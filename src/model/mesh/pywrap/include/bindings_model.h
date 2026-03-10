@@ -1,3 +1,6 @@
+#ifndef FUNTIDES_MODEL_MESH_PYWRAP_INCLUDE_BINDINGS_MODEL_H_
+#define FUNTIDES_MODEL_MESH_PYWRAP_INCLUDE_BINDINGS_MODEL_H_
+
 #pragma once
 
 #include <pybind11/numpy.h>
@@ -9,6 +12,7 @@
 
 #include "bindings_utils.h"
 #include "common_macros.h"
+#include "face_connectivity_unstruct.h"
 #include "model.h"
 #include "model_struct.h"
 #include "model_unstruct.h"
@@ -52,7 +56,12 @@ void bind_modelapi(py::module_ &m)
       .def("face_normal", &T::faceNormal)
       .def("domain_size", &T::domainSize)
       .def("get_min_spacing", &T::getMinSpacing)
-      .def("get_max_speed", &T::getMaxSpeed);
+      .def("get_max_speed", &T::getMaxSpeed)
+      .def("build_face_connectivity", &T::buildFaceConnectivity)
+      .def("get_number_of_faces", &T::getNumberOfFaces)
+      .def("is_boundary_face", &T::isBoundaryFace)
+      .def("get_global_node_from_face", &T::getGlobalNodeFromFace)
+      .def("get_global_face", &T::getGlobalFace);
 }
 
 // templated binder for one ModelStruct instantiation
@@ -106,10 +115,12 @@ template <typename FloatType, typename ScalarType>
 void bind_modelunstructdata(py::module_ &m)
 {
   using Data = model::ModelUnstructData<FloatType, ScalarType>;
+
   std::string name =
       model_class_name<FloatType, ScalarType>("ModelUnstructData");
 
   py::class_<Data>(m, name.c_str())
+      // Constructeur existant INCHANGÉ (sans face_connectivity)
       .def(py::init<
                ScalarType, ScalarType, ScalarType, FloatType, FloatType,
                FloatType, bool, bool,
@@ -148,7 +159,11 @@ void bind_modelunstructdata(py::module_ &m)
            py::arg("model_gamma_node"), py::arg("model_gamma_element"),
            py::arg("model_theta_node"), py::arg("model_theta_element"),
            py::arg("model_phi_node"), py::arg("model_phi_element"),
-           py::arg("model_C_tensor_element"), py::arg("boundaries_t"));
+           py::arg("model_C_tensor_element"), py::arg("boundaries_t"))
+
+      .def_readwrite("face_connectivity", &Data::face_connectivity_);
 }
 
 }  // namespace model
+
+#endif  // FUNTIDES_MODEL_MESH_PYWRAP_INCLUDE_BINDINGS_MODEL_H_

@@ -1,9 +1,5 @@
 #include <gtest/gtest.h>
 
-#include <array>
-#include <cmath>
-#include <limits>
-
 #include "model_unstruct.h"
 
 namespace model
@@ -12,285 +8,198 @@ namespace
 {
 
 // ============================================================================
-// Type Wrapper Classes for Non-Type Template Parameters
-// ============================================================================
-
-struct FloatOrder1
-{
-  using FloatType = float;
-  using ScalarType = int;
-};
-
-struct DoubleOrder1
-{
-  using FloatType = double;
-  using ScalarType = int;
-};
-
-struct FloatOrder2
-{
-  using FloatType = float;
-  using ScalarType = int;
-};
-
-struct DoubleOrder2
-{
-  using FloatType = double;
-  using ScalarType = int;
-};
-
-struct FloatOrder3
-{
-  using FloatType = float;
-  using ScalarType = int;
-};
-
-struct DoubleOrder3
-{
-  using FloatType = double;
-  using ScalarType = int;
-};
-
-// ============================================================================
 // Test Fixture
 // ============================================================================
 
-template <typename TypeWrapper>
+template <typename T>
 class ModelUnstructTest : public ::testing::Test
 {
  protected:
-  using FloatType = typename TypeWrapper::FloatType;
-  using ScalarType = typename TypeWrapper::ScalarType;
+  using FloatType = typename T::FloatType;
+  using ScalarType = typename T::ScalarType;
+  using ModelType = ModelUnstruct<FloatType, ScalarType>;
 
-  using ModelUnstructType = ModelUnstruct<FloatType, ScalarType>;
+  // Helper to create minimal test mesh
+  ModelType createTestMesh()
+  {
+    ModelUnstructData<FloatType, ScalarType> data;
+    data.order_ = 1;
+    data.n_element_ = 1;
+    data.n_node_ = 8;
+    data.lx_ = data.ly_ = data.lz_ = 1.0;
+    data.isModelOnNodes_ = false;
+    data.isElastic_ = false;
+
+    data.global_node_index_ = allocateArray2D<ARRAY_INT_VIEW>(1, 8);
+    data.nodes_coords_x_ = allocateVector<VECTOR_REAL_VIEW>(8);
+    data.nodes_coords_y_ = allocateVector<VECTOR_REAL_VIEW>(8);
+    data.nodes_coords_z_ = allocateVector<VECTOR_REAL_VIEW>(8);
+    data.model_vp_element_ = allocateVector<VECTOR_REAL_VIEW>(1);
+    data.model_rho_element_ = allocateVector<VECTOR_REAL_VIEW>(1);
+    data.boundaries_t_ = allocateVector<VECTOR_REAL_VIEW>(8);
+
+    for (int i = 0; i < 8; ++i)
+    {
+      data.global_node_index_(0, i) = i;
+      data.nodes_coords_x_[i] = (i & 1) ? 1.0 : 0.0;
+      data.nodes_coords_y_[i] = (i & 2) ? 1.0 : 0.0;
+      data.nodes_coords_z_[i] = (i & 4) ? 1.0 : 0.0;
+    }
+    data.model_vp_element_[0] = 1500.0;
+    data.model_rho_element_[0] = 1.0;
+
+    return ModelType(data);
+  }
 };
 
-// Register type wrappers for typed tests
-using TypeWrappers = ::testing::Types<FloatOrder1, FloatOrder2, FloatOrder3,
-                                      DoubleOrder1, DoubleOrder2, DoubleOrder3>;
+struct FloatInt
+{
+  using FloatType = float;
+  using ScalarType = int;
+};
+struct DoubleInt
+{
+  using FloatType = double;
+  using ScalarType = int;
+};
 
-TYPED_TEST_SUITE(ModelUnstructTest, TypeWrappers);
+using TestTypes = ::testing::Types<FloatInt, DoubleInt>;
+TYPED_TEST_SUITE(ModelUnstructTest, TestTypes);
 
 // ============================================================================
-// Constructor Tests
+// Construction Tests
 // ============================================================================
 
 TYPED_TEST(ModelUnstructTest, DefaultConstructor)
 {
-  using ModelUnstructType = typename TestFixture::ModelUnstructType;
-  ModelUnstructType model;
+  typename TestFixture::ModelType model;
   SUCCEED();
 }
 
-TYPED_TEST(ModelUnstructTest, AssignmentOperatorCompiles)
+TYPED_TEST(ModelUnstructTest, ConstructFromData)
 {
-  using ModelUnstructType = typename TestFixture::ModelUnstructType;
-  ModelUnstructType model1;
-  ModelUnstructType model2;
-  model2 = model1;
-  SUCCEED();
-}
-
-// ============================================================================
-// Type System Tests
-// ============================================================================
-
-TYPED_TEST(ModelUnstructTest, IndexTypeIsInt)
-{
-  using ModelUnstructType = typename TestFixture::ModelUnstructType;
-  using IndexType = typename ModelUnstructType::IndexType;
-
-  static_assert(std::is_same<IndexType, int>::value,
-                "ModelUnstruct::IndexType must be int");
-  SUCCEED();
-}
-
-TYPED_TEST(ModelUnstructTest, FloatTypeCorrect)
-{
-  using ModelUnstructType = typename TestFixture::ModelUnstructType;
-  using FloatType = typename TestFixture::FloatType;
-
-  // Template should be properly parameterized
-  // Verify by checking it's instantiable
-  ModelUnstructType model;
-  SUCCEED();
+  auto model = this->createTestMesh();
+  EXPECT_EQ(model.getNumberOfElements(), 1);
+  EXPECT_EQ(model.getNumberOfNodes(), 8);
+  EXPECT_EQ(model.getOrder(), 1);
 }
 
 // ============================================================================
-// GPU Compatibility Documentation
+// Indexing Tests
 // ============================================================================
 
-TYPED_TEST(ModelUnstructTest, GPUCompatibleMacros)
+TYPED_TEST(ModelUnstructTest, GlobalNodeIndexInRange)
 {
-  // ModelUnstruct uses PROXY_HOST_DEVICE on all methods
-  // for GPU/CPU dual compilation via Kokkos
-  SUCCEED();
+  auto model = this->createTestMesh();
+
+  for (int k = 0; k <= 1; ++k)
+    for (int j = 0; j <= 1; ++j)
+      for (int i = 0; i <= 1; ++i)
+      {
+        auto node = model.globalNodeIndex(0, i, j, k);
+        EXPECT_GE(node, 0);
+        EXPECT_LT(node, 8);
+      }
 }
 
-TYPED_TEST(ModelUnstructTest, KokkosViewBased)
+TYPED_TEST(ModelUnstructTest, VertexCoordsInUnitCube)
 {
-  // Storage uses Kokkos Views:
-  // - ARRAY_INT_VIEW: global_node_index_ (element → node map)
-  // - VECTOR_REAL_VIEW: coordinates, properties, parameters
-  // - ARRAY3D_REAL_VIEW: elasticity tensors
-  SUCCEED();
-}
+  auto model = this->createTestMesh();
 
-// ============================================================================
-// Method Existence Verification
-// ============================================================================
+  for (int i = 0; i < 8; ++i)
+  {
+    typename TestFixture::FloatType coords[3];
+    model.vertexCoords(i, coords);
 
-TYPED_TEST(ModelUnstructTest, IndexingMethodsExist)
-{
-  using ModelUnstructType = typename TestFixture::ModelUnstructType;
-
-  static_assert(std::is_member_function_pointer_v<
-                decltype(&ModelUnstructType::elementIndex)>);
-  static_assert(std::is_member_function_pointer_v<
-                decltype(&ModelUnstructType::globalVertexIndex)>);
-  static_assert(std::is_member_function_pointer_v<
-                decltype(&ModelUnstructType::globalNodeIndex)>);
-  SUCCEED();
-}
-
-TYPED_TEST(ModelUnstructTest, CoordinateMethodsExist)
-{
-  using ModelUnstructType = typename TestFixture::ModelUnstructType;
-
-  static_assert(std::is_member_function_pointer_v<
-                decltype(&ModelUnstructType::vertexCoords)>);
-  static_assert(std::is_member_function_pointer_v<
-                decltype(&ModelUnstructType::nodeCoord)>);
-  SUCCEED();
-}
-
-TYPED_TEST(ModelUnstructTest, PropertyMethodsExist)
-{
-  using ModelUnstructType = typename TestFixture::ModelUnstructType;
-
-  static_assert(std::is_member_function_pointer_v<
-                decltype(&ModelUnstructType::getModelVpOnNodes)>);
-  static_assert(std::is_member_function_pointer_v<
-                decltype(&ModelUnstructType::getModelVpOnElement)>);
-  static_assert(std::is_member_function_pointer_v<
-                decltype(&ModelUnstructType::getModelRhoOnNodes)>);
-  static_assert(std::is_member_function_pointer_v<
-                decltype(&ModelUnstructType::getModelRhoOnElement)>);
-  SUCCEED();
-}
-
-TYPED_TEST(ModelUnstructTest, AnisotropicMethodsExist)
-{
-  using ModelUnstructType = typename TestFixture::ModelUnstructType;
-
-  static_assert(std::is_member_function_pointer_v<
-                decltype(&ModelUnstructType::getModelDeltaOnNodes)>);
-  static_assert(std::is_member_function_pointer_v<
-                decltype(&ModelUnstructType::getModelDeltaOnElement)>);
-  static_assert(std::is_member_function_pointer_v<
-                decltype(&ModelUnstructType::getModelEpsilonOnNodes)>);
-  static_assert(std::is_member_function_pointer_v<
-                decltype(&ModelUnstructType::getModelEpsilonOnElement)>);
-  SUCCEED();
-}
-
-TYPED_TEST(ModelUnstructTest, ElasticityMethodsExist)
-{
-  using ModelUnstructType = typename TestFixture::ModelUnstructType;
-
-  static_assert(std::is_member_function_pointer_v<
-                decltype(&ModelUnstructType::initElasticityTensors)>);
-  static_assert(std::is_member_function_pointer_v<
-                decltype(&ModelUnstructType::getCTensorOnElement)>);
-  SUCCEED();
-}
-
-TYPED_TEST(ModelUnstructTest, ConfigurationMethodsExist)
-{
-  using ModelUnstructType = typename TestFixture::ModelUnstructType;
-
-  static_assert(std::is_member_function_pointer_v<
-                decltype(&ModelUnstructType::isModelOnNodes)>);
-  static_assert(std::is_member_function_pointer_v<
-                decltype(&ModelUnstructType::isElastic)>);
-  static_assert(std::is_member_function_pointer_v<
-                decltype(&ModelUnstructType::getNumberOfElements)>);
-  static_assert(std::is_member_function_pointer_v<
-                decltype(&ModelUnstructType::getNumberOfNodes)>);
-  SUCCEED();
-}
-
-TYPED_TEST(ModelUnstructTest, DomainMethodsExist)
-{
-  using ModelUnstructType = typename TestFixture::ModelUnstructType;
-
-  static_assert(std::is_member_function_pointer_v<
-                decltype(&ModelUnstructType::domainSize)>);
-  static_assert(std::is_member_function_pointer_v<
-                decltype(&ModelUnstructType::getMinSpacing)>);
-  static_assert(std::is_member_function_pointer_v<
-                decltype(&ModelUnstructType::getMaxSpeed)>);
-  SUCCEED();
-}
-
-TYPED_TEST(ModelUnstructTest, BoundaryMethodsExist)
-{
-  using ModelUnstructType = typename TestFixture::ModelUnstructType;
-
-  static_assert(std::is_member_function_pointer_v<
-                decltype(&ModelUnstructType::boundaryType)>);
-  static_assert(std::is_member_function_pointer_v<
-                decltype(&ModelUnstructType::faceNormal)>);
-  SUCCEED();
+    EXPECT_GE(coords[0], 0.0);
+    EXPECT_LE(coords[0], 1.0);
+    EXPECT_GE(coords[1], 0.0);
+    EXPECT_LE(coords[1], 1.0);
+    EXPECT_GE(coords[2], 0.0);
+    EXPECT_LE(coords[2], 1.0);
+  }
 }
 
 // ============================================================================
-// Compilation Tests
+// Material Property Tests
 // ============================================================================
 
-TYPED_TEST(ModelUnstructTest, AllMethodsCompile)
+TYPED_TEST(ModelUnstructTest, VelocityAndDensityPositive)
 {
-  // This test verifies that all public methods have valid signatures
-  // by attempting to reference them at compile time
-  using ModelUnstructType = typename TestFixture::ModelUnstructType;
+  auto model = this->createTestMesh();
 
-  // If this compiles, all methods are available
-  ModelUnstructType model;
-  SUCCEED();
+  EXPECT_GT(model.getModelVpOnElement(0), 0.0);
+  EXPECT_GT(model.getModelRhoOnElement(0), 0.0);
+}
+
+TYPED_TEST(ModelUnstructTest, IsModelOnNodesConfig)
+{
+  auto model = this->createTestMesh();
+  EXPECT_FALSE(model.isModelOnNodes());
+}
+
+TYPED_TEST(ModelUnstructTest, IsElasticConfig)
+{
+  auto model = this->createTestMesh();
+  EXPECT_FALSE(model.isElastic());
 }
 
 // ============================================================================
-// Documentation Tests
+// Geometry Tests
 // ============================================================================
 
-TYPED_TEST(ModelUnstructTest, StructuredVsUnstructuredComparison)
+TYPED_TEST(ModelUnstructTest, DomainSizeCorrect)
 {
-  // ModelStruct: Structured mesh with implicit geometry
-  // - Template parameter: Order
-  // - Mesh defined by: element counts (ex, ey, ez)
-  // - Node positions: Computed from index formulas
-  // - Use case: Regular grids, fast access
-  //
-  // ModelUnstruct: Unstructured mesh with explicit geometry
-  // - Template parameters: FloatType, ScalarType (NOT Order)
-  // - Mesh defined by: connectivity arrays
-  // - Node positions: Stored explicitly
-  // - Use case: Arbitrary topologies, complex geometries
-  SUCCEED();
+  auto model = this->createTestMesh();
+
+  EXPECT_FLOAT_EQ(model.domainSize(0), 1.0);
+  EXPECT_FLOAT_EQ(model.domainSize(1), 1.0);
+  EXPECT_FLOAT_EQ(model.domainSize(2), 1.0);
 }
 
-TYPED_TEST(ModelUnstructTest, TemplateParameterizations)
+TYPED_TEST(ModelUnstructTest, MinSpacingPositive)
 {
-  // ModelUnstruct<float, int>:
-  // - 32-bit floating point for coordinates
-  // - 32-bit integer indexing
-  // - Suitable for typical simulations
-  //
-  // ModelUnstruct<double, int>:
-  // - 64-bit floating point for coordinates
-  // - Higher precision for large-scale domains
-  // - More memory usage
-  SUCCEED();
+  auto model = this->createTestMesh();
+  EXPECT_GT(model.getMinSpacing(), 0.0);
+}
+
+TYPED_TEST(ModelUnstructTest, MaxSpeedPositive)
+{
+  auto model = this->createTestMesh();
+  EXPECT_GT(model.getMaxSpeed(), 0.0);
+}
+
+// ============================================================================
+// Face Normal Tests
+// ============================================================================
+
+TYPED_TEST(ModelUnstructTest, FaceNormalNormalized)
+{
+  auto model = this->createTestMesh();
+
+  typename TestFixture::FloatType normal[3];
+  model.faceNormal(0, CubicFace::kXMinus, normal);
+
+  typename TestFixture::FloatType norm = std::sqrt(
+      normal[0] * normal[0] + normal[1] * normal[1] + normal[2] * normal[2]);
+
+  EXPECT_NEAR(norm, 1.0, 1e-5);
+}
+
+TYPED_TEST(ModelUnstructTest, OppositeFacesHaveOppositeNormals)
+{
+  auto model = this->createTestMesh();
+
+  typename TestFixture::FloatType n_xminus[3], n_xplus[3];
+  model.faceNormal(0, CubicFace::kXMinus, n_xminus);
+  model.faceNormal(0, CubicFace::kXPlus, n_xplus);
+
+  // Should be opposite (dot product ≈ -1)
+  typename TestFixture::FloatType dot = n_xminus[0] * n_xplus[0] +
+                                        n_xminus[1] * n_xplus[1] +
+                                        n_xminus[2] * n_xplus[2];
+
+  EXPECT_NEAR(dot, -1.0, 1e-5);
 }
 
 }  // namespace
