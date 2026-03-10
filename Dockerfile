@@ -1,4 +1,4 @@
-FROM ubuntu:22.04
+FROM ubuntu:24.04
 
 ENV DEBIAN_FRONTEND=noninteractive
 
@@ -18,6 +18,8 @@ RUN apt-get update && apt-get install -y \
     flex \
     bison \
     ca-certificates \
+    clang \
+    libomp-dev \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /workspace
@@ -25,12 +27,17 @@ WORKDIR /workspace
 # Invalidate old cache if needed
 ADD https://api.github.com/repos/FUnTiDES-sim/FUnTiDES-TPL/commits/main /tmp/latest_commit
 
+# set gcc 13 as build tool
+# 10/03/2026: gcc-14 is too new for current pykokkos-base.
+ENV CC=clang
+ENV CXX=clang++
+
 # Clone TPL repo
 RUN git clone --recurse-submodules https://github.com/FUnTiDES-sim/FUnTiDES-TPL.git tpl_source
 
 # Install TPL
 WORKDIR /workspace/tpl_source
-RUN ./install.sh --prefix=/opt/tpl --disable-cuda --use-venv --jobs=$(nproc)
+RUN CC=clang CXX=clang++ ./install.sh --prefix=/opt/tpl --disable-cuda --use-venv --jobs=$(nproc)
 
 ENV PATH="/opt/tpl/bin:${PATH}"
 ENV LD_LIBRARY_PATH="/opt/tpl/lib"
