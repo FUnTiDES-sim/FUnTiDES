@@ -23,7 +23,7 @@ option(PRINT_ALLOC_INFO "Printout memory allocation info" OFF)
 option(BUILD_SHARED_LIBS "Build shared libraries" ON)
 
 # Install options
-# So make install will copy pykokkos-base onto proxy folder
+# So make install will copy pykokkos onto proxy folder
 if(CMAKE_INSTALL_PREFIX_INITIALIZED_TO_DEFAULT)
   set(CMAKE_INSTALL_PREFIX "." CACHE PATH "Install path prefix" FORCE)
 endif()
