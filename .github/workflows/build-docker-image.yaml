@@ -28,4 +28,4 @@ jobs:
         with:
           context: .
           push: true
-          tags: ghcr.io/${{ github.repository }}/funtides-env:latest
+          tags: ghcr.io/funtides-sim/funtides/funtides-env:latest
