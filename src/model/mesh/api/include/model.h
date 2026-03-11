@@ -166,6 +166,38 @@ class ModelApi
       ScalarType e) const = 0;
 
   /**
+   * @brief Get P-wave quality factor at a node (attenuation)
+   * @param n Node index
+   * @return Qp (dimensionless)
+   */
+  PROXY_HOST_DEVICE virtual FloatType getModelQpOnNodes(ScalarType n) const =
+      0;
+
+  /**
+   * @brief Get P-wave quality factor for an element (attenuation)
+   * @param e Element index
+   * @return Qp (dimensionless)
+   */
+  PROXY_HOST_DEVICE virtual FloatType getModelQpOnElement(ScalarType e) const =
+      0;
+
+  /**
+   * @brief Get S-wave quality factor at a node (attenuation)
+   * @param n Node index
+   * @return Qs (dimensionless)
+   */
+  PROXY_HOST_DEVICE virtual FloatType getModelQsOnNodes(ScalarType n) const =
+      0;
+
+  /**
+   * @brief Get S-wave quality factor for an element (attenuation)
+   * @param e Element index
+   * @return Qs (dimensionless)
+   */
+  PROXY_HOST_DEVICE virtual FloatType getModelQsOnElement(ScalarType e) const =
+      0;
+
+  /**
    * @brief Get Thomsen delta parameter at a node (anisotropy)
    * @param n Node index
    * @return Delta parameter (dimensionless)
@@ -342,6 +374,15 @@ class ModelApi
    */
   PROXY_HOST_DEVICE
   virtual bool isFreeSurface(ScalarType n) const = 0;
+
+  /**
+   * @brief Set uniform quality factors for attenuation.
+   *
+   * Allocates per-element Q arrays and fills them with the given values.
+   * @param qp P-wave quality factor.
+   * @param qs S-wave quality factor (used only for elastic).
+   */
+  virtual void setQualityFactors(FloatType qp, FloatType qs) = 0;
 
   /**
    * @brief Get total number of faces

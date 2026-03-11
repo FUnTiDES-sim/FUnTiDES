@@ -154,6 +154,11 @@ class Solver
   virtual void updateSolution(const float& dt, DataStruct& data) = 0;
 
   virtual void setAnisotropyType(model::AnisotropyType type) = 0;
+
+  virtual void setSLSAttenuation(
+      const std::vector<float>& reference_frequencies,
+      const std::vector<float>& anelasticity_coefficients =
+          std::vector<float>{}) = 0;
 };
 }  // namespace fe
 }  // namespace solver

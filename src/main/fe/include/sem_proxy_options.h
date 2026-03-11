@@ -6,6 +6,7 @@
 #include <cxxopts.hpp>
 #include <stdexcept>
 #include <string>
+#include <vector>
 
 class SemProxyOptions
 {
@@ -34,6 +35,10 @@ class SemProxyOptions
   bool isModelOnNodes = false;
   bool isElastic = false;
   bool free_surface = false;
+  float qp = -1.0f;  // quality factor for P-waves (<0 = not set)
+  float qs = -1.0f;  // quality factor for S-waves (<0 = not set)
+  std::vector<float> sls_reference_angular_frequencies{};
+  std::vector<float> sls_anelasticity_coefficients{};
 
   void validate() const
   {
@@ -88,7 +93,29 @@ class SemProxyOptions
         "Enable free surface on top boundary (Z+). Default: true",
         cxxopts::value<bool>(o.free_surface))(
         "anisotropy", "Anisotropy type for elastic: iso|vti|tti (default=iso)",
-        cxxopts::value<std::string>(o.anisotropy));
+        cxxopts::value<std::string>(o.anisotropy))(
+        "srcx", "Source position X (meters)",
+        cxxopts::value<float>(o.srcx))(
+        "srcy", "Source position Y (meters)",
+        cxxopts::value<float>(o.srcy))(
+        "srcz", "Source position Z (meters)",
+        cxxopts::value<float>(o.srcz))(
+        "rcvx", "Receiver position X (meters)",
+        cxxopts::value<float>(o.rcvx))(
+        "rcvy", "Receiver position Y (meters)",
+        cxxopts::value<float>(o.rcvy))(
+        "rcvz", "Receiver position Z (meters)",
+        cxxopts::value<float>(o.rcvz))(
+        "qp", "Quality factor for P-waves (default: no attenuation)",
+        cxxopts::value<float>(o.qp))(
+        "qs", "Quality factor for S-waves (default: no attenuation)",
+        cxxopts::value<float>(o.qs))(
+        "sls-reference-angular-frequencies",
+        "Comma-separated SLS reference angular frequencies (rad/s)",
+        cxxopts::value<std::vector<float>>(o.sls_reference_angular_frequencies))(
+        "sls-anelasticity-coefficients",
+        "Comma-separated SLS anelasticity coefficients (same size as frequencies)",
+        cxxopts::value<std::vector<float>>(o.sls_anelasticity_coefficients));
   }
 };
 
