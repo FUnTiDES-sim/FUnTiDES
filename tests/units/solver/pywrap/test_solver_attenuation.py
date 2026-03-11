@@ -68,8 +68,6 @@ def _run_acoustic_simulation(solver, sd, n_steps=200, dt=0.001):
 
     n_rhs = 1
     kk_rhsElem, _ = Utils.allocate_rhs_element(n_rhs, sd.ex, sd.ey, sd.ez)
-    kk_rhsWeights, _ = Utils.allocate_rhs_weight(n_rhs, None)  # won't work
-    # Manually create zero weights
     npp = (sd.order + 1) ** 3
     kk_rhsWeights = kokkos.array(
         [n_rhs, npp], dtype=kokkos.float32, space=kokkos.HostSpace, layout=kokkos.LayoutRight
