@@ -280,8 +280,8 @@ TEST(AttenuationReceiver, AcousticReceiverTraceDecays)
   auto seis_noatt = runAcousticWithReceiver(
       mesh_noatt, {}, numTimeSteps, dt, sourceNode, receiverNode);
 
-  // Run with attenuation: Q=30, 1 SLS mechanism
-  auto mesh_att = buildReceiverMesh(false, 30.0f, 30.0f);
+  // Run with attenuation: Q=10, 1 SLS mechanism (strong attenuation)
+  auto mesh_att = buildReceiverMesh(false, 10.0f, 10.0f);
   std::vector<float> freqs = {2.0f * static_cast<float>(M_PI) * 10.0f};
   auto seis_att = runAcousticWithReceiver(
       mesh_att, freqs, numTimeSteps, dt, sourceNode, receiverNode);

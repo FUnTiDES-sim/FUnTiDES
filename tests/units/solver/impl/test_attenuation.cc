@@ -794,7 +794,7 @@ TEST(AttenuationAcousticHighOrder, Order3DecaysAmplitude)
 {
   const int order = 3;
   const int numTimeSteps = 500;
-  const float dt = 0.0003f;  // even smaller dt for order-3 stability
+  const float dt = 0.001f;  // CFL-safe (dt_max ~ 0.018 for order 3)
 
   std::vector<float> freqs = {2.0f * static_cast<float>(M_PI) * 5.0f};
 
@@ -923,7 +923,7 @@ TEST(AttenuationElasticHighOrder, Order3NoNanOrInf)
   RhsElastic rhs(rtx, rty, rtz, re, rw);
   SEMsolverDataElastic data(wf, rhs);
 
-  float dt = 0.0003f;
+  float dt = 0.001f;  // CFL-safe (dt_max ~ 0.018 for order 3)
   for (int t = 0; t < 200; ++t)
   {
     solver->computeForces(dt, t, data);
