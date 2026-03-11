@@ -204,7 +204,7 @@ static float runAcousticSimulation(
   }
   setImpulseSource(pCurr, numNodes, 1.0f);
 
-  auto rhsTerm = allocateArray2D<ARRAY_REAL_VIEW>(1, npp, "rhsTerm");
+  auto rhsTerm = allocateArray2D<ARRAY_REAL_VIEW>(1, numTimeSteps, "rhsTerm");
   auto rhsElem = allocateVector<VECTOR_INT_VIEW>(1, "rhsElem");
   auto rhsWeights = allocateArray2D<ARRAY_REAL_VIEW>(1, npp, "rhsWeights");
   rhsElem(0) = 0;
@@ -296,7 +296,8 @@ TEST(AttenuationAcoustic, NoNanOrInfWithAttenuation)
   setImpulseSource(pCurr, numNodes, 1.0f);
 
   int npp = (order + 1) * (order + 1) * (order + 1);
-  auto rhsTerm = allocateArray2D<ARRAY_REAL_VIEW>(1, npp, "rhsTerm_nantest");
+  const int numSteps = 100;
+  auto rhsTerm = allocateArray2D<ARRAY_REAL_VIEW>(1, numSteps, "rhsTerm_nantest");
   auto rhsElem = allocateVector<VECTOR_INT_VIEW>(1, "rhsElem_nantest");
   auto rhsWeights = allocateArray2D<ARRAY_REAL_VIEW>(1, npp, "rhsWeights_nantest");
   rhsElem(0) = 0;
@@ -311,7 +312,7 @@ TEST(AttenuationAcoustic, NoNanOrInfWithAttenuation)
   SEMsolverDataAcoustic data(wf, rhs);
 
   float dt = 0.001f;
-  for (int t = 0; t < 100; ++t)
+  for (int t = 0; t < numSteps; ++t)
   {
     solver->computeForces(dt, t, data);
     solver->updateSolution(dt, data);
@@ -368,9 +369,9 @@ TEST(AttenuationElastic, AttenuationDecaysAmplitude)
   }
   setImpulseSource(uzCurr_na, numNodes, 1.0f);
 
-  auto rhsTermx_na = allocateArray2D<ARRAY_REAL_VIEW>(1, npp, "rtx_na");
-  auto rhsTermy_na = allocateArray2D<ARRAY_REAL_VIEW>(1, npp, "rty_na");
-  auto rhsTermz_na = allocateArray2D<ARRAY_REAL_VIEW>(1, npp, "rtz_na");
+  auto rhsTermx_na = allocateArray2D<ARRAY_REAL_VIEW>(1, numTimeSteps, "rtx_na");
+  auto rhsTermy_na = allocateArray2D<ARRAY_REAL_VIEW>(1, numTimeSteps, "rty_na");
+  auto rhsTermz_na = allocateArray2D<ARRAY_REAL_VIEW>(1, numTimeSteps, "rtz_na");
   auto rhsElem_na = allocateVector<VECTOR_INT_VIEW>(1, "re_na");
   auto rhsW_na = allocateArray2D<ARRAY_REAL_VIEW>(1, npp, "rw_na");
   rhsElem_na(0) = 0;
@@ -428,9 +429,9 @@ TEST(AttenuationElastic, AttenuationDecaysAmplitude)
   }
   setImpulseSource(uzCurr_a, numNodes, 1.0f);
 
-  auto rhsTermx_a = allocateArray2D<ARRAY_REAL_VIEW>(1, npp, "rtx_a");
-  auto rhsTermy_a = allocateArray2D<ARRAY_REAL_VIEW>(1, npp, "rty_a");
-  auto rhsTermz_a = allocateArray2D<ARRAY_REAL_VIEW>(1, npp, "rtz_a");
+  auto rhsTermx_a = allocateArray2D<ARRAY_REAL_VIEW>(1, numTimeSteps, "rtx_a");
+  auto rhsTermy_a = allocateArray2D<ARRAY_REAL_VIEW>(1, numTimeSteps, "rty_a");
+  auto rhsTermz_a = allocateArray2D<ARRAY_REAL_VIEW>(1, numTimeSteps, "rtz_a");
   auto rhsElem_a = allocateVector<VECTOR_INT_VIEW>(1, "re_a");
   auto rhsW_a = allocateArray2D<ARRAY_REAL_VIEW>(1, npp, "rw_a");
   rhsElem_a(0) = 0;
@@ -501,9 +502,10 @@ TEST(AttenuationElastic, NoNanOrInfWithAttenuation)
   }
   setImpulseSource(uzC, numNodes, 1.0f);
 
-  auto rtx = allocateArray2D<ARRAY_REAL_VIEW>(1, npp, "rtx_ef");
-  auto rty = allocateArray2D<ARRAY_REAL_VIEW>(1, npp, "rty_ef");
-  auto rtz = allocateArray2D<ARRAY_REAL_VIEW>(1, npp, "rtz_ef");
+  const int numSteps = 100;
+  auto rtx = allocateArray2D<ARRAY_REAL_VIEW>(1, numSteps, "rtx_ef");
+  auto rty = allocateArray2D<ARRAY_REAL_VIEW>(1, numSteps, "rty_ef");
+  auto rtz = allocateArray2D<ARRAY_REAL_VIEW>(1, numSteps, "rtz_ef");
   auto re = allocateVector<VECTOR_INT_VIEW>(1, "re_ef");
   auto rw = allocateArray2D<ARRAY_REAL_VIEW>(1, npp, "rw_ef");
   re(0) = 0;
@@ -520,7 +522,7 @@ TEST(AttenuationElastic, NoNanOrInfWithAttenuation)
   SEMsolverDataElastic data(wf, rhs);
 
   float dt = 0.001f;
-  for (int t = 0; t < 100; ++t)
+  for (int t = 0; t < numSteps; ++t)
   {
     solver->computeForces(dt, t, data);
     solver->updateSolution(dt, data);
@@ -567,7 +569,8 @@ TEST(AttenuationAcoustic, ComputeOneStepWithAttenuation)
   }
   setImpulseSource(pC, numNodes, 1.0f);
 
-  auto rt = allocateArray2D<ARRAY_REAL_VIEW>(1, npp, "rt_os");
+  const int numSteps = 50;
+  auto rt = allocateArray2D<ARRAY_REAL_VIEW>(1, numSteps, "rt_os");
   auto re = allocateVector<VECTOR_INT_VIEW>(1, "re_os");
   auto rw = allocateArray2D<ARRAY_REAL_VIEW>(1, npp, "rw_os");
   re(0) = 0;
@@ -582,7 +585,7 @@ TEST(AttenuationAcoustic, ComputeOneStepWithAttenuation)
   SEMsolverDataAcoustic data(wf, rhs);
 
   float dt = 0.001f;
-  for (int t = 0; t < 50; ++t)
+  for (int t = 0; t < numSteps; ++t)
   {
     solver->computeOneStep(dt, t, data);
     data.swapWavefields();
@@ -701,9 +704,9 @@ TEST(AttenuationElasticHighOrder, Order2DecaysAmplitude)
   }
   setImpulseSource(uzC_na, numNodes, 1.0f);
 
-  auto rtx_na = allocateArray2D<ARRAY_REAL_VIEW>(1, npp, "rtx_na2");
-  auto rty_na = allocateArray2D<ARRAY_REAL_VIEW>(1, npp, "rty_na2");
-  auto rtz_na = allocateArray2D<ARRAY_REAL_VIEW>(1, npp, "rtz_na2");
+  auto rtx_na = allocateArray2D<ARRAY_REAL_VIEW>(1, numTimeSteps, "rtx_na2");
+  auto rty_na = allocateArray2D<ARRAY_REAL_VIEW>(1, numTimeSteps, "rty_na2");
+  auto rtz_na = allocateArray2D<ARRAY_REAL_VIEW>(1, numTimeSteps, "rtz_na2");
   auto re_na = allocateVector<VECTOR_INT_VIEW>(1, "re_na2");
   auto rw_na = allocateArray2D<ARRAY_REAL_VIEW>(1, npp, "rw_na2");
   re_na(0) = 0;
@@ -750,9 +753,9 @@ TEST(AttenuationElasticHighOrder, Order2DecaysAmplitude)
   }
   setImpulseSource(uzC_a, numNodes, 1.0f);
 
-  auto rtx_a = allocateArray2D<ARRAY_REAL_VIEW>(1, npp, "rtx_a2");
-  auto rty_a = allocateArray2D<ARRAY_REAL_VIEW>(1, npp, "rty_a2");
-  auto rtz_a = allocateArray2D<ARRAY_REAL_VIEW>(1, npp, "rtz_a2");
+  auto rtx_a = allocateArray2D<ARRAY_REAL_VIEW>(1, numTimeSteps, "rtx_a2");
+  auto rty_a = allocateArray2D<ARRAY_REAL_VIEW>(1, numTimeSteps, "rty_a2");
+  auto rtz_a = allocateArray2D<ARRAY_REAL_VIEW>(1, numTimeSteps, "rtz_a2");
   auto re_a = allocateVector<VECTOR_INT_VIEW>(1, "re_a2");
   auto rw_a = allocateArray2D<ARRAY_REAL_VIEW>(1, npp, "rw_a2");
   re_a(0) = 0;
@@ -846,7 +849,8 @@ TEST(AttenuationAcousticHighOrder, Order2NoNanOrInf)
   setImpulseSource(pCurr, numNodes, 1.0f);
 
   int npp = (order + 1) * (order + 1) * (order + 1);
-  auto rhsTerm = allocateArray2D<ARRAY_REAL_VIEW>(1, npp, "rt_o2");
+  const int numSteps = 200;
+  auto rhsTerm = allocateArray2D<ARRAY_REAL_VIEW>(1, numSteps, "rt_o2");
   auto rhsElem = allocateVector<VECTOR_INT_VIEW>(1, "re_o2");
   auto rhsW = allocateArray2D<ARRAY_REAL_VIEW>(1, npp, "rw_o2");
   rhsElem(0) = 0;
@@ -861,7 +865,7 @@ TEST(AttenuationAcousticHighOrder, Order2NoNanOrInf)
   SEMsolverDataAcoustic data(wf, rhs);
 
   float dt = 0.0005f;
-  for (int t = 0; t < 200; ++t)
+  for (int t = 0; t < numSteps; ++t)
   {
     solver->computeForces(dt, t, data);
     solver->updateSolution(dt, data);
@@ -908,9 +912,10 @@ TEST(AttenuationElasticHighOrder, Order3NoNanOrInf)
   }
   setImpulseSource(uzC, numNodes, 1.0f);
 
-  auto rtx = allocateArray2D<ARRAY_REAL_VIEW>(1, npp, "rtx_o3");
-  auto rty = allocateArray2D<ARRAY_REAL_VIEW>(1, npp, "rty_o3");
-  auto rtz = allocateArray2D<ARRAY_REAL_VIEW>(1, npp, "rtz_o3");
+  const int numSteps = 200;
+  auto rtx = allocateArray2D<ARRAY_REAL_VIEW>(1, numSteps, "rtx_o3");
+  auto rty = allocateArray2D<ARRAY_REAL_VIEW>(1, numSteps, "rty_o3");
+  auto rtz = allocateArray2D<ARRAY_REAL_VIEW>(1, numSteps, "rtz_o3");
   auto re = allocateVector<VECTOR_INT_VIEW>(1, "re_o3");
   auto rw = allocateArray2D<ARRAY_REAL_VIEW>(1, npp, "rw_o3");
   re(0) = 0;
@@ -924,7 +929,7 @@ TEST(AttenuationElasticHighOrder, Order3NoNanOrInf)
   SEMsolverDataElastic data(wf, rhs);
 
   float dt = 0.001f;  // CFL-safe (dt_max ~ 0.018 for order 3)
-  for (int t = 0; t < 200; ++t)
+  for (int t = 0; t < numSteps; ++t)
   {
     solver->computeForces(dt, t, data);
     solver->updateSolution(dt, data);

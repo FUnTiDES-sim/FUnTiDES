@@ -143,7 +143,7 @@ static AcousticSeismogram runAcousticWithReceiver(
   pCurr(sourceNode) = 1.0f;
 
   auto rhsTerm =
-      allocateArray2D<ARRAY_REAL_VIEW>(1, npp, "rhsTerm_rcv");
+      allocateArray2D<ARRAY_REAL_VIEW>(1, numTimeSteps, "rhsTerm_rcv");
   auto rhsElem = allocateVector<VECTOR_INT_VIEW>(1, "rhsElem_rcv");
   auto rhsWeights =
       allocateArray2D<ARRAY_REAL_VIEW>(1, npp, "rhsWeights_rcv");
@@ -219,9 +219,9 @@ static ElasticSeismogram runElasticWithReceiver(
   // Vertical impulse source
   uzC(sourceNode) = 1.0f;
 
-  auto rtx = allocateArray2D<ARRAY_REAL_VIEW>(1, npp, "rtx_rcv");
-  auto rty = allocateArray2D<ARRAY_REAL_VIEW>(1, npp, "rty_rcv");
-  auto rtz = allocateArray2D<ARRAY_REAL_VIEW>(1, npp, "rtz_rcv");
+  auto rtx = allocateArray2D<ARRAY_REAL_VIEW>(1, numTimeSteps, "rtx_rcv");
+  auto rty = allocateArray2D<ARRAY_REAL_VIEW>(1, numTimeSteps, "rty_rcv");
+  auto rtz = allocateArray2D<ARRAY_REAL_VIEW>(1, numTimeSteps, "rtz_rcv");
   auto re = allocateVector<VECTOR_INT_VIEW>(1, "re_rcv");
   auto rw = allocateArray2D<ARRAY_REAL_VIEW>(1, npp, "rw_rcv");
   re(0) = 0;
