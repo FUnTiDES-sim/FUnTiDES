@@ -91,8 +91,11 @@ SEMproxy::SEMproxy(const SemProxyOptions& opt)
             m_localParams.ex, m_localParams.lx, m_localParams.ey,
             m_localParams.ly, m_localParams.ez, m_localParams.lz,
             isModelOnNodes, isElastic, m_localParams.origin_x,
-            m_localParams.origin_y, m_localParams.origin_z);
-        m_mesh = builder.getModel();
+            m_localParams.origin_y, m_localParams.origin_z,
+            m_localParams.global_lx, m_localParams.global_ly,
+            m_localParams.global_lz, m_localParams.global_origin_x,
+            m_localParams.global_origin_y, m_localParams.global_origin_z);
+        m_mesh = builder.getModel(freeSurface_);
         break;
       }
       case 2: {
@@ -100,8 +103,11 @@ SEMproxy::SEMproxy(const SemProxyOptions& opt)
             m_localParams.ex, m_localParams.lx, m_localParams.ey,
             m_localParams.ly, m_localParams.ez, m_localParams.lz,
             isModelOnNodes, isElastic, m_localParams.origin_x,
-            m_localParams.origin_y, m_localParams.origin_z);
-        m_mesh = builder.getModel();
+            m_localParams.origin_y, m_localParams.origin_z,
+            m_localParams.global_lx, m_localParams.global_ly,
+            m_localParams.global_lz, m_localParams.global_origin_x,
+            m_localParams.global_origin_y, m_localParams.global_origin_z);
+        m_mesh = builder.getModel(freeSurface_);
         break;
       }
       case 3: {
@@ -109,8 +115,11 @@ SEMproxy::SEMproxy(const SemProxyOptions& opt)
             m_localParams.ex, m_localParams.lx, m_localParams.ey,
             m_localParams.ly, m_localParams.ez, m_localParams.lz,
             isModelOnNodes, isElastic, m_localParams.origin_x,
-            m_localParams.origin_y, m_localParams.origin_z);
-        m_mesh = builder.getModel();
+            m_localParams.origin_y, m_localParams.origin_z,
+            m_localParams.global_lx, m_localParams.global_ly,
+            m_localParams.global_lz, m_localParams.global_origin_x,
+            m_localParams.global_origin_y, m_localParams.global_origin_z);
+        m_mesh = builder.getModel(freeSurface_);
         break;
       }
       default:
@@ -122,7 +131,7 @@ SEMproxy::SEMproxy(const SemProxyOptions& opt)
   {
     // Pass local params to unstructured builder (handles origin internally)
     model::CartesianUnstructBuilder<float, int> builder(m_localParams);
-    m_mesh = builder.getModel();
+    m_mesh = builder.getModel(freeSurface_);
   }
   else
   {
@@ -232,10 +241,6 @@ void SEMproxy::run()
   const float taper_delta = 0.015;
 
   // Initialize Solver with Partition Info & Compute Local Mass
-
-  bool freeSurface = freeSurface_;
-  m_mesh->setFreeSurfaceEnabled(freeSurface);
-
   m_solver->computeFEInit(*m_mesh, sponge_size, surface_sponge, taper_delta);
 
   // Synchronize Mass Matrix (Critical for DD)

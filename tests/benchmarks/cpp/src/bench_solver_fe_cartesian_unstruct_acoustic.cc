@@ -97,7 +97,7 @@ class SolverUnstructFixture : public benchmark::Fixture
                                      isModelOnNodes_, false);
     // params defaults origins to 0.0, correct for serial
     typename T::Builder builder(params);
-    return builder.getModel();
+    return builder.getModel(true);
   }
 
   void setLabel(benchmark::State& state) const

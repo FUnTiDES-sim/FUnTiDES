@@ -1,10 +1,12 @@
 #ifndef FUNTIDES_MODEL_MESH_IMPL_BUILDER_CARTESIAN_INCLUDE_CARTESIAN_STRUCT_BUILDER_H_
 #define FUNTIDES_MODEL_MESH_IMPL_BUILDER_CARTESIAN_INCLUDE_CARTESIAN_STRUCT_BUILDER_H_
 
-#pragma once
-
 #include <builder.h>
 #include <model_struct.h>
+
+#include <algorithm>
+
+#include "cartesian_struct_boundary_classifier.h"
 
 namespace model
 {
@@ -16,11 +18,10 @@ class CartesianStructBuilder : public ModelBuilderBase<FloatType, ScalarType>
                          FloatType ly, ScalarType ez, FloatType lz,
                          bool isModelOnNodes, bool isElastic,
                          FloatType ox = 0.0, FloatType oy = 0.0,
-                         FloatType oz = 0.0,
-                         // AJOUTER : paramètres globaux (optionnels)
-                         FloatType global_lx = -1.0, FloatType global_ly = -1.0,
-                         FloatType global_lz = -1.0, FloatType global_ox = 0.0,
-                         FloatType global_oy = 0.0, FloatType global_oz = 0.0)
+                         FloatType oz = 0.0, FloatType global_lx = -1.0,
+                         FloatType global_ly = -1.0, FloatType global_lz = -1.0,
+                         FloatType global_ox = 0.0, FloatType global_oy = 0.0,
+                         FloatType global_oz = 0.0)
       : ex_(ex),
         ey_(ey),
         ez_(ez),
@@ -43,8 +44,8 @@ class CartesianStructBuilder : public ModelBuilderBase<FloatType, ScalarType>
 
   ~CartesianStructBuilder() = default;
 
-  std::shared_ptr<model::ModelApi<FloatType, ScalarType>> getModel()
-      const override
+  std::shared_ptr<model::ModelApi<FloatType, ScalarType>> getModel(
+      bool free_surface_on_top) const override
   {
     model::ModelStructData<FloatType, ScalarType> data;
     data.ex_ = ex_;
@@ -59,44 +60,24 @@ class CartesianStructBuilder : public ModelBuilderBase<FloatType, ScalarType>
     data.isModelOnNodes_ = isModelOnNodes_;
     data.isElastic_ = isElastic_;
 
-    auto temp_model = model::ModelStruct<FloatType, ScalarType, Order>(data);
+    const int nx = static_cast<int>(ex_) * Order + 1;
+    const int ny = static_cast<int>(ey_) * Order + 1;
+    const int nz = static_cast<int>(ez_) * Order + 1;
+    const int n_node = nx * ny * nz;
+    const FloatType tol = std::min({lx_ / ex_, ly_ / ey_, lz_ / ez_}) *
+                          static_cast<FloatType>(1e-4);
 
-    const int n_node = temp_model.getNumberOfNodes();
-    FloatType tol = temp_model.getMinSpacing() * 1e-4;
+    data.boundaries_t_ =
+        CartesianStructBoundaryClassifier<FloatType, ScalarType>(
+            global_ox_, global_ox_ + global_lx_, global_oy_,
+            global_oy_ + global_ly_, global_oz_, global_oz_ + global_lz_, tol,
+            free_surface_on_top)
+            .classify(n_node, nx, ny, nz, ox_, oy_, oz_, lx_, ly_, lz_);
 
-    FloatType x_min = global_ox_, x_max = global_ox_ + global_lx_;
-    FloatType y_min = global_oy_, y_max = global_oy_ + global_ly_;
-    FloatType z_min = global_oz_, z_max = global_oz_ + global_lz_;
-
-    auto boundaries_t =
-        allocateVector<VECTOR_REAL_VIEW>(n_node, "boundaries_t");
-
-    for (int n = 0; n < n_node; ++n)
-    {
-      FloatType x = temp_model.nodeCoord(n, 0);
-      FloatType y = temp_model.nodeCoord(n, 1);
-      FloatType z = temp_model.nodeCoord(n, 2);
-
-      bool at_xmin = (fabs(x - x_min) < tol);
-      bool at_xmax = (fabs(x - x_max) < tol);
-      bool at_ymin = (fabs(y - y_min) < tol);
-      bool at_ymax = (fabs(y - y_max) < tol);
-      bool at_zmin = (fabs(z - z_min) < tol);
-      bool at_zmax = (fabs(z - z_max) < tol);
-
-      bool on_boundary =
-          at_xmin || at_xmax || at_ymin || at_ymax || at_zmin || at_zmax;
-
-      if (!on_boundary)
-        boundaries_t(n) = static_cast<FloatType>(BoundaryFlag::InteriorNode);
-      else if (at_zmax)
-        boundaries_t(n) = static_cast<FloatType>(BoundaryFlag::Surface);
-      else
-        boundaries_t(n) = static_cast<FloatType>(BoundaryFlag::Damping);
-    }
-
-    data.boundaries_t_ = boundaries_t;
-
+    // -------------------------------------------------------------------------
+    // Construct model with local coordinates and dimensions, but use global
+    // boundaries for boundary classification.
+    // -------------------------------------------------------------------------
     auto model =
         std::make_shared<model::ModelStruct<FloatType, ScalarType, Order>>(
             data);
