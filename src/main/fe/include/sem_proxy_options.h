@@ -35,6 +35,13 @@ class SemProxyOptions
   bool isElastic = false;
   bool free_surface = false;
 
+  // DAS (Distributed Acoustic Sensing) receiver parameters
+  std::string das_type = "none";  ///< none | dipole | strain
+  float das_dip = 0.f;            ///< Fiber dip angle in degrees
+  float das_azimuth = 0.f;        ///< Fiber azimuth angle in degrees
+  float das_gauge_length = 1.f;   ///< Gauge length in meters
+  int das_samples = 5;            ///< Number of integration points along fiber
+
   void validate() const
   {
     if (order < 1) throw std::runtime_error("order must be >= 1");
@@ -88,7 +95,19 @@ class SemProxyOptions
         "Enable free surface on top boundary (Z+). Default: true",
         cxxopts::value<bool>(o.free_surface))(
         "anisotropy", "Anisotropy type for elastic: iso|vti|tti (default=iso)",
-        cxxopts::value<std::string>(o.anisotropy));
+        cxxopts::value<std::string>(o.anisotropy))(
+        "das-type",
+        "DAS receiver type: none|dipole|strain (default=none)",
+        cxxopts::value<std::string>(o.das_type))(
+        "das-dip", "DAS fiber dip angle in degrees (default=0)",
+        cxxopts::value<float>(o.das_dip))(
+        "das-azimuth", "DAS fiber azimuth angle in degrees (default=0)",
+        cxxopts::value<float>(o.das_azimuth))(
+        "das-gauge-length", "DAS gauge length in meters (default=1)",
+        cxxopts::value<float>(o.das_gauge_length))(
+        "das-samples",
+        "Number of integration points along DAS fiber (default=5)",
+        cxxopts::value<int>(o.das_samples));
   }
 };
 

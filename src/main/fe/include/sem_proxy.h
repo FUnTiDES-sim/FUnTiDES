@@ -17,6 +17,7 @@
 #include "sem_proxy_options.h"
 #include "sem_solver.h"
 #include "solver_factory.h"
+#include "source_and_receiver_utils.h"
 
 using namespace solver::fe::enums;
 
@@ -151,6 +152,16 @@ class SEMproxy
   arrayReal uxnAtReceiver;
   arrayReal uynAtReceiver;
   arrayReal uznAtReceiver;
+
+  // DAS receiver data
+  SourceAndReceiverUtils::DASType dasType_ = SourceAndReceiverUtils::DASType::kNone;
+  int dasNumSamples_ = 5;
+  float dasGaugeLength_ = 1.0f;
+  std::array<float, 3> dasDirection_ = {1, 0, 0};  ///< Fiber direction unit vector
+  std::array<float, 3> dasVector_ = {1, 0, 0};     ///< Direction (for dipole: divided by L)
+  std::vector<int> dasNodeIds_;                     ///< Global node IDs [nSamples * npe]
+  std::vector<float> dasWeights_;                   ///< Precomputed weights [nSamples * npe]
+  vectorReal dasSignal_;                            ///< DAS trace [num_sample_]
 
   // io controller
   std::shared_ptr<SemIOController> io_ctrl_;

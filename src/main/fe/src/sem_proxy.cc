@@ -14,6 +14,7 @@
 #include <source_and_receiver_utils.h>
 
 #include <cxxopts.hpp>
+#include <fstream>
 #include <iomanip>
 #include <iostream>
 #include <memory>
@@ -224,6 +225,48 @@ SEMproxy::SEMproxy(const SemProxyOptions& opt)
     std::cout << "Snapshots enable every " << snap_time_interval_
               << " iteration." << std::endl;
   }
+
+  // DAS receiver setup
+  if (opt.das_type == "dipole")
+  {
+    dasType_ = SourceAndReceiverUtils::DASType::kDipole;
+    dasNumSamples_ = 2;  // dipole uses exactly 2 endpoints
+  }
+  else if (opt.das_type == "strain")
+  {
+    dasType_ = SourceAndReceiverUtils::DASType::kStrainIntegration;
+    dasNumSamples_ = opt.das_samples;
+  }
+  else
+  {
+    dasType_ = SourceAndReceiverUtils::DASType::kNone;
+  }
+
+  if (dasType_ != SourceAndReceiverUtils::DASType::kNone)
+  {
+    if (!isElastic_)
+    {
+      throw std::runtime_error(
+          "DAS receivers require elastic simulation (--is-elastic true)");
+    }
+    dasGaugeLength_ = opt.das_gauge_length;
+    dasDirection_ = SourceAndReceiverUtils::ComputeDASVector(opt.das_dip, opt.das_azimuth);
+    dasVector_ = dasDirection_;
+
+    // For dipole mode, divide direction by gauge length (GEOS convention)
+    if (dasType_ == SourceAndReceiverUtils::DASType::kDipole)
+    {
+      for (int i = 0; i < 3; ++i) dasVector_[i] /= dasGaugeLength_;
+    }
+
+    std::cout << "DAS receiver enabled: type=" << opt.das_type
+              << ", dip=" << opt.das_dip << " deg, azimuth=" << opt.das_azimuth
+              << " deg, gauge=" << dasGaugeLength_ << " m, samples="
+              << dasNumSamples_ << std::endl;
+    std::cout << "DAS direction vector: (" << dasDirection_[0] << ", "
+              << dasDirection_[1] << ", " << dasDirection_[2] << ")"
+              << std::endl;
+  }
 }
 
 void SEMproxy::run()
@@ -417,6 +460,26 @@ void SEMproxy::run()
       uynAtReceiver(0, indexTimeSample) = varyunp1;
       uznAtReceiver(0, indexTimeSample) = varuznp1;
 
+      // Compute DAS signal at this timestep
+      if (dasType_ != SourceAndReceiverUtils::DASType::kNone)
+      {
+        float dasVal = 0.0f;
+        const int totalDASNodes = static_cast<int>(dasNodeIds_.size());
+        for (int iNode = 0; iNode < totalDASNodes; ++iNode)
+        {
+          int nId = dasNodeIds_[iNode];
+          if (nId >= 0)
+          {
+            float w = dasWeights_[iNode];
+            dasVal += (uxnGlobalCurr(nId) * dasVector_[0] +
+                       uynGlobalCurr(nId) * dasVector_[1] +
+                       uznGlobalCurr(nId) * dasVector_[2]) *
+                      w;
+          }
+        }
+        dasSignal_(indexTimeSample) = dasVal;
+      }
+
       solverData.swapWavefields();
 
       totalOutputTime += system_clock::now() - startOutputTime;
@@ -440,6 +503,20 @@ void SEMproxy::run()
       }
 #endif  // USE_KOKKOS
       io_ctrl_->saveReceiver(subset, src_coord_);
+    }
+
+    // Save DAS trace to text file
+    if (dasType_ != SourceAndReceiverUtils::DASType::kNone)
+    {
+      std::ofstream fDAS("das_trace.txt");
+      fDAS << "# time das_signal\n";
+      for (int t = 0; t < num_sample_; ++t)
+      {
+        fDAS << t * dt_ << " " << dasSignal_(t) << "\n";
+      }
+      fDAS.close();
+      std::cout << "Saved DAS trace to das_trace.txt (" << num_sample_
+                << " samples)" << std::endl;
     }
   }
 
@@ -500,6 +577,12 @@ void SEMproxy::init_arrays()
   rhsElementRcv = allocateVector<vectorInt>(1, "rhsElementRcv");
   rhsWeightsRcv = allocateArray2D<arrayReal>(
       1, m_mesh->getNumberOfPointsPerElement(), "RHSWeightRcv");
+
+  // DAS signal array
+  if (dasType_ != SourceAndReceiverUtils::DASType::kNone)
+  {
+    dasSignal_ = allocateVector<vectorReal>(num_sample_, "dasSignal");
+  }
 }
 
 // Initialize sources
@@ -704,6 +787,130 @@ void SEMproxy::init_source()
   }
   std::cout << std::endl;
   std::cout << "------------------\n" << std::endl;
+
+  // DAS receiver precomputation
+  if (dasType_ != SourceAndReceiverUtils::DASType::kNone)
+  {
+    const int npe = m_mesh->getNumberOfPointsPerElement();
+    const int totalDASNodes = dasNumSamples_ * npe;
+    dasNodeIds_.resize(totalDASNodes, -1);
+    dasWeights_.resize(totalDASNodes, 0.0f);
+
+    // Compute sample point locations along fiber [-0.5, ..., +0.5]
+    std::vector<float> sampleLocations(dasNumSamples_);
+    if (dasNumSamples_ == 1)
+    {
+      sampleLocations[0] = 0.0f;
+    }
+    else
+    {
+      for (int i = 0; i < dasNumSamples_; ++i)
+      {
+        sampleLocations[i] =
+            -0.5f + static_cast<float>(i) / (dasNumSamples_ - 1);
+      }
+    }
+
+    // Compute integration constants
+    std::vector<float> integrationConstants(dasNumSamples_);
+    if (dasType_ == SourceAndReceiverUtils::DASType::kDipole)
+    {
+      integrationConstants[0] = -1.0f;
+      integrationConstants[1] = 1.0f;
+    }
+    else
+    {
+      for (int i = 0; i < dasNumSamples_; ++i)
+      {
+        integrationConstants[i] = 1.0f / dasNumSamples_;
+      }
+    }
+
+    // For each sample point along the fiber
+    for (int iSample = 0; iSample < dasNumSamples_; ++iSample)
+    {
+      // Physical coordinates of sample point
+      std::array<float, 3> sampleCoord;
+      for (int d = 0; d < 3; ++d)
+      {
+        sampleCoord[d] = rcv_coord_[d] + dasDirection_[d] * dasGaugeLength_ *
+                                              sampleLocations[iSample];
+      }
+
+      // Find element containing this sample point
+      float rel_x = sampleCoord[0] - m_localParams.origin_x;
+      int sampleElemIdx =
+          static_cast<int>(std::floor((rel_x * ex) / lx)) +
+          static_cast<int>(std::floor((sampleCoord[1] * ey) / ly)) * ex +
+          static_cast<int>(std::floor((sampleCoord[2] * ez) / lz)) * ey * ex;
+
+      // Clamp to valid range
+      if (sampleElemIdx < 0) sampleElemIdx = 0;
+      if (sampleElemIdx >= m_mesh->getNumberOfElements()) sampleElemIdx = 0;
+
+      // Get corner coordinates of sample element
+      float sampleCornerCoords[8][3];
+      int ci = 0;
+      for (int kk : nodes_corner)
+      {
+        for (int jj : nodes_corner)
+        {
+          for (int ii : nodes_corner)
+          {
+            int nIdx = m_mesh->globalNodeIndex(sampleElemIdx, ii, jj, kk);
+            sampleCornerCoords[ci][0] = m_mesh->nodeCoord(nIdx, 0);
+            sampleCornerCoords[ci][1] = m_mesh->nodeCoord(nIdx, 1);
+            sampleCornerCoords[ci][2] = m_mesh->nodeCoord(nIdx, 2);
+            ci++;
+          }
+        }
+      }
+
+      // Store global node IDs for this sample's element
+      int baseIdx = iSample * npe;
+      for (int kk = 0; kk < order + 1; ++kk)
+      {
+        for (int jj = 0; jj < order + 1; ++jj)
+        {
+          for (int ii = 0; ii < order + 1; ++ii)
+          {
+            int localNode = ii + jj * (order + 1) + kk * (order + 1) * (order + 1);
+            dasNodeIds_[baseIdx + localNode] =
+                m_mesh->globalNodeIndex(sampleElemIdx, ii, jj, kk);
+          }
+        }
+      }
+
+      // Compute weights for this sample point
+      switch (order)
+      {
+        case 1:
+          SourceAndReceiverUtils::ComputeDASWeightsForSample<1>(
+              sampleCornerCoords, sampleCoord, dasDirection_,
+              integrationConstants[iSample], dasType_,
+              &dasWeights_[baseIdx]);
+          break;
+        case 2:
+          SourceAndReceiverUtils::ComputeDASWeightsForSample<2>(
+              sampleCornerCoords, sampleCoord, dasDirection_,
+              integrationConstants[iSample], dasType_,
+              &dasWeights_[baseIdx]);
+          break;
+        case 3:
+          SourceAndReceiverUtils::ComputeDASWeightsForSample<3>(
+              sampleCornerCoords, sampleCoord, dasDirection_,
+              integrationConstants[iSample], dasType_,
+              &dasWeights_[baseIdx]);
+          break;
+        default:
+          throw std::runtime_error(
+              "Unsupported order for DAS: " + std::to_string(order));
+      }
+    }
+
+    std::cout << "DAS precomputation complete: " << dasNumSamples_
+              << " samples, " << totalDASNodes << " node entries" << std::endl;
+  }
 }
 
 void SEMproxy::saveSnapshot(int timestep, VECTOR_REAL_VIEW data) const
