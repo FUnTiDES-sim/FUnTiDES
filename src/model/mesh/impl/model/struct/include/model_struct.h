@@ -43,7 +43,7 @@ struct ModelStructData final : public ModelDataBase<FloatType, ScalarType>
  * @tparam Order Polynomial order of spectral elements
  */
 template <typename FloatType, typename ScalarType, int Order>
-class ModelStruct : public ModelApi<FloatType, ScalarType>
+class ModelStruct final : public ModelApi<FloatType, ScalarType>
 {
  public:
   using IndexType = std::array<int, 3>;
