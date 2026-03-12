@@ -29,3 +29,9 @@ add_gtest(attenuation_receiver_test
   proxy_solver
 )
 target_link_libraries(attenuation_receiver_test PRIVATE proxy_model_builder_cartesian)
+
+add_gtest(attenuation_reference_test
+  test_attenuation_reference.cc
+  proxy_solver
+)
+target_link_libraries(attenuation_reference_test PRIVATE proxy_model_builder_cartesian)
