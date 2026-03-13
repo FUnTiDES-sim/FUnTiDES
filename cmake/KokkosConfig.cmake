@@ -15,6 +15,9 @@ else()
   set(Kokkos_ENABLE_SERIAL ON CACHE BOOL "" FORCE)
   set(Kokkos_ENABLE_OPENMP ON CACHE BOOL "" FORCE)
   set(Kokkos_ENABLE_SHARED ON CACHE BOOL "" FORCE)
+  # Avoid host-specific ISA flags (-march=native) that can crash tests with
+  # SIGILL on heterogeneous CI runners where configure/build and test CPUs differ.
+  set(Kokkos_ARCH_NATIVE OFF CACHE BOOL "" FORCE)
 
   if(ENABLE_CUDA)
     set(Kokkos_ENABLE_CUDA ON CACHE BOOL "" FORCE)
