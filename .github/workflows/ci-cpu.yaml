@@ -13,12 +13,30 @@ on:
 
 jobs:
 
+name: CI-CPU
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+on:
+  pull_request:
+    branches:
+      - main
+
+  workflow_dispatch: # Allow to start this workflow manually
+
+jobs:
+
   # Format check job - runs first and blocks everything else if it fails
   format-check:
     uses: ./.github/workflows/format-check.yaml
 
   build:
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        shell: bash
     container:
       image: ghcr.io/funtides-sim/funtides/funtides-env:latest
       options: --user root
@@ -162,4 +180,3 @@ jobs:
           export PYTHONPATH=$PYTHONPATH:$INSTALL_DIR/python
           export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$INSTALL_DIR/lib
           pytest tests/units --kokkos-num-threads=2
-
