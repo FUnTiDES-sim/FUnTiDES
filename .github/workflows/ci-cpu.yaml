@@ -20,7 +20,7 @@ jobs:
   build:
     runs-on: ubuntu-latest
     container:
-      image: ghcr.io/FUnTiDES-sim/FUnTiDES/funtides-env:latest
+      image: ghcr.io/funtides-sim/funtides/funtides-env:latest
       options: --user root
     needs: format-check
     strategy:
