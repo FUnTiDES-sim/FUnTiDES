@@ -768,7 +768,7 @@ void SEMproxy::init_mesh_params(const SemProxyOptions& opt)
             m_localParams.ly, m_localParams.ez, m_localParams.lz,
             opt.isModelOnNodes, opt.isElastic, m_localParams.origin_x,
             m_localParams.origin_y, m_localParams.origin_z);
-        m_mesh = builder.getModel();
+        m_mesh = builder.getModel(opt.free_surface);
         break;
       }
       case 2: {
@@ -777,7 +777,7 @@ void SEMproxy::init_mesh_params(const SemProxyOptions& opt)
             m_localParams.ly, m_localParams.ez, m_localParams.lz,
             opt.isModelOnNodes, opt.isElastic, m_localParams.origin_x,
             m_localParams.origin_y, m_localParams.origin_z);
-        m_mesh = builder.getModel();
+        m_mesh = builder.getModel(opt.free_surface);
         break;
       }
       case 3: {
@@ -786,7 +786,7 @@ void SEMproxy::init_mesh_params(const SemProxyOptions& opt)
             m_localParams.ly, m_localParams.ez, m_localParams.lz,
             opt.isModelOnNodes, opt.isElastic, m_localParams.origin_x,
             m_localParams.origin_y, m_localParams.origin_z);
-        m_mesh = builder.getModel();
+        m_mesh = builder.getModel(opt.free_surface);
         break;
       }
       default:
@@ -798,7 +798,7 @@ void SEMproxy::init_mesh_params(const SemProxyOptions& opt)
   {
     // Pass local params to unstructured builder (handles origin internally)
     model::CartesianUnstructBuilder<float, int> builder(m_localParams);
-    m_mesh = builder.getModel();
+    m_mesh = builder.getModel(opt.free_surface);
   }
   else
   {
