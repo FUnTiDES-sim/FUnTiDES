@@ -151,10 +151,6 @@ void SEMproxy::run()
   const float taper_delta = 0.015;
 
   // Initialize Solver with Partition Info & Compute Local Mass
-
-  bool freeSurface = freeSurface_;
-  m_mesh->setFreeSurfaceEnabled(freeSurface);
-
   m_solver->computeFEInit(*m_mesh, sponge_size, surface_sponge, taper_delta);
 
   // Synchronize Mass Matrix (Critical for DD)

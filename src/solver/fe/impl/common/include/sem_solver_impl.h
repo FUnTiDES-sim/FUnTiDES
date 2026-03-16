@@ -44,8 +44,6 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES,
   allocateFEarrays();
   initFEarrays();
 
-  m_mesh.initFreeSurface();
-
   // Compute Local Mass Matrix
   computeGlobalMassMatrix();
   // Compute Local Damping Matrix
