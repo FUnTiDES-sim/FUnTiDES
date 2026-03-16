@@ -29,10 +29,10 @@ struct ModelStructData final : public ModelDataBase<FloatType, ScalarType>
 
   bool isModelOnNodes_;
   bool isElastic_;
-  VECTOR_REAL_VIEW model_qp_element_;   ///< Per-element Qp  (empty → large)
-  VECTOR_REAL_VIEW model_qs_element_;   ///< Per-element Qs  (empty → large)
-  VECTOR_REAL_VIEW model_qp_node_;      ///< Per-node Qp     (empty → large)
-  VECTOR_REAL_VIEW model_qs_node_;      ///< Per-node Qs     (empty → large)
+  VECTOR_REAL_VIEW model_qp_element_;
+  VECTOR_REAL_VIEW model_qs_element_;
+  VECTOR_REAL_VIEW model_qp_node_;
+  VECTOR_REAL_VIEW model_qs_node_;
 };
 
 /**

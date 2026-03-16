@@ -35,6 +35,13 @@ namespace fe
 {
 namespace test
 {
+static VECTOR_REAL_VIEW toView(const std::vector<float>& v, const char* name) {
+    if (v.empty()) return VECTOR_REAL_VIEW();
+    auto view = allocateVector<VECTOR_REAL_VIEW>(v.size(), name);
+    for (size_t i = 0; i < v.size(); ++i) view[i] = v[i];
+    return view;
+}
+
 
 // ======================================================================
 // Helper: build a small structured mesh and return the model pointer
@@ -108,7 +115,7 @@ TEST(AttenuationSetup, SetSLSAttenuationStoresParameters)
   // Set 2 SLS mechanisms with explicit coefficients
   std::vector<float> freqs = {2.0f * M_PI * 1.0f, 2.0f * M_PI * 10.0f};
   std::vector<float> coeffs = {0.5f, 0.8f};
-  solver->setSLSAttenuation(freqs, coeffs);
+  solver->setSLSAttenuation(toView(freqs, "f"), toView(coeffs, "c"));
 
   // Verify no throw and solver is usable
   EXPECT_NE(solver, nullptr);
@@ -126,10 +133,10 @@ TEST(AttenuationSetup, EmptyFrequenciesDisablesAttenuation)
 
   // First enable
   std::vector<float> freqs = {2.0f * M_PI * 5.0f};
-  solver->setSLSAttenuation(freqs);
+  solver->setSLSAttenuation(toView(freqs, "f"));
 
   // Then disable
-  solver->setSLSAttenuation({});
+  solver->setSLSAttenuation(VECTOR_REAL_VIEW());
 
   // Should run without attenuation (no crash)
   auto mesh = buildSmallMesh(1, false);
@@ -150,7 +157,7 @@ TEST(AttenuationSetup, MismatchedCoefficientsThrows)
   std::vector<float> freqs = {1.0f, 2.0f, 3.0f};
   std::vector<float> coeffs = {0.5f};  // Wrong size: 1 vs 3
 
-  EXPECT_THROW(solver->setSLSAttenuation(freqs, coeffs), std::runtime_error);
+  EXPECT_THROW(solver->setSLSAttenuation(toView(freqs, "f"), toView(coeffs, "c")), std::runtime_error);
 }
 
 // ======================================================================
@@ -164,7 +171,7 @@ TEST(AttenuationInit, ComputeFEInitWithAttenuationRuns)
       enums::physicType::kAcoustic, 1);
 
   std::vector<float> freqs = {2.0f * M_PI * 5.0f};
-  solver->setSLSAttenuation(freqs);
+  solver->setSLSAttenuation(toView(freqs, "f"));
 
   auto mesh = buildSmallMesh(1, false);
 
@@ -191,7 +198,7 @@ static float runAcousticSimulation(
 
   if (!slsFreqs.empty())
   {
-    solver->setSLSAttenuation(slsFreqs);
+    solver->setSLSAttenuation(toView(slsFreqs, "f"));
   }
   solver->computeFEInit(*mesh, {0, 0, 0}, false, 0.0f);
 
@@ -283,7 +290,7 @@ TEST(AttenuationAcoustic, NoNanOrInfWithAttenuation)
   solver->setAnisotropyType(model::AnisotropyType::kIso);
 
   std::vector<float> freqs = {2.0f * static_cast<float>(M_PI) * 5.0f};
-  solver->setSLSAttenuation(freqs);
+  solver->setSLSAttenuation(toView(freqs, "f"));
   solver->computeFEInit(*mesh, {0, 0, 0}, false, 0.0f);
 
   auto pPrev = allocateVector<VECTOR_REAL_VIEW>(numNodes, "pPrev_nan");
@@ -409,7 +416,7 @@ TEST(AttenuationElastic, AttenuationDecaysAmplitude)
 
   std::vector<float> freqs = {2.0f * static_cast<float>(M_PI) * 5.0f,
                               2.0f * static_cast<float>(M_PI) * 50.0f};
-  solver_att->setSLSAttenuation(freqs);
+  solver_att->setSLSAttenuation(toView(freqs, "f"));
   solver_att->computeFEInit(*mesh_att, {0, 0, 0}, false, 0.0f);
 
   auto uxPrev_a = allocateVector<VECTOR_REAL_VIEW>(numNodes, "uxPrev_a");
@@ -482,7 +489,7 @@ TEST(AttenuationElastic, NoNanOrInfWithAttenuation)
   solver->setAnisotropyType(model::AnisotropyType::kIso);
 
   std::vector<float> freqs = {2.0f * static_cast<float>(M_PI) * 5.0f};
-  solver->setSLSAttenuation(freqs);
+  solver->setSLSAttenuation(toView(freqs, "f"));
   solver->computeFEInit(*mesh, {0, 0, 0}, false, 0.0f);
 
   auto uxP = allocateVector<VECTOR_REAL_VIEW>(numNodes, "ux_p_e");
@@ -557,7 +564,7 @@ TEST(AttenuationAcoustic, ComputeOneStepWithAttenuation)
   solver->setAnisotropyType(model::AnisotropyType::kIso);
 
   std::vector<float> freqs = {2.0f * static_cast<float>(M_PI) * 10.0f};
-  solver->setSLSAttenuation(freqs);
+  solver->setSLSAttenuation(toView(freqs, "f"));
   solver->computeFEInit(*mesh, {0, 0, 0}, false, 0.0f);
 
   auto pP = allocateVector<VECTOR_REAL_VIEW>(numNodes, "pP_os");
@@ -737,7 +744,7 @@ TEST(AttenuationElasticHighOrder, Order2DecaysAmplitude)
   solver_a->setAnisotropyType(model::AnisotropyType::kIso);
   std::vector<float> freqs = {2.0f * static_cast<float>(M_PI) * 5.0f,
                               2.0f * static_cast<float>(M_PI) * 50.0f};
-  solver_a->setSLSAttenuation(freqs);
+  solver_a->setSLSAttenuation(toView(freqs, "f"));
   solver_a->computeFEInit(*mesh_att, {0, 0, 0}, false, 0.0f);
 
   auto uxP_a = allocateVector<VECTOR_REAL_VIEW>(numNodes, "uxP_a2");
@@ -836,7 +843,7 @@ TEST(AttenuationAcousticHighOrder, Order2NoNanOrInf)
   solver->setAnisotropyType(model::AnisotropyType::kIso);
 
   std::vector<float> freqs = {2.0f * static_cast<float>(M_PI) * 5.0f};
-  solver->setSLSAttenuation(freqs);
+  solver->setSLSAttenuation(toView(freqs, "f"));
   solver->computeFEInit(*mesh, {0, 0, 0}, false, 0.0f);
 
   auto pPrev = allocateVector<VECTOR_REAL_VIEW>(numNodes, "pPrev_o2");
@@ -897,7 +904,7 @@ TEST(AttenuationElasticHighOrder, Order3NoNanOrInf)
   solver->setAnisotropyType(model::AnisotropyType::kIso);
 
   std::vector<float> freqs = {2.0f * static_cast<float>(M_PI) * 5.0f};
-  solver->setSLSAttenuation(freqs);
+  solver->setSLSAttenuation(toView(freqs, "f"));
   solver->computeFEInit(*mesh, {0, 0, 0}, false, 0.0f);
 
   auto uxP = allocateVector<VECTOR_REAL_VIEW>(numNodes, "uxP_o3");

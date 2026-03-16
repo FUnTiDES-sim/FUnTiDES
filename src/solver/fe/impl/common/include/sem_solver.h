@@ -5,7 +5,6 @@
 #include <cmath>
 #include <limits>
 #include <stdexcept>
-#include <vector>
 
 #include "data_type.h"
 #include "face_connectivity_unstruct.h"
@@ -149,12 +148,12 @@ class SEMsolver : public Solver
    */
   void setAnisotropyType(model::AnisotropyType type) { anisotropyType_ = type; }
 
-  void setSLSAttenuation(const std::vector<float>& reference_frequencies,
-                         const std::vector<float>& anelasticity_coefficients =
-                             std::vector<float>{}) override
+  void setSLSAttenuation(const VECTOR_REAL_VIEW& reference_frequencies,
+                         const VECTOR_REAL_VIEW& anelasticity_coefficients =
+                             VECTOR_REAL_VIEW()) override
   {
-    attenuationEnabled_ = !reference_frequencies.empty();
-    nSls_ = static_cast<int>(reference_frequencies.size());
+    attenuationEnabled_ = reference_frequencies.extent(0) > 0;
+    nSls_ = static_cast<int>(reference_frequencies.extent(0));
     if (!attenuationEnabled_)
     {
       nSls_ = 0;
@@ -172,7 +171,7 @@ class SEMsolver : public Solver
 
     slsAnelasticityCoefficients_ =
         allocateVector<VECTOR_REAL_VIEW>(nSls_, "slsAnelasticityCoefficients");
-    if (anelasticity_coefficients.empty())
+    if (anelasticity_coefficients.extent(0) == 0)
     {
       for (int i = 0; i < nSls_; ++i)
       {
@@ -181,7 +180,7 @@ class SEMsolver : public Solver
     }
     else
     {
-      if (static_cast<int>(anelasticity_coefficients.size()) != nSls_)
+      if (static_cast<int>(anelasticity_coefficients.extent(0)) != nSls_)
       {
         throw std::runtime_error(
             "SLS anelasticity coefficients must match reference frequencies size");

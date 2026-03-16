@@ -185,10 +185,17 @@ SEMproxy::SEMproxy(const SemProxyOptions& opt)
   }
 
   // Enable SLS attenuation mechanism
+  auto toView = [](const std::vector<float>& v, const char* name) {
+    auto view = allocateVector<vectorReal>(v.size(), name);
+    for (size_t i = 0; i < v.size(); ++i) view[i] = v[i];
+    return view;
+  };
+
   if (!opt.sls_reference_angular_frequencies.empty())
   {
-    m_solver->setSLSAttenuation(opt.sls_reference_angular_frequencies,
-                                opt.sls_anelasticity_coefficients);
+    auto freqView = toView(opt.sls_reference_angular_frequencies, "slsFreqs");
+    auto coeffView = toView(opt.sls_anelasticity_coefficients, "slsCoeffs");
+    m_solver->setSLSAttenuation(freqView, coeffView);
   }
   else if (opt.qp > 0 || opt.qs > 0)
   {
@@ -196,7 +203,9 @@ SEMproxy::SEMproxy(const SemProxyOptions& opt)
     float omega0 = 2.0f * M_PI * f0;
     std::cout << "Auto-enabling SLS attenuation at omega0=" << omega0
               << " rad/s (f0=" << f0 << " Hz)" << std::endl;
-    m_solver->setSLSAttenuation({omega0}, {});
+    auto freqView = allocateVector<vectorReal>(1, "slsFreqAuto");
+    freqView[0] = omega0;
+    m_solver->setSLSAttenuation(freqView);
   }
 
   if (isElastic)

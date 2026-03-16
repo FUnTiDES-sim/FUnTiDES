@@ -74,6 +74,13 @@ namespace fe
 {
 namespace test
 {
+static VECTOR_REAL_VIEW toView(const std::vector<float>& v, const char* name) {
+    if (v.empty()) return VECTOR_REAL_VIEW();
+    auto view = allocateVector<VECTOR_REAL_VIEW>(v.size(), name);
+    for (size_t i = 0; i < v.size(); ++i) view[i] = v[i];
+    return view;
+}
+
 
 // ======================================================================
 // Helper: build a 5x5x5 order-2 mesh with given Q factors
@@ -120,7 +127,7 @@ static std::vector<float> runAndRecordEnergy(
   solver->setAnisotropyType(model::AnisotropyType::kIso);
 
   if (!slsFreqs.empty())
-    solver->setSLSAttenuation(slsFreqs);
+    solver->setSLSAttenuation(toView(slsFreqs, "f"));
 
   solver->computeFEInit(*mesh, {0, 0, 0}, false, 0.0f);
 
