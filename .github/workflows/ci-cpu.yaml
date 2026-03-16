@@ -13,21 +13,6 @@ on:
 
 jobs:
 
-name: CI-CPU
-
-concurrency:
-  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
-  cancel-in-progress: true
-
-on:
-  pull_request:
-    branches:
-      - main
-
-  workflow_dispatch: # Allow to start this workflow manually
-
-jobs:
-
   # Format check job - runs first and blocks everything else if it fails
   format-check:
     uses: ./.github/workflows/format-check.yaml
