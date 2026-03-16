@@ -63,8 +63,7 @@ jobs:
       - name: Set up Python
         if: matrix.pywrap == 'pywrap-on'
         run: |
-          python3 -m venv .venv
-          source .venv/bin/activate
+          source /opt/tpl/tpl-venv/bin/activate
           pip install --upgrade pip
           pip install pybind11 pytest numpy
 
@@ -112,7 +111,7 @@ jobs:
 
           # Activate python venv if pywrap is on
           if [[ "$PYWRAP" == "pywrap-on" ]]; then
-            source .venv/bin/activate
+            source /opt/tpl/tpl-venv/bin/activate
           fi
 
           mkdir build
@@ -127,7 +126,7 @@ jobs:
         run: |
           # Activate python venv if pywrap is on
           if [[ "$PYWRAP" == "pywrap-on" ]]; then
-            source .venv/bin/activate
+            source /opt/tpl/tpl-venv/bin/activate
           fi
 
           cd build
@@ -149,7 +148,7 @@ jobs:
         run: |
           # Activate python venv if pywrap is on
           if [[ "$PYWRAP" == "pywrap-on" ]]; then
-            source .venv/bin/activate
+            source /opt/tpl/tpl-venv/bin/activate
           fi
 
           cd build
@@ -158,7 +157,7 @@ jobs:
       - name: Run pytests
         if: matrix.pywrap == 'pywrap-on'
         run: |
-          source .venv/bin/activate
+          source /opt/tpl/tpl-venv/bin/activate
           export INSTALL_DIR=$(realpath ./install)
           export PYTHONPATH=$PYTHONPATH:$INSTALL_DIR/python
           export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$INSTALL_DIR/lib
