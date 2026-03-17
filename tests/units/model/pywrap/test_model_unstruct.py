@@ -20,7 +20,7 @@ class UnstructData:
         self.n_elements_per_dim = 2
         self.n_elements = self.n_elements_per_dim**3
         self.n_nodes = (self.n_elements_per_dim * order + 1) ** 3
-        self.memspace = kokkos.DefaultMemorySpace
+        self.memspace = kokkos.HostSpace
         self.layout = kokkos.LayoutRight
         # TODO so far model only accepts f32, i32 for kokkos arrays
         float_type = kokkos.float32
