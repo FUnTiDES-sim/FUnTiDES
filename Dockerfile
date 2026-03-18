@@ -28,7 +28,6 @@ WORKDIR /workspace
 ADD https://api.github.com/repos/FUnTiDES-sim/FUnTiDES-TPL/commits/main /tmp/latest_commit
 
 # set gcc 13 as build tool
-# 10/03/2026: gcc-14 is too new for current pykokkos-base.
 ENV CC=clang
 ENV CXX=clang++
 
