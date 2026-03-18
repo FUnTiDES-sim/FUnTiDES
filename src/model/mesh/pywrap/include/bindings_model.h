@@ -9,6 +9,8 @@
 
 #include <KokkosExp_InterOp.hpp>
 #include <string>
+#include <cstdint>
+#include <type_traits>
 
 #include "bindings_utils.h"
 #include "common_macros.h"
@@ -116,92 +118,97 @@ template <typename FloatType, typename ScalarType>
 void bind_modelunstructdata(py::module_ &m)
 {
   using Data = model::ModelUnstructData<FloatType, ScalarType>;
-
-  // Let pykokkos-base do the heavy lifting. We explicitly tell Pybind11 to
-  // expect HostSpace views from Python.
-  using PyHostArrayInt = Kokkos::View<ScalarType**, Kokkos::LayoutRight, Kokkos::HostSpace>;
-  using PyHostVectorReal = Kokkos::View<FloatType*, Kokkos::LayoutRight, Kokkos::HostSpace>;
-  using PyHostArray3DReal = Kokkos::View<FloatType***, Kokkos::LayoutRight, Kokkos::HostSpace>;
-  using PyHostVectorInt = Kokkos::View<ScalarType*, Kokkos::LayoutRight, Kokkos::HostSpace>;
-
-  std::string name =
-      model_class_name<FloatType, ScalarType>("ModelUnstructData");
+  std::string name = model_class_name<FloatType, ScalarType>("ModelUnstructData");
 
   py::class_<Data>(m, name.c_str())
       .def(
           py::init([](ScalarType order, ScalarType n_element, ScalarType n_node,
                       FloatType lx, FloatType ly, FloatType lz,
                       bool is_model_on_nodes, bool is_elastic,
-                      PyHostArrayInt global_node_index,
-                      PyHostVectorReal nodes_coords_x,
-                      PyHostVectorReal nodes_coords_y,
-                      PyHostVectorReal nodes_coords_z,
-                      PyHostVectorReal model_vp_node,
-                      PyHostVectorReal model_vp_element,
-                      PyHostVectorReal model_rho_node,
-                      PyHostVectorReal model_rho_element,
-                      PyHostVectorReal model_vs_node,
-                      PyHostVectorReal model_vs_element,
-                      PyHostVectorReal model_delta_node,
-                      PyHostVectorReal model_delta_element,
-                      PyHostVectorReal model_epsilon_node,
-                      PyHostVectorReal model_epsilon_element,
-                      PyHostVectorReal model_gamma_node,
-                      PyHostVectorReal model_gamma_element,
-                      PyHostVectorReal model_theta_node,
-                      PyHostVectorReal model_theta_element,
-                      PyHostVectorReal model_phi_node,
-                      PyHostVectorReal model_phi_element,
-                      PyHostArray3DReal model_C_tensor_element,
-                      PyHostVectorInt boundaries_t,
+                      py::array_t<ScalarType> global_node_index_py,
+                      py::array_t<FloatType> nodes_coords_x_py,
+                      py::array_t<FloatType> nodes_coords_y_py,
+                      py::array_t<FloatType> nodes_coords_z_py,
+                      py::array_t<FloatType> model_vp_node_py,
+                      py::array_t<FloatType> model_vp_element_py,
+                      py::array_t<FloatType> model_rho_node_py,
+                      py::array_t<FloatType> model_rho_element_py,
+                      py::array_t<FloatType> model_vs_node_py,
+                      py::array_t<FloatType> model_vs_element_py,
+                      py::array_t<FloatType> model_delta_node_py,
+                      py::array_t<FloatType> model_delta_element_py,
+                      py::array_t<FloatType> model_epsilon_node_py,
+                      py::array_t<FloatType> model_epsilon_element_py,
+                      py::array_t<FloatType> model_gamma_node_py,
+                      py::array_t<FloatType> model_gamma_element_py,
+                      py::array_t<FloatType> model_theta_node_py,
+                      py::array_t<FloatType> model_theta_element_py,
+                      py::array_t<FloatType> model_phi_node_py,
+                      py::array_t<FloatType> model_phi_element_py,
+                      py::array_t<FloatType> model_C_tensor_element_py,
+                      py::array_t<ScalarType> boundaries_t_py,
                       model::FaceConnectivityUnstructData<FloatType, ScalarType> face_connectivity) {
 
-              // Helper lambdas to allocate Device views using your C++ macros
-              // and deep_copy from the Python Host views to them.
-              auto copy2d_int = [](const PyHostArrayInt& v) {
-                  ARRAY_INT_VIEW out("global_node_index", v.extent(0), v.extent(1));
-                  Kokkos::deep_copy(out, v);
-                  return out;
-              };
-              auto copy1d_real = [](const PyHostVectorReal& v) {
-                  VECTOR_REAL_VIEW out("vectorReal", v.extent(0));
-                  Kokkos::deep_copy(out, v);
-                  return out;
-              };
-              auto copy1d_int = [](const PyHostVectorInt& v) {
-                  VECTOR_INT_VIEW out("vectorInt", v.extent(0));
-                  Kokkos::deep_copy(out, v);
-                  return out;
-              };
-              auto copy3d_real = [](const PyHostArray3DReal& v) {
-                  ARRAY3D_REAL_VIEW out("array3dReal", v.extent(0), v.extent(1), v.extent(2));
-                  Kokkos::deep_copy(out, v);
-                  return out;
+              // 1. Get buffer info
+              auto global_node_index_buf = global_node_index_py.request();
+              auto C_tensor_buf = model_C_tensor_element_py.request();
+
+              // 2. Create Unmanaged Host Views wrapping the NumPy pointers
+              Kokkos::View<ScalarType**, Kokkos::LayoutRight, Kokkos::HostSpace, Kokkos::MemoryTraits<Kokkos::Unmanaged>>
+                  h_global_node_index((ScalarType*)global_node_index_buf.ptr, global_node_index_buf.shape[0], global_node_index_buf.shape[1]);
+
+              Kokkos::View<FloatType***, Kokkos::LayoutRight, Kokkos::HostSpace, Kokkos::MemoryTraits<Kokkos::Unmanaged>>
+                  h_C_tensor((FloatType*)C_tensor_buf.ptr, C_tensor_buf.shape[0], C_tensor_buf.shape[1], C_tensor_buf.shape[2]);
+
+              // Helper Lambda for 1D arrays
+              auto wrap1d_real = [](py::array_t<FloatType> arr) {
+                  auto buf = arr.request();
+                  Kokkos::View<FloatType*, Kokkos::LayoutRight, Kokkos::HostSpace, Kokkos::MemoryTraits<Kokkos::Unmanaged>>
+                      h_view((FloatType*)buf.ptr, buf.shape[0]);
+                  VECTOR_REAL_VIEW d_view("v", buf.shape[0]);
+                  Kokkos::deep_copy(d_view, h_view);
+                  return d_view;
               };
 
+              auto wrap1d_int = [](py::array_t<ScalarType> arr) {
+                  auto buf = arr.request();
+                  Kokkos::View<ScalarType*, Kokkos::LayoutRight, Kokkos::HostSpace, Kokkos::MemoryTraits<Kokkos::Unmanaged>>
+                      h_view((ScalarType*)buf.ptr, buf.shape[0]);
+                  VECTOR_INT_VIEW d_view("v", buf.shape[0]);
+                  Kokkos::deep_copy(d_view, h_view);
+                  return d_view;
+              };
+
+              // 3. Allocate Device Views and Deep Copy from Host
+              ARRAY_INT_VIEW d_global_node_index("global_node_index", h_global_node_index.extent(0), h_global_node_index.extent(1));
+              Kokkos::deep_copy(d_global_node_index, h_global_node_index);
+
+              ARRAY3D_REAL_VIEW d_C_tensor("C_tensor", h_C_tensor.extent(0), h_C_tensor.extent(1), h_C_tensor.extent(2));
+              Kokkos::deep_copy(d_C_tensor, h_C_tensor);
+
               return new Data(order, n_element, n_node, lx, ly, lz, is_model_on_nodes, is_elastic,
-                              copy2d_int(global_node_index),
-                              copy1d_real(nodes_coords_x),
-                              copy1d_real(nodes_coords_y),
-                              copy1d_real(nodes_coords_z),
-                              copy1d_real(model_vp_node),
-                              copy1d_real(model_vp_element),
-                              copy1d_real(model_rho_node),
-                              copy1d_real(model_rho_element),
-                              copy1d_real(model_vs_node),
-                              copy1d_real(model_vs_element),
-                              copy1d_real(model_delta_node),
-                              copy1d_real(model_delta_element),
-                              copy1d_real(model_epsilon_node),
-                              copy1d_real(model_epsilon_element),
-                              copy1d_real(model_gamma_node),
-                              copy1d_real(model_gamma_element),
-                              copy1d_real(model_theta_node),
-                              copy1d_real(model_theta_element),
-                              copy1d_real(model_phi_node),
-                              copy1d_real(model_phi_element),
-                              copy3d_real(model_C_tensor_element),
-                              copy1d_int(boundaries_t),
+                              d_global_node_index,
+                              wrap1d_real(nodes_coords_x_py),
+                              wrap1d_real(nodes_coords_y_py),
+                              wrap1d_real(nodes_coords_z_py),
+                              wrap1d_real(model_vp_node_py),
+                              wrap1d_real(model_vp_element_py),
+                              wrap1d_real(model_rho_node_py),
+                              wrap1d_real(model_rho_element_py),
+                              wrap1d_real(model_vs_node_py),
+                              wrap1d_real(model_vs_element_py),
+                              wrap1d_real(model_delta_node_py),
+                              wrap1d_real(model_delta_element_py),
+                              wrap1d_real(model_epsilon_node_py),
+                              wrap1d_real(model_epsilon_element_py),
+                              wrap1d_real(model_gamma_node_py),
+                              wrap1d_real(model_gamma_element_py),
+                              wrap1d_real(model_theta_node_py),
+                              wrap1d_real(model_theta_element_py),
+                              wrap1d_real(model_phi_node_py),
+                              wrap1d_real(model_phi_element_py),
+                              d_C_tensor,
+                              wrap1d_int(boundaries_t_py),
                               face_connectivity);
           }),
           py::arg("order"), py::arg("n_element"), py::arg("n_node"),
@@ -218,7 +225,7 @@ void bind_modelunstructdata(py::module_ &m)
           py::arg("model_theta_node"), py::arg("model_theta_element"),
           py::arg("model_phi_node"), py::arg("model_phi_element"),
           py::arg("model_C_tensor_element"), py::arg("boundaries_t"),
-          py::arg("face_connectivity") = model::FaceConnectivityUnstructData<FloatType, ScalarType>()) // <-- ADDED DEFAULT VALUE HERE
+          py::arg("face_connectivity") = model::FaceConnectivityUnstructData<FloatType, ScalarType>())
 
       .def_readwrite("face_connectivity", &Data::face_connectivity_);
 }

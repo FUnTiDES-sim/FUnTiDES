@@ -15,7 +15,7 @@ class UnstructData:
     """
 
     def __init__(self, order, float_type=kokkos.float32, scalar_type=kokkos.int32):
-        self.lx = self.ly = self.lz = 1500
+        self.lx = self.ly = self.lz = 1500.0  # Explicitly floats for pybind11
         self.order = order
         self.n_elements_per_dim = 2
         self.n_elements = self.n_elements_per_dim**3
@@ -230,41 +230,54 @@ def unstruct(request):
     fc_data_cls = getattr(Model, f'FaceConnectivityUnstructData_{suffix}')
     fc_data = fc_data_cls()
 
-    params = param_cls(
-        ud.order,
-        ud.n_elements,
-        ud.n_nodes,
-        ud.lx,
-        ud.ly,
-        ud.lz,
-        on_nodes,
-        is_elastic,
-        ud.kk_global_node_index,
-        ud.kk_nodes_coords_x,
-        ud.kk_nodes_coords_y,
-        ud.kk_nodes_coords_z,
-        ud.kk_model_vp_node,
-        ud.kk_model_vp_element,
-        ud.kk_model_rho_node,
-        ud.kk_model_rho_element,
-        ud.kk_model_vs_node,
-        ud.kk_model_vs_element,
-        ud.kk_model_delta_node,
-        ud.kk_model_delta_element,
-        ud.kk_model_epsilon_node,
-        ud.kk_model_epsilon_element,
-        ud.kk_model_gamma_node,
-        ud.kk_model_gamma_element,
-        ud.kk_model_theta_node,
-        ud.kk_model_theta_element,
-        ud.kk_model_phi_node,
-        ud.kk_model_phi_element,
-        ud.kk_model_C_tensor_element,
-        ud.kk_boundaries,
-        fc_data, # Added the 31st argument!
-    )
+    params = None
 
-    return ud, model_cls, params
+    try:
+        # Cast scalars explicitly so Pybind11 doesn't reject ints for floats/doubles
+        params = param_cls(
+            int(ud.order),
+            int(ud.n_elements),
+            int(ud.n_nodes),
+            float(ud.lx),
+            float(ud.ly),
+            float(ud.lz),
+            bool(on_nodes),
+            bool(is_elastic),
+            ud.kk_global_node_index,
+            ud.kk_nodes_coords_x,
+            ud.kk_nodes_coords_y,
+            ud.kk_nodes_coords_z,
+            ud.kk_model_vp_node,
+            ud.kk_model_vp_element,
+            ud.kk_model_rho_node,
+            ud.kk_model_rho_element,
+            ud.kk_model_vs_node,
+            ud.kk_model_vs_element,
+            ud.kk_model_delta_node,
+            ud.kk_model_delta_element,
+            ud.kk_model_epsilon_node,
+            ud.kk_model_epsilon_element,
+            ud.kk_model_gamma_node,
+            ud.kk_model_gamma_element,
+            ud.kk_model_theta_node,
+            ud.kk_model_theta_element,
+            ud.kk_model_phi_node,
+            ud.kk_model_phi_element,
+            ud.kk_model_C_tensor_element,
+            ud.kk_boundaries,
+            fc_data, # Added the 31st argument!
+        )
+
+        # Yield instead of return to allow cleanup after test execution
+        yield ud, model_cls, params
+
+    finally:
+        # Force cleanup of all objects holding Kokkos Views BEFORE pytest saves the traceback!
+        # This prevents Garbage Collection core dumps after Kokkos shuts down.
+        if params is not None:
+            del params
+        del fc_data
+        del ud
 
 
 test_cases = [
