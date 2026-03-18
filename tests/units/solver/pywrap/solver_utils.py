@@ -1,8 +1,18 @@
 import kokkos
 import numpy as np
 
-default_memspace = kokkos.HostSpace
-default_layout = kokkos.LayoutRight
+# Dynamically determine the correct memory space and layout based on how Kokkos was compiled.
+# GPU builds (CUDA) expect LayoutLeft and UVM space to share memory with NumPy without segfaulting.
+# CPU builds expect LayoutRight and HostSpace.
+if hasattr(kokkos, "CudaSpace"):
+    default_memspace = kokkos.CudaSpace
+    default_layout = kokkos.LayoutLeft
+elif hasattr(kokkos, "HIPManagedSpace"):
+    default_memspace = kokkos.HIPManagedSpace
+    default_layout = kokkos.LayoutLeft
+else:
+    default_memspace = kokkos.HostSpace
+    default_layout = kokkos.LayoutRight
 
 
 def allocate_pressure(n_dof, memspace=default_memspace, layout=default_layout):
@@ -11,6 +21,7 @@ def allocate_pressure(n_dof, memspace=default_memspace, layout=default_layout):
     )
     pnGlobalPrev = np.array(kk_pnGlobalPrev, copy=False)
     pnGlobalPrev[:] = 0.0
+
     kk_pnGlobalCurr = kokkos.array(
         [n_dof], dtype=kokkos.float32, space=memspace, layout=layout
     )
@@ -19,12 +30,14 @@ def allocate_pressure(n_dof, memspace=default_memspace, layout=default_layout):
 
     return kk_pnGlobalPrev, pnGlobalPrev, kk_pnGlobalCurr, pnGlobalCurr
 
+
 def allocate_displacementx(n_dof, memspace=default_memspace, layout=default_layout):
     kk_uxnGlobalPrev = kokkos.array(
         [n_dof], dtype=kokkos.float32, space=memspace, layout=layout
     )
     uxnGlobalPrev = np.array(kk_uxnGlobalPrev, copy=False)
     uxnGlobalPrev[:] = 0.0
+
     kk_uxnGlobalCurr = kokkos.array(
         [n_dof], dtype=kokkos.float32, space=memspace, layout=layout
     )
@@ -33,12 +46,14 @@ def allocate_displacementx(n_dof, memspace=default_memspace, layout=default_layo
 
     return kk_uxnGlobalPrev, uxnGlobalPrev, kk_uxnGlobalCurr, uxnGlobalCurr
 
+
 def allocate_displacementy(n_dof, memspace=default_memspace, layout=default_layout):
     kk_uynGlobalPrev = kokkos.array(
         [n_dof], dtype=kokkos.float32, space=memspace, layout=layout
     )
     uynGlobalPrev = np.array(kk_uynGlobalPrev, copy=False)
     uynGlobalPrev[:] = 0.0
+
     kk_uynGlobalCurr = kokkos.array(
         [n_dof], dtype=kokkos.float32, space=memspace, layout=layout
     )
@@ -47,12 +62,14 @@ def allocate_displacementy(n_dof, memspace=default_memspace, layout=default_layo
 
     return kk_uynGlobalPrev, uynGlobalPrev, kk_uynGlobalCurr, uynGlobalCurr
 
+
 def allocate_displacementz(n_dof, memspace=default_memspace, layout=default_layout):
     kk_uznGlobalPrev = kokkos.array(
         [n_dof], dtype=kokkos.float32, space=memspace, layout=layout
     )
     uznGlobalPrev = np.array(kk_uznGlobalPrev, copy=False)
     uznGlobalPrev[:] = 0.0
+
     kk_uznGlobalCurr = kokkos.array(
         [n_dof], dtype=kokkos.float32, space=memspace, layout=layout
     )
@@ -60,6 +77,7 @@ def allocate_displacementz(n_dof, memspace=default_memspace, layout=default_layo
     uznGlobalCurr[:] = 0.0
 
     return kk_uznGlobalPrev, uznGlobalPrev, kk_uznGlobalCurr, uznGlobalCurr
+
 
 def allocate_rhs_term(
     n_rhs, n_time_steps, dt, f0, memspace=default_memspace, layout=default_layout
