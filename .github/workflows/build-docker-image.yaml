@@ -2,10 +2,10 @@ name: Build Docker Image
 
 on:
   push:
-  #     branches: [ "main" ]
-  #     paths:
-  #       - 'Dockerfile'
-  # workflow_dispatch:
+      branches: [ "main" ]
+      paths:
+        - 'Dockerfile'
+  workflow_dispatch:
 jobs:
   build-and-push:
     runs-on: ubuntu-latest
