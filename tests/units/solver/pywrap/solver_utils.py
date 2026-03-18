@@ -4,7 +4,10 @@ import numpy as np
 # Dynamically determine the correct memory space and layout based on how Kokkos was compiled.
 # GPU builds (CUDA) expect LayoutLeft and UVM space to share memory with NumPy without segfaulting.
 # CPU builds expect LayoutRight and HostSpace.
-if hasattr(kokkos, "CudaSpace"):
+if hasattr(kokkos, "CudaUVMSpace"):
+    default_memspace = kokkos.CudaUVMSpace
+    default_layout = kokkos.LayoutLeft
+elif hasattr(kokkos, "CudaSpace"):
     default_memspace = kokkos.CudaSpace
     default_layout = kokkos.LayoutLeft
 elif hasattr(kokkos, "HIPManagedSpace"):
@@ -114,8 +117,9 @@ def allocate_rhs_element(
         [n_rhs], dtype=kokkos.int32, space=memspace, layout=layout
     )
     RHSElement = np.array(kk_RHSElement, copy=False)
-    RHSElement[0] = ex / 2 + ey / 2 * ex + ez / 2 * ey * ex  # one half of slice
-    RHSElement[1] = ex / 3 + ey / 2 * ex + ez / 2 * ey * ex  # one third of slice
+    # Wrapped in int() to prevent float-to-int NumPy casting errors
+    RHSElement[0] = int(ex / 2 + ey / 2 * ex + ez / 2 * ey * ex)  # one half of slice
+    RHSElement[1] = int(ex / 3 + ey / 2 * ex + ez / 2 * ey * ex)  # one third of slice
     return kk_RHSElement, RHSElement
 
 
