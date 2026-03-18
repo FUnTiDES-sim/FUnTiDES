@@ -1,16 +1,20 @@
 import kokkos
 import numpy as np
 
-# Dynamically determine the correct memory space and layout based on how Kokkos was compiled.
-# GPU builds (CUDA) expect LayoutLeft and UVM space to share memory with NumPy without segfaulting.
-# CPU builds expect LayoutRight and HostSpace.
-if hasattr(kokkos, "CudaUVMSpace"):
+# Dynamically determine the correct memory space and layout based on what
+# was actually compiled into the C++ pybind11 module, preventing CI/CD false positives.
+compiled_views = dir(kokkos.libpykokkos)
+has_uvm = any("CudaUVMSpace" in v for v in compiled_views)
+has_cuda = any("CudaSpace" in v for v in compiled_views) and not has_uvm
+has_hip = any("HIPManagedSpace" in v for v in compiled_views)
+
+if has_uvm:
     default_memspace = kokkos.CudaUVMSpace
     default_layout = kokkos.LayoutLeft
-elif hasattr(kokkos, "CudaSpace"):
+elif has_cuda:
     default_memspace = kokkos.CudaSpace
     default_layout = kokkos.LayoutLeft
-elif hasattr(kokkos, "HIPManagedSpace"):
+elif has_hip:
     default_memspace = kokkos.HIPManagedSpace
     default_layout = kokkos.LayoutLeft
 else:
