@@ -2,25 +2,24 @@ import kokkos
 import numpy as np
 
 # Dynamically determine the correct memory space and layout based on what
-# was actually compiled into the C++ pybind11 module, preventing CI/CD false positives.
+# was actually compiled into the pykokkos-base pybind11 module.
+# We must check for the EXACT compiled view signature to prevent CI/CD false positives.
 compiled_views = dir(kokkos.libpykokkos)
-has_uvm = any("CudaUVMSpace" in v for v in compiled_views)
-has_cuda = any("CudaSpace" in v for v in compiled_views) and not has_uvm
-has_hip = any("HIPManagedSpace" in v for v in compiled_views)
 
-if has_uvm:
+# We specifically need a 1D float32 array in LayoutLeft for GPU
+has_uvm_float = "KokkosView_float32_CudaUVMSpace_LayoutLeft_1" in compiled_views
+has_cuda_float = "KokkosView_float32_CudaSpace_LayoutLeft_1" in compiled_views
+
+if has_uvm_float:
     default_memspace = kokkos.CudaUVMSpace
     default_layout = kokkos.LayoutLeft
-elif has_cuda:
+elif has_cuda_float:
     default_memspace = kokkos.CudaSpace
     default_layout = kokkos.LayoutLeft
-elif has_hip:
-    default_memspace = kokkos.HIPManagedSpace
-    default_layout = kokkos.LayoutLeft
 else:
+    # If no GPU float views exist (like in GitHub Actions CI/CD), fallback to standard CPU Host memory
     default_memspace = kokkos.HostSpace
     default_layout = kokkos.LayoutRight
-
 
 def allocate_pressure(n_dof, memspace=default_memspace, layout=default_layout):
     kk_pnGlobalPrev = kokkos.array(
