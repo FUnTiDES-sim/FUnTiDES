@@ -112,7 +112,7 @@ class SemProxyOptions
         cxxopts::value<float>(o.das_gauge_length))(
         "das-samples",
         "Number of integration points along DAS fiber (default=5)",
-        cxxopts::value<int>(o.das_samples));
+        cxxopts::value<int>(o.das_samples))(
         "srcx", "Source position X (meters)",
         cxxopts::value<float>(o.srcx))(
         "srcy", "Source position Y (meters)",
