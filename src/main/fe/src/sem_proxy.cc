@@ -13,6 +13,7 @@
 #include <cartesian_unstruct_builder.h>
 #include <source_and_receiver_utils.h>
 
+#include <cmath>
 #include <cxxopts.hpp>
 #include <fstream>
 #include <iomanip>
@@ -168,6 +169,45 @@ SEMproxy::SEMproxy(const SemProxyOptions& opt)
   m_solver = solver_factory::createSolver(methodType, implemType, meshType,
                                           modelLocation, physicType, order);
 
+  // Setup Sponge Parameters (store as members for use in run())
+  sponge_size_ = {opt.boundaries_size, opt.boundaries_size, opt.boundaries_size};
+  surface_sponge_ = opt.surface_sponge;
+  taper_delta_ = opt.taper_delta;
+
+  // Set quality factors for attenuation (must be set before setSLSAttenuation
+  // so that auto-fill of anelasticity coefficients from Q works)
+  if (opt.qp > 0 || opt.qs > 0)
+  {
+    float qp = (opt.qp > 0) ? opt.qp : 1e9f;
+    float qs = (opt.qs > 0) ? opt.qs : 1e9f;
+    m_mesh->setQualityFactors(qp, qs);
+    std::cout << "Quality factors set: Qp=" << qp << ", Qs=" << qs << std::endl;
+  }
+
+  // Enable SLS attenuation mechanism
+  auto toView = [](const std::vector<float>& v, const char* name) {
+    auto view = allocateVector<vectorReal>(v.size(), name);
+    for (size_t i = 0; i < v.size(); ++i) view[i] = v[i];
+    return view;
+  };
+
+  if (!opt.sls_reference_angular_frequencies.empty())
+  {
+    auto freqView = toView(opt.sls_reference_angular_frequencies, "slsFreqs");
+    auto coeffView = toView(opt.sls_anelasticity_coefficients, "slsCoeffs");
+    m_solver->setSLSAttenuation(freqView, coeffView);
+  }
+  else if (opt.qp > 0 || opt.qs > 0)
+  {
+    // Auto-enable SLS with default reference frequency based on source f0
+    float omega0 = 2.0f * M_PI * f0;
+    std::cout << "Auto-enabling SLS attenuation at omega0=" << omega0
+              << " rad/s (f0=" << f0 << " Hz)" << std::endl;
+    auto freqView = allocateVector<vectorReal>(1, "slsFreqAuto");
+    freqView[0] = omega0;
+    m_solver->setSLSAttenuation(freqView);
+  }
+
   if (isElastic)
   {
     m_solver->setAnisotropyType(anisotropyType);
@@ -179,12 +219,6 @@ SEMproxy::SEMproxy(const SemProxyOptions& opt)
       m_mesh->initElasticityTensors(anisotropyType);
     }
   }
-
-  // Setup Sponge Parameters
-  const float spongex = opt.boundaries_size;
-  const float spongey = opt.boundaries_size;
-  const float spongez = opt.boundaries_size;
-  const std::array<float, 3> sponge_size = {spongex, spongey, spongez};
 
   // Note: m_solver->computeFEInit is now called in run() to pass partition
   // info. We manually call init arrays here if needed, but computeFEInit does
@@ -276,15 +310,8 @@ void SEMproxy::run()
 
   bool isElastic = isElastic_;
 
-  // Sponge params from options
-  const float spongex =
-      0;  // Configured earlier but variable scope issue in original
-  const std::array<float, 3> sponge_size = {0, 0, 0};
-  const bool surface_sponge = false;
-  const float taper_delta = 0.015;
-
   // Initialize Solver with Partition Info & Compute Local Mass
-  m_solver->computeFEInit(*m_mesh, sponge_size, surface_sponge, taper_delta);
+  m_solver->computeFEInit(*m_mesh, sponge_size_, surface_sponge_, taper_delta_);
 
   // Synchronize Mass Matrix (Critical for DD)
   if (par_topology_.isDistributed())
@@ -337,6 +364,27 @@ void SEMproxy::run()
       if (is_snapshots_ && indexTimeSample % snap_time_interval_ == 0)
       {
         saveSnapshot(indexTimeSample, pnGlobalPrev);
+
+        // Save XY-slice through center Z as plain text for easy visualization
+        int nx = nb_nodes_[0];
+        int ny = nb_nodes_[1];
+        int nz = nb_nodes_[2];
+        int zSlice = nz / 2;
+        std::ostringstream fname;
+        fname << "slice_" << std::setfill('0') << std::setw(5)
+              << indexTimeSample << ".dat";
+        std::ofstream fslice(fname.str());
+        for (int iy = 0; iy < ny; ++iy)
+        {
+          for (int ix = 0; ix < nx; ++ix)
+          {
+            int nodeIdx = ix + iy * nx + zSlice * nx * ny;
+            fslice << pnGlobalPrev(nodeIdx);
+            if (ix < nx - 1) fslice << " ";
+          }
+          fslice << "\n";
+        }
+        fslice.close();
       }
 
       // Save pressure at receiver
@@ -383,6 +431,19 @@ void SEMproxy::run()
       }
 #endif
       io_ctrl_->saveReceiver(subset, src_coord_);
+    }
+
+    // Save receiver trace to plain text file
+    {
+      std::ofstream fout("receiver_trace.txt");
+      fout << "# time pressure_at_receiver\n";
+      for (int t = 0; t < num_sample_; ++t)
+      {
+        fout << t * dt_ << " " << pnAtReceiver(0, t) << "\n";
+      }
+      fout.close();
+      std::cout << "Receiver trace saved to receiver_trace.txt ("
+                << num_sample_ << " samples)" << std::endl;
     }
   }
   else

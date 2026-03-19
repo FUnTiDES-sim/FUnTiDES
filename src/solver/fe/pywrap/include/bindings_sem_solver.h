@@ -70,7 +70,24 @@ void bind_sem_solver_base(py::module_ &m)
           py::return_value_policy::reference_internal)
       .def("output_solution_values", &Solver::outputSolutionValues,
            py::arg("t"), py::arg("e"), py::arg("field_global"),
-           py::arg("field_name"));
+           py::arg("field_name"))
+      .def("set_sls_attenuation",
+           [](Solver& self, const std::vector<float>& freqs,
+              const std::vector<float>& coeffs) {
+             VECTOR_REAL_VIEW vf;
+             if (!freqs.empty()) {
+               vf = allocateVector<VECTOR_REAL_VIEW>(freqs.size(), "sls_freqs");
+               for (size_t i = 0; i < freqs.size(); ++i) vf[i] = freqs[i];
+             }
+             VECTOR_REAL_VIEW vc;
+             if (!coeffs.empty()) {
+               vc = allocateVector<VECTOR_REAL_VIEW>(coeffs.size(), "sls_coeffs");
+               for (size_t i = 0; i < coeffs.size(); ++i) vc[i] = coeffs[i];
+             }
+             self.setSLSAttenuation(vf, vc);
+           },
+           py::arg("reference_frequencies"),
+           py::arg("anelasticity_coefficients") = std::vector<float>{});
 }
 
 void bind_solver_factory(py::module_ &m)

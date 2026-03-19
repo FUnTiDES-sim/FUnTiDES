@@ -29,6 +29,10 @@ struct ModelStructData final : public ModelDataBase<FloatType, ScalarType>
 
   bool isModelOnNodes_;
   bool isElastic_;
+  VECTOR_REAL_VIEW model_qp_element_;
+  VECTOR_REAL_VIEW model_qs_element_;
+  VECTOR_REAL_VIEW model_qp_node_;
+  VECTOR_REAL_VIEW model_qs_node_;
 };
 
 /**
@@ -64,7 +68,11 @@ class ModelStruct final : public ModelApi<FloatType, ScalarType>
         isModelOnNodes_(data.isModelOnNodes_),
         boundaries_t_(data.boundaries_t_),
         isElastic_(data.isElastic_),
-        face_connectivity_(data.ex_, data.ey_, data.ez_, Order)
+        face_connectivity_(data.ex_, data.ey_, data.ez_, Order),
+        model_qp_element_(data.model_qp_element_),
+        model_qs_element_(data.model_qs_element_),
+        model_qp_node_(data.model_qp_node_),
+        model_qs_node_(data.model_qs_node_)
   {
     nx_ = Order * ex_ + 1;
     ny_ = Order * ey_ + 1;
@@ -197,6 +205,26 @@ class ModelStruct final : public ModelApi<FloatType, ScalarType>
   PROXY_HOST_DEVICE FloatType getModelVsOnElement(ScalarType e) const final
   {
     return 755;
+  }
+  PROXY_HOST_DEVICE FloatType getModelQpOnNodes(ScalarType n) const final
+  {
+    if (model_qp_node_.extent(0) > 0) return model_qp_node_[n];
+    return static_cast<FloatType>(1.0e9);
+  }
+  PROXY_HOST_DEVICE FloatType getModelQpOnElement(ScalarType e) const final
+  {
+    if (model_qp_element_.extent(0) > 0) return model_qp_element_[e];
+    return static_cast<FloatType>(1.0e9);
+  }
+  PROXY_HOST_DEVICE FloatType getModelQsOnNodes(ScalarType n) const final
+  {
+    if (model_qs_node_.extent(0) > 0) return model_qs_node_[n];
+    return static_cast<FloatType>(1.0e9);
+  }
+  PROXY_HOST_DEVICE FloatType getModelQsOnElement(ScalarType e) const final
+  {
+    if (model_qs_element_.extent(0) > 0) return model_qs_element_[e];
+    return static_cast<FloatType>(1.0e9);
   }
   PROXY_HOST_DEVICE FloatType getModelDeltaOnNodes(ScalarType n) const final
   {
@@ -366,6 +394,20 @@ class ModelStruct final : public ModelApi<FloatType, ScalarType>
     return boundaries_t_(n) == static_cast<ScalarType>(BoundaryFlag::Surface);
   }
 
+  void setQualityFactors(FloatType qp, FloatType qs) override
+  {
+    ScalarType nElem = getNumberOfElements();
+    model_qp_element_ =
+        allocateVector<VECTOR_REAL_VIEW>(nElem, "model_qp_element");
+    model_qs_element_ =
+        allocateVector<VECTOR_REAL_VIEW>(nElem, "model_qs_element");
+    for (ScalarType e = 0; e < nElem; ++e)
+    {
+      model_qp_element_(e) = qp;
+      model_qs_element_(e) = qs;
+    }
+  }
+
   /**
    * @brief Build face connectivity
    *
@@ -441,6 +483,10 @@ class ModelStruct final : public ModelApi<FloatType, ScalarType>
 
   array3DReal model_C_tensor_element_;
   VECTOR_INT_VIEW boundaries_t_;
+  VECTOR_REAL_VIEW model_qp_element_;
+  VECTOR_REAL_VIEW model_qs_element_;
+  VECTOR_REAL_VIEW model_qp_node_;
+  VECTOR_REAL_VIEW model_qs_node_;
 
   FaceConnectivityStruct<FloatType, ScalarType> face_connectivity_;
 };
