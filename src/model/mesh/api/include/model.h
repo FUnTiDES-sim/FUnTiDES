@@ -120,13 +120,6 @@ class ModelApi
   virtual BoundaryFlag boundaryType(ScalarType n) const = 0;
 
   /**
-   * @brief Initialize boundary flags based on node positions
-   * @param free_surface_on_top If true, mark top (Z+) as Surface, else as
-   * Damping
-   */
-  virtual void initializeBoundaryFlags(bool free_surface_on_top) = 0;
-
-  /**
    * @brief Get P-wave velocity at a node
    * @param n Node index
    * @return P-wave velocity (Vp) in m/s
@@ -349,21 +342,6 @@ class ModelApi
    */
   PROXY_HOST_DEVICE
   virtual bool isFreeSurface(ScalarType n) const = 0;
-
-  /**
-   * @brief Enable/disable free surface on top boundary
-   * @param enable True to enable free surface BC, false for absorbing
-   * everywhere
-   */
-  virtual void setFreeSurfaceEnabled(bool enable) = 0;
-
-  /**
-   * @brief Initialize free surface detection
-   *
-   * Marks nodes on top boundary (Z+) as free surface.
-   * Called once during mesh setup.
-   */
-  virtual void initFreeSurface() = 0;
 
   /**
    * @brief Get total number of faces

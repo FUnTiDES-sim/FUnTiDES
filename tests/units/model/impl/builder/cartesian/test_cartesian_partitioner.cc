@@ -146,16 +146,10 @@ class MockMesh : public model::ModelApi<FloatType, ScalarType>
 
   virtual void buildFaceConnectivity() override {}
 
-  void initializeBoundaryFlags(bool free_surface_on_top) override {}
-
   PROXY_HOST_DEVICE bool isFreeSurface(ScalarType n) const override
   {
     return 1;
   }
-
-  void setFreeSurfaceEnabled(bool enable) override {}
-
-  void initFreeSurface() override {}
 
   PROXY_HOST_DEVICE ScalarType getGlobalNodeFromFace(ScalarType,
                                                      int) const override

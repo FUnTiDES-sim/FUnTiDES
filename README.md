@@ -54,7 +54,7 @@ Both SEM and FD applications are compiled.
 
 Unit tests only
 ```sh
-ctest -LE benchmark
+ctest -LE "benchmark|validation"
 ```
 
 Benchmarks only, results will be stored in results generated in `build/Benchmarking` as a json file.

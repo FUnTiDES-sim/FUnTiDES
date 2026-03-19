@@ -100,7 +100,7 @@ class UnstructData:
 
         # boundaries
         self.kk_boundaries = kokkos.array(
-            [self.n_elements], dtype=float_type, space=self.memspace, layout=self.layout
+            [self.n_nodes], dtype=kokkos.int32, space=self.memspace, layout=self.layout
         )
 
     def generate_global_coordinates(self):
@@ -190,8 +190,26 @@ class UnstructData:
         model_phi_element[:] = 45.0
 
     def fill_boundaries(self):
+        coords_x = np.array(self.kk_nodes_coords_x, copy=False)
+        coords_y = np.array(self.kk_nodes_coords_y, copy=False)
+        coords_z = np.array(self.kk_nodes_coords_z, copy=False)
         boundaries = np.array(self.kk_boundaries, copy=False)
-        boundaries[:] = 1.0
+        tol = min(self.lx, self.ly, self.lz) / (2 * self.order) * 1e-4
+        for n in range(self.n_nodes):
+            x, y, z = coords_x[n], coords_y[n], coords_z[n]
+            at_xmin = abs(x) < tol
+            at_xmax = abs(x - self.lx) < tol
+            at_ymin = abs(y) < tol
+            at_ymax = abs(y - self.ly) < tol
+            at_zmin = abs(z) < tol
+            at_zmax = abs(z - self.lz) < tol
+            on_boundary = at_xmin or at_xmax or at_ymin or at_ymax or at_zmin or at_zmax
+            if not on_boundary:
+                boundaries[n] = 0  # InteriorNode
+            elif at_zmax:
+                boundaries[n] = 3  # Surface
+            else:
+                boundaries[n] = 1  # Damping
 
 
 @pytest.fixture
