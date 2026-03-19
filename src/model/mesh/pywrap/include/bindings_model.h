@@ -38,6 +38,10 @@ void bind_modelapi(py::module_ &m)
       .def("get_model_rho_on_element", &T::getModelRhoOnElement)
       .def("get_model_vs_on_node", &T::getModelVsOnNodes)
       .def("get_model_vs_on_element", &T::getModelVsOnElement)
+      .def("get_model_qp_on_node", &T::getModelQpOnNodes)
+      .def("get_model_qp_on_element", &T::getModelQpOnElement)
+      .def("get_model_qs_on_node", &T::getModelQsOnNodes)
+      .def("get_model_qs_on_element", &T::getModelQsOnElement)
       .def("get_model_delta_on_node", &T::getModelDeltaOnNodes)
       .def("get_model_delta_on_element", &T::getModelDeltaOnElement)
       .def("get_model_epsilon_on_node", &T::getModelEpsilonOnNodes)
@@ -62,6 +66,8 @@ void bind_modelapi(py::module_ &m)
       .def("is_boundary_face", &T::isBoundaryFace)
       .def("get_global_node_from_face", &T::getGlobalNodeFromFace)
       .def("get_global_face", &T::getGlobalFace)
+      .def("set_quality_factors", &T::setQualityFactors,
+           py::arg("qp"), py::arg("qs"))
       .def("is_free_surface", &T::isFreeSurface);
 }
 

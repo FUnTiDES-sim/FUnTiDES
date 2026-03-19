@@ -3,6 +3,7 @@
 #include <data_type.h>
 #include <utils.h>
 
+#include <array>
 #include <memory>
 #include <string>
 #include <variant>
@@ -109,6 +110,11 @@ class SEMproxy
   // physics
   bool isElastic_;
   bool freeSurface_;
+
+  // sponge boundary parameters
+  std::array<float, 3> sponge_size_ = {0, 0, 0};
+  bool surface_sponge_ = false;
+  float taper_delta_ = 0.015f;
 
   // time parameters
   float dt_;

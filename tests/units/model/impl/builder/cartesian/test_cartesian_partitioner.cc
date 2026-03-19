@@ -77,6 +77,22 @@ class MockMesh : public model::ModelApi<FloatType, ScalarType>
   {
     return 0;
   }
+  PROXY_HOST_DEVICE FloatType getModelQpOnNodes(ScalarType) const override
+  {
+    return 1e9;
+  }
+  PROXY_HOST_DEVICE FloatType getModelQpOnElement(ScalarType) const override
+  {
+    return 1e9;
+  }
+  PROXY_HOST_DEVICE FloatType getModelQsOnNodes(ScalarType) const override
+  {
+    return 1e9;
+  }
+  PROXY_HOST_DEVICE FloatType getModelQsOnElement(ScalarType) const override
+  {
+    return 1e9;
+  }
   PROXY_HOST_DEVICE FloatType getModelDeltaOnNodes(ScalarType) const override
   {
     return 0;
@@ -171,6 +187,7 @@ class MockMesh : public model::ModelApi<FloatType, ScalarType>
   virtual FloatType getMaxSpeed() const override { return 0; }
   PROXY_HOST_DEVICE bool isModelOnNodes() const override { return true; }
   PROXY_HOST_DEVICE bool isElastic() const override { return false; }
+  void setQualityFactors(FloatType qp, FloatType qs) override {}
 };
 
 class TopologyFactoryTest : public ::testing::Test
