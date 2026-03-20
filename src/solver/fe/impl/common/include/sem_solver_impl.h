@@ -493,7 +493,8 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES,
   model_discretization_interface::gatherTransformData(elementNumber, mesh_local,
                                                       transformData);
 
-#ifdef __CUDACC__
+#if defined(__CUDACC__) || defined(__HIPCC__)
+
   struct CJPacked
   {
     float4 a;
@@ -554,7 +555,8 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES,
             float const v4 = lambda * Jp0 * Jr2 + mu * Jp2 * Jr0;
             float const v5 = lambda * Jp1 * Jr2 + mu * Jp2 * Jr1;
 
-#ifdef __CUDACC__
+#if defined(__CUDACC__) || defined(__HIPCC__)
+
             CJflat[idx].a = make_float4(v0, v1, v2, v3);
             CJflat[idx].b = make_float2(v4, v5);
 #else
@@ -570,7 +572,8 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES,
       },
       [&](int i, int j, float val, const int p, const int r) {
         int const idx = p * 3 + r;
-#ifdef __CUDACC__
+#if defined(__CUDACC__) || defined(__HIPCC__)
+
         float3 const u_local = make_float3(localFields[0][j], localFields[1][j],
                                            localFields[2][j]);
         float4 const a = CJflat[idx].a;
@@ -664,7 +667,8 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES,
   model_discretization_interface::gatherTransformData(elementNumber, mesh_local,
                                                       transformData);
 
-#ifdef __CUDACC__
+#if defined(__CUDACC__) || defined(__HIPCC__)
+
   struct CJPacked
   {
     float4 a;
@@ -740,7 +744,8 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES,
             float const v4 = c44 * p0r2 + c13 * p2r0;
             float const v5 = c44 * p1r2 + c13 * p2r1;
 
-#ifdef __CUDACC__
+#if defined(__CUDACC__) || defined(__HIPCC__)
+
             CJflat[idx].a = make_float4(v0, v1, v2, v3);
             CJflat[idx].b = make_float2(v4, v5);
 #else
@@ -756,7 +761,8 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES,
       },
       [&](int i, int j, float val, const int p, const int r) {
         int const idx = p * 3 + r;
-#ifdef __CUDACC__
+#if defined(__CUDACC__) || defined(__HIPCC__)
+
         float3 const u_local = make_float3(localFields[0][j], localFields[1][j],
                                            localFields[2][j]);
         float4 const a = CJflat[idx].a;
@@ -862,7 +868,8 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES,
       mesh_local.getCTensorOnElement(elementNumber, CTTI);
     }
 
-#ifdef __CUDACC__
+#if defined(__CUDACC__) || defined(__HIPCC__)
+
     struct CJPacked
     {
       float4 a;
@@ -939,7 +946,8 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES,
                          C13 * p1r1 + C12 * p1r2 + C34 * p2r0 + C33 * p2r1 +
                          C23 * p2r2;
 
-#ifdef __CUDACC__
+#if defined(__CUDACC__) || defined(__HIPCC__)
+
               CJflat[idx].a = make_float4(v0, v1, v2, v3);
               CJflat[idx].b = make_float2(v4, v5);
 #else
@@ -955,7 +963,8 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES,
         },
         [&](int i, int j, float val, const int p, const int r) {
           const int idx = p * 3 + r;
-#ifdef __CUDACC__
+#if defined(__CUDACC__) || defined(__HIPCC__)
+
           const float3 u_local = make_float3(
               localFields[0][j], localFields[1][j], localFields[2][j]);
           const float4 a = CJflat[idx].a;
@@ -1024,7 +1033,6 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES,
 
   if constexpr (PHYSICS == enums::physicType::kAcoustic)
   {
-    // ===== ACOUSTIC VERSION =====
     LOOPHEAD(mesh_local.getNumberOfNodes(), I)
     {
       if (mesh_local.isFreeSurface(I))
@@ -1072,7 +1080,6 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES,
   }
   else  // ELASTIC
   {
-    // ===== ELASTIC VERSION =====
     LOOPHEAD(mesh_local.getNumberOfNodes(), I)
     {
       if (mesh_local.isFreeSurface(I))
