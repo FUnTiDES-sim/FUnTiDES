@@ -56,16 +56,22 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES,
     {
       if constexpr (PHYSICS == enums::physicType::kAcoustic)
       {
-        float q = IS_MODEL_ON_NODES ? m_mesh.getModelQpOnNodes(m_mesh.globalNodeIndex(e, 0, 0, 0))
-                                    : m_mesh.getModelQpOnElement(e);
+        float q =
+            IS_MODEL_ON_NODES
+                ? m_mesh.getModelQpOnNodes(m_mesh.globalNodeIndex(e, 0, 0, 0))
+                : m_mesh.getModelQpOnElement(e);
         minQVal = std::min(minQVal, q);
       }
       else
       {
-        float qp = IS_MODEL_ON_NODES ? m_mesh.getModelQpOnNodes(m_mesh.globalNodeIndex(e, 0, 0, 0))
-                                     : m_mesh.getModelQpOnElement(e);
-        float qs = IS_MODEL_ON_NODES ? m_mesh.getModelQsOnNodes(m_mesh.globalNodeIndex(e, 0, 0, 0))
-                                     : m_mesh.getModelQsOnElement(e);
+        float qp =
+            IS_MODEL_ON_NODES
+                ? m_mesh.getModelQpOnNodes(m_mesh.globalNodeIndex(e, 0, 0, 0))
+                : m_mesh.getModelQpOnElement(e);
+        float qs =
+            IS_MODEL_ON_NODES
+                ? m_mesh.getModelQsOnNodes(m_mesh.globalNodeIndex(e, 0, 0, 0))
+                : m_mesh.getModelQsOnElement(e);
         minQVal = std::min(minQVal, std::min(qp, qs));
       }
     }
@@ -331,9 +337,8 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES,
     real_t inv_density_q = 0.0f;
     if constexpr (!IS_MODEL_ON_NODES)
     {
-      inv_density_q = 1.0f /
-                      (mesh_local.getModelRhoOnElement(elementNumber) *
-                       mesh_local.getModelQpOnElement(elementNumber));
+      inv_density_q = 1.0f / (mesh_local.getModelRhoOnElement(elementNumber) *
+                              mesh_local.getModelQpOnElement(elementNumber));
     }
 
     INTEGRAL_TYPE::computeStiffnessTerm(
@@ -343,10 +348,8 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES,
           {
             int const gIndex =
                 mesh_local.globalNodeIndex(elementNumber, qa, qb, qc);
-            inv_density_q =
-                1.0f /
-                (mesh_local.getModelRhoOnNodes(gIndex) *
-                 mesh_local.getModelQpOnNodes(gIndex));
+            inv_density_q = 1.0f / (mesh_local.getModelRhoOnNodes(gIndex) *
+                                    mesh_local.getModelQpOnNodes(gIndex));
           }
         },
         [&](const int i, const int j, const real_t val) {
@@ -418,12 +421,15 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES,
           float const uxj = localFields[0][j];
           float const uyj = localFields[1][j];
           float const uzj = localFields[2][j];
-          localWorkA[0][i] += val * (CJflat[idx].a0 * uxj + CJflat[idx].a3 * uyj +
-                                     CJflat[idx].b0 * uzj);
-          localWorkA[1][i] += val * (CJflat[idx].a3 * uxj + CJflat[idx].a1 * uyj +
-                                     CJflat[idx].b1 * uzj);
-          localWorkA[2][i] += val * (CJflat[idx].b0 * uxj + CJflat[idx].b1 * uyj +
-                                     CJflat[idx].a2 * uzj);
+          localWorkA[0][i] +=
+              val * (CJflat[idx].a0 * uxj + CJflat[idx].a3 * uyj +
+                     CJflat[idx].b0 * uzj);
+          localWorkA[1][i] +=
+              val * (CJflat[idx].a3 * uxj + CJflat[idx].a1 * uyj +
+                     CJflat[idx].b1 * uzj);
+          localWorkA[2][i] +=
+              val * (CJflat[idx].b0 * uxj + CJflat[idx].b1 * uyj +
+                     CJflat[idx].a2 * uzj);
         });
   }
 
@@ -1060,9 +1066,8 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES,
                                (2.0f + w * dt);
             float const gamma_p = 0.5f + 0.5f * gamma;
             float const beta_p = 0.5f * beta;
-            next_val += dt2 *
-                        (gamma_p * attenuationMemoryVariables_[0](I, l) +
-                         beta_p * attenuationWorkVectorsGlobal_[0][I]);
+            next_val += dt2 * (gamma_p * attenuationMemoryVariables_[0](I, l) +
+                               beta_p * attenuationWorkVectorsGlobal_[0][I]);
             attenuationMemoryVariables_[0](I, l) =
                 gamma * attenuationMemoryVariables_[0](I, l) +
                 beta * attenuationWorkVectorsGlobal_[0][I];
@@ -1099,14 +1104,13 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES,
             {
               float const w = slsReferenceAngularFrequencies_[l];
               float const gamma = (2.0f - w * dt) / (2.0f + w * dt);
-              float const beta =
-                  slsAnelasticityCoefficients_[l] * w * 2.0f * dt /
-                  (2.0f + w * dt);
+              float const beta = slsAnelasticityCoefficients_[l] * w * 2.0f *
+                                 dt / (2.0f + w * dt);
               float const gamma_p = 0.5f + 0.5f * gamma;
               float const beta_p = 0.5f * beta;
-              next_val += dt2 *
-                          (gamma_p * attenuationMemoryVariables_[f](I, l) +
-                           beta_p * attenuationWorkVectorsGlobal_[f][I]);
+              next_val +=
+                  dt2 * (gamma_p * attenuationMemoryVariables_[f](I, l) +
+                         beta_p * attenuationWorkVectorsGlobal_[f][I]);
               attenuationMemoryVariables_[f](I, l) =
                   gamma * attenuationMemoryVariables_[f](I, l) +
                   beta * attenuationWorkVectorsGlobal_[f][I];
@@ -1135,14 +1139,13 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES,
             {
               float const w = slsReferenceAngularFrequencies_[l];
               float const gamma = (2.0f - w * dt) / (2.0f + w * dt);
-              float const beta =
-                  slsAnelasticityCoefficients_[l] * w * 2.0f * dt /
-                  (2.0f + w * dt);
+              float const beta = slsAnelasticityCoefficients_[l] * w * 2.0f *
+                                 dt / (2.0f + w * dt);
               float const gamma_p = 0.5f + 0.5f * gamma;
               float const beta_p = 0.5f * beta;
-              next_val += dt2 *
-                          (gamma_p * attenuationMemoryVariables_[f](I, l) +
-                           beta_p * attenuationWorkVectorsGlobal_[f][I]);
+              next_val +=
+                  dt2 * (gamma_p * attenuationMemoryVariables_[f](I, l) +
+                         beta_p * attenuationWorkVectorsGlobal_[f][I]);
               attenuationMemoryVariables_[f](I, l) =
                   gamma * attenuationMemoryVariables_[f](I, l) +
                   beta * attenuationWorkVectorsGlobal_[f][I];
@@ -1384,10 +1387,10 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES,
 
   if (attenuationEnabled_ && nSls_ > 0)
   {
-    static constexpr const char* attWorkNames[3] = {"attWorkVec0", "attWorkVec1",
-                                                     "attWorkVec2"};
+    static constexpr const char* attWorkNames[3] = {
+        "attWorkVec0", "attWorkVec1", "attWorkVec2"};
     static constexpr const char* attMemNames[3] = {"attMemory0", "attMemory1",
-                                                    "attMemory2"};
+                                                   "attMemory2"};
     for (int f = 0; f < kNumFields; ++f)
     {
       attenuationWorkVectorsGlobal_[f] = allocateVector<VECTOR_REAL_VIEW>(

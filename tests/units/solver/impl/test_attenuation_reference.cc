@@ -74,13 +74,13 @@ namespace fe
 {
 namespace test
 {
-static VECTOR_REAL_VIEW toView(const std::vector<float>& v, const char* name) {
-    if (v.empty()) return VECTOR_REAL_VIEW();
-    auto view = allocateVector<VECTOR_REAL_VIEW>(v.size(), name);
-    for (size_t i = 0; i < v.size(); ++i) view[i] = v[i];
-    return view;
+static VECTOR_REAL_VIEW toView(const std::vector<float>& v, const char* name)
+{
+  if (v.empty()) return VECTOR_REAL_VIEW();
+  auto view = allocateVector<VECTOR_REAL_VIEW>(v.size(), name);
+  for (size_t i = 0; i < v.size(); ++i) view[i] = v[i];
+  return view;
 }
-
 
 // ======================================================================
 // Helper: build a 5x5x5 order-2 mesh with given Q factors
@@ -90,8 +90,8 @@ static std::shared_ptr<model::ModelApi<float, int>> buildRefMesh(
 {
   constexpr int EX = 5, EY = 5, EZ = 5;
   constexpr float LX = 1000.0f, LY = 1000.0f, LZ = 1000.0f;
-  model::CartesianStructBuilder<float, int, 2> builder(
-      EX, LX, EY, LY, EZ, LZ, false, false);
+  model::CartesianStructBuilder<float, int, 2> builder(EX, LX, EY, LY, EZ, LZ,
+                                                       false, false);
   auto mesh = builder.getModel(false);
   mesh->setQualityFactors(qp, qs);
   return mesh;
@@ -103,8 +103,7 @@ static std::shared_ptr<model::ModelApi<float, int>> buildRefMesh(
 static float totalEnergy(const VECTOR_REAL_VIEW& field, int numNodes)
 {
   float sum = 0.0f;
-  for (int i = 0; i < numNodes; ++i)
-    sum += field(i) * field(i);
+  for (int i = 0; i < numNodes; ++i) sum += field(i) * field(i);
   return sum;
 }
 
@@ -126,8 +125,7 @@ static std::vector<float> runAndRecordEnergy(
       enums::physicType::kAcoustic, order);
   solver->setAnisotropyType(model::AnisotropyType::kIso);
 
-  if (!slsFreqs.empty())
-    solver->setSLSAttenuation(toView(slsFreqs, "f"));
+  if (!slsFreqs.empty()) solver->setSLSAttenuation(toView(slsFreqs, "f"));
 
   solver->computeFEInit(*mesh, {0, 0, 0}, false, 0.0f);
 
@@ -141,8 +139,7 @@ static std::vector<float> runAndRecordEnergy(
   // Impulse at center node
   pCurr(numNodes / 2) = 1.0f;
 
-  auto rhsTerm =
-      allocateArray2D<ARRAY_REAL_VIEW>(1, numTimeSteps, "rt_ref");
+  auto rhsTerm = allocateArray2D<ARRAY_REAL_VIEW>(1, numTimeSteps, "rt_ref");
   auto rhsElem = allocateVector<VECTOR_INT_VIEW>(1, "re_ref");
   auto rhsWeights = allocateArray2D<ARRAY_REAL_VIEW>(1, npp, "rw_ref");
   rhsElem(0) = 0;
@@ -168,8 +165,7 @@ static std::vector<float> runAndRecordEnergy(
     if (checkIdx < static_cast<int>(checkpoints.size()) &&
         t + 1 == checkpoints[checkIdx])
     {
-      energies.push_back(
-          totalEnergy(data.getCurrentField(0), numNodes));
+      energies.push_back(totalEnergy(data.getCurrentField(0), numNodes));
       ++checkIdx;
     }
   }
@@ -269,12 +265,10 @@ TEST(AttenuationReferenceAcoustic, Order2EnergyDecayScalesWithQ)
 
   float scalingRatio = lnR20 / lnR60;
 
-  EXPECT_GT(scalingRatio, 2.0f)
-      << "Q-scaling ratio too low: " << scalingRatio
-      << " (expected ~3.0 = Q60/Q20)";
-  EXPECT_LT(scalingRatio, 5.0f)
-      << "Q-scaling ratio too high: " << scalingRatio
-      << " (expected ~3.0 = Q60/Q20)";
+  EXPECT_GT(scalingRatio, 2.0f) << "Q-scaling ratio too low: " << scalingRatio
+                                << " (expected ~3.0 = Q60/Q20)";
+  EXPECT_LT(scalingRatio, 5.0f) << "Q-scaling ratio too high: " << scalingRatio
+                                << " (expected ~3.0 = Q60/Q20)";
 
   // ---- Diagnostic output ----
   std::cout << "\n=== Acoustic Attenuation Reference Test (Order 2) ===\n"
@@ -287,10 +281,8 @@ TEST(AttenuationReferenceAcoustic, Order2EnergyDecayScalesWithQ)
   {
     float t = checkpoints[i] * dt;
     std::cout << "  t = " << t << " s : "
-              << "E_ref = " << E_ref[i]
-              << "  E_Q20 = " << E_q20[i]
-              << "  E_Q60 = " << E_q60[i]
-              << "  R20 = " << E_q20[i] / E_ref[i]
+              << "E_ref = " << E_ref[i] << "  E_Q20 = " << E_q20[i]
+              << "  E_Q60 = " << E_q60[i] << "  R20 = " << E_q20[i] / E_ref[i]
               << "  R60 = " << E_q60[i] / E_ref[i] << "\n";
   }
   std::cout << "\n  Q-scaling ratio: ln(R20)/ln(R60) = " << scalingRatio

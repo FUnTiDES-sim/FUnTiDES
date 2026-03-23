@@ -170,32 +170,30 @@ class ModelApi
    * @param n Node index
    * @return Qp (dimensionless)
    */
-  PROXY_HOST_DEVICE virtual FloatType getModelQpOnNodes(ScalarType n) const =
-      0;
+  PROXY_HOST_DEVICE virtual FloatType getModelQpOnNodes(ScalarType n) const = 0;
 
   /**
    * @brief Get P-wave quality factor for an element (attenuation)
    * @param e Element index
    * @return Qp (dimensionless)
    */
-  PROXY_HOST_DEVICE virtual FloatType getModelQpOnElement(ScalarType e) const =
-      0;
+  PROXY_HOST_DEVICE virtual FloatType getModelQpOnElement(
+      ScalarType e) const = 0;
 
   /**
    * @brief Get S-wave quality factor at a node (attenuation)
    * @param n Node index
    * @return Qs (dimensionless)
    */
-  PROXY_HOST_DEVICE virtual FloatType getModelQsOnNodes(ScalarType n) const =
-      0;
+  PROXY_HOST_DEVICE virtual FloatType getModelQsOnNodes(ScalarType n) const = 0;
 
   /**
    * @brief Get S-wave quality factor for an element (attenuation)
    * @param e Element index
    * @return Qs (dimensionless)
    */
-  PROXY_HOST_DEVICE virtual FloatType getModelQsOnElement(ScalarType e) const =
-      0;
+  PROXY_HOST_DEVICE virtual FloatType getModelQsOnElement(
+      ScalarType e) const = 0;
 
   /**
    * @brief Get Thomsen delta parameter at a node (anisotropy)

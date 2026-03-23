@@ -163,14 +163,17 @@ class SEMproxy
   arrayReal uznAtReceiver;
 
   // DAS receiver data
-  SourceAndReceiverUtils::DASType dasType_ = SourceAndReceiverUtils::DASType::kNone;
+  SourceAndReceiverUtils::DASType dasType_ =
+      SourceAndReceiverUtils::DASType::kNone;
   int dasNumSamples_ = 5;
   float dasGaugeLength_ = 1.0f;
-  std::array<float, 3> dasDirection_ = {1, 0, 0};  ///< Fiber direction unit vector
-  std::array<float, 3> dasVector_ = {1, 0, 0};     ///< Direction (for dipole: divided by L)
-  std::vector<int> dasNodeIds_;                     ///< Global node IDs [nSamples * npe]
-  std::vector<float> dasWeights_;                   ///< Precomputed weights [nSamples * npe]
-  vectorReal dasSignal_;                            ///< DAS trace [num_sample_]
+  std::array<float, 3> dasDirection_ = {1, 0,
+                                        0};  ///< Fiber direction unit vector
+  std::array<float, 3> dasVector_ = {
+      1, 0, 0};                    ///< Direction (for dipole: divided by L)
+  std::vector<int> dasNodeIds_;    ///< Global node IDs [nSamples * npe]
+  std::vector<float> dasWeights_;  ///< Precomputed weights [nSamples * npe]
+  vectorReal dasSignal_;           ///< DAS trace [num_sample_]
 
   // io controller
   std::shared_ptr<SemIOController> io_ctrl_;

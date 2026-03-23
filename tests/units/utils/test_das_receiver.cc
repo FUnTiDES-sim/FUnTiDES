@@ -117,8 +117,7 @@ TEST_F(DASReceiverTest, DipoleWeightsAtCorner)
 
   // Node 0 (a=0,b=0,c=0) should have weight 1, others 0
   EXPECT_NEAR(weights[0], 1.0f, 1e-5f);
-  for (int i = 1; i < npe; ++i)
-    EXPECT_NEAR(weights[i], 0.0f, 1e-5f);
+  for (int i = 1; i < npe; ++i) EXPECT_NEAR(weights[i], 0.0f, 1e-5f);
 }
 
 TEST_F(DASReceiverTest, DipoleWeightsAllPositive)
@@ -141,8 +140,7 @@ TEST_F(DASReceiverTest, DipoleWeightsAllPositive)
                                     DASType::kDipole, weights);
 
   // For linear elements, all shape functions are positive inside the element
-  for (int i = 0; i < npe; ++i)
-    EXPECT_GE(weights[i], 0.0f);
+  for (int i = 0; i < npe; ++i) EXPECT_GE(weights[i], 0.0f);
 }
 
 // ---------------------------------------------------------------
@@ -205,8 +203,9 @@ TEST_F(DASReceiverTest, StrainWeightsLinearFieldGivesConstantStrain)
       for (int a = 0; a <= ORDER; ++a)
       {
         int nodeIdx = a + b * (ORDER + 1) + c * (ORDER + 1) * (ORDER + 1);
-        // GLL points for order 2: xi = {-1, 0, 1} → physical x = x0 + dx*(xi+1)/2
-        // More precisely: node a of (ORDER+1) → xi_a. For ORDER=2: xi_0=-1, xi_1=0, xi_2=1.
+        // GLL points for order 2: xi = {-1, 0, 1} → physical x = x0 +
+        // dx*(xi+1)/2 More precisely: node a of (ORDER+1) → xi_a. For ORDER=2:
+        // xi_0=-1, xi_1=0, xi_2=1.
         float nodeX = x0 + dx * static_cast<float>(a) / ORDER;
         strain += weights[nodeIdx] * nodeX;
       }

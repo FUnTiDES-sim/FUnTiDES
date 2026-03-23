@@ -10,10 +10,10 @@
 #include "face_connectivity_unstruct.h"
 #include "model.h"
 #include "parallel_topology.h"
-#include "sem_enums.h"
 #include "physics_traits.h"
 #include "physics_traits_acoustic.h"
 #include "physics_traits_elastic.h"
+#include "sem_enums.h"
 #include "sem_solver_data.h"
 #include "solver.h"
 
@@ -183,7 +183,8 @@ class SEMsolver : public Solver
       if (static_cast<int>(anelasticity_coefficients.extent(0)) != nSls_)
       {
         throw std::runtime_error(
-            "SLS anelasticity coefficients must match reference frequencies size");
+            "SLS anelasticity coefficients must match reference frequencies "
+            "size");
       }
       for (int i = 0; i < nSls_; ++i)
       {
