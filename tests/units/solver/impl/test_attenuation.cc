@@ -35,13 +35,13 @@ namespace fe
 {
 namespace test
 {
-static VECTOR_REAL_VIEW toView(const std::vector<float>& v, const char* name) {
-    if (v.empty()) return VECTOR_REAL_VIEW();
-    auto view = allocateVector<VECTOR_REAL_VIEW>(v.size(), name);
-    for (size_t i = 0; i < v.size(); ++i) view[i] = v[i];
-    return view;
+static VECTOR_REAL_VIEW toView(const std::vector<float>& v, const char* name)
+{
+  if (v.empty()) return VECTOR_REAL_VIEW();
+  auto view = allocateVector<VECTOR_REAL_VIEW>(v.size(), name);
+  for (size_t i = 0; i < v.size(); ++i) view[i] = v[i];
+  return view;
 }
-
 
 // ======================================================================
 // Helper: build a small structured mesh and return the model pointer
@@ -157,7 +157,9 @@ TEST(AttenuationSetup, MismatchedCoefficientsThrows)
   std::vector<float> freqs = {1.0f, 2.0f, 3.0f};
   std::vector<float> coeffs = {0.5f};  // Wrong size: 1 vs 3
 
-  EXPECT_THROW(solver->setSLSAttenuation(toView(freqs, "f"), toView(coeffs, "c")), std::runtime_error);
+  EXPECT_THROW(
+      solver->setSLSAttenuation(toView(freqs, "f"), toView(coeffs, "c")),
+      std::runtime_error);
 }
 
 // ======================================================================
@@ -184,8 +186,7 @@ TEST(AttenuationInit, ComputeFEInitWithAttenuationRuns)
 // ======================================================================
 static float runAcousticSimulation(
     std::shared_ptr<model::ModelApi<float, int>> mesh,
-    const std::vector<float>& slsFreqs,
-    int numTimeSteps, float dt, int order)
+    const std::vector<float>& slsFreqs, int numTimeSteps, float dt, int order)
 {
   int numNodes = mesh->getNumberOfNodes();
   int npp = (order + 1) * (order + 1) * (order + 1);
@@ -253,22 +254,21 @@ TEST(AttenuationAcoustic, AttenuationDecaysAmplitude)
   auto mesh_att = buildSmallMesh(order, false);
   mesh_att->setQualityFactors(10.0f, 10.0f);
 
-  float norm_no_att = runAcousticSimulation(
-      mesh_no_att, {}, numTimeSteps, dt, order);
-  float norm_att = runAcousticSimulation(
-      mesh_att, freqs, numTimeSteps, dt, order);
+  float norm_no_att =
+      runAcousticSimulation(mesh_no_att, {}, numTimeSteps, dt, order);
+  float norm_att =
+      runAcousticSimulation(mesh_att, freqs, numTimeSteps, dt, order);
 
-  EXPECT_GT(norm_no_att, 0.0f)
-      << "Non-attenuated simulation should propagate";
+  EXPECT_GT(norm_no_att, 0.0f) << "Non-attenuated simulation should propagate";
   // If the wavefield differs and both are finite, the implementation works.
   // The SLS formulation changes both velocity (dispersion) and amplitude.
   // On a small bounded domain, L2 norm comparison may not show clear decay
   // because the velocity dispersion effect changes the wave arrival pattern.
   // We verify the wavefield is meaningfully different (attenuation is active).
   float ratio = norm_att / norm_no_att;
-  EXPECT_NE(ratio, 1.0f)
-      << "Attenuation should change the wavefield. "
-      << "norm_no_att=" << norm_no_att << ", norm_att=" << norm_att;
+  EXPECT_NE(ratio, 1.0f) << "Attenuation should change the wavefield. "
+                         << "norm_no_att=" << norm_no_att
+                         << ", norm_att=" << norm_att;
   EXPECT_TRUE(std::isfinite(norm_att))
       << "Attenuated simulation should remain stable";
 }
@@ -304,9 +304,11 @@ TEST(AttenuationAcoustic, NoNanOrInfWithAttenuation)
 
   int npp = (order + 1) * (order + 1) * (order + 1);
   const int numSteps = 100;
-  auto rhsTerm = allocateArray2D<ARRAY_REAL_VIEW>(1, numSteps, "rhsTerm_nantest");
+  auto rhsTerm =
+      allocateArray2D<ARRAY_REAL_VIEW>(1, numSteps, "rhsTerm_nantest");
   auto rhsElem = allocateVector<VECTOR_INT_VIEW>(1, "rhsElem_nantest");
-  auto rhsWeights = allocateArray2D<ARRAY_REAL_VIEW>(1, npp, "rhsWeights_nantest");
+  auto rhsWeights =
+      allocateArray2D<ARRAY_REAL_VIEW>(1, npp, "rhsWeights_nantest");
   rhsElem(0) = 0;
   for (int j = 0; j < npp; ++j)
   {
@@ -376,9 +378,12 @@ TEST(AttenuationElastic, AttenuationDecaysAmplitude)
   }
   setImpulseSource(uzCurr_na, numNodes, 1.0f);
 
-  auto rhsTermx_na = allocateArray2D<ARRAY_REAL_VIEW>(1, numTimeSteps, "rtx_na");
-  auto rhsTermy_na = allocateArray2D<ARRAY_REAL_VIEW>(1, numTimeSteps, "rty_na");
-  auto rhsTermz_na = allocateArray2D<ARRAY_REAL_VIEW>(1, numTimeSteps, "rtz_na");
+  auto rhsTermx_na =
+      allocateArray2D<ARRAY_REAL_VIEW>(1, numTimeSteps, "rtx_na");
+  auto rhsTermy_na =
+      allocateArray2D<ARRAY_REAL_VIEW>(1, numTimeSteps, "rty_na");
+  auto rhsTermz_na =
+      allocateArray2D<ARRAY_REAL_VIEW>(1, numTimeSteps, "rtz_na");
   auto rhsElem_na = allocateVector<VECTOR_INT_VIEW>(1, "re_na");
   auto rhsW_na = allocateArray2D<ARRAY_REAL_VIEW>(1, npp, "rw_na");
   rhsElem_na(0) = 0;
@@ -390,10 +395,9 @@ TEST(AttenuationElastic, AttenuationDecaysAmplitude)
     rhsW_na(0, j) = 0.0f;
   }
 
-  WavefieldElastic wf_na(uxPrev_na, uxCurr_na, uyPrev_na, uyCurr_na,
-                         uzPrev_na, uzCurr_na);
-  RhsElastic rhs_na(rhsTermx_na, rhsTermy_na, rhsTermz_na, rhsElem_na,
-                     rhsW_na);
+  WavefieldElastic wf_na(uxPrev_na, uxCurr_na, uyPrev_na, uyCurr_na, uzPrev_na,
+                         uzCurr_na);
+  RhsElastic rhs_na(rhsTermx_na, rhsTermy_na, rhsTermz_na, rhsElem_na, rhsW_na);
   SEMsolverDataElastic data_na(wf_na, rhs_na);
 
   float dt = 0.001f;
@@ -619,20 +623,18 @@ TEST(AttenuationAcoustic, MoreMechanismsChangeWavefield)
   float norm_1sls = [&]() {
     auto mesh = buildSmallMesh(order, false);
     mesh->setQualityFactors(50.0f, 50.0f);
-    return runAcousticSimulation(
-        mesh, {2.0f * static_cast<float>(M_PI) * 5.0f},
-        numTimeSteps, dt, order);
+    return runAcousticSimulation(mesh, {2.0f * static_cast<float>(M_PI) * 5.0f},
+                                 numTimeSteps, dt, order);
   }();
 
   float norm_3sls = [&]() {
     auto mesh = buildSmallMesh(order, false);
     mesh->setQualityFactors(50.0f, 50.0f);
-    return runAcousticSimulation(
-        mesh,
-        {2.0f * static_cast<float>(M_PI) * 1.0f,
-         2.0f * static_cast<float>(M_PI) * 5.0f,
-         2.0f * static_cast<float>(M_PI) * 25.0f},
-        numTimeSteps, dt, order);
+    return runAcousticSimulation(mesh,
+                                 {2.0f * static_cast<float>(M_PI) * 1.0f,
+                                  2.0f * static_cast<float>(M_PI) * 5.0f,
+                                  2.0f * static_cast<float>(M_PI) * 25.0f},
+                                 numTimeSteps, dt, order);
   }();
 
   EXPECT_GT(norm_1sls, 0.0f) << "1 SLS simulation should propagate";
@@ -642,7 +644,8 @@ TEST(AttenuationAcoustic, MoreMechanismsChangeWavefield)
   // Verify that different numbers of SLS mechanisms produce different results
   EXPECT_NE(norm_1sls, norm_3sls)
       << "Different numbers of SLS mechanisms should produce different "
-         "wavefields. norm_1sls=" << norm_1sls << ", norm_3sls=" << norm_3sls;
+         "wavefields. norm_1sls="
+      << norm_1sls << ", norm_3sls=" << norm_3sls;
 }
 
 // ======================================================================
@@ -661,17 +664,17 @@ TEST(AttenuationAcousticHighOrder, Order2DecaysAmplitude)
   auto mesh_att = buildSmallMesh(order, false);
   mesh_att->setQualityFactors(10.0f, 10.0f);
 
-  float norm_no_att = runAcousticSimulation(
-      mesh_no_att, {}, numTimeSteps, dt, order);
-  float norm_att = runAcousticSimulation(
-      mesh_att, freqs, numTimeSteps, dt, order);
+  float norm_no_att =
+      runAcousticSimulation(mesh_no_att, {}, numTimeSteps, dt, order);
+  float norm_att =
+      runAcousticSimulation(mesh_att, freqs, numTimeSteps, dt, order);
 
   EXPECT_GT(norm_no_att, 0.0f);
   EXPECT_TRUE(std::isfinite(norm_att));
   float ratio = norm_att / norm_no_att;
-  EXPECT_NE(ratio, 1.0f)
-      << "Order-2 attenuation should change the wavefield. "
-      << "norm_no_att=" << norm_no_att << ", norm_att=" << norm_att;
+  EXPECT_NE(ratio, 1.0f) << "Order-2 attenuation should change the wavefield. "
+                         << "norm_no_att=" << norm_no_att
+                         << ", norm_att=" << norm_att;
 }
 
 // ======================================================================
@@ -813,17 +816,17 @@ TEST(AttenuationAcousticHighOrder, Order3DecaysAmplitude)
   auto mesh_att = buildSmallMesh(order, false);
   mesh_att->setQualityFactors(10.0f, 10.0f);
 
-  float norm_no_att = runAcousticSimulation(
-      mesh_no_att, {}, numTimeSteps, dt, order);
-  float norm_att = runAcousticSimulation(
-      mesh_att, freqs, numTimeSteps, dt, order);
+  float norm_no_att =
+      runAcousticSimulation(mesh_no_att, {}, numTimeSteps, dt, order);
+  float norm_att =
+      runAcousticSimulation(mesh_att, freqs, numTimeSteps, dt, order);
 
   EXPECT_GT(norm_no_att, 0.0f);
   EXPECT_TRUE(std::isfinite(norm_att));
   float ratio = norm_att / norm_no_att;
-  EXPECT_NE(ratio, 1.0f)
-      << "Order-3 attenuation should change the wavefield. "
-      << "norm_no_att=" << norm_no_att << ", norm_att=" << norm_att;
+  EXPECT_NE(ratio, 1.0f) << "Order-3 attenuation should change the wavefield. "
+                         << "norm_no_att=" << norm_no_att
+                         << ", norm_att=" << norm_att;
 }
 
 // ======================================================================

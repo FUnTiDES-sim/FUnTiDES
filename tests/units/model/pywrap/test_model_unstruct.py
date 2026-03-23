@@ -14,17 +14,15 @@ class UnstructData:
     +----+----+
     """
 
-    def __init__(self, order):
-        self.lx = self.ly = self.lz = 1500
+    def __init__(self, order, float_type=kokkos.float32, scalar_type=kokkos.int32):
+        self.lx = self.ly = self.lz = 1500.0  # Explicitly floats for pybind11
         self.order = order
         self.n_elements_per_dim = 2
         self.n_elements = self.n_elements_per_dim**3
         self.n_nodes = (self.n_elements_per_dim * order + 1) ** 3
-        self.memspace = kokkos.DefaultMemorySpace
+        self.memspace = kokkos.HostSpace
         self.layout = kokkos.LayoutRight
-        # TODO so far model only accepts f32, i32 for kokkos arrays
-        float_type = kokkos.float32
-        scalar_type = kokkos.int32
+
         # coords
         self.kk_nodes_coords_x = kokkos.array(
             [self.n_nodes], dtype=float_type, space=self.memspace, layout=self.layout
@@ -100,7 +98,7 @@ class UnstructData:
 
         # boundaries
         self.kk_boundaries = kokkos.array(
-            [self.n_nodes], dtype=kokkos.int32, space=self.memspace, layout=self.layout
+            [self.n_nodes], dtype=scalar_type, space=self.memspace, layout=self.layout
         )
 
     def generate_global_coordinates(self):
@@ -216,46 +214,70 @@ class UnstructData:
 def unstruct(request):
     order, param_cls, model_cls, on_nodes, is_elastic = request.param
 
-    ud = UnstructData(order)
+    # Determine the correct Kokkos datatypes from the parameter class name
+    cls_name = param_cls.__name__
+    float_type = kokkos.float64 if "_f64" in cls_name else kokkos.float32
+    scalar_type = kokkos.int64 if "_i64" in cls_name else kokkos.int32
+
+    ud = UnstructData(order, float_type, scalar_type)
     ud.generate_global_coordinates()
     ud.generate_global_node_index_map()
     ud.fill_model()
     ud.fill_boundaries()
 
-    params = param_cls(
-        ud.order,
-        ud.n_elements,
-        ud.n_nodes,
-        ud.lx,
-        ud.ly,
-        ud.lz,
-        on_nodes,
-        is_elastic,
-        ud.kk_global_node_index,
-        ud.kk_nodes_coords_x,
-        ud.kk_nodes_coords_y,
-        ud.kk_nodes_coords_z,
-        ud.kk_model_vp_node,
-        ud.kk_model_vp_element,
-        ud.kk_model_rho_node,
-        ud.kk_model_rho_element,
-        ud.kk_model_vs_node,
-        ud.kk_model_vs_element,
-        ud.kk_model_delta_node,
-        ud.kk_model_delta_element,
-        ud.kk_model_epsilon_node,
-        ud.kk_model_epsilon_element,
-        ud.kk_model_gamma_node,
-        ud.kk_model_gamma_element,
-        ud.kk_model_theta_node,
-        ud.kk_model_theta_element,
-        ud.kk_model_phi_node,
-        ud.kk_model_phi_element,
-        ud.kk_model_C_tensor_element,
-        ud.kk_boundaries,
-    )
+    # The C++ constructor strictly expects 31 arguments. We MUST pass face_connectivity.
+    suffix = cls_name.replace("ModelUnstructData_", "")
+    fc_data_cls = getattr(Model, f'FaceConnectivityUnstructData_{suffix}')
+    fc_data = fc_data_cls()
 
-    return ud, model_cls, params
+    params = None
+
+    try:
+        # Cast scalars explicitly so Pybind11 doesn't reject ints for floats/doubles
+        params = param_cls(
+            int(ud.order),
+            int(ud.n_elements),
+            int(ud.n_nodes),
+            float(ud.lx),
+            float(ud.ly),
+            float(ud.lz),
+            bool(on_nodes),
+            bool(is_elastic),
+            ud.kk_global_node_index,
+            ud.kk_nodes_coords_x,
+            ud.kk_nodes_coords_y,
+            ud.kk_nodes_coords_z,
+            ud.kk_model_vp_node,
+            ud.kk_model_vp_element,
+            ud.kk_model_rho_node,
+            ud.kk_model_rho_element,
+            ud.kk_model_vs_node,
+            ud.kk_model_vs_element,
+            ud.kk_model_delta_node,
+            ud.kk_model_delta_element,
+            ud.kk_model_epsilon_node,
+            ud.kk_model_epsilon_element,
+            ud.kk_model_gamma_node,
+            ud.kk_model_gamma_element,
+            ud.kk_model_theta_node,
+            ud.kk_model_theta_element,
+            ud.kk_model_phi_node,
+            ud.kk_model_phi_element,
+            ud.kk_model_C_tensor_element,
+            ud.kk_boundaries,
+            face_connectivity=fc_data, # Use a keyword argument here!
+        )
+
+        # Yield instead of return to allow cleanup after test execution
+        yield ud, model_cls, params
+
+    finally:
+        # Force cleanup of all objects holding Kokkos Views BEFORE pytest saves the traceback!
+        # This prevents Garbage Collection core dumps after Kokkos shuts down.
+        if params is not None:
+            del params
+        del fc_data
+        del ud
 
 
 test_cases = [
@@ -570,7 +592,7 @@ class TestModelUnstruct:
         """Test that ModelUnstructData has face_connectivity member"""
         _, _, params = unstruct
         assert hasattr(params, 'face_connectivity')
-    
+
     @pytest.mark.parametrize("unstruct", test_cases, indirect=True)
     def test_face_connectivity_workflow(self, unstruct):
         """Test complete face connectivity workflow"""
@@ -581,7 +603,7 @@ class TestModelUnstruct:
         n_faces = model.get_number_of_faces()
         assert n_faces > 0
         assert n_faces < data.n_elements * 6
-    
+
     @pytest.mark.parametrize("unstruct", test_cases[:1], indirect=True)
     def test_face_connectivity_injection_preserves_data(self, unstruct):
         """Test that pre-filled face connectivity is preserved"""
@@ -589,20 +611,20 @@ class TestModelUnstruct:
         class_name = params.__class__.__name__
         suffix = class_name.replace("ModelUnstructData_", "")
         fc_data_cls = getattr(Model, f'FaceConnectivityUnstructData_{suffix}')
-        
+
         # Inject pre-filled data (simulating HDF5 load for example)
         fc_data = fc_data_cls()
-        fc_data.n_faces = 1234 
+        fc_data.n_faces = 1234
         params.face_connectivity = fc_data
-        
+
         # Verify data is preserved
         model = model_cls(params)
         assert model.get_number_of_faces() == 1234
-        
+
         # buildFaceConnectivity should skip if already filled
         model.build_face_connectivity()
         assert model.get_number_of_faces() == 1234  # Still 1234!
-    
+
     @pytest.mark.parametrize("unstruct", test_cases[:1], indirect=True)
     def test_face_connectivity_injection_empty_then_build(self, unstruct):
         """Test that empty injection + build works"""
@@ -610,15 +632,15 @@ class TestModelUnstruct:
         class_name = params.__class__.__name__
         suffix = class_name.replace("ModelUnstructData_", "")
         fc_data_cls = getattr(Model, f'FaceConnectivityUnstructData_{suffix}')
-        
+
         # Inject empty face connectivity
         fc_data = fc_data_cls()
         params.face_connectivity = fc_data
-        
+
         # Should be empty initially
         model = model_cls(params)
         assert model.get_number_of_faces() == 0
-        
+
         # Build should fill it
         model.build_face_connectivity()
         assert model.get_number_of_faces() > 0

@@ -22,155 +22,46 @@
 #include <sstream>
 #include <variant>
 
+#ifdef USE_MPI
+#include "mpi_backend.h"
+#endif
 #include "sem_solver.h"
 #include "topology_factory.h"
 
 using namespace SourceAndReceiverUtils;
 using namespace solver::fe;
 using namespace solver::fe::enums;
+using namespace solver::fe::solver_factory;
 
 SEMproxy::SEMproxy(const SemProxyOptions& opt)
 {
-  const int order = opt.order;
+  // Init MPI parameters
+  int mpi_initialized = 0;
+  init_mpi(&mpi_initialized);
 
-  // Partition Logic
-  // Create Global Params
-  model::CartesianParams<float, int> globalParams(
-      opt.order, opt.ex, opt.ey, opt.ez, opt.lx, opt.ly, opt.lz,
-      opt.isModelOnNodes, opt.isElastic);
-  globalParams.origin_x = 0;  // Global start
-
-  // Partition domain
-  model::CartesianXPartitioner<float, int> partitioner;
-  m_localParams =
-      partitioner.partition(globalParams, dist_ctx_.rank, dist_ctx_.size);
-
-  // Update members with LOCAL parameters for array allocation
-  nb_elements_[0] = m_localParams.ex;
-  nb_elements_[1] = m_localParams.ey;
-  nb_elements_[2] = m_localParams.ez;
-  nb_nodes_[0] = m_localParams.ex * order + 1;
-  nb_nodes_[1] = m_localParams.ey * order + 1;
-  nb_nodes_[2] = m_localParams.ez * order + 1;
-
-  // Use local dimensions for domain size check logic
-  domain_size_[0] = m_localParams.lx;
-  domain_size_[1] = m_localParams.ly;
-  domain_size_[2] = m_localParams.lz;
-
-  src_coord_[0] = opt.srcx;
-  src_coord_[1] = opt.srcy;
-  src_coord_[2] = opt.srcz;
-
-  rcv_coord_[0] = opt.rcvx;
-  rcv_coord_[1] = opt.rcvy;
-  rcv_coord_[2] = opt.rcvz;
-
-  bool isModelOnNodes = opt.isModelOnNodes;
-  isElastic_ = opt.isElastic;
-  freeSurface_ = opt.free_surface;
-  cout << boolalpha;
-  bool isElastic = isElastic_;
+  init_sim_params(opt);
+  init_mesh_params(opt);
+  init_topology();
+  init_sync();
+  init_time_params(opt);
 
   const methodType methodType = getMethod(opt.method);
   const implemType implemType = getImplem(opt.implem);
   const meshType meshType = getMesh(opt.mesh);
-  const modelLocationType modelLocation = isModelOnNodes
+  const modelLocationType modelLocation = opt.isModelOnNodes
                                               ? modelLocationType::kOnNodes
                                               : modelLocationType::kOnElements;
   const physicType physicType =
-      isElastic ? physicType::kElastic : physicType::kAcoustic;
+      opt.isElastic ? physicType::kElastic : physicType::kAcoustic;
+
+  m_solver = createSolver(methodType, implemType, meshType, modelLocation,
+                          physicType, opt.order);
 
   const model::AnisotropyType anisotropyType = getAnisotropy(opt.anisotropy);
 
-  // Build Mesh using LOCAL parameters
-  if (meshType == meshType::kStruct)
-  {
-    switch (order)
-    {
-      case 1: {
-        model::CartesianStructBuilder<float, int, 1> builder(
-            m_localParams.ex, m_localParams.lx, m_localParams.ey,
-            m_localParams.ly, m_localParams.ez, m_localParams.lz,
-            isModelOnNodes, isElastic, m_localParams.origin_x,
-            m_localParams.origin_y, m_localParams.origin_z,
-            m_localParams.global_lx, m_localParams.global_ly,
-            m_localParams.global_lz, m_localParams.global_origin_x,
-            m_localParams.global_origin_y, m_localParams.global_origin_z);
-        m_mesh = builder.getModel(freeSurface_);
-        break;
-      }
-      case 2: {
-        model::CartesianStructBuilder<float, int, 2> builder(
-            m_localParams.ex, m_localParams.lx, m_localParams.ey,
-            m_localParams.ly, m_localParams.ez, m_localParams.lz,
-            isModelOnNodes, isElastic, m_localParams.origin_x,
-            m_localParams.origin_y, m_localParams.origin_z,
-            m_localParams.global_lx, m_localParams.global_ly,
-            m_localParams.global_lz, m_localParams.global_origin_x,
-            m_localParams.global_origin_y, m_localParams.global_origin_z);
-        m_mesh = builder.getModel(freeSurface_);
-        break;
-      }
-      case 3: {
-        model::CartesianStructBuilder<float, int, 3> builder(
-            m_localParams.ex, m_localParams.lx, m_localParams.ey,
-            m_localParams.ly, m_localParams.ez, m_localParams.lz,
-            isModelOnNodes, isElastic, m_localParams.origin_x,
-            m_localParams.origin_y, m_localParams.origin_z,
-            m_localParams.global_lx, m_localParams.global_ly,
-            m_localParams.global_lz, m_localParams.global_origin_x,
-            m_localParams.global_origin_y, m_localParams.global_origin_z);
-        m_mesh = builder.getModel(freeSurface_);
-        break;
-      }
-      default:
-        throw std::runtime_error(
-            "Order other than 1 2 3 is not supported (semproxy)");
-    }
-  }
-  else if (meshType == meshType::kUnstruct)
-  {
-    // Pass local params to unstructured builder (handles origin internally)
-    model::CartesianUnstructBuilder<float, int> builder(m_localParams);
-    m_mesh = builder.getModel(freeSurface_);
-  }
-  else
-  {
-    throw std::runtime_error("Incorrect mesh type (SEMproxy ctor.)");
-  }
-
-  // Init topology
-  par_topology_ =
-      TopologyFactory::createFromMesh(*m_mesh, dist_ctx_.rank, dist_ctx_.size,
-                                      m_localParams.origin_x, m_localParams.lx);
-
-  // Initialize Synchronizer
-  std::unique_ptr<BoundarySynchronizer::Backend> backend;
-  m_syncer = (dist_ctx_.rank > 1)
-                 ? std::make_unique<BoundarySynchronizer>(
-                       std::make_unique<DebugBackend>(dist_ctx_.rank))
-                 : std::make_unique<BoundarySynchronizer>(
-                       std::make_unique<SerialBackend>());
-
-  // time parameters
-  if (opt.autodt)
-  {
-    float cfl_factor = (order == 2) ? 0.5 : 0.7;
-    dt_ = find_cfl_dt(cfl_factor);
-  }
-  else
-  {
-    dt_ = opt.dt;
-  }
-  timemax_ = opt.timemax;
-  num_sample_ = timemax_ / dt_;
-
-  m_solver = solver_factory::createSolver(methodType, implemType, meshType,
-                                          modelLocation, physicType, order);
-
   // Setup Sponge Parameters (store as members for use in run())
-  sponge_size_ = {opt.boundaries_size, opt.boundaries_size, opt.boundaries_size};
+  sponge_size_ = {opt.boundaries_size, opt.boundaries_size,
+                  opt.boundaries_size};
   surface_sponge_ = opt.surface_sponge;
   taper_delta_ = opt.taper_delta;
 
@@ -208,13 +99,13 @@ SEMproxy::SEMproxy(const SemProxyOptions& opt)
     m_solver->setSLSAttenuation(freqView);
   }
 
-  if (isElastic)
+  if (opt.isElastic)
   {
     m_solver->setAnisotropyType(anisotropyType);
 
     // Initialize elasticity tensors ONLY for TTI on elements
     // (ISO and VTI are computed on-the-fly, TTI on nodes also on-the-fly)
-    if (anisotropyType == model::AnisotropyType::kTTI && !isModelOnNodes)
+    if (anisotropyType == model::AnisotropyType::kTTI && !opt.isModelOnNodes)
     {
       m_mesh->initElasticityTensors(anisotropyType);
     }
@@ -225,39 +116,59 @@ SEMproxy::SEMproxy(const SemProxyOptions& opt)
   // it too. For consistency with old code structure, we prep arrays now.
   initFiniteElem();
 
+  // Prepare ADIOS2 dimensions
+  // Global Dimensions
+  // Note: For unstructured/general meshes, this is complex.
+  // For Cartesian Struct Mesh:
+  // Global Size = Global_Elements * Order + 1
+  // Local Size = Local_Elements * Order + 1
+  // Offset = Origin_Index (calculated from origin_x)
+  size_t global_nx =
+      m_localParams.global_lx / (m_localParams.global_lx / opt.ex) * opt.order +
+      1;  // Approximation if uniform
+  // More precise:
+  size_t g_ex = static_cast<size_t>(opt.ex);
+  size_t g_ey = static_cast<size_t>(opt.ey);
+  size_t g_ez = static_cast<size_t>(opt.ez);
+
+  // Just 1D decomposition on X supported by partitioner currently
+  size_t g_nx = g_ex * opt.order + 1;
+  size_t g_ny = g_ey * opt.order + 1;
+  size_t g_nz = g_ez * opt.order + 1;
+  std::vector<size_t> global_dims = {g_nx, g_ny, g_nz};
+
+  // Calculate offset based on origin
+  // origin_x is physical coordinate. We need node index.
+  // dx = lx / ex.
+  float dx = m_localParams.global_lx / opt.ex;
+  size_t elem_offset_x =
+      static_cast<size_t>(std::round(m_localParams.origin_x / dx));
+  size_t node_offset_x = elem_offset_x * opt.order;
+
+  std::vector<size_t> start_offsets = {node_offset_x, 0, 0};
+
+  // Local Size
+  // Note: ADIOS2 overlap handling.
+  // Nodes are shared. If we write all local nodes, boundary nodes are written
+  // twice. ADIOS2 allows this, but we must ensure we are consistent. Simple
+  // approach: Write full local block.
+  size_t l_nx = static_cast<size_t>(nb_nodes_[0]);
+  size_t l_ny = static_cast<size_t>(nb_nodes_[1]);
+  size_t l_nz = static_cast<size_t>(nb_nodes_[2]);
+  std::vector<size_t> local_dims = {l_nx, l_ny, l_nz};
+
+  // Refine Global Dims vector
+  global_dims = {g_nx, g_ny, g_nz};
+
   io_ctrl_ = std::make_shared<SemIOController>(
-      static_cast<size_t>(m_mesh->getNumberOfNodes()),
-      static_cast<size_t>(num_sample_), static_cast<size_t>(1));
+      global_dims, start_offsets, local_dims, static_cast<size_t>(num_sample_),
+      static_cast<size_t>(1));
 
   // snapshots settings
   is_snapshots_ = opt.snapshots;
   if (is_snapshots_)
   {
     snap_time_interval_ = opt.snap_time_interval;
-  }
-
-  std::cout << "Number of node is " << m_mesh->getNumberOfNodes() << std::endl;
-  std::cout << "Number of element is " << m_mesh->getNumberOfElements()
-            << std::endl;
-  std::cout << "Launching the Method " << opt.method << ", the implementation "
-            << opt.implem << " and the mesh is " << opt.mesh << std::endl;
-  std::cout << "Model is on " << (isModelOnNodes ? "nodes" : "elements")
-            << std::endl;
-  std::cout << "Physics type is " << (isElastic ? "elastic" : "acoustic")
-            << std::endl;
-  std::cout << "Order of approximation will be " << order << std::endl;
-  std::cout << "Time step is " << dt_ << "s" << std::endl;
-  std::cout << "Simulated time is " << timemax_ << "s" << std::endl;
-
-  if (isElastic)
-  {
-    std::cout << "Anisotropy type is " << opt.anisotropy << std::endl;
-  }
-
-  if (is_snapshots_)
-  {
-    std::cout << "Snapshots enable every " << snap_time_interval_
-              << " iteration." << std::endl;
   }
 
   // DAS receiver setup
@@ -284,7 +195,8 @@ SEMproxy::SEMproxy(const SemProxyOptions& opt)
           "DAS receivers require elastic simulation (--is-elastic true)");
     }
     dasGaugeLength_ = opt.das_gauge_length;
-    dasDirection_ = SourceAndReceiverUtils::ComputeDASVector(opt.das_dip, opt.das_azimuth);
+    dasDirection_ =
+        SourceAndReceiverUtils::ComputeDASVector(opt.das_dip, opt.das_azimuth);
     dasVector_ = dasDirection_;
 
     // For dipole mode, divide direction by gauge length (GEOS convention)
@@ -295,8 +207,8 @@ SEMproxy::SEMproxy(const SemProxyOptions& opt)
 
     std::cout << "DAS receiver enabled: type=" << opt.das_type
               << ", dip=" << opt.das_dip << " deg, azimuth=" << opt.das_azimuth
-              << " deg, gauge=" << dasGaugeLength_ << " m, samples="
-              << dasNumSamples_ << std::endl;
+              << " deg, gauge=" << dasGaugeLength_
+              << " m, samples=" << dasNumSamples_ << std::endl;
     std::cout << "DAS direction vector: (" << dasDirection_[0] << ", "
               << dasDirection_[1] << ", " << dasDirection_[2] << ")"
               << std::endl;
@@ -363,6 +275,7 @@ void SEMproxy::run()
       // Save slice in dat format
       if (is_snapshots_ && indexTimeSample % snap_time_interval_ == 0)
       {
+        MPI_Barrier(MPI_COMM_WORLD);
         saveSnapshot(indexTimeSample, pnGlobalPrev);
 
         // Save XY-slice through center Z as plain text for easy visualization
@@ -442,8 +355,8 @@ void SEMproxy::run()
         fout << t * dt_ << " " << pnAtReceiver(0, t) << "\n";
       }
       fout.close();
-      std::cout << "Receiver trace saved to receiver_trace.txt ("
-                << num_sample_ << " samples)" << std::endl;
+      std::cout << "Receiver trace saved to receiver_trace.txt (" << num_sample_
+                << " samples)" << std::endl;
     }
   }
   else
@@ -895,7 +808,7 @@ void SEMproxy::init_source()
       for (int d = 0; d < 3; ++d)
       {
         sampleCoord[d] = rcv_coord_[d] + dasDirection_[d] * dasGaugeLength_ *
-                                              sampleLocations[iSample];
+                                             sampleLocations[iSample];
       }
 
       // Find element containing this sample point
@@ -935,7 +848,8 @@ void SEMproxy::init_source()
         {
           for (int ii = 0; ii < order + 1; ++ii)
           {
-            int localNode = ii + jj * (order + 1) + kk * (order + 1) * (order + 1);
+            int localNode =
+                ii + jj * (order + 1) + kk * (order + 1) * (order + 1);
             dasNodeIds_[baseIdx + localNode] =
                 m_mesh->globalNodeIndex(sampleElemIdx, ii, jj, kk);
           }
@@ -948,24 +862,21 @@ void SEMproxy::init_source()
         case 1:
           SourceAndReceiverUtils::ComputeDASWeightsForSample<1>(
               sampleCornerCoords, sampleCoord, dasDirection_,
-              integrationConstants[iSample], dasType_,
-              &dasWeights_[baseIdx]);
+              integrationConstants[iSample], dasType_, &dasWeights_[baseIdx]);
           break;
         case 2:
           SourceAndReceiverUtils::ComputeDASWeightsForSample<2>(
               sampleCornerCoords, sampleCoord, dasDirection_,
-              integrationConstants[iSample], dasType_,
-              &dasWeights_[baseIdx]);
+              integrationConstants[iSample], dasType_, &dasWeights_[baseIdx]);
           break;
         case 3:
           SourceAndReceiverUtils::ComputeDASWeightsForSample<3>(
               sampleCornerCoords, sampleCoord, dasDirection_,
-              integrationConstants[iSample], dasType_,
-              &dasWeights_[baseIdx]);
+              integrationConstants[iSample], dasType_, &dasWeights_[baseIdx]);
           break;
         default:
-          throw std::runtime_error(
-              "Unsupported order for DAS: " + std::to_string(order));
+          throw std::runtime_error("Unsupported order for DAS: " +
+                                   std::to_string(order));
       }
     }
 
@@ -977,6 +888,7 @@ void SEMproxy::init_source()
 void SEMproxy::saveSnapshot(int timestep, VECTOR_REAL_VIEW data) const
 {
 #ifdef USE_KOKKOS
+  Kokkos::fence();
   auto nb_nodes = data.extent(0);
 
   vectorReal subset("snapshot_cpy", nb_nodes);
@@ -1035,4 +947,199 @@ float SEMproxy::find_cfl_dt(float cfl_factor)
   float dt = cfl_factor * min_spacing / (sqrtDim3 * v_max);
 
   return dt;
+}
+
+void SEMproxy::init_mpi(int* mpi_init)
+{
+#ifdef USE_MPI
+  MPI_Initialized(mpi_init);
+  if (mpi_init)
+  {
+    MPI_Comm_rank(MPI_COMM_WORLD, &dist_ctx_.rank);
+    MPI_Comm_size(MPI_COMM_WORLD, &dist_ctx_.size);
+  }
+  else
+  {
+    dist_ctx_.rank = 0;
+    dist_ctx_.size = 1;
+  }
+  std::cout << "[rank " << dist_ctx_.rank << "] size " << dist_ctx_.size
+            << std::endl;
+#else
+  dist_ctx_.rank = 0;
+  dist_ctx_.size = 1;
+#endif
+}
+
+void SEMproxy::init_sim_params(const SemProxyOptions& opt)
+{
+  // Partition Logic
+  // Create Global Params
+  model::CartesianParams<float, int> globalParams(
+      opt.order, opt.ex, opt.ey, opt.ez, opt.lx, opt.ly, opt.lz,
+      opt.isModelOnNodes, opt.isElastic);
+  globalParams.origin_x = 0;  // Global start
+
+  // Partition domain
+  model::CartesianXPartitioner<float, int> partitioner;
+  m_localParams =
+      partitioner.partition(globalParams, dist_ctx_.rank, dist_ctx_.size);
+
+  // Update members with LOCAL parameters for array allocation
+  nb_elements_[0] = m_localParams.ex;
+  nb_elements_[1] = m_localParams.ey;
+  nb_elements_[2] = m_localParams.ez;
+  nb_nodes_[0] = m_localParams.ex * opt.order + 1;
+  nb_nodes_[1] = m_localParams.ey * opt.order + 1;
+  nb_nodes_[2] = m_localParams.ez * opt.order + 1;
+
+  // Use local dimensions for domain size check logic
+  domain_size_[0] = m_localParams.lx;
+  domain_size_[1] = m_localParams.ly;
+  domain_size_[2] = m_localParams.lz;
+
+  src_coord_[0] = opt.srcx;
+  src_coord_[1] = opt.srcy;
+  src_coord_[2] = opt.srcz;
+
+  rcv_coord_[0] = opt.rcvx;
+  rcv_coord_[1] = opt.rcvy;
+  rcv_coord_[2] = opt.rcvz;
+
+  isElastic_ = opt.isElastic;
+
+  std::cout << "Debug Print :" << std::endl;
+  std::cout << "    Rank " << dist_ctx_.rank << "/" << dist_ctx_.size
+            << std::endl;
+  std::cout << "    Local lx " << m_localParams.lx << std::endl;
+  std::cout << "    Local ly " << m_localParams.ly << std::endl;
+  std::cout << "    Local lz " << m_localParams.lz << std::endl;
+  std::cout << "    Local ex " << m_localParams.ex << std::endl;
+  std::cout << "    Local ey " << m_localParams.ey << std::endl;
+  std::cout << "    Local ez " << m_localParams.ez << std::endl;
+}
+
+void SEMproxy::init_mesh_params(const SemProxyOptions& opt)
+{
+  const methodType methodType = getMethod(opt.method);
+  const implemType implemType = getImplem(opt.implem);
+  const meshType meshType = getMesh(opt.mesh);
+
+  // Build Mesh using LOCAL parameters
+  if (meshType == meshType::kStruct)
+  {
+    switch (opt.order)
+    {
+      case 1: {
+        model::CartesianStructBuilder<float, int, 1> builder(
+            m_localParams.ex, m_localParams.lx, m_localParams.ey,
+            m_localParams.ly, m_localParams.ez, m_localParams.lz,
+            opt.isModelOnNodes, opt.isElastic, m_localParams.origin_x,
+            m_localParams.origin_y, m_localParams.origin_z);
+        m_mesh = builder.getModel(opt.free_surface);
+        break;
+      }
+      case 2: {
+        model::CartesianStructBuilder<float, int, 2> builder(
+            m_localParams.ex, m_localParams.lx, m_localParams.ey,
+            m_localParams.ly, m_localParams.ez, m_localParams.lz,
+            opt.isModelOnNodes, opt.isElastic, m_localParams.origin_x,
+            m_localParams.origin_y, m_localParams.origin_z);
+        m_mesh = builder.getModel(opt.free_surface);
+        break;
+      }
+      case 3: {
+        model::CartesianStructBuilder<float, int, 3> builder(
+            m_localParams.ex, m_localParams.lx, m_localParams.ey,
+            m_localParams.ly, m_localParams.ez, m_localParams.lz,
+            opt.isModelOnNodes, opt.isElastic, m_localParams.origin_x,
+            m_localParams.origin_y, m_localParams.origin_z);
+        m_mesh = builder.getModel(opt.free_surface);
+        break;
+      }
+      default:
+        throw std::runtime_error(
+            "Order other than 1 2 3 is not supported (semproxy)");
+    }
+  }
+  else if (meshType == meshType::kUnstruct)
+  {
+    // Pass local params to unstructured builder (handles origin internally)
+    model::CartesianUnstructBuilder<float, int> builder(m_localParams);
+    m_mesh = builder.getModel(opt.free_surface);
+  }
+  else
+  {
+    throw std::runtime_error("Incorrect mesh type (SEMproxy ctor.)");
+  }
+}
+
+void SEMproxy::init_topology()
+{
+  par_topology_ =
+      TopologyFactory::createFromMesh(*m_mesh, dist_ctx_.rank, dist_ctx_.size,
+                                      m_localParams.origin_x, m_localParams.lx);
+}
+
+void SEMproxy::init_sync()
+{
+#if USE_MPI
+  if (dist_ctx_.size > 1)
+  {
+    m_syncer = std::make_unique<BoundarySynchronizer>(
+        std::make_unique<solver::fe::MPIBackend>());
+
+    if (dist_ctx_.rank == 0)
+    {
+      std::cout << "MPI Enabled: Using MPIBackend for " << dist_ctx_.size
+                << " ranks." << std::endl;
+    }
+  }
+  else
+  {
+    // Fallback for serial
+    m_syncer = std::make_unique<BoundarySynchronizer>(
+        std::make_unique<SerialBackend>());
+  }
+#else
+  m_syncer =
+      std::make_unique<BoundarySynchronizer>(std::make_unique<SerialBackend>());
+#endif
+}
+
+void SEMproxy::init_time_params(const SemProxyOptions& opt)
+{
+  if (opt.autodt)
+  {
+    float cfl_factor = (opt.order == 2) ? 0.5 : 0.7;
+    dt_ = find_cfl_dt(cfl_factor);
+  }
+  else
+  {
+    dt_ = opt.dt;
+  }
+  timemax_ = opt.timemax;
+  num_sample_ = timemax_ / dt_;
+}
+
+void SEMproxy::display_init_msg(const SemProxyOptions& opt)
+{
+  std::cout << "Number of node is " << m_mesh->getNumberOfNodes() << std::endl;
+  std::cout << "Number of element is " << m_mesh->getNumberOfElements()
+            << std::endl;
+  std::cout << "Launching the Method " << opt.method << ", the implementation "
+            << opt.implem << " and the mesh is " << opt.mesh << std::endl;
+  std::cout << "Model is on " << (opt.isModelOnNodes ? "nodes" : "elements")
+            << std::endl;
+  std::cout << "Physics type is " << (opt.isElastic ? "elastic" : "acoustic")
+            << std::endl;
+  std::cout << "Order of approximation will be " << opt.order << std::endl;
+  std::cout << "Time step is " << dt_ << "s" << std::endl;
+  std::cout << "Simulated time is " << timemax_ << "s" << std::endl;
+
+  if (is_snapshots_)
+  {
+    std::cout << "Snapshots enable every " << snap_time_interval_
+              << " iteration." << std::endl;
+  }
 }

@@ -8,7 +8,9 @@
 #include <pybind11/stl.h>
 
 #include <KokkosExp_InterOp.hpp>
+#include <cstdint>
 #include <string>
+#include <type_traits>
 
 #include "bindings_utils.h"
 #include "common_macros.h"
@@ -66,8 +68,8 @@ void bind_modelapi(py::module_ &m)
       .def("is_boundary_face", &T::isBoundaryFace)
       .def("get_global_node_from_face", &T::getGlobalNodeFromFace)
       .def("get_global_face", &T::getGlobalFace)
-      .def("set_quality_factors", &T::setQualityFactors,
-           py::arg("qp"), py::arg("qs"))
+      .def("set_quality_factors", &T::setQualityFactors, py::arg("qp"),
+           py::arg("qs"))
       .def("is_free_surface", &T::isFreeSurface);
 }
 
@@ -122,37 +124,122 @@ template <typename FloatType, typename ScalarType>
 void bind_modelunstructdata(py::module_ &m)
 {
   using Data = model::ModelUnstructData<FloatType, ScalarType>;
-
   std::string name =
       model_class_name<FloatType, ScalarType>("ModelUnstructData");
 
   py::class_<Data>(m, name.c_str())
-      // Constructeur existant INCHANGÉ (sans face_connectivity)
       .def(
-          py::init<ScalarType, ScalarType, ScalarType, FloatType, FloatType,
-                   FloatType, bool, bool,
-                   Kokkos::Experimental::python_view_type_t<ARRAY_INT_VIEW>,
-                   Kokkos::Experimental::python_view_type_t<VECTOR_REAL_VIEW>,
-                   Kokkos::Experimental::python_view_type_t<VECTOR_REAL_VIEW>,
-                   Kokkos::Experimental::python_view_type_t<VECTOR_REAL_VIEW>,
-                   Kokkos::Experimental::python_view_type_t<VECTOR_REAL_VIEW>,
-                   Kokkos::Experimental::python_view_type_t<VECTOR_REAL_VIEW>,
-                   Kokkos::Experimental::python_view_type_t<VECTOR_REAL_VIEW>,
-                   Kokkos::Experimental::python_view_type_t<VECTOR_REAL_VIEW>,
-                   Kokkos::Experimental::python_view_type_t<VECTOR_REAL_VIEW>,
-                   Kokkos::Experimental::python_view_type_t<VECTOR_REAL_VIEW>,
-                   Kokkos::Experimental::python_view_type_t<VECTOR_REAL_VIEW>,
-                   Kokkos::Experimental::python_view_type_t<VECTOR_REAL_VIEW>,
-                   Kokkos::Experimental::python_view_type_t<VECTOR_REAL_VIEW>,
-                   Kokkos::Experimental::python_view_type_t<VECTOR_REAL_VIEW>,
-                   Kokkos::Experimental::python_view_type_t<VECTOR_REAL_VIEW>,
-                   Kokkos::Experimental::python_view_type_t<VECTOR_REAL_VIEW>,
-                   Kokkos::Experimental::python_view_type_t<VECTOR_REAL_VIEW>,
-                   Kokkos::Experimental::python_view_type_t<VECTOR_REAL_VIEW>,
-                   Kokkos::Experimental::python_view_type_t<VECTOR_REAL_VIEW>,
-                   Kokkos::Experimental::python_view_type_t<VECTOR_REAL_VIEW>,
-                   Kokkos::Experimental::python_view_type_t<ARRAY3D_REAL_VIEW>,
-                   Kokkos::Experimental::python_view_type_t<VECTOR_INT_VIEW>>(),
+          py::init([](ScalarType order, ScalarType n_element, ScalarType n_node,
+                      FloatType lx, FloatType ly, FloatType lz,
+                      bool is_model_on_nodes, bool is_elastic,
+                      py::array_t<ScalarType> global_node_index_py,
+                      py::array_t<FloatType> nodes_coords_x_py,
+                      py::array_t<FloatType> nodes_coords_y_py,
+                      py::array_t<FloatType> nodes_coords_z_py,
+                      py::array_t<FloatType> model_vp_node_py,
+                      py::array_t<FloatType> model_vp_element_py,
+                      py::array_t<FloatType> model_rho_node_py,
+                      py::array_t<FloatType> model_rho_element_py,
+                      py::array_t<FloatType> model_vs_node_py,
+                      py::array_t<FloatType> model_vs_element_py,
+                      py::array_t<FloatType> model_delta_node_py,
+                      py::array_t<FloatType> model_delta_element_py,
+                      py::array_t<FloatType> model_epsilon_node_py,
+                      py::array_t<FloatType> model_epsilon_element_py,
+                      py::array_t<FloatType> model_gamma_node_py,
+                      py::array_t<FloatType> model_gamma_element_py,
+                      py::array_t<FloatType> model_theta_node_py,
+                      py::array_t<FloatType> model_theta_element_py,
+                      py::array_t<FloatType> model_phi_node_py,
+                      py::array_t<FloatType> model_phi_element_py,
+                      py::array_t<FloatType> model_C_tensor_element_py,
+                      py::array_t<ScalarType> boundaries_t_py,
+                      // --- NEW ATTENUATION PARAMETERS FROM NUMPY ---
+                      py::array_t<FloatType> model_qp_node_py,
+                      py::array_t<FloatType> model_qp_element_py,
+                      py::array_t<FloatType> model_qs_node_py,
+                      py::array_t<FloatType> model_qs_element_py,
+                      // ----------------------------------------------
+                      model::FaceConnectivityUnstructData<FloatType, ScalarType>
+                          face_connectivity) {
+            // 1. Get buffer info
+            auto global_node_index_buf = global_node_index_py.request();
+            auto C_tensor_buf = model_C_tensor_element_py.request();
+
+            // 2. Create Unmanaged Host Views wrapping the NumPy pointers
+            Kokkos::View<ScalarType **, Kokkos::LayoutRight, Kokkos::HostSpace,
+                         Kokkos::MemoryTraits<Kokkos::Unmanaged>>
+                h_global_node_index((ScalarType *)global_node_index_buf.ptr,
+                                    global_node_index_buf.shape[0],
+                                    global_node_index_buf.shape[1]);
+
+            Kokkos::View<FloatType ***, Kokkos::LayoutRight, Kokkos::HostSpace,
+                         Kokkos::MemoryTraits<Kokkos::Unmanaged>>
+                h_C_tensor((FloatType *)C_tensor_buf.ptr, C_tensor_buf.shape[0],
+                           C_tensor_buf.shape[1], C_tensor_buf.shape[2]);
+
+            // Helper Lambda for 1D arrays
+            auto wrap1d_real = [](py::array_t<FloatType> arr) {
+              auto buf = arr.request();
+              // Handle empty arrays (default case)
+              if (buf.size == 0) return VECTOR_REAL_VIEW();
+
+              Kokkos::View<FloatType *, Kokkos::LayoutRight, Kokkos::HostSpace,
+                           Kokkos::MemoryTraits<Kokkos::Unmanaged>>
+                  h_view((FloatType *)buf.ptr, buf.shape[0]);
+              VECTOR_REAL_VIEW d_view("v", buf.shape[0]);
+              Kokkos::deep_copy(d_view, h_view);
+              return d_view;
+            };
+
+            auto wrap1d_int = [](py::array_t<ScalarType> arr) {
+              auto buf = arr.request();
+              if (buf.size == 0) return VECTOR_INT_VIEW();
+
+              Kokkos::View<ScalarType *, Kokkos::LayoutRight, Kokkos::HostSpace,
+                           Kokkos::MemoryTraits<Kokkos::Unmanaged>>
+                  h_view((ScalarType *)buf.ptr, buf.shape[0]);
+              VECTOR_INT_VIEW d_view("v", buf.shape[0]);
+              Kokkos::deep_copy(d_view, h_view);
+              return d_view;
+            };
+
+            // 3. Allocate Device Views and Deep Copy from Host
+            ARRAY_INT_VIEW d_global_node_index("global_node_index",
+                                               h_global_node_index.extent(0),
+                                               h_global_node_index.extent(1));
+            Kokkos::deep_copy(d_global_node_index, h_global_node_index);
+
+            ARRAY3D_REAL_VIEW d_C_tensor("C_tensor", h_C_tensor.extent(0),
+                                         h_C_tensor.extent(1),
+                                         h_C_tensor.extent(2));
+            Kokkos::deep_copy(d_C_tensor, h_C_tensor);
+
+            return new Data(
+                order, n_element, n_node, lx, ly, lz, is_model_on_nodes,
+                is_elastic, d_global_node_index, wrap1d_real(nodes_coords_x_py),
+                wrap1d_real(nodes_coords_y_py), wrap1d_real(nodes_coords_z_py),
+                wrap1d_real(model_vp_node_py), wrap1d_real(model_vp_element_py),
+                wrap1d_real(model_rho_node_py),
+                wrap1d_real(model_rho_element_py),
+                wrap1d_real(model_vs_node_py), wrap1d_real(model_vs_element_py),
+                wrap1d_real(model_delta_node_py),
+                wrap1d_real(model_delta_element_py),
+                wrap1d_real(model_epsilon_node_py),
+                wrap1d_real(model_epsilon_element_py),
+                wrap1d_real(model_gamma_node_py),
+                wrap1d_real(model_gamma_element_py),
+                wrap1d_real(model_theta_node_py),
+                wrap1d_real(model_theta_element_py),
+                wrap1d_real(model_phi_node_py),
+                wrap1d_real(model_phi_element_py), d_C_tensor,
+                wrap1d_int(boundaries_t_py),
+                // --- PASS WRAPPED ATTENUATION VIEWS TO CONSTRUCTOR ---
+                wrap1d_real(model_qp_node_py), wrap1d_real(model_qp_element_py),
+                wrap1d_real(model_qs_node_py), wrap1d_real(model_qs_element_py),
+                // -----------------------------------------------------
+                face_connectivity);
+          }),
           py::arg("order"), py::arg("n_element"), py::arg("n_node"),
           py::arg("lx"), py::arg("ly"), py::arg("lz"),
           py::arg("is_model_on_nodes"), py::arg("is_elastic"),
@@ -166,7 +253,15 @@ void bind_modelunstructdata(py::module_ &m)
           py::arg("model_gamma_node"), py::arg("model_gamma_element"),
           py::arg("model_theta_node"), py::arg("model_theta_element"),
           py::arg("model_phi_node"), py::arg("model_phi_element"),
-          py::arg("model_C_tensor_element"), py::arg("boundaries_t"))
+          py::arg("model_C_tensor_element"), py::arg("boundaries_t"),
+          // --- PYBIND ARGUMENTS FOR ATTENUATION ---
+          py::arg("model_qp_node") = py::array_t<FloatType>(),
+          py::arg("model_qp_element") = py::array_t<FloatType>(),
+          py::arg("model_qs_node") = py::array_t<FloatType>(),
+          py::arg("model_qs_element") = py::array_t<FloatType>(),
+          // ----------------------------------------
+          py::arg("face_connectivity") =
+              model::FaceConnectivityUnstructData<FloatType, ScalarType>())
 
       .def_readwrite("face_connectivity", &Data::face_connectivity_);
 }
