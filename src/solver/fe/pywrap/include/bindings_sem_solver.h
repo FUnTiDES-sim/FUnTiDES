@@ -14,7 +14,6 @@
 #include "solver_factory.h"
 #include "wavefield_acoustic.h"
 #include "wavefield_elastic.h"
-#include "gradients_acoustic.h"
 
 namespace py = pybind11;
 
