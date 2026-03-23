@@ -48,6 +48,38 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES,
   computeGlobalMassMatrix();
   // Compute Local Damping Matrix
   computeDampingMatrix();
+
+  if (attenuationEnabled_ && nSls_ > 0)
+  {
+    float minQVal = std::numeric_limits<float>::max();
+    for (int e = 0; e < m_mesh.getNumberOfElements(); ++e)
+    {
+      if constexpr (PHYSICS == enums::physicType::kAcoustic)
+      {
+        float q = IS_MODEL_ON_NODES ? m_mesh.getModelQpOnNodes(m_mesh.globalNodeIndex(e, 0, 0, 0))
+                                    : m_mesh.getModelQpOnElement(e);
+        minQVal = std::min(minQVal, q);
+      }
+      else
+      {
+        float qp = IS_MODEL_ON_NODES ? m_mesh.getModelQpOnNodes(m_mesh.globalNodeIndex(e, 0, 0, 0))
+                                     : m_mesh.getModelQpOnElement(e);
+        float qs = IS_MODEL_ON_NODES ? m_mesh.getModelQsOnNodes(m_mesh.globalNodeIndex(e, 0, 0, 0))
+                                     : m_mesh.getModelQsOnElement(e);
+        minQVal = std::min(minQVal, std::min(qp, qs));
+      }
+    }
+
+    for (int l = 0; l < nSls_; ++l)
+    {
+      if (slsAnelasticityCoefficients_.extent(0) > 0 &&
+          slsAnelasticityCoefficients_[l] < 0.0f)
+      {
+        slsAnelasticityCoefficients_[l] =
+            2.0f * minQVal / (std::max(1.0001f, minQVal) - 1.0f);
+      }
+    }
+  }
 }
 
 //============================================================================
@@ -68,6 +100,11 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES,
   FENCE
   computeElementContributions(myData);
   FENCE
+  if (attenuationEnabled_ && nSls_ > 0)
+  {
+    computeAttenuationContributions(myData);
+    FENCE
+  }
 }
 
 //============================================================================
@@ -99,6 +136,10 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES,
     for (int f = 0; f < kNumFields; ++f)
     {
       workVectorsGlobal_[f][i] = 0;
+      if (attenuationEnabled_ && nSls_ > 0)
+      {
+        attenuationWorkVectorsGlobal_[f][i] = 0;
+      }
     }
   }
   LOOPEND
@@ -244,6 +285,170 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES,
 }
 
 //============================================================================
+// computeAttenuationContributions - Assemble attenuation stiffness terms
+//============================================================================
+
+template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE,
+          bool IS_MODEL_ON_NODES, physicType PHYSICS>
+void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES,
+               PHYSICS>::computeAttenuationContributions(const DataType& data)
+{
+  if (!attenuationEnabled_ || nSls_ <= 0) return;
+
+  auto mesh_local = m_mesh;
+
+  MAINLOOPHEAD(mesh_local.getNumberOfElements(), elementNumber)
+
+  if (elementNumber >= mesh_local.getNumberOfElements()) return;
+
+  int const dim = mesh_local.getOrder() + 1;
+  float localFields[kNumFields][kPointsPerElement] = {{0}};
+  float localWorkA[kNumFields][kPointsPerElement] = {{0}};
+
+  for (int i = 0; i < dim; ++i)
+  {
+    for (int j = 0; j < dim; ++j)
+    {
+      for (int k = 0; k < dim; ++k)
+      {
+        int const globalIdx =
+            mesh_local.globalNodeIndex(elementNumber, i, j, k);
+        int const localIdx = i + j * dim + k * dim * dim;
+        for (int f = 0; f < kNumFields; ++f)
+        {
+          localFields[f][localIdx] = data.getCurrentField(f)(globalIdx);
+        }
+      }
+    }
+  }
+
+  typename INTEGRAL_TYPE::TransformType transformData;
+  model_discretization_interface::gatherTransformData(elementNumber, mesh_local,
+                                                      transformData);
+
+  if constexpr (PHYSICS == enums::physicType::kAcoustic)
+  {
+    real_t inv_density_q = 0.0f;
+    if constexpr (!IS_MODEL_ON_NODES)
+    {
+      inv_density_q = 1.0f /
+                      (mesh_local.getModelRhoOnElement(elementNumber) *
+                       mesh_local.getModelQpOnElement(elementNumber));
+    }
+
+    INTEGRAL_TYPE::computeStiffnessTerm(
+        transformData,
+        [&](const int qa, const int qb, const int qc) {
+          if constexpr (IS_MODEL_ON_NODES)
+          {
+            int const gIndex =
+                mesh_local.globalNodeIndex(elementNumber, qa, qb, qc);
+            inv_density_q =
+                1.0f /
+                (mesh_local.getModelRhoOnNodes(gIndex) *
+                 mesh_local.getModelQpOnNodes(gIndex));
+          }
+        },
+        [&](const int i, const int j, const real_t val) {
+          localWorkA[0][i] += inv_density_q * val * localFields[0][j];
+        });
+  }
+  else
+  {
+    if (anisotropyType_ != model::AnisotropyType::kIso) return;
+
+    struct CJPacked
+    {
+      float a0, a1, a2, a3;
+      float b0, b1;
+    };
+    CJPacked CJflat[3 * 3];
+
+    INTEGRAL_TYPE::computeStiffNessTermwithJac(
+        transformData,
+        [&](int qa, int qb, int qc, float const(&J)[3][3]) {
+          float vp, vs, rho, qp, qs;
+          if constexpr (IS_MODEL_ON_NODES)
+          {
+            int const gIndex =
+                mesh_local.globalNodeIndex(elementNumber, qa, qb, qc);
+            vp = mesh_local.getModelVpOnNodes(gIndex);
+            vs = mesh_local.getModelVsOnNodes(gIndex);
+            rho = mesh_local.getModelRhoOnNodes(gIndex);
+            qp = mesh_local.getModelQpOnNodes(gIndex);
+            qs = mesh_local.getModelQsOnNodes(gIndex);
+          }
+          else
+          {
+            vp = mesh_local.getModelVpOnElement(elementNumber);
+            vs = mesh_local.getModelVsOnElement(elementNumber);
+            rho = mesh_local.getModelRhoOnElement(elementNumber);
+            qp = mesh_local.getModelQpOnElement(elementNumber);
+            qs = mesh_local.getModelQsOnElement(elementNumber);
+          }
+
+          float mu = rho * vs * vs;
+          float lambda = rho * (vp * vp - 2.0f * vs * vs);
+          float lambdap2mua = (lambda + 2.0f * mu) / qp;
+          mu = mu / qs;
+          lambda = lambdap2mua - 2.0f * mu;
+          float lambda_plus_2mu = lambda + 2.0f * mu;
+
+          for (int p = 0; p < 3; ++p)
+          {
+            float const Jp0 = J[p][0], Jp1 = J[p][1], Jp2 = J[p][2];
+            for (int r = 0; r < 3; ++r)
+            {
+              float const Jr0 = J[r][0], Jr1 = J[r][1], Jr2 = J[r][2];
+              int const idx = p * 3 + r;
+              CJflat[idx].a0 =
+                  lambda_plus_2mu * Jp0 * Jr0 + mu * (Jp1 * Jr1 + Jp2 * Jr2);
+              CJflat[idx].a1 =
+                  mu * Jp0 * Jr0 + lambda_plus_2mu * Jp1 * Jr1 + mu * Jp2 * Jr2;
+              CJflat[idx].a2 =
+                  mu * (Jp0 * Jr0 + Jp1 * Jr1) + lambda_plus_2mu * Jp2 * Jr2;
+              CJflat[idx].a3 = lambda * Jp0 * Jr1 + mu * Jp1 * Jr0;
+              CJflat[idx].b0 = lambda * Jp0 * Jr2 + mu * Jp2 * Jr0;
+              CJflat[idx].b1 = lambda * Jp1 * Jr2 + mu * Jp2 * Jr1;
+            }
+          }
+        },
+        [&](int i, int j, float val, const int p, const int r) {
+          int const idx = p * 3 + r;
+          float const uxj = localFields[0][j];
+          float const uyj = localFields[1][j];
+          float const uzj = localFields[2][j];
+          localWorkA[0][i] += val * (CJflat[idx].a0 * uxj + CJflat[idx].a3 * uyj +
+                                     CJflat[idx].b0 * uzj);
+          localWorkA[1][i] += val * (CJflat[idx].a3 * uxj + CJflat[idx].a1 * uyj +
+                                     CJflat[idx].b1 * uzj);
+          localWorkA[2][i] += val * (CJflat[idx].b0 * uxj + CJflat[idx].b1 * uyj +
+                                     CJflat[idx].a2 * uzj);
+        });
+  }
+
+  for (int i = 0; i < dim; ++i)
+  {
+    for (int j = 0; j < dim; ++j)
+    {
+      for (int k = 0; k < dim; ++k)
+      {
+        int const globalIdx =
+            mesh_local.globalNodeIndex(elementNumber, i, j, k);
+        int const localIdx = i + j * dim + k * dim * dim;
+        for (int f = 0; f < kNumFields; ++f)
+        {
+          ATOMICADD(attenuationWorkVectorsGlobal_[f][globalIdx],
+                    localWorkA[f][localIdx]);
+        }
+      }
+    }
+  }
+
+  MAINLOOPEND
+}
+
+//============================================================================
 // computeElementContributions_Iso - ISOTROPIC
 //============================================================================
 
@@ -288,7 +493,8 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES,
   model_discretization_interface::gatherTransformData(elementNumber, mesh_local,
                                                       transformData);
 
-#ifdef __CUDACC__
+#if defined(__CUDACC__) || defined(__HIPCC__)
+
   struct CJPacked
   {
     float4 a;
@@ -349,7 +555,8 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES,
             float const v4 = lambda * Jp0 * Jr2 + mu * Jp2 * Jr0;
             float const v5 = lambda * Jp1 * Jr2 + mu * Jp2 * Jr1;
 
-#ifdef __CUDACC__
+#if defined(__CUDACC__) || defined(__HIPCC__)
+
             CJflat[idx].a = make_float4(v0, v1, v2, v3);
             CJflat[idx].b = make_float2(v4, v5);
 #else
@@ -365,7 +572,8 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES,
       },
       [&](int i, int j, float val, const int p, const int r) {
         int const idx = p * 3 + r;
-#ifdef __CUDACC__
+#if defined(__CUDACC__) || defined(__HIPCC__)
+
         float3 const u_local = make_float3(localFields[0][j], localFields[1][j],
                                            localFields[2][j]);
         float4 const a = CJflat[idx].a;
@@ -459,7 +667,8 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES,
   model_discretization_interface::gatherTransformData(elementNumber, mesh_local,
                                                       transformData);
 
-#ifdef __CUDACC__
+#if defined(__CUDACC__) || defined(__HIPCC__)
+
   struct CJPacked
   {
     float4 a;
@@ -535,7 +744,8 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES,
             float const v4 = c44 * p0r2 + c13 * p2r0;
             float const v5 = c44 * p1r2 + c13 * p2r1;
 
-#ifdef __CUDACC__
+#if defined(__CUDACC__) || defined(__HIPCC__)
+
             CJflat[idx].a = make_float4(v0, v1, v2, v3);
             CJflat[idx].b = make_float2(v4, v5);
 #else
@@ -551,7 +761,8 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES,
       },
       [&](int i, int j, float val, const int p, const int r) {
         int const idx = p * 3 + r;
-#ifdef __CUDACC__
+#if defined(__CUDACC__) || defined(__HIPCC__)
+
         float3 const u_local = make_float3(localFields[0][j], localFields[1][j],
                                            localFields[2][j]);
         float4 const a = CJflat[idx].a;
@@ -657,7 +868,8 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES,
       mesh_local.getCTensorOnElement(elementNumber, CTTI);
     }
 
-#ifdef __CUDACC__
+#if defined(__CUDACC__) || defined(__HIPCC__)
+
     struct CJPacked
     {
       float4 a;
@@ -734,7 +946,8 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES,
                          C13 * p1r1 + C12 * p1r2 + C34 * p2r0 + C33 * p2r1 +
                          C23 * p2r2;
 
-#ifdef __CUDACC__
+#if defined(__CUDACC__) || defined(__HIPCC__)
+
               CJflat[idx].a = make_float4(v0, v1, v2, v3);
               CJflat[idx].b = make_float2(v4, v5);
 #else
@@ -750,7 +963,8 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES,
         },
         [&](int i, int j, float val, const int p, const int r) {
           const int idx = p * 3 + r;
-#ifdef __CUDACC__
+#if defined(__CUDACC__) || defined(__HIPCC__)
+
           const float3 u_local = make_float3(
               localFields[0][j], localFields[1][j], localFields[2][j]);
           const float4 a = CJflat[idx].a;
@@ -819,7 +1033,6 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES,
 
   if constexpr (PHYSICS == enums::physicType::kAcoustic)
   {
-    // ===== ACOUSTIC VERSION =====
     LOOPHEAD(mesh_local.getNumberOfNodes(), I)
     {
       if (mesh_local.isFreeSurface(I))
@@ -831,11 +1044,33 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES,
       else
       {
         // Normal time integration with damping
-        data.getPreviousField(0)(I) =
+        float next_val =
             (2 * massMatrixGlobal_[I] * data.getCurrentField(0)(I) -
              (massMatrixGlobal_[I] - 0.5 * dt * dampingMatrixGlobal_[0][I]) *
                  data.getPreviousField(0)(I) -
-             dt2 * workVectorsGlobal_[0][I]) /
+             dt2 * workVectorsGlobal_[0][I]);
+
+        if (attenuationEnabled_ && nSls_ > 0)
+        {
+          for (int l = 0; l < nSls_; ++l)
+          {
+            float const w = slsReferenceAngularFrequencies_[l];
+            float const gamma = (2.0f - w * dt) / (2.0f + w * dt);
+            float const beta = slsAnelasticityCoefficients_[l] * w * 2.0f * dt /
+                               (2.0f + w * dt);
+            float const gamma_p = 0.5f + 0.5f * gamma;
+            float const beta_p = 0.5f * beta;
+            next_val += dt2 *
+                        (gamma_p * attenuationMemoryVariables_[0](I, l) +
+                         beta_p * attenuationWorkVectorsGlobal_[0][I]);
+            attenuationMemoryVariables_[0](I, l) =
+                gamma * attenuationMemoryVariables_[0](I, l) +
+                beta * attenuationWorkVectorsGlobal_[0][I];
+          }
+        }
+
+        data.getPreviousField(0)(I) =
+            next_val /
             (massMatrixGlobal_[I] + 0.5 * dt * dampingMatrixGlobal_[0][I]);
         data.getPreviousField(0)(I) *= spongeTaperCoeff_(I);
         data.getCurrentField(0)(I) *= spongeTaperCoeff_(I);
@@ -845,7 +1080,6 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES,
   }
   else  // ELASTIC
   {
-    // ===== ELASTIC VERSION =====
     LOOPHEAD(mesh_local.getNumberOfNodes(), I)
     {
       if (mesh_local.isFreeSurface(I))
@@ -854,11 +1088,32 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES,
         // computeDampingMatrix)
         for (int f = 0; f < kNumFields; ++f)
         {
-          data.getPreviousField(f)(I) =
+          float next_val =
               (2 * massMatrixGlobal_[I] * data.getCurrentField(f)(I) -
                massMatrixGlobal_[I] * data.getPreviousField(f)(I) -
-               dt2 * workVectorsGlobal_[f][I]) /
-              massMatrixGlobal_[I];
+               dt2 * workVectorsGlobal_[f][I]);
+
+          if (attenuationEnabled_ && nSls_ > 0)
+          {
+            for (int l = 0; l < nSls_; ++l)
+            {
+              float const w = slsReferenceAngularFrequencies_[l];
+              float const gamma = (2.0f - w * dt) / (2.0f + w * dt);
+              float const beta =
+                  slsAnelasticityCoefficients_[l] * w * 2.0f * dt /
+                  (2.0f + w * dt);
+              float const gamma_p = 0.5f + 0.5f * gamma;
+              float const beta_p = 0.5f * beta;
+              next_val += dt2 *
+                          (gamma_p * attenuationMemoryVariables_[f](I, l) +
+                           beta_p * attenuationWorkVectorsGlobal_[f][I]);
+              attenuationMemoryVariables_[f](I, l) =
+                  gamma * attenuationMemoryVariables_[f](I, l) +
+                  beta * attenuationWorkVectorsGlobal_[f][I];
+            }
+          }
+
+          data.getPreviousField(f)(I) = next_val / massMatrixGlobal_[I];
           data.getPreviousField(f)(I) *= spongeTaperCoeff_(I);
           data.getCurrentField(f)(I) *= spongeTaperCoeff_(I);
         }
@@ -868,11 +1123,34 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES,
         // Normal time integration with damping
         for (int f = 0; f < kNumFields; ++f)
         {
-          data.getPreviousField(f)(I) =
+          float next_val =
               (2 * massMatrixGlobal_[I] * data.getCurrentField(f)(I) -
                (massMatrixGlobal_[I] - 0.5 * dt * dampingMatrixGlobal_[f][I]) *
                    data.getPreviousField(f)(I) -
-               dt2 * workVectorsGlobal_[f][I]) /
+               dt2 * workVectorsGlobal_[f][I]);
+
+          if (attenuationEnabled_ && nSls_ > 0)
+          {
+            for (int l = 0; l < nSls_; ++l)
+            {
+              float const w = slsReferenceAngularFrequencies_[l];
+              float const gamma = (2.0f - w * dt) / (2.0f + w * dt);
+              float const beta =
+                  slsAnelasticityCoefficients_[l] * w * 2.0f * dt /
+                  (2.0f + w * dt);
+              float const gamma_p = 0.5f + 0.5f * gamma;
+              float const beta_p = 0.5f * beta;
+              next_val += dt2 *
+                          (gamma_p * attenuationMemoryVariables_[f](I, l) +
+                           beta_p * attenuationWorkVectorsGlobal_[f][I]);
+              attenuationMemoryVariables_[f](I, l) =
+                  gamma * attenuationMemoryVariables_[f](I, l) +
+                  beta * attenuationWorkVectorsGlobal_[f][I];
+            }
+          }
+
+          data.getPreviousField(f)(I) =
+              next_val /
               (massMatrixGlobal_[I] + 0.5 * dt * dampingMatrixGlobal_[f][I]);
           data.getPreviousField(f)(I) *= spongeTaperCoeff_(I);
           data.getCurrentField(f)(I) *= spongeTaperCoeff_(I);
@@ -1104,6 +1382,21 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES,
         m_mesh.getNumberOfNodes(), workVectorNames[f]);
   }
 
+  if (attenuationEnabled_ && nSls_ > 0)
+  {
+    static constexpr const char* attWorkNames[3] = {"attWorkVec0", "attWorkVec1",
+                                                     "attWorkVec2"};
+    static constexpr const char* attMemNames[3] = {"attMemory0", "attMemory1",
+                                                    "attMemory2"};
+    for (int f = 0; f < kNumFields; ++f)
+    {
+      attenuationWorkVectorsGlobal_[f] = allocateVector<VECTOR_REAL_VIEW>(
+          m_mesh.getNumberOfNodes(), attWorkNames[f]);
+      attenuationMemoryVariables_[f] = allocateArray2D<ARRAY_REAL_VIEW>(
+          m_mesh.getNumberOfNodes(), nSls_, attMemNames[f]);
+    }
+  }
+
   spongeTaperCoeff_ = allocateVector<VECTOR_REAL_VIEW>(
       m_mesh.getNumberOfNodes(), "spongeTaperCoeff");
 }
@@ -1118,6 +1411,22 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES,
                PHYSICS>::initFEarrays()
 {
   initSpongeValues();
+
+  if (attenuationEnabled_ && nSls_ > 0)
+  {
+    for (int n = 0; n < m_mesh.getNumberOfNodes(); ++n)
+    {
+      for (int f = 0; f < kNumFields; ++f)
+      {
+        attenuationWorkVectorsGlobal_[f](n) = 0.0f;
+        for (int l = 0; l < nSls_; ++l)
+        {
+          attenuationMemoryVariables_[f](n, l) = 0.0f;
+        }
+      }
+    }
+    FENCE
+  }
 }
 
 //============================================================================

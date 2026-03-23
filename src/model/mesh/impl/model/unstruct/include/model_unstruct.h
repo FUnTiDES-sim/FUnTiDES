@@ -43,6 +43,10 @@ struct ModelUnstructData : public ModelDataBase<FloatType, ScalarType>
       VECTOR_REAL_VIEW model_theta_element, VECTOR_REAL_VIEW model_phi_node,
       VECTOR_REAL_VIEW model_phi_element,
       ARRAY3D_REAL_VIEW model_C_tensor_element, VECTOR_INT_VIEW boundaries_t,
+        VECTOR_REAL_VIEW model_qp_node = VECTOR_REAL_VIEW(),
+        VECTOR_REAL_VIEW model_qp_element = VECTOR_REAL_VIEW(),
+        VECTOR_REAL_VIEW model_qs_node = VECTOR_REAL_VIEW(),
+        VECTOR_REAL_VIEW model_qs_element = VECTOR_REAL_VIEW(),
       FaceConnectivityUnstructData<FloatType, ScalarType> face_connectivity =
           {})
       : order_(order),
@@ -63,6 +67,10 @@ struct ModelUnstructData : public ModelDataBase<FloatType, ScalarType>
         model_rho_element_(model_rho_element),
         model_vs_node_(model_vs_node),
         model_vs_element_(model_vs_element),
+        model_qp_node_(model_qp_node),
+        model_qp_element_(model_qp_element),
+        model_qs_node_(model_qs_node),
+        model_qs_element_(model_qs_element),
         model_delta_node_(model_delta_node),
         model_delta_element_(model_delta_element),
         model_epsilon_node_(model_epsilon_node),
@@ -100,6 +108,10 @@ struct ModelUnstructData : public ModelDataBase<FloatType, ScalarType>
   VECTOR_REAL_VIEW model_rho_element_;
   VECTOR_REAL_VIEW model_vs_node_;
   VECTOR_REAL_VIEW model_vs_element_;
+  VECTOR_REAL_VIEW model_qp_node_;
+  VECTOR_REAL_VIEW model_qp_element_;
+  VECTOR_REAL_VIEW model_qs_node_;
+  VECTOR_REAL_VIEW model_qs_element_;
   VECTOR_REAL_VIEW model_delta_node_;
   VECTOR_REAL_VIEW model_delta_element_;
   VECTOR_REAL_VIEW model_epsilon_node_;
@@ -152,6 +164,10 @@ class ModelUnstruct final : public ModelApi<FloatType, ScalarType>
         model_rho_element_(data.model_rho_element_),
         model_vs_node_(data.model_vs_node_),
         model_vs_element_(data.model_vs_element_),
+        model_qp_node_(data.model_qp_node_),
+        model_qp_element_(data.model_qp_element_),
+        model_qs_node_(data.model_qs_node_),
+        model_qs_element_(data.model_qs_element_),
         model_delta_node_(data.model_delta_node_),
         model_delta_element_(data.model_delta_element_),
         model_epsilon_node_(data.model_epsilon_node_),
@@ -312,6 +328,30 @@ class ModelUnstruct final : public ModelApi<FloatType, ScalarType>
   PROXY_HOST_DEVICE FloatType getModelVsOnElement(ScalarType e) const final
   {
     return model_vs_element_[e];
+  }
+
+  PROXY_HOST_DEVICE FloatType getModelQpOnNodes(ScalarType n) const final
+  {
+    if (model_qp_node_.extent(0) > 0) return model_qp_node_[n];
+    return static_cast<FloatType>(1.0e9);
+  }
+
+  PROXY_HOST_DEVICE FloatType getModelQpOnElement(ScalarType e) const final
+  {
+    if (model_qp_element_.extent(0) > 0) return model_qp_element_[e];
+    return static_cast<FloatType>(1.0e9);
+  }
+
+  PROXY_HOST_DEVICE FloatType getModelQsOnNodes(ScalarType n) const final
+  {
+    if (model_qs_node_.extent(0) > 0) return model_qs_node_[n];
+    return static_cast<FloatType>(1.0e9);
+  }
+
+  PROXY_HOST_DEVICE FloatType getModelQsOnElement(ScalarType e) const final
+  {
+    if (model_qs_element_.extent(0) > 0) return model_qs_element_[e];
+    return static_cast<FloatType>(1.0e9);
   }
 
   /**
@@ -799,6 +839,20 @@ class ModelUnstruct final : public ModelApi<FloatType, ScalarType>
     return boundaries_t_[n] == static_cast<ScalarType>(BoundaryFlag::Surface);
   }
 
+  void setQualityFactors(FloatType qp, FloatType qs) override
+  {
+    ScalarType nElem = getNumberOfElements();
+    model_qp_element_ =
+        allocateVector<VECTOR_REAL_VIEW>(nElem, "model_qp_element");
+    model_qs_element_ =
+        allocateVector<VECTOR_REAL_VIEW>(nElem, "model_qs_element");
+    for (ScalarType e = 0; e < nElem; ++e)
+    {
+      model_qp_element_(e) = qp;
+      model_qs_element_(e) = qs;
+    }
+  }
+
  private:
   ScalarType order_;
   ScalarType n_element_;
@@ -821,6 +875,10 @@ class ModelUnstruct final : public ModelApi<FloatType, ScalarType>
   VECTOR_REAL_VIEW model_rho_element_;
   VECTOR_REAL_VIEW model_vs_node_;
   VECTOR_REAL_VIEW model_vs_element_;
+  VECTOR_REAL_VIEW model_qp_node_;
+  VECTOR_REAL_VIEW model_qp_element_;
+  VECTOR_REAL_VIEW model_qs_node_;
+  VECTOR_REAL_VIEW model_qs_element_;
   VECTOR_REAL_VIEW model_delta_node_;
   VECTOR_REAL_VIEW model_delta_element_;
   VECTOR_REAL_VIEW model_epsilon_node_;

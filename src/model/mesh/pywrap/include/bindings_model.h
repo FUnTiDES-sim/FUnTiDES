@@ -40,6 +40,10 @@ void bind_modelapi(py::module_ &m)
       .def("get_model_rho_on_element", &T::getModelRhoOnElement)
       .def("get_model_vs_on_node", &T::getModelVsOnNodes)
       .def("get_model_vs_on_element", &T::getModelVsOnElement)
+      .def("get_model_qp_on_node", &T::getModelQpOnNodes)
+      .def("get_model_qp_on_element", &T::getModelQpOnElement)
+      .def("get_model_qs_on_node", &T::getModelQsOnNodes)
+      .def("get_model_qs_on_element", &T::getModelQsOnElement)
       .def("get_model_delta_on_node", &T::getModelDeltaOnNodes)
       .def("get_model_delta_on_element", &T::getModelDeltaOnElement)
       .def("get_model_epsilon_on_node", &T::getModelEpsilonOnNodes)
@@ -64,6 +68,8 @@ void bind_modelapi(py::module_ &m)
       .def("is_boundary_face", &T::isBoundaryFace)
       .def("get_global_node_from_face", &T::getGlobalNodeFromFace)
       .def("get_global_face", &T::getGlobalFace)
+      .def("set_quality_factors", &T::setQualityFactors,
+            py::arg("qp"), py::arg("qs"))
       .def("is_free_surface", &T::isFreeSurface);
 }
 
@@ -147,6 +153,12 @@ void bind_modelunstructdata(py::module_ &m)
                       py::array_t<FloatType> model_phi_element_py,
                       py::array_t<FloatType> model_C_tensor_element_py,
                       py::array_t<ScalarType> boundaries_t_py,
+                      // --- NEW ATTENUATION PARAMETERS FROM NUMPY ---
+                      py::array_t<FloatType> model_qp_node_py,
+                      py::array_t<FloatType> model_qp_element_py,
+                      py::array_t<FloatType> model_qs_node_py,
+                      py::array_t<FloatType> model_qs_element_py,
+                      // ----------------------------------------------
                       model::FaceConnectivityUnstructData<FloatType, ScalarType> face_connectivity) {
 
               // 1. Get buffer info
@@ -163,6 +175,9 @@ void bind_modelunstructdata(py::module_ &m)
               // Helper Lambda for 1D arrays
               auto wrap1d_real = [](py::array_t<FloatType> arr) {
                   auto buf = arr.request();
+                  // Handle empty arrays (default case)
+                  if (buf.size == 0) return VECTOR_REAL_VIEW();
+
                   Kokkos::View<FloatType*, Kokkos::LayoutRight, Kokkos::HostSpace, Kokkos::MemoryTraits<Kokkos::Unmanaged>>
                       h_view((FloatType*)buf.ptr, buf.shape[0]);
                   VECTOR_REAL_VIEW d_view("v", buf.shape[0]);
@@ -172,6 +187,8 @@ void bind_modelunstructdata(py::module_ &m)
 
               auto wrap1d_int = [](py::array_t<ScalarType> arr) {
                   auto buf = arr.request();
+                  if (buf.size == 0) return VECTOR_INT_VIEW();
+
                   Kokkos::View<ScalarType*, Kokkos::LayoutRight, Kokkos::HostSpace, Kokkos::MemoryTraits<Kokkos::Unmanaged>>
                       h_view((ScalarType*)buf.ptr, buf.shape[0]);
                   VECTOR_INT_VIEW d_view("v", buf.shape[0]);
@@ -209,6 +226,12 @@ void bind_modelunstructdata(py::module_ &m)
                               wrap1d_real(model_phi_element_py),
                               d_C_tensor,
                               wrap1d_int(boundaries_t_py),
+                              // --- PASS WRAPPED ATTENUATION VIEWS TO CONSTRUCTOR ---
+                              wrap1d_real(model_qp_node_py),
+                              wrap1d_real(model_qp_element_py),
+                              wrap1d_real(model_qs_node_py),
+                              wrap1d_real(model_qs_element_py),
+                              // -----------------------------------------------------
                               face_connectivity);
           }),
           py::arg("order"), py::arg("n_element"), py::arg("n_node"),
@@ -225,6 +248,12 @@ void bind_modelunstructdata(py::module_ &m)
           py::arg("model_theta_node"), py::arg("model_theta_element"),
           py::arg("model_phi_node"), py::arg("model_phi_element"),
           py::arg("model_C_tensor_element"), py::arg("boundaries_t"),
+          // --- PYBIND ARGUMENTS FOR ATTENUATION ---
+          py::arg("model_qp_node") = py::array_t<FloatType>(),
+          py::arg("model_qp_element") = py::array_t<FloatType>(),
+          py::arg("model_qs_node") = py::array_t<FloatType>(),
+          py::arg("model_qs_element") = py::array_t<FloatType>(),
+          // ----------------------------------------
           py::arg("face_connectivity") = model::FaceConnectivityUnstructData<FloatType, ScalarType>())
 
       .def_readwrite("face_connectivity", &Data::face_connectivity_);

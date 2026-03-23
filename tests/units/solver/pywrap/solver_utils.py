@@ -120,9 +120,9 @@ def allocate_rhs_element(
         [n_rhs], dtype=kokkos.int32, space=memspace, layout=layout
     )
     RHSElement = np.array(kk_RHSElement, copy=False)
-    # Wrapped in int() to prevent float-to-int NumPy casting errors
-    RHSElement[0] = int(ex / 2 + ey / 2 * ex + ez / 2 * ey * ex)  # one half of slice
-    RHSElement[1] = int(ex / 3 + ey / 2 * ex + ez / 2 * ey * ex)  # one third of slice
+    RHSElement[0] = ex / 2 + ey / 2 * ex + ez / 2 * ey * ex  # one half of slice
+    if n_rhs > 1:
+        RHSElement[1] = ex / 3 + ey / 2 * ex + ez / 2 * ey * ex  # one third of slice
     return kk_RHSElement, RHSElement
 
 

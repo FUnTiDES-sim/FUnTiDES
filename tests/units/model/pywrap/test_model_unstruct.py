@@ -265,7 +265,7 @@ def unstruct(request):
             ud.kk_model_phi_element,
             ud.kk_model_C_tensor_element,
             ud.kk_boundaries,
-            fc_data, # Added the 31st argument!
+            face_connectivity=fc_data, # Use a keyword argument here!
         )
 
         # Yield instead of return to allow cleanup after test execution

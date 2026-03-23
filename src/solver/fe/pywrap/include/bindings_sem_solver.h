@@ -1,11 +1,13 @@
 #ifndef FUNTIDES_SOLVER_FE_PYWRAP_INCLUDE_BINDINGS_SEM_SOLVER_H_
 #define FUNTIDES_SOLVER_FE_PYWRAP_INCLUDE_BINDINGS_SEM_SOLVER_H_
+
 #include <pybind11/numpy.h>
 #include <pybind11/pybind11.h>
 #include <pybind11/stl.h>
 
 #include <KokkosExp_InterOp.hpp>
 #include <memory>
+#include <vector>
 
 #include "common_macros.h"
 #include "rhs_acoustic.h"
@@ -14,6 +16,9 @@
 #include "solver_factory.h"
 #include "wavefield_acoustic.h"
 #include "wavefield_elastic.h"
+
+// Corrected header name from your find command
+#include "sem_enums.h"
 
 namespace py = pybind11;
 
@@ -24,91 +29,106 @@ namespace fe
 
 void bind_data_struct(py::module_ &m)
 {
-  py::class_<Solver::DataStruct, std::shared_ptr<Solver::DataStruct>>(
-      m, "DataStruct")
-      .def("print", &Solver::DataStruct::print);
+    py::class_<Solver::DataStruct, std::shared_ptr<Solver::DataStruct>>(
+        m, "DataStruct")
+        .def("print", &Solver::DataStruct::print);
 }
 
 void bind_acoustic_solver_data(py::module_ &m)
 {
-  py::class_<SEMsolverDataAcoustic, Solver::DataStruct,
-             std::shared_ptr<SEMsolverDataAcoustic>>(m, "SEMsolverDataAcoustic")
-      .def(py::init<const WavefieldAcoustic &, const RhsAcoustic &>(),
-           py::arg("wavefield"), py::arg("rhs"))
-      .def("swap_wavefields", &SEMsolverDataAcoustic::swapWavefields)
-      .def("print", &SEMsolverDataAcoustic::print);
+    py::class_<SEMsolverDataAcoustic, Solver::DataStruct,
+               std::shared_ptr<SEMsolverDataAcoustic>>(m, "SEMsolverDataAcoustic")
+        .def(py::init<const WavefieldAcoustic &, const RhsAcoustic &>(),
+             py::arg("wavefield"), py::arg("rhs"))
+        .def("swap_wavefields", &SEMsolverDataAcoustic::swapWavefields)
+        .def("print", &SEMsolverDataAcoustic::print);
 }
 
 void bind_elastic_solver_data(py::module_ &m)
 {
-  py::class_<SEMsolverDataElastic, Solver::DataStruct,
-             std::shared_ptr<SEMsolverDataElastic>>(m, "SEMsolverDataElastic")
-      .def(py::init<const WavefieldElastic &, const RhsElastic &>(),
-           py::arg("wavefield"), py::arg("rhs"))
-      .def("swap_wavefields", &SEMsolverDataElastic::swapWavefields)
-      .def("print", &SEMsolverDataElastic::print);
+    py::class_<SEMsolverDataElastic, Solver::DataStruct,
+               std::shared_ptr<SEMsolverDataElastic>>(m, "SEMsolverDataElastic")
+        .def(py::init<const WavefieldElastic &, const RhsElastic &>(),
+             py::arg("wavefield"), py::arg("rhs"))
+        .def("swap_wavefields", &SEMsolverDataElastic::swapWavefields)
+        .def("print", &SEMsolverDataElastic::print);
 }
 
 void bind_sem_solver_base(py::module_ &m)
 {
-  py::class_<Solver, std::shared_ptr<Solver>>(m, "Solver")
-      .def("compute_fe_init", &Solver::computeFEInit, py::arg("model"),
-           py::arg("sponge_size") = std::array<float, 3>{0.0f, 0.0f, 0.0f},
-           py::arg("sponge_surface") = true, py::arg("taper_delta") = 0)
-      .def("compute_one_step", &Solver::computeOneStep, py::arg("dt"),
-           py::arg("time_sample"), py::arg("data"))
-      .def("compute_forces", &Solver::computeForces, py::arg("dt"),
-           py::arg("time_sample"), py::arg("data"))
-      .def("update_solution", &Solver::updateSolution, py::arg("dt"),
-           py::arg("data"))
-      .def(
-          "get_mass_matrix",
-          [](Solver &self)
-              -> Kokkos::Experimental::python_view_type_t<VECTOR_REAL_VIEW> {
-            return self.getMassMatrix();
-          },
-          py::return_value_policy::reference_internal)
-      .def("output_solution_values", &Solver::outputSolutionValues,
-           py::arg("t"), py::arg("e"), py::arg("field_global"),
-           py::arg("field_name"))
+    py::class_<Solver, std::shared_ptr<Solver>>(m, "Solver")
+        .def("compute_fe_init", &Solver::computeFEInit, py::arg("model"),
+             py::arg("sponge_size") = std::array<float, 3>{0.0f, 0.0f, 0.0f},
+             py::arg("sponge_surface") = true, py::arg("taper_delta") = 0)
+        .def("compute_one_step", &Solver::computeOneStep, py::arg("dt"),
+             py::arg("time_sample"), py::arg("data"))
+        .def("compute_forces", &Solver::computeForces, py::arg("dt"),
+             py::arg("time_sample"), py::arg("data"))
+        .def("update_solution", &Solver::updateSolution, py::arg("dt"),
+             py::arg("data"))
+        .def("output_solution_values", &Solver::outputSolutionValues,
+             py::arg("t"), py::arg("e"), py::arg("field_global"),
+             py::arg("field_name"))
+        .def("get_num_components", &Solver::getNumComponents)
+        .def("get_mass_matrix",
+             [](Solver &self) -> py::array_t<float> {
+               auto &v = self.getMassMatrix();
+               return py::array_t<float>(
+                   {static_cast<ssize_t>(v.extent(0))},
+                   {sizeof(float)},
+                   v.data(),
+                   py::cast(&self)
+               );
+             })
+        .def("get_force_vector",
+             [](Solver &self, int component) -> py::array_t<float> {
+               auto &v = self.getForceVector(component);
+               return py::array_t<float>(
+                   {static_cast<ssize_t>(v.extent(0))},
+                   {sizeof(float)},
+                   v.data(),
+                   py::cast(&self));
+             },
+             py::arg("component"))
+        .def("set_sls_attenuation",
+             [](Solver& self, const std::vector<float>& freqs,
+                const std::vector<float>& coeffs) {
 
-      // --- Domain Decomposition Interface ---
-      .def("get_num_components", &Solver::getNumComponents)
+               VECTOR_REAL_VIEW d_vf, d_vc;
 
-      .def("get_mass_matrix",
-           [](Solver &self) -> py::array_t<float> {
-             auto &v = self.getMassMatrix();
-             return py::array_t<float>(
-                 {static_cast<ssize_t>(v.extent(0))},  // Shape
-                 {sizeof(float)},                      // Strides
-                 v.data(),                             // Pointer to memory
-                 py::cast(&self)  // Parent object (keep alive)
-             );
-           })
-      .def(
-          "get_force_vector",
-          [](Solver &self, int component) -> py::array_t<float> {
-            auto &v = self.getForceVector(component);
-            return py::array_t<float>({static_cast<ssize_t>(v.extent(0))},
-                                      {sizeof(float)}, v.data(),
-                                      py::cast(&self));
-          },
-          py::arg("component"));
+               if (!freqs.empty()) {
+                 d_vf = allocateVector<VECTOR_REAL_VIEW>(freqs.size(), "sls_freqs");
+                 auto h_vf = Kokkos::create_mirror_view(d_vf);
+                 for (size_t i = 0; i < freqs.size(); ++i) h_vf(i) = freqs[i];
+                 Kokkos::deep_copy(d_vf, h_vf);
+               }
+
+               if (!coeffs.empty()) {
+                 d_vc = allocateVector<VECTOR_REAL_VIEW>(coeffs.size(), "sls_coeffs");
+                 auto h_vc = Kokkos::create_mirror_view(d_vc);
+                 for (size_t i = 0; i < coeffs.size(); ++i) h_vc(i) = coeffs[i];
+                 Kokkos::deep_copy(d_vc, h_vc);
+               }
+
+               self.setSLSAttenuation(d_vf, d_vc);
+             },
+             py::arg("reference_frequencies"),
+             py::arg("anelasticity_coefficients") = std::vector<float>{});
 }
 
 void bind_solver_factory(py::module_ &m)
 {
-  m.def(
-      "create_solver",
-      [](enums::methodType method, enums::implemType implem,
-         enums::meshType mesh, enums::modelLocationType modelLocation,
-         enums::physicType physic, int order) {
-        auto solver = solver_factory::createSolver(
-            method, implem, mesh, modelLocation, physic, order);
-        return std::shared_ptr<Solver>(std::move(solver));
-      },
-      py::arg("method_type"), py::arg("implem_type"), py::arg("mesh_type"),
-      py::arg("model_location"), py::arg("physic_type"), py::arg("order"));
+    m.def(
+        "create_solver",
+        [](enums::methodType method, enums::implemType implem,
+           enums::meshType mesh, enums::modelLocationType modelLocation,
+           enums::physicType physic, int order) {
+          auto solver_ptr = solver_factory::createSolver(
+              method, implem, mesh, modelLocation, physic, order);
+          return std::shared_ptr<Solver>(std::move(solver_ptr));
+        },
+        py::arg("method_type"), py::arg("implem_type"), py::arg("mesh_type"),
+        py::arg("model_location"), py::arg("physic_type"), py::arg("order"));
 }
 
 }  // namespace fe

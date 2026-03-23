@@ -2,7 +2,6 @@
 #define FUNTIDES_SOLVER_FE_API_INCLUDE_SOLVER_H_
 #include <array>
 #include <cmath>
-#include <vector>
 
 #include "model.h"
 #include "parallel_topology.h"
@@ -154,6 +153,11 @@ class Solver
   virtual void updateSolution(const float& dt, DataStruct& data) = 0;
 
   virtual void setAnisotropyType(model::AnisotropyType type) = 0;
+
+  virtual void setSLSAttenuation(
+      const VECTOR_REAL_VIEW& reference_frequencies,
+      const VECTOR_REAL_VIEW& anelasticity_coefficients =
+          VECTOR_REAL_VIEW()) = 0;
 };
 }  // namespace fe
 }  // namespace solver
