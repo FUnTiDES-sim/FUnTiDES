@@ -882,6 +882,30 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES,
     LOOPEND
   }
 }
+
+/*
+//============================================================================
+// updateGradientFields - Time integration update
+//============================================================================
+
+template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE,
+          bool IS_MODEL_ON_NODES, physicType PHYSICS>
+void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES,
+               PHYSICS>::updateGradientFields(const DataType& data)
+{
+  LOOPHEAD(m_mesh.getNumberOfNodes(), I)
+  {
+    for (int f = 0; f < kNumFields; ++f)
+    {
+      data.getPreviousField(f)(I) =
+          2 * data.getCurrentField(f)(I) - data.getPreviousField(f)(I) -
+          dt2 * workVectorsGlobal_[f][I] / massMatrixGlobal_[I];
+    }
+  }
+  LOOPEND
+}*/
+
+
 //============================================================================
 // computeGlobalMassMatrix - Assemble mass matrix
 //============================================================================
