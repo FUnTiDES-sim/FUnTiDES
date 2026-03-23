@@ -1,18 +1,16 @@
-#ifndef FUNTIDES_SOLVER_FE_IMPL_ACOUSTIC_INCLUDE_GRADIENTS_ACOUSTIC_H_
-#define FUNTIDES_SOLVER_FE_IMPL_ACOUSTIC_INCLUDE_GRADIENTS_ACOUSTIC_H_
+#ifndef FUNTIDES_GRADIENT_IMPL_ACOUSTIC_INCLUDE_GRADIENT_ACOUSTIC_H_
+#define FUNTIDES_GRADIENT_IMPL_ACOUSTIC_INCLUDE_GRADIENT_ACOUSTIC_H_
 #include <data_type.h>
 
-#include "gradients.h"
+#include "gradient.h"
 
-namespace solver
-{
-namespace fe
+namespace gradient
 {
 /**
- * @brief Acoustic gradients data structure.
+ * @brief Acoustic gradient data structure.
  * Arrays are kept flat for easy cpp-python-fortran interop.
  */
-struct GradientsAcoustic : public Gradients
+struct GradientAcoustic : public Gradient
 {
   /// Number of gradients for model inversions (2 for Kappa and Buoyancy)
   static constexpr int kNumGrads = 2;
@@ -20,21 +18,21 @@ struct GradientsAcoustic : public Gradients
   /// Primary field name
   static constexpr const char* kGradsNames[2] = {"gradKappa","gradBuoyancy"};
 
-  GradientsAcoustic(VECTOR_REAL_VIEW gradKappa,
-                    VECTOR_REAL_VIEW gradBuoyancy)
+  GradientAcoustic(VECTOR_REAL_VIEW gradKappa,
+                   VECTOR_REAL_VIEW gradBuoyancy)
       : m_gradKappa(gradKappa), m_gradBuoyancy(gradBuoyancy)
   {
   }
 
-  int getNumGrads() const override final { return kNumGrads; }
+  int getNumGradients() const override final { return kNumGrads; }
 
-  const char* const* getGradsNames() const override final
+  const char* const* getGradientNames() const override final
   {
     return kGradsNames;
   }
 
   PROXY_HOST_DEVICE
-  VECTOR_REAL_VIEW getCurrentGrads(int i) const override
+  VECTOR_REAL_VIEW getGradient(int i) const override
   {
     switch (i)
     {
@@ -55,9 +53,8 @@ struct GradientsAcoustic : public Gradients
               << std::endl;
   }
 
-  VECTOR_REAL_VIEW m_gradKappa;  ///< Pressure field at previous time step
-  VECTOR_REAL_VIEW m_gradBuoyancy;  ///< Pressure field at current time step
+  VECTOR_REAL_VIEW m_gradKappa;  ///< Gradient of Kappa
+  VECTOR_REAL_VIEW m_gradBuoyancy;  ///< Gradient of Buoyancy
 };
-}  // namespace fe
-}  // namespace solver
-#endif  // FUNTIDES_SOLVER_FE_IMPL_ACOUSTIC_INCLUDE_GRADIENTS_ACOUSTIC_H_
+}  // namespace gradient
+#endif  // FUNTIDES_GRADIENT_IMPL_ACOUSTIC_INCLUDE_GRADIENT_ACOUSTIC_H_

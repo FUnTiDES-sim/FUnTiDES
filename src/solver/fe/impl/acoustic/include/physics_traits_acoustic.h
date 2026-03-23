@@ -3,7 +3,6 @@
 #include "physics_traits.h"
 #include "rhs_acoustic.h"
 #include "wavefield_acoustic.h"
-#include "gradients_acoustic.h"
 
 namespace solver
 {
@@ -24,23 +23,6 @@ struct PhysicsTraits<enums::physicType::kAcoustic>
   /// Concrete types for device access
   using WavefieldType = WavefieldAcoustic;
   using RhsType = RhsAcoustic;
-};
-
-/**
- * @brief Specialization for acoustic physics.
- *
- * Acoustic wave propagation with gradients uses a single scalar pressure field.
- */
-template <>
-struct PhysicsTraits<enums::physicType::kAcoustic>
-{
-  /// Human-readable name for logging
-  static constexpr const char* kName = "Acoustic";
-
-  /// Concrete types for device access
-  using WavefieldType = WavefieldAcoustic;
-  using RhsType = RhsAcoustic;
-  using GradientsType = GradientsAcoustic;
 };
 
 }  // namespace fe

@@ -1,5 +1,5 @@
-#ifndef FUNTIDES_INVERSION_PYWRAP_INCLUDE_BINDINGS_GRADIENTS_H_
-#define FUNTIDES_INVERSION_PYWRAP_INCLUDE_BINDINGS_GRADIENTS_H_
+#ifndef FUNTIDES_GRADIENT_PYWRAP_INCLUDE_BINDINGS_GRADIENTS_H_
+#define FUNTIDES_GRADIENT_PYWRAP_INCLUDE_BINDINGS_GRADIENTS_H_
 
 #include <pybind11/numpy.h>
 #include <pybind11/pybind11.h>
@@ -9,7 +9,7 @@
 #include <memory>
 
 #include "common_macros.h"
-#include "../../api/include/gradient_computation.h"
+#include "../../api/include/differentiator.h"
 #include "../../api/include/gradient_data.h"
 #include "gradients.h"
 #include "gradients_acoustic.h"
@@ -17,7 +17,7 @@
 
 namespace py = pybind11;
 
-namespace inversion
+namespace gradient
 {
 
 /**
@@ -142,7 +142,7 @@ void bind_gradient_data(py::module_ &m)
 }
 
 /**
- * @brief Bind GradientComputation to Python.
+ * @brief Bind Differentiator to Python.
  *
  * Exposes the abstract gradient computation interface:
  * - compute(forward_field, adjoint_fields, grad_data)
@@ -152,13 +152,13 @@ void bind_gradient_data(py::module_ &m)
  *
  * This is the INDEPENDENT gradient computation interface - not part of solver.
  */
-void bind_gradient_computation(py::module_ &m)
+void bind_differentiator(py::module_ &m)
 {
-  py::class_<GradientComputation, std::shared_ptr<GradientComputation>>(
-      m, "GradientComputation")
+  py::class_<Differentiator, std::shared_ptr<Differentiator>>(
+      m, "Differentiator")
       .def(
           "compute",
-          [](GradientComputation &self, py::handle forward_py,
+          [](Differentiator &self, py::handle forward_py,
              py::list adjoint_py_list, GradientData &grad_data) {
             // Convert numpy arrays to Kokkos views
             auto forward = Kokkos::Experimental::python_view_from_numpy<
@@ -177,11 +177,11 @@ void bind_gradient_computation(py::module_ &m)
           },
           py::arg("forward_field"), py::arg("adjoint_fields"),
           py::arg("grad_data"))
-      .def("get_order", &GradientComputation::getOrder)
-      .def("is_model_on_nodes", &GradientComputation::isModelOnNodes)
-      .def("print", &GradientComputation::print);
+      .def("get_order", &Differentiator::getOrder)
+      .def("is_model_on_nodes", &Differentiator::isModelOnNodes)
+      .def("print", &Differentiator::print);
 }
 
-}  // namespace inversion
+}  // namespace gradient
 
-#endif  // FUNTIDES_INVERSION_PYWRAP_INCLUDE_BINDINGS_GRADIENTS_H_
+#endif  // FUNTIDES_GRADIENT_PYWRAP_INCLUDE_BINDINGS_GRADIENTS_H_

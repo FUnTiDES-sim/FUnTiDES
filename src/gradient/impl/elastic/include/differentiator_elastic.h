@@ -1,5 +1,5 @@
-#ifndef FUNTIDES_INVERSION_IMPL_ELASTIC_INCLUDE_GRADIENT_COMPUTATION_ELASTIC_H_
-#define FUNTIDES_INVERSION_IMPL_ELASTIC_INCLUDE_GRADIENT_COMPUTATION_ELASTIC_H_
+#ifndef FUNTIDES_GRADIENT_IMPL_ELASTIC_INCLUDE_DIFFERENTIATOR_ELASTIC_H_
+#define FUNTIDES_GRADIENT_IMPL_ELASTIC_INCLUDE_DIFFERENTIATOR_ELASTIC_H_
 
 #include <vector>
 
@@ -7,10 +7,10 @@
 #include "data_type.h"
 #include "mesh.h"
 #include "model_discretization_interface.h"
-#include "gradient_computation.h"
+#include "differentiator.h"
 #include "gradient_data.h"
 
-namespace inversion
+namespace gradient
 {
 
 /**
@@ -32,13 +32,13 @@ namespace inversion
  *   IS_MODEL_ON_NODES     - Model discretization (true=nodes, false=elements)
  *
  * Usage:
- *   ElasticGradientComputation<2, makutu, CartesianStructBuilder, true> gc(...);
+ *   ElasticDifferentiator<2, makutu, CartesianStructBuilder, true> gc(...);
  *   GradientData grad_data(grad_rho_view, grad_lambda_view, grad_mu_view);
  *   gc.compute(forward_displacement, adjoint_displacement, grad_data);
  */
 template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE,
           bool IS_MODEL_ON_NODES>
-class ElasticGradientComputation : public GradientComputation
+class ElasticDifferentiator : public Differentiator
 {
  public:
   static constexpr int kOrder = ORDER;
@@ -50,12 +50,12 @@ class ElasticGradientComputation : public GradientComputation
    *
    * @param mesh Mesh object containing topology and reference element info
    */
-  explicit ElasticGradientComputation(const MESH_TYPE& mesh)
+  explicit ElasticDifferentiator(const MESH_TYPE& mesh)
       : m_mesh(mesh)
   {
   }
 
-  ~ElasticGradientComputation() override = default;
+  ~ElasticDifferentiator() override = default;
 
   /**
    * @brief Compute elastic gradients (Rho, Lambda, Mu).
@@ -75,7 +75,7 @@ class ElasticGradientComputation : public GradientComputation
    */
   void compute(const VECTOR_REAL_VIEW& forward_field,
                const std::vector<VECTOR_REAL_VIEW>& adjoint_fields,
-               GradientData& grad_data) override;
+               Differentiator::DataStruct& grad_data) override;
 
   Gradients* getGradients() override { return grad_data_ptr_; }
 
@@ -85,7 +85,7 @@ class ElasticGradientComputation : public GradientComputation
 
   void print() const override
   {
-    std::cout << "ElasticGradientComputation<ORDER=" << kOrder
+    std::cout << "ElasticDifferentiator<ORDER=" << kOrder
               << ", IS_MODEL_ON_NODES=" << (kIsModelOnNodes ? "true" : "false")
               << ">\n";
   }
@@ -122,6 +122,6 @@ class ElasticGradientComputation : public GradientComputation
                            VECTOR_REAL_VIEW gradMu);
 };
 
-}  // namespace inversion
+}  // namespace gradient
 
-#endif  // FUNTIDES_INVERSION_IMPL_ELASTIC_INCLUDE_GRADIENT_COMPUTATION_ELASTIC_H_
+#endif  // FUNTIDES_GRADIENT_IMPL_ELASTIC_INCLUDE_DIFFERENTIATOR_ELASTIC_H_

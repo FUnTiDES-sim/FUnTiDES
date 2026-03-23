@@ -1,5 +1,5 @@
-#ifndef FUNTIDES_INVERSION_IMPL_ACOUSTIC_INCLUDE_GRADIENT_COMPUTATION_ACOUSTIC_H_
-#define FUNTIDES_INVERSION_IMPL_ACOUSTIC_INCLUDE_GRADIENT_COMPUTATION_ACOUSTIC_H_
+#ifndef FUNTIDES_GRADIENT_IMPL_ACOUSTIC_INCLUDE_DIFFERENTIATOR_ACOUSTIC_H_
+#define FUNTIDES_GRADIENT_IMPL_ACOUSTIC_INCLUDE_DIFFERENTIATOR_ACOUSTIC_H_
 
 #include <vector>
 
@@ -7,10 +7,10 @@
 #include "data_type.h"
 #include "mesh.h"
 #include "model_discretization_interface.h"
-#include "gradient_computation.h"
+#include "differentiator.h"
 #include "gradient_data.h"
 
-namespace inversion
+namespace gradient
 {
 
 /**
@@ -31,13 +31,13 @@ namespace inversion
  *   IS_MODEL_ON_NODES     - Model discretization (true=nodes, false=elements)
  *
  * Usage:
- *   AcousticGradientComputation<2, makutu, CartesianStructBuilder, true> gc(...);
+ *   AcousticDifferentiator<2, makutu, CartesianStructBuilder, true> gc(...);
  *   GradientData grad_data(grad_kappa_view, grad_buoyancy_view);
  *   gc.compute(forward, adjoint_dt, grad_data);
  */
 template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE,
           bool IS_MODEL_ON_NODES>
-class AcousticGradientComputation : public GradientComputation
+class AcousticDifferentiator : public Differentiator
 {
  public:
   static constexpr int kOrder = ORDER;
@@ -49,12 +49,12 @@ class AcousticGradientComputation : public GradientComputation
    *
    * @param mesh Mesh object containing topology and reference element info
    */
-  explicit AcousticGradientComputation(const MESH_TYPE& mesh)
+  explicit AcousticDifferentiator(const MESH_TYPE& mesh)
       : m_mesh(mesh)
   {
   }
 
-  ~AcousticGradientComputation() override = default;
+  ~AcousticDifferentiator() override = default;
 
   /**
    * @brief Compute acoustic gradients (Kappa, Buoyancy).
@@ -72,9 +72,7 @@ class AcousticGradientComputation : public GradientComputation
    */
   void compute(const VECTOR_REAL_VIEW& forward_field,
                const std::vector<VECTOR_REAL_VIEW>& adjoint_fields,
-               GradientData& grad_data) override;
-
-  Gradients* getGradients() override { return grad_data_ptr_; }
+               Differentiator::DataStruct& grad_data) override;
 
   int getOrder() const override { return kOrder; }
 
@@ -82,7 +80,7 @@ class AcousticGradientComputation : public GradientComputation
 
   void print() const override
   {
-    std::cout << "AcousticGradientComputation<ORDER=" << kOrder
+    std::cout << "AcousticDifferentiator<ORDER=" << kOrder
               << ", IS_MODEL_ON_NODES=" << (kIsModelOnNodes ? "true" : "false")
               << ">\n";
   }
@@ -118,6 +116,6 @@ class AcousticGradientComputation : public GradientComputation
                            VECTOR_REAL_VIEW gradBuoyancy);
 };
 
-}  // namespace inversion
+}  // namespace gradient
 
-#endif  // FUNTIDES_INVERSION_IMPL_ACOUSTIC_INCLUDE_GRADIENT_COMPUTATION_ACOUSTIC_H_
+#endif  // FUNTIDES_GRADIENT_IMPL_ACOUSTIC_INCLUDE_DIFFERENTIATOR_ACOUSTIC_H_

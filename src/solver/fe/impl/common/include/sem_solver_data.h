@@ -36,7 +36,6 @@ struct SEMsolverData : public Solver::DataStruct
   // Use concrete types from PhysicsTraits to avoid virtual dispatch on device
   using WavefieldType = typename Traits::WavefieldType;
   using RhsType = typename Traits::RhsType;
-  using GradientsType = typename Traits::GradientsType;
 
   /**
    * @brief Constructor for acoustic physics (single field).
@@ -49,16 +48,6 @@ struct SEMsolverData : public Solver::DataStruct
   }
 
   /**
-   * @brief Constructor for acoustic physics with gradients (single field).
-   */
-  template <physicType P = PHYSICS,
-            typename = std::enable_if_t<P == enums::physicType::kAcousticGrad>>
-  SEMsolverData(const WavefieldAcoustic& wavefield, const RhsAcoustic& rhs, const GradientsAcoustic& gradients)
-    : m_wavefield(wavefield), m_rhs(rhs), m_gradients(gradients)
-  {
-  }
-
-  /**
    * @brief Constructor for elastic physics (three fields).
    */
   template <physicType P = PHYSICS,
@@ -66,17 +55,6 @@ struct SEMsolverData : public Solver::DataStruct
   SEMsolverData(const WavefieldElastic& wavefield, const RhsElastic& rhs,
                 const bool isDistributed = false)
       : m_wavefield(wavefield), m_rhs(rhs), isDistributed(isDistributed)
-  {
-  }
-
-  /**
-   * @brief Constructor for elastic physics (three fields).
-   */
-  template <physicType P = PHYSICS,
-            typename = std::enable_if_t<P == enums::physicType::kElasticGrad>>
-  SEMsolverData(const WavefieldElastic& wavefield, const RhsElastic& rhs, const GradientsAcoustic& gradients,
-                const bool isDistributed = false)
-      : m_wavefield(wavefield), m_rhs(rhs), isDistributed(isDistributed), m_gradients(gradients)
   {
   }
 
@@ -125,7 +103,6 @@ struct SEMsolverData : public Solver::DataStruct
   WavefieldType m_wavefield;  ///< Wavefield stored by value for GPU
                               ///< (lightweight view handles)
   RhsType m_rhs;  ///< RHS stored by value for GPU (lightweight view handles)
-  GradientsType m_gradients;  ///< Gradients as Wavefield stored by value for GPU
 };
 
 //============================================================================

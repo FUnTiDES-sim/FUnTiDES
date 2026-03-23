@@ -1,18 +1,16 @@
-#ifndef FUNTIDES_SOLVER_FE_IMPL_ELASTIC_INCLUDE_GRADIENTS_ELASTIC_H_
-#define FUNTIDES_SOLVER_FE_IMPL_ELASTIC_INCLUDE_GRADIENTS_ELASTIC_H_
+#ifndef FUNTIDES_GRADIENT_IMPL_ELASTIC_INCLUDE_GRADIENT_ELASTIC_H_
+#define FUNTIDES_GRADIENT_IMPL_ELASTIC_INCLUDE_GRADIENT_ELASTIC_H_
 #include <data_type.h>
 
 #include "gradients.h"
 
-namespace solver
-{
-namespace fe
+namespace gradient
 {
 /**
- * @brief Elastic gradients data structure.
+ * @brief Elastic gradient data structure.
  * Arrays are kept flat for easy cpp-python-fortran interop.
  */
-struct GradientsElastic : public Gradients
+struct GradientElastic : public Gradient
 {
   /// Number of gradients for model inversions (3 for Rho, Lambda and Mu)
   static constexpr int kNumGrads = 3;
@@ -20,22 +18,22 @@ struct GradientsElastic : public Gradients
   /// Primary field name
   static constexpr const char* kGradsNames[3] = {"gradRho","gradLambda","gradMu"};
 
-  GradientsElastic(VECTOR_REAL_VIEW gradRho,
-                   VECTOR_REAL_VIEW gradLambda,
-                   VECTOR_REAL_VIEW gradMu)
+  GradientElastic(VECTOR_REAL_VIEW gradRho,
+                  VECTOR_REAL_VIEW gradLambda,
+                  VECTOR_REAL_VIEW gradMu)
       : m_gradRho(gradRho), m_gradLambda(gradLambda), m_gradMu(gradMu)
   {
   }
 
-  int getNumGrads() const override final { return kNumGrads; }
+  int getNumGradients() const override final { return kNumGrads; }
 
-  const char* const* getGradsNames() const override final
+  const char* const* getGradientNames() const override final
   {
     return kGradsNames;
   }
 
   PROXY_HOST_DEVICE
-  VECTOR_REAL_VIEW getCurrentGrads(int i) const override
+  VECTOR_REAL_VIEW getGradient(int i) const override
   {
     switch (i)
     {
@@ -64,6 +62,5 @@ struct GradientsElastic : public Gradients
   VECTOR_REAL_VIEW m_gradLambda;  ///< Gradient Lambda field
   VECTOR_REAL_VIEW m_gradMu;      ///< Gradient Mu field
 };
-}  // namespace fe
-}  // namespace solver
-#endif  // FUNTIDES_SOLVER_FE_IMPL_ELASTIC_INCLUDE_GRADIENTS_ELASTIC_H_
+}  // namespace gradient
+#endif  // FUNTIDES_GRADIENT_IMPL_ELASTIC_INCLUDE_GRADIENT_ELASTIC_H_
