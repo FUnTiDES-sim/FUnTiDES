@@ -42,7 +42,7 @@ class Differentiator
    * @param data  Structure with required input fields and computed gradients
    */
   virtual void compute(model::ModelApi<float, int>& mesh,
-                       DataStruct& data) = 0;
+                       DataStruct& data) const = 0;
 
   /**
    * @brief Get polynomial order of this computation.

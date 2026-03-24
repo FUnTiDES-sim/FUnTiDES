@@ -181,6 +181,6 @@ class SEMproxy
   utils::enums::implemType getImplem(string implemArg);
   utils::enums::methodType getMethod(string methodArg);
   utils::enums::meshType getMesh(string meshArg);
-  utils::enums::model::AnisotropyType getAnisotropy(std::string anisotropyArg);
+  model::AnisotropyType getAnisotropy(std::string anisotropyArg);
 };
 #endif  // FUNTIDES_MAIN_FE_INCLUDE_SEM_PROXY_H_

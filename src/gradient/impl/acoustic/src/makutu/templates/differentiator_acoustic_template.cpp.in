@@ -4,10 +4,11 @@
 #include <@MODEL_HEADER@>
 
 #include "differentiator_acoustic.h"
+#include "fe/Integrals.hpp"
 
 constexpr int ORDER = @ORDER@;
 
-template class gradient::AcousticDifferentiator<ORDER,
+template class gradient::DifferentiatorAcoustic<ORDER,
                          IntegralTypeSelector<ORDER, IntegralType::MAKUTU>::type,
                          model::@MODEL_CLASS@<@MODEL_TEMPLATE_PARAMS@>,
                          @MODEL_ON_NODES@>;

@@ -25,14 +25,14 @@ namespace gradient
  */
 template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE,
           bool IS_MODEL_ON_NODES>
-class ElasticDifferentiator : public Differentiator
+class DifferentiatorElastic : public Differentiator
 {
  public:
   static constexpr int kOrder = ORDER;
   static constexpr bool kIsModelOnNodes = IS_MODEL_ON_NODES;
   static constexpr int kPointsPerElement = (ORDER + 1) * (ORDER + 1) * (ORDER + 1);
 
-  ~ElasticDifferentiator() override = default;
+  ~DifferentiatorElastic() override = default;
 
   /**
    * @brief Compute elastic gradients (Rho, Lambda, Mu).
@@ -53,7 +53,7 @@ class ElasticDifferentiator : public Differentiator
 
   void print() const override
   {
-    std::cout << "ElasticDifferentiator<ORDER=" << kOrder
+    std::cout << "DifferentiatorElastic<ORDER=" << kOrder
               << ", INTEGRAL_TYPE=" << typeid(INTEGRAL_TYPE).name()
               << ", MESH_TYPE=" << typeid(MESH_TYPE).name()
               << ", IS_MODEL_ON_NODES=" << (kIsModelOnNodes ? "true" : "false")

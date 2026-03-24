@@ -15,14 +15,14 @@ namespace gradient
  * gradient type at compile time and stores it by value (lightweight view
  * handles), avoiding virtual dispatch and heap allocation.
  *
- * @tparam PHYSICS The physics type (physicType::kAcoustic or kElastic)
+ * @tparam PHYSICS The physics type (utils::enums::physicType::kAcoustic or kElastic)
  *
  * Usage:
- *   GradientData<physicType::kAcoustic> data(grad_kappa_view, grad_buoyancy_view);
+ *   GradientData<utils::enums::physicType::kAcoustic> data(grad_kappa_view, grad_buoyancy_view);
  *   differentiator->compute(mesh, data, dt);
  *   auto kappa = data.getGradient(0);
  */
-template <physicType PHYSICS>
+template <utils::enums::physicType PHYSICS>
 struct GradientData : public Differentiator::DataStruct
 {
   using Traits                    = PhysicsTraits<PHYSICS>;
@@ -41,8 +41,8 @@ struct GradientData : public Differentiator::DataStruct
    * @param bwd        Adjoint wavefield view
    * @param gradient   Gradient container for acoustic parameters
    */
-  template <physicType P = PHYSICS,
-            typename    = std::enable_if_t<P == physicType::kAcoustic>>
+  template <utils::enums::physicType P = PHYSICS,
+            typename    = std::enable_if_t<P == utils::enums::physicType::kAcoustic>>
   GradientData(const WavefieldViewForwardAcoustic&  fwd,
                const WavefieldViewBackwardAcoustic& bwd,
                const GradientAcoustic&          gradient)
@@ -57,8 +57,8 @@ struct GradientData : public Differentiator::DataStruct
    * @param bwd        Adjoint wavefield view
    * @param gradient   Gradient container for elastic parameters
    */
-  template <physicType P = PHYSICS,
-            typename    = std::enable_if_t<P == physicType::kElastic>>
+  template <utils::enums::physicType P = PHYSICS,
+            typename    = std::enable_if_t<P == utils::enums::physicType::kElastic>>
   GradientData(const WavefieldViewForwardElastic&  fwd,
                const WavefieldViewBackwardElastic& bwd,
                const GradientElastic&           gradient)
@@ -95,8 +95,8 @@ struct GradientData : public Differentiator::DataStruct
 // Type aliases
 //============================================================================
 
-using GradientDataAcoustic = GradientData<physicType::kAcoustic>;
-using GradientDataElastic  = GradientData<physicType::kElastic>;
+using GradientDataAcoustic = GradientData<utils::enums::physicType::kAcoustic>;
+using GradientDataElastic  = GradientData<utils::enums::physicType::kElastic>;
 
 }  // namespace gradient
 

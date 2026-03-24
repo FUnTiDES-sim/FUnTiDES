@@ -1,7 +1,10 @@
 #include "differentiator_factory.h"
 
+#include <fe/Integrals.hpp>
 #include <model_struct.h>
 #include <model_unstruct.h>
+#include <differentiator_acoustic.h>
+#include <differentiator_elastic.h>
 
 namespace gradient
 {
@@ -10,6 +13,7 @@ using physicType = utils::enums::physicType;
 using meshType = utils::enums::meshType;
 using modelLocationType = utils::enums::modelLocationType;
 using implemType = utils::enums::implemType;
+using methodType = utils::enums::methodType;
 
 /**
  * @brief Dispatches to the correct template instantiation based on runtime
@@ -48,14 +52,12 @@ std::unique_ptr<Differentiator> makeDifferentiatorStruct(bool isModelOnNodes, ph
     if (isModelOnNodes)
     {
       return std::make_unique<
-          Differentiator<ORDER, SelectedIntegral, MeshT, true,
-                                physicType::kAcoustic>>();
+          DifferentiatorAcoustic<ORDER, SelectedIntegral, MeshT, true>>();
     }
     else
     {
       return std::make_unique<
-          Differentiator<ORDER, SelectedIntegral, MeshT, false,
-                                physicType::kAcoustic>>();
+          DifferentiatorAcoustic<ORDER, SelectedIntegral, MeshT, false>>();
     }
   }
   else  // kElastic
@@ -63,14 +65,12 @@ std::unique_ptr<Differentiator> makeDifferentiatorStruct(bool isModelOnNodes, ph
     if (isModelOnNodes)
     {
       return std::make_unique<
-          Differentiator<ORDER, SelectedIntegral, MeshT, true,
-                                physicType::kElastic>>();
+          DifferentiatorElastic<ORDER, SelectedIntegral, MeshT, true>>();
     }
     else
     {
       return std::make_unique<
-          Differentiator<ORDER, SelectedIntegral, MeshT, false,
-                                physicType::kElastic>>();
+          DifferentiatorElastic<ORDER, SelectedIntegral, MeshT, false>>();
     }
   }
 }
@@ -89,14 +89,12 @@ std::unique_ptr<Differentiator> makeDifferentiatorUnstruct(bool isModelOnNodes, 
     if (isModelOnNodes)
     {
       return std::make_unique<
-          Differentiator<ORDER, SelectedIntegral, MeshT, true,
-                                physicType::kAcoustic>>();
+          DifferentiatorAcoustic<ORDER, SelectedIntegral, MeshT, true>>();
     }
     else
     {
       return std::make_unique<
-          Differentiator<ORDER, SelectedIntegral, MeshT, false,
-                                physicType::kAcoustic>>();
+          DifferentiatorAcoustic<ORDER, SelectedIntegral, MeshT, false>>();
     }
   }
   else  // kElastic
@@ -104,14 +102,12 @@ std::unique_ptr<Differentiator> makeDifferentiatorUnstruct(bool isModelOnNodes, 
     if (isModelOnNodes)
     {
       return std::make_unique<
-          Differentiator<ORDER, SelectedIntegral, MeshT, true,
-                                physicType::kElastic>>();
+          DifferentiatorElastic<ORDER, SelectedIntegral, MeshT, true>>();
     }
     else
     {
       return std::make_unique<
-          Differentiator<ORDER, SelectedIntegral, MeshT, false,
-                                physicType::kElastic>>();
+          DifferentiatorElastic<ORDER, SelectedIntegral, MeshT, false>>();
     }
   }
 }
@@ -169,5 +165,7 @@ std::unique_ptr<Differentiator> createDifferentiator(
       "Unsupported solver configuration: methodType=" + to_string(methodType) +
       ", implemType=" + to_string(implemType) +
       ", physicType=" + to_string(physicType));
+
+}
 
 }  // namespace gradient

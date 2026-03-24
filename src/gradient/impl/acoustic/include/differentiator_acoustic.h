@@ -26,14 +26,14 @@ namespace gradient
  */
 template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE,
           bool IS_MODEL_ON_NODES>
-class AcousticDifferentiator : public Differentiator
+class DifferentiatorAcoustic : public Differentiator
 {
  public:
   static constexpr int kOrder = ORDER;
   static constexpr bool kIsModelOnNodes = IS_MODEL_ON_NODES;
   static constexpr int kPointsPerElement = (ORDER + 1) * (ORDER + 1) * (ORDER + 1);
 
-  ~AcousticDifferentiator() override = default;
+  ~DifferentiatorAcoustic() override = default;
 
   /**
    * @brief Compute acoustic gradients (Kappa, Buoyancy).
@@ -44,7 +44,7 @@ class AcousticDifferentiator : public Differentiator
    */
   void compute(model::ModelApi<float, int>& mesh,
                DataStruct& data) const override {
-    auto& myData = dynamic_cast<GradientData<physicType::kAcoustic>&>(data);
+    auto& myData = dynamic_cast<GradientData<utils::enums::physicType::kAcoustic>&>(data);
     auto mesh_copy = dynamic_cast<MESH_TYPE&>(mesh);  // value copy for device capture TODO check that
 
     auto const pn           = myData.getForwardField(0);   // forward pressure, node-indexed
@@ -65,7 +65,7 @@ class AcousticDifferentiator : public Differentiator
 
   void print() const override
   {
-    std::cout << "AcousticDifferentiator<ORDER=" << kOrder
+    std::cout << "DifferentiatorAcoustic<ORDER=" << kOrder
               << ", INTEGRAL_TYPE=" << typeid(INTEGRAL_TYPE).name()
               << ", MESH_TYPE=" << typeid(MESH_TYPE).name()
               << ", IS_MODEL_ON_NODES=" << (kIsModelOnNodes ? "true" : "false")
