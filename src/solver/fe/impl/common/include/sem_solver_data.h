@@ -11,7 +11,7 @@ namespace solver
 namespace fe
 {
 
-using physicType = enums::physicType;
+using physicType = utils::enums::physicType;
 
 //============================================================================
 // Unified Data Structure
@@ -41,7 +41,7 @@ struct SEMsolverData : public Solver::DataStruct
    * @brief Constructor for acoustic physics (single field).
    */
   template <physicType P = PHYSICS,
-            typename = std::enable_if_t<P == enums::physicType::kAcoustic>>
+            typename = std::enable_if_t<P == physicType::kAcoustic>>
   SEMsolverData(const WavefieldAcoustic& wavefield, const RhsAcoustic& rhs)
       : m_wavefield(wavefield), m_rhs(rhs)
   {
@@ -51,7 +51,7 @@ struct SEMsolverData : public Solver::DataStruct
    * @brief Constructor for elastic physics (three fields).
    */
   template <physicType P = PHYSICS,
-            typename = std::enable_if_t<P == enums::physicType::kElastic>>
+            typename = std::enable_if_t<P == physicType::kElastic>>
   SEMsolverData(const WavefieldElastic& wavefield, const RhsElastic& rhs,
                 const bool isDistributed = false)
       : m_wavefield(wavefield), m_rhs(rhs), isDistributed(isDistributed)
@@ -109,8 +109,8 @@ struct SEMsolverData : public Solver::DataStruct
 // Backward Compatibility Type Aliases for Data Structures
 //============================================================================
 
-using SEMsolverDataAcoustic = SEMsolverData<enums::physicType::kAcoustic>;
-using SEMsolverDataElastic = SEMsolverData<enums::physicType::kElastic>;
+using SEMsolverDataAcoustic = SEMsolverData<physicType::kAcoustic>;
+using SEMsolverDataElastic = SEMsolverData<physicType::kElastic>;
 
 }  // namespace fe
 }  // namespace solver

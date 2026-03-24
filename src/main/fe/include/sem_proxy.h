@@ -20,8 +20,6 @@
 #include "solver_factory.h"
 #include "source_and_receiver_utils.h"
 
-using namespace solver::fe::enums;
-
 /**
  * @class SEMproxy
  */
@@ -180,9 +178,9 @@ class SEMproxy
 
   // private methods to pars argv options
   int getPhysic(string physicArg);
-  implemType getImplem(string implemArg);
-  methodType getMethod(string methodArg);
-  meshType getMesh(string meshArg);
-  model::AnisotropyType getAnisotropy(std::string anisotropyArg);
+  utils::enums::implemType getImplem(string implemArg);
+  utils::enums::methodType getMethod(string methodArg);
+  utils::enums::meshType getMesh(string meshArg);
+  utils::enums::model::AnisotropyType getAnisotropy(std::string anisotropyArg);
 };
 #endif  // FUNTIDES_MAIN_FE_INCLUDE_SEM_PROXY_H_

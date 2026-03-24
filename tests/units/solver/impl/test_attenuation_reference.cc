@@ -121,9 +121,9 @@ static std::vector<float> runAndRecordEnergy(
   int npp = (order + 1) * (order + 1) * (order + 1);
 
   auto solver = solver_factory::createSolver(
-      enums::methodType::kSem, enums::implemType::kMakutu,
-      enums::meshType::kStruct, enums::modelLocationType::kOnElements,
-      enums::physicType::kAcoustic, order);
+      utils::enums::methodType::kSem, utils::enums::implemType::kMakutu,
+      utils::enums::meshType::kStruct, utils::enums::modelLocationType::kOnElements,
+      utils::enums::physicType::kAcoustic, order);
   solver->setAnisotropyType(model::AnisotropyType::kIso);
 
   if (!slsFreqs.empty())

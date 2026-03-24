@@ -94,9 +94,9 @@ void bind_solver_factory(py::module_ &m)
 {
   m.def(
       "create_solver",
-      [](enums::methodType method, enums::implemType implem,
-         enums::meshType mesh, enums::modelLocationType modelLocation,
-         enums::physicType physic, int order) {
+      [](utils::enums::methodType method, utils::enums::implemType implem,
+         utils::enums::meshType mesh, utils::enums::modelLocationType modelLocation,
+         utils::enums::physicType physic, int order) {
         auto solver = solver_factory::createSolver(
             method, implem, mesh, modelLocation, physic, order);
         return std::shared_ptr<Solver>(std::move(solver));

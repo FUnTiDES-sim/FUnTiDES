@@ -1,20 +1,10 @@
 #ifndef FUNTIDES_GRADIENT_API_INCLUDE_PHYSICS_TRAITS_H_
 #define FUNTIDES_GRADIENT_API_INCLUDE_PHYSICS_TRAITS_H_
 
+#include "sem_enums.h"
+
 namespace gradient
 {
-
-/**
- * @brief Physics type enumeration for gradient computation.
- *
- * Mirrors solver::fe::enums::physicType. Kept here to avoid
- * gradient depending on solver headers. TODO move to utils for shared enums?
- */
-enum class physicType : int
-{
-  kAcoustic,
-  kElastic
-};
 
 /**
  * @brief Compile-time properties for each gradient physics type.
@@ -31,7 +21,7 @@ enum class physicType : int
  *   - physics_traits_acoustic.h
  *   - physics_traits_elastic.h
  */
-template <physicType PHYSICS>
+template <utils::enums::physicType PHYSICS>
 struct PhysicsTraits
 {
   static constexpr const char* kName = "";

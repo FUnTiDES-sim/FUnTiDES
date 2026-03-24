@@ -27,7 +27,7 @@
 
 using namespace SourceAndReceiverUtils;
 using namespace solver::fe;
-using namespace solver::fe::enums;
+using namespace utils::enums;
 
 SEMproxy::SEMproxy(const SemProxyOptions& opt)
 {
