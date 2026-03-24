@@ -7,7 +7,6 @@
 
 #include <KokkosExp_InterOp.hpp>
 
-
 namespace py = pybind11;
 
 namespace gradient

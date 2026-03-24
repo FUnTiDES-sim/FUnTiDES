@@ -9,7 +9,8 @@ namespace gradient
 {
 
 /**
- * @brief Read-only view of an acoustic forward wavefield for gradient computation.
+ * @brief Read-only view of an acoustic forward wavefield for gradient
+ * computation.
  *
  * Exposes only the current pressure snapshot pn needed by the gradient kernel.
  * Constructed by the caller from a solver wavefield; no solver dependency here.
@@ -22,10 +23,7 @@ struct WavefieldViewForwardAcoustic : public WavefieldView
   static constexpr int kNumFields = 1;
   static constexpr const char* kFieldNames[1] = {"pn"};
 
-  explicit WavefieldViewForwardAcoustic(VECTOR_REAL_VIEW pn)
-      : m_pn(pn)
-  {
-  }
+  explicit WavefieldViewForwardAcoustic(VECTOR_REAL_VIEW pn) : m_pn(pn) {}
 
   int getNumFields() const override { return kNumFields; }
 

@@ -101,8 +101,7 @@ class SemProxyOptions
         cxxopts::value<bool>(o.free_surface))(
         "anisotropy", "Anisotropy type for elastic: iso|vti|tti (default=iso)",
         cxxopts::value<std::string>(o.anisotropy))(
-        "das-type",
-        "DAS receiver type: none|dipole|strain (default=none)",
+        "das-type", "DAS receiver type: none|dipole|strain (default=none)",
         cxxopts::value<std::string>(o.das_type))(
         "das-dip", "DAS fiber dip angle in degrees (default=0)",
         cxxopts::value<float>(o.das_dip))(
@@ -113,27 +112,23 @@ class SemProxyOptions
         "das-samples",
         "Number of integration points along DAS fiber (default=5)",
         cxxopts::value<int>(o.das_samples))(
-        "srcx", "Source position X (meters)",
-        cxxopts::value<float>(o.srcx))(
-        "srcy", "Source position Y (meters)",
-        cxxopts::value<float>(o.srcy))(
-        "srcz", "Source position Z (meters)",
-        cxxopts::value<float>(o.srcz))(
-        "rcvx", "Receiver position X (meters)",
-        cxxopts::value<float>(o.rcvx))(
-        "rcvy", "Receiver position Y (meters)",
-        cxxopts::value<float>(o.rcvy))(
-        "rcvz", "Receiver position Z (meters)",
-        cxxopts::value<float>(o.rcvz))(
+        "srcx", "Source position X (meters)", cxxopts::value<float>(o.srcx))(
+        "srcy", "Source position Y (meters)", cxxopts::value<float>(o.srcy))(
+        "srcz", "Source position Z (meters)", cxxopts::value<float>(o.srcz))(
+        "rcvx", "Receiver position X (meters)", cxxopts::value<float>(o.rcvx))(
+        "rcvy", "Receiver position Y (meters)", cxxopts::value<float>(o.rcvy))(
+        "rcvz", "Receiver position Z (meters)", cxxopts::value<float>(o.rcvz))(
         "qp", "Quality factor for P-waves (default: no attenuation)",
         cxxopts::value<float>(o.qp))(
         "qs", "Quality factor for S-waves (default: no attenuation)",
         cxxopts::value<float>(o.qs))(
         "sls-reference-angular-frequencies",
         "Comma-separated SLS reference angular frequencies (rad/s)",
-        cxxopts::value<std::vector<float>>(o.sls_reference_angular_frequencies))(
+        cxxopts::value<std::vector<float>>(
+            o.sls_reference_angular_frequencies))(
         "sls-anelasticity-coefficients",
-        "Comma-separated SLS anelasticity coefficients (same size as frequencies)",
+        "Comma-separated SLS anelasticity coefficients (same size as "
+        "frequencies)",
         cxxopts::value<std::vector<float>>(o.sls_anelasticity_coefficients));
   }
 };

@@ -15,10 +15,9 @@ struct GradientAcoustic : public Gradient
   static constexpr int kNumGrads = 2;
 
   /// Primary field name
-  static constexpr const char* kGradsNames[2] = {"gradKappa","gradBuoyancy"};
+  static constexpr const char* kGradsNames[2] = {"gradKappa", "gradBuoyancy"};
 
-  GradientAcoustic(VECTOR_REAL_VIEW gradKappa,
-                   VECTOR_REAL_VIEW gradBuoyancy)
+  GradientAcoustic(VECTOR_REAL_VIEW gradKappa, VECTOR_REAL_VIEW gradBuoyancy)
       : m_gradKappa(gradKappa), m_gradBuoyancy(gradBuoyancy)
   {
   }
@@ -46,13 +45,12 @@ struct GradientAcoustic : public Gradient
 
   void print() const override
   {
-    std::cout << "Grad Kappa size: " << m_gradKappa.extent(0)
-              << std::endl;
+    std::cout << "Grad Kappa size: " << m_gradKappa.extent(0) << std::endl;
     std::cout << "Grad Buoyancy size: " << m_gradBuoyancy.extent(0)
               << std::endl;
   }
 
-  VECTOR_REAL_VIEW m_gradKappa;  ///< Gradient of Kappa
+  VECTOR_REAL_VIEW m_gradKappa;     ///< Gradient of Kappa
   VECTOR_REAL_VIEW m_gradBuoyancy;  ///< Gradient of Buoyancy
 };
 }  // namespace gradient

@@ -10,10 +10,10 @@
 #include "face_connectivity_unstruct.h"
 #include "model.h"
 #include "parallel_topology.h"
-#include "sem_enums.h"
 #include "physics_traits.h"
 #include "physics_traits_acoustic.h"
 #include "physics_traits_elastic.h"
+#include "sem_enums.h"
 #include "sem_solver_data.h"
 #include "solver.h"
 
@@ -136,8 +136,9 @@ class SEMsolver : public Solver
    * @param theta Dip angle (radians).
    * @param C Output 6x6 elasticity matrix.
    */
-  template <physicType P = PHYSICS,
-            typename = std::enable_if_t<P == utils::enums::physicType::kElastic>>
+  template <
+      physicType P = PHYSICS,
+      typename = std::enable_if_t<P == utils::enums::physicType::kElastic>>
   PROXY_HOST_DEVICE void computeCMatrix(float vp, float vs, float rho,
                                         float delta, float epsilon, float gamma,
                                         float phi, float theta,
@@ -183,7 +184,8 @@ class SEMsolver : public Solver
       if (static_cast<int>(anelasticity_coefficients.extent(0)) != nSls_)
       {
         throw std::runtime_error(
-            "SLS anelasticity coefficients must match reference frequencies size");
+            "SLS anelasticity coefficients must match reference frequencies "
+            "size");
       }
       for (int i = 0; i < nSls_; ++i)
       {

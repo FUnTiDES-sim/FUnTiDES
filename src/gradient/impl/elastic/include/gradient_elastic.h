@@ -15,10 +15,10 @@ struct GradientElastic : public Gradient
   static constexpr int kNumGrads = 3;
 
   /// Primary field name
-  static constexpr const char* kGradsNames[3] = {"gradRho","gradLambda","gradMu"};
+  static constexpr const char* kGradsNames[3] = {"gradRho", "gradLambda",
+                                                 "gradMu"};
 
-  GradientElastic(VECTOR_REAL_VIEW gradRho,
-                  VECTOR_REAL_VIEW gradLambda,
+  GradientElastic(VECTOR_REAL_VIEW gradRho, VECTOR_REAL_VIEW gradLambda,
                   VECTOR_REAL_VIEW gradMu)
       : m_gradRho(gradRho), m_gradLambda(gradLambda), m_gradMu(gradMu)
   {
@@ -49,12 +49,9 @@ struct GradientElastic : public Gradient
 
   void print() const override
   {
-    std::cout << "Grad Rho size: " << m_gradRho.extent(0)
-              << std::endl;
-    std::cout << "Grad Lambda size: " << m_gradLambda.extent(0)
-              << std::endl;
-    std::cout << "Grad Mu size: " << m_gradMu.extent(0)
-              << std::endl;
+    std::cout << "Grad Rho size: " << m_gradRho.extent(0) << std::endl;
+    std::cout << "Grad Lambda size: " << m_gradLambda.extent(0) << std::endl;
+    std::cout << "Grad Mu size: " << m_gradMu.extent(0) << std::endl;
   }
 
   VECTOR_REAL_VIEW m_gradRho;     ///< Gradient Rho field

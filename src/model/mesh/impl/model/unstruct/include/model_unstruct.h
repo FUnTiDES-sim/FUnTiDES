@@ -43,10 +43,10 @@ struct ModelUnstructData : public ModelDataBase<FloatType, ScalarType>
       VECTOR_REAL_VIEW model_theta_element, VECTOR_REAL_VIEW model_phi_node,
       VECTOR_REAL_VIEW model_phi_element,
       ARRAY3D_REAL_VIEW model_C_tensor_element, VECTOR_INT_VIEW boundaries_t,
-        VECTOR_REAL_VIEW model_qp_node = VECTOR_REAL_VIEW(),
-        VECTOR_REAL_VIEW model_qp_element = VECTOR_REAL_VIEW(),
-        VECTOR_REAL_VIEW model_qs_node = VECTOR_REAL_VIEW(),
-        VECTOR_REAL_VIEW model_qs_element = VECTOR_REAL_VIEW(),
+      VECTOR_REAL_VIEW model_qp_node = VECTOR_REAL_VIEW(),
+      VECTOR_REAL_VIEW model_qp_element = VECTOR_REAL_VIEW(),
+      VECTOR_REAL_VIEW model_qs_node = VECTOR_REAL_VIEW(),
+      VECTOR_REAL_VIEW model_qs_element = VECTOR_REAL_VIEW(),
       FaceConnectivityUnstructData<FloatType, ScalarType> face_connectivity =
           {})
       : order_(order),

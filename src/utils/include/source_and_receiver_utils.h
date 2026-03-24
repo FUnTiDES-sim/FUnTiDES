@@ -45,8 +45,8 @@ struct LagrangeBasisSelector<5>
 /// Ported from GEOS WaveSolverUtils::DASType.
 enum class DASType
 {
-  kNone,               ///< Standard point receiver (no DAS)
-  kDipole,             ///< Displacement difference at two endpoints / gauge length
+  kNone,    ///< Standard point receiver (no DAS)
+  kDipole,  ///< Displacement difference at two endpoints / gauge length
   kStrainIntegration,  ///< Integrate strain along fiber direction
 };
 
@@ -94,7 +94,8 @@ void ComputeRHSWeights(real_t const (&cornerCoords)[8][3],
 
 /// Compute DAS weights for a single sample point within an element.
 /// For dipole mode: weights = N[a] * integrationConstant (basis functions)
-/// For strain integration: weights = (gradN[a] · direction) * integrationConstant
+/// For strain integration: weights = (gradN[a] · direction) *
+/// integrationConstant
 /// @param cornerCoords  8 corner coordinates of the element
 /// @param coordsReal    physical coordinates of the sample point
 /// @param direction     fiber direction unit vector
@@ -152,7 +153,8 @@ void ComputeDASWeightsForSample(real_t const (&cornerCoords)[8][3],
                              static_cast<real_t>(Na * dNb * Nc),
                              static_cast<real_t>(Na * Nb * dNc)};
 
-          // Transform to physical gradients: gradN_i = sum_j invJ[j][i] * dNdXi[j]
+          // Transform to physical gradients: gradN_i = sum_j invJ[j][i] *
+          // dNdXi[j]
           real_t gx = 0, gy = 0, gz = 0;
           for (int j = 0; j < 3; ++j)
           {

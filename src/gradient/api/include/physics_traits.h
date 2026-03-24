@@ -11,8 +11,10 @@ namespace gradient
  *
  * All specializations MUST define:
  * - kName:                     Human-readable name for logging (const char*)
- * - WavefieldViewForwardType:  Read-only forward wavefield view for this physics
- * - WavefieldViewBackwardType: Read-only adjoint wavefield view for this physics
+ * - WavefieldViewForwardType:  Read-only forward wavefield view for this
+ * physics
+ * - WavefieldViewBackwardType: Read-only adjoint wavefield view for this
+ * physics
  * - GradientType:              Concrete gradient data type for this physics
  *
  * @tparam PHYSICS The physics type (kAcoustic, kElastic)

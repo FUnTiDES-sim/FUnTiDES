@@ -1,8 +1,8 @@
 #ifndef FUNTIDES_GRADIENT_IMPL_ELASTIC_INCLUDE_DIFFERENTIATOR_ELASTIC_H_
 #define FUNTIDES_GRADIENT_IMPL_ELASTIC_INCLUDE_DIFFERENTIATOR_ELASTIC_H_
 
-#include "model.h"
 #include "differentiator.h"
+#include "model.h"
 
 namespace gradient
 {
@@ -10,8 +10,9 @@ namespace gradient
 /**
  * @brief Elastic gradient computation for independent use.
  *
- * Computes model parameter gradients (grad_rho, grad_lambda, grad_mu) from elastic
- * forward and adjoint displacement wavefields. Completely independent from the Solver.
+ * Computes model parameter gradients (grad_rho, grad_lambda, grad_mu) from
+ * elastic forward and adjoint displacement wavefields. Completely independent
+ * from the Solver.
  *
  * Features:
  * - Supports both node-based and element-based model discretization
@@ -30,7 +31,8 @@ class DifferentiatorElastic : public Differentiator
  public:
   static constexpr int kOrder = ORDER;
   static constexpr bool kIsModelOnNodes = IS_MODEL_ON_NODES;
-  static constexpr int kPointsPerElement = (ORDER + 1) * (ORDER + 1) * (ORDER + 1);
+  static constexpr int kPointsPerElement =
+      (ORDER + 1) * (ORDER + 1) * (ORDER + 1);
 
   ~DifferentiatorElastic() override = default;
 
@@ -43,8 +45,10 @@ class DifferentiatorElastic : public Differentiator
    *   grad_mu     = ∑_elements ∑_stiffness stress_strain_contraction
    */
   void compute(model::ModelApi<float, int>& mesh,
-               DataStruct& data) const override {
-    throw std::runtime_error("Elastic gradient computation not implemented yet");
+               DataStruct& data) const override
+  {
+    throw std::runtime_error(
+        "Elastic gradient computation not implemented yet");
   }
 
   int getOrder() const override { return kOrder; }
@@ -59,7 +63,6 @@ class DifferentiatorElastic : public Differentiator
               << ", IS_MODEL_ON_NODES=" << (kIsModelOnNodes ? "true" : "false")
               << ">\n";
   }
-
 };
 
 }  // namespace gradient

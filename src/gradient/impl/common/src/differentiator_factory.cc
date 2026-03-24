@@ -1,10 +1,11 @@
 #include "differentiator_factory.h"
 
-#include <fe/Integrals.hpp>
-#include <model_struct.h>
-#include <model_unstruct.h>
 #include <differentiator_acoustic.h>
 #include <differentiator_elastic.h>
+#include <model_struct.h>
+#include <model_unstruct.h>
+
+#include <fe/Integrals.hpp>
 
 namespace gradient
 {
@@ -42,7 +43,8 @@ std::unique_ptr<Differentiator> orderDispatch(int const order, FUNC&& func)
  * @brief Creates differentiator for structured mesh.
  */
 template <auto ImplTag, int ORDER>
-std::unique_ptr<Differentiator> makeDifferentiatorStruct(bool isModelOnNodes, physicType physic)
+std::unique_ptr<Differentiator> makeDifferentiatorStruct(bool isModelOnNodes,
+                                                         physicType physic)
 {
   using MeshT = model::ModelStruct<float, int, ORDER>;
   using SelectedIntegral = typename IntegralTypeSelector<ORDER, ImplTag>::type;
@@ -79,7 +81,8 @@ std::unique_ptr<Differentiator> makeDifferentiatorStruct(bool isModelOnNodes, ph
  * @brief Creates differentiator for unstructured mesh.
  */
 template <auto ImplTag, int ORDER>
-std::unique_ptr<Differentiator> makeDifferentiatorUnstruct(bool isModelOnNodes, physicType physic)
+std::unique_ptr<Differentiator> makeDifferentiatorUnstruct(bool isModelOnNodes,
+                                                           physicType physic)
 {
   using MeshT = model::ModelUnstruct<float, int>;
   using SelectedIntegral = typename IntegralTypeSelector<ORDER, ImplTag>::type;
@@ -116,12 +119,11 @@ std::unique_ptr<Differentiator> makeDifferentiatorUnstruct(bool isModelOnNodes, 
  * @brief Creates a SEM solver with the specified integral implementation.
  */
 template <auto ImplTag>
-std::unique_ptr<Differentiator> makeDifferentiatorSem(int order, meshType mesh,
-                                      modelLocationType modelLocation,
-                                      physicType physic)
+std::unique_ptr<Differentiator> makeDifferentiatorSem(
+    int order, meshType mesh, modelLocationType modelLocation,
+    physicType physic)
 {
-  bool const isModelOnNodes =
-      (modelLocation == modelLocationType::kOnNodes);
+  bool const isModelOnNodes = (modelLocation == modelLocationType::kOnNodes);
 
   switch (mesh)
   {
@@ -134,7 +136,8 @@ std::unique_ptr<Differentiator> makeDifferentiatorSem(int order, meshType mesh,
     case meshType::kUnstruct:
       return orderDispatch(order, [&](auto orderIC) {
         constexpr int ORDER = decltype(orderIC)::value;
-        return makeDifferentiatorUnstruct<ImplTag, ORDER>(isModelOnNodes, physic);
+        return makeDifferentiatorUnstruct<ImplTag, ORDER>(isModelOnNodes,
+                                                          physic);
       });
 
     default:
@@ -152,8 +155,8 @@ std::unique_ptr<Differentiator> createDifferentiator(
     switch (implemType)
     {
       case implemType::kMakutu:
-        return makeDifferentiatorSem<IntegralType::MAKUTU>(order, mesh, modelLocation,
-                                                   physicType);
+        return makeDifferentiatorSem<IntegralType::MAKUTU>(
+            order, mesh, modelLocation, physicType);
       default:
         throw std::runtime_error("Unknown implementation type: " +
                                  to_string(implemType));
@@ -165,7 +168,6 @@ std::unique_ptr<Differentiator> createDifferentiator(
       "Unsupported solver configuration: methodType=" + to_string(methodType) +
       ", implemType=" + to_string(implemType) +
       ", physicType=" + to_string(physicType));
-
 }
 
 }  // namespace gradient

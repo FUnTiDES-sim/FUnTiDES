@@ -9,7 +9,8 @@ namespace gradient
 {
 
 /**
- * @brief Read-only view of an elastic adjoint wavefield for gradient computation.
+ * @brief Read-only view of an elastic adjoint wavefield for gradient
+ * computation.
  *
  * Exposes the current adjoint displacement [ux_n, uy_n, uz_n] and their
  * pre-computed second-order time derivatives [ux_dt2, uy_dt2, uz_dt2] needed
@@ -29,15 +30,12 @@ namespace gradient
 struct WavefieldViewBackwardElastic : public WavefieldView
 {
   static constexpr int kNumFields = 6;
-  static constexpr const char* kFieldNames[6] = {
-      "ux_n", "uy_n", "uz_n", "ux_dt2", "uy_dt2", "uz_dt2"};
+  static constexpr const char* kFieldNames[6] = {"ux_n",   "uy_n",   "uz_n",
+                                                 "ux_dt2", "uy_dt2", "uz_dt2"};
 
-  WavefieldViewBackwardElastic(VECTOR_REAL_VIEW ux_n,
-                               VECTOR_REAL_VIEW uy_n,
-                               VECTOR_REAL_VIEW uz_n,
-                               VECTOR_REAL_VIEW ux_dt2,
-                               VECTOR_REAL_VIEW uy_dt2,
-                               VECTOR_REAL_VIEW uz_dt2)
+  WavefieldViewBackwardElastic(VECTOR_REAL_VIEW ux_n, VECTOR_REAL_VIEW uy_n,
+                               VECTOR_REAL_VIEW uz_n, VECTOR_REAL_VIEW ux_dt2,
+                               VECTOR_REAL_VIEW uy_dt2, VECTOR_REAL_VIEW uz_dt2)
       : m_ux_n(ux_n),
         m_uy_n(uy_n),
         m_uz_n(uz_n),
@@ -76,9 +74,9 @@ struct WavefieldViewBackwardElastic : public WavefieldView
   void print() const override
   {
     std::cout << "WavefieldViewBackwardElastic:"
-              << " ux_n size="   << m_ux_n.extent(0)
-              << " uy_n size="   << m_uy_n.extent(0)
-              << " uz_n size="   << m_uz_n.extent(0)
+              << " ux_n size=" << m_ux_n.extent(0)
+              << " uy_n size=" << m_uy_n.extent(0)
+              << " uz_n size=" << m_uz_n.extent(0)
               << " ux_dt2 size=" << m_ux_dt2.extent(0)
               << " uy_dt2 size=" << m_uy_dt2.extent(0)
               << " uz_dt2 size=" << m_uz_dt2.extent(0) << "\n";

@@ -170,7 +170,8 @@ SEMproxy::SEMproxy(const SemProxyOptions& opt)
                                           modelLocation, physicType, order);
 
   // Setup Sponge Parameters (store as members for use in run())
-  sponge_size_ = {opt.boundaries_size, opt.boundaries_size, opt.boundaries_size};
+  sponge_size_ = {opt.boundaries_size, opt.boundaries_size,
+                  opt.boundaries_size};
   surface_sponge_ = opt.surface_sponge;
   taper_delta_ = opt.taper_delta;
 
@@ -284,7 +285,8 @@ SEMproxy::SEMproxy(const SemProxyOptions& opt)
           "DAS receivers require elastic simulation (--is-elastic true)");
     }
     dasGaugeLength_ = opt.das_gauge_length;
-    dasDirection_ = SourceAndReceiverUtils::ComputeDASVector(opt.das_dip, opt.das_azimuth);
+    dasDirection_ =
+        SourceAndReceiverUtils::ComputeDASVector(opt.das_dip, opt.das_azimuth);
     dasVector_ = dasDirection_;
 
     // For dipole mode, divide direction by gauge length (GEOS convention)
@@ -295,8 +297,8 @@ SEMproxy::SEMproxy(const SemProxyOptions& opt)
 
     std::cout << "DAS receiver enabled: type=" << opt.das_type
               << ", dip=" << opt.das_dip << " deg, azimuth=" << opt.das_azimuth
-              << " deg, gauge=" << dasGaugeLength_ << " m, samples="
-              << dasNumSamples_ << std::endl;
+              << " deg, gauge=" << dasGaugeLength_
+              << " m, samples=" << dasNumSamples_ << std::endl;
     std::cout << "DAS direction vector: (" << dasDirection_[0] << ", "
               << dasDirection_[1] << ", " << dasDirection_[2] << ")"
               << std::endl;
@@ -442,8 +444,8 @@ void SEMproxy::run()
         fout << t * dt_ << " " << pnAtReceiver(0, t) << "\n";
       }
       fout.close();
-      std::cout << "Receiver trace saved to receiver_trace.txt ("
-                << num_sample_ << " samples)" << std::endl;
+      std::cout << "Receiver trace saved to receiver_trace.txt (" << num_sample_
+                << " samples)" << std::endl;
     }
   }
   else
@@ -895,7 +897,7 @@ void SEMproxy::init_source()
       for (int d = 0; d < 3; ++d)
       {
         sampleCoord[d] = rcv_coord_[d] + dasDirection_[d] * dasGaugeLength_ *
-                                              sampleLocations[iSample];
+                                             sampleLocations[iSample];
       }
 
       // Find element containing this sample point
@@ -935,7 +937,8 @@ void SEMproxy::init_source()
         {
           for (int ii = 0; ii < order + 1; ++ii)
           {
-            int localNode = ii + jj * (order + 1) + kk * (order + 1) * (order + 1);
+            int localNode =
+                ii + jj * (order + 1) + kk * (order + 1) * (order + 1);
             dasNodeIds_[baseIdx + localNode] =
                 m_mesh->globalNodeIndex(sampleElemIdx, ii, jj, kk);
           }
@@ -948,24 +951,21 @@ void SEMproxy::init_source()
         case 1:
           SourceAndReceiverUtils::ComputeDASWeightsForSample<1>(
               sampleCornerCoords, sampleCoord, dasDirection_,
-              integrationConstants[iSample], dasType_,
-              &dasWeights_[baseIdx]);
+              integrationConstants[iSample], dasType_, &dasWeights_[baseIdx]);
           break;
         case 2:
           SourceAndReceiverUtils::ComputeDASWeightsForSample<2>(
               sampleCornerCoords, sampleCoord, dasDirection_,
-              integrationConstants[iSample], dasType_,
-              &dasWeights_[baseIdx]);
+              integrationConstants[iSample], dasType_, &dasWeights_[baseIdx]);
           break;
         case 3:
           SourceAndReceiverUtils::ComputeDASWeightsForSample<3>(
               sampleCornerCoords, sampleCoord, dasDirection_,
-              integrationConstants[iSample], dasType_,
-              &dasWeights_[baseIdx]);
+              integrationConstants[iSample], dasType_, &dasWeights_[baseIdx]);
           break;
         default:
-          throw std::runtime_error(
-              "Unsupported order for DAS: " + std::to_string(order));
+          throw std::runtime_error("Unsupported order for DAS: " +
+                                   std::to_string(order));
       }
     }
 

@@ -1,9 +1,9 @@
 #ifndef FUNTIDES_GRADIENT_IMPL_ACOUSTIC_INCLUDE_DIFFERENTIATOR_ACOUSTIC_H_
 #define FUNTIDES_GRADIENT_IMPL_ACOUSTIC_INCLUDE_DIFFERENTIATOR_ACOUSTIC_H_
 
-#include "model.h"
 #include "differentiator.h"
 #include "gradient_data.h"
+#include "model.h"
 
 namespace gradient
 {
@@ -31,7 +31,8 @@ class DifferentiatorAcoustic : public Differentiator
  public:
   static constexpr int kOrder = ORDER;
   static constexpr bool kIsModelOnNodes = IS_MODEL_ON_NODES;
-  static constexpr int kPointsPerElement = (ORDER + 1) * (ORDER + 1) * (ORDER + 1);
+  static constexpr int kPointsPerElement =
+      (ORDER + 1) * (ORDER + 1) * (ORDER + 1);
 
   ~DifferentiatorAcoustic() override = default;
 
@@ -43,15 +44,22 @@ class DifferentiatorAcoustic : public Differentiator
    *   grad_buoyancy = ∑_elements ∑_stiffness stiffness_term * q * p
    */
   void compute(model::ModelApi<float, int>& mesh,
-               DataStruct& data) const override {
-    auto& myData = dynamic_cast<GradientData<utils::enums::physicType::kAcoustic>&>(data);
-    auto mesh_copy = dynamic_cast<MESH_TYPE&>(mesh);  // value copy for device capture TODO check that
+               DataStruct& data) const override
+  {
+    auto& myData =
+        dynamic_cast<GradientData<utils::enums::physicType::kAcoustic>&>(data);
+    auto mesh_copy = dynamic_cast<MESH_TYPE&>(
+        mesh);  // value copy for device capture TODO check that
 
-    auto const pn           = myData.getForwardField(0);   // forward pressure, node-indexed
-    auto const qn           = myData.getBackwardField(0);  // adjoint pressure, node-indexed
-    auto const qdt2         = myData.getBackwardField(1);  // d²q/dt², node-indexed
-    auto const gradKappa    = myData.getGradient(0); // grad_kappa, node- or element-indexed
-    auto const gradBuoyancy = myData.getGradient(1); // grad_buoyancy, node- or element-indexed
+    auto const pn =
+        myData.getForwardField(0);  // forward pressure, node-indexed
+    auto const qn =
+        myData.getBackwardField(0);  // adjoint pressure, node-indexed
+    auto const qdt2 = myData.getBackwardField(1);  // d²q/dt², node-indexed
+    auto const gradKappa =
+        myData.getGradient(0);  // grad_kappa, node- or element-indexed
+    auto const gradBuoyancy =
+        myData.getGradient(1);  // grad_buoyancy, node- or element-indexed
 
     if constexpr (!IS_MODEL_ON_NODES)
       computeOnElements(mesh_copy, pn, qn, qdt2, gradKappa, gradBuoyancy);
@@ -76,12 +84,10 @@ class DifferentiatorAcoustic : public Differentiator
   /**
    * @brief Each element writes to a unique index — no atomic add required.
    */
-  void computeOnElements(MESH_TYPE               mesh_copy,
-                         VECTOR_REAL_VIEW  const  pn,
-                         VECTOR_REAL_VIEW  const  qn,
-                         VECTOR_REAL_VIEW  const  qdt2,
-                         VECTOR_REAL_VIEW  const  gradKappa,
-                         VECTOR_REAL_VIEW  const  gradBuoyancy) const
+  void computeOnElements(MESH_TYPE mesh_copy, VECTOR_REAL_VIEW const pn,
+                         VECTOR_REAL_VIEW const qn, VECTOR_REAL_VIEW const qdt2,
+                         VECTOR_REAL_VIEW const gradKappa,
+                         VECTOR_REAL_VIEW const gradBuoyancy) const
   {
     MAINLOOPHEAD(mesh_copy.getNumberOfElements(), elementNumber)
 
@@ -104,8 +110,8 @@ class DifferentiatorAcoustic : public Differentiator
           }
     }
 
-    float localPn[kPointsPerElement]   = {0};
-    float localQn[kPointsPerElement]   = {0};
+    float localPn[kPointsPerElement] = {0};
+    float localQn[kPointsPerElement] = {0};
     float localQdt2[kPointsPerElement] = {0};
     for (int i = 0; i < dim; ++i)
       for (int j = 0; j < dim; ++j)
@@ -113,16 +119,15 @@ class DifferentiatorAcoustic : public Differentiator
         {
           int const gIdx = mesh_copy.globalNodeIndex(elementNumber, i, j, k);
           int const lIdx = i + j * dim + k * dim * dim;
-          localPn[lIdx]   = pn(gIdx);
-          localQn[lIdx]   = qn(gIdx);
+          localPn[lIdx] = pn(gIdx);
+          localQn[lIdx] = qn(gIdx);
           localQdt2[lIdx] = qdt2(gIdx);
         }
 
     // grad_kappa: element-indexed — unique per thread, no atomic
     float localGradKappa = 0.0f;
     INTEGRAL_TYPE::computeMassTerm(
-        transformData,
-        [&](const int q, const real_t val) {
+        transformData, [&](const int q, const real_t val) {
           localGradKappa += localQdt2[q] * localPn[q] * val;
         });
     gradKappa(elementNumber) += localGradKappa;
@@ -143,12 +148,10 @@ class DifferentiatorAcoustic : public Differentiator
   /**
    * @brief Multiple elements share boundary nodes — ATOMICADD required.
    */
-  void computeOnNodes(MESH_TYPE               mesh_copy,
-                      VECTOR_REAL_VIEW  const  pn,
-                      VECTOR_REAL_VIEW  const  qn,
-                      VECTOR_REAL_VIEW  const  qdt2,
-                      VECTOR_REAL_VIEW  const  gradKappa,
-                      VECTOR_REAL_VIEW  const  gradBuoyancy) const
+  void computeOnNodes(MESH_TYPE mesh_copy, VECTOR_REAL_VIEW const pn,
+                      VECTOR_REAL_VIEW const qn, VECTOR_REAL_VIEW const qdt2,
+                      VECTOR_REAL_VIEW const gradKappa,
+                      VECTOR_REAL_VIEW const gradBuoyancy) const
   {
     MAINLOOPHEAD(mesh_copy.getNumberOfElements(), elementNumber)
 
@@ -171,10 +174,10 @@ class DifferentiatorAcoustic : public Differentiator
           }
     }
 
-    float localPn[kPointsPerElement]   = {0};
-    float localQn[kPointsPerElement]   = {0};
+    float localPn[kPointsPerElement] = {0};
+    float localQn[kPointsPerElement] = {0};
     float localQdt2[kPointsPerElement] = {0};
-    int   localGIdx[kPointsPerElement] = {0};
+    int localGIdx[kPointsPerElement] = {0};
     for (int i = 0; i < dim; ++i)
       for (int j = 0; j < dim; ++j)
         for (int k = 0; k < dim; ++k)
@@ -182,19 +185,19 @@ class DifferentiatorAcoustic : public Differentiator
           int const gIdx = mesh_copy.globalNodeIndex(elementNumber, i, j, k);
           int const lIdx = i + j * dim + k * dim * dim;
           localGIdx[lIdx] = gIdx;
-          localPn[lIdx]   = pn(gIdx);
-          localQn[lIdx]   = qn(gIdx);
+          localPn[lIdx] = pn(gIdx);
+          localQn[lIdx] = qn(gIdx);
           localQdt2[lIdx] = qdt2(gIdx);
         }
 
     // grad_kappa: scatter per quadrature point to its global node
     INTEGRAL_TYPE::computeMassTerm(
-        transformData,
-        [&](const int q, const real_t val) {
+        transformData, [&](const int q, const real_t val) {
           ATOMICADD(gradKappa(localGIdx[q]), localQdt2[q] * localPn[q] * val);
         });
 
-    // grad_buoyancy: scatter test-function node (i) contributions to global node
+    // grad_buoyancy: scatter test-function node (i) contributions to global
+    // node
     INTEGRAL_TYPE::computeStiffnessTerm(
         transformData,
         [&](const int /*qa*/, const int /*qb*/, const int /*qc*/) {},
@@ -204,7 +207,6 @@ class DifferentiatorAcoustic : public Differentiator
 
     MAINLOOPEND
   }
-
 };
 
 }  // namespace gradient

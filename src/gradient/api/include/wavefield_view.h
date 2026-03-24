@@ -3,10 +3,12 @@
 
 #include "common_macros.h"
 
-namespace gradient {
+namespace gradient
+{
 
 /**
- * @brief Abstract interface for read-only wavefield views (aka snapshots) in gradient computation.
+ * @brief Abstract interface for read-only wavefield views (aka snapshots) in
+ * gradient computation.
  *
  * WavefieldView provides a physics-agnostic interface to access the required
  * forward and adjoint wavefield snapshots for gradient computation, without
@@ -18,7 +20,8 @@ namespace gradient {
  * This design allows the Differentiator to operate on abstract wavefield views,
  * decoupling it from solver internals and enabling flexible data management.
  */
-struct WavefieldView {
+struct WavefieldView
+{
   virtual ~WavefieldView() = default;
 
   /**
@@ -44,6 +47,6 @@ struct WavefieldView {
   virtual void print() const = 0;
 };
 
-}
+}  // namespace gradient
 
 #endif  // FUNTIDES_GRADIENT_API_INCLUDE_WAVEFIELD_VIEW_H_

@@ -9,7 +9,8 @@ namespace gradient
 {
 
 /**
- * @brief Read-only view of an elastic forward wavefield for gradient computation.
+ * @brief Read-only view of an elastic forward wavefield for gradient
+ * computation.
  *
  * Exposes only the current displacement snapshots [ux_n, uy_n, uz_n] needed
  * by the elastic gradient kernel. Constructed by the caller from a solver
@@ -25,8 +26,7 @@ struct WavefieldViewForwardElastic : public WavefieldView
   static constexpr int kNumFields = 3;
   static constexpr const char* kFieldNames[3] = {"ux_n", "uy_n", "uz_n"};
 
-  WavefieldViewForwardElastic(VECTOR_REAL_VIEW ux_n,
-                              VECTOR_REAL_VIEW uy_n,
+  WavefieldViewForwardElastic(VECTOR_REAL_VIEW ux_n, VECTOR_REAL_VIEW uy_n,
                               VECTOR_REAL_VIEW uz_n)
       : m_ux_n(ux_n), m_uy_n(uy_n), m_uz_n(uz_n)
   {

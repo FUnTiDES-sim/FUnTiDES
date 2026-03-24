@@ -66,8 +66,8 @@ void bind_modelapi(py::module_ &m)
       .def("is_boundary_face", &T::isBoundaryFace)
       .def("get_global_node_from_face", &T::getGlobalNodeFromFace)
       .def("get_global_face", &T::getGlobalFace)
-      .def("set_quality_factors", &T::setQualityFactors,
-           py::arg("qp"), py::arg("qs"))
+      .def("set_quality_factors", &T::setQualityFactors, py::arg("qp"),
+           py::arg("qs"))
       .def("is_free_surface", &T::isFreeSurface);
 }
 
