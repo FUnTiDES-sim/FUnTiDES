@@ -31,6 +31,7 @@ struct GradientElastic : public Gradient
     return kGradsNames;
   }
 
+  // TODO use template + constexpr if when C++20 is available
   PROXY_HOST_DEVICE
   VECTOR_REAL_VIEW getGradient(int i) const override
   {

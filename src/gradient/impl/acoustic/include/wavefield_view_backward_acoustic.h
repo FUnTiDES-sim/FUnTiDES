@@ -37,6 +37,7 @@ struct WavefieldViewBackwardAcoustic : public WavefieldView
 
   const char* const* getFieldNames() const override { return kFieldNames; }
 
+  // TODO use template + constexpr if when C++20 is available
   PROXY_HOST_DEVICE
   VECTOR_REAL_VIEW getField(int i) const override
   {
