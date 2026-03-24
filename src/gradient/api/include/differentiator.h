@@ -1,10 +1,7 @@
 #ifndef FUNTIDES_GRADIENT_API_INCLUDE_DIFFERENTIATOR_H_
 #define FUNTIDES_GRADIENT_API_INCLUDE_DIFFERENTIATOR_H_
 
-#include <vector>
-
-#include "common_macros.h"
-#include "gradients.h"
+#include "model.h"
 
 namespace gradient
 {
@@ -21,7 +18,7 @@ namespace gradient
  * Usage:
  *   auto differentiator = createDifferentiator(...);
  *   GradientData data;
- *   grad_computer->compute(mesh, data);
+ *   differentiator->compute(mesh, data);
  *   auto grad_kappa = data.getGradient(0);
  */
 class Differentiator
@@ -45,12 +42,11 @@ class Differentiator
    * @param data  Structure with required input fields and computed gradients
    */
   virtual void compute(model::ModelApi<float, int>& mesh,
-                       DataStruct& data,
-                       const float& dt) = 0;
+                       DataStruct& data) = 0;
 
   /**
    * @brief Get polynomial order of this computation.
-   * @return polynomial order (ORDER template parameter)
+   * @return polynomial order
    */
   virtual int getOrder() const = 0;
 

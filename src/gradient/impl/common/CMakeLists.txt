@@ -1,4 +1,6 @@
-add_subdirectory(src/makutu)
+target_sources(funtides_gradient PRIVATE 
+     src/differentiator_factory.cc
+)
 
 target_include_directories(funtides_gradient
   PUBLIC

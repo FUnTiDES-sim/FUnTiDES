@@ -3,8 +3,6 @@
 
 #include <iostream>
 
-#include "common_macros.h"
-#include "data_type.h"
 #include "wavefield_view.h"
 
 namespace gradient
@@ -13,19 +11,19 @@ namespace gradient
 /**
  * @brief Read-only view of an acoustic forward wavefield for gradient computation.
  *
- * Exposes only the current pressure snapshot p_n needed by the gradient kernel.
+ * Exposes only the current pressure snapshot pn needed by the gradient kernel.
  * Constructed by the caller from a solver wavefield; no solver dependency here.
  *
  * Fields:
- *   getField(0) = p_n  (current pressure)
+ *   getField(0) = pn  (current pressure)
  */
 struct WavefieldViewForwardAcoustic : public WavefieldView
 {
   static constexpr int kNumFields = 1;
-  static constexpr const char* kFieldNames[1] = {"p_n"};
+  static constexpr const char* kFieldNames[1] = {"pn"};
 
-  explicit WavefieldViewForwardAcoustic(VECTOR_REAL_VIEW p_n)
-      : m_p_n(p_n)
+  explicit WavefieldViewForwardAcoustic(VECTOR_REAL_VIEW pn)
+      : m_pn(pn)
   {
   }
 
@@ -34,15 +32,15 @@ struct WavefieldViewForwardAcoustic : public WavefieldView
   const char* const* getFieldNames() const override { return kFieldNames; }
 
   PROXY_HOST_DEVICE
-  VECTOR_REAL_VIEW getField(int /*i*/) const override { return m_p_n; }
+  VECTOR_REAL_VIEW getField(int i) const override { return m_pn; }
 
   void print() const override
   {
-    std::cout << "WavefieldViewForwardAcoustic: p_n size=" << m_p_n.extent(0)
+    std::cout << "WavefieldViewForwardAcoustic: pn size=" << m_pn.extent(0)
               << "\n";
   }
 
-  VECTOR_REAL_VIEW m_p_n;  ///< Current pressure snapshot
+  VECTOR_REAL_VIEW m_pn;  ///< Current pressure snapshot
 };
 
 }  // namespace gradient

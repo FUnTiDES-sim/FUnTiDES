@@ -1,11 +1,12 @@
 #ifndef FUNTIDES_GRADIENT_API_INCLUDE_WAVEFIELD_VIEW_H_
 #define FUNTIDES_GRADIENT_API_INCLUDE_WAVEFIELD_VIEW_H_
 
+#include "common_macros.h"
+
 namespace gradient {
 
-
 /**
- * @brief Abstract interface for read-only wavefield views in gradient computation.
+ * @brief Abstract interface for read-only wavefield views (aka snapshots) in gradient computation.
  *
  * WavefieldView provides a physics-agnostic interface to access the required
  * forward and adjoint wavefield snapshots for gradient computation, without
@@ -37,7 +38,8 @@ struct WavefieldView {
    * @param i The index of the field to retrieve.
    * @return The requested field.
    */
-  PROXY_HOST_DEVICE virtual VECTOR_REAL_VIEW getField(int i) const = 0;
+  PROXY_HOST_DEVICE
+  virtual VECTOR_REAL_VIEW getField(int i) const = 0;
 
   virtual void print() const = 0;
 };

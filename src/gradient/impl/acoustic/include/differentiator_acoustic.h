@@ -1,12 +1,7 @@
 #ifndef FUNTIDES_GRADIENT_IMPL_ACOUSTIC_INCLUDE_DIFFERENTIATOR_ACOUSTIC_H_
 #define FUNTIDES_GRADIENT_IMPL_ACOUSTIC_INCLUDE_DIFFERENTIATOR_ACOUSTIC_H_
 
-#include <vector>
-
-#include "common_macros.h"
-#include "data_type.h"
-#include "mesh.h"
-#include "model_discretization_interface.h"
+#include "model.h"
 #include "differentiator.h"
 #include "gradient_data.h"
 
@@ -17,23 +12,17 @@ namespace gradient
  * @brief Acoustic gradient computation for independent use.
  *
  * Computes model parameter gradients (grad_kappa, grad_buoyancy) from acoustic
- * forward and adjoint wavefields. Completely independent from the Solver class.
+ * forward and adjoint wavefields. Completely independent from the Solver.
  *
  * Features:
  * - Supports both node-based and element-based model discretization
  * - Uses standard SEM assembly with mass and stiffness matrices
- * - Thread-safe accumulation with ATOMICADD
  *
  * Template Parameters:
  *   ORDER                 - Polynomial order (1, 2, 3, ...)
  *   INTEGRAL_TYPE         - Integration kernel (e.g., makutu)
- *   MESH_TYPE             - Mesh topology (e.g., CartesianStructBuilder)
+ *   MESH_TYPE             - Mesh topology (e.g., Cartesian)
  *   IS_MODEL_ON_NODES     - Model discretization (true=nodes, false=elements)
- *
- * Usage:
- *   AcousticDifferentiator<2, makutu, CartesianStructBuilder, true> gc(...);
- *   GradientData grad_data(grad_kappa_view, grad_buoyancy_view);
- *   gc.compute(forward, adjoint_dt, grad_data);
  */
 template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE,
           bool IS_MODEL_ON_NODES>
@@ -44,16 +33,6 @@ class AcousticDifferentiator : public Differentiator
   static constexpr bool kIsModelOnNodes = IS_MODEL_ON_NODES;
   static constexpr int kPointsPerElement = (ORDER + 1) * (ORDER + 1) * (ORDER + 1);
 
-  /**
-   * @brief Constructor for acoustic gradient computation.
-   *
-   * @param mesh Mesh object containing topology and reference element info
-   */
-  explicit AcousticDifferentiator(const MESH_TYPE& mesh)
-      : m_mesh(mesh)
-  {
-  }
-
   ~AcousticDifferentiator() override = default;
 
   /**
@@ -62,17 +41,23 @@ class AcousticDifferentiator : public Differentiator
    * Computes:
    *   grad_kappa   = ∑_elements ∑_quadrature q_dt² * p * mass_term
    *   grad_buoyancy = ∑_elements ∑_stiffness stiffness_term * q * p
-   *
-   * @param forward_field       Pressure wavefield from forward propagation
-   * @param adjoint_fields      [0]=adjoint_dt (∂²q/∂t²), [1]=adjoint (q)
-   * @param grad_data           Output structure containing gradient arrays
-   *
-   * @throws std::runtime_error if adjoint_fields size != 2
-   * @throws std::runtime_error if gradient types mismatch
    */
-  void compute(const VECTOR_REAL_VIEW& forward_field,
-               const std::vector<VECTOR_REAL_VIEW>& adjoint_fields,
-               Differentiator::DataStruct& grad_data) override;
+  void compute(model::ModelApi<float, int>& mesh,
+               DataStruct& data) const override {
+    auto& myData = dynamic_cast<GradientData<physicType::kAcoustic>&>(data);
+    auto mesh_copy = dynamic_cast<MESH_TYPE&>(mesh);  // value copy for device capture TODO check that
+
+    auto const pn           = myData.getForwardField(0);   // forward pressure, node-indexed
+    auto const qn           = myData.getBackwardField(0);  // adjoint pressure, node-indexed
+    auto const qdt2         = myData.getBackwardField(1);  // d²q/dt², node-indexed
+    auto const gradKappa    = myData.getGradient(0); // grad_kappa, node- or element-indexed
+    auto const gradBuoyancy = myData.getGradient(1); // grad_buoyancy, node- or element-indexed
+
+    if constexpr (!IS_MODEL_ON_NODES)
+      computeOnElements(mesh_copy, pn, qn, qdt2, gradKappa, gradBuoyancy);
+    else
+      computeOnNodes(mesh_copy, pn, qn, qdt2, gradKappa, gradBuoyancy);
+  }
 
   int getOrder() const override { return kOrder; }
 
@@ -81,39 +66,145 @@ class AcousticDifferentiator : public Differentiator
   void print() const override
   {
     std::cout << "AcousticDifferentiator<ORDER=" << kOrder
+              << ", INTEGRAL_TYPE=" << typeid(INTEGRAL_TYPE).name()
+              << ", MESH_TYPE=" << typeid(MESH_TYPE).name()
               << ", IS_MODEL_ON_NODES=" << (kIsModelOnNodes ? "true" : "false")
               << ">\n";
   }
 
  private:
-  MESH_TYPE m_mesh;
-  Gradients* grad_data_ptr_ = nullptr;  // Non-owning pointer for getGradients()
+  /**
+   * @brief Each element writes to a unique index — no atomic add required.
+   */
+  void computeOnElements(MESH_TYPE               mesh_copy,
+                         VECTOR_REAL_VIEW  const  pn,
+                         VECTOR_REAL_VIEW  const  qn,
+                         VECTOR_REAL_VIEW  const  qdt2,
+                         VECTOR_REAL_VIEW  const  gradKappa,
+                         VECTOR_REAL_VIEW  const  gradBuoyancy) const
+  {
+    MAINLOOPHEAD(mesh_copy.getNumberOfElements(), elementNumber)
+
+    if (elementNumber >= mesh_copy.getNumberOfElements()) return;
+
+    int const dim = mesh_copy.getOrder() + 1;
+
+    typename INTEGRAL_TYPE::TransformType transformData;
+    {
+      auto const elementIndex = mesh_copy.elementIndex(elementNumber);
+      int I = 0;
+      for (int kv = 0; kv < 2; ++kv)
+        for (int jv = 0; jv < 2; ++jv)
+          for (int iv = 0; iv < 2; ++iv)
+          {
+            auto const vertexIndex =
+                mesh_copy.globalVertexIndex(elementIndex, iv, jv, kv);
+            mesh_copy.vertexCoords(vertexIndex, transformData.data[I]);
+            ++I;
+          }
+    }
+
+    float localPn[kPointsPerElement]   = {0};
+    float localQn[kPointsPerElement]   = {0};
+    float localQdt2[kPointsPerElement] = {0};
+    for (int i = 0; i < dim; ++i)
+      for (int j = 0; j < dim; ++j)
+        for (int k = 0; k < dim; ++k)
+        {
+          int const gIdx = mesh_copy.globalNodeIndex(elementNumber, i, j, k);
+          int const lIdx = i + j * dim + k * dim * dim;
+          localPn[lIdx]   = pn(gIdx);
+          localQn[lIdx]   = qn(gIdx);
+          localQdt2[lIdx] = qdt2(gIdx);
+        }
+
+    // grad_kappa: element-indexed — unique per thread, no atomic
+    float localGradKappa = 0.0f;
+    INTEGRAL_TYPE::computeMassTerm(
+        transformData,
+        [&](const int q, const real_t val) {
+          localGradKappa += localQdt2[q] * localPn[q] * val;
+        });
+    gradKappa(elementNumber) += localGradKappa;
+
+    // grad_buoyancy: element-indexed — unique per thread, no atomic
+    float localGradBuoyancy = 0.0f;
+    INTEGRAL_TYPE::computeStiffnessTerm(
+        transformData,
+        [&](const int /*qa*/, const int /*qb*/, const int /*qc*/) {},
+        [&](const int i, const int j, const real_t val) {
+          localGradBuoyancy += val * localQn[j] * localPn[i];
+        });
+    gradBuoyancy(elementNumber) += localGradBuoyancy;
+
+    MAINLOOPEND
+  }
 
   /**
-   * @brief Kernel: compute mass term contribution for grad_kappa.
+   * @brief Multiple elements share boundary nodes — ATOMICADD required.
    */
-  void computeGradKappaMassTerm(
-      const VECTOR_REAL_VIEW& forward_field,
-      const VECTOR_REAL_VIEW& adjoint_dt_field,
-      const typename INTEGRAL_TYPE::TransformType& transformData,
-      int elementNumber, float* localGradKappa);
+  void computeOnNodes(MESH_TYPE               mesh_copy,
+                      VECTOR_REAL_VIEW  const  pn,
+                      VECTOR_REAL_VIEW  const  qn,
+                      VECTOR_REAL_VIEW  const  qdt2,
+                      VECTOR_REAL_VIEW  const  gradKappa,
+                      VECTOR_REAL_VIEW  const  gradBuoyancy) const
+  {
+    MAINLOOPHEAD(mesh_copy.getNumberOfElements(), elementNumber)
 
-  /**
-   * @brief Kernel: compute stiffness term contribution for grad_buoyancy.
-   */
-  void computeGradBuoyancyStiffnessTerm(
-      const VECTOR_REAL_VIEW& forward_field,
-      const VECTOR_REAL_VIEW& adjoint_field,
-      const typename INTEGRAL_TYPE::TransformType& transformData,
-      int elementNumber, float* localGradBuoyancy);
+    if (elementNumber >= mesh_copy.getNumberOfElements()) return;
 
-  /**
-   * @brief Accumulate element-local gradients to global arrays.
-   */
-  void accumulateGradients(int elementNumber, const float* localGradKappa,
-                           const float* localGradBuoyancy,
-                           VECTOR_REAL_VIEW gradKappa,
-                           VECTOR_REAL_VIEW gradBuoyancy);
+    int const dim = mesh_copy.getOrder() + 1;
+
+    typename INTEGRAL_TYPE::TransformType transformData;
+    {
+      auto const elementIndex = mesh_copy.elementIndex(elementNumber);
+      int I = 0;
+      for (int kv = 0; kv < 2; ++kv)
+        for (int jv = 0; jv < 2; ++jv)
+          for (int iv = 0; iv < 2; ++iv)
+          {
+            auto const vertexIndex =
+                mesh_copy.globalVertexIndex(elementIndex, iv, jv, kv);
+            mesh_copy.vertexCoords(vertexIndex, transformData.data[I]);
+            ++I;
+          }
+    }
+
+    float localPn[kPointsPerElement]   = {0};
+    float localQn[kPointsPerElement]   = {0};
+    float localQdt2[kPointsPerElement] = {0};
+    int   localGIdx[kPointsPerElement] = {0};
+    for (int i = 0; i < dim; ++i)
+      for (int j = 0; j < dim; ++j)
+        for (int k = 0; k < dim; ++k)
+        {
+          int const gIdx = mesh_copy.globalNodeIndex(elementNumber, i, j, k);
+          int const lIdx = i + j * dim + k * dim * dim;
+          localGIdx[lIdx] = gIdx;
+          localPn[lIdx]   = pn(gIdx);
+          localQn[lIdx]   = qn(gIdx);
+          localQdt2[lIdx] = qdt2(gIdx);
+        }
+
+    // grad_kappa: scatter per quadrature point to its global node
+    INTEGRAL_TYPE::computeMassTerm(
+        transformData,
+        [&](const int q, const real_t val) {
+          ATOMICADD(gradKappa(localGIdx[q]), localQdt2[q] * localPn[q] * val);
+        });
+
+    // grad_buoyancy: scatter test-function node (i) contributions to global node
+    INTEGRAL_TYPE::computeStiffnessTerm(
+        transformData,
+        [&](const int /*qa*/, const int /*qb*/, const int /*qc*/) {},
+        [&](const int i, const int j, const real_t val) {
+          ATOMICADD(gradBuoyancy(localGIdx[i]), val * localQn[j] * localPn[i]);
+        });
+
+    MAINLOOPEND
+  }
+
 };
 
 }  // namespace gradient

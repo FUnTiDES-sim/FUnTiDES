@@ -1,0 +1,13 @@
+// Auto-generated file - DO NOT EDIT
+// Generated for: SEMQ@ORDER@ @MESH_TYPE@ makutu differentiator @PHYSIC_TYPE@ model@MODEL_TYPE@
+
+#include <@MODEL_HEADER@>
+
+#include "differentiator_elastic.h"
+
+constexpr int ORDER = @ORDER@;
+
+template class gradient::ElasticDifferentiator<ORDER,
+                         IntegralTypeSelector<ORDER, IntegralType::MAKUTU>::type,
+                         model::@MODEL_CLASS@<@MODEL_TEMPLATE_PARAMS@>,
+                         @MODEL_ON_NODES@>;

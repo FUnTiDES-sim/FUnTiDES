@@ -3,8 +3,6 @@
 
 #include <iostream>
 
-#include "common_macros.h"
-#include "data_type.h"
 #include "wavefield_view.h"
 
 namespace gradient
