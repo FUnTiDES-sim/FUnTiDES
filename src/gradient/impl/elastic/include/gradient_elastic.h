@@ -1,6 +1,8 @@
 #ifndef FUNTIDES_GRADIENT_IMPL_ELASTIC_INCLUDE_GRADIENT_ELASTIC_H_
 #define FUNTIDES_GRADIENT_IMPL_ELASTIC_INCLUDE_GRADIENT_ELASTIC_H_
 
+#include <iostream>
+
 #include "gradient.h"
 
 namespace gradient

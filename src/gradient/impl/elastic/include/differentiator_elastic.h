@@ -1,6 +1,8 @@
 #ifndef FUNTIDES_GRADIENT_IMPL_ELASTIC_INCLUDE_DIFFERENTIATOR_ELASTIC_H_
 #define FUNTIDES_GRADIENT_IMPL_ELASTIC_INCLUDE_DIFFERENTIATOR_ELASTIC_H_
 
+#include <iostream>
+
 #include "differentiator.h"
 #include "model.h"
 

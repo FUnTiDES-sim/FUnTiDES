@@ -1,6 +1,8 @@
 #ifndef FUNTIDES_GRADIENT_IMPL_ACOUSTIC_INCLUDE_DIFFERENTIATOR_ACOUSTIC_H_
 #define FUNTIDES_GRADIENT_IMPL_ACOUSTIC_INCLUDE_DIFFERENTIATOR_ACOUSTIC_H_
 
+#include <iostream>
+
 #include "differentiator.h"
 #include "gradient_data.h"
 #include "model.h"

@@ -1,7 +1,7 @@
 #ifndef FUNTIDES_GRADIENT_API_INCLUDE_WAVEFIELD_VIEW_H_
 #define FUNTIDES_GRADIENT_API_INCLUDE_WAVEFIELD_VIEW_H_
 
-#include "common_macros.h"
+#include "data_type.h"
 
 namespace gradient
 {
