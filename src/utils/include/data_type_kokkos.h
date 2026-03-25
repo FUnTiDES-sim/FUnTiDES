@@ -2,20 +2,11 @@
 #define FUNTIDES_UTILS_INCLUDE_DATA_TYPE_KOKKOS_H_
 
 #include "Kokkos_Core_fwd.hpp"
-
-#ifdef ENABLE_HIP
-#define __HIP_PLATFORM_AMD__ 1
-#endif
-
 #include <Kokkos_Core.hpp>
 
-#if defined(ENABLE_CUDA) || defined(ENABLE_HIP)
-#define MemSpace Kokkos::SharedSpace
-using Layout = Kokkos::LayoutLeft;
-#else
-#define MemSpace Kokkos::HostSpace
-using Layout = Kokkos::LayoutRight;
-#endif
+using MemSpace = Kokkos::SharedSpace;
+using Layout = Kokkos::DefaultExecutionSpace::array_layout;
+
 typedef Kokkos::View<int *, Layout, MemSpace> vectorInt;
 typedef Kokkos::View<float *, Layout, MemSpace> vectorReal;
 typedef Kokkos::View<double *, Layout, MemSpace> vectorDouble;

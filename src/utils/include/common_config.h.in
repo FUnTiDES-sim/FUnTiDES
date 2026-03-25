@@ -1,12 +1,6 @@
 #ifndef COMMON_CONFIG_HPP
 #define COMMON_CONFIG_HPP
 
-// Enables use of ENABLE_HIP (CMake option)
-#cmakedefine ENABLE_HIP
-
-// Enables use of ENABLE_CUDA (CMake option)
-#cmakedefine ENABLE_CUDA
-
 // Enables python wrapping code
 #cmakedefine ENABLE_PYWRAP
 
