@@ -14,7 +14,6 @@ using physicType = utils::enums::physicType;
 using meshType = utils::enums::meshType;
 using modelLocationType = utils::enums::modelLocationType;
 using implemType = utils::enums::implemType;
-using methodType = utils::enums::methodType;
 
 /**
  * @brief Dispatches to the correct template instantiation based on runtime
@@ -146,28 +145,19 @@ std::unique_ptr<Differentiator> makeDifferentiatorSem(
 }
 
 std::unique_ptr<Differentiator> createDifferentiator(
-    methodType const methodType, implemType const implemType,
-    meshType const mesh, modelLocationType const modelLocation,
-    physicType const physicType, int const order)
+    implemType const implemType, meshType const mesh,
+    modelLocationType const modelLocation, physicType const physicType,
+    int const order)
 {
-  if (methodType == methodType::kSem)
+  switch (implemType)
   {
-    switch (implemType)
-    {
-      case implemType::kMakutu:
-        return makeDifferentiatorSem<IntegralType::MAKUTU>(
-            order, mesh, modelLocation, physicType);
-      default:
-        throw std::runtime_error("Unknown implementation type: " +
-                                 to_string(implemType));
-    }
+    case implemType::kMakutu:
+      return makeDifferentiatorSem<IntegralType::MAKUTU>(
+          order, mesh, modelLocation, physicType);
+    default:
+      throw std::runtime_error("Unknown implementation type: " +
+                               to_string(implemType));
   }
-
-  // Add DG or other methods as needed
-  throw std::runtime_error(
-      "Unsupported solver configuration: methodType=" + to_string(methodType) +
-      ", implemType=" + to_string(implemType) +
-      ", physicType=" + to_string(physicType));
 }
 
 }  // namespace gradient
