@@ -2,6 +2,7 @@
 #define FUNTIDES_GRADIENT_IMPL_COMMON_GRADIENT_DATA_H_
 #include <iostream>
 
+#include "differentiator.h"
 #include "physics_traits_acoustic.h"
 #include "physics_traits_elastic.h"
 
