@@ -1,9 +1,6 @@
 #ifndef COMMON_CONFIG_HPP
 #define COMMON_CONFIG_HPP
 
-// Enable use of Vector (CMake option)
-#cmakedefine USE_VECTOR
-
 // Enables use of ENABLE_HIP (CMake option)
 #cmakedefine ENABLE_HIP
 
@@ -18,9 +15,6 @@
 
 // Enable printout memory allocation info for arrays
 #cmakedefine PRINT_ALLOC_INFO
-
-// Enable hierarchical parallelism in Kokkos
-#cmakedefine USE_KOKKOS_TEAMS
 
 #cmakedefine USE_DOUBLE
 

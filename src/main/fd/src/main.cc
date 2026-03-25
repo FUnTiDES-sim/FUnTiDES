@@ -19,9 +19,7 @@
 #include <iostream>
 #include <memory>
 
-#ifdef USE_KOKKOS
 #include <Kokkos_Core.hpp>
-#endif
 
 #include "fd_options.h"
 #include "fd_proxy.h"
@@ -37,7 +35,6 @@ using std::chrono::time_point;
 // Global start time for total execution timing
 time_point<system_clock> g_start_init_time;
 
-#ifdef USE_KOKKOS
 /**
  * @brief RAII wrapper for Kokkos initialization/finalization.
  */
@@ -56,7 +53,6 @@ class KokkosScope
   KokkosScope(KokkosScope&&) = delete;
   KokkosScope& operator=(KokkosScope&&) = delete;
 };
-#endif
 
 /**
  * @brief Converts nanoseconds duration to seconds as a double.
@@ -120,11 +116,9 @@ void Compute(fdtd::FdtdProxy& fd_sim)
  */
 void ConfigureParallelEnvironment()
 {
-#ifdef USE_KOKKOS
   // Configure OpenMP thread binding for optimal performance
   setenv("OMP_PROC_BIND", "spread", 0);  // Don't override if already set
   setenv("OMP_PLACES", "threads", 0);
-#endif
 }
 
 }  // namespace
@@ -147,11 +141,9 @@ int main(int argc, char* argv[])
   // Configure parallel execution environment
   ConfigureParallelEnvironment();
 
-#ifdef USE_KOKKOS
   // RAII: Kokkos will be automatically finalized when this object goes out of
   // scope
   KokkosScope kokkos_scope(argc, argv);
-#endif
 
   try
   {
