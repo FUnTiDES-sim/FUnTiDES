@@ -328,21 +328,9 @@ void SEMproxy::run()
 
     for (int i = 0; i < pnAtReceiver.extent(0); i++)
     {
-#ifdef USE_KOKKOS
       auto subview = Kokkos::subview(pnAtReceiver, i, Kokkos::ALL());
       vectorReal subset("receiver_save", num_sample_);
       Kokkos::deep_copy(subset, subview);
-#else
-      auto& subview = pnAtReceiver;
-      vectorReal subset(subview.extent(0) * subview.extent(1));
-      for (size_t k = 0; k < subview.extent(0); ++k)
-      {
-        for (size_t j = 0; j < subview.extent(1); ++j)
-        {
-          subset[k * subview.extent(1) + j] = subview(k, j);
-        }
-      }
-#endif
       io_ctrl_->saveReceiver(subset, src_coord_);
     }
 
@@ -461,21 +449,9 @@ void SEMproxy::run()
 
     for (int i = 0; i < uxnAtReceiver.extent(0); i++)
     {
-#ifdef USE_KOKKOS
       auto subview = Kokkos::subview(uxnAtReceiver, i, Kokkos::ALL());
       vectorReal subset("receiver_save", num_sample_);
       Kokkos::deep_copy(subset, subview);
-#else
-      auto& subview = pnAtReceiver;
-      vectorReal subset(subview.extent(0) * subview.extent(1));
-      for (size_t k = 0; k < subview.extent(0); ++k)
-      {
-        for (size_t j = 0; j < subview.extent(1); ++j)
-        {
-          subset[k * subview.extent(1) + j] = subview(k, j);
-        }
-      }
-#endif  // USE_KOKKOS
       io_ctrl_->saveReceiver(subset, src_coord_);
     }
 
@@ -887,7 +863,6 @@ void SEMproxy::init_source()
 
 void SEMproxy::saveSnapshot(int timestep, VECTOR_REAL_VIEW data) const
 {
-#ifdef USE_KOKKOS
   Kokkos::fence();
   auto nb_nodes = data.extent(0);
 
@@ -896,10 +871,6 @@ void SEMproxy::saveSnapshot(int timestep, VECTOR_REAL_VIEW data) const
   Kokkos::parallel_for(
       "copy_column", nb_nodes, KOKKOS_LAMBDA(int i) { subset(i) = data(i); });
   Kokkos::fence();
-#else
-  auto& subset = data;
-#endif  // USE_KOKKOS
-
   io_ctrl_->saveSnapshot(subset, timestep);
 }
 

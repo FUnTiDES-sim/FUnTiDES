@@ -73,13 +73,10 @@ int main(int argc, char *argv[])
   MPI_Comm_size(MPI_COMM_WORLD, &size);
 #endif
 
-#ifdef USE_KOKKOS
   setenv("OMP_PROC_BIND", "spread", 1);
   setenv("OMP_PLACES", "threads", 1);
   Kokkos::initialize(argc, argv);
   {
-#endif
-
     cxxopts::Options options("SEM Proxy", "Runs the SEM simulation.");
     options.allow_unrecognised_options();  // lets Kokkos flags pass
 
@@ -114,10 +111,8 @@ int main(int argc, char *argv[])
     SEMproxy semsim(opt);
 
     compute_loop(semsim);
-#ifdef USE_KOKKOS
   }
   Kokkos::finalize();
-#endif
 
 #ifdef USE_MPI
   MPI_Barrier(MPI_COMM_WORLD);

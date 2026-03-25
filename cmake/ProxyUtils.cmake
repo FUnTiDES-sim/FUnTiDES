@@ -12,13 +12,6 @@ function(print_configuration_summary)
   message(STATUS "  COMPILE_FD:           ${COMPILE_FD}")
   message(STATUS "")
 
-  message(STATUS "Programming Models:")
-  message(STATUS "  USE_VECTOR:           ${USE_VECTOR}")
-  message(STATUS "  USE_KOKKOS:           ${USE_KOKKOS}")
-  message(STATUS "  ENABLE_CUDA:          ${ENABLE_CUDA}")
-  message(STATUS "  USE_KOKKOS_TEAMS:     ${USE_KOKKOS_TEAMS}")
-  message(STATUS "")
-
   message(STATUS "Python Wrapping:")
   message(STATUS "  ENABLE_PYWRAP:        ${ENABLE_PYWRAP}")
   message(STATUS "")
