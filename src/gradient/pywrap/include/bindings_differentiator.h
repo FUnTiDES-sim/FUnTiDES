@@ -59,7 +59,7 @@ void bind_differentiator_base(py::module_& m)
   py::class_<Differentiator, std::shared_ptr<Differentiator>>(m,
                                                               "Differentiator")
       .def("compute", &Differentiator::compute, py::arg("mesh"),
-           py::arg("data"))
+           py::arg("data"), py::arg("dt"))
       .def("print", &Differentiator::print);
 }
 

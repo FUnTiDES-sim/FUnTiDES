@@ -18,7 +18,8 @@ namespace gradient
  * Usage:
  *   auto differentiator = createDifferentiator(...);
  *   GradientData data;
- *   differentiator->compute(mesh, data);
+ *   float dt = 0.001;
+ *   differentiator->compute(mesh, data, dt);
  *   auto grad_kappa = data.getGradient(0);
  */
 class Differentiator
@@ -40,9 +41,10 @@ class Differentiator
    *
    * @param mesh  The model mesh containing geometry and parameter info
    * @param data  Structure with required input fields and computed gradients
+   * @param dt    Time step size (for acoustic and elastic time derivatives)
    */
-  virtual void compute(model::ModelApi<float, int>& mesh,
-                       DataStruct& data) const = 0;
+  virtual void compute(model::ModelApi<float, int>& mesh, DataStruct& data,
+                       float dt) const = 0;
 
   /**
    * @brief Get polynomial order of this computation.

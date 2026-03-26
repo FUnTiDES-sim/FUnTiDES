@@ -46,8 +46,9 @@ void bind_wavefield_view_backward_acoustic(py::module_& m)
       m, "WavefieldViewBackwardAcoustic")
       .def(py::init<
                Kokkos::Experimental::python_view_type_t<VECTOR_REAL_VIEW>,
+               Kokkos::Experimental::python_view_type_t<VECTOR_REAL_VIEW>,
                Kokkos::Experimental::python_view_type_t<VECTOR_REAL_VIEW>>(),
-           py::arg("qn"), py::arg("qdt2"))
+           py::arg("qn"), py::arg("qn_prev"), py::arg("qn_prev_prev"))
       .def("print", &WavefieldViewBackwardAcoustic::print);
 }
 

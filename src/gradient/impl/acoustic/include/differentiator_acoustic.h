@@ -45,8 +45,8 @@ class DifferentiatorAcoustic : public Differentiator
    *   grad_kappa   = ∑_elements ∑_quadrature q_dt² * p * mass_term
    *   grad_buoyancy = ∑_elements ∑_stiffness stiffness_term * q * p
    */
-  void compute(model::ModelApi<float, int>& mesh,
-               DataStruct& data) const override
+  void compute(model::ModelApi<float, int>& mesh, DataStruct& data,
+               float dt) const override
   {
     auto& myData = dynamic_cast<DifferentiatorDataAcoustic&>(data);
     auto& myMesh = dynamic_cast<MESH_TYPE&>(mesh);
@@ -54,18 +54,22 @@ class DifferentiatorAcoustic : public Differentiator
     VECTOR_REAL_VIEW const pn =
         myData.getForwardField(0);  // forward pressure, node-indexed
     VECTOR_REAL_VIEW const qn =
-        myData.getBackwardField(0);  // adjoint pressure, node-indexed
-    VECTOR_REAL_VIEW const qdt2 =
-        myData.getBackwardField(1);  // d²q/dt², node-indexed
+        myData.getBackwardField(0);  // adjoint pressure at n, node-indexed
+    VECTOR_REAL_VIEW const qnPrev =
+        myData.getBackwardField(1);  // adjoint pressure at n-1, node-indexed
+    VECTOR_REAL_VIEW const qnPrevPrev =
+        myData.getBackwardField(2);  // adjoint pressure at n-2, node-indexed
     VECTOR_REAL_VIEW const gradKappa =
         myData.getGradient(0);  // grad_kappa, node- or element-indexed
     VECTOR_REAL_VIEW const gradBuoyancy =
         myData.getGradient(1);  // grad_buoyancy, node- or element-indexed
 
     if constexpr (!IS_MODEL_ON_NODES)
-      computeOnElements(myMesh, pn, qn, qdt2, gradKappa, gradBuoyancy);
+      computeOnElements(myMesh, dt, pn, qn, qnPrev, qnPrevPrev, gradKappa,
+                        gradBuoyancy);
     else
-      computeOnNodes(myMesh, pn, qn, qdt2, gradKappa, gradBuoyancy);
+      computeOnNodes(myMesh, dt, pn, qn, qnPrev, qnPrevPrev, gradKappa,
+                    gradBuoyancy);
   }
 
   int getOrder() const override { return kOrder; }
@@ -84,9 +88,13 @@ class DifferentiatorAcoustic : public Differentiator
  private:
   /**
    * @brief Each element writes to a unique index — no atomic add required.
+   *
+   * Computes qdt2 = (qnPrevPrev - 2*qnPrev + qn) / dt² on the fly.
    */
-  void computeOnElements(MESH_TYPE mesh, VECTOR_REAL_VIEW const pn,
-                         VECTOR_REAL_VIEW const qn, VECTOR_REAL_VIEW const qdt2,
+  void computeOnElements(MESH_TYPE mesh, float dt, VECTOR_REAL_VIEW const pn,
+                         VECTOR_REAL_VIEW const qn,
+                         VECTOR_REAL_VIEW const qnPrev,
+                         VECTOR_REAL_VIEW const qnPrevPrev,
                          VECTOR_REAL_VIEW const gradKappa,
                          VECTOR_REAL_VIEW const gradBuoyancy) const
   {
@@ -113,7 +121,8 @@ class DifferentiatorAcoustic : public Differentiator
 
     float localPn[kPointsPerElement] = {0};
     float localQn[kPointsPerElement] = {0};
-    float localQdt2[kPointsPerElement] = {0};
+    float localQnPrev[kPointsPerElement] = {0};
+    float localQnPrevPrev[kPointsPerElement] = {0};
     for (int i = 0; i < dim; ++i)
       for (int j = 0; j < dim; ++j)
         for (int k = 0; k < dim; ++k)
@@ -122,14 +131,20 @@ class DifferentiatorAcoustic : public Differentiator
           int const lIdx = i + j * dim + k * dim * dim;
           localPn[lIdx] = pn(gIdx);
           localQn[lIdx] = qn(gIdx);
-          localQdt2[lIdx] = qdt2(gIdx);
+          localQnPrev[lIdx] = qnPrev(gIdx);
+          localQnPrevPrev[lIdx] = qnPrevPrev(gIdx);
         }
+
+    float const invDt2 = 1.0f / (dt * dt);
 
     // grad_kappa: element-indexed — unique per thread, no atomic
     float localGradKappa = 0.0f;
     INTEGRAL_TYPE::computeMassTerm(
         transformData, [&](const int q, const real_t val) {
-          localGradKappa += localQdt2[q] * localPn[q] * val;
+          float const qdt2 =
+              (localQnPrevPrev[q] - 2.0f * localQnPrev[q] + localQn[q]) *
+              invDt2;
+          localGradKappa += qdt2 * localPn[q] * val;
         });
     gradKappa(elementNumber) += localGradKappa;
 
@@ -148,9 +163,12 @@ class DifferentiatorAcoustic : public Differentiator
 
   /**
    * @brief Multiple elements share boundary nodes — ATOMICADD required.
+   *
+   * Computes qdt2 = (qnPrevPrev - 2*qnPrev + qn) / dt² on the fly.
    */
-  void computeOnNodes(MESH_TYPE mesh, VECTOR_REAL_VIEW const pn,
-                      VECTOR_REAL_VIEW const qn, VECTOR_REAL_VIEW const qdt2,
+  void computeOnNodes(MESH_TYPE mesh, float dt, VECTOR_REAL_VIEW const pn,
+                      VECTOR_REAL_VIEW const qn, VECTOR_REAL_VIEW const qnPrev,
+                      VECTOR_REAL_VIEW const qnPrevPrev,
                       VECTOR_REAL_VIEW const gradKappa,
                       VECTOR_REAL_VIEW const gradBuoyancy) const
   {
@@ -177,7 +195,8 @@ class DifferentiatorAcoustic : public Differentiator
 
     float localPn[kPointsPerElement] = {0};
     float localQn[kPointsPerElement] = {0};
-    float localQdt2[kPointsPerElement] = {0};
+    float localQnPrev[kPointsPerElement] = {0};
+    float localQnPrevPrev[kPointsPerElement] = {0};
     int localGIdx[kPointsPerElement] = {0};
     for (int i = 0; i < dim; ++i)
       for (int j = 0; j < dim; ++j)
@@ -188,13 +207,19 @@ class DifferentiatorAcoustic : public Differentiator
           localGIdx[lIdx] = gIdx;
           localPn[lIdx] = pn(gIdx);
           localQn[lIdx] = qn(gIdx);
-          localQdt2[lIdx] = qdt2(gIdx);
+          localQnPrev[lIdx] = qnPrev(gIdx);
+          localQnPrevPrev[lIdx] = qnPrevPrev(gIdx);
         }
+
+    float const invDt2 = 1.0f / (dt * dt);
 
     // grad_kappa: scatter per quadrature point to its global node
     INTEGRAL_TYPE::computeMassTerm(
         transformData, [&](const int q, const real_t val) {
-          ATOMICADD(gradKappa(localGIdx[q]), localQdt2[q] * localPn[q] * val);
+          float const qdt2 =
+              (localQnPrevPrev[q] - 2.0f * localQnPrev[q] + localQn[q]) *
+              invDt2;
+          ATOMICADD(gradKappa(localGIdx[q]), qdt2 * localPn[q] * val);
         });
 
     // grad_buoyancy: scatter test-function node (i) contributions to global

@@ -97,7 +97,8 @@ class DifferentiatorAcousticElemUnstructTest : public ::testing::Test
   {
     pn = allocateVector<VECTOR_REAL_VIEW>(kNumNodes, "pn");
     qn = allocateVector<VECTOR_REAL_VIEW>(kNumNodes, "qn");
-    qdt2 = allocateVector<VECTOR_REAL_VIEW>(kNumNodes, "qdt2");
+    qnPrev = allocateVector<VECTOR_REAL_VIEW>(kNumNodes, "qnPrev");
+    qnPrevPrev = allocateVector<VECTOR_REAL_VIEW>(kNumNodes, "qnPrevPrev");
     gradKappa = allocateVector<VECTOR_REAL_VIEW>(kNumElements, "gradKappa");
     gradBuoyancy =
         allocateVector<VECTOR_REAL_VIEW>(kNumElements, "gradBuoyancy");
@@ -106,13 +107,14 @@ class DifferentiatorAcousticElemUnstructTest : public ::testing::Test
     {
       pn(i) = 0.0f;
       qn(i) = 0.0f;
-      qdt2(i) = 0.0f;
+      qnPrev(i) = 0.0f;
+      qnPrevPrev(i) = 0.0f;
     }
     gradKappa(0) = 0.0f;
     gradBuoyancy(0) = 0.0f;
   }
 
-  VECTOR_REAL_VIEW pn, qn, qdt2;
+  VECTOR_REAL_VIEW pn, qn, qnPrev, qnPrevPrev;
   VECTOR_REAL_VIEW gradKappa, gradBuoyancy;
 };
 
@@ -166,11 +168,11 @@ TYPED_TEST(DifferentiatorAcousticElemUnstructTest,
   auto mesh = makeUnstructMesh1x1x1<TestFixture::kOrder>();
 
   WavefieldViewForwardAcoustic fwd(this->pn);
-  WavefieldViewBackwardAcoustic bwd(this->qn, this->qdt2);
+  WavefieldViewBackwardAcoustic bwd(this->qn, this->qnPrev, this->qnPrevPrev);
   GradientAcoustic grad(this->gradKappa, this->gradBuoyancy);
   GradientDataAcoustic data(fwd, bwd, grad);
 
-  diff.compute(mesh, data);
+  diff.compute(mesh, data, 0.001f);
 
   EXPECT_FLOAT_EQ(this->gradKappa(0), 0.0f);
   EXPECT_FLOAT_EQ(this->gradBuoyancy(0), 0.0f);
@@ -179,22 +181,22 @@ TYPED_TEST(DifferentiatorAcousticElemUnstructTest,
 TYPED_TEST(DifferentiatorAcousticElemUnstructTest,
            UniformFieldGradKappaEqualsVolume)
 {
-  // pn = qdt2 = 1  =>  gradKappa = ∫_Ω 1 dΩ = 1.0 (unit cube)
+  // pn = 1, qn = 1e-6 (qdt2 = 1 with dt=0.001)  =>  gradKappa = ∫_Ω 1 dΩ = 1.0 (unit cube)
   for (int i = 0; i < TestFixture::kNumNodes; ++i)
   {
     this->pn(i) = 1.0f;
-    this->qdt2(i) = 1.0f;
+    this->qn(i) = 1e-6f; this->qnPrev(i) = 0.0f; this->qnPrevPrev(i) = 0.0f;
   }
 
   typename TestFixture::Diff diff;
   auto mesh = makeUnstructMesh1x1x1<TestFixture::kOrder>();
 
   WavefieldViewForwardAcoustic fwd(this->pn);
-  WavefieldViewBackwardAcoustic bwd(this->qn, this->qdt2);
+  WavefieldViewBackwardAcoustic bwd(this->qn, this->qnPrev, this->qnPrevPrev);
   GradientAcoustic grad(this->gradKappa, this->gradBuoyancy);
   GradientDataAcoustic data(fwd, bwd, grad);
 
-  diff.compute(mesh, data);
+  diff.compute(mesh, data, 0.001f);
 
   EXPECT_NEAR(this->gradKappa(0), 1.0f, 1e-5f);
 }
@@ -213,11 +215,11 @@ TYPED_TEST(DifferentiatorAcousticElemUnstructTest,
   auto mesh = makeUnstructMesh1x1x1<TestFixture::kOrder>();
 
   WavefieldViewForwardAcoustic fwd(this->pn);
-  WavefieldViewBackwardAcoustic bwd(this->qn, this->qdt2);
+  WavefieldViewBackwardAcoustic bwd(this->qn, this->qnPrev, this->qnPrevPrev);
   GradientAcoustic grad(this->gradKappa, this->gradBuoyancy);
   GradientDataAcoustic data(fwd, bwd, grad);
 
-  diff.compute(mesh, data);
+  diff.compute(mesh, data, 0.001f);
 
   EXPECT_NEAR(this->gradBuoyancy(0), 0.0f, 1e-5f);
 }
@@ -228,7 +230,7 @@ TYPED_TEST(DifferentiatorAcousticElemUnstructTest, GradKappaScalesWithAmplitude)
   for (int i = 0; i < TestFixture::kNumNodes; ++i)
   {
     this->pn(i) = 1.0f;
-    this->qdt2(i) = 1.0f;
+    this->qn(i) = 1e-6f; this->qnPrev(i) = 0.0f; this->qnPrevPrev(i) = 0.0f;
   }
 
   typename TestFixture::Diff diff;
@@ -236,10 +238,10 @@ TYPED_TEST(DifferentiatorAcousticElemUnstructTest, GradKappaScalesWithAmplitude)
 
   {
     WavefieldViewForwardAcoustic fwd(this->pn);
-    WavefieldViewBackwardAcoustic bwd(this->qn, this->qdt2);
+    WavefieldViewBackwardAcoustic bwd(this->qn, this->qnPrev, this->qnPrevPrev);
     GradientAcoustic grad(this->gradKappa, this->gradBuoyancy);
     GradientDataAcoustic data(fwd, bwd, grad);
-    diff.compute(mesh, data);
+    diff.compute(mesh, data, 0.001f);
   }
   float single = this->gradKappa(0);
 
@@ -248,10 +250,10 @@ TYPED_TEST(DifferentiatorAcousticElemUnstructTest, GradKappaScalesWithAmplitude)
 
   {
     WavefieldViewForwardAcoustic fwd(this->pn);
-    WavefieldViewBackwardAcoustic bwd(this->qn, this->qdt2);
+    WavefieldViewBackwardAcoustic bwd(this->qn, this->qnPrev, this->qnPrevPrev);
     GradientAcoustic grad(this->gradKappa, this->gradBuoyancy);
     GradientDataAcoustic data(fwd, bwd, grad);
-    diff.compute(mesh, data);
+    diff.compute(mesh, data, 0.001f);
   }
 
   EXPECT_NEAR(this->gradKappa(0), 2.0f * single, 1e-5f);
@@ -263,7 +265,7 @@ TYPED_TEST(DifferentiatorAcousticElemUnstructTest,
   for (int i = 0; i < TestFixture::kNumNodes; ++i)
   {
     this->pn(i) = 1.0f;
-    this->qdt2(i) = 1.0f;
+    this->qn(i) = 1e-6f; this->qnPrev(i) = 0.0f; this->qnPrevPrev(i) = 0.0f;
   }
   this->gradKappa(0) = 5.0f;
 
@@ -271,11 +273,11 @@ TYPED_TEST(DifferentiatorAcousticElemUnstructTest,
   auto mesh = makeUnstructMesh1x1x1<TestFixture::kOrder>();
 
   WavefieldViewForwardAcoustic fwd(this->pn);
-  WavefieldViewBackwardAcoustic bwd(this->qn, this->qdt2);
+  WavefieldViewBackwardAcoustic bwd(this->qn, this->qnPrev, this->qnPrevPrev);
   GradientAcoustic grad(this->gradKappa, this->gradBuoyancy);
   GradientDataAcoustic data(fwd, bwd, grad);
 
-  diff.compute(mesh, data);
+  diff.compute(mesh, data, 0.001f);
 
   // 5.0 (initial) + 1.0 (volume of unit cube) = 6.0
   EXPECT_NEAR(this->gradKappa(0), 6.0f, 1e-5f);
@@ -288,7 +290,7 @@ TYPED_TEST(DifferentiatorAcousticElemUnstructTest, PolymorphicInterface)
   for (int i = 0; i < TestFixture::kNumNodes; ++i)
   {
     this->pn(i) = 1.0f;
-    this->qdt2(i) = 1.0f;
+    this->qn(i) = 1e-6f; this->qnPrev(i) = 0.0f; this->qnPrevPrev(i) = 0.0f;
   }
 
   std::unique_ptr<Differentiator> diff =
@@ -299,11 +301,11 @@ TYPED_TEST(DifferentiatorAcousticElemUnstructTest, PolymorphicInterface)
   EXPECT_FALSE(diff->isModelOnNodes());
 
   WavefieldViewForwardAcoustic fwd(this->pn);
-  WavefieldViewBackwardAcoustic bwd(this->qn, this->qdt2);
+  WavefieldViewBackwardAcoustic bwd(this->qn, this->qnPrev, this->qnPrevPrev);
   GradientAcoustic grad(this->gradKappa, this->gradBuoyancy);
   GradientDataAcoustic data(fwd, bwd, grad);
 
-  EXPECT_NO_THROW(diff->compute(mesh, data));
+  EXPECT_NO_THROW(diff->compute(mesh, data, 0.001f));
   EXPECT_GT(this->gradKappa(0), 0.0f);
 }
 
@@ -332,7 +334,8 @@ class DifferentiatorAcousticNodeUnstructTest : public ::testing::Test
   {
     pn = allocateVector<VECTOR_REAL_VIEW>(kNumNodes, "pn");
     qn = allocateVector<VECTOR_REAL_VIEW>(kNumNodes, "qn");
-    qdt2 = allocateVector<VECTOR_REAL_VIEW>(kNumNodes, "qdt2");
+    qnPrev = allocateVector<VECTOR_REAL_VIEW>(kNumNodes, "qnPrev");
+    qnPrevPrev = allocateVector<VECTOR_REAL_VIEW>(kNumNodes, "qnPrevPrev");
     gradKappa = allocateVector<VECTOR_REAL_VIEW>(kNumNodes, "gradKappa");
     gradBuoyancy = allocateVector<VECTOR_REAL_VIEW>(kNumNodes, "gradBuoyancy");
 
@@ -340,7 +343,8 @@ class DifferentiatorAcousticNodeUnstructTest : public ::testing::Test
     {
       pn(i) = 0.0f;
       qn(i) = 0.0f;
-      qdt2(i) = 0.0f;
+      qnPrev(i) = 0.0f;
+      qnPrevPrev(i) = 0.0f;
       gradKappa(i) = 0.0f;
       gradBuoyancy(i) = 0.0f;
     }
@@ -360,7 +364,7 @@ class DifferentiatorAcousticNodeUnstructTest : public ::testing::Test
     return s;
   }
 
-  VECTOR_REAL_VIEW pn, qn, qdt2;
+  VECTOR_REAL_VIEW pn, qn, qnPrev, qnPrevPrev;
   VECTOR_REAL_VIEW gradKappa, gradBuoyancy;
 };
 
@@ -404,11 +408,11 @@ TYPED_TEST(DifferentiatorAcousticNodeUnstructTest,
   auto mesh = makeUnstructMesh1x1x1<TestFixture::kOrder>();
 
   WavefieldViewForwardAcoustic fwd(this->pn);
-  WavefieldViewBackwardAcoustic bwd(this->qn, this->qdt2);
+  WavefieldViewBackwardAcoustic bwd(this->qn, this->qnPrev, this->qnPrevPrev);
   GradientAcoustic grad(this->gradKappa, this->gradBuoyancy);
   GradientDataAcoustic data(fwd, bwd, grad);
 
-  diff.compute(mesh, data);
+  diff.compute(mesh, data, 0.001f);
 
   EXPECT_FLOAT_EQ(this->sumGradKappa(), 0.0f);
   EXPECT_FLOAT_EQ(this->sumGradBuoyancy(), 0.0f);
@@ -417,22 +421,22 @@ TYPED_TEST(DifferentiatorAcousticNodeUnstructTest,
 TYPED_TEST(DifferentiatorAcousticNodeUnstructTest,
            UniformFieldGradKappaSumsToVolume)
 {
-  // pn = qdt2 = 1  =>  scattered contributions must sum to ∫_Ω 1 dΩ = 1.0
+  // pn = 1, qn = 1e-6 (qdt2 = 1 with dt=0.001)  =>  scattered contributions must sum to ∫_Ω 1 dΩ = 1.0
   for (int i = 0; i < TestFixture::kNumNodes; ++i)
   {
     this->pn(i) = 1.0f;
-    this->qdt2(i) = 1.0f;
+    this->qn(i) = 1e-6f; this->qnPrev(i) = 0.0f; this->qnPrevPrev(i) = 0.0f;
   }
 
   typename TestFixture::DiffNode diff;
   auto mesh = makeUnstructMesh1x1x1<TestFixture::kOrder>();
 
   WavefieldViewForwardAcoustic fwd(this->pn);
-  WavefieldViewBackwardAcoustic bwd(this->qn, this->qdt2);
+  WavefieldViewBackwardAcoustic bwd(this->qn, this->qnPrev, this->qnPrevPrev);
   GradientAcoustic grad(this->gradKappa, this->gradBuoyancy);
   GradientDataAcoustic data(fwd, bwd, grad);
 
-  diff.compute(mesh, data);
+  diff.compute(mesh, data, 0.001f);
 
   EXPECT_NEAR(this->sumGradKappa(), 1.0f, 1e-5f);
 }
@@ -451,11 +455,11 @@ TYPED_TEST(DifferentiatorAcousticNodeUnstructTest,
   auto mesh = makeUnstructMesh1x1x1<TestFixture::kOrder>();
 
   WavefieldViewForwardAcoustic fwd(this->pn);
-  WavefieldViewBackwardAcoustic bwd(this->qn, this->qdt2);
+  WavefieldViewBackwardAcoustic bwd(this->qn, this->qnPrev, this->qnPrevPrev);
   GradientAcoustic grad(this->gradKappa, this->gradBuoyancy);
   GradientDataAcoustic data(fwd, bwd, grad);
 
-  diff.compute(mesh, data);
+  diff.compute(mesh, data, 0.001f);
 
   EXPECT_NEAR(this->sumGradBuoyancy(), 0.0f, 1e-5f);
 }
@@ -468,19 +472,19 @@ TYPED_TEST(DifferentiatorAcousticNodeUnstructTest,
   for (int i = 0; i < TestFixture::kNumNodes; ++i)
   {
     this->pn(i) = 1.0f;
-    this->qdt2(i) = 1.0f;
+    this->qn(i) = 1e-6f; this->qnPrev(i) = 0.0f; this->qnPrevPrev(i) = 0.0f;
   }
 
   auto mesh = makeUnstructMesh1x1x1<TestFixture::kOrder>();
 
   WavefieldViewForwardAcoustic fwd(this->pn);
-  WavefieldViewBackwardAcoustic bwd(this->qn, this->qdt2);
+  WavefieldViewBackwardAcoustic bwd(this->qn, this->qnPrev, this->qnPrevPrev);
 
   // Node-based
   typename TestFixture::DiffNode diffNode;
   GradientAcoustic gradNode(this->gradKappa, this->gradBuoyancy);
   GradientDataAcoustic dataNode(fwd, bwd, gradNode);
-  diffNode.compute(mesh, dataNode);
+  diffNode.compute(mesh, dataNode, 0.001f);
   float nodeSum = this->sumGradKappa();
 
   // Element-based
@@ -493,7 +497,7 @@ TYPED_TEST(DifferentiatorAcousticNodeUnstructTest,
   typename TestFixture::DiffElem diffElem;
   GradientAcoustic gradElem(gradKappaElem, gradBuoyancyElem);
   GradientDataAcoustic dataElem(fwd, bwd, gradElem);
-  diffElem.compute(mesh, dataElem);
+  diffElem.compute(mesh, dataElem, 0.001f);
 
   EXPECT_NEAR(nodeSum, gradKappaElem(0), 1e-5f);
 }
@@ -505,7 +509,7 @@ TYPED_TEST(DifferentiatorAcousticNodeUnstructTest, PolymorphicInterface)
   for (int i = 0; i < TestFixture::kNumNodes; ++i)
   {
     this->pn(i) = 1.0f;
-    this->qdt2(i) = 1.0f;
+    this->qn(i) = 1e-6f; this->qnPrev(i) = 0.0f; this->qnPrevPrev(i) = 0.0f;
   }
 
   std::unique_ptr<Differentiator> diff =
@@ -516,11 +520,11 @@ TYPED_TEST(DifferentiatorAcousticNodeUnstructTest, PolymorphicInterface)
   EXPECT_TRUE(diff->isModelOnNodes());
 
   WavefieldViewForwardAcoustic fwd(this->pn);
-  WavefieldViewBackwardAcoustic bwd(this->qn, this->qdt2);
+  WavefieldViewBackwardAcoustic bwd(this->qn, this->qnPrev, this->qnPrevPrev);
   GradientAcoustic grad(this->gradKappa, this->gradBuoyancy);
   GradientDataAcoustic data(fwd, bwd, grad);
 
-  EXPECT_NO_THROW(diff->compute(mesh, data));
+  EXPECT_NO_THROW(diff->compute(mesh, data, 0.001f));
   EXPECT_GT(this->sumGradKappa(), 0.0f);
 }
 

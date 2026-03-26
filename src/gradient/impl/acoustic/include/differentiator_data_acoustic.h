@@ -17,7 +17,8 @@ namespace gradient
  *
  * Usage:
  *   DifferentiatorDataAcoustic data(fwd, bwd, gradient);
- *   differentiator->compute(mesh, data);
+ *   float dt = 0.001;
+ *   differentiator->compute(mesh, data, dt);
  *   auto kappa = data.getGradient(0);
  */
 struct DifferentiatorDataAcoustic : public Differentiator::DataStruct

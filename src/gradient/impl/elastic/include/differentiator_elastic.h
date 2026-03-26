@@ -41,8 +41,8 @@ class DifferentiatorElastic : public Differentiator
    *   grad_lambda = ∑_elements ∑_stiffness stress_strain_contraction * 0.5
    *   grad_mu     = ∑_elements ∑_stiffness stress_strain_contraction
    */
-  void compute(model::ModelApi<float, int>& mesh,
-               DataStruct& data) const override
+  void compute(model::ModelApi<float, int>& mesh, DataStruct& data,
+               float dt) const override
   {
     throw std::runtime_error(
         "Elastic gradient computation not implemented yet");

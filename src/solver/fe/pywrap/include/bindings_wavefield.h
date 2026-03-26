@@ -36,6 +36,15 @@ void bind_wavefield_acoustic(py::module_ &m)
                Kokkos::Experimental::python_view_type_t<VECTOR_REAL_VIEW>>(),
            py::arg("pn_global_prev"), py::arg("pn_global_curr"))
       .def("swap", &WavefieldAcoustic::swap)
+      .def("swap_with_rotation",
+           [](WavefieldAcoustic& self,
+              Kokkos::Experimental::python_view_type_t<VECTOR_REAL_VIEW>&
+                  prevPrevBuffer) {
+             VECTOR_REAL_VIEW view = prevPrevBuffer;
+             self.swapWithRotation(view, 0);  // field index 0 for pressure
+             prevPrevBuffer = view;
+           },
+           py::arg("prev_prev_buffer"))
       .def("print", &WavefieldAcoustic::print);
 }
 
@@ -55,6 +64,19 @@ void bind_wavefield_elastic(py::module_ &m)
            py::arg("uyn_global_prev"), py::arg("uyn_global_curr"),
            py::arg("uzn_global_prev"), py::arg("uzn_global_curr"))
       .def("swap", &WavefieldElastic::swap)
+      .def("swap_with_rotation",
+           [](WavefieldElastic& self,
+              Kokkos::Experimental::python_view_type_t<VECTOR_REAL_VIEW>& uxPP,
+              Kokkos::Experimental::python_view_type_t<VECTOR_REAL_VIEW>& uyPP,
+              Kokkos::Experimental::python_view_type_t<VECTOR_REAL_VIEW>& uzPP) {
+             VECTOR_REAL_VIEW vux = uxPP, vuy = uyPP, vuz = uzPP;
+             self.swapWithRotation(vux, 0);  // ux component
+             self.swapWithRotation(vuy, 1);  // uy component
+             self.swapWithRotation(vuz, 2);  // uz component
+             uxPP = vux; uyPP = vuy; uzPP = vuz;
+           },
+           py::arg("ux_prev_prev"), py::arg("uy_prev_prev"),
+           py::arg("uz_prev_prev"))
       .def("print", &WavefieldElastic::print);
 }
 

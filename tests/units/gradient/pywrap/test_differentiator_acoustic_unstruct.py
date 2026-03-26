@@ -73,13 +73,15 @@ class TestDifferentiatorAcousticUnstruct:
 
         kk_pn, _ = Utils.allocate_field(n_nodes)
         kk_qn, _ = Utils.allocate_field(n_nodes)
-        kk_qdt2, _ = Utils.allocate_field(n_nodes)
+        kk_qn_prev, _ = Utils.allocate_field(n_nodes)
+        kk_qn_prev_prev, _ = Utils.allocate_field(n_nodes)
         kk_grad_kappa, _ = Utils.allocate_field(n_grad)
         kk_grad_buoyancy, _ = Utils.allocate_field(n_grad)
 
+        dt = 0.001
         fwd = Gradient.WavefieldViewForwardAcoustic(kk_pn)
-        bwd = Gradient.WavefieldViewBackwardAcoustic(kk_qn, kk_qdt2)
+        bwd = Gradient.WavefieldViewBackwardAcoustic(kk_qn, kk_qn_prev, kk_qn_prev_prev)
         grad = Gradient.GradientAcoustic(kk_grad_kappa, kk_grad_buoyancy)
         data = Gradient.GradientDataAcoustic(fwd, bwd, grad)
 
-        differentiator.compute(model, data)
+        differentiator.compute(model, data, dt)

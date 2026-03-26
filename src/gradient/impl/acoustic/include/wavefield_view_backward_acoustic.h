@@ -13,24 +13,31 @@ namespace gradient
  * @brief Read-only view of an acoustic adjoint wavefield for gradient
  * computation.
  *
- * Exposes the current adjoint pressure qn and its pre-computed second-order
- * time derivative qdt2 = (q_prev - 2*q_curr + qnext) / dt², both required
- * by the acoustic gradient kernel.
+ * Exposes three consecutive adjoint pressure snapshots required by the
+ * acoustic gradient kernel to compute the second-order time derivative on
+ * the fly: qdt2 = (qnPrevPrev - 2*qnPrev + qn) / dt².
  *
- * Constructed by the caller from solver adjoint wavefield data; no solver
- * dependency here.
+ * Constructed by the caller from solver adjoint wavefield data plus an
+ * externally managed third buffer; no solver dependency here.
+ *
+ * In a time loop, the solver's WavefieldAcoustic provides qn (current) and
+ * qnPrev (previous). The caller must allocate one extra buffer qnPrevPrev
+ * and rotate the three handles each step without any data copy — see the
+ * three-buffer ring pattern described in the solver time-loop documentation.
  *
  * Fields:
- *   getField(0) = qn    (current adjoint pressure)
- *   getField(1) = qdt2  (second-order time derivative of adjoint pressure)
+ *   getField(0) = qn          (adjoint pressure at time n)
+ *   getField(1) = qnPrev      (adjoint pressure at time n-1)
+ *   getField(2) = qnPrevPrev  (adjoint pressure at time n-2)
  */
 class WavefieldViewBackwardAcoustic : public WavefieldView
 {
  public:
-  static constexpr int kNumFields = 2;
+  static constexpr int kNumFields = 3;
 
-  WavefieldViewBackwardAcoustic(VECTOR_REAL_VIEW qn, VECTOR_REAL_VIEW qdt2)
-      : qn_(qn), qdt2_(qdt2)
+  WavefieldViewBackwardAcoustic(VECTOR_REAL_VIEW qn, VECTOR_REAL_VIEW qnPrev,
+                                VECTOR_REAL_VIEW qnPrevPrev)
+      : qn_(qn), qnPrev_(qnPrev), qnPrevPrev_(qnPrevPrev)
   {
   }
 
@@ -43,7 +50,9 @@ class WavefieldViewBackwardAcoustic : public WavefieldView
       case 0:
         return "qn";
       case 1:
-        return "qdt2";
+        return "qnPrev";
+      case 2:
+        return "qnPrevPrev";
       default:
         return "qn";
     }
@@ -58,7 +67,9 @@ class WavefieldViewBackwardAcoustic : public WavefieldView
       case 0:
         return qn_;
       case 1:
-        return qdt2_;
+        return qnPrev_;
+      case 2:
+        return qnPrevPrev_;
       default:
         return qn_;  // make it cuda happy
     }
@@ -68,12 +79,14 @@ class WavefieldViewBackwardAcoustic : public WavefieldView
   {
     std::cout << "WavefieldViewBackwardAcoustic:"
               << " qn size=" << qn_.extent(0)
-              << " qdt2 size=" << qdt2_.extent(0) << "\n";
+              << " qnPrev size=" << qnPrev_.extent(0)
+              << " qnPrevPrev size=" << qnPrevPrev_.extent(0) << "\n";
   }
 
  private:
-  VECTOR_REAL_VIEW qn_;    ///< Current adjoint pressure snapshot
-  VECTOR_REAL_VIEW qdt2_;  ///< Second-order time derivative of adjoint pressure
+  VECTOR_REAL_VIEW qn_;          ///< Adjoint pressure at time n
+  VECTOR_REAL_VIEW qnPrev_;      ///< Adjoint pressure at time n-1
+  VECTOR_REAL_VIEW qnPrevPrev_;  ///< Adjoint pressure at time n-2
 };
 
 }  // namespace gradient

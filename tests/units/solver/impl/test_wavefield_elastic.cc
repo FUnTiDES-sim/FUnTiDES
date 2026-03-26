@@ -479,6 +479,102 @@ TEST_F(WavefieldElasticTest, CopyInContainerClass)
   EXPECT_FLOAT_EQ(original.m_uznGlobalCurr(30), 666.0f);
 }
 
+TEST_F(WavefieldElasticTest, SwapWithRotationRotatesThreeBuffers)
+{
+  // Allocate prevprev buffers initialised to 10*component_index
+  auto uxPrevPrev = allocateVector<VECTOR_REAL_VIEW>(size1, "uxPrevPrev");
+  auto uyPrevPrev = allocateVector<VECTOR_REAL_VIEW>(size1, "uyPrevPrev");
+  auto uzPrevPrev = allocateVector<VECTOR_REAL_VIEW>(size1, "uzPrevPrev");
+  for (size_t i = 0; i < size1; ++i)
+  {
+    uxPrevPrev(i) = 10.0f;
+    uyPrevPrev(i) = 20.0f;
+    uzPrevPrev(i) = 30.0f;
+  }
+
+  WavefieldElastic wavefield(uxPrevField, uxCurrField, uyPrevField, uyCurrField,
+                             uzPrevField, uzCurrField);
+  wavefield.swapWithRotation(uxPrevPrev, 0);
+  wavefield.swapWithRotation(uyPrevPrev, 1);
+  wavefield.swapWithRotation(uzPrevPrev, 2);
+
+  // After rotation:
+  //   curr      ← old prevPrev  (ux=10, uy=20, uz=30)
+  //   prev      ← old curr      (ux=i*2, uy=i*4, uz=i*6)
+  //   prevPrev  ← old prev      (ux=i,   uy=i*3, uz=i*5)
+  for (size_t i = 0; i < size1; ++i)
+  {
+    EXPECT_FLOAT_EQ(wavefield.m_uxnGlobalCurr(i), 10.0f);
+    EXPECT_FLOAT_EQ(wavefield.m_uynGlobalCurr(i), 20.0f);
+    EXPECT_FLOAT_EQ(wavefield.m_uznGlobalCurr(i), 30.0f);
+
+    EXPECT_FLOAT_EQ(wavefield.m_uxnGlobalPrev(i), i * 2);
+    EXPECT_FLOAT_EQ(wavefield.m_uynGlobalPrev(i), i * 4);
+    EXPECT_FLOAT_EQ(wavefield.m_uznGlobalPrev(i), i * 6);
+
+    EXPECT_FLOAT_EQ(uxPrevPrev(i), static_cast<float>(i));
+    EXPECT_FLOAT_EQ(uyPrevPrev(i), static_cast<float>(i) * 3);
+    EXPECT_FLOAT_EQ(uzPrevPrev(i), static_cast<float>(i) * 5);
+  }
+}
+
+TEST_F(WavefieldElasticTest, SwapWithRotationThreeTimesRestoresState)
+{
+  auto uxPrevPrev = allocateVector<VECTOR_REAL_VIEW>(size1, "uxPrevPrev");
+  auto uyPrevPrev = allocateVector<VECTOR_REAL_VIEW>(size1, "uyPrevPrev");
+  auto uzPrevPrev = allocateVector<VECTOR_REAL_VIEW>(size1, "uzPrevPrev");
+  for (size_t i = 0; i < size1; ++i)
+  {
+    uxPrevPrev(i) = 10.0f;
+    uyPrevPrev(i) = 20.0f;
+    uzPrevPrev(i) = 30.0f;
+  }
+
+  float initialUxPrev0 = uxPrevField(0);
+  float initialUxCurr0 = uxCurrField(0);
+  float initialUxPP0   = uxPrevPrev(0);
+
+  WavefieldElastic wavefield(uxPrevField, uxCurrField, uyPrevField, uyCurrField,
+                             uzPrevField, uzCurrField);
+
+  wavefield.swapWithRotation(uxPrevPrev, 0);
+  wavefield.swapWithRotation(uyPrevPrev, 1);
+  wavefield.swapWithRotation(uzPrevPrev, 2);
+  wavefield.swapWithRotation(uxPrevPrev, 0);
+  wavefield.swapWithRotation(uyPrevPrev, 1);
+  wavefield.swapWithRotation(uzPrevPrev, 2);
+  wavefield.swapWithRotation(uxPrevPrev, 0);
+  wavefield.swapWithRotation(uyPrevPrev, 1);
+  wavefield.swapWithRotation(uzPrevPrev, 2);
+
+  EXPECT_FLOAT_EQ(wavefield.m_uxnGlobalPrev(0), initialUxPrev0);
+  EXPECT_FLOAT_EQ(wavefield.m_uxnGlobalCurr(0), initialUxCurr0);
+  EXPECT_FLOAT_EQ(uxPrevPrev(0), initialUxPP0);
+}
+
+TEST_F(WavefieldElasticTest, SwapWithRotationNoDataCopy)
+{
+  auto uxPrevPrev = allocateVector<VECTOR_REAL_VIEW>(size1, "uxPrevPrev");
+  auto uyPrevPrev = allocateVector<VECTOR_REAL_VIEW>(size1, "uyPrevPrev");
+  auto uzPrevPrev = allocateVector<VECTOR_REAL_VIEW>(size1, "uzPrevPrev");
+  for (size_t i = 0; i < size1; ++i)
+  {
+    uxPrevPrev(i) = 10.0f;
+    uyPrevPrev(i) = 20.0f;
+    uzPrevPrev(i) = 30.0f;
+  }
+
+  WavefieldElastic wavefield(uxPrevField, uxCurrField, uyPrevField, uyCurrField,
+                             uzPrevField, uzCurrField);
+  wavefield.swapWithRotation(uxPrevPrev, 0);
+  wavefield.swapWithRotation(uyPrevPrev, 1);
+  wavefield.swapWithRotation(uzPrevPrev, 2);
+
+  // uxPrevPrev now aliases uxPrevField; write through one and read through the other
+  uxPrevPrev(0) = 999.0f;
+  EXPECT_FLOAT_EQ(uxPrevField(0), 999.0f);
+}
+
 }  // namespace test
 }  // namespace fe
 }  // namespace solver

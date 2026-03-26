@@ -17,7 +17,8 @@ namespace gradient
  *
  * Usage:
  *   DifferentiatorDataElastic data(fwd, bwd, gradient);
- *   differentiator->compute(mesh, data);
+ *   float dt = 0.001;
+ *   differentiator->compute(mesh, data, dt);
  *   auto rho = data.getGradient(0);
  */
 struct DifferentiatorDataElastic : public Differentiator::DataStruct
