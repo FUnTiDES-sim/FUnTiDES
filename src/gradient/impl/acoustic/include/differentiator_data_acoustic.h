@@ -24,9 +24,9 @@ struct DifferentiatorDataAcoustic : public Differentiator::DataStruct
 {
   using Traits = PhysicsTraits<utils::enums::physicType::kAcoustic>;
 
-  using WavefieldViewForwardType  = typename Traits::WavefieldViewForwardType;
+  using WavefieldViewForwardType = typename Traits::WavefieldViewForwardType;
   using WavefieldViewBackwardType = typename Traits::WavefieldViewBackwardType;
-  using GradientType              = typename Traits::GradientType;
+  using GradientType = typename Traits::GradientType;
 
   /**
    * @brief Construct acoustic differentiator data.
@@ -36,8 +36,8 @@ struct DifferentiatorDataAcoustic : public Differentiator::DataStruct
    * @param gradient  Gradient container for acoustic parameters
    */
   DifferentiatorDataAcoustic(const WavefieldViewForwardAcoustic& fwd,
-                              const WavefieldViewBackwardAcoustic& bwd,
-                              const GradientAcoustic& gradient)
+                             const WavefieldViewBackwardAcoustic& bwd,
+                             const GradientAcoustic& gradient)
       : m_fwd(fwd), m_bwd(bwd), m_gradient(gradient)
   {
   }
@@ -62,9 +62,9 @@ struct DifferentiatorDataAcoustic : public Differentiator::DataStruct
     m_gradient.print();
   }
 
-  WavefieldViewForwardType  m_fwd;       ///< Forward wavefield snapshot(s)
-  WavefieldViewBackwardType m_bwd;       ///< Adjoint wavefield snapshot(s)
-  GradientType              m_gradient;  ///< Gradient arrays (view handles)
+  WavefieldViewForwardType m_fwd;   ///< Forward wavefield snapshot(s)
+  WavefieldViewBackwardType m_bwd;  ///< Adjoint wavefield snapshot(s)
+  GradientType m_gradient;          ///< Gradient arrays (view handles)
 };
 
 using GradientDataAcoustic = DifferentiatorDataAcoustic;

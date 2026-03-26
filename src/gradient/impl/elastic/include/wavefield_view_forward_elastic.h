@@ -24,8 +24,7 @@ namespace gradient
  */
 class WavefieldViewForwardElastic : public WavefieldView
 {
-public:
-
+ public:
   static constexpr int kNumFields = 3;
 
   WavefieldViewForwardElastic(VECTOR_REAL_VIEW ux_n, VECTOR_REAL_VIEW uy_n,
@@ -76,11 +75,10 @@ public:
               << " uz_n size=" << uz_n_.extent(0) << "\n";
   }
 
-  private:
-
-    VECTOR_REAL_VIEW ux_n_;  ///< Current x-displacement snapshot
-    VECTOR_REAL_VIEW uy_n_;  ///< Current y-displacement snapshot
-    VECTOR_REAL_VIEW uz_n_;  ///< Current z-displacement snapshot
+ private:
+  VECTOR_REAL_VIEW ux_n_;  ///< Current x-displacement snapshot
+  VECTOR_REAL_VIEW uy_n_;  ///< Current y-displacement snapshot
+  VECTOR_REAL_VIEW uz_n_;  ///< Current z-displacement snapshot
 };
 
 }  // namespace gradient

@@ -13,7 +13,7 @@ namespace gradient
  */
 class Gradient
 {
-public:
+ public:
   virtual ~Gradient() = default;
 
   /**

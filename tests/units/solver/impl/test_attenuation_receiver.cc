@@ -40,13 +40,13 @@ namespace fe
 {
 namespace test
 {
-static VECTOR_REAL_VIEW toView(const std::vector<float>& v, const char* name) {
-    if (v.empty()) return VECTOR_REAL_VIEW();
-    auto view = allocateVector<VECTOR_REAL_VIEW>(v.size(), name);
-    for (size_t i = 0; i < v.size(); ++i) view[i] = v[i];
-    return view;
+static VECTOR_REAL_VIEW toView(const std::vector<float>& v, const char* name)
+{
+  if (v.empty()) return VECTOR_REAL_VIEW();
+  auto view = allocateVector<VECTOR_REAL_VIEW>(v.size(), name);
+  for (size_t i = 0; i < v.size(); ++i) view[i] = v[i];
+  return view;
 }
-
 
 // ======================================================================
 // Helper: build a larger mesh for receiver testing
@@ -100,8 +100,8 @@ static std::vector<float> findPeaks(const std::vector<float>& trace,
 
   for (int i = 1; i < static_cast<int>(trace.size()) - 1; ++i)
   {
-    if (trace[i] > trace[i - 1] && trace[i] > trace[i + 1] &&
-        trace[i] > 0.0f && (i - lastPeakIdx) >= minSeparation)
+    if (trace[i] > trace[i - 1] && trace[i] > trace[i + 1] && trace[i] > 0.0f &&
+        (i - lastPeakIdx) >= minSeparation)
     {
       peaks.push_back(trace[i]);
       lastPeakIdx = i;
@@ -129,7 +129,8 @@ static AcousticSeismogram runAcousticWithReceiver(
 
   auto solver = solver_factory::createSolver(
       utils::enums::methodType::kSem, utils::enums::implemType::kMakutu,
-      utils::enums::meshType::kStruct, utils::enums::modelLocationType::kOnElements,
+      utils::enums::meshType::kStruct,
+      utils::enums::modelLocationType::kOnElements,
       utils::enums::physicType::kAcoustic, order);
   solver->setAnisotropyType(model::AnisotropyType::kIso);
 
@@ -152,8 +153,7 @@ static AcousticSeismogram runAcousticWithReceiver(
   auto rhsTerm =
       allocateArray2D<ARRAY_REAL_VIEW>(1, numTimeSteps, "rhsTerm_rcv");
   auto rhsElem = allocateVector<VECTOR_INT_VIEW>(1, "rhsElem_rcv");
-  auto rhsWeights =
-      allocateArray2D<ARRAY_REAL_VIEW>(1, npp, "rhsWeights_rcv");
+  auto rhsWeights = allocateArray2D<ARRAY_REAL_VIEW>(1, npp, "rhsWeights_rcv");
   rhsElem(0) = 0;
   for (int j = 0; j < npp; ++j)
   {
@@ -203,7 +203,8 @@ static ElasticSeismogram runElasticWithReceiver(
 
   auto solver = solver_factory::createSolver(
       utils::enums::methodType::kSem, utils::enums::implemType::kMakutu,
-      utils::enums::meshType::kStruct, utils::enums::modelLocationType::kOnElements,
+      utils::enums::meshType::kStruct,
+      utils::enums::modelLocationType::kOnElements,
       utils::enums::physicType::kElastic, order);
   solver->setAnisotropyType(model::AnisotropyType::kIso);
 
@@ -284,14 +285,14 @@ TEST(AttenuationReceiver, AcousticReceiverTraceDecays)
 
   // Run without attenuation
   auto mesh_noatt = buildReceiverMesh(false);
-  auto seis_noatt = runAcousticWithReceiver(
-      mesh_noatt, {}, numTimeSteps, dt, sourceNode, receiverNode);
+  auto seis_noatt = runAcousticWithReceiver(mesh_noatt, {}, numTimeSteps, dt,
+                                            sourceNode, receiverNode);
 
   // Run with attenuation: Q=10, 1 SLS mechanism (strong attenuation)
   auto mesh_att = buildReceiverMesh(false, 10.0f, 10.0f);
   std::vector<float> freqs = {2.0f * static_cast<float>(M_PI) * 10.0f};
-  auto seis_att = runAcousticWithReceiver(
-      mesh_att, freqs, numTimeSteps, dt, sourceNode, receiverNode);
+  auto seis_att = runAcousticWithReceiver(mesh_att, freqs, numTimeSteps, dt,
+                                          sourceNode, receiverNode);
 
   // Both traces should be finite
   for (int t = 0; t < numTimeSteps; ++t)
@@ -345,8 +346,7 @@ TEST(AttenuationReceiver, AcousticReceiverTraceDecays)
     EXPECT_LT(ratio, 1.0f)
         << "Attenuation should reduce late-time peak amplitude. "
         << "max_noatt=" << maxSecondHalf_noatt
-        << ", max_att=" << maxSecondHalf_att
-        << ", ratio=" << ratio;
+        << ", max_att=" << maxSecondHalf_att << ", ratio=" << ratio;
   }
 }
 
@@ -364,14 +364,14 @@ TEST(AttenuationReceiver, ElasticReceiverTraceDecays)
 
   // Run without attenuation
   auto mesh_noatt = buildReceiverMesh(true);
-  auto seis_noatt = runElasticWithReceiver(
-      mesh_noatt, {}, numTimeSteps, dt, sourceNode, receiverNode);
+  auto seis_noatt = runElasticWithReceiver(mesh_noatt, {}, numTimeSteps, dt,
+                                           sourceNode, receiverNode);
 
   // Run with attenuation: Q=10, 1 SLS mechanism
   auto mesh_att = buildReceiverMesh(true, 10.0f, 10.0f);
   std::vector<float> freqs = {2.0f * static_cast<float>(M_PI) * 5.0f};
-  auto seis_att = runElasticWithReceiver(
-      mesh_att, freqs, numTimeSteps, dt, sourceNode, receiverNode);
+  auto seis_att = runElasticWithReceiver(mesh_att, freqs, numTimeSteps, dt,
+                                         sourceNode, receiverNode);
 
   // Both traces should be finite
   for (int t = 0; t < numTimeSteps; ++t)
@@ -417,13 +417,13 @@ TEST(AttenuationReceiver, LowerQStrongerAttenuation)
 
   // Q=50 (weak attenuation)
   auto mesh_q50 = buildReceiverMesh(true, 50.0f, 50.0f);
-  auto seis_q50 = runElasticWithReceiver(
-      mesh_q50, freqs, numTimeSteps, dt, sourceNode, receiverNode);
+  auto seis_q50 = runElasticWithReceiver(mesh_q50, freqs, numTimeSteps, dt,
+                                         sourceNode, receiverNode);
 
   // Q=10 (strong attenuation)
   auto mesh_q10 = buildReceiverMesh(true, 10.0f, 10.0f);
-  auto seis_q10 = runElasticWithReceiver(
-      mesh_q10, freqs, numTimeSteps, dt, sourceNode, receiverNode);
+  auto seis_q10 = runElasticWithReceiver(mesh_q10, freqs, numTimeSteps, dt,
+                                         sourceNode, receiverNode);
 
   // Both should be stable
   EXPECT_TRUE(std::isfinite(seis_q50.finalNorm));
@@ -457,13 +457,13 @@ TEST(AttenuationReceiverHighOrder, AcousticOrder2Decays)
   const int receiverNode = 8 + 5 * nx + 5 * nx * nx;
 
   auto mesh_noatt = buildReceiverMesh(false, 1e9f, 1e9f, order);
-  auto seis_noatt = runAcousticWithReceiver(
-      mesh_noatt, {}, numTimeSteps, dt, sourceNode, receiverNode, order);
+  auto seis_noatt = runAcousticWithReceiver(mesh_noatt, {}, numTimeSteps, dt,
+                                            sourceNode, receiverNode, order);
 
   auto mesh_att = buildReceiverMesh(false, 30.0f, 30.0f, order);
   std::vector<float> freqs = {2.0f * static_cast<float>(M_PI) * 10.0f};
-  auto seis_att = runAcousticWithReceiver(
-      mesh_att, freqs, numTimeSteps, dt, sourceNode, receiverNode, order);
+  auto seis_att = runAcousticWithReceiver(mesh_att, freqs, numTimeSteps, dt,
+                                          sourceNode, receiverNode, order);
 
   // Stability check
   for (int t = 0; t < numTimeSteps; ++t)
@@ -521,13 +521,13 @@ TEST(AttenuationReceiverHighOrder, ElasticOrder2Decays)
   const int receiverNode = 8 + 5 * nx + 5 * nx * nx;
 
   auto mesh_noatt = buildReceiverMesh(true, 1e9f, 1e9f, order);
-  auto seis_noatt = runElasticWithReceiver(
-      mesh_noatt, {}, numTimeSteps, dt, sourceNode, receiverNode, order);
+  auto seis_noatt = runElasticWithReceiver(mesh_noatt, {}, numTimeSteps, dt,
+                                           sourceNode, receiverNode, order);
 
   auto mesh_att = buildReceiverMesh(true, 10.0f, 10.0f, order);
   std::vector<float> freqs = {2.0f * static_cast<float>(M_PI) * 5.0f};
-  auto seis_att = runElasticWithReceiver(
-      mesh_att, freqs, numTimeSteps, dt, sourceNode, receiverNode, order);
+  auto seis_att = runElasticWithReceiver(mesh_att, freqs, numTimeSteps, dt,
+                                         sourceNode, receiverNode, order);
 
   for (int t = 0; t < numTimeSteps; ++t)
   {

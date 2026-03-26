@@ -31,10 +31,10 @@ template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE,
 class DifferentiatorAcoustic : public Differentiator
 {
  public:
-
   static constexpr int kOrder = ORDER;
   static constexpr bool kIsModelOnNodes = IS_MODEL_ON_NODES;
-  static constexpr int kPointsPerElement = (ORDER + 1) * (ORDER + 1) * (ORDER + 1);
+  static constexpr int kPointsPerElement =
+      (ORDER + 1) * (ORDER + 1) * (ORDER + 1);
 
   ~DifferentiatorAcoustic() override = default;
 
@@ -48,8 +48,7 @@ class DifferentiatorAcoustic : public Differentiator
   void compute(model::ModelApi<float, int>& mesh,
                DataStruct& data) const override
   {
-    auto& myData =
-        dynamic_cast<DifferentiatorDataAcoustic&>(data);
+    auto& myData = dynamic_cast<DifferentiatorDataAcoustic&>(data);
     auto mesh_copy = dynamic_cast<MESH_TYPE&>(
         mesh);  // value copy for device capture TODO check that
 
@@ -57,7 +56,8 @@ class DifferentiatorAcoustic : public Differentiator
         myData.getForwardField(0);  // forward pressure, node-indexed
     VECTOR_REAL_VIEW const qn =
         myData.getBackwardField(0);  // adjoint pressure, node-indexed
-    VECTOR_REAL_VIEW const qdt2 = myData.getBackwardField(1);  // d²q/dt², node-indexed
+    VECTOR_REAL_VIEW const qdt2 =
+        myData.getBackwardField(1);  // d²q/dt², node-indexed
     VECTOR_REAL_VIEW const gradKappa =
         myData.getGradient(0);  // grad_kappa, node- or element-indexed
     VECTOR_REAL_VIEW const gradBuoyancy =
@@ -83,7 +83,6 @@ class DifferentiatorAcoustic : public Differentiator
   }
 
  private:
-
   /**
    * @brief Each element writes to a unique index — no atomic add required.
    */
@@ -210,7 +209,6 @@ class DifferentiatorAcoustic : public Differentiator
 
     MAINLOOPEND
   }
-
 };
 
 }  // namespace gradient

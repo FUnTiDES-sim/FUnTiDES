@@ -17,19 +17,19 @@ class WavefieldViewBackwardElasticTest : public ::testing::Test
  protected:
   void SetUp() override
   {
-    size   = 45;
-    ux_n   = allocateVector<VECTOR_REAL_VIEW>(size, "ux_n");
-    uy_n   = allocateVector<VECTOR_REAL_VIEW>(size, "uy_n");
-    uz_n   = allocateVector<VECTOR_REAL_VIEW>(size, "uz_n");
+    size = 45;
+    ux_n = allocateVector<VECTOR_REAL_VIEW>(size, "ux_n");
+    uy_n = allocateVector<VECTOR_REAL_VIEW>(size, "uy_n");
+    uz_n = allocateVector<VECTOR_REAL_VIEW>(size, "uz_n");
     ux_dt2 = allocateVector<VECTOR_REAL_VIEW>(size, "ux_dt2");
     uy_dt2 = allocateVector<VECTOR_REAL_VIEW>(size, "uy_dt2");
     uz_dt2 = allocateVector<VECTOR_REAL_VIEW>(size, "uz_dt2");
 
     for (int i = 0; i < size; ++i)
     {
-      ux_n(i)   = static_cast<float>(i) * 1.0f;
-      uy_n(i)   = static_cast<float>(i) * 2.0f;
-      uz_n(i)   = static_cast<float>(i) * 3.0f;
+      ux_n(i) = static_cast<float>(i) * 1.0f;
+      uy_n(i) = static_cast<float>(i) * 2.0f;
+      uz_n(i) = static_cast<float>(i) * 3.0f;
       ux_dt2(i) = static_cast<float>(i) * 4.0f;
       uy_dt2(i) = static_cast<float>(i) * 5.0f;
       uz_dt2(i) = static_cast<float>(i) * 6.0f;
@@ -131,8 +131,8 @@ TEST_F(WavefieldViewBackwardElasticTest, PrintDoesNotThrow)
 TEST_F(WavefieldViewBackwardElasticTest, PolymorphicInterface)
 {
   std::unique_ptr<WavefieldView> view =
-      std::make_unique<WavefieldViewBackwardElastic>(
-          ux_n, uy_n, uz_n, ux_dt2, uy_dt2, uz_dt2);
+      std::make_unique<WavefieldViewBackwardElastic>(ux_n, uy_n, uz_n, ux_dt2,
+                                                     uy_dt2, uz_dt2);
 
   EXPECT_EQ(view->getNumFields(), 6);
   EXPECT_EQ(view->getFieldName(3), "ux_dt2");

@@ -21,8 +21,7 @@ namespace gradient
  */
 class WavefieldViewForwardAcoustic : public WavefieldView
 {
-public:
-
+ public:
   static constexpr int kNumFields = 1;
 
   WavefieldViewForwardAcoustic(VECTOR_REAL_VIEW pn) : pn_(pn) {}
@@ -41,9 +40,8 @@ public:
               << "\n";
   }
 
-  private:
-
-    VECTOR_REAL_VIEW pn_;  ///< Current pressure snapshot
+ private:
+  VECTOR_REAL_VIEW pn_;  ///< Current pressure snapshot
 };
 
 }  // namespace gradient

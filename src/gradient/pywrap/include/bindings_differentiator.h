@@ -10,10 +10,10 @@
 
 #include "data_type.h"
 #include "differentiator.h"
-#include "differentiator_factory.h"
-#include "gradient_acoustic.h"
 #include "differentiator_data_acoustic.h"
 #include "differentiator_data_elastic.h"
+#include "differentiator_factory.h"
+#include "gradient_acoustic.h"
 #include "gradient_elastic.h"
 #include "wavefield_view_backward_acoustic.h"
 #include "wavefield_view_backward_elastic.h"
@@ -27,13 +27,15 @@ namespace gradient
 
 void bind_data_struct(py::module_& m)
 {
-  py::class_<Differentiator::DataStruct, std::shared_ptr<Differentiator::DataStruct>>(m, "DataStruct")
+  py::class_<Differentiator::DataStruct,
+             std::shared_ptr<Differentiator::DataStruct>>(m, "DataStruct")
       .def("print", &Differentiator::DataStruct::print);
 }
 
 void bind_gradient_data_acoustic(py::module_& m)
 {
-  py::class_<GradientDataAcoustic, Differentiator::DataStruct, std::shared_ptr<GradientDataAcoustic>>(m, "GradientDataAcoustic")
+  py::class_<GradientDataAcoustic, Differentiator::DataStruct,
+             std::shared_ptr<GradientDataAcoustic>>(m, "GradientDataAcoustic")
       .def(py::init<const WavefieldViewForwardAcoustic&,
                     const WavefieldViewBackwardAcoustic&,
                     const GradientAcoustic&>(),
@@ -43,7 +45,8 @@ void bind_gradient_data_acoustic(py::module_& m)
 
 void bind_gradient_data_elastic(py::module_& m)
 {
-  py::class_<GradientDataElastic, Differentiator::DataStruct, std::shared_ptr<GradientDataElastic>>(m, "GradientDataElastic")
+  py::class_<GradientDataElastic, Differentiator::DataStruct,
+             std::shared_ptr<GradientDataElastic>>(m, "GradientDataElastic")
       .def(py::init<const WavefieldViewForwardElastic&,
                     const WavefieldViewBackwardElastic&,
                     const GradientElastic&>(),
@@ -53,7 +56,8 @@ void bind_gradient_data_elastic(py::module_& m)
 
 void bind_differentiator_base(py::module_& m)
 {
-  py::class_<Differentiator, std::shared_ptr<Differentiator>>(m, "Differentiator")
+  py::class_<Differentiator, std::shared_ptr<Differentiator>>(m,
+                                                              "Differentiator")
       .def("compute", &Differentiator::compute, py::arg("mesh"),
            py::arg("data"))
       .def("print", &Differentiator::print);

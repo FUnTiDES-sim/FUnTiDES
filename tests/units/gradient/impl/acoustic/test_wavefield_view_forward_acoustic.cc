@@ -14,10 +14,9 @@ class WavefieldViewForwardAcousticTest : public ::testing::Test
   void SetUp() override
   {
     size = 50;
-    pn   = allocateVector<VECTOR_REAL_VIEW>(size, "pn");
+    pn = allocateVector<VECTOR_REAL_VIEW>(size, "pn");
 
-    for (int i = 0; i < size; ++i)
-      pn(i) = static_cast<float>(i) * 0.1f;
+    for (int i = 0; i < size; ++i) pn(i) = static_cast<float>(i) * 0.1f;
   }
 
   int size;

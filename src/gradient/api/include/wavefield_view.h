@@ -24,7 +24,7 @@ namespace gradient
  */
 class WavefieldView
 {
-public:
+ public:
   virtual ~WavefieldView() = default;
 
   /**

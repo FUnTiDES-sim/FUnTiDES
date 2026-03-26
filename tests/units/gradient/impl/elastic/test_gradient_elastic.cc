@@ -14,27 +14,29 @@ class GradientElasticTest : public ::testing::Test
   void SetUp() override
   {
     numElements = 8;
-    numNodes    = 27;
+    numNodes = 27;
 
-    gradRhoElem    = allocateVector<VECTOR_REAL_VIEW>(numElements, "gradRhoElem");
-    gradLambdaElem = allocateVector<VECTOR_REAL_VIEW>(numElements, "gradLambdaElem");
-    gradMuElem     = allocateVector<VECTOR_REAL_VIEW>(numElements, "gradMuElem");
+    gradRhoElem = allocateVector<VECTOR_REAL_VIEW>(numElements, "gradRhoElem");
+    gradLambdaElem =
+        allocateVector<VECTOR_REAL_VIEW>(numElements, "gradLambdaElem");
+    gradMuElem = allocateVector<VECTOR_REAL_VIEW>(numElements, "gradMuElem");
 
-    gradRhoNode    = allocateVector<VECTOR_REAL_VIEW>(numNodes, "gradRhoNode");
-    gradLambdaNode = allocateVector<VECTOR_REAL_VIEW>(numNodes, "gradLambdaNode");
-    gradMuNode     = allocateVector<VECTOR_REAL_VIEW>(numNodes, "gradMuNode");
+    gradRhoNode = allocateVector<VECTOR_REAL_VIEW>(numNodes, "gradRhoNode");
+    gradLambdaNode =
+        allocateVector<VECTOR_REAL_VIEW>(numNodes, "gradLambdaNode");
+    gradMuNode = allocateVector<VECTOR_REAL_VIEW>(numNodes, "gradMuNode");
 
     for (int i = 0; i < numElements; ++i)
     {
-      gradRhoElem(i)    = static_cast<float>(i) * 1.0f;
+      gradRhoElem(i) = static_cast<float>(i) * 1.0f;
       gradLambdaElem(i) = static_cast<float>(i) * 2.0f;
-      gradMuElem(i)     = static_cast<float>(i) * 3.0f;
+      gradMuElem(i) = static_cast<float>(i) * 3.0f;
     }
     for (int i = 0; i < numNodes; ++i)
     {
-      gradRhoNode(i)    = static_cast<float>(i) * 0.1f;
+      gradRhoNode(i) = static_cast<float>(i) * 0.1f;
       gradLambdaNode(i) = static_cast<float>(i) * 0.2f;
-      gradMuNode(i)     = static_cast<float>(i) * 0.3f;
+      gradMuNode(i) = static_cast<float>(i) * 0.3f;
     }
   }
 
@@ -193,8 +195,8 @@ TEST_F(GradientElasticTest, PrintDoesNotThrow)
 
 TEST_F(GradientElasticTest, PolymorphicInterface)
 {
-  std::unique_ptr<Gradient> grad =
-      std::make_unique<GradientElastic>(gradRhoElem, gradLambdaElem, gradMuElem);
+  std::unique_ptr<Gradient> grad = std::make_unique<GradientElastic>(
+      gradRhoElem, gradLambdaElem, gradMuElem);
 
   EXPECT_EQ(grad->getNumGradients(), 3);
   EXPECT_EQ(grad->getGradientName(0), "gradRho");

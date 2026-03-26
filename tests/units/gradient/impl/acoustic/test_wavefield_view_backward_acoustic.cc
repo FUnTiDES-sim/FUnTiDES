@@ -14,12 +14,12 @@ class WavefieldViewBackwardAcousticTest : public ::testing::Test
   void SetUp() override
   {
     size = 50;
-    qn   = allocateVector<VECTOR_REAL_VIEW>(size, "qn");
+    qn = allocateVector<VECTOR_REAL_VIEW>(size, "qn");
     qdt2 = allocateVector<VECTOR_REAL_VIEW>(size, "qdt2");
 
     for (int i = 0; i < size; ++i)
     {
-      qn(i)   = static_cast<float>(i) * 2.0f;
+      qn(i) = static_cast<float>(i) * 2.0f;
       qdt2(i) = static_cast<float>(i) * 3.0f;
     }
   }

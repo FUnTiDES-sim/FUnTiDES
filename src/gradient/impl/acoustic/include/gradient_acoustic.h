@@ -14,8 +14,7 @@ namespace gradient
  */
 class GradientAcoustic : public Gradient
 {
-public:
-
+ public:
   static constexpr int kNumGrads = 2;
 
   GradientAcoustic(VECTOR_REAL_VIEW gradKappa, VECTOR_REAL_VIEW gradBuoyancy)
@@ -56,14 +55,12 @@ public:
   void print() const override
   {
     std::cout << "Grad Kappa size: " << gradKappa_.extent(0) << std::endl;
-    std::cout << "Grad Buoyancy size: " << gradBuoyancy_.extent(0)
-              << std::endl;
+    std::cout << "Grad Buoyancy size: " << gradBuoyancy_.extent(0) << std::endl;
   }
 
-  private:
-
-    VECTOR_REAL_VIEW gradKappa_;     ///< Gradient of Kappa
-    VECTOR_REAL_VIEW gradBuoyancy_;  ///< Gradient of Buoyancy
+ private:
+  VECTOR_REAL_VIEW gradKappa_;     ///< Gradient of Kappa
+  VECTOR_REAL_VIEW gradBuoyancy_;  ///< Gradient of Buoyancy
 };
 }  // namespace gradient
 #endif  // FUNTIDES_GRADIENT_IMPL_ACOUSTIC_INCLUDE_GRADIENT_ACOUSTIC_H_

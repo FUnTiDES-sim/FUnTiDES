@@ -21,10 +21,12 @@ class GradientsAcousticTest : public ::testing::Test
     num_nodes = 100;
 
     // Allocate gradient vectors
-    grad_kappa_elem = allocateVector<VECTOR_REAL_VIEW>(num_elements, "grad_kappa_elem");
+    grad_kappa_elem =
+        allocateVector<VECTOR_REAL_VIEW>(num_elements, "grad_kappa_elem");
     grad_buoyancy_elem =
         allocateVector<VECTOR_REAL_VIEW>(num_elements, "grad_buoyancy_elem");
-    grad_kappa_node = allocateVector<VECTOR_REAL_VIEW>(num_nodes, "grad_kappa_node");
+    grad_kappa_node =
+        allocateVector<VECTOR_REAL_VIEW>(num_nodes, "grad_kappa_node");
     grad_buoyancy_node =
         allocateVector<VECTOR_REAL_VIEW>(num_nodes, "grad_buoyancy_node");
 

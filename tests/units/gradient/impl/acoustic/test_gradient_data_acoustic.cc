@@ -15,19 +15,19 @@ class GradientDataAcousticTest : public ::testing::Test
   {
     size = 40;
 
-    pn   = allocateVector<VECTOR_REAL_VIEW>(size, "pn");
-    qn   = allocateVector<VECTOR_REAL_VIEW>(size, "qn");
+    pn = allocateVector<VECTOR_REAL_VIEW>(size, "pn");
+    qn = allocateVector<VECTOR_REAL_VIEW>(size, "qn");
     qdt2 = allocateVector<VECTOR_REAL_VIEW>(size, "qdt2");
 
-    gradKappa    = allocateVector<VECTOR_REAL_VIEW>(size, "gradKappa");
+    gradKappa = allocateVector<VECTOR_REAL_VIEW>(size, "gradKappa");
     gradBuoyancy = allocateVector<VECTOR_REAL_VIEW>(size, "gradBuoyancy");
 
     for (int i = 0; i < size; ++i)
     {
-      pn(i)          = static_cast<float>(i) * 0.1f;
-      qn(i)          = static_cast<float>(i) * 0.2f;
-      qdt2(i)        = static_cast<float>(i) * 0.3f;
-      gradKappa(i)   = static_cast<float>(i) * 1.0f;
+      pn(i) = static_cast<float>(i) * 0.1f;
+      qn(i) = static_cast<float>(i) * 0.2f;
+      qdt2(i) = static_cast<float>(i) * 0.3f;
+      gradKappa(i) = static_cast<float>(i) * 1.0f;
       gradBuoyancy(i) = static_cast<float>(i) * 2.0f;
     }
   }
@@ -39,20 +39,19 @@ class GradientDataAcousticTest : public ::testing::Test
 
 TEST_F(GradientDataAcousticTest, Construction)
 {
-  WavefieldViewForwardAcoustic  fwd(pn);
+  WavefieldViewForwardAcoustic fwd(pn);
   WavefieldViewBackwardAcoustic bwd(qn, qdt2);
-  GradientAcoustic              gradient(gradKappa, gradBuoyancy);
+  GradientAcoustic gradient(gradKappa, gradBuoyancy);
 
-  EXPECT_NO_THROW(
-      (GradientDataAcoustic{fwd, bwd, gradient}));
+  EXPECT_NO_THROW((GradientDataAcoustic{fwd, bwd, gradient}));
 }
 
 TEST_F(GradientDataAcousticTest, GetForwardFieldReturnsPn)
 {
-  WavefieldViewForwardAcoustic  fwd(pn);
+  WavefieldViewForwardAcoustic fwd(pn);
   WavefieldViewBackwardAcoustic bwd(qn, qdt2);
-  GradientAcoustic              grad(gradKappa, gradBuoyancy);
-  GradientDataAcoustic          data(fwd, bwd, grad);
+  GradientAcoustic grad(gradKappa, gradBuoyancy);
+  GradientDataAcoustic data(fwd, bwd, grad);
 
   auto field = data.getForwardField(0);
   ASSERT_EQ(field.extent(0), static_cast<size_t>(size));
@@ -62,10 +61,10 @@ TEST_F(GradientDataAcousticTest, GetForwardFieldReturnsPn)
 
 TEST_F(GradientDataAcousticTest, GetBackwardFieldZeroReturnsQn)
 {
-  WavefieldViewForwardAcoustic  fwd(pn);
+  WavefieldViewForwardAcoustic fwd(pn);
   WavefieldViewBackwardAcoustic bwd(qn, qdt2);
-  GradientAcoustic              grad(gradKappa, gradBuoyancy);
-  GradientDataAcoustic          data(fwd, bwd, grad);
+  GradientAcoustic grad(gradKappa, gradBuoyancy);
+  GradientDataAcoustic data(fwd, bwd, grad);
 
   auto field = data.getBackwardField(0);
   ASSERT_EQ(field.extent(0), static_cast<size_t>(size));
@@ -75,10 +74,10 @@ TEST_F(GradientDataAcousticTest, GetBackwardFieldZeroReturnsQn)
 
 TEST_F(GradientDataAcousticTest, GetBackwardFieldOneReturnsQdt2)
 {
-  WavefieldViewForwardAcoustic  fwd(pn);
+  WavefieldViewForwardAcoustic fwd(pn);
   WavefieldViewBackwardAcoustic bwd(qn, qdt2);
-  GradientAcoustic              grad(gradKappa, gradBuoyancy);
-  GradientDataAcoustic          data(fwd, bwd, grad);
+  GradientAcoustic grad(gradKappa, gradBuoyancy);
+  GradientDataAcoustic data(fwd, bwd, grad);
 
   auto field = data.getBackwardField(1);
   ASSERT_EQ(field.extent(0), static_cast<size_t>(size));
@@ -88,10 +87,10 @@ TEST_F(GradientDataAcousticTest, GetBackwardFieldOneReturnsQdt2)
 
 TEST_F(GradientDataAcousticTest, GetGradientZeroReturnsKappa)
 {
-  WavefieldViewForwardAcoustic  fwd(pn);
+  WavefieldViewForwardAcoustic fwd(pn);
   WavefieldViewBackwardAcoustic bwd(qn, qdt2);
-  GradientAcoustic              grad(gradKappa, gradBuoyancy);
-  GradientDataAcoustic          data(fwd, bwd, grad);
+  GradientAcoustic grad(gradKappa, gradBuoyancy);
+  GradientDataAcoustic data(fwd, bwd, grad);
 
   auto g = data.getGradient(0);
   ASSERT_EQ(g.extent(0), static_cast<size_t>(size));
@@ -101,10 +100,10 @@ TEST_F(GradientDataAcousticTest, GetGradientZeroReturnsKappa)
 
 TEST_F(GradientDataAcousticTest, GetGradientOneReturnsBuoyancy)
 {
-  WavefieldViewForwardAcoustic  fwd(pn);
+  WavefieldViewForwardAcoustic fwd(pn);
   WavefieldViewBackwardAcoustic bwd(qn, qdt2);
-  GradientAcoustic              grad(gradKappa, gradBuoyancy);
-  GradientDataAcoustic          data(fwd, bwd, grad);
+  GradientAcoustic grad(gradKappa, gradBuoyancy);
+  GradientDataAcoustic data(fwd, bwd, grad);
 
   auto g = data.getGradient(1);
   ASSERT_EQ(g.extent(0), static_cast<size_t>(size));
@@ -114,10 +113,10 @@ TEST_F(GradientDataAcousticTest, GetGradientOneReturnsBuoyancy)
 
 TEST_F(GradientDataAcousticTest, PrintDoesNotThrow)
 {
-  WavefieldViewForwardAcoustic  fwd(pn);
+  WavefieldViewForwardAcoustic fwd(pn);
   WavefieldViewBackwardAcoustic bwd(qn, qdt2);
-  GradientAcoustic              grad(gradKappa, gradBuoyancy);
-  GradientDataAcoustic          data(fwd, bwd, grad);
+  GradientAcoustic grad(gradKappa, gradBuoyancy);
+  GradientDataAcoustic data(fwd, bwd, grad);
 
   EXPECT_NO_THROW(data.print());
 }

@@ -14,8 +14,7 @@ namespace gradient
  */
 class GradientElastic : public Gradient
 {
-public:
-
+ public:
   static constexpr int kNumGrads = 3;
 
   GradientElastic(VECTOR_REAL_VIEW gradRho, VECTOR_REAL_VIEW gradLambda,
@@ -65,11 +64,10 @@ public:
     std::cout << "Grad Mu size: " << gradMu_.extent(0) << std::endl;
   }
 
-  private:
-
-    VECTOR_REAL_VIEW gradRho_;     ///< Gradient Rho field
-    VECTOR_REAL_VIEW gradLambda_;  ///< Gradient Lambda field
-    VECTOR_REAL_VIEW gradMu_;      ///< Gradient Mu field
+ private:
+  VECTOR_REAL_VIEW gradRho_;     ///< Gradient Rho field
+  VECTOR_REAL_VIEW gradLambda_;  ///< Gradient Lambda field
+  VECTOR_REAL_VIEW gradMu_;      ///< Gradient Mu field
 };
 }  // namespace gradient
 #endif  // FUNTIDES_GRADIENT_IMPL_ELASTIC_INCLUDE_GRADIENT_ELASTIC_H_

@@ -31,8 +31,7 @@ namespace gradient
  */
 class WavefieldViewBackwardElastic : public WavefieldView
 {
-public:
-
+ public:
   static constexpr int kNumFields = 6;
 
   WavefieldViewBackwardElastic(VECTOR_REAL_VIEW ux_n, VECTOR_REAL_VIEW uy_n,
@@ -104,14 +103,13 @@ public:
               << " uz_dt2 size=" << uz_dt2_.extent(0) << "\n";
   }
 
-  private:
-
-    VECTOR_REAL_VIEW ux_n_;    ///< Current x-adjoint displacement snapshot
-    VECTOR_REAL_VIEW uy_n_;    ///< Current y-adjoint displacement snapshot
-    VECTOR_REAL_VIEW uz_n_;    ///< Current z-adjoint displacement snapshot
-    VECTOR_REAL_VIEW ux_dt2_;  ///< Second-order time derivative, x-component
-    VECTOR_REAL_VIEW uy_dt2_;  ///< Second-order time derivative, y-component
-    VECTOR_REAL_VIEW uz_dt2_;  ///< Second-order time derivative, z-component
+ private:
+  VECTOR_REAL_VIEW ux_n_;    ///< Current x-adjoint displacement snapshot
+  VECTOR_REAL_VIEW uy_n_;    ///< Current y-adjoint displacement snapshot
+  VECTOR_REAL_VIEW uz_n_;    ///< Current z-adjoint displacement snapshot
+  VECTOR_REAL_VIEW ux_dt2_;  ///< Second-order time derivative, x-component
+  VECTOR_REAL_VIEW uy_dt2_;  ///< Second-order time derivative, y-component
+  VECTOR_REAL_VIEW uz_dt2_;  ///< Second-order time derivative, z-component
 };
 
 }  // namespace gradient

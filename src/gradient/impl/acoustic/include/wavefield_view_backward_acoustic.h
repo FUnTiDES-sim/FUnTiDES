@@ -26,8 +26,7 @@ namespace gradient
  */
 class WavefieldViewBackwardAcoustic : public WavefieldView
 {
-public:
-
+ public:
   static constexpr int kNumFields = 2;
 
   WavefieldViewBackwardAcoustic(VECTOR_REAL_VIEW qn, VECTOR_REAL_VIEW qdt2)
@@ -72,10 +71,9 @@ public:
               << " qdt2 size=" << qdt2_.extent(0) << "\n";
   }
 
-  private:
-
-    VECTOR_REAL_VIEW qn_;  ///< Current adjoint pressure snapshot
-    VECTOR_REAL_VIEW qdt2_; ///< Second-order time derivative of adjoint pressure
+ private:
+  VECTOR_REAL_VIEW qn_;    ///< Current adjoint pressure snapshot
+  VECTOR_REAL_VIEW qdt2_;  ///< Second-order time derivative of adjoint pressure
 };
 
 }  // namespace gradient

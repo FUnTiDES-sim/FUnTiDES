@@ -14,21 +14,24 @@ class GradientAcousticTest : public ::testing::Test
   void SetUp() override
   {
     numElements = 8;
-    numNodes    = 27;
+    numNodes = 27;
 
-    gradKappaElem    = allocateVector<VECTOR_REAL_VIEW>(numElements, "gradKappaElem");
-    gradBuoyancyElem = allocateVector<VECTOR_REAL_VIEW>(numElements, "gradBuoyancyElem");
-    gradKappaNode    = allocateVector<VECTOR_REAL_VIEW>(numNodes, "gradKappaNode");
-    gradBuoyancyNode = allocateVector<VECTOR_REAL_VIEW>(numNodes, "gradBuoyancyNode");
+    gradKappaElem =
+        allocateVector<VECTOR_REAL_VIEW>(numElements, "gradKappaElem");
+    gradBuoyancyElem =
+        allocateVector<VECTOR_REAL_VIEW>(numElements, "gradBuoyancyElem");
+    gradKappaNode = allocateVector<VECTOR_REAL_VIEW>(numNodes, "gradKappaNode");
+    gradBuoyancyNode =
+        allocateVector<VECTOR_REAL_VIEW>(numNodes, "gradBuoyancyNode");
 
     for (int i = 0; i < numElements; ++i)
     {
-      gradKappaElem(i)    = static_cast<float>(i) * 1.5f;
+      gradKappaElem(i) = static_cast<float>(i) * 1.5f;
       gradBuoyancyElem(i) = static_cast<float>(i) * 2.5f;
     }
     for (int i = 0; i < numNodes; ++i)
     {
-      gradKappaNode(i)    = static_cast<float>(i) * 0.5f;
+      gradKappaNode(i) = static_cast<float>(i) * 0.5f;
       gradBuoyancyNode(i) = static_cast<float>(i) * 1.0f;
     }
   }
