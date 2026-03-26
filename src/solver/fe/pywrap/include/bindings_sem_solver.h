@@ -92,7 +92,35 @@ void bind_sem_solver_base(py::module_ &m)
           py::return_value_policy::reference_internal)
       .def("output_solution_values", &Solver::outputSolutionValues,
            py::arg("t"), py::arg("e"), py::arg("field_global"),
-           py::arg("field_name"));
+           py::arg("field_name"))
+      .def(
+          "set_sls_attenuation",
+          [](Solver &self, const std::vector<float> &freqs,
+             const std::vector<float> &coeffs) {
+            VECTOR_REAL_VIEW d_vf, d_vc;
+
+            if (!freqs.empty())
+            {
+              d_vf =
+                  allocateVector<VECTOR_REAL_VIEW>(freqs.size(), "sls_freqs");
+              auto h_vf = Kokkos::create_mirror_view(d_vf);
+              for (size_t i = 0; i < freqs.size(); ++i) h_vf(i) = freqs[i];
+              Kokkos::deep_copy(d_vf, h_vf);
+            }
+
+            if (!coeffs.empty())
+            {
+              d_vc =
+                  allocateVector<VECTOR_REAL_VIEW>(coeffs.size(), "sls_coeffs");
+              auto h_vc = Kokkos::create_mirror_view(d_vc);
+              for (size_t i = 0; i < coeffs.size(); ++i) h_vc(i) = coeffs[i];
+              Kokkos::deep_copy(d_vc, h_vc);
+            }
+
+            self.setSLSAttenuation(d_vf, d_vc);
+          },
+          py::arg("reference_frequencies"),
+          py::arg("anelasticity_coefficients") = std::vector<float>{});
 }
 
 void bind_solver_factory(py::module_ &m)
