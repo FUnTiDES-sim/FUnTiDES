@@ -51,7 +51,29 @@ void bind_wavefield_acoustic(py::module_ &m)
            }),
            py::arg("pn_global_prev"), py::arg("pn_global_curr"))
       .def("swap", &WavefieldAcoustic::swap)
-      .def("print", &WavefieldAcoustic::print);
+      .def("print", &WavefieldAcoustic::print)
+      .def_property_readonly(
+          "pCurr",
+          [](const WavefieldAcoustic& wf) {
+            auto size = wf.m_pnGlobalCurr.extent(0);
+            py::array_t<value_type> result(size);
+            auto buf = result.request();
+            Kokkos::View<value_type*, Kokkos::LayoutRight, Kokkos::HostSpace,
+                         Kokkos::MemoryTraits<Kokkos::Unmanaged>>
+                h_view((value_type*)buf.ptr, size);
+            Kokkos::deep_copy(h_view, wf.m_pnGlobalCurr);
+            return result;
+          })
+      .def_property_readonly("pPrev", [](const WavefieldAcoustic& wf) {
+        auto size = wf.m_pnGlobalPrev.extent(0);
+        py::array_t<value_type> result(size);
+        auto buf = result.request();
+        Kokkos::View<value_type*, Kokkos::LayoutRight, Kokkos::HostSpace,
+                     Kokkos::MemoryTraits<Kokkos::Unmanaged>>
+            h_view((value_type*)buf.ptr, size);
+        Kokkos::deep_copy(h_view, wf.m_pnGlobalPrev);
+        return result;
+      });
 }
 
 void bind_wavefield_elastic(py::module_ &m)
@@ -87,7 +109,77 @@ void bind_wavefield_elastic(py::module_ &m)
            py::arg("uyn_global_prev"), py::arg("uyn_global_curr"),
            py::arg("uzn_global_prev"), py::arg("uzn_global_curr"))
       .def("swap", &WavefieldElastic::swap)
-      .def("print", &WavefieldElastic::print);
+      .def("print", &WavefieldElastic::print)
+      .def_property_readonly(
+          "uxCurr",
+          [](const WavefieldElastic& wf) {
+            auto size = wf.m_uxnGlobalCurr.extent(0);
+            py::array_t<value_type> result(size);
+            auto buf = result.request();
+            Kokkos::View<value_type*, Kokkos::LayoutRight, Kokkos::HostSpace,
+                         Kokkos::MemoryTraits<Kokkos::Unmanaged>>
+                h_view((value_type*)buf.ptr, size);
+            Kokkos::deep_copy(h_view, wf.m_uxnGlobalCurr);
+            return result;
+          })
+      .def_property_readonly(
+          "uxPrev",
+          [](const WavefieldElastic& wf) {
+            auto size = wf.m_uxnGlobalPrev.extent(0);
+            py::array_t<value_type> result(size);
+            auto buf = result.request();
+            Kokkos::View<value_type*, Kokkos::LayoutRight, Kokkos::HostSpace,
+                         Kokkos::MemoryTraits<Kokkos::Unmanaged>>
+                h_view((value_type*)buf.ptr, size);
+            Kokkos::deep_copy(h_view, wf.m_uxnGlobalPrev);
+            return result;
+          })
+      .def_property_readonly(
+          "uyCurr",
+          [](const WavefieldElastic& wf) {
+            auto size = wf.m_uynGlobalCurr.extent(0);
+            py::array_t<value_type> result(size);
+            auto buf = result.request();
+            Kokkos::View<value_type*, Kokkos::LayoutRight, Kokkos::HostSpace,
+                         Kokkos::MemoryTraits<Kokkos::Unmanaged>>
+                h_view((value_type*)buf.ptr, size);
+            Kokkos::deep_copy(h_view, wf.m_uynGlobalCurr);
+            return result;
+          })
+      .def_property_readonly(
+          "uyPrev",
+          [](const WavefieldElastic& wf) {
+            auto size = wf.m_uynGlobalPrev.extent(0);
+            py::array_t<value_type> result(size);
+            auto buf = result.request();
+            Kokkos::View<value_type*, Kokkos::LayoutRight, Kokkos::HostSpace,
+                         Kokkos::MemoryTraits<Kokkos::Unmanaged>>
+                h_view((value_type*)buf.ptr, size);
+            Kokkos::deep_copy(h_view, wf.m_uynGlobalPrev);
+            return result;
+          })
+      .def_property_readonly(
+          "uzCurr",
+          [](const WavefieldElastic& wf) {
+            auto size = wf.m_uznGlobalCurr.extent(0);
+            py::array_t<value_type> result(size);
+            auto buf = result.request();
+            Kokkos::View<value_type*, Kokkos::LayoutRight, Kokkos::HostSpace,
+                         Kokkos::MemoryTraits<Kokkos::Unmanaged>>
+                h_view((value_type*)buf.ptr, size);
+            Kokkos::deep_copy(h_view, wf.m_uznGlobalCurr);
+            return result;
+          })
+      .def_property_readonly("uzPrev", [](const WavefieldElastic& wf) {
+        auto size = wf.m_uznGlobalPrev.extent(0);
+        py::array_t<value_type> result(size);
+        auto buf = result.request();
+        Kokkos::View<value_type*, Kokkos::LayoutRight, Kokkos::HostSpace,
+                     Kokkos::MemoryTraits<Kokkos::Unmanaged>>
+            h_view((value_type*)buf.ptr, size);
+        Kokkos::deep_copy(h_view, wf.m_uznGlobalPrev);
+        return result;
+      });
 }
 
 void bind_wavefield_acoustoelastic(py::module_ &m)
