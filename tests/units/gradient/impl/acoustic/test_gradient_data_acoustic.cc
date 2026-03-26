@@ -112,11 +112,6 @@ TEST_F(GradientDataAcousticTest, GetGradientOneReturnsBuoyancy)
     EXPECT_FLOAT_EQ(g(i), static_cast<float>(i) * 2.0f);
 }
 
-TEST_F(GradientDataAcousticTest, NumGradientsConstant)
-{
-  EXPECT_EQ(GradientDataAcoustic::kNumGradients, 2);
-}
-
 TEST_F(GradientDataAcousticTest, PrintDoesNotThrow)
 {
   WavefieldViewForwardAcoustic  fwd(pn);

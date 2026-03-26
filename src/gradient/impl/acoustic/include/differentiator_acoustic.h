@@ -32,6 +32,10 @@ class DifferentiatorAcoustic : public Differentiator
 {
  public:
 
+  static constexpr int kOrder = ORDER;
+  static constexpr bool kIsModelOnNodes = IS_MODEL_ON_NODES;
+  static constexpr int kPointsPerElement = (ORDER + 1) * (ORDER + 1) * (ORDER + 1);
+
   ~DifferentiatorAcoustic() override = default;
 
   /**
@@ -79,10 +83,6 @@ class DifferentiatorAcoustic : public Differentiator
   }
 
  private:
-
-  static constexpr int kOrder = ORDER;
-  static constexpr bool kIsModelOnNodes = IS_MODEL_ON_NODES;
-  static constexpr int kPointsPerElement = (ORDER + 1) * (ORDER + 1) * (ORDER + 1);
 
   /**
    * @brief Each element writes to a unique index — no atomic add required.

@@ -28,8 +28,6 @@ struct DifferentiatorDataElastic : public Differentiator::DataStruct
   using WavefieldViewBackwardType = typename Traits::WavefieldViewBackwardType;
   using GradientType              = typename Traits::GradientType;
 
-  static constexpr int kNumGradients = GradientType::kNumGrads;
-
   /**
    * @brief Construct elastic differentiator data.
    *

@@ -28,6 +28,8 @@ class WavefieldViewBackwardAcoustic : public WavefieldView
 {
 public:
 
+  static constexpr int kNumFields = 2;
+
   WavefieldViewBackwardAcoustic(VECTOR_REAL_VIEW qn, VECTOR_REAL_VIEW qdt2)
       : qn_(qn), qdt2_(qdt2)
   {
@@ -71,8 +73,6 @@ public:
   }
 
   private:
-
-    static constexpr int kNumFields = 2;
 
     VECTOR_REAL_VIEW qn_;  ///< Current adjoint pressure snapshot
     VECTOR_REAL_VIEW qdt2_; ///< Second-order time derivative of adjoint pressure

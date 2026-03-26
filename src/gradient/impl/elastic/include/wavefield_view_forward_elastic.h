@@ -26,6 +26,8 @@ class WavefieldViewForwardElastic : public WavefieldView
 {
 public:
 
+  static constexpr int kNumFields = 3;
+
   WavefieldViewForwardElastic(VECTOR_REAL_VIEW ux_n, VECTOR_REAL_VIEW uy_n,
                               VECTOR_REAL_VIEW uz_n)
       : ux_n_(ux_n), uy_n_(uy_n), uz_n_(uz_n)
@@ -75,7 +77,6 @@ public:
   }
 
   private:
-    static constexpr int kNumFields = 3;
 
     VECTOR_REAL_VIEW ux_n_;  ///< Current x-displacement snapshot
     VECTOR_REAL_VIEW uy_n_;  ///< Current y-displacement snapshot

@@ -134,11 +134,6 @@ TEST_F(GradientDataElasticTest, GetGradientTwoReturnsMu)
     EXPECT_FLOAT_EQ(g(i), static_cast<float>(i) * 3.0f);
 }
 
-TEST_F(GradientDataElasticTest, NumGradientsConstant)
-{
-  EXPECT_EQ(GradientDataElastic::kNumGradients, 3);
-}
-
 TEST_F(GradientDataElasticTest, PrintDoesNotThrow)
 {
   WavefieldViewForwardElastic  fwd(ux_n, uy_n, uz_n);

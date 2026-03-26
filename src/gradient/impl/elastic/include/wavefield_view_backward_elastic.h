@@ -33,6 +33,8 @@ class WavefieldViewBackwardElastic : public WavefieldView
 {
 public:
 
+  static constexpr int kNumFields = 6;
+
   WavefieldViewBackwardElastic(VECTOR_REAL_VIEW ux_n, VECTOR_REAL_VIEW uy_n,
                                VECTOR_REAL_VIEW uz_n, VECTOR_REAL_VIEW ux_dt2,
                                VECTOR_REAL_VIEW uy_dt2, VECTOR_REAL_VIEW uz_dt2)
@@ -103,7 +105,6 @@ public:
   }
 
   private:
-    static constexpr int kNumFields = 6;
 
     VECTOR_REAL_VIEW ux_n_;    ///< Current x-adjoint displacement snapshot
     VECTOR_REAL_VIEW uy_n_;    ///< Current y-adjoint displacement snapshot

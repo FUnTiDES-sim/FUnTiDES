@@ -16,6 +16,8 @@ class GradientElastic : public Gradient
 {
 public:
 
+  static constexpr int kNumGrads = 3;
+
   GradientElastic(VECTOR_REAL_VIEW gradRho, VECTOR_REAL_VIEW gradLambda,
                   VECTOR_REAL_VIEW gradMu)
       : gradRho_(gradRho), gradLambda_(gradLambda), gradMu_(gradMu)
@@ -64,9 +66,6 @@ public:
   }
 
   private:
-
-    /// Number of gradients for model inversions (3 for Rho, Lambda and Mu)
-    static constexpr int kNumGrads = 3;
 
     VECTOR_REAL_VIEW gradRho_;     ///< Gradient Rho field
     VECTOR_REAL_VIEW gradLambda_;  ///< Gradient Lambda field

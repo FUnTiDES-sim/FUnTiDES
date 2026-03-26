@@ -23,6 +23,8 @@ class WavefieldViewForwardAcoustic : public WavefieldView
 {
 public:
 
+  static constexpr int kNumFields = 1;
+
   WavefieldViewForwardAcoustic(VECTOR_REAL_VIEW pn) : pn_(pn) {}
 
   int getNumFields() const override { return kNumFields; }
@@ -40,8 +42,6 @@ public:
   }
 
   private:
-
-    static constexpr int kNumFields = 1;
 
     VECTOR_REAL_VIEW pn_;  ///< Current pressure snapshot
 };
