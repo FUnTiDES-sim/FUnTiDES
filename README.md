@@ -147,8 +147,7 @@ This will also install _kokkos_ in your python environment, which will point to 
 __init__.py  libpykokkos.cpython-311-x86_64-linux-gnu.so  __pycache__  pytest.ini  test  utility.py
 ```
 
-If you do not have write access on your python environment, it will install it under _$MY_INSTALL_DIR/lib/python3.11/site-packages/kokkos_.
-In that case you will have to extend your python path with this directory.
+If you do not have write access on your python environment, it will install it under _$MY_INSTALL_DIR/lib/python3.11/site-packages/kokkos_. In that case you will have to extend your python path with this directory.
 
 ### Usage
 
@@ -171,7 +170,6 @@ export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$MY_INSTALL_DIR/lib64
 
 There is no need to extend the `LD_LIBRARY_PATH` with the _proxys_ libraries since the python wrappers use their _RPATH_ to retrieve them in the _lib_ folder.
 
-
 Some examples on how to use the wrappers are available in the [`examples`](examples/) folder.
 
 ### Tests & Benchmarks
@@ -185,22 +183,17 @@ pip install -r requirements-dev.txt
 
 To run basic python unit tests (default is using 6 threads)
 ```bash
-pytest -vv -s  tests/units
+pytest -vv -s  tests/units --kokkos-num-threads=12
 ```
 
-To run basic python unit tests with more threads
+To run basic python integration tests (default is using 6 threads)
 ```bash
-pytest -vv -s  tests/units --threads 12
+pytest -vv -s  tests/integration --kokkos-num-threads=12
 ```
 
 To run python benchmarks (default is using 6 threads)
 ```bash
-pytest -vv -s tests/benchmarks/python
-```
-
-To run python benchmarks with more threads
-```bash
-pytest -vv -s tests/benchmarks/python --threads 12
+pytest -vv -s tests/benchmarks --kokkos-num-threads=12
 ```
 
 To run all python benchmarks (default is using 1,2,4,8,16,32,64 threads)
