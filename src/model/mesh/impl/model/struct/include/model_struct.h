@@ -25,7 +25,7 @@ struct ModelStructData final : public ModelDataBase<FloatType, ScalarType>
   ScalarType ex_, ey_, ez_;
   FloatType dx_, dy_, dz_;
   FloatType ox_{0}, oy_{0}, oz_{0};  // Local origin
-  VECTOR_REAL_VIEW boundaries_t_;
+  VECTOR_INT_VIEW boundaries_t_;
 
   bool isModelOnNodes_;
   bool isElastic_;
@@ -39,6 +39,10 @@ struct ModelStructData final : public ModelDataBase<FloatType, ScalarType>
   VECTOR_REAL_VIEW model_vp_node_;      ///< Per-node Vp     (empty → 1500)
   VECTOR_REAL_VIEW model_vs_node_;      ///< Per-node Vs     (empty → 755)
   VECTOR_REAL_VIEW model_rho_node_;     ///< Per-node rho    (empty → 1)
+  VECTOR_REAL_VIEW model_qp_element_;
+  VECTOR_REAL_VIEW model_qs_element_;
+  VECTOR_REAL_VIEW model_qp_node_;
+  VECTOR_REAL_VIEW model_qs_node_;
 };
 
 /**
@@ -53,7 +57,7 @@ struct ModelStructData final : public ModelDataBase<FloatType, ScalarType>
  * @tparam Order Polynomial order of spectral elements
  */
 template <typename FloatType, typename ScalarType, int Order>
-class ModelStruct : public ModelApi<FloatType, ScalarType>
+class ModelStruct final : public ModelApi<FloatType, ScalarType>
 {
  public:
   using IndexType = std::array<int, 3>;
@@ -74,14 +78,17 @@ class ModelStruct : public ModelApi<FloatType, ScalarType>
         isModelOnNodes_(data.isModelOnNodes_),
         boundaries_t_(data.boundaries_t_),
         isElastic_(data.isElastic_),
-        free_surface_enabled_(true),
         face_connectivity_(data.ex_, data.ey_, data.ez_, Order),
         model_vp_element_(data.model_vp_element_),
         model_vs_element_(data.model_vs_element_),
         model_rho_element_(data.model_rho_element_),
         model_vp_node_(data.model_vp_node_),
         model_vs_node_(data.model_vs_node_),
-        model_rho_node_(data.model_rho_node_)
+        model_rho_node_(data.model_rho_node_),
+        model_qp_element_(data.model_qp_element_),
+        model_qs_element_(data.model_qs_element_),
+        model_qp_node_(data.model_qp_node_),
+        model_qs_node_(data.model_qs_node_)
   {
     nx_ = Order * ex_ + 1;
     ny_ = Order * ey_ + 1;
@@ -231,6 +238,26 @@ class ModelStruct : public ModelApi<FloatType, ScalarType>
   {
     if (model_vs_element_.extent(0) > 0) return model_vs_element_[e];
     return static_cast<FloatType>(755);
+  }
+  PROXY_HOST_DEVICE FloatType getModelQpOnNodes(ScalarType n) const final
+  {
+    if (model_qp_node_.extent(0) > 0) return model_qp_node_[n];
+    return static_cast<FloatType>(1.0e9);
+  }
+  PROXY_HOST_DEVICE FloatType getModelQpOnElement(ScalarType e) const final
+  {
+    if (model_qp_element_.extent(0) > 0) return model_qp_element_[e];
+    return static_cast<FloatType>(1.0e9);
+  }
+  PROXY_HOST_DEVICE FloatType getModelQsOnNodes(ScalarType n) const final
+  {
+    if (model_qs_node_.extent(0) > 0) return model_qs_node_[n];
+    return static_cast<FloatType>(1.0e9);
+  }
+  PROXY_HOST_DEVICE FloatType getModelQsOnElement(ScalarType e) const final
+  {
+    if (model_qs_element_.extent(0) > 0) return model_qs_element_[e];
+    return static_cast<FloatType>(1.0e9);
   }
   PROXY_HOST_DEVICE FloatType getModelDeltaOnNodes(ScalarType n) const final
   {
@@ -397,59 +424,21 @@ class ModelStruct : public ModelApi<FloatType, ScalarType>
   bool isFreeSurface(ScalarType n) const override
   {
     if (boundaries_t_.extent(0) == 0) return false;
-    return (boundaries_t_(n) == static_cast<uint8_t>(BoundaryFlag::Surface));
+    return boundaries_t_(n) == static_cast<ScalarType>(BoundaryFlag::Surface);
   }
 
-  void initializeBoundaryFlags(bool free_surface_on_top) override
+  void setQualityFactors(FloatType qp, FloatType qs) override
   {
-    free_surface_enabled_ = free_surface_on_top;
-  }
-
-  void setFreeSurfaceEnabled(bool enable) override
-  {
-    free_surface_enabled_ = enable;
-  }
-
-  void initFreeSurface() override
-  {
-    if (boundaries_t_.extent(0) > 0) return;  // Déjà pré-calculé par le builder
-
-    boundaries_t_ =
-        allocateVector<VECTOR_REAL_VIEW>(getNumberOfNodes(), "boundaries");
-
-    FloatType tol = getMinSpacing() * 1e-4;
-    FloatType x_min = ox_, x_max = ox_ + lx_;
-    FloatType y_min = oy_, y_max = oy_ + ly_;
-    FloatType z_min = oz_, z_max = oz_ + lz_;
-    bool enabled = free_surface_enabled_;
-
-    auto boundaries = boundaries_t_;
-    auto mesh_copy = *this;
-
-    LOOPHEAD(getNumberOfNodes(), n)
+    ScalarType nElem = getNumberOfElements();
+    model_qp_element_ =
+        allocateVector<VECTOR_REAL_VIEW>(nElem, "model_qp_element");
+    model_qs_element_ =
+        allocateVector<VECTOR_REAL_VIEW>(nElem, "model_qs_element");
+    for (ScalarType e = 0; e < nElem; ++e)
     {
-      FloatType x = mesh_copy.nodeCoord(n, 0);
-      FloatType y = mesh_copy.nodeCoord(n, 1);
-      FloatType z = mesh_copy.nodeCoord(n, 2);
-
-      bool at_xmin = (fabs(x - x_min) < tol);
-      bool at_xmax = (fabs(x - x_max) < tol);
-      bool at_ymin = (fabs(y - y_min) < tol);
-      bool at_ymax = (fabs(y - y_max) < tol);
-      bool at_zmin = (fabs(z - z_min) < tol);
-      bool at_zmax = (fabs(z - z_max) < tol);
-
-      bool on_boundary =
-          at_xmin || at_xmax || at_ymin || at_ymax || at_zmin || at_zmax;
-
-      if (!on_boundary)
-        boundaries(n) = static_cast<uint8_t>(BoundaryFlag::InteriorNode);
-      else if (at_zmax && enabled)
-        boundaries(n) = static_cast<uint8_t>(BoundaryFlag::Surface);
-      else
-        boundaries(n) = static_cast<uint8_t>(BoundaryFlag::Damping);
+      model_qp_element_(e) = qp;
+      model_qs_element_(e) = qs;
     }
-    LOOPEND
   }
 
   /**
@@ -483,7 +472,16 @@ class ModelStruct : public ModelApi<FloatType, ScalarType>
 
   PROXY_HOST_DEVICE bool isBoundaryFace(ScalarType face_id) const override
   {
-    return face_connectivity_.isBoundaryFace(face_id);
+    if (boundaries_t_.extent(0) == 0)
+      return face_connectivity_.isBoundaryFace(face_id);
+    int const n_dofs = face_connectivity_.getDofsPerFace();
+    for (int q = 0; q < n_dofs; ++q)
+    {
+      if (boundaries_t_(getGlobalNodeFromFace(face_id, q)) ==
+          static_cast<ScalarType>(BoundaryFlag::InteriorNode))
+        return false;
+    }
+    return true;
   }
 
   PROXY_HOST_DEVICE ScalarType elemOwner(ScalarType face_id) const
@@ -515,10 +513,13 @@ class ModelStruct : public ModelApi<FloatType, ScalarType>
 
   bool isModelOnNodes_;
   bool isElastic_;
-  bool free_surface_enabled_;
 
   array3DReal model_C_tensor_element_;
-  VECTOR_REAL_VIEW boundaries_t_;
+  VECTOR_INT_VIEW boundaries_t_;
+  VECTOR_REAL_VIEW model_qp_element_;
+  VECTOR_REAL_VIEW model_qs_element_;
+  VECTOR_REAL_VIEW model_qp_node_;
+  VECTOR_REAL_VIEW model_qs_node_;
 
   // Optional heterogeneous material arrays (empty → uniform hardcoded values).
   VECTOR_REAL_VIEW model_vp_element_;

@@ -147,6 +147,17 @@ class SEMsolverAcoustoElastic : public Solver
     m_elastic_solver_.setAnisotropyType(type);
   }
 
+  void setSLSAttenuation(
+      const VECTOR_REAL_VIEW& reference_frequencies,
+      const VECTOR_REAL_VIEW& anelasticity_coefficients =
+          VECTOR_REAL_VIEW()) override
+  {
+    m_acoustic_solver_.setSLSAttenuation(reference_frequencies,
+                                         anelasticity_coefficients);
+    m_elastic_solver_.setSLSAttenuation(reference_frequencies,
+                                        anelasticity_coefficients);
+  }
+
   // --- Accessors for diagnostics ---
 
   /// Number of acoustic elements detected in the mesh.

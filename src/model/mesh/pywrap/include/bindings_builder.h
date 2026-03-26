@@ -29,7 +29,7 @@ void bind_modelbuilderbase(py::module_ &m)
 
   py::class_<T, std::shared_ptr<T>>(m, name.c_str())
       .def_static("max_order", []() { return T::MAX_ORDER; })
-      .def("get_model", &T::getModel);
+      .def("get_model", &T::getModel, py::arg("free_surface_on_top") = true);
 }
 
 // template binder for CartesianStructBuilder

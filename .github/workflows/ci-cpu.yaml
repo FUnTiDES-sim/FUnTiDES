@@ -19,6 +19,12 @@ jobs:
 
   build:
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        shell: bash
+    container:
+      image: ghcr.io/funtides-sim/funtides/funtides-env:latest
+      options: --user root
     needs: format-check
     strategy:
       matrix:
@@ -60,8 +66,7 @@ jobs:
       - name: Set up Python
         if: matrix.pywrap == 'pywrap-on'
         run: |
-          python3 -m venv .venv
-          source .venv/bin/activate
+          source /opt/tpl/tpl-venv/bin/activate
           pip install --upgrade pip
           pip install pybind11 pytest numpy
 
@@ -109,13 +114,13 @@ jobs:
 
           # Activate python venv if pywrap is on
           if [[ "$PYWRAP" == "pywrap-on" ]]; then
-            source .venv/bin/activate
+            source /opt/tpl/tpl-venv/bin/activate
           fi
 
           mkdir build
           cd build
           echo "cmake .. ${CMAKE_FLAGS}" # For debug
-          cmake .. ${CMAKE_FLAGS} -DCMAKE_INSTALL_PREFIX=../install
+          CC=gcc-13 CXX=g++-13 cmake .. ${CMAKE_FLAGS} -DCMAKE_INSTALL_PREFIX=../install
 
       - name: Build
         id: build
@@ -124,7 +129,7 @@ jobs:
         run: |
           # Activate python venv if pywrap is on
           if [[ "$PYWRAP" == "pywrap-on" ]]; then
-            source .venv/bin/activate
+            source /opt/tpl/tpl-venv/bin/activate
           fi
 
           cd build
@@ -146,7 +151,7 @@ jobs:
         run: |
           # Activate python venv if pywrap is on
           if [[ "$PYWRAP" == "pywrap-on" ]]; then
-            source .venv/bin/activate
+            source /opt/tpl/tpl-venv/bin/activate
           fi
 
           cd build
@@ -155,9 +160,8 @@ jobs:
       - name: Run pytests
         if: matrix.pywrap == 'pywrap-on'
         run: |
-          source .venv/bin/activate
+          source /opt/tpl/tpl-venv/bin/activate
           export INSTALL_DIR=$(realpath ./install)
           export PYTHONPATH=$PYTHONPATH:$INSTALL_DIR/python
           export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$INSTALL_DIR/lib
-          pytest tests/units --kokkos-num-threads=2
-
+          python -m pytest tests/units --kokkos-num-threads=2

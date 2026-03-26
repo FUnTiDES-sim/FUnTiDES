@@ -6,6 +6,7 @@
 #include <cxxopts.hpp>
 #include <stdexcept>
 #include <string>
+#include <vector>
 
 class SemProxyOptions
 {
@@ -37,6 +38,17 @@ class SemProxyOptions
   bool isAcoustoElastic = false;
   float acoustoElasticBoundaryZ = 0.f;
   bool free_surface = false;
+  float qp = -1.0f;  // quality factor for P-waves (<0 = not set)
+  float qs = -1.0f;  // quality factor for S-waves (<0 = not set)
+  std::vector<float> sls_reference_angular_frequencies{};
+  std::vector<float> sls_anelasticity_coefficients{};
+
+  // DAS (Distributed Acoustic Sensing) receiver parameters
+  std::string das_type = "none";  ///< none | dipole | strain
+  float das_dip = 0.f;            ///< Fiber dip angle in degrees
+  float das_azimuth = 0.f;        ///< Fiber azimuth angle in degrees
+  float das_gauge_length = 1.f;   ///< Gauge length in meters
+  int das_samples = 5;            ///< Number of integration points along fiber
 
   void validate() const
   {
@@ -96,7 +108,36 @@ class SemProxyOptions
         "Enable free surface on top boundary (Z+). Default: true",
         cxxopts::value<bool>(o.free_surface))(
         "anisotropy", "Anisotropy type for elastic: iso|vti|tti (default=iso)",
-        cxxopts::value<std::string>(o.anisotropy));
+        cxxopts::value<std::string>(o.anisotropy))(
+        "das-type", "DAS receiver type: none|dipole|strain (default=none)",
+        cxxopts::value<std::string>(o.das_type))(
+        "das-dip", "DAS fiber dip angle in degrees (default=0)",
+        cxxopts::value<float>(o.das_dip))(
+        "das-azimuth", "DAS fiber azimuth angle in degrees (default=0)",
+        cxxopts::value<float>(o.das_azimuth))(
+        "das-gauge-length", "DAS gauge length in meters (default=1)",
+        cxxopts::value<float>(o.das_gauge_length))(
+        "das-samples",
+        "Number of integration points along DAS fiber (default=5)",
+        cxxopts::value<int>(o.das_samples))(
+        "srcx", "Source position X (meters)", cxxopts::value<float>(o.srcx))(
+        "srcy", "Source position Y (meters)", cxxopts::value<float>(o.srcy))(
+        "srcz", "Source position Z (meters)", cxxopts::value<float>(o.srcz))(
+        "rcvx", "Receiver position X (meters)", cxxopts::value<float>(o.rcvx))(
+        "rcvy", "Receiver position Y (meters)", cxxopts::value<float>(o.rcvy))(
+        "rcvz", "Receiver position Z (meters)", cxxopts::value<float>(o.rcvz))(
+        "qp", "Quality factor for P-waves (default: no attenuation)",
+        cxxopts::value<float>(o.qp))(
+        "qs", "Quality factor for S-waves (default: no attenuation)",
+        cxxopts::value<float>(o.qs))(
+        "sls-reference-angular-frequencies",
+        "Comma-separated SLS reference angular frequencies (rad/s)",
+        cxxopts::value<std::vector<float>>(
+            o.sls_reference_angular_frequencies))(
+        "sls-anelasticity-coefficients",
+        "Comma-separated SLS anelasticity coefficients (same size as "
+        "frequencies)",
+        cxxopts::value<std::vector<float>>(o.sls_anelasticity_coefficients));
   }
 };
 

@@ -120,13 +120,6 @@ class ModelApi
   virtual BoundaryFlag boundaryType(ScalarType n) const = 0;
 
   /**
-   * @brief Initialize boundary flags based on node positions
-   * @param free_surface_on_top If true, mark top (Z+) as Surface, else as
-   * Damping
-   */
-  virtual void initializeBoundaryFlags(bool free_surface_on_top) = 0;
-
-  /**
    * @brief Get P-wave velocity at a node
    * @param n Node index
    * @return P-wave velocity (Vp) in m/s
@@ -170,6 +163,36 @@ class ModelApi
    * @return S-wave velocity (Vs) in m/s
    */
   PROXY_HOST_DEVICE virtual FloatType getModelVsOnElement(
+      ScalarType e) const = 0;
+
+  /**
+   * @brief Get P-wave quality factor at a node (attenuation)
+   * @param n Node index
+   * @return Qp (dimensionless)
+   */
+  PROXY_HOST_DEVICE virtual FloatType getModelQpOnNodes(ScalarType n) const = 0;
+
+  /**
+   * @brief Get P-wave quality factor for an element (attenuation)
+   * @param e Element index
+   * @return Qp (dimensionless)
+   */
+  PROXY_HOST_DEVICE virtual FloatType getModelQpOnElement(
+      ScalarType e) const = 0;
+
+  /**
+   * @brief Get S-wave quality factor at a node (attenuation)
+   * @param n Node index
+   * @return Qs (dimensionless)
+   */
+  PROXY_HOST_DEVICE virtual FloatType getModelQsOnNodes(ScalarType n) const = 0;
+
+  /**
+   * @brief Get S-wave quality factor for an element (attenuation)
+   * @param e Element index
+   * @return Qs (dimensionless)
+   */
+  PROXY_HOST_DEVICE virtual FloatType getModelQsOnElement(
       ScalarType e) const = 0;
 
   /**
@@ -351,19 +374,13 @@ class ModelApi
   virtual bool isFreeSurface(ScalarType n) const = 0;
 
   /**
-   * @brief Enable/disable free surface on top boundary
-   * @param enable True to enable free surface BC, false for absorbing
-   * everywhere
-   */
-  virtual void setFreeSurfaceEnabled(bool enable) = 0;
-
-  /**
-   * @brief Initialize free surface detection
+   * @brief Set uniform quality factors for attenuation.
    *
-   * Marks nodes on top boundary (Z+) as free surface.
-   * Called once during mesh setup.
+   * Allocates per-element Q arrays and fills them with the given values.
+   * @param qp P-wave quality factor.
+   * @param qs S-wave quality factor (used only for elastic).
    */
-  virtual void initFreeSurface() = 0;
+  virtual void setQualityFactors(FloatType qp, FloatType qs) = 0;
 
   /**
    * @brief Get total number of faces

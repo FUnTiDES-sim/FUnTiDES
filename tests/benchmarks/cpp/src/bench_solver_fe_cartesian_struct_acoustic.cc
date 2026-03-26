@@ -81,7 +81,7 @@ class SolverStructFixture : public benchmark::Fixture
 
     // Note: Builder defaults origins to 0.0, which matches our serial setup
     typename T::Builder builder(ex, hx, ey, hy, ez, hz, isModelOnNodes_, false);
-    return builder.getModel();
+    return builder.getModel(true);
   }
 
   void setLabel(benchmark::State& state) const

@@ -1,6 +1,6 @@
 # FUnTiDES: Fast Unstructured Time Dynamic Equation Solver
 
-**FUnTiDES** is a collection of simplified codes that represent real scientific applications. It serves as a standard tool for evaluating and comparing the performance of various high-performance computing (HPC) systems, particularly those used for scientific simulations.
+FUnTiDES (Fast Unstructured Time Dynamic Equation Solver) is a high-performance computational library designed to simulate 2D and 3D wave propagation. By solving acoustic and elastic wave equations using a high-order Spectral Element Method (SEM), it handles the massive computational demands of real-world scientific simulations with exceptional accuracy. Designed primarily for use via its Python bindings, FUnTiDES combines a flexible, user-friendly Python interface with a heavily optimized, performance-portable C++ backend (powered by Kokkos) for modern High-Performance Computing (HPC) architectures.
 
 ---
 
@@ -18,51 +18,57 @@ A key feature of these proxy applications is their adaptability to different pro
 
 ---
 
-## Supported Programming Models
-
-The SEM proxy currently supports:
-
-- [Kokkos](https://kokkos.github.io/kokkos-core-wiki/) — for performance portability
-
-> **Note**: Kokkos is included as a Git submodule and will be compiled automatically when enabled.
-
----
-
-## Supported Data Containers
-
-The current SEM proxy supports the following data container:
-
-- `std::vector` (default for serial )
-
----
 
 ## Quick Start: Build and Run
 
-### Step 1: Compile and Install
+### Step 1: Install Third-Party Libraries (TPL)
+
+Before compiling the main project, you must install the required dependencies via the FUnTiDES-TPL repository. 
 
 ```sh
+# Clone the TPL repository
+git clone --recurse-submodules [https://github.com/FUnTiDES-sim/FUnTiDES-TPL.git](https://github.com/FUnTiDES-sim/FUnTiDES-TPL.git) tpl_source
+
+# Install TPL (adjust --prefix to your desired installation path)
+cd tpl_source
+./install.sh --prefix=/opt/tpl --disable-cuda --use-venv --jobs=$(nproc)
+
+# Export necessary environment variables so CMake can find the TPLs
+export PATH="/opt/tpl/bin:${PATH}"
+export LD_LIBRARY_PATH="/opt/tpl/lib:${LD_LIBRARY_PATH}"
+export CMAKE_PREFIX_PATH="/opt/tpl"
+````
+
+Or use the dedicated script in TPL that does export the env automatically.
+
+### Step 2: Compile and Install
+
+Once the TPLs are installed and your environment is configured, you can build the applications.
+
+```sh
+cd /path/to/funtides
 mkdir build
 cd build
 cmake ..
 make install
 ```
 
-By default, this builds the applications in sequential mode using `std::vector`.
-Both SEM and FD applications are compiled.
+### Step 3: Run Tests & Benchmarks
 
-### Step 2: Run Tests & Benchmarks
+Unit tests only:
 
-Unit tests only
 ```sh
-ctest -LE benchmark
+ctest -LE "benchmark|validation"
 ```
 
-Benchmarks only, results will be stored in results generated in `build/Benchmarking` as a json file.
+Benchmarks only, results will be stored in `build/Benchmarking` as a json file:
+
 ```sh
 ctest -L benchmark
 ```
 
-Validation tests (compare against analytical solutions)
+Validation tests (compare against analytical solutions):
+
 ```sh
 # All 24 tests (2 mesh types × 3 orders × 2 physics × 2 model-on-nodes)
 make validate
@@ -81,20 +87,21 @@ ctest -L mesh_ucartesian            # Ucartesian mesh tests
 ctest -R acoustic_order2_cartesian  # Specific test
 ```
 
-Or just all tests
+Or just all tests:
+
 ```sh
 ctest
 ```
 
-> **Note**: Validation tests require analytical reference solutions in `tests/analyticalsolution/` (P.dat for acoustic, Ux.dat for elastic).
-            You also need to install adios2 python module to run the validation tests as it runs a python script for receiver output.
+> **Note**: Validation tests require analytical reference solutions in `tests/analyticalsolution/` (P.dat for acoustic, Ux.dat for elastic). You also need to install the adios2 python module to run the validation tests as it runs a python script for receiver output.
 
-### Step 3: Run Examples inside folder build/bin
+### Step 4: Run Examples
 
+Inside the `build/bin` folder, you can run the generated executable binaries. For the SEM proxy, use `semproxy` (or `funtides-sem`) and specify your mesh and implementation preferences.
 
 ```sh
-# Run SEM simulation with 100 x 100 x 100 elements
-./funtidessem -ex 100 -ey 100 -ez 100
+# Run SEM simulation (e.g., Acoustic, Cartesian Mesh, Makutu Implementation, Order 2)
+./funtides-sem --ex 100 --ey 100 --ez 100 --method=sem --implem=makutu --mesh=cartesian -o 2 --dt 0.001 --timemax 1.5
 
 # Run FD simulation
 ./funtidesfd
@@ -103,28 +110,38 @@ ctest
 ./validate_solution --order 2 --mesh ucartesian --elastic --is-model-on-nodes
 ```
 
----
+You can also run the Python and MPI examples provided in the `examples/fe` folder:
+
+```sh
+# Run a simple Python cartesian solver example
+python3 examples/fe/solver_cartesian.py --ex 100 --ey 100 --ez 100 --order 2
+
+# Run an MPI-distributed Python cartesian solver (requires MPI)
+mpirun -n 4 python3 examples/fe/solver_cartesian_mpi.py --ex 200 --snap_interval 20
+```
+
+> **Note**: A dedicated python env can be made via TPLs.
+
+-----
 
 ## CMake Options
 
 The following options can be used to configure your build:
 
-| Option                 | Description                                                                 |
-|------------------------|-----------------------------------------------------------------------------|
-| `COMPILE_FD`           | Enable compilation of the FD proxy (default: ON)                            |
-| `COMPILE_SEM`          | Enable compilation of the SEM proxy (default: ON)                           |
-| `ENABLE_CUDA`          | Enable CUDA backend (used by Kokkos)                                        |
-| `ENABLE_PYWRAP`        | Enable Python bindings via pybind11 (experimental)                          |
-| `USE_KOKKOS`           | Enable Kokkos support (serial by default, CUDA/OpenMP with flags)           |
-| `USE_VECTOR`           | Use `std::vector` for data arrays (enabled by default unless Kokkos is used)|
+| Option          | Description                                        |
+|-----------------|----------------------------------------------------|
+| `COMPILE_FD`    | Enable compilation of the FD proxy (default: ON)   |
+| `COMPILE_SEM`   | Enable compilation of the SEM proxy (default: ON)  |
+| `ENABLE_PYWRAP` | Enable Python bindings via pybind11 (experimental) |
 
----
+-----
 
 ## 🐍 Python wrappers
 
 ### Prerequisites
 
-To install python requirements
+To install python requirements:
+
 ```bash
 pip install -r requirements.txt
 ```
@@ -133,91 +150,100 @@ pip install -r requirements.txt
 
 The proxy must be configured with `-DENABLE_PYWRAP=ON` and installed via `make install`. Optionally, you can set `-DCMAKE_INSTALL_PREFIX` to where you want to deploy the application along with the python wrappers.
 
-This will create a _pyfuntides_ package in your install directory which contains both the _solver_ and _model_ pybind modules.
+This will create a *pyfuntides* package in your install directory which contains both the *solver* and *model* pybind modules.
 
 ```bash
 (.venv) [proxys]$ ls $MY_INSTALL_DIR/python/pyfuntides/
 __init__.py  model.cpython-311-x86_64-linux-gnu.so  solver.cpython-311-x86_64-linux-gnu.so
 ```
 
-This will also install _kokkos_ in your python environment, which will point to the kokkos built by the _pyfuntides_ app.
+This will also install *kokkos* in your python environment, which will point to the kokkos built by the *pyfuntides* app.
 
 ```bash
 (.venv) [proxys]$ ls .venv/lib/python3.11/site-packages/kokkos/
 __init__.py  libpykokkos.cpython-311-x86_64-linux-gnu.so  __pycache__  pytest.ini  test  utility.py
 ```
 
-If you do not have write access on your python environment, it will install it under _$MY_INSTALL_DIR/lib/python3.11/site-packages/kokkos_.
-In that case you will have to extend your python path with this directory.
+If you do not have write access on your python environment, it will install it under *$MY\_INSTALL\_DIR/lib/python3.11/site-packages/kokkos*. In that case you will have to extend your python path with this directory.
 
 ### Usage
 
-First, extend your `PYTHONPATH` to make the _pyfuntides_ and _adios_ package visible.
+First, extend your `PYTHONPATH` to make the *pyfuntides* and *adios* packages visible.
 
 ```bash
 export PYTHONPATH=$PYTHONPATH:$MY_INSTALL_DIR/python
 ```
 
 If needed (kokkos could not write in your python environment), also extend your `PYTHONPATH` to make the kokkos package visible.
+
 ```bash
 export PYTHONPATH=$PYTHONPATH:$MY_INSTALL_DIR/lib/python3.11/site-packages
 ```
 
-Then extend your `LD_LIBRARY_PATH` so that all libraries point to the same _kokkos_ libraries that are installed in the _lib64_ folder.
+Then extend your `LD_LIBRARY_PATH` so that all libraries point to the same *kokkos* libraries that are installed in the *lib64* folder.
 
 ```bash
 export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$MY_INSTALL_DIR/lib64
 ```
 
-There is no need to extend the `LD_LIBRARY_PATH` with the _proxys_ libraries since the python wrappers use their _RPATH_ to retrieve them in the _lib_ folder.
+There is no need to extend the `LD_LIBRARY_PATH` with the *proxys* libraries since the python wrappers use their *RPATH* to retrieve them in the *lib* folder.
 
-
-Some examples on how to use the wrappers are available in the [`examples`](examples/) folder.
+Some examples on how to use the wrappers are available in the [`examples`] folder.
 
 ### Tests & Benchmarks
 
-**All commands from this section should be executed from the repository root directory!**
+**All commands from this section should be executed from the repository root directory\!**
 
-To install dev python packages
+To install dev python packages:
+
 ```bash
 pip install -r requirements-dev.txt
 ```
 
-To run basic python unit tests (default is using 6 threads)
+To run basic python unit tests (default is using 6 threads):
+
 ```bash
 pytest -vv -s  tests/units
 ```
 
-To run basic python unit tests with more threads
+To run basic python unit tests with more threads:
+
 ```bash
 pytest -vv -s  tests/units --threads 12
 ```
 
-To run python benchmarks (default is using 6 threads)
+To run python benchmarks (default is using 6 threads):
+
 ```bash
 pytest -vv -s tests/benchmarks/python
 ```
 
-To run python benchmarks with more threads
+To run python benchmarks with more threads:
+
 ```bash
 pytest -vv -s tests/benchmarks/python --threads 12
 ```
 
-To run all python benchmarks (default is using 1,2,4,8,16,32,64 threads)
+To run all python benchmarks (default is using 1,2,4,8,16,32,64 threads):
+
 ```bash
 python scripts/benchmarks/run_pywrap_benchmarks.py --verbose
 ```
 
-### Ploting Receivers and Snapshots
+### Plotting Receivers and Snapshots
 
 To plot the snapshots we provide a python script:
+
 ```bash
 python ./scripts/adios/adios_cartesian_snap_viz.py 201 201 201 --file snapshots.bp --slice
 ```
-where 201 values should be replaced by number of nodes on x y and z. And file correpond to the `snapshots.bp` folder with bp5 files.
+
+where 201 values should be replaced by number of nodes on x, y, and z. And file corresponds to the `snapshots.bp` folder with bp5 files.
 
 For the receivers:
-``` bash
+
+```bash
 python ./scripts/adios/adios_single_receiver_viz.py
 ```
+
 within the folder containing the `receivers.bp` folder.

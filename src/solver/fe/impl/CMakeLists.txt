@@ -10,6 +10,9 @@ set(SOLV_LIBS discretization proxy_utils proxy_model_struct proxy_model_unstruct
 target_link_kokkos_if_enabled(proxy_solver)
 
 target_link_libraries(proxy_solver PUBLIC ${SOLV_LIBS})
+if(USE_MPI)
+target_link_libraries(proxy_solver INTERFACE MPI::MPI_CXX)
+endif()
 
 install(TARGETS proxy_solver
   EXPORT proxy_solver_targets

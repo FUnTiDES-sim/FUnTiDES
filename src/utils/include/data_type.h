@@ -7,6 +7,7 @@
 #include <vector>
 
 #include "common_macros.h"
+#include "data_type_kokkos.h"
 
 using real_t = float;
 
@@ -17,14 +18,6 @@ using real_t = double;
 #else
 using real_t = float;
 #endif
-
-#ifdef USE_VECTOR
-#include "data_type_vector.h"
-#endif  // USE_VECTOR
-
-#ifdef USE_KOKKOS
-#include "data_type_kokkos.h"
-#endif  // USE_KOKKOS
 
 template <class T>
 T allocateVector(int n1)

@@ -1,7 +1,9 @@
 #ifndef FUNTIDES_SOLVER_FE_IMPL_COMMON_INCLUDE_SEM_SOLVER_H_
 #define FUNTIDES_SOLVER_FE_IMPL_COMMON_INCLUDE_SEM_SOLVER_H_
+#include <algorithm>
 #include <array>
 #include <cmath>
+#include <limits>
 #include <stdexcept>
 
 #include "data_type.h"
@@ -9,6 +11,8 @@
 #include "model.h"
 #include "parallel_topology.h"
 #include "physics_traits.h"
+#include "physics_traits_acoustic.h"
+#include "physics_traits_elastic.h"
 #include "sem_enums.h"
 #include "sem_solver_data.h"
 #include "solver.h"
@@ -203,6 +207,7 @@ class SEMsolver : public Solver
   void computeElementContributions_Iso(const DataType& data);
   void computeElementContributions_Vti(const DataType& data);
   void computeElementContributions_Tti(const DataType& data);
+  void computeAttenuationContributions(const DataType& data);
 
   /**
    * @brief Compute the elasticity matrix at a given node (elastic only).
@@ -230,6 +235,51 @@ class SEMsolver : public Solver
    * @brief Set the anisotropy type for the solver.
    */
   void setAnisotropyType(model::AnisotropyType type) { anisotropyType_ = type; }
+
+  void setSLSAttenuation(const VECTOR_REAL_VIEW& reference_frequencies,
+                         const VECTOR_REAL_VIEW& anelasticity_coefficients =
+                             VECTOR_REAL_VIEW()) override
+  {
+    attenuationEnabled_ = reference_frequencies.extent(0) > 0;
+    nSls_ = static_cast<int>(reference_frequencies.extent(0));
+    if (!attenuationEnabled_)
+    {
+      nSls_ = 0;
+      slsReferenceAngularFrequencies_ = VECTOR_REAL_VIEW();
+      slsAnelasticityCoefficients_ = VECTOR_REAL_VIEW();
+      return;
+    }
+
+    slsReferenceAngularFrequencies_ = allocateVector<VECTOR_REAL_VIEW>(
+        nSls_, "slsReferenceAngularFrequencies");
+    for (int i = 0; i < nSls_; ++i)
+    {
+      slsReferenceAngularFrequencies_[i] = reference_frequencies[i];
+    }
+
+    slsAnelasticityCoefficients_ =
+        allocateVector<VECTOR_REAL_VIEW>(nSls_, "slsAnelasticityCoefficients");
+    if (anelasticity_coefficients.extent(0) == 0)
+    {
+      for (int i = 0; i < nSls_; ++i)
+      {
+        slsAnelasticityCoefficients_[i] = -1.0f;
+      }
+    }
+    else
+    {
+      if (static_cast<int>(anelasticity_coefficients.extent(0)) != nSls_)
+      {
+        throw std::runtime_error(
+            "SLS anelasticity coefficients must match reference frequencies "
+            "size");
+      }
+      for (int i = 0; i < nSls_; ++i)
+      {
+        slsAnelasticityCoefficients_[i] = anelasticity_coefficients[i];
+      }
+    }
+  }
 
  private:
   MESH_TYPE m_mesh;
@@ -263,6 +313,13 @@ class SEMsolver : public Solver
   VECTOR_REAL_VIEW massMatrixGlobal_;
   std::array<VECTOR_REAL_VIEW, kNumFields> dampingMatrixGlobal_;
   std::array<VECTOR_REAL_VIEW, kNumFields> workVectorsGlobal_;
+
+  bool attenuationEnabled_ = false;
+  int nSls_ = 0;
+  VECTOR_REAL_VIEW slsReferenceAngularFrequencies_;
+  VECTOR_REAL_VIEW slsAnelasticityCoefficients_;
+  std::array<VECTOR_REAL_VIEW, kNumFields> attenuationWorkVectorsGlobal_;
+  std::array<ARRAY_REAL_VIEW, kNumFields> attenuationMemoryVariables_;
 };
 
 // Backward Compatibility Aliases
