@@ -10,7 +10,7 @@ It demonstrates usage of pybind11 wrapped C++ classes and functions from the pro
 For help run with the --help option.
 """
 
-import argparse
+import pytest
 import os
 import time
 from datetime import datetime
@@ -108,141 +108,6 @@ def detect_default_memspace():
     return MemSpace.CPU.name
 
 
-def parse_args():
-    """
-    Parses command line arguments.
-
-    Returns
-    -------
-    argparse.Namespace
-        Parsed command line arguments.
-    """
-
-    # Auto-detect default memory space based on compiled C++ bindings
-    default_mem = detect_default_memspace()
-
-    parser = argparse.ArgumentParser(
-        description="Run FE Cartesian solver with Kokkos memspace selection."
-    )
-    parser.add_argument(
-        "--mem",
-        choices=[e.name for e in MemSpace],
-        default=default_mem,
-        help=f"Choose Kokkos memspace: {', '.join(e.name for e in MemSpace)} (default: {default_mem} [auto-detected])",
-    )
-    parser.add_argument(
-        "--model",
-        choices=[e.name for e in ModelType],
-        default=ModelType.STRUCTURED.name,
-        help=f"Choose model type: {', '.join(e.name for e in ModelType)} (default: {ModelType.STRUCTURED.name})",
-    )
-    parser.add_argument(
-        "--impl",
-        choices=[e.name for e in ImplemType],
-        default=ImplemType.MAKUTU.name,
-        help=f"Choose implementation type: {', '.join(e.name for e in ImplemType)} (default: {ImplemType.MAKUTU.name})",
-    )
-    parser.add_argument(
-        "--order",
-        type=int,
-        default=2,
-        choices=range(1, 4),
-        help="Polynomial order of the elements (default: 2, max 3)",
-    )
-    parser.add_argument(
-        "--domain_size",
-        type=float,
-        default=1500.0,
-        help="Size of the cubic domain (default: 1500.0)",
-    )
-    parser.add_argument(
-        "--ex",
-        type=int,
-        default=100,
-        help="Number of elements in x-direction (default: 50)",
-    )
-    parser.add_argument(
-        "--ey",
-        type=int,
-        default=100,
-        help="Number of elements in y-direction (default: 50)",
-    )
-    parser.add_argument(
-        "--ez",
-        type=int,
-        default=100,
-        help="Number of elements in z-direction (default: 50)",
-    )
-    parser.add_argument(
-        "--f0",
-        type=float,
-        default=5.0,
-        help="Peak frequency for the Ricker source term (default: 5.0)",
-    )
-    parser.add_argument(
-        "--dt",
-        type=float,
-        default=0.001,
-        help="Time step size (default: 0.001)",
-    )
-    parser.add_argument(
-        "--n_time_steps",
-        type=int,
-        default=1500,
-        help="Number of time steps to run (default: 1500)",
-    )
-    parser.add_argument(
-        "--n_rhs",
-        type=int,
-        default=1,
-        help="Number of right-hand side sources (default: 1)",
-    )
-    parser.add_argument(
-        "--on_nodes",
-        action="store_true",
-        default=False,
-        help="Whether to apply model on nodes (default: False)",
-    )
-    # Sponge boundary arguments
-    parser.add_argument(
-        "--boundaries_size",
-        type=float,
-        default=0.0,
-        help="Size of absorbing boundaries in meters (default: 0)",
-    )
-    parser.add_argument(
-        "--surface_sponge",
-        action="store_true",
-        default=False,
-        help="Enable sponge at the free surface (default: False)",
-    )
-    parser.add_argument(
-        "--taper_delta",
-        type=float,
-        default=0.015,
-        help="Taper delta for sponge boundaries (default: 0.015)",
-    )
-    parser.add_argument(
-        "--n_rcv",
-        type=int,
-        default=1,
-        help="Number of receivers (default: 1)",
-    )
-    parser.add_argument(
-        "--is_elastic",
-        action="store_true",
-        default=False,
-        help="Solving Elastic wave equation (True) or Acoustic wave equation (False) (default: False)",
-    )
-    parser.add_argument(
-        "--is_backward",
-        action="store_true",
-        default=False,
-        help="Reverse time step by taking -dt (default: False)",
-    )
-    return parser.parse_args()
-
-
 def select_kokkos_memspace(memspace_arg):
     """
     Select the Kokkos memory space and layout.
@@ -298,6 +163,7 @@ def get_solver_model_type(model_type):
         enum_value = ModelType[model_type]
     except KeyError:
         raise ValueError(f"Unknown python model type: {model_type}")
+    print(enum_value)
     match enum_value:
         case ModelType.STRUCTURED:
             return Solver.MeshType.STRUCT
@@ -833,7 +699,9 @@ def allocate_rhs_term(n_rhs, n_time_steps, dt, f0, memspace, layout, src_file=No
         if backward:
             for j in range(n_rhs):
                 for i in range(n_time_steps-1):
+                    ##To use same source as forward
                     #RHSTerm[j, i] = source_term((n_time_steps-i-2) * dt, f0)
+                    ##To use different (amplitude and shifted) source as forward
                     RHSTerm[j, i] = 4.0 * source_term((n_time_steps-i-10-2) * dt, f0)
                     src_file[j].write(f"{i} {RHSTerm[j, i]}\n")
                 src_file[j].write(f"{n_time_steps-1} 0.0\n") 
@@ -883,10 +751,9 @@ def allocate_rhs_weight(n_rhs, model, memspace, layout):
     RHSWeights = np.array(kk_RHSWeights, copy=False)
     RHSWeights[:, :] = 0.
     for i in range(n_rhs):
+        ##Source taken on first node of element
         RHSWeights[i, :] = 0.
         RHSWeights[i, 0] = 1.
-        #for j in range(model.get_number_of_points_per_element()):
-        #    RHSWeights[i, j] = 1 / model.get_number_of_points_per_element()
     return kk_RHSWeights, RHSWeights
 
 
@@ -923,14 +790,9 @@ def allocate_rcv_weight(n_rcv, model, memspace, layout):
     RCVWeights = np.array(kk_RCVWeights, copy=False)
     RCVWeights[:, :] = 0.
     for i in range(n_rcv):
+        ##Receiver taken on first node of element
         RCVWeights[i, :] = 0.
         RCVWeights[i, 0] = 1.
-        ##if nb_points==27 :
-        #    RCVWeights[i, :] = 0.
-        #    RCVWeights[i, 13] = 1.
-        #else:
-        #    for j in range(nb_points):
-        #        RCVWeights[i, j] = 1 / nb_points
             
     return kk_RCVWeights, RCVWeights
 
@@ -963,12 +825,10 @@ def allocate_rhs_element(n_rhs, ex, ey, ez, memspace, layout):
     )
     RHSElement = np.array(kk_RHSElement, copy=False)
     RHSElement[:] =  0.
-    #3 sources at 1/3 of first axis and from 2/6 to 4/6
+    ##For sources at 1/3 of first axis and middle of the 2 others
     for i in range(n_rhs) :
         RHSElement[i] =  ez / 3 + (i+1) * ey / (2*n_rhs) * ex +  ex / 2 * ey * ez
 
-    #RHSElement[0] = ex / 2 + ey / 2 * ex + ez / 2 * ey * ex
-    #RHSElement[1] = ex / 3 + ey / 2 * ex + ez / 2 * ey * ex
     return kk_RHSElement, RHSElement
 
 
@@ -1000,7 +860,7 @@ def allocate_rcv_element(n_rcv, ex, ey, ez, memspace, layout):
     )
     RCVElement = np.array(kk_RCVElement, copy=False)
     RCVElement[:] =  0.
-    #5 rcv at 2/3 of first axis and from 4/12 to 8/12
+    ##For rcv at 2/3 of first axis and middle of the 2 others
     for i in range(n_rcv) :
         RCVElement[i] = 2 * ex / 3 + (i+1) * ey / (2*n_rcv) * ex + ez / 2 * ey * ex
     return kk_RCVElement, RCVElement
@@ -1133,7 +993,8 @@ def compute_step_acoustic(
 
     iter_start = time.time()
     truedt=abs(dt)
-    compute_one_step(solver, truedt, time_sample, data)
+    forward=(dt > 0)
+    compute_one_step(solver, truedt, time_sample, data, forward)
     iter_time = time.time() - iter_start
     iteration_times.append(iter_time)
     if time_sample % 1000 == 0:
@@ -1144,19 +1005,15 @@ def compute_step_acoustic(
         backtime_sample=time_sample if dt > 0 else (n_time_steps-time_sample)
         print(f"{backtime_sample} {pnGlobalPrev[rcv_nodes[0]]} {pnGlobalCurr[rcv_nodes[0]]}")
         for f in rcv_files: f.flush()
-    if time_sample % 100 == 0:
+    ##plot output results in debug
+    if time_sample % 100 == 0 and debug:
         plot_snapshot(nx, ny, nz, pnGlobalCurr, im, time_sample, prefix=prefix)
-        #for i in range(len(rcv_nodes)):
-        #    print(f"{i} {time_sample} {pnGlobalPrev[rcv_nodes[i]]} {pnGlobalCurr[rcv_nodes[i]]}")
-
     if it % 2 == 1: # and time_sample > 0 and time_sample < n_time_steps:
-        first=1 if dt > 0 else -1
-        #write rcv files
+        first=-1 if dt > 0 else 1
+        ##write rcv files
         for i in range(len(rcv_nodes)):
-            #print(f"{i} {backtime_sample      } {pnGlobalPrev[rcv_nodes[i]]} {pnGlobalCurr[rcv_nodes[i]]}")
-            rcv_files[i].write(f"{time_sample} {pnGlobalPrev[rcv_nodes[i]]}\n")
-    #        #print(f"{i} {time_sample+first} {pnGlobal[rcv_nodes[i],i2]}")
-            rcv_files[i].write(f"{time_sample+first} {pnGlobalCurr[rcv_nodes[i]]}\n")
+            rcv_files[i].write(f"{time_sample+first} {pnGlobalPrev[rcv_nodes[i]]}\n")
+            rcv_files[i].write(f"{time_sample} {pnGlobalCurr[rcv_nodes[i]]}\n")
             
     return
 
@@ -1215,8 +1072,8 @@ def compute_step_elastic(
 
     iter_start = time.time()
     truedt=abs(dt)
-    compute_one_step(solver, truedt, time_sample, data)
-    #solver.compute_one_step(dt, time_sample, data)
+    forward=(dt > 0)
+    compute_one_step(solver, truedt, time_sample, data, forward)
     iter_time = time.time() - iter_start
     iteration_times.append(iter_time)
     if time_sample % 1000 == 0:
@@ -1227,26 +1084,26 @@ def compute_step_elastic(
         backtime_sample=time_sample if dt > 0 else (n_time_steps-time_sample)
         print(f"{backtime_sample} {uxnGlobalPrev[rcv_nodes[0]]} {uxnGlobalCurr[rcv_nodes[0]]}")
         for f in rcv_files: f.flush()
-    if time_sample % 10 == 0:
+    ##plot output results in debug
+    if time_sample % 10 == 0 and debug:
         plot_snapshot(nx, ny, nz, uxnGlobalCurr, im, time_sample, f"{prefix}Ux_")
         plot_snapshot(nx, ny, nz, uynGlobalCurr, im, time_sample, f"{prefix}Uy_")
         plot_snapshot(nx, ny, nz, uznGlobalCurr, im, time_sample, f"{prefix}Uz_")
-
     if time_sample % 2 == 1:
-        first=1 if dt > 0 else -1
-        #write rcv files
+        first=-1 if dt > 0 else 1
+        ##write rcv files
         for i in range(len(rcv_nodes)):
-            rcv_files[i*3  ].write(f"{time_sample} {uxnGlobalPrev[rcv_nodes[i]]}\n")
-            rcv_files[i*3+1].write(f"{time_sample} {uynGlobalPrev[rcv_nodes[i]]}\n")
-            rcv_files[i*3+2].write(f"{time_sample} {uznGlobalPrev[rcv_nodes[i]]}\n")
-            rcv_files[i*3  ].write(f"{time_sample+first} {uxnGlobalCurr[rcv_nodes[i]]}\n")
-            rcv_files[i*3+1].write(f"{time_sample+first} {uynGlobalCurr[rcv_nodes[i]]}\n")
-            rcv_files[i*3+2].write(f"{time_sample+first} {uznGlobalCurr[rcv_nodes[i]]}\n")
+            rcv_files[i*3  ].write(f"{time_sample+first} {uxnGlobalPrev[rcv_nodes[i]]}\n")
+            rcv_files[i*3+1].write(f"{time_sample+first} {uynGlobalPrev[rcv_nodes[i]]}\n")
+            rcv_files[i*3+2].write(f"{time_sample+first} {uznGlobalPrev[rcv_nodes[i]]}\n")
+            rcv_files[i*3  ].write(f"{time_sample} {uxnGlobalCurr[rcv_nodes[i]]}\n")
+            rcv_files[i*3+1].write(f"{time_sample} {uynGlobalCurr[rcv_nodes[i]]}\n")
+            rcv_files[i*3+2].write(f"{time_sample} {uznGlobalCurr[rcv_nodes[i]]}\n")
 
     return
 
 
-def compute_one_step(solver, dt, time_sample, data):
+def compute_one_step(solver, dt, time_sample, data, forward):
     
     # 1. Compute forces (RHS of the equation)
     solver.compute_forces(dt, time_sample, data)
@@ -1256,7 +1113,7 @@ def compute_one_step(solver, dt, time_sample, data):
     # m_syncer->synchronize(m_solver->getForceVector(c), par_topology_);
 
     # 3. Update solution using mass matrix and accumulated forces
-    solver.update_solution(dt, data)
+    solver.update_solution_forward(dt, data)
 
     return
 
@@ -1277,13 +1134,16 @@ def run_acoustic(model, solver, dt, n_time_steps, kk_RHSTerm, kk_pnGlobalPrev, k
     print(f"min time : {min(time_list)} max time : {max(time_list)}")
         
     rcv_files=[]
+    rcv_fname=[]
     rcv_nodes=[]
 
     # Loop over time steps
     print(f"nb receivers:{kk_RCVElement.shape[0]}")
     for i in range(kk_RCVElement.shape[0]):
-        filei=open(f"{prefix}rcv_P{i}",'w+')
+        fname=f"{prefix}rcv_P{i}"
+        filei=open(fname,'w+')
         rcv_files.append(filei)
+        rcv_fname.append(fname)
         rcv_nodes.append(model.global_node_index(kk_RCVElement[i],0,0,0))
 
     it=0
@@ -1375,25 +1235,14 @@ def run_elastic(model, solver, dt, n_time_steps, kk_RHSTermx, kk_RHSTermy, kk_RH
         rcv_files[i].close()
         
 
-def main():
-    # Parse command line arguments
-    args = parse_args()
+def test_self_adjoint(on_nodes,is_elastic,is_backward,f0,dt,n_time_steps,n_rhs,n_rcv,order,domain_size,ex,ey,ez,mem,impl,model):
 
-    # Initialize global parameters from command-line arguments
-    on_nodes = args.on_nodes
-    is_elastic = args.is_elastic
-    is_backward = args.is_backward
-    f0 = args.f0
-    dt = args.dt
-    n_time_steps = args.n_time_steps
-    n_rhs = args.n_rhs
-    n_rcv = args.n_rcv
-    order = args.order
-    domain_size = args.domain_size
+    if mem=="default_mem":
+        mem=detect_default_memspace()
+
+    model_type=model
+
     lx = ly = lz = domain_size
-    ex = args.ex
-    ey = args.ey
-    ez = args.ez
     hx = lx / ex
     hy = ly / ey
     hz = lz / ez
@@ -1408,9 +1257,9 @@ def main():
     print("==========SIMULATION PARAMETERS==========")
     print(f"order                        : {order}")
     print(f"on_nodes                     : {on_nodes}")
-    print(f"memspace                     : {args.mem}")
-    print(f"impl                         : {args.impl}")
-    print(f"model                        : {args.model}")
+    print(f"memspace                     : {mem}")
+    print(f"impl                         : {impl}")
+    print(f"model                        : {model}")
     print(f"number of elements           : {n_elements}")
     print(f"number of points per element : {n_points_per_elements}")
     print(f"f0                           : {f0}")
@@ -1420,10 +1269,6 @@ def main():
     print(f"is_elastic                   : {is_elastic}")
     print("=========================================")
 
-    #if is_elastic:
-    #    print("Need to update code, not available anymore")
-    #    sys.exit(-1)
-        
     # Setup graphic display
     print("Setting up plot...")
     if is_elastic:
@@ -1436,7 +1281,7 @@ def main():
     # Initialize Kokkos
     kokkos.initialize()
     print("Kokkos initialized")
-    memspace, layout = select_kokkos_memspace(args.mem)
+    memspace, layout = select_kokkos_memspace(mem)
 
     # Add timing variables
     start_time = time.time()
@@ -1447,13 +1292,13 @@ def main():
     # Create model
     print("Creating model...")
     model = create_model(
-        args.model, (ex, ey, ez), (hx, hy, hz), (lx, ly, lz), order, on_nodes, is_elastic
+        model_type, (ex, ey, ez), (hx, hy, hz), (lx, ly, lz), order, on_nodes, is_elastic
     )
     print("Model created")
 
     # Create solver
     print("Creating solver...")
-    solver = create_solver(args.impl, args.model, order, on_nodes, is_elastic)
+    solver = create_solver(impl, model_type, order, on_nodes, is_elastic)
     print("Solver created")
 
     # Initialize model
@@ -1483,7 +1328,7 @@ def main():
     print("RHS element allocated")
 
     print("Allocating RHS weights...")
-    kk_RHSWeights, rhsWeights = allocate_rhs_weight(n_rhs, model, memspace, layout)
+    kk_RHSWeights, RHSWeights = allocate_rhs_weight(n_rhs, model, memspace, layout)
     print("RHS weights allocated")
 
     print("Allocating RHS term...")
@@ -1516,50 +1361,42 @@ def main():
     kk_RCVWeights, RCVWeights = allocate_rcv_weight(n_rcv, model, memspace, layout)
     print("RCV weights allocated")
 
-#    #---------------------------------------------------
-#    # check physics parameters
-#    if is_elastic:
-#        if(on_nodes) :
-#            for n in range(n_dof):
-#                print(f"Vp  on node {n}: {model.get_model_vp_on_node(n)}")
-#                print(f"Vs  on node {n}: {model.get_model_vs_on_node(n)}")
-#                print(f"Rho on node {n}: {model.get_model_rho_on_node(n)}")
-#        else:
-#            for n in range(n_elements):
-#                print(f"Vp  on node {n}: {model.get_model_vp_on_element(n)}")
-#                print(f"Vs  on node {n}: {model.get_model_vs_on_element(n)}")
-#                print(f"Rho on node {n}: {model.get_model_rho_on_element(n)}")
-#    else:
-#        if(on_nodes) :
-#            for n in range(n_dof):
-#                print(f"Vp  on node {n}: {model.get_model_vp_on_node(n)}")
-#                print(f"Rho on node {n}: {model.get_model_rho_on_node(n)}")
-#        else:
-#            for n in range(n_elements):
-#                print(f"Vp  on node {n}: {model.get_model_vp_on_element(n)}")
-#                print(f"Rho on node {n}: {model.get_model_rho_on_element(n)}")
-#                
-#    #---------------------------------------------------
+    #---------------------------------------------------
+    # check physics parameters in debug
+    if debug:
+        if is_elastic:
+            if(on_nodes) :
+                for n in range(n_dof):
+                    print(f"Vp  on node {n}: {model.get_model_vp_on_node(n)}")
+                    print(f"Vs  on node {n}: {model.get_model_vs_on_node(n)}")
+                    print(f"Rho on node {n}: {model.get_model_rho_on_node(n)}")
+            else:
+                for n in range(n_elements):
+                    print(f"Vp  on node {n}: {model.get_model_vp_on_element(n)}")
+                    print(f"Vs  on node {n}: {model.get_model_vs_on_element(n)}")
+                    print(f"Rho on node {n}: {model.get_model_rho_on_element(n)}")
+        else:
+            if(on_nodes) :
+                for n in range(n_dof):
+                    print(f"Vp  on node {n}: {model.get_model_vp_on_node(n)}")
+                    print(f"Rho on node {n}: {model.get_model_rho_on_node(n)}")
+            else:
+                for n in range(n_elements):
+                    print(f"Vp  on node {n}: {model.get_model_vp_on_element(n)}")
+                    print(f"Rho on node {n}: {model.get_model_rho_on_element(n)}")            
+    #---------------------------------------------------
 
     prefix="shot1_"
     if is_elastic:
         run_elastic(model, solver, dt, n_time_steps, kk_RHSTermx, kk_RHSTermy, kk_RHSTermz, kk_uxnGlobalPrev, kk_uynGlobalPrev, kk_uznGlobalPrev, kk_uxnGlobalCurr, kk_uynGlobalCurr, kk_uznGlobalCurr, kk_RHSElement, kk_RHSWeights, kk_RCVElement, kk_RCVWeights, is_backward, im, iteration_times, ndim, prefix)
     else:
         run_acoustic(model, solver, dt, n_time_steps, kk_RHSTerm, kk_pnGlobalPrev, kk_pnGlobalCurr, kk_RHSElement, kk_RHSWeights, kk_RCVElement, kk_RCVWeights, is_backward, im, iteration_times, ndim, prefix)
-
     
     is_backward=(not is_backward)
     if is_elastic:
         del kk_RHSTermx
         del kk_RHSTermy
         del kk_RHSTermz
-        new_src_filex=[]
-        new_src_filey=[]
-        new_src_filez=[]
-        #for i in range(n_rcv):
-        #    new_src_filex.append(f"shot1_rcv_Ux{i}")
-        #    new_src_filey.append(f"shot1_rcv_Uy{i}")
-        #    new_src_filez.append(f"shot1_rcv_Uz{i}")
         kk_RHSTermx, rhsTerm = allocate_rhs_term(
             n_rcv, n_time_steps, dt, f0, memspace, layout, backward=is_backward
         )
@@ -1572,9 +1409,6 @@ def main():
        
     else:
         del kk_RHSTerm
-        new_src_file=[]
-        #for i in range(n_rcv):
-        #    new_src_file.append(f"shot1_rcv_P{i}")
         kk_RHSTerm, rhsTerm = allocate_rhs_term(
             n_rcv, n_time_steps, dt, f0, memspace, layout, backward=is_backward
         )
@@ -1619,8 +1453,9 @@ def main():
         for i in range(n_time_steps):
             prod_u1f2+=u1[i,-1]*f2[i,-1]
             prod_u2f1+=u2[i,-1]*f1[n_time_steps-i-1,-1]
-            #print(f"step {i} {u1[i,-1]} {f2[i,-1]} {u2[i,-1]} {f1[n_time_steps-i-1,-1]}")
-            #print(f"step {i} {prod_u1f2} {prod_u2f1}")
+            if debug:
+                print(f"step {i} {u1[i,-1]} {f2[i,-1]} {u2[i,-1]} {f1[n_time_steps-i-1,-1]}")
+                print(f"step {i} {prod_u1f2} {prod_u2f1}")
             f1_norm+=f1[i,-1]*f1[i,-1]
             u2_norm+=u2[i,-1]*u2[i,-1]
     else:
@@ -1654,8 +1489,64 @@ def main():
     print(f"Final : {prod_u1f2} {prod_u2f1}")
     print(f"scalar products relative diff to ||f||.||ub|| ({np.sqrt(f1_norm)*np.sqrt(u2_norm)}): {abs(prod_u1f2 - prod_u2f1)/(np.sqrt(f1_norm)*np.sqrt(u2_norm))}")
     
+    if not is_elastic:
+        try:
+            os.remove("shot1_rcv_P0")
+        except OSError:
+            pass
+        try:
+            os.remove("shot2_rcv_P0")
+        except OSError:
+            pass
+    else:
+        try:
+            os.remove("shot1_rcv_Ux0")
+        except OSError:
+            pass
+        try:
+            os.remove("shot2_rcv_Ux0")
+        except OSError:
+            pass
+        try:
+            os.remove("shot1_rcv_Uy0")
+        except OSError:
+            pass
+        try:
+            os.remove("shot2_rcv_Uy0")
+        except OSError:
+            pass
+        try:
+            os.remove("shot1_rcv_Uz0")
+        except OSError:
+            pass
+        try:
+            os.remove("shot2_rcv_Uz0")
+        except OSError:
+            pass
+        
+    try:
+        os.remove("Src2_0")
+    except OSError:
+        pass
+    try:
+        os.remove("Src_0")
+    except OSError:
+        pass
+            
+    if not is_elastic:
+        tolerance=1e-6
+    else:
+        tolerance=1e-4
+    assert abs(prod_u1f2 - prod_u2f1)/(np.sqrt(f1_norm)*np.sqrt(u2_norm)) < tolerance
+    
     # release kokkos arrays and vectors
     if is_elastic:
+        del uxnGlobalPrev
+        del uynGlobalPrev
+        del uznGlobalPrev
+        del uxnGlobalCurr
+        del uynGlobalCurr
+        del uznGlobalCurr
         del kk_uxnGlobalPrev
         del kk_uynGlobalPrev
         del kk_uznGlobalPrev
@@ -1666,9 +1557,16 @@ def main():
         del kk_RHSTermy
         del kk_RHSTermz
     else:
+        del pnGlobalPrev
+        del pnGlobalCurr
         del kk_pnGlobalPrev
         del kk_pnGlobalCurr
         del kk_RHSTerm
+    del rhsTerm
+    del RHSElement
+    del RHSWeights
+    del RCVElement
+    del RCVWeights
     del kk_RHSElement
     del kk_RHSWeights
     del kk_RCVElement
