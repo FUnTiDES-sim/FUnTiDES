@@ -83,6 +83,9 @@ class CartesianStructBuilder : public ModelBuilderBase<FloatType, ScalarType>
     // vs=0 in the fluid → TagElements classifies it as acoustic.
     if (isAcoustoElastic_)
     {
+      auto temp_model =
+          model::ModelStruct<FloatType, ScalarType, Order>(data);
+
       if (isModelOnNodes_)
       {
         data.model_vp_node_ =

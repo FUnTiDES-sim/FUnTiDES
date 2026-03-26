@@ -381,7 +381,9 @@ void SEMproxy::run()
       // Save slice in dat format
       if (is_snapshots_ && indexTimeSample % snap_time_interval_ == 0)
       {
+#ifdef USE_MPI
         MPI_Barrier(MPI_COMM_WORLD);
+#endif
         saveSnapshot(indexTimeSample, pnGlobalPrev);
 
         // Save XY-slice through center Z as plain text for easy visualization

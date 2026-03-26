@@ -44,12 +44,48 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES,
   allocateFEarrays();
   initFEarrays();
 
-  m_mesh.initFreeSurface();
-
   // Compute Local Mass Matrix
   computeGlobalMassMatrix();
   // Compute Local Damping Matrix
   computeDampingMatrix();
+
+  if (attenuationEnabled_ && nSls_ > 0)
+  {
+    float minQVal = std::numeric_limits<float>::max();
+    for (int e = 0; e < m_mesh.getNumberOfElements(); ++e)
+    {
+      if constexpr (PHYSICS == enums::physicType::kAcoustic)
+      {
+        float q =
+            IS_MODEL_ON_NODES
+                ? m_mesh.getModelQpOnNodes(m_mesh.globalNodeIndex(e, 0, 0, 0))
+                : m_mesh.getModelQpOnElement(e);
+        minQVal = std::min(minQVal, q);
+      }
+      else
+      {
+        float qp =
+            IS_MODEL_ON_NODES
+                ? m_mesh.getModelQpOnNodes(m_mesh.globalNodeIndex(e, 0, 0, 0))
+                : m_mesh.getModelQpOnElement(e);
+        float qs =
+            IS_MODEL_ON_NODES
+                ? m_mesh.getModelQsOnNodes(m_mesh.globalNodeIndex(e, 0, 0, 0))
+                : m_mesh.getModelQsOnElement(e);
+        minQVal = std::min(minQVal, std::min(qp, qs));
+      }
+    }
+
+    for (int l = 0; l < nSls_; ++l)
+    {
+      if (slsAnelasticityCoefficients_.extent(0) > 0 &&
+          slsAnelasticityCoefficients_[l] < 0.0f)
+      {
+        slsAnelasticityCoefficients_[l] =
+            2.0f * minQVal / (std::max(1.0001f, minQVal) - 1.0f);
+      }
+    }
+  }
 }
 
 //============================================================================
@@ -70,6 +106,11 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES,
   FENCE
   computeElementContributions(myData);
   FENCE
+  if (attenuationEnabled_ && nSls_ > 0)
+  {
+    computeAttenuationContributions(myData);
+    FENCE
+  }
 }
 
 //============================================================================
@@ -101,6 +142,10 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES,
     for (int f = 0; f < kNumFields; ++f)
     {
       workVectorsGlobal_[f][i] = 0;
+      if (attenuationEnabled_ && nSls_ > 0)
+      {
+        attenuationWorkVectorsGlobal_[f][i] = 0;
+      }
     }
   }
   LOOPEND
@@ -255,6 +300,179 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES,
 }
 
 //============================================================================
+// computeAttenuationContributions - Assemble attenuation stiffness terms
+//============================================================================
+
+template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE,
+          bool IS_MODEL_ON_NODES, physicType PHYSICS>
+void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES,
+               PHYSICS>::computeAttenuationContributions(const DataType& data)
+{
+  if (!attenuationEnabled_ || nSls_ <= 0) return;
+
+  auto mesh_local = m_mesh;
+  auto mask_local = m_element_mask_;
+  bool mask_on = m_mask_enabled_;
+  int mask_val = m_mask_active_value_;
+  bool const list_on = m_list_mode_;
+  auto list_local = m_elem_list_;
+  int const n_iter =
+      list_on ? m_n_elem_list_ : mesh_local.getNumberOfElements();
+
+  MAINLOOPHEAD(n_iter, _loop_idx)
+
+  if (_loop_idx >= n_iter) return;
+  int const elementNumber = list_on ? list_local[_loop_idx] : _loop_idx;
+  if (!list_on && mask_on && mask_local[elementNumber] != mask_val) return;
+
+  int const dim = mesh_local.getOrder() + 1;
+  float localFields[kNumFields][kPointsPerElement] = {{0}};
+  float localWorkA[kNumFields][kPointsPerElement] = {{0}};
+
+  for (int i = 0; i < dim; ++i)
+  {
+    for (int j = 0; j < dim; ++j)
+    {
+      for (int k = 0; k < dim; ++k)
+      {
+        int const globalIdx =
+            mesh_local.globalNodeIndex(elementNumber, i, j, k);
+        int const localIdx = i + j * dim + k * dim * dim;
+        for (int f = 0; f < kNumFields; ++f)
+        {
+          localFields[f][localIdx] = data.getCurrentField(f)(globalIdx);
+        }
+      }
+    }
+  }
+
+  typename INTEGRAL_TYPE::TransformType transformData;
+  model_discretization_interface::gatherTransformData(elementNumber, mesh_local,
+                                                      transformData);
+
+  if constexpr (PHYSICS == enums::physicType::kAcoustic)
+  {
+    real_t inv_density_q = 0.0f;
+    if constexpr (!IS_MODEL_ON_NODES)
+    {
+      inv_density_q = 1.0f / (mesh_local.getModelRhoOnElement(elementNumber) *
+                              mesh_local.getModelQpOnElement(elementNumber));
+    }
+
+    INTEGRAL_TYPE::computeStiffnessTerm(
+        transformData,
+        [&](const int qa, const int qb, const int qc) {
+          if constexpr (IS_MODEL_ON_NODES)
+          {
+            int const gIndex =
+                mesh_local.globalNodeIndex(elementNumber, qa, qb, qc);
+            inv_density_q = 1.0f / (mesh_local.getModelRhoOnNodes(gIndex) *
+                                    mesh_local.getModelQpOnNodes(gIndex));
+          }
+        },
+        [&](const int i, const int j, const real_t val) {
+          localWorkA[0][i] += inv_density_q * val * localFields[0][j];
+        });
+  }
+  else
+  {
+    if (anisotropyType_ != model::AnisotropyType::kIso) return;
+
+    struct CJPacked
+    {
+      float a0, a1, a2, a3;
+      float b0, b1;
+    };
+    CJPacked CJflat[3 * 3];
+
+    INTEGRAL_TYPE::computeStiffNessTermwithJac(
+        transformData,
+        [&](int qa, int qb, int qc, float const(&J)[3][3]) {
+          float vp, vs, rho, qp, qs;
+          if constexpr (IS_MODEL_ON_NODES)
+          {
+            int const gIndex =
+                mesh_local.globalNodeIndex(elementNumber, qa, qb, qc);
+            vp = mesh_local.getModelVpOnNodes(gIndex);
+            vs = mesh_local.getModelVsOnNodes(gIndex);
+            rho = mesh_local.getModelRhoOnNodes(gIndex);
+            qp = mesh_local.getModelQpOnNodes(gIndex);
+            qs = mesh_local.getModelQsOnNodes(gIndex);
+          }
+          else
+          {
+            vp = mesh_local.getModelVpOnElement(elementNumber);
+            vs = mesh_local.getModelVsOnElement(elementNumber);
+            rho = mesh_local.getModelRhoOnElement(elementNumber);
+            qp = mesh_local.getModelQpOnElement(elementNumber);
+            qs = mesh_local.getModelQsOnElement(elementNumber);
+          }
+
+          float mu = rho * vs * vs;
+          float lambda = rho * (vp * vp - 2.0f * vs * vs);
+          float lambdap2mua = (lambda + 2.0f * mu) / qp;
+          mu = mu / qs;
+          lambda = lambdap2mua - 2.0f * mu;
+          float lambda_plus_2mu = lambda + 2.0f * mu;
+
+          for (int p = 0; p < 3; ++p)
+          {
+            float const Jp0 = J[p][0], Jp1 = J[p][1], Jp2 = J[p][2];
+            for (int r = 0; r < 3; ++r)
+            {
+              float const Jr0 = J[r][0], Jr1 = J[r][1], Jr2 = J[r][2];
+              int const idx = p * 3 + r;
+              CJflat[idx].a0 =
+                  lambda_plus_2mu * Jp0 * Jr0 + mu * (Jp1 * Jr1 + Jp2 * Jr2);
+              CJflat[idx].a1 =
+                  mu * Jp0 * Jr0 + lambda_plus_2mu * Jp1 * Jr1 + mu * Jp2 * Jr2;
+              CJflat[idx].a2 =
+                  mu * (Jp0 * Jr0 + Jp1 * Jr1) + lambda_plus_2mu * Jp2 * Jr2;
+              CJflat[idx].a3 = lambda * Jp0 * Jr1 + mu * Jp1 * Jr0;
+              CJflat[idx].b0 = lambda * Jp0 * Jr2 + mu * Jp2 * Jr0;
+              CJflat[idx].b1 = lambda * Jp1 * Jr2 + mu * Jp2 * Jr1;
+            }
+          }
+        },
+        [&](int i, int j, float val, const int p, const int r) {
+          int const idx = p * 3 + r;
+          float const uxj = localFields[0][j];
+          float const uyj = localFields[1][j];
+          float const uzj = localFields[2][j];
+          localWorkA[0][i] +=
+              val * (CJflat[idx].a0 * uxj + CJflat[idx].a3 * uyj +
+                     CJflat[idx].b0 * uzj);
+          localWorkA[1][i] +=
+              val * (CJflat[idx].a3 * uxj + CJflat[idx].a1 * uyj +
+                     CJflat[idx].b1 * uzj);
+          localWorkA[2][i] +=
+              val * (CJflat[idx].b0 * uxj + CJflat[idx].b1 * uyj +
+                     CJflat[idx].a2 * uzj);
+        });
+  }
+
+  for (int i = 0; i < dim; ++i)
+  {
+    for (int j = 0; j < dim; ++j)
+    {
+      for (int k = 0; k < dim; ++k)
+      {
+        int const globalIdx =
+            mesh_local.globalNodeIndex(elementNumber, i, j, k);
+        int const localIdx = i + j * dim + k * dim * dim;
+        for (int f = 0; f < kNumFields; ++f)
+        {
+          ATOMICADD(attenuationWorkVectorsGlobal_[f][globalIdx],
+                    localWorkA[f][localIdx]);
+        }
+      }
+    }
+  }
+
+  MAINLOOPEND
+}
+
+//============================================================================
 // computeElementContributions_Iso - ISOTROPIC
 //============================================================================
 
@@ -308,7 +526,8 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES,
   model_discretization_interface::gatherTransformData(elementNumber, mesh_local,
                                                       transformData);
 
-#ifdef __CUDACC__
+#if defined(__CUDACC__) || defined(__HIPCC__)
+
   struct CJPacked
   {
     float4 a;
@@ -369,7 +588,8 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES,
             float const v4 = lambda * Jp0 * Jr2 + mu * Jp2 * Jr0;
             float const v5 = lambda * Jp1 * Jr2 + mu * Jp2 * Jr1;
 
-#ifdef __CUDACC__
+#if defined(__CUDACC__) || defined(__HIPCC__)
+
             CJflat[idx].a = make_float4(v0, v1, v2, v3);
             CJflat[idx].b = make_float2(v4, v5);
 #else
@@ -385,7 +605,8 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES,
       },
       [&](int i, int j, float val, const int p, const int r) {
         int const idx = p * 3 + r;
-#ifdef __CUDACC__
+#if defined(__CUDACC__) || defined(__HIPCC__)
+
         float3 const u_local = make_float3(localFields[0][j], localFields[1][j],
                                            localFields[2][j]);
         float4 const a = CJflat[idx].a;
@@ -488,7 +709,8 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES,
   model_discretization_interface::gatherTransformData(elementNumber, mesh_local,
                                                       transformData);
 
-#ifdef __CUDACC__
+#if defined(__CUDACC__) || defined(__HIPCC__)
+
   struct CJPacked
   {
     float4 a;
@@ -564,7 +786,8 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES,
             float const v4 = c44 * p0r2 + c13 * p2r0;
             float const v5 = c44 * p1r2 + c13 * p2r1;
 
-#ifdef __CUDACC__
+#if defined(__CUDACC__) || defined(__HIPCC__)
+
             CJflat[idx].a = make_float4(v0, v1, v2, v3);
             CJflat[idx].b = make_float2(v4, v5);
 #else
@@ -580,7 +803,8 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES,
       },
       [&](int i, int j, float val, const int p, const int r) {
         int const idx = p * 3 + r;
-#ifdef __CUDACC__
+#if defined(__CUDACC__) || defined(__HIPCC__)
+
         float3 const u_local = make_float3(localFields[0][j], localFields[1][j],
                                            localFields[2][j]);
         float4 const a = CJflat[idx].a;
@@ -695,7 +919,8 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES,
       mesh_local.getCTensorOnElement(elementNumber, CTTI);
     }
 
-#ifdef __CUDACC__
+#if defined(__CUDACC__) || defined(__HIPCC__)
+
     struct CJPacked
     {
       float4 a;
@@ -772,7 +997,8 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES,
                          C13 * p1r1 + C12 * p1r2 + C34 * p2r0 + C33 * p2r1 +
                          C23 * p2r2;
 
-#ifdef __CUDACC__
+#if defined(__CUDACC__) || defined(__HIPCC__)
+
               CJflat[idx].a = make_float4(v0, v1, v2, v3);
               CJflat[idx].b = make_float2(v4, v5);
 #else
@@ -788,7 +1014,8 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES,
         },
         [&](int i, int j, float val, const int p, const int r) {
           const int idx = p * 3 + r;
-#ifdef __CUDACC__
+#if defined(__CUDACC__) || defined(__HIPCC__)
+
           const float3 u_local = make_float3(
               localFields[0][j], localFields[1][j], localFields[2][j]);
           const float4 a = CJflat[idx].a;
@@ -854,19 +1081,17 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES,
   float const dt2 = dt * dt;
 
   auto mesh_local = m_mesh;
+
   bool const list_on = m_node_list_mode_;
   auto list_local = m_node_list_;
 
   if constexpr (PHYSICS == enums::physicType::kAcoustic)
   {
-    // ===== ACOUSTIC VERSION =====
     int const n_iter = list_on ? m_n_node_list_ : mesh_local.getNumberOfNodes();
     LOOPHEAD(n_iter, _node_idx)
     {
       if (_node_idx >= n_iter) return;
       int const I = list_on ? list_local[_node_idx] : _node_idx;
-      // Skip nodes with zero mass (e.g. elastic-only nodes in a coupled
-      // solver).
       if (massMatrixGlobal_[I] <= 0.0f) return;
       if (mesh_local.isFreeSurface(I))
       {
@@ -877,11 +1102,32 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES,
       else
       {
         // Normal time integration with damping
-        data.getPreviousField(0)(I) =
+        float next_val =
             (2 * massMatrixGlobal_[I] * data.getCurrentField(0)(I) -
              (massMatrixGlobal_[I] - 0.5 * dt * dampingMatrixGlobal_[0][I]) *
                  data.getPreviousField(0)(I) -
-             dt2 * workVectorsGlobal_[0][I]) /
+             dt2 * workVectorsGlobal_[0][I]);
+
+        if (attenuationEnabled_ && nSls_ > 0)
+        {
+          for (int l = 0; l < nSls_; ++l)
+          {
+            float const w = slsReferenceAngularFrequencies_[l];
+            float const gamma = (2.0f - w * dt) / (2.0f + w * dt);
+            float const beta = slsAnelasticityCoefficients_[l] * w * 2.0f * dt /
+                               (2.0f + w * dt);
+            float const gamma_p = 0.5f + 0.5f * gamma;
+            float const beta_p = 0.5f * beta;
+            next_val += dt2 * (gamma_p * attenuationMemoryVariables_[0](I, l) +
+                               beta_p * attenuationWorkVectorsGlobal_[0][I]);
+            attenuationMemoryVariables_[0](I, l) =
+                gamma * attenuationMemoryVariables_[0](I, l) +
+                beta * attenuationWorkVectorsGlobal_[0][I];
+          }
+        }
+
+        data.getPreviousField(0)(I) =
+            next_val /
             (massMatrixGlobal_[I] + 0.5 * dt * dampingMatrixGlobal_[0][I]);
         data.getPreviousField(0)(I) *= spongeTaperCoeff_(I);
         data.getCurrentField(0)(I) *= spongeTaperCoeff_(I);
@@ -891,15 +1137,12 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES,
   }
   else  // ELASTIC
   {
-    // ===== ELASTIC VERSION =====
     int const n_iter_el =
         list_on ? m_n_node_list_ : mesh_local.getNumberOfNodes();
     LOOPHEAD(n_iter_el, _node_idx)
     {
       if (_node_idx >= n_iter_el) return;
       int const I = list_on ? list_local[_node_idx] : _node_idx;
-      // Skip nodes with zero mass (e.g. acoustic-only nodes in a coupled
-      // solver).
       if (massMatrixGlobal_[I] <= 0.0f) return;
       if (mesh_local.isFreeSurface(I))
       {
@@ -907,11 +1150,31 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES,
         // computeDampingMatrix)
         for (int f = 0; f < kNumFields; ++f)
         {
-          data.getPreviousField(f)(I) =
+          float next_val =
               (2 * massMatrixGlobal_[I] * data.getCurrentField(f)(I) -
                massMatrixGlobal_[I] * data.getPreviousField(f)(I) -
-               dt2 * workVectorsGlobal_[f][I]) /
-              massMatrixGlobal_[I];
+               dt2 * workVectorsGlobal_[f][I]);
+
+          if (attenuationEnabled_ && nSls_ > 0)
+          {
+            for (int l = 0; l < nSls_; ++l)
+            {
+              float const w = slsReferenceAngularFrequencies_[l];
+              float const gamma = (2.0f - w * dt) / (2.0f + w * dt);
+              float const beta = slsAnelasticityCoefficients_[l] * w * 2.0f *
+                                 dt / (2.0f + w * dt);
+              float const gamma_p = 0.5f + 0.5f * gamma;
+              float const beta_p = 0.5f * beta;
+              next_val +=
+                  dt2 * (gamma_p * attenuationMemoryVariables_[f](I, l) +
+                         beta_p * attenuationWorkVectorsGlobal_[f][I]);
+              attenuationMemoryVariables_[f](I, l) =
+                  gamma * attenuationMemoryVariables_[f](I, l) +
+                  beta * attenuationWorkVectorsGlobal_[f][I];
+            }
+          }
+
+          data.getPreviousField(f)(I) = next_val / massMatrixGlobal_[I];
           data.getPreviousField(f)(I) *= spongeTaperCoeff_(I);
           data.getCurrentField(f)(I) *= spongeTaperCoeff_(I);
         }
@@ -921,11 +1184,33 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES,
         // Normal time integration with damping
         for (int f = 0; f < kNumFields; ++f)
         {
-          data.getPreviousField(f)(I) =
+          float next_val =
               (2 * massMatrixGlobal_[I] * data.getCurrentField(f)(I) -
                (massMatrixGlobal_[I] - 0.5 * dt * dampingMatrixGlobal_[f][I]) *
                    data.getPreviousField(f)(I) -
-               dt2 * workVectorsGlobal_[f][I]) /
+               dt2 * workVectorsGlobal_[f][I]);
+
+          if (attenuationEnabled_ && nSls_ > 0)
+          {
+            for (int l = 0; l < nSls_; ++l)
+            {
+              float const w = slsReferenceAngularFrequencies_[l];
+              float const gamma = (2.0f - w * dt) / (2.0f + w * dt);
+              float const beta = slsAnelasticityCoefficients_[l] * w * 2.0f *
+                                 dt / (2.0f + w * dt);
+              float const gamma_p = 0.5f + 0.5f * gamma;
+              float const beta_p = 0.5f * beta;
+              next_val +=
+                  dt2 * (gamma_p * attenuationMemoryVariables_[f](I, l) +
+                         beta_p * attenuationWorkVectorsGlobal_[f][I]);
+              attenuationMemoryVariables_[f](I, l) =
+                  gamma * attenuationMemoryVariables_[f](I, l) +
+                  beta * attenuationWorkVectorsGlobal_[f][I];
+            }
+          }
+
+          data.getPreviousField(f)(I) =
+              next_val /
               (massMatrixGlobal_[I] + 0.5 * dt * dampingMatrixGlobal_[f][I]);
           data.getPreviousField(f)(I) *= spongeTaperCoeff_(I);
           data.getCurrentField(f)(I) *= spongeTaperCoeff_(I);
@@ -945,83 +1230,19 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES,
                PHYSICS>::computeGlobalMassMatrix()
 {
   auto mesh_local = m_mesh;
+  auto mask_local = m_element_mask_;
+  bool mask_on = m_mask_enabled_;
+  int mask_val = m_mask_active_value_;
+  bool const list_on = m_list_mode_;
+  auto list_local = m_elem_list_;
+  int const n_iter =
+      list_on ? m_n_elem_list_ : mesh_local.getNumberOfElements();
 
-  MAINLOOPHEAD(mesh_local.getNumberOfElements(), elementNumber)
+  MAINLOOPHEAD(n_iter, _loop_idx)
 
-  if (elementNumber >= mesh_local.getNumberOfElements()) return;
-
-  float massMatrixLocal[kPointsPerElement] = {0};
-  int const dim = mesh_local.getOrder() + 1;
-
-  typename INTEGRAL_TYPE::TransformType transformData;
-  model_discretization_interface::gatherTransformData(elementNumber, mesh_local,
-                                                      transformData);
-
-  INTEGRAL_TYPE::computeMassTerm(
-      transformData,
-      [&](const int j, const real_t val) { massMatrixLocal[j] += val; });
-
-  real_t model_factor = 0.0f;
-  if constexpr (!IS_MODEL_ON_NODES)
-  {
-    if constexpr (PHYSICS == enums::physicType::kAcoustic)
-    {
-      model_factor = 1.0f / (mesh_local.getModelVpOnElement(elementNumber) *
-                             mesh_local.getModelVpOnElement(elementNumber) *
-                             mesh_local.getModelRhoOnElement(elementNumber));
-    }
-    else
-    {
-      model_factor = mesh_local.getModelRhoOnElement(elementNumber);
-    }
-  }
-
-  for (int i = 0; i < mesh_local.getNumberOfPointsPerElement(); ++i)
-  {
-    int x = i % dim;
-    int z = (i / dim) % dim;
-    int y = i / (dim * dim);
-    int const gIndex = mesh_local.globalNodeIndex(elementNumber, x, y, z);
-
-    if constexpr (IS_MODEL_ON_NODES)
-    {
-      if constexpr (PHYSICS == enums::physicType::kAcoustic)
-      {
-        model_factor = 1.0f / (mesh_local.getModelVpOnNodes(gIndex) *
-                               mesh_local.getModelVpOnNodes(gIndex) *
-                               mesh_local.getModelRhoOnNodes(gIndex));
-      }
-      else
-      {
-        model_factor = mesh_local.getModelRhoOnNodes(gIndex);
-      }
-    }
-
-    massMatrixLocal[i] *= model_factor;
-    ATOMICADD(massMatrixGlobal_[gIndex], massMatrixLocal[i]);
-  }
-
-  MAINLOOPEND
-}
-
-//============================================================================
-// computeGlobalMassMatrixMasked - domain-masked mass matrix assembly
-//============================================================================
-
-template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE,
-          bool IS_MODEL_ON_NODES, physicType PHYSICS>
-void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES,
-               PHYSICS>::computeGlobalMassMatrixMasked(const VECTOR_INT_VIEW&
-                                                           elem_mask,
-                                                       int active_value)
-{
-  auto mesh_local = m_mesh;
-  auto mask = elem_mask;
-
-  MAINLOOPHEAD(mesh_local.getNumberOfElements(), elementNumber)
-
-  if (elementNumber >= mesh_local.getNumberOfElements()) return;
-  if (mask[elementNumber] != active_value) return;
+  if (_loop_idx >= n_iter) return;
+  int const elementNumber = list_on ? list_local[_loop_idx] : _loop_idx;
+  if (!list_on && mask_on && mask_local[elementNumber] != mask_val) return;
 
   float massMatrixLocal[kPointsPerElement] = {0};
   int const dim = mesh_local.getOrder() + 1;
@@ -1075,60 +1296,6 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES,
   }
 
   MAINLOOPEND
-}
-
-//============================================================================
-// computeElementContributionsMasked - domain-masked stiffness assembly
-//============================================================================
-
-template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE,
-          bool IS_MODEL_ON_NODES, physicType PHYSICS>
-void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::
-    computeElementContributionsMasked(const DataType& data,
-                                      const VECTOR_INT_VIEW& elem_mask,
-                                      int active_value)
-{
-  m_element_mask_ = elem_mask;
-  m_mask_active_value_ = active_value;
-  m_mask_enabled_ = true;
-  computeElementContributions(data);
-  m_mask_enabled_ = false;
-}
-
-//============================================================================
-// computeElementContributionsFromList - stiffness assembly from compact list
-//============================================================================
-
-template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE,
-          bool IS_MODEL_ON_NODES, physicType PHYSICS>
-void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::
-    computeElementContributionsFromList(const DataType& data,
-                                        const VECTOR_INT_VIEW& elem_list,
-                                        int n_elems)
-{
-  m_elem_list_ = elem_list;
-  m_n_elem_list_ = n_elems;
-  m_list_mode_ = true;
-  computeElementContributions(data);
-  m_list_mode_ = false;
-}
-
-//============================================================================
-// updateFieldsFromList - Verlet update restricted to a compact node list
-//============================================================================
-
-template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE,
-          bool IS_MODEL_ON_NODES, physicType PHYSICS>
-void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES,
-               PHYSICS>::updateFieldsFromList(float dt, const DataType& data,
-                                              const VECTOR_INT_VIEW& node_list,
-                                              int n_nodes)
-{
-  m_node_list_ = node_list;
-  m_n_node_list_ = n_nodes;
-  m_node_list_mode_ = true;
-  updateFields(dt, data);
-  m_node_list_mode_ = false;
 }
 
 //============================================================================
@@ -1141,57 +1308,87 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES,
                PHYSICS>::computeDampingMatrix()
 {
   auto mesh_local = m_mesh;
+  auto mask_local = m_element_mask_;
+  bool mask_on = m_mask_enabled_;
+  int mask_val = m_mask_active_value_;
+  bool const list_on = m_list_mode_;
+  auto list_local = m_elem_list_;
+  int const n_iter =
+      list_on ? m_n_elem_list_ : mesh_local.getNumberOfElements();
 
-  MAINLOOPHEAD(mesh_local.getNumberOfElements(), elementNumber)
+  MAINLOOPHEAD(n_iter, _loop_idx)
+  if (_loop_idx >= n_iter) return;
+  int const elementNumber = list_on ? list_local[_loop_idx] : _loop_idx;
+  if (!list_on && mask_on && mask_local[elementNumber] != mask_val) return;
 
-  constexpr int numNodesPerFace = (ORDER + 1) * (ORDER + 1);
   for (int i = 0; i < 6; ++i)
   {
-    int const f = mesh_local.getGlobalFace(elementNumber,
-                                           static_cast<model::CubicFace>(i));
+    // Get global face ID for this element face
+    int f = mesh_local.getGlobalFace(elementNumber,
+                                     static_cast<model::CubicFace>(i));
+
+    // Skip internal faces (only process boundary faces)
     if (!mesh_local.isBoundaryFace(f)) continue;
 
+    // Get corner coordinates of the face for integration
     float coords[4][3];
     for (int j = 0; j < 4; ++j)
     {
-      int const gn = mesh_local.getGlobalNodeFromFace(
+      int const globalNodeIndex = mesh_local.getGlobalNodeFromFace(
           f, INTEGRAL_TYPE::meshIndexToLinearIndex2D(j));
-      for (int d = 0; d < 3; ++d) coords[j][d] = mesh_local.nodeCoord(gn, d);
+      for (int d = 0; d < 3; ++d)
+      {
+        coords[j][d] = mesh_local.nodeCoord(globalNodeIndex, d);
+      }
     }
 
     if constexpr (PHYSICS == enums::physicType::kAcoustic)
     {
-      real_t model_rho = 0.0f, model_vp = 0.0f, alpha = 0.0f;
+      // Acoustic damping
+      real_t model_rho = 0.0f;
+      real_t model_vp = 0.0f;
+      real_t alpha = 0.0f;
+
       if constexpr (!IS_MODEL_ON_NODES)
       {
         model_rho = mesh_local.getModelRhoOnElement(elementNumber);
         model_vp = mesh_local.getModelVpOnElement(elementNumber);
-        alpha = 1.0f / (model_rho * model_vp);
+        alpha = 1.0 / (model_rho * model_vp);
       }
 
+      constexpr int numNodesPerFace = (ORDER + 1) * (ORDER + 1);
       for (int q = 0; q < numNodesPerFace; ++q)
       {
-        int const gn = mesh_local.getGlobalNodeFromFace(f, q);
-        if (mesh_local.isFreeSurface(gn)) continue;
+        int const globalNodeIndex = mesh_local.getGlobalNodeFromFace(f, q);
+
+        // Skip free surface nodes (no damping on free surface)
+        if (mesh_local.isFreeSurface(globalNodeIndex))
+        {
+          continue;
+        }
+
         if constexpr (IS_MODEL_ON_NODES)
         {
-          model_rho = mesh_local.getModelRhoOnNodes(gn);
-          model_vp = mesh_local.getModelVpOnNodes(gn);
-          alpha = 1.0f / (model_rho * model_vp);
+          model_rho = mesh_local.getModelRhoOnNodes(globalNodeIndex);
+          model_vp = mesh_local.getModelVpOnNodes(globalNodeIndex);
+          alpha = 1.0 / (model_rho * model_vp);
         }
-        real_t const incr =
+
+        real_t localIncrement =
             alpha * INTEGRAL_TYPE::computeDampingTerm(q, coords);
-        ATOMICADD(dampingMatrixGlobal_[0][gn], incr);
+        ATOMICADD(dampingMatrixGlobal_[0][globalNodeIndex], localIncrement);
       }
     }
     else  // Elastic
     {
+      // Elastic damping
       float normal[3];
       mesh_local.faceNormal(elementNumber, static_cast<model::CubicFace>(i),
                             normal);
-      real_t const nx = normal[0], ny = normal[1], nz = normal[2];
+      real_t nx = normal[0], ny = normal[1], nz = normal[2];
 
-      real_t density = 0.0f, velocityVp = 0.0f, velocityVs = 0.0f;
+      real_t density, velocityVp, velocityVs;
+
       if constexpr (!IS_MODEL_ON_NODES)
       {
         density = mesh_local.getModelRhoOnElement(elementNumber);
@@ -1199,131 +1396,38 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES,
         velocityVs = mesh_local.getModelVsOnElement(elementNumber);
       }
 
+      constexpr int numNodesPerFace = (ORDER + 1) * (ORDER + 1);
       for (int q = 0; q < numNodesPerFace; ++q)
       {
-        int const gn = mesh_local.getGlobalNodeFromFace(f, q);
-        if (mesh_local.isFreeSurface(gn)) continue;
+        int const globalNodeIndex = mesh_local.getGlobalNodeFromFace(f, q);
+
+        // Skip free surface nodes (no damping on free surface)
+        if (mesh_local.isFreeSurface(globalNodeIndex))
+        {
+          continue;
+        }
+
         if constexpr (IS_MODEL_ON_NODES)
         {
-          density = mesh_local.getModelRhoOnNodes(gn);
-          velocityVp = mesh_local.getModelVpOnNodes(gn);
-          velocityVs = mesh_local.getModelVsOnNodes(gn);
+          density = mesh_local.getModelRhoOnNodes(globalNodeIndex);
+          velocityVp = mesh_local.getModelVpOnNodes(globalNodeIndex);
+          velocityVs = mesh_local.getModelVsOnNodes(globalNodeIndex);
         }
-        real_t const aux =
-            density * INTEGRAL_TYPE::computeDampingTerm(q, coords);
-        ATOMICADD(dampingMatrixGlobal_[0][gn],
-                  aux * (velocityVp * fabs(nx) +
-                         velocityVs * sqrt(ny * ny + nz * nz)));
-        ATOMICADD(dampingMatrixGlobal_[1][gn],
-                  aux * (velocityVp * fabs(ny) +
-                         velocityVs * sqrt(nx * nx + nz * nz)));
-        ATOMICADD(dampingMatrixGlobal_[2][gn],
-                  aux * (velocityVp * fabs(nz) +
-                         velocityVs * sqrt(nx * nx + ny * ny)));
+
+        real_t aux = density * INTEGRAL_TYPE::computeDampingTerm(q, coords);
+        real_t localIncrementx = aux * (velocityVp * fabs(nx) +
+                                        velocityVs * sqrt(ny * ny + nz * nz));
+        real_t localIncrementy = aux * (velocityVp * fabs(ny) +
+                                        velocityVs * sqrt(nx * nx + nz * nz));
+        real_t localIncrementz = aux * (velocityVp * fabs(nz) +
+                                        velocityVs * sqrt(nx * nx + ny * ny));
+
+        ATOMICADD(dampingMatrixGlobal_[0][globalNodeIndex], localIncrementx);
+        ATOMICADD(dampingMatrixGlobal_[1][globalNodeIndex], localIncrementy);
+        ATOMICADD(dampingMatrixGlobal_[2][globalNodeIndex], localIncrementz);
       }
     }
   }
-
-  MAINLOOPEND
-}
-
-//============================================================================
-// computeDampingMatrixMasked - domain-masked damping matrix assembly
-//============================================================================
-
-template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE,
-          bool IS_MODEL_ON_NODES, physicType PHYSICS>
-void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES,
-               PHYSICS>::computeDampingMatrixMasked(const VECTOR_INT_VIEW&
-                                                        elem_mask,
-                                                    int active_value)
-{
-  auto mesh_local = m_mesh;
-  auto mask = elem_mask;
-
-  MAINLOOPHEAD(mesh_local.getNumberOfElements(), elementNumber)
-
-  if (mask[elementNumber] != active_value) return;
-  constexpr int numNodesPerFace = (ORDER + 1) * (ORDER + 1);
-  for (int i = 0; i < 6; ++i)
-  {
-    int const f = mesh_local.getGlobalFace(elementNumber,
-                                           static_cast<model::CubicFace>(i));
-    if (!mesh_local.isBoundaryFace(f)) continue;
-
-    float coords[4][3];
-    for (int j = 0; j < 4; ++j)
-    {
-      int const gn = mesh_local.getGlobalNodeFromFace(
-          f, INTEGRAL_TYPE::meshIndexToLinearIndex2D(j));
-      for (int d = 0; d < 3; ++d) coords[j][d] = mesh_local.nodeCoord(gn, d);
-    }
-
-    if constexpr (PHYSICS == enums::physicType::kAcoustic)
-    {
-      real_t model_rho = 0.0f, model_vp = 0.0f, alpha = 0.0f;
-      if constexpr (!IS_MODEL_ON_NODES)
-      {
-        model_rho = mesh_local.getModelRhoOnElement(elementNumber);
-        model_vp = mesh_local.getModelVpOnElement(elementNumber);
-        alpha = 1.0f / (model_rho * model_vp);
-      }
-
-      for (int q = 0; q < numNodesPerFace; ++q)
-      {
-        int const gn = mesh_local.getGlobalNodeFromFace(f, q);
-        if (mesh_local.isFreeSurface(gn)) continue;
-        if constexpr (IS_MODEL_ON_NODES)
-        {
-          model_rho = mesh_local.getModelRhoOnNodes(gn);
-          model_vp = mesh_local.getModelVpOnNodes(gn);
-          alpha = 1.0f / (model_rho * model_vp);
-        }
-        real_t const incr =
-            alpha * INTEGRAL_TYPE::computeDampingTerm(q, coords);
-        ATOMICADD(dampingMatrixGlobal_[0][gn], incr);
-      }
-    }
-    else  // Elastic
-    {
-      float normal[3];
-      mesh_local.faceNormal(elementNumber, static_cast<model::CubicFace>(i),
-                            normal);
-      real_t const nx = normal[0], ny = normal[1], nz = normal[2];
-
-      real_t density = 0.0f, velocityVp = 0.0f, velocityVs = 0.0f;
-      if constexpr (!IS_MODEL_ON_NODES)
-      {
-        density = mesh_local.getModelRhoOnElement(elementNumber);
-        velocityVp = mesh_local.getModelVpOnElement(elementNumber);
-        velocityVs = mesh_local.getModelVsOnElement(elementNumber);
-      }
-
-      for (int q = 0; q < numNodesPerFace; ++q)
-      {
-        int const gn = mesh_local.getGlobalNodeFromFace(f, q);
-        if (mesh_local.isFreeSurface(gn)) continue;
-        if constexpr (IS_MODEL_ON_NODES)
-        {
-          density = mesh_local.getModelRhoOnNodes(gn);
-          velocityVp = mesh_local.getModelVpOnNodes(gn);
-          velocityVs = mesh_local.getModelVsOnNodes(gn);
-        }
-        real_t const aux =
-            density * INTEGRAL_TYPE::computeDampingTerm(q, coords);
-        ATOMICADD(dampingMatrixGlobal_[0][gn],
-                  aux * (velocityVp * fabs(nx) +
-                         velocityVs * sqrt(ny * ny + nz * nz)));
-        ATOMICADD(dampingMatrixGlobal_[1][gn],
-                  aux * (velocityVp * fabs(ny) +
-                         velocityVs * sqrt(nx * nx + nz * nz)));
-        ATOMICADD(dampingMatrixGlobal_[2][gn],
-                  aux * (velocityVp * fabs(nz) +
-                         velocityVs * sqrt(nx * nx + ny * ny)));
-      }
-    }
-  }
-
   MAINLOOPEND
 }
 
@@ -1356,6 +1460,21 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES,
         m_mesh.getNumberOfNodes(), workVectorNames[f]);
   }
 
+  if (attenuationEnabled_ && nSls_ > 0)
+  {
+    static constexpr const char* attWorkNames[3] = {
+        "attWorkVec0", "attWorkVec1", "attWorkVec2"};
+    static constexpr const char* attMemNames[3] = {"attMemory0", "attMemory1",
+                                                   "attMemory2"};
+    for (int f = 0; f < kNumFields; ++f)
+    {
+      attenuationWorkVectorsGlobal_[f] = allocateVector<VECTOR_REAL_VIEW>(
+          m_mesh.getNumberOfNodes(), attWorkNames[f]);
+      attenuationMemoryVariables_[f] = allocateArray2D<ARRAY_REAL_VIEW>(
+          m_mesh.getNumberOfNodes(), nSls_, attMemNames[f]);
+    }
+  }
+
   spongeTaperCoeff_ = allocateVector<VECTOR_REAL_VIEW>(
       m_mesh.getNumberOfNodes(), "spongeTaperCoeff");
 }
@@ -1370,6 +1489,22 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES,
                PHYSICS>::initFEarrays()
 {
   initSpongeValues();
+
+  if (attenuationEnabled_ && nSls_ > 0)
+  {
+    for (int n = 0; n < m_mesh.getNumberOfNodes(); ++n)
+    {
+      for (int f = 0; f < kNumFields; ++f)
+      {
+        attenuationWorkVectorsGlobal_[f](n) = 0.0f;
+        for (int l = 0; l < nSls_; ++l)
+        {
+          attenuationMemoryVariables_[f](n, l) = 0.0f;
+        }
+      }
+    }
+    FENCE
+  }
 }
 
 //============================================================================
@@ -1588,6 +1723,96 @@ SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES,
       if (i != j) CTTI[j][i] = sum;
     }
   }
+}
+
+//============================================================================
+// computeGlobalMassMatrixMasked - domain-masked mass matrix assembly
+//============================================================================
+
+template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE,
+          bool IS_MODEL_ON_NODES, physicType PHYSICS>
+void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES,
+               PHYSICS>::computeGlobalMassMatrixMasked(const VECTOR_INT_VIEW&
+                                                            elem_mask,
+                                                        int active_value)
+{
+  m_element_mask_ = elem_mask;
+  m_mask_active_value_ = active_value;
+  m_mask_enabled_ = true;
+  computeGlobalMassMatrix();
+  m_mask_enabled_ = false;
+}
+
+//============================================================================
+// computeDampingMatrixMasked - domain-masked damping matrix assembly
+//============================================================================
+
+template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE,
+          bool IS_MODEL_ON_NODES, physicType PHYSICS>
+void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES,
+               PHYSICS>::computeDampingMatrixMasked(const VECTOR_INT_VIEW&
+                                                         elem_mask,
+                                                     int active_value)
+{
+  m_element_mask_ = elem_mask;
+  m_mask_active_value_ = active_value;
+  m_mask_enabled_ = true;
+  computeDampingMatrix();
+  m_mask_enabled_ = false;
+}
+
+//============================================================================
+// computeElementContributionsMasked - domain-masked stiffness assembly
+//============================================================================
+
+template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE,
+          bool IS_MODEL_ON_NODES, physicType PHYSICS>
+void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::
+    computeElementContributionsMasked(const DataType& data,
+                                      const VECTOR_INT_VIEW& elem_mask,
+                                      int active_value)
+{
+  m_element_mask_ = elem_mask;
+  m_mask_active_value_ = active_value;
+  m_mask_enabled_ = true;
+  computeElementContributions(data);
+  m_mask_enabled_ = false;
+}
+
+//============================================================================
+// computeElementContributionsFromList - stiffness assembly from compact list
+//============================================================================
+
+template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE,
+          bool IS_MODEL_ON_NODES, physicType PHYSICS>
+void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::
+    computeElementContributionsFromList(const DataType& data,
+                                        const VECTOR_INT_VIEW& elem_list,
+                                        int n_elems)
+{
+  m_elem_list_ = elem_list;
+  m_n_elem_list_ = n_elems;
+  m_list_mode_ = true;
+  computeElementContributions(data);
+  m_list_mode_ = false;
+}
+
+//============================================================================
+// updateFieldsFromList - Verlet update restricted to a compact node list
+//============================================================================
+
+template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE,
+          bool IS_MODEL_ON_NODES, physicType PHYSICS>
+void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES,
+               PHYSICS>::updateFieldsFromList(float dt, const DataType& data,
+                                               const VECTOR_INT_VIEW& node_list,
+                                               int n_nodes)
+{
+  m_node_list_ = node_list;
+  m_n_node_list_ = n_nodes;
+  m_node_list_mode_ = true;
+  updateFields(dt, data);
+  m_node_list_mode_ = false;
 }
 
 }  // namespace fe
