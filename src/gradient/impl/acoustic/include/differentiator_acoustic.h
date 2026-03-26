@@ -49,8 +49,7 @@ class DifferentiatorAcoustic : public Differentiator
                DataStruct& data) const override
   {
     auto& myData = dynamic_cast<DifferentiatorDataAcoustic&>(data);
-    auto mesh_copy = dynamic_cast<MESH_TYPE&>(
-        mesh);  // value copy for device capture TODO check that
+    auto& myMesh = dynamic_cast<MESH_TYPE&>(mesh);
 
     VECTOR_REAL_VIEW const pn =
         myData.getForwardField(0);  // forward pressure, node-indexed
@@ -64,9 +63,9 @@ class DifferentiatorAcoustic : public Differentiator
         myData.getGradient(1);  // grad_buoyancy, node- or element-indexed
 
     if constexpr (!IS_MODEL_ON_NODES)
-      computeOnElements(mesh_copy, pn, qn, qdt2, gradKappa, gradBuoyancy);
+      computeOnElements(myMesh, pn, qn, qdt2, gradKappa, gradBuoyancy);
     else
-      computeOnNodes(mesh_copy, pn, qn, qdt2, gradKappa, gradBuoyancy);
+      computeOnNodes(myMesh, pn, qn, qdt2, gradKappa, gradBuoyancy);
   }
 
   int getOrder() const override { return kOrder; }
@@ -86,28 +85,28 @@ class DifferentiatorAcoustic : public Differentiator
   /**
    * @brief Each element writes to a unique index — no atomic add required.
    */
-  void computeOnElements(MESH_TYPE mesh_copy, VECTOR_REAL_VIEW const pn,
+  void computeOnElements(MESH_TYPE mesh, VECTOR_REAL_VIEW const pn,
                          VECTOR_REAL_VIEW const qn, VECTOR_REAL_VIEW const qdt2,
                          VECTOR_REAL_VIEW const gradKappa,
                          VECTOR_REAL_VIEW const gradBuoyancy) const
   {
-    MAINLOOPHEAD(mesh_copy.getNumberOfElements(), elementNumber)
+    MAINLOOPHEAD(mesh.getNumberOfElements(), elementNumber)
 
-    if (elementNumber >= mesh_copy.getNumberOfElements()) return;
+    if (elementNumber >= mesh.getNumberOfElements()) return;
 
-    int const dim = mesh_copy.getOrder() + 1;
+    int const dim = mesh.getOrder() + 1;
 
     typename INTEGRAL_TYPE::TransformType transformData;
     {
-      auto const elementIndex = mesh_copy.elementIndex(elementNumber);
+      auto const elementIndex = mesh.elementIndex(elementNumber);
       int I = 0;
       for (int kv = 0; kv < 2; ++kv)
         for (int jv = 0; jv < 2; ++jv)
           for (int iv = 0; iv < 2; ++iv)
           {
             auto const vertexIndex =
-                mesh_copy.globalVertexIndex(elementIndex, iv, jv, kv);
-            mesh_copy.vertexCoords(vertexIndex, transformData.data[I]);
+                mesh.globalVertexIndex(elementIndex, iv, jv, kv);
+            mesh.vertexCoords(vertexIndex, transformData.data[I]);
             ++I;
           }
     }
@@ -119,7 +118,7 @@ class DifferentiatorAcoustic : public Differentiator
       for (int j = 0; j < dim; ++j)
         for (int k = 0; k < dim; ++k)
         {
-          int const gIdx = mesh_copy.globalNodeIndex(elementNumber, i, j, k);
+          int const gIdx = mesh.globalNodeIndex(elementNumber, i, j, k);
           int const lIdx = i + j * dim + k * dim * dim;
           localPn[lIdx] = pn(gIdx);
           localQn[lIdx] = qn(gIdx);
@@ -150,28 +149,28 @@ class DifferentiatorAcoustic : public Differentiator
   /**
    * @brief Multiple elements share boundary nodes — ATOMICADD required.
    */
-  void computeOnNodes(MESH_TYPE mesh_copy, VECTOR_REAL_VIEW const pn,
+  void computeOnNodes(MESH_TYPE mesh, VECTOR_REAL_VIEW const pn,
                       VECTOR_REAL_VIEW const qn, VECTOR_REAL_VIEW const qdt2,
                       VECTOR_REAL_VIEW const gradKappa,
                       VECTOR_REAL_VIEW const gradBuoyancy) const
   {
-    MAINLOOPHEAD(mesh_copy.getNumberOfElements(), elementNumber)
+    MAINLOOPHEAD(mesh.getNumberOfElements(), elementNumber)
 
-    if (elementNumber >= mesh_copy.getNumberOfElements()) return;
+    if (elementNumber >= mesh.getNumberOfElements()) return;
 
-    int const dim = mesh_copy.getOrder() + 1;
+    int const dim = mesh.getOrder() + 1;
 
     typename INTEGRAL_TYPE::TransformType transformData;
     {
-      auto const elementIndex = mesh_copy.elementIndex(elementNumber);
+      auto const elementIndex = mesh.elementIndex(elementNumber);
       int I = 0;
       for (int kv = 0; kv < 2; ++kv)
         for (int jv = 0; jv < 2; ++jv)
           for (int iv = 0; iv < 2; ++iv)
           {
             auto const vertexIndex =
-                mesh_copy.globalVertexIndex(elementIndex, iv, jv, kv);
-            mesh_copy.vertexCoords(vertexIndex, transformData.data[I]);
+                mesh.globalVertexIndex(elementIndex, iv, jv, kv);
+            mesh.vertexCoords(vertexIndex, transformData.data[I]);
             ++I;
           }
     }
@@ -184,7 +183,7 @@ class DifferentiatorAcoustic : public Differentiator
       for (int j = 0; j < dim; ++j)
         for (int k = 0; k < dim; ++k)
         {
-          int const gIdx = mesh_copy.globalNodeIndex(elementNumber, i, j, k);
+          int const gIdx = mesh.globalNodeIndex(elementNumber, i, j, k);
           int const lIdx = i + j * dim + k * dim * dim;
           localGIdx[lIdx] = gIdx;
           localPn[lIdx] = pn(gIdx);
