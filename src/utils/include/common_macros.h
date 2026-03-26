@@ -5,11 +5,6 @@
 
 #define PROXY_HOST_DEVICE KOKKOS_FORCEINLINE_FUNCTION
 
-#define LOOPHEAD(Range, Iterator) \
-    Kokkos::parallel_for( Range, KOKKOS_CLASS_LAMBDA ( const int Iterator ){
-#define LOOPEND \
-  });
-
 // MAINLOOP
 #define LaunchMaxThreadsPerBlock 64
 #define LaunchMinBlocksPerSM 1

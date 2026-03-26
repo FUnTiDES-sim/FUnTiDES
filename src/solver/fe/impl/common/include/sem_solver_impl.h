@@ -137,18 +137,17 @@ template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE,
 void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES,
                PHYSICS>::resetGlobalVectors(int numNodes)
 {
-  LOOPHEAD(numNodes, i)
-  {
-    for (int f = 0; f < kNumFields; ++f)
-    {
-      workVectorsGlobal_[f][i] = 0;
-      if (attenuationEnabled_ && nSls_ > 0)
-      {
-        attenuationWorkVectorsGlobal_[f][i] = 0;
-      }
-    }
-  }
-  LOOPEND
+  Kokkos::parallel_for(
+      "Solver Reset GVector", numNodes, KOKKOS_CLASS_LAMBDA(const int i) {
+        for (int f = 0; f < kNumFields; ++f)
+        {
+          workVectorsGlobal_[f][i] = 0;
+          if (attenuationEnabled_ && nSls_ > 0)
+          {
+            attenuationWorkVectorsGlobal_[f][i] = 0;
+          }
+        }
+      });
 }
 
 //============================================================================
@@ -165,29 +164,29 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES,
 
   auto mesh_local = m_mesh;  // Capture mesh for lambda
 
-  LOOPHEAD(nb_rhs_element, i)
-  {
-    for (int z = 0; z < ORDER + 1; z++)
-    {
-      for (int y = 0; y < ORDER + 1; y++)
-      {
-        for (int x = 0; x < ORDER + 1; x++)
+  Kokkos::parallel_for(
+      "Solver Apply RHSTerm", nb_rhs_element, KOKKOS_CLASS_LAMBDA(const int i) {
+        for (int z = 0; z < ORDER + 1; z++)
         {
-          int localNodeId = x + y * (ORDER + 1) + z * (ORDER + 1) * (ORDER + 1);
-          int nodeRHS =
-              mesh_local.globalNodeIndex(data.getRhsElement()[i], x, y, z);
-
-          for (int f = 0; f < kNumRhs; ++f)
+          for (int y = 0; y < ORDER + 1; y++)
           {
-            float source = data.getRhsTerm(f)(i, timeSample) *
-                           data.getRhsWeights()(i, localNodeId);
-            workVectorsGlobal_[f](nodeRHS) -= source;
+            for (int x = 0; x < ORDER + 1; x++)
+            {
+              int localNodeId =
+                  x + y * (ORDER + 1) + z * (ORDER + 1) * (ORDER + 1);
+              int nodeRHS =
+                  mesh_local.globalNodeIndex(data.getRhsElement()[i], x, y, z);
+
+              for (int f = 0; f < kNumRhs; ++f)
+              {
+                float source = data.getRhsTerm(f)(i, timeSample) *
+                               data.getRhsWeights()(i, localNodeId);
+                workVectorsGlobal_[f](nodeRHS) -= source;
+              }
+            }
           }
         }
-      }
-    }
-  }
-  LOOPEND
+      });
 }
 
 //============================================================================
@@ -1027,142 +1026,164 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES,
 //============================================================================
 // updateFields - Time integration update
 //============================================================================
-
 template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE,
           bool IS_MODEL_ON_NODES, physicType PHYSICS>
 void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES,
                PHYSICS>::updateFields(float dt, const DataType& data)
 {
-  float const dt2 = dt * dt;
+  // Extract scalar constants to local variables
+  float const dt_local = dt;
+  float const dt2_local = dt * dt;
+  int const n_sls = nSls_;
+  bool const has_attenuation = (attenuationEnabled_ && nSls_ > 0);
 
+  // Extract single Views and objects to local variables
   auto mesh_local = m_mesh;
+  auto mass_matrix = massMatrixGlobal_;
+  auto taper_coeff = spongeTaperCoeff_;
+
+  // (Assuming these two are Kokkos::Views and NOT std::vectors.
+  // If they are std::vectors, you must copy them to device Views first).
+  auto sls_w = slsReferenceAngularFrequencies_;
+  auto sls_beta = slsAnelasticityCoefficients_;
+
+  // Extract std::arrays of Views to local arrays so the lambda can capture them by value.
+   // We use std::remove_reference_t to ensure we are creating arrays of Views, not arrays of references!
+  std::array<std::remove_reference_t<decltype(data.getCurrentField(0))>, kNumFields> current_field;
+  std::array<std::remove_reference_t<decltype(data.getPreviousField(0))>, kNumFields> prev_field;
+  std::array<std::remove_reference_t<decltype(dampingMatrixGlobal_[0])>, kNumFields> damping_matrix;
+  std::array<std::remove_reference_t<decltype(workVectorsGlobal_[0])>, kNumFields> work_vector;
+  std::array<std::remove_reference_t<decltype(attenuationWorkVectorsGlobal_[0])>, kNumFields> atten_work_vec;
+  std::array<std::remove_reference_t<decltype(attenuationMemoryVariables_[0])>, kNumFields> atten_mem_vars;
+
+  for (int f = 0; f < kNumFields; ++f)
+  {
+    current_field[f] = data.getCurrentField(f);
+    prev_field[f] = data.getPreviousField(f);
+    damping_matrix[f] = dampingMatrixGlobal_[f];
+    work_vector[f] = workVectorsGlobal_[f];
+    if (has_attenuation)
+    {
+      atten_work_vec[f] = attenuationWorkVectorsGlobal_[f];
+      atten_mem_vars[f] = attenuationMemoryVariables_[f];
+    }
+  }
 
   if constexpr (PHYSICS == enums::physicType::kAcoustic)
   {
-    LOOPHEAD(mesh_local.getNumberOfNodes(), I)
-    {
-      if (mesh_local.isFreeSurface(I))
-      {
-        // Force p = 0 on free surface
-        data.getCurrentField(0)(I) = 0.0f;
-        data.getPreviousField(0)(I) = 0.0f;
-      }
-      else
-      {
-        // Normal time integration with damping
-        float next_val =
-            (2 * massMatrixGlobal_[I] * data.getCurrentField(0)(I) -
-             (massMatrixGlobal_[I] - 0.5 * dt * dampingMatrixGlobal_[0][I]) *
-                 data.getPreviousField(0)(I) -
-             dt2 * workVectorsGlobal_[0][I]);
-
-        if (attenuationEnabled_ && nSls_ > 0)
-        {
-          for (int l = 0; l < nSls_; ++l)
+    Kokkos::parallel_for(
+        "Solver Update Field Acoustic", mesh_local.getNumberOfNodes(),
+        // Use standard KOKKOS_LAMBDA to capture local variables by value
+        KOKKOS_LAMBDA(const int I) {
+          if (mesh_local.isFreeSurface(I))
           {
-            float const w = slsReferenceAngularFrequencies_[l];
-            float const gamma = (2.0f - w * dt) / (2.0f + w * dt);
-            float const beta = slsAnelasticityCoefficients_[l] * w * 2.0f * dt /
-                               (2.0f + w * dt);
-            float const gamma_p = 0.5f + 0.5f * gamma;
-            float const beta_p = 0.5f * beta;
-            next_val += dt2 * (gamma_p * attenuationMemoryVariables_[0](I, l) +
-                               beta_p * attenuationWorkVectorsGlobal_[0][I]);
-            attenuationMemoryVariables_[0](I, l) =
-                gamma * attenuationMemoryVariables_[0](I, l) +
-                beta * attenuationWorkVectorsGlobal_[0][I];
+            current_field[0](I) = 0.0f;
+            prev_field[0](I) = 0.0f;
           }
-        }
+          else
+          {
+            float next_val =
+                (2.0f * mass_matrix(I) * current_field[0](I) -
+                 (mass_matrix(I) - 0.5f * dt_local * damping_matrix[0](I)) * prev_field[0](I) -
+                 dt2_local * work_vector[0](I));
 
-        data.getPreviousField(0)(I) =
-            next_val /
-            (massMatrixGlobal_[I] + 0.5 * dt * dampingMatrixGlobal_[0][I]);
-        data.getPreviousField(0)(I) *= spongeTaperCoeff_(I);
-        data.getCurrentField(0)(I) *= spongeTaperCoeff_(I);
-      }
-    }
-    LOOPEND
+            if (has_attenuation)
+            {
+              for (int l = 0; l < n_sls; ++l)
+              {
+                float const w = sls_w[l];
+                float const gamma = (2.0f - w * dt_local) / (2.0f + w * dt_local);
+                float const beta = sls_beta[l] * w * 2.0f * dt_local / (2.0f + w * dt_local);
+                float const gamma_p = 0.5f + 0.5f * gamma;
+                float const beta_p = 0.5f * beta;
+
+                next_val += dt2_local * (gamma_p * atten_mem_vars[0](I, l) +
+                                         beta_p * atten_work_vec[0](I));
+
+                atten_mem_vars[0](I, l) = gamma * atten_mem_vars[0](I, l) +
+                                          beta * atten_work_vec[0](I);
+              }
+            }
+
+            prev_field[0](I) = next_val / (mass_matrix(I) + 0.5f * dt_local * damping_matrix[0](I));
+            prev_field[0](I) *= taper_coeff(I);
+            current_field[0](I) *= taper_coeff(I);
+          }
+        });
   }
   else  // ELASTIC
   {
-    LOOPHEAD(mesh_local.getNumberOfNodes(), I)
-    {
-      if (mesh_local.isFreeSurface(I))
-      {
-        // Free surface: no damping (dampingMatrixGlobal is 0 from
-        // computeDampingMatrix)
-        for (int f = 0; f < kNumFields; ++f)
-        {
-          float next_val =
-              (2 * massMatrixGlobal_[I] * data.getCurrentField(f)(I) -
-               massMatrixGlobal_[I] * data.getPreviousField(f)(I) -
-               dt2 * workVectorsGlobal_[f][I]);
-
-          if (attenuationEnabled_ && nSls_ > 0)
+    Kokkos::parallel_for(
+        "Solver Update Field Elastic", mesh_local.getNumberOfNodes(),
+        KOKKOS_LAMBDA(const int I) {
+          if (mesh_local.isFreeSurface(I))
           {
-            for (int l = 0; l < nSls_; ++l)
+            for (int f = 0; f < kNumFields; ++f)
             {
-              float const w = slsReferenceAngularFrequencies_[l];
-              float const gamma = (2.0f - w * dt) / (2.0f + w * dt);
-              float const beta = slsAnelasticityCoefficients_[l] * w * 2.0f *
-                                 dt / (2.0f + w * dt);
-              float const gamma_p = 0.5f + 0.5f * gamma;
-              float const beta_p = 0.5f * beta;
-              next_val +=
-                  dt2 * (gamma_p * attenuationMemoryVariables_[f](I, l) +
-                         beta_p * attenuationWorkVectorsGlobal_[f][I]);
-              attenuationMemoryVariables_[f](I, l) =
-                  gamma * attenuationMemoryVariables_[f](I, l) +
-                  beta * attenuationWorkVectorsGlobal_[f][I];
+              float next_val =
+                  (2.0f * mass_matrix(I) * current_field[f](I) -
+                   mass_matrix(I) * prev_field[f](I) -
+                   dt2_local * work_vector[f](I));
+
+              if (has_attenuation)
+              {
+                for (int l = 0; l < n_sls; ++l)
+                {
+                  float const w = sls_w[l];
+                  float const gamma = (2.0f - w * dt_local) / (2.0f + w * dt_local);
+                  float const beta = sls_beta[l] * w * 2.0f * dt_local / (2.0f + w * dt_local);
+                  float const gamma_p = 0.5f + 0.5f * gamma;
+                  float const beta_p = 0.5f * beta;
+
+                  next_val += dt2_local * (gamma_p * atten_mem_vars[f](I, l) +
+                                           beta_p * atten_work_vec[f](I));
+
+                  atten_mem_vars[f](I, l) = gamma * atten_mem_vars[f](I, l) +
+                                            beta * atten_work_vec[f](I);
+                }
+              }
+
+              prev_field[f](I) = next_val / mass_matrix(I);
+              prev_field[f](I) *= taper_coeff(I);
+              current_field[f](I) *= taper_coeff(I);
             }
           }
-
-          data.getPreviousField(f)(I) = next_val / massMatrixGlobal_[I];
-          data.getPreviousField(f)(I) *= spongeTaperCoeff_(I);
-          data.getCurrentField(f)(I) *= spongeTaperCoeff_(I);
-        }
-      }
-      else
-      {
-        // Normal time integration with damping
-        for (int f = 0; f < kNumFields; ++f)
-        {
-          float next_val =
-              (2 * massMatrixGlobal_[I] * data.getCurrentField(f)(I) -
-               (massMatrixGlobal_[I] - 0.5 * dt * dampingMatrixGlobal_[f][I]) *
-                   data.getPreviousField(f)(I) -
-               dt2 * workVectorsGlobal_[f][I]);
-
-          if (attenuationEnabled_ && nSls_ > 0)
+          else
           {
-            for (int l = 0; l < nSls_; ++l)
+            for (int f = 0; f < kNumFields; ++f)
             {
-              float const w = slsReferenceAngularFrequencies_[l];
-              float const gamma = (2.0f - w * dt) / (2.0f + w * dt);
-              float const beta = slsAnelasticityCoefficients_[l] * w * 2.0f *
-                                 dt / (2.0f + w * dt);
-              float const gamma_p = 0.5f + 0.5f * gamma;
-              float const beta_p = 0.5f * beta;
-              next_val +=
-                  dt2 * (gamma_p * attenuationMemoryVariables_[f](I, l) +
-                         beta_p * attenuationWorkVectorsGlobal_[f][I]);
-              attenuationMemoryVariables_[f](I, l) =
-                  gamma * attenuationMemoryVariables_[f](I, l) +
-                  beta * attenuationWorkVectorsGlobal_[f][I];
+              float next_val =
+                  (2.0f * mass_matrix(I) * current_field[f](I) -
+                   (mass_matrix(I) - 0.5f * dt_local * damping_matrix[f](I)) * prev_field[f](I) -
+                   dt2_local * work_vector[f](I));
+
+              if (has_attenuation)
+              {
+                for (int l = 0; l < n_sls; ++l)
+                {
+                  float const w = sls_w[l];
+                  float const gamma = (2.0f - w * dt_local) / (2.0f + w * dt_local);
+                  float const beta = sls_beta[l] * w * 2.0f * dt_local / (2.0f + w * dt_local);
+                  float const gamma_p = 0.5f + 0.5f * gamma;
+                  float const beta_p = 0.5f * beta;
+
+                  next_val += dt2_local * (gamma_p * atten_mem_vars[f](I, l) +
+                                           beta_p * atten_work_vec[f](I));
+
+                  atten_mem_vars[f](I, l) = gamma * atten_mem_vars[f](I, l) +
+                                            beta * atten_work_vec[f](I);
+                }
+              }
+
+              prev_field[f](I) = next_val / (mass_matrix(I) + 0.5f * dt_local * damping_matrix[f](I));
+              prev_field[f](I) *= taper_coeff(I);
+              current_field[f](I) *= taper_coeff(I);
             }
           }
-
-          data.getPreviousField(f)(I) =
-              next_val /
-              (massMatrixGlobal_[I] + 0.5 * dt * dampingMatrixGlobal_[f][I]);
-          data.getPreviousField(f)(I) *= spongeTaperCoeff_(I);
-          data.getCurrentField(f)(I) *= spongeTaperCoeff_(I);
-        }
-      }
-    }
-    LOOPEND
+        });
   }
 }
+
 //============================================================================
 // computeGlobalMassMatrix - Assemble mass matrix
 //============================================================================
