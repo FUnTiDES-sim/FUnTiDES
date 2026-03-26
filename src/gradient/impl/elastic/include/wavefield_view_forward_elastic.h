@@ -2,6 +2,7 @@
 #define FUNTIDES_GRADIENT_API_INCLUDE_WAVEFIELD_VIEW_FORWARD_ELASTIC_H_
 
 #include <iostream>
+#include <string>
 
 #include "wavefield_view.h"
 
@@ -21,20 +22,32 @@ namespace gradient
  *   getField(1) = uy_n  (current y-displacement)
  *   getField(2) = uz_n  (current z-displacement)
  */
-struct WavefieldViewForwardElastic : public WavefieldView
+class WavefieldViewForwardElastic : public WavefieldView
 {
-  static constexpr int kNumFields = 3;
-  static constexpr const char* kFieldNames[3] = {"ux_n", "uy_n", "uz_n"};
+public:
 
   WavefieldViewForwardElastic(VECTOR_REAL_VIEW ux_n, VECTOR_REAL_VIEW uy_n,
                               VECTOR_REAL_VIEW uz_n)
-      : m_ux_n(ux_n), m_uy_n(uy_n), m_uz_n(uz_n)
+      : ux_n_(ux_n), uy_n_(uy_n), uz_n_(uz_n)
   {
   }
 
   int getNumFields() const override { return kNumFields; }
 
-  const char* const* getFieldNames() const override { return kFieldNames; }
+  std::string getFieldName(int i) const override
+  {
+    switch (i)
+    {
+      case 0:
+        return "ux_n";
+      case 1:
+        return "uy_n";
+      case 2:
+        return "uz_n";
+      default:
+        return "ux_n";
+    }
+  }
 
   // TODO use template + constexpr if when C++20 is available
   PROXY_HOST_DEVICE
@@ -43,27 +56,30 @@ struct WavefieldViewForwardElastic : public WavefieldView
     switch (i)
     {
       case 0:
-        return m_ux_n;
+        return ux_n_;
       case 1:
-        return m_uy_n;
+        return uy_n_;
       case 2:
-        return m_uz_n;
+        return uz_n_;
       default:
-        return m_ux_n;  // make it cuda happy
+        return ux_n_;  // make it cuda happy
     }
   }
 
   void print() const override
   {
     std::cout << "WavefieldViewForwardElastic:"
-              << " ux_n size=" << m_ux_n.extent(0)
-              << " uy_n size=" << m_uy_n.extent(0)
-              << " uz_n size=" << m_uz_n.extent(0) << "\n";
+              << " ux_n size=" << ux_n_.extent(0)
+              << " uy_n size=" << uy_n_.extent(0)
+              << " uz_n size=" << uz_n_.extent(0) << "\n";
   }
 
-  VECTOR_REAL_VIEW m_ux_n;  ///< Current x-displacement snapshot
-  VECTOR_REAL_VIEW m_uy_n;  ///< Current y-displacement snapshot
-  VECTOR_REAL_VIEW m_uz_n;  ///< Current z-displacement snapshot
+  private:
+    static constexpr int kNumFields = 3;
+
+    VECTOR_REAL_VIEW ux_n_;  ///< Current x-displacement snapshot
+    VECTOR_REAL_VIEW uy_n_;  ///< Current y-displacement snapshot
+    VECTOR_REAL_VIEW uz_n_;  ///< Current z-displacement snapshot
 };
 
 }  // namespace gradient

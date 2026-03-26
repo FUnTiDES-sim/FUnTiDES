@@ -1,3 +1,8 @@
+add_gtest(gradient_data_elastic_test
+  test_gradient_data_elastic.cc
+  funtides_gradient
+)
+
 add_gtest(gradient_elastic_test
   test_gradient_elastic.cc
   funtides_gradient

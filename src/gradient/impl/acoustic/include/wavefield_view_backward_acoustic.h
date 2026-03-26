@@ -2,6 +2,7 @@
 #define FUNTIDES_GRADIENT_API_INCLUDE_WAVEFIELD_VIEW_BACKWARD_ACOUSTIC_H_
 
 #include <iostream>
+#include <string>
 
 #include "wavefield_view.h"
 
@@ -23,19 +24,29 @@ namespace gradient
  *   getField(0) = qn    (current adjoint pressure)
  *   getField(1) = qdt2  (second-order time derivative of adjoint pressure)
  */
-struct WavefieldViewBackwardAcoustic : public WavefieldView
+class WavefieldViewBackwardAcoustic : public WavefieldView
 {
-  static constexpr int kNumFields = 2;
-  static constexpr const char* kFieldNames[2] = {"qn", "qdt2"};
+public:
 
   WavefieldViewBackwardAcoustic(VECTOR_REAL_VIEW qn, VECTOR_REAL_VIEW qdt2)
-      : m_qn(qn), m_qdt2(qdt2)
+      : qn_(qn), qdt2_(qdt2)
   {
   }
 
   int getNumFields() const override { return kNumFields; }
 
-  const char* const* getFieldNames() const override { return kFieldNames; }
+  std::string getFieldName(int i) const override
+  {
+    switch (i)
+    {
+      case 0:
+        return "qn";
+      case 1:
+        return "qdt2";
+      default:
+        return "qn";
+    }
+  }
 
   // TODO use template + constexpr if when C++20 is available
   PROXY_HOST_DEVICE
@@ -44,24 +55,27 @@ struct WavefieldViewBackwardAcoustic : public WavefieldView
     switch (i)
     {
       case 0:
-        return m_qn;
+        return qn_;
       case 1:
-        return m_qdt2;
+        return qdt2_;
       default:
-        return m_qn;  // make it cuda happy
+        return qn_;  // make it cuda happy
     }
   }
 
   void print() const override
   {
     std::cout << "WavefieldViewBackwardAcoustic:"
-              << " qn size=" << m_qn.extent(0)
-              << " qdt2 size=" << m_qdt2.extent(0) << "\n";
+              << " qn size=" << qn_.extent(0)
+              << " qdt2 size=" << qdt2_.extent(0) << "\n";
   }
 
-  VECTOR_REAL_VIEW m_qn;  ///< Current adjoint pressure snapshot
-  VECTOR_REAL_VIEW
-      m_qdt2;  ///< Second-order time derivative of adjoint pressure
+  private:
+
+    static constexpr int kNumFields = 2;
+
+    VECTOR_REAL_VIEW qn_;  ///< Current adjoint pressure snapshot
+    VECTOR_REAL_VIEW qdt2_; ///< Second-order time derivative of adjoint pressure
 };
 
 }  // namespace gradient

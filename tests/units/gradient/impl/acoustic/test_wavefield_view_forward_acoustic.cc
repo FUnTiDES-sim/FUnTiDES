@@ -29,15 +29,16 @@ TEST_F(WavefieldViewForwardAcousticTest, NumFieldsConstant)
   EXPECT_EQ(WavefieldViewForwardAcoustic::kNumFields, 1);
 }
 
-TEST_F(WavefieldViewForwardAcousticTest, FieldNamesConstant)
+TEST_F(WavefieldViewForwardAcousticTest, GetFieldNameCorrect)
 {
-  EXPECT_STREQ(WavefieldViewForwardAcoustic::kFieldNames[0], "pn");
+  WavefieldViewForwardAcoustic view(pn);
+  EXPECT_EQ(view.getFieldName(0), "pn");
 }
 
 TEST_F(WavefieldViewForwardAcousticTest, ConstructorStoresPn)
 {
   WavefieldViewForwardAcoustic view(pn);
-  EXPECT_EQ(view.m_pn.extent(0), static_cast<size_t>(size));
+  EXPECT_EQ(view.getField(0).extent(0), static_cast<size_t>(size));
 }
 
 TEST_F(WavefieldViewForwardAcousticTest, GetNumFieldsReturns1)
@@ -46,11 +47,10 @@ TEST_F(WavefieldViewForwardAcousticTest, GetNumFieldsReturns1)
   EXPECT_EQ(view.getNumFields(), 1);
 }
 
-TEST_F(WavefieldViewForwardAcousticTest, GetFieldNamesCorrect)
+TEST_F(WavefieldViewForwardAcousticTest, GetFieldNameReturnsCorrectString)
 {
   WavefieldViewForwardAcoustic view(pn);
-  const char* const* names = view.getFieldNames();
-  EXPECT_STREQ(names[0], "pn");
+  EXPECT_EQ(view.getFieldName(0), "pn");
 }
 
 TEST_F(WavefieldViewForwardAcousticTest, GetFieldZeroReturnsPn)
@@ -75,7 +75,7 @@ TEST_F(WavefieldViewForwardAcousticTest, ViewIsShallowCopy)
 {
   WavefieldViewForwardAcoustic view(pn);
   pn(0) = 123.0f;
-  EXPECT_FLOAT_EQ(view.m_pn(0), 123.0f);
+  EXPECT_FLOAT_EQ(view.getField(0)(0), 123.0f);
 }
 
 TEST_F(WavefieldViewForwardAcousticTest, PrintDoesNotThrow)
@@ -90,7 +90,7 @@ TEST_F(WavefieldViewForwardAcousticTest, PolymorphicInterface)
       std::make_unique<WavefieldViewForwardAcoustic>(pn);
 
   EXPECT_EQ(view->getNumFields(), 1);
-  EXPECT_STREQ(view->getFieldNames()[0], "pn");
+  EXPECT_EQ(view->getFieldName(0), "pn");
   EXPECT_EQ(view->getField(0).extent(0), static_cast<size_t>(size));
 }
 

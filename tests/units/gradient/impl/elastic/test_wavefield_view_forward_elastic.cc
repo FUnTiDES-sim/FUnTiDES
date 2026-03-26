@@ -41,19 +41,20 @@ TEST_F(WavefieldViewForwardElasticTest, NumFieldsConstant)
   EXPECT_EQ(WavefieldViewForwardElastic::kNumFields, 3);
 }
 
-TEST_F(WavefieldViewForwardElasticTest, FieldNamesConstants)
+TEST_F(WavefieldViewForwardElasticTest, GetFieldNamesCorrect)
 {
-  EXPECT_STREQ(WavefieldViewForwardElastic::kFieldNames[0], "ux_n");
-  EXPECT_STREQ(WavefieldViewForwardElastic::kFieldNames[1], "uy_n");
-  EXPECT_STREQ(WavefieldViewForwardElastic::kFieldNames[2], "uz_n");
+  WavefieldViewForwardElastic view(ux_n, uy_n, uz_n);
+  EXPECT_EQ(view.getFieldName(0), "ux_n");
+  EXPECT_EQ(view.getFieldName(1), "uy_n");
+  EXPECT_EQ(view.getFieldName(2), "uz_n");
 }
 
 TEST_F(WavefieldViewForwardElasticTest, ConstructorStoresFields)
 {
   WavefieldViewForwardElastic view(ux_n, uy_n, uz_n);
-  EXPECT_EQ(view.m_ux_n.extent(0), static_cast<size_t>(size));
-  EXPECT_EQ(view.m_uy_n.extent(0), static_cast<size_t>(size));
-  EXPECT_EQ(view.m_uz_n.extent(0), static_cast<size_t>(size));
+  EXPECT_EQ(view.getField(0).extent(0), static_cast<size_t>(size));
+  EXPECT_EQ(view.getField(1).extent(0), static_cast<size_t>(size));
+  EXPECT_EQ(view.getField(2).extent(0), static_cast<size_t>(size));
 }
 
 TEST_F(WavefieldViewForwardElasticTest, GetNumFieldsReturns3)
@@ -62,13 +63,12 @@ TEST_F(WavefieldViewForwardElasticTest, GetNumFieldsReturns3)
   EXPECT_EQ(view.getNumFields(), 3);
 }
 
-TEST_F(WavefieldViewForwardElasticTest, GetFieldNamesCorrect)
+TEST_F(WavefieldViewForwardElasticTest, GetFieldNameByIndex)
 {
   WavefieldViewForwardElastic view(ux_n, uy_n, uz_n);
-  const char* const* names = view.getFieldNames();
-  EXPECT_STREQ(names[0], "ux_n");
-  EXPECT_STREQ(names[1], "uy_n");
-  EXPECT_STREQ(names[2], "uz_n");
+  EXPECT_EQ(view.getFieldName(0), "ux_n");
+  EXPECT_EQ(view.getFieldName(1), "uy_n");
+  EXPECT_EQ(view.getFieldName(2), "uz_n");
 }
 
 TEST_F(WavefieldViewForwardElasticTest, GetFieldZeroReturnsUxN)
@@ -115,9 +115,9 @@ TEST_F(WavefieldViewForwardElasticTest, ViewsAreShallowCopies)
   ux_n(0) = 100.0f;
   uy_n(0) = 200.0f;
   uz_n(0) = 300.0f;
-  EXPECT_FLOAT_EQ(view.m_ux_n(0), 100.0f);
-  EXPECT_FLOAT_EQ(view.m_uy_n(0), 200.0f);
-  EXPECT_FLOAT_EQ(view.m_uz_n(0), 300.0f);
+  EXPECT_FLOAT_EQ(view.getField(0)(0), 100.0f);
+  EXPECT_FLOAT_EQ(view.getField(1)(0), 200.0f);
+  EXPECT_FLOAT_EQ(view.getField(2)(0), 300.0f);
 }
 
 TEST_F(WavefieldViewForwardElasticTest, PrintDoesNotThrow)
@@ -132,7 +132,7 @@ TEST_F(WavefieldViewForwardElasticTest, PolymorphicInterface)
       std::make_unique<WavefieldViewForwardElastic>(ux_n, uy_n, uz_n);
 
   EXPECT_EQ(view->getNumFields(), 3);
-  EXPECT_STREQ(view->getFieldNames()[1], "uy_n");
+  EXPECT_EQ(view->getFieldName(1), "uy_n");
   EXPECT_EQ(view->getField(2).extent(0), static_cast<size_t>(size));
 }
 

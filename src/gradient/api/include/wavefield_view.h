@@ -1,6 +1,8 @@
 #ifndef FUNTIDES_GRADIENT_API_INCLUDE_WAVEFIELD_VIEW_H_
 #define FUNTIDES_GRADIENT_API_INCLUDE_WAVEFIELD_VIEW_H_
 
+#include <string>
+
 #include "data_type.h"
 
 namespace gradient
@@ -20,8 +22,9 @@ namespace gradient
  * This design allows the Differentiator to operate on abstract wavefield views,
  * decoupling it from solver internals and enabling flexible data management.
  */
-struct WavefieldView
+class WavefieldView
 {
+public:
   virtual ~WavefieldView() = default;
 
   /**
@@ -31,10 +34,11 @@ struct WavefieldView
   virtual int getNumFields() const = 0;
 
   /**
-   * @brief Get the names of the solution fields.
-   * @return Pointer to array of field names.
+   * @brief Get the name of a specific solution field.
+   * @param i The index of the field.
+   * @return Name of the field.
    */
-  virtual const char* const* getFieldNames() const = 0;
+  virtual std::string getFieldName(int i) const = 0;
 
   /**
    * @brief Get the field at a specific index.

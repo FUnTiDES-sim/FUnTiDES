@@ -46,25 +46,26 @@ TEST_F(WavefieldViewBackwardElasticTest, NumFieldsConstant)
   EXPECT_EQ(WavefieldViewBackwardElastic::kNumFields, 6);
 }
 
-TEST_F(WavefieldViewBackwardElasticTest, FieldNamesConstants)
+TEST_F(WavefieldViewBackwardElasticTest, GetFieldNamesCorrect)
 {
-  EXPECT_STREQ(WavefieldViewBackwardElastic::kFieldNames[0], "ux_n");
-  EXPECT_STREQ(WavefieldViewBackwardElastic::kFieldNames[1], "uy_n");
-  EXPECT_STREQ(WavefieldViewBackwardElastic::kFieldNames[2], "uz_n");
-  EXPECT_STREQ(WavefieldViewBackwardElastic::kFieldNames[3], "ux_dt2");
-  EXPECT_STREQ(WavefieldViewBackwardElastic::kFieldNames[4], "uy_dt2");
-  EXPECT_STREQ(WavefieldViewBackwardElastic::kFieldNames[5], "uz_dt2");
+  WavefieldViewBackwardElastic view(ux_n, uy_n, uz_n, ux_dt2, uy_dt2, uz_dt2);
+  EXPECT_EQ(view.getFieldName(0), "ux_n");
+  EXPECT_EQ(view.getFieldName(1), "uy_n");
+  EXPECT_EQ(view.getFieldName(2), "uz_n");
+  EXPECT_EQ(view.getFieldName(3), "ux_dt2");
+  EXPECT_EQ(view.getFieldName(4), "uy_dt2");
+  EXPECT_EQ(view.getFieldName(5), "uz_dt2");
 }
 
 TEST_F(WavefieldViewBackwardElasticTest, ConstructorStoresAllFields)
 {
   WavefieldViewBackwardElastic view(ux_n, uy_n, uz_n, ux_dt2, uy_dt2, uz_dt2);
-  EXPECT_EQ(view.m_ux_n.extent(0),   static_cast<size_t>(size));
-  EXPECT_EQ(view.m_uy_n.extent(0),   static_cast<size_t>(size));
-  EXPECT_EQ(view.m_uz_n.extent(0),   static_cast<size_t>(size));
-  EXPECT_EQ(view.m_ux_dt2.extent(0), static_cast<size_t>(size));
-  EXPECT_EQ(view.m_uy_dt2.extent(0), static_cast<size_t>(size));
-  EXPECT_EQ(view.m_uz_dt2.extent(0), static_cast<size_t>(size));
+  EXPECT_EQ(view.getField(0).extent(0), static_cast<size_t>(size));
+  EXPECT_EQ(view.getField(1).extent(0), static_cast<size_t>(size));
+  EXPECT_EQ(view.getField(2).extent(0), static_cast<size_t>(size));
+  EXPECT_EQ(view.getField(3).extent(0), static_cast<size_t>(size));
+  EXPECT_EQ(view.getField(4).extent(0), static_cast<size_t>(size));
+  EXPECT_EQ(view.getField(5).extent(0), static_cast<size_t>(size));
 }
 
 TEST_F(WavefieldViewBackwardElasticTest, GetNumFieldsReturns6)
@@ -73,16 +74,15 @@ TEST_F(WavefieldViewBackwardElasticTest, GetNumFieldsReturns6)
   EXPECT_EQ(view.getNumFields(), 6);
 }
 
-TEST_F(WavefieldViewBackwardElasticTest, GetFieldNamesCorrect)
+TEST_F(WavefieldViewBackwardElasticTest, GetFieldNameByIndex)
 {
   WavefieldViewBackwardElastic view(ux_n, uy_n, uz_n, ux_dt2, uy_dt2, uz_dt2);
-  const char* const* names = view.getFieldNames();
-  EXPECT_STREQ(names[0], "ux_n");
-  EXPECT_STREQ(names[1], "uy_n");
-  EXPECT_STREQ(names[2], "uz_n");
-  EXPECT_STREQ(names[3], "ux_dt2");
-  EXPECT_STREQ(names[4], "uy_dt2");
-  EXPECT_STREQ(names[5], "uz_dt2");
+  EXPECT_EQ(view.getFieldName(0), "ux_n");
+  EXPECT_EQ(view.getFieldName(1), "uy_n");
+  EXPECT_EQ(view.getFieldName(2), "uz_n");
+  EXPECT_EQ(view.getFieldName(3), "ux_dt2");
+  EXPECT_EQ(view.getFieldName(4), "uy_dt2");
+  EXPECT_EQ(view.getFieldName(5), "uz_dt2");
 }
 
 TEST_F(WavefieldViewBackwardElasticTest, GetFieldReturnsCorrectViews)
@@ -119,7 +119,7 @@ TEST_F(WavefieldViewBackwardElasticTest, ViewsAreShallowCopies)
 {
   WavefieldViewBackwardElastic view(ux_n, uy_n, uz_n, ux_dt2, uy_dt2, uz_dt2);
   ux_dt2(5) = 999.0f;
-  EXPECT_FLOAT_EQ(view.m_ux_dt2(5), 999.0f);
+  EXPECT_FLOAT_EQ(view.getField(3)(5), 999.0f);
 }
 
 TEST_F(WavefieldViewBackwardElasticTest, PrintDoesNotThrow)
@@ -135,7 +135,7 @@ TEST_F(WavefieldViewBackwardElasticTest, PolymorphicInterface)
           ux_n, uy_n, uz_n, ux_dt2, uy_dt2, uz_dt2);
 
   EXPECT_EQ(view->getNumFields(), 6);
-  EXPECT_STREQ(view->getFieldNames()[3], "ux_dt2");
+  EXPECT_EQ(view->getFieldName(3), "ux_dt2");
   EXPECT_EQ(view->getField(5).extent(0), static_cast<size_t>(size));
 }
 

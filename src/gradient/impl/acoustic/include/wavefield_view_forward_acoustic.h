@@ -2,6 +2,7 @@
 #define FUNTIDES_GRADIENT_API_INCLUDE_WAVEFIELD_VIEW_FORWARD_ACOUSTIC_H_
 
 #include <iostream>
+#include <string>
 
 #include "wavefield_view.h"
 
@@ -18,28 +19,31 @@ namespace gradient
  * Fields:
  *   getField(0) = pn  (current pressure)
  */
-struct WavefieldViewForwardAcoustic : public WavefieldView
+class WavefieldViewForwardAcoustic : public WavefieldView
 {
-  static constexpr int kNumFields = 1;
-  static constexpr const char* kFieldNames[1] = {"pn"};
+public:
 
-  explicit WavefieldViewForwardAcoustic(VECTOR_REAL_VIEW pn) : m_pn(pn) {}
+  WavefieldViewForwardAcoustic(VECTOR_REAL_VIEW pn) : pn_(pn) {}
 
   int getNumFields() const override { return kNumFields; }
 
-  const char* const* getFieldNames() const override { return kFieldNames; }
+  std::string getFieldName(int i) const override { return "pn"; }
 
   // TODO use template + constexpr if when C++20 is available
   PROXY_HOST_DEVICE
-  VECTOR_REAL_VIEW getField(int i) const override { return m_pn; }
+  VECTOR_REAL_VIEW getField(int i) const override { return pn_; }
 
   void print() const override
   {
-    std::cout << "WavefieldViewForwardAcoustic: pn size=" << m_pn.extent(0)
+    std::cout << "WavefieldViewForwardAcoustic: pn size=" << pn_.extent(0)
               << "\n";
   }
 
-  VECTOR_REAL_VIEW m_pn;  ///< Current pressure snapshot
+  private:
+
+    static constexpr int kNumFields = 1;
+
+    VECTOR_REAL_VIEW pn_;  ///< Current pressure snapshot
 };
 
 }  // namespace gradient

@@ -4,7 +4,7 @@
 #include <iostream>
 
 #include "differentiator.h"
-#include "gradient_data.h"
+#include "differentiator_data_acoustic.h"
 #include "model.h"
 
 namespace gradient
@@ -31,10 +31,6 @@ template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE,
 class DifferentiatorAcoustic : public Differentiator
 {
  public:
-  static constexpr int kOrder = ORDER;
-  static constexpr bool kIsModelOnNodes = IS_MODEL_ON_NODES;
-  static constexpr int kPointsPerElement =
-      (ORDER + 1) * (ORDER + 1) * (ORDER + 1);
 
   ~DifferentiatorAcoustic() override = default;
 
@@ -49,18 +45,18 @@ class DifferentiatorAcoustic : public Differentiator
                DataStruct& data) const override
   {
     auto& myData =
-        dynamic_cast<GradientData<utils::enums::physicType::kAcoustic>&>(data);
+        dynamic_cast<DifferentiatorDataAcoustic&>(data);
     auto mesh_copy = dynamic_cast<MESH_TYPE&>(
         mesh);  // value copy for device capture TODO check that
 
-    auto const pn =
+    VECTOR_REAL_VIEW const pn =
         myData.getForwardField(0);  // forward pressure, node-indexed
-    auto const qn =
+    VECTOR_REAL_VIEW const qn =
         myData.getBackwardField(0);  // adjoint pressure, node-indexed
-    auto const qdt2 = myData.getBackwardField(1);  // d²q/dt², node-indexed
-    auto const gradKappa =
+    VECTOR_REAL_VIEW const qdt2 = myData.getBackwardField(1);  // d²q/dt², node-indexed
+    VECTOR_REAL_VIEW const gradKappa =
         myData.getGradient(0);  // grad_kappa, node- or element-indexed
-    auto const gradBuoyancy =
+    VECTOR_REAL_VIEW const gradBuoyancy =
         myData.getGradient(1);  // grad_buoyancy, node- or element-indexed
 
     if constexpr (!IS_MODEL_ON_NODES)
@@ -83,6 +79,11 @@ class DifferentiatorAcoustic : public Differentiator
   }
 
  private:
+
+  static constexpr int kOrder = ORDER;
+  static constexpr bool kIsModelOnNodes = IS_MODEL_ON_NODES;
+  static constexpr int kPointsPerElement = (ORDER + 1) * (ORDER + 1) * (ORDER + 1);
+
   /**
    * @brief Each element writes to a unique index — no atomic add required.
    */
@@ -209,6 +210,7 @@ class DifferentiatorAcoustic : public Differentiator
 
     MAINLOOPEND
   }
+
 };
 
 }  // namespace gradient

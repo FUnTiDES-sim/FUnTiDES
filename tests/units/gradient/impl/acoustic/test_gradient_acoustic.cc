@@ -48,18 +48,20 @@ TEST_F(GradientAcousticTest, NumGradsConstant)
   EXPECT_EQ(GradientAcoustic::kNumGrads, 2);
 }
 
-TEST_F(GradientAcousticTest, GradsNamesConstants)
+TEST_F(GradientAcousticTest, GetGradientNamesCorrect)
 {
-  EXPECT_STREQ(GradientAcoustic::kGradsNames[0], "gradKappa");
-  EXPECT_STREQ(GradientAcoustic::kGradsNames[1], "gradBuoyancy");
+  GradientAcoustic grad(gradKappaElem, gradBuoyancyElem);
+  EXPECT_EQ(grad.getGradientName(0), "gradKappa");
+  EXPECT_EQ(grad.getGradientName(1), "gradBuoyancy");
 }
 
 TEST_F(GradientAcousticTest, ConstructorStoresViews)
 {
   GradientAcoustic grad(gradKappaElem, gradBuoyancyElem);
 
-  EXPECT_EQ(grad.m_gradKappa.extent(0),    static_cast<size_t>(numElements));
-  EXPECT_EQ(grad.m_gradBuoyancy.extent(0), static_cast<size_t>(numElements));
+  // Verify via public interface
+  EXPECT_EQ(grad.getGradient(0).extent(0), static_cast<size_t>(numElements));
+  EXPECT_EQ(grad.getGradient(1).extent(0), static_cast<size_t>(numElements));
 }
 
 TEST_F(GradientAcousticTest, GetNumGradientsReturns2)
@@ -68,12 +70,11 @@ TEST_F(GradientAcousticTest, GetNumGradientsReturns2)
   EXPECT_EQ(grad.getNumGradients(), 2);
 }
 
-TEST_F(GradientAcousticTest, GetGradientNamesCorrect)
+TEST_F(GradientAcousticTest, GetGradientNameByIndex)
 {
   GradientAcoustic grad(gradKappaElem, gradBuoyancyElem);
-  const char* const* names = grad.getGradientNames();
-  EXPECT_STREQ(names[0], "gradKappa");
-  EXPECT_STREQ(names[1], "gradBuoyancy");
+  EXPECT_EQ(grad.getGradientName(0), "gradKappa");
+  EXPECT_EQ(grad.getGradientName(1), "gradBuoyancy");
 }
 
 TEST_F(GradientAcousticTest, GetGradientKappaElementBased)
@@ -132,7 +133,7 @@ TEST_F(GradientAcousticTest, ViewsAreShallowCopies)
 
   // Modify through original view — change should be visible through gradient
   gradKappaElem(0) = 999.0f;
-  EXPECT_FLOAT_EQ(grad.m_gradKappa(0), 999.0f);
+  EXPECT_FLOAT_EQ(grad.getGradient(0)(0), 999.0f);
 }
 
 TEST_F(GradientAcousticTest, PrintDoesNotThrow)
@@ -147,7 +148,7 @@ TEST_F(GradientAcousticTest, PolymorphicInterface)
       std::make_unique<GradientAcoustic>(gradKappaElem, gradBuoyancyElem);
 
   EXPECT_EQ(grad->getNumGradients(), 2);
-  EXPECT_STREQ(grad->getGradientNames()[0], "gradKappa");
+  EXPECT_EQ(grad->getGradientName(0), "gradKappa");
   EXPECT_EQ(grad->getGradient(0).extent(0), static_cast<size_t>(numElements));
 }
 

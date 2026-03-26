@@ -31,10 +31,6 @@ template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE,
 class DifferentiatorElastic : public Differentiator
 {
  public:
-  static constexpr int kOrder = ORDER;
-  static constexpr bool kIsModelOnNodes = IS_MODEL_ON_NODES;
-  static constexpr int kPointsPerElement =
-      (ORDER + 1) * (ORDER + 1) * (ORDER + 1);
 
   ~DifferentiatorElastic() override = default;
 
@@ -65,6 +61,12 @@ class DifferentiatorElastic : public Differentiator
               << ", IS_MODEL_ON_NODES=" << (kIsModelOnNodes ? "true" : "false")
               << ">\n";
   }
+
+  private:
+    static constexpr int kOrder = ORDER;
+    static constexpr bool kIsModelOnNodes = IS_MODEL_ON_NODES;
+    static constexpr int kPointsPerElement =
+        (ORDER + 1) * (ORDER + 1) * (ORDER + 1);
 };
 
 }  // namespace gradient

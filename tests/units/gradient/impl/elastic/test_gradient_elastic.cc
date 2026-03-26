@@ -55,11 +55,12 @@ TEST_F(GradientElasticTest, NumGradsConstant)
   EXPECT_EQ(GradientElastic::kNumGrads, 3);
 }
 
-TEST_F(GradientElasticTest, GradsNamesConstants)
+TEST_F(GradientElasticTest, GetGradientNamesCorrect)
 {
-  EXPECT_STREQ(GradientElastic::kGradsNames[0], "gradRho");
-  EXPECT_STREQ(GradientElastic::kGradsNames[1], "gradLambda");
-  EXPECT_STREQ(GradientElastic::kGradsNames[2], "gradMu");
+  GradientElastic grad(gradRhoElem, gradLambdaElem, gradMuElem);
+  EXPECT_EQ(grad.getGradientName(0), "gradRho");
+  EXPECT_EQ(grad.getGradientName(1), "gradLambda");
+  EXPECT_EQ(grad.getGradientName(2), "gradMu");
 }
 
 // --- Constructor ---
@@ -68,9 +69,10 @@ TEST_F(GradientElasticTest, ConstructorStoresViews)
 {
   GradientElastic grad(gradRhoElem, gradLambdaElem, gradMuElem);
 
-  EXPECT_EQ(grad.m_gradRho.extent(0),    static_cast<size_t>(numElements));
-  EXPECT_EQ(grad.m_gradLambda.extent(0), static_cast<size_t>(numElements));
-  EXPECT_EQ(grad.m_gradMu.extent(0),     static_cast<size_t>(numElements));
+  // Verify via public interface
+  EXPECT_EQ(grad.getGradient(0).extent(0), static_cast<size_t>(numElements));
+  EXPECT_EQ(grad.getGradient(1).extent(0), static_cast<size_t>(numElements));
+  EXPECT_EQ(grad.getGradient(2).extent(0), static_cast<size_t>(numElements));
 }
 
 // --- Virtual interface: getNumGradients ---
@@ -83,13 +85,12 @@ TEST_F(GradientElasticTest, GetNumGradientsReturns3)
 
 // --- Virtual interface: getGradientNames ---
 
-TEST_F(GradientElasticTest, GetGradientNamesCorrect)
+TEST_F(GradientElasticTest, GetGradientNameByIndex)
 {
   GradientElastic grad(gradRhoElem, gradLambdaElem, gradMuElem);
-  const char* const* names = grad.getGradientNames();
-  EXPECT_STREQ(names[0], "gradRho");
-  EXPECT_STREQ(names[1], "gradLambda");
-  EXPECT_STREQ(names[2], "gradMu");
+  EXPECT_EQ(grad.getGradientName(0), "gradRho");
+  EXPECT_EQ(grad.getGradientName(1), "gradLambda");
+  EXPECT_EQ(grad.getGradientName(2), "gradMu");
 }
 
 // --- Virtual interface: getGradient ---
@@ -170,14 +171,14 @@ TEST_F(GradientElasticTest, RhoViewIsShallowCopy)
 {
   GradientElastic grad(gradRhoElem, gradLambdaElem, gradMuElem);
   gradRhoElem(0) = 777.0f;
-  EXPECT_FLOAT_EQ(grad.m_gradRho(0), 777.0f);
+  EXPECT_FLOAT_EQ(grad.getGradient(0)(0), 777.0f);
 }
 
 TEST_F(GradientElasticTest, LambdaViewIsShallowCopy)
 {
   GradientElastic grad(gradRhoElem, gradLambdaElem, gradMuElem);
   gradLambdaElem(2) = 888.0f;
-  EXPECT_FLOAT_EQ(grad.m_gradLambda(2), 888.0f);
+  EXPECT_FLOAT_EQ(grad.getGradient(1)(2), 888.0f);
 }
 
 // --- print() ---
@@ -196,7 +197,7 @@ TEST_F(GradientElasticTest, PolymorphicInterface)
       std::make_unique<GradientElastic>(gradRhoElem, gradLambdaElem, gradMuElem);
 
   EXPECT_EQ(grad->getNumGradients(), 3);
-  EXPECT_STREQ(grad->getGradientNames()[0], "gradRho");
+  EXPECT_EQ(grad->getGradientName(0), "gradRho");
   EXPECT_EQ(grad->getGradient(0).extent(0), static_cast<size_t>(numElements));
 }
 
