@@ -50,8 +50,10 @@ void bind_cartesian_struct_builder(py::module_ &m)
            py::arg("is_elastic"), py::arg("ox") = static_cast<FloatType>(0),
            py::arg("oy") = static_cast<FloatType>(0),
            py::arg("oz") = static_cast<FloatType>(0))
-      // Acousto-elastic constructor: exposes only the two AE parameters;
-      // global domain parameters are left at their defaults (single-rank use).
+      // Acousto-elastic constructor: exposes the two AE parameters while
+      // leaving global domain metrics at their defaults (local = global),
+      // which is correct for single-rank / non-MPI usage.
+      // For multi-rank, a third overload exposing global_lx/ly/lz would be needed.
       .def(py::init([](ScalarType ex, FloatType hx, ScalarType ey, FloatType hy,
                        ScalarType ez, FloatType hz, bool is_model_on_nodes,
                        bool is_elastic, FloatType ox, FloatType oy,
