@@ -34,8 +34,11 @@ class SEMproxy
   /**
    * @brief Destructor of the SEMproxy class
    */
-  ~SEMproxy() {}
-
+  SEMproxy()
+  {
+    io_ctrl_.reset();  // Manually trigger SemIOController destructor (which
+                       // closes engines)
+  }
   /**
    * @brief Initialize the simulation.
    * @post run()
@@ -160,8 +163,17 @@ class SEMproxy
   // DAS receiver data
   SourceAndReceiverUtils::DASType dasType_ =
       SourceAndReceiverUtils::DASType::kNone;
+  SourceAndReceiverUtils::DASType dasType_ =
+      SourceAndReceiverUtils::DASType::kNone;
   int dasNumSamples_ = 5;
   float dasGaugeLength_ = 1.0f;
+  std::array<float, 3> dasDirection_ = {1, 0,
+                                        0};  ///< Fiber direction unit vector
+  std::array<float, 3> dasVector_ = {
+      1, 0, 0};                    ///< Direction (for dipole: divided by L)
+  std::vector<int> dasNodeIds_;    ///< Global node IDs [nSamples * npe]
+  std::vector<float> dasWeights_;  ///< Precomputed weights [nSamples * npe]
+  vectorReal dasSignal_;           ///< DAS trace [num_sample_]
   std::array<float, 3> dasDirection_ = {1, 0,
                                         0};  ///< Fiber direction unit vector
   std::array<float, 3> dasVector_ = {
@@ -184,6 +196,19 @@ class SEMproxy
   utils::enums::implemType getImplem(string implemArg);
   utils::enums::methodType getMethod(string methodArg);
   utils::enums::meshType getMesh(string meshArg);
+  implemType getImplem(string implemArg);
+  methodType getMethod(string methodArg);
+  meshType getMesh(string meshArg);
+
+  // private methods for init
+  void init_mpi(int* mpi_init);
+  void init_sim_params(const SemProxyOptions& opt);
+  void init_mesh_params(const SemProxyOptions& opt);
+  void init_topology();
+  void init_sync();
+  void init_time_params(const SemProxyOptions& opt);
+
+  void display_init_msg(const SemProxyOptions& opt);
   model::AnisotropyType getAnisotropy(std::string anisotropyArg);
 };
 #endif  // FUNTIDES_MAIN_FE_INCLUDE_SEM_PROXY_H_

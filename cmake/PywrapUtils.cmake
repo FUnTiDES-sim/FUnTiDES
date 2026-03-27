@@ -2,6 +2,11 @@
 # Python wrapping related functions
 #-------------------------------------------------------------------
 
+# fix warning yield when install path is ./python
+if(POLICY CMP0177)
+    cmake_policy(SET CMP0177 NEW)
+endif()
+
 function(configure_python_module target_name)
   set_target_properties(${target_name} PROPERTIES INTERPROCEDURAL_OPTIMIZATION FALSE)
   set_target_properties(${target_name} PROPERTIES POSITION_INDEPENDENT_CODE TRUE)
