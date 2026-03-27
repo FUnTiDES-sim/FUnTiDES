@@ -279,7 +279,9 @@ void SEMproxy::run()
       // Save slice in dat format
       if (is_snapshots_ && indexTimeSample % snap_time_interval_ == 0)
       {
+#ifdef USE_MPI
         MPI_Barrier(MPI_COMM_WORLD);
+#endif
         saveSnapshot(indexTimeSample, pnGlobalPrev);
 
         // Save XY-slice through center Z as plain text for easy visualization
@@ -791,7 +793,6 @@ void SEMproxy::init_source()
       {
         sampleCoord[d] = rcv_coord_[d] + dasDirection_[d] * dasGaugeLength_ *
                                              sampleLocations[iSample];
-                                             sampleLocations[iSample];
       }
 
       // Find element containing this sample point
@@ -846,23 +847,18 @@ void SEMproxy::init_source()
           SourceAndReceiverUtils::ComputeDASWeightsForSample<1>(
               sampleCornerCoords, sampleCoord, dasDirection_,
               integrationConstants[iSample], dasType_, &dasWeights_[baseIdx]);
-              integrationConstants[iSample], dasType_, &dasWeights_[baseIdx]);
           break;
         case 2:
           SourceAndReceiverUtils::ComputeDASWeightsForSample<2>(
               sampleCornerCoords, sampleCoord, dasDirection_,
-              integrationConstants[iSample], dasType_, &dasWeights_[baseIdx]);
               integrationConstants[iSample], dasType_, &dasWeights_[baseIdx]);
           break;
         case 3:
           SourceAndReceiverUtils::ComputeDASWeightsForSample<3>(
               sampleCornerCoords, sampleCoord, dasDirection_,
               integrationConstants[iSample], dasType_, &dasWeights_[baseIdx]);
-              integrationConstants[iSample], dasType_, &dasWeights_[baseIdx]);
           break;
         default:
-          throw std::runtime_error("Unsupported order for DAS: " +
-                                   std::to_string(order));
           throw std::runtime_error("Unsupported order for DAS: " +
                                    std::to_string(order));
       }
