@@ -23,6 +23,27 @@ void bind_wavefield_base(py::module_ &m)
   // Bind Wavefield (base class)
   py::class_<Wavefield, std::shared_ptr<Wavefield>>(m, "Wavefield")
       .def("swap", &Wavefield::swap)
+      .def("swap_with_rotation",
+           [](Wavefield& self,
+              Kokkos::Experimental::python_view_type_t<VECTOR_REAL_VIEW>&
+                  prevPrevBuffer) {
+             VECTOR_REAL_VIEW view = prevPrevBuffer;
+             self.swapWithRotation(view, 0);  // field index 0 for pressure
+             prevPrevBuffer = view;
+           },
+           py::arg("prev_prev_buffer"))
+      .def("get_current_field",
+           [](const Wavefield& self, int i) {
+             return Kokkos::Experimental::python_view_type_t<VECTOR_REAL_VIEW>(
+                 self.getCurrentField(i));
+           },
+           py::arg("i"))
+      .def("get_previous_field",
+           [](const Wavefield& self, int i) {
+             return Kokkos::Experimental::python_view_type_t<VECTOR_REAL_VIEW>(
+                 self.getPreviousField(i));
+           },
+           py::arg("i"))
       .def("print", &Wavefield::print);
 }
 
@@ -45,6 +66,18 @@ void bind_wavefield_acoustic(py::module_ &m)
              prevPrevBuffer = view;
            },
            py::arg("prev_prev_buffer"))
+      .def("get_current_field",
+           [](const WavefieldAcoustic& self, int i) {
+             return Kokkos::Experimental::python_view_type_t<VECTOR_REAL_VIEW>(
+                 self.getCurrentField(i));
+           },
+           py::arg("i"))
+      .def("get_previous_field",
+           [](const WavefieldAcoustic& self, int i) {
+             return Kokkos::Experimental::python_view_type_t<VECTOR_REAL_VIEW>(
+                 self.getPreviousField(i));
+           },
+           py::arg("i"))
       .def("print", &WavefieldAcoustic::print);
 }
 
@@ -77,6 +110,18 @@ void bind_wavefield_elastic(py::module_ &m)
            },
            py::arg("ux_prev_prev"), py::arg("uy_prev_prev"),
            py::arg("uz_prev_prev"))
+      .def("get_current_field",
+           [](const WavefieldElastic& self, int i) {
+             return Kokkos::Experimental::python_view_type_t<VECTOR_REAL_VIEW>(
+                 self.getCurrentField(i));
+           },
+           py::arg("i"))
+      .def("get_previous_field",
+           [](const WavefieldElastic& self, int i) {
+             return Kokkos::Experimental::python_view_type_t<VECTOR_REAL_VIEW>(
+                 self.getPreviousField(i));
+           },
+           py::arg("i"))
       .def("print", &WavefieldElastic::print);
 }
 

@@ -51,10 +51,10 @@ class TestDifferentiatorWithRotation:
         # Forward wavefield snapshot (will be loaded per time step)
         self.kk_pn = _alloc(0.0, "pn_snapshot")
         
-        # Adjoint wavefield: 3 buffers for rotation
-        self.kk_qn_prev = _alloc(0.0, "qn_prev")
-        self.kk_qn_curr = _alloc(0.0, "qn_curr")
-        self.kk_qn_prevprev = _alloc(0.0, "qn_prevprev")
+        # Adjoint wavefield: 3 buffers for rotation (t-1, t, t+1)
+        self.kk_qn0 = _alloc(0.0, "qn0")
+        self.kk_qn1 = _alloc(0.0, "qn1")
+        self.kk_qn2 = _alloc(0.0, "qn2")
         
         # Gradient outputs (accumulate over time)
         self.kk_grad_kappa = _alloc(0.0, "grad_kappa")
@@ -62,7 +62,7 @@ class TestDifferentiatorWithRotation:
         
         # Create adjoint wavefield
         self.adj_wavefield = Solver.WavefieldAcoustic(
-            self.kk_qn_prev, self.kk_qn_curr
+            self.kk_qn0, self.kk_qn1
         )
 
         # Create gradient data
@@ -77,7 +77,7 @@ class TestDifferentiatorWithRotation:
             ORDER)
     
     def teardown_method(self):
-        del (self.kk_pn, self.kk_qn_prev, self.kk_qn_curr, self.kk_qn_prevprev,
+        del (self.kk_pn, self.kk_qn1, self.kk_qn2, self.kk_qn0,
              self.kk_grad_kappa, self.kk_grad_buoyancy,
              self.adj_wavefield, self.grad, self.differentiator, self.model)
         
@@ -86,9 +86,6 @@ class TestDifferentiatorWithRotation:
         Test complete gradient computation loop with rotation.
         Verifies exact gradient values based on mathematical formula.
         """
-        # Volume per element (for mass matrix contribution)
-        element_volume = (LX / EX) * (LY / EY) * (LZ / EZ)
-        
         # Backward time loop
         for t in range(N_TIME_STEPS - 1, -1, -1):
             # Step 1: Load forward snapshot
@@ -96,22 +93,29 @@ class TestDifferentiatorWithRotation:
             np.array(self.kk_pn, copy=False)[:] = snapshot_value
             
             # Step 2: Simulate leapfrog update on adjoint wavefield
-            np.array(self.kk_qn_curr, copy=False)[:] += t * 10.0
-            np.array(self.kk_qn_prev, copy=False)[:] += t * 5.0
+            np.array(self.adj_wavefield.get_previous_field(0), copy=False)[:] += t * 10.0
+            np.array(self.adj_wavefield.get_current_field(0), copy=False)[:] += t * 5.0
             
             # Capture state before gradient computation
-            grad_before_kappa = np.array(self.kk_grad_kappa, copy=False).copy()
-            qn_curr = np.array(self.kk_qn_curr, copy=False)[0]
-            qn_prev = np.array(self.kk_qn_prev, copy=False)[0]
-            qn_prevprev = np.array(self.kk_qn_prevprev, copy=False)[0]
+            grad_before_kappa = np.array(self.kk_grad_kappa, copy=False)
+            qn_curr = np.array(self.adj_wavefield.get_current_field(0), copy=False)[0]
+            qn_prev = np.array(self.adj_wavefield.get_previous_field(0), copy=False)[0]
+            qn_prevprev = np.array(self.kk_qn2, copy=False)[0]
             
             # Step 3: Rotate adjoint wavefield
-            self.adj_wavefield.swap_with_rotation(self.kk_qn_prevprev)
+            self.adj_wavefield.swap_with_rotation(self.kk_qn2)
+            adj_curr = self.adj_wavefield.get_current_field(0)
+            adj_prev = self.adj_wavefield.get_previous_field(0)
+            adj_prevprev = self.kk_qn2
+            # check that they all swapped
+            assert np.array(adj_curr, copy=False)[0] == qn_prevprev
+            assert np.array(adj_prev, copy=False)[0] == qn_curr
+            assert np.array(adj_prevprev, copy=False)[0] == qn_prev
             
             # Step 4: Build gradient data structures
             fwd_view = Gradient.WavefieldViewForwardAcoustic(self.kk_pn)
             bwd_view = Gradient.WavefieldViewBackwardAcoustic(
-                self.kk_qn_curr, self.kk_qn_prev, self.kk_qn_prevprev
+                adj_curr, adj_prev, adj_prevprev
             )
             grad_data = Gradient.GradientDataAcoustic(fwd_view, bwd_view, self.grad)
             
@@ -122,6 +126,16 @@ class TestDifferentiatorWithRotation:
             grad_kappa = np.array(self.kk_grad_kappa, copy=False)
             grad_buoyancy = np.array(self.kk_grad_buoyancy, copy=False)
             delta_grad_kappa = grad_kappa - grad_before_kappa
+
+            if t == N_TIME_STEPS - 1:
+                # Second order derivative at first time step should be zero (no previous time step)
+                # which means grad_kappa should not update from its initial zero value
+                assert np.allclose(grad_kappa, 0.0), \
+                    f"t={t}: Initial grad_kappa should be 0"
+                # grad_buoyancy stays zero (no spatial gradients)
+                assert np.allclose(grad_buoyancy, 0.0, atol=1e-6), \
+                    f"t={t}: grad_buoyancy should be 0 for spatially uniform fields"
+                continue
             
             # Property 1: grad_buoyancy stays zero (no spatial gradients)
             assert np.allclose(grad_buoyancy, 0.0, atol=1e-6), \
