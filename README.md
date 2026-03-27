@@ -27,26 +27,22 @@ Before compiling the main project, you must install the required dependencies vi
 
 ```sh
 # Clone the TPL repository
-git clone --recurse-submodules [https://github.com/FUnTiDES-sim/FUnTiDES-TPL.git](https://github.com/FUnTiDES-sim/FUnTiDES-TPL.git) tpl_source
+git clone --recurse-submodules https://github.com/FUnTiDES-sim/FUnTiDES-TPL.git
 
-# Install TPL (adjust --prefix to your desired installation path)
-cd tpl_source
-./install.sh --prefix=/opt/tpl --disable-cuda --use-venv --jobs=$(nproc)
-
-# Export necessary environment variables so CMake can find the TPLs
-export PATH="/opt/tpl/bin:${PATH}"
-export LD_LIBRARY_PATH="/opt/tpl/lib:${LD_LIBRARY_PATH}"
-export CMAKE_PREFIX_PATH="/opt/tpl"
+# Install TPL for CPU
+export FUNTIDES_TPL_INSTALL_DIR=$(pwd)/FUnTiDES-TPL/install
+FUnTiDES-TPL/install.sh --prefix=${FUNTIDES_TPL_INSTALL_DIR} --disable-cuda --disable-mpi --no-venv --jobs=$(nproc)
 ````
 
-Or use the dedicated script in TPL that does export the env automatically.
+For more TPL builds options see `FUnTiDES-TPL/install.sh --help`.
 
 ### Step 2: Compile and Install
 
 Once the TPLs are installed and your environment is configured, you can build the applications.
 
 ```sh
-cd /path/to/funtides
+source FUnTiDES-TPL/setup_tpl_env.sh ${FUNTIDES_TPL_INSTALL_DIR}
+cd FUnTiDES
 mkdir build
 cd build
 cmake ..
