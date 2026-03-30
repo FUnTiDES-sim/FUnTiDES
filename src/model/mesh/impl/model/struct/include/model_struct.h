@@ -287,23 +287,29 @@ class ModelStruct final : public ModelApi<FloatType, ScalarType>
 
       auto& C_tensor = model_C_tensor_element_;
 
-      MAINLOOPHEAD(n_element, i)
-      FloatType CTTI[6][6];
+      Kokkos::parallel_for(
+          "Model init ElasticTensors",
+          Kokkos::RangePolicy<Kokkos::LaunchBounds<LaunchMaxThreadsPerBlock,
+                                                   LaunchMinBlocksPerSM>>(
+              0, n_element),
+          KOKKOS_CLASS_LAMBDA(const int i) {
+            FloatType CTTI[6][6];
 
-      FloatType vp = 1500.0;
-      FloatType vs = 755.0;
-      FloatType rho = 1.0;
-      FloatType delta = 0.;
-      FloatType epsilon = 0.;
-      FloatType gamma = 0.0;
-      FloatType theta = 0.0;
-      FloatType phi = 0.0;
+            FloatType vp = 1500.0;
+            FloatType vs = 755.0;
+            FloatType rho = 1.0;
+            FloatType delta = 0.;
+            FloatType epsilon = 0.;
+            FloatType gamma = 0.0;
+            FloatType theta = 0.0;
+            FloatType phi = 0.0;
 
-      computeCTensor(vp, vs, rho, delta, epsilon, gamma, theta, phi, CTTI);
+            computeCTensor(vp, vs, rho, delta, epsilon, gamma, theta, phi,
+                           CTTI);
 
-      for (int k = 0; k < 6; k++)
-        for (int l = 0; l < 6; l++) C_tensor(i, k, l) = CTTI[k][l];
-      MAINLOOPEND
+            for (int k = 0; k < 6; k++)
+              for (int l = 0; l < 6; l++) C_tensor(i, k, l) = CTTI[k][l];
+          });
     }
   }
 
