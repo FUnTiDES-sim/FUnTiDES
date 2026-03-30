@@ -12,14 +12,13 @@
 // support), and orchestrates the complete simulation workflow.
 //************************************************************************
 
+#include <Kokkos_Core.hpp>
 #include <chrono>
 #include <cstdlib>
 #include <cxxopts.hpp>
 #include <exception>
 #include <iostream>
 #include <memory>
-
-#include <Kokkos_Core.hpp>
 
 #include "fd_options.h"
 #include "fd_proxy.h"

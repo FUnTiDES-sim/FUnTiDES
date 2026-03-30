@@ -9,7 +9,6 @@
   ((nz + 2) * (ny + 2) * ((i) + 1) + (nz + 2) * ((j) + 1) + ((k) + 1))
 
 #define LOOP3DHEAD(x3, y3, z3, x4, y4, z4) Kokkos::parallel_for(Kokkos::MDRangePolicy<Kokkos::Rank<3>>({z3,x3,y3},{z4,x4,y4}),KOKKOS_LAMBDA(int k,int i,int j) {
-
 #define LOOP3DEND \
   });
 

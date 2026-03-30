@@ -83,7 +83,6 @@ void bind_wavefield_acoustic(py::module_ &m)
 
 void bind_wavefield_elastic(py::module_ &m)
 {
-  using value_type = typename VECTOR_REAL_VIEW::value_type;
   // Bind WavefieldElastic (inherits from Wavefield)
   py::class_<WavefieldElastic, Wavefield, std::shared_ptr<WavefieldElastic>>(
       m, "WavefieldElastic")
