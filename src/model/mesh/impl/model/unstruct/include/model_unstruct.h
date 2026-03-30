@@ -486,23 +486,30 @@ class ModelUnstruct final : public ModelApi<FloatType, ScalarType>
       auto& theta = model_theta_element_;
       auto& phi = model_phi_element_;
 
-      MAINLOOPHEAD(n_element_, i)
-      FloatType CTTI[6][6];
-      FloatType vp_val = static_cast<FloatType>(vp[i]);
-      FloatType vs_val = static_cast<FloatType>(vs[i]);
-      FloatType rho_val = static_cast<FloatType>(rho[i]);
-      FloatType delta_val = static_cast<FloatType>(delta[i]);
-      FloatType epsilon_val = static_cast<FloatType>(epsilon[i]);
-      FloatType gamma_val = static_cast<FloatType>(gamma[i]);
-      FloatType theta_val = static_cast<FloatType>(theta[i]);
-      FloatType phi_val = static_cast<FloatType>(phi[i]);
+      // MAINLOOPHEAD(n_element_, i)
+      Kokkos::parallel_for(
+          "Model init ElasticTensors",
+          Kokkos::RangePolicy<Kokkos::LaunchBounds<LaunchMaxThreadsPerBlock,
+                                                   LaunchMinBlocksPerSM>>(
+              0, n_element_),
+          KOKKOS_CLASS_LAMBDA(const int i) {
+            FloatType CTTI[6][6];
+            FloatType vp_val = static_cast<FloatType>(vp[i]);
+            FloatType vs_val = static_cast<FloatType>(vs[i]);
+            FloatType rho_val = static_cast<FloatType>(rho[i]);
+            FloatType delta_val = static_cast<FloatType>(delta[i]);
+            FloatType epsilon_val = static_cast<FloatType>(epsilon[i]);
+            FloatType gamma_val = static_cast<FloatType>(gamma[i]);
+            FloatType theta_val = static_cast<FloatType>(theta[i]);
+            FloatType phi_val = static_cast<FloatType>(phi[i]);
 
-      computeCTensor(vp_val, vs_val, rho_val, delta_val, epsilon_val, gamma_val,
-                     theta_val, phi_val, CTTI);
+            computeCTensor(vp_val, vs_val, rho_val, delta_val, epsilon_val,
+                           gamma_val, theta_val, phi_val, CTTI);
 
-      for (int k = 0; k < 6; k++)
-        for (int l = 0; l < 6; l++) C_tensor(i, k, l) = CTTI[k][l];
-      MAINLOOPEND
+            for (int k = 0; k < 6; k++)
+              for (int l = 0; l < 6; l++) C_tensor(i, k, l) = CTTI[k][l];
+            // MAINLOOPEND
+          });
     }
   }
 
