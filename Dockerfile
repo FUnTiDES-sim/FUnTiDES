@@ -36,7 +36,7 @@ RUN git clone --recurse-submodules https://github.com/FUnTiDES-sim/FUnTiDES-TPL.
 
 # Install TPL
 WORKDIR /workspace/tpl_source
-RUN CC=clang CXX=clang++ ./install.sh --prefix=/opt/tpl --disable-cuda --use-venv --jobs=$(nproc)
+RUN CC=clang CXX=clang++ ./install.sh --prefix=/opt/tpl --disable-cuda --enable-venv --jobs=$(nproc) --pykokkos-build-threads=4
 
 ENV PATH="/opt/tpl/bin:${PATH}"
 ENV LD_LIBRARY_PATH="/opt/tpl/lib"
