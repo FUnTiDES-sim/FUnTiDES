@@ -5,19 +5,9 @@
 
 #define PROXY_HOST_DEVICE KOKKOS_FORCEINLINE_FUNCTION
 
-#define LOOPHEAD(Range, Iterator) \
-    Kokkos::parallel_for( Range, KOKKOS_CLASS_LAMBDA ( const int Iterator ){
-#define LOOPEND \
-  });
-
 // MAINLOOP
 #define LaunchMaxThreadsPerBlock 64
 #define LaunchMinBlocksPerSM 1
-#define MAINLOOPHEAD(Range, Iterator)                                                                                          \
-    Kokkos::parallel_for( Kokkos::RangePolicy<Kokkos::LaunchBounds<LaunchMaxThreadsPerBlock, LaunchMinBlocksPerSM>>(0, Range), \
-                          KOKKOS_CLASS_LAMBDA ( const int Iterator ){
-#define MAINLOOPEND \
-  });
 
 #define FIND_MAX_1D(Array, Range, Result)                                  \
   if (Array.extent(0) == 0)                                                \
