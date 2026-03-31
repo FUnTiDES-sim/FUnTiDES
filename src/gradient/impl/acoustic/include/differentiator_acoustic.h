@@ -98,67 +98,69 @@ class DifferentiatorAcoustic : public Differentiator
                          VECTOR_REAL_VIEW const gradKappa,
                          VECTOR_REAL_VIEW const gradBuoyancy) const
   {
-    MAINLOOPHEAD(mesh.getNumberOfElements(), elementNumber)
+    Kokkos::parallel_for(
+    "Compute Acoustic Gradient on Elements",
+    Kokkos::RangePolicy<Kokkos::LaunchBounds<LaunchMaxThreadsPerBlock,
+                                             LaunchMinBlocksPerSM>>(0, mesh.getNumberOfElements()),
+      KOKKOS_CLASS_LAMBDA(const int elementNumber) {
+        if (elementNumber >= mesh.getNumberOfElements()) return;
 
-    if (elementNumber >= mesh.getNumberOfElements()) return;
+        int const dim = mesh.getOrder() + 1;
 
-    int const dim = mesh.getOrder() + 1;
-
-    typename INTEGRAL_TYPE::TransformType transformData;
-    {
-      auto const elementIndex = mesh.elementIndex(elementNumber);
-      int I = 0;
-      for (int kv = 0; kv < 2; ++kv)
-        for (int jv = 0; jv < 2; ++jv)
-          for (int iv = 0; iv < 2; ++iv)
-          {
-            auto const vertexIndex =
-                mesh.globalVertexIndex(elementIndex, iv, jv, kv);
-            mesh.vertexCoords(vertexIndex, transformData.data[I]);
-            ++I;
-          }
-    }
-
-    float localPn[kPointsPerElement] = {0};
-    float localQn[kPointsPerElement] = {0};
-    float localQnPrev[kPointsPerElement] = {0};
-    float localQnPrevPrev[kPointsPerElement] = {0};
-    for (int i = 0; i < dim; ++i)
-      for (int j = 0; j < dim; ++j)
-        for (int k = 0; k < dim; ++k)
+        typename INTEGRAL_TYPE::TransformType transformData;
         {
-          int const gIdx = mesh.globalNodeIndex(elementNumber, i, j, k);
-          int const lIdx = i + j * dim + k * dim * dim;
-          localPn[lIdx] = pn(gIdx);
-          localQn[lIdx] = qn(gIdx);
-          localQnPrev[lIdx] = qnPrev(gIdx);
-          localQnPrevPrev[lIdx] = qnPrevPrev(gIdx);
+          auto const elementIndex = mesh.elementIndex(elementNumber);
+          int I = 0;
+          for (int kv = 0; kv < 2; ++kv)
+            for (int jv = 0; jv < 2; ++jv)
+              for (int iv = 0; iv < 2; ++iv)
+              {
+                auto const vertexIndex =
+                    mesh.globalVertexIndex(elementIndex, iv, jv, kv);
+                mesh.vertexCoords(vertexIndex, transformData.data[I]);
+                ++I;
+              }
         }
 
-    float const invDt2 = 1.0f / (dt * dt);
+        float localPn[kPointsPerElement] = {0};
+        float localQn[kPointsPerElement] = {0};
+        float localQnPrev[kPointsPerElement] = {0};
+        float localQnPrevPrev[kPointsPerElement] = {0};
+        for (int i = 0; i < dim; ++i)
+          for (int j = 0; j < dim; ++j)
+            for (int k = 0; k < dim; ++k)
+            {
+              int const gIdx = mesh.globalNodeIndex(elementNumber, i, j, k);
+              int const lIdx = i + j * dim + k * dim * dim;
+              localPn[lIdx] = pn(gIdx);
+              localQn[lIdx] = qn(gIdx);
+              localQnPrev[lIdx] = qnPrev(gIdx);
+              localQnPrevPrev[lIdx] = qnPrevPrev(gIdx);
+            }
 
-    // grad_kappa: element-indexed — unique per thread, no atomic
-    float localGradKappa = 0.0f;
-    INTEGRAL_TYPE::computeMassTerm(
-        transformData, [&](const int q, const real_t val) {
-          float const qdt2 =
-              (localQnPrevPrev[q] - 2.0f * localQnPrev[q] + localQn[q]) *
-              invDt2;
-          localGradKappa += qdt2 * localPn[q] * val;
-        });
-    gradKappa(elementNumber) += localGradKappa;
+        float const invDt2 = 1.0f / (dt * dt);
 
-    // grad_buoyancy: element-indexed — unique per thread, no atomic
-    float localGradBuoyancy = 0.0f;
-    INTEGRAL_TYPE::computeStiffnessTerm(
-        transformData,
-        [&](const int /*qa*/, const int /*qb*/, const int /*qc*/) {},
-        [&](const int i, const int j, const real_t val) {
-          localGradBuoyancy += val * localQn[j] * localPn[i];
-        });
-    gradBuoyancy(elementNumber) += localGradBuoyancy;
+        // grad_kappa: element-indexed — unique per thread, no atomic
+        float localGradKappa = 0.0f;
+        INTEGRAL_TYPE::computeMassTerm(
+            transformData, [&](const int q, const real_t val) {
+              float const qdt2 =
+                  (localQnPrevPrev[q] - 2.0f * localQnPrev[q] + localQn[q]) *
+                  invDt2;
+              localGradKappa += qdt2 * localPn[q] * val;
+            });
+        gradKappa(elementNumber) += localGradKappa;
 
-    MAINLOOPEND
+        // grad_buoyancy: element-indexed — unique per thread, no atomic
+        float localGradBuoyancy = 0.0f;
+        INTEGRAL_TYPE::computeStiffnessTerm(
+            transformData,
+            [&](const int /*qa*/, const int /*qb*/, const int /*qc*/) {},
+            [&](const int i, const int j, const real_t val) {
+              localGradBuoyancy += val * localQn[j] * localPn[i];
+            });
+        gradBuoyancy(elementNumber) += localGradBuoyancy;
+    });
   }
 
   /**
@@ -172,66 +174,68 @@ class DifferentiatorAcoustic : public Differentiator
                       VECTOR_REAL_VIEW const gradKappa,
                       VECTOR_REAL_VIEW const gradBuoyancy) const
   {
-    MAINLOOPHEAD(mesh.getNumberOfElements(), elementNumber)
+    Kokkos::parallel_for(
+    "Compute Acoustic Gradient on Nodes",
+    Kokkos::RangePolicy<Kokkos::LaunchBounds<LaunchMaxThreadsPerBlock,
+                                             LaunchMinBlocksPerSM>>(0, mesh.getNumberOfElements()),
+      KOKKOS_CLASS_LAMBDA(const int elementNumber) {
+        if (elementNumber >= mesh.getNumberOfElements()) return;
 
-    if (elementNumber >= mesh.getNumberOfElements()) return;
+        int const dim = mesh.getOrder() + 1;
 
-    int const dim = mesh.getOrder() + 1;
-
-    typename INTEGRAL_TYPE::TransformType transformData;
-    {
-      auto const elementIndex = mesh.elementIndex(elementNumber);
-      int I = 0;
-      for (int kv = 0; kv < 2; ++kv)
-        for (int jv = 0; jv < 2; ++jv)
-          for (int iv = 0; iv < 2; ++iv)
-          {
-            auto const vertexIndex =
-                mesh.globalVertexIndex(elementIndex, iv, jv, kv);
-            mesh.vertexCoords(vertexIndex, transformData.data[I]);
-            ++I;
-          }
-    }
-
-    float localPn[kPointsPerElement] = {0};
-    float localQn[kPointsPerElement] = {0};
-    float localQnPrev[kPointsPerElement] = {0};
-    float localQnPrevPrev[kPointsPerElement] = {0};
-    int localGIdx[kPointsPerElement] = {0};
-    for (int i = 0; i < dim; ++i)
-      for (int j = 0; j < dim; ++j)
-        for (int k = 0; k < dim; ++k)
+        typename INTEGRAL_TYPE::TransformType transformData;
         {
-          int const gIdx = mesh.globalNodeIndex(elementNumber, i, j, k);
-          int const lIdx = i + j * dim + k * dim * dim;
-          localGIdx[lIdx] = gIdx;
-          localPn[lIdx] = pn(gIdx);
-          localQn[lIdx] = qn(gIdx);
-          localQnPrev[lIdx] = qnPrev(gIdx);
-          localQnPrevPrev[lIdx] = qnPrevPrev(gIdx);
+          auto const elementIndex = mesh.elementIndex(elementNumber);
+          int I = 0;
+          for (int kv = 0; kv < 2; ++kv)
+            for (int jv = 0; jv < 2; ++jv)
+              for (int iv = 0; iv < 2; ++iv)
+              {
+                auto const vertexIndex =
+                    mesh.globalVertexIndex(elementIndex, iv, jv, kv);
+                mesh.vertexCoords(vertexIndex, transformData.data[I]);
+                ++I;
+              }
         }
 
-    float const invDt2 = 1.0f / (dt * dt);
+        float localPn[kPointsPerElement] = {0};
+        float localQn[kPointsPerElement] = {0};
+        float localQnPrev[kPointsPerElement] = {0};
+        float localQnPrevPrev[kPointsPerElement] = {0};
+        int localGIdx[kPointsPerElement] = {0};
+        for (int i = 0; i < dim; ++i)
+          for (int j = 0; j < dim; ++j)
+            for (int k = 0; k < dim; ++k)
+            {
+              int const gIdx = mesh.globalNodeIndex(elementNumber, i, j, k);
+              int const lIdx = i + j * dim + k * dim * dim;
+              localGIdx[lIdx] = gIdx;
+              localPn[lIdx] = pn(gIdx);
+              localQn[lIdx] = qn(gIdx);
+              localQnPrev[lIdx] = qnPrev(gIdx);
+              localQnPrevPrev[lIdx] = qnPrevPrev(gIdx);
+            }
 
-    // grad_kappa: scatter per quadrature point to its global node
-    INTEGRAL_TYPE::computeMassTerm(
-        transformData, [&](const int q, const real_t val) {
-          float const qdt2 =
-              (localQnPrevPrev[q] - 2.0f * localQnPrev[q] + localQn[q]) *
-              invDt2;
-          ATOMICADD(gradKappa(localGIdx[q]), qdt2 * localPn[q] * val);
-        });
+        float const invDt2 = 1.0f / (dt * dt);
 
-    // grad_buoyancy: scatter test-function node (i) contributions to global
-    // node
-    INTEGRAL_TYPE::computeStiffnessTerm(
-        transformData,
-        [&](const int /*qa*/, const int /*qb*/, const int /*qc*/) {},
-        [&](const int i, const int j, const real_t val) {
-          ATOMICADD(gradBuoyancy(localGIdx[i]), val * localQn[j] * localPn[i]);
-        });
+        // grad_kappa: scatter per quadrature point to its global node
+        INTEGRAL_TYPE::computeMassTerm(
+            transformData, [&](const int q, const real_t val) {
+              float const qdt2 =
+                  (localQnPrevPrev[q] - 2.0f * localQnPrev[q] + localQn[q]) *
+                  invDt2;
+              ATOMICADD(gradKappa(localGIdx[q]), qdt2 * localPn[q] * val);
+            });
 
-    MAINLOOPEND
+        // grad_buoyancy: scatter test-function node (i) contributions to global
+        // node
+        INTEGRAL_TYPE::computeStiffnessTerm(
+            transformData,
+            [&](const int /*qa*/, const int /*qb*/, const int /*qc*/) {},
+            [&](const int i, const int j, const real_t val) {
+              ATOMICADD(gradBuoyancy(localGIdx[i]), val * localQn[j] * localPn[i]);
+            });
+    });
   }
 };
 

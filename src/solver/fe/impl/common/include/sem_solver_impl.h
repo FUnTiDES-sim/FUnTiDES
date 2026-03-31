@@ -1120,7 +1120,7 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES,
     }
   }
 
-  if constexpr (PHYSICS == enums::physicType::kAcoustic)
+  if constexpr (PHYSICS == utils::enums::physicType::kAcoustic)
   {
     Kokkos::parallel_for(
         "Solver Update Field Acoustic", mesh_local.getNumberOfNodes(),
@@ -1301,7 +1301,7 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES,
 
           if constexpr (IS_MODEL_ON_NODES)
           {
-            if constexpr (PHYSICS == enums::physicType::kAcoustic)
+            if constexpr (PHYSICS == utils::enums::physicType::kAcoustic)
             {
               model_factor = 1.0f / (mesh_local.getModelVpOnNodes(gIndex) *
                                      mesh_local.getModelVpOnNodes(gIndex) *
@@ -1359,7 +1359,7 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES,
             }
           }
 
-          if constexpr (PHYSICS == enums::physicType::kAcoustic)
+          if constexpr (PHYSICS == utils::enums::physicType::kAcoustic)
           {
             // Acoustic damping
             real_t model_rho = 0.0f;
