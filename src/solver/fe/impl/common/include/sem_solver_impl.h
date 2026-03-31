@@ -340,19 +340,10 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES,
         model_discretization_interface::gatherTransformData(
             elementNumber, mesh_local, transformData);
 
-  if constexpr (PHYSICS == utils::enums::physicType::kAcoustic)
-  {
-    real_t inv_density_q = 0.0f;
-    if constexpr (!IS_MODEL_ON_NODES)
-    {
-      inv_density_q = 1.0f / (mesh_local.getModelRhoOnElement(elementNumber) *
-                              mesh_local.getModelQpOnElement(elementNumber));
-    }
-
-    INTEGRAL_TYPE::computeStiffnessTerm(
-        transformData,
-        [&](const int qa, const int qb, const int qc) {
-          if constexpr (IS_MODEL_ON_NODES)
+        if constexpr (PHYSICS == utils::enums::physicType::kAcoustic)
+        {
+          real_t inv_density_q = 0.0f;
+          if constexpr (!IS_MODEL_ON_NODES)
           {
             inv_density_q =
                 1.0f / (mesh_local.getModelRhoOnElement(elementNumber) *
@@ -1285,41 +1276,28 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES,
             transformData,
             [&](const int j, const real_t val) { massMatrixLocal[j] += val; });
 
-  real_t model_factor = 0.0f;
-  if constexpr (!IS_MODEL_ON_NODES)
-  {
-    if constexpr (PHYSICS == utils::enums::physicType::kAcoustic)
-    {
-      model_factor = 1.0f / (mesh_local.getModelVpOnElement(elementNumber) *
-                             mesh_local.getModelVpOnElement(elementNumber) *
-                             mesh_local.getModelRhoOnElement(elementNumber));
-    }
-    else
-    {
-      model_factor = mesh_local.getModelRhoOnElement(elementNumber);
-    }
-  }
+        real_t model_factor = 0.0f;
+        if constexpr (!IS_MODEL_ON_NODES)
+        {
+          if constexpr (PHYSICS == utils::enums::physicType::kAcoustic)
+          {
+            model_factor =
+                1.0f / (mesh_local.getModelVpOnElement(elementNumber) *
+                        mesh_local.getModelVpOnElement(elementNumber) *
+                        mesh_local.getModelRhoOnElement(elementNumber));
+          }
+          else
+          {
+            model_factor = mesh_local.getModelRhoOnElement(elementNumber);
+          }
+        }
 
-  for (int i = 0; i < mesh_local.getNumberOfPointsPerElement(); ++i)
-  {
-    int x = i % dim;
-    int z = (i / dim) % dim;
-    int y = i / (dim * dim);
-    int const gIndex = mesh_local.globalNodeIndex(elementNumber, x, y, z);
-
-    if constexpr (IS_MODEL_ON_NODES)
-    {
-      if constexpr (PHYSICS == utils::enums::physicType::kAcoustic)
-      {
-        model_factor = 1.0f / (mesh_local.getModelVpOnNodes(gIndex) *
-                               mesh_local.getModelVpOnNodes(gIndex) *
-                               mesh_local.getModelRhoOnNodes(gIndex));
-      }
-      else
-      {
-        model_factor = mesh_local.getModelRhoOnNodes(gIndex);
-      }
-    }
+        for (int i = 0; i < mesh_local.getNumberOfPointsPerElement(); ++i)
+        {
+          int x = i % dim;
+          int z = (i / dim) % dim;
+          int y = i / (dim * dim);
+          int const gIndex = mesh_local.globalNodeIndex(elementNumber, x, y, z);
 
           if constexpr (IS_MODEL_ON_NODES)
           {
@@ -1360,48 +1338,7 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES,
       KOKKOS_CLASS_LAMBDA(const int elementNumber) {
         if (elementNumber >= mesh_local.getNumberOfElements()) return;
 
-  for (int i = 0; i < 6; ++i)
-  {
-    // Get global face ID for this element face
-    int f = mesh_local.getGlobalFace(elementNumber,
-                                     static_cast<model::CubicFace>(i));
-
-    // Skip internal faces (only process boundary faces)
-    if (!mesh_local.isBoundaryFace(f)) continue;
-
-    // Get corner coordinates of the face for integration
-    float coords[4][3];
-    for (int j = 0; j < 4; ++j)
-    {
-      int const globalNodeIndex = mesh_local.getGlobalNodeFromFace(
-          f, INTEGRAL_TYPE::meshIndexToLinearIndex2D(j));
-      for (int d = 0; d < 3; ++d)
-      {
-        coords[j][d] = mesh_local.nodeCoord(globalNodeIndex, d);
-      }
-    }
-
-    if constexpr (PHYSICS == utils::enums::physicType::kAcoustic)
-    {
-      // Acoustic damping
-      real_t model_rho = 0.0f;
-      real_t model_vp = 0.0f;
-      real_t alpha = 0.0f;
-
-      if constexpr (!IS_MODEL_ON_NODES)
-      {
-        model_rho = mesh_local.getModelRhoOnElement(elementNumber);
-        model_vp = mesh_local.getModelVpOnElement(elementNumber);
-        alpha = 1.0 / (model_rho * model_vp);
-      }
-
-      constexpr int numNodesPerFace = (ORDER + 1) * (ORDER + 1);
-      for (int q = 0; q < numNodesPerFace; ++q)
-      {
-        int const globalNodeIndex = mesh_local.getGlobalNodeFromFace(f, q);
-
-        // Skip free surface nodes (no damping on free surface)
-        if (mesh_local.isFreeSurface(globalNodeIndex))
+        for (int i = 0; i < 6; ++i)
         {
           // Get global face ID for this element face
           int f = mesh_local.getGlobalFace(elementNumber,

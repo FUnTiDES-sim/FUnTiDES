@@ -62,8 +62,6 @@ SEMproxy::SEMproxy(const SemProxyOptions& opt)
   // Setup Sponge Parameters (store as members for use in run())
   sponge_size_ = {opt.boundaries_size, opt.boundaries_size,
                   opt.boundaries_size};
-  sponge_size_ = {opt.boundaries_size, opt.boundaries_size,
-                  opt.boundaries_size};
   surface_sponge_ = opt.surface_sponge;
   taper_delta_ = opt.taper_delta;
 
@@ -197,8 +195,6 @@ SEMproxy::SEMproxy(const SemProxyOptions& opt)
           "DAS receivers require elastic simulation (--is-elastic true)");
     }
     dasGaugeLength_ = opt.das_gauge_length;
-    dasDirection_ =
-        SourceAndReceiverUtils::ComputeDASVector(opt.das_dip, opt.das_azimuth);
     dasDirection_ =
         SourceAndReceiverUtils::ComputeDASVector(opt.das_dip, opt.das_azimuth);
     dasVector_ = dasDirection_;
@@ -349,8 +345,6 @@ void SEMproxy::run()
         fout << t * dt_ << " " << pnAtReceiver(0, t) << "\n";
       }
       fout.close();
-      std::cout << "Receiver trace saved to receiver_trace.txt (" << num_sample_
-                << " samples)" << std::endl;
       std::cout << "Receiver trace saved to receiver_trace.txt (" << num_sample_
                 << " samples)" << std::endl;
     }
