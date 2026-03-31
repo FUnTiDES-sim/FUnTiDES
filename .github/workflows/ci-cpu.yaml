@@ -152,3 +152,4 @@ jobs:
           export PYTHONPATH=$PYTHONPATH:$INSTALL_DIR/python
           export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$INSTALL_DIR/lib
           python -m pytest tests/units --kokkos-num-threads=2
+          python -m pytest tests/integration --kokkos-num-threads=2

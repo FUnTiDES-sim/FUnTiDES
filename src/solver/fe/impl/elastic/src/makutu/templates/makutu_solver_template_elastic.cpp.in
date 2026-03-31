@@ -11,4 +11,4 @@ template class solver::fe::SEMsolver<ORDER,
                          IntegralTypeSelector<ORDER, IntegralType::MAKUTU>::type,
                          model::@MODEL_CLASS@<@MODEL_TEMPLATE_PARAMS@>,
                          @MODEL_ON_NODES@,
-                         solver::fe::enums::physicType::kElastic>;
+                         utils::enums::physicType::kElastic>;

@@ -20,8 +20,6 @@
 #include "solver_factory.h"
 #include "source_and_receiver_utils.h"
 
-using namespace solver::fe::enums;
-
 /**
  * @class SEMproxy
  */
@@ -186,9 +184,9 @@ class SEMproxy
 
   // private methods to pars argv options
   int getPhysic(string physicArg);
-  implemType getImplem(string implemArg);
-  methodType getMethod(string methodArg);
-  meshType getMesh(string meshArg);
+  utils::enums::implemType getImplem(string implemArg);
+  utils::enums::methodType getMethod(string methodArg);
+  utils::enums::meshType getMesh(string meshArg);
 
   // private methods for init
   void init_mpi(int* mpi_init);

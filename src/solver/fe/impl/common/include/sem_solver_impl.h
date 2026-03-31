@@ -19,7 +19,7 @@ namespace fe
 //============================================================================
 
 template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE,
-          bool IS_MODEL_ON_NODES, enums::physicType PHYSICS>
+          bool IS_MODEL_ON_NODES, utils::enums::physicType PHYSICS>
 void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES,
                PHYSICS>::computeFEInit(model::ModelApi<float, int>& mesh_in,
                                        const std::array<float, 3>& sponge_size,
@@ -54,7 +54,7 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES,
     float minQVal = std::numeric_limits<float>::max();
     for (int e = 0; e < m_mesh.getNumberOfElements(); ++e)
     {
-      if constexpr (PHYSICS == enums::physicType::kAcoustic)
+      if constexpr (PHYSICS == utils::enums::physicType::kAcoustic)
       {
         float q =
             IS_MODEL_ON_NODES
@@ -93,7 +93,7 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES,
 //============================================================================
 
 template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE,
-          bool IS_MODEL_ON_NODES, enums::physicType PHYSICS>
+          bool IS_MODEL_ON_NODES, utils::enums::physicType PHYSICS>
 void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES,
                PHYSICS>::computeForces(const float& dt, const int& timeSample,
                                        Solver::DataStruct& data)
@@ -118,7 +118,7 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES,
 //============================================================================
 
 template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE,
-          bool IS_MODEL_ON_NODES, enums::physicType PHYSICS>
+          bool IS_MODEL_ON_NODES, utils::enums::physicType PHYSICS>
 void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES,
                PHYSICS>::updateSolution(const float& dt,
                                         Solver::DataStruct& data)
@@ -198,7 +198,7 @@ template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE,
 void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES,
                PHYSICS>::computeElementContributions(const DataType& data)
 {
-  if constexpr (PHYSICS == enums::physicType::kElastic)
+  if constexpr (PHYSICS == utils::enums::physicType::kElastic)
   {
     if (anisotropyType_ == model::AnisotropyType::kIso)
     {
@@ -340,7 +340,7 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES,
         model_discretization_interface::gatherTransformData(
             elementNumber, mesh_local, transformData);
 
-        if constexpr (PHYSICS == enums::physicType::kAcoustic)
+        if constexpr (PHYSICS == utils::enums::physicType::kAcoustic)
         {
           real_t inv_density_q = 0.0f;
           if constexpr (!IS_MODEL_ON_NODES)
@@ -852,7 +852,7 @@ template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE,
 void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES,
                PHYSICS>::computeElementContributions_Tti(const DataType& data)
 {
-  if constexpr (PHYSICS != enums::physicType::kElastic)
+  if constexpr (PHYSICS != utils::enums::physicType::kElastic)
   {
   }
   else
@@ -1120,7 +1120,7 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES,
     }
   }
 
-  if constexpr (PHYSICS == enums::physicType::kAcoustic)
+  if constexpr (PHYSICS == utils::enums::physicType::kAcoustic)
   {
     Kokkos::parallel_for(
         "Solver Update Field Acoustic", mesh_local.getNumberOfNodes(),
@@ -1279,7 +1279,7 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES,
         real_t model_factor = 0.0f;
         if constexpr (!IS_MODEL_ON_NODES)
         {
-          if constexpr (PHYSICS == enums::physicType::kAcoustic)
+          if constexpr (PHYSICS == utils::enums::physicType::kAcoustic)
           {
             model_factor =
                 1.0f / (mesh_local.getModelVpOnElement(elementNumber) *
@@ -1301,7 +1301,7 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES,
 
           if constexpr (IS_MODEL_ON_NODES)
           {
-            if constexpr (PHYSICS == enums::physicType::kAcoustic)
+            if constexpr (PHYSICS == utils::enums::physicType::kAcoustic)
             {
               model_factor = 1.0f / (mesh_local.getModelVpOnNodes(gIndex) *
                                      mesh_local.getModelVpOnNodes(gIndex) *
@@ -1359,7 +1359,7 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES,
             }
           }
 
-          if constexpr (PHYSICS == enums::physicType::kAcoustic)
+          if constexpr (PHYSICS == utils::enums::physicType::kAcoustic)
           {
             // Acoustic damping
             real_t model_rho = 0.0f;

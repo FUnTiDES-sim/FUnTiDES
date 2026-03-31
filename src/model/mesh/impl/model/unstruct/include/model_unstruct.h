@@ -486,7 +486,6 @@ class ModelUnstruct final : public ModelApi<FloatType, ScalarType>
       auto& theta = model_theta_element_;
       auto& phi = model_phi_element_;
 
-      // MAINLOOPHEAD(n_element_, i)
       Kokkos::parallel_for(
           "Model init ElasticTensors",
           Kokkos::RangePolicy<Kokkos::LaunchBounds<LaunchMaxThreadsPerBlock,
@@ -508,7 +507,6 @@ class ModelUnstruct final : public ModelApi<FloatType, ScalarType>
 
             for (int k = 0; k < 6; k++)
               for (int l = 0; l < 6; l++) C_tensor(i, k, l) = CTTI[k][l];
-            // MAINLOOPEND
           });
     }
   }

@@ -1,0 +1,9 @@
+add_gtest(differentiator_acoustic_makutu_struct_test
+  test_differentiator_acoustic_makutu_struct.cc
+  funtides_gradient
+)
+
+add_gtest(differentiator_acoustic_makutu_unstruct_test
+  test_differentiator_acoustic_makutu_unstruct.cc
+  funtides_gradient
+)

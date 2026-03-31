@@ -23,7 +23,7 @@ namespace fe
 {
 
 template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE,
-          bool IS_MODEL_ON_NODES, enums::physicType PHYSICS>
+          bool IS_MODEL_ON_NODES, utils::enums::physicType PHYSICS>
 class SEMsolver : public Solver
 {
  public:
@@ -136,8 +136,9 @@ class SEMsolver : public Solver
    * @param theta Dip angle (radians).
    * @param C Output 6x6 elasticity matrix.
    */
-  template <physicType P = PHYSICS,
-            typename = std::enable_if_t<P == enums::physicType::kElastic>>
+  template <
+      physicType P = PHYSICS,
+      typename = std::enable_if_t<P == utils::enums::physicType::kElastic>>
   PROXY_HOST_DEVICE void computeCMatrix(float vp, float vs, float rho,
                                         float delta, float epsilon, float gamma,
                                         float phi, float theta,
@@ -224,13 +225,13 @@ template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE,
           bool IS_MODEL_ON_NODES>
 using SEMsolverAcoustic =
     SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES,
-              enums::physicType::kAcoustic>;
+              utils::enums::physicType::kAcoustic>;
 
 template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE,
           bool IS_MODEL_ON_NODES>
 using SEMsolverElastic =
     SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES,
-              enums::physicType::kElastic>;
+              utils::enums::physicType::kElastic>;
 
 }  // namespace fe
 }  // namespace solver
