@@ -107,7 +107,6 @@ class DifferentiatorElastic : public Differentiator
               << ">\n";
   }
 
- private:
   /**
    * @brief Compute displacement gradients at a quadrature point given J^{-1}.
    *
