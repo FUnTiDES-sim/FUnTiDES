@@ -1,0 +1,84 @@
+name: SEMKernels Tests
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+on:
+  pull_request:
+    branches:
+      - main
+      
+  workflow_dispatch: # Allow to start this workflow manually
+
+jobs:
+
+  test:
+    runs-on: ubuntu-latest
+
+    steps:
+
+      - name: Get PR labels
+        id: pr-labels
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const { data: pullRequest } = await github.rest.pulls.get({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: context.issue.number
+            });
+            const labels = pullRequest.labels.map(label => label.name);
+            core.setOutput('has-sccache-off', labels.includes('SCCACHE_OFF') ? 'true' : 'false');
+
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          submodules: recursive
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y cmake g++ libgtest-dev
+
+      - name: Turn off sccache
+        if: steps.pr-labels.outputs.has-sccache-off == 'true'
+        run: echo "SCCACHE_OFF=true" >> $GITHUB_ENV
+
+      - name: Run sccache-cache
+        if: env.SCCACHE_OFF != 'true'
+        uses: mozilla-actions/sccache-action@v0.0.9
+
+      - name: Configure
+        env:
+          SCCACHE_GHA_ENABLED: "true"
+        run: |
+          CMAKE_FLAGS="-DSEMKERNELS_BUILD_TESTS=ON"
+
+          # Use sccache to speed up recompilation unless disabled
+          if [[ "$SCCACHE_OFF" != "true" ]]; then
+            CMAKE_FLAGS="$CMAKE_FLAGS -DCMAKE_C_COMPILER_LAUNCHER=sccache -DCMAKE_CXX_COMPILER_LAUNCHER=sccache"
+          fi
+
+          mkdir build
+          cd build
+          echo "cmake .. ${CMAKE_FLAGS}"
+          cmake .. ${CMAKE_FLAGS}
+
+      - name: Build
+        env:
+          SCCACHE_GHA_ENABLED: "true"
+        run: |
+          cd build
+          make -j$(nproc)
+
+      - name: Test
+        run: |
+          cd build
+          ctest --output-on-failure -V
+
+      - name: Print sccache stats
+        if: env.SCCACHE_OFF != 'true'
+        run: sccache --show-stats
