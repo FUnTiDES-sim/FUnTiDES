@@ -234,23 +234,25 @@ void SEMsolverAcoustoElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE,
   auto mesh_local = m_mesh_;
 
   MAINLOOPHEAD(nElem, e)
-  if (e >= nElem) return;
+  {
+    if (e >= nElem) return;
 
-  int const etype = elem_type[e];
-  for (int i = 0; i < dim; ++i)
-    for (int j = 0; j < dim; ++j)
-      for (int k = 0; k < dim; ++k)
-      {
-        int const gIdx = mesh_local.globalNodeIndex(e, i, j, k);
-        if (etype == kElementTypeAcoustic)
+    int const etype = elem_type[e];
+    for (int i = 0; i < dim; ++i)
+      for (int j = 0; j < dim; ++j)
+        for (int k = 0; k < dim; ++k)
         {
-          ATOMICADD(acoustic_count[gIdx], 1);
+          int const gIdx = mesh_local.globalNodeIndex(e, i, j, k);
+          if (etype == kElementTypeAcoustic)
+          {
+            ATOMICADD(acoustic_count[gIdx], 1);
+          }
+          else
+          {
+            ATOMICADD(elastic_count[gIdx], 1);
+          }
         }
-        else
-        {
-          ATOMICADD(elastic_count[gIdx], 1);
-        }
-      }
+  }
   MAINLOOPEND
   FENCE
 
@@ -428,9 +430,9 @@ void SEMsolverAcoustoElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE,
 {
   auto& myData = dynamic_cast<DataType&>(data);
 
-  SEMsolverData<enums::physicType::kAcoustic> acoustic_data(
+    SEMsolverData<utils::enums::physicType::kAcoustic> acoustic_data(
       myData.m_wavefield.m_acoustic, myData.m_rhs.m_rhs_acoustic);
-  SEMsolverData<enums::physicType::kElastic> elastic_data(
+    SEMsolverData<utils::enums::physicType::kElastic> elastic_data(
       myData.m_wavefield.m_elastic, myData.m_rhs.m_rhs_elastic);
 
   resetGlobalVectors(m_mesh_.getNumberOfNodes());
@@ -462,12 +464,12 @@ void SEMsolverAcoustoElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE,
 {
   auto& myData = dynamic_cast<DataType&>(data);
 
-  SEMsolverData<enums::physicType::kElastic> elastic_data(
-      myData.m_wavefield.m_elastic, RhsElastic{});
+    SEMsolverData<utils::enums::physicType::kElastic> elastic_data(
+      myData.m_wavefield.m_elastic, myData.m_rhs.m_rhs_elastic);
   m_elastic_solver_.updateFields(dt, elastic_data);
   FENCE
 
-  SEMsolverData<enums::physicType::kAcoustic> acoustic_data(
+    SEMsolverData<utils::enums::physicType::kAcoustic> acoustic_data(
       myData.m_wavefield.m_acoustic, myData.m_rhs.m_rhs_acoustic);
   m_acoustic_solver_.updateFields(dt, acoustic_data);
   FENCE
@@ -566,9 +568,9 @@ void SEMsolverAcoustoElastic<
   int const nNode = m_mesh_.getNumberOfNodes();
 
   // Sub-solver data views are constructed once and reused throughout the step.
-  SEMsolverData<enums::physicType::kElastic> elastic_data(
+    SEMsolverData<utils::enums::physicType::kElastic> elastic_data(
       myData.m_wavefield.m_elastic, myData.m_rhs.m_rhs_elastic);
-  SEMsolverData<enums::physicType::kAcoustic> acoustic_data(
+    SEMsolverData<utils::enums::physicType::kAcoustic> acoustic_data(
       myData.m_wavefield.m_acoustic, myData.m_rhs.m_rhs_acoustic);
 
   // =========================================================================

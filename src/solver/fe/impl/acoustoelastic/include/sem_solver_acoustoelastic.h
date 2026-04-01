@@ -75,10 +75,10 @@ class SEMsolverAcoustoElastic : public Solver
  public:
   using AcousticSolverType =
       SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES,
-                enums::physicType::kAcoustic>;
+          utils::enums::physicType::kAcoustic>;
   using ElasticSolverType =
       SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES,
-                enums::physicType::kElastic>;
+          utils::enums::physicType::kElastic>;
   using DataType = SEMsolverDataAcoustoElastic;
 
   SEMsolverAcoustoElastic() = default;

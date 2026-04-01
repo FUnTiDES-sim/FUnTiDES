@@ -75,6 +75,16 @@ struct WavefieldAcoustoElastic : public Wavefield
     m_elastic.swap();
   }
 
+  void swapWithRotation(VECTOR_REAL_VIEW& prevPrevBuffer, int i) override
+  {
+    if (i == 0)
+    {
+      m_acoustic.swapWithRotation(prevPrevBuffer, 0);
+      return;
+    }
+    m_elastic.swapWithRotation(prevPrevBuffer, i - 1);
+  }
+
   void print() const override
   {
     m_acoustic.print();

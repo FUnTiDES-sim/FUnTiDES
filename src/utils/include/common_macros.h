@@ -9,6 +9,22 @@
 #define LaunchMaxThreadsPerBlock 64
 #define LaunchMinBlocksPerSM 1
 
+// Backward-compatible loop helpers used by legacy FE kernels.
+#define LOOPHEAD(Range, Index)                                                \
+  Kokkos::parallel_for(                                                       \
+      Kokkos::RangePolicy<>(0, Range),                                        \
+      KOKKOS_CLASS_LAMBDA(const int Index)
+#define LOOPEND );
+
+#define MAINLOOPHEAD(Range, Index)                                            \
+  Kokkos::parallel_for(                                                       \
+      "MainLoop",                                                            \
+      Kokkos::RangePolicy<Kokkos::LaunchBounds<LaunchMaxThreadsPerBlock,      \
+                                               LaunchMinBlocksPerSM>>(         \
+          0, Range),                                                          \
+      KOKKOS_CLASS_LAMBDA(const int Index)
+#define MAINLOOPEND );
+
 #define FIND_MAX_1D(Array, Range, Result)                                  \
   if (Array.extent(0) == 0)                                                \
     throw std::runtime_error("Error in FIND_MAX_1D: Array has zero size"); \

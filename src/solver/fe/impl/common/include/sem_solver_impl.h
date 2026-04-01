@@ -1752,6 +1752,96 @@ SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES,
   }
 }
 
+//============================================================================
+// computeGlobalMassMatrixMasked - domain-masked mass matrix assembly
+//============================================================================
+
+template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE,
+          bool IS_MODEL_ON_NODES, physicType PHYSICS>
+void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES,
+               PHYSICS>::computeGlobalMassMatrixMasked(const VECTOR_INT_VIEW&
+                                                            elem_mask,
+                                                        int active_value)
+{
+  m_element_mask_ = elem_mask;
+  m_mask_active_value_ = active_value;
+  m_mask_enabled_ = true;
+  computeGlobalMassMatrix();
+  m_mask_enabled_ = false;
+}
+
+//============================================================================
+// computeDampingMatrixMasked - domain-masked damping matrix assembly
+//============================================================================
+
+template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE,
+          bool IS_MODEL_ON_NODES, physicType PHYSICS>
+void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES,
+               PHYSICS>::computeDampingMatrixMasked(const VECTOR_INT_VIEW&
+                                                         elem_mask,
+                                                     int active_value)
+{
+  m_element_mask_ = elem_mask;
+  m_mask_active_value_ = active_value;
+  m_mask_enabled_ = true;
+  computeDampingMatrix();
+  m_mask_enabled_ = false;
+}
+
+//============================================================================
+// computeElementContributionsMasked - domain-masked stiffness assembly
+//============================================================================
+
+template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE,
+          bool IS_MODEL_ON_NODES, physicType PHYSICS>
+void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::
+    computeElementContributionsMasked(const DataType& data,
+                                      const VECTOR_INT_VIEW& elem_mask,
+                                      int active_value)
+{
+  m_element_mask_ = elem_mask;
+  m_mask_active_value_ = active_value;
+  m_mask_enabled_ = true;
+  computeElementContributions(data);
+  m_mask_enabled_ = false;
+}
+
+//============================================================================
+// computeElementContributionsFromList - stiffness assembly from compact list
+//============================================================================
+
+template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE,
+          bool IS_MODEL_ON_NODES, physicType PHYSICS>
+void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::
+    computeElementContributionsFromList(const DataType& data,
+                                        const VECTOR_INT_VIEW& elem_list,
+                                        int n_elems)
+{
+  m_elem_list_ = elem_list;
+  m_n_elem_list_ = n_elems;
+  m_list_mode_ = true;
+  computeElementContributions(data);
+  m_list_mode_ = false;
+}
+
+//============================================================================
+// updateFieldsFromList - Verlet update restricted to a compact node list
+//============================================================================
+
+template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE,
+          bool IS_MODEL_ON_NODES, physicType PHYSICS>
+void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES,
+               PHYSICS>::updateFieldsFromList(float dt, const DataType& data,
+                                              const VECTOR_INT_VIEW& node_list,
+                                              int n_nodes)
+{
+  m_node_list_ = node_list;
+  m_n_node_list_ = n_nodes;
+  m_node_list_mode_ = true;
+  updateFields(dt, data);
+  m_node_list_mode_ = false;
+}
+
 }  // namespace fe
 }  // namespace solver
 #endif  // FUNTIDES_SOLVER_FE_IMPL_COMMON_INCLUDE_SEM_SOLVER_IMPL_H_
