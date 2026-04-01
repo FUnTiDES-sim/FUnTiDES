@@ -77,17 +77,10 @@ void bind_sem_solver_base(py::module_ &m)
       .def("update_solution", &Solver::updateSolution, py::arg("dt"),
            py::arg("data"))
       .def(
-          "get_mass_matrix_acoustic",
+          "get_mass_matrix",
           [](Solver &self)
               -> Kokkos::Experimental::python_view_type_t<VECTOR_REAL_VIEW> {
-            return self.getMassMatrixAcoustic();
-          },
-          py::return_value_policy::reference_internal)
-      .def(
-          "get_mass_matrix_elastic",
-          [](Solver &self)
-              -> Kokkos::Experimental::python_view_type_t<VECTOR_REAL_VIEW> {
-            return self.getMassMatrixElastic();
+            return self.getMassMatrix();
           },
           py::return_value_policy::reference_internal)
       .def("output_solution_values", &Solver::outputSolutionValues,
@@ -127,9 +120,10 @@ void bind_solver_factory(py::module_ &m)
 {
   m.def(
       "create_solver",
-      [](enums::methodType method, enums::implemType implem,
-         enums::meshType mesh, enums::modelLocationType modelLocation,
-         enums::physicType physic, int order) {
+      [](utils::enums::methodType method, utils::enums::implemType implem,
+         utils::enums::meshType mesh,
+         utils::enums::modelLocationType modelLocation,
+         utils::enums::physicType physic, int order) {
         auto solver = solver_factory::createSolver(
             method, implem, mesh, modelLocation, physic, order);
         return std::shared_ptr<Solver>(std::move(solver));

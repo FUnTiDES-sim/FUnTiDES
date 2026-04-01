@@ -15,23 +15,7 @@
 #include "wavefield_acoustic.h"
 
 using namespace solver::fe;
-using namespace solver::fe::enums;
-#include <benchmark/benchmark.h>
-
-#include <array>
-#include <memory>
-
-#include "bench_macros.h"
-#include "bench_main.h"
-#include "cartesian_unstruct_builder.h"
-#include "data_type.h"
-#include "model.h"
-#include "sem_solver.h"
-#include "solver_factory.h"
-#include "utils.h"
-
-using namespace solver::fe;
-using namespace solver::fe::enums;
+using namespace utils::enums;
 
 namespace model
 {

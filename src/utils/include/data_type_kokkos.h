@@ -1,8 +1,9 @@
 #ifndef FUNTIDES_UTILS_INCLUDE_DATA_TYPE_KOKKOS_H_
 #define FUNTIDES_UTILS_INCLUDE_DATA_TYPE_KOKKOS_H_
 
-#include "Kokkos_Core_fwd.hpp"
 #include <Kokkos_Core.hpp>
+
+#include "Kokkos_Core_fwd.hpp"
 
 using MemSpace = Kokkos::SharedSpace;
 using Layout = Kokkos::DefaultExecutionSpace::array_layout;

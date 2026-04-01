@@ -15,7 +15,7 @@ namespace fe
 namespace solver_factory
 {
 
-namespace feenum = solver::fe::enums;
+namespace feenum = utils::enums;
 
 /**
  * @brief Dispatches to the correct template instantiation based on runtime

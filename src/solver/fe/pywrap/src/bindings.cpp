@@ -29,13 +29,13 @@ PYBIND11_MODULE(solver, m)
   solver::fe::bind_wavefield_elastic(m);
   solver::fe::bind_wavefield_acoustoelastic(m);
 
-  // Bind Solver and associated Data Structures
-  // TODO (https://github.com/FUnTiDES-sim/FUnTiDES/issues/214) there should be
-  // a clear split between solver and data structures
+  // Bind Data Structures
   solver::fe::bind_data_struct(m);
   solver::fe::bind_acoustic_solver_data(m);
   solver::fe::bind_elastic_solver_data(m);
   solver::fe::bind_acoustoelastic_solver_data(m);
+
+  // Bind Solver
   solver::fe::bind_sem_solver_base(m);
   solver::fe::bind_solver_factory(m);
 }

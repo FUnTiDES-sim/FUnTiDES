@@ -14,38 +14,38 @@ namespace fe
 
 void bind_method_type(py::module_ &m)
 {
-  py::enum_<enums::methodType>(m, "MethodType")
-      .value("SEM", enums::methodType::kSem)
-      .value("DG", enums::methodType::kDg);
+  py::enum_<utils::enums::methodType>(m, "MethodType")
+      .value("SEM", utils::enums::methodType::kSem)
+      .value("DG", utils::enums::methodType::kDg);
 }
 
 void bind_implem_type(py::module_ &m)
 {
-  py::enum_<enums::implemType>(m, "ImplemType")
-      .value("MAKUTU", enums::implemType::kMakutu);
+  py::enum_<utils::enums::implemType>(m, "ImplemType")
+      .value("MAKUTU", utils::enums::implemType::kMakutu);
 }
 
 void bind_mesh_type(py::module_ &m)
 {
-  py::enum_<enums::meshType>(m, "MeshType")
-      .value("STRUCT", enums::meshType::kStruct)
-      .value("UNSTRUCT", enums::meshType::kUnstruct);
+  py::enum_<utils::enums::meshType>(m, "MeshType")
+      .value("STRUCT", utils::enums::meshType::kStruct)
+      .value("UNSTRUCT", utils::enums::meshType::kUnstruct);
 }
 
 void bind_model_location_type(py::module_ &m)
 {
-  py::enum_<enums::modelLocationType>(m, "ModelLocationType")
-      .value("ONNODES", enums::modelLocationType::kOnNodes)
-      .value("ONELEMENTS", enums::modelLocationType::kOnElements)
+  py::enum_<utils::enums::modelLocationType>(m, "ModelLocationType")
+      .value("ONNODES", utils::enums::modelLocationType::kOnNodes)
+      .value("ONELEMENTS", utils::enums::modelLocationType::kOnElements)
       .export_values();
 }
 
 void bind_physic_type(py::module_ &m)
 {
-  py::enum_<enums::physicType>(m, "PhysicType")
-      .value("ACOUSTIC", enums::physicType::kAcoustic)
-      .value("ELASTIC", enums::physicType::kElastic)
-      .value("ACOUSTOELASTIC", enums::physicType::kAcoustoElastic)
+  py::enum_<utils::enums::physicType>(m, "PhysicType")
+      .value("ACOUSTIC", utils::enums::physicType::kAcoustic)
+      .value("ELASTIC", utils::enums::physicType::kElastic)
+  .value("ACOUSTOELASTIC", utils::enums::physicType::kAcoustoElastic)
       .export_values();
 }
 

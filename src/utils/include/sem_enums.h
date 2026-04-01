@@ -1,10 +1,8 @@
-#ifndef FUNTIDES_SOLVER_FE_IMPL_COMMON_INCLUDE_SEM_ENUMS_H_
-#define FUNTIDES_SOLVER_FE_IMPL_COMMON_INCLUDE_SEM_ENUMS_H_
+#ifndef FUNTIDES_UTILS_INCLUDE_SEM_ENUMS_H_
+#define FUNTIDES_UTILS_INCLUDE_SEM_ENUMS_H_
 #include <string>
 
-namespace solver
-{
-namespace fe
+namespace utils
 {
 namespace enums
 {
@@ -101,6 +99,5 @@ inline std::string to_string(physicType p)
 }
 
 }  // namespace enums
-}  // namespace fe
-}  // namespace solver
-#endif  // FUNTIDES_SOLVER_FE_IMPL_COMMON_INCLUDE_SEM_ENUMS_H_
+}  // namespace utils
+#endif  // FUNTIDES_UTILS_INCLUDE_SEM_ENUMS_H_

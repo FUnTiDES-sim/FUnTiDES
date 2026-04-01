@@ -1,5 +1,6 @@
 #ifndef FUNTIDES_SOLVER_FE_API_INCLUDE_PHYSICS_TRAITS_H_
 #define FUNTIDES_SOLVER_FE_API_INCLUDE_PHYSICS_TRAITS_H_
+
 #include "sem_enums.h"
 
 namespace solver
@@ -20,7 +21,7 @@ namespace fe
  * Note: physicType enum is forward declared. Include sem_enums.h
  * or physics-specific trait headers for full definitions.
  */
-template <enums::physicType PHYSICS>
+template <utils::enums::physicType PHYSICS>
 struct PhysicsTraits
 {
   static constexpr const char* kName = "";

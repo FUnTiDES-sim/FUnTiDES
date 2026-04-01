@@ -33,8 +33,8 @@
 
 using namespace SourceAndReceiverUtils;
 using namespace solver::fe;
-using namespace solver::fe::enums;
 using namespace solver::fe::solver_factory;
+using namespace utils::enums;
 
 SEMproxy::SEMproxy(const SemProxyOptions& opt)
 {

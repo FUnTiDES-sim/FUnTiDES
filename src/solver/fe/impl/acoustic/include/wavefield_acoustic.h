@@ -47,6 +47,14 @@ struct WavefieldAcoustic : public Wavefield
 
   void swap() override { std::swap(m_pnGlobalPrev, m_pnGlobalCurr); }
 
+  void swapWithRotation(VECTOR_REAL_VIEW& prevPrevBuffer, int i) override
+  {
+    VECTOR_REAL_VIEW tmp = prevPrevBuffer;
+    prevPrevBuffer       = m_pnGlobalPrev;
+    m_pnGlobalPrev       = m_pnGlobalCurr;
+    m_pnGlobalCurr       = tmp;
+  }
+
   void print() const override
   {
     std::cout << "Pn Global Prev size: " << m_pnGlobalPrev.extent(0)

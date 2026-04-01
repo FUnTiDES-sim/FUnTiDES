@@ -108,9 +108,10 @@ static void setImpulseSource(VECTOR_REAL_VIEW& field, int numNodes,
 TEST(AttenuationSetup, SetSLSAttenuationStoresParameters)
 {
   auto solver = solver_factory::createSolver(
-      enums::methodType::kSem, enums::implemType::kMakutu,
-      enums::meshType::kStruct, enums::modelLocationType::kOnElements,
-      enums::physicType::kAcoustic, 1);
+      utils::enums::methodType::kSem, utils::enums::implemType::kMakutu,
+      utils::enums::meshType::kStruct,
+      utils::enums::modelLocationType::kOnElements,
+      utils::enums::physicType::kAcoustic, 1);
 
   // Set 2 SLS mechanisms with explicit coefficients
   std::vector<float> freqs = {2.0f * M_PI * 1.0f, 2.0f * M_PI * 10.0f};
@@ -127,9 +128,10 @@ TEST(AttenuationSetup, SetSLSAttenuationStoresParameters)
 TEST(AttenuationSetup, EmptyFrequenciesDisablesAttenuation)
 {
   auto solver = solver_factory::createSolver(
-      enums::methodType::kSem, enums::implemType::kMakutu,
-      enums::meshType::kStruct, enums::modelLocationType::kOnElements,
-      enums::physicType::kAcoustic, 1);
+      utils::enums::methodType::kSem, utils::enums::implemType::kMakutu,
+      utils::enums::meshType::kStruct,
+      utils::enums::modelLocationType::kOnElements,
+      utils::enums::physicType::kAcoustic, 1);
 
   // First enable
   std::vector<float> freqs = {2.0f * M_PI * 5.0f};
@@ -150,9 +152,10 @@ TEST(AttenuationSetup, EmptyFrequenciesDisablesAttenuation)
 TEST(AttenuationSetup, MismatchedCoefficientsThrows)
 {
   auto solver = solver_factory::createSolver(
-      enums::methodType::kSem, enums::implemType::kMakutu,
-      enums::meshType::kStruct, enums::modelLocationType::kOnElements,
-      enums::physicType::kAcoustic, 1);
+      utils::enums::methodType::kSem, utils::enums::implemType::kMakutu,
+      utils::enums::meshType::kStruct,
+      utils::enums::modelLocationType::kOnElements,
+      utils::enums::physicType::kAcoustic, 1);
 
   std::vector<float> freqs = {1.0f, 2.0f, 3.0f};
   std::vector<float> coeffs = {0.5f};  // Wrong size: 1 vs 3
@@ -168,9 +171,10 @@ TEST(AttenuationSetup, MismatchedCoefficientsThrows)
 TEST(AttenuationInit, ComputeFEInitWithAttenuationRuns)
 {
   auto solver = solver_factory::createSolver(
-      enums::methodType::kSem, enums::implemType::kMakutu,
-      enums::meshType::kStruct, enums::modelLocationType::kOnElements,
-      enums::physicType::kAcoustic, 1);
+      utils::enums::methodType::kSem, utils::enums::implemType::kMakutu,
+      utils::enums::meshType::kStruct,
+      utils::enums::modelLocationType::kOnElements,
+      utils::enums::physicType::kAcoustic, 1);
 
   std::vector<float> freqs = {2.0f * M_PI * 5.0f};
   solver->setSLSAttenuation(toView(freqs, "f"));
@@ -192,9 +196,10 @@ static float runAcousticSimulation(
   int npp = (order + 1) * (order + 1) * (order + 1);
 
   auto solver = solver_factory::createSolver(
-      enums::methodType::kSem, enums::implemType::kMakutu,
-      enums::meshType::kStruct, enums::modelLocationType::kOnElements,
-      enums::physicType::kAcoustic, order);
+      utils::enums::methodType::kSem, utils::enums::implemType::kMakutu,
+      utils::enums::meshType::kStruct,
+      utils::enums::modelLocationType::kOnElements,
+      utils::enums::physicType::kAcoustic, order);
   solver->setAnisotropyType(model::AnisotropyType::kIso);
 
   if (!slsFreqs.empty())
@@ -284,9 +289,10 @@ TEST(AttenuationAcoustic, NoNanOrInfWithAttenuation)
   int numNodes = mesh->getNumberOfNodes();
 
   auto solver = solver_factory::createSolver(
-      enums::methodType::kSem, enums::implemType::kMakutu,
-      enums::meshType::kStruct, enums::modelLocationType::kOnElements,
-      enums::physicType::kAcoustic, order);
+      utils::enums::methodType::kSem, utils::enums::implemType::kMakutu,
+      utils::enums::meshType::kStruct,
+      utils::enums::modelLocationType::kOnElements,
+      utils::enums::physicType::kAcoustic, order);
   solver->setAnisotropyType(model::AnisotropyType::kIso);
 
   std::vector<float> freqs = {2.0f * static_cast<float>(M_PI) * 5.0f};
@@ -355,9 +361,10 @@ TEST(AttenuationElastic, AttenuationDecaysAmplitude)
 
   // ----- Run 1: No attenuation -----
   auto solver_no_att = solver_factory::createSolver(
-      enums::methodType::kSem, enums::implemType::kMakutu,
-      enums::meshType::kStruct, enums::modelLocationType::kOnElements,
-      enums::physicType::kElastic, order);
+      utils::enums::methodType::kSem, utils::enums::implemType::kMakutu,
+      utils::enums::meshType::kStruct,
+      utils::enums::modelLocationType::kOnElements,
+      utils::enums::physicType::kElastic, order);
   solver_no_att->setAnisotropyType(model::AnisotropyType::kIso);
   solver_no_att->computeFEInit(*mesh_no_att, {0, 0, 0}, false, 0.0f);
 
@@ -413,9 +420,10 @@ TEST(AttenuationElastic, AttenuationDecaysAmplitude)
 
   // ----- Run 2: With attenuation -----
   auto solver_att = solver_factory::createSolver(
-      enums::methodType::kSem, enums::implemType::kMakutu,
-      enums::meshType::kStruct, enums::modelLocationType::kOnElements,
-      enums::physicType::kElastic, order);
+      utils::enums::methodType::kSem, utils::enums::implemType::kMakutu,
+      utils::enums::meshType::kStruct,
+      utils::enums::modelLocationType::kOnElements,
+      utils::enums::physicType::kElastic, order);
   solver_att->setAnisotropyType(model::AnisotropyType::kIso);
 
   std::vector<float> freqs = {2.0f * static_cast<float>(M_PI) * 5.0f,
@@ -487,9 +495,10 @@ TEST(AttenuationElastic, NoNanOrInfWithAttenuation)
   int npp = (order + 1) * (order + 1) * (order + 1);
 
   auto solver = solver_factory::createSolver(
-      enums::methodType::kSem, enums::implemType::kMakutu,
-      enums::meshType::kStruct, enums::modelLocationType::kOnElements,
-      enums::physicType::kElastic, order);
+      utils::enums::methodType::kSem, utils::enums::implemType::kMakutu,
+      utils::enums::meshType::kStruct,
+      utils::enums::modelLocationType::kOnElements,
+      utils::enums::physicType::kElastic, order);
   solver->setAnisotropyType(model::AnisotropyType::kIso);
 
   std::vector<float> freqs = {2.0f * static_cast<float>(M_PI) * 5.0f};
@@ -562,9 +571,10 @@ TEST(AttenuationAcoustic, ComputeOneStepWithAttenuation)
   int npp = (order + 1) * (order + 1) * (order + 1);
 
   auto solver = solver_factory::createSolver(
-      enums::methodType::kSem, enums::implemType::kMakutu,
-      enums::meshType::kStruct, enums::modelLocationType::kOnElements,
-      enums::physicType::kAcoustic, order);
+      utils::enums::methodType::kSem, utils::enums::implemType::kMakutu,
+      utils::enums::meshType::kStruct,
+      utils::enums::modelLocationType::kOnElements,
+      utils::enums::physicType::kAcoustic, order);
   solver->setAnisotropyType(model::AnisotropyType::kIso);
 
   std::vector<float> freqs = {2.0f * static_cast<float>(M_PI) * 10.0f};
@@ -695,9 +705,10 @@ TEST(AttenuationElasticHighOrder, Order2DecaysAmplitude)
 
   // ----- No attenuation -----
   auto solver_na = solver_factory::createSolver(
-      enums::methodType::kSem, enums::implemType::kMakutu,
-      enums::meshType::kStruct, enums::modelLocationType::kOnElements,
-      enums::physicType::kElastic, order);
+      utils::enums::methodType::kSem, utils::enums::implemType::kMakutu,
+      utils::enums::meshType::kStruct,
+      utils::enums::modelLocationType::kOnElements,
+      utils::enums::physicType::kElastic, order);
   solver_na->setAnisotropyType(model::AnisotropyType::kIso);
   solver_na->computeFEInit(*mesh_no_att, {0, 0, 0}, false, 0.0f);
 
@@ -741,9 +752,10 @@ TEST(AttenuationElasticHighOrder, Order2DecaysAmplitude)
 
   // ----- With attenuation -----
   auto solver_a = solver_factory::createSolver(
-      enums::methodType::kSem, enums::implemType::kMakutu,
-      enums::meshType::kStruct, enums::modelLocationType::kOnElements,
-      enums::physicType::kElastic, order);
+      utils::enums::methodType::kSem, utils::enums::implemType::kMakutu,
+      utils::enums::meshType::kStruct,
+      utils::enums::modelLocationType::kOnElements,
+      utils::enums::physicType::kElastic, order);
   solver_a->setAnisotropyType(model::AnisotropyType::kIso);
   std::vector<float> freqs = {2.0f * static_cast<float>(M_PI) * 5.0f,
                               2.0f * static_cast<float>(M_PI) * 50.0f};
@@ -840,9 +852,10 @@ TEST(AttenuationAcousticHighOrder, Order2NoNanOrInf)
   int numNodes = mesh->getNumberOfNodes();
 
   auto solver = solver_factory::createSolver(
-      enums::methodType::kSem, enums::implemType::kMakutu,
-      enums::meshType::kStruct, enums::modelLocationType::kOnElements,
-      enums::physicType::kAcoustic, order);
+      utils::enums::methodType::kSem, utils::enums::implemType::kMakutu,
+      utils::enums::meshType::kStruct,
+      utils::enums::modelLocationType::kOnElements,
+      utils::enums::physicType::kAcoustic, order);
   solver->setAnisotropyType(model::AnisotropyType::kIso);
 
   std::vector<float> freqs = {2.0f * static_cast<float>(M_PI) * 5.0f};
@@ -901,9 +914,10 @@ TEST(AttenuationElasticHighOrder, Order3NoNanOrInf)
   int npp = (order + 1) * (order + 1) * (order + 1);
 
   auto solver = solver_factory::createSolver(
-      enums::methodType::kSem, enums::implemType::kMakutu,
-      enums::meshType::kStruct, enums::modelLocationType::kOnElements,
-      enums::physicType::kElastic, order);
+      utils::enums::methodType::kSem, utils::enums::implemType::kMakutu,
+      utils::enums::meshType::kStruct,
+      utils::enums::modelLocationType::kOnElements,
+      utils::enums::physicType::kElastic, order);
   solver->setAnisotropyType(model::AnisotropyType::kIso);
 
   std::vector<float> freqs = {2.0f * static_cast<float>(M_PI) * 5.0f};

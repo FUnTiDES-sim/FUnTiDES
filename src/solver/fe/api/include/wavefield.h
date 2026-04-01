@@ -45,6 +45,29 @@ struct Wavefield
    */
   virtual void swap() = 0;
 
+  /**
+   * @brief Rotate three buffers without any data copy.
+   *
+   * Performs a 3-way cyclic rotation of view handles:
+   *   prevPrevBuffer ← prev ← curr ← prevPrevBuffer
+   *
+   * After the call:
+   *   - curr      holds the slot previously occupied by prevPrevBuffer
+   *               (ready to be overwritten by the next solver step)
+   *   - prev      holds what was curr   (the most recently computed field)
+   *   - prevPrevBuffer holds what was prev (the field from two steps ago)
+   *
+   * This is intended for adjoint time-loops where the caller manages one
+   * extra external buffer and needs copy-free access to three consecutive
+   * time levels for gradient computation.
+   *
+   * @param prevPrevBuffer  External view handle for the n-2 time level.
+   *                        Updated in-place to point to the n-1 level after
+   *                        the call.
+   * @param i               Field index to swap (0 = first field, 1 = second, etc.).
+   */
+  virtual void swapWithRotation(VECTOR_REAL_VIEW& prevPrevBuffer, int i) = 0;
+
   virtual void print() const = 0;
 };
 }  // namespace fe

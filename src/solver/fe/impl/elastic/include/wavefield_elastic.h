@@ -82,6 +82,35 @@ struct WavefieldElastic : public Wavefield
     std::swap(m_uznGlobalPrev, m_uznGlobalCurr);
   }
 
+  // NOTE: elastic has 3 components — the caller must manage one extra buffer per
+  // component and call swapWithRotation once per component with the appropriate
+  // field index (0=ux, 1=uy, 2=uz).
+  void swapWithRotation(VECTOR_REAL_VIEW& prevPrevBuffer, int i) override
+  {
+    VECTOR_REAL_VIEW tmp = prevPrevBuffer;
+    switch (i)
+    {
+      case 0:  // ux component
+        prevPrevBuffer  = m_uxnGlobalPrev;
+        m_uxnGlobalPrev = m_uxnGlobalCurr;
+        m_uxnGlobalCurr = tmp;
+        break;
+      case 1:  // uy component
+        prevPrevBuffer  = m_uynGlobalPrev;
+        m_uynGlobalPrev = m_uynGlobalCurr;
+        m_uynGlobalCurr = tmp;
+        break;
+      case 2:  // uz component
+        prevPrevBuffer  = m_uznGlobalPrev;
+        m_uznGlobalPrev = m_uznGlobalCurr;
+        m_uznGlobalCurr = tmp;
+        break;
+      default:
+        // Invalid field index - no-op to make CUDA happy
+        break;
+    }
+  }
+
   void print() const override
   {
     std::cout << "Ux Global Prev size: " << m_uxnGlobalPrev.extent(0)

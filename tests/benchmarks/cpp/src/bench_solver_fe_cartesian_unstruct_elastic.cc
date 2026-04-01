@@ -15,7 +15,7 @@
 #include "wavefield_elastic.h"
 
 using namespace solver::fe;
-using namespace solver::fe::enums;
+using namespace utils::enums;
 
 namespace model
 {

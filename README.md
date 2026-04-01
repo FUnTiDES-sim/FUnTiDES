@@ -2,7 +2,6 @@
 
 FUnTiDES (Fast Unstructured Time Dynamic Equation Solver) is a high-performance computational library designed to simulate 2D and 3D wave propagation. By solving acoustic and elastic wave equations using a high-order Spectral Element Method (SEM), it handles the massive computational demands of real-world scientific simulations with exceptional accuracy. Designed primarily for use via its Python bindings, FUnTiDES combines a flexible, user-friendly Python interface with a heavily optimized, performance-portable C++ backend (powered by Kokkos) for modern High-Performance Computing (HPC) architectures.
 
----
 
 ## Included Applications
 
@@ -16,7 +15,17 @@ The current implementation includes two proxy applications for solving the 2nd-o
 
 A key feature of these proxy applications is their adaptability to different programming models and HPC architectures. They are also easy to build and run, making them accessible to both researchers and developers.
 
----
+
+## CMake Options
+
+The following options can be used to configure your build:
+
+| Option                 | Description                                        |
+|------------------------|----------------------------------------------------|
+| `COMPILE_FD`           | Enable compilation of the FD proxy (default: ON)   |
+| `COMPILE_SEM`          | Enable compilation of the SEM proxy (default: ON)  |
+| `ENABLE_PYWRAP`        | Enable Python bindings via pybind11 (experimental) |
+| `CMAKE_INSTALL_PREFIX` | Where to install FUnTiDES                          |
 
 
 ## Quick Start: Build and Run
@@ -27,26 +36,22 @@ Before compiling the main project, you must install the required dependencies vi
 
 ```sh
 # Clone the TPL repository
-git clone --recurse-submodules [https://github.com/FUnTiDES-sim/FUnTiDES-TPL.git](https://github.com/FUnTiDES-sim/FUnTiDES-TPL.git) tpl_source
+git clone --recurse-submodules https://github.com/FUnTiDES-sim/FUnTiDES-TPL.git
 
-# Install TPL (adjust --prefix to your desired installation path)
-cd tpl_source
-./install.sh --prefix=/opt/tpl --disable-cuda --use-venv --jobs=$(nproc)
-
-# Export necessary environment variables so CMake can find the TPLs
-export PATH="/opt/tpl/bin:${PATH}"
-export LD_LIBRARY_PATH="/opt/tpl/lib:${LD_LIBRARY_PATH}"
-export CMAKE_PREFIX_PATH="/opt/tpl"
+# Install TPL for CPU
+export FUNTIDES_TPL_INSTALL_DIR=$(pwd)/FUnTiDES-TPL/install
+FUnTiDES-TPL/install.sh --prefix=${FUNTIDES_TPL_INSTALL_DIR} --disable-cuda --disable-mpi --no-venv --jobs=$(nproc)
 ````
 
-Or use the dedicated script in TPL that does export the env automatically.
+For more TPL builds options see `FUnTiDES-TPL/install.sh --help`.
 
 ### Step 2: Compile and Install
 
 Once the TPLs are installed and your environment is configured, you can build the applications.
 
 ```sh
-cd /path/to/funtides
+source FUnTiDES-TPL/setup_tpl_env.sh ${FUNTIDES_TPL_INSTALL_DIR}
+cd FUnTiDES
 mkdir build
 cd build
 cmake ..
@@ -122,20 +127,6 @@ mpirun -n 4 python3 examples/fe/solver_cartesian_mpi.py --ex 200 --snap_interval
 
 > **Note**: A dedicated python env can be made via TPLs.
 
------
-
-## CMake Options
-
-The following options can be used to configure your build:
-
-| Option          | Description                                        |
-|-----------------|----------------------------------------------------|
-| `COMPILE_FD`    | Enable compilation of the FD proxy (default: ON)   |
-| `COMPILE_SEM`   | Enable compilation of the SEM proxy (default: ON)  |
-| `ENABLE_PYWRAP` | Enable Python bindings via pybind11 (experimental) |
-
------
-
 ## 🐍 Python wrappers
 
 ### Prerequisites
@@ -148,23 +139,8 @@ pip install -r requirements.txt
 
 ### Generation
 
-The proxy must be configured with `-DENABLE_PYWRAP=ON` and installed via `make install`. Optionally, you can set `-DCMAKE_INSTALL_PREFIX` to where you want to deploy the application along with the python wrappers.
-
-This will create a *pyfuntides* package in your install directory which contains both the *solver* and *model* pybind modules.
-
-```bash
-(.venv) [proxys]$ ls $MY_INSTALL_DIR/python/pyfuntides/
-__init__.py  model.cpython-311-x86_64-linux-gnu.so  solver.cpython-311-x86_64-linux-gnu.so
-```
-
-This will also install *kokkos* in your python environment, which will point to the kokkos built by the *pyfuntides* app.
-
-```bash
-(.venv) [proxys]$ ls .venv/lib/python3.11/site-packages/kokkos/
-__init__.py  libpykokkos.cpython-311-x86_64-linux-gnu.so  __pycache__  pytest.ini  test  utility.py
-```
-
-If you do not have write access on your python environment, it will install it under *$MY\_INSTALL\_DIR/lib/python3.11/site-packages/kokkos*. In that case you will have to extend your python path with this directory.
+The proxy must be configured with `-DENABLE_PYWRAP=ON` and installed via `make install`.
+This will create a *pyfuntides* package in your `install/python` directory which contains both the *solver* and *model* pybind modules.
 
 ### Usage
 
@@ -174,21 +150,8 @@ First, extend your `PYTHONPATH` to make the *pyfuntides* and *adios* packages vi
 export PYTHONPATH=$PYTHONPATH:$MY_INSTALL_DIR/python
 ```
 
-If needed (kokkos could not write in your python environment), also extend your `PYTHONPATH` to make the kokkos package visible.
-
-```bash
-export PYTHONPATH=$PYTHONPATH:$MY_INSTALL_DIR/lib/python3.11/site-packages
-```
-
-Then extend your `LD_LIBRARY_PATH` so that all libraries point to the same *kokkos* libraries that are installed in the *lib64* folder.
-
-```bash
-export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$MY_INSTALL_DIR/lib64
-```
-
-There is no need to extend the `LD_LIBRARY_PATH` with the *proxys* libraries since the python wrappers use their *RPATH* to retrieve them in the *lib* folder.
-
-Some examples on how to use the wrappers are available in the [`examples`] folder.
+Note: if *pykokkos* is not in your python environment, also extend your `PYTHONPATH` to make the kokkos package visible.
+Some examples on how to use the wrappers are available in the [`examples`](examples/) folder.
 
 ### Tests & Benchmarks
 
@@ -200,28 +163,17 @@ To install dev python packages:
 pip install -r requirements-dev.txt
 ```
 
-To run basic python unit tests (default is using 6 threads):
+To run python tests (default is using 6 threads):
 
 ```bash
-pytest -vv -s  tests/units
-```
-
-To run basic python unit tests with more threads:
-
-```bash
-pytest -vv -s  tests/units --threads 12
+pytest -vv -s  tests/units --kokkos-num-threads=12
+pytest -vv -s  tests/integration --kokkos-num-threads=12
 ```
 
 To run python benchmarks (default is using 6 threads):
 
 ```bash
-pytest -vv -s tests/benchmarks/python
-```
-
-To run python benchmarks with more threads:
-
-```bash
-pytest -vv -s tests/benchmarks/python --threads 12
+pytest -vv -s tests/benchmarks --kokkos-num-threads=12
 ```
 
 To run all python benchmarks (default is using 1,2,4,8,16,32,64 threads):
