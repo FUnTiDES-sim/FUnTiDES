@@ -4,7 +4,7 @@
 #include <cmath>
 
 #include "data_type.h"
-#include "finiteElement/makutu/Qk_Hexahedron_Lagrange_GaussLobatto.hpp"
+#include "Qk_Hexahedron_Lagrange_GaussLobatto.hpp"
 
 using namespace std::chrono;
 

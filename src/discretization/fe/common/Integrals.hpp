@@ -1,9 +1,7 @@
 #ifndef FUNTIDES_DISCRETIZATION_FE_INTEGRALS_H_
 #define FUNTIDES_DISCRETIZATION_FE_INTEGRALS_H_
 
-#pragma once
-
-#include "finiteElement/makutu/Qk_Hexahedron_Lagrange_GaussLobatto.hpp"
+#include "../makutu/include/Qk_Hexahedron_Lagrange_GaussLobatto.hpp"
 
 template <int ORDER, int METHOD_TYPE>
 struct IntegralTypeSelector;

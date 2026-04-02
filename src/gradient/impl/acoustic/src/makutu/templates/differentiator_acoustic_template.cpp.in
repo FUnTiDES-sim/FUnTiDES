@@ -4,7 +4,7 @@
 #include <@MODEL_HEADER@>
 
 #include "differentiator_acoustic.h"
-#include "fe/Integrals.hpp"
+#include "Integrals.hpp"
 
 constexpr int ORDER = @ORDER@;
 

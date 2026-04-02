@@ -5,7 +5,7 @@
 #include <model_struct.h>
 #include <model_unstruct.h>
 
-#include <fe/Integrals.hpp>
+#include <Integrals.hpp>
 
 namespace gradient
 {
