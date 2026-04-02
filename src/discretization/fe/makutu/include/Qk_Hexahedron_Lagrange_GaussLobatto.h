@@ -7,12 +7,12 @@
 
 #include <data_type.h>
 
-#include "LagrangeBasis1.hpp"
-#include "LagrangeBasis2.hpp"
-#include "LagrangeBasis3GL.hpp"
-#include "LagrangeBasis4GL.hpp"
-#include "LagrangeBasis5GL.hpp"
-#include "mathUtilites.hpp"
+#include "LagrangeBasis1.h"
+#include "LagrangeBasis2.h"
+#include "LagrangeBasis3GL.h"
+#include "LagrangeBasis4GL.h"
+#include "LagrangeBasis5GL.h"
+#include "mathUtilites.h"
 
 /**
  * This class is the basis class for the hexahedron finite element cells with

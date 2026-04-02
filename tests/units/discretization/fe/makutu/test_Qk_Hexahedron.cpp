@@ -8,7 +8,7 @@
 #include <cmath>
 #include <set>
 
-#include "Qk_Hexahedron_Lagrange_GaussLobatto.hpp"
+#include "Qk_Hexahedron_Lagrange_GaussLobatto.h"
 
 // Tolerances for floating point comparisons
 // Adapted for float precision (real_t is float by default)

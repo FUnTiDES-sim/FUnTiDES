@@ -1,11 +1,11 @@
 set( finiteElement_headers
-     include/LagrangeBasis1.hpp
-     include/LagrangeBasis2.hpp
-     include/LagrangeBasis3GL.hpp
-     include/LagrangeBasis4GL.hpp
-     include/LagrangeBasis5GL.hpp
-     include/Qk_Hexahedron_Lagrange_GaussLobatto.hpp
-     include/tensorops.hpp
+     include/LagrangeBasis1.h
+     include/LagrangeBasis2.h
+     include/LagrangeBasis3GL.h
+     include/LagrangeBasis4GL.h
+     include/LagrangeBasis5GL.h
+     include/Qk_Hexahedron_Lagrange_GaussLobatto.h
+     include/tensorops.h
 )
 
 add_library( finiteElement

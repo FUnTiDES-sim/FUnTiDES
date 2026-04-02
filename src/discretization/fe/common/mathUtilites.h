@@ -3,7 +3,7 @@
 #include <cmath>
 #include <tuple>
 
-#include "macros.hpp"
+#include "macros.h"
 
 template <typename T>
 static constexpr inline SEMKERNELS_HOST_DEVICE T determinant(T const (&m)[3][3])

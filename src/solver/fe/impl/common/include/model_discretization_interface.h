@@ -2,7 +2,7 @@
 #define FUNTIDES_SOLVER_FE_IMPL_COMMON_INCLUDE_MODEL_DISCRETIZATION_INTERFACE_H_
 #include <type_traits>
 
-#include "Qk_Hexahedron_Lagrange_GaussLobatto.hpp"
+#include "Qk_Hexahedron_Lagrange_GaussLobatto.h"
 
 namespace solver
 {
