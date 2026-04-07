@@ -6,7 +6,7 @@
 #include "data_type.h"
 #include "differentiator_elastic.h"
 #include "differentiator_data_elastic.h"
-#include "fe/Integrals.hpp"
+#include "Integrals.hpp"
 #include "model_unstruct.h"
 
 namespace gradient
