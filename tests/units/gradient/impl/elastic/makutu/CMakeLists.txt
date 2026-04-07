@@ -1,0 +1,9 @@
+add_gtest(differentiator_elastic_makutu_struct_test
+  test_differentiator_elastic_makutu_struct.cc
+  funtides_gradient
+)
+
+add_gtest(differentiator_elastic_makutu_unstruct_test
+  test_differentiator_elastic_makutu_unstruct.cc
+  funtides_gradient
+)
