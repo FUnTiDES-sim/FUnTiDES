@@ -50,9 +50,9 @@ struct WavefieldAcoustic : public Wavefield
   void swapWithRotation(VECTOR_REAL_VIEW& prevPrevBuffer, int i) override
   {
     VECTOR_REAL_VIEW tmp = prevPrevBuffer;
-    prevPrevBuffer       = m_pnGlobalPrev;
-    m_pnGlobalPrev       = m_pnGlobalCurr;
-    m_pnGlobalCurr       = tmp;
+    prevPrevBuffer = m_pnGlobalPrev;
+    m_pnGlobalPrev = m_pnGlobalCurr;
+    m_pnGlobalCurr = tmp;
   }
 
   void print() const override

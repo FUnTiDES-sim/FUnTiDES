@@ -354,9 +354,9 @@ TEST_F(WavefieldAcousticTest, SwapWithRotationThreeTimesRestoresState)
   for (size_t i = 0; i < size1; ++i) prevPrev(i) = 10.0f;
 
   // Record identity of underlying data before rotation
-  float initialPrev0     = prevField(0);    // i=0 → 0
-  float initialCurr0     = currField(0);    // i=0 → 0
-  float initialPrevPrev0 = prevPrev(0);     // 10.0
+  float initialPrev0 = prevField(0);     // i=0 → 0
+  float initialCurr0 = currField(0);     // i=0 → 0
+  float initialPrevPrev0 = prevPrev(0);  // 10.0
 
   WavefieldAcoustic wavefield(prevField, currField);
 

@@ -181,11 +181,14 @@ TYPED_TEST(DifferentiatorAcousticElemUnstructTest,
 TYPED_TEST(DifferentiatorAcousticElemUnstructTest,
            UniformFieldGradKappaEqualsVolume)
 {
-  // pn = 1, qn = 1e-6 (qdt2 = 1 with dt=0.001)  =>  gradKappa = ∫_Ω 1 dΩ = 1.0 (unit cube)
+  // pn = 1, qn = 1e-6 (qdt2 = 1 with dt=0.001)  =>  gradKappa = ∫_Ω 1 dΩ = 1.0
+  // (unit cube)
   for (int i = 0; i < TestFixture::kNumNodes; ++i)
   {
     this->pn(i) = 1.0f;
-    this->qn(i) = 1e-6f; this->qnPrev(i) = 0.0f; this->qnPrevPrev(i) = 0.0f;
+    this->qn(i) = 1e-6f;
+    this->qnPrev(i) = 0.0f;
+    this->qnPrevPrev(i) = 0.0f;
   }
 
   typename TestFixture::Diff diff;
@@ -230,7 +233,9 @@ TYPED_TEST(DifferentiatorAcousticElemUnstructTest, GradKappaScalesWithAmplitude)
   for (int i = 0; i < TestFixture::kNumNodes; ++i)
   {
     this->pn(i) = 1.0f;
-    this->qn(i) = 1e-6f; this->qnPrev(i) = 0.0f; this->qnPrevPrev(i) = 0.0f;
+    this->qn(i) = 1e-6f;
+    this->qnPrev(i) = 0.0f;
+    this->qnPrevPrev(i) = 0.0f;
   }
 
   typename TestFixture::Diff diff;
@@ -265,7 +270,9 @@ TYPED_TEST(DifferentiatorAcousticElemUnstructTest,
   for (int i = 0; i < TestFixture::kNumNodes; ++i)
   {
     this->pn(i) = 1.0f;
-    this->qn(i) = 1e-6f; this->qnPrev(i) = 0.0f; this->qnPrevPrev(i) = 0.0f;
+    this->qn(i) = 1e-6f;
+    this->qnPrev(i) = 0.0f;
+    this->qnPrevPrev(i) = 0.0f;
   }
   this->gradKappa(0) = 5.0f;
 
@@ -290,7 +297,9 @@ TYPED_TEST(DifferentiatorAcousticElemUnstructTest, PolymorphicInterface)
   for (int i = 0; i < TestFixture::kNumNodes; ++i)
   {
     this->pn(i) = 1.0f;
-    this->qn(i) = 1e-6f; this->qnPrev(i) = 0.0f; this->qnPrevPrev(i) = 0.0f;
+    this->qn(i) = 1e-6f;
+    this->qnPrev(i) = 0.0f;
+    this->qnPrevPrev(i) = 0.0f;
   }
 
   std::unique_ptr<Differentiator> diff =
@@ -421,11 +430,14 @@ TYPED_TEST(DifferentiatorAcousticNodeUnstructTest,
 TYPED_TEST(DifferentiatorAcousticNodeUnstructTest,
            UniformFieldGradKappaSumsToVolume)
 {
-  // pn = 1, qn = 1e-6 (qdt2 = 1 with dt=0.001)  =>  scattered contributions must sum to ∫_Ω 1 dΩ = 1.0
+  // pn = 1, qn = 1e-6 (qdt2 = 1 with dt=0.001)  =>  scattered contributions
+  // must sum to ∫_Ω 1 dΩ = 1.0
   for (int i = 0; i < TestFixture::kNumNodes; ++i)
   {
     this->pn(i) = 1.0f;
-    this->qn(i) = 1e-6f; this->qnPrev(i) = 0.0f; this->qnPrevPrev(i) = 0.0f;
+    this->qn(i) = 1e-6f;
+    this->qnPrev(i) = 0.0f;
+    this->qnPrevPrev(i) = 0.0f;
   }
 
   typename TestFixture::DiffNode diff;
@@ -472,7 +484,9 @@ TYPED_TEST(DifferentiatorAcousticNodeUnstructTest,
   for (int i = 0; i < TestFixture::kNumNodes; ++i)
   {
     this->pn(i) = 1.0f;
-    this->qn(i) = 1e-6f; this->qnPrev(i) = 0.0f; this->qnPrevPrev(i) = 0.0f;
+    this->qn(i) = 1e-6f;
+    this->qnPrev(i) = 0.0f;
+    this->qnPrevPrev(i) = 0.0f;
   }
 
   auto mesh = makeUnstructMesh1x1x1<TestFixture::kOrder>();
@@ -509,7 +523,9 @@ TYPED_TEST(DifferentiatorAcousticNodeUnstructTest, PolymorphicInterface)
   for (int i = 0; i < TestFixture::kNumNodes; ++i)
   {
     this->pn(i) = 1.0f;
-    this->qn(i) = 1e-6f; this->qnPrev(i) = 0.0f; this->qnPrevPrev(i) = 0.0f;
+    this->qn(i) = 1e-6f;
+    this->qnPrev(i) = 0.0f;
+    this->qnPrevPrev(i) = 0.0f;
   }
 
   std::unique_ptr<Differentiator> diff =

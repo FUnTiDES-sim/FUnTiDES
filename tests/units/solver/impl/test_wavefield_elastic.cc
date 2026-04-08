@@ -532,7 +532,7 @@ TEST_F(WavefieldElasticTest, SwapWithRotationThreeTimesRestoresState)
 
   float initialUxPrev0 = uxPrevField(0);
   float initialUxCurr0 = uxCurrField(0);
-  float initialUxPP0   = uxPrevPrev(0);
+  float initialUxPP0 = uxPrevPrev(0);
 
   WavefieldElastic wavefield(uxPrevField, uxCurrField, uyPrevField, uyCurrField,
                              uzPrevField, uzCurrField);
@@ -570,7 +570,8 @@ TEST_F(WavefieldElasticTest, SwapWithRotationNoDataCopy)
   wavefield.swapWithRotation(uyPrevPrev, 1);
   wavefield.swapWithRotation(uzPrevPrev, 2);
 
-  // uxPrevPrev now aliases uxPrevField; write through one and read through the other
+  // uxPrevPrev now aliases uxPrevField; write through one and read through the
+  // other
   uxPrevPrev(0) = 999.0f;
   EXPECT_FLOAT_EQ(uxPrevField(0), 999.0f);
 }

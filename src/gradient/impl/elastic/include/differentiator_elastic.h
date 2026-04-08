@@ -89,9 +89,8 @@ class DifferentiatorElastic : public Differentiator
                         uz_adj, ux_dt2, uy_dt2, uz_dt2, gradRho, gradLambda,
                         gradMu);
     else
-      computeOnNodes(myMesh, dt, ux_fwd, uy_fwd, uz_fwd, ux_adj, uy_adj,
-                     uz_adj, ux_dt2, uy_dt2, uz_dt2, gradRho, gradLambda,
-                     gradMu);
+      computeOnNodes(myMesh, dt, ux_fwd, uy_fwd, uz_fwd, ux_adj, uy_adj, uz_adj,
+                     ux_dt2, uy_dt2, uz_dt2, gradRho, gradLambda, gradMu);
   }
 
   int getOrder() const override { return kOrder; }
@@ -120,9 +119,8 @@ class DifferentiatorElastic : public Differentiator
    */
   KOKKOS_INLINE_FUNCTION
   static void computeDisplacementGradient(
-      int qa, int qb, int qc, float const (&J)[3][3],
-      float const* localUx, float const* localUy, float const* localUz,
-      float (&grad)[3][3])
+      int qa, int qb, int qc, float const (&J)[3][3], float const* localUx,
+      float const* localUy, float const* localUz, float (&grad)[3][3])
   {
     int const dim = kOrder + 1;
     for (int c = 0; c < 3; ++c)
@@ -170,13 +168,12 @@ class DifferentiatorElastic : public Differentiator
    * atomic add required.
    */
   void computeOnElements(
-      MESH_TYPE mesh, float dt,
-      VECTOR_REAL_VIEW const ux_fwd, VECTOR_REAL_VIEW const uy_fwd,
-      VECTOR_REAL_VIEW const uz_fwd, VECTOR_REAL_VIEW const ux_adj,
-      VECTOR_REAL_VIEW const uy_adj, VECTOR_REAL_VIEW const uz_adj,
-      VECTOR_REAL_VIEW const ux_dt2, VECTOR_REAL_VIEW const uy_dt2,
-      VECTOR_REAL_VIEW const uz_dt2, VECTOR_REAL_VIEW const gradRho,
-      VECTOR_REAL_VIEW const gradLambda,
+      MESH_TYPE mesh, float dt, VECTOR_REAL_VIEW const ux_fwd,
+      VECTOR_REAL_VIEW const uy_fwd, VECTOR_REAL_VIEW const uz_fwd,
+      VECTOR_REAL_VIEW const ux_adj, VECTOR_REAL_VIEW const uy_adj,
+      VECTOR_REAL_VIEW const uz_adj, VECTOR_REAL_VIEW const ux_dt2,
+      VECTOR_REAL_VIEW const uy_dt2, VECTOR_REAL_VIEW const uz_dt2,
+      VECTOR_REAL_VIEW const gradRho, VECTOR_REAL_VIEW const gradLambda,
       VECTOR_REAL_VIEW const gradMu) const
   {
     Kokkos::parallel_for(
@@ -238,7 +235,7 @@ class DifferentiatorElastic : public Differentiator
 
           INTEGRAL_TYPE::computeStiffNessTermwithJac(
               transformData,
-              [&](int qa, int qb, int qc, float const (&J)[3][3]) {
+              [&](int qa, int qb, int qc, float const(&J)[3][3]) {
                 float grad_fwd[3][3] = {{0}};
                 float grad_adj[3][3] = {{0}};
                 computeDisplacementGradient(qa, qb, qc, J, localUxFwd,
@@ -259,22 +256,16 @@ class DifferentiatorElastic : public Differentiator
                 float const exx_f = grad_fwd[0][0];
                 float const eyy_f = grad_fwd[1][1];
                 float const ezz_f = grad_fwd[2][2];
-                float const exy_f =
-                    0.5f * (grad_fwd[0][1] + grad_fwd[1][0]);
-                float const exz_f =
-                    0.5f * (grad_fwd[0][2] + grad_fwd[2][0]);
-                float const eyz_f =
-                    0.5f * (grad_fwd[1][2] + grad_fwd[2][1]);
+                float const exy_f = 0.5f * (grad_fwd[0][1] + grad_fwd[1][0]);
+                float const exz_f = 0.5f * (grad_fwd[0][2] + grad_fwd[2][0]);
+                float const eyz_f = 0.5f * (grad_fwd[1][2] + grad_fwd[2][1]);
 
                 float const exx_a = grad_adj[0][0];
                 float const eyy_a = grad_adj[1][1];
                 float const ezz_a = grad_adj[2][2];
-                float const exy_a =
-                    0.5f * (grad_adj[0][1] + grad_adj[1][0]);
-                float const exz_a =
-                    0.5f * (grad_adj[0][2] + grad_adj[2][0]);
-                float const eyz_a =
-                    0.5f * (grad_adj[1][2] + grad_adj[2][1]);
+                float const exy_a = 0.5f * (grad_adj[0][1] + grad_adj[1][0]);
+                float const exz_a = 0.5f * (grad_adj[0][2] + grad_adj[2][0]);
+                float const eyz_a = 0.5f * (grad_adj[1][2] + grad_adj[2][1]);
 
                 strainEps[qIdx] =
                     2.0f * (exx_a * exx_f + eyy_a * eyy_f + ezz_a * ezz_f) +
@@ -314,13 +305,12 @@ class DifferentiatorElastic : public Differentiator
    * required.
    */
   void computeOnNodes(
-      MESH_TYPE mesh, float dt,
-      VECTOR_REAL_VIEW const ux_fwd, VECTOR_REAL_VIEW const uy_fwd,
-      VECTOR_REAL_VIEW const uz_fwd, VECTOR_REAL_VIEW const ux_adj,
-      VECTOR_REAL_VIEW const uy_adj, VECTOR_REAL_VIEW const uz_adj,
-      VECTOR_REAL_VIEW const ux_dt2, VECTOR_REAL_VIEW const uy_dt2,
-      VECTOR_REAL_VIEW const uz_dt2, VECTOR_REAL_VIEW const gradRho,
-      VECTOR_REAL_VIEW const gradLambda,
+      MESH_TYPE mesh, float dt, VECTOR_REAL_VIEW const ux_fwd,
+      VECTOR_REAL_VIEW const uy_fwd, VECTOR_REAL_VIEW const uz_fwd,
+      VECTOR_REAL_VIEW const ux_adj, VECTOR_REAL_VIEW const uy_adj,
+      VECTOR_REAL_VIEW const uz_adj, VECTOR_REAL_VIEW const ux_dt2,
+      VECTOR_REAL_VIEW const uy_dt2, VECTOR_REAL_VIEW const uz_dt2,
+      VECTOR_REAL_VIEW const gradRho, VECTOR_REAL_VIEW const gradLambda,
       VECTOR_REAL_VIEW const gradMu) const
   {
     Kokkos::parallel_for(
@@ -383,7 +373,7 @@ class DifferentiatorElastic : public Differentiator
 
           INTEGRAL_TYPE::computeStiffNessTermwithJac(
               transformData,
-              [&](int qa, int qb, int qc, float const (&J)[3][3]) {
+              [&](int qa, int qb, int qc, float const(&J)[3][3]) {
                 float grad_fwd[3][3] = {{0}};
                 float grad_adj[3][3] = {{0}};
                 computeDisplacementGradient(qa, qb, qc, J, localUxFwd,
@@ -402,22 +392,16 @@ class DifferentiatorElastic : public Differentiator
                 float const exx_f = grad_fwd[0][0];
                 float const eyy_f = grad_fwd[1][1];
                 float const ezz_f = grad_fwd[2][2];
-                float const exy_f =
-                    0.5f * (grad_fwd[0][1] + grad_fwd[1][0]);
-                float const exz_f =
-                    0.5f * (grad_fwd[0][2] + grad_fwd[2][0]);
-                float const eyz_f =
-                    0.5f * (grad_fwd[1][2] + grad_fwd[2][1]);
+                float const exy_f = 0.5f * (grad_fwd[0][1] + grad_fwd[1][0]);
+                float const exz_f = 0.5f * (grad_fwd[0][2] + grad_fwd[2][0]);
+                float const eyz_f = 0.5f * (grad_fwd[1][2] + grad_fwd[2][1]);
 
                 float const exx_a = grad_adj[0][0];
                 float const eyy_a = grad_adj[1][1];
                 float const ezz_a = grad_adj[2][2];
-                float const exy_a =
-                    0.5f * (grad_adj[0][1] + grad_adj[1][0]);
-                float const exz_a =
-                    0.5f * (grad_adj[0][2] + grad_adj[2][0]);
-                float const eyz_a =
-                    0.5f * (grad_adj[1][2] + grad_adj[2][1]);
+                float const exy_a = 0.5f * (grad_adj[0][1] + grad_adj[1][0]);
+                float const exz_a = 0.5f * (grad_adj[0][2] + grad_adj[2][0]);
+                float const eyz_a = 0.5f * (grad_adj[1][2] + grad_adj[2][1]);
 
                 strainEps[qIdx] =
                     2.0f * (exx_a * exx_f + eyy_a * eyy_f + ezz_a * ezz_f) +
@@ -435,12 +419,10 @@ class DifferentiatorElastic : public Differentiator
                 ATOMICADD(gradRho(localGIdx[q]), dot * wdetJ);
 
                 // grad_lambda
-                ATOMICADD(gradLambda(localGIdx[q]),
-                          strainDiv[q] * wdetJ);
+                ATOMICADD(gradLambda(localGIdx[q]), strainDiv[q] * wdetJ);
 
                 // grad_mu
-                ATOMICADD(gradMu(localGIdx[q]),
-                          strainEps[q] * wdetJ);
+                ATOMICADD(gradMu(localGIdx[q]), strainEps[q] * wdetJ);
               });
         });
   }
