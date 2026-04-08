@@ -85,7 +85,6 @@ class DifferentiatorAcoustic : public Differentiator
               << ">\n";
   }
 
- private:
   /**
    * @brief Each element writes to a unique index — no atomic add required.
    *
