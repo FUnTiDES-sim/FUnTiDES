@@ -1,11 +1,10 @@
 #include "differentiator_factory.h"
 
+#include <Integrals.h>
 #include <differentiator_acoustic.h>
 #include <differentiator_elastic.h>
 #include <model_struct.h>
 #include <model_unstruct.h>
-
-#include <Integrals.h>
 
 namespace gradient
 {

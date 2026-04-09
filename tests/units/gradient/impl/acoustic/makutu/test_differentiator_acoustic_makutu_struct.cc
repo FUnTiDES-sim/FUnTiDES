@@ -3,10 +3,10 @@
 #include <memory>
 #include <numeric>
 
+#include "Integrals.h"
 #include "data_type.h"
 #include "differentiator_acoustic.h"
 #include "differentiator_data_acoustic.h"
-#include "Integrals.h"
 #include "model_struct.h"
 
 namespace gradient
@@ -161,11 +161,14 @@ TYPED_TEST(DifferentiatorAcousticElemTest, ZeroWavefieldsYieldZeroGradients)
 
 TYPED_TEST(DifferentiatorAcousticElemTest, UniformFieldGradKappaEqualsVolume)
 {
-  // pn = 1, qn = 1e-6 (qdt2 = 1 with dt=0.001)  =>  gradKappa = ∑_q mass_weight_q = ∫_Ω 1 dΩ = 1.0
+  // pn = 1, qn = 1e-6 (qdt2 = 1 with dt=0.001)  =>  gradKappa = ∑_q
+  // mass_weight_q = ∫_Ω 1 dΩ = 1.0
   for (int i = 0; i < TestFixture::kNumNodes; ++i)
   {
     this->pn(i) = 1.0f;
-    this->qn(i) = 1e-6f; this->qnPrev(i) = 0.0f; this->qnPrevPrev(i) = 0.0f;
+    this->qn(i) = 1e-6f;
+    this->qnPrev(i) = 0.0f;
+    this->qnPrevPrev(i) = 0.0f;
   }
 
   typename TestFixture::Diff diff;
@@ -209,7 +212,9 @@ TYPED_TEST(DifferentiatorAcousticElemTest, GradKappaScalesWithAmplitude)
   for (int i = 0; i < TestFixture::kNumNodes; ++i)
   {
     this->pn(i) = 1.0f;
-    this->qn(i) = 1e-6f; this->qnPrev(i) = 0.0f; this->qnPrevPrev(i) = 0.0f;
+    this->qn(i) = 1e-6f;
+    this->qnPrev(i) = 0.0f;
+    this->qnPrevPrev(i) = 0.0f;
   }
 
   typename TestFixture::Diff diff;
@@ -245,7 +250,9 @@ TYPED_TEST(DifferentiatorAcousticElemTest,
   for (int i = 0; i < TestFixture::kNumNodes; ++i)
   {
     this->pn(i) = 1.0f;
-    this->qn(i) = 1e-6f; this->qnPrev(i) = 0.0f; this->qnPrevPrev(i) = 0.0f;
+    this->qn(i) = 1e-6f;
+    this->qnPrev(i) = 0.0f;
+    this->qnPrevPrev(i) = 0.0f;
   }
   this->gradKappa(0) = 5.0f;
 
@@ -270,7 +277,9 @@ TYPED_TEST(DifferentiatorAcousticElemTest, PolymorphicInterface)
   for (int i = 0; i < TestFixture::kNumNodes; ++i)
   {
     this->pn(i) = 1.0f;
-    this->qn(i) = 1e-6f; this->qnPrev(i) = 0.0f; this->qnPrevPrev(i) = 0.0f;
+    this->qn(i) = 1e-6f;
+    this->qnPrev(i) = 0.0f;
+    this->qnPrevPrev(i) = 0.0f;
   }
 
   std::unique_ptr<Differentiator> diff =
@@ -405,7 +414,9 @@ TYPED_TEST(DifferentiatorAcousticNodeTest, UniformFieldGradKappaSumsToVolume)
   for (int i = 0; i < TestFixture::kNumNodes; ++i)
   {
     this->pn(i) = 1.0f;
-    this->qn(i) = 1e-6f; this->qnPrev(i) = 0.0f; this->qnPrevPrev(i) = 0.0f;
+    this->qn(i) = 1e-6f;
+    this->qnPrev(i) = 0.0f;
+    this->qnPrevPrev(i) = 0.0f;
   }
 
   typename TestFixture::DiffNode diff;
@@ -450,7 +461,9 @@ TYPED_TEST(DifferentiatorAcousticNodeTest, NodeBasedSumEqualsElementBasedResult)
   for (int i = 0; i < TestFixture::kNumNodes; ++i)
   {
     this->pn(i) = 1.0f;
-    this->qn(i) = 1e-6f; this->qnPrev(i) = 0.0f; this->qnPrevPrev(i) = 0.0f;
+    this->qn(i) = 1e-6f;
+    this->qnPrev(i) = 0.0f;
+    this->qnPrevPrev(i) = 0.0f;
   }
 
   auto mesh = makeMesh1x1x1<TestFixture::kOrder>();
@@ -487,7 +500,9 @@ TYPED_TEST(DifferentiatorAcousticNodeTest, PolymorphicInterface)
   for (int i = 0; i < TestFixture::kNumNodes; ++i)
   {
     this->pn(i) = 1.0f;
-    this->qn(i) = 1e-6f; this->qnPrev(i) = 0.0f; this->qnPrevPrev(i) = 0.0f;
+    this->qn(i) = 1e-6f;
+    this->qnPrev(i) = 0.0f;
+    this->qnPrevPrev(i) = 0.0f;
   }
 
   std::unique_ptr<Differentiator> diff =

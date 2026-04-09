@@ -3,10 +3,10 @@
 #include <cmath>
 #include <memory>
 
-#include "data_type.h"
-#include "differentiator_elastic.h"
-#include "differentiator_data_elastic.h"
 #include "Integrals.h"
+#include "data_type.h"
+#include "differentiator_data_elastic.h"
+#include "differentiator_elastic.h"
 #include "model_struct.h"
 
 namespace gradient
@@ -356,8 +356,7 @@ TYPED_TEST(DifferentiatorElasticElemTest, GradMuNonZeroForLinearField)
   EXPECT_NEAR(this->gradMu(0), 2.0f, 0.4f);
 }
 
-TYPED_TEST(DifferentiatorElasticElemTest,
-           LinearShearFieldProducesCorrectGradMu)
+TYPED_TEST(DifferentiatorElasticElemTest, LinearShearFieldProducesCorrectGradMu)
 {
   // Pure shear: u_x = y, u_y = x  => ε_xy = 1, all diagonal ε = 0,
   //   div(u) = 0
@@ -392,8 +391,7 @@ TYPED_TEST(DifferentiatorElasticElemTest,
   EXPECT_NEAR(this->gradMu(0), 4.0f, 0.4f);
 }
 
-TYPED_TEST(DifferentiatorElasticElemTest,
-           PureDilatationLambdaMuConsistency)
+TYPED_TEST(DifferentiatorElasticElemTest, PureDilatationLambdaMuConsistency)
 {
   // Pure dilatation: u_x = x, u_y = y, u_z = z
   //   div(u) = 3, ε_xx = ε_yy = ε_zz = 1, off-diag = 0
@@ -431,8 +429,7 @@ TYPED_TEST(DifferentiatorElasticElemTest,
   EXPECT_NEAR(this->gradMu(0), 6.0f, 1.0f);
 }
 
-TYPED_TEST(DifferentiatorElasticElemTest,
-           GradRhoIndependentOfStrainKernels)
+TYPED_TEST(DifferentiatorElasticElemTest, GradRhoIndependentOfStrainKernels)
 {
   // gradRho depends only on dt2 and fwd, not on adjoint displacement gradients
   // Set ux_fwd=1, ux_dt2=1 but also set non-trivial adjoint displacement
@@ -633,8 +630,7 @@ TYPED_TEST(DifferentiatorElasticNodeTest, UniformFieldGradRhoSumsToVolume)
   EXPECT_NEAR(this->sumGradRho(), 1.0f, 1e-5f);
 }
 
-TYPED_TEST(DifferentiatorElasticNodeTest,
-           ConstantFieldGradLambdaSumsToZero)
+TYPED_TEST(DifferentiatorElasticNodeTest, ConstantFieldGradLambdaSumsToZero)
 {
   for (int i = 0; i < TestFixture::kNumNodes; ++i)
   {
@@ -655,8 +651,7 @@ TYPED_TEST(DifferentiatorElasticNodeTest,
   EXPECT_NEAR(this->sumGradLambda(), 0.0f, 1e-5f);
 }
 
-TYPED_TEST(DifferentiatorElasticNodeTest,
-           NodeBasedSumEqualsElementBasedResult)
+TYPED_TEST(DifferentiatorElasticNodeTest, NodeBasedSumEqualsElementBasedResult)
 {
   // For single-element mesh, ∑ node_gradients == elem_gradient
   auto mesh = makeMesh1x1x1<TestFixture::kOrder>();
@@ -691,8 +686,7 @@ TYPED_TEST(DifferentiatorElasticNodeTest,
 
   // Element-based
   auto gradRhoElem = allocateVector<VECTOR_REAL_VIEW>(1, "gradRhoElem");
-  auto gradLambdaElem =
-      allocateVector<VECTOR_REAL_VIEW>(1, "gradLambdaElem");
+  auto gradLambdaElem = allocateVector<VECTOR_REAL_VIEW>(1, "gradLambdaElem");
   auto gradMuElem = allocateVector<VECTOR_REAL_VIEW>(1, "gradMuElem");
   gradRhoElem(0) = 0.0f;
   gradLambdaElem(0) = 0.0f;

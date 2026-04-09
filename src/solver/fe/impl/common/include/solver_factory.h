@@ -1,6 +1,7 @@
 #ifndef FUNTIDES_SOLVER_FE_IMPL_COMMON_INCLUDE_SOLVER_FACTORY_H_
 #define FUNTIDES_SOLVER_FE_IMPL_COMMON_INCLUDE_SOLVER_FACTORY_H_
 #include <Integrals.h>
+
 #include <memory>
 
 #include "sem_enums.h"
