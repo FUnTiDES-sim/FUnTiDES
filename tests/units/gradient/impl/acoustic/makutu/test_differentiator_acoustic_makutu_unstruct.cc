@@ -5,7 +5,7 @@
 #include "data_type.h"
 #include "differentiator_acoustic.h"
 #include "differentiator_data_acoustic.h"
-#include "fe/Integrals.hpp"
+#include "Integrals.h"
 #include "model_unstruct.h"
 
 namespace gradient
