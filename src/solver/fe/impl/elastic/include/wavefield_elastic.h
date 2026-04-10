@@ -25,12 +25,18 @@ struct WavefieldElastic : public Wavefield
                    VECTOR_REAL_VIEW uynGlobalCurr,
                    VECTOR_REAL_VIEW uznGlobalPrev,
                    VECTOR_REAL_VIEW uznGlobalCurr)
-      : m_uxnGlobalPrev(uxnGlobalPrev),
-        m_uxnGlobalCurr(uxnGlobalCurr),
-        m_uynGlobalPrev(uynGlobalPrev),
-        m_uynGlobalCurr(uynGlobalCurr),
-        m_uznGlobalPrev(uznGlobalPrev),
-        m_uznGlobalCurr(uznGlobalCurr)
+      : m_uxnGlobalField0(uxnGlobalPrev),
+        m_uxnGlobalField1(uxnGlobalCurr),
+        m_uynGlobalField0(uynGlobalPrev),
+        m_uynGlobalField1(uynGlobalCurr),
+        m_uznGlobalField0(uznGlobalPrev),
+        m_uznGlobalField1(uznGlobalCurr),
+        m_uxnGlobalPrev(&m_uxnGlobalField0),
+        m_uxnGlobalCurr(&m_uxnGlobalField1),
+        m_uynGlobalPrev(&m_uynGlobalField0),
+        m_uynGlobalCurr(&m_uynGlobalField1),
+        m_uznGlobalPrev(&m_uznGlobalField0),
+        m_uznGlobalCurr(&m_uznGlobalField1)
   {
   }
 
@@ -48,13 +54,13 @@ struct WavefieldElastic : public Wavefield
     switch (i)
     {
       case 0:
-        return m_uxnGlobalCurr;
+        return *m_uxnGlobalCurr;
       case 1:
-        return m_uynGlobalCurr;
+        return *m_uynGlobalCurr;
       case 2:
-        return m_uznGlobalCurr;
+        return *m_uznGlobalCurr;
       default:
-        return m_uxnGlobalCurr;  // make it cuda happy
+        return *m_uxnGlobalCurr;  // make it cuda happy
     }
   }
 
@@ -65,21 +71,21 @@ struct WavefieldElastic : public Wavefield
     switch (i)
     {
       case 0:
-        return m_uxnGlobalPrev;
+        return *m_uxnGlobalPrev;
       case 1:
-        return m_uynGlobalPrev;
+        return *m_uynGlobalPrev;
       case 2:
-        return m_uznGlobalPrev;
+        return *m_uznGlobalPrev;
       default:
-        return m_uxnGlobalCurr;  // make it cuda happy
+        return *m_uxnGlobalCurr;  // make it cuda happy
     }
   }
 
   void swap() override
   {
-    std::swap(m_uxnGlobalPrev, m_uxnGlobalCurr);
-    std::swap(m_uynGlobalPrev, m_uynGlobalCurr);
-    std::swap(m_uznGlobalPrev, m_uznGlobalCurr);
+    std::swap(*m_uxnGlobalPrev, *m_uxnGlobalCurr);
+    std::swap(*m_uynGlobalPrev, *m_uynGlobalCurr);
+    std::swap(*m_uznGlobalPrev, *m_uznGlobalCurr);
   }
 
   // NOTE: elastic has 3 components — the caller must manage one extra buffer per
@@ -91,19 +97,19 @@ struct WavefieldElastic : public Wavefield
     switch (i)
     {
       case 0:  // ux component
-        prevPrevBuffer  = m_uxnGlobalPrev;
-        m_uxnGlobalPrev = m_uxnGlobalCurr;
-        m_uxnGlobalCurr = tmp;
+        prevPrevBuffer  = *m_uxnGlobalPrev;
+        *m_uxnGlobalPrev = *m_uxnGlobalCurr;
+        *m_uxnGlobalCurr = tmp;
         break;
       case 1:  // uy component
-        prevPrevBuffer  = m_uynGlobalPrev;
-        m_uynGlobalPrev = m_uynGlobalCurr;
-        m_uynGlobalCurr = tmp;
+        prevPrevBuffer  = *m_uynGlobalPrev;
+        *m_uynGlobalPrev = *m_uynGlobalCurr;
+        *m_uynGlobalCurr = tmp;
         break;
       case 2:  // uz component
-        prevPrevBuffer  = m_uznGlobalPrev;
-        m_uznGlobalPrev = m_uznGlobalCurr;
-        m_uznGlobalCurr = tmp;
+        prevPrevBuffer  = *m_uznGlobalPrev;
+        *m_uznGlobalPrev = *m_uznGlobalCurr;
+        *m_uznGlobalCurr = tmp;
         break;
       default:
         // Invalid field index - no-op to make CUDA happy
@@ -113,32 +119,35 @@ struct WavefieldElastic : public Wavefield
 
   void print() const override
   {
-    std::cout << "Ux Global Prev size: " << m_uxnGlobalPrev.extent(0)
+    std::cout << "Ux Global Prev size: " << m_uxnGlobalPrev->extent(0)
               << std::endl;
-    std::cout << "Ux Global Curr size: " << m_uxnGlobalCurr.extent(0)
+    std::cout << "Ux Global Curr size: " << m_uxnGlobalCurr->extent(0)
               << std::endl;
-    std::cout << "Uy Global Prev size: " << m_uynGlobalPrev.extent(0)
+    std::cout << "Uy Global Prev size: " << m_uynGlobalPrev->extent(0)
               << std::endl;
-    std::cout << "Uy Global Curr size: " << m_uynGlobalCurr.extent(0)
+    std::cout << "Uy Global Curr size: " << m_uynGlobalCurr->extent(0)
               << std::endl;
-    std::cout << "Uz Global Prev size: " << m_uznGlobalPrev.extent(0)
+    std::cout << "Uz Global Prev size: " << m_uznGlobalPrev->extent(0)
               << std::endl;
-    std::cout << "Uz Global Curr size: " << m_uznGlobalCurr.extent(0)
+    std::cout << "Uz Global Curr size: " << m_uznGlobalCurr->extent(0)
               << std::endl;
   }
 
-  VECTOR_REAL_VIEW
-  m_uxnGlobalPrev;  ///< Displacement field in x at previous time step
-  VECTOR_REAL_VIEW
-  m_uxnGlobalCurr;  ///< Displacement field in x at current time step
-  VECTOR_REAL_VIEW
-  m_uynGlobalPrev;  ///< Displacement field in y at previous time step
-  VECTOR_REAL_VIEW
-  m_uynGlobalCurr;  ///< Displacement field in y at current time step
-  VECTOR_REAL_VIEW
-  m_uznGlobalPrev;  ///< Displacement field in z at previous time step
-  VECTOR_REAL_VIEW
-  m_uznGlobalCurr;  ///< Displacement field in z at current time step
+  // Storage for each component
+  VECTOR_REAL_VIEW m_uxnGlobalField0;  ///< Storage for ux field 0
+  VECTOR_REAL_VIEW m_uxnGlobalField1;  ///< Storage for ux field 1
+  VECTOR_REAL_VIEW m_uynGlobalField0;  ///< Storage for uy field 0
+  VECTOR_REAL_VIEW m_uynGlobalField1;  ///< Storage for uy field 1
+  VECTOR_REAL_VIEW m_uznGlobalField0;  ///< Storage for uz field 0
+  VECTOR_REAL_VIEW m_uznGlobalField1;  ///< Storage for uz field 1
+  
+  // Pointers to current/previous fields for each component
+  VECTOR_REAL_VIEW* m_uxnGlobalPrev;  ///< Pointer to ux at previous time step
+  VECTOR_REAL_VIEW* m_uxnGlobalCurr;  ///< Pointer to ux at current time step
+  VECTOR_REAL_VIEW* m_uynGlobalPrev;  ///< Pointer to uy at previous time step
+  VECTOR_REAL_VIEW* m_uynGlobalCurr;  ///< Pointer to uy at current time step
+  VECTOR_REAL_VIEW* m_uznGlobalPrev;  ///< Pointer to uz at previous time step
+  VECTOR_REAL_VIEW* m_uznGlobalCurr;  ///< Pointer to uz at current time step
 };
 }  // namespace fe
 }  // namespace solver

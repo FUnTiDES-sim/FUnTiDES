@@ -51,14 +51,14 @@ TEST_F(WavefieldAcousticTest, Constructor)
 {
   WavefieldAcoustic wavefield(prevField, currField);
 
-  EXPECT_EQ(wavefield.m_pnGlobalPrev.extent(0), size1);
-  EXPECT_EQ(wavefield.m_pnGlobalCurr.extent(0), size1);
+  EXPECT_EQ(wavefield.m_pnGlobalPrev->extent(0), size1);
+  EXPECT_EQ(wavefield.m_pnGlobalCurr->extent(0), size1);
 
   // Verify data is correctly stored
   for (size_t i = 0; i < size1; ++i)
   {
-    EXPECT_FLOAT_EQ(wavefield.m_pnGlobalPrev(i), i);
-    EXPECT_FLOAT_EQ(wavefield.m_pnGlobalCurr(i), i * 2);
+    EXPECT_FLOAT_EQ((*wavefield.m_pnGlobalPrev)(i), i);
+    EXPECT_FLOAT_EQ((*wavefield.m_pnGlobalCurr)(i), i * 2);
   }
 }
 
@@ -68,22 +68,22 @@ TEST_F(WavefieldAcousticTest, CopyConstructor)
   WavefieldAcoustic copy(original);
 
   // Check that copy has the same extent
-  EXPECT_EQ(copy.m_pnGlobalPrev.extent(0), original.m_pnGlobalPrev.extent(0));
-  EXPECT_EQ(copy.m_pnGlobalCurr.extent(0), original.m_pnGlobalCurr.extent(0));
+  EXPECT_EQ(copy.m_pnGlobalPrev->extent(0), original.m_pnGlobalPrev->extent(0));
+  EXPECT_EQ(copy.m_pnGlobalCurr->extent(0), original.m_pnGlobalCurr->extent(0));
 
   // Check that copy has the same data
   for (size_t i = 0; i < size1; ++i)
   {
-    EXPECT_FLOAT_EQ(copy.m_pnGlobalPrev(i), original.m_pnGlobalPrev(i));
-    EXPECT_FLOAT_EQ(copy.m_pnGlobalCurr(i), original.m_pnGlobalCurr(i));
+    EXPECT_FLOAT_EQ((*copy.m_pnGlobalPrev)(i), (*original.m_pnGlobalPrev)(i));
+    EXPECT_FLOAT_EQ((*copy.m_pnGlobalCurr)(i), (*original.m_pnGlobalCurr)(i));
   }
 
   // Modify original data to verify shallow copy behavior (Kokkos views are
   // shallow by default)
-  original.m_pnGlobalPrev(0) = 999.0f;
-  EXPECT_FLOAT_EQ(copy.m_pnGlobalPrev(0), 999.0f);
-  original.m_pnGlobalCurr(0) = 888.0f;
-  EXPECT_FLOAT_EQ(copy.m_pnGlobalCurr(0), 888.0f);
+  (*original.m_pnGlobalPrev)(0) = 999.0f;
+  EXPECT_FLOAT_EQ((*copy.m_pnGlobalPrev)(0), 999.0f);
+  (*original.m_pnGlobalCurr)(0) = 888.0f;
+  EXPECT_FLOAT_EQ((*copy.m_pnGlobalCurr)(0), 888.0f);
 }
 
 TEST_F(WavefieldAcousticTest, CopyAssignmentOperator)
@@ -92,29 +92,29 @@ TEST_F(WavefieldAcousticTest, CopyAssignmentOperator)
   WavefieldAcoustic wavefield2(prevField2, currField2);
 
   // Verify initial state
-  EXPECT_EQ(wavefield2.m_pnGlobalPrev.extent(0), size2);
-  EXPECT_EQ(wavefield2.m_pnGlobalCurr.extent(0), size2);
+  EXPECT_EQ(wavefield2.m_pnGlobalPrev->extent(0), size2);
+  EXPECT_EQ(wavefield2.m_pnGlobalCurr->extent(0), size2);
 
   // Perform assignment
   wavefield2 = wavefield1;
 
   // Check that wavefield2 now has the same extent as wavefield1
-  EXPECT_EQ(wavefield2.m_pnGlobalPrev.extent(0), size1);
-  EXPECT_EQ(wavefield2.m_pnGlobalCurr.extent(0), size1);
+  EXPECT_EQ(wavefield2.m_pnGlobalPrev->extent(0), size1);
+  EXPECT_EQ(wavefield2.m_pnGlobalCurr->extent(0), size1);
 
   // Check that data matches
   for (size_t i = 0; i < size1; ++i)
   {
-    EXPECT_FLOAT_EQ(wavefield2.m_pnGlobalPrev(i), wavefield1.m_pnGlobalPrev(i));
-    EXPECT_FLOAT_EQ(wavefield2.m_pnGlobalCurr(i), wavefield1.m_pnGlobalCurr(i));
+    EXPECT_FLOAT_EQ((*wavefield2.m_pnGlobalPrev)(i), (*wavefield1.m_pnGlobalPrev)(i));
+    EXPECT_FLOAT_EQ((*wavefield2.m_pnGlobalCurr)(i), (*wavefield1.m_pnGlobalCurr)(i));
   }
 
   // Modify original data to verify shallow copy behavior (Kokkos views are
   // shallow by default)
-  wavefield1.m_pnGlobalPrev(0) = 777.0f;
-  EXPECT_FLOAT_EQ(wavefield2.m_pnGlobalPrev(0), 777.0f);
-  wavefield1.m_pnGlobalCurr(0) = 666.0f;
-  EXPECT_FLOAT_EQ(wavefield2.m_pnGlobalCurr(0), 666.0f);
+  (*wavefield1.m_pnGlobalPrev)(0) = 777.0f;
+  EXPECT_FLOAT_EQ((*wavefield2.m_pnGlobalPrev)(0), 777.0f);
+  (*wavefield1.m_pnGlobalCurr)(0) = 666.0f;
+  EXPECT_FLOAT_EQ((*wavefield2.m_pnGlobalCurr)(0), 666.0f);
 }
 
 TEST_F(WavefieldAcousticTest, CopyAssignmentSelfAssignment)
@@ -125,13 +125,13 @@ TEST_F(WavefieldAcousticTest, CopyAssignmentSelfAssignment)
   wavefield = wavefield;
 
   // Verify data is unchanged
-  EXPECT_EQ(wavefield.m_pnGlobalPrev.extent(0), size1);
-  EXPECT_EQ(wavefield.m_pnGlobalCurr.extent(0), size1);
+  EXPECT_EQ(wavefield.m_pnGlobalPrev->extent(0), size1);
+  EXPECT_EQ(wavefield.m_pnGlobalCurr->extent(0), size1);
 
   for (size_t i = 0; i < size1; ++i)
   {
-    EXPECT_FLOAT_EQ(wavefield.m_pnGlobalPrev(i), i);
-    EXPECT_FLOAT_EQ(wavefield.m_pnGlobalCurr(i), i * 2);
+    EXPECT_FLOAT_EQ((*wavefield.m_pnGlobalPrev)(i), i);
+    EXPECT_FLOAT_EQ((*wavefield.m_pnGlobalCurr)(i), i * 2);
   }
 }
 
@@ -166,21 +166,21 @@ TEST_F(WavefieldAcousticTest, Swap)
   WavefieldAcoustic wavefield(prevField, currField);
 
   // Store original values
-  float originalPrev0 = wavefield.m_pnGlobalPrev(0);
-  float originalCurr0 = wavefield.m_pnGlobalCurr(0);
+  float originalPrev0 = (*wavefield.m_pnGlobalPrev)(0);
+  float originalCurr0 = (*wavefield.m_pnGlobalCurr)(0);
 
   // Perform swap
   wavefield.swap();
 
   // Verify that prev and curr have been swapped
-  EXPECT_FLOAT_EQ(wavefield.m_pnGlobalPrev(0), originalCurr0);
-  EXPECT_FLOAT_EQ(wavefield.m_pnGlobalCurr(0), originalPrev0);
+  EXPECT_FLOAT_EQ((*wavefield.m_pnGlobalPrev)(0), originalCurr0);
+  EXPECT_FLOAT_EQ((*wavefield.m_pnGlobalCurr)(0), originalPrev0);
 
   // Verify all elements were swapped
   for (size_t i = 0; i < size1; ++i)
   {
-    EXPECT_FLOAT_EQ(wavefield.m_pnGlobalPrev(i), i * 2);
-    EXPECT_FLOAT_EQ(wavefield.m_pnGlobalCurr(i), i);
+    EXPECT_FLOAT_EQ((*wavefield.m_pnGlobalPrev)(i), i * 2);
+    EXPECT_FLOAT_EQ((*wavefield.m_pnGlobalCurr)(i), i);
   }
 }
 
@@ -193,8 +193,8 @@ TEST_F(WavefieldAcousticTest, SwapTwice)
   std::vector<float> originalCurr(size1);
   for (size_t i = 0; i < size1; ++i)
   {
-    originalPrev[i] = wavefield.m_pnGlobalPrev(i);
-    originalCurr[i] = wavefield.m_pnGlobalCurr(i);
+    originalPrev[i] = (*wavefield.m_pnGlobalPrev)(i);
+    originalCurr[i] = (*wavefield.m_pnGlobalCurr)(i);
   }
 
   // Swap twice should restore original state
@@ -204,8 +204,8 @@ TEST_F(WavefieldAcousticTest, SwapTwice)
   // Verify restoration
   for (size_t i = 0; i < size1; ++i)
   {
-    EXPECT_FLOAT_EQ(wavefield.m_pnGlobalPrev(i), originalPrev[i]);
-    EXPECT_FLOAT_EQ(wavefield.m_pnGlobalCurr(i), originalCurr[i]);
+    EXPECT_FLOAT_EQ((*wavefield.m_pnGlobalPrev)(i), originalPrev[i]);
+    EXPECT_FLOAT_EQ((*wavefield.m_pnGlobalCurr)(i), originalCurr[i]);
   }
 }
 
@@ -214,14 +214,14 @@ TEST_F(WavefieldAcousticTest, SwapWithModification)
   WavefieldAcoustic wavefield(prevField, currField);
 
   // Modify current field
-  wavefield.m_pnGlobalCurr(5) = 123.456f;
+  (*wavefield.m_pnGlobalCurr)(5) = 123.456f;
 
   // Swap
   wavefield.swap();
 
   // The modified value should now be in the previous field
-  EXPECT_FLOAT_EQ(wavefield.m_pnGlobalPrev(5), 123.456f);
-  EXPECT_FLOAT_EQ(wavefield.m_pnGlobalCurr(5), 5.0f);
+  EXPECT_FLOAT_EQ((*wavefield.m_pnGlobalPrev)(5), 123.456f);
+  EXPECT_FLOAT_EQ((*wavefield.m_pnGlobalCurr)(5), 5.0f);
 }
 
 TEST_F(WavefieldAcousticTest, CopyConstructorAfterSwap)
@@ -237,8 +237,8 @@ TEST_F(WavefieldAcousticTest, CopyConstructorAfterSwap)
   // Verify copy has the swapped state
   for (size_t i = 0; i < size1; ++i)
   {
-    EXPECT_FLOAT_EQ(copy.m_pnGlobalPrev(i), i * 2);
-    EXPECT_FLOAT_EQ(copy.m_pnGlobalCurr(i), i);
+    EXPECT_FLOAT_EQ((*copy.m_pnGlobalPrev)(i), i * 2);
+    EXPECT_FLOAT_EQ((*copy.m_pnGlobalCurr)(i), i);
   }
 }
 
@@ -249,13 +249,13 @@ TEST_F(WavefieldAcousticTest, EmptyFields)
 
   WavefieldAcoustic wavefield(emptyPrev, emptyCurr);
 
-  EXPECT_EQ(wavefield.m_pnGlobalPrev.extent(0), 0);
-  EXPECT_EQ(wavefield.m_pnGlobalCurr.extent(0), 0);
+  EXPECT_EQ(wavefield.m_pnGlobalPrev->extent(0), 0);
+  EXPECT_EQ(wavefield.m_pnGlobalCurr->extent(0), 0);
 
   // Swap should work with empty fields
   wavefield.swap();
-  EXPECT_EQ(wavefield.m_pnGlobalPrev.extent(0), 0);
-  EXPECT_EQ(wavefield.m_pnGlobalCurr.extent(0), 0);
+  EXPECT_EQ(wavefield.m_pnGlobalPrev->extent(0), 0);
+  EXPECT_EQ(wavefield.m_pnGlobalCurr->extent(0), 0);
 }
 
 TEST_F(WavefieldAcousticTest, CopyInContainerClass)
@@ -277,8 +277,8 @@ TEST_F(WavefieldAcousticTest, CopyInContainerClass)
   std::vector<float> originalCurr(size1);
   for (size_t i = 0; i < size1; ++i)
   {
-    originalPrev[i] = original.m_pnGlobalPrev(i);
-    originalCurr[i] = original.m_pnGlobalCurr(i);
+    originalPrev[i] = (*original.m_pnGlobalPrev)(i);
+    originalCurr[i] = (*original.m_pnGlobalCurr)(i);
   }
 
   // Create container with wavefield copy
@@ -287,44 +287,44 @@ TEST_F(WavefieldAcousticTest, CopyInContainerClass)
   // Verify container has correct initial state
   for (size_t i = 0; i < size1; ++i)
   {
-    EXPECT_FLOAT_EQ(container.wavefield.m_pnGlobalPrev(i), originalPrev[i]);
-    EXPECT_FLOAT_EQ(container.wavefield.m_pnGlobalCurr(i), originalCurr[i]);
+    EXPECT_FLOAT_EQ((*container.wavefield.m_pnGlobalPrev)(i), originalPrev[i]);
+    EXPECT_FLOAT_EQ((*container.wavefield.m_pnGlobalCurr)(i), originalCurr[i]);
   }
 
   // Modify original wavefield
-  original.m_pnGlobalCurr(10) = 999.0f;
-  original.m_pnGlobalPrev(20) = 888.0f;
+  (*original.m_pnGlobalCurr)(10) = 999.0f;
+  (*original.m_pnGlobalPrev)(20) = 888.0f;
 
   // Container should reflect changes (shallow copy via Kokkos views)
-  EXPECT_FLOAT_EQ(container.wavefield.m_pnGlobalCurr(10), 999.0f);
-  EXPECT_FLOAT_EQ(container.wavefield.m_pnGlobalPrev(20), 888.0f);
+  EXPECT_FLOAT_EQ((*container.wavefield.m_pnGlobalCurr)(10), 999.0f);
+  EXPECT_FLOAT_EQ((*container.wavefield.m_pnGlobalPrev)(20), 888.0f);
 
   // Perform multiple swaps on original, checking after each
   container.swap();
   // After first swap
-  EXPECT_FLOAT_EQ(container.wavefield.m_pnGlobalPrev(10), 999.0f);
-  EXPECT_FLOAT_EQ(container.wavefield.m_pnGlobalCurr(20), 888.0f);
+  EXPECT_FLOAT_EQ((*container.wavefield.m_pnGlobalPrev)(10), 999.0f);
+  EXPECT_FLOAT_EQ((*container.wavefield.m_pnGlobalCurr)(20), 888.0f);
 
   container.swap();
   // After second swap (back to original)
-  EXPECT_FLOAT_EQ(container.wavefield.m_pnGlobalCurr(10), 999.0f);
-  EXPECT_FLOAT_EQ(container.wavefield.m_pnGlobalPrev(20), 888.0f);
+  EXPECT_FLOAT_EQ((*container.wavefield.m_pnGlobalCurr)(10), 999.0f);
+  EXPECT_FLOAT_EQ((*container.wavefield.m_pnGlobalPrev)(20), 888.0f);
 
   container.swap();
   // After third swap
-  EXPECT_FLOAT_EQ(container.wavefield.m_pnGlobalPrev(10), 999.0f);
-  EXPECT_FLOAT_EQ(container.wavefield.m_pnGlobalCurr(20), 888.0f);
+  EXPECT_FLOAT_EQ((*container.wavefield.m_pnGlobalPrev)(10), 999.0f);
+  EXPECT_FLOAT_EQ((*container.wavefield.m_pnGlobalCurr)(20), 888.0f);
 
   // Swap container's wavefield independently
   container.swap();
 
   // Now container should be back to original order
-  EXPECT_FLOAT_EQ(container.wavefield.m_pnGlobalCurr(10), 999.0f);
-  EXPECT_FLOAT_EQ(container.wavefield.m_pnGlobalPrev(20), 888.0f);
+  EXPECT_FLOAT_EQ((*container.wavefield.m_pnGlobalCurr)(10), 999.0f);
+  EXPECT_FLOAT_EQ((*container.wavefield.m_pnGlobalPrev)(20), 888.0f);
 
   // Verify they still share the same underlying data
-  container.wavefield.m_pnGlobalCurr(30) = 777.0f;
-  EXPECT_FLOAT_EQ(original.m_pnGlobalCurr(30), 777.0f);
+  (*container.wavefield.m_pnGlobalCurr)(30) = 777.0f;
+  EXPECT_FLOAT_EQ((*original.m_pnGlobalCurr)(30), 777.0f);
 }
 
 TEST_F(WavefieldAcousticTest, SwapWithRotationRotatesThreeBuffers)
@@ -342,8 +342,8 @@ TEST_F(WavefieldAcousticTest, SwapWithRotationRotatesThreeBuffers)
   //   prevPrev  ← old prev      (value = i)
   for (size_t i = 0; i < size1; ++i)
   {
-    EXPECT_FLOAT_EQ(wavefield.m_pnGlobalCurr(i), 10.0f);
-    EXPECT_FLOAT_EQ(wavefield.m_pnGlobalPrev(i), i * 2);
+    EXPECT_FLOAT_EQ((*wavefield.m_pnGlobalCurr)(i), 10.0f);
+    EXPECT_FLOAT_EQ((*wavefield.m_pnGlobalPrev)(i), i * 2);
     EXPECT_FLOAT_EQ(prevPrev(i), static_cast<float>(i));
   }
 }
@@ -365,8 +365,8 @@ TEST_F(WavefieldAcousticTest, SwapWithRotationThreeTimesRestoresState)
   wavefield.swapWithRotation(prevPrev, 0);
   wavefield.swapWithRotation(prevPrev, 0);
 
-  EXPECT_FLOAT_EQ(wavefield.m_pnGlobalPrev(0), initialPrev0);
-  EXPECT_FLOAT_EQ(wavefield.m_pnGlobalCurr(0), initialCurr0);
+  EXPECT_FLOAT_EQ((*wavefield.m_pnGlobalPrev)(0), initialPrev0);
+  EXPECT_FLOAT_EQ((*wavefield.m_pnGlobalCurr)(0), initialCurr0);
   EXPECT_FLOAT_EQ(prevPrev(0), initialPrevPrev0);
 }
 
