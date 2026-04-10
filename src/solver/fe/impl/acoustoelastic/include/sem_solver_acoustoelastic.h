@@ -221,6 +221,22 @@ class SEMsolverAcoustoElastic : public Solver
   VECTOR_REAL_VIEW m_uy_nm1_iface_;
   VECTOR_REAL_VIEW m_uz_nm1_iface_;
 
+  /// @brief One adjacent elastic element per interface node (size
+  /// n_interface_nodes_).  Used to recover solid properties at interface nodes
+  /// when IS_MODEL_ON_NODES is true.
+  VECTOR_INT_VIEW m_interface_adj_elastic_elem_;
+
+  /// @brief Solid material properties at interface nodes (size
+  /// n_interface_nodes_).  Valid only when IS_MODEL_ON_NODES is true.
+  VECTOR_REAL_VIEW m_vp_solid_iface_;
+  VECTOR_REAL_VIEW m_vs_solid_iface_;
+  VECTOR_REAL_VIEW m_rho_solid_iface_;
+
+  /// @brief Fluid material properties at interface nodes (size
+  /// n_interface_nodes_).  Valid only when IS_MODEL_ON_NODES is true.
+  VECTOR_REAL_VIEW m_vp_fluid_iface_;
+  VECTOR_REAL_VIEW m_rho_fluid_iface_;
+
   int num_acoustic_elements_{0};  ///< Count of acoustic elements
   int num_elastic_elements_{0};   ///< Count of elastic elements
   int num_interface_nodes_{0};    ///< Count of interface nodes

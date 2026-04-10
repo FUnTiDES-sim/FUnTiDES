@@ -163,7 +163,10 @@ void SEMsolverAcoustoElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE,
     float vs, rho;
     if constexpr (IS_MODEL_ON_NODES)
     {
-      int const gIdx = m_mesh_.globalNodeIndex(e, 0, 0, 0);
+      // Use interior node to avoid interface contamination (corner node may
+      // carry fluid properties when >= convention is used at the boundary).
+      int const mid = ORDER / 2;
+      int const gIdx = m_mesh_.globalNodeIndex(e, mid, mid, mid);
       vs = m_mesh_.getModelVsOnNodes(gIdx);
       rho = m_mesh_.getModelRhoOnNodes(gIdx);
     }
@@ -294,6 +297,96 @@ void SEMsolverAcoustoElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE,
     m_ux_nm1_iface_[i] = 0.0f;
     m_uy_nm1_iface_[i] = 0.0f;
     m_uz_nm1_iface_[i] = 0.0f;
+  }
+
+  // Build dual-property interface arrays for IS_MODEL_ON_NODES: solid and
+  // fluid properties stored separately so the elastic stiffness and mass
+  // kernels use the correct material side.
+  if constexpr (IS_MODEL_ON_NODES)
+  {
+    // Map each interface node to one adjacent elastic element.
+    m_interface_adj_elastic_elem_ = allocateVector<VECTOR_INT_VIEW>(
+        n_interface_nodes_, "interfaceAdjElasticElem");
+    for (int i = 0; i < n_interface_nodes_; ++i)
+      m_interface_adj_elastic_elem_[i] = -1;
+
+    for (int ei = 0; ei < num_elastic_elements_; ++ei)
+    {
+      int const e = elastic_elem_list_[ei];
+      for (int ii = 0; ii < dim; ++ii)
+        for (int jj = 0; jj < dim; ++jj)
+          for (int kk = 0; kk < dim; ++kk)
+          {
+            int const gn = m_mesh_.globalNodeIndex(e, ii, jj, kk);
+            int const iface_idx = m_interface_node_index_[gn];
+            if (iface_idx >= 0 && m_interface_adj_elastic_elem_[iface_idx] < 0)
+              m_interface_adj_elastic_elem_[iface_idx] = e;
+          }
+    }
+
+    // Allocate compact solid/fluid property arrays.
+    m_vp_solid_iface_ =
+        allocateVector<VECTOR_REAL_VIEW>(n_interface_nodes_, "vpSolidIface");
+    m_vs_solid_iface_ =
+        allocateVector<VECTOR_REAL_VIEW>(n_interface_nodes_, "vsSolidIface");
+    m_rho_solid_iface_ =
+        allocateVector<VECTOR_REAL_VIEW>(n_interface_nodes_, "rhoSolidIface");
+    m_vp_fluid_iface_ =
+        allocateVector<VECTOR_REAL_VIEW>(n_interface_nodes_, "vpFluidIface");
+    m_rho_fluid_iface_ =
+        allocateVector<VECTOR_REAL_VIEW>(n_interface_nodes_, "rhoFluidIface");
+
+    for (int i = 0; i < n_interface_nodes_; ++i)
+    {
+      int const j = m_interface_node_indices_[i];
+
+      // Fluid side: current values in the mesh (assigned by the builder with
+      // the >= convention, so interface nodes carry fluid properties).
+      m_vp_fluid_iface_[i] = m_mesh_.getModelVpOnNodes(j);
+      m_rho_fluid_iface_[i] = m_mesh_.getModelRhoOnNodes(j);
+
+      // Solid side: read from a non-interface node of the adjacent elastic
+      // element to avoid picking up fluid-contaminated corner properties.
+      int const e_adj = m_interface_adj_elastic_elem_[i];
+      bool found = false;
+      if (e_adj >= 0)
+      {
+        for (int ii = 0; ii < dim && !found; ++ii)
+          for (int jj = 0; jj < dim && !found; ++jj)
+            for (int kk = 0; kk < dim && !found; ++kk)
+            {
+              int const g = m_mesh_.globalNodeIndex(e_adj, ii, jj, kk);
+              if (m_interface_node_index_[g] < 0)
+              {
+                m_vp_solid_iface_[i] = m_mesh_.getModelVpOnNodes(g);
+                m_vs_solid_iface_[i] = m_mesh_.getModelVsOnNodes(g);
+                m_rho_solid_iface_[i] = m_mesh_.getModelRhoOnNodes(g);
+                found = true;
+              }
+            }
+      }
+      if (!found)
+      {
+        // Fallback: no non-interface node found (degenerate case).
+        m_vp_solid_iface_[i] = m_vp_fluid_iface_[i];
+        m_vs_solid_iface_[i] = 0.0f;
+        m_rho_solid_iface_[i] = m_rho_fluid_iface_[i];
+      }
+    }
+
+    // Fix elastic mass matrix at interface nodes: computeGlobalMassMatrix ran
+    // before TagNodes and integrated rho_fluid over elastic elements.  In SEM
+    // the lumped mass M_e[j] = rho[j] * J * w_j, so the correction is exact.
+    auto elastic_mass = m_elastic_solver_.getMassMatrixElastic();
+    for (int i = 0; i < n_interface_nodes_; ++i)
+    {
+      int const j = m_interface_node_indices_[i];
+      float const rho_fluid = m_rho_fluid_iface_[i];
+      float const rho_solid = m_rho_solid_iface_[i];
+      if (rho_fluid > 0.0f && rho_solid != rho_fluid)
+        elastic_mass[j] *= rho_solid / rho_fluid;
+    }
+    FENCE
   }
 }
 
@@ -446,9 +539,27 @@ void SEMsolverAcoustoElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE,
   m_acoustic_solver_.computeElementContributionsFromList(
       acoustic_data, acoustic_elem_list_, num_acoustic_elements_);
   FENCE
+  if constexpr (IS_MODEL_ON_NODES)
+  {
+    for (int i = 0; i < n_interface_nodes_; ++i)
+    {
+      int const j = m_interface_node_indices_[i];
+      m_mesh_.setModelNodeProps(j, m_vp_solid_iface_[i], m_vs_solid_iface_[i],
+                                m_rho_solid_iface_[i]);
+    }
+  }
   m_elastic_solver_.computeElementContributionsFromList(
       elastic_data, elastic_elem_list_, num_elastic_elements_);
   FENCE
+  if constexpr (IS_MODEL_ON_NODES)
+  {
+    for (int i = 0; i < n_interface_nodes_; ++i)
+    {
+      int const j = m_interface_node_indices_[i];
+      m_mesh_.setModelNodeProps(j, m_vp_fluid_iface_[i], 0.0f,
+                                m_rho_fluid_iface_[i]);
+    }
+  }
 }
 
 //============================================================================
@@ -586,9 +697,30 @@ void SEMsolverAcoustoElastic<
   FENCE
 
   // 2. Compute elastic stiffness (list: elastic elements only).
+  // When IS_MODEL_ON_NODES, temporarily override interface node properties
+  // to solid values so the elastic kernel uses the correct λ/μ/ρ.
+  if constexpr (IS_MODEL_ON_NODES)
+  {
+    for (int i = 0; i < n_interface_nodes_; ++i)
+    {
+      int const j = m_interface_node_indices_[i];
+      m_mesh_.setModelNodeProps(j, m_vp_solid_iface_[i], m_vs_solid_iface_[i],
+                                m_rho_solid_iface_[i]);
+    }
+  }
   m_elastic_solver_.computeElementContributionsFromList(
       elastic_data, elastic_elem_list_, num_elastic_elements_);
   FENCE
+  // Restore fluid properties at interface nodes for subsequent acoustic step.
+  if constexpr (IS_MODEL_ON_NODES)
+  {
+    for (int i = 0; i < n_interface_nodes_; ++i)
+    {
+      int const j = m_interface_node_indices_[i];
+      m_mesh_.setModelNodeProps(j, m_vp_fluid_iface_[i], 0.0f,
+                                m_rho_fluid_iface_[i]);
+    }
+  }
 
   // 2.5. Save u^{n-1} for interface nodes only (compact array, size
   // n_interface_nodes_).  getPreviousField() still holds u^{n-1} at this
