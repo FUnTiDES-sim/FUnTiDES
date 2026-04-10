@@ -69,8 +69,8 @@ def allocate_rhs_term(
     )
     RHSTerm = np.array(kk_RHSTerm, copy=False)
     for i in range(n_time_steps):
-        RHSTerm[0, i] = source_term(i * dt, f0)
-        RHSTerm[1, i] = source_term(i * dt, f0)
+        for r in range(n_rhs):
+            RHSTerm[r, i] = source_term(i * dt, f0)
     return kk_RHSTerm, RHSTerm
 
 

@@ -17,6 +17,7 @@ class SemProxyOptions
   float lx = 2000.f, ly = 2000.f, lz = 2000.f;
   float srcx = 1010.f, srcy = 1010.f, srcz = 1010.f;
   float rcvx = 1310.f, rcvy = 1310.f, rcvz = 1310.f;
+
   std::string implem = "makutu";  // makutu
   std::string method = "sem";     // sem
   std::string mesh = "cartesian";
@@ -26,7 +27,7 @@ class SemProxyOptions
   bool autodt = false;
   // snapshots
   bool snapshots = false;
-  int snap_time_interval = 10;
+  int snap_time_interval = 20;
   // sponge boundaries parameters
   float boundaries_size = 0;
   bool surface_sponge = false;
@@ -34,6 +35,8 @@ class SemProxyOptions
   // Boolean to tell if the model is charged on nodes or on element
   bool isModelOnNodes = false;
   bool isElastic = false;
+  bool isAcoustoElastic = false;
+  float acoustoElasticBoundaryZ = 0.f;
   bool free_surface = false;
   float qp = -1.0f;  // quality factor for P-waves (<0 = not set)
   float qs = -1.0f;  // quality factor for S-waves (<0 = not set)
@@ -96,6 +99,11 @@ class SemProxyOptions
         "(false)",
         cxxopts::value<bool>(o.isModelOnNodes))(
         "is-elastic", "Elastic simulation", cxxopts::value<bool>(o.isElastic))(
+        "is-acousto-elastic", "Acousto-elastic coupled simulation",
+        cxxopts::value<bool>(o.isAcoustoElastic))(
+        "acousto-elastic-boundary-z",
+        "Z coordinate of the fluid–solid interface (meters)",
+        cxxopts::value<float>(o.acoustoElasticBoundaryZ))(
         "free-surface",
         "Enable free surface on top boundary (Z+). Default: true",
         cxxopts::value<bool>(o.free_surface))(

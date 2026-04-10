@@ -1,0 +1,14 @@
+// Auto-generated file - DO NOT EDIT
+// Generated for: SEMQ@ORDER@ @MESH_TYPE@ makutu solver @PHYSIC_TYPE@ model@MODEL_TYPE@
+
+#include <@MODEL_HEADER@>
+
+#include "sem_solver_acoustoelastic_impl.h"
+
+constexpr int ORDER = @ORDER@;
+
+template class solver::fe::SEMsolverAcoustoElastic<
+    ORDER,
+    IntegralTypeSelector<ORDER, IntegralType::MAKUTU>::type,
+    model::@MODEL_CLASS@<@MODEL_TEMPLATE_PARAMS@>,
+    @MODEL_ON_NODES@>;

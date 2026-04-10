@@ -16,6 +16,10 @@ struct RhsElastic : public Rhs
   /// Number of RHS (source) components
   static constexpr int kNumRhsComponents = 3;
 
+  /// Default constructor: produces an empty (no-forcing) RHS.
+  /// All views are null/zero-extent; safe as long as RHS is not accessed.
+  RhsElastic() = default;
+
   RhsElastic(ARRAY_REAL_VIEW termx, ARRAY_REAL_VIEW termy,
              ARRAY_REAL_VIEW termz, VECTOR_INT_VIEW element,
              ARRAY_REAL_VIEW weights)
