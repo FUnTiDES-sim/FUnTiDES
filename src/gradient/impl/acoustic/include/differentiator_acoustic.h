@@ -61,17 +61,17 @@ class DifferentiatorAcoustic : public Differentiator
 #include "model_struct.h"
 #include "model_unstruct.h"
 
-#define DECLARE_EXTERN_DIFF_ACOUSTIC(ORDER, MESH_TYPE) \
-  extern template class gradient::DifferentiatorAcoustic<ORDER, \
-      typename IntegralTypeSelector<ORDER, IntegralType::MAKUTU>::type, \
-      MESH_TYPE, true>; \
-  extern template class gradient::DifferentiatorAcoustic<ORDER, \
-      typename IntegralTypeSelector<ORDER, IntegralType::MAKUTU>::type, \
+#define DECLARE_EXTERN_DIFF_ACOUSTIC(ORDER, MESH_TYPE)                         \
+  extern template class gradient::DifferentiatorAcoustic<                      \
+      ORDER, typename IntegralTypeSelector<ORDER, IntegralType::MAKUTU>::type, \
+      MESH_TYPE, true>;                                                        \
+  extern template class gradient::DifferentiatorAcoustic<                      \
+      ORDER, typename IntegralTypeSelector<ORDER, IntegralType::MAKUTU>::type, \
       MESH_TYPE, false>;
 
 #define DECLARE_EXTERN_DIFF_ACOUSTIC_ALL_ORDERS(MESH_TYPE_MACRO) \
-  DECLARE_EXTERN_DIFF_ACOUSTIC(1, MESH_TYPE_MACRO(1)) \
-  DECLARE_EXTERN_DIFF_ACOUSTIC(2, MESH_TYPE_MACRO(2)) \
+  DECLARE_EXTERN_DIFF_ACOUSTIC(1, MESH_TYPE_MACRO(1))            \
+  DECLARE_EXTERN_DIFF_ACOUSTIC(2, MESH_TYPE_MACRO(2))            \
   DECLARE_EXTERN_DIFF_ACOUSTIC(3, MESH_TYPE_MACRO(3))
 
 #define STRUCT_MESH_TYPE(ORDER) model::ModelStruct<float, int, ORDER>

@@ -1,16 +1,20 @@
 #ifndef FUNTIDES_GRADIENT_IMPL_ACOUSTIC_INCLUDE_DIFFERENTIATOR_ACOUSTIC_IMPL_H_
 #define FUNTIDES_GRADIENT_IMPL_ACOUSTIC_INCLUDE_DIFFERENTIATOR_ACOUSTIC_IMPL_H_
 
-#include "differentiator_acoustic.h"
 #include <Kokkos_Core.hpp>
 #include <typeinfo>
+
+#include "differentiator_acoustic.h"
 
 namespace gradient
 {
 
-template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE, bool IS_MODEL_ON_NODES>
-void DifferentiatorAcoustic<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES>::compute(
-    model::ModelApi<float, int>& mesh, DataStruct& data, float dt) const
+template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE,
+          bool IS_MODEL_ON_NODES>
+void DifferentiatorAcoustic<
+    ORDER, INTEGRAL_TYPE, MESH_TYPE,
+    IS_MODEL_ON_NODES>::compute(model::ModelApi<float, int>& mesh,
+                                DataStruct& data, float dt) const
 {
   auto& myData = dynamic_cast<DifferentiatorDataAcoustic&>(data);
   auto& myMesh = dynamic_cast<MESH_TYPE&>(mesh);
@@ -30,20 +34,26 @@ void DifferentiatorAcoustic<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES>:
                    gradBuoyancy);
 }
 
-template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE, bool IS_MODEL_ON_NODES>
-int DifferentiatorAcoustic<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES>::getOrder() const
+template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE,
+          bool IS_MODEL_ON_NODES>
+int DifferentiatorAcoustic<ORDER, INTEGRAL_TYPE, MESH_TYPE,
+                           IS_MODEL_ON_NODES>::getOrder() const
 {
   return kOrder;
 }
 
-template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE, bool IS_MODEL_ON_NODES>
-bool DifferentiatorAcoustic<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES>::isModelOnNodes() const
+template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE,
+          bool IS_MODEL_ON_NODES>
+bool DifferentiatorAcoustic<ORDER, INTEGRAL_TYPE, MESH_TYPE,
+                            IS_MODEL_ON_NODES>::isModelOnNodes() const
 {
   return kIsModelOnNodes;
 }
 
-template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE, bool IS_MODEL_ON_NODES>
-void DifferentiatorAcoustic<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES>::print() const
+template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE,
+          bool IS_MODEL_ON_NODES>
+void DifferentiatorAcoustic<ORDER, INTEGRAL_TYPE, MESH_TYPE,
+                            IS_MODEL_ON_NODES>::print() const
 {
   std::cout << "DifferentiatorAcoustic<ORDER=" << kOrder
             << ", INTEGRAL_TYPE=" << typeid(INTEGRAL_TYPE).name()
@@ -52,17 +62,20 @@ void DifferentiatorAcoustic<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES>:
             << ">\n";
 }
 
-template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE, bool IS_MODEL_ON_NODES>
-void DifferentiatorAcoustic<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES>::computeOnElements(
-    MESH_TYPE mesh, float dt, VECTOR_REAL_VIEW const pn,
-    VECTOR_REAL_VIEW const qn, VECTOR_REAL_VIEW const qnPrev,
-    VECTOR_REAL_VIEW const qnPrevPrev, VECTOR_REAL_VIEW const gradKappa,
-    VECTOR_REAL_VIEW const gradBuoyancy) const
+template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE,
+          bool IS_MODEL_ON_NODES>
+void DifferentiatorAcoustic<ORDER, INTEGRAL_TYPE, MESH_TYPE,
+                            IS_MODEL_ON_NODES>::
+    computeOnElements(MESH_TYPE mesh, float dt, VECTOR_REAL_VIEW const pn,
+                      VECTOR_REAL_VIEW const qn, VECTOR_REAL_VIEW const qnPrev,
+                      VECTOR_REAL_VIEW const qnPrevPrev,
+                      VECTOR_REAL_VIEW const gradKappa,
+                      VECTOR_REAL_VIEW const gradBuoyancy) const
 {
   Kokkos::parallel_for(
       "Compute Acoustic Gradient on Elements",
-      Kokkos::RangePolicy<Kokkos::LaunchBounds<LaunchMaxThreadsPerBlock,
-                                               LaunchMinBlocksPerSM>>(
+      Kokkos::RangePolicy<
+          Kokkos::LaunchBounds<LaunchMaxThreadsPerBlock, LaunchMinBlocksPerSM>>(
           0, mesh.getNumberOfElements()),
       KOKKOS_CLASS_LAMBDA(const int elementNumber) {
         if (elementNumber >= mesh.getNumberOfElements()) return;
@@ -88,7 +101,7 @@ void DifferentiatorAcoustic<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES>:
         float localQn[kPointsPerElement] = {0};
         float localQnPrev[kPointsPerElement] = {0};
         float localQnPrevPrev[kPointsPerElement] = {0};
-        #pragma unroll 1
+#pragma unroll 1
         for (int i = 0; i < dim; ++i)
           for (int j = 0; j < dim; ++j)
             for (int k = 0; k < dim; ++k)
@@ -124,17 +137,20 @@ void DifferentiatorAcoustic<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES>:
       });
 }
 
-template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE, bool IS_MODEL_ON_NODES>
-void DifferentiatorAcoustic<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES>::computeOnNodes(
-    MESH_TYPE mesh, float dt, VECTOR_REAL_VIEW const pn,
-    VECTOR_REAL_VIEW const qn, VECTOR_REAL_VIEW const qnPrev,
-    VECTOR_REAL_VIEW const qnPrevPrev, VECTOR_REAL_VIEW const gradKappa,
-    VECTOR_REAL_VIEW const gradBuoyancy) const
+template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE,
+          bool IS_MODEL_ON_NODES>
+void DifferentiatorAcoustic<ORDER, INTEGRAL_TYPE, MESH_TYPE,
+                            IS_MODEL_ON_NODES>::
+    computeOnNodes(MESH_TYPE mesh, float dt, VECTOR_REAL_VIEW const pn,
+                   VECTOR_REAL_VIEW const qn, VECTOR_REAL_VIEW const qnPrev,
+                   VECTOR_REAL_VIEW const qnPrevPrev,
+                   VECTOR_REAL_VIEW const gradKappa,
+                   VECTOR_REAL_VIEW const gradBuoyancy) const
 {
   Kokkos::parallel_for(
       "Compute Acoustic Gradient on Nodes",
-      Kokkos::RangePolicy<Kokkos::LaunchBounds<LaunchMaxThreadsPerBlock,
-                                               LaunchMinBlocksPerSM>>(
+      Kokkos::RangePolicy<
+          Kokkos::LaunchBounds<LaunchMaxThreadsPerBlock, LaunchMinBlocksPerSM>>(
           0, mesh.getNumberOfElements()),
       KOKKOS_CLASS_LAMBDA(const int elementNumber) {
         if (elementNumber >= mesh.getNumberOfElements()) return;

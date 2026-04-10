@@ -1,12 +1,12 @@
 #ifndef FUNTIDES_GRADIENT_IMPL_ELASTIC_INCLUDE_DIFFERENTIATOR_ELASTIC_H_
 #define FUNTIDES_GRADIENT_IMPL_ELASTIC_INCLUDE_DIFFERENTIATOR_ELASTIC_H_
 
+#include <Kokkos_Macros.hpp>
 #include <iostream>
 
 #include "differentiator.h"
 #include "differentiator_data_elastic.h"
 #include "model.h"
-#include <Kokkos_Macros.hpp>
 
 namespace gradient
 {
@@ -71,17 +71,17 @@ class DifferentiatorElastic : public Differentiator
 #include "model_struct.h"
 #include "model_unstruct.h"
 
-#define DECLARE_EXTERN_DIFF_ELASTIC(ORDER, MESH_TYPE) \
-  extern template class gradient::DifferentiatorElastic<ORDER, \
-      typename IntegralTypeSelector<ORDER, IntegralType::MAKUTU>::type, \
-      MESH_TYPE, true>; \
-  extern template class gradient::DifferentiatorElastic<ORDER, \
-      typename IntegralTypeSelector<ORDER, IntegralType::MAKUTU>::type, \
+#define DECLARE_EXTERN_DIFF_ELASTIC(ORDER, MESH_TYPE)                          \
+  extern template class gradient::DifferentiatorElastic<                       \
+      ORDER, typename IntegralTypeSelector<ORDER, IntegralType::MAKUTU>::type, \
+      MESH_TYPE, true>;                                                        \
+  extern template class gradient::DifferentiatorElastic<                       \
+      ORDER, typename IntegralTypeSelector<ORDER, IntegralType::MAKUTU>::type, \
       MESH_TYPE, false>;
 
 #define DECLARE_EXTERN_DIFF_ELASTIC_ALL_ORDERS(MESH_TYPE_MACRO) \
-  DECLARE_EXTERN_DIFF_ELASTIC(1, MESH_TYPE_MACRO(1)) \
-  DECLARE_EXTERN_DIFF_ELASTIC(2, MESH_TYPE_MACRO(2)) \
+  DECLARE_EXTERN_DIFF_ELASTIC(1, MESH_TYPE_MACRO(1))            \
+  DECLARE_EXTERN_DIFF_ELASTIC(2, MESH_TYPE_MACRO(2))            \
   DECLARE_EXTERN_DIFF_ELASTIC(3, MESH_TYPE_MACRO(3))
 
 #define STRUCT_MESH_TYPE(ORDER) model::ModelStruct<float, int, ORDER>

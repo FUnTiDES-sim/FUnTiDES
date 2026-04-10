@@ -1,16 +1,18 @@
 #ifndef FUNTIDES_GRADIENT_IMPL_ELASTIC_INCLUDE_DIFFERENTIATOR_ELASTIC_IMPL_H_
 #define FUNTIDES_GRADIENT_IMPL_ELASTIC_INCLUDE_DIFFERENTIATOR_ELASTIC_IMPL_H_
 
-#include "differentiator_elastic.h"
 #include <Kokkos_Core.hpp>
 #include <typeinfo>
+
+#include "differentiator_elastic.h"
 
 namespace gradient
 {
 
-template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE, bool IS_MODEL_ON_NODES>
-void DifferentiatorElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES>::compute(
-    model::ModelApi<float, int>& mesh, DataStruct& data, float dt) const
+template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE,
+          bool IS_MODEL_ON_NODES>
+void DifferentiatorElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES>::
+    compute(model::ModelApi<float, int>& mesh, DataStruct& data, float dt) const
 {
   auto& myData = dynamic_cast<DifferentiatorDataElastic&>(data);
   auto& myMesh = dynamic_cast<MESH_TYPE&>(mesh);
@@ -40,20 +42,26 @@ void DifferentiatorElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES>::
                    ux_dt2, uy_dt2, uz_dt2, gradRho, gradLambda, gradMu);
 }
 
-template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE, bool IS_MODEL_ON_NODES>
-int DifferentiatorElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES>::getOrder() const
+template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE,
+          bool IS_MODEL_ON_NODES>
+int DifferentiatorElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE,
+                          IS_MODEL_ON_NODES>::getOrder() const
 {
   return kOrder;
 }
 
-template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE, bool IS_MODEL_ON_NODES>
-bool DifferentiatorElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES>::isModelOnNodes() const
+template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE,
+          bool IS_MODEL_ON_NODES>
+bool DifferentiatorElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE,
+                           IS_MODEL_ON_NODES>::isModelOnNodes() const
 {
   return kIsModelOnNodes;
 }
 
-template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE, bool IS_MODEL_ON_NODES>
-void DifferentiatorElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES>::print() const
+template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE,
+          bool IS_MODEL_ON_NODES>
+void DifferentiatorElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE,
+                           IS_MODEL_ON_NODES>::print() const
 {
   std::cout << "DifferentiatorElastic<ORDER=" << kOrder
             << ", INTEGRAL_TYPE=" << typeid(INTEGRAL_TYPE).name()
@@ -62,11 +70,13 @@ void DifferentiatorElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES>::
             << ">\n";
 }
 
-template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE, bool IS_MODEL_ON_NODES>
-KOKKOS_INLINE_FUNCTION
-void DifferentiatorElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES>::computeDisplacementGradient(
-    int qa, int qb, int qc, float const (&J)[3][3], float const* localUx,
-    float const* localUy, float const* localUz, float (&grad)[3][3])
+template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE,
+          bool IS_MODEL_ON_NODES>
+KOKKOS_INLINE_FUNCTION void
+DifferentiatorElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES>::
+    computeDisplacementGradient(int qa, int qb, int qc, float const (&J)[3][3],
+                                float const* localUx, float const* localUy,
+                                float const* localUz, float (&grad)[3][3])
 {
   int const dim = kOrder + 1;
   for (int c = 0; c < 3; ++c)
@@ -106,20 +116,22 @@ void DifferentiatorElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES>::
   }
 }
 
-template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE, bool IS_MODEL_ON_NODES>
-void DifferentiatorElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES>::computeOnElements(
-    MESH_TYPE mesh, float dt, VECTOR_REAL_VIEW const ux_fwd,
-    VECTOR_REAL_VIEW const uy_fwd, VECTOR_REAL_VIEW const uz_fwd,
-    VECTOR_REAL_VIEW const ux_adj, VECTOR_REAL_VIEW const uy_adj,
-    VECTOR_REAL_VIEW const uz_adj, VECTOR_REAL_VIEW const ux_dt2,
-    VECTOR_REAL_VIEW const uy_dt2, VECTOR_REAL_VIEW const uz_dt2,
-    VECTOR_REAL_VIEW const gradRho, VECTOR_REAL_VIEW const gradLambda,
-    VECTOR_REAL_VIEW const gradMu) const
+template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE,
+          bool IS_MODEL_ON_NODES>
+void DifferentiatorElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES>::
+    computeOnElements(
+        MESH_TYPE mesh, float dt, VECTOR_REAL_VIEW const ux_fwd,
+        VECTOR_REAL_VIEW const uy_fwd, VECTOR_REAL_VIEW const uz_fwd,
+        VECTOR_REAL_VIEW const ux_adj, VECTOR_REAL_VIEW const uy_adj,
+        VECTOR_REAL_VIEW const uz_adj, VECTOR_REAL_VIEW const ux_dt2,
+        VECTOR_REAL_VIEW const uy_dt2, VECTOR_REAL_VIEW const uz_dt2,
+        VECTOR_REAL_VIEW const gradRho, VECTOR_REAL_VIEW const gradLambda,
+        VECTOR_REAL_VIEW const gradMu) const
 {
   Kokkos::parallel_for(
       "Compute Elastic Gradient on Elements",
-      Kokkos::RangePolicy<Kokkos::LaunchBounds<LaunchMaxThreadsPerBlock,
-                                               LaunchMinBlocksPerSM>>(
+      Kokkos::RangePolicy<
+          Kokkos::LaunchBounds<LaunchMaxThreadsPerBlock, LaunchMinBlocksPerSM>>(
           0, mesh.getNumberOfElements()),
       KOKKOS_CLASS_LAMBDA(const int elementNumber) {
         if (elementNumber >= mesh.getNumberOfElements()) return;
@@ -176,10 +188,10 @@ void DifferentiatorElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES>::
             [&](int qa, int qb, int qc, float const(&J)[3][3]) {
               float grad_fwd[3][3] = {{0}};
               float grad_adj[3][3] = {{0}};
-              computeDisplacementGradient(qa, qb, qc, J, localUxFwd,
-                                          localUyFwd, localUzFwd, grad_fwd);
-              computeDisplacementGradient(qa, qb, qc, J, localUxAdj,
-                                          localUyAdj, localUzAdj, grad_adj);
+              computeDisplacementGradient(qa, qb, qc, J, localUxFwd, localUyFwd,
+                                          localUzFwd, grad_fwd);
+              computeDisplacementGradient(qa, qb, qc, J, localUxAdj, localUyAdj,
+                                          localUzAdj, grad_adj);
 
               int const qIdx = qa + qb * dim + qc * dim * dim;
 
@@ -217,7 +229,8 @@ void DifferentiatorElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES>::
             transformData, [&](const int q, const real_t wdetJ) {
               localGradRho += (localUxDt2[q] * localUxFwd[q] +
                                localUyDt2[q] * localUyFwd[q] +
-                               localUzDt2[q] * localUzFwd[q]) * wdetJ;
+                               localUzDt2[q] * localUzFwd[q]) *
+                              wdetJ;
               localGradLambda += strainDiv[q] * wdetJ;
               localGradMu += strainEps[q] * wdetJ;
             });
@@ -228,20 +241,22 @@ void DifferentiatorElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES>::
       });
 }
 
-template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE, bool IS_MODEL_ON_NODES>
-void DifferentiatorElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES>::computeOnNodes(
-    MESH_TYPE mesh, float dt, VECTOR_REAL_VIEW const ux_fwd,
-    VECTOR_REAL_VIEW const uy_fwd, VECTOR_REAL_VIEW const uz_fwd,
-    VECTOR_REAL_VIEW const ux_adj, VECTOR_REAL_VIEW const uy_adj,
-    VECTOR_REAL_VIEW const uz_adj, VECTOR_REAL_VIEW const ux_dt2,
-    VECTOR_REAL_VIEW const uy_dt2, VECTOR_REAL_VIEW const uz_dt2,
-    VECTOR_REAL_VIEW const gradRho, VECTOR_REAL_VIEW const gradLambda,
-    VECTOR_REAL_VIEW const gradMu) const
+template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE,
+          bool IS_MODEL_ON_NODES>
+void DifferentiatorElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES>::
+    computeOnNodes(MESH_TYPE mesh, float dt, VECTOR_REAL_VIEW const ux_fwd,
+                   VECTOR_REAL_VIEW const uy_fwd, VECTOR_REAL_VIEW const uz_fwd,
+                   VECTOR_REAL_VIEW const ux_adj, VECTOR_REAL_VIEW const uy_adj,
+                   VECTOR_REAL_VIEW const uz_adj, VECTOR_REAL_VIEW const ux_dt2,
+                   VECTOR_REAL_VIEW const uy_dt2, VECTOR_REAL_VIEW const uz_dt2,
+                   VECTOR_REAL_VIEW const gradRho,
+                   VECTOR_REAL_VIEW const gradLambda,
+                   VECTOR_REAL_VIEW const gradMu) const
 {
   Kokkos::parallel_for(
       "Compute Elastic Gradient on Nodes",
-      Kokkos::RangePolicy<Kokkos::LaunchBounds<LaunchMaxThreadsPerBlock,
-                                               LaunchMinBlocksPerSM>>(
+      Kokkos::RangePolicy<
+          Kokkos::LaunchBounds<LaunchMaxThreadsPerBlock, LaunchMinBlocksPerSM>>(
           0, mesh.getNumberOfElements()),
       KOKKOS_CLASS_LAMBDA(const int elementNumber) {
         if (elementNumber >= mesh.getNumberOfElements()) return;
@@ -300,10 +315,10 @@ void DifferentiatorElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES>::
             [&](int qa, int qb, int qc, float const(&J)[3][3]) {
               float grad_fwd[3][3] = {{0}};
               float grad_adj[3][3] = {{0}};
-              computeDisplacementGradient(qa, qb, qc, J, localUxFwd,
-                                          localUyFwd, localUzFwd, grad_fwd);
-              computeDisplacementGradient(qa, qb, qc, J, localUxAdj,
-                                          localUyAdj, localUzAdj, grad_adj);
+              computeDisplacementGradient(qa, qb, qc, J, localUxFwd, localUyFwd,
+                                          localUzFwd, grad_fwd);
+              computeDisplacementGradient(qa, qb, qc, J, localUxAdj, localUyAdj,
+                                          localUzAdj, grad_adj);
 
               int const qIdx = qa + qb * dim + qc * dim * dim;
 
