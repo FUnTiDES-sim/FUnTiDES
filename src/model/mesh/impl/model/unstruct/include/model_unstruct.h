@@ -330,6 +330,26 @@ class ModelUnstruct final : public ModelApi<FloatType, ScalarType>
     return model_vs_element_[e];
   }
 
+  /**
+   * @brief Override per-node material properties at node @p n.
+   *
+   * Used by the acousto-elastic solver to temporarily apply solid properties
+   * at interface nodes before computing elastic element contributions, and to
+   * restore fluid properties afterwards.
+   *
+   * @param n   Global node index.
+   * @param vp  P-wave velocity (m/s).
+   * @param vs  S-wave velocity (m/s).
+   * @param rho Density (kg/m³).
+   */
+  void setModelNodeProps(ScalarType n, FloatType vp, FloatType vs,
+                         FloatType rho)
+  {
+    model_vp_node_[n] = vp;
+    model_vs_node_[n] = vs;
+    model_rho_node_[n] = rho;
+  }
+
   PROXY_HOST_DEVICE FloatType getModelQpOnNodes(ScalarType n) const final
   {
     if (model_qp_node_.extent(0) > 0) return model_qp_node_[n];

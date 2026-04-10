@@ -9,10 +9,13 @@
 
 #include "common_macros.h"
 #include "rhs_acoustic.h"
+#include "rhs_acoustoelastic.h"
 #include "rhs_elastic.h"
 #include "sem_solver.h"
+#include "sem_solver_acoustoelastic.h"
 #include "solver_factory.h"
 #include "wavefield_acoustic.h"
+#include "wavefield_acoustoelastic.h"
 #include "wavefield_elastic.h"
 
 namespace py = pybind11;
@@ -49,6 +52,18 @@ void bind_elastic_solver_data(py::module_ &m)
       .def("print", &SEMsolverDataElastic::print);
 }
 
+void bind_acoustoelastic_solver_data(py::module_ &m)
+{
+  py::class_<SEMsolverDataAcoustoElastic, Solver::DataStruct,
+             std::shared_ptr<SEMsolverDataAcoustoElastic>>(
+      m, "SEMsolverDataAcoustoElastic")
+      .def(py::init<const WavefieldAcoustoElastic &,
+                    const RhsAcoustoElastic &>(),
+           py::arg("wavefield"), py::arg("rhs"))
+      .def("swap_wavefields", &SEMsolverDataAcoustoElastic::swapWavefields)
+      .def("print", &SEMsolverDataAcoustoElastic::print);
+}
+
 void bind_sem_solver_base(py::module_ &m)
 {
   py::class_<Solver, std::shared_ptr<Solver>>(m, "Solver")
@@ -65,7 +80,7 @@ void bind_sem_solver_base(py::module_ &m)
           "get_mass_matrix",
           [](Solver &self)
               -> Kokkos::Experimental::python_view_type_t<VECTOR_REAL_VIEW> {
-            return self.getMassMatrix();
+            return self.getMassMatrixAcoustic();
           },
           py::return_value_policy::reference_internal)
       .def("output_solution_values", &Solver::outputSolutionValues,

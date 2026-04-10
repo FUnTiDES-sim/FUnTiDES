@@ -7,3 +7,8 @@ add_gtest(das_receiver_test
   test_das_receiver.cc
   discretization
 )
+
+add_gtest(evaluate_ricker_test
+  test_evaluate_ricker.cc
+  proxy_utils
+)
