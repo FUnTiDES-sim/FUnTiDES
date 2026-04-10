@@ -62,58 +62,41 @@ void bind_rhs_acoustoelastic(py::module_& m)
   py::class_<RhsAcoustoElastic, Rhs, std::shared_ptr<RhsAcoustoElastic>>(
       m, "RhsAcoustoElastic")
       .def(py::init([](Kokkos::Experimental::python_view_type_t<ARRAY_REAL_VIEW>
-                           acoustic_term_py,  // CORRIGÉ
+                           acoustic_term_py,
                        Kokkos::Experimental::python_view_type_t<VECTOR_INT_VIEW>
-                           element_py,  // CORRIGÉ
+                           element_py,
                        Kokkos::Experimental::python_view_type_t<ARRAY_REAL_VIEW>
-                           weights_py,  // CORRIGÉ
+                           weights_py,
                        Kokkos::Experimental::python_view_type_t<ARRAY_REAL_VIEW>
-                           elastic_termx_py,  // CORRIGÉ
+                           elastic_termx_py,
                        Kokkos::Experimental::python_view_type_t<ARRAY_REAL_VIEW>
-                           elastic_termy_py,  // CORRIGÉ
+                           elastic_termy_py,
                        Kokkos::Experimental::python_view_type_t<ARRAY_REAL_VIEW>
-                           elastic_termz_py) {  // CORRIGÉ
-             // Les lambdas internes doivent aussi utiliser les types pybind11
-             // corrects Souvent on utilise simplement py::array_t<real_type>
-             // pour plus de clarté
-
-             auto wrap_and_copy_2d_real = [](py::array_t<real_type> arr,
-                                             const std::string& name) {
-               auto buf = arr.request();
-               if (buf.ndim != 2)
-                 throw std::runtime_error(name + " must be 2D");
-
-               Kokkos::View<real_type**, Kokkos::LayoutRight, Kokkos::HostSpace,
-                            Kokkos::MemoryTraits<Kokkos::Unmanaged>>
-                   h_view((real_type*)buf.ptr, buf.shape[0], buf.shape[1]);
-
-               ARRAY_REAL_VIEW d_view(name, buf.shape[0], buf.shape[1]);
-               Kokkos::deep_copy(d_view, h_view);
+                           elastic_termz_py) {
+             // Lambda simplifiée : On reçoit déjà une View (Host), on en crée
+             // une sur le Device
+             auto copy_to_device_2d = [](auto& host_view,
+                                         const std::string& name) {
+               ARRAY_REAL_VIEW d_view(name, host_view.extent(0),
+                                      host_view.extent(1));
+               Kokkos::deep_copy(d_view, host_view);
                return d_view;
              };
 
-             auto wrap_and_copy_1d_int = [](py::array_t<int_type> arr,
-                                            const std::string& name) {
-               auto buf = arr.request();
-               if (buf.ndim != 1)
-                 throw std::runtime_error(name + " must be 1D");
-
-               Kokkos::View<int_type*, Kokkos::LayoutRight, Kokkos::HostSpace,
-                            Kokkos::MemoryTraits<Kokkos::Unmanaged>>
-                   h_view((int_type*)buf.ptr, buf.shape[0]);
-
-               VECTOR_INT_VIEW d_view(name, buf.shape[0]);
-               Kokkos::deep_copy(d_view, h_view);
+             auto copy_to_device_1d = [](auto& host_view,
+                                         const std::string& name) {
+               VECTOR_INT_VIEW d_view(name, host_view.extent(0));
+               Kokkos::deep_copy(d_view, host_view);
                return d_view;
              };
 
              return new RhsAcoustoElastic(
-                 wrap_and_copy_2d_real(acoustic_term_py, "rhs_acoustic_term"),
-                 wrap_and_copy_1d_int(element_py, "rhs_element"),
-                 wrap_and_copy_2d_real(weights_py, "rhs_weights"),
-                 wrap_and_copy_2d_real(elastic_termx_py, "rhs_elastic_term_x"),
-                 wrap_and_copy_2d_real(elastic_termy_py, "rhs_elastic_term_y"),
-                 wrap_and_copy_2d_real(elastic_termz_py, "rhs_elastic_term_z"));
+                 copy_to_device_2d(acoustic_term_py, "rhs_acoustic_term"),
+                 copy_to_device_1d(element_py, "rhs_element"),
+                 copy_to_device_2d(weights_py, "rhs_weights"),
+                 copy_to_device_2d(elastic_termx_py, "rhs_elastic_term_x"),
+                 copy_to_device_2d(elastic_termy_py, "rhs_elastic_term_y"),
+                 copy_to_device_2d(elastic_termz_py, "rhs_elastic_term_z"));
            }),
            py::arg("acoustic_term"), py::arg("element"), py::arg("weights"),
            py::arg("elastic_termx"), py::arg("elastic_termy"),
