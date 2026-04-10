@@ -45,6 +45,7 @@ void bind_physic_type(py::module_ &m)
   py::enum_<utils::enums::physicType>(m, "PhysicType")
       .value("ACOUSTIC", utils::enums::physicType::kAcoustic)
       .value("ELASTIC", utils::enums::physicType::kElastic)
+      .value("ACOUSTOELASTIC", utils::enums::physicType::kAcoustoElastic)
       .export_values();
 }
 

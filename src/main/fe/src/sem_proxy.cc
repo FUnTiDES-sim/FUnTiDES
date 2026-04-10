@@ -22,11 +22,14 @@
 #include <sstream>
 #include <variant>
 
+#include "rhs_acoustoelastic.h"
 #ifdef USE_MPI
 #include "mpi_backend.h"
 #endif
 #include "sem_solver.h"
+#include "sem_solver_acoustoelastic.h"
 #include "topology_factory.h"
+#include "wavefield_acoustoelastic.h"
 
 using namespace SourceAndReceiverUtils;
 using namespace solver::fe;
@@ -45,6 +48,8 @@ SEMproxy::SEMproxy(const SemProxyOptions& opt)
   init_sync();
   init_time_params(opt);
 
+  isAcoustoElastic_ = opt.isAcoustoElastic;
+
   const methodType methodType = getMethod(opt.method);
   const implemType implemType = getImplem(opt.implem);
   const meshType meshType = getMesh(opt.mesh);
@@ -52,7 +57,9 @@ SEMproxy::SEMproxy(const SemProxyOptions& opt)
                                               ? modelLocationType::kOnNodes
                                               : modelLocationType::kOnElements;
   const physicType physicType =
-      opt.isElastic ? physicType::kElastic : physicType::kAcoustic;
+      isAcoustoElastic_
+          ? physicType::kAcoustoElastic
+          : (opt.isElastic ? physicType::kElastic : physicType::kAcoustic);
 
   m_solver = createSolver(methodType, implemType, meshType, modelLocation,
                           physicType, opt.order);
@@ -221,6 +228,7 @@ void SEMproxy::run()
       totalOutputTime;
 
   bool isElastic = isElastic_;
+  bool isAcoustoElastic = isAcoustoElastic_;
 
   // Initialize Solver with Partition Info & Compute Local Mass
   m_solver->computeFEInit(*m_mesh, sponge_size_, surface_sponge_, taper_delta_);
@@ -228,7 +236,19 @@ void SEMproxy::run()
   // Synchronize Mass Matrix (Critical for DD)
   if (par_topology_.isDistributed())
   {
-    m_syncer->synchronize(m_solver->getMassMatrix(), par_topology_);
+    if (isAcoustoElastic_)
+    {
+      m_syncer->synchronize(m_solver->getMassMatrixAcoustic(), par_topology_);
+      m_syncer->synchronize(m_solver->getMassMatrixElastic(), par_topology_);
+    }
+    else if (isElastic_)
+    {
+      m_syncer->synchronize(m_solver->getMassMatrixElastic(), par_topology_);
+    }
+    else
+    {
+      m_syncer->synchronize(m_solver->getMassMatrixAcoustic(), par_topology_);
+    }
     for (int c = 0; c < m_solver->getNumComponents(); ++c)
     {
       m_syncer->synchronize(m_solver->getDampingMatrix(c), par_topology_);
@@ -238,7 +258,93 @@ void SEMproxy::run()
   // Get the global node index of the first node of the source element
   int debugNodeIdx = m_mesh->globalNodeIndex(myElementSource, 0, 0, 0);
 
-  if (!isElastic)
+  if (isAcoustoElastic)
+  {
+    WavefieldAcoustoElastic wavefield(
+        pnGlobalPrev, pnGlobalCurr, uxnGlobalPrev, uxnGlobalCurr, uynGlobalPrev,
+        uynGlobalCurr, uznGlobalPrev, uznGlobalCurr);
+    RhsAcoustoElastic rhs(myRHSTerm, rhsElement, rhsWeights, myRHSTermx,
+                          myRHSTermy, myRHSTermz);
+    SEMsolverDataAcoustoElastic solverData(wavefield, rhs);
+
+    for (int indexTimeSample = 0; indexTimeSample < num_sample_;
+         indexTimeSample++)
+    {
+      startComputeTime = system_clock::now();
+
+      // Full staggered step: elastic forces → elastic update →
+      // acoustic forces → acoustic update (serial only in V1).
+      m_solver->computeOneStep(dt_, indexTimeSample, solverData);
+
+      totalComputeTime += system_clock::now() - startComputeTime;
+      startOutputTime = system_clock::now();
+
+      if (indexTimeSample % 50 == 0)
+      {
+        // Acoustic field: print at source element (fluid domain).
+        m_solver->outputSolutionValues(indexTimeSample, rhsElement[0],
+                                       pnGlobalPrev, "pnGlobal");
+        // Elastic fields: print at receiver element — place receiver in the
+        // solid domain (z < acoustoElasticBoundaryZ) to see non-zero values.
+        m_solver->outputSolutionValues(indexTimeSample, rhsElementRcv[0],
+                                       uxnGlobalPrev, "uxnGlobal");
+        m_solver->outputSolutionValues(indexTimeSample, rhsElementRcv[0],
+                                       uynGlobalPrev, "uynGlobal");
+        m_solver->outputSolutionValues(indexTimeSample, rhsElementRcv[0],
+                                       uznGlobalPrev, "uznGlobal");
+      }
+
+      if (is_snapshots_ && indexTimeSample % snap_time_interval_ == 0)
+      {
+        saveSnapshot(indexTimeSample, pnGlobalPrev);
+        saveSnapshot(indexTimeSample, uznGlobalPrev);
+      }
+
+      // Save acoustic pressure at receiver
+      const int order = m_mesh->getOrder();
+      float varnp1 = 0.0;
+      for (int i = 0; i < order + 1; i++)
+      {
+        for (int j = 0; j < order + 1; j++)
+        {
+          for (int k = 0; k < order + 1; k++)
+          {
+            int nodeIdx = m_mesh->globalNodeIndex(rhsElementRcv[0], i, j, k);
+            int globalNodeOnElement =
+                i + j * (order + 1) + k * (order + 1) * (order + 1);
+            varnp1 +=
+                pnGlobalCurr(nodeIdx) * rhsWeightsRcv(0, globalNodeOnElement);
+          }
+        }
+      }
+      pnAtReceiver(0, indexTimeSample) = varnp1;
+
+      solverData.swapWavefields();
+
+      totalOutputTime += system_clock::now() - startOutputTime;
+    }
+
+    for (int i = 0; i < pnAtReceiver.extent(0); i++)
+    {
+#ifdef USE_KOKKOS
+      auto subview = Kokkos::subview(pnAtReceiver, i, Kokkos::ALL());
+      vectorReal subset("receiver_save", num_sample_);
+      Kokkos::deep_copy(subset, subview);
+#else
+      auto& subview = pnAtReceiver;
+      vectorReal subset(subview.extent(0) * subview.extent(1));
+      for (size_t k = 0; k < subview.extent(0); ++k)
+      {
+        for (size_t j = 0; j < subview.extent(1); ++j)
+        {
+          subset[k * subview.extent(1) + j] = subview(k, j);
+        }
+      }
+#endif
+      io_ctrl_->saveReceiver(subset, src_coord_);
+    }
+  }
+  else if (!isElastic)
   {
     WavefieldAcoustic wavefield(pnGlobalPrev, pnGlobalCurr);
     RhsAcoustic rhs(myRHSTerm, rhsElement, rhsWeights);
@@ -498,7 +604,29 @@ void SEMproxy::init_arrays()
   rhsWeights = allocateArray2D<arrayReal>(myNumberOfRHS, n_points_per_element,
                                           "RHSWeight");
 
-  if (!isElastic_)
+  if (isAcoustoElastic_)
+  {
+    // Acousto-elastic: acoustic + elastic source terms (one may be all zeros),
+    // plus both wavefields (acoustic pressure and elastic displacement).
+    myRHSTerm =
+        allocateArray2D<arrayReal>(myNumberOfRHS, num_sample_, "RHSTerm");
+    myRHSTermx =
+        allocateArray2D<arrayReal>(myNumberOfRHS, num_sample_, "RHSTermx");
+    myRHSTermy =
+        allocateArray2D<arrayReal>(myNumberOfRHS, num_sample_, "RHSTermy");
+    myRHSTermz =
+        allocateArray2D<arrayReal>(myNumberOfRHS, num_sample_, "RHSTermz");
+    pnGlobalCurr = allocateVector<vectorReal>(n_nodes, "pnGlobalCurr");
+    pnGlobalPrev = allocateVector<vectorReal>(n_nodes, "pnGlobalPrev");
+    pnAtReceiver = allocateArray2D<arrayReal>(1, num_sample_, "pnAtReceiver");
+    uxnGlobalCurr = allocateVector<vectorReal>(n_nodes, "uxnGlobalCurr");
+    uynGlobalCurr = allocateVector<vectorReal>(n_nodes, "uynGlobalCurr");
+    uznGlobalCurr = allocateVector<vectorReal>(n_nodes, "uznGlobalCurr");
+    uxnGlobalPrev = allocateVector<vectorReal>(n_nodes, "uxnGlobalPrev");
+    uynGlobalPrev = allocateVector<vectorReal>(n_nodes, "uynGlobalPrev");
+    uznGlobalPrev = allocateVector<vectorReal>(n_nodes, "uznGlobalPrev");
+  }
+  else if (!isElastic_)
   {
     myRHSTerm =
         allocateArray2D<arrayReal>(myNumberOfRHS, num_sample_, "RHSTerm");
@@ -611,8 +739,41 @@ void SEMproxy::init_source()
   // initialize source term
   vector<float> sourceTerm =
       myUtils.computeSourceTerm(num_sample_, dt_, f0, sourceOrder);
-  if (!isElastic_)
+  if (isAcoustoElastic_)
   {
+    // Auto-detect source domain based on depth vs interface boundary.
+    // z >= acoustoElasticBoundaryZ → fluid (acoustic); otherwise → solid
+    // (elastic).
+    bool const sourceInFluid =
+        (src_coord_[2] >= m_localParams.acoustoElasticBoundaryZ);
+    if (sourceInFluid)
+    {
+      cout << "Acousto-elastic source: fluid domain (acoustic)." << endl;
+      for (int j = 0; j < num_sample_; j++)
+      {
+        myRHSTerm(0, j) = sourceTerm[j];
+        if (j % 100 == 0)
+          cout << "Sample " << j << "\t: sourceTerm = " << sourceTerm[j]
+               << endl;
+      }
+    }
+    else
+    {
+      cout << "Acousto-elastic source: solid domain (elastic)." << endl;
+      for (int j = 0; j < num_sample_; j++)
+      {
+        myRHSTermx(0, j) = sourceTerm[j];
+        myRHSTermy(0, j) = sourceTerm[j];
+        myRHSTermz(0, j) = sourceTerm[j];
+        if (j % 100 == 0)
+          cout << "Sample " << j << "\t: sourceTerm = " << sourceTerm[j]
+               << endl;
+      }
+    }
+  }
+  else if (!isElastic_)
+  {
+    // Pure acoustic source.
     for (int j = 0; j < num_sample_; j++)
     {
       myRHSTerm(0, j) = sourceTerm[j];
@@ -622,6 +783,7 @@ void SEMproxy::init_source()
   }
   else
   {
+    // Pure elastic source.
     for (int j = 0; j < num_sample_; j++)
     {
       myRHSTermx(0, j) = sourceTerm[j];
@@ -951,12 +1113,17 @@ void SEMproxy::init_sim_params(const SemProxyOptions& opt)
   model::CartesianParams<float, int> globalParams(
       opt.order, opt.ex, opt.ey, opt.ez, opt.lx, opt.ly, opt.lz,
       opt.isModelOnNodes, opt.isElastic);
+  globalParams.isAcoustoElastic = opt.isAcoustoElastic;
+  globalParams.acoustoElasticBoundaryZ = opt.acoustoElasticBoundaryZ;
   globalParams.origin_x = 0;  // Global start
 
   // Partition domain
   model::CartesianXPartitioner<float, int> partitioner;
   m_localParams =
       partitioner.partition(globalParams, dist_ctx_.rank, dist_ctx_.size);
+  // Preserve acoustoelastic fields (not handled by partitioner geometry split)
+  m_localParams.isAcoustoElastic = opt.isAcoustoElastic;
+  m_localParams.acoustoElasticBoundaryZ = opt.acoustoElasticBoundaryZ;
 
   // Update members with LOCAL parameters for array allocation
   nb_elements_[0] = m_localParams.ex;
@@ -1008,7 +1175,9 @@ void SEMproxy::init_mesh_params(const SemProxyOptions& opt)
             m_localParams.ex, m_localParams.lx, m_localParams.ey,
             m_localParams.ly, m_localParams.ez, m_localParams.lz,
             opt.isModelOnNodes, opt.isElastic, m_localParams.origin_x,
-            m_localParams.origin_y, m_localParams.origin_z);
+            m_localParams.origin_y, m_localParams.origin_z, -1.0f, -1.0f, -1.0f,
+            0.0f, 0.0f, 0.0f, opt.isAcoustoElastic,
+            opt.acoustoElasticBoundaryZ);
         m_mesh = builder.getModel(opt.free_surface);
         break;
       }
@@ -1017,7 +1186,9 @@ void SEMproxy::init_mesh_params(const SemProxyOptions& opt)
             m_localParams.ex, m_localParams.lx, m_localParams.ey,
             m_localParams.ly, m_localParams.ez, m_localParams.lz,
             opt.isModelOnNodes, opt.isElastic, m_localParams.origin_x,
-            m_localParams.origin_y, m_localParams.origin_z);
+            m_localParams.origin_y, m_localParams.origin_z, -1.0f, -1.0f, -1.0f,
+            0.0f, 0.0f, 0.0f, opt.isAcoustoElastic,
+            opt.acoustoElasticBoundaryZ);
         m_mesh = builder.getModel(opt.free_surface);
         break;
       }
@@ -1026,7 +1197,9 @@ void SEMproxy::init_mesh_params(const SemProxyOptions& opt)
             m_localParams.ex, m_localParams.lx, m_localParams.ey,
             m_localParams.ly, m_localParams.ez, m_localParams.lz,
             opt.isModelOnNodes, opt.isElastic, m_localParams.origin_x,
-            m_localParams.origin_y, m_localParams.origin_z);
+            m_localParams.origin_y, m_localParams.origin_z, -1.0f, -1.0f, -1.0f,
+            0.0f, 0.0f, 0.0f, opt.isAcoustoElastic,
+            opt.acoustoElasticBoundaryZ);
         m_mesh = builder.getModel(opt.free_surface);
         break;
       }

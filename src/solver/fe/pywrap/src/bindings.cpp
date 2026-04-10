@@ -21,16 +21,19 @@ PYBIND11_MODULE(solver, m)
   solver::fe::bind_rhs_base(m);
   solver::fe::bind_rhs_acoustic(m);
   solver::fe::bind_rhs_elastic(m);
+  solver::fe::bind_rhs_acoustoelastic(m);
 
   // Bind Wavefield
   solver::fe::bind_wavefield_base(m);
   solver::fe::bind_wavefield_acoustic(m);
   solver::fe::bind_wavefield_elastic(m);
+  solver::fe::bind_wavefield_acoustoelastic(m);
 
   // Bind Data Structures
   solver::fe::bind_data_struct(m);
   solver::fe::bind_acoustic_solver_data(m);
   solver::fe::bind_elastic_solver_data(m);
+  solver::fe::bind_acoustoelastic_solver_data(m);
 
   // Bind Solver
   solver::fe::bind_sem_solver_base(m);

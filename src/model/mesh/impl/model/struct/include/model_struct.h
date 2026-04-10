@@ -29,6 +29,16 @@ struct ModelStructData final : public ModelDataBase<FloatType, ScalarType>
 
   bool isModelOnNodes_;
   bool isElastic_;
+
+  /// Optional per-element material arrays. If empty, getters fall back to
+  /// hardcoded uniform values. Populated by the builder for heterogeneous
+  /// configurations (e.g. acoustoelastic bicouche).
+  VECTOR_REAL_VIEW model_vp_element_;   ///< Per-element Vp  (empty → 1500)
+  VECTOR_REAL_VIEW model_vs_element_;   ///< Per-element Vs  (empty → 755)
+  VECTOR_REAL_VIEW model_rho_element_;  ///< Per-element rho (empty → 1)
+  VECTOR_REAL_VIEW model_vp_node_;      ///< Per-node Vp     (empty → 1500)
+  VECTOR_REAL_VIEW model_vs_node_;      ///< Per-node Vs     (empty → 755)
+  VECTOR_REAL_VIEW model_rho_node_;     ///< Per-node rho    (empty → 1)
   VECTOR_REAL_VIEW model_qp_element_;
   VECTOR_REAL_VIEW model_qs_element_;
   VECTOR_REAL_VIEW model_qp_node_;
@@ -69,6 +79,12 @@ class ModelStruct final : public ModelApi<FloatType, ScalarType>
         boundaries_t_(data.boundaries_t_),
         isElastic_(data.isElastic_),
         face_connectivity_(data.ex_, data.ey_, data.ez_, Order),
+        model_vp_element_(data.model_vp_element_),
+        model_vs_element_(data.model_vs_element_),
+        model_rho_element_(data.model_rho_element_),
+        model_vp_node_(data.model_vp_node_),
+        model_vs_node_(data.model_vs_node_),
+        model_rho_node_(data.model_rho_node_),
         model_qp_element_(data.model_qp_element_),
         model_qs_element_(data.model_qs_element_),
         model_qp_node_(data.model_qp_node_),
@@ -179,32 +195,66 @@ class ModelStruct final : public ModelApi<FloatType, ScalarType>
   }
 
   // ============================================================================
-  // MATERIAL PROPERTIES (mock)
+  // MATERIAL PROPERTIES
   // ============================================================================
 
+  /// @brief Returns Vp at node @p n. Uses stored array when available, else
+  /// 1500.
   PROXY_HOST_DEVICE FloatType getModelVpOnNodes(ScalarType n) const final
   {
-    return 1500;
+    if (model_vp_node_.extent(0) > 0) return model_vp_node_[n];
+    return static_cast<FloatType>(1500);
   }
+  /// @brief Returns Vp of element @p e. Uses stored array when available, else
+  /// 1500.
   PROXY_HOST_DEVICE FloatType getModelVpOnElement(ScalarType e) const final
   {
-    return 1500;
+    if (model_vp_element_.extent(0) > 0) return model_vp_element_[e];
+    return static_cast<FloatType>(1500);
   }
+  /// @brief Returns rho at node @p n. Uses stored array when available, else 1.
   PROXY_HOST_DEVICE FloatType getModelRhoOnNodes(ScalarType n) const final
   {
-    return 1;
+    if (model_rho_node_.extent(0) > 0) return model_rho_node_[n];
+    return static_cast<FloatType>(1);
   }
+  /// @brief Returns rho of element @p e. Uses stored array when available,
+  /// else 1.
   PROXY_HOST_DEVICE FloatType getModelRhoOnElement(ScalarType e) const final
   {
-    return 1;
+    if (model_rho_element_.extent(0) > 0) return model_rho_element_[e];
+    return static_cast<FloatType>(1);
   }
+  /// @brief Returns Vs at node @p n. Uses stored array when available, else
+  /// 755.
   PROXY_HOST_DEVICE FloatType getModelVsOnNodes(ScalarType n) const final
   {
-    return 755;
+    if (model_vs_node_.extent(0) > 0) return model_vs_node_[n];
+    return static_cast<FloatType>(755);
   }
+  /// @brief Returns Vs of element @p e. Uses stored array when available, else
+  /// 755.
   PROXY_HOST_DEVICE FloatType getModelVsOnElement(ScalarType e) const final
   {
-    return 755;
+    if (model_vs_element_.extent(0) > 0) return model_vs_element_[e];
+    return static_cast<FloatType>(755);
+  }
+  /// @brief Override per-node material properties at node @p n.
+  ///
+  /// Used by the acousto-elastic solver to temporarily apply solid properties
+  /// at interface nodes before computing elastic element contributions, and to
+  /// restore fluid properties afterwards.
+  ///
+  /// @param n   Global node index.
+  /// @param vp  P-wave velocity (m/s).
+  /// @param vs  S-wave velocity (m/s).
+  /// @param rho Density (kg/m³).
+  void setModelNodeProps(ScalarType n, FloatType vp, FloatType vs,
+                         FloatType rho)
+  {
+    if (model_vp_node_.extent(0) > 0) model_vp_node_[n] = vp;
+    if (model_vs_node_.extent(0) > 0) model_vs_node_[n] = vs;
+    if (model_rho_node_.extent(0) > 0) model_rho_node_[n] = rho;
   }
   PROXY_HOST_DEVICE FloatType getModelQpOnNodes(ScalarType n) const final
   {
@@ -493,6 +543,14 @@ class ModelStruct final : public ModelApi<FloatType, ScalarType>
   VECTOR_REAL_VIEW model_qs_element_;
   VECTOR_REAL_VIEW model_qp_node_;
   VECTOR_REAL_VIEW model_qs_node_;
+
+  // Optional heterogeneous material arrays (empty → uniform hardcoded values).
+  VECTOR_REAL_VIEW model_vp_element_;
+  VECTOR_REAL_VIEW model_vs_element_;
+  VECTOR_REAL_VIEW model_rho_element_;
+  VECTOR_REAL_VIEW model_vp_node_;
+  VECTOR_REAL_VIEW model_vs_node_;
+  VECTOR_REAL_VIEW model_rho_node_;
 
   FaceConnectivityStruct<FloatType, ScalarType> face_connectivity_;
 };
