@@ -94,9 +94,8 @@ class WavefieldViewBackwardElastic : public WavefieldView
 
   void print() const override
   {
-    std::cout << "WavefieldViewBackwardElastic:"
-              << " ux_n size=" << ux_n_.extent(0)
-              << " uy_n size=" << uy_n_.extent(0)
+    std::cout << "WavefieldViewBackwardElastic:" << " ux_n size="
+              << ux_n_.extent(0) << " uy_n size=" << uy_n_.extent(0)
               << " uz_n size=" << uz_n_.extent(0)
               << " ux_dt2 size=" << ux_dt2_.extent(0)
               << " uy_dt2 size=" << uy_dt2_.extent(0)

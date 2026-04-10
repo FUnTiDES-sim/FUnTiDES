@@ -244,8 +244,8 @@ TEST(AttenuationReferenceAcoustic, Order2EnergyDecayScalesWithQ)
 
   // 3. Q = 20 should lose more energy than Q = 60 at last checkpoint
   EXPECT_LT(E_q20.back(), E_q60.back())
-      << "Q=20 should have less energy than Q=60"
-      << " (E_Q20=" << E_q20.back() << ", E_Q60=" << E_q60.back() << ")";
+      << "Q=20 should have less energy than Q=60" << " (E_Q20=" << E_q20.back()
+      << ", E_Q60=" << E_q60.back() << ")";
 
   // 4. Quantitative scaling check at the last checkpoint.
   //
@@ -281,9 +281,9 @@ TEST(AttenuationReferenceAcoustic, Order2EnergyDecayScalesWithQ)
   for (size_t i = 0; i < checkpoints.size(); ++i)
   {
     float t = checkpoints[i] * dt;
-    std::cout << "  t = " << t << " s : "
-              << "E_ref = " << E_ref[i] << "  E_Q20 = " << E_q20[i]
-              << "  E_Q60 = " << E_q60[i] << "  R20 = " << E_q20[i] / E_ref[i]
+    std::cout << "  t = " << t << " s : " << "E_ref = " << E_ref[i]
+              << "  E_Q20 = " << E_q20[i] << "  E_Q60 = " << E_q60[i]
+              << "  R20 = " << E_q20[i] / E_ref[i]
               << "  R60 = " << E_q60[i] / E_ref[i] << "\n";
   }
   std::cout << "\n  Q-scaling ratio: ln(R20)/ln(R60) = " << scalingRatio

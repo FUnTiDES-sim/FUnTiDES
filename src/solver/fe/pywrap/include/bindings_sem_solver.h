@@ -90,27 +90,20 @@ void bind_sem_solver_base(py::module_ &m)
           "set_sls_attenuation",
           [](Solver &self, const std::vector<float> &freqs,
              const std::vector<float> &coeffs) {
-            VECTOR_REAL_VIEW d_vf, d_vc;
-
+            VECTOR_REAL_VIEW vf;
             if (!freqs.empty())
             {
-              d_vf =
-                  allocateVector<VECTOR_REAL_VIEW>(freqs.size(), "sls_freqs");
-              auto h_vf = Kokkos::create_mirror_view(d_vf);
-              for (size_t i = 0; i < freqs.size(); ++i) h_vf(i) = freqs[i];
-              Kokkos::deep_copy(d_vf, h_vf);
+              vf = allocateVector<VECTOR_REAL_VIEW>(freqs.size(), "sls_freqs");
+              for (size_t i = 0; i < freqs.size(); ++i) vf[i] = freqs[i];
             }
-
+            VECTOR_REAL_VIEW vc;
             if (!coeffs.empty())
             {
-              d_vc =
+              vc =
                   allocateVector<VECTOR_REAL_VIEW>(coeffs.size(), "sls_coeffs");
-              auto h_vc = Kokkos::create_mirror_view(d_vc);
-              for (size_t i = 0; i < coeffs.size(); ++i) h_vc(i) = coeffs[i];
-              Kokkos::deep_copy(d_vc, h_vc);
+              for (size_t i = 0; i < coeffs.size(); ++i) vc[i] = coeffs[i];
             }
-
-            self.setSLSAttenuation(d_vf, d_vc);
+            self.setSLSAttenuation(vf, vc);
           },
           py::arg("reference_frequencies"),
           py::arg("anelasticity_coefficients") = std::vector<float>{});

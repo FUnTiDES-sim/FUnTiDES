@@ -7,7 +7,7 @@
 #include <stdexcept>
 
 #include "data_type.h"
-#include "fe/Integrals.hpp"
+#include "Integrals.h"
 #include "model_discretization_interface.h"
 #include "sem_solver_acoustoelastic.h"
 #include "sem_solver_data.h"

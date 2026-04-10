@@ -3,10 +3,10 @@
 #include <cmath>
 #include <memory>
 
+#include "Integrals.h"
 #include "data_type.h"
-#include "differentiator_elastic.h"
 #include "differentiator_data_elastic.h"
-#include "fe/Integrals.hpp"
+#include "differentiator_elastic.h"
 #include "model_unstruct.h"
 
 namespace gradient
@@ -211,8 +211,7 @@ TYPED_TEST(DifferentiatorElasticElemUnstructTest,
   EXPECT_NEAR(this->gradRho(0), 1.0f, 1e-5f);
 }
 
-TYPED_TEST(DifferentiatorElasticElemUnstructTest,
-           ConstantFieldGradLambdaIsZero)
+TYPED_TEST(DifferentiatorElasticElemUnstructTest, ConstantFieldGradLambdaIsZero)
 {
   for (int i = 0; i < TestFixture::kNumNodes; ++i)
   {
@@ -234,8 +233,7 @@ TYPED_TEST(DifferentiatorElasticElemUnstructTest,
   EXPECT_NEAR(this->gradLambda(0), 0.0f, 1e-5f);
 }
 
-TYPED_TEST(DifferentiatorElasticElemUnstructTest,
-           ConstantFieldGradMuIsZero)
+TYPED_TEST(DifferentiatorElasticElemUnstructTest, ConstantFieldGradMuIsZero)
 {
   for (int i = 0; i < TestFixture::kNumNodes; ++i)
   {
@@ -288,8 +286,7 @@ TYPED_TEST(DifferentiatorElasticElemUnstructTest,
   EXPECT_NEAR(this->gradLambda(0), 1.0f, 0.2f);
 }
 
-TYPED_TEST(DifferentiatorElasticElemUnstructTest,
-           GradMuNonZeroForLinearField)
+TYPED_TEST(DifferentiatorElasticElemUnstructTest, GradMuNonZeroForLinearField)
 {
   // u_x = x => ε_xx = 1 => 2·ε†:ε = 2 => gradMu = 2.0
   constexpr int dim = TestFixture::kOrder + 1;
@@ -552,8 +549,7 @@ TYPED_TEST(DifferentiatorElasticNodeUnstructTest,
 
   // Element-based
   auto gradRhoElem = allocateVector<VECTOR_REAL_VIEW>(1, "gradRhoElem");
-  auto gradLambdaElem =
-      allocateVector<VECTOR_REAL_VIEW>(1, "gradLambdaElem");
+  auto gradLambdaElem = allocateVector<VECTOR_REAL_VIEW>(1, "gradLambdaElem");
   auto gradMuElem = allocateVector<VECTOR_REAL_VIEW>(1, "gradMuElem");
   gradRhoElem(0) = 0.0f;
   gradLambdaElem(0) = 0.0f;

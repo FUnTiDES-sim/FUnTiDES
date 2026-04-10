@@ -1,3 +1,0 @@
-[submodule "src/discretization/fe/SEMKernels"]
-	path = src/discretization/fe/SEMKernels
-	url = https://github.com/FUnTiDES-sim/SEMKernels.git

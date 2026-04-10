@@ -5,7 +5,7 @@
 #include <array>
 #include <cstdlib>
 
-#include "fe/Integrals.hpp"
+#include "Integrals.h"
 #include "model_discretization_interface.h"
 #include "sem_solver.h"
 

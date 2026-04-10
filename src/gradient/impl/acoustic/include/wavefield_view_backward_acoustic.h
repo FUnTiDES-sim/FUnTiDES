@@ -77,9 +77,8 @@ class WavefieldViewBackwardAcoustic : public WavefieldView
 
   void print() const override
   {
-    std::cout << "WavefieldViewBackwardAcoustic:"
-              << " qn size=" << qn_.extent(0)
-              << " qnPrev size=" << qnPrev_.extent(0)
+    std::cout << "WavefieldViewBackwardAcoustic:" << " qn size="
+              << qn_.extent(0) << " qnPrev size=" << qnPrev_.extent(0)
               << " qnPrevPrev size=" << qnPrevPrev_.extent(0) << "\n";
   }
 

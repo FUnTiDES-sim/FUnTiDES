@@ -36,7 +36,7 @@ Before compiling the main project, you must install the required dependencies vi
 
 ```sh
 # Clone the TPL repository
-git clone --recurse-submodules https://github.com/FUnTiDES-sim/FUnTiDES-TPL.git
+git clone https://github.com/FUnTiDES-sim/FUnTiDES-TPL.git
 
 # Install TPL for CPU
 export FUNTIDES_TPL_INSTALL_DIR=$(pwd)/FUnTiDES-TPL/install

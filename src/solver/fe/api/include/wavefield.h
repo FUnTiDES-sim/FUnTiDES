@@ -64,7 +64,8 @@ struct Wavefield
    * @param prevPrevBuffer  External view handle for the n-2 time level.
    *                        Updated in-place to point to the n-1 level after
    *                        the call.
-   * @param i               Field index to swap (0 = first field, 1 = second, etc.).
+   * @param i               Field index to swap (0 = first field, 1 = second,
+   * etc.).
    */
   virtual void swapWithRotation(VECTOR_REAL_VIEW& prevPrevBuffer, int i) = 0;
 
