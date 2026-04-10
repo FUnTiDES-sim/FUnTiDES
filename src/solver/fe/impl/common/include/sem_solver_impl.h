@@ -101,15 +101,11 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES,
   auto& myData = dynamic_cast<DataType&>(data);
 
   resetGlobalVectors(m_mesh.getNumberOfNodes());
-  FENCE
   applyRHSTerm(timeSample, dt, myData);
-  FENCE
   computeElementContributions(myData);
-  FENCE
   if (attenuationEnabled_ && nSls_ > 0)
   {
     computeAttenuationContributions(myData);
-    FENCE
   }
 }
 
@@ -125,7 +121,6 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES,
 {
   auto& myData = dynamic_cast<DataType&>(data);
   updateFields(dt, myData);
-  FENCE
 }
 
 //============================================================================
