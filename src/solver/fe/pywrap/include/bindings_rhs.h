@@ -20,13 +20,13 @@ namespace solver
 namespace fe
 {
 
-void bind_rhs_base(py::module_ &m)
+void bind_rhs_base(py::module_& m)
 {
   // Bind Rhs (base class)
   py::class_<Rhs, std::shared_ptr<Rhs>>(m, "Rhs").def("print", &Rhs::print);
 }
 
-void bind_rhs_acoustic(py::module_ &m)
+void bind_rhs_acoustic(py::module_& m)
 {
   // Bind RhsAcoustic (inherits from Rhs)
   py::class_<RhsAcoustic, Rhs, std::shared_ptr<RhsAcoustic>>(m, "RhsAcoustic")
@@ -38,7 +38,7 @@ void bind_rhs_acoustic(py::module_ &m)
       .def("print", &RhsAcoustic::print);
 }
 
-void bind_rhs_elastic(py::module_ &m)
+void bind_rhs_elastic(py::module_& m)
 {
   // Bind RhsElastic (inherits from Rhs)
   py::class_<RhsElastic, Rhs, std::shared_ptr<RhsElastic>>(m, "RhsElastic")

@@ -10,13 +10,13 @@
 #define LaunchMinBlocksPerSM 1
 
 // Backward-compatible loop helpers used by legacy FE kernels.
-#define LOOPHEAD(Range, Index)                                                \
+#define LOOPHEAD(Range, Index)         \
   Kokkos::parallel_for(                                                       \
       Kokkos::RangePolicy<>(0, Range),                                        \
       KOKKOS_CLASS_LAMBDA(const int Index)
 #define LOOPEND );
 
-#define MAINLOOPHEAD(Range, Index)                                            \
+#define MAINLOOPHEAD(Range, Index)                                       \
   Kokkos::parallel_for(                                                       \
       "MainLoop",                                                            \
       Kokkos::RangePolicy<Kokkos::LaunchBounds<LaunchMaxThreadsPerBlock,      \

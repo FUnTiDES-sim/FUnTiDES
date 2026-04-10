@@ -137,7 +137,7 @@ void bind_wavefield_elastic(py::module_& m)
       .def("print", &WavefieldElastic::print);
 }
 
-void bind_wavefield_acoustoelastic(py::module_ &m)
+void bind_wavefield_acoustoelastic(py::module_& m)
 {
   py::class_<WavefieldAcoustoElastic, Wavefield,
              std::shared_ptr<WavefieldAcoustoElastic>>(
@@ -156,18 +156,20 @@ void bind_wavefield_acoustoelastic(py::module_ &m)
            py::arg("uyn_global_prev"), py::arg("uyn_global_curr"),
            py::arg("uzn_global_prev"), py::arg("uzn_global_curr"))
       .def("swap", &WavefieldAcoustoElastic::swap)
-      .def("get_current_field",
-           [](const WavefieldAcoustoElastic& self, int i) {
-             return Kokkos::Experimental::python_view_type_t<VECTOR_REAL_VIEW>(
-                 self.getCurrentField(i));
-           },
-           py::arg("i"))
-      .def("get_previous_field",
-           [](const WavefieldAcoustoElastic& self, int i) {
-             return Kokkos::Experimental::python_view_type_t<VECTOR_REAL_VIEW>(
-                 self.getPreviousField(i));
-           },
-           py::arg("i"))
+      .def(
+          "get_current_field",
+          [](const WavefieldAcoustoElastic& self, int i) {
+            return Kokkos::Experimental::python_view_type_t<VECTOR_REAL_VIEW>(
+                self.getCurrentField(i));
+          },
+          py::arg("i"))
+      .def(
+          "get_previous_field",
+          [](const WavefieldAcoustoElastic& self, int i) {
+            return Kokkos::Experimental::python_view_type_t<VECTOR_REAL_VIEW>(
+                self.getPreviousField(i));
+          },
+          py::arg("i"))
       .def("print", &WavefieldAcoustoElastic::print);
 }
 }  // namespace fe

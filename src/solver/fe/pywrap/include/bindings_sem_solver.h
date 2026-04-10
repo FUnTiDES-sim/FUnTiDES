@@ -80,7 +80,7 @@ void bind_sem_solver_base(py::module_ &m)
           "get_mass_matrix",
           [](Solver &self)
               -> Kokkos::Experimental::python_view_type_t<VECTOR_REAL_VIEW> {
-                              return self.getMassMatrixAcoustic();
+            return self.getMassMatrixAcoustic();
           },
           py::return_value_policy::reference_internal)
       .def("output_solution_values", &Solver::outputSolutionValues,

@@ -100,8 +100,7 @@ TEST_F(EvaluateRickerTest, OutsideWindow_ReturnsZero)
     EXPECT_FLOAT_EQ(ricker.evaluateRicker(-0.9f * tpeak - 0.001f, f0, ord),
                     0.0f)
         << "order=" << ord << " before window";
-    EXPECT_FLOAT_EQ(ricker.evaluateRicker(2.9f * tpeak + 0.001f, f0, ord),
-                    0.0f)
+    EXPECT_FLOAT_EQ(ricker.evaluateRicker(2.9f * tpeak + 0.001f, f0, ord), 0.0f)
         << "order=" << ord << " after window";
   }
 }

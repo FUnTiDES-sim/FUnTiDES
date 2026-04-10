@@ -14,17 +14,14 @@ template <typename FloatType, typename ScalarType, int Order>
 class CartesianStructBuilder : public ModelBuilderBase<FloatType, ScalarType>
 {
  public:
-  CartesianStructBuilder(ScalarType ex, FloatType lx, ScalarType ey,
-                         FloatType ly, ScalarType ez, FloatType lz,
-                         bool isModelOnNodes, bool isElastic,
-                         FloatType ox = 0.0, FloatType oy = 0.0,
-                         FloatType oz = 0.0, FloatType global_lx = -1.0,
-                         FloatType global_ly = -1.0, FloatType global_lz = -1.0,
-                         FloatType global_ox = 0.0, FloatType global_oy = 0.0,
-                         FloatType global_oz = 0.0,
-                         bool isAcoustoElastic = false,
-                         FloatType acoustoElasticBoundaryZ =
-                             static_cast<FloatType>(0))
+  CartesianStructBuilder(
+      ScalarType ex, FloatType lx, ScalarType ey, FloatType ly, ScalarType ez,
+      FloatType lz, bool isModelOnNodes, bool isElastic, FloatType ox = 0.0,
+      FloatType oy = 0.0, FloatType oz = 0.0, FloatType global_lx = -1.0,
+      FloatType global_ly = -1.0, FloatType global_lz = -1.0,
+      FloatType global_ox = 0.0, FloatType global_oy = 0.0,
+      FloatType global_oz = 0.0, bool isAcoustoElastic = false,
+      FloatType acoustoElasticBoundaryZ = static_cast<FloatType>(0))
       : ex_(ex),
         ey_(ey),
         ez_(ez),
@@ -83,8 +80,7 @@ class CartesianStructBuilder : public ModelBuilderBase<FloatType, ScalarType>
     // vs=0 in the fluid → TagElements classifies it as acoustic.
     if (isAcoustoElastic_)
     {
-      auto temp_model =
-          model::ModelStruct<FloatType, ScalarType, Order>(data);
+      auto temp_model = model::ModelStruct<FloatType, ScalarType, Order>(data);
 
       if (isModelOnNodes_)
       {

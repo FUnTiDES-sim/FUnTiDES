@@ -75,10 +75,10 @@ class SEMsolverAcoustoElastic : public Solver
  public:
   using AcousticSolverType =
       SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES,
-          utils::enums::physicType::kAcoustic>;
+                utils::enums::physicType::kAcoustic>;
   using ElasticSolverType =
       SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES,
-          utils::enums::physicType::kElastic>;
+                utils::enums::physicType::kElastic>;
   using DataType = SEMsolverDataAcoustoElastic;
 
   SEMsolverAcoustoElastic() = default;
@@ -147,10 +147,9 @@ class SEMsolverAcoustoElastic : public Solver
     m_elastic_solver_.setAnisotropyType(type);
   }
 
-  void setSLSAttenuation(
-      const VECTOR_REAL_VIEW& reference_frequencies,
-      const VECTOR_REAL_VIEW& anelasticity_coefficients =
-          VECTOR_REAL_VIEW()) override
+  void setSLSAttenuation(const VECTOR_REAL_VIEW& reference_frequencies,
+                         const VECTOR_REAL_VIEW& anelasticity_coefficients =
+                             VECTOR_REAL_VIEW()) override
   {
     m_acoustic_solver_.setSLSAttenuation(reference_frequencies,
                                          anelasticity_coefficients);

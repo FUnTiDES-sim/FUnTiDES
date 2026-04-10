@@ -1175,8 +1175,8 @@ void SEMproxy::init_mesh_params(const SemProxyOptions& opt)
             m_localParams.ex, m_localParams.lx, m_localParams.ey,
             m_localParams.ly, m_localParams.ez, m_localParams.lz,
             opt.isModelOnNodes, opt.isElastic, m_localParams.origin_x,
-            m_localParams.origin_y, m_localParams.origin_z, -1.0f, -1.0f,
-            -1.0f, 0.0f, 0.0f, 0.0f, opt.isAcoustoElastic,
+            m_localParams.origin_y, m_localParams.origin_z, -1.0f, -1.0f, -1.0f,
+            0.0f, 0.0f, 0.0f, opt.isAcoustoElastic,
             opt.acoustoElasticBoundaryZ);
         m_mesh = builder.getModel(opt.free_surface);
         break;
@@ -1186,8 +1186,8 @@ void SEMproxy::init_mesh_params(const SemProxyOptions& opt)
             m_localParams.ex, m_localParams.lx, m_localParams.ey,
             m_localParams.ly, m_localParams.ez, m_localParams.lz,
             opt.isModelOnNodes, opt.isElastic, m_localParams.origin_x,
-            m_localParams.origin_y, m_localParams.origin_z, -1.0f, -1.0f,
-            -1.0f, 0.0f, 0.0f, 0.0f, opt.isAcoustoElastic,
+            m_localParams.origin_y, m_localParams.origin_z, -1.0f, -1.0f, -1.0f,
+            0.0f, 0.0f, 0.0f, opt.isAcoustoElastic,
             opt.acoustoElasticBoundaryZ);
         m_mesh = builder.getModel(opt.free_surface);
         break;
@@ -1197,8 +1197,8 @@ void SEMproxy::init_mesh_params(const SemProxyOptions& opt)
             m_localParams.ex, m_localParams.lx, m_localParams.ey,
             m_localParams.ly, m_localParams.ez, m_localParams.lz,
             opt.isModelOnNodes, opt.isElastic, m_localParams.origin_x,
-            m_localParams.origin_y, m_localParams.origin_z, -1.0f, -1.0f,
-            -1.0f, 0.0f, 0.0f, 0.0f, opt.isAcoustoElastic,
+            m_localParams.origin_y, m_localParams.origin_z, -1.0f, -1.0f, -1.0f,
+            0.0f, 0.0f, 0.0f, opt.isAcoustoElastic,
             opt.acoustoElasticBoundaryZ);
         m_mesh = builder.getModel(opt.free_surface);
         break;

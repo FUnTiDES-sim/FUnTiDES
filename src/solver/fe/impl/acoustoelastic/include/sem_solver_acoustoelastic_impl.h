@@ -6,8 +6,8 @@
 #include <iostream>
 #include <stdexcept>
 
-#include "data_type.h"
 #include "Integrals.h"
+#include "data_type.h"
 #include "model_discretization_interface.h"
 #include "sem_solver_acoustoelastic.h"
 #include "sem_solver_data.h"
@@ -430,9 +430,9 @@ void SEMsolverAcoustoElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE,
 {
   auto& myData = dynamic_cast<DataType&>(data);
 
-    SEMsolverData<utils::enums::physicType::kAcoustic> acoustic_data(
+  SEMsolverData<utils::enums::physicType::kAcoustic> acoustic_data(
       myData.m_wavefield.m_acoustic, myData.m_rhs.m_rhs_acoustic);
-    SEMsolverData<utils::enums::physicType::kElastic> elastic_data(
+  SEMsolverData<utils::enums::physicType::kElastic> elastic_data(
       myData.m_wavefield.m_elastic, myData.m_rhs.m_rhs_elastic);
 
   resetGlobalVectors(m_mesh_.getNumberOfNodes());
@@ -464,12 +464,12 @@ void SEMsolverAcoustoElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE,
 {
   auto& myData = dynamic_cast<DataType&>(data);
 
-    SEMsolverData<utils::enums::physicType::kElastic> elastic_data(
+  SEMsolverData<utils::enums::physicType::kElastic> elastic_data(
       myData.m_wavefield.m_elastic, myData.m_rhs.m_rhs_elastic);
   m_elastic_solver_.updateFields(dt, elastic_data);
   FENCE
 
-    SEMsolverData<utils::enums::physicType::kAcoustic> acoustic_data(
+  SEMsolverData<utils::enums::physicType::kAcoustic> acoustic_data(
       myData.m_wavefield.m_acoustic, myData.m_rhs.m_rhs_acoustic);
   m_acoustic_solver_.updateFields(dt, acoustic_data);
   FENCE
@@ -568,9 +568,9 @@ void SEMsolverAcoustoElastic<
   int const nNode = m_mesh_.getNumberOfNodes();
 
   // Sub-solver data views are constructed once and reused throughout the step.
-    SEMsolverData<utils::enums::physicType::kElastic> elastic_data(
+  SEMsolverData<utils::enums::physicType::kElastic> elastic_data(
       myData.m_wavefield.m_elastic, myData.m_rhs.m_rhs_elastic);
-    SEMsolverData<utils::enums::physicType::kAcoustic> acoustic_data(
+  SEMsolverData<utils::enums::physicType::kAcoustic> acoustic_data(
       myData.m_wavefield.m_acoustic, myData.m_rhs.m_rhs_acoustic);
 
   // =========================================================================
