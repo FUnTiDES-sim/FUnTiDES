@@ -61,45 +61,60 @@ void bind_rhs_acoustoelastic(py::module_& m)
   // Bind RhsAcoustoElastic (inherits from Rhs)
   py::class_<RhsAcoustoElastic, Rhs, std::shared_ptr<RhsAcoustoElastic>>(
       m, "RhsAcoustoElastic")
-      .def(py::init([](py::array_t<real_type> acoustic_term_py,
-                       py::array_t<int_type> element_py,
-                       py::array_t<real_type> weights_py,
-                       py::array_t<real_type> elastic_termx_py,
-                       py::array_t<real_type> elastic_termy_py,
-                       py::array_t<real_type> elastic_termz_py) {
-             auto wrap_and_copy_2d_real = [](py::array_t<real_type> arr,
-                                             const std::string& name) {
-               auto buf = arr.request();
-               Kokkos::View<real_type**, Kokkos::LayoutRight, Kokkos::HostSpace,
-                            Kokkos::MemoryTraits<Kokkos::Unmanaged>>
-                   h_view((real_type*)buf.ptr, buf.shape[0], buf.shape[1]);
-               ARRAY_REAL_VIEW d_view(name, buf.shape[0], buf.shape[1]);
-               Kokkos::deep_copy(d_view, h_view);
-               return d_view;
-             };
+      .def(
+          py::init(
+              [](Kokkos::Experimental::python_view_type_t<real_type>
+                     acoustic_term_py,
+                 Kokkos::Experimental::python_view_type_t<int_type> element_py,
+                 Kokkos::Experimental::python_view_type_t<real_type> weights_py,
+                 Kokkos::Experimental::python_view_type_t<real_type>
+                     elastic_termx_py,
+                 Kokkos::Experimental::python_view_type_t<real_type>
+                     elastic_termy_py,
+                 Kokkos::Experimental::python_view_type_t<real_type>
+                     elastic_termz_py) {
+                auto wrap_and_copy_2d_real =
+                    [](Kokkos::Experimental::python_view_type_t<real_type> arr,
+                       const std::string& name) {
+                      auto buf = arr.request();
+                      Kokkos::View<real_type**, Kokkos::LayoutRight,
+                                   Kokkos::HostSpace,
+                                   Kokkos::MemoryTraits<Kokkos::Unmanaged>>
+                          h_view((real_type*)buf.ptr, buf.shape[0],
+                                 buf.shape[1]);
+                      ARRAY_REAL_VIEW d_view(name, buf.shape[0], buf.shape[1]);
+                      Kokkos::deep_copy(d_view, h_view);
+                      return d_view;
+                    };
 
-             auto wrap_and_copy_1d_int = [](py::array_t<int_type> arr,
-                                            const std::string& name) {
-               auto buf = arr.request();
-               Kokkos::View<int_type*, Kokkos::LayoutRight, Kokkos::HostSpace,
-                            Kokkos::MemoryTraits<Kokkos::Unmanaged>>
-                   h_view((int_type*)buf.ptr, buf.shape[0]);
-               VECTOR_INT_VIEW d_view(name, buf.shape[0]);
-               Kokkos::deep_copy(d_view, h_view);
-               return d_view;
-             };
+                auto wrap_and_copy_1d_int =
+                    [](Kokkos::Experimental::python_view_type_t<int_type> arr,
+                       const std::string& name) {
+                      auto buf = arr.request();
+                      Kokkos::View<int_type*, Kokkos::LayoutRight,
+                                   Kokkos::HostSpace,
+                                   Kokkos::MemoryTraits<Kokkos::Unmanaged>>
+                          h_view((int_type*)buf.ptr, buf.shape[0]);
+                      VECTOR_INT_VIEW d_view(name, buf.shape[0]);
+                      Kokkos::deep_copy(d_view, h_view);
+                      return d_view;
+                    };
 
-             return new RhsAcoustoElastic(
-                 wrap_and_copy_2d_real(acoustic_term_py, "rhs_acoustic_term"),
-                 wrap_and_copy_1d_int(element_py, "rhs_element"),
-                 wrap_and_copy_2d_real(weights_py, "rhs_weights"),
-                 wrap_and_copy_2d_real(elastic_termx_py, "rhs_elastic_term_x"),
-                 wrap_and_copy_2d_real(elastic_termy_py, "rhs_elastic_term_y"),
-                 wrap_and_copy_2d_real(elastic_termz_py, "rhs_elastic_term_z"));
-           }),
-           py::arg("acoustic_term"), py::arg("element"), py::arg("weights"),
-           py::arg("elastic_termx"), py::arg("elastic_termy"),
-           py::arg("elastic_termz"))
+                return new RhsAcoustoElastic(
+                    wrap_and_copy_2d_real(acoustic_term_py,
+                                          "rhs_acoustic_term"),
+                    wrap_and_copy_1d_int(element_py, "rhs_element"),
+                    wrap_and_copy_2d_real(weights_py, "rhs_weights"),
+                    wrap_and_copy_2d_real(elastic_termx_py,
+                                          "rhs_elastic_term_x"),
+                    wrap_and_copy_2d_real(elastic_termy_py,
+                                          "rhs_elastic_term_y"),
+                    wrap_and_copy_2d_real(elastic_termz_py,
+                                          "rhs_elastic_term_z"));
+              }),
+          py::arg("acoustic_term"), py::arg("element"), py::arg("weights"),
+          py::arg("elastic_termx"), py::arg("elastic_termy"),
+          py::arg("elastic_termz"))
       .def("print", &RhsAcoustoElastic::print);
 }
 
