@@ -70,7 +70,8 @@ class DifferentiatorAcoustic : public Differentiator
     else
       computeOnNodes(myMesh, dt, pn, qn, qnPrev, qnPrevPrev, gradKappa,
                      gradBuoyancy);
-    Kokkos::fence();  // Ensure all parallel computations are complete before returning
+    Kokkos::fence();  // Ensure all parallel computations are complete before
+                      // returning
   }
 
   int getOrder() const override { return kOrder; }
