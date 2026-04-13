@@ -285,6 +285,30 @@ void SEMsolverAcoustoElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE,
   }
   FENCE
 
+  // Build compact acoustic and elastic node lists for updateFieldsFromList.
+  // Interface nodes appear in both lists: acoustic solver updates pressure
+  // there, elastic solver updates displacement there.
+  {
+    int n_acou = 0, n_elas = 0;
+    for (int n = 0; n < nNode; ++n)
+    {
+      if (acoustic_count[n] > 0) ++n_acou;
+      if (elastic_count[n] > 0) ++n_elas;
+    }
+    num_acoustic_nodes_ = n_acou;
+    num_elastic_nodes_ = n_elas;
+    acoustic_node_list_ =
+        allocateVector<VECTOR_INT_VIEW>(n_acou, "acousticNodeList");
+    elastic_node_list_ =
+        allocateVector<VECTOR_INT_VIEW>(n_elas, "elasticNodeList");
+    int ia = 0, ie = 0;
+    for (int n = 0; n < nNode; ++n)
+    {
+      if (acoustic_count[n] > 0) acoustic_node_list_[ia++] = n;
+      if (elastic_count[n] > 0) elastic_node_list_[ie++] = n;
+    }
+  }
+
   // Allocate compact nm1 arrays (one entry per interface node).
   m_ux_nm1_iface_ =
       allocateVector<VECTOR_REAL_VIEW>(n_interface_nodes_, "uxNm1Iface");
@@ -577,12 +601,14 @@ void SEMsolverAcoustoElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE,
 
   SEMsolverData<utils::enums::physicType::kElastic> elastic_data(
       myData.m_wavefield.m_elastic, myData.m_rhs.m_rhs_elastic);
-  m_elastic_solver_.updateFields(dt, elastic_data);
+  m_elastic_solver_.updateFieldsFromList(dt, elastic_data, elastic_node_list_,
+                                         num_elastic_nodes_);
   FENCE
 
   SEMsolverData<utils::enums::physicType::kAcoustic> acoustic_data(
       myData.m_wavefield.m_acoustic, myData.m_rhs.m_rhs_acoustic);
-  m_acoustic_solver_.updateFields(dt, acoustic_data);
+  m_acoustic_solver_.updateFieldsFromList(
+      dt, acoustic_data, acoustic_node_list_, num_acoustic_nodes_);
   FENCE
 }
 
@@ -746,7 +772,8 @@ void SEMsolverAcoustoElastic<
   }
 
   // 3. Elastic Verlet: u^{n+1} written into elastic_data.getPreviousField().
-  m_elastic_solver_.updateFields(dt, elastic_data);
+  m_elastic_solver_.updateFieldsFromList(dt, elastic_data, elastic_node_list_,
+                                         num_elastic_nodes_);
   FENCE
 
   // 4. A→E coupling (GEOS post-Verlet): u^{n+1} += dt²·c·(-p^n)/M_e.
@@ -771,7 +798,8 @@ void SEMsolverAcoustoElastic<
   FENCE
 
   // 8. Acoustic Verlet: p^{n+1} written into acoustic_data.getPreviousField().
-  m_acoustic_solver_.updateFields(dt, acoustic_data);
+  m_acoustic_solver_.updateFieldsFromList(
+      dt, acoustic_data, acoustic_node_list_, num_acoustic_nodes_);
   FENCE
 
   // 9. E→A coupling post-Verlet.

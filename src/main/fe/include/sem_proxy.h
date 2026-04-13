@@ -125,7 +125,7 @@ class SEMproxy
   int num_sample_;
   // source parameters
   const int myNumberOfRHS = 1;
-  const float f0 = 10.0f;
+  const float f0 = 5.0f;
   const int sourceOrder = 2;
   int myElementSource = 0;
 
