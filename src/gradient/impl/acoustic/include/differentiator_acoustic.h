@@ -279,9 +279,9 @@ class DifferentiatorAcoustic : public Differentiator
                 localQnPrev[lIdx] = qnPrev(gIdx);
                 localQnPrevPrev[lIdx] = qnPrevPrev(gIdx);
                 // Node is interior if not on any boundary of the element
-                isInteriorNode[lIdx] =
-                    (i > 0 && i < ORDER) && (j > 0 && j < ORDER) &&
-                    (k > 0 && k < ORDER);
+                isInteriorNode[lIdx] = (i > 0 && i < ORDER) &&
+                                       (j > 0 && j < ORDER) &&
+                                       (k > 0 && k < ORDER);
               }
 
           float const invDt2 = 1.0f / (dt * dt);
@@ -305,7 +305,8 @@ class DifferentiatorAcoustic : public Differentiator
               });
 
           // grad_buoyancy: scatter test-function node (i) contributions to
-          // global node. Normalize only for interior nodes in multi-element meshes.
+          // global node. Normalize only for interior nodes in multi-element
+          // meshes.
           INTEGRAL_TYPE::computeStiffnessTerm(
               transformData,
               [&](const int /*qa*/, const int /*qb*/, const int /*qc*/) {},
