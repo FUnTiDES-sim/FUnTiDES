@@ -91,6 +91,7 @@ class DifferentiatorElastic : public Differentiator
     else
       computeOnNodes(myMesh, dt, ux_fwd, uy_fwd, uz_fwd, ux_adj, uy_adj, uz_adj,
                      ux_dt2, uy_dt2, uz_dt2, gradRho, gradLambda, gradMu);
+    Kokkos::fence();  // Ensure all parallel computations are complete before returning
   }
 
   int getOrder() const override { return kOrder; }
