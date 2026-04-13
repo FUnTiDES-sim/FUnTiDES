@@ -4,7 +4,7 @@
 #include <@MODEL_HEADER@>
 
 #include "differentiator_elastic.h"
-#include "fe/Integrals.hpp"
+#include "Integrals.h"
 
 constexpr int ORDER = @ORDER@;
 

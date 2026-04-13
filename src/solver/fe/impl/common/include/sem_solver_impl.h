@@ -5,7 +5,7 @@
 #include <array>
 #include <cstdlib>
 
-#include "fe/Integrals.hpp"
+#include "Integrals.h"
 #include "model_discretization_interface.h"
 #include "sem_solver.h"
 
@@ -217,13 +217,19 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES,
   {
     auto mesh_local = m_mesh;
 
+    bool const list_on = m_list_mode_;
+    auto list_local = m_elem_list_;
+    int const n_iter =
+        list_on ? m_n_elem_list_ : mesh_local.getNumberOfElements();
+
     Kokkos::parallel_for(
         "Solver Element Contribution",
         Kokkos::RangePolicy<Kokkos::LaunchBounds<LaunchMaxThreadsPerBlock,
-                                                 LaunchMinBlocksPerSM>>(
-            0, mesh_local.getNumberOfElements()),
-        KOKKOS_CLASS_LAMBDA(const int elementNumber) {
-          if (elementNumber >= mesh_local.getNumberOfElements()) return;
+                                                 LaunchMinBlocksPerSM>>(0,
+                                                                        n_iter),
+        KOKKOS_CLASS_LAMBDA(const int _loop_idx) {
+          if (_loop_idx >= n_iter) return;
+          int const elementNumber = list_on ? list_local[_loop_idx] : _loop_idx;
 
           int const dim = mesh_local.getOrder() + 1;
           float localFields[kNumFields][kPointsPerElement] = {{0}};
@@ -479,13 +485,19 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES,
 {
   auto mesh_local = m_mesh;
 
+  bool const list_on = m_list_mode_;
+  auto list_local = m_elem_list_;
+  int const n_iter =
+      list_on ? m_n_elem_list_ : mesh_local.getNumberOfElements();
+
   Kokkos::parallel_for(
       "Solver Element Contribution Iso",
       Kokkos::RangePolicy<
           Kokkos::LaunchBounds<LaunchMaxThreadsPerBlock, LaunchMinBlocksPerSM>>(
-          0, mesh_local.getNumberOfElements()),
-      KOKKOS_CLASS_LAMBDA(const int elementNumber) {
-        if (elementNumber >= mesh_local.getNumberOfElements()) return;
+          0, n_iter),
+      KOKKOS_CLASS_LAMBDA(const int _loop_idx) {
+        if (_loop_idx >= n_iter) return;
+        int const elementNumber = list_on ? list_local[_loop_idx] : _loop_idx;
 
         int const dim = mesh_local.getOrder() + 1;
         float localFields[kNumFields][kPointsPerElement] = {{0}};
@@ -658,13 +670,19 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES,
 {
   auto mesh_local = m_mesh;
 
+  bool const list_on = m_list_mode_;
+  auto list_local = m_elem_list_;
+  int const n_iter =
+      list_on ? m_n_elem_list_ : mesh_local.getNumberOfElements();
+
   Kokkos::parallel_for(
       "Solver Element Contribution Vti",
       Kokkos::RangePolicy<
           Kokkos::LaunchBounds<LaunchMaxThreadsPerBlock, LaunchMinBlocksPerSM>>(
-          0, mesh_local.getNumberOfElements()),
-      KOKKOS_CLASS_LAMBDA(const int elementNumber) {
-        if (elementNumber >= mesh_local.getNumberOfElements()) return;
+          0, n_iter),
+      KOKKOS_CLASS_LAMBDA(const int _loop_idx) {
+        if (_loop_idx >= n_iter) return;
+        int const elementNumber = list_on ? list_local[_loop_idx] : _loop_idx;
 
         int const dim = mesh_local.getOrder() + 1;
         float localFields[kNumFields][kPointsPerElement] = {{0}};
@@ -859,13 +877,19 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES,
   {
     auto mesh_local = m_mesh;
 
+    bool const list_on = m_list_mode_;
+    auto list_local = m_elem_list_;
+    int const n_iter =
+        list_on ? m_n_elem_list_ : mesh_local.getNumberOfElements();
+
     Kokkos::parallel_for(
         "Solver Element Contribution Tti",
         Kokkos::RangePolicy<Kokkos::LaunchBounds<LaunchMaxThreadsPerBlock,
-                                                 LaunchMinBlocksPerSM>>(
-            0, mesh_local.getNumberOfElements()),
-        KOKKOS_CLASS_LAMBDA(const int elementNumber) {
-          if (elementNumber >= mesh_local.getNumberOfElements()) return;
+                                                 LaunchMinBlocksPerSM>>(0,
+                                                                        n_iter),
+        KOKKOS_CLASS_LAMBDA(const int _loop_idx) {
+          if (_loop_idx >= n_iter) return;
+          int const elementNumber = list_on ? list_local[_loop_idx] : _loop_idx;
 
           int const dim = mesh_local.getOrder() + 1;
           float localFields[kNumFields][kPointsPerElement] = {{0}};
@@ -1120,12 +1144,20 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES,
     }
   }
 
+  bool const list_on = m_node_list_mode_;
+  auto list_local = m_node_list_;
+
   if constexpr (PHYSICS == utils::enums::physicType::kAcoustic)
   {
+    int const n_iter = list_on ? m_n_node_list_ : mesh_local.getNumberOfNodes();
     Kokkos::parallel_for(
-        "Solver Update Field Acoustic", mesh_local.getNumberOfNodes(),
+        "Solver Update Field Acoustic", n_iter,
         // Use standard KOKKOS_LAMBDA to capture local variables by value
-        KOKKOS_LAMBDA(const int I) {
+        KOKKOS_LAMBDA(const int _node_idx) {
+          if (_node_idx >= n_iter) return;
+          int const I = list_on ? list_local[_node_idx] : _node_idx;
+          if (mass_matrix[I] <= 0.0f) return;
+
           if (mesh_local.isFreeSurface(I))
           {
             current_field[0](I) = 0.0f;
@@ -1169,9 +1201,15 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES,
   }
   else  // ELASTIC
   {
+    int const n_iter_el =
+        list_on ? m_n_node_list_ : mesh_local.getNumberOfNodes();
+
     Kokkos::parallel_for(
-        "Solver Update Field Elastic", mesh_local.getNumberOfNodes(),
-        KOKKOS_LAMBDA(const int I) {
+        "Solver Update Field Elastic", n_iter_el,
+        KOKKOS_LAMBDA(const int _node_idx) {
+          if (_node_idx >= n_iter_el) return;
+          int const I = list_on ? list_local[_node_idx] : _node_idx;
+          if (mass_matrix[I] <= 0.0f) return;
           if (mesh_local.isFreeSurface(I))
           {
             for (int f = 0; f < kNumFields; ++f)
@@ -1750,6 +1788,96 @@ SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES,
       if (i != j) CTTI[j][i] = sum;
     }
   }
+}
+
+//============================================================================
+// computeGlobalMassMatrixMasked - domain-masked mass matrix assembly
+//============================================================================
+
+template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE,
+          bool IS_MODEL_ON_NODES, physicType PHYSICS>
+void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES,
+               PHYSICS>::computeGlobalMassMatrixMasked(const VECTOR_INT_VIEW&
+                                                           elem_mask,
+                                                       int active_value)
+{
+  m_element_mask_ = elem_mask;
+  m_mask_active_value_ = active_value;
+  m_mask_enabled_ = true;
+  computeGlobalMassMatrix();
+  m_mask_enabled_ = false;
+}
+
+//============================================================================
+// computeDampingMatrixMasked - domain-masked damping matrix assembly
+//============================================================================
+
+template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE,
+          bool IS_MODEL_ON_NODES, physicType PHYSICS>
+void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES,
+               PHYSICS>::computeDampingMatrixMasked(const VECTOR_INT_VIEW&
+                                                        elem_mask,
+                                                    int active_value)
+{
+  m_element_mask_ = elem_mask;
+  m_mask_active_value_ = active_value;
+  m_mask_enabled_ = true;
+  computeDampingMatrix();
+  m_mask_enabled_ = false;
+}
+
+//============================================================================
+// computeElementContributionsMasked - domain-masked stiffness assembly
+//============================================================================
+
+template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE,
+          bool IS_MODEL_ON_NODES, physicType PHYSICS>
+void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::
+    computeElementContributionsMasked(const DataType& data,
+                                      const VECTOR_INT_VIEW& elem_mask,
+                                      int active_value)
+{
+  m_element_mask_ = elem_mask;
+  m_mask_active_value_ = active_value;
+  m_mask_enabled_ = true;
+  computeElementContributions(data);
+  m_mask_enabled_ = false;
+}
+
+//============================================================================
+// computeElementContributionsFromList - stiffness assembly from compact list
+//============================================================================
+
+template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE,
+          bool IS_MODEL_ON_NODES, physicType PHYSICS>
+void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::
+    computeElementContributionsFromList(const DataType& data,
+                                        const VECTOR_INT_VIEW& elem_list,
+                                        int n_elems)
+{
+  m_elem_list_ = elem_list;
+  m_n_elem_list_ = n_elems;
+  m_list_mode_ = true;
+  computeElementContributions(data);
+  m_list_mode_ = false;
+}
+
+//============================================================================
+// updateFieldsFromList - Verlet update restricted to a compact node list
+//============================================================================
+
+template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE,
+          bool IS_MODEL_ON_NODES, physicType PHYSICS>
+void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES,
+               PHYSICS>::updateFieldsFromList(float dt, const DataType& data,
+                                              const VECTOR_INT_VIEW& node_list,
+                                              int n_nodes)
+{
+  m_node_list_ = node_list;
+  m_n_node_list_ = n_nodes;
+  m_node_list_mode_ = true;
+  updateFields(dt, data);
+  m_node_list_mode_ = false;
 }
 
 }  // namespace fe

@@ -40,7 +40,14 @@ class SEMsolver : public Solver
 
   int getNumComponents() const override { return kNumFields; }
 
-  VECTOR_REAL_VIEW& getMassMatrix() override { return massMatrixGlobal_; }
+  VECTOR_REAL_VIEW& getMassMatrixAcoustic() override
+  {
+    return massMatrixGlobal_;
+  }
+  VECTOR_REAL_VIEW& getMassMatrixElastic() override
+  {
+    return massMatrixGlobal_;
+  }
 
   VECTOR_REAL_VIEW& getDampingMatrix(int c) override
   {
@@ -89,6 +96,34 @@ class SEMsolver : public Solver
   void computeGlobalMassMatrix() override;
   void computeDampingMatrix() override;
 
+  /**
+   * @brief Assemble mass matrix restricted to elements matching a mask.
+   *
+   * Identical to computeGlobalMassMatrix() but skips elements where
+   * @p elem_mask[e] != @p active_value.  Used by SEMsolverAcoustoElastic to
+   * delegate domain-specific mass matrix assembly to each sub-solver without
+   * duplicating the quadrature kernel.
+   *
+   * @param elem_mask   Per-element integer tag array (size = nElements).
+   * @param active_value Only elements with this tag value are accumulated.
+   */
+  void computeGlobalMassMatrixMasked(const VECTOR_INT_VIEW& elem_mask,
+                                     int active_value);
+
+  /**
+   * @brief Assemble damping matrix restricted to elements matching a mask.
+   *
+   * Parallel variant of computeDampingMatrix() that skips elements where
+   * @p elem_mask[e] != @p active_value.  Used by SEMsolverAcoustoElastic to
+   * delegate domain-specific assembly to each sub-solver without duplicating
+   * the quadrature kernel.
+   *
+   * @param elem_mask   Per-element integer tag array (size = nElements).
+   * @param active_value Only elements with this tag value are accumulated.
+   */
+  void computeDampingMatrixMasked(const VECTOR_INT_VIEW& elem_mask,
+                                  int active_value);
+
   void outputSolutionValues(const int& t, int& e, const VECTOR_REAL_VIEW& field,
                             const char* fieldName) override;
 
@@ -109,12 +144,65 @@ class SEMsolver : public Solver
   void computeElementContributions(const DataType& data);
 
   /**
+   * @brief Assemble local element contributions restricted to elements
+   *        matching a mask.
+   *
+   * Identical to computeElementContributions() but skips elements where
+   * @p elem_mask[e] != @p active_value.  Used by SEMsolverAcoustoElastic to
+   * delegate domain-specific stiffness assembly to each sub-solver without
+   * duplicating the quadrature kernel.
+   *
+   * @param data         Data structure containing solution fields.
+   * @param elem_mask    Per-element integer tag array (size = nElements).
+   * @param active_value Only elements with this tag value are accumulated.
+   */
+  void computeElementContributionsMasked(const DataType& data,
+                                         const VECTOR_INT_VIEW& elem_mask,
+                                         int active_value);
+
+  /**
+   * @brief Assemble stiffness into workVectorsGlobal_ for a compact list of
+   *        elements, skipping all others.
+   * @param data      Data structure containing solution fields.
+   * @param elem_list Compact array of element indices to process.
+   * @param n_elems   Number of entries in @p elem_list.
+   */
+  void computeElementContributionsFromList(const DataType& data,
+                                           const VECTOR_INT_VIEW& elem_list,
+                                           int n_elems);
+
+  /**
    * @brief Update the global solution fields at interior nodes.
    *
    * @param dt Delta time for this iteration.
    * @param data Data structure containing solution fields.
    */
   void updateFields(float dt, const DataType& data);
+
+  /**
+   * @brief Run Verlet update only for a compact subset of nodes.
+   * @param dt        Time step.
+   * @param data      Wavefield data.
+   * @param node_list Compact array of node indices to update.
+   * @param n_nodes   Number of entries in @p node_list.
+   */
+  void updateFieldsFromList(float dt, const DataType& data,
+                            const VECTOR_INT_VIEW& node_list, int n_nodes);
+
+  /**
+   * @brief Read-only access to the f-th work (force) vector.
+   *
+   * After computeElementContributions[FromList], workVectorsGlobal_[f] holds
+   * the assembled RHS + K*u^n for component f.  This accessor lets the
+   * AcoustoElastic solver read the elastic force without friendship.
+   *
+   * @param f Component index (0 <= f < kNumFields).
+   * @return  Const reference to the view.
+   */
+  const VECTOR_REAL_VIEW& getForceVector(int f) const
+  {
+    return workVectorsGlobal_[f];
+  }
 
   void computeElementContributions_Iso(const DataType& data);
   void computeElementContributions_Vti(const DataType& data);
@@ -206,6 +294,21 @@ class SEMsolver : public Solver
   model::AnisotropyType anisotropyType_;
 
   INTEGRAL_TYPE myQkIntegrals_;
+
+  // Mask state used by computeElementContributionsMasked.
+  bool m_mask_enabled_ = false;
+  VECTOR_INT_VIEW m_element_mask_;
+  int m_mask_active_value_ = 0;
+
+  // List state used by computeElementContributionsFromList.
+  bool m_list_mode_ = false;
+  VECTOR_INT_VIEW m_elem_list_;
+  int m_n_elem_list_ = 0;
+
+  // Node list state used by updateFieldsFromList.
+  bool m_node_list_mode_ = false;
+  VECTOR_INT_VIEW m_node_list_;
+  int m_n_node_list_ = 0;
 
   VECTOR_REAL_VIEW spongeTaperCoeff_;
   VECTOR_REAL_VIEW massMatrixGlobal_;
