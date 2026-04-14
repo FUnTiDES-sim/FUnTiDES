@@ -129,8 +129,8 @@ mpirun -n 4 python3 examples/fe/solver_cartesian_mpi.py --ex 200 --snap_interval
 If you want to easily modify the cli option to launch the (eg: modify the number of elements by directions, 
 the spacial order etc)
 
-You can also use `run_funtides.py` script inside`python`folder, to run the executable using a yaml 
-input file where you have defined all the options
+You can also use `run_funtides.py` script inside`python` folder, to run the executable using a yaml 
+input file where you can define all the options for your simulation
 ```sh
 
 # Run python script with input file

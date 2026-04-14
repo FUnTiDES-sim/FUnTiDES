@@ -36,6 +36,13 @@ mesh:   cartesian  # Mesh type option are : cartesian or ucartesian (unstructure
 implem: makutu     # Method of implementation for basis function and matrices assembly (only makutu for now)
 method: sem        # Numerical method: sem (spectral element method)
 
+#--------------------------------------------------------------------------------
+# General source parameters
+#--------------------------------------------------------------------------------
+f0: 10.0          # dominant frequency of the source (Hz)
+tpeak: 0.1       # time shift of the source wavelet (seconds)
+ricker-order: 2   # order of the ricker wavelet (2 = classic Ricker)
+
 # -------------------------------------------------------------------------------------------
 # Source and receiver positions (meters) NB: For now only one source/receiver is supported
 # -------------------------------------------------------------------------------------------
