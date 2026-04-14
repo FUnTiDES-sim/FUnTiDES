@@ -13,11 +13,36 @@ namespace gradient
 
 /**
  * @brief Elastic gradient computation for independent use.
+ *
+ * Computes model parameter gradients (grad_rho, grad_lambda, grad_mu) from
+ * elastic forward and adjoint displacement wavefields. Completely independent
+ * from the Solver.
+ *
+ * The elastic gradient for isotropic media computes three sensitivities:
+ *
+ *   grad_rho    = - ∑_t ∑_e ∫ ü† · u  dΩ
+ *                 (density kernel via mass term with second time derivative)
+ *
+ *   grad_lambda = - ∑_t ∑_e ∫ div(u†) · div(u)  dΩ
+ *                 (volumetric / P-wave kernel via divergence interaction)
+ *
+ *   grad_mu     = - ∑_t ∑_e ∫ 2 ε(u†) : ε(u)  dΩ
+ *                 (shear / S-wave kernel via strain tensor interaction)
+ *
+ * For TTI (tilted transverse isotropy), the stiffness kernel uses the full
+ * 6×6 Voigt elasticity tensor C_ij to compute the interaction between
+ * adjoint and forward strain fields.
+ *
+ * Features:
+ * - Supports both node-based and element-based model discretization
+ * - Uses standard SEM assembly with mass and stiffness matrices
+ * - Supports isotropic and TTI anisotropy via computeStiffNessTermwithJac
+ *
  * Template Parameters:
- * ORDER                 - Polynomial order (1, 2, 3, ...)
- * INTEGRAL_TYPE         - Integration kernel (e.g., makutu)
- * MESH_TYPE             - Mesh topology (e.g., Cartesian)
- * IS_MODEL_ON_NODES     - Model discretization (true=nodes, false=elements)
+ *   ORDER                 - Polynomial order (1, 2, 3, ...)
+ *   INTEGRAL_TYPE         - Integration kernel (e.g., makutu)
+ *   MESH_TYPE             - Mesh topology (e.g., Cartesian)
+ *   IS_MODEL_ON_NODES     - Model discretization (true=nodes, false=elements)
  */
 template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE,
           bool IS_MODEL_ON_NODES>
@@ -31,6 +56,9 @@ class DifferentiatorElastic : public Differentiator
 
   ~DifferentiatorElastic() override = default;
 
+  /**
+   * @brief Compute elastic gradients (Rho, Lambda, Mu).
+   */
   void compute(model::ModelApi<float, int>& mesh, DataStruct& data,
                float dt) const override;
 
@@ -38,11 +66,26 @@ class DifferentiatorElastic : public Differentiator
   bool isModelOnNodes() const override;
   void print() const override;
 
+  /**
+   * @brief Compute displacement gradients at a quadrature point given J^{-1}.
+   *
+   * Computes grad[component][spatial] = ∂u_component/∂x_spatial
+   * using the tensor-product basis and the inverse Jacobian.
+   *
+   * @param qa,qb,qc  Quadrature indices in each reference direction
+   * @param J          Inverse Jacobian matrix J^{-1}[ref_dir][phys_dir]
+   * @param localU     Array of displacement values indexed by local node
+   * @param grad       Output: gradient tensor grad[3] (spatial derivatives)
+   */
   KOKKOS_INLINE_FUNCTION
   static void computeDisplacementGradient(
       int qa, int qb, int qc, float const (&J)[3][3], float const* localUx,
       float const* localUy, float const* localUz, float (&grad)[3][3]);
 
+  /**
+   * @brief Element-based model: each element writes to a unique index — no
+   * atomic add required.
+   */
   void computeOnElements(
       MESH_TYPE mesh, float dt, VECTOR_REAL_VIEW const ux_fwd,
       VECTOR_REAL_VIEW const uy_fwd, VECTOR_REAL_VIEW const uz_fwd,
@@ -52,6 +95,10 @@ class DifferentiatorElastic : public Differentiator
       VECTOR_REAL_VIEW const gradRho, VECTOR_REAL_VIEW const gradLambda,
       VECTOR_REAL_VIEW const gradMu) const;
 
+  /**
+   * @brief Node-based model: multiple elements share boundary nodes — ATOMICADD
+   * required.
+   */
   void computeOnNodes(
       MESH_TYPE mesh, float dt, VECTOR_REAL_VIEW const ux_fwd,
       VECTOR_REAL_VIEW const uy_fwd, VECTOR_REAL_VIEW const uz_fwd,
