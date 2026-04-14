@@ -12,14 +12,11 @@ namespace gradient
 
 /**
  * @brief Acoustic gradient computation for independent use.
- *
  * Computes model parameter gradients (grad_kappa, grad_buoyancy) from acoustic
  * forward and adjoint wavefields. Completely independent from the Solver.
- *
  * Features:
  * - Supports both node-based and element-based model discretization
  * - Uses standard SEM assembly with mass and stiffness matrices
- *
  * Template Parameters:
  *   ORDER                 - Polynomial order (1, 2, 3, ...)
  *   INTEGRAL_TYPE         - Integration kernel (e.g., makutu)
@@ -46,44 +43,11 @@ class DifferentiatorAcoustic : public Differentiator
    *   grad_buoyancy = ∑_elements ∑_stiffness stiffness_term * q * p
    */
   void compute(model::ModelApi<float, int>& mesh, DataStruct& data,
-               float dt) const override
-  {
-    auto& myData = dynamic_cast<DifferentiatorDataAcoustic&>(data);
-    auto& myMesh = dynamic_cast<MESH_TYPE&>(mesh);
+               float dt) const override;
 
-    VECTOR_REAL_VIEW const pn =
-        myData.getForwardField(0);  // forward pressure, node-indexed
-    VECTOR_REAL_VIEW const qn =
-        myData.getBackwardField(0);  // adjoint pressure at n, node-indexed
-    VECTOR_REAL_VIEW const qnPrev =
-        myData.getBackwardField(1);  // adjoint pressure at n-1, node-indexed
-    VECTOR_REAL_VIEW const qnPrevPrev =
-        myData.getBackwardField(2);  // adjoint pressure at n-2, node-indexed
-    VECTOR_REAL_VIEW const gradKappa =
-        myData.getGradient(0);  // grad_kappa, node- or element-indexed
-    VECTOR_REAL_VIEW const gradBuoyancy =
-        myData.getGradient(1);  // grad_buoyancy, node- or element-indexed
-
-    if constexpr (!IS_MODEL_ON_NODES)
-      computeOnElements(myMesh, dt, pn, qn, qnPrev, qnPrevPrev, gradKappa,
-                        gradBuoyancy);
-    else
-      computeOnNodes(myMesh, dt, pn, qn, qnPrev, qnPrevPrev, gradKappa,
-                     gradBuoyancy);
-  }
-
-  int getOrder() const override { return kOrder; }
-
-  bool isModelOnNodes() const override { return kIsModelOnNodes; }
-
-  void print() const override
-  {
-    std::cout << "DifferentiatorAcoustic<ORDER=" << kOrder
-              << ", INTEGRAL_TYPE=" << typeid(INTEGRAL_TYPE).name()
-              << ", MESH_TYPE=" << typeid(MESH_TYPE).name()
-              << ", IS_MODEL_ON_NODES=" << (kIsModelOnNodes ? "true" : "false")
-              << ">\n";
-  }
+  int getOrder() const override;
+  bool isModelOnNodes() const override;
+  void print() const override;
 
   /**
    * @brief Each element writes to a unique index — no atomic add required.
@@ -95,73 +59,7 @@ class DifferentiatorAcoustic : public Differentiator
                          VECTOR_REAL_VIEW const qnPrev,
                          VECTOR_REAL_VIEW const qnPrevPrev,
                          VECTOR_REAL_VIEW const gradKappa,
-                         VECTOR_REAL_VIEW const gradBuoyancy) const
-  {
-    Kokkos::parallel_for(
-        "Compute Acoustic Gradient on Elements",
-        Kokkos::RangePolicy<Kokkos::LaunchBounds<LaunchMaxThreadsPerBlock,
-                                                 LaunchMinBlocksPerSM>>(
-            0, mesh.getNumberOfElements()),
-        KOKKOS_CLASS_LAMBDA(const int elementNumber) {
-          if (elementNumber >= mesh.getNumberOfElements()) return;
-
-          int const dim = mesh.getOrder() + 1;
-
-          typename INTEGRAL_TYPE::TransformType transformData;
-          {
-            auto const elementIndex = mesh.elementIndex(elementNumber);
-            int I = 0;
-            for (int kv = 0; kv < 2; ++kv)
-              for (int jv = 0; jv < 2; ++jv)
-                for (int iv = 0; iv < 2; ++iv)
-                {
-                  auto const vertexIndex =
-                      mesh.globalVertexIndex(elementIndex, iv, jv, kv);
-                  mesh.vertexCoords(vertexIndex, transformData.data[I]);
-                  ++I;
-                }
-          }
-
-          float localPn[kPointsPerElement] = {0};
-          float localQn[kPointsPerElement] = {0};
-          float localQnPrev[kPointsPerElement] = {0};
-          float localQnPrevPrev[kPointsPerElement] = {0};
-          for (int i = 0; i < dim; ++i)
-            for (int j = 0; j < dim; ++j)
-              for (int k = 0; k < dim; ++k)
-              {
-                int const gIdx = mesh.globalNodeIndex(elementNumber, i, j, k);
-                int const lIdx = i + j * dim + k * dim * dim;
-                localPn[lIdx] = pn(gIdx);
-                localQn[lIdx] = qn(gIdx);
-                localQnPrev[lIdx] = qnPrev(gIdx);
-                localQnPrevPrev[lIdx] = qnPrevPrev(gIdx);
-              }
-
-          float const invDt2 = 1.0f / (dt * dt);
-
-          // grad_kappa: element-indexed — unique per thread, no atomic
-          float localGradKappa = 0.0f;
-          INTEGRAL_TYPE::computeMassTerm(
-              transformData, [&](const int q, const real_t val) {
-                float const qdt2 =
-                    (localQnPrevPrev[q] - 2.0f * localQnPrev[q] + localQn[q]) *
-                    invDt2;
-                localGradKappa += qdt2 * localPn[q] * val;
-              });
-          gradKappa(elementNumber) += localGradKappa;
-
-          // grad_buoyancy: element-indexed — unique per thread, no atomic
-          float localGradBuoyancy = 0.0f;
-          INTEGRAL_TYPE::computeStiffnessTerm(
-              transformData,
-              [&](const int /*qa*/, const int /*qb*/, const int /*qc*/) {},
-              [&](const int i, const int j, const real_t val) {
-                localGradBuoyancy += val * localQn[j] * localPn[i];
-              });
-          gradBuoyancy(elementNumber) += localGradBuoyancy;
-        });
-  }
+                         VECTOR_REAL_VIEW const gradBuoyancy) const;
 
   /**
    * @brief Multiple elements share boundary nodes — ATOMICADD required.
@@ -172,75 +70,40 @@ class DifferentiatorAcoustic : public Differentiator
                       VECTOR_REAL_VIEW const qn, VECTOR_REAL_VIEW const qnPrev,
                       VECTOR_REAL_VIEW const qnPrevPrev,
                       VECTOR_REAL_VIEW const gradKappa,
-                      VECTOR_REAL_VIEW const gradBuoyancy) const
-  {
-    Kokkos::parallel_for(
-        "Compute Acoustic Gradient on Nodes",
-        Kokkos::RangePolicy<Kokkos::LaunchBounds<LaunchMaxThreadsPerBlock,
-                                                 LaunchMinBlocksPerSM>>(
-            0, mesh.getNumberOfElements()),
-        KOKKOS_CLASS_LAMBDA(const int elementNumber) {
-          if (elementNumber >= mesh.getNumberOfElements()) return;
-
-          int const dim = mesh.getOrder() + 1;
-
-          typename INTEGRAL_TYPE::TransformType transformData;
-          {
-            auto const elementIndex = mesh.elementIndex(elementNumber);
-            int I = 0;
-            for (int kv = 0; kv < 2; ++kv)
-              for (int jv = 0; jv < 2; ++jv)
-                for (int iv = 0; iv < 2; ++iv)
-                {
-                  auto const vertexIndex =
-                      mesh.globalVertexIndex(elementIndex, iv, jv, kv);
-                  mesh.vertexCoords(vertexIndex, transformData.data[I]);
-                  ++I;
-                }
-          }
-
-          float localPn[kPointsPerElement] = {0};
-          float localQn[kPointsPerElement] = {0};
-          float localQnPrev[kPointsPerElement] = {0};
-          float localQnPrevPrev[kPointsPerElement] = {0};
-          int localGIdx[kPointsPerElement] = {0};
-          for (int i = 0; i < dim; ++i)
-            for (int j = 0; j < dim; ++j)
-              for (int k = 0; k < dim; ++k)
-              {
-                int const gIdx = mesh.globalNodeIndex(elementNumber, i, j, k);
-                int const lIdx = i + j * dim + k * dim * dim;
-                localGIdx[lIdx] = gIdx;
-                localPn[lIdx] = pn(gIdx);
-                localQn[lIdx] = qn(gIdx);
-                localQnPrev[lIdx] = qnPrev(gIdx);
-                localQnPrevPrev[lIdx] = qnPrevPrev(gIdx);
-              }
-
-          float const invDt2 = 1.0f / (dt * dt);
-
-          // grad_kappa: scatter per quadrature point to its global node
-          INTEGRAL_TYPE::computeMassTerm(
-              transformData, [&](const int q, const real_t val) {
-                float const qdt2 =
-                    (localQnPrevPrev[q] - 2.0f * localQnPrev[q] + localQn[q]) *
-                    invDt2;
-                ATOMICADD(gradKappa(localGIdx[q]), qdt2 * localPn[q] * val);
-              });
-
-          // grad_buoyancy: scatter test-function node (i) contributions to
-          // global node
-          INTEGRAL_TYPE::computeStiffnessTerm(
-              transformData,
-              [&](const int /*qa*/, const int /*qb*/, const int /*qc*/) {},
-              [&](const int i, const int j, const real_t val) {
-                ATOMICADD(gradBuoyancy(localGIdx[i]),
-                          val * localQn[j] * localPn[i]);
-              });
-        });
-  }
+                      VECTOR_REAL_VIEW const gradBuoyancy) const;
 };
 
 }  // namespace gradient
+
+// ============================================================================
+// EXTERN TEMPLATES (avoid template bloat)
+// ============================================================================
+#include "Integrals.h"
+#include "model_struct.h"
+#include "model_unstruct.h"
+
+#define DECLARE_EXTERN_DIFF_ACOUSTIC(ORDER, MESH_TYPE)                         \
+  extern template class gradient::DifferentiatorAcoustic<                      \
+      ORDER, typename IntegralTypeSelector<ORDER, IntegralType::MAKUTU>::type, \
+      MESH_TYPE, true>;                                                        \
+  extern template class gradient::DifferentiatorAcoustic<                      \
+      ORDER, typename IntegralTypeSelector<ORDER, IntegralType::MAKUTU>::type, \
+      MESH_TYPE, false>;
+
+#define DECLARE_EXTERN_DIFF_ACOUSTIC_ALL_ORDERS(MESH_TYPE_MACRO) \
+  DECLARE_EXTERN_DIFF_ACOUSTIC(1, MESH_TYPE_MACRO(1))            \
+  DECLARE_EXTERN_DIFF_ACOUSTIC(2, MESH_TYPE_MACRO(2))            \
+  DECLARE_EXTERN_DIFF_ACOUSTIC(3, MESH_TYPE_MACRO(3))
+
+#define STRUCT_MESH_TYPE(ORDER) model::ModelStruct<float, int, ORDER>
+#define UNSTRUCT_MESH_TYPE(ORDER) model::ModelUnstruct<float, int>
+
+DECLARE_EXTERN_DIFF_ACOUSTIC_ALL_ORDERS(STRUCT_MESH_TYPE)
+DECLARE_EXTERN_DIFF_ACOUSTIC_ALL_ORDERS(UNSTRUCT_MESH_TYPE)
+
+#undef UNSTRUCT_MESH_TYPE
+#undef STRUCT_MESH_TYPE
+#undef DECLARE_EXTERN_DIFF_ACOUSTIC_ALL_ORDERS
+#undef DECLARE_EXTERN_DIFF_ACOUSTIC
 
 #endif  // FUNTIDES_GRADIENT_IMPL_ACOUSTIC_INCLUDE_DIFFERENTIATOR_ACOUSTIC_H_
