@@ -12,11 +12,16 @@ namespace gradient
 
 /**
  * @brief Acoustic gradient computation for independent use.
+ * Computes model parameter gradients (grad_kappa, grad_buoyancy) from acoustic
+ * forward and adjoint wavefields. Completely independent from the Solver.
+ * Features:
+ * - Supports both node-based and element-based model discretization
+ * - Uses standard SEM assembly with mass and stiffness matrices
  * Template Parameters:
- * ORDER                 - Polynomial order (1, 2, 3, ...)
- * INTEGRAL_TYPE         - Integration kernel (e.g., makutu)
- * MESH_TYPE             - Mesh topology (e.g., Cartesian)
- * IS_MODEL_ON_NODES     - Model discretization (true=nodes, false=elements)
+ *   ORDER                 - Polynomial order (1, 2, 3, ...)
+ *   INTEGRAL_TYPE         - Integration kernel (e.g., makutu)
+ *   MESH_TYPE             - Mesh topology (e.g., Cartesian)
+ *   IS_MODEL_ON_NODES     - Model discretization (true=nodes, false=elements)
  */
 template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE,
           bool IS_MODEL_ON_NODES>
@@ -30,7 +35,13 @@ class DifferentiatorAcoustic : public Differentiator
 
   ~DifferentiatorAcoustic() override = default;
 
-  // Déclarations uniquement !
+  /**
+   * @brief Compute acoustic gradients (Kappa, Buoyancy).
+   *
+   * Computes:
+   *   grad_kappa   = ∑_elements ∑_quadrature q_dt² * p * mass_term
+   *   grad_buoyancy = ∑_elements ∑_stiffness stiffness_term * q * p
+   */
   void compute(model::ModelApi<float, int>& mesh, DataStruct& data,
                float dt) const override;
 
@@ -38,6 +49,11 @@ class DifferentiatorAcoustic : public Differentiator
   bool isModelOnNodes() const override;
   void print() const override;
 
+  /**
+   * @brief Each element writes to a unique index — no atomic add required.
+   *
+   * Computes qdt2 = (qnPrevPrev - 2*qnPrev + qn) / dt² on the fly.
+   */
   void computeOnElements(MESH_TYPE mesh, float dt, VECTOR_REAL_VIEW const pn,
                          VECTOR_REAL_VIEW const qn,
                          VECTOR_REAL_VIEW const qnPrev,
@@ -45,6 +61,11 @@ class DifferentiatorAcoustic : public Differentiator
                          VECTOR_REAL_VIEW const gradKappa,
                          VECTOR_REAL_VIEW const gradBuoyancy) const;
 
+  /**
+   * @brief Multiple elements share boundary nodes — ATOMICADD required.
+   *
+   * Computes qdt2 = (qnPrevPrev - 2*qnPrev + qn) / dt² on the fly.
+   */
   void computeOnNodes(MESH_TYPE mesh, float dt, VECTOR_REAL_VIEW const pn,
                       VECTOR_REAL_VIEW const qn, VECTOR_REAL_VIEW const qnPrev,
                       VECTOR_REAL_VIEW const qnPrevPrev,
