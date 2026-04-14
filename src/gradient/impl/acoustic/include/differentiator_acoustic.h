@@ -82,28 +82,28 @@ class DifferentiatorAcoustic : public Differentiator
 #include "model_struct.h"
 #include "model_unstruct.h"
 
-// #define DECLARE_EXTERN_DIFF_ACOUSTIC(ORDER, MESH_TYPE)                         \
-//   extern template class gradient::DifferentiatorAcoustic<                      \
+#define DECLARE_EXTERN_DIFF_ACOUSTIC(ORDER, MESH_TYPE) \
+  //   extern template class gradient::DifferentiatorAcoustic<                      \
 //       ORDER, typename IntegralTypeSelector<ORDER, IntegralType::MAKUTU>::type, \
 //       MESH_TYPE, true>;                                                        \
 //   extern template class gradient::DifferentiatorAcoustic<                      \
 //       ORDER, typename IntegralTypeSelector<ORDER, IntegralType::MAKUTU>::type, \
 //       MESH_TYPE, false>;
 
-// #define DECLARE_EXTERN_DIFF_ACOUSTIC_ALL_ORDERS(MESH_TYPE_MACRO) \
-//   DECLARE_EXTERN_DIFF_ACOUSTIC(1, MESH_TYPE_MACRO(1))            \
+#define DECLARE_EXTERN_DIFF_ACOUSTIC_ALL_ORDERS(MESH_TYPE_MACRO) \
+  //   DECLARE_EXTERN_DIFF_ACOUSTIC(1, MESH_TYPE_MACRO(1))            \
 //   DECLARE_EXTERN_DIFF_ACOUSTIC(2, MESH_TYPE_MACRO(2))            \
 //   DECLARE_EXTERN_DIFF_ACOUSTIC(3, MESH_TYPE_MACRO(3))
 
-// #define STRUCT_MESH_TYPE(ORDER) model::ModelStruct<float, int, ORDER>
-// #define UNSTRUCT_MESH_TYPE(ORDER) model::ModelUnstruct<float, int>
+#define STRUCT_MESH_TYPE(ORDER) model::ModelStruct<float, int, ORDER>
+#define UNSTRUCT_MESH_TYPE(ORDER) model::ModelUnstruct<float, int>
 
-// DECLARE_EXTERN_DIFF_ACOUSTIC_ALL_ORDERS(STRUCT_MESH_TYPE)
-// DECLARE_EXTERN_DIFF_ACOUSTIC_ALL_ORDERS(UNSTRUCT_MESH_TYPE)
+DECLARE_EXTERN_DIFF_ACOUSTIC_ALL_ORDERS(STRUCT_MESH_TYPE)
+DECLARE_EXTERN_DIFF_ACOUSTIC_ALL_ORDERS(UNSTRUCT_MESH_TYPE)
 
-// #undef UNSTRUCT_MESH_TYPE
-// #undef STRUCT_MESH_TYPE
-// #undef DECLARE_EXTERN_DIFF_ACOUSTIC_ALL_ORDERS
-// #undef DECLARE_EXTERN_DIFF_ACOUSTIC
+#undef UNSTRUCT_MESH_TYPE
+#undef STRUCT_MESH_TYPE
+#undef DECLARE_EXTERN_DIFF_ACOUSTIC_ALL_ORDERS
+#undef DECLARE_EXTERN_DIFF_ACOUSTIC
 
 #endif  // FUNTIDES_GRADIENT_IMPL_ACOUSTIC_INCLUDE_DIFFERENTIATOR_ACOUSTIC_H_
