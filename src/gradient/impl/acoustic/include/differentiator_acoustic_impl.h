@@ -116,20 +116,26 @@ void DifferentiatorAcoustic<ORDER, INTEGRAL_TYPE, MESH_TYPE,
               localQnPrevPrev[lIdx] = qnPrevPrev(gIdx);
             }
 
-        // Accumulation directe dans les Views (pas de conflits entre éléments)
+        float const invDt2 = 1.0f / (dt * dt);
+
+        float localGradKappa = 0.0f;
         INTEGRAL_TYPE::computeMassTerm(
-            transformData, [=](const int q, const real_t val) {
+            transformData, [&](const int q, const real_t val) {
               float const qdt2 =
                   (localQnPrevPrev[q] - 2.0f * localQnPrev[q] + localQn[q]) *
                   invDt2;
-              gradKappa(elementNumber) += qdt2 * localPn[q] * val;
+              localGradKappa += qdt2 * localPn[q] * val;
             });
+        gradKappa(elementNumber) += localGradKappa;
 
+        float localGradBuoyancy = 0.0f;
         INTEGRAL_TYPE::computeStiffnessTerm(
-            transformData, [=](const int, const int, const int) {},
-            [=](const int i, const int j, const real_t val) {
-              gradBuoyancy(elementNumber) += val * localQn[j] * localPn[i];
+            transformData,
+            [&](const int /*qa*/, const int /*qb*/, const int /*qc*/) {},
+            [&](const int i, const int j, const real_t val) {
+              localGradBuoyancy += val * localQn[j] * localPn[i];
             });
+        gradBuoyancy(elementNumber) += localGradBuoyancy;
       });
 }
 
@@ -143,15 +149,12 @@ void DifferentiatorAcoustic<ORDER, INTEGRAL_TYPE, MESH_TYPE,
                    VECTOR_REAL_VIEW const gradKappa,
                    VECTOR_REAL_VIEW const gradBuoyancy) const
 {
-  constexpr int nPerElem = kPointsPerElement;
-  float const invDt2 = 1.0f / (dt * dt);
-
   Kokkos::parallel_for(
       "Compute Acoustic Gradient on Nodes",
       Kokkos::RangePolicy<
           Kokkos::LaunchBounds<LaunchMaxThreadsPerBlock, LaunchMinBlocksPerSM>>(
           0, mesh.getNumberOfElements()),
-      KOKKOS_LAMBDA(const int elementNumber) {
+      KOKKOS_CLASS_LAMBDA(const int elementNumber) {
         if (elementNumber >= mesh.getNumberOfElements()) return;
 
         int const dim = mesh.getOrder() + 1;
@@ -171,10 +174,11 @@ void DifferentiatorAcoustic<ORDER, INTEGRAL_TYPE, MESH_TYPE,
               }
         }
 
-        Kokkos::Array<float, nPerElem> localPn, localQn, localQnPrev,
-            localQnPrevPrev;
-        Kokkos::Array<int, nPerElem> localGIdx;
-
+        float localPn[kPointsPerElement] = {0};
+        float localQn[kPointsPerElement] = {0};
+        float localQnPrev[kPointsPerElement] = {0};
+        float localQnPrevPrev[kPointsPerElement] = {0};
+        int localGIdx[kPointsPerElement] = {0};
         for (int i = 0; i < dim; ++i)
           for (int j = 0; j < dim; ++j)
             for (int k = 0; k < dim; ++k)
@@ -188,8 +192,10 @@ void DifferentiatorAcoustic<ORDER, INTEGRAL_TYPE, MESH_TYPE,
               localQnPrevPrev[lIdx] = qnPrevPrev(gIdx);
             }
 
+        float const invDt2 = 1.0f / (dt * dt);
+
         INTEGRAL_TYPE::computeMassTerm(
-            transformData, [=](const int q, const real_t val) {
+            transformData, [&](const int q, const real_t val) {
               float const qdt2 =
                   (localQnPrevPrev[q] - 2.0f * localQnPrev[q] + localQn[q]) *
                   invDt2;
@@ -197,8 +203,9 @@ void DifferentiatorAcoustic<ORDER, INTEGRAL_TYPE, MESH_TYPE,
             });
 
         INTEGRAL_TYPE::computeStiffnessTerm(
-            transformData, [=](const int, const int, const int) {},
-            [=](const int i, const int j, const real_t val) {
+            transformData,
+            [&](const int /*qa*/, const int /*qb*/, const int /*qc*/) {},
+            [&](const int i, const int j, const real_t val) {
               ATOMICADD(gradBuoyancy(localGIdx[i]),
                         val * localQn[j] * localPn[i]);
             });
