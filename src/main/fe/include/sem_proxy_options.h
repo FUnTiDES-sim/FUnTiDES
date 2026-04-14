@@ -17,9 +17,9 @@ class SemProxyOptions
   float lx = 2000.f, ly = 2000.f, lz = 2000.f;
   float srcx = 1010.f, srcy = 1010.f, srcz = 1010.f;
   float rcvx = 1310.f, rcvy = 1310.f, rcvz = 1310.f;
-  float f0 = 10.f;       // dominant frequency of the source in Hz
+  float f0 = 5.0f;       // dominant frequency of the source in Hz
   int ricker_order = 2;  // order of the Ricker wavelet source
-  float tpeak = 0.1f;    // peak time of the Ricker wavelet source
+  float tpeak = 0.2f;    // peak time of the Ricker wavelet source
 
   std::string implem = "makutu";  // makutu
   std::string method = "sem";     // sem

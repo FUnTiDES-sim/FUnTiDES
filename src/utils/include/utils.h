@@ -63,7 +63,7 @@ struct SolverUtils
 
   std::vector<float> computeSourceTerm(const int nSamples,
                                        const float timeSample, const float f0,
-                                       const float tpeak, const int order)
+                                       const int order, const float tpeak)
   {
     std::vector<float> sourceTerm(nSamples);
     for (int i = 0; i < nSamples; i++)
