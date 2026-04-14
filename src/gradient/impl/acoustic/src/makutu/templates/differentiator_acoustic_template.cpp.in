@@ -3,7 +3,7 @@
 
 #include <@MODEL_HEADER@>
 
-#include "differentiator_acoustic_impl.h"
+#include "differentiator_acoustic.h"
 #include "Integrals.h"
 
 constexpr int ORDER = @ORDER@;

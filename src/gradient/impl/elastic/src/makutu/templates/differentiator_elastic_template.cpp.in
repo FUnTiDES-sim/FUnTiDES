@@ -3,8 +3,7 @@
 
 #include <@MODEL_HEADER@>
 
-// use impl to take advantage of external template
-#include "differentiator_elastic_impl.h"
+#include "differentiator_elastic.h"
 #include "Integrals.h"
 
 constexpr int ORDER = @ORDER@;
