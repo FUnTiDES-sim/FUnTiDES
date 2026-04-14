@@ -137,14 +137,30 @@ template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE,
 void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES,
                PHYSICS>::resetGlobalVectors(int numNodes)
 {
+  bool has_attenuation = (attenuationEnabled_ && nSls_ > 0);
+
+  std::array<std::remove_reference_t<decltype(workVectorsGlobal_[0])>,
+             kNumFields>
+      work_vecs;
+  std::array<
+      std::remove_reference_t<decltype(attenuationWorkVectorsGlobal_[0])>,
+      kNumFields>
+      atten_vecs;
+
+  for (int f = 0; f < kNumFields; ++f)
+  {
+    work_vecs[f] = workVectorsGlobal_[f];
+    if (has_attenuation) atten_vecs[f] = attenuationWorkVectorsGlobal_[f];
+  }
+
   Kokkos::parallel_for(
-      "Solver Reset GVector", numNodes, KOKKOS_CLASS_LAMBDA(const int i) {
+      "Solver Reset GVector", numNodes, KOKKOS_LAMBDA(const int i) {
         for (int f = 0; f < kNumFields; ++f)
         {
-          workVectorsGlobal_[f][i] = 0;
-          if (attenuationEnabled_ && nSls_ > 0)
+          work_vecs[f][i] = 0;
+          if (has_attenuation)
           {
-            attenuationWorkVectorsGlobal_[f][i] = 0;
+            atten_vecs[f][i] = 0;
           }
         }
       });
