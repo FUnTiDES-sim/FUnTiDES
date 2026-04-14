@@ -1,0 +1,96 @@
+# funtides-sem configuration file
+# All keys correspond to the CLI flags of funtides-sem.
+# Dashes and underscores are interchangeable (e.g. is-elastic or is_elastic).
+# Boolean false values can simply be omitted — the binary defaults apply.
+
+# ---------------------------------------------------------------------------
+# MPI (optional)
+#
+# mpi-np:       number of MPI processes (omit or set to 1 for serial)
+# mpi-launcher: mpirun | mpiexec | srun | jsrun
+#               Auto-detected when inside SLURM (→ srun) or LSF (→ mpirun).
+#               Under SLURM + srun, omitting mpi-np lets srun inherit
+#               --ntasks directly from the batch script header.
+#
+# Environment overrides: FUNTIDES_MPI_NP, FUNTIDES_MPI_LAUNCHER
+# ---------------------------------------------------------------------------
+# mpi-np: 4
+# mpi-launcher: srun
+
+# ---------------------------------------------------------------------------
+# Spatial discretization
+# ---------------------------------------------------------------------------
+order: 2          # Order of discretization
+ex: 50            # number of elements along X-axis
+ey: 50            # number of elements along Y-axis
+ez: 50            # number of elements along Z-axis
+
+lx: 2000.0        # domain size along X-axis (meters)
+ly: 2000.0        # domain size along Y-axis (meters)
+lz: 2000.0        # domain size along Z-axis (meters)
+
+# ---------------------------------------------------------------------------
+# Mesh and implementation
+# ---------------------------------------------------------------------------
+mesh:   cartesian  # Mesh type option are : cartesian or ucartesian (unstructured cartesian)
+implem: makutu     # Method of implementation for basis function and matrices assembly (only makutu for now)
+method: sem        # Numerical method: sem (spectral element method)
+
+# -------------------------------------------------------------------------------------------
+# Source and receiver positions (meters) NB: For now only one source/receiver is supported
+# -------------------------------------------------------------------------------------------
+srcx: 1010.0 # X coordinate of source
+srcy: 1010.0 # Y coordinate of source
+srcz: 1010.0 # Z coordinate of source
+
+rcvx: 1310.0 # X coordinate of receiver
+rcvy: 1310.0 # Y coordinate of receiver
+rcvz: 1310.0 # Z coordinate of receiver
+
+# ---------------------------------------------------------------------------
+# Time parameters
+# ---------------------------------------------------------------------------
+dt:      0.006    # time step (seconds)
+timemax: 0.7      # simulation duration (seconds)
+auto-dt: false    # set to true to let the code pick dt via CFL (override the dt value)
+
+# ---------------------------------------------------------------------------
+# Physics
+# ---------------------------------------------------------------------------
+is-elastic:       false  # true: pure elastic simulation
+is-acousto-elastic: false  # true; coupled acoustic-elastic simulation
+# acousto-elastic-boundary-z: 1000.0  # Z coordinate of fluid-solid interface (meters)
+
+anisotropy:        iso   # Anisotropy of the middle (elastic only). Three supported argument iso | vti | tti
+is-model-on-nodes: false # true: material properties defined on nodes
+free-surface:      false # true: free surface on top boundary (Z+)
+
+# ---------------------------------------------------------------------------
+# Attenuation (SLS model) — omit or leave empty to disable
+# ---------------------------------------------------------------------------
+qp: -1.0   # quality factor for P-waves  (<0 = no attenuation)
+qs: -1.0   # quality factor for S-waves  (<0 = no attenuation)
+# sls-reference-angular-frequencies: [10.0, 50.0, 200.0]  # rad/s
+# sls-anelasticity-coefficients:     [0.1,  0.2,  0.05]
+
+# ----------------------------------------------------------------------------------------------
+# Absorbing boundaries (sponge) leave disabled by default, or set boundaries-size > 0 to enable
+# ----------------------------------------------------------------------------------------------
+boundaries-size: 0.0    # thickness of absorbing layer (meters, 0 = disabled)
+sponge-surface:  false  # include the top surface in the sponge
+taper-delta:     0.015  # taper decay rate
+
+# ---------------------------------------------------------------------------
+# Snapshots
+# ---------------------------------------------------------------------------
+snapshots:     false  # true: save wavefield snapshots
+snap-interval: 20     # number of time steps between snapshots
+
+# ---------------------------------------------------------------------------
+# DAS (Distributed Acoustic Sensing) receiver — omit or set das-type: none
+# ---------------------------------------------------------------------------
+das-type:         none  # none | dipole | strain
+das-dip:          0.0   # fiber dip angle (degrees)
+das-azimuth:      0.0   # fiber azimuth angle (degrees)
+das-gauge-length: 1.0   # gauge length (meters)
+das-samples:      5     # number of integration points along fiber
