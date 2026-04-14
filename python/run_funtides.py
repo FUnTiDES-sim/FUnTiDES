@@ -71,7 +71,7 @@ def find_executable(root: Path) -> Path:
 # ---------------------------------------------------------------------------
 
 # Keys consumed by this script — never forwarded to the binary.
-_SCRIPT_KEYS = {"mpi-np", "mpi-launcher"}
+_SCRIPT_KEYS = {"mpi-np", "mpi-launcher", "launcher"}
 
 # Flag used by each supported launcher to set the number of processes.
 _NP_FLAG: dict[str, str] = {
@@ -114,13 +114,19 @@ def build_mpi_prefix(config: dict) -> list[str]:
     Returns:
         Launcher prefix as a list of strings, or ``[]`` for a direct launch.
     """
+    # mpi-np / mpi-launcher may live under a "launcher:" section or at root
+    launcher_section = config.get("launcher") or {}
+
     # Resolve number of processes
     env_np = os.environ.get("FUNTIDES_MPI_NP")
-    np = int(env_np) if env_np is not None else int(config.get("mpi-np", 1))
+    np = int(env_np) if env_np is not None else int(
+        launcher_section.get("mpi-np", config.get("mpi-np", 1))
+    )
 
     # Resolve launcher
     launcher = (
         os.environ.get("FUNTIDES_MPI_LAUNCHER")
+        or launcher_section.get("mpi-launcher")
         or config.get("mpi-launcher")
     )
     if launcher is None:
@@ -188,11 +194,15 @@ def _normalize_key(key: str) -> str:
 def yaml_to_cli_args(config: dict) -> list[str]:
     """Convert a YAML config dict to a list of CLI arguments.
 
-    Mapping rules:
+    The config may be flat or organized into arbitrary sections (nested dicts).
+    Section names are ignored — only leaf values are converted.
+
+    Mapping rules for leaf values:
     - bool True  → ``--key``
     - bool False → omitted (leaves binary default unchanged)
     - list       → ``--key val1,val2,val3``
     - empty list → omitted
+    - dict       → recurse (section grouping, name ignored)
     - other      → ``--key value``
 
     Args:
@@ -206,7 +216,11 @@ def yaml_to_cli_args(config: dict) -> list[str]:
         key = _normalize_key(raw_key)
         if key in _SCRIPT_KEYS:
             continue
-        if isinstance(value, bool):
+        if value is None:
+            continue  # commented-out or empty YAML section
+        if isinstance(value, dict):
+            args.extend(yaml_to_cli_args(value))  # section — recurse, name ignored
+        elif isinstance(value, bool):
             if value:
                 args.append(f"--{key}")
         elif isinstance(value, list):
