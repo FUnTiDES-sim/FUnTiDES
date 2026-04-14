@@ -230,7 +230,7 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES,
     }
   }
   else  // Acoustic - DISPATCH
-      computeElementContributions_acoustic(data);
+    computeElementContributions_acoustic(data);
 }
 
 //============================================================================
@@ -409,99 +409,101 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES,
 
 template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE,
           bool IS_MODEL_ON_NODES, physicType PHYSICS>
-void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES,
-               PHYSICS>::computeElementContributions_acoustic(const DataType& data)
+void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::
+    computeElementContributions_acoustic(const DataType& data)
 {
-    auto mesh_local = m_mesh;
-    bool const list_on = m_list_mode_;
-    auto list_local = m_elem_list_;
-    int const n_iter = list_on ? m_n_elem_list_ : mesh_local.getNumberOfElements();
+  auto mesh_local = m_mesh;
+  bool const list_on = m_list_mode_;
+  auto list_local = m_elem_list_;
+  int const n_iter =
+      list_on ? m_n_elem_list_ : mesh_local.getNumberOfElements();
 
-    using FieldViewType = std::remove_reference_t<decltype(data.getCurrentField(0))>;
+  using FieldViewType =
+      std::remove_reference_t<decltype(data.getCurrentField(0))>;
 
-    Kokkos::Array<FieldViewType, kNumFields> current_fields;
-    Kokkos::Array<FieldViewType, kNumFields> work_vecs;
+  Kokkos::Array<FieldViewType, kNumFields> current_fields;
+  Kokkos::Array<FieldViewType, kNumFields> work_vecs;
 
-    for (int f = 0; f < kNumFields; ++f)
-    {
-      current_fields[f] = data.getCurrentField(f);
-      work_vecs[f] = workVectorsGlobal_[f];
-    }
+  for (int f = 0; f < kNumFields; ++f)
+  {
+    current_fields[f] = data.getCurrentField(f);
+    work_vecs[f] = workVectorsGlobal_[f];
+  }
 
-    Kokkos::parallel_for(
-        "Solver Element Contribution Acoustic",
-        Kokkos::RangePolicy<Kokkos::LaunchBounds<LaunchMaxThreadsPerBlock,
-                                                 LaunchMinBlocksPerSM>>(0, n_iter),
-        KOKKOS_LAMBDA(const int _loop_idx) {
-          if (_loop_idx >= n_iter) return;
-          int const elementNumber = list_on ? list_local[_loop_idx] : _loop_idx;
+  Kokkos::parallel_for(
+      "Solver Element Contribution Acoustic",
+      Kokkos::RangePolicy<
+          Kokkos::LaunchBounds<LaunchMaxThreadsPerBlock, LaunchMinBlocksPerSM>>(
+          0, n_iter),
+      KOKKOS_LAMBDA(const int _loop_idx) {
+        if (_loop_idx >= n_iter) return;
+        int const elementNumber = list_on ? list_local[_loop_idx] : _loop_idx;
 
-          int const dim = mesh_local.getOrder() + 1;
-          float localFields[kNumFields][kPointsPerElement] = {{0}};
-          float localWork[kNumFields][kPointsPerElement] = {{0}};
+        int const dim = mesh_local.getOrder() + 1;
+        float localFields[kNumFields][kPointsPerElement] = {{0}};
+        float localWork[kNumFields][kPointsPerElement] = {{0}};
 
-          for (int i = 0; i < dim; ++i)
+        for (int i = 0; i < dim; ++i)
+        {
+          for (int j = 0; j < dim; ++j)
           {
-            for (int j = 0; j < dim; ++j)
+            for (int k = 0; k < dim; ++k)
             {
-              for (int k = 0; k < dim; ++k)
-              {
-                int const globalIdx =
-                    mesh_local.globalNodeIndex(elementNumber, i, j, k);
-                int const localIdx = i + j * dim + k * dim * dim;
+              int const globalIdx =
+                  mesh_local.globalNodeIndex(elementNumber, i, j, k);
+              int const localIdx = i + j * dim + k * dim * dim;
 
-                for (int f = 0; f < kNumFields; ++f)
-                {
-                  localFields[f][localIdx] = current_fields[f](globalIdx);
-                }
+              for (int f = 0; f < kNumFields; ++f)
+              {
+                localFields[f][localIdx] = current_fields[f](globalIdx);
               }
             }
           }
+        }
 
-          typename INTEGRAL_TYPE::TransformType transformData;
-          model_discretization_interface::gatherTransformData(
-              elementNumber, mesh_local, transformData);
+        typename INTEGRAL_TYPE::TransformType transformData;
+        model_discretization_interface::gatherTransformData(
+            elementNumber, mesh_local, transformData);
 
-          real_t inv_density = 0.0f;
-          if constexpr (!IS_MODEL_ON_NODES)
-          {
-            inv_density = 1.0f / mesh_local.getModelRhoOnElement(elementNumber);
-          }
+        real_t inv_density = 0.0f;
+        if constexpr (!IS_MODEL_ON_NODES)
+        {
+          inv_density = 1.0f / mesh_local.getModelRhoOnElement(elementNumber);
+        }
 
-          INTEGRAL_TYPE::computeStiffnessTerm(
-              transformData,
-              [&](const int qa, const int qb, const int qc) {
-                if constexpr (IS_MODEL_ON_NODES)
-                {
-                  int const gIndex =
-                      mesh_local.globalNodeIndex(elementNumber, qa, qb, qc);
-                  inv_density = 1.0f / mesh_local.getModelRhoOnNodes(gIndex);
-                }
-              },
-              [&](const int i, const int j, const real_t val) {
-                float localIncrement = inv_density * val * localFields[0][j];
-                localWork[0][i] += localIncrement;
-              });
-
-          for (int i = 0; i < dim; ++i)
-          {
-            for (int j = 0; j < dim; ++j)
-            {
-              for (int k = 0; k < dim; ++k)
+        INTEGRAL_TYPE::computeStiffnessTerm(
+            transformData,
+            [&](const int qa, const int qb, const int qc) {
+              if constexpr (IS_MODEL_ON_NODES)
               {
-                int const globalIdx =
-                    mesh_local.globalNodeIndex(elementNumber, i, j, k);
-                int const localIdx = i + j * dim + k * dim * dim;
+                int const gIndex =
+                    mesh_local.globalNodeIndex(elementNumber, qa, qb, qc);
+                inv_density = 1.0f / mesh_local.getModelRhoOnNodes(gIndex);
+              }
+            },
+            [&](const int i, const int j, const real_t val) {
+              float localIncrement = inv_density * val * localFields[0][j];
+              localWork[0][i] += localIncrement;
+            });
 
-                for (int f = 0; f < kNumFields; ++f)
-                {
-                  ATOMICADD(work_vecs[f][globalIdx],
-                            localWork[f][localIdx]);
-                }
+        for (int i = 0; i < dim; ++i)
+        {
+          for (int j = 0; j < dim; ++j)
+          {
+            for (int k = 0; k < dim; ++k)
+            {
+              int const globalIdx =
+                  mesh_local.globalNodeIndex(elementNumber, i, j, k);
+              int const localIdx = i + j * dim + k * dim * dim;
+
+              for (int f = 0; f < kNumFields; ++f)
+              {
+                ATOMICADD(work_vecs[f][globalIdx], localWork[f][localIdx]);
               }
             }
           }
-        });
+        }
+      });
 }
 
 //============================================================================
