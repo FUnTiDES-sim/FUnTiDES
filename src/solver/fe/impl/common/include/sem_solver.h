@@ -204,6 +204,7 @@ class SEMsolver : public Solver
     return workVectorsGlobal_[f];
   }
 
+  void computeElementContributions_acoustic(const DataType& data);
   void computeElementContributions_Iso(const DataType& data);
   void computeElementContributions_Vti(const DataType& data);
   void computeElementContributions_Tti(const DataType& data);
