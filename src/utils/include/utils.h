@@ -6,11 +6,12 @@ using namespace std::chrono;
 
 struct SolverUtils
 {
-  float evaluateRicker(float const& time_n, float const& f0, int order)
+  float evaluateRicker(float const& time_n, float const& f0, int order,
+                       float const& tpeak)
   {
-    float const o_tpeak = 1.0 / f0;
+    // float const tpeak = 1.0 / f0;
     float pulse = 0.0;
-    if ((time_n <= -0.9 * o_tpeak) || (time_n >= 2.9 * o_tpeak))
+    if ((time_n <= -0.9 * tpeak) || (time_n >= 2.9 * tpeak))
     {
       return pulse;
     }
@@ -22,32 +23,32 @@ struct SolverUtils
     {
       case 4: {
         pulse = 4.0 * lam * lam *
-                (3.0 - 12.0 * lam * (time_n - o_tpeak) * (time_n - o_tpeak) +
-                 4.0 * lam * lam * (time_n - o_tpeak) * (time_n - o_tpeak) *
-                     (time_n - o_tpeak) * (time_n - o_tpeak)) *
-                exp(-lam * (time_n - o_tpeak) * (time_n - o_tpeak));
+                (3.0 - 12.0 * lam * (time_n - tpeak) * (time_n - tpeak) +
+                 4.0 * lam * lam * (time_n - tpeak) * (time_n - tpeak) *
+                     (time_n - tpeak) * (time_n - tpeak)) *
+                exp(-lam * (time_n - tpeak) * (time_n - tpeak));
       }
       break;
       case 3: {
-        pulse = 4.0 * lam * lam * (time_n - o_tpeak) *
-                (3.0 - 2.0 * lam * (time_n - o_tpeak) * (time_n - o_tpeak)) *
-                exp(-lam * (time_n - o_tpeak) * (time_n - o_tpeak));
+        pulse = 4.0 * lam * lam * (time_n - tpeak) *
+                (3.0 - 2.0 * lam * (time_n - tpeak) * (time_n - tpeak)) *
+                exp(-lam * (time_n - tpeak) * (time_n - tpeak));
       }
       break;
       case 2: {
         pulse = 2.0 * lam *
-                (2.0 * lam * (time_n - o_tpeak) * (time_n - o_tpeak) - 1.0) *
-                exp(-lam * (time_n - o_tpeak) * (time_n - o_tpeak));
+                (2.0 * lam * (time_n - tpeak) * (time_n - tpeak) - 1.0) *
+                exp(-lam * (time_n - tpeak) * (time_n - tpeak));
       }
       break;
       case 1: {
-        pulse = -2.0 * lam * (time_n - o_tpeak) *
-                exp(-lam * (time_n - o_tpeak) * (time_n - o_tpeak));
+        pulse = -2.0 * lam * (time_n - tpeak) *
+                exp(-lam * (time_n - tpeak) * (time_n - tpeak));
       }
       break;
       case 0: {
-        pulse = -(time_n - o_tpeak) *
-                exp(-2 * lam * (time_n - o_tpeak) * (time_n - o_tpeak));
+        pulse = -(time_n - tpeak) *
+                exp(-2 * lam * (time_n - tpeak) * (time_n - tpeak));
       }
       break;
       default:
@@ -62,13 +63,13 @@ struct SolverUtils
 
   std::vector<float> computeSourceTerm(const int nSamples,
                                        const float timeSample, const float f0,
-                                       const int order)
+                                       const float tpeak, const int order)
   {
     std::vector<float> sourceTerm(nSamples);
     for (int i = 0; i < nSamples; i++)
     {
       float time_n = i * timeSample;
-      sourceTerm[i] = evaluateRicker(time_n, f0, order);
+      sourceTerm[i] = evaluateRicker(time_n, f0, order, tpeak);
     }
     return sourceTerm;
   }

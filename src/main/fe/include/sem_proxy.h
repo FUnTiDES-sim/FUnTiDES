@@ -125,9 +125,10 @@ class SEMproxy
   int num_sample_;
   // source parameters
   const int myNumberOfRHS = 1;
-  const float f0 = 5.0f;
-  const int sourceOrder = 2;
   int myElementSource = 0;
+  float tpeak_;
+  float f0_;
+  int ricker_order_;
 
   std::shared_ptr<model::ModelApi<float, int>> m_mesh;
   std::unique_ptr<solver::fe::Solver> m_solver;

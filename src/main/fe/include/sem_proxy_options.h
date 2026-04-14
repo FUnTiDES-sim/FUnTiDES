@@ -17,6 +17,9 @@ class SemProxyOptions
   float lx = 2000.f, ly = 2000.f, lz = 2000.f;
   float srcx = 1010.f, srcy = 1010.f, srcz = 1010.f;
   float rcvx = 1310.f, rcvy = 1310.f, rcvz = 1310.f;
+  float f0 = 10.f;       // dominant frequency of the source in Hz
+  int ricker_order = 2;  // order of the Ricker wavelet source
+  float tpeak = 0.1f;    // peak time of the Ricker wavelet source
 
   std::string implem = "makutu";  // makutu
   std::string method = "sem";     // sem
@@ -120,6 +123,12 @@ class SemProxyOptions
         "das-samples",
         "Number of integration points along DAS fiber (default=5)",
         cxxopts::value<int>(o.das_samples))(
+        "f0", "Dominant frequency of the source in Hz",
+        cxxopts::value<float>(o.f0))("tpeak",
+                                     "Peak time of the Ricker wavelet source",
+                                     cxxopts::value<float>(o.tpeak))(
+        "ricker-order", "Order of the Ricker wavelet source",
+        cxxopts::value<int>(o.ricker_order))(
         "srcx", "Source position X (meters)", cxxopts::value<float>(o.srcx))(
         "srcy", "Source position Y (meters)", cxxopts::value<float>(o.srcy))(
         "srcz", "Source position Z (meters)", cxxopts::value<float>(o.srcz))(
