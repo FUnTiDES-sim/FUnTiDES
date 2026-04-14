@@ -40,6 +40,7 @@ void DifferentiatorElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES>::
   else
     computeOnNodes(myMesh, dt, ux_fwd, uy_fwd, uz_fwd, ux_adj, uy_adj, uz_adj,
                    ux_dt2, uy_dt2, uz_dt2, gradRho, gradLambda, gradMu);
+  Kokkos::fence();
 }
 
 template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE,
@@ -133,7 +134,7 @@ void DifferentiatorElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES>::
       Kokkos::RangePolicy<
           Kokkos::LaunchBounds<LaunchMaxThreadsPerBlock, LaunchMinBlocksPerSM>>(
           0, mesh.getNumberOfElements()),
-      KOKKOS_CLASS_LAMBDA(const int elementNumber) {
+      KOKKOS_LAMBDA(const int elementNumber) {
         if (elementNumber >= mesh.getNumberOfElements()) return;
 
         int const dim = mesh.getOrder() + 1;
@@ -258,7 +259,7 @@ void DifferentiatorElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES>::
       Kokkos::RangePolicy<
           Kokkos::LaunchBounds<LaunchMaxThreadsPerBlock, LaunchMinBlocksPerSM>>(
           0, mesh.getNumberOfElements()),
-      KOKKOS_CLASS_LAMBDA(const int elementNumber) {
+      KOKKOS_LAMBDA(const int elementNumber) {
         if (elementNumber >= mesh.getNumberOfElements()) return;
 
         int const dim = mesh.getOrder() + 1;
