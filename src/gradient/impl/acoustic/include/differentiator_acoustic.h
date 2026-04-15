@@ -87,7 +87,6 @@ class DifferentiatorAcoustic : public Differentiator
               << ">\n";
   }
 
- private:
   /**
    * @brief Each element writes to a unique index — no atomic add required.
    *
@@ -268,7 +267,6 @@ class DifferentiatorAcoustic : public Differentiator
           float localQnPrev[kPointsPerElement] = {0};
           float localQnPrevPrev[kPointsPerElement] = {0};
           int localGIdx[kPointsPerElement] = {0};
-          bool isInteriorNode[kPointsPerElement] = {false};
           for (int i = 0; i < dim; ++i)
             for (int j = 0; j < dim; ++j)
               for (int k = 0; k < dim; ++k)
@@ -280,46 +278,31 @@ class DifferentiatorAcoustic : public Differentiator
                 localQn[lIdx] = qn(gIdx);
                 localQnPrev[lIdx] = qnPrev(gIdx);
                 localQnPrevPrev[lIdx] = qnPrevPrev(gIdx);
-                // Node is interior if not on any boundary of the element
-                isInteriorNode[lIdx] = (i > 0 && i < ORDER) &&
-                                       (j > 0 && j < ORDER) &&
-                                       (k > 0 && k < ORDER);
               }
 
           float const invDt2 = 1.0f / (dt * dt);
-          bool shouldNormalize = (mesh.getNumberOfElements() > 1);
 
-          // grad_kappa: scatter per quadrature point to its global node.
-          // Normalize by M_ii only for interior nodes in multi-element meshes.
+          // grad_kappa: scatter per quadrature point to its global node,
+          // normalized by M_ii
           INTEGRAL_TYPE::computeMassTerm(
               transformData, [&](const int q, const real_t val) {
                 float const qdt2 =
                     (localQnPrevPrev[q] - 2.0f * localQnPrev[q] + localQn[q]) *
                     invDt2;
                 int const gIdx = localGIdx[q];
-                float contrib = qdt2 * localPn[q] * val;
-                // Normalize only for interior nodes in multi-element meshes
-                if (shouldNormalize && isInteriorNode[q])
-                {
-                  contrib /= massDiag(gIdx);
-                }
+                float const contrib = qdt2 * localPn[q] * val / massDiag(gIdx);
                 ATOMICADD(gradKappa(gIdx), contrib);
               });
 
           // grad_buoyancy: scatter test-function node (i) contributions to
-          // global node. Normalize only for interior nodes in multi-element
-          // meshes.
+          // global node, normalized by M_ii (mass matrix diagonal at node i)
           INTEGRAL_TYPE::computeStiffnessTerm(
               transformData,
               [&](const int /*qa*/, const int /*qb*/, const int /*qc*/) {},
               [&](const int i, const int j, const real_t val) {
                 int const gIdx = localGIdx[i];
-                float contrib = val * localQn[j] * localPn[i];
-                // Normalize only for interior nodes in multi-element meshes
-                if (shouldNormalize && isInteriorNode[i])
-                {
-                  contrib /= massDiag(gIdx);
-                }
+                float const contrib =
+                    val * localQn[j] * localPn[i] / massDiag(gIdx);
                 ATOMICADD(gradBuoyancy(gIdx), contrib);
               });
         });
