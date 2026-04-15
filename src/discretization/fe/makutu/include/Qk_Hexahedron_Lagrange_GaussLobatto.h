@@ -1108,6 +1108,7 @@ Qk_Hexahedron_Lagrange_GaussLobatto<GL_BASIS>::computeGradPhiGradPhi(
   const real_t w =
       GL_BASIS::weight(qa) * GL_BASIS::weight(qb) * GL_BASIS::weight(qc);
   func1(qa, qb, qc, J.data);
+  #pragma unroll 1
   for (int i = 0; i < num1dNodes; i++)
   {
     const int ibc = GL_BASIS::TensorProduct3D::linearIndex(i, qb, qc);
@@ -1116,6 +1117,7 @@ Qk_Hexahedron_Lagrange_GaussLobatto<GL_BASIS>::computeGradPhiGradPhi(
     const real_t gia = basisGradientAt(i, qa);
     const real_t gib = basisGradientAt(i, qb);
     const real_t gic = basisGradientAt(i, qc);
+    #pragma unroll 1
     for (int j = 0; j < num1dNodes; j++)
     {
       const int jbc = GL_BASIS::TensorProduct3D::linearIndex(j, qb, qc);

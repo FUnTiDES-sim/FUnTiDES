@@ -137,15 +137,16 @@ template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE,
 void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES,
                PHYSICS>::resetGlobalVectors(int numNodes)
 {
-  bool has_attenuation = (attenuationEnabled_ && nSls_ > 0);
+  bool const has_attenuation = (attenuationEnabled_ && nSls_ > 0);
 
-  std::array<std::remove_reference_t<decltype(workVectorsGlobal_[0])>,
-             kNumFields>
-      work_vecs;
-  std::array<
-      std::remove_reference_t<decltype(attenuationWorkVectorsGlobal_[0])>,
-      kNumFields>
-      atten_vecs;
+  // Utilisation de Kokkos::Array au lieu de std::array pour le GPU !
+  using FieldViewType =
+      std::remove_reference_t<decltype(workVectorsGlobal_[0])>;
+  using AttenViewType =
+      std::remove_reference_t<decltype(attenuationWorkVectorsGlobal_[0])>;
+
+  Kokkos::Array<FieldViewType, kNumFields> work_vecs;
+  Kokkos::Array<AttenViewType, kNumFields> atten_vecs;
 
   for (int f = 0; f < kNumFields; ++f)
   {
@@ -176,28 +177,42 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES,
                PHYSICS>::applyRHSTerm(int timeSample, float dt,
                                       const DataType& data)
 {
-  int nb_rhs_element = data.getRhsElement().extent(0);
+  int const nb_rhs_element = data.getRhsElement().extent(0);
 
-  auto mesh_local = m_mesh;  // Capture mesh for lambda
+  // Extraction des variables
+  auto mesh_local = m_mesh;
+  auto rhs_elements = data.getRhsElement();
+  auto rhs_weights = data.getRhsWeights();
+
+  using RhsTermType = std::remove_reference_t<decltype(data.getRhsTerm(0))>;
+  using FieldViewType =
+      std::remove_reference_t<decltype(workVectorsGlobal_[0])>;
+
+  Kokkos::Array<RhsTermType, kNumRhs> rhs_terms;
+  Kokkos::Array<FieldViewType, kNumFields> work_vecs;
+
+  for (int f = 0; f < kNumRhs; ++f) rhs_terms[f] = data.getRhsTerm(f);
+  for (int f = 0; f < kNumFields; ++f) work_vecs[f] = workVectorsGlobal_[f];
 
   Kokkos::parallel_for(
-      "Solver Apply RHSTerm", nb_rhs_element, KOKKOS_CLASS_LAMBDA(const int i) {
+      "Solver Apply RHSTerm", nb_rhs_element, KOKKOS_LAMBDA(const int i) {
         for (int z = 0; z < ORDER + 1; z++)
         {
           for (int y = 0; y < ORDER + 1; y++)
           {
             for (int x = 0; x < ORDER + 1; x++)
             {
-              int localNodeId =
+              int const localNodeId =
                   x + y * (ORDER + 1) + z * (ORDER + 1) * (ORDER + 1);
-              int nodeRHS =
-                  mesh_local.globalNodeIndex(data.getRhsElement()[i], x, y, z);
+              int const nodeRHS =
+                  mesh_local.globalNodeIndex(rhs_elements[i], x, y, z);
 
               for (int f = 0; f < kNumRhs; ++f)
               {
-                float source = data.getRhsTerm(f)(i, timeSample) *
-                               data.getRhsWeights()(i, localNodeId);
-                workVectorsGlobal_[f](nodeRHS) -= source;
+                float const source =
+                    rhs_terms[f](i, timeSample) * rhs_weights(i, localNodeId);
+                // Modification atomique par sécurité sur GPU
+                ATOMICADD(work_vecs[f](nodeRHS), -source);
               }
             }
           }
@@ -236,7 +251,6 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES,
 //============================================================================
 // computeAttenuationContributions - Assemble attenuation stiffness terms
 //============================================================================
-
 template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE,
           bool IS_MODEL_ON_NODES, physicType PHYSICS>
 void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES,
@@ -245,35 +259,35 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES,
   if (!attenuationEnabled_ || nSls_ <= 0) return;
 
   auto mesh_local = m_mesh;
+  auto anisotropyLocal = anisotropyType_;
+
+  constexpr int NF = kNumFields;
+  Kokkos::View<real_t*> awv[NF];
+  for (int f = 0; f < NF; ++f) awv[f] = attenuationWorkVectorsGlobal_[f];
 
   Kokkos::parallel_for(
       "Solver Attenuation Contributions",
       Kokkos::RangePolicy<
           Kokkos::LaunchBounds<LaunchMaxThreadsPerBlock, LaunchMinBlocksPerSM>>(
           0, mesh_local.getNumberOfElements()),
-      KOKKOS_CLASS_LAMBDA(const int elementNumber) {
+      KOKKOS_LAMBDA(const int elementNumber) {
+        (void)anisotropyLocal;
         if (elementNumber >= mesh_local.getNumberOfElements()) return;
 
         int const dim = mesh_local.getOrder() + 1;
-        float localFields[kNumFields][kPointsPerElement] = {{0}};
-        float localWorkA[kNumFields][kPointsPerElement] = {{0}};
+        float localFields[NF][kPointsPerElement] = {{0}};
+        float localWorkA[NF][kPointsPerElement] = {{0}};
 
         for (int i = 0; i < dim; ++i)
-        {
           for (int j = 0; j < dim; ++j)
-          {
             for (int k = 0; k < dim; ++k)
             {
               int const globalIdx =
                   mesh_local.globalNodeIndex(elementNumber, i, j, k);
               int const localIdx = i + j * dim + k * dim * dim;
-              for (int f = 0; f < kNumFields; ++f)
-              {
+              for (int f = 0; f < NF; ++f)
                 localFields[f][localIdx] = data.getCurrentField(f)(globalIdx);
-              }
             }
-          }
-        }
 
         typename INTEGRAL_TYPE::TransformType transformData;
         model_discretization_interface::gatherTransformData(
@@ -288,7 +302,6 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES,
                 1.0f / (mesh_local.getModelRhoOnElement(elementNumber) *
                         mesh_local.getModelQpOnElement(elementNumber));
           }
-
           INTEGRAL_TYPE::computeStiffnessTerm(
               transformData,
               [&](const int qa, const int qb, const int qc) {
@@ -307,7 +320,7 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES,
         }
         else
         {
-          if (anisotropyType_ != model::AnisotropyType::kIso) return;
+          if (anisotropyLocal != model::AnisotropyType::kIso) return;
 
           struct CJPacked
           {
@@ -338,14 +351,12 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES,
                   qp = mesh_local.getModelQpOnElement(elementNumber);
                   qs = mesh_local.getModelQsOnElement(elementNumber);
                 }
-
                 float mu = rho * vs * vs;
                 float lambda = rho * (vp * vp - 2.0f * vs * vs);
                 float lambdap2mua = (lambda + 2.0f * mu) / qp;
                 mu = mu / qs;
                 lambda = lambdap2mua - 2.0f * mu;
                 float lambda_plus_2mu = lambda + 2.0f * mu;
-
                 for (int p = 0; p < 3; ++p)
                 {
                   float const Jp0 = J[p][0], Jp1 = J[p][1], Jp2 = J[p][2];
@@ -384,29 +395,21 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES,
         }
 
         for (int i = 0; i < dim; ++i)
-        {
           for (int j = 0; j < dim; ++j)
-          {
             for (int k = 0; k < dim; ++k)
             {
               int const globalIdx =
                   mesh_local.globalNodeIndex(elementNumber, i, j, k);
               int const localIdx = i + j * dim + k * dim * dim;
-              for (int f = 0; f < kNumFields; ++f)
-              {
-                ATOMICADD(attenuationWorkVectorsGlobal_[f][globalIdx],
-                          localWorkA[f][localIdx]);
-              }
+              for (int f = 0; f < NF; ++f)
+                ATOMICADD(awv[f](globalIdx), localWorkA[f][localIdx]);
             }
-          }
-        }
       });
 }
 
 //============================================================================
 // computeElementContributions acoustic - ACOUSTIC
 //============================================================================
-
 template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE,
           bool IS_MODEL_ON_NODES, physicType PHYSICS>
 void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::
@@ -418,17 +421,8 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::
   int const n_iter =
       list_on ? m_n_elem_list_ : mesh_local.getNumberOfElements();
 
-  using FieldViewType =
-      std::remove_reference_t<decltype(data.getCurrentField(0))>;
-
-  Kokkos::Array<FieldViewType, kNumFields> current_fields;
-  Kokkos::Array<FieldViewType, kNumFields> work_vecs;
-
-  for (int f = 0; f < kNumFields; ++f)
-  {
-    current_fields[f] = data.getCurrentField(f);
-    work_vecs[f] = workVectorsGlobal_[f];
-  }
+  auto current_field0 = data.getCurrentField(0);
+  auto work_vec0 = workVectorsGlobal_[0];
 
   Kokkos::parallel_for(
       "Solver Element Contribution Acoustic",
@@ -440,8 +434,9 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::
         int const elementNumber = list_on ? list_local[_loop_idx] : _loop_idx;
 
         int const dim = mesh_local.getOrder() + 1;
-        float localFields[kNumFields][kPointsPerElement] = {{0}};
-        float localWork[kNumFields][kPointsPerElement] = {{0}};
+
+        float localFields[kPointsPerElement] = {0};
+        float localWork[kPointsPerElement] = {0};
 
         for (int i = 0; i < dim; ++i)
         {
@@ -453,10 +448,7 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::
                   mesh_local.globalNodeIndex(elementNumber, i, j, k);
               int const localIdx = i + j * dim + k * dim * dim;
 
-              for (int f = 0; f < kNumFields; ++f)
-              {
-                localFields[f][localIdx] = current_fields[f](globalIdx);
-              }
+              localFields[localIdx] = current_field0(globalIdx);
             }
           }
         }
@@ -482,8 +474,8 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::
               }
             },
             [&](const int i, const int j, const real_t val) {
-              float localIncrement = inv_density * val * localFields[0][j];
-              localWork[0][i] += localIncrement;
+              float localIncrement = inv_density * val * localFields[j];
+              localWork[i] += localIncrement;
             });
 
         for (int i = 0; i < dim; ++i)
@@ -496,10 +488,7 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::
                   mesh_local.globalNodeIndex(elementNumber, i, j, k);
               int const localIdx = i + j * dim + k * dim * dim;
 
-              for (int f = 0; f < kNumFields; ++f)
-              {
-                ATOMICADD(work_vecs[f][globalIdx], localWork[f][localIdx]);
-              }
+              ATOMICADD(work_vec0(globalIdx), localWork[localIdx]);
             }
           }
         }
@@ -1326,13 +1315,14 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES,
                PHYSICS>::computeGlobalMassMatrix()
 {
   auto mesh_local = m_mesh;
+  auto mass_matrix = massMatrixGlobal_;
 
   Kokkos::parallel_for(
       "Solver Compute GMatrix",
       Kokkos::RangePolicy<
           Kokkos::LaunchBounds<LaunchMaxThreadsPerBlock, LaunchMinBlocksPerSM>>(
           0, mesh_local.getNumberOfElements()),
-      KOKKOS_CLASS_LAMBDA(const int elementNumber) {
+      KOKKOS_LAMBDA(const int elementNumber) {
         if (elementNumber >= mesh_local.getNumberOfElements()) return;
 
         float massMatrixLocal[kPointsPerElement] = {0};
@@ -1384,7 +1374,7 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES,
           }
 
           massMatrixLocal[i] *= model_factor;
-          ATOMICADD(massMatrixGlobal_[gIndex], massMatrixLocal[i]);
+          ATOMICADD(mass_matrix[gIndex], massMatrixLocal[i]);
         }
       });
 }
