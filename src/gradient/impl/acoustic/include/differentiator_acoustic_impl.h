@@ -196,10 +196,10 @@ void DifferentiatorAcoustic<ORDER, INTEGRAL_TYPE, MESH_TYPE,
             }
 
         // Accumulate mass matrix diagonal: M_ii = sum_K val_i
-        INTEGRAL_TYPE::computeMassTerm(
-            transformData, [&](const int q, const real_t val) {
-              ATOMICADD(massDiag(localGIdx[q]), val);
-            });
+        INTEGRAL_TYPE::computeMassTerm(transformData,
+                                       [&](const int q, const real_t val) {
+                                         ATOMICADD(massDiag(localGIdx[q]), val);
+                                       });
       });
 
   // =====================================================
