@@ -40,6 +40,8 @@ void DifferentiatorElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES>::
   else
     computeOnNodes(myMesh, dt, ux_fwd, uy_fwd, uz_fwd, ux_adj, uy_adj, uz_adj,
                    ux_dt2, uy_dt2, uz_dt2, gradRho, gradLambda, gradMu);
+  Kokkos::fence();  // Ensure all parallel computations are complete before
+                    // returning
 }
 
 template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE,
