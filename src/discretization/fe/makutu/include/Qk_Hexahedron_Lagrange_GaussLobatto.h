@@ -504,6 +504,31 @@ class Qk_Hexahedron_Lagrange_GaussLobatto final
       TransformType const &transformData, FUNC1 &&func1, FUNC2 &&func2);
 
   /**
+   * @brief Acoustic stiffness K·p via sum factorization (3-pass algorithm).
+   *
+   * Computes the elemental contribution (K·p)_i = ∫ ∇φ_i · (1/ρ) ∇p dV and
+   * accumulates it into @p f_local using three passes:
+   *   1. Gradient: compute ∂p/∂ξ, ∂p/∂η, ∂p/∂ζ at each quad point via D·p.
+   *   2. Flux: apply B/ρ and quadrature weight to obtain G^{ξ,η,ζ} at each
+   *      quad point.
+   *   3. Divergence: scatter D^T·G back to node forces.
+   *
+   * Complexity per element: O(N^4) vs O(N^5) for the direct assembly.
+   *
+   * @tparam FUNC_RHO Callable with signature `real_t(int qa, int qb, int qc)`
+   *                  returning 1/ρ at reference quad point (qa, qb, qc).
+   * @param transformData 8 corner coordinates of the hexahedral element.
+   * @param p_local       Pressure at element nodes (size numNodes).
+   * @param f_local       Force accumulation buffer (size numNodes), added
+   *                      to in-place.
+   * @param get_inv_rho   Material callback returning 1/ρ per quad point.
+   */
+  template <typename FUNC_ALPHA>
+  PROXY_HOST_DEVICE static void computeStiffnessTermSumFact(
+      TransformType const &transformData, real_t const (&p_local)[numNodes],
+      real_t (&f_local)[numNodes], FUNC_ALPHA &&get_alpha);
+
+  /**
    * @brief Computes the "Grad(Phi)*B*Grad(Phi)" coefficient of the stiffness
    * term. The matrix B must be provided and Phi denotes a basis function.
    * @param qa The 1d quadrature point index in xi0 direction (0,1)
@@ -1079,6 +1104,88 @@ Qk_Hexahedron_Lagrange_GaussLobatto<GL_BASIS>::computeStiffnessTerm(
         computeBMatrix(qa, qb, qc, X, J, B);
         computeGradPhiBGradPhi<qa, qb, qc>(B, func1, func2);
       });
+}
+
+template <typename GL_BASIS>
+template <typename FUNC_ALPHA>
+PROXY_HOST_DEVICE void
+Qk_Hexahedron_Lagrange_GaussLobatto<GL_BASIS>::computeStiffnessTermSumFact(
+    TransformType const &transformData, real_t const (&u_local)[numNodes],
+    real_t (&v_local)[numNodes], FUNC_ALPHA &&get_alpha)
+{
+  float const(&X)[8][3] = transformData.data;
+
+  // Flux pondérés G^{ξ,η,ζ}[q] = w_q * alpha_q * M(B_q) · ∇_ξ u_q
+  real_t G_xi[numNodes] = {0};
+  real_t G_eta[numNodes] = {0};
+  real_t G_zeta[numNodes] = {0};
+
+  // Pass 1+2 fused: gradient de u, puis application de la métrique, de alpha et
+  // du poids
+  triple_loop<num1dNodes, num1dNodes, num1dNodes>(
+      [&](auto const icqa, auto const icqb, auto const icqc) {
+        constexpr int qa = decltype(icqa)::value;
+        constexpr int qb = decltype(icqb)::value;
+        constexpr int qc = decltype(icqc)::value;
+        constexpr int q = GL_BASIS::TensorProduct3D::linearIndex(qa, qb, qc);
+
+        // La gestion des poids de quadrature est interne à la bibliothèque
+        // mathématique
+        constexpr real_t w =
+            GL_BASIS::weight(qa) * GL_BASIS::weight(qb) * GL_BASIS::weight(qc);
+
+        real_t dxi_q = 0, deta_q = 0, dzeta_q = 0;
+        for_constexpr<num1dNodes>([&](auto ici) {
+          constexpr int i = decltype(ici)::value;
+          constexpr int ibc = GL_BASIS::TensorProduct3D::linearIndex(i, qb, qc);
+          constexpr int aic = GL_BASIS::TensorProduct3D::linearIndex(qa, i, qc);
+          constexpr int abi = GL_BASIS::TensorProduct3D::linearIndex(qa, qb, i);
+
+          dxi_q += basisGradientAt(i, qa) * u_local[ibc];
+          deta_q += basisGradientAt(i, qb) * u_local[aic];
+          dzeta_q += basisGradientAt(i, qc) * u_local[abi];
+        });
+
+        real_t J[3][3] = {{0}};
+        real_t B[6] = {0};
+        computeBMatrix(qa, qb, qc, X, J, B);
+
+        // 'scale' fusionne la physique (alpha) et la quadrature (w)
+        real_t const scale = w * get_alpha(qa, qb, qc);
+
+        G_xi[q] = scale * (B[0] * dxi_q + B[5] * deta_q + B[4] * dzeta_q);
+        G_eta[q] = scale * (B[5] * dxi_q + B[1] * deta_q + B[3] * dzeta_q);
+        G_zeta[q] = scale * (B[4] * dxi_q + B[3] * deta_q + B[2] * dzeta_q);
+      });
+
+  // Pass 3: divergence — v_{ia,ib,ic} += D^T·G^ξ + D^T·G^η + D^T·G^ζ
+  triple_loop<num1dNodes, num1dNodes, num1dNodes>([&](auto const icia,
+                                                      auto const icib,
+                                                      auto const icic) {
+    constexpr int ia = decltype(icia)::value;
+    constexpr int ib = decltype(icib)::value;
+    constexpr int ic = decltype(icic)::value;
+    constexpr int node = GL_BASIS::TensorProduct3D::linearIndex(ia, ib, ic);
+
+    real_t v = 0;
+    for_constexpr<num1dNodes>([&](auto icqa) {
+      constexpr int qa = decltype(icqa)::value;
+      constexpr int q_xi = GL_BASIS::TensorProduct3D::linearIndex(qa, ib, ic);
+      v += basisGradientAt(ia, qa) * G_xi[q_xi];
+    });
+    for_constexpr<num1dNodes>([&](auto icqb) {
+      constexpr int qb = decltype(icqb)::value;
+      constexpr int q_eta = GL_BASIS::TensorProduct3D::linearIndex(ia, qb, ic);
+      v += basisGradientAt(ib, qb) * G_eta[q_eta];
+    });
+    for_constexpr<num1dNodes>([&](auto icqc) {
+      constexpr int qc = decltype(icqc)::value;
+      constexpr int q_zeta = GL_BASIS::TensorProduct3D::linearIndex(ia, ib, qc);
+      v += basisGradientAt(ic, qc) * G_zeta[q_zeta];
+    });
+
+    v_local[node] += v;
+  });
 }
 
 template <typename GL_BASIS>

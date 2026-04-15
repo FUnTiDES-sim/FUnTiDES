@@ -263,19 +263,19 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES,
             inv_density = 1.0f / mesh_local.getModelRhoOnElement(elementNumber);
           }
 
-          INTEGRAL_TYPE::computeStiffnessTerm(
-              transformData,
-              [&](const int qa, const int qb, const int qc) {
+          INTEGRAL_TYPE::computeStiffnessTermSumFact(
+              transformData, localFields[0], localWork[0],
+              [&](const int qa, const int qb, const int qc) -> real_t {
                 if constexpr (IS_MODEL_ON_NODES)
                 {
                   int const gIndex =
                       mesh_local.globalNodeIndex(elementNumber, qa, qb, qc);
-                  inv_density = 1.0f / mesh_local.getModelRhoOnNodes(gIndex);
+                  return 1.0f / mesh_local.getModelRhoOnNodes(gIndex);
                 }
-              },
-              [&](const int i, const int j, const real_t val) {
-                float localIncrement = inv_density * val * localFields[0][j];
-                localWork[0][i] += localIncrement;
+                else
+                {
+                  return inv_density;
+                }
               });
 
           for (int i = 0; i < dim; ++i)
