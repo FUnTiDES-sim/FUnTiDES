@@ -1385,20 +1385,21 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES,
 //============================================================================
 // computeGlobalDampingMatrix - Assemble damping matrix
 //============================================================================
-
 template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE,
           bool IS_MODEL_ON_NODES, physicType PHYSICS>
 void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES,
                PHYSICS>::computeDampingMatrix()
 {
   auto mesh_local = m_mesh;
+  auto dampingMatrixGlobal_local = dampingMatrixGlobal_;
 
   Kokkos::parallel_for(
       "Solver Compute Damping Matrix",
       Kokkos::RangePolicy<
           Kokkos::LaunchBounds<LaunchMaxThreadsPerBlock, LaunchMinBlocksPerSM>>(
           0, mesh_local.getNumberOfElements()),
-      KOKKOS_CLASS_LAMBDA(const int elementNumber) {
+      KOKKOS_LAMBDA(const int elementNumber) {
+        (void)dampingMatrixGlobal_local;
         if (elementNumber >= mesh_local.getNumberOfElements()) return;
 
         for (int i = 0; i < 6; ++i)
@@ -1457,7 +1458,8 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES,
 
               real_t localIncrement =
                   alpha * INTEGRAL_TYPE::computeDampingTerm(q, coords);
-              ATOMICADD(dampingMatrixGlobal_[0][globalNodeIndex],
+              // Utilisation de la variable extraite
+              ATOMICADD(dampingMatrixGlobal_local[0][globalNodeIndex],
                         localIncrement);
             }
           }
@@ -1509,11 +1511,11 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES,
                   aux * (velocityVp * fabs(nz) +
                          velocityVs * sqrt(nx * nx + ny * ny));
 
-              ATOMICADD(dampingMatrixGlobal_[0][globalNodeIndex],
+              ATOMICADD(dampingMatrixGlobal_local[0][globalNodeIndex],
                         localIncrementx);
-              ATOMICADD(dampingMatrixGlobal_[1][globalNodeIndex],
+              ATOMICADD(dampingMatrixGlobal_local[1][globalNodeIndex],
                         localIncrementy);
-              ATOMICADD(dampingMatrixGlobal_[2][globalNodeIndex],
+              ATOMICADD(dampingMatrixGlobal_local[2][globalNodeIndex],
                         localIncrementz);
             }
           }

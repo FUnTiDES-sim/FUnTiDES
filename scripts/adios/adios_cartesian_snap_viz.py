@@ -66,23 +66,7 @@ from mpl_toolkits.mplot3d import Axes3D
 
 def read_adios2_data(filename, variable_name, nx, ny, nz):
     """
-    Read 3D pressure field data from ADIOS2 BP file using h5py or direct binary reading.
-
-    Parameters:
-    -----------
-    filename : str
-        Path to ADIOS2 BP file (can be BP5 directory or h5-compatible)
-    variable_name : str
-        Name of the variable to read
-    nx, ny, nz : int
-        Grid dimensions
-
-    Returns:
-    --------
-    data : list of numpy arrays
-        List of 3D arrays, one per timestep
-    timesteps : list of int
-        Timestep values
+    Lit les données ADIOS2 en utilisant l'API Python officielle via adios2.Stream.
     """
     print(f"Reading {filename}...")
 
@@ -93,49 +77,44 @@ def read_adios2_data(filename, variable_name, nx, ny, nz):
     data_list = []
     timestep_list = []
 
-    # Try h5py if available (for HDF5 BP files)
     try:
-        import h5py
-        print("  Attempting to read with h5py...")
-        with h5py.File(filename, 'r') as f:
-            # List what's in the file
-            print(f"  Available datasets: {list(f.keys())}")
+        import adios2
+        print("  Lecture via la librairie officielle adios2...")
 
-            if variable_name not in f:
-                print(f"  Error: Variable '{variable_name}' not found")
-                print(f"  Available: {list(f.keys())}")
-                return None, None
+        # Utilisation de la nouvelle API Python d'ADIOS2
+        with adios2.Stream(filename, "r") as s:
+            for _ in s.steps():
+                step_idx = s.current_step()
 
-            dataset = f[variable_name]
-            print(f"  Shape: {dataset.shape}, dtype: {dataset.dtype}")
+                try:
+                    # Lecture propre du tableau pour l'étape courante
+                    data = s.read(variable_name)
+                except Exception as e:
+                    print(f"  [Avertissement] Impossible de lire '{variable_name}' à l'étape {step_idx}: {e}")
+                    continue
 
-            # Read all data or by steps
-            if len(dataset.shape) == 4:
-                # Shape: (steps, nx, ny, nz)
-                for step in range(dataset.shape[0]):
-                    data = dataset[step, :, :, :]
-                    data_list.append(data.astype(np.float32))
-                    timestep_list.append(step)
-            elif len(dataset.shape) == 3:
-                # Single timestep: (nx, ny, nz)
-                data_list.append(dataset[:, :, :].astype(np.float32))
-                timestep_list.append(0)
-            else:
-                print(f"  Error: Unexpected shape {dataset.shape}")
-                return None, None
+                # ADIOS2 conserve l'ordre du solveur C++.
+                # Si l'ordre de la forme lue est inversé, on la transpose.
+                if data.shape == (nz, ny, nx):
+                    data = data.transpose(2, 1, 0)
+                elif data.shape == (ny, nz, nx):
+                    data = data.transpose(2, 0, 1)
 
-            print(f"Successfully read {len(data_list)} timesteps")
-            return data_list, timestep_list
+                data_list.append(data.astype(np.float32))
+                timestep_list.append(step_idx)
+
+        print(f"  Successfully read {len(data_list)} timesteps")
+        return data_list, timestep_list
 
     except ImportError:
-        print("  h5py not available, trying BP5 directory...")
+        print("\n  [ERREUR] Le module Python 'adios2' n'est pas installé.")
+        print("  Veuillez l'installer en tapant : pip install adios2\n")
+        return None, None
     except Exception as e:
-        print(f"  Error reading with h5py: {e}")
-        print("  Trying BP5 directory...")
-
-    # Fallback: Try reading BP file structure directly
-    return read_bp5_directory(filename, variable_name, nx, ny, nz)
-
+        print(f"  Erreur inattendue lors de la lecture avec adios2: {e}")
+        import traceback
+        traceback.print_exc()
+        return None, None
 
 def read_bp5_directory(directory, variable_name, nx, ny, nz):
     """
@@ -201,7 +180,9 @@ def read_bp5_directory(directory, variable_name, nx, ny, nz):
             for step in range(num_steps):
                 start_idx = step * values_per_step
                 end_idx = start_idx + values_per_step
-                step_data = data_array[start_idx:end_idx].reshape((nx, ny, nz))
+                # step_data = data_array[start_idx:end_idx].reshape((nx, ny, nz), order='F')
+                # step_data = data_array[start_idx:end_idx].reshape((nx, ny, nz))
+                step_data = data_array[start_idx:end_idx].reshape((nz, ny, nx)).transpose(2, 1, 0)
                 data_list.append(step_data)
                 timestep_list.append(step)
             print(f"  Successfully read {num_steps} complete timesteps")
@@ -622,8 +603,8 @@ def main():
     parser.add_argument('nx', type=int, help='Number of nodes in X direction')
     parser.add_argument('ny', type=int, help='Number of nodes in Y direction')
     parser.add_argument('nz', type=int, help='Number of nodes in Z direction')
-    parser.add_argument('--file', type=str, default='snapshots.bp',
-                        help='ADIOS2 BP file path (default: snapshots.bp)')
+    parser.add_argument('--file', type=str, default='snapshots',
+                        help='ADIOS2 BP file path (default: snapshots)')
     parser.add_argument('--var', type=str, default='PressureField',
                         help='Variable name to visualize (default: PressureField)')
     parser.add_argument('--output', type=str, default='plots',
