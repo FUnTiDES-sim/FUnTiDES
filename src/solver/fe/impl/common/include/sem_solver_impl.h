@@ -1173,7 +1173,6 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES,
     int const n_iter = list_on ? m_n_node_list_ : mesh_local.getNumberOfNodes();
     Kokkos::parallel_for(
         "Solver Update Field Acoustic", n_iter,
-        // Use standard KOKKOS_LAMBDA to capture local variables by value
         KOKKOS_LAMBDA(const int _node_idx) {
           if (_node_idx >= n_iter) return;
           int const I = list_on ? list_local[_node_idx] : _node_idx;
