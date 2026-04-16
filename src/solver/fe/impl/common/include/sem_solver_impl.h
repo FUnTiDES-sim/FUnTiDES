@@ -228,7 +228,6 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES,
                                                  LaunchMinBlocksPerSM>>(0,
                                                                         n_iter),
         KOKKOS_CLASS_LAMBDA(const int _loop_idx) {
-          if (_loop_idx >= n_iter) return;
           int const elementNumber = list_on ? list_local[_loop_idx] : _loop_idx;
 
           int const dim = mesh_local.getOrder() + 1;
@@ -319,8 +318,6 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES,
           Kokkos::LaunchBounds<LaunchMaxThreadsPerBlock, LaunchMinBlocksPerSM>>(
           0, mesh_local.getNumberOfElements()),
       KOKKOS_CLASS_LAMBDA(const int elementNumber) {
-        if (elementNumber >= mesh_local.getNumberOfElements()) return;
-
         int const dim = mesh_local.getOrder() + 1;
         float localFields[kNumFields][kPointsPerElement] = {{0}};
         float localWorkA[kNumFields][kPointsPerElement] = {{0}};
@@ -496,7 +493,6 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES,
           Kokkos::LaunchBounds<LaunchMaxThreadsPerBlock, LaunchMinBlocksPerSM>>(
           0, n_iter),
       KOKKOS_CLASS_LAMBDA(const int _loop_idx) {
-        if (_loop_idx >= n_iter) return;
         int const elementNumber = list_on ? list_local[_loop_idx] : _loop_idx;
 
         int const dim = mesh_local.getOrder() + 1;
@@ -527,28 +523,41 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES,
           model_discretization_interface::gatherTransformData(
               elementNumber, mesh_local, transformData);
 
+          // Hoist per-element material constants; per-node models are read
+          // inside the callback since they vary per quadrature point.
+          float mu_e = 0.0f, lambda_e = 0.0f, lam2mu_e = 0.0f;
+          if constexpr (!IS_MODEL_ON_NODES)
+          {
+            float const vp_e = mesh_local.getModelVpOnElement(elementNumber);
+            float const vs_e = mesh_local.getModelVsOnElement(elementNumber);
+            float const rho_e = mesh_local.getModelRhoOnElement(elementNumber);
+            mu_e = rho_e * vs_e * vs_e;
+            lambda_e = rho_e * (vp_e * vp_e - 2.0f * vs_e * vs_e);
+            lam2mu_e = lambda_e + 2.0f * mu_e;
+          }
+
           INTEGRAL_TYPE::computeElasticStiffnessSumFact(
               transformData, localFields, localWork,
               [&](int qa, int qb, int qc, float const(&J_inv)[3][3],
                   float const(&grad_u_ref)[3][3], float(&flux)[3][3]) {
-                float vp, vs, rho;
+                float mu, lambda, lam2mu;
                 if constexpr (IS_MODEL_ON_NODES)
                 {
                   int const gIndex =
                       mesh_local.globalNodeIndex(elementNumber, qa, qb, qc);
-                  vp = mesh_local.getModelVpOnNodes(gIndex);
-                  vs = mesh_local.getModelVsOnNodes(gIndex);
-                  rho = mesh_local.getModelRhoOnNodes(gIndex);
+                  float const vp = mesh_local.getModelVpOnNodes(gIndex);
+                  float const vs = mesh_local.getModelVsOnNodes(gIndex);
+                  float const rho = mesh_local.getModelRhoOnNodes(gIndex);
+                  mu = rho * vs * vs;
+                  lambda = rho * (vp * vp - 2.0f * vs * vs);
+                  lam2mu = lambda + 2.0f * mu;
                 }
                 else
                 {
-                  vp = mesh_local.getModelVpOnElement(elementNumber);
-                  vs = mesh_local.getModelVsOnElement(elementNumber);
-                  rho = mesh_local.getModelRhoOnElement(elementNumber);
+                  mu = mu_e;
+                  lambda = lambda_e;
+                  lam2mu = lam2mu_e;
                 }
-                float const mu = rho * vs * vs;
-                float const lambda = rho * (vp * vp - 2.0f * vs * vs);
-                float const lam2mu = lambda + 2.0f * mu;
 
                 for (int p = 0; p < 3; ++p)
                 {
@@ -626,7 +635,6 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES,
           Kokkos::LaunchBounds<LaunchMaxThreadsPerBlock, LaunchMinBlocksPerSM>>(
           0, n_iter),
       KOKKOS_CLASS_LAMBDA(const int _loop_idx) {
-        if (_loop_idx >= n_iter) return;
         int const elementNumber = list_on ? list_local[_loop_idx] : _loop_idx;
 
         int const dim = mesh_local.getOrder() + 1;
@@ -657,44 +665,70 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES,
           model_discretization_interface::gatherTransformData(
               elementNumber, mesh_local, transformData);
 
+          // Hoist per-element VTI stiffness coefficients.
+          float c11_e = 0, c12_e = 0, c13_e = 0, c33_e = 0, c44_e = 0,
+                c66_e = 0;
+          if constexpr (!IS_MODEL_ON_NODES)
+          {
+            float const vp_e = mesh_local.getModelVpOnElement(elementNumber);
+            float const vs_e = mesh_local.getModelVsOnElement(elementNumber);
+            float const rho_e = mesh_local.getModelRhoOnElement(elementNumber);
+            float const delta_e =
+                mesh_local.getModelDeltaOnElement(elementNumber);
+            float const epsilon_e =
+                mesh_local.getModelEpsilonOnElement(elementNumber);
+            float const gamma_e =
+                mesh_local.getModelGammaOnElement(elementNumber);
+            float const rho_vp2 = rho_e * vp_e * vp_e;
+            float const rho_vs2 = rho_e * vs_e * vs_e;
+            c33_e = rho_vp2;
+            c44_e = rho_vs2;
+            c11_e = rho_vp2 * (1.0f + 2.0f * epsilon_e);
+            c66_e = rho_vs2 * (1.0f + 2.0f * gamma_e);
+            float const vp2_vs2 = vp_e * vp_e - vs_e * vs_e;
+            c13_e = rho_e * sqrtf(vp2_vs2 * vp2_vs2 +
+                                  2.0f * rho_vp2 * delta_e * vp2_vs2) -
+                    rho_vs2;
+            c12_e = c11_e - 2.0f * c66_e;
+          }
+
           INTEGRAL_TYPE::computeElasticStiffnessSumFact(
               transformData, localFields, localWork,
               [&](int qa, int qb, int qc, float const(&J_inv)[3][3],
                   float const(&grad_u_ref)[3][3], float(&flux)[3][3]) {
-                float vp, vs, rho, delta, epsilon, gamma;
+                float c11, c12, c13, c33, c44, c66;
                 if constexpr (IS_MODEL_ON_NODES)
                 {
                   int const gIndex =
                       mesh_local.globalNodeIndex(elementNumber, qa, qb, qc);
-                  vp = mesh_local.getModelVpOnNodes(gIndex);
-                  vs = mesh_local.getModelVsOnNodes(gIndex);
-                  rho = mesh_local.getModelRhoOnNodes(gIndex);
-                  delta = mesh_local.getModelDeltaOnNodes(gIndex);
-                  epsilon = mesh_local.getModelEpsilonOnNodes(gIndex);
-                  gamma = mesh_local.getModelGammaOnNodes(gIndex);
+                  float const vp = mesh_local.getModelVpOnNodes(gIndex);
+                  float const vs = mesh_local.getModelVsOnNodes(gIndex);
+                  float const rho = mesh_local.getModelRhoOnNodes(gIndex);
+                  float const delta = mesh_local.getModelDeltaOnNodes(gIndex);
+                  float const epsilon =
+                      mesh_local.getModelEpsilonOnNodes(gIndex);
+                  float const gamma = mesh_local.getModelGammaOnNodes(gIndex);
+                  float const rho_vp2 = rho * vp * vp;
+                  float const rho_vs2 = rho * vs * vs;
+                  c33 = rho_vp2;
+                  c44 = rho_vs2;
+                  c11 = rho_vp2 * (1.0f + 2.0f * epsilon);
+                  c66 = rho_vs2 * (1.0f + 2.0f * gamma);
+                  float const vp2_vs2 = vp * vp - vs * vs;
+                  c13 = rho * sqrtf(vp2_vs2 * vp2_vs2 +
+                                    2.0f * rho_vp2 * delta * vp2_vs2) -
+                        rho_vs2;
+                  c12 = c11 - 2.0f * c66;
                 }
                 else
                 {
-                  vp = mesh_local.getModelVpOnElement(elementNumber);
-                  vs = mesh_local.getModelVsOnElement(elementNumber);
-                  rho = mesh_local.getModelRhoOnElement(elementNumber);
-                  delta = mesh_local.getModelDeltaOnElement(elementNumber);
-                  epsilon = mesh_local.getModelEpsilonOnElement(elementNumber);
-                  gamma = mesh_local.getModelGammaOnElement(elementNumber);
+                  c11 = c11_e;
+                  c12 = c12_e;
+                  c13 = c13_e;
+                  c33 = c33_e;
+                  c44 = c44_e;
+                  c66 = c66_e;
                 }
-
-                float const rho_vp2 = rho * vp * vp;
-                float const rho_vs2 = rho * vs * vs;
-                float const c33 = rho_vp2;
-                float const c44 = rho_vs2;
-                float const c11 = rho_vp2 * (1.0f + 2.0f * epsilon);
-                float const c66 = rho_vs2 * (1.0f + 2.0f * gamma);
-                float const vp2_vs2 = vp * vp - vs * vs;
-                float const c13 =
-                    rho * sqrtf(vp2_vs2 * vp2_vs2 +
-                                2.0f * rho_vp2 * delta * vp2_vs2) -
-                    rho_vs2;
-                float const c12 = c11 - 2.0f * c66;
 
                 for (int p = 0; p < 3; ++p)
                 {
@@ -779,7 +813,6 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES,
                                                  LaunchMinBlocksPerSM>>(0,
                                                                         n_iter),
         KOKKOS_CLASS_LAMBDA(const int _loop_idx) {
-          if (_loop_idx >= n_iter) return;
           int const elementNumber = list_on ? list_local[_loop_idx] : _loop_idx;
 
           int const dim = mesh_local.getOrder() + 1;
@@ -1135,8 +1168,6 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES,
           Kokkos::LaunchBounds<LaunchMaxThreadsPerBlock, LaunchMinBlocksPerSM>>(
           0, mesh_local.getNumberOfElements()),
       KOKKOS_CLASS_LAMBDA(const int elementNumber) {
-        if (elementNumber >= mesh_local.getNumberOfElements()) return;
-
         float massMatrixLocal[kPointsPerElement] = {0};
         int const dim = mesh_local.getOrder() + 1;
 
@@ -1208,8 +1239,6 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES,
           Kokkos::LaunchBounds<LaunchMaxThreadsPerBlock, LaunchMinBlocksPerSM>>(
           0, mesh_local.getNumberOfElements()),
       KOKKOS_CLASS_LAMBDA(const int elementNumber) {
-        if (elementNumber >= mesh_local.getNumberOfElements()) return;
-
         for (int i = 0; i < 6; ++i)
         {
           // Get global face ID for this element face
