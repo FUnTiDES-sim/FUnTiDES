@@ -24,7 +24,6 @@ template <typename GL_BASIS>
 class Qk_Hexahedron_Lagrange_GaussLobatto final
 {
  public:
-  constexpr static bool isShiva = false;
 
   // Expose the basis type for tests and external use
   using BasisType = GL_BASIS;
