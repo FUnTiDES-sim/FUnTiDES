@@ -498,7 +498,6 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::
 //============================================================================
 // computeElementContributions_Iso - ISOTROPIC OPTIMIZED
 //============================================================================
-
 template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE,
           bool IS_MODEL_ON_NODES, physicType PHYSICS>
 void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES,
@@ -511,12 +510,14 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES,
   int const n_iter =
       list_on ? m_n_elem_list_ : mesh_local.getNumberOfElements();
 
+  auto workVectorsGlobal_local = workVectorsGlobal_;
+
   Kokkos::parallel_for(
       "Solver Element Contribution Iso",
       Kokkos::RangePolicy<
           Kokkos::LaunchBounds<LaunchMaxThreadsPerBlock, LaunchMinBlocksPerSM>>(
           0, n_iter),
-      KOKKOS_CLASS_LAMBDA(const int _loop_idx) {
+      KOKKOS_LAMBDA(const int _loop_idx) {
         if (_loop_idx >= n_iter) return;
         int const elementNumber = list_on ? list_local[_loop_idx] : _loop_idx;
 
@@ -671,7 +672,7 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES,
 
               for (int f = 0; f < kNumFields; ++f)
               {
-                ATOMICADD(workVectorsGlobal_[f][globalIdx],
+                ATOMICADD(workVectorsGlobal_local[f][globalIdx],
                           localWork[f][localIdx]);
               }
             }
@@ -683,7 +684,6 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES,
 //============================================================================
 // computeElementContributions_VTI - VTI
 //============================================================================
-
 template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE,
           bool IS_MODEL_ON_NODES, physicType PHYSICS>
 void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES,
@@ -696,12 +696,14 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES,
   int const n_iter =
       list_on ? m_n_elem_list_ : mesh_local.getNumberOfElements();
 
+  auto workVectorsGlobal_local = workVectorsGlobal_;
+
   Kokkos::parallel_for(
       "Solver Element Contribution Vti",
       Kokkos::RangePolicy<
           Kokkos::LaunchBounds<LaunchMaxThreadsPerBlock, LaunchMinBlocksPerSM>>(
           0, n_iter),
-      KOKKOS_CLASS_LAMBDA(const int _loop_idx) {
+      KOKKOS_LAMBDA(const int _loop_idx) {
         if (_loop_idx >= n_iter) return;
         int const elementNumber = list_on ? list_local[_loop_idx] : _loop_idx;
 
@@ -874,7 +876,7 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES,
 
               for (int f = 0; f < kNumFields; ++f)
               {
-                ATOMICADD(workVectorsGlobal_[f][globalIdx],
+                ATOMICADD(workVectorsGlobal_local[f][globalIdx],
                           localWork[f][localIdx]);
               }
             }
@@ -882,10 +884,10 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES,
         }
       });
 }
+
 //============================================================================
 // computeElementContributions_TTI - TTI (CODE EXISTANT)
 //============================================================================
-
 template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE,
           bool IS_MODEL_ON_NODES, physicType PHYSICS>
 void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES,
@@ -903,12 +905,14 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES,
     int const n_iter =
         list_on ? m_n_elem_list_ : mesh_local.getNumberOfElements();
 
+    auto workVectorsGlobal_local = workVectorsGlobal_;
+
     Kokkos::parallel_for(
         "Solver Element Contribution Tti",
         Kokkos::RangePolicy<Kokkos::LaunchBounds<LaunchMaxThreadsPerBlock,
                                                  LaunchMinBlocksPerSM>>(0,
                                                                         n_iter),
-        KOKKOS_CLASS_LAMBDA(const int _loop_idx) {
+        KOKKOS_LAMBDA(const int _loop_idx) {
           if (_loop_idx >= n_iter) return;
           int const elementNumber = list_on ? list_local[_loop_idx] : _loop_idx;
 
@@ -1095,7 +1099,7 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES,
 
                 for (int f = 0; f < kNumFields; ++f)
                 {
-                  ATOMICADD(workVectorsGlobal_[f][globalIdx],
+                  ATOMICADD(workVectorsGlobal_local[f][globalIdx],
                             localWork[f][localIdx]);
                 }
               }
@@ -1682,7 +1686,7 @@ SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES,
                                    float const rho, float const delta,
                                    float const epsilon, float const gamma,
                                    float const phi, float const theta,
-                                   float (&CTTI)[6][6]) const
+                                   float (&CTTI)[6][6])
 {
   const float rho_vp2 = rho * vp * vp;
   const float rho_vs2 = rho * vs * vs;

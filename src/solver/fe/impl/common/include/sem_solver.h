@@ -228,10 +228,10 @@ class SEMsolver : public Solver
   template <
       physicType P = PHYSICS,
       typename = std::enable_if_t<P == utils::enums::physicType::kElastic>>
-  PROXY_HOST_DEVICE void computeCMatrix(float vp, float vs, float rho,
-                                        float delta, float epsilon, float gamma,
-                                        float phi, float theta,
-                                        float (&C)[6][6]) const;
+  static PROXY_HOST_DEVICE void computeCMatrix(float vp, float vs, float rho,
+                                               float delta, float epsilon,
+                                               float gamma, float phi,
+                                               float theta, float (&C)[6][6]);
 
   /**
    * @brief Set the anisotropy type for the solver.
