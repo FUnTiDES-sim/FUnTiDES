@@ -24,8 +24,6 @@ template <typename GL_BASIS>
 class Qk_Hexahedron_Lagrange_GaussLobatto final
 {
  public:
-  constexpr static bool isShiva = false;
-
   // Expose the basis type for tests and external use
   using BasisType = GL_BASIS;
 
@@ -504,6 +502,31 @@ class Qk_Hexahedron_Lagrange_GaussLobatto final
       TransformType const &transformData, FUNC1 &&func1, FUNC2 &&func2);
 
   /**
+   * @brief Acoustic stiffness K·p via sum factorization (3-pass algorithm).
+   *
+   * Computes the elemental contribution (K·p)_i = ∫ ∇φ_i · (1/ρ) ∇p dV and
+   * accumulates it into @p f_local using three passes:
+   *   1. Gradient: compute ∂p/∂ξ, ∂p/∂η, ∂p/∂ζ at each quad point via D·p.
+   *   2. Flux: apply B/ρ and quadrature weight to obtain G^{ξ,η,ζ} at each
+   *      quad point.
+   *   3. Divergence: scatter D^T·G back to node forces.
+   *
+   * Complexity per element: O(N^4) vs O(N^5) for the direct assembly.
+   *
+   * @tparam FUNC_RHO Callable with signature `real_t(int qa, int qb, int qc)`
+   *                  returning 1/ρ at reference quad point (qa, qb, qc).
+   * @param transformData 8 corner coordinates of the hexahedral element.
+   * @param p_local       Pressure at element nodes (size numNodes).
+   * @param f_local       Force accumulation buffer (size numNodes), added
+   *                      to in-place.
+   * @param get_inv_rho   Material callback returning 1/ρ per quad point.
+   */
+  template <typename FUNC_ALPHA>
+  PROXY_HOST_DEVICE static void computeStiffnessTermSumFact(
+      TransformType const &transformData, real_t const (&p_local)[numNodes],
+      real_t (&f_local)[numNodes], FUNC_ALPHA &&get_alpha);
+
+  /**
    * @brief Computes the "Grad(Phi)*B*Grad(Phi)" coefficient of the stiffness
    * term. The matrix B must be provided and Phi denotes a basis function.
    * @param qa The 1d quadrature point index in xi0 direction (0,1)
@@ -571,6 +594,39 @@ class Qk_Hexahedron_Lagrange_GaussLobatto final
       TransformType const &transformData, FUNC1 &&func1, FUNC2 &&func2);
 
   /**
+   * @brief Sum-factorized elastic stiffness kernel (O(N^4)).
+   *
+   * Computes the stiffness contribution for an elastic element using sum
+   * factorization, reducing the per-element cost from O(N^5) to O(N^4).
+   * Three passes:
+   *   1. Gradient: compute ∂u_s/∂ξ_r at each quad point for all displacement
+   *      components s and reference directions r.
+   *   2. Flux: call @p func1 to obtain the flux contributions F^p_f[q]
+   *      (test direction p, force component f), which are then scaled by
+   *      the quadrature weight and Jacobian determinant inside the kernel.
+   *   3. Divergence: scatter D^T·F back to node forces for each component.
+   *
+   * @tparam FUNC1 Callable with signature
+   *   `void(int qa, int qb, int qc,
+   *         real_t const (&J_inv)[3][3],
+   *         real_t const (&grad_u_ref)[3][3],
+   *         real_t (&flux)[3][3])`
+   *   where @p J_inv is the inverted Jacobian, @p grad_u_ref[r][s] =
+   *   ∂u_s/∂ξ_r, and @p flux[p][f] is the unscaled flux contribution
+   *   (scaled by w·|detJ| inside the kernel).
+   * @param transformData  8 corner coordinates of the hexahedral element.
+   * @param u_local        Displacement at element nodes, shape [3][numNodes].
+   * @param f_local        Force accumulation buffer, shape [3][numNodes],
+   *                       accumulated in-place.
+   * @param func1          Constitutive callback; all physics stays in the
+   *                       caller, the kernel remains physics-free.
+   */
+  template <typename FUNC1>
+  PROXY_HOST_DEVICE static void computeElasticStiffnessSumFact(
+      TransformType const &transformData, real_t const (&u_local)[3][numNodes],
+      real_t (&f_local)[3][numNodes], FUNC1 &&func1);
+
+  /**
    * @brief Apply a Jacobian transformation matrix from the parent space to the
    *   physical space on the parent shape function derivatives, producing the
    *   shape function derivatives in the physical space.
@@ -619,11 +675,24 @@ class Qk_Hexahedron_Lagrange_GaussLobatto final
   PROXY_HOST_DEVICE static void supportLoop(real_t const (&coords)[3],
                                             FUNC &&func, PARAMS &&...params);
   /**
-   * @brief Applies a function inside a generic loop in over the tensor product
-   *   indices.
+   * @brief Applies a function over the (3N-2) nodes with non-zero parent
+   *   gradient at quadrature point @p q.
+   *
+   * At a Gauss-Lobatto quadrature point q=(qa,qb,qc) the parent-space gradient
+   * of basis function (a,b,c) is zero unless (a,b,c) lies on one of the three
+   * coordinate lines through q.  Only those 3N-2 nodes are visited:
+   *   - ξ-line: b=qb, c=qc, a=0..N-1 (includes center; carries all 3
+   * components).
+   *   - η-line: a=qa, c=qc, b≠qb.
+   *   - ζ-line: a=qa, b=qb, c≠qc.
+   *
+   * @note Callers that ASSIGN to output arrays indexed by nodeIndex (rather
+   * than accumulating) must zero-initialise those arrays before calling this
+   *   function, since off-line nodes are never visited.
+   *
    * @tparam FUNC The type of function to call within the support loop.
    * @tparam PARAMS The parameter pack types to pass through to @p FUNC.
-   * @param q The quadrature node at which to evaluate the shape function value
+   * @param q The quadrature node at which to evaluate the shape function value.
    * @param func The function to call within the support loop.
    * @param params The parameters to pass to @p func.
    */
@@ -672,22 +741,33 @@ Qk_Hexahedron_Lagrange_GaussLobatto<GL_BASIS>::supportLoop(int const q,
 {
   int qa, qb, qc;
   GL_BASIS::TensorProduct3D::multiIndex(q, qa, qb, qc);
+
+  // ξ-line: b=qb, c=qc, a varies.
+  // The center node (qa,qb,qc) is processed here with all three non-zero
+  // components; the other nodes on this line have only dNdXi[0] non-zero.
+  for (int a = 0; a < num1dNodes; ++a)
+  {
+    real_t const dNdXi[3] = {basisGradientAt(a, qa),
+                             (a == qa) ? basisGradientAt(qb, qb) : real_t(0),
+                             (a == qa) ? basisGradientAt(qc, qc) : real_t(0)};
+    int const nodeIndex = linearIndex3DVal(a, qb, qc);
+    func(dNdXi, nodeIndex, std::forward<PARAMS>(params)...);
+  }
+  // η-line: a=qa, c=qc, b varies — skip b=qb (center, already processed above).
+  for (int b = 0; b < num1dNodes; ++b)
+  {
+    if (b == qb) continue;
+    real_t const dNdXi[3] = {real_t(0), basisGradientAt(b, qb), real_t(0)};
+    int const nodeIndex = linearIndex3DVal(qa, b, qc);
+    func(dNdXi, nodeIndex, std::forward<PARAMS>(params)...);
+  }
+  // ζ-line: a=qa, b=qb, c varies — skip c=qc (center, already processed above).
   for (int c = 0; c < num1dNodes; ++c)
   {
-    for (int b = 0; b < num1dNodes; ++b)
-    {
-      for (int a = 0; a < num1dNodes; ++a)
-      {
-        real_t const dNdXi[3] = {
-            (b == qb && c == qc) ? basisGradientAt(a, qa) : 0,
-            (a == qa && c == qc) ? basisGradientAt(b, qb) : 0,
-            (a == qa && b == qb) ? basisGradientAt(c, qc) : 0};
-
-        int const nodeIndex = GL_BASIS::TensorProduct3D::linearIndex(a, b, c);
-
-        func(dNdXi, nodeIndex, std::forward<PARAMS>(params)...);
-      }
-    }
+    if (c == qc) continue;
+    real_t const dNdXi[3] = {real_t(0), real_t(0), basisGradientAt(c, qc)};
+    int const nodeIndex = linearIndex3DVal(qa, qb, c);
+    func(dNdXi, nodeIndex, std::forward<PARAMS>(params)...);
   }
 }
 
@@ -1019,9 +1099,6 @@ PROXY_HOST_DEVICE void
 Qk_Hexahedron_Lagrange_GaussLobatto<GL_BASIS>::computeGradPhiBGradPhi(
     real_t const (&B)[6], FUNC1 &&func1, FUNC2 &&func2)
 {
-  constexpr real_t wa = GL_BASIS::weight(qa);
-  constexpr real_t wb = GL_BASIS::weight(qb);
-  constexpr real_t wc = GL_BASIS::weight(qc);
   const real_t w =
       GL_BASIS::weight(qa) * GL_BASIS::weight(qb) * GL_BASIS::weight(qc);
   func1(qa, qb, qc);
@@ -1082,6 +1159,88 @@ Qk_Hexahedron_Lagrange_GaussLobatto<GL_BASIS>::computeStiffnessTerm(
 }
 
 template <typename GL_BASIS>
+template <typename FUNC_ALPHA>
+PROXY_HOST_DEVICE void
+Qk_Hexahedron_Lagrange_GaussLobatto<GL_BASIS>::computeStiffnessTermSumFact(
+    TransformType const &transformData, real_t const (&u_local)[numNodes],
+    real_t (&v_local)[numNodes], FUNC_ALPHA &&get_alpha)
+{
+  float const(&X)[8][3] = transformData.data;
+
+  // Flux pondérés G^{ξ,η,ζ}[q] = w_q * alpha_q * M(B_q) · ∇_ξ u_q
+  real_t G_xi[numNodes] = {0};
+  real_t G_eta[numNodes] = {0};
+  real_t G_zeta[numNodes] = {0};
+
+  // Pass 1+2 fused: gradient de u, puis application de la métrique, de alpha et
+  // du poids
+  triple_loop<num1dNodes, num1dNodes, num1dNodes>(
+      [&](auto const icqa, auto const icqb, auto const icqc) {
+        constexpr int qa = decltype(icqa)::value;
+        constexpr int qb = decltype(icqb)::value;
+        constexpr int qc = decltype(icqc)::value;
+        constexpr int q = GL_BASIS::TensorProduct3D::linearIndex(qa, qb, qc);
+
+        // La gestion des poids de quadrature est interne à la bibliothèque
+        // mathématique
+        constexpr real_t w =
+            GL_BASIS::weight(qa) * GL_BASIS::weight(qb) * GL_BASIS::weight(qc);
+
+        real_t dxi_q = 0, deta_q = 0, dzeta_q = 0;
+        for_constexpr<num1dNodes>([&](auto ici) {
+          constexpr int i = decltype(ici)::value;
+          constexpr int ibc = GL_BASIS::TensorProduct3D::linearIndex(i, qb, qc);
+          constexpr int aic = GL_BASIS::TensorProduct3D::linearIndex(qa, i, qc);
+          constexpr int abi = GL_BASIS::TensorProduct3D::linearIndex(qa, qb, i);
+
+          dxi_q += basisGradientAt(i, qa) * u_local[ibc];
+          deta_q += basisGradientAt(i, qb) * u_local[aic];
+          dzeta_q += basisGradientAt(i, qc) * u_local[abi];
+        });
+
+        real_t J[3][3] = {{0}};
+        real_t B[6] = {0};
+        computeBMatrix(qa, qb, qc, X, J, B);
+
+        // 'scale' fusionne la physique (alpha) et la quadrature (w)
+        real_t const scale = w * get_alpha(qa, qb, qc);
+
+        G_xi[q] = scale * (B[0] * dxi_q + B[5] * deta_q + B[4] * dzeta_q);
+        G_eta[q] = scale * (B[5] * dxi_q + B[1] * deta_q + B[3] * dzeta_q);
+        G_zeta[q] = scale * (B[4] * dxi_q + B[3] * deta_q + B[2] * dzeta_q);
+      });
+
+  // Pass 3: divergence — v_{ia,ib,ic} += D^T·G^ξ + D^T·G^η + D^T·G^ζ
+  triple_loop<num1dNodes, num1dNodes, num1dNodes>([&](auto const icia,
+                                                      auto const icib,
+                                                      auto const icic) {
+    constexpr int ia = decltype(icia)::value;
+    constexpr int ib = decltype(icib)::value;
+    constexpr int ic = decltype(icic)::value;
+    constexpr int node = GL_BASIS::TensorProduct3D::linearIndex(ia, ib, ic);
+
+    real_t v = 0;
+    for_constexpr<num1dNodes>([&](auto icqa) {
+      constexpr int qa = decltype(icqa)::value;
+      constexpr int q_xi = GL_BASIS::TensorProduct3D::linearIndex(qa, ib, ic);
+      v += basisGradientAt(ia, qa) * G_xi[q_xi];
+    });
+    for_constexpr<num1dNodes>([&](auto icqb) {
+      constexpr int qb = decltype(icqb)::value;
+      constexpr int q_eta = GL_BASIS::TensorProduct3D::linearIndex(ia, qb, ic);
+      v += basisGradientAt(ib, qb) * G_eta[q_eta];
+    });
+    for_constexpr<num1dNodes>([&](auto icqc) {
+      constexpr int qc = decltype(icqc)::value;
+      constexpr int q_zeta = GL_BASIS::TensorProduct3D::linearIndex(ia, ib, qc);
+      v += basisGradientAt(ic, qc) * G_zeta[q_zeta];
+    });
+
+    v_local[node] += v;
+  });
+}
+
+template <typename GL_BASIS>
 template <typename FUNC1, typename FUNC2>
 PROXY_HOST_DEVICE void
 Qk_Hexahedron_Lagrange_GaussLobatto<GL_BASIS>::computeStiffNessTermwithJac(
@@ -1096,6 +1255,107 @@ Qk_Hexahedron_Lagrange_GaussLobatto<GL_BASIS>::computeStiffNessTermwithJac(
         jacobianTransformation(qa, qb, qc, transformData.data, J.data);
         computeGradPhiGradPhi<qa, qb, qc>(J, func1, func2);
       });
+}
+
+template <typename GL_BASIS>
+template <typename FUNC1>
+PROXY_HOST_DEVICE void
+Qk_Hexahedron_Lagrange_GaussLobatto<GL_BASIS>::computeElasticStiffnessSumFact(
+    TransformType const &transformData, real_t const (&u_local)[3][numNodes],
+    real_t (&f_local)[3][numNodes], FUNC1 &&func1)
+{
+  // 9 flux arrays: F_xi/F_eta/F_zeta[force_comp][quad_point]
+  real_t F_xi[3][numNodes] = {{0}};
+  real_t F_eta[3][numNodes] = {{0}};
+  real_t F_zeta[3][numNodes] = {{0}};
+
+  // Pass 1+2: gradient + flux.
+  // For each quad point: compute reference gradients of all 3 displacement
+  // components, invert the Jacobian, delegate the constitutive computation to
+  // func1, then scale and store into the flux arrays.
+  triple_loop<num1dNodes, num1dNodes, num1dNodes>(
+      [&](auto const icqa, auto const icqb, auto const icqc) {
+        constexpr int qa = decltype(icqa)::value;
+        constexpr int qb = decltype(icqb)::value;
+        constexpr int qc = decltype(icqc)::value;
+        constexpr int q = GL_BASIS::TensorProduct3D::linearIndex(qa, qb, qc);
+        constexpr real_t w =
+            GL_BASIS::weight(qa) * GL_BASIS::weight(qb) * GL_BASIS::weight(qc);
+
+        // Reference gradients of each displacement component along ξ, η, ζ.
+        // grad_u_ref[r][s] = ∂u_s/∂ξ_r
+        real_t grad_u_ref[3][3] = {{0}};
+        for_constexpr<num1dNodes>([&](auto ici) {
+          constexpr int i = decltype(ici)::value;
+          constexpr int ibc = GL_BASIS::TensorProduct3D::linearIndex(i, qb, qc);
+          constexpr int aic = GL_BASIS::TensorProduct3D::linearIndex(qa, i, qc);
+          constexpr int abi = GL_BASIS::TensorProduct3D::linearIndex(qa, qb, i);
+          const real_t gxi = basisGradientAt(i, qa);
+          const real_t geta = basisGradientAt(i, qb);
+          const real_t gzeta = basisGradientAt(i, qc);
+          for (int s = 0; s < 3; ++s)
+          {
+            grad_u_ref[0][s] += gxi * u_local[s][ibc];
+            grad_u_ref[1][s] += geta * u_local[s][aic];
+            grad_u_ref[2][s] += gzeta * u_local[s][abi];
+          }
+        });
+
+        // Jacobian (inverted in-place, returns det).
+        JacobianType J = {{0}};
+        jacobianTransformation(qa, qb, qc, transformData.data, J.data);
+        real_t const detJ = invert3x3(J.data);
+        const real_t scale = w * detJ;
+
+        // flux[p][f] = unscaled flux contribution for test direction p and
+        // force component f — filled by the constitutive callback.
+        real_t flux[3][3] = {{0}};
+        func1(qa, qb, qc, J.data, grad_u_ref, flux);
+
+        F_xi[0][q] = scale * flux[0][0];
+        F_xi[1][q] = scale * flux[0][1];
+        F_xi[2][q] = scale * flux[0][2];
+        F_eta[0][q] = scale * flux[1][0];
+        F_eta[1][q] = scale * flux[1][1];
+        F_eta[2][q] = scale * flux[1][2];
+        F_zeta[0][q] = scale * flux[2][0];
+        F_zeta[1][q] = scale * flux[2][1];
+        F_zeta[2][q] = scale * flux[2][2];
+      });
+
+  // Pass 3: divergence — f_{ia,ib,ic} += D^T·F^ξ + D^T·F^η + D^T·F^ζ
+  // The gradient coefficient (basisGradientAt) is independent of force
+  // component f, so it is computed once and the short f-loop is kept innermost
+  // to expose it for vectorization.
+  triple_loop<num1dNodes, num1dNodes, num1dNodes>([&](auto const icia,
+                                                      auto const icib,
+                                                      auto const icic) {
+    constexpr int ia = decltype(icia)::value;
+    constexpr int ib = decltype(icib)::value;
+    constexpr int ic = decltype(icic)::value;
+    constexpr int node = GL_BASIS::TensorProduct3D::linearIndex(ia, ib, ic);
+
+    real_t v[3] = {0};
+    for_constexpr<num1dNodes>([&](auto icqa) {
+      constexpr int qa = decltype(icqa)::value;
+      constexpr int q_xi = GL_BASIS::TensorProduct3D::linearIndex(qa, ib, ic);
+      const real_t g = basisGradientAt(ia, qa);
+      for (int f = 0; f < 3; ++f) v[f] += g * F_xi[f][q_xi];
+    });
+    for_constexpr<num1dNodes>([&](auto icqb) {
+      constexpr int qb = decltype(icqb)::value;
+      constexpr int q_eta = GL_BASIS::TensorProduct3D::linearIndex(ia, qb, ic);
+      const real_t g = basisGradientAt(ib, qb);
+      for (int f = 0; f < 3; ++f) v[f] += g * F_eta[f][q_eta];
+    });
+    for_constexpr<num1dNodes>([&](auto icqc) {
+      constexpr int qc = decltype(icqc)::value;
+      constexpr int q_zeta = GL_BASIS::TensorProduct3D::linearIndex(ia, ib, qc);
+      const real_t g = basisGradientAt(ic, qc);
+      for (int f = 0; f < 3; ++f) v[f] += g * F_zeta[f][q_zeta];
+    });
+    for (int f = 0; f < 3; ++f) f_local[f][node] += v[f];
+  });
 }
 
 template <typename GL_BASIS>
@@ -1153,6 +1413,13 @@ PROXY_HOST_DEVICE void Qk_Hexahedron_Lagrange_GaussLobatto<GL_BASIS>::
                                          real_t const (&invJ)[3][3],
                                          real_t (&gradN)[numNodes][3])
 {
+  // The sparse supportLoop only visits the 3N-2 non-zero nodes; off-line
+  // entries must be zeroed explicitly since this function assigns (not
+  // accumulates) gradN[nodeIndex].
+  for (int node = 0; node < numNodes; ++node)
+  {
+    gradN[node][0] = gradN[node][1] = gradN[node][2] = real_t(0);
+  }
   supportLoop(
       q,
       [](real_t const(&dNdXi)[3], int const nodeIndex,
