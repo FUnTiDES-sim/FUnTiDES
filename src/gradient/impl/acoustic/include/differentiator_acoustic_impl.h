@@ -149,8 +149,64 @@ void DifferentiatorAcoustic<ORDER, INTEGRAL_TYPE, MESH_TYPE,
                    VECTOR_REAL_VIEW const gradKappa,
                    VECTOR_REAL_VIEW const gradBuoyancy) const
 {
+  // Get number of nodes
+  int const nNodes = mesh.getNumberOfNodes();
+
+  // Allocate mass matrix diagonal
+  VECTOR_REAL_VIEW massDiag = VECTOR_REAL_VIEW("massDiag", nNodes);
+
+  // =====================================================
+  // Compute mass matrix diagonal
+  // =====================================================
+  // TODO: This is currently computed on the fly within computeOnNodes, but it
+  // could be precomputed and reused across iterations for efficiency.
   Kokkos::parallel_for(
-      "Compute Acoustic Gradient on Nodes",
+      "Compute Mass Matrix Diagonal",
+      Kokkos::RangePolicy<
+          Kokkos::LaunchBounds<LaunchMaxThreadsPerBlock, LaunchMinBlocksPerSM>>(
+          0, mesh.getNumberOfElements()),
+      KOKKOS_CLASS_LAMBDA(const int elementNumber) {
+        if (elementNumber >= mesh.getNumberOfElements()) return;
+
+        int const dim = mesh.getOrder() + 1;
+
+        typename INTEGRAL_TYPE::TransformType transformData;
+        {
+          auto const elementIndex = mesh.elementIndex(elementNumber);
+          int I = 0;
+          for (int kv = 0; kv < 2; ++kv)
+            for (int jv = 0; jv < 2; ++jv)
+              for (int iv = 0; iv < 2; ++iv)
+              {
+                auto const vertexIndex =
+                    mesh.globalVertexIndex(elementIndex, iv, jv, kv);
+                mesh.vertexCoords(vertexIndex, transformData.data[I]);
+                ++I;
+              }
+        }
+
+        int localGIdx[kPointsPerElement] = {0};
+        for (int i = 0; i < dim; ++i)
+          for (int j = 0; j < dim; ++j)
+            for (int k = 0; k < dim; ++k)
+            {
+              int const gIdx = mesh.globalNodeIndex(elementNumber, i, j, k);
+              int const lIdx = i + j * dim + k * dim * dim;
+              localGIdx[lIdx] = gIdx;
+            }
+
+        // Accumulate mass matrix diagonal: M_ii = sum_K val_i
+        INTEGRAL_TYPE::computeMassTerm(transformData,
+                                       [&](const int q, const real_t val) {
+                                         ATOMICADD(massDiag(localGIdx[q]), val);
+                                       });
+      });
+
+  // =====================================================
+  // Compute gradients and normalize
+  // =====================================================
+  Kokkos::parallel_for(
+      "Compute Acoustic Gradient on Nodes (Normalized)",
       Kokkos::RangePolicy<
           Kokkos::LaunchBounds<LaunchMaxThreadsPerBlock, LaunchMinBlocksPerSM>>(
           0, mesh.getNumberOfElements()),
@@ -194,20 +250,28 @@ void DifferentiatorAcoustic<ORDER, INTEGRAL_TYPE, MESH_TYPE,
 
         float const invDt2 = 1.0f / (dt * dt);
 
+        // grad_kappa: scatter per quadrature point to its global node,
+        // normalized by M_ii
         INTEGRAL_TYPE::computeMassTerm(
             transformData, [&](const int q, const real_t val) {
               float const qdt2 =
                   (localQnPrevPrev[q] - 2.0f * localQnPrev[q] + localQn[q]) *
                   invDt2;
-              ATOMICADD(gradKappa(localGIdx[q]), qdt2 * localPn[q] * val);
+              int const gIdx = localGIdx[q];
+              float const contrib = qdt2 * localPn[q] * val / massDiag(gIdx);
+              ATOMICADD(gradKappa(gIdx), contrib);
             });
 
+        // grad_buoyancy: scatter test-function node (i) contributions to
+        // global node, normalized by M_ii (mass matrix diagonal at node i)
         INTEGRAL_TYPE::computeStiffnessTerm(
             transformData,
             [&](const int /*qa*/, const int /*qb*/, const int /*qc*/) {},
             [&](const int i, const int j, const real_t val) {
-              ATOMICADD(gradBuoyancy(localGIdx[i]),
-                        val * localQn[j] * localPn[i]);
+              int const gIdx = localGIdx[i];
+              float const contrib =
+                  val * localQn[j] * localPn[i] / massDiag(gIdx);
+              ATOMICADD(gradBuoyancy(gIdx), contrib);
             });
       });
 }

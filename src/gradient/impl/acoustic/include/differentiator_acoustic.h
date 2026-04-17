@@ -65,6 +65,8 @@ class DifferentiatorAcoustic : public Differentiator
    * @brief Multiple elements share boundary nodes — ATOMICADD required.
    *
    * Computes qdt2 = (qnPrevPrev - 2*qnPrev + qn) / dt² on the fly.
+   * Gradients are normalized by the mass matrix diagonal to account for
+   * multiple elements sharing nodes at the domain interior.
    */
   void computeOnNodes(MESH_TYPE mesh, float dt, VECTOR_REAL_VIEW const pn,
                       VECTOR_REAL_VIEW const qn, VECTOR_REAL_VIEW const qnPrev,

@@ -204,11 +204,14 @@ class SEMsolver : public Solver
     return workVectorsGlobal_[f];
   }
 
-  void computeElementContributions_acoustic(const DataType& data);
+  void computeElementContributions_Acoustic(const DataType& data);
   void computeElementContributions_Iso(const DataType& data);
   void computeElementContributions_Vti(const DataType& data);
   void computeElementContributions_Tti(const DataType& data);
+
   void computeAttenuationContributions(const DataType& data);
+  void computeAttenuationContributionsAcoustic(const DataType& data);
+  void computeAttenuationContributionsElastic(const DataType& data);
 
   /**
    * @brief Compute the elasticity matrix at a given node (elastic only).

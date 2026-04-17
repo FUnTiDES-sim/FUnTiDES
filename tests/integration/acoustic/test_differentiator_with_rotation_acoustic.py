@@ -141,25 +141,15 @@ class TestDifferentiatorWithRotation:
             assert np.allclose(grad_buoyancy, 0.0, atol=1e-6), \
                 f"t={t}: grad_buoyancy should be 0 for spatially uniform fields"
             
-            # Property 2: Verify that we have exactly 4 distinct gradient values corresponding 
-            # to interior, boundary, corner, edge nodes
-            unique_deltas = np.unique(grad_kappa)
-            assert len(unique_deltas) == 4, \
-                f"t={t}: Expected exactly 4 distinct gradient values, got {len(unique_deltas)}"
-            
-            # Property 3: check contributions based on node type (interior vs boundary)
-            # Verify 8:1 ratio between max and min (boundary vs interior)
+            # Property 2: With normalization by mass matrix diagonal,
+            # all normalized values should be approximately equal 
+            # (within floating point precision). Check that max/min ratio is close to 1.0
             min_val = grad_kappa.min()
             max_val = grad_kappa.max()
-            ratio = max_val / min_val if min_val > 0 else 0
-            assert np.isclose(ratio, 8.0, rtol=0.001), \
-                f"t={t}: Expected max/min ratio of 8.0, got {ratio:.2f}"
-            # Verify corner node (first) has one contribution
-            assert np.isclose(grad_kappa[0], min_val, rtol=0.01), \
-                f"t={t}: corner node should have one contribution"
-            # Verify edge nodes (next 12) have two contributions
-            assert np.isclose(grad_kappa[1], min_val * 2, rtol=0.01), \
-                f"t={t}: edge nodes should have two contributions"
+            ratio = max_val / min_val if min_val > 0 else 1.0
+            # Allow up to 0.1% variation due to floating point rounding in atomic operations
+            assert np.isclose(ratio, 1.0, rtol=0.001), \
+                f"t={t}: Normalized gradients should be uniform, got ratio {ratio:.6f}"
             
             # Property 4: Check that it accumulates over time steps and is in the expected range
             assert np.all(grad_kappa > 0), f"t={t}: grad_kappa should accumulate to positive values"
