@@ -1633,7 +1633,7 @@ SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES,
                                    float const rho, float const delta,
                                    float const epsilon, float const gamma,
                                    float const phi, float const theta,
-                                   float (&CTTI)[6][6]) const
+                                   float (&CTTI)[6][6])
 {
   const float rho_vp2 = rho * vp * vp;
   const float rho_vs2 = rho * vs * vs;
