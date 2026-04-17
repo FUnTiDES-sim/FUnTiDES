@@ -587,6 +587,10 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES,
           Kokkos::LaunchBounds<LaunchMaxThreadsPerBlock, LaunchMinBlocksPerSM>>(
           0, n_iter),
       KOKKOS_LAMBDA(const int _loop_idx) {
+        // avoid extended __host__ __device__ lambda cannot first-capture
+        // variable in constexpr-if context
+        (void)local_workVectorsGlobal;
+
         int const elementNumber = list_on ? list_local[_loop_idx] : _loop_idx;
 
         int const dim = mesh_local.getOrder() + 1;
@@ -734,6 +738,9 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES,
           Kokkos::LaunchBounds<LaunchMaxThreadsPerBlock, LaunchMinBlocksPerSM>>(
           0, n_iter),
       KOKKOS_LAMBDA(const int _loop_idx) {
+        // avoid extended __host__ __device__ lambda cannot first-capture
+        // variable in constexpr-if context
+        (void)local_workVectorsGlobal;
         int const elementNumber = list_on ? list_local[_loop_idx] : _loop_idx;
 
         int const dim = mesh_local.getOrder() + 1;
