@@ -98,9 +98,9 @@ SEMproxy::SEMproxy(const SemProxyOptions& opt)
   else if (opt.qp > 0 || opt.qs > 0)
   {
     // Auto-enable SLS with default reference frequency based on source f0
-    float omega0 = 2.0f * M_PI * f0;
+    float omega0 = 2.0f * M_PI * opt.f0;
     std::cout << "Auto-enabling SLS attenuation at omega0=" << omega0
-              << " rad/s (f0=" << f0 << " Hz)" << std::endl;
+              << " rad/s (f0=" << opt.f0 << " Hz)" << std::endl;
     auto freqView = allocateVector<vectorReal>(1, "slsFreqAuto");
     freqView[0] = omega0;
     m_solver->setSLSAttenuation(freqView);
@@ -738,7 +738,7 @@ void SEMproxy::init_source()
 
   // initialize source term
   vector<float> sourceTerm =
-      myUtils.computeSourceTerm(num_sample_, dt_, f0, sourceOrder);
+      myUtils.computeSourceTerm(num_sample_, dt_, f0_, ricker_order_, tpeak_);
   if (isAcoustoElastic_)
   {
     // Auto-detect source domain based on depth vs interface boundary.
@@ -1141,6 +1141,9 @@ void SEMproxy::init_sim_params(const SemProxyOptions& opt)
   src_coord_[0] = opt.srcx;
   src_coord_[1] = opt.srcy;
   src_coord_[2] = opt.srcz;
+  tpeak_ = opt.tpeak;
+  f0_ = opt.f0;
+  ricker_order_ = opt.ricker_order;
 
   rcv_coord_[0] = opt.rcvx;
   rcv_coord_[1] = opt.rcvy;
