@@ -40,7 +40,9 @@ using BuilderTypes = ::testing::Types<
     BuilderConfig<3, true, true>, BuilderConfig<3, false, false>,
     BuilderConfig<3, true, false>, BuilderConfig<3, false, true>,
     BuilderConfig<4, true, true>, BuilderConfig<4, false, false>,
-    BuilderConfig<4, true, false>, BuilderConfig<4, false, true>>;
+    BuilderConfig<4, true, false>, BuilderConfig<4, false, true>,
+    BuilderConfig<5, true, true>, BuilderConfig<5, false, false>,
+    BuilderConfig<5, true, false>, BuilderConfig<5, false, true>>;
 
 TYPED_TEST_SUITE(CartesianStructInputs, BuilderTypes);
 
