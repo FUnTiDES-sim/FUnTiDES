@@ -268,10 +268,7 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::
   }
 
   Kokkos::parallel_for(
-      "Solver Element Contribution Acoustic",
-      Kokkos::RangePolicy<
-          Kokkos::LaunchBounds<LaunchMaxThreadsPerBlock, LaunchMinBlocksPerSM>>(
-          0, n_iter),
+      "Solver Element Contribution Acoustic", Kokkos::RangePolicy(0, n_iter),
       KOKKOS_LAMBDA(const int _loop_idx) {
         int const elementNumber = list_on ? list_local[_loop_idx] : _loop_idx;
 
