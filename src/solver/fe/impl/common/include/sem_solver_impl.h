@@ -1355,6 +1355,7 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES,
           Kokkos::LaunchBounds<LaunchMaxThreadsPerBlock, LaunchMinBlocksPerSM>>(
           0, mesh_local.getNumberOfElements()),
       KOKKOS_LAMBDA(const int elementNumber) {
+        (void)local_dampingMatrixGlobal;
         for (int i = 0; i < 6; ++i)
         {
           // Get global face ID for this element face
