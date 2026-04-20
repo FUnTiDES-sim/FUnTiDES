@@ -8,7 +8,6 @@
 
 #include "Integrals.h"
 #include "data_type.h"
-#include "model_discretization_interface.h"
 #include "sem_solver_acoustoelastic.h"
 #include "sem_solver_data.h"
 

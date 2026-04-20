@@ -198,12 +198,9 @@ TYPED_TEST(MassMatrixTest, MassMatrixSumEqualsVolume_VariousCubes)
     real_t X[8][3];
     createArbitraryCube<QK>(X, config.x0, config.y0, config.z0, config.size);
 
-    typename QK::TransformType transformData;
-    for (int k = 0; k < 8; ++k)
-      for (int i = 0; i < 3; ++i) transformData.data[k][i] = X[k][i];
 
     real_t mass[numNodes] = {0};
-    QK::computeMassTerm(transformData,
+    QK::computeMassTerm(X,
                         [&](int q, real_t val) { mass[q] = val; });
 
     real_t totalMass = 0.0;
@@ -224,12 +221,9 @@ TYPED_TEST(MassMatrixTest, MassMatrixPositive)
   real_t X[8][3];
   createArbitraryCube<QK>(X, -3.5, 2.1, 0.7, 1.8);
 
-  typename QK::TransformType transformData;
-  for (int k = 0; k < 8; ++k)
-    for (int i = 0; i < 3; ++i) transformData.data[k][i] = X[k][i];
 
   real_t mass[numNodes] = {0};
-  QK::computeMassTerm(transformData, [&](int q, real_t val) { mass[q] = val; });
+  QK::computeMassTerm(X, [&](int q, real_t val) { mass[q] = val; });
 
   for (int i = 0; i < numNodes; ++i)
   {
@@ -260,9 +254,6 @@ TYPED_TEST(StiffnessMatrixTest, StiffnessTimesConstantIsZero_VariousCubes)
     real_t X[8][3];
     createArbitraryCube<QK>(X, config.x0, config.y0, config.z0, config.size);
 
-    typename QK::TransformType transformData;
-    for (int k = 0; k < 8; ++k)
-      for (int i = 0; i < 3; ++i) transformData.data[k][i] = X[k][i];
 
     // Constant vector (all dofs = 1.0)
     real_t u[numNodes];
@@ -270,7 +261,7 @@ TYPED_TEST(StiffnessMatrixTest, StiffnessTimesConstantIsZero_VariousCubes)
     for (int i = 0; i < numNodes; ++i) u[i] = 1.0;
 
     QK::computeStiffnessTerm(
-        transformData, [](int qa, int qb, int qc) {},
+        X, [](int qa, int qb, int qc) {},
         [&](int i, int j, real_t Kij) { Ku[i] += Kij * u[j]; });
 
     for (int i = 0; i < numNodes; ++i)
@@ -291,14 +282,11 @@ TYPED_TEST(StiffnessMatrixTest, StiffnessMatrixIsSymmetric)
   real_t X[8][3];
   createArbitraryCube<QK>(X, 1.5, -2.3, 0.8, 1.2);
 
-  typename QK::TransformType transformData;
-  for (int k = 0; k < 8; ++k)
-    for (int i = 0; i < 3; ++i) transformData.data[k][i] = X[k][i];
 
   real_t K[numNodes][numNodes] = {{0}};
 
   QK::computeStiffnessTerm(
-      transformData, [](int qa, int qb, int qc) {},
+      X, [](int qa, int qb, int qc) {},
       [&](int i, int j, real_t Kij) { K[i][j] += Kij; });
 
   for (int i = 0; i < numNodes; ++i)

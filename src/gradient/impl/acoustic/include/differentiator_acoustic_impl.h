@@ -84,7 +84,7 @@ void DifferentiatorAcoustic<ORDER, INTEGRAL_TYPE, MESH_TYPE,
 
         int const dim = mesh.getOrder() + 1;
 
-        typename INTEGRAL_TYPE::TransformType transformData;
+        float X[8][3];
         {
           auto const elementIndex = mesh.elementIndex(elementNumber);
           int I = 0;
@@ -94,7 +94,7 @@ void DifferentiatorAcoustic<ORDER, INTEGRAL_TYPE, MESH_TYPE,
               {
                 auto const vertexIndex =
                     mesh.globalVertexIndex(elementIndex, iv, jv, kv);
-                mesh.vertexCoords(vertexIndex, transformData.data[I]);
+                mesh.vertexCoords(vertexIndex, X[I]);
                 ++I;
               }
         }
@@ -120,7 +120,7 @@ void DifferentiatorAcoustic<ORDER, INTEGRAL_TYPE, MESH_TYPE,
 
         float localGradKappa = 0.0f;
         INTEGRAL_TYPE::computeMassTerm(
-            transformData, [&](const int q, const real_t val) {
+            X, [&](const int q, const real_t val) {
               float const qdt2 =
                   (localQnPrevPrev[q] - 2.0f * localQnPrev[q] + localQn[q]) *
                   invDt2;
@@ -130,7 +130,7 @@ void DifferentiatorAcoustic<ORDER, INTEGRAL_TYPE, MESH_TYPE,
 
         float localGradBuoyancy = 0.0f;
         INTEGRAL_TYPE::computeStiffnessTerm(
-            transformData,
+            X,
             [&](const int /*qa*/, const int /*qb*/, const int /*qc*/) {},
             [&](const int i, const int j, const real_t val) {
               localGradBuoyancy += val * localQn[j] * localPn[i];
@@ -170,7 +170,7 @@ void DifferentiatorAcoustic<ORDER, INTEGRAL_TYPE, MESH_TYPE,
 
         int const dim = mesh.getOrder() + 1;
 
-        typename INTEGRAL_TYPE::TransformType transformData;
+        float X[8][3];
         {
           auto const elementIndex = mesh.elementIndex(elementNumber);
           int I = 0;
@@ -180,7 +180,7 @@ void DifferentiatorAcoustic<ORDER, INTEGRAL_TYPE, MESH_TYPE,
               {
                 auto const vertexIndex =
                     mesh.globalVertexIndex(elementIndex, iv, jv, kv);
-                mesh.vertexCoords(vertexIndex, transformData.data[I]);
+                mesh.vertexCoords(vertexIndex, X[I]);
                 ++I;
               }
         }
@@ -196,7 +196,7 @@ void DifferentiatorAcoustic<ORDER, INTEGRAL_TYPE, MESH_TYPE,
             }
 
         // Accumulate mass matrix diagonal: M_ii = sum_K val_i
-        INTEGRAL_TYPE::computeMassTerm(transformData,
+        INTEGRAL_TYPE::computeMassTerm(X,
                                        [&](const int q, const real_t val) {
                                          ATOMICADD(massDiag(localGIdx[q]), val);
                                        });
@@ -215,7 +215,7 @@ void DifferentiatorAcoustic<ORDER, INTEGRAL_TYPE, MESH_TYPE,
 
         int const dim = mesh.getOrder() + 1;
 
-        typename INTEGRAL_TYPE::TransformType transformData;
+        float X[8][3];
         {
           auto const elementIndex = mesh.elementIndex(elementNumber);
           int I = 0;
@@ -225,7 +225,7 @@ void DifferentiatorAcoustic<ORDER, INTEGRAL_TYPE, MESH_TYPE,
               {
                 auto const vertexIndex =
                     mesh.globalVertexIndex(elementIndex, iv, jv, kv);
-                mesh.vertexCoords(vertexIndex, transformData.data[I]);
+                mesh.vertexCoords(vertexIndex, X[I]);
                 ++I;
               }
         }
@@ -253,7 +253,7 @@ void DifferentiatorAcoustic<ORDER, INTEGRAL_TYPE, MESH_TYPE,
         // grad_kappa: scatter per quadrature point to its global node,
         // normalized by M_ii
         INTEGRAL_TYPE::computeMassTerm(
-            transformData, [&](const int q, const real_t val) {
+            X, [&](const int q, const real_t val) {
               float const qdt2 =
                   (localQnPrevPrev[q] - 2.0f * localQnPrev[q] + localQn[q]) *
                   invDt2;
@@ -265,7 +265,7 @@ void DifferentiatorAcoustic<ORDER, INTEGRAL_TYPE, MESH_TYPE,
         // grad_buoyancy: scatter test-function node (i) contributions to
         // global node, normalized by M_ii (mass matrix diagonal at node i)
         INTEGRAL_TYPE::computeStiffnessTerm(
-            transformData,
+            X,
             [&](const int /*qa*/, const int /*qb*/, const int /*qc*/) {},
             [&](const int i, const int j, const real_t val) {
               int const gIdx = localGIdx[i];

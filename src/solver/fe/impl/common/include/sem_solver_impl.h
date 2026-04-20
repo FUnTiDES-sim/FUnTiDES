@@ -6,7 +6,6 @@
 #include <cstdlib>
 
 #include "Integrals.h"
-#include "model_discretization_interface.h"
 #include "sem_solver.h"
 
 namespace solver
@@ -252,9 +251,16 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES,
             }
           }
 
-          typename INTEGRAL_TYPE::TransformType transformData;
-          model_discretization_interface::gatherTransformData(
-              elementNumber, mesh_local, transformData);
+          float cornerCoords[8][3];
+          {
+            auto const eIdx = mesh_local.elementIndex(elementNumber);
+            int I = 0;
+            for (int kv = 0; kv < 2; ++kv)
+              for (int jv = 0; jv < 2; ++jv)
+                for (int iv = 0; iv < 2; ++iv)
+                  mesh_local.vertexCoords(
+                      mesh_local.globalVertexIndex(eIdx, iv, jv, kv), cornerCoords[I++]);
+          }
 
           real_t inv_density = 0.0f;
           if constexpr (!IS_MODEL_ON_NODES)
@@ -263,7 +269,7 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES,
           }
 
           INTEGRAL_TYPE::computeStiffnessTermSumFact(
-              transformData, localFields[0], localWork[0],
+              cornerCoords, localFields[0], localWork[0],
               [&](const int qa, const int qb, const int qc) -> real_t {
                 if constexpr (IS_MODEL_ON_NODES)
                 {
@@ -339,9 +345,16 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES,
           }
         }
 
-        typename INTEGRAL_TYPE::TransformType transformData;
-        model_discretization_interface::gatherTransformData(
-            elementNumber, mesh_local, transformData);
+        float cornerCoords[8][3];
+        {
+          auto const eIdx = mesh_local.elementIndex(elementNumber);
+          int I = 0;
+          for (int kv = 0; kv < 2; ++kv)
+            for (int jv = 0; jv < 2; ++jv)
+              for (int iv = 0; iv < 2; ++iv)
+                mesh_local.vertexCoords(
+                    mesh_local.globalVertexIndex(eIdx, iv, jv, kv), cornerCoords[I++]);
+        }
 
         if constexpr (PHYSICS == utils::enums::physicType::kAcoustic)
         {
@@ -354,7 +367,7 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES,
           }
 
           INTEGRAL_TYPE::computeStiffnessTerm(
-              transformData,
+              cornerCoords,
               [&](const int qa, const int qb, const int qc) {
                 if constexpr (IS_MODEL_ON_NODES)
                 {
@@ -381,7 +394,7 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES,
           CJPacked CJflat[3 * 3];
 
           INTEGRAL_TYPE::computeStiffNessTermwithJac(
-              transformData,
+              cornerCoords,
               [&](int qa, int qb, int qc, float const(&J)[3][3]) {
                 float vp, vs, rho, qp, qs;
                 if constexpr (IS_MODEL_ON_NODES)
@@ -519,9 +532,16 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES,
 
         if constexpr (PHYSICS == utils::enums::physicType::kElastic)
         {
-          typename INTEGRAL_TYPE::TransformType transformData;
-          model_discretization_interface::gatherTransformData(
-              elementNumber, mesh_local, transformData);
+          float cornerCoords[8][3];
+          {
+            auto const eIdx = mesh_local.elementIndex(elementNumber);
+            int I = 0;
+            for (int kv = 0; kv < 2; ++kv)
+              for (int jv = 0; jv < 2; ++jv)
+                for (int iv = 0; iv < 2; ++iv)
+                  mesh_local.vertexCoords(
+                      mesh_local.globalVertexIndex(eIdx, iv, jv, kv), cornerCoords[I++]);
+          }
 
           // Hoist per-element material constants; per-node models are read
           // inside the callback since they vary per quadrature point.
@@ -537,7 +557,7 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES,
           }
 
           INTEGRAL_TYPE::computeElasticStiffnessSumFact(
-              transformData, localFields, localWork,
+              cornerCoords, localFields, localWork,
               [&](int qa, int qb, int qc, float const(&J_inv)[3][3],
                   float const(&grad_u_ref)[3][3], float(&flux)[3][3]) {
                 float mu, lambda, lam2mu;
@@ -661,9 +681,16 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES,
 
         if constexpr (PHYSICS == utils::enums::physicType::kElastic)
         {
-          typename INTEGRAL_TYPE::TransformType transformData;
-          model_discretization_interface::gatherTransformData(
-              elementNumber, mesh_local, transformData);
+          float cornerCoords[8][3];
+          {
+            auto const eIdx = mesh_local.elementIndex(elementNumber);
+            int I = 0;
+            for (int kv = 0; kv < 2; ++kv)
+              for (int jv = 0; jv < 2; ++jv)
+                for (int iv = 0; iv < 2; ++iv)
+                  mesh_local.vertexCoords(
+                      mesh_local.globalVertexIndex(eIdx, iv, jv, kv), cornerCoords[I++]);
+          }
 
           // Hoist per-element VTI stiffness coefficients.
           float c11_e = 0, c12_e = 0, c13_e = 0, c33_e = 0, c44_e = 0,
@@ -693,7 +720,7 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES,
           }
 
           INTEGRAL_TYPE::computeElasticStiffnessSumFact(
-              transformData, localFields, localWork,
+              cornerCoords, localFields, localWork,
               [&](int qa, int qb, int qc, float const(&J_inv)[3][3],
                   float const(&grad_u_ref)[3][3], float(&flux)[3][3]) {
                 float c11, c12, c13, c33, c44, c66;
@@ -837,9 +864,16 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES,
             }
           }
 
-          typename INTEGRAL_TYPE::TransformType transformData;
-          model_discretization_interface::gatherTransformData(
-              elementNumber, mesh_local, transformData);
+          float cornerCoords[8][3];
+          {
+            auto const eIdx = mesh_local.elementIndex(elementNumber);
+            int I = 0;
+            for (int kv = 0; kv < 2; ++kv)
+              for (int jv = 0; jv < 2; ++jv)
+                for (int iv = 0; iv < 2; ++iv)
+                  mesh_local.vertexCoords(
+                      mesh_local.globalVertexIndex(eIdx, iv, jv, kv), cornerCoords[I++]);
+          }
 
           float CTTI[6][6] = {};
           if constexpr (!IS_MODEL_ON_NODES)
@@ -848,7 +882,7 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES,
           }
 
           INTEGRAL_TYPE::computeElasticStiffnessSumFact(
-              transformData, localFields, localWork,
+              cornerCoords, localFields, localWork,
               [&](int qa, int qb, int qc, float const(&J_inv)[3][3],
                   float const(&grad_u_ref)[3][3], float(&flux)[3][3]) {
                 if constexpr (IS_MODEL_ON_NODES)
@@ -1171,12 +1205,19 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES,
         float massMatrixLocal[kPointsPerElement] = {0};
         int const dim = mesh_local.getOrder() + 1;
 
-        typename INTEGRAL_TYPE::TransformType transformData;
-        model_discretization_interface::gatherTransformData(
-            elementNumber, mesh_local, transformData);
+        float cornerCoords[8][3];
+        {
+          auto const eIdx = mesh_local.elementIndex(elementNumber);
+          int I = 0;
+          for (int kv = 0; kv < 2; ++kv)
+            for (int jv = 0; jv < 2; ++jv)
+              for (int iv = 0; iv < 2; ++iv)
+                mesh_local.vertexCoords(
+                    mesh_local.globalVertexIndex(eIdx, iv, jv, kv), cornerCoords[I++]);
+        }
 
         INTEGRAL_TYPE::computeMassTerm(
-            transformData,
+            cornerCoords,
             [&](const int j, const real_t val) { massMatrixLocal[j] += val; });
 
         real_t model_factor = 0.0f;
