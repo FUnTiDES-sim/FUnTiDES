@@ -223,7 +223,6 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES,
                                                  LaunchMinBlocksPerSM>>(0,
                                                                         n_iter),
         KOKKOS_CLASS_LAMBDA(const int _loop_idx) {
-          if (_loop_idx >= n_iter) return;
           int const elementNumber = list_on ? list_local[_loop_idx] : _loop_idx;
 
           int const dim = mesh_local.getOrder() + 1;
@@ -258,19 +257,19 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES,
             inv_density = 1.0f / mesh_local.getModelRhoOnElement(elementNumber);
           }
 
-          INTEGRAL_TYPE::computeStiffnessTerm(
-              transformData,
-              [&](const int qa, const int qb, const int qc) {
+          INTEGRAL_TYPE::computeStiffnessTermSumFact(
+              transformData, localFields[0], localWork[0],
+              [&](const int qa, const int qb, const int qc) -> real_t {
                 if constexpr (IS_MODEL_ON_NODES)
                 {
                   int const gIndex =
                       mesh_local.globalNodeIndex(elementNumber, qa, qb, qc);
-                  inv_density = 1.0f / mesh_local.getModelRhoOnNodes(gIndex);
+                  return 1.0f / mesh_local.getModelRhoOnNodes(gIndex);
                 }
-              },
-              [&](const int i, const int j, const real_t val) {
-                float localIncrement = inv_density * val * localFields[0][j];
-                localWork[0][i] += localIncrement;
+                else
+                {
+                  return inv_density;
+                }
               });
 
           for (int i = 0; i < dim; ++i)
@@ -314,8 +313,6 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES,
           Kokkos::LaunchBounds<LaunchMaxThreadsPerBlock, LaunchMinBlocksPerSM>>(
           0, mesh_local.getNumberOfElements()),
       KOKKOS_CLASS_LAMBDA(const int elementNumber) {
-        if (elementNumber >= mesh_local.getNumberOfElements()) return;
-
         int const dim = mesh_local.getOrder() + 1;
         float localFields[kNumFields][kPointsPerElement] = {{0}};
         float localWorkA[kNumFields][kPointsPerElement] = {{0}};
@@ -491,7 +488,6 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES,
           Kokkos::LaunchBounds<LaunchMaxThreadsPerBlock, LaunchMinBlocksPerSM>>(
           0, n_iter),
       KOKKOS_CLASS_LAMBDA(const int _loop_idx) {
-        if (_loop_idx >= n_iter) return;
         int const elementNumber = list_on ? list_local[_loop_idx] : _loop_idx;
 
         int const dim = mesh_local.getOrder() + 1;
@@ -516,137 +512,95 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES,
           }
         }
 
-        typename INTEGRAL_TYPE::TransformType transformData;
-        model_discretization_interface::gatherTransformData(
-            elementNumber, mesh_local, transformData);
-
-#if defined(__CUDACC__) || defined(__HIPCC__)
-
-        struct CJPacked
+        if constexpr (PHYSICS == utils::enums::physicType::kElastic)
         {
-          float4 a;
-          float2 b;
-        };
-#else
-        struct CJPacked
-        {
-          alignas(16) float a0, a1, a2, a3;
-          float b0, b1;
-          float pad[2];
-        };
-#endif
-        CJPacked CJflat[3 * 3];
+          typename INTEGRAL_TYPE::TransformType transformData;
+          model_discretization_interface::gatherTransformData(
+              elementNumber, mesh_local, transformData);
 
-        INTEGRAL_TYPE::computeStiffNessTermwithJac(
-            transformData,
-            [&](int qa, int qb, int qc, float const(&J)[3][3]) {
-              // Get material properties
-              float vp, vs, rho;
-              if constexpr (IS_MODEL_ON_NODES)
-              {
-                int const gIndex =
-                    mesh_local.globalNodeIndex(elementNumber, qa, qb, qc);
-                vp = mesh_local.getModelVpOnNodes(gIndex);
-                vs = mesh_local.getModelVsOnNodes(gIndex);
-                rho = mesh_local.getModelRhoOnNodes(gIndex);
-              }
-              else
-              {
-                vp = mesh_local.getModelVpOnElement(elementNumber);
-                vs = mesh_local.getModelVsOnElement(elementNumber);
-                rho = mesh_local.getModelRhoOnElement(elementNumber);
-              }
-
-              // Lamé parameters
-              float const mu = rho * vs * vs;
-              float const lambda = rho * (vp * vp - 2.0f * vs * vs);
-              float const lambda_plus_2mu = lambda + 2.0f * mu;
-
-              for (int p = 0; p < 3; ++p)
-              {
-                float const Jp0 = J[p][0], Jp1 = J[p][1], Jp2 = J[p][2];
-
-                for (int r = 0; r < 3; ++r)
-                {
-                  float const Jr0 = J[r][0], Jr1 = J[r][1], Jr2 = J[r][2];
-                  int const idx = p * 3 + r;
-
-                  float const v0 = lambda_plus_2mu * Jp0 * Jr0 +
-                                   mu * (Jp1 * Jr1 + Jp2 * Jr2);
-                  float const v1 = mu * Jp0 * Jr0 +
-                                   lambda_plus_2mu * Jp1 * Jr1 + mu * Jp2 * Jr2;
-                  float const v2 = mu * (Jp0 * Jr0 + Jp1 * Jr1) +
-                                   lambda_plus_2mu * Jp2 * Jr2;
-
-                  float const v3 = lambda * Jp0 * Jr1 + mu * Jp1 * Jr0;
-                  float const v4 = lambda * Jp0 * Jr2 + mu * Jp2 * Jr0;
-                  float const v5 = lambda * Jp1 * Jr2 + mu * Jp2 * Jr1;
-
-#if defined(__CUDACC__) || defined(__HIPCC__)
-
-                  CJflat[idx].a = make_float4(v0, v1, v2, v3);
-                  CJflat[idx].b = make_float2(v4, v5);
-#else
-                  CJflat[idx].a0 = v0;
-                  CJflat[idx].a1 = v1;
-                  CJflat[idx].a2 = v2;
-                  CJflat[idx].a3 = v3;
-                  CJflat[idx].b0 = v4;
-                  CJflat[idx].b1 = v5;
-#endif
-                }
-              }
-            },
-            [&](int i, int j, float val, const int p, const int r) {
-              int const idx = p * 3 + r;
-#if defined(__CUDACC__) || defined(__HIPCC__)
-
-              float3 const u_local = make_float3(
-                  localFields[0][j], localFields[1][j], localFields[2][j]);
-              float4 const a = CJflat[idx].a;
-              float2 const b = CJflat[idx].b;
-              localWork[0][i] +=
-                  fmaf(val * a.x, u_local.x,
-                       fmaf(val * a.w, u_local.y, val * b.x * u_local.z));
-              localWork[1][i] +=
-                  fmaf(val * a.w, u_local.x,
-                       fmaf(val * a.y, u_local.y, val * b.y * u_local.z));
-              localWork[2][i] +=
-                  fmaf(val * b.x, u_local.x,
-                       fmaf(val * b.y, u_local.y, val * a.z * u_local.z));
-#else
-              float const uxj = localFields[0][j];
-              float const uyj = localFields[1][j];
-              float const uzj = localFields[2][j];
-              float const rxx = CJflat[idx].a0;
-              float const ryy = CJflat[idx].a1;
-              float const rzz = CJflat[idx].a2;
-              float const rxy = CJflat[idx].a3;
-              float const rxz = CJflat[idx].b0;
-              float const ryz = CJflat[idx].b1;
-              localWork[0][i] +=
-                  fmaf(val * rxx, uxj, fmaf(val * rxy, uyj, val * rxz * uzj));
-              localWork[1][i] +=
-                  fmaf(val * rxy, uxj, fmaf(val * ryy, uyj, val * ryz * uzj));
-              localWork[2][i] +=
-                  fmaf(val * rxz, uxj, fmaf(val * ryz, uyj, val * rzz * uzj));
-#endif
-            });
-
-        for (int i = 0; i < dim; ++i)
-        {
-          for (int j = 0; j < dim; ++j)
+          // Hoist per-element material constants; per-node models are read
+          // inside the callback since they vary per quadrature point.
+          float mu_e = 0.0f, lambda_e = 0.0f, lam2mu_e = 0.0f;
+          if constexpr (!IS_MODEL_ON_NODES)
           {
-            for (int k = 0; k < dim; ++k)
-            {
-              int const globalIdx =
-                  mesh_local.globalNodeIndex(elementNumber, i, j, k);
-              int const localIdx = i + j * dim + k * dim * dim;
+            float const vp_e = mesh_local.getModelVpOnElement(elementNumber);
+            float const vs_e = mesh_local.getModelVsOnElement(elementNumber);
+            float const rho_e = mesh_local.getModelRhoOnElement(elementNumber);
+            mu_e = rho_e * vs_e * vs_e;
+            lambda_e = rho_e * (vp_e * vp_e - 2.0f * vs_e * vs_e);
+            lam2mu_e = lambda_e + 2.0f * mu_e;
+          }
 
-              for (int f = 0; f < kNumFields; ++f)
+          INTEGRAL_TYPE::computeElasticStiffnessSumFact(
+              transformData, localFields, localWork,
+              [&](int qa, int qb, int qc, float const(&J_inv)[3][3],
+                  float const(&grad_u_ref)[3][3], float(&flux)[3][3]) {
+                float mu, lambda, lam2mu;
+                if constexpr (IS_MODEL_ON_NODES)
+                {
+                  int const gIndex =
+                      mesh_local.globalNodeIndex(elementNumber, qa, qb, qc);
+                  float const vp = mesh_local.getModelVpOnNodes(gIndex);
+                  float const vs = mesh_local.getModelVsOnNodes(gIndex);
+                  float const rho = mesh_local.getModelRhoOnNodes(gIndex);
+                  mu = rho * vs * vs;
+                  lambda = rho * (vp * vp - 2.0f * vs * vs);
+                  lam2mu = lambda + 2.0f * mu;
+                }
+                else
+                {
+                  mu = mu_e;
+                  lambda = lambda_e;
+                  lam2mu = lam2mu_e;
+                }
+
+                for (int p = 0; p < 3; ++p)
+                {
+                  float const Jp0 = J_inv[p][0];
+                  float const Jp1 = J_inv[p][1];
+                  float const Jp2 = J_inv[p][2];
+                  flux[p][0] = 0.0f;
+                  flux[p][1] = 0.0f;
+                  flux[p][2] = 0.0f;
+                  for (int r = 0; r < 3; ++r)
+                  {
+                    float const Jr0 = J_inv[r][0];
+                    float const Jr1 = J_inv[r][1];
+                    float const Jr2 = J_inv[r][2];
+                    float const v0 =
+                        lam2mu * Jp0 * Jr0 + mu * (Jp1 * Jr1 + Jp2 * Jr2);
+                    float const v1 =
+                        mu * Jp0 * Jr0 + lam2mu * Jp1 * Jr1 + mu * Jp2 * Jr2;
+                    float const v2 =
+                        mu * (Jp0 * Jr0 + Jp1 * Jr1) + lam2mu * Jp2 * Jr2;
+                    float const v3 = lambda * Jp0 * Jr1 + mu * Jp1 * Jr0;
+                    float const v4 = lambda * Jp0 * Jr2 + mu * Jp2 * Jr0;
+                    float const v5 = lambda * Jp1 * Jr2 + mu * Jp2 * Jr1;
+                    float const g0 = grad_u_ref[r][0];
+                    float const g1 = grad_u_ref[r][1];
+                    float const g2 = grad_u_ref[r][2];
+                    flux[p][0] += v0 * g0 + v3 * g1 + v4 * g2;
+                    flux[p][1] += v3 * g0 + v1 * g1 + v5 * g2;
+                    flux[p][2] += v4 * g0 + v5 * g1 + v2 * g2;
+                  }
+                }
+              });
+
+          for (int i = 0; i < dim; ++i)
+          {
+            for (int j = 0; j < dim; ++j)
+            {
+              for (int k = 0; k < dim; ++k)
               {
-                ATOMICADD(workVectorsGlobal_[f][globalIdx],
-                          localWork[f][localIdx]);
+                int const globalIdx =
+                    mesh_local.globalNodeIndex(elementNumber, i, j, k);
+                int const localIdx = i + j * dim + k * dim * dim;
+
+                for (int f = 0; f < kNumFields; ++f)
+                {
+                  ATOMICADD(workVectorsGlobal_[f][globalIdx],
+                            localWork[f][localIdx]);
+                }
               }
             }
           }
@@ -676,7 +630,6 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES,
           Kokkos::LaunchBounds<LaunchMaxThreadsPerBlock, LaunchMinBlocksPerSM>>(
           0, n_iter),
       KOKKOS_CLASS_LAMBDA(const int _loop_idx) {
-        if (_loop_idx >= n_iter) return;
         int const elementNumber = list_on ? list_local[_loop_idx] : _loop_idx;
 
         int const dim = mesh_local.getOrder() + 1;
@@ -701,155 +654,127 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES,
           }
         }
 
-        typename INTEGRAL_TYPE::TransformType transformData;
-        model_discretization_interface::gatherTransformData(
-            elementNumber, mesh_local, transformData);
-
-#if defined(__CUDACC__) || defined(__HIPCC__)
-
-        struct CJPacked
+        if constexpr (PHYSICS == utils::enums::physicType::kElastic)
         {
-          float4 a;
-          float2 b;
-        };
-#else
-        struct CJPacked
-        {
-          alignas(16) float a0, a1, a2, a3;
-          float b0, b1;
-          float pad[2];
-        };
-#endif
-        CJPacked CJflat[3 * 3];
+          typename INTEGRAL_TYPE::TransformType transformData;
+          model_discretization_interface::gatherTransformData(
+              elementNumber, mesh_local, transformData);
 
-        INTEGRAL_TYPE::computeStiffNessTermwithJac(
-            transformData,
-            [&](int qa, int qb, int qc, float const(&J)[3][3]) {
-              // Get material properties + Thomsen parameters
-              float vp, vs, rho, delta, epsilon, gamma;
-
-              if constexpr (IS_MODEL_ON_NODES)
-              {
-                int const gIndex =
-                    mesh_local.globalNodeIndex(elementNumber, qa, qb, qc);
-                vp = mesh_local.getModelVpOnNodes(gIndex);
-                vs = mesh_local.getModelVsOnNodes(gIndex);
-                rho = mesh_local.getModelRhoOnNodes(gIndex);
-                delta = mesh_local.getModelDeltaOnNodes(gIndex);
-                epsilon = mesh_local.getModelEpsilonOnNodes(gIndex);
-                gamma = mesh_local.getModelGammaOnNodes(gIndex);
-              }
-              else
-              {
-                vp = mesh_local.getModelVpOnElement(elementNumber);
-                vs = mesh_local.getModelVsOnElement(elementNumber);
-                rho = mesh_local.getModelRhoOnElement(elementNumber);
-                delta = mesh_local.getModelDeltaOnElement(elementNumber);
-                epsilon = mesh_local.getModelEpsilonOnElement(elementNumber);
-                gamma = mesh_local.getModelGammaOnElement(elementNumber);
-              }
-
-              // Compute 5 independent VTI coefficients
-              float const rho_vp2 = rho * vp * vp;
-              float const rho_vs2 = rho * vs * vs;
-              float const c33 = rho_vp2;
-              float const c44 = rho_vs2;
-              float const c11 = rho_vp2 * (1.0f + 2.0f * epsilon);
-              float const c66 = rho_vs2 * (1.0f + 2.0f * gamma);
-
-              float const vp2_vs2 = vp * vp - vs * vs;
-              float const sqrt_arg =
-                  vp2_vs2 * vp2_vs2 + 2.0f * rho_vp2 * delta * vp2_vs2;
-              float const c13 = rho * sqrtf(sqrt_arg) - rho_vs2;
-              float const c12 = c11 - 2.0f * c66;
-
-              for (int p = 0; p < 3; ++p)
-              {
-                float const Jp0 = J[p][0], Jp1 = J[p][1], Jp2 = J[p][2];
-
-                for (int r = 0; r < 3; ++r)
-                {
-                  float const Jr0 = J[r][0], Jr1 = J[r][1], Jr2 = J[r][2];
-                  float const p0r0 = Jp0 * Jr0, p0r1 = Jp0 * Jr1,
-                              p0r2 = Jp0 * Jr2;
-                  float const p1r0 = Jp1 * Jr0, p1r1 = Jp1 * Jr1,
-                              p1r2 = Jp1 * Jr2;
-                  float const p2r0 = Jp2 * Jr0, p2r1 = Jp2 * Jr1,
-                              p2r2 = Jp2 * Jr2;
-                  int const idx = p * 3 + r;
-
-                  float const v0 = c11 * p0r0 + c66 * p1r1 + c44 * p2r2;
-                  float const v1 = c66 * p0r0 + c11 * p1r1 + c44 * p2r2;
-                  float const v2 = c44 * p0r0 + c44 * p1r1 + c33 * p2r2;
-                  float const v3 = c66 * p0r1 + c12 * p1r0;
-                  float const v4 = c44 * p0r2 + c13 * p2r0;
-                  float const v5 = c44 * p1r2 + c13 * p2r1;
-
-#if defined(__CUDACC__) || defined(__HIPCC__)
-
-                  CJflat[idx].a = make_float4(v0, v1, v2, v3);
-                  CJflat[idx].b = make_float2(v4, v5);
-#else
-                  CJflat[idx].a0 = v0;
-                  CJflat[idx].a1 = v1;
-                  CJflat[idx].a2 = v2;
-                  CJflat[idx].a3 = v3;
-                  CJflat[idx].b0 = v4;
-                  CJflat[idx].b1 = v5;
-#endif
-                }
-              }
-            },
-            [&](int i, int j, float val, const int p, const int r) {
-              int const idx = p * 3 + r;
-#if defined(__CUDACC__) || defined(__HIPCC__)
-
-              float3 const u_local = make_float3(
-                  localFields[0][j], localFields[1][j], localFields[2][j]);
-              float4 const a = CJflat[idx].a;
-              float2 const b = CJflat[idx].b;
-              localWork[0][i] +=
-                  fmaf(val * a.x, u_local.x,
-                       fmaf(val * a.w, u_local.y, val * b.x * u_local.z));
-              localWork[1][i] +=
-                  fmaf(val * a.w, u_local.x,
-                       fmaf(val * a.y, u_local.y, val * b.y * u_local.z));
-              localWork[2][i] +=
-                  fmaf(val * b.x, u_local.x,
-                       fmaf(val * b.y, u_local.y, val * a.z * u_local.z));
-#else
-              float const uxj = localFields[0][j];
-              float const uyj = localFields[1][j];
-              float const uzj = localFields[2][j];
-              float const rxx = CJflat[idx].a0;
-              float const ryy = CJflat[idx].a1;
-              float const rzz = CJflat[idx].a2;
-              float const rxy = CJflat[idx].a3;
-              float const rxz = CJflat[idx].b0;
-              float const ryz = CJflat[idx].b1;
-              localWork[0][i] +=
-                  fmaf(val * rxx, uxj, fmaf(val * rxy, uyj, val * rxz * uzj));
-              localWork[1][i] +=
-                  fmaf(val * rxy, uxj, fmaf(val * ryy, uyj, val * ryz * uzj));
-              localWork[2][i] +=
-                  fmaf(val * rxz, uxj, fmaf(val * ryz, uyj, val * rzz * uzj));
-#endif
-            });
-
-        for (int i = 0; i < dim; ++i)
-        {
-          for (int j = 0; j < dim; ++j)
+          // Hoist per-element VTI stiffness coefficients.
+          float c11_e = 0, c12_e = 0, c13_e = 0, c33_e = 0, c44_e = 0,
+                c66_e = 0;
+          if constexpr (!IS_MODEL_ON_NODES)
           {
-            for (int k = 0; k < dim; ++k)
-            {
-              int const globalIdx =
-                  mesh_local.globalNodeIndex(elementNumber, i, j, k);
-              int const localIdx = i + j * dim + k * dim * dim;
+            float const vp_e = mesh_local.getModelVpOnElement(elementNumber);
+            float const vs_e = mesh_local.getModelVsOnElement(elementNumber);
+            float const rho_e = mesh_local.getModelRhoOnElement(elementNumber);
+            float const delta_e =
+                mesh_local.getModelDeltaOnElement(elementNumber);
+            float const epsilon_e =
+                mesh_local.getModelEpsilonOnElement(elementNumber);
+            float const gamma_e =
+                mesh_local.getModelGammaOnElement(elementNumber);
+            float const rho_vp2 = rho_e * vp_e * vp_e;
+            float const rho_vs2 = rho_e * vs_e * vs_e;
+            c33_e = rho_vp2;
+            c44_e = rho_vs2;
+            c11_e = rho_vp2 * (1.0f + 2.0f * epsilon_e);
+            c66_e = rho_vs2 * (1.0f + 2.0f * gamma_e);
+            float const vp2_vs2 = vp_e * vp_e - vs_e * vs_e;
+            c13_e = rho_e * sqrtf(vp2_vs2 * vp2_vs2 +
+                                  2.0f * rho_vp2 * delta_e * vp2_vs2) -
+                    rho_vs2;
+            c12_e = c11_e - 2.0f * c66_e;
+          }
 
-              for (int f = 0; f < kNumFields; ++f)
+          INTEGRAL_TYPE::computeElasticStiffnessSumFact(
+              transformData, localFields, localWork,
+              [&](int qa, int qb, int qc, float const(&J_inv)[3][3],
+                  float const(&grad_u_ref)[3][3], float(&flux)[3][3]) {
+                float c11, c12, c13, c33, c44, c66;
+                if constexpr (IS_MODEL_ON_NODES)
+                {
+                  int const gIndex =
+                      mesh_local.globalNodeIndex(elementNumber, qa, qb, qc);
+                  float const vp = mesh_local.getModelVpOnNodes(gIndex);
+                  float const vs = mesh_local.getModelVsOnNodes(gIndex);
+                  float const rho = mesh_local.getModelRhoOnNodes(gIndex);
+                  float const delta = mesh_local.getModelDeltaOnNodes(gIndex);
+                  float const epsilon =
+                      mesh_local.getModelEpsilonOnNodes(gIndex);
+                  float const gamma = mesh_local.getModelGammaOnNodes(gIndex);
+                  float const rho_vp2 = rho * vp * vp;
+                  float const rho_vs2 = rho * vs * vs;
+                  c33 = rho_vp2;
+                  c44 = rho_vs2;
+                  c11 = rho_vp2 * (1.0f + 2.0f * epsilon);
+                  c66 = rho_vs2 * (1.0f + 2.0f * gamma);
+                  float const vp2_vs2 = vp * vp - vs * vs;
+                  c13 = rho * sqrtf(vp2_vs2 * vp2_vs2 +
+                                    2.0f * rho_vp2 * delta * vp2_vs2) -
+                        rho_vs2;
+                  c12 = c11 - 2.0f * c66;
+                }
+                else
+                {
+                  c11 = c11_e;
+                  c12 = c12_e;
+                  c13 = c13_e;
+                  c33 = c33_e;
+                  c44 = c44_e;
+                  c66 = c66_e;
+                }
+
+                for (int p = 0; p < 3; ++p)
+                {
+                  float const Jp0 = J_inv[p][0];
+                  float const Jp1 = J_inv[p][1];
+                  float const Jp2 = J_inv[p][2];
+                  flux[p][0] = 0.0f;
+                  flux[p][1] = 0.0f;
+                  flux[p][2] = 0.0f;
+                  for (int r = 0; r < 3; ++r)
+                  {
+                    float const Jr0 = J_inv[r][0];
+                    float const Jr1 = J_inv[r][1];
+                    float const Jr2 = J_inv[r][2];
+                    float const p0r0 = Jp0 * Jr0, p0r1 = Jp0 * Jr1,
+                                p0r2 = Jp0 * Jr2;
+                    float const p1r0 = Jp1 * Jr0, p1r1 = Jp1 * Jr1,
+                                p1r2 = Jp1 * Jr2;
+                    float const p2r0 = Jp2 * Jr0, p2r1 = Jp2 * Jr1,
+                                p2r2 = Jp2 * Jr2;
+                    float const v0 = c11 * p0r0 + c66 * p1r1 + c44 * p2r2;
+                    float const v1 = c66 * p0r0 + c11 * p1r1 + c44 * p2r2;
+                    float const v2 = c44 * p0r0 + c44 * p1r1 + c33 * p2r2;
+                    float const v3 = c66 * p0r1 + c12 * p1r0;
+                    float const v4 = c44 * p0r2 + c13 * p2r0;
+                    float const v5 = c44 * p1r2 + c13 * p2r1;
+                    float const g0 = grad_u_ref[r][0];
+                    float const g1 = grad_u_ref[r][1];
+                    float const g2 = grad_u_ref[r][2];
+                    flux[p][0] += v0 * g0 + v3 * g1 + v4 * g2;
+                    flux[p][1] += v3 * g0 + v1 * g1 + v5 * g2;
+                    flux[p][2] += v4 * g0 + v5 * g1 + v2 * g2;
+                  }
+                }
+              });
+
+          for (int i = 0; i < dim; ++i)
+          {
+            for (int j = 0; j < dim; ++j)
+            {
+              for (int k = 0; k < dim; ++k)
               {
-                ATOMICADD(workVectorsGlobal_[f][globalIdx],
-                          localWork[f][localIdx]);
+                int const globalIdx =
+                    mesh_local.globalNodeIndex(elementNumber, i, j, k);
+                int const localIdx = i + j * dim + k * dim * dim;
+
+                for (int f = 0; f < kNumFields; ++f)
+                {
+                  ATOMICADD(workVectorsGlobal_[f][globalIdx],
+                            localWork[f][localIdx]);
+                }
               }
             }
           }
@@ -883,7 +808,6 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES,
                                                  LaunchMinBlocksPerSM>>(0,
                                                                         n_iter),
         KOKKOS_CLASS_LAMBDA(const int _loop_idx) {
-          if (_loop_idx >= n_iter) return;
           int const elementNumber = list_on ? list_local[_loop_idx] : _loop_idx;
 
           int const dim = mesh_local.getOrder() + 1;
@@ -912,35 +836,16 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES,
           model_discretization_interface::gatherTransformData(
               elementNumber, mesh_local, transformData);
 
-          float CTTI[6][6];
-
-          // For elements, preload tensor
+          float CTTI[6][6] = {};
           if constexpr (!IS_MODEL_ON_NODES)
           {
             mesh_local.getCTensorOnElement(elementNumber, CTTI);
           }
 
-#if defined(__CUDACC__) || defined(__HIPCC__)
-
-          struct CJPacked
-          {
-            float4 a;
-            float2 b;
-          };
-#else
-          struct CJPacked
-          {
-            alignas(16) float a0, a1, a2, a3;
-            float b0, b1;
-            float pad[2];
-          };
-#endif
-          CJPacked CJflat[3 * 3];
-
-          INTEGRAL_TYPE::computeStiffNessTermwithJac(
-              transformData,
-              [&](int qa, int qb, int qc, float const(&J)[3][3]) {
-                // For nodes, compute on-the-fly with rotation
+          INTEGRAL_TYPE::computeElasticStiffnessSumFact(
+              transformData, localFields, localWork,
+              [&](int qa, int qb, int qc, float const(&J_inv)[3][3],
+                  float const(&grad_u_ref)[3][3], float(&flux)[3][3]) {
                 if constexpr (IS_MODEL_ON_NODES)
                 {
                   int const gIndex =
@@ -958,7 +863,6 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES,
                                  CTTI);
                 }
 
-                // Apply tensor C (identique aux autres)
                 float const C00 = CTTI[0][0], C01 = CTTI[0][1],
                             C02 = CTTI[0][2];
                 float const C03 = CTTI[0][3], C04 = CTTI[0][4],
@@ -975,86 +879,49 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES,
 
                 for (int p = 0; p < 3; ++p)
                 {
-                  const float Jp0 = J[p][0], Jp1 = J[p][1], Jp2 = J[p][2];
+                  float const Jp0 = J_inv[p][0];
+                  float const Jp1 = J_inv[p][1];
+                  float const Jp2 = J_inv[p][2];
+                  flux[p][0] = 0.0f;
+                  flux[p][1] = 0.0f;
+                  flux[p][2] = 0.0f;
                   for (int r = 0; r < 3; ++r)
                   {
-                    const float Jr0 = J[r][0], Jr1 = J[r][1], Jr2 = J[r][2];
-                    const float p0r0 = Jp0 * Jr0, p0r1 = Jp0 * Jr1,
+                    float const Jr0 = J_inv[r][0];
+                    float const Jr1 = J_inv[r][1];
+                    float const Jr2 = J_inv[r][2];
+                    float const p0r0 = Jp0 * Jr0, p0r1 = Jp0 * Jr1,
                                 p0r2 = Jp0 * Jr2;
-                    const float p1r0 = Jp1 * Jr0, p1r1 = Jp1 * Jr1,
+                    float const p1r0 = Jp1 * Jr0, p1r1 = Jp1 * Jr1,
                                 p1r2 = Jp1 * Jr2;
-                    const float p2r0 = Jp2 * Jr0, p2r1 = Jp2 * Jr1,
+                    float const p2r0 = Jp2 * Jr0, p2r1 = Jp2 * Jr1,
                                 p2r2 = Jp2 * Jr2;
-                    const int idx = p * 3 + r;
-
-                    float v0 = C00 * p0r0 + C05 * p0r1 + C04 * p0r2 +
-                               C05 * p1r0 + C55 * p1r1 + C45 * p1r2 +
-                               C04 * p2r0 + C45 * p2r1 + C44 * p2r2;
-                    float v1 = C55 * p0r0 + C15 * p0r1 + C35 * p0r2 +
-                               C15 * p1r0 + C11 * p1r1 + C13 * p1r2 +
-                               C35 * p2r0 + C13 * p2r1 + C33 * p2r2;
-                    float v2 = C44 * p0r0 + C34 * p0r1 + C24 * p0r2 +
-                               C34 * p1r0 + C33 * p1r1 + C23 * p1r2 +
-                               C24 * p2r0 + C23 * p2r1 + C22 * p2r2;
-                    float v3 = C05 * p0r0 + C01 * p0r1 + C03 * p0r2 +
-                               C55 * p1r0 + C15 * p1r1 + C35 * p1r2 +
-                               C45 * p2r0 + C14 * p2r1 + C34 * p2r2;
-                    float v4 = C04 * p0r0 + C03 * p0r1 + C02 * p0r2 +
-                               C45 * p1r0 + C35 * p1r1 + C25 * p1r2 +
-                               C44 * p2r0 + C34 * p2r1 + C24 * p2r2;
-                    float v5 = C45 * p0r0 + C35 * p0r1 + C25 * p0r2 +
-                               C14 * p1r0 + C13 * p1r1 + C12 * p1r2 +
-                               C34 * p2r0 + C33 * p2r1 + C23 * p2r2;
-
-#if defined(__CUDACC__) || defined(__HIPCC__)
-
-                    CJflat[idx].a = make_float4(v0, v1, v2, v3);
-                    CJflat[idx].b = make_float2(v4, v5);
-#else
-                    CJflat[idx].a0 = v0;
-                    CJflat[idx].a1 = v1;
-                    CJflat[idx].a2 = v2;
-                    CJflat[idx].a3 = v3;
-                    CJflat[idx].b0 = v4;
-                    CJflat[idx].b1 = v5;
-#endif
+                    float const v0 = C00 * p0r0 + C05 * p0r1 + C04 * p0r2 +
+                                     C05 * p1r0 + C55 * p1r1 + C45 * p1r2 +
+                                     C04 * p2r0 + C45 * p2r1 + C44 * p2r2;
+                    float const v1 = C55 * p0r0 + C15 * p0r1 + C35 * p0r2 +
+                                     C15 * p1r0 + C11 * p1r1 + C13 * p1r2 +
+                                     C35 * p2r0 + C13 * p2r1 + C33 * p2r2;
+                    float const v2 = C44 * p0r0 + C34 * p0r1 + C24 * p0r2 +
+                                     C34 * p1r0 + C33 * p1r1 + C23 * p1r2 +
+                                     C24 * p2r0 + C23 * p2r1 + C22 * p2r2;
+                    float const v3 = C05 * p0r0 + C01 * p0r1 + C03 * p0r2 +
+                                     C55 * p1r0 + C15 * p1r1 + C35 * p1r2 +
+                                     C45 * p2r0 + C14 * p2r1 + C34 * p2r2;
+                    float const v4 = C04 * p0r0 + C03 * p0r1 + C02 * p0r2 +
+                                     C45 * p1r0 + C35 * p1r1 + C25 * p1r2 +
+                                     C44 * p2r0 + C34 * p2r1 + C24 * p2r2;
+                    float const v5 = C45 * p0r0 + C35 * p0r1 + C25 * p0r2 +
+                                     C14 * p1r0 + C13 * p1r1 + C12 * p1r2 +
+                                     C34 * p2r0 + C33 * p2r1 + C23 * p2r2;
+                    float const g0 = grad_u_ref[r][0];
+                    float const g1 = grad_u_ref[r][1];
+                    float const g2 = grad_u_ref[r][2];
+                    flux[p][0] += v0 * g0 + v3 * g1 + v4 * g2;
+                    flux[p][1] += v3 * g0 + v1 * g1 + v5 * g2;
+                    flux[p][2] += v4 * g0 + v5 * g1 + v2 * g2;
                   }
                 }
-              },
-              [&](int i, int j, float val, const int p, const int r) {
-                const int idx = p * 3 + r;
-#if defined(__CUDACC__) || defined(__HIPCC__)
-
-                const float3 u_local = make_float3(
-                    localFields[0][j], localFields[1][j], localFields[2][j]);
-                const float4 a = CJflat[idx].a;
-                const float2 b = CJflat[idx].b;
-                localWork[0][i] +=
-                    fmaf(val * a.x, u_local.x,
-                         fmaf(val * a.w, u_local.y, val * b.x * u_local.z));
-                localWork[1][i] +=
-                    fmaf(val * a.w, u_local.x,
-                         fmaf(val * a.y, u_local.y, val * b.y * u_local.z));
-                localWork[2][i] +=
-                    fmaf(val * b.x, u_local.x,
-                         fmaf(val * b.y, u_local.y, val * a.z * u_local.z));
-#else
-                const float uxj = localFields[0][j];
-                const float uyj = localFields[1][j];
-                const float uzj = localFields[2][j];
-                const float rxx = CJflat[idx].a0;
-                const float ryy = CJflat[idx].a1;
-                const float rzz = CJflat[idx].a2;
-                const float rxy = CJflat[idx].a3;
-                const float rxz = CJflat[idx].b0;
-                const float ryz = CJflat[idx].b1;
-                localWork[0][i] +=
-                    fmaf(val * rxx, uxj, fmaf(val * rxy, uyj, val * rxz * uzj));
-                localWork[1][i] +=
-                    fmaf(val * rxy, uxj, fmaf(val * ryy, uyj, val * ryz * uzj));
-                localWork[2][i] +=
-                    fmaf(val * rxz, uxj, fmaf(val * ryz, uyj, val * rzz * uzj));
-#endif
               });
 
           for (int i = 0; i < dim; ++i)
@@ -1296,8 +1163,6 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES,
           Kokkos::LaunchBounds<LaunchMaxThreadsPerBlock, LaunchMinBlocksPerSM>>(
           0, mesh_local.getNumberOfElements()),
       KOKKOS_CLASS_LAMBDA(const int elementNumber) {
-        if (elementNumber >= mesh_local.getNumberOfElements()) return;
-
         float massMatrixLocal[kPointsPerElement] = {0};
         int const dim = mesh_local.getOrder() + 1;
 
@@ -1369,8 +1234,6 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES,
           Kokkos::LaunchBounds<LaunchMaxThreadsPerBlock, LaunchMinBlocksPerSM>>(
           0, mesh_local.getNumberOfElements()),
       KOKKOS_CLASS_LAMBDA(const int elementNumber) {
-        if (elementNumber >= mesh_local.getNumberOfElements()) return;
-
         for (int i = 0; i < 6; ++i)
         {
           // Get global face ID for this element face

@@ -274,8 +274,9 @@ void FdtdProxy::InitSource()
   // Compute source term (e.g., Ricker wavelet)
   kernels_.RHSTerm = allocateVector<vectorReal>(num_time_samples_, "RHSTerm");
 
+  float const tpeak = 1.0f / source_frequency_;
   std::vector<float> source_term = utils_.computeSourceTerm(
-      num_time_samples_, time_step_, source_frequency_, source_order_);
+      num_time_samples_, time_step_, source_frequency_, source_order_, tpeak);
 
   for (int i = 0; i < num_time_samples_; i++)
   {

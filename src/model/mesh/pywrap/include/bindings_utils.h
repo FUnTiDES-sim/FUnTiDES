@@ -43,6 +43,10 @@ constexpr const char* order_suffix(int order)
       return "O2";
     case 3:
       return "O3";
+    case 4:
+      return "O4";
+    case 5:
+      return "O5";
     default:
       throw std::runtime_error("Unsupported order for binding: " +
                                std::to_string(order));
@@ -60,6 +64,10 @@ auto orderDispatch(int const order, FUNC&& func)
       return func(std::integral_constant<int, 2>{});
     case 3:
       return func(std::integral_constant<int, 3>{});
+    case 4:
+      return func(std::integral_constant<int, 4>{});
+    case 5:
+      return func(std::integral_constant<int, 5>{});
     default:
       throw std::invalid_argument("Unsupported order for binding: " +
                                   std::to_string(order));

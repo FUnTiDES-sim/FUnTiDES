@@ -23,22 +23,22 @@ class EvaluateRickerTest : public ::testing::Test
 // At t = tpeak => 0
 TEST_F(EvaluateRickerTest, Order0_AtPeak_IsZero)
 {
-  EXPECT_NEAR(ricker.evaluateRicker(tpeak, f0, 0), 0.0f, 1e-7f);
+  EXPECT_NEAR(ricker.evaluateRicker(tpeak, f0, 0, tpeak), 0.0f, 1e-7f);
 }
 
 // --- Order 1 (first derivative of Gaussian): -2*lam*(t-tpeak)*exp(...)  ---
 // At t = tpeak => 0  (odd function around tpeak)
 TEST_F(EvaluateRickerTest, Order1_AtPeak_IsZero)
 {
-  EXPECT_NEAR(ricker.evaluateRicker(tpeak, f0, 1), 0.0f, 1e-7f);
+  EXPECT_NEAR(ricker.evaluateRicker(tpeak, f0, 1, tpeak), 0.0f, 1e-7f);
 }
 
 // Order 1 is antisymmetric: f(tpeak + dt) = -f(tpeak - dt)
 TEST_F(EvaluateRickerTest, Order1_IsAntisymmetric)
 {
   float dt = 0.02f;
-  float vp = ricker.evaluateRicker(tpeak + dt, f0, 1);
-  float vm = ricker.evaluateRicker(tpeak - dt, f0, 1);
+  float vp = ricker.evaluateRicker(tpeak + dt, f0, 1, tpeak);
+  float vm = ricker.evaluateRicker(tpeak - dt, f0, 1, tpeak);
   EXPECT_NEAR(vp, -vm, 1e-6f);
 }
 
@@ -47,15 +47,15 @@ TEST_F(EvaluateRickerTest, Order1_IsAntisymmetric)
 TEST_F(EvaluateRickerTest, Order2_AtPeak)
 {
   float expected = -2.0f * lam;
-  EXPECT_NEAR(ricker.evaluateRicker(tpeak, f0, 2), expected, 1e-3f);
+  EXPECT_NEAR(ricker.evaluateRicker(tpeak, f0, 2, tpeak), expected, 1e-3f);
 }
 
 // Order 2 is symmetric: f(tpeak + dt) = f(tpeak - dt)
 TEST_F(EvaluateRickerTest, Order2_IsSymmetric)
 {
   float dt = 0.03f;
-  float vp = ricker.evaluateRicker(tpeak + dt, f0, 2);
-  float vm = ricker.evaluateRicker(tpeak - dt, f0, 2);
+  float vp = ricker.evaluateRicker(tpeak + dt, f0, 2, tpeak);
+  float vm = ricker.evaluateRicker(tpeak - dt, f0, 2, tpeak);
   EXPECT_NEAR(vp, vm, 1e-6f);
 }
 
@@ -63,15 +63,15 @@ TEST_F(EvaluateRickerTest, Order2_IsSymmetric)
 // At t = tpeak: (time_n - o_tpeak) = 0 => pulse = 0
 TEST_F(EvaluateRickerTest, Order3_AtPeak_IsZero)
 {
-  EXPECT_NEAR(ricker.evaluateRicker(tpeak, f0, 3), 0.0f, 1e-7f);
+  EXPECT_NEAR(ricker.evaluateRicker(tpeak, f0, 3, tpeak), 0.0f, 1e-7f);
 }
 
 // Order 3 is antisymmetric
 TEST_F(EvaluateRickerTest, Order3_IsAntisymmetric)
 {
   float dt = 0.02f;
-  float vp = ricker.evaluateRicker(tpeak + dt, f0, 3);
-  float vm = ricker.evaluateRicker(tpeak - dt, f0, 3);
+  float vp = ricker.evaluateRicker(tpeak + dt, f0, 3, tpeak);
+  float vm = ricker.evaluateRicker(tpeak - dt, f0, 3, tpeak);
   EXPECT_NEAR(vp, -vm, 1e-5f);
 }
 
@@ -80,15 +80,15 @@ TEST_F(EvaluateRickerTest, Order3_IsAntisymmetric)
 TEST_F(EvaluateRickerTest, Order4_AtPeak)
 {
   float expected = 12.0f * lam * lam;
-  EXPECT_NEAR(ricker.evaluateRicker(tpeak, f0, 4), expected, 1e-1f);
+  EXPECT_NEAR(ricker.evaluateRicker(tpeak, f0, 4, tpeak), expected, 1e-1f);
 }
 
 // Order 4 is symmetric
 TEST_F(EvaluateRickerTest, Order4_IsSymmetric)
 {
   float dt = 0.02f;
-  float vp = ricker.evaluateRicker(tpeak + dt, f0, 4);
-  float vm = ricker.evaluateRicker(tpeak - dt, f0, 4);
+  float vp = ricker.evaluateRicker(tpeak + dt, f0, 4, tpeak);
+  float vm = ricker.evaluateRicker(tpeak - dt, f0, 4, tpeak);
   EXPECT_NEAR(vp, vm, 1e-4f);
 }
 
@@ -97,10 +97,11 @@ TEST_F(EvaluateRickerTest, OutsideWindow_ReturnsZero)
 {
   for (int ord = 0; ord <= 4; ++ord)
   {
-    EXPECT_FLOAT_EQ(ricker.evaluateRicker(-0.9f * tpeak - 0.001f, f0, ord),
-                    0.0f)
+    EXPECT_FLOAT_EQ(
+        ricker.evaluateRicker(-0.9f * tpeak - 0.001f, f0, ord, tpeak), 0.0f)
         << "order=" << ord << " before window";
-    EXPECT_FLOAT_EQ(ricker.evaluateRicker(2.9f * tpeak + 0.001f, f0, ord), 0.0f)
+    EXPECT_FLOAT_EQ(
+        ricker.evaluateRicker(2.9f * tpeak + 0.001f, f0, ord, tpeak), 0.0f)
         << "order=" << ord << " after window";
   }
 }
@@ -111,10 +112,10 @@ TEST_F(EvaluateRickerTest, DerivativeConsistency_Order1vs2)
 {
   float t = tpeak + 0.04f;
   float h = 1e-4f;
-  float fd = (ricker.evaluateRicker(t + h, f0, 1) -
-              ricker.evaluateRicker(t - h, f0, 1)) /
+  float fd = (ricker.evaluateRicker(t + h, f0, 1, tpeak) -
+              ricker.evaluateRicker(t - h, f0, 1, tpeak)) /
              (2.0f * h);
-  float analytical = ricker.evaluateRicker(t, f0, 2);
+  float analytical = ricker.evaluateRicker(t, f0, 2, tpeak);
   EXPECT_NEAR(fd, analytical, std::abs(analytical) * 0.01f);
 }
 
@@ -122,10 +123,10 @@ TEST_F(EvaluateRickerTest, DerivativeConsistency_Order2vs3)
 {
   float t = tpeak + 0.04f;
   float h = 1e-4f;
-  float fd = (ricker.evaluateRicker(t + h, f0, 2) -
-              ricker.evaluateRicker(t - h, f0, 2)) /
+  float fd = (ricker.evaluateRicker(t + h, f0, 2, tpeak) -
+              ricker.evaluateRicker(t - h, f0, 2, tpeak)) /
              (2.0f * h);
-  float analytical = ricker.evaluateRicker(t, f0, 3);
+  float analytical = ricker.evaluateRicker(t, f0, 3, tpeak);
   EXPECT_NEAR(fd, analytical, std::abs(analytical) * 0.01f);
 }
 
@@ -133,10 +134,10 @@ TEST_F(EvaluateRickerTest, DerivativeConsistency_Order3vs4)
 {
   float t = tpeak + 0.04f;
   float h = 1e-4f;
-  float fd = (ricker.evaluateRicker(t + h, f0, 3) -
-              ricker.evaluateRicker(t - h, f0, 3)) /
+  float fd = (ricker.evaluateRicker(t + h, f0, 3, tpeak) -
+              ricker.evaluateRicker(t - h, f0, 3, tpeak)) /
              (2.0f * h);
-  float analytical = ricker.evaluateRicker(t, f0, 4);
+  float analytical = ricker.evaluateRicker(t, f0, 4, tpeak);
   EXPECT_NEAR(fd, analytical, std::abs(analytical) * 0.01f);
 }
 
