@@ -8,7 +8,7 @@ include(${CMAKE_SOURCE_DIR}/cmake/GenerateSolverImplementations.cmake)
 # ============================================================================
 
 # Define polynomial orders
-set(ORDERS 1 2 3 4 5 6)
+set(ORDERS 1 2 3 4 5 6 7 8 9)
 
 # Define mesh types
 set(MESH_TYPES "struct" "unstruct")
