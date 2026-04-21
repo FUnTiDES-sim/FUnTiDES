@@ -165,8 +165,9 @@ BENCHMARK_TEMPLATE_METHOD_F(SolverStructFixture, OneStep)
 
   // ricker wavelet
   SolverUtils myUtils;
-  std::vector<float> sourceTerm =
-      myUtils.computeSourceTerm(this->n_time_steps, this->dt, this->f0, 2);
+  float const tpeak = 1.0f / this->f0;
+  std::vector<float> sourceTerm = myUtils.computeSourceTerm(
+      this->n_time_steps, this->dt, this->f0, 2, tpeak);
   for (int j = 0; j < this->n_time_steps; j++)
   {
     arrays.rhsTerm(0, j) = sourceTerm[j];

@@ -123,7 +123,19 @@ python3 examples/fe/solver_cartesian.py --ex 100 --ey 100 --ez 100 --order 2
 
 # Run an MPI-distributed Python cartesian solver (requires MPI)
 mpirun -n 4 python3 examples/fe/solver_cartesian_mpi.py --ex 200 --snap_interval 20
+
 ```
+
+If you want to easily modify the cli option when you launch the code (eg: modify the number of elements by directions, the spacial order etc), you can also use `run_funtides.py` script inside `python` folder, to run the executable using a yaml input file where you can define all the options for your simulation
+```sh
+
+# Run python script with input file
+python3 python run_funtides.py examples/example_config.yaml
+```
+
+The `example_config.yaml` file inside the examples folder, gives an example of a possible yaml file to use.
+> **Note**: The script can also handle mpi simulation with or without a scheduler with dedicated option inside the yaml
+
 
 > **Note**: A dedicated python env can be made via TPLs.
 
