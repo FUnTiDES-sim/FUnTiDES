@@ -36,6 +36,8 @@ std::unique_ptr<Solver> orderDispatch(int const order, FUNC&& func)
       return func(std::integral_constant<int, 4>{});
     case 5:
       return func(std::integral_constant<int, 5>{});
+    case 6:
+      return func(std::integral_constant<int, 6>{});
     default:
       throw std::runtime_error("Unsupported polynomial order: " +
                                std::to_string(order));
