@@ -5,7 +5,6 @@
 # ============================================================================
 
 function(generate_solver_implementations)
-    # Parse arguments
     set(options "")
     set(oneValueArgs OUTPUT_DIR OUTPUT_VAR SOLVER_NAME)
     set(multiValueArgs ORDERS MESH_TYPES MODEL_TYPES PHYSIC_TYPES)
