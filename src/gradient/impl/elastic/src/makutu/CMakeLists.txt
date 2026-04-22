@@ -7,8 +7,10 @@ include(${CMAKE_SOURCE_DIR}/cmake/GenerateDifferentiatorImplementations.cmake)
 # Configuration: Define all combinations to generate
 # ============================================================================
 
-# Define polynomial orders
-set(ORDERS 1 2 3)
+set(ORDERS "")
+foreach(order RANGE 1 ${TARGET_DIFFERENTIATOR_ELASTIC_ORDER})
+    list(APPEND ORDERS ${order})
+endforeach()
 
 # Define mesh types
 set(MESH_TYPES "struct" "unstruct")

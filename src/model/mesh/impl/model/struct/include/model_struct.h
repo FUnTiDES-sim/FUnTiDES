@@ -417,12 +417,17 @@ class ModelStruct final : public ModelApi<FloatType, ScalarType>
 
   PROXY_HOST_DEVICE FloatType getMinSpacing() const final
   {
-    if constexpr (Order == 1) return min(hx_, min(hy_, hz_));
-    if constexpr (Order == 2) return min(hx_, min(hy_, hz_)) / 2;
-    if constexpr (Order == 3) return min(hx_, min(hy_, hz_)) * 0.276393;
-    if constexpr (Order == 4) return min(hx_, min(hy_, hz_)) * 0.172673;
-    if constexpr (Order == 5) return min(hx_, min(hy_, hz_)) * 0.117472;
-    return -1;
+    const FloatType h = min(hx_, min(hy_, hz_));
+    if constexpr (Order == 1) return h;
+    if constexpr (Order == 2) return h * 0.5000000000;
+    if constexpr (Order == 3) return h * 0.2763932023;
+    if constexpr (Order == 4) return h * 0.1726731646;
+    if constexpr (Order == 5) return h * 0.1174723380;
+    if constexpr (Order == 6) return h * 0.0848880519;
+    if constexpr (Order == 7) return h * 0.0641299257;
+    if constexpr (Order == 8) return h * 0.0501210023;
+    if constexpr (Order == 9) return h * 0.0402330459;
+    return FloatType(-1);
   }
 
   FloatType getMaxSpeed() const final { return 1500; }

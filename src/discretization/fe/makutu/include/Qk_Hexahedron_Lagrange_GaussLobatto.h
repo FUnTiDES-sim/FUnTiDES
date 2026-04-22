@@ -12,6 +12,10 @@
 #include "LagrangeBasis3GL.h"
 #include "LagrangeBasis4GL.h"
 #include "LagrangeBasis5GL.h"
+#include "LagrangeBasis6GL.h"
+#include "LagrangeBasis7GL.h"
+#include "LagrangeBasis8GL.h"
+#include "LagrangeBasis9GL.h"
 #include "mathUtilites.h"
 
 /**
@@ -1550,6 +1554,18 @@ using Q4_Hexahedron_Lagrange_GaussLobatto =
 using Q5_Hexahedron_Lagrange_GaussLobatto =
     Qk_Hexahedron_Lagrange_GaussLobatto<LagrangeBasis5GL>;
 
+using Q6_Hexahedron_Lagrange_GaussLobatto =
+    Qk_Hexahedron_Lagrange_GaussLobatto<LagrangeBasis6GL>;
+
+using Q7_Hexahedron_Lagrange_GaussLobatto =
+    Qk_Hexahedron_Lagrange_GaussLobatto<LagrangeBasis7GL>;
+
+using Q8_Hexahedron_Lagrange_GaussLobatto =
+    Qk_Hexahedron_Lagrange_GaussLobatto<LagrangeBasis8GL>;
+
+using Q9_Hexahedron_Lagrange_GaussLobatto =
+    Qk_Hexahedron_Lagrange_GaussLobatto<LagrangeBasis9GL>;
+
 template <int ORDER>
 struct Qk_Hexahedron_Lagrange_GaussLobatto_Selector;
 
@@ -1583,6 +1599,27 @@ struct Qk_Hexahedron_Lagrange_GaussLobatto_Selector<5>
   using type = Q5_Hexahedron_Lagrange_GaussLobatto;
 };
 
+template <>
+struct Qk_Hexahedron_Lagrange_GaussLobatto_Selector<6>
+{
+  using type = Q6_Hexahedron_Lagrange_GaussLobatto;
+};
+
+template <>
+struct Qk_Hexahedron_Lagrange_GaussLobatto_Selector<7>
+{
+  using type = Q7_Hexahedron_Lagrange_GaussLobatto;
+};
+template <>
+struct Qk_Hexahedron_Lagrange_GaussLobatto_Selector<8>
+{
+  using type = Q8_Hexahedron_Lagrange_GaussLobatto;
+};
+template <>
+struct Qk_Hexahedron_Lagrange_GaussLobatto_Selector<9>
+{
+  using type = Q9_Hexahedron_Lagrange_GaussLobatto;
+};
 #if __GNUC__
 #pragma GCC diagnostic pop
 #endif
