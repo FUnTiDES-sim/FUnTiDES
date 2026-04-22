@@ -2,37 +2,44 @@
 
 FUnTiDES (Fast Unstructured Time Dynamic Equation Solver) is a high-performance computational library designed to simulate 2D and 3D wave propagation. By solving acoustic and elastic wave equations using a high-order Spectral Element Method (SEM), it handles the massive computational demands of real-world scientific simulations with exceptional accuracy. Designed primarily for use via its Python bindings, FUnTiDES combines a flexible, user-friendly Python interface with a heavily optimized, performance-portable C++ backend (powered by Kokkos) for modern High-Performance Computing (HPC) architectures.
 
-
 ## Included Applications
 
 The current implementation includes two proxy applications for solving the 2nd-order acoustic wave equation in 2D and 3D:
 
-- **SEM (Spectral Element Method)**
-  A benchmark designed to simulate wave propagation using SEM, a Galerkin-based finite element method for solving partial differential equations (PDEs).
+  - **SEM (Spectral Element Method)**
+    A benchmark designed to simulate wave propagation using SEM, a Galerkin-based finite element method for solving partial differential equations (PDEs).
 
-- **FD (Finite Difference Method)**
-  A benchmark that uses finite-difference stencil operators to simulate wave propagation and solve PDEs.
+  - **FD (Finite Difference Method)**
+    A benchmark that uses finite-difference stencil operators to simulate wave propagation and solve PDEs.
 
 A key feature of these proxy applications is their adaptability to different programming models and HPC architectures. They are also easy to build and run, making them accessible to both researchers and developers.
-
 
 ## CMake Options
 
 The following options can be used to configure your build:
 
-| Option                 | Description                                        |
-|------------------------|----------------------------------------------------|
-| `COMPILE_FD`           | Enable compilation of the FD proxy (default: ON)   |
-| `COMPILE_SEM`          | Enable compilation of the SEM proxy (default: ON)  |
-| `ENABLE_PYWRAP`        | Enable Python bindings via pybind11 (experimental) |
-| `CMAKE_INSTALL_PREFIX` | Where to install FUnTiDES                          |
+| Option                     | Description                                                                        |
+|----------------------------|------------------------------------------------------------------------------------|
+| `COMPILE_FD`               | Enable compilation of the FD proxy (default: ON)                                   |
+| `COMPILE_SEM`              | Enable compilation of the SEM proxy (default: ON)                                  |
+| `ENABLE_PYWRAP`            | Enable Python bindings via pybind11 (experimental)                                 |
+| `CMAKE_INSTALL_PREFIX`     | Where to install FUnTiDES                                                          |
+| `MAX_SOLVER_ORDER`         | Max polynomial order generated for solvers (reduces compile time & binary size)    |
+| `MAX_DIFFERENTIATOR_ORDER` | Max polynomial order generated for differentiators (reduces compile time)          |
 
+**Optimizing Build Times:** Because FUnTiDES heavily relies on C++ templates for different polynomial orders (up to order 9 by default), compiling all of them can take time and memory. You can restrict the generation to lower orders if you don't need them:
+
+```sh
+cmake .. -DMAX_SOLVER_ORDER=3 -DMAX_DIFFERENTIATOR_ORDER=2
+```
+
+*Note: Advanced users can also fine-tune maximum orders per physics using specific variables like `MAX_SOLVER_ACOUSTIC_ORDER`, `MAX_SOLVER_ELASTOACOUSTIC_ORDER`, `MAX_DIFFERENTIATOR_ELASTIC_ORDER`, etc.*
 
 ## Quick Start: Build and Run
 
 ### Step 1: Install Third-Party Libraries (TPL)
 
-Before compiling the main project, you must install the required dependencies via the FUnTiDES-TPL repository. 
+Before compiling the main project, you must install the required dependencies via the FUnTiDES-TPL repository.
 
 ```sh
 # Clone the TPL repository
@@ -41,7 +48,7 @@ git clone https://github.com/FUnTiDES-sim/FUnTiDES-TPL.git
 # Install TPL for CPU
 export FUNTIDES_TPL_INSTALL_DIR=$(pwd)/FUnTiDES-TPL/install
 FUnTiDES-TPL/install.sh --prefix=${FUNTIDES_TPL_INSTALL_DIR} --disable-cuda --disable-mpi --no-venv --jobs=$(nproc)
-````
+```
 
 For more TPL builds options see `FUnTiDES-TPL/install.sh --help`.
 
@@ -127,6 +134,7 @@ mpirun -n 4 python3 examples/fe/solver_cartesian_mpi.py --ex 200 --snap_interval
 ```
 
 If you want to easily modify the cli option when you launch the code (eg: modify the number of elements by directions, the spacial order etc), you can also use `run_funtides.py` script inside `python` folder, to run the executable using a yaml input file where you can define all the options for your simulation
+
 ```sh
 
 # Run python script with input file
@@ -134,8 +142,8 @@ python3 python run_funtides.py examples/example_config.yaml
 ```
 
 The `example_config.yaml` file inside the examples folder, gives an example of a possible yaml file to use.
-> **Note**: The script can also handle mpi simulation with or without a scheduler with dedicated option inside the yaml
 
+> **Note**: The script can also handle mpi simulation with or without a scheduler with dedicated option inside the yaml
 
 > **Note**: A dedicated python env can be made via TPLs.
 

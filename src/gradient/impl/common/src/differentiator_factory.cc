@@ -15,25 +15,26 @@ using modelLocationType = utils::enums::modelLocationType;
 using implemType = utils::enums::implemType;
 
 /**
- * @brief Dispatches to the correct template instantiation based on runtime
- * order.
+ * @brief Template récursif C++17 qui remplace le switch codé en dur.
+ * Il s'arrête exactement à CurrentOrder (défini par CMake) et descend
+ * jusqu'à 1.
  */
-template <typename FUNC>
+template <int CurrentOrder, typename FUNC>
 std::unique_ptr<Differentiator> orderDispatch(int const order, FUNC&& func)
 {
-  switch (order)
+  if (order == CurrentOrder)
   {
-    case 1:
-      return func(std::integral_constant<int, 1>{});
-    case 2:
-      return func(std::integral_constant<int, 2>{});
-    case 3:
-      return func(std::integral_constant<int, 3>{});
-    // case 4:
-    //   return func(std::integral_constant<int, 4>{});
-    default:
-      throw std::runtime_error("Unsupported polynomial order: " +
-                               std::to_string(order));
+    return func(std::integral_constant<int, CurrentOrder>{});
+  }
+
+  if constexpr (CurrentOrder > 1)
+  {
+    return orderDispatch<CurrentOrder - 1>(order, std::forward<FUNC>(func));
+  }
+  else
+  {
+    throw std::runtime_error("Unsupported polynomial order: " +
+                             std::to_string(order));
   }
 }
 
@@ -123,24 +124,42 @@ std::unique_ptr<Differentiator> makeDifferentiatorSem(
 {
   bool const isModelOnNodes = (modelLocation == modelLocationType::kOnNodes);
 
-  switch (mesh)
+// Définir une macro de fallback au cas où CMake ne passe pas les variables
+#ifndef MAX_DIFFERENTIATOR_ACOUSTIC_ORDER
+#define MAX_DIFFERENTIATOR_ACOUSTIC_ORDER 3
+#endif
+#ifndef MAX_DIFFERENTIATOR_ELASTIC_ORDER
+#define MAX_DIFFERENTIATOR_ELASTIC_ORDER 3
+#endif
+
+  // On dispatch selon la physique D'ABORD, pour injecter la bonne limite
+  // d'ordre max.
+  if (physic == physicType::kAcoustic)
   {
-    case meshType::kStruct:
-      return orderDispatch(order, [&](auto orderIC) {
-        constexpr int ORDER = decltype(orderIC)::value;
-        return makeDifferentiatorStruct<ImplTag, ORDER>(isModelOnNodes, physic);
-      });
-
-    case meshType::kUnstruct:
-      return orderDispatch(order, [&](auto orderIC) {
-        constexpr int ORDER = decltype(orderIC)::value;
-        return makeDifferentiatorUnstruct<ImplTag, ORDER>(isModelOnNodes,
-                                                          physic);
-      });
-
-    default:
-      throw std::runtime_error("Unknown mesh type");
+    return orderDispatch<MAX_DIFFERENTIATOR_ACOUSTIC_ORDER>(
+        order, [&](auto orderIC) {
+          constexpr int ORDER = decltype(orderIC)::value;
+          return (mesh == meshType::kStruct)
+                     ? makeDifferentiatorStruct<ImplTag, ORDER>(isModelOnNodes,
+                                                                physic)
+                     : makeDifferentiatorUnstruct<ImplTag, ORDER>(
+                           isModelOnNodes, physic);
+        });
   }
+  else if (physic == physicType::kElastic)
+  {
+    return orderDispatch<MAX_DIFFERENTIATOR_ELASTIC_ORDER>(
+        order, [&](auto orderIC) {
+          constexpr int ORDER = decltype(orderIC)::value;
+          return (mesh == meshType::kStruct)
+                     ? makeDifferentiatorStruct<ImplTag, ORDER>(isModelOnNodes,
+                                                                physic)
+                     : makeDifferentiatorUnstruct<ImplTag, ORDER>(
+                           isModelOnNodes, physic);
+        });
+  }
+
+  throw std::runtime_error("Unknown physics type");
 }
 
 std::unique_ptr<Differentiator> createDifferentiator(
@@ -155,7 +174,7 @@ std::unique_ptr<Differentiator> createDifferentiator(
           order, mesh, modelLocation, physicType);
     default:
       throw std::runtime_error("Unknown implementation type: " +
-                               to_string(implemType));
+                               std::to_string(static_cast<int>(implemType)));
   }
 }
 

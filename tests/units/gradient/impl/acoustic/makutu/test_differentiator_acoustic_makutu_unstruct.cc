@@ -30,7 +30,19 @@ struct Order3U
   static constexpr int kOrder = 3;
 };
 
+// Valeur de secours si la macro n'est pas transmise par CMake
+#ifndef MAX_DIFFERENTIATOR_ACOUSTIC_ORDER
+#define MAX_DIFFERENTIATOR_ACOUSTIC_ORDER 3
+#endif
+
+// Création dynamique de la liste de tests selon l'ordre max
+#if MAX_DIFFERENTIATOR_ACOUSTIC_ORDER == 1
+using OrderTypesU = ::testing::Types<Order1U>;
+#elif MAX_DIFFERENTIATOR_ACOUSTIC_ORDER == 2
+using OrderTypesU = ::testing::Types<Order1U, Order2U>;
+#elif MAX_DIFFERENTIATOR_ACOUSTIC_ORDER == 3
 using OrderTypesU = ::testing::Types<Order1U, Order2U, Order3U>;
+#endif
 
 // =============================================================================
 // Helper: 1-element unstructured unit cube mesh [0,1]³

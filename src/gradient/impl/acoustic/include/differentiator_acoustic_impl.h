@@ -202,11 +202,14 @@ void DifferentiatorAcoustic<ORDER, INTEGRAL_TYPE, MESH_TYPE,
                                        });
       });
 
+  Kokkos::fence();  // Ensure mass diagonal computation is complete before
+                    // proceeding
+
   // =====================================================
   // Compute gradients and normalize
   // =====================================================
   Kokkos::parallel_for(
-      "Compute Acoustic Gradient on Nodes (Normalized)",
+      "Compute and Distribute Element Gradients to Nodes",
       Kokkos::RangePolicy<
           Kokkos::LaunchBounds<LaunchMaxThreadsPerBlock, LaunchMinBlocksPerSM>>(
           0, mesh.getNumberOfElements()),
@@ -235,6 +238,7 @@ void DifferentiatorAcoustic<ORDER, INTEGRAL_TYPE, MESH_TYPE,
         float localQnPrev[kPointsPerElement] = {0};
         float localQnPrevPrev[kPointsPerElement] = {0};
         int localGIdx[kPointsPerElement] = {0};
+
         for (int i = 0; i < dim; ++i)
           for (int j = 0; j < dim; ++j)
             for (int k = 0; k < dim; ++k)
@@ -250,27 +254,51 @@ void DifferentiatorAcoustic<ORDER, INTEGRAL_TYPE, MESH_TYPE,
 
         float const invDt2 = 1.0f / (dt * dt);
 
-        // grad_kappa: scatter per quadrature point to its global node,
-        // normalized by M_ii
+        // =====================================================
+        // Compute element gradient for kappa
+        // =====================================================
+        float localGradKappa = 0.0f;
         INTEGRAL_TYPE::computeMassTerm(
             transformData, [&](const int q, const real_t val) {
               float const qdt2 =
                   (localQnPrevPrev[q] - 2.0f * localQnPrev[q] + localQn[q]) *
                   invDt2;
+              localGradKappa += qdt2 * localPn[q] * val;
+            });
+
+        // =====================================================
+        // Distribute kappa gradient to nodes, weighted by mass matrix
+        // =====================================================
+        INTEGRAL_TYPE::computeMassTerm(
+            transformData, [&](const int q, const real_t val) {
               int const gIdx = localGIdx[q];
-              float const contrib = qdt2 * localPn[q] * val / massDiag(gIdx);
+              // Weight: local mass value / global mass diagonal (ensures proper
+              // normalization)
+              float const weight = val / massDiag(gIdx);
+              float const contrib = localGradKappa * weight;
               ATOMICADD(gradKappa(gIdx), contrib);
             });
 
-        // grad_buoyancy: scatter test-function node (i) contributions to
-        // global node, normalized by M_ii (mass matrix diagonal at node i)
+        // =====================================================
+        // Compute element gradient for buoyancy
+        // =====================================================
+        float localGradBuoyancy = 0.0f;
         INTEGRAL_TYPE::computeStiffnessTerm(
             transformData,
             [&](const int /*qa*/, const int /*qb*/, const int /*qc*/) {},
             [&](const int i, const int j, const real_t val) {
-              int const gIdx = localGIdx[i];
-              float const contrib =
-                  val * localQn[j] * localPn[i] / massDiag(gIdx);
+              localGradBuoyancy += val * localQn[j] * localPn[i];
+            });
+
+        // =====================================================
+        // Distribute buoyancy gradient to nodes
+        // For buoyancy, use the mass matrix weights of the test function nodes
+        // =====================================================
+        INTEGRAL_TYPE::computeMassTerm(
+            transformData, [&](const int q, const real_t val) {
+              int const gIdx = localGIdx[q];
+              float const weight = val / massDiag(gIdx);
+              float const contrib = localGradBuoyancy * weight;
               ATOMICADD(gradBuoyancy(gIdx), contrib);
             });
       });

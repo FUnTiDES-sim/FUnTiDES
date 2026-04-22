@@ -1,4 +1,9 @@
 add_library(proxy_solver)
+target_compile_definitions(proxy_solver PUBLIC
+    MAX_SOLVER_ACOUSTIC_ORDER=${TARGET_SOLVER_ACOUSTIC_ORDER}
+    MAX_SOLVER_ELASTIC_ORDER=${TARGET_SOLVER_ELASTIC_ORDER}
+    MAX_SOLVER_ELASTOACOUSTIC_ORDER=${TARGET_SOLVER_ELASTOACOUSTIC_ORDER}
+)
 
 add_subdirectory(acoustic)
 add_subdirectory(acoustoelastic)

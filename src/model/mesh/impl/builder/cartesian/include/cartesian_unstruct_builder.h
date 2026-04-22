@@ -1,11 +1,13 @@
 #ifndef FUNTIDES_MODEL_MESH_IMPL_BUILDER_CARTESIAN_INCLUDE_CARTESIAN_UNSTRUCT_BUILDER_H_
 #define FUNTIDES_MODEL_MESH_IMPL_BUILDER_CARTESIAN_INCLUDE_CARTESIAN_UNSTRUCT_BUILDER_H_
 
-#include <builder.h>
-#include <model_unstruct.h>
+#include <stdexcept>
 
+#include "builder.h"
 #include "cartesian_params.h"
 #include "cartesian_unstruct_boundary_classifier.h"
+#include "gllpoints.h"
+#include "model_unstruct.h"
 
 namespace model
 {
@@ -164,70 +166,20 @@ class CartesianUnstructBuilder : public ModelBuilderBase<FloatType, ScalarType>
     }
   }
 
-  // Use FloatType for h to prevent integer truncation
   void getCoordInOneDirection(FloatType h, const int& n_element, float* coord,
                               FloatType offset)
   {
-    float xi[MAX_ORDER + 1];
+    if (order_ < 1 || order_ > MAX_GLL_ORDER)
+      throw std::runtime_error(
+          "Cartesian unstruct builder error: order not supported.");
 
-    switch (order_)
-    {
-      case 1:
-        xi[0] = -1.f;
-        xi[1] = 1.f;
-        break;
-      case 2:
-        xi[0] = -1.f;
-        xi[1] = 0.f;
-        xi[2] = 1.f;
-        break;
-      case 3: {
-        static constexpr float sqrt5 = 2.2360679774997897f;
-        xi[0] = -1.0f;
-        xi[1] = -1.f / sqrt5;
-        xi[2] = 1.f / sqrt5;
-        xi[3] = 1.f;
-        break;
-      }
-      case 4: {
-        static constexpr float sqrt3_7 = 0.6546536707079771f;
-        xi[0] = -1.0f;
-        xi[1] = -sqrt3_7;
-        xi[2] = 0.0f;
-        xi[3] = sqrt3_7;
-        xi[4] = 1.0f;
-        break;
-      }
-      case 5: {
-        static constexpr float sqrt__7_plus_2sqrt7__ = 3.50592393273573196f;
-        static constexpr float sqrt__7_mins_2sqrt7__ = 1.30709501485960033f;
-        static constexpr float sqrt_inv21 = 0.218217890235992381f;
-        xi[0] = -1.0f;
-        xi[1] = -sqrt_inv21 * sqrt__7_plus_2sqrt7__;
-        xi[2] = -sqrt_inv21 * sqrt__7_mins_2sqrt7__;
-        xi[3] = sqrt_inv21 * sqrt__7_mins_2sqrt7__;
-        xi[4] = sqrt_inv21 * sqrt__7_plus_2sqrt7__;
-        xi[5] = 1.0f;
-        break;
-      }
-      default:
-        break;
-    }
-
-    int i = n_element;
-    float x0 = i * h;
-    float x1 = (i + 1) * h;
-    float b = (x1 + x0) / 2.f;
-    float a = b - x0;
-
-    FloatType elementStart = n_element * h;
-
+    const FloatType elementStart = n_element * h;
     for (int j = 0; j < order_ + 1; j++)
     {
-      coord[j] = elementStart + (xi[j] + 1.0f) * h * 0.5f + offset;
+      coord[j] =
+          elementStart + (GLLPoints::get(order_, j) + 1.0f) * h * 0.5f + offset;
     }
   }
-
   void initNodesCoords()
   {
     int nodes_x = ex_ * order_ + 1;
