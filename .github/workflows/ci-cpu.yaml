@@ -50,6 +50,7 @@ jobs:
             const labels = pullRequest.labels.map(label => label.name);
             core.setOutput('labels', labels.join(','));
             core.setOutput('has-sccache-off', labels.includes('SCCACHE_OFF') ? 'true' : 'false');
+            core.setOutput('has-order7', labels.includes('ORDER7') ? 'true' : 'false');
 
       - name: Checkout
         id: checkout
