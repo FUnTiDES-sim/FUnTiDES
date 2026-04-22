@@ -202,8 +202,9 @@ void DifferentiatorAcoustic<ORDER, INTEGRAL_TYPE, MESH_TYPE,
                                        });
       });
 
-  Kokkos::fence();  // Ensure mass diagonal computation is complete before proceeding
-  
+  Kokkos::fence();  // Ensure mass diagonal computation is complete before
+                    // proceeding
+
   // =====================================================
   // Compute gradients and normalize
   // =====================================================
@@ -273,7 +274,8 @@ void DifferentiatorAcoustic<ORDER, INTEGRAL_TYPE, MESH_TYPE,
         INTEGRAL_TYPE::computeMassTerm(
             transformData, [&](const int q, const real_t val) {
               int const gIdx = localGIdx[q];
-              // Weight: local mass value / global mass diagonal (ensures proper normalization)
+              // Weight: local mass value / global mass diagonal (ensures proper
+              // normalization)
               float const weight = val / massDiag(gIdx);
               float const contrib = localGradKappa * weight;
               ATOMICADD(gradKappa(gIdx), contrib);
