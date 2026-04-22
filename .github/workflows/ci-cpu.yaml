@@ -78,7 +78,7 @@ jobs:
         id: configure
         env:
           SCCACHE_GHA_ENABLED: "true"
-        run: |:w
+        run: |
 
           export PYWRAP=${{ matrix.pywrap }}
 
