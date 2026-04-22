@@ -466,14 +466,14 @@ class Qk_Hexahedron_Lagrange_GaussLobatto final
   static real_t computeDampingTerm(int const q, real_t const (&X)[4][3]);
 
   template <int qfa, int qfb, typename FUNC>
-  PROXY_HOST_DEVICE 
-  static void computeGradPhiPhi(int const dir, int const qFixed, 
-    real_t const (&X)[4][3], FUNC &&func);
+  PROXY_HOST_DEVICE static void computeGradPhiPhi(int const dir,
+                                                  int const qFixed,
+                                                  real_t const (&X)[4][3],
+                                                  FUNC &&func);
 
   template <typename FUNC>
-  PROXY_HOST_DEVICE 
-  static void computeInterfaceFluxTerm(
-    real_t const (&X)[4][3], int const faceId, FUNC &&func);
+  PROXY_HOST_DEVICE static void computeInterfaceFluxTerm(
+      real_t const (&X)[4][3], int const faceId, FUNC &&func);
 
   /**
    * @brief computes the matrix B, defined as J^{-T}J^{-1}/det(J), where J is
@@ -489,7 +489,7 @@ class Qk_Hexahedron_Lagrange_GaussLobatto final
   static void computeBMatrix(int const qa, int const qb, int const qc,
                              real_t const (&X)[8][3], real_t (&J)[3][3],
                              real_t (&B)[6]);
-                            
+
   /**
    * @brief computes the non-zero contributions of the d.o.f. indexed by q to
    * the stiffness matrix R, i.e., the superposition matrix of first derivatives
@@ -919,9 +919,8 @@ constexpr void triple_loop(Lambda &&lambda)
 template <int BoundI, int BoundJ, typename Lambda>
 constexpr void double_loop(Lambda &&lambda)
 {
-  for_constexpr<BoundI>([&](auto I) {
-    for_constexpr<BoundJ>([&](auto J) { lambda(I, J); });
-  });
+  for_constexpr<BoundI>(
+      [&](auto I) { for_constexpr<BoundJ>([&](auto J) { lambda(I, J); }); });
 }
 
 template <typename GL_BASIS>
@@ -1079,7 +1078,8 @@ Qk_Hexahedron_Lagrange_GaussLobatto<GL_BASIS>::computeMassTerm(
 template <typename GL_BASIS>
 template <int qfa, int qfb, typename FUNC>
 PROXY_HOST_DEVICE void
-Qk_Hexahedron_Lagrange_GaussLobatto<GL_BASIS>::computeGradPhiPhi(int const dir, int const qFixed, real_t const (&X)[4][3], FUNC &&func)
+Qk_Hexahedron_Lagrange_GaussLobatto<GL_BASIS>::computeGradPhiPhi(
+    int const dir, int const qFixed, real_t const (&X)[4][3], FUNC &&func)
 {
   int ifa, ifb;
   switch (dir)
@@ -1100,7 +1100,7 @@ Qk_Hexahedron_Lagrange_GaussLobatto<GL_BASIS>::computeGradPhiPhi(int const dir, 
   const real_t w2D = GL_BASIS::weight(qfa) * GL_BASIS::weight(qfb);
   real_t B[3];
   real_t J[3][2] = {{0}};
-  jacobianTransformation2d(qfa, qfb, X, J);  
+  jacobianTransformation2d(qfa, qfb, X, J);
   // compute J^T.J, using Voigt notation for B
   B[0] = J[0][0] * J[0][0] + J[1][0] * J[1][0] + J[2][0] * J[2][0];
   B[1] = J[0][1] * J[0][1] + J[1][1] * J[1][1] + J[2][1] * J[2][1];
@@ -1109,7 +1109,7 @@ Qk_Hexahedron_Lagrange_GaussLobatto<GL_BASIS>::computeGradPhiPhi(int const dir, 
   const real_t val = w2D * detJ;
   const int abj = GL_BASIS::TensorProduct2D::linearIndex(qfa, qfb);
   for (int i = 0; i < num1dNodes; i++)
-  {    
+  {
     const int ib = GL_BASIS::TensorProduct2D::linearIndex(i, qfb);
     const int ai = GL_BASIS::TensorProduct2D::linearIndex(qfa, i);
     const real_t gifa = basisGradientAt(i, qfa);
@@ -1124,15 +1124,16 @@ Qk_Hexahedron_Lagrange_GaussLobatto<GL_BASIS>::computeGradPhiPhi(int const dir, 
 template <typename GL_BASIS>
 template <typename FUNC>
 PROXY_HOST_DEVICE void
-Qk_Hexahedron_Lagrange_GaussLobatto<GL_BASIS>::computeInterfaceFluxTerm(real_t const (&X)[4][3], int const faceId, FUNC &&func)
+Qk_Hexahedron_Lagrange_GaussLobatto<GL_BASIS>::computeInterfaceFluxTerm(
+    real_t const (&X)[4][3], int const faceId, FUNC &&func)
 {
-  const int dir = faceId/2;
-  const int qFixed = (faceId%2==0)? 0 : num1dNodes-1;
+  const int dir = faceId / 2;
+  const int qFixed = (faceId % 2 == 0) ? 0 : num1dNodes - 1;
   double_loop<num1dNodes, num1dNodes>([&](auto const icqfa, auto const icqfb) {
-        constexpr int qfa = decltype(icqfa)::value;
-        constexpr int qfb = decltype(icqfb)::value;
-        computeGradPhiPhi<qfa, qfb>(dir, qFixed, X, func);
-      });
+    constexpr int qfa = decltype(icqfa)::value;
+    constexpr int qfb = decltype(icqfb)::value;
+    computeGradPhiPhi<qfa, qfb>(dir, qFixed, X, func);
+  });
 }
 
 template <typename GL_BASIS>

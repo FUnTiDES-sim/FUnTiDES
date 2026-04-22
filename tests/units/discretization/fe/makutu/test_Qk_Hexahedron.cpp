@@ -1022,7 +1022,7 @@ TYPED_TEST(InterfaceFluxTest, InterfaceFluxIsZero)
   constexpr int numNodesPerFace = QK::numNodesPerFace;
 
   // Arbitrary square in XY plane
-  int faceId = 0; // tester toutes les faceId ?
+  int faceId = 0;  // tester toutes les faceId ?
   real_t X[4][3];
   X[0][0] = 0.0;
   X[0][1] = 0.0;
@@ -1035,10 +1035,11 @@ TYPED_TEST(InterfaceFluxTest, InterfaceFluxIsZero)
   X[2][2] = 0.0;
   X[3][0] = 1.0;
   X[3][1] = 1.0;
-  X[3][2] = 0.0;  
+  X[3][2] = 0.0;
 
   real_t CKK[numNodesPerFace][numNodesPerFace][3] = {{{0}}};
-  QK::computeInterfaceFluxTerm(X, faceId, 
+  QK::computeInterfaceFluxTerm(
+      X, faceId,
       [&](int i, int j, int k, real_t Cijk) { CKK[i][j][k] += Cijk; });
 
   real_t SumGrad[3] = {0};
@@ -1055,5 +1056,5 @@ TYPED_TEST(InterfaceFluxTest, InterfaceFluxIsZero)
   }
   Sum = SumGrad[0] + SumGrad[1] + SumGrad[2];
   EXPECT_NEAR(Sum, 0.0, TOL_NUMERICAL)
-          << "Sum of all CKK coefficients should be zero";
+      << "Sum of all CKK coefficients should be zero";
 }
