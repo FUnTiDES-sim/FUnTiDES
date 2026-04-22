@@ -465,11 +465,14 @@ class Qk_Hexahedron_Lagrange_GaussLobatto final
   PROXY_HOST_DEVICE
   static real_t computeDampingTerm(int const q, real_t const (&X)[4][3]);
 
-  template <int dir, int qfa, int qfb, int qFixed, typename FUNC>
-  PROXY_HOST_DEVICE void computeGradPhiPhi(real_t const (&X)[4][3], FUNC &&func)
+  template <int qfa, int qfb, typename FUNC>
+  PROXY_HOST_DEVICE 
+  static void computeGradPhiPhi(int const dir, int const qFixed, 
+    real_t const (&X)[4][3], FUNC &&func);
 
   template <typename FUNC>
-  PROXY_HOST_DEVICE void computeInterfaceFluxTerm(
+  PROXY_HOST_DEVICE 
+  static void computeInterfaceFluxTerm(
     real_t const (&X)[4][3], int const faceId, FUNC &&func);
 
   /**
@@ -917,7 +920,7 @@ template <int BoundI, int BoundJ, typename Lambda>
 constexpr void double_loop(Lambda &&lambda)
 {
   for_constexpr<BoundI>([&](auto I) {
-    for_constexpr<BoundJ>([&](auto J) { lambda(I, J, K); });
+    for_constexpr<BoundJ>([&](auto J) { lambda(I, J); });
   });
 }
 
@@ -1074,11 +1077,11 @@ Qk_Hexahedron_Lagrange_GaussLobatto<GL_BASIS>::computeMassTerm(
 }
 
 template <typename GL_BASIS>
-template <int dir, int qfa, int qfb, int qFixed, typename FUNC>
+template <int qfa, int qfb, typename FUNC>
 PROXY_HOST_DEVICE void
-Qk_Hexahedron_Lagrange_GaussLobatto<GL_BASIS>::computeGradPhiPhi(real_t const (&X)[4][3], FUNC &&func)
+Qk_Hexahedron_Lagrange_GaussLobatto<GL_BASIS>::computeGradPhiPhi(int const dir, int const qFixed, real_t const (&X)[4][3], FUNC &&func)
 {
-  const int ifa, ifb;
+  int ifa, ifb;
   switch (dir)
   {
     case 0:
@@ -1104,7 +1107,7 @@ Qk_Hexahedron_Lagrange_GaussLobatto<GL_BASIS>::computeGradPhiPhi(real_t const (&
   B[2] = J[0][0] * J[0][1] + J[1][0] * J[1][1] + J[2][0] * J[2][1];
   const real_t detJ = sqrt(std::abs(symDeterminant(B)));
   const real_t val = w2D * detJ;
-  const int abj = TensorProduct2D::linearIndex(qfa, qfb);
+  const int abj = GL_BASIS::TensorProduct2D::linearIndex(qfa, qfb);
   for (int i = 0; i < num1dNodes; i++)
   {    
     const int ib = GL_BASIS::TensorProduct2D::linearIndex(i, qfb);
@@ -1124,11 +1127,11 @@ PROXY_HOST_DEVICE void
 Qk_Hexahedron_Lagrange_GaussLobatto<GL_BASIS>::computeInterfaceFluxTerm(real_t const (&X)[4][3], int const faceId, FUNC &&func)
 {
   const int dir = faceId/2;
-  const int qFixed = (faceId%2==0)? 0 : n-1;
+  const int qFixed = (faceId%2==0)? 0 : num1dNodes-1;
   double_loop<num1dNodes, num1dNodes>([&](auto const icqfa, auto const icqfb) {
         constexpr int qfa = decltype(icqfa)::value;
         constexpr int qfb = decltype(icqfb)::value;
-        computeGradPhiPhi(X, func);
+        computeGradPhiPhi<qfa, qfb>(dir, qFixed, X, func);
       });
 }
 
