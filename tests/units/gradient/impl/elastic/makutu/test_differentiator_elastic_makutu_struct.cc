@@ -31,7 +31,14 @@ struct Order3
   static constexpr int kOrder = 3;
 };
 
+// Création dynamique de la liste de tests selon l'ordre max
+#if MAX_DIFFERENTIATOR_ACOUSTIC_ORDER == 1
+using OrderTypes = ::testing::Types<Order1>;
+#elif MAX_DIFFERENTIATOR_ACOUSTIC_ORDER == 2
+using OrderTypes = ::testing::Types<Order1, Order2>;
+#elif MAX_DIFFERENTIATOR_ACOUSTIC_ORDER == 3
 using OrderTypes = ::testing::Types<Order1, Order2, Order3>;
+#endif
 
 // =============================================================================
 // Helper: 1×1×1 structured mesh (1 element, unit cube [0,1]³)

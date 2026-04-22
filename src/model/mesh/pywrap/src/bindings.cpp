@@ -29,7 +29,7 @@ PYBIND11_MODULE(model, m)
   model::bind_modelapi<double, long>(m);
 
   // Bind ModelStruct
-  for (int order = 1; order <= 3; ++order)
+  for (int order = 1; order <= 9; ++order)
   {
     model::orderDispatch(order, [&](auto order_tag) {
       constexpr int ord = decltype(order_tag)::value;
@@ -66,7 +66,7 @@ PYBIND11_MODULE(model, m)
   model::bind_modelbuilderbase<double, long>(m);
 
   // Bind CartesianStructBuilder
-  for (int order = 1; order <= 3; ++order)
+  for (int order = 1; order <= 9; ++order)
   {
     model::orderDispatch(order, [&](auto order_tag) {
       constexpr int ord = decltype(order_tag)::value;
