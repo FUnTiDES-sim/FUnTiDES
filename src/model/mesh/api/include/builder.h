@@ -16,7 +16,7 @@ class ModelBuilderBase
   ModelBuilderBase() = default;
   ~ModelBuilderBase() = default;
 
-  static constexpr int MAX_ORDER = 5;
+  static constexpr int MAX_ORDER = 9;
 
   /**
    * @brief Get the model instance.
