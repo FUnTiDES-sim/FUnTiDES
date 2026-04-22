@@ -1,5 +1,6 @@
 #ifndef FUNTIDES_SOLVER_FE_API_INCLUDE_RHS_H_
 #define FUNTIDES_SOLVER_FE_API_INCLUDE_RHS_H_
+#include "common_macros.h"
 namespace solver
 {
 namespace fe
@@ -9,6 +10,7 @@ namespace fe
  */
 struct Rhs
 {
+  PROXY_HOST_DEVICE
   virtual ~Rhs() = default;
 
   /**

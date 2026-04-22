@@ -16,6 +16,13 @@ struct RhsAcoustic : public Rhs
   /// Number of RHS (source) components
   static constexpr int kNumRhsComponents = 1;
 
+  // Add explicit device-callable constructors and destructors
+  PROXY_HOST_DEVICE RhsAcoustic() = default;
+  PROXY_HOST_DEVICE ~RhsAcoustic() = default;
+  PROXY_HOST_DEVICE RhsAcoustic(const RhsAcoustic&) = default;
+  PROXY_HOST_DEVICE RhsAcoustic& operator=(const RhsAcoustic&) = default;
+
+  PROXY_HOST_DEVICE
   RhsAcoustic(ARRAY_REAL_VIEW term, VECTOR_INT_VIEW element,
               ARRAY_REAL_VIEW weights)
       : m_term(term), m_element(element), m_weights(weights)

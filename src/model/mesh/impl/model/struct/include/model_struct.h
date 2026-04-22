@@ -335,14 +335,14 @@ class ModelStruct final : public ModelApi<FloatType, ScalarType>
 
       model_C_tensor_element_ = allocateArray3D<array3DReal>(n_element, 6, 6);
 
-      auto& C_tensor = model_C_tensor_element_;
+      auto C_tensor = model_C_tensor_element_;
 
       Kokkos::parallel_for(
           "Model init ElasticTensors",
           Kokkos::RangePolicy<Kokkos::LaunchBounds<LaunchMaxThreadsPerBlock,
                                                    LaunchMinBlocksPerSM>>(
               0, n_element),
-          KOKKOS_CLASS_LAMBDA(const int i) {
+          KOKKOS_LAMBDA(const int i) {
             FloatType CTTI[6][6];
 
             FloatType vp = 1500.0;
