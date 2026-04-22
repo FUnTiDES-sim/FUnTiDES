@@ -1047,7 +1047,7 @@ TYPED_TEST(InterfaceFluxTest, InterfaceFluxIsZero)
   {
     for (int j = 0; j < numNodesPerFace; ++j)
     {
-      for (int k = 0; k < numNodesPerFace; ++k)
+      for (int k = 0; k < 3; ++k)
       {
         SumGrad[k] += CKK[i][j][k];
       }
