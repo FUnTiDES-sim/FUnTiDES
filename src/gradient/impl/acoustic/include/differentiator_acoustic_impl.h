@@ -238,7 +238,7 @@ void DifferentiatorAcoustic<ORDER, INTEGRAL_TYPE, MESH_TYPE,
         float localQnPrev[kPointsPerElement] = {0};
         float localQnPrevPrev[kPointsPerElement] = {0};
         int localGIdx[kPointsPerElement] = {0};
-        float localMassWeights[kPointsPerElement] = {0};
+
         for (int i = 0; i < dim; ++i)
           for (int j = 0; j < dim; ++j)
             for (int k = 0; k < dim; ++k)
@@ -264,8 +264,6 @@ void DifferentiatorAcoustic<ORDER, INTEGRAL_TYPE, MESH_TYPE,
                   (localQnPrevPrev[q] - 2.0f * localQnPrev[q] + localQn[q]) *
                   invDt2;
               localGradKappa += qdt2 * localPn[q] * val;
-              // Store mass weights for later distribution
-              localMassWeights[q] = val;
             });
 
         // =====================================================

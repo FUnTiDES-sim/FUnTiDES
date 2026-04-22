@@ -847,12 +847,15 @@ def setup_adjoint_solver(residual):
         [1, N_TIME_STEPS], dtype=kokkos.float32, space=MEM_SPACE, layout=LAYOUT
     )
     np_rhs_term_adj = np.array(kk_rhs_term_adj, copy=False)
+
+    # Compute adjointe receiver index. Corresponds to source index in forward solver.
+    rcv_idx = get_receiver_index_3d(SRC_COORD, DOMAIN_SIZE, EX, ORDER)
+    print(f"  Adjoint receiver index (source in forward): {rcv_idx}")
     
     # Fill RHS with residual in FORWARD time order
     # The adjoint solver's backward time loop automatically handles the time reversal
     # At each adjoint_step = k, the solver is at physical time (N_TIME_STEPS-1-k),
     # so RHS[k] should contain the residual at that physical time
-    rcv_idx = get_receiver_index_3d(RCV_COORD, DOMAIN_SIZE, EX, ORDER)
     for t in range(N_TIME_STEPS):
         # RHS at step t should have residual at physical time (N_TIME_STEPS-1-t)
         np_rhs_term_adj[0, t] = residual[N_TIME_STEPS - 1 - t]
@@ -892,9 +895,9 @@ def setup_adjoint_solver(residual):
         'q_curr_kk': kk_q_curr,
         'q_prevprev_kk': None,  # Will be allocated in adjoint_propagation
         'wavefield': wavefield_adj,
-        'elem_to_nodes': elem_to_nodes,  # CRITICAL: Keep numpy wrapper alive
-        'coord_node': coord_node,  # CRITICAL: Keep numpy wrapper alive
-        'rcv_idx': rcv_idx,
+        'elem_to_nodes': elem_to_nodes,
+        'coord_node': coord_node,
+        'rcv_idx': rcv_idx, # Source index in forward, receiver index in adjoint
         'rhs_kk': kk_rhs_term_adj,  # Keep RHS alive
         'rhs_element_kk': kk_rhs_element_adj,  # Keep RHS element alive
         'rhs_weight_kk': kk_rhs_weight_adj,  # Keep RHS weights alive
@@ -958,9 +961,14 @@ def adjoint_propagation(solver_adj, model_adj, data_adj, fields_adj,
         ORDER
     )
     
-    # Allocate gradient arrays
-    kk_grad_kappa, np_grad_kappa = allocate_field(n_dof, 0.0)
-    kk_grad_buoyancy, np_grad_buoyancy = allocate_field(n_dof, 0.0)
+    # Allocate gradient arrays (must match model discretization, not wavefield resolution)
+    if MODEL_DISCRETIZATION == "ONNODES":
+        grad_dof = n_dof  # Node-based gradient
+    else:  # ONELEMENTS
+        grad_dof = EX * EY * EZ  # Element-based gradient
+    
+    kk_grad_kappa, np_grad_kappa = allocate_field(grad_dof, 0.0)
+    kk_grad_buoyancy, np_grad_buoyancy = allocate_field(grad_dof, 0.0)
     grad_acoustic = Gradient.GradientAcoustic(kk_grad_kappa, kk_grad_buoyancy)
     
     # Unpack forward snapshots
@@ -1001,8 +1009,8 @@ def adjoint_propagation(solver_adj, model_adj, data_adj, fields_adj,
         wavefield_adj = fields_adj['wavefield']
         q_curr_before = wavefield_adj.get_current_field(0)
         q_prev_before = wavefield_adj.get_previous_field(0)
-        np_q_curr_before = np.array(q_curr_before, copy=False).copy()
-        np_q_prev_before = np.array(q_prev_before, copy=False).copy()
+        np_q_curr_before = np.array(q_curr_before, copy=False).copy() #TODO: will be changed once problem with swapping is fixed
+        np_q_prev_before = np.array(q_prev_before, copy=False).copy() #TODO: will be changed once problem with swapping is fixed
         
         # 1b. Perform adjoint update step
         solver_adj.compute_forces(DT, adjoint_step, data_adj)
@@ -1052,8 +1060,9 @@ def adjoint_propagation(solver_adj, model_adj, data_adj, fields_adj,
             del np_fwd
             
             # Copy saved prevprev data (from before swap) into kk_q_prevprev
-            np.copyto(np.array(kk_q_prevprev, copy=False), np_q_curr_before)
-            
+            np.copyto(np.array(kk_q_prevprev, copy=False), np_q_curr_before) #TODO: will be changed once problem with swapping is fixed
+            # Another way to do this while avoiding copies is: np.copyto(np.array(kk_q_prevprev, copy=False), q_prev_before)
+
             fwd_view = Gradient.WavefieldViewForwardAcoustic(fwd_kk)
             
             # Build backward view from adjoint wavefield
