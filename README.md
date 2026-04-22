@@ -171,7 +171,7 @@ export PYTHONPATH=$PYTHONPATH:$MY_INSTALL_DIR/python
 ```
 
 Note: if *pykokkos* is not in your python environment, also extend your `PYTHONPATH` to make the kokkos package visible.
-Some examples on how to use the wrappers are available in the [`examples`](https://www.google.com/search?q=examples/) folder.
+Some examples on how to use the wrappers are available in the [`examples`](examples/) folder.
 
 ### Tests & Benchmarks
 
