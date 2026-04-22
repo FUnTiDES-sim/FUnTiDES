@@ -63,6 +63,36 @@ struct DoubleOrder3
   static constexpr int Order = 3;
 };
 
+// Order 4 wrappers
+struct FloatOrder4
+{
+  using FloatType = float;
+  using ScalarType = int;
+  static constexpr int Order = 4;
+};
+
+struct DoubleOrder4
+{
+  using FloatType = double;
+  using ScalarType = int;
+  static constexpr int Order = 4;
+};
+
+// Order 5 wrappers
+struct FloatOrder5
+{
+  using FloatType = float;
+  using ScalarType = int;
+  static constexpr int Order = 5;
+};
+
+struct DoubleOrder5
+{
+  using FloatType = double;
+  using ScalarType = int;
+  static constexpr int Order = 5;
+};
+
 // ============================================================================
 // Test Fixture
 // ============================================================================
@@ -104,8 +134,10 @@ class ModelStructTest : public ::testing::Test
 };
 
 // Register type wrappers for typed tests
-using TypeWrappers = ::testing::Types<FloatOrder1, FloatOrder2, FloatOrder3,
-                                      DoubleOrder1, DoubleOrder2, DoubleOrder3>;
+using TypeWrappers =
+    ::testing::Types<FloatOrder1, FloatOrder2, FloatOrder3, FloatOrder4,
+                     FloatOrder5, DoubleOrder1, DoubleOrder2, DoubleOrder3,
+                     DoubleOrder4, DoubleOrder5>;
 
 TYPED_TEST_SUITE(ModelStructTest, TypeWrappers);
 

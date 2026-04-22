@@ -98,9 +98,9 @@ SEMproxy::SEMproxy(const SemProxyOptions& opt)
   else if (opt.qp > 0 || opt.qs > 0)
   {
     // Auto-enable SLS with default reference frequency based on source f0
-    float omega0 = 2.0f * M_PI * f0;
+    float omega0 = 2.0f * M_PI * opt.f0;
     std::cout << "Auto-enabling SLS attenuation at omega0=" << omega0
-              << " rad/s (f0=" << f0 << " Hz)" << std::endl;
+              << " rad/s (f0=" << opt.f0 << " Hz)" << std::endl;
     auto freqView = allocateVector<vectorReal>(1, "slsFreqAuto");
     freqView[0] = omega0;
     m_solver->setSLSAttenuation(freqView);
@@ -738,7 +738,7 @@ void SEMproxy::init_source()
 
   // initialize source term
   vector<float> sourceTerm =
-      myUtils.computeSourceTerm(num_sample_, dt_, f0, sourceOrder);
+      myUtils.computeSourceTerm(num_sample_, dt_, f0_, ricker_order_, tpeak_);
   if (isAcoustoElastic_)
   {
     // Auto-detect source domain based on depth vs interface boundary.
@@ -819,6 +819,14 @@ void SEMproxy::init_source()
         SourceAndReceiverUtils::ComputeRHSWeights<3>(cornerCoords, src_coord_,
                                                      rhsWeights);
         break;
+      case 4:
+        SourceAndReceiverUtils::ComputeRHSWeights<4>(cornerCoords, src_coord_,
+                                                     rhsWeights);
+        break;
+      case 5:
+        SourceAndReceiverUtils::ComputeRHSWeights<5>(cornerCoords, src_coord_,
+                                                     rhsWeights);
+        break;
       default:
         throw std::runtime_error("Unsupported order: " + std::to_string(order));
     }
@@ -876,6 +884,14 @@ void SEMproxy::init_source()
       break;
     case 3:
       SourceAndReceiverUtils::ComputeRHSWeights<3>(cornerCoordsRcv, rcv_coord_,
+                                                   rhsWeightsRcv);
+      break;
+    case 4:
+      SourceAndReceiverUtils::ComputeRHSWeights<4>(cornerCoordsRcv, rcv_coord_,
+                                                   rhsWeightsRcv);
+      break;
+    case 5:
+      SourceAndReceiverUtils::ComputeRHSWeights<5>(cornerCoordsRcv, rcv_coord_,
                                                    rhsWeightsRcv);
       break;
     default:
@@ -1014,6 +1030,16 @@ void SEMproxy::init_source()
               sampleCornerCoords, sampleCoord, dasDirection_,
               integrationConstants[iSample], dasType_, &dasWeights_[baseIdx]);
           break;
+        case 4:
+          SourceAndReceiverUtils::ComputeDASWeightsForSample<4>(
+              sampleCornerCoords, sampleCoord, dasDirection_,
+              integrationConstants[iSample], dasType_, &dasWeights_[baseIdx]);
+          break;
+        case 5:
+          SourceAndReceiverUtils::ComputeDASWeightsForSample<5>(
+              sampleCornerCoords, sampleCoord, dasDirection_,
+              integrationConstants[iSample], dasType_, &dasWeights_[baseIdx]);
+          break;
         default:
           throw std::runtime_error("Unsupported order for DAS: " +
                                    std::to_string(order));
@@ -1141,6 +1167,9 @@ void SEMproxy::init_sim_params(const SemProxyOptions& opt)
   src_coord_[0] = opt.srcx;
   src_coord_[1] = opt.srcy;
   src_coord_[2] = opt.srcz;
+  tpeak_ = opt.tpeak;
+  f0_ = opt.f0;
+  ricker_order_ = opt.ricker_order;
 
   rcv_coord_[0] = opt.rcvx;
   rcv_coord_[1] = opt.rcvy;
@@ -1194,6 +1223,28 @@ void SEMproxy::init_mesh_params(const SemProxyOptions& opt)
       }
       case 3: {
         model::CartesianStructBuilder<float, int, 3> builder(
+            m_localParams.ex, m_localParams.lx, m_localParams.ey,
+            m_localParams.ly, m_localParams.ez, m_localParams.lz,
+            opt.isModelOnNodes, opt.isElastic, m_localParams.origin_x,
+            m_localParams.origin_y, m_localParams.origin_z, -1.0f, -1.0f, -1.0f,
+            0.0f, 0.0f, 0.0f, opt.isAcoustoElastic,
+            opt.acoustoElasticBoundaryZ);
+        m_mesh = builder.getModel(opt.free_surface);
+        break;
+      }
+      case 4: {
+        model::CartesianStructBuilder<float, int, 4> builder(
+            m_localParams.ex, m_localParams.lx, m_localParams.ey,
+            m_localParams.ly, m_localParams.ez, m_localParams.lz,
+            opt.isModelOnNodes, opt.isElastic, m_localParams.origin_x,
+            m_localParams.origin_y, m_localParams.origin_z, -1.0f, -1.0f, -1.0f,
+            0.0f, 0.0f, 0.0f, opt.isAcoustoElastic,
+            opt.acoustoElasticBoundaryZ);
+        m_mesh = builder.getModel(opt.free_surface);
+        break;
+      }
+      case 5: {
+        model::CartesianStructBuilder<float, int, 5> builder(
             m_localParams.ex, m_localParams.lx, m_localParams.ey,
             m_localParams.ly, m_localParams.ez, m_localParams.lz,
             opt.isModelOnNodes, opt.isElastic, m_localParams.origin_x,
