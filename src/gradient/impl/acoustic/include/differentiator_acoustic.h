@@ -33,7 +33,7 @@ class DifferentiatorAcoustic : public Differentiator
   static constexpr int kPointsPerElement =
       (ORDER + 1) * (ORDER + 1) * (ORDER + 1);
 
-  ~DifferentiatorAcoustic() override = default;
+  KOKKOS_DEFAULTED_FUNCTION ~DifferentiatorAcoustic() override = default;
 
   /**
    * @brief Compute acoustic gradients (Kappa, Buoyancy).

@@ -155,6 +155,9 @@ void DifferentiatorAcoustic<ORDER, INTEGRAL_TYPE, MESH_TYPE,
   // Allocate mass matrix diagonal
   VECTOR_REAL_VIEW massDiag = VECTOR_REAL_VIEW("massDiag", nNodes);
 
+  // Local copy of class members to avoid capturing 'this' on the device
+  constexpr int nPerElem = kPointsPerElement;
+
   // =====================================================
   // Compute mass matrix diagonal
   // =====================================================
@@ -165,7 +168,7 @@ void DifferentiatorAcoustic<ORDER, INTEGRAL_TYPE, MESH_TYPE,
       Kokkos::RangePolicy<
           Kokkos::LaunchBounds<LaunchMaxThreadsPerBlock, LaunchMinBlocksPerSM>>(
           0, mesh.getNumberOfElements()),
-      KOKKOS_CLASS_LAMBDA(const int elementNumber) {
+      KOKKOS_LAMBDA(const int elementNumber) {
         if (elementNumber >= mesh.getNumberOfElements()) return;
 
         int const dim = mesh.getOrder() + 1;
@@ -185,7 +188,7 @@ void DifferentiatorAcoustic<ORDER, INTEGRAL_TYPE, MESH_TYPE,
               }
         }
 
-        int localGIdx[kPointsPerElement] = {0};
+        int localGIdx[nPerElem] = {0};
         for (int i = 0; i < dim; ++i)
           for (int j = 0; j < dim; ++j)
             for (int k = 0; k < dim; ++k)
@@ -210,7 +213,7 @@ void DifferentiatorAcoustic<ORDER, INTEGRAL_TYPE, MESH_TYPE,
       Kokkos::RangePolicy<
           Kokkos::LaunchBounds<LaunchMaxThreadsPerBlock, LaunchMinBlocksPerSM>>(
           0, mesh.getNumberOfElements()),
-      KOKKOS_CLASS_LAMBDA(const int elementNumber) {
+      KOKKOS_LAMBDA(const int elementNumber) {
         if (elementNumber >= mesh.getNumberOfElements()) return;
 
         int const dim = mesh.getOrder() + 1;
@@ -230,11 +233,11 @@ void DifferentiatorAcoustic<ORDER, INTEGRAL_TYPE, MESH_TYPE,
               }
         }
 
-        float localPn[kPointsPerElement] = {0};
-        float localQn[kPointsPerElement] = {0};
-        float localQnPrev[kPointsPerElement] = {0};
-        float localQnPrevPrev[kPointsPerElement] = {0};
-        int localGIdx[kPointsPerElement] = {0};
+        float localPn[nPerElem] = {0};
+        float localQn[nPerElem] = {0};
+        float localQnPrev[nPerElem] = {0};
+        float localQnPrevPrev[nPerElem] = {0};
+        int localGIdx[nPerElem] = {0};
         for (int i = 0; i < dim; ++i)
           for (int j = 0; j < dim; ++j)
             for (int k = 0; k < dim; ++k)
