@@ -78,14 +78,22 @@ jobs:
         id: configure
         env:
           SCCACHE_GHA_ENABLED: "true"
-        run: |
+        run: |:w
+
           export PYWRAP=${{ matrix.pywrap }}
 
+            # Determine max order: Default to 3, use 7 if the label is present
+            if [[ "$HAS_ORDER7" == "true" ]]; then
+              export MAX_ORDER=7
+              echo "Building with MAX_ORDER=7 (Label detected)"
+            else
+              export MAX_ORDER=3
+              echo "Building with MAX_ORDER=3 (Default)"
+            fi
+
           # Extend CMAKE_FLAGS based on selections
-
-          # Discretization (build fd + sem) and Programming Model (Kokkos/CPU)
-          CMAKE_FLAGS="-DCOMPILE_FD=ON -DCOMPILE_SEM=ON "
-
+          # Discretization, Orders, and Programming Model
+          CMAKE_FLAGS="-DCOMPILE_FD=ON -DCOMPILE_SEM=ON -DMAX_SOLVER_ORDER=$MAX_ORDER -DMAX_DIFFERENTIATOR_ORDER=$MAX_ORDER "
           # Use sccache to speed up recompilation unless disabled
           if [[ "$SCCACHE_OFF" != "true" ]]; then
             export CMAKE_FLAGS="$CMAKE_FLAGS -DCMAKE_C_COMPILER_LAUNCHER=sccache -DCMAKE_CXX_COMPILER_LAUNCHER=sccache"
