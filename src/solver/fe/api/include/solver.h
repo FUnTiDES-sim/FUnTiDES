@@ -22,6 +22,7 @@ class Solver
   struct DataStruct
   {
     // Base structure for data passed to the solver
+    PROXY_HOST_DEVICE
     virtual ~DataStruct() = default;
 
     virtual void print() const = 0;

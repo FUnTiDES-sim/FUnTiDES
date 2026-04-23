@@ -20,6 +20,14 @@ struct WavefieldAcoustic : public Wavefield
   /// Primary field name
   static constexpr const char* kFieldNames[1] = {"pressure"};
 
+  // Add explicit device-callable constructors and destructors
+  PROXY_HOST_DEVICE WavefieldAcoustic() = default;
+  PROXY_HOST_DEVICE ~WavefieldAcoustic() = default;
+  PROXY_HOST_DEVICE WavefieldAcoustic(const WavefieldAcoustic&) = default;
+  PROXY_HOST_DEVICE WavefieldAcoustic& operator=(const WavefieldAcoustic&) =
+      default;
+
+  PROXY_HOST_DEVICE
   WavefieldAcoustic(VECTOR_REAL_VIEW pnGlobalPrev,
                     VECTOR_REAL_VIEW pnGlobalCurr)
       : m_pnGlobalPrev(pnGlobalPrev), m_pnGlobalCurr(pnGlobalCurr)
