@@ -4,10 +4,8 @@
  */
 #ifndef FUNTIDES_MODEL_GRID_INCLUDE_FD_BOUNDARY_H_
 #define FUNTIDES_MODEL_GRID_INCLUDE_FD_BOUNDARY_H_
-namespace model
-{
-namespace fdgrid
-{
+namespace model {
+namespace fdgrid {
 
 /**
  * @brief Absorbing boundary layer configuration
@@ -16,8 +14,7 @@ namespace fdgrid
  * Stores the geometry of absorbing regions around the computational domain
  * to prevent artificial reflections from domain edges.
  */
-class BoundaryLayers
-{
+class BoundaryLayers {
  public:
   BoundaryLayers() = default;
 
@@ -25,28 +22,23 @@ class BoundaryLayers
    * @brief Configure boundary layers from options
    * @param opt Configuration containing boundary parameters
    */
-  void Initialize(const fdtd::options::FdtdOptions& opt)
-  {
+  void Initialize(const fdtd::options::FdtdOptions& opt) {
     // TODO: Extract from opt.boundary or similar
     // For now, set to reasonable defaults
-    float lambdamax_ = opt.velocity.vmin /
-                       (2.5 * opt.source.f0);  // Maximum wavelength in model
+    float lambdamax_ = opt.velocity.vmin / (2.5 * opt.source.f0);  // Maximum wavelength in model
     ntaperx_ = ntapery_ = ntaperz_ = opt.boundary.pml_size;
-    if (opt.boundary.use_pml)
-    {
+    if (opt.boundary.use_pml) {
       ndampx_ = ntaperx_ * lambdamax_ / opt.grid.dx;
       ndampy_ = ntapery_ * lambdamax_ / opt.grid.dy;
       ndampz_ = ntaperz_ * lambdamax_ / opt.grid.dz;
     }
-    if (opt.boundary.use_sponge)
-    {
+    if (opt.boundary.use_sponge) {
       ndampx_ = 0;
       ndampy_ = 0;
       ndampz_ = 0;
     }
 
-    ComputeBoundaryRegions(opt.boundary.use_sponge, opt.boundary.use_pml,
-                           opt.grid.nx, opt.grid.ny, opt.grid.nz);
+    ComputeBoundaryRegions(opt.boundary.use_sponge, opt.boundary.use_pml, opt.grid.nx, opt.grid.ny, opt.grid.nz);
   }
 
   /**
@@ -55,8 +47,7 @@ class BoundaryLayers
    * @param ny Grid size Y
    * @param nz Grid size Z
    */
-  void ComputeBoundaryRegions(bool sponge, bool pml, int nx, int ny, int nz)
-  {
+  void ComputeBoundaryRegions(bool sponge, bool pml, int nx, int ny, int nz) {
     // Example: divide domain into 6 regions per axis
     // x1-x2: left boundary, x3-x4: interior, x5-x6: right boundary
     x1_ = 0;

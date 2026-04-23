@@ -5,36 +5,27 @@
 
 constexpr int MAX_GLL_ORDER = 5;
 
-struct GLLPoints
-{
+struct GLLPoints {
   static constexpr float sqrt5 = 2.2360679774997897;
 
   /// Return the number of points for given order
-  PROXY_HOST_DEVICE static constexpr int num_points(int order)
-  {
-    return order + 1;
-  }
+  PROXY_HOST_DEVICE static constexpr int num_points(int order) { return order + 1; }
 
   /// Return the i-th GLL point for given order
-  PROXY_HOST_DEVICE static float get(int order, int i)
-  {
+  PROXY_HOST_DEVICE static float get(int order, int i) {
     // Validate order
-    if (order < 1 || order > MAX_GLL_ORDER)
-    {
+    if (order < 1 || order > MAX_GLL_ORDER) {
       return 0.0f;  // Invalid order
     }
 
     // Validate point index
-    if (i < 0 || i >= (order + 1))
-    {
+    if (i < 0 || i >= (order + 1)) {
       return 0.0f;  // Invalid index
     }
 
-    switch (order)
-    {
+    switch (order) {
       case 1:
-        switch (i)
-        {
+        switch (i) {
           case 0:
             return -1.0f;
           case 1:
@@ -43,8 +34,7 @@ struct GLLPoints
         break;
 
       case 2:
-        switch (i)
-        {
+        switch (i) {
           case 0:
             return -1.0f;
           case 1:
@@ -55,8 +45,7 @@ struct GLLPoints
         break;
 
       case 3:
-        switch (i)
-        {
+        switch (i) {
           case 0:
             return -1.0f;
           case 1:
@@ -69,8 +58,7 @@ struct GLLPoints
         break;
 
       case 4:
-        switch (i)
-        {
+        switch (i) {
           case 0:
             return -1.0f;
           case 1:
@@ -85,8 +73,7 @@ struct GLLPoints
         break;
 
       case 5:
-        switch (i)
-        {
+        switch (i) {
           case 0:
             return -1.0f;
           case 1:

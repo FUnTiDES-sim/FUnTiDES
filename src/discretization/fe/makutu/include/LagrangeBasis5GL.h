@@ -15,8 +15,7 @@
  * sqrt(1/21(7-2*sqrt(7)))  sqrt(1/21(7-2*sqrt(7)))     1
  *
  */
-class LagrangeBasis5GL
-{
+class LagrangeBasis5GL {
  public:
   /// The number of support points for the basis
   constexpr static int numSupportPoints = 6;
@@ -44,10 +43,8 @@ class LagrangeBasis5GL
    * @param q The index of the support point
    * @return The value of the weight
    */
-  constexpr static double weight(const int q)
-  {
-    switch (q)
-    {
+  constexpr static double weight(const int q) {
+    switch (q) {
       case 1:
       case 4:
         return (1.0 / 30.0) * (14.0 - sqrt_7_);
@@ -65,12 +62,10 @@ class LagrangeBasis5GL
    * @param supportPointIndex The linear index of support point
    * @return parent coordinate in the xi0 direction.
    */
-  constexpr static double parentSupportCoord(const int supportPointIndex)
-  {
+  constexpr static double parentSupportCoord(const int supportPointIndex) {
     double result = 0.0;
 
-    switch (supportPointIndex)
-    {
+    switch (supportPointIndex) {
       case 0:
         result = -1.0;
         break;
@@ -109,12 +104,10 @@ class LagrangeBasis5GL
    * @param xi The coordinate at which to evaluate the basis.
    * @return The value of basis function.
    */
-  constexpr static double value(const int index, const double xi)
-  {
+  constexpr static double value(const int index, const double xi) {
     double result = 0.0;
 
-    switch (index)
-    {
+    switch (index) {
       case 0:
         return result = LagrangeBasis5GL::value0(xi);
         break;
@@ -151,8 +144,7 @@ class LagrangeBasis5GL
    * @param xi The coordinate at which to evaluate the basis.
    * @return The value of the basis.
    */
-  constexpr static double value0(const double xi)
-  {
+  constexpr static double value0(const double xi) {
     /* Define the two GL points needed to compute the basis function at point
        index 0. Here we need the points at index 3,4 called lambda3, lambda4. */
 
@@ -160,10 +152,8 @@ class LagrangeBasis5GL
     double lambda3 = LagrangeBasis5GL::parentSupportCoord(3);
 
     return (-21.0 / 16.0) *
-           (xi * xi * xi * xi * xi - xi * xi * xi * xi -
-            (lambda3 * lambda3 + lambda4 * lambda4) * xi * xi * xi +
-            (lambda3 * lambda3 + lambda4 * lambda4) * xi * xi +
-            lambda3 * lambda3 * lambda4 * lambda4 * xi -
+           (xi * xi * xi * xi * xi - xi * xi * xi * xi - (lambda3 * lambda3 + lambda4 * lambda4) * xi * xi * xi +
+            (lambda3 * lambda3 + lambda4 * lambda4) * xi * xi + lambda3 * lambda3 * lambda4 * lambda4 * xi -
             lambda3 * lambda3 * lambda4 * lambda4);
   }
 
@@ -172,8 +162,7 @@ class LagrangeBasis5GL
    * @param xi The coordinate at which to evaluate the basis.
    * @return The value of the basis.
    */
-  constexpr static double value1(const double xi)
-  {
+  constexpr static double value1(const double xi) {
     /* Define the two GL points needed to compute the basis function at point
        index 1. Here we need the points at index 3 and 4 called lambda3,
        lambda4. */
@@ -182,10 +171,8 @@ class LagrangeBasis5GL
     double lambda4 = LagrangeBasis5GL::parentSupportCoord(4);
 
     return ((21.0 / 16.0) * sqrt__7_mins_sqrt7_div2__) *
-           (xi * xi * xi * xi * xi - lambda4 * xi * xi * xi * xi -
-            (lambda3 * lambda3 + 1) * xi * xi * xi +
-            lambda4 * (lambda3 * lambda3 + 1) * xi * xi +
-            lambda3 * lambda3 * xi - lambda4 * lambda3 * lambda3);
+           (xi * xi * xi * xi * xi - lambda4 * xi * xi * xi * xi - (lambda3 * lambda3 + 1) * xi * xi * xi +
+            lambda4 * (lambda3 * lambda3 + 1) * xi * xi + lambda3 * lambda3 * xi - lambda4 * lambda3 * lambda3);
   }
 
   /**
@@ -193,8 +180,7 @@ class LagrangeBasis5GL
    * @param xi The coordinate at which to evaluate the basis.
    * @return The value of the basis.
    */
-  constexpr static double value2(const double xi)
-  {
+  constexpr static double value2(const double xi) {
     /* Define the two GL points needed to compute the basis function at point
        index 2. Here we need the points at index 3 and 4 called lambda3,
        lambda4. */
@@ -203,10 +189,8 @@ class LagrangeBasis5GL
     double lambda3 = LagrangeBasis5GL::parentSupportCoord(3);
 
     return ((-21.0 / 16.0) * sqrt__7_plus_sqrt7_div2__) *
-           (xi * xi * xi * xi * xi - lambda3 * xi * xi * xi * xi -
-            (lambda4 * lambda4 + 1) * xi * xi * xi +
-            lambda3 * (lambda4 * lambda4 + 1) * xi * xi +
-            lambda4 * lambda4 * xi - lambda3 * lambda4 * lambda4);
+           (xi * xi * xi * xi * xi - lambda3 * xi * xi * xi * xi - (lambda4 * lambda4 + 1) * xi * xi * xi +
+            lambda3 * (lambda4 * lambda4 + 1) * xi * xi + lambda4 * lambda4 * xi - lambda3 * lambda4 * lambda4);
   }
 
   /**
@@ -214,8 +198,7 @@ class LagrangeBasis5GL
    * @param xi The coordinate at which to evaluate the basis.
    * @return The value of the basis.
    */
-  constexpr static double value3(const double xi)
-  {
+  constexpr static double value3(const double xi) {
     /* Define the two GL points needed to compute the basis function at point
        index 3. Here we need the points at index 3 and 4 called lambda1,
        lambda2. */
@@ -224,10 +207,8 @@ class LagrangeBasis5GL
     double lambda3 = LagrangeBasis5GL::parentSupportCoord(3);
 
     return ((21.0 / 16.0) * sqrt__7_plus_sqrt7_div2__) *
-           (xi * xi * xi * xi * xi + lambda3 * xi * xi * xi * xi -
-            (lambda4 * lambda4 + 1) * xi * xi * xi -
-            lambda3 * (lambda4 * lambda4 + 1) * xi * xi +
-            lambda4 * lambda4 * xi + lambda3 * lambda4 * lambda4);
+           (xi * xi * xi * xi * xi + lambda3 * xi * xi * xi * xi - (lambda4 * lambda4 + 1) * xi * xi * xi -
+            lambda3 * (lambda4 * lambda4 + 1) * xi * xi + lambda4 * lambda4 * xi + lambda3 * lambda4 * lambda4);
   }
 
   /**
@@ -235,8 +216,7 @@ class LagrangeBasis5GL
    * @param xi The coordinate at which to evaluate the basis.
    * @return The value of the basis.
    */
-  constexpr static double value4(const double xi)
-  {
+  constexpr static double value4(const double xi) {
     /* Define the two GL points needed to compute the basis function at point
        index 4. Here we need the points at index 3 and 4 called lambda3,
        lambda4. */
@@ -245,10 +225,8 @@ class LagrangeBasis5GL
     double lambda3 = LagrangeBasis5GL::parentSupportCoord(3);
 
     return ((-21.0 / 16.0) * sqrt__7_mins_sqrt7_div2__) *
-           (xi * xi * xi * xi * xi + lambda4 * xi * xi * xi * xi -
-            (lambda3 * lambda3 + 1) * xi * xi * xi -
-            lambda4 * (lambda3 * lambda3 + 1) * xi * xi +
-            lambda3 * lambda3 * xi + lambda4 * lambda3 * lambda3);
+           (xi * xi * xi * xi * xi + lambda4 * xi * xi * xi * xi - (lambda3 * lambda3 + 1) * xi * xi * xi -
+            lambda4 * (lambda3 * lambda3 + 1) * xi * xi + lambda3 * lambda3 * xi + lambda4 * lambda3 * lambda3);
   }
 
   /**
@@ -256,8 +234,7 @@ class LagrangeBasis5GL
    * @param xi The coordinate at which to evaluate the basis.
    * @return The value of the basis.
    */
-  constexpr static double value5(const double xi)
-  {
+  constexpr static double value5(const double xi) {
     /* Define the two GL points needed to compute the basis function at point
        index 5. Here we need the points at index 3 and 4 called lambda3,
        lambda4. */
@@ -266,10 +243,8 @@ class LagrangeBasis5GL
     double lambda4 = LagrangeBasis5GL::parentSupportCoord(4);
 
     return (21.0 / 16.0) *
-           (xi * xi * xi * xi * xi + xi * xi * xi * xi -
-            (lambda4 * lambda4 + lambda3 * lambda3) * xi * xi * xi -
-            (lambda3 * lambda3 + lambda4 * lambda4) * xi * xi +
-            lambda3 * lambda3 * lambda4 * lambda4 * xi +
+           (xi * xi * xi * xi * xi + xi * xi * xi * xi - (lambda4 * lambda4 + lambda3 * lambda3) * xi * xi * xi -
+            (lambda3 * lambda3 + lambda4 * lambda4) * xi * xi + lambda3 * lambda3 * lambda4 * lambda4 * xi +
             lambda4 * lambda4 * lambda3 * lambda3);
   }
 
@@ -281,12 +256,10 @@ class LagrangeBasis5GL
    * @param xi The coordinate at which to evaluate the gradient.
    * @return The gradient of basis function.
    */
-  constexpr static double gradient(const int index, const double xi)
-  {
+  constexpr static double gradient(const int index, const double xi) {
     double result = 0.0;
 
-    switch (index)
-    {
+    switch (index) {
       case 0:
         result = LagrangeBasis5GL::gradient0(xi);
         break;
@@ -324,16 +297,13 @@ class LagrangeBasis5GL
    * @param xi The coordinate at which to evaluate the gradient.
    * @return The gradient of basis function at point 0.
    */
-  constexpr static double gradient0(const double xi)
-  {
+  constexpr static double gradient0(const double xi) {
     double lambda4 = LagrangeBasis5GL::parentSupportCoord(4);
     double lambda3 = LagrangeBasis5GL::parentSupportCoord(3);
 
     return (-21.0 / 16.0) *
-           (5.0 * xi * xi * xi * xi - 4.0 * xi * xi * xi -
-            3.0 * (lambda3 * lambda3 + lambda4 * lambda4) * xi * xi +
-            2.0 * (lambda3 * lambda3 + lambda4 * lambda4) * xi +
-            lambda3 * lambda3 * lambda4 * lambda4);
+           (5.0 * xi * xi * xi * xi - 4.0 * xi * xi * xi - 3.0 * (lambda3 * lambda3 + lambda4 * lambda4) * xi * xi +
+            2.0 * (lambda3 * lambda3 + lambda4 * lambda4) * xi + lambda3 * lambda3 * lambda4 * lambda4);
   }
 
   /**
@@ -342,14 +312,12 @@ class LagrangeBasis5GL
    * @param xi The coordinate at which to evaluate the gradient.
    * @return The gradient of basis function at point 1.
    */
-  constexpr static double gradient1(const double xi)
-  {
+  constexpr static double gradient1(const double xi) {
     double lambda3 = LagrangeBasis5GL::parentSupportCoord(3);
     double lambda4 = LagrangeBasis5GL::parentSupportCoord(4);
 
     return (21.0 / 16.0) * sqrt__7_mins_sqrt7_div2__ *
-           (5.0 * xi * xi * xi * xi - 4.0 * lambda4 * xi * xi * xi -
-            3.0 * (lambda3 * lambda3 + 1.0) * xi * xi +
+           (5.0 * xi * xi * xi * xi - 4.0 * lambda4 * xi * xi * xi - 3.0 * (lambda3 * lambda3 + 1.0) * xi * xi +
             2.0 * lambda4 * (lambda3 * lambda3 + 1.0) * xi + lambda3 * lambda3);
   }
 
@@ -359,14 +327,12 @@ class LagrangeBasis5GL
    * @param xi The coordinate at which to evaluate the gradient.
    * @return The gradient of basis function at point 2.
    */
-  constexpr static double gradient2(const double xi)
-  {
+  constexpr static double gradient2(const double xi) {
     double lambda4 = LagrangeBasis5GL::parentSupportCoord(4);
     double lambda3 = LagrangeBasis5GL::parentSupportCoord(3);
 
     return (-21.0 / 16.0) * sqrt__7_plus_sqrt7_div2__ *
-           (5.0 * xi * xi * xi * xi - 4.0 * lambda3 * xi * xi * xi -
-            3.0 * (lambda4 * lambda4 + 1.0) * xi * xi +
+           (5.0 * xi * xi * xi * xi - 4.0 * lambda3 * xi * xi * xi - 3.0 * (lambda4 * lambda4 + 1.0) * xi * xi +
             2.0 * lambda3 * (lambda4 * lambda4 + 1.0) * xi + lambda4 * lambda4);
   }
 
@@ -376,14 +342,12 @@ class LagrangeBasis5GL
    * @param xi The coordinate at which to evaluate the gradient.
    * @return The gradient of basis function at point 3.
    */
-  constexpr static double gradient3(const double xi)
-  {
+  constexpr static double gradient3(const double xi) {
     double lambda4 = LagrangeBasis5GL::parentSupportCoord(4);
     double lambda3 = LagrangeBasis5GL::parentSupportCoord(3);
 
     return (21.0 / 16.0) * sqrt__7_plus_sqrt7_div2__ *
-           (5.0 * xi * xi * xi * xi + 4.0 * lambda3 * xi * xi * xi -
-            3.0 * (lambda4 * lambda4 + 1.0) * xi * xi -
+           (5.0 * xi * xi * xi * xi + 4.0 * lambda3 * xi * xi * xi - 3.0 * (lambda4 * lambda4 + 1.0) * xi * xi -
             2 * lambda3 * (lambda4 * lambda4 + 1.0) * xi + lambda4 * lambda4);
   }
 
@@ -393,14 +357,12 @@ class LagrangeBasis5GL
    * @param xi The coordinate at which to evaluate the gradient.
    * @return The gradient of basis function at point 0.
    */
-  constexpr static double gradient4(const double xi)
-  {
+  constexpr static double gradient4(const double xi) {
     double lambda4 = LagrangeBasis5GL::parentSupportCoord(4);
     double lambda3 = LagrangeBasis5GL::parentSupportCoord(3);
 
     return (-21.0 / 16.0) * sqrt__7_mins_sqrt7_div2__ *
-           (5.0 * xi * xi * xi * xi + 4.0 * lambda4 * xi * xi * xi -
-            3.0 * (lambda3 * lambda3 + 1.0) * xi * xi -
+           (5.0 * xi * xi * xi * xi + 4.0 * lambda4 * xi * xi * xi - 3.0 * (lambda3 * lambda3 + 1.0) * xi * xi -
             2.0 * lambda4 * (lambda3 * lambda3 + 1.0) * xi + lambda3 * lambda3);
   }
 
@@ -410,16 +372,13 @@ class LagrangeBasis5GL
    * @param xi The coordinate at which to evaluate the gradient.
    * @return The gradient of basis function at point 5.
    */
-  constexpr static double gradient5(const double xi)
-  {
+  constexpr static double gradient5(const double xi) {
     double lambda4 = LagrangeBasis5GL::parentSupportCoord(4);
     double lambda3 = LagrangeBasis5GL::parentSupportCoord(3);
 
     return (21.0 / 16.0) *
-           (5.0 * xi * xi * xi * xi + 4.0 * xi * xi * xi -
-            3.0 * (lambda3 * lambda3 + lambda4 * lambda4) * xi * xi -
-            2.0 * (lambda3 * lambda3 + lambda4 * lambda4) * xi +
-            lambda3 * lambda3 * lambda4 * lambda4);
+           (5.0 * xi * xi * xi * xi + 4.0 * xi * xi * xi - 3.0 * (lambda3 * lambda3 + lambda4 * lambda4) * xi * xi -
+            2.0 * (lambda3 * lambda3 + lambda4 * lambda4) * xi + lambda3 * lambda3 * lambda4 * lambda4);
   }
 
   /**
@@ -429,13 +388,10 @@ class LagrangeBasis5GL
    * @param p The index of the support point
    * @return The gradient of basis function.
    */
-  constexpr static double gradientAt(const int q, const int p)
-  {
-    switch (q)
-    {
+  constexpr static double gradientAt(const int q, const int p) {
+    switch (q) {
       case 0:
-        switch (p)
-        {
+        switch (p) {
           case 0:
             return -7.5000000000000000000;
           case 1:
@@ -445,8 +401,7 @@ class LagrangeBasis5GL
         }
         break;
       case 1:
-        switch (p)
-        {
+        switch (p) {
           case 0:
             return 10.14141593631966928023;
           case 1:
@@ -456,8 +411,7 @@ class LagrangeBasis5GL
         }
         break;
       case 2:
-        switch (p)
-        {
+        switch (p) {
           case 0:
             return -4.03618727030534800527;
           case 1:
@@ -467,8 +421,7 @@ class LagrangeBasis5GL
         }
         break;
       case 3:
-        switch (p)
-        {
+        switch (p) {
           case 0:
             return 2.2446846481761668242712;
           case 1:
@@ -478,8 +431,7 @@ class LagrangeBasis5GL
         }
         break;
       case 4:
-        switch (p)
-        {
+        switch (p) {
           case 0:
             return -1.3499133141904880992312;
           case 1:
@@ -489,8 +441,7 @@ class LagrangeBasis5GL
         }
         break;
       case 5:
-        switch (p)
-        {
+        switch (p) {
           case 0:
             return 0.500000000000000000000;
           case 1:
@@ -541,8 +492,7 @@ class LagrangeBasis5GL
    * 3        4         5                  o----- xi0
    */
 
-  struct TensorProduct2D
-  {
+  struct TensorProduct2D {
     /// The number of support points in the basis.
     constexpr static int numSupportPoints = 36;
 
@@ -553,10 +503,7 @@ class LagrangeBasis5GL
      * @param j The index in the xi1 direction (0,5)
      * @return The linear index of the support/quadrature point (0-35)
      */
-    constexpr static int linearIndex(const int i, const int j)
-    {
-      return i + 6 * j;
-    }
+    constexpr static int linearIndex(const int i, const int j) { return i + 6 * j; }
 
     /**
      * @brief Calculate the Cartesian/TensorProduct index given the linear index
@@ -565,8 +512,7 @@ class LagrangeBasis5GL
      * @param i0 The Cartesian index of the support point in the xi0 direction.
      * @param i1 The Cartesian index of the support point in the xi1 direction.
      */
-    constexpr static void multiIndex(const int linearIndex, int& i0, int& i1)
-    {
+    constexpr static void multiIndex(const int linearIndex, int& i0, int& i1) {
       i1 = linearIndex / 6;
 
       i0 = linearIndex % 6;
@@ -581,16 +527,11 @@ class LagrangeBasis5GL
      * @param N Array to hold the value of the basis functions at each support
      * point.
      */
-    static void value(const double (&coords)[2], double (&N)[numSupportPoints])
-    {
-      for (int a = 0; a < 6; ++a)
-      {
-        for (int b = 0; b < 6; ++b)
-        {
-          const int lindex =
-              LagrangeBasis5GL::TensorProduct2D::linearIndex(a, b);
-          N[lindex] = LagrangeBasis5GL::value(a, coords[0]) *
-                      LagrangeBasis5GL::value(b, coords[1]);
+    static void value(const double (&coords)[2], double (&N)[numSupportPoints]) {
+      for (int a = 0; a < 6; ++a) {
+        for (int b = 0; b < 6; ++b) {
+          const int lindex = LagrangeBasis5GL::TensorProduct2D::linearIndex(a, b);
+          N[lindex] = LagrangeBasis5GL::value(a, coords[0]) * LagrangeBasis5GL::value(b, coords[1]);
         }
       }
     }
@@ -656,8 +597,7 @@ class LagrangeBasis5GL
    * xi0
    */
 
-  struct TensorProduct3D
-  {
+  struct TensorProduct3D {
     /// The number of support points in the basis.
     constexpr static int numSupportPoints = 216;
 
@@ -669,10 +609,7 @@ class LagrangeBasis5GL
      * @param k The index in the xi2 direction (0,5)
      * @return The linear index of the support/quadrature point (0-215)
      */
-    constexpr static int linearIndex(const int i, const int j, const int k)
-    {
-      return i + 6 * j + 36 * k;
-    }
+    constexpr static int linearIndex(const int i, const int j, const int k) { return i + 6 * j + 36 * k; }
 
     /**
      * @brief Calculate the Cartesian/TensorProduct index given the linear index
@@ -682,9 +619,7 @@ class LagrangeBasis5GL
      * @param i1 The Cartesian index of the support point in the xi1 direction.
      * @param i2 The Cartesian index of the support point in the xi2 direction.
      */
-    constexpr static void multiIndex(const int linearIndex, int& i0, int& i1,
-                                     int& i2)
-    {
+    constexpr static void multiIndex(const int linearIndex, int& i0, int& i1, int& i2) {
       i2 = linearIndex / 36;
 
       i1 = (linearIndex % 36) / 6;
@@ -701,18 +636,12 @@ class LagrangeBasis5GL
      * @param N Array to hold the value of the basis functions at each support
      * point.
      */
-    static void value(const double (&coords)[3], double (&N)[numSupportPoints])
-    {
-      for (int a = 0; a < 6; ++a)
-      {
-        for (int b = 0; b < 6; ++b)
-        {
-          for (int c = 0; c < 6; ++c)
-          {
-            const int lindex =
-                LagrangeBasis5GL::TensorProduct3D::linearIndex(a, b, c);
-            N[lindex] = LagrangeBasis5GL::value(a, coords[0]) *
-                        LagrangeBasis5GL::value(b, coords[1]) *
+    static void value(const double (&coords)[3], double (&N)[numSupportPoints]) {
+      for (int a = 0; a < 6; ++a) {
+        for (int b = 0; b < 6; ++b) {
+          for (int c = 0; c < 6; ++c) {
+            const int lindex = LagrangeBasis5GL::TensorProduct3D::linearIndex(a, b, c);
+            N[lindex] = LagrangeBasis5GL::value(a, coords[0]) * LagrangeBasis5GL::value(b, coords[1]) *
                         LagrangeBasis5GL::value(c, coords[2]);
           }
         }

@@ -11,10 +11,8 @@
 #include "fd_model_io.h"
 #include "fd_velocity_model.h"
 
-namespace model
-{
-namespace fdgrid
-{
+namespace model {
+namespace fdgrid {
 
 /**
  * @brief FDTD grid facade maintaining backward compatibility
@@ -30,8 +28,7 @@ namespace fdgrid
  * Existing code continues to work unchanged. New code should use
  * the individual components directly for better encapsulation.
  */
-class FdtdGrids
-{
+class FdtdGrids {
  public:
   FdtdGrids() = default;
 
@@ -39,15 +36,11 @@ class FdtdGrids
    * @brief Initialize grid geometry (backward compatible)
    * @param opt FDTD configuration options
    */
-  void InitGrid(const fdtd::options::FdtdOptions& opt)
-  {
+  void InitGrid(const fdtd::options::FdtdOptions& opt) {
     // Load geometry from file if specified
-    if (!opt.velocity.file_model.empty())
-    {
+    if (!opt.velocity.file_model.empty()) {
       geom_ = ModelIO::ReadGeometry(opt.velocity.file_model);
-    }
-    else
-    {
+    } else {
       geom_ = GridGeometry(opt);
     }
 
@@ -59,8 +52,7 @@ class FdtdGrids
    * @brief Initialize model arrays (backward compatible)
    * @param opt FDTD configuration options
    */
-  void InitModelArrays(const fdtd::options::FdtdOptions& opt)
-  {
+  void InitModelArrays(const fdtd::options::FdtdOptions& opt) {
     constexpr float kTimeStep = 0.001f;  // TODO: Make configurable
     model_ = std::make_unique<VelocityModel>(geom_);
     model_->Initialize(opt, kTimeStep);
@@ -70,9 +62,7 @@ class FdtdGrids
    * @brief Legacy method - no longer used
    * @deprecated Use ModelIO::ReadGeometry() instead
    */
-  void LoadModelInfo(int& nx, int& ny, int& nz, float& dx, float& dy, float& dz,
-                     const std::string& file_model)
-  {
+  void LoadModelInfo(int& nx, int& ny, int& nz, float& dx, float& dy, float& dz, const std::string& file_model) {
     if (file_model.empty()) return;
     auto geom = ModelIO::ReadGeometry(file_model);
     nx = geom.nx();
@@ -87,10 +77,8 @@ class FdtdGrids
    * @brief Legacy method - use VelocityModel::Initialize() instead
    * @deprecated
    */
-  void InitModel(float init_vp_value, bool from_file = false)
-  {
-    if (from_file)
-    {
+  void InitModel(float init_vp_value, bool from_file = false) {
+    if (from_file) {
       throw std::logic_error("File loading not supported in legacy method");
     }
     model_->InitializeSyntheticModel(init_vp_value);
@@ -146,10 +134,7 @@ class FdtdGrids
 
   // Direct access to components for new code
   [[nodiscard]] const GridGeometry& geometry() const noexcept { return geom_; }
-  [[nodiscard]] const BoundaryLayers& boundary() const noexcept
-  {
-    return boundary_;
-  }
+  [[nodiscard]] const BoundaryLayers& boundary() const noexcept { return boundary_; }
   [[nodiscard]] const VelocityModel& model() const noexcept { return *model_; }
   [[nodiscard]] VelocityModel& model() noexcept { return *model_; }
 

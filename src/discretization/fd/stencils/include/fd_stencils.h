@@ -8,12 +8,9 @@
 
 using namespace std;
 
-namespace fdtd
-{
-namespace stencils
-{
-struct FdtdStencils
-{
+namespace fdtd {
+namespace stencils {
+struct FdtdStencils {
   int ncoefsX{0}, ncoefsY{0}, ncoefsZ{0};
   int lx{0}, ly{0}, lz{0};  // half stencil lenght
   double coef0{0.0};
@@ -22,11 +19,9 @@ struct FdtdStencils
   vectorReal coefy;
   vectorReal coefz;
 
-  void init_coef(int L, float dx, vectorReal &coef)
-  {
+  void init_coef(int L, float dx, vectorReal &coef) {
     float dx2 = dx * dx;
-    switch (L)
-    {
+    switch (L) {
       case 1:
         coef[0] = -2.f / dx2;
         coef[1] = 1.f / dx2;
@@ -69,9 +64,7 @@ struct FdtdStencils
     }
   }
 
-  void initStencilsCoefficients(fdtd::options::FdtdOptions &m_opt, float dx,
-                                float dy, float dz)
-  {
+  void initStencilsCoefficients(fdtd::options::FdtdOptions &m_opt, float dx, float dy, float dz) {
     // half stencil lenght
     lx = m_opt.stencil.lx;
     ly = m_opt.stencil.ly;
@@ -93,39 +86,32 @@ struct FdtdStencils
 
     // compute coef0 and all coefs such that sum(coef)=0
     float tmpX = 0;
-    for (int i = 1; i < ncoefsX; i++)
-    {
+    for (int i = 1; i < ncoefsX; i++) {
       tmpX += coefx[i];
     }
     float tmpY = 0;
-    for (int i = 1; i < ncoefsY; i++)
-    {
+    for (int i = 1; i < ncoefsY; i++) {
       tmpY += coefy[i];
     }
     float tmpZ = 0;
-    for (int i = 1; i < ncoefsZ; i++)
-    {
+    for (int i = 1; i < ncoefsZ; i++) {
       tmpZ += coefz[i];
     }
     coef0 = -2. * (tmpX + tmpY + tmpZ);
   }
 
   // compute stable time step
-  float compute_dt_sch(float vmax)
-  {
+  float compute_dt_sch(float vmax) {
     float ftmp = 0.;
     float cfl = 0.8;
     ftmp += fabsf(coefx[0]) + fabsf(coefy[0]) + fabsf(coefz[0]);
-    for (int i = 1; i < coefx.extent(0); i++)
-    {
+    for (int i = 1; i < coefx.extent(0); i++) {
       ftmp += 2.f * fabsf(coefx[i]);
     }
-    for (int i = 1; i < coefy.extent(0); i++)
-    {
+    for (int i = 1; i < coefy.extent(0); i++) {
       ftmp += 2.f * fabsf(coefy[i]);
     }
-    for (int i = 1; i < coefz.extent(0); i++)
-    {
+    for (int i = 1; i < coefz.extent(0); i++) {
       ftmp += 2.f * fabsf(coefz[i]);
     }
     return 2 * cfl / (sqrtf(ftmp) * vmax);

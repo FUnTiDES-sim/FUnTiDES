@@ -22,60 +22,46 @@
 
 namespace py = pybind11;
 
-namespace gradient
-{
+namespace gradient {
 
-void bind_data_struct(py::module_& m)
-{
-  py::class_<Differentiator::DataStruct,
-             std::shared_ptr<Differentiator::DataStruct>>(m, "DataStruct")
+void bind_data_struct(py::module_& m) {
+  py::class_<Differentiator::DataStruct, std::shared_ptr<Differentiator::DataStruct>>(m, "DataStruct")
       .def("print", &Differentiator::DataStruct::print);
 }
 
-void bind_gradient_data_acoustic(py::module_& m)
-{
-  py::class_<GradientDataAcoustic, Differentiator::DataStruct,
-             std::shared_ptr<GradientDataAcoustic>>(m, "GradientDataAcoustic")
-      .def(py::init<const WavefieldViewForwardAcoustic&,
-                    const WavefieldViewBackwardAcoustic&,
+void bind_gradient_data_acoustic(py::module_& m) {
+  py::class_<GradientDataAcoustic, Differentiator::DataStruct, std::shared_ptr<GradientDataAcoustic>>(
+      m, "GradientDataAcoustic")
+      .def(py::init<const WavefieldViewForwardAcoustic&, const WavefieldViewBackwardAcoustic&,
                     const GradientAcoustic&>(),
            py::arg("fwd"), py::arg("bwd"), py::arg("gradient"))
       .def("print", &GradientDataAcoustic::print);
 }
 
-void bind_gradient_data_elastic(py::module_& m)
-{
-  py::class_<GradientDataElastic, Differentiator::DataStruct,
-             std::shared_ptr<GradientDataElastic>>(m, "GradientDataElastic")
-      .def(py::init<const WavefieldViewForwardElastic&,
-                    const WavefieldViewBackwardElastic&,
-                    const GradientElastic&>(),
+void bind_gradient_data_elastic(py::module_& m) {
+  py::class_<GradientDataElastic, Differentiator::DataStruct, std::shared_ptr<GradientDataElastic>>(
+      m, "GradientDataElastic")
+      .def(py::init<const WavefieldViewForwardElastic&, const WavefieldViewBackwardElastic&, const GradientElastic&>(),
            py::arg("fwd"), py::arg("bwd"), py::arg("gradient"))
       .def("print", &GradientDataElastic::print);
 }
 
-void bind_differentiator_base(py::module_& m)
-{
-  py::class_<Differentiator, std::shared_ptr<Differentiator>>(m,
-                                                              "Differentiator")
-      .def("compute", &Differentiator::compute, py::arg("mesh"),
-           py::arg("data"), py::arg("dt"))
+void bind_differentiator_base(py::module_& m) {
+  py::class_<Differentiator, std::shared_ptr<Differentiator>>(m, "Differentiator")
+      .def("compute", &Differentiator::compute, py::arg("mesh"), py::arg("data"), py::arg("dt"))
       .def("print", &Differentiator::print);
 }
 
-void bind_differentiator_factory(py::module_& m)
-{
+void bind_differentiator_factory(py::module_& m) {
   m.def(
       "create_differentiator",
-      [](utils::enums::implemType implem, utils::enums::meshType mesh,
-         utils::enums::modelLocationType modelLocation,
+      [](utils::enums::implemType implem, utils::enums::meshType mesh, utils::enums::modelLocationType modelLocation,
          utils::enums::physicType physic, int order) {
-        auto diff =
-            createDifferentiator(implem, mesh, modelLocation, physic, order);
+        auto diff = createDifferentiator(implem, mesh, modelLocation, physic, order);
         return std::shared_ptr<Differentiator>(std::move(diff));
       },
-      py::arg("implem_type"), py::arg("mesh_type"), py::arg("model_location"),
-      py::arg("physic_type"), py::arg("order"));
+      py::arg("implem_type"), py::arg("mesh_type"), py::arg("model_location"), py::arg("physic_type"),
+      py::arg("order"));
 }
 
 }  // namespace gradient

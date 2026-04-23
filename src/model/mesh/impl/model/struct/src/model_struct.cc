@@ -1,7 +1,6 @@
 #include "model_struct.h"
 
-namespace model
-{
+namespace model {
 template class ModelStruct<float, int, 1>;
 template class ModelStruct<float, int, 2>;
 template class ModelStruct<float, int, 3>;

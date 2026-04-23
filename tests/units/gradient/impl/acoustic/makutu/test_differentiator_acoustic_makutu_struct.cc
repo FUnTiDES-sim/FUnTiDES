@@ -9,25 +9,20 @@
 #include "differentiator_data_acoustic.h"
 #include "model_struct.h"
 
-namespace gradient
-{
-namespace test
-{
+namespace gradient {
+namespace test {
 
 // =============================================================================
 // Order wrappers — Google Test requires types, not non-type parameters.
 // =============================================================================
 
-struct Order1
-{
+struct Order1 {
   static constexpr int kOrder = 1;
 };
-struct Order2
-{
+struct Order2 {
   static constexpr int kOrder = 2;
 };
-struct Order3
-{
+struct Order3 {
   static constexpr int kOrder = 3;
 };
 
@@ -38,8 +33,7 @@ using OrderTypes = ::testing::Types<Order1, Order2, Order3>;
 // =============================================================================
 
 template <int ORDER>
-static model::ModelStruct<float, int, ORDER> makeMesh1x1x1()
-{
+static model::ModelStruct<float, int, ORDER> makeMesh1x1x1() {
   model::ModelStructData<float, int> data;
   data.ex_ = 1;
   data.ey_ = 1;
@@ -63,30 +57,25 @@ static model::ModelStruct<float, int, ORDER> makeMesh1x1x1()
 // =============================================================================
 
 template <typename OrderWrapper>
-class DifferentiatorAcousticElemTest : public ::testing::Test
-{
+class DifferentiatorAcousticElemTest : public ::testing::Test {
  protected:
   static constexpr int kOrder = OrderWrapper::kOrder;
   static constexpr int kNumNodes = (kOrder + 1) * (kOrder + 1) * (kOrder + 1);
   static constexpr int kNumElements = 1;
 
   using Mesh = model::ModelStruct<float, int, kOrder>;
-  using Integral =
-      typename IntegralTypeSelector<kOrder, IntegralType::MAKUTU>::type;
+  using Integral = typename IntegralTypeSelector<kOrder, IntegralType::MAKUTU>::type;
   using Diff = DifferentiatorAcoustic<kOrder, Integral, Mesh, false>;
 
-  void SetUp() override
-  {
+  void SetUp() override {
     pn = allocateVector<VECTOR_REAL_VIEW>(kNumNodes, "pn");
     qn = allocateVector<VECTOR_REAL_VIEW>(kNumNodes, "qn");
     qnPrev = allocateVector<VECTOR_REAL_VIEW>(kNumNodes, "qnPrev");
     qnPrevPrev = allocateVector<VECTOR_REAL_VIEW>(kNumNodes, "qnPrevPrev");
     gradKappa = allocateVector<VECTOR_REAL_VIEW>(kNumElements, "gradKappa");
-    gradBuoyancy =
-        allocateVector<VECTOR_REAL_VIEW>(kNumElements, "gradBuoyancy");
+    gradBuoyancy = allocateVector<VECTOR_REAL_VIEW>(kNumElements, "gradBuoyancy");
 
-    for (int i = 0; i < kNumNodes; ++i)
-    {
+    for (int i = 0; i < kNumNodes; ++i) {
       pn(i) = 0.0f;
       qn(i) = 0.0f;
       qnPrev(i) = 0.0f;
@@ -104,47 +93,36 @@ TYPED_TEST_SUITE(DifferentiatorAcousticElemTest, OrderTypes);
 
 // --- Static constants ---
 
-TYPED_TEST(DifferentiatorAcousticElemTest, OrderConstant)
-{
-  EXPECT_EQ(TestFixture::Diff::kOrder, TestFixture::kOrder);
-}
+TYPED_TEST(DifferentiatorAcousticElemTest, OrderConstant) { EXPECT_EQ(TestFixture::Diff::kOrder, TestFixture::kOrder); }
 
-TYPED_TEST(DifferentiatorAcousticElemTest, IsModelOnNodesConstant)
-{
-  EXPECT_FALSE(TestFixture::Diff::kIsModelOnNodes);
-}
+TYPED_TEST(DifferentiatorAcousticElemTest, IsModelOnNodesConstant) { EXPECT_FALSE(TestFixture::Diff::kIsModelOnNodes); }
 
-TYPED_TEST(DifferentiatorAcousticElemTest, PointsPerElementConstant)
-{
+TYPED_TEST(DifferentiatorAcousticElemTest, PointsPerElementConstant) {
   EXPECT_EQ(TestFixture::Diff::kPointsPerElement, TestFixture::kNumNodes);
 }
 
 // --- Virtual getters ---
 
-TYPED_TEST(DifferentiatorAcousticElemTest, GetOrderReturnsCorrectOrder)
-{
+TYPED_TEST(DifferentiatorAcousticElemTest, GetOrderReturnsCorrectOrder) {
   typename TestFixture::Diff diff;
   EXPECT_EQ(diff.getOrder(), TestFixture::kOrder);
 }
 
-TYPED_TEST(DifferentiatorAcousticElemTest, IsModelOnNodesReturnsFalse)
-{
+TYPED_TEST(DifferentiatorAcousticElemTest, IsModelOnNodesReturnsFalse) {
   typename TestFixture::Diff diff;
   EXPECT_FALSE(diff.isModelOnNodes());
 }
 
 // --- Print ---
 
-TYPED_TEST(DifferentiatorAcousticElemTest, PrintDoesNotThrow)
-{
+TYPED_TEST(DifferentiatorAcousticElemTest, PrintDoesNotThrow) {
   typename TestFixture::Diff diff;
   EXPECT_NO_THROW(diff.print());
 }
 
 // --- compute() correctness ---
 
-TYPED_TEST(DifferentiatorAcousticElemTest, ZeroWavefieldsYieldZeroGradients)
-{
+TYPED_TEST(DifferentiatorAcousticElemTest, ZeroWavefieldsYieldZeroGradients) {
   typename TestFixture::Diff diff;
   auto mesh = makeMesh1x1x1<TestFixture::kOrder>();
 
@@ -159,12 +137,10 @@ TYPED_TEST(DifferentiatorAcousticElemTest, ZeroWavefieldsYieldZeroGradients)
   EXPECT_FLOAT_EQ(this->gradBuoyancy(0), 0.0f);
 }
 
-TYPED_TEST(DifferentiatorAcousticElemTest, UniformFieldGradKappaEqualsVolume)
-{
+TYPED_TEST(DifferentiatorAcousticElemTest, UniformFieldGradKappaEqualsVolume) {
   // pn = 1, qn = 1e-6 (qdt2 = 1 with dt=0.001)  =>  gradKappa = ∑_q
   // mass_weight_q = ∫_Ω 1 dΩ = 1.0
-  for (int i = 0; i < TestFixture::kNumNodes; ++i)
-  {
+  for (int i = 0; i < TestFixture::kNumNodes; ++i) {
     this->pn(i) = 1.0f;
     this->qn(i) = 1e-6f;
     this->qnPrev(i) = 0.0f;
@@ -184,11 +160,9 @@ TYPED_TEST(DifferentiatorAcousticElemTest, UniformFieldGradKappaEqualsVolume)
   EXPECT_NEAR(this->gradKappa(0), 1.0f, 1e-5f);
 }
 
-TYPED_TEST(DifferentiatorAcousticElemTest, ConstantFieldGradBuoyancyIsZero)
-{
+TYPED_TEST(DifferentiatorAcousticElemTest, ConstantFieldGradBuoyancyIsZero) {
   // pn = qn = const  =>  ∇pn = ∇qn = 0  =>  stiffness contribution = 0
-  for (int i = 0; i < TestFixture::kNumNodes; ++i)
-  {
+  for (int i = 0; i < TestFixture::kNumNodes; ++i) {
     this->pn(i) = 1.0f;
     this->qn(i) = 1.0f;
   }
@@ -206,11 +180,9 @@ TYPED_TEST(DifferentiatorAcousticElemTest, ConstantFieldGradBuoyancyIsZero)
   EXPECT_NEAR(this->gradBuoyancy(0), 0.0f, 1e-5f);
 }
 
-TYPED_TEST(DifferentiatorAcousticElemTest, GradKappaScalesWithAmplitude)
-{
+TYPED_TEST(DifferentiatorAcousticElemTest, GradKappaScalesWithAmplitude) {
   // Doubling pn doubles gradKappa
-  for (int i = 0; i < TestFixture::kNumNodes; ++i)
-  {
+  for (int i = 0; i < TestFixture::kNumNodes; ++i) {
     this->pn(i) = 1.0f;
     this->qn(i) = 1e-6f;
     this->qnPrev(i) = 0.0f;
@@ -243,12 +215,9 @@ TYPED_TEST(DifferentiatorAcousticElemTest, GradKappaScalesWithAmplitude)
   EXPECT_NEAR(this->gradKappa(0), 2.0f * single, 1e-5f);
 }
 
-TYPED_TEST(DifferentiatorAcousticElemTest,
-           ComputeAccumulatesIntoExistingGradient)
-{
+TYPED_TEST(DifferentiatorAcousticElemTest, ComputeAccumulatesIntoExistingGradient) {
   // gradKappa starts at some non-zero value; compute() must add to it
-  for (int i = 0; i < TestFixture::kNumNodes; ++i)
-  {
+  for (int i = 0; i < TestFixture::kNumNodes; ++i) {
     this->pn(i) = 1.0f;
     this->qn(i) = 1e-6f;
     this->qnPrev(i) = 0.0f;
@@ -272,18 +241,15 @@ TYPED_TEST(DifferentiatorAcousticElemTest,
 
 // --- Polymorphic interface ---
 
-TYPED_TEST(DifferentiatorAcousticElemTest, PolymorphicInterface)
-{
-  for (int i = 0; i < TestFixture::kNumNodes; ++i)
-  {
+TYPED_TEST(DifferentiatorAcousticElemTest, PolymorphicInterface) {
+  for (int i = 0; i < TestFixture::kNumNodes; ++i) {
     this->pn(i) = 1.0f;
     this->qn(i) = 1e-6f;
     this->qnPrev(i) = 0.0f;
     this->qnPrevPrev(i) = 0.0f;
   }
 
-  std::unique_ptr<Differentiator> diff =
-      std::make_unique<typename TestFixture::Diff>();
+  std::unique_ptr<Differentiator> diff = std::make_unique<typename TestFixture::Diff>();
   auto mesh = makeMesh1x1x1<TestFixture::kOrder>();
 
   EXPECT_EQ(diff->getOrder(), TestFixture::kOrder);
@@ -307,21 +273,18 @@ TYPED_TEST(DifferentiatorAcousticElemTest, PolymorphicInterface)
 // =============================================================================
 
 template <typename OrderWrapper>
-class DifferentiatorAcousticNodeTest : public ::testing::Test
-{
+class DifferentiatorAcousticNodeTest : public ::testing::Test {
  protected:
   static constexpr int kOrder = OrderWrapper::kOrder;
   static constexpr int kNumNodes = (kOrder + 1) * (kOrder + 1) * (kOrder + 1);
   static constexpr int kNumElements = 1;
 
   using Mesh = model::ModelStruct<float, int, kOrder>;
-  using Integral =
-      typename IntegralTypeSelector<kOrder, IntegralType::MAKUTU>::type;
+  using Integral = typename IntegralTypeSelector<kOrder, IntegralType::MAKUTU>::type;
   using DiffNode = DifferentiatorAcoustic<kOrder, Integral, Mesh, true>;
   using DiffElem = DifferentiatorAcoustic<kOrder, Integral, Mesh, false>;
 
-  void SetUp() override
-  {
+  void SetUp() override {
     pn = allocateVector<VECTOR_REAL_VIEW>(kNumNodes, "pn");
     qn = allocateVector<VECTOR_REAL_VIEW>(kNumNodes, "qn");
     qnPrev = allocateVector<VECTOR_REAL_VIEW>(kNumNodes, "qnPrev");
@@ -329,8 +292,7 @@ class DifferentiatorAcousticNodeTest : public ::testing::Test
     gradKappa = allocateVector<VECTOR_REAL_VIEW>(kNumNodes, "gradKappa");
     gradBuoyancy = allocateVector<VECTOR_REAL_VIEW>(kNumNodes, "gradBuoyancy");
 
-    for (int i = 0; i < kNumNodes; ++i)
-    {
+    for (int i = 0; i < kNumNodes; ++i) {
       pn(i) = 0.0f;
       qn(i) = 0.0f;
       qnPrev(i) = 0.0f;
@@ -340,15 +302,13 @@ class DifferentiatorAcousticNodeTest : public ::testing::Test
     }
   }
 
-  float sumGradKappa() const
-  {
+  float sumGradKappa() const {
     float s = 0.0f;
     for (int i = 0; i < kNumNodes; ++i) s += gradKappa(i);
     return s;
   }
 
-  float sumGradBuoyancy() const
-  {
+  float sumGradBuoyancy() const {
     float s = 0.0f;
     for (int i = 0; i < kNumNodes; ++i) s += gradBuoyancy(i);
     return s;
@@ -362,37 +322,32 @@ TYPED_TEST_SUITE(DifferentiatorAcousticNodeTest, OrderTypes);
 
 // --- Static constants ---
 
-TYPED_TEST(DifferentiatorAcousticNodeTest, IsModelOnNodesConstant)
-{
+TYPED_TEST(DifferentiatorAcousticNodeTest, IsModelOnNodesConstant) {
   EXPECT_TRUE(TestFixture::DiffNode::kIsModelOnNodes);
 }
 
 // --- Virtual getters ---
 
-TYPED_TEST(DifferentiatorAcousticNodeTest, GetOrderReturnsCorrectOrder)
-{
+TYPED_TEST(DifferentiatorAcousticNodeTest, GetOrderReturnsCorrectOrder) {
   typename TestFixture::DiffNode diff;
   EXPECT_EQ(diff.getOrder(), TestFixture::kOrder);
 }
 
-TYPED_TEST(DifferentiatorAcousticNodeTest, IsModelOnNodesReturnsTrue)
-{
+TYPED_TEST(DifferentiatorAcousticNodeTest, IsModelOnNodesReturnsTrue) {
   typename TestFixture::DiffNode diff;
   EXPECT_TRUE(diff.isModelOnNodes());
 }
 
 // --- Print ---
 
-TYPED_TEST(DifferentiatorAcousticNodeTest, PrintDoesNotThrow)
-{
+TYPED_TEST(DifferentiatorAcousticNodeTest, PrintDoesNotThrow) {
   typename TestFixture::DiffNode diff;
   EXPECT_NO_THROW(diff.print());
 }
 
 // --- compute() correctness ---
 
-TYPED_TEST(DifferentiatorAcousticNodeTest, ZeroWavefieldsYieldZeroGradients)
-{
+TYPED_TEST(DifferentiatorAcousticNodeTest, ZeroWavefieldsYieldZeroGradients) {
   typename TestFixture::DiffNode diff;
   auto mesh = makeMesh1x1x1<TestFixture::kOrder>();
 
@@ -407,12 +362,10 @@ TYPED_TEST(DifferentiatorAcousticNodeTest, ZeroWavefieldsYieldZeroGradients)
   EXPECT_FLOAT_EQ(this->sumGradBuoyancy(), 0.0f);
 }
 
-TYPED_TEST(DifferentiatorAcousticNodeTest, UniformFieldGradKappaSumsToVolume)
-{
+TYPED_TEST(DifferentiatorAcousticNodeTest, UniformFieldGradKappaSumsToVolume) {
   // pn = 1, qn = 1e-6 (qdt2 = 1 with dt=0.001) on all nodes.
   // With massDiag normalization, the sum equals the number of nodes.
-  for (int i = 0; i < TestFixture::kNumNodes; ++i)
-  {
+  for (int i = 0; i < TestFixture::kNumNodes; ++i) {
     this->pn(i) = 1.0f;
     this->qn(i) = 1e-6f;
     this->qnPrev(i) = 0.0f;
@@ -432,11 +385,9 @@ TYPED_TEST(DifferentiatorAcousticNodeTest, UniformFieldGradKappaSumsToVolume)
   EXPECT_NEAR(this->sumGradKappa(), (float)TestFixture::kNumNodes, 1e-5f);
 }
 
-TYPED_TEST(DifferentiatorAcousticNodeTest, ConstantFieldGradBuoyancySumsToZero)
-{
+TYPED_TEST(DifferentiatorAcousticNodeTest, ConstantFieldGradBuoyancySumsToZero) {
   // pn = qn = 1  =>  ∇p = ∇q = 0  =>  stiffness contribution sums to 0
-  for (int i = 0; i < TestFixture::kNumNodes; ++i)
-  {
+  for (int i = 0; i < TestFixture::kNumNodes; ++i) {
     this->pn(i) = 1.0f;
     this->qn(i) = 1.0f;
   }
@@ -455,13 +406,11 @@ TYPED_TEST(DifferentiatorAcousticNodeTest, ConstantFieldGradBuoyancySumsToZero)
   EXPECT_NEAR(this->sumGradBuoyancy(), 0.0f, 2e-4f);
 }
 
-TYPED_TEST(DifferentiatorAcousticNodeTest, NodeBasedSumEqualsElementBasedResult)
-{
+TYPED_TEST(DifferentiatorAcousticNodeTest, NodeBasedSumEqualsElementBasedResult) {
   // For a single-element mesh with massDiag normalization, the sum of
   // node-scattered gradients is scaled by the number of nodes relative to
   // the element-accumulated value: nodeSum ≈ kNumNodes * elementValue.
-  for (int i = 0; i < TestFixture::kNumNodes; ++i)
-  {
+  for (int i = 0; i < TestFixture::kNumNodes; ++i) {
     this->pn(i) = 1.0f;
     this->qn(i) = 1e-6f;
     this->qnPrev(i) = 0.0f;
@@ -482,8 +431,7 @@ TYPED_TEST(DifferentiatorAcousticNodeTest, NodeBasedSumEqualsElementBasedResult)
 
   // Element-based
   auto gradKappaElem = allocateVector<VECTOR_REAL_VIEW>(1, "gradKappaElem");
-  auto gradBuoyancyElem =
-      allocateVector<VECTOR_REAL_VIEW>(1, "gradBuoyancyElem");
+  auto gradBuoyancyElem = allocateVector<VECTOR_REAL_VIEW>(1, "gradBuoyancyElem");
   gradKappaElem(0) = 0.0f;
   gradBuoyancyElem(0) = 0.0f;
 
@@ -497,18 +445,15 @@ TYPED_TEST(DifferentiatorAcousticNodeTest, NodeBasedSumEqualsElementBasedResult)
 
 // --- Polymorphic interface ---
 
-TYPED_TEST(DifferentiatorAcousticNodeTest, PolymorphicInterface)
-{
-  for (int i = 0; i < TestFixture::kNumNodes; ++i)
-  {
+TYPED_TEST(DifferentiatorAcousticNodeTest, PolymorphicInterface) {
+  for (int i = 0; i < TestFixture::kNumNodes; ++i) {
     this->pn(i) = 1.0f;
     this->qn(i) = 1e-6f;
     this->qnPrev(i) = 0.0f;
     this->qnPrevPrev(i) = 0.0f;
   }
 
-  std::unique_ptr<Differentiator> diff =
-      std::make_unique<typename TestFixture::DiffNode>();
+  std::unique_ptr<Differentiator> diff = std::make_unique<typename TestFixture::DiffNode>();
   auto mesh = makeMesh1x1x1<TestFixture::kOrder>();
 
   EXPECT_EQ(diff->getOrder(), TestFixture::kOrder);

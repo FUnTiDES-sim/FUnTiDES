@@ -6,8 +6,7 @@
 
 #include <cmath>
 
-namespace model
-{
+namespace model {
 /**
  * @brief Classifies boundary flags for nodes of an unstructured Cartesian mesh.
  *
@@ -25,17 +24,14 @@ namespace model
  * @tparam ScalarType Integer type used to cast BoundaryFlag values
  */
 template <typename FloatType, typename ScalarType>
-class CartesianUnstructBoundaryClassifier
-{
+class CartesianUnstructBoundaryClassifier {
  public:
   /**
    * @param tol Distance tolerance for boundary detection (typically
    *            min_grid_spacing * 1e-4)
    */
-  CartesianUnstructBoundaryClassifier(FloatType x_min, FloatType x_max,
-                                      FloatType y_min, FloatType y_max,
-                                      FloatType z_min, FloatType z_max,
-                                      FloatType tol, bool free_surface_on_top)
+  CartesianUnstructBoundaryClassifier(FloatType x_min, FloatType x_max, FloatType y_min, FloatType y_max,
+                                      FloatType z_min, FloatType z_max, FloatType tol, bool free_surface_on_top)
       : x_min_(x_min),
         x_max_(x_max),
         y_min_(y_min),
@@ -43,9 +39,7 @@ class CartesianUnstructBoundaryClassifier
         z_min_(z_min),
         z_max_(z_max),
         tol_(tol),
-        free_surface_on_top_(free_surface_on_top)
-  {
-  }
+        free_surface_on_top_(free_surface_on_top) {}
 
   /**
    * @brief Classify every node against the global domain bounds.
@@ -56,14 +50,11 @@ class CartesianUnstructBoundaryClassifier
    * @param coords_z Z-coordinates of each node
    * @return VECTOR_INT_VIEW of size @p n_node with BoundaryFlag values
    */
-  VECTOR_INT_VIEW classify(int n_node, VECTOR_REAL_VIEW coords_x,
-                           VECTOR_REAL_VIEW coords_y,
-                           VECTOR_REAL_VIEW coords_z) const
-  {
+  VECTOR_INT_VIEW classify(int n_node, VECTOR_REAL_VIEW coords_x, VECTOR_REAL_VIEW coords_y,
+                           VECTOR_REAL_VIEW coords_z) const {
     auto boundaries_t = allocateVector<VECTOR_INT_VIEW>(n_node, "boundaries_t");
 
-    for (int n = 0; n < n_node; ++n)
-    {
+    for (int n = 0; n < n_node; ++n) {
       const FloatType x = coords_x(n);
       const FloatType y = coords_y(n);
       const FloatType z = coords_z(n);
@@ -75,8 +66,7 @@ class CartesianUnstructBoundaryClassifier
       const bool at_zmin = (fabs(z - z_min_) < tol_);
       const bool at_zmax = (fabs(z - z_max_) < tol_);
 
-      const bool on_boundary =
-          at_xmin || at_xmax || at_ymin || at_ymax || at_zmin || at_zmax;
+      const bool on_boundary = at_xmin || at_xmax || at_ymin || at_ymax || at_zmin || at_zmax;
 
       if (!on_boundary)
         boundaries_t(n) = static_cast<ScalarType>(BoundaryFlag::InteriorNode);

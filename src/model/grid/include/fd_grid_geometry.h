@@ -8,10 +8,8 @@
 
 #include <cstddef>
 
-namespace model
-{
-namespace fdgrid
-{
+namespace model {
+namespace fdgrid {
 
 /**
  * @brief 3D grid geometry and spatial discretization
@@ -27,8 +25,7 @@ namespace fdgrid
  *
  * **Thread-safe:** All operations are const after construction
  */
-class GridGeometry
-{
+class GridGeometry {
  public:
   GridGeometry() = default;
 
@@ -42,8 +39,7 @@ class GridGeometry
    * @param dz Spatial sampling in Z (meters)
    */
   GridGeometry(int nx, int ny, int nz, float dx, float dy, float dz)
-      : nx_(nx), ny_(ny), nz_(nz), dx_(dx), dy_(dy), dz_(dz)
-  {
+      : nx_(nx), ny_(ny), nz_(nz), dx_(dx), dy_(dy), dz_(dz) {
     ComputeDerivativeCoefficients();
   }
 
@@ -52,10 +48,7 @@ class GridGeometry
    * @param opt Configuration options
    */
   explicit GridGeometry(const fdtd::options::FdtdOptions& opt)
-      : GridGeometry(opt.grid.nx, opt.grid.ny, opt.grid.nz, opt.grid.dx,
-                     opt.grid.dy, opt.grid.dz)
-  {
-  }
+      : GridGeometry(opt.grid.nx, opt.grid.ny, opt.grid.nz, opt.grid.dx, opt.grid.dy, opt.grid.dz) {}
 
   /**
    * @brief Convert 3D grid coordinates to linear array index
@@ -64,8 +57,7 @@ class GridGeometry
    * @param k Z-direction index [0, nz-1]
    * @return Linear index for column-major storage
    */
-  [[nodiscard]] size_t Index3D(int i, int j, int k) const noexcept
-  {
+  [[nodiscard]] size_t Index3D(int i, int j, int k) const noexcept {
     return static_cast<size_t>(nz_) * ny_ * i + nz_ * j + k;
   }
 
@@ -73,10 +65,7 @@ class GridGeometry
    * @brief Get total number of grid points
    * @return nx * ny * nz
    */
-  [[nodiscard]] size_t TotalPoints() const noexcept
-  {
-    return static_cast<size_t>(nx_) * ny_ * nz_;
-  }
+  [[nodiscard]] size_t TotalPoints() const noexcept { return static_cast<size_t>(nx_) * ny_ * nz_; }
 
   /**
    * @brief Check if indices are within grid bounds
@@ -85,8 +74,7 @@ class GridGeometry
    * @param k Z index
    * @return true if all indices are valid
    */
-  [[nodiscard]] bool IsValidIndex(int i, int j, int k) const noexcept
-  {
+  [[nodiscard]] bool IsValidIndex(int i, int j, int k) const noexcept {
     return i >= 0 && i < nx_ && j >= 0 && j < ny_ && k >= 0 && k < nz_;
   }
 
@@ -102,8 +90,7 @@ class GridGeometry
   [[nodiscard]] float hdz_2() const noexcept { return hdz_2_; }
 
  private:
-  void ComputeDerivativeCoefficients()
-  {
+  void ComputeDerivativeCoefficients() {
     hdx_2_ = 1.0f / (4.0f * dx_ * dx_);
     hdy_2_ = 1.0f / (4.0f * dy_ * dy_);
     hdz_2_ = 1.0f / (4.0f * dz_ * dz_);
