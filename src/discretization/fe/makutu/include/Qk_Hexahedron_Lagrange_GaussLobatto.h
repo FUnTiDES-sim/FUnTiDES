@@ -469,12 +469,52 @@ class Qk_Hexahedron_Lagrange_GaussLobatto final
   PROXY_HOST_DEVICE
   static real_t computeDampingTerm(int const q, real_t const (&X)[4][3]);
 
+  /**
+   * @brief Computes the "Grad(Phi)*Phi" coefficient of the interface flux
+   *    term. Phi denotes a basis function.
+   * @param dir An integer between 0 and 2 to specify the fixed direction
+   * @param qfa The 1d quadrature point index in the first direction of the face
+   * @param qfb The 1d quadrature point index in the second direction of the
+   * face
+   * @param qFixed The 1d quadrature point index of the fixed direction
+   * @param X Array containing the coordinates of the support points of the
+   * face.
+   * @param func Callback function accepting four parameters: i, j, k and C_ijk
+   *    invoked when processing each interface flux matrix contribution. The
+   * interface flux matrix is assembled in a tensorial form prior to computing
+   * the dot product with the normal vector. Each matrix entry is therefore a 3D
+   * vector. The function will compute the index i (line of the matrix and
+   * degree of freedom associated to the trial function "Grad(Phi)"), index j
+   * (column of the matrix and degree of freedom associated to the test function
+   * "Phi"), index k (k = 0,1,2 corresponding to x,y,z directions) and C_ijk
+   * which is the value of the k-th component associated to the matrix entry
+   * (i,j).
+   */
   template <int qfa, int qfb, typename FUNC>
   PROXY_HOST_DEVICE static void computeGradPhiPhi(int const dir,
                                                   int const qFixed,
                                                   real_t const (&X)[4][3],
                                                   FUNC &&func);
 
+  /**
+   * @brief computes the non-zero contributions of the interface flux
+   *   block matrix CKL, i.e., the integration of "Grad(Phi_i)*Phi_j"
+   *   over a face with the test function "Phi_i" in the element K
+   *   and the trial function "Phi_j" in the element L.
+   * @param faceId Integer (0,1,2,3,4 or 5) to specify the integrated face.
+   * @param X Array containing the coordinates of the support points of the
+   * face.
+   * @param func Callback function accepting four parameters: i, j, k and C_ijk
+   *   invoked when processing each interface flux matrix contribution. The
+   * interface flux matrix is assembled in a tensorial form prior to computing
+   * the dot product with the normal vector. Each matrix entry is therefore a 3D
+   * vector. The function will compute the index i (line of the matrix and
+   * degree of freedom associated to the trial function "Grad(Phi)"), index j
+   * (column of the matrix and degree of freedom associated to the test function
+   * "Phi"), index k (k = 0,1,2 corresponding to x,y,z directions) and C_ijk
+   * which is the value of the k-th component associated to the matrix entry
+   * (i,j).
+   */
   template <typename FUNC>
   PROXY_HOST_DEVICE static void computeInterfaceFluxTerm(
       real_t const (&X)[4][3], int const faceId, FUNC &&func);
