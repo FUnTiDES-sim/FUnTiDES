@@ -7,12 +7,9 @@
 #include "sem_enums.h"
 #include "solver.h"
 
-namespace solver
-{
-namespace fe
-{
-namespace solver_factory
-{
+namespace solver {
+namespace fe {
+namespace solver_factory {
 
 /**
  * @brief Creates a SEM solver instance based on the specified configuration.
@@ -31,11 +28,9 @@ namespace solver_factory
  * @return A unique pointer to the created solver
  * @throws std::runtime_error if the configuration is unsupported
  */
-std::unique_ptr<Solver> createSolver(
-    utils::enums::methodType methodType, utils::enums::implemType implemType,
-    utils::enums::meshType meshType,
-    utils::enums::modelLocationType modelLocation,
-    utils::enums::physicType physicType, int order);
+std::unique_ptr<Solver> createSolver(utils::enums::methodType methodType, utils::enums::implemType implemType,
+                                     utils::enums::meshType meshType, utils::enums::modelLocationType modelLocation,
+                                     utils::enums::physicType physicType, int order);
 }  // namespace solver_factory
 }  // namespace fe
 }  // namespace solver

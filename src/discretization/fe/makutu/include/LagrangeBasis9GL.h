@@ -15,8 +15,7 @@
  *   lambda3 = 0.4779249498104445
  *   lambda4 = 0.1652789576663870
  */
-class LagrangeBasis9GL
-{
+class LagrangeBasis9GL {
  public:
   constexpr static int numSupportPoints = 10;
 
@@ -35,10 +34,8 @@ class LagrangeBasis9GL
   /**
    * @brief GLL quadrature weight for node q.
    */
-  constexpr static double weight(const int q)
-  {
-    switch (q)
-    {
+  constexpr static double weight(const int q) {
+    switch (q) {
       case 1:
       case 8:
         return 0.1333059908510701;
@@ -59,10 +56,8 @@ class LagrangeBasis9GL
   /**
    * @brief Parent coordinate of support point @p supportPointIndex.
    */
-  constexpr static double parentSupportCoord(const int supportPointIndex)
-  {
-    switch (supportPointIndex)
-    {
+  constexpr static double parentSupportCoord(const int supportPointIndex) {
+    switch (supportPointIndex) {
       case 0:
         return -1.0;
       case 1:
@@ -91,10 +86,8 @@ class LagrangeBasis9GL
   /**
    * @brief Value of basis function @p index at @p xi.
    */
-  constexpr static double value(const int index, const double xi)
-  {
-    switch (index)
-    {
+  constexpr static double value(const int index, const double xi) {
+    switch (index) {
       case 0:
         return value0(xi);
       case 1:
@@ -123,158 +116,116 @@ class LagrangeBasis9GL
   /**
    * @brief Basis function for support point 0.
    */
-  constexpr static double value0(const double xi)
-  {
+  constexpr static double value0(const double xi) {
     return -9.49609375 * xi * xi * xi * xi * xi * xi * xi * xi * xi +
-           9.49609375 * xi * xi * xi * xi * xi * xi * xi * xi +
-           15.640625 * xi * xi * xi * xi * xi * xi * xi -
-           15.640625 * xi * xi * xi * xi * xi * xi -
-           7.8203125 * xi * xi * xi * xi * xi + 7.8203125 * xi * xi * xi * xi +
-           1.203125 * xi * xi * xi - 1.203125 * xi * xi - 0.02734375 * xi +
-           0.02734375;
+           9.49609375 * xi * xi * xi * xi * xi * xi * xi * xi + 15.640625 * xi * xi * xi * xi * xi * xi * xi -
+           15.640625 * xi * xi * xi * xi * xi * xi - 7.8203125 * xi * xi * xi * xi * xi +
+           7.8203125 * xi * xi * xi * xi + 1.203125 * xi * xi * xi - 1.203125 * xi * xi - 0.02734375 * xi + 0.02734375;
   }
 
   /**
    * @brief Basis function for support point 1.
    */
-  constexpr static double value1(const double xi)
-  {
+  constexpr static double value1(const double xi) {
     return 23.2581991069276 * xi * xi * xi * xi * xi * xi * xi * xi * xi -
            21.3867027217068 * xi * xi * xi * xi * xi * xi * xi * xi -
-           41.9000228289113 * xi * xi * xi * xi * xi * xi * xi +
-           38.5284917441326 * xi * xi * xi * xi * xi * xi +
-           22.033178498462 * xi * xi * xi * xi * xi -
-           20.26025473402 * xi * xi * xi * xi -
-           3.47055997155687 * xi * xi * xi + 3.19129757417176 * xi * xi +
-           0.0792051950785524 * xi - 0.0728318625776681;
+           41.9000228289113 * xi * xi * xi * xi * xi * xi * xi + 38.5284917441326 * xi * xi * xi * xi * xi * xi +
+           22.033178498462 * xi * xi * xi * xi * xi - 20.26025473402 * xi * xi * xi * xi -
+           3.47055997155687 * xi * xi * xi + 3.19129757417176 * xi * xi + 0.0792051950785524 * xi - 0.0728318625776681;
   }
 
   /**
    * @brief Basis function for support point 2.
    */
-  constexpr static double value2(const double xi)
-  {
+  constexpr static double value2(const double xi) {
     return -30.2089539641742 * xi * xi * xi * xi * xi * xi * xi * xi * xi +
            22.3175856809073 * xi * xi * xi * xi * xi * xi * xi * xi +
-           63.4772291071541 * xi * xi * xi * xi * xi * xi * xi -
-           46.8953178936799 * xi * xi * xi * xi * xi * xi -
-           39.9888510087652 * xi * xi * xi * xi * xi +
-           29.5427180208736 * xi * xi * xi * xi +
-           6.87995289293189 * xi * xi * xi - 5.0827293904551 * xi * xi -
-           0.159377027146516 * xi + 0.117743582354057;
+           63.4772291071541 * xi * xi * xi * xi * xi * xi * xi - 46.8953178936799 * xi * xi * xi * xi * xi * xi -
+           39.9888510087652 * xi * xi * xi * xi * xi + 29.5427180208736 * xi * xi * xi * xi +
+           6.87995289293189 * xi * xi * xi - 5.0827293904551 * xi * xi - 0.159377027146516 * xi + 0.117743582354057;
   }
 
   /**
    * @brief Basis function for support point 3.
    */
-  constexpr static double value3(const double xi)
-  {
+  constexpr static double value3(const double xi) {
     return 34.4250370034963 * xi * xi * xi * xi * xi * xi * xi * xi * xi -
            16.4525840821186 * xi * xi * xi * xi * xi * xi * xi * xi -
-           83.2619975287327 * xi * xi * xi * xi * xi * xi * xi +
-           39.7929859900369 * xi * xi * xi * xi * xi * xi +
-           66.0320305883065 * xi * xi * xi * xi * xi -
-           31.5583549047981 * xi * xi * xi * xi -
-           17.629048439256 * xi * xi * xi + 8.42536209053729 * xi * xi +
-           0.433978376185841 * xi - 0.207409093657436;
+           83.2619975287327 * xi * xi * xi * xi * xi * xi * xi + 39.7929859900369 * xi * xi * xi * xi * xi * xi +
+           66.0320305883065 * xi * xi * xi * xi * xi - 31.5583549047981 * xi * xi * xi * xi -
+           17.629048439256 * xi * xi * xi + 8.42536209053729 * xi * xi + 0.433978376185841 * xi - 0.207409093657436;
   }
 
   /**
    * @brief Basis function for support point 4.
    */
-  constexpr static double value4(const double xi)
-  {
+  constexpr static double value4(const double xi) {
     return -36.457196112531 * xi * xi * xi * xi * xi * xi * xi * xi * xi +
            6.02560737291818 * xi * xi * xi * xi * xi * xi * xi * xi +
-           95.5084365449144 * xi * xi * xi * xi * xi * xi * xi -
-           15.7855348404897 * xi * xi * xi * xi * xi * xi -
-           87.4617030627869 * xi * xi * xi * xi * xi +
-           14.4555791179445 * xi * xi * xi * xi +
-           32.2533814922412 * xi * xi * xi - 5.33080527425396 * xi * xi -
-           3.84291886183778 * xi + 0.635153623881047;
+           95.5084365449144 * xi * xi * xi * xi * xi * xi * xi - 15.7855348404897 * xi * xi * xi * xi * xi * xi -
+           87.4617030627869 * xi * xi * xi * xi * xi + 14.4555791179445 * xi * xi * xi * xi +
+           32.2533814922412 * xi * xi * xi - 5.33080527425396 * xi * xi - 3.84291886183778 * xi + 0.635153623881047;
   }
 
   /**
    * @brief Basis function for support point 5.
    */
-  constexpr static double value5(const double xi)
-  {
+  constexpr static double value5(const double xi) {
     return 36.457196112531 * xi * xi * xi * xi * xi * xi * xi * xi * xi +
            6.02560737291818 * xi * xi * xi * xi * xi * xi * xi * xi -
-           95.5084365449144 * xi * xi * xi * xi * xi * xi * xi -
-           15.7855348404897 * xi * xi * xi * xi * xi * xi +
-           87.4617030627869 * xi * xi * xi * xi * xi +
-           14.4555791179445 * xi * xi * xi * xi -
-           32.2533814922412 * xi * xi * xi - 5.33080527425395 * xi * xi +
-           3.84291886183778 * xi + 0.635153623881047;
+           95.5084365449144 * xi * xi * xi * xi * xi * xi * xi - 15.7855348404897 * xi * xi * xi * xi * xi * xi +
+           87.4617030627869 * xi * xi * xi * xi * xi + 14.4555791179445 * xi * xi * xi * xi -
+           32.2533814922412 * xi * xi * xi - 5.33080527425395 * xi * xi + 3.84291886183778 * xi + 0.635153623881047;
   }
 
   /**
    * @brief Basis function for support point 6.
    */
-  constexpr static double value6(const double xi)
-  {
+  constexpr static double value6(const double xi) {
     return -34.4250370034963 * xi * xi * xi * xi * xi * xi * xi * xi * xi -
            16.4525840821186 * xi * xi * xi * xi * xi * xi * xi * xi +
-           83.2619975287328 * xi * xi * xi * xi * xi * xi * xi +
-           39.7929859900369 * xi * xi * xi * xi * xi * xi -
-           66.0320305883065 * xi * xi * xi * xi * xi -
-           31.5583549047981 * xi * xi * xi * xi +
-           17.629048439256 * xi * xi * xi + 8.4253620905373 * xi * xi -
-           0.433978376185841 * xi - 0.207409093657436;
+           83.2619975287328 * xi * xi * xi * xi * xi * xi * xi + 39.7929859900369 * xi * xi * xi * xi * xi * xi -
+           66.0320305883065 * xi * xi * xi * xi * xi - 31.5583549047981 * xi * xi * xi * xi +
+           17.629048439256 * xi * xi * xi + 8.4253620905373 * xi * xi - 0.433978376185841 * xi - 0.207409093657436;
   }
 
   /**
    * @brief Basis function for support point 7.
    */
-  constexpr static double value7(const double xi)
-  {
+  constexpr static double value7(const double xi) {
     return 30.2089539641742 * xi * xi * xi * xi * xi * xi * xi * xi * xi +
            22.3175856809073 * xi * xi * xi * xi * xi * xi * xi * xi -
-           63.4772291071541 * xi * xi * xi * xi * xi * xi * xi -
-           46.8953178936799 * xi * xi * xi * xi * xi * xi +
-           39.9888510087652 * xi * xi * xi * xi * xi +
-           29.5427180208736 * xi * xi * xi * xi -
-           6.87995289293189 * xi * xi * xi - 5.0827293904551 * xi * xi +
-           0.159377027146516 * xi + 0.117743582354057;
+           63.4772291071541 * xi * xi * xi * xi * xi * xi * xi - 46.8953178936799 * xi * xi * xi * xi * xi * xi +
+           39.9888510087652 * xi * xi * xi * xi * xi + 29.5427180208736 * xi * xi * xi * xi -
+           6.87995289293189 * xi * xi * xi - 5.0827293904551 * xi * xi + 0.159377027146516 * xi + 0.117743582354057;
   }
 
   /**
    * @brief Basis function for support point 8.
    */
-  constexpr static double value8(const double xi)
-  {
+  constexpr static double value8(const double xi) {
     return -23.2581991069276 * xi * xi * xi * xi * xi * xi * xi * xi * xi -
            21.3867027217068 * xi * xi * xi * xi * xi * xi * xi * xi +
-           41.9000228289113 * xi * xi * xi * xi * xi * xi * xi +
-           38.5284917441326 * xi * xi * xi * xi * xi * xi -
-           22.033178498462 * xi * xi * xi * xi * xi -
-           20.26025473402 * xi * xi * xi * xi +
-           3.47055997155687 * xi * xi * xi + 3.19129757417176 * xi * xi -
-           0.0792051950785524 * xi - 0.0728318625776681;
+           41.9000228289113 * xi * xi * xi * xi * xi * xi * xi + 38.5284917441326 * xi * xi * xi * xi * xi * xi -
+           22.033178498462 * xi * xi * xi * xi * xi - 20.26025473402 * xi * xi * xi * xi +
+           3.47055997155687 * xi * xi * xi + 3.19129757417176 * xi * xi - 0.0792051950785524 * xi - 0.0728318625776681;
   }
 
   /**
    * @brief Basis function for support point 9.
    */
-  constexpr static double value9(const double xi)
-  {
+  constexpr static double value9(const double xi) {
     return 9.49609375 * xi * xi * xi * xi * xi * xi * xi * xi * xi +
-           9.49609375 * xi * xi * xi * xi * xi * xi * xi * xi -
-           15.640625 * xi * xi * xi * xi * xi * xi * xi -
-           15.640625 * xi * xi * xi * xi * xi * xi +
-           7.8203125 * xi * xi * xi * xi * xi + 7.8203125 * xi * xi * xi * xi -
-           1.203125 * xi * xi * xi - 1.203125 * xi * xi + 0.02734375 * xi +
-           0.02734375;
+           9.49609375 * xi * xi * xi * xi * xi * xi * xi * xi - 15.640625 * xi * xi * xi * xi * xi * xi * xi -
+           15.640625 * xi * xi * xi * xi * xi * xi + 7.8203125 * xi * xi * xi * xi * xi +
+           7.8203125 * xi * xi * xi * xi - 1.203125 * xi * xi * xi - 1.203125 * xi * xi + 0.02734375 * xi + 0.02734375;
   }
 
   /**
    * @brief Gradient of basis function @p index at @p xi.
    */
-  constexpr static double gradient(const int index, const double xi)
-  {
-    switch (index)
-    {
+  constexpr static double gradient(const int index, const double xi) {
+    switch (index) {
       case 0:
         return gradient0(xi);
       case 1:
@@ -303,139 +254,99 @@ class LagrangeBasis9GL
   /**
    * @brief Gradient of basis function for support point 0.
    */
-  constexpr static double gradient0(const double xi)
-  {
-    return -85.46484375 * xi * xi * xi * xi * xi * xi * xi * xi +
-           75.96875 * xi * xi * xi * xi * xi * xi * xi +
-           109.484375 * xi * xi * xi * xi * xi * xi -
-           93.84375 * xi * xi * xi * xi * xi - 39.1015625 * xi * xi * xi * xi +
-           31.28125 * xi * xi * xi + 3.609375 * xi * xi - 2.40625 * xi -
-           0.02734375;
+  constexpr static double gradient0(const double xi) {
+    return -85.46484375 * xi * xi * xi * xi * xi * xi * xi * xi + 75.96875 * xi * xi * xi * xi * xi * xi * xi +
+           109.484375 * xi * xi * xi * xi * xi * xi - 93.84375 * xi * xi * xi * xi * xi -
+           39.1015625 * xi * xi * xi * xi + 31.28125 * xi * xi * xi + 3.609375 * xi * xi - 2.40625 * xi - 0.02734375;
   }
 
   /**
    * @brief Gradient of basis function for support point 1.
    */
-  constexpr static double gradient1(const double xi)
-  {
+  constexpr static double gradient1(const double xi) {
     return 209.323791962348 * xi * xi * xi * xi * xi * xi * xi * xi -
-           171.093621773654 * xi * xi * xi * xi * xi * xi * xi -
-           293.300159802379 * xi * xi * xi * xi * xi * xi +
-           231.170950464796 * xi * xi * xi * xi * xi +
-           110.16589249231 * xi * xi * xi * xi -
-           81.0410189360798 * xi * xi * xi - 10.4116799146706 * xi * xi +
-           6.38259514834352 * xi + 0.0792051950785524;
+           171.093621773654 * xi * xi * xi * xi * xi * xi * xi - 293.300159802379 * xi * xi * xi * xi * xi * xi +
+           231.170950464796 * xi * xi * xi * xi * xi + 110.16589249231 * xi * xi * xi * xi -
+           81.0410189360798 * xi * xi * xi - 10.4116799146706 * xi * xi + 6.38259514834352 * xi + 0.0792051950785524;
   }
 
   /**
    * @brief Gradient of basis function for support point 2.
    */
-  constexpr static double gradient2(const double xi)
-  {
+  constexpr static double gradient2(const double xi) {
     return -271.880585677568 * xi * xi * xi * xi * xi * xi * xi * xi +
-           178.540685447258 * xi * xi * xi * xi * xi * xi * xi +
-           444.340603750078 * xi * xi * xi * xi * xi * xi -
-           281.371907362079 * xi * xi * xi * xi * xi -
-           199.944255043826 * xi * xi * xi * xi +
-           118.170872083495 * xi * xi * xi + 20.6398586787957 * xi * xi -
-           10.1654587809102 * xi - 0.159377027146516;
+           178.540685447258 * xi * xi * xi * xi * xi * xi * xi + 444.340603750078 * xi * xi * xi * xi * xi * xi -
+           281.371907362079 * xi * xi * xi * xi * xi - 199.944255043826 * xi * xi * xi * xi +
+           118.170872083495 * xi * xi * xi + 20.6398586787957 * xi * xi - 10.1654587809102 * xi - 0.159377027146516;
   }
 
   /**
    * @brief Gradient of basis function for support point 3.
    */
-  constexpr static double gradient3(const double xi)
-  {
+  constexpr static double gradient3(const double xi) {
     return 309.825333031467 * xi * xi * xi * xi * xi * xi * xi * xi -
-           131.620672656949 * xi * xi * xi * xi * xi * xi * xi -
-           582.833982701129 * xi * xi * xi * xi * xi * xi +
-           238.757915940222 * xi * xi * xi * xi * xi +
-           330.160152941533 * xi * xi * xi * xi -
-           126.233419619193 * xi * xi * xi - 52.8871453177679 * xi * xi +
-           16.8507241810746 * xi + 0.433978376185841;
+           131.620672656949 * xi * xi * xi * xi * xi * xi * xi - 582.833982701129 * xi * xi * xi * xi * xi * xi +
+           238.757915940222 * xi * xi * xi * xi * xi + 330.160152941533 * xi * xi * xi * xi -
+           126.233419619193 * xi * xi * xi - 52.8871453177679 * xi * xi + 16.8507241810746 * xi + 0.433978376185841;
   }
 
   /**
    * @brief Gradient of basis function for support point 4.
    */
-  constexpr static double gradient4(const double xi)
-  {
+  constexpr static double gradient4(const double xi) {
     return -328.114765012779 * xi * xi * xi * xi * xi * xi * xi * xi +
-           48.2048589833454 * xi * xi * xi * xi * xi * xi * xi +
-           668.559055814401 * xi * xi * xi * xi * xi * xi -
-           94.7132090429383 * xi * xi * xi * xi * xi -
-           437.308515313934 * xi * xi * xi * xi +
-           57.8223164717778 * xi * xi * xi + 96.7601444767235 * xi * xi -
-           10.6616105485079 * xi - 3.84291886183778;
+           48.2048589833454 * xi * xi * xi * xi * xi * xi * xi + 668.559055814401 * xi * xi * xi * xi * xi * xi -
+           94.7132090429383 * xi * xi * xi * xi * xi - 437.308515313934 * xi * xi * xi * xi +
+           57.8223164717778 * xi * xi * xi + 96.7601444767235 * xi * xi - 10.6616105485079 * xi - 3.84291886183778;
   }
 
   /**
    * @brief Gradient of basis function for support point 5.
    */
-  constexpr static double gradient5(const double xi)
-  {
+  constexpr static double gradient5(const double xi) {
     return 328.114765012779 * xi * xi * xi * xi * xi * xi * xi * xi +
-           48.2048589833454 * xi * xi * xi * xi * xi * xi * xi -
-           668.559055814401 * xi * xi * xi * xi * xi * xi -
-           94.7132090429383 * xi * xi * xi * xi * xi +
-           437.308515313934 * xi * xi * xi * xi +
-           57.8223164717778 * xi * xi * xi - 96.7601444767235 * xi * xi -
-           10.6616105485079 * xi + 3.84291886183778;
+           48.2048589833454 * xi * xi * xi * xi * xi * xi * xi - 668.559055814401 * xi * xi * xi * xi * xi * xi -
+           94.7132090429383 * xi * xi * xi * xi * xi + 437.308515313934 * xi * xi * xi * xi +
+           57.8223164717778 * xi * xi * xi - 96.7601444767235 * xi * xi - 10.6616105485079 * xi + 3.84291886183778;
   }
 
   /**
    * @brief Gradient of basis function for support point 6.
    */
-  constexpr static double gradient6(const double xi)
-  {
+  constexpr static double gradient6(const double xi) {
     return -309.825333031467 * xi * xi * xi * xi * xi * xi * xi * xi -
-           131.620672656949 * xi * xi * xi * xi * xi * xi * xi +
-           582.833982701129 * xi * xi * xi * xi * xi * xi +
-           238.757915940221 * xi * xi * xi * xi * xi -
-           330.160152941533 * xi * xi * xi * xi -
-           126.233419619193 * xi * xi * xi + 52.8871453177679 * xi * xi +
-           16.8507241810746 * xi - 0.433978376185841;
+           131.620672656949 * xi * xi * xi * xi * xi * xi * xi + 582.833982701129 * xi * xi * xi * xi * xi * xi +
+           238.757915940221 * xi * xi * xi * xi * xi - 330.160152941533 * xi * xi * xi * xi -
+           126.233419619193 * xi * xi * xi + 52.8871453177679 * xi * xi + 16.8507241810746 * xi - 0.433978376185841;
   }
 
   /**
    * @brief Gradient of basis function for support point 7.
    */
-  constexpr static double gradient7(const double xi)
-  {
+  constexpr static double gradient7(const double xi) {
     return 271.880585677568 * xi * xi * xi * xi * xi * xi * xi * xi +
-           178.540685447258 * xi * xi * xi * xi * xi * xi * xi -
-           444.340603750078 * xi * xi * xi * xi * xi * xi -
-           281.371907362079 * xi * xi * xi * xi * xi +
-           199.944255043826 * xi * xi * xi * xi +
-           118.170872083495 * xi * xi * xi - 20.6398586787957 * xi * xi -
-           10.1654587809102 * xi + 0.159377027146516;
+           178.540685447258 * xi * xi * xi * xi * xi * xi * xi - 444.340603750078 * xi * xi * xi * xi * xi * xi -
+           281.371907362079 * xi * xi * xi * xi * xi + 199.944255043826 * xi * xi * xi * xi +
+           118.170872083495 * xi * xi * xi - 20.6398586787957 * xi * xi - 10.1654587809102 * xi + 0.159377027146516;
   }
 
   /**
    * @brief Gradient of basis function for support point 8.
    */
-  constexpr static double gradient8(const double xi)
-  {
+  constexpr static double gradient8(const double xi) {
     return -209.323791962348 * xi * xi * xi * xi * xi * xi * xi * xi -
-           171.093621773654 * xi * xi * xi * xi * xi * xi * xi +
-           293.300159802379 * xi * xi * xi * xi * xi * xi +
-           231.170950464796 * xi * xi * xi * xi * xi -
-           110.16589249231 * xi * xi * xi * xi -
-           81.0410189360798 * xi * xi * xi + 10.4116799146706 * xi * xi +
-           6.38259514834352 * xi - 0.0792051950785524;
+           171.093621773654 * xi * xi * xi * xi * xi * xi * xi + 293.300159802379 * xi * xi * xi * xi * xi * xi +
+           231.170950464796 * xi * xi * xi * xi * xi - 110.16589249231 * xi * xi * xi * xi -
+           81.0410189360798 * xi * xi * xi + 10.4116799146706 * xi * xi + 6.38259514834352 * xi - 0.0792051950785524;
   }
 
   /**
    * @brief Gradient of basis function for support point 9.
    */
-  constexpr static double gradient9(const double xi)
-  {
-    return 85.46484375 * xi * xi * xi * xi * xi * xi * xi * xi +
-           75.96875 * xi * xi * xi * xi * xi * xi * xi -
-           109.484375 * xi * xi * xi * xi * xi * xi -
-           93.84375 * xi * xi * xi * xi * xi + 39.1015625 * xi * xi * xi * xi +
-           31.28125 * xi * xi * xi - 3.609375 * xi * xi - 2.40625 * xi +
-           0.02734375;
+  constexpr static double gradient9(const double xi) {
+    return 85.46484375 * xi * xi * xi * xi * xi * xi * xi * xi + 75.96875 * xi * xi * xi * xi * xi * xi * xi -
+           109.484375 * xi * xi * xi * xi * xi * xi - 93.84375 * xi * xi * xi * xi * xi +
+           39.1015625 * xi * xi * xi * xi + 31.28125 * xi * xi * xi - 3.609375 * xi * xi - 2.40625 * xi + 0.02734375;
   }
 
   /**
@@ -445,13 +356,10 @@ class LagrangeBasis9GL
    * Corner formulas: gradientAt(0,0) = -N*(N-1)/4 = -22.5, gradientAt(9,9) =
    * +22.5.
    */
-  constexpr static double gradientAt(const int q, const int p)
-  {
-    switch (q)
-    {
+  constexpr static double gradientAt(const int q, const int p) {
+    switch (q) {
       case 0:
-        switch (p)
-        {
+        switch (p) {
           case 0:
             return -22.5;
           case 1:
@@ -475,8 +383,7 @@ class LagrangeBasis9GL
         }
         break;
       case 1:
-        switch (p)
-        {
+        switch (p) {
           case 0:
             return 30.4381450292821043;
           case 1:
@@ -500,8 +407,7 @@ class LagrangeBasis9GL
         }
         break;
       case 2:
-        switch (p)
-        {
+        switch (p) {
           case 0:
             return -12.1779467074297827;
           case 1:
@@ -525,8 +431,7 @@ class LagrangeBasis9GL
         }
         break;
       case 3:
-        switch (p)
-        {
+        switch (p) {
           case 0:
             return 6.9437884851340499;
           case 1:
@@ -550,8 +455,7 @@ class LagrangeBasis9GL
         }
         break;
       case 4:
-        switch (p)
-        {
+        switch (p) {
           case 0:
             return -4.5993547611031005;
           case 1:
@@ -575,8 +479,7 @@ class LagrangeBasis9GL
         }
         break;
       case 5:
-        switch (p)
-        {
+        switch (p) {
           case 0:
             return 3.2946430337492529;
           case 1:
@@ -600,8 +503,7 @@ class LagrangeBasis9GL
         }
         break;
       case 6:
-        switch (p)
-        {
+        switch (p) {
           case 0:
             return -2.4528841754425912;
           case 1:
@@ -625,8 +527,7 @@ class LagrangeBasis9GL
         }
         break;
       case 7:
-        switch (p)
-        {
+        switch (p) {
           case 0:
             return 1.8295639319031682;
           case 1:
@@ -650,8 +551,7 @@ class LagrangeBasis9GL
         }
         break;
       case 8:
-        switch (p)
-        {
+        switch (p) {
           case 0:
             return -1.2759548360924953;
           case 1:
@@ -675,8 +575,7 @@ class LagrangeBasis9GL
         }
         break;
       case 9:
-        switch (p)
-        {
+        switch (p) {
           case 0:
             return 0.5;
           case 1:
@@ -704,74 +603,49 @@ class LagrangeBasis9GL
   }
 
   /* Tensor product helpers (2D / 3D) */
-  struct TensorProduct2D
-  {
-    constexpr static int numSupportPoints1D =
-        LagrangeBasis9GL::numSupportPoints;
-    constexpr static int numSupportPoints =
-        numSupportPoints1D * numSupportPoints1D;  // 10*10 = 100
+  struct TensorProduct2D {
+    constexpr static int numSupportPoints1D = LagrangeBasis9GL::numSupportPoints;
+    constexpr static int numSupportPoints = numSupportPoints1D * numSupportPoints1D;  // 10*10 = 100
 
-    constexpr static int linearIndex(const int i, const int j)
-    {
-      return i + numSupportPoints1D * j;
-    }
+    constexpr static int linearIndex(const int i, const int j) { return i + numSupportPoints1D * j; }
 
-    constexpr static void multiIndex(const int linearIndex, int& i0, int& i1)
-    {
+    constexpr static void multiIndex(const int linearIndex, int& i0, int& i1) {
       i1 = linearIndex / numSupportPoints1D;
       i0 = linearIndex % numSupportPoints1D;
     }
 
-    static void value(const double (&coords)[2], double (&N)[numSupportPoints])
-    {
-      for (int a = 0; a < LagrangeBasis9GL::numSupportPoints; ++a)
-      {
-        for (int b = 0; b < LagrangeBasis9GL::numSupportPoints; ++b)
-        {
+    static void value(const double (&coords)[2], double (&N)[numSupportPoints]) {
+      for (int a = 0; a < LagrangeBasis9GL::numSupportPoints; ++a) {
+        for (int b = 0; b < LagrangeBasis9GL::numSupportPoints; ++b) {
           const int lindex = a + LagrangeBasis9GL::numSupportPoints * b;
-          N[lindex] = LagrangeBasis9GL::value(a, coords[0]) *
-                      LagrangeBasis9GL::value(b, coords[1]);
+          N[lindex] = LagrangeBasis9GL::value(a, coords[0]) * LagrangeBasis9GL::value(b, coords[1]);
         }
       }
     }
   };
 
-  struct TensorProduct3D
-  {
-    constexpr static int numSupportPoints1D =
-        LagrangeBasis9GL::numSupportPoints;
-    constexpr static int numSupportPoints = numSupportPoints1D *
-                                            numSupportPoints1D *
-                                            numSupportPoints1D;  // 10^3 = 1000
+  struct TensorProduct3D {
+    constexpr static int numSupportPoints1D = LagrangeBasis9GL::numSupportPoints;
+    constexpr static int numSupportPoints =
+        numSupportPoints1D * numSupportPoints1D * numSupportPoints1D;  // 10^3 = 1000
 
-    constexpr static int linearIndex(const int i, const int j, const int k)
-    {
-      return i + numSupportPoints1D * j +
-             numSupportPoints1D * numSupportPoints1D * k;
+    constexpr static int linearIndex(const int i, const int j, const int k) {
+      return i + numSupportPoints1D * j + numSupportPoints1D * numSupportPoints1D * k;
     }
 
-    constexpr static void multiIndex(const int linearIndex, int& i0, int& i1,
-                                     int& i2)
-    {
+    constexpr static void multiIndex(const int linearIndex, int& i0, int& i1, int& i2) {
       i2 = linearIndex / (numSupportPoints1D * numSupportPoints1D);
-      i1 = (linearIndex % (numSupportPoints1D * numSupportPoints1D)) /
-           numSupportPoints1D;
+      i1 = (linearIndex % (numSupportPoints1D * numSupportPoints1D)) / numSupportPoints1D;
       i0 = linearIndex % numSupportPoints1D;
     }
 
-    static void value(const double (&coords)[3], double (&N)[numSupportPoints])
-    {
-      for (int a = 0; a < LagrangeBasis9GL::numSupportPoints; ++a)
-      {
-        for (int b = 0; b < LagrangeBasis9GL::numSupportPoints; ++b)
-        {
-          for (int c = 0; c < LagrangeBasis9GL::numSupportPoints; ++c)
-          {
+    static void value(const double (&coords)[3], double (&N)[numSupportPoints]) {
+      for (int a = 0; a < LagrangeBasis9GL::numSupportPoints; ++a) {
+        for (int b = 0; b < LagrangeBasis9GL::numSupportPoints; ++b) {
+          for (int c = 0; c < LagrangeBasis9GL::numSupportPoints; ++c) {
             const int lindex = a + LagrangeBasis9GL::numSupportPoints * b +
-                               LagrangeBasis9GL::numSupportPoints *
-                                   LagrangeBasis9GL::numSupportPoints * c;
-            N[lindex] = LagrangeBasis9GL::value(a, coords[0]) *
-                        LagrangeBasis9GL::value(b, coords[1]) *
+                               LagrangeBasis9GL::numSupportPoints * LagrangeBasis9GL::numSupportPoints * c;
+            N[lindex] = LagrangeBasis9GL::value(a, coords[0]) * LagrangeBasis9GL::value(b, coords[1]) *
                         LagrangeBasis9GL::value(c, coords[2]);
           }
         }

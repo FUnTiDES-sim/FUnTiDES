@@ -4,18 +4,13 @@
 #include "data_type.h"
 #include "wavefield_acoustic.h"
 
-namespace solver
-{
-namespace fe
-{
-namespace test
-{
+namespace solver {
+namespace fe {
+namespace test {
 
-class WavefieldAcousticTest : public ::testing::Test
-{
+class WavefieldAcousticTest : public ::testing::Test {
  protected:
-  void SetUp() override
-  {
+  void SetUp() override {
     // Create test data with specific sizes
     size1 = 100;
     size2 = 200;
@@ -26,14 +21,12 @@ class WavefieldAcousticTest : public ::testing::Test
     currField2 = allocateVector<VECTOR_REAL_VIEW>(size2, "currField2");
 
     // Initialize with test values
-    for (size_t i = 0; i < size1; ++i)
-    {
+    for (size_t i = 0; i < size1; ++i) {
       prevField(i) = i;
       currField(i) = i * 2;
     }
 
-    for (size_t i = 0; i < size2; ++i)
-    {
+    for (size_t i = 0; i < size2; ++i) {
       prevField2(i) = i * 3;
       currField2(i) = i * 4;
     }
@@ -47,23 +40,20 @@ class WavefieldAcousticTest : public ::testing::Test
   VECTOR_REAL_VIEW currField2;
 };
 
-TEST_F(WavefieldAcousticTest, Constructor)
-{
+TEST_F(WavefieldAcousticTest, Constructor) {
   WavefieldAcoustic wavefield(prevField, currField);
 
   EXPECT_EQ(wavefield.m_pnGlobalPrev.extent(0), size1);
   EXPECT_EQ(wavefield.m_pnGlobalCurr.extent(0), size1);
 
   // Verify data is correctly stored
-  for (size_t i = 0; i < size1; ++i)
-  {
+  for (size_t i = 0; i < size1; ++i) {
     EXPECT_FLOAT_EQ(wavefield.m_pnGlobalPrev(i), i);
     EXPECT_FLOAT_EQ(wavefield.m_pnGlobalCurr(i), i * 2);
   }
 }
 
-TEST_F(WavefieldAcousticTest, CopyConstructor)
-{
+TEST_F(WavefieldAcousticTest, CopyConstructor) {
   WavefieldAcoustic original(prevField, currField);
   WavefieldAcoustic copy(original);
 
@@ -72,8 +62,7 @@ TEST_F(WavefieldAcousticTest, CopyConstructor)
   EXPECT_EQ(copy.m_pnGlobalCurr.extent(0), original.m_pnGlobalCurr.extent(0));
 
   // Check that copy has the same data
-  for (size_t i = 0; i < size1; ++i)
-  {
+  for (size_t i = 0; i < size1; ++i) {
     EXPECT_FLOAT_EQ(copy.m_pnGlobalPrev(i), original.m_pnGlobalPrev(i));
     EXPECT_FLOAT_EQ(copy.m_pnGlobalCurr(i), original.m_pnGlobalCurr(i));
   }
@@ -86,8 +75,7 @@ TEST_F(WavefieldAcousticTest, CopyConstructor)
   EXPECT_FLOAT_EQ(copy.m_pnGlobalCurr(0), 888.0f);
 }
 
-TEST_F(WavefieldAcousticTest, CopyAssignmentOperator)
-{
+TEST_F(WavefieldAcousticTest, CopyAssignmentOperator) {
   WavefieldAcoustic wavefield1(prevField, currField);
   WavefieldAcoustic wavefield2(prevField2, currField2);
 
@@ -103,8 +91,7 @@ TEST_F(WavefieldAcousticTest, CopyAssignmentOperator)
   EXPECT_EQ(wavefield2.m_pnGlobalCurr.extent(0), size1);
 
   // Check that data matches
-  for (size_t i = 0; i < size1; ++i)
-  {
+  for (size_t i = 0; i < size1; ++i) {
     EXPECT_FLOAT_EQ(wavefield2.m_pnGlobalPrev(i), wavefield1.m_pnGlobalPrev(i));
     EXPECT_FLOAT_EQ(wavefield2.m_pnGlobalCurr(i), wavefield1.m_pnGlobalCurr(i));
   }
@@ -117,8 +104,7 @@ TEST_F(WavefieldAcousticTest, CopyAssignmentOperator)
   EXPECT_FLOAT_EQ(wavefield2.m_pnGlobalCurr(0), 666.0f);
 }
 
-TEST_F(WavefieldAcousticTest, CopyAssignmentSelfAssignment)
-{
+TEST_F(WavefieldAcousticTest, CopyAssignmentSelfAssignment) {
   WavefieldAcoustic wavefield(prevField, currField);
 
   // Self-assignment should not cause issues
@@ -128,41 +114,35 @@ TEST_F(WavefieldAcousticTest, CopyAssignmentSelfAssignment)
   EXPECT_EQ(wavefield.m_pnGlobalPrev.extent(0), size1);
   EXPECT_EQ(wavefield.m_pnGlobalCurr.extent(0), size1);
 
-  for (size_t i = 0; i < size1; ++i)
-  {
+  for (size_t i = 0; i < size1; ++i) {
     EXPECT_FLOAT_EQ(wavefield.m_pnGlobalPrev(i), i);
     EXPECT_FLOAT_EQ(wavefield.m_pnGlobalCurr(i), i * 2);
   }
 }
 
-TEST_F(WavefieldAcousticTest, GetCurrentField)
-{
+TEST_F(WavefieldAcousticTest, GetCurrentField) {
   WavefieldAcoustic wavefield(prevField, currField);
 
   auto current = wavefield.getCurrentField(0);
 
   EXPECT_EQ(current.extent(0), size1);
-  for (size_t i = 0; i < size1; ++i)
-  {
+  for (size_t i = 0; i < size1; ++i) {
     EXPECT_FLOAT_EQ(current(i), i * 2);
   }
 }
 
-TEST_F(WavefieldAcousticTest, GetPreviousField)
-{
+TEST_F(WavefieldAcousticTest, GetPreviousField) {
   WavefieldAcoustic wavefield(prevField, currField);
 
   auto previous = wavefield.getPreviousField(0);
 
   EXPECT_EQ(previous.extent(0), size1);
-  for (size_t i = 0; i < size1; ++i)
-  {
+  for (size_t i = 0; i < size1; ++i) {
     EXPECT_FLOAT_EQ(previous(i), i);
   }
 }
 
-TEST_F(WavefieldAcousticTest, Swap)
-{
+TEST_F(WavefieldAcousticTest, Swap) {
   WavefieldAcoustic wavefield(prevField, currField);
 
   // Store original values
@@ -177,22 +157,19 @@ TEST_F(WavefieldAcousticTest, Swap)
   EXPECT_FLOAT_EQ(wavefield.m_pnGlobalCurr(0), originalPrev0);
 
   // Verify all elements were swapped
-  for (size_t i = 0; i < size1; ++i)
-  {
+  for (size_t i = 0; i < size1; ++i) {
     EXPECT_FLOAT_EQ(wavefield.m_pnGlobalPrev(i), i * 2);
     EXPECT_FLOAT_EQ(wavefield.m_pnGlobalCurr(i), i);
   }
 }
 
-TEST_F(WavefieldAcousticTest, SwapTwice)
-{
+TEST_F(WavefieldAcousticTest, SwapTwice) {
   WavefieldAcoustic wavefield(prevField, currField);
 
   // Store original values
   std::vector<float> originalPrev(size1);
   std::vector<float> originalCurr(size1);
-  for (size_t i = 0; i < size1; ++i)
-  {
+  for (size_t i = 0; i < size1; ++i) {
     originalPrev[i] = wavefield.m_pnGlobalPrev(i);
     originalCurr[i] = wavefield.m_pnGlobalCurr(i);
   }
@@ -202,15 +179,13 @@ TEST_F(WavefieldAcousticTest, SwapTwice)
   wavefield.swap();
 
   // Verify restoration
-  for (size_t i = 0; i < size1; ++i)
-  {
+  for (size_t i = 0; i < size1; ++i) {
     EXPECT_FLOAT_EQ(wavefield.m_pnGlobalPrev(i), originalPrev[i]);
     EXPECT_FLOAT_EQ(wavefield.m_pnGlobalCurr(i), originalCurr[i]);
   }
 }
 
-TEST_F(WavefieldAcousticTest, SwapWithModification)
-{
+TEST_F(WavefieldAcousticTest, SwapWithModification) {
   WavefieldAcoustic wavefield(prevField, currField);
 
   // Modify current field
@@ -224,8 +199,7 @@ TEST_F(WavefieldAcousticTest, SwapWithModification)
   EXPECT_FLOAT_EQ(wavefield.m_pnGlobalCurr(5), 5.0f);
 }
 
-TEST_F(WavefieldAcousticTest, CopyConstructorAfterSwap)
-{
+TEST_F(WavefieldAcousticTest, CopyConstructorAfterSwap) {
   WavefieldAcoustic original(prevField, currField);
 
   // Swap the original
@@ -235,15 +209,13 @@ TEST_F(WavefieldAcousticTest, CopyConstructorAfterSwap)
   WavefieldAcoustic copy(original);
 
   // Verify copy has the swapped state
-  for (size_t i = 0; i < size1; ++i)
-  {
+  for (size_t i = 0; i < size1; ++i) {
     EXPECT_FLOAT_EQ(copy.m_pnGlobalPrev(i), i * 2);
     EXPECT_FLOAT_EQ(copy.m_pnGlobalCurr(i), i);
   }
 }
 
-TEST_F(WavefieldAcousticTest, EmptyFields)
-{
+TEST_F(WavefieldAcousticTest, EmptyFields) {
   auto emptyPrev = allocateVector<VECTOR_REAL_VIEW>(0, "emptyPrev");
   auto emptyCurr = allocateVector<VECTOR_REAL_VIEW>(0, "emptyCurr");
 
@@ -258,11 +230,9 @@ TEST_F(WavefieldAcousticTest, EmptyFields)
   EXPECT_EQ(wavefield.m_pnGlobalCurr.extent(0), 0);
 }
 
-TEST_F(WavefieldAcousticTest, CopyInContainerClass)
-{
+TEST_F(WavefieldAcousticTest, CopyInContainerClass) {
   // Create a simple container class that stores wavefield by copy
-  struct WavefieldContainer
-  {
+  struct WavefieldContainer {
     WavefieldAcoustic wavefield;
 
     WavefieldContainer(const WavefieldAcoustic& wf) : wavefield(wf) {}
@@ -275,8 +245,7 @@ TEST_F(WavefieldAcousticTest, CopyInContainerClass)
   // Store original values
   std::vector<float> originalPrev(size1);
   std::vector<float> originalCurr(size1);
-  for (size_t i = 0; i < size1; ++i)
-  {
+  for (size_t i = 0; i < size1; ++i) {
     originalPrev[i] = original.m_pnGlobalPrev(i);
     originalCurr[i] = original.m_pnGlobalCurr(i);
   }
@@ -285,8 +254,7 @@ TEST_F(WavefieldAcousticTest, CopyInContainerClass)
   WavefieldContainer container(original);
 
   // Verify container has correct initial state
-  for (size_t i = 0; i < size1; ++i)
-  {
+  for (size_t i = 0; i < size1; ++i) {
     EXPECT_FLOAT_EQ(container.wavefield.m_pnGlobalPrev(i), originalPrev[i]);
     EXPECT_FLOAT_EQ(container.wavefield.m_pnGlobalCurr(i), originalCurr[i]);
   }
@@ -327,8 +295,7 @@ TEST_F(WavefieldAcousticTest, CopyInContainerClass)
   EXPECT_FLOAT_EQ(original.m_pnGlobalCurr(30), 777.0f);
 }
 
-TEST_F(WavefieldAcousticTest, SwapWithRotationRotatesThreeBuffers)
-{
+TEST_F(WavefieldAcousticTest, SwapWithRotationRotatesThreeBuffers) {
   // prevprev = {10, 10, ...}, prev = {i}, curr = {i*2}
   auto prevPrev = allocateVector<VECTOR_REAL_VIEW>(size1, "prevPrev");
   for (size_t i = 0; i < size1; ++i) prevPrev(i) = 10.0f;
@@ -340,16 +307,14 @@ TEST_F(WavefieldAcousticTest, SwapWithRotationRotatesThreeBuffers)
   //   curr      ← old prevPrev  (value = 10.0)
   //   prev      ← old curr      (value = i*2)
   //   prevPrev  ← old prev      (value = i)
-  for (size_t i = 0; i < size1; ++i)
-  {
+  for (size_t i = 0; i < size1; ++i) {
     EXPECT_FLOAT_EQ(wavefield.m_pnGlobalCurr(i), 10.0f);
     EXPECT_FLOAT_EQ(wavefield.m_pnGlobalPrev(i), i * 2);
     EXPECT_FLOAT_EQ(prevPrev(i), static_cast<float>(i));
   }
 }
 
-TEST_F(WavefieldAcousticTest, SwapWithRotationThreeTimesRestoresState)
-{
+TEST_F(WavefieldAcousticTest, SwapWithRotationThreeTimesRestoresState) {
   auto prevPrev = allocateVector<VECTOR_REAL_VIEW>(size1, "prevPrev");
   for (size_t i = 0; i < size1; ++i) prevPrev(i) = 10.0f;
 
@@ -370,8 +335,7 @@ TEST_F(WavefieldAcousticTest, SwapWithRotationThreeTimesRestoresState)
   EXPECT_FLOAT_EQ(prevPrev(0), initialPrevPrev0);
 }
 
-TEST_F(WavefieldAcousticTest, SwapWithRotationNoDataCopy)
-{
+TEST_F(WavefieldAcousticTest, SwapWithRotationNoDataCopy) {
   // Verifies that the rotation is view-handle only: mutating the underlying
   // buffer is visible through the rotated handle.
   auto prevPrev = allocateVector<VECTOR_REAL_VIEW>(size1, "prevPrev");

@@ -5,8 +5,7 @@
 #include "fd_macros.h"
 #include "fd_options.h"
 
-struct FdtdSourceReceivers
-{
+struct FdtdSourceReceivers {
   // source location
   int xsrc{-1}, ysrc{-1}, zsrc{-1};
 };

@@ -5,25 +5,18 @@
 
 constexpr int MAX_GLL_ORDER = 9;
 
-struct GLLPoints
-{
+struct GLLPoints {
   /// Return the number of points for given order
-  PROXY_HOST_DEVICE static constexpr int num_points(int order)
-  {
-    return order + 1;
-  }
+  PROXY_HOST_DEVICE static constexpr int num_points(int order) { return order + 1; }
 
   /// Return the i-th GLL point for given order (reference element [-1, 1])
-  PROXY_HOST_DEVICE static float get(int order, int i)
-  {
+  PROXY_HOST_DEVICE static float get(int order, int i) {
     if (order < 1 || order > MAX_GLL_ORDER) return 0.0f;
     if (i < 0 || i >= (order + 1)) return 0.0f;
 
-    switch (order)
-    {
+    switch (order) {
       case 1:
-        switch (i)
-        {
+        switch (i) {
           case 0:
             return -1.0f;
           case 1:
@@ -32,8 +25,7 @@ struct GLLPoints
         break;
 
       case 2:
-        switch (i)
-        {
+        switch (i) {
           case 0:
             return -1.0f;
           case 1:
@@ -45,8 +37,7 @@ struct GLLPoints
 
       case 3:
         // interior: ±1/√5
-        switch (i)
-        {
+        switch (i) {
           case 0:
             return -1.0f;
           case 1:
@@ -60,8 +51,7 @@ struct GLLPoints
 
       case 4:
         // interior: ±√(3/7), 0
-        switch (i)
-        {
+        switch (i) {
           case 0:
             return -1.0f;
           case 1:
@@ -76,8 +66,7 @@ struct GLLPoints
         break;
 
       case 5:
-        switch (i)
-        {
+        switch (i) {
           case 0:
             return -1.0f;
           case 1:
@@ -94,8 +83,7 @@ struct GLLPoints
         break;
 
       case 6:
-        switch (i)
-        {
+        switch (i) {
           case 0:
             return -1.0f;
           case 1:
@@ -114,8 +102,7 @@ struct GLLPoints
         break;
 
       case 7:
-        switch (i)
-        {
+        switch (i) {
           case 0:
             return -1.0f;
           case 1:
@@ -136,8 +123,7 @@ struct GLLPoints
         break;
 
       case 8:
-        switch (i)
-        {
+        switch (i) {
           case 0:
             return -1.0f;
           case 1:
@@ -160,8 +146,7 @@ struct GLLPoints
         break;
 
       case 9:
-        switch (i)
-        {
+        switch (i) {
           case 0:
             return -1.0f;
           case 1:

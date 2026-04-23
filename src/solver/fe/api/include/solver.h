@@ -6,21 +6,17 @@
 #include "model.h"
 #include "parallel_topology.h"
 
-namespace solver
-{
-namespace fe
-{
+namespace solver {
+namespace fe {
 /**
  * @brief Base FE solver.
  */
-class Solver
-{
+class Solver {
  public:
   Solver() = default;
   virtual ~Solver() = default;
 
-  struct DataStruct
-  {
+  struct DataStruct {
     // Base structure for data passed to the solver
     PROXY_HOST_DEVICE
     virtual ~DataStruct() = default;
@@ -29,8 +25,7 @@ class Solver
   };
 
   // Pure virtual function to compute one step of the solver
-  virtual void computeOneStep(const float& dt, const int& timeSample,
-                              DataStruct& data) = 0;
+  virtual void computeOneStep(const float& dt, const int& timeSample, DataStruct& data) = 0;
 
   /**
    * @brief Initialize all finite element structures:
@@ -45,10 +40,8 @@ class Solver
    *                       for geophysics to preserve natural reflections).
    * @param taper_delta_ Attenuation parameter for sponge layers.
    */
-  virtual void computeFEInit(model::ModelApi<float, int>& mesh,
-                             const std::array<float, 3>& sponge_size,
-                             const bool surface_sponge,
-                             const float taper_delta_) = 0;
+  virtual void computeFEInit(model::ModelApi<float, int>& mesh, const std::array<float, 3>& sponge_size,
+                             const bool surface_sponge, const float taper_delta_) = 0;
 
   /**
    * @brief Initialize arrays required by the finite element solver.
@@ -99,9 +92,7 @@ class Solver
    * @param[in] fieldName Name/identifier of the field being output (as a
    *                      C-string)
    */
-  virtual void outputSolutionValues(const int& t, int& e,
-                                    const VECTOR_REAL_VIEW& field,
-                                    const char* fieldName) = 0;
+  virtual void outputSolutionValues(const int& t, int& e, const VECTOR_REAL_VIEW& field, const char* fieldName) = 0;
 
   // --- Domain Decomposition Interface ---
 
@@ -155,8 +146,7 @@ class Solver
    * via BoundarySynchronizer after calling this method and before calling
    * updateSolution.
    */
-  virtual void computeForces(const float& dt, const int& timeSample,
-                             DataStruct& data) = 0;
+  virtual void computeForces(const float& dt, const int& timeSample, DataStruct& data) = 0;
 
   /**
    * @brief Phase 2 of time step: Update solution using mass matrix and forces.
@@ -168,10 +158,8 @@ class Solver
 
   virtual void setAnisotropyType(model::AnisotropyType type) = 0;
 
-  virtual void setSLSAttenuation(
-      const VECTOR_REAL_VIEW& reference_frequencies,
-      const VECTOR_REAL_VIEW& anelasticity_coefficients =
-          VECTOR_REAL_VIEW()) = 0;
+  virtual void setSLSAttenuation(const VECTOR_REAL_VIEW& reference_frequencies,
+                                 const VECTOR_REAL_VIEW& anelasticity_coefficients = VECTOR_REAL_VIEW()) = 0;
 };
 }  // namespace fe
 }  // namespace solver

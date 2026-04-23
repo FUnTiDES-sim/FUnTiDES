@@ -6,8 +6,7 @@
 
 #include "wavefield_view.h"
 
-namespace gradient
-{
+namespace gradient {
 
 /**
  * @brief Read-only view of an acoustic forward wavefield for gradient
@@ -19,8 +18,7 @@ namespace gradient
  * Fields:
  *   getField(0) = pn  (current pressure)
  */
-class WavefieldViewForwardAcoustic : public WavefieldView
-{
+class WavefieldViewForwardAcoustic : public WavefieldView {
  public:
   static constexpr int kNumFields = 1;
 
@@ -34,11 +32,7 @@ class WavefieldViewForwardAcoustic : public WavefieldView
   PROXY_HOST_DEVICE
   VECTOR_REAL_VIEW getField(int i) const override { return pn_; }
 
-  void print() const override
-  {
-    std::cout << "WavefieldViewForwardAcoustic: pn size=" << pn_.extent(0)
-              << "\n";
-  }
+  void print() const override { std::cout << "WavefieldViewForwardAcoustic: pn size=" << pn_.extent(0) << "\n"; }
 
  private:
   VECTOR_REAL_VIEW pn_;  ///< Current pressure snapshot
