@@ -28,8 +28,7 @@
 #include "fd_stencils.h"
 #include "utils.h"
 
-namespace fdtd
-{
+namespace fdtd {
 /**
  * @class FdtdProxy
  * @brief Main orchestration class for FDTD acoustic wave propagation
@@ -49,8 +48,7 @@ namespace fdtd
  *   proxy.Run();
  * @endcode
  */
-class FdtdProxy
-{
+class FdtdProxy {
  public:
   /**
    * @brief Constructs an FDTD proxy with the given simulation options.
@@ -142,9 +140,8 @@ class FdtdProxy
    * @param total_compute_time Accumulated computation time
    * @param total_output_time Accumulated I/O time
    */
-  void PrintPerformanceMetrics(
-      const std::chrono::nanoseconds& total_compute_time,
-      const std::chrono::nanoseconds& total_output_time) const;
+  void PrintPerformanceMetrics(const std::chrono::nanoseconds& total_compute_time,
+                               const std::chrono::nanoseconds& total_output_time) const;
 
   // Simulation configuration
   fdtd::options::FdtdOptions opt_;

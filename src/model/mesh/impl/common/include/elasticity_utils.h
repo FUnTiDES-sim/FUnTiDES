@@ -6,11 +6,8 @@
  * @brief Compute isotropic elasticity coefficients (Lamé parameters)
  */
 template <typename FloatType>
-PROXY_HOST_DEVICE void computeIsotropicCoefficients(FloatType vp, FloatType vs,
-                                                    FloatType rho,
-                                                    FloatType& lambda,
-                                                    FloatType& mu)
-{
+PROXY_HOST_DEVICE void computeIsotropicCoefficients(FloatType vp, FloatType vs, FloatType rho, FloatType& lambda,
+                                                    FloatType& mu) {
   mu = rho * vs * vs;
   lambda = rho * (vp * vp - FloatType(2.0) * vs * vs);
 }
@@ -19,9 +16,7 @@ PROXY_HOST_DEVICE void computeIsotropicCoefficients(FloatType vp, FloatType vs,
  * @brief Build isotropic elasticity tensor in Voigt notation
  */
 template <typename FloatType>
-PROXY_HOST_DEVICE void buildIsotropicTensor(FloatType lambda, FloatType mu,
-                                            FloatType C[6][6])
-{
+PROXY_HOST_DEVICE void buildIsotropicTensor(FloatType lambda, FloatType mu, FloatType C[6][6]) {
   for (int i = 0; i < 6; i++)
     for (int j = 0; j < 6; j++) C[i][j] = FloatType(0.0);
 
@@ -45,11 +40,9 @@ PROXY_HOST_DEVICE void buildIsotropicTensor(FloatType lambda, FloatType mu,
  * @brief Compute VTI elasticity coefficients (no rotation)
  */
 template <typename FloatType>
-PROXY_HOST_DEVICE void computeVTICoefficients(
-    FloatType vp, FloatType vs, FloatType rho, FloatType delta,
-    FloatType epsilon, FloatType gamma, FloatType& c11, FloatType& c12,
-    FloatType& c13, FloatType& c33, FloatType& c44, FloatType& c66)
-{
+PROXY_HOST_DEVICE void computeVTICoefficients(FloatType vp, FloatType vs, FloatType rho, FloatType delta,
+                                              FloatType epsilon, FloatType gamma, FloatType& c11, FloatType& c12,
+                                              FloatType& c13, FloatType& c33, FloatType& c44, FloatType& c66) {
   FloatType const rho_vp2 = rho * vp * vp;
   FloatType const rho_vs2 = rho * vs * vs;
 
@@ -59,8 +52,7 @@ PROXY_HOST_DEVICE void computeVTICoefficients(
   c66 = rho_vs2 * (FloatType(1.0) + FloatType(2.0) * gamma);
 
   FloatType const vp2_vs2 = vp * vp - vs * vs;
-  FloatType const sqrt_arg =
-      vp2_vs2 * vp2_vs2 + FloatType(2.0) * rho_vp2 * delta * vp2_vs2;
+  FloatType const sqrt_arg = vp2_vs2 * vp2_vs2 + FloatType(2.0) * rho_vp2 * delta * vp2_vs2;
   c13 = rho * sqrt(sqrt_arg) - rho_vs2;
   c12 = c11 - FloatType(2.0) * c66;
 }
@@ -69,11 +61,8 @@ PROXY_HOST_DEVICE void computeVTICoefficients(
  * @brief Build VTI elasticity tensor in Voigt notation (no rotation)
  */
 template <typename FloatType>
-PROXY_HOST_DEVICE void buildVTITensor(FloatType c11, FloatType c12,
-                                      FloatType c13, FloatType c33,
-                                      FloatType c44, FloatType c66,
-                                      FloatType C[6][6])
-{
+PROXY_HOST_DEVICE void buildVTITensor(FloatType c11, FloatType c12, FloatType c13, FloatType c33, FloatType c44,
+                                      FloatType c66, FloatType C[6][6]) {
   for (int i = 0; i < 6; i++)
     for (int j = 0; j < 6; j++) C[i][j] = FloatType(0.0);
 
@@ -95,11 +84,8 @@ PROXY_HOST_DEVICE void buildVTITensor(FloatType c11, FloatType c12,
  * @brief Compute the full TTI elasticity tensor (VTI + rotation)
  */
 template <typename FloatType>
-PROXY_HOST_DEVICE void computeCTensor(FloatType vp, FloatType vs, FloatType rho,
-                                      FloatType delta, FloatType epsilon,
-                                      FloatType gamma, FloatType theta,
-                                      FloatType phi, FloatType CTTI[6][6])
-{
+PROXY_HOST_DEVICE void computeCTensor(FloatType vp, FloatType vs, FloatType rho, FloatType delta, FloatType epsilon,
+                                      FloatType gamma, FloatType theta, FloatType phi, FloatType CTTI[6][6]) {
   FloatType CVTI[6][6] = {0.0};
   CVTI[0][0] = rho * vp * vp * (1.0 + 2.0 * epsilon);
   CVTI[1][1] = CVTI[0][0];
@@ -182,8 +168,7 @@ PROXY_HOST_DEVICE void computeCTensor(FloatType vp, FloatType vs, FloatType rho,
       for (int k = 0; k < 6; k++) temp[i][j] += M[i][k] * CVTI[k][j];
 
   for (int i = 0; i < 6; i++)
-    for (int j = i; j < 6; j++)
-    {
+    for (int j = i; j < 6; j++) {
       CTTI[i][j] = 0.0;
       for (int k = 0; k < 6; k++) CTTI[i][j] += temp[i][k] * M[j][k];
       if (i != j) CTTI[j][i] = CTTI[i][j];

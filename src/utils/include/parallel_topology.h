@@ -3,8 +3,7 @@
 #include <map>
 #include <vector>
 
-namespace utils
-{
+namespace utils {
 
 /**
  * @brief Describes the distributed connectivity of the mesh.
@@ -19,8 +18,7 @@ namespace utils
  * TopologyFactory and used by BoundarySynchronizer to coordinate
  * data exchange.
  */
-struct ParallelTopology
-{
+struct ParallelTopology {
   int myRank = 0;    //< Current MPI rank (0-based)
   int numRanks = 1;  //< Total number of ranks
 
@@ -34,11 +32,9 @@ struct ParallelTopology
 
   // @brief Returns the total number of boundary nodes across all neighbors.
   // @return Sum of all shared node counts
-  size_t getTotalBoundaryNodes() const
-  {
+  size_t getTotalBoundaryNodes() const {
     size_t total = 0;
-    for (const auto& [rank, nodes] : sharedNodes)
-    {
+    for (const auto& [rank, nodes] : sharedNodes) {
       total += nodes.size();
     }
     return total;

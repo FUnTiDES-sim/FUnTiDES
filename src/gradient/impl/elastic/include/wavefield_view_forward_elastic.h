@@ -6,8 +6,7 @@
 
 #include "wavefield_view.h"
 
-namespace gradient
-{
+namespace gradient {
 
 /**
  * @brief Read-only view of an elastic forward wavefield for gradient
@@ -22,23 +21,17 @@ namespace gradient
  *   getField(1) = uy_n  (current y-displacement)
  *   getField(2) = uz_n  (current z-displacement)
  */
-class WavefieldViewForwardElastic : public WavefieldView
-{
+class WavefieldViewForwardElastic : public WavefieldView {
  public:
   static constexpr int kNumFields = 3;
 
-  WavefieldViewForwardElastic(VECTOR_REAL_VIEW ux_n, VECTOR_REAL_VIEW uy_n,
-                              VECTOR_REAL_VIEW uz_n)
-      : ux_n_(ux_n), uy_n_(uy_n), uz_n_(uz_n)
-  {
-  }
+  WavefieldViewForwardElastic(VECTOR_REAL_VIEW ux_n, VECTOR_REAL_VIEW uy_n, VECTOR_REAL_VIEW uz_n)
+      : ux_n_(ux_n), uy_n_(uy_n), uz_n_(uz_n) {}
 
   int getNumFields() const override { return kNumFields; }
 
-  std::string getFieldName(int i) const override
-  {
-    switch (i)
-    {
+  std::string getFieldName(int i) const override {
+    switch (i) {
       case 0:
         return "ux_n";
       case 1:
@@ -52,10 +45,8 @@ class WavefieldViewForwardElastic : public WavefieldView
 
   // TODO use template + constexpr if when C++20 is available
   PROXY_HOST_DEVICE
-  VECTOR_REAL_VIEW getField(int i) const override
-  {
-    switch (i)
-    {
+  VECTOR_REAL_VIEW getField(int i) const override {
+    switch (i) {
       case 0:
         return ux_n_;
       case 1:
@@ -67,10 +58,8 @@ class WavefieldViewForwardElastic : public WavefieldView
     }
   }
 
-  void print() const override
-  {
-    std::cout << "WavefieldViewForwardElastic:" << " ux_n size="
-              << ux_n_.extent(0) << " uy_n size=" << uy_n_.extent(0)
+  void print() const override {
+    std::cout << "WavefieldViewForwardElastic:" << " ux_n size=" << ux_n_.extent(0) << " uy_n size=" << uy_n_.extent(0)
               << " uz_n size=" << uz_n_.extent(0) << "\n";
   }
 

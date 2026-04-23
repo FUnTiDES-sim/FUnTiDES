@@ -5,14 +5,12 @@
 
 #include "data_type.h"
 
-namespace gradient
-{
+namespace gradient {
 
 /**
  * @brief Base Gradient data structure.
  */
-class Gradient
-{
+class Gradient {
  public:
   virtual ~Gradient() = default;
 

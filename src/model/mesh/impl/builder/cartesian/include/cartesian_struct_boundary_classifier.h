@@ -6,8 +6,7 @@
 
 #include <cmath>
 
-namespace model
-{
+namespace model {
 /**
  * @brief Classifies boundary flags for nodes of a structured Cartesian mesh.
  *
@@ -27,13 +26,10 @@ namespace model
  * @tparam ScalarType Integer type used to cast BoundaryFlag values
  */
 template <typename FloatType, typename ScalarType>
-class CartesianStructBoundaryClassifier
-{
+class CartesianStructBoundaryClassifier {
  public:
-  CartesianStructBoundaryClassifier(FloatType x_min, FloatType x_max,
-                                    FloatType y_min, FloatType y_max,
-                                    FloatType z_min, FloatType z_max,
-                                    FloatType tol, bool free_surface_on_top)
+  CartesianStructBoundaryClassifier(FloatType x_min, FloatType x_max, FloatType y_min, FloatType y_max, FloatType z_min,
+                                    FloatType z_max, FloatType tol, bool free_surface_on_top)
       : x_min_(x_min),
         x_max_(x_max),
         y_min_(y_min),
@@ -41,9 +37,7 @@ class CartesianStructBoundaryClassifier
         z_min_(z_min),
         z_max_(z_max),
         tol_(tol),
-        free_surface_on_top_(free_surface_on_top)
-  {
-  }
+        free_surface_on_top_(free_surface_on_top) {}
 
   /**
    * @brief Classify every node of the structured grid.
@@ -54,10 +48,8 @@ class CartesianStructBoundaryClassifier
    * @param lx, ly, lz  Local domain dimensions
    * @return VECTOR_INT_VIEW of size n_node with BoundaryFlag values
    */
-  VECTOR_INT_VIEW classify(int n_node, int nx, int ny, int nz, FloatType ox,
-                           FloatType oy, FloatType oz, FloatType lx,
-                           FloatType ly, FloatType lz) const
-  {
+  VECTOR_INT_VIEW classify(int n_node, int nx, int ny, int nz, FloatType ox, FloatType oy, FloatType oz, FloatType lx,
+                           FloatType ly, FloatType lz) const {
     const bool x_min_is_global = fabs(ox - x_min_) < tol_;
     const bool x_max_is_global = fabs((ox + lx) - x_max_) < tol_;
     const bool y_min_is_global = fabs(oy - y_min_) < tol_;
@@ -67,8 +59,7 @@ class CartesianStructBoundaryClassifier
 
     auto boundaries_t = allocateVector<VECTOR_INT_VIEW>(n_node, "boundaries_t");
 
-    for (int n = 0; n < n_node; ++n)
-    {
+    for (int n = 0; n < n_node; ++n) {
       const int i = n % nx;
       const int j = (n / nx) % ny;
       const int k = n / (nx * ny);
@@ -80,8 +71,7 @@ class CartesianStructBoundaryClassifier
       const bool at_zmin = z_min_is_global && (k == 0);
       const bool at_zmax = z_max_is_global && (k == nz - 1);
 
-      const bool on_boundary =
-          at_xmin || at_xmax || at_ymin || at_ymax || at_zmin || at_zmax;
+      const bool on_boundary = at_xmin || at_xmax || at_ymin || at_ymax || at_zmin || at_zmax;
 
       if (!on_boundary)
         boundaries_t(n) = static_cast<ScalarType>(BoundaryFlag::InteriorNode);

@@ -3,16 +3,12 @@
 #include "data_type.h"
 #include "differentiator_data_elastic.h"
 
-namespace gradient
-{
-namespace test
-{
+namespace gradient {
+namespace test {
 
-class GradientDataElasticTest : public ::testing::Test
-{
+class GradientDataElasticTest : public ::testing::Test {
  protected:
-  void SetUp() override
-  {
+  void SetUp() override {
     size = 40;
 
     ux_n = allocateVector<VECTOR_REAL_VIEW>(size, "ux_n");
@@ -26,8 +22,7 @@ class GradientDataElasticTest : public ::testing::Test
     gradLambda = allocateVector<VECTOR_REAL_VIEW>(size, "gradLambda");
     gradMu = allocateVector<VECTOR_REAL_VIEW>(size, "gradMu");
 
-    for (int i = 0; i < size; ++i)
-    {
+    for (int i = 0; i < size; ++i) {
       ux_n(i) = static_cast<float>(i) * 0.1f;
       uy_n(i) = static_cast<float>(i) * 0.2f;
       uz_n(i) = static_cast<float>(i) * 0.3f;
@@ -46,8 +41,7 @@ class GradientDataElasticTest : public ::testing::Test
   VECTOR_REAL_VIEW gradRho, gradLambda, gradMu;
 };
 
-TEST_F(GradientDataElasticTest, Construction)
-{
+TEST_F(GradientDataElasticTest, Construction) {
   WavefieldViewForwardElastic fwd(ux_n, uy_n, uz_n);
   WavefieldViewBackwardElastic bwd(ux_n, uy_n, uz_n, ux_dt2, uy_dt2, uz_dt2);
   GradientElastic grad(gradRho, gradLambda, gradMu);
@@ -55,8 +49,7 @@ TEST_F(GradientDataElasticTest, Construction)
   EXPECT_NO_THROW((GradientDataElastic{fwd, bwd, grad}));
 }
 
-TEST_F(GradientDataElasticTest, GetForwardFieldReturnsUxN)
-{
+TEST_F(GradientDataElasticTest, GetForwardFieldReturnsUxN) {
   WavefieldViewForwardElastic fwd(ux_n, uy_n, uz_n);
   WavefieldViewBackwardElastic bwd(ux_n, uy_n, uz_n, ux_dt2, uy_dt2, uz_dt2);
   GradientElastic grad(gradRho, gradLambda, gradMu);
@@ -64,12 +57,10 @@ TEST_F(GradientDataElasticTest, GetForwardFieldReturnsUxN)
 
   auto field = data.getForwardField(0);
   ASSERT_EQ(field.extent(0), static_cast<size_t>(size));
-  for (int i = 0; i < size; ++i)
-    EXPECT_FLOAT_EQ(field(i), static_cast<float>(i) * 0.1f);
+  for (int i = 0; i < size; ++i) EXPECT_FLOAT_EQ(field(i), static_cast<float>(i) * 0.1f);
 }
 
-TEST_F(GradientDataElasticTest, GetForwardFieldReturnsUyN)
-{
+TEST_F(GradientDataElasticTest, GetForwardFieldReturnsUyN) {
   WavefieldViewForwardElastic fwd(ux_n, uy_n, uz_n);
   WavefieldViewBackwardElastic bwd(ux_n, uy_n, uz_n, ux_dt2, uy_dt2, uz_dt2);
   GradientElastic grad(gradRho, gradLambda, gradMu);
@@ -77,12 +68,10 @@ TEST_F(GradientDataElasticTest, GetForwardFieldReturnsUyN)
 
   auto field = data.getForwardField(1);
   ASSERT_EQ(field.extent(0), static_cast<size_t>(size));
-  for (int i = 0; i < size; ++i)
-    EXPECT_FLOAT_EQ(field(i), static_cast<float>(i) * 0.2f);
+  for (int i = 0; i < size; ++i) EXPECT_FLOAT_EQ(field(i), static_cast<float>(i) * 0.2f);
 }
 
-TEST_F(GradientDataElasticTest, GetBackwardFieldReturnsUxDt2)
-{
+TEST_F(GradientDataElasticTest, GetBackwardFieldReturnsUxDt2) {
   WavefieldViewForwardElastic fwd(ux_n, uy_n, uz_n);
   WavefieldViewBackwardElastic bwd(ux_n, uy_n, uz_n, ux_dt2, uy_dt2, uz_dt2);
   GradientElastic grad(gradRho, gradLambda, gradMu);
@@ -90,12 +79,10 @@ TEST_F(GradientDataElasticTest, GetBackwardFieldReturnsUxDt2)
 
   auto field = data.getBackwardField(3);
   ASSERT_EQ(field.extent(0), static_cast<size_t>(size));
-  for (int i = 0; i < size; ++i)
-    EXPECT_FLOAT_EQ(field(i), static_cast<float>(i) * 0.4f);
+  for (int i = 0; i < size; ++i) EXPECT_FLOAT_EQ(field(i), static_cast<float>(i) * 0.4f);
 }
 
-TEST_F(GradientDataElasticTest, GetGradientZeroReturnsRho)
-{
+TEST_F(GradientDataElasticTest, GetGradientZeroReturnsRho) {
   WavefieldViewForwardElastic fwd(ux_n, uy_n, uz_n);
   WavefieldViewBackwardElastic bwd(ux_n, uy_n, uz_n, ux_dt2, uy_dt2, uz_dt2);
   GradientElastic grad(gradRho, gradLambda, gradMu);
@@ -103,12 +90,10 @@ TEST_F(GradientDataElasticTest, GetGradientZeroReturnsRho)
 
   auto g = data.getGradient(0);
   ASSERT_EQ(g.extent(0), static_cast<size_t>(size));
-  for (int i = 0; i < size; ++i)
-    EXPECT_FLOAT_EQ(g(i), static_cast<float>(i) * 1.0f);
+  for (int i = 0; i < size; ++i) EXPECT_FLOAT_EQ(g(i), static_cast<float>(i) * 1.0f);
 }
 
-TEST_F(GradientDataElasticTest, GetGradientOneReturnsLambda)
-{
+TEST_F(GradientDataElasticTest, GetGradientOneReturnsLambda) {
   WavefieldViewForwardElastic fwd(ux_n, uy_n, uz_n);
   WavefieldViewBackwardElastic bwd(ux_n, uy_n, uz_n, ux_dt2, uy_dt2, uz_dt2);
   GradientElastic grad(gradRho, gradLambda, gradMu);
@@ -116,12 +101,10 @@ TEST_F(GradientDataElasticTest, GetGradientOneReturnsLambda)
 
   auto g = data.getGradient(1);
   ASSERT_EQ(g.extent(0), static_cast<size_t>(size));
-  for (int i = 0; i < size; ++i)
-    EXPECT_FLOAT_EQ(g(i), static_cast<float>(i) * 2.0f);
+  for (int i = 0; i < size; ++i) EXPECT_FLOAT_EQ(g(i), static_cast<float>(i) * 2.0f);
 }
 
-TEST_F(GradientDataElasticTest, GetGradientTwoReturnsMu)
-{
+TEST_F(GradientDataElasticTest, GetGradientTwoReturnsMu) {
   WavefieldViewForwardElastic fwd(ux_n, uy_n, uz_n);
   WavefieldViewBackwardElastic bwd(ux_n, uy_n, uz_n, ux_dt2, uy_dt2, uz_dt2);
   GradientElastic grad(gradRho, gradLambda, gradMu);
@@ -129,12 +112,10 @@ TEST_F(GradientDataElasticTest, GetGradientTwoReturnsMu)
 
   auto g = data.getGradient(2);
   ASSERT_EQ(g.extent(0), static_cast<size_t>(size));
-  for (int i = 0; i < size; ++i)
-    EXPECT_FLOAT_EQ(g(i), static_cast<float>(i) * 3.0f);
+  for (int i = 0; i < size; ++i) EXPECT_FLOAT_EQ(g(i), static_cast<float>(i) * 3.0f);
 }
 
-TEST_F(GradientDataElasticTest, PrintDoesNotThrow)
-{
+TEST_F(GradientDataElasticTest, PrintDoesNotThrow) {
   WavefieldViewForwardElastic fwd(ux_n, uy_n, uz_n);
   WavefieldViewBackwardElastic bwd(ux_n, uy_n, uz_n, ux_dt2, uy_dt2, uz_dt2);
   GradientElastic grad(gradRho, gradLambda, gradMu);

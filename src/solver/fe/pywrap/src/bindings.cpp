@@ -9,8 +9,7 @@
 
 namespace py = pybind11;
 
-PYBIND11_MODULE(solver, m)
-{
+PYBIND11_MODULE(solver, m) {
   // Create submodule 'solver'
   m.attr("__name__") = "pyfuntides.solver";
 

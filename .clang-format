@@ -1,14 +1,7 @@
 BasedOnStyle: Google
 Language: Cpp
-BreakBeforeBraces: Custom
-BraceWrapping:
-  AfterClass: true
-  AfterControlStatement: true
-  AfterEnum: true
-  AfterFunction: true
-  AfterNamespace: true
-  AfterStruct: true
-  AfterUnion: true
-  BeforeCatch: true
-  BeforeElse: true
-  IndentBraces: false
+# Ensure it parses modern C++ correctly (C++20/C++23)
+Standard: Latest
+
+# Increase from Google's default 80 to prevent excessive line wrapping with templates.
+ColumnLimit: 120

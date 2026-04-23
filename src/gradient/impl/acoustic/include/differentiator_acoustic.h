@@ -7,8 +7,7 @@
 #include "differentiator_data_acoustic.h"
 #include "model.h"
 
-namespace gradient
-{
+namespace gradient {
 
 /**
  * @brief Acoustic gradient computation for independent use.
@@ -23,15 +22,12 @@ namespace gradient
  *   MESH_TYPE             - Mesh topology (e.g., Cartesian)
  *   IS_MODEL_ON_NODES     - Model discretization (true=nodes, false=elements)
  */
-template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE,
-          bool IS_MODEL_ON_NODES>
-class DifferentiatorAcoustic : public Differentiator
-{
+template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE, bool IS_MODEL_ON_NODES>
+class DifferentiatorAcoustic : public Differentiator {
  public:
   static constexpr int kOrder = ORDER;
   static constexpr bool kIsModelOnNodes = IS_MODEL_ON_NODES;
-  static constexpr int kPointsPerElement =
-      (ORDER + 1) * (ORDER + 1) * (ORDER + 1);
+  static constexpr int kPointsPerElement = (ORDER + 1) * (ORDER + 1) * (ORDER + 1);
 
   KOKKOS_DEFAULTED_FUNCTION ~DifferentiatorAcoustic() override = default;
 
@@ -42,8 +38,7 @@ class DifferentiatorAcoustic : public Differentiator
    *   grad_kappa   = ∑_elements ∑_quadrature q_dt² * p * mass_term
    *   grad_buoyancy = ∑_elements ∑_stiffness stiffness_term * q * p
    */
-  void compute(model::ModelApi<float, int>& mesh, DataStruct& data,
-               float dt) const override;
+  void compute(model::ModelApi<float, int>& mesh, DataStruct& data, float dt) const override;
 
   int getOrder() const override;
   bool isModelOnNodes() const override;
@@ -54,12 +49,9 @@ class DifferentiatorAcoustic : public Differentiator
    *
    * Computes qdt2 = (qnPrevPrev - 2*qnPrev + qn) / dt² on the fly.
    */
-  void computeOnElements(MESH_TYPE mesh, float dt, VECTOR_REAL_VIEW const pn,
-                         VECTOR_REAL_VIEW const qn,
-                         VECTOR_REAL_VIEW const qnPrev,
-                         VECTOR_REAL_VIEW const qnPrevPrev,
-                         VECTOR_REAL_VIEW const gradKappa,
-                         VECTOR_REAL_VIEW const gradBuoyancy) const;
+  void computeOnElements(MESH_TYPE mesh, float dt, VECTOR_REAL_VIEW const pn, VECTOR_REAL_VIEW const qn,
+                         VECTOR_REAL_VIEW const qnPrev, VECTOR_REAL_VIEW const qnPrevPrev,
+                         VECTOR_REAL_VIEW const gradKappa, VECTOR_REAL_VIEW const gradBuoyancy) const;
 
   /**
    * @brief Multiple elements share boundary nodes — ATOMICADD required.
@@ -68,11 +60,9 @@ class DifferentiatorAcoustic : public Differentiator
    * Gradients are normalized by the mass matrix diagonal to account for
    * multiple elements sharing nodes at the domain interior.
    */
-  void computeOnNodes(MESH_TYPE mesh, float dt, VECTOR_REAL_VIEW const pn,
-                      VECTOR_REAL_VIEW const qn, VECTOR_REAL_VIEW const qnPrev,
-                      VECTOR_REAL_VIEW const qnPrevPrev,
-                      VECTOR_REAL_VIEW const gradKappa,
-                      VECTOR_REAL_VIEW const gradBuoyancy) const;
+  void computeOnNodes(MESH_TYPE mesh, float dt, VECTOR_REAL_VIEW const pn, VECTOR_REAL_VIEW const qn,
+                      VECTOR_REAL_VIEW const qnPrev, VECTOR_REAL_VIEW const qnPrevPrev,
+                      VECTOR_REAL_VIEW const gradKappa, VECTOR_REAL_VIEW const gradBuoyancy) const;
 };
 
 }  // namespace gradient
@@ -84,13 +74,11 @@ class DifferentiatorAcoustic : public Differentiator
 #include "model_struct.h"
 #include "model_unstruct.h"
 
-#define DECLARE_EXTERN_DIFF_ACOUSTIC(ORDER, MESH_TYPE)                         \
-  extern template class gradient::DifferentiatorAcoustic<                      \
-      ORDER, typename IntegralTypeSelector<ORDER, IntegralType::MAKUTU>::type, \
-      MESH_TYPE, true>;                                                        \
-  extern template class gradient::DifferentiatorAcoustic<                      \
-      ORDER, typename IntegralTypeSelector<ORDER, IntegralType::MAKUTU>::type, \
-      MESH_TYPE, false>;
+#define DECLARE_EXTERN_DIFF_ACOUSTIC(ORDER, MESH_TYPE)                                           \
+  extern template class gradient::DifferentiatorAcoustic<                                        \
+      ORDER, typename IntegralTypeSelector<ORDER, IntegralType::MAKUTU>::type, MESH_TYPE, true>; \
+  extern template class gradient::DifferentiatorAcoustic<                                        \
+      ORDER, typename IntegralTypeSelector<ORDER, IntegralType::MAKUTU>::type, MESH_TYPE, false>;
 
 #define DECLARE_EXTERN_DIFF_ACOUSTIC_ALL_ORDERS(MESH_TYPE_MACRO) \
   DECLARE_EXTERN_DIFF_ACOUSTIC(1, MESH_TYPE_MACRO(1))            \

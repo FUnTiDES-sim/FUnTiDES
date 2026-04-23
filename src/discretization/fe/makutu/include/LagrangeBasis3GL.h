@@ -14,8 +14,7 @@
  *  Coordinate:   -1    -1/sqrt(5) 1/sqrt(5)    1
  *
  */
-class LagrangeBasis3GL
-{
+class LagrangeBasis3GL {
  public:
   /// The number of support points for the basis
   constexpr static int numSupportPoints = 4;
@@ -28,10 +27,8 @@ class LagrangeBasis3GL
    * @param q The index of the support point
    * @return The value of the weight
    */
-  inline constexpr static double weight(const int q)
-  {
-    switch (q)
-    {
+  inline constexpr static double weight(const int q) {
+    switch (q) {
       case 1:
       case 2:
         return 5.0 / 6.0;
@@ -51,12 +48,10 @@ class LagrangeBasis3GL
       // one depending on the supportPointIndex value
       // Switch case
       constexpr static double
-      parentSupportCoord(const int supportPointIndex)
-  {
+      parentSupportCoord(const int supportPointIndex) {
     double result = 0.0;
 
-    switch (supportPointIndex)
-    {
+    switch (supportPointIndex) {
       case 0:
         result = -1.0;
         break;
@@ -87,12 +82,10 @@ class LagrangeBasis3GL
       // MODIF3 : Change the  way to return the base function evaluated at the
       // desired coord
       constexpr static double
-      value(const int index, const double xi)
-  {
+      value(const int index, const double xi) {
     double result = 0.0;
 
-    switch (index)
-    {
+    switch (index) {
       case 0:
         result = LagrangeBasis3GL::value0(xi);
         break;
@@ -120,10 +113,8 @@ class LagrangeBasis3GL
   inline
       // MODFI4 : Implemented new base functions and their derivative for Q3
       constexpr static double
-      value0(const double xi)
-  {
-    return -(5.0 / 8.0) *
-           (xi * xi * xi - xi * xi - (1.0 / 5.0) * xi + 1.0 / 5.0);
+      value0(const double xi) {
+    return -(5.0 / 8.0) * (xi * xi * xi - xi * xi - (1.0 / 5.0) * xi + 1.0 / 5.0);
   }
 
   /**
@@ -131,10 +122,8 @@ class LagrangeBasis3GL
    * @param xi The coordinate at which to evaluate the basis.
    * @return The value of the basis.
    */
-  inline constexpr static double value1(const double xi)
-  {
-    return (5.0 * sqrt5 / 8.0) *
-           (xi * xi * xi - (1.0 / sqrt5) * xi * xi - xi + 1.0 / sqrt5);
+  inline constexpr static double value1(const double xi) {
+    return (5.0 * sqrt5 / 8.0) * (xi * xi * xi - (1.0 / sqrt5) * xi * xi - xi + 1.0 / sqrt5);
   }
 
   /**
@@ -142,10 +131,8 @@ class LagrangeBasis3GL
    * @param xi The coordinate at which to evaluate the basis.
    * @return The value of the basis.
    */
-  inline constexpr static double value2(const double xi)
-  {
-    return -(5.0 * sqrt5 / 8.0) *
-           (xi * xi * xi + (1.0 / sqrt5) * xi * xi - xi - 1.0 / sqrt5);
+  inline constexpr static double value2(const double xi) {
+    return -(5.0 * sqrt5 / 8.0) * (xi * xi * xi + (1.0 / sqrt5) * xi * xi - xi - 1.0 / sqrt5);
   }
 
   /**
@@ -153,10 +140,8 @@ class LagrangeBasis3GL
    * @param xi The coordinate at which to evaluate the basis.
    * @return The value of the basis.
    */
-  inline constexpr static double value3(const double xi)
-  {
-    return (5.0 / 8.0) *
-           (xi * xi * xi + xi * xi - (1.0 / 5.0) * xi - 1.0 / 5.0);
+  inline constexpr static double value3(const double xi) {
+    return (5.0 / 8.0) * (xi * xi * xi + xi * xi - (1.0 / 5.0) * xi - 1.0 / 5.0);
   }
 
   /**
@@ -170,12 +155,10 @@ class LagrangeBasis3GL
       // MODIF5 : New function returning the derivated base function at desired
       // coord
       constexpr static double
-      gradient(const int index, const double xi)
-  {
+      gradient(const int index, const double xi) {
     double result = 0.0;
 
-    switch (index)
-    {
+    switch (index) {
       case 0:
         result = LagrangeBasis3GL::gradient0(xi);
         break;
@@ -201,8 +184,7 @@ class LagrangeBasis3GL
    * @param xi The coordinate at which to evaluate the gradient.
    * @return The gradient of basis function
    */
-  inline constexpr static double gradient0(const double xi)
-  {
+  inline constexpr static double gradient0(const double xi) {
     return -(5.0 / 8.0) * (3.0 * xi * xi - 2.0 * xi - (1.0 / 5.0));
   }
 
@@ -212,8 +194,7 @@ class LagrangeBasis3GL
    * @param xi The coordinate at which to evaluate the gradient.
    * @return The gradient of basis function
    */
-  inline constexpr static double gradient1(const double xi)
-  {
+  inline constexpr static double gradient1(const double xi) {
     return (5.0 * sqrt5 / 8.0) * (3.0 * xi * xi - (2.0 / sqrt5) * xi - 1.0);
   }
 
@@ -223,8 +204,7 @@ class LagrangeBasis3GL
    * @param xi The coordinate at which to evaluate the gradient.
    * @return The gradient of basis function
    */
-  inline constexpr static double gradient2(const double xi)
-  {
+  inline constexpr static double gradient2(const double xi) {
     return -(5.0 * sqrt5 / 8.0) * (3.0 * xi * xi + (2.0 / sqrt5) * xi - 1.0);
   }
 
@@ -234,8 +214,7 @@ class LagrangeBasis3GL
    * @param xi The coordinate at which to evaluate the gradient.
    * @return The gradient of basis function
    */
-  inline constexpr static double gradient3(const double xi)
-  {
+  inline constexpr static double gradient3(const double xi) {
     return (5.0 / 8.0) * (3.0 * xi * xi + 2.0 * xi - (1.0 / 5.0));
     ;
   }
@@ -247,10 +226,8 @@ class LagrangeBasis3GL
    * @param p The index of the support point
    * @return The gradient of basis function.
    */
-  constexpr static double gradientAt(const int q, const int p)
-  {
-    switch (q)
-    {
+  constexpr static double gradientAt(const int q, const int p) {
+    switch (q) {
       case 0:
         return p == 0 ? -3.0 : -0.80901699437494742410;
       case 1:
@@ -289,8 +266,7 @@ class LagrangeBasis3GL
    *                                                                 |_____________________________|
    *
    */
-  struct TensorProduct2D
-  {
+  struct TensorProduct2D {
     /// The number of support points in the 2D tensor product
     constexpr static int numSupportPoints = 16;
 
@@ -301,10 +277,7 @@ class LagrangeBasis3GL
      * @param j The index in the xi1 direction (0,1)
      * @return The linear index of the support/quadrature point (0-15)
      */
-    inline constexpr static int linearIndex(const int i, const int j)
-    {
-      return i + 4 * j;
-    }
+    inline constexpr static int linearIndex(const int i, const int j) { return i + 4 * j; }
 
     /**
      * @brief Calculate the Cartesian/TensorProduct index given the linear index
@@ -313,9 +286,7 @@ class LagrangeBasis3GL
      * @param i0 The Cartesian index of the support point in the xi0 direction.
      * @param i1 The Cartesian index of the support point in the xi1 direction.
      */
-    inline constexpr static void multiIndex(int const linearIndex, int &i0,
-                                            int &i1)
-    {
+    inline constexpr static void multiIndex(int const linearIndex, int &i0, int &i1) {
       i1 = linearIndex / 4;
 
       i0 = linearIndex % 4;
@@ -330,17 +301,11 @@ class LagrangeBasis3GL
      * @param N Array to hold the value of the basis functions at each support
      * point.
      */
-    inline static void value(const double (&coords)[2],
-                             double (&N)[numSupportPoints])
-    {
-      for (int a = 0; a < 4; ++a)
-      {
-        for (int b = 0; b < 4; ++b)
-        {
-          const int lindex =
-              LagrangeBasis3GL::TensorProduct2D::linearIndex(a, b);
-          N[lindex] = LagrangeBasis3GL::value(a, coords[0]) *
-                      LagrangeBasis3GL::value(b, coords[1]);
+    inline static void value(const double (&coords)[2], double (&N)[numSupportPoints]) {
+      for (int a = 0; a < 4; ++a) {
+        for (int b = 0; b < 4; ++b) {
+          const int lindex = LagrangeBasis3GL::TensorProduct2D::linearIndex(a, b);
+          N[lindex] = LagrangeBasis3GL::value(a, coords[0]) * LagrangeBasis3GL::value(b, coords[1]);
         }
       }
     }
@@ -382,8 +347,7 @@ class LagrangeBasis3GL
    *                                                                 |_____________________________________|
    *
    */
-  struct TensorProduct3D
-  {
+  struct TensorProduct3D {
     /// The number of support points in the 3D tensor product
     constexpr static int numSupportPoints = 64;
 
@@ -398,8 +362,7 @@ class LagrangeBasis3GL
     inline
         // MODIF6 : Change linearIndex for 64 nodes
         constexpr static int
-        linearIndex(const int i, const int j, const int k)
-    {
+        linearIndex(const int i, const int j, const int k) {
       return i + 4 * j + 16 * k;
     }
 
@@ -414,8 +377,7 @@ class LagrangeBasis3GL
     inline
         // MODIF7 : Change calcul of multiIndex
         constexpr static void
-        multiIndex(int const linearIndex, int &i0, int &i1, int &i2)
-    {
+        multiIndex(int const linearIndex, int &i0, int &i1, int &i2) {
       i2 = linearIndex / 16;
 
       i1 = (linearIndex % 16) / 4;
@@ -433,18 +395,12 @@ class LagrangeBasis3GL
      * point.
      */
     PROXY_HOST_DEVICE
-    static void value(const double (&coords)[3], double (&N)[numSupportPoints])
-    {
-      for (int a = 0; a < 4; ++a)
-      {
-        for (int b = 0; b < 4; ++b)
-        {
-          for (int c = 0; c < 4; ++c)
-          {
-            const int lindex =
-                LagrangeBasis3GL::TensorProduct3D::linearIndex(a, b, c);
-            N[lindex] = LagrangeBasis3GL::value(a, coords[0]) *
-                        LagrangeBasis3GL::value(b, coords[1]) *
+    static void value(const double (&coords)[3], double (&N)[numSupportPoints]) {
+      for (int a = 0; a < 4; ++a) {
+        for (int b = 0; b < 4; ++b) {
+          for (int c = 0; c < 4; ++c) {
+            const int lindex = LagrangeBasis3GL::TensorProduct3D::linearIndex(a, b, c);
+            N[lindex] = LagrangeBasis3GL::value(a, coords[0]) * LagrangeBasis3GL::value(b, coords[1]) *
                         LagrangeBasis3GL::value(c, coords[2]);
           }
         }

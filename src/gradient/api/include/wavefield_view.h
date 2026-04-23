@@ -5,8 +5,7 @@
 
 #include "data_type.h"
 
-namespace gradient
-{
+namespace gradient {
 
 /**
  * @brief Abstract interface for read-only wavefield views (aka snapshots) in
@@ -22,8 +21,7 @@ namespace gradient
  * This design allows the Differentiator to operate on abstract wavefield views,
  * decoupling it from solver internals and enabling flexible data management.
  */
-class WavefieldView
-{
+class WavefieldView {
  public:
   virtual ~WavefieldView() = default;
 

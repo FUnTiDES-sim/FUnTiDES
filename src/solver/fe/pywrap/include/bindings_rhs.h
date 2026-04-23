@@ -15,64 +15,47 @@
 
 namespace py = pybind11;
 
-namespace solver
-{
-namespace fe
-{
+namespace solver {
+namespace fe {
 
-void bind_rhs_base(py::module_& m)
-{
+void bind_rhs_base(py::module_& m) {
   // Bind Rhs (base class)
   py::class_<Rhs, std::shared_ptr<Rhs>>(m, "Rhs").def("print", &Rhs::print);
 }
 
-void bind_rhs_acoustic(py::module_& m)
-{
+void bind_rhs_acoustic(py::module_& m) {
   // Bind RhsAcoustic (inherits from Rhs)
   py::class_<RhsAcoustic, Rhs, std::shared_ptr<RhsAcoustic>>(m, "RhsAcoustic")
-      .def(
-          py::init<Kokkos::Experimental::python_view_type_t<ARRAY_REAL_VIEW>,
-                   Kokkos::Experimental::python_view_type_t<VECTOR_INT_VIEW>,
-                   Kokkos::Experimental::python_view_type_t<ARRAY_REAL_VIEW>>(),
-          py::arg("term"), py::arg("element"), py::arg("weights"))
+      .def(py::init<Kokkos::Experimental::python_view_type_t<ARRAY_REAL_VIEW>,
+                    Kokkos::Experimental::python_view_type_t<VECTOR_INT_VIEW>,
+                    Kokkos::Experimental::python_view_type_t<ARRAY_REAL_VIEW>>(),
+           py::arg("term"), py::arg("element"), py::arg("weights"))
       .def("print", &RhsAcoustic::print);
 }
 
-void bind_rhs_elastic(py::module_& m)
-{
+void bind_rhs_elastic(py::module_& m) {
   // Bind RhsElastic (inherits from Rhs)
   py::class_<RhsElastic, Rhs, std::shared_ptr<RhsElastic>>(m, "RhsElastic")
-      .def(
-          py::init<Kokkos::Experimental::python_view_type_t<ARRAY_REAL_VIEW>,
-                   Kokkos::Experimental::python_view_type_t<ARRAY_REAL_VIEW>,
-                   Kokkos::Experimental::python_view_type_t<ARRAY_REAL_VIEW>,
-                   Kokkos::Experimental::python_view_type_t<VECTOR_INT_VIEW>,
-                   Kokkos::Experimental::python_view_type_t<ARRAY_REAL_VIEW>>(),
-          py::arg("termx"), py::arg("termy"), py::arg("termz"),
-          py::arg("element"), py::arg("weights"))
+      .def(py::init<Kokkos::Experimental::python_view_type_t<ARRAY_REAL_VIEW>,
+                    Kokkos::Experimental::python_view_type_t<ARRAY_REAL_VIEW>,
+                    Kokkos::Experimental::python_view_type_t<ARRAY_REAL_VIEW>,
+                    Kokkos::Experimental::python_view_type_t<VECTOR_INT_VIEW>,
+                    Kokkos::Experimental::python_view_type_t<ARRAY_REAL_VIEW>>(),
+           py::arg("termx"), py::arg("termy"), py::arg("termz"), py::arg("element"), py::arg("weights"))
       .def("print", &RhsElastic::print);
 }
 
-void bind_rhs_acoustoelastic(py::module_& m)
-{
-  py::class_<RhsAcoustoElastic, Rhs, std::shared_ptr<RhsAcoustoElastic>>(
-      m, "RhsAcoustoElastic")
-      .def(py::init<Kokkos::Experimental::python_view_type_t<
-                        ARRAY_REAL_VIEW>,  // acoustic_term
-                    Kokkos::Experimental::python_view_type_t<
-                        VECTOR_INT_VIEW>,  // element
-                    Kokkos::Experimental::python_view_type_t<
-                        ARRAY_REAL_VIEW>,  // weights
-                    Kokkos::Experimental::python_view_type_t<
-                        ARRAY_REAL_VIEW>,  // elastic_termx
-                    Kokkos::Experimental::python_view_type_t<
-                        ARRAY_REAL_VIEW>,  // elastic_termy
-                    Kokkos::Experimental::python_view_type_t<
-                        ARRAY_REAL_VIEW>  // elastic_termz
+void bind_rhs_acoustoelastic(py::module_& m) {
+  py::class_<RhsAcoustoElastic, Rhs, std::shared_ptr<RhsAcoustoElastic>>(m, "RhsAcoustoElastic")
+      .def(py::init<Kokkos::Experimental::python_view_type_t<ARRAY_REAL_VIEW>,  // acoustic_term
+                    Kokkos::Experimental::python_view_type_t<VECTOR_INT_VIEW>,  // element
+                    Kokkos::Experimental::python_view_type_t<ARRAY_REAL_VIEW>,  // weights
+                    Kokkos::Experimental::python_view_type_t<ARRAY_REAL_VIEW>,  // elastic_termx
+                    Kokkos::Experimental::python_view_type_t<ARRAY_REAL_VIEW>,  // elastic_termy
+                    Kokkos::Experimental::python_view_type_t<ARRAY_REAL_VIEW>   // elastic_termz
                     >(),
-           py::arg("acoustic_term"), py::arg("element"), py::arg("weights"),
-           py::arg("elastic_termx"), py::arg("elastic_termy"),
-           py::arg("elastic_termz"))
+           py::arg("acoustic_term"), py::arg("element"), py::arg("weights"), py::arg("elastic_termx"),
+           py::arg("elastic_termy"), py::arg("elastic_termz"))
       .def("print", &RhsAcoustoElastic::print);
 }
 }  // namespace fe
