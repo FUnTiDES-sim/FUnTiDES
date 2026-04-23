@@ -130,6 +130,9 @@ class BasisGradientTest : public ::testing::Test {};
 template <typename QK_BASIS>
 class FaceOperationsTest : public ::testing::Test {};
 
+template <typename QK_BASIS>
+class InterfaceFluxTest : public ::testing::Test {};
+
 TYPED_TEST_SUITE(MassMatrixTest, TestedBases);
 TYPED_TEST_SUITE(StiffnessMatrixTest, TestedBases);
 TYPED_TEST_SUITE(JacobianTest, TestedBases);
@@ -139,6 +142,7 @@ TYPED_TEST_SUITE(IndexingTest, TestedBases);
 TYPED_TEST_SUITE(BMatrixTest, TestedBases);
 TYPED_TEST_SUITE(BasisGradientTest, TestedBases);
 TYPED_TEST_SUITE(FaceOperationsTest, TestedBases);
+TYPED_TEST_SUITE(InterfaceFluxTest, TestedBases);
 
 // ============================================================================
 // MASS MATRIX TESTS
@@ -857,4 +861,41 @@ TYPED_TEST(FaceOperationsTest, DampingTermScaling) {
   real_t d2 = QK::computeDampingTerm(q, X2);
 
   EXPECT_NEAR(d2 / d1, 4.0, TOL_NUMERICAL) << "Damping term should scale quadratically with element size";
+}
+
+TYPED_TEST(InterfaceFluxTest, InterfaceFluxIsZero) {
+  using QK = TypeParam;
+  constexpr int numNodesPerFace = QK::numNodesPerFace;
+
+  // Arbitrary square in XY plane
+  real_t X[4][3];
+  X[0][0] = 0.0;
+  X[0][1] = 0.0;
+  X[0][2] = 0.0;
+  X[1][0] = 1.0;
+  X[1][1] = 0.0;
+  X[1][2] = 0.0;
+  X[2][0] = 0.0;
+  X[2][1] = 1.0;
+  X[2][2] = 0.0;
+  X[3][0] = 1.0;
+  X[3][1] = 1.0;
+  X[3][2] = 0.0;
+
+  real_t CKK[numNodesPerFace][numNodesPerFace][3] = {{{0}}};
+  for (int faceId = 0; faceId < 6; ++faceId) {
+    QK::computeInterfaceFluxTerm(X, faceId, [&](int i, int j, int k, real_t Cijk) { CKK[i][j][k] += Cijk; });
+
+    real_t SumGrad[3] = {0};
+    real_t Sum;
+    for (int i = 0; i < numNodesPerFace; ++i) {
+      for (int j = 0; j < numNodesPerFace; ++j) {
+        for (int k = 0; k < 3; ++k) {
+          SumGrad[k] += CKK[i][j][k];
+        }
+      }
+    }
+    Sum = SumGrad[0] + SumGrad[1] + SumGrad[2];
+    EXPECT_NEAR(Sum, 0.0, TOL_NUMERICAL) << "Sum of all CKK coefficients should be zero";
+  }
 }
