@@ -19,6 +19,14 @@ struct WavefieldElastic : public Wavefield
   /// Number of solution fields (3 for displacement vector)
   static constexpr int kNumFields = 3;
 
+  // Add explicit device-callable constructors and destructors
+  PROXY_HOST_DEVICE WavefieldElastic() = default;
+  PROXY_HOST_DEVICE ~WavefieldElastic() = default;
+  PROXY_HOST_DEVICE WavefieldElastic(const WavefieldElastic&) = default;
+  PROXY_HOST_DEVICE WavefieldElastic& operator=(const WavefieldElastic&) =
+      default;
+
+  PROXY_HOST_DEVICE
   WavefieldElastic(VECTOR_REAL_VIEW uxnGlobalPrev,
                    VECTOR_REAL_VIEW uxnGlobalCurr,
                    VECTOR_REAL_VIEW uynGlobalPrev,

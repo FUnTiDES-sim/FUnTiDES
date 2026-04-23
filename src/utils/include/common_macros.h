@@ -6,8 +6,8 @@
 #define PROXY_HOST_DEVICE KOKKOS_FORCEINLINE_FUNCTION
 
 // MAINLOOP
-#define LaunchMaxThreadsPerBlock 64
-#define LaunchMinBlocksPerSM 1
+#define LaunchMaxThreadsPerBlock 128
+#define LaunchMinBlocksPerSM 4
 
 // Backward-compatible loop helpers used by legacy FE kernels.
 #define LOOPHEAD(Range, Index)         \

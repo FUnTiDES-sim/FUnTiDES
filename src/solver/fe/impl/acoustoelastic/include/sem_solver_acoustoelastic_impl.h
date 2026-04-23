@@ -87,14 +87,18 @@ void SEMsolverAcoustoElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE,
   m_coupling_coeff_z_ =
       allocateVector<VECTOR_REAL_VIEW>(nNode, "couplingCoeffZ");
 
-  LOOPHEAD(nNode, i)
-  {
-    m_interface_node_index_[i] = -1;
-    m_coupling_coeff_x_[i] = 0.0f;
-    m_coupling_coeff_y_[i] = 0.0f;
-    m_coupling_coeff_z_[i] = 0.0f;
-  }
-  LOOPEND
+  auto interface_node_index = m_interface_node_index_;
+  auto coupling_coeff_x = m_coupling_coeff_x_;
+  auto coupling_coeff_y = m_coupling_coeff_y_;
+  auto coupling_coeff_z = m_coupling_coeff_z_;
+
+  Kokkos::parallel_for(
+      "allocateFEarrays_init", nNode, KOKKOS_LAMBDA(const int i) {
+        interface_node_index[i] = -1;
+        coupling_coeff_x[i] = 0.0f;
+        coupling_coeff_y[i] = 0.0f;
+        coupling_coeff_z[i] = 0.0f;
+      });
 }
 
 //============================================================================
@@ -135,14 +139,13 @@ void SEMsolverAcoustoElastic<
   auto elastic_w1 = m_elastic_solver_.getForceVector(1);
   auto elastic_w2 = m_elastic_solver_.getForceVector(2);
 
-  LOOPHEAD(numNodes, i)
-  {
-    acoustic_w0[i] = 0.0f;
-    elastic_w0[i] = 0.0f;
-    elastic_w1[i] = 0.0f;
-    elastic_w2[i] = 0.0f;
-  }
-  LOOPEND
+  Kokkos::parallel_for(
+      "resetGlobalVectors_init", numNodes, KOKKOS_LAMBDA(const int i) {
+        acoustic_w0[i] = 0.0f;
+        elastic_w0[i] = 0.0f;
+        elastic_w1[i] = 0.0f;
+        elastic_w2[i] = 0.0f;
+      });
 }
 
 //============================================================================
@@ -225,38 +228,36 @@ void SEMsolverAcoustoElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE,
   VECTOR_INT_VIEW elastic_count =
       allocateVector<VECTOR_INT_VIEW>(nNode, "elasticCount");
 
-  LOOPHEAD(nNode, i)
-  {
-    acoustic_count[i] = 0;
-    elastic_count[i] = 0;
-  }
-  LOOPEND
+  Kokkos::parallel_for(
+      "TagNodes_initCount", nNode, KOKKOS_LAMBDA(const int i) {
+        acoustic_count[i] = 0;
+        elastic_count[i] = 0;
+      });
   FENCE
 
   auto elem_type = m_element_type_;
   auto mesh_local = m_mesh_;
 
-  MAINLOOPHEAD(nElem, e)
-  {
-    if (e >= nElem) return;
+  Kokkos::parallel_for(
+      "TagNodes_mainLoop", nElem, KOKKOS_LAMBDA(const int e) {
+        if (e >= nElem) return;
 
-    int const etype = elem_type[e];
-    for (int i = 0; i < dim; ++i)
-      for (int j = 0; j < dim; ++j)
-        for (int k = 0; k < dim; ++k)
-        {
-          int const gIdx = mesh_local.globalNodeIndex(e, i, j, k);
-          if (etype == kElementTypeAcoustic)
-          {
-            ATOMICADD(acoustic_count[gIdx], 1);
-          }
-          else
-          {
-            ATOMICADD(elastic_count[gIdx], 1);
-          }
-        }
-  }
-  MAINLOOPEND
+        int const etype = elem_type[e];
+        for (int i = 0; i < dim; ++i)
+          for (int j = 0; j < dim; ++j)
+            for (int k = 0; k < dim; ++k)
+            {
+              int const gIdx = mesh_local.globalNodeIndex(e, i, j, k);
+              if (etype == kElementTypeAcoustic)
+              {
+                ATOMICADD(acoustic_count[gIdx], 1);
+              }
+              else
+              {
+                ATOMICADD(elastic_count[gIdx], 1);
+              }
+            }
+      });
   FENCE
 
   int n_interface = 0;
@@ -485,12 +486,11 @@ void SEMsolverAcoustoElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE,
 
   auto acoustic_mass = m_acoustic_solver_.getMassMatrixAcoustic();
   auto elastic_mass = m_elastic_solver_.getMassMatrixElastic();
-  LOOPHEAD(nNode, i)
-  {
-    acoustic_mass[i] = 0.0f;
-    elastic_mass[i] = 0.0f;
-  }
-  LOOPEND
+  Kokkos::parallel_for(
+      "computeGlobalMassMatrix_init", nNode, KOKKOS_LAMBDA(const int i) {
+        acoustic_mass[i] = 0.0f;
+        elastic_mass[i] = 0.0f;
+      });
   FENCE
 
   m_acoustic_solver_.computeGlobalMassMatrixMasked(m_element_type_,
@@ -516,14 +516,13 @@ void SEMsolverAcoustoElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE,
   auto elastic_d0 = m_elastic_solver_.getDampingMatrix(0);
   auto elastic_d1 = m_elastic_solver_.getDampingMatrix(1);
   auto elastic_d2 = m_elastic_solver_.getDampingMatrix(2);
-  LOOPHEAD(nNode, i)
-  {
-    acoustic_d0[i] = 0.0f;
-    elastic_d0[i] = 0.0f;
-    elastic_d1[i] = 0.0f;
-    elastic_d2[i] = 0.0f;
-  }
-  LOOPEND
+  Kokkos::parallel_for(
+      "computeDampingMatrix_init", nNode, KOKKOS_LAMBDA(const int i) {
+        acoustic_d0[i] = 0.0f;
+        elastic_d0[i] = 0.0f;
+        elastic_d1[i] = 0.0f;
+        elastic_d2[i] = 0.0f;
+      });
   FENCE
 
   m_acoustic_solver_.computeDampingMatrixMasked(m_element_type_,
@@ -635,18 +634,18 @@ void SEMsolverAcoustoElastic<
   auto iface_list = m_interface_node_indices_;
   int const n_iface = n_interface_nodes_;
 
-  LOOPHEAD(n_iface, i)
-  {
-    int const j = iface_list[i];
-    if (M_e[j] > 0.0f)
-    {
-      float const aux = -p_curr[j] / M_e[j];
-      u_prev_x[j] += dt2 * cx[j] * aux;
-      u_prev_y[j] += dt2 * cy[j] * aux;
-      u_prev_z[j] += dt2 * cz[j] * aux;
-    }
-  }
-  LOOPEND
+  Kokkos::parallel_for(
+      "ApplyCouplingAcousticToElastic_Loop", n_iface,
+      KOKKOS_LAMBDA(const int i) {
+        int const j = iface_list[i];
+        if (M_e[j] > 0.0f)
+        {
+          float const aux = -p_curr[j] / M_e[j];
+          u_prev_x[j] += dt2 * cx[j] * aux;
+          u_prev_y[j] += dt2 * cy[j] * aux;
+          u_prev_z[j] += dt2 * cz[j] * aux;
+        }
+      });
 }
 
 //============================================================================
@@ -676,18 +675,18 @@ void SEMsolverAcoustoElastic<
   auto iface_list = m_interface_node_indices_;
   int const n_iface = n_interface_nodes_;
 
-  LOOPHEAD(n_iface, i)
-  {
-    int const j = iface_list[i];
-    if (M_f[j] > 0.0f)
-    {
-      float const fd_x = u_np1_x[j] - 2.0f * u_n_x[j] + u_nm1_x[i];
-      float const fd_y = u_np1_y[j] - 2.0f * u_n_y[j] + u_nm1_y[i];
-      float const fd_z = u_np1_z[j] - 2.0f * u_n_z[j] + u_nm1_z[i];
-      p_prev[j] += (cx[j] * fd_x + cy[j] * fd_y + cz[j] * fd_z) / M_f[j];
-    }
-  }
-  LOOPEND
+  Kokkos::parallel_for(
+      "ApplyCouplingElasticToAcoustic_Loop", n_iface,
+      KOKKOS_LAMBDA(const int i) {
+        int const j = iface_list[i];
+        if (M_f[j] > 0.0f)
+        {
+          float const fd_x = u_np1_x[j] - 2.0f * u_n_x[j] + u_nm1_x[i];
+          float const fd_y = u_np1_y[j] - 2.0f * u_n_y[j] + u_nm1_y[i];
+          float const fd_z = u_np1_z[j] - 2.0f * u_n_z[j] + u_nm1_z[i];
+          p_prev[j] += (cx[j] * fd_x + cy[j] * fd_y + cz[j] * fd_z) / M_f[j];
+        }
+      });
 }
 
 //============================================================================
@@ -760,14 +759,14 @@ void SEMsolverAcoustoElastic<
     auto uy_nm1 = m_uy_nm1_iface_;
     auto uz_nm1 = m_uz_nm1_iface_;
     int const n_iface = n_interface_nodes_;
-    LOOPHEAD(n_iface, i)
-    {
-      int const j = iface_list[i];
-      ux_nm1[i] = ux_prev[j];
-      uy_nm1[i] = uy_prev[j];
-      uz_nm1[i] = uz_prev[j];
-    }
-    LOOPEND
+
+    Kokkos::parallel_for(
+        "SaveUnm1Interface_Loop", n_iface, KOKKOS_LAMBDA(const int i) {
+          int const j = iface_list[i];
+          ux_nm1[i] = ux_prev[j];
+          uy_nm1[i] = uy_prev[j];
+          uz_nm1[i] = uz_prev[j];
+        });
     FENCE
   }
 
