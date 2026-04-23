@@ -47,7 +47,6 @@ class Qk_Hexahedron_Lagrange_GaussLobatto final
   /// The number of quadrature points per element.
   constexpr static int numQuadraturePoints = numNodes;
 
-
   struct JacobianType
   {
     float data[3][3];
@@ -447,8 +446,8 @@ class Qk_Hexahedron_Lagrange_GaussLobatto final
    * @return The diagonal mass term associated to q
    */
   template <typename FUNC>
-  PROXY_HOST_DEVICE static void computeMassTerm(
-      float const (&X)[8][3], FUNC &&func);
+  PROXY_HOST_DEVICE static void computeMassTerm(float const (&X)[8][3],
+                                                FUNC &&func);
 
   /**
    * @brief computes the non-zero contributions of the d.o.f. indexd by q to the
@@ -494,8 +493,9 @@ class Qk_Hexahedron_Lagrange_GaussLobatto final
    * stiffness matrix itself.
    */
   template <typename FUNC1, typename FUNC2>
-  PROXY_HOST_DEVICE static void computeStiffnessTerm(
-      float const (&X)[8][3], FUNC1 &&func1, FUNC2 &&func2);
+  PROXY_HOST_DEVICE static void computeStiffnessTerm(float const (&X)[8][3],
+                                                     FUNC1 &&func1,
+                                                     FUNC2 &&func2);
 
   /**
    * @brief Acoustic stiffness K·p via sum factorization (3-pass algorithm).

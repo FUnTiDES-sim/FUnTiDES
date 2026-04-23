@@ -198,10 +198,8 @@ TYPED_TEST(MassMatrixTest, MassMatrixSumEqualsVolume_VariousCubes)
     real_t X[8][3];
     createArbitraryCube<QK>(X, config.x0, config.y0, config.z0, config.size);
 
-
     real_t mass[numNodes] = {0};
-    QK::computeMassTerm(X,
-                        [&](int q, real_t val) { mass[q] = val; });
+    QK::computeMassTerm(X, [&](int q, real_t val) { mass[q] = val; });
 
     real_t totalMass = 0.0;
     for (int i = 0; i < numNodes; ++i) totalMass += mass[i];
@@ -220,7 +218,6 @@ TYPED_TEST(MassMatrixTest, MassMatrixPositive)
 
   real_t X[8][3];
   createArbitraryCube<QK>(X, -3.5, 2.1, 0.7, 1.8);
-
 
   real_t mass[numNodes] = {0};
   QK::computeMassTerm(X, [&](int q, real_t val) { mass[q] = val; });
@@ -254,7 +251,6 @@ TYPED_TEST(StiffnessMatrixTest, StiffnessTimesConstantIsZero_VariousCubes)
     real_t X[8][3];
     createArbitraryCube<QK>(X, config.x0, config.y0, config.z0, config.size);
 
-
     // Constant vector (all dofs = 1.0)
     real_t u[numNodes];
     real_t Ku[numNodes] = {0};
@@ -281,7 +277,6 @@ TYPED_TEST(StiffnessMatrixTest, StiffnessMatrixIsSymmetric)
 
   real_t X[8][3];
   createArbitraryCube<QK>(X, 1.5, -2.3, 0.8, 1.2);
-
 
   real_t K[numNodes][numNodes] = {{0}};
 

@@ -259,7 +259,8 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES,
               for (int jv = 0; jv < 2; ++jv)
                 for (int iv = 0; iv < 2; ++iv)
                   mesh_local.vertexCoords(
-                      mesh_local.globalVertexIndex(eIdx, iv, jv, kv), cornerCoords[I++]);
+                      mesh_local.globalVertexIndex(eIdx, iv, jv, kv),
+                      cornerCoords[I++]);
           }
 
           real_t inv_density = 0.0f;
@@ -353,7 +354,8 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES,
             for (int jv = 0; jv < 2; ++jv)
               for (int iv = 0; iv < 2; ++iv)
                 mesh_local.vertexCoords(
-                    mesh_local.globalVertexIndex(eIdx, iv, jv, kv), cornerCoords[I++]);
+                    mesh_local.globalVertexIndex(eIdx, iv, jv, kv),
+                    cornerCoords[I++]);
         }
 
         if constexpr (PHYSICS == utils::enums::physicType::kAcoustic)
@@ -540,7 +542,8 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES,
               for (int jv = 0; jv < 2; ++jv)
                 for (int iv = 0; iv < 2; ++iv)
                   mesh_local.vertexCoords(
-                      mesh_local.globalVertexIndex(eIdx, iv, jv, kv), cornerCoords[I++]);
+                      mesh_local.globalVertexIndex(eIdx, iv, jv, kv),
+                      cornerCoords[I++]);
           }
 
           // Hoist per-element material constants; per-node models are read
@@ -689,7 +692,8 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES,
               for (int jv = 0; jv < 2; ++jv)
                 for (int iv = 0; iv < 2; ++iv)
                   mesh_local.vertexCoords(
-                      mesh_local.globalVertexIndex(eIdx, iv, jv, kv), cornerCoords[I++]);
+                      mesh_local.globalVertexIndex(eIdx, iv, jv, kv),
+                      cornerCoords[I++]);
           }
 
           // Hoist per-element VTI stiffness coefficients.
@@ -872,7 +876,8 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES,
               for (int jv = 0; jv < 2; ++jv)
                 for (int iv = 0; iv < 2; ++iv)
                   mesh_local.vertexCoords(
-                      mesh_local.globalVertexIndex(eIdx, iv, jv, kv), cornerCoords[I++]);
+                      mesh_local.globalVertexIndex(eIdx, iv, jv, kv),
+                      cornerCoords[I++]);
           }
 
           float CTTI[6][6] = {};
@@ -1213,7 +1218,8 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES,
             for (int jv = 0; jv < 2; ++jv)
               for (int iv = 0; iv < 2; ++iv)
                 mesh_local.vertexCoords(
-                    mesh_local.globalVertexIndex(eIdx, iv, jv, kv), cornerCoords[I++]);
+                    mesh_local.globalVertexIndex(eIdx, iv, jv, kv),
+                    cornerCoords[I++]);
         }
 
         INTEGRAL_TYPE::computeMassTerm(

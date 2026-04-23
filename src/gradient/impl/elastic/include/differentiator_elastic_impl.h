@@ -227,15 +227,14 @@ void DifferentiatorElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES>::
         float localGradLambda = 0.0f;
         float localGradMu = 0.0f;
 
-        INTEGRAL_TYPE::computeMassTerm(
-            X, [&](const int q, const real_t wdetJ) {
-              localGradRho += (localUxDt2[q] * localUxFwd[q] +
-                               localUyDt2[q] * localUyFwd[q] +
-                               localUzDt2[q] * localUzFwd[q]) *
-                              wdetJ;
-              localGradLambda += strainDiv[q] * wdetJ;
-              localGradMu += strainEps[q] * wdetJ;
-            });
+        INTEGRAL_TYPE::computeMassTerm(X, [&](const int q, const real_t wdetJ) {
+          localGradRho +=
+              (localUxDt2[q] * localUxFwd[q] + localUyDt2[q] * localUyFwd[q] +
+               localUzDt2[q] * localUzFwd[q]) *
+              wdetJ;
+          localGradLambda += strainDiv[q] * wdetJ;
+          localGradMu += strainEps[q] * wdetJ;
+        });
 
         gradRho(elementNumber) += localGradRho;
         gradLambda(elementNumber) += localGradLambda;
@@ -350,15 +349,14 @@ void DifferentiatorElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES>::
             },
             [&](int, int, float, const int, const int) {});
 
-        INTEGRAL_TYPE::computeMassTerm(
-            X, [&](const int q, const real_t wdetJ) {
-              float const dot = localUxDt2[q] * localUxFwd[q] +
-                                localUyDt2[q] * localUyFwd[q] +
-                                localUzDt2[q] * localUzFwd[q];
-              ATOMICADD(gradRho(localGIdx[q]), dot * wdetJ);
-              ATOMICADD(gradLambda(localGIdx[q]), strainDiv[q] * wdetJ);
-              ATOMICADD(gradMu(localGIdx[q]), strainEps[q] * wdetJ);
-            });
+        INTEGRAL_TYPE::computeMassTerm(X, [&](const int q, const real_t wdetJ) {
+          float const dot = localUxDt2[q] * localUxFwd[q] +
+                            localUyDt2[q] * localUyFwd[q] +
+                            localUzDt2[q] * localUzFwd[q];
+          ATOMICADD(gradRho(localGIdx[q]), dot * wdetJ);
+          ATOMICADD(gradLambda(localGIdx[q]), strainDiv[q] * wdetJ);
+          ATOMICADD(gradMu(localGIdx[q]), strainEps[q] * wdetJ);
+        });
       });
 }
 
