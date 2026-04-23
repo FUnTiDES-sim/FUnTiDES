@@ -231,8 +231,8 @@ TEST(AttenuationAcoustic, AttenuationDecaysAmplitude) {
   // because the velocity dispersion effect changes the wave arrival pattern.
   // We verify the wavefield is meaningfully different (attenuation is active).
   float ratio = norm_att / norm_no_att;
-  EXPECT_NE(ratio, 1.0f) << "Attenuation should change the wavefield. " << "norm_no_att=" << norm_no_att
-                         << ", norm_att=" << norm_att;
+  EXPECT_NE(ratio, 1.0f) << "Attenuation should change the wavefield. "
+                         << "norm_no_att=" << norm_no_att << ", norm_att=" << norm_att;
   EXPECT_TRUE(std::isfinite(norm_att)) << "Attenuated simulation should remain stable";
 }
 
@@ -408,8 +408,8 @@ TEST(AttenuationElastic, AttenuationDecaysAmplitude) {
                    fieldL2Norm(data_a.getCurrentField(2), numNodes);
 
   EXPECT_GT(norm_no_att, 0.0f) << "Non-attenuated elastic should propagate";
-  EXPECT_LT(norm_att, norm_no_att) << "Elastic attenuation should reduce amplitude. " << "norm_no_att=" << norm_no_att
-                                   << ", norm_att=" << norm_att;
+  EXPECT_LT(norm_att, norm_no_att) << "Elastic attenuation should reduce amplitude. "
+                                   << "norm_no_att=" << norm_no_att << ", norm_att=" << norm_att;
 }
 
 // ======================================================================
@@ -588,8 +588,8 @@ TEST(AttenuationAcousticHighOrder, Order2DecaysAmplitude) {
   EXPECT_GT(norm_no_att, 0.0f);
   EXPECT_TRUE(std::isfinite(norm_att));
   float ratio = norm_att / norm_no_att;
-  EXPECT_NE(ratio, 1.0f) << "Order-2 attenuation should change the wavefield. " << "norm_no_att=" << norm_no_att
-                         << ", norm_att=" << norm_att;
+  EXPECT_NE(ratio, 1.0f) << "Order-2 attenuation should change the wavefield. "
+                         << "norm_no_att=" << norm_no_att << ", norm_att=" << norm_att;
 }
 
 // ======================================================================
@@ -696,8 +696,8 @@ TEST(AttenuationElasticHighOrder, Order2DecaysAmplitude) {
   // arrival pattern, so we verify the wavefield is meaningfully modified
   // rather than strictly checking amplitude reduction.
   float ratio = norm_a / norm_na;
-  EXPECT_NE(ratio, 1.0f) << "Order-2 elastic attenuation should change the wavefield. " << "norm_na=" << norm_na
-                         << ", norm_a=" << norm_a;
+  EXPECT_NE(ratio, 1.0f) << "Order-2 elastic attenuation should change the wavefield. "
+                         << "norm_na=" << norm_na << ", norm_a=" << norm_a;
   EXPECT_TRUE(std::isfinite(norm_a)) << "Order-2 elastic attenuation should remain stable";
 }
 
@@ -722,8 +722,8 @@ TEST(AttenuationAcousticHighOrder, Order3DecaysAmplitude) {
   EXPECT_GT(norm_no_att, 0.0f);
   EXPECT_TRUE(std::isfinite(norm_att));
   float ratio = norm_att / norm_no_att;
-  EXPECT_NE(ratio, 1.0f) << "Order-3 attenuation should change the wavefield. " << "norm_no_att=" << norm_no_att
-                         << ", norm_att=" << norm_att;
+  EXPECT_NE(ratio, 1.0f) << "Order-3 attenuation should change the wavefield. "
+                         << "norm_no_att=" << norm_no_att << ", norm_att=" << norm_att;
 }
 
 // ======================================================================

@@ -238,8 +238,8 @@ TYPED_TEST(StiffnessMatrixTest, StiffnessTimesConstantIsZero_VariousCubes) {
 
     for (int i = 0; i < numNodes; ++i) {
       EXPECT_NEAR(Ku[i], 0.0, TOL_NUMERICAL)
-          << "K*u should be zero for constant u (partition of unity property)" << " for cube at (" << config.x0 << ","
-          << config.y0 << "," << config.z0 << ") with size " << config.size;
+          << "K*u should be zero for constant u (partition of unity property)"
+          << " for cube at (" << config.x0 << "," << config.y0 << "," << config.z0 << ") with size " << config.size;
     }
   }
 }
@@ -425,8 +425,8 @@ TYPED_TEST(JacobianTest, QuadratureRuleIntegratesConstant_VariousCubes) {
     }
 
     EXPECT_NEAR(integral, config.expectedVolume, TOL_NUMERICAL)
-        << "Quadrature rule should exactly integrate constant functions" << " for cube at (" << config.x0 << ","
-        << config.y0 << "," << config.z0 << ") with size " << config.size;
+        << "Quadrature rule should exactly integrate constant functions"
+        << " for cube at (" << config.x0 << "," << config.y0 << "," << config.z0 << ") with size " << config.size;
   }
 }
 
