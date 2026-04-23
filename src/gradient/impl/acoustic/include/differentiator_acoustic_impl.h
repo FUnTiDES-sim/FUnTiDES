@@ -61,7 +61,7 @@ void DifferentiatorAcoustic<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES>:
 
         int const dim = mesh.getOrder() + 1;
 
-        typename INTEGRAL_TYPE::TransformType transformData;
+        float X[8][3];
         {
           auto const elementIndex = mesh.elementIndex(elementNumber);
           int I = 0;
@@ -69,7 +69,7 @@ void DifferentiatorAcoustic<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES>:
             for (int jv = 0; jv < 2; ++jv)
               for (int iv = 0; iv < 2; ++iv) {
                 auto const vertexIndex = mesh.globalVertexIndex(elementIndex, iv, jv, kv);
-                mesh.vertexCoords(vertexIndex, transformData.data[I]);
+                mesh.vertexCoords(vertexIndex, X[I]);
                 ++I;
               }
         }
@@ -90,7 +90,7 @@ void DifferentiatorAcoustic<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES>:
         float const invDt2 = 1.0f / (dt * dt);
 
         float localGradKappa = 0.0f;
-        INTEGRAL_TYPE::computeMassTerm(transformData, [&](const int q, const real_t val) {
+        INTEGRAL_TYPE::computeMassTerm(X, [&](const int q, const real_t val) {
           float const qdt2 = (localQnPrevPrev[q] - 2.0f * localQnPrev[q] + localQn[q]) * invDt2;
           localGradKappa += qdt2 * localPn[q] * val;
         });
@@ -98,7 +98,7 @@ void DifferentiatorAcoustic<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES>:
 
         float localGradBuoyancy = 0.0f;
         INTEGRAL_TYPE::computeStiffnessTerm(
-            transformData, [&](const int /*qa*/, const int /*qb*/, const int /*qc*/) {},
+            X, [&](const int /*qa*/, const int /*qb*/, const int /*qc*/) {},
             [&](const int i, const int j, const real_t val) { localGradBuoyancy += val * localQn[j] * localPn[i]; });
         gradBuoyancy(elementNumber) += localGradBuoyancy;
       });
@@ -131,7 +131,7 @@ void DifferentiatorAcoustic<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES>:
 
         int const dim = mesh.getOrder() + 1;
 
-        typename INTEGRAL_TYPE::TransformType transformData;
+        float X[8][3];
         {
           auto const elementIndex = mesh.elementIndex(elementNumber);
           int I = 0;
@@ -139,7 +139,7 @@ void DifferentiatorAcoustic<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES>:
             for (int jv = 0; jv < 2; ++jv)
               for (int iv = 0; iv < 2; ++iv) {
                 auto const vertexIndex = mesh.globalVertexIndex(elementIndex, iv, jv, kv);
-                mesh.vertexCoords(vertexIndex, transformData.data[I]);
+                mesh.vertexCoords(vertexIndex, X[I]);
                 ++I;
               }
         }
@@ -154,7 +154,7 @@ void DifferentiatorAcoustic<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES>:
             }
 
         // Accumulate mass matrix diagonal: M_ii = sum_K val_i
-        INTEGRAL_TYPE::computeMassTerm(transformData,
+        INTEGRAL_TYPE::computeMassTerm(X,
                                        [&](const int q, const real_t val) { ATOMICADD(massDiag(localGIdx[q]), val); });
       });
 
@@ -173,7 +173,7 @@ void DifferentiatorAcoustic<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES>:
 
         int const dim = mesh.getOrder() + 1;
 
-        typename INTEGRAL_TYPE::TransformType transformData;
+        float X[8][3];
         {
           auto const elementIndex = mesh.elementIndex(elementNumber);
           int I = 0;
@@ -181,7 +181,7 @@ void DifferentiatorAcoustic<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES>:
             for (int jv = 0; jv < 2; ++jv)
               for (int iv = 0; iv < 2; ++iv) {
                 auto const vertexIndex = mesh.globalVertexIndex(elementIndex, iv, jv, kv);
-                mesh.vertexCoords(vertexIndex, transformData.data[I]);
+                mesh.vertexCoords(vertexIndex, X[I]);
                 ++I;
               }
         }
@@ -210,7 +210,7 @@ void DifferentiatorAcoustic<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES>:
         // Compute element gradient for kappa
         // =====================================================
         float localGradKappa = 0.0f;
-        INTEGRAL_TYPE::computeMassTerm(transformData, [&](const int q, const real_t val) {
+        INTEGRAL_TYPE::computeMassTerm(X, [&](const int q, const real_t val) {
           float const qdt2 = (localQnPrevPrev[q] - 2.0f * localQnPrev[q] + localQn[q]) * invDt2;
           localGradKappa += qdt2 * localPn[q] * val;
         });
@@ -218,7 +218,7 @@ void DifferentiatorAcoustic<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES>:
         // =====================================================
         // Distribute kappa gradient to nodes, weighted by mass matrix
         // =====================================================
-        INTEGRAL_TYPE::computeMassTerm(transformData, [&](const int q, const real_t val) {
+        INTEGRAL_TYPE::computeMassTerm(X, [&](const int q, const real_t val) {
           int const gIdx = localGIdx[q];
           // Weight: local mass value / global mass diagonal (ensures proper
           // normalization)
@@ -232,14 +232,14 @@ void DifferentiatorAcoustic<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES>:
         // =====================================================
         float localGradBuoyancy = 0.0f;
         INTEGRAL_TYPE::computeStiffnessTerm(
-            transformData, [&](const int /*qa*/, const int /*qb*/, const int /*qc*/) {},
+            X, [&](const int /*qa*/, const int /*qb*/, const int /*qc*/) {},
             [&](const int i, const int j, const real_t val) { localGradBuoyancy += val * localQn[j] * localPn[i]; });
 
         // =====================================================
         // Distribute buoyancy gradient to nodes
         // For buoyancy, use the mass matrix weights of the test function nodes
         // =====================================================
-        INTEGRAL_TYPE::computeMassTerm(transformData, [&](const int q, const real_t val) {
+        INTEGRAL_TYPE::computeMassTerm(X, [&](const int q, const real_t val) {
           int const gIdx = localGIdx[q];
           float const weight = val / massDiag(gIdx);
           float const contrib = localGradBuoyancy * weight;
