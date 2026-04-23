@@ -986,7 +986,8 @@ PROXY_HOST_DEVICE void Qk_Hexahedron_Lagrange_GaussLobatto<GL_BASIS>::computeMas
 
 template <typename GL_BASIS>
 template <int kQfa, int kQfb, typename FUNC>
-PROXY_HOST_DEVICE void Qk_Hexahedron_Lagrange_GaussLobatto<GL_BASIS>::computeGradPhiPhi(int const kDir, int const kQFixed,
+PROXY_HOST_DEVICE void Qk_Hexahedron_Lagrange_GaussLobatto<GL_BASIS>::computeGradPhiPhi(int const kDir,
+                                                                                        int const kQFixed,
                                                                                         real_t const (&kX)[4][3],
                                                                                         FUNC &&func) {
   int ifa, ifb;
