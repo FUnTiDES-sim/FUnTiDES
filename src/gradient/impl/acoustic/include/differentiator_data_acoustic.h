@@ -5,8 +5,7 @@
 #include "differentiator.h"
 #include "physics_traits_acoustic.h"
 
-namespace gradient
-{
+namespace gradient {
 
 /**
  * @brief Acoustic data container for differentiator computation.
@@ -21,8 +20,7 @@ namespace gradient
  *   differentiator->compute(mesh, data, dt);
  *   auto kappa = data.getGradient(0);
  */
-struct DifferentiatorDataAcoustic : public Differentiator::DataStruct
-{
+struct DifferentiatorDataAcoustic : public Differentiator::DataStruct {
   using Traits = PhysicsTraits<utils::enums::physicType::kAcoustic>;
 
   using WavefieldViewForwardType = typename Traits::WavefieldViewForwardType;
@@ -36,12 +34,9 @@ struct DifferentiatorDataAcoustic : public Differentiator::DataStruct
    * @param bwd       Adjoint wavefield view
    * @param gradient  Gradient container for acoustic parameters
    */
-  DifferentiatorDataAcoustic(const WavefieldViewForwardAcoustic& fwd,
-                             const WavefieldViewBackwardAcoustic& bwd,
+  DifferentiatorDataAcoustic(const WavefieldViewForwardAcoustic& fwd, const WavefieldViewBackwardAcoustic& bwd,
                              const GradientAcoustic& gradient)
-      : m_fwd(fwd), m_bwd(bwd), m_gradient(gradient)
-  {
-  }
+      : m_fwd(fwd), m_bwd(bwd), m_gradient(gradient) {}
 
   PROXY_HOST_DEVICE
   VECTOR_REAL_VIEW getForwardField(int i) const { return m_fwd.getField(i); }
@@ -50,13 +45,9 @@ struct DifferentiatorDataAcoustic : public Differentiator::DataStruct
   VECTOR_REAL_VIEW getBackwardField(int i) const { return m_bwd.getField(i); }
 
   PROXY_HOST_DEVICE
-  VECTOR_REAL_VIEW getGradient(int i) const
-  {
-    return m_gradient.getGradient(i);
-  }
+  VECTOR_REAL_VIEW getGradient(int i) const { return m_gradient.getGradient(i); }
 
-  void print() const override
-  {
+  void print() const override {
     std::cout << "DifferentiatorDataAcoustic\n";
     m_fwd.print();
     m_bwd.print();

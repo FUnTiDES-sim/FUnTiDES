@@ -16,8 +16,7 @@ using namespace utils;
  * Controls how TopologyFactory identifies boundary nodes by comparing
  * node coordinates to expected boundary locations.
  */
-struct TopologyTolerance
-{
+struct TopologyTolerance {
   double absolute = 1e-6;    //< Absolute tolerance for coordinate comparison
   bool auto_compute = true;  //< Auto-compute from element spacing if true
 };
@@ -46,8 +45,7 @@ struct TopologyTolerance
  * auto_compute=true for most cases, or provide a tolerance based on
  * element size.
  */
-class TopologyFactory
-{
+class TopologyFactory {
  public:
   /**
    * @brief Generates topology by inspecting mesh coordinates.
@@ -82,45 +80,32 @@ class TopologyFactory
    * For distributed execution, validates that all expected boundaries exist.
    */
   template <typename FloatType, typename ScalarType>
-  static ParallelTopology createFromMesh(
-      const model::ModelApi<FloatType, ScalarType>& mesh, int rank, int size,
-      FloatType origin_x, FloatType domain_width_x, TopologyTolerance tol = {})
-  {
+  static ParallelTopology createFromMesh(const model::ModelApi<FloatType, ScalarType>& mesh, int rank, int size,
+                                         FloatType origin_x, FloatType domain_width_x, TopologyTolerance tol = {}) {
     // Input validation
-    if (rank < 0 || rank >= size)
-    {
-      throw std::invalid_argument("Invalid rank " + std::to_string(rank) +
-                                  " for numRanks " + std::to_string(size));
+    if (rank < 0 || rank >= size) {
+      throw std::invalid_argument("Invalid rank " + std::to_string(rank) + " for numRanks " + std::to_string(size));
     }
-    if (domain_width_x <= 0)
-    {
-      throw std::invalid_argument(
-          "Invalid domain_width_x: " + std::to_string(domain_width_x) +
-          " (must be > 0)");
+    if (domain_width_x <= 0) {
+      throw std::invalid_argument("Invalid domain_width_x: " + std::to_string(domain_width_x) + " (must be > 0)");
     }
 
     ParallelTopology topo;
     topo.myRank = rank;
     topo.numRanks = size;
 
-    if (size <= 1)
-    {
+    if (size <= 1) {
       return topo;
     }
 
     // Auto-compute tolerance
-    if (tol.auto_compute)
-    {
-      try
-      {
+    if (tol.auto_compute) {
+      try {
         FloatType minDx = mesh.getMinSpacing();
-        if (minDx > 0)
-        {
+        if (minDx > 0) {
           tol.absolute = minDx * 1e-4;
         }
-      }
-      catch (...)
-      {
+      } catch (...) {
         tol.auto_compute = false;
       }
     }
@@ -133,39 +118,31 @@ class TopologyFactory
 
     ScalarType numNodes = mesh.getNumberOfNodes();
 
-    for (ScalarType i = 0; i < numNodes; ++i)
-    {
+    for (ScalarType i = 0; i < numNodes; ++i) {
       FloatType x = mesh.nodeCoord(i, 0);
 
       bool onLeft = hasLeft && (std::abs(x - left_x) < tol.absolute);
       bool onRight = hasRight && (std::abs(x - right_x) < tol.absolute);
 
-      if (onLeft && onRight)
-      {
+      if (onLeft && onRight) {
         throw std::logic_error("Topology Error: Node " + std::to_string(i) +
                                " detected on both left and right boundaries.");
       }
 
-      if (onLeft)
-      {
+      if (onLeft) {
         topo.sharedNodes[rank - 1].push_back(static_cast<int>(i));
       }
-      if (onRight)
-      {
+      if (onRight) {
         topo.sharedNodes[rank + 1].push_back(static_cast<int>(i));
       }
     }
 
     // Validation
-    if (hasLeft && topo.sharedNodes[rank - 1].empty())
-    {
-      throw std::logic_error("Topology Error: Rank " + std::to_string(rank) +
-                             " missing left boundary nodes.");
+    if (hasLeft && topo.sharedNodes[rank - 1].empty()) {
+      throw std::logic_error("Topology Error: Rank " + std::to_string(rank) + " missing left boundary nodes.");
     }
-    if (hasRight && topo.sharedNodes[rank + 1].empty())
-    {
-      throw std::logic_error("Topology Error: Rank " + std::to_string(rank) +
-                             " missing right boundary nodes.");
+    if (hasRight && topo.sharedNodes[rank + 1].empty()) {
+      throw std::logic_error("Topology Error: Rank " + std::to_string(rank) + " missing right boundary nodes.");
     }
 
     return topo;

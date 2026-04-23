@@ -6,8 +6,8 @@
 #define PROXY_HOST_DEVICE KOKKOS_FORCEINLINE_FUNCTION
 
 // MAINLOOP
-#define LaunchMaxThreadsPerBlock 64
-#define LaunchMinBlocksPerSM 1
+#define LaunchMaxThreadsPerBlock 128
+#define LaunchMinBlocksPerSM 4
 
 // Backward-compatible loop helpers used by legacy FE kernels.
 #define LOOPHEAD(Range, Index)         \
@@ -25,30 +25,23 @@
       KOKKOS_CLASS_LAMBDA(const int Index)
 #define MAINLOOPEND );
 
-#define FIND_MAX_1D(Array, Range, Result)                                  \
-  if (Array.extent(0) == 0)                                                \
-    throw std::runtime_error("Error in FIND_MAX_1D: Array has zero size"); \
-  Kokkos::parallel_reduce(                                                 \
-      "FindMax1D", Range,                                                  \
-      KOKKOS_CLASS_LAMBDA(const int i, decltype(Result)& local_max) {      \
-        if (Array[i] > local_max) local_max = Array[i];                    \
-      },                                                                   \
+#define FIND_MAX_1D(Array, Range, Result)                                                          \
+  if (Array.extent(0) == 0) throw std::runtime_error("Error in FIND_MAX_1D: Array has zero size"); \
+  Kokkos::parallel_reduce(                                                                         \
+      "FindMax1D", Range,                                                                          \
+      KOKKOS_CLASS_LAMBDA(const int i, decltype(Result)& local_max) {                              \
+        if (Array[i] > local_max) local_max = Array[i];                                            \
+      },                                                                                           \
       Kokkos::Max<decltype(Result)>(Result));
 
-#define FIND_MIN(Array, Range, Result)                                \
-  Kokkos::parallel_reduce(                                            \
-      Range,                                                          \
-      KOKKOS_CLASS_LAMBDA(const int i, decltype(Result)& local_min) { \
-        local_min = Array[i];                                         \
-      },                                                              \
+#define FIND_MIN(Array, Range, Result)                                                                \
+  Kokkos::parallel_reduce(                                                                            \
+      Range, KOKKOS_CLASS_LAMBDA(const int i, decltype(Result)& local_min) { local_min = Array[i]; }, \
       Kokkos::Min<decltype(Result)>(Result));
 
-#define SUM(Array, Range, Result)                                     \
-  Kokkos::parallel_reduce(                                            \
-      Range,                                                          \
-      KOKKOS_CLASS_LAMBDA(const int i, decltype(Result)& local_sum) { \
-        local_sum = Array[i];                                         \
-      },                                                              \
+#define SUM(Array, Range, Result)                                                                     \
+  Kokkos::parallel_reduce(                                                                            \
+      Range, KOKKOS_CLASS_LAMBDA(const int i, decltype(Result)& local_sum) { local_sum = Array[i]; }, \
       Kokkos::Sum<decltype(Result)>(Result));
 
 #define ARRAY_DOUBLE_VIEW arrayReal

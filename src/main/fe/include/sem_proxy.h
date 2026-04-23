@@ -23,8 +23,7 @@
 /**
  * @class SEMproxy
  */
-class SEMproxy
-{
+class SEMproxy {
  public:
   /**
    * @brief Constructor of the SEMproxy class
@@ -34,8 +33,7 @@ class SEMproxy
   /**
    * @brief Destructor of the SEMproxy class
    */
-  SEMproxy()
-  {
+  SEMproxy() {
     io_ctrl_.reset();  // Manually trigger SemIOController destructor (which
                        // closes engines)
   }
@@ -43,8 +41,7 @@ class SEMproxy
    * @brief Initialize the simulation.
    * @post run()
    */
-  void initFiniteElem()
-  {
+  void initFiniteElem() {
     init_arrays();
     init_source();
   };
@@ -61,8 +58,7 @@ class SEMproxy
    * Format: space-separated matrix with blank lines between rows for 3D
    * plotting
    */
-  void saveSlice(const VECTOR_REAL_VIEW& host_slice, int sizex, int sizey,
-                 const std::string& filepath) const;
+  void saveSlice(const VECTOR_REAL_VIEW& host_slice, int sizex, int sizey, const std::string& filepath) const;
 
   void saveSnapshot(int timesample, VECTOR_REAL_VIEW data) const;
 
@@ -163,17 +159,14 @@ class SEMproxy
   arrayReal uznAtReceiver;
 
   // DAS receiver data
-  SourceAndReceiverUtils::DASType dasType_ =
-      SourceAndReceiverUtils::DASType::kNone;
+  SourceAndReceiverUtils::DASType dasType_ = SourceAndReceiverUtils::DASType::kNone;
   int dasNumSamples_ = 5;
   float dasGaugeLength_ = 1.0f;
-  std::array<float, 3> dasDirection_ = {1, 0,
-                                        0};  ///< Fiber direction unit vector
-  std::array<float, 3> dasVector_ = {
-      1, 0, 0};                    ///< Direction (for dipole: divided by L)
-  std::vector<int> dasNodeIds_;    ///< Global node IDs [nSamples * npe]
-  std::vector<float> dasWeights_;  ///< Precomputed weights [nSamples * npe]
-  vectorReal dasSignal_;           ///< DAS trace [num_sample_]
+  std::array<float, 3> dasDirection_ = {1, 0, 0};  ///< Fiber direction unit vector
+  std::array<float, 3> dasVector_ = {1, 0, 0};     ///< Direction (for dipole: divided by L)
+  std::vector<int> dasNodeIds_;                    ///< Global node IDs [nSamples * npe]
+  std::vector<float> dasWeights_;                  ///< Precomputed weights [nSamples * npe]
+  vectorReal dasSignal_;                           ///< DAS trace [num_sample_]
 
   // io controller
   std::shared_ptr<SemIOController> io_ctrl_;

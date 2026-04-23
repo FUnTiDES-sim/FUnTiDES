@@ -9,37 +9,38 @@
 #include "differentiator_elastic.h"
 #include "model_struct.h"
 
-namespace gradient
-{
-namespace test
-{
+namespace gradient {
+namespace test {
 
 // =============================================================================
 // Order wrappers
 // =============================================================================
 
-struct Order1
-{
+struct Order1 {
   static constexpr int kOrder = 1;
 };
-struct Order2
-{
+struct Order2 {
   static constexpr int kOrder = 2;
 };
-struct Order3
-{
+struct Order3 {
   static constexpr int kOrder = 3;
 };
 
+// Création dynamique de la liste de tests selon l'ordre max
+#if MAX_DIFFERENTIATOR_ACOUSTIC_ORDER == 1
+using OrderTypes = ::testing::Types<Order1>;
+#elif MAX_DIFFERENTIATOR_ACOUSTIC_ORDER == 2
+using OrderTypes = ::testing::Types<Order1, Order2>;
+#elif MAX_DIFFERENTIATOR_ACOUSTIC_ORDER == 3
 using OrderTypes = ::testing::Types<Order1, Order2, Order3>;
+#endif
 
 // =============================================================================
 // Helper: 1×1×1 structured mesh (1 element, unit cube [0,1]³)
 // =============================================================================
 
 template <int ORDER>
-static model::ModelStruct<float, int, ORDER> makeMesh1x1x1()
-{
+static model::ModelStruct<float, int, ORDER> makeMesh1x1x1() {
   model::ModelStructData<float, int> data;
   data.ex_ = 1;
   data.ey_ = 1;
@@ -63,20 +64,17 @@ static model::ModelStruct<float, int, ORDER> makeMesh1x1x1()
 // =============================================================================
 
 template <typename OrderWrapper>
-class DifferentiatorElasticElemTest : public ::testing::Test
-{
+class DifferentiatorElasticElemTest : public ::testing::Test {
  protected:
   static constexpr int kOrder = OrderWrapper::kOrder;
   static constexpr int kNumNodes = (kOrder + 1) * (kOrder + 1) * (kOrder + 1);
   static constexpr int kNumElements = 1;
 
   using Mesh = model::ModelStruct<float, int, kOrder>;
-  using Integral =
-      typename IntegralTypeSelector<kOrder, IntegralType::MAKUTU>::type;
+  using Integral = typename IntegralTypeSelector<kOrder, IntegralType::MAKUTU>::type;
   using Diff = DifferentiatorElastic<kOrder, Integral, Mesh, false>;
 
-  void SetUp() override
-  {
+  void SetUp() override {
     ux_fwd = allocateVector<VECTOR_REAL_VIEW>(kNumNodes, "ux_fwd");
     uy_fwd = allocateVector<VECTOR_REAL_VIEW>(kNumNodes, "uy_fwd");
     uz_fwd = allocateVector<VECTOR_REAL_VIEW>(kNumNodes, "uz_fwd");
@@ -90,8 +88,7 @@ class DifferentiatorElasticElemTest : public ::testing::Test
     gradLambda = allocateVector<VECTOR_REAL_VIEW>(kNumElements, "gradLambda");
     gradMu = allocateVector<VECTOR_REAL_VIEW>(kNumElements, "gradMu");
 
-    for (int i = 0; i < kNumNodes; ++i)
-    {
+    for (int i = 0; i < kNumNodes; ++i) {
       ux_fwd(i) = 0.0f;
       uy_fwd(i) = 0.0f;
       uz_fwd(i) = 0.0f;
@@ -107,12 +104,10 @@ class DifferentiatorElasticElemTest : public ::testing::Test
     gradMu(0) = 0.0f;
   }
 
-  void makeDataAndCompute(Diff& diff, float dt = 0.001f)
-  {
+  void makeDataAndCompute(Diff& diff, float dt = 0.001f) {
     auto mesh = makeMesh1x1x1<kOrder>();
     WavefieldViewForwardElastic fwd(ux_fwd, uy_fwd, uz_fwd);
-    WavefieldViewBackwardElastic bwd(ux_adj, uy_adj, uz_adj, ux_dt2, uy_dt2,
-                                     uz_dt2);
+    WavefieldViewBackwardElastic bwd(ux_adj, uy_adj, uz_adj, ux_dt2, uy_dt2, uz_dt2);
     GradientElastic grad(gradRho, gradLambda, gradMu);
     GradientDataElastic data(fwd, bwd, grad);
     diff.compute(mesh, data, dt);
@@ -128,47 +123,36 @@ TYPED_TEST_SUITE(DifferentiatorElasticElemTest, OrderTypes);
 
 // --- Static constants ---
 
-TYPED_TEST(DifferentiatorElasticElemTest, OrderConstant)
-{
-  EXPECT_EQ(TestFixture::Diff::kOrder, TestFixture::kOrder);
-}
+TYPED_TEST(DifferentiatorElasticElemTest, OrderConstant) { EXPECT_EQ(TestFixture::Diff::kOrder, TestFixture::kOrder); }
 
-TYPED_TEST(DifferentiatorElasticElemTest, IsModelOnNodesConstant)
-{
-  EXPECT_FALSE(TestFixture::Diff::kIsModelOnNodes);
-}
+TYPED_TEST(DifferentiatorElasticElemTest, IsModelOnNodesConstant) { EXPECT_FALSE(TestFixture::Diff::kIsModelOnNodes); }
 
-TYPED_TEST(DifferentiatorElasticElemTest, PointsPerElementConstant)
-{
+TYPED_TEST(DifferentiatorElasticElemTest, PointsPerElementConstant) {
   EXPECT_EQ(TestFixture::Diff::kPointsPerElement, TestFixture::kNumNodes);
 }
 
 // --- Virtual getters ---
 
-TYPED_TEST(DifferentiatorElasticElemTest, GetOrderReturnsCorrectOrder)
-{
+TYPED_TEST(DifferentiatorElasticElemTest, GetOrderReturnsCorrectOrder) {
   typename TestFixture::Diff diff;
   EXPECT_EQ(diff.getOrder(), TestFixture::kOrder);
 }
 
-TYPED_TEST(DifferentiatorElasticElemTest, IsModelOnNodesReturnsFalse)
-{
+TYPED_TEST(DifferentiatorElasticElemTest, IsModelOnNodesReturnsFalse) {
   typename TestFixture::Diff diff;
   EXPECT_FALSE(diff.isModelOnNodes());
 }
 
 // --- Print ---
 
-TYPED_TEST(DifferentiatorElasticElemTest, PrintDoesNotThrow)
-{
+TYPED_TEST(DifferentiatorElasticElemTest, PrintDoesNotThrow) {
   typename TestFixture::Diff diff;
   EXPECT_NO_THROW(diff.print());
 }
 
 // --- compute() correctness ---
 
-TYPED_TEST(DifferentiatorElasticElemTest, ZeroWavefieldsYieldZeroGradients)
-{
+TYPED_TEST(DifferentiatorElasticElemTest, ZeroWavefieldsYieldZeroGradients) {
   typename TestFixture::Diff diff;
   this->makeDataAndCompute(diff);
 
@@ -177,12 +161,10 @@ TYPED_TEST(DifferentiatorElasticElemTest, ZeroWavefieldsYieldZeroGradients)
   EXPECT_FLOAT_EQ(this->gradMu(0), 0.0f);
 }
 
-TYPED_TEST(DifferentiatorElasticElemTest, UniformFieldGradRhoEqualsVolume)
-{
+TYPED_TEST(DifferentiatorElasticElemTest, UniformFieldGradRhoEqualsVolume) {
   // ux_fwd = 1, ux_dt2 = 1 on all nodes =>
   //   gradRho = ∫_Ω (ü†_x · u_x) dΩ = ∫_Ω 1 dΩ = 1.0 (unit cube)
-  for (int i = 0; i < TestFixture::kNumNodes; ++i)
-  {
+  for (int i = 0; i < TestFixture::kNumNodes; ++i) {
     this->ux_fwd(i) = 1.0f;
     this->ux_dt2(i) = 1.0f;
   }
@@ -193,13 +175,11 @@ TYPED_TEST(DifferentiatorElasticElemTest, UniformFieldGradRhoEqualsVolume)
   EXPECT_NEAR(this->gradRho(0), 1.0f, 1e-5f);
 }
 
-TYPED_TEST(DifferentiatorElasticElemTest, GradRhoAllThreeComponents)
-{
+TYPED_TEST(DifferentiatorElasticElemTest, GradRhoAllThreeComponents) {
   // All forward and dt2 components active:
   //   gradRho = ∫(ü†_x·u_x + ü†_y·u_y + ü†_z·u_z) dΩ
   // u_x=1,u_y=2,u_z=3 with all dt2=1  =>  gradRho = (1+2+3) * volume = 6.0
-  for (int i = 0; i < TestFixture::kNumNodes; ++i)
-  {
+  for (int i = 0; i < TestFixture::kNumNodes; ++i) {
     this->ux_fwd(i) = 1.0f;
     this->uy_fwd(i) = 2.0f;
     this->uz_fwd(i) = 3.0f;
@@ -214,11 +194,9 @@ TYPED_TEST(DifferentiatorElasticElemTest, GradRhoAllThreeComponents)
   EXPECT_NEAR(this->gradRho(0), 6.0f, 1e-4f);
 }
 
-TYPED_TEST(DifferentiatorElasticElemTest, ConstantFieldGradLambdaIsZero)
-{
+TYPED_TEST(DifferentiatorElasticElemTest, ConstantFieldGradLambdaIsZero) {
   // Constant displacement => ∇u = 0 => div(u†) = div(u) = 0 => gradLambda = 0
-  for (int i = 0; i < TestFixture::kNumNodes; ++i)
-  {
+  for (int i = 0; i < TestFixture::kNumNodes; ++i) {
     this->ux_fwd(i) = 1.0f;
     this->uy_fwd(i) = 1.0f;
     this->uz_fwd(i) = 1.0f;
@@ -233,11 +211,9 @@ TYPED_TEST(DifferentiatorElasticElemTest, ConstantFieldGradLambdaIsZero)
   EXPECT_NEAR(this->gradLambda(0), 0.0f, 1e-5f);
 }
 
-TYPED_TEST(DifferentiatorElasticElemTest, ConstantFieldGradMuIsZero)
-{
+TYPED_TEST(DifferentiatorElasticElemTest, ConstantFieldGradMuIsZero) {
   // Constant displacement => ε(u) = 0 => gradMu = 0
-  for (int i = 0; i < TestFixture::kNumNodes; ++i)
-  {
+  for (int i = 0; i < TestFixture::kNumNodes; ++i) {
     this->ux_fwd(i) = 1.0f;
     this->uy_fwd(i) = 1.0f;
     this->uz_fwd(i) = 1.0f;
@@ -252,11 +228,9 @@ TYPED_TEST(DifferentiatorElasticElemTest, ConstantFieldGradMuIsZero)
   EXPECT_NEAR(this->gradMu(0), 0.0f, 1e-5f);
 }
 
-TYPED_TEST(DifferentiatorElasticElemTest, GradRhoScalesWithAmplitude)
-{
+TYPED_TEST(DifferentiatorElasticElemTest, GradRhoScalesWithAmplitude) {
   // Doubling ux_fwd doubles gradRho (linearity)
-  for (int i = 0; i < TestFixture::kNumNodes; ++i)
-  {
+  for (int i = 0; i < TestFixture::kNumNodes; ++i) {
     this->ux_fwd(i) = 1.0f;
     this->ux_dt2(i) = 1.0f;
   }
@@ -274,11 +248,8 @@ TYPED_TEST(DifferentiatorElasticElemTest, GradRhoScalesWithAmplitude)
   EXPECT_NEAR(this->gradRho(0), 2.0f * single, 1e-5f);
 }
 
-TYPED_TEST(DifferentiatorElasticElemTest,
-           ComputeAccumulatesIntoExistingGradient)
-{
-  for (int i = 0; i < TestFixture::kNumNodes; ++i)
-  {
+TYPED_TEST(DifferentiatorElasticElemTest, ComputeAccumulatesIntoExistingGradient) {
+  for (int i = 0; i < TestFixture::kNumNodes; ++i) {
     this->ux_fwd(i) = 1.0f;
     this->ux_dt2(i) = 1.0f;
   }
@@ -291,8 +262,7 @@ TYPED_TEST(DifferentiatorElasticElemTest,
   EXPECT_NEAR(this->gradRho(0), 6.0f, 1e-5f);
 }
 
-TYPED_TEST(DifferentiatorElasticElemTest, GradLambdaNonZeroForLinearField)
-{
+TYPED_TEST(DifferentiatorElasticElemTest, GradLambdaNonZeroForLinearField) {
   // Linear displacement u_x = x => div(u) = ∂u_x/∂x = 1
   // If both forward and adjoint have u_x = x:
   //   gradLambda = ∫ div(u†)·div(u) dΩ = ∫ 1·1 dΩ = 1.0
@@ -302,8 +272,7 @@ TYPED_TEST(DifferentiatorElasticElemTest, GradLambdaNonZeroForLinearField)
   int const dim = TestFixture::kOrder + 1;
   for (int k = 0; k < dim; ++k)
     for (int j = 0; j < dim; ++j)
-      for (int i = 0; i < dim; ++i)
-      {
+      for (int i = 0; i < dim; ++i) {
         int gIdx = mesh.globalNodeIndex(0, i, j, k);
         float x = static_cast<float>(i) / TestFixture::kOrder;
         this->ux_fwd(gIdx) = x;
@@ -313,8 +282,7 @@ TYPED_TEST(DifferentiatorElasticElemTest, GradLambdaNonZeroForLinearField)
   typename TestFixture::Diff diff;
 
   WavefieldViewForwardElastic fwd(this->ux_fwd, this->uy_fwd, this->uz_fwd);
-  WavefieldViewBackwardElastic bwd(this->ux_adj, this->uy_adj, this->uz_adj,
-                                   this->ux_dt2, this->uy_dt2, this->uz_dt2);
+  WavefieldViewBackwardElastic bwd(this->ux_adj, this->uy_adj, this->uz_adj, this->ux_dt2, this->uy_dt2, this->uz_dt2);
   GradientElastic grad(this->gradRho, this->gradLambda, this->gradMu);
   GradientDataElastic data(fwd, bwd, grad);
   diff.compute(mesh, data, 0.001f);
@@ -325,8 +293,7 @@ TYPED_TEST(DifferentiatorElasticElemTest, GradLambdaNonZeroForLinearField)
   EXPECT_NEAR(this->gradLambda(0), 1.0f, 0.2f);
 }
 
-TYPED_TEST(DifferentiatorElasticElemTest, GradMuNonZeroForLinearField)
-{
+TYPED_TEST(DifferentiatorElasticElemTest, GradMuNonZeroForLinearField) {
   // Linear displacement u_x = x => ε_xx = 1, all other ε_ij = 0
   // If both forward and adjoint have u_x = x:
   //   2·ε†:ε = 2·(1·1) = 2
@@ -335,8 +302,7 @@ TYPED_TEST(DifferentiatorElasticElemTest, GradMuNonZeroForLinearField)
   int const dim = TestFixture::kOrder + 1;
   for (int k = 0; k < dim; ++k)
     for (int j = 0; j < dim; ++j)
-      for (int i = 0; i < dim; ++i)
-      {
+      for (int i = 0; i < dim; ++i) {
         int gIdx = mesh.globalNodeIndex(0, i, j, k);
         float x = static_cast<float>(i) / TestFixture::kOrder;
         this->ux_fwd(gIdx) = x;
@@ -346,8 +312,7 @@ TYPED_TEST(DifferentiatorElasticElemTest, GradMuNonZeroForLinearField)
   typename TestFixture::Diff diff;
 
   WavefieldViewForwardElastic fwd(this->ux_fwd, this->uy_fwd, this->uz_fwd);
-  WavefieldViewBackwardElastic bwd(this->ux_adj, this->uy_adj, this->uz_adj,
-                                   this->ux_dt2, this->uy_dt2, this->uz_dt2);
+  WavefieldViewBackwardElastic bwd(this->ux_adj, this->uy_adj, this->uz_adj, this->ux_dt2, this->uy_dt2, this->uz_dt2);
   GradientElastic grad(this->gradRho, this->gradLambda, this->gradMu);
   GradientDataElastic data(fwd, bwd, grad);
   diff.compute(mesh, data, 0.001f);
@@ -356,8 +321,7 @@ TYPED_TEST(DifferentiatorElasticElemTest, GradMuNonZeroForLinearField)
   EXPECT_NEAR(this->gradMu(0), 2.0f, 0.4f);
 }
 
-TYPED_TEST(DifferentiatorElasticElemTest, LinearShearFieldProducesCorrectGradMu)
-{
+TYPED_TEST(DifferentiatorElasticElemTest, LinearShearFieldProducesCorrectGradMu) {
   // Pure shear: u_x = y, u_y = x  => ε_xy = 1, all diagonal ε = 0,
   //   div(u) = 0
   // 2·ε†:ε = 4·(ε_xy†·ε_xy) = 4·1 = 4
@@ -367,8 +331,7 @@ TYPED_TEST(DifferentiatorElasticElemTest, LinearShearFieldProducesCorrectGradMu)
   int const dim = TestFixture::kOrder + 1;
   for (int k = 0; k < dim; ++k)
     for (int j = 0; j < dim; ++j)
-      for (int i = 0; i < dim; ++i)
-      {
+      for (int i = 0; i < dim; ++i) {
         int gIdx = mesh.globalNodeIndex(0, i, j, k);
         float x = static_cast<float>(i) / TestFixture::kOrder;
         float y = static_cast<float>(j) / TestFixture::kOrder;
@@ -381,8 +344,7 @@ TYPED_TEST(DifferentiatorElasticElemTest, LinearShearFieldProducesCorrectGradMu)
   typename TestFixture::Diff diff;
 
   WavefieldViewForwardElastic fwd(this->ux_fwd, this->uy_fwd, this->uz_fwd);
-  WavefieldViewBackwardElastic bwd(this->ux_adj, this->uy_adj, this->uz_adj,
-                                   this->ux_dt2, this->uy_dt2, this->uz_dt2);
+  WavefieldViewBackwardElastic bwd(this->ux_adj, this->uy_adj, this->uz_adj, this->ux_dt2, this->uy_dt2, this->uz_dt2);
   GradientElastic grad(this->gradRho, this->gradLambda, this->gradMu);
   GradientDataElastic data(fwd, bwd, grad);
   diff.compute(mesh, data, 0.001f);
@@ -391,8 +353,7 @@ TYPED_TEST(DifferentiatorElasticElemTest, LinearShearFieldProducesCorrectGradMu)
   EXPECT_NEAR(this->gradMu(0), 4.0f, 0.4f);
 }
 
-TYPED_TEST(DifferentiatorElasticElemTest, PureDilatationLambdaMuConsistency)
-{
+TYPED_TEST(DifferentiatorElasticElemTest, PureDilatationLambdaMuConsistency) {
   // Pure dilatation: u_x = x, u_y = y, u_z = z
   //   div(u) = 3, ε_xx = ε_yy = ε_zz = 1, off-diag = 0
   //   gradLambda = ∫ 3·3 dΩ = 9.0
@@ -402,8 +363,7 @@ TYPED_TEST(DifferentiatorElasticElemTest, PureDilatationLambdaMuConsistency)
   int const dim = TestFixture::kOrder + 1;
   for (int k = 0; k < dim; ++k)
     for (int j = 0; j < dim; ++j)
-      for (int i = 0; i < dim; ++i)
-      {
+      for (int i = 0; i < dim; ++i) {
         int gIdx = mesh.globalNodeIndex(0, i, j, k);
         float x = static_cast<float>(i) / TestFixture::kOrder;
         float y = static_cast<float>(j) / TestFixture::kOrder;
@@ -419,8 +379,7 @@ TYPED_TEST(DifferentiatorElasticElemTest, PureDilatationLambdaMuConsistency)
   typename TestFixture::Diff diff;
 
   WavefieldViewForwardElastic fwd(this->ux_fwd, this->uy_fwd, this->uz_fwd);
-  WavefieldViewBackwardElastic bwd(this->ux_adj, this->uy_adj, this->uz_adj,
-                                   this->ux_dt2, this->uy_dt2, this->uz_dt2);
+  WavefieldViewBackwardElastic bwd(this->ux_adj, this->uy_adj, this->uz_adj, this->ux_dt2, this->uy_dt2, this->uz_dt2);
   GradientElastic grad(this->gradRho, this->gradLambda, this->gradMu);
   GradientDataElastic data(fwd, bwd, grad);
   diff.compute(mesh, data, 0.001f);
@@ -429,8 +388,7 @@ TYPED_TEST(DifferentiatorElasticElemTest, PureDilatationLambdaMuConsistency)
   EXPECT_NEAR(this->gradMu(0), 6.0f, 1.0f);
 }
 
-TYPED_TEST(DifferentiatorElasticElemTest, GradRhoIndependentOfStrainKernels)
-{
+TYPED_TEST(DifferentiatorElasticElemTest, GradRhoIndependentOfStrainKernels) {
   // gradRho depends only on dt2 and fwd, not on adjoint displacement gradients
   // Set ux_fwd=1, ux_dt2=1 but also set non-trivial adjoint displacement
   // => gradRho should still be 1.0
@@ -438,8 +396,7 @@ TYPED_TEST(DifferentiatorElasticElemTest, GradRhoIndependentOfStrainKernels)
   int const dim = TestFixture::kOrder + 1;
   for (int k = 0; k < dim; ++k)
     for (int j = 0; j < dim; ++j)
-      for (int i = 0; i < dim; ++i)
-      {
+      for (int i = 0; i < dim; ++i) {
         int gIdx = mesh.globalNodeIndex(0, i, j, k);
         float x = static_cast<float>(i) / TestFixture::kOrder;
         this->ux_fwd(gIdx) = 1.0f;
@@ -452,8 +409,7 @@ TYPED_TEST(DifferentiatorElasticElemTest, GradRhoIndependentOfStrainKernels)
   typename TestFixture::Diff diff;
 
   WavefieldViewForwardElastic fwd(this->ux_fwd, this->uy_fwd, this->uz_fwd);
-  WavefieldViewBackwardElastic bwd(this->ux_adj, this->uy_adj, this->uz_adj,
-                                   this->ux_dt2, this->uy_dt2, this->uz_dt2);
+  WavefieldViewBackwardElastic bwd(this->ux_adj, this->uy_adj, this->uz_adj, this->ux_dt2, this->uy_dt2, this->uz_dt2);
   GradientElastic grad(this->gradRho, this->gradLambda, this->gradMu);
   GradientDataElastic data(fwd, bwd, grad);
   diff.compute(mesh, data, 0.001f);
@@ -464,24 +420,20 @@ TYPED_TEST(DifferentiatorElasticElemTest, GradRhoIndependentOfStrainKernels)
 
 // --- Polymorphic interface ---
 
-TYPED_TEST(DifferentiatorElasticElemTest, PolymorphicInterface)
-{
-  for (int i = 0; i < TestFixture::kNumNodes; ++i)
-  {
+TYPED_TEST(DifferentiatorElasticElemTest, PolymorphicInterface) {
+  for (int i = 0; i < TestFixture::kNumNodes; ++i) {
     this->ux_fwd(i) = 1.0f;
     this->ux_dt2(i) = 1.0f;
   }
 
-  std::unique_ptr<Differentiator> diff =
-      std::make_unique<typename TestFixture::Diff>();
+  std::unique_ptr<Differentiator> diff = std::make_unique<typename TestFixture::Diff>();
   auto mesh = makeMesh1x1x1<TestFixture::kOrder>();
 
   EXPECT_EQ(diff->getOrder(), TestFixture::kOrder);
   EXPECT_FALSE(diff->isModelOnNodes());
 
   WavefieldViewForwardElastic fwd(this->ux_fwd, this->uy_fwd, this->uz_fwd);
-  WavefieldViewBackwardElastic bwd(this->ux_adj, this->uy_adj, this->uz_adj,
-                                   this->ux_dt2, this->uy_dt2, this->uz_dt2);
+  WavefieldViewBackwardElastic bwd(this->ux_adj, this->uy_adj, this->uz_adj, this->ux_dt2, this->uy_dt2, this->uz_dt2);
   GradientElastic grad(this->gradRho, this->gradLambda, this->gradMu);
   GradientDataElastic data(fwd, bwd, grad);
 
@@ -497,21 +449,18 @@ TYPED_TEST(DifferentiatorElasticElemTest, PolymorphicInterface)
 // =============================================================================
 
 template <typename OrderWrapper>
-class DifferentiatorElasticNodeTest : public ::testing::Test
-{
+class DifferentiatorElasticNodeTest : public ::testing::Test {
  protected:
   static constexpr int kOrder = OrderWrapper::kOrder;
   static constexpr int kNumNodes = (kOrder + 1) * (kOrder + 1) * (kOrder + 1);
   static constexpr int kNumElements = 1;
 
   using Mesh = model::ModelStruct<float, int, kOrder>;
-  using Integral =
-      typename IntegralTypeSelector<kOrder, IntegralType::MAKUTU>::type;
+  using Integral = typename IntegralTypeSelector<kOrder, IntegralType::MAKUTU>::type;
   using DiffNode = DifferentiatorElastic<kOrder, Integral, Mesh, true>;
   using DiffElem = DifferentiatorElastic<kOrder, Integral, Mesh, false>;
 
-  void SetUp() override
-  {
+  void SetUp() override {
     ux_fwd = allocateVector<VECTOR_REAL_VIEW>(kNumNodes, "ux_fwd");
     uy_fwd = allocateVector<VECTOR_REAL_VIEW>(kNumNodes, "uy_fwd");
     uz_fwd = allocateVector<VECTOR_REAL_VIEW>(kNumNodes, "uz_fwd");
@@ -525,8 +474,7 @@ class DifferentiatorElasticNodeTest : public ::testing::Test
     gradLambda = allocateVector<VECTOR_REAL_VIEW>(kNumNodes, "gradLambda");
     gradMu = allocateVector<VECTOR_REAL_VIEW>(kNumNodes, "gradMu");
 
-    for (int i = 0; i < kNumNodes; ++i)
-    {
+    for (int i = 0; i < kNumNodes; ++i) {
       ux_fwd(i) = 0.0f;
       uy_fwd(i) = 0.0f;
       uz_fwd(i) = 0.0f;
@@ -542,8 +490,7 @@ class DifferentiatorElasticNodeTest : public ::testing::Test
     }
   }
 
-  float sumGrad(VECTOR_REAL_VIEW const& v) const
-  {
+  float sumGrad(VECTOR_REAL_VIEW const& v) const {
     float s = 0.0f;
     for (int i = 0; i < kNumNodes; ++i) s += v(i);
     return s;
@@ -563,43 +510,37 @@ TYPED_TEST_SUITE(DifferentiatorElasticNodeTest, OrderTypes);
 
 // --- Static constants ---
 
-TYPED_TEST(DifferentiatorElasticNodeTest, IsModelOnNodesConstant)
-{
+TYPED_TEST(DifferentiatorElasticNodeTest, IsModelOnNodesConstant) {
   EXPECT_TRUE(TestFixture::DiffNode::kIsModelOnNodes);
 }
 
 // --- Virtual getters ---
 
-TYPED_TEST(DifferentiatorElasticNodeTest, GetOrderReturnsCorrectOrder)
-{
+TYPED_TEST(DifferentiatorElasticNodeTest, GetOrderReturnsCorrectOrder) {
   typename TestFixture::DiffNode diff;
   EXPECT_EQ(diff.getOrder(), TestFixture::kOrder);
 }
 
-TYPED_TEST(DifferentiatorElasticNodeTest, IsModelOnNodesReturnsTrue)
-{
+TYPED_TEST(DifferentiatorElasticNodeTest, IsModelOnNodesReturnsTrue) {
   typename TestFixture::DiffNode diff;
   EXPECT_TRUE(diff.isModelOnNodes());
 }
 
 // --- Print ---
 
-TYPED_TEST(DifferentiatorElasticNodeTest, PrintDoesNotThrow)
-{
+TYPED_TEST(DifferentiatorElasticNodeTest, PrintDoesNotThrow) {
   typename TestFixture::DiffNode diff;
   EXPECT_NO_THROW(diff.print());
 }
 
 // --- compute() correctness ---
 
-TYPED_TEST(DifferentiatorElasticNodeTest, ZeroWavefieldsYieldZeroGradients)
-{
+TYPED_TEST(DifferentiatorElasticNodeTest, ZeroWavefieldsYieldZeroGradients) {
   typename TestFixture::DiffNode diff;
   auto mesh = makeMesh1x1x1<TestFixture::kOrder>();
 
   WavefieldViewForwardElastic fwd(this->ux_fwd, this->uy_fwd, this->uz_fwd);
-  WavefieldViewBackwardElastic bwd(this->ux_adj, this->uy_adj, this->uz_adj,
-                                   this->ux_dt2, this->uy_dt2, this->uz_dt2);
+  WavefieldViewBackwardElastic bwd(this->ux_adj, this->uy_adj, this->uz_adj, this->ux_dt2, this->uy_dt2, this->uz_dt2);
   GradientElastic grad(this->gradRho, this->gradLambda, this->gradMu);
   GradientDataElastic data(fwd, bwd, grad);
   diff.compute(mesh, data, 0.001f);
@@ -609,10 +550,8 @@ TYPED_TEST(DifferentiatorElasticNodeTest, ZeroWavefieldsYieldZeroGradients)
   EXPECT_FLOAT_EQ(this->sumGradMu(), 0.0f);
 }
 
-TYPED_TEST(DifferentiatorElasticNodeTest, UniformFieldGradRhoSumsToVolume)
-{
-  for (int i = 0; i < TestFixture::kNumNodes; ++i)
-  {
+TYPED_TEST(DifferentiatorElasticNodeTest, UniformFieldGradRhoSumsToVolume) {
+  for (int i = 0; i < TestFixture::kNumNodes; ++i) {
     this->ux_fwd(i) = 1.0f;
     this->ux_dt2(i) = 1.0f;
   }
@@ -621,8 +560,7 @@ TYPED_TEST(DifferentiatorElasticNodeTest, UniformFieldGradRhoSumsToVolume)
   auto mesh = makeMesh1x1x1<TestFixture::kOrder>();
 
   WavefieldViewForwardElastic fwd(this->ux_fwd, this->uy_fwd, this->uz_fwd);
-  WavefieldViewBackwardElastic bwd(this->ux_adj, this->uy_adj, this->uz_adj,
-                                   this->ux_dt2, this->uy_dt2, this->uz_dt2);
+  WavefieldViewBackwardElastic bwd(this->ux_adj, this->uy_adj, this->uz_adj, this->ux_dt2, this->uy_dt2, this->uz_dt2);
   GradientElastic grad(this->gradRho, this->gradLambda, this->gradMu);
   GradientDataElastic data(fwd, bwd, grad);
   diff.compute(mesh, data, 0.001f);
@@ -630,10 +568,8 @@ TYPED_TEST(DifferentiatorElasticNodeTest, UniformFieldGradRhoSumsToVolume)
   EXPECT_NEAR(this->sumGradRho(), 1.0f, 1e-5f);
 }
 
-TYPED_TEST(DifferentiatorElasticNodeTest, ConstantFieldGradLambdaSumsToZero)
-{
-  for (int i = 0; i < TestFixture::kNumNodes; ++i)
-  {
+TYPED_TEST(DifferentiatorElasticNodeTest, ConstantFieldGradLambdaSumsToZero) {
+  for (int i = 0; i < TestFixture::kNumNodes; ++i) {
     this->ux_fwd(i) = 1.0f;
     this->ux_adj(i) = 1.0f;
   }
@@ -642,8 +578,7 @@ TYPED_TEST(DifferentiatorElasticNodeTest, ConstantFieldGradLambdaSumsToZero)
   auto mesh = makeMesh1x1x1<TestFixture::kOrder>();
 
   WavefieldViewForwardElastic fwd(this->ux_fwd, this->uy_fwd, this->uz_fwd);
-  WavefieldViewBackwardElastic bwd(this->ux_adj, this->uy_adj, this->uz_adj,
-                                   this->ux_dt2, this->uy_dt2, this->uz_dt2);
+  WavefieldViewBackwardElastic bwd(this->ux_adj, this->uy_adj, this->uz_adj, this->ux_dt2, this->uy_dt2, this->uz_dt2);
   GradientElastic grad(this->gradRho, this->gradLambda, this->gradMu);
   GradientDataElastic data(fwd, bwd, grad);
   diff.compute(mesh, data, 0.001f);
@@ -651,15 +586,13 @@ TYPED_TEST(DifferentiatorElasticNodeTest, ConstantFieldGradLambdaSumsToZero)
   EXPECT_NEAR(this->sumGradLambda(), 0.0f, 1e-5f);
 }
 
-TYPED_TEST(DifferentiatorElasticNodeTest, NodeBasedSumEqualsElementBasedResult)
-{
+TYPED_TEST(DifferentiatorElasticNodeTest, NodeBasedSumEqualsElementBasedResult) {
   // For single-element mesh, ∑ node_gradients == elem_gradient
   auto mesh = makeMesh1x1x1<TestFixture::kOrder>();
   int const dim = TestFixture::kOrder + 1;
   for (int k = 0; k < dim; ++k)
     for (int j = 0; j < dim; ++j)
-      for (int i = 0; i < dim; ++i)
-      {
+      for (int i = 0; i < dim; ++i) {
         int gIdx = mesh.globalNodeIndex(0, i, j, k);
         float x = static_cast<float>(i) / TestFixture::kOrder;
         float y = static_cast<float>(j) / TestFixture::kOrder;
@@ -674,8 +607,8 @@ TYPED_TEST(DifferentiatorElasticNodeTest, NodeBasedSumEqualsElementBasedResult)
   typename TestFixture::DiffNode diffNode;
   {
     WavefieldViewForwardElastic fwd(this->ux_fwd, this->uy_fwd, this->uz_fwd);
-    WavefieldViewBackwardElastic bwd(this->ux_adj, this->uy_adj, this->uz_adj,
-                                     this->ux_dt2, this->uy_dt2, this->uz_dt2);
+    WavefieldViewBackwardElastic bwd(this->ux_adj, this->uy_adj, this->uz_adj, this->ux_dt2, this->uy_dt2,
+                                     this->uz_dt2);
     GradientElastic grad(this->gradRho, this->gradLambda, this->gradMu);
     GradientDataElastic data(fwd, bwd, grad);
     diffNode.compute(mesh, data, 0.001f);
@@ -695,8 +628,8 @@ TYPED_TEST(DifferentiatorElasticNodeTest, NodeBasedSumEqualsElementBasedResult)
   typename TestFixture::DiffElem diffElem;
   {
     WavefieldViewForwardElastic fwd(this->ux_fwd, this->uy_fwd, this->uz_fwd);
-    WavefieldViewBackwardElastic bwd(this->ux_adj, this->uy_adj, this->uz_adj,
-                                     this->ux_dt2, this->uy_dt2, this->uz_dt2);
+    WavefieldViewBackwardElastic bwd(this->ux_adj, this->uy_adj, this->uz_adj, this->ux_dt2, this->uy_dt2,
+                                     this->uz_dt2);
     GradientElastic grad(gradRhoElem, gradLambdaElem, gradMuElem);
     GradientDataElastic data(fwd, bwd, grad);
     diffElem.compute(mesh, data, 0.001f);
@@ -709,24 +642,20 @@ TYPED_TEST(DifferentiatorElasticNodeTest, NodeBasedSumEqualsElementBasedResult)
 
 // --- Polymorphic interface ---
 
-TYPED_TEST(DifferentiatorElasticNodeTest, PolymorphicInterface)
-{
-  for (int i = 0; i < TestFixture::kNumNodes; ++i)
-  {
+TYPED_TEST(DifferentiatorElasticNodeTest, PolymorphicInterface) {
+  for (int i = 0; i < TestFixture::kNumNodes; ++i) {
     this->ux_fwd(i) = 1.0f;
     this->ux_dt2(i) = 1.0f;
   }
 
-  std::unique_ptr<Differentiator> diff =
-      std::make_unique<typename TestFixture::DiffNode>();
+  std::unique_ptr<Differentiator> diff = std::make_unique<typename TestFixture::DiffNode>();
   auto mesh = makeMesh1x1x1<TestFixture::kOrder>();
 
   EXPECT_EQ(diff->getOrder(), TestFixture::kOrder);
   EXPECT_TRUE(diff->isModelOnNodes());
 
   WavefieldViewForwardElastic fwd(this->ux_fwd, this->uy_fwd, this->uz_fwd);
-  WavefieldViewBackwardElastic bwd(this->ux_adj, this->uy_adj, this->uz_adj,
-                                   this->ux_dt2, this->uy_dt2, this->uz_dt2);
+  WavefieldViewBackwardElastic bwd(this->ux_adj, this->uy_adj, this->uz_adj, this->ux_dt2, this->uy_dt2, this->uz_dt2);
   GradientElastic grad(this->gradRho, this->gradLambda, this->gradMu);
   GradientDataElastic data(fwd, bwd, grad);
 

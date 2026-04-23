@@ -5,10 +5,8 @@
 #include "rhs_acoustic.h"
 #include "wavefield_acoustic.h"
 
-namespace solver
-{
-namespace fe
-{
+namespace solver {
+namespace fe {
 
 /**
  * @brief Specialization for acoustic physics.
@@ -16,8 +14,7 @@ namespace fe
  * Acoustic wave propagation uses a single scalar pressure field.
  */
 template <>
-struct PhysicsTraits<utils::enums::physicType::kAcoustic>
-{
+struct PhysicsTraits<utils::enums::physicType::kAcoustic> {
   /// Human-readable name for logging
   static constexpr const char* kName = "Acoustic";
 

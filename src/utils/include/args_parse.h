@@ -15,13 +15,9 @@
  * @return A pointer to the value associated with the option if found,
  *         otherwise returns nullptr.
  */
-inline std::string getCmdOption(char **begin, char **end,
-                                const std::string &option)
-{
-  for (char **itr = begin; itr != end; ++itr)
-  {
-    if (std::string(*itr) == option && (itr + 1) != end)
-    {
+inline std::string getCmdOption(char **begin, char **end, const std::string &option) {
+  for (char **itr = begin; itr != end; ++itr) {
+    if (std::string(*itr) == option && (itr + 1) != end) {
       return std::string(*(itr + 1));
     }
   }
@@ -39,10 +35,7 @@ inline std::string getCmdOption(char **begin, char **end,
  * @param option The option to check for.
  * @return True if the option exists, otherwise false.
  */
-inline bool cmdOptionExists(char **begin, char **end, const std::string &option)
-{
-  return std::find_if(begin, end, [&](char *arg) {
-           return std::string(arg) == option;
-         }) != end;
+inline bool cmdOptionExists(char **begin, char **end, const std::string &option) {
+  return std::find_if(begin, end, [&](char *arg) { return std::string(arg) == option; }) != end;
 }
 #endif  // FUNTIDES_UTILS_INCLUDE_ARGS_PARSE_H_

@@ -3,7 +3,15 @@ add_gtest(differentiator_elastic_makutu_struct_test
   funtides_gradient
 )
 
+target_compile_definitions(differentiator_elastic_makutu_struct_test PRIVATE
+    MAX_DIFFERENTIATOR_ELASTIC_ORDER=${TARGET_DIFFERENTIATOR_ELASTIC_ORDER}
+)
+
 add_gtest(differentiator_elastic_makutu_unstruct_test
   test_differentiator_elastic_makutu_unstruct.cc
   funtides_gradient
+)
+
+target_compile_definitions(differentiator_elastic_makutu_unstruct_test PRIVATE
+    MAX_DIFFERENTIATOR_ELASTIC_ORDER=${TARGET_DIFFERENTIATOR_ELASTIC_ORDER}
 )

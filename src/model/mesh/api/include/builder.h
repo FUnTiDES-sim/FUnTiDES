@@ -7,16 +7,14 @@
 
 #include <memory>
 
-namespace model
-{
+namespace model {
 template <typename FloatType, typename ScalarType>
-class ModelBuilderBase
-{
+class ModelBuilderBase {
  public:
   ModelBuilderBase() = default;
   ~ModelBuilderBase() = default;
 
-  static constexpr int MAX_ORDER = 5;
+  static constexpr int MAX_ORDER = 9;
 
   /**
    * @brief Get the model instance.
@@ -24,8 +22,7 @@ class ModelBuilderBase
    * use damping on the top boundary.
    * @return A shared pointer to the model instance.
    */
-  virtual std::shared_ptr<model::ModelApi<FloatType, ScalarType>> getModel(
-      bool free_surface_on_top) const = 0;
+  virtual std::shared_ptr<model::ModelApi<FloatType, ScalarType>> getModel(bool free_surface_on_top) const = 0;
 };
 }  // namespace model
 

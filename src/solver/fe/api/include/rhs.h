@@ -1,14 +1,13 @@
 #ifndef FUNTIDES_SOLVER_FE_API_INCLUDE_RHS_H_
 #define FUNTIDES_SOLVER_FE_API_INCLUDE_RHS_H_
-namespace solver
-{
-namespace fe
-{
+#include "common_macros.h"
+namespace solver {
+namespace fe {
 /**
  * @brief Base RHS data structure.
  */
-struct Rhs
-{
+struct Rhs {
+  PROXY_HOST_DEVICE
   virtual ~Rhs() = default;
 
   /**

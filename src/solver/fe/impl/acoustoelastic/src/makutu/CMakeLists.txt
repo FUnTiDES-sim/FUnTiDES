@@ -8,7 +8,10 @@ include(${CMAKE_SOURCE_DIR}/cmake/GenerateSolverImplementations.cmake)
 # ============================================================================
 
 # Define polynomial orders
-set(ORDERS 1 2 3)
+set(ORDERS "")
+foreach(order RANGE 1 ${TARGET_SOLVER_ELASTOACOUSTIC_ORDER})
+    list(APPEND ORDERS ${order})
+endforeach()
 
 # Define mesh types
 set(MESH_TYPES "struct" "unstruct")

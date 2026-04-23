@@ -6,28 +6,22 @@
 
 #include "gradient.h"
 
-namespace gradient
-{
+namespace gradient {
 /**
  * @brief Acoustic gradient data structure.
  * Arrays are kept flat for easy cpp-python-fortran interop.
  */
-class GradientAcoustic : public Gradient
-{
+class GradientAcoustic : public Gradient {
  public:
   static constexpr int kNumGrads = 2;
 
   GradientAcoustic(VECTOR_REAL_VIEW gradKappa, VECTOR_REAL_VIEW gradBuoyancy)
-      : gradKappa_(gradKappa), gradBuoyancy_(gradBuoyancy)
-  {
-  }
+      : gradKappa_(gradKappa), gradBuoyancy_(gradBuoyancy) {}
 
   int getNumGradients() const override final { return kNumGrads; }
 
-  std::string getGradientName(int i) const override final
-  {
-    switch (i)
-    {
+  std::string getGradientName(int i) const override final {
+    switch (i) {
       case 0:
         return "gradKappa";
       case 1:
@@ -39,10 +33,8 @@ class GradientAcoustic : public Gradient
 
   // TODO use template + constexpr if when C++20 is available
   PROXY_HOST_DEVICE
-  VECTOR_REAL_VIEW getGradient(int i) const override
-  {
-    switch (i)
-    {
+  VECTOR_REAL_VIEW getGradient(int i) const override {
+    switch (i) {
       case 0:
         return gradKappa_;
       case 1:
@@ -52,8 +44,7 @@ class GradientAcoustic : public Gradient
     }
   }
 
-  void print() const override
-  {
+  void print() const override {
     std::cout << "Grad Kappa size: " << gradKappa_.extent(0) << std::endl;
     std::cout << "Grad Buoyancy size: " << gradBuoyancy_.extent(0) << std::endl;
   }

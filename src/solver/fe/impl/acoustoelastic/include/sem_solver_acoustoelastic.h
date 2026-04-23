@@ -13,10 +13,8 @@
 #include "solver.h"
 #include "wavefield_acoustoelastic.h"
 
-namespace solver
-{
-namespace fe
-{
+namespace solver {
+namespace fe {
 
 /// Element belongs to the acoustic (fluid) domain.
 static constexpr int kElementTypeAcoustic = 1;
@@ -29,20 +27,15 @@ static constexpr int kElementTypeElastic = 2;
  * Combines the acoustic wavefield, the elastic wavefield, and the acoustic
  * source term (source in the fluid domain only for this V1).
  */
-struct SEMsolverDataAcoustoElastic : public Solver::DataStruct
-{
+struct SEMsolverDataAcoustoElastic : public Solver::DataStruct {
   /**
    * @param wavefield Combined acousto-elastic wavefield (p + ux/uy/uz).
    * @param rhs       Acoustic source term applied to the fluid domain.
    */
-  SEMsolverDataAcoustoElastic(const WavefieldAcoustoElastic& wavefield,
-                              const RhsAcoustoElastic& rhs)
-      : m_wavefield(wavefield), m_rhs(rhs)
-  {
-  }
+  SEMsolverDataAcoustoElastic(const WavefieldAcoustoElastic& wavefield, const RhsAcoustoElastic& rhs)
+      : m_wavefield(wavefield), m_rhs(rhs) {}
 
-  void print() const override
-  {
+  void print() const override {
     m_wavefield.print();
     m_rhs.print();
   }
@@ -68,17 +61,13 @@ struct SEMsolverDataAcoustoElastic : public Solver::DataStruct
  * @tparam MESH_TYPE         Mesh implementation (ModelStruct or ModelUnstruct).
  * @tparam IS_MODEL_ON_NODES If true, material properties are stored on nodes.
  */
-template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE,
-          bool IS_MODEL_ON_NODES>
-class SEMsolverAcoustoElastic : public Solver
-{
+template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE, bool IS_MODEL_ON_NODES>
+class SEMsolverAcoustoElastic : public Solver {
  public:
   using AcousticSolverType =
-      SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES,
-                utils::enums::physicType::kAcoustic>;
+      SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, utils::enums::physicType::kAcoustic>;
   using ElasticSolverType =
-      SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES,
-                utils::enums::physicType::kElastic>;
+      SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, utils::enums::physicType::kElastic>;
   using DataType = SEMsolverDataAcoustoElastic;
 
   SEMsolverAcoustoElastic() = default;
@@ -89,33 +78,23 @@ class SEMsolverAcoustoElastic : public Solver
   int getNumComponents() const override { return 4; }  // p, ux, uy, uz
 
   /// @brief Returns the acoustic sub-solver mass matrix for DD synchronization.
-  VECTOR_REAL_VIEW& getMassMatrixAcoustic() override
-  {
-    return m_acoustic_solver_.getMassMatrixAcoustic();
-  }
+  VECTOR_REAL_VIEW& getMassMatrixAcoustic() override { return m_acoustic_solver_.getMassMatrixAcoustic(); }
 
   /// @brief Returns the elastic sub-solver mass matrix for DD synchronization.
-  VECTOR_REAL_VIEW& getMassMatrixElastic() override
-  {
-    return m_elastic_solver_.getMassMatrixElastic();
-  }
+  VECTOR_REAL_VIEW& getMassMatrixElastic() override { return m_elastic_solver_.getMassMatrixElastic(); }
 
-  VECTOR_REAL_VIEW& getDampingMatrix(int c) override
-  {
+  VECTOR_REAL_VIEW& getDampingMatrix(int c) override {
     if (c == 0) return m_acoustic_solver_.getDampingMatrix(0);
     return m_elastic_solver_.getDampingMatrix(c - 1);
   }
 
-  VECTOR_REAL_VIEW& getForceVector(int c) override
-  {
+  VECTOR_REAL_VIEW& getForceVector(int c) override {
     if (c == 0) return m_acoustic_solver_.getForceVector(0);
     return m_elastic_solver_.getForceVector(c - 1);
   }
 
-  void computeFEInit(model::ModelApi<float, int>& mesh,
-                     const std::array<float, 3>& sponge_size,
-                     const bool surface_sponge,
-                     const float taper_delta) override;
+  void computeFEInit(model::ModelApi<float, int>& mesh, const std::array<float, 3>& sponge_size,
+                     const bool surface_sponge, const float taper_delta) override;
 
   /**
    * @brief Perform one coupled time step (serial / non-distributed mode).
@@ -124,11 +103,9 @@ class SEMsolverAcoustoElastic : public Solver
    *   elastic forces → elastic update → acoustic forces → acoustic update,
    * with interface coupling applied between the two sub-steps.
    */
-  void computeOneStep(const float& dt, const int& timeSample,
-                      DataStruct& data) override;
+  void computeOneStep(const float& dt, const int& timeSample, DataStruct& data) override;
 
-  void computeForces(const float& dt, const int& timeSample,
-                     DataStruct& data) override;
+  void computeForces(const float& dt, const int& timeSample, DataStruct& data) override;
 
   void updateSolution(const float& dt, DataStruct& data) override;
 
@@ -139,22 +116,14 @@ class SEMsolverAcoustoElastic : public Solver
   void computeGlobalMassMatrix() override;
   void computeDampingMatrix() override;
 
-  void outputSolutionValues(const int& t, int& e, const VECTOR_REAL_VIEW& field,
-                            const char* fieldName) override;
+  void outputSolutionValues(const int& t, int& e, const VECTOR_REAL_VIEW& field, const char* fieldName) override;
 
-  void setAnisotropyType(model::AnisotropyType type) override
-  {
-    m_elastic_solver_.setAnisotropyType(type);
-  }
+  void setAnisotropyType(model::AnisotropyType type) override { m_elastic_solver_.setAnisotropyType(type); }
 
   void setSLSAttenuation(const VECTOR_REAL_VIEW& reference_frequencies,
-                         const VECTOR_REAL_VIEW& anelasticity_coefficients =
-                             VECTOR_REAL_VIEW()) override
-  {
-    m_acoustic_solver_.setSLSAttenuation(reference_frequencies,
-                                         anelasticity_coefficients);
-    m_elastic_solver_.setSLSAttenuation(reference_frequencies,
-                                        anelasticity_coefficients);
+                         const VECTOR_REAL_VIEW& anelasticity_coefficients = VECTOR_REAL_VIEW()) override {
+    m_acoustic_solver_.setSLSAttenuation(reference_frequencies, anelasticity_coefficients);
+    m_elastic_solver_.setSLSAttenuation(reference_frequencies, anelasticity_coefficients);
   }
 
   // --- Accessors for diagnostics ---

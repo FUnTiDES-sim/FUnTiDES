@@ -1,14 +1,13 @@
 #ifndef FUNTIDES_SOLVER_FE_API_INCLUDE_WAVEFIELD_H_
 #define FUNTIDES_SOLVER_FE_API_INCLUDE_WAVEFIELD_H_
-namespace solver
-{
-namespace fe
-{
+#include "common_macros.h"
+namespace solver {
+namespace fe {
 /**
  * @brief Base Wavefield data structure.
  */
-struct Wavefield
-{
+struct Wavefield {
+  PROXY_HOST_DEVICE
   virtual ~Wavefield() = default;
 
   /**

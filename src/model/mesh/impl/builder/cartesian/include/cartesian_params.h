@@ -1,10 +1,8 @@
 #ifndef FUNTIDES_MODEL_MESH_IMPL_BUILDER_CARTESIAN_INCLUDE_CARTESIAN_PARAMS_H_
 #define FUNTIDES_MODEL_MESH_IMPL_BUILDER_CARTESIAN_INCLUDE_CARTESIAN_PARAMS_H_
-namespace model
-{
+namespace model {
 template <typename Coord, typename Index>
-struct CartesianParams
-{
+struct CartesianParams {
   int order;
   Index ex, ey, ez;
   Coord lx, ly, lz;
@@ -22,8 +20,8 @@ struct CartesianParams
 
   CartesianParams() = default;
 
-  CartesianParams(int order_, Index ex_, Index ey_, Index ez_, Coord lx_,
-                  Coord ly_, Coord lz_, bool isModelOnNodes_, bool isElastic_)
+  CartesianParams(int order_, Index ex_, Index ey_, Index ez_, Coord lx_, Coord ly_, Coord lz_, bool isModelOnNodes_,
+                  bool isElastic_)
       : order(order_),
         ex(ex_),
         ey(ey_),
@@ -32,9 +30,7 @@ struct CartesianParams
         ly(ly_),
         lz(lz_),
         isModelOnNodes(isModelOnNodes_),
-        isElastic(isElastic_)
-  {
-  }
+        isElastic(isElastic_) {}
 };
 }  // namespace model
 #endif  // FUNTIDES_MODEL_MESH_IMPL_BUILDER_CARTESIAN_INCLUDE_CARTESIAN_PARAMS_H_
