@@ -18,23 +18,19 @@
 using namespace solver::fe;
 using namespace utils::enums;
 
-namespace model
-{
-namespace bench
-{
+namespace model {
+namespace bench {
 
 // Template config for the fixture
 template <int Order>
-struct BuilderConfig
-{
+struct BuilderConfig {
   using Builder = CartesianStructBuilder<float, int, Order>;
   static constexpr int order = Order;
 };
 
 // Template fixture for the benchmarks
 template <typename T>
-class SolverStructFixture : public benchmark::Fixture
-{
+class SolverStructFixture : public benchmark::Fixture {
  protected:
   // domain decomposition
   static constexpr int rank = 0;
@@ -48,13 +44,11 @@ class SolverStructFixture : public benchmark::Fixture
   static constexpr int ez = 100;
   static constexpr float domain_size = 2000.0f;
   static constexpr int order = T::order;
-  static constexpr int n_dof =
-      (ex * order + 1) * (ey * order + 1) * (ez * order + 1);
+  static constexpr int n_dof = (ex * order + 1) * (ey * order + 1) * (ez * order + 1);
   bool isModelOnNodes_;
 
   // sponge
-  inline static constexpr std::array<float, 3> sponge_size = {200.0f, 200.0f,
-                                                              200.0f};
+  inline static constexpr std::array<float, 3> sponge_size = {200.0f, 200.0f, 200.0f};
   inline static constexpr bool surface_sponge = false;
   inline static constexpr float taper_delta = 100.0f;
 
@@ -66,15 +60,13 @@ class SolverStructFixture : public benchmark::Fixture
   static constexpr float f0 = 5.0f;
   implemType implem_;
 
-  void SetUp(const ::benchmark::State& state) override
-  {
+  void SetUp(const ::benchmark::State& state) override {
     isModelOnNodes_ = state.range(0);
     implem_ = static_cast<implemType>(state.range(1));
     local_l = domain_size;
   }
 
-  std::shared_ptr<model::ModelApi<float, int>> createModel()
-  {
+  std::shared_ptr<model::ModelApi<float, int>> createModel() {
     float hx = domain_size / ex;
     float hy = domain_size / ey;
     float hz = domain_size / ez;
@@ -84,17 +76,14 @@ class SolverStructFixture : public benchmark::Fixture
     return builder.getModel(true);
   }
 
-  void setLabel(benchmark::State& state) const
-  {
-    state.SetLabel("Order=" + to_string(order) +
-                   " OnNodes=" + to_string(isModelOnNodes_) + " Implem=" +
-                   to_string(implem_) + " IsElastic=" + std::to_string(false));
+  void setLabel(benchmark::State& state) const {
+    state.SetLabel("Order=" + to_string(order) + " OnNodes=" + to_string(isModelOnNodes_) +
+                   " Implem=" + to_string(implem_) + " IsElastic=" + std::to_string(false));
   }
 };
 
 // Structure to hold allocated arrays for benchmarks
-struct BenchmarkArrays
-{
+struct BenchmarkArrays {
   arrayReal rhsTerm;
   vectorInt rhsElement;
   arrayReal rhsWeights;
@@ -102,13 +91,10 @@ struct BenchmarkArrays
   vectorReal pnGlobalCurr;
   arrayReal rhsLocation;
 
-  BenchmarkArrays(int n_rhs, int n_time_steps, int n_dof,
-                  int nb_points_per_element)
-  {
+  BenchmarkArrays(int n_rhs, int n_time_steps, int n_dof, int nb_points_per_element) {
     rhsTerm = allocateArray2D<arrayReal>(n_rhs, n_time_steps, "rhsTerm");
     rhsElement = allocateVector<vectorInt>(n_rhs, "rhsElement");
-    rhsWeights =
-        allocateArray2D<arrayReal>(n_rhs, nb_points_per_element, "rhsWeights");
+    rhsWeights = allocateArray2D<arrayReal>(n_rhs, nb_points_per_element, "rhsWeights");
     pnGlobalPrev = allocateVector<vectorReal>(n_dof, "pnGlobalPrev");
     pnGlobalCurr = allocateVector<vectorReal>(n_dof, "pnGlobalCurr");
     rhsLocation = allocateArray2D<arrayReal>(1, 3, "rhsLocation");
@@ -118,22 +104,18 @@ struct BenchmarkArrays
 };
 
 BENCHMARK_TEMPLATE_METHOD_F(SolverStructFixture, FEInit)
-(benchmark::State& state)
-{
+(benchmark::State& state) {
   // Prepare
   auto model = this->createModel();
 
-  auto solver = solver_factory::createSolver(
-      methodType::kSem, this->implem_, meshType::kStruct,
-      this->isModelOnNodes_ ? modelLocationType::kOnNodes
-                            : modelLocationType::kOnElements,
-      physicType::kAcoustic, this->order);
+  auto solver =
+      solver_factory::createSolver(methodType::kSem, this->implem_, meshType::kStruct,
+                                   this->isModelOnNodes_ ? modelLocationType::kOnNodes : modelLocationType::kOnElements,
+                                   physicType::kAcoustic, this->order);
 
   // Bench
-  for (auto _ : state)
-  {
-    solver->computeFEInit(*model, this->sponge_size, this->surface_sponge,
-                          this->taper_delta);
+  for (auto _ : state) {
+    solver->computeFEInit(*model, this->sponge_size, this->surface_sponge, this->taper_delta);
   }
 
   // Label
@@ -141,35 +123,27 @@ BENCHMARK_TEMPLATE_METHOD_F(SolverStructFixture, FEInit)
 }
 
 BENCHMARK_TEMPLATE_METHOD_F(SolverStructFixture, OneStep)
-(benchmark::State& state)
-{
+(benchmark::State& state) {
   // Prepare
   auto model = this->createModel();
 
-  auto solver = solver_factory::createSolver(
-      methodType::kSem, this->implem_, meshType::kStruct,
-      this->isModelOnNodes_ ? modelLocationType::kOnNodes
-                            : modelLocationType::kOnElements,
-      physicType::kAcoustic, this->order);
+  auto solver =
+      solver_factory::createSolver(methodType::kSem, this->implem_, meshType::kStruct,
+                                   this->isModelOnNodes_ ? modelLocationType::kOnNodes : modelLocationType::kOnElements,
+                                   physicType::kAcoustic, this->order);
 
-  solver->computeFEInit(*model, this->sponge_size, this->surface_sponge,
-                        this->taper_delta);
+  solver->computeFEInit(*model, this->sponge_size, this->surface_sponge, this->taper_delta);
 
-  BenchmarkArrays arrays(this->n_rhs, this->n_time_steps, this->n_dof,
-                         model->getNumberOfPointsPerElement());
+  BenchmarkArrays arrays(this->n_rhs, this->n_time_steps, this->n_dof, model->getNumberOfPointsPerElement());
   // sources at the center of the domain
-  arrays.rhsElement(0) = this->ex / 2 + this->ey / 2 * this->ex +
-                         this->ez / 2 * this->ey * this->ex;
-  arrays.rhsElement(1) = this->ex / 3 + this->ey / 2 * this->ex +
-                         this->ez / 2 * this->ey * this->ex;
+  arrays.rhsElement(0) = this->ex / 2 + this->ey / 2 * this->ex + this->ez / 2 * this->ey * this->ex;
+  arrays.rhsElement(1) = this->ex / 3 + this->ey / 2 * this->ex + this->ez / 2 * this->ey * this->ex;
 
   // ricker wavelet
   SolverUtils myUtils;
   float const tpeak = 1.0f / this->f0;
-  std::vector<float> sourceTerm = myUtils.computeSourceTerm(
-      this->n_time_steps, this->dt, this->f0, 2, tpeak);
-  for (int j = 0; j < this->n_time_steps; j++)
-  {
+  std::vector<float> sourceTerm = myUtils.computeSourceTerm(this->n_time_steps, this->dt, this->f0, 2, tpeak);
+  for (int j = 0; j < this->n_time_steps; j++) {
     arrays.rhsTerm(0, j) = sourceTerm[j];
   }
 
@@ -178,8 +152,7 @@ BENCHMARK_TEMPLATE_METHOD_F(SolverStructFixture, OneStep)
   SEMsolverDataAcoustic data(wavefield, rhs);
 
   // Bench
-  for (auto _ : state)
-  {
+  for (auto _ : state) {
     solver->computeForces(this->dt, this->time_sample, data);
     solver->updateSolution(this->dt, data);
   }
@@ -191,14 +164,10 @@ BENCHMARK_TEMPLATE_METHOD_F(SolverStructFixture, OneStep)
 // Instantiate for all order/isModelOnNodes/implemType combinations
 BENCHMARK_FOR_ALL_ORDERS(
     SolverStructFixture, FEInit,
-    BuilderConfig,
-        ->ArgsProduct({{0, 1}, {static_cast<int64_t>(implemType::kMakutu)}})
-        ->Unit(benchmark::kMillisecond))
+    BuilderConfig, ->ArgsProduct({{0, 1}, {static_cast<int64_t>(implemType::kMakutu)}})->Unit(benchmark::kMillisecond))
 BENCHMARK_FOR_ALL_ORDERS(
     SolverStructFixture, OneStep,
-    BuilderConfig,
-        ->ArgsProduct({{0, 1}, {static_cast<int64_t>(implemType::kMakutu)}})
-        ->Unit(benchmark::kMillisecond))
+    BuilderConfig, ->ArgsProduct({{0, 1}, {static_cast<int64_t>(implemType::kMakutu)}})->Unit(benchmark::kMillisecond))
 
 }  // namespace bench
 }  // namespace model

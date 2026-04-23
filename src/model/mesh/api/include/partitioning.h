@@ -2,8 +2,7 @@
 #define FUNTIDES_MODEL_MESH_API_INCLUDE_PARTITIONING_H_
 #include "cartesian_params.h"
 
-namespace model
-{
+namespace model {
 
 /** @brief Interface for domain decomposition strategy.
  * Responsible for determining local mesh parameters from global ones.
@@ -16,8 +15,7 @@ namespace model
  * CartesianParams, or a list of element IDs)
  */
 template <typename GlobalParams, typename LocalParams = GlobalParams>
-class PartitioningStrategy
-{
+class PartitioningStrategy {
  public:
   virtual ~PartitioningStrategy() = default;
 
@@ -39,8 +37,7 @@ class PartitioningStrategy
    * @throws std::invalid_argument if rank or
    * numRanks are invalid
    */
-  virtual LocalParams partition(const GlobalParams& globalParams, int rank,
-                                int numRanks) const = 0;
+  virtual LocalParams partition(const GlobalParams& globalParams, int rank, int numRanks) const = 0;
 };
 
 }  // namespace model

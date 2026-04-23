@@ -3,10 +3,8 @@
 
 #include "sem_enums.h"
 
-namespace solver
-{
-namespace fe
-{
+namespace solver {
+namespace fe {
 
 /**
  * @brief Compile-time properties for each physics type.
@@ -22,8 +20,7 @@ namespace fe
  * or physics-specific trait headers for full definitions.
  */
 template <utils::enums::physicType PHYSICS>
-struct PhysicsTraits
-{
+struct PhysicsTraits {
   static constexpr const char* kName = "";
   using WavefieldType = void;
   using RhsType = void;

@@ -8,8 +8,7 @@
 
 namespace py = pybind11;
 
-PYBIND11_MODULE(gradient, m)
-{
+PYBIND11_MODULE(gradient, m) {
   m.attr("__name__") = "pyfuntides.gradient";
 
   // Bind WavefieldView types

@@ -3,33 +3,27 @@
 #include "common_macros.h"
 #include "data_type.h"
 
-namespace utils
-{
-namespace test
-{
+namespace utils {
+namespace test {
 
 // Wrapper class to test FIND_MAX macro
 // since in GoogleTest, the test body is inside a class,
 // but the class is non-copyable, so [=, *this] fails.
-class FindMax1DHelper
-{
+class FindMax1DHelper {
  public:
-  float find_max(const VECTOR_REAL_VIEW& array, int N) const
-  {
+  float find_max(const VECTOR_REAL_VIEW& array, int N) const {
     float result;
     FIND_MAX_1D(array, N, result);
     return result;
   }
 };
 
-class CommonMacrosTest : public ::testing::Test
-{
+class CommonMacrosTest : public ::testing::Test {
  protected:
   FindMax1DHelper helper;
 };
 
-TEST_F(CommonMacrosTest, FindMax1D)
-{
+TEST_F(CommonMacrosTest, FindMax1D) {
   constexpr int N = 5;
   auto array = allocateVector<VECTOR_REAL_VIEW>(N, "array");
   array(1) = 1.0f;
@@ -41,12 +35,10 @@ TEST_F(CommonMacrosTest, FindMax1D)
   EXPECT_FLOAT_EQ(result, 7.2f);
 }
 
-TEST_F(CommonMacrosTest, FindMax1DLargeArray)
-{
+TEST_F(CommonMacrosTest, FindMax1DLargeArray) {
   constexpr int N = 2000;
   auto array = allocateVector<VECTOR_REAL_VIEW>(N, "array_large");
-  for (int i = 0; i < N; ++i)
-  {
+  for (int i = 0; i < N; ++i) {
     array(i) = 3000.0f;
   }
   array(N / 2) = 3300.0f;  // One element is different
@@ -54,8 +46,7 @@ TEST_F(CommonMacrosTest, FindMax1DLargeArray)
   EXPECT_FLOAT_EQ(result, 3300.0f);
 }
 
-TEST_F(CommonMacrosTest, FindMax1DAllNegative)
-{
+TEST_F(CommonMacrosTest, FindMax1DAllNegative) {
   constexpr int N = 4;
   auto array = allocateVector<VECTOR_REAL_VIEW>(N, "array_neg");
   array(0) = -5.0f;
@@ -66,8 +57,7 @@ TEST_F(CommonMacrosTest, FindMax1DAllNegative)
   EXPECT_FLOAT_EQ(result, -1.1f);
 }
 
-TEST_F(CommonMacrosTest, FindMax1DAllEqual)
-{
+TEST_F(CommonMacrosTest, FindMax1DAllEqual) {
   constexpr int N = 3;
   auto array = allocateVector<VECTOR_REAL_VIEW>(N, "array_eq");
   array(0) = 2.5f;
@@ -77,8 +67,7 @@ TEST_F(CommonMacrosTest, FindMax1DAllEqual)
   EXPECT_FLOAT_EQ(result, 2.5f);
 }
 
-TEST_F(CommonMacrosTest, FindMax1DSingleElement)
-{
+TEST_F(CommonMacrosTest, FindMax1DSingleElement) {
   constexpr int N = 1;
   auto array = allocateVector<VECTOR_REAL_VIEW>(N, "array_single");
   array(0) = 42.0f;
@@ -86,8 +75,7 @@ TEST_F(CommonMacrosTest, FindMax1DSingleElement)
   EXPECT_FLOAT_EQ(result, 42.0f);
 }
 
-TEST_F(CommonMacrosTest, FindMax1DEmptyArrayThrows)
-{
+TEST_F(CommonMacrosTest, FindMax1DEmptyArrayThrows) {
   constexpr int N = 0;
   auto array = allocateVector<VECTOR_REAL_VIEW>(N, "array_empty");
   EXPECT_THROW(helper.find_max(array, N), std::runtime_error);

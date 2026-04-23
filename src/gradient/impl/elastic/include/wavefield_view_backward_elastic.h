@@ -7,8 +7,7 @@
 
 #include "wavefield_view.h"
 
-namespace gradient
-{
+namespace gradient {
 
 /**
  * @brief Read-only view of an elastic adjoint wavefield for gradient
@@ -29,29 +28,18 @@ namespace gradient
  *   getField(4) = uy_dt2  (second-order time derivative, y-component)
  *   getField(5) = uz_dt2  (second-order time derivative, z-component)
  */
-class WavefieldViewBackwardElastic : public WavefieldView
-{
+class WavefieldViewBackwardElastic : public WavefieldView {
  public:
   static constexpr int kNumFields = 6;
 
-  WavefieldViewBackwardElastic(VECTOR_REAL_VIEW ux_n, VECTOR_REAL_VIEW uy_n,
-                               VECTOR_REAL_VIEW uz_n, VECTOR_REAL_VIEW ux_dt2,
-                               VECTOR_REAL_VIEW uy_dt2, VECTOR_REAL_VIEW uz_dt2)
-      : ux_n_(ux_n),
-        uy_n_(uy_n),
-        uz_n_(uz_n),
-        ux_dt2_(ux_dt2),
-        uy_dt2_(uy_dt2),
-        uz_dt2_(uz_dt2)
-  {
-  }
+  WavefieldViewBackwardElastic(VECTOR_REAL_VIEW ux_n, VECTOR_REAL_VIEW uy_n, VECTOR_REAL_VIEW uz_n,
+                               VECTOR_REAL_VIEW ux_dt2, VECTOR_REAL_VIEW uy_dt2, VECTOR_REAL_VIEW uz_dt2)
+      : ux_n_(ux_n), uy_n_(uy_n), uz_n_(uz_n), ux_dt2_(ux_dt2), uy_dt2_(uy_dt2), uz_dt2_(uz_dt2) {}
 
   int getNumFields() const override { return kNumFields; }
 
-  std::string getFieldName(int i) const override
-  {
-    switch (i)
-    {
+  std::string getFieldName(int i) const override {
+    switch (i) {
       case 0:
         return "ux_n";
       case 1:
@@ -71,10 +59,8 @@ class WavefieldViewBackwardElastic : public WavefieldView
 
   // TODO use template + constexpr if when C++20 is available
   PROXY_HOST_DEVICE
-  VECTOR_REAL_VIEW getField(int i) const override
-  {
-    switch (i)
-    {
+  VECTOR_REAL_VIEW getField(int i) const override {
+    switch (i) {
       case 0:
         return ux_n_;
       case 1:
@@ -92,14 +78,10 @@ class WavefieldViewBackwardElastic : public WavefieldView
     }
   }
 
-  void print() const override
-  {
-    std::cout << "WavefieldViewBackwardElastic:" << " ux_n size="
-              << ux_n_.extent(0) << " uy_n size=" << uy_n_.extent(0)
-              << " uz_n size=" << uz_n_.extent(0)
-              << " ux_dt2 size=" << ux_dt2_.extent(0)
-              << " uy_dt2 size=" << uy_dt2_.extent(0)
-              << " uz_dt2 size=" << uz_dt2_.extent(0) << "\n";
+  void print() const override {
+    std::cout << "WavefieldViewBackwardElastic:" << " ux_n size=" << ux_n_.extent(0) << " uy_n size=" << uy_n_.extent(0)
+              << " uz_n size=" << uz_n_.extent(0) << " ux_dt2 size=" << ux_dt2_.extent(0)
+              << " uy_dt2 size=" << uy_dt2_.extent(0) << " uz_dt2 size=" << uz_dt2_.extent(0) << "\n";
   }
 
  private:

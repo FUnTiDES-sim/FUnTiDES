@@ -6,19 +6,14 @@
 #include "macros.h"
 
 template <typename T>
-static constexpr inline SEMKERNELS_HOST_DEVICE T determinant(T const (&m)[3][3])
-{
-  return +m[0][0] * (m[1][1] * m[2][2] - m[2][1] * m[1][2]) -
-         m[0][1] * (m[1][0] * m[2][2] - m[2][0] * m[1][2]) +
+static constexpr inline SEMKERNELS_HOST_DEVICE T determinant(T const (&m)[3][3]) {
+  return +m[0][0] * (m[1][1] * m[2][2] - m[2][1] * m[1][2]) - m[0][1] * (m[1][0] * m[2][2] - m[2][0] * m[1][2]) +
          m[0][2] * (m[1][0] * m[2][1] - m[2][0] * m[1][1]);
 }
 
 template <typename T>
-static constexpr inline SEMKERNELS_HOST_DEVICE typename T::value_type
-determinant(T const& m)
-{
-  return +m(0, 0) * (m(1, 1) * m(2, 2) - m(2, 1) * m(1, 2)) -
-         m(0, 1) * (m(1, 0) * m(2, 2) - m(2, 0) * m(1, 2)) +
+static constexpr inline SEMKERNELS_HOST_DEVICE typename T::value_type determinant(T const& m) {
+  return +m(0, 0) * (m(1, 1) * m(2, 2) - m(2, 1) * m(1, 2)) - m(0, 1) * (m(1, 0) * m(2, 2) - m(2, 0) * m(1, 2)) +
          m(0, 2) * (m(1, 0) * m(2, 1) - m(2, 0) * m(1, 1));
 }
 
@@ -32,10 +27,7 @@ determinant(T const& m)
  * @return The linear index of the support/quadrature point (0-(r+1)^3)
  */
 template <int ORDER>
-static constexpr inline SEMKERNELS_HOST_DEVICE int linearIndex(const int i,
-                                                               const int j,
-                                                               const int k)
-{
+static constexpr inline SEMKERNELS_HOST_DEVICE int linearIndex(const int i, const int j, const int k) {
   return i + (ORDER + 1) * j + (ORDER + 1) * (ORDER + 1) * k;
 }
 
@@ -49,35 +41,27 @@ static constexpr inline SEMKERNELS_HOST_DEVICE int linearIndex(const int i,
  * @param i2 The Cartesian index of the support point in the xi2 direction.
  */
 template <int ORDER>
-static constexpr inline SEMKERNELS_HOST_DEVICE std::tuple<int, int, int>
-tripleIndex(int const linearIndex)
-{
+static constexpr inline SEMKERNELS_HOST_DEVICE std::tuple<int, int, int> tripleIndex(int const linearIndex) {
   return {(linearIndex % ((ORDER + 1) * (ORDER + 1))) % (ORDER + 1),
-          (linearIndex % ((ORDER + 1) * (ORDER + 1))) / (ORDER + 1),
-          (linearIndex / ((ORDER + 1) * (ORDER + 1)))};
+          (linearIndex % ((ORDER + 1) * (ORDER + 1))) / (ORDER + 1), (linearIndex / ((ORDER + 1) * (ORDER + 1)))};
 }
 
 template <typename T>
-PROXY_HOST_DEVICE T symDeterminant(T (&B)[3])
-{
+PROXY_HOST_DEVICE T symDeterminant(T (&B)[3]) {
   return B[0] * B[1] - B[2] * B[2];
 }
 
 template <typename T>
-PROXY_HOST_DEVICE T symDeterminant(T (&B)[6])
-{
-  return B[0] * B[1] * B[2] + B[5] * B[4] * B[3] * 2 - B[0] * B[3] * B[3] -
-         B[1] * B[4] * B[4] - B[2] * B[5] * B[5];
+PROXY_HOST_DEVICE T symDeterminant(T (&B)[6]) {
+  return B[0] * B[1] * B[2] + B[5] * B[4] * B[3] * 2 - B[0] * B[3] * B[3] - B[1] * B[4] * B[4] - B[2] * B[5] * B[5];
 }
 
 template <typename T>
-PROXY_HOST_DEVICE auto invert3x3(T (&Jinv)[3][3], T const (&J)[3][3])
-{
+PROXY_HOST_DEVICE auto invert3x3(T (&Jinv)[3][3], T const (&J)[3][3]) {
   Jinv[0][0] = J[1][1] * J[2][2] - J[1][2] * J[2][1];
   Jinv[0][1] = J[0][2] * J[2][1] - J[0][1] * J[2][2];
   Jinv[0][2] = J[0][1] * J[1][2] - J[0][2] * J[1][1];
-  T const det =
-      J[0][0] * Jinv[0][0] + J[1][0] * Jinv[0][1] + J[2][0] * Jinv[0][2];
+  T const det = J[0][0] * Jinv[0][0] + J[1][0] * Jinv[0][1] + J[2][0] * Jinv[0][2];
 
   T const invDet = T(1) / det;
 
@@ -95,11 +79,9 @@ PROXY_HOST_DEVICE auto invert3x3(T (&Jinv)[3][3], T const (&J)[3][3])
 }
 
 template <typename T>
-PROXY_HOST_DEVICE auto invert3x3(T (&Jinv)[3][3])
-{
-  T const J[3][3] = {{Jinv[0][0], Jinv[0][1], Jinv[0][2]},
-                     {Jinv[1][0], Jinv[1][1], Jinv[1][2]},
-                     {Jinv[2][0], Jinv[2][1], Jinv[2][2]}};
+PROXY_HOST_DEVICE auto invert3x3(T (&Jinv)[3][3]) {
+  T const J[3][3] = {
+      {Jinv[0][0], Jinv[0][1], Jinv[0][2]}, {Jinv[1][0], Jinv[1][1], Jinv[1][2]}, {Jinv[2][0], Jinv[2][1], Jinv[2][2]}};
   return invert3x3(Jinv, J);
 }
 
@@ -113,33 +95,21 @@ PROXY_HOST_DEVICE auto invert3x3(T (&Jinv)[3][3])
  * floating point values.
  */
 template <typename T>
-static constexpr inline SEMKERNELS_HOST_DEVICE void symInvert(
-    T (&dstSymMatrix)[6], T const (&srcSymMatrix)[6])
-{
-  dstSymMatrix[0] =
-      srcSymMatrix[1] * srcSymMatrix[2] - srcSymMatrix[3] * srcSymMatrix[3];
-  dstSymMatrix[5] =
-      srcSymMatrix[4] * srcSymMatrix[3] - srcSymMatrix[5] * srcSymMatrix[2];
-  dstSymMatrix[4] =
-      srcSymMatrix[5] * srcSymMatrix[3] - srcSymMatrix[4] * srcSymMatrix[1];
+static constexpr inline SEMKERNELS_HOST_DEVICE void symInvert(T (&dstSymMatrix)[6], T const (&srcSymMatrix)[6]) {
+  dstSymMatrix[0] = srcSymMatrix[1] * srcSymMatrix[2] - srcSymMatrix[3] * srcSymMatrix[3];
+  dstSymMatrix[5] = srcSymMatrix[4] * srcSymMatrix[3] - srcSymMatrix[5] * srcSymMatrix[2];
+  dstSymMatrix[4] = srcSymMatrix[5] * srcSymMatrix[3] - srcSymMatrix[4] * srcSymMatrix[1];
 
-  T det = srcSymMatrix[0] * dstSymMatrix[0] +
-          srcSymMatrix[5] * dstSymMatrix[5] + srcSymMatrix[4] * dstSymMatrix[4];
+  T det = srcSymMatrix[0] * dstSymMatrix[0] + srcSymMatrix[5] * dstSymMatrix[5] + srcSymMatrix[4] * dstSymMatrix[4];
 
   T const invDet = 1.0 / det;
 
   dstSymMatrix[0] *= invDet;
   dstSymMatrix[5] *= invDet;
   dstSymMatrix[4] *= invDet;
-  dstSymMatrix[1] =
-      (srcSymMatrix[0] * srcSymMatrix[2] - srcSymMatrix[4] * srcSymMatrix[4]) *
-      invDet;
-  dstSymMatrix[3] =
-      (srcSymMatrix[5] * srcSymMatrix[4] - srcSymMatrix[0] * srcSymMatrix[3]) *
-      invDet;
-  dstSymMatrix[2] =
-      (srcSymMatrix[0] * srcSymMatrix[1] - srcSymMatrix[5] * srcSymMatrix[5]) *
-      invDet;
+  dstSymMatrix[1] = (srcSymMatrix[0] * srcSymMatrix[2] - srcSymMatrix[4] * srcSymMatrix[4]) * invDet;
+  dstSymMatrix[3] = (srcSymMatrix[5] * srcSymMatrix[4] - srcSymMatrix[0] * srcSymMatrix[3]) * invDet;
+  dstSymMatrix[2] = (srcSymMatrix[0] * srcSymMatrix[1] - srcSymMatrix[5] * srcSymMatrix[5]) * invDet;
 }
 
 /**
@@ -151,8 +121,7 @@ static constexpr inline SEMKERNELS_HOST_DEVICE void symInvert(
  * floating point values.
  */
 template <typename T>
-static inline SEMKERNELS_HOST_DEVICE void symInvert(T (&symMatrix)[6])
-{
+static inline SEMKERNELS_HOST_DEVICE void symInvert(T (&symMatrix)[6]) {
   T temp[6];
   symInvert(temp, symMatrix);
 
@@ -165,9 +134,7 @@ static inline SEMKERNELS_HOST_DEVICE void symInvert(T (&symMatrix)[6])
 }
 
 template <typename T>
-static constexpr inline SEMKERNELS_HOST_DEVICE void computeB(T const (&J)[3][3],
-                                                             T (&B)[6])
-{
+static constexpr inline SEMKERNELS_HOST_DEVICE void computeB(T const (&J)[3][3], T (&B)[6]) {
   B[0] = (J[0][0] * J[0][0] + J[1][0] * J[1][0] + J[2][0] * J[2][0]);
   B[1] = (J[0][1] * J[0][1] + J[1][1] * J[1][1] + J[2][1] * J[2][1]);
   B[2] = (J[0][2] * J[0][2] + J[1][2] * J[1][2] + J[2][2] * J[2][2]);
@@ -179,9 +146,7 @@ static constexpr inline SEMKERNELS_HOST_DEVICE void computeB(T const (&J)[3][3],
 }
 
 template <typename T>
-static constexpr inline SEMKERNELS_HOST_DEVICE void computeB(
-    T const& J, typename T::value_type (&B)[6])
-{
+static constexpr inline SEMKERNELS_HOST_DEVICE void computeB(T const& J, typename T::value_type (&B)[6]) {
   B[0] = (J(0, 0) * J(0, 0) + J(1, 0) * J(1, 0) + J(2, 0) * J(2, 0));
   B[1] = (J(0, 1) * J(0, 1) + J(1, 1) * J(1, 1) + J(2, 1) * J(2, 1));
   B[2] = (J(0, 2) * J(0, 2) + J(1, 2) * J(1, 2) + J(2, 2) * J(2, 2));

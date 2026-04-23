@@ -3,8 +3,7 @@
 
 #include "model.h"
 
-namespace gradient
-{
+namespace gradient {
 
 /**
  * @brief Abstract interface for gradient computation.
@@ -22,13 +21,11 @@ namespace gradient
  *   differentiator->compute(mesh, data, dt);
  *   auto grad_kappa = data.getGradient(0);
  */
-class Differentiator
-{
+class Differentiator {
  public:
   virtual ~Differentiator() = default;
 
-  struct DataStruct
-  {
+  struct DataStruct {
     virtual ~DataStruct() = default;
     virtual void print() const = 0;
   };
@@ -43,8 +40,7 @@ class Differentiator
    * @param data  Structure with required input fields and computed gradients
    * @param dt    Time step size (for acoustic and elastic time derivatives)
    */
-  virtual void compute(model::ModelApi<float, int>& mesh, DataStruct& data,
-                       float dt) const = 0;
+  virtual void compute(model::ModelApi<float, int>& mesh, DataStruct& data, float dt) const = 0;
 
   /**
    * @brief Get polynomial order of this computation.

@@ -12,40 +12,27 @@
 
 #include "fd_grid_geometry.h"
 
-namespace model
-{
-namespace fdgrid
-{
+namespace model {
+namespace fdgrid {
 
 /**
  * @brief Type traits for detecting container capabilities
  */
-namespace detail
-{
+namespace detail {
 
 // Check if type has resize() method (std::vector)
 template <typename T, typename = void>
-struct has_resize : std::false_type
-{
-};
+struct has_resize : std::false_type {};
 
 template <typename T>
-struct has_resize<T, std::void_t<decltype(std::declval<T>().resize(size_t{}))>>
-    : std::true_type
-{
-};
+struct has_resize<T, std::void_t<decltype(std::declval<T>().resize(size_t{}))>> : std::true_type {};
 
 // Check if type has data() method
 template <typename T, typename = void>
-struct has_data : std::false_type
-{
-};
+struct has_data : std::false_type {};
 
 template <typename T>
-struct has_data<T, std::void_t<decltype(std::declval<T>().data())>>
-    : std::true_type
-{
-};
+struct has_data<T, std::void_t<decltype(std::declval<T>().data())>> : std::true_type {};
 
 }  // namespace detail
 
@@ -59,8 +46,7 @@ struct has_data<T, std::void_t<decltype(std::declval<T>().data())>>
  * - Header: 6 values (3 ints: nx,ny,nz; 3 floats: dx,dy,dz)
  * - Data: nx*ny*nz floats (velocity values)
  */
-class ModelIO
-{
+class ModelIO {
  public:
   /**
    * @brief Read grid geometry from model file
@@ -68,11 +54,9 @@ class ModelIO
    * @return GridGeometry object with dimensions and spacing
    * @throws std::runtime_error if file cannot be read
    */
-  static GridGeometry ReadGeometry(const std::string& file_path)
-  {
+  static GridGeometry ReadGeometry(const std::string& file_path) {
     std::ifstream infile(file_path, std::ios::in | std::ios::binary);
-    if (!infile)
-    {
+    if (!infile) {
       throw std::runtime_error("Cannot open model file: " + file_path);
     }
 
@@ -86,13 +70,11 @@ class ModelIO
     infile.read(reinterpret_cast<char*>(&dy), sizeof(float));
     infile.read(reinterpret_cast<char*>(&dz), sizeof(float));
 
-    if (!infile)
-    {
+    if (!infile) {
       throw std::runtime_error("Corrupted model file header: " + file_path);
     }
 
-    printf("Loaded geometry from %s: %dx%dx%d, spacing %.3fx%.3fx%.3f m\n",
-           file_path.c_str(), nx, ny, nz, dx, dy, dz);
+    printf("Loaded geometry from %s: %dx%dx%d, spacing %.3fx%.3fx%.3f m\n", file_path.c_str(), nx, ny, nz, dx, dy, dz);
 
     return GridGeometry(nx, ny, nz, dx, dy, dz);
   }
@@ -109,12 +91,9 @@ class ModelIO
    * @throws std::runtime_error if read fails or size mismatch
    */
   template <typename VectorType>
-  static void ReadVelocityModel(const std::string& file_path,
-                                const GridGeometry& geom, VectorType& data)
-  {
+  static void ReadVelocityModel(const std::string& file_path, const GridGeometry& geom, VectorType& data) {
     std::ifstream infile(file_path, std::ios::in | std::ios::binary);
-    if (!infile)
-    {
+    if (!infile) {
       throw std::runtime_error("Cannot open model file: " + file_path);
     }
 
@@ -124,37 +103,28 @@ class ModelIO
     size_t expected_size = geom.TotalPoints();
 
     // Resize if container supports it (std::vector)
-    if constexpr (detail::has_resize<VectorType>::value)
-    {
+    if constexpr (detail::has_resize<VectorType>::value) {
       data.resize(expected_size);
-    }
-    else
-    {
+    } else {
       // For Kokkos::View, check size matches
-      if (data.extent(0) != expected_size)
-      {
-        throw std::runtime_error("Kokkos::View size mismatch: expected " +
-                                 std::to_string(expected_size) + ", got " +
-                                 std::to_string(data.extent(0)) +
-                                 ". Pre-allocate view with correct size.");
+      if (data.extent(0) != expected_size) {
+        throw std::runtime_error("Kokkos::View size mismatch: expected " + std::to_string(expected_size) + ", got " +
+                                 std::to_string(data.extent(0)) + ". Pre-allocate view with correct size.");
       }
     }
 
     // Read into temporary buffer for Kokkos (host -> device transfer)
     std::vector<float> temp_buffer(expected_size);
-    infile.read(reinterpret_cast<char*>(temp_buffer.data()),
-                expected_size * sizeof(float));
+    infile.read(reinterpret_cast<char*>(temp_buffer.data()), expected_size * sizeof(float));
 
-    if (!infile)
-    {
+    if (!infile) {
       throw std::runtime_error("Failed to read velocity data: " + file_path);
     }
 
     // Copy to output (handles both std::vector and Kokkos::View)
     CopyData(temp_buffer, data, expected_size);
 
-    printf("Loaded %zu velocity values from %s\n", expected_size,
-           file_path.c_str());
+    printf("Loaded %zu velocity values from %s\n", expected_size, file_path.c_str());
   }
 
   /**
@@ -165,13 +135,9 @@ class ModelIO
    * @throws std::runtime_error if write fails
    */
   template <typename VectorType>
-  static void WriteVelocityModel(const std::string& file_path,
-                                 const GridGeometry& geom,
-                                 const VectorType& data)
-  {
+  static void WriteVelocityModel(const std::string& file_path, const GridGeometry& geom, const VectorType& data) {
     std::ofstream outfile(file_path, std::ios::out | std::ios::binary);
-    if (!outfile)
-    {
+    if (!outfile) {
       throw std::runtime_error("Cannot create model file: " + file_path);
     }
 
@@ -190,11 +156,9 @@ class ModelIO
     const float* write_ptr = GetDataPointer(data, temp_buffer);
 
     // Write data
-    outfile.write(reinterpret_cast<const char*>(write_ptr),
-                  data.extent(0) * sizeof(float));
+    outfile.write(reinterpret_cast<const char*>(write_ptr), data.extent(0) * sizeof(float));
 
-    if (!outfile)
-    {
+    if (!outfile) {
       throw std::runtime_error("Failed to write model file: " + file_path);
     }
 
@@ -207,18 +171,13 @@ class ModelIO
    * types)
    */
   template <typename SourceType, typename DestType>
-  static void CopyData(const SourceType& src, DestType& dest, size_t size)
-  {
+  static void CopyData(const SourceType& src, DestType& dest, size_t size) {
     // Direct copy for std::vector or containers with direct data access
-    if constexpr (detail::has_data<DestType>::value)
-    {
+    if constexpr (detail::has_data<DestType>::value) {
       std::copy(src.begin(), src.begin() + size, dest.data());
-    }
-    else
-    {
+    } else {
       // Element-wise copy for Kokkos::View (triggers host->device transfer)
-      for (size_t i = 0; i < size; ++i)
-      {
+      for (size_t i = 0; i < size; ++i) {
         dest(i) = src[i];
       }
     }
@@ -229,20 +188,14 @@ class ModelIO
    * needed
    */
   template <typename VectorType>
-  static const float* GetDataPointer(const VectorType& data,
-                                     std::vector<float>& temp_buffer)
-  {
-    if constexpr (detail::has_data<VectorType>::value)
-    {
+  static const float* GetDataPointer(const VectorType& data, std::vector<float>& temp_buffer) {
+    if constexpr (detail::has_data<VectorType>::value) {
       // std::vector or similar - direct access
       return data.data();
-    }
-    else
-    {
+    } else {
       // Kokkos::View - copy to host buffer first
       temp_buffer.resize(data.extent(0));
-      for (size_t i = 0; i < data.extent(0); ++i)
-      {
+      for (size_t i = 0; i < data.extent(0); ++i) {
         temp_buffer[i] = data(i);
       }
       return temp_buffer.data();

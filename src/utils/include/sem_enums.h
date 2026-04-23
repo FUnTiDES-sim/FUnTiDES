@@ -2,41 +2,17 @@
 #define FUNTIDES_UTILS_INCLUDE_SEM_ENUMS_H_
 #include <string>
 
-namespace utils
-{
-namespace enums
-{
+namespace utils {
+namespace enums {
 
-enum class methodType
-{
-  kSem,
-  kDg
-};
-enum class implemType
-{
-  kMakutu
-};
-enum class meshType
-{
-  kStruct,
-  kUnstruct
-};
-enum class modelLocationType
-{
-  kOnNodes,
-  kOnElements
-};
-enum class physicType : int
-{
-  kAcoustic,
-  kElastic,
-  kAcoustoElastic
-};
+enum class methodType { kSem, kDg };
+enum class implemType { kMakutu };
+enum class meshType { kStruct, kUnstruct };
+enum class modelLocationType { kOnNodes, kOnElements };
+enum class physicType : int { kAcoustic, kElastic, kAcoustoElastic };
 
-inline std::string to_string(methodType m)
-{
-  switch (m)
-  {
+inline std::string to_string(methodType m) {
+  switch (m) {
     case methodType::kSem:
       return "SEM";
     case methodType::kDg:
@@ -46,10 +22,8 @@ inline std::string to_string(methodType m)
   }
 }
 
-inline std::string to_string(implemType i)
-{
-  switch (i)
-  {
+inline std::string to_string(implemType i) {
+  switch (i) {
     case implemType::kMakutu:
       return "MAKUTU";
     default:
@@ -57,10 +31,8 @@ inline std::string to_string(implemType i)
   }
 }
 
-inline std::string to_string(meshType m)
-{
-  switch (m)
-  {
+inline std::string to_string(meshType m) {
+  switch (m) {
     case meshType::kStruct:
       return "Struct";
     case meshType::kUnstruct:
@@ -70,10 +42,8 @@ inline std::string to_string(meshType m)
   }
 }
 
-inline std::string to_string(modelLocationType loc)
-{
-  switch (loc)
-  {
+inline std::string to_string(modelLocationType loc) {
+  switch (loc) {
     case modelLocationType::kOnNodes:
       return "OnNodes";
     case modelLocationType::kOnElements:
@@ -83,10 +53,8 @@ inline std::string to_string(modelLocationType loc)
   }
 }
 
-inline std::string to_string(physicType p)
-{
-  switch (p)
-  {
+inline std::string to_string(physicType p) {
+  switch (p) {
     case physicType::kAcoustic:
       return "Acoustic";
     case physicType::kElastic:

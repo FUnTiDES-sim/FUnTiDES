@@ -6,12 +6,10 @@
 #include "wavefield_view_backward_elastic.h"
 #include "wavefield_view_forward_elastic.h"
 
-namespace gradient
-{
+namespace gradient {
 
 template <>
-struct PhysicsTraits<utils::enums::physicType::kElastic>
-{
+struct PhysicsTraits<utils::enums::physicType::kElastic> {
   static constexpr const char* kName = "Elastic";
   using WavefieldViewForwardType = WavefieldViewForwardElastic;
   using WavefieldViewBackwardType = WavefieldViewBackwardElastic;

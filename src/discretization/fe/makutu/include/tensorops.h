@@ -12,11 +12,9 @@ template <typename T>
 PROXY_HOST_DEVICE T invert3x3(T (&J)[3][3]);
 
 template <typename T>
-PROXY_HOST_DEVICE T invert3x3(T (&J)[3][3])
-{
+PROXY_HOST_DEVICE T invert3x3(T (&J)[3][3]) {
   // Compute the determinant
-  T det = J[0][0] * (J[1][1] * J[2][2] - J[1][2] * J[2][1]) -
-          J[0][1] * (J[1][0] * J[2][2] - J[1][2] * J[2][0]) +
+  T det = J[0][0] * (J[1][1] * J[2][2] - J[1][2] * J[2][1]) - J[0][1] * (J[1][0] * J[2][2] - J[1][2] * J[2][0]) +
           J[0][2] * (J[1][0] * J[2][1] - J[1][1] * J[2][0]);
 
   T invDet = 1.0 / det;
@@ -55,14 +53,12 @@ template <typename T>
 PROXY_HOST_DEVICE auto invert3x3(T (&Jinv)[3][3], T (&J)[3][3]);
 
 template <typename T>
-PROXY_HOST_DEVICE auto invert3x3(T (&Jinv)[3][3], T (&J)[3][3])
-{
+PROXY_HOST_DEVICE auto invert3x3(T (&Jinv)[3][3], T (&J)[3][3]) {
   Jinv[0][0] = J[1][1] * J[2][2] - J[1][2] * J[2][1];
   Jinv[0][1] = J[0][2] * J[2][1] - J[0][1] * J[2][2];
   Jinv[0][2] = J[0][1] * J[1][2] - J[0][2] * J[1][1];
 
-  auto const det =
-      J[0][0] * Jinv[0][0] + J[1][0] * Jinv[0][1] + J[2][0] * Jinv[0][2];
+  auto const det = J[0][0] * Jinv[0][0] + J[1][0] * Jinv[0][1] + J[2][0] * Jinv[0][2];
 
   auto const invDet = T(1) / det;
 
@@ -97,8 +93,7 @@ template <int N, typename T>
 PROXY_HOST_DEVICE T symDeterminant(T (&B)[3]);
 
 template <typename T>
-PROXY_HOST_DEVICE T symDeterminant<2>(T (&B)[3])
-{
+PROXY_HOST_DEVICE T symDeterminant<2>(T (&B)[3]) {
   return B[0] * B[1] - B[2] * B[2];
 }
 
@@ -106,10 +101,8 @@ template <int N, typename T>
 PROXY_HOST_DEVICE T symDeterminant(T (&B)[6]);
 
 template <typename T>
-PROXY_HOST_DEVICE T symDeterminant<3>(T (&B)[6])
-{
-  return B[0] * B[1] * B[2] + B[5] * B[4] * B[3] * 2 - B[0] * B[3] * B[3] -
-         B[1] * B[4] * B[4] - B[2] * B[5] * B[5];
+PROXY_HOST_DEVICE T symDeterminant<3>(T (&B)[6]) {
+  return B[0] * B[1] * B[2] + B[5] * B[4] * B[3] * 2 - B[0] * B[3] * B[3] - B[1] * B[4] * B[4] - B[2] * B[5] * B[5];
 }
 
 /**
@@ -123,8 +116,7 @@ PROXY_HOST_DEVICE T symDeterminant<3>(T (&B)[6])
  * values.
  */
 template <typename T>
-PROXY_HOST_DEVICE static auto symInvert(T (&dst)[6], T const (&J)[6])
-{
+PROXY_HOST_DEVICE static auto symInvert(T (&dst)[6], T const (&J)[6]) {
   using FloatingPoint = std::decay_t<decltype(dst[0])>;
 
   dst[0] = J[1] * J[2] - J[3] * J[3];
@@ -145,8 +137,7 @@ PROXY_HOST_DEVICE static auto symInvert(T (&dst)[6], T const (&J)[6])
 }
 
 template <typename T>
-PROXY_HOST_DEVICE static auto symInvert(T (&J)[6])
-{
+PROXY_HOST_DEVICE static auto symInvert(T (&J)[6]) {
   std::remove_reference_t<decltype(J[0])> temp[6];
   auto const det = symInvert(temp, J);
   // std::copy< 6 >( J, temp );

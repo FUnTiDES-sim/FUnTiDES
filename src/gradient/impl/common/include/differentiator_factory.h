@@ -4,8 +4,7 @@
 #include "differentiator.h"
 #include "sem_enums.h"
 
-namespace gradient
-{
+namespace gradient {
 
 /**
  * @brief Factory function to create a Differentiator instance with specified
@@ -30,10 +29,10 @@ namespace gradient
  * @throws Potentially throws exceptions if invalid parameter combinations are
  * provided or if memory allocation fails.
  */
-std::unique_ptr<Differentiator> createDifferentiator(
-    utils::enums::implemType implemType, utils::enums::meshType meshType,
-    utils::enums::modelLocationType modelLocation,
-    utils::enums::physicType physicType, int order);
+std::unique_ptr<Differentiator> createDifferentiator(utils::enums::implemType implemType,
+                                                     utils::enums::meshType meshType,
+                                                     utils::enums::modelLocationType modelLocation,
+                                                     utils::enums::physicType physicType, int order);
 
 }  // namespace gradient
 #endif  // FUNTIDES_GRADIENT_IMPL_COMMON_INCLUDE_DIFFERENTIATOR_FACTORY_H_

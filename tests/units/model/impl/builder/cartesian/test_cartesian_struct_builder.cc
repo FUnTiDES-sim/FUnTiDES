@@ -4,14 +4,11 @@
 
 #include "cartesian_struct_builder.h"
 
-namespace model
-{
-namespace test
-{
+namespace model {
+namespace test {
 
 template <typename T>
-class CartesianStructInputs : public ::testing::Test
-{
+class CartesianStructInputs : public ::testing::Test {
  protected:
   static constexpr int ex = 10;
   static constexpr float lx = 1;
@@ -22,8 +19,7 @@ class CartesianStructInputs : public ::testing::Test
 };
 
 template <int Order, bool IsModelOnNodes, bool IsElastic>
-struct BuilderConfig
-{
+struct BuilderConfig {
   using Type = CartesianStructBuilder<float, int, Order>;
   static constexpr int order = Order;
   static constexpr bool isModelOnNodes = IsModelOnNodes;
@@ -32,40 +28,32 @@ struct BuilderConfig
 
 // Define all combinations of Order (1-4) and isModelOnNodes (true/false),
 // isElastic (true/false)
-using BuilderTypes = ::testing::Types<
-    BuilderConfig<1, true, true>, BuilderConfig<1, false, false>,
-    BuilderConfig<1, true, false>, BuilderConfig<1, false, true>,
-    BuilderConfig<2, true, true>, BuilderConfig<2, false, false>,
-    BuilderConfig<2, true, false>, BuilderConfig<2, false, true>,
-    BuilderConfig<3, true, true>, BuilderConfig<3, false, false>,
-    BuilderConfig<3, true, false>, BuilderConfig<3, false, true>,
-    BuilderConfig<4, true, true>, BuilderConfig<4, false, false>,
-    BuilderConfig<4, true, false>, BuilderConfig<4, false, true>,
-    BuilderConfig<5, true, true>, BuilderConfig<5, false, false>,
-    BuilderConfig<5, true, false>, BuilderConfig<5, false, true>,
-    BuilderConfig<6, true, true>, BuilderConfig<6, false, false>,
-    BuilderConfig<6, true, false>, BuilderConfig<6, false, true>,
-    BuilderConfig<7, true, true>, BuilderConfig<7, false, false>,
-    BuilderConfig<7, true, false>, BuilderConfig<7, false, true>,
-    BuilderConfig<8, true, true>, BuilderConfig<8, false, false>,
-    BuilderConfig<8, true, false>, BuilderConfig<8, false, true>,
-    BuilderConfig<9, true, true>, BuilderConfig<9, false, false>,
-    BuilderConfig<9, true, false>, BuilderConfig<9, false, true>>;
+using BuilderTypes =
+    ::testing::Types<BuilderConfig<1, true, true>, BuilderConfig<1, false, false>, BuilderConfig<1, true, false>,
+                     BuilderConfig<1, false, true>, BuilderConfig<2, true, true>, BuilderConfig<2, false, false>,
+                     BuilderConfig<2, true, false>, BuilderConfig<2, false, true>, BuilderConfig<3, true, true>,
+                     BuilderConfig<3, false, false>, BuilderConfig<3, true, false>, BuilderConfig<3, false, true>,
+                     BuilderConfig<4, true, true>, BuilderConfig<4, false, false>, BuilderConfig<4, true, false>,
+                     BuilderConfig<4, false, true>, BuilderConfig<5, true, true>, BuilderConfig<5, false, false>,
+                     BuilderConfig<5, true, false>, BuilderConfig<5, false, true>, BuilderConfig<6, true, true>,
+                     BuilderConfig<6, false, false>, BuilderConfig<6, true, false>, BuilderConfig<6, false, true>,
+                     BuilderConfig<7, true, true>, BuilderConfig<7, false, false>, BuilderConfig<7, true, false>,
+                     BuilderConfig<7, false, true>, BuilderConfig<8, true, true>, BuilderConfig<8, false, false>,
+                     BuilderConfig<8, true, false>, BuilderConfig<8, false, true>, BuilderConfig<9, true, true>,
+                     BuilderConfig<9, false, false>, BuilderConfig<9, true, false>, BuilderConfig<9, false, true>>;
 
 TYPED_TEST_SUITE(CartesianStructInputs, BuilderTypes);
 
 // Test constructor and getModel for all orders and isModelOnNodes values, and
 // check resulting model values
-TYPED_TEST(CartesianStructInputs, GetModelReturnsValidModel)
-{
+TYPED_TEST(CartesianStructInputs, GetModelReturnsValidModel) {
   // Prepare
   constexpr int order = TypeParam::order;
   constexpr bool isModelOnNodes = TypeParam::isModelOnNodes;
   constexpr bool isElastic = TypeParam::isElastic;
 
   // Act
-  typename TypeParam::Type builder(this->ex, this->lx, this->ey, this->ly,
-                                   this->ez, this->lz, isModelOnNodes,
+  typename TypeParam::Type builder(this->ex, this->lx, this->ey, this->ly, this->ez, this->lz, isModelOnNodes,
                                    isElastic);
   auto model = builder.getModel(true);
 
@@ -75,23 +63,20 @@ TYPED_TEST(CartesianStructInputs, GetModelReturnsValidModel)
   EXPECT_EQ(model->isModelOnNodes(), isModelOnNodes);
   EXPECT_EQ(model->isElastic(), isElastic);
   EXPECT_EQ(model->getNumberOfElements(), 10 * 20 * 30);
-  EXPECT_EQ(model->getNumberOfNodes(),
-            (10 * order + 1) * (20 * order + 1) * (30 * order + 1));
+  EXPECT_EQ(model->getNumberOfNodes(), (10 * order + 1) * (20 * order + 1) * (30 * order + 1));
   EXPECT_FLOAT_EQ(model->domainSize(0), 1);
   EXPECT_FLOAT_EQ(model->domainSize(1), 4);
   EXPECT_FLOAT_EQ(model->domainSize(2), 9);
 }
 
 // Test multiple calls return different instances
-TYPED_TEST(CartesianStructInputs, MultipleCallsReturnDifferentInstances)
-{
+TYPED_TEST(CartesianStructInputs, MultipleCallsReturnDifferentInstances) {
   // Prepare
   constexpr bool isModelOnNodes = TypeParam::isModelOnNodes;
   constexpr bool isElastic = TypeParam::isElastic;
 
   // Act
-  typename TypeParam::Type builder(this->ex, this->lx, this->ey, this->ly,
-                                   this->ez, this->lz, isModelOnNodes,
+  typename TypeParam::Type builder(this->ex, this->lx, this->ey, this->ly, this->ez, this->lz, isModelOnNodes,
                                    isElastic);
 
   // Assert
@@ -103,15 +88,13 @@ TYPED_TEST(CartesianStructInputs, MultipleCallsReturnDifferentInstances)
 }
 
 // Test polymorphic behavior
-TYPED_TEST(CartesianStructInputs, PolymorphicBehavior)
-{
+TYPED_TEST(CartesianStructInputs, PolymorphicBehavior) {
   // Prepare
   constexpr bool isModelOnNodes = TypeParam::isModelOnNodes;
   constexpr bool isElastic = TypeParam::isElastic;
 
   // Act
-  typename TypeParam::Type builder(this->ex, this->lx, this->ey, this->ly,
-                                   this->ez, this->lz, isModelOnNodes,
+  typename TypeParam::Type builder(this->ex, this->lx, this->ey, this->ly, this->ez, this->lz, isModelOnNodes,
                                    isElastic);
   ModelBuilderBase<float, int>* base_ptr = &builder;
   auto model = base_ptr->getModel(true);

@@ -7,8 +7,7 @@
 #include "cartesian_params.h"
 #include "partitioning.h"
 
-namespace model
-{
+namespace model {
 
 /**
  * @brief 1D domain decomposition along X-axis.
@@ -36,9 +35,7 @@ namespace model
  * TopologyFactory can identify boundary nodes by comparing coordinates.
  */
 template <typename FloatType, typename ScalarType>
-class CartesianXPartitioner
-    : public PartitioningStrategy<CartesianParams<FloatType, ScalarType>>
-{
+class CartesianXPartitioner : public PartitioningStrategy<CartesianParams<FloatType, ScalarType>> {
  public:
   using Params = CartesianParams<FloatType, ScalarType>;
 
@@ -47,17 +44,13 @@ class CartesianXPartitioner
    * Matches the signature: LocalParams partition(const GlobalParams&, int, int)
    * const
    */
-  Params partition(const Params& global, int rank, int size) const override
-  {
+  Params partition(const Params& global, int rank, int size) const override {
     // Validation
-    if (size <= 0)
-    {
+    if (size <= 0) {
       throw std::invalid_argument("CartesianPartitioner: size must be > 0");
     }
-    if (rank < 0 || rank >= size)
-    {
-      throw std::invalid_argument(
-          "CartesianPartitioner: rank must be between 0 and size-1");
+    if (rank < 0 || rank >= size) {
+      throw std::invalid_argument("CartesianPartitioner: rank must be between 0 and size-1");
     }
 
     auto local = global;
@@ -70,8 +63,7 @@ class CartesianXPartitioner
     local.ex = base_ex + (rank < remainder ? 1 : 0);
 
     // Calculate Global Offset (in elements)
-    ScalarType element_offset_x =
-        rank * base_ex + std::min((ScalarType)rank, remainder);
+    ScalarType element_offset_x = rank * base_ex + std::min((ScalarType)rank, remainder);
 
     // Calculate Element Size
     FloatType dx = global.lx / global.ex;

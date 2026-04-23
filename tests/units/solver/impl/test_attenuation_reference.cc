@@ -68,14 +68,10 @@
 #include "solver_factory.h"
 #include "wavefield_acoustic.h"
 
-namespace solver
-{
-namespace fe
-{
-namespace test
-{
-static VECTOR_REAL_VIEW toView(const std::vector<float>& v, const char* name)
-{
+namespace solver {
+namespace fe {
+namespace test {
+static VECTOR_REAL_VIEW toView(const std::vector<float>& v, const char* name) {
   if (v.empty()) return VECTOR_REAL_VIEW();
   auto view = allocateVector<VECTOR_REAL_VIEW>(v.size(), name);
   for (size_t i = 0; i < v.size(); ++i) view[i] = v[i];
@@ -85,13 +81,10 @@ static VECTOR_REAL_VIEW toView(const std::vector<float>& v, const char* name)
 // ======================================================================
 // Helper: build a 5x5x5 order-2 mesh with given Q factors
 // ======================================================================
-static std::shared_ptr<model::ModelApi<float, int>> buildRefMesh(
-    float qp = 1e9f, float qs = 1e9f)
-{
+static std::shared_ptr<model::ModelApi<float, int>> buildRefMesh(float qp = 1e9f, float qs = 1e9f) {
   constexpr int EX = 5, EY = 5, EZ = 5;
   constexpr float LX = 1000.0f, LY = 1000.0f, LZ = 1000.0f;
-  model::CartesianStructBuilder<float, int, 2> builder(EX, LX, EY, LY, EZ, LZ,
-                                                       false, false);
+  model::CartesianStructBuilder<float, int, 2> builder(EX, LX, EY, LY, EZ, LZ, false, false);
   auto mesh = builder.getModel(false);
   mesh->setQualityFactors(qp, qs);
   return mesh;
@@ -100,8 +93,7 @@ static std::shared_ptr<model::ModelApi<float, int>> buildRefMesh(
 // ======================================================================
 // Helper: total wavefield energy  E = sum_i p_i^2
 // ======================================================================
-static float totalEnergy(const VECTOR_REAL_VIEW& field, int numNodes)
-{
+static float totalEnergy(const VECTOR_REAL_VIEW& field, int numNodes) {
   float sum = 0.0f;
   for (int i = 0; i < numNodes; ++i) sum += field(i) * field(i);
   return sum;
@@ -110,20 +102,16 @@ static float totalEnergy(const VECTOR_REAL_VIEW& field, int numNodes)
 // ======================================================================
 // Helper: run acoustic simulation, recording energy at checkpoints
 // ======================================================================
-static std::vector<float> runAndRecordEnergy(
-    std::shared_ptr<model::ModelApi<float, int>> mesh,
-    const std::vector<float>& slsFreqs, int numTimeSteps, float dt,
-    const std::vector<int>& checkpoints)
-{
+static std::vector<float> runAndRecordEnergy(std::shared_ptr<model::ModelApi<float, int>> mesh,
+                                             const std::vector<float>& slsFreqs, int numTimeSteps, float dt,
+                                             const std::vector<int>& checkpoints) {
   constexpr int order = 2;
   int numNodes = mesh->getNumberOfNodes();
   int npp = (order + 1) * (order + 1) * (order + 1);
 
   auto solver = solver_factory::createSolver(
-      utils::enums::methodType::kSem, utils::enums::implemType::kMakutu,
-      utils::enums::meshType::kStruct,
-      utils::enums::modelLocationType::kOnElements,
-      utils::enums::physicType::kAcoustic, order);
+      utils::enums::methodType::kSem, utils::enums::implemType::kMakutu, utils::enums::meshType::kStruct,
+      utils::enums::modelLocationType::kOnElements, utils::enums::physicType::kAcoustic, order);
   solver->setAnisotropyType(model::AnisotropyType::kIso);
 
   if (!slsFreqs.empty()) solver->setSLSAttenuation(toView(slsFreqs, "f"));
@@ -132,8 +120,7 @@ static std::vector<float> runAndRecordEnergy(
 
   auto pPrev = allocateVector<VECTOR_REAL_VIEW>(numNodes, "pP_ref");
   auto pCurr = allocateVector<VECTOR_REAL_VIEW>(numNodes, "pC_ref");
-  for (int i = 0; i < numNodes; ++i)
-  {
+  for (int i = 0; i < numNodes; ++i) {
     pPrev(i) = 0.0f;
     pCurr(i) = 0.0f;
   }
@@ -144,8 +131,7 @@ static std::vector<float> runAndRecordEnergy(
   auto rhsElem = allocateVector<VECTOR_INT_VIEW>(1, "re_ref");
   auto rhsWeights = allocateArray2D<ARRAY_REAL_VIEW>(1, npp, "rw_ref");
   rhsElem(0) = 0;
-  for (int j = 0; j < npp; ++j)
-  {
+  for (int j = 0; j < npp; ++j) {
     rhsTerm(0, j) = 0.0f;
     rhsWeights(0, j) = 0.0f;
   }
@@ -157,15 +143,12 @@ static std::vector<float> runAndRecordEnergy(
   std::vector<float> energies;
   int checkIdx = 0;
 
-  for (int t = 0; t < numTimeSteps; ++t)
-  {
+  for (int t = 0; t < numTimeSteps; ++t) {
     solver->computeForces(dt, t, data);
     solver->updateSolution(dt, data);
     data.swapWavefields();
 
-    if (checkIdx < static_cast<int>(checkpoints.size()) &&
-        t + 1 == checkpoints[checkIdx])
-    {
+    if (checkIdx < static_cast<int>(checkpoints.size()) && t + 1 == checkpoints[checkIdx]) {
       energies.push_back(totalEnergy(data.getCurrentField(0), numNodes));
       ++checkIdx;
     }
@@ -189,8 +172,7 @@ static std::vector<float> runAndRecordEnergy(
 //        (within a tolerance to account for the broadband source
 //        and absorbing-boundary interplay)
 // ======================================================================
-TEST(AttenuationReferenceAcoustic, Order2EnergyDecayScalesWithQ)
-{
+TEST(AttenuationReferenceAcoustic, Order2EnergyDecayScalesWithQ) {
   const int numTimeSteps = 1000;
   const float dt = 0.0003f;
 
@@ -210,25 +192,19 @@ TEST(AttenuationReferenceAcoustic, Order2EnergyDecayScalesWithQ)
 
   // ---- Run 2: Q = 20 ----
   auto mesh_q20 = buildRefMesh(20.0f, 20.0f);
-  auto E_q20 =
-      runAndRecordEnergy(mesh_q20, freqs, numTimeSteps, dt, checkpoints);
+  auto E_q20 = runAndRecordEnergy(mesh_q20, freqs, numTimeSteps, dt, checkpoints);
 
   // ---- Run 3: Q = 60 ----
   auto mesh_q60 = buildRefMesh(60.0f, 60.0f);
-  auto E_q60 =
-      runAndRecordEnergy(mesh_q60, freqs, numTimeSteps, dt, checkpoints);
+  auto E_q60 = runAndRecordEnergy(mesh_q60, freqs, numTimeSteps, dt, checkpoints);
 
   // ==== Assertions ====
 
   // 1. All energies must be finite and positive
-  for (size_t i = 0; i < checkpoints.size(); ++i)
-  {
-    ASSERT_TRUE(std::isfinite(E_ref[i]))
-        << "Reference energy not finite at checkpoint " << i;
-    ASSERT_TRUE(std::isfinite(E_q20[i]))
-        << "Q=20 energy not finite at checkpoint " << i;
-    ASSERT_TRUE(std::isfinite(E_q60[i]))
-        << "Q=60 energy not finite at checkpoint " << i;
+  for (size_t i = 0; i < checkpoints.size(); ++i) {
+    ASSERT_TRUE(std::isfinite(E_ref[i])) << "Reference energy not finite at checkpoint " << i;
+    ASSERT_TRUE(std::isfinite(E_q20[i])) << "Q=20 energy not finite at checkpoint " << i;
+    ASSERT_TRUE(std::isfinite(E_q60[i])) << "Q=60 energy not finite at checkpoint " << i;
     ASSERT_GT(E_ref[i], 0.0f);
     ASSERT_GT(E_q20[i], 0.0f);
     ASSERT_GT(E_q60[i], 0.0f);
@@ -237,15 +213,12 @@ TEST(AttenuationReferenceAcoustic, Order2EnergyDecayScalesWithQ)
   // 2. Both attenuated runs should have less energy than reference
   //    at the last checkpoint (earliest checkpoints may not yet show
   //    a clear difference if the wave hasn't propagated far enough).
-  EXPECT_LT(E_q20.back(), E_ref.back())
-      << "Q=20 should have less energy than reference";
-  EXPECT_LT(E_q60.back(), E_ref.back())
-      << "Q=60 should have less energy than reference";
+  EXPECT_LT(E_q20.back(), E_ref.back()) << "Q=20 should have less energy than reference";
+  EXPECT_LT(E_q60.back(), E_ref.back()) << "Q=60 should have less energy than reference";
 
   // 3. Q = 20 should lose more energy than Q = 60 at last checkpoint
-  EXPECT_LT(E_q20.back(), E_q60.back())
-      << "Q=20 should have less energy than Q=60" << " (E_Q20=" << E_q20.back()
-      << ", E_Q60=" << E_q60.back() << ")";
+  EXPECT_LT(E_q20.back(), E_q60.back()) << "Q=20 should have less energy than Q=60" << " (E_Q20=" << E_q20.back()
+                                        << ", E_Q60=" << E_q60.back() << ")";
 
   // 4. Quantitative scaling check at the last checkpoint.
   //
@@ -259,35 +232,27 @@ TEST(AttenuationReferenceAcoustic, Order2EnergyDecayScalesWithQ)
   float lnR20 = std::log(E_q20.back() / E_ref.back());
   float lnR60 = std::log(E_q60.back() / E_ref.back());
 
-  ASSERT_LT(lnR60, 0.0f)
-      << "Q=60 log-ratio should be negative (energy decreasing)";
-  ASSERT_LT(lnR20, lnR60)
-      << "Q=20 should have a more negative log-ratio than Q=60";
+  ASSERT_LT(lnR60, 0.0f) << "Q=60 log-ratio should be negative (energy decreasing)";
+  ASSERT_LT(lnR20, lnR60) << "Q=20 should have a more negative log-ratio than Q=60";
 
   float scalingRatio = lnR20 / lnR60;
 
-  EXPECT_GT(scalingRatio, 2.0f) << "Q-scaling ratio too low: " << scalingRatio
-                                << " (expected ~3.0 = Q60/Q20)";
-  EXPECT_LT(scalingRatio, 5.0f) << "Q-scaling ratio too high: " << scalingRatio
-                                << " (expected ~3.0 = Q60/Q20)";
+  EXPECT_GT(scalingRatio, 2.0f) << "Q-scaling ratio too low: " << scalingRatio << " (expected ~3.0 = Q60/Q20)";
+  EXPECT_LT(scalingRatio, 5.0f) << "Q-scaling ratio too high: " << scalingRatio << " (expected ~3.0 = Q60/Q20)";
 
   // ---- Diagnostic output ----
   std::cout << "\n=== Acoustic Attenuation Reference Test (Order 2) ===\n"
             << "Domain: 1000 m cube, 5x5x5 elements, order 2\n"
             << "Material: Vp = 1500 m/s, rho = 1 kg/m^3\n"
             << "SLS: 1 mechanism at f0 = 10 Hz\n"
-            << "dt = " << dt << " s, steps = " << numTimeSteps
-            << ", T = " << dt * numTimeSteps << " s\n\n";
-  for (size_t i = 0; i < checkpoints.size(); ++i)
-  {
+            << "dt = " << dt << " s, steps = " << numTimeSteps << ", T = " << dt * numTimeSteps << " s\n\n";
+  for (size_t i = 0; i < checkpoints.size(); ++i) {
     float t = checkpoints[i] * dt;
-    std::cout << "  t = " << t << " s : " << "E_ref = " << E_ref[i]
-              << "  E_Q20 = " << E_q20[i] << "  E_Q60 = " << E_q60[i]
-              << "  R20 = " << E_q20[i] / E_ref[i]
-              << "  R60 = " << E_q60[i] / E_ref[i] << "\n";
+    std::cout << "  t = " << t << " s : " << "E_ref = " << E_ref[i] << "  E_Q20 = " << E_q20[i]
+              << "  E_Q60 = " << E_q60[i] << "  R20 = " << E_q20[i] / E_ref[i] << "  R60 = " << E_q60[i] / E_ref[i]
+              << "\n";
   }
-  std::cout << "\n  Q-scaling ratio: ln(R20)/ln(R60) = " << scalingRatio
-            << " (theoretical: " << 60.0 / 20.0 << ")\n"
+  std::cout << "\n  Q-scaling ratio: ln(R20)/ln(R60) = " << scalingRatio << " (theoretical: " << 60.0 / 20.0 << ")\n"
             << "=====================================================\n\n";
 }
 

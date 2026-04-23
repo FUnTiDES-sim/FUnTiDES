@@ -3,8 +3,7 @@
 
 #include "sem_enums.h"
 
-namespace gradient
-{
+namespace gradient {
 
 /**
  * @brief Compile-time properties for each gradient physics type.
@@ -24,8 +23,7 @@ namespace gradient
  *   - physics_traits_elastic.h
  */
 template <utils::enums::physicType PHYSICS>
-struct PhysicsTraits
-{
+struct PhysicsTraits {
   static constexpr const char* kName = "";
   using WavefieldViewForwardType = void;
   using WavefieldViewBackwardType = void;

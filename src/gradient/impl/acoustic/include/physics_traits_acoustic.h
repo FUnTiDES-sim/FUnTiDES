@@ -6,12 +6,10 @@
 #include "wavefield_view_backward_acoustic.h"
 #include "wavefield_view_forward_acoustic.h"
 
-namespace gradient
-{
+namespace gradient {
 
 template <>
-struct PhysicsTraits<utils::enums::physicType::kAcoustic>
-{
+struct PhysicsTraits<utils::enums::physicType::kAcoustic> {
   static constexpr const char* kName = "Acoustic";
   using WavefieldViewForwardType = WavefieldViewForwardAcoustic;
   using WavefieldViewBackwardType = WavefieldViewBackwardAcoustic;
