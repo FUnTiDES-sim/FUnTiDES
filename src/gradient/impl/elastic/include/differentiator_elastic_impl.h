@@ -137,7 +137,7 @@ void DifferentiatorElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES>::
               localUzDt2[lIdx] = uz_dt2(gIdx);
             }
 
-        typename INTEGRAL_TYPE::TransformType transformData;
+        float X[8][3];
         {
           auto const elementIndex = mesh.elementIndex(elementNumber);
           int I = 0;
@@ -145,7 +145,7 @@ void DifferentiatorElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES>::
             for (int jv = 0; jv < 2; ++jv)
               for (int iv = 0; iv < 2; ++iv) {
                 auto const vertexIndex = mesh.globalVertexIndex(elementIndex, iv, jv, kv);
-                mesh.vertexCoords(vertexIndex, transformData.data[I]);
+                mesh.vertexCoords(vertexIndex, X[I]);
                 ++I;
               }
         }
@@ -154,7 +154,7 @@ void DifferentiatorElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES>::
         float strainEps[kPointsPerElement] = {0};
 
         INTEGRAL_TYPE::computeStiffNessTermwithJac(
-            transformData,
+            X,
             [&](int qa, int qb, int qc, float const(&J)[3][3]) {
               float grad_fwd[3][3] = {{0}};
               float grad_adj[3][3] = {{0}};
@@ -190,7 +190,7 @@ void DifferentiatorElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES>::
         float localGradLambda = 0.0f;
         float localGradMu = 0.0f;
 
-        INTEGRAL_TYPE::computeMassTerm(transformData, [&](const int q, const real_t wdetJ) {
+        INTEGRAL_TYPE::computeMassTerm(X, [&](const int q, const real_t wdetJ) {
           localGradRho +=
               (localUxDt2[q] * localUxFwd[q] + localUyDt2[q] * localUyFwd[q] + localUzDt2[q] * localUzFwd[q]) * wdetJ;
           localGradLambda += strainDiv[q] * wdetJ;
@@ -247,7 +247,7 @@ void DifferentiatorElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES>::
               localUzDt2[lIdx] = uz_dt2(gIdx);
             }
 
-        typename INTEGRAL_TYPE::TransformType transformData;
+        float X[8][3];
         {
           auto const elementIndex = mesh.elementIndex(elementNumber);
           int I = 0;
@@ -255,7 +255,7 @@ void DifferentiatorElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES>::
             for (int jv = 0; jv < 2; ++jv)
               for (int iv = 0; iv < 2; ++iv) {
                 auto const vertexIndex = mesh.globalVertexIndex(elementIndex, iv, jv, kv);
-                mesh.vertexCoords(vertexIndex, transformData.data[I]);
+                mesh.vertexCoords(vertexIndex, X[I]);
                 ++I;
               }
         }
@@ -264,7 +264,7 @@ void DifferentiatorElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES>::
         float strainEps[kPointsPerElement] = {0};
 
         INTEGRAL_TYPE::computeStiffNessTermwithJac(
-            transformData,
+            X,
             [&](int qa, int qb, int qc, float const(&J)[3][3]) {
               float grad_fwd[3][3] = {{0}};
               float grad_adj[3][3] = {{0}};
@@ -296,7 +296,7 @@ void DifferentiatorElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES>::
             },
             [&](int, int, float, const int, const int) {});
 
-        INTEGRAL_TYPE::computeMassTerm(transformData, [&](const int q, const real_t wdetJ) {
+        INTEGRAL_TYPE::computeMassTerm(X, [&](const int q, const real_t wdetJ) {
           float const dot =
               localUxDt2[q] * localUxFwd[q] + localUyDt2[q] * localUyFwd[q] + localUzDt2[q] * localUzFwd[q];
           ATOMICADD(gradRho(localGIdx[q]), dot * wdetJ);

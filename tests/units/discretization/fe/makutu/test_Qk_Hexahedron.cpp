@@ -130,6 +130,9 @@ class BasisGradientTest : public ::testing::Test {};
 template <typename QK_BASIS>
 class FaceOperationsTest : public ::testing::Test {};
 
+template <typename QK_BASIS>
+class InterfaceFluxTest : public ::testing::Test {};
+
 TYPED_TEST_SUITE(MassMatrixTest, TestedBases);
 TYPED_TEST_SUITE(StiffnessMatrixTest, TestedBases);
 TYPED_TEST_SUITE(JacobianTest, TestedBases);
@@ -139,6 +142,7 @@ TYPED_TEST_SUITE(IndexingTest, TestedBases);
 TYPED_TEST_SUITE(BMatrixTest, TestedBases);
 TYPED_TEST_SUITE(BasisGradientTest, TestedBases);
 TYPED_TEST_SUITE(FaceOperationsTest, TestedBases);
+TYPED_TEST_SUITE(InterfaceFluxTest, TestedBases);
 
 // ============================================================================
 // MASS MATRIX TESTS
@@ -166,12 +170,8 @@ TYPED_TEST(MassMatrixTest, MassMatrixSumEqualsVolume_VariousCubes) {
     real_t X[8][3];
     createArbitraryCube<QK>(X, config.x0, config.y0, config.z0, config.size);
 
-    typename QK::TransformType transformData;
-    for (int k = 0; k < 8; ++k)
-      for (int i = 0; i < 3; ++i) transformData.data[k][i] = X[k][i];
-
     real_t mass[numNodes] = {0};
-    QK::computeMassTerm(transformData, [&](int q, real_t val) { mass[q] = val; });
+    QK::computeMassTerm(X, [&](int q, real_t val) { mass[q] = val; });
 
     real_t totalMass = 0.0;
     for (int i = 0; i < numNodes; ++i) totalMass += mass[i];
@@ -189,12 +189,8 @@ TYPED_TEST(MassMatrixTest, MassMatrixPositive) {
   real_t X[8][3];
   createArbitraryCube<QK>(X, -3.5, 2.1, 0.7, 1.8);
 
-  typename QK::TransformType transformData;
-  for (int k = 0; k < 8; ++k)
-    for (int i = 0; i < 3; ++i) transformData.data[k][i] = X[k][i];
-
   real_t mass[numNodes] = {0};
-  QK::computeMassTerm(transformData, [&](int q, real_t val) { mass[q] = val; });
+  QK::computeMassTerm(X, [&](int q, real_t val) { mass[q] = val; });
 
   for (int i = 0; i < numNodes; ++i) {
     EXPECT_GT(mass[i], 0.0) << "All mass matrix entries should be positive";
@@ -220,22 +216,17 @@ TYPED_TEST(StiffnessMatrixTest, StiffnessTimesConstantIsZero_VariousCubes) {
     real_t X[8][3];
     createArbitraryCube<QK>(X, config.x0, config.y0, config.z0, config.size);
 
-    typename QK::TransformType transformData;
-    for (int k = 0; k < 8; ++k)
-      for (int i = 0; i < 3; ++i) transformData.data[k][i] = X[k][i];
-
     // Constant vector (all dofs = 1.0)
     real_t u[numNodes];
     real_t Ku[numNodes] = {0};
     for (int i = 0; i < numNodes; ++i) u[i] = 1.0;
 
-    QK::computeStiffnessTerm(
-        transformData, [](int qa, int qb, int qc) {}, [&](int i, int j, real_t Kij) { Ku[i] += Kij * u[j]; });
+    QK::computeStiffnessTerm(X, [](int qa, int qb, int qc) {}, [&](int i, int j, real_t Kij) { Ku[i] += Kij * u[j]; });
 
     for (int i = 0; i < numNodes; ++i) {
       EXPECT_NEAR(Ku[i], 0.0, TOL_NUMERICAL)
-          << "K*u should be zero for constant u (partition of unity property)"
-          << " for cube at (" << config.x0 << "," << config.y0 << "," << config.z0 << ") with size " << config.size;
+          << "K*u should be zero for constant u (partition of unity property)" << " for cube at (" << config.x0 << ","
+          << config.y0 << "," << config.z0 << ") with size " << config.size;
     }
   }
 }
@@ -247,14 +238,9 @@ TYPED_TEST(StiffnessMatrixTest, StiffnessMatrixIsSymmetric) {
   real_t X[8][3];
   createArbitraryCube<QK>(X, 1.5, -2.3, 0.8, 1.2);
 
-  typename QK::TransformType transformData;
-  for (int k = 0; k < 8; ++k)
-    for (int i = 0; i < 3; ++i) transformData.data[k][i] = X[k][i];
-
   real_t K[numNodes][numNodes] = {{0}};
 
-  QK::computeStiffnessTerm(
-      transformData, [](int qa, int qb, int qc) {}, [&](int i, int j, real_t Kij) { K[i][j] += Kij; });
+  QK::computeStiffnessTerm(X, [](int qa, int qb, int qc) {}, [&](int i, int j, real_t Kij) { K[i][j] += Kij; });
 
   for (int i = 0; i < numNodes; ++i) {
     for (int j = i + 1; j < numNodes; ++j) {
@@ -421,8 +407,8 @@ TYPED_TEST(JacobianTest, QuadratureRuleIntegratesConstant_VariousCubes) {
     }
 
     EXPECT_NEAR(integral, config.expectedVolume, TOL_NUMERICAL)
-        << "Quadrature rule should exactly integrate constant functions"
-        << " for cube at (" << config.x0 << "," << config.y0 << "," << config.z0 << ") with size " << config.size;
+        << "Quadrature rule should exactly integrate constant functions" << " for cube at (" << config.x0 << ","
+        << config.y0 << "," << config.z0 << ") with size " << config.size;
   }
 }
 
@@ -857,4 +843,41 @@ TYPED_TEST(FaceOperationsTest, DampingTermScaling) {
   real_t d2 = QK::computeDampingTerm(q, X2);
 
   EXPECT_NEAR(d2 / d1, 4.0, TOL_NUMERICAL) << "Damping term should scale quadratically with element size";
+}
+
+TYPED_TEST(InterfaceFluxTest, InterfaceFluxIsZero) {
+  using QK = TypeParam;
+  constexpr int numNodesPerFace = QK::numNodesPerFace;
+
+  // Arbitrary square in XY plane
+  real_t X[4][3];
+  X[0][0] = 0.0;
+  X[0][1] = 0.0;
+  X[0][2] = 0.0;
+  X[1][0] = 1.0;
+  X[1][1] = 0.0;
+  X[1][2] = 0.0;
+  X[2][0] = 0.0;
+  X[2][1] = 1.0;
+  X[2][2] = 0.0;
+  X[3][0] = 1.0;
+  X[3][1] = 1.0;
+  X[3][2] = 0.0;
+
+  real_t CKK[numNodesPerFace][numNodesPerFace][3] = {{{0}}};
+  for (int faceId = 0; faceId < 6; ++faceId) {
+    QK::computeInterfaceFluxTerm(X, faceId, [&](int i, int j, int k, real_t Cijk) { CKK[i][j][k] += Cijk; });
+
+    real_t SumGrad[3] = {0};
+    real_t Sum;
+    for (int i = 0; i < numNodesPerFace; ++i) {
+      for (int j = 0; j < numNodesPerFace; ++j) {
+        for (int k = 0; k < 3; ++k) {
+          SumGrad[k] += CKK[i][j][k];
+        }
+      }
+    }
+    Sum = SumGrad[0] + SumGrad[1] + SumGrad[2];
+    EXPECT_NEAR(Sum, 0.0, TOL_NUMERICAL) << "Sum of all CKK coefficients should be zero";
+  }
 }

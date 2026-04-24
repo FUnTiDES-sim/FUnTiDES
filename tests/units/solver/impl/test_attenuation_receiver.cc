@@ -339,8 +339,8 @@ TEST(AttenuationReceiver, ElasticReceiverTraceDecays) {
 
   // The elastic test should show clear energy decay
   EXPECT_LT(seis_att.finalNorm, seis_noatt.finalNorm)
-      << "Elastic attenuation should reduce total wavefield energy. "
-      << "norm_noatt=" << seis_noatt.finalNorm << ", norm_att=" << seis_att.finalNorm;
+      << "Elastic attenuation should reduce total wavefield energy. " << "norm_noatt=" << seis_noatt.finalNorm
+      << ", norm_att=" << seis_att.finalNorm;
 }
 
 // ======================================================================
@@ -372,8 +372,8 @@ TEST(AttenuationReceiver, LowerQStrongerAttenuation) {
 
   // Lower Q (stronger attenuation) should result in lower energy
   EXPECT_LT(seis_q10.finalNorm, seis_q50.finalNorm)
-      << "Q=10 should attenuate more than Q=50. "
-      << "norm_q50=" << seis_q50.finalNorm << ", norm_q10=" << seis_q10.finalNorm;
+      << "Q=10 should attenuate more than Q=50. " << "norm_q50=" << seis_q50.finalNorm
+      << ", norm_q10=" << seis_q10.finalNorm;
 }
 
 // ======================================================================
@@ -428,8 +428,7 @@ TEST(AttenuationReceiverHighOrder, AcousticOrder2Decays) {
   // Verify the late-time amplitudes differ (attenuation changes the signal)
   if (maxLate_noatt > 1e-15f) {
     float ratio = maxLate_att / maxLate_noatt;
-    EXPECT_NE(ratio, 1.0f) << "Order-2: attenuation should change late-time amplitude. "
-                           << "ratio=" << ratio;
+    EXPECT_NE(ratio, 1.0f) << "Order-2: attenuation should change late-time amplitude. " << "ratio=" << ratio;
   }
 }
 

@@ -49,10 +49,6 @@ class Qk_Hexahedron_Lagrange_GaussLobatto final {
   /// The number of quadrature points per element.
   constexpr static int numQuadraturePoints = numNodes;
 
-  struct TransformType {
-    float data[8][3];
-  };
-
   struct JacobianType {
     float data[3][3];
   };
@@ -403,7 +399,7 @@ class Qk_Hexahedron_Lagrange_GaussLobatto final {
    * @return The diagonal mass term associated to q
    */
   template <typename FUNC>
-  PROXY_HOST_DEVICE static void computeMassTerm(TransformType const &transformData, FUNC &&func);
+  PROXY_HOST_DEVICE static void computeMassTerm(float const (&X)[8][3], FUNC &&func);
 
   /**
    * @brief computes the non-zero contributions of the d.o.f. indexd by q to the
@@ -415,6 +411,53 @@ class Qk_Hexahedron_Lagrange_GaussLobatto final {
    */
   PROXY_HOST_DEVICE
   static real_t computeDampingTerm(int const q, real_t const (&X)[4][3]);
+
+  /**
+   * @brief Computes the "Grad(Phi)*Phi" coefficient of the interface flux
+   *    term. Phi denotes a basis function.
+   * @param dir An integer between 0 and 2 to specify the fixed direction
+   * @param qfa The 1d quadrature point index in the first direction of the face
+   * @param qfb The 1d quadrature point index in the second direction of the
+   * face
+   * @param qFixed The 1d quadrature point index of the fixed direction
+   * @param X Array containing the coordinates of the support points of the
+   * face.
+   * @param func Callback function accepting four parameters: i, j, k and C_ijk
+   *    invoked when processing each interface flux matrix contribution. The
+   * interface flux matrix is assembled in a tensorial form prior to computing
+   * the dot product with the normal vector. Each matrix entry is therefore a 3D
+   * vector. The function will compute the index i (line of the matrix and
+   * degree of freedom associated to the trial function "Grad(Phi)"), index j
+   * (column of the matrix and degree of freedom associated to the test function
+   * "Phi"), index k (k = 0,1,2 corresponding to x,y,z directions) and C_ijk
+   * which is the value of the k-th component associated to the matrix entry
+   * (i,j).
+   */
+  template <int kQfa, int kQfb, typename FUNC>
+  PROXY_HOST_DEVICE static void computeGradPhiPhi(int const kDir, int const kQFixed, real_t const (&kX)[4][3],
+                                                  FUNC &&func);
+
+  /**
+   * @brief computes the non-zero contributions of the interface flux
+   *   block matrix CKL, i.e., the integration of "Grad(Phi_i)*Phi_j"
+   *   over a face with the test function "Phi_i" in the element K
+   *   and the trial function "Phi_j" in the element L.
+   * @param faceId Integer (0,1,2,3,4 or 5) to specify the integrated face.
+   * @param X Array containing the coordinates of the support points of the
+   * face.
+   * @param func Callback function accepting four parameters: i, j, k and C_ijk
+   *   invoked when processing each interface flux matrix contribution. The
+   * interface flux matrix is assembled in a tensorial form prior to computing
+   * the dot product with the normal vector. Each matrix entry is therefore a 3D
+   * vector. The function will compute the index i (line of the matrix and
+   * degree of freedom associated to the trial function "Grad(Phi)"), index j
+   * (column of the matrix and degree of freedom associated to the test function
+   * "Phi"), index k (k = 0,1,2 corresponding to x,y,z directions) and C_ijk
+   * which is the value of the k-th component associated to the matrix entry
+   * (i,j).
+   */
+  template <typename FUNC>
+  PROXY_HOST_DEVICE static void computeInterfaceFluxTerm(real_t const (&kX)[4][3], int const kFaceId, FUNC &&func);
 
   /**
    * @brief computes the matrix B, defined as J^{-T}J^{-1}/det(J), where J is
@@ -448,7 +491,7 @@ class Qk_Hexahedron_Lagrange_GaussLobatto final {
    * stiffness matrix itself.
    */
   template <typename FUNC1, typename FUNC2>
-  PROXY_HOST_DEVICE static void computeStiffnessTerm(TransformType const &transformData, FUNC1 &&func1, FUNC2 &&func2);
+  PROXY_HOST_DEVICE static void computeStiffnessTerm(float const (&X)[8][3], FUNC1 &&func1, FUNC2 &&func2);
 
   /**
    * @brief Acoustic stiffness K·p via sum factorization (3-pass algorithm).
@@ -464,15 +507,14 @@ class Qk_Hexahedron_Lagrange_GaussLobatto final {
    *
    * @tparam FUNC_RHO Callable with signature `real_t(int qa, int qb, int qc)`
    *                  returning 1/ρ at reference quad point (qa, qb, qc).
-   * @param transformData 8 corner coordinates of the hexahedral element.
+   * @param X 8 corner coordinates of the hexahedral element.
    * @param p_local       Pressure at element nodes (size numNodes).
    * @param f_local       Force accumulation buffer (size numNodes), added
    *                      to in-place.
    * @param get_inv_rho   Material callback returning 1/ρ per quad point.
    */
   template <typename FUNC_ALPHA>
-  PROXY_HOST_DEVICE static void computeStiffnessTermSumFact(TransformType const &transformData,
-                                                            real_t const (&p_local)[numNodes],
+  PROXY_HOST_DEVICE static void computeStiffnessTermSumFact(float const (&X)[8][3], real_t const (&p_local)[numNodes],
                                                             real_t (&f_local)[numNodes], FUNC_ALPHA &&get_alpha);
 
   /**
@@ -535,8 +577,7 @@ class Qk_Hexahedron_Lagrange_GaussLobatto final {
    * stiffness matrix contributions
    */
   template <typename FUNC1, typename FUNC2>
-  PROXY_HOST_DEVICE static void computeStiffNessTermwithJac(TransformType const &transformData, FUNC1 &&func1,
-                                                            FUNC2 &&func2);
+  PROXY_HOST_DEVICE static void computeStiffNessTermwithJac(float const (&X)[8][3], FUNC1 &&func1, FUNC2 &&func2);
 
   /**
    * @brief Sum-factorized elastic stiffness kernel (O(N^4)).
@@ -559,7 +600,7 @@ class Qk_Hexahedron_Lagrange_GaussLobatto final {
    *   where @p J_inv is the inverted Jacobian, @p grad_u_ref[r][s] =
    *   ∂u_s/∂ξ_r, and @p flux[p][f] is the unscaled flux contribution
    *   (scaled by w·|detJ| inside the kernel).
-   * @param transformData  8 corner coordinates of the hexahedral element.
+   * @param X              8 corner coordinates of the hexahedral element.
    * @param u_local        Displacement at element nodes, shape [3][numNodes].
    * @param f_local        Force accumulation buffer, shape [3][numNodes],
    *                       accumulated in-place.
@@ -567,7 +608,7 @@ class Qk_Hexahedron_Lagrange_GaussLobatto final {
    *                       caller, the kernel remains physics-free.
    */
   template <typename FUNC1>
-  PROXY_HOST_DEVICE static void computeElasticStiffnessSumFact(TransformType const &transformData,
+  PROXY_HOST_DEVICE static void computeElasticStiffnessSumFact(float const (&X)[8][3],
                                                                real_t const (&u_local)[3][numNodes],
                                                                real_t (&f_local)[3][numNodes], FUNC1 &&func1);
 
@@ -809,6 +850,16 @@ constexpr void triple_loop(Lambda &&lambda) {
       [&](auto I) { for_constexpr<BoundJ>([&](auto J) { for_constexpr<BoundK>([&](auto K) { lambda(I, J, K); }); }); });
 }
 
+/*
+ * Perform a double nested compile-time loop from 0 to BoundI-1, 0 to BoundJ-1,
+ * calling a lambda with std::integral_constant<int, I>,
+ * std::integral_constant<int, J> as arguments.
+ */
+template <int BoundI, int BoundJ, typename Lambda>
+constexpr void double_loop(Lambda &&lambda) {
+  for_constexpr<BoundI>([&](auto I) { for_constexpr<BoundJ>([&](auto J) { lambda(I, J); }); });
+}
+
 template <typename GL_BASIS>
 PROXY_HOST_DEVICE void Qk_Hexahedron_Lagrange_GaussLobatto<GL_BASIS>::jacobianTransformation(int const qa, int const qb,
                                                                                              int const qc,
@@ -910,8 +961,8 @@ PROXY_HOST_DEVICE void Qk_Hexahedron_Lagrange_GaussLobatto<GL_BASIS>::jacobianTr
 
 template <typename GL_BASIS>
 template <typename FUNC>
-PROXY_HOST_DEVICE void Qk_Hexahedron_Lagrange_GaussLobatto<GL_BASIS>::computeMassTerm(
-    TransformType const &transformData, FUNC &&func) {
+PROXY_HOST_DEVICE void Qk_Hexahedron_Lagrange_GaussLobatto<GL_BASIS>::computeMassTerm(float const (&X)[8][3],
+                                                                                      FUNC &&func) {
   constexpr int N = num1dNodes;
   triple_loop<N, N, N>([&](auto const icqa, auto const icqb, auto const icqc) {
     constexpr int qa = decltype(icqa)::value;
@@ -920,10 +971,67 @@ PROXY_HOST_DEVICE void Qk_Hexahedron_Lagrange_GaussLobatto<GL_BASIS>::computeMas
     constexpr int q = GL_BASIS::TensorProduct3D::linearIndex(qa, qb, qc);
     constexpr real_t w3D = GL_BASIS::weight(qa) * GL_BASIS::weight(qb) * GL_BASIS::weight(qc);
     real_t J[3][3] = {{0}};
-    float const(&X)[8][3] = transformData.data;
     jacobianTransformation(qa, qb, qc, X, J);
     real_t val = std::abs(determinant(J)) * w3D;
     func(q, val);
+  });
+}
+
+template <typename GL_BASIS>
+template <int kQfa, int kQfb, typename FUNC>
+PROXY_HOST_DEVICE void Qk_Hexahedron_Lagrange_GaussLobatto<GL_BASIS>::computeGradPhiPhi(int const kDir,
+                                                                                        int const kQFixed,
+                                                                                        real_t const (&kX)[4][3],
+                                                                                        FUNC &&func) {
+  int ifa, ifb;
+  switch (kDir) {
+    case 0:
+      ifa = 1;
+      ifb = 2;
+      break;
+    case 1:
+      ifa = 0;
+      ifb = 2;
+      break;
+    default:
+      ifa = 0;
+      ifb = 1;
+      break;
+  }
+  const real_t kW2D = GL_BASIS::weight(kQfa) * GL_BASIS::weight(kQfb);
+  real_t B[3];
+  real_t J[3][2] = {{0}};
+  jacobianTransformation2d(kQfa, kQfb, kX, J);
+  // compute J^T.J, using Voigt notation for B
+  B[0] = J[0][0] * J[0][0] + J[1][0] * J[1][0] + J[2][0] * J[2][0];
+  B[1] = J[0][1] * J[0][1] + J[1][1] * J[1][1] + J[2][1] * J[2][1];
+  B[2] = J[0][0] * J[0][1] + J[1][0] * J[1][1] + J[2][0] * J[2][1];
+  const real_t kDetJ = sqrt(std::abs(symDeterminant(B)));
+  const real_t kVal = kW2D * kDetJ;
+  const int kAbj = GL_BASIS::TensorProduct2D::linearIndex(kQfa, kQfb);
+  for (int i = 0; i < num1dNodes; i++) {
+    const int kIb = GL_BASIS::TensorProduct2D::linearIndex(i, kQfb);
+    const int kAi = GL_BASIS::TensorProduct2D::linearIndex(kQfa, i);
+    const real_t kGifa = basisGradientAt(i, kQfa);
+    const real_t kGifb = basisGradientAt(i, kQfb);
+    const real_t kGiFixed = basisGradientAt(i, kQFixed);
+    func(kAi, kAbj, ifa, kVal * kGifa);
+    func(kIb, kAbj, ifb, kVal * kGifb);
+    func(kAbj, kAbj, kDir, kVal * kGiFixed);
+  }
+}
+
+template <typename GL_BASIS>
+template <typename FUNC>
+PROXY_HOST_DEVICE void Qk_Hexahedron_Lagrange_GaussLobatto<GL_BASIS>::computeInterfaceFluxTerm(real_t const (&kX)[4][3],
+                                                                                               int const kFaceId,
+                                                                                               FUNC &&func) {
+  const int kDir = kFaceId / 2;
+  const int kQFixed = (kFaceId % 2 == 0) ? 0 : num1dNodes - 1;
+  double_loop<num1dNodes, num1dNodes>([&](auto const kIcqfa, auto const kIcqfb) {
+    constexpr int kQfa = decltype(kIcqfa)::value;
+    constexpr int kQfb = decltype(kIcqfb)::value;
+    computeGradPhiPhi<kQfa, kQfb>(kDir, kQFixed, kX, func);
   });
 }
 
@@ -1006,15 +1114,15 @@ PROXY_HOST_DEVICE void Qk_Hexahedron_Lagrange_GaussLobatto<GL_BASIS>::computeGra
 
 template <typename GL_BASIS>
 template <typename FUNC1, typename FUNC2>
-PROXY_HOST_DEVICE void Qk_Hexahedron_Lagrange_GaussLobatto<GL_BASIS>::computeStiffnessTerm(
-    TransformType const &transformData, FUNC1 &&func1, FUNC2 &&func2) {
+PROXY_HOST_DEVICE void Qk_Hexahedron_Lagrange_GaussLobatto<GL_BASIS>::computeStiffnessTerm(float const (&X)[8][3],
+                                                                                           FUNC1 &&func1,
+                                                                                           FUNC2 &&func2) {
   triple_loop<num1dNodes, num1dNodes, num1dNodes>([&](auto const icqa, auto const icqb, auto const icqc) {
     constexpr int qa = decltype(icqa)::value;
     constexpr int qb = decltype(icqb)::value;
     constexpr int qc = decltype(icqc)::value;
     real_t B[6] = {0};
     real_t J[3][3] = {{0}};
-    float const(&X)[8][3] = transformData.data;
     computeBMatrix(qa, qb, qc, X, J, B);
     computeGradPhiBGradPhi<qa, qb, qc>(B, func1, func2);
   });
@@ -1023,25 +1131,20 @@ PROXY_HOST_DEVICE void Qk_Hexahedron_Lagrange_GaussLobatto<GL_BASIS>::computeSti
 template <typename GL_BASIS>
 template <typename FUNC_ALPHA>
 PROXY_HOST_DEVICE void Qk_Hexahedron_Lagrange_GaussLobatto<GL_BASIS>::computeStiffnessTermSumFact(
-    TransformType const &transformData, real_t const (&u_local)[numNodes], real_t (&v_local)[numNodes],
-    FUNC_ALPHA &&get_alpha) {
-  float const(&X)[8][3] = transformData.data;
-
-  // Flux pondérés G^{ξ,η,ζ}[q] = w_q * alpha_q * M(B_q) · ∇_ξ u_q
+    float const (&X)[8][3], real_t const (&u_local)[numNodes], real_t (&v_local)[numNodes], FUNC_ALPHA &&get_alpha) {
+  // Weighted fluxes G^{ξ,η,ζ}[q] = w_q * alpha_q * M(B_q) · ∇_ξ u_q
   real_t G_xi[numNodes] = {0};
   real_t G_eta[numNodes] = {0};
   real_t G_zeta[numNodes] = {0};
 
-  // Pass 1+2 fused: gradient de u, puis application de la métrique, de alpha et
-  // du poids
+  // Pass 1+2 fused: gradient of u, then application of the metric, alpha and weight
   triple_loop<num1dNodes, num1dNodes, num1dNodes>([&](auto const icqa, auto const icqb, auto const icqc) {
     constexpr int qa = decltype(icqa)::value;
     constexpr int qb = decltype(icqb)::value;
     constexpr int qc = decltype(icqc)::value;
     constexpr int q = GL_BASIS::TensorProduct3D::linearIndex(qa, qb, qc);
 
-    // La gestion des poids de quadrature est interne à la bibliothèque
-    // mathématique
+    // Quadrature weight management is internal to the math library
     constexpr real_t w = GL_BASIS::weight(qa) * GL_BASIS::weight(qb) * GL_BASIS::weight(qc);
 
     real_t dxi_q = 0, deta_q = 0, dzeta_q = 0;
@@ -1060,7 +1163,7 @@ PROXY_HOST_DEVICE void Qk_Hexahedron_Lagrange_GaussLobatto<GL_BASIS>::computeSti
     real_t B[6] = {0};
     computeBMatrix(qa, qb, qc, X, J, B);
 
-    // 'scale' fusionne la physique (alpha) et la quadrature (w)
+    // 'scale' combines physics (alpha) and quadrature weight (w)
     real_t const scale = w * get_alpha(qa, qb, qc);
 
     G_xi[q] = scale * (B[0] * dxi_q + B[5] * deta_q + B[4] * dzeta_q);
@@ -1099,13 +1202,13 @@ PROXY_HOST_DEVICE void Qk_Hexahedron_Lagrange_GaussLobatto<GL_BASIS>::computeSti
 template <typename GL_BASIS>
 template <typename FUNC1, typename FUNC2>
 PROXY_HOST_DEVICE void Qk_Hexahedron_Lagrange_GaussLobatto<GL_BASIS>::computeStiffNessTermwithJac(
-    TransformType const &transformData, FUNC1 &&func1, FUNC2 &&func2) {
+    float const (&X)[8][3], FUNC1 &&func1, FUNC2 &&func2) {
   triple_loop<num1dNodes, num1dNodes, num1dNodes>([&](auto const icqa, auto const icqb, auto const icqc) {
     constexpr int qa = decltype(icqa)::value;
     constexpr int qb = decltype(icqb)::value;
     constexpr int qc = decltype(icqc)::value;
     JacobianType J = {{0}};
-    jacobianTransformation(qa, qb, qc, transformData.data, J.data);
+    jacobianTransformation(qa, qb, qc, X, J.data);
     computeGradPhiGradPhi<qa, qb, qc>(J, func1, func2);
   });
 }
@@ -1113,8 +1216,7 @@ PROXY_HOST_DEVICE void Qk_Hexahedron_Lagrange_GaussLobatto<GL_BASIS>::computeSti
 template <typename GL_BASIS>
 template <typename FUNC1>
 PROXY_HOST_DEVICE void Qk_Hexahedron_Lagrange_GaussLobatto<GL_BASIS>::computeElasticStiffnessSumFact(
-    TransformType const &transformData, real_t const (&u_local)[3][numNodes], real_t (&f_local)[3][numNodes],
-    FUNC1 &&func1) {
+    float const (&X)[8][3], real_t const (&u_local)[3][numNodes], real_t (&f_local)[3][numNodes], FUNC1 &&func1) {
   // 9 flux arrays: F_xi/F_eta/F_zeta[force_comp][quad_point]
   real_t F_xi[3][numNodes] = {{0}};
   real_t F_eta[3][numNodes] = {{0}};
@@ -1151,7 +1253,7 @@ PROXY_HOST_DEVICE void Qk_Hexahedron_Lagrange_GaussLobatto<GL_BASIS>::computeEla
 
     // Jacobian (inverted in-place, returns det).
     JacobianType J = {{0}};
-    jacobianTransformation(qa, qb, qc, transformData.data, J.data);
+    jacobianTransformation(qa, qb, qc, X, J.data);
     real_t const detJ = invert3x3(J.data);
     const real_t scale = w * detJ;
 
