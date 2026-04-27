@@ -5,6 +5,40 @@
 namespace model {
 
 /**
+ * @brief Map a 2D face DOF index to the corresponding 3D element DOF index.
+ *
+ * The 2D face DOF convention follows the loop order used in
+ * FaceConnectivityUnstruct::build(): the fast index is always the first
+ * tangential direction and the slow index is the second.
+ *
+ * @param face   Which of the 6 faces of the hexahedron (CubicFace enum).
+ * @param face_dof_2d  2D face DOF index in [0, (order+1)^2).
+ * @param order  Polynomial order of the element.
+ * @return  3D element-local DOF index in [0, (order+1)^3).
+ */
+inline int faceLocalToElemLocal(CubicFace face, int face_dof_2d, int order) {
+  const int n = order + 1;
+  const int u = face_dof_2d % n;
+  const int v = face_dof_2d / n;
+  switch (face) {
+    case CubicFace::kXMinus:
+      return u * n + v * n * n;
+    case CubicFace::kXPlus:
+      return order + u * n + v * n * n;
+    case CubicFace::kYMinus:
+      return u + v * n * n;
+    case CubicFace::kYPlus:
+      return u + order * n + v * n * n;
+    case CubicFace::kZMinus:
+      return u + v * n;
+    case CubicFace::kZPlus:
+      return u + v * n + order * n * n;
+    default:
+      return -1;
+  }
+}
+
+/**
  * @brief Abstract interface for face connectivity
  *
  */
@@ -74,6 +108,20 @@ class FaceConnectivityApi {
    * @return Local face index (0-5) in neighbor element, or -1 if boundary
    */
   PROXY_HOST_DEVICE virtual int localFaceNeighbor(ScalarType face_id) const = 0;
+
+  /**
+   * @brief Map an owner 2D face DOF index to the corresponding neighbor 2D
+   * face DOF index for the same physical node.
+   *
+   * This permutation is needed by DG flux kernels to match degrees of freedom
+   * across an interface when the two adjacent elements index the shared face
+   * in different orders.
+   *
+   * @param face_id   Global face ID.
+   * @param owner_dof 2D face DOF index in the owner element [0, (N+1)^2).
+   * @return          Corresponding 2D face DOF index in the neighbor element.
+   */
+  PROXY_HOST_DEVICE virtual int getNeighborFaceDof(ScalarType face_id, int owner_dof) const = 0;
 };
 
 }  // namespace model
