@@ -849,7 +849,10 @@ TYPED_TEST(InterfaceFluxTest, InterfaceFluxIsZero) {
   using QK = TypeParam;
   constexpr int numNodesPerFace = QK::numNodesPerFace;
 
-  // Arbitrary square in XY plane
+  // Unit cube element corners
+  real_t X8[8][3] = {{0, 0, 0}, {1, 0, 0}, {0, 1, 0}, {1, 1, 0}, {0, 0, 1}, {1, 0, 1}, {0, 1, 1}, {1, 1, 1}};
+
+  // Arbitrary square in XY plane (face corners)
   real_t X[4][3];
   X[0][0] = 0.0;
   X[0][1] = 0.0;
@@ -866,7 +869,7 @@ TYPED_TEST(InterfaceFluxTest, InterfaceFluxIsZero) {
 
   real_t CKK[numNodesPerFace][numNodesPerFace][3] = {{{0}}};
   for (int faceId = 0; faceId < 6; ++faceId) {
-    QK::computeInterfaceFluxTerm(X, faceId, [&](int i, int j, int k, real_t Cijk) { CKK[i][j][k] += Cijk; });
+    QK::computeInterfaceFluxTerm(X, X8, faceId, [&](int i, int j, int k, real_t Cijk) { CKK[i][j][k] += Cijk; });
 
     real_t SumGrad[3] = {0};
     real_t Sum;
