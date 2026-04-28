@@ -6,7 +6,7 @@
 #include <cstdlib>
 
 #include "Integrals.h"
-#include "sem_solver.h"
+#include "dg_solver.h"
 
 namespace solver {
 namespace fe {
@@ -37,6 +37,40 @@ void DGsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::outp
 
 
 //============================================================================
+// applyRHSTerm
+//============================================================================
+
+template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE, bool IS_MODEL_ON_NODES, physicType PHYSICS>
+void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::applyRHSTerm(int timeSample, float dt,
+                                                                                          const DataType& data) {
+  int nb_rhs_element = data.getRhsElement().extent(0);
+  auto mesh_local = m_mesh;  // Capture mesh for lambda
+
+  static constexpr const char* rhsNames[1] = {"rhs"};
+  for (int f = 0; f < kNumRhs; ++f) {
+    rhsTermGlobal[f] = allocateVector<VECTOR_REAL_VIEW>(m_mesh.getNumberOfNodes(), rhsNames[f]);
+  }
+
+  Kokkos::parallel_for(
+      "Solver Apply RHSTerm", nb_rhs_element, KOKKOS_LAMBDA(const int i) {
+        for (int z = 0; z < ORDER + 1; z++) {
+          for (int y = 0; y < ORDER + 1; y++) {
+            for (int x = 0; x < ORDER + 1; x++) {
+              int localNodeId = x + y * (ORDER + 1) + z * (ORDER + 1) * (ORDER + 1);
+              int nodeRHS = mesh_local.globalNodeIndex(data.getRhsElement()[i], x, y, z);
+
+              for (int f = 0; f < kNumRhs; ++f) {
+                float source = data.getRhsTerm(f)(i, timeSample) * data.getRhsWeights()(i, localNodeId);
+                rhsTermGlobal[f](nodeRHS) -= source;
+              }
+            }
+          }
+        }
+      });
+}
+
+
+//============================================================================
 // updateFields - Time integration update
 //============================================================================
 template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE, bool IS_MODEL_ON_NODES, physicType PHYSICS>
@@ -54,9 +88,11 @@ void DGsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::upda
   allocateArray2D(kNumElem, kPointsPerElement, "prev_field")
   current_field = data.getCurrentField(0);
   prev_field = data.getPreviousField(0);
-  
 
-  for(int e=0; e<kNumElem, ++e) {
+  applyRHSTerm(timeSample, dt, data);
+  
+  Kokkos::parallel_for(
+      "Solver DG Update Field Acoustic", kNumElem, KOKKOS_LAMBDA(const int e) {
     float massMatrixLocal[kPointsPerElement] = {0};
     float stiffnessMatrixLocal[kPointsPerElement] = {0};
     float elementCoords[8][3];
@@ -106,19 +142,27 @@ void DGsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::upda
         for(int i=0; i<knumNodesPerFace; ++i) {
           int const ei = mesh_local.getGlobalNodeFromFace(f, i);// node index in element
           int const ei_perm = 0;
-          stiffnessMatrixLocal[ei] += gamma * ( computeDampingMatrix(i, faceCoords)*prev_field[e][ei]
-           - computeDampingMatrix(i, faceCoords)*prev_field[neighbor_e][ei_perm] );
+          stiffnessMatrixLocal[ei] += gamma * ( computeDampingTerm(i, faceCoords)*prev_field[e][ei]
+           - computeDampingTerm(i, faceCoords)*prev_field[neighbor_e][ei_perm] );
         }
 
       }
+    }
 
-      for(int i=0; i<kPointsPerElement; ++i) {
-        current_field[e][i] = 1 / massMatrixLocal[i] * ( 2 * massMatrixLocal[i] * prev_field[e][i]
-           - dt2_local * stiffnessMatrixLocal[i] - massMatrixLocal[i] * current_field[e][i]); // add damping and source term
+    for (int z = 0; z < ORDER + 1; z++) {
+      for (int y = 0; y < ORDER + 1; y++) {
+        for (int x = 0; x < ORDER + 1; x++) {
+          int i = x + y * (ORDER + 1) + z * (ORDER + 1) * (ORDER + 1);
+          int nodeGlobalIndex = mesh_local.globalNodeIndex(e, x, y, z);
+          stiffnessMatrixLocal[i] += rhsTermGlobal[0](nodeGlobalIndex);
+
+          current_field[e][i] = 1 / massMatrixLocal[i] * ( 2 * massMatrixLocal[i] * prev_field[e][i]
+              - dt2_local * stiffnessMatrixLocal[i] - massMatrixLocal[i] * current_field[e][i]); // add damping    
+        }
       }
     }
-  }
-
+    
+  });
 
 }
 

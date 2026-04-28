@@ -13,7 +13,7 @@
 #include "physics_traits.h"
 #include "physics_traits_acoustic.h"
 #include "sem_enums.h"
-#include "sem_solver_data.h"
+#include "dg_solver_data.h"
 #include "solver.h"
 
 namespace solver {
@@ -61,6 +61,14 @@ class DGsolver : public Solver {
 
   void outputSolutionValues(const int& t, int& e, const VECTOR_REAL_VIEW& field, const char* fieldName) override;
 
+/**
+   * @brief Apply external forcing to the global fields.
+   *
+   * @param timeSample Current time sample index.
+   * @param dt Delta time for this iteration.
+   * @param data Data structure containing RHS terms and fields.
+   */
+  void applyRHSTerm(int timeSample, float dt, const DataType& data);
 
   /**
    * @brief Update the global solution fields at interior nodes.
@@ -72,6 +80,8 @@ class DGsolver : public Solver {
 
  private:
   MESH_TYPE m_mesh;
+
+  std::array<VECTOR_REAL_VIEW, kNumFields> rhsTermGlobal;
 
   static constexpr int kPointsPerElement = (ORDER + 1) * (ORDER + 1) * (ORDER + 1);
   static constexpr int knumNodesPerFace = (ORDER + 1) * (ORDER + 1);
