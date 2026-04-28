@@ -87,7 +87,7 @@ std::unique_ptr<Differentiator> makeDifferentiatorSem(int order, meshType mesh, 
                                                       physicType physic) {
   bool const isModelOnNodes = (modelLocation == modelLocationType::kOnNodes);
 
-// Définir une macro de fallback au cas où CMake ne passe pas les variables
+// macro fallback in case of cmake error
 #ifndef MAX_DIFFERENTIATOR_ACOUSTIC_ORDER
 #define MAX_DIFFERENTIATOR_ACOUSTIC_ORDER 3
 #endif
