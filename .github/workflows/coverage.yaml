@@ -70,12 +70,12 @@ jobs:
 
       - name: Generate Coverage Report
         run: |
-          cd build
-          mkdir -p coverage-report
-          gcovr -r .. . \
-            --html-details coverage-report/coverage.html \
-            --xml coverage-report/coverage.xml \
-            --filter '.*/src/.*' \
+          mkdir -p build/coverage-report
+
+          gcovr -r . build/ \
+            --html-details build/coverage-report/coverage.html \
+            --xml build/coverage-report/coverage.xml \
+            --filter '^src/' \
             -j $(nproc)
 
       - name: Parse Coverage XML for GitHub
