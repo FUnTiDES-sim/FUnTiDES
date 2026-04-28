@@ -22,22 +22,26 @@ struct Wavefield {
    */
   virtual const char* const* getFieldNames() const = 0;
 
+
+  //////////Not sure that we need this.../////////////////////
   /**
    * @brief Get the current field at a specific index.
    * @param i The index of the field to retrieve.
    * @return The requested current field.
    */
   PROXY_HOST_DEVICE
-  virtual VECTOR_REAL_VIEW getCurrentField(int i) const = 0;
+  virtual ARRAY_REAL_VIEW getCurrentField(int i) const = 0;
 
   /**
    * @brief Get the previous field at a specific index.
    * @param i The index of the field to retrieve.
-   * @return The requested current field.
+   * @return The requested previous field.
    */
   PROXY_HOST_DEVICE
-  virtual VECTOR_REAL_VIEW getPreviousField(int i) const = 0;
+  virtual ARRAY_REAL_VIEW getPreviousField(int i) const = 0;
 
+
+  //////////// I think we do not need it also for dg
   /**
    * @brief Swap data to advance the wavefield to the next time step.
    * This method should exchange the current and previous field data.
@@ -67,6 +71,8 @@ struct Wavefield {
    * etc.).
    */
   virtual void swapWithRotation(VECTOR_REAL_VIEW& prevPrevBuffer, int i) = 0;
+
+  ///////////////////////////////////////////////////////
 
   virtual void print() const = 0;
 };

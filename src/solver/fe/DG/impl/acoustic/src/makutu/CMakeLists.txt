@@ -25,6 +25,7 @@ set(MODEL_TYPES "onelements" "onnodes")
 
 generate_solver_implementations(
     SOLVER_NAME "makutu"
+    FILE_PREFIX "DGQ"
     ORDERS ${ORDERS}
     MESH_TYPES ${MESH_TYPES}
     MODEL_TYPES ${MODEL_TYPES}

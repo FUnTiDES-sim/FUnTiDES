@@ -1,86 +1,47 @@
-#ifndef FUNTIDES_SOLVER_FE_IMPL_COMMON_INCLUDE_SEM_SOLVER_DATA_H_
-#define FUNTIDES_SOLVER_FE_IMPL_COMMON_INCLUDE_SEM_SOLVER_DATA_H_
+#ifndef FUNTIDES_SRC_SOLVER_FE_DG_IMPL_COMMON_INCLUDE_DG_SOLVER_DATA_H_
+#define FUNTIDES_SRC_SOLVER_FE_DG_IMPL_COMMON_INCLUDE_DG_SOLVER_DATA_H_
+
 #include <iostream>
 
-#include "physics_traits_acoustic.h"
+#include "data_type.h"
 #include "solver.h"
 
 namespace solver {
 namespace fe {
 
-using physicType = utils::enums::physicType;
-
-//============================================================================
-// Unified Data Structure
-//============================================================================
-
 /**
- * @brief Unified data structure for SEM solver.
+ * @brief Data structure for the DG acoustic solver.
  *
- * Holds solution fields, RHS terms, and time indices for time-stepping.
- * The number of fields and RHS components is determined at compile time
- * based on the physics type.
- *
- * @tparam PHYSICS The physics type (kAcoustic or kElastic)
+ * Holds solution fields (per-element 2-D) and RHS terms (same layout as SEM).
+ * Fields are indexed (n_elem, n_dof_per_elem); RHS follows SEM conventions.
  */
-template <physicType PHYSICS>
-struct DGsolverData : public Solver::DataStruct {
-  using Traits = PhysicsTraits<PHYSICS>;
-  static constexpr int kNumFields = Traits::WavefieldType::kNumFields;
-  static constexpr int kNumRhs = Traits::RhsType::kNumRhsComponents;
-
-  // Use concrete types from PhysicsTraits to avoid virtual dispatch on device
-  using WavefieldType = typename Traits::WavefieldType;
-  using RhsType = typename Traits::RhsType;
-
-  /**
-   * @brief Constructor for acoustic physics (single field).
-   */
-  template <physicType P = PHYSICS, typename = std::enable_if_t<P == physicType::kAcoustic>>
-  DGsolverData(const WavefieldAcoustic& wavefield, const RhsAcoustic& rhs) : m_wavefield(wavefield), m_rhs(rhs) {}
-
-  PROXY_HOST_DEVICE
-  ARRAY_REAL_VIEW getRhsTerm(int i) const { return m_rhs.getTerm(i); }
-
-  PROXY_HOST_DEVICE
-  VECTOR_INT_VIEW getRhsElement() const { return m_rhs.getElement(); }
-
-  PROXY_HOST_DEVICE
-  ARRAY_REAL_VIEW getRhsWeights() const { return m_rhs.getWeights(); }
-
-  PROXY_HOST_DEVICE
-  ARRAY_REAL_VIEW getCurrentField(int i) const { return m_wavefield.getCurrentField(i); }
-
-  PROXY_HOST_DEVICE
-  ARRAY_REAL_VIEW getPreviousField(int i) const { return m_wavefield.getPreviousField(i); }
-
-  void swapWavefields() { m_wavefield.swap(); }
-
-  void print() const override {
-    std::cout << "DGsolverData<" << Traits::kName << ">" << std::endl;
-    for (int f = 0; f < kNumFields; ++f) {
-      std::cout << "Field[" << f << "] (" << Traits::WavefieldType::kFieldNames[f]
-                << ") size: " << getCurrentField(f).extent(0) << std::endl;
-    }
-    for (int r = 0; r < kNumRhs; ++r) {
-      std::cout << "RHS[" << r << "] size: " << getRhsTerm(r).extent(0) << std::endl;
-    }
-    std::cout << "RHS Element size: " << getRhsElement().extent(0) << std::endl;
-    std::cout << "RHS Weights size: " << getRhsWeights().extent(0) << std::endl;
-  }
+struct DGsolverDataAcoustic : public Solver::DataStruct {
+  ARRAY_REAL_VIEW pnPrev;     ///< Pressure at previous time step (n_elem, n_dof)
+  ARRAY_REAL_VIEW pnCurr;     ///< Pressure at current time step  (n_elem, n_dof)
+  ARRAY_REAL_VIEW myRHSTerm;  ///< Source time series (n_rhs, n_sample)
+  VECTOR_INT_VIEW rhsElement; ///< Source element indices
+  ARRAY_REAL_VIEW rhsWeights; ///< Source weights (n_rhs, n_dof_per_elem)
 
   bool isDistributed{false};
-  WavefieldType m_wavefield;  ///< Wavefield stored by value for GPU
-                              ///< (lightweight view handles)
-  RhsType m_rhs;              ///< RHS stored by value for GPU (lightweight view handles)
+
+  DGsolverDataAcoustic(ARRAY_REAL_VIEW prev, ARRAY_REAL_VIEW curr, ARRAY_REAL_VIEW rhsTerm,
+                       VECTOR_INT_VIEW rhsElem, ARRAY_REAL_VIEW rhsW)
+      : pnPrev(prev), pnCurr(curr), myRHSTerm(rhsTerm), rhsElement(rhsElem), rhsWeights(rhsW) {}
+
+  PROXY_HOST_DEVICE ARRAY_REAL_VIEW getCurrentField(int /*i*/) const { return pnCurr; }
+  PROXY_HOST_DEVICE ARRAY_REAL_VIEW getPreviousField(int /*i*/) const { return pnPrev; }
+  PROXY_HOST_DEVICE ARRAY_REAL_VIEW getRhsTerm(int /*i*/) const { return myRHSTerm; }
+  PROXY_HOST_DEVICE VECTOR_INT_VIEW getRhsElement() const { return rhsElement; }
+  PROXY_HOST_DEVICE ARRAY_REAL_VIEW getRhsWeights() const { return rhsWeights; }
+
+  void swapWavefields() { std::swap(pnPrev, pnCurr); }
+
+  void print() const override {
+    std::cout << "DGsolverDataAcoustic: " << pnPrev.extent(0) << " elems x " << pnPrev.extent(1) << " dofs"
+              << std::endl;
+  }
 };
-
-//============================================================================
-// Backward Compatibility Type Aliases for Data Structures
-//============================================================================
-
-using DGsolverDataAcoustic = SEMsolverData<physicType::kAcoustic>;
 
 }  // namespace fe
 }  // namespace solver
-#endif  // FUNTIDES_SOLVER_FE_IMPL_COMMON_INCLUDE_SEM_SOLVER_DATA_H_
+#endif  // FUNTIDES_SRC_SOLVER_FE_DG_IMPL_COMMON_INCLUDE_DG_SOLVER_DATA_H_

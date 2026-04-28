@@ -10,6 +10,8 @@ namespace fe {
  * @brief Acoustic wavefield data structure.
  * Arrays are kept flat for easy cpp-python-fortran interop.
  */
+
+// We may see how we take account of the solution arrays inside the solver, maybe it can be easier then all of this stuff
 struct WavefieldAcoustic : public Wavefield {
   /// Number of solution fields (1 for pressure)
   static constexpr int kNumFields = 1;

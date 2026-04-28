@@ -16,7 +16,7 @@ namespace model {
  * @param order  Polynomial order of the element.
  * @return  3D element-local DOF index in [0, (order+1)^3).
  */
-inline int faceLocalToElemLocal(CubicFace face, int face_dof_2d, int order) {
+PROXY_HOST_DEVICE int faceLocalToElemLocal(CubicFace face, int face_dof_2d, int order) {
   const int n = order + 1;
   const int u = face_dof_2d % n;
   const int v = face_dof_2d / n;

@@ -22,6 +22,7 @@
 #include <sstream>
 #include <variant>
 
+#include "dg_solver_data.h"
 #include "rhs_acoustoelastic.h"
 #ifdef USE_MPI
 #include "mpi_backend.h"
@@ -50,6 +51,7 @@ SEMproxy::SEMproxy(const SemProxyOptions& opt) {
   isAcoustoElastic_ = opt.isAcoustoElastic;
 
   const methodType methodType = getMethod(opt.method);
+  isDG_ = (methodType == utils::enums::methodType::kDg);
   const implemType implemType = getImplem(opt.implem);
   const meshType meshType = getMesh(opt.mesh);
   const modelLocationType modelLocation =
@@ -220,7 +222,51 @@ void SEMproxy::run() {
   // Get the global node index of the first node of the source element
   int debugNodeIdx = m_mesh->globalNodeIndex(myElementSource, 0, 0, 0);
 
-  if (isAcoustoElastic) {
+  if (isDG_) {
+    DGsolverDataAcoustic dgData(pnDGPrev_, pnDGCurr_, myRHSTerm, rhsElement, rhsWeights);
+
+    for (int indexTimeSample = 0; indexTimeSample < num_sample_; indexTimeSample++) {
+      startComputeTime = system_clock::now();
+
+      m_solver->computeOneStep(dt_, indexTimeSample, dgData);
+
+      totalComputeTime += system_clock::now() - startComputeTime;
+      startOutputTime = system_clock::now();
+
+      if (indexTimeSample % 50 == 0) {
+        std::cout << "DG TimeStep=" << indexTimeSample
+                  << "  p(elem=0, dof=0)=" << dgData.getPreviousField(0)(0, 0) << std::endl;
+      }
+
+      // Save pressure at receiver: DG field indexed by (elem, local_dof)
+      const int order = m_mesh->getOrder();
+      float varnp1 = 0.0f;
+      for (int i = 0; i <= order; i++) {
+        for (int j = 0; j <= order; j++) {
+          for (int k = 0; k <= order; k++) {
+            int localDof = i + j * (order + 1) + k * (order + 1) * (order + 1);
+            varnp1 += dgData.getCurrentField(0)(rhsElementRcv[0], localDof) * rhsWeightsRcv(0, localDof);
+          }
+        }
+      }
+      pnAtReceiver(0, indexTimeSample) = varnp1;
+
+      dgData.swapWavefields();
+
+      totalOutputTime += system_clock::now() - startOutputTime;
+    }
+
+    // Save receiver trace
+    {
+      std::ofstream fout("receiver_trace.txt");
+      fout << "# time pressure_at_receiver\n";
+      for (int t = 0; t < num_sample_; ++t) {
+        fout << t * dt_ << " " << pnAtReceiver(0, t) << "\n";
+      }
+      fout.close();
+      std::cout << "Receiver trace saved to receiver_trace.txt (" << num_sample_ << " samples)" << std::endl;
+    }
+  } else if (isAcoustoElastic) {
     WavefieldAcoustoElastic wavefield(pnGlobalPrev, pnGlobalCurr, uxnGlobalPrev, uxnGlobalCurr, uynGlobalPrev,
                                       uynGlobalCurr, uznGlobalPrev, uznGlobalCurr);
     RhsAcoustoElastic rhs(myRHSTerm, rhsElement, rhsWeights, myRHSTermx, myRHSTermy, myRHSTermz);
@@ -494,7 +540,12 @@ void SEMproxy::init_arrays() {
   rhsElement = allocateVector<vectorInt>(myNumberOfRHS, "rhsElement");
   rhsWeights = allocateArray2D<arrayReal>(myNumberOfRHS, n_points_per_element, "RHSWeight");
 
-  if (isAcoustoElastic_) {
+  if (isDG_) {
+    myRHSTerm = allocateArray2D<arrayReal>(myNumberOfRHS, num_sample_, "RHSTerm");
+    pnDGPrev_ = allocateArray2D<arrayReal>(n_elements, n_points_per_element, "pnDGPrev");
+    pnDGCurr_ = allocateArray2D<arrayReal>(n_elements, n_points_per_element, "pnDGCurr");
+    pnAtReceiver = allocateArray2D<arrayReal>(1, num_sample_, "pnAtReceiver");
+  } else if (isAcoustoElastic_) {
     // Acousto-elastic: acoustic + elastic source terms (one may be all zeros),
     // plus both wavefields (acoustic pressure and elastic displacement).
     myRHSTerm = allocateArray2D<arrayReal>(myNumberOfRHS, num_sample_, "RHSTerm");

@@ -1,13 +1,13 @@
 // Auto-generated file - DO NOT EDIT
-// Generated for: SEMQ@ORDER@ @MESH_TYPE@ makutu solver @PHYSIC_TYPE@ model@MODEL_TYPE@
+// Generated for: DGQ@ORDER@ @MESH_TYPE@ makutu solver @PHYSIC_TYPE@ model@MODEL_TYPE@
 
 #include <@MODEL_HEADER@>
 
-#include "sem_solver_impl.h"
+#include "dg_solver_impl.h"
 
 constexpr int ORDER = @ORDER@;
 
-template class solver::fe::SEMsolver<ORDER,
+template class solver::fe::DGsolver<ORDER,
                          IntegralTypeSelector<ORDER, IntegralType::MAKUTU>::type,
                          model::@MODEL_CLASS@<@MODEL_TEMPLATE_PARAMS@>,
                          @MODEL_ON_NODES@,

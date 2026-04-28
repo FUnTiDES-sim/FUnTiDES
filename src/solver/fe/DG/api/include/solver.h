@@ -58,6 +58,8 @@ class Solver {
    */
   virtual void initSpongeValues() = 0;
 
+
+  ////////////////////// All global arrays not necessary here (dg) ////////////////////
   /**
    * @brief Reset global FE vectors (mass, stiffness) before accumulation.
    *
@@ -77,6 +79,8 @@ class Solver {
    */
   virtual void computeDampingMatrix() = 0;
 
+   /////////////////////////////////////////////
+
   /**
    * @brief Outputs solution field values at a specific time step
    *
@@ -92,7 +96,7 @@ class Solver {
    * @param[in] fieldName Name/identifier of the field being output (as a
    *                      C-string)
    */
-  virtual void outputSolutionValues(const int& t, int& e, const VECTOR_REAL_VIEW& field, const char* fieldName) = 0;
+  virtual void outputSolutionValues(const int& t, int& e, const ARRAY_REAL_VIEW& field, const char* fieldName) = 0;
 
   // --- Domain Decomposition Interface ---
 
@@ -102,6 +106,8 @@ class Solver {
    */
   virtual int getNumComponents() const = 0;
 
+
+  ///////////////// Not needed due to (dg) ////////////////////////////
   /**
    * @brief Access the acoustic (fluid) mass matrix for DD synchronization.
    *
@@ -130,13 +136,15 @@ class Solver {
 
   virtual VECTOR_REAL_VIEW& getDampingMatrix(int c) = 0;
 
+  //////////////////////////////////////////////////////
+
   /**
    * @brief Access a Force Vector component.
    * Used by the orchestrator to synchronize forces at boundaries during each
    * time step.
    * @param component Component index (0 to getNumComponents()-1).
    */
-  virtual VECTOR_REAL_VIEW& getForceVector(int component) = 0;
+  virtual ARRAY_REAL_VIEW& getForceVector(int component) = 0;
 
   /**
    * @brief Phase 1 of time step: Compute local forces (Stiffness + Source).
