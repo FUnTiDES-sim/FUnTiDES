@@ -180,7 +180,7 @@ void DGsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::upda
           int const ei = model::faceLocalToElemLocal(static_cast<model::CubicFace>(faceId), i, ORDER);
           int const ei_perm =
               model::faceLocalToElemLocal(neighbor_local_face, face_connectivity_local.getNeighborFaceDof(f, i), ORDER);
-          stiffnessMatrixLocal[ei] += gamma * (prev_field(e, ei) - prev_field(neighbor_e, ei_perm));
+          stiffnessMatrixLocal[ei] += gamma * INTEGRAL_TYPE::computeDampingTerm(i,faceCoords)*(prev_field(e, ei) - prev_field(neighbor_e, ei_perm));
         }
       }
     }

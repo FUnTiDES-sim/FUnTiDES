@@ -4,6 +4,8 @@
 
 #include "rhs.h"
 
+//Thinking about it, maybe all the RHS structure can be removed...
+
 namespace solver {
 namespace fe {
 /**
