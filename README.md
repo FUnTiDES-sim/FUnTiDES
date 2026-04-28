@@ -23,6 +23,7 @@ The following options can be used to configure your build:
 | `COMPILE_FD`               | Enable compilation of the FD proxy (default: ON)                                   |
 | `COMPILE_SEM`              | Enable compilation of the SEM proxy (default: ON)                                  |
 | `ENABLE_PYWRAP`            | Enable Python bindings via pybind11 (experimental)                                 |
+| `ENABLE_COVERAGE`          | Enable Code coverage. Does not work with device enable                             |
 | `CMAKE_INSTALL_PREFIX`     | Where to install FUnTiDES                                                          |
 | `MAX_SOLVER_ORDER`         | Max polynomial order generated for solvers (reduces compile time & binary size)    |
 | `MAX_DIFFERENTIATOR_ORDER` | Max polynomial order generated for differentiators (reduces compile time)          |
