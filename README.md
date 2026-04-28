@@ -220,3 +220,35 @@ python ./scripts/adios/adios_single_receiver_viz.py
 ```
 
 within the folder containing the `receivers.bp` folder.
+
+
+## Code Coverage
+
+**FUnTiDES** supports code coverage analysis. To enable this feature, set the CMake option `ENABLE_COVERAGE` to `ON`. 
+
+> **Note:** The application will run significantly slower when this option is enabled. Currently, this feature is fully supported on **CPU** but has not been tested on device-specific code (GPU). Ensure that your **Kokkos** installation was not compiled with CUDA or ROCm/AMD support enabled.
+
+### Running Tests
+First, compile the code, then execute the tests using the following command:
+
+```bash
+ctest -LE "benchmark|validation" --output-on-failure
+```
+This command runs all standard tests while excluding benchmarks and validation tests, which can be time-consuming.
+
+### Generating Reports
+To generate a readable **HTML report**, execute the following commands:
+
+```bash
+# Capture coverage data
+lcov --capture --directory . --output-file coverage.info --ignore-errors inconsistent,source
+
+# Filter out external libraries, tests, and build files
+lcov --remove coverage.info '/usr/*' '*/_deps/*' '*/tests/*' '*/buildCov/*' --output-file coverage_cleaned.info --ignore-errors inconsistent,source
+
+# Generate the HTML report
+genhtml coverage_cleaned.info \
+    --output-directory html_report \
+    --ignore-errors inconsistent,source,range \
+    --filter missing
+```
