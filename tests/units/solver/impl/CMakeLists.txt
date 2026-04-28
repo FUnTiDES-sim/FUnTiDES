@@ -25,6 +25,11 @@ add_gtest(solver_data_test
   proxy_solver
 )
 
+add_gtest(solver_factory_test
+  test_solver_factory.cc
+  proxy_solver
+)
+
 if(USE_MPI)
 add_executable(test_mpi_partitioning test_mpi_partitioning.cc)
 target_link_libraries(test_mpi_partitioning
