@@ -104,6 +104,7 @@ template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE, bool IS_MODEL_O
           utils::enums::physicType PHYSICS>
 void DGsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::updateFields(float dt,
                                                                                          const DataType& data) {
+  float const dt_local = dt;
   float const dt2_local = dt * dt;
 
   auto mesh_local = m_mesh;
@@ -120,6 +121,7 @@ void DGsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::upda
       "Solver DG Update Field Acoustic", kNumElem, KOKKOS_LAMBDA(const int e) {
         float massMatrixLocal[kPointsPerElement] = {0};
         float stiffnessMatrixLocal[kPointsPerElement] = {0};
+        float dampingMatrixLocal[kPointsPerElement] = {0};
         float elementCoords[8][3];
         {
           auto const eIdx = mesh_local.elementIndex(e);
@@ -134,6 +136,7 @@ void DGsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::upda
         real_t const rho = mesh_local.getModelRhoOnElement(e);
         real_t const inv_model_factor = 1.0f / (vp * vp * rho);
         real_t const inv_rho = 1.0f / rho;
+        real_t const inv_vp = 1.0f / vp;
 
         INTEGRAL_TYPE::computeMassTerm(
             elementCoords, [&](const int j, const real_t val) { massMatrixLocal[j] += inv_model_factor * val; });
@@ -147,14 +150,14 @@ void DGsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::upda
         for (int faceId = 0; faceId < 6; ++faceId) {
           int const f = face_connectivity_local.getGlobalFace(e, static_cast<model::CubicFace>(faceId));
 
-          if (!face_connectivity_local.isBoundaryFace(f)) {
-            float faceCoords[4][3];
-            for (int j = 0; j < 4; ++j) {
-              int const gni =
-                  face_connectivity_local.getGlobalNodeFromFace(f, INTEGRAL_TYPE::meshIndexToLinearIndex2D(j));
-              for (int d = 0; d < 3; ++d) faceCoords[j][d] = mesh_local.nodeCoord(gni, d);
-            }
+          float faceCoords[4][3];
+          for (int j = 0; j < 4; ++j) {
+            int const gni =
+                face_connectivity_local.getGlobalNodeFromFace(f, INTEGRAL_TYPE::meshIndexToLinearIndex2D(j));
+            for (int d = 0; d < 3; ++d) faceCoords[j][d] = mesh_local.nodeCoord(gni, d);
+          }
 
+          if (!face_connectivity_local.isBoundaryFace(f)) {
             float normal[3];
             mesh_local.faceNormal(e, static_cast<model::CubicFace>(faceId), normal);
 
@@ -191,6 +194,11 @@ void DGsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::upda
               stiffnessMatrixLocal[ei] += gamma * INTEGRAL_TYPE::computeDampingTerm(i, faceCoords) *
                                           (current_field(e, ei) - current_field(neighbor_e, ei_perm));
             }
+          } else {
+            for (int i = 0; i < knumNodesPerFace; ++i) {
+              int const ei = model::faceLocalToElemLocal(static_cast<model::CubicFace>(faceId), i, ORDER);
+              dampingMatrixLocal[i] += inv_vp * INTEGRAL_TYPE::computeDampingTerm(i, faceCoords);
+            }
           }
         }
 
@@ -198,8 +206,8 @@ void DGsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::upda
         for (int i = 0; i < kPointsPerElement; ++i) {
           stiffnessMatrixLocal[i] += rhs_elem_local(e, i);
           prev_field(e, i) = (2.0f * massMatrixLocal[i] * current_field(e, i) - dt2_local * stiffnessMatrixLocal[i] -
-                              massMatrixLocal[i] * prev_field(e, i)) /
-                             massMatrixLocal[i];
+                              (massMatrixLocal[i] - 0.5 * dt_local * dampingMatrixLocal[i]) * prev_field(e, i)) /
+                             (massMatrixLocal[i] + 0.5 * dt_local * dampingMatrixLocal[i]);
         }
       });
 }
