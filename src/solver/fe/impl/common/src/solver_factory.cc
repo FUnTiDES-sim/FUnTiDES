@@ -133,8 +133,8 @@ std::unique_ptr<Solver> makeDgSolverUnstruct(bool isModelOnNodes, feenum::physic
  * @brief Creates a DG solver with the specified integral implementation.
  */
 template <auto ImplTag>
-std::unique_ptr<Solver> makeDgSolver(int order, feenum::meshType mesh,
-                                     feenum::modelLocationType modelLocation, feenum::physicType physic) {
+std::unique_ptr<Solver> makeDgSolver(int order, feenum::meshType mesh, feenum::modelLocationType modelLocation,
+                                     feenum::physicType physic) {
   bool const isModelOnNodes = (modelLocation == feenum::modelLocationType::kOnNodes);
   return orderDispatch<MAX_DG_SOLVER_ACOUSTIC_ORDER>(order, [&](auto orderIC) {
     constexpr int ORDER = decltype(orderIC)::value;
