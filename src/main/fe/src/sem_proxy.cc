@@ -235,7 +235,7 @@ void SEMproxy::run() {
 
       if (indexTimeSample % 50 == 0) {
         std::cout << "DG TimeStep=" << indexTimeSample
-                  << "  p(elem=0, dof=0)=" << dgData.getPreviousField(0)(0, 0) << std::endl;
+                  << "  p(src_elem, dof=0)=" << dgData.getPreviousField(0)(myElementSource, 0) << std::endl;
       }
 
       // Save pressure at receiver: DG field indexed by (elem, local_dof)
@@ -245,7 +245,7 @@ void SEMproxy::run() {
         for (int j = 0; j <= order; j++) {
           for (int k = 0; k <= order; k++) {
             int localDof = i + j * (order + 1) + k * (order + 1) * (order + 1);
-            varnp1 += dgData.getCurrentField(0)(rhsElementRcv[0], localDof) * rhsWeightsRcv(0, localDof);
+            varnp1 += dgData.getPreviousField(0)(rhsElementRcv[0], localDof) * rhsWeightsRcv(0, localDof);
           }
         }
       }
@@ -254,6 +254,7 @@ void SEMproxy::run() {
       dgData.swapWavefields();
 
       totalOutputTime += system_clock::now() - startOutputTime;
+      
     }
 
     // Save receiver trace
@@ -266,6 +267,9 @@ void SEMproxy::run() {
       fout.close();
       std::cout << "Receiver trace saved to receiver_trace.txt (" << num_sample_ << " samples)" << std::endl;
     }
+
+    
+
   } else if (isAcoustoElastic) {
     WavefieldAcoustoElastic wavefield(pnGlobalPrev, pnGlobalCurr, uxnGlobalPrev, uxnGlobalCurr, uynGlobalPrev,
                                       uynGlobalCurr, uznGlobalPrev, uznGlobalCurr);

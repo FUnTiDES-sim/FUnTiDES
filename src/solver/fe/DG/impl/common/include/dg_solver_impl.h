@@ -78,27 +78,20 @@ void DGsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::appl
   int nb_rhs_element = data.getRhsElement().extent(0);
   auto mesh_local = m_mesh;  // Capture mesh for lambda
 
-  static constexpr const char* rhsNames[1] = {"rhs"};
-  for (int f = 0; f < kNumRhs; ++f) {
-    rhsTermGlobal[f] = allocateVector<VECTOR_REAL_VIEW>(m_mesh.getNumberOfNodes(), rhsNames[f]);
-  }
+  int const kNumElem = m_mesh.getNumberOfElements();
+  m_rhs_elem_ = allocateArray2D<ARRAY_REAL_VIEW>(kNumElem, kPointsPerElement, "rhsElem");
 
-  auto rhs_views = rhsTermGlobal;
+  auto rhs_elem_view = m_rhs_elem_;
+  auto rhs_element_view = data.getRhsElement();
+  auto rhs_term_view = data.getRhsTerm(0);
+  auto rhs_weights_view = data.getRhsWeights();
 
   Kokkos::parallel_for(
-      "Solver Apply RHSTerm", nb_rhs_element, KOKKOS_LAMBDA(const int i) {
-        for (int z = 0; z < ORDER + 1; z++) {
-          for (int y = 0; y < ORDER + 1; y++) {
-            for (int x = 0; x < ORDER + 1; x++) {
-              int localNodeId = x + y * (ORDER + 1) + z * (ORDER + 1) * (ORDER + 1);
-              int nodeRHS = mesh_local.globalNodeIndex(data.getRhsElement()[i], x, y, z);
-
-              for (int f = 0; f < kNumRhs; ++f) {
-                float source = data.getRhsTerm(f)(i, timeSample) * data.getRhsWeights()(i, localNodeId);
-                rhs_views[f](nodeRHS) -= source;
-              }
-            }
-          }
+      "Solver Apply RHSTerm", nb_rhs_element, KOKKOS_LAMBDA(const int s) {
+        int const src_elem = rhs_element_view[s];
+        float const wavelet_val = rhs_term_view(s, timeSample);
+        for (int dof = 0; dof < kPointsPerElement; ++dof) {
+          rhs_elem_view(src_elem, dof) -= wavelet_val * rhs_weights_view(s, dof);
         }
       });
 }
@@ -114,10 +107,11 @@ void DGsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::upda
 
   auto mesh_local = m_mesh;
   auto face_connectivity_local = m_face_connectivity_;
-  VECTOR_REAL_VIEW rhs_global_0 = rhsTermGlobal[0];
+  ARRAY_REAL_VIEW rhs_elem_local = m_rhs_elem_;
   real_t const penalty_local = m_penalty_factor_;
 
   int const kNumElem = mesh_local.getNumberOfElements();
+  // SEM convention: current_field = p^n, prev_field = p^{n-1}; result written into prev_field
   ARRAY_REAL_VIEW current_field = data.getCurrentField(0);
   ARRAY_REAL_VIEW prev_field = data.getPreviousField(0);
 
@@ -134,71 +128,79 @@ void DGsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::upda
           for (int iv = 0; iv < 2; ++iv)
             mesh_local.vertexCoords(mesh_local.globalVertexIndex(eIdx, iv, jv, kv), elementCoords[I++]);
     }
-    INTEGRAL_TYPE::computeMassTerm(elementCoords, [&](const int j, const real_t val) { massMatrixLocal[j] += val; });
+
+    real_t const vp = mesh_local.getModelVpOnElement(e);
+    real_t const rho = mesh_local.getModelRhoOnElement(e);
+    real_t const inv_model_factor = 1.0f / (vp * vp * rho);
+    real_t const inv_rho = 1.0f / rho;
+
+    INTEGRAL_TYPE::computeMassTerm(elementCoords,
+                                   [&](const int j, const real_t val) { massMatrixLocal[j] += inv_model_factor * val; });
+    // Stiffness uses p^n = current_field (SEM convention); scaled by 1/rho for acoustic wave equation
     INTEGRAL_TYPE::computeStiffnessTerm(elementCoords, [&](const int, const int, const int) {},
                                         [&](const int i, const int j, const real_t val) {
-                                          stiffnessMatrixLocal[i] += val * prev_field(e, j);
+                                          stiffnessMatrixLocal[i] += inv_rho * val * current_field(e, j);
                                         });
 
     for (int faceId = 0; faceId < 6; ++faceId) {
       int const f = face_connectivity_local.getGlobalFace(e, static_cast<model::CubicFace>(faceId));
 
       if (!face_connectivity_local.isBoundaryFace(f)) {
-        // Get corner coordinates of the face for integration
         float faceCoords[4][3];
         for (int j = 0; j < 4; ++j) {
-          int const globalNodeIndex = face_connectivity_local.getGlobalNodeFromFace(f, INTEGRAL_TYPE::meshIndexToLinearIndex2D(j));
-          for (int d = 0; d < 3; ++d) {
-            faceCoords[j][d] = mesh_local.nodeCoord(globalNodeIndex, d);
-          }
+          int const gni =
+              face_connectivity_local.getGlobalNodeFromFace(f, INTEGRAL_TYPE::meshIndexToLinearIndex2D(j));
+          for (int d = 0; d < 3; ++d) faceCoords[j][d] = mesh_local.nodeCoord(gni, d);
         }
 
         float normal[3];
         mesh_local.faceNormal(e, static_cast<model::CubicFace>(faceId), normal);
 
-        int const neighbor_e = face_connectivity_local.elemNeighbor(f);
-
-        model::CubicFace const neighbor_local_face =
-            static_cast<model::CubicFace>(face_connectivity_local.localFaceNeighbor(f));
-
+        // Determine which element is "self" and which is "other": the
+        // face_connectivity stores one fixed owner/neighbor assignment that is
+        // independent of the current loop element e.
+        bool const e_is_owner = (face_connectivity_local.elemOwner(f) == e);
+        int const neighbor_e = e_is_owner ? face_connectivity_local.elemNeighbor(f)
+                                           : face_connectivity_local.elemOwner(f);
+        model::CubicFace const neighbor_local_face = static_cast<model::CubicFace>(
+            e_is_owner ? face_connectivity_local.localFaceNeighbor(f)
+                       : face_connectivity_local.localFaceOwner(f));
         real_t const gamma = computeSIPGPenalty<ORDER>(faceCoords, elementCoords, penalty_local);
 
-        INTEGRAL_TYPE::computeInterfaceFluxTerm(faceCoords, elementCoords, faceId, [&](const int i, const int j, const int k, const real_t val) {
-          int const ei = model::faceLocalToElemLocal(static_cast<model::CubicFace>(faceId), i, ORDER);
-          int const ej = model::faceLocalToElemLocal(static_cast<model::CubicFace>(faceId), j, ORDER);
-          int const ej_perm =
-              model::faceLocalToElemLocal(neighbor_local_face, face_connectivity_local.getNeighborFaceDof(f, j), ORDER);
-          int const ei_perm =
-              model::faceLocalToElemLocal(neighbor_local_face, face_connectivity_local.getNeighborFaceDof(f, i), ORDER);
-          stiffnessMatrixLocal[ei] +=
-              -0.5f * val * prev_field(e, ej) * normal[k] + 0.5f * val * prev_field(neighbor_e, ej_perm) * normal[k];
-          stiffnessMatrixLocal[ej] +=
-              -0.5f * val * prev_field(e, ei) * normal[k] - 0.5f * val * prev_field(neighbor_e, ei_perm) * normal[k];
-        });
+        INTEGRAL_TYPE::computeInterfaceFluxTerm(faceCoords, elementCoords, faceId,
+            [&](const int i, const int j, const int k, const real_t val) {
+              int const ei = model::faceLocalToElemLocal(static_cast<model::CubicFace>(faceId), i, ORDER);
+              int const ej = model::faceLocalToElemLocal(static_cast<model::CubicFace>(faceId), j, ORDER);
+              int const ej_perm = model::faceLocalToElemLocal(
+                  neighbor_local_face, face_connectivity_local.getNeighborFaceDof(f, j), ORDER);
+              int const ei_perm = model::faceLocalToElemLocal(
+                  neighbor_local_face, face_connectivity_local.getNeighborFaceDof(f, i), ORDER);
+              // Symmetry term (stiffnessLocal[ei]) and consistency term (stiffnessLocal[ej])
+              // both require 1/rho scaling for the acoustic wave equation.
+              stiffnessMatrixLocal[ei] += inv_rho * (-0.5f * val * current_field(e, ej) * normal[k] +
+                                                      0.5f * val * current_field(neighbor_e, ej_perm) * normal[k]);
+              stiffnessMatrixLocal[ej] += inv_rho * (-0.5f * val * current_field(e, ei) * normal[k] -
+                                                      0.5f * val * current_field(neighbor_e, ei_perm) * normal[k]);
+            });
 
         for (int i = 0; i < knumNodesPerFace; ++i) {
           int const ei = model::faceLocalToElemLocal(static_cast<model::CubicFace>(faceId), i, ORDER);
-          int const ei_perm =
-              model::faceLocalToElemLocal(neighbor_local_face, face_connectivity_local.getNeighborFaceDof(f, i), ORDER);
-          stiffnessMatrixLocal[ei] += gamma * INTEGRAL_TYPE::computeDampingTerm(i,faceCoords)*(prev_field(e, ei) - prev_field(neighbor_e, ei_perm));
+          int const ei_perm = model::faceLocalToElemLocal(
+              neighbor_local_face, face_connectivity_local.getNeighborFaceDof(f, i), ORDER);
+          stiffnessMatrixLocal[ei] +=
+              gamma * INTEGRAL_TYPE::computeDampingTerm(i, faceCoords) *
+              (current_field(e, ei) - current_field(neighbor_e, ei_perm));
         }
       }
     }
 
-    for (int z = 0; z < ORDER + 1; z++) {
-      for (int y = 0; y < ORDER + 1; y++) {
-        for (int x = 0; x < ORDER + 1; x++) {
-          int i = x + y * (ORDER + 1) + z * (ORDER + 1) * (ORDER + 1);
-          int nodeGlobalIndex = mesh_local.globalNodeIndex(e, x, y, z);
-          stiffnessMatrixLocal[i] += rhs_global_0(nodeGlobalIndex);
-
-          current_field(e, i) = (2.0f * massMatrixLocal[i] * prev_field(e, i) - dt2_local * stiffnessMatrixLocal[i] -
-                               massMatrixLocal[i] * current_field(e, i)) /
-                              massMatrixLocal[i];  // add damping and source term
-        }
-      }
+    // Verlet (SEM convention): write p^{n+1} into prev_field; source element-indexed
+    for (int i = 0; i < kPointsPerElement; ++i) {
+      stiffnessMatrixLocal[i] += dt2_local * rhs_elem_local(e, i);
+      prev_field(e, i) = (2.0f * massMatrixLocal[i] * current_field(e, i) - dt2_local * stiffnessMatrixLocal[i] -
+                          massMatrixLocal[i] * prev_field(e, i)) /
+                         massMatrixLocal[i];
     }
-    
   });
 
 }

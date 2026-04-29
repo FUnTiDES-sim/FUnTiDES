@@ -140,7 +140,7 @@ class DGsolver : public Solver {
   model::FaceConnectivityUnstruct<float, int> m_face_connectivity_;
   real_t m_penalty_factor_ = 10.0f;
 
-  std::array<VECTOR_REAL_VIEW, kNumFields> rhsTermGlobal;
+  ARRAY_REAL_VIEW m_rhs_elem_;
 
   static constexpr int kPointsPerElement = (ORDER + 1) * (ORDER + 1) * (ORDER + 1);
   static constexpr int knumNodesPerFace = (ORDER + 1) * (ORDER + 1);
