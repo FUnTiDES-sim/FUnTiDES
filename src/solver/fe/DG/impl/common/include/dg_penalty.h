@@ -17,16 +17,39 @@ namespace fe {
  * @param X  Corner coordinates [4][3].
  * @return   Face area.
  */
-PROXY_HOST_DEVICE real_t computeFaceArea(real_t const (&X)[4][3]) {
-  real_t d1[3], d2[3];
-  for (int k = 0; k < 3; ++k) {
-    d1[k] = X[2][k] - X[0][k];
-    d2[k] = X[3][k] - X[1][k];
+// PROXY_HOST_DEVICE real_t computeFaceArea(real_t const (&X)[4][3]) {
+//   real_t d1[3], d2[3];
+//   for (int k = 0; k < 3; ++k) {
+//     d1[k] = X[2][k] - X[0][k];
+//     d2[k] = X[3][k] - X[1][k];
+//   }
+//   real_t const cx = d1[1] * d2[2] - d1[2] * d2[1];
+//   real_t const cy = d1[2] * d2[0] - d1[0] * d2[2];
+//   real_t const cz = d1[0] * d2[1] - d1[1] * d2[0];
+//   return 0.5f * sqrt(cx * cx + cy * cy + cz * cz);
+// }
+
+PROXY_HOST_DEVICE real_t computeFaceArea(const real_t (&X)[4][3]) {
+  real_t area = 0.0;
+
+  for (int i = 0; i < 4; ++i) {
+    int j = (i + 1) % 4;
+
+    real_t edge1[3], edge2[3];
+
+    for (int k = 0; k < 3; ++k) {
+      edge1[k] = X[i][k] - X[0][k];
+      edge2[k] = X[j][k] - X[0][k];
+    }
+
+    real_t cx = edge1[1] * edge2[2] - edge1[2] * edge2[1];
+    real_t cy = edge1[2] * edge2[0] - edge1[0] * edge2[2];
+    real_t cz = edge1[0] * edge2[1] - edge1[1] * edge2[0];
+
+    area += 0.5f * sqrt(cx*cx + cy*cy + cz*cz);
   }
-  real_t const cx = d1[1] * d2[2] - d1[2] * d2[1];
-  real_t const cy = d1[2] * d2[0] - d1[0] * d2[2];
-  real_t const cz = d1[0] * d2[1] - d1[1] * d2[0];
-  return 0.5f * sqrt(cx * cx + cy * cy + cz * cz);
+
+  return area;
 }
 
 /**
@@ -78,7 +101,7 @@ PROXY_HOST_DEVICE real_t computeSIPGPenalty(real_t const (&faceCoords)[4][3],
   real_t const area = computeFaceArea(faceCoords);
   real_t const vol  = computeHexVolume(X8);
   real_t const h_f  = vol / area;
-  return penalty_factor * static_cast<real_t>(ORDER * (ORDER + 1)) / h_f;
+  return penalty_factor * static_cast<real_t>( (ORDER + 1)*(ORDER + 1) ) / h_f;
 }
 
 }  // namespace fe

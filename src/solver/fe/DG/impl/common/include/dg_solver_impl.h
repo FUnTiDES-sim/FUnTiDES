@@ -112,7 +112,7 @@ void DGsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::upda
 
   int const kNumElem = mesh_local.getNumberOfElements();
   // SEM convention: current_field = p^n, prev_field = p^{n-1}; result written into prev_field
-  ARRAY_REAL_VIEW current_field = data.getCurrentField(0);
+  ARRAY_REAL_VIEW current_field =  data.getCurrentField(0);
   ARRAY_REAL_VIEW prev_field = data.getPreviousField(0);
 
   Kokkos::parallel_for(
@@ -179,7 +179,7 @@ void DGsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::upda
               // both require 1/rho scaling for the acoustic wave equation.
               stiffnessMatrixLocal[ei] += inv_rho * (-0.5f * val * current_field(e, ej) * normal[k] +
                                                       0.5f * val * current_field(neighbor_e, ej_perm) * normal[k]);
-              stiffnessMatrixLocal[ej] += inv_rho * (-0.5f * val * current_field(e, ei) * normal[k] -
+              stiffnessMatrixLocal[ej] += inv_rho * (-0.5f * val * current_field(e, ei) * normal[k] +
                                                       0.5f * val * current_field(neighbor_e, ei_perm) * normal[k]);
             });
 
@@ -196,7 +196,7 @@ void DGsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::upda
 
     // Verlet (SEM convention): write p^{n+1} into prev_field; source element-indexed
     for (int i = 0; i < kPointsPerElement; ++i) {
-      stiffnessMatrixLocal[i] += dt2_local * rhs_elem_local(e, i);
+      stiffnessMatrixLocal[i] += rhs_elem_local(e, i);
       prev_field(e, i) = (2.0f * massMatrixLocal[i] * current_field(e, i) - dt2_local * stiffnessMatrixLocal[i] -
                           massMatrixLocal[i] * prev_field(e, i)) /
                          massMatrixLocal[i];

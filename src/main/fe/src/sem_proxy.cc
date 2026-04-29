@@ -235,7 +235,41 @@ void SEMproxy::run() {
 
       if (indexTimeSample % 50 == 0) {
         std::cout << "DG TimeStep=" << indexTimeSample
-                  << "  p(src_elem, dof=0)=" << dgData.getPreviousField(0)(myElementSource, 0) << std::endl;
+                  << "  p(src_elem, dof=0)=" << dgData.getPreviousField(0)(myElementSource, 0)
+                  << "  p(rcv_elem, dof=0)=" << dgData.getPreviousField(0)(rhsElementRcv[0], 0) << std::endl;
+      }
+
+      if (is_snapshots_ && indexTimeSample % snap_time_interval_ == 0) {
+        Kokkos::fence();
+        const int order = m_mesh->getOrder();
+        const int ex = nb_elements_[0];
+        const int ey = nb_elements_[1];
+        const int ez = nb_elements_[2];
+        const int zElem = ez / 2;
+        const int n1d = order + 1;
+        const int icZ = order / 2;
+        std::ostringstream fname;
+        fname << "slice_dg_" << std::setfill('0') << std::setw(5) << indexTimeSample << ".dat";
+        std::ofstream fslice(fname.str());
+        auto field = dgData.getPreviousField(0);
+        for (int ej_idx = 0; ej_idx < ey; ++ej_idx) {
+          for (int ib = 0; ib < n1d; ++ib) {
+            bool first = true;
+            for (int ei_idx = 0; ei_idx < ex; ++ei_idx) {
+              int const elem = ei_idx + ej_idx * ex + zElem * ex * ey;
+              for (int ia = 0; ia < n1d; ++ia) {
+                int const dof = ia + ib * n1d + icZ * n1d * n1d;
+                if (!first) fslice << " ";
+                fslice << field(elem, dof);
+                first = false;
+              }
+            }
+            fslice << "\n";
+          }
+        }
+        fslice.close();
+        std::cout << "DG slice saved: " << fname.str()
+                  << "  (" << ex * n1d << " x " << ey * n1d << ")" << std::endl;
       }
 
       // Save pressure at receiver: DG field indexed by (elem, local_dof)
