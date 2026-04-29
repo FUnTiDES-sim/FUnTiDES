@@ -58,7 +58,6 @@ class Solver {
    */
   virtual void initSpongeValues() = 0;
 
-
   ////////////////////// All global arrays not necessary here (dg) ////////////////////
   /**
    * @brief Reset global FE vectors (mass, stiffness) before accumulation.
@@ -79,7 +78,7 @@ class Solver {
    */
   virtual void computeDampingMatrix() = 0;
 
-   /////////////////////////////////////////////
+  /////////////////////////////////////////////
 
   /**
    * @brief Outputs solution field values at a specific time step
@@ -105,7 +104,6 @@ class Solver {
    * for Elastic).
    */
   virtual int getNumComponents() const = 0;
-
 
   ///////////////// Not needed due to (dg) ////////////////////////////
   /**

@@ -3,8 +3,8 @@
 
 #include <cmath>
 
-#include "data_type.h"
 #include "common_macros.h"
+#include "data_type.h"
 
 namespace solver {
 namespace fe {
@@ -46,7 +46,7 @@ PROXY_HOST_DEVICE real_t computeFaceArea(const real_t (&X)[4][3]) {
     real_t cy = edge1[2] * edge2[0] - edge1[0] * edge2[2];
     real_t cz = edge1[0] * edge2[1] - edge1[1] * edge2[0];
 
-    area += 0.5f * sqrt(cx*cx + cy*cy + cz*cz);
+    area += 0.5f * sqrt(cx * cx + cy * cy + cz * cz);
   }
 
   return area;
@@ -66,17 +66,13 @@ PROXY_HOST_DEVICE real_t computeFaceArea(const real_t (&X)[4][3]) {
 PROXY_HOST_DEVICE real_t computeHexVolume(real_t const (&X)[8][3]) {
   real_t dxi[3], deta[3], dzeta[3];
   for (int k = 0; k < 3; ++k) {
-    dxi[k]   = 0.25f * (-X[0][k] + X[1][k] - X[2][k] + X[3][k]
-                        -X[4][k] + X[5][k] - X[6][k] + X[7][k]);
-    deta[k]  = 0.25f * (-X[0][k] - X[1][k] + X[2][k] + X[3][k]
-                        -X[4][k] - X[5][k] + X[6][k] + X[7][k]);
-    dzeta[k] = 0.25f * (-X[0][k] - X[1][k] - X[2][k] - X[3][k]
-                        +X[4][k] + X[5][k] + X[6][k] + X[7][k]);
+    dxi[k] = 0.25f * (-X[0][k] + X[1][k] - X[2][k] + X[3][k] - X[4][k] + X[5][k] - X[6][k] + X[7][k]);
+    deta[k] = 0.25f * (-X[0][k] - X[1][k] + X[2][k] + X[3][k] - X[4][k] - X[5][k] + X[6][k] + X[7][k]);
+    dzeta[k] = 0.25f * (-X[0][k] - X[1][k] - X[2][k] - X[3][k] + X[4][k] + X[5][k] + X[6][k] + X[7][k]);
   }
-  real_t const det =
-      dxi[0] * (deta[1] * dzeta[2] - deta[2] * dzeta[1]) -
-      dxi[1] * (deta[0] * dzeta[2] - deta[2] * dzeta[0]) +
-      dxi[2] * (deta[0] * dzeta[1] - deta[1] * dzeta[0]);
+  real_t const det = dxi[0] * (deta[1] * dzeta[2] - deta[2] * dzeta[1]) -
+                     dxi[1] * (deta[0] * dzeta[2] - deta[2] * dzeta[0]) +
+                     dxi[2] * (deta[0] * dzeta[1] - deta[1] * dzeta[0]);
   return 8.0f * fabs(det);
 }
 
@@ -95,13 +91,12 @@ PROXY_HOST_DEVICE real_t computeHexVolume(real_t const (&X)[8][3]) {
  * @return            Penalty parameter gamma.
  */
 template <int ORDER>
-PROXY_HOST_DEVICE real_t computeSIPGPenalty(real_t const (&faceCoords)[4][3],
-                                                    real_t const (&X8)[8][3],
-                                                    real_t const penalty_factor) {
+PROXY_HOST_DEVICE real_t computeSIPGPenalty(real_t const (&faceCoords)[4][3], real_t const (&X8)[8][3],
+                                            real_t const penalty_factor) {
   real_t const area = computeFaceArea(faceCoords);
-  real_t const vol  = computeHexVolume(X8);
-  real_t const h_f  = vol / area;
-  return penalty_factor * static_cast<real_t>( (ORDER + 1)*(ORDER + 1) ) / h_f;
+  real_t const vol = computeHexVolume(X8);
+  real_t const h_f = vol / area;
+  return penalty_factor * static_cast<real_t>((ORDER + 1) * (ORDER + 1)) / h_f;
 }
 
 }  // namespace fe

@@ -22,7 +22,6 @@ struct Wavefield {
    */
   virtual const char* const* getFieldNames() const = 0;
 
-
   //////////Not sure that we need this.../////////////////////
   /**
    * @brief Get the current field at a specific index.
@@ -39,7 +38,6 @@ struct Wavefield {
    */
   PROXY_HOST_DEVICE
   virtual ARRAY_REAL_VIEW getPreviousField(int i) const = 0;
-
 
   //////////// I think we do not need it also for dg
   /**
