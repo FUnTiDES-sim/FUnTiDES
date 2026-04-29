@@ -16,16 +16,16 @@ namespace fe {
  * Fields are indexed (n_elem, n_dof_per_elem); RHS follows SEM conventions.
  */
 struct DGsolverDataAcoustic : public Solver::DataStruct {
-  ARRAY_REAL_VIEW pnPrev;     ///< Pressure at previous time step (n_elem, n_dof)
-  ARRAY_REAL_VIEW pnCurr;     ///< Pressure at current time step  (n_elem, n_dof)
-  ARRAY_REAL_VIEW myRHSTerm;  ///< Source time series (n_rhs, n_sample)
-  VECTOR_INT_VIEW rhsElement; ///< Source element indices
-  ARRAY_REAL_VIEW rhsWeights; ///< Source weights (n_rhs, n_dof_per_elem)
+  ARRAY_REAL_VIEW pnPrev;      ///< Pressure at previous time step (n_elem, n_dof)
+  ARRAY_REAL_VIEW pnCurr;      ///< Pressure at current time step  (n_elem, n_dof)
+  ARRAY_REAL_VIEW myRHSTerm;   ///< Source time series (n_rhs, n_sample)
+  VECTOR_INT_VIEW rhsElement;  ///< Source element indices
+  ARRAY_REAL_VIEW rhsWeights;  ///< Source weights (n_rhs, n_dof_per_elem)
 
   bool isDistributed{false};
 
-  DGsolverDataAcoustic(ARRAY_REAL_VIEW prev, ARRAY_REAL_VIEW curr, ARRAY_REAL_VIEW rhsTerm,
-                       VECTOR_INT_VIEW rhsElem, ARRAY_REAL_VIEW rhsW)
+  DGsolverDataAcoustic(ARRAY_REAL_VIEW prev, ARRAY_REAL_VIEW curr, ARRAY_REAL_VIEW rhsTerm, VECTOR_INT_VIEW rhsElem,
+                       ARRAY_REAL_VIEW rhsW)
       : pnPrev(prev), pnCurr(curr), myRHSTerm(rhsTerm), rhsElement(rhsElem), rhsWeights(rhsW) {}
 
   PROXY_HOST_DEVICE ARRAY_REAL_VIEW getCurrentField(int /*i*/) const { return pnCurr; }

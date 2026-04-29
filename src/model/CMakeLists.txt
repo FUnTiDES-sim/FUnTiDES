@@ -1,2 +1,1 @@
-add_subdirectory(mesh)
-add_subdirectory(grid)
+add_subdirectory(mesh) add_subdirectory(grid)

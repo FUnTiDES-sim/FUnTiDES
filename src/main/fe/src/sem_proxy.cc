@@ -268,8 +268,7 @@ void SEMproxy::run() {
           }
         }
         fslice.close();
-        std::cout << "DG slice saved: " << fname.str()
-                  << "  (" << ex * n1d << " x " << ey * n1d << ")" << std::endl;
+        std::cout << "DG slice saved: " << fname.str() << "  (" << ex * n1d << " x " << ey * n1d << ")" << std::endl;
       }
 
       // Save pressure at receiver: DG field indexed by (elem, local_dof)
@@ -288,7 +287,6 @@ void SEMproxy::run() {
       dgData.swapWavefields();
 
       totalOutputTime += system_clock::now() - startOutputTime;
-      
     }
 
     // Save receiver trace
@@ -301,8 +299,6 @@ void SEMproxy::run() {
       fout.close();
       std::cout << "Receiver trace saved to receiver_trace.txt (" << num_sample_ << " samples)" << std::endl;
     }
-
-    
 
   } else if (isAcoustoElastic) {
     WavefieldAcoustoElastic wavefield(pnGlobalPrev, pnGlobalCurr, uxnGlobalPrev, uxnGlobalCurr, uynGlobalPrev,
