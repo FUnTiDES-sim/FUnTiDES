@@ -6,7 +6,6 @@
 #include <cmath>
 #include <limits>
 #include <stdexcept>
-#include <typeinfo>
 
 #include "data_type.h"
 #include "dg_penalty.h"
@@ -16,6 +15,10 @@
 #include "parallel_topology.h"
 #include "physics_traits.h"
 #include "physics_traits_acoustic.h"
+
+#include <typeinfo>
+
+
 #include "sem_enums.h"
 #include "solver.h"
 
@@ -28,6 +31,7 @@ template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE, bool IS_MODEL_O
           utils::enums::physicType PHYSICS>
 class DGsolver : public Solver {
  public:
+
   using Traits = PhysicsTraits<PHYSICS>;
 
   using DataType = DGsolverDataAcoustic;
@@ -69,7 +73,7 @@ class DGsolver : public Solver {
   }
 
   void outputSolutionValues(const int& t, int& e, const VECTOR_REAL_VIEW& field, const char* fieldName) override {}
-
+     
   void outputSolutionValues(const int& t, int& e, const ARRAY_REAL_VIEW& field, const char* fieldName) override;
 
   VECTOR_REAL_VIEW& getMassMatrixAcoustic() override {

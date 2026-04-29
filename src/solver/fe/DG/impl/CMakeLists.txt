@@ -1,5 +1,10 @@
-target_compile_definitions(proxy_solver PUBLIC MAX_DG_SOLVER_ACOUSTIC_ORDER = ${TARGET_SOLVER_ACOUSTIC_ORDER})
+target_compile_definitions(proxy_solver PUBLIC
+    MAX_DG_SOLVER_ACOUSTIC_ORDER=${TARGET_SOLVER_ACOUSTIC_ORDER}
+)
 
-    if (COMPILE_DG) target_compile_definitions(proxy_solver PUBLIC COMPILE_DG) endif()
+if(COMPILE_DG)
+  target_compile_definitions(proxy_solver PUBLIC COMPILE_DG)
+endif()
 
-        add_subdirectory(acoustic) add_subdirectory(common)
+add_subdirectory(acoustic)
+add_subdirectory(common)
