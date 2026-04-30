@@ -132,11 +132,17 @@ class DGsolver : public Solver {
   void updateFields(float dt, const DataType& data);
 
   /**
-   * @brief Kernel 1 — volume mass + SumFact stiffness + boundary absorbing damping.
+   * @brief Kernel 1 — volume mass + SumFact stiffness. Zeros the damping accumulator.
    * @param kNumElem Total number of elements.
    * @param current_field Pressure field at current time step p^n.
    */
   void computeVolumeAndBoundary(int kNumElem, ARRAY_REAL_VIEW current_field);
+
+  /**
+   * @brief Kernel 1b — boundary absorbing damping (face-loop, boundary faces only).
+   * @param kNumFaces Total number of faces (interior + boundary).
+   */
+  void computeBoundaryDamping(int kNumFaces);
 
   /**
    * @brief Kernel 2 — SIPG interface flux terms (reads neighbor fields).

@@ -8,6 +8,8 @@
 
 #include "parallel_topology.h"
 
+// This do not need to be duplicated but I need ti check inside the solver to not break mpi
+
 using namespace utils;
 
 namespace solver {

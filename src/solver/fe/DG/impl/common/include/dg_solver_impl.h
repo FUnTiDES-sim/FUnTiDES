@@ -108,8 +108,6 @@ template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE, bool IS_MODEL_O
 void DGsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::computeVolumeAndBoundary(
     int kNumElem, ARRAY_REAL_VIEW current_field) {
   auto mesh_local              = m_mesh;
-  auto face_connectivity_local = m_face_connectivity_;
-  auto const face_to_elem_dof  = kFaceToElemDof;  // local copy for device capture
   ARRAY_REAL_VIEW mass_local_view  = m_mass_local_;
   ARRAY_REAL_VIEW stiff_local_view = m_stiff_local_;
   ARRAY_REAL_VIEW damp_local_view  = m_damp_local_;
@@ -118,7 +116,6 @@ void DGsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::comp
       "DG Volume+Boundary", kNumElem, KOKKOS_LAMBDA(const int e) {
         float massLocal[kPointsPerElement]  = {0};
         float stiffLocal[kPointsPerElement] = {0};
-        float dampLocal[kPointsPerElement]  = {0};
         float elementCoords[8][3];
         {
           auto const eIdx = mesh_local.elementIndex(e);
@@ -133,7 +130,6 @@ void DGsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::comp
         real_t const rho              = mesh_local.getModelRhoOnElement(e);
         real_t const inv_model_factor = 1.0f / (vp * vp * rho);
         real_t const inv_rho          = 1.0f / rho;
-        real_t const inv_vp           = 1.0f / vp;
 
         INTEGRAL_TYPE::computeMassTerm(
             elementCoords, [&](const int j, const real_t val) { massLocal[j] += inv_model_factor * val; });
@@ -144,25 +140,46 @@ void DGsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::comp
             elementCoords, p_local, stiffLocal,
             [&](const int , const int , const int ) -> real_t { return inv_rho; });
 
-        for (int faceId = 0; faceId < 6; ++faceId) {
-          int const f = face_connectivity_local.getGlobalFace(e, static_cast<model::CubicFace>(faceId));
-          if (!face_connectivity_local.isBoundaryFace(f)) continue;
-          float faceCoords[4][3];
-          for (int j = 0; j < 4; ++j) {
-            int const gni =
-                face_connectivity_local.getGlobalNodeFromFace(f, INTEGRAL_TYPE::meshIndexToLinearIndex2D(j));
-            for (int d = 0; d < 3; ++d) faceCoords[j][d] = mesh_local.nodeCoord(gni, d);
-          }
-          for (int i = 0; i < knumNodesPerFace; ++i) {
-            int const ei = face_to_elem_dof[faceId][i];
-            dampLocal[ei] += inv_vp * INTEGRAL_TYPE::computeDampingTerm(i, faceCoords);
-          }
-        }
-
         for (int i = 0; i < kPointsPerElement; ++i) {
           mass_local_view(e, i)  = massLocal[i];
           stiff_local_view(e, i) = stiffLocal[i];
-          damp_local_view(e, i)  = dampLocal[i];
+          damp_local_view(e, i)  = 0.0f;  // zeroed here; filled by computeBoundaryDamping
+        }
+      });
+}
+
+//============================================================================
+// computeBoundaryDamping - Kernel 1b (face-loop, boundary faces only)
+//============================================================================
+
+template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE, bool IS_MODEL_ON_NODES,
+          utils::enums::physicType PHYSICS>
+void DGsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::computeBoundaryDamping(
+    int kNumFaces) {
+  auto mesh_local              = m_mesh;
+  auto face_connectivity_local = m_face_connectivity_;
+  auto const face_to_elem_dof  = kFaceToElemDof;  // local copy for device capture
+  ARRAY_REAL_VIEW damp_local_view = m_damp_local_;
+
+  Kokkos::parallel_for(
+      "DG Boundary Damping", kNumFaces, KOKKOS_LAMBDA(const int f) {
+        if (!face_connectivity_local.isBoundaryFace(f)) return;
+
+        int const e      = face_connectivity_local.elemOwner(f);
+        int const faceId = face_connectivity_local.localFaceOwner(f);
+
+        float faceCoords[4][3];
+        for (int j = 0; j < 4; ++j) {
+          int const gni =
+              face_connectivity_local.getGlobalNodeFromFace(f, INTEGRAL_TYPE::meshIndexToLinearIndex2D(j));
+          for (int d = 0; d < 3; ++d) faceCoords[j][d] = mesh_local.nodeCoord(gni, d);
+        }
+
+        real_t const inv_vp = 1.0f / mesh_local.getModelVpOnElement(e);
+
+        for (int i = 0; i < knumNodesPerFace; ++i) {
+          int const ei = face_to_elem_dof[faceId][i];
+          ATOMICADD(damp_local_view(e, ei), inv_vp * INTEGRAL_TYPE::computeDampingTerm(i, faceCoords));
         }
       });
 }
@@ -319,12 +336,15 @@ template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE, bool IS_MODEL_O
           utils::enums::physicType PHYSICS>
 void DGsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::updateFields(float dt,
                                                                                          const DataType& data) {
-  int const kNumElem = m_mesh.getNumberOfElements();
+  int const kNumElem  = m_mesh.getNumberOfElements();
+  int const kNumFaces = static_cast<int>(m_face_connectivity_.getNumberOfFaces());
   // SEM convention: current_field = p^n, prev_field = p^{n-1}; result written into prev_field
   ARRAY_REAL_VIEW current_field = data.getCurrentField(0);
   ARRAY_REAL_VIEW prev_field    = data.getPreviousField(0);
 
   computeVolumeAndBoundary(kNumElem, current_field);
+  FENCE
+  computeBoundaryDamping(kNumFaces);
   FENCE
   computeInterfaceFlux(kNumElem, current_field);
   FENCE
