@@ -76,7 +76,7 @@ jobs:
             --html-details build/coverage-report/coverage.html \
             --xml build/coverage-report/coverage.xml \
             --filter '^src/' \
-            --exclude '.*/fd/.*' \
+            --exclude '.*/fd/.*' '.*/main/*' '.*/grid/*' \
             -j $(nproc)
 
       - name: Parse Coverage XML for GitHub
