@@ -131,12 +131,38 @@ class DGsolver : public Solver {
    */
   void updateFields(float dt, const DataType& data);
 
+  /**
+   * @brief Kernel 1 — volume mass + SumFact stiffness + boundary absorbing damping.
+   * @param kNumElem Total number of elements.
+   * @param current_field Pressure field at current time step p^n.
+   */
+  void computeVolumeAndBoundary(int kNumElem, ARRAY_REAL_VIEW current_field);
+
+  /**
+   * @brief Kernel 2 — SIPG interface flux terms (reads neighbor fields).
+   * @param kNumElem Total number of elements.
+   * @param current_field Pressure field at current time step p^n.
+   */
+  void computeInterfaceFlux(int kNumElem, ARRAY_REAL_VIEW current_field);
+
+  /**
+   * @brief Kernel 3 — Verlet time update.
+   * @param kNumElem Total number of elements.
+   * @param dt Time step size.
+   * @param current_field Pressure field at current time step p^n.
+   * @param prev_field Pressure field at previous time step p^{n-1}; receives p^{n+1}.
+   */
+  void applyVerlet(int kNumElem, float dt, ARRAY_REAL_VIEW current_field, ARRAY_REAL_VIEW prev_field);
+
  private:
   MESH_TYPE m_mesh;
   model::FaceConnectivityUnstruct<float, int> m_face_connectivity_;
   real_t m_penalty_factor_ = 10.0f;
 
   ARRAY_REAL_VIEW m_rhs_elem_;
+  ARRAY_REAL_VIEW m_mass_local_;   ///< Per-element mass diagonal (nElem x kPPE)
+  ARRAY_REAL_VIEW m_stiff_local_;  ///< Per-element stiffness + interface flux accumulator (nElem x kPPE)
+  ARRAY_REAL_VIEW m_damp_local_;   ///< Per-element boundary absorbing damping (nElem x kPPE)
 
   static constexpr int kPointsPerElement = (ORDER + 1) * (ORDER + 1) * (ORDER + 1);
   static constexpr int knumNodesPerFace = (ORDER + 1) * (ORDER + 1);
