@@ -109,6 +109,7 @@ void DGsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::comp
     int kNumElem, ARRAY_REAL_VIEW current_field) {
   auto mesh_local              = m_mesh;
   auto face_connectivity_local = m_face_connectivity_;
+  auto const face_to_elem_dof  = kFaceToElemDof;  // local copy for device capture
   ARRAY_REAL_VIEW mass_local_view  = m_mass_local_;
   ARRAY_REAL_VIEW stiff_local_view = m_stiff_local_;
   ARRAY_REAL_VIEW damp_local_view  = m_damp_local_;
@@ -153,7 +154,7 @@ void DGsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::comp
             for (int d = 0; d < 3; ++d) faceCoords[j][d] = mesh_local.nodeCoord(gni, d);
           }
           for (int i = 0; i < knumNodesPerFace; ++i) {
-            int const ei = model::faceLocalToElemLocal(static_cast<model::CubicFace>(faceId), i, ORDER);
+            int const ei = face_to_elem_dof[faceId][i];
             dampLocal[ei] += inv_vp * INTEGRAL_TYPE::computeDampingTerm(i, faceCoords);
           }
         }
@@ -176,6 +177,7 @@ void DGsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::comp
     int kNumElem, ARRAY_REAL_VIEW current_field) {
   auto mesh_local              = m_mesh;
   auto face_connectivity_local = m_face_connectivity_;
+  auto const face_to_elem_dof  = kFaceToElemDof;  // local copy for device capture
   ARRAY_REAL_VIEW stiff_local_view = m_stiff_local_;
   real_t const penalty_local       = m_penalty_factor_;
 
@@ -219,12 +221,12 @@ void DGsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::comp
           INTEGRAL_TYPE::computeInterfaceFluxTerm(
               faceCoords, elementCoords, faceId,
               [&](const int i, const int j, const int k, const real_t val) {
-                int const ei = model::faceLocalToElemLocal(static_cast<model::CubicFace>(faceId), i, ORDER);
-                int const ej = model::faceLocalToElemLocal(static_cast<model::CubicFace>(faceId), j, ORDER);
-                int const ej_perm = model::faceLocalToElemLocal(
-                    neighbor_local_face, face_connectivity_local.getNeighborFaceDof(f, j), ORDER);
-                int const ei_perm = model::faceLocalToElemLocal(
-                    neighbor_local_face, face_connectivity_local.getNeighborFaceDof(f, i), ORDER);
+                int const ei      = face_to_elem_dof[faceId][i];
+                int const ej      = face_to_elem_dof[faceId][j];
+                int const ej_perm = face_to_elem_dof[static_cast<int>(neighbor_local_face)]
+                                                  [face_connectivity_local.getNeighborFaceDof(f, j)];
+                int const ei_perm = face_to_elem_dof[static_cast<int>(neighbor_local_face)]
+                                                  [face_connectivity_local.getNeighborFaceDof(f, i)];
                 stiff_local_view(e, ei) +=
                     inv_rho * (-0.5f * val * current_field(e, ej) * normal[k] +
                                 0.5f * val * current_field(neighbor_e, ej_perm) * normal[k]);
@@ -234,9 +236,9 @@ void DGsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::comp
               });
 
           for (int i = 0; i < knumNodesPerFace; ++i) {
-            int const ei = model::faceLocalToElemLocal(static_cast<model::CubicFace>(faceId), i, ORDER);
-            int const ei_perm = model::faceLocalToElemLocal(
-                neighbor_local_face, face_connectivity_local.getNeighborFaceDof(f, i), ORDER);
+            int const ei      = face_to_elem_dof[faceId][i];
+            int const ei_perm = face_to_elem_dof[static_cast<int>(neighbor_local_face)]
+                                              [face_connectivity_local.getNeighborFaceDof(f, i)];
             stiff_local_view(e, ei) += gamma * INTEGRAL_TYPE::computeDampingTerm(i, faceCoords) *
                                        (current_field(e, ei) - current_field(neighbor_e, ei_perm));
           }
