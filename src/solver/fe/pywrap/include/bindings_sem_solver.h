@@ -66,7 +66,7 @@ void bind_sem_solver_base(py::module_ &m) {
           },
           py::return_value_policy::reference_internal)
       .def("output_solution_values",
-           static_cast<void (Solver::*)(const int&, int&, const VECTOR_REAL_VIEW&, const char*)>(
+           static_cast<void (Solver::*)(const int &, int &, const VECTOR_REAL_VIEW &, const char *)>(
                &Solver::outputSolutionValues),
            py::arg("t"), py::arg("e"), py::arg("field_global"), py::arg("field_name"))
       .def(
