@@ -171,7 +171,7 @@ class DGsolver : public Solver {
   ARRAY_REAL_VIEW m_damp_local_;   ///< Per-element boundary absorbing damping (nElem x kPPE)
 
   static constexpr int kPointsPerElement = (ORDER + 1) * (ORDER + 1) * (ORDER + 1);
-  static constexpr int knumNodesPerFace  = (ORDER + 1) * (ORDER + 1);
+  static constexpr int knumNodesPerFace = (ORDER + 1) * (ORDER + 1);
 
   /// @brief Compile-time helper: maps (face_id, face_dof_2d) → element-local DOF index.
   static constexpr int faceToElemDofImpl(int face_id, int face_dof_2d) {
@@ -179,21 +179,27 @@ class DGsolver : public Solver {
     const int u = face_dof_2d % n;
     const int v = face_dof_2d / n;
     switch (face_id) {
-      case 0: return u * n + v * n * n;          // kXMinus
-      case 1: return ORDER + u * n + v * n * n;  // kXPlus
-      case 2: return u + v * n * n;              // kYMinus
-      case 3: return u + ORDER * n + v * n * n;  // kYPlus
-      case 4: return u + v * n;                  // kZMinus
-      case 5: return u + v * n + ORDER * n * n;  // kZPlus
-      default: return -1;
+      case 0:
+        return u * n + v * n * n;  // kXMinus
+      case 1:
+        return ORDER + u * n + v * n * n;  // kXPlus
+      case 2:
+        return u + v * n * n;  // kYMinus
+      case 3:
+        return u + ORDER * n + v * n * n;  // kYPlus
+      case 4:
+        return u + v * n;  // kZMinus
+      case 5:
+        return u + v * n + ORDER * n * n;  // kZPlus
+      default:
+        return -1;
     }
   }
 
   static constexpr auto buildFaceToElemDof() {
     std::array<std::array<int, knumNodesPerFace>, 6> t{};
     for (int f = 0; f < 6; ++f)
-      for (int i = 0; i < knumNodesPerFace; ++i)
-        t[f][i] = faceToElemDofImpl(f, i);
+      for (int i = 0; i < knumNodesPerFace; ++i) t[f][i] = faceToElemDofImpl(f, i);
     return t;
   }
 
