@@ -61,14 +61,12 @@ TEST(ComputeFaceArea, PositiveForNonDegenerateQuad) {
 
 TEST(ComputeHexVolume, UnitCubeReturns8) {
   // X[iv+2*jv+4*kv]
-  float X[8][3] = {{0, 0, 0}, {1, 0, 0}, {0, 1, 0}, {1, 1, 0},
-                   {0, 0, 1}, {1, 0, 1}, {0, 1, 1}, {1, 1, 1}};
+  float X[8][3] = {{0, 0, 0}, {1, 0, 0}, {0, 1, 0}, {1, 1, 0}, {0, 0, 1}, {1, 0, 1}, {0, 1, 1}, {1, 1, 1}};
   EXPECT_NEAR(computeHexVolume(X), 8.0f, 1e-5f);
 }
 
 TEST(ComputeHexVolume, CubeOfSide2Returns64) {
-  float X[8][3] = {{0, 0, 0}, {2, 0, 0}, {0, 2, 0}, {2, 2, 0},
-                   {0, 0, 2}, {2, 0, 2}, {0, 2, 2}, {2, 2, 2}};
+  float X[8][3] = {{0, 0, 0}, {2, 0, 0}, {0, 2, 0}, {2, 2, 0}, {0, 0, 2}, {2, 0, 2}, {0, 2, 2}, {2, 2, 2}};
   EXPECT_NEAR(computeHexVolume(X), 64.0f, 1e-4f);
 }
 
@@ -84,14 +82,12 @@ TEST(ComputeHexVolume, ScalesAsCubicPowerOfSide) {
           X[idx][1] = jv * h;
           X[idx][2] = kv * h;
         }
-    EXPECT_NEAR(computeHexVolume(X), 8.0f * h * h * h, 1e-3f)
-        << "Failed for h=" << h;
+    EXPECT_NEAR(computeHexVolume(X), 8.0f * h * h * h, 1e-3f) << "Failed for h=" << h;
   }
 }
 
 TEST(ComputeHexVolume, PositiveForValidHex) {
-  float X[8][3] = {{0, 0, 0}, {1, 0, 0}, {0, 1, 0}, {1, 1, 0},
-                   {0, 0, 1}, {1, 0, 1}, {0, 1, 1}, {1, 1, 1}};
+  float X[8][3] = {{0, 0, 0}, {1, 0, 0}, {0, 1, 0}, {1, 1, 0}, {0, 0, 1}, {1, 0, 1}, {0, 1, 1}, {1, 1, 1}};
   EXPECT_GT(computeHexVolume(X), 0.0f);
 }
 
@@ -107,8 +103,7 @@ TEST(ComputeHexVolume, PositiveForValidHex) {
 namespace {
 // Unit square face and unit cube element for reuse.
 float kUnitFace[4][3] = {{0, 0, 0}, {1, 0, 0}, {1, 1, 0}, {0, 1, 0}};
-float kUnitHex[8][3] = {{0, 0, 0}, {1, 0, 0}, {0, 1, 0}, {1, 1, 0},
-                        {0, 0, 1}, {1, 0, 1}, {0, 1, 1}, {1, 1, 1}};
+float kUnitHex[8][3] = {{0, 0, 0}, {1, 0, 0}, {0, 1, 0}, {1, 1, 0}, {0, 0, 1}, {1, 0, 1}, {0, 1, 1}, {1, 1, 1}};
 }  // namespace
 
 TEST(ComputeSIPGPenalty, Order1UnitCubePenalty10) {
@@ -136,8 +131,7 @@ TEST(ComputeSIPGPenalty, InverseLengthScaling) {
   // Doubling all lengths doubles h_f = vol/area (vol ~ h^3, area ~ h^2),
   // so gamma should halve.
   float face2[4][3] = {{0, 0, 0}, {2, 0, 0}, {2, 2, 0}, {0, 2, 0}};
-  float hex2[8][3] = {{0, 0, 0}, {2, 0, 0}, {0, 2, 0}, {2, 2, 0},
-                      {0, 0, 2}, {2, 0, 2}, {0, 2, 2}, {2, 2, 2}};
+  float hex2[8][3] = {{0, 0, 0}, {2, 0, 0}, {0, 2, 0}, {2, 2, 0}, {0, 0, 2}, {2, 0, 2}, {0, 2, 2}, {2, 2, 2}};
   float g1 = computeSIPGPenalty<1>(kUnitFace, kUnitHex, 10.0f);
   float g2 = computeSIPGPenalty<1>(face2, hex2, 10.0f);
   EXPECT_NEAR(g2, g1 * 0.5f, 1e-5f);

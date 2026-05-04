@@ -140,8 +140,7 @@ TEST_F(DGsolverAcousticTest, ZeroFieldZeroSource_StaysZero) {
 
   // After one step from p=0 with no source, p must remain 0.
   for (int e = 0; e < nElem_; ++e)
-    for (int d = 0; d < kNDof; ++d)
-      EXPECT_FLOAT_EQ(data.pnPrev(e, d), 0.0f) << "elem=" << e << " dof=" << d;
+    for (int d = 0; d < kNDof; ++d) EXPECT_FLOAT_EQ(data.pnPrev(e, d), 0.0f) << "elem=" << e << " dof=" << d;
 }
 
 TEST_F(DGsolverAcousticTest, UniformFieldZeroSource_StaysUniform) {
@@ -153,8 +152,7 @@ TEST_F(DGsolverAcousticTest, UniformFieldZeroSource_StaysUniform) {
   solver_.computeOneStep(0.001f, 0, data);
 
   for (int e = 0; e < nElem_; ++e)
-    for (int d = 0; d < kNDof; ++d)
-      EXPECT_NEAR(data.pnPrev(e, d), 1.0f, 1e-4f) << "elem=" << e << " dof=" << d;
+    for (int d = 0; d < kNDof; ++d) EXPECT_NEAR(data.pnPrev(e, d), 1.0f, 1e-4f) << "elem=" << e << " dof=" << d;
 }
 
 TEST_F(DGsolverAcousticTest, NonzeroSource_FieldChangesAtSourceElem) {
@@ -166,8 +164,7 @@ TEST_F(DGsolverAcousticTest, NonzeroSource_FieldChangesAtSourceElem) {
 
   // rhs_elem(0,d) = -kWavelet * (1/kNDof) < 0
   // Verlet (curr=prev=0): new_prev = -dt^2 * rhs / (M + ...) > 0
-  for (int d = 0; d < kNDof; ++d)
-    EXPECT_GT(data.pnPrev(0, d), 0.0f) << "dof=" << d;
+  for (int d = 0; d < kNDof; ++d) EXPECT_GT(data.pnPrev(0, d), 0.0f) << "dof=" << d;
 }
 
 TEST_F(DGsolverAcousticTest, NoSourceElements_UnaffectedBySource) {
@@ -179,8 +176,7 @@ TEST_F(DGsolverAcousticTest, NoSourceElements_UnaffectedBySource) {
   // Elements != 0 should have zero field (the source kernel only writes
   // to element 0; interface flux from zero field is also zero).
   for (int e = 1; e < nElem_; ++e)
-    for (int d = 0; d < kNDof; ++d)
-      EXPECT_FLOAT_EQ(data.pnPrev(e, d), 0.0f) << "elem=" << e << " dof=" << d;
+    for (int d = 0; d < kNDof; ++d) EXPECT_FLOAT_EQ(data.pnPrev(e, d), 0.0f) << "elem=" << e << " dof=" << d;
 }
 
 // ============================================================

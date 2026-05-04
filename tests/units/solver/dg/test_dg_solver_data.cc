@@ -77,10 +77,8 @@ TEST_F(DGsolverDataAcousticTest, Constructor_DataValuesPreserved) {
 
   for (int s = 0; s < nSrc_; ++s) {
     EXPECT_EQ(data.rhsElement(s), s * 3);
-    for (int t = 0; t < nSample_; ++t)
-      EXPECT_FLOAT_EQ(data.myRHSTerm(s, t), static_cast<float>(s * 10 + t));
-    for (int d = 0; d < nDof_; ++d)
-      EXPECT_FLOAT_EQ(data.rhsWeights(s, d), static_cast<float>(d) * 0.1f);
+    for (int t = 0; t < nSample_; ++t) EXPECT_FLOAT_EQ(data.myRHSTerm(s, t), static_cast<float>(s * 10 + t));
+    for (int d = 0; d < nDof_; ++d) EXPECT_FLOAT_EQ(data.rhsWeights(s, d), static_cast<float>(d) * 0.1f);
   }
 }
 
@@ -100,8 +98,7 @@ TEST_F(DGsolverDataAcousticTest, GetCurrentField_ReturnsPnCurr) {
   ASSERT_EQ(curr.extent(0), static_cast<size_t>(nElem_));
   ASSERT_EQ(curr.extent(1), static_cast<size_t>(nDof_));
   for (int e = 0; e < nElem_; ++e)
-    for (int d = 0; d < nDof_; ++d)
-      EXPECT_FLOAT_EQ(curr(e, d), static_cast<float>(e * nDof_ + d) * 2.0f);
+    for (int d = 0; d < nDof_; ++d) EXPECT_FLOAT_EQ(curr(e, d), static_cast<float>(e * nDof_ + d) * 2.0f);
 }
 
 TEST_F(DGsolverDataAcousticTest, GetPreviousField_ReturnsPnPrev) {
@@ -110,8 +107,7 @@ TEST_F(DGsolverDataAcousticTest, GetPreviousField_ReturnsPnPrev) {
 
   ASSERT_EQ(prev.extent(0), static_cast<size_t>(nElem_));
   for (int e = 0; e < nElem_; ++e)
-    for (int d = 0; d < nDof_; ++d)
-      EXPECT_FLOAT_EQ(prev(e, d), static_cast<float>(e * nDof_ + d));
+    for (int d = 0; d < nDof_; ++d) EXPECT_FLOAT_EQ(prev(e, d), static_cast<float>(e * nDof_ + d));
 }
 
 TEST_F(DGsolverDataAcousticTest, GetRhsTerm_ReturnsTerm) {
@@ -121,8 +117,7 @@ TEST_F(DGsolverDataAcousticTest, GetRhsTerm_ReturnsTerm) {
   ASSERT_EQ(term.extent(0), static_cast<size_t>(nSrc_));
   ASSERT_EQ(term.extent(1), static_cast<size_t>(nSample_));
   for (int s = 0; s < nSrc_; ++s)
-    for (int t = 0; t < nSample_; ++t)
-      EXPECT_FLOAT_EQ(term(s, t), static_cast<float>(s * 10 + t));
+    for (int t = 0; t < nSample_; ++t) EXPECT_FLOAT_EQ(term(s, t), static_cast<float>(s * 10 + t));
 }
 
 TEST_F(DGsolverDataAcousticTest, GetRhsElement_ReturnsElem) {
@@ -140,8 +135,7 @@ TEST_F(DGsolverDataAcousticTest, GetRhsWeights_ReturnsWeights) {
   ASSERT_EQ(w.extent(0), static_cast<size_t>(nSrc_));
   ASSERT_EQ(w.extent(1), static_cast<size_t>(nDof_));
   for (int s = 0; s < nSrc_; ++s)
-    for (int d = 0; d < nDof_; ++d)
-      EXPECT_FLOAT_EQ(w(s, d), static_cast<float>(d) * 0.1f);
+    for (int d = 0; d < nDof_; ++d) EXPECT_FLOAT_EQ(w(s, d), static_cast<float>(d) * 0.1f);
 }
 
 // ============================================================
