@@ -117,14 +117,12 @@ void DGsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::comp
         float massLocal[kPointsPerElement] = {0};
         float stiffLocal[kPointsPerElement] = {0};
         float elementCoords[8][3];
-        {
-          auto const eIdx = mesh_local.elementIndex(e);
-          int I = 0;
-          for (int kv = 0; kv < 2; ++kv)
-            for (int jv = 0; jv < 2; ++jv)
-              for (int iv = 0; iv < 2; ++iv)
-                mesh_local.vertexCoords(mesh_local.globalVertexIndex(eIdx, iv, jv, kv), elementCoords[I++]);
-        }
+        auto const eIdx = mesh_local.elementIndex(e);
+        for (int kv = 0; kv < 2; ++kv)
+          for (int jv = 0; jv < 2; ++jv)
+            for (int iv = 0; iv < 2; ++iv)
+              mesh_local.vertexCoords(mesh_local.globalVertexIndex(eIdx, iv, jv, kv),
+                                      elementCoords[iv + 2 * jv + 4 * kv]);
 
         real_t const vp = mesh_local.getModelVpOnElement(e);
         real_t const rho = mesh_local.getModelRhoOnElement(e);
@@ -213,24 +211,20 @@ void DGsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::comp
         }
 
         float owner_coords[8][3];
-        {
-          auto const eIdx = mesh_local.elementIndex(owner_e);
-          int I = 0;
-          for (int kv = 0; kv < 2; ++kv)
-            for (int jv = 0; jv < 2; ++jv)
-              for (int iv = 0; iv < 2; ++iv)
-                mesh_local.vertexCoords(mesh_local.globalVertexIndex(eIdx, iv, jv, kv), owner_coords[I++]);
-        }
+        auto const eIdx_o = mesh_local.elementIndex(owner_e);
+        for (int kv = 0; kv < 2; ++kv)
+          for (int jv = 0; jv < 2; ++jv)
+            for (int iv = 0; iv < 2; ++iv)
+              mesh_local.vertexCoords(mesh_local.globalVertexIndex(eIdx_o, iv, jv, kv),
+                                      owner_coords[iv + 2 * jv + 4 * kv]);
 
         float neighbor_coords[8][3];
-        {
-          auto const eIdx = mesh_local.elementIndex(neighbor_e);
-          int I = 0;
-          for (int kv = 0; kv < 2; ++kv)
-            for (int jv = 0; jv < 2; ++jv)
-              for (int iv = 0; iv < 2; ++iv)
-                mesh_local.vertexCoords(mesh_local.globalVertexIndex(eIdx, iv, jv, kv), neighbor_coords[I++]);
-        }
+        auto const eIdx_n = mesh_local.elementIndex(neighbor_e);
+        for (int kv = 0; kv < 2; ++kv)
+          for (int jv = 0; jv < 2; ++jv)
+            for (int iv = 0; iv < 2; ++iv)
+              mesh_local.vertexCoords(mesh_local.globalVertexIndex(eIdx_n, iv, jv, kv),
+                                      neighbor_coords[iv + 2 * jv + 4 * kv]);
 
         real_t const inv_rho_o = 1.0f / mesh_local.getModelRhoOnElement(owner_e);
         real_t const inv_rho_n = 1.0f / mesh_local.getModelRhoOnElement(neighbor_e);
