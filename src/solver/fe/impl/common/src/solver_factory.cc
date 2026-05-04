@@ -152,18 +152,6 @@ std::unique_ptr<Solver> makeSemSolver(int order, feenum::meshType mesh, feenum::
                                       feenum::physicType physic) {
   bool const isModelOnNodes = (modelLocation == feenum::modelLocationType::kOnNodes);
 
-  // // fallback macro
-  // // Used for IDE static analysis
-  // #ifndef MAX_SOLVER_ACOUSTIC_ORDER
-  // #define MAX_SOLVER_ACOUSTIC_ORDER 9
-  // #endif
-  // #ifndef MAX_SOLVER_ELASTIC_ORDER
-  // #define MAX_SOLVER_ELASTIC_ORDER 9
-  // #endif
-  // #ifndef MAX_SOLVER_ELASTOACOUSTIC_ORDER
-  // #define MAX_SOLVER_ELASTOACOUSTIC_ORDER 9
-  // #endif
-
   if (physic == feenum::physicType::kAcoustic) {
     return orderDispatch<MAX_SOLVER_ACOUSTIC_ORDER>(order, [&](auto orderIC) {
       constexpr int ORDER = decltype(orderIC)::value;

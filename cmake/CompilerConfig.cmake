@@ -53,3 +53,24 @@ set(CMAKE_CXX_EXTENSIONS OFF CACHE BOOL "Disable gnu++ extensions" FORCE)
 set(CMAKE_CUDA_HOST_COMPILER ${CMAKE_CXX_COMPILER} CACHE STRING "" FORCE)
 set(CMAKE_CUDA_ARCHITECTURES native CACHE STRING "Auto-detect CUDA arch" FORCE)
 set(CMAKE_CUDA_STANDARD 17 CACHE STRING "" FORCE)
+
+# Coverage
+option(ENABLE_COVERAGE "Enable code coverage instrumentation" OFF)
+
+if(ENABLE_COVERAGE)
+    if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang|AppleClang")
+        message(STATUS "Coverage: Enabling GCC/Clang instrumentation")
+
+        # Add coverage flags to all languages and linkers
+        add_compile_options(--coverage)
+        set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} --coverage")
+        set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} --coverage")
+
+        # Crucial: Force -O0 for accurate line mapping.
+        # Optimized code (-O2/-O3) confuses coverage reports.
+        add_compile_options(-O0 -g)
+
+    elseif(CMAKE_CXX_COMPILER_ID MATCHES "NVHPC|PGI")
+        message(WARNING "Coverage: NVHPC may require specific flags (e.g., -Mprof=line)")
+    endif()
+endif()

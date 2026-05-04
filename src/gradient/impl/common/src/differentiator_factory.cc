@@ -1,10 +1,10 @@
 #include "differentiator_factory.h"
 
-#include <Integrals.h>
-#include <differentiator_acoustic.h>
-#include <differentiator_elastic.h>
-#include <model_struct.h>
-#include <model_unstruct.h>
+#include "Integrals.h"
+#include "differentiator_acoustic.h"
+#include "differentiator_elastic.h"
+#include "model_struct.h"
+#include "model_unstruct.h"
 
 namespace gradient {
 
@@ -14,9 +14,9 @@ using modelLocationType = utils::enums::modelLocationType;
 using implemType = utils::enums::implemType;
 
 /**
- * @brief Template récursif C++17 qui remplace le switch codé en dur.
- * Il s'arrête exactement à CurrentOrder (défini par CMake) et descend
- * jusqu'à 1.
+ * @brief C++17 recursive template that replaces a hard-coded switch statement.
+ * It stops exactly at CurrentOrder (defined via CMake) and recurses
+ * down to 1.
  */
 template <int CurrentOrder, typename FUNC>
 std::unique_ptr<Differentiator> orderDispatch(int const order, FUNC&& func) {
@@ -87,7 +87,7 @@ std::unique_ptr<Differentiator> makeDifferentiatorSem(int order, meshType mesh, 
                                                       physicType physic) {
   bool const isModelOnNodes = (modelLocation == modelLocationType::kOnNodes);
 
-// Définir une macro de fallback au cas où CMake ne passe pas les variables
+// macro fallback in case of cmake error
 #ifndef MAX_DIFFERENTIATOR_ACOUSTIC_ORDER
 #define MAX_DIFFERENTIATOR_ACOUSTIC_ORDER 3
 #endif
