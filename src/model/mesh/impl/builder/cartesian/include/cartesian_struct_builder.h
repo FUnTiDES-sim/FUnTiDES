@@ -1,26 +1,23 @@
 #ifndef FUNTIDES_MODEL_MESH_IMPL_BUILDER_CARTESIAN_INCLUDE_CARTESIAN_STRUCT_BUILDER_H_
 #define FUNTIDES_MODEL_MESH_IMPL_BUILDER_CARTESIAN_INCLUDE_CARTESIAN_STRUCT_BUILDER_H_
 
-#pragma once
-
 #include <builder.h>
 #include <model_struct.h>
 
-namespace model
-{
+#include <algorithm>
+
+#include "cartesian_struct_boundary_classifier.h"
+
+namespace model {
 template <typename FloatType, typename ScalarType, int Order>
-class CartesianStructBuilder : public ModelBuilderBase<FloatType, ScalarType>
-{
+class CartesianStructBuilder : public ModelBuilderBase<FloatType, ScalarType> {
  public:
-  CartesianStructBuilder(ScalarType ex, FloatType lx, ScalarType ey,
-                         FloatType ly, ScalarType ez, FloatType lz,
-                         bool isModelOnNodes, bool isElastic,
-                         FloatType ox = 0.0, FloatType oy = 0.0,
-                         FloatType oz = 0.0,
-                         // AJOUTER : paramètres globaux (optionnels)
-                         FloatType global_lx = -1.0, FloatType global_ly = -1.0,
-                         FloatType global_lz = -1.0, FloatType global_ox = 0.0,
-                         FloatType global_oy = 0.0, FloatType global_oz = 0.0)
+  CartesianStructBuilder(ScalarType ex, FloatType lx, ScalarType ey, FloatType ly, ScalarType ez, FloatType lz,
+                         bool isModelOnNodes, bool isElastic, FloatType ox = 0.0, FloatType oy = 0.0,
+                         FloatType oz = 0.0, FloatType global_lx = -1.0, FloatType global_ly = -1.0,
+                         FloatType global_lz = -1.0, FloatType global_ox = 0.0, FloatType global_oy = 0.0,
+                         FloatType global_oz = 0.0, bool isAcoustoElastic = false,
+                         FloatType acoustoElasticBoundaryZ = static_cast<FloatType>(0))
       : ex_(ex),
         ey_(ey),
         ez_(ez),
@@ -37,15 +34,13 @@ class CartesianStructBuilder : public ModelBuilderBase<FloatType, ScalarType>
         global_lz_(global_lz < 0 ? lz : global_lz),
         global_ox_(global_ox),
         global_oy_(global_oy),
-        global_oz_(global_oz)
-  {
-  }
+        global_oz_(global_oz),
+        isAcoustoElastic_(isAcoustoElastic),
+        acoustoElasticBoundaryZ_(acoustoElasticBoundaryZ) {}
 
   ~CartesianStructBuilder() = default;
 
-  std::shared_ptr<model::ModelApi<FloatType, ScalarType>> getModel()
-      const override
-  {
+  std::shared_ptr<model::ModelApi<FloatType, ScalarType>> getModel(bool free_surface_on_top) const override {
     model::ModelStructData<FloatType, ScalarType> data;
     data.ex_ = ex_;
     data.ey_ = ey_;
@@ -59,47 +54,61 @@ class CartesianStructBuilder : public ModelBuilderBase<FloatType, ScalarType>
     data.isModelOnNodes_ = isModelOnNodes_;
     data.isElastic_ = isElastic_;
 
-    auto temp_model = model::ModelStruct<FloatType, ScalarType, Order>(data);
+    const int nx = static_cast<int>(ex_) * Order + 1;
+    const int ny = static_cast<int>(ey_) * Order + 1;
+    const int nz = static_cast<int>(ez_) * Order + 1;
+    const int n_node = nx * ny * nz;
+    const FloatType tol = std::min({lx_ / ex_, ly_ / ey_, lz_ / ez_}) * static_cast<FloatType>(1e-4);
 
-    const int n_node = temp_model.getNumberOfNodes();
-    FloatType tol = temp_model.getMinSpacing() * 1e-4;
+    data.boundaries_t_ = CartesianStructBoundaryClassifier<FloatType, ScalarType>(
+                             global_ox_, global_ox_ + global_lx_, global_oy_, global_oy_ + global_ly_, global_oz_,
+                             global_oz_ + global_lz_, tol, free_surface_on_top)
+                             .classify(n_node, nx, ny, nz, ox_, oy_, oz_, lx_, ly_, lz_);
 
-    FloatType x_min = global_ox_, x_max = global_ox_ + global_lx_;
-    FloatType y_min = global_oy_, y_max = global_oy_ + global_ly_;
-    FloatType z_min = global_oz_, z_max = global_oz_ + global_lz_;
+    // Bicouche model for acoustoelastic: fluid layer (z >= boundary) vs solid.
+    // vs=0 in the fluid → TagElements classifies it as acoustic.
+    if (isAcoustoElastic_) {
+      auto temp_model = model::ModelStruct<FloatType, ScalarType, Order>(data);
 
-    auto boundaries_t =
-        allocateVector<VECTOR_REAL_VIEW>(n_node, "boundaries_t");
+      if (isModelOnNodes_) {
+        data.model_vp_node_ = allocateVector<VECTOR_REAL_VIEW>(n_node, "model_vp_node");
+        data.model_vs_node_ = allocateVector<VECTOR_REAL_VIEW>(n_node, "model_vs_node");
+        data.model_rho_node_ = allocateVector<VECTOR_REAL_VIEW>(n_node, "model_rho_node");
 
-    for (int n = 0; n < n_node; ++n)
-    {
-      FloatType x = temp_model.nodeCoord(n, 0);
-      FloatType y = temp_model.nodeCoord(n, 1);
-      FloatType z = temp_model.nodeCoord(n, 2);
+        for (int n = 0; n < n_node; ++n) {
+          bool const is_fluid = (temp_model.nodeCoord(n, 2) >= acoustoElasticBoundaryZ_);
+          data.model_vp_node_[n] = is_fluid ? static_cast<FloatType>(1500) : static_cast<FloatType>(3400);
+          data.model_vs_node_[n] = is_fluid ? static_cast<FloatType>(0) : static_cast<FloatType>(1963);
+          data.model_rho_node_[n] = is_fluid ? static_cast<FloatType>(1020) : static_cast<FloatType>(2500);
+        }
+      } else {
+        int const n_elem = ex_ * ey_ * ez_;
+        FloatType const hz = lz_ / ez_;
 
-      bool at_xmin = (fabs(x - x_min) < tol);
-      bool at_xmax = (fabs(x - x_max) < tol);
-      bool at_ymin = (fabs(y - y_min) < tol);
-      bool at_ymax = (fabs(y - y_max) < tol);
-      bool at_zmin = (fabs(z - z_min) < tol);
-      bool at_zmax = (fabs(z - z_max) < tol);
+        data.model_vp_element_ = allocateVector<VECTOR_REAL_VIEW>(n_elem, "model_vp_elem");
+        data.model_vs_element_ = allocateVector<VECTOR_REAL_VIEW>(n_elem, "model_vs_elem");
+        data.model_rho_element_ = allocateVector<VECTOR_REAL_VIEW>(n_elem, "model_rho_elem");
 
-      bool on_boundary =
-          at_xmin || at_xmax || at_ymin || at_ymax || at_zmin || at_zmax;
-
-      if (!on_boundary)
-        boundaries_t(n) = static_cast<FloatType>(BoundaryFlag::InteriorNode);
-      else if (at_zmax)
-        boundaries_t(n) = static_cast<FloatType>(BoundaryFlag::Surface);
-      else
-        boundaries_t(n) = static_cast<FloatType>(BoundaryFlag::Damping);
+        for (int k = 0; k < ez_; ++k) {
+          FloatType const centroid_z = oz_ + (k + static_cast<FloatType>(0.5)) * hz;
+          bool const is_fluid = (centroid_z >= acoustoElasticBoundaryZ_);
+          for (int j = 0; j < ey_; ++j) {
+            for (int i = 0; i < ex_; ++i) {
+              int const e = i + j * ex_ + k * ex_ * ey_;
+              data.model_vp_element_[e] = is_fluid ? static_cast<FloatType>(1500) : static_cast<FloatType>(3400);
+              data.model_vs_element_[e] = is_fluid ? static_cast<FloatType>(0) : static_cast<FloatType>(1963);
+              data.model_rho_element_[e] = is_fluid ? static_cast<FloatType>(1020) : static_cast<FloatType>(2500);
+            }
+          }
+        }
+      }
     }
 
-    data.boundaries_t_ = boundaries_t;
-
-    auto model =
-        std::make_shared<model::ModelStruct<FloatType, ScalarType, Order>>(
-            data);
+    // -------------------------------------------------------------------------
+    // Construct model with local coordinates and dimensions, but use global
+    // boundaries for boundary classification.
+    // -------------------------------------------------------------------------
+    auto model = std::make_shared<model::ModelStruct<FloatType, ScalarType, Order>>(data);
 
     model->buildFaceConnectivity();
 
@@ -107,13 +116,15 @@ class CartesianStructBuilder : public ModelBuilderBase<FloatType, ScalarType>
   }
 
  private:
-  FloatType ox_, oy_, oz_;  // Local origin coordinate in 3D
+  FloatType ox_, oy_, oz_;                       // Local origin coordinate in 3D
   FloatType global_ox_, global_oy_, global_oz_;  // Global origin
-  ScalarType ex_, ey_, ez_;  // Number of elements for each axis (local)
-  FloatType lx_, ly_, lz_;   // Domain size (local)
+  ScalarType ex_, ey_, ez_;                      // Number of elements for each axis (local)
+  FloatType lx_, ly_, lz_;                       // Domain size (local)
   FloatType global_lx_, global_ly_, global_lz_;  // Domain size (global)
   bool isModelOnNodes_;
   bool isElastic_;
+  bool isAcoustoElastic_{false};
+  FloatType acoustoElasticBoundaryZ_{static_cast<FloatType>(0)};
 };
 }  // namespace model
 

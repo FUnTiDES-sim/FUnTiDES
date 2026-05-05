@@ -8,8 +8,7 @@
  * @namespace model
  * @brief Namespace containing model and mesh representation classes
  */
-namespace model
-{
+namespace model {
 
 /**
  * @struct ModelDataBase
@@ -23,16 +22,14 @@ namespace model
  * @tparam ScalarType Integer type for indices (e.g., int, size_t)
  */
 template <typename FloatType, typename ScalarType>
-struct ModelDataBase
-{
+struct ModelDataBase {
   PROXY_HOST_DEVICE ModelDataBase() = default;
   PROXY_HOST_DEVICE ~ModelDataBase() = default;
   PROXY_HOST_DEVICE ModelDataBase(const ModelDataBase&) = default;
   PROXY_HOST_DEVICE ModelDataBase& operator=(const ModelDataBase&) = default;
 };
 
-enum BoundaryFlag : int
-{
+enum BoundaryFlag : int {
   InteriorNode = 0,  ///< Node inside the domain
   Damping = 1,       ///< Node in damping boundary zone
   Sponge = 2,        ///< Node in sponge layer
@@ -47,8 +44,7 @@ enum BoundaryFlag : int
  * Convention: even indices = minus faces, odd indices = plus faces.
  * Face normals point outward from the element.
  */
-enum class CubicFace : int
-{
+enum class CubicFace : int {
   kXMinus = 0,  ///< Face at x = x_min (left face, normal = [-1, 0, 0])
   kXPlus = 1,   ///< Face at x = x_max (right face, normal = [+1, 0, 0])
   kYMinus = 2,  ///< Face at y = y_min (front face, normal = [0, -1, 0])
@@ -62,8 +58,7 @@ enum class CubicFace : int
  * @brief Flags representing the anisotropy type of the medium at a mesh node or
  * element.
  */
-enum AnisotropyType : uint8_t
-{
+enum AnisotropyType : uint8_t {
   kIso = 0,       ///< Isotropic medium
   kVTI = 1 << 0,  ///< Vertically Transverse Isotropic medium
   kTTI = 1 << 1   ///< Tilted Transverse Isotropic medium
@@ -73,8 +68,7 @@ enum AnisotropyType : uint8_t
  * @brief Abstract base class representing a structured 3D mesh.
  */
 template <typename FloatType, typename ScalarType>
-class ModelApi
-{
+class ModelApi {
  public:
   PROXY_HOST_DEVICE ModelApi() = default;
 
@@ -82,9 +76,7 @@ class ModelApi
    * @brief Construct ModelApi from model data
    * @param data Model-specific data structure
    */
-  PROXY_HOST_DEVICE ModelApi(const ModelDataBase<ScalarType, FloatType>& data)
-  {
-  }
+  PROXY_HOST_DEVICE ModelApi(const ModelDataBase<ScalarType, FloatType>& data) {}
 
   PROXY_HOST_DEVICE ModelApi(const ModelApi&) = default;
   PROXY_HOST_DEVICE ModelApi& operator=(const ModelApi&) = default;
@@ -108,8 +100,7 @@ class ModelApi
    * @return Global node index
    */
   PROXY_HOST_DEVICE
-  virtual ScalarType globalNodeIndex(ScalarType e, int i, int j,
-                                     int k) const = 0;
+  virtual ScalarType globalNodeIndex(ScalarType e, int i, int j, int k) const = 0;
 
   /**
    * @brief Get the boundary type of a given node.
@@ -118,13 +109,6 @@ class ModelApi
    */
   PROXY_HOST_DEVICE
   virtual BoundaryFlag boundaryType(ScalarType n) const = 0;
-
-  /**
-   * @brief Initialize boundary flags based on node positions
-   * @param free_surface_on_top If true, mark top (Z+) as Surface, else as
-   * Damping
-   */
-  virtual void initializeBoundaryFlags(bool free_surface_on_top) = 0;
 
   /**
    * @brief Get P-wave velocity at a node
@@ -138,24 +122,21 @@ class ModelApi
    * @param e Element index
    * @return P-wave velocity (Vp) in m/s
    */
-  PROXY_HOST_DEVICE virtual FloatType getModelVpOnElement(
-      ScalarType e) const = 0;
+  PROXY_HOST_DEVICE virtual FloatType getModelVpOnElement(ScalarType e) const = 0;
 
   /**
    * @brief Get density at a node
    * @param n Node index
    * @return Density (rho) in kg/m³
    */
-  PROXY_HOST_DEVICE virtual FloatType getModelRhoOnNodes(
-      ScalarType n) const = 0;
+  PROXY_HOST_DEVICE virtual FloatType getModelRhoOnNodes(ScalarType n) const = 0;
 
   /**
    * @brief Get density for an element
    * @param e Element index
    * @return Density (rho) in kg/m³
    */
-  PROXY_HOST_DEVICE virtual FloatType getModelRhoOnElement(
-      ScalarType e) const = 0;
+  PROXY_HOST_DEVICE virtual FloatType getModelRhoOnElement(ScalarType e) const = 0;
 
   /**
    * @brief Get S-wave velocity at a node
@@ -169,88 +150,105 @@ class ModelApi
    * @param e Element index
    * @return S-wave velocity (Vs) in m/s
    */
-  PROXY_HOST_DEVICE virtual FloatType getModelVsOnElement(
-      ScalarType e) const = 0;
+  PROXY_HOST_DEVICE virtual FloatType getModelVsOnElement(ScalarType e) const = 0;
+
+  /**
+   * @brief Get P-wave quality factor at a node (attenuation)
+   * @param n Node index
+   * @return Qp (dimensionless)
+   */
+  PROXY_HOST_DEVICE virtual FloatType getModelQpOnNodes(ScalarType n) const = 0;
+
+  /**
+   * @brief Get P-wave quality factor for an element (attenuation)
+   * @param e Element index
+   * @return Qp (dimensionless)
+   */
+  PROXY_HOST_DEVICE virtual FloatType getModelQpOnElement(ScalarType e) const = 0;
+
+  /**
+   * @brief Get S-wave quality factor at a node (attenuation)
+   * @param n Node index
+   * @return Qs (dimensionless)
+   */
+  PROXY_HOST_DEVICE virtual FloatType getModelQsOnNodes(ScalarType n) const = 0;
+
+  /**
+   * @brief Get S-wave quality factor for an element (attenuation)
+   * @param e Element index
+   * @return Qs (dimensionless)
+   */
+  PROXY_HOST_DEVICE virtual FloatType getModelQsOnElement(ScalarType e) const = 0;
 
   /**
    * @brief Get Thomsen delta parameter at a node (anisotropy)
    * @param n Node index
    * @return Delta parameter (dimensionless)
    */
-  PROXY_HOST_DEVICE virtual FloatType getModelDeltaOnNodes(
-      ScalarType n) const = 0;
+  PROXY_HOST_DEVICE virtual FloatType getModelDeltaOnNodes(ScalarType n) const = 0;
 
   /**
    * @brief Get Thomsen delta parameter for an element (anisotropy)
    * @param e Element index
    * @return Delta parameter (dimensionless)
    */
-  PROXY_HOST_DEVICE virtual FloatType getModelDeltaOnElement(
-      ScalarType e) const = 0;
+  PROXY_HOST_DEVICE virtual FloatType getModelDeltaOnElement(ScalarType e) const = 0;
 
   /**
    * @brief Get Thomsen epsilon parameter at a node (anisotropy)
    * @param n Node index
    * @return Epsilon parameter (dimensionless)
    */
-  PROXY_HOST_DEVICE virtual FloatType getModelEpsilonOnNodes(
-      ScalarType n) const = 0;
+  PROXY_HOST_DEVICE virtual FloatType getModelEpsilonOnNodes(ScalarType n) const = 0;
 
   /**
    * @brief Get Thomsen epsilon parameter for an element (anisotropy)
    * @param e Element index
    * @return Epsilon parameter (dimensionless)
    */
-  PROXY_HOST_DEVICE virtual FloatType getModelEpsilonOnElement(
-      ScalarType e) const = 0;
+  PROXY_HOST_DEVICE virtual FloatType getModelEpsilonOnElement(ScalarType e) const = 0;
 
   /**
    * @brief Get Thomsen gamma parameter at a node (anisotropy)
    * @param n Node index
    * @return Gamma parameter (dimensionless)
    */
-  PROXY_HOST_DEVICE virtual FloatType getModelGammaOnNodes(
-      ScalarType n) const = 0;
+  PROXY_HOST_DEVICE virtual FloatType getModelGammaOnNodes(ScalarType n) const = 0;
 
   /**
    * @brief Get Thomsen gamma parameter for an element (anisotropy)
    * @param e Element index
    * @return Gamma parameter (dimensionless)
    */
-  PROXY_HOST_DEVICE virtual FloatType getModelGammaOnElement(
-      ScalarType e) const = 0;
+  PROXY_HOST_DEVICE virtual FloatType getModelGammaOnElement(ScalarType e) const = 0;
 
   /**
    * @brief Get theta angle at a node (anisotropy orientation)
    * @param n Node index
    * @return Theta angle in radians
    */
-  PROXY_HOST_DEVICE virtual ScalarType getModelThetaOnNodes(
-      ScalarType n) const = 0;
+  PROXY_HOST_DEVICE virtual ScalarType getModelThetaOnNodes(ScalarType n) const = 0;
 
   /**
    * @brief Get theta angle for an element (anisotropy orientation)
    * @param e Element index
    * @return Theta angle in radians
    */
-  PROXY_HOST_DEVICE virtual ScalarType getModelThetaOnElement(
-      ScalarType e) const = 0;
+  PROXY_HOST_DEVICE virtual ScalarType getModelThetaOnElement(ScalarType e) const = 0;
 
   /**
    * @brief Get phi angle at a node (anisotropy orientation)
    * @param n Node index
    * @return Phi angle in radians
    */
-  PROXY_HOST_DEVICE virtual ScalarType getModelPhiOnNodes(
-      ScalarType n) const = 0;
+  PROXY_HOST_DEVICE virtual ScalarType getModelPhiOnNodes(ScalarType n) const = 0;
 
   /**
    * @brief Get phi angle for an element (anisotropy orientation)
    * @param e Element index
    * @return Phi angle in radians
    */
-  PROXY_HOST_DEVICE virtual ScalarType getModelPhiOnElement(
-      ScalarType e) const = 0;
+  PROXY_HOST_DEVICE virtual ScalarType getModelPhiOnElement(ScalarType e) const = 0;
 
   /**
    * @brief Get the elasticity tensor for an element
@@ -258,8 +256,7 @@ class ModelApi
    * @param[out] CTTI 6x6 elasticity tensor in Voigt notation
    */
   PROXY_HOST_DEVICE
-  virtual void getCTensorOnElement(ScalarType e,
-                                   FloatType CTTI[6][6]) const = 0;
+  virtual void getCTensorOnElement(ScalarType e, FloatType CTTI[6][6]) const = 0;
 
   /**
    * @brief Initialize and compute elasticity tensors for all elements
@@ -300,8 +297,7 @@ class ModelApi
    * @param[out] v Output array (size 3) holding the normal vector [nx, ny, nz]
    */
   PROXY_HOST_DEVICE
-  virtual void faceNormal(ScalarType e, CubicFace face,
-                          FloatType v[3]) const = 0;
+  virtual void faceNormal(ScalarType e, CubicFace face, FloatType v[3]) const = 0;
 
   /**
    * @brief Get the domain size along a specific dimension
@@ -351,19 +347,13 @@ class ModelApi
   virtual bool isFreeSurface(ScalarType n) const = 0;
 
   /**
-   * @brief Enable/disable free surface on top boundary
-   * @param enable True to enable free surface BC, false for absorbing
-   * everywhere
-   */
-  virtual void setFreeSurfaceEnabled(bool enable) = 0;
-
-  /**
-   * @brief Initialize free surface detection
+   * @brief Set uniform quality factors for attenuation.
    *
-   * Marks nodes on top boundary (Z+) as free surface.
-   * Called once during mesh setup.
+   * Allocates per-element Q arrays and fills them with the given values.
+   * @param qp P-wave quality factor.
+   * @param qs S-wave quality factor (used only for elastic).
    */
-  virtual void initFreeSurface() = 0;
+  virtual void setQualityFactors(FloatType qp, FloatType qs) = 0;
 
   /**
    * @brief Get total number of faces
@@ -381,15 +371,13 @@ class ModelApi
    * @brief Get global face ID from element and local face
    */
   PROXY_HOST_DEVICE
-  virtual ScalarType getGlobalFace(ScalarType elem,
-                                   CubicFace local_face) const = 0;
+  virtual ScalarType getGlobalFace(ScalarType elem, CubicFace local_face) const = 0;
 
   /**
    * @brief Get global node index from face and local DOF
    */
   PROXY_HOST_DEVICE
-  virtual ScalarType getGlobalNodeFromFace(ScalarType face_global,
-                                           int local_dof) const = 0;
+  virtual ScalarType getGlobalNodeFromFace(ScalarType face_global, int local_dof) const = 0;
 };
 
 }  // namespace model

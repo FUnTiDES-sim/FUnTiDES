@@ -69,8 +69,8 @@ def allocate_rhs_term(
     )
     RHSTerm = np.array(kk_RHSTerm, copy=False)
     for i in range(n_time_steps):
-        RHSTerm[0, i] = source_term(i * dt, f0)
-        RHSTerm[1, i] = source_term(i * dt, f0)
+        for r in range(n_rhs):
+            RHSTerm[r, i] = source_term(i * dt, f0)
     return kk_RHSTerm, RHSTerm
 
 
@@ -97,7 +97,8 @@ def allocate_rhs_element(
     )
     RHSElement = np.array(kk_RHSElement, copy=False)
     RHSElement[0] = ex / 2 + ey / 2 * ex + ez / 2 * ey * ex  # one half of slice
-    RHSElement[1] = ex / 3 + ey / 2 * ex + ez / 2 * ey * ex  # one third of slice
+    if n_rhs > 1:
+        RHSElement[1] = ex / 3 + ey / 2 * ex + ez / 2 * ey * ex  # one third of slice
     return kk_RHSElement, RHSElement
 
 

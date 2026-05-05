@@ -6,12 +6,10 @@
 #include "physics_traits_elastic.h"
 #include "solver.h"
 
-namespace solver
-{
-namespace fe
-{
+namespace solver {
+namespace fe {
 
-using physicType = enums::physicType;
+using physicType = utils::enums::physicType;
 
 //============================================================================
 // Unified Data Structure
@@ -27,8 +25,7 @@ using physicType = enums::physicType;
  * @tparam PHYSICS The physics type (kAcoustic or kElastic)
  */
 template <physicType PHYSICS>
-struct SEMsolverData : public Solver::DataStruct
-{
+struct SEMsolverData : public Solver::DataStruct {
   using Traits = PhysicsTraits<PHYSICS>;
   static constexpr int kNumFields = Traits::WavefieldType::kNumFields;
   static constexpr int kNumRhs = Traits::RhsType::kNumRhsComponents;
@@ -40,23 +37,15 @@ struct SEMsolverData : public Solver::DataStruct
   /**
    * @brief Constructor for acoustic physics (single field).
    */
-  template <physicType P = PHYSICS,
-            typename = std::enable_if_t<P == enums::physicType::kAcoustic>>
-  SEMsolverData(const WavefieldAcoustic& wavefield, const RhsAcoustic& rhs)
-      : m_wavefield(wavefield), m_rhs(rhs)
-  {
-  }
+  template <physicType P = PHYSICS, typename = std::enable_if_t<P == physicType::kAcoustic>>
+  SEMsolverData(const WavefieldAcoustic& wavefield, const RhsAcoustic& rhs) : m_wavefield(wavefield), m_rhs(rhs) {}
 
   /**
    * @brief Constructor for elastic physics (three fields).
    */
-  template <physicType P = PHYSICS,
-            typename = std::enable_if_t<P == enums::physicType::kElastic>>
-  SEMsolverData(const WavefieldElastic& wavefield, const RhsElastic& rhs,
-                const bool isDistributed = false)
-      : m_wavefield(wavefield), m_rhs(rhs), isDistributed(isDistributed)
-  {
-  }
+  template <physicType P = PHYSICS, typename = std::enable_if_t<P == physicType::kElastic>>
+  SEMsolverData(const WavefieldElastic& wavefield, const RhsElastic& rhs, const bool isDistributed = false)
+      : m_wavefield(wavefield), m_rhs(rhs), isDistributed(isDistributed) {}
 
   PROXY_HOST_DEVICE
   ARRAY_REAL_VIEW getRhsTerm(int i) const { return m_rhs.getTerm(i); }
@@ -68,32 +57,21 @@ struct SEMsolverData : public Solver::DataStruct
   ARRAY_REAL_VIEW getRhsWeights() const { return m_rhs.getWeights(); }
 
   PROXY_HOST_DEVICE
-  VECTOR_REAL_VIEW getCurrentField(int i) const
-  {
-    return m_wavefield.getCurrentField(i);
-  }
+  VECTOR_REAL_VIEW getCurrentField(int i) const { return m_wavefield.getCurrentField(i); }
 
   PROXY_HOST_DEVICE
-  VECTOR_REAL_VIEW getPreviousField(int i) const
-  {
-    return m_wavefield.getPreviousField(i);
-  }
+  VECTOR_REAL_VIEW getPreviousField(int i) const { return m_wavefield.getPreviousField(i); }
 
   void swapWavefields() { m_wavefield.swap(); }
 
-  void print() const override
-  {
+  void print() const override {
     std::cout << "SEMsolverData<" << Traits::kName << ">" << std::endl;
-    for (int f = 0; f < kNumFields; ++f)
-    {
-      std::cout << "Field[" << f << "] ("
-                << Traits::WavefieldType::kFieldNames[f]
+    for (int f = 0; f < kNumFields; ++f) {
+      std::cout << "Field[" << f << "] (" << Traits::WavefieldType::kFieldNames[f]
                 << ") size: " << getCurrentField(f).extent(0) << std::endl;
     }
-    for (int r = 0; r < kNumRhs; ++r)
-    {
-      std::cout << "RHS[" << r << "] size: " << getRhsTerm(r).extent(0)
-                << std::endl;
+    for (int r = 0; r < kNumRhs; ++r) {
+      std::cout << "RHS[" << r << "] size: " << getRhsTerm(r).extent(0) << std::endl;
     }
     std::cout << "RHS Element size: " << getRhsElement().extent(0) << std::endl;
     std::cout << "RHS Weights size: " << getRhsWeights().extent(0) << std::endl;
@@ -102,15 +80,15 @@ struct SEMsolverData : public Solver::DataStruct
   bool isDistributed{false};
   WavefieldType m_wavefield;  ///< Wavefield stored by value for GPU
                               ///< (lightweight view handles)
-  RhsType m_rhs;  ///< RHS stored by value for GPU (lightweight view handles)
+  RhsType m_rhs;              ///< RHS stored by value for GPU (lightweight view handles)
 };
 
 //============================================================================
 // Backward Compatibility Type Aliases for Data Structures
 //============================================================================
 
-using SEMsolverDataAcoustic = SEMsolverData<enums::physicType::kAcoustic>;
-using SEMsolverDataElastic = SEMsolverData<enums::physicType::kElastic>;
+using SEMsolverDataAcoustic = SEMsolverData<physicType::kAcoustic>;
+using SEMsolverDataElastic = SEMsolverData<physicType::kElastic>;
 
 }  // namespace fe
 }  // namespace solver

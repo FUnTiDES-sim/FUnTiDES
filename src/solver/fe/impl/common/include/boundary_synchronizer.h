@@ -10,10 +10,8 @@
 
 using namespace utils;
 
-namespace solver
-{
-namespace fe
-{
+namespace solver {
+namespace fe {
 // @brief Handles data exchange at partition boundaries.
 //
 // Manages synchronization of boundary node values across distributed ranks.
@@ -35,8 +33,7 @@ namespace fe
 // For single-rank execution, synchronization is a no-op (no neighbors exist).
 // For distributed execution, must be called after computeForces() and before
 // updateSolution() to ensure boundary values are complete.
-class BoundarySynchronizer
-{
+class BoundarySynchronizer {
  public:
   // @brief Backend interface for communication.
   //
@@ -45,8 +42,7 @@ class BoundarySynchronizer
   // - DebugBackend: logs all exchanges for diagnostics
   // - MPIBackend: real MPI communication (future)
   // - GPUBackend: GPU direct peer-to-peer (future)
-  struct Backend
-  {
+  struct Backend {
     virtual ~Backend() = default;
 
     // @brief Exchange boundary data with neighboring ranks.
@@ -72,11 +68,8 @@ class BoundarySynchronizer
   // @param[in] backend Communication strategy (caller manages lifetime)
   //
   // @throws std::invalid_argument if backend is null
-  explicit BoundarySynchronizer(std::unique_ptr<Backend> backend)
-      : m_backend(std::move(backend))
-  {
-    if (!m_backend)
-    {
+  explicit BoundarySynchronizer(std::unique_ptr<Backend> backend) : m_backend(std::move(backend)) {
+    if (!m_backend) {
       throw std::invalid_argument("Backend cannot be null");
     }
   }
@@ -112,30 +105,24 @@ class BoundarySynchronizer
   // - Mass matrix: once after computeFEInit()
   // - Force vectors: every time step after computeForces()
   template <typename ViewType>
-  void synchronize(ViewType& field, const ParallelTopology& topo)
-  {
-    if (!topo.isDistributed())
-    {
+  void synchronize(ViewType& field, const ParallelTopology& topo) {
+    if (!topo.isDistributed()) {
       // Single rank: no synchronization needed
       return;
     }
 
-    try
-    {
-      // 1. Pack boundary values
+    try {
+      // Pack boundary values
       auto sendBufs = pack(field, topo);
 
-      // 2. Exchange with neighbors
+      // Exchange with neighbors
       std::map<int, std::vector<float>> recvBufs;
       m_backend->exchange(sendBufs, recvBufs);
 
-      // 3. Accumulate (sum) received values
+      // Accumulate (sum) received values
       accumulate(field, recvBufs, topo);
-    }
-    catch (const std::exception& e)
-    {
-      throw std::runtime_error(
-          std::string("Boundary synchronization failed: ") + e.what());
+    } catch (const std::exception& e) {
+      throw std::runtime_error(std::string("Boundary synchronization failed: ") + e.what());
     }
   }
 
@@ -151,18 +138,14 @@ class BoundarySynchronizer
   // @return Map from neighbor rank to vector of extracted values
   //         (in same order as topo.sharedNodes[rank])
   template <typename ViewType>
-  static std::map<int, std::vector<float>> pack(const ViewType& field,
-                                                const ParallelTopology& topo)
-  {
+  static std::map<int, std::vector<float>> pack(const ViewType& field, const ParallelTopology& topo) {
     std::map<int, std::vector<float>> buffers;
 
-    for (const auto& [neighborRank, nodeIndices] : topo.sharedNodes)
-    {
+    for (const auto& [neighborRank, nodeIndices] : topo.sharedNodes) {
       auto& buf = buffers[neighborRank];
       buf.reserve(nodeIndices.size());
 
-      for (int nodeIdx : nodeIndices)
-      {
+      for (int nodeIdx : nodeIndices) {
         buf.push_back(static_cast<float>(field(nodeIdx)));
       }
     }
@@ -192,23 +175,17 @@ class BoundarySynchronizer
   // 2. Verify buffer size matches node count
   // 3. Sum received values into field at boundary nodes
   template <typename ViewType>
-  static void accumulate(ViewType& field,
-                         const std::map<int, std::vector<float>>& recvBufs,
-                         const ParallelTopology& topo)
-  {
-    for (const auto& [neighborRank, nodeIndices] : topo.sharedNodes)
-    {
+  static void accumulate(ViewType& field, const std::map<int, std::vector<float>>& recvBufs,
+                         const ParallelTopology& topo) {
+    for (const auto& [neighborRank, nodeIndices] : topo.sharedNodes) {
       auto it = recvBufs.find(neighborRank);
 
-      if (it == recvBufs.end())
-      {
+      if (it == recvBufs.end()) {
         // In distributed mode, missing data is an error
         // In serial mode (no actual neighbors), it's OK to skip
-        if (topo.isDistributed())
-        {
-          throw std::runtime_error(
-              "Expected data from rank " + std::to_string(neighborRank) +
-              " but received nothing. Exchange failed or topology mismatch.");
+        if (topo.isDistributed()) {
+          throw std::runtime_error("Expected data from rank " + std::to_string(neighborRank) +
+                                   " but received nothing. Exchange failed or topology mismatch.");
         }
         continue;
       }
@@ -216,17 +193,13 @@ class BoundarySynchronizer
       const auto& buf = it->second;
 
       // Validate buffer size matches node count
-      if (buf.size() != nodeIndices.size())
-      {
-        throw std::length_error("Buffer size mismatch from rank " +
-                                std::to_string(neighborRank) + ": expected " +
-                                std::to_string(nodeIndices.size()) +
-                                " values, got " + std::to_string(buf.size()));
+      if (buf.size() != nodeIndices.size()) {
+        throw std::length_error("Buffer size mismatch from rank " + std::to_string(neighborRank) + ": expected " +
+                                std::to_string(nodeIndices.size()) + " values, got " + std::to_string(buf.size()));
       }
 
       // Accumulate (sum) received values
-      for (size_t i = 0; i < nodeIndices.size(); ++i)
-      {
+      for (size_t i = 0; i < nodeIndices.size(); ++i) {
         int nodeIdx = nodeIndices[i];
         field(nodeIdx) += buf[i];
       }
@@ -238,15 +211,13 @@ class BoundarySynchronizer
 //
 // Used when running on a single rank or in serial testing mode.
 // Simply clears receive buffers to prevent spurious data accumulation.
-class SerialBackend : public BoundarySynchronizer::Backend
-{
+class SerialBackend : public BoundarySynchronizer::Backend {
  public:
   // @brief Exchange (no-op for serial execution).
   //
   // Clears recvBuffers since there are no neighbors in serial mode.
   void exchange(const std::map<int, std::vector<float>>& sendBuffers,
-                std::map<int, std::vector<float>>& recvBuffers) override
-  {
+                std::map<int, std::vector<float>>& recvBuffers) override {
     // Single rank: clear recv buffers (no data from neighbors)
     recvBuffers.clear();
   }
@@ -264,8 +235,7 @@ class SerialBackend : public BoundarySynchronizer::Backend
 //   → Send M values to rank X
 //   ← Recv M values from rank X (zeroed for debug)
 // ```
-class DebugBackend : public BoundarySynchronizer::Backend
-{
+class DebugBackend : public BoundarySynchronizer::Backend {
  private:
   int m_rank;  //< Current rank (for logging)
 
@@ -279,24 +249,19 @@ class DebugBackend : public BoundarySynchronizer::Backend
   // Logs all send/receive operations and populates recvBuffers with zeros.
   // Useful for verifying synchronization is called at correct times.
   void exchange(const std::map<int, std::vector<float>>& sendBuffers,
-                std::map<int, std::vector<float>>& recvBuffers) override
-  {
+                std::map<int, std::vector<float>>& recvBuffers) override {
     std::cout << "[Rank " << m_rank << "] Boundary Synchronization:\n";
 
-    for (const auto& [neighbor, data] : sendBuffers)
-    {
-      std::cout << "  → Send " << data.size() << " values to rank " << neighbor
-                << "\n";
+    for (const auto& [neighbor, data] : sendBuffers) {
+      std::cout << "  → Send " << data.size() << " values to rank " << neighbor << "\n";
     }
 
     // In debug mode, populate recv with zeros (safe default)
     // In real MPI, this would receive actual data from neighbors
     recvBuffers.clear();
-    for (const auto& [neighbor, data] : sendBuffers)
-    {
+    for (const auto& [neighbor, data] : sendBuffers) {
       recvBuffers[neighbor].resize(data.size(), 0.0f);
-      std::cout << "  ← Recv " << data.size() << " values from rank "
-                << neighbor << " (zeroed for debug)\n";
+      std::cout << "  ← Recv " << data.size() << " values from rank " << neighbor << " (zeroed for debug)\n";
     }
   }
 };

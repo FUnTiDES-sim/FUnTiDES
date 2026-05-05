@@ -7,10 +7,8 @@
 
 #include "model_struct.h"
 
-namespace model
-{
-namespace
-{
+namespace model {
+namespace {
 
 // ============================================================================
 // Type Wrapper Classes for Non-Type Template Parameters
@@ -19,48 +17,68 @@ namespace
 // We wrap template instantiations in structs to make them compatible.
 
 // Order 1 wrappers
-struct FloatOrder1
-{
+struct FloatOrder1 {
   using FloatType = float;
   using ScalarType = int;
   static constexpr int Order = 1;
 };
 
-struct DoubleOrder1
-{
+struct DoubleOrder1 {
   using FloatType = double;
   using ScalarType = int;
   static constexpr int Order = 1;
 };
 
 // Order 2 wrappers
-struct FloatOrder2
-{
+struct FloatOrder2 {
   using FloatType = float;
   using ScalarType = int;
   static constexpr int Order = 2;
 };
 
-struct DoubleOrder2
-{
+struct DoubleOrder2 {
   using FloatType = double;
   using ScalarType = int;
   static constexpr int Order = 2;
 };
 
 // Order 3 wrappers
-struct FloatOrder3
-{
+struct FloatOrder3 {
   using FloatType = float;
   using ScalarType = int;
   static constexpr int Order = 3;
 };
 
-struct DoubleOrder3
-{
+struct DoubleOrder3 {
   using FloatType = double;
   using ScalarType = int;
   static constexpr int Order = 3;
+};
+
+// Order 4 wrappers
+struct FloatOrder4 {
+  using FloatType = float;
+  using ScalarType = int;
+  static constexpr int Order = 4;
+};
+
+struct DoubleOrder4 {
+  using FloatType = double;
+  using ScalarType = int;
+  static constexpr int Order = 4;
+};
+
+// Order 5 wrappers
+struct FloatOrder5 {
+  using FloatType = float;
+  using ScalarType = int;
+  static constexpr int Order = 5;
+};
+
+struct DoubleOrder5 {
+  using FloatType = double;
+  using ScalarType = int;
+  static constexpr int Order = 5;
 };
 
 // ============================================================================
@@ -68,8 +86,7 @@ struct DoubleOrder3
 // ============================================================================
 
 template <typename TypeWrapper>
-class ModelStructTest : public ::testing::Test
-{
+class ModelStructTest : public ::testing::Test {
  protected:
   using FloatType = typename TypeWrapper::FloatType;
   using ScalarType = typename TypeWrapper::ScalarType;
@@ -78,8 +95,7 @@ class ModelStructTest : public ::testing::Test
   using ModelStructType = ModelStruct<FloatType, ScalarType, Order>;
   using ModelStructDataType = ModelStructData<FloatType, ScalarType>;
 
-  void SetUp() override
-  {
+  void SetUp() override {
     // Standard structured mesh: 10x10x10 elements
     // With Order=1: 11x11x11 nodes
     // With Order=2: 21x21x21 nodes
@@ -104,8 +120,8 @@ class ModelStructTest : public ::testing::Test
 };
 
 // Register type wrappers for typed tests
-using TypeWrappers = ::testing::Types<FloatOrder1, FloatOrder2, FloatOrder3,
-                                      DoubleOrder1, DoubleOrder2, DoubleOrder3>;
+using TypeWrappers = ::testing::Types<FloatOrder1, FloatOrder2, FloatOrder3, FloatOrder4, FloatOrder5, DoubleOrder1,
+                                      DoubleOrder2, DoubleOrder3, DoubleOrder4, DoubleOrder5>;
 
 TYPED_TEST_SUITE(ModelStructTest, TypeWrappers);
 
@@ -113,30 +129,26 @@ TYPED_TEST_SUITE(ModelStructTest, TypeWrappers);
 // Constructor and Initialization Tests
 // ============================================================================
 
-TYPED_TEST(ModelStructTest, DefaultConstructor)
-{
+TYPED_TEST(ModelStructTest, DefaultConstructor) {
   using ModelStructType = typename TestFixture::ModelStructType;
   ModelStructType model;
   // Default constructor should compile and not crash
   SUCCEED();
 }
 
-TYPED_TEST(ModelStructTest, ConstructorFromData)
-{
+TYPED_TEST(ModelStructTest, ConstructorFromData) {
   auto& model = *this->model_;
   EXPECT_EQ(model.getNumberOfElements(), 1000);  // 10*10*10
 }
 
-TYPED_TEST(ModelStructTest, CopyConstructor)
-{
+TYPED_TEST(ModelStructTest, CopyConstructor) {
   auto& original = *this->model_;
   auto copy = original;
   EXPECT_EQ(copy.getNumberOfElements(), original.getNumberOfElements());
   EXPECT_EQ(copy.getNumberOfNodes(), original.getNumberOfNodes());
 }
 
-TYPED_TEST(ModelStructTest, AssignmentOperator)
-{
+TYPED_TEST(ModelStructTest, AssignmentOperator) {
   auto original = *this->model_;
   auto assigned = original;
   EXPECT_EQ(assigned.getNumberOfElements(), original.getNumberOfElements());
@@ -146,13 +158,11 @@ TYPED_TEST(ModelStructTest, AssignmentOperator)
 // Mesh Topology Tests
 // ============================================================================
 
-TYPED_TEST(ModelStructTest, ElementIndexConversion)
-{
+TYPED_TEST(ModelStructTest, ElementIndexConversion) {
   auto& model = *this->model_;
 
   // Test conversion from linear to 3D indices and back
-  for (int linear = 0; linear < 1000; ++linear)
-  {
+  for (int linear = 0; linear < 1000; ++linear) {
     auto idx = model.elementIndex(linear);
     EXPECT_GE(idx[0], 0);
     EXPECT_LT(idx[0], 10);
@@ -163,8 +173,7 @@ TYPED_TEST(ModelStructTest, ElementIndexConversion)
   }
 }
 
-TYPED_TEST(ModelStructTest, ElementIndexBoundaries)
-{
+TYPED_TEST(ModelStructTest, ElementIndexBoundaries) {
   auto& model = *this->model_;
 
   // First element
@@ -180,17 +189,13 @@ TYPED_TEST(ModelStructTest, ElementIndexBoundaries)
   EXPECT_EQ(last[2], 9);
 }
 
-TYPED_TEST(ModelStructTest, GlobalVertexIndex)
-{
+TYPED_TEST(ModelStructTest, GlobalVertexIndex) {
   auto& model = *this->model_;
 
   auto elem_idx = std::array<int, 3>{5, 5, 5};
-  for (int i = 0; i <= 1; ++i)
-  {
-    for (int j = 0; j <= 1; ++j)
-    {
-      for (int k = 0; k <= 1; ++k)
-      {
+  for (int i = 0; i <= 1; ++i) {
+    for (int j = 0; j <= 1; ++j) {
+      for (int k = 0; k <= 1; ++k) {
         auto vertex = model.globalVertexIndex(elem_idx, i, j, k);
         EXPECT_GE(vertex[0], 5);
         EXPECT_LE(vertex[0], 6);
@@ -207,8 +212,7 @@ TYPED_TEST(ModelStructTest, GlobalVertexIndex)
 // Coordinate System Tests
 // ============================================================================
 
-TYPED_TEST(ModelStructTest, VertexCoordinates)
-{
+TYPED_TEST(ModelStructTest, VertexCoordinates) {
   auto& model = *this->model_;
   typename TestFixture::FloatType coords[3];
 
@@ -273,8 +277,7 @@ TYPED_TEST(ModelStructTest, VertexCoordinates)
   EXPECT_EQ(coords[2], 10.0);
 }
 
-TYPED_TEST(ModelStructTest, NodeCoordAtOrigin)
-{
+TYPED_TEST(ModelStructTest, NodeCoordAtOrigin) {
   auto& model = *this->model_;
 
   auto x = model.nodeCoord(0, 0);
@@ -286,8 +289,7 @@ TYPED_TEST(ModelStructTest, NodeCoordAtOrigin)
   EXPECT_NEAR(z, 0.0, 1e-6);
 }
 
-TYPED_TEST(ModelStructTest, NodeCoordBoundaryX)
-{
+TYPED_TEST(ModelStructTest, NodeCoordBoundaryX) {
   auto& model = *this->model_;
   constexpr int Order = TestFixture::Order;
 
@@ -301,8 +303,7 @@ TYPED_TEST(ModelStructTest, NodeCoordBoundaryX)
   EXPECT_NEAR(x, 100.0, 1e-6);
 }
 
-TYPED_TEST(ModelStructTest, NodeCoordMonotonicallyIncreasing)
-{
+TYPED_TEST(ModelStructTest, NodeCoordMonotonicallyIncreasing) {
   auto& model = *this->model_;
   constexpr int Order = TestFixture::Order;
 
@@ -310,8 +311,7 @@ TYPED_TEST(ModelStructTest, NodeCoordMonotonicallyIncreasing)
 
   // Sample nodes along x-direction
   auto prev_x = model.nodeCoord(0, 0);
-  for (auto i = 1; i < nx; ++i)
-  {
+  for (auto i = 1; i < nx; ++i) {
     auto curr_x = model.nodeCoord(i, 0);
     EXPECT_GT(curr_x, prev_x);
     prev_x = curr_x;
@@ -322,8 +322,7 @@ TYPED_TEST(ModelStructTest, NodeCoordMonotonicallyIncreasing)
 // Global Node Index Tests
 // ============================================================================
 
-TYPED_TEST(ModelStructTest, GlobalNodeIndexFirstElement)
-{
+TYPED_TEST(ModelStructTest, GlobalNodeIndexFirstElement) {
   auto& model = *this->model_;
 
   // First element at origin
@@ -331,18 +330,14 @@ TYPED_TEST(ModelStructTest, GlobalNodeIndexFirstElement)
   EXPECT_EQ(node_idx, 0);
 }
 
-TYPED_TEST(ModelStructTest, GlobalNodeIndexConsistency)
-{
+TYPED_TEST(ModelStructTest, GlobalNodeIndexConsistency) {
   auto& model = *this->model_;
   constexpr int Order = TestFixture::Order;
 
   // All nodes in first element should be within valid range
-  for (int i = 0; i <= Order; ++i)
-  {
-    for (int j = 0; j <= Order; ++j)
-    {
-      for (int k = 0; k <= Order; ++k)
-      {
+  for (int i = 0; i <= Order; ++i) {
+    for (int j = 0; j <= Order; ++j) {
+      for (int k = 0; k <= Order; ++k) {
         auto node_idx = model.globalNodeIndex(0, i, j, k);
         EXPECT_GE(node_idx, 0);
         EXPECT_LT(node_idx, model.getNumberOfNodes());
@@ -355,14 +350,12 @@ TYPED_TEST(ModelStructTest, GlobalNodeIndexConsistency)
 // Element and Node Count Tests
 // ============================================================================
 
-TYPED_TEST(ModelStructTest, NumberOfElements)
-{
+TYPED_TEST(ModelStructTest, NumberOfElements) {
   auto& model = *this->model_;
   EXPECT_EQ(model.getNumberOfElements(), 1000);
 }
 
-TYPED_TEST(ModelStructTest, NumberOfNodes)
-{
+TYPED_TEST(ModelStructTest, NumberOfNodes) {
   auto& model = *this->model_;
   constexpr int Order = TestFixture::Order;
 
@@ -370,8 +363,7 @@ TYPED_TEST(ModelStructTest, NumberOfNodes)
   EXPECT_EQ(model.getNumberOfNodes(), expected_nodes);
 }
 
-TYPED_TEST(ModelStructTest, NumberOfPointsPerElement)
-{
+TYPED_TEST(ModelStructTest, NumberOfPointsPerElement) {
   auto& model = *this->model_;
   constexpr int Order = TestFixture::Order;
 
@@ -379,8 +371,7 @@ TYPED_TEST(ModelStructTest, NumberOfPointsPerElement)
   EXPECT_EQ(model.getNumberOfPointsPerElement(), expected_points);
 }
 
-TYPED_TEST(ModelStructTest, GetOrder)
-{
+TYPED_TEST(ModelStructTest, GetOrder) {
   auto& model = *this->model_;
   constexpr int Order = TestFixture::Order;
 
@@ -391,25 +382,21 @@ TYPED_TEST(ModelStructTest, GetOrder)
 // Material Property Tests
 // ============================================================================
 
-TYPED_TEST(ModelStructTest, VelocityPropertiesOnNodes)
-{
+TYPED_TEST(ModelStructTest, VelocityPropertiesOnNodes) {
   auto& model = *this->model_;
 
   // Test Vp on first few nodes
-  for (int i = 0; i < 10; ++i)
-  {
+  for (int i = 0; i < 10; ++i) {
     auto vp = model.getModelVpOnNodes(i);
     EXPECT_EQ(vp, 1500.0);
   }
 }
 
-TYPED_TEST(ModelStructTest, VelocityPropertiesOnElements)
-{
+TYPED_TEST(ModelStructTest, VelocityPropertiesOnElements) {
   auto& model = *this->model_;
 
   // Test on first few elements
-  for (int i = 0; i < 10; ++i)
-  {
+  for (int i = 0; i < 10; ++i) {
     auto vp = model.getModelVpOnElement(i);
     auto vs = model.getModelVsOnElement(i);
     auto rho = model.getModelRhoOnElement(i);
@@ -420,8 +407,7 @@ TYPED_TEST(ModelStructTest, VelocityPropertiesOnElements)
   }
 }
 
-TYPED_TEST(ModelStructTest, AnisotropicAnglesOnElements)
-{
+TYPED_TEST(ModelStructTest, AnisotropicAnglesOnElements) {
   auto& model = *this->model_;
 
   // Test on first element
@@ -432,8 +418,7 @@ TYPED_TEST(ModelStructTest, AnisotropicAnglesOnElements)
   EXPECT_EQ(phi, 0.0);
 }
 
-TYPED_TEST(ModelStructTest, DensityPropertiesConsistent)
-{
+TYPED_TEST(ModelStructTest, DensityPropertiesConsistent) {
   auto& model = *this->model_;
 
   auto rho_node = model.getModelRhoOnNodes(0);
@@ -447,8 +432,7 @@ TYPED_TEST(ModelStructTest, DensityPropertiesConsistent)
 // Domain Properties Tests
 // ============================================================================
 
-TYPED_TEST(ModelStructTest, DomainSize)
-{
+TYPED_TEST(ModelStructTest, DomainSize) {
   auto& model = *this->model_;
 
   auto lx = model.domainSize(0);
@@ -460,8 +444,7 @@ TYPED_TEST(ModelStructTest, DomainSize)
   EXPECT_EQ(lz, 100.0);
 }
 
-TYPED_TEST(ModelStructTest, DomainSizeInvalidDimension)
-{
+TYPED_TEST(ModelStructTest, DomainSizeInvalidDimension) {
   auto& model = *this->model_;
 
   // Invalid dimension should return -1
@@ -469,34 +452,28 @@ TYPED_TEST(ModelStructTest, DomainSizeInvalidDimension)
   EXPECT_EQ(model.domainSize(-1), -1);
 }
 
-TYPED_TEST(ModelStructTest, MinSpacingPositive)
-{
+TYPED_TEST(ModelStructTest, MinSpacingPositive) {
   auto& model = *this->model_;
 
   auto min_spacing = model.getMinSpacing();
   EXPECT_GT(min_spacing, 0.0);
 }
 
-TYPED_TEST(ModelStructTest, MinSpacingDependsOnOrder)
-{
+TYPED_TEST(ModelStructTest, MinSpacingDependsOnOrder) {
   auto& model = *this->model_;
   constexpr int Order = TestFixture::Order;
 
   auto min_spacing = model.getMinSpacing();
 
-  if constexpr (Order == 1)
-  {
+  if constexpr (Order == 1) {
     EXPECT_EQ(min_spacing, 10.0);  // min(10, 10, 10)
-  }
-  else if constexpr (Order == 2)
-  {
+  } else if constexpr (Order == 2) {
     EXPECT_EQ(min_spacing, 5.0);  // min(10, 10, 10) / 2
   }
   // Higher orders have specific coefficients
 }
 
-TYPED_TEST(ModelStructTest, MaxSpeedPositive)
-{
+TYPED_TEST(ModelStructTest, MaxSpeedPositive) {
   auto& model = *this->model_;
 
   auto max_speed = model.getMaxSpeed();
@@ -507,20 +484,17 @@ TYPED_TEST(ModelStructTest, MaxSpeedPositive)
 // Model Configuration Tests
 // ============================================================================
 
-TYPED_TEST(ModelStructTest, IsModelOnNodes)
-{
+TYPED_TEST(ModelStructTest, IsModelOnNodes) {
   auto& model = *this->model_;
   EXPECT_TRUE(model.isModelOnNodes());
 }
 
-TYPED_TEST(ModelStructTest, IsElastic)
-{
+TYPED_TEST(ModelStructTest, IsElastic) {
   auto& model = *this->model_;
   EXPECT_FALSE(model.isElastic());
 }
 
-TYPED_TEST(ModelStructTest, IsElasticInitialization)
-{
+TYPED_TEST(ModelStructTest, IsElasticInitialization) {
   using ModelStructDataType = typename TestFixture::ModelStructDataType;
   using ModelStructType = typename TestFixture::ModelStructType;
 
@@ -542,8 +516,7 @@ TYPED_TEST(ModelStructTest, IsElasticInitialization)
 // Boundary Tests
 // ============================================================================
 
-TYPED_TEST(ModelStructTest, FaceNormal)
-{
+TYPED_TEST(ModelStructTest, FaceNormal) {
   auto& model = *this->model_;
   typename TestFixture::FloatType normal[3] = {0.0, 0.0, 0.0};
 
@@ -588,8 +561,7 @@ TYPED_TEST(ModelStructTest, FaceNormal)
 // Elasticity Tensor Tests - UPDATED
 // ============================================================================
 
-TYPED_TEST(ModelStructTest, InitElasticityTensorsNonElastic)
-{
+TYPED_TEST(ModelStructTest, InitElasticityTensorsNonElastic) {
   auto& model = *this->model_;
 
   // Should return early if not elastic
@@ -597,8 +569,7 @@ TYPED_TEST(ModelStructTest, InitElasticityTensorsNonElastic)
   SUCCEED();
 }
 
-TYPED_TEST(ModelStructTest, InitElasticityTensorsElastic)
-{
+TYPED_TEST(ModelStructTest, InitElasticityTensorsElastic) {
   using ModelStructDataType = typename TestFixture::ModelStructDataType;
   using ModelStructType = typename TestFixture::ModelStructType;
   using FloatType = typename TestFixture::FloatType;
@@ -614,26 +585,22 @@ TYPED_TEST(ModelStructTest, InitElasticityTensorsElastic)
   elastic_data.isModelOnNodes_ = false;  // CHANGED: Use elements for TTI
 
   ModelStructType elastic_model(elastic_data);
-  elastic_model.initElasticityTensors(
-      model::kTTI);  // CHANGED: Use TTI instead of kIso
+  elastic_model.initElasticityTensors(model::kTTI);  // CHANGED: Use TTI instead of kIso
 
   // Verify tensors were created
   FloatType C[6][6];
   elastic_model.getCTensorOnElement(0, C);
 
   // Verify symmetry of C tensor (Voigt notation)
-  for (int i = 0; i < 6; ++i)
-  {
-    for (int j = 0; j < 6; ++j)
-    {
+  for (int i = 0; i < 6; ++i) {
+    for (int j = 0; j < 6; ++j) {
       EXPECT_NEAR(C[i][j], C[j][i],
                   1e-6);  // CHANGED: Relaxed tolerance for float
     }
   }
 }
 
-TYPED_TEST(ModelStructTest, GetCTensorOnElement)
-{
+TYPED_TEST(ModelStructTest, GetCTensorOnElement) {
   using ModelStructDataType = typename TestFixture::ModelStructDataType;
   using ModelStructType = typename TestFixture::ModelStructType;
   using FloatType = typename TestFixture::FloatType;
@@ -649,20 +616,16 @@ TYPED_TEST(ModelStructTest, GetCTensorOnElement)
   elastic_data.isModelOnNodes_ = false;  // CHANGED: Use elements for TTI
 
   ModelStructType elastic_model(elastic_data);
-  elastic_model.initElasticityTensors(
-      model::kTTI);  // CHANGED: Use TTI instead of kIso
+  elastic_model.initElasticityTensors(model::kTTI);  // CHANGED: Use TTI instead of kIso
 
   FloatType C[6][6];
   elastic_model.getCTensorOnElement(0, C);
 
   // Verify tensor values are reasonable (non-zero)
   bool has_nonzero = false;
-  for (int i = 0; i < 6; ++i)
-  {
-    for (int j = 0; j < 6; ++j)
-    {
-      if (C[i][j] != 0.0)
-      {
+  for (int i = 0; i < 6; ++i) {
+    for (int j = 0; j < 6; ++j) {
+      if (C[i][j] != 0.0) {
         has_nonzero = true;
       }
     }
@@ -674,8 +637,7 @@ TYPED_TEST(ModelStructTest, GetCTensorOnElement)
 // Large Mesh Tests
 // ============================================================================
 
-TYPED_TEST(ModelStructTest, LargeMeshHandling)
-{
+TYPED_TEST(ModelStructTest, LargeMeshHandling) {
   using ModelStructDataType = typename TestFixture::ModelStructDataType;
   using ModelStructType = typename TestFixture::ModelStructType;
 
@@ -695,8 +657,7 @@ TYPED_TEST(ModelStructTest, LargeMeshHandling)
   EXPECT_GT(large_model.getNumberOfNodes(), 125000);
 }
 
-TYPED_TEST(ModelStructTest, UniformMeshProperties)
-{
+TYPED_TEST(ModelStructTest, UniformMeshProperties) {
   auto& model = *this->model_;
 
   // In a uniform mesh, element spacing should be consistent
@@ -709,8 +670,7 @@ TYPED_TEST(ModelStructTest, UniformMeshProperties)
 // Documentation Tests
 // ============================================================================
 
-TYPED_TEST(ModelStructTest, StructuredVsUnstructuredComparison)
-{
+TYPED_TEST(ModelStructTest, StructuredVsUnstructuredComparison) {
   // ModelStruct: Structured Cartesian mesh
   // - Regular grid topology
   // - Face connectivity computed on-the-fly via formulas

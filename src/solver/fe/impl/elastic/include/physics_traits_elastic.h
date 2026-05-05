@@ -4,10 +4,8 @@
 #include "rhs_elastic.h"
 #include "wavefield_elastic.h"
 
-namespace solver
-{
-namespace fe
-{
+namespace solver {
+namespace fe {
 
 /**
  * @brief Specialization for elastic physics.
@@ -15,8 +13,7 @@ namespace fe
  * Elastic wave propagation uses three displacement components (ux, uy, uz).
  */
 template <>
-struct PhysicsTraits<enums::physicType::kElastic>
-{
+struct PhysicsTraits<utils::enums::physicType::kElastic> {
   /// Human-readable name for logging
   static constexpr const char* kName = "Elastic";
 

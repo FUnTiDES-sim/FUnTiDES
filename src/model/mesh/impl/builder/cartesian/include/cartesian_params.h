@@ -1,16 +1,16 @@
 #ifndef FUNTIDES_MODEL_MESH_IMPL_BUILDER_CARTESIAN_INCLUDE_CARTESIAN_PARAMS_H_
 #define FUNTIDES_MODEL_MESH_IMPL_BUILDER_CARTESIAN_INCLUDE_CARTESIAN_PARAMS_H_
-namespace model
-{
+namespace model {
 template <typename Coord, typename Index>
-struct CartesianParams
-{
+struct CartesianParams {
   int order;
   Index ex, ey, ez;
   Coord lx, ly, lz;
   bool isModelOnNodes;
   bool isElastic;
   std::string model_file;
+  bool isAcoustoElastic{false};
+  Coord acoustoElasticBoundaryZ{static_cast<Coord>(0)};
 
   // Global domain info (for MPI decomposition)
   Coord global_lx{0}, global_ly{0}, global_lz{0};
@@ -21,8 +21,8 @@ struct CartesianParams
 
   CartesianParams() = default;
 
-  CartesianParams(int order_, Index ex_, Index ey_, Index ez_, Coord lx_,
-                  Coord ly_, Coord lz_, bool isModelOnNodes_, bool isElastic_)
+  CartesianParams(int order_, Index ex_, Index ey_, Index ez_, Coord lx_, Coord ly_, Coord lz_, bool isModelOnNodes_,
+                  bool isElastic_)
       : order(order_),
         ex(ex_),
         ey(ey_),

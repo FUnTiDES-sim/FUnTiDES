@@ -1,15 +1,10 @@
 #ifndef FUNTIDES_SOLVER_FE_API_INCLUDE_PHYSICS_TRAITS_H_
 #define FUNTIDES_SOLVER_FE_API_INCLUDE_PHYSICS_TRAITS_H_
-namespace solver
-{
-namespace fe
-{
 
-namespace enums
-{
-// Forward declaration - full definition in sem_enums.h
-enum class physicType : int;
-}  // namespace enums
+#include "sem_enums.h"
+
+namespace solver {
+namespace fe {
 
 /**
  * @brief Compile-time properties for each physics type.
@@ -24,15 +19,11 @@ enum class physicType : int;
  * Note: physicType enum is forward declared. Include sem_enums.h
  * or physics-specific trait headers for full definitions.
  */
-template <enums::physicType PHYSICS>
-struct PhysicsTraits
-{
+template <utils::enums::physicType PHYSICS>
+struct PhysicsTraits {
   static constexpr const char* kName = "";
   using WavefieldType = void;
   using RhsType = void;
-
-  static_assert(sizeof(PHYSICS) == 0,
-                "PhysicsTraits must be specialized for this physics type");
 };
 
 }  // namespace fe

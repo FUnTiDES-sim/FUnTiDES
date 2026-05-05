@@ -19,15 +19,16 @@ jobs:
 
   build:
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        shell: bash
+    container:
+      image: ghcr.io/funtides-sim/funtides/funtides-env:latest
+      options: --user root
     needs: format-check
     strategy:
       matrix:
         pywrap: [pywrap-on, pywrap-off]
-        programming_model: [vector, kokkos]
-        exclude:
-        # Exclude Vector + Python (wrappers use Kokkos)
-        - programming_model: vector
-          pywrap: pywrap-on
 
       max-parallel: 5
 
@@ -49,6 +50,7 @@ jobs:
             const labels = pullRequest.labels.map(label => label.name);
             core.setOutput('labels', labels.join(','));
             core.setOutput('has-sccache-off', labels.includes('SCCACHE_OFF') ? 'true' : 'false');
+            core.setOutput('has-order7', labels.includes('ORDER7') ? 'true' : 'false');
 
       - name: Checkout
         id: checkout
@@ -60,8 +62,7 @@ jobs:
       - name: Set up Python
         if: matrix.pywrap == 'pywrap-on'
         run: |
-          python3 -m venv .venv
-          source .venv/bin/activate
+          source /opt/tpl/tpl-venv/bin/activate
           pip install --upgrade pip
           pip install pybind11 pytest numpy
 
@@ -78,14 +79,21 @@ jobs:
         env:
           SCCACHE_GHA_ENABLED: "true"
         run: |
+
           export PYWRAP=${{ matrix.pywrap }}
-          export PROGRAMMING_MODEL=${{ matrix.programming_model }}
+
+            # Determine max order: Default to 3, use 7 if the label is present
+            if [[ "$HAS_ORDER7" == "true" ]]; then
+              export MAX_ORDER=7
+              echo "Building with MAX_ORDER=7 (Label detected)"
+            else
+              export MAX_ORDER=3
+              echo "Building with MAX_ORDER=3 (Default)"
+            fi
 
           # Extend CMAKE_FLAGS based on selections
-
-          # Discretization (build fd + sem)
-          CMAKE_FLAGS="-DCOMPILE_FD=ON -DCOMPILE_SEM=ON"
-
+          # Discretization, Orders, and Programming Model
+          CMAKE_FLAGS="-DCOMPILE_FD=ON -DCOMPILE_SEM=ON -DMAX_SOLVER_ORDER=$MAX_ORDER -DMAX_DIFFERENTIATOR_ORDER=$MAX_ORDER "
           # Use sccache to speed up recompilation unless disabled
           if [[ "$SCCACHE_OFF" != "true" ]]; then
             export CMAKE_FLAGS="$CMAKE_FLAGS -DCMAKE_C_COMPILER_LAUNCHER=sccache -DCMAKE_CXX_COMPILER_LAUNCHER=sccache"
@@ -100,22 +108,15 @@ jobs:
             export PYWRAP_SUMMARY=off
           fi
 
-          # Programming model
-          if [[ "$PROGRAMMING_MODEL" == "vector" ]]; then
-            CMAKE_FLAGS="$CMAKE_FLAGS -DUSE_VECTOR=ON"
-          elif [[ "$PROGRAMMING_MODEL" == "kokkos" ]]; then
-            CMAKE_FLAGS="$CMAKE_FLAGS -DUSE_KOKKOS=ON"
-          fi
-
           # Activate python venv if pywrap is on
           if [[ "$PYWRAP" == "pywrap-on" ]]; then
-            source .venv/bin/activate
+            source /opt/tpl/tpl-venv/bin/activate
           fi
 
           mkdir build
           cd build
           echo "cmake .. ${CMAKE_FLAGS}" # For debug
-          cmake .. ${CMAKE_FLAGS} -DCMAKE_INSTALL_PREFIX=../install
+          CC=gcc-13 CXX=g++-13 cmake .. ${CMAKE_FLAGS} -DCMAKE_INSTALL_PREFIX=../install
 
       - name: Build
         id: build
@@ -124,7 +125,7 @@ jobs:
         run: |
           # Activate python venv if pywrap is on
           if [[ "$PYWRAP" == "pywrap-on" ]]; then
-            source .venv/bin/activate
+            source /opt/tpl/tpl-venv/bin/activate
           fi
 
           cd build
@@ -146,7 +147,7 @@ jobs:
         run: |
           # Activate python venv if pywrap is on
           if [[ "$PYWRAP" == "pywrap-on" ]]; then
-            source .venv/bin/activate
+            source /opt/tpl/tpl-venv/bin/activate
           fi
 
           cd build
@@ -155,9 +156,9 @@ jobs:
       - name: Run pytests
         if: matrix.pywrap == 'pywrap-on'
         run: |
-          source .venv/bin/activate
+          source /opt/tpl/tpl-venv/bin/activate
           export INSTALL_DIR=$(realpath ./install)
           export PYTHONPATH=$PYTHONPATH:$INSTALL_DIR/python
           export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$INSTALL_DIR/lib
-          pytest tests/units --kokkos-num-threads=2
-
+          python -m pytest tests/units --kokkos-num-threads=2
+          python -m pytest tests/integration --kokkos-num-threads=2

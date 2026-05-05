@@ -8,11 +8,11 @@
 #include "bindings_builder.h"
 #include "bindings_face_connectivity.h"
 #include "bindings_model.h"
+#include "bindings_partionner.h"
 
 namespace py = pybind11;
 
-PYBIND11_MODULE(model, m)
-{
+PYBIND11_MODULE(model, m) {
   // Create submodule 'model'
   m.attr("__name__") = "pyfuntides.model";
 
@@ -28,8 +28,7 @@ PYBIND11_MODULE(model, m)
   model::bind_modelapi<double, long>(m);
 
   // Bind ModelStruct
-  for (int order = 1; order <= 3; ++order)
-  {
+  for (int order = 1; order <= 9; ++order) {
     model::orderDispatch(order, [&](auto order_tag) {
       constexpr int ord = decltype(order_tag)::value;
       model::bind_modelstruct<float, int, ord>(m);
@@ -65,8 +64,7 @@ PYBIND11_MODULE(model, m)
   model::bind_modelbuilderbase<double, long>(m);
 
   // Bind CartesianStructBuilder
-  for (int order = 1; order <= 3; ++order)
-  {
+  for (int order = 1; order <= 9; ++order) {
     model::orderDispatch(order, [&](auto order_tag) {
       constexpr int ord = decltype(order_tag)::value;
       model::bind_cartesian_struct_builder<float, int, ord>(m);
@@ -89,4 +87,10 @@ PYBIND11_MODULE(model, m)
   model::bind_cartesian_unstruct_builder<double, int>(m);
   model::bind_cartesian_unstruct_builder<float, long>(m);
   model::bind_cartesian_unstruct_builder<double, long>(m);
+
+  // Bind CartesianXPartitioner
+  model::bind_cartesian_partitioner<float, int>(m);
+  model::bind_cartesian_partitioner<double, int>(m);
+  model::bind_cartesian_partitioner<float, long>(m);
+  model::bind_cartesian_partitioner<double, long>(m);
 }

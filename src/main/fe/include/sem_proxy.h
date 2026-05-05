@@ -3,6 +3,7 @@
 #include <data_type.h>
 #include <utils.h>
 
+#include <array>
 #include <memory>
 #include <string>
 #include <variant>
@@ -17,14 +18,12 @@
 #include "sem_proxy_options.h"
 #include "sem_solver.h"
 #include "solver_factory.h"
-
-using namespace solver::fe::enums;
+#include "source_and_receiver_utils.h"
 
 /**
  * @class SEMproxy
  */
-class SEMproxy
-{
+class SEMproxy {
  public:
   /**
    * @brief Constructor of the SEMproxy class
@@ -34,14 +33,15 @@ class SEMproxy
   /**
    * @brief Destructor of the SEMproxy class
    */
-  ~SEMproxy() {}
-
+  SEMproxy() {
+    io_ctrl_.reset();  // Manually trigger SemIOController destructor (which
+                       // closes engines)
+  }
   /**
    * @brief Initialize the simulation.
    * @post run()
    */
-  void initFiniteElem()
-  {
+  void initFiniteElem() {
     init_arrays();
     init_source();
   };
@@ -58,8 +58,7 @@ class SEMproxy
    * Format: space-separated matrix with blank lines between rows for 3D
    * plotting
    */
-  void saveSlice(const VECTOR_REAL_VIEW& host_slice, int sizex, int sizey,
-                 const std::string& filepath) const;
+  void saveSlice(const VECTOR_REAL_VIEW& host_slice, int sizex, int sizey, const std::string& filepath) const;
 
   void saveSnapshot(int timesample, VECTOR_REAL_VIEW data) const;
 
@@ -108,7 +107,13 @@ class SEMproxy
 
   // physics
   bool isElastic_;
+  bool isAcoustoElastic_;
   bool freeSurface_;
+
+  // sponge boundary parameters
+  std::array<float, 3> sponge_size_ = {0, 0, 0};
+  bool surface_sponge_ = false;
+  float taper_delta_ = 0.015f;
 
   // time parameters
   float dt_;
@@ -116,9 +121,10 @@ class SEMproxy
   int num_sample_;
   // source parameters
   const int myNumberOfRHS = 1;
-  const float f0 = 5.;
-  const int sourceOrder = 2;
   int myElementSource = 0;
+  float tpeak_;
+  float f0_;
+  int ricker_order_;
 
   std::shared_ptr<model::ModelApi<float, int>> m_mesh;
   std::unique_ptr<solver::fe::Solver> m_solver;
@@ -152,6 +158,16 @@ class SEMproxy
   arrayReal uynAtReceiver;
   arrayReal uznAtReceiver;
 
+  // DAS receiver data
+  SourceAndReceiverUtils::DASType dasType_ = SourceAndReceiverUtils::DASType::kNone;
+  int dasNumSamples_ = 5;
+  float dasGaugeLength_ = 1.0f;
+  std::array<float, 3> dasDirection_ = {1, 0, 0};  ///< Fiber direction unit vector
+  std::array<float, 3> dasVector_ = {1, 0, 0};     ///< Direction (for dipole: divided by L)
+  std::vector<int> dasNodeIds_;                    ///< Global node IDs [nSamples * npe]
+  std::vector<float> dasWeights_;                  ///< Precomputed weights [nSamples * npe]
+  vectorReal dasSignal_;                           ///< DAS trace [num_sample_]
+
   // io controller
   std::shared_ptr<SemIOController> io_ctrl_;
 
@@ -163,9 +179,19 @@ class SEMproxy
 
   // private methods to pars argv options
   int getPhysic(string physicArg);
-  implemType getImplem(string implemArg);
-  methodType getMethod(string methodArg);
-  meshType getMesh(string meshArg);
+  utils::enums::implemType getImplem(string implemArg);
+  utils::enums::methodType getMethod(string methodArg);
+  utils::enums::meshType getMesh(string meshArg);
+
+  // private methods for init
+  void init_mpi(int* mpi_init);
+  void init_sim_params(const SemProxyOptions& opt);
+  void init_mesh_params(const SemProxyOptions& opt);
+  void init_topology();
+  void init_sync();
+  void init_time_params(const SemProxyOptions& opt);
+
+  void display_init_msg(const SemProxyOptions& opt);
   model::AnisotropyType getAnisotropy(std::string anisotropyArg);
 };
 #endif  // FUNTIDES_MAIN_FE_INCLUDE_SEM_PROXY_H_

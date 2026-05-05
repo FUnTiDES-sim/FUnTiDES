@@ -81,7 +81,8 @@ def allocate_rhs_element(
     )
     RHSElement = np.array(kk_RHSElement, copy=False)
     RHSElement[0] = ex / 2 + ey / 2 * ex + ez / 2 * ey * ex  # one half of slice
-    RHSElement[1] = ex / 3 + ey / 2 * ex + ez / 2 * ey * ex  # one third of slice
+    if n_rhs > 1:
+        RHSElement[1] = ex / 3 + ey / 2 * ex + ez / 2 * ey * ex  # one third of slice
     return kk_RHSElement, RHSElement
 
 

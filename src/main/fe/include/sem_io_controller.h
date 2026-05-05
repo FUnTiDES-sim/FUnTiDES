@@ -7,13 +7,16 @@
 #include <cstddef>
 
 #include "adios2/common/ADIOSTypes.h"
-#include "adios2/cxx11/Operator.h"
+#include "adios2/cxx/Operator.h"
 
-#define RECEIVERS_FILE "receivers.bp"
-#define SNAPS_FILE "snapshots.bp"
+#ifdef USE_MPI
+#include <mpi.h>
+#endif
 
-class SemIOController
-{
+#define RECEIVERS_FILE "receivers"
+#define SNAPS_FILE "snapshots"
+
+class SemIOController {
  private:
   adios2::ADIOS adios_;
   adios2::IO io_;
@@ -28,10 +31,23 @@ class SemIOController
   adios2::Operator compressor_op_;
   adios2::Operator receiver_op_;
 
-  void initAdios() { adios_ = adios2::ADIOS(); }
+  std::string rcv_file_{"rcv_not_set.bp"};
+  std::string snap_file_{"snap_not_set.bp"};
 
-  void configureIO()
-  {
+  void initAdios() {
+#ifdef USE_MPI
+    adios_ = adios2::ADIOS(MPI_COMM_WORLD);
+#else
+    adios_ = adios2::ADIOS();
+#endif
+  }
+
+  void configureFilesName() {
+    rcv_file_ = RECEIVERS_FILE;
+    snap_file_ = SNAPS_FILE;
+  }
+
+  void configureIO() {
     io_ = adios_.DeclareIO("AccousticSEMOutput");
     io_.SetEngine("BP5");
     io_.SetParameter("Threads", "4");
@@ -48,33 +64,26 @@ class SemIOController
     // compressor_op_ = adios_.DefineOperator("bloscSnap", "blosc");
   }
 
-  void launchWriters()
-  {
-    receiver_writer_ = io_.Open(RECEIVERS_FILE, adios2::Mode::Write);
-    snaps_writer_ = async_io_.Open(SNAPS_FILE, adios2::Mode::Write);
+  void launchWriters() {
+    receiver_writer_ = io_.Open(rcv_file_, adios2::Mode::Write);
+    snaps_writer_ = async_io_.Open(snap_file_, adios2::Mode::Write);
   }
 
-  void defineVariable(const size_t nb_nodes, const size_t nb_iter,
-                      const size_t nb_receiver)
-  {
-    receivers_ =
-        io_.DefineVariable<float>("AccousticReceiver", {nb_receiver, nb_iter},
-                                  {0, 0}, {nb_receiver, nb_iter});
+  void defineVariable(const std::vector<size_t>& global_dims, const std::vector<size_t>& start_offsets,
+                      const std::vector<size_t>& local_dims, const size_t nb_iter, const size_t nb_receiver) {
+    receivers_ = io_.DefineVariable<float>("AccousticReceiver", {nb_receiver, nb_iter}, {0, 0}, {nb_receiver, nb_iter});
 
-    receivers_coords_ = io_.DefineVariable<float>(
-        "AccousticReceiverCoords", {nb_receiver, 3}, {0, 0}, {nb_receiver, 3});
+    receivers_coords_ =
+        io_.DefineVariable<float>("AccousticReceiverCoords", {nb_receiver, 3}, {0, 0}, {nb_receiver, 3});
 
-    iter_times_ =
-        io_.DefineVariable<float>("IterationTimes", {nb_iter}, {0}, {nb_iter});
+    iter_times_ = io_.DefineVariable<float>("IterationTimes", {nb_iter}, {0}, {nb_iter});
 
-    pn_ = async_io_.DefineVariable<float>("PressureField", {nb_nodes}, {0},
-                                          {nb_nodes});
+    pn_ = async_io_.DefineVariable<float>("PressureField", global_dims, start_offsets, local_dims);
 
-    timestep_ = async_io_.DefineVariable<int>("TimeStep");
+    timestep_ = async_io_.DefineVariable<int>("TimeStep", {1}, {0}, {1});
   }
 
-  void attachOperator()
-  {
+  void attachOperator() {
     // NOTE: This is about I/O compression. This is currently diseable.
     // Alexis (01/10/2025): This could compress the I/O by a factor 2. However
     // this slow down the execution time by two when saving every 10 time step
@@ -91,36 +100,37 @@ class SemIOController
   }
 
  public:
-  SemIOController(const size_t nb_nodes, const size_t nb_iter,
-                  const size_t nb_receiver)
-  {
+  SemIOController(const std::vector<size_t>& global_dims, const std::vector<size_t>& start_offsets,
+                  const std::vector<size_t>& local_dims, const size_t nb_iter, const size_t nb_receiver) {
     initAdios();
     configureIO();
+    configureFilesName();
+    defineVariable(global_dims, start_offsets, local_dims, nb_iter, nb_receiver);
     launchWriters();
-    defineVariable(nb_nodes, nb_iter, nb_receiver);
     attachOperator();
   }
 
   SemIOController() = delete;
 
-  ~SemIOController()
-  {
+  ~SemIOController() {
     snaps_writer_.Close();
     receiver_writer_.Close();
   }
 
-  void saveReceiver(vectorReal& receiver, const std::array<float, 3>& coords)
-  {
+  void saveReceiver(vectorReal& receiver, const std::array<float, 3>& coords) {
     receiver_writer_.BeginStep();
     receiver_writer_.Put(receivers_, receiver.data());
     receiver_writer_.Put(receivers_coords_, coords.data());
     receiver_writer_.EndStep();
   }
 
-  void saveSnapshot(const vectorReal& pnGlobal, const int timestep)
-  {
+  void saveSnapshot(const vectorReal& pnGlobal, const int timestep) {
     snaps_writer_.BeginStep();
-    snaps_writer_.Put(timestep_, timestep);
+
+    // Wrap scalar in array
+    int ts_value[1] = {timestep};
+    snaps_writer_.Put(timestep_, ts_value);
+
     snaps_writer_.Put(pn_, pnGlobal.data());
     snaps_writer_.EndStep();
   }

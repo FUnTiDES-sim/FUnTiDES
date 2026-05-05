@@ -9,8 +9,7 @@
 /*
  * Main entry point for the Google Test framework with Kokkos initialization.
  */
-int main(int argc, char **argv)
-{
+int main(int argc, char **argv) {
 #ifdef USE_KOKKOS
   Kokkos::initialize(argc, argv);
 #endif

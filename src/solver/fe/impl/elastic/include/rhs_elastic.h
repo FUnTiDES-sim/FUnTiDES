@@ -4,37 +4,29 @@
 
 #include "rhs.h"
 
-namespace solver
-{
-namespace fe
-{
+namespace solver {
+namespace fe {
 /**
  * @brief Elastic RHS data structure.
  */
-struct RhsElastic : public Rhs
-{
+struct RhsElastic : public Rhs {
   /// Number of RHS (source) components
   static constexpr int kNumRhsComponents = 3;
 
-  RhsElastic(ARRAY_REAL_VIEW termx, ARRAY_REAL_VIEW termy,
-             ARRAY_REAL_VIEW termz, VECTOR_INT_VIEW element,
+  /// Default constructor: produces an empty (no-forcing) RHS.
+  /// All views are null/zero-extent; safe as long as RHS is not accessed.
+  RhsElastic() = default;
+
+  RhsElastic(ARRAY_REAL_VIEW termx, ARRAY_REAL_VIEW termy, ARRAY_REAL_VIEW termz, VECTOR_INT_VIEW element,
              ARRAY_REAL_VIEW weights)
-      : m_termx(termx),
-        m_termy(termy),
-        m_termz(termz),
-        m_element(element),
-        m_weights(weights)
-  {
-  }
+      : m_termx(termx), m_termy(termy), m_termz(termz), m_element(element), m_weights(weights) {}
 
   int getNumRhsComponents() const override final { return kNumRhsComponents; }
 
   // TODO use template + constexpr if when C++20 is available
   PROXY_HOST_DEVICE
-  ARRAY_REAL_VIEW getTerm(int i) const override
-  {
-    switch (i)
-    {
+  ARRAY_REAL_VIEW getTerm(int i) const override {
+    switch (i) {
       case 0:
         return m_termx;
       case 1:
@@ -52,8 +44,7 @@ struct RhsElastic : public Rhs
   PROXY_HOST_DEVICE
   ARRAY_REAL_VIEW getWeights() const { return m_weights; }
 
-  void print() const override
-  {
+  void print() const override {
     std::cout << "RHSx Term size:   " << m_termx.extent(0) << std::endl;
     std::cout << "RHSy Term size:   " << m_termy.extent(0) << std::endl;
     std::cout << "RHSz Term size:   " << m_termz.extent(0) << std::endl;

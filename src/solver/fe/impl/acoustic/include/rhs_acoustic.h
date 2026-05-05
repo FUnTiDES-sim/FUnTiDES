@@ -4,23 +4,24 @@
 
 #include "rhs.h"
 
-namespace solver
-{
-namespace fe
-{
+namespace solver {
+namespace fe {
 /**
  * @brief Acoustic RHS data structure.
  */
-struct RhsAcoustic : public Rhs
-{
+struct RhsAcoustic : public Rhs {
   /// Number of RHS (source) components
   static constexpr int kNumRhsComponents = 1;
 
-  RhsAcoustic(ARRAY_REAL_VIEW term, VECTOR_INT_VIEW element,
-              ARRAY_REAL_VIEW weights)
-      : m_term(term), m_element(element), m_weights(weights)
-  {
-  }
+  // Add explicit device-callable constructors and destructors
+  PROXY_HOST_DEVICE RhsAcoustic() = default;
+  PROXY_HOST_DEVICE ~RhsAcoustic() = default;
+  PROXY_HOST_DEVICE RhsAcoustic(const RhsAcoustic&) = default;
+  PROXY_HOST_DEVICE RhsAcoustic& operator=(const RhsAcoustic&) = default;
+
+  PROXY_HOST_DEVICE
+  RhsAcoustic(ARRAY_REAL_VIEW term, VECTOR_INT_VIEW element, ARRAY_REAL_VIEW weights)
+      : m_term(term), m_element(element), m_weights(weights) {}
 
   int getNumRhsComponents() const override final { return kNumRhsComponents; }
 
@@ -33,8 +34,7 @@ struct RhsAcoustic : public Rhs
   PROXY_HOST_DEVICE
   ARRAY_REAL_VIEW getWeights() const { return m_weights; }
 
-  void print() const override
-  {
+  void print() const override {
     std::cout << "RHS Term size:    " << m_term.extent(0) << std::endl;
     std::cout << "RHS Element size: " << m_element.extent(0) << std::endl;
     std::cout << "RHS Weights size: " << m_weights.extent(0) << std::endl;
