@@ -50,16 +50,19 @@ void bind_cartesian_struct_builder(py::module_ &m) {
       // needed.
       .def(py::init([](ScalarType ex, FloatType hx, ScalarType ey, FloatType hy, ScalarType ez, FloatType hz,
                        bool is_model_on_nodes, bool is_elastic, FloatType ox, FloatType oy, FloatType oz,
-                       bool is_acousto_elastic, FloatType acousto_elastic_boundary_z) {
+                       bool is_acousto_elastic, FloatType acousto_elastic_boundary_z,
+                       const std::string& model_file) {
              return T(ex, hx, ey, hy, ez, hz, is_model_on_nodes, is_elastic, ox, oy, oz, static_cast<FloatType>(-1),
                       static_cast<FloatType>(-1), static_cast<FloatType>(-1), static_cast<FloatType>(0),
                       static_cast<FloatType>(0), static_cast<FloatType>(0), is_acousto_elastic,
-                      acousto_elastic_boundary_z);
+                      acousto_elastic_boundary_z, model_file);
            }),
            py::arg("ex"), py::arg("hx"), py::arg("ey"), py::arg("hy"), py::arg("ez"), py::arg("hz"),
            py::arg("is_model_on_nodes"), py::arg("is_elastic"), py::arg("ox") = static_cast<FloatType>(0),
            py::arg("oy") = static_cast<FloatType>(0), py::arg("oz") = static_cast<FloatType>(0),
-           py::arg("is_acousto_elastic") = false, py::arg("acousto_elastic_boundary_z") = static_cast<FloatType>(0));
+           py::arg("is_acousto_elastic") = false,
+           py::arg("acousto_elastic_boundary_z") = static_cast<FloatType>(0),
+           py::arg("model_file") = std::string{});
 }
 
 // template binder for CartesianParams

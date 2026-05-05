@@ -986,7 +986,7 @@ void SEMproxy::init_mesh_params(const SemProxyOptions& opt) {
         model::CartesianStructBuilder<float, int, 1> builder(
             m_localParams.ex, m_localParams.lx, m_localParams.ey, m_localParams.ly, m_localParams.ez, m_localParams.lz,
             opt.isModelOnNodes, opt.isElastic, m_localParams.origin_x, m_localParams.origin_y, m_localParams.origin_z,
-            -1.0f, -1.0f, -1.0f, 0.0f, 0.0f, 0.0f, opt.isAcoustoElastic, opt.acoustoElasticBoundaryZ);
+            -1.0f, -1.0f, -1.0f, 0.0f, 0.0f, 0.0f, opt.isAcoustoElastic, opt.acoustoElasticBoundaryZ, opt.model_file);
         m_mesh = builder.getModel(opt.free_surface);
         break;
       }
@@ -994,7 +994,7 @@ void SEMproxy::init_mesh_params(const SemProxyOptions& opt) {
         model::CartesianStructBuilder<float, int, 2> builder(
             m_localParams.ex, m_localParams.lx, m_localParams.ey, m_localParams.ly, m_localParams.ez, m_localParams.lz,
             opt.isModelOnNodes, opt.isElastic, m_localParams.origin_x, m_localParams.origin_y, m_localParams.origin_z,
-            -1.0f, -1.0f, -1.0f, 0.0f, 0.0f, 0.0f, opt.isAcoustoElastic, opt.acoustoElasticBoundaryZ);
+            -1.0f, -1.0f, -1.0f, 0.0f, 0.0f, 0.0f, opt.isAcoustoElastic, opt.acoustoElasticBoundaryZ, opt.model_file);
         m_mesh = builder.getModel(opt.free_surface);
         break;
       }
@@ -1002,7 +1002,7 @@ void SEMproxy::init_mesh_params(const SemProxyOptions& opt) {
         model::CartesianStructBuilder<float, int, 3> builder(
             m_localParams.ex, m_localParams.lx, m_localParams.ey, m_localParams.ly, m_localParams.ez, m_localParams.lz,
             opt.isModelOnNodes, opt.isElastic, m_localParams.origin_x, m_localParams.origin_y, m_localParams.origin_z,
-            -1.0f, -1.0f, -1.0f, 0.0f, 0.0f, 0.0f, opt.isAcoustoElastic, opt.acoustoElasticBoundaryZ);
+            -1.0f, -1.0f, -1.0f, 0.0f, 0.0f, 0.0f, opt.isAcoustoElastic, opt.acoustoElasticBoundaryZ, opt.model_file);
         m_mesh = builder.getModel(opt.free_surface);
         break;
       }
@@ -1010,7 +1010,7 @@ void SEMproxy::init_mesh_params(const SemProxyOptions& opt) {
         model::CartesianStructBuilder<float, int, 4> builder(
             m_localParams.ex, m_localParams.lx, m_localParams.ey, m_localParams.ly, m_localParams.ez, m_localParams.lz,
             opt.isModelOnNodes, opt.isElastic, m_localParams.origin_x, m_localParams.origin_y, m_localParams.origin_z,
-            -1.0f, -1.0f, -1.0f, 0.0f, 0.0f, 0.0f, opt.isAcoustoElastic, opt.acoustoElasticBoundaryZ);
+            -1.0f, -1.0f, -1.0f, 0.0f, 0.0f, 0.0f, opt.isAcoustoElastic, opt.acoustoElasticBoundaryZ, opt.model_file);
         m_mesh = builder.getModel(opt.free_surface);
         break;
       }
@@ -1018,7 +1018,7 @@ void SEMproxy::init_mesh_params(const SemProxyOptions& opt) {
         model::CartesianStructBuilder<float, int, 5> builder(
             m_localParams.ex, m_localParams.lx, m_localParams.ey, m_localParams.ly, m_localParams.ez, m_localParams.lz,
             opt.isModelOnNodes, opt.isElastic, m_localParams.origin_x, m_localParams.origin_y, m_localParams.origin_z,
-            -1.0f, -1.0f, -1.0f, 0.0f, 0.0f, 0.0f, opt.isAcoustoElastic, opt.acoustoElasticBoundaryZ);
+            -1.0f, -1.0f, -1.0f, 0.0f, 0.0f, 0.0f, opt.isAcoustoElastic, opt.acoustoElasticBoundaryZ, opt.model_file);
         m_mesh = builder.getModel(opt.free_surface);
         break;
       }
