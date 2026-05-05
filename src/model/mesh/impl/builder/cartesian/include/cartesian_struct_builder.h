@@ -18,8 +18,7 @@ class CartesianStructBuilder : public ModelBuilderBase<FloatType, ScalarType> {
                          FloatType oz = 0.0, FloatType global_lx = -1.0, FloatType global_ly = -1.0,
                          FloatType global_lz = -1.0, FloatType global_ox = 0.0, FloatType global_oy = 0.0,
                          FloatType global_oz = 0.0, bool isAcoustoElastic = false,
-                         FloatType acoustoElasticBoundaryZ = static_cast<FloatType>(0),
-                         std::string model_file = "")
+                         FloatType acoustoElasticBoundaryZ = static_cast<FloatType>(0), std::string model_file = "")
       : ex_(ex),
         ey_(ey),
         ez_(ez),
@@ -127,10 +126,9 @@ class CartesianStructBuilder : public ModelBuilderBase<FloatType, ScalarType> {
       fill_view(data.model_vs_element_, "Vs", "model_vs_element");
       if (data.model_vp_element_.extent(0) != static_cast<size_t>(n_elem))
         throw std::runtime_error("[CartesianStructBuilder] model_file has " +
-                                 std::to_string(data.model_vp_element_.extent(0)) +
-                                 " elements but mesh has " + std::to_string(n_elem));
-      std::cout << "[Model] vp[0]=" << data.model_vp_element_[0]
-                << " vp[mid]=" << data.model_vp_element_[n_elem / 2]
+                                 std::to_string(data.model_vp_element_.extent(0)) + " elements but mesh has " +
+                                 std::to_string(n_elem));
+      std::cout << "[Model] vp[0]=" << data.model_vp_element_[0] << " vp[mid]=" << data.model_vp_element_[n_elem / 2]
                 << " vp[last]=" << data.model_vp_element_[n_elem - 1] << std::endl;
     }
 

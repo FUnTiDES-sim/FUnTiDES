@@ -1033,8 +1033,6 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::com
           }
         }
 
-        printf("Model Vp at element %d: %f\n", elementNumber, mesh_local.getModelVpOnElement(elementNumber));
-
         for (int i = 0; i < mesh_local.getNumberOfPointsPerElement(); ++i) {
           int x = i % dim;
           int z = (i / dim) % dim;

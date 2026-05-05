@@ -43,9 +43,8 @@ SEMproxy::SEMproxy(const SemProxyOptions& opt) {
 
   // Partition Logic
   // Create Global Params
-  model::CartesianParams<float, int> globalParams(
-      opt.order, opt.ex, opt.ey, opt.ez, opt.lx, opt.ly, opt.lz,
-      opt.isModelOnNodes, opt.isElastic);
+  model::CartesianParams<float, int> globalParams(opt.order, opt.ex, opt.ey, opt.ez, opt.lx, opt.ly, opt.lz,
+                                                  opt.isModelOnNodes, opt.isElastic);
   globalParams.origin_x = 0;  // Global start
   globalParams.model_file = opt.model_file;
   init_sim_params(opt);

@@ -32,9 +32,7 @@ struct CartesianParams {
         lz(lz_),
         isModelOnNodes(isModelOnNodes_),
         isElastic(isElastic_),
-        model_file{""}
-  {
-  }
+        model_file{""} {}
 };
 }  // namespace model
 #endif  // FUNTIDES_MODEL_MESH_IMPL_BUILDER_CARTESIAN_INCLUDE_CARTESIAN_PARAMS_H_

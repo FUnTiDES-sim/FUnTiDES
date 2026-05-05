@@ -83,18 +83,14 @@ class SemProxyOptions {
         "is-model-on-nodes",
         "Boolean to tell if the model is charged on nodes (true) or on element "
         "(false)",
-        cxxopts::value<bool>(o.isModelOnNodes))(
-        "is-elastic", "Elastic simulation", cxxopts::value<bool>(o.isElastic))(
+        cxxopts::value<bool>(o.isModelOnNodes))("is-elastic", "Elastic simulation", cxxopts::value<bool>(o.isElastic))(
         "is-acousto-elastic", "Acousto-elastic coupled simulation", cxxopts::value<bool>(o.isAcoustoElastic))(
         "acousto-elastic-boundary-z", "Z coordinate of the fluid–solid interface (meters)",
         cxxopts::value<float>(o.acoustoElasticBoundaryZ))(
-        "free-surface",
-        "Enable free surface on top boundary (Z+). Default: true",
-        cxxopts::value<bool>(o.free_surface))(
-        "anisotropy", "Anisotropy type for elastic: iso|vti|tti (default=iso)",
-        cxxopts::value<std::string>(o.anisotropy))(
-        "model-file", "Path to .ftmd heterogeneous model file (optional)",
-        cxxopts::value<std::string>(o.model_file))(
+        "free-surface", "Enable free surface on top boundary (Z+). Default: true",
+        cxxopts::value<bool>(o.free_surface))("anisotropy", "Anisotropy type for elastic: iso|vti|tti (default=iso)",
+                                              cxxopts::value<std::string>(o.anisotropy))(
+        "model-file", "Path to .ftmd heterogeneous model file (optional)", cxxopts::value<std::string>(o.model_file))(
         "das-type", "DAS receiver type: none|dipole|strain (default=none)", cxxopts::value<std::string>(o.das_type))(
         "das-dip", "DAS fiber dip angle in degrees (default=0)", cxxopts::value<float>(o.das_dip))(
         "das-azimuth", "DAS fiber azimuth angle in degrees (default=0)", cxxopts::value<float>(o.das_azimuth))(

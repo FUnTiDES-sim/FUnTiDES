@@ -5,9 +5,9 @@
 
 #include "builder.h"
 #include "cartesian_params.h"
-#include "model_file_reader.h"
 #include "cartesian_unstruct_boundary_classifier.h"
 #include "gllpoints.h"
+#include "model_file_reader.h"
 #include "model_unstruct.h"
 
 namespace model {
@@ -39,8 +39,7 @@ class CartesianUnstructBuilder : public ModelBuilderBase<FloatType, ScalarType> 
         global_ox_(p.global_lx > 0 ? p.global_origin_x : p.origin_x),
         global_oy_(p.global_ly > 0 ? p.global_origin_y : p.origin_y),
         global_oz_(p.global_lz > 0 ? p.global_origin_z : p.origin_z),
-        model_file_(p.model_file)
-  {
+        model_file_(p.model_file) {
     initGlobalNodeList();
     initNodesCoords();
     initModels();
@@ -319,10 +318,8 @@ class CartesianUnstructBuilder : public ModelBuilderBase<FloatType, ScalarType> 
         }
       }
     }
-    if (!model_file_.empty())
-    {
-      if (isModelOnNodes_)
-      {
+    if (!model_file_.empty()) {
+      if (isModelOnNodes_) {
         throw std::runtime_error(
             "[CartesianUnstructBuilder] model_file only supported with "
             "isModelOnNodes=false for now.");
@@ -346,16 +343,13 @@ class CartesianUnstructBuilder : public ModelBuilderBase<FloatType, ScalarType> 
       fill_view(model_theta_element_, "Theta", "model_theta_element");
       fill_view(model_phi_element_, "Phi", "model_phi_element");
 
-      std::cout << "[Model] vp[0]=" << model_vp_element_[0]
-                << " vp[mid]=" << model_vp_element_[n_element / 2]
-                << " vp[last]=" << model_vp_element_[n_element - 1]
-                << std::endl;
+      std::cout << "[Model] vp[0]=" << model_vp_element_[0] << " vp[mid]=" << model_vp_element_[n_element / 2]
+                << " vp[last]=" << model_vp_element_[n_element - 1] << std::endl;
 
       // Vérification cohérence
       if (model_vp_element_.extent(0) != static_cast<size_t>(n_element))
         throw std::runtime_error("[CartesianUnstructBuilder] model_file has " +
-                                 std::to_string(model_vp_element_.extent(0)) +
-                                 " elements but mesh has " +
+                                 std::to_string(model_vp_element_.extent(0)) + " elements but mesh has " +
                                  std::to_string(n_element));
     }
   }
