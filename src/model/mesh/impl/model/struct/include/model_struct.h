@@ -101,6 +101,10 @@ class ModelStruct final : public ModelApi<FloatType, ScalarType> {
   // MESH GEOMETRY
   // ============================================================================
 
+  PROXY_HOST_DEVICE FloatType getHx() const { return hx_; }
+  PROXY_HOST_DEVICE FloatType getHy() const { return hy_; }
+  PROXY_HOST_DEVICE FloatType getHz() const { return hz_; }
+
   PROXY_HOST_DEVICE
   IndexType elementIndex(const int linearIndex) const {
     IndexType elemIndex;

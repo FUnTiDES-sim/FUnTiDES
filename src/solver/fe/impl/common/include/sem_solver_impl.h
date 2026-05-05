@@ -35,6 +35,17 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::com
   allocateFEarrays();
   initFEarrays();
 
+  if constexpr (MeshTypeTraits<MESH_TYPE>::value == utils::enums::meshType::kStruct) {
+    float const hx = m_mesh.getHx();
+    float const hy = m_mesh.getHy();
+    float const hz = m_mesh.getHz();
+    m_struct_metrics_.detJ  = hx * hy * hz / 8.0f;
+    m_struct_metrics_.inv_jx = 2.0f / hx;
+    m_struct_metrics_.inv_jy = 2.0f / hy;
+    m_struct_metrics_.inv_jz = 2.0f / hz;
+    m_has_struct_metrics_ = true;
+  }
+
   // Compute Local Mass Matrix
   computeGlobalMassMatrix();
   // Compute Local Damping Matrix
@@ -201,8 +212,11 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::com
     local_workVectorsGlobal[f] = workVectorsGlobal_[f];
   }
 
+  auto const struct_metrics_local = m_struct_metrics_;
+
   Kokkos::parallel_for(
       "Solver Element Contribution Acoustic", Kokkos::RangePolicy(0, n_iter), KOKKOS_LAMBDA(const int _loop_idx) {
+        (void)struct_metrics_local;
         int const elementNumber = list_on ? list_local[_loop_idx] : _loop_idx;
 
         int const dim = mesh_local.getOrder() + 1;
@@ -222,22 +236,33 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::com
           }
         }
 
-        float cornerCoords[8][3];
-        {
-          auto const eIdx = mesh_local.elementIndex(elementNumber);
-          int I = 0;
-          for (int kv = 0; kv < 2; ++kv)
-            for (int jv = 0; jv < 2; ++jv)
-              for (int iv = 0; iv < 2; ++iv)
-                mesh_local.vertexCoords(mesh_local.globalVertexIndex(eIdx, iv, jv, kv), cornerCoords[I++]);
-        }
-
         real_t inv_density = 0.0f;
         if constexpr (!IS_MODEL_ON_NODES) {
           inv_density = 1.0f / mesh_local.getModelRhoOnElement(elementNumber);
         }
 
-        INTEGRAL_TYPE::computeStiffnessTermSumFact(
+        if constexpr (MeshTypeTraits<MESH_TYPE>::value == utils::enums::meshType::kStruct) {
+          INTEGRAL_TYPE::computeStiffnessTermSumFactCartesian(
+              localFields[0], localWork[0], struct_metrics_local,
+              [&](const int qa, const int qb, const int qc) -> real_t {
+                if constexpr (IS_MODEL_ON_NODES) {
+                  int const gIndex = mesh_local.globalNodeIndex(elementNumber, qa, qb, qc);
+                  return 1.0f / mesh_local.getModelRhoOnNodes(gIndex);
+                } else {
+                  return inv_density;
+                }
+              });
+        } else {
+          float cornerCoords[8][3];
+          {
+            auto const eIdx = mesh_local.elementIndex(elementNumber);
+            int I = 0;
+            for (int kv = 0; kv < 2; ++kv)
+              for (int jv = 0; jv < 2; ++jv)
+                for (int iv = 0; iv < 2; ++iv)
+                  mesh_local.vertexCoords(mesh_local.globalVertexIndex(eIdx, iv, jv, kv), cornerCoords[I++]);
+          }
+          INTEGRAL_TYPE::computeStiffnessTermSumFact(
             cornerCoords, localFields[0], localWork[0], [&](const int qa, const int qb, const int qc) -> real_t {
               if constexpr (IS_MODEL_ON_NODES) {
                 int const gIndex = mesh_local.globalNodeIndex(elementNumber, qa, qb, qc);
@@ -246,6 +271,8 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::com
                 return inv_density;
               }
             });
+
+          }
 
         for (int i = 0; i < dim; ++i) {
           for (int j = 0; j < dim; ++j) {
@@ -260,6 +287,8 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::com
           }
         }
       });
+
+
 }
 
 //============================================================================
@@ -461,6 +490,8 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::com
     local_workVectorsGlobal[f] = workVectorsGlobal_[f];
   }
 
+  auto const struct_metrics_local = m_struct_metrics_;
+
   Kokkos::parallel_for(
       "Solver Element Contribution Iso",
       Kokkos::RangePolicy<Kokkos::LaunchBounds<LaunchMaxThreadsPerBlock, LaunchMinBlocksPerSM>>(0, n_iter),
@@ -468,6 +499,7 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::com
         // avoid extended __host__ __device__ lambda cannot first-capture
         // variable in constexpr-if context
         (void)local_workVectorsGlobal;
+        (void)struct_metrics_local;
 
         int const elementNumber = list_on ? list_local[_loop_idx] : _loop_idx;
 
@@ -489,16 +521,6 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::com
         }
 
         if constexpr (PHYSICS == utils::enums::physicType::kElastic) {
-          float cornerCoords[8][3];
-          {
-            auto const eIdx = mesh_local.elementIndex(elementNumber);
-            int I = 0;
-            for (int kv = 0; kv < 2; ++kv)
-              for (int jv = 0; jv < 2; ++jv)
-                for (int iv = 0; iv < 2; ++iv)
-                  mesh_local.vertexCoords(mesh_local.globalVertexIndex(eIdx, iv, jv, kv), cornerCoords[I++]);
-          }
-
           float mu_e = 0.0f, lambda_e = 0.0f, lam2mu_e = 0.0f;
           if constexpr (!IS_MODEL_ON_NODES) {
             float const vp_e = mesh_local.getModelVpOnElement(elementNumber);
@@ -509,51 +531,60 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::com
             lam2mu_e = lambda_e + 2.0f * mu_e;
           }
 
-          INTEGRAL_TYPE::computeElasticStiffnessSumFact(
-              cornerCoords, localFields, localWork,
-              [&](int qa, int qb, int qc, float const(&J_inv)[3][3], float const(&grad_u_ref)[3][3],
-                  float(&flux)[3][3]) {
-                float mu, lambda, lam2mu;
-                if constexpr (IS_MODEL_ON_NODES) {
-                  int const gIndex = mesh_local.globalNodeIndex(elementNumber, qa, qb, qc);
-                  float const vp = mesh_local.getModelVpOnNodes(gIndex);
-                  float const vs = mesh_local.getModelVsOnNodes(gIndex);
-                  float const rho = mesh_local.getModelRhoOnNodes(gIndex);
-                  mu = rho * vs * vs;
-                  lambda = rho * (vp * vp - 2.0f * vs * vs);
-                  lam2mu = lambda + 2.0f * mu;
-                } else {
-                  mu = mu_e;
-                  lambda = lambda_e;
-                  lam2mu = lam2mu_e;
-                }
+          auto const elastic_callback = [&](int qa, int qb, int qc, float const(&J_inv)[3][3],
+                                            float const(&grad_u_ref)[3][3], float(&flux)[3][3]) {
+            float mu, lambda, lam2mu;
+            if constexpr (IS_MODEL_ON_NODES) {
+              int const gIndex = mesh_local.globalNodeIndex(elementNumber, qa, qb, qc);
+              float const vp = mesh_local.getModelVpOnNodes(gIndex);
+              float const vs = mesh_local.getModelVsOnNodes(gIndex);
+              float const rho = mesh_local.getModelRhoOnNodes(gIndex);
+              mu = rho * vs * vs;
+              lambda = rho * (vp * vp - 2.0f * vs * vs);
+              lam2mu = lambda + 2.0f * mu;
+            } else {
+              mu = mu_e;
+              lambda = lambda_e;
+              lam2mu = lam2mu_e;
+            }
 
-                for (int p = 0; p < 3; ++p) {
-                  float const Jp0 = J_inv[p][0];
-                  float const Jp1 = J_inv[p][1];
-                  float const Jp2 = J_inv[p][2];
-                  flux[p][0] = 0.0f;
-                  flux[p][1] = 0.0f;
-                  flux[p][2] = 0.0f;
-                  for (int r = 0; r < 3; ++r) {
-                    float const Jr0 = J_inv[r][0];
-                    float const Jr1 = J_inv[r][1];
-                    float const Jr2 = J_inv[r][2];
-                    float const v0 = lam2mu * Jp0 * Jr0 + mu * (Jp1 * Jr1 + Jp2 * Jr2);
-                    float const v1 = mu * Jp0 * Jr0 + lam2mu * Jp1 * Jr1 + mu * Jp2 * Jr2;
-                    float const v2 = mu * (Jp0 * Jr0 + Jp1 * Jr1) + lam2mu * Jp2 * Jr2;
-                    float const v3 = lambda * Jp0 * Jr1 + mu * Jp1 * Jr0;
-                    float const v4 = lambda * Jp0 * Jr2 + mu * Jp2 * Jr0;
-                    float const v5 = lambda * Jp1 * Jr2 + mu * Jp2 * Jr1;
-                    float const g0 = grad_u_ref[r][0];
-                    float const g1 = grad_u_ref[r][1];
-                    float const g2 = grad_u_ref[r][2];
-                    flux[p][0] += v0 * g0 + v3 * g1 + v4 * g2;
-                    flux[p][1] += v3 * g0 + v1 * g1 + v5 * g2;
-                    flux[p][2] += v4 * g0 + v5 * g1 + v2 * g2;
-                  }
-                }
-              });
+            for (int p = 0; p < 3; ++p) {
+              float const Jp0 = J_inv[p][0];
+              float const Jp1 = J_inv[p][1];
+              float const Jp2 = J_inv[p][2];
+              flux[p][0] = 0.0f;
+              flux[p][1] = 0.0f;
+              flux[p][2] = 0.0f;
+              for (int r = 0; r < 3; ++r) {
+                float const Jr0 = J_inv[r][0];
+                float const Jr1 = J_inv[r][1];
+                float const Jr2 = J_inv[r][2];
+                float const v0 = lam2mu * Jp0 * Jr0 + mu * (Jp1 * Jr1 + Jp2 * Jr2);
+                float const v1 = mu * Jp0 * Jr0 + lam2mu * Jp1 * Jr1 + mu * Jp2 * Jr2;
+                float const v2 = mu * (Jp0 * Jr0 + Jp1 * Jr1) + lam2mu * Jp2 * Jr2;
+                float const v3 = lambda * Jp0 * Jr1 + mu * Jp1 * Jr0;
+                float const v4 = lambda * Jp0 * Jr2 + mu * Jp2 * Jr0;
+                float const v5 = lambda * Jp1 * Jr2 + mu * Jp2 * Jr1;
+                float const g0 = grad_u_ref[r][0];
+                float const g1 = grad_u_ref[r][1];
+                float const g2 = grad_u_ref[r][2];
+                flux[p][0] += v0 * g0 + v3 * g1 + v4 * g2;
+                flux[p][1] += v3 * g0 + v1 * g1 + v5 * g2;
+                flux[p][2] += v4 * g0 + v5 * g1 + v2 * g2;
+              }
+            }
+          };
+
+          float cornerCoords[8][3];
+          {
+            auto const eIdx = mesh_local.elementIndex(elementNumber);
+            int I = 0;
+            for (int kv = 0; kv < 2; ++kv)
+              for (int jv = 0; jv < 2; ++jv)
+                for (int iv = 0; iv < 2; ++iv)
+                  mesh_local.vertexCoords(mesh_local.globalVertexIndex(eIdx, iv, jv, kv), cornerCoords[I++]);
+          }
+          INTEGRAL_TYPE::computeElasticStiffnessSumFact(cornerCoords, localFields, localWork, elastic_callback);
 
           for (int i = 0; i < dim; ++i) {
             for (int j = 0; j < dim; ++j) {

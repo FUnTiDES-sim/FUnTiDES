@@ -8,6 +8,7 @@
 
 #include "data_type.h"
 #include "face_connectivity_unstruct.h"
+#include "mesh_type_traits.h"
 #include "model.h"
 #include "parallel_topology.h"
 #include "physics_traits.h"
@@ -269,6 +270,9 @@ class SEMsolver : public Solver {
   VECTOR_REAL_VIEW massMatrixGlobal_;
   std::array<VECTOR_REAL_VIEW, kNumFields> dampingMatrixGlobal_;
   std::array<VECTOR_REAL_VIEW, kNumFields> workVectorsGlobal_;
+
+  typename INTEGRAL_TYPE::Metrics3D m_struct_metrics_{};
+  bool m_has_struct_metrics_ = false;
 
   bool attenuationEnabled_ = false;
   int nSls_ = 0;

@@ -53,6 +53,13 @@ class Qk_Hexahedron_Lagrange_GaussLobatto final {
     float data[3][3];
   };
 
+  struct Metrics3D {
+    float inv_jx;
+    float inv_jy;
+    float inv_jz;
+    float detJ;
+  };
+
   /**
    * @brief The linear index associated to the given one-dimensional indices in
    * the three directions
@@ -152,6 +159,23 @@ class Qk_Hexahedron_Lagrange_GaussLobatto final {
       return -GL_BASIS::gradientAt(GL_BASIS::numSupportPoints - 1 - q, GL_BASIS::numSupportPoints - 1 - p);
     }
   }
+
+PROXY_HOST_DEVICE
+static Metrics3D computeMetrics3D(float const (&X)[8][3])
+{
+    Metrics3D m;
+
+    real_t const dx = X[1][0] - X[0][0];
+    real_t const dy = X[2][1] - X[0][1];
+    real_t const dz = X[4][2] - X[0][2];
+
+    m.detJ  = dx * dy * dz / 8.0f;
+    m.inv_jx = 2.0f / dx;
+    m.inv_jy = 2.0f / dy;
+    m.inv_jz = 2.0f / dz;
+
+    return m;
+}
 
   /**
    * @brief Compute the 1D factor of the coefficient of the jacobian on the q-th
@@ -517,6 +541,14 @@ class Qk_Hexahedron_Lagrange_GaussLobatto final {
   PROXY_HOST_DEVICE static void computeStiffnessTermSumFact(float const (&X)[8][3], real_t const (&p_local)[numNodes],
                                                             real_t (&f_local)[numNodes], FUNC_ALPHA &&get_alpha);
 
+
+template <typename FUNC_ALPHA>
+PROXY_HOST_DEVICE static void computeStiffnessTermSumFactCartesian(     real_t const (&p_local)[numNodes],
+    real_t (&f_local)[numNodes],
+    Metrics3D const& m,
+    FUNC_ALPHA &&get_alpha);
+
+
   /**
    * @brief Computes the "Grad(Phi)*B*Grad(Phi)" coefficient of the stiffness
    * term. The matrix B must be provided and Phi denotes a basis function.
@@ -611,6 +643,12 @@ class Qk_Hexahedron_Lagrange_GaussLobatto final {
   PROXY_HOST_DEVICE static void computeElasticStiffnessSumFact(float const (&X)[8][3],
                                                                real_t const (&u_local)[3][numNodes],
                                                                real_t (&f_local)[3][numNodes], FUNC1 &&func1);
+
+  template <typename FUNC1>
+  PROXY_HOST_DEVICE static void computeElasticStiffnessSumFactCartesian(Metrics3D const& m,
+                                                                        real_t const (&u_local)[3][numNodes],
+                                                                        real_t (&f_local)[3][numNodes],
+                                                                        FUNC1 &&func1);
 
   /**
    * @brief Apply a Jacobian transformation matrix from the parent space to the
@@ -1200,6 +1238,97 @@ PROXY_HOST_DEVICE void Qk_Hexahedron_Lagrange_GaussLobatto<GL_BASIS>::computeSti
 }
 
 template <typename GL_BASIS>
+template <typename FUNC_ALPHA>
+PROXY_HOST_DEVICE void Qk_Hexahedron_Lagrange_GaussLobatto<GL_BASIS>::computeStiffnessTermSumFactCartesian(
+    real_t const (&u_local)[numNodes],
+    real_t (&v_local)[numNodes],
+    Metrics3D const& m,
+    FUNC_ALPHA &&get_alpha)
+{
+  real_t G_xi[numNodes]   = {0};
+  real_t G_eta[numNodes]  = {0};
+  real_t G_zeta[numNodes] = {0};
+
+  float const Bxx = m.detJ * m.inv_jx * m.inv_jx;
+  float const Byy = m.detJ * m.inv_jy * m.inv_jy;
+  float const Bzz = m.detJ * m.inv_jz * m.inv_jz;
+
+  // Pass 1: gradient + metric application
+  triple_loop<num1dNodes, num1dNodes, num1dNodes>(
+    [&](auto const icqa, auto const icqb, auto const icqc)
+  {
+    constexpr int qa = decltype(icqa)::value;
+    constexpr int qb = decltype(icqb)::value;
+    constexpr int qc = decltype(icqc)::value;
+    constexpr int q = GL_BASIS::TensorProduct3D::linearIndex(qa, qb, qc);
+
+    constexpr real_t w =
+        GL_BASIS::weight(qa) *
+        GL_BASIS::weight(qb) *
+        GL_BASIS::weight(qc);
+
+    real_t dxi_q = 0, deta_q = 0, dzeta_q = 0;
+
+    for_constexpr<num1dNodes>([&](auto ici)
+    {
+      constexpr int i = decltype(ici)::value;
+
+      constexpr int ibc = GL_BASIS::TensorProduct3D::linearIndex(i, qb, qc);
+      constexpr int aic = GL_BASIS::TensorProduct3D::linearIndex(qa, i, qc);
+      constexpr int abi = GL_BASIS::TensorProduct3D::linearIndex(qa, qb, i);
+
+      dxi_q   += basisGradientAt(i, qa) * u_local[ibc];
+      deta_q  += basisGradientAt(i, qb) * u_local[aic];
+      dzeta_q += basisGradientAt(i, qc) * u_local[abi];
+    });
+
+    real_t const scale = w * get_alpha(qa, qb, qc);
+
+    G_xi[q]   = scale * Bxx * dxi_q;
+    G_eta[q]  = scale * Byy * deta_q;
+    G_zeta[q] = scale * Bzz * dzeta_q;
+  });
+
+  // Pass 2: divergence
+  triple_loop<num1dNodes, num1dNodes, num1dNodes>(
+    [&](auto const icia, auto const icib, auto const icic)
+  {
+    constexpr int ia = decltype(icia)::value;
+    constexpr int ib = decltype(icib)::value;
+    constexpr int ic = decltype(icic)::value;
+    constexpr int node = GL_BASIS::TensorProduct3D::linearIndex(ia, ib, ic);
+
+    real_t v = 0;
+
+    for_constexpr<num1dNodes>([&](auto icqa)
+    {
+      constexpr int qa = decltype(icqa)::value;
+      constexpr int q_xi = GL_BASIS::TensorProduct3D::linearIndex(qa, ib, ic);
+
+      v += basisGradientAt(ia, qa) * G_xi[q_xi];
+    });
+
+    for_constexpr<num1dNodes>([&](auto icqb)
+    {
+      constexpr int qb = decltype(icqb)::value;
+      constexpr int q_eta = GL_BASIS::TensorProduct3D::linearIndex(ia, qb, ic);
+
+      v += basisGradientAt(ib, qb) * G_eta[q_eta];
+    });
+
+    for_constexpr<num1dNodes>([&](auto icqc)
+    {
+      constexpr int qc = decltype(icqc)::value;
+      constexpr int q_zeta = GL_BASIS::TensorProduct3D::linearIndex(ia, ib, qc);
+
+      v += basisGradientAt(ic, qc) * G_zeta[q_zeta];
+    });
+
+    v_local[node] += v;
+  });
+}
+
+template <typename GL_BASIS>
 template <typename FUNC1, typename FUNC2>
 PROXY_HOST_DEVICE void Qk_Hexahedron_Lagrange_GaussLobatto<GL_BASIS>::computeStiffNessTermwithJac(
     float const (&X)[8][3], FUNC1 &&func1, FUNC2 &&func2) {
@@ -1277,6 +1406,87 @@ PROXY_HOST_DEVICE void Qk_Hexahedron_Lagrange_GaussLobatto<GL_BASIS>::computeEla
   // The gradient coefficient (basisGradientAt) is independent of force
   // component f, so it is computed once and the short f-loop is kept innermost
   // to expose it for vectorization.
+  triple_loop<num1dNodes, num1dNodes, num1dNodes>([&](auto const icia, auto const icib, auto const icic) {
+    constexpr int ia = decltype(icia)::value;
+    constexpr int ib = decltype(icib)::value;
+    constexpr int ic = decltype(icic)::value;
+    constexpr int node = GL_BASIS::TensorProduct3D::linearIndex(ia, ib, ic);
+
+    real_t v[3] = {0};
+    for_constexpr<num1dNodes>([&](auto icqa) {
+      constexpr int qa = decltype(icqa)::value;
+      constexpr int q_xi = GL_BASIS::TensorProduct3D::linearIndex(qa, ib, ic);
+      const real_t g = basisGradientAt(ia, qa);
+      for (int f = 0; f < 3; ++f) v[f] += g * F_xi[f][q_xi];
+    });
+    for_constexpr<num1dNodes>([&](auto icqb) {
+      constexpr int qb = decltype(icqb)::value;
+      constexpr int q_eta = GL_BASIS::TensorProduct3D::linearIndex(ia, qb, ic);
+      const real_t g = basisGradientAt(ib, qb);
+      for (int f = 0; f < 3; ++f) v[f] += g * F_eta[f][q_eta];
+    });
+    for_constexpr<num1dNodes>([&](auto icqc) {
+      constexpr int qc = decltype(icqc)::value;
+      constexpr int q_zeta = GL_BASIS::TensorProduct3D::linearIndex(ia, ib, qc);
+      const real_t g = basisGradientAt(ic, qc);
+      for (int f = 0; f < 3; ++f) v[f] += g * F_zeta[f][q_zeta];
+    });
+    for (int f = 0; f < 3; ++f) f_local[f][node] += v[f];
+  });
+}
+
+template <typename GL_BASIS>
+template <typename FUNC1>
+PROXY_HOST_DEVICE void Qk_Hexahedron_Lagrange_GaussLobatto<GL_BASIS>::computeElasticStiffnessSumFactCartesian(
+    Metrics3D const& m, real_t const (&u_local)[3][numNodes], real_t (&f_local)[3][numNodes], FUNC1 &&func1) {
+  real_t F_xi[3][numNodes] = {{0}};
+  real_t F_eta[3][numNodes] = {{0}};
+  real_t F_zeta[3][numNodes] = {{0}};
+
+  JacobianType J_diag = {{0}};
+  J_diag.data[0][0] = m.inv_jx;
+  J_diag.data[1][1] = m.inv_jy;
+  J_diag.data[2][2] = m.inv_jz;
+
+  triple_loop<num1dNodes, num1dNodes, num1dNodes>([&](auto const icqa, auto const icqb, auto const icqc) {
+    constexpr int qa = decltype(icqa)::value;
+    constexpr int qb = decltype(icqb)::value;
+    constexpr int qc = decltype(icqc)::value;
+    constexpr int q = GL_BASIS::TensorProduct3D::linearIndex(qa, qb, qc);
+    constexpr real_t w = GL_BASIS::weight(qa) * GL_BASIS::weight(qb) * GL_BASIS::weight(qc);
+
+    real_t grad_u_ref[3][3] = {{0}};
+    for_constexpr<num1dNodes>([&](auto ici) {
+      constexpr int i = decltype(ici)::value;
+      constexpr int ibc = GL_BASIS::TensorProduct3D::linearIndex(i, qb, qc);
+      constexpr int aic = GL_BASIS::TensorProduct3D::linearIndex(qa, i, qc);
+      constexpr int abi = GL_BASIS::TensorProduct3D::linearIndex(qa, qb, i);
+      const real_t gxi = basisGradientAt(i, qa);
+      const real_t geta = basisGradientAt(i, qb);
+      const real_t gzeta = basisGradientAt(i, qc);
+      for (int s = 0; s < 3; ++s) {
+        grad_u_ref[0][s] += gxi * u_local[s][ibc];
+        grad_u_ref[1][s] += geta * u_local[s][aic];
+        grad_u_ref[2][s] += gzeta * u_local[s][abi];
+      }
+    });
+
+    const real_t scale = w * m.detJ;
+
+    real_t flux[3][3] = {{0}};
+    func1(qa, qb, qc, J_diag.data, grad_u_ref, flux);
+
+    F_xi[0][q] = scale * flux[0][0];
+    F_xi[1][q] = scale * flux[0][1];
+    F_xi[2][q] = scale * flux[0][2];
+    F_eta[0][q] = scale * flux[1][0];
+    F_eta[1][q] = scale * flux[1][1];
+    F_eta[2][q] = scale * flux[1][2];
+    F_zeta[0][q] = scale * flux[2][0];
+    F_zeta[1][q] = scale * flux[2][1];
+    F_zeta[2][q] = scale * flux[2][2];
+  });
+
   triple_loop<num1dNodes, num1dNodes, num1dNodes>([&](auto const icia, auto const icib, auto const icic) {
     constexpr int ia = decltype(icia)::value;
     constexpr int ib = decltype(icib)::value;
