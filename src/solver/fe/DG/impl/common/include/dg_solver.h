@@ -45,27 +45,27 @@ class DGsolver : public Solver {
   // --- Mandatory overrides for Solver interface ---
 
   void initFEarrays() override {
-    // TODO: Implement initialization logic
+    // Here for retrocompatibility
   }
 
   void allocateFEarrays() override {
-    // TODO: Implement allocation logic
+    // Here for retrocompatibility
   }
 
   void initSpongeValues() override {
-    // TODO: Implement sponge layer initialization
+    // Here for retrocompatibility
   }
 
   void resetGlobalVectors(int numNodes) override {
-    // TODO: Implement reset logic
+    // Here for retrocompatibility, no global vector for DG
   }
 
   void computeGlobalMassMatrix() override {
-    // TODO: Implement mass matrix calculation
+    // Here for retrocompatibility, no global mass matrix for DG
   }
 
   void computeDampingMatrix() override {
-    // TODO: Implement damping matrix calculation
+    // Here for retrocompatibility, no global damping matrix for DG
   }
 
   void outputSolutionValues(const int& t, int& e, const VECTOR_REAL_VIEW& field, const char* fieldName) override {}
