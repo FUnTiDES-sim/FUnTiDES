@@ -31,6 +31,9 @@ SEMproxy::SEMproxy(const SemProxyOptions& opt) {
   int mpi_initialized = 0;
   InitMpi(&mpi_initialized);
 
+  // Start initialization timer
+  auto start_init = std::chrono::high_resolution_clock::now();
+
   InitSimParams(opt);
   InitMeshParams(opt);
   InitTopology();
@@ -42,6 +45,9 @@ SEMproxy::SEMproxy(const SemProxyOptions& opt) {
   InitFiniteElem();
   SetupIo(opt);
   SetupDas(opt);
+
+  // Accumulate constructor init time
+  time_init_ += std::chrono::duration<double>(std::chrono::high_resolution_clock::now() - start_init).count();
 
   DisplayInitMsg(opt);
 }
@@ -149,8 +155,8 @@ void SEMproxy::SetupDas(const SemProxyOptions& opt) {
 }
 
 void SEMproxy::Run() {
-  std::chrono::time_point<std::chrono::system_clock> start_compute_time, start_output_time;
-  std::chrono::duration<double> total_compute_time(0), total_output_time(0);
+  // Capture run-time initialization (like mass matrix sync)
+  auto start_run_init = std::chrono::high_resolution_clock::now();
 
   solver_->computeFEInit(*mesh_, sponge_size_, surface_sponge_, taper_delta_);
 
@@ -168,6 +174,11 @@ void SEMproxy::Run() {
     }
   }
 
+  time_init_ += std::chrono::duration<double>(std::chrono::high_resolution_clock::now() - start_run_init).count();
+
+  std::chrono::time_point<std::chrono::high_resolution_clock> start_compute_time, start_output_time;
+  std::chrono::duration<double> total_compute_time(0), total_output_time(0);
+
   if (is_acousto_elastic_) {
     WavefieldAcoustoElastic wavefield(pn_global_prev_, pn_global_curr_, uxn_global_prev_, uxn_global_curr_,
                                       uyn_global_prev_, uyn_global_curr_, uzn_global_prev_, uzn_global_curr_);
@@ -175,11 +186,11 @@ void SEMproxy::Run() {
     SEMsolverDataAcoustoElastic solver_data(wavefield, rhs);
 
     for (int time_index = 0; time_index < num_samples_; time_index++) {
-      start_compute_time = std::chrono::system_clock::now();
+      start_compute_time = std::chrono::high_resolution_clock::now();
       solver_->computeOneStep(dt_, time_index, solver_data);
-      total_compute_time += std::chrono::system_clock::now() - start_compute_time;
+      total_compute_time += std::chrono::high_resolution_clock::now() - start_compute_time;
 
-      start_output_time = std::chrono::system_clock::now();
+      start_output_time = std::chrono::high_resolution_clock::now();
 
       if (time_index % 50 == 0) {
         solver_->outputSolutionValues(time_index, rhs_element_[0], pn_global_prev_, "pnGlobal");
@@ -206,15 +217,17 @@ void SEMproxy::Run() {
       }
       pn_at_receiver_(0, time_index) = var_np1;
       solver_data.swapWavefields();
-      total_output_time += std::chrono::system_clock::now() - start_output_time;
+      total_output_time += std::chrono::high_resolution_clock::now() - start_output_time;
     }
 
+    start_output_time = std::chrono::high_resolution_clock::now();
     for (int i = 0; i < pn_at_receiver_.extent(0); i++) {
       auto subview = Kokkos::subview(pn_at_receiver_, i, Kokkos::ALL());
       vectorReal subset("receiver_save", num_samples_);
       Kokkos::deep_copy(subset, subview);
       io_ctrl_->saveReceiver(subset, src_coord_);
     }
+    total_output_time += std::chrono::high_resolution_clock::now() - start_output_time;
 
   } else if (!is_elastic_) {
     WavefieldAcoustic wavefield(pn_global_prev_, pn_global_curr_);
@@ -222,7 +235,7 @@ void SEMproxy::Run() {
     SEMsolverDataAcoustic solver_data(wavefield, rhs);
 
     for (int time_index = 0; time_index < num_samples_; time_index++) {
-      start_compute_time = std::chrono::system_clock::now();
+      start_compute_time = std::chrono::high_resolution_clock::now();
       solver_->computeForces(dt_, time_index, solver_data);
 
       if (par_topology_.isDistributed()) {
@@ -232,9 +245,9 @@ void SEMproxy::Run() {
       }
 
       solver_->updateSolution(dt_, solver_data);
-      total_compute_time += std::chrono::system_clock::now() - start_compute_time;
+      total_compute_time += std::chrono::high_resolution_clock::now() - start_compute_time;
 
-      start_output_time = std::chrono::system_clock::now();
+      start_output_time = std::chrono::high_resolution_clock::now();
 
       if (time_index % 50 == 0) {
         solver_->outputSolutionValues(time_index, rhs_element_[0], pn_global_prev_, "pnGlobal");
@@ -278,9 +291,10 @@ void SEMproxy::Run() {
 
       pn_at_receiver_(0, time_index) = var_np1;
       solver_data.swapWavefields();
-      total_output_time += std::chrono::system_clock::now() - start_output_time;
+      total_output_time += std::chrono::high_resolution_clock::now() - start_output_time;
     }
 
+    start_output_time = std::chrono::high_resolution_clock::now();
     for (int i = 0; i < pn_at_receiver_.extent(0); i++) {
       auto subview = Kokkos::subview(pn_at_receiver_, i, Kokkos::ALL());
       vectorReal subset("receiver_save", num_samples_);
@@ -294,6 +308,7 @@ void SEMproxy::Run() {
       fout << t * dt_ << " " << pn_at_receiver_(0, t) << "\n";
     }
     fout.close();
+    total_output_time += std::chrono::high_resolution_clock::now() - start_output_time;
 
   } else {
     WavefieldElastic wavefield(uxn_global_prev_, uxn_global_curr_, uyn_global_prev_, uyn_global_curr_, uzn_global_prev_,
@@ -302,7 +317,7 @@ void SEMproxy::Run() {
     SEMsolverDataElastic solver_data(wavefield, rhs);
 
     for (int time_index = 0; time_index < num_samples_; time_index++) {
-      start_compute_time = std::chrono::system_clock::now();
+      start_compute_time = std::chrono::high_resolution_clock::now();
       solver_->computeForces(dt_, time_index, solver_data);
 
       if (par_topology_.isDistributed()) {
@@ -312,9 +327,9 @@ void SEMproxy::Run() {
       }
 
       solver_->updateSolution(dt_, solver_data);
-      total_compute_time += std::chrono::system_clock::now() - start_compute_time;
+      total_compute_time += std::chrono::high_resolution_clock::now() - start_compute_time;
 
-      start_output_time = std::chrono::system_clock::now();
+      start_output_time = std::chrono::high_resolution_clock::now();
 
       if (time_index % 50 == 0) {
         solver_->outputSolutionValues(time_index, rhs_element_[0], uxn_global_prev_, "uxnGlobal");
@@ -362,9 +377,10 @@ void SEMproxy::Run() {
       }
 
       solver_data.swapWavefields();
-      total_output_time += std::chrono::system_clock::now() - start_output_time;
+      total_output_time += std::chrono::high_resolution_clock::now() - start_output_time;
     }
 
+    start_output_time = std::chrono::high_resolution_clock::now();
     for (int i = 0; i < uxn_at_receiver_.extent(0); i++) {
       auto subview = Kokkos::subview(uxn_at_receiver_, i, Kokkos::ALL());
       vectorReal subset("receiver_save", num_samples_);
@@ -380,7 +396,13 @@ void SEMproxy::Run() {
       }
       f_das.close();
     }
+    total_output_time += std::chrono::high_resolution_clock::now() - start_output_time;
   }
+
+  // Record Compute and Output times then display message
+  time_compute_ = total_compute_time.count();
+  time_io_ = total_output_time.count();
+  DisplayPerfMsg();
 }
 
 void SEMproxy::InitArrays() {
@@ -865,5 +887,26 @@ void SEMproxy::DisplayInitMsg(const SemProxyOptions& opt) {
   } else {
     std::cout << "  - Snapshots:            Disabled\n";
   }
+  std::cout << "==========================================================\n\n";
+}
+
+void SEMproxy::DisplayPerfMsg() const {
+  double total_time = time_init_ + time_compute_ + time_io_;
+  double pct_init = (total_time > 0) ? (time_init_ / total_time) * 100.0 : 0.0;
+  double pct_comp = (total_time > 0) ? (time_compute_ / total_time) * 100.0 : 0.0;
+  double pct_io = (total_time > 0) ? (time_io_ / total_time) * 100.0 : 0.0;
+
+  std::cout << "\n==========================================================\n";
+  std::cout << "               SEM PROXY PERFORMANCE SUMMARY                \n";
+  std::cout << "==========================================================\n";
+  std::cout << "  - Initialization Time:  " << std::fixed << std::setprecision(4) << std::setw(8) << time_init_
+            << " s (" << std::setprecision(1) << std::setw(4) << pct_init << "%)\n";
+  std::cout << "  - Compute Kernel Time:  " << std::fixed << std::setprecision(4) << std::setw(8) << time_compute_
+            << " s (" << std::setprecision(1) << std::setw(4) << pct_comp << "%)\n";
+  std::cout << "  - I/O & Output Time:    " << std::fixed << std::setprecision(4) << std::setw(8) << time_io_ << " s ("
+            << std::setprecision(1) << std::setw(4) << pct_io << "%)\n";
+  std::cout << "----------------------------------------------------------\n";
+  std::cout << "  - Total Execution Time: " << std::fixed << std::setprecision(4) << std::setw(8) << total_time
+            << " s\n";
   std::cout << "==========================================================\n\n";
 }

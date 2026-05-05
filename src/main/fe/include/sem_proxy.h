@@ -7,6 +7,7 @@
 #include <utils.h>
 
 #include <array>
+#include <chrono>
 #include <memory>
 #include <string>
 
@@ -156,6 +157,11 @@ class SEMproxy {
   std::vector<float> das_weights_;
   vectorReal das_signal_;
 
+  // --- Performance Tracking ---
+  double time_init_ = 0.0;
+  double time_compute_ = 0.0;
+  double time_io_ = 0.0;
+
   // --- Initialization Helpers ---
   void InitSource();
   void InitArrays();
@@ -172,6 +178,7 @@ class SEMproxy {
   void SetupDas(const SemProxyOptions& opt);
 
   void DisplayInitMsg(const SemProxyOptions& opt);
+  void DisplayPerfMsg() const;
 
   // --- Parsing Helpers ---
   int GetPhysic(std::string physic_arg);
