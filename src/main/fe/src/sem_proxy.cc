@@ -72,7 +72,6 @@ SEMproxy::SEMproxy(const SemProxyOptions& opt) {
     float qp = (opt.qp > 0) ? opt.qp : 1e9f;
     float qs = (opt.qs > 0) ? opt.qs : 1e9f;
     m_mesh->setQualityFactors(qp, qs);
-    std::cout << "Quality factors set: Qp=" << qp << ", Qs=" << qs << std::endl;
   }
 
   // Enable SLS attenuation mechanism
@@ -89,7 +88,6 @@ SEMproxy::SEMproxy(const SemProxyOptions& opt) {
   } else if (opt.qp > 0 || opt.qs > 0) {
     // Auto-enable SLS with default reference frequency based on source f0
     float omega0 = 2.0f * M_PI * opt.f0;
-    std::cout << "Auto-enabling SLS attenuation at omega0=" << omega0 << " rad/s (f0=" << opt.f0 << " Hz)" << std::endl;
     auto freqView = allocateVector<vectorReal>(1, "slsFreqAuto");
     freqView[0] = omega0;
     m_solver->setSLSAttenuation(freqView);
@@ -184,12 +182,6 @@ SEMproxy::SEMproxy(const SemProxyOptions& opt) {
     if (dasType_ == SourceAndReceiverUtils::DASType::kDipole) {
       for (int i = 0; i < 3; ++i) dasVector_[i] /= dasGaugeLength_;
     }
-
-    std::cout << "DAS receiver enabled: type=" << opt.das_type << ", dip=" << opt.das_dip
-              << " deg, azimuth=" << opt.das_azimuth << " deg, gauge=" << dasGaugeLength_
-              << " m, samples=" << dasNumSamples_ << std::endl;
-    std::cout << "DAS direction vector: (" << dasDirection_[0] << ", " << dasDirection_[1] << ", " << dasDirection_[2]
-              << ")" << std::endl;
   }
 }
 
@@ -375,7 +367,6 @@ void SEMproxy::run() {
         fout << t * dt_ << " " << pnAtReceiver(0, t) << "\n";
       }
       fout.close();
-      std::cout << "Receiver trace saved to receiver_trace.txt (" << num_sample_ << " samples)" << std::endl;
     }
   } else {
     WavefieldElastic wavefield(uxnGlobalPrev, uxnGlobalCurr, uynGlobalPrev, uynGlobalCurr, uznGlobalPrev,
@@ -471,22 +462,12 @@ void SEMproxy::run() {
         fDAS << t * dt_ << " " << dasSignal_(t) << "\n";
       }
       fDAS.close();
-      std::cout << "Saved DAS trace to das_trace.txt (" << num_sample_ << " samples)" << std::endl;
     }
   }
-
-  float kerneltime_ms = time_point_cast<microseconds>(totalComputeTime).time_since_epoch().count();
-  float outputtime_ms = time_point_cast<microseconds>(totalOutputTime).time_since_epoch().count();
-
-  cout << "------------------------------------------------ " << endl;
-  cout << "\n---- Elapsed Kernel Time : " << kerneltime_ms / 1E6 << " seconds." << endl;
-  cout << "---- Elapsed Output Time : " << outputtime_ms / 1E6 << " seconds." << endl;
-  cout << "------------------------------------------------ " << endl;
 }
 
 // Initialize arrays
 void SEMproxy::init_arrays() {
-  cout << "Allocate host memory for source and pressure values ..." << endl;
   const auto n_nodes = m_mesh->getNumberOfNodes();
   const auto n_elements = m_mesh->getNumberOfElements();
   const auto n_points_per_element = m_mesh->getNumberOfPointsPerElement();
@@ -542,9 +523,6 @@ void SEMproxy::init_arrays() {
 // Initialize sources
 void SEMproxy::init_source() {
   arrayReal myRHSLocation = allocateArray2D<arrayReal>(1, 3, "RHSLocation");
-  // std::cout << "All source are currently are coded on element 50." <<
-  // std::endl;
-  std::cout << "All source are currently are coded on middle element." << std::endl;
   int ex = nb_elements_[0];
   int ey = nb_elements_[1];
   int ez = nb_elements_[2];
@@ -608,25 +586,20 @@ void SEMproxy::init_source() {
     // (elastic).
     bool const sourceInFluid = (src_coord_[2] >= m_localParams.acoustoElasticBoundaryZ);
     if (sourceInFluid) {
-      cout << "Acousto-elastic source: fluid domain (acoustic)." << endl;
       for (int j = 0; j < num_sample_; j++) {
         myRHSTerm(0, j) = sourceTerm[j];
-        if (j % 100 == 0) cout << "Sample " << j << "\t: sourceTerm = " << sourceTerm[j] << endl;
       }
     } else {
-      cout << "Acousto-elastic source: solid domain (elastic)." << endl;
       for (int j = 0; j < num_sample_; j++) {
         myRHSTermx(0, j) = sourceTerm[j];
         myRHSTermy(0, j) = sourceTerm[j];
         myRHSTermz(0, j) = sourceTerm[j];
-        if (j % 100 == 0) cout << "Sample " << j << "\t: sourceTerm = " << sourceTerm[j] << endl;
       }
     }
   } else if (!isElastic_) {
     // Pure acoustic source.
     for (int j = 0; j < num_sample_; j++) {
       myRHSTerm(0, j) = sourceTerm[j];
-      if (j % 100 == 0) cout << "Sample " << j << "\t: sourceTerm = " << sourceTerm[j] << endl;
     }
   } else {
     // Pure elastic source.
@@ -634,13 +607,11 @@ void SEMproxy::init_source() {
       myRHSTermx(0, j) = sourceTerm[j];
       myRHSTermy(0, j) = sourceTerm[j];
       myRHSTermz(0, j) = sourceTerm[j];
-      if (j % 100 == 0) cout << "Sample " << j << "\t: sourceTerm = " << sourceTerm[j] << endl;
     }
   }
 
   // get element number of source term
   myElementSource = rhsElement[0];
-  cout << "Element number for the source location: " << myElementSource << endl << endl;
 
   int order = m_mesh->getOrder();
 
@@ -719,24 +690,6 @@ void SEMproxy::init_source() {
     default:
       throw std::runtime_error("Unsupported order: " + std::to_string(order));
   }
-
-  std::cout << "\n--- DEBUG INFO ---" << std::endl;
-  std::cout << "Source Element: " << rhsElement[0] << std::endl;
-  std::cout << "Source Coord: " << src_coord_[0] << " " << src_coord_[1] << " " << src_coord_[2] << std::endl;
-
-  // Print Corner Coordinates of the source element
-  std::cout << "Corner Coords (Node 0): " << cornerCoords[0][0] << ", " << cornerCoords[0][1] << ", "
-            << cornerCoords[0][2] << std::endl;
-  std::cout << "Corner Coords (Node 7): " << cornerCoords[7][0] << ", " << cornerCoords[7][1] << ", "
-            << cornerCoords[7][2] << std::endl;
-
-  // Print Calculated Weights
-  std::cout << "RHS Weights: ";
-  for (int k = 0; k < m_mesh->getNumberOfPointsPerElement(); ++k) {
-    std::cout << rhsWeights(0, k) << " ";
-  }
-  std::cout << std::endl;
-  std::cout << "------------------\n" << std::endl;
 
   // DAS receiver precomputation
   if (dasType_ != SourceAndReceiverUtils::DASType::kNone) {
@@ -841,9 +794,6 @@ void SEMproxy::init_source() {
           throw std::runtime_error("Unsupported order for DAS: " + std::to_string(order));
       }
     }
-
-    std::cout << "DAS precomputation complete: " << dasNumSamples_ << " samples, " << totalDASNodes << " node entries"
-              << std::endl;
   }
 }
 
@@ -868,7 +818,6 @@ meshType SEMproxy::getMesh(string meshArg) {
   if (meshArg == "cartesian") return meshType::kStruct;
   if (meshArg == "ucartesian") return meshType::kUnstruct;
 
-  std::cout << "Mesh type found is " << meshArg << std::endl;
   throw std::invalid_argument("Mesh type does not follow any valid type.");
 }
 
@@ -907,7 +856,6 @@ void SEMproxy::init_mpi(int* mpi_init) {
     dist_ctx_.rank = 0;
     dist_ctx_.size = 1;
   }
-  std::cout << "[rank " << dist_ctx_.rank << "] size " << dist_ctx_.size << std::endl;
 #else
   dist_ctx_.rank = 0;
   dist_ctx_.size = 1;
@@ -955,15 +903,6 @@ void SEMproxy::init_sim_params(const SemProxyOptions& opt) {
   rcv_coord_[2] = opt.rcvz;
 
   isElastic_ = opt.isElastic;
-
-  std::cout << "Debug Print :" << std::endl;
-  std::cout << "    Rank " << dist_ctx_.rank << "/" << dist_ctx_.size << std::endl;
-  std::cout << "    Local lx " << m_localParams.lx << std::endl;
-  std::cout << "    Local ly " << m_localParams.ly << std::endl;
-  std::cout << "    Local lz " << m_localParams.lz << std::endl;
-  std::cout << "    Local ex " << m_localParams.ex << std::endl;
-  std::cout << "    Local ey " << m_localParams.ey << std::endl;
-  std::cout << "    Local ez " << m_localParams.ez << std::endl;
 }
 
 void SEMproxy::init_mesh_params(const SemProxyOptions& opt) {

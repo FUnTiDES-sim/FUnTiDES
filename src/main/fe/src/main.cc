@@ -12,18 +12,10 @@
 time_point<system_clock> startInitTime;
 
 void compute(SEMproxy &semsim) {
-  cout << "\n+================================= " << endl;
-  cout << "| Running SEM Application ...      " << endl;
-  cout << "+================================= \n" << endl;
-
   // start timer
   time_point<system_clock> startRunTime = system_clock::now();
+
   semsim.run();
-
-  cout << "\n+================================= " << endl;
-  cout << "| SEM Application Finished.       " << endl;
-  cout << "+================================= \n" << endl;
-
   // print timing information
   cout << "Elapsed Initial Time : " << (startRunTime - startInitTime).count() / 1E9 << " seconds." << endl;
   cout << "Elapsed Compute Time : " << (system_clock::now() - startRunTime).count() / 1E9 << " seconds." << endl;
@@ -70,7 +62,6 @@ int main(int argc, char *argv[]) {
   {
     cxxopts::Options options("SEM Proxy", "Runs the SEM simulation.");
     options.allow_unrecognised_options();  // lets Kokkos flags pass
-
     options.add_options()("h,help", "Print help message");
 
     SemProxyOptions opt;
@@ -86,14 +77,9 @@ int main(int argc, char *argv[]) {
     try {
       opt.validate();
     } catch (const std::exception &e) {
-      // your error path (no help printing here)
       std::cerr << "Invalid options: " << e.what() << "\n";
       return 1;
     }
-
-    cout << "+==================================+" << endl;
-    cout << "| Initializing SEM Application ... |" << endl;
-    cout << "+==================================+\n" << endl;
 
     SEMproxy semsim(opt);
 
