@@ -21,6 +21,7 @@ struct FaceConnectivityUnstructData {
 
   ARRAY_INT_VIEW elem_to_faces;
   ARRAY_INT_VIEW face_dofs;
+  ARRAY_INT_VIEW face_perm;
   VECTOR_INT_VIEW face_elem_owner;
   VECTOR_INT_VIEW face_elem_neighbor;
   VECTOR_INT_VIEW face_local_owner;
@@ -50,6 +51,7 @@ class FaceConnectivityUnstruct : public FaceConnectivityApi<FloatType, ScalarTyp
         ndofs_per_face_(data.ndofs_per_face),
         elem_to_faces_(data.elem_to_faces),
         face_dofs_(data.face_dofs),
+        face_perm_(data.face_perm),
         face_elem_owner_(data.face_elem_owner),
         face_elem_neighbor_(data.face_elem_neighbor),
         face_local_owner_(data.face_local_owner),
@@ -70,6 +72,7 @@ class FaceConnectivityUnstruct : public FaceConnectivityApi<FloatType, ScalarTyp
     // Temporary arrays at maximum size
     auto elem_to_faces_temp = allocateArray2D<ARRAY_INT_VIEW>(n_element, 6);
     auto face_dofs_temp = allocateArray2D<ARRAY_INT_VIEW>(max_faces, ndofs_per_face_);
+    auto face_perm_temp = allocateArray2D<ARRAY_INT_VIEW>(max_faces, ndofs_per_face_);
     auto face_elem_owner_temp = allocateVector<VECTOR_INT_VIEW>(max_faces);
     auto face_elem_neighbor_temp = allocateVector<VECTOR_INT_VIEW>(max_faces);
     auto face_local_owner_temp = allocateVector<VECTOR_INT_VIEW>(max_faces);
@@ -92,37 +95,8 @@ class FaceConnectivityUnstruct : public FaceConnectivityApi<FloatType, ScalarTyp
           ScalarType face_id = face_count++;
           face_map[face_key] = face_id;
 
-          // Fill face DOFs
-          int idx = 0;
-          switch (local_face) {
-            case CubicFace::kXMinus:
-              for (int k = 0; k <= order; ++k)
-                for (int j = 0; j <= order; ++j) face_dofs_temp(face_id, idx++) = mesh.globalNodeIndex(elem, 0, j, k);
-              break;
-            case CubicFace::kXPlus:
-              for (int k = 0; k <= order; ++k)
-                for (int j = 0; j <= order; ++j)
-                  face_dofs_temp(face_id, idx++) = mesh.globalNodeIndex(elem, order, j, k);
-              break;
-            case CubicFace::kYMinus:
-              for (int k = 0; k <= order; ++k)
-                for (int i = 0; i <= order; ++i) face_dofs_temp(face_id, idx++) = mesh.globalNodeIndex(elem, i, 0, k);
-              break;
-            case CubicFace::kYPlus:
-              for (int k = 0; k <= order; ++k)
-                for (int i = 0; i <= order; ++i)
-                  face_dofs_temp(face_id, idx++) = mesh.globalNodeIndex(elem, i, order, k);
-              break;
-            case CubicFace::kZMinus:
-              for (int j = 0; j <= order; ++j)
-                for (int i = 0; i <= order; ++i) face_dofs_temp(face_id, idx++) = mesh.globalNodeIndex(elem, i, j, 0);
-              break;
-            case CubicFace::kZPlus:
-              for (int j = 0; j <= order; ++j)
-                for (int i = 0; i <= order; ++i)
-                  face_dofs_temp(face_id, idx++) = mesh.globalNodeIndex(elem, i, j, order);
-              break;
-          }
+          fillFaceDofs(mesh, elem, local_face, order,
+                       [&](int idx, ScalarType node) { face_dofs_temp(face_id, idx) = node; });
 
           face_elem_owner_temp(face_id) = elem;
           face_local_owner_temp(face_id) = lf;
@@ -132,6 +106,23 @@ class FaceConnectivityUnstruct : public FaceConnectivityApi<FloatType, ScalarTyp
           face_elem_neighbor_temp(face_id) = elem;
           face_local_neighbor_temp(face_id) = lf;
           elem_to_faces_temp(elem, lf) = face_id;
+
+          // Build permutation: for each owner DOF i, find neighbor DOF j
+          // such that both map to the same physical node.
+          // ndofs_per_face <= (9+1)^2 = 100 (max order in the codebase).
+          constexpr int kMaxDofsPerFace = 100;
+          ScalarType neigh_dofs[kMaxDofsPerFace];
+          fillFaceDofs(mesh, elem, local_face, order, [&](int idx, ScalarType node) { neigh_dofs[idx] = node; });
+
+          for (int i = 0; i < ndofs_per_face_; ++i) {
+            ScalarType owner_node = face_dofs_temp(face_id, i);
+            for (int j = 0; j < ndofs_per_face_; ++j) {
+              if (neigh_dofs[j] == owner_node) {
+                face_perm_temp(face_id, i) = j;
+                break;
+              }
+            }
+          }
         }
       }
     }
@@ -140,6 +131,7 @@ class FaceConnectivityUnstruct : public FaceConnectivityApi<FloatType, ScalarTyp
     n_faces_ = face_count;
     elem_to_faces_ = allocateArray2D<ARRAY_INT_VIEW>(n_element, 6);
     face_dofs_ = allocateArray2D<ARRAY_INT_VIEW>(face_count, ndofs_per_face_);
+    face_perm_ = allocateArray2D<ARRAY_INT_VIEW>(face_count, ndofs_per_face_);
     face_elem_owner_ = allocateVector<VECTOR_INT_VIEW>(face_count);
     face_elem_neighbor_ = allocateVector<VECTOR_INT_VIEW>(face_count);
     face_local_owner_ = allocateVector<VECTOR_INT_VIEW>(face_count);
@@ -153,7 +145,10 @@ class FaceConnectivityUnstruct : public FaceConnectivityApi<FloatType, ScalarTyp
       face_elem_neighbor_(f) = face_elem_neighbor_temp(f);
       face_local_owner_(f) = face_local_owner_temp(f);
       face_local_neighbor_(f) = face_local_neighbor_temp(f);
-      for (int dof = 0; dof < ndofs_per_face_; ++dof) face_dofs_(f, dof) = face_dofs_temp(f, dof);
+      for (int dof = 0; dof < ndofs_per_face_; ++dof) {
+        face_dofs_(f, dof) = face_dofs_temp(f, dof);
+        face_perm_(f, dof) = face_perm_temp(f, dof);
+      }
     }
   }
 
@@ -185,18 +180,60 @@ class FaceConnectivityUnstruct : public FaceConnectivityApi<FloatType, ScalarTyp
 
   PROXY_HOST_DEVICE int localFaceNeighbor(ScalarType face_id) const override { return face_local_neighbor_(face_id); }
 
+  PROXY_HOST_DEVICE int getNeighborFaceDof(ScalarType face_id, int owner_dof) const override {
+    return face_perm_(face_id, owner_dof);
+  }
+
  private:
   ScalarType n_faces_ = 0;
   int ndofs_per_face_ = 0;
 
   ARRAY_INT_VIEW elem_to_faces_;
   ARRAY_INT_VIEW face_dofs_;
+  ARRAY_INT_VIEW face_perm_;
   VECTOR_INT_VIEW face_elem_owner_;
   VECTOR_INT_VIEW face_elem_neighbor_;
   VECTOR_INT_VIEW face_local_owner_;
   VECTOR_INT_VIEW face_local_neighbor_;
 
   // Helper methods for build()
+
+  /**
+   * @brief Fill face DOFs by iterating over the face nodes and invoking a
+   * callback for each (local_idx, global_node) pair.
+   */
+  template <typename FUNC>
+  static void fillFaceDofs(const ModelApi<FloatType, ScalarType>& mesh, ScalarType elem, CubicFace local_face,
+                           int order, FUNC&& store) {
+    int idx = 0;
+    switch (local_face) {
+      case CubicFace::kXMinus:
+        for (int k = 0; k <= order; ++k)
+          for (int j = 0; j <= order; ++j) store(idx++, mesh.globalNodeIndex(elem, 0, j, k));
+        break;
+      case CubicFace::kXPlus:
+        for (int k = 0; k <= order; ++k)
+          for (int j = 0; j <= order; ++j) store(idx++, mesh.globalNodeIndex(elem, order, j, k));
+        break;
+      case CubicFace::kYMinus:
+        for (int k = 0; k <= order; ++k)
+          for (int i = 0; i <= order; ++i) store(idx++, mesh.globalNodeIndex(elem, i, 0, k));
+        break;
+      case CubicFace::kYPlus:
+        for (int k = 0; k <= order; ++k)
+          for (int i = 0; i <= order; ++i) store(idx++, mesh.globalNodeIndex(elem, i, order, k));
+        break;
+      case CubicFace::kZMinus:
+        for (int j = 0; j <= order; ++j)
+          for (int i = 0; i <= order; ++i) store(idx++, mesh.globalNodeIndex(elem, i, j, 0));
+        break;
+      case CubicFace::kZPlus:
+        for (int j = 0; j <= order; ++j)
+          for (int i = 0; i <= order; ++i) store(idx++, mesh.globalNodeIndex(elem, i, j, order));
+        break;
+    }
+  }
+
   static std::array<ScalarType, 4> extractFaceCorners(const ModelApi<FloatType, ScalarType>& mesh, ScalarType elem,
                                                       CubicFace local_face) {
     const int o = mesh.getOrder();

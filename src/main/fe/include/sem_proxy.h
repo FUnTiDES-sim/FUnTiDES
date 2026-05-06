@@ -108,6 +108,7 @@ class SEMproxy {
   // physics
   bool isElastic_;
   bool isAcoustoElastic_;
+  bool isDG_ = false;
   bool freeSurface_;
 
   // sponge boundary parameters
@@ -138,6 +139,9 @@ class SEMproxy {
   arrayReal myRHSTerm;
   vectorReal pnGlobalPrev;
   vectorReal pnGlobalCurr;
+  // DG acoustic fields: shape (n_elem, n_dof_per_elem)
+  arrayReal pnDGPrev_;
+  arrayReal pnDGCurr_;
   vectorInt rhsElement;
   vectorInt rhsElementRcv;
   arrayReal rhsWeights;

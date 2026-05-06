@@ -88,4 +88,69 @@ void testBoundaryFaceNoNeighbor(const FCType& fc) {
   EXPECT_EQ(fc.elemNeighbor(boundary_face), -1);
 }
 
+/// Reconstruct the face DOFs for a given element and local face, following
+/// the same loop convention as FaceConnectivityUnstruct::build().
+template <typename FloatType, typename ScalarType>
+std::vector<ScalarType> computeFaceDofs(const ModelApi<FloatType, ScalarType>& mesh, ScalarType elem, CubicFace face,
+                                        int order) {
+  const int ndofs = (order + 1) * (order + 1);
+  std::vector<ScalarType> dofs(ndofs);
+  int idx = 0;
+  switch (face) {
+    case CubicFace::kXMinus:
+      for (int k = 0; k <= order; ++k)
+        for (int j = 0; j <= order; ++j) dofs[idx++] = mesh.globalNodeIndex(elem, 0, j, k);
+      break;
+    case CubicFace::kXPlus:
+      for (int k = 0; k <= order; ++k)
+        for (int j = 0; j <= order; ++j) dofs[idx++] = mesh.globalNodeIndex(elem, order, j, k);
+      break;
+    case CubicFace::kYMinus:
+      for (int k = 0; k <= order; ++k)
+        for (int i = 0; i <= order; ++i) dofs[idx++] = mesh.globalNodeIndex(elem, i, 0, k);
+      break;
+    case CubicFace::kYPlus:
+      for (int k = 0; k <= order; ++k)
+        for (int i = 0; i <= order; ++i) dofs[idx++] = mesh.globalNodeIndex(elem, i, order, k);
+      break;
+    case CubicFace::kZMinus:
+      for (int j = 0; j <= order; ++j)
+        for (int i = 0; i <= order; ++i) dofs[idx++] = mesh.globalNodeIndex(elem, i, j, 0);
+      break;
+    case CubicFace::kZPlus:
+      for (int j = 0; j <= order; ++j)
+        for (int i = 0; i <= order; ++i) dofs[idx++] = mesh.globalNodeIndex(elem, i, j, order);
+      break;
+  }
+  return dofs;
+}
+
+/// Verify that getNeighborFaceDof produces a correct permutation: for each
+/// owner DOF i, the global node at owner's i equals the global node at
+/// the neighbor's perm(i).
+template <typename FloatType, typename ScalarType, typename FCType>
+void testNeighborFaceDofCorrectness(const FCType& fc, const ModelApi<FloatType, ScalarType>& mesh,
+                                    ScalarType shared_face) {
+  const int ndofs = fc.getDofsPerFace();
+  const int order = mesh.getOrder();
+  const ScalarType e1 = fc.elemNeighbor(shared_face);
+  const CubicFace lf1 = static_cast<CubicFace>(fc.localFaceNeighbor(shared_face));
+
+  auto neigh_dofs = computeFaceDofs<FloatType, ScalarType>(mesh, e1, lf1, order);
+
+  for (int i = 0; i < ndofs; ++i) {
+    ScalarType owner_node = fc.getGlobalNodeFromFace(shared_face, i);
+    int perm_i = fc.getNeighborFaceDof(shared_face, i);
+    EXPECT_GE(perm_i, 0);
+    EXPECT_LT(perm_i, ndofs);
+    EXPECT_EQ(owner_node, neigh_dofs[perm_i]) << "owner DOF " << i << " (node " << owner_node << ") does not match"
+                                              << " neighbor DOF " << perm_i << " (node " << neigh_dofs[perm_i] << ")";
+  }
+
+  // Permutation must be a bijection
+  std::set<int> seen;
+  for (int i = 0; i < ndofs; ++i) seen.insert(fc.getNeighborFaceDof(shared_face, i));
+  EXPECT_EQ(static_cast<int>(seen.size()), ndofs) << "getNeighborFaceDof is not a bijection";
+}
+
 }  // namespace model
