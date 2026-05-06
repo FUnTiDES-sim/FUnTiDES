@@ -281,7 +281,7 @@ template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE, bool IS_MODEL_O
 void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::computeAttenuationContributionsAcoustic(
     const DataType& data) {
   auto mesh_local = m_mesh;
-  Kokkos::Array<VECTOR_REAL_VIEW, kNumFields> local_attenuationWorkVectorsGlobal;
+  Kokkos::Array<vectorReal, kNumFields> local_attenuationWorkVectorsGlobal;
   for (int f = 0; f < kNumFields; ++f) local_attenuationWorkVectorsGlobal[f] = attenuationWorkVectorsGlobal_[f];
 
   Kokkos::parallel_for(
@@ -347,7 +347,7 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::com
 
   auto mesh_local = m_mesh;
 
-  Kokkos::Array<VECTOR_REAL_VIEW, kNumFields> local_attenuationWorkVectorsGlobal;
+  Kokkos::Array<vectorReal, kNumFields> local_attenuationWorkVectorsGlobal;
   for (int f = 0; f < kNumFields; ++f) local_attenuationWorkVectorsGlobal[f] = attenuationWorkVectorsGlobal_[f];
 
   Kokkos::parallel_for(
@@ -1169,30 +1169,29 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::com
 
 template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE, bool IS_MODEL_ON_NODES, physicType PHYSICS>
 void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::allocateFEarrays() {
-  massMatrixGlobal_ = allocateVector<VECTOR_REAL_VIEW>(m_mesh.getNumberOfNodes(), "massMatrixGlobal");
+  massMatrixGlobal_ = allocateVector<vectorReal>(m_mesh.getNumberOfNodes(), "massMatrixGlobal");
 
   static constexpr const char* dampingNames[3] = {"dampingX", "dampingY", "dampingZ"};
   for (int f = 0; f < kNumFields; ++f) {
-    dampingMatrixGlobal_[f] = allocateVector<VECTOR_REAL_VIEW>(m_mesh.getNumberOfNodes(), dampingNames[f]);
+    dampingMatrixGlobal_[f] = allocateVector<vectorReal>(m_mesh.getNumberOfNodes(), dampingNames[f]);
   }
 
   // Allocate work vectors for each field
   static constexpr const char* workVectorNames[3] = {"workVec0", "workVec1", "workVec2"};
   for (int f = 0; f < kNumFields; ++f) {
-    workVectorsGlobal_[f] = allocateVector<VECTOR_REAL_VIEW>(m_mesh.getNumberOfNodes(), workVectorNames[f]);
+    workVectorsGlobal_[f] = allocateVector<vectorReal>(m_mesh.getNumberOfNodes(), workVectorNames[f]);
   }
 
   if (attenuationEnabled_ && nSls_ > 0) {
     static constexpr const char* attWorkNames[3] = {"attWorkVec0", "attWorkVec1", "attWorkVec2"};
     static constexpr const char* attMemNames[3] = {"attMemory0", "attMemory1", "attMemory2"};
     for (int f = 0; f < kNumFields; ++f) {
-      attenuationWorkVectorsGlobal_[f] = allocateVector<VECTOR_REAL_VIEW>(m_mesh.getNumberOfNodes(), attWorkNames[f]);
-      attenuationMemoryVariables_[f] =
-          allocateArray2D<ARRAY_REAL_VIEW>(m_mesh.getNumberOfNodes(), nSls_, attMemNames[f]);
+      attenuationWorkVectorsGlobal_[f] = allocateVector<vectorReal>(m_mesh.getNumberOfNodes(), attWorkNames[f]);
+      attenuationMemoryVariables_[f] = allocateArray2D<arrayReal>(m_mesh.getNumberOfNodes(), nSls_, attMemNames[f]);
     }
   }
 
-  spongeTaperCoeff_ = allocateVector<VECTOR_REAL_VIEW>(m_mesh.getNumberOfNodes(), "spongeTaperCoeff");
+  spongeTaperCoeff_ = allocateVector<vectorReal>(m_mesh.getNumberOfNodes(), "spongeTaperCoeff");
 }
 
 //============================================================================
@@ -1268,7 +1267,7 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::ini
 
 template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE, bool IS_MODEL_ON_NODES, physicType PHYSICS>
 void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::outputSolutionValues(
-    const int& t, int& e, const VECTOR_REAL_VIEW& fieldGlobal, const char* fieldName) {
+    const int& t, int& e, const vectorReal& fieldGlobal, const char* fieldName) {
   cout << "TimeStep=" << t << ";  " << fieldName << " @ elementSource location " << e
        << " after computeOneStep = " << fieldGlobal(m_mesh.globalNodeIndex(e, 0, 0, 0)) << endl;
 }
@@ -1409,7 +1408,7 @@ PROXY_HOST_DEVICE void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NO
 
 template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE, bool IS_MODEL_ON_NODES, physicType PHYSICS>
 void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::computeGlobalMassMatrixMasked(
-    const VECTOR_INT_VIEW& elem_mask, int active_value) {
+    const vectorInt& elem_mask, int active_value) {
   m_element_mask_ = elem_mask;
   m_mask_active_value_ = active_value;
   m_mask_enabled_ = true;
@@ -1423,7 +1422,7 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::com
 
 template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE, bool IS_MODEL_ON_NODES, physicType PHYSICS>
 void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::computeDampingMatrixMasked(
-    const VECTOR_INT_VIEW& elem_mask, int active_value) {
+    const vectorInt& elem_mask, int active_value) {
   m_element_mask_ = elem_mask;
   m_mask_active_value_ = active_value;
   m_mask_enabled_ = true;
@@ -1437,7 +1436,7 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::com
 
 template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE, bool IS_MODEL_ON_NODES, physicType PHYSICS>
 void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::computeElementContributionsMasked(
-    const DataType& data, const VECTOR_INT_VIEW& elem_mask, int active_value) {
+    const DataType& data, const vectorInt& elem_mask, int active_value) {
   m_element_mask_ = elem_mask;
   m_mask_active_value_ = active_value;
   m_mask_enabled_ = true;
@@ -1451,7 +1450,7 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::com
 
 template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE, bool IS_MODEL_ON_NODES, physicType PHYSICS>
 void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::computeElementContributionsFromList(
-    const DataType& data, const VECTOR_INT_VIEW& elem_list, int n_elems) {
+    const DataType& data, const vectorInt& elem_list, int n_elems) {
   m_elem_list_ = elem_list;
   m_n_elem_list_ = n_elems;
   m_list_mode_ = true;
@@ -1465,7 +1464,7 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::com
 
 template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE, bool IS_MODEL_ON_NODES, physicType PHYSICS>
 void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::updateFieldsFromList(
-    float dt, const DataType& data, const VECTOR_INT_VIEW& node_list, int n_nodes) {
+    float dt, const DataType& data, const vectorInt& node_list, int n_nodes) {
   m_node_list_ = node_list;
   m_n_node_list_ = n_nodes;
   m_node_list_mode_ = true;

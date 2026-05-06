@@ -71,9 +71,9 @@ class CartesianStructBuilder : public ModelBuilderBase<FloatType, ScalarType> {
       auto temp_model = model::ModelStruct<FloatType, ScalarType, Order>(data);
 
       if (isModelOnNodes_) {
-        data.model_vp_node_ = allocateVector<VECTOR_REAL_VIEW>(n_node, "model_vp_node");
-        data.model_vs_node_ = allocateVector<VECTOR_REAL_VIEW>(n_node, "model_vs_node");
-        data.model_rho_node_ = allocateVector<VECTOR_REAL_VIEW>(n_node, "model_rho_node");
+        data.model_vp_node_ = allocateVector<vectorReal>(n_node, "model_vp_node");
+        data.model_vs_node_ = allocateVector<vectorReal>(n_node, "model_vs_node");
+        data.model_rho_node_ = allocateVector<vectorReal>(n_node, "model_rho_node");
 
         for (int n = 0; n < n_node; ++n) {
           bool const is_fluid = (temp_model.nodeCoord(n, 2) >= acoustoElasticBoundaryZ_);
@@ -85,9 +85,9 @@ class CartesianStructBuilder : public ModelBuilderBase<FloatType, ScalarType> {
         int const n_elem = ex_ * ey_ * ez_;
         FloatType const hz = lz_ / ez_;
 
-        data.model_vp_element_ = allocateVector<VECTOR_REAL_VIEW>(n_elem, "model_vp_elem");
-        data.model_vs_element_ = allocateVector<VECTOR_REAL_VIEW>(n_elem, "model_vs_elem");
-        data.model_rho_element_ = allocateVector<VECTOR_REAL_VIEW>(n_elem, "model_rho_elem");
+        data.model_vp_element_ = allocateVector<vectorReal>(n_elem, "model_vp_elem");
+        data.model_vs_element_ = allocateVector<vectorReal>(n_elem, "model_vs_elem");
+        data.model_rho_element_ = allocateVector<vectorReal>(n_elem, "model_rho_elem");
 
         for (int k = 0; k < ez_; ++k) {
           FloatType const centroid_z = oz_ + (k + static_cast<FloatType>(0.5)) * hz;

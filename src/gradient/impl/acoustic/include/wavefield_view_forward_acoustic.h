@@ -22,7 +22,7 @@ class WavefieldViewForwardAcoustic : public WavefieldView {
  public:
   static constexpr int kNumFields = 1;
 
-  WavefieldViewForwardAcoustic(VECTOR_REAL_VIEW pn) : pn_(pn) {}
+  WavefieldViewForwardAcoustic(vectorReal pn) : pn_(pn) {}
 
   int getNumFields() const override { return kNumFields; }
 
@@ -30,12 +30,12 @@ class WavefieldViewForwardAcoustic : public WavefieldView {
 
   // TODO use template + constexpr if when C++20 is available
   PROXY_HOST_DEVICE
-  VECTOR_REAL_VIEW getField(int i) const override { return pn_; }
+  vectorReal getField(int i) const override { return pn_; }
 
   void print() const override { std::cout << "WavefieldViewForwardAcoustic: pn size=" << pn_.extent(0) << "\n"; }
 
  private:
-  VECTOR_REAL_VIEW pn_;  ///< Current pressure snapshot
+  vectorReal pn_;  ///< Current pressure snapshot
 };
 
 }  // namespace gradient

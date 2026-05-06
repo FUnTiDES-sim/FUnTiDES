@@ -15,7 +15,7 @@ class GradientAcoustic : public Gradient {
  public:
   static constexpr int kNumGrads = 2;
 
-  GradientAcoustic(VECTOR_REAL_VIEW gradKappa, VECTOR_REAL_VIEW gradBuoyancy)
+  GradientAcoustic(vectorReal gradKappa, vectorReal gradBuoyancy)
       : gradKappa_(gradKappa), gradBuoyancy_(gradBuoyancy) {}
 
   int getNumGradients() const override final { return kNumGrads; }
@@ -33,7 +33,7 @@ class GradientAcoustic : public Gradient {
 
   // TODO use template + constexpr if when C++20 is available
   PROXY_HOST_DEVICE
-  VECTOR_REAL_VIEW getGradient(int i) const override {
+  vectorReal getGradient(int i) const override {
     switch (i) {
       case 0:
         return gradKappa_;
@@ -50,8 +50,8 @@ class GradientAcoustic : public Gradient {
   }
 
  private:
-  VECTOR_REAL_VIEW gradKappa_;     ///< Gradient of Kappa
-  VECTOR_REAL_VIEW gradBuoyancy_;  ///< Gradient of Buoyancy
+  vectorReal gradKappa_;     ///< Gradient of Kappa
+  vectorReal gradBuoyancy_;  ///< Gradient of Buoyancy
 };
 }  // namespace gradient
 #endif  // FUNTIDES_GRADIENT_IMPL_ACOUSTIC_INCLUDE_GRADIENT_ACOUSTIC_H_

@@ -37,12 +37,12 @@ class SEMsolver : public Solver {
 
   int getNumComponents() const override { return kNumFields; }
 
-  VECTOR_REAL_VIEW& getMassMatrixAcoustic() override { return massMatrixGlobal_; }
-  VECTOR_REAL_VIEW& getMassMatrixElastic() override { return massMatrixGlobal_; }
+  vectorReal& getMassMatrixAcoustic() override { return massMatrixGlobal_; }
+  vectorReal& getMassMatrixElastic() override { return massMatrixGlobal_; }
 
-  VECTOR_REAL_VIEW& getDampingMatrix(int c) override { return dampingMatrixGlobal_[c]; }
+  vectorReal& getDampingMatrix(int c) override { return dampingMatrixGlobal_[c]; }
 
-  VECTOR_REAL_VIEW& getForceVector(int c) override { return workVectorsGlobal_[c]; }
+  vectorReal& getForceVector(int c) override { return workVectorsGlobal_[c]; }
 
   // -------------------------------------
 
@@ -86,7 +86,7 @@ class SEMsolver : public Solver {
    * @param elem_mask   Per-element integer tag array (size = nElements).
    * @param active_value Only elements with this tag value are accumulated.
    */
-  void computeGlobalMassMatrixMasked(const VECTOR_INT_VIEW& elem_mask, int active_value);
+  void computeGlobalMassMatrixMasked(const vectorInt& elem_mask, int active_value);
 
   /**
    * @brief Assemble damping matrix restricted to elements matching a mask.
@@ -99,9 +99,9 @@ class SEMsolver : public Solver {
    * @param elem_mask   Per-element integer tag array (size = nElements).
    * @param active_value Only elements with this tag value are accumulated.
    */
-  void computeDampingMatrixMasked(const VECTOR_INT_VIEW& elem_mask, int active_value);
+  void computeDampingMatrixMasked(const vectorInt& elem_mask, int active_value);
 
-  void outputSolutionValues(const int& t, int& e, const VECTOR_REAL_VIEW& field, const char* fieldName) override;
+  void outputSolutionValues(const int& t, int& e, const vectorReal& field, const char* fieldName) override;
 
   /**
    * @brief Apply external forcing to the global fields.
@@ -132,7 +132,7 @@ class SEMsolver : public Solver {
    * @param elem_mask    Per-element integer tag array (size = nElements).
    * @param active_value Only elements with this tag value are accumulated.
    */
-  void computeElementContributionsMasked(const DataType& data, const VECTOR_INT_VIEW& elem_mask, int active_value);
+  void computeElementContributionsMasked(const DataType& data, const vectorInt& elem_mask, int active_value);
 
   /**
    * @brief Assemble stiffness into workVectorsGlobal_ for a compact list of
@@ -141,7 +141,7 @@ class SEMsolver : public Solver {
    * @param elem_list Compact array of element indices to process.
    * @param n_elems   Number of entries in @p elem_list.
    */
-  void computeElementContributionsFromList(const DataType& data, const VECTOR_INT_VIEW& elem_list, int n_elems);
+  void computeElementContributionsFromList(const DataType& data, const vectorInt& elem_list, int n_elems);
 
   /**
    * @brief Update the global solution fields at interior nodes.
@@ -158,7 +158,7 @@ class SEMsolver : public Solver {
    * @param node_list Compact array of node indices to update.
    * @param n_nodes   Number of entries in @p node_list.
    */
-  void updateFieldsFromList(float dt, const DataType& data, const VECTOR_INT_VIEW& node_list, int n_nodes);
+  void updateFieldsFromList(float dt, const DataType& data, const vectorInt& node_list, int n_nodes);
 
   /**
    * @brief Read-only access to the f-th work (force) vector.
@@ -170,7 +170,7 @@ class SEMsolver : public Solver {
    * @param f Component index (0 <= f < kNumFields).
    * @return  Const reference to the view.
    */
-  const VECTOR_REAL_VIEW& getForceVector(int f) const { return workVectorsGlobal_[f]; }
+  const vectorReal& getForceVector(int f) const { return workVectorsGlobal_[f]; }
 
   void computeElementContributions_Acoustic(const DataType& data);
   void computeElementContributions_Iso(const DataType& data);
@@ -205,23 +205,23 @@ class SEMsolver : public Solver {
    */
   void setAnisotropyType(model::AnisotropyType type) { anisotropyType_ = type; }
 
-  void setSLSAttenuation(const VECTOR_REAL_VIEW& reference_frequencies,
-                         const VECTOR_REAL_VIEW& anelasticity_coefficients = VECTOR_REAL_VIEW()) override {
+  void setSLSAttenuation(const vectorReal& reference_frequencies,
+                         const vectorReal& anelasticity_coefficients = vectorReal()) override {
     attenuationEnabled_ = reference_frequencies.extent(0) > 0;
     nSls_ = static_cast<int>(reference_frequencies.extent(0));
     if (!attenuationEnabled_) {
       nSls_ = 0;
-      slsReferenceAngularFrequencies_ = VECTOR_REAL_VIEW();
-      slsAnelasticityCoefficients_ = VECTOR_REAL_VIEW();
+      slsReferenceAngularFrequencies_ = vectorReal();
+      slsAnelasticityCoefficients_ = vectorReal();
       return;
     }
 
-    slsReferenceAngularFrequencies_ = allocateVector<VECTOR_REAL_VIEW>(nSls_, "slsReferenceAngularFrequencies");
+    slsReferenceAngularFrequencies_ = allocateVector<vectorReal>(nSls_, "slsReferenceAngularFrequencies");
     for (int i = 0; i < nSls_; ++i) {
       slsReferenceAngularFrequencies_[i] = reference_frequencies[i];
     }
 
-    slsAnelasticityCoefficients_ = allocateVector<VECTOR_REAL_VIEW>(nSls_, "slsAnelasticityCoefficients");
+    slsAnelasticityCoefficients_ = allocateVector<vectorReal>(nSls_, "slsAnelasticityCoefficients");
     if (anelasticity_coefficients.extent(0) == 0) {
       for (int i = 0; i < nSls_; ++i) {
         slsAnelasticityCoefficients_[i] = -1.0f;
@@ -252,30 +252,30 @@ class SEMsolver : public Solver {
 
   // Mask state used by computeElementContributionsMasked.
   bool m_mask_enabled_ = false;
-  VECTOR_INT_VIEW m_element_mask_;
+  vectorInt m_element_mask_;
   int m_mask_active_value_ = 0;
 
   // List state used by computeElementContributionsFromList.
   bool m_list_mode_ = false;
-  VECTOR_INT_VIEW m_elem_list_;
+  vectorInt m_elem_list_;
   int m_n_elem_list_ = 0;
 
   // Node list state used by updateFieldsFromList.
   bool m_node_list_mode_ = false;
-  VECTOR_INT_VIEW m_node_list_;
+  vectorInt m_node_list_;
   int m_n_node_list_ = 0;
 
-  VECTOR_REAL_VIEW spongeTaperCoeff_;
-  VECTOR_REAL_VIEW massMatrixGlobal_;
-  std::array<VECTOR_REAL_VIEW, kNumFields> dampingMatrixGlobal_;
-  std::array<VECTOR_REAL_VIEW, kNumFields> workVectorsGlobal_;
+  vectorReal spongeTaperCoeff_;
+  vectorReal massMatrixGlobal_;
+  std::array<vectorReal, kNumFields> dampingMatrixGlobal_;
+  std::array<vectorReal, kNumFields> workVectorsGlobal_;
 
   bool attenuationEnabled_ = false;
   int nSls_ = 0;
-  VECTOR_REAL_VIEW slsReferenceAngularFrequencies_;
-  VECTOR_REAL_VIEW slsAnelasticityCoefficients_;
-  std::array<VECTOR_REAL_VIEW, kNumFields> attenuationWorkVectorsGlobal_;
-  std::array<ARRAY_REAL_VIEW, kNumFields> attenuationMemoryVariables_;
+  vectorReal slsReferenceAngularFrequencies_;
+  vectorReal slsAnelasticityCoefficients_;
+  std::array<vectorReal, kNumFields> attenuationWorkVectorsGlobal_;
+  std::array<arrayReal, kNumFields> attenuationMemoryVariables_;
 };
 
 // Backward Compatibility Aliases

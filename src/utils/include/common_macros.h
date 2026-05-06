@@ -44,20 +44,6 @@
       Range, KOKKOS_CLASS_LAMBDA(const int i, decltype(Result)& local_sum) { local_sum = Array[i]; }, \
       Kokkos::Sum<decltype(Result)>(Result));
 
-#define ARRAY_DOUBLE_VIEW arrayReal
-#define ARRAY_REAL_VIEW arrayReal
-#define ARRAY_INT_VIEW arrayInt
-#define VECTOR_DOUBLE_VIEW vectorReal
-#define VECTOR_REAL_VIEW vectorReal
-#define VECTOR_INT_VIEW vectorInt
-
-#define ARRAY_TYPE_VIEW arrayReal
-#define VECTOR_TYPE_VIEW vectorReal
-
-#define ARRAY3D_INT_VIEW array3DInt
-#define ARRAY3D_REAL_VIEW array3DReal
-#define ARRAY3D_DOUBLE_VIEW array3DDouble
-
 #define KOKKOSNAME "v",
 
 #endif  // FUNTIDES_UTILS_INCLUDE_COMMON_MACROS_H_

@@ -39,13 +39,13 @@ struct DifferentiatorDataElastic : public Differentiator::DataStruct {
       : m_fwd(fwd), m_bwd(bwd), m_gradient(gradient) {}
 
   PROXY_HOST_DEVICE
-  VECTOR_REAL_VIEW getForwardField(int i) const { return m_fwd.getField(i); }
+  vectorReal getForwardField(int i) const { return m_fwd.getField(i); }
 
   PROXY_HOST_DEVICE
-  VECTOR_REAL_VIEW getBackwardField(int i) const { return m_bwd.getField(i); }
+  vectorReal getBackwardField(int i) const { return m_bwd.getField(i); }
 
   PROXY_HOST_DEVICE
-  VECTOR_REAL_VIEW getGradient(int i) const { return m_gradient.getGradient(i); }
+  vectorReal getGradient(int i) const { return m_gradient.getGradient(i); }
 
   void print() const override {
     std::cout << "DifferentiatorDataElastic\n";

@@ -27,7 +27,7 @@ void bind_wavefield_view_forward_acoustic(py::module_& m) {
   // Bind WavefieldViewForwardAcoustic (inherits from WavefieldView)
   py::class_<WavefieldViewForwardAcoustic, WavefieldView, std::shared_ptr<WavefieldViewForwardAcoustic>>(
       m, "WavefieldViewForwardAcoustic")
-      .def(py::init<Kokkos::Experimental::python_view_type_t<VECTOR_REAL_VIEW>>(), py::arg("pn"))
+      .def(py::init<Kokkos::Experimental::python_view_type_t<vectorReal>>(), py::arg("pn"))
       .def("print", &WavefieldViewForwardAcoustic::print);
 }
 
@@ -35,9 +35,9 @@ void bind_wavefield_view_backward_acoustic(py::module_& m) {
   // Bind WavefieldViewBackwardAcoustic (inherits from WavefieldView)
   py::class_<WavefieldViewBackwardAcoustic, WavefieldView, std::shared_ptr<WavefieldViewBackwardAcoustic>>(
       m, "WavefieldViewBackwardAcoustic")
-      .def(py::init<Kokkos::Experimental::python_view_type_t<VECTOR_REAL_VIEW>,
-                    Kokkos::Experimental::python_view_type_t<VECTOR_REAL_VIEW>,
-                    Kokkos::Experimental::python_view_type_t<VECTOR_REAL_VIEW>>(),
+      .def(py::init<Kokkos::Experimental::python_view_type_t<vectorReal>,
+                    Kokkos::Experimental::python_view_type_t<vectorReal>,
+                    Kokkos::Experimental::python_view_type_t<vectorReal>>(),
            py::arg("qn"), py::arg("qn_prev"), py::arg("qn_prev_prev"))
       .def("print", &WavefieldViewBackwardAcoustic::print);
 }
@@ -46,9 +46,9 @@ void bind_wavefield_view_forward_elastic(py::module_& m) {
   // Bind WavefieldViewForwardElastic (inherits from WavefieldView)
   py::class_<WavefieldViewForwardElastic, WavefieldView, std::shared_ptr<WavefieldViewForwardElastic>>(
       m, "WavefieldViewForwardElastic")
-      .def(py::init<Kokkos::Experimental::python_view_type_t<VECTOR_REAL_VIEW>,
-                    Kokkos::Experimental::python_view_type_t<VECTOR_REAL_VIEW>,
-                    Kokkos::Experimental::python_view_type_t<VECTOR_REAL_VIEW>>(),
+      .def(py::init<Kokkos::Experimental::python_view_type_t<vectorReal>,
+                    Kokkos::Experimental::python_view_type_t<vectorReal>,
+                    Kokkos::Experimental::python_view_type_t<vectorReal>>(),
            py::arg("ux_n"), py::arg("uy_n"), py::arg("uz_n"))
       .def("print", &WavefieldViewForwardElastic::print);
 }
@@ -57,12 +57,12 @@ void bind_wavefield_view_backward_elastic(py::module_& m) {
   // Bind WavefieldViewBackwardElastic (inherits from WavefieldView)
   py::class_<WavefieldViewBackwardElastic, WavefieldView, std::shared_ptr<WavefieldViewBackwardElastic>>(
       m, "WavefieldViewBackwardElastic")
-      .def(py::init<Kokkos::Experimental::python_view_type_t<VECTOR_REAL_VIEW>,
-                    Kokkos::Experimental::python_view_type_t<VECTOR_REAL_VIEW>,
-                    Kokkos::Experimental::python_view_type_t<VECTOR_REAL_VIEW>,
-                    Kokkos::Experimental::python_view_type_t<VECTOR_REAL_VIEW>,
-                    Kokkos::Experimental::python_view_type_t<VECTOR_REAL_VIEW>,
-                    Kokkos::Experimental::python_view_type_t<VECTOR_REAL_VIEW>>(),
+      .def(py::init<Kokkos::Experimental::python_view_type_t<vectorReal>,
+                    Kokkos::Experimental::python_view_type_t<vectorReal>,
+                    Kokkos::Experimental::python_view_type_t<vectorReal>,
+                    Kokkos::Experimental::python_view_type_t<vectorReal>,
+                    Kokkos::Experimental::python_view_type_t<vectorReal>,
+                    Kokkos::Experimental::python_view_type_t<vectorReal>>(),
            py::arg("ux_n"), py::arg("uy_n"), py::arg("uz_n"), py::arg("ux_dt2"), py::arg("uy_dt2"), py::arg("uz_dt2"))
       .def("print", &WavefieldViewBackwardElastic::print);
 }

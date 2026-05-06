@@ -58,10 +58,10 @@ static model::ModelUnstruct<float, int> makeUnstructMesh1x1x1() {
   data.isModelOnNodes_ = false;
   data.isElastic_ = false;
 
-  data.global_node_index_ = allocateArray2D<ARRAY_INT_VIEW>(1, npe, "gni");
-  data.nodes_coords_x_ = allocateVector<VECTOR_REAL_VIEW>(npe, "cx");
-  data.nodes_coords_y_ = allocateVector<VECTOR_REAL_VIEW>(npe, "cy");
-  data.nodes_coords_z_ = allocateVector<VECTOR_REAL_VIEW>(npe, "cz");
+  data.global_node_index_ = allocateArray2D<arrayInt>(1, npe, "gni");
+  data.nodes_coords_x_ = allocateVector<vectorReal>(npe, "cx");
+  data.nodes_coords_y_ = allocateVector<vectorReal>(npe, "cy");
+  data.nodes_coords_z_ = allocateVector<vectorReal>(npe, "cz");
 
   for (int lDof = 0; lDof < npe; ++lDof) {
     data.global_node_index_(0, lDof) = lDof;
@@ -97,12 +97,12 @@ class DifferentiatorAcousticElemUnstructTest : public ::testing::Test {
   using Diff = DifferentiatorAcoustic<kOrder, Integral, Mesh, false>;
 
   void SetUp() override {
-    pn = allocateVector<VECTOR_REAL_VIEW>(kNumNodes, "pn");
-    qn = allocateVector<VECTOR_REAL_VIEW>(kNumNodes, "qn");
-    qnPrev = allocateVector<VECTOR_REAL_VIEW>(kNumNodes, "qnPrev");
-    qnPrevPrev = allocateVector<VECTOR_REAL_VIEW>(kNumNodes, "qnPrevPrev");
-    gradKappa = allocateVector<VECTOR_REAL_VIEW>(kNumElements, "gradKappa");
-    gradBuoyancy = allocateVector<VECTOR_REAL_VIEW>(kNumElements, "gradBuoyancy");
+    pn = allocateVector<vectorReal>(kNumNodes, "pn");
+    qn = allocateVector<vectorReal>(kNumNodes, "qn");
+    qnPrev = allocateVector<vectorReal>(kNumNodes, "qnPrev");
+    qnPrevPrev = allocateVector<vectorReal>(kNumNodes, "qnPrevPrev");
+    gradKappa = allocateVector<vectorReal>(kNumElements, "gradKappa");
+    gradBuoyancy = allocateVector<vectorReal>(kNumElements, "gradBuoyancy");
 
     for (int i = 0; i < kNumNodes; ++i) {
       pn(i) = 0.0f;
@@ -114,8 +114,8 @@ class DifferentiatorAcousticElemUnstructTest : public ::testing::Test {
     gradBuoyancy(0) = 0.0f;
   }
 
-  VECTOR_REAL_VIEW pn, qn, qnPrev, qnPrevPrev;
-  VECTOR_REAL_VIEW gradKappa, gradBuoyancy;
+  vectorReal pn, qn, qnPrev, qnPrevPrev;
+  vectorReal gradKappa, gradBuoyancy;
 };
 
 TYPED_TEST_SUITE(DifferentiatorAcousticElemUnstructTest, OrderTypesU);
@@ -316,12 +316,12 @@ class DifferentiatorAcousticNodeUnstructTest : public ::testing::Test {
   using DiffElem = DifferentiatorAcoustic<kOrder, Integral, Mesh, false>;
 
   void SetUp() override {
-    pn = allocateVector<VECTOR_REAL_VIEW>(kNumNodes, "pn");
-    qn = allocateVector<VECTOR_REAL_VIEW>(kNumNodes, "qn");
-    qnPrev = allocateVector<VECTOR_REAL_VIEW>(kNumNodes, "qnPrev");
-    qnPrevPrev = allocateVector<VECTOR_REAL_VIEW>(kNumNodes, "qnPrevPrev");
-    gradKappa = allocateVector<VECTOR_REAL_VIEW>(kNumNodes, "gradKappa");
-    gradBuoyancy = allocateVector<VECTOR_REAL_VIEW>(kNumNodes, "gradBuoyancy");
+    pn = allocateVector<vectorReal>(kNumNodes, "pn");
+    qn = allocateVector<vectorReal>(kNumNodes, "qn");
+    qnPrev = allocateVector<vectorReal>(kNumNodes, "qnPrev");
+    qnPrevPrev = allocateVector<vectorReal>(kNumNodes, "qnPrevPrev");
+    gradKappa = allocateVector<vectorReal>(kNumNodes, "gradKappa");
+    gradBuoyancy = allocateVector<vectorReal>(kNumNodes, "gradBuoyancy");
 
     for (int i = 0; i < kNumNodes; ++i) {
       pn(i) = 0.0f;
@@ -345,8 +345,8 @@ class DifferentiatorAcousticNodeUnstructTest : public ::testing::Test {
     return s;
   }
 
-  VECTOR_REAL_VIEW pn, qn, qnPrev, qnPrevPrev;
-  VECTOR_REAL_VIEW gradKappa, gradBuoyancy;
+  vectorReal pn, qn, qnPrev, qnPrevPrev;
+  vectorReal gradKappa, gradBuoyancy;
 };
 
 TYPED_TEST_SUITE(DifferentiatorAcousticNodeUnstructTest, OrderTypesU);
@@ -461,8 +461,8 @@ TYPED_TEST(DifferentiatorAcousticNodeUnstructTest, NodeBasedSumEqualsElementBase
   float nodeSum = this->sumGradKappa();
 
   // Element-based
-  auto gradKappaElem = allocateVector<VECTOR_REAL_VIEW>(1, "gradKappaElem");
-  auto gradBuoyancyElem = allocateVector<VECTOR_REAL_VIEW>(1, "gradBuoyancyElem");
+  auto gradKappaElem = allocateVector<vectorReal>(1, "gradKappaElem");
+  auto gradBuoyancyElem = allocateVector<vectorReal>(1, "gradBuoyancyElem");
   gradKappaElem(0) = 0.0f;
   gradBuoyancyElem(0) = 0.0f;
 

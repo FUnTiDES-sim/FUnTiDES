@@ -24,10 +24,9 @@ struct WavefieldAcoustoElastic : public Wavefield {
   /// Field names in order: p, ux, uy, uz
   static constexpr const char* kFieldNames[4] = {"pressure", "ux", "uy", "uz"};
 
-  WavefieldAcoustoElastic(VECTOR_REAL_VIEW pnGlobalPrev, VECTOR_REAL_VIEW pnGlobalCurr, VECTOR_REAL_VIEW uxnGlobalPrev,
-                          VECTOR_REAL_VIEW uxnGlobalCurr, VECTOR_REAL_VIEW uynGlobalPrev,
-                          VECTOR_REAL_VIEW uynGlobalCurr, VECTOR_REAL_VIEW uznGlobalPrev,
-                          VECTOR_REAL_VIEW uznGlobalCurr)
+  WavefieldAcoustoElastic(vectorReal pnGlobalPrev, vectorReal pnGlobalCurr, vectorReal uxnGlobalPrev,
+                          vectorReal uxnGlobalCurr, vectorReal uynGlobalPrev, vectorReal uynGlobalCurr,
+                          vectorReal uznGlobalPrev, vectorReal uznGlobalCurr)
       : m_acoustic(pnGlobalPrev, pnGlobalCurr),
         m_elastic(uxnGlobalPrev, uxnGlobalCurr, uynGlobalPrev, uynGlobalCurr, uznGlobalPrev, uznGlobalCurr) {}
 
@@ -41,7 +40,7 @@ struct WavefieldAcoustoElastic : public Wavefield {
    * Index mapping: 0=p, 1=ux, 2=uy, 3=uz.
    */
   PROXY_HOST_DEVICE
-  VECTOR_REAL_VIEW getCurrentField(int i) const override {
+  vectorReal getCurrentField(int i) const override {
     if (i == 0) return m_acoustic.getCurrentField(0);
     return m_elastic.getCurrentField(i - 1);
   }
@@ -52,7 +51,7 @@ struct WavefieldAcoustoElastic : public Wavefield {
    * Index mapping: 0=p, 1=ux, 2=uy, 3=uz.
    */
   PROXY_HOST_DEVICE
-  VECTOR_REAL_VIEW getPreviousField(int i) const override {
+  vectorReal getPreviousField(int i) const override {
     if (i == 0) return m_acoustic.getPreviousField(0);
     return m_elastic.getPreviousField(i - 1);
   }
@@ -62,7 +61,7 @@ struct WavefieldAcoustoElastic : public Wavefield {
     m_elastic.swap();
   }
 
-  void swapWithRotation(VECTOR_REAL_VIEW& prevPrevBuffer, int i) override {
+  void swapWithRotation(vectorReal& prevPrevBuffer, int i) override {
     if (i == 0) {
       m_acoustic.swapWithRotation(prevPrevBuffer, 0);
       return;

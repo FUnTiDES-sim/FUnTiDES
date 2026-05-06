@@ -60,14 +60,14 @@ class SEMproxy {
    * @param size_y Y-dimension size.
    * @param filepath The output file path.
    */
-  void SaveSlice(const VECTOR_REAL_VIEW& host_slice, int size_x, int size_y, const std::string& filepath) const;
+  void SaveSlice(const vectorReal& host_slice, int size_x, int size_y, const std::string& filepath) const;
 
   /**
    * @brief Saves a full simulation snapshot for a given time sample.
    * @param time_sample The current timestep index.
    * @param data The data array representing the field state.
    */
-  void SaveSnapshot(int time_sample, VECTOR_REAL_VIEW data) const;
+  void SaveSnapshot(int time_sample, vectorReal data) const;
   void SaveSnapshot(int timestep);
 
   /**

@@ -37,9 +37,9 @@
 namespace solver {
 namespace fe {
 namespace test {
-static VECTOR_REAL_VIEW toView(const std::vector<float>& v, const char* name) {
-  if (v.empty()) return VECTOR_REAL_VIEW();
-  auto view = allocateVector<VECTOR_REAL_VIEW>(v.size(), name);
+static vectorReal toView(const std::vector<float>& v, const char* name) {
+  if (v.empty()) return vectorReal();
+  auto view = allocateVector<vectorReal>(v.size(), name);
   for (size_t i = 0; i < v.size(); ++i) view[i] = v[i];
   return view;
 }
@@ -120,8 +120,8 @@ static AcousticSeismogram runAcousticWithReceiver(std::shared_ptr<model::ModelAp
   }
   solver->computeFEInit(*mesh, {0, 0, 0}, false, 0.0f);
 
-  auto pPrev = allocateVector<VECTOR_REAL_VIEW>(numNodes, "pPrev_rcv");
-  auto pCurr = allocateVector<VECTOR_REAL_VIEW>(numNodes, "pCurr_rcv");
+  auto pPrev = allocateVector<vectorReal>(numNodes, "pPrev_rcv");
+  auto pCurr = allocateVector<vectorReal>(numNodes, "pCurr_rcv");
   for (int i = 0; i < numNodes; ++i) {
     pPrev(i) = 0.0f;
     pCurr(i) = 0.0f;
@@ -129,9 +129,9 @@ static AcousticSeismogram runAcousticWithReceiver(std::shared_ptr<model::ModelAp
   // Point source at the given node
   pCurr(sourceNode) = 1.0f;
 
-  auto rhsTerm = allocateArray2D<ARRAY_REAL_VIEW>(1, numTimeSteps, "rhsTerm_rcv");
-  auto rhsElem = allocateVector<VECTOR_INT_VIEW>(1, "rhsElem_rcv");
-  auto rhsWeights = allocateArray2D<ARRAY_REAL_VIEW>(1, npp, "rhsWeights_rcv");
+  auto rhsTerm = allocateArray2D<arrayReal>(1, numTimeSteps, "rhsTerm_rcv");
+  auto rhsElem = allocateVector<vectorInt>(1, "rhsElem_rcv");
+  auto rhsWeights = allocateArray2D<arrayReal>(1, npp, "rhsWeights_rcv");
   rhsElem(0) = 0;
   for (int j = 0; j < npp; ++j) {
     rhsTerm(0, j) = 0.0f;
@@ -183,23 +183,23 @@ static ElasticSeismogram runElasticWithReceiver(std::shared_ptr<model::ModelApi<
   }
   solver->computeFEInit(*mesh, {0, 0, 0}, false, 0.0f);
 
-  auto uxP = allocateVector<VECTOR_REAL_VIEW>(numNodes, "uxP_rcv");
-  auto uxC = allocateVector<VECTOR_REAL_VIEW>(numNodes, "uxC_rcv");
-  auto uyP = allocateVector<VECTOR_REAL_VIEW>(numNodes, "uyP_rcv");
-  auto uyC = allocateVector<VECTOR_REAL_VIEW>(numNodes, "uyC_rcv");
-  auto uzP = allocateVector<VECTOR_REAL_VIEW>(numNodes, "uzP_rcv");
-  auto uzC = allocateVector<VECTOR_REAL_VIEW>(numNodes, "uzC_rcv");
+  auto uxP = allocateVector<vectorReal>(numNodes, "uxP_rcv");
+  auto uxC = allocateVector<vectorReal>(numNodes, "uxC_rcv");
+  auto uyP = allocateVector<vectorReal>(numNodes, "uyP_rcv");
+  auto uyC = allocateVector<vectorReal>(numNodes, "uyC_rcv");
+  auto uzP = allocateVector<vectorReal>(numNodes, "uzP_rcv");
+  auto uzC = allocateVector<vectorReal>(numNodes, "uzC_rcv");
   for (int i = 0; i < numNodes; ++i) {
     uxP(i) = uxC(i) = uyP(i) = uyC(i) = uzP(i) = uzC(i) = 0.0f;
   }
   // Vertical impulse source
   uzC(sourceNode) = 1.0f;
 
-  auto rtx = allocateArray2D<ARRAY_REAL_VIEW>(1, numTimeSteps, "rtx_rcv");
-  auto rty = allocateArray2D<ARRAY_REAL_VIEW>(1, numTimeSteps, "rty_rcv");
-  auto rtz = allocateArray2D<ARRAY_REAL_VIEW>(1, numTimeSteps, "rtz_rcv");
-  auto re = allocateVector<VECTOR_INT_VIEW>(1, "re_rcv");
-  auto rw = allocateArray2D<ARRAY_REAL_VIEW>(1, npp, "rw_rcv");
+  auto rtx = allocateArray2D<arrayReal>(1, numTimeSteps, "rtx_rcv");
+  auto rty = allocateArray2D<arrayReal>(1, numTimeSteps, "rty_rcv");
+  auto rtz = allocateArray2D<arrayReal>(1, numTimeSteps, "rtz_rcv");
+  auto re = allocateVector<vectorInt>(1, "re_rcv");
+  auto rw = allocateArray2D<arrayReal>(1, npp, "rw_rcv");
   re(0) = 0;
   for (int j = 0; j < npp; ++j) {
     rtx(0, j) = rty(0, j) = rtz(0, j) = rw(0, j) = 0.0f;

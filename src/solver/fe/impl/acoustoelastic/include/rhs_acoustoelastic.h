@@ -31,8 +31,8 @@ struct RhsAcoustoElastic : public Rhs {
    * @param elastic_termy  Y-component elastic source signals.
    * @param elastic_termz  Z-component elastic source signals.
    */
-  RhsAcoustoElastic(ARRAY_REAL_VIEW acoustic_term, VECTOR_INT_VIEW element, ARRAY_REAL_VIEW weights,
-                    ARRAY_REAL_VIEW elastic_termx, ARRAY_REAL_VIEW elastic_termy, ARRAY_REAL_VIEW elastic_termz)
+  RhsAcoustoElastic(arrayReal acoustic_term, vectorInt element, arrayReal weights, arrayReal elastic_termx,
+                    arrayReal elastic_termy, arrayReal elastic_termz)
       : m_rhs_acoustic(acoustic_term, element, weights),
         m_rhs_elastic(elastic_termx, elastic_termy, elastic_termz, element, weights) {}
 
@@ -40,16 +40,16 @@ struct RhsAcoustoElastic : public Rhs {
 
   /// @brief Returns term i: 0 = acoustic, 1/2/3 = elastic x/y/z.
   PROXY_HOST_DEVICE
-  ARRAY_REAL_VIEW getTerm(int i) const override {
+  arrayReal getTerm(int i) const override {
     if (i == 0) return m_rhs_acoustic.getTerm(0);
     return m_rhs_elastic.getTerm(i - 1);
   }
 
   PROXY_HOST_DEVICE
-  VECTOR_INT_VIEW getElement() const { return m_rhs_acoustic.getElement(); }
+  vectorInt getElement() const { return m_rhs_acoustic.getElement(); }
 
   PROXY_HOST_DEVICE
-  ARRAY_REAL_VIEW getWeights() const { return m_rhs_acoustic.getWeights(); }
+  arrayReal getWeights() const { return m_rhs_acoustic.getWeights(); }
 
   void print() const override {
     m_rhs_acoustic.print();

@@ -80,21 +80,21 @@ class DifferentiatorElastic : public Differentiator {
    * @brief Element-based model: each element writes to a unique index — no
    * atomic add required.
    */
-  void computeOnElements(MESH_TYPE mesh, float dt, VECTOR_REAL_VIEW const ux_fwd, VECTOR_REAL_VIEW const uy_fwd,
-                         VECTOR_REAL_VIEW const uz_fwd, VECTOR_REAL_VIEW const ux_adj, VECTOR_REAL_VIEW const uy_adj,
-                         VECTOR_REAL_VIEW const uz_adj, VECTOR_REAL_VIEW const ux_dt2, VECTOR_REAL_VIEW const uy_dt2,
-                         VECTOR_REAL_VIEW const uz_dt2, VECTOR_REAL_VIEW const gradRho,
-                         VECTOR_REAL_VIEW const gradLambda, VECTOR_REAL_VIEW const gradMu) const;
+  void computeOnElements(MESH_TYPE mesh, float dt, vectorReal const ux_fwd, vectorReal const uy_fwd,
+                         vectorReal const uz_fwd, vectorReal const ux_adj, vectorReal const uy_adj,
+                         vectorReal const uz_adj, vectorReal const ux_dt2, vectorReal const uy_dt2,
+                         vectorReal const uz_dt2, vectorReal const gradRho, vectorReal const gradLambda,
+                         vectorReal const gradMu) const;
 
   /**
    * @brief Node-based model: multiple elements share boundary nodes — ATOMICADD
    * required.
    */
-  void computeOnNodes(MESH_TYPE mesh, float dt, VECTOR_REAL_VIEW const ux_fwd, VECTOR_REAL_VIEW const uy_fwd,
-                      VECTOR_REAL_VIEW const uz_fwd, VECTOR_REAL_VIEW const ux_adj, VECTOR_REAL_VIEW const uy_adj,
-                      VECTOR_REAL_VIEW const uz_adj, VECTOR_REAL_VIEW const ux_dt2, VECTOR_REAL_VIEW const uy_dt2,
-                      VECTOR_REAL_VIEW const uz_dt2, VECTOR_REAL_VIEW const gradRho, VECTOR_REAL_VIEW const gradLambda,
-                      VECTOR_REAL_VIEW const gradMu) const;
+  void computeOnNodes(MESH_TYPE mesh, float dt, vectorReal const ux_fwd, vectorReal const uy_fwd,
+                      vectorReal const uz_fwd, vectorReal const ux_adj, vectorReal const uy_adj,
+                      vectorReal const uz_adj, vectorReal const ux_dt2, vectorReal const uy_dt2,
+                      vectorReal const uz_dt2, vectorReal const gradRho, vectorReal const gradLambda,
+                      vectorReal const gradMu) const;
 };
 
 }  // namespace gradient

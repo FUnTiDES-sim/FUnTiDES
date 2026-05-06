@@ -678,7 +678,7 @@ void SEMproxy::InitSource() {
   }
 }
 
-void SEMproxy::SaveSnapshot(int timestep, VECTOR_REAL_VIEW data) const {
+void SEMproxy::SaveSnapshot(int timestep, vectorReal data) const {
   Kokkos::fence();
   auto n_nodes = data.extent(0);
 

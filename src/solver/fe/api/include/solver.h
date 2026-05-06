@@ -92,7 +92,7 @@ class Solver {
    * @param[in] fieldName Name/identifier of the field being output (as a
    *                      C-string)
    */
-  virtual void outputSolutionValues(const int& t, int& e, const VECTOR_REAL_VIEW& field, const char* fieldName) = 0;
+  virtual void outputSolutionValues(const int& t, int& e, const vectorReal& field, const char* fieldName) = 0;
 
   // --- Domain Decomposition Interface ---
 
@@ -110,7 +110,7 @@ class Solver {
    * boundaries. For single-physics acoustic solvers, this returns the unique
    * mass matrix.
    */
-  virtual VECTOR_REAL_VIEW& getMassMatrixAcoustic() = 0;
+  virtual vectorReal& getMassMatrixAcoustic() = 0;
 
   /**
    * @brief Access the elastic (solid) mass matrix for DD synchronization.
@@ -120,7 +120,7 @@ class Solver {
    * boundaries. For single-physics elastic solvers, this returns the unique
    * mass matrix.
    */
-  virtual VECTOR_REAL_VIEW& getMassMatrixElastic() = 0;
+  virtual vectorReal& getMassMatrixElastic() = 0;
 
   /**
    * @brief Access the Global Damping Matrix.
@@ -128,7 +128,7 @@ class Solver {
    * initialization.
    */
 
-  virtual VECTOR_REAL_VIEW& getDampingMatrix(int c) = 0;
+  virtual vectorReal& getDampingMatrix(int c) = 0;
 
   /**
    * @brief Access a Force Vector component.
@@ -136,7 +136,7 @@ class Solver {
    * time step.
    * @param component Component index (0 to getNumComponents()-1).
    */
-  virtual VECTOR_REAL_VIEW& getForceVector(int component) = 0;
+  virtual vectorReal& getForceVector(int component) = 0;
 
   /**
    * @brief Phase 1 of time step: Compute local forces (Stiffness + Source).
@@ -158,8 +158,8 @@ class Solver {
 
   virtual void setAnisotropyType(model::AnisotropyType type) = 0;
 
-  virtual void setSLSAttenuation(const VECTOR_REAL_VIEW& reference_frequencies,
-                                 const VECTOR_REAL_VIEW& anelasticity_coefficients = VECTOR_REAL_VIEW()) = 0;
+  virtual void setSLSAttenuation(const vectorReal& reference_frequencies,
+                                 const vectorReal& anelasticity_coefficients = vectorReal()) = 0;
 };
 }  // namespace fe
 }  // namespace solver

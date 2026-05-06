@@ -19,12 +19,12 @@ struct FaceConnectivityUnstructData {
   ScalarType n_faces = 0;
   int ndofs_per_face = 0;
 
-  ARRAY_INT_VIEW elem_to_faces;
-  ARRAY_INT_VIEW face_dofs;
-  VECTOR_INT_VIEW face_elem_owner;
-  VECTOR_INT_VIEW face_elem_neighbor;
-  VECTOR_INT_VIEW face_local_owner;
-  VECTOR_INT_VIEW face_local_neighbor;
+  arrayInt elem_to_faces;
+  arrayInt face_dofs;
+  vectorInt face_elem_owner;
+  vectorInt face_elem_neighbor;
+  vectorInt face_local_owner;
+  vectorInt face_local_neighbor;
 };
 
 /**
@@ -68,12 +68,12 @@ class FaceConnectivityUnstruct : public FaceConnectivityApi<FloatType, ScalarTyp
     ndofs_per_face_ = (order + 1) * (order + 1);
 
     // Temporary arrays at maximum size
-    auto elem_to_faces_temp = allocateArray2D<ARRAY_INT_VIEW>(n_element, 6);
-    auto face_dofs_temp = allocateArray2D<ARRAY_INT_VIEW>(max_faces, ndofs_per_face_);
-    auto face_elem_owner_temp = allocateVector<VECTOR_INT_VIEW>(max_faces);
-    auto face_elem_neighbor_temp = allocateVector<VECTOR_INT_VIEW>(max_faces);
-    auto face_local_owner_temp = allocateVector<VECTOR_INT_VIEW>(max_faces);
-    auto face_local_neighbor_temp = allocateVector<VECTOR_INT_VIEW>(max_faces);
+    auto elem_to_faces_temp = allocateArray2D<arrayInt>(n_element, 6);
+    auto face_dofs_temp = allocateArray2D<arrayInt>(max_faces, ndofs_per_face_);
+    auto face_elem_owner_temp = allocateVector<vectorInt>(max_faces);
+    auto face_elem_neighbor_temp = allocateVector<vectorInt>(max_faces);
+    auto face_local_owner_temp = allocateVector<vectorInt>(max_faces);
+    auto face_local_neighbor_temp = allocateVector<vectorInt>(max_faces);
 
     for (ScalarType i = 0; i < max_faces; ++i) face_elem_neighbor_temp(i) = -1;
 
@@ -138,12 +138,12 @@ class FaceConnectivityUnstruct : public FaceConnectivityApi<FloatType, ScalarTyp
 
     // Final allocation at exact size + copy
     n_faces_ = face_count;
-    elem_to_faces_ = allocateArray2D<ARRAY_INT_VIEW>(n_element, 6);
-    face_dofs_ = allocateArray2D<ARRAY_INT_VIEW>(face_count, ndofs_per_face_);
-    face_elem_owner_ = allocateVector<VECTOR_INT_VIEW>(face_count);
-    face_elem_neighbor_ = allocateVector<VECTOR_INT_VIEW>(face_count);
-    face_local_owner_ = allocateVector<VECTOR_INT_VIEW>(face_count);
-    face_local_neighbor_ = allocateVector<VECTOR_INT_VIEW>(face_count);
+    elem_to_faces_ = allocateArray2D<arrayInt>(n_element, 6);
+    face_dofs_ = allocateArray2D<arrayInt>(face_count, ndofs_per_face_);
+    face_elem_owner_ = allocateVector<vectorInt>(face_count);
+    face_elem_neighbor_ = allocateVector<vectorInt>(face_count);
+    face_local_owner_ = allocateVector<vectorInt>(face_count);
+    face_local_neighbor_ = allocateVector<vectorInt>(face_count);
 
     for (ScalarType elem = 0; elem < n_element; ++elem)
       for (int lf = 0; lf < 6; ++lf) elem_to_faces_(elem, lf) = elem_to_faces_temp(elem, lf);
@@ -189,12 +189,12 @@ class FaceConnectivityUnstruct : public FaceConnectivityApi<FloatType, ScalarTyp
   ScalarType n_faces_ = 0;
   int ndofs_per_face_ = 0;
 
-  ARRAY_INT_VIEW elem_to_faces_;
-  ARRAY_INT_VIEW face_dofs_;
-  VECTOR_INT_VIEW face_elem_owner_;
-  VECTOR_INT_VIEW face_elem_neighbor_;
-  VECTOR_INT_VIEW face_local_owner_;
-  VECTOR_INT_VIEW face_local_neighbor_;
+  arrayInt elem_to_faces_;
+  arrayInt face_dofs_;
+  vectorInt face_elem_owner_;
+  vectorInt face_elem_neighbor_;
+  vectorInt face_local_owner_;
+  vectorInt face_local_neighbor_;
 
   // Helper methods for build()
   static std::array<ScalarType, 4> extractFaceCorners(const ModelApi<FloatType, ScalarType>& mesh, ScalarType elem,
