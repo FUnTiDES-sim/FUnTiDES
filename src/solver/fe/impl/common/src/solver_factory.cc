@@ -5,6 +5,9 @@
 
 #include "sem_solver.h"
 #include "sem_solver_acoustoelastic.h"
+#ifdef COMPILE_DG
+#include "dg_solver.h"
+#endif
 
 namespace solver {
 namespace fe {
@@ -87,6 +90,60 @@ std::unique_ptr<Solver> makeSolverUnstruct(bool isModelOnNodes, feenum::physicTy
   }
 }
 
+#ifdef COMPILE_DG
+/**
+ * @brief Creates DG solver for structured mesh (acoustic only).
+ */
+template <auto ImplTag, int ORDER>
+std::unique_ptr<Solver> makeDgSolverStruct(bool isModelOnNodes, feenum::physicType physic) {
+  using MeshT = model::ModelStruct<float, int, ORDER>;
+  using SelectedIntegral = typename IntegralTypeSelector<ORDER, ImplTag>::type;
+
+  if (physic == feenum::physicType::kAcoustic) {
+    if (isModelOnNodes)
+      return std::make_unique<
+          solver::fe::DGsolver<ORDER, SelectedIntegral, MeshT, true, feenum::physicType::kAcoustic>>();
+    else
+      return std::make_unique<
+          solver::fe::DGsolver<ORDER, SelectedIntegral, MeshT, false, feenum::physicType::kAcoustic>>();
+  }
+  throw std::runtime_error("DG: unsupported physics type");
+}
+
+/**
+ * @brief Creates DG solver for unstructured mesh (acoustic only).
+ */
+template <auto ImplTag, int ORDER>
+std::unique_ptr<Solver> makeDgSolverUnstruct(bool isModelOnNodes, feenum::physicType physic) {
+  using MeshT = model::ModelUnstruct<float, int>;
+  using SelectedIntegral = typename IntegralTypeSelector<ORDER, ImplTag>::type;
+
+  if (physic == feenum::physicType::kAcoustic) {
+    if (isModelOnNodes)
+      return std::make_unique<
+          solver::fe::DGsolver<ORDER, SelectedIntegral, MeshT, true, feenum::physicType::kAcoustic>>();
+    else
+      return std::make_unique<
+          solver::fe::DGsolver<ORDER, SelectedIntegral, MeshT, false, feenum::physicType::kAcoustic>>();
+  }
+  throw std::runtime_error("DG: unsupported physics type");
+}
+
+/**
+ * @brief Creates a DG solver with the specified integral implementation.
+ */
+template <auto ImplTag>
+std::unique_ptr<Solver> makeDgSolver(int order, feenum::meshType mesh, feenum::modelLocationType modelLocation,
+                                     feenum::physicType physic) {
+  bool const isModelOnNodes = (modelLocation == feenum::modelLocationType::kOnNodes);
+  return orderDispatch<MAX_DG_SOLVER_ACOUSTIC_ORDER>(order, [&](auto orderIC) {
+    constexpr int ORDER = decltype(orderIC)::value;
+    return (mesh == feenum::meshType::kStruct) ? makeDgSolverStruct<ImplTag, ORDER>(isModelOnNodes, physic)
+                                               : makeDgSolverUnstruct<ImplTag, ORDER>(isModelOnNodes, physic);
+  });
+}
+#endif
+
 /**
  * @brief Creates a SEM solver with the specified integral implementation.
  */
@@ -130,7 +187,17 @@ std::unique_ptr<Solver> createSolver(feenum::methodType const methodType, feenum
     }
   }
 
-  // Add DG or other methods as needed
+#ifdef COMPILE_DG
+  if (methodType == feenum::methodType::kDg) {
+    switch (implemType) {
+      case feenum::implemType::kMakutu:
+        return makeDgSolver<IntegralType::MAKUTU>(order, mesh, modelLocation, physicType);
+      default:
+        throw std::runtime_error("Unknown DG implementation type: " + std::to_string(static_cast<int>(implemType)));
+    }
+  }
+#endif
+
   throw std::runtime_error(
       "Unsupported solver configuration: methodType=" + std::to_string(static_cast<int>(methodType)) + ", implemType=" +
       std::to_string(static_cast<int>(implemType)) + ", physicType=" + std::to_string(static_cast<int>(physicType)));
