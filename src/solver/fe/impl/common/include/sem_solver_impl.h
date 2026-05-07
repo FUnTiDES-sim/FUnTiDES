@@ -6,6 +6,7 @@
 #include <cstdlib>
 
 #include "Integrals.h"
+#include "mesh_type_traits.h"
 #include "sem_solver.h"
 
 namespace solver {
@@ -531,60 +532,108 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::com
             lam2mu_e = lambda_e + 2.0f * mu_e;
           }
 
-          auto const elastic_callback = [&](int qa, int qb, int qc, float const(&J_inv)[3][3],
-                                            float const(&grad_u_ref)[3][3], float(&flux)[3][3]) {
-            float mu, lambda, lam2mu;
-            if constexpr (IS_MODEL_ON_NODES) {
-              int const gIndex = mesh_local.globalNodeIndex(elementNumber, qa, qb, qc);
-              float const vp = mesh_local.getModelVpOnNodes(gIndex);
-              float const vs = mesh_local.getModelVsOnNodes(gIndex);
-              float const rho = mesh_local.getModelRhoOnNodes(gIndex);
-              mu = rho * vs * vs;
-              lambda = rho * (vp * vp - 2.0f * vs * vs);
-              lam2mu = lambda + 2.0f * mu;
-            } else {
-              mu = mu_e;
-              lambda = lambda_e;
-              lam2mu = lam2mu_e;
-            }
-
-            for (int p = 0; p < 3; ++p) {
-              float const Jp0 = J_inv[p][0];
-              float const Jp1 = J_inv[p][1];
-              float const Jp2 = J_inv[p][2];
-              flux[p][0] = 0.0f;
-              flux[p][1] = 0.0f;
-              flux[p][2] = 0.0f;
-              for (int r = 0; r < 3; ++r) {
-                float const Jr0 = J_inv[r][0];
-                float const Jr1 = J_inv[r][1];
-                float const Jr2 = J_inv[r][2];
-                float const v0 = lam2mu * Jp0 * Jr0 + mu * (Jp1 * Jr1 + Jp2 * Jr2);
-                float const v1 = mu * Jp0 * Jr0 + lam2mu * Jp1 * Jr1 + mu * Jp2 * Jr2;
-                float const v2 = mu * (Jp0 * Jr0 + Jp1 * Jr1) + lam2mu * Jp2 * Jr2;
-                float const v3 = lambda * Jp0 * Jr1 + mu * Jp1 * Jr0;
-                float const v4 = lambda * Jp0 * Jr2 + mu * Jp2 * Jr0;
-                float const v5 = lambda * Jp1 * Jr2 + mu * Jp2 * Jr1;
-                float const g0 = grad_u_ref[r][0];
-                float const g1 = grad_u_ref[r][1];
-                float const g2 = grad_u_ref[r][2];
-                flux[p][0] += v0 * g0 + v3 * g1 + v4 * g2;
-                flux[p][1] += v3 * g0 + v1 * g1 + v5 * g2;
-                flux[p][2] += v4 * g0 + v5 * g1 + v2 * g2;
-              }
-            }
-          };
-
-          float cornerCoords[8][3];
-          {
-            auto const eIdx = mesh_local.elementIndex(elementNumber);
-            int I = 0;
-            for (int kv = 0; kv < 2; ++kv)
-              for (int jv = 0; jv < 2; ++jv)
-                for (int iv = 0; iv < 2; ++iv)
-                  mesh_local.vertexCoords(mesh_local.globalVertexIndex(eIdx, iv, jv, kv), cornerCoords[I++]);
+          // Pre-gather physics per node to avoid scattered global reads inside the kernel.
+          float mu_local[kPointsPerElement] = {0};
+          float lam2mu_local[kPointsPerElement] = {0};
+          if constexpr (IS_MODEL_ON_NODES) {
+            for (int i = 0; i < dim; ++i)
+              for (int j = 0; j < dim; ++j)
+                for (int k = 0; k < dim; ++k) {
+                  int const gIdx = mesh_local.globalNodeIndex(elementNumber, i, j, k);
+                  int const lIdx = i + j * dim + k * dim * dim;
+                  float const vp = mesh_local.getModelVpOnNodes(gIdx);
+                  float const vs = mesh_local.getModelVsOnNodes(gIdx);
+                  float const rho = mesh_local.getModelRhoOnNodes(gIdx);
+                  float const mu = rho * vs * vs;
+                  float const lam = rho * (vp * vp - 2.0f * vs * vs);
+                  mu_local[lIdx] = mu;
+                  lam2mu_local[lIdx] = lam + 2.0f * mu;
+                }
           }
-          INTEGRAL_TYPE::computeElasticStiffnessSumFact(cornerCoords, localFields, localWork, elastic_callback);
+
+          if constexpr (solver::fe::MeshTypeTraits<MESH_TYPE>::value == utils::enums::meshType::kStruct) {
+            float const a = struct_metrics_local.inv_jx;
+            float const b = struct_metrics_local.inv_jy;
+            float const c = struct_metrics_local.inv_jz;
+            float const aa = a * a, bb = b * b, cc = c * c;
+            float const ab = a * b, ac = a * c, bc = b * c;
+            auto const iso_func_cart = [&](int qa, int qb, int qc, float const (&)[3][3],
+                                           float const (&g)[3][3], float (&flux)[3][3]) {
+              float mu, lambda, lam2mu;
+              if constexpr (IS_MODEL_ON_NODES) {
+                int const lIdx = qa + qb * dim + qc * dim * dim;
+                mu = mu_local[lIdx];
+                lam2mu = lam2mu_local[lIdx];
+                lambda = lam2mu - 2.0f * mu;
+              } else {
+                mu = mu_e;
+                lambda = lambda_e;
+                lam2mu = lam2mu_e;
+              }
+              flux[0][0] = lam2mu * aa * g[0][0] + lambda * (ab * g[1][1] + ac * g[2][2]);
+              flux[0][1] = mu * (aa * g[0][1] + ab * g[1][0]);
+              flux[0][2] = mu * (aa * g[0][2] + ac * g[2][0]);
+              flux[1][0] = mu * (ab * g[0][1] + bb * g[1][0]);
+              flux[1][1] = lambda * (ab * g[0][0] + bc * g[2][2]) + lam2mu * bb * g[1][1];
+              flux[1][2] = mu * (bb * g[1][2] + bc * g[2][1]);
+              flux[2][0] = mu * (ac * g[0][2] + cc * g[2][0]);
+              flux[2][1] = mu * (bc * g[1][2] + cc * g[2][1]);
+              flux[2][2] = lambda * (ac * g[0][0] + bc * g[1][1]) + lam2mu * cc * g[2][2];
+            };
+            INTEGRAL_TYPE::computeElasticStiffnessSumFactCartesian(struct_metrics_local, localFields, localWork,
+                                                                   iso_func_cart);
+          } else {
+            auto const iso_func = [&](int qa, int qb, int qc, float const (&J_inv)[3][3],
+                                      float const (&grad_u_ref)[3][3], float (&flux)[3][3]) {
+              float mu, lambda, lam2mu;
+              if constexpr (IS_MODEL_ON_NODES) {
+                int const lIdx = qa + qb * dim + qc * dim * dim;
+                mu = mu_local[lIdx];
+                lam2mu = lam2mu_local[lIdx];
+                lambda = lam2mu - 2.0f * mu;
+              } else {
+                mu = mu_e;
+                lambda = lambda_e;
+                lam2mu = lam2mu_e;
+              }
+
+              for (int p = 0; p < 3; ++p) {
+                float const Jp0 = J_inv[p][0];
+                float const Jp1 = J_inv[p][1];
+                float const Jp2 = J_inv[p][2];
+                flux[p][0] = 0.0f;
+                flux[p][1] = 0.0f;
+                flux[p][2] = 0.0f;
+                for (int r = 0; r < 3; ++r) {
+                  float const Jr0 = J_inv[r][0];
+                  float const Jr1 = J_inv[r][1];
+                  float const Jr2 = J_inv[r][2];
+                  float const v0 = lam2mu * Jp0 * Jr0 + mu * (Jp1 * Jr1 + Jp2 * Jr2);
+                  float const v1 = mu * Jp0 * Jr0 + lam2mu * Jp1 * Jr1 + mu * Jp2 * Jr2;
+                  float const v2 = mu * (Jp0 * Jr0 + Jp1 * Jr1) + lam2mu * Jp2 * Jr2;
+                  float const v3 = lambda * Jp0 * Jr1 + mu * Jp1 * Jr0;
+                  float const v4 = lambda * Jp0 * Jr2 + mu * Jp2 * Jr0;
+                  float const v5 = lambda * Jp1 * Jr2 + mu * Jp2 * Jr1;
+                  float const g0 = grad_u_ref[r][0];
+                  float const g1 = grad_u_ref[r][1];
+                  float const g2 = grad_u_ref[r][2];
+                  flux[p][0] += v0 * g0 + v3 * g1 + v4 * g2;
+                  flux[p][1] += v3 * g0 + v1 * g1 + v5 * g2;
+                  flux[p][2] += v4 * g0 + v5 * g1 + v2 * g2;
+                }
+              }
+            };
+            float cornerCoords[8][3];
+            {
+              auto const eIdx = mesh_local.elementIndex(elementNumber);
+              int I = 0;
+              for (int kv = 0; kv < 2; ++kv)
+                for (int jv = 0; jv < 2; ++jv)
+                  for (int iv = 0; iv < 2; ++iv)
+                    mesh_local.vertexCoords(mesh_local.globalVertexIndex(eIdx, iv, jv, kv), cornerCoords[I++]);
+            }
+            INTEGRAL_TYPE::computeElasticStiffnessSumFact(cornerCoords, localFields, localWork, iso_func);
+          }
 
           for (int i = 0; i < dim; ++i) {
             for (int j = 0; j < dim; ++j) {
@@ -619,6 +668,8 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::com
     local_workVectorsGlobal[f] = workVectorsGlobal_[f];
   }
 
+  auto const struct_metrics_local = m_struct_metrics_;
+
   Kokkos::parallel_for(
       "Solver Element Contribution Vti",
       Kokkos::RangePolicy<Kokkos::LaunchBounds<LaunchMaxThreadsPerBlock, LaunchMinBlocksPerSM>>(0, n_iter),
@@ -626,6 +677,7 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::com
         // avoid extended __host__ __device__ lambda cannot first-capture
         // variable in constexpr-if context
         (void)local_workVectorsGlobal;
+        (void)struct_metrics_local;
         int const elementNumber = list_on ? list_local[_loop_idx] : _loop_idx;
 
         int const dim = mesh_local.getOrder() + 1;
@@ -646,16 +698,6 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::com
         }
 
         if constexpr (PHYSICS == utils::enums::physicType::kElastic) {
-          float cornerCoords[8][3];
-          {
-            auto const eIdx = mesh_local.elementIndex(elementNumber);
-            int I = 0;
-            for (int kv = 0; kv < 2; ++kv)
-              for (int jv = 0; jv < 2; ++jv)
-                for (int iv = 0; iv < 2; ++iv)
-                  mesh_local.vertexCoords(mesh_local.globalVertexIndex(eIdx, iv, jv, kv), cornerCoords[I++]);
-          }
-
           float c11_e = 0, c12_e = 0, c13_e = 0, c33_e = 0, c44_e = 0, c66_e = 0;
           if constexpr (!IS_MODEL_ON_NODES) {
             float const vp_e = mesh_local.getModelVpOnElement(elementNumber);
@@ -675,66 +717,133 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::com
             c12_e = c11_e - 2.0f * c66_e;
           }
 
-          INTEGRAL_TYPE::computeElasticStiffnessSumFact(
-              cornerCoords, localFields, localWork,
-              [&](int qa, int qb, int qc, float const(&J_inv)[3][3], float const(&grad_u_ref)[3][3],
-                  float(&flux)[3][3]) {
-                float c11, c12, c13, c33, c44, c66;
-                if constexpr (IS_MODEL_ON_NODES) {
-                  int const gIndex = mesh_local.globalNodeIndex(elementNumber, qa, qb, qc);
-                  float const vp = mesh_local.getModelVpOnNodes(gIndex);
-                  float const vs = mesh_local.getModelVsOnNodes(gIndex);
-                  float const rho = mesh_local.getModelRhoOnNodes(gIndex);
-                  float const delta = mesh_local.getModelDeltaOnNodes(gIndex);
-                  float const epsilon = mesh_local.getModelEpsilonOnNodes(gIndex);
-                  float const gamma = mesh_local.getModelGammaOnNodes(gIndex);
+          // Pre-gather Cij per node to avoid scattered global reads inside the kernel.
+          // Layout: vti_c[0]=c11, [1]=c12, [2]=c13, [3]=c33, [4]=c44, [5]=c66
+          float vti_c[6][kPointsPerElement] = {};
+          if constexpr (IS_MODEL_ON_NODES) {
+            for (int i = 0; i < dim; ++i)
+              for (int j = 0; j < dim; ++j)
+                for (int k = 0; k < dim; ++k) {
+                  int const gIdx = mesh_local.globalNodeIndex(elementNumber, i, j, k);
+                  int const lIdx = i + j * dim + k * dim * dim;
+                  float const vp = mesh_local.getModelVpOnNodes(gIdx);
+                  float const vs = mesh_local.getModelVsOnNodes(gIdx);
+                  float const rho = mesh_local.getModelRhoOnNodes(gIdx);
+                  float const delta = mesh_local.getModelDeltaOnNodes(gIdx);
+                  float const epsilon = mesh_local.getModelEpsilonOnNodes(gIdx);
+                  float const gamma = mesh_local.getModelGammaOnNodes(gIdx);
                   float const rho_vp2 = rho * vp * vp;
                   float const rho_vs2 = rho * vs * vs;
-                  c33 = rho_vp2;
-                  c44 = rho_vs2;
-                  c11 = rho_vp2 * (1.0f + 2.0f * epsilon);
-                  c66 = rho_vs2 * (1.0f + 2.0f * gamma);
                   float const vp2_vs2 = vp * vp - vs * vs;
-                  c13 = rho * sqrtf(vp2_vs2 * vp2_vs2 + 2.0f * rho_vp2 * delta * vp2_vs2) - rho_vs2;
-                  c12 = c11 - 2.0f * c66;
-                } else {
-                  c11 = c11_e;
-                  c12 = c12_e;
-                  c13 = c13_e;
-                  c33 = c33_e;
-                  c44 = c44_e;
-                  c66 = c66_e;
+                  vti_c[0][lIdx] = rho_vp2 * (1.0f + 2.0f * epsilon);
+                  vti_c[3][lIdx] = rho_vp2;
+                  vti_c[4][lIdx] = rho_vs2;
+                  vti_c[5][lIdx] = rho_vs2 * (1.0f + 2.0f * gamma);
+                  vti_c[2][lIdx] =
+                      rho * sqrtf(vp2_vs2 * vp2_vs2 + 2.0f * rho_vp2 * delta * vp2_vs2) - rho_vs2;
+                  vti_c[1][lIdx] = vti_c[0][lIdx] - 2.0f * vti_c[5][lIdx];
                 }
+          }
 
-                for (int p = 0; p < 3; ++p) {
-                  float const Jp0 = J_inv[p][0];
-                  float const Jp1 = J_inv[p][1];
-                  float const Jp2 = J_inv[p][2];
-                  flux[p][0] = 0.0f;
-                  flux[p][1] = 0.0f;
-                  flux[p][2] = 0.0f;
-                  for (int r = 0; r < 3; ++r) {
-                    float const Jr0 = J_inv[r][0];
-                    float const Jr1 = J_inv[r][1];
-                    float const Jr2 = J_inv[r][2];
-                    float const p0r0 = Jp0 * Jr0, p0r1 = Jp0 * Jr1, p0r2 = Jp0 * Jr2;
-                    float const p1r0 = Jp1 * Jr0, p1r1 = Jp1 * Jr1, p1r2 = Jp1 * Jr2;
-                    float const p2r0 = Jp2 * Jr0, p2r1 = Jp2 * Jr1, p2r2 = Jp2 * Jr2;
-                    float const v0 = c11 * p0r0 + c66 * p1r1 + c44 * p2r2;
-                    float const v1 = c66 * p0r0 + c11 * p1r1 + c44 * p2r2;
-                    float const v2 = c44 * p0r0 + c44 * p1r1 + c33 * p2r2;
-                    float const v3 = c66 * p0r1 + c12 * p1r0;
-                    float const v4 = c44 * p0r2 + c13 * p2r0;
-                    float const v5 = c44 * p1r2 + c13 * p2r1;
-                    float const g0 = grad_u_ref[r][0];
-                    float const g1 = grad_u_ref[r][1];
-                    float const g2 = grad_u_ref[r][2];
-                    flux[p][0] += v0 * g0 + v3 * g1 + v4 * g2;
-                    flux[p][1] += v3 * g0 + v1 * g1 + v5 * g2;
-                    flux[p][2] += v4 * g0 + v5 * g1 + v2 * g2;
-                  }
-                }
-              });
+          auto const vti_func = [&](int qa, int qb, int qc, float const (&J_inv)[3][3],
+                                    float const (&grad_u_ref)[3][3], float (&flux)[3][3]) {
+            float c11, c12, c13, c33, c44, c66;
+            if constexpr (IS_MODEL_ON_NODES) {
+              int const lIdx = qa + qb * dim + qc * dim * dim;
+              c11 = vti_c[0][lIdx];
+              c12 = vti_c[1][lIdx];
+              c13 = vti_c[2][lIdx];
+              c33 = vti_c[3][lIdx];
+              c44 = vti_c[4][lIdx];
+              c66 = vti_c[5][lIdx];
+            } else {
+              c11 = c11_e;
+              c12 = c12_e;
+              c13 = c13_e;
+              c33 = c33_e;
+              c44 = c44_e;
+              c66 = c66_e;
+            }
+
+            for (int p = 0; p < 3; ++p) {
+              float const Jp0 = J_inv[p][0];
+              float const Jp1 = J_inv[p][1];
+              float const Jp2 = J_inv[p][2];
+              flux[p][0] = 0.0f;
+              flux[p][1] = 0.0f;
+              flux[p][2] = 0.0f;
+              for (int r = 0; r < 3; ++r) {
+                float const Jr0 = J_inv[r][0];
+                float const Jr1 = J_inv[r][1];
+                float const Jr2 = J_inv[r][2];
+                float const p0r0 = Jp0 * Jr0, p0r1 = Jp0 * Jr1, p0r2 = Jp0 * Jr2;
+                float const p1r0 = Jp1 * Jr0, p1r1 = Jp1 * Jr1, p1r2 = Jp1 * Jr2;
+                float const p2r0 = Jp2 * Jr0, p2r1 = Jp2 * Jr1, p2r2 = Jp2 * Jr2;
+                float const v0 = c11 * p0r0 + c66 * p1r1 + c44 * p2r2;
+                float const v1 = c66 * p0r0 + c11 * p1r1 + c44 * p2r2;
+                float const v2 = c44 * p0r0 + c44 * p1r1 + c33 * p2r2;
+                float const v3 = c66 * p0r1 + c12 * p1r0;
+                float const v4 = c44 * p0r2 + c13 * p2r0;
+                float const v5 = c44 * p1r2 + c13 * p2r1;
+                float const g0 = grad_u_ref[r][0];
+                float const g1 = grad_u_ref[r][1];
+                float const g2 = grad_u_ref[r][2];
+                flux[p][0] += v0 * g0 + v3 * g1 + v4 * g2;
+                flux[p][1] += v3 * g0 + v1 * g1 + v5 * g2;
+                flux[p][2] += v4 * g0 + v5 * g1 + v2 * g2;
+              }
+            }
+          };
+
+          if constexpr (solver::fe::MeshTypeTraits<MESH_TYPE>::value == utils::enums::meshType::kStruct) {
+            float const a = struct_metrics_local.inv_jx;
+            float const b = struct_metrics_local.inv_jy;
+            float const c = struct_metrics_local.inv_jz;
+            float const aa = a * a, bb = b * b, cc = c * c;
+            float const ab = a * b, ac = a * c, bc = b * c;
+            auto const vti_func_cart = [&](int qa, int qb, int qc, float const (&)[3][3],
+                                           float const (&g)[3][3], float (&flux)[3][3]) {
+              float c11, c12, c13, c33, c44, c66;
+              if constexpr (IS_MODEL_ON_NODES) {
+                int const lIdx = qa + qb * dim + qc * dim * dim;
+                c11 = vti_c[0][lIdx];
+                c12 = vti_c[1][lIdx];
+                c13 = vti_c[2][lIdx];
+                c33 = vti_c[3][lIdx];
+                c44 = vti_c[4][lIdx];
+                c66 = vti_c[5][lIdx];
+              } else {
+                c11 = c11_e;
+                c12 = c12_e;
+                c13 = c13_e;
+                c33 = c33_e;
+                c44 = c44_e;
+                c66 = c66_e;
+              }
+              flux[0][0] = c11 * aa * g[0][0] + c12 * ab * g[1][1] + c13 * ac * g[2][2];
+              flux[0][1] = c66 * (ab * g[1][0] + aa * g[0][1]);
+              flux[0][2] = c44 * (ac * g[2][0] + aa * g[0][2]);
+              flux[1][0] = c66 * (bb * g[1][0] + ab * g[0][1]);
+              flux[1][1] = c12 * ab * g[0][0] + c11 * bb * g[1][1] + c13 * bc * g[2][2];
+              flux[1][2] = c44 * (bc * g[2][1] + bb * g[1][2]);
+              flux[2][0] = c44 * (cc * g[2][0] + ac * g[0][2]);
+              flux[2][1] = c44 * (cc * g[2][1] + bc * g[1][2]);
+              flux[2][2] = c13 * ac * g[0][0] + c13 * bc * g[1][1] + c33 * cc * g[2][2];
+            };
+            INTEGRAL_TYPE::computeElasticStiffnessSumFactCartesian(struct_metrics_local, localFields, localWork,
+                                                                   vti_func_cart);
+          } else {
+            float cornerCoords[8][3];
+            {
+              auto const eIdx = mesh_local.elementIndex(elementNumber);
+              int I = 0;
+              for (int kv = 0; kv < 2; ++kv)
+                for (int jv = 0; jv < 2; ++jv)
+                  for (int iv = 0; iv < 2; ++iv)
+                    mesh_local.vertexCoords(mesh_local.globalVertexIndex(eIdx, iv, jv, kv), cornerCoords[I++]);
+            }
+            INTEGRAL_TYPE::computeElasticStiffnessSumFact(cornerCoords, localFields, localWork, vti_func);
+          }
 
           for (int i = 0; i < dim; ++i) {
             for (int j = 0; j < dim; ++j) {
@@ -771,10 +880,13 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::com
       local_workVectorsGlobal[f] = workVectorsGlobal_[f];
     }
 
+    auto const struct_metrics_local = m_struct_metrics_;
+
     Kokkos::parallel_for(
         "Solver Element Contribution Tti",
         Kokkos::RangePolicy<Kokkos::LaunchBounds<LaunchMaxThreadsPerBlock, LaunchMinBlocksPerSM>>(0, n_iter),
         KOKKOS_LAMBDA(const int _loop_idx) {
+          (void)struct_metrics_local;
           int const elementNumber = list_on ? list_local[_loop_idx] : _loop_idx;
 
           int const dim = mesh_local.getOrder() + 1;
@@ -794,82 +906,145 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::com
             }
           }
 
-          float cornerCoords[8][3];
-          {
-            auto const eIdx = mesh_local.elementIndex(elementNumber);
-            int I = 0;
-            for (int kv = 0; kv < 2; ++kv)
-              for (int jv = 0; jv < 2; ++jv)
-                for (int iv = 0; iv < 2; ++iv)
-                  mesh_local.vertexCoords(mesh_local.globalVertexIndex(eIdx, iv, jv, kv), cornerCoords[I++]);
-          }
-
           float CTTI[6][6] = {};
           if constexpr (!IS_MODEL_ON_NODES) {
             mesh_local.getCTensorOnElement(elementNumber, CTTI);
           }
 
-          INTEGRAL_TYPE::computeElasticStiffnessSumFact(
-              cornerCoords, localFields, localWork,
-              [&](int qa, int qb, int qc, float const(&J_inv)[3][3], float const(&grad_u_ref)[3][3],
-                  float(&flux)[3][3]) {
-                if constexpr (IS_MODEL_ON_NODES) {
-                  int const gIndex = mesh_local.globalNodeIndex(elementNumber, qa, qb, qc);
-                  float const vp = mesh_local.getModelVpOnNodes(gIndex);
-                  float const vs = mesh_local.getModelVsOnNodes(gIndex);
-                  float const rho = mesh_local.getModelRhoOnNodes(gIndex);
-                  float const delta = mesh_local.getModelDeltaOnNodes(gIndex);
-                  float const epsilon = mesh_local.getModelEpsilonOnNodes(gIndex);
-                  float const gamma = mesh_local.getModelGammaOnNodes(gIndex);
-                  float const phi = mesh_local.getModelPhiOnNodes(gIndex);
-                  float const theta = mesh_local.getModelThetaOnNodes(gIndex);
-                  computeCMatrix(vp, vs, rho, delta, epsilon, gamma, phi, theta, CTTI);
+          // Pre-gather TTI params per node to avoid scattered global reads inside the kernel.
+          // Layout: tti_p[0]=vp, [1]=vs, [2]=rho, [3]=delta, [4]=epsilon, [5]=gamma, [6]=phi, [7]=theta
+          float tti_p[8][kPointsPerElement] = {};
+          if constexpr (IS_MODEL_ON_NODES) {
+            for (int i = 0; i < dim; ++i)
+              for (int j = 0; j < dim; ++j)
+                for (int k = 0; k < dim; ++k) {
+                  int const gIdx = mesh_local.globalNodeIndex(elementNumber, i, j, k);
+                  int const lIdx = i + j * dim + k * dim * dim;
+                  tti_p[0][lIdx] = mesh_local.getModelVpOnNodes(gIdx);
+                  tti_p[1][lIdx] = mesh_local.getModelVsOnNodes(gIdx);
+                  tti_p[2][lIdx] = mesh_local.getModelRhoOnNodes(gIdx);
+                  tti_p[3][lIdx] = mesh_local.getModelDeltaOnNodes(gIdx);
+                  tti_p[4][lIdx] = mesh_local.getModelEpsilonOnNodes(gIdx);
+                  tti_p[5][lIdx] = mesh_local.getModelGammaOnNodes(gIdx);
+                  tti_p[6][lIdx] = mesh_local.getModelPhiOnNodes(gIdx);
+                  tti_p[7][lIdx] = mesh_local.getModelThetaOnNodes(gIdx);
                 }
+          }
 
-                float const C00 = CTTI[0][0], C01 = CTTI[0][1], C02 = CTTI[0][2];
-                float const C03 = CTTI[0][3], C04 = CTTI[0][4], C05 = CTTI[0][5];
-                float const C11 = CTTI[1][1], C12 = CTTI[1][2], C13 = CTTI[1][3];
-                float const C14 = CTTI[1][4], C15 = CTTI[1][5];
-                float const C22 = CTTI[2][2], C23 = CTTI[2][3], C24 = CTTI[2][4], C25 = CTTI[2][5];
-                float const C33 = CTTI[3][3], C34 = CTTI[3][4], C35 = CTTI[3][5];
-                float const C44 = CTTI[4][4], C45 = CTTI[4][5];
-                float const C55 = CTTI[5][5];
+          auto const tti_func = [&](int qa, int qb, int qc, float const (&J_inv)[3][3],
+                                    float const (&grad_u_ref)[3][3], float (&flux)[3][3]) {
+            if constexpr (IS_MODEL_ON_NODES) {
+              int const lIdx = qa + qb * dim + qc * dim * dim;
+              for (int i = 0; i < 6; ++i)
+                for (int j = 0; j < 6; ++j)
+                  CTTI[i][j] = 0.0f;
+              computeCMatrix(tti_p[0][lIdx], tti_p[1][lIdx], tti_p[2][lIdx], tti_p[3][lIdx],
+                             tti_p[4][lIdx], tti_p[5][lIdx], tti_p[6][lIdx], tti_p[7][lIdx], CTTI);
+            }
 
-                for (int p = 0; p < 3; ++p) {
-                  float const Jp0 = J_inv[p][0];
-                  float const Jp1 = J_inv[p][1];
-                  float const Jp2 = J_inv[p][2];
-                  flux[p][0] = 0.0f;
-                  flux[p][1] = 0.0f;
-                  flux[p][2] = 0.0f;
-                  for (int r = 0; r < 3; ++r) {
-                    float const Jr0 = J_inv[r][0];
-                    float const Jr1 = J_inv[r][1];
-                    float const Jr2 = J_inv[r][2];
-                    float const p0r0 = Jp0 * Jr0, p0r1 = Jp0 * Jr1, p0r2 = Jp0 * Jr2;
-                    float const p1r0 = Jp1 * Jr0, p1r1 = Jp1 * Jr1, p1r2 = Jp1 * Jr2;
-                    float const p2r0 = Jp2 * Jr0, p2r1 = Jp2 * Jr1, p2r2 = Jp2 * Jr2;
-                    float const v0 = C00 * p0r0 + C05 * p0r1 + C04 * p0r2 + C05 * p1r0 + C55 * p1r1 + C45 * p1r2 +
-                                     C04 * p2r0 + C45 * p2r1 + C44 * p2r2;
-                    float const v1 = C55 * p0r0 + C15 * p0r1 + C35 * p0r2 + C15 * p1r0 + C11 * p1r1 + C13 * p1r2 +
-                                     C35 * p2r0 + C13 * p2r1 + C33 * p2r2;
-                    float const v2 = C44 * p0r0 + C34 * p0r1 + C24 * p0r2 + C34 * p1r0 + C33 * p1r1 + C23 * p1r2 +
-                                     C24 * p2r0 + C23 * p2r1 + C22 * p2r2;
-                    float const v3 = C05 * p0r0 + C01 * p0r1 + C03 * p0r2 + C55 * p1r0 + C15 * p1r1 + C35 * p1r2 +
-                                     C45 * p2r0 + C14 * p2r1 + C34 * p2r2;
-                    float const v4 = C04 * p0r0 + C03 * p0r1 + C02 * p0r2 + C45 * p1r0 + C35 * p1r1 + C25 * p1r2 +
-                                     C44 * p2r0 + C34 * p2r1 + C24 * p2r2;
-                    float const v5 = C45 * p0r0 + C35 * p0r1 + C25 * p0r2 + C14 * p1r0 + C13 * p1r1 + C12 * p1r2 +
-                                     C34 * p2r0 + C33 * p2r1 + C23 * p2r2;
-                    float const g0 = grad_u_ref[r][0];
-                    float const g1 = grad_u_ref[r][1];
-                    float const g2 = grad_u_ref[r][2];
-                    flux[p][0] += v0 * g0 + v3 * g1 + v4 * g2;
-                    flux[p][1] += v3 * g0 + v1 * g1 + v5 * g2;
-                    flux[p][2] += v4 * g0 + v5 * g1 + v2 * g2;
-                  }
-                }
-              });
+            float const C00 = CTTI[0][0], C01 = CTTI[0][1], C02 = CTTI[0][2];
+            float const C03 = CTTI[0][3], C04 = CTTI[0][4], C05 = CTTI[0][5];
+            float const C11 = CTTI[1][1], C12 = CTTI[1][2], C13 = CTTI[1][3];
+            float const C14 = CTTI[1][4], C15 = CTTI[1][5];
+            float const C22 = CTTI[2][2], C23 = CTTI[2][3], C24 = CTTI[2][4], C25 = CTTI[2][5];
+            float const C33 = CTTI[3][3], C34 = CTTI[3][4], C35 = CTTI[3][5];
+            float const C44 = CTTI[4][4], C45 = CTTI[4][5];
+            float const C55 = CTTI[5][5];
+
+            for (int p = 0; p < 3; ++p) {
+              float const Jp0 = J_inv[p][0];
+              float const Jp1 = J_inv[p][1];
+              float const Jp2 = J_inv[p][2];
+              flux[p][0] = 0.0f;
+              flux[p][1] = 0.0f;
+              flux[p][2] = 0.0f;
+              for (int r = 0; r < 3; ++r) {
+                float const Jr0 = J_inv[r][0];
+                float const Jr1 = J_inv[r][1];
+                float const Jr2 = J_inv[r][2];
+                float const p0r0 = Jp0 * Jr0, p0r1 = Jp0 * Jr1, p0r2 = Jp0 * Jr2;
+                float const p1r0 = Jp1 * Jr0, p1r1 = Jp1 * Jr1, p1r2 = Jp1 * Jr2;
+                float const p2r0 = Jp2 * Jr0, p2r1 = Jp2 * Jr1, p2r2 = Jp2 * Jr2;
+                float const v0 = C00 * p0r0 + C05 * p0r1 + C04 * p0r2 + C05 * p1r0 + C55 * p1r1 + C45 * p1r2 +
+                                 C04 * p2r0 + C45 * p2r1 + C44 * p2r2;
+                float const v1 = C55 * p0r0 + C15 * p0r1 + C35 * p0r2 + C15 * p1r0 + C11 * p1r1 + C13 * p1r2 +
+                                 C35 * p2r0 + C13 * p2r1 + C33 * p2r2;
+                float const v2 = C44 * p0r0 + C34 * p0r1 + C24 * p0r2 + C34 * p1r0 + C33 * p1r1 + C23 * p1r2 +
+                                 C24 * p2r0 + C23 * p2r1 + C22 * p2r2;
+                float const v3 = C05 * p0r0 + C01 * p0r1 + C03 * p0r2 + C55 * p1r0 + C15 * p1r1 + C35 * p1r2 +
+                                 C45 * p2r0 + C14 * p2r1 + C34 * p2r2;
+                float const v4 = C04 * p0r0 + C03 * p0r1 + C02 * p0r2 + C45 * p1r0 + C35 * p1r1 + C25 * p1r2 +
+                                 C44 * p2r0 + C34 * p2r1 + C24 * p2r2;
+                float const v5 = C45 * p0r0 + C35 * p0r1 + C25 * p0r2 + C14 * p1r0 + C13 * p1r1 + C12 * p1r2 +
+                                 C34 * p2r0 + C33 * p2r1 + C23 * p2r2;
+                float const g0 = grad_u_ref[r][0];
+                float const g1 = grad_u_ref[r][1];
+                float const g2 = grad_u_ref[r][2];
+                flux[p][0] += v0 * g0 + v3 * g1 + v4 * g2;
+                flux[p][1] += v3 * g0 + v1 * g1 + v5 * g2;
+                flux[p][2] += v4 * g0 + v5 * g1 + v2 * g2;
+              }
+            }
+          };
+
+          if constexpr (solver::fe::MeshTypeTraits<MESH_TYPE>::value == utils::enums::meshType::kStruct) {
+            float const a = struct_metrics_local.inv_jx;
+            float const b = struct_metrics_local.inv_jy;
+            float const c = struct_metrics_local.inv_jz;
+            auto const tti_func_cart = [&](int qa, int qb, int qc, float const (&)[3][3],
+                                           float const (&g)[3][3], float (&flux)[3][3]) {
+              if constexpr (IS_MODEL_ON_NODES) {
+                int const lIdx = qa + qb * dim + qc * dim * dim;
+                for (int i = 0; i < 6; ++i)
+                  for (int j = 0; j < 6; ++j)
+                    CTTI[i][j] = 0.0f;
+                computeCMatrix(tti_p[0][lIdx], tti_p[1][lIdx], tti_p[2][lIdx], tti_p[3][lIdx],
+                               tti_p[4][lIdx], tti_p[5][lIdx], tti_p[6][lIdx], tti_p[7][lIdx], CTTI);
+              }
+              float const C00 = CTTI[0][0], C01 = CTTI[0][1], C02 = CTTI[0][2];
+              float const C03 = CTTI[0][3], C04 = CTTI[0][4], C05 = CTTI[0][5];
+              float const C11 = CTTI[1][1], C12 = CTTI[1][2], C13 = CTTI[1][3];
+              float const C14 = CTTI[1][4], C15 = CTTI[1][5];
+              float const C22 = CTTI[2][2], C23 = CTTI[2][3], C24 = CTTI[2][4], C25 = CTTI[2][5];
+              float const C33 = CTTI[3][3], C34 = CTTI[3][4], C35 = CTTI[3][5];
+              float const C44 = CTTI[4][4], C45 = CTTI[4][5];
+              float const C55 = CTTI[5][5];
+              float const e0 = a * g[0][0];
+              float const e1 = b * g[1][1];
+              float const e2 = c * g[2][2];
+              float const e3 = c * g[2][1] + b * g[1][2];
+              float const e4 = c * g[2][0] + a * g[0][2];
+              float const e5 = b * g[1][0] + a * g[0][1];
+              float const s0 = C00 * e0 + C01 * e1 + C02 * e2 + C03 * e3 + C04 * e4 + C05 * e5;
+              float const s1 = C01 * e0 + C11 * e1 + C12 * e2 + C13 * e3 + C14 * e4 + C15 * e5;
+              float const s2 = C02 * e0 + C12 * e1 + C22 * e2 + C23 * e3 + C24 * e4 + C25 * e5;
+              float const s3 = C03 * e0 + C13 * e1 + C23 * e2 + C33 * e3 + C34 * e4 + C35 * e5;
+              float const s4 = C04 * e0 + C14 * e1 + C24 * e2 + C34 * e3 + C44 * e4 + C45 * e5;
+              float const s5 = C05 * e0 + C15 * e1 + C25 * e2 + C35 * e3 + C45 * e4 + C55 * e5;
+              flux[0][0] = a * s0;
+              flux[0][1] = a * s5;
+              flux[0][2] = a * s4;
+              flux[1][0] = b * s5;
+              flux[1][1] = b * s1;
+              flux[1][2] = b * s3;
+              flux[2][0] = c * s4;
+              flux[2][1] = c * s3;
+              flux[2][2] = c * s2;
+            };
+            INTEGRAL_TYPE::computeElasticStiffnessSumFactCartesian(struct_metrics_local, localFields, localWork,
+                                                                   tti_func_cart);
+          } else {
+            float cornerCoords[8][3];
+            {
+              auto const eIdx = mesh_local.elementIndex(elementNumber);
+              int I = 0;
+              for (int kv = 0; kv < 2; ++kv)
+                for (int jv = 0; jv < 2; ++jv)
+                  for (int iv = 0; iv < 2; ++iv)
+                    mesh_local.vertexCoords(mesh_local.globalVertexIndex(eIdx, iv, jv, kv), cornerCoords[I++]);
+            }
+            INTEGRAL_TYPE::computeElasticStiffnessSumFact(cornerCoords, localFields, localWork, tti_func);
+          }
 
           for (int i = 0; i < dim; ++i) {
             for (int j = 0; j < dim; ++j) {
