@@ -845,6 +845,224 @@ TYPED_TEST(FaceOperationsTest, DampingTermScaling) {
   EXPECT_NEAR(d2 / d1, 4.0, TOL_NUMERICAL) << "Damping term should scale quadratically with element size";
 }
 
+// ============================================================================
+// INDEXING TESTS — 2D (meshIndexToLinearIndex2D)
+// ============================================================================
+
+TYPED_TEST(IndexingTest, MeshIndexToLinearIndex2DBijection) {
+  using QK = TypeParam;
+
+  std::set<int> indices;
+  for (int k = 0; k < 4; ++k) {
+    int idx = QK::meshIndexToLinearIndex2D(k);
+    indices.insert(idx);
+    EXPECT_GE(idx, 0);
+    EXPECT_LT(idx, QK::numNodesPerFace);
+  }
+  EXPECT_EQ(indices.size(), 4u) << "4 face corners must map to 4 distinct indices";
+}
+
+TYPED_TEST(IndexingTest, MeshIndexToLinearIndex2DCornerValues) {
+  using QK = TypeParam;
+  constexpr int n = QK::num1dNodes;
+  // k=0 → (0,0), k=1 → (n-1,0), k=2 → (0,n-1), k=3 → (n-1,n-1)
+  EXPECT_EQ(QK::meshIndexToLinearIndex2D(0), 0);
+  EXPECT_EQ(QK::meshIndexToLinearIndex2D(1), n - 1);
+  EXPECT_EQ(QK::meshIndexToLinearIndex2D(2), (n - 1) * n);
+  EXPECT_EQ(QK::meshIndexToLinearIndex2D(3), QK::numNodesPerFace - 1);
+}
+
+// ============================================================================
+// VIRTUAL METHOD TESTS
+// ============================================================================
+
+template <typename QK_BASIS>
+class VirtualMethodTest : public ::testing::Test {};
+
+TYPED_TEST_SUITE(VirtualMethodTest, TestedBases);
+
+TYPED_TEST(VirtualMethodTest, GetNumQuadraturePointsMatchesStatic) {
+  using QK = TypeParam;
+  QK elem;
+  EXPECT_EQ(elem.getNumQuadraturePoints(), QK::numQuadraturePoints);
+  EXPECT_EQ(elem.getNumQuadraturePoints(), QK::num1dNodes * QK::num1dNodes * QK::num1dNodes);
+}
+
+TYPED_TEST(VirtualMethodTest, GetNumSupportPointsMatchesStatic) {
+  using QK = TypeParam;
+  QK elem;
+  EXPECT_EQ(elem.getNumSupportPoints(), QK::numNodes);
+  EXPECT_EQ(elem.getNumSupportPoints(), QK::num1dNodes * QK::num1dNodes * QK::num1dNodes);
+}
+
+TYPED_TEST(VirtualMethodTest, GetMaxSupportPointsMatchesStatic) {
+  using QK = TypeParam;
+  const QK elem;
+  EXPECT_EQ(elem.getMaxSupportPoints(), QK::maxSupportPoints);
+  EXPECT_EQ(elem.getMaxSupportPoints(), QK::numNodes);
+}
+
+// ============================================================================
+// SUM FACTORIZATION — ACOUSTIC (computeStiffnessTermSumFact)
+// ============================================================================
+
+template <typename QK_BASIS>
+class SumFactAcousticTest : public ::testing::Test {};
+
+TYPED_TEST_SUITE(SumFactAcousticTest, TestedBases);
+
+TYPED_TEST(SumFactAcousticTest, ZeroInputGivesZeroOutput) {
+  using QK = TypeParam;
+  constexpr int numNodes = QK::numNodes;
+
+  real_t X[8][3];
+  createArbitraryCube<QK>(X, 1.0, 2.0, 3.0, 1.5);
+
+  real_t p[numNodes] = {0};
+  real_t f[numNodes] = {0};
+  QK::computeStiffnessTermSumFact(X, p, f, [](int, int, int) { return real_t(1); });
+
+  for (int i = 0; i < numNodes; ++i)
+    EXPECT_NEAR(f[i], 0.0, TOL_NUMERICAL) << "Zero p must give zero f at node " << i;
+}
+
+TYPED_TEST(SumFactAcousticTest, ConstantPressureGivesZeroForce) {
+  using QK = TypeParam;
+  constexpr int numNodes = QK::numNodes;
+
+  real_t X[8][3];
+  createArbitraryCube<QK>(X, -1.0, 2.5, 0.3, 2.0);
+
+  real_t p[numNodes];
+  real_t f[numNodes] = {0};
+  for (int i = 0; i < numNodes; ++i) p[i] = real_t(3.7);
+
+  QK::computeStiffnessTermSumFact(X, p, f, [](int, int, int) { return real_t(1); });
+
+  for (int i = 0; i < numNodes; ++i)
+    EXPECT_NEAR(f[i], 0.0, TOL_NUMERICAL) << "K*const should be zero at node " << i;
+}
+
+TYPED_TEST(SumFactAcousticTest, ConsistencyWithDirectAssembly) {
+  using QK = TypeParam;
+  constexpr int numNodes = QK::numNodes;
+
+  real_t X[8][3];
+  createArbitraryCube<QK>(X, 0.5, -1.5, 2.0, 1.3);
+
+  real_t p[numNodes];
+  for (int i = 0; i < numNodes; ++i) p[i] = std::sin(static_cast<real_t>(i));
+
+  // Direct assembly: K·p via computeStiffnessTerm with alpha=1
+  real_t Ku_direct[numNodes] = {0};
+  QK::computeStiffnessTerm(X, [](int, int, int) {}, [&](int i, int j, real_t Kij) {
+    Ku_direct[i] += Kij * p[j];
+  });
+
+  // Sum-factorized: same physics (alpha=1)
+  real_t Ku_sumfact[numNodes] = {0};
+  QK::computeStiffnessTermSumFact(X, p, Ku_sumfact, [](int, int, int) { return real_t(1); });
+
+  for (int i = 0; i < numNodes; ++i)
+    EXPECT_NEAR(Ku_sumfact[i], Ku_direct[i], TOL_NUMERICAL)
+        << "Sum-fact and direct assembly disagree at node " << i;
+}
+
+// ============================================================================
+// SUM FACTORIZATION — ELASTIC (computeElasticStiffnessSumFact)
+// ============================================================================
+
+template <typename QK_BASIS>
+class SumFactElasticTest : public ::testing::Test {};
+
+TYPED_TEST_SUITE(SumFactElasticTest, TestedBases);
+
+TYPED_TEST(SumFactElasticTest, ZeroDisplacementGivesZeroForce) {
+  using QK = TypeParam;
+  constexpr int numNodes = QK::numNodes;
+
+  real_t X[8][3];
+  createArbitraryCube<QK>(X, 0.0, 0.0, 0.0, 1.0);
+
+  real_t u[3][numNodes] = {{0}};
+  real_t f[3][numNodes] = {{0}};
+
+  QK::computeElasticStiffnessSumFact(
+      X, u, f,
+      [](int, int, int, real_t const (&)[3][3], real_t const (&grad)[3][3], real_t (&flux)[3][3]) {
+        for (int p = 0; p < 3; ++p)
+          for (int s = 0; s < 3; ++s) flux[p][s] = grad[p][s];
+      });
+
+  for (int c = 0; c < 3; ++c)
+    for (int i = 0; i < numNodes; ++i)
+      EXPECT_NEAR(f[c][i], 0.0, TOL_NUMERICAL)
+          << "Zero u must give zero f at comp " << c << " node " << i;
+}
+
+TYPED_TEST(SumFactElasticTest, ConstantDisplacementGivesZeroForce) {
+  using QK = TypeParam;
+  constexpr int numNodes = QK::numNodes;
+
+  real_t X[8][3];
+  createArbitraryCube<QK>(X, -1.0, 0.5, 2.0, 1.5);
+
+  real_t u[3][numNodes];
+  real_t f[3][numNodes] = {{0}};
+  for (int c = 0; c < 3; ++c)
+    for (int i = 0; i < numNodes; ++i) u[c][i] = real_t(1) + static_cast<real_t>(c);
+
+  QK::computeElasticStiffnessSumFact(
+      X, u, f,
+      [](int, int, int, real_t const (&)[3][3], real_t const (&grad)[3][3], real_t (&flux)[3][3]) {
+        for (int p = 0; p < 3; ++p)
+          for (int s = 0; s < 3; ++s) flux[p][s] = grad[p][s];
+      });
+
+  for (int c = 0; c < 3; ++c)
+    for (int i = 0; i < numNodes; ++i)
+      EXPECT_NEAR(f[c][i], 0.0, TOL_NUMERICAL)
+          << "Constant u must give zero f at comp " << c << " node " << i;
+}
+
+TYPED_TEST(SumFactElasticTest, NonTrivialDisplacementOutputIsFinite) {
+  using QK = TypeParam;
+  constexpr int numNodes = QK::numNodes;
+
+  real_t X[8][3];
+  createArbitraryCube<QK>(X, -2.0, 1.0, 0.5, 1.8);
+
+  // Linear field: u[c][i] = physical coordinate c at node i
+  real_t Xfull[numNodes][3];
+  if constexpr (numNodes == 8) {
+    for (int i = 0; i < 8; ++i)
+      for (int j = 0; j < 3; ++j) Xfull[i][j] = X[i][j];
+  } else {
+    QK::computeLocalCoords(X, Xfull);
+  }
+
+  real_t u[3][numNodes];
+  real_t f[3][numNodes] = {{0}};
+  for (int c = 0; c < 3; ++c)
+    for (int i = 0; i < numNodes; ++i) u[c][i] = Xfull[i][c];
+
+  QK::computeElasticStiffnessSumFact(
+      X, u, f,
+      [](int, int, int, real_t const (&)[3][3], real_t const (&grad)[3][3], real_t (&flux)[3][3]) {
+        for (int p = 0; p < 3; ++p)
+          for (int s = 0; s < 3; ++s) flux[p][s] = grad[p][s];
+      });
+
+  for (int c = 0; c < 3; ++c)
+    for (int i = 0; i < numNodes; ++i)
+      EXPECT_TRUE(std::isfinite(f[c][i]))
+          << "Force must be finite at comp " << c << " node " << i;
+}
+
+// ============================================================================
+// INTERFACE FLUX TESTS
+// ============================================================================
+
 TYPED_TEST(InterfaceFluxTest, InterfaceFluxIsZero) {
   using QK = TypeParam;
   constexpr int numNodesPerFace = QK::numNodesPerFace;
