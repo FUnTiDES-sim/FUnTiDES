@@ -51,13 +51,13 @@ ModelUnstruct<FloatType, ScalarType> createTwoAdjacentCubesRotated() {
   data.lz_ = 1.0;
   data.isModelOnNodes_ = false;
   data.isElastic_ = false;
-  data.global_node_index_ = allocateArray2D<ARRAY_INT_VIEW>(2, 8);
-  data.nodes_coords_x_ = allocateVector<VECTOR_REAL_VIEW>(12);
-  data.nodes_coords_y_ = allocateVector<VECTOR_REAL_VIEW>(12);
-  data.nodes_coords_z_ = allocateVector<VECTOR_REAL_VIEW>(12);
-  data.model_vp_element_ = allocateVector<VECTOR_REAL_VIEW>(2);
-  data.model_rho_element_ = allocateVector<VECTOR_REAL_VIEW>(2);
-  data.boundaries_t_ = allocateVector<VECTOR_INT_VIEW>(12);
+  data.global_node_index_ = allocateArray2D<arrayInt>(2, 8);
+  data.nodes_coords_x_ = allocateVector<vectorReal>(12);
+  data.nodes_coords_y_ = allocateVector<vectorReal>(12);
+  data.nodes_coords_z_ = allocateVector<vectorReal>(12);
+  data.model_vp_element_ = allocateVector<vectorReal>(2);
+  data.model_rho_element_ = allocateVector<vectorReal>(2);
+  data.boundaries_t_ = allocateVector<vectorInt>(12);
   // Elem 0: standard cube [0,1]^3, nodes 0-7
   for (int i = 0; i < 8; ++i) {
     data.global_node_index_(0, i) = i;

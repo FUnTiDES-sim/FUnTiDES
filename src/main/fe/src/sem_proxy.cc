@@ -57,7 +57,7 @@ void SEMproxy::SetupSolver(const SemProxyOptions& opt) {
   is_acousto_elastic_ = opt.isAcoustoElastic;
 
   const methodType method_type = GetMethod(opt.method);
-  is_dg_ = (methodType == utils::enums::methodType::kDg);
+  is_dg_ = (method_type == utils::enums::methodType::kDg);
   const implemType implem_type = GetImplem(opt.implem);
   const meshType mesh_type = GetMesh(opt.mesh);
   const modelLocationType model_location =
@@ -182,28 +182,28 @@ void SEMproxy::Run() {
   std::chrono::duration<double> total_compute_time(0), total_output_time(0);
 
   if (is_dg_) {
-    DGsolverDataAcoustic dgData(pnDGPrev_, pnDGCurr_, myRHSTerm, rhsElement, rhsWeights);
+    DGsolverDataAcoustic dgData(pn_dg_prev_, pn_dg_curr_, rhs_term_, rhs_element_, rhs_weights_);
 
-    for (int indexTimeSample = 0; indexTimeSample < num_sample_; indexTimeSample++) {
+    for (int time_index = 0; time_index < num_samples_; time_index++) {
       start_compute_time = system_clock::now();
 
-      m_solver->computeOneStep(dt_, indexTimeSample, dgData);
+      solver_->computeOneStep(dt_, time_index, dgData);
 
-      total_compute_time += system_clock::now() - startComputeTime;
+      total_compute_time += system_clock::now() - start_compute_time;
       start_output_time = system_clock::now();
 
       if (time_index % 50 == 0) {
         std::cout << "DG TimeStep=" << time_index
-                  << "  p(src_elem, dof=0)=" << dgData.getPreviousField(0)(myElementSource, 0)
-                  << "  p(rcv_elem, dof=0)=" << dgData.getPreviousField(0)(rhsElementRcv[0], 0) << std::endl;
+                  << "  p(src_elem, dof=0)=" << dgData.getPreviousField(0)(source_element_, 0)
+                  << "  p(rcv_elem, dof=0)=" << dgData.getPreviousField(0)(rhs_element_rcv_[0], 0) << std::endl;
       }
 
       if (is_snapshots_ && time_index % snap_time_interval_ == 0) {
         Kokkos::fence();
-        const int order = m_mesh->getOrder();
-        const int ex = nb_elements_[0];
-        const int ey = nb_elements_[1];
-        const int ez = nb_elements_[2];
+        const int order = mesh_->getOrder();
+        const int ex = num_elements_[0];
+        const int ey = num_elements_[1];
+        const int ez = num_elements_[2];
         const int zElem = ez / 2;
         const int n1d = order + 1;
         const int icZ = order / 2;
@@ -231,17 +231,17 @@ void SEMproxy::Run() {
       }
 
       // Save pressure at receiver: DG field indexed by (elem, local_dof)
-      const int order = m_mesh->getOrder();
+      const int order = mesh_->getOrder();
       float varnp1 = 0.0f;
       for (int i = 0; i <= order; i++) {
         for (int j = 0; j <= order; j++) {
           for (int k = 0; k <= order; k++) {
             int localDof = i + j * (order + 1) + k * (order + 1) * (order + 1);
-            varnp1 += dgData.getPreviousField(0)(rhsElementRcv[0], localDof) * rhsWeightsRcv(0, localDof);
+            varnp1 += dgData.getPreviousField(0)(rhs_element_rcv_[0], localDof) * rhs_weights_rcv_(0, localDof);
           }
         }
       }
-      pnAtReceiver(0, time_index) = varnp1;
+      pn_at_receiver_(0, time_index) = varnp1;
 
       dgData.swapWavefields();
 
@@ -252,11 +252,11 @@ void SEMproxy::Run() {
     {
       std::ofstream fout("receiver_trace.txt");
       fout << "# time pressure_at_receiver\n";
-      for (int t = 0; t < num_sample_; ++t) {
-        fout << t * dt_ << " " << pnAtReceiver(0, t) << "\n";
+      for (int t = 0; t < num_samples_; ++t) {
+        fout << t * dt_ << " " << pn_at_receiver_(0, t) << "\n";
       }
       fout.close();
-      std::cout << "Receiver trace saved to receiver_trace.txt (" << num_sample_ << " samples)" << std::endl;
+      std::cout << "Receiver trace saved to receiver_trace.txt (" << num_samples_ << " samples)" << std::endl;
     }
 
   } else if (is_acousto_elastic_) {
@@ -338,6 +338,23 @@ void SEMproxy::Run() {
         MPI_Barrier(MPI_COMM_WORLD);
 #endif
         SaveSnapshot(time_index, pn_global_prev_);
+
+        int nx = num_nodes_[0];
+        int ny = num_nodes_[1];
+        int nz = num_nodes_[2];
+        int z_slice = nz / 2;
+        std::ostringstream fname;
+        fname << "slice_" << std::setfill('0') << std::setw(5) << time_index << ".dat";
+        std::ofstream fslice(fname.str());
+        for (int iy = 0; iy < ny; ++iy) {
+          for (int ix = 0; ix < nx; ++ix) {
+            int node_idx = ix + iy * nx + z_slice * nx * ny;
+            fslice << pn_global_prev_(node_idx);
+            if (ix < nx - 1) fslice << " ";
+          }
+          fslice << "\n";
+        }
+        fslice.close();
       }
 
       const int order = mesh_->getOrder();
@@ -476,7 +493,6 @@ void SEMproxy::InitArrays() {
   rhs_element_ = allocateVector<vectorInt>(num_rhs_, "rhsElement");
   rhs_weights_ = allocateArray2D<arrayReal>(num_rhs_, n_pts_per_elem, "RHSWeight");
 
-<<<<<<< variant A
   if (is_acousto_elastic_) {
     rhs_term_ = allocateArray2D<arrayReal>(num_rhs_, num_samples_, "RHSTerm");
     rhs_term_x_ = allocateArray2D<arrayReal>(num_rhs_, num_samples_, "RHSTermx");
@@ -484,23 +500,23 @@ void SEMproxy::InitArrays() {
     rhs_term_z_ = allocateArray2D<arrayReal>(num_rhs_, num_samples_, "RHSTermz");
     pn_global_curr_ = allocateVector<vectorReal>(n_nodes, "pnGlobalCurr");
     pn_global_prev_ = allocateVector<vectorReal>(n_nodes, "pnGlobalPrev");
-    pn_at_receiver_ = allocateArray2D<arrayReal>(1, num_samples_, "pnAtReceiver");
+    pn_at_receiver_ = allocateArray2D<arrayReal>(1, num_samples_, "pn_at_receiver_");
     uxn_global_curr_ = allocateVector<vectorReal>(n_nodes, "uxnGlobalCurr");
     uyn_global_curr_ = allocateVector<vectorReal>(n_nodes, "uynGlobalCurr");
     uzn_global_curr_ = allocateVector<vectorReal>(n_nodes, "uznGlobalCurr");
     uxn_global_prev_ = allocateVector<vectorReal>(n_nodes, "uxnGlobalPrev");
     uyn_global_prev_ = allocateVector<vectorReal>(n_nodes, "uynGlobalPrev");
     uzn_global_prev_ = allocateVector<vectorReal>(n_nodes, "uznGlobalPrev");
-  } else if (isDG_) {
-    rhs_term_ = allocateArray2D<arrayReal>(myNumberOfRHS, num_sample_, "RHSTerm");
-    pn_dg_rev_ = allocateArray2D<arrayReal>(n_elements, n_points_per_element, "pnDGPrev");
-    pn_dg_curr_ = allocateArray2D<arrayReal>(n_elements, n_points_per_element, "pnDGCurr");
-    pn_at_receiver_ = allocateArray2D<arrayReal>(1, num_sample_, "pnAtReceiver");
   } else if (!is_elastic_) {
     rhs_term_ = allocateArray2D<arrayReal>(num_rhs_, num_samples_, "RHSTerm");
     pn_global_curr_ = allocateVector<vectorReal>(n_nodes, "pnGlobalCurr");
     pn_global_prev_ = allocateVector<vectorReal>(n_nodes, "pnGlobalPrev");
-    pn_at_receiver_ = allocateArray2D<arrayReal>(1, num_samples_, "pnAtReceiver");
+    pn_at_receiver_ = allocateArray2D<arrayReal>(1, num_samples_, "pn_at_receiver_");
+  } else if (is_dg_) {
+    rhs_term_ = allocateArray2D<arrayReal>(num_rhs_, num_samples_, "RHSTerm");
+    pn_dg_prev_ = allocateArray2D<arrayReal>(n_elements, n_pts_per_elem, "pnDGPrev");
+    pn_dg_curr_ = allocateArray2D<arrayReal>(n_elements, n_pts_per_elem, "pnDGCurr");
+    pn_at_receiver_ = allocateArray2D<arrayReal>(1, num_samples_, "pn_at_receiver_");
   } else {
     rhs_term_x_ = allocateArray2D<arrayReal>(num_rhs_, num_samples_, "RHSTermx");
     rhs_term_y_ = allocateArray2D<arrayReal>(num_rhs_, num_samples_, "RHSTermy");
