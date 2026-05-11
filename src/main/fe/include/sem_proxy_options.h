@@ -40,6 +40,7 @@ class SemProxyOptions {
   bool isAcoustoElastic = false;
   float acoustoElasticBoundaryZ = 0.f;
   bool free_surface = false;
+  std::string model_file{""};
   float qp = -1.0f;  // quality factor for P-waves (<0 = not set)
   float qs = -1.0f;  // quality factor for S-waves (<0 = not set)
   std::vector<float> sls_reference_angular_frequencies{};
@@ -89,6 +90,7 @@ class SemProxyOptions {
         "free-surface", "Enable free surface on top boundary (Z+). Default: true",
         cxxopts::value<bool>(o.free_surface))("anisotropy", "Anisotropy type for elastic: iso|vti|tti (default=iso)",
                                               cxxopts::value<std::string>(o.anisotropy))(
+        "model-file", "Path to .ftmd heterogeneous model file (optional)", cxxopts::value<std::string>(o.model_file))(
         "das-type", "DAS receiver type: none|dipole|strain (default=none)", cxxopts::value<std::string>(o.das_type))(
         "das-dip", "DAS fiber dip angle in degrees (default=0)", cxxopts::value<float>(o.das_dip))(
         "das-azimuth", "DAS fiber azimuth angle in degrees (default=0)", cxxopts::value<float>(o.das_azimuth))(

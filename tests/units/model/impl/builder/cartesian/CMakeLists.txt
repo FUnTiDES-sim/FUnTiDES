@@ -17,3 +17,8 @@ add_gtest(cartesian_unstruct_boundary_classifier_test
   test_cartesian_unstruct_boundary_classifier.cc
   proxy_model_builder_cartesian
 )
+
+add_gtest(cartesian_model_file_reader_test
+  test_cartesian_model_file_reader.cc
+  proxy_model_builder_cartesian
+)
