@@ -47,6 +47,10 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::com
     m_has_struct_metrics_ = true;
   }
 
+  if constexpr (MeshTypeTraits<MESH_TYPE>::value == utils::enums::meshType::kUnstruct) {
+    classifyMeshTypes();
+  }
+
   // Compute Local Mass Matrix
   computeGlobalMassMatrix();
   // Compute Local Damping Matrix
@@ -214,35 +218,33 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::com
   }
 
   auto const struct_metrics_local = m_struct_metrics_;
+  auto const rect_list_local      = m_rect_elem_list_;
+  auto const frite_list_local     = m_frite_elem_list_;
+  int const n_rect                = m_n_rect_elems_;
+  int const n_frite               = m_n_frite_elems_;
+  auto const rect_metrics_local   = m_rect_metrics_;
+  auto const frite_metrics_local  = m_frite_metrics_;
+  bool const has_class            = m_has_classification_;
 
-  Kokkos::parallel_for(
-      "Solver Element Contribution Acoustic", Kokkos::RangePolicy(0, n_iter), KOKKOS_LAMBDA(const int _loop_idx) {
-        (void)struct_metrics_local;
-        int const elementNumber = list_on ? list_local[_loop_idx] : _loop_idx;
-
-        int const dim = mesh_local.getOrder() + 1;
-        float localFields[kNumFields][kPointsPerElement] = {{0}};
-        float localWork[kNumFields][kPointsPerElement] = {{0}};
-
-        for (int i = 0; i < dim; ++i) {
-          for (int j = 0; j < dim; ++j) {
-            for (int k = 0; k < dim; ++k) {
-              int const globalIdx = mesh_local.globalNodeIndex(elementNumber, i, j, k);
-              int const localIdx = i + j * dim + k * dim * dim;
-
-              for (int f = 0; f < kNumFields; ++f) {
-                localFields[f][localIdx] = data.getCurrentField(f)(globalIdx);
+  if constexpr (MeshTypeTraits<MESH_TYPE>::value == utils::enums::meshType::kStruct) {
+    Kokkos::parallel_for(
+        "SolElemContrib Acoustic Struct", Kokkos::RangePolicy(0, n_iter),
+        KOKKOS_LAMBDA(const int _loop_idx) {
+          int const elementNumber = list_on ? list_local[_loop_idx] : _loop_idx;
+          int const dim = mesh_local.getOrder() + 1;
+          float localFields[kNumFields][kPointsPerElement] = {{0}};
+          float localWork[kNumFields][kPointsPerElement] = {{0}};
+          for (int i = 0; i < dim; ++i)
+            for (int j = 0; j < dim; ++j)
+              for (int k = 0; k < dim; ++k) {
+                int const globalIdx = mesh_local.globalNodeIndex(elementNumber, i, j, k);
+                int const localIdx = i + j * dim + k * dim * dim;
+                for (int f = 0; f < kNumFields; ++f)
+                  localFields[f][localIdx] = data.getCurrentField(f)(globalIdx);
               }
-            }
-          }
-        }
-
-        real_t inv_density = 0.0f;
-        if constexpr (!IS_MODEL_ON_NODES) {
-          inv_density = 1.0f / mesh_local.getModelRhoOnElement(elementNumber);
-        }
-
-        if constexpr (MeshTypeTraits<MESH_TYPE>::value == utils::enums::meshType::kStruct) {
+          real_t inv_density = 0.0f;
+          if constexpr (!IS_MODEL_ON_NODES)
+            inv_density = 1.0f / mesh_local.getModelRhoOnElement(elementNumber);
           INTEGRAL_TYPE::computeStiffnessTermSumFactCartesian(
               localFields[0], localWork[0], struct_metrics_local,
               [&](const int qa, const int qb, const int qc) -> real_t {
@@ -253,7 +255,35 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::com
                   return inv_density;
                 }
               });
-        } else {
+          for (int i = 0; i < dim; ++i)
+            for (int j = 0; j < dim; ++j)
+              for (int k = 0; k < dim; ++k) {
+                int const globalIdx = mesh_local.globalNodeIndex(elementNumber, i, j, k);
+                int const localIdx = i + j * dim + k * dim * dim;
+                for (int f = 0; f < kNumFields; ++f)
+                  ATOMICADD(local_workVectorsGlobal[f][globalIdx], localWork[f][localIdx]);
+              }
+        });
+  } else if (list_on || !has_class) {
+    // Legacy: full J per GLL point (also handles list_mode from AE solver).
+    Kokkos::parallel_for(
+        "SolElemContrib Acoustic Unstruct Legacy", Kokkos::RangePolicy(0, n_iter),
+        KOKKOS_LAMBDA(const int _loop_idx) {
+          int const elementNumber = list_on ? list_local[_loop_idx] : _loop_idx;
+          int const dim = mesh_local.getOrder() + 1;
+          float localFields[kNumFields][kPointsPerElement] = {{0}};
+          float localWork[kNumFields][kPointsPerElement] = {{0}};
+          for (int i = 0; i < dim; ++i)
+            for (int j = 0; j < dim; ++j)
+              for (int k = 0; k < dim; ++k) {
+                int const globalIdx = mesh_local.globalNodeIndex(elementNumber, i, j, k);
+                int const localIdx = i + j * dim + k * dim * dim;
+                for (int f = 0; f < kNumFields; ++f)
+                  localFields[f][localIdx] = data.getCurrentField(f)(globalIdx);
+              }
+          real_t inv_density = 0.0f;
+          if constexpr (!IS_MODEL_ON_NODES)
+            inv_density = 1.0f / mesh_local.getModelRhoOnElement(elementNumber);
           float cornerCoords[8][3];
           {
             auto const eIdx = mesh_local.elementIndex(elementNumber);
@@ -264,30 +294,102 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::com
                   mesh_local.vertexCoords(mesh_local.globalVertexIndex(eIdx, iv, jv, kv), cornerCoords[I++]);
           }
           INTEGRAL_TYPE::computeStiffnessTermSumFact(
-            cornerCoords, localFields[0], localWork[0], [&](const int qa, const int qb, const int qc) -> real_t {
-              if constexpr (IS_MODEL_ON_NODES) {
-                int const gIndex = mesh_local.globalNodeIndex(elementNumber, qa, qb, qc);
-                return 1.0f / mesh_local.getModelRhoOnNodes(gIndex);
-              } else {
-                return inv_density;
+              cornerCoords, localFields[0], localWork[0],
+              [&](const int qa, const int qb, const int qc) -> real_t {
+                if constexpr (IS_MODEL_ON_NODES) {
+                  int const gIndex = mesh_local.globalNodeIndex(elementNumber, qa, qb, qc);
+                  return 1.0f / mesh_local.getModelRhoOnNodes(gIndex);
+                } else {
+                  return inv_density;
+                }
+              });
+          for (int i = 0; i < dim; ++i)
+            for (int j = 0; j < dim; ++j)
+              for (int k = 0; k < dim; ++k) {
+                int const globalIdx = mesh_local.globalNodeIndex(elementNumber, i, j, k);
+                int const localIdx = i + j * dim + k * dim * dim;
+                for (int f = 0; f < kNumFields; ++f)
+                  ATOMICADD(local_workVectorsGlobal[f][globalIdx], localWork[f][localIdx]);
               }
-            });
-
-          }
-
-        for (int i = 0; i < dim; ++i) {
-          for (int j = 0; j < dim; ++j) {
-            for (int k = 0; k < dim; ++k) {
-              int const globalIdx = mesh_local.globalNodeIndex(elementNumber, i, j, k);
-              int const localIdx = i + j * dim + k * dim * dim;
-
-              for (int f = 0; f < kNumFields; ++f) {
-                ATOMICADD(local_workVectorsGlobal[f][globalIdx], localWork[f][localIdx]);
+        });
+  } else {
+    // Rect kernel: precomputed diagonal J_inv (B = 3 non-zero metric entries).
+    Kokkos::parallel_for(
+        "SolElemContrib Acoustic Rect", Kokkos::RangePolicy(0, n_rect),
+        KOKKOS_LAMBDA(const int idx) {
+          int const elementNumber = rect_list_local[idx];
+          int const dim = mesh_local.getOrder() + 1;
+          float localFields[kNumFields][kPointsPerElement] = {{0}};
+          float localWork[kNumFields][kPointsPerElement] = {{0}};
+          for (int i = 0; i < dim; ++i)
+            for (int j = 0; j < dim; ++j)
+              for (int k = 0; k < dim; ++k) {
+                int const globalIdx = mesh_local.globalNodeIndex(elementNumber, i, j, k);
+                int const localIdx = i + j * dim + k * dim * dim;
+                for (int f = 0; f < kNumFields; ++f)
+                  localFields[f][localIdx] = data.getCurrentField(f)(globalIdx);
               }
-            }
-          }
-        }
-      });
+          real_t inv_density = 0.0f;
+          if constexpr (!IS_MODEL_ON_NODES)
+            inv_density = 1.0f / mesh_local.getModelRhoOnElement(elementNumber);
+          INTEGRAL_TYPE::computeStiffnessTermSumFactCartesian(
+              localFields[0], localWork[0], rect_metrics_local(elementNumber),
+              [&](const int qa, const int qb, const int qc) -> real_t {
+                if constexpr (IS_MODEL_ON_NODES) {
+                  int const gIndex = mesh_local.globalNodeIndex(elementNumber, qa, qb, qc);
+                  return 1.0f / mesh_local.getModelRhoOnNodes(gIndex);
+                } else {
+                  return inv_density;
+                }
+              });
+          for (int i = 0; i < dim; ++i)
+            for (int j = 0; j < dim; ++j)
+              for (int k = 0; k < dim; ++k) {
+                int const globalIdx = mesh_local.globalNodeIndex(elementNumber, i, j, k);
+                int const localIdx = i + j * dim + k * dim * dim;
+                for (int f = 0; f < kNumFields; ++f)
+                  ATOMICADD(local_workVectorsGlobal[f][globalIdx], localWork[f][localIdx]);
+              }
+        });
+    // Frite kernel: precomputed partial-diagonal J_inv (5 non-zero entries).
+    Kokkos::parallel_for(
+        "SolElemContrib Acoustic Frite", Kokkos::RangePolicy(0, n_frite),
+        KOKKOS_LAMBDA(const int idx) {
+          int const elementNumber = frite_list_local[idx];
+          int const dim = mesh_local.getOrder() + 1;
+          float localFields[kNumFields][kPointsPerElement] = {{0}};
+          float localWork[kNumFields][kPointsPerElement] = {{0}};
+          for (int i = 0; i < dim; ++i)
+            for (int j = 0; j < dim; ++j)
+              for (int k = 0; k < dim; ++k) {
+                int const globalIdx = mesh_local.globalNodeIndex(elementNumber, i, j, k);
+                int const localIdx = i + j * dim + k * dim * dim;
+                for (int f = 0; f < kNumFields; ++f)
+                  localFields[f][localIdx] = data.getCurrentField(f)(globalIdx);
+              }
+          real_t inv_density = 0.0f;
+          if constexpr (!IS_MODEL_ON_NODES)
+            inv_density = 1.0f / mesh_local.getModelRhoOnElement(elementNumber);
+          INTEGRAL_TYPE::computeStiffnessTermSumFactFrite(
+              localFields[0], localWork[0], frite_metrics_local(elementNumber),
+              [&](const int qa, const int qb, const int qc) -> real_t {
+                if constexpr (IS_MODEL_ON_NODES) {
+                  int const gIndex = mesh_local.globalNodeIndex(elementNumber, qa, qb, qc);
+                  return 1.0f / mesh_local.getModelRhoOnNodes(gIndex);
+                } else {
+                  return inv_density;
+                }
+              });
+          for (int i = 0; i < dim; ++i)
+            for (int j = 0; j < dim; ++j)
+              for (int k = 0; k < dim; ++k) {
+                int const globalIdx = mesh_local.globalNodeIndex(elementNumber, i, j, k);
+                int const localIdx = i + j * dim + k * dim * dim;
+                for (int f = 0; f < kNumFields; ++f)
+                  ATOMICADD(local_workVectorsGlobal[f][globalIdx], localWork[f][localIdx]);
+              }
+        });
+  }
 
 
 }
@@ -491,72 +593,68 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::com
     local_workVectorsGlobal[f] = workVectorsGlobal_[f];
   }
 
-  auto const struct_metrics_local = m_struct_metrics_;
+  auto const struct_metrics_local  = m_struct_metrics_;
+  auto const rect_list_local       = m_rect_elem_list_;
+  auto const frite_list_local      = m_frite_elem_list_;
+  int const n_rect                 = m_n_rect_elems_;
+  int const n_frite                = m_n_frite_elems_;
+  auto const rect_metrics_local    = m_rect_metrics_;
+  auto const frite_metrics_local   = m_frite_metrics_;
+  bool const has_class             = m_has_classification_;
 
-  Kokkos::parallel_for(
-      "Solver Element Contribution Iso",
-      Kokkos::RangePolicy<Kokkos::LaunchBounds<LaunchMaxThreadsPerBlock, LaunchMinBlocksPerSM>>(0, n_iter),
-      KOKKOS_LAMBDA(const int _loop_idx) {
-        // avoid extended __host__ __device__ lambda cannot first-capture
-        // variable in constexpr-if context
-        (void)local_workVectorsGlobal;
-        (void)struct_metrics_local;
+  // Helper to gather physics properties (shared across all kernel variants).
+  // Declared as a macro-like lambda selector via the branch below.
 
-        int const elementNumber = list_on ? list_local[_loop_idx] : _loop_idx;
-
-        int const dim = mesh_local.getOrder() + 1;
-        float localFields[kNumFields][kPointsPerElement] = {{0}};
-        float localWork[kNumFields][kPointsPerElement] = {{0}};
-
-        for (int i = 0; i < dim; ++i) {
-          for (int j = 0; j < dim; ++j) {
-            for (int k = 0; k < dim; ++k) {
-              int const globalIdx = mesh_local.globalNodeIndex(elementNumber, i, j, k);
-              int const localIdx = i + j * dim + k * dim * dim;
-
-              for (int f = 0; f < kNumFields; ++f) {
-                localFields[f][localIdx] = data.getCurrentField(f)(globalIdx);
+  if constexpr (MeshTypeTraits<MESH_TYPE>::value == utils::enums::meshType::kStruct) {
+    Kokkos::parallel_for(
+        "SolElemContrib Iso Struct",
+        Kokkos::RangePolicy<Kokkos::LaunchBounds<LaunchMaxThreadsPerBlock, LaunchMinBlocksPerSM>>(0, n_iter),
+        KOKKOS_LAMBDA(const int _loop_idx) {
+          int const elementNumber = list_on ? list_local[_loop_idx] : _loop_idx;
+          int const dim = mesh_local.getOrder() + 1;
+          float localFields[kNumFields][kPointsPerElement] = {{0}};
+          float localWork[kNumFields][kPointsPerElement] = {{0}};
+          auto& localWorkGlobal = local_workVectorsGlobal;
+          for (int i = 0; i < dim; ++i)
+            for (int j = 0; j < dim; ++j)
+              for (int k = 0; k < dim; ++k) {
+                int const globalIdx = mesh_local.globalNodeIndex(elementNumber, i, j, k);
+                int const localIdx = i + j * dim + k * dim * dim;
+                for (int f = 0; f < kNumFields; ++f)
+                  localFields[f][localIdx] = data.getCurrentField(f)(globalIdx);
               }
-            }
-          }
-        }
-
-        if constexpr (PHYSICS == utils::enums::physicType::kElastic) {
           float mu_e = 0.0f, lambda_e = 0.0f, lam2mu_e = 0.0f;
-          if constexpr (!IS_MODEL_ON_NODES) {
-            float const vp_e = mesh_local.getModelVpOnElement(elementNumber);
-            float const vs_e = mesh_local.getModelVsOnElement(elementNumber);
-            float const rho_e = mesh_local.getModelRhoOnElement(elementNumber);
-            mu_e = rho_e * vs_e * vs_e;
-            lambda_e = rho_e * (vp_e * vp_e - 2.0f * vs_e * vs_e);
-            lam2mu_e = lambda_e + 2.0f * mu_e;
-          }
-
-          // Pre-gather physics per node to avoid scattered global reads inside the kernel.
           float mu_local[kPointsPerElement] = {0};
           float lam2mu_local[kPointsPerElement] = {0};
-          if constexpr (IS_MODEL_ON_NODES) {
-            for (int i = 0; i < dim; ++i)
-              for (int j = 0; j < dim; ++j)
-                for (int k = 0; k < dim; ++k) {
-                  int const gIdx = mesh_local.globalNodeIndex(elementNumber, i, j, k);
-                  int const lIdx = i + j * dim + k * dim * dim;
-                  float const vp = mesh_local.getModelVpOnNodes(gIdx);
-                  float const vs = mesh_local.getModelVsOnNodes(gIdx);
-                  float const rho = mesh_local.getModelRhoOnNodes(gIdx);
-                  float const mu = rho * vs * vs;
-                  float const lam = rho * (vp * vp - 2.0f * vs * vs);
-                  mu_local[lIdx] = mu;
-                  lam2mu_local[lIdx] = lam + 2.0f * mu;
-                }
-          }
-
-          if constexpr (solver::fe::MeshTypeTraits<MESH_TYPE>::value == utils::enums::meshType::kStruct) {
-            float const a = struct_metrics_local.inv_jx;
-            float const b = struct_metrics_local.inv_jy;
-            float const c = struct_metrics_local.inv_jz;
-            float const aa = a * a, bb = b * b, cc = c * c;
-            float const ab = a * b, ac = a * c, bc = b * c;
+          float a = struct_metrics_local.inv_jx;
+          float b = struct_metrics_local.inv_jy;
+          float c = struct_metrics_local.inv_jz;
+          float aa = a * a, bb = b * b, cc = c * c;
+          float ab = a * b, ac = a * c, bc = b * c;
+          if constexpr (PHYSICS == utils::enums::physicType::kElastic) {
+            if constexpr (!IS_MODEL_ON_NODES) {
+              float const vp_e = mesh_local.getModelVpOnElement(elementNumber);
+              float const vs_e = mesh_local.getModelVsOnElement(elementNumber);
+              float const rho_e = mesh_local.getModelRhoOnElement(elementNumber);
+              mu_e = rho_e * vs_e * vs_e;
+              lambda_e = rho_e * (vp_e * vp_e - 2.0f * vs_e * vs_e);
+              lam2mu_e = lambda_e + 2.0f * mu_e;
+            }
+            if constexpr (IS_MODEL_ON_NODES) {
+              for (int i = 0; i < dim; ++i)
+                for (int j = 0; j < dim; ++j)
+                  for (int k = 0; k < dim; ++k) {
+                    int const gIdx = mesh_local.globalNodeIndex(elementNumber, i, j, k);
+                    int const lIdx = i + j * dim + k * dim * dim;
+                    float const vp = mesh_local.getModelVpOnNodes(gIdx);
+                    float const vs = mesh_local.getModelVsOnNodes(gIdx);
+                    float const rho = mesh_local.getModelRhoOnNodes(gIdx);
+                    float const mu = rho * vs * vs;
+                    float const lam = rho * (vp * vp - 2.0f * vs * vs);
+                    mu_local[lIdx] = mu;
+                    lam2mu_local[lIdx] = lam + 2.0f * mu;
+                  }
+            }
             auto const iso_func_cart = [&](int qa, int qb, int qc, float const (&)[3][3],
                                            float const (&g)[3][3], float (&flux)[3][3]) {
               float mu, lambda, lam2mu;
@@ -582,7 +680,62 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::com
             };
             INTEGRAL_TYPE::computeElasticStiffnessSumFactCartesian(struct_metrics_local, localFields, localWork,
                                                                    iso_func_cart);
-          } else {
+            for (int i = 0; i < dim; ++i)
+              for (int j = 0; j < dim; ++j)
+                for (int k = 0; k < dim; ++k) {
+                  int const globalIdx = mesh_local.globalNodeIndex(elementNumber, i, j, k);
+                  int const localIdx = i + j * dim + k * dim * dim;
+                  for (int f = 0; f < kNumFields; ++f)
+                    ATOMICADD(localWorkGlobal[f][globalIdx], localWork[f][localIdx]);
+                }
+          }
+        });
+  } else if (list_on || !has_class) {
+    // Legacy: full J per GLL point (also handles list_mode from AE solver).
+    Kokkos::parallel_for(
+        "SolElemContrib Iso Unstruct Legacy",
+        Kokkos::RangePolicy<Kokkos::LaunchBounds<LaunchMaxThreadsPerBlock, LaunchMinBlocksPerSM>>(0, n_iter),
+        KOKKOS_LAMBDA(const int _loop_idx) {
+          int const elementNumber = list_on ? list_local[_loop_idx] : _loop_idx;
+          int const dim = mesh_local.getOrder() + 1;
+          float localFields[kNumFields][kPointsPerElement] = {{0}};
+          float localWork[kNumFields][kPointsPerElement] = {{0}};
+          auto& localWorkGlobal = local_workVectorsGlobal;
+          for (int i = 0; i < dim; ++i)
+            for (int j = 0; j < dim; ++j)
+              for (int k = 0; k < dim; ++k) {
+                int const globalIdx = mesh_local.globalNodeIndex(elementNumber, i, j, k);
+                int const localIdx = i + j * dim + k * dim * dim;
+                for (int f = 0; f < kNumFields; ++f)
+                  localFields[f][localIdx] = data.getCurrentField(f)(globalIdx);
+              }
+          float mu_e = 0.0f, lambda_e = 0.0f, lam2mu_e = 0.0f;
+          float mu_local[kPointsPerElement] = {0};
+          float lam2mu_local[kPointsPerElement] = {0};
+          if constexpr (PHYSICS == utils::enums::physicType::kElastic) {
+            if constexpr (!IS_MODEL_ON_NODES) {
+              float const vp_e = mesh_local.getModelVpOnElement(elementNumber);
+              float const vs_e = mesh_local.getModelVsOnElement(elementNumber);
+              float const rho_e = mesh_local.getModelRhoOnElement(elementNumber);
+              mu_e = rho_e * vs_e * vs_e;
+              lambda_e = rho_e * (vp_e * vp_e - 2.0f * vs_e * vs_e);
+              lam2mu_e = lambda_e + 2.0f * mu_e;
+            }
+            if constexpr (IS_MODEL_ON_NODES) {
+              for (int i = 0; i < dim; ++i)
+                for (int j = 0; j < dim; ++j)
+                  for (int k = 0; k < dim; ++k) {
+                    int const gIdx = mesh_local.globalNodeIndex(elementNumber, i, j, k);
+                    int const lIdx = i + j * dim + k * dim * dim;
+                    float const vp = mesh_local.getModelVpOnNodes(gIdx);
+                    float const vs = mesh_local.getModelVsOnNodes(gIdx);
+                    float const rho = mesh_local.getModelRhoOnNodes(gIdx);
+                    float const mu = rho * vs * vs;
+                    float const lam = rho * (vp * vp - 2.0f * vs * vs);
+                    mu_local[lIdx] = mu;
+                    lam2mu_local[lIdx] = lam + 2.0f * mu;
+                  }
+            }
             auto const iso_func = [&](int qa, int qb, int qc, float const (&J_inv)[3][3],
                                       float const (&grad_u_ref)[3][3], float (&flux)[3][3]) {
               float mu, lambda, lam2mu;
@@ -596,7 +749,6 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::com
                 lambda = lambda_e;
                 lam2mu = lam2mu_e;
               }
-
               for (int p = 0; p < 3; ++p) {
                 float const Jp0 = J_inv[p][0];
                 float const Jp1 = J_inv[p][1];
@@ -633,22 +785,203 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::com
                     mesh_local.vertexCoords(mesh_local.globalVertexIndex(eIdx, iv, jv, kv), cornerCoords[I++]);
             }
             INTEGRAL_TYPE::computeElasticStiffnessSumFact(cornerCoords, localFields, localWork, iso_func);
+            for (int i = 0; i < dim; ++i)
+              for (int j = 0; j < dim; ++j)
+                for (int k = 0; k < dim; ++k) {
+                  int const globalIdx = mesh_local.globalNodeIndex(elementNumber, i, j, k);
+                  int const localIdx = i + j * dim + k * dim * dim;
+                  for (int f = 0; f < kNumFields; ++f)
+                    ATOMICADD(localWorkGlobal[f][globalIdx], localWork[f][localIdx]);
+                }
           }
-
-          for (int i = 0; i < dim; ++i) {
-            for (int j = 0; j < dim; ++j) {
+        });
+  } else {
+    // Rect kernel: precomputed diagonal J_inv (iso_func_cart, 3 non-zero entries).
+    Kokkos::parallel_for(
+        "SolElemContrib Iso Rect",
+        Kokkos::RangePolicy<Kokkos::LaunchBounds<LaunchMaxThreadsPerBlock, LaunchMinBlocksPerSM>>(0, n_rect),
+        KOKKOS_LAMBDA(const int idx) {
+          int const elementNumber = rect_list_local[idx];
+          int const dim = mesh_local.getOrder() + 1;
+          float localFields[kNumFields][kPointsPerElement] = {{0}};
+          float localWork[kNumFields][kPointsPerElement] = {{0}};
+          auto & localWorkGlobal = local_workVectorsGlobal;
+          auto & rectmetrics = rect_metrics_local;
+          for (int i = 0; i < dim; ++i)
+            for (int j = 0; j < dim; ++j)
               for (int k = 0; k < dim; ++k) {
                 int const globalIdx = mesh_local.globalNodeIndex(elementNumber, i, j, k);
                 int const localIdx = i + j * dim + k * dim * dim;
-
-                for (int f = 0; f < kNumFields; ++f) {
-                  ATOMICADD(local_workVectorsGlobal[f][globalIdx], localWork[f][localIdx]);
+                for (int f = 0; f < kNumFields; ++f)
+                  localFields[f][localIdx] = data.getCurrentField(f)(globalIdx);
+              }
+          float mu_e = 0.0f, lambda_e = 0.0f, lam2mu_e = 0.0f;
+          float mu_local[kPointsPerElement] = {0};
+          float lam2mu_local[kPointsPerElement] = {0};
+          float a = 0.0f, b = 0.0f, c = 0.0f;
+          float aa = 0.0f, bb = 0.0f, cc = 0.0f;
+          float ab = 0.0f, ac = 0.0f, bc = 0.0f;
+          if constexpr (PHYSICS == utils::enums::physicType::kElastic) {
+            auto const& em = rectmetrics(elementNumber);
+            a = em.inv_jx; b = em.inv_jy; c = em.inv_jz;
+            aa = a * a; bb = b * b; cc = c * c;
+            ab = a * b; ac = a * c; bc = b * c;
+            if constexpr (!IS_MODEL_ON_NODES) {
+              float const vp_e = mesh_local.getModelVpOnElement(elementNumber);
+              float const vs_e = mesh_local.getModelVsOnElement(elementNumber);
+              float const rho_e = mesh_local.getModelRhoOnElement(elementNumber);
+              mu_e = rho_e * vs_e * vs_e;
+              lambda_e = rho_e * (vp_e * vp_e - 2.0f * vs_e * vs_e);
+              lam2mu_e = lambda_e + 2.0f * mu_e;
+            }
+            if constexpr (IS_MODEL_ON_NODES) {
+              for (int i = 0; i < dim; ++i)
+                for (int j = 0; j < dim; ++j)
+                  for (int k = 0; k < dim; ++k) {
+                    int const gIdx = mesh_local.globalNodeIndex(elementNumber, i, j, k);
+                    int const lIdx = i + j * dim + k * dim * dim;
+                    float const vp = mesh_local.getModelVpOnNodes(gIdx);
+                    float const vs = mesh_local.getModelVsOnNodes(gIdx);
+                    float const rho = mesh_local.getModelRhoOnNodes(gIdx);
+                    float const mu = rho * vs * vs;
+                    float const lam = rho * (vp * vp - 2.0f * vs * vs);
+                    mu_local[lIdx] = mu;
+                    lam2mu_local[lIdx] = lam + 2.0f * mu;
+                  }
+            }
+            auto const iso_func_cart = [&](int qa, int qb, int qc, float const (&)[3][3],
+                                           float const (&g)[3][3], float (&flux)[3][3]) {
+              float mu, lambda, lam2mu;
+              if constexpr (IS_MODEL_ON_NODES) {
+                int const lIdx = qa + qb * dim + qc * dim * dim;
+                mu = mu_local[lIdx];
+                lam2mu = lam2mu_local[lIdx];
+                lambda = lam2mu - 2.0f * mu;
+              } else {
+                mu = mu_e;
+                lambda = lambda_e;
+                lam2mu = lam2mu_e;
+              }
+              flux[0][0] = lam2mu * aa * g[0][0] + lambda * (ab * g[1][1] + ac * g[2][2]);
+              flux[0][1] = mu * (aa * g[0][1] + ab * g[1][0]);
+              flux[0][2] = mu * (aa * g[0][2] + ac * g[2][0]);
+              flux[1][0] = mu * (ab * g[0][1] + bb * g[1][0]);
+              flux[1][1] = lambda * (ab * g[0][0] + bc * g[2][2]) + lam2mu * bb * g[1][1];
+              flux[1][2] = mu * (bb * g[1][2] + bc * g[2][1]);
+              flux[2][0] = mu * (ac * g[0][2] + cc * g[2][0]);
+              flux[2][1] = mu * (bc * g[1][2] + cc * g[2][1]);
+              flux[2][2] = lambda * (ac * g[0][0] + bc * g[1][1]) + lam2mu * cc * g[2][2];
+            };
+            INTEGRAL_TYPE::computeElasticStiffnessSumFactCartesian(em, localFields, localWork, iso_func_cart);
+            for (int i = 0; i < dim; ++i)
+              for (int j = 0; j < dim; ++j)
+                for (int k = 0; k < dim; ++k) {
+                  int const globalIdx = mesh_local.globalNodeIndex(elementNumber, i, j, k);
+                  int const localIdx = i + j * dim + k * dim * dim;
+                  for (int f = 0; f < kNumFields; ++f)
+                    ATOMICADD(localWorkGlobal[f][globalIdx], localWork[f][localIdx]);
+                }
+          }
+        });
+    // Frite kernel: precomputed partial-diagonal J_inv (5 non-zero entries).
+    // Uses general iso_func; a specialized iso_func_frite can be added in a follow-up PR.
+    Kokkos::parallel_for(
+        "SolElemContrib Iso Frite",
+        Kokkos::RangePolicy<Kokkos::LaunchBounds<LaunchMaxThreadsPerBlock, LaunchMinBlocksPerSM>>(0, n_frite),
+        KOKKOS_LAMBDA(const int idx) {
+          int const elementNumber = frite_list_local[idx];
+          int const dim = mesh_local.getOrder() + 1;
+          float localFields[kNumFields][kPointsPerElement] = {{0}};
+          float localWork[kNumFields][kPointsPerElement] = {{0}};
+          auto & friteMetrics = frite_metrics_local;
+          auto & localWorkGlobal = local_workVectorsGlobal;
+          for (int i = 0; i < dim; ++i)
+            for (int j = 0; j < dim; ++j)
+              for (int k = 0; k < dim; ++k) {
+                int const globalIdx = mesh_local.globalNodeIndex(elementNumber, i, j, k);
+                int const localIdx = i + j * dim + k * dim * dim;
+                for (int f = 0; f < kNumFields; ++f)
+                  localFields[f][localIdx] = data.getCurrentField(f)(globalIdx);
+              }
+          float mu_e = 0.0f, lambda_e = 0.0f, lam2mu_e = 0.0f;
+          float mu_local[kPointsPerElement] = {0};
+          float lam2mu_local[kPointsPerElement] = {0};
+          if constexpr (PHYSICS == utils::enums::physicType::kElastic) {
+            if constexpr (!IS_MODEL_ON_NODES) {
+              float const vp_e = mesh_local.getModelVpOnElement(elementNumber);
+              float const vs_e = mesh_local.getModelVsOnElement(elementNumber);
+              float const rho_e = mesh_local.getModelRhoOnElement(elementNumber);
+              mu_e = rho_e * vs_e * vs_e;
+              lambda_e = rho_e * (vp_e * vp_e - 2.0f * vs_e * vs_e);
+              lam2mu_e = lambda_e + 2.0f * mu_e;
+            }
+            if constexpr (IS_MODEL_ON_NODES) {
+              for (int i = 0; i < dim; ++i)
+                for (int j = 0; j < dim; ++j)
+                  for (int k = 0; k < dim; ++k) {
+                    int const gIdx = mesh_local.globalNodeIndex(elementNumber, i, j, k);
+                    int const lIdx = i + j * dim + k * dim * dim;
+                    float const vp = mesh_local.getModelVpOnNodes(gIdx);
+                    float const vs = mesh_local.getModelVsOnNodes(gIdx);
+                    float const rho = mesh_local.getModelRhoOnNodes(gIdx);
+                    float const mu = rho * vs * vs;
+                    float const lam = rho * (vp * vp - 2.0f * vs * vs);
+                    mu_local[lIdx] = mu;
+                    lam2mu_local[lIdx] = lam + 2.0f * mu;
+                  }
+            }
+            auto const iso_func = [&](int qa, int qb, int qc, float const (&J_inv)[3][3],
+                                      float const (&grad_u_ref)[3][3], float (&flux)[3][3]) {
+              float mu, lambda, lam2mu;
+              if constexpr (IS_MODEL_ON_NODES) {
+                int const lIdx = qa + qb * dim + qc * dim * dim;
+                mu = mu_local[lIdx];
+                lam2mu = lam2mu_local[lIdx];
+                lambda = lam2mu - 2.0f * mu;
+              } else {
+                mu = mu_e;
+                lambda = lambda_e;
+                lam2mu = lam2mu_e;
+              }
+              for (int p = 0; p < 3; ++p) {
+                float const Jp0 = J_inv[p][0];
+                float const Jp1 = J_inv[p][1];
+                float const Jp2 = J_inv[p][2];
+                flux[p][0] = 0.0f;
+                flux[p][1] = 0.0f;
+                flux[p][2] = 0.0f;
+                for (int r = 0; r < 3; ++r) {
+                  float const Jr0 = J_inv[r][0];
+                  float const Jr1 = J_inv[r][1];
+                  float const Jr2 = J_inv[r][2];
+                  float const v0 = lam2mu * Jp0 * Jr0 + mu * (Jp1 * Jr1 + Jp2 * Jr2);
+                  float const v1 = mu * Jp0 * Jr0 + lam2mu * Jp1 * Jr1 + mu * Jp2 * Jr2;
+                  float const v2 = mu * (Jp0 * Jr0 + Jp1 * Jr1) + lam2mu * Jp2 * Jr2;
+                  float const v3 = lambda * Jp0 * Jr1 + mu * Jp1 * Jr0;
+                  float const v4 = lambda * Jp0 * Jr2 + mu * Jp2 * Jr0;
+                  float const v5 = lambda * Jp1 * Jr2 + mu * Jp2 * Jr1;
+                  float const g0 = grad_u_ref[r][0];
+                  float const g1 = grad_u_ref[r][1];
+                  float const g2 = grad_u_ref[r][2];
+                  flux[p][0] += v0 * g0 + v3 * g1 + v4 * g2;
+                  flux[p][1] += v3 * g0 + v1 * g1 + v5 * g2;
+                  flux[p][2] += v4 * g0 + v5 * g1 + v2 * g2;
                 }
               }
-            }
+            };
+            INTEGRAL_TYPE::computeElasticStiffnessSumFactFrite(friteMetrics(elementNumber), localFields,
+                                                               localWork, iso_func);
+            for (int i = 0; i < dim; ++i)
+              for (int j = 0; j < dim; ++j)
+                for (int k = 0; k < dim; ++k) {
+                  int const globalIdx = mesh_local.globalNodeIndex(elementNumber, i, j, k);
+                  int const localIdx = i + j * dim + k * dim * dim;
+                  for (int f = 0; f < kNumFields; ++f)
+                    ATOMICADD(localWorkGlobal[f][globalIdx], localWork[f][localIdx]);
+                }
           }
-        }
-      });
+        });
+  }
 }
 
 //============================================================================
@@ -674,10 +1007,7 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::com
       "Solver Element Contribution Vti",
       Kokkos::RangePolicy<Kokkos::LaunchBounds<LaunchMaxThreadsPerBlock, LaunchMinBlocksPerSM>>(0, n_iter),
       KOKKOS_LAMBDA(const int _loop_idx) {
-        // avoid extended __host__ __device__ lambda cannot first-capture
-        // variable in constexpr-if context
         (void)local_workVectorsGlobal;
-        (void)struct_metrics_local;
         int const elementNumber = list_on ? list_local[_loop_idx] : _loop_idx;
 
         int const dim = mesh_local.getOrder() + 1;
@@ -697,8 +1027,15 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::com
           }
         }
 
+        float c11_e = 0.0f, c12_e = 0.0f, c13_e = 0.0f, c33_e = 0.0f, c44_e = 0.0f, c66_e = 0.0f;
+        float vti_c[6][kPointsPerElement] = {};
+        float a = struct_metrics_local.inv_jx;
+        float b = struct_metrics_local.inv_jy;
+        float c = struct_metrics_local.inv_jz;
+        float aa = a * a, bb = b * b, cc = c * c;
+        float ab = a * b, ac = a * c, bc = b * c;
+
         if constexpr (PHYSICS == utils::enums::physicType::kElastic) {
-          float c11_e = 0, c12_e = 0, c13_e = 0, c33_e = 0, c44_e = 0, c66_e = 0;
           if constexpr (!IS_MODEL_ON_NODES) {
             float const vp_e = mesh_local.getModelVpOnElement(elementNumber);
             float const vs_e = mesh_local.getModelVsOnElement(elementNumber);
@@ -1367,6 +1704,100 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::com
           }
         }
       });
+}
+
+//============================================================================
+// classifyMeshTypes - Classify unstruct elements by Jacobian structure
+//============================================================================
+
+template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE, bool IS_MODEL_ON_NODES, physicType PHYSICS>
+void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::classifyMeshTypes() {
+  int const nElem = m_mesh.getNumberOfElements();
+
+  m_rect_metrics_  = Kokkos::View<typename INTEGRAL_TYPE::Metrics3D*>("rectMetrics", nElem);
+  m_frite_metrics_ = Kokkos::View<typename INTEGRAL_TYPE::Metrics3DFrite*>("friteMetrics", nElem);
+  auto h_rect  = Kokkos::create_mirror_view(m_rect_metrics_);
+  auto h_frite = Kokkos::create_mirror_view(m_frite_metrics_);
+
+  std::vector<int> rect_list, frite_list;
+  rect_list.reserve(nElem);
+  frite_list.reserve(nElem);
+
+  for (int e = 0; e < nElem; ++e) {
+    float C[8][3];
+    {
+      auto const eIdx = m_mesh.elementIndex(e);
+      int I = 0;
+      for (int kv = 0; kv < 2; ++kv)
+        for (int jv = 0; jv < 2; ++jv)
+          for (int iv = 0; iv < 2; ++iv)
+            m_mesh.vertexCoords(m_mesh.globalVertexIndex(eIdx, iv, jv, kv), C[I++]);
+    }
+
+    // Jacobian at element center (exact for affine/linear elements).
+    // J[:,r] = average of signed corner differences along reference dir r.
+    float J[3][3] = {{0}};
+    for (int c = 0; c < 3; ++c) {
+      J[c][0] = (C[1][c]+C[3][c]+C[5][c]+C[7][c] - C[0][c]-C[2][c]-C[4][c]-C[6][c]) * 0.125f;
+      J[c][1] = (C[2][c]+C[3][c]+C[6][c]+C[7][c] - C[0][c]-C[1][c]-C[4][c]-C[5][c]) * 0.125f;
+      J[c][2] = (C[4][c]+C[5][c]+C[6][c]+C[7][c] - C[0][c]-C[1][c]-C[2][c]-C[3][c]) * 0.125f;
+    }
+
+    float const scale = std::fabs(J[0][0]) + std::fabs(J[1][1]) + std::fabs(J[2][2]);
+    float const tol   = 1e-5f * scale;
+
+    bool is_rect = true;
+    for (int r = 0; r < 3 && is_rect; ++r)
+      for (int cc = 0; cc < 3 && is_rect; ++cc)
+        if (r != cc && std::fabs(J[r][cc]) > tol) is_rect = false;
+
+    if (is_rect) {
+      float const a = J[0][0], b = J[1][1], c = J[2][2];
+      typename INTEGRAL_TYPE::Metrics3D m;
+      m.detJ   = a * b * c;
+      m.inv_jx = 1.0f / a;
+      m.inv_jy = 1.0f / b;
+      m.inv_jz = 1.0f / c;
+      h_rect(e) = m;
+      rect_list.push_back(e);
+      continue;
+    }
+
+    // Frite test: only J[0][2] and J[1][2] may be non-zero off-diagonal.
+    // General elements (all off-diagonals non-zero) are treated as frite here;
+    // a follow-up PR can add a third "general" list for correctness.
+    float const a = J[0][0], b = J[1][1], c = J[2][2];
+    float const inv_jx = 1.0f / a;
+    float const inv_jy = 1.0f / b;
+    float const inv_jz = 1.0f / c;
+    typename INTEGRAL_TYPE::Metrics3DFrite m;
+    m.inv_jx  = inv_jx;
+    m.inv_jy  = inv_jy;
+    m.inv_jz  = inv_jz;
+    m.inv_j02 = -J[0][2] * inv_jx * inv_jz;
+    m.inv_j12 = -J[1][2] * inv_jy * inv_jz;
+    m.detJ    = a * b * c;
+    h_frite(e) = m;
+    frite_list.push_back(e);
+  }
+
+  Kokkos::deep_copy(m_rect_metrics_,  h_rect);
+  Kokkos::deep_copy(m_frite_metrics_, h_frite);
+
+  m_n_rect_elems_  = static_cast<int>(rect_list.size());
+  m_n_frite_elems_ = static_cast<int>(frite_list.size());
+
+  m_rect_elem_list_  = allocateVector<VECTOR_INT_VIEW>(m_n_rect_elems_,  "rectElemList");
+  m_frite_elem_list_ = allocateVector<VECTOR_INT_VIEW>(m_n_frite_elems_, "friteElemList");
+  for (int i = 0; i < m_n_rect_elems_;  ++i) m_rect_elem_list_[i]  = rect_list[i];
+  for (int i = 0; i < m_n_frite_elems_; ++i) m_frite_elem_list_[i] = frite_list[i];
+
+  m_has_classification_ = true;
+
+  printf("classifyMeshTypes: %d rect (%.1f%%), %d frite (%.1f%%) of %d total\n",
+         m_n_rect_elems_,  100.0f * m_n_rect_elems_  / nElem,
+         m_n_frite_elems_, 100.0f * m_n_frite_elems_ / nElem,
+         nElem);
 }
 
 //============================================================================

@@ -71,6 +71,7 @@ class SEMsolver : public Solver {
 
   void initFEarrays() override;
   void allocateFEarrays() override;
+  void classifyMeshTypes();
   void initSpongeValues() override;
   void resetGlobalVectors(int numNodes) override;
   void computeGlobalMassMatrix() override;
@@ -273,6 +274,15 @@ class SEMsolver : public Solver {
 
   typename INTEGRAL_TYPE::Metrics3D m_struct_metrics_{};
   bool m_has_struct_metrics_ = false;
+
+  // Per-element Jacobian classification for unstruct mesh (kUnstruct only).
+  VECTOR_INT_VIEW m_rect_elem_list_;
+  int m_n_rect_elems_ = 0;
+  VECTOR_INT_VIEW m_frite_elem_list_;
+  int m_n_frite_elems_ = 0;
+  Kokkos::View<typename INTEGRAL_TYPE::Metrics3D*> m_rect_metrics_;
+  Kokkos::View<typename INTEGRAL_TYPE::Metrics3DFrite*> m_frite_metrics_;
+  bool m_has_classification_ = false;
 
   bool attenuationEnabled_ = false;
   int nSls_ = 0;
