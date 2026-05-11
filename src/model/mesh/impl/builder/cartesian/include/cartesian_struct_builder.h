@@ -6,8 +6,8 @@
 
 #include <algorithm>
 
+#include "cartesian_model_file_reader.h"
 #include "cartesian_struct_boundary_classifier.h"
-#include "model_file_reader.h"
 
 namespace model {
 template <typename FloatType, typename ScalarType, int Order>
@@ -111,7 +111,7 @@ class CartesianStructBuilder : public ModelBuilderBase<FloatType, ScalarType> {
         throw std::runtime_error(
             "[CartesianStructBuilder] model_file only supported with isModelOnNodes=false for now.");
       int const n_elem = ex_ * ey_ * ez_;
-      model::ModelFileReader reader(model_file_);
+      model::CartesianModelFileReader reader(model_file_);
       const size_t n = reader.count();
       auto fill_view = [&](VECTOR_REAL_VIEW& view, const std::string& prop, const std::string& label) {
         if (!reader.has(prop)) return;
