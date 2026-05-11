@@ -95,8 +95,7 @@ TEST_F(RhsAcoustoElasticTest, GetTermAcoustic) {
   EXPECT_EQ(t.extent(0), numElements);
   EXPECT_EQ(t.extent(1), numNodesPerElement);
   for (size_t i = 0; i < numElements; ++i)
-    for (size_t j = 0; j < numNodesPerElement; ++j)
-      EXPECT_FLOAT_EQ(t(i, j), i * 100 + j);
+    for (size_t j = 0; j < numNodesPerElement; ++j) EXPECT_FLOAT_EQ(t(i, j), i * 100 + j);
 }
 
 TEST_F(RhsAcoustoElasticTest, GetTermElastic) {
@@ -119,8 +118,7 @@ TEST_F(RhsAcoustoElasticTest, GetElement) {
 
   auto elem = rhs.getElement();
   EXPECT_EQ(elem.extent(0), numElements);
-  for (size_t i = 0; i < numElements; ++i)
-    EXPECT_EQ(elem(i), i * 10);
+  for (size_t i = 0; i < numElements; ++i) EXPECT_EQ(elem(i), i * 10);
 }
 
 TEST_F(RhsAcoustoElasticTest, GetWeights) {
@@ -130,8 +128,7 @@ TEST_F(RhsAcoustoElasticTest, GetWeights) {
   EXPECT_EQ(w.extent(0), numElements);
   EXPECT_EQ(w.extent(1), numNodesPerElement);
   for (size_t i = 0; i < numElements; ++i)
-    for (size_t j = 0; j < numNodesPerElement; ++j)
-      EXPECT_FLOAT_EQ(w(i, j), i + j * 0.1);
+    for (size_t j = 0; j < numNodesPerElement; ++j) EXPECT_FLOAT_EQ(w(i, j), i + j * 0.1);
 }
 
 TEST_F(RhsAcoustoElasticTest, CopyConstructor) {
