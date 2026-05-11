@@ -97,6 +97,7 @@ class SEMproxy {
   bool is_elastic_ = false;
   bool is_acousto_elastic_ = false;
   bool free_surface_ = false;
+  bool is_dg_ = false;
 
   // --- Sponge Boundary Parameters ---
   std::array<float, 3> sponge_size_ = {0, 0, 0};
@@ -127,6 +128,8 @@ class SEMproxy {
   arrayReal rhs_term_;
   vectorReal pn_global_prev_;
   vectorReal pn_global_curr_;
+  arrayReal pn_dg_prev_;
+  arrayReal pn_dg_curr_;
   vectorInt rhs_element_;
   vectorInt rhs_element_rcv_;
   arrayReal rhs_weights_;
