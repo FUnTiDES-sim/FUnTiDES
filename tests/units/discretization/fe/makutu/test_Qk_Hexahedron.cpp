@@ -922,8 +922,7 @@ TYPED_TEST(SumFactAcousticTest, ZeroInputGivesZeroOutput) {
   real_t f[numNodes] = {0};
   QK::computeStiffnessTermSumFact(X, p, f, [](int, int, int) { return real_t(1); });
 
-  for (int i = 0; i < numNodes; ++i)
-    EXPECT_NEAR(f[i], 0.0, TOL_NUMERICAL) << "Zero p must give zero f at node " << i;
+  for (int i = 0; i < numNodes; ++i) EXPECT_NEAR(f[i], 0.0, TOL_NUMERICAL) << "Zero p must give zero f at node " << i;
 }
 
 TYPED_TEST(SumFactAcousticTest, ConstantPressureGivesZeroForce) {
@@ -939,8 +938,7 @@ TYPED_TEST(SumFactAcousticTest, ConstantPressureGivesZeroForce) {
 
   QK::computeStiffnessTermSumFact(X, p, f, [](int, int, int) { return real_t(1); });
 
-  for (int i = 0; i < numNodes; ++i)
-    EXPECT_NEAR(f[i], 0.0, TOL_NUMERICAL) << "K*const should be zero at node " << i;
+  for (int i = 0; i < numNodes; ++i) EXPECT_NEAR(f[i], 0.0, TOL_NUMERICAL) << "K*const should be zero at node " << i;
 }
 
 TYPED_TEST(SumFactAcousticTest, ConsistencyWithDirectAssembly) {
@@ -955,17 +953,14 @@ TYPED_TEST(SumFactAcousticTest, ConsistencyWithDirectAssembly) {
 
   // Direct assembly: K·p via computeStiffnessTerm with alpha=1
   real_t Ku_direct[numNodes] = {0};
-  QK::computeStiffnessTerm(X, [](int, int, int) {}, [&](int i, int j, real_t Kij) {
-    Ku_direct[i] += Kij * p[j];
-  });
+  QK::computeStiffnessTerm(X, [](int, int, int) {}, [&](int i, int j, real_t Kij) { Ku_direct[i] += Kij * p[j]; });
 
   // Sum-factorized: same physics (alpha=1)
   real_t Ku_sumfact[numNodes] = {0};
   QK::computeStiffnessTermSumFact(X, p, Ku_sumfact, [](int, int, int) { return real_t(1); });
 
   for (int i = 0; i < numNodes; ++i)
-    EXPECT_NEAR(Ku_sumfact[i], Ku_direct[i], TOL_NUMERICAL)
-        << "Sum-fact and direct assembly disagree at node " << i;
+    EXPECT_NEAR(Ku_sumfact[i], Ku_direct[i], TOL_NUMERICAL) << "Sum-fact and direct assembly disagree at node " << i;
 }
 
 // ============================================================================
@@ -988,16 +983,14 @@ TYPED_TEST(SumFactElasticTest, ZeroDisplacementGivesZeroForce) {
   real_t f[3][numNodes] = {{0}};
 
   QK::computeElasticStiffnessSumFact(
-      X, u, f,
-      [](int, int, int, real_t const (&)[3][3], real_t const (&grad)[3][3], real_t (&flux)[3][3]) {
+      X, u, f, [](int, int, int, real_t const(&)[3][3], real_t const(&grad)[3][3], real_t(&flux)[3][3]) {
         for (int p = 0; p < 3; ++p)
           for (int s = 0; s < 3; ++s) flux[p][s] = grad[p][s];
       });
 
   for (int c = 0; c < 3; ++c)
     for (int i = 0; i < numNodes; ++i)
-      EXPECT_NEAR(f[c][i], 0.0, TOL_NUMERICAL)
-          << "Zero u must give zero f at comp " << c << " node " << i;
+      EXPECT_NEAR(f[c][i], 0.0, TOL_NUMERICAL) << "Zero u must give zero f at comp " << c << " node " << i;
 }
 
 TYPED_TEST(SumFactElasticTest, ConstantDisplacementGivesZeroForce) {
@@ -1013,16 +1006,14 @@ TYPED_TEST(SumFactElasticTest, ConstantDisplacementGivesZeroForce) {
     for (int i = 0; i < numNodes; ++i) u[c][i] = real_t(1) + static_cast<real_t>(c);
 
   QK::computeElasticStiffnessSumFact(
-      X, u, f,
-      [](int, int, int, real_t const (&)[3][3], real_t const (&grad)[3][3], real_t (&flux)[3][3]) {
+      X, u, f, [](int, int, int, real_t const(&)[3][3], real_t const(&grad)[3][3], real_t(&flux)[3][3]) {
         for (int p = 0; p < 3; ++p)
           for (int s = 0; s < 3; ++s) flux[p][s] = grad[p][s];
       });
 
   for (int c = 0; c < 3; ++c)
     for (int i = 0; i < numNodes; ++i)
-      EXPECT_NEAR(f[c][i], 0.0, TOL_NUMERICAL)
-          << "Constant u must give zero f at comp " << c << " node " << i;
+      EXPECT_NEAR(f[c][i], 0.0, TOL_NUMERICAL) << "Constant u must give zero f at comp " << c << " node " << i;
 }
 
 TYPED_TEST(SumFactElasticTest, NonTrivialDisplacementOutputIsFinite) {
@@ -1047,16 +1038,14 @@ TYPED_TEST(SumFactElasticTest, NonTrivialDisplacementOutputIsFinite) {
     for (int i = 0; i < numNodes; ++i) u[c][i] = Xfull[i][c];
 
   QK::computeElasticStiffnessSumFact(
-      X, u, f,
-      [](int, int, int, real_t const (&)[3][3], real_t const (&grad)[3][3], real_t (&flux)[3][3]) {
+      X, u, f, [](int, int, int, real_t const(&)[3][3], real_t const(&grad)[3][3], real_t(&flux)[3][3]) {
         for (int p = 0; p < 3; ++p)
           for (int s = 0; s < 3; ++s) flux[p][s] = grad[p][s];
       });
 
   for (int c = 0; c < 3; ++c)
     for (int i = 0; i < numNodes; ++i)
-      EXPECT_TRUE(std::isfinite(f[c][i]))
-          << "Force must be finite at comp " << c << " node " << i;
+      EXPECT_TRUE(std::isfinite(f[c][i])) << "Force must be finite at comp " << c << " node " << i;
 }
 
 // ============================================================================
