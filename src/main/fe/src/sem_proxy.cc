@@ -258,23 +258,6 @@ void SEMproxy::Run() {
         MPI_Barrier(MPI_COMM_WORLD);
 #endif
         SaveSnapshot(time_index, pn_global_prev_);
-
-        int nx = num_nodes_[0];
-        int ny = num_nodes_[1];
-        int nz = num_nodes_[2];
-        int z_slice = nz / 2;
-        std::ostringstream fname;
-        fname << "slice_" << std::setfill('0') << std::setw(5) << time_index << ".dat";
-        std::ofstream fslice(fname.str());
-        for (int iy = 0; iy < ny; ++iy) {
-          for (int ix = 0; ix < nx; ++ix) {
-            int node_idx = ix + iy * nx + z_slice * nx * ny;
-            fslice << pn_global_prev_(node_idx);
-            if (ix < nx - 1) fslice << " ";
-          }
-          fslice << "\n";
-        }
-        fslice.close();
       }
 
       const int order = mesh_->getOrder();
