@@ -65,10 +65,8 @@ void bind_sem_solver_base(py::module_ &m) {
             return self.getMassMatrixAcoustic();
           },
           py::return_value_policy::reference_internal)
-      .def("output_solution_values",
-           static_cast<void (Solver::*)(const int &, int &, const VECTOR_REAL_VIEW &, const char *)>(
-               &Solver::outputSolutionValues),
-           py::arg("t"), py::arg("e"), py::arg("field_global"), py::arg("field_name"))
+      .def("output_solution_values", &Solver::outputSolutionValues, py::arg("t"), py::arg("e"), py::arg("field_global"),
+           py::arg("field_name"))
       .def(
           "set_sls_attenuation",
           [](Solver &self, const std::vector<float> &freqs, const std::vector<float> &coeffs) {
