@@ -2,6 +2,7 @@
 #include <unistd.h>
 
 #include <cstdio>
+#include <fstream>
 #include <stdexcept>
 #include <string>
 
@@ -12,8 +13,9 @@ namespace {
 static std::string writeTempFile(const std::string& content) {
   char path[] = "/tmp/model_reader_test_XXXXXX";
   int fd = mkstemp(path);
-  write(fd, content.c_str(), content.size());
   close(fd);
+  std::ofstream f(path);
+  f << content;
   return std::string(path);
 }
 
@@ -122,18 +124,18 @@ TEST(CartesianModelFileReaderTest, GetThrowsForAbsentProperty) {
 // ── error paths ──────────────────────────────────────────────────────────────
 
 TEST(CartesianModelFileReaderTest, FileNotFound) {
-  EXPECT_THROW(model::CartesianModelFileReader("/tmp/__nonexistent_funtides_model__.txt"), std::runtime_error);
+  EXPECT_THROW({ model::CartesianModelFileReader r("/tmp/__nonexistent_funtides_model__.txt"); }, std::runtime_error);
 }
 
 TEST(CartesianModelFileReaderTest, MalformedHeaderMissingSupport) {
   auto path = writeTempFile("Model Vp\n2\n1.0\n2.0\n");
-  EXPECT_THROW(model::CartesianModelFileReader(path), std::runtime_error);
+  EXPECT_THROW({ model::CartesianModelFileReader r(path); }, std::runtime_error);
   std::remove(path.c_str());
 }
 
 TEST(CartesianModelFileReaderTest, UnknownSupport) {
   auto path = writeTempFile("Model Vp blocks\n2\n1.0\n2.0\n");
-  EXPECT_THROW(model::CartesianModelFileReader(path), std::runtime_error);
+  EXPECT_THROW({ model::CartesianModelFileReader r(path); }, std::runtime_error);
   std::remove(path.c_str());
 }
 
@@ -147,7 +149,7 @@ TEST(CartesianModelFileReaderTest, MixedSupports) {
       "2\n"
       "1.0\n"
       "2.0\n");
-  EXPECT_THROW(model::CartesianModelFileReader(path), std::runtime_error);
+  EXPECT_THROW({ model::CartesianModelFileReader r(path); }, std::runtime_error);
   std::remove(path.c_str());
 }
 
@@ -162,19 +164,19 @@ TEST(CartesianModelFileReaderTest, CountMismatch) {
       "1.0\n"
       "2.0\n"
       "3.0\n");
-  EXPECT_THROW(model::CartesianModelFileReader(path), std::runtime_error);
+  EXPECT_THROW({ model::CartesianModelFileReader r(path); }, std::runtime_error);
   std::remove(path.c_str());
 }
 
 TEST(CartesianModelFileReaderTest, NonNumericValue) {
   auto path = writeTempFile("Model Vp element\n2\n1.0\nnotanumber\n");
-  EXPECT_THROW(model::CartesianModelFileReader(path), std::runtime_error);
+  EXPECT_THROW({ model::CartesianModelFileReader r(path); }, std::runtime_error);
   std::remove(path.c_str());
 }
 
 TEST(CartesianModelFileReaderTest, UnexpectedEof) {
   auto path = writeTempFile("Model Vp element\n3\n1.0\n2.0\n");
-  EXPECT_THROW(model::CartesianModelFileReader(path), std::runtime_error);
+  EXPECT_THROW({ model::CartesianModelFileReader r(path); }, std::runtime_error);
   std::remove(path.c_str());
 }
 
@@ -188,13 +190,13 @@ TEST(CartesianModelFileReaderTest, DuplicateProperty) {
       "2\n"
       "3.0\n"
       "4.0\n");
-  EXPECT_THROW(model::CartesianModelFileReader(path), std::runtime_error);
+  EXPECT_THROW({ model::CartesianModelFileReader r(path); }, std::runtime_error);
   std::remove(path.c_str());
 }
 
 TEST(CartesianModelFileReaderTest, NoValidSection) {
   auto path = writeTempFile("This is not a model file\nsome garbage data\n");
-  EXPECT_THROW(model::CartesianModelFileReader(path), std::runtime_error);
+  EXPECT_THROW({ model::CartesianModelFileReader r(path); }, std::runtime_error);
   std::remove(path.c_str());
 }
 
