@@ -117,6 +117,7 @@ class SEMsolverAcoustoElastic : public Solver {
   void computeDampingMatrix() override;
 
   void outputSolutionValues(const int& t, int& e, const vectorReal& field, const char* fieldName) override;
+  void outputSolutionValues(const int& t, int& e, const arrayReal& field, const char* fieldName) override {};
 
   void setAnisotropyType(model::AnisotropyType type) override { m_elastic_solver_.setAnisotropyType(type); }
 

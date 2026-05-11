@@ -94,6 +94,9 @@ class Solver {
    */
   virtual void outputSolutionValues(const int& t, int& e, const vectorReal& field, const char* fieldName) = 0;
 
+  // --- Additional methods for DG solver ---
+  virtual void outputSolutionValues(const int& t, int& e, const arrayReal& field, const char* fieldName) = 0;
+
   // --- Domain Decomposition Interface ---
 
   /**

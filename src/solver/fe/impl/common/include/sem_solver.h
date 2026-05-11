@@ -103,6 +103,8 @@ class SEMsolver : public Solver {
 
   void outputSolutionValues(const int& t, int& e, const vectorReal& field, const char* fieldName) override;
 
+  void outputSolutionValues(const int& t, int& e, const arrayReal& field, const char* fieldName) override {};
+
   /**
    * @brief Apply external forcing to the global fields.
    *
