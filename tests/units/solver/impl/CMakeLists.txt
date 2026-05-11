@@ -20,6 +20,16 @@ add_gtest(rhs_elastic_test
   proxy_solver
 )
 
+add_gtest(wavefield_acoustoelastic_test
+  test_wavefield_acoustoelastic.cc
+  proxy_solver
+)
+
+add_gtest(rhs_acoustoelastic_test
+  test_rhs_acoustoelastic.cc
+  proxy_solver
+)
+
 add_gtest(solver_data_test
   test_solver_data.cc
   proxy_solver
