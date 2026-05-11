@@ -8,6 +8,7 @@ struct CartesianParams {
   Coord lx, ly, lz;
   bool isModelOnNodes;
   bool isElastic;
+  std::string model_file;
   bool isAcoustoElastic{false};
   Coord acoustoElasticBoundaryZ{static_cast<Coord>(0)};
 
@@ -30,7 +31,8 @@ struct CartesianParams {
         ly(ly_),
         lz(lz_),
         isModelOnNodes(isModelOnNodes_),
-        isElastic(isElastic_) {}
+        isElastic(isElastic_),
+        model_file{""} {}
 };
 }  // namespace model
 #endif  // FUNTIDES_MODEL_MESH_IMPL_BUILDER_CARTESIAN_INCLUDE_CARTESIAN_PARAMS_H_
