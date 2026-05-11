@@ -1,9 +1,4 @@
-//************************************************************************
-//   proxy application v.0.0.1
-//
-//  semproxy.cpp: the main interface of  proxy application
-//
-//************************************************************************
+// Implementation of the SEM proxy main interface and solver orchestrator.
 
 #include "sem_proxy.h"
 
@@ -17,10 +12,6 @@
 #include <cxxopts.hpp>
 #include <fstream>
 #include <iomanip>
-#include <iostream>
-#include <memory>
-#include <sstream>
-#include <variant>
 
 #include "dg_solver_data.h"
 #include "rhs_acoustoelastic.h"
@@ -38,218 +29,186 @@ using namespace solver::fe::solver_factory;
 using namespace utils::enums;
 
 SEMproxy::SEMproxy(const SemProxyOptions& opt) {
-  // Init MPI parameters
   int mpi_initialized = 0;
-  init_mpi(&mpi_initialized);
+  InitMpi(&mpi_initialized);
 
-  init_sim_params(opt);
-  init_mesh_params(opt);
-  init_topology();
-  init_sync();
-  init_time_params(opt);
+  // Start initialization timer
+  auto start_init = std::chrono::high_resolution_clock::now();
 
-  isAcoustoElastic_ = opt.isAcoustoElastic;
+  InitSimParams(opt);
+  InitMeshParams(opt);
+  InitTopology();
+  InitSync();
+  InitTimeParams(opt);
 
-  const methodType methodType = getMethod(opt.method);
-  isDG_ = (methodType == utils::enums::methodType::kDg);
-  const implemType implemType = getImplem(opt.implem);
-  const meshType meshType = getMesh(opt.mesh);
-  const modelLocationType modelLocation =
+  SetupSolver(opt);
+  SetupAttenuation(opt);
+  InitFiniteElem();
+  SetupIo(opt);
+  SetupDas(opt);
+
+  // Accumulate constructor init time
+  time_init_ += std::chrono::duration<double>(std::chrono::high_resolution_clock::now() - start_init).count();
+
+  DisplayInitMsg(opt);
+}
+
+void SEMproxy::SetupSolver(const SemProxyOptions& opt) {
+  is_acousto_elastic_ = opt.isAcoustoElastic;
+
+  const methodType method_type = GetMethod(opt.method);
+  is_dg_ = (method_type == utils::enums::methodType::kDg);
+  const implemType implem_type = GetImplem(opt.implem);
+  const meshType mesh_type = GetMesh(opt.mesh);
+  const modelLocationType model_location =
       opt.isModelOnNodes ? modelLocationType::kOnNodes : modelLocationType::kOnElements;
-  const physicType physicType =
-      isAcoustoElastic_ ? physicType::kAcoustoElastic : (opt.isElastic ? physicType::kElastic : physicType::kAcoustic);
+  const physicType physic_type = is_acousto_elastic_ ? physicType::kAcoustoElastic
+                                                     : (opt.isElastic ? physicType::kElastic : physicType::kAcoustic);
 
-  m_solver = createSolver(methodType, implemType, meshType, modelLocation, physicType, opt.order);
+  solver_ = createSolver(method_type, implem_type, mesh_type, model_location, physic_type, opt.order);
 
-  const model::AnisotropyType anisotropyType = getAnisotropy(opt.anisotropy);
-
-  // Setup Sponge Parameters (store as members for use in run())
+  const model::AnisotropyType anisotropy_type = GetAnisotropy(opt.anisotropy);
   sponge_size_ = {opt.boundaries_size, opt.boundaries_size, opt.boundaries_size};
   surface_sponge_ = opt.surface_sponge;
   taper_delta_ = opt.taper_delta;
 
-  // Set quality factors for attenuation (must be set before setSLSAttenuation
-  // so that auto-fill of anelasticity coefficients from Q works)
+  if (opt.isElastic) {
+    solver_->setAnisotropyType(anisotropy_type);
+
+    if (anisotropy_type == model::AnisotropyType::kTTI && !opt.isModelOnNodes) {
+      mesh_->initElasticityTensors(anisotropy_type);
+    }
+  }
+}
+
+void SEMproxy::SetupAttenuation(const SemProxyOptions& opt) {
   if (opt.qp > 0 || opt.qs > 0) {
     float qp = (opt.qp > 0) ? opt.qp : 1e9f;
     float qs = (opt.qs > 0) ? opt.qs : 1e9f;
-    m_mesh->setQualityFactors(qp, qs);
-    std::cout << "Quality factors set: Qp=" << qp << ", Qs=" << qs << std::endl;
+    mesh_->setQualityFactors(qp, qs);
   }
 
-  // Enable SLS attenuation mechanism
-  auto toView = [](const std::vector<float>& v, const char* name) {
+  auto ToView = [](const std::vector<float>& v, const char* name) {
     auto view = allocateVector<vectorReal>(v.size(), name);
     for (size_t i = 0; i < v.size(); ++i) view[i] = v[i];
     return view;
   };
 
   if (!opt.sls_reference_angular_frequencies.empty()) {
-    auto freqView = toView(opt.sls_reference_angular_frequencies, "slsFreqs");
-    auto coeffView = toView(opt.sls_anelasticity_coefficients, "slsCoeffs");
-    m_solver->setSLSAttenuation(freqView, coeffView);
+    auto freq_view = ToView(opt.sls_reference_angular_frequencies, "slsFreqs");
+    auto coeff_view = ToView(opt.sls_anelasticity_coefficients, "slsCoeffs");
+    solver_->setSLSAttenuation(freq_view, coeff_view);
   } else if (opt.qp > 0 || opt.qs > 0) {
-    // Auto-enable SLS with default reference frequency based on source f0
     float omega0 = 2.0f * M_PI * opt.f0;
-    std::cout << "Auto-enabling SLS attenuation at omega0=" << omega0 << " rad/s (f0=" << opt.f0 << " Hz)" << std::endl;
-    auto freqView = allocateVector<vectorReal>(1, "slsFreqAuto");
-    freqView[0] = omega0;
-    m_solver->setSLSAttenuation(freqView);
+    auto freq_view = allocateVector<vectorReal>(1, "slsFreqAuto");
+    freq_view[0] = omega0;
+    solver_->setSLSAttenuation(freq_view);
   }
+}
 
-  if (opt.isElastic) {
-    m_solver->setAnisotropyType(anisotropyType);
-
-    // Initialize elasticity tensors ONLY for TTI on elements
-    // (ISO and VTI are computed on-the-fly, TTI on nodes also on-the-fly)
-    if (anisotropyType == model::AnisotropyType::kTTI && !opt.isModelOnNodes) {
-      m_mesh->initElasticityTensors(anisotropyType);
-    }
-  }
-
-  // Note: m_solver->computeFEInit is now called in run() to pass partition
-  // info. We manually call init arrays here if needed, but computeFEInit does
-  // it too. For consistency with old code structure, we prep arrays now.
-  initFiniteElem();
-
-  // Prepare ADIOS2 dimensions
-  // Global Dimensions
-  // Note: For unstructured/general meshes, this is complex.
-  // For Cartesian Struct Mesh:
-  // Global Size = Global_Elements * Order + 1
-  // Local Size = Local_Elements * Order + 1
-  // Offset = Origin_Index (calculated from origin_x)
-  size_t global_nx =
-      m_localParams.global_lx / (m_localParams.global_lx / opt.ex) * opt.order + 1;  // Approximation if uniform
-  // More precise:
-  size_t g_ex = static_cast<size_t>(opt.ex);
-  size_t g_ey = static_cast<size_t>(opt.ey);
-  size_t g_ez = static_cast<size_t>(opt.ez);
-
-  // Just 1D decomposition on X supported by partitioner currently
-  size_t g_nx = g_ex * opt.order + 1;
-  size_t g_ny = g_ey * opt.order + 1;
-  size_t g_nz = g_ez * opt.order + 1;
+void SEMproxy::SetupIo(const SemProxyOptions& opt) {
+  size_t g_nx = static_cast<size_t>(opt.ex) * opt.order + 1;
+  size_t g_ny = static_cast<size_t>(opt.ey) * opt.order + 1;
+  size_t g_nz = static_cast<size_t>(opt.ez) * opt.order + 1;
   std::vector<size_t> global_dims = {g_nx, g_ny, g_nz};
 
-  // Calculate offset based on origin
-  // origin_x is physical coordinate. We need node index.
-  // dx = lx / ex.
-  float dx = m_localParams.global_lx / opt.ex;
-  size_t elem_offset_x = static_cast<size_t>(std::round(m_localParams.origin_x / dx));
+  float dx = local_params_.global_lx / opt.ex;
+  size_t elem_offset_x = static_cast<size_t>(std::round(local_params_.origin_x / dx));
   size_t node_offset_x = elem_offset_x * opt.order;
-
   std::vector<size_t> start_offsets = {node_offset_x, 0, 0};
 
-  // Local Size
-  // Note: ADIOS2 overlap handling.
-  // Nodes are shared. If we write all local nodes, boundary nodes are written
-  // twice. ADIOS2 allows this, but we must ensure we are consistent. Simple
-  // approach: Write full local block.
-  size_t l_nx = static_cast<size_t>(nb_nodes_[0]);
-  size_t l_ny = static_cast<size_t>(nb_nodes_[1]);
-  size_t l_nz = static_cast<size_t>(nb_nodes_[2]);
+  size_t l_nx = static_cast<size_t>(num_nodes_[0]);
+  size_t l_ny = static_cast<size_t>(num_nodes_[1]);
+  size_t l_nz = static_cast<size_t>(num_nodes_[2]);
   std::vector<size_t> local_dims = {l_nx, l_ny, l_nz};
 
-  // Refine Global Dims vector
-  global_dims = {g_nx, g_ny, g_nz};
+  io_ctrl_ = std::make_shared<SemIOController>(global_dims, start_offsets, local_dims,
+                                               static_cast<size_t>(num_samples_), static_cast<size_t>(1));
 
-  io_ctrl_ = std::make_shared<SemIOController>(global_dims, start_offsets, local_dims, static_cast<size_t>(num_sample_),
-                                               static_cast<size_t>(1));
-
-  // snapshots settings
   is_snapshots_ = opt.snapshots;
   if (is_snapshots_) {
     snap_time_interval_ = opt.snap_time_interval;
   }
+}
 
-  // DAS receiver setup
+void SEMproxy::SetupDas(const SemProxyOptions& opt) {
   if (opt.das_type == "dipole") {
-    dasType_ = SourceAndReceiverUtils::DASType::kDipole;
-    dasNumSamples_ = 2;  // dipole uses exactly 2 endpoints
+    das_type_ = SourceAndReceiverUtils::DASType::kDipole;
+    das_num_samples_ = 2;
   } else if (opt.das_type == "strain") {
-    dasType_ = SourceAndReceiverUtils::DASType::kStrainIntegration;
-    dasNumSamples_ = opt.das_samples;
+    das_type_ = SourceAndReceiverUtils::DASType::kStrainIntegration;
+    das_num_samples_ = opt.das_samples;
   } else {
-    dasType_ = SourceAndReceiverUtils::DASType::kNone;
+    das_type_ = SourceAndReceiverUtils::DASType::kNone;
   }
 
-  if (dasType_ != SourceAndReceiverUtils::DASType::kNone) {
-    if (!isElastic_) {
+  if (das_type_ != SourceAndReceiverUtils::DASType::kNone) {
+    if (!is_elastic_) {
       throw std::runtime_error("DAS receivers require elastic simulation (--is-elastic true)");
     }
-    dasGaugeLength_ = opt.das_gauge_length;
-    dasDirection_ = SourceAndReceiverUtils::ComputeDASVector(opt.das_dip, opt.das_azimuth);
-    dasVector_ = dasDirection_;
+    das_gauge_length_ = opt.das_gauge_length;
+    das_direction_ = SourceAndReceiverUtils::ComputeDASVector(opt.das_dip, opt.das_azimuth);
+    das_vector_ = das_direction_;
 
-    // For dipole mode, divide direction by gauge length (GEOS convention)
-    if (dasType_ == SourceAndReceiverUtils::DASType::kDipole) {
-      for (int i = 0; i < 3; ++i) dasVector_[i] /= dasGaugeLength_;
+    if (das_type_ == SourceAndReceiverUtils::DASType::kDipole) {
+      for (int i = 0; i < 3; ++i) das_vector_[i] /= das_gauge_length_;
     }
-
-    std::cout << "DAS receiver enabled: type=" << opt.das_type << ", dip=" << opt.das_dip
-              << " deg, azimuth=" << opt.das_azimuth << " deg, gauge=" << dasGaugeLength_
-              << " m, samples=" << dasNumSamples_ << std::endl;
-    std::cout << "DAS direction vector: (" << dasDirection_[0] << ", " << dasDirection_[1] << ", " << dasDirection_[2]
-              << ")" << std::endl;
   }
 }
 
-void SEMproxy::run() {
-  time_point<system_clock> startComputeTime, startOutputTime, totalComputeTime, totalOutputTime;
+void SEMproxy::Run() {
+  // Capture run-time initialization (like mass matrix sync)
+  auto start_run_init = std::chrono::high_resolution_clock::now();
 
-  bool isElastic = isElastic_;
-  bool isAcoustoElastic = isAcoustoElastic_;
+  solver_->computeFEInit(*mesh_, sponge_size_, surface_sponge_, taper_delta_);
 
-  // Initialize Solver with Partition Info & Compute Local Mass
-  m_solver->computeFEInit(*m_mesh, sponge_size_, surface_sponge_, taper_delta_);
-
-  // Synchronize Mass Matrix (Critical for DD)
   if (par_topology_.isDistributed()) {
-    if (isAcoustoElastic_) {
-      m_syncer->synchronize(m_solver->getMassMatrixAcoustic(), par_topology_);
-      m_syncer->synchronize(m_solver->getMassMatrixElastic(), par_topology_);
-    } else if (isElastic_) {
-      m_syncer->synchronize(m_solver->getMassMatrixElastic(), par_topology_);
+    if (is_acousto_elastic_) {
+      syncer_->synchronize(solver_->getMassMatrixAcoustic(), par_topology_);
+      syncer_->synchronize(solver_->getMassMatrixElastic(), par_topology_);
+    } else if (is_elastic_) {
+      syncer_->synchronize(solver_->getMassMatrixElastic(), par_topology_);
     } else {
-      m_syncer->synchronize(m_solver->getMassMatrixAcoustic(), par_topology_);
+      syncer_->synchronize(solver_->getMassMatrixAcoustic(), par_topology_);
     }
-    for (int c = 0; c < m_solver->getNumComponents(); ++c) {
-      m_syncer->synchronize(m_solver->getDampingMatrix(c), par_topology_);
+    for (int c = 0; c < solver_->getNumComponents(); ++c) {
+      syncer_->synchronize(solver_->getDampingMatrix(c), par_topology_);
     }
   }
 
-  // Get the global node index of the first node of the source element
-  int debugNodeIdx = m_mesh->globalNodeIndex(myElementSource, 0, 0, 0);
+  time_init_ += std::chrono::duration<double>(std::chrono::high_resolution_clock::now() - start_run_init).count();
 
-  if (isDG_) {
-    DGsolverDataAcoustic dgData(pnDGPrev_, pnDGCurr_, myRHSTerm, rhsElement, rhsWeights);
+  std::chrono::time_point<std::chrono::high_resolution_clock> start_compute_time, start_output_time;
+  std::chrono::duration<double> total_compute_time(0), total_output_time(0);
 
-    for (int indexTimeSample = 0; indexTimeSample < num_sample_; indexTimeSample++) {
-      startComputeTime = system_clock::now();
+  if (is_dg_) {
+    DGsolverDataAcoustic dgData(pn_dg_prev_, pn_dg_curr_, rhs_term_, rhs_element_, rhs_weights_);
 
-      m_solver->computeOneStep(dt_, indexTimeSample, dgData);
+    for (int time_index = 0; time_index < num_samples_; time_index++) {
+      start_compute_time = system_clock::now();
 
-      totalComputeTime += system_clock::now() - startComputeTime;
-      startOutputTime = system_clock::now();
+      solver_->computeOneStep(dt_, time_index, dgData);
 
-      if (indexTimeSample % 50 == 0) {
-        std::cout << "DG TimeStep=" << indexTimeSample
-                  << "  p(src_elem, dof=0)=" << dgData.getPreviousField(0)(myElementSource, 0)
-                  << "  p(rcv_elem, dof=0)=" << dgData.getPreviousField(0)(rhsElementRcv[0], 0) << std::endl;
+      total_compute_time += system_clock::now() - start_compute_time;
+      start_output_time = system_clock::now();
+
+      if (time_index % 50 == 0) {
+        std::cout << "DG TimeStep=" << time_index
+                  << "  p(src_elem, dof=0)=" << dgData.getPreviousField(0)(source_element_, 0)
+                  << "  p(rcv_elem, dof=0)=" << dgData.getPreviousField(0)(rhs_element_rcv_[0], 0) << std::endl;
       }
 
-      if (is_snapshots_ && indexTimeSample % snap_time_interval_ == 0) {
+      if (is_snapshots_ && time_index % snap_time_interval_ == 0) {
         Kokkos::fence();
-        const int order = m_mesh->getOrder();
-        const int ex = nb_elements_[0];
-        const int ey = nb_elements_[1];
-        const int ez = nb_elements_[2];
+        const int order = mesh_->getOrder();
+        const int ex = num_elements_[0];
+        const int ey = num_elements_[1];
+        const int ez = num_elements_[2];
         const int zElem = ez / 2;
         const int n1d = order + 1;
         const int icZ = order / 2;
         std::ostringstream fname;
-        fname << "slice_dg_" << std::setfill('0') << std::setw(5) << indexTimeSample << ".dat";
+        fname << "slice_dg_" << std::setfill('0') << std::setw(5) << time_index << ".dat";
         std::ofstream fslice(fname.str());
         auto field = dgData.getPreviousField(0);
         for (int ej_idx = 0; ej_idx < ey; ++ej_idx) {
@@ -272,146 +231,125 @@ void SEMproxy::run() {
       }
 
       // Save pressure at receiver: DG field indexed by (elem, local_dof)
-      const int order = m_mesh->getOrder();
+      const int order = mesh_->getOrder();
       float varnp1 = 0.0f;
       for (int i = 0; i <= order; i++) {
         for (int j = 0; j <= order; j++) {
           for (int k = 0; k <= order; k++) {
             int localDof = i + j * (order + 1) + k * (order + 1) * (order + 1);
-            varnp1 += dgData.getPreviousField(0)(rhsElementRcv[0], localDof) * rhsWeightsRcv(0, localDof);
+            varnp1 += dgData.getPreviousField(0)(rhs_element_rcv_[0], localDof) * rhs_weights_rcv_(0, localDof);
           }
         }
       }
-      pnAtReceiver(0, indexTimeSample) = varnp1;
+      pn_at_receiver_(0, time_index) = varnp1;
 
       dgData.swapWavefields();
 
-      totalOutputTime += system_clock::now() - startOutputTime;
+      total_output_time += system_clock::now() - start_output_time;
     }
 
     // Save receiver trace
     {
       std::ofstream fout("receiver_trace.txt");
       fout << "# time pressure_at_receiver\n";
-      for (int t = 0; t < num_sample_; ++t) {
-        fout << t * dt_ << " " << pnAtReceiver(0, t) << "\n";
+      for (int t = 0; t < num_samples_; ++t) {
+        fout << t * dt_ << " " << pn_at_receiver_(0, t) << "\n";
       }
       fout.close();
-      std::cout << "Receiver trace saved to receiver_trace.txt (" << num_sample_ << " samples)" << std::endl;
+      std::cout << "Receiver trace saved to receiver_trace.txt (" << num_samples_ << " samples)" << std::endl;
     }
 
-  } else if (isAcoustoElastic) {
-    WavefieldAcoustoElastic wavefield(pnGlobalPrev, pnGlobalCurr, uxnGlobalPrev, uxnGlobalCurr, uynGlobalPrev,
-                                      uynGlobalCurr, uznGlobalPrev, uznGlobalCurr);
-    RhsAcoustoElastic rhs(myRHSTerm, rhsElement, rhsWeights, myRHSTermx, myRHSTermy, myRHSTermz);
-    SEMsolverDataAcoustoElastic solverData(wavefield, rhs);
+  } else if (is_acousto_elastic_) {
+    WavefieldAcoustoElastic wavefield(pn_global_prev_, pn_global_curr_, uxn_global_prev_, uxn_global_curr_,
+                                      uyn_global_prev_, uyn_global_curr_, uzn_global_prev_, uzn_global_curr_);
+    RhsAcoustoElastic rhs(rhs_term_, rhs_element_, rhs_weights_, rhs_term_x_, rhs_term_y_, rhs_term_z_);
+    SEMsolverDataAcoustoElastic solver_data(wavefield, rhs);
 
-    for (int indexTimeSample = 0; indexTimeSample < num_sample_; indexTimeSample++) {
-      startComputeTime = system_clock::now();
+    for (int time_index = 0; time_index < num_samples_; time_index++) {
+      start_compute_time = std::chrono::high_resolution_clock::now();
+      solver_->computeOneStep(dt_, time_index, solver_data);
+      total_compute_time += std::chrono::high_resolution_clock::now() - start_compute_time;
 
-      // Full staggered step: elastic forces → elastic update →
-      // acoustic forces → acoustic update (serial only in V1).
-      m_solver->computeOneStep(dt_, indexTimeSample, solverData);
+      start_output_time = std::chrono::high_resolution_clock::now();
 
-      totalComputeTime += system_clock::now() - startComputeTime;
-      startOutputTime = system_clock::now();
-
-      if (indexTimeSample % 50 == 0) {
-        // Acoustic field: print at source element (fluid domain).
-        m_solver->outputSolutionValues(indexTimeSample, rhsElement[0], pnGlobalPrev, "pnGlobal");
-        // Elastic fields: print at receiver element — place receiver in the
-        // solid domain (z < acoustoElasticBoundaryZ) to see non-zero values.
-        m_solver->outputSolutionValues(indexTimeSample, rhsElementRcv[0], uxnGlobalPrev, "uxnGlobal");
-        m_solver->outputSolutionValues(indexTimeSample, rhsElementRcv[0], uynGlobalPrev, "uynGlobal");
-        m_solver->outputSolutionValues(indexTimeSample, rhsElementRcv[0], uznGlobalPrev, "uznGlobal");
+      if (time_index % 50 == 0) {
+        solver_->outputSolutionValues(time_index, rhs_element_[0], pn_global_prev_, "pnGlobal");
+        solver_->outputSolutionValues(time_index, rhs_element_rcv_[0], uxn_global_prev_, "uxnGlobal");
+        solver_->outputSolutionValues(time_index, rhs_element_rcv_[0], uyn_global_prev_, "uynGlobal");
+        solver_->outputSolutionValues(time_index, rhs_element_rcv_[0], uzn_global_prev_, "uznGlobal");
       }
 
-      if (is_snapshots_ && indexTimeSample % snap_time_interval_ == 0) {
-        saveSnapshot(indexTimeSample, pnGlobalPrev);
-        saveSnapshot(indexTimeSample, uznGlobalPrev);
+      if (is_snapshots_ && time_index % snap_time_interval_ == 0) {
+        SaveSnapshot(time_index, pn_global_prev_);
+        SaveSnapshot(time_index, uzn_global_prev_);
       }
 
-      // Save acoustic pressure at receiver
-      const int order = m_mesh->getOrder();
-      float varnp1 = 0.0;
+      const int order = mesh_->getOrder();
+      float var_np1 = 0.0;
       for (int i = 0; i < order + 1; i++) {
         for (int j = 0; j < order + 1; j++) {
           for (int k = 0; k < order + 1; k++) {
-            int nodeIdx = m_mesh->globalNodeIndex(rhsElementRcv[0], i, j, k);
-            int globalNodeOnElement = i + j * (order + 1) + k * (order + 1) * (order + 1);
-            varnp1 += pnGlobalCurr(nodeIdx) * rhsWeightsRcv(0, globalNodeOnElement);
+            int node_idx = mesh_->globalNodeIndex(rhs_element_rcv_[0], i, j, k);
+            int global_node_on_elem = i + j * (order + 1) + k * (order + 1) * (order + 1);
+            var_np1 += pn_global_curr_(node_idx) * rhs_weights_rcv_(0, global_node_on_elem);
           }
         }
       }
-      pnAtReceiver(0, indexTimeSample) = varnp1;
-
-      solverData.swapWavefields();
-
-      totalOutputTime += system_clock::now() - startOutputTime;
+      pn_at_receiver_(0, time_index) = var_np1;
+      solver_data.swapWavefields();
+      total_output_time += std::chrono::high_resolution_clock::now() - start_output_time;
     }
 
-    for (int i = 0; i < pnAtReceiver.extent(0); i++) {
-#ifdef USE_KOKKOS
-      auto subview = Kokkos::subview(pnAtReceiver, i, Kokkos::ALL());
-      vectorReal subset("receiver_save", num_sample_);
+    start_output_time = std::chrono::high_resolution_clock::now();
+    for (int i = 0; i < pn_at_receiver_.extent(0); i++) {
+      auto subview = Kokkos::subview(pn_at_receiver_, i, Kokkos::ALL());
+      vectorReal subset("receiver_save", num_samples_);
       Kokkos::deep_copy(subset, subview);
-#else
-      auto& subview = pnAtReceiver;
-      vectorReal subset(subview.extent(0) * subview.extent(1));
-      for (size_t k = 0; k < subview.extent(0); ++k) {
-        for (size_t j = 0; j < subview.extent(1); ++j) {
-          subset[k * subview.extent(1) + j] = subview(k, j);
-        }
-      }
-#endif
       io_ctrl_->saveReceiver(subset, src_coord_);
     }
-  } else if (!isElastic) {
-    WavefieldAcoustic wavefield(pnGlobalPrev, pnGlobalCurr);
-    RhsAcoustic rhs(myRHSTerm, rhsElement, rhsWeights);
-    SEMsolverDataAcoustic solverData(wavefield, rhs);
+    total_output_time += std::chrono::high_resolution_clock::now() - start_output_time;
 
-    for (int indexTimeSample = 0; indexTimeSample < num_sample_; indexTimeSample++) {
-      startComputeTime = system_clock::now();
+  } else if (!is_elastic_) {
+    WavefieldAcoustic wavefield(pn_global_prev_, pn_global_curr_);
+    RhsAcoustic rhs(rhs_term_, rhs_element_, rhs_weights_);
+    SEMsolverDataAcoustic solver_data(wavefield, rhs);
 
-      // Compute Local Forces
-      m_solver->computeForces(dt_, indexTimeSample, solverData);
+    for (int time_index = 0; time_index < num_samples_; time_index++) {
+      start_compute_time = std::chrono::high_resolution_clock::now();
+      solver_->computeForces(dt_, time_index, solver_data);
 
-      // Synchronize Forces
       if (par_topology_.isDistributed()) {
-        for (int c = 0; c < m_solver->getNumComponents(); ++c) {
-          m_syncer->synchronize(m_solver->getForceVector(c), par_topology_);
+        for (int c = 0; c < solver_->getNumComponents(); ++c) {
+          syncer_->synchronize(solver_->getForceVector(c), par_topology_);
         }
       }
 
-      m_solver->updateSolution(dt_, solverData);
+      solver_->updateSolution(dt_, solver_data);
+      total_compute_time += std::chrono::high_resolution_clock::now() - start_compute_time;
 
-      totalComputeTime += system_clock::now() - startComputeTime;
-      startOutputTime = system_clock::now();
+      start_output_time = std::chrono::high_resolution_clock::now();
 
-      if (indexTimeSample % 50 == 0) {
-        m_solver->outputSolutionValues(indexTimeSample, rhsElement[0], pnGlobalPrev, "pnGlobal");
+      if (time_index % 50 == 0) {
+        solver_->outputSolutionValues(time_index, rhs_element_[0], pn_global_prev_, "pnGlobal");
       }
 
-      // Save slice in dat format
-      if (is_snapshots_ && indexTimeSample % snap_time_interval_ == 0) {
+      if (is_snapshots_ && time_index % snap_time_interval_ == 0) {
 #ifdef USE_MPI
         MPI_Barrier(MPI_COMM_WORLD);
 #endif
-        saveSnapshot(indexTimeSample, pnGlobalPrev);
+        SaveSnapshot(time_index, pn_global_prev_);
 
-        // Save XY-slice through center Z as plain text for easy visualization
-        int nx = nb_nodes_[0];
-        int ny = nb_nodes_[1];
-        int nz = nb_nodes_[2];
-        int zSlice = nz / 2;
+        int nx = num_nodes_[0];
+        int ny = num_nodes_[1];
+        int nz = num_nodes_[2];
+        int z_slice = nz / 2;
         std::ostringstream fname;
-        fname << "slice_" << std::setfill('0') << std::setw(5) << indexTimeSample << ".dat";
+        fname << "slice_" << std::setfill('0') << std::setw(5) << time_index << ".dat";
         std::ofstream fslice(fname.str());
         for (int iy = 0; iy < ny; ++iy) {
           for (int ix = 0; ix < nx; ++ix) {
-            int nodeIdx = ix + iy * nx + zSlice * nx * ny;
-            fslice << pnGlobalPrev(nodeIdx);
+            int node_idx = ix + iy * nx + z_slice * nx * ny;
+            fslice << pn_global_prev_(node_idx);
             if (ix < nx - 1) fslice << " ";
           }
           fslice << "\n";
@@ -419,570 +357,454 @@ void SEMproxy::run() {
         fslice.close();
       }
 
-      // Save pressure at receiver
-      const int order = m_mesh->getOrder();
-
-      float varnp1 = 0.0;
+      const int order = mesh_->getOrder();
+      float var_np1 = 0.0;
       for (int i = 0; i < order + 1; i++) {
         for (int j = 0; j < order + 1; j++) {
           for (int k = 0; k < order + 1; k++) {
-            int nodeIdx = m_mesh->globalNodeIndex(rhsElementRcv[0], i, j, k);
-            int globalNodeOnElement = i + j * (order + 1) + k * (order + 1) * (order + 1);
-            varnp1 += pnGlobalCurr(nodeIdx) * rhsWeightsRcv(0, globalNodeOnElement);
+            int node_idx = mesh_->globalNodeIndex(rhs_element_rcv_[0], i, j, k);
+            int global_node_on_elem = i + j * (order + 1) + k * (order + 1) * (order + 1);
+            var_np1 += pn_global_curr_(node_idx) * rhs_weights_rcv_(0, global_node_on_elem);
           }
         }
       }
 
-      pnAtReceiver(0, indexTimeSample) = varnp1;
-
-      solverData.swapWavefields();
-
-      totalOutputTime += system_clock::now() - startOutputTime;
+      pn_at_receiver_(0, time_index) = var_np1;
+      solver_data.swapWavefields();
+      total_output_time += std::chrono::high_resolution_clock::now() - start_output_time;
     }
 
-    for (int i = 0; i < pnAtReceiver.extent(0); i++) {
-      auto subview = Kokkos::subview(pnAtReceiver, i, Kokkos::ALL());
-      vectorReal subset("receiver_save", num_sample_);
+    start_output_time = std::chrono::high_resolution_clock::now();
+    for (int i = 0; i < pn_at_receiver_.extent(0); i++) {
+      auto subview = Kokkos::subview(pn_at_receiver_, i, Kokkos::ALL());
+      vectorReal subset("receiver_save", num_samples_);
       Kokkos::deep_copy(subset, subview);
       io_ctrl_->saveReceiver(subset, src_coord_);
     }
 
-    // Save receiver trace to plain text file
-    {
-      std::ofstream fout("receiver_trace.txt");
-      fout << "# time pressure_at_receiver\n";
-      for (int t = 0; t < num_sample_; ++t) {
-        fout << t * dt_ << " " << pnAtReceiver(0, t) << "\n";
-      }
-      fout.close();
-      std::cout << "Receiver trace saved to receiver_trace.txt (" << num_sample_ << " samples)" << std::endl;
+    std::ofstream fout("receiver_trace.txt");
+    fout << "# time pressure_at_receiver\n";
+    for (int t = 0; t < num_samples_; ++t) {
+      fout << t * dt_ << " " << pn_at_receiver_(0, t) << "\n";
     }
+    fout.close();
+    total_output_time += std::chrono::high_resolution_clock::now() - start_output_time;
+
   } else {
-    WavefieldElastic wavefield(uxnGlobalPrev, uxnGlobalCurr, uynGlobalPrev, uynGlobalCurr, uznGlobalPrev,
-                               uznGlobalCurr);
-    RhsElastic rhs(myRHSTermx, myRHSTermy, myRHSTermz, rhsElement, rhsWeights);
-    SEMsolverDataElastic solverData(wavefield, rhs);
+    WavefieldElastic wavefield(uxn_global_prev_, uxn_global_curr_, uyn_global_prev_, uyn_global_curr_, uzn_global_prev_,
+                               uzn_global_curr_);
+    RhsElastic rhs(rhs_term_x_, rhs_term_y_, rhs_term_z_, rhs_element_, rhs_weights_);
+    SEMsolverDataElastic solver_data(wavefield, rhs);
 
-    for (int indexTimeSample = 0; indexTimeSample < num_sample_; indexTimeSample++) {
-      startComputeTime = system_clock::now();
+    for (int time_index = 0; time_index < num_samples_; time_index++) {
+      start_compute_time = std::chrono::high_resolution_clock::now();
+      solver_->computeForces(dt_, time_index, solver_data);
 
-      // Compute Local Forces
-      m_solver->computeForces(dt_, indexTimeSample, solverData);
-
-      // Synchronize Forces
-      // TODO: Getting it work within semproxy
       if (par_topology_.isDistributed()) {
-        for (int c = 0; c < m_solver->getNumComponents(); ++c) {
-          m_syncer->synchronize(m_solver->getForceVector(c), par_topology_);
+        for (int c = 0; c < solver_->getNumComponents(); ++c) {
+          syncer_->synchronize(solver_->getForceVector(c), par_topology_);
         }
       }
 
-      // Update Solution
-      m_solver->updateSolution(dt_, solverData);
+      solver_->updateSolution(dt_, solver_data);
+      total_compute_time += std::chrono::high_resolution_clock::now() - start_compute_time;
 
-      totalComputeTime += system_clock::now() - startComputeTime;
-      startOutputTime = system_clock::now();
+      start_output_time = std::chrono::high_resolution_clock::now();
 
-      if (indexTimeSample % 50 == 0) {
-        m_solver->outputSolutionValues(indexTimeSample, rhsElement[0], uxnGlobalPrev, "uxnGlobal");
-        m_solver->outputSolutionValues(indexTimeSample, rhsElement[0], uynGlobalPrev, "uynGlobal");
-        m_solver->outputSolutionValues(indexTimeSample, rhsElement[0], uznGlobalPrev, "uznGlobal");
+      if (time_index % 50 == 0) {
+        solver_->outputSolutionValues(time_index, rhs_element_[0], uxn_global_prev_, "uxnGlobal");
+        solver_->outputSolutionValues(time_index, rhs_element_[0], uyn_global_prev_, "uynGlobal");
+        solver_->outputSolutionValues(time_index, rhs_element_[0], uzn_global_prev_, "uznGlobal");
       }
 
-      if (is_snapshots_ && indexTimeSample % snap_time_interval_ == 0) {
-        saveSnapshot(indexTimeSample, uxnGlobalPrev);
+      if (is_snapshots_ && time_index % snap_time_interval_ == 0) {
+        SaveSnapshot(time_index, uxn_global_prev_);
       }
 
-      // Save pressure at receiver
-      const int order = m_mesh->getOrder();
-
-      float varuxnp1 = 0.0;
-      float varyunp1 = 0.0;
-      float varuznp1 = 0.0;
+      const int order = mesh_->getOrder();
+      float var_ux_np1 = 0.0;
+      float var_uy_np1 = 0.0;
+      float var_uz_np1 = 0.0;
       for (int i = 0; i < order + 1; i++) {
         for (int j = 0; j < order + 1; j++) {
           for (int k = 0; k < order + 1; k++) {
-            int nodeIdx = m_mesh->globalNodeIndex(rhsElementRcv[0], i, j, k);
-            int globalNodeOnElement = i + j * (order + 1) + k * (order + 1) * (order + 1);
-            varuxnp1 += uxnGlobalCurr(nodeIdx) * rhsWeightsRcv(0, globalNodeOnElement);
-            varyunp1 += uynGlobalCurr(nodeIdx) * rhsWeightsRcv(0, globalNodeOnElement);
-            varuznp1 += uznGlobalCurr(nodeIdx) * rhsWeightsRcv(0, globalNodeOnElement);
+            int node_idx = mesh_->globalNodeIndex(rhs_element_rcv_[0], i, j, k);
+            int global_node_on_elem = i + j * (order + 1) + k * (order + 1) * (order + 1);
+            var_ux_np1 += uxn_global_curr_(node_idx) * rhs_weights_rcv_(0, global_node_on_elem);
+            var_uy_np1 += uyn_global_curr_(node_idx) * rhs_weights_rcv_(0, global_node_on_elem);
+            var_uz_np1 += uzn_global_curr_(node_idx) * rhs_weights_rcv_(0, global_node_on_elem);
           }
         }
       }
 
-      uxnAtReceiver(0, indexTimeSample) = varuxnp1;
-      uynAtReceiver(0, indexTimeSample) = varyunp1;
-      uznAtReceiver(0, indexTimeSample) = varuznp1;
+      uxn_at_receiver_(0, time_index) = var_ux_np1;
+      uyn_at_receiver_(0, time_index) = var_uy_np1;
+      uzn_at_receiver_(0, time_index) = var_uz_np1;
 
-      // Compute DAS signal at this timestep
-      if (dasType_ != SourceAndReceiverUtils::DASType::kNone) {
-        float dasVal = 0.0f;
-        const int totalDASNodes = static_cast<int>(dasNodeIds_.size());
-        for (int iNode = 0; iNode < totalDASNodes; ++iNode) {
-          int nId = dasNodeIds_[iNode];
-          if (nId >= 0) {
-            float w = dasWeights_[iNode];
-            dasVal += (uxnGlobalCurr(nId) * dasVector_[0] + uynGlobalCurr(nId) * dasVector_[1] +
-                       uznGlobalCurr(nId) * dasVector_[2]) *
-                      w;
+      if (das_type_ != SourceAndReceiverUtils::DASType::kNone) {
+        float das_val = 0.0f;
+        const int total_das_nodes = static_cast<int>(das_node_ids_.size());
+        for (int i_node = 0; i_node < total_das_nodes; ++i_node) {
+          int n_id = das_node_ids_[i_node];
+          if (n_id >= 0) {
+            float w = das_weights_[i_node];
+            das_val += (uxn_global_curr_(n_id) * das_vector_[0] + uyn_global_curr_(n_id) * das_vector_[1] +
+                        uzn_global_curr_(n_id) * das_vector_[2]) *
+                       w;
           }
         }
-        dasSignal_(indexTimeSample) = dasVal;
+        das_signal_(time_index) = das_val;
       }
 
-      solverData.swapWavefields();
-
-      totalOutputTime += system_clock::now() - startOutputTime;
+      solver_data.swapWavefields();
+      total_output_time += std::chrono::high_resolution_clock::now() - start_output_time;
     }
 
-    for (int i = 0; i < uxnAtReceiver.extent(0); i++) {
-      auto subview = Kokkos::subview(uxnAtReceiver, i, Kokkos::ALL());
-      vectorReal subset("receiver_save", num_sample_);
+    start_output_time = std::chrono::high_resolution_clock::now();
+    for (int i = 0; i < uxn_at_receiver_.extent(0); i++) {
+      auto subview = Kokkos::subview(uxn_at_receiver_, i, Kokkos::ALL());
+      vectorReal subset("receiver_save", num_samples_);
       Kokkos::deep_copy(subset, subview);
       io_ctrl_->saveReceiver(subset, src_coord_);
     }
 
-    // Save DAS trace to text file
-    if (dasType_ != SourceAndReceiverUtils::DASType::kNone) {
-      std::ofstream fDAS("das_trace.txt");
-      fDAS << "# time das_signal\n";
-      for (int t = 0; t < num_sample_; ++t) {
-        fDAS << t * dt_ << " " << dasSignal_(t) << "\n";
+    if (das_type_ != SourceAndReceiverUtils::DASType::kNone) {
+      std::ofstream f_das("das_trace.txt");
+      f_das << "# time das_signal\n";
+      for (int t = 0; t < num_samples_; ++t) {
+        f_das << t * dt_ << " " << das_signal_(t) << "\n";
       }
-      fDAS.close();
-      std::cout << "Saved DAS trace to das_trace.txt (" << num_sample_ << " samples)" << std::endl;
+      f_das.close();
     }
+    total_output_time += std::chrono::high_resolution_clock::now() - start_output_time;
   }
 
-  float kerneltime_ms = time_point_cast<microseconds>(totalComputeTime).time_since_epoch().count();
-  float outputtime_ms = time_point_cast<microseconds>(totalOutputTime).time_since_epoch().count();
-
-  cout << "------------------------------------------------ " << endl;
-  cout << "\n---- Elapsed Kernel Time : " << kerneltime_ms / 1E6 << " seconds." << endl;
-  cout << "---- Elapsed Output Time : " << outputtime_ms / 1E6 << " seconds." << endl;
-  cout << "------------------------------------------------ " << endl;
+  // Record Compute and Output times then display message
+  time_compute_ = total_compute_time.count();
+  time_io_ = total_output_time.count();
+  DisplayPerfMsg();
 }
 
-// Initialize arrays
-void SEMproxy::init_arrays() {
-  cout << "Allocate host memory for source and pressure values ..." << endl;
-  const auto n_nodes = m_mesh->getNumberOfNodes();
-  const auto n_elements = m_mesh->getNumberOfElements();
-  const auto n_points_per_element = m_mesh->getNumberOfPointsPerElement();
+void SEMproxy::InitArrays() {
+  const auto n_nodes = mesh_->getNumberOfNodes();
+  const auto n_elements = mesh_->getNumberOfElements();
+  const auto n_pts_per_elem = mesh_->getNumberOfPointsPerElement();
 
-  rhsElement = allocateVector<vectorInt>(myNumberOfRHS, "rhsElement");
-  rhsWeights = allocateArray2D<arrayReal>(myNumberOfRHS, n_points_per_element, "RHSWeight");
+  rhs_element_ = allocateVector<vectorInt>(num_rhs_, "rhsElement");
+  rhs_weights_ = allocateArray2D<arrayReal>(num_rhs_, n_pts_per_elem, "RHSWeight");
 
-  if (isDG_) {
-    myRHSTerm = allocateArray2D<arrayReal>(myNumberOfRHS, num_sample_, "RHSTerm");
-    pnDGPrev_ = allocateArray2D<arrayReal>(n_elements, n_points_per_element, "pnDGPrev");
-    pnDGCurr_ = allocateArray2D<arrayReal>(n_elements, n_points_per_element, "pnDGCurr");
-    pnAtReceiver = allocateArray2D<arrayReal>(1, num_sample_, "pnAtReceiver");
-  } else if (isAcoustoElastic_) {
-    // Acousto-elastic: acoustic + elastic source terms (one may be all zeros),
-    // plus both wavefields (acoustic pressure and elastic displacement).
-    myRHSTerm = allocateArray2D<arrayReal>(myNumberOfRHS, num_sample_, "RHSTerm");
-    myRHSTermx = allocateArray2D<arrayReal>(myNumberOfRHS, num_sample_, "RHSTermx");
-    myRHSTermy = allocateArray2D<arrayReal>(myNumberOfRHS, num_sample_, "RHSTermy");
-    myRHSTermz = allocateArray2D<arrayReal>(myNumberOfRHS, num_sample_, "RHSTermz");
-    pnGlobalCurr = allocateVector<vectorReal>(n_nodes, "pnGlobalCurr");
-    pnGlobalPrev = allocateVector<vectorReal>(n_nodes, "pnGlobalPrev");
-    pnAtReceiver = allocateArray2D<arrayReal>(1, num_sample_, "pnAtReceiver");
-    uxnGlobalCurr = allocateVector<vectorReal>(n_nodes, "uxnGlobalCurr");
-    uynGlobalCurr = allocateVector<vectorReal>(n_nodes, "uynGlobalCurr");
-    uznGlobalCurr = allocateVector<vectorReal>(n_nodes, "uznGlobalCurr");
-    uxnGlobalPrev = allocateVector<vectorReal>(n_nodes, "uxnGlobalPrev");
-    uynGlobalPrev = allocateVector<vectorReal>(n_nodes, "uynGlobalPrev");
-    uznGlobalPrev = allocateVector<vectorReal>(n_nodes, "uznGlobalPrev");
-  } else if (!isElastic_) {
-    myRHSTerm = allocateArray2D<arrayReal>(myNumberOfRHS, num_sample_, "RHSTerm");
-    pnGlobalCurr = allocateVector<vectorReal>(n_nodes, "pnGlobalCurr");
-    pnGlobalPrev = allocateVector<vectorReal>(n_nodes, "pnGlobalPrev");
-    pnAtReceiver = allocateArray2D<arrayReal>(1, num_sample_, "pnAtReceiver");
+  if (is_acousto_elastic_) {
+    rhs_term_ = allocateArray2D<arrayReal>(num_rhs_, num_samples_, "RHSTerm");
+    rhs_term_x_ = allocateArray2D<arrayReal>(num_rhs_, num_samples_, "RHSTermx");
+    rhs_term_y_ = allocateArray2D<arrayReal>(num_rhs_, num_samples_, "RHSTermy");
+    rhs_term_z_ = allocateArray2D<arrayReal>(num_rhs_, num_samples_, "RHSTermz");
+    pn_global_curr_ = allocateVector<vectorReal>(n_nodes, "pnGlobalCurr");
+    pn_global_prev_ = allocateVector<vectorReal>(n_nodes, "pnGlobalPrev");
+    pn_at_receiver_ = allocateArray2D<arrayReal>(1, num_samples_, "pn_at_receiver_");
+    uxn_global_curr_ = allocateVector<vectorReal>(n_nodes, "uxnGlobalCurr");
+    uyn_global_curr_ = allocateVector<vectorReal>(n_nodes, "uynGlobalCurr");
+    uzn_global_curr_ = allocateVector<vectorReal>(n_nodes, "uznGlobalCurr");
+    uxn_global_prev_ = allocateVector<vectorReal>(n_nodes, "uxnGlobalPrev");
+    uyn_global_prev_ = allocateVector<vectorReal>(n_nodes, "uynGlobalPrev");
+    uzn_global_prev_ = allocateVector<vectorReal>(n_nodes, "uznGlobalPrev");
+  } else if (!is_elastic_) {
+    rhs_term_ = allocateArray2D<arrayReal>(num_rhs_, num_samples_, "RHSTerm");
+    pn_global_curr_ = allocateVector<vectorReal>(n_nodes, "pnGlobalCurr");
+    pn_global_prev_ = allocateVector<vectorReal>(n_nodes, "pnGlobalPrev");
+    pn_at_receiver_ = allocateArray2D<arrayReal>(1, num_samples_, "pn_at_receiver_");
+  } else if (is_dg_) {
+    rhs_term_ = allocateArray2D<arrayReal>(num_rhs_, num_samples_, "RHSTerm");
+    pn_dg_prev_ = allocateArray2D<arrayReal>(n_elements, n_pts_per_elem, "pnDGPrev");
+    pn_dg_curr_ = allocateArray2D<arrayReal>(n_elements, n_pts_per_elem, "pnDGCurr");
+    pn_at_receiver_ = allocateArray2D<arrayReal>(1, num_samples_, "pn_at_receiver_");
   } else {
-    myRHSTermx = allocateArray2D<arrayReal>(myNumberOfRHS, num_sample_, "RHSTermx");
-    myRHSTermy = allocateArray2D<arrayReal>(myNumberOfRHS, num_sample_, "RHSTermy");
-    myRHSTermz = allocateArray2D<arrayReal>(myNumberOfRHS, num_sample_, "RHSTermz");
-    uxnGlobalCurr = allocateVector<vectorReal>(n_nodes, "uxnGlobalCurr");
-    uynGlobalCurr = allocateVector<vectorReal>(n_nodes, "uynGlobalCurr");
-    uznGlobalCurr = allocateVector<vectorReal>(n_nodes, "uznGlobalCurr");
-    uxnGlobalPrev = allocateVector<vectorReal>(n_nodes, "uxnGlobalPrev");
-    uynGlobalPrev = allocateVector<vectorReal>(n_nodes, "uynGlobalPrev");
-    uznGlobalPrev = allocateVector<vectorReal>(n_nodes, "uznGlobalPrev");
-    uxnAtReceiver = allocateArray2D<arrayReal>(1, num_sample_, "uxnAtReceiver");
-    uynAtReceiver = allocateArray2D<arrayReal>(1, num_sample_, "uynAtReceiver ");
-    uznAtReceiver = allocateArray2D<arrayReal>(1, num_sample_, "uznAtReceiver");
+    rhs_term_x_ = allocateArray2D<arrayReal>(num_rhs_, num_samples_, "RHSTermx");
+    rhs_term_y_ = allocateArray2D<arrayReal>(num_rhs_, num_samples_, "RHSTermy");
+    rhs_term_z_ = allocateArray2D<arrayReal>(num_rhs_, num_samples_, "RHSTermz");
+    uxn_global_curr_ = allocateVector<vectorReal>(n_nodes, "uxnGlobalCurr");
+    uyn_global_curr_ = allocateVector<vectorReal>(n_nodes, "uynGlobalCurr");
+    uzn_global_curr_ = allocateVector<vectorReal>(n_nodes, "uznGlobalCurr");
+    uxn_global_prev_ = allocateVector<vectorReal>(n_nodes, "uxnGlobalPrev");
+    uyn_global_prev_ = allocateVector<vectorReal>(n_nodes, "uynGlobalPrev");
+    uzn_global_prev_ = allocateVector<vectorReal>(n_nodes, "uznGlobalPrev");
+    uxn_at_receiver_ = allocateArray2D<arrayReal>(1, num_samples_, "uxnAtReceiver");
+    uyn_at_receiver_ = allocateArray2D<arrayReal>(1, num_samples_, "uynAtReceiver ");
+    uzn_at_receiver_ = allocateArray2D<arrayReal>(1, num_samples_, "uznAtReceiver");
   }
-  // Receiver
-  rhsElementRcv = allocateVector<vectorInt>(1, "rhsElementRcv");
-  rhsWeightsRcv = allocateArray2D<arrayReal>(1, m_mesh->getNumberOfPointsPerElement(), "RHSWeightRcv");
 
-  // DAS signal array
-  if (dasType_ != SourceAndReceiverUtils::DASType::kNone) {
-    dasSignal_ = allocateVector<vectorReal>(num_sample_, "dasSignal");
+  rhs_element_rcv_ = allocateVector<vectorInt>(1, "rhsElementRcv");
+  rhs_weights_rcv_ = allocateArray2D<arrayReal>(1, n_pts_per_elem, "RHSWeightRcv");
+
+  if (das_type_ != SourceAndReceiverUtils::DASType::kNone) {
+    das_signal_ = allocateVector<vectorReal>(num_samples_, "dasSignal");
   }
 }
 
-// Initialize sources
-void SEMproxy::init_source() {
-  arrayReal myRHSLocation = allocateArray2D<arrayReal>(1, 3, "RHSLocation");
-  // std::cout << "All source are currently are coded on element 50." <<
-  // std::endl;
-  std::cout << "All source are currently are coded on middle element." << std::endl;
-  int ex = nb_elements_[0];
-  int ey = nb_elements_[1];
-  int ez = nb_elements_[2];
-
+void SEMproxy::InitSource() {
+  int ex = num_elements_[0];
+  int ey = num_elements_[1];
+  int ez = num_elements_[2];
   int lx = domain_size_[0];
   int ly = domain_size_[1];
   int lz = domain_size_[2];
 
-  // NOTE: In DD, we need to adjust source coordinate relative to local origin
-  // to find correct local element.
-  // However, since we are using local params for ex/lx calculation here,
-  // we just need to ensure src_coord_ is treated correctly.
-  // The current logic calculates index relative to the local mesh.
-  // We need to shift the coordinate by origin_x.
+  float rel_src_x = src_coord_[0] - local_params_.origin_x;
+  float rel_src_y = src_coord_[1] - local_params_.origin_y;
+  float rel_src_z = src_coord_[2] - local_params_.origin_z;
 
-  float relative_src_x = src_coord_[0] - m_localParams.origin_x;
-  float relative_src_y = src_coord_[1] - m_localParams.origin_y;
-  float relative_src_z = src_coord_[2] - m_localParams.origin_z;
-
-  // Simple check: is source on this rank?
-  bool sourceOnThisRank = (relative_src_x >= 0 && relative_src_x < lx);
-  // Note: Y and Z not partitioned in 1D case, so check logic is simpler.
-
-  int source_index = 0;
-  if (sourceOnThisRank) {
-    source_index = floor((relative_src_x * ex) / lx) + floor((relative_src_y * ey) / ly) * ex +
-                   floor((relative_src_z * ez) / lz) * ey * ex;
-  } else {
-    // Point to a safe dummy element (e.g. 0) but we will zero out weights?
-    // Or we can rely on weight computation finding it outside.
-    // For proxy simplicity, if not local, we just calculate 'an' index.
-    // This logic should ideally be robust.
-    source_index = 0;  // Placeholder
-  }
+  bool source_on_rank = (rel_src_x >= 0 && rel_src_x < lx);
+  int src_index = source_on_rank ? floor((rel_src_x * ex) / lx) + floor((rel_src_y * ey) / ly) * ex +
+                                       floor((rel_src_z * ez) / lz) * ey * ex
+                                 : 0;
 
   for (int i = 0; i < 1; i++) {
-    rhsElement[i] = source_index;
+    rhs_element_[i] = src_index;
   }
 
-  // Get coordinates of the corners of the source element
-  float cornerCoords[8][3];
-  int I = 0;
-  int nodes_corner[2] = {0, m_mesh->getOrder()};
+  float corner_coords[8][3];
+  int corner_iter = 0;
+  int nodes_corner[2] = {0, mesh_->getOrder()};
+
   for (int k : nodes_corner) {
     for (int j : nodes_corner) {
       for (int i : nodes_corner) {
-        int nodeIdx = m_mesh->globalNodeIndex(rhsElement[0], i, j, k);
-        cornerCoords[I][0] = m_mesh->nodeCoord(nodeIdx, 0);
-        cornerCoords[I][2] = m_mesh->nodeCoord(nodeIdx, 2);
-        cornerCoords[I][1] = m_mesh->nodeCoord(nodeIdx, 1);
-        I++;
+        int node_idx = mesh_->globalNodeIndex(rhs_element_[0], i, j, k);
+        corner_coords[corner_iter][0] = mesh_->nodeCoord(node_idx, 0);
+        corner_coords[corner_iter][2] = mesh_->nodeCoord(node_idx, 2);
+        corner_coords[corner_iter][1] = mesh_->nodeCoord(node_idx, 1);
+        corner_iter++;
       }
     }
   }
 
-  // initialize source term
-  vector<float> sourceTerm = myUtils.computeSourceTerm(num_sample_, dt_, f0_, ricker_order_, tpeak_);
-  if (isAcoustoElastic_) {
-    // Auto-detect source domain based on depth vs interface boundary.
-    // z >= acoustoElasticBoundaryZ → fluid (acoustic); otherwise → solid
-    // (elastic).
-    bool const sourceInFluid = (src_coord_[2] >= m_localParams.acoustoElasticBoundaryZ);
-    if (sourceInFluid) {
-      cout << "Acousto-elastic source: fluid domain (acoustic)." << endl;
-      for (int j = 0; j < num_sample_; j++) {
-        myRHSTerm(0, j) = sourceTerm[j];
-        if (j % 100 == 0) cout << "Sample " << j << "\t: sourceTerm = " << sourceTerm[j] << endl;
-      }
+  std::vector<float> source_term = utils_.computeSourceTerm(num_samples_, dt_, f0_, ricker_order_, t_peak_);
+
+  if (is_acousto_elastic_) {
+    bool const source_in_fluid = (src_coord_[2] >= local_params_.acoustoElasticBoundaryZ);
+    if (source_in_fluid) {
+      for (int j = 0; j < num_samples_; j++) rhs_term_(0, j) = source_term[j];
     } else {
-      cout << "Acousto-elastic source: solid domain (elastic)." << endl;
-      for (int j = 0; j < num_sample_; j++) {
-        myRHSTermx(0, j) = sourceTerm[j];
-        myRHSTermy(0, j) = sourceTerm[j];
-        myRHSTermz(0, j) = sourceTerm[j];
-        if (j % 100 == 0) cout << "Sample " << j << "\t: sourceTerm = " << sourceTerm[j] << endl;
+      for (int j = 0; j < num_samples_; j++) {
+        rhs_term_x_(0, j) = source_term[j];
+        rhs_term_y_(0, j) = source_term[j];
+        rhs_term_z_(0, j) = source_term[j];
       }
     }
-  } else if (!isElastic_) {
-    // Pure acoustic source.
-    for (int j = 0; j < num_sample_; j++) {
-      myRHSTerm(0, j) = sourceTerm[j];
-      if (j % 100 == 0) cout << "Sample " << j << "\t: sourceTerm = " << sourceTerm[j] << endl;
-    }
+  } else if (!is_elastic_) {
+    for (int j = 0; j < num_samples_; j++) rhs_term_(0, j) = source_term[j];
   } else {
-    // Pure elastic source.
-    for (int j = 0; j < num_sample_; j++) {
-      myRHSTermx(0, j) = sourceTerm[j];
-      myRHSTermy(0, j) = sourceTerm[j];
-      myRHSTermz(0, j) = sourceTerm[j];
-      if (j % 100 == 0) cout << "Sample " << j << "\t: sourceTerm = " << sourceTerm[j] << endl;
+    for (int j = 0; j < num_samples_; j++) {
+      rhs_term_x_(0, j) = source_term[j];
+      rhs_term_y_(0, j) = source_term[j];
+      rhs_term_z_(0, j) = source_term[j];
     }
   }
 
-  // get element number of source term
-  myElementSource = rhsElement[0];
-  cout << "Element number for the source location: " << myElementSource << endl << endl;
+  source_element_ = rhs_element_[0];
+  int order = mesh_->getOrder();
 
-  int order = m_mesh->getOrder();
-
-  // Compute Weights: If source is not local, weights will be ~0 or we should
-  // explicit zero them
-  if (sourceOnThisRank) {
+  if (source_on_rank) {
     switch (order) {
       case 1:
-        SourceAndReceiverUtils::ComputeRHSWeights<1>(cornerCoords, src_coord_, rhsWeights);
+        SourceAndReceiverUtils::ComputeRHSWeights<1>(corner_coords, src_coord_, rhs_weights_);
         break;
       case 2:
-        SourceAndReceiverUtils::ComputeRHSWeights<2>(cornerCoords, src_coord_, rhsWeights);
+        SourceAndReceiverUtils::ComputeRHSWeights<2>(corner_coords, src_coord_, rhs_weights_);
         break;
       case 3:
-        SourceAndReceiverUtils::ComputeRHSWeights<3>(cornerCoords, src_coord_, rhsWeights);
+        SourceAndReceiverUtils::ComputeRHSWeights<3>(corner_coords, src_coord_, rhs_weights_);
         break;
       case 4:
-        SourceAndReceiverUtils::ComputeRHSWeights<4>(cornerCoords, src_coord_, rhsWeights);
+        SourceAndReceiverUtils::ComputeRHSWeights<4>(corner_coords, src_coord_, rhs_weights_);
         break;
       case 5:
-        SourceAndReceiverUtils::ComputeRHSWeights<5>(cornerCoords, src_coord_, rhsWeights);
+        SourceAndReceiverUtils::ComputeRHSWeights<5>(corner_coords, src_coord_, rhs_weights_);
         break;
       default:
         throw std::runtime_error("Unsupported order: " + std::to_string(order));
     }
   } else {
-    // Zero weights if source is not on this rank
-    for (int k = 0; k < m_mesh->getNumberOfPointsPerElement(); ++k) rhsWeights(0, k) = 0.0f;
+    for (int k = 0; k < mesh_->getNumberOfPointsPerElement(); ++k) rhs_weights_(0, k) = 0.0f;
   }
 
-  // Receiver computation
-  // Similar logic for receiver
-  float relative_rcv_x = rcv_coord_[0] - m_localParams.origin_x;
-  int receiver_index = floor((relative_rcv_x * ex) / lx) + floor((rcv_coord_[1] * ey) / ly) * ex +
-                       floor((rcv_coord_[2] * ez) / lz) * ey * ex;
+  float rel_rcv_x = rcv_coord_[0] - local_params_.origin_x;
+  int rcv_index =
+      floor((rel_rcv_x * ex) / lx) + floor((rcv_coord_[1] * ey) / ly) * ex + floor((rcv_coord_[2] * ez) / lz) * ey * ex;
 
-  // Clamp index to avoid segfaults during testing if receiver is out of bounds
-  if (receiver_index < 0) receiver_index = 0;
-  if (receiver_index >= m_mesh->getNumberOfElements()) receiver_index = 0;
+  if (rcv_index < 0 || rcv_index >= mesh_->getNumberOfElements()) rcv_index = 0;
+  for (int i = 0; i < 1; i++) rhs_element_rcv_[i] = rcv_index;
 
-  for (int i = 0; i < 1; i++) {
-    rhsElementRcv[i] = receiver_index;
-  }
-
-  // Get coordinates of the corners of the receiver element
-  float cornerCoordsRcv[8][3];
-  I = 0;
+  float corner_coords_rcv[8][3];
+  corner_iter = 0;
   for (int k : nodes_corner) {
     for (int j : nodes_corner) {
       for (int i : nodes_corner) {
-        int nodeIdx = m_mesh->globalNodeIndex(rhsElementRcv[0], i, j, k);
-        cornerCoordsRcv[I][0] = m_mesh->nodeCoord(nodeIdx, 0);
-        cornerCoordsRcv[I][2] = m_mesh->nodeCoord(nodeIdx, 2);
-        cornerCoordsRcv[I][1] = m_mesh->nodeCoord(nodeIdx, 1);
-        I++;
+        int node_idx = mesh_->globalNodeIndex(rhs_element_rcv_[0], i, j, k);
+        corner_coords_rcv[corner_iter][0] = mesh_->nodeCoord(node_idx, 0);
+        corner_coords_rcv[corner_iter][2] = mesh_->nodeCoord(node_idx, 2);
+        corner_coords_rcv[corner_iter][1] = mesh_->nodeCoord(node_idx, 1);
+        corner_iter++;
       }
     }
   }
 
   switch (order) {
     case 1:
-      SourceAndReceiverUtils::ComputeRHSWeights<1>(cornerCoordsRcv, rcv_coord_, rhsWeightsRcv);
+      SourceAndReceiverUtils::ComputeRHSWeights<1>(corner_coords_rcv, rcv_coord_, rhs_weights_rcv_);
       break;
     case 2:
-      SourceAndReceiverUtils::ComputeRHSWeights<2>(cornerCoordsRcv, rcv_coord_, rhsWeightsRcv);
+      SourceAndReceiverUtils::ComputeRHSWeights<2>(corner_coords_rcv, rcv_coord_, rhs_weights_rcv_);
       break;
     case 3:
-      SourceAndReceiverUtils::ComputeRHSWeights<3>(cornerCoordsRcv, rcv_coord_, rhsWeightsRcv);
+      SourceAndReceiverUtils::ComputeRHSWeights<3>(corner_coords_rcv, rcv_coord_, rhs_weights_rcv_);
       break;
     case 4:
-      SourceAndReceiverUtils::ComputeRHSWeights<4>(cornerCoordsRcv, rcv_coord_, rhsWeightsRcv);
+      SourceAndReceiverUtils::ComputeRHSWeights<4>(corner_coords_rcv, rcv_coord_, rhs_weights_rcv_);
       break;
     case 5:
-      SourceAndReceiverUtils::ComputeRHSWeights<5>(cornerCoordsRcv, rcv_coord_, rhsWeightsRcv);
+      SourceAndReceiverUtils::ComputeRHSWeights<5>(corner_coords_rcv, rcv_coord_, rhs_weights_rcv_);
       break;
     default:
       throw std::runtime_error("Unsupported order: " + std::to_string(order));
   }
 
-  std::cout << "\n--- DEBUG INFO ---" << std::endl;
-  std::cout << "Source Element: " << rhsElement[0] << std::endl;
-  std::cout << "Source Coord: " << src_coord_[0] << " " << src_coord_[1] << " " << src_coord_[2] << std::endl;
+  if (das_type_ != SourceAndReceiverUtils::DASType::kNone) {
+    const int npe = mesh_->getNumberOfPointsPerElement();
+    const int total_das_nodes = das_num_samples_ * npe;
+    das_node_ids_.resize(total_das_nodes, -1);
+    das_weights_.resize(total_das_nodes, 0.0f);
 
-  // Print Corner Coordinates of the source element
-  std::cout << "Corner Coords (Node 0): " << cornerCoords[0][0] << ", " << cornerCoords[0][1] << ", "
-            << cornerCoords[0][2] << std::endl;
-  std::cout << "Corner Coords (Node 7): " << cornerCoords[7][0] << ", " << cornerCoords[7][1] << ", "
-            << cornerCoords[7][2] << std::endl;
-
-  // Print Calculated Weights
-  std::cout << "RHS Weights: ";
-  for (int k = 0; k < m_mesh->getNumberOfPointsPerElement(); ++k) {
-    std::cout << rhsWeights(0, k) << " ";
-  }
-  std::cout << std::endl;
-  std::cout << "------------------\n" << std::endl;
-
-  // DAS receiver precomputation
-  if (dasType_ != SourceAndReceiverUtils::DASType::kNone) {
-    const int npe = m_mesh->getNumberOfPointsPerElement();
-    const int totalDASNodes = dasNumSamples_ * npe;
-    dasNodeIds_.resize(totalDASNodes, -1);
-    dasWeights_.resize(totalDASNodes, 0.0f);
-
-    // Compute sample point locations along fiber [-0.5, ..., +0.5]
-    std::vector<float> sampleLocations(dasNumSamples_);
-    if (dasNumSamples_ == 1) {
-      sampleLocations[0] = 0.0f;
+    std::vector<float> sample_locs(das_num_samples_);
+    if (das_num_samples_ == 1) {
+      sample_locs[0] = 0.0f;
     } else {
-      for (int i = 0; i < dasNumSamples_; ++i) {
-        sampleLocations[i] = -0.5f + static_cast<float>(i) / (dasNumSamples_ - 1);
+      for (int i = 0; i < das_num_samples_; ++i) {
+        sample_locs[i] = -0.5f + static_cast<float>(i) / (das_num_samples_ - 1);
       }
     }
 
-    // Compute integration constants
-    std::vector<float> integrationConstants(dasNumSamples_);
-    if (dasType_ == SourceAndReceiverUtils::DASType::kDipole) {
-      integrationConstants[0] = -1.0f;
-      integrationConstants[1] = 1.0f;
+    std::vector<float> integration_consts(das_num_samples_);
+    if (das_type_ == SourceAndReceiverUtils::DASType::kDipole) {
+      integration_consts[0] = -1.0f;
+      integration_consts[1] = 1.0f;
     } else {
-      for (int i = 0; i < dasNumSamples_; ++i) {
-        integrationConstants[i] = 1.0f / dasNumSamples_;
+      for (int i = 0; i < das_num_samples_; ++i) {
+        integration_consts[i] = 1.0f / das_num_samples_;
       }
     }
 
-    // For each sample point along the fiber
-    for (int iSample = 0; iSample < dasNumSamples_; ++iSample) {
-      // Physical coordinates of sample point
-      std::array<float, 3> sampleCoord;
+    for (int i_sample = 0; i_sample < das_num_samples_; ++i_sample) {
+      std::array<float, 3> sample_coord;
       for (int d = 0; d < 3; ++d) {
-        sampleCoord[d] = rcv_coord_[d] + dasDirection_[d] * dasGaugeLength_ * sampleLocations[iSample];
+        sample_coord[d] = rcv_coord_[d] + das_direction_[d] * das_gauge_length_ * sample_locs[i_sample];
       }
 
-      // Find element containing this sample point
-      float rel_x = sampleCoord[0] - m_localParams.origin_x;
-      int sampleElemIdx = static_cast<int>(std::floor((rel_x * ex) / lx)) +
-                          static_cast<int>(std::floor((sampleCoord[1] * ey) / ly)) * ex +
-                          static_cast<int>(std::floor((sampleCoord[2] * ez) / lz)) * ey * ex;
+      float rel_x = sample_coord[0] - local_params_.origin_x;
+      int sample_elem_idx = static_cast<int>(std::floor((rel_x * ex) / lx)) +
+                            static_cast<int>(std::floor((sample_coord[1] * ey) / ly)) * ex +
+                            static_cast<int>(std::floor((sample_coord[2] * ez) / lz)) * ey * ex;
 
-      // Clamp to valid range
-      if (sampleElemIdx < 0) sampleElemIdx = 0;
-      if (sampleElemIdx >= m_mesh->getNumberOfElements()) sampleElemIdx = 0;
+      if (sample_elem_idx < 0 || sample_elem_idx >= mesh_->getNumberOfElements()) sample_elem_idx = 0;
 
-      // Get corner coordinates of sample element
-      float sampleCornerCoords[8][3];
+      float sample_corners[8][3];
       int ci = 0;
       for (int kk : nodes_corner) {
         for (int jj : nodes_corner) {
           for (int ii : nodes_corner) {
-            int nIdx = m_mesh->globalNodeIndex(sampleElemIdx, ii, jj, kk);
-            sampleCornerCoords[ci][0] = m_mesh->nodeCoord(nIdx, 0);
-            sampleCornerCoords[ci][1] = m_mesh->nodeCoord(nIdx, 1);
-            sampleCornerCoords[ci][2] = m_mesh->nodeCoord(nIdx, 2);
+            int n_idx = mesh_->globalNodeIndex(sample_elem_idx, ii, jj, kk);
+            sample_corners[ci][0] = mesh_->nodeCoord(n_idx, 0);
+            sample_corners[ci][1] = mesh_->nodeCoord(n_idx, 1);
+            sample_corners[ci][2] = mesh_->nodeCoord(n_idx, 2);
             ci++;
           }
         }
       }
 
-      // Store global node IDs for this sample's element
-      int baseIdx = iSample * npe;
+      int base_idx = i_sample * npe;
       for (int kk = 0; kk < order + 1; ++kk) {
         for (int jj = 0; jj < order + 1; ++jj) {
           for (int ii = 0; ii < order + 1; ++ii) {
-            int localNode = ii + jj * (order + 1) + kk * (order + 1) * (order + 1);
-            dasNodeIds_[baseIdx + localNode] = m_mesh->globalNodeIndex(sampleElemIdx, ii, jj, kk);
+            int local_node = ii + jj * (order + 1) + kk * (order + 1) * (order + 1);
+            das_node_ids_[base_idx + local_node] = mesh_->globalNodeIndex(sample_elem_idx, ii, jj, kk);
           }
         }
       }
 
-      // Compute weights for this sample point
       switch (order) {
         case 1:
-          SourceAndReceiverUtils::ComputeDASWeightsForSample<1>(sampleCornerCoords, sampleCoord, dasDirection_,
-                                                                integrationConstants[iSample], dasType_,
-                                                                &dasWeights_[baseIdx]);
+          SourceAndReceiverUtils::ComputeDASWeightsForSample<1>(sample_corners, sample_coord, das_direction_,
+                                                                integration_consts[i_sample], das_type_,
+                                                                &das_weights_[base_idx]);
           break;
         case 2:
-          SourceAndReceiverUtils::ComputeDASWeightsForSample<2>(sampleCornerCoords, sampleCoord, dasDirection_,
-                                                                integrationConstants[iSample], dasType_,
-                                                                &dasWeights_[baseIdx]);
+          SourceAndReceiverUtils::ComputeDASWeightsForSample<2>(sample_corners, sample_coord, das_direction_,
+                                                                integration_consts[i_sample], das_type_,
+                                                                &das_weights_[base_idx]);
           break;
         case 3:
-          SourceAndReceiverUtils::ComputeDASWeightsForSample<3>(sampleCornerCoords, sampleCoord, dasDirection_,
-                                                                integrationConstants[iSample], dasType_,
-                                                                &dasWeights_[baseIdx]);
+          SourceAndReceiverUtils::ComputeDASWeightsForSample<3>(sample_corners, sample_coord, das_direction_,
+                                                                integration_consts[i_sample], das_type_,
+                                                                &das_weights_[base_idx]);
           break;
         case 4:
-          SourceAndReceiverUtils::ComputeDASWeightsForSample<4>(sampleCornerCoords, sampleCoord, dasDirection_,
-                                                                integrationConstants[iSample], dasType_,
-                                                                &dasWeights_[baseIdx]);
+          SourceAndReceiverUtils::ComputeDASWeightsForSample<4>(sample_corners, sample_coord, das_direction_,
+                                                                integration_consts[i_sample], das_type_,
+                                                                &das_weights_[base_idx]);
           break;
         case 5:
-          SourceAndReceiverUtils::ComputeDASWeightsForSample<5>(sampleCornerCoords, sampleCoord, dasDirection_,
-                                                                integrationConstants[iSample], dasType_,
-                                                                &dasWeights_[baseIdx]);
+          SourceAndReceiverUtils::ComputeDASWeightsForSample<5>(sample_corners, sample_coord, das_direction_,
+                                                                integration_consts[i_sample], das_type_,
+                                                                &das_weights_[base_idx]);
           break;
         default:
           throw std::runtime_error("Unsupported order for DAS: " + std::to_string(order));
       }
     }
-
-    std::cout << "DAS precomputation complete: " << dasNumSamples_ << " samples, " << totalDASNodes << " node entries"
-              << std::endl;
   }
 }
 
-void SEMproxy::saveSnapshot(int timestep, VECTOR_REAL_VIEW data) const {
+void SEMproxy::SaveSnapshot(int timestep, VECTOR_REAL_VIEW data) const {
   Kokkos::fence();
-  auto nb_nodes = data.extent(0);
+  auto n_nodes = data.extent(0);
 
-  vectorReal subset("snapshot_cpy", nb_nodes);
-  // Use a parallel copy to handle the strided layout
-  Kokkos::parallel_for("copy_column", nb_nodes, KOKKOS_LAMBDA(int i) { subset(i) = data(i); });
+  vectorReal subset("snapshot_cpy", n_nodes);
+  Kokkos::parallel_for("copy_column", n_nodes, KOKKOS_LAMBDA(int i) { subset(i) = data(i); });
   Kokkos::fence();
   io_ctrl_->saveSnapshot(subset, timestep);
 }
 
-implemType SEMproxy::getImplem(string implemArg) {
-  if (implemArg == "makutu") return implemType::kMakutu;
+implemType SEMproxy::GetImplem(std::string implem_arg) {
+  if (implem_arg == "makutu") return implemType::kMakutu;
+  throw std::invalid_argument("Implementation type invalid. Only 'makutu' is supported.");
+};
 
-  throw std::invalid_argument("Implentation type does not follow any valid type.");
+meshType SEMproxy::GetMesh(std::string mesh_arg) {
+  if (mesh_arg == "cartesian") return meshType::kStruct;
+  if (mesh_arg == "ucartesian") return meshType::kUnstruct;
+  throw std::invalid_argument("Mesh type invalid. Must be 'ucartesian' or 'cartesian'.");
+};
+
+methodType SEMproxy::GetMethod(std::string method_arg) {
+  if (method_arg == "sem") return methodType::kSem;
+  if (method_arg == "dg") return methodType::kDg;
+  throw std::invalid_argument("Method type invalid. Must be 'sem' or 'dg'.");
+};
+
+model::AnisotropyType SEMproxy::GetAnisotropy(std::string anisotropy_arg) {
+  if (anisotropy_arg == "iso") return model::AnisotropyType::kIso;
+  if (anisotropy_arg == "vti") return model::AnisotropyType::kVTI;
+  if (anisotropy_arg == "tti") return model::AnisotropyType::kTTI;
+  throw std::invalid_argument("Anisotropy type invalid. Must be 'iso', 'vti' or 'tti'.");
+};
+
+float SEMproxy::FindCflDt(float cfl_factor) {
+  float sqrt_dim3 = 1.73f;
+  float min_spacing = mesh_->getMinSpacing();
+  float v_max = mesh_->getMaxSpeed();
+  return cfl_factor * min_spacing / (sqrt_dim3 * v_max);
 }
 
-meshType SEMproxy::getMesh(string meshArg) {
-  if (meshArg == "cartesian") return meshType::kStruct;
-  if (meshArg == "ucartesian") return meshType::kUnstruct;
-
-  std::cout << "Mesh type found is " << meshArg << std::endl;
-  throw std::invalid_argument("Mesh type does not follow any valid type.");
-}
-
-methodType SEMproxy::getMethod(string methodArg) {
-  if (methodArg == "sem") return methodType::kSem;
-  if (methodArg == "dg") return methodType::kDg;
-
-  throw std::invalid_argument("Method type does not follow any valid type.");
-}
-
-model::AnisotropyType SEMproxy::getAnisotropy(string anisotropyArg) {
-  if (anisotropyArg == "iso") return model::AnisotropyType::kIso;
-  if (anisotropyArg == "vti") return model::AnisotropyType::kVTI;
-  if (anisotropyArg == "tti") return model::AnisotropyType::kTTI;
-
-  throw std::invalid_argument("Anisotropy type does not follow any valid type.");
-}
-
-float SEMproxy::find_cfl_dt(float cfl_factor) {
-  float sqrtDim3 = 1.73;  // to change for 2d
-  float min_spacing = m_mesh->getMinSpacing();
-  float v_max = m_mesh->getMaxSpeed();
-
-  float dt = cfl_factor * min_spacing / (sqrtDim3 * v_max);
-
-  return dt;
-}
-
-void SEMproxy::init_mpi(int* mpi_init) {
+void SEMproxy::InitMpi(int* mpi_init) {
 #ifdef USE_MPI
   MPI_Initialized(mpi_init);
   if (mpi_init) {
@@ -992,46 +814,39 @@ void SEMproxy::init_mpi(int* mpi_init) {
     dist_ctx_.rank = 0;
     dist_ctx_.size = 1;
   }
-  std::cout << "[rank " << dist_ctx_.rank << "] size " << dist_ctx_.size << std::endl;
 #else
   dist_ctx_.rank = 0;
   dist_ctx_.size = 1;
 #endif
 }
 
-void SEMproxy::init_sim_params(const SemProxyOptions& opt) {
-  // Partition Logic
-  // Create Global Params
-  model::CartesianParams<float, int> globalParams(opt.order, opt.ex, opt.ey, opt.ez, opt.lx, opt.ly, opt.lz,
-                                                  opt.isModelOnNodes, opt.isElastic);
-  globalParams.isAcoustoElastic = opt.isAcoustoElastic;
-  globalParams.acoustoElasticBoundaryZ = opt.acoustoElasticBoundaryZ;
-  globalParams.origin_x = 0;  // Global start
+void SEMproxy::InitSimParams(const SemProxyOptions& opt) {
+  model::CartesianParams<float, int> global_params(opt.order, opt.ex, opt.ey, opt.ez, opt.lx, opt.ly, opt.lz,
+                                                   opt.isModelOnNodes, opt.isElastic);
+  global_params.isAcoustoElastic = opt.isAcoustoElastic;
+  global_params.acoustoElasticBoundaryZ = opt.acoustoElasticBoundaryZ;
+  global_params.origin_x = 0;
 
-  // Partition domain
   model::CartesianXPartitioner<float, int> partitioner;
-  m_localParams = partitioner.partition(globalParams, dist_ctx_.rank, dist_ctx_.size);
-  // Preserve acoustoelastic fields (not handled by partitioner geometry split)
-  m_localParams.isAcoustoElastic = opt.isAcoustoElastic;
-  m_localParams.acoustoElasticBoundaryZ = opt.acoustoElasticBoundaryZ;
+  local_params_ = partitioner.partition(global_params, dist_ctx_.rank, dist_ctx_.size);
+  local_params_.isAcoustoElastic = opt.isAcoustoElastic;
+  local_params_.acoustoElasticBoundaryZ = opt.acoustoElasticBoundaryZ;
 
-  // Update members with LOCAL parameters for array allocation
-  nb_elements_[0] = m_localParams.ex;
-  nb_elements_[1] = m_localParams.ey;
-  nb_elements_[2] = m_localParams.ez;
-  nb_nodes_[0] = m_localParams.ex * opt.order + 1;
-  nb_nodes_[1] = m_localParams.ey * opt.order + 1;
-  nb_nodes_[2] = m_localParams.ez * opt.order + 1;
+  num_elements_[0] = local_params_.ex;
+  num_elements_[1] = local_params_.ey;
+  num_elements_[2] = local_params_.ez;
+  num_nodes_[0] = local_params_.ex * opt.order + 1;
+  num_nodes_[1] = local_params_.ey * opt.order + 1;
+  num_nodes_[2] = local_params_.ez * opt.order + 1;
 
-  // Use local dimensions for domain size check logic
-  domain_size_[0] = m_localParams.lx;
-  domain_size_[1] = m_localParams.ly;
-  domain_size_[2] = m_localParams.lz;
+  domain_size_[0] = local_params_.lx;
+  domain_size_[1] = local_params_.ly;
+  domain_size_[2] = local_params_.lz;
 
   src_coord_[0] = opt.srcx;
   src_coord_[1] = opt.srcy;
   src_coord_[2] = opt.srcz;
-  tpeak_ = opt.tpeak;
+  t_peak_ = opt.tpeak;
   f0_ = opt.f0;
   ricker_order_ = opt.ricker_order;
 
@@ -1039,123 +854,144 @@ void SEMproxy::init_sim_params(const SemProxyOptions& opt) {
   rcv_coord_[1] = opt.rcvy;
   rcv_coord_[2] = opt.rcvz;
 
-  isElastic_ = opt.isElastic;
-
-  std::cout << "Debug Print :" << std::endl;
-  std::cout << "    Rank " << dist_ctx_.rank << "/" << dist_ctx_.size << std::endl;
-  std::cout << "    Local lx " << m_localParams.lx << std::endl;
-  std::cout << "    Local ly " << m_localParams.ly << std::endl;
-  std::cout << "    Local lz " << m_localParams.lz << std::endl;
-  std::cout << "    Local ex " << m_localParams.ex << std::endl;
-  std::cout << "    Local ey " << m_localParams.ey << std::endl;
-  std::cout << "    Local ez " << m_localParams.ez << std::endl;
+  is_elastic_ = opt.isElastic;
 }
 
-void SEMproxy::init_mesh_params(const SemProxyOptions& opt) {
-  const methodType methodType = getMethod(opt.method);
-  const implemType implemType = getImplem(opt.implem);
-  const meshType meshType = getMesh(opt.mesh);
+void SEMproxy::InitMeshParams(const SemProxyOptions& opt) {
+  const meshType mesh_type = GetMesh(opt.mesh);
 
-  // Build Mesh using LOCAL parameters
-  if (meshType == meshType::kStruct) {
+  if (mesh_type == meshType::kStruct) {
     switch (opt.order) {
       case 1: {
         model::CartesianStructBuilder<float, int, 1> builder(
-            m_localParams.ex, m_localParams.lx, m_localParams.ey, m_localParams.ly, m_localParams.ez, m_localParams.lz,
-            opt.isModelOnNodes, opt.isElastic, m_localParams.origin_x, m_localParams.origin_y, m_localParams.origin_z,
+            local_params_.ex, local_params_.lx, local_params_.ey, local_params_.ly, local_params_.ez, local_params_.lz,
+            opt.isModelOnNodes, opt.isElastic, local_params_.origin_x, local_params_.origin_y, local_params_.origin_z,
             -1.0f, -1.0f, -1.0f, 0.0f, 0.0f, 0.0f, opt.isAcoustoElastic, opt.acoustoElasticBoundaryZ);
-        m_mesh = builder.getModel(opt.free_surface);
+        mesh_ = builder.getModel(opt.free_surface);
         break;
       }
       case 2: {
         model::CartesianStructBuilder<float, int, 2> builder(
-            m_localParams.ex, m_localParams.lx, m_localParams.ey, m_localParams.ly, m_localParams.ez, m_localParams.lz,
-            opt.isModelOnNodes, opt.isElastic, m_localParams.origin_x, m_localParams.origin_y, m_localParams.origin_z,
+            local_params_.ex, local_params_.lx, local_params_.ey, local_params_.ly, local_params_.ez, local_params_.lz,
+            opt.isModelOnNodes, opt.isElastic, local_params_.origin_x, local_params_.origin_y, local_params_.origin_z,
             -1.0f, -1.0f, -1.0f, 0.0f, 0.0f, 0.0f, opt.isAcoustoElastic, opt.acoustoElasticBoundaryZ);
-        m_mesh = builder.getModel(opt.free_surface);
+        mesh_ = builder.getModel(opt.free_surface);
         break;
       }
       case 3: {
         model::CartesianStructBuilder<float, int, 3> builder(
-            m_localParams.ex, m_localParams.lx, m_localParams.ey, m_localParams.ly, m_localParams.ez, m_localParams.lz,
-            opt.isModelOnNodes, opt.isElastic, m_localParams.origin_x, m_localParams.origin_y, m_localParams.origin_z,
+            local_params_.ex, local_params_.lx, local_params_.ey, local_params_.ly, local_params_.ez, local_params_.lz,
+            opt.isModelOnNodes, opt.isElastic, local_params_.origin_x, local_params_.origin_y, local_params_.origin_z,
             -1.0f, -1.0f, -1.0f, 0.0f, 0.0f, 0.0f, opt.isAcoustoElastic, opt.acoustoElasticBoundaryZ);
-        m_mesh = builder.getModel(opt.free_surface);
+        mesh_ = builder.getModel(opt.free_surface);
         break;
       }
       case 4: {
         model::CartesianStructBuilder<float, int, 4> builder(
-            m_localParams.ex, m_localParams.lx, m_localParams.ey, m_localParams.ly, m_localParams.ez, m_localParams.lz,
-            opt.isModelOnNodes, opt.isElastic, m_localParams.origin_x, m_localParams.origin_y, m_localParams.origin_z,
+            local_params_.ex, local_params_.lx, local_params_.ey, local_params_.ly, local_params_.ez, local_params_.lz,
+            opt.isModelOnNodes, opt.isElastic, local_params_.origin_x, local_params_.origin_y, local_params_.origin_z,
             -1.0f, -1.0f, -1.0f, 0.0f, 0.0f, 0.0f, opt.isAcoustoElastic, opt.acoustoElasticBoundaryZ);
-        m_mesh = builder.getModel(opt.free_surface);
+        mesh_ = builder.getModel(opt.free_surface);
         break;
       }
       case 5: {
         model::CartesianStructBuilder<float, int, 5> builder(
-            m_localParams.ex, m_localParams.lx, m_localParams.ey, m_localParams.ly, m_localParams.ez, m_localParams.lz,
-            opt.isModelOnNodes, opt.isElastic, m_localParams.origin_x, m_localParams.origin_y, m_localParams.origin_z,
+            local_params_.ex, local_params_.lx, local_params_.ey, local_params_.ly, local_params_.ez, local_params_.lz,
+            opt.isModelOnNodes, opt.isElastic, local_params_.origin_x, local_params_.origin_y, local_params_.origin_z,
             -1.0f, -1.0f, -1.0f, 0.0f, 0.0f, 0.0f, opt.isAcoustoElastic, opt.acoustoElasticBoundaryZ);
-        m_mesh = builder.getModel(opt.free_surface);
+        mesh_ = builder.getModel(opt.free_surface);
         break;
       }
       default:
-        throw std::runtime_error("Order other than 1 2 3 is not supported (semproxy)");
+        throw std::runtime_error("Order other than 1-5 is not supported (semproxy)");
     }
-  } else if (meshType == meshType::kUnstruct) {
-    // Pass local params to unstructured builder (handles origin internally)
-    model::CartesianUnstructBuilder<float, int> builder(m_localParams);
-    m_mesh = builder.getModel(opt.free_surface);
+  } else if (mesh_type == meshType::kUnstruct) {
+    model::CartesianUnstructBuilder<float, int> builder(local_params_);
+    mesh_ = builder.getModel(opt.free_surface);
   } else {
     throw std::runtime_error("Incorrect mesh type (SEMproxy ctor.)");
   }
 }
 
-void SEMproxy::init_topology() {
-  par_topology_ = TopologyFactory::createFromMesh(*m_mesh, dist_ctx_.rank, dist_ctx_.size, m_localParams.origin_x,
-                                                  m_localParams.lx);
+void SEMproxy::InitTopology() {
+  par_topology_ =
+      TopologyFactory::createFromMesh(*mesh_, dist_ctx_.rank, dist_ctx_.size, local_params_.origin_x, local_params_.lx);
 }
 
-void SEMproxy::init_sync() {
+void SEMproxy::InitSync() {
 #if USE_MPI
   if (dist_ctx_.size > 1) {
-    m_syncer = std::make_unique<BoundarySynchronizer>(std::make_unique<solver::fe::MPIBackend>());
-
+    syncer_ = std::make_unique<BoundarySynchronizer>(std::make_unique<solver::fe::MPIBackend>());
     if (dist_ctx_.rank == 0) {
       std::cout << "MPI Enabled: Using MPIBackend for " << dist_ctx_.size << " ranks." << std::endl;
     }
   } else {
-    // Fallback for serial
-    m_syncer = std::make_unique<BoundarySynchronizer>(std::make_unique<SerialBackend>());
+    syncer_ = std::make_unique<BoundarySynchronizer>(std::make_unique<SerialBackend>());
   }
 #else
-  m_syncer = std::make_unique<BoundarySynchronizer>(std::make_unique<SerialBackend>());
+  syncer_ = std::make_unique<BoundarySynchronizer>(std::make_unique<SerialBackend>());
 #endif
 }
 
-void SEMproxy::init_time_params(const SemProxyOptions& opt) {
+void SEMproxy::InitTimeParams(const SemProxyOptions& opt) {
   if (opt.autodt) {
-    float cfl_factor = (opt.order == 2) ? 0.5 : 0.7;
-    dt_ = find_cfl_dt(cfl_factor);
+    float cfl_factor = (opt.order == 2) ? 0.5f : 0.7f;
+    dt_ = FindCflDt(cfl_factor);
   } else {
     dt_ = opt.dt;
   }
-  timemax_ = opt.timemax;
-  num_sample_ = timemax_ / dt_;
+  time_max_ = opt.timemax;
+  num_samples_ = time_max_ / dt_;
 }
 
-void SEMproxy::display_init_msg(const SemProxyOptions& opt) {
-  std::cout << "Number of node is " << m_mesh->getNumberOfNodes() << std::endl;
-  std::cout << "Number of element is " << m_mesh->getNumberOfElements() << std::endl;
-  std::cout << "Launching the Method " << opt.method << ", the implementation " << opt.implem << " and the mesh is "
-            << opt.mesh << std::endl;
-  std::cout << "Model is on " << (opt.isModelOnNodes ? "nodes" : "elements") << std::endl;
-  std::cout << "Physics type is " << (opt.isElastic ? "elastic" : "acoustic") << std::endl;
-  std::cout << "Order of approximation will be " << opt.order << std::endl;
-  std::cout << "Time step is " << dt_ << "s" << std::endl;
-  std::cout << "Simulated time is " << timemax_ << "s" << std::endl;
+void SEMproxy::DisplayInitMsg(const SemProxyOptions& opt) {
+  std::cout << "\n==========================================================\n";
+  std::cout << "               SEM PROXY LAUNCH PARAMETERS                  \n";
+  std::cout << "==========================================================\n";
+  std::cout << "[Mesh Configuration]\n";
+  std::cout << "  - Number of Nodes:      " << mesh_->getNumberOfNodes() << "\n";
+  std::cout << "  - Number of Elements:   " << mesh_->getNumberOfElements() << "\n";
+  std::cout << "  - Polynomial Order:     " << opt.order << "\n";
+  std::cout << "  - Mesh Type:            " << opt.mesh << "\n\n";
 
+  std::cout << "[Physics & Solver]\n";
+  std::cout << "  - Method:               " << opt.method << "\n";
+  std::cout << "  - Implementation:       " << opt.implem << "\n";
+  std::cout << "  - Primary Physics:      "
+            << (is_acousto_elastic_ ? "Acousto-Elastic" : (is_elastic_ ? "Elastic" : "Acoustic")) << "\n";
+  std::cout << "  - Model Locality:       " << (opt.isModelOnNodes ? "Nodes" : "Elements") << "\n\n";
+
+  std::cout << "[Time Domain]\n";
+  std::cout << "  - Time Step (dt):       " << std::fixed << std::setprecision(6) << dt_ << " s\n";
+  std::cout << "  - Total Sim Time:       " << time_max_ << " s\n";
+  std::cout << "  - Total Samples:        " << num_samples_ << "\n\n";
+
+  std::cout << "[Output Directives]\n";
   if (is_snapshots_) {
-    std::cout << "Snapshots enable every " << snap_time_interval_ << " iteration." << std::endl;
+    std::cout << "  - Snapshots:            Enabled (Every " << snap_time_interval_ << " iterations)\n";
+  } else {
+    std::cout << "  - Snapshots:            Disabled\n";
   }
+  std::cout << "==========================================================\n\n";
+}
+
+void SEMproxy::DisplayPerfMsg() const {
+  double total_time = time_init_ + time_compute_ + time_io_;
+  double pct_init = (total_time > 0) ? (time_init_ / total_time) * 100.0 : 0.0;
+  double pct_comp = (total_time > 0) ? (time_compute_ / total_time) * 100.0 : 0.0;
+  double pct_io = (total_time > 0) ? (time_io_ / total_time) * 100.0 : 0.0;
+
+  std::cout << "\n==========================================================\n";
+  std::cout << "               SEM PROXY PERFORMANCE SUMMARY                \n";
+  std::cout << "==========================================================\n";
+  std::cout << "  - Initialization Time:  " << std::fixed << std::setprecision(4) << std::setw(8) << time_init_
+            << " s (" << std::setprecision(1) << std::setw(4) << pct_init << "%)\n";
+  std::cout << "  - Compute Kernel Time:  " << std::fixed << std::setprecision(4) << std::setw(8) << time_compute_
+            << " s (" << std::setprecision(1) << std::setw(4) << pct_comp << "%)\n";
+  std::cout << "  - I/O & Output Time:    " << std::fixed << std::setprecision(4) << std::setw(8) << time_io_ << " s ("
+            << std::setprecision(1) << std::setw(4) << pct_io << "%)\n";
+  std::cout << "----------------------------------------------------------\n";
+  std::cout << "  - Total Execution Time: " << std::fixed << std::setprecision(4) << std::setw(8) << total_time
+            << " s\n";
+  std::cout << "==========================================================\n\n";
 }

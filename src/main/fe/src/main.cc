@@ -1,7 +1,8 @@
-//  SEM proxy application v.0.0.1
-//
-//  main.cpp: this main file is simply a driver
-//************************************************************************
+// Driver file for the SEM proxy simulation.
+
+#include <cstdlib>
+#include <iostream>
+
 #ifdef USE_MPI
 #include <mpi.h>
 #endif
@@ -9,102 +10,94 @@
 #include "sem_proxy.h"
 #include "sem_proxy_options.h"
 
-time_point<system_clock> startInitTime;
-
-void compute(SEMproxy &semsim) {
-  cout << "\n+================================= " << endl;
-  cout << "| Running SEM Application ...      " << endl;
-  cout << "+================================= \n" << endl;
-
-  // start timer
-  time_point<system_clock> startRunTime = system_clock::now();
-  semsim.run();
-
-  cout << "\n+================================= " << endl;
-  cout << "| SEM Application Finished.       " << endl;
-  cout << "+================================= \n" << endl;
-
-  // print timing information
-  cout << "Elapsed Initial Time : " << (startRunTime - startInitTime).count() / 1E9 << " seconds." << endl;
-  cout << "Elapsed Compute Time : " << (system_clock::now() - startRunTime).count() / 1E9 << " seconds." << endl;
-};
-
-void compute_loop(SEMproxy &semsim) { compute(semsim); }
-
-// Helper to determine local rank for GPU affinity
-int get_local_rank() {
+/**
+ * @brief Initializes the MPI environment if USE_MPI is defined.
+ *
+ * @param argc Number of command-line arguments.
+ * @param argv Array of command-line arguments.
+ * @param rank Pointer to store the MPI rank of the calling process.
+ * @param size Pointer to store the total number of MPI processes.
+ */
+void InitMpi(int argc, char** argv, int* rank, int* size) {
 #ifdef USE_MPI
-  // Check standard environment variables first
-  if (const char *p = std::getenv("OMPI_COMM_WORLD_LOCAL_RANK")) return std::atoi(p);
-  if (const char *p = std::getenv("MV2_COMM_WORLD_LOCAL_RANK")) return std::atoi(p);
-  if (const char *p = std::getenv("SLURM_LOCALID")) return std::atoi(p);
+  std::cout << "Initializing MPI..." << std::endl;
 
-  // Fallback to MPI split type if env vars are missing
-  MPI_Comm nodeComm;
-  MPI_Comm_split_type(MPI_COMM_WORLD, MPI_COMM_TYPE_SHARED, 0, MPI_INFO_NULL, &nodeComm);
-  int local_rank;
-  MPI_Comm_rank(nodeComm, &local_rank);
-  MPI_Comm_free(&nodeComm);
-  return local_rank;
-#else
-  return 0;
-#endif
-}
-
-int main(int argc, char *argv[]) {
-  startInitTime = system_clock::now();
-
-#ifdef USE_MPI
-  // mpi
   int provided;
   MPI_Init_thread(&argc, &argv, MPI_THREAD_FUNNELED, &provided);
 
-  int rank, size;
-  MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-  MPI_Comm_size(MPI_COMM_WORLD, &size);
+  MPI_Comm_rank(MPI_COMM_WORLD, rank);
+  MPI_Comm_size(MPI_COMM_WORLD, size);
+#else
+  std::cout << "No MPI initialization." << std::endl;
 #endif
+}
 
+/**
+ * @brief Finalizes the MPI environment if USE_MPI is defined.
+ */
+void FinalizeMpi() {
+#ifdef USE_MPI
+  std::cout << "Finalizing MPI..." << std::endl;
+  MPI_Barrier(MPI_COMM_WORLD);
+  MPI_Finalize();
+#else
+  std::cout << "No MPI involved. No de-init needed." << std::endl;
+#endif
+}
+
+/**
+ * @brief Parses command-line arguments to build simulation options.
+ *
+ * @param argc Number of command-line arguments.
+ * @param argv Array of command-line arguments.
+ * @return Parsed and validated simulation configuration options.
+ */
+SemProxyOptions ParseOptions(int argc, char** argv) {
+  cxxopts::Options options("SEM Proxy", "Runs the SEM simulation.");
+  options.allow_unrecognised_options();  // Allows Kokkos flags to pass through
+  options.add_options()("h,help", "Print help message");
+
+  SemProxyOptions opt;
+  SemProxyOptions::bind_cli(options, opt);
+
+  auto result = options.parse(argc, argv);
+
+  if (result.count("help")) {
+    std::cout << options.help() << std::endl;
+    exit(EXIT_SUCCESS);
+  }
+
+  try {
+    opt.validate();
+  } catch (const std::exception& e) {
+    std::cerr << "Invalid options: " << e.what() << "\n";
+    exit(EXIT_FAILURE);
+  }
+
+  return opt;
+}
+
+int main(int argc, char** argv) {
+  int rank = 0;
+  int size = 1;
+  InitMpi(argc, argv, &rank, &size);
+
+  // Configure OpenMP thread bindings for performance
   setenv("OMP_PROC_BIND", "spread", 1);
   setenv("OMP_PLACES", "threads", 1);
+
   Kokkos::initialize(argc, argv);
   {
-    cxxopts::Options options("SEM Proxy", "Runs the SEM simulation.");
-    options.allow_unrecognised_options();  // lets Kokkos flags pass
-
-    options.add_options()("h,help", "Print help message");
-
-    SemProxyOptions opt;
-    SemProxyOptions::bind_cli(options, opt);
-
-    auto result = options.parse(argc, argv);
-
-    if (result.count("help")) {
-      std::cout << options.help() << std::endl;
-      exit(0);
-    }
-
-    try {
-      opt.validate();
-    } catch (const std::exception &e) {
-      // your error path (no help printing here)
-      std::cerr << "Invalid options: " << e.what() << "\n";
-      return 1;
-    }
-
-    cout << "+==================================+" << endl;
-    cout << "| Initializing SEM Application ... |" << endl;
-    cout << "+==================================+\n" << endl;
-
+    auto opt = ParseOptions(argc, argv);
     SEMproxy semsim(opt);
 
-    compute_loop(semsim);
+    std::cout << "Launching simulation." << std::endl;
+    semsim.Run();
+    std::cout << "Ending simulation." << std::endl;
   }
   Kokkos::finalize();
 
-#ifdef USE_MPI
-  MPI_Barrier(MPI_COMM_WORLD);
-  MPI_Finalize();
-#endif
-  cout << "Elapsed TotalExe Time : " << (system_clock::now() - startInitTime).count() / 1E9 << " seconds.\n" << endl;
-  return (0);
+  FinalizeMpi();
+
+  return EXIT_SUCCESS;
 }
