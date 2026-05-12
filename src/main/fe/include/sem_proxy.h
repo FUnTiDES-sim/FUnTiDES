@@ -8,8 +8,10 @@
 
 #include <array>
 #include <chrono>
+#include <future>
 #include <memory>
 #include <string>
+#include <vector>
 
 #include "boundary_synchronizer.h"
 #include "cartesian_params.h"
@@ -49,10 +51,14 @@ class SEMproxy {
   int num_nodes_[3] = {0};
   float domain_size_[3] = {0};
 
+  // --- I/O ---
   bool is_snapshots_ = false;
   int snap_time_interval_ = 0;
   std::string snap_folder_;
   std::shared_ptr<SemIOController> io_ctrl_;
+  // --- ASYNC I/O ---
+  std::vector<std::future<void>> snapshot_futures_;
+  void WaitSnapshots();
 
   bool is_elastic_ = false;
   bool is_acousto_elastic_ = false;

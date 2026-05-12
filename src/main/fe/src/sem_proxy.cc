@@ -193,36 +193,47 @@ void SEMproxy::Run() {
       }
 
       if (is_snapshots_ && time_index % snap_time_interval_ == 0) {
+        // Wait for previous to finish
+        WaitSnapshots();
         Kokkos::fence();
+        // Note: For optimal performance, h_field should be pre-allocated in InitArrays like the others
         auto h_field = Kokkos::create_mirror_view(d_field);
         Kokkos::deep_copy(h_field, d_field);
 
-        const int order = mesh_->getOrder();
-        const int ex = num_elements_[0];
-        const int ey = num_elements_[1];
-        const int ez = num_elements_[2];
-        const int zElem = ez / 2;
-        const int n1d = order + 1;
-        const int icZ = order / 2;
-        std::ostringstream fname;
-        fname << "slice_dg_" << std::setfill('0') << std::setw(5) << time_index << ".dat";
-        std::ofstream fslice(fname.str());
-        for (int ej_idx = 0; ej_idx < ey; ++ej_idx) {
-          for (int ib = 0; ib < n1d; ++ib) {
-            bool first = true;
-            for (int ei_idx = 0; ei_idx < ex; ++ei_idx) {
-              int const elem = ei_idx + ej_idx * ex + zElem * ex * ey;
-              for (int ia = 0; ia < n1d; ++ia) {
-                int const dof = ia + ib * n1d + icZ * n1d * n1d;
-                if (!first) fslice << " ";
-                fslice << h_field(elem, dof);
-                first = false;
+        auto io_task = [this, time_index, h_field]() {
+          const int order = mesh_->getOrder();
+          const int ex = num_elements_[0];
+          const int ey = num_elements_[1];
+          const int ez = num_elements_[2];
+          const int zElem = ez / 2;
+          const int n1d = order + 1;
+          const int icZ = order / 2;
+          std::ostringstream fname;
+          fname << "slice_dg_" << std::setfill('0') << std::setw(5) << time_index << ".dat";
+          std::ofstream fslice(fname.str());
+          for (int ej_idx = 0; ej_idx < ey; ++ej_idx) {
+            for (int ib = 0; ib < n1d; ++ib) {
+              bool first = true;
+              for (int ei_idx = 0; ei_idx < ex; ++ei_idx) {
+                int const elem = ei_idx + ej_idx * ex + zElem * ex * ey;
+                for (int ia = 0; ia < n1d; ++ia) {
+                  int const dof = ia + ib * n1d + icZ * n1d * n1d;
+                  if (!first) fslice << " ";
+                  fslice << h_field(elem, dof);
+                  first = false;
+                }
               }
+              fslice << "\n";
             }
-            fslice << "\n";
           }
+          fslice.close();
+        };
+
+        if (d_field.data() != h_field.data()) {
+          snapshot_futures_.push_back(std::async(std::launch::async, io_task));
+        } else {
+          io_task();  // CPU-only fallback
         }
-        fslice.close();
       }
 
       auto h_field = Kokkos::create_mirror_view(d_field);
@@ -267,8 +278,21 @@ void SEMproxy::Run() {
       }
 
       if (is_snapshots_ && time_index % snap_time_interval_ == 0) {
-        SaveSnapshot(time_index, pn_global_prev_, h_pn_global_prev_);
-        SaveSnapshot(time_index, uzn_global_prev_, h_uzn_global_prev_);
+        WaitSnapshots();
+        Kokkos::deep_copy(h_pn_global_prev_, pn_global_prev_);
+        Kokkos::deep_copy(h_uzn_global_prev_, uzn_global_prev_);
+
+        auto io_task = [this, time_index, h_pn = h_pn_global_prev_, h_uz = h_uzn_global_prev_]() {
+          io_ctrl_->saveSnapshot(h_pn, time_index);
+          io_ctrl_->saveSnapshot(h_uz, time_index);
+        };
+
+        // Fallback checks if GPU data == CPU data (CPU-only build)
+        if (pn_global_prev_.data() != h_pn_global_prev_.data()) {
+          snapshot_futures_.push_back(std::async(std::launch::async, io_task));
+        } else {
+          io_task();
+        }
       }
 
       Kokkos::deep_copy(h_pn_global_curr_, pn_global_curr_);
@@ -323,25 +347,36 @@ void SEMproxy::Run() {
 #ifdef USE_MPI
         MPI_Barrier(MPI_COMM_WORLD);
 #endif
-        SaveSnapshot(time_index, pn_global_prev_, h_pn_global_prev_);
-
+        WaitSnapshots();
         Kokkos::deep_copy(h_pn_global_prev_, pn_global_prev_);
-        int nx = num_nodes_[0];
-        int ny = num_nodes_[1];
-        int nz = num_nodes_[2];
-        int z_slice = nz / 2;
-        std::ostringstream fname;
-        fname << "slice_" << std::setfill('0') << std::setw(5) << time_index << ".dat";
-        std::ofstream fslice(fname.str());
-        for (int iy = 0; iy < ny; ++iy) {
-          for (int ix = 0; ix < nx; ++ix) {
-            int node_idx = ix + iy * nx + z_slice * nx * ny;
-            fslice << h_pn_global_prev_(node_idx);
-            if (ix < nx - 1) fslice << " ";
+
+        // Offload both ADIOS2 and Slice formatting to background thread
+        auto io_task = [this, time_index, h_field = h_pn_global_prev_]() {
+          io_ctrl_->saveSnapshot(h_field, time_index);
+
+          int nx = num_nodes_[0];
+          int ny = num_nodes_[1];
+          int nz = num_nodes_[2];
+          int z_slice = nz / 2;
+          std::ostringstream fname;
+          fname << "slice_" << std::setfill('0') << std::setw(5) << time_index << ".dat";
+          std::ofstream fslice(fname.str());
+          for (int iy = 0; iy < ny; ++iy) {
+            for (int ix = 0; ix < nx; ++ix) {
+              int node_idx = ix + iy * nx + z_slice * nx * ny;
+              fslice << h_field(node_idx);
+              if (ix < nx - 1) fslice << " ";
+            }
+            fslice << "\n";
           }
-          fslice << "\n";
+          fslice.close();
+        };
+
+        if (pn_global_prev_.data() != h_pn_global_prev_.data()) {
+          snapshot_futures_.push_back(std::async(std::launch::async, io_task));
+        } else {
+          io_task();
         }
-        fslice.close();
       }
 
       // Bring wavefield array back to Host to compute Receiver Value
@@ -377,7 +412,7 @@ void SEMproxy::Run() {
     fout.close();
     total_output_time += std::chrono::high_resolution_clock::now() - start_output_time;
 
-  } else {
+  } else {  // acoustic
     WavefieldElastic wavefield(uxn_global_prev_, uxn_global_curr_, uyn_global_prev_, uyn_global_curr_, uzn_global_prev_,
                                uzn_global_curr_);
     RhsElastic rhs(rhs_term_x_, rhs_term_y_, rhs_term_z_, rhs_element_, rhs_weights_);
@@ -402,7 +437,16 @@ void SEMproxy::Run() {
       }
 
       if (is_snapshots_ && time_index % snap_time_interval_ == 0) {
-        SaveSnapshot(time_index, uxn_global_prev_, h_uxn_global_prev_);
+        WaitSnapshots();
+        Kokkos::deep_copy(h_uxn_global_prev_, uxn_global_prev_);
+
+        auto io_task = [this, time_index, h_ux = h_uxn_global_prev_]() { io_ctrl_->saveSnapshot(h_ux, time_index); };
+
+        if (uxn_global_prev_.data() != h_uxn_global_prev_.data()) {
+          snapshot_futures_.push_back(std::async(std::launch::async, io_task));
+        } else {
+          io_task();
+        }
       }
 
       Kokkos::deep_copy(h_uxn_global_curr_, uxn_global_curr_);
@@ -465,6 +509,7 @@ void SEMproxy::Run() {
     total_output_time += std::chrono::high_resolution_clock::now() - start_output_time;
   }
 
+  WaitSnapshots();
   time_compute_ = total_compute_time.count();
   time_io_ = total_output_time.count();
   DisplayPerfMsg();
@@ -1015,4 +1060,11 @@ void SEMproxy::DisplayPerfMsg() const {
   std::cout << "  - Total Execution Time: " << std::fixed << std::setprecision(4) << std::setw(8) << total_time
             << " s\n";
   std::cout << "==========================================================\n\n";
+}
+
+void SEMproxy::WaitSnapshots() {
+  for (auto& f : snapshot_futures_) {
+    if (f.valid()) f.wait();
+  }
+  snapshot_futures_.clear();
 }
