@@ -263,6 +263,18 @@ TEST_F(RhsAcousticTest, CopyInContainerClass) {
   EXPECT_FLOAT_EQ(original.m_weights(3, 4), 0.777f);
 }
 
+TEST_F(RhsAcousticTest, GetNumRhsComponentsReturnsOne) {
+  RhsAcoustic rhs(term, element, weights);
+  EXPECT_EQ(rhs.getNumRhsComponents(), 1);
+}
+
+TEST_F(RhsAcousticTest, PrintDoesNotCrash) {
+  RhsAcoustic rhs(term, element, weights);
+  testing::internal::CaptureStdout();
+  EXPECT_NO_THROW(rhs.print());
+  testing::internal::GetCapturedStdout();
+}
+
 }  // namespace test
 }  // namespace fe
 }  // namespace solver
