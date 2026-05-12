@@ -22,22 +22,22 @@ struct DGWavefieldAcoustic {
   PROXY_HOST_DEVICE DGWavefieldAcoustic& operator=(const DGWavefieldAcoustic&) = default;
 
   PROXY_HOST_DEVICE
-  DGWavefieldAcoustic(ARRAY_REAL_VIEW pnPrev, ARRAY_REAL_VIEW pnCurr) : m_pnPrev(pnPrev), m_pnCurr(pnCurr) {}
+  DGWavefieldAcoustic(arrayReal pnPrev, arrayReal pnCurr) : m_pnPrev(pnPrev), m_pnCurr(pnCurr) {}
 
   int getNumFields() const { return kNumFields; }
 
   const char* const* getFieldNames() const { return kFieldNames; }
 
   PROXY_HOST_DEVICE
-  ARRAY_REAL_VIEW getCurrentField(int i) const { return m_pnCurr; }
+  arrayReal getCurrentField(int i) const { return m_pnCurr; }
 
   PROXY_HOST_DEVICE
-  ARRAY_REAL_VIEW getPreviousField(int i) const { return m_pnPrev; }
+  arrayReal getPreviousField(int i) const { return m_pnPrev; }
 
   void swap() { std::swap(m_pnPrev, m_pnCurr); }
 
-  void swapWithRotation(ARRAY_REAL_VIEW& prevPrevBuffer, int i) {
-    ARRAY_REAL_VIEW tmp = prevPrevBuffer;
+  void swapWithRotation(arrayReal& prevPrevBuffer, int i) {
+    arrayReal tmp = prevPrevBuffer;
     prevPrevBuffer = m_pnPrev;
     m_pnPrev = m_pnCurr;
     m_pnCurr = tmp;
@@ -48,8 +48,8 @@ struct DGWavefieldAcoustic {
     std::cout << "Pn Curr size: " << m_pnCurr.extent(0) << " elems " << m_pnCurr.extent(1) << " dofs" << std::endl;
   }
 
-  ARRAY_REAL_VIEW m_pnPrev;  ///< Pressure field at previous time step (n_elem, n_dof)
-  ARRAY_REAL_VIEW m_pnCurr;  ///< Pressure field at current time step (n_elem, n_dof)
+  arrayReal m_pnPrev;  ///< Pressure field at previous time step (n_elem, n_dof)
+  arrayReal m_pnCurr;  ///< Pressure field at current time step (n_elem, n_dof)
 };
 }  // namespace fe
 }  // namespace solver

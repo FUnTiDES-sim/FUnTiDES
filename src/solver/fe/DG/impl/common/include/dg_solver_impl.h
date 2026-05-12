@@ -367,7 +367,7 @@ void DGsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::upda
 
 template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE, bool IS_MODEL_ON_NODES, physicType PHYSICS>
 void DGsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::updateFieldsFromList(
-    float dt, const DataType& data, const VECTOR_INT_VIEW& elem_list, int n_elems) {
+    float dt, const DataType& data, const vectorInt& elem_list, int n_elems) {
   m_elem_list_ = elem_list;
   m_n_elem_list_ = n_elems;
   faceListFromElementList();

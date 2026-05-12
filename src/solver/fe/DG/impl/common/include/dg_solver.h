@@ -137,7 +137,7 @@ class DGsolver : public Solver {
    * @param elem_list Compact array of element indices to update.
    * @param n_elems   Number of entries in @p elem_list.
    */
-  void updateFieldsFromList(float dt, const DataType& data, const VECTOR_INT_VIEW& elem_list, int n_elems);
+  void updateFieldsFromList(float dt, const DataType& data, const vectorInt& elem_list, int n_elems);
 
   /**
    * @brief Kernel 1 — volume mass + SumFact stiffness. Zeros the damping accumulator.
@@ -181,7 +181,7 @@ class DGsolver : public Solver {
       }
     }
     m_n_face_list_ = static_cast<int>(visited_faces.size());
-    m_face_list_ = allocateVector<VECTOR_INT_VIEW>(m_n_face_list_, "faceList");
+    m_face_list_ = allocateVector<vectorInt>(m_n_face_list_, "faceList");
     int i = 0;
     for (const int face_id : visited_faces) {
       m_face_list_(i++) = face_id;
