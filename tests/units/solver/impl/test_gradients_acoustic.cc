@@ -16,10 +16,10 @@ class GradientsAcousticTest : public ::testing::Test {
     num_nodes = 100;
 
     // Allocate gradient vectors
-    grad_kappa_elem = allocateVector<VECTOR_REAL_VIEW>(num_elements, "grad_kappa_elem");
-    grad_buoyancy_elem = allocateVector<VECTOR_REAL_VIEW>(num_elements, "grad_buoyancy_elem");
-    grad_kappa_node = allocateVector<VECTOR_REAL_VIEW>(num_nodes, "grad_kappa_node");
-    grad_buoyancy_node = allocateVector<VECTOR_REAL_VIEW>(num_nodes, "grad_buoyancy_node");
+    grad_kappa_elem = allocateVector<vectorReal>(num_elements, "grad_kappa_elem");
+    grad_buoyancy_elem = allocateVector<vectorReal>(num_elements, "grad_buoyancy_elem");
+    grad_kappa_node = allocateVector<vectorReal>(num_nodes, "grad_kappa_node");
+    grad_buoyancy_node = allocateVector<vectorReal>(num_nodes, "grad_buoyancy_node");
 
     // Initialize with test values
     for (size_t i = 0; i < num_elements; ++i) {
@@ -35,10 +35,10 @@ class GradientsAcousticTest : public ::testing::Test {
 
   size_t num_elements;
   size_t num_nodes;
-  VECTOR_REAL_VIEW grad_kappa_elem;
-  VECTOR_REAL_VIEW grad_buoyancy_elem;
-  VECTOR_REAL_VIEW grad_kappa_node;
-  VECTOR_REAL_VIEW grad_buoyancy_node;
+  vectorReal grad_kappa_elem;
+  vectorReal grad_buoyancy_elem;
+  vectorReal grad_kappa_node;
+  vectorReal grad_buoyancy_node;
 };
 
 TEST_F(GradientsAcousticTest, Constructor) {

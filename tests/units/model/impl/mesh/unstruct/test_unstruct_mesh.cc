@@ -26,13 +26,13 @@ class ModelUnstructTest : public ::testing::Test {
     data.isModelOnNodes_ = false;
     data.isElastic_ = false;
 
-    data.global_node_index_ = allocateArray2D<ARRAY_INT_VIEW>(1, 8);
-    data.nodes_coords_x_ = allocateVector<VECTOR_REAL_VIEW>(8);
-    data.nodes_coords_y_ = allocateVector<VECTOR_REAL_VIEW>(8);
-    data.nodes_coords_z_ = allocateVector<VECTOR_REAL_VIEW>(8);
-    data.model_vp_element_ = allocateVector<VECTOR_REAL_VIEW>(1);
-    data.model_rho_element_ = allocateVector<VECTOR_REAL_VIEW>(1);
-    data.boundaries_t_ = allocateVector<VECTOR_INT_VIEW>(8);
+    data.global_node_index_ = allocateArray2D<arrayInt>(1, 8);
+    data.nodes_coords_x_ = allocateVector<vectorReal>(8);
+    data.nodes_coords_y_ = allocateVector<vectorReal>(8);
+    data.nodes_coords_z_ = allocateVector<vectorReal>(8);
+    data.model_vp_element_ = allocateVector<vectorReal>(1);
+    data.model_rho_element_ = allocateVector<vectorReal>(1);
+    data.boundaries_t_ = allocateVector<vectorInt>(8);
 
     for (int i = 0; i < 8; ++i) {
       data.global_node_index_(0, i) = i;

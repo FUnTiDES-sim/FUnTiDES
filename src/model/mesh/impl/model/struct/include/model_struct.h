@@ -22,7 +22,7 @@ struct ModelStructData final : public ModelDataBase<FloatType, ScalarType> {
   ScalarType ex_, ey_, ez_;
   FloatType dx_, dy_, dz_;
   FloatType ox_{0.0f}, oy_{0.0f}, oz_{0.0f};  // Local origin
-  VECTOR_INT_VIEW boundaries_t_;
+  vectorInt boundaries_t_;
 
   bool isModelOnNodes_;
   bool isElastic_;
@@ -30,16 +30,16 @@ struct ModelStructData final : public ModelDataBase<FloatType, ScalarType> {
   /// Optional per-element material arrays. If empty, getters fall back to
   /// hardcoded uniform values. Populated by the builder for heterogeneous
   /// configurations (e.g. acoustoelastic bicouche).
-  VECTOR_REAL_VIEW model_vp_element_;   ///< Per-element Vp  (empty → 1500)
-  VECTOR_REAL_VIEW model_vs_element_;   ///< Per-element Vs  (empty → 755)
-  VECTOR_REAL_VIEW model_rho_element_;  ///< Per-element rho (empty → 1)
-  VECTOR_REAL_VIEW model_vp_node_;      ///< Per-node Vp     (empty → 1500)
-  VECTOR_REAL_VIEW model_vs_node_;      ///< Per-node Vs     (empty → 755)
-  VECTOR_REAL_VIEW model_rho_node_;     ///< Per-node rho    (empty → 1)
-  VECTOR_REAL_VIEW model_qp_element_;
-  VECTOR_REAL_VIEW model_qs_element_;
-  VECTOR_REAL_VIEW model_qp_node_;
-  VECTOR_REAL_VIEW model_qs_node_;
+  vectorReal model_vp_element_;   ///< Per-element Vp  (empty → 1500)
+  vectorReal model_vs_element_;   ///< Per-element Vs  (empty → 755)
+  vectorReal model_rho_element_;  ///< Per-element rho (empty → 1)
+  vectorReal model_vp_node_;      ///< Per-node Vp     (empty → 1500)
+  vectorReal model_vs_node_;      ///< Per-node Vs     (empty → 755)
+  vectorReal model_rho_node_;     ///< Per-node rho    (empty → 1)
+  vectorReal model_qp_element_;
+  vectorReal model_qs_element_;
+  vectorReal model_qp_node_;
+  vectorReal model_qs_node_;
 };
 
 /**
@@ -343,8 +343,8 @@ class ModelStruct final : public ModelApi<FloatType, ScalarType> {
 
   void setQualityFactors(FloatType qp, FloatType qs) override {
     ScalarType nElem = getNumberOfElements();
-    model_qp_element_ = allocateVector<VECTOR_REAL_VIEW>(nElem, "model_qp_element");
-    model_qs_element_ = allocateVector<VECTOR_REAL_VIEW>(nElem, "model_qs_element");
+    model_qp_element_ = allocateVector<vectorReal>(nElem, "model_qp_element");
+    model_qs_element_ = allocateVector<vectorReal>(nElem, "model_qs_element");
     for (ScalarType e = 0; e < nElem; ++e) {
       model_qp_element_(e) = qp;
       model_qs_element_(e) = qs;
@@ -391,11 +391,11 @@ class ModelStruct final : public ModelApi<FloatType, ScalarType> {
   bool isModelOnNodes_;
   bool isElastic_;
   array3DReal model_C_tensor_element_;
-  VECTOR_INT_VIEW boundaries_t_;
-  VECTOR_REAL_VIEW model_qp_element_, model_qs_element_;
-  VECTOR_REAL_VIEW model_qp_node_, model_qs_node_;
-  VECTOR_REAL_VIEW model_vp_element_, model_vs_element_, model_rho_element_;
-  VECTOR_REAL_VIEW model_vp_node_, model_vs_node_, model_rho_node_;
+  vectorInt boundaries_t_;
+  vectorReal model_qp_element_, model_qs_element_;
+  vectorReal model_qp_node_, model_qs_node_;
+  vectorReal model_vp_element_, model_vs_element_, model_rho_element_;
+  vectorReal model_vp_node_, model_vs_node_, model_rho_node_;
   FaceConnectivityStruct<FloatType, ScalarType> face_connectivity_;
 };
 

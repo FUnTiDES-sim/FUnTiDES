@@ -33,7 +33,7 @@ class Gradient {
    * @return The requested field.
    */
   PROXY_HOST_DEVICE
-  virtual VECTOR_REAL_VIEW getGradient(int i) const = 0;
+  virtual vectorReal getGradient(int i) const = 0;
 
   virtual void print() const = 0;
 };

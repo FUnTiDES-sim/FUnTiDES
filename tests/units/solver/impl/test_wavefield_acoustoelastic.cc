@@ -14,23 +14,23 @@ class WavefieldAcoustoElasticTest : public ::testing::Test {
     size1 = 100;
     size2 = 200;
 
-    pPrev = allocateVector<VECTOR_REAL_VIEW>(size1, "pPrev");
-    pCurr = allocateVector<VECTOR_REAL_VIEW>(size1, "pCurr");
-    uxPrev = allocateVector<VECTOR_REAL_VIEW>(size1, "uxPrev");
-    uxCurr = allocateVector<VECTOR_REAL_VIEW>(size1, "uxCurr");
-    uyPrev = allocateVector<VECTOR_REAL_VIEW>(size1, "uyPrev");
-    uyCurr = allocateVector<VECTOR_REAL_VIEW>(size1, "uyCurr");
-    uzPrev = allocateVector<VECTOR_REAL_VIEW>(size1, "uzPrev");
-    uzCurr = allocateVector<VECTOR_REAL_VIEW>(size1, "uzCurr");
+    pPrev = allocateVector<vectorReal>(size1, "pPrev");
+    pCurr = allocateVector<vectorReal>(size1, "pCurr");
+    uxPrev = allocateVector<vectorReal>(size1, "uxPrev");
+    uxCurr = allocateVector<vectorReal>(size1, "uxCurr");
+    uyPrev = allocateVector<vectorReal>(size1, "uyPrev");
+    uyCurr = allocateVector<vectorReal>(size1, "uyCurr");
+    uzPrev = allocateVector<vectorReal>(size1, "uzPrev");
+    uzCurr = allocateVector<vectorReal>(size1, "uzCurr");
 
-    pPrev2 = allocateVector<VECTOR_REAL_VIEW>(size2, "pPrev2");
-    pCurr2 = allocateVector<VECTOR_REAL_VIEW>(size2, "pCurr2");
-    uxPrev2 = allocateVector<VECTOR_REAL_VIEW>(size2, "uxPrev2");
-    uxCurr2 = allocateVector<VECTOR_REAL_VIEW>(size2, "uxCurr2");
-    uyPrev2 = allocateVector<VECTOR_REAL_VIEW>(size2, "uyPrev2");
-    uyCurr2 = allocateVector<VECTOR_REAL_VIEW>(size2, "uyCurr2");
-    uzPrev2 = allocateVector<VECTOR_REAL_VIEW>(size2, "uzPrev2");
-    uzCurr2 = allocateVector<VECTOR_REAL_VIEW>(size2, "uzCurr2");
+    pPrev2 = allocateVector<vectorReal>(size2, "pPrev2");
+    pCurr2 = allocateVector<vectorReal>(size2, "pCurr2");
+    uxPrev2 = allocateVector<vectorReal>(size2, "uxPrev2");
+    uxCurr2 = allocateVector<vectorReal>(size2, "uxCurr2");
+    uyPrev2 = allocateVector<vectorReal>(size2, "uyPrev2");
+    uyCurr2 = allocateVector<vectorReal>(size2, "uyCurr2");
+    uzPrev2 = allocateVector<vectorReal>(size2, "uzPrev2");
+    uzCurr2 = allocateVector<vectorReal>(size2, "uzCurr2");
 
     for (size_t i = 0; i < size1; ++i) {
       pPrev(i) = i;
@@ -57,14 +57,14 @@ class WavefieldAcoustoElasticTest : public ::testing::Test {
 
   size_t size1;
   size_t size2;
-  VECTOR_REAL_VIEW pPrev, pCurr;
-  VECTOR_REAL_VIEW uxPrev, uxCurr;
-  VECTOR_REAL_VIEW uyPrev, uyCurr;
-  VECTOR_REAL_VIEW uzPrev, uzCurr;
-  VECTOR_REAL_VIEW pPrev2, pCurr2;
-  VECTOR_REAL_VIEW uxPrev2, uxCurr2;
-  VECTOR_REAL_VIEW uyPrev2, uyCurr2;
-  VECTOR_REAL_VIEW uzPrev2, uzCurr2;
+  vectorReal pPrev, pCurr;
+  vectorReal uxPrev, uxCurr;
+  vectorReal uyPrev, uyCurr;
+  vectorReal uzPrev, uzCurr;
+  vectorReal pPrev2, pCurr2;
+  vectorReal uxPrev2, uxCurr2;
+  vectorReal uyPrev2, uyCurr2;
+  vectorReal uzPrev2, uzCurr2;
 };
 
 TEST_F(WavefieldAcoustoElasticTest, Constructor) {
@@ -175,7 +175,7 @@ TEST_F(WavefieldAcoustoElasticTest, SwapTwiceRestoresState) {
 TEST_F(WavefieldAcoustoElasticTest, SwapWithRotationAcoustic) {
   WavefieldAcoustoElastic wf(pPrev, pCurr, uxPrev, uxCurr, uyPrev, uyCurr, uzPrev, uzCurr);
 
-  auto prevPrev = allocateVector<VECTOR_REAL_VIEW>(size1, "prevPrev");
+  auto prevPrev = allocateVector<vectorReal>(size1, "prevPrev");
   for (size_t i = 0; i < size1; ++i) prevPrev(i) = 10.0f;
 
   wf.swapWithRotation(prevPrev, 0);
@@ -194,7 +194,7 @@ TEST_F(WavefieldAcoustoElasticTest, SwapWithRotationAcoustic) {
 TEST_F(WavefieldAcoustoElasticTest, SwapWithRotationElastic) {
   WavefieldAcoustoElastic wf(pPrev, pCurr, uxPrev, uxCurr, uyPrev, uyCurr, uzPrev, uzCurr);
 
-  auto prevPrev = allocateVector<VECTOR_REAL_VIEW>(size1, "prevPrev");
+  auto prevPrev = allocateVector<vectorReal>(size1, "prevPrev");
   for (size_t i = 0; i < size1; ++i) prevPrev(i) = 20.0f;
 
   wf.swapWithRotation(prevPrev, 1);  // ux component
@@ -266,7 +266,7 @@ TEST_F(WavefieldAcoustoElasticTest, CopyAssignmentSelfAssignment) {
 }
 
 TEST_F(WavefieldAcoustoElasticTest, EmptyFields) {
-  auto empty = allocateVector<VECTOR_REAL_VIEW>(0, "empty");
+  auto empty = allocateVector<vectorReal>(0, "empty");
   WavefieldAcoustoElastic wf(empty, empty, empty, empty, empty, empty, empty, empty);
 
   EXPECT_EQ(wf.m_acoustic.m_pnGlobalPrev.extent(0), 0);
@@ -282,7 +282,7 @@ TEST_F(WavefieldAcoustoElasticTest, EmptyFields) {
 TEST_F(WavefieldAcoustoElasticTest, SwapWithRotationThreeTimesRestoresAcoustic) {
   WavefieldAcoustoElastic wf(pPrev, pCurr, uxPrev, uxCurr, uyPrev, uyCurr, uzPrev, uzCurr);
 
-  auto prevPrev = allocateVector<VECTOR_REAL_VIEW>(size1, "prevPrev");
+  auto prevPrev = allocateVector<vectorReal>(size1, "prevPrev");
   for (size_t i = 0; i < size1; ++i) prevPrev(i) = 10.0f;
 
   float initialPrev0 = pPrev(0);

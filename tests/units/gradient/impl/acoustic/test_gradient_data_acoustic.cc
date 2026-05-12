@@ -11,13 +11,13 @@ class GradientDataAcousticTest : public ::testing::Test {
   void SetUp() override {
     size = 40;
 
-    pn = allocateVector<VECTOR_REAL_VIEW>(size, "pn");
-    qn = allocateVector<VECTOR_REAL_VIEW>(size, "qn");
-    qnPrev = allocateVector<VECTOR_REAL_VIEW>(size, "qnPrev");
-    qnPrevPrev = allocateVector<VECTOR_REAL_VIEW>(size, "qnPrevPrev");
+    pn = allocateVector<vectorReal>(size, "pn");
+    qn = allocateVector<vectorReal>(size, "qn");
+    qnPrev = allocateVector<vectorReal>(size, "qnPrev");
+    qnPrevPrev = allocateVector<vectorReal>(size, "qnPrevPrev");
 
-    gradKappa = allocateVector<VECTOR_REAL_VIEW>(size, "gradKappa");
-    gradBuoyancy = allocateVector<VECTOR_REAL_VIEW>(size, "gradBuoyancy");
+    gradKappa = allocateVector<vectorReal>(size, "gradKappa");
+    gradBuoyancy = allocateVector<vectorReal>(size, "gradBuoyancy");
 
     for (int i = 0; i < size; ++i) {
       pn(i) = static_cast<float>(i) * 0.1f;
@@ -30,8 +30,8 @@ class GradientDataAcousticTest : public ::testing::Test {
   }
 
   int size;
-  VECTOR_REAL_VIEW pn, qn, qnPrev, qnPrevPrev;
-  VECTOR_REAL_VIEW gradKappa, gradBuoyancy;
+  vectorReal pn, qn, qnPrev, qnPrevPrev;
+  vectorReal gradKappa, gradBuoyancy;
 };
 
 TEST_F(GradientDataAcousticTest, Construction) {

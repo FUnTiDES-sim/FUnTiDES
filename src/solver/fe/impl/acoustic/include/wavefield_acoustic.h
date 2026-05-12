@@ -24,7 +24,7 @@ struct WavefieldAcoustic : public Wavefield {
   PROXY_HOST_DEVICE WavefieldAcoustic& operator=(const WavefieldAcoustic&) = default;
 
   PROXY_HOST_DEVICE
-  WavefieldAcoustic(VECTOR_REAL_VIEW pnGlobalPrev, VECTOR_REAL_VIEW pnGlobalCurr)
+  WavefieldAcoustic(vectorReal pnGlobalPrev, vectorReal pnGlobalCurr)
       : m_pnGlobalPrev(pnGlobalPrev), m_pnGlobalCurr(pnGlobalCurr) {}
 
   int getNumFields() const override final { return kNumFields; }
@@ -32,15 +32,15 @@ struct WavefieldAcoustic : public Wavefield {
   const char* const* getFieldNames() const override final { return kFieldNames; }
 
   PROXY_HOST_DEVICE
-  VECTOR_REAL_VIEW getCurrentField(int i) const override { return m_pnGlobalCurr; }
+  vectorReal getCurrentField(int i) const override { return m_pnGlobalCurr; }
 
   PROXY_HOST_DEVICE
-  VECTOR_REAL_VIEW getPreviousField(int i) const override { return m_pnGlobalPrev; }
+  vectorReal getPreviousField(int i) const override { return m_pnGlobalPrev; }
 
   void swap() override { std::swap(m_pnGlobalPrev, m_pnGlobalCurr); }
 
-  void swapWithRotation(VECTOR_REAL_VIEW& prevPrevBuffer, int i) override {
-    VECTOR_REAL_VIEW tmp = prevPrevBuffer;
+  void swapWithRotation(vectorReal& prevPrevBuffer, int i) override {
+    vectorReal tmp = prevPrevBuffer;
     prevPrevBuffer = m_pnGlobalPrev;
     m_pnGlobalPrev = m_pnGlobalCurr;
     m_pnGlobalCurr = tmp;
@@ -51,8 +51,8 @@ struct WavefieldAcoustic : public Wavefield {
     std::cout << "Pn Global Curr size: " << m_pnGlobalCurr.extent(0) << std::endl;
   }
 
-  VECTOR_REAL_VIEW m_pnGlobalPrev;  ///< Pressure field at previous time step
-  VECTOR_REAL_VIEW m_pnGlobalCurr;  ///< Pressure field at current time step
+  vectorReal m_pnGlobalPrev;  ///< Pressure field at previous time step
+  vectorReal m_pnGlobalCurr;  ///< Pressure field at current time step
 };
 }  // namespace fe
 }  // namespace solver

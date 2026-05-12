@@ -14,12 +14,12 @@ class WavefieldViewBackwardElasticTest : public ::testing::Test {
  protected:
   void SetUp() override {
     size = 45;
-    ux_n = allocateVector<VECTOR_REAL_VIEW>(size, "ux_n");
-    uy_n = allocateVector<VECTOR_REAL_VIEW>(size, "uy_n");
-    uz_n = allocateVector<VECTOR_REAL_VIEW>(size, "uz_n");
-    ux_dt2 = allocateVector<VECTOR_REAL_VIEW>(size, "ux_dt2");
-    uy_dt2 = allocateVector<VECTOR_REAL_VIEW>(size, "uy_dt2");
-    uz_dt2 = allocateVector<VECTOR_REAL_VIEW>(size, "uz_dt2");
+    ux_n = allocateVector<vectorReal>(size, "ux_n");
+    uy_n = allocateVector<vectorReal>(size, "uy_n");
+    uz_n = allocateVector<vectorReal>(size, "uz_n");
+    ux_dt2 = allocateVector<vectorReal>(size, "ux_dt2");
+    uy_dt2 = allocateVector<vectorReal>(size, "uy_dt2");
+    uz_dt2 = allocateVector<vectorReal>(size, "uz_dt2");
 
     for (int i = 0; i < size; ++i) {
       ux_n(i) = static_cast<float>(i) * 1.0f;
@@ -32,8 +32,8 @@ class WavefieldViewBackwardElasticTest : public ::testing::Test {
   }
 
   int size;
-  VECTOR_REAL_VIEW ux_n, uy_n, uz_n;
-  VECTOR_REAL_VIEW ux_dt2, uy_dt2, uz_dt2;
+  vectorReal ux_n, uy_n, uz_n;
+  vectorReal ux_dt2, uy_dt2, uz_dt2;
 };
 
 TEST_F(WavefieldViewBackwardElasticTest, NumFieldsConstant) { EXPECT_EQ(WavefieldViewBackwardElastic::kNumFields, 6); }

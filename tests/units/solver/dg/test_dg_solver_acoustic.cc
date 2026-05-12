@@ -68,8 +68,8 @@ class DGsolverAcousticTest : public ::testing::Test {
    */
   DGsolverDataAcoustic makeData(float pCurrVal, float pPrevVal, int nSample = 0, int srcElem = 0,
                                 float wavelet = 0.0f) {
-    auto pCurr = allocateArray2D<ARRAY_REAL_VIEW>(nElem_, kNDof, "pCurr");
-    auto pPrev = allocateArray2D<ARRAY_REAL_VIEW>(nElem_, kNDof, "pPrev");
+    auto pCurr = allocateArray2D<arrayReal>(nElem_, kNDof, "pCurr");
+    auto pPrev = allocateArray2D<arrayReal>(nElem_, kNDof, "pPrev");
 
     for (int e = 0; e < nElem_; ++e)
       for (int d = 0; d < kNDof; ++d) {
@@ -78,9 +78,9 @@ class DGsolverAcousticTest : public ::testing::Test {
       }
 
     int const nSrc = (nSample > 0) ? 1 : 0;
-    auto rhsTerm = allocateArray2D<ARRAY_REAL_VIEW>(nSrc, (nSample > 0 ? nSample : 1), "rhsTerm");
-    auto rhsElem = allocateVector<VECTOR_INT_VIEW>(nSrc, "rhsElem");
-    auto rhsWeights = allocateArray2D<ARRAY_REAL_VIEW>(nSrc, kNDof, "rhsWeights");
+    auto rhsTerm = allocateArray2D<arrayReal>(nSrc, (nSample > 0 ? nSample : 1), "rhsTerm");
+    auto rhsElem = allocateVector<vectorInt>(nSrc, "rhsElem");
+    auto rhsWeights = allocateArray2D<arrayReal>(nSrc, kNDof, "rhsWeights");
 
     if (nSrc > 0) {
       rhsElem(0) = srcElem;
@@ -187,11 +187,11 @@ TEST_F(DGsolverAcousticTest, MultipleSteps_NoNanOrInf) {
   constexpr int kNumSteps = 5;
   constexpr float kDt = 0.001f;
 
-  auto pCurr = allocateArray2D<ARRAY_REAL_VIEW>(nElem_, kNDof, "pCurr");
-  auto pPrev = allocateArray2D<ARRAY_REAL_VIEW>(nElem_, kNDof, "pPrev");
-  auto rhsTerm = allocateArray2D<ARRAY_REAL_VIEW>(1, kNumSteps, "rhsTerm");
-  auto rhsElem = allocateVector<VECTOR_INT_VIEW>(1, "rhsElem");
-  auto rhsWeights = allocateArray2D<ARRAY_REAL_VIEW>(1, kNDof, "rhsWeights");
+  auto pCurr = allocateArray2D<arrayReal>(nElem_, kNDof, "pCurr");
+  auto pPrev = allocateArray2D<arrayReal>(nElem_, kNDof, "pPrev");
+  auto rhsTerm = allocateArray2D<arrayReal>(1, kNumSteps, "rhsTerm");
+  auto rhsElem = allocateVector<vectorInt>(1, "rhsElem");
+  auto rhsWeights = allocateArray2D<arrayReal>(1, kNDof, "rhsWeights");
 
   rhsElem(0) = 0;
   for (int t = 0; t < kNumSteps; ++t) rhsTerm(0, t) = std::sin(t * 0.1f);
@@ -225,13 +225,13 @@ TEST_F(DGsolverAcousticTest, GettersThrowAsExpected) {
 // ============================================================
 
 TEST_F(DGsolverAcousticTest, OutputSolutionValues_ArrayView_DoesNotCrash) {
-  auto field = allocateArray2D<ARRAY_REAL_VIEW>(nElem_, kNDof, "field");
+  auto field = allocateArray2D<arrayReal>(nElem_, kNDof, "field");
   int t = 0, e = 0;
   EXPECT_NO_THROW(solver_.outputSolutionValues(t, e, field, "pressure"));
 }
 
 TEST_F(DGsolverAcousticTest, OutputSolutionValues_VectorView_DoesNotCrash) {
-  auto field = allocateVector<VECTOR_REAL_VIEW>(nElem_, "field_vec");
+  auto field = allocateVector<vectorReal>(nElem_, "field_vec");
   int t = 0, e = 0;
   EXPECT_NO_THROW(solver_.outputSolutionValues(t, e, field, "pressure"));
 }

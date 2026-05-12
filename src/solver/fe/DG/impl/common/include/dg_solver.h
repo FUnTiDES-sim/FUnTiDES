@@ -68,23 +68,21 @@ class DGsolver : public Solver {
     // Here for retrocompatibility, no global damping matrix for DG
   }
 
-  void outputSolutionValues(const int& t, int& e, const VECTOR_REAL_VIEW& field, const char* fieldName) override {}
+  void outputSolutionValues(const int& t, int& e, const vectorReal& field, const char* fieldName) override {}
 
-  void outputSolutionValues(const int& t, int& e, const ARRAY_REAL_VIEW& field, const char* fieldName) override;
+  void outputSolutionValues(const int& t, int& e, const arrayReal& field, const char* fieldName) override;
 
-  VECTOR_REAL_VIEW& getMassMatrixAcoustic() override {
+  vectorReal& getMassMatrixAcoustic() override {
     throw std::runtime_error("getMassMatrixAcoustic not implemented for DG");
   }
 
-  VECTOR_REAL_VIEW& getMassMatrixElastic() override {
+  vectorReal& getMassMatrixElastic() override {
     throw std::runtime_error("getMassMatrixElastic not implemented for DG");
   }
 
-  VECTOR_REAL_VIEW& getDampingMatrix(int c) override {
-    throw std::runtime_error("getDampingMatrix not implemented for DG");
-  }
+  vectorReal& getDampingMatrix(int c) override { throw std::runtime_error("getDampingMatrix not implemented for DG"); }
 
-  VECTOR_REAL_VIEW& getForceVector(int component) override {
+  vectorReal& getForceVector(int component) override {
     throw std::runtime_error("getForceVector not implemented for DG");
   }
 
@@ -92,8 +90,8 @@ class DGsolver : public Solver {
     // TODO: Implement anisotropy setting
   }
 
-  void setSLSAttenuation(const VECTOR_REAL_VIEW& reference_frequencies,
-                         const VECTOR_REAL_VIEW& anelasticity_coefficients = VECTOR_REAL_VIEW()) override {
+  void setSLSAttenuation(const vectorReal& reference_frequencies,
+                         const vectorReal& anelasticity_coefficients = vectorReal()) override {
     // TODO: Implement SLS attenuation setting
   }
 
@@ -136,7 +134,7 @@ class DGsolver : public Solver {
    * @param kNumElem Total number of elements.
    * @param current_field Pressure field at current time step p^n.
    */
-  void computeVolumeAndBoundary(int kNumElem, ARRAY_REAL_VIEW current_field);
+  void computeVolumeAndBoundary(int kNumElem, arrayReal current_field);
 
   /**
    * @brief Kernel 1b — boundary absorbing damping (face-loop, boundary faces only).
@@ -149,7 +147,7 @@ class DGsolver : public Solver {
    * @param kNumElem Total number of elements.
    * @param current_field Pressure field at current time step p^n.
    */
-  void computeInterfaceFlux(int kNumElem, ARRAY_REAL_VIEW current_field);
+  void computeInterfaceFlux(int kNumElem, arrayReal current_field);
 
   /**
    * @brief Kernel 3 — Verlet time update.
@@ -158,17 +156,17 @@ class DGsolver : public Solver {
    * @param current_field Pressure field at current time step p^n.
    * @param prev_field Pressure field at previous time step p^{n-1}; receives p^{n+1}.
    */
-  void applyVerlet(int kNumElem, float dt, ARRAY_REAL_VIEW current_field, ARRAY_REAL_VIEW prev_field);
+  void applyVerlet(int kNumElem, float dt, arrayReal current_field, arrayReal prev_field);
 
  private:
   MESH_TYPE m_mesh;
   model::FaceConnectivityUnstruct<float, int> m_face_connectivity_;
   real_t m_penalty_factor_ = 10.0f;
 
-  ARRAY_REAL_VIEW m_rhs_elem_;
-  ARRAY_REAL_VIEW m_mass_local_;   ///< Per-element mass diagonal (nElem x kPPE)
-  ARRAY_REAL_VIEW m_stiff_local_;  ///< Per-element stiffness + interface flux accumulator (nElem x kPPE)
-  ARRAY_REAL_VIEW m_damp_local_;   ///< Per-element boundary absorbing damping (nElem x kPPE)
+  arrayReal m_rhs_elem_;
+  arrayReal m_mass_local_;   ///< Per-element mass diagonal (nElem x kPPE)
+  arrayReal m_stiff_local_;  ///< Per-element stiffness + interface flux accumulator (nElem x kPPE)
+  arrayReal m_damp_local_;   ///< Per-element boundary absorbing damping (nElem x kPPE)
 
   static constexpr int kPointsPerElement = (ORDER + 1) * (ORDER + 1) * (ORDER + 1);
   static constexpr int knumNodesPerFace = (ORDER + 1) * (ORDER + 1);

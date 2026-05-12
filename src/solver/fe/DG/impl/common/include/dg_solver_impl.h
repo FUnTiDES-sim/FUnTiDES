@@ -32,7 +32,7 @@ void DGsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::upda
 template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE, bool IS_MODEL_ON_NODES,
           utils::enums::physicType PHYSICS>
 void DGsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::outputSolutionValues(
-    const int& t, int& e, const ARRAY_REAL_VIEW& fieldGlobal, const char* fieldName) {
+    const int& t, int& e, const arrayReal& fieldGlobal, const char* fieldName) {
   cout << "TimeStep=" << t << ";  " << fieldName << " @ elementSource location " << e
        << " after computeOneStep = " << fieldGlobal(e, 0) << endl;
 }
@@ -53,10 +53,10 @@ void DGsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::comp
   }
   m_face_connectivity_.build(m_mesh);
   int const kNumElem = m_mesh.getNumberOfElements();
-  m_rhs_elem_ = allocateArray2D<ARRAY_REAL_VIEW>(kNumElem, kPointsPerElement, "rhsElem");
-  m_mass_local_ = allocateArray2D<ARRAY_REAL_VIEW>(kNumElem, kPointsPerElement, "massLocal");
-  m_stiff_local_ = allocateArray2D<ARRAY_REAL_VIEW>(kNumElem, kPointsPerElement, "stiffLocal");
-  m_damp_local_ = allocateArray2D<ARRAY_REAL_VIEW>(kNumElem, kPointsPerElement, "dampLocal");
+  m_rhs_elem_ = allocateArray2D<arrayReal>(kNumElem, kPointsPerElement, "rhsElem");
+  m_mass_local_ = allocateArray2D<arrayReal>(kNumElem, kPointsPerElement, "massLocal");
+  m_stiff_local_ = allocateArray2D<arrayReal>(kNumElem, kPointsPerElement, "stiffLocal");
+  m_damp_local_ = allocateArray2D<arrayReal>(kNumElem, kPointsPerElement, "dampLocal");
 }
 
 //============================================================================
@@ -106,11 +106,11 @@ void DGsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::appl
 template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE, bool IS_MODEL_ON_NODES,
           utils::enums::physicType PHYSICS>
 void DGsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::computeVolumeAndBoundary(
-    int kNumElem, ARRAY_REAL_VIEW current_field) {
+    int kNumElem, arrayReal current_field) {
   auto mesh_local = m_mesh;
-  ARRAY_REAL_VIEW mass_local_view = m_mass_local_;
-  ARRAY_REAL_VIEW stiff_local_view = m_stiff_local_;
-  ARRAY_REAL_VIEW damp_local_view = m_damp_local_;
+  arrayReal mass_local_view = m_mass_local_;
+  arrayReal stiff_local_view = m_stiff_local_;
+  arrayReal damp_local_view = m_damp_local_;
 
   Kokkos::parallel_for(
       "DG Volume+Boundary", kNumElem, KOKKOS_LAMBDA(const int e) {
@@ -155,7 +155,7 @@ void DGsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::comp
   auto mesh_local = m_mesh;
   auto face_connectivity_local = m_face_connectivity_;
   auto const face_to_elem_dof = kFaceToElemDof;  // local copy for device capture
-  ARRAY_REAL_VIEW damp_local_view = m_damp_local_;
+  arrayReal damp_local_view = m_damp_local_;
 
   Kokkos::parallel_for(
       "DG Boundary Damping", kNumFaces, KOKKOS_LAMBDA(const int f) {
@@ -186,11 +186,11 @@ void DGsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::comp
 template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE, bool IS_MODEL_ON_NODES,
           utils::enums::physicType PHYSICS>
 void DGsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::computeInterfaceFlux(
-    int /*kNumElem*/, ARRAY_REAL_VIEW current_field) {
+    int /*kNumElem*/, arrayReal current_field) {
   auto mesh_local = m_mesh;
   auto face_connectivity_local = m_face_connectivity_;
   auto const face_to_elem_dof = kFaceToElemDof;  // local copy for device capture
-  ARRAY_REAL_VIEW stiff_local_view = m_stiff_local_;
+  arrayReal stiff_local_view = m_stiff_local_;
   real_t const penalty_local = m_penalty_factor_;
 
   int const kNumFaces = face_connectivity_local.getNumberOfFaces();
@@ -295,14 +295,14 @@ void DGsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::comp
 template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE, bool IS_MODEL_ON_NODES,
           utils::enums::physicType PHYSICS>
 void DGsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::applyVerlet(int kNumElem, float dt,
-                                                                                        ARRAY_REAL_VIEW current_field,
-                                                                                        ARRAY_REAL_VIEW prev_field) {
+                                                                                        arrayReal current_field,
+                                                                                        arrayReal prev_field) {
   float const dt_local = dt;
   float const dt2_local = dt * dt;
-  ARRAY_REAL_VIEW mass_local_view = m_mass_local_;
-  ARRAY_REAL_VIEW stiff_local_view = m_stiff_local_;
-  ARRAY_REAL_VIEW damp_local_view = m_damp_local_;
-  ARRAY_REAL_VIEW rhs_elem_local = m_rhs_elem_;
+  arrayReal mass_local_view = m_mass_local_;
+  arrayReal stiff_local_view = m_stiff_local_;
+  arrayReal damp_local_view = m_damp_local_;
+  arrayReal rhs_elem_local = m_rhs_elem_;
 
   Kokkos::parallel_for(
       "DG Verlet", kNumElem, KOKKOS_LAMBDA(const int e) {
@@ -328,8 +328,8 @@ void DGsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::upda
   int const kNumElem = m_mesh.getNumberOfElements();
   int const kNumFaces = static_cast<int>(m_face_connectivity_.getNumberOfFaces());
   // SEM convention: current_field = p^n, prev_field = p^{n-1}; result written into prev_field
-  ARRAY_REAL_VIEW current_field = data.getCurrentField(0);
-  ARRAY_REAL_VIEW prev_field = data.getPreviousField(0);
+  arrayReal current_field = data.getCurrentField(0);
+  arrayReal prev_field = data.getPreviousField(0);
 
   computeVolumeAndBoundary(kNumElem, current_field);
   FENCE

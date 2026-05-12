@@ -16,23 +16,22 @@ namespace fe {
  * Fields are indexed (n_elem, n_dof_per_elem); RHS follows SEM conventions.
  */
 struct DGsolverDataAcoustic : public Solver::DataStruct {
-  ARRAY_REAL_VIEW pnPrev;      ///< Pressure at previous time step (n_elem, n_dof)
-  ARRAY_REAL_VIEW pnCurr;      ///< Pressure at current time step  (n_elem, n_dof)
-  ARRAY_REAL_VIEW myRHSTerm;   ///< Source time series (n_rhs, n_sample)
-  VECTOR_INT_VIEW rhsElement;  ///< Source element indices
-  ARRAY_REAL_VIEW rhsWeights;  ///< Source weights (n_rhs, n_dof_per_elem)
+  arrayReal pnPrev;      ///< Pressure at previous time step (n_elem, n_dof)
+  arrayReal pnCurr;      ///< Pressure at current time step  (n_elem, n_dof)
+  arrayReal myRHSTerm;   ///< Source time series (n_rhs, n_sample)
+  vectorInt rhsElement;  ///< Source element indices
+  arrayReal rhsWeights;  ///< Source weights (n_rhs, n_dof_per_elem)
 
   bool isDistributed{false};
 
-  DGsolverDataAcoustic(ARRAY_REAL_VIEW prev, ARRAY_REAL_VIEW curr, ARRAY_REAL_VIEW rhsTerm, VECTOR_INT_VIEW rhsElem,
-                       ARRAY_REAL_VIEW rhsW)
+  DGsolverDataAcoustic(arrayReal prev, arrayReal curr, arrayReal rhsTerm, vectorInt rhsElem, arrayReal rhsW)
       : pnPrev(prev), pnCurr(curr), myRHSTerm(rhsTerm), rhsElement(rhsElem), rhsWeights(rhsW) {}
 
-  PROXY_HOST_DEVICE ARRAY_REAL_VIEW getCurrentField(int /*i*/) const { return pnCurr; }
-  PROXY_HOST_DEVICE ARRAY_REAL_VIEW getPreviousField(int /*i*/) const { return pnPrev; }
-  PROXY_HOST_DEVICE ARRAY_REAL_VIEW getRhsTerm(int /*i*/) const { return myRHSTerm; }
-  PROXY_HOST_DEVICE VECTOR_INT_VIEW getRhsElement() const { return rhsElement; }
-  PROXY_HOST_DEVICE ARRAY_REAL_VIEW getRhsWeights() const { return rhsWeights; }
+  PROXY_HOST_DEVICE arrayReal getCurrentField(int /*i*/) const { return pnCurr; }
+  PROXY_HOST_DEVICE arrayReal getPreviousField(int /*i*/) const { return pnPrev; }
+  PROXY_HOST_DEVICE arrayReal getRhsTerm(int /*i*/) const { return myRHSTerm; }
+  PROXY_HOST_DEVICE vectorInt getRhsElement() const { return rhsElement; }
+  PROXY_HOST_DEVICE arrayReal getRhsWeights() const { return rhsWeights; }
 
   void swapWavefields() { std::swap(pnPrev, pnCurr); }
 

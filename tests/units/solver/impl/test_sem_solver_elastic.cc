@@ -69,23 +69,23 @@ class SemSolverElasticTest : public ::testing::TestWithParam<ElasticSolverOrderP
     numNodes_ = mesh_->getNumberOfNodes();
     int npp = (order + 1) * (order + 1) * (order + 1);
 
-    uxPrev_ = allocateVector<VECTOR_REAL_VIEW>(numNodes_, "uxPrev");
-    uxCurr_ = allocateVector<VECTOR_REAL_VIEW>(numNodes_, "uxCurr");
-    uyPrev_ = allocateVector<VECTOR_REAL_VIEW>(numNodes_, "uyPrev");
-    uyCurr_ = allocateVector<VECTOR_REAL_VIEW>(numNodes_, "uyCurr");
-    uzPrev_ = allocateVector<VECTOR_REAL_VIEW>(numNodes_, "uzPrev");
-    uzCurr_ = allocateVector<VECTOR_REAL_VIEW>(numNodes_, "uzCurr");
+    uxPrev_ = allocateVector<vectorReal>(numNodes_, "uxPrev");
+    uxCurr_ = allocateVector<vectorReal>(numNodes_, "uxCurr");
+    uyPrev_ = allocateVector<vectorReal>(numNodes_, "uyPrev");
+    uyCurr_ = allocateVector<vectorReal>(numNodes_, "uyCurr");
+    uzPrev_ = allocateVector<vectorReal>(numNodes_, "uzPrev");
+    uzCurr_ = allocateVector<vectorReal>(numNodes_, "uzCurr");
     for (int i = 0; i < numNodes_; ++i) {
       uxPrev_(i) = uxCurr_(i) = uyPrev_(i) = uyCurr_(i) = 0.0f;
       uzPrev_(i) = uzCurr_(i) = 0.0f;
     }
     uzCurr_(numNodes_ / 2) = 1.0f;
 
-    rhsTermx_ = allocateArray2D<ARRAY_REAL_VIEW>(1, kNumSteps, "rhsTermx");
-    rhsTermy_ = allocateArray2D<ARRAY_REAL_VIEW>(1, kNumSteps, "rhsTermy");
-    rhsTermz_ = allocateArray2D<ARRAY_REAL_VIEW>(1, kNumSteps, "rhsTermz");
-    rhsElem_ = allocateVector<VECTOR_INT_VIEW>(1, "rhsElem");
-    rhsWeights_ = allocateArray2D<ARRAY_REAL_VIEW>(1, npp, "rhsWeights");
+    rhsTermx_ = allocateArray2D<arrayReal>(1, kNumSteps, "rhsTermx");
+    rhsTermy_ = allocateArray2D<arrayReal>(1, kNumSteps, "rhsTermy");
+    rhsTermz_ = allocateArray2D<arrayReal>(1, kNumSteps, "rhsTermz");
+    rhsElem_ = allocateVector<vectorInt>(1, "rhsElem");
+    rhsWeights_ = allocateArray2D<arrayReal>(1, npp, "rhsWeights");
     rhsElem_(0) = 0;
     for (int j = 0; j < npp; ++j) {
       rhsTermx_(0, j) = rhsTermy_(0, j) = rhsTermz_(0, j) = 0.0f;
@@ -99,10 +99,10 @@ class SemSolverElasticTest : public ::testing::TestWithParam<ElasticSolverOrderP
   std::shared_ptr<model::ModelApi<float, int>> mesh_;
   std::unique_ptr<Solver> solver_;
   int numNodes_;
-  VECTOR_REAL_VIEW uxPrev_, uxCurr_, uyPrev_, uyCurr_, uzPrev_, uzCurr_;
-  ARRAY_REAL_VIEW rhsTermx_, rhsTermy_, rhsTermz_;
-  VECTOR_INT_VIEW rhsElem_;
-  ARRAY_REAL_VIEW rhsWeights_;
+  vectorReal uxPrev_, uxCurr_, uyPrev_, uyCurr_, uzPrev_, uzCurr_;
+  arrayReal rhsTermx_, rhsTermy_, rhsTermz_;
+  vectorInt rhsElem_;
+  arrayReal rhsWeights_;
 };
 
 INSTANTIATE_TEST_SUITE_P(ElasticOrders, SemSolverElasticTest,
@@ -280,21 +280,21 @@ class SemSolverElasticVtiTest : public ::testing::Test {
     numNodes_ = mesh_->getNumberOfNodes();
     constexpr int npp = 2 * 2 * 2;
 
-    uxPrev_ = allocateVector<VECTOR_REAL_VIEW>(numNodes_, "vux_p");
-    uxCurr_ = allocateVector<VECTOR_REAL_VIEW>(numNodes_, "vux_c");
-    uyPrev_ = allocateVector<VECTOR_REAL_VIEW>(numNodes_, "vuy_p");
-    uyCurr_ = allocateVector<VECTOR_REAL_VIEW>(numNodes_, "vuy_c");
-    uzPrev_ = allocateVector<VECTOR_REAL_VIEW>(numNodes_, "vuz_p");
-    uzCurr_ = allocateVector<VECTOR_REAL_VIEW>(numNodes_, "vuz_c");
+    uxPrev_ = allocateVector<vectorReal>(numNodes_, "vux_p");
+    uxCurr_ = allocateVector<vectorReal>(numNodes_, "vux_c");
+    uyPrev_ = allocateVector<vectorReal>(numNodes_, "vuy_p");
+    uyCurr_ = allocateVector<vectorReal>(numNodes_, "vuy_c");
+    uzPrev_ = allocateVector<vectorReal>(numNodes_, "vuz_p");
+    uzCurr_ = allocateVector<vectorReal>(numNodes_, "vuz_c");
     for (int i = 0; i < numNodes_; ++i)
       uxPrev_(i) = uxCurr_(i) = uyPrev_(i) = uyCurr_(i) = uzPrev_(i) = uzCurr_(i) = 0.0f;
     uzCurr_(numNodes_ / 2) = 1.0f;
 
-    rhsTermx_ = allocateArray2D<ARRAY_REAL_VIEW>(1, kNumSteps, "rtx_v");
-    rhsTermy_ = allocateArray2D<ARRAY_REAL_VIEW>(1, kNumSteps, "rty_v");
-    rhsTermz_ = allocateArray2D<ARRAY_REAL_VIEW>(1, kNumSteps, "rtz_v");
-    rhsElem_ = allocateVector<VECTOR_INT_VIEW>(1, "re_v");
-    rhsWeights_ = allocateArray2D<ARRAY_REAL_VIEW>(1, npp, "rw_v");
+    rhsTermx_ = allocateArray2D<arrayReal>(1, kNumSteps, "rtx_v");
+    rhsTermy_ = allocateArray2D<arrayReal>(1, kNumSteps, "rty_v");
+    rhsTermz_ = allocateArray2D<arrayReal>(1, kNumSteps, "rtz_v");
+    rhsElem_ = allocateVector<vectorInt>(1, "re_v");
+    rhsWeights_ = allocateArray2D<arrayReal>(1, npp, "rw_v");
     rhsElem_(0) = 0;
     for (int j = 0; j < npp; ++j) rhsTermx_(0, j) = rhsTermy_(0, j) = rhsTermz_(0, j) = rhsWeights_(0, j) = 0.0f;
   }
@@ -305,10 +305,10 @@ class SemSolverElasticVtiTest : public ::testing::Test {
   std::shared_ptr<model::ModelApi<float, int>> mesh_;
   std::unique_ptr<Solver> solver_;
   int numNodes_;
-  VECTOR_REAL_VIEW uxPrev_, uxCurr_, uyPrev_, uyCurr_, uzPrev_, uzCurr_;
-  ARRAY_REAL_VIEW rhsTermx_, rhsTermy_, rhsTermz_;
-  VECTOR_INT_VIEW rhsElem_;
-  ARRAY_REAL_VIEW rhsWeights_;
+  vectorReal uxPrev_, uxCurr_, uyPrev_, uyCurr_, uzPrev_, uzCurr_;
+  arrayReal rhsTermx_, rhsTermy_, rhsTermz_;
+  vectorInt rhsElem_;
+  arrayReal rhsWeights_;
 };
 
 TEST_F(SemSolverElasticVtiTest, ComputeOneStepDoesNotCrash) {
@@ -359,21 +359,21 @@ class SemSolverElasticTtiTest : public ::testing::Test {
     numNodes_ = mesh_->getNumberOfNodes();
     constexpr int npp = 2 * 2 * 2;
 
-    uxPrev_ = allocateVector<VECTOR_REAL_VIEW>(numNodes_, "tux_p");
-    uxCurr_ = allocateVector<VECTOR_REAL_VIEW>(numNodes_, "tux_c");
-    uyPrev_ = allocateVector<VECTOR_REAL_VIEW>(numNodes_, "tuy_p");
-    uyCurr_ = allocateVector<VECTOR_REAL_VIEW>(numNodes_, "tuy_c");
-    uzPrev_ = allocateVector<VECTOR_REAL_VIEW>(numNodes_, "tuz_p");
-    uzCurr_ = allocateVector<VECTOR_REAL_VIEW>(numNodes_, "tuz_c");
+    uxPrev_ = allocateVector<vectorReal>(numNodes_, "tux_p");
+    uxCurr_ = allocateVector<vectorReal>(numNodes_, "tux_c");
+    uyPrev_ = allocateVector<vectorReal>(numNodes_, "tuy_p");
+    uyCurr_ = allocateVector<vectorReal>(numNodes_, "tuy_c");
+    uzPrev_ = allocateVector<vectorReal>(numNodes_, "tuz_p");
+    uzCurr_ = allocateVector<vectorReal>(numNodes_, "tuz_c");
     for (int i = 0; i < numNodes_; ++i)
       uxPrev_(i) = uxCurr_(i) = uyPrev_(i) = uyCurr_(i) = uzPrev_(i) = uzCurr_(i) = 0.0f;
     uzCurr_(numNodes_ / 2) = 1.0f;
 
-    rhsTermx_ = allocateArray2D<ARRAY_REAL_VIEW>(1, kNumSteps, "rtx_t");
-    rhsTermy_ = allocateArray2D<ARRAY_REAL_VIEW>(1, kNumSteps, "rty_t");
-    rhsTermz_ = allocateArray2D<ARRAY_REAL_VIEW>(1, kNumSteps, "rtz_t");
-    rhsElem_ = allocateVector<VECTOR_INT_VIEW>(1, "re_t");
-    rhsWeights_ = allocateArray2D<ARRAY_REAL_VIEW>(1, npp, "rw_t");
+    rhsTermx_ = allocateArray2D<arrayReal>(1, kNumSteps, "rtx_t");
+    rhsTermy_ = allocateArray2D<arrayReal>(1, kNumSteps, "rty_t");
+    rhsTermz_ = allocateArray2D<arrayReal>(1, kNumSteps, "rtz_t");
+    rhsElem_ = allocateVector<vectorInt>(1, "re_t");
+    rhsWeights_ = allocateArray2D<arrayReal>(1, npp, "rw_t");
     rhsElem_(0) = 0;
     for (int j = 0; j < npp; ++j) rhsTermx_(0, j) = rhsTermy_(0, j) = rhsTermz_(0, j) = rhsWeights_(0, j) = 0.0f;
   }
@@ -384,10 +384,10 @@ class SemSolverElasticTtiTest : public ::testing::Test {
   std::shared_ptr<model::ModelApi<float, int>> mesh_;
   std::unique_ptr<Solver> solver_;
   int numNodes_;
-  VECTOR_REAL_VIEW uxPrev_, uxCurr_, uyPrev_, uyCurr_, uzPrev_, uzCurr_;
-  ARRAY_REAL_VIEW rhsTermx_, rhsTermy_, rhsTermz_;
-  VECTOR_INT_VIEW rhsElem_;
-  ARRAY_REAL_VIEW rhsWeights_;
+  vectorReal uxPrev_, uxCurr_, uyPrev_, uyCurr_, uzPrev_, uzCurr_;
+  arrayReal rhsTermx_, rhsTermy_, rhsTermz_;
+  vectorInt rhsElem_;
+  arrayReal rhsWeights_;
 };
 
 TEST_F(SemSolverElasticTtiTest, ComputeOneStepDoesNotCrash) {
@@ -441,20 +441,20 @@ class SemSolverElasticOnNodesTest : public ::testing::Test {
     solver_->computeFEInit(*mesh_, {0.0f, 0.0f, 0.0f}, false, 0.0f);
     numNodes_ = mesh_->getNumberOfNodes();
     constexpr int npp = 8;
-    uxPrev_ = allocateVector<VECTOR_REAL_VIEW>(numNodes_, "ux_p_n");
-    uxCurr_ = allocateVector<VECTOR_REAL_VIEW>(numNodes_, "ux_c_n");
-    uyPrev_ = allocateVector<VECTOR_REAL_VIEW>(numNodes_, "uy_p_n");
-    uyCurr_ = allocateVector<VECTOR_REAL_VIEW>(numNodes_, "uy_c_n");
-    uzPrev_ = allocateVector<VECTOR_REAL_VIEW>(numNodes_, "uz_p_n");
-    uzCurr_ = allocateVector<VECTOR_REAL_VIEW>(numNodes_, "uz_c_n");
+    uxPrev_ = allocateVector<vectorReal>(numNodes_, "ux_p_n");
+    uxCurr_ = allocateVector<vectorReal>(numNodes_, "ux_c_n");
+    uyPrev_ = allocateVector<vectorReal>(numNodes_, "uy_p_n");
+    uyCurr_ = allocateVector<vectorReal>(numNodes_, "uy_c_n");
+    uzPrev_ = allocateVector<vectorReal>(numNodes_, "uz_p_n");
+    uzCurr_ = allocateVector<vectorReal>(numNodes_, "uz_c_n");
     for (int i = 0; i < numNodes_; ++i)
       uxPrev_(i) = uxCurr_(i) = uyPrev_(i) = uyCurr_(i) = uzPrev_(i) = uzCurr_(i) = 0.0f;
     uzCurr_(numNodes_ / 2) = 1.0f;
-    rhsTermx_ = allocateArray2D<ARRAY_REAL_VIEW>(1, kNumSteps, "rtx_n");
-    rhsTermy_ = allocateArray2D<ARRAY_REAL_VIEW>(1, kNumSteps, "rty_n");
-    rhsTermz_ = allocateArray2D<ARRAY_REAL_VIEW>(1, kNumSteps, "rtz_n");
-    rhsElem_ = allocateVector<VECTOR_INT_VIEW>(1, "re_n");
-    rhsWeights_ = allocateArray2D<ARRAY_REAL_VIEW>(1, npp, "rw_n");
+    rhsTermx_ = allocateArray2D<arrayReal>(1, kNumSteps, "rtx_n");
+    rhsTermy_ = allocateArray2D<arrayReal>(1, kNumSteps, "rty_n");
+    rhsTermz_ = allocateArray2D<arrayReal>(1, kNumSteps, "rtz_n");
+    rhsElem_ = allocateVector<vectorInt>(1, "re_n");
+    rhsWeights_ = allocateArray2D<arrayReal>(1, npp, "rw_n");
     rhsElem_(0) = 0;
     for (int j = 0; j < npp; ++j) rhsTermx_(0, j) = rhsTermy_(0, j) = rhsTermz_(0, j) = rhsWeights_(0, j) = 0.0f;
   }
@@ -465,10 +465,10 @@ class SemSolverElasticOnNodesTest : public ::testing::Test {
   std::shared_ptr<model::ModelApi<float, int>> mesh_;
   std::unique_ptr<Solver> solver_;
   int numNodes_;
-  VECTOR_REAL_VIEW uxPrev_, uxCurr_, uyPrev_, uyCurr_, uzPrev_, uzCurr_;
-  ARRAY_REAL_VIEW rhsTermx_, rhsTermy_, rhsTermz_;
-  VECTOR_INT_VIEW rhsElem_;
-  ARRAY_REAL_VIEW rhsWeights_;
+  vectorReal uxPrev_, uxCurr_, uyPrev_, uyCurr_, uzPrev_, uzCurr_;
+  arrayReal rhsTermx_, rhsTermy_, rhsTermz_;
+  vectorInt rhsElem_;
+  arrayReal rhsWeights_;
 };
 
 TEST_F(SemSolverElasticOnNodesTest, ComputeOneStepDoesNotCrash) {
@@ -514,20 +514,20 @@ class SemSolverElasticSpongeTest : public ::testing::Test {
     solver_->initSpongeValues();
     numNodes_ = mesh_->getNumberOfNodes();
     constexpr int npp = 8;
-    uxPrev_ = allocateVector<VECTOR_REAL_VIEW>(numNodes_, "ux_p_s");
-    uxCurr_ = allocateVector<VECTOR_REAL_VIEW>(numNodes_, "ux_c_s");
-    uyPrev_ = allocateVector<VECTOR_REAL_VIEW>(numNodes_, "uy_p_s");
-    uyCurr_ = allocateVector<VECTOR_REAL_VIEW>(numNodes_, "uy_c_s");
-    uzPrev_ = allocateVector<VECTOR_REAL_VIEW>(numNodes_, "uz_p_s");
-    uzCurr_ = allocateVector<VECTOR_REAL_VIEW>(numNodes_, "uz_c_s");
+    uxPrev_ = allocateVector<vectorReal>(numNodes_, "ux_p_s");
+    uxCurr_ = allocateVector<vectorReal>(numNodes_, "ux_c_s");
+    uyPrev_ = allocateVector<vectorReal>(numNodes_, "uy_p_s");
+    uyCurr_ = allocateVector<vectorReal>(numNodes_, "uy_c_s");
+    uzPrev_ = allocateVector<vectorReal>(numNodes_, "uz_p_s");
+    uzCurr_ = allocateVector<vectorReal>(numNodes_, "uz_c_s");
     for (int i = 0; i < numNodes_; ++i)
       uxPrev_(i) = uxCurr_(i) = uyPrev_(i) = uyCurr_(i) = uzPrev_(i) = uzCurr_(i) = 0.0f;
     uzCurr_(numNodes_ / 2) = 1.0f;
-    rhsTermx_ = allocateArray2D<ARRAY_REAL_VIEW>(1, kNumSteps, "rtx_s");
-    rhsTermy_ = allocateArray2D<ARRAY_REAL_VIEW>(1, kNumSteps, "rty_s");
-    rhsTermz_ = allocateArray2D<ARRAY_REAL_VIEW>(1, kNumSteps, "rtz_s");
-    rhsElem_ = allocateVector<VECTOR_INT_VIEW>(1, "re_s");
-    rhsWeights_ = allocateArray2D<ARRAY_REAL_VIEW>(1, npp, "rw_s");
+    rhsTermx_ = allocateArray2D<arrayReal>(1, kNumSteps, "rtx_s");
+    rhsTermy_ = allocateArray2D<arrayReal>(1, kNumSteps, "rty_s");
+    rhsTermz_ = allocateArray2D<arrayReal>(1, kNumSteps, "rtz_s");
+    rhsElem_ = allocateVector<vectorInt>(1, "re_s");
+    rhsWeights_ = allocateArray2D<arrayReal>(1, npp, "rw_s");
     rhsElem_(0) = 0;
     for (int j = 0; j < npp; ++j) rhsTermx_(0, j) = rhsTermy_(0, j) = rhsTermz_(0, j) = rhsWeights_(0, j) = 0.0f;
   }
@@ -538,10 +538,10 @@ class SemSolverElasticSpongeTest : public ::testing::Test {
   std::shared_ptr<model::ModelApi<float, int>> mesh_;
   std::unique_ptr<Solver> solver_;
   int numNodes_;
-  VECTOR_REAL_VIEW uxPrev_, uxCurr_, uyPrev_, uyCurr_, uzPrev_, uzCurr_;
-  ARRAY_REAL_VIEW rhsTermx_, rhsTermy_, rhsTermz_;
-  VECTOR_INT_VIEW rhsElem_;
-  ARRAY_REAL_VIEW rhsWeights_;
+  vectorReal uxPrev_, uxCurr_, uyPrev_, uyCurr_, uzPrev_, uzCurr_;
+  arrayReal rhsTermx_, rhsTermy_, rhsTermz_;
+  vectorInt rhsElem_;
+  arrayReal rhsWeights_;
 };
 
 TEST_F(SemSolverElasticSpongeTest, ComputeOneStepWithSpongeProducesFiniteValues) {

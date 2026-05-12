@@ -33,7 +33,7 @@ class WavefieldViewBackwardAcoustic : public WavefieldView {
  public:
   static constexpr int kNumFields = 3;
 
-  WavefieldViewBackwardAcoustic(VECTOR_REAL_VIEW qn, VECTOR_REAL_VIEW qnPrev, VECTOR_REAL_VIEW qnPrevPrev)
+  WavefieldViewBackwardAcoustic(vectorReal qn, vectorReal qnPrev, vectorReal qnPrevPrev)
       : qn_(qn), qnPrev_(qnPrev), qnPrevPrev_(qnPrevPrev) {}
 
   int getNumFields() const override { return kNumFields; }
@@ -53,7 +53,7 @@ class WavefieldViewBackwardAcoustic : public WavefieldView {
 
   // TODO use template + constexpr if when C++20 is available
   PROXY_HOST_DEVICE
-  VECTOR_REAL_VIEW getField(int i) const override {
+  vectorReal getField(int i) const override {
     switch (i) {
       case 0:
         return qn_;
@@ -72,9 +72,9 @@ class WavefieldViewBackwardAcoustic : public WavefieldView {
   }
 
  private:
-  VECTOR_REAL_VIEW qn_;          ///< Adjoint pressure at time n
-  VECTOR_REAL_VIEW qnPrev_;      ///< Adjoint pressure at time n-1
-  VECTOR_REAL_VIEW qnPrevPrev_;  ///< Adjoint pressure at time n-2
+  vectorReal qn_;          ///< Adjoint pressure at time n
+  vectorReal qnPrev_;      ///< Adjoint pressure at time n-1
+  vectorReal qnPrevPrev_;  ///< Adjoint pressure at time n-2
 };
 
 }  // namespace gradient

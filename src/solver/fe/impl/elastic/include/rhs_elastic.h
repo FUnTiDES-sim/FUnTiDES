@@ -17,15 +17,14 @@ struct RhsElastic : public Rhs {
   /// All views are null/zero-extent; safe as long as RHS is not accessed.
   RhsElastic() = default;
 
-  RhsElastic(ARRAY_REAL_VIEW termx, ARRAY_REAL_VIEW termy, ARRAY_REAL_VIEW termz, VECTOR_INT_VIEW element,
-             ARRAY_REAL_VIEW weights)
+  RhsElastic(arrayReal termx, arrayReal termy, arrayReal termz, vectorInt element, arrayReal weights)
       : m_termx(termx), m_termy(termy), m_termz(termz), m_element(element), m_weights(weights) {}
 
   int getNumRhsComponents() const override final { return kNumRhsComponents; }
 
   // TODO use template + constexpr if when C++20 is available
   PROXY_HOST_DEVICE
-  ARRAY_REAL_VIEW getTerm(int i) const override {
+  arrayReal getTerm(int i) const override {
     switch (i) {
       case 0:
         return m_termx;
@@ -39,10 +38,10 @@ struct RhsElastic : public Rhs {
   }
 
   PROXY_HOST_DEVICE
-  VECTOR_INT_VIEW getElement() const { return m_element; }
+  vectorInt getElement() const { return m_element; }
 
   PROXY_HOST_DEVICE
-  ARRAY_REAL_VIEW getWeights() const { return m_weights; }
+  arrayReal getWeights() const { return m_weights; }
 
   void print() const override {
     std::cout << "RHSx Term size:   " << m_termx.extent(0) << std::endl;
@@ -52,11 +51,11 @@ struct RhsElastic : public Rhs {
     std::cout << "RHS Weights size: " << m_weights.extent(0) << std::endl;
   }
 
-  ARRAY_REAL_VIEW m_termx;    ///< X-component forcing term
-  ARRAY_REAL_VIEW m_termy;    ///< Y-component forcing term
-  ARRAY_REAL_VIEW m_termz;    ///< Z-component forcing term
-  VECTOR_INT_VIEW m_element;  ///< Source element indices
-  ARRAY_REAL_VIEW m_weights;  ///< Forcing weights per node
+  arrayReal m_termx;    ///< X-component forcing term
+  arrayReal m_termy;    ///< Y-component forcing term
+  arrayReal m_termz;    ///< Z-component forcing term
+  vectorInt m_element;  ///< Source element indices
+  arrayReal m_weights;  ///< Forcing weights per node
 };
 }  // namespace fe
 }  // namespace solver

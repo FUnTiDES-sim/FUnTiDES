@@ -52,9 +52,9 @@ model::ModelStruct<float, int, ORDER> makeBilayerMesh() {
   d.isModelOnNodes_ = false;
   d.isElastic_ = false;
 
-  auto vp = allocateVector<VECTOR_REAL_VIEW>(kNumElems, "vp");
-  auto vs = allocateVector<VECTOR_REAL_VIEW>(kNumElems, "vs");
-  auto rho = allocateVector<VECTOR_REAL_VIEW>(kNumElems, "rho");
+  auto vp = allocateVector<vectorReal>(kNumElems, "vp");
+  auto vs = allocateVector<vectorReal>(kNumElems, "vs");
+  auto rho = allocateVector<vectorReal>(kNumElems, "rho");
   vp[0] = 3000.0f;
   vs[0] = 1500.0f;
   rho[0] = 2000.0f;  // elastic
@@ -90,22 +90,22 @@ class AEsolverOnElemTest : public ::testing::Test {
     solver_.computeFEInit(mesh_, {0.0f, 0.0f, 0.0f}, false, 0.0f);
     nNodes_ = mesh_.getNumberOfNodes();
 
-    p_prev_ = allocateVector<VECTOR_REAL_VIEW>(nNodes_, "pPrev");
-    p_curr_ = allocateVector<VECTOR_REAL_VIEW>(nNodes_, "pCurr");
-    ux_prev_ = allocateVector<VECTOR_REAL_VIEW>(nNodes_, "uxPrev");
-    ux_curr_ = allocateVector<VECTOR_REAL_VIEW>(nNodes_, "uxCurr");
-    uy_prev_ = allocateVector<VECTOR_REAL_VIEW>(nNodes_, "uyPrev");
-    uy_curr_ = allocateVector<VECTOR_REAL_VIEW>(nNodes_, "uyCurr");
-    uz_prev_ = allocateVector<VECTOR_REAL_VIEW>(nNodes_, "uzPrev");
-    uz_curr_ = allocateVector<VECTOR_REAL_VIEW>(nNodes_, "uzCurr");
+    p_prev_ = allocateVector<vectorReal>(nNodes_, "pPrev");
+    p_curr_ = allocateVector<vectorReal>(nNodes_, "pCurr");
+    ux_prev_ = allocateVector<vectorReal>(nNodes_, "uxPrev");
+    ux_curr_ = allocateVector<vectorReal>(nNodes_, "uxCurr");
+    uy_prev_ = allocateVector<vectorReal>(nNodes_, "uyPrev");
+    uy_curr_ = allocateVector<vectorReal>(nNodes_, "uyCurr");
+    uz_prev_ = allocateVector<vectorReal>(nNodes_, "uzPrev");
+    uz_curr_ = allocateVector<vectorReal>(nNodes_, "uzCurr");
     zeroWavefields();
 
-    rhs_term_ = allocateArray2D<ARRAY_REAL_VIEW>(1, kNumSamples, "rhsTerm");
-    rhs_termx_ = allocateArray2D<ARRAY_REAL_VIEW>(1, kNumSamples, "rhsTermX");
-    rhs_termy_ = allocateArray2D<ARRAY_REAL_VIEW>(1, kNumSamples, "rhsTermY");
-    rhs_termz_ = allocateArray2D<ARRAY_REAL_VIEW>(1, kNumSamples, "rhsTermZ");
-    rhs_elem_ = allocateVector<VECTOR_INT_VIEW>(1, "rhsElem");
-    rhs_wts_ = allocateArray2D<ARRAY_REAL_VIEW>(1, kNdof, "rhsWts");
+    rhs_term_ = allocateArray2D<arrayReal>(1, kNumSamples, "rhsTerm");
+    rhs_termx_ = allocateArray2D<arrayReal>(1, kNumSamples, "rhsTermX");
+    rhs_termy_ = allocateArray2D<arrayReal>(1, kNumSamples, "rhsTermY");
+    rhs_termz_ = allocateArray2D<arrayReal>(1, kNumSamples, "rhsTermZ");
+    rhs_elem_ = allocateVector<vectorInt>(1, "rhsElem");
+    rhs_wts_ = allocateArray2D<arrayReal>(1, kNdof, "rhsWts");
     rhs_elem_(0) = 0;
     for (int t = 0; t < kNumSamples; ++t)
       rhs_term_(0, t) = rhs_termx_(0, t) = rhs_termy_(0, t) = rhs_termz_(0, t) = 0.0f;
@@ -132,14 +132,14 @@ class AEsolverOnElemTest : public ::testing::Test {
   Mesh mesh_;
   int nNodes_{0};
 
-  VECTOR_REAL_VIEW p_prev_, p_curr_;
-  VECTOR_REAL_VIEW ux_prev_, ux_curr_;
-  VECTOR_REAL_VIEW uy_prev_, uy_curr_;
-  VECTOR_REAL_VIEW uz_prev_, uz_curr_;
+  vectorReal p_prev_, p_curr_;
+  vectorReal ux_prev_, ux_curr_;
+  vectorReal uy_prev_, uy_curr_;
+  vectorReal uz_prev_, uz_curr_;
 
-  ARRAY_REAL_VIEW rhs_term_, rhs_termx_, rhs_termy_, rhs_termz_;
-  VECTOR_INT_VIEW rhs_elem_;
-  ARRAY_REAL_VIEW rhs_wts_;
+  arrayReal rhs_term_, rhs_termx_, rhs_termy_, rhs_termz_;
+  vectorInt rhs_elem_;
+  arrayReal rhs_wts_;
 };
 
 TYPED_TEST_SUITE(AEsolverOnElemTest, AEOrderTypes);

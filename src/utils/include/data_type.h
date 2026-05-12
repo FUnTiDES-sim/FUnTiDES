@@ -21,25 +21,16 @@ using real_t = float;
 
 template <class T>
 T allocateVector(int n1) {
-#ifdef PRINT_ALLOC_INFO
-  std::cout << "allocate vector of size " << n1 << std::endl;
-#endif
   T vect(KOKKOSNAME n1);
   return vect;
 }
 template <class T>
 T allocateVector(int n1, const char *name) {
-#ifdef PRINT_ALLOC_INFO
-  std::cout << "allocate vector: " << name << " of size: " << n1 << std::endl;
-#endif
   T vect(KOKKOSNAME n1);
   return vect;
 }
 template <class T>
 T allocateArray2D(int n1, int n2) {
-#ifdef PRINT_ALLOC_INFO
-  std::cout << "allocate array of size " << n1 << ", " << n2 << std::endl;
-#endif
   T array(KOKKOSNAME n1, n2);
   return array;
 }
@@ -53,9 +44,6 @@ T allocateArray2D(int n1, int n2, const char *name) {
 }
 template <class T>
 T allocateArray3D(int n1, int n2, int n3) {
-#ifdef PRINT_ALLOC_INFO
-  std::cout << "allocate array of size " << n1 << ", " << n2 << ", " << n3 << std::endl;
-#endif
   T array(KOKKOSNAME n1, n2, n3);
   return array;
 }

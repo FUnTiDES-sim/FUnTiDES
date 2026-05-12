@@ -48,11 +48,10 @@ class CartesianUnstructBoundaryClassifier {
    * @param coords_x X-coordinates of each node
    * @param coords_y Y-coordinates of each node
    * @param coords_z Z-coordinates of each node
-   * @return VECTOR_INT_VIEW of size @p n_node with BoundaryFlag values
+   * @return vectorInt of size @p n_node with BoundaryFlag values
    */
-  VECTOR_INT_VIEW classify(int n_node, VECTOR_REAL_VIEW coords_x, VECTOR_REAL_VIEW coords_y,
-                           VECTOR_REAL_VIEW coords_z) const {
-    auto boundaries_t = allocateVector<VECTOR_INT_VIEW>(n_node, "boundaries_t");
+  vectorInt classify(int n_node, vectorReal coords_x, vectorReal coords_y, vectorReal coords_z) const {
+    auto boundaries_t = allocateVector<vectorInt>(n_node, "boundaries_t");
 
     for (int n = 0; n < n_node; ++n) {
       const FloatType x = coords_x(n);

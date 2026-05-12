@@ -61,25 +61,25 @@ void bind_sem_solver_base(py::module_ &m) {
       .def("update_solution", &Solver::updateSolution, py::arg("dt"), py::arg("data"))
       .def(
           "get_mass_matrix",
-          [](Solver &self) -> Kokkos::Experimental::python_view_type_t<VECTOR_REAL_VIEW> {
+          [](Solver &self) -> Kokkos::Experimental::python_view_type_t<vectorReal> {
             return self.getMassMatrixAcoustic();
           },
           py::return_value_policy::reference_internal)
       .def("output_solution_values",
-           static_cast<void (Solver::*)(const int &, int &, const VECTOR_REAL_VIEW &, const char *)>(
+           static_cast<void (Solver::*)(const int &, int &, const vectorReal &, const char *)>(
                &Solver::outputSolutionValues),
            py::arg("t"), py::arg("e"), py::arg("field_global"), py::arg("field_name"))
       .def(
           "set_sls_attenuation",
           [](Solver &self, const std::vector<float> &freqs, const std::vector<float> &coeffs) {
-            VECTOR_REAL_VIEW vf;
+            vectorReal vf;
             if (!freqs.empty()) {
-              vf = allocateVector<VECTOR_REAL_VIEW>(freqs.size(), "sls_freqs");
+              vf = allocateVector<vectorReal>(freqs.size(), "sls_freqs");
               for (size_t i = 0; i < freqs.size(); ++i) vf[i] = freqs[i];
             }
-            VECTOR_REAL_VIEW vc;
+            vectorReal vc;
             if (!coeffs.empty()) {
-              vc = allocateVector<VECTOR_REAL_VIEW>(coeffs.size(), "sls_coeffs");
+              vc = allocateVector<vectorReal>(coeffs.size(), "sls_coeffs");
               for (size_t i = 0; i < coeffs.size(); ++i) vc[i] = coeffs[i];
             }
             self.setSLSAttenuation(vf, vc);

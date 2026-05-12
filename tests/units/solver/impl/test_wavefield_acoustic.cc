@@ -15,10 +15,10 @@ class WavefieldAcousticTest : public ::testing::Test {
     size1 = 100;
     size2 = 200;
 
-    prevField = allocateVector<VECTOR_REAL_VIEW>(size1, "prevField");
-    currField = allocateVector<VECTOR_REAL_VIEW>(size1, "currField");
-    prevField2 = allocateVector<VECTOR_REAL_VIEW>(size2, "prevField2");
-    currField2 = allocateVector<VECTOR_REAL_VIEW>(size2, "currField2");
+    prevField = allocateVector<vectorReal>(size1, "prevField");
+    currField = allocateVector<vectorReal>(size1, "currField");
+    prevField2 = allocateVector<vectorReal>(size2, "prevField2");
+    currField2 = allocateVector<vectorReal>(size2, "currField2");
 
     // Initialize with test values
     for (size_t i = 0; i < size1; ++i) {
@@ -34,10 +34,10 @@ class WavefieldAcousticTest : public ::testing::Test {
 
   size_t size1;
   size_t size2;
-  VECTOR_REAL_VIEW prevField;
-  VECTOR_REAL_VIEW currField;
-  VECTOR_REAL_VIEW prevField2;
-  VECTOR_REAL_VIEW currField2;
+  vectorReal prevField;
+  vectorReal currField;
+  vectorReal prevField2;
+  vectorReal currField2;
 };
 
 TEST_F(WavefieldAcousticTest, Constructor) {
@@ -216,8 +216,8 @@ TEST_F(WavefieldAcousticTest, CopyConstructorAfterSwap) {
 }
 
 TEST_F(WavefieldAcousticTest, EmptyFields) {
-  auto emptyPrev = allocateVector<VECTOR_REAL_VIEW>(0, "emptyPrev");
-  auto emptyCurr = allocateVector<VECTOR_REAL_VIEW>(0, "emptyCurr");
+  auto emptyPrev = allocateVector<vectorReal>(0, "emptyPrev");
+  auto emptyCurr = allocateVector<vectorReal>(0, "emptyCurr");
 
   WavefieldAcoustic wavefield(emptyPrev, emptyCurr);
 
@@ -297,7 +297,7 @@ TEST_F(WavefieldAcousticTest, CopyInContainerClass) {
 
 TEST_F(WavefieldAcousticTest, SwapWithRotationRotatesThreeBuffers) {
   // prevprev = {10, 10, ...}, prev = {i}, curr = {i*2}
-  auto prevPrev = allocateVector<VECTOR_REAL_VIEW>(size1, "prevPrev");
+  auto prevPrev = allocateVector<vectorReal>(size1, "prevPrev");
   for (size_t i = 0; i < size1; ++i) prevPrev(i) = 10.0f;
 
   WavefieldAcoustic wavefield(prevField, currField);
@@ -315,7 +315,7 @@ TEST_F(WavefieldAcousticTest, SwapWithRotationRotatesThreeBuffers) {
 }
 
 TEST_F(WavefieldAcousticTest, SwapWithRotationThreeTimesRestoresState) {
-  auto prevPrev = allocateVector<VECTOR_REAL_VIEW>(size1, "prevPrev");
+  auto prevPrev = allocateVector<vectorReal>(size1, "prevPrev");
   for (size_t i = 0; i < size1; ++i) prevPrev(i) = 10.0f;
 
   // Record identity of underlying data before rotation
@@ -338,7 +338,7 @@ TEST_F(WavefieldAcousticTest, SwapWithRotationThreeTimesRestoresState) {
 TEST_F(WavefieldAcousticTest, SwapWithRotationNoDataCopy) {
   // Verifies that the rotation is view-handle only: mutating the underlying
   // buffer is visible through the rotated handle.
-  auto prevPrev = allocateVector<VECTOR_REAL_VIEW>(size1, "prevPrev");
+  auto prevPrev = allocateVector<vectorReal>(size1, "prevPrev");
   for (size_t i = 0; i < size1; ++i) prevPrev(i) = 10.0f;
 
   WavefieldAcoustic wavefield(prevField, currField);

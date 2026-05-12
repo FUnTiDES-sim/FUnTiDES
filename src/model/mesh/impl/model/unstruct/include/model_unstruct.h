@@ -25,19 +25,18 @@ struct ModelUnstructData : public ModelDataBase<FloatType, ScalarType> {
    * @brief Full constructor with all mesh data
    */
   PROXY_HOST_DEVICE
-  ModelUnstructData(
-      ScalarType order, ScalarType n_element, ScalarType n_node, FloatType lx, FloatType ly, FloatType lz,
-      bool isModelOnNodes, bool isElastic, ARRAY_INT_VIEW global_node_index, VECTOR_REAL_VIEW nodes_coords_x,
-      VECTOR_REAL_VIEW nodes_coords_y, VECTOR_REAL_VIEW nodes_coords_z, VECTOR_REAL_VIEW model_vp_node,
-      VECTOR_REAL_VIEW model_vp_element, VECTOR_REAL_VIEW model_rho_node, VECTOR_REAL_VIEW model_rho_element,
-      VECTOR_REAL_VIEW model_vs_node, VECTOR_REAL_VIEW model_vs_element, VECTOR_REAL_VIEW model_delta_node,
-      VECTOR_REAL_VIEW model_delta_element, VECTOR_REAL_VIEW model_epsilon_node, VECTOR_REAL_VIEW model_epsilon_element,
-      VECTOR_REAL_VIEW model_gamma_node, VECTOR_REAL_VIEW model_gamma_element, VECTOR_REAL_VIEW model_theta_node,
-      VECTOR_REAL_VIEW model_theta_element, VECTOR_REAL_VIEW model_phi_node, VECTOR_REAL_VIEW model_phi_element,
-      ARRAY3D_REAL_VIEW model_C_tensor_element, VECTOR_INT_VIEW boundaries_t,
-      VECTOR_REAL_VIEW model_qp_node = VECTOR_REAL_VIEW(), VECTOR_REAL_VIEW model_qp_element = VECTOR_REAL_VIEW(),
-      VECTOR_REAL_VIEW model_qs_node = VECTOR_REAL_VIEW(), VECTOR_REAL_VIEW model_qs_element = VECTOR_REAL_VIEW(),
-      FaceConnectivityUnstructData<FloatType, ScalarType> face_connectivity = {})
+  ModelUnstructData(ScalarType order, ScalarType n_element, ScalarType n_node, FloatType lx, FloatType ly, FloatType lz,
+                    bool isModelOnNodes, bool isElastic, arrayInt global_node_index, vectorReal nodes_coords_x,
+                    vectorReal nodes_coords_y, vectorReal nodes_coords_z, vectorReal model_vp_node,
+                    vectorReal model_vp_element, vectorReal model_rho_node, vectorReal model_rho_element,
+                    vectorReal model_vs_node, vectorReal model_vs_element, vectorReal model_delta_node,
+                    vectorReal model_delta_element, vectorReal model_epsilon_node, vectorReal model_epsilon_element,
+                    vectorReal model_gamma_node, vectorReal model_gamma_element, vectorReal model_theta_node,
+                    vectorReal model_theta_element, vectorReal model_phi_node, vectorReal model_phi_element,
+                    array3DReal model_C_tensor_element, vectorInt boundaries_t, vectorReal model_qp_node = vectorReal(),
+                    vectorReal model_qp_element = vectorReal(), vectorReal model_qs_node = vectorReal(),
+                    vectorReal model_qs_element = vectorReal(),
+                    FaceConnectivityUnstructData<FloatType, ScalarType> face_connectivity = {})
       : order_(order),
         n_element_(n_element),
         n_node_(n_node),
@@ -84,33 +83,33 @@ struct ModelUnstructData : public ModelDataBase<FloatType, ScalarType> {
   bool isModelOnNodes_;
   bool isElastic_;
 
-  ARRAY_INT_VIEW global_node_index_;
-  VECTOR_REAL_VIEW nodes_coords_x_;
-  VECTOR_REAL_VIEW nodes_coords_y_;
-  VECTOR_REAL_VIEW nodes_coords_z_;
+  arrayInt global_node_index_;
+  vectorReal nodes_coords_x_;
+  vectorReal nodes_coords_y_;
+  vectorReal nodes_coords_z_;
 
-  VECTOR_REAL_VIEW model_vp_node_;
-  VECTOR_REAL_VIEW model_vp_element_;
-  VECTOR_REAL_VIEW model_rho_node_;
-  VECTOR_REAL_VIEW model_rho_element_;
-  VECTOR_REAL_VIEW model_vs_node_;
-  VECTOR_REAL_VIEW model_vs_element_;
-  VECTOR_REAL_VIEW model_qp_node_;
-  VECTOR_REAL_VIEW model_qp_element_;
-  VECTOR_REAL_VIEW model_qs_node_;
-  VECTOR_REAL_VIEW model_qs_element_;
-  VECTOR_REAL_VIEW model_delta_node_;
-  VECTOR_REAL_VIEW model_delta_element_;
-  VECTOR_REAL_VIEW model_epsilon_node_;
-  VECTOR_REAL_VIEW model_epsilon_element_;
-  VECTOR_REAL_VIEW model_gamma_node_;
-  VECTOR_REAL_VIEW model_gamma_element_;
-  VECTOR_REAL_VIEW model_theta_node_;
-  VECTOR_REAL_VIEW model_theta_element_;
-  VECTOR_REAL_VIEW model_phi_node_;
-  VECTOR_REAL_VIEW model_phi_element_;
-  ARRAY3D_REAL_VIEW model_C_tensor_element_;
-  VECTOR_INT_VIEW boundaries_t_;
+  vectorReal model_vp_node_;
+  vectorReal model_vp_element_;
+  vectorReal model_rho_node_;
+  vectorReal model_rho_element_;
+  vectorReal model_vs_node_;
+  vectorReal model_vs_element_;
+  vectorReal model_qp_node_;
+  vectorReal model_qp_element_;
+  vectorReal model_qs_node_;
+  vectorReal model_qs_element_;
+  vectorReal model_delta_node_;
+  vectorReal model_delta_element_;
+  vectorReal model_epsilon_node_;
+  vectorReal model_epsilon_element_;
+  vectorReal model_gamma_node_;
+  vectorReal model_gamma_element_;
+  vectorReal model_theta_node_;
+  vectorReal model_theta_element_;
+  vectorReal model_phi_node_;
+  vectorReal model_phi_element_;
+  array3DReal model_C_tensor_element_;
+  vectorInt boundaries_t_;
   FaceConnectivityUnstructData<FloatType, ScalarType> face_connectivity_;
 };
 
@@ -733,8 +732,8 @@ class ModelUnstruct final : public ModelApi<FloatType, ScalarType> {
 
   void setQualityFactors(FloatType qp, FloatType qs) override {
     ScalarType nElem = getNumberOfElements();
-    model_qp_element_ = allocateVector<VECTOR_REAL_VIEW>(nElem, "model_qp_element");
-    model_qs_element_ = allocateVector<VECTOR_REAL_VIEW>(nElem, "model_qs_element");
+    model_qp_element_ = allocateVector<vectorReal>(nElem, "model_qp_element");
+    model_qs_element_ = allocateVector<vectorReal>(nElem, "model_qs_element");
     for (ScalarType e = 0; e < nElem; ++e) {
       model_qp_element_(e) = qp;
       model_qs_element_(e) = qs;
@@ -752,33 +751,33 @@ class ModelUnstruct final : public ModelApi<FloatType, ScalarType> {
   bool isModelOnNodes_;
   bool isElastic_;
 
-  ARRAY_INT_VIEW global_node_index_;
-  VECTOR_REAL_VIEW nodes_coords_x_;
-  VECTOR_REAL_VIEW nodes_coords_y_;
-  VECTOR_REAL_VIEW nodes_coords_z_;
+  arrayInt global_node_index_;
+  vectorReal nodes_coords_x_;
+  vectorReal nodes_coords_y_;
+  vectorReal nodes_coords_z_;
 
-  VECTOR_REAL_VIEW model_vp_node_;
-  VECTOR_REAL_VIEW model_vp_element_;
-  VECTOR_REAL_VIEW model_rho_node_;
-  VECTOR_REAL_VIEW model_rho_element_;
-  VECTOR_REAL_VIEW model_vs_node_;
-  VECTOR_REAL_VIEW model_vs_element_;
-  VECTOR_REAL_VIEW model_qp_node_;
-  VECTOR_REAL_VIEW model_qp_element_;
-  VECTOR_REAL_VIEW model_qs_node_;
-  VECTOR_REAL_VIEW model_qs_element_;
-  VECTOR_REAL_VIEW model_delta_node_;
-  VECTOR_REAL_VIEW model_delta_element_;
-  VECTOR_REAL_VIEW model_epsilon_node_;
-  VECTOR_REAL_VIEW model_epsilon_element_;
-  VECTOR_REAL_VIEW model_theta_node_;
-  VECTOR_REAL_VIEW model_theta_element_;
-  VECTOR_REAL_VIEW model_gamma_node_;
-  VECTOR_REAL_VIEW model_gamma_element_;
-  VECTOR_REAL_VIEW model_phi_node_;
-  VECTOR_REAL_VIEW model_phi_element_;
-  ARRAY3D_REAL_VIEW model_C_tensor_element_;
-  VECTOR_INT_VIEW boundaries_t_;
+  vectorReal model_vp_node_;
+  vectorReal model_vp_element_;
+  vectorReal model_rho_node_;
+  vectorReal model_rho_element_;
+  vectorReal model_vs_node_;
+  vectorReal model_vs_element_;
+  vectorReal model_qp_node_;
+  vectorReal model_qp_element_;
+  vectorReal model_qs_node_;
+  vectorReal model_qs_element_;
+  vectorReal model_delta_node_;
+  vectorReal model_delta_element_;
+  vectorReal model_epsilon_node_;
+  vectorReal model_epsilon_element_;
+  vectorReal model_theta_node_;
+  vectorReal model_theta_element_;
+  vectorReal model_gamma_node_;
+  vectorReal model_gamma_element_;
+  vectorReal model_phi_node_;
+  vectorReal model_phi_element_;
+  array3DReal model_C_tensor_element_;
+  vectorInt boundaries_t_;
 
   FaceConnectivityUnstruct<FloatType, ScalarType> face_connectivity_;
 };
