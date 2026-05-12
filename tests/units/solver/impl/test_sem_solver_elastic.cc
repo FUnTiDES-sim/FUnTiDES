@@ -259,6 +259,171 @@ TEST_P(SemSolverElasticTest, OutputSolutionValuesDoesNotCrash) {
   EXPECT_NO_THROW(solver_->outputSolutionValues(0, e, uzCurr_, "uz"));
 }
 
+// ======================================================================
+// VTI anisotropy — exercises computeElementContributions_Vti
+// ======================================================================
+class SemSolverElasticVtiTest : public ::testing::Test {
+ protected:
+  void SetUp() override {
+    constexpr int EX = 2, EY = 2, EZ = 2;
+    constexpr float LX = 200.0f, LY = 200.0f, LZ = 200.0f;
+    model::CartesianStructBuilder<float, int, 1> b(EX, LX, EY, LY, EZ, LZ, false, true);
+    mesh_ = b.getModel(false);
+    mesh_->initElasticityTensors(model::AnisotropyType::kVTI);
+
+    solver_ =
+        solver_factory::createSolver(feenum::methodType::kSem, feenum::implemType::kMakutu, feenum::meshType::kStruct,
+                                     feenum::modelLocationType::kOnElements, feenum::physicType::kElastic, 1);
+    solver_->setAnisotropyType(model::AnisotropyType::kVTI);
+    solver_->computeFEInit(*mesh_, {0.0f, 0.0f, 0.0f}, false, 0.0f);
+
+    numNodes_ = mesh_->getNumberOfNodes();
+    constexpr int npp = 2 * 2 * 2;
+
+    uxPrev_ = allocateVector<VECTOR_REAL_VIEW>(numNodes_, "vux_p");
+    uxCurr_ = allocateVector<VECTOR_REAL_VIEW>(numNodes_, "vux_c");
+    uyPrev_ = allocateVector<VECTOR_REAL_VIEW>(numNodes_, "vuy_p");
+    uyCurr_ = allocateVector<VECTOR_REAL_VIEW>(numNodes_, "vuy_c");
+    uzPrev_ = allocateVector<VECTOR_REAL_VIEW>(numNodes_, "vuz_p");
+    uzCurr_ = allocateVector<VECTOR_REAL_VIEW>(numNodes_, "vuz_c");
+    for (int i = 0; i < numNodes_; ++i)
+      uxPrev_(i) = uxCurr_(i) = uyPrev_(i) = uyCurr_(i) = uzPrev_(i) = uzCurr_(i) = 0.0f;
+    uzCurr_(numNodes_ / 2) = 1.0f;
+
+    rhsTermx_ = allocateArray2D<ARRAY_REAL_VIEW>(1, kNumSteps, "rtx_v");
+    rhsTermy_ = allocateArray2D<ARRAY_REAL_VIEW>(1, kNumSteps, "rty_v");
+    rhsTermz_ = allocateArray2D<ARRAY_REAL_VIEW>(1, kNumSteps, "rtz_v");
+    rhsElem_ = allocateVector<VECTOR_INT_VIEW>(1, "re_v");
+    rhsWeights_ = allocateArray2D<ARRAY_REAL_VIEW>(1, npp, "rw_v");
+    rhsElem_(0) = 0;
+    for (int j = 0; j < npp; ++j) rhsTermx_(0, j) = rhsTermy_(0, j) = rhsTermz_(0, j) = rhsWeights_(0, j) = 0.0f;
+  }
+
+  static constexpr int kNumSteps = 30;
+  static constexpr float kDt = 0.001f;
+
+  std::shared_ptr<model::ModelApi<float, int>> mesh_;
+  std::unique_ptr<Solver> solver_;
+  int numNodes_;
+  VECTOR_REAL_VIEW uxPrev_, uxCurr_, uyPrev_, uyCurr_, uzPrev_, uzCurr_;
+  ARRAY_REAL_VIEW rhsTermx_, rhsTermy_, rhsTermz_;
+  VECTOR_INT_VIEW rhsElem_;
+  ARRAY_REAL_VIEW rhsWeights_;
+};
+
+TEST_F(SemSolverElasticVtiTest, ComputeOneStepDoesNotCrash) {
+  WavefieldElastic wf(uxPrev_, uxCurr_, uyPrev_, uyCurr_, uzPrev_, uzCurr_);
+  RhsElastic rhs(rhsTermx_, rhsTermy_, rhsTermz_, rhsElem_, rhsWeights_);
+  SEMsolverDataElastic data(wf, rhs);
+  EXPECT_NO_THROW(solver_->computeOneStep(kDt, 0, data));
+}
+
+TEST_F(SemSolverElasticVtiTest, ComputeOneStepProducesFiniteValues) {
+  WavefieldElastic wf(uxPrev_, uxCurr_, uyPrev_, uyCurr_, uzPrev_, uzCurr_);
+  RhsElastic rhs(rhsTermx_, rhsTermy_, rhsTermz_, rhsElem_, rhsWeights_);
+  SEMsolverDataElastic data(wf, rhs);
+  for (int t = 0; t < kNumSteps; ++t) {
+    solver_->computeOneStep(kDt, t, data);
+    data.swapWavefields();
+  }
+  for (int c = 0; c < 3; ++c)
+    for (int i = 0; i < numNodes_; ++i)
+      EXPECT_TRUE(std::isfinite(data.getCurrentField(c)(i))) << "VTI NaN/Inf field " << c << " node " << i;
+}
+
+TEST_F(SemSolverElasticVtiTest, MassMatrixNonZero) {
+  auto& mm = solver_->getMassMatrixElastic();
+  float sum = 0.0f;
+  for (size_t i = 0; i < mm.extent(0); ++i) sum += mm(i);
+  EXPECT_GT(sum, 0.0f);
+}
+
+// ======================================================================
+// TTI anisotropy — exercises computeElementContributions_Tti
+// ======================================================================
+class SemSolverElasticTtiTest : public ::testing::Test {
+ protected:
+  void SetUp() override {
+    constexpr int EX = 2, EY = 2, EZ = 2;
+    constexpr float LX = 200.0f, LY = 200.0f, LZ = 200.0f;
+    model::CartesianStructBuilder<float, int, 1> b(EX, LX, EY, LY, EZ, LZ, false, true);
+    mesh_ = b.getModel(false);
+    mesh_->initElasticityTensors(model::AnisotropyType::kTTI);
+
+    solver_ =
+        solver_factory::createSolver(feenum::methodType::kSem, feenum::implemType::kMakutu, feenum::meshType::kStruct,
+                                     feenum::modelLocationType::kOnElements, feenum::physicType::kElastic, 1);
+    solver_->setAnisotropyType(model::AnisotropyType::kTTI);
+    solver_->computeFEInit(*mesh_, {0.0f, 0.0f, 0.0f}, false, 0.0f);
+
+    numNodes_ = mesh_->getNumberOfNodes();
+    constexpr int npp = 2 * 2 * 2;
+
+    uxPrev_ = allocateVector<VECTOR_REAL_VIEW>(numNodes_, "tux_p");
+    uxCurr_ = allocateVector<VECTOR_REAL_VIEW>(numNodes_, "tux_c");
+    uyPrev_ = allocateVector<VECTOR_REAL_VIEW>(numNodes_, "tuy_p");
+    uyCurr_ = allocateVector<VECTOR_REAL_VIEW>(numNodes_, "tuy_c");
+    uzPrev_ = allocateVector<VECTOR_REAL_VIEW>(numNodes_, "tuz_p");
+    uzCurr_ = allocateVector<VECTOR_REAL_VIEW>(numNodes_, "tuz_c");
+    for (int i = 0; i < numNodes_; ++i)
+      uxPrev_(i) = uxCurr_(i) = uyPrev_(i) = uyCurr_(i) = uzPrev_(i) = uzCurr_(i) = 0.0f;
+    uzCurr_(numNodes_ / 2) = 1.0f;
+
+    rhsTermx_ = allocateArray2D<ARRAY_REAL_VIEW>(1, kNumSteps, "rtx_t");
+    rhsTermy_ = allocateArray2D<ARRAY_REAL_VIEW>(1, kNumSteps, "rty_t");
+    rhsTermz_ = allocateArray2D<ARRAY_REAL_VIEW>(1, kNumSteps, "rtz_t");
+    rhsElem_ = allocateVector<VECTOR_INT_VIEW>(1, "re_t");
+    rhsWeights_ = allocateArray2D<ARRAY_REAL_VIEW>(1, npp, "rw_t");
+    rhsElem_(0) = 0;
+    for (int j = 0; j < npp; ++j) rhsTermx_(0, j) = rhsTermy_(0, j) = rhsTermz_(0, j) = rhsWeights_(0, j) = 0.0f;
+  }
+
+  static constexpr int kNumSteps = 30;
+  static constexpr float kDt = 0.001f;
+
+  std::shared_ptr<model::ModelApi<float, int>> mesh_;
+  std::unique_ptr<Solver> solver_;
+  int numNodes_;
+  VECTOR_REAL_VIEW uxPrev_, uxCurr_, uyPrev_, uyCurr_, uzPrev_, uzCurr_;
+  ARRAY_REAL_VIEW rhsTermx_, rhsTermy_, rhsTermz_;
+  VECTOR_INT_VIEW rhsElem_;
+  ARRAY_REAL_VIEW rhsWeights_;
+};
+
+TEST_F(SemSolverElasticTtiTest, ComputeOneStepDoesNotCrash) {
+  WavefieldElastic wf(uxPrev_, uxCurr_, uyPrev_, uyCurr_, uzPrev_, uzCurr_);
+  RhsElastic rhs(rhsTermx_, rhsTermy_, rhsTermz_, rhsElem_, rhsWeights_);
+  SEMsolverDataElastic data(wf, rhs);
+  EXPECT_NO_THROW(solver_->computeOneStep(kDt, 0, data));
+}
+
+TEST_F(SemSolverElasticTtiTest, ComputeOneStepProducesFiniteValues) {
+  WavefieldElastic wf(uxPrev_, uxCurr_, uyPrev_, uyCurr_, uzPrev_, uzCurr_);
+  RhsElastic rhs(rhsTermx_, rhsTermy_, rhsTermz_, rhsElem_, rhsWeights_);
+  SEMsolverDataElastic data(wf, rhs);
+  for (int t = 0; t < kNumSteps; ++t) {
+    solver_->computeOneStep(kDt, t, data);
+    data.swapWavefields();
+  }
+  for (int c = 0; c < 3; ++c)
+    for (int i = 0; i < numNodes_; ++i)
+      EXPECT_TRUE(std::isfinite(data.getCurrentField(c)(i))) << "TTI NaN/Inf field " << c << " node " << i;
+}
+
+TEST_F(SemSolverElasticTtiTest, MassMatrixNonZero) {
+  auto& mm = solver_->getMassMatrixElastic();
+  float sum = 0.0f;
+  for (size_t i = 0; i < mm.extent(0); ++i) sum += mm(i);
+  EXPECT_GT(sum, 0.0f);
+}
+
+TEST_F(SemSolverElasticTtiTest, ComputeForcesDoesNotCrash) {
+  WavefieldElastic wf(uxPrev_, uxCurr_, uyPrev_, uyCurr_, uzPrev_, uzCurr_);
+  RhsElastic rhs(rhsTermx_, rhsTermy_, rhsTermz_, rhsElem_, rhsWeights_);
+  SEMsolverDataElastic data(wf, rhs);
+  EXPECT_NO_THROW(solver_->computeForces(kDt, 0, data));
+}
+
 }  // namespace test
 }  // namespace fe
 }  // namespace solver
