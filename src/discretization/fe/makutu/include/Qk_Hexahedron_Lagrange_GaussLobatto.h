@@ -455,8 +455,10 @@ static Metrics3D computeMetrics3D(float const (&X)[8][3])
    * @param qfb The 1d quadrature point index in the second direction of the
    * face
    * @param qFixed The 1d quadrature point index of the fixed direction
-   * @param X Array containing the coordinates of the support points of the
-   * face.
+   * @param kX Array containing the coordinates of the support points of the
+   * face (4 corners).
+   * @param invJ3D Inverse of the volumetric Jacobian J^{-1} at the quadrature
+   * point, used to map reference-space gradients to physical-space gradients.
    * @param func Callback function accepting four parameters: i, j, k and C_ijk
    *    invoked when processing each interface flux matrix contribution. The
    * interface flux matrix is assembled in a tensorial form prior to computing
@@ -464,22 +466,25 @@ static Metrics3D computeMetrics3D(float const (&X)[8][3])
    * vector. The function will compute the index i (line of the matrix and
    * degree of freedom associated to the trial function "Grad(Phi)"), index j
    * (column of the matrix and degree of freedom associated to the test function
-   * "Phi"), index k (k = 0,1,2 corresponding to x,y,z directions) and C_ijk
-   * which is the value of the k-th component associated to the matrix entry
-   * (i,j).
+   * "Phi"), index k (k = 0,1,2 corresponding to physical x,y,z directions) and
+   * C_ijk which is the value of the k-th component associated to the matrix
+   * entry (i,j).
    */
   template <int kQfa, int kQfb, typename FUNC>
   PROXY_HOST_DEVICE static void computeGradPhiPhi(int const kDir, int const kQFixed, real_t const (&kX)[4][3],
-                                                  FUNC &&func);
+                                                  real_t const (&invJ3D)[3][3], FUNC &&func);
 
   /**
    * @brief computes the non-zero contributions of the interface flux
    *   block matrix CKL, i.e., the integration of "Grad(Phi_i)*Phi_j"
    *   over a face with the test function "Phi_i" in the element K
    *   and the trial function "Phi_j" in the element L.
-   * @param faceId Integer (0,1,2,3,4 or 5) to specify the integrated face.
-   * @param X Array containing the coordinates of the support points of the
-   * face.
+   * @param kX Array containing the coordinates of the 4 face corner support
+   * points, used for the surface Jacobian (integration weight).
+   * @param X8 Array containing the coordinates of the 8 element corner support
+   * points, used to compute the volumetric inverse Jacobian for physical
+   * gradient evaluation.
+   * @param kFaceId Integer (0,1,2,3,4 or 5) to specify the integrated face.
    * @param func Callback function accepting four parameters: i, j, k and C_ijk
    *   invoked when processing each interface flux matrix contribution. The
    * interface flux matrix is assembled in a tensorial form prior to computing
@@ -487,12 +492,13 @@ static Metrics3D computeMetrics3D(float const (&X)[8][3])
    * vector. The function will compute the index i (line of the matrix and
    * degree of freedom associated to the trial function "Grad(Phi)"), index j
    * (column of the matrix and degree of freedom associated to the test function
-   * "Phi"), index k (k = 0,1,2 corresponding to x,y,z directions) and C_ijk
-   * which is the value of the k-th component associated to the matrix entry
-   * (i,j).
+   * "Phi"), index k (k = 0,1,2 corresponding to physical x,y,z directions) and
+   * C_ijk which is the value of the k-th component associated to the matrix
+   * entry (i,j).
    */
   template <typename FUNC>
-  PROXY_HOST_DEVICE static void computeInterfaceFluxTerm(real_t const (&kX)[4][3], int const kFaceId, FUNC &&func);
+  PROXY_HOST_DEVICE static void computeInterfaceFluxTerm(real_t const (&kX)[4][3], real_t const (&X8)[8][3],
+                                                         int const kFaceId, FUNC &&func);
 
   /**
    * @brief computes the matrix B, defined as J^{-T}J^{-1}/det(J), where J is
@@ -1055,10 +1061,8 @@ PROXY_HOST_DEVICE void Qk_Hexahedron_Lagrange_GaussLobatto<GL_BASIS>::computeMas
 
 template <typename GL_BASIS>
 template <int kQfa, int kQfb, typename FUNC>
-PROXY_HOST_DEVICE void Qk_Hexahedron_Lagrange_GaussLobatto<GL_BASIS>::computeGradPhiPhi(int const kDir,
-                                                                                        int const kQFixed,
-                                                                                        real_t const (&kX)[4][3],
-                                                                                        FUNC &&func) {
+PROXY_HOST_DEVICE void Qk_Hexahedron_Lagrange_GaussLobatto<GL_BASIS>::computeGradPhiPhi(
+    int const kDir, int const kQFixed, real_t const (&kX)[4][3], real_t const (&invJ3D)[3][3], FUNC &&func) {
   int ifa, ifb;
   switch (kDir) {
     case 0:
@@ -1091,15 +1095,18 @@ PROXY_HOST_DEVICE void Qk_Hexahedron_Lagrange_GaussLobatto<GL_BASIS>::computeGra
     const real_t kGifa = basisGradientAt(i, kQfa);
     const real_t kGifb = basisGradientAt(i, kQfb);
     const real_t kGiFixed = basisGradientAt(i, kQFixed);
-    func(kAi, kAbj, ifa, kVal * kGifa);
-    func(kIb, kAbj, ifb, kVal * kGifb);
-    func(kAbj, kAbj, kDir, kVal * kGiFixed);
+    for (int k = 0; k < 3; ++k) {
+      func(kIb, kAbj, k, kVal * invJ3D[ifa][k] * kGifa);
+      func(kAi, kAbj, k, kVal * invJ3D[ifb][k] * kGifb);
+      func(kAbj, kAbj, k, kVal * invJ3D[kDir][k] * kGiFixed);
+    }
   }
 }
 
 template <typename GL_BASIS>
 template <typename FUNC>
 PROXY_HOST_DEVICE void Qk_Hexahedron_Lagrange_GaussLobatto<GL_BASIS>::computeInterfaceFluxTerm(real_t const (&kX)[4][3],
+                                                                                               real_t const (&X8)[8][3],
                                                                                                int const kFaceId,
                                                                                                FUNC &&func) {
   const int kDir = kFaceId / 2;
@@ -1107,7 +1114,9 @@ PROXY_HOST_DEVICE void Qk_Hexahedron_Lagrange_GaussLobatto<GL_BASIS>::computeInt
   double_loop<num1dNodes, num1dNodes>([&](auto const kIcqfa, auto const kIcqfb) {
     constexpr int kQfa = decltype(kIcqfa)::value;
     constexpr int kQfb = decltype(kIcqfb)::value;
-    computeGradPhiPhi<kQfa, kQfb>(kDir, kQFixed, kX, func);
+    real_t invJ3D[3][3] = {{0}};
+    invJacobianTransformation(kQfa, kQfb, kQFixed, X8, invJ3D);
+    computeGradPhiPhi<kQfa, kQfb>(kDir, kQFixed, kX, invJ3D, func);
   });
 }
 

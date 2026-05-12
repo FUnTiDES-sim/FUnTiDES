@@ -6,7 +6,7 @@
 
 function(generate_solver_implementations)
     set(options "")
-    set(oneValueArgs OUTPUT_DIR OUTPUT_VAR SOLVER_NAME)
+    set(oneValueArgs OUTPUT_DIR OUTPUT_VAR SOLVER_NAME FILE_PREFIX)
     set(multiValueArgs ORDERS MESH_TYPES MODEL_TYPES PHYSIC_TYPES)
     cmake_parse_arguments(GEN "${options}" "${oneValueArgs}" "${multiValueArgs}" ${ARGN})
     
@@ -32,7 +32,10 @@ function(generate_solver_implementations)
     if(NOT DEFINED GEN_OUTPUT_VAR)
         message(FATAL_ERROR "OUTPUT_VAR argument is required")
     endif()
-    
+    if(NOT DEFINED GEN_FILE_PREFIX)
+        set(GEN_FILE_PREFIX "SEMQ")
+    endif()
+
     # Initialize output list
     set(GENERATED_SOURCES)
     
@@ -43,8 +46,7 @@ function(generate_solver_implementations)
                 set(TEMPLATE_FILE "${CMAKE_CURRENT_SOURCE_DIR}/templates/${GEN_SOLVER_NAME}_solver_template_${PHYSIC_TYPE}.cpp.in")
                 
                 foreach(MODEL_TYPE ${GEN_MODEL_TYPES})
-                    # Create filename: SEMQ{ORDER}_{MESH_TYPE}_{SOLVER_NAME}_solver_model{MODEL_TYPE}.cpp
-                    set(GEN_FILENAME "SEMQ${ORDER}_${MESH_TYPE}_${GEN_SOLVER_NAME}_solver_${PHYSIC_TYPE}_model${MODEL_TYPE}.cpp")
+                    set(GEN_FILENAME "${GEN_FILE_PREFIX}${ORDER}_${MESH_TYPE}_${GEN_SOLVER_NAME}_solver_${PHYSIC_TYPE}_model${MODEL_TYPE}.cpp")
                     set(GEN_FILEPATH "${GEN_OUTPUT_DIR}/${GEN_FILENAME}")
                     
                     # Determine model header and class based on mesh type

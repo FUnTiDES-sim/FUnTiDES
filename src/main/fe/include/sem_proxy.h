@@ -1,12 +1,15 @@
+// This file defines the main interface for the SEM proxy simulation.
+
 #ifndef FUNTIDES_MAIN_FE_INCLUDE_SEM_PROXY_H_
 #define FUNTIDES_MAIN_FE_INCLUDE_SEM_PROXY_H_
+
 #include <data_type.h>
 #include <utils.h>
 
 #include <array>
+#include <chrono>
 #include <memory>
 #include <string>
-#include <variant>
 
 #include "boundary_synchronizer.h"
 #include "cartesian_params.h"
@@ -22,176 +25,170 @@
 
 /**
  * @class SEMproxy
+ * @brief Main driver class for the Spectral Element Method (SEM) simulation.
  */
 class SEMproxy {
  public:
   /**
-   * @brief Constructor of the SEMproxy class
+   * @brief Constructs the SEMproxy simulation environment.
+   * @param cfg The parsed configuration options for the simulation.
    */
-  SEMproxy(const SemProxyOptions& cfg);
+  explicit SEMproxy(const SemProxyOptions& cfg);
 
   /**
-   * @brief Destructor of the SEMproxy class
+   * @brief Destructs the SEMproxy instance and closes internal engines.
    */
-  SEMproxy() {
-    io_ctrl_.reset();  // Manually trigger SemIOController destructor (which
-                       // closes engines)
-  }
+  ~SEMproxy() { io_ctrl_.reset(); }
+
   /**
-   * @brief Initialize the simulation.
-   * @post run()
+   * @brief Initializes the finite element arrays and sources.
    */
-  void initFiniteElem() {
-    init_arrays();
-    init_source();
+  void InitFiniteElem() {
+    InitArrays();
+    InitSource();
   };
 
   /**
-   * @brief Run the simulation.
-   * @pre This must be called after init()
-   * @post Optional printout performance resutls
+   * @brief Executes the main time-stepping simulation loop.
    */
-  void run();
+  void Run();
 
   /**
-   * Save slice in gnuplot matrix format (default - best for gnuplot)
-   * Format: space-separated matrix with blank lines between rows for 3D
-   * plotting
+   * @brief Saves a 2D data slice in Gnuplot matrix format.
+   * @param host_slice The data view to save.
+   * @param size_x X-dimension size.
+   * @param size_y Y-dimension size.
+   * @param filepath The output file path.
    */
-  void saveSlice(const VECTOR_REAL_VIEW& host_slice, int sizex, int sizey, const std::string& filepath) const;
-
-  void saveSnapshot(int timesample, VECTOR_REAL_VIEW data) const;
+  void SaveSlice(const VECTOR_REAL_VIEW& host_slice, int size_x, int size_y, const std::string& filepath) const;
 
   /**
-   * @brief Computes optimal time step using CFL stability condition for seismic
-   * wave propagation
-   *
-   * Calculates the maximum stable time step for explicit finite difference
-   * schemes using the CFL condition: dt ≤ CFL_factor × min_spacing / (√D ×
-   * v_max) where D is the number of dimension.
-   *
-   * @param cfl_factor Stability factor (0.5-0.7 for 2nd-order, 0.3-0.4 for
-   * higher-order schemes)
-   * @return dt the max timestep.
-   *
-   * @note Typical values: 0.5-0.7 for 2nd-order, 0.3-0.4 for higher-order
-   * schemes
-   * @warning Must be called before time-stepping loop to ensure numerical
-   * stability
-   *
+   * @brief Saves a full simulation snapshot for a given time sample.
+   * @param time_sample The current timestep index.
+   * @param data The data array representing the field state.
    */
-  float find_cfl_dt(float cfl_factor);
+  void SaveSnapshot(int time_sample, VECTOR_REAL_VIEW data) const;
+  void SaveSnapshot(int timestep);
 
-  void saveSnapshot(int timestep);
+  /**
+   * @brief Computes optimal time step using the CFL stability condition.
+   * @param cfl_factor Stability factor (e.g., 0.5-0.7 for 2nd-order schemes).
+   * @return The maximum stable time step delta (dt).
+   */
+  float FindCflDt(float cfl_factor);
 
  private:
-  // Domain Decomposition Parameter
-  // Mocking MPI rank and size for now.
-  // In a real MPI application, these would come from MPI_Comm_rank/size.
-  model::CartesianParams<float, int> m_localParams;
+  // --- Domain Decomposition & Topology ---
+  model::CartesianParams<float, int> local_params_;
   utils::DistributedContext dist_ctx_;
   utils::ParallelTopology par_topology_;
 
-  // proper to cartesian mesh
-  // or any structured mesh
-  int nb_elements_[3] = {0};
-  int nb_nodes_[3] = {0};
-  std::array<float, 3> src_coord_ = {0};
-  std::array<float, 3> rcv_coord_ = {0};
+  int num_elements_[3] = {0};
+  int num_nodes_[3] = {0};
   float domain_size_[3] = {0};
 
-  // snapshots
-  bool is_snapshots_;
-  int snap_time_interval_;
+  // --- IO & Snapshots ---
+  bool is_snapshots_ = false;
+  int snap_time_interval_ = 0;
   std::string snap_folder_;
+  std::shared_ptr<SemIOController> io_ctrl_;
 
-  // physics
-  bool isElastic_;
-  bool isAcoustoElastic_;
-  bool freeSurface_;
+  // --- Physics Configurations ---
+  bool is_elastic_ = false;
+  bool is_acousto_elastic_ = false;
+  bool free_surface_ = false;
+  bool is_dg_ = false;
 
-  // sponge boundary parameters
+  // --- Sponge Boundary Parameters ---
   std::array<float, 3> sponge_size_ = {0, 0, 0};
   bool surface_sponge_ = false;
   float taper_delta_ = 0.015f;
 
-  // time parameters
-  float dt_;
-  float timemax_;
-  int num_sample_;
-  // source parameters
-  const int myNumberOfRHS = 1;
-  int myElementSource = 0;
-  float tpeak_;
-  float f0_;
-  int ricker_order_;
+  // --- Time & Source Parameters ---
+  float dt_ = 0.0f;
+  float time_max_ = 0.0f;
+  int num_samples_ = 0;
 
-  std::shared_ptr<model::ModelApi<float, int>> m_mesh;
-  std::unique_ptr<solver::fe::Solver> m_solver;
+  const int num_rhs_ = 1;
+  int source_element_ = 0;
+  float t_peak_ = 0.0f;
+  float f0_ = 0.0f;
+  int ricker_order_ = 0;
 
-  // Boundary Synchronizer for DD
-  std::unique_ptr<solver::fe::BoundarySynchronizer> m_syncer;
+  std::array<float, 3> src_coord_ = {0};
+  std::array<float, 3> rcv_coord_ = {0};
 
-  SolverUtils myUtils;
+  // --- Core Solver & Mesh ---
+  std::shared_ptr<model::ModelApi<float, int>> mesh_;
+  std::unique_ptr<solver::fe::Solver> solver_;
+  std::unique_ptr<solver::fe::BoundarySynchronizer> syncer_;
+  SolverUtils utils_;
 
-  // arrays
-  arrayReal myRHSTerm;
-  vectorReal pnGlobalPrev;
-  vectorReal pnGlobalCurr;
-  vectorInt rhsElement;
-  vectorInt rhsElementRcv;
-  arrayReal rhsWeights;
-  arrayReal rhsWeightsRcv;
-  arrayReal pnAtReceiver;
+  // --- Acoustic / Shared Arrays ---
+  arrayReal rhs_term_;
+  vectorReal pn_global_prev_;
+  vectorReal pn_global_curr_;
+  arrayReal pn_dg_prev_;
+  arrayReal pn_dg_curr_;
+  vectorInt rhs_element_;
+  vectorInt rhs_element_rcv_;
+  arrayReal rhs_weights_;
+  arrayReal rhs_weights_rcv_;
+  arrayReal pn_at_receiver_;
 
-  // elastic arrays
-  arrayReal myRHSTermx;
-  arrayReal myRHSTermy;
-  arrayReal myRHSTermz;
-  vectorReal uxnGlobalPrev;
-  vectorReal uynGlobalPrev;
-  vectorReal uznGlobalPrev;
-  vectorReal uxnGlobalCurr;
-  vectorReal uynGlobalCurr;
-  vectorReal uznGlobalCurr;
-  arrayReal uxnAtReceiver;
-  arrayReal uynAtReceiver;
-  arrayReal uznAtReceiver;
+  // --- Elastic Arrays ---
+  arrayReal rhs_term_x_;
+  arrayReal rhs_term_y_;
+  arrayReal rhs_term_z_;
+  vectorReal uxn_global_prev_;
+  vectorReal uyn_global_prev_;
+  vectorReal uzn_global_prev_;
+  vectorReal uxn_global_curr_;
+  vectorReal uyn_global_curr_;
+  vectorReal uzn_global_curr_;
+  arrayReal uxn_at_receiver_;
+  arrayReal uyn_at_receiver_;
+  arrayReal uzn_at_receiver_;
 
-  // DAS receiver data
-  SourceAndReceiverUtils::DASType dasType_ = SourceAndReceiverUtils::DASType::kNone;
-  int dasNumSamples_ = 5;
-  float dasGaugeLength_ = 1.0f;
-  std::array<float, 3> dasDirection_ = {1, 0, 0};  ///< Fiber direction unit vector
-  std::array<float, 3> dasVector_ = {1, 0, 0};     ///< Direction (for dipole: divided by L)
-  std::vector<int> dasNodeIds_;                    ///< Global node IDs [nSamples * npe]
-  std::vector<float> dasWeights_;                  ///< Precomputed weights [nSamples * npe]
-  vectorReal dasSignal_;                           ///< DAS trace [num_sample_]
+  // --- DAS Receiver Data ---
+  SourceAndReceiverUtils::DASType das_type_ = SourceAndReceiverUtils::DASType::kNone;
+  int das_num_samples_ = 5;
+  float das_gauge_length_ = 1.0f;
+  std::array<float, 3> das_direction_ = {1, 0, 0};
+  std::array<float, 3> das_vector_ = {1, 0, 0};
+  std::vector<int> das_node_ids_;
+  std::vector<float> das_weights_;
+  vectorReal das_signal_;
 
-  // io controller
-  std::shared_ptr<SemIOController> io_ctrl_;
+  // --- Performance Tracking ---
+  double time_init_ = 0.0;
+  double time_compute_ = 0.0;
+  double time_io_ = 0.0;
 
-  // initialize source and RHS
-  void init_source();
+  // --- Initialization Helpers ---
+  void InitSource();
+  void InitArrays();
+  void InitMpi(int* mpi_init);
+  void InitSimParams(const SemProxyOptions& opt);
+  void InitMeshParams(const SemProxyOptions& opt);
+  void InitTopology();
+  void InitSync();
+  void InitTimeParams(const SemProxyOptions& opt);
 
-  // allocate arrays and vectors
-  void init_arrays();
+  void SetupSolver(const SemProxyOptions& opt);
+  void SetupAttenuation(const SemProxyOptions& opt);
+  void SetupIo(const SemProxyOptions& opt);
+  void SetupDas(const SemProxyOptions& opt);
 
-  // private methods to pars argv options
-  int getPhysic(string physicArg);
-  utils::enums::implemType getImplem(string implemArg);
-  utils::enums::methodType getMethod(string methodArg);
-  utils::enums::meshType getMesh(string meshArg);
+  void DisplayInitMsg(const SemProxyOptions& opt);
+  void DisplayPerfMsg() const;
 
-  // private methods for init
-  void init_mpi(int* mpi_init);
-  void init_sim_params(const SemProxyOptions& opt);
-  void init_mesh_params(const SemProxyOptions& opt);
-  void init_topology();
-  void init_sync();
-  void init_time_params(const SemProxyOptions& opt);
-
-  void display_init_msg(const SemProxyOptions& opt);
-  model::AnisotropyType getAnisotropy(std::string anisotropyArg);
+  // --- Parsing Helpers ---
+  int GetPhysic(std::string physic_arg);
+  utils::enums::implemType GetImplem(std::string implem_arg);
+  utils::enums::methodType GetMethod(std::string method_arg);
+  utils::enums::meshType GetMesh(std::string mesh_arg);
+  model::AnisotropyType GetAnisotropy(std::string anisotropy_arg);
 };
+
 #endif  // FUNTIDES_MAIN_FE_INCLUDE_SEM_PROXY_H_

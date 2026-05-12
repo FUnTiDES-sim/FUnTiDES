@@ -1,3 +1,6 @@
 add_subdirectory(api)
 add_subdirectory(impl)
 add_subdirectory(pywrap)
+if(COMPILE_DG)
+  add_subdirectory(DG)
+endif()
