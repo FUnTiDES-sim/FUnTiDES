@@ -6,6 +6,7 @@
 
 #include <algorithm>
 
+#include "cartesian_model_file_reader.h"
 #include "cartesian_struct_boundary_classifier.h"
 
 namespace model {
@@ -17,7 +18,7 @@ class CartesianStructBuilder : public ModelBuilderBase<FloatType, ScalarType> {
                          FloatType oz = 0.0, FloatType global_lx = -1.0, FloatType global_ly = -1.0,
                          FloatType global_lz = -1.0, FloatType global_ox = 0.0, FloatType global_oy = 0.0,
                          FloatType global_oz = 0.0, bool isAcoustoElastic = false,
-                         FloatType acoustoElasticBoundaryZ = static_cast<FloatType>(0))
+                         FloatType acoustoElasticBoundaryZ = static_cast<FloatType>(0), std::string model_file = "")
       : ex_(ex),
         ey_(ey),
         ez_(ez),
@@ -36,7 +37,8 @@ class CartesianStructBuilder : public ModelBuilderBase<FloatType, ScalarType> {
         global_oy_(global_oy),
         global_oz_(global_oz),
         isAcoustoElastic_(isAcoustoElastic),
-        acoustoElasticBoundaryZ_(acoustoElasticBoundaryZ) {}
+        acoustoElasticBoundaryZ_(acoustoElasticBoundaryZ),
+        model_file_(std::move(model_file)) {}
 
   ~CartesianStructBuilder() = default;
 
@@ -104,6 +106,32 @@ class CartesianStructBuilder : public ModelBuilderBase<FloatType, ScalarType> {
       }
     }
 
+    if (!model_file_.empty()) {
+      if (isModelOnNodes_)
+        throw std::runtime_error(
+            "[CartesianStructBuilder] model_file only supported with isModelOnNodes=false for now.");
+      int const n_elem = ex_ * ey_ * ez_;
+      model::CartesianModelFileReader reader(model_file_);
+      const size_t n = reader.count();
+      auto fill_view = [&](vectorReal& view, const std::string& prop, const std::string& label) {
+        if (!reader.has(prop)) return;
+        view = allocateVector<vectorReal>(static_cast<int>(n), label.c_str());
+        const auto& buf = reader.get(prop);
+        auto host = Kokkos::create_mirror_view(view);
+        for (size_t i = 0; i < n; ++i) host[i] = static_cast<FloatType>(buf[i]);
+        Kokkos::deep_copy(view, host);
+      };
+      fill_view(data.model_vp_element_, "Vp", "model_vp_element");
+      fill_view(data.model_rho_element_, "Rho", "model_rho_element");
+      fill_view(data.model_vs_element_, "Vs", "model_vs_element");
+      if (data.model_vp_element_.extent(0) != static_cast<size_t>(n_elem))
+        throw std::runtime_error("[CartesianStructBuilder] model_file has " +
+                                 std::to_string(data.model_vp_element_.extent(0)) + " elements but mesh has " +
+                                 std::to_string(n_elem));
+      std::cout << "[Model] vp[0]=" << data.model_vp_element_[0] << " vp[mid]=" << data.model_vp_element_[n_elem / 2]
+                << " vp[last]=" << data.model_vp_element_[n_elem - 1] << std::endl;
+    }
+
     // -------------------------------------------------------------------------
     // Construct model with local coordinates and dimensions, but use global
     // boundaries for boundary classification.
@@ -125,6 +153,7 @@ class CartesianStructBuilder : public ModelBuilderBase<FloatType, ScalarType> {
   bool isElastic_;
   bool isAcoustoElastic_{false};
   FloatType acoustoElasticBoundaryZ_{static_cast<FloatType>(0)};
+  std::string model_file_;
 };
 }  // namespace model
 

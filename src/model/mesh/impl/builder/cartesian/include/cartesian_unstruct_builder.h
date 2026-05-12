@@ -4,6 +4,7 @@
 #include <stdexcept>
 
 #include "builder.h"
+#include "cartesian_model_file_reader.h"
 #include "cartesian_params.h"
 #include "cartesian_unstruct_boundary_classifier.h"
 #include "gllpoints.h"
@@ -37,7 +38,8 @@ class CartesianUnstructBuilder : public ModelBuilderBase<FloatType, ScalarType> 
         global_lz_(p.global_lz > 0 ? p.global_lz : p.lz),
         global_ox_(p.global_lx > 0 ? p.global_origin_x : p.origin_x),
         global_oy_(p.global_ly > 0 ? p.global_origin_y : p.origin_y),
-        global_oz_(p.global_lz > 0 ? p.global_origin_z : p.origin_z) {
+        global_oz_(p.global_lz > 0 ? p.global_origin_z : p.origin_z),
+        model_file_(p.model_file) {
     initGlobalNodeList();
     initNodesCoords();
     initModels();
@@ -88,6 +90,8 @@ class CartesianUnstructBuilder : public ModelBuilderBase<FloatType, ScalarType> 
   bool isElastic_;
   bool isAcoustoElastic_{false};
   FloatType acoustoElasticBoundaryZ_{static_cast<FloatType>(0)};
+
+  std::string model_file_;
 
   arrayInt global_node_index_;
   vectorReal nodes_coords_x_;
@@ -313,6 +317,40 @@ class CartesianUnstructBuilder : public ModelBuilderBase<FloatType, ScalarType> 
           }
         }
       }
+    }
+    if (!model_file_.empty()) {
+      if (isModelOnNodes_) {
+        throw std::runtime_error(
+            "[CartesianUnstructBuilder] model_file only supported with "
+            "isModelOnNodes=false for now.");
+      }
+      model::CartesianModelFileReader reader(model_file_);
+      const size_t n = reader.count();
+      auto fill_view = [&](vectorReal& view, const std::string& prop, const std::string& label) {
+        if (!reader.has(prop)) return;
+        view = allocateVector<vectorReal>(static_cast<int>(n), label.c_str());
+        const auto& buf = reader.get(prop);
+        auto host = Kokkos::create_mirror_view(view);
+        for (size_t i = 0; i < n; ++i) host[i] = static_cast<FloatType>(buf[i]);
+        Kokkos::deep_copy(view, host);
+      };
+      fill_view(model_vp_element_, "Vp", "model_vp_element");
+      fill_view(model_rho_element_, "Rho", "model_rho_element");
+      fill_view(model_vs_element_, "Vs", "model_vs_element");
+      fill_view(model_delta_element_, "Delta", "model_delta_element");
+      fill_view(model_epsilon_element_, "Epsilon", "model_epsilon_element");
+      fill_view(model_gamma_element_, "Gamma", "model_gamma_element");
+      fill_view(model_theta_element_, "Theta", "model_theta_element");
+      fill_view(model_phi_element_, "Phi", "model_phi_element");
+
+      std::cout << "[Model] vp[0]=" << model_vp_element_[0] << " vp[mid]=" << model_vp_element_[n_element / 2]
+                << " vp[last]=" << model_vp_element_[n_element - 1] << std::endl;
+
+      // Vérification cohérence
+      if (model_vp_element_.extent(0) != static_cast<size_t>(n_element))
+        throw std::runtime_error("[CartesianUnstructBuilder] model_file has " +
+                                 std::to_string(model_vp_element_.extent(0)) + " elements but mesh has " +
+                                 std::to_string(n_element));
     }
   }
 };
