@@ -7,6 +7,7 @@
 #include <limits>
 #include <stdexcept>
 #include <typeinfo>
+#include <unordered_set>
 
 #include "data_type.h"
 #include "dg_penalty.h"
@@ -131,6 +132,15 @@ class DGsolver : public Solver {
    */
   void updateFields(float dt, const DataType& data);
 
+   /**
+   * @brief Run Verlet update only for a compact subset of elements.
+   * @param dt        Time step.
+   * @param data      Wavefield data.
+   * @param elem_list Compact array of element indices to update.
+   * @param n_elems   Number of entries in @p elem_list.
+   */
+  void updateFieldsFromList(float dt, const DataType& data, const VECTOR_INT_VIEW& elem_list, int n_elems);
+
   /**
    * @brief Kernel 1 — volume mass + SumFact stiffness. Zeros the damping accumulator.
    * @param kNumElem Total number of elements.
@@ -160,10 +170,37 @@ class DGsolver : public Solver {
    */
   void applyVerlet(int kNumElem, float dt, ARRAY_REAL_VIEW current_field, ARRAY_REAL_VIEW prev_field);
 
+  /**
+   * @brief Given a list of elements, construct the corresponding list of faces for kernels that operate on faces.
+   */
+  void faceListFromElementList() {
+    std::unordered_set<int> visited_faces;
+    for (int i = 0; i < m_n_elem_list_; ++i) {
+        const int e = m_elem_list_[i];
+        for (int f = 0; f < 6; ++f) {
+          const int face_id = m_mesh.getGlobalFace(e, static_cast<model::CubicFace>(f));
+          visited_faces.insert(face_id);
+        }
+    }
+    m_n_face_list_ = static_cast<int>(visited_faces.size());
+    m_face_list_ = allocateVector<VECTOR_INT_VIEW>(m_n_face_list_, "faceList");
+    int i = 0;
+    for (const int face_id : visited_faces) {
+        m_face_list_(i++) = face_id;
+    }
+}
+
  private:
   MESH_TYPE m_mesh;
   model::FaceConnectivityUnstruct<float, int> m_face_connectivity_;
   real_t m_penalty_factor_ = 10.0f;
+
+  // List state used by updateFieldsFromList.
+  bool m_list_mode_ = false;
+  VECTOR_INT_VIEW m_elem_list_;
+  int m_n_elem_list_ = 0;
+  VECTOR_INT_VIEW m_face_list_;
+  int m_n_face_list_ = 0;
 
   ARRAY_REAL_VIEW m_rhs_elem_;
   ARRAY_REAL_VIEW m_mass_local_;   ///< Per-element mass diagonal (nElem x kPPE)
