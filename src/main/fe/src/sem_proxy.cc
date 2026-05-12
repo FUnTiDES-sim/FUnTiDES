@@ -82,7 +82,7 @@ void SEMproxy::SetupAttenuation(const SemProxyOptions& opt) {
   }
 
   // Create temporary mirrors, fill on Host, deep_copy to Device
-  auto ToView = [](const std::vector<float>& v, const char* name) {
+  auto ToView = [](const std::vector<float>& v, const std::string& name) {
     vectorReal d_view(name, v.size());
     auto h_view = Kokkos::create_mirror_view(d_view);
     for (size_t i = 0; i < v.size(); ++i) h_view(i) = v[i];
