@@ -30,6 +30,11 @@ add_gtest(rhs_acoustoelastic_test
   proxy_solver
 )
 
+add_gtest(sem_solver_acoustoelastic_test
+  test_sem_solver_acoustoelastic.cc
+  proxy_solver
+)
+
 add_gtest(solver_data_test
   test_solver_data.cc
   proxy_solver
