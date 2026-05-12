@@ -86,4 +86,12 @@ TEST_F(SolverFactoryErrorTest, ThrowsOnUnsupportedMethodOrImpl) {
                std::runtime_error);
 }
 
+/* Covers "Unknown implementation type" inside the kSem switch */
+TEST_F(SolverFactoryErrorTest, ThrowsOnUnknownImplTypeForSem) {
+  auto unknownImpl = static_cast<feenum::implemType>(99);
+  EXPECT_THROW(createSolver(feenum::methodType::kSem, unknownImpl, feenum::meshType::kStruct,
+                            feenum::modelLocationType::kOnNodes, feenum::physicType::kAcoustic, 1),
+               std::runtime_error);
+}
+
 }  // namespace solver::fe::solver_factory

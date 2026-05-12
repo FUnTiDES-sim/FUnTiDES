@@ -17,9 +17,17 @@ function(print_configuration_summary)
   message(STATUS "  ENABLE_PYWRAP:        ${ENABLE_PYWRAP}")
   message(STATUS "")
 
-  message(STATUS "Debugging Options:")
-  message(STATUS "  FD_SAVE_SNAPSHOTS:    ${FD_SAVE_SNAPSHOTS}")
-  message(STATUS "  PRINT_ALLOC_INFO:     ${PRINT_ALLOC_INFO}")
+  message(STATUS "Coverage")
+  message(STATUS "  ENABLE_COVERAGE:      ${ENABLE_COVERAGE}")
+  message(STATUS "")
+
+  message(STATUS "MPI Options:")
+  message(STATUS "  USE_MPI:              ${USE_MPI}")
+  message(STATUS "")
+
+  message(STATUS "Order generation:")
+  message(STATUS "  SEM Solvers:          ${MAX_SOLVER_ORDER}")
+  message(STATUS "  Gradient:             ${MAX_DIFFERENTIATOR_ORDER}")
   message(STATUS "")
 
   message(STATUS "Build Options:")

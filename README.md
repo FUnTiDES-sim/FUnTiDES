@@ -144,6 +144,16 @@ python3 python run_funtides.py examples/example_config.yaml
 
 The `example_config.yaml` file inside the examples folder, gives an example of a possible yaml file to use.
 
+
+You can also run a test using a model file in txt format. 
+
+The format needed for model on the nodes or on elements can be seen in the two example files model_on_nodes.txt and model_on_elements,
+located inside the examples/ folder.
+To use this option with the code, you need to add --model-file /path/of/your/model_file in the command line or a section 
+model_file inside the yaml where you put the path to your model file between commas.
+
+
+
 > **Note**: The script can also handle mpi simulation with or without a scheduler with dedicated option inside the yaml
 
 > **Note**: A dedicated python env can be made via TPLs.
