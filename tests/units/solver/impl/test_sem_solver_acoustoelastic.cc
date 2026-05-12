@@ -177,12 +177,17 @@ TYPED_TEST(AEsolverOnElemTest, ElasticMassMatrixNonZeroInDomain) {
   EXPECT_GT(total, 0.0f);
 }
 
-TYPED_TEST(AEsolverOnElemTest, DampingMatrixZeroWithNoSponge) {
+TYPED_TEST(AEsolverOnElemTest, DampingMatrixNonNegativeAbsorbingBC) {
+  // computeDampingMatrix assembles absorbing-BC coefficients on boundary faces,
+  // not a sponge — entries are always >= 0 and at least one boundary node is > 0.
   for (int c = 0; c < 4; ++c) {
     auto& d = this->solver_.getDampingMatrix(c);
     float total = 0.0f;
-    for (int i = 0; i < this->nNodes_; ++i) total += std::fabs(d[i]);
-    EXPECT_NEAR(total, 0.0f, 1e-6f) << "damping component " << c;
+    for (int i = 0; i < this->nNodes_; ++i) {
+      EXPECT_GE(d[i], 0.0f) << "component " << c << " node " << i;
+      total += d[i];
+    }
+    EXPECT_GT(total, 0.0f) << "no absorbing-BC damping for component " << c;
   }
 }
 
