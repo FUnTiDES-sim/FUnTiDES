@@ -507,15 +507,15 @@ void SEMproxy::InitArrays() {
     uxn_global_prev_ = allocateVector<vectorReal>(n_nodes, "uxnGlobalPrev");
     uyn_global_prev_ = allocateVector<vectorReal>(n_nodes, "uynGlobalPrev");
     uzn_global_prev_ = allocateVector<vectorReal>(n_nodes, "uznGlobalPrev");
-  } else if (!is_elastic_) {
-    rhs_term_ = allocateArray2D<arrayReal>(num_rhs_, num_samples_, "RHSTerm");
-    pn_global_curr_ = allocateVector<vectorReal>(n_nodes, "pnGlobalCurr");
-    pn_global_prev_ = allocateVector<vectorReal>(n_nodes, "pnGlobalPrev");
-    pn_at_receiver_ = allocateArray2D<arrayReal>(1, num_samples_, "pn_at_receiver_");
   } else if (is_dg_) {
     rhs_term_ = allocateArray2D<arrayReal>(num_rhs_, num_samples_, "RHSTerm");
     pn_dg_prev_ = allocateArray2D<arrayReal>(n_elements, n_pts_per_elem, "pnDGPrev");
     pn_dg_curr_ = allocateArray2D<arrayReal>(n_elements, n_pts_per_elem, "pnDGCurr");
+    pn_at_receiver_ = allocateArray2D<arrayReal>(1, num_samples_, "pn_at_receiver_");
+  } else if (!is_elastic_) {
+    rhs_term_ = allocateArray2D<arrayReal>(num_rhs_, num_samples_, "RHSTerm");
+    pn_global_curr_ = allocateVector<vectorReal>(n_nodes, "pnGlobalCurr");
+    pn_global_prev_ = allocateVector<vectorReal>(n_nodes, "pnGlobalPrev");
     pn_at_receiver_ = allocateArray2D<arrayReal>(1, num_samples_, "pn_at_receiver_");
   } else {
     rhs_term_x_ = allocateArray2D<arrayReal>(num_rhs_, num_samples_, "RHSTermx");
