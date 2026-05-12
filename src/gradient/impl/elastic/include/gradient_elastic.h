@@ -15,7 +15,7 @@ class GradientElastic : public Gradient {
  public:
   static constexpr int kNumGrads = 3;
 
-  GradientElastic(VECTOR_REAL_VIEW gradRho, VECTOR_REAL_VIEW gradLambda, VECTOR_REAL_VIEW gradMu)
+  GradientElastic(vectorReal gradRho, vectorReal gradLambda, vectorReal gradMu)
       : gradRho_(gradRho), gradLambda_(gradLambda), gradMu_(gradMu) {}
 
   int getNumGradients() const override final { return kNumGrads; }
@@ -35,7 +35,7 @@ class GradientElastic : public Gradient {
 
   // TODO use template + constexpr if when C++20 is available
   PROXY_HOST_DEVICE
-  VECTOR_REAL_VIEW getGradient(int i) const override {
+  vectorReal getGradient(int i) const override {
     switch (i) {
       case 0:
         return gradRho_;
@@ -55,9 +55,9 @@ class GradientElastic : public Gradient {
   }
 
  private:
-  VECTOR_REAL_VIEW gradRho_;     ///< Gradient Rho field
-  VECTOR_REAL_VIEW gradLambda_;  ///< Gradient Lambda field
-  VECTOR_REAL_VIEW gradMu_;      ///< Gradient Mu field
+  vectorReal gradRho_;     ///< Gradient Rho field
+  vectorReal gradLambda_;  ///< Gradient Lambda field
+  vectorReal gradMu_;      ///< Gradient Mu field
 };
 }  // namespace gradient
 #endif  // FUNTIDES_GRADIENT_IMPL_ELASTIC_INCLUDE_GRADIENT_ELASTIC_H_

@@ -14,12 +14,12 @@ void DifferentiatorAcoustic<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES>:
   auto& myData = dynamic_cast<DifferentiatorDataAcoustic&>(data);
   auto& myMesh = dynamic_cast<MESH_TYPE&>(mesh);
 
-  VECTOR_REAL_VIEW const pn = myData.getForwardField(0);
-  VECTOR_REAL_VIEW const qn = myData.getBackwardField(0);
-  VECTOR_REAL_VIEW const qnPrev = myData.getBackwardField(1);
-  VECTOR_REAL_VIEW const qnPrevPrev = myData.getBackwardField(2);
-  VECTOR_REAL_VIEW const gradKappa = myData.getGradient(0);
-  VECTOR_REAL_VIEW const gradBuoyancy = myData.getGradient(1);
+  vectorReal const pn = myData.getForwardField(0);
+  vectorReal const qn = myData.getBackwardField(0);
+  vectorReal const qnPrev = myData.getBackwardField(1);
+  vectorReal const qnPrevPrev = myData.getBackwardField(2);
+  vectorReal const gradKappa = myData.getGradient(0);
+  vectorReal const gradBuoyancy = myData.getGradient(1);
 
   if constexpr (!IS_MODEL_ON_NODES)
     computeOnElements(myMesh, dt, pn, qn, qnPrev, qnPrevPrev, gradKappa, gradBuoyancy);
@@ -47,8 +47,8 @@ void DifferentiatorAcoustic<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES>:
 
 template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE, bool IS_MODEL_ON_NODES>
 void DifferentiatorAcoustic<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES>::computeOnElements(
-    MESH_TYPE mesh, float dt, VECTOR_REAL_VIEW const pn, VECTOR_REAL_VIEW const qn, VECTOR_REAL_VIEW const qnPrev,
-    VECTOR_REAL_VIEW const qnPrevPrev, VECTOR_REAL_VIEW const gradKappa, VECTOR_REAL_VIEW const gradBuoyancy) const {
+    MESH_TYPE mesh, float dt, vectorReal const pn, vectorReal const qn, vectorReal const qnPrev,
+    vectorReal const qnPrevPrev, vectorReal const gradKappa, vectorReal const gradBuoyancy) const {
   constexpr int nPerElem = kPointsPerElement;
   float const invDt2 = 1.0f / (dt * dt);
 
@@ -106,13 +106,13 @@ void DifferentiatorAcoustic<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES>:
 
 template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE, bool IS_MODEL_ON_NODES>
 void DifferentiatorAcoustic<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES>::computeOnNodes(
-    MESH_TYPE mesh, float dt, VECTOR_REAL_VIEW const pn, VECTOR_REAL_VIEW const qn, VECTOR_REAL_VIEW const qnPrev,
-    VECTOR_REAL_VIEW const qnPrevPrev, VECTOR_REAL_VIEW const gradKappa, VECTOR_REAL_VIEW const gradBuoyancy) const {
+    MESH_TYPE mesh, float dt, vectorReal const pn, vectorReal const qn, vectorReal const qnPrev,
+    vectorReal const qnPrevPrev, vectorReal const gradKappa, vectorReal const gradBuoyancy) const {
   // Get number of nodes
   int const nNodes = mesh.getNumberOfNodes();
 
   // Allocate mass matrix diagonal
-  VECTOR_REAL_VIEW massDiag = VECTOR_REAL_VIEW("massDiag", nNodes);
+  vectorReal massDiag = vectorReal("massDiag", nNodes);
 
   // Local copy of class members to avoid capturing 'this' on the device
   constexpr int nPerElem = kPointsPerElement;

@@ -11,16 +11,16 @@ class GradientDataElasticTest : public ::testing::Test {
   void SetUp() override {
     size = 40;
 
-    ux_n = allocateVector<VECTOR_REAL_VIEW>(size, "ux_n");
-    uy_n = allocateVector<VECTOR_REAL_VIEW>(size, "uy_n");
-    uz_n = allocateVector<VECTOR_REAL_VIEW>(size, "uz_n");
-    ux_dt2 = allocateVector<VECTOR_REAL_VIEW>(size, "ux_dt2");
-    uy_dt2 = allocateVector<VECTOR_REAL_VIEW>(size, "uy_dt2");
-    uz_dt2 = allocateVector<VECTOR_REAL_VIEW>(size, "uz_dt2");
+    ux_n = allocateVector<vectorReal>(size, "ux_n");
+    uy_n = allocateVector<vectorReal>(size, "uy_n");
+    uz_n = allocateVector<vectorReal>(size, "uz_n");
+    ux_dt2 = allocateVector<vectorReal>(size, "ux_dt2");
+    uy_dt2 = allocateVector<vectorReal>(size, "uy_dt2");
+    uz_dt2 = allocateVector<vectorReal>(size, "uz_dt2");
 
-    gradRho = allocateVector<VECTOR_REAL_VIEW>(size, "gradRho");
-    gradLambda = allocateVector<VECTOR_REAL_VIEW>(size, "gradLambda");
-    gradMu = allocateVector<VECTOR_REAL_VIEW>(size, "gradMu");
+    gradRho = allocateVector<vectorReal>(size, "gradRho");
+    gradLambda = allocateVector<vectorReal>(size, "gradLambda");
+    gradMu = allocateVector<vectorReal>(size, "gradMu");
 
     for (int i = 0; i < size; ++i) {
       ux_n(i) = static_cast<float>(i) * 0.1f;
@@ -36,9 +36,9 @@ class GradientDataElasticTest : public ::testing::Test {
   }
 
   int size;
-  VECTOR_REAL_VIEW ux_n, uy_n, uz_n;
-  VECTOR_REAL_VIEW ux_dt2, uy_dt2, uz_dt2;
-  VECTOR_REAL_VIEW gradRho, gradLambda, gradMu;
+  vectorReal ux_n, uy_n, uz_n;
+  vectorReal ux_dt2, uy_dt2, uz_dt2;
+  vectorReal gradRho, gradLambda, gradMu;
 };
 
 TEST_F(GradientDataElasticTest, Construction) {

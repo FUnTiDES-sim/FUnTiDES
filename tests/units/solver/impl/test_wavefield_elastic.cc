@@ -15,19 +15,19 @@ class WavefieldElasticTest : public ::testing::Test {
     size1 = 100;
     size2 = 200;
 
-    uxPrevField = allocateVector<VECTOR_REAL_VIEW>(size1, "uxPrevField");
-    uxCurrField = allocateVector<VECTOR_REAL_VIEW>(size1, "uxCurrField");
-    uyPrevField = allocateVector<VECTOR_REAL_VIEW>(size1, "uyPrevField");
-    uyCurrField = allocateVector<VECTOR_REAL_VIEW>(size1, "uyCurrField");
-    uzPrevField = allocateVector<VECTOR_REAL_VIEW>(size1, "uzPrevField");
-    uzCurrField = allocateVector<VECTOR_REAL_VIEW>(size1, "uzCurrField");
+    uxPrevField = allocateVector<vectorReal>(size1, "uxPrevField");
+    uxCurrField = allocateVector<vectorReal>(size1, "uxCurrField");
+    uyPrevField = allocateVector<vectorReal>(size1, "uyPrevField");
+    uyCurrField = allocateVector<vectorReal>(size1, "uyCurrField");
+    uzPrevField = allocateVector<vectorReal>(size1, "uzPrevField");
+    uzCurrField = allocateVector<vectorReal>(size1, "uzCurrField");
 
-    uxPrevField2 = allocateVector<VECTOR_REAL_VIEW>(size2, "uxPrevField2");
-    uxCurrField2 = allocateVector<VECTOR_REAL_VIEW>(size2, "uxCurrField2");
-    uyPrevField2 = allocateVector<VECTOR_REAL_VIEW>(size2, "uyPrevField2");
-    uyCurrField2 = allocateVector<VECTOR_REAL_VIEW>(size2, "uyCurrField2");
-    uzPrevField2 = allocateVector<VECTOR_REAL_VIEW>(size2, "uzPrevField2");
-    uzCurrField2 = allocateVector<VECTOR_REAL_VIEW>(size2, "uzCurrField2");
+    uxPrevField2 = allocateVector<vectorReal>(size2, "uxPrevField2");
+    uxCurrField2 = allocateVector<vectorReal>(size2, "uxCurrField2");
+    uyPrevField2 = allocateVector<vectorReal>(size2, "uyPrevField2");
+    uyCurrField2 = allocateVector<vectorReal>(size2, "uyCurrField2");
+    uzPrevField2 = allocateVector<vectorReal>(size2, "uzPrevField2");
+    uzCurrField2 = allocateVector<vectorReal>(size2, "uzCurrField2");
 
     // Initialize with test values
     for (size_t i = 0; i < size1; ++i) {
@@ -51,12 +51,12 @@ class WavefieldElasticTest : public ::testing::Test {
 
   size_t size1;
   size_t size2;
-  VECTOR_REAL_VIEW uxPrevField, uxCurrField;
-  VECTOR_REAL_VIEW uyPrevField, uyCurrField;
-  VECTOR_REAL_VIEW uzPrevField, uzCurrField;
-  VECTOR_REAL_VIEW uxPrevField2, uxCurrField2;
-  VECTOR_REAL_VIEW uyPrevField2, uyCurrField2;
-  VECTOR_REAL_VIEW uzPrevField2, uzCurrField2;
+  vectorReal uxPrevField, uxCurrField;
+  vectorReal uyPrevField, uyCurrField;
+  vectorReal uzPrevField, uzCurrField;
+  vectorReal uxPrevField2, uxCurrField2;
+  vectorReal uyPrevField2, uyCurrField2;
+  vectorReal uzPrevField2, uzCurrField2;
 };
 
 TEST_F(WavefieldElasticTest, Constructor) {
@@ -321,12 +321,12 @@ TEST_F(WavefieldElasticTest, CopyConstructorAfterSwap) {
 }
 
 TEST_F(WavefieldElasticTest, EmptyFields) {
-  auto emptyUxPrev = allocateVector<VECTOR_REAL_VIEW>(0, "emptyUxPrev");
-  auto emptyUxCurr = allocateVector<VECTOR_REAL_VIEW>(0, "emptyUxCurr");
-  auto emptyUyPrev = allocateVector<VECTOR_REAL_VIEW>(0, "emptyUyPrev");
-  auto emptyUyCurr = allocateVector<VECTOR_REAL_VIEW>(0, "emptyUyCurr");
-  auto emptyUzPrev = allocateVector<VECTOR_REAL_VIEW>(0, "emptyUzPrev");
-  auto emptyUzCurr = allocateVector<VECTOR_REAL_VIEW>(0, "emptyUzCurr");
+  auto emptyUxPrev = allocateVector<vectorReal>(0, "emptyUxPrev");
+  auto emptyUxCurr = allocateVector<vectorReal>(0, "emptyUxCurr");
+  auto emptyUyPrev = allocateVector<vectorReal>(0, "emptyUyPrev");
+  auto emptyUyCurr = allocateVector<vectorReal>(0, "emptyUyCurr");
+  auto emptyUzPrev = allocateVector<vectorReal>(0, "emptyUzPrev");
+  auto emptyUzCurr = allocateVector<vectorReal>(0, "emptyUzCurr");
 
   WavefieldElastic wavefield(emptyUxPrev, emptyUxCurr, emptyUyPrev, emptyUyCurr, emptyUzPrev, emptyUzCurr);
 
@@ -430,9 +430,9 @@ TEST_F(WavefieldElasticTest, CopyInContainerClass) {
 
 TEST_F(WavefieldElasticTest, SwapWithRotationRotatesThreeBuffers) {
   // Allocate prevprev buffers initialised to 10*component_index
-  auto uxPrevPrev = allocateVector<VECTOR_REAL_VIEW>(size1, "uxPrevPrev");
-  auto uyPrevPrev = allocateVector<VECTOR_REAL_VIEW>(size1, "uyPrevPrev");
-  auto uzPrevPrev = allocateVector<VECTOR_REAL_VIEW>(size1, "uzPrevPrev");
+  auto uxPrevPrev = allocateVector<vectorReal>(size1, "uxPrevPrev");
+  auto uyPrevPrev = allocateVector<vectorReal>(size1, "uyPrevPrev");
+  auto uzPrevPrev = allocateVector<vectorReal>(size1, "uzPrevPrev");
   for (size_t i = 0; i < size1; ++i) {
     uxPrevPrev(i) = 10.0f;
     uyPrevPrev(i) = 20.0f;
@@ -464,9 +464,9 @@ TEST_F(WavefieldElasticTest, SwapWithRotationRotatesThreeBuffers) {
 }
 
 TEST_F(WavefieldElasticTest, SwapWithRotationThreeTimesRestoresState) {
-  auto uxPrevPrev = allocateVector<VECTOR_REAL_VIEW>(size1, "uxPrevPrev");
-  auto uyPrevPrev = allocateVector<VECTOR_REAL_VIEW>(size1, "uyPrevPrev");
-  auto uzPrevPrev = allocateVector<VECTOR_REAL_VIEW>(size1, "uzPrevPrev");
+  auto uxPrevPrev = allocateVector<vectorReal>(size1, "uxPrevPrev");
+  auto uyPrevPrev = allocateVector<vectorReal>(size1, "uyPrevPrev");
+  auto uzPrevPrev = allocateVector<vectorReal>(size1, "uzPrevPrev");
   for (size_t i = 0; i < size1; ++i) {
     uxPrevPrev(i) = 10.0f;
     uyPrevPrev(i) = 20.0f;
@@ -495,9 +495,9 @@ TEST_F(WavefieldElasticTest, SwapWithRotationThreeTimesRestoresState) {
 }
 
 TEST_F(WavefieldElasticTest, SwapWithRotationNoDataCopy) {
-  auto uxPrevPrev = allocateVector<VECTOR_REAL_VIEW>(size1, "uxPrevPrev");
-  auto uyPrevPrev = allocateVector<VECTOR_REAL_VIEW>(size1, "uyPrevPrev");
-  auto uzPrevPrev = allocateVector<VECTOR_REAL_VIEW>(size1, "uzPrevPrev");
+  auto uxPrevPrev = allocateVector<vectorReal>(size1, "uxPrevPrev");
+  auto uyPrevPrev = allocateVector<vectorReal>(size1, "uyPrevPrev");
+  auto uzPrevPrev = allocateVector<vectorReal>(size1, "uzPrevPrev");
   for (size_t i = 0; i < size1; ++i) {
     uxPrevPrev(i) = 10.0f;
     uyPrevPrev(i) = 20.0f;
@@ -513,6 +513,27 @@ TEST_F(WavefieldElasticTest, SwapWithRotationNoDataCopy) {
   // other
   uxPrevPrev(0) = 999.0f;
   EXPECT_FLOAT_EQ(uxPrevField(0), 999.0f);
+}
+
+TEST_F(WavefieldElasticTest, GetNumFieldsReturnsThree) {
+  WavefieldElastic wavefield(uxPrevField, uxCurrField, uyPrevField, uyCurrField, uzPrevField, uzCurrField);
+  EXPECT_EQ(wavefield.getNumFields(), 3);
+}
+
+TEST_F(WavefieldElasticTest, GetFieldNamesMatchComponents) {
+  WavefieldElastic wavefield(uxPrevField, uxCurrField, uyPrevField, uyCurrField, uzPrevField, uzCurrField);
+  const char* const* names = wavefield.getFieldNames();
+  ASSERT_NE(names, nullptr);
+  EXPECT_STREQ(names[0], "ux");
+  EXPECT_STREQ(names[1], "uy");
+  EXPECT_STREQ(names[2], "uz");
+}
+
+TEST_F(WavefieldElasticTest, PrintDoesNotCrash) {
+  WavefieldElastic wavefield(uxPrevField, uxCurrField, uyPrevField, uyCurrField, uzPrevField, uzCurrField);
+  testing::internal::CaptureStdout();
+  EXPECT_NO_THROW(wavefield.print());
+  testing::internal::GetCapturedStdout();
 }
 
 }  // namespace test

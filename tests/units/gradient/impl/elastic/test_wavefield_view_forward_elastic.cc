@@ -14,9 +14,9 @@ class WavefieldViewForwardElasticTest : public ::testing::Test {
  protected:
   void SetUp() override {
     size = 45;
-    ux_n = allocateVector<VECTOR_REAL_VIEW>(size, "ux_n");
-    uy_n = allocateVector<VECTOR_REAL_VIEW>(size, "uy_n");
-    uz_n = allocateVector<VECTOR_REAL_VIEW>(size, "uz_n");
+    ux_n = allocateVector<vectorReal>(size, "ux_n");
+    uy_n = allocateVector<vectorReal>(size, "uy_n");
+    uz_n = allocateVector<vectorReal>(size, "uz_n");
 
     for (int i = 0; i < size; ++i) {
       ux_n(i) = static_cast<float>(i) * 1.0f;
@@ -26,9 +26,9 @@ class WavefieldViewForwardElasticTest : public ::testing::Test {
   }
 
   int size;
-  VECTOR_REAL_VIEW ux_n;
-  VECTOR_REAL_VIEW uy_n;
-  VECTOR_REAL_VIEW uz_n;
+  vectorReal ux_n;
+  vectorReal uy_n;
+  vectorReal uz_n;
 };
 
 TEST_F(WavefieldViewForwardElasticTest, NumFieldsConstant) { EXPECT_EQ(WavefieldViewForwardElastic::kNumFields, 3); }

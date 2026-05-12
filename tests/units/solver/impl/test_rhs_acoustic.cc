@@ -15,13 +15,13 @@ class RhsAcousticTest : public ::testing::Test {
     numElements = 10;
     numNodesPerElement = 8;
 
-    term = allocateArray2D<ARRAY_REAL_VIEW>(numElements, numNodesPerElement, "term");
-    element = allocateVector<VECTOR_INT_VIEW>(numElements, "element");
-    weights = allocateArray2D<ARRAY_REAL_VIEW>(numElements, numNodesPerElement, "weights");
+    term = allocateArray2D<arrayReal>(numElements, numNodesPerElement, "term");
+    element = allocateVector<vectorInt>(numElements, "element");
+    weights = allocateArray2D<arrayReal>(numElements, numNodesPerElement, "weights");
 
-    term2 = allocateArray2D<ARRAY_REAL_VIEW>(20, 12, "term2");
-    element2 = allocateVector<VECTOR_INT_VIEW>(20, "element2");
-    weights2 = allocateArray2D<ARRAY_REAL_VIEW>(20, 12, "weights2");
+    term2 = allocateArray2D<arrayReal>(20, 12, "term2");
+    element2 = allocateVector<vectorInt>(20, "element2");
+    weights2 = allocateArray2D<arrayReal>(20, 12, "weights2");
 
     // Initialize with test values
     for (size_t i = 0; i < numElements; ++i) {
@@ -43,9 +43,9 @@ class RhsAcousticTest : public ::testing::Test {
 
   size_t numElements;
   size_t numNodesPerElement;
-  ARRAY_REAL_VIEW term, term2;
-  VECTOR_INT_VIEW element, element2;
-  ARRAY_REAL_VIEW weights, weights2;
+  arrayReal term, term2;
+  vectorInt element, element2;
+  arrayReal weights, weights2;
 };
 
 TEST_F(RhsAcousticTest, Constructor) {
@@ -201,9 +201,9 @@ TEST_F(RhsAcousticTest, GetWeights) {
 }
 
 TEST_F(RhsAcousticTest, EmptyFields) {
-  auto emptyTerm = allocateArray2D<ARRAY_REAL_VIEW>(0, 0, "emptyTerm");
-  auto emptyElement = allocateVector<VECTOR_INT_VIEW>(0, "emptyElement");
-  auto emptyWeights = allocateArray2D<ARRAY_REAL_VIEW>(0, 0, "emptyWeights");
+  auto emptyTerm = allocateArray2D<arrayReal>(0, 0, "emptyTerm");
+  auto emptyElement = allocateVector<vectorInt>(0, "emptyElement");
+  auto emptyWeights = allocateArray2D<arrayReal>(0, 0, "emptyWeights");
 
   RhsAcoustic rhs(emptyTerm, emptyElement, emptyWeights);
 
@@ -261,6 +261,18 @@ TEST_F(RhsAcousticTest, CopyInContainerClass) {
 
   // Original should reflect change
   EXPECT_FLOAT_EQ(original.m_weights(3, 4), 0.777f);
+}
+
+TEST_F(RhsAcousticTest, GetNumRhsComponentsReturnsOne) {
+  RhsAcoustic rhs(term, element, weights);
+  EXPECT_EQ(rhs.getNumRhsComponents(), 1);
+}
+
+TEST_F(RhsAcousticTest, PrintDoesNotCrash) {
+  RhsAcoustic rhs(term, element, weights);
+  testing::internal::CaptureStdout();
+  EXPECT_NO_THROW(rhs.print());
+  testing::internal::GetCapturedStdout();
 }
 
 }  // namespace test

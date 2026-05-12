@@ -46,10 +46,10 @@ class CartesianStructBoundaryClassifier {
    * @param nx, ny, nz  Node counts in each dimension
    * @param ox, oy, oz  Local domain origin
    * @param lx, ly, lz  Local domain dimensions
-   * @return VECTOR_INT_VIEW of size n_node with BoundaryFlag values
+   * @return vectorInt of size n_node with BoundaryFlag values
    */
-  VECTOR_INT_VIEW classify(int n_node, int nx, int ny, int nz, FloatType ox, FloatType oy, FloatType oz, FloatType lx,
-                           FloatType ly, FloatType lz) const {
+  vectorInt classify(int n_node, int nx, int ny, int nz, FloatType ox, FloatType oy, FloatType oz, FloatType lx,
+                     FloatType ly, FloatType lz) const {
     const bool x_min_is_global = fabs(ox - x_min_) < tol_;
     const bool x_max_is_global = fabs((ox + lx) - x_max_) < tol_;
     const bool y_min_is_global = fabs(oy - y_min_) < tol_;
@@ -57,7 +57,7 @@ class CartesianStructBoundaryClassifier {
     const bool z_min_is_global = fabs(oz - z_min_) < tol_;
     const bool z_max_is_global = fabs((oz + lz) - z_max_) < tol_;
 
-    auto boundaries_t = allocateVector<VECTOR_INT_VIEW>(n_node, "boundaries_t");
+    auto boundaries_t = allocateVector<vectorInt>(n_node, "boundaries_t");
 
     for (int n = 0; n < n_node; ++n) {
       const int i = n % nx;

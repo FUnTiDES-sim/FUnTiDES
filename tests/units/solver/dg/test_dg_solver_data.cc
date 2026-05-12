@@ -24,11 +24,11 @@ class DGsolverDataAcousticTest : public ::testing::Test {
     nSrc_ = 2;
     nSample_ = 10;
 
-    pPrev_ = allocateArray2D<ARRAY_REAL_VIEW>(nElem_, nDof_, "pPrev");
-    pCurr_ = allocateArray2D<ARRAY_REAL_VIEW>(nElem_, nDof_, "pCurr");
-    rhsTerm_ = allocateArray2D<ARRAY_REAL_VIEW>(nSrc_, nSample_, "rhsTerm");
-    rhsElem_ = allocateVector<VECTOR_INT_VIEW>(nSrc_, "rhsElem");
-    rhsWeights_ = allocateArray2D<ARRAY_REAL_VIEW>(nSrc_, nDof_, "rhsWeights");
+    pPrev_ = allocateArray2D<arrayReal>(nElem_, nDof_, "pPrev");
+    pCurr_ = allocateArray2D<arrayReal>(nElem_, nDof_, "pCurr");
+    rhsTerm_ = allocateArray2D<arrayReal>(nSrc_, nSample_, "rhsTerm");
+    rhsElem_ = allocateVector<vectorInt>(nSrc_, "rhsElem");
+    rhsWeights_ = allocateArray2D<arrayReal>(nSrc_, nDof_, "rhsWeights");
 
     for (int e = 0; e < nElem_; ++e)
       for (int d = 0; d < nDof_; ++d) {
@@ -44,8 +44,8 @@ class DGsolverDataAcousticTest : public ::testing::Test {
   }
 
   int nElem_, nDof_, nSrc_, nSample_;
-  ARRAY_REAL_VIEW pPrev_, pCurr_, rhsTerm_, rhsWeights_;
-  VECTOR_INT_VIEW rhsElem_;
+  arrayReal pPrev_, pCurr_, rhsTerm_, rhsWeights_;
+  vectorInt rhsElem_;
 };
 
 // ============================================================
@@ -247,11 +247,11 @@ TEST_F(DGsolverDataAcousticTest, Print_DoesNotCrash) {
 }
 
 TEST_F(DGsolverDataAcousticTest, EmptyViews_ValidConstruction) {
-  auto emptyPrev = allocateArray2D<ARRAY_REAL_VIEW>(0, 0, "ep");
-  auto emptyCurr = allocateArray2D<ARRAY_REAL_VIEW>(0, 0, "ec");
-  auto emptyTerm = allocateArray2D<ARRAY_REAL_VIEW>(0, 0, "et");
-  auto emptyElem = allocateVector<VECTOR_INT_VIEW>(0, "ee");
-  auto emptyW = allocateArray2D<ARRAY_REAL_VIEW>(0, 0, "ew");
+  auto emptyPrev = allocateArray2D<arrayReal>(0, 0, "ep");
+  auto emptyCurr = allocateArray2D<arrayReal>(0, 0, "ec");
+  auto emptyTerm = allocateArray2D<arrayReal>(0, 0, "et");
+  auto emptyElem = allocateVector<vectorInt>(0, "ee");
+  auto emptyW = allocateArray2D<arrayReal>(0, 0, "ew");
 
   DGWavefieldAcoustic empty_wavefield(emptyPrev, emptyCurr);
   RhsAcoustic empty_rhs(emptyTerm, emptyElem, emptyW);

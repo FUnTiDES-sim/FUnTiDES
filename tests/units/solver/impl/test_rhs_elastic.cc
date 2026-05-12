@@ -15,17 +15,17 @@ class RhsElasticTest : public ::testing::Test {
     numElements = 10;
     numNodesPerElement = 8;
 
-    termx = allocateArray2D<ARRAY_REAL_VIEW>(numElements, numNodesPerElement, "termx");
-    termy = allocateArray2D<ARRAY_REAL_VIEW>(numElements, numNodesPerElement, "termy");
-    termz = allocateArray2D<ARRAY_REAL_VIEW>(numElements, numNodesPerElement, "termz");
-    element = allocateVector<VECTOR_INT_VIEW>(numElements, "element");
-    weights = allocateArray2D<ARRAY_REAL_VIEW>(numElements, numNodesPerElement, "weights");
+    termx = allocateArray2D<arrayReal>(numElements, numNodesPerElement, "termx");
+    termy = allocateArray2D<arrayReal>(numElements, numNodesPerElement, "termy");
+    termz = allocateArray2D<arrayReal>(numElements, numNodesPerElement, "termz");
+    element = allocateVector<vectorInt>(numElements, "element");
+    weights = allocateArray2D<arrayReal>(numElements, numNodesPerElement, "weights");
 
-    termx2 = allocateArray2D<ARRAY_REAL_VIEW>(20, 12, "termx2");
-    termy2 = allocateArray2D<ARRAY_REAL_VIEW>(20, 12, "termy2");
-    termz2 = allocateArray2D<ARRAY_REAL_VIEW>(20, 12, "termz2");
-    element2 = allocateVector<VECTOR_INT_VIEW>(20, "element2");
-    weights2 = allocateArray2D<ARRAY_REAL_VIEW>(20, 12, "weights2");
+    termx2 = allocateArray2D<arrayReal>(20, 12, "termx2");
+    termy2 = allocateArray2D<arrayReal>(20, 12, "termy2");
+    termz2 = allocateArray2D<arrayReal>(20, 12, "termz2");
+    element2 = allocateVector<vectorInt>(20, "element2");
+    weights2 = allocateArray2D<arrayReal>(20, 12, "weights2");
 
     // Initialize with test values
     for (size_t i = 0; i < numElements; ++i) {
@@ -51,10 +51,10 @@ class RhsElasticTest : public ::testing::Test {
 
   size_t numElements;
   size_t numNodesPerElement;
-  ARRAY_REAL_VIEW termx, termy, termz;
-  ARRAY_REAL_VIEW termx2, termy2, termz2;
-  VECTOR_INT_VIEW element, element2;
-  ARRAY_REAL_VIEW weights, weights2;
+  arrayReal termx, termy, termz;
+  arrayReal termx2, termy2, termz2;
+  vectorInt element, element2;
+  arrayReal weights, weights2;
 };
 
 TEST_F(RhsElasticTest, Constructor) {
@@ -239,11 +239,11 @@ TEST_F(RhsElasticTest, GetWeights) {
 }
 
 TEST_F(RhsElasticTest, EmptyFields) {
-  auto emptyTermx = allocateArray2D<ARRAY_REAL_VIEW>(0, 0, "emptyTermx");
-  auto emptyTermy = allocateArray2D<ARRAY_REAL_VIEW>(0, 0, "emptyTermy");
-  auto emptyTermz = allocateArray2D<ARRAY_REAL_VIEW>(0, 0, "emptyTermz");
-  auto emptyElement = allocateVector<VECTOR_INT_VIEW>(0, "emptyElement");
-  auto emptyWeights = allocateArray2D<ARRAY_REAL_VIEW>(0, 0, "emptyWeights");
+  auto emptyTermx = allocateArray2D<arrayReal>(0, 0, "emptyTermx");
+  auto emptyTermy = allocateArray2D<arrayReal>(0, 0, "emptyTermy");
+  auto emptyTermz = allocateArray2D<arrayReal>(0, 0, "emptyTermz");
+  auto emptyElement = allocateVector<vectorInt>(0, "emptyElement");
+  auto emptyWeights = allocateArray2D<arrayReal>(0, 0, "emptyWeights");
 
   RhsElastic rhs(emptyTermx, emptyTermy, emptyTermz, emptyElement, emptyWeights);
 
@@ -315,6 +315,18 @@ TEST_F(RhsElasticTest, CopyInContainerClass) {
 
   // Original should reflect change
   EXPECT_FLOAT_EQ(original.m_weights(4, 5), 0.555f);
+}
+
+TEST_F(RhsElasticTest, GetNumRhsComponentsReturnsThree) {
+  RhsElastic rhs(termx, termy, termz, element, weights);
+  EXPECT_EQ(rhs.getNumRhsComponents(), 3);
+}
+
+TEST_F(RhsElasticTest, PrintDoesNotCrash) {
+  RhsElastic rhs(termx, termy, termz, element, weights);
+  testing::internal::CaptureStdout();
+  EXPECT_NO_THROW(rhs.print());
+  testing::internal::GetCapturedStdout();
 }
 
 }  // namespace test

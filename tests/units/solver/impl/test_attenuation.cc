@@ -32,9 +32,9 @@
 namespace solver {
 namespace fe {
 namespace test {
-static VECTOR_REAL_VIEW toView(const std::vector<float>& v, const char* name) {
-  if (v.empty()) return VECTOR_REAL_VIEW();
-  auto view = allocateVector<VECTOR_REAL_VIEW>(v.size(), name);
+static vectorReal toView(const std::vector<float>& v, const char* name) {
+  if (v.empty()) return vectorReal();
+  auto view = allocateVector<vectorReal>(v.size(), name);
   for (size_t i = 0; i < v.size(); ++i) view[i] = v[i];
   return view;
 }
@@ -71,7 +71,7 @@ static std::shared_ptr<model::ModelApi<float, int>> buildSmallMesh(int order, bo
 // ======================================================================
 // Helper: compute L2-norm of a wavefield across all nodes
 // ======================================================================
-static float fieldL2Norm(const VECTOR_REAL_VIEW& field, int numNodes) {
+static float fieldL2Norm(const vectorReal& field, int numNodes) {
   float sum = 0.0f;
   for (int i = 0; i < numNodes; ++i) {
     sum += field(i) * field(i);
@@ -82,7 +82,7 @@ static float fieldL2Norm(const VECTOR_REAL_VIEW& field, int numNodes) {
 // ======================================================================
 // Helper: set an impulsive source at the center node of a pressure field
 // ======================================================================
-static void setImpulseSource(VECTOR_REAL_VIEW& field, int numNodes, float amplitude) {
+static void setImpulseSource(vectorReal& field, int numNodes, float amplitude) {
   int centerNode = numNodes / 2;
   field(centerNode) = amplitude;
 }
@@ -117,7 +117,7 @@ TEST(AttenuationSetup, EmptyFrequenciesDisablesAttenuation) {
   solver->setSLSAttenuation(toView(freqs, "f"));
 
   // Then disable
-  solver->setSLSAttenuation(VECTOR_REAL_VIEW());
+  solver->setSLSAttenuation(vectorReal());
 
   // Should run without attenuation (no crash)
   auto mesh = buildSmallMesh(1, false);
@@ -174,17 +174,17 @@ static float runAcousticSimulation(std::shared_ptr<model::ModelApi<float, int>> 
   }
   solver->computeFEInit(*mesh, {0, 0, 0}, false, 0.0f);
 
-  auto pPrev = allocateVector<VECTOR_REAL_VIEW>(numNodes, "pPrev");
-  auto pCurr = allocateVector<VECTOR_REAL_VIEW>(numNodes, "pCurr");
+  auto pPrev = allocateVector<vectorReal>(numNodes, "pPrev");
+  auto pCurr = allocateVector<vectorReal>(numNodes, "pCurr");
   for (int i = 0; i < numNodes; ++i) {
     pPrev(i) = 0.0f;
     pCurr(i) = 0.0f;
   }
   setImpulseSource(pCurr, numNodes, 1.0f);
 
-  auto rhsTerm = allocateArray2D<ARRAY_REAL_VIEW>(1, numTimeSteps, "rhsTerm");
-  auto rhsElem = allocateVector<VECTOR_INT_VIEW>(1, "rhsElem");
-  auto rhsWeights = allocateArray2D<ARRAY_REAL_VIEW>(1, npp, "rhsWeights");
+  auto rhsTerm = allocateArray2D<arrayReal>(1, numTimeSteps, "rhsTerm");
+  auto rhsElem = allocateVector<vectorInt>(1, "rhsElem");
+  auto rhsWeights = allocateArray2D<arrayReal>(1, npp, "rhsWeights");
   rhsElem(0) = 0;
   for (int j = 0; j < npp; ++j) {
     rhsTerm(0, j) = 0.0f;
@@ -254,8 +254,8 @@ TEST(AttenuationAcoustic, NoNanOrInfWithAttenuation) {
   solver->setSLSAttenuation(toView(freqs, "f"));
   solver->computeFEInit(*mesh, {0, 0, 0}, false, 0.0f);
 
-  auto pPrev = allocateVector<VECTOR_REAL_VIEW>(numNodes, "pPrev_nan");
-  auto pCurr = allocateVector<VECTOR_REAL_VIEW>(numNodes, "pCurr_nan");
+  auto pPrev = allocateVector<vectorReal>(numNodes, "pPrev_nan");
+  auto pCurr = allocateVector<vectorReal>(numNodes, "pCurr_nan");
   for (int i = 0; i < numNodes; ++i) {
     pPrev(i) = 0.0f;
     pCurr(i) = 0.0f;
@@ -264,9 +264,9 @@ TEST(AttenuationAcoustic, NoNanOrInfWithAttenuation) {
 
   int npp = (order + 1) * (order + 1) * (order + 1);
   const int numSteps = 100;
-  auto rhsTerm = allocateArray2D<ARRAY_REAL_VIEW>(1, numSteps, "rhsTerm_nantest");
-  auto rhsElem = allocateVector<VECTOR_INT_VIEW>(1, "rhsElem_nantest");
-  auto rhsWeights = allocateArray2D<ARRAY_REAL_VIEW>(1, npp, "rhsWeights_nantest");
+  auto rhsTerm = allocateArray2D<arrayReal>(1, numSteps, "rhsTerm_nantest");
+  auto rhsElem = allocateVector<vectorInt>(1, "rhsElem_nantest");
+  auto rhsWeights = allocateArray2D<arrayReal>(1, npp, "rhsWeights_nantest");
   rhsElem(0) = 0;
   for (int j = 0; j < npp; ++j) {
     rhsTerm(0, j) = 0.0f;
@@ -313,12 +313,12 @@ TEST(AttenuationElastic, AttenuationDecaysAmplitude) {
   solver_no_att->setAnisotropyType(model::AnisotropyType::kIso);
   solver_no_att->computeFEInit(*mesh_no_att, {0, 0, 0}, false, 0.0f);
 
-  auto uxPrev_na = allocateVector<VECTOR_REAL_VIEW>(numNodes, "uxPrev_na");
-  auto uxCurr_na = allocateVector<VECTOR_REAL_VIEW>(numNodes, "uxCurr_na");
-  auto uyPrev_na = allocateVector<VECTOR_REAL_VIEW>(numNodes, "uyPrev_na");
-  auto uyCurr_na = allocateVector<VECTOR_REAL_VIEW>(numNodes, "uyCurr_na");
-  auto uzPrev_na = allocateVector<VECTOR_REAL_VIEW>(numNodes, "uzPrev_na");
-  auto uzCurr_na = allocateVector<VECTOR_REAL_VIEW>(numNodes, "uzCurr_na");
+  auto uxPrev_na = allocateVector<vectorReal>(numNodes, "uxPrev_na");
+  auto uxCurr_na = allocateVector<vectorReal>(numNodes, "uxCurr_na");
+  auto uyPrev_na = allocateVector<vectorReal>(numNodes, "uyPrev_na");
+  auto uyCurr_na = allocateVector<vectorReal>(numNodes, "uyCurr_na");
+  auto uzPrev_na = allocateVector<vectorReal>(numNodes, "uzPrev_na");
+  auto uzCurr_na = allocateVector<vectorReal>(numNodes, "uzCurr_na");
   for (int i = 0; i < numNodes; ++i) {
     uxPrev_na(i) = 0.0f;
     uxCurr_na(i) = 0.0f;
@@ -329,11 +329,11 @@ TEST(AttenuationElastic, AttenuationDecaysAmplitude) {
   }
   setImpulseSource(uzCurr_na, numNodes, 1.0f);
 
-  auto rhsTermx_na = allocateArray2D<ARRAY_REAL_VIEW>(1, numTimeSteps, "rtx_na");
-  auto rhsTermy_na = allocateArray2D<ARRAY_REAL_VIEW>(1, numTimeSteps, "rty_na");
-  auto rhsTermz_na = allocateArray2D<ARRAY_REAL_VIEW>(1, numTimeSteps, "rtz_na");
-  auto rhsElem_na = allocateVector<VECTOR_INT_VIEW>(1, "re_na");
-  auto rhsW_na = allocateArray2D<ARRAY_REAL_VIEW>(1, npp, "rw_na");
+  auto rhsTermx_na = allocateArray2D<arrayReal>(1, numTimeSteps, "rtx_na");
+  auto rhsTermy_na = allocateArray2D<arrayReal>(1, numTimeSteps, "rty_na");
+  auto rhsTermz_na = allocateArray2D<arrayReal>(1, numTimeSteps, "rtz_na");
+  auto rhsElem_na = allocateVector<vectorInt>(1, "re_na");
+  auto rhsW_na = allocateArray2D<arrayReal>(1, npp, "rw_na");
   rhsElem_na(0) = 0;
   for (int j = 0; j < npp; ++j) {
     rhsTermx_na(0, j) = 0.0f;
@@ -366,12 +366,12 @@ TEST(AttenuationElastic, AttenuationDecaysAmplitude) {
   solver_att->setSLSAttenuation(toView(freqs, "f"));
   solver_att->computeFEInit(*mesh_att, {0, 0, 0}, false, 0.0f);
 
-  auto uxPrev_a = allocateVector<VECTOR_REAL_VIEW>(numNodes, "uxPrev_a");
-  auto uxCurr_a = allocateVector<VECTOR_REAL_VIEW>(numNodes, "uxCurr_a");
-  auto uyPrev_a = allocateVector<VECTOR_REAL_VIEW>(numNodes, "uyPrev_a");
-  auto uyCurr_a = allocateVector<VECTOR_REAL_VIEW>(numNodes, "uyCurr_a");
-  auto uzPrev_a = allocateVector<VECTOR_REAL_VIEW>(numNodes, "uzPrev_a");
-  auto uzCurr_a = allocateVector<VECTOR_REAL_VIEW>(numNodes, "uzCurr_a");
+  auto uxPrev_a = allocateVector<vectorReal>(numNodes, "uxPrev_a");
+  auto uxCurr_a = allocateVector<vectorReal>(numNodes, "uxCurr_a");
+  auto uyPrev_a = allocateVector<vectorReal>(numNodes, "uyPrev_a");
+  auto uyCurr_a = allocateVector<vectorReal>(numNodes, "uyCurr_a");
+  auto uzPrev_a = allocateVector<vectorReal>(numNodes, "uzPrev_a");
+  auto uzCurr_a = allocateVector<vectorReal>(numNodes, "uzCurr_a");
   for (int i = 0; i < numNodes; ++i) {
     uxPrev_a(i) = 0.0f;
     uxCurr_a(i) = 0.0f;
@@ -382,11 +382,11 @@ TEST(AttenuationElastic, AttenuationDecaysAmplitude) {
   }
   setImpulseSource(uzCurr_a, numNodes, 1.0f);
 
-  auto rhsTermx_a = allocateArray2D<ARRAY_REAL_VIEW>(1, numTimeSteps, "rtx_a");
-  auto rhsTermy_a = allocateArray2D<ARRAY_REAL_VIEW>(1, numTimeSteps, "rty_a");
-  auto rhsTermz_a = allocateArray2D<ARRAY_REAL_VIEW>(1, numTimeSteps, "rtz_a");
-  auto rhsElem_a = allocateVector<VECTOR_INT_VIEW>(1, "re_a");
-  auto rhsW_a = allocateArray2D<ARRAY_REAL_VIEW>(1, npp, "rw_a");
+  auto rhsTermx_a = allocateArray2D<arrayReal>(1, numTimeSteps, "rtx_a");
+  auto rhsTermy_a = allocateArray2D<arrayReal>(1, numTimeSteps, "rty_a");
+  auto rhsTermz_a = allocateArray2D<arrayReal>(1, numTimeSteps, "rtz_a");
+  auto rhsElem_a = allocateVector<vectorInt>(1, "re_a");
+  auto rhsW_a = allocateArray2D<arrayReal>(1, npp, "rw_a");
   rhsElem_a(0) = 0;
   for (int j = 0; j < npp; ++j) {
     rhsTermx_a(0, j) = 0.0f;
@@ -431,12 +431,12 @@ TEST(AttenuationElastic, NoNanOrInfWithAttenuation) {
   solver->setSLSAttenuation(toView(freqs, "f"));
   solver->computeFEInit(*mesh, {0, 0, 0}, false, 0.0f);
 
-  auto uxP = allocateVector<VECTOR_REAL_VIEW>(numNodes, "ux_p_e");
-  auto uxC = allocateVector<VECTOR_REAL_VIEW>(numNodes, "ux_c_e");
-  auto uyP = allocateVector<VECTOR_REAL_VIEW>(numNodes, "uy_p_e");
-  auto uyC = allocateVector<VECTOR_REAL_VIEW>(numNodes, "uy_c_e");
-  auto uzP = allocateVector<VECTOR_REAL_VIEW>(numNodes, "uz_p_e");
-  auto uzC = allocateVector<VECTOR_REAL_VIEW>(numNodes, "uz_c_e");
+  auto uxP = allocateVector<vectorReal>(numNodes, "ux_p_e");
+  auto uxC = allocateVector<vectorReal>(numNodes, "ux_c_e");
+  auto uyP = allocateVector<vectorReal>(numNodes, "uy_p_e");
+  auto uyC = allocateVector<vectorReal>(numNodes, "uy_c_e");
+  auto uzP = allocateVector<vectorReal>(numNodes, "uz_p_e");
+  auto uzC = allocateVector<vectorReal>(numNodes, "uz_c_e");
   for (int i = 0; i < numNodes; ++i) {
     uxP(i) = 0.0f;
     uxC(i) = 0.0f;
@@ -448,11 +448,11 @@ TEST(AttenuationElastic, NoNanOrInfWithAttenuation) {
   setImpulseSource(uzC, numNodes, 1.0f);
 
   const int numSteps = 100;
-  auto rtx = allocateArray2D<ARRAY_REAL_VIEW>(1, numSteps, "rtx_ef");
-  auto rty = allocateArray2D<ARRAY_REAL_VIEW>(1, numSteps, "rty_ef");
-  auto rtz = allocateArray2D<ARRAY_REAL_VIEW>(1, numSteps, "rtz_ef");
-  auto re = allocateVector<VECTOR_INT_VIEW>(1, "re_ef");
-  auto rw = allocateArray2D<ARRAY_REAL_VIEW>(1, npp, "rw_ef");
+  auto rtx = allocateArray2D<arrayReal>(1, numSteps, "rtx_ef");
+  auto rty = allocateArray2D<arrayReal>(1, numSteps, "rty_ef");
+  auto rtz = allocateArray2D<arrayReal>(1, numSteps, "rtz_ef");
+  auto re = allocateVector<vectorInt>(1, "re_ef");
+  auto rw = allocateArray2D<arrayReal>(1, npp, "rw_ef");
   re(0) = 0;
   for (int j = 0; j < npp; ++j) {
     rtx(0, j) = 0.0f;
@@ -498,8 +498,8 @@ TEST(AttenuationAcoustic, ComputeOneStepWithAttenuation) {
   solver->setSLSAttenuation(toView(freqs, "f"));
   solver->computeFEInit(*mesh, {0, 0, 0}, false, 0.0f);
 
-  auto pP = allocateVector<VECTOR_REAL_VIEW>(numNodes, "pP_os");
-  auto pC = allocateVector<VECTOR_REAL_VIEW>(numNodes, "pC_os");
+  auto pP = allocateVector<vectorReal>(numNodes, "pP_os");
+  auto pC = allocateVector<vectorReal>(numNodes, "pC_os");
   for (int i = 0; i < numNodes; ++i) {
     pP(i) = 0.0f;
     pC(i) = 0.0f;
@@ -507,9 +507,9 @@ TEST(AttenuationAcoustic, ComputeOneStepWithAttenuation) {
   setImpulseSource(pC, numNodes, 1.0f);
 
   const int numSteps = 50;
-  auto rt = allocateArray2D<ARRAY_REAL_VIEW>(1, numSteps, "rt_os");
-  auto re = allocateVector<VECTOR_INT_VIEW>(1, "re_os");
-  auto rw = allocateArray2D<ARRAY_REAL_VIEW>(1, npp, "rw_os");
+  auto rt = allocateArray2D<arrayReal>(1, numSteps, "rt_os");
+  auto re = allocateVector<vectorInt>(1, "re_os");
+  auto rw = allocateArray2D<arrayReal>(1, npp, "rw_os");
   re(0) = 0;
   for (int j = 0; j < npp; ++j) {
     rt(0, j) = 0.0f;
@@ -614,23 +614,23 @@ TEST(AttenuationElasticHighOrder, Order2DecaysAmplitude) {
   solver_na->setAnisotropyType(model::AnisotropyType::kIso);
   solver_na->computeFEInit(*mesh_no_att, {0, 0, 0}, false, 0.0f);
 
-  auto uxP_na = allocateVector<VECTOR_REAL_VIEW>(numNodes, "uxP_na2");
-  auto uxC_na = allocateVector<VECTOR_REAL_VIEW>(numNodes, "uxC_na2");
-  auto uyP_na = allocateVector<VECTOR_REAL_VIEW>(numNodes, "uyP_na2");
-  auto uyC_na = allocateVector<VECTOR_REAL_VIEW>(numNodes, "uyC_na2");
-  auto uzP_na = allocateVector<VECTOR_REAL_VIEW>(numNodes, "uzP_na2");
-  auto uzC_na = allocateVector<VECTOR_REAL_VIEW>(numNodes, "uzC_na2");
+  auto uxP_na = allocateVector<vectorReal>(numNodes, "uxP_na2");
+  auto uxC_na = allocateVector<vectorReal>(numNodes, "uxC_na2");
+  auto uyP_na = allocateVector<vectorReal>(numNodes, "uyP_na2");
+  auto uyC_na = allocateVector<vectorReal>(numNodes, "uyC_na2");
+  auto uzP_na = allocateVector<vectorReal>(numNodes, "uzP_na2");
+  auto uzC_na = allocateVector<vectorReal>(numNodes, "uzC_na2");
   for (int i = 0; i < numNodes; ++i) {
     uxP_na(i) = uxC_na(i) = uyP_na(i) = uyC_na(i) = 0.0f;
     uzP_na(i) = uzC_na(i) = 0.0f;
   }
   setImpulseSource(uzC_na, numNodes, 1.0f);
 
-  auto rtx_na = allocateArray2D<ARRAY_REAL_VIEW>(1, numTimeSteps, "rtx_na2");
-  auto rty_na = allocateArray2D<ARRAY_REAL_VIEW>(1, numTimeSteps, "rty_na2");
-  auto rtz_na = allocateArray2D<ARRAY_REAL_VIEW>(1, numTimeSteps, "rtz_na2");
-  auto re_na = allocateVector<VECTOR_INT_VIEW>(1, "re_na2");
-  auto rw_na = allocateArray2D<ARRAY_REAL_VIEW>(1, npp, "rw_na2");
+  auto rtx_na = allocateArray2D<arrayReal>(1, numTimeSteps, "rtx_na2");
+  auto rty_na = allocateArray2D<arrayReal>(1, numTimeSteps, "rty_na2");
+  auto rtz_na = allocateArray2D<arrayReal>(1, numTimeSteps, "rtz_na2");
+  auto re_na = allocateVector<vectorInt>(1, "re_na2");
+  auto rw_na = allocateArray2D<arrayReal>(1, npp, "rw_na2");
   re_na(0) = 0;
   for (int j = 0; j < npp; ++j) {
     rtx_na(0, j) = rty_na(0, j) = rtz_na(0, j) = rw_na(0, j) = 0.0f;
@@ -657,23 +657,23 @@ TEST(AttenuationElasticHighOrder, Order2DecaysAmplitude) {
   solver_a->setSLSAttenuation(toView(freqs, "f"));
   solver_a->computeFEInit(*mesh_att, {0, 0, 0}, false, 0.0f);
 
-  auto uxP_a = allocateVector<VECTOR_REAL_VIEW>(numNodes, "uxP_a2");
-  auto uxC_a = allocateVector<VECTOR_REAL_VIEW>(numNodes, "uxC_a2");
-  auto uyP_a = allocateVector<VECTOR_REAL_VIEW>(numNodes, "uyP_a2");
-  auto uyC_a = allocateVector<VECTOR_REAL_VIEW>(numNodes, "uyC_a2");
-  auto uzP_a = allocateVector<VECTOR_REAL_VIEW>(numNodes, "uzP_a2");
-  auto uzC_a = allocateVector<VECTOR_REAL_VIEW>(numNodes, "uzC_a2");
+  auto uxP_a = allocateVector<vectorReal>(numNodes, "uxP_a2");
+  auto uxC_a = allocateVector<vectorReal>(numNodes, "uxC_a2");
+  auto uyP_a = allocateVector<vectorReal>(numNodes, "uyP_a2");
+  auto uyC_a = allocateVector<vectorReal>(numNodes, "uyC_a2");
+  auto uzP_a = allocateVector<vectorReal>(numNodes, "uzP_a2");
+  auto uzC_a = allocateVector<vectorReal>(numNodes, "uzC_a2");
   for (int i = 0; i < numNodes; ++i) {
     uxP_a(i) = uxC_a(i) = uyP_a(i) = uyC_a(i) = 0.0f;
     uzP_a(i) = uzC_a(i) = 0.0f;
   }
   setImpulseSource(uzC_a, numNodes, 1.0f);
 
-  auto rtx_a = allocateArray2D<ARRAY_REAL_VIEW>(1, numTimeSteps, "rtx_a2");
-  auto rty_a = allocateArray2D<ARRAY_REAL_VIEW>(1, numTimeSteps, "rty_a2");
-  auto rtz_a = allocateArray2D<ARRAY_REAL_VIEW>(1, numTimeSteps, "rtz_a2");
-  auto re_a = allocateVector<VECTOR_INT_VIEW>(1, "re_a2");
-  auto rw_a = allocateArray2D<ARRAY_REAL_VIEW>(1, npp, "rw_a2");
+  auto rtx_a = allocateArray2D<arrayReal>(1, numTimeSteps, "rtx_a2");
+  auto rty_a = allocateArray2D<arrayReal>(1, numTimeSteps, "rty_a2");
+  auto rtz_a = allocateArray2D<arrayReal>(1, numTimeSteps, "rtz_a2");
+  auto re_a = allocateVector<vectorInt>(1, "re_a2");
+  auto rw_a = allocateArray2D<arrayReal>(1, npp, "rw_a2");
   re_a(0) = 0;
   for (int j = 0; j < npp; ++j) {
     rtx_a(0, j) = rty_a(0, j) = rtz_a(0, j) = rw_a(0, j) = 0.0f;
@@ -744,8 +744,8 @@ TEST(AttenuationAcousticHighOrder, Order2NoNanOrInf) {
   solver->setSLSAttenuation(toView(freqs, "f"));
   solver->computeFEInit(*mesh, {0, 0, 0}, false, 0.0f);
 
-  auto pPrev = allocateVector<VECTOR_REAL_VIEW>(numNodes, "pPrev_o2");
-  auto pCurr = allocateVector<VECTOR_REAL_VIEW>(numNodes, "pCurr_o2");
+  auto pPrev = allocateVector<vectorReal>(numNodes, "pPrev_o2");
+  auto pCurr = allocateVector<vectorReal>(numNodes, "pCurr_o2");
   for (int i = 0; i < numNodes; ++i) {
     pPrev(i) = 0.0f;
     pCurr(i) = 0.0f;
@@ -754,9 +754,9 @@ TEST(AttenuationAcousticHighOrder, Order2NoNanOrInf) {
 
   int npp = (order + 1) * (order + 1) * (order + 1);
   const int numSteps = 200;
-  auto rhsTerm = allocateArray2D<ARRAY_REAL_VIEW>(1, numSteps, "rt_o2");
-  auto rhsElem = allocateVector<VECTOR_INT_VIEW>(1, "re_o2");
-  auto rhsW = allocateArray2D<ARRAY_REAL_VIEW>(1, npp, "rw_o2");
+  auto rhsTerm = allocateArray2D<arrayReal>(1, numSteps, "rt_o2");
+  auto rhsElem = allocateVector<vectorInt>(1, "re_o2");
+  auto rhsW = allocateArray2D<arrayReal>(1, npp, "rw_o2");
   rhsElem(0) = 0;
   for (int j = 0; j < npp; ++j) {
     rhsTerm(0, j) = 0.0f;
@@ -798,23 +798,23 @@ TEST(AttenuationElasticHighOrder, Order3NoNanOrInf) {
   solver->setSLSAttenuation(toView(freqs, "f"));
   solver->computeFEInit(*mesh, {0, 0, 0}, false, 0.0f);
 
-  auto uxP = allocateVector<VECTOR_REAL_VIEW>(numNodes, "uxP_o3");
-  auto uxC = allocateVector<VECTOR_REAL_VIEW>(numNodes, "uxC_o3");
-  auto uyP = allocateVector<VECTOR_REAL_VIEW>(numNodes, "uyP_o3");
-  auto uyC = allocateVector<VECTOR_REAL_VIEW>(numNodes, "uyC_o3");
-  auto uzP = allocateVector<VECTOR_REAL_VIEW>(numNodes, "uzP_o3");
-  auto uzC = allocateVector<VECTOR_REAL_VIEW>(numNodes, "uzC_o3");
+  auto uxP = allocateVector<vectorReal>(numNodes, "uxP_o3");
+  auto uxC = allocateVector<vectorReal>(numNodes, "uxC_o3");
+  auto uyP = allocateVector<vectorReal>(numNodes, "uyP_o3");
+  auto uyC = allocateVector<vectorReal>(numNodes, "uyC_o3");
+  auto uzP = allocateVector<vectorReal>(numNodes, "uzP_o3");
+  auto uzC = allocateVector<vectorReal>(numNodes, "uzC_o3");
   for (int i = 0; i < numNodes; ++i) {
     uxP(i) = uxC(i) = uyP(i) = uyC(i) = uzP(i) = uzC(i) = 0.0f;
   }
   setImpulseSource(uzC, numNodes, 1.0f);
 
   const int numSteps = 200;
-  auto rtx = allocateArray2D<ARRAY_REAL_VIEW>(1, numSteps, "rtx_o3");
-  auto rty = allocateArray2D<ARRAY_REAL_VIEW>(1, numSteps, "rty_o3");
-  auto rtz = allocateArray2D<ARRAY_REAL_VIEW>(1, numSteps, "rtz_o3");
-  auto re = allocateVector<VECTOR_INT_VIEW>(1, "re_o3");
-  auto rw = allocateArray2D<ARRAY_REAL_VIEW>(1, npp, "rw_o3");
+  auto rtx = allocateArray2D<arrayReal>(1, numSteps, "rtx_o3");
+  auto rty = allocateArray2D<arrayReal>(1, numSteps, "rty_o3");
+  auto rtz = allocateArray2D<arrayReal>(1, numSteps, "rtz_o3");
+  auto re = allocateVector<vectorInt>(1, "re_o3");
+  auto rw = allocateArray2D<arrayReal>(1, npp, "rw_o3");
   re(0) = 0;
   for (int j = 0; j < npp; ++j) {
     rtx(0, j) = rty(0, j) = rtz(0, j) = rw(0, j) = 0.0f;

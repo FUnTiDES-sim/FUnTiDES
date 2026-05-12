@@ -16,14 +16,14 @@ class GradientsElasticTest : public ::testing::Test {
     num_nodes = 100;
 
     // Allocate element-based gradient vectors
-    grad_rho_elem = allocateVector<VECTOR_REAL_VIEW>(num_elements, "grad_rho_elem");
-    grad_lambda_elem = allocateVector<VECTOR_REAL_VIEW>(num_elements, "grad_lambda_elem");
-    grad_mu_elem = allocateVector<VECTOR_REAL_VIEW>(num_elements, "grad_mu_elem");
+    grad_rho_elem = allocateVector<vectorReal>(num_elements, "grad_rho_elem");
+    grad_lambda_elem = allocateVector<vectorReal>(num_elements, "grad_lambda_elem");
+    grad_mu_elem = allocateVector<vectorReal>(num_elements, "grad_mu_elem");
 
     // Allocate node-based gradient vectors
-    grad_rho_node = allocateVector<VECTOR_REAL_VIEW>(num_nodes, "grad_rho_node");
-    grad_lambda_node = allocateVector<VECTOR_REAL_VIEW>(num_nodes, "grad_lambda_node");
-    grad_mu_node = allocateVector<VECTOR_REAL_VIEW>(num_nodes, "grad_mu_node");
+    grad_rho_node = allocateVector<vectorReal>(num_nodes, "grad_rho_node");
+    grad_lambda_node = allocateVector<vectorReal>(num_nodes, "grad_lambda_node");
+    grad_mu_node = allocateVector<vectorReal>(num_nodes, "grad_mu_node");
 
     // Initialize element-based gradients
     for (size_t i = 0; i < num_elements; ++i) {
@@ -42,12 +42,12 @@ class GradientsElasticTest : public ::testing::Test {
 
   size_t num_elements;
   size_t num_nodes;
-  VECTOR_REAL_VIEW grad_rho_elem;
-  VECTOR_REAL_VIEW grad_lambda_elem;
-  VECTOR_REAL_VIEW grad_mu_elem;
-  VECTOR_REAL_VIEW grad_rho_node;
-  VECTOR_REAL_VIEW grad_lambda_node;
-  VECTOR_REAL_VIEW grad_mu_node;
+  vectorReal grad_rho_elem;
+  vectorReal grad_lambda_elem;
+  vectorReal grad_mu_elem;
+  vectorReal grad_rho_node;
+  vectorReal grad_lambda_node;
+  vectorReal grad_mu_node;
 };
 
 TEST_F(GradientsElasticTest, Constructor) {

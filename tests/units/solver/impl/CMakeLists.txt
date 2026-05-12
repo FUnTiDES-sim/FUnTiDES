@@ -20,6 +20,21 @@ add_gtest(rhs_elastic_test
   proxy_solver
 )
 
+add_gtest(wavefield_acoustoelastic_test
+  test_wavefield_acoustoelastic.cc
+  proxy_solver
+)
+
+add_gtest(rhs_acoustoelastic_test
+  test_rhs_acoustoelastic.cc
+  proxy_solver
+)
+
+add_gtest(sem_solver_acoustoelastic_test
+  test_sem_solver_acoustoelastic.cc
+  proxy_solver
+)
+
 add_gtest(solver_data_test
   test_solver_data.cc
   proxy_solver
@@ -29,6 +44,24 @@ add_gtest(solver_factory_test
   test_solver_factory.cc
   proxy_solver
 )
+
+add_gtest(attenuation_test
+  test_attenuation.cc
+  proxy_solver
+)
+target_link_libraries(attenuation_test PRIVATE proxy_model_builder_cartesian)
+
+add_gtest(sem_solver_acoustic_test
+  test_sem_solver_acoustic.cc
+  proxy_solver
+)
+target_link_libraries(sem_solver_acoustic_test PRIVATE proxy_model_builder_cartesian)
+
+add_gtest(sem_solver_elastic_test
+  test_sem_solver_elastic.cc
+  proxy_solver
+)
+target_link_libraries(sem_solver_elastic_test PRIVATE proxy_model_builder_cartesian)
 
 if(USE_MPI)
 add_executable(test_mpi_partitioning test_mpi_partitioning.cc)

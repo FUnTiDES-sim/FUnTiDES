@@ -20,19 +20,19 @@ struct RhsAcoustic : public Rhs {
   PROXY_HOST_DEVICE RhsAcoustic& operator=(const RhsAcoustic&) = default;
 
   PROXY_HOST_DEVICE
-  RhsAcoustic(ARRAY_REAL_VIEW term, VECTOR_INT_VIEW element, ARRAY_REAL_VIEW weights)
+  RhsAcoustic(arrayReal term, vectorInt element, arrayReal weights)
       : m_term(term), m_element(element), m_weights(weights) {}
 
   int getNumRhsComponents() const override final { return kNumRhsComponents; }
 
   PROXY_HOST_DEVICE
-  ARRAY_REAL_VIEW getTerm(int i) const override { return m_term; }
+  arrayReal getTerm(int i) const override { return m_term; }
 
   PROXY_HOST_DEVICE
-  VECTOR_INT_VIEW getElement() const { return m_element; }
+  vectorInt getElement() const { return m_element; }
 
   PROXY_HOST_DEVICE
-  ARRAY_REAL_VIEW getWeights() const { return m_weights; }
+  arrayReal getWeights() const { return m_weights; }
 
   void print() const override {
     std::cout << "RHS Term size:    " << m_term.extent(0) << std::endl;
@@ -40,9 +40,9 @@ struct RhsAcoustic : public Rhs {
     std::cout << "RHS Weights size: " << m_weights.extent(0) << std::endl;
   }
 
-  ARRAY_REAL_VIEW m_term;     ///< RHS forcing term
-  VECTOR_INT_VIEW m_element;  ///< Source element indices
-  ARRAY_REAL_VIEW m_weights;  ///< Forcing weights per node
+  arrayReal m_term;     ///< RHS forcing term
+  vectorInt m_element;  ///< Source element indices
+  arrayReal m_weights;  ///< Forcing weights per node
 };
 }  // namespace fe
 }  // namespace solver

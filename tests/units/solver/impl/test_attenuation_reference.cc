@@ -71,9 +71,9 @@
 namespace solver {
 namespace fe {
 namespace test {
-static VECTOR_REAL_VIEW toView(const std::vector<float>& v, const char* name) {
-  if (v.empty()) return VECTOR_REAL_VIEW();
-  auto view = allocateVector<VECTOR_REAL_VIEW>(v.size(), name);
+static vectorReal toView(const std::vector<float>& v, const char* name) {
+  if (v.empty()) return vectorReal();
+  auto view = allocateVector<vectorReal>(v.size(), name);
   for (size_t i = 0; i < v.size(); ++i) view[i] = v[i];
   return view;
 }
@@ -93,7 +93,7 @@ static std::shared_ptr<model::ModelApi<float, int>> buildRefMesh(float qp = 1e9f
 // ======================================================================
 // Helper: total wavefield energy  E = sum_i p_i^2
 // ======================================================================
-static float totalEnergy(const VECTOR_REAL_VIEW& field, int numNodes) {
+static float totalEnergy(const vectorReal& field, int numNodes) {
   float sum = 0.0f;
   for (int i = 0; i < numNodes; ++i) sum += field(i) * field(i);
   return sum;
@@ -118,8 +118,8 @@ static std::vector<float> runAndRecordEnergy(std::shared_ptr<model::ModelApi<flo
 
   solver->computeFEInit(*mesh, {0, 0, 0}, false, 0.0f);
 
-  auto pPrev = allocateVector<VECTOR_REAL_VIEW>(numNodes, "pP_ref");
-  auto pCurr = allocateVector<VECTOR_REAL_VIEW>(numNodes, "pC_ref");
+  auto pPrev = allocateVector<vectorReal>(numNodes, "pP_ref");
+  auto pCurr = allocateVector<vectorReal>(numNodes, "pC_ref");
   for (int i = 0; i < numNodes; ++i) {
     pPrev(i) = 0.0f;
     pCurr(i) = 0.0f;
@@ -127,9 +127,9 @@ static std::vector<float> runAndRecordEnergy(std::shared_ptr<model::ModelApi<flo
   // Impulse at center node
   pCurr(numNodes / 2) = 1.0f;
 
-  auto rhsTerm = allocateArray2D<ARRAY_REAL_VIEW>(1, numTimeSteps, "rt_ref");
-  auto rhsElem = allocateVector<VECTOR_INT_VIEW>(1, "re_ref");
-  auto rhsWeights = allocateArray2D<ARRAY_REAL_VIEW>(1, npp, "rw_ref");
+  auto rhsTerm = allocateArray2D<arrayReal>(1, numTimeSteps, "rt_ref");
+  auto rhsElem = allocateVector<vectorInt>(1, "re_ref");
+  auto rhsWeights = allocateArray2D<arrayReal>(1, npp, "rw_ref");
   rhsElem(0) = 0;
   for (int j = 0; j < npp; ++j) {
     rhsTerm(0, j) = 0.0f;

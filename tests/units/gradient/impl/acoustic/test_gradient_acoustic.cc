@@ -12,10 +12,10 @@ class GradientAcousticTest : public ::testing::Test {
     numElements = 8;
     numNodes = 27;
 
-    gradKappaElem = allocateVector<VECTOR_REAL_VIEW>(numElements, "gradKappaElem");
-    gradBuoyancyElem = allocateVector<VECTOR_REAL_VIEW>(numElements, "gradBuoyancyElem");
-    gradKappaNode = allocateVector<VECTOR_REAL_VIEW>(numNodes, "gradKappaNode");
-    gradBuoyancyNode = allocateVector<VECTOR_REAL_VIEW>(numNodes, "gradBuoyancyNode");
+    gradKappaElem = allocateVector<vectorReal>(numElements, "gradKappaElem");
+    gradBuoyancyElem = allocateVector<vectorReal>(numElements, "gradBuoyancyElem");
+    gradKappaNode = allocateVector<vectorReal>(numNodes, "gradKappaNode");
+    gradBuoyancyNode = allocateVector<vectorReal>(numNodes, "gradBuoyancyNode");
 
     for (int i = 0; i < numElements; ++i) {
       gradKappaElem(i) = static_cast<float>(i) * 1.5f;
@@ -29,10 +29,10 @@ class GradientAcousticTest : public ::testing::Test {
 
   int numElements;
   int numNodes;
-  VECTOR_REAL_VIEW gradKappaElem;
-  VECTOR_REAL_VIEW gradBuoyancyElem;
-  VECTOR_REAL_VIEW gradKappaNode;
-  VECTOR_REAL_VIEW gradBuoyancyNode;
+  vectorReal gradKappaElem;
+  vectorReal gradBuoyancyElem;
+  vectorReal gradKappaNode;
+  vectorReal gradBuoyancyNode;
 };
 
 // --- Static constants ---

@@ -12,13 +12,13 @@ class GradientElasticTest : public ::testing::Test {
     numElements = 8;
     numNodes = 27;
 
-    gradRhoElem = allocateVector<VECTOR_REAL_VIEW>(numElements, "gradRhoElem");
-    gradLambdaElem = allocateVector<VECTOR_REAL_VIEW>(numElements, "gradLambdaElem");
-    gradMuElem = allocateVector<VECTOR_REAL_VIEW>(numElements, "gradMuElem");
+    gradRhoElem = allocateVector<vectorReal>(numElements, "gradRhoElem");
+    gradLambdaElem = allocateVector<vectorReal>(numElements, "gradLambdaElem");
+    gradMuElem = allocateVector<vectorReal>(numElements, "gradMuElem");
 
-    gradRhoNode = allocateVector<VECTOR_REAL_VIEW>(numNodes, "gradRhoNode");
-    gradLambdaNode = allocateVector<VECTOR_REAL_VIEW>(numNodes, "gradLambdaNode");
-    gradMuNode = allocateVector<VECTOR_REAL_VIEW>(numNodes, "gradMuNode");
+    gradRhoNode = allocateVector<vectorReal>(numNodes, "gradRhoNode");
+    gradLambdaNode = allocateVector<vectorReal>(numNodes, "gradLambdaNode");
+    gradMuNode = allocateVector<vectorReal>(numNodes, "gradMuNode");
 
     for (int i = 0; i < numElements; ++i) {
       gradRhoElem(i) = static_cast<float>(i) * 1.0f;
@@ -34,12 +34,12 @@ class GradientElasticTest : public ::testing::Test {
 
   int numElements;
   int numNodes;
-  VECTOR_REAL_VIEW gradRhoElem;
-  VECTOR_REAL_VIEW gradLambdaElem;
-  VECTOR_REAL_VIEW gradMuElem;
-  VECTOR_REAL_VIEW gradRhoNode;
-  VECTOR_REAL_VIEW gradLambdaNode;
-  VECTOR_REAL_VIEW gradMuNode;
+  vectorReal gradRhoElem;
+  vectorReal gradLambdaElem;
+  vectorReal gradMuElem;
+  vectorReal gradRhoNode;
+  vectorReal gradLambdaNode;
+  vectorReal gradMuNode;
 };
 
 // --- Static constants ---

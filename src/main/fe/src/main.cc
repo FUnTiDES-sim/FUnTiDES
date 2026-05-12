@@ -23,7 +23,11 @@ void InitMpi(int argc, char** argv, int* rank, int* size) {
   std::cout << "Initializing MPI..." << std::endl;
 
   int provided;
-  MPI_Init_thread(&argc, &argv, MPI_THREAD_FUNNELED, &provided);
+  // CRITICAL: Request MULTIPLE for background I/O threads
+  MPI_Init_thread(&argc, &argv, MPI_THREAD_MULTIPLE, &provided);
+  if (provided < MPI_THREAD_MULTIPLE) {
+    std::cout << "WARNING: MPI_THREAD_MULTIPLE not supported. Async I/O may be unstable.\n";
+  }
 
   MPI_Comm_rank(MPI_COMM_WORLD, rank);
   MPI_Comm_size(MPI_COMM_WORLD, size);

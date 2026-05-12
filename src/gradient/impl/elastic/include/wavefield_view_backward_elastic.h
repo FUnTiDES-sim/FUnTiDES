@@ -32,8 +32,8 @@ class WavefieldViewBackwardElastic : public WavefieldView {
  public:
   static constexpr int kNumFields = 6;
 
-  WavefieldViewBackwardElastic(VECTOR_REAL_VIEW ux_n, VECTOR_REAL_VIEW uy_n, VECTOR_REAL_VIEW uz_n,
-                               VECTOR_REAL_VIEW ux_dt2, VECTOR_REAL_VIEW uy_dt2, VECTOR_REAL_VIEW uz_dt2)
+  WavefieldViewBackwardElastic(vectorReal ux_n, vectorReal uy_n, vectorReal uz_n, vectorReal ux_dt2, vectorReal uy_dt2,
+                               vectorReal uz_dt2)
       : ux_n_(ux_n), uy_n_(uy_n), uz_n_(uz_n), ux_dt2_(ux_dt2), uy_dt2_(uy_dt2), uz_dt2_(uz_dt2) {}
 
   int getNumFields() const override { return kNumFields; }
@@ -59,7 +59,7 @@ class WavefieldViewBackwardElastic : public WavefieldView {
 
   // TODO use template + constexpr if when C++20 is available
   PROXY_HOST_DEVICE
-  VECTOR_REAL_VIEW getField(int i) const override {
+  vectorReal getField(int i) const override {
     switch (i) {
       case 0:
         return ux_n_;
@@ -85,12 +85,12 @@ class WavefieldViewBackwardElastic : public WavefieldView {
   }
 
  private:
-  VECTOR_REAL_VIEW ux_n_;    ///< Current x-adjoint displacement snapshot
-  VECTOR_REAL_VIEW uy_n_;    ///< Current y-adjoint displacement snapshot
-  VECTOR_REAL_VIEW uz_n_;    ///< Current z-adjoint displacement snapshot
-  VECTOR_REAL_VIEW ux_dt2_;  ///< Second-order time derivative, x-component
-  VECTOR_REAL_VIEW uy_dt2_;  ///< Second-order time derivative, y-component
-  VECTOR_REAL_VIEW uz_dt2_;  ///< Second-order time derivative, z-component
+  vectorReal ux_n_;    ///< Current x-adjoint displacement snapshot
+  vectorReal uy_n_;    ///< Current y-adjoint displacement snapshot
+  vectorReal uz_n_;    ///< Current z-adjoint displacement snapshot
+  vectorReal ux_dt2_;  ///< Second-order time derivative, x-component
+  vectorReal uy_dt2_;  ///< Second-order time derivative, y-component
+  vectorReal uz_dt2_;  ///< Second-order time derivative, z-component
 };
 
 }  // namespace gradient

@@ -78,17 +78,17 @@ class SEMsolverAcoustoElastic : public Solver {
   int getNumComponents() const override { return 4; }  // p, ux, uy, uz
 
   /// @brief Returns the acoustic sub-solver mass matrix for DD synchronization.
-  VECTOR_REAL_VIEW& getMassMatrixAcoustic() override { return m_acoustic_solver_.getMassMatrixAcoustic(); }
+  vectorReal& getMassMatrixAcoustic() override { return m_acoustic_solver_.getMassMatrixAcoustic(); }
 
   /// @brief Returns the elastic sub-solver mass matrix for DD synchronization.
-  VECTOR_REAL_VIEW& getMassMatrixElastic() override { return m_elastic_solver_.getMassMatrixElastic(); }
+  vectorReal& getMassMatrixElastic() override { return m_elastic_solver_.getMassMatrixElastic(); }
 
-  VECTOR_REAL_VIEW& getDampingMatrix(int c) override {
+  vectorReal& getDampingMatrix(int c) override {
     if (c == 0) return m_acoustic_solver_.getDampingMatrix(0);
     return m_elastic_solver_.getDampingMatrix(c - 1);
   }
 
-  VECTOR_REAL_VIEW& getForceVector(int c) override {
+  vectorReal& getForceVector(int c) override {
     if (c == 0) return m_acoustic_solver_.getForceVector(0);
     return m_elastic_solver_.getForceVector(c - 1);
   }
@@ -116,13 +116,13 @@ class SEMsolverAcoustoElastic : public Solver {
   void computeGlobalMassMatrix() override;
   void computeDampingMatrix() override;
 
-  void outputSolutionValues(const int& t, int& e, const VECTOR_REAL_VIEW& field, const char* fieldName) override;
-  void outputSolutionValues(const int& t, int& e, const ARRAY_REAL_VIEW& field, const char* fieldName) override {};
+  void outputSolutionValues(const int& t, int& e, const vectorReal& field, const char* fieldName) override;
+  void outputSolutionValues(const int& t, int& e, const arrayReal& field, const char* fieldName) override {};
 
   void setAnisotropyType(model::AnisotropyType type) override { m_elastic_solver_.setAnisotropyType(type); }
 
-  void setSLSAttenuation(const VECTOR_REAL_VIEW& reference_frequencies,
-                         const VECTOR_REAL_VIEW& anelasticity_coefficients = VECTOR_REAL_VIEW()) override {
+  void setSLSAttenuation(const vectorReal& reference_frequencies,
+                         const vectorReal& anelasticity_coefficients = vectorReal()) override {
     m_acoustic_solver_.setSLSAttenuation(reference_frequencies, anelasticity_coefficients);
     m_elastic_solver_.setSLSAttenuation(reference_frequencies, anelasticity_coefficients);
   }
@@ -170,42 +170,42 @@ class SEMsolverAcoustoElastic : public Solver {
   MESH_TYPE m_mesh_;  ///< Local copy of the mesh
 
   /// Per-element type tag (kElementTypeAcoustic or kElementTypeElastic).
-  VECTOR_INT_VIEW m_element_type_;
+  vectorInt m_element_type_;
 
   /// Index map from global node index to interface node index (-1 if not).
-  VECTOR_INT_VIEW m_interface_node_index_;
+  vectorInt m_interface_node_index_;
 
   /// Number of fluid–solid interface nodes.
   int n_interface_nodes_ = 0;
   /// Compact list of global interface node indices (size n_interface_nodes_).
-  VECTOR_INT_VIEW m_interface_node_indices_;
+  vectorInt m_interface_node_indices_;
 
   /// Area-weighted outward normal (solid→fluid) per node — X/Y/Z components.
-  VECTOR_REAL_VIEW m_coupling_coeff_x_;
-  VECTOR_REAL_VIEW m_coupling_coeff_y_;
-  VECTOR_REAL_VIEW m_coupling_coeff_z_;
+  vectorReal m_coupling_coeff_x_;
+  vectorReal m_coupling_coeff_y_;
+  vectorReal m_coupling_coeff_z_;
 
   /// Elastic displacement at time n-1, stored for interface nodes only
   /// (size = n_interface_nodes_).  Allocated at the end of TagNodes.
-  VECTOR_REAL_VIEW m_ux_nm1_iface_;
-  VECTOR_REAL_VIEW m_uy_nm1_iface_;
-  VECTOR_REAL_VIEW m_uz_nm1_iface_;
+  vectorReal m_ux_nm1_iface_;
+  vectorReal m_uy_nm1_iface_;
+  vectorReal m_uz_nm1_iface_;
 
   /// @brief One adjacent elastic element per interface node (size
   /// n_interface_nodes_).  Used to recover solid properties at interface nodes
   /// when IS_MODEL_ON_NODES is true.
-  VECTOR_INT_VIEW m_interface_adj_elastic_elem_;
+  vectorInt m_interface_adj_elastic_elem_;
 
   /// @brief Solid material properties at interface nodes (size
   /// n_interface_nodes_).  Valid only when IS_MODEL_ON_NODES is true.
-  VECTOR_REAL_VIEW m_vp_solid_iface_;
-  VECTOR_REAL_VIEW m_vs_solid_iface_;
-  VECTOR_REAL_VIEW m_rho_solid_iface_;
+  vectorReal m_vp_solid_iface_;
+  vectorReal m_vs_solid_iface_;
+  vectorReal m_rho_solid_iface_;
 
   /// @brief Fluid material properties at interface nodes (size
   /// n_interface_nodes_).  Valid only when IS_MODEL_ON_NODES is true.
-  VECTOR_REAL_VIEW m_vp_fluid_iface_;
-  VECTOR_REAL_VIEW m_rho_fluid_iface_;
+  vectorReal m_vp_fluid_iface_;
+  vectorReal m_rho_fluid_iface_;
 
   int num_acoustic_elements_{0};  ///< Count of acoustic elements
   int num_elastic_elements_{0};   ///< Count of elastic elements
@@ -213,20 +213,20 @@ class SEMsolverAcoustoElastic : public Solver {
 
   /// @brief Compact list of acoustic element indices (size
   /// num_acoustic_elements_).
-  VECTOR_INT_VIEW acoustic_elem_list_;
+  vectorInt acoustic_elem_list_;
   /// @brief Compact list of elastic element indices (size
   /// num_elastic_elements_).
-  VECTOR_INT_VIEW elastic_elem_list_;
+  vectorInt elastic_elem_list_;
 
   int num_acoustic_nodes_{0};  ///< Count of acoustic-domain nodes
   int num_elastic_nodes_{0};   ///< Count of elastic-domain nodes
 
   /// @brief Compact list of acoustic-domain node indices (pure acoustic +
   /// interface, size num_acoustic_nodes_).
-  VECTOR_INT_VIEW acoustic_node_list_;
+  vectorInt acoustic_node_list_;
   /// @brief Compact list of elastic-domain node indices (pure elastic +
   /// interface, size num_elastic_nodes_).
-  VECTOR_INT_VIEW elastic_node_list_;
+  vectorInt elastic_node_list_;
 
   /// Shear-modulus threshold below which an element is classified as acoustic.
   static constexpr float kMuTolerance = 1.0e-6f;

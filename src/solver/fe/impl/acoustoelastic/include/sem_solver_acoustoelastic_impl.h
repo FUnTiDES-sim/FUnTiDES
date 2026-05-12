@@ -56,12 +56,12 @@ void SEMsolverAcoustoElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES>
   int const nElem = m_mesh_.getNumberOfElements();
   int const nNode = m_mesh_.getNumberOfNodes();
 
-  m_element_type_ = allocateVector<VECTOR_INT_VIEW>(nElem, "acoustoElasticElementType");
-  m_interface_node_index_ = allocateVector<VECTOR_INT_VIEW>(nNode, "interfaceNodeIndex");
+  m_element_type_ = allocateVector<vectorInt>(nElem, "acoustoElasticElementType");
+  m_interface_node_index_ = allocateVector<vectorInt>(nNode, "interfaceNodeIndex");
 
-  m_coupling_coeff_x_ = allocateVector<VECTOR_REAL_VIEW>(nNode, "couplingCoeffX");
-  m_coupling_coeff_y_ = allocateVector<VECTOR_REAL_VIEW>(nNode, "couplingCoeffY");
-  m_coupling_coeff_z_ = allocateVector<VECTOR_REAL_VIEW>(nNode, "couplingCoeffZ");
+  m_coupling_coeff_x_ = allocateVector<vectorReal>(nNode, "couplingCoeffX");
+  m_coupling_coeff_y_ = allocateVector<vectorReal>(nNode, "couplingCoeffY");
+  m_coupling_coeff_z_ = allocateVector<vectorReal>(nNode, "couplingCoeffZ");
 
   auto interface_node_index = m_interface_node_index_;
   auto coupling_coeff_x = m_coupling_coeff_x_;
@@ -151,8 +151,8 @@ void SEMsolverAcoustoElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES>
   num_acoustic_elements_ = n_acoustic;
   num_elastic_elements_ = n_elastic;
 
-  acoustic_elem_list_ = allocateVector<VECTOR_INT_VIEW>(num_acoustic_elements_, "acousticElemList");
-  elastic_elem_list_ = allocateVector<VECTOR_INT_VIEW>(num_elastic_elements_, "elasticElemList");
+  acoustic_elem_list_ = allocateVector<vectorInt>(num_acoustic_elements_, "acousticElemList");
+  elastic_elem_list_ = allocateVector<vectorInt>(num_elastic_elements_, "elasticElemList");
   int ia = 0;
   int ie = 0;
   for (int e = 0; e < nElem; ++e) {
@@ -173,8 +173,8 @@ void SEMsolverAcoustoElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES>
   int const nElem = m_mesh_.getNumberOfElements();
   int const dim = ORDER + 1;
 
-  VECTOR_INT_VIEW acoustic_count = allocateVector<VECTOR_INT_VIEW>(nNode, "acousticCount");
-  VECTOR_INT_VIEW elastic_count = allocateVector<VECTOR_INT_VIEW>(nNode, "elasticCount");
+  vectorInt acoustic_count = allocateVector<vectorInt>(nNode, "acousticCount");
+  vectorInt elastic_count = allocateVector<vectorInt>(nNode, "elasticCount");
 
   Kokkos::parallel_for(
       "TagNodes_initCount", nNode, KOKKOS_LAMBDA(const int i) {
@@ -210,7 +210,7 @@ void SEMsolverAcoustoElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES>
   }
   num_interface_nodes_ = n_interface;
   n_interface_nodes_ = n_interface;
-  m_interface_node_indices_ = allocateVector<VECTOR_INT_VIEW>(n_interface_nodes_, "interfaceNodeIndices");
+  m_interface_node_indices_ = allocateVector<vectorInt>(n_interface_nodes_, "interfaceNodeIndices");
 
   int idx = 0;
   for (int n = 0; n < nNode; ++n) {
@@ -235,8 +235,8 @@ void SEMsolverAcoustoElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES>
     }
     num_acoustic_nodes_ = n_acou;
     num_elastic_nodes_ = n_elas;
-    acoustic_node_list_ = allocateVector<VECTOR_INT_VIEW>(n_acou, "acousticNodeList");
-    elastic_node_list_ = allocateVector<VECTOR_INT_VIEW>(n_elas, "elasticNodeList");
+    acoustic_node_list_ = allocateVector<vectorInt>(n_acou, "acousticNodeList");
+    elastic_node_list_ = allocateVector<vectorInt>(n_elas, "elasticNodeList");
     int ia = 0, ie = 0;
     for (int n = 0; n < nNode; ++n) {
       if (acoustic_count[n] > 0) acoustic_node_list_[ia++] = n;
@@ -245,9 +245,9 @@ void SEMsolverAcoustoElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES>
   }
 
   // Allocate compact nm1 arrays (one entry per interface node).
-  m_ux_nm1_iface_ = allocateVector<VECTOR_REAL_VIEW>(n_interface_nodes_, "uxNm1Iface");
-  m_uy_nm1_iface_ = allocateVector<VECTOR_REAL_VIEW>(n_interface_nodes_, "uyNm1Iface");
-  m_uz_nm1_iface_ = allocateVector<VECTOR_REAL_VIEW>(n_interface_nodes_, "uzNm1Iface");
+  m_ux_nm1_iface_ = allocateVector<vectorReal>(n_interface_nodes_, "uxNm1Iface");
+  m_uy_nm1_iface_ = allocateVector<vectorReal>(n_interface_nodes_, "uyNm1Iface");
+  m_uz_nm1_iface_ = allocateVector<vectorReal>(n_interface_nodes_, "uzNm1Iface");
   for (int i = 0; i < n_interface_nodes_; ++i) {
     m_ux_nm1_iface_[i] = 0.0f;
     m_uy_nm1_iface_[i] = 0.0f;
@@ -259,7 +259,7 @@ void SEMsolverAcoustoElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES>
   // kernels use the correct material side.
   if constexpr (IS_MODEL_ON_NODES) {
     // Map each interface node to one adjacent elastic element.
-    m_interface_adj_elastic_elem_ = allocateVector<VECTOR_INT_VIEW>(n_interface_nodes_, "interfaceAdjElasticElem");
+    m_interface_adj_elastic_elem_ = allocateVector<vectorInt>(n_interface_nodes_, "interfaceAdjElasticElem");
     for (int i = 0; i < n_interface_nodes_; ++i) m_interface_adj_elastic_elem_[i] = -1;
 
     for (int ei = 0; ei < num_elastic_elements_; ++ei) {
@@ -275,11 +275,11 @@ void SEMsolverAcoustoElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES>
     }
 
     // Allocate compact solid/fluid property arrays.
-    m_vp_solid_iface_ = allocateVector<VECTOR_REAL_VIEW>(n_interface_nodes_, "vpSolidIface");
-    m_vs_solid_iface_ = allocateVector<VECTOR_REAL_VIEW>(n_interface_nodes_, "vsSolidIface");
-    m_rho_solid_iface_ = allocateVector<VECTOR_REAL_VIEW>(n_interface_nodes_, "rhoSolidIface");
-    m_vp_fluid_iface_ = allocateVector<VECTOR_REAL_VIEW>(n_interface_nodes_, "vpFluidIface");
-    m_rho_fluid_iface_ = allocateVector<VECTOR_REAL_VIEW>(n_interface_nodes_, "rhoFluidIface");
+    m_vp_solid_iface_ = allocateVector<vectorReal>(n_interface_nodes_, "vpSolidIface");
+    m_vs_solid_iface_ = allocateVector<vectorReal>(n_interface_nodes_, "vsSolidIface");
+    m_rho_solid_iface_ = allocateVector<vectorReal>(n_interface_nodes_, "rhoSolidIface");
+    m_vp_fluid_iface_ = allocateVector<vectorReal>(n_interface_nodes_, "vpFluidIface");
+    m_rho_fluid_iface_ = allocateVector<vectorReal>(n_interface_nodes_, "rhoFluidIface");
 
     for (int i = 0; i < n_interface_nodes_; ++i) {
       int const j = m_interface_node_indices_[i];
@@ -660,7 +660,7 @@ void SEMsolverAcoustoElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES>
 
 template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE, bool IS_MODEL_ON_NODES>
 void SEMsolverAcoustoElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES>::outputSolutionValues(
-    const int& t, int& e, const VECTOR_REAL_VIEW& field, const char* fieldName) {
+    const int& t, int& e, const vectorReal& field, const char* fieldName) {
   m_acoustic_solver_.outputSolutionValues(t, e, field, fieldName);
 }
 

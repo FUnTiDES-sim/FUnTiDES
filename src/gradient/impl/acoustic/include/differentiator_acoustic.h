@@ -49,9 +49,8 @@ class DifferentiatorAcoustic : public Differentiator {
    *
    * Computes qdt2 = (qnPrevPrev - 2*qnPrev + qn) / dt² on the fly.
    */
-  void computeOnElements(MESH_TYPE mesh, float dt, VECTOR_REAL_VIEW const pn, VECTOR_REAL_VIEW const qn,
-                         VECTOR_REAL_VIEW const qnPrev, VECTOR_REAL_VIEW const qnPrevPrev,
-                         VECTOR_REAL_VIEW const gradKappa, VECTOR_REAL_VIEW const gradBuoyancy) const;
+  void computeOnElements(MESH_TYPE mesh, float dt, vectorReal const pn, vectorReal const qn, vectorReal const qnPrev,
+                         vectorReal const qnPrevPrev, vectorReal const gradKappa, vectorReal const gradBuoyancy) const;
 
   /**
    * @brief Multiple elements share boundary nodes — ATOMICADD required.
@@ -60,9 +59,8 @@ class DifferentiatorAcoustic : public Differentiator {
    * Gradients are normalized by the mass matrix diagonal to account for
    * multiple elements sharing nodes at the domain interior.
    */
-  void computeOnNodes(MESH_TYPE mesh, float dt, VECTOR_REAL_VIEW const pn, VECTOR_REAL_VIEW const qn,
-                      VECTOR_REAL_VIEW const qnPrev, VECTOR_REAL_VIEW const qnPrevPrev,
-                      VECTOR_REAL_VIEW const gradKappa, VECTOR_REAL_VIEW const gradBuoyancy) const;
+  void computeOnNodes(MESH_TYPE mesh, float dt, vectorReal const pn, vectorReal const qn, vectorReal const qnPrev,
+                      vectorReal const qnPrevPrev, vectorReal const gradKappa, vectorReal const gradBuoyancy) const;
 };
 
 }  // namespace gradient

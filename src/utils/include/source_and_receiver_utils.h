@@ -53,7 +53,7 @@ inline std::array<float, 3> ComputeDASVector(float dip_deg, float azimuth_deg) {
 
 template <int ORDER>
 void ComputeRHSWeights(real_t const (&cornerCoords)[8][3], std::array<float, 3> coordsReal,
-                       ARRAY_REAL_VIEW& rhsWeights) {
+                       arrayReal::host_mirror_type& rhsWeights) {
   constexpr int numNodes = Qk_Hexahedron_Lagrange_GaussLobatto_Selector<ORDER>::type::numNodes;
 
   // Compute coordinates on reference element

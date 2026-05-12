@@ -30,19 +30,19 @@ struct DGsolverDataAcoustic : public Solver::DataStruct {
       : m_wavefield(wavefield), m_rhs(rhs) {}
 
   PROXY_HOST_DEVICE
-  ARRAY_REAL_VIEW getCurrentField(int i) const { return m_wavefield.getCurrentField(i); }
+  arrayReal getCurrentField(int i) const { return m_wavefield.getCurrentField(i); }
 
   PROXY_HOST_DEVICE
-  ARRAY_REAL_VIEW getPreviousField(int i) const { return m_wavefield.getPreviousField(i); }
+  arrayReal getPreviousField(int i) const { return m_wavefield.getPreviousField(i); }
 
   PROXY_HOST_DEVICE
-  ARRAY_REAL_VIEW getRhsTerm(int i) const { return m_rhs.getTerm(i); }
+  arrayReal getRhsTerm(int i) const { return m_rhs.getTerm(i); }
 
   PROXY_HOST_DEVICE
-  VECTOR_INT_VIEW getRhsElement() const { return m_rhs.getElement(); }
+  vectorInt getRhsElement() const { return m_rhs.getElement(); }
 
   PROXY_HOST_DEVICE
-  ARRAY_REAL_VIEW getRhsWeights() const { return m_rhs.getWeights(); }
+  arrayReal getRhsWeights() const { return m_rhs.getWeights(); }
 
   void swapWavefields() { m_wavefield.swap(); }
 

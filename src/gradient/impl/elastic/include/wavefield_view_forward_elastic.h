@@ -25,7 +25,7 @@ class WavefieldViewForwardElastic : public WavefieldView {
  public:
   static constexpr int kNumFields = 3;
 
-  WavefieldViewForwardElastic(VECTOR_REAL_VIEW ux_n, VECTOR_REAL_VIEW uy_n, VECTOR_REAL_VIEW uz_n)
+  WavefieldViewForwardElastic(vectorReal ux_n, vectorReal uy_n, vectorReal uz_n)
       : ux_n_(ux_n), uy_n_(uy_n), uz_n_(uz_n) {}
 
   int getNumFields() const override { return kNumFields; }
@@ -45,7 +45,7 @@ class WavefieldViewForwardElastic : public WavefieldView {
 
   // TODO use template + constexpr if when C++20 is available
   PROXY_HOST_DEVICE
-  VECTOR_REAL_VIEW getField(int i) const override {
+  vectorReal getField(int i) const override {
     switch (i) {
       case 0:
         return ux_n_;
@@ -64,9 +64,9 @@ class WavefieldViewForwardElastic : public WavefieldView {
   }
 
  private:
-  VECTOR_REAL_VIEW ux_n_;  ///< Current x-displacement snapshot
-  VECTOR_REAL_VIEW uy_n_;  ///< Current y-displacement snapshot
-  VECTOR_REAL_VIEW uz_n_;  ///< Current z-displacement snapshot
+  vectorReal ux_n_;  ///< Current x-displacement snapshot
+  vectorReal uy_n_;  ///< Current y-displacement snapshot
+  vectorReal uz_n_;  ///< Current z-displacement snapshot
 };
 
 }  // namespace gradient
