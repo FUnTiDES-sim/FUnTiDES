@@ -23,62 +23,24 @@
 #include "solver_factory.h"
 #include "source_and_receiver_utils.h"
 
-/**
- * @class SEMproxy
- * @brief Main driver class for the Spectral Element Method (SEM) simulation.
- */
 class SEMproxy {
  public:
-  /**
-   * @brief Constructs the SEMproxy simulation environment.
-   * @param cfg The parsed configuration options for the simulation.
-   */
   explicit SEMproxy(const SemProxyOptions& cfg);
 
-  /**
-   * @brief Destructs the SEMproxy instance and closes internal engines.
-   */
   ~SEMproxy() { io_ctrl_.reset(); }
 
-  /**
-   * @brief Initializes the finite element arrays and sources.
-   */
   void InitFiniteElem() {
     InitArrays();
     InitSource();
   };
 
-  /**
-   * @brief Executes the main time-stepping simulation loop.
-   */
   void Run();
 
-  /**
-   * @brief Saves a 2D data slice in Gnuplot matrix format.
-   * @param host_slice The data view to save.
-   * @param size_x X-dimension size.
-   * @param size_y Y-dimension size.
-   * @param filepath The output file path.
-   */
   void SaveSlice(const vectorReal& host_slice, int size_x, int size_y, const std::string& filepath) const;
-
-  /**
-   * @brief Saves a full simulation snapshot for a given time sample.
-   * @param time_sample The current timestep index.
-   * @param data The data array representing the field state.
-   */
-  void SaveSnapshot(int time_sample, vectorReal data) const;
-  void SaveSnapshot(int timestep);
-
-  /**
-   * @brief Computes optimal time step using the CFL stability condition.
-   * @param cfl_factor Stability factor (e.g., 0.5-0.7 for 2nd-order schemes).
-   * @return The maximum stable time step delta (dt).
-   */
+  void SaveSnapshot(int time_sample, const vectorReal& d_data, vectorReal::host_mirror_type& h_data) const;
   float FindCflDt(float cfl_factor);
 
  private:
-  // --- Domain Decomposition & Topology ---
   model::CartesianParams<float, int> local_params_;
   utils::DistributedContext dist_ctx_;
   utils::ParallelTopology par_topology_;
@@ -87,24 +49,20 @@ class SEMproxy {
   int num_nodes_[3] = {0};
   float domain_size_[3] = {0};
 
-  // --- IO & Snapshots ---
   bool is_snapshots_ = false;
   int snap_time_interval_ = 0;
   std::string snap_folder_;
   std::shared_ptr<SemIOController> io_ctrl_;
 
-  // --- Physics Configurations ---
   bool is_elastic_ = false;
   bool is_acousto_elastic_ = false;
   bool free_surface_ = false;
   bool is_dg_ = false;
 
-  // --- Sponge Boundary Parameters ---
   std::array<float, 3> sponge_size_ = {0, 0, 0};
   bool surface_sponge_ = false;
   float taper_delta_ = 0.015f;
 
-  // --- Time & Source Parameters ---
   float dt_ = 0.0f;
   float time_max_ = 0.0f;
   int num_samples_ = 0;
@@ -118,13 +76,12 @@ class SEMproxy {
   std::array<float, 3> src_coord_ = {0};
   std::array<float, 3> rcv_coord_ = {0};
 
-  // --- Core Solver & Mesh ---
   std::shared_ptr<model::ModelApi<float, int>> mesh_;
   std::unique_ptr<solver::fe::Solver> solver_;
   std::unique_ptr<solver::fe::BoundarySynchronizer> syncer_;
   SolverUtils utils_;
 
-  // --- Acoustic / Shared Arrays ---
+  // --- Acoustic / Shared Arrays (Device) ---
   arrayReal rhs_term_;
   vectorReal pn_global_prev_;
   vectorReal pn_global_curr_;
@@ -136,7 +93,7 @@ class SEMproxy {
   arrayReal rhs_weights_rcv_;
   arrayReal pn_at_receiver_;
 
-  // --- Elastic Arrays ---
+  // --- Elastic Arrays (Device) ---
   arrayReal rhs_term_x_;
   arrayReal rhs_term_y_;
   arrayReal rhs_term_z_;
@@ -160,12 +117,36 @@ class SEMproxy {
   std::vector<float> das_weights_;
   vectorReal das_signal_;
 
+  // --- HOST MIRRORS (Used to avoid UVM overhead when CPU needs data) ---
+  vectorInt::host_mirror_type h_rhs_element_;
+  vectorInt::host_mirror_type h_rhs_element_rcv_;
+  arrayReal::host_mirror_type h_rhs_weights_;
+  arrayReal::host_mirror_type h_rhs_weights_rcv_;
+  arrayReal::host_mirror_type h_rhs_term_;
+  arrayReal::host_mirror_type h_rhs_term_x_;
+  arrayReal::host_mirror_type h_rhs_term_y_;
+  arrayReal::host_mirror_type h_rhs_term_z_;
+
+  arrayReal::host_mirror_type h_pn_at_receiver_;
+  arrayReal::host_mirror_type h_uxn_at_receiver_;
+  arrayReal::host_mirror_type h_uyn_at_receiver_;
+  arrayReal::host_mirror_type h_uzn_at_receiver_;
+  vectorReal::host_mirror_type h_das_signal_;
+
+  vectorReal::host_mirror_type h_pn_global_curr_;
+  vectorReal::host_mirror_type h_pn_global_prev_;
+  vectorReal::host_mirror_type h_uxn_global_curr_;
+  vectorReal::host_mirror_type h_uyn_global_curr_;
+  vectorReal::host_mirror_type h_uzn_global_curr_;
+  vectorReal::host_mirror_type h_uxn_global_prev_;
+  vectorReal::host_mirror_type h_uyn_global_prev_;
+  vectorReal::host_mirror_type h_uzn_global_prev_;
+
   // --- Performance Tracking ---
   double time_init_ = 0.0;
   double time_compute_ = 0.0;
   double time_io_ = 0.0;
 
-  // --- Initialization Helpers ---
   void InitSource();
   void InitArrays();
   void InitMpi(int* mpi_init);
@@ -183,7 +164,6 @@ class SEMproxy {
   void DisplayInitMsg(const SemProxyOptions& opt);
   void DisplayPerfMsg() const;
 
-  // --- Parsing Helpers ---
   int GetPhysic(std::string physic_arg);
   utils::enums::implemType GetImplem(std::string implem_arg);
   utils::enums::methodType GetMethod(std::string method_arg);

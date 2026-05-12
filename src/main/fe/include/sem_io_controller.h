@@ -58,10 +58,6 @@ class SemIOController {
     async_io_.SetParameter("Threads", "4");
     async_io_.SetParameter("Profile", "On");
     async_io_.SetParameter("ProfileUnits", "Microseconds");
-
-    // I/O Compression. See function AttachOperator
-    // receiver_op_ = adios_.DefineOperator("bloscComp", "blosc");
-    // compressor_op_ = adios_.DefineOperator("bloscSnap", "blosc");
   }
 
   void launchWriters() {
@@ -83,21 +79,7 @@ class SemIOController {
     timestep_ = async_io_.DefineVariable<int>("TimeStep", {1}, {0}, {1});
   }
 
-  void attachOperator() {
-    // NOTE: This is about I/O compression. This is currently diseable.
-    // Alexis (01/10/2025): This could compress the I/O by a factor 2. However
-    // this slow down the execution time by two when saving every 10 time step
-    // iteration on my laptop. From 4.6 to 2.4 GB, and 23 to 33 secondes.
-    // This is multithreaded.
-    // Also it add blosc, libzstd and libblz4 as dependancies.
-    // Don't forget to enable blosc2 and openmp in ADIOS2.cmake.
-    //
-    // pn_.AddOperation(compressor_op_, {{"compressor", "zstd"}, {"clevel",
-    // "5"}, {"nthreads", "4"}}); receivers_.AddOperation(receiver_op_,
-    // {{"compressor", "lz4"}, {"clevel", "3"}, {"nthreads", "4"}});
-    // receivers_coords_.AddOperation(receiver_op_, {{"compressor", "lz4"},
-    // {"clevel", "1"}, {"nthreads", "2"}});
-  }
+  void attachOperator() {}
 
  public:
   SemIOController(const std::vector<size_t>& global_dims, const std::vector<size_t>& start_offsets,
@@ -117,20 +99,18 @@ class SemIOController {
     receiver_writer_.Close();
   }
 
-  void saveReceiver(vectorReal& receiver, const std::array<float, 3>& coords) {
+  void saveReceiver(vectorReal::host_mirror_type& receiver, const std::array<float, 3>& coords) {
     receiver_writer_.BeginStep();
     receiver_writer_.Put(receivers_, receiver.data());
     receiver_writer_.Put(receivers_coords_, coords.data());
     receiver_writer_.EndStep();
   }
 
-  void saveSnapshot(const vectorReal& pnGlobal, const int timestep) {
+  void saveSnapshot(const vectorReal::host_mirror_type& pnGlobal, const int timestep) {
     snaps_writer_.BeginStep();
 
-    // Wrap scalar in array
     int ts_value[1] = {timestep};
     snaps_writer_.Put(timestep_, ts_value);
-
     snaps_writer_.Put(pn_, pnGlobal.data());
     snaps_writer_.EndStep();
   }
