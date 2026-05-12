@@ -317,6 +317,18 @@ TEST_F(RhsElasticTest, CopyInContainerClass) {
   EXPECT_FLOAT_EQ(original.m_weights(4, 5), 0.555f);
 }
 
+TEST_F(RhsElasticTest, GetNumRhsComponentsReturnsThree) {
+  RhsElastic rhs(termx, termy, termz, element, weights);
+  EXPECT_EQ(rhs.getNumRhsComponents(), 3);
+}
+
+TEST_F(RhsElasticTest, PrintDoesNotCrash) {
+  RhsElastic rhs(termx, termy, termz, element, weights);
+  testing::internal::CaptureStdout();
+  EXPECT_NO_THROW(rhs.print());
+  testing::internal::GetCapturedStdout();
+}
+
 }  // namespace test
 }  // namespace fe
 }  // namespace solver

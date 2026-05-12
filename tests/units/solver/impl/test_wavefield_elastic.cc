@@ -515,6 +515,27 @@ TEST_F(WavefieldElasticTest, SwapWithRotationNoDataCopy) {
   EXPECT_FLOAT_EQ(uxPrevField(0), 999.0f);
 }
 
+TEST_F(WavefieldElasticTest, GetNumFieldsReturnsThree) {
+  WavefieldElastic wavefield(uxPrevField, uxCurrField, uyPrevField, uyCurrField, uzPrevField, uzCurrField);
+  EXPECT_EQ(wavefield.getNumFields(), 3);
+}
+
+TEST_F(WavefieldElasticTest, GetFieldNamesMatchComponents) {
+  WavefieldElastic wavefield(uxPrevField, uxCurrField, uyPrevField, uyCurrField, uzPrevField, uzCurrField);
+  const char* const* names = wavefield.getFieldNames();
+  ASSERT_NE(names, nullptr);
+  EXPECT_STREQ(names[0], "ux");
+  EXPECT_STREQ(names[1], "uy");
+  EXPECT_STREQ(names[2], "uz");
+}
+
+TEST_F(WavefieldElasticTest, PrintDoesNotCrash) {
+  WavefieldElastic wavefield(uxPrevField, uxCurrField, uyPrevField, uyCurrField, uzPrevField, uzCurrField);
+  testing::internal::CaptureStdout();
+  EXPECT_NO_THROW(wavefield.print());
+  testing::internal::GetCapturedStdout();
+}
+
 }  // namespace test
 }  // namespace fe
 }  // namespace solver

@@ -350,6 +350,25 @@ TEST_F(WavefieldAcousticTest, SwapWithRotationNoDataCopy) {
   EXPECT_FLOAT_EQ(prevField(0), 999.0f);
 }
 
+TEST_F(WavefieldAcousticTest, GetNumFieldsReturnsOne) {
+  WavefieldAcoustic wavefield(prevField, currField);
+  EXPECT_EQ(wavefield.getNumFields(), 1);
+}
+
+TEST_F(WavefieldAcousticTest, GetFieldNamesMatchComponents) {
+  WavefieldAcoustic wavefield(prevField, currField);
+  const char* const* names = wavefield.getFieldNames();
+  ASSERT_NE(names, nullptr);
+  EXPECT_STREQ(names[0], "pressure");
+}
+
+TEST_F(WavefieldAcousticTest, PrintDoesNotCrash) {
+  WavefieldAcoustic wavefield(prevField, currField);
+  testing::internal::CaptureStdout();
+  EXPECT_NO_THROW(wavefield.print());
+  testing::internal::GetCapturedStdout();
+}
+
 }  // namespace test
 }  // namespace fe
 }  // namespace solver
