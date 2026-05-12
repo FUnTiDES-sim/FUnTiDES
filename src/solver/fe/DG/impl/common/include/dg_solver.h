@@ -132,7 +132,7 @@ class DGsolver : public Solver {
    */
   void updateFields(float dt, const DataType& data);
 
-   /**
+  /**
    * @brief Run Verlet update only for a compact subset of elements.
    * @param dt        Time step.
    * @param data      Wavefield data.
@@ -176,19 +176,19 @@ class DGsolver : public Solver {
   void faceListFromElementList() {
     std::unordered_set<int> visited_faces;
     for (int i = 0; i < m_n_elem_list_; ++i) {
-        const int e = m_elem_list_[i];
-        for (int f = 0; f < 6; ++f) {
-          const int face_id = m_mesh.getGlobalFace(e, static_cast<model::CubicFace>(f));
-          visited_faces.insert(face_id);
-        }
+      const int e = m_elem_list_[i];
+      for (int f = 0; f < 6; ++f) {
+        const int face_id = m_mesh.getGlobalFace(e, static_cast<model::CubicFace>(f));
+        visited_faces.insert(face_id);
+      }
     }
     m_n_face_list_ = static_cast<int>(visited_faces.size());
     m_face_list_ = allocateVector<VECTOR_INT_VIEW>(m_n_face_list_, "faceList");
     int i = 0;
     for (const int face_id : visited_faces) {
-        m_face_list_(i++) = face_id;
+      m_face_list_(i++) = face_id;
     }
-}
+  }
 
  private:
   MESH_TYPE m_mesh;

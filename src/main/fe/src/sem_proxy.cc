@@ -184,7 +184,7 @@ void SEMproxy::Run() {
   if (is_dg_) {
     DGWavefieldAcoustic wavefield(pn_dg_prev_, pn_dg_curr_);
     RhsAcoustic rhs(rhs_term_, rhs_element_, rhs_weights_);
-    
+
     DGsolverDataAcoustic dgData(wavefield, rhs);
 
     for (int time_index = 0; time_index < num_samples_; time_index++) {

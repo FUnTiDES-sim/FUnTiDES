@@ -22,8 +22,7 @@ struct DGWavefieldAcoustic {
   PROXY_HOST_DEVICE DGWavefieldAcoustic& operator=(const DGWavefieldAcoustic&) = default;
 
   PROXY_HOST_DEVICE
-  DGWavefieldAcoustic(ARRAY_REAL_VIEW pnPrev, ARRAY_REAL_VIEW pnCurr)
-      : m_pnPrev(pnPrev), m_pnCurr(pnCurr) {}
+  DGWavefieldAcoustic(ARRAY_REAL_VIEW pnPrev, ARRAY_REAL_VIEW pnCurr) : m_pnPrev(pnPrev), m_pnCurr(pnCurr) {}
 
   int getNumFields() const { return kNumFields; }
 

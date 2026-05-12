@@ -91,7 +91,7 @@ TEST_F(DGsolverDataAcousticTest, Constructor_DataValuesPreserved) {
 TEST_F(DGsolverDataAcousticTest, IsDistributed_DefaultsFalse) {
   DGWavefieldAcoustic wavefield(pPrev_, pCurr_);
   RhsAcoustic rhs(rhsTerm_, rhsElem_, rhsWeights_);
-  
+
   DGsolverDataAcoustic data(wavefield, rhs);
 
   EXPECT_FALSE(data.isDistributed);
@@ -106,7 +106,7 @@ TEST_F(DGsolverDataAcousticTest, GetCurrentField_ReturnsPnCurr) {
   RhsAcoustic rhs(rhsTerm_, rhsElem_, rhsWeights_);
 
   DGsolverDataAcoustic data(wavefield, rhs);
-  
+
   auto curr = data.getCurrentField(0);
 
   ASSERT_EQ(curr.extent(0), static_cast<size_t>(nElem_));
@@ -131,7 +131,7 @@ TEST_F(DGsolverDataAcousticTest, GetPreviousField_ReturnsPnPrev) {
 TEST_F(DGsolverDataAcousticTest, GetRhsTerm_ReturnsTerm) {
   DGWavefieldAcoustic wavefield(pPrev_, pCurr_);
   RhsAcoustic rhs(rhsTerm_, rhsElem_, rhsWeights_);
-  
+
   DGsolverDataAcoustic data(wavefield, rhs);
 
   auto term = data.getRhsTerm(0);
@@ -145,7 +145,7 @@ TEST_F(DGsolverDataAcousticTest, GetRhsTerm_ReturnsTerm) {
 TEST_F(DGsolverDataAcousticTest, GetRhsElement_ReturnsElem) {
   DGWavefieldAcoustic wavefield(pPrev_, pCurr_);
   RhsAcoustic rhs(rhsTerm_, rhsElem_, rhsWeights_);
-  
+
   DGsolverDataAcoustic data(wavefield, rhs);
 
   auto elem = data.getRhsElement();
@@ -157,7 +157,7 @@ TEST_F(DGsolverDataAcousticTest, GetRhsElement_ReturnsElem) {
 TEST_F(DGsolverDataAcousticTest, GetRhsWeights_ReturnsWeights) {
   DGWavefieldAcoustic wavefield(pPrev_, pCurr_);
   RhsAcoustic rhs(rhsTerm_, rhsElem_, rhsWeights_);
-  
+
   DGsolverDataAcoustic data(wavefield, rhs);
 
   auto w = data.getRhsWeights();
@@ -177,7 +177,7 @@ TEST_F(DGsolverDataAcousticTest, SwapWavefields_ExchangesPrevAndCurr) {
   RhsAcoustic rhs(rhsTerm_, rhsElem_, rhsWeights_);
 
   DGsolverDataAcoustic data(wavefield, rhs);
-  
+
   float const prev00 = data.getPreviousField(0)(0, 0);
   float const curr00 = data.getCurrentField(0)(0, 0);
 
@@ -192,7 +192,7 @@ TEST_F(DGsolverDataAcousticTest, SwapWavefields_TwiceRestoresOriginal) {
   RhsAcoustic rhs(rhsTerm_, rhsElem_, rhsWeights_);
 
   DGsolverDataAcoustic data(wavefield, rhs);
-  
+
   float const prev00 = data.getPreviousField(0)(0, 0);
   float const curr00 = data.getCurrentField(0)(0, 0);
 
@@ -209,7 +209,7 @@ TEST_F(DGsolverDataAcousticTest, SwapWavefields_IsShallowHandleSwap) {
   RhsAcoustic rhs(rhsTerm_, rhsElem_, rhsWeights_);
 
   DGsolverDataAcoustic data(wavefield, rhs);
-  
+
   data.swapWavefields();
 
   // pnPrev now references the old pCurr_ allocation
@@ -223,7 +223,7 @@ TEST_F(DGsolverDataAcousticTest, SwapWavefields_AllElementsSwapped) {
   RhsAcoustic rhs(rhsTerm_, rhsElem_, rhsWeights_);
 
   DGsolverDataAcoustic data(wavefield, rhs);
-  
+
   data.swapWavefields();
 
   for (int e = 0; e < nElem_; ++e)
@@ -240,7 +240,7 @@ TEST_F(DGsolverDataAcousticTest, SwapWavefields_AllElementsSwapped) {
 TEST_F(DGsolverDataAcousticTest, Print_DoesNotCrash) {
   DGWavefieldAcoustic wavefield(pPrev_, pCurr_);
   RhsAcoustic rhs(rhsTerm_, rhsElem_, rhsWeights_);
-  
+
   DGsolverDataAcoustic data(wavefield, rhs);
 
   EXPECT_NO_THROW(data.print());

@@ -111,7 +111,7 @@ void DGsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::comp
   bool const list_on = m_list_mode_;
   auto list_local = m_elem_list_;
   int const n_iter = list_on ? m_n_elem_list_ : kNumElem;
-  
+
   ARRAY_REAL_VIEW mass_local_view = m_mass_local_;
   ARRAY_REAL_VIEW stiff_local_view = m_stiff_local_;
   ARRAY_REAL_VIEW damp_local_view = m_damp_local_;
@@ -202,7 +202,7 @@ void DGsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::comp
 
   bool const list_on = m_list_mode_;
   auto list_local = m_face_list_;
-  int const n_iter = list_on ? m_n_face_list_ : kNumFaces;  
+  int const n_iter = list_on ? m_n_face_list_ : kNumFaces;
 
   auto face_connectivity_local = m_face_connectivity_;
   auto const face_to_elem_dof = kFaceToElemDof;  // local copy for device capture
