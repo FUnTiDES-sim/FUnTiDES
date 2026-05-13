@@ -14,7 +14,7 @@ namespace fe {
  */
 struct DGPhysicsTraits {
   /// Human-readable name for logging
-  static constexpr const char* kName = "Acoustic";
+  static constexpr const char* kName = "DGAcoustic";
 
   /// Concrete types for device access
   using WavefieldType = DGWavefieldAcoustic;
