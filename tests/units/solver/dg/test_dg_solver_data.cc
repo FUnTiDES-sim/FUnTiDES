@@ -53,37 +53,47 @@ class DGsolverDataAcousticTest : public ::testing::Test {
 // ============================================================
 
 TEST_F(DGsolverDataAcousticTest, Constructor_StoresAllExtents) {
-  DGsolverDataAcoustic data(pPrev_, pCurr_, rhsTerm_, rhsElem_, rhsWeights_);
+  DGWavefieldAcoustic wavefield(pPrev_, pCurr_);
+  RhsAcoustic rhs(rhsTerm_, rhsElem_, rhsWeights_);
 
-  EXPECT_EQ(data.pnPrev.extent(0), static_cast<size_t>(nElem_));
-  EXPECT_EQ(data.pnPrev.extent(1), static_cast<size_t>(nDof_));
-  EXPECT_EQ(data.pnCurr.extent(0), static_cast<size_t>(nElem_));
-  EXPECT_EQ(data.pnCurr.extent(1), static_cast<size_t>(nDof_));
-  EXPECT_EQ(data.myRHSTerm.extent(0), static_cast<size_t>(nSrc_));
-  EXPECT_EQ(data.myRHSTerm.extent(1), static_cast<size_t>(nSample_));
-  EXPECT_EQ(data.rhsElement.extent(0), static_cast<size_t>(nSrc_));
-  EXPECT_EQ(data.rhsWeights.extent(0), static_cast<size_t>(nSrc_));
-  EXPECT_EQ(data.rhsWeights.extent(1), static_cast<size_t>(nDof_));
+  DGsolverDataAcoustic data(wavefield, rhs);
+
+  EXPECT_EQ(data.getPreviousField(0).extent(0), static_cast<size_t>(nElem_));
+  EXPECT_EQ(data.getPreviousField(0).extent(1), static_cast<size_t>(nDof_));
+  EXPECT_EQ(data.getCurrentField(0).extent(0), static_cast<size_t>(nElem_));
+  EXPECT_EQ(data.getCurrentField(0).extent(1), static_cast<size_t>(nDof_));
+  EXPECT_EQ(data.getRhsTerm(0).extent(0), static_cast<size_t>(nSrc_));
+  EXPECT_EQ(data.getRhsTerm(0).extent(1), static_cast<size_t>(nSample_));
+  EXPECT_EQ(data.getRhsElement().extent(0), static_cast<size_t>(nSrc_));
+  EXPECT_EQ(data.getRhsWeights().extent(0), static_cast<size_t>(nSrc_));
+  EXPECT_EQ(data.getRhsWeights().extent(1), static_cast<size_t>(nDof_));
 }
 
 TEST_F(DGsolverDataAcousticTest, Constructor_DataValuesPreserved) {
-  DGsolverDataAcoustic data(pPrev_, pCurr_, rhsTerm_, rhsElem_, rhsWeights_);
+  DGWavefieldAcoustic wavefield(pPrev_, pCurr_);
+  RhsAcoustic rhs(rhsTerm_, rhsElem_, rhsWeights_);
+
+  DGsolverDataAcoustic data(wavefield, rhs);
 
   for (int e = 0; e < nElem_; ++e)
     for (int d = 0; d < nDof_; ++d) {
-      EXPECT_FLOAT_EQ(data.pnPrev(e, d), static_cast<float>(e * nDof_ + d));
-      EXPECT_FLOAT_EQ(data.pnCurr(e, d), static_cast<float>(e * nDof_ + d) * 2.0f);
+      EXPECT_FLOAT_EQ(data.getPreviousField(0)(e, d), static_cast<float>(e * nDof_ + d));
+      EXPECT_FLOAT_EQ(data.getCurrentField(0)(e, d), static_cast<float>(e * nDof_ + d) * 2.0f);
     }
 
   for (int s = 0; s < nSrc_; ++s) {
-    EXPECT_EQ(data.rhsElement(s), s * 3);
-    for (int t = 0; t < nSample_; ++t) EXPECT_FLOAT_EQ(data.myRHSTerm(s, t), static_cast<float>(s * 10 + t));
-    for (int d = 0; d < nDof_; ++d) EXPECT_FLOAT_EQ(data.rhsWeights(s, d), static_cast<float>(d) * 0.1f);
+    EXPECT_EQ(data.getRhsElement()(s), s * 3);
+    for (int t = 0; t < nSample_; ++t) EXPECT_FLOAT_EQ(data.getRhsTerm(0)(s, t), static_cast<float>(s * 10 + t));
+    for (int d = 0; d < nDof_; ++d) EXPECT_FLOAT_EQ(data.getRhsWeights()(s, d), static_cast<float>(d) * 0.1f);
   }
 }
 
 TEST_F(DGsolverDataAcousticTest, IsDistributed_DefaultsFalse) {
-  DGsolverDataAcoustic data(pPrev_, pCurr_, rhsTerm_, rhsElem_, rhsWeights_);
+  DGWavefieldAcoustic wavefield(pPrev_, pCurr_);
+  RhsAcoustic rhs(rhsTerm_, rhsElem_, rhsWeights_);
+
+  DGsolverDataAcoustic data(wavefield, rhs);
+
   EXPECT_FALSE(data.isDistributed);
 }
 
@@ -92,7 +102,11 @@ TEST_F(DGsolverDataAcousticTest, IsDistributed_DefaultsFalse) {
 // ============================================================
 
 TEST_F(DGsolverDataAcousticTest, GetCurrentField_ReturnsPnCurr) {
-  DGsolverDataAcoustic data(pPrev_, pCurr_, rhsTerm_, rhsElem_, rhsWeights_);
+  DGWavefieldAcoustic wavefield(pPrev_, pCurr_);
+  RhsAcoustic rhs(rhsTerm_, rhsElem_, rhsWeights_);
+
+  DGsolverDataAcoustic data(wavefield, rhs);
+
   auto curr = data.getCurrentField(0);
 
   ASSERT_EQ(curr.extent(0), static_cast<size_t>(nElem_));
@@ -102,7 +116,11 @@ TEST_F(DGsolverDataAcousticTest, GetCurrentField_ReturnsPnCurr) {
 }
 
 TEST_F(DGsolverDataAcousticTest, GetPreviousField_ReturnsPnPrev) {
-  DGsolverDataAcoustic data(pPrev_, pCurr_, rhsTerm_, rhsElem_, rhsWeights_);
+  DGWavefieldAcoustic wavefield(pPrev_, pCurr_);
+  RhsAcoustic rhs(rhsTerm_, rhsElem_, rhsWeights_);
+
+  DGsolverDataAcoustic data(wavefield, rhs);
+
   auto prev = data.getPreviousField(0);
 
   ASSERT_EQ(prev.extent(0), static_cast<size_t>(nElem_));
@@ -111,7 +129,11 @@ TEST_F(DGsolverDataAcousticTest, GetPreviousField_ReturnsPnPrev) {
 }
 
 TEST_F(DGsolverDataAcousticTest, GetRhsTerm_ReturnsTerm) {
-  DGsolverDataAcoustic data(pPrev_, pCurr_, rhsTerm_, rhsElem_, rhsWeights_);
+  DGWavefieldAcoustic wavefield(pPrev_, pCurr_);
+  RhsAcoustic rhs(rhsTerm_, rhsElem_, rhsWeights_);
+
+  DGsolverDataAcoustic data(wavefield, rhs);
+
   auto term = data.getRhsTerm(0);
 
   ASSERT_EQ(term.extent(0), static_cast<size_t>(nSrc_));
@@ -121,7 +143,11 @@ TEST_F(DGsolverDataAcousticTest, GetRhsTerm_ReturnsTerm) {
 }
 
 TEST_F(DGsolverDataAcousticTest, GetRhsElement_ReturnsElem) {
-  DGsolverDataAcoustic data(pPrev_, pCurr_, rhsTerm_, rhsElem_, rhsWeights_);
+  DGWavefieldAcoustic wavefield(pPrev_, pCurr_);
+  RhsAcoustic rhs(rhsTerm_, rhsElem_, rhsWeights_);
+
+  DGsolverDataAcoustic data(wavefield, rhs);
+
   auto elem = data.getRhsElement();
 
   ASSERT_EQ(elem.extent(0), static_cast<size_t>(nSrc_));
@@ -129,7 +155,11 @@ TEST_F(DGsolverDataAcousticTest, GetRhsElement_ReturnsElem) {
 }
 
 TEST_F(DGsolverDataAcousticTest, GetRhsWeights_ReturnsWeights) {
-  DGsolverDataAcoustic data(pPrev_, pCurr_, rhsTerm_, rhsElem_, rhsWeights_);
+  DGWavefieldAcoustic wavefield(pPrev_, pCurr_);
+  RhsAcoustic rhs(rhsTerm_, rhsElem_, rhsWeights_);
+
+  DGsolverDataAcoustic data(wavefield, rhs);
+
   auto w = data.getRhsWeights();
 
   ASSERT_EQ(w.extent(0), static_cast<size_t>(nSrc_));
@@ -143,47 +173,63 @@ TEST_F(DGsolverDataAcousticTest, GetRhsWeights_ReturnsWeights) {
 // ============================================================
 
 TEST_F(DGsolverDataAcousticTest, SwapWavefields_ExchangesPrevAndCurr) {
-  DGsolverDataAcoustic data(pPrev_, pCurr_, rhsTerm_, rhsElem_, rhsWeights_);
-  float const prev00 = data.pnPrev(0, 0);
-  float const curr00 = data.pnCurr(0, 0);
+  DGWavefieldAcoustic wavefield(pPrev_, pCurr_);
+  RhsAcoustic rhs(rhsTerm_, rhsElem_, rhsWeights_);
+
+  DGsolverDataAcoustic data(wavefield, rhs);
+
+  float const prev00 = data.getPreviousField(0)(0, 0);
+  float const curr00 = data.getCurrentField(0)(0, 0);
 
   data.swapWavefields();
 
-  EXPECT_FLOAT_EQ(data.pnPrev(0, 0), curr00);
-  EXPECT_FLOAT_EQ(data.pnCurr(0, 0), prev00);
+  EXPECT_FLOAT_EQ(data.getPreviousField(0)(0, 0), curr00);
+  EXPECT_FLOAT_EQ(data.getCurrentField(0)(0, 0), prev00);
 }
 
 TEST_F(DGsolverDataAcousticTest, SwapWavefields_TwiceRestoresOriginal) {
-  DGsolverDataAcoustic data(pPrev_, pCurr_, rhsTerm_, rhsElem_, rhsWeights_);
-  float const prev00 = data.pnPrev(0, 0);
-  float const curr00 = data.pnCurr(0, 0);
+  DGWavefieldAcoustic wavefield(pPrev_, pCurr_);
+  RhsAcoustic rhs(rhsTerm_, rhsElem_, rhsWeights_);
+
+  DGsolverDataAcoustic data(wavefield, rhs);
+
+  float const prev00 = data.getPreviousField(0)(0, 0);
+  float const curr00 = data.getCurrentField(0)(0, 0);
 
   data.swapWavefields();
   data.swapWavefields();
 
-  EXPECT_FLOAT_EQ(data.pnPrev(0, 0), prev00);
-  EXPECT_FLOAT_EQ(data.pnCurr(0, 0), curr00);
+  EXPECT_FLOAT_EQ(data.getPreviousField(0)(0, 0), prev00);
+  EXPECT_FLOAT_EQ(data.getCurrentField(0)(0, 0), curr00);
 }
 
 TEST_F(DGsolverDataAcousticTest, SwapWavefields_IsShallowHandleSwap) {
   // After swap: pnPrev points to pCurr_ allocation and vice-versa.
-  DGsolverDataAcoustic data(pPrev_, pCurr_, rhsTerm_, rhsElem_, rhsWeights_);
+  DGWavefieldAcoustic wavefield(pPrev_, pCurr_);
+  RhsAcoustic rhs(rhsTerm_, rhsElem_, rhsWeights_);
+
+  DGsolverDataAcoustic data(wavefield, rhs);
+
   data.swapWavefields();
 
   // pnPrev now references the old pCurr_ allocation
-  EXPECT_FLOAT_EQ(data.pnPrev(0, 0), pCurr_(0, 0));
+  EXPECT_FLOAT_EQ(data.getPreviousField(0)(0, 0), pCurr_(0, 0));
   // pnCurr now references the old pPrev_ allocation
-  EXPECT_FLOAT_EQ(data.pnCurr(0, 0), pPrev_(0, 0));
+  EXPECT_FLOAT_EQ(data.getCurrentField(0)(0, 0), pPrev_(0, 0));
 }
 
 TEST_F(DGsolverDataAcousticTest, SwapWavefields_AllElementsSwapped) {
-  DGsolverDataAcoustic data(pPrev_, pCurr_, rhsTerm_, rhsElem_, rhsWeights_);
+  DGWavefieldAcoustic wavefield(pPrev_, pCurr_);
+  RhsAcoustic rhs(rhsTerm_, rhsElem_, rhsWeights_);
+
+  DGsolverDataAcoustic data(wavefield, rhs);
+
   data.swapWavefields();
 
   for (int e = 0; e < nElem_; ++e)
     for (int d = 0; d < nDof_; ++d) {
-      EXPECT_FLOAT_EQ(data.pnPrev(e, d), pCurr_(e, d));
-      EXPECT_FLOAT_EQ(data.pnCurr(e, d), pPrev_(e, d));
+      EXPECT_FLOAT_EQ(data.getPreviousField(0)(e, d), pCurr_(e, d));
+      EXPECT_FLOAT_EQ(data.getCurrentField(0)(e, d), pPrev_(e, d));
     }
 }
 
@@ -192,7 +238,11 @@ TEST_F(DGsolverDataAcousticTest, SwapWavefields_AllElementsSwapped) {
 // ============================================================
 
 TEST_F(DGsolverDataAcousticTest, Print_DoesNotCrash) {
-  DGsolverDataAcoustic data(pPrev_, pCurr_, rhsTerm_, rhsElem_, rhsWeights_);
+  DGWavefieldAcoustic wavefield(pPrev_, pCurr_);
+  RhsAcoustic rhs(rhsTerm_, rhsElem_, rhsWeights_);
+
+  DGsolverDataAcoustic data(wavefield, rhs);
+
   EXPECT_NO_THROW(data.print());
 }
 
@@ -203,12 +253,15 @@ TEST_F(DGsolverDataAcousticTest, EmptyViews_ValidConstruction) {
   auto emptyElem = allocateVector<vectorInt>(0, "ee");
   auto emptyW = allocateArray2D<arrayReal>(0, 0, "ew");
 
-  DGsolverDataAcoustic data(emptyPrev, emptyCurr, emptyTerm, emptyElem, emptyW);
+  DGWavefieldAcoustic empty_wavefield(emptyPrev, emptyCurr);
+  RhsAcoustic empty_rhs(emptyTerm, emptyElem, emptyW);
 
-  EXPECT_EQ(data.pnPrev.extent(0), 0u);
-  EXPECT_EQ(data.pnCurr.extent(0), 0u);
-  EXPECT_EQ(data.myRHSTerm.extent(0), 0u);
-  EXPECT_EQ(data.rhsElement.extent(0), 0u);
+  DGsolverDataAcoustic data(empty_wavefield, empty_rhs);
+
+  EXPECT_EQ(data.getPreviousField(0).extent(0), 0u);
+  EXPECT_EQ(data.getCurrentField(0).extent(0), 0u);
+  EXPECT_EQ(data.getRhsTerm(0).extent(0), 0u);
+  EXPECT_EQ(data.getRhsElement().extent(0), 0u);
   EXPECT_FALSE(data.isDistributed);
   EXPECT_NO_THROW(data.swapWavefields());
 }

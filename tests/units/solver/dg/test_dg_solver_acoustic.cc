@@ -88,7 +88,9 @@ class DGsolverAcousticTest : public ::testing::Test {
       for (int d = 0; d < kNDof; ++d) rhsWeights(0, d) = 1.0f / kNDof;
     }
 
-    return DGsolverDataAcoustic(pPrev, pCurr, rhsTerm, rhsElem, rhsWeights);
+    DGWavefieldAcoustic wavefield(pPrev, pCurr);
+    RhsAcoustic rhs(rhsTerm, rhsElem, rhsWeights);
+    return DGsolverDataAcoustic(wavefield, rhs);
   }
 
   DGSolverT solver_;
@@ -140,7 +142,8 @@ TEST_F(DGsolverAcousticTest, ZeroFieldZeroSource_StaysZero) {
 
   // After one step from p=0 with no source, p must remain 0.
   for (int e = 0; e < nElem_; ++e)
-    for (int d = 0; d < kNDof; ++d) EXPECT_FLOAT_EQ(data.pnPrev(e, d), 0.0f) << "elem=" << e << " dof=" << d;
+    for (int d = 0; d < kNDof; ++d)
+      EXPECT_FLOAT_EQ(data.getPreviousField(0)(e, d), 0.0f) << "elem=" << e << " dof=" << d;
 }
 
 TEST_F(DGsolverAcousticTest, UniformFieldZeroSource_StaysUniform) {
@@ -152,7 +155,8 @@ TEST_F(DGsolverAcousticTest, UniformFieldZeroSource_StaysUniform) {
   solver_.computeOneStep(0.001f, 0, data);
 
   for (int e = 0; e < nElem_; ++e)
-    for (int d = 0; d < kNDof; ++d) EXPECT_NEAR(data.pnPrev(e, d), 1.0f, 1e-4f) << "elem=" << e << " dof=" << d;
+    for (int d = 0; d < kNDof; ++d)
+      EXPECT_NEAR(data.getPreviousField(0)(e, d), 1.0f, 1e-4f) << "elem=" << e << " dof=" << d;
 }
 
 TEST_F(DGsolverAcousticTest, NonzeroSource_FieldChangesAtSourceElem) {
@@ -164,7 +168,7 @@ TEST_F(DGsolverAcousticTest, NonzeroSource_FieldChangesAtSourceElem) {
 
   // rhs_elem(0,d) = -kWavelet * (1/kNDof) < 0
   // Verlet (curr=prev=0): new_prev = -dt^2 * rhs / (M + ...) > 0
-  for (int d = 0; d < kNDof; ++d) EXPECT_GT(data.pnPrev(0, d), 0.0f) << "dof=" << d;
+  for (int d = 0; d < kNDof; ++d) EXPECT_GT(data.getPreviousField(0)(0, d), 0.0f) << "dof=" << d;
 }
 
 TEST_F(DGsolverAcousticTest, NoSourceElements_UnaffectedBySource) {
@@ -176,7 +180,8 @@ TEST_F(DGsolverAcousticTest, NoSourceElements_UnaffectedBySource) {
   // Elements != 0 should have zero field (the source kernel only writes
   // to element 0; interface flux from zero field is also zero).
   for (int e = 1; e < nElem_; ++e)
-    for (int d = 0; d < kNDof; ++d) EXPECT_FLOAT_EQ(data.pnPrev(e, d), 0.0f) << "elem=" << e << " dof=" << d;
+    for (int d = 0; d < kNDof; ++d)
+      EXPECT_FLOAT_EQ(data.getPreviousField(0)(e, d), 0.0f) << "elem=" << e << " dof=" << d;
 }
 
 // ============================================================
@@ -197,7 +202,10 @@ TEST_F(DGsolverAcousticTest, MultipleSteps_NoNanOrInf) {
   for (int t = 0; t < kNumSteps; ++t) rhsTerm(0, t) = std::sin(t * 0.1f);
   for (int d = 0; d < kNDof; ++d) rhsWeights(0, d) = 1.0f / kNDof;
 
-  DGsolverDataAcoustic data(pPrev, pCurr, rhsTerm, rhsElem, rhsWeights);
+  DGWavefieldAcoustic wavefield(pPrev, pCurr);
+  RhsAcoustic rhs(rhsTerm, rhsElem, rhsWeights);
+
+  DGsolverDataAcoustic data(wavefield, rhs);
 
   for (int t = 0; t < kNumSteps; ++t) {
     ASSERT_NO_THROW(solver_.computeOneStep(kDt, t, data));
@@ -206,7 +214,7 @@ TEST_F(DGsolverAcousticTest, MultipleSteps_NoNanOrInf) {
 
   for (int e = 0; e < nElem_; ++e)
     for (int d = 0; d < kNDof; ++d)
-      EXPECT_TRUE(std::isfinite(data.pnCurr(e, d))) << "NaN/Inf at elem=" << e << " dof=" << d;
+      EXPECT_TRUE(std::isfinite(data.getCurrentField(0)(e, d))) << "NaN/Inf at elem=" << e << " dof=" << d;
 }
 
 // ============================================================

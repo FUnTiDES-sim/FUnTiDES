@@ -175,7 +175,11 @@ void SEMproxy::Run() {
   std::chrono::duration<double> total_compute_time(0), total_output_time(0);
 
   if (is_dg_) {
-    DGsolverDataAcoustic dgData(pn_dg_prev_, pn_dg_curr_, rhs_term_, rhs_element_, rhs_weights_);
+    DGWavefieldAcoustic wavefield(pn_dg_prev_, pn_dg_curr_);
+    RhsAcoustic rhs(rhs_term_, rhs_element_, rhs_weights_);
+
+    DGsolverDataAcoustic dgData(wavefield, rhs);
+
     for (int time_index = 0; time_index < num_samples_; time_index++) {
       start_compute_time = system_clock::now();
       solver_->computeOneStep(dt_, time_index, dgData);

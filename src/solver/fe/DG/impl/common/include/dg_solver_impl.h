@@ -108,12 +108,17 @@ template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE, bool IS_MODEL_O
 void DGsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::computeVolumeAndBoundary(
     int kNumElem, arrayReal current_field) {
   auto mesh_local = m_mesh;
+  bool const list_on = m_list_mode_;
+  auto list_local = m_elem_list_;
+  int const n_iter = list_on ? m_n_elem_list_ : kNumElem;
+
   arrayReal mass_local_view = m_mass_local_;
   arrayReal stiff_local_view = m_stiff_local_;
   arrayReal damp_local_view = m_damp_local_;
 
   Kokkos::parallel_for(
-      "DG Volume+Boundary", kNumElem, KOKKOS_LAMBDA(const int e) {
+      "DG Volume+Boundary", n_iter, KOKKOS_LAMBDA(const int _loop_idx) {
+        int const e = list_on ? list_local[_loop_idx] : _loop_idx;
         float massLocal[kPointsPerElement] = {0};
         float stiffLocal[kPointsPerElement] = {0};
         float elementCoords[8][3];
@@ -153,12 +158,18 @@ template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE, bool IS_MODEL_O
           utils::enums::physicType PHYSICS>
 void DGsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::computeBoundaryDamping(int kNumFaces) {
   auto mesh_local = m_mesh;
+
+  bool const list_on = m_list_mode_;
+  auto list_local = m_face_list_;
+  int const n_iter = list_on ? m_n_face_list_ : kNumFaces;
+
   auto face_connectivity_local = m_face_connectivity_;
   auto const face_to_elem_dof = kFaceToElemDof;  // local copy for device capture
   arrayReal damp_local_view = m_damp_local_;
 
   Kokkos::parallel_for(
-      "DG Boundary Damping", kNumFaces, KOKKOS_LAMBDA(const int f) {
+      "DG Boundary Damping", n_iter, KOKKOS_LAMBDA(const int _loop_idx) {
+        int const f = list_on ? list_local[_loop_idx] : _loop_idx;
         if (!face_connectivity_local.isBoundaryFace(f)) return;
 
         int const e = face_connectivity_local.elemOwner(f);
@@ -186,17 +197,21 @@ void DGsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::comp
 template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE, bool IS_MODEL_ON_NODES,
           utils::enums::physicType PHYSICS>
 void DGsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::computeInterfaceFlux(
-    int /*kNumElem*/, arrayReal current_field) {
+    int kNumFaces, arrayReal current_field) {
   auto mesh_local = m_mesh;
+
+  bool const list_on = m_list_mode_;
+  auto list_local = m_face_list_;
+  int const n_iter = list_on ? m_n_face_list_ : kNumFaces;
+
   auto face_connectivity_local = m_face_connectivity_;
   auto const face_to_elem_dof = kFaceToElemDof;  // local copy for device capture
   arrayReal stiff_local_view = m_stiff_local_;
   real_t const penalty_local = m_penalty_factor_;
 
-  int const kNumFaces = face_connectivity_local.getNumberOfFaces();
-
   Kokkos::parallel_for(
-      "DG Interface Flux", kNumFaces, KOKKOS_LAMBDA(const int f) {
+      "DG Interface Flux", n_iter, KOKKOS_LAMBDA(const int _loop_idx) {
+        int const f = list_on ? list_local[_loop_idx] : _loop_idx;
         if (face_connectivity_local.isBoundaryFace(f)) return;
 
         int const owner_e = face_connectivity_local.elemOwner(f);
@@ -299,13 +314,19 @@ void DGsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::appl
                                                                                         arrayReal prev_field) {
   float const dt_local = dt;
   float const dt2_local = dt * dt;
+
+  bool const list_on = m_list_mode_;
+  auto list_local = m_elem_list_;
+  int const n_iter = list_on ? m_n_elem_list_ : kNumElem;
+
   arrayReal mass_local_view = m_mass_local_;
   arrayReal stiff_local_view = m_stiff_local_;
   arrayReal damp_local_view = m_damp_local_;
   arrayReal rhs_elem_local = m_rhs_elem_;
 
   Kokkos::parallel_for(
-      "DG Verlet", kNumElem, KOKKOS_LAMBDA(const int e) {
+      "DG Verlet", n_iter, KOKKOS_LAMBDA(const int _loop_idx) {
+        int const e = list_on ? list_local[_loop_idx] : _loop_idx;
         for (int i = 0; i < kPointsPerElement; ++i) {
           float const M = mass_local_view(e, i);
           float const K = stiff_local_view(e, i) + rhs_elem_local(e, i);
@@ -335,9 +356,24 @@ void DGsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::upda
   FENCE
   computeBoundaryDamping(kNumFaces);
   FENCE
-  computeInterfaceFlux(kNumElem, current_field);
+  computeInterfaceFlux(kNumFaces, current_field);
   FENCE
   applyVerlet(kNumElem, dt, current_field, prev_field);
+}
+
+//============================================================================
+// updateFieldsFromList - Verlet update restricted to a compact element list
+//============================================================================
+
+template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE, bool IS_MODEL_ON_NODES, physicType PHYSICS>
+void DGsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::updateFieldsFromList(
+    float dt, const DataType& data, const vectorInt& elem_list, int n_elems) {
+  m_elem_list_ = elem_list;
+  m_n_elem_list_ = n_elems;
+  faceListFromElementList();
+  m_list_mode_ = true;
+  updateFields(dt, data);
+  m_list_mode_ = false;
 }
 
 }  // namespace fe
