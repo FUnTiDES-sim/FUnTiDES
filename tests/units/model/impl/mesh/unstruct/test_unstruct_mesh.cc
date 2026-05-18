@@ -44,7 +44,6 @@ class ModelUnstructTest : public ::testing::Test {
     data.nodes_coords_z_ = allocateVector<vectorReal>(8);
     data.model_vp_element_ = allocateVector<vectorReal>(1);
     data.model_rho_element_ = allocateVector<vectorReal>(1);
-    data.boundaries_t_ = allocateVector<vectorInt>(8);
 
     fillGeometry(data);
     data.model_vp_element_[0] = 1500.0;
