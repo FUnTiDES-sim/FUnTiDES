@@ -10,13 +10,13 @@ class WavefieldViewForwardAcousticTest : public ::testing::Test {
  protected:
   void SetUp() override {
     size = 50;
-    pn = allocateVector<VECTOR_REAL_VIEW>(size, "pn");
+    pn = allocateVector<vectorReal>(size, "pn");
 
     for (int i = 0; i < size; ++i) pn(i) = static_cast<float>(i) * 0.1f;
   }
 
   int size;
-  VECTOR_REAL_VIEW pn;
+  vectorReal pn;
 };
 
 TEST_F(WavefieldViewForwardAcousticTest, NumFieldsConstant) { EXPECT_EQ(WavefieldViewForwardAcoustic::kNumFields, 1); }

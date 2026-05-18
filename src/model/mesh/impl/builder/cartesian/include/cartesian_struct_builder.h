@@ -73,9 +73,9 @@ class CartesianStructBuilder : public ModelBuilderBase<FloatType, ScalarType> {
       auto temp_model = model::ModelStruct<FloatType, ScalarType, Order>(data);
 
       if (isModelOnNodes_) {
-        data.model_vp_node_ = allocateVector<VECTOR_REAL_VIEW>(n_node, "model_vp_node");
-        data.model_vs_node_ = allocateVector<VECTOR_REAL_VIEW>(n_node, "model_vs_node");
-        data.model_rho_node_ = allocateVector<VECTOR_REAL_VIEW>(n_node, "model_rho_node");
+        data.model_vp_node_ = allocateVector<vectorReal>(n_node, "model_vp_node");
+        data.model_vs_node_ = allocateVector<vectorReal>(n_node, "model_vs_node");
+        data.model_rho_node_ = allocateVector<vectorReal>(n_node, "model_rho_node");
 
         for (int n = 0; n < n_node; ++n) {
           bool const is_fluid = (temp_model.nodeCoord(n, 2) >= acoustoElasticBoundaryZ_);
@@ -87,9 +87,9 @@ class CartesianStructBuilder : public ModelBuilderBase<FloatType, ScalarType> {
         int const n_elem = ex_ * ey_ * ez_;
         FloatType const hz = lz_ / ez_;
 
-        data.model_vp_element_ = allocateVector<VECTOR_REAL_VIEW>(n_elem, "model_vp_elem");
-        data.model_vs_element_ = allocateVector<VECTOR_REAL_VIEW>(n_elem, "model_vs_elem");
-        data.model_rho_element_ = allocateVector<VECTOR_REAL_VIEW>(n_elem, "model_rho_elem");
+        data.model_vp_element_ = allocateVector<vectorReal>(n_elem, "model_vp_elem");
+        data.model_vs_element_ = allocateVector<vectorReal>(n_elem, "model_vs_elem");
+        data.model_rho_element_ = allocateVector<vectorReal>(n_elem, "model_rho_elem");
 
         for (int k = 0; k < ez_; ++k) {
           FloatType const centroid_z = oz_ + (k + static_cast<FloatType>(0.5)) * hz;
@@ -113,9 +113,9 @@ class CartesianStructBuilder : public ModelBuilderBase<FloatType, ScalarType> {
       int const n_elem = ex_ * ey_ * ez_;
       model::CartesianModelFileReader reader(model_file_);
       const size_t n = reader.count();
-      auto fill_view = [&](VECTOR_REAL_VIEW& view, const std::string& prop, const std::string& label) {
+      auto fill_view = [&](vectorReal& view, const std::string& prop, const std::string& label) {
         if (!reader.has(prop)) return;
-        view = allocateVector<VECTOR_REAL_VIEW>(static_cast<int>(n), label.c_str());
+        view = allocateVector<vectorReal>(static_cast<int>(n), label.c_str());
         const auto& buf = reader.get(prop);
         auto host = Kokkos::create_mirror_view(view);
         for (size_t i = 0; i < n; ++i) host[i] = static_cast<FloatType>(buf[i]);

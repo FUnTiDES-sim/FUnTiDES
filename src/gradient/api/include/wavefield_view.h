@@ -44,7 +44,7 @@ class WavefieldView {
    * @return The requested field.
    */
   PROXY_HOST_DEVICE
-  virtual VECTOR_REAL_VIEW getField(int i) const = 0;
+  virtual vectorReal getField(int i) const = 0;
 
   virtual void print() const = 0;
 };

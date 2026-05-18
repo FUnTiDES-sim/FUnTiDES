@@ -6,10 +6,10 @@ namespace model {
 namespace test {
 
 // ---------------------------------------------------------------------------
-// Helper: fill VECTOR_REAL_VIEW from a std::initializer_list of floats
+// Helper: fill vectorReal from a std::initializer_list of floats
 // ---------------------------------------------------------------------------
-static VECTOR_REAL_VIEW makeCoords(std::initializer_list<float> vals) {
-  auto v = allocateVector<VECTOR_REAL_VIEW>(static_cast<int>(vals.size()), "test_coords");
+static vectorReal makeCoords(std::initializer_list<float> vals) {
+  auto v = allocateVector<vectorReal>(static_cast<int>(vals.size()), "test_coords");
   int i = 0;
   for (float val : vals) v(i++) = val;
   return v;

@@ -1,5 +1,3 @@
-// Implementation of the SEM proxy main interface and solver orchestrator.
-
 #include "sem_proxy.h"
 
 #include <boundary_synchronizer.h>
@@ -32,7 +30,6 @@ SEMproxy::SEMproxy(const SemProxyOptions& opt) {
   int mpi_initialized = 0;
   InitMpi(&mpi_initialized);
 
-  // Start initialization timer
   auto start_init = std::chrono::high_resolution_clock::now();
 
   InitSimParams(opt);
@@ -47,15 +44,12 @@ SEMproxy::SEMproxy(const SemProxyOptions& opt) {
   SetupIo(opt);
   SetupDas(opt);
 
-  // Accumulate constructor init time
   time_init_ += std::chrono::duration<double>(std::chrono::high_resolution_clock::now() - start_init).count();
-
   DisplayInitMsg(opt);
 }
 
 void SEMproxy::SetupSolver(const SemProxyOptions& opt) {
   is_acousto_elastic_ = opt.isAcoustoElastic;
-
   const methodType method_type = GetMethod(opt.method);
   is_dg_ = (method_type == utils::enums::methodType::kDg);
   const implemType implem_type = GetImplem(opt.implem);
@@ -74,7 +68,6 @@ void SEMproxy::SetupSolver(const SemProxyOptions& opt) {
 
   if (opt.isElastic) {
     solver_->setAnisotropyType(anisotropy_type);
-
     if (anisotropy_type == model::AnisotropyType::kTTI && !opt.isModelOnNodes) {
       mesh_->initElasticityTensors(anisotropy_type);
     }
@@ -88,10 +81,13 @@ void SEMproxy::SetupAttenuation(const SemProxyOptions& opt) {
     mesh_->setQualityFactors(qp, qs);
   }
 
-  auto ToView = [](const std::vector<float>& v, const char* name) {
-    auto view = allocateVector<vectorReal>(v.size(), name);
-    for (size_t i = 0; i < v.size(); ++i) view[i] = v[i];
-    return view;
+  // Create temporary mirrors, fill on Host, deep_copy to Device
+  auto ToView = [](const std::vector<float>& v, const std::string& name) {
+    vectorReal d_view(name, v.size());
+    auto h_view = Kokkos::create_mirror_view(d_view);
+    for (size_t i = 0; i < v.size(); ++i) h_view(i) = v[i];
+    Kokkos::deep_copy(d_view, h_view);
+    return d_view;
   };
 
   if (!opt.sls_reference_angular_frequencies.empty()) {
@@ -100,8 +96,10 @@ void SEMproxy::SetupAttenuation(const SemProxyOptions& opt) {
     solver_->setSLSAttenuation(freq_view, coeff_view);
   } else if (opt.qp > 0 || opt.qs > 0) {
     float omega0 = 2.0f * M_PI * opt.f0;
-    auto freq_view = allocateVector<vectorReal>(1, "slsFreqAuto");
-    freq_view[0] = omega0;
+    vectorReal freq_view("slsFreqAuto", 1);
+    auto h_freq = Kokkos::create_mirror_view(freq_view);
+    h_freq(0) = omega0;
+    Kokkos::deep_copy(freq_view, h_freq);
     solver_->setSLSAttenuation(freq_view);
   }
 }
@@ -143,13 +141,10 @@ void SEMproxy::SetupDas(const SemProxyOptions& opt) {
   }
 
   if (das_type_ != SourceAndReceiverUtils::DASType::kNone) {
-    if (!is_elastic_) {
-      throw std::runtime_error("DAS receivers require elastic simulation (--is-elastic true)");
-    }
+    if (!is_elastic_) throw std::runtime_error("DAS receivers require elastic simulation");
     das_gauge_length_ = opt.das_gauge_length;
     das_direction_ = SourceAndReceiverUtils::ComputeDASVector(opt.das_dip, opt.das_azimuth);
     das_vector_ = das_direction_;
-
     if (das_type_ == SourceAndReceiverUtils::DASType::kDipole) {
       for (int i = 0; i < 3; ++i) das_vector_[i] /= das_gauge_length_;
     }
@@ -157,9 +152,7 @@ void SEMproxy::SetupDas(const SemProxyOptions& opt) {
 }
 
 void SEMproxy::Run() {
-  // Capture run-time initialization (like mass matrix sync)
   auto start_run_init = std::chrono::high_resolution_clock::now();
-
   solver_->computeFEInit(*mesh_, sponge_size_, surface_sponge_, taper_delta_);
 
   if (par_topology_.isDistributed()) {
@@ -182,82 +175,92 @@ void SEMproxy::Run() {
   std::chrono::duration<double> total_compute_time(0), total_output_time(0);
 
   if (is_dg_) {
-    DGsolverDataAcoustic dgData(pn_dg_prev_, pn_dg_curr_, rhs_term_, rhs_element_, rhs_weights_);
+    DGWavefieldAcoustic wavefield(pn_dg_prev_, pn_dg_curr_);
+    RhsAcoustic rhs(rhs_term_, rhs_element_, rhs_weights_);
+
+    DGsolverDataAcoustic dgData(wavefield, rhs);
 
     for (int time_index = 0; time_index < num_samples_; time_index++) {
       start_compute_time = system_clock::now();
-
       solver_->computeOneStep(dt_, time_index, dgData);
-
       total_compute_time += system_clock::now() - start_compute_time;
+
       start_output_time = system_clock::now();
 
+      auto d_field = dgData.getPreviousField(0);
+
       if (time_index % 50 == 0) {
-        std::cout << "DG TimeStep=" << time_index
-                  << "  p(src_elem, dof=0)=" << dgData.getPreviousField(0)(source_element_, 0)
-                  << "  p(rcv_elem, dof=0)=" << dgData.getPreviousField(0)(rhs_element_rcv_[0], 0) << std::endl;
+        auto h_field = Kokkos::create_mirror_view(d_field);
+        Kokkos::deep_copy(h_field, d_field);
+        std::cout << "DG TimeStep=" << time_index << "  p(src_elem, dof=0)=" << h_field(source_element_, 0)
+                  << "  p(rcv_elem, dof=0)=" << h_field(h_rhs_element_rcv_(0), 0) << std::endl;
       }
 
       if (is_snapshots_ && time_index % snap_time_interval_ == 0) {
+        // Wait for previous to finish
+        WaitSnapshots();
         Kokkos::fence();
-        const int order = mesh_->getOrder();
-        const int ex = num_elements_[0];
-        const int ey = num_elements_[1];
-        const int ez = num_elements_[2];
-        const int zElem = ez / 2;
-        const int n1d = order + 1;
-        const int icZ = order / 2;
-        std::ostringstream fname;
-        fname << "slice_dg_" << std::setfill('0') << std::setw(5) << time_index << ".dat";
-        std::ofstream fslice(fname.str());
-        auto field = dgData.getPreviousField(0);
-        for (int ej_idx = 0; ej_idx < ey; ++ej_idx) {
-          for (int ib = 0; ib < n1d; ++ib) {
-            bool first = true;
-            for (int ei_idx = 0; ei_idx < ex; ++ei_idx) {
-              int const elem = ei_idx + ej_idx * ex + zElem * ex * ey;
-              for (int ia = 0; ia < n1d; ++ia) {
-                int const dof = ia + ib * n1d + icZ * n1d * n1d;
-                if (!first) fslice << " ";
-                fslice << field(elem, dof);
-                first = false;
+        // Note: For optimal performance, h_field should be pre-allocated in InitArrays like the others
+        auto h_field = Kokkos::create_mirror_view(d_field);
+        Kokkos::deep_copy(h_field, d_field);
+
+        auto io_task = [this, time_index, h_field]() {
+          const int order = mesh_->getOrder();
+          const int ex = num_elements_[0];
+          const int ey = num_elements_[1];
+          const int ez = num_elements_[2];
+          const int zElem = ez / 2;
+          const int n1d = order + 1;
+          const int icZ = order / 2;
+          std::ostringstream fname;
+          fname << "slice_dg_" << std::setfill('0') << std::setw(5) << time_index << ".dat";
+          std::ofstream fslice(fname.str());
+          for (int ej_idx = 0; ej_idx < ey; ++ej_idx) {
+            for (int ib = 0; ib < n1d; ++ib) {
+              bool first = true;
+              for (int ei_idx = 0; ei_idx < ex; ++ei_idx) {
+                int const elem = ei_idx + ej_idx * ex + zElem * ex * ey;
+                for (int ia = 0; ia < n1d; ++ia) {
+                  int const dof = ia + ib * n1d + icZ * n1d * n1d;
+                  if (!first) fslice << " ";
+                  fslice << h_field(elem, dof);
+                  first = false;
+                }
               }
+              fslice << "\n";
             }
-            fslice << "\n";
           }
+          fslice.close();
+        };
+
+        if (d_field.data() != h_field.data()) {
+          snapshot_futures_.push_back(std::async(std::launch::async, io_task));
+        } else {
+          io_task();  // CPU-only fallback
         }
-        fslice.close();
-        std::cout << "DG slice saved: " << fname.str() << "  (" << ex * n1d << " x " << ey * n1d << ")" << std::endl;
       }
 
-      // Save pressure at receiver: DG field indexed by (elem, local_dof)
+      auto h_field = Kokkos::create_mirror_view(d_field);
+      Kokkos::deep_copy(h_field, d_field);
       const int order = mesh_->getOrder();
       float varnp1 = 0.0f;
       for (int i = 0; i <= order; i++) {
         for (int j = 0; j <= order; j++) {
           for (int k = 0; k <= order; k++) {
             int localDof = i + j * (order + 1) + k * (order + 1) * (order + 1);
-            varnp1 += dgData.getPreviousField(0)(rhs_element_rcv_[0], localDof) * rhs_weights_rcv_(0, localDof);
+            varnp1 += h_field(h_rhs_element_rcv_(0), localDof) * h_rhs_weights_rcv_(0, localDof);
           }
         }
       }
-      pn_at_receiver_(0, time_index) = varnp1;
-
+      h_pn_at_receiver_(0, time_index) = varnp1;
       dgData.swapWavefields();
-
       total_output_time += system_clock::now() - start_output_time;
     }
 
-    // Save receiver trace
-    {
-      std::ofstream fout("receiver_trace.txt");
-      fout << "# time pressure_at_receiver\n";
-      for (int t = 0; t < num_samples_; ++t) {
-        fout << t * dt_ << " " << pn_at_receiver_(0, t) << "\n";
-      }
-      fout.close();
-      std::cout << "Receiver trace saved to receiver_trace.txt (" << num_samples_ << " samples)" << std::endl;
-    }
+    std::ofstream fout("receiver_trace.txt");
+    fout << "# time pressure_at_receiver\n";
+    for (int t = 0; t < num_samples_; ++t) fout << t * dt_ << " " << h_pn_at_receiver_(0, t) << "\n";
+    fout.close();
 
   } else if (is_acousto_elastic_) {
     WavefieldAcoustoElastic wavefield(pn_global_prev_, pn_global_curr_, uxn_global_prev_, uxn_global_curr_,
@@ -271,40 +274,53 @@ void SEMproxy::Run() {
       total_compute_time += std::chrono::high_resolution_clock::now() - start_compute_time;
 
       start_output_time = std::chrono::high_resolution_clock::now();
-
       if (time_index % 50 == 0) {
-        solver_->outputSolutionValues(time_index, rhs_element_[0], pn_global_prev_, "pnGlobal");
-        solver_->outputSolutionValues(time_index, rhs_element_rcv_[0], uxn_global_prev_, "uxnGlobal");
-        solver_->outputSolutionValues(time_index, rhs_element_rcv_[0], uyn_global_prev_, "uynGlobal");
-        solver_->outputSolutionValues(time_index, rhs_element_rcv_[0], uzn_global_prev_, "uznGlobal");
+        solver_->outputSolutionValues(time_index, h_rhs_element_(0), pn_global_prev_, "pnGlobal");
+        solver_->outputSolutionValues(time_index, h_rhs_element_rcv_(0), uxn_global_prev_, "uxnGlobal");
+        solver_->outputSolutionValues(time_index, h_rhs_element_rcv_(0), uyn_global_prev_, "uynGlobal");
+        solver_->outputSolutionValues(time_index, h_rhs_element_rcv_(0), uzn_global_prev_, "uznGlobal");
       }
 
       if (is_snapshots_ && time_index % snap_time_interval_ == 0) {
-        SaveSnapshot(time_index, pn_global_prev_);
-        SaveSnapshot(time_index, uzn_global_prev_);
+        WaitSnapshots();
+        Kokkos::deep_copy(h_pn_global_prev_, pn_global_prev_);
+        Kokkos::deep_copy(h_uzn_global_prev_, uzn_global_prev_);
+
+        auto io_task = [this, time_index, h_pn = h_pn_global_prev_, h_uz = h_uzn_global_prev_]() {
+          io_ctrl_->saveSnapshot(h_pn, time_index);
+          io_ctrl_->saveSnapshot(h_uz, time_index);
+        };
+
+        // Fallback checks if GPU data == CPU data (CPU-only build)
+        if (pn_global_prev_.data() != h_pn_global_prev_.data()) {
+          snapshot_futures_.push_back(std::async(std::launch::async, io_task));
+        } else {
+          io_task();
+        }
       }
 
+      Kokkos::deep_copy(h_pn_global_curr_, pn_global_curr_);
       const int order = mesh_->getOrder();
       float var_np1 = 0.0;
       for (int i = 0; i < order + 1; i++) {
         for (int j = 0; j < order + 1; j++) {
           for (int k = 0; k < order + 1; k++) {
-            int node_idx = mesh_->globalNodeIndex(rhs_element_rcv_[0], i, j, k);
+            int node_idx = mesh_->globalNodeIndex(h_rhs_element_rcv_(0), i, j, k);
             int global_node_on_elem = i + j * (order + 1) + k * (order + 1) * (order + 1);
-            var_np1 += pn_global_curr_(node_idx) * rhs_weights_rcv_(0, global_node_on_elem);
+            var_np1 += h_pn_global_curr_(node_idx) * h_rhs_weights_rcv_(0, global_node_on_elem);
           }
         }
       }
-      pn_at_receiver_(0, time_index) = var_np1;
+      h_pn_at_receiver_(0, time_index) = var_np1;
       solver_data.swapWavefields();
       total_output_time += std::chrono::high_resolution_clock::now() - start_output_time;
     }
 
     start_output_time = std::chrono::high_resolution_clock::now();
-    for (int i = 0; i < pn_at_receiver_.extent(0); i++) {
-      auto subview = Kokkos::subview(pn_at_receiver_, i, Kokkos::ALL());
-      vectorReal subset("receiver_save", num_samples_);
-      Kokkos::deep_copy(subset, subview);
+    for (int i = 0; i < h_pn_at_receiver_.extent(0); i++) {
+      auto subview = Kokkos::subview(h_pn_at_receiver_, i, Kokkos::ALL());
+      vectorReal::host_mirror_type subset("receiver_save", num_samples_);
+      for (int j = 0; j < num_samples_; ++j) subset(j) = subview(j);
       io_ctrl_->saveReceiver(subset, src_coord_);
     }
     total_output_time += std::chrono::high_resolution_clock::now() - start_output_time;
@@ -317,80 +333,90 @@ void SEMproxy::Run() {
     for (int time_index = 0; time_index < num_samples_; time_index++) {
       start_compute_time = std::chrono::high_resolution_clock::now();
       solver_->computeForces(dt_, time_index, solver_data);
-
       if (par_topology_.isDistributed()) {
         for (int c = 0; c < solver_->getNumComponents(); ++c) {
           syncer_->synchronize(solver_->getForceVector(c), par_topology_);
         }
       }
-
       solver_->updateSolution(dt_, solver_data);
       total_compute_time += std::chrono::high_resolution_clock::now() - start_compute_time;
 
       start_output_time = std::chrono::high_resolution_clock::now();
 
       if (time_index % 50 == 0) {
-        solver_->outputSolutionValues(time_index, rhs_element_[0], pn_global_prev_, "pnGlobal");
+        solver_->outputSolutionValues(time_index, h_rhs_element_(0), pn_global_prev_, "pnGlobal");
       }
 
       if (is_snapshots_ && time_index % snap_time_interval_ == 0) {
 #ifdef USE_MPI
         MPI_Barrier(MPI_COMM_WORLD);
 #endif
-        SaveSnapshot(time_index, pn_global_prev_);
+        WaitSnapshots();
+        Kokkos::deep_copy(h_pn_global_prev_, pn_global_prev_);
 
-        int nx = num_nodes_[0];
-        int ny = num_nodes_[1];
-        int nz = num_nodes_[2];
-        int z_slice = nz / 2;
-        std::ostringstream fname;
-        fname << "slice_" << std::setfill('0') << std::setw(5) << time_index << ".dat";
-        std::ofstream fslice(fname.str());
-        for (int iy = 0; iy < ny; ++iy) {
-          for (int ix = 0; ix < nx; ++ix) {
-            int node_idx = ix + iy * nx + z_slice * nx * ny;
-            fslice << pn_global_prev_(node_idx);
-            if (ix < nx - 1) fslice << " ";
+        // Offload both ADIOS2 and Slice formatting to background thread
+        auto io_task = [this, time_index, h_field = h_pn_global_prev_]() {
+          io_ctrl_->saveSnapshot(h_field, time_index);
+
+          int nx = num_nodes_[0];
+          int ny = num_nodes_[1];
+          int nz = num_nodes_[2];
+          int z_slice = nz / 2;
+          std::ostringstream fname;
+          fname << "slice_" << std::setfill('0') << std::setw(5) << time_index << ".dat";
+          std::ofstream fslice(fname.str());
+          for (int iy = 0; iy < ny; ++iy) {
+            for (int ix = 0; ix < nx; ++ix) {
+              int node_idx = ix + iy * nx + z_slice * nx * ny;
+              fslice << h_field(node_idx);
+              if (ix < nx - 1) fslice << " ";
+            }
+            fslice << "\n";
           }
-          fslice << "\n";
+          fslice.close();
+        };
+
+        if (pn_global_prev_.data() != h_pn_global_prev_.data()) {
+          snapshot_futures_.push_back(std::async(std::launch::async, io_task));
+        } else {
+          io_task();
         }
-        fslice.close();
       }
 
+      // Bring wavefield array back to Host to compute Receiver Value
+      Kokkos::deep_copy(h_pn_global_curr_, pn_global_curr_);
       const int order = mesh_->getOrder();
       float var_np1 = 0.0;
       for (int i = 0; i < order + 1; i++) {
         for (int j = 0; j < order + 1; j++) {
           for (int k = 0; k < order + 1; k++) {
-            int node_idx = mesh_->globalNodeIndex(rhs_element_rcv_[0], i, j, k);
+            int node_idx = mesh_->globalNodeIndex(h_rhs_element_rcv_(0), i, j, k);
             int global_node_on_elem = i + j * (order + 1) + k * (order + 1) * (order + 1);
-            var_np1 += pn_global_curr_(node_idx) * rhs_weights_rcv_(0, global_node_on_elem);
+            var_np1 += h_pn_global_curr_(node_idx) * h_rhs_weights_rcv_(0, global_node_on_elem);
           }
         }
       }
+      h_pn_at_receiver_(0, time_index) = var_np1;
 
-      pn_at_receiver_(0, time_index) = var_np1;
       solver_data.swapWavefields();
       total_output_time += std::chrono::high_resolution_clock::now() - start_output_time;
     }
 
     start_output_time = std::chrono::high_resolution_clock::now();
-    for (int i = 0; i < pn_at_receiver_.extent(0); i++) {
-      auto subview = Kokkos::subview(pn_at_receiver_, i, Kokkos::ALL());
-      vectorReal subset("receiver_save", num_samples_);
-      Kokkos::deep_copy(subset, subview);
+    for (int i = 0; i < h_pn_at_receiver_.extent(0); i++) {
+      auto subview = Kokkos::subview(h_pn_at_receiver_, i, Kokkos::ALL());
+      vectorReal::host_mirror_type subset("receiver_save", num_samples_);
+      for (int j = 0; j < num_samples_; ++j) subset(j) = subview(j);
       io_ctrl_->saveReceiver(subset, src_coord_);
     }
 
     std::ofstream fout("receiver_trace.txt");
     fout << "# time pressure_at_receiver\n";
-    for (int t = 0; t < num_samples_; ++t) {
-      fout << t * dt_ << " " << pn_at_receiver_(0, t) << "\n";
-    }
+    for (int t = 0; t < num_samples_; ++t) fout << t * dt_ << " " << h_pn_at_receiver_(0, t) << "\n";
     fout.close();
     total_output_time += std::chrono::high_resolution_clock::now() - start_output_time;
 
-  } else {
+  } else {  // acoustic
     WavefieldElastic wavefield(uxn_global_prev_, uxn_global_curr_, uyn_global_prev_, uyn_global_curr_, uzn_global_prev_,
                                uzn_global_curr_);
     RhsElastic rhs(rhs_term_x_, rhs_term_y_, rhs_term_z_, rhs_element_, rhs_weights_);
@@ -399,27 +425,37 @@ void SEMproxy::Run() {
     for (int time_index = 0; time_index < num_samples_; time_index++) {
       start_compute_time = std::chrono::high_resolution_clock::now();
       solver_->computeForces(dt_, time_index, solver_data);
-
       if (par_topology_.isDistributed()) {
-        for (int c = 0; c < solver_->getNumComponents(); ++c) {
+        for (int c = 0; c < solver_->getNumComponents(); ++c)
           syncer_->synchronize(solver_->getForceVector(c), par_topology_);
-        }
       }
-
       solver_->updateSolution(dt_, solver_data);
       total_compute_time += std::chrono::high_resolution_clock::now() - start_compute_time;
 
       start_output_time = std::chrono::high_resolution_clock::now();
 
       if (time_index % 50 == 0) {
-        solver_->outputSolutionValues(time_index, rhs_element_[0], uxn_global_prev_, "uxnGlobal");
-        solver_->outputSolutionValues(time_index, rhs_element_[0], uyn_global_prev_, "uynGlobal");
-        solver_->outputSolutionValues(time_index, rhs_element_[0], uzn_global_prev_, "uznGlobal");
+        solver_->outputSolutionValues(time_index, h_rhs_element_(0), uxn_global_prev_, "uxnGlobal");
+        solver_->outputSolutionValues(time_index, h_rhs_element_(0), uyn_global_prev_, "uynGlobal");
+        solver_->outputSolutionValues(time_index, h_rhs_element_(0), uzn_global_prev_, "uznGlobal");
       }
 
       if (is_snapshots_ && time_index % snap_time_interval_ == 0) {
-        SaveSnapshot(time_index, uxn_global_prev_);
+        WaitSnapshots();
+        Kokkos::deep_copy(h_uxn_global_prev_, uxn_global_prev_);
+
+        auto io_task = [this, time_index, h_ux = h_uxn_global_prev_]() { io_ctrl_->saveSnapshot(h_ux, time_index); };
+
+        if (uxn_global_prev_.data() != h_uxn_global_prev_.data()) {
+          snapshot_futures_.push_back(std::async(std::launch::async, io_task));
+        } else {
+          io_task();
+        }
       }
+
+      Kokkos::deep_copy(h_uxn_global_curr_, uxn_global_curr_);
+      Kokkos::deep_copy(h_uyn_global_curr_, uyn_global_curr_);
+      Kokkos::deep_copy(h_uzn_global_curr_, uzn_global_curr_);
 
       const int order = mesh_->getOrder();
       float var_ux_np1 = 0.0;
@@ -428,18 +464,18 @@ void SEMproxy::Run() {
       for (int i = 0; i < order + 1; i++) {
         for (int j = 0; j < order + 1; j++) {
           for (int k = 0; k < order + 1; k++) {
-            int node_idx = mesh_->globalNodeIndex(rhs_element_rcv_[0], i, j, k);
+            int node_idx = mesh_->globalNodeIndex(h_rhs_element_rcv_(0), i, j, k);
             int global_node_on_elem = i + j * (order + 1) + k * (order + 1) * (order + 1);
-            var_ux_np1 += uxn_global_curr_(node_idx) * rhs_weights_rcv_(0, global_node_on_elem);
-            var_uy_np1 += uyn_global_curr_(node_idx) * rhs_weights_rcv_(0, global_node_on_elem);
-            var_uz_np1 += uzn_global_curr_(node_idx) * rhs_weights_rcv_(0, global_node_on_elem);
+            var_ux_np1 += h_uxn_global_curr_(node_idx) * h_rhs_weights_rcv_(0, global_node_on_elem);
+            var_uy_np1 += h_uyn_global_curr_(node_idx) * h_rhs_weights_rcv_(0, global_node_on_elem);
+            var_uz_np1 += h_uzn_global_curr_(node_idx) * h_rhs_weights_rcv_(0, global_node_on_elem);
           }
         }
       }
 
-      uxn_at_receiver_(0, time_index) = var_ux_np1;
-      uyn_at_receiver_(0, time_index) = var_uy_np1;
-      uzn_at_receiver_(0, time_index) = var_uz_np1;
+      h_uxn_at_receiver_(0, time_index) = var_ux_np1;
+      h_uyn_at_receiver_(0, time_index) = var_uy_np1;
+      h_uzn_at_receiver_(0, time_index) = var_uz_np1;
 
       if (das_type_ != SourceAndReceiverUtils::DASType::kNone) {
         float das_val = 0.0f;
@@ -448,12 +484,12 @@ void SEMproxy::Run() {
           int n_id = das_node_ids_[i_node];
           if (n_id >= 0) {
             float w = das_weights_[i_node];
-            das_val += (uxn_global_curr_(n_id) * das_vector_[0] + uyn_global_curr_(n_id) * das_vector_[1] +
-                        uzn_global_curr_(n_id) * das_vector_[2]) *
+            das_val += (h_uxn_global_curr_(n_id) * das_vector_[0] + h_uyn_global_curr_(n_id) * das_vector_[1] +
+                        h_uzn_global_curr_(n_id) * das_vector_[2]) *
                        w;
           }
         }
-        das_signal_(time_index) = das_val;
+        h_das_signal_(time_index) = das_val;
       }
 
       solver_data.swapWavefields();
@@ -461,25 +497,23 @@ void SEMproxy::Run() {
     }
 
     start_output_time = std::chrono::high_resolution_clock::now();
-    for (int i = 0; i < uxn_at_receiver_.extent(0); i++) {
-      auto subview = Kokkos::subview(uxn_at_receiver_, i, Kokkos::ALL());
-      vectorReal subset("receiver_save", num_samples_);
-      Kokkos::deep_copy(subset, subview);
+    for (int i = 0; i < h_uxn_at_receiver_.extent(0); i++) {
+      auto subview = Kokkos::subview(h_uxn_at_receiver_, i, Kokkos::ALL());
+      vectorReal::host_mirror_type subset("receiver_save", num_samples_);
+      for (int j = 0; j < num_samples_; ++j) subset(j) = subview(j);
       io_ctrl_->saveReceiver(subset, src_coord_);
     }
 
     if (das_type_ != SourceAndReceiverUtils::DASType::kNone) {
       std::ofstream f_das("das_trace.txt");
       f_das << "# time das_signal\n";
-      for (int t = 0; t < num_samples_; ++t) {
-        f_das << t * dt_ << " " << das_signal_(t) << "\n";
-      }
+      for (int t = 0; t < num_samples_; ++t) f_das << t * dt_ << " " << h_das_signal_(t) << "\n";
       f_das.close();
     }
     total_output_time += std::chrono::high_resolution_clock::now() - start_output_time;
   }
 
-  // Record Compute and Output times then display message
+  WaitSnapshots();
   time_compute_ = total_compute_time.count();
   time_io_ = total_output_time.count();
   DisplayPerfMsg();
@@ -490,8 +524,11 @@ void SEMproxy::InitArrays() {
   const auto n_elements = mesh_->getNumberOfElements();
   const auto n_pts_per_elem = mesh_->getNumberOfPointsPerElement();
 
-  rhs_element_ = allocateVector<vectorInt>(num_rhs_, "rhsElement");
-  rhs_weights_ = allocateArray2D<arrayReal>(num_rhs_, n_pts_per_elem, "RHSWeight");
+  // Create Device Views
+  rhs_element_ = vectorInt("rhsElement", num_rhs_);
+  rhs_weights_ = arrayReal("RHSWeight", num_rhs_, n_pts_per_elem);
+  rhs_element_rcv_ = vectorInt("rhsElementRcv", 1);
+  rhs_weights_rcv_ = arrayReal("RHSWeightRcv", 1, n_pts_per_elem);
 
   if (is_acousto_elastic_) {
     rhs_term_ = allocateArray2D<arrayReal>(num_rhs_, num_samples_, "RHSTerm");
@@ -518,25 +555,61 @@ void SEMproxy::InitArrays() {
     pn_global_prev_ = allocateVector<vectorReal>(n_nodes, "pnGlobalPrev");
     pn_at_receiver_ = allocateArray2D<arrayReal>(1, num_samples_, "pn_at_receiver_");
   } else {
-    rhs_term_x_ = allocateArray2D<arrayReal>(num_rhs_, num_samples_, "RHSTermx");
-    rhs_term_y_ = allocateArray2D<arrayReal>(num_rhs_, num_samples_, "RHSTermy");
-    rhs_term_z_ = allocateArray2D<arrayReal>(num_rhs_, num_samples_, "RHSTermz");
-    uxn_global_curr_ = allocateVector<vectorReal>(n_nodes, "uxnGlobalCurr");
-    uyn_global_curr_ = allocateVector<vectorReal>(n_nodes, "uynGlobalCurr");
-    uzn_global_curr_ = allocateVector<vectorReal>(n_nodes, "uznGlobalCurr");
-    uxn_global_prev_ = allocateVector<vectorReal>(n_nodes, "uxnGlobalPrev");
-    uyn_global_prev_ = allocateVector<vectorReal>(n_nodes, "uynGlobalPrev");
-    uzn_global_prev_ = allocateVector<vectorReal>(n_nodes, "uznGlobalPrev");
-    uxn_at_receiver_ = allocateArray2D<arrayReal>(1, num_samples_, "uxnAtReceiver");
-    uyn_at_receiver_ = allocateArray2D<arrayReal>(1, num_samples_, "uynAtReceiver ");
-    uzn_at_receiver_ = allocateArray2D<arrayReal>(1, num_samples_, "uznAtReceiver");
+    rhs_term_x_ = arrayReal("RHSTermx", num_rhs_, num_samples_);
+    rhs_term_y_ = arrayReal("RHSTermy", num_rhs_, num_samples_);
+    rhs_term_z_ = arrayReal("RHSTermz", num_rhs_, num_samples_);
+    uxn_global_curr_ = vectorReal("uxnGlobalCurr", n_nodes);
+    uyn_global_curr_ = vectorReal("uynGlobalCurr", n_nodes);
+    uzn_global_curr_ = vectorReal("uznGlobalCurr", n_nodes);
+    uxn_global_prev_ = vectorReal("uxnGlobalPrev", n_nodes);
+    uyn_global_prev_ = vectorReal("uynGlobalPrev", n_nodes);
+    uzn_global_prev_ = vectorReal("uznGlobalPrev", n_nodes);
+    uxn_at_receiver_ = arrayReal("uxnAtReceiver", 1, num_samples_);
+    uyn_at_receiver_ = arrayReal("uynAtReceiver ", 1, num_samples_);
+    uzn_at_receiver_ = arrayReal("uznAtReceiver", 1, num_samples_);
   }
 
-  rhs_element_rcv_ = allocateVector<vectorInt>(1, "rhsElementRcv");
-  rhs_weights_rcv_ = allocateArray2D<arrayReal>(1, n_pts_per_elem, "RHSWeightRcv");
+  if (das_type_ != SourceAndReceiverUtils::DASType::kNone) {
+    das_signal_ = vectorReal("dasSignal", num_samples_);
+  }
+
+  // Create Host Mirrors
+  h_rhs_element_ = Kokkos::create_mirror_view(rhs_element_);
+  h_rhs_element_rcv_ = Kokkos::create_mirror_view(rhs_element_rcv_);
+  h_rhs_weights_ = Kokkos::create_mirror_view(rhs_weights_);
+  h_rhs_weights_rcv_ = Kokkos::create_mirror_view(rhs_weights_rcv_);
+  h_pn_global_curr_ = Kokkos::create_mirror_view(pn_global_curr_);
+  h_pn_global_prev_ = Kokkos::create_mirror_view(pn_global_prev_);
+  h_uxn_global_curr_ = Kokkos::create_mirror_view(uxn_global_curr_);
+  h_uyn_global_curr_ = Kokkos::create_mirror_view(uyn_global_curr_);
+  h_uzn_global_curr_ = Kokkos::create_mirror_view(uzn_global_curr_);
+  h_uxn_global_prev_ = Kokkos::create_mirror_view(uxn_global_prev_);
+  h_uyn_global_prev_ = Kokkos::create_mirror_view(uyn_global_prev_);
+  h_uzn_global_prev_ = Kokkos::create_mirror_view(uzn_global_prev_);
+
+  if (is_acousto_elastic_) {
+    h_rhs_term_ = Kokkos::create_mirror_view(rhs_term_);
+    h_rhs_term_x_ = Kokkos::create_mirror_view(rhs_term_x_);
+    h_rhs_term_y_ = Kokkos::create_mirror_view(rhs_term_y_);
+    h_rhs_term_z_ = Kokkos::create_mirror_view(rhs_term_z_);
+    h_pn_at_receiver_ = Kokkos::create_mirror_view(pn_at_receiver_);
+  } else if (!is_elastic_) {
+    h_rhs_term_ = Kokkos::create_mirror_view(rhs_term_);
+    h_pn_at_receiver_ = Kokkos::create_mirror_view(pn_at_receiver_);
+  } else if (is_dg_) {
+    h_rhs_term_ = Kokkos::create_mirror_view(rhs_term_);
+    h_pn_at_receiver_ = Kokkos::create_mirror_view(pn_at_receiver_);
+  } else {
+    h_rhs_term_x_ = Kokkos::create_mirror_view(rhs_term_x_);
+    h_rhs_term_y_ = Kokkos::create_mirror_view(rhs_term_y_);
+    h_rhs_term_z_ = Kokkos::create_mirror_view(rhs_term_z_);
+    h_uxn_at_receiver_ = Kokkos::create_mirror_view(uxn_at_receiver_);
+    h_uyn_at_receiver_ = Kokkos::create_mirror_view(uyn_at_receiver_);
+    h_uzn_at_receiver_ = Kokkos::create_mirror_view(uzn_at_receiver_);
+  }
 
   if (das_type_ != SourceAndReceiverUtils::DASType::kNone) {
-    das_signal_ = allocateVector<vectorReal>(num_samples_, "dasSignal");
+    h_das_signal_ = Kokkos::create_mirror_view(das_signal_);
   }
 }
 
@@ -557,9 +630,7 @@ void SEMproxy::InitSource() {
                                        floor((rel_src_z * ez) / lz) * ey * ex
                                  : 0;
 
-  for (int i = 0; i < 1; i++) {
-    rhs_element_[i] = src_index;
-  }
+  for (int i = 0; i < 1; i++) h_rhs_element_(i) = src_index;
 
   float corner_coords[8][3];
   int corner_iter = 0;
@@ -568,7 +639,7 @@ void SEMproxy::InitSource() {
   for (int k : nodes_corner) {
     for (int j : nodes_corner) {
       for (int i : nodes_corner) {
-        int node_idx = mesh_->globalNodeIndex(rhs_element_[0], i, j, k);
+        int node_idx = mesh_->globalNodeIndex(h_rhs_element_(0), i, j, k);
         corner_coords[corner_iter][0] = mesh_->nodeCoord(node_idx, 0);
         corner_coords[corner_iter][2] = mesh_->nodeCoord(node_idx, 2);
         corner_coords[corner_iter][1] = mesh_->nodeCoord(node_idx, 1);
@@ -582,49 +653,49 @@ void SEMproxy::InitSource() {
   if (is_acousto_elastic_) {
     bool const source_in_fluid = (src_coord_[2] >= local_params_.acoustoElasticBoundaryZ);
     if (source_in_fluid) {
-      for (int j = 0; j < num_samples_; j++) rhs_term_(0, j) = source_term[j];
+      for (int j = 0; j < num_samples_; j++) h_rhs_term_(0, j) = source_term[j];
     } else {
       for (int j = 0; j < num_samples_; j++) {
-        rhs_term_x_(0, j) = source_term[j];
-        rhs_term_y_(0, j) = source_term[j];
-        rhs_term_z_(0, j) = source_term[j];
+        h_rhs_term_x_(0, j) = source_term[j];
+        h_rhs_term_y_(0, j) = source_term[j];
+        h_rhs_term_z_(0, j) = source_term[j];
       }
     }
   } else if (!is_elastic_) {
-    for (int j = 0; j < num_samples_; j++) rhs_term_(0, j) = source_term[j];
+    for (int j = 0; j < num_samples_; j++) h_rhs_term_(0, j) = source_term[j];
   } else {
     for (int j = 0; j < num_samples_; j++) {
-      rhs_term_x_(0, j) = source_term[j];
-      rhs_term_y_(0, j) = source_term[j];
-      rhs_term_z_(0, j) = source_term[j];
+      h_rhs_term_x_(0, j) = source_term[j];
+      h_rhs_term_y_(0, j) = source_term[j];
+      h_rhs_term_z_(0, j) = source_term[j];
     }
   }
 
-  source_element_ = rhs_element_[0];
+  source_element_ = h_rhs_element_(0);
   int order = mesh_->getOrder();
 
   if (source_on_rank) {
     switch (order) {
       case 1:
-        SourceAndReceiverUtils::ComputeRHSWeights<1>(corner_coords, src_coord_, rhs_weights_);
+        SourceAndReceiverUtils::ComputeRHSWeights<1>(corner_coords, src_coord_, h_rhs_weights_);
         break;
       case 2:
-        SourceAndReceiverUtils::ComputeRHSWeights<2>(corner_coords, src_coord_, rhs_weights_);
+        SourceAndReceiverUtils::ComputeRHSWeights<2>(corner_coords, src_coord_, h_rhs_weights_);
         break;
       case 3:
-        SourceAndReceiverUtils::ComputeRHSWeights<3>(corner_coords, src_coord_, rhs_weights_);
+        SourceAndReceiverUtils::ComputeRHSWeights<3>(corner_coords, src_coord_, h_rhs_weights_);
         break;
       case 4:
-        SourceAndReceiverUtils::ComputeRHSWeights<4>(corner_coords, src_coord_, rhs_weights_);
+        SourceAndReceiverUtils::ComputeRHSWeights<4>(corner_coords, src_coord_, h_rhs_weights_);
         break;
       case 5:
-        SourceAndReceiverUtils::ComputeRHSWeights<5>(corner_coords, src_coord_, rhs_weights_);
+        SourceAndReceiverUtils::ComputeRHSWeights<5>(corner_coords, src_coord_, h_rhs_weights_);
         break;
       default:
         throw std::runtime_error("Unsupported order: " + std::to_string(order));
     }
   } else {
-    for (int k = 0; k < mesh_->getNumberOfPointsPerElement(); ++k) rhs_weights_(0, k) = 0.0f;
+    for (int k = 0; k < mesh_->getNumberOfPointsPerElement(); ++k) h_rhs_weights_(0, k) = 0.0f;
   }
 
   float rel_rcv_x = rcv_coord_[0] - local_params_.origin_x;
@@ -632,14 +703,14 @@ void SEMproxy::InitSource() {
       floor((rel_rcv_x * ex) / lx) + floor((rcv_coord_[1] * ey) / ly) * ex + floor((rcv_coord_[2] * ez) / lz) * ey * ex;
 
   if (rcv_index < 0 || rcv_index >= mesh_->getNumberOfElements()) rcv_index = 0;
-  for (int i = 0; i < 1; i++) rhs_element_rcv_[i] = rcv_index;
+  for (int i = 0; i < 1; i++) h_rhs_element_rcv_(i) = rcv_index;
 
   float corner_coords_rcv[8][3];
   corner_iter = 0;
   for (int k : nodes_corner) {
     for (int j : nodes_corner) {
       for (int i : nodes_corner) {
-        int node_idx = mesh_->globalNodeIndex(rhs_element_rcv_[0], i, j, k);
+        int node_idx = mesh_->globalNodeIndex(h_rhs_element_rcv_(0), i, j, k);
         corner_coords_rcv[corner_iter][0] = mesh_->nodeCoord(node_idx, 0);
         corner_coords_rcv[corner_iter][2] = mesh_->nodeCoord(node_idx, 2);
         corner_coords_rcv[corner_iter][1] = mesh_->nodeCoord(node_idx, 1);
@@ -650,19 +721,19 @@ void SEMproxy::InitSource() {
 
   switch (order) {
     case 1:
-      SourceAndReceiverUtils::ComputeRHSWeights<1>(corner_coords_rcv, rcv_coord_, rhs_weights_rcv_);
+      SourceAndReceiverUtils::ComputeRHSWeights<1>(corner_coords_rcv, rcv_coord_, h_rhs_weights_rcv_);
       break;
     case 2:
-      SourceAndReceiverUtils::ComputeRHSWeights<2>(corner_coords_rcv, rcv_coord_, rhs_weights_rcv_);
+      SourceAndReceiverUtils::ComputeRHSWeights<2>(corner_coords_rcv, rcv_coord_, h_rhs_weights_rcv_);
       break;
     case 3:
-      SourceAndReceiverUtils::ComputeRHSWeights<3>(corner_coords_rcv, rcv_coord_, rhs_weights_rcv_);
+      SourceAndReceiverUtils::ComputeRHSWeights<3>(corner_coords_rcv, rcv_coord_, h_rhs_weights_rcv_);
       break;
     case 4:
-      SourceAndReceiverUtils::ComputeRHSWeights<4>(corner_coords_rcv, rcv_coord_, rhs_weights_rcv_);
+      SourceAndReceiverUtils::ComputeRHSWeights<4>(corner_coords_rcv, rcv_coord_, h_rhs_weights_rcv_);
       break;
     case 5:
-      SourceAndReceiverUtils::ComputeRHSWeights<5>(corner_coords_rcv, rcv_coord_, rhs_weights_rcv_);
+      SourceAndReceiverUtils::ComputeRHSWeights<5>(corner_coords_rcv, rcv_coord_, h_rhs_weights_rcv_);
       break;
     default:
       throw std::runtime_error("Unsupported order: " + std::to_string(order));
@@ -673,37 +744,29 @@ void SEMproxy::InitSource() {
     const int total_das_nodes = das_num_samples_ * npe;
     das_node_ids_.resize(total_das_nodes, -1);
     das_weights_.resize(total_das_nodes, 0.0f);
-
     std::vector<float> sample_locs(das_num_samples_);
     if (das_num_samples_ == 1) {
       sample_locs[0] = 0.0f;
     } else {
-      for (int i = 0; i < das_num_samples_; ++i) {
+      for (int i = 0; i < das_num_samples_; ++i)
         sample_locs[i] = -0.5f + static_cast<float>(i) / (das_num_samples_ - 1);
-      }
     }
-
     std::vector<float> integration_consts(das_num_samples_);
     if (das_type_ == SourceAndReceiverUtils::DASType::kDipole) {
       integration_consts[0] = -1.0f;
       integration_consts[1] = 1.0f;
     } else {
-      for (int i = 0; i < das_num_samples_; ++i) {
-        integration_consts[i] = 1.0f / das_num_samples_;
-      }
+      for (int i = 0; i < das_num_samples_; ++i) integration_consts[i] = 1.0f / das_num_samples_;
     }
 
     for (int i_sample = 0; i_sample < das_num_samples_; ++i_sample) {
       std::array<float, 3> sample_coord;
-      for (int d = 0; d < 3; ++d) {
+      for (int d = 0; d < 3; ++d)
         sample_coord[d] = rcv_coord_[d] + das_direction_[d] * das_gauge_length_ * sample_locs[i_sample];
-      }
-
       float rel_x = sample_coord[0] - local_params_.origin_x;
       int sample_elem_idx = static_cast<int>(std::floor((rel_x * ex) / lx)) +
                             static_cast<int>(std::floor((sample_coord[1] * ey) / ly)) * ex +
                             static_cast<int>(std::floor((sample_coord[2] * ez) / lz)) * ey * ex;
-
       if (sample_elem_idx < 0 || sample_elem_idx >= mesh_->getNumberOfElements()) sample_elem_idx = 0;
 
       float sample_corners[8][3];
@@ -761,16 +824,36 @@ void SEMproxy::InitSource() {
       }
     }
   }
+
+  // --- DMA Copy everything to the GPU ---
+  Kokkos::deep_copy(rhs_element_, h_rhs_element_);
+  Kokkos::deep_copy(rhs_element_rcv_, h_rhs_element_rcv_);
+  Kokkos::deep_copy(rhs_weights_, h_rhs_weights_);
+  Kokkos::deep_copy(rhs_weights_rcv_, h_rhs_weights_rcv_);
+
+  if (is_acousto_elastic_) {
+    if (src_coord_[2] >= local_params_.acoustoElasticBoundaryZ)
+      Kokkos::deep_copy(rhs_term_, h_rhs_term_);
+    else {
+      Kokkos::deep_copy(rhs_term_x_, h_rhs_term_x_);
+      Kokkos::deep_copy(rhs_term_y_, h_rhs_term_y_);
+      Kokkos::deep_copy(rhs_term_z_, h_rhs_term_z_);
+    }
+  } else if (!is_elastic_) {
+    Kokkos::deep_copy(rhs_term_, h_rhs_term_);
+  } else {
+    Kokkos::deep_copy(rhs_term_x_, h_rhs_term_x_);
+    Kokkos::deep_copy(rhs_term_y_, h_rhs_term_y_);
+    Kokkos::deep_copy(rhs_term_z_, h_rhs_term_z_);
+  }
 }
 
-void SEMproxy::SaveSnapshot(int timestep, VECTOR_REAL_VIEW data) const {
-  Kokkos::fence();
-  auto n_nodes = data.extent(0);
+void SEMproxy::SaveSnapshot(int timestep, const vectorReal& d_data, vectorReal::host_mirror_type& h_data) const {
+  // Ultra-fast deep copy into the PRE-ALLOCATED host buffer. No malloc!
+  Kokkos::deep_copy(h_data, d_data);
 
-  vectorReal subset("snapshot_cpy", n_nodes);
-  Kokkos::parallel_for("copy_column", n_nodes, KOKKOS_LAMBDA(int i) { subset(i) = data(i); });
-  Kokkos::fence();
-  io_ctrl_->saveSnapshot(subset, timestep);
+  // Hand directly to ADIOS2
+  io_ctrl_->saveSnapshot(h_data, timestep);
 }
 
 implemType SEMproxy::GetImplem(std::string implem_arg) {
@@ -781,20 +864,20 @@ implemType SEMproxy::GetImplem(std::string implem_arg) {
 meshType SEMproxy::GetMesh(std::string mesh_arg) {
   if (mesh_arg == "cartesian") return meshType::kStruct;
   if (mesh_arg == "ucartesian") return meshType::kUnstruct;
-  throw std::invalid_argument("Mesh type invalid. Must be 'ucartesian' or 'cartesian'.");
+  throw std::invalid_argument("Mesh type invalid.");
 };
 
 methodType SEMproxy::GetMethod(std::string method_arg) {
   if (method_arg == "sem") return methodType::kSem;
   if (method_arg == "dg") return methodType::kDg;
-  throw std::invalid_argument("Method type invalid. Must be 'sem' or 'dg'.");
+  throw std::invalid_argument("Method type invalid.");
 };
 
 model::AnisotropyType SEMproxy::GetAnisotropy(std::string anisotropy_arg) {
   if (anisotropy_arg == "iso") return model::AnisotropyType::kIso;
   if (anisotropy_arg == "vti") return model::AnisotropyType::kVTI;
   if (anisotropy_arg == "tti") return model::AnisotropyType::kTTI;
-  throw std::invalid_argument("Anisotropy type invalid. Must be 'iso', 'vti' or 'tti'.");
+  throw std::invalid_argument("Anisotropy type invalid.");
 };
 
 float SEMproxy::FindCflDt(float cfl_factor) {
@@ -803,7 +886,6 @@ float SEMproxy::FindCflDt(float cfl_factor) {
   float v_max = mesh_->getMaxSpeed();
   return cfl_factor * min_spacing / (sqrt_dim3 * v_max);
 }
-
 void SEMproxy::InitMpi(int* mpi_init) {
 #ifdef USE_MPI
   MPI_Initialized(mpi_init);
@@ -819,14 +901,12 @@ void SEMproxy::InitMpi(int* mpi_init) {
   dist_ctx_.size = 1;
 #endif
 }
-
 void SEMproxy::InitSimParams(const SemProxyOptions& opt) {
   model::CartesianParams<float, int> global_params(opt.order, opt.ex, opt.ey, opt.ez, opt.lx, opt.ly, opt.lz,
                                                    opt.isModelOnNodes, opt.isElastic);
   global_params.isAcoustoElastic = opt.isAcoustoElastic;
   global_params.acoustoElasticBoundaryZ = opt.acoustoElasticBoundaryZ;
   global_params.origin_x = 0;
-
   model::CartesianXPartitioner<float, int> partitioner;
   local_params_ = partitioner.partition(global_params, dist_ctx_.rank, dist_ctx_.size);
   local_params_.isAcoustoElastic = opt.isAcoustoElastic;
@@ -839,28 +919,22 @@ void SEMproxy::InitSimParams(const SemProxyOptions& opt) {
   num_nodes_[0] = local_params_.ex * opt.order + 1;
   num_nodes_[1] = local_params_.ey * opt.order + 1;
   num_nodes_[2] = local_params_.ez * opt.order + 1;
-
   domain_size_[0] = local_params_.lx;
   domain_size_[1] = local_params_.ly;
   domain_size_[2] = local_params_.lz;
-
   src_coord_[0] = opt.srcx;
   src_coord_[1] = opt.srcy;
   src_coord_[2] = opt.srcz;
   t_peak_ = opt.tpeak;
   f0_ = opt.f0;
   ricker_order_ = opt.ricker_order;
-
   rcv_coord_[0] = opt.rcvx;
   rcv_coord_[1] = opt.rcvy;
   rcv_coord_[2] = opt.rcvz;
-
   is_elastic_ = opt.isElastic;
 }
-
 void SEMproxy::InitMeshParams(const SemProxyOptions& opt) {
   const meshType mesh_type = GetMesh(opt.mesh);
-
   if (mesh_type == meshType::kStruct) {
     switch (opt.order) {
       case 1: {
@@ -904,13 +978,11 @@ void SEMproxy::InitMeshParams(const SemProxyOptions& opt) {
         break;
       }
       default:
-        throw std::runtime_error("Order other than 1-5 is not supported (semproxy)");
+        throw std::runtime_error("Order other than 1-5 is not supported");
     }
   } else if (mesh_type == meshType::kUnstruct) {
     model::CartesianUnstructBuilder<float, int> builder(local_params_);
     mesh_ = builder.getModel(opt.free_surface);
-  } else {
-    throw std::runtime_error("Incorrect mesh type (SEMproxy ctor.)");
   }
 }
 
@@ -923,9 +995,6 @@ void SEMproxy::InitSync() {
 #if USE_MPI
   if (dist_ctx_.size > 1) {
     syncer_ = std::make_unique<BoundarySynchronizer>(std::make_unique<solver::fe::MPIBackend>());
-    if (dist_ctx_.rank == 0) {
-      std::cout << "MPI Enabled: Using MPIBackend for " << dist_ctx_.size << " ranks." << std::endl;
-    }
   } else {
     syncer_ = std::make_unique<BoundarySynchronizer>(std::make_unique<SerialBackend>());
   }
@@ -995,4 +1064,11 @@ void SEMproxy::DisplayPerfMsg() const {
   std::cout << "  - Total Execution Time: " << std::fixed << std::setprecision(4) << std::setw(8) << total_time
             << " s\n";
   std::cout << "==========================================================\n\n";
+}
+
+void SEMproxy::WaitSnapshots() {
+  for (auto& f : snapshot_futures_) {
+    if (f.valid()) f.wait();
+  }
+  snapshot_futures_.clear();
 }

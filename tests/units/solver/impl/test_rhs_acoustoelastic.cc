@@ -14,19 +14,19 @@ class RhsAcoustoElasticTest : public ::testing::Test {
     numElements = 10;
     numNodesPerElement = 8;
 
-    acoustic_term = allocateArray2D<ARRAY_REAL_VIEW>(numElements, numNodesPerElement, "acoustic_term");
-    elastic_termx = allocateArray2D<ARRAY_REAL_VIEW>(numElements, numNodesPerElement, "elastic_termx");
-    elastic_termy = allocateArray2D<ARRAY_REAL_VIEW>(numElements, numNodesPerElement, "elastic_termy");
-    elastic_termz = allocateArray2D<ARRAY_REAL_VIEW>(numElements, numNodesPerElement, "elastic_termz");
-    element = allocateVector<VECTOR_INT_VIEW>(numElements, "element");
-    weights = allocateArray2D<ARRAY_REAL_VIEW>(numElements, numNodesPerElement, "weights");
+    acoustic_term = allocateArray2D<arrayReal>(numElements, numNodesPerElement, "acoustic_term");
+    elastic_termx = allocateArray2D<arrayReal>(numElements, numNodesPerElement, "elastic_termx");
+    elastic_termy = allocateArray2D<arrayReal>(numElements, numNodesPerElement, "elastic_termy");
+    elastic_termz = allocateArray2D<arrayReal>(numElements, numNodesPerElement, "elastic_termz");
+    element = allocateVector<vectorInt>(numElements, "element");
+    weights = allocateArray2D<arrayReal>(numElements, numNodesPerElement, "weights");
 
-    acoustic_term2 = allocateArray2D<ARRAY_REAL_VIEW>(20, 12, "acoustic_term2");
-    elastic_termx2 = allocateArray2D<ARRAY_REAL_VIEW>(20, 12, "elastic_termx2");
-    elastic_termy2 = allocateArray2D<ARRAY_REAL_VIEW>(20, 12, "elastic_termy2");
-    elastic_termz2 = allocateArray2D<ARRAY_REAL_VIEW>(20, 12, "elastic_termz2");
-    element2 = allocateVector<VECTOR_INT_VIEW>(20, "element2");
-    weights2 = allocateArray2D<ARRAY_REAL_VIEW>(20, 12, "weights2");
+    acoustic_term2 = allocateArray2D<arrayReal>(20, 12, "acoustic_term2");
+    elastic_termx2 = allocateArray2D<arrayReal>(20, 12, "elastic_termx2");
+    elastic_termy2 = allocateArray2D<arrayReal>(20, 12, "elastic_termy2");
+    elastic_termz2 = allocateArray2D<arrayReal>(20, 12, "elastic_termz2");
+    element2 = allocateVector<vectorInt>(20, "element2");
+    weights2 = allocateArray2D<arrayReal>(20, 12, "weights2");
 
     for (size_t i = 0; i < numElements; ++i) {
       element(i) = i * 10;
@@ -53,10 +53,10 @@ class RhsAcoustoElasticTest : public ::testing::Test {
 
   size_t numElements;
   size_t numNodesPerElement;
-  ARRAY_REAL_VIEW acoustic_term, elastic_termx, elastic_termy, elastic_termz;
-  ARRAY_REAL_VIEW acoustic_term2, elastic_termx2, elastic_termy2, elastic_termz2;
-  VECTOR_INT_VIEW element, element2;
-  ARRAY_REAL_VIEW weights, weights2;
+  arrayReal acoustic_term, elastic_termx, elastic_termy, elastic_termz;
+  arrayReal acoustic_term2, elastic_termx2, elastic_termy2, elastic_termz2;
+  vectorInt element, element2;
+  arrayReal weights, weights2;
 };
 
 TEST_F(RhsAcoustoElasticTest, Constructor) {
@@ -192,9 +192,9 @@ TEST_F(RhsAcoustoElasticTest, CopyAssignmentSelfAssignment) {
 }
 
 TEST_F(RhsAcoustoElasticTest, EmptyFields) {
-  auto emptyTerm = allocateArray2D<ARRAY_REAL_VIEW>(0, 0, "emptyTerm");
-  auto emptyElement = allocateVector<VECTOR_INT_VIEW>(0, "emptyElement");
-  auto emptyWeights = allocateArray2D<ARRAY_REAL_VIEW>(0, 0, "emptyWeights");
+  auto emptyTerm = allocateArray2D<arrayReal>(0, 0, "emptyTerm");
+  auto emptyElement = allocateVector<vectorInt>(0, "emptyElement");
+  auto emptyWeights = allocateArray2D<arrayReal>(0, 0, "emptyWeights");
 
   RhsAcoustoElastic rhs(emptyTerm, emptyElement, emptyWeights, emptyTerm, emptyTerm, emptyTerm);
 

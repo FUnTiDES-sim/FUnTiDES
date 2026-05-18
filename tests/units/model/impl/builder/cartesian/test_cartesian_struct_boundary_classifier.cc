@@ -24,7 +24,7 @@ class CartesianStructBoundaryClassifierTest : public ::testing::Test {
   // All six faces are global boundaries; free surface on top
   CartesianStructBoundaryClassifier<float, int> classifier{0.f, L, 0.f, L, 0.f, L, TOL, true};
 
-  VECTOR_INT_VIEW classify() const { return classifier.classify(N_NODE, NX, NY, NZ, 0.f, 0.f, 0.f, L, L, L); }
+  vectorInt classify() const { return classifier.classify(N_NODE, NX, NY, NZ, 0.f, 0.f, 0.f, L, L, L); }
 };
 
 TEST_F(CartesianStructBoundaryClassifierTest, InteriorNodeIsInterior) {

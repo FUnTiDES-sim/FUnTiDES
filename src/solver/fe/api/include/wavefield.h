@@ -28,7 +28,7 @@ struct Wavefield {
    * @return The requested current field.
    */
   PROXY_HOST_DEVICE
-  virtual VECTOR_REAL_VIEW getCurrentField(int i) const = 0;
+  virtual vectorReal getCurrentField(int i) const = 0;
 
   /**
    * @brief Get the previous field at a specific index.
@@ -36,7 +36,7 @@ struct Wavefield {
    * @return The requested current field.
    */
   PROXY_HOST_DEVICE
-  virtual VECTOR_REAL_VIEW getPreviousField(int i) const = 0;
+  virtual vectorReal getPreviousField(int i) const = 0;
 
   /**
    * @brief Swap data to advance the wavefield to the next time step.
@@ -66,7 +66,7 @@ struct Wavefield {
    * @param i               Field index to swap (0 = first field, 1 = second,
    * etc.).
    */
-  virtual void swapWithRotation(VECTOR_REAL_VIEW& prevPrevBuffer, int i) = 0;
+  virtual void swapWithRotation(vectorReal& prevPrevBuffer, int i) = 0;
 
   virtual void print() const = 0;
 };

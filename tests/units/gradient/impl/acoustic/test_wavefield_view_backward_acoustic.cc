@@ -10,9 +10,9 @@ class WavefieldViewBackwardAcousticTest : public ::testing::Test {
  protected:
   void SetUp() override {
     size = 50;
-    qn = allocateVector<VECTOR_REAL_VIEW>(size, "qn");
-    qnPrev = allocateVector<VECTOR_REAL_VIEW>(size, "qnPrev");
-    qnPrevPrev = allocateVector<VECTOR_REAL_VIEW>(size, "qnPrevPrev");
+    qn = allocateVector<vectorReal>(size, "qn");
+    qnPrev = allocateVector<vectorReal>(size, "qnPrev");
+    qnPrevPrev = allocateVector<vectorReal>(size, "qnPrevPrev");
     dt = 0.001f;
 
     for (int i = 0; i < size; ++i) {
@@ -24,9 +24,9 @@ class WavefieldViewBackwardAcousticTest : public ::testing::Test {
 
   int size;
   float dt;
-  VECTOR_REAL_VIEW qn;
-  VECTOR_REAL_VIEW qnPrev;
-  VECTOR_REAL_VIEW qnPrevPrev;
+  vectorReal qn;
+  vectorReal qnPrev;
+  vectorReal qnPrevPrev;
 };
 
 TEST_F(WavefieldViewBackwardAcousticTest, NumFieldsConstant) {

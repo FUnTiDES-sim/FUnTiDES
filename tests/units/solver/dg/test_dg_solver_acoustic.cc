@@ -68,8 +68,8 @@ class DGsolverAcousticTest : public ::testing::Test {
    */
   DGsolverDataAcoustic makeData(float pCurrVal, float pPrevVal, int nSample = 0, int srcElem = 0,
                                 float wavelet = 0.0f) {
-    auto pCurr = allocateArray2D<ARRAY_REAL_VIEW>(nElem_, kNDof, "pCurr");
-    auto pPrev = allocateArray2D<ARRAY_REAL_VIEW>(nElem_, kNDof, "pPrev");
+    auto pCurr = allocateArray2D<arrayReal>(nElem_, kNDof, "pCurr");
+    auto pPrev = allocateArray2D<arrayReal>(nElem_, kNDof, "pPrev");
 
     for (int e = 0; e < nElem_; ++e)
       for (int d = 0; d < kNDof; ++d) {
@@ -78,9 +78,9 @@ class DGsolverAcousticTest : public ::testing::Test {
       }
 
     int const nSrc = (nSample > 0) ? 1 : 0;
-    auto rhsTerm = allocateArray2D<ARRAY_REAL_VIEW>(nSrc, (nSample > 0 ? nSample : 1), "rhsTerm");
-    auto rhsElem = allocateVector<VECTOR_INT_VIEW>(nSrc, "rhsElem");
-    auto rhsWeights = allocateArray2D<ARRAY_REAL_VIEW>(nSrc, kNDof, "rhsWeights");
+    auto rhsTerm = allocateArray2D<arrayReal>(nSrc, (nSample > 0 ? nSample : 1), "rhsTerm");
+    auto rhsElem = allocateVector<vectorInt>(nSrc, "rhsElem");
+    auto rhsWeights = allocateArray2D<arrayReal>(nSrc, kNDof, "rhsWeights");
 
     if (nSrc > 0) {
       rhsElem(0) = srcElem;
@@ -88,7 +88,9 @@ class DGsolverAcousticTest : public ::testing::Test {
       for (int d = 0; d < kNDof; ++d) rhsWeights(0, d) = 1.0f / kNDof;
     }
 
-    return DGsolverDataAcoustic(pPrev, pCurr, rhsTerm, rhsElem, rhsWeights);
+    DGWavefieldAcoustic wavefield(pPrev, pCurr);
+    RhsAcoustic rhs(rhsTerm, rhsElem, rhsWeights);
+    return DGsolverDataAcoustic(wavefield, rhs);
   }
 
   DGSolverT solver_;
@@ -140,7 +142,8 @@ TEST_F(DGsolverAcousticTest, ZeroFieldZeroSource_StaysZero) {
 
   // After one step from p=0 with no source, p must remain 0.
   for (int e = 0; e < nElem_; ++e)
-    for (int d = 0; d < kNDof; ++d) EXPECT_FLOAT_EQ(data.pnPrev(e, d), 0.0f) << "elem=" << e << " dof=" << d;
+    for (int d = 0; d < kNDof; ++d)
+      EXPECT_FLOAT_EQ(data.getPreviousField(0)(e, d), 0.0f) << "elem=" << e << " dof=" << d;
 }
 
 TEST_F(DGsolverAcousticTest, UniformFieldZeroSource_StaysUniform) {
@@ -152,7 +155,8 @@ TEST_F(DGsolverAcousticTest, UniformFieldZeroSource_StaysUniform) {
   solver_.computeOneStep(0.001f, 0, data);
 
   for (int e = 0; e < nElem_; ++e)
-    for (int d = 0; d < kNDof; ++d) EXPECT_NEAR(data.pnPrev(e, d), 1.0f, 1e-4f) << "elem=" << e << " dof=" << d;
+    for (int d = 0; d < kNDof; ++d)
+      EXPECT_NEAR(data.getPreviousField(0)(e, d), 1.0f, 1e-4f) << "elem=" << e << " dof=" << d;
 }
 
 TEST_F(DGsolverAcousticTest, NonzeroSource_FieldChangesAtSourceElem) {
@@ -164,7 +168,7 @@ TEST_F(DGsolverAcousticTest, NonzeroSource_FieldChangesAtSourceElem) {
 
   // rhs_elem(0,d) = -kWavelet * (1/kNDof) < 0
   // Verlet (curr=prev=0): new_prev = -dt^2 * rhs / (M + ...) > 0
-  for (int d = 0; d < kNDof; ++d) EXPECT_GT(data.pnPrev(0, d), 0.0f) << "dof=" << d;
+  for (int d = 0; d < kNDof; ++d) EXPECT_GT(data.getPreviousField(0)(0, d), 0.0f) << "dof=" << d;
 }
 
 TEST_F(DGsolverAcousticTest, NoSourceElements_UnaffectedBySource) {
@@ -176,7 +180,8 @@ TEST_F(DGsolverAcousticTest, NoSourceElements_UnaffectedBySource) {
   // Elements != 0 should have zero field (the source kernel only writes
   // to element 0; interface flux from zero field is also zero).
   for (int e = 1; e < nElem_; ++e)
-    for (int d = 0; d < kNDof; ++d) EXPECT_FLOAT_EQ(data.pnPrev(e, d), 0.0f) << "elem=" << e << " dof=" << d;
+    for (int d = 0; d < kNDof; ++d)
+      EXPECT_FLOAT_EQ(data.getPreviousField(0)(e, d), 0.0f) << "elem=" << e << " dof=" << d;
 }
 
 // ============================================================
@@ -187,17 +192,20 @@ TEST_F(DGsolverAcousticTest, MultipleSteps_NoNanOrInf) {
   constexpr int kNumSteps = 5;
   constexpr float kDt = 0.001f;
 
-  auto pCurr = allocateArray2D<ARRAY_REAL_VIEW>(nElem_, kNDof, "pCurr");
-  auto pPrev = allocateArray2D<ARRAY_REAL_VIEW>(nElem_, kNDof, "pPrev");
-  auto rhsTerm = allocateArray2D<ARRAY_REAL_VIEW>(1, kNumSteps, "rhsTerm");
-  auto rhsElem = allocateVector<VECTOR_INT_VIEW>(1, "rhsElem");
-  auto rhsWeights = allocateArray2D<ARRAY_REAL_VIEW>(1, kNDof, "rhsWeights");
+  auto pCurr = allocateArray2D<arrayReal>(nElem_, kNDof, "pCurr");
+  auto pPrev = allocateArray2D<arrayReal>(nElem_, kNDof, "pPrev");
+  auto rhsTerm = allocateArray2D<arrayReal>(1, kNumSteps, "rhsTerm");
+  auto rhsElem = allocateVector<vectorInt>(1, "rhsElem");
+  auto rhsWeights = allocateArray2D<arrayReal>(1, kNDof, "rhsWeights");
 
   rhsElem(0) = 0;
   for (int t = 0; t < kNumSteps; ++t) rhsTerm(0, t) = std::sin(t * 0.1f);
   for (int d = 0; d < kNDof; ++d) rhsWeights(0, d) = 1.0f / kNDof;
 
-  DGsolverDataAcoustic data(pPrev, pCurr, rhsTerm, rhsElem, rhsWeights);
+  DGWavefieldAcoustic wavefield(pPrev, pCurr);
+  RhsAcoustic rhs(rhsTerm, rhsElem, rhsWeights);
+
+  DGsolverDataAcoustic data(wavefield, rhs);
 
   for (int t = 0; t < kNumSteps; ++t) {
     ASSERT_NO_THROW(solver_.computeOneStep(kDt, t, data));
@@ -206,7 +214,7 @@ TEST_F(DGsolverAcousticTest, MultipleSteps_NoNanOrInf) {
 
   for (int e = 0; e < nElem_; ++e)
     for (int d = 0; d < kNDof; ++d)
-      EXPECT_TRUE(std::isfinite(data.pnCurr(e, d))) << "NaN/Inf at elem=" << e << " dof=" << d;
+      EXPECT_TRUE(std::isfinite(data.getCurrentField(0)(e, d))) << "NaN/Inf at elem=" << e << " dof=" << d;
 }
 
 // ============================================================
@@ -225,13 +233,13 @@ TEST_F(DGsolverAcousticTest, GettersThrowAsExpected) {
 // ============================================================
 
 TEST_F(DGsolverAcousticTest, OutputSolutionValues_ArrayView_DoesNotCrash) {
-  auto field = allocateArray2D<ARRAY_REAL_VIEW>(nElem_, kNDof, "field");
+  auto field = allocateArray2D<arrayReal>(nElem_, kNDof, "field");
   int t = 0, e = 0;
   EXPECT_NO_THROW(solver_.outputSolutionValues(t, e, field, "pressure"));
 }
 
 TEST_F(DGsolverAcousticTest, OutputSolutionValues_VectorView_DoesNotCrash) {
-  auto field = allocateVector<VECTOR_REAL_VIEW>(nElem_, "field_vec");
+  auto field = allocateVector<vectorReal>(nElem_, "field_vec");
   int t = 0, e = 0;
   EXPECT_NO_THROW(solver_.outputSolutionValues(t, e, field, "pressure"));
 }

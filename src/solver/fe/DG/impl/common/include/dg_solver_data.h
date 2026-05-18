@@ -4,6 +4,7 @@
 #include <iostream>
 
 #include "data_type.h"
+#include "dg_physics_traits_acoustic.h"
 #include "solver.h"
 
 namespace solver {
@@ -16,29 +17,38 @@ namespace fe {
  * Fields are indexed (n_elem, n_dof_per_elem); RHS follows SEM conventions.
  */
 struct DGsolverDataAcoustic : public Solver::DataStruct {
-  ARRAY_REAL_VIEW pnPrev;      ///< Pressure at previous time step (n_elem, n_dof)
-  ARRAY_REAL_VIEW pnCurr;      ///< Pressure at current time step  (n_elem, n_dof)
-  ARRAY_REAL_VIEW myRHSTerm;   ///< Source time series (n_rhs, n_sample)
-  VECTOR_INT_VIEW rhsElement;  ///< Source element indices
-  ARRAY_REAL_VIEW rhsWeights;  ///< Source weights (n_rhs, n_dof_per_elem)
+  // Use concrete types from DGPhysicsTraits to avoid virtual dispatch on device
+  using WavefieldType = typename DGPhysicsTraits::WavefieldType;
+  using RhsType = typename DGPhysicsTraits::RhsType;
+
+  WavefieldType m_wavefield;  ///< Wavefield stored by value for GPU (lightweight view handles)
+  RhsType m_rhs;              ///< RHS stored by value for GPU (lightweight view handles)
 
   bool isDistributed{false};
 
-  DGsolverDataAcoustic(ARRAY_REAL_VIEW prev, ARRAY_REAL_VIEW curr, ARRAY_REAL_VIEW rhsTerm, VECTOR_INT_VIEW rhsElem,
-                       ARRAY_REAL_VIEW rhsW)
-      : pnPrev(prev), pnCurr(curr), myRHSTerm(rhsTerm), rhsElement(rhsElem), rhsWeights(rhsW) {}
+  DGsolverDataAcoustic(const DGWavefieldAcoustic& wavefield, const RhsAcoustic& rhs)
+      : m_wavefield(wavefield), m_rhs(rhs) {}
 
-  PROXY_HOST_DEVICE ARRAY_REAL_VIEW getCurrentField(int /*i*/) const { return pnCurr; }
-  PROXY_HOST_DEVICE ARRAY_REAL_VIEW getPreviousField(int /*i*/) const { return pnPrev; }
-  PROXY_HOST_DEVICE ARRAY_REAL_VIEW getRhsTerm(int /*i*/) const { return myRHSTerm; }
-  PROXY_HOST_DEVICE VECTOR_INT_VIEW getRhsElement() const { return rhsElement; }
-  PROXY_HOST_DEVICE ARRAY_REAL_VIEW getRhsWeights() const { return rhsWeights; }
+  PROXY_HOST_DEVICE
+  arrayReal getCurrentField(int i) const { return m_wavefield.getCurrentField(i); }
 
-  void swapWavefields() { std::swap(pnPrev, pnCurr); }
+  PROXY_HOST_DEVICE
+  arrayReal getPreviousField(int i) const { return m_wavefield.getPreviousField(i); }
+
+  PROXY_HOST_DEVICE
+  arrayReal getRhsTerm(int i) const { return m_rhs.getTerm(i); }
+
+  PROXY_HOST_DEVICE
+  vectorInt getRhsElement() const { return m_rhs.getElement(); }
+
+  PROXY_HOST_DEVICE
+  arrayReal getRhsWeights() const { return m_rhs.getWeights(); }
+
+  void swapWavefields() { m_wavefield.swap(); }
 
   void print() const override {
-    std::cout << "DGsolverDataAcoustic: " << pnPrev.extent(0) << " elems x " << pnPrev.extent(1) << " dofs"
-              << std::endl;
+    std::cout << "DGsolverDataAcoustic: " << m_wavefield.getPreviousField(0).extent(0) << " elems x "
+              << m_wavefield.getPreviousField(0).extent(1) << " dofs" << std::endl;
   }
 };
 

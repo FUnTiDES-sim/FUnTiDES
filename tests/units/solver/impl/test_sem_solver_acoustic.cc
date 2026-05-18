@@ -70,17 +70,17 @@ class SemSolverAcousticTest : public ::testing::TestWithParam<AcousticSolverOrde
     numNodes_ = mesh_->getNumberOfNodes();
     int npp = (order + 1) * (order + 1) * (order + 1);
 
-    pPrev_ = allocateVector<VECTOR_REAL_VIEW>(numNodes_, "pPrev");
-    pCurr_ = allocateVector<VECTOR_REAL_VIEW>(numNodes_, "pCurr");
+    pPrev_ = allocateVector<vectorReal>(numNodes_, "pPrev");
+    pCurr_ = allocateVector<vectorReal>(numNodes_, "pCurr");
     for (int i = 0; i < numNodes_; ++i) {
       pPrev_(i) = 0.0f;
       pCurr_(i) = 0.0f;
     }
     pCurr_(numNodes_ / 2) = 1.0f;
 
-    rhsTerm_ = allocateArray2D<ARRAY_REAL_VIEW>(1, kNumSteps, "rhsTerm");
-    rhsElem_ = allocateVector<VECTOR_INT_VIEW>(1, "rhsElem");
-    rhsWeights_ = allocateArray2D<ARRAY_REAL_VIEW>(1, npp, "rhsWeights");
+    rhsTerm_ = allocateArray2D<arrayReal>(1, kNumSteps, "rhsTerm");
+    rhsElem_ = allocateVector<vectorInt>(1, "rhsElem");
+    rhsWeights_ = allocateArray2D<arrayReal>(1, npp, "rhsWeights");
     rhsElem_(0) = 0;
     for (int j = 0; j < npp; ++j) {
       rhsTerm_(0, j) = 0.0f;
@@ -94,11 +94,11 @@ class SemSolverAcousticTest : public ::testing::TestWithParam<AcousticSolverOrde
   std::shared_ptr<model::ModelApi<float, int>> mesh_;
   std::unique_ptr<Solver> solver_;
   int numNodes_;
-  VECTOR_REAL_VIEW pPrev_;
-  VECTOR_REAL_VIEW pCurr_;
-  ARRAY_REAL_VIEW rhsTerm_;
-  VECTOR_INT_VIEW rhsElem_;
-  ARRAY_REAL_VIEW rhsWeights_;
+  vectorReal pPrev_;
+  vectorReal pCurr_;
+  arrayReal rhsTerm_;
+  vectorInt rhsElem_;
+  arrayReal rhsWeights_;
 };
 
 INSTANTIATE_TEST_SUITE_P(AcousticOrders, SemSolverAcousticTest,
@@ -262,16 +262,16 @@ class SemSolverAcousticOnNodesTest : public ::testing::Test {
     solver_->computeFEInit(*mesh_, {0.0f, 0.0f, 0.0f}, false, 0.0f);
     numNodes_ = mesh_->getNumberOfNodes();
     constexpr int npp = 8;
-    pPrev_ = allocateVector<VECTOR_REAL_VIEW>(numNodes_, "pPrev_n");
-    pCurr_ = allocateVector<VECTOR_REAL_VIEW>(numNodes_, "pCurr_n");
+    pPrev_ = allocateVector<vectorReal>(numNodes_, "pPrev_n");
+    pCurr_ = allocateVector<vectorReal>(numNodes_, "pCurr_n");
     for (int i = 0; i < numNodes_; ++i) {
       pPrev_(i) = 0.0f;
       pCurr_(i) = 0.0f;
     }
     pCurr_(numNodes_ / 2) = 1.0f;
-    rhsTerm_ = allocateArray2D<ARRAY_REAL_VIEW>(1, kNumSteps, "rhsTerm_n");
-    rhsElem_ = allocateVector<VECTOR_INT_VIEW>(1, "rhsElem_n");
-    rhsWeights_ = allocateArray2D<ARRAY_REAL_VIEW>(1, npp, "rhsWeights_n");
+    rhsTerm_ = allocateArray2D<arrayReal>(1, kNumSteps, "rhsTerm_n");
+    rhsElem_ = allocateVector<vectorInt>(1, "rhsElem_n");
+    rhsWeights_ = allocateArray2D<arrayReal>(1, npp, "rhsWeights_n");
     rhsElem_(0) = 0;
     for (int j = 0; j < npp; ++j) {
       rhsTerm_(0, j) = 0.0f;
@@ -285,10 +285,10 @@ class SemSolverAcousticOnNodesTest : public ::testing::Test {
   std::shared_ptr<model::ModelApi<float, int>> mesh_;
   std::unique_ptr<Solver> solver_;
   int numNodes_;
-  VECTOR_REAL_VIEW pPrev_, pCurr_;
-  ARRAY_REAL_VIEW rhsTerm_;
-  VECTOR_INT_VIEW rhsElem_;
-  ARRAY_REAL_VIEW rhsWeights_;
+  vectorReal pPrev_, pCurr_;
+  arrayReal rhsTerm_;
+  vectorInt rhsElem_;
+  arrayReal rhsWeights_;
 };
 
 TEST_F(SemSolverAcousticOnNodesTest, ComputeOneStepDoesNotCrash) {
@@ -332,16 +332,16 @@ class SemSolverAcousticSpongeTest : public ::testing::Test {
     solver_->initSpongeValues();
     numNodes_ = mesh_->getNumberOfNodes();
     constexpr int npp = 8;
-    pPrev_ = allocateVector<VECTOR_REAL_VIEW>(numNodes_, "pPrev_s");
-    pCurr_ = allocateVector<VECTOR_REAL_VIEW>(numNodes_, "pCurr_s");
+    pPrev_ = allocateVector<vectorReal>(numNodes_, "pPrev_s");
+    pCurr_ = allocateVector<vectorReal>(numNodes_, "pCurr_s");
     for (int i = 0; i < numNodes_; ++i) {
       pPrev_(i) = 0.0f;
       pCurr_(i) = 0.0f;
     }
     pCurr_(numNodes_ / 2) = 1.0f;
-    rhsTerm_ = allocateArray2D<ARRAY_REAL_VIEW>(1, kNumSteps, "rhsTerm_s");
-    rhsElem_ = allocateVector<VECTOR_INT_VIEW>(1, "rhsElem_s");
-    rhsWeights_ = allocateArray2D<ARRAY_REAL_VIEW>(1, npp, "rhsWeights_s");
+    rhsTerm_ = allocateArray2D<arrayReal>(1, kNumSteps, "rhsTerm_s");
+    rhsElem_ = allocateVector<vectorInt>(1, "rhsElem_s");
+    rhsWeights_ = allocateArray2D<arrayReal>(1, npp, "rhsWeights_s");
     rhsElem_(0) = 0;
     for (int j = 0; j < npp; ++j) {
       rhsTerm_(0, j) = 0.0f;
@@ -355,10 +355,10 @@ class SemSolverAcousticSpongeTest : public ::testing::Test {
   std::shared_ptr<model::ModelApi<float, int>> mesh_;
   std::unique_ptr<Solver> solver_;
   int numNodes_;
-  VECTOR_REAL_VIEW pPrev_, pCurr_;
-  ARRAY_REAL_VIEW rhsTerm_;
-  VECTOR_INT_VIEW rhsElem_;
-  ARRAY_REAL_VIEW rhsWeights_;
+  vectorReal pPrev_, pCurr_;
+  arrayReal rhsTerm_;
+  vectorInt rhsElem_;
+  arrayReal rhsWeights_;
 };
 
 TEST_F(SemSolverAcousticSpongeTest, ComputeOneStepWithSpongeProducesFiniteValues) {

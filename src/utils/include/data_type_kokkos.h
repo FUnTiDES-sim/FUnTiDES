@@ -5,16 +5,17 @@
 
 #include "Kokkos_Core_fwd.hpp"
 
-using MemSpace = Kokkos::SharedSpace;
 using Layout = Kokkos::DefaultExecutionSpace::array_layout;
+using DeviceSpace = Kokkos::DefaultExecutionSpace::memory_space;
 
-typedef Kokkos::View<int *, Layout, MemSpace> vectorInt;
-typedef Kokkos::View<float *, Layout, MemSpace> vectorReal;
-typedef Kokkos::View<double *, Layout, MemSpace> vectorDouble;
-typedef Kokkos::View<int **, Layout, MemSpace> arrayInt;
-typedef Kokkos::View<float **, Layout, MemSpace> arrayReal;
-typedef Kokkos::View<double **, Layout, MemSpace> arrayDouble;
-typedef Kokkos::View<int ***, Layout, MemSpace> array3DInt;
-typedef Kokkos::View<float ***, Layout, MemSpace> array3DReal;
-typedef Kokkos::View<double ***, Layout, MemSpace> array3DDouble;
+typedef Kokkos::View<int *, Layout, DeviceSpace> vectorInt;
+typedef Kokkos::View<float *, Layout, DeviceSpace> vectorReal;
+typedef Kokkos::View<double *, Layout, DeviceSpace> vectorDouble;
+typedef Kokkos::View<int **, Layout, DeviceSpace> arrayInt;
+typedef Kokkos::View<float **, Layout, DeviceSpace> arrayReal;
+typedef Kokkos::View<double **, Layout, DeviceSpace> arrayDouble;
+typedef Kokkos::View<int ***, Layout, DeviceSpace> array3DInt;
+typedef Kokkos::View<float ***, Layout, DeviceSpace> array3DReal;
+typedef Kokkos::View<double ***, Layout, DeviceSpace> array3DDouble;
+
 #endif  // FUNTIDES_UTILS_INCLUDE_DATA_TYPE_KOKKOS_H_

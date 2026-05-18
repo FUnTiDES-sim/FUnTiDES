@@ -55,10 +55,10 @@ static model::ModelUnstruct<float, int> makeUnstructMesh1x1x1() {
   data.isModelOnNodes_ = false;
   data.isElastic_ = true;
 
-  data.global_node_index_ = allocateArray2D<ARRAY_INT_VIEW>(1, npe, "gni");
-  data.nodes_coords_x_ = allocateVector<VECTOR_REAL_VIEW>(npe, "cx");
-  data.nodes_coords_y_ = allocateVector<VECTOR_REAL_VIEW>(npe, "cy");
-  data.nodes_coords_z_ = allocateVector<VECTOR_REAL_VIEW>(npe, "cz");
+  data.global_node_index_ = allocateArray2D<arrayInt>(1, npe, "gni");
+  data.nodes_coords_x_ = allocateVector<vectorReal>(npe, "cx");
+  data.nodes_coords_y_ = allocateVector<vectorReal>(npe, "cy");
+  data.nodes_coords_z_ = allocateVector<vectorReal>(npe, "cz");
 
   for (int lDof = 0; lDof < npe; ++lDof) {
     data.global_node_index_(0, lDof) = lDof;
@@ -91,18 +91,18 @@ class DifferentiatorElasticElemUnstructTest : public ::testing::Test {
   using Diff = DifferentiatorElastic<kOrder, Integral, Mesh, false>;
 
   void SetUp() override {
-    ux_fwd = allocateVector<VECTOR_REAL_VIEW>(kNumNodes, "ux_fwd");
-    uy_fwd = allocateVector<VECTOR_REAL_VIEW>(kNumNodes, "uy_fwd");
-    uz_fwd = allocateVector<VECTOR_REAL_VIEW>(kNumNodes, "uz_fwd");
-    ux_adj = allocateVector<VECTOR_REAL_VIEW>(kNumNodes, "ux_adj");
-    uy_adj = allocateVector<VECTOR_REAL_VIEW>(kNumNodes, "uy_adj");
-    uz_adj = allocateVector<VECTOR_REAL_VIEW>(kNumNodes, "uz_adj");
-    ux_dt2 = allocateVector<VECTOR_REAL_VIEW>(kNumNodes, "ux_dt2");
-    uy_dt2 = allocateVector<VECTOR_REAL_VIEW>(kNumNodes, "uy_dt2");
-    uz_dt2 = allocateVector<VECTOR_REAL_VIEW>(kNumNodes, "uz_dt2");
-    gradRho = allocateVector<VECTOR_REAL_VIEW>(kNumElements, "gradRho");
-    gradLambda = allocateVector<VECTOR_REAL_VIEW>(kNumElements, "gradLambda");
-    gradMu = allocateVector<VECTOR_REAL_VIEW>(kNumElements, "gradMu");
+    ux_fwd = allocateVector<vectorReal>(kNumNodes, "ux_fwd");
+    uy_fwd = allocateVector<vectorReal>(kNumNodes, "uy_fwd");
+    uz_fwd = allocateVector<vectorReal>(kNumNodes, "uz_fwd");
+    ux_adj = allocateVector<vectorReal>(kNumNodes, "ux_adj");
+    uy_adj = allocateVector<vectorReal>(kNumNodes, "uy_adj");
+    uz_adj = allocateVector<vectorReal>(kNumNodes, "uz_adj");
+    ux_dt2 = allocateVector<vectorReal>(kNumNodes, "ux_dt2");
+    uy_dt2 = allocateVector<vectorReal>(kNumNodes, "uy_dt2");
+    uz_dt2 = allocateVector<vectorReal>(kNumNodes, "uz_dt2");
+    gradRho = allocateVector<vectorReal>(kNumElements, "gradRho");
+    gradLambda = allocateVector<vectorReal>(kNumElements, "gradLambda");
+    gradMu = allocateVector<vectorReal>(kNumElements, "gradMu");
 
     for (int i = 0; i < kNumNodes; ++i) {
       ux_fwd(i) = 0.0f;
@@ -120,10 +120,10 @@ class DifferentiatorElasticElemUnstructTest : public ::testing::Test {
     gradMu(0) = 0.0f;
   }
 
-  VECTOR_REAL_VIEW ux_fwd, uy_fwd, uz_fwd;
-  VECTOR_REAL_VIEW ux_adj, uy_adj, uz_adj;
-  VECTOR_REAL_VIEW ux_dt2, uy_dt2, uz_dt2;
-  VECTOR_REAL_VIEW gradRho, gradLambda, gradMu;
+  vectorReal ux_fwd, uy_fwd, uz_fwd;
+  vectorReal ux_adj, uy_adj, uz_adj;
+  vectorReal ux_dt2, uy_dt2, uz_dt2;
+  vectorReal gradRho, gradLambda, gradMu;
 };
 
 TYPED_TEST_SUITE(DifferentiatorElasticElemUnstructTest, OrderTypesU);
@@ -382,18 +382,18 @@ class DifferentiatorElasticNodeUnstructTest : public ::testing::Test {
   using DiffElem = DifferentiatorElastic<kOrder, Integral, Mesh, false>;
 
   void SetUp() override {
-    ux_fwd = allocateVector<VECTOR_REAL_VIEW>(kNumNodes, "ux_fwd");
-    uy_fwd = allocateVector<VECTOR_REAL_VIEW>(kNumNodes, "uy_fwd");
-    uz_fwd = allocateVector<VECTOR_REAL_VIEW>(kNumNodes, "uz_fwd");
-    ux_adj = allocateVector<VECTOR_REAL_VIEW>(kNumNodes, "ux_adj");
-    uy_adj = allocateVector<VECTOR_REAL_VIEW>(kNumNodes, "uy_adj");
-    uz_adj = allocateVector<VECTOR_REAL_VIEW>(kNumNodes, "uz_adj");
-    ux_dt2 = allocateVector<VECTOR_REAL_VIEW>(kNumNodes, "ux_dt2");
-    uy_dt2 = allocateVector<VECTOR_REAL_VIEW>(kNumNodes, "uy_dt2");
-    uz_dt2 = allocateVector<VECTOR_REAL_VIEW>(kNumNodes, "uz_dt2");
-    gradRho = allocateVector<VECTOR_REAL_VIEW>(kNumNodes, "gradRho");
-    gradLambda = allocateVector<VECTOR_REAL_VIEW>(kNumNodes, "gradLambda");
-    gradMu = allocateVector<VECTOR_REAL_VIEW>(kNumNodes, "gradMu");
+    ux_fwd = allocateVector<vectorReal>(kNumNodes, "ux_fwd");
+    uy_fwd = allocateVector<vectorReal>(kNumNodes, "uy_fwd");
+    uz_fwd = allocateVector<vectorReal>(kNumNodes, "uz_fwd");
+    ux_adj = allocateVector<vectorReal>(kNumNodes, "ux_adj");
+    uy_adj = allocateVector<vectorReal>(kNumNodes, "uy_adj");
+    uz_adj = allocateVector<vectorReal>(kNumNodes, "uz_adj");
+    ux_dt2 = allocateVector<vectorReal>(kNumNodes, "ux_dt2");
+    uy_dt2 = allocateVector<vectorReal>(kNumNodes, "uy_dt2");
+    uz_dt2 = allocateVector<vectorReal>(kNumNodes, "uz_dt2");
+    gradRho = allocateVector<vectorReal>(kNumNodes, "gradRho");
+    gradLambda = allocateVector<vectorReal>(kNumNodes, "gradLambda");
+    gradMu = allocateVector<vectorReal>(kNumNodes, "gradMu");
 
     for (int i = 0; i < kNumNodes; ++i) {
       ux_fwd(i) = 0.0f;
@@ -411,7 +411,7 @@ class DifferentiatorElasticNodeUnstructTest : public ::testing::Test {
     }
   }
 
-  float sumGrad(VECTOR_REAL_VIEW const& v) const {
+  float sumGrad(vectorReal const& v) const {
     float s = 0.0f;
     for (int i = 0; i < kNumNodes; ++i) s += v(i);
     return s;
@@ -421,10 +421,10 @@ class DifferentiatorElasticNodeUnstructTest : public ::testing::Test {
   float sumGradLambda() const { return sumGrad(gradLambda); }
   float sumGradMu() const { return sumGrad(gradMu); }
 
-  VECTOR_REAL_VIEW ux_fwd, uy_fwd, uz_fwd;
-  VECTOR_REAL_VIEW ux_adj, uy_adj, uz_adj;
-  VECTOR_REAL_VIEW ux_dt2, uy_dt2, uz_dt2;
-  VECTOR_REAL_VIEW gradRho, gradLambda, gradMu;
+  vectorReal ux_fwd, uy_fwd, uz_fwd;
+  vectorReal ux_adj, uy_adj, uz_adj;
+  vectorReal ux_dt2, uy_dt2, uz_dt2;
+  vectorReal gradRho, gradLambda, gradMu;
 };
 
 TYPED_TEST_SUITE(DifferentiatorElasticNodeUnstructTest, OrderTypesU);
@@ -495,9 +495,9 @@ TYPED_TEST(DifferentiatorElasticNodeUnstructTest, NodeBasedSumEqualsElementBased
   float nodeMu = this->sumGradMu();
 
   // Element-based
-  auto gradRhoElem = allocateVector<VECTOR_REAL_VIEW>(1, "gradRhoElem");
-  auto gradLambdaElem = allocateVector<VECTOR_REAL_VIEW>(1, "gradLambdaElem");
-  auto gradMuElem = allocateVector<VECTOR_REAL_VIEW>(1, "gradMuElem");
+  auto gradRhoElem = allocateVector<vectorReal>(1, "gradRhoElem");
+  auto gradLambdaElem = allocateVector<vectorReal>(1, "gradLambdaElem");
+  auto gradMuElem = allocateVector<vectorReal>(1, "gradMuElem");
   gradRhoElem(0) = 0.0f;
   gradLambdaElem(0) = 0.0f;
   gradMuElem(0) = 0.0f;

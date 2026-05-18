@@ -14,21 +14,21 @@ void DifferentiatorElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES>::
   auto& myData = dynamic_cast<DifferentiatorDataElastic&>(data);
   auto& myMesh = dynamic_cast<MESH_TYPE&>(mesh);
 
-  VECTOR_REAL_VIEW const ux_fwd = myData.getForwardField(0);
-  VECTOR_REAL_VIEW const uy_fwd = myData.getForwardField(1);
-  VECTOR_REAL_VIEW const uz_fwd = myData.getForwardField(2);
+  vectorReal const ux_fwd = myData.getForwardField(0);
+  vectorReal const uy_fwd = myData.getForwardField(1);
+  vectorReal const uz_fwd = myData.getForwardField(2);
 
-  VECTOR_REAL_VIEW const ux_adj = myData.getBackwardField(0);
-  VECTOR_REAL_VIEW const uy_adj = myData.getBackwardField(1);
-  VECTOR_REAL_VIEW const uz_adj = myData.getBackwardField(2);
+  vectorReal const ux_adj = myData.getBackwardField(0);
+  vectorReal const uy_adj = myData.getBackwardField(1);
+  vectorReal const uz_adj = myData.getBackwardField(2);
 
-  VECTOR_REAL_VIEW const ux_dt2 = myData.getBackwardField(3);
-  VECTOR_REAL_VIEW const uy_dt2 = myData.getBackwardField(4);
-  VECTOR_REAL_VIEW const uz_dt2 = myData.getBackwardField(5);
+  vectorReal const ux_dt2 = myData.getBackwardField(3);
+  vectorReal const uy_dt2 = myData.getBackwardField(4);
+  vectorReal const uz_dt2 = myData.getBackwardField(5);
 
-  VECTOR_REAL_VIEW const gradRho = myData.getGradient(0);
-  VECTOR_REAL_VIEW const gradLambda = myData.getGradient(1);
-  VECTOR_REAL_VIEW const gradMu = myData.getGradient(2);
+  vectorReal const gradRho = myData.getGradient(0);
+  vectorReal const gradLambda = myData.getGradient(1);
+  vectorReal const gradMu = myData.getGradient(2);
 
   if constexpr (!IS_MODEL_ON_NODES)
     computeOnElements(myMesh, dt, ux_fwd, uy_fwd, uz_fwd, ux_adj, uy_adj, uz_adj, ux_dt2, uy_dt2, uz_dt2, gradRho,
@@ -97,11 +97,10 @@ DifferentiatorElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES>::compu
 
 template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE, bool IS_MODEL_ON_NODES>
 void DifferentiatorElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES>::computeOnElements(
-    MESH_TYPE mesh, float dt, VECTOR_REAL_VIEW const ux_fwd, VECTOR_REAL_VIEW const uy_fwd,
-    VECTOR_REAL_VIEW const uz_fwd, VECTOR_REAL_VIEW const ux_adj, VECTOR_REAL_VIEW const uy_adj,
-    VECTOR_REAL_VIEW const uz_adj, VECTOR_REAL_VIEW const ux_dt2, VECTOR_REAL_VIEW const uy_dt2,
-    VECTOR_REAL_VIEW const uz_dt2, VECTOR_REAL_VIEW const gradRho, VECTOR_REAL_VIEW const gradLambda,
-    VECTOR_REAL_VIEW const gradMu) const {
+    MESH_TYPE mesh, float dt, vectorReal const ux_fwd, vectorReal const uy_fwd, vectorReal const uz_fwd,
+    vectorReal const ux_adj, vectorReal const uy_adj, vectorReal const uz_adj, vectorReal const ux_dt2,
+    vectorReal const uy_dt2, vectorReal const uz_dt2, vectorReal const gradRho, vectorReal const gradLambda,
+    vectorReal const gradMu) const {
   Kokkos::parallel_for(
       "Compute Elastic Gradient on Elements",
       Kokkos::RangePolicy<Kokkos::LaunchBounds<LaunchMaxThreadsPerBlock, LaunchMinBlocksPerSM>>(
@@ -205,11 +204,10 @@ void DifferentiatorElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES>::
 
 template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE, bool IS_MODEL_ON_NODES>
 void DifferentiatorElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES>::computeOnNodes(
-    MESH_TYPE mesh, float dt, VECTOR_REAL_VIEW const ux_fwd, VECTOR_REAL_VIEW const uy_fwd,
-    VECTOR_REAL_VIEW const uz_fwd, VECTOR_REAL_VIEW const ux_adj, VECTOR_REAL_VIEW const uy_adj,
-    VECTOR_REAL_VIEW const uz_adj, VECTOR_REAL_VIEW const ux_dt2, VECTOR_REAL_VIEW const uy_dt2,
-    VECTOR_REAL_VIEW const uz_dt2, VECTOR_REAL_VIEW const gradRho, VECTOR_REAL_VIEW const gradLambda,
-    VECTOR_REAL_VIEW const gradMu) const {
+    MESH_TYPE mesh, float dt, vectorReal const ux_fwd, vectorReal const uy_fwd, vectorReal const uz_fwd,
+    vectorReal const ux_adj, vectorReal const uy_adj, vectorReal const uz_adj, vectorReal const ux_dt2,
+    vectorReal const uy_dt2, vectorReal const uz_dt2, vectorReal const gradRho, vectorReal const gradLambda,
+    vectorReal const gradMu) const {
   Kokkos::parallel_for(
       "Compute Elastic Gradient on Nodes",
       Kokkos::RangePolicy<Kokkos::LaunchBounds<LaunchMaxThreadsPerBlock, LaunchMinBlocksPerSM>>(
