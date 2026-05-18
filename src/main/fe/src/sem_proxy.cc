@@ -416,7 +416,7 @@ void SEMproxy::Run() {
     fout.close();
     total_output_time += std::chrono::high_resolution_clock::now() - start_output_time;
 
-  } else {  // acoustic
+  } else {  // elastic
     WavefieldElastic wavefield(uxn_global_prev_, uxn_global_curr_, uyn_global_prev_, uyn_global_curr_, uzn_global_prev_,
                                uzn_global_curr_);
     RhsElastic rhs(rhs_term_x_, rhs_term_y_, rhs_term_z_, rhs_element_, rhs_weights_);
