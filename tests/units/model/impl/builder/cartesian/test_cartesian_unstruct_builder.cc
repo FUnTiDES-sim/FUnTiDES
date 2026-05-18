@@ -196,5 +196,15 @@ TEST(CartesianUnstructBuilderTest, MultipleGetModelCallsDifferentInstances) {
   ASSERT_NE(m1.get(), m2.get());
 }
 
+// ============================================================================
+// CartesianUnstructBuilder — model_file + isModelOnNodes=true throws
+// ============================================================================
+
+TEST(CartesianUnstructBuilderTest, ModelFileWithOnNodesModeThrows) {
+  CartesianParams<float, int> p(1, 2, 2, 2, 100.0f, 100.0f, 100.0f, true, false);
+  p.model_file = "dummy.txt";
+  EXPECT_THROW((CartesianUnstructBuilder<float, int>(p)), std::runtime_error);
+}
+
 }  // namespace test
 }  // namespace model

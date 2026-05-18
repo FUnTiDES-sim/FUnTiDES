@@ -103,5 +103,40 @@ TYPED_TEST(CartesianStructInputs, PolymorphicBehavior) {
   ASSERT_NE(model, nullptr);
 }
 
+// ============================================================================
+// AcoustoElastic — per-element
+// ============================================================================
+
+TEST(CartesianStructBuilderAETest, AcoustoElasticElementsBuildsValidModel) {
+  CartesianStructBuilder<float, int, 1> b(2, 100.0f, 2, 100.0f, 4, 200.0f, false, true, 0.0f, 0.0f, 0.0f, -1.0f, -1.0f,
+                                          -1.0f, 0.0f, 0.0f, 0.0f, true, 100.0f);
+  auto model = b.getModel(true);
+  ASSERT_NE(model, nullptr);
+  EXPECT_EQ(model->getNumberOfElements(), 2 * 2 * 4);
+  EXPECT_FLOAT_EQ(model->domainSize(2), 200.0f);
+}
+
+// ============================================================================
+// AcoustoElastic — per-node
+// ============================================================================
+
+TEST(CartesianStructBuilderAETest, AcoustoElasticNodesBuildsValidModel) {
+  CartesianStructBuilder<float, int, 1> b(2, 100.0f, 2, 100.0f, 4, 200.0f, true, true, 0.0f, 0.0f, 0.0f, -1.0f, -1.0f,
+                                          -1.0f, 0.0f, 0.0f, 0.0f, true, 100.0f);
+  auto model = b.getModel(true);
+  ASSERT_NE(model, nullptr);
+  EXPECT_TRUE(model->isModelOnNodes());
+}
+
+// ============================================================================
+// model_file + isModelOnNodes=true — throws
+// ============================================================================
+
+TEST(CartesianStructBuilderAETest, ModelFileWithOnNodesModeThrows) {
+  CartesianStructBuilder<float, int, 1> b(2, 100.0f, 2, 100.0f, 2, 100.0f, true, false, 0.0f, 0.0f, 0.0f, -1.0f, -1.0f,
+                                          -1.0f, 0.0f, 0.0f, 0.0f, false, 0.0f, "dummy.txt");
+  EXPECT_THROW(b.getModel(true), std::runtime_error);
+}
+
 }  // namespace test
 }  // namespace model
