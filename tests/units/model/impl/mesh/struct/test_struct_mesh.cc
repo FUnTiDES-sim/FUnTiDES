@@ -4,6 +4,7 @@
 #include <cmath>
 #include <limits>
 #include <memory>
+#include <set>
 
 #include "model_struct.h"
 
@@ -670,19 +671,310 @@ TYPED_TEST(ModelStructTest, UniformMeshProperties) {
 // Documentation Tests
 // ============================================================================
 
-TYPED_TEST(ModelStructTest, StructuredVsUnstructuredComparison) {
-  // ModelStruct: Structured Cartesian mesh
-  // - Regular grid topology
-  // - Face connectivity computed on-the-fly via formulas
-  // - No explicit storage needed for face tables
-  // - Optimal for uniform domains
-  //
-  // ModelUnstruct: Unstructured mesh
-  // - Arbitrary topology
-  // - Face connectivity built explicitly and stored
-  // - Requires memory for connectivity tables
-  // - Handles complex geometries
+TYPED_TEST(ModelStructTest, StructuredVsUnstructuredComparison) { SUCCEED(); }
+
+// ============================================================================
+// Face Connectivity Delegate Tests
+// ============================================================================
+
+TYPED_TEST(ModelStructTest, BuildFaceConnectivityAndGetNumberOfFaces) {
+  auto& model = *this->model_;
+  model.buildFaceConnectivity();
+  // 10x10x10 mesh:
+  // X-faces: (10+1)*10*10 = 1100
+  // Y-faces: 10*(10+1)*10 = 1100
+  // Z-faces: 10*10*(10+1) = 1100
+  // Total: 3300
+  EXPECT_EQ(model.getNumberOfFaces(), 3300);
+}
+
+TYPED_TEST(ModelStructTest, GetGlobalFaceReturnsValidId) {
+  auto& model = *this->model_;
+  // All 6 faces of element 0 must be in [0, nFaces)
+  auto n_faces = model.getNumberOfFaces();
+  for (int lf = 0; lf < 6; ++lf) {
+    auto face_id = model.getGlobalFace(0, static_cast<CubicFace>(lf));
+    EXPECT_GE(face_id, 0);
+    EXPECT_LT(face_id, n_faces);
+  }
+}
+
+TYPED_TEST(ModelStructTest, GetGlobalFaceUniquenessForElement0) {
+  auto& model = *this->model_;
+  std::set<int> face_ids;
+  for (int lf = 0; lf < 6; ++lf) face_ids.insert(model.getGlobalFace(0, static_cast<CubicFace>(lf)));
+  EXPECT_EQ(face_ids.size(), 6u);
+}
+
+TYPED_TEST(ModelStructTest, GetGlobalNodeFromFaceReturnsValidNode) {
+  auto& model = *this->model_;
+  constexpr int Order = TestFixture::Order;
+  int n_dofs = (Order + 1) * (Order + 1);
+  auto face0 = model.getGlobalFace(0, CubicFace::kXMinus);
+  for (int dof = 0; dof < n_dofs; ++dof) {
+    auto node = model.getGlobalNodeFromFace(face0, dof);
+    EXPECT_GE(node, 0);
+    EXPECT_LT(node, model.getNumberOfNodes());
+  }
+}
+
+TYPED_TEST(ModelStructTest, IsBoundaryFaceWithoutBoundariesT) {
+  auto& model = *this->model_;
+  // No boundaries_t_ set → delegates to FaceConnectivityStruct
+  // Face kXMinus of element 0 must be boundary (i=0)
+  auto face_xminus_e0 = model.getGlobalFace(0, CubicFace::kXMinus);
+  EXPECT_TRUE(model.isBoundaryFace(face_xminus_e0));
+  // Shared X-face between elements 0 and 1 must NOT be boundary
+  auto shared = model.getGlobalFace(0, CubicFace::kXPlus);
+  EXPECT_FALSE(model.isBoundaryFace(shared));
+}
+
+TYPED_TEST(ModelStructTest, ElemOwnerAndNeighborConsistency) {
+  auto& model = *this->model_;
+  // Shared face between elem 0 and elem 1 along X
+  auto shared = model.getGlobalFace(0, CubicFace::kXPlus);
+  auto owner = model.elemOwner(shared);
+  auto neighbor = model.elemNeighbor(shared);
+  EXPECT_GE(owner, 0);
+  EXPECT_GE(neighbor, 0);
+  EXPECT_NE(owner, neighbor);
+}
+
+TYPED_TEST(ModelStructTest, ElemNeighborBoundaryReturnsMinusOne) {
+  auto& model = *this->model_;
+  auto boundary_face = model.getGlobalFace(0, CubicFace::kXMinus);
+  EXPECT_EQ(model.elemNeighbor(boundary_face), -1);
+}
+
+TYPED_TEST(ModelStructTest, LocalFaceOwnerAndNeighborOpposite) {
+  auto& model = *this->model_;
+  auto shared = model.getGlobalFace(0, CubicFace::kXPlus);
+  int owner_lf = model.localFaceOwner(shared);
+  int neigh_lf = model.localFaceNeighbor(shared);
+  EXPECT_NE(neigh_lf, -1);
+  EXPECT_EQ(owner_lf ^ 1, neigh_lf);
+}
+
+TYPED_TEST(ModelStructTest, LocalFaceNeighborBoundaryReturnsMinusOne) {
+  auto& model = *this->model_;
+  auto boundary_face = model.getGlobalFace(0, CubicFace::kXMinus);
+  EXPECT_EQ(model.localFaceNeighbor(boundary_face), -1);
+}
+
+// ============================================================================
+// Boundary / isFreeSurface / boundaryType
+// ============================================================================
+
+TYPED_TEST(ModelStructTest, IsFreeSurfaceWithEmptyBoundariesFalse) {
+  auto& model = *this->model_;
+  // No boundaries_t_ → always false
+  EXPECT_FALSE(model.isFreeSurface(0));
+  EXPECT_FALSE(model.isFreeSurface(model.getNumberOfNodes() - 1));
+}
+
+TYPED_TEST(ModelStructTest, BoundaryTypeWithEmptyBoundariesIsInterior) {
+  auto& model = *this->model_;
+  EXPECT_EQ(model.boundaryType(0), BoundaryFlag::InteriorNode);
+  EXPECT_EQ(model.boundaryType(model.getNumberOfNodes() - 1), BoundaryFlag::InteriorNode);
+}
+
+// ============================================================================
+// setQualityFactors / getModelQp / getModelQs
+// ============================================================================
+
+TYPED_TEST(ModelStructTest, QualityFactorDefaultsToLargeValue) {
+  auto& model = *this->model_;
+  EXPECT_FLOAT_EQ(model.getModelQpOnNodes(0), 1.0e9f);
+  EXPECT_FLOAT_EQ(model.getModelQsOnNodes(0), 1.0e9f);
+  EXPECT_FLOAT_EQ(model.getModelQpOnElement(0), 1.0e9f);
+  EXPECT_FLOAT_EQ(model.getModelQsOnElement(0), 1.0e9f);
+}
+
+TYPED_TEST(ModelStructTest, SetQualityFactorsFillsAllElements) {
+  auto& model = *this->model_;
+  using FloatType = typename TestFixture::FloatType;
+  FloatType qp = 100.0f, qs = 50.0f;
+  model.setQualityFactors(qp, qs);
+  for (int e = 0; e < 10; ++e) {
+    EXPECT_FLOAT_EQ(model.getModelQpOnElement(e), qp);
+    EXPECT_FLOAT_EQ(model.getModelQsOnElement(e), qs);
+  }
+}
+
+// ============================================================================
+// Anisotropy defaults (Delta, Epsilon, Gamma, Theta, Phi)
+// ============================================================================
+
+TYPED_TEST(ModelStructTest, AnisotropyDefaultsZeroOnNodes) {
+  auto& model = *this->model_;
+  EXPECT_FLOAT_EQ(model.getModelDeltaOnNodes(0), 0.0f);
+  EXPECT_FLOAT_EQ(model.getModelEpsilonOnNodes(0), 0.0f);
+  EXPECT_FLOAT_EQ(model.getModelGammaOnNodes(0), 0.0f);
+  EXPECT_EQ(model.getModelThetaOnNodes(0), 0);
+  EXPECT_EQ(model.getModelPhiOnNodes(0), 0);
+}
+
+TYPED_TEST(ModelStructTest, AnisotropyDefaultsZeroOnElements) {
+  auto& model = *this->model_;
+  EXPECT_FLOAT_EQ(model.getModelDeltaOnElement(0), 0.0f);
+  EXPECT_FLOAT_EQ(model.getModelEpsilonOnElement(0), 0.0f);
+  EXPECT_FLOAT_EQ(model.getModelGammaOnElement(0), 0.0f);
+  EXPECT_EQ(model.getModelThetaOnElement(0), 0);
+  EXPECT_EQ(model.getModelPhiOnElement(0), 0);
+}
+
+// ============================================================================
+// Populated material arrays (per-node and per-element)
+// ============================================================================
+
+TYPED_TEST(ModelStructTest, PerElementMaterialArraysUsedWhenPopulated) {
+  using ModelStructDataType = typename TestFixture::ModelStructDataType;
+  using ModelStructType = typename TestFixture::ModelStructType;
+
+  ModelStructDataType data;
+  data.ex_ = 2;
+  data.ey_ = 2;
+  data.ez_ = 2;
+  data.dx_ = 20.0;
+  data.dy_ = 20.0;
+  data.dz_ = 20.0;
+  data.isModelOnNodes_ = false;
+  data.isElastic_ = true;
+
+  int n_elem = 8;
+  data.model_vp_element_ = allocateVector<vectorReal>(n_elem, "vp_e");
+  data.model_vs_element_ = allocateVector<vectorReal>(n_elem, "vs_e");
+  data.model_rho_element_ = allocateVector<vectorReal>(n_elem, "rho_e");
+  for (int e = 0; e < n_elem; ++e) {
+    data.model_vp_element_(e) = 3000.0f;
+    data.model_vs_element_(e) = 1500.0f;
+    data.model_rho_element_(e) = 2000.0f;
+  }
+
+  ModelStructType model(data);
+  EXPECT_FLOAT_EQ(model.getModelVpOnElement(0), 3000.0f);
+  EXPECT_FLOAT_EQ(model.getModelVsOnElement(0), 1500.0f);
+  EXPECT_FLOAT_EQ(model.getModelRhoOnElement(0), 2000.0f);
+}
+
+TYPED_TEST(ModelStructTest, PerNodeMaterialArraysUsedWhenPopulated) {
+  using ModelStructDataType = typename TestFixture::ModelStructDataType;
+  using ModelStructType = typename TestFixture::ModelStructType;
+  using FloatType = typename TestFixture::FloatType;
+
+  ModelStructDataType data;
+  data.ex_ = 2;
+  data.ey_ = 2;
+  data.ez_ = 2;
+  data.dx_ = 20.0;
+  data.dy_ = 20.0;
+  data.dz_ = 20.0;
+  data.isModelOnNodes_ = true;
+  data.isElastic_ = true;
+
+  constexpr int Order = TestFixture::Order;
+  int n_nodes = (Order * 2 + 1) * (Order * 2 + 1) * (Order * 2 + 1);
+  data.model_vp_node_ = allocateVector<vectorReal>(n_nodes, "vp_n");
+  data.model_vs_node_ = allocateVector<vectorReal>(n_nodes, "vs_n");
+  data.model_rho_node_ = allocateVector<vectorReal>(n_nodes, "rho_n");
+  for (int n = 0; n < n_nodes; ++n) {
+    data.model_vp_node_(n) = 2500.0f;
+    data.model_vs_node_(n) = 1200.0f;
+    data.model_rho_node_(n) = 1800.0f;
+  }
+
+  ModelStructType model(data);
+  EXPECT_FLOAT_EQ(model.getModelVpOnNodes(0), 2500.0f);
+  EXPECT_FLOAT_EQ(model.getModelVsOnNodes(0), 1200.0f);
+  EXPECT_FLOAT_EQ(model.getModelRhoOnNodes(0), 1800.0f);
+}
+
+TYPED_TEST(ModelStructTest, SetModelNodePropsUpdatesValues) {
+  using ModelStructDataType = typename TestFixture::ModelStructDataType;
+  using ModelStructType = typename TestFixture::ModelStructType;
+
+  ModelStructDataType data;
+  data.ex_ = 2;
+  data.ey_ = 2;
+  data.ez_ = 2;
+  data.dx_ = 20.0;
+  data.dy_ = 20.0;
+  data.dz_ = 20.0;
+  data.isModelOnNodes_ = true;
+  data.isElastic_ = true;
+
+  constexpr int Order = TestFixture::Order;
+  int n_nodes = (Order * 2 + 1) * (Order * 2 + 1) * (Order * 2 + 1);
+  data.model_vp_node_ = allocateVector<vectorReal>(n_nodes, "vp_n");
+  data.model_vs_node_ = allocateVector<vectorReal>(n_nodes, "vs_n");
+  data.model_rho_node_ = allocateVector<vectorReal>(n_nodes, "rho_n");
+  for (int n = 0; n < n_nodes; ++n) {
+    data.model_vp_node_(n) = 1500.0f;
+    data.model_vs_node_(n) = 755.0f;
+    data.model_rho_node_(n) = 1.0f;
+  }
+
+  ModelStructType model(data);
+  model.setModelNodeProps(0, 3000.0f, 1500.0f, 2000.0f);
+  EXPECT_FLOAT_EQ(model.getModelVpOnNodes(0), 3000.0f);
+  EXPECT_FLOAT_EQ(model.getModelVsOnNodes(0), 1500.0f);
+  EXPECT_FLOAT_EQ(model.getModelRhoOnNodes(0), 2000.0f);
+  // Other nodes unchanged
+  EXPECT_FLOAT_EQ(model.getModelVpOnNodes(1), 1500.0f);
+}
+
+// ============================================================================
+// getMinSpacing — all orders
+// ============================================================================
+
+TYPED_TEST(ModelStructTest, MinSpacingForAllOrders) {
+  auto& model = *this->model_;
+  constexpr int Order = TestFixture::Order;
+  using FloatType = typename TestFixture::FloatType;
+
+  auto min_spacing = model.getMinSpacing();
+  EXPECT_GT(min_spacing, 0.0f);
+
+  // h = lx/ex = 100/10 = 10 for all orders
+  FloatType h = 10.0f;
+  if constexpr (Order == 1) EXPECT_NEAR(min_spacing, h, 1e-4f);
+  if constexpr (Order == 2) EXPECT_NEAR(min_spacing, h * 0.5000000000f, 1e-4f);
+  if constexpr (Order == 3) EXPECT_NEAR(min_spacing, h * 0.2763932023f, 1e-4f);
+  if constexpr (Order == 4) EXPECT_NEAR(min_spacing, h * 0.1726731646f, 1e-4f);
+  if constexpr (Order == 5) EXPECT_NEAR(min_spacing, h * 0.1174723380f, 1e-4f);
+}
+
+// ============================================================================
+// initElasticityTensors — kVTI returns early
+// ============================================================================
+
+TYPED_TEST(ModelStructTest, InitElasticityTensorsVTIReturnsEarly) {
+  using ModelStructDataType = typename TestFixture::ModelStructDataType;
+  using ModelStructType = typename TestFixture::ModelStructType;
+
+  ModelStructDataType data;
+  data.ex_ = 2;
+  data.ey_ = 2;
+  data.ez_ = 2;
+  data.dx_ = 20.0;
+  data.dy_ = 20.0;
+  data.dz_ = 20.0;
+  data.isElastic_ = true;
+  data.isModelOnNodes_ = false;
+
+  ModelStructType model(data);
+  // kVTI should return early (no tensor allocation)
+  model.initElasticityTensors(model::kVTI);
   SUCCEED();
+}
+
+// ============================================================================
+// getMaxSpeed
+// ============================================================================
+
+TYPED_TEST(ModelStructTest, MaxSpeedReturns1500) {
+  auto& model = *this->model_;
+  EXPECT_FLOAT_EQ(model.getMaxSpeed(), 1500.0f);
 }
 
 }  // namespace
