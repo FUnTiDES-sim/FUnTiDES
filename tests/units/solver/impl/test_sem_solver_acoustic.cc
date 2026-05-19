@@ -383,6 +383,89 @@ TEST_F(SemSolverAcousticSpongeTest, SpongeWithSurfaceFlagDoesNotCrash) {
   EXPECT_NO_THROW(solver2->initSpongeValues());
 }
 
+// ======================================================================
+// SLS attenuation — exercises allocateFEarrays, initFEarrays,
+// resetGlobalVectors, computeAttenuationContributionsAcoustic,
+// and the attenuation loop inside updateFields (acoustic).
+// ======================================================================
+class SemSolverAcousticAttenuationTest : public ::testing::Test {
+ protected:
+  void SetUp() override {
+    constexpr int EX = 2, EY = 2, EZ = 2;
+    constexpr float LX = 200.0f, LY = 200.0f, LZ = 200.0f;
+    model::CartesianStructBuilder<float, int, 1> b(EX, LX, EY, LY, EZ, LZ, false, false);
+    mesh_ = b.getModel(false);
+    solver_ =
+        solver_factory::createSolver(feenum::methodType::kSem, feenum::implemType::kMakutu, feenum::meshType::kStruct,
+                                     feenum::modelLocationType::kOnElements, feenum::physicType::kAcoustic, 1);
+    solver_->setAnisotropyType(model::AnisotropyType::kIso);
+
+    auto ref = allocateVector<vectorReal>(2, "att_ref_ac");
+    auto coeffs = allocateVector<vectorReal>(2, "att_coeffs_ac");
+    ref(0) = 2.0f * 3.14159f * 1.0f;
+    ref(1) = 2.0f * 3.14159f * 10.0f;
+    coeffs(0) = 0.1f;
+    coeffs(1) = 0.1f;
+    solver_->setSLSAttenuation(ref, coeffs);
+    solver_->computeFEInit(*mesh_, {0.0f, 0.0f, 0.0f}, false, 0.0f);
+
+    numNodes_ = mesh_->getNumberOfNodes();
+    constexpr int npp = 8;
+    pPrev_ = allocateVector<vectorReal>(numNodes_, "pPrev_att");
+    pCurr_ = allocateVector<vectorReal>(numNodes_, "pCurr_att");
+    for (int i = 0; i < numNodes_; ++i) {
+      pPrev_(i) = 0.0f;
+      pCurr_(i) = 0.0f;
+    }
+    pCurr_(numNodes_ / 2) = 1.0f;
+    rhsTerm_ = allocateArray2D<arrayReal>(1, kNumSteps, "rhsTerm_att");
+    rhsElem_ = allocateVector<vectorInt>(1, "rhsElem_att");
+    rhsWeights_ = allocateArray2D<arrayReal>(1, npp, "rhsWeights_att");
+    rhsElem_(0) = 0;
+    for (int j = 0; j < npp; ++j) {
+      rhsTerm_(0, j) = 0.0f;
+      rhsWeights_(0, j) = 0.0f;
+    }
+  }
+
+  static constexpr int kNumSteps = 10;
+  static constexpr float kDt = 0.001f;
+
+  std::shared_ptr<model::ModelApi<float, int>> mesh_;
+  std::unique_ptr<Solver> solver_;
+  int numNodes_;
+  vectorReal pPrev_, pCurr_;
+  arrayReal rhsTerm_;
+  vectorInt rhsElem_;
+  arrayReal rhsWeights_;
+};
+
+TEST_F(SemSolverAcousticAttenuationTest, ComputeOneStepDoesNotCrash) {
+  WavefieldAcoustic wf(pPrev_, pCurr_);
+  RhsAcoustic rhs(rhsTerm_, rhsElem_, rhsWeights_);
+  SEMsolverDataAcoustic data(wf, rhs);
+  EXPECT_NO_THROW(solver_->computeOneStep(kDt, 0, data));
+}
+
+TEST_F(SemSolverAcousticAttenuationTest, ComputeOneStepProducesFiniteValues) {
+  WavefieldAcoustic wf(pPrev_, pCurr_);
+  RhsAcoustic rhs(rhsTerm_, rhsElem_, rhsWeights_);
+  SEMsolverDataAcoustic data(wf, rhs);
+  for (int t = 0; t < kNumSteps; ++t) {
+    solver_->computeOneStep(kDt, t, data);
+    data.swapWavefields();
+  }
+  for (int i = 0; i < numNodes_; ++i) EXPECT_TRUE(std::isfinite(data.getCurrentField(0)(i))) << "NaN/Inf at node " << i;
+}
+
+TEST_F(SemSolverAcousticAttenuationTest, ResetGlobalVectorsZerosAttenuationWorkVectors) {
+  auto& fv = solver_->getForceVector(0);
+  fv(0) = 99.0f;
+  solver_->resetGlobalVectors(numNodes_);
+  Kokkos::fence();
+  EXPECT_FLOAT_EQ(fv(0), 0.0f);
+}
+
 }  // namespace test
 }  // namespace fe
 }  // namespace solver
