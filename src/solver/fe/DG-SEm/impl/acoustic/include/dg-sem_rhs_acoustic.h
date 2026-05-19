@@ -28,7 +28,7 @@ struct DGSEMRhsAcoustic : public Rhs {
    * @param element        Indices of elements containing source points.
    * @param weights        Per-node weights for source distribution.
    */
-  RhsAcoustoElastic(arrayReal dg_acoustic_term, arrayReal sem_acoustic_term, vectorInt element, arrayReal weights)
+  DGSEMRhsAcoustic(arrayReal dg_acoustic_term, arrayReal sem_acoustic_term, vectorInt element, arrayReal weights)
       : m_rhs_DGacoustic(dg_acoustic_term, element, weights),
         m_rhs_SEMacoustic(sem_acoustic_term, element, weights) {}
 

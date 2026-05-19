@@ -1,0 +1,193 @@
+#ifndef FUNTIDES_SOLVER_FE_DG_SEM_IMPL_COMMON_INCLUDE_DG_SEM_SOLVER_H_
+#define FUNTIDES_SOLVER_FE_DG_SEM_IMPL_COMMON_INCLUDE_DG_SEM_SOLVER_H_
+
+#include <array>
+#include <cmath>
+
+#include "data_type.h"
+#include "sem_enums.h"
+#include "sem_solver.h"
+#include "dg_solver.h"
+#include "dg-sem_solver_data.h"
+#include "solver.h"
+
+namespace solver {
+namespace fe {
+
+/// Element belongs to the DG domain.
+static constexpr int kElementTypeDG = 1;
+/// Element belongs to the SEM domain.
+static constexpr int kElementTypeSEM = 2;
+
+/**
+ * @brief DG-SEm coupled solver.
+ *
+ * Staggered explicit scheme: DG step → SEM→DG coupling → SEM step →
+ * DG→SEM coupling. Each sub-solver processes only its own elements via a list of elements.
+ *
+ * @tparam ORDER             Polynomial order of elements.
+ * @tparam INTEGRAL_TYPE     Quadrature/basis function type (Makutu kernels).
+ * @tparam MESH_TYPE         Mesh implementation (ModelStruct or ModelUnstruct).
+ * @tparam IS_MODEL_ON_NODES If true, material properties are stored on nodes.
+ * @tparam PHYSICS           Physical model type (Acoustic).
+ */
+template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE, bool IS_MODEL_ON_NODES, utils::enums::physicType PHYSICS>
+class DGSEMsolver : public Solver {
+ public:
+  using dgSolver =
+      DGsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>;
+  using semSolver =
+      SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>;
+  using DataType = DGSEMsolverData;
+
+  DGSEMsolver() = default;
+  ~DGSEMsolver() = default;
+
+  // --- Solver interface ---
+
+  static constexpr int kNumFields = Traits::WavefieldType::kNumFields;
+
+  int getNumComponents() const override { return kNumFields; }
+
+  // --- Mandatory overrides for Solver interface ---
+
+  void initFEarrays() override {
+    // Here for retrocompatibility
+  }
+
+  void initSpongeValues() override {
+    // Here for retrocompatibility
+  }
+
+  void resetGlobalVectors(int numNodes) override {
+    // Here for retrocompatibility, no global vector for DG-SEM
+  }
+
+  void computeGlobalMassMatrix() override {
+    // Here for retrocompatibility, no global mass matrix for DG-SEM
+  }
+
+  void computeDampingMatrix() override {
+    // Here for retrocompatibility, no global damping matrix for DG-SEM
+  }
+
+  void computeForces(const float& dt, const int& timeSample, DataStruct& data) override {
+    // Here for retrocompatibility
+  }
+
+  vectorReal& getMassMatrixAcoustic() override {
+    throw std::runtime_error("getMassMatrixAcoustic not implemented for DG");
+    // Maybe return SEM mass matrix
+  }
+
+  vectorReal& getMassMatrixElastic() override {
+    throw std::runtime_error("getMassMatrixElastic not implemented for DG-SEM coupling");
+  }
+
+  vectorReal& getDampingMatrix(int c) override { 
+    throw std::runtime_error("getDampingMatrix not implemented for DG"); 
+    // Maybe return SEM damping matrix
+  }
+
+  vectorReal& getForceVector(int component) override {
+    throw std::runtime_error("getForceVector not implemented for DG");
+    // Maybe return SEM force vector
+  }
+
+  void updateSolution(const float& dt, DataStruct& data) override {
+    // Here for retrocompatibility
+  }
+  
+  void setAnisotropyType(model::AnisotropyType type) override {
+    // TODO: Implement anisotropy setting
+  }
+
+  void setSLSAttenuation(const vectorReal& reference_frequencies,
+                         const vectorReal& anelasticity_coefficients = vectorReal()) override {
+    // TODO: Implement SLS attenuation setting
+  }
+
+  // --- Core solver methods ---
+
+  void computeFEInit(model::ModelApi<float, int>& mesh, const std::array<float, 3>& sponge_size,
+                     const bool surface_sponge, const float taper_delta) override;
+
+  void allocateFEarrays() override;
+
+  /// @brief Identify interface nodes (adjacent to both domains).
+  void TagNodes();
+
+  /// @brief Classify each element as SEm or DG.
+  void TagElements();
+
+  /**
+   * @brief Perform one coupled time step (serial / non-distributed mode).
+   *
+   * Implements the staggered explicit scheme
+   * with interface coupling applied between the two sub-steps.
+   */
+  void computeOneStep(const float& dt, const int& timeSample, DataStruct& data) override;
+
+  /**
+   * @brief Apply DG→SEM coupling post-Verlet.
+   * @param dt   Time step.
+   * @param data Coupled solver data.
+   */
+  void ApplyCouplingDGToSEM(float dt, const DataType& data);
+
+  /**
+   * @brief Apply SEM→DG coupling post-Verlet.
+   * @param data Coupled solver data.
+   */
+  void ApplyCouplingSEMToDG(const DataType& data);
+
+  void outputSolutionValues(const int& t, int& e, const vectorReal& field, const char* fieldName) override;
+  void outputSolutionValues(const int& t, int& e, const arrayReal& field, const char* fieldName) override;
+
+  // --- Accessors for diagnostics ---
+
+  /// Number of DG elements detected in the mesh.
+  int getNumDGElements() const { return num_DG_elements_; }
+
+  /// Number of SEM elements detected in the mesh.
+  int getNumSEmElements() const { return num_SEm_elements_; }
+
+  /// Number of interface faces (adjacent to both domains).
+  int getNumInterfaceFaces() const { return num_interface_faces_; }
+
+
+ private:
+  dgSolver m_DG_solver_;    ///< DG sub-solver
+  semSolver m_SEm_solver_;  ///< SEm sub-solver
+
+  MESH_TYPE m_mesh_;  ///< Local copy of the mesh
+  model::FaceConnectivityUnstruct<float, int> m_face_connectivity_;
+  static constexpr int knumNodesPerFace = m_mesh_.getDofsPerFace();
+
+  /// Per-element type tag (kElementTypeAcoustic or kElementTypeElastic).
+  vectorInt m_element_type_;
+  
+  int num_interface_faces_{0};    ///< Count of interface faces
+  /// Compact list of global interface face indices (size n_interface_faces_).
+  vectorInt m_interface_face_indices_;
+
+  int num_DG_elements_{0};   ///< Count of DG elements
+  int num_SEm_elements_{0};  ///< Count of SEm elements
+  /// @brief Compact list of DG element indices (size
+  /// num_DG_elements_).
+  vectorInt DG_elem_list_;
+  /// @brief Compact list of SEm element indices (size
+  /// num_SEm_elements_).
+  vectorInt SEm_elem_list_;
+
+  int num_SEm_nodes_{0};  ///< Count of SEm-domain nodes
+  /// @brief Compact list of SEm-domain node indices (pure SEm +
+  /// interface, size num_SEm_nodes_).
+  vectorInt SEm_node_list_;
+
+  float const DG_SEM_interface_z_ = 0.0f;  ///< Z coordinate of the DG-SEM interface
+};
+
+}  // namespace fe
+}  // namespace solver
+#endif  // FUNTIDES_SOLVER_FE_DG_SEM_IMPL_COMMON_INCLUDE_DG_SEM_SOLVER_H_
