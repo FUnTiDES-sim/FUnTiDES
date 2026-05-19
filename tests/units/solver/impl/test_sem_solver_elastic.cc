@@ -556,6 +556,29 @@ TEST_F(SemSolverElasticSpongeTest, ComputeOneStepWithSpongeProducesFiniteValues)
     for (int i = 0; i < numNodes_; ++i) EXPECT_TRUE(std::isfinite(data.getCurrentField(c)(i)));
 }
 
+// ======================================================================
+// setSLSAttenuation size mismatch — exercises throw in sem_solver.h
+// ======================================================================
+
+TEST_P(SemSolverElasticTest, SetSLSAttenuationSizeMismatchThrows) {
+  auto ref = allocateVector<vectorReal>(3, "sls_ref");
+  auto coeffs = allocateVector<vectorReal>(2, "sls_coeffs");
+  for (int i = 0; i < 3; ++i) ref(i) = 10.0f * (i + 1);
+  for (int i = 0; i < 2; ++i) coeffs(i) = 0.1f;
+  EXPECT_THROW(solver_->setSLSAttenuation(ref, coeffs), std::runtime_error);
+}
+
+// ======================================================================
+// computeOneStep in distributed mode — exercises throw in sem_solver_impl.h
+// ======================================================================
+
+TEST_P(SemSolverElasticTest, ComputeOneStepDistributedThrows) {
+  WavefieldElastic wf(uxPrev_, uxCurr_, uyPrev_, uyCurr_, uzPrev_, uzCurr_);
+  RhsElastic rhs(rhsTermx_, rhsTermy_, rhsTermz_, rhsElem_, rhsWeights_);
+  SEMsolverDataElastic data(wf, rhs, /*isDistributed=*/true);
+  EXPECT_THROW(solver_->computeOneStep(kDt, 0, data), std::runtime_error);
+}
+
 }  // namespace test
 }  // namespace fe
 }  // namespace solver

@@ -63,6 +63,18 @@ add_gtest(sem_solver_elastic_test
 )
 target_link_libraries(sem_solver_elastic_test PRIVATE proxy_model_builder_cartesian)
 
+add_gtest(boundary_synchronizer_test
+  test_boundary_synchronizer.cc
+  proxy_solver
+)
+
+if(COMPILE_DG)
+  add_gtest(dg_solver_factory_test
+    test_dg_solver_factory.cc
+    proxy_solver
+  )
+endif()
+
 if(USE_MPI)
 add_executable(test_mpi_partitioning test_mpi_partitioning.cc)
 target_link_libraries(test_mpi_partitioning
