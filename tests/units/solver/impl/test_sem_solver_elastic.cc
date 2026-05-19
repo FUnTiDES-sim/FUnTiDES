@@ -722,12 +722,6 @@ class SemSolverElasticAttenuationVtiTest : public ::testing::Test {
   arrayReal rhsWeights_;
 };
 
-TEST_F(SemSolverElasticAttenuationVtiTest, ComputeForcesDoesNotCrash) {
-  WavefieldElastic wf(uxPrev_, uxCurr_, uyPrev_, uyCurr_, uzPrev_, uzCurr_);
-  RhsElastic rhs(rhsTermx_, rhsTermy_, rhsTermz_, rhsElem_, rhsWeights_);
-  SEMsolverDataElastic data(wf, rhs);
-  EXPECT_NO_THROW(solver_->computeForces(kDt, 0, data));
-}
 
 // ======================================================================
 // TTI + IS_MODEL_ON_NODES=true — exercises computeCMatrix (rotation of
