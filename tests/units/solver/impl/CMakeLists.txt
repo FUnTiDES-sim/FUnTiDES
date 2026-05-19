@@ -35,6 +35,11 @@ add_gtest(sem_solver_acoustoelastic_test
   proxy_solver
 )
 
+add_gtest(physics_traits_test
+  test_physics_traits.cc
+  proxy_solver
+)
+
 add_gtest(solver_data_test
   test_solver_data.cc
   proxy_solver
