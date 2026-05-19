@@ -722,7 +722,6 @@ class SemSolverElasticAttenuationVtiTest : public ::testing::Test {
   arrayReal rhsWeights_;
 };
 
-
 // ======================================================================
 // TTI + IS_MODEL_ON_NODES=true — exercises computeCMatrix (rotation of
 // the VTI tensor into the tilted frame) called from the TTI stiffness kernel.
