@@ -23,7 +23,7 @@ struct DGSEMWavefieldAcoustic {
   static constexpr const char* kFieldNames[2] = {"DGpressure", "SEMpressure"};
 
   DGSEMWavefieldAcoustic(arrayReal pnDGPrev, arrayReal pnDGCurr, vectorReal pnSEMPrev, vectorReal pnSEMCurr)
-      : DGWavefieldAcoustic(pnDGPrev, pnDGCurr), WavefieldAcoustic(pnSEMPrev, pnSEMCurr) {}
+      : m_DGacoustic(pnDGPrev, pnDGCurr), m_SEMacoustic(pnSEMPrev, pnSEMCurr) {}
 
   int getNumFields() const { return kNumFields; }
 

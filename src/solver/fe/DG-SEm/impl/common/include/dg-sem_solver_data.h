@@ -4,8 +4,8 @@
 #include <iostream>
 
 #include "data_type.h"
-#include "physics_traits_acoustic.h"
-#include "dg_physics_traits_acoustic.h"
+#include "dg-sem_rhs_acoustic.h"
+#include "dg-sem_wavefield_acoustic.h"
 #include "solver.h"
 
 namespace solver {
