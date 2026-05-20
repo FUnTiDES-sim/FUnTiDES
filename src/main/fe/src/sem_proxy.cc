@@ -12,6 +12,7 @@
 #include <iomanip>
 
 #include "dg_solver_data.h"
+#include "dg-sem_solver_data.h"
 #include "rhs_acoustoelastic.h"
 #ifdef USE_MPI
 #include "mpi_backend.h"
@@ -52,6 +53,7 @@ void SEMproxy::SetupSolver(const SemProxyOptions& opt) {
   is_acousto_elastic_ = opt.isAcoustoElastic;
   const methodType method_type = GetMethod(opt.method);
   is_dg_ = (method_type == utils::enums::methodType::kDg);
+  is_dg_sem_ = (method_type == utils::enums::methodType::kDgSem);
   const implemType implem_type = GetImplem(opt.implem);
   const meshType mesh_type = GetMesh(opt.mesh);
   const modelLocationType model_location =
@@ -261,6 +263,68 @@ void SEMproxy::Run() {
     fout << "# time pressure_at_receiver\n";
     for (int t = 0; t < num_samples_; ++t) fout << t * dt_ << " " << h_pn_at_receiver_(0, t) << "\n";
     fout.close();
+
+  } else if (is_dg_sem_) {
+    DGSEMWavefieldAcoustic wavefield(pn_dg_prev_, pn_dg_curr_, pn_sem_prev_, pn_sem_curr_);
+    DGSEMRhsAcoustic rhs(rhs_term_dg_, rhs_term_sem_, rhs_element_, rhs_weights_);
+
+    DGSEMsolverData dg_sem_data(wavefield, rhs);
+    
+    for (int time_index = 0; time_index < num_samples_; time_index++) {
+      start_compute_time = system_clock::now();
+      solver_->computeOneStep(dt_, time_index, dg_sem_data);
+      total_compute_time += system_clock::now() - start_compute_time;
+
+      start_output_time = system_clock::now();
+
+      if (time_index % 50 == 0) {
+        solver_->outputSolutionValues(time_index, h_rhs_element_(0), pn_dg_prev_, "pnDG");
+        solver_->outputSolutionValues(time_index, h_rhs_element_rcv_(0), pn_sem_prev_, "pnSEM");
+      }
+
+      // if (is_snapshots_ && time_index % snap_time_interval_ == 0) {
+      //   WaitSnapshots();
+      //   Kokkos::deep_copy(h_pn_dg_prev_, pn_dg_prev_);
+      //   Kokkos::deep_copy(h_pn_sem_prev_, pn_sem_prev_);
+
+      //   auto io_task = [this, time_index, h_dg = h_pn_dg_prev_, h_sem = h_pn_sem_prev_]() {
+      //     io_ctrl_->saveSnapshot(h_dg, time_index);
+      //     io_ctrl_->saveSnapshot(h_sem, time_index);
+      //   };
+
+      //   // Fallback checks if GPU data == CPU data (CPU-only build)
+      //   if (pn_dg_prev_.data() != h_pn_dg_prev_.data()) {
+      //     snapshot_futures_.push_back(std::async(std::launch::async, io_task));
+      //   } else {
+      //     io_task();
+      //   }
+      // }
+
+      Kokkos::deep_copy(h_pn_sem_curr_, pn_sem_curr_);
+      const int order = mesh_->getOrder();
+      float var_np1 = 0.0;
+      for (int i = 0; i < order + 1; i++) {
+        for (int j = 0; j < order + 1; j++) {
+          for (int k = 0; k < order + 1; k++) {
+            int node_idx = mesh_->globalNodeIndex(h_rhs_element_rcv_(0), i, j, k);
+            int global_node_on_elem = i + j * (order + 1) + k * (order + 1) * (order + 1);
+            var_np1 += h_pn_sem_curr_(node_idx) * h_rhs_weights_rcv_(0, global_node_on_elem);
+          }
+        }
+      }
+      h_pn_at_receiver_(0, time_index) = var_np1;
+      dg_sem_data.swapWavefields();
+      total_output_time += system_clock::now() - start_output_time;
+    }
+
+    start_output_time = std::chrono::high_resolution_clock::now();
+    for (int i = 0; i < h_pn_at_receiver_.extent(0); i++) {
+      auto subview = Kokkos::subview(h_pn_at_receiver_, i, Kokkos::ALL());
+      vectorReal::host_mirror_type subset("receiver_save", num_samples_);
+      for (int j = 0; j < num_samples_; ++j) subset(j) = subview(j);
+      io_ctrl_->saveReceiver(subset, src_coord_);
+    }
+    total_output_time += system_clock::now() - start_output_time;      
 
   } else if (is_acousto_elastic_) {
     WavefieldAcoustoElastic wavefield(pn_global_prev_, pn_global_curr_, uxn_global_prev_, uxn_global_curr_,
@@ -549,6 +613,14 @@ void SEMproxy::InitArrays() {
     pn_dg_prev_ = allocateArray2D<arrayReal>(n_elements, n_pts_per_elem, "pnDGPrev");
     pn_dg_curr_ = allocateArray2D<arrayReal>(n_elements, n_pts_per_elem, "pnDGCurr");
     pn_at_receiver_ = allocateArray2D<arrayReal>(1, num_samples_, "pn_at_receiver_");
+  } else if (is_dg_sem_) {
+    rhs_term_dg_ = allocateArray2D<arrayReal>(num_rhs_, num_samples_, "RHSTermDG");
+    rhs_term_sem_ = allocateArray2D<arrayReal>(num_rhs_, num_samples_, "RHSTermSEM");
+    pn_dg_prev_ = allocateArray2D<arrayReal>(n_elements, n_pts_per_elem, "pnDGPrev");
+    pn_dg_curr_ = allocateArray2D<arrayReal>(n_elements, n_pts_per_elem, "pnDGCurr");
+    pn_sem_curr_ = allocateVector<vectorReal>(n_nodes, "pnSEMCurr");
+    pn_sem_prev_ = allocateVector<vectorReal>(n_nodes, "pnSEMPrev");
+    pn_at_receiver_ = allocateArray2D<arrayReal>(1, num_samples_, "pn_at_receiver_");
   } else if (!is_elastic_) {
     rhs_term_ = allocateArray2D<arrayReal>(num_rhs_, num_samples_, "RHSTerm");
     pn_global_curr_ = allocateVector<vectorReal>(n_nodes, "pnGlobalCurr");
@@ -598,6 +670,12 @@ void SEMproxy::InitArrays() {
     h_pn_at_receiver_ = Kokkos::create_mirror_view(pn_at_receiver_);
   } else if (is_dg_) {
     h_rhs_term_ = Kokkos::create_mirror_view(rhs_term_);
+    h_pn_at_receiver_ = Kokkos::create_mirror_view(pn_at_receiver_);
+  } else if (is_dg_sem_) {
+    h_pn_sem_curr_ = Kokkos::create_mirror_view(pn_sem_curr_);
+    h_pn_sem_prev_ = Kokkos::create_mirror_view(pn_sem_prev_);
+    h_pn_dg_curr_ = Kokkos::create_mirror_view(pn_dg_curr_);
+    h_pn_dg_prev_ = Kokkos::create_mirror_view(pn_dg_prev_);
     h_pn_at_receiver_ = Kokkos::create_mirror_view(pn_at_receiver_);
   } else {
     h_rhs_term_x_ = Kokkos::create_mirror_view(rhs_term_x_);
@@ -870,6 +948,7 @@ meshType SEMproxy::GetMesh(std::string mesh_arg) {
 methodType SEMproxy::GetMethod(std::string method_arg) {
   if (method_arg == "sem") return methodType::kSem;
   if (method_arg == "dg") return methodType::kDg;
+  if (method_arg == "dg-sem") return methodType::kDgSem;
   throw std::invalid_argument("Method type invalid.");
 };
 

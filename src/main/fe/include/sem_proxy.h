@@ -113,6 +113,7 @@ class SEMproxy {
   bool is_acousto_elastic_ = false;  ///< True if simulating coupled acousto-elastic wave propagation.
   bool free_surface_ = false;        ///< True if the top boundary acts as a free surface.
   bool is_dg_ = false;               ///< True if using Discontinuous Galerkin method.
+  bool is_dg_sem_ = false;           ///< True if using Discontinuous Galerkin - Spectral Element method coupling.
 
   std::array<float, 3> sponge_size_ = {0, 0, 0};  ///< Thickness of absorbing boundaries (sponge layers).
   bool surface_sponge_ = false;                   ///< True if the top surface has an absorbing boundary.
@@ -138,10 +139,14 @@ class SEMproxy {
 
   // --- Acoustic / Shared Arrays (Device) ---
   arrayReal rhs_term_;         ///< Source term array over time (Device).
+  arrayReal rhs_term_dg_;      ///< DG source term array over time (Device).
+  arrayReal rhs_term_sem_;     ///< SEM source term array over time (Device).
   vectorReal pn_global_prev_;  ///< Pressure field at time t-1 (Device).
   vectorReal pn_global_curr_;  ///< Pressure field at time t (Device).
   arrayReal pn_dg_prev_;       ///< DG Pressure field at time t-1 (Device).
   arrayReal pn_dg_curr_;       ///< DG Pressure field at time t (Device).
+  vectorReal pn_sem_prev_;     ///< SEM Pressure field at time t-1 (Device).
+  vectorReal pn_sem_curr_;     ///< SEM Pressure field at time t (Device).
   vectorInt rhs_element_;      ///< Element indices containing sources (Device).
   vectorInt rhs_element_rcv_;  ///< Element indices containing receivers (Device).
   arrayReal rhs_weights_;      ///< Interpolation weights for sources (Device).
@@ -190,6 +195,10 @@ class SEMproxy {
 
   vectorReal::host_mirror_type h_pn_global_curr_;   ///< CPU mirror for current pressure field.
   vectorReal::host_mirror_type h_pn_global_prev_;   ///< CPU mirror for previous pressure field.
+  vectorReal::host_mirror_type h_pn_sem_curr_;      ///< CPU mirror for SEM current pressure field.
+  vectorReal::host_mirror_type h_pn_sem_prev_;      ///< CPU mirror for SEM previous pressure field.
+  arrayReal::host_mirror_type h_pn_dg_curr_;        ///< CPU mirror for DG current pressure field.
+  arrayReal::host_mirror_type h_pn_dg_prev_;        ///< CPU mirror for DG previous pressure field.
   vectorReal::host_mirror_type h_uxn_global_curr_;  ///< CPU mirror for current X-displacement.
   vectorReal::host_mirror_type h_uyn_global_curr_;  ///< CPU mirror for current Y-displacement.
   vectorReal::host_mirror_type h_uzn_global_curr_;  ///< CPU mirror for current Z-displacement.
