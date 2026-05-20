@@ -5,10 +5,13 @@
 #include <cmath>
 
 #include "data_type.h"
+#include "face_connectivity_unstruct.h"
+#include "model.h"
 #include "sem_enums.h"
 #include "sem_solver.h"
 #include "dg_solver.h"
 #include "dg-sem_solver_data.h"
+#include "dg-sem_physics_traits_acoustic.h"
 #include "solver.h"
 
 namespace solver {
@@ -45,7 +48,7 @@ class DGSEMsolver : public Solver {
 
   // --- Solver interface ---
 
-  static constexpr int kNumFields = Traits::WavefieldType::kNumFields;
+  static constexpr int kNumFields = DGSEMPhysicsTraits::WavefieldType::kNumFields;
 
   int getNumComponents() const override { return kNumFields; }
 
@@ -162,7 +165,7 @@ class DGSEMsolver : public Solver {
 
   MESH_TYPE m_mesh_;  ///< Local copy of the mesh
   model::FaceConnectivityUnstruct<float, int> m_face_connectivity_;
-  static constexpr int knumNodesPerFace = m_mesh_.getDofsPerFace();
+  static constexpr int knumNodesPerFace = (ORDER + 1) * (ORDER + 1);
 
   /// Per-element type tag (kElementTypeAcoustic or kElementTypeElastic).
   vectorInt m_element_type_;
@@ -185,7 +188,7 @@ class DGSEMsolver : public Solver {
   /// interface, size num_SEm_nodes_).
   vectorInt SEm_node_list_;
 
-  float const DG_SEM_interface_z_ = 0.0f;  ///< Z coordinate of the DG-SEM interface
+  float const DG_SEM_interface_z_ = 1000.f;  ///< Z coordinate of the DG-SEM interface
 };
 
 }  // namespace fe

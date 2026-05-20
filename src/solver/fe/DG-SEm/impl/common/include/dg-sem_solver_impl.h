@@ -18,8 +18,8 @@ namespace fe {
 // computeFEInit
 //============================================================================
 
-template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE, bool IS_MODEL_ON_NODES>
-void SEMsolverAcoustoElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES>::computeFEInit(
+template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE, bool IS_MODEL_ON_NODES, utils::enums::physicType PHYSICS>
+void DGSEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::computeFEInit(
     model::ModelApi<float, int>& mesh_in, const std::array<float, 3>& sponge_size, const bool surface_sponge,
     const float taper_delta) {
   if (auto* typed = dynamic_cast<MESH_TYPE*>(&mesh_in)) {
@@ -39,15 +39,15 @@ void SEMsolverAcoustoElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES>
             << " DG elements." << std::endl;
 
   TagNodes();
-  std::cout << "DGSEMsolver: " << num_interface_nodes_ << " interface nodes." << std::endl;
+  std::cout << "DGSEMsolver: " << num_interface_faces_ << " interface faces." << std::endl;
 }
 
 //============================================================================
 // allocateFEarrays
 //============================================================================
 
-template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE, bool IS_MODEL_ON_NODES>
-void SEMsolverAcoustoElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES>::allocateFEarrays() {
+template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE, bool IS_MODEL_ON_NODES, utils::enums::physicType PHYSICS>
+void DGSEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::allocateFEarrays() {
   int const nElem = m_mesh_.getNumberOfElements();
   int const nNode = m_mesh_.getNumberOfNodes();
 
@@ -58,8 +58,8 @@ void SEMsolverAcoustoElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES>
 // TagElements
 //============================================================================
 
-template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE, bool IS_MODEL_ON_NODES>
-void SEMsolverAcoustoElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES>::TagElements() {
+template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE, bool IS_MODEL_ON_NODES, utils::enums::physicType PHYSICS>
+void DGSEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::TagElements() {
   int const nElem = m_mesh_.getNumberOfElements();
   int n_dg = 0;
   int n_sem = 0;
@@ -67,7 +67,7 @@ void SEMsolverAcoustoElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES>
   int const mid = ORDER / 2;
   for (int e = 0; e < nElem; ++e) {
     int const gIdx = m_mesh_.globalNodeIndex(e, mid, mid, mid);
-    int const zCoord = nodeCoord(gIdx, 2);
+    int const zCoord = m_mesh_.nodeCoord(gIdx, 2);
     if (zCoord < DG_SEM_interface_z_) {
       m_element_type_[e] = kElementTypeDG;
       ++n_dg;
@@ -96,8 +96,8 @@ void SEMsolverAcoustoElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES>
 // TagNodes
 //============================================================================
 
-template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE, bool IS_MODEL_ON_NODES>
-void SEMsolverAcoustoElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES>::TagNodes() {
+template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE, bool IS_MODEL_ON_NODES, utils::enums::physicType PHYSICS>
+void DGSEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::TagNodes() {
   int const nNode = m_mesh_.getNumberOfNodes();
   int const nElem = m_mesh_.getNumberOfElements();
   int const dim = ORDER + 1;
@@ -183,8 +183,8 @@ void SEMsolverAcoustoElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES>
 // ApplyCouplingDGToSEM
 //============================================================================
 
-template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE, bool IS_MODEL_ON_NODES>
-void SEMsolverAcoustoElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES>::ApplyCouplingDGToSEM(
+template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE, bool IS_MODEL_ON_NODES, utils::enums::physicType PHYSICS>
+void DGSEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::ApplyCouplingDGToSEM(
     float dt, const DataType& data) {
   float const dt2 = dt * dt;
   auto mesh_local = m_mesh_;
@@ -228,12 +228,12 @@ void SEMsolverAcoustoElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES>
         float normal[3];
         mesh_local.faceNormal(sem_e, static_cast<model::CubicFace>(fid_sem), normal);
 
-        real_t const inv_rho = 1.0f / mesh_local.getModelRhoOnElements(sem_e);
+        real_t const inv_rho = 1.0f / mesh_local.getModelRhoOnElement(sem_e);
 
         INTEGRAL_TYPE::computeInterfaceFluxTerm(
             faceCoords, sem_coords, fid_sem, [&](const int i, const int j, const int k, const real_t val) {
               int const global_node = face_connectivity_local.getGlobalNodeFromFace(f, j);
-              int const ei_perm =  face_connectivity_local.faceLocalToElemLocal(static_cast<model::CubicFace>(fid_dg), face_connectivity_local.getNeighborFaceDof(f, i), ORDER);
+              int const ei_perm = faceLocalToElemLocal(static_cast<model::CubicFace>(fid_dg), face_connectivity_local.getNeighborFaceDof(f, i), ORDER);
               float const nk = normal[k];
               ATOMICADD(p_SEM_next(global_node), dt2 * inv_rho * 0.5f * val * nk * p_DG_next(dg_e, ei_perm));
             });
@@ -244,8 +244,8 @@ void SEMsolverAcoustoElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES>
 // ApplyCouplingSEMToDG
 //============================================================================
 
-template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE, bool IS_MODEL_ON_NODES>
-void SEMsolverAcoustoElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES>::ApplyCouplingSEMToDG(
+template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE, bool IS_MODEL_ON_NODES, utils::enums::physicType PHYSICS>
+void DGSEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::ApplyCouplingSEMToDG(
     const DataType& data) {
   auto face_connectivity_local = m_face_connectivity_;
   auto p_DG_next = data.m_wavefield.m_DGacoustic.getPreviousField(0);
@@ -270,7 +270,7 @@ void SEMsolverAcoustoElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES>
         
         for (int j = 0; j < knumNodesPerFace; ++j) {
           int const global_node = face_connectivity_local.getGlobalNodeFromFace(f, j);
-          int const elem_dof = face_connectivity_local.faceLocalToElemLocal(static_cast<model::CubicFace>(fid_sem), j, ORDER);
+          int const elem_dof = faceLocalToElemLocal(static_cast<model::CubicFace>(fid_sem), j, ORDER);
           p_DG_next(sem_e, elem_dof) = p_SEM_curr(global_node);
         }
       });
@@ -280,8 +280,8 @@ void SEMsolverAcoustoElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES>
 // computeOneStep  (staggered DG-SEM coupling scheme)
 //============================================================================
 
-template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE, bool IS_MODEL_ON_NODES>
-void SEMsolverAcoustoElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES>::computeOneStep(const float& dt,
+template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE, bool IS_MODEL_ON_NODES, utils::enums::physicType PHYSICS>
+void DGSEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::computeOneStep(const float& dt,
                                                                                                  const int& timeSample,
                                                                                                  DataStruct& data) {
   auto& myData = dynamic_cast<DataType&>(data);
@@ -338,8 +338,8 @@ void SEMsolverAcoustoElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES>
 // outputSolutionValues (SEM solution output: p[nNodes])
 //============================================================================
 
-template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE, bool IS_MODEL_ON_NODES>
-void SEMsolverAcoustoElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES>::outputSolutionValues(
+template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE, bool IS_MODEL_ON_NODES, utils::enums::physicType PHYSICS>
+void DGSEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::outputSolutionValues(
     const int& t, int& e, const vectorReal& field, const char* fieldName) {
   m_SEm_solver_.outputSolutionValues(t, e, field, fieldName);
 }
@@ -348,8 +348,8 @@ void SEMsolverAcoustoElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES>
 // outputSolutionValues (DG solution output: p[nElem][nDof])
 //============================================================================
 
-template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE, bool IS_MODEL_ON_NODES>
-void SEMsolverAcoustoElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES>::outputSolutionValues(
+template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE, bool IS_MODEL_ON_NODES, utils::enums::physicType PHYSICS>
+void DGSEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::outputSolutionValues(
     const int& t, int& e, const arrayReal& field, const char* fieldName) {
   m_DG_solver_.outputSolutionValues(t, e, field, fieldName);
 }
