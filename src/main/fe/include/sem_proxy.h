@@ -183,6 +183,8 @@ class SEMproxy {
   arrayReal::host_mirror_type h_rhs_weights_;      ///< CPU mirror for source interpolation weights.
   arrayReal::host_mirror_type h_rhs_weights_rcv_;  ///< CPU mirror for receiver interpolation weights.
   arrayReal::host_mirror_type h_rhs_term_;         ///< CPU mirror for acoustic source term.
+  arrayReal::host_mirror_type h_rhs_term_dg_;      ///< CPU mirror for DG-SEM DG source term.
+  arrayReal::host_mirror_type h_rhs_term_sem_;     ///< CPU mirror for DG-SEM SEM source term.
   arrayReal::host_mirror_type h_rhs_term_x_;       ///< CPU mirror for elastic X source term.
   arrayReal::host_mirror_type h_rhs_term_y_;       ///< CPU mirror for elastic Y source term.
   arrayReal::host_mirror_type h_rhs_term_z_;       ///< CPU mirror for elastic Z source term.

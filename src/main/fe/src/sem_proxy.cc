@@ -11,8 +11,8 @@
 #include <fstream>
 #include <iomanip>
 
-#include "dg_solver_data.h"
 #include "dg-sem_solver_data.h"
+#include "dg_solver_data.h"
 #include "rhs_acoustoelastic.h"
 #ifdef USE_MPI
 #include "mpi_backend.h"
@@ -269,7 +269,7 @@ void SEMproxy::Run() {
     DGSEMRhsAcoustic rhs(rhs_term_dg_, rhs_term_sem_, rhs_element_, rhs_weights_);
 
     DGSEMsolverData dg_sem_data(wavefield, rhs);
-    
+
     for (int time_index = 0; time_index < num_samples_; time_index++) {
       start_compute_time = system_clock::now();
       solver_->computeOneStep(dt_, time_index, dg_sem_data);
@@ -278,40 +278,125 @@ void SEMproxy::Run() {
       start_output_time = system_clock::now();
 
       if (time_index % 50 == 0) {
-        solver_->outputSolutionValues(time_index, h_rhs_element_(0), pn_dg_prev_, "pnDG");
-        solver_->outputSolutionValues(time_index, h_rhs_element_rcv_(0), pn_sem_prev_, "pnSEM");
+        solver_->outputSolutionValues(time_index, h_rhs_element_(0), pn_dg_prev_, "pnDGsrc");
+        solver_->outputSolutionValues(time_index, h_rhs_element_rcv_(0), pn_sem_prev_, "pnSEMrcv");
+        // solver_->outputSolutionValues(time_index, h_rhs_element_(0), pn_sem_prev_, "pnSEMsrc");
+        // solver_->outputSolutionValues(time_index, h_rhs_element_rcv_(0), pn_dg_prev_, "pnDGrcv");
       }
 
-      // if (is_snapshots_ && time_index % snap_time_interval_ == 0) {
-      //   WaitSnapshots();
-      //   Kokkos::deep_copy(h_pn_dg_prev_, pn_dg_prev_);
-      //   Kokkos::deep_copy(h_pn_sem_prev_, pn_sem_prev_);
+      if (is_snapshots_ && time_index % snap_time_interval_ == 0) {
+        WaitSnapshots();
+        Kokkos::deep_copy(h_pn_dg_prev_, pn_dg_prev_);
+        Kokkos::deep_copy(h_pn_sem_prev_, pn_sem_prev_);
 
-      //   auto io_task = [this, time_index, h_dg = h_pn_dg_prev_, h_sem = h_pn_sem_prev_]() {
-      //     io_ctrl_->saveSnapshot(h_dg, time_index);
-      //     io_ctrl_->saveSnapshot(h_sem, time_index);
-      //   };
+        auto io_task = [this, time_index, h_dg = h_pn_dg_prev_, h_sem = h_pn_sem_prev_]() {
+          const int order = mesh_->getOrder();
+          const int ex = num_elements_[0];
+          const int ey = num_elements_[1];
+          const int ez = num_elements_[2];
+          const int zElem = ez / 4;  // DG domain occupies lower half; slice at quarter
+          const int n1d = order + 1;
+          const int icZ = order / 2;
 
-      //   // Fallback checks if GPU data == CPU data (CPU-only build)
-      //   if (pn_dg_prev_.data() != h_pn_dg_prev_.data()) {
-      //     snapshot_futures_.push_back(std::async(std::launch::async, io_task));
-      //   } else {
-      //     io_task();
-      //   }
-      // }
+          std::ostringstream fname_dg;
+          fname_dg << "slice_dgsem_dg_" << std::setfill('0') << std::setw(5) << time_index << ".dat";
+          std::ofstream fslice_dg(fname_dg.str());
+          for (int ej_idx = 0; ej_idx < ey; ++ej_idx) {
+            for (int ib = 0; ib < n1d; ++ib) {
+              bool first = true;
+              for (int ei_idx = 0; ei_idx < ex; ++ei_idx) {
+                int const elem = ei_idx + ej_idx * ex + zElem * ex * ey;
+                for (int ia = 0; ia < n1d; ++ia) {
+                  int const dof = ia + ib * n1d + icZ * n1d * n1d;
+                  if (!first) fslice_dg << " ";
+                  fslice_dg << h_dg(elem, dof);
+                  first = false;
+                }
+              }
+              fslice_dg << "\n";
+            }
+          }
+          fslice_dg.close();
+
+          const int nx = num_nodes_[0];
+          const int ny = num_nodes_[1];
+          const int nz = num_nodes_[2];
+          const int z_slice = nz * 3 / 4;  // SEM domain occupies upper half; slice at 3/4
+          std::ostringstream fname_sem;
+          fname_sem << "slice_dgsem_sem_" << std::setfill('0') << std::setw(5) << time_index << ".dat";
+          std::ofstream fslice_sem(fname_sem.str());
+          for (int iy = 0; iy < ny; ++iy) {
+            for (int ix = 0; ix < nx; ++ix) {
+              int const node_idx = ix + iy * nx + z_slice * nx * ny;
+              fslice_sem << h_sem(node_idx);
+              if (ix < nx - 1) fslice_sem << " ";
+            }
+            fslice_sem << "\n";
+          }
+          fslice_sem.close();
+
+          // Full-domain combined x-z slice at mid-y: DG rows (bottom) then SEM rows (top).
+          // Visualise with: plot 'slice_dgsem_xz_XXXXX.dat' matrix with image
+          const int ey_mid = ey / 2;
+          const int ib_mid_xz = order / 2;
+          const int iy_mid_sem = ny / 2;
+
+          std::ostringstream fname_xz;
+          fname_xz << "slice_dgsem_xz_" << std::setfill('0') << std::setw(5) << time_index << ".dat";
+          std::ofstream fxz(fname_xz.str());
+
+          for (int ez_i = 0; ez_i < ez / 2; ++ez_i) {
+            for (int iz_dof = 0; iz_dof < n1d; ++iz_dof) {
+              for (int ix = 0; ix < nx; ++ix) {
+                int const ix_e = (ix == nx - 1) ? ex - 1 : ix / order;
+                int const ix_d = (ix == nx - 1) ? order : ix % order;
+                int const elem = ix_e + ey_mid * ex + ez_i * ex * ey;
+                int const dof = ix_d + ib_mid_xz * n1d + iz_dof * n1d * n1d;
+                fxz << h_dg(elem, dof);
+                if (ix < nx - 1) fxz << " ";
+              }
+              fxz << "\n";
+            }
+          }
+
+          for (int iz = nz / 2; iz < nz; ++iz) {
+            for (int ix = 0; ix < nx; ++ix) {
+              int const node_idx = ix + iy_mid_sem * nx + iz * nx * ny;
+              fxz << h_sem(node_idx);
+              if (ix < nx - 1) fxz << " ";
+            }
+            fxz << "\n";
+          }
+          fxz.close();
+        };
+
+        if (pn_dg_prev_.data() != h_pn_dg_prev_.data()) {
+          snapshot_futures_.push_back(std::async(std::launch::async, io_task));
+        } else {
+          io_task();
+        }
+      }
 
       Kokkos::deep_copy(h_pn_sem_curr_, pn_sem_curr_);
+      Kokkos::deep_copy(h_pn_dg_curr_, pn_dg_curr_);
       const int order = mesh_->getOrder();
+      bool const rcv_in_dg = mesh_->nodeCoord(h_rhs_element_rcv_(0), 2) < local_params_.DgSemBoundaryZ;
       float var_np1 = 0.0;
       for (int i = 0; i < order + 1; i++) {
         for (int j = 0; j < order + 1; j++) {
           for (int k = 0; k < order + 1; k++) {
             int node_idx = mesh_->globalNodeIndex(h_rhs_element_rcv_(0), i, j, k);
             int global_node_on_elem = i + j * (order + 1) + k * (order + 1) * (order + 1);
-            var_np1 += h_pn_sem_curr_(node_idx) * h_rhs_weights_rcv_(0, global_node_on_elem);
+            if (rcv_in_dg) {
+              var_np1 += h_pn_dg_curr_(h_rhs_element_rcv_(0), global_node_on_elem) *
+                         h_rhs_weights_rcv_(0, global_node_on_elem);
+            } else {
+              var_np1 += h_pn_sem_curr_(node_idx) * h_rhs_weights_rcv_(0, global_node_on_elem);
+            }
           }
         }
       }
+
       h_pn_at_receiver_(0, time_index) = var_np1;
       dg_sem_data.swapWavefields();
       total_output_time += system_clock::now() - start_output_time;
@@ -324,7 +409,11 @@ void SEMproxy::Run() {
       for (int j = 0; j < num_samples_; ++j) subset(j) = subview(j);
       io_ctrl_->saveReceiver(subset, src_coord_);
     }
-    total_output_time += system_clock::now() - start_output_time;      
+    std::ofstream fout("receiver_trace.txt");
+    fout << "# time pressure_at_receiver\n";
+    for (int t = 0; t < num_samples_; ++t) fout << t * dt_ << " " << h_pn_at_receiver_(0, t) << "\n";
+    fout.close();
+    total_output_time += system_clock::now() - start_output_time;
 
   } else if (is_acousto_elastic_) {
     WavefieldAcoustoElastic wavefield(pn_global_prev_, pn_global_curr_, uxn_global_prev_, uxn_global_curr_,
@@ -665,17 +754,19 @@ void SEMproxy::InitArrays() {
     h_rhs_term_y_ = Kokkos::create_mirror_view(rhs_term_y_);
     h_rhs_term_z_ = Kokkos::create_mirror_view(rhs_term_z_);
     h_pn_at_receiver_ = Kokkos::create_mirror_view(pn_at_receiver_);
-  } else if (!is_elastic_) {
-    h_rhs_term_ = Kokkos::create_mirror_view(rhs_term_);
-    h_pn_at_receiver_ = Kokkos::create_mirror_view(pn_at_receiver_);
-  } else if (is_dg_) {
-    h_rhs_term_ = Kokkos::create_mirror_view(rhs_term_);
-    h_pn_at_receiver_ = Kokkos::create_mirror_view(pn_at_receiver_);
   } else if (is_dg_sem_) {
+    h_rhs_term_dg_ = Kokkos::create_mirror_view(rhs_term_dg_);
+    h_rhs_term_sem_ = Kokkos::create_mirror_view(rhs_term_sem_);
     h_pn_sem_curr_ = Kokkos::create_mirror_view(pn_sem_curr_);
     h_pn_sem_prev_ = Kokkos::create_mirror_view(pn_sem_prev_);
     h_pn_dg_curr_ = Kokkos::create_mirror_view(pn_dg_curr_);
     h_pn_dg_prev_ = Kokkos::create_mirror_view(pn_dg_prev_);
+    h_pn_at_receiver_ = Kokkos::create_mirror_view(pn_at_receiver_);
+  } else if (is_dg_) {
+    h_rhs_term_ = Kokkos::create_mirror_view(rhs_term_);
+    h_pn_at_receiver_ = Kokkos::create_mirror_view(pn_at_receiver_);
+  } else if (!is_elastic_) {
+    h_rhs_term_ = Kokkos::create_mirror_view(rhs_term_);
     h_pn_at_receiver_ = Kokkos::create_mirror_view(pn_at_receiver_);
   } else {
     h_rhs_term_x_ = Kokkos::create_mirror_view(rhs_term_x_);
@@ -738,6 +829,13 @@ void SEMproxy::InitSource() {
         h_rhs_term_y_(0, j) = source_term[j];
         h_rhs_term_z_(0, j) = source_term[j];
       }
+    }
+  } else if (is_dg_sem_) {
+    bool const source_in_dg = (src_coord_[2] <= local_params_.DgSemBoundaryZ);
+    if (source_in_dg) {
+      for (int j = 0; j < num_samples_; j++) h_rhs_term_dg_(0, j) = source_term[j];
+    } else {
+      for (int j = 0; j < num_samples_; j++) h_rhs_term_sem_(0, j) = source_term[j];
     }
   } else if (!is_elastic_) {
     for (int j = 0; j < num_samples_; j++) h_rhs_term_(0, j) = source_term[j];
@@ -917,6 +1015,13 @@ void SEMproxy::InitSource() {
       Kokkos::deep_copy(rhs_term_y_, h_rhs_term_y_);
       Kokkos::deep_copy(rhs_term_z_, h_rhs_term_z_);
     }
+  } else if (is_dg_sem_) {
+    if (src_coord_[2] <= local_params_.DgSemBoundaryZ)
+      Kokkos::deep_copy(rhs_term_dg_, h_rhs_term_dg_);
+    else {
+      Kokkos::deep_copy(rhs_term_sem_, h_rhs_term_sem_);
+    }
+
   } else if (!is_elastic_) {
     Kokkos::deep_copy(rhs_term_, h_rhs_term_);
   } else {
@@ -985,11 +1090,13 @@ void SEMproxy::InitSimParams(const SemProxyOptions& opt) {
                                                    opt.isModelOnNodes, opt.isElastic);
   global_params.isAcoustoElastic = opt.isAcoustoElastic;
   global_params.acoustoElasticBoundaryZ = opt.acoustoElasticBoundaryZ;
+  global_params.DgSemBoundaryZ = opt.DgSemBoundaryZ;
   global_params.origin_x = 0;
   model::CartesianXPartitioner<float, int> partitioner;
   local_params_ = partitioner.partition(global_params, dist_ctx_.rank, dist_ctx_.size);
   local_params_.isAcoustoElastic = opt.isAcoustoElastic;
   local_params_.acoustoElasticBoundaryZ = opt.acoustoElasticBoundaryZ;
+  local_params_.DgSemBoundaryZ = opt.DgSemBoundaryZ;
   local_params_.model_file = opt.model_file;
 
   num_elements_[0] = local_params_.ex;
@@ -1020,7 +1127,8 @@ void SEMproxy::InitMeshParams(const SemProxyOptions& opt) {
         model::CartesianStructBuilder<float, int, 1> builder(
             local_params_.ex, local_params_.lx, local_params_.ey, local_params_.ly, local_params_.ez, local_params_.lz,
             opt.isModelOnNodes, opt.isElastic, local_params_.origin_x, local_params_.origin_y, local_params_.origin_z,
-            -1.0f, -1.0f, -1.0f, 0.0f, 0.0f, 0.0f, opt.isAcoustoElastic, opt.acoustoElasticBoundaryZ, opt.model_file);
+            -1.0f, -1.0f, -1.0f, 0.0f, 0.0f, 0.0f, opt.isAcoustoElastic, opt.acoustoElasticBoundaryZ,
+            opt.DgSemBoundaryZ, opt.model_file);
         mesh_ = builder.getModel(opt.free_surface);
         break;
       }
@@ -1028,7 +1136,8 @@ void SEMproxy::InitMeshParams(const SemProxyOptions& opt) {
         model::CartesianStructBuilder<float, int, 2> builder(
             local_params_.ex, local_params_.lx, local_params_.ey, local_params_.ly, local_params_.ez, local_params_.lz,
             opt.isModelOnNodes, opt.isElastic, local_params_.origin_x, local_params_.origin_y, local_params_.origin_z,
-            -1.0f, -1.0f, -1.0f, 0.0f, 0.0f, 0.0f, opt.isAcoustoElastic, opt.acoustoElasticBoundaryZ, opt.model_file);
+            -1.0f, -1.0f, -1.0f, 0.0f, 0.0f, 0.0f, opt.isAcoustoElastic, opt.acoustoElasticBoundaryZ,
+            opt.DgSemBoundaryZ, opt.model_file);
         mesh_ = builder.getModel(opt.free_surface);
         break;
       }
@@ -1036,7 +1145,8 @@ void SEMproxy::InitMeshParams(const SemProxyOptions& opt) {
         model::CartesianStructBuilder<float, int, 3> builder(
             local_params_.ex, local_params_.lx, local_params_.ey, local_params_.ly, local_params_.ez, local_params_.lz,
             opt.isModelOnNodes, opt.isElastic, local_params_.origin_x, local_params_.origin_y, local_params_.origin_z,
-            -1.0f, -1.0f, -1.0f, 0.0f, 0.0f, 0.0f, opt.isAcoustoElastic, opt.acoustoElasticBoundaryZ, opt.model_file);
+            -1.0f, -1.0f, -1.0f, 0.0f, 0.0f, 0.0f, opt.isAcoustoElastic, opt.acoustoElasticBoundaryZ,
+            opt.DgSemBoundaryZ, opt.model_file);
         mesh_ = builder.getModel(opt.free_surface);
         break;
       }
@@ -1044,7 +1154,8 @@ void SEMproxy::InitMeshParams(const SemProxyOptions& opt) {
         model::CartesianStructBuilder<float, int, 4> builder(
             local_params_.ex, local_params_.lx, local_params_.ey, local_params_.ly, local_params_.ez, local_params_.lz,
             opt.isModelOnNodes, opt.isElastic, local_params_.origin_x, local_params_.origin_y, local_params_.origin_z,
-            -1.0f, -1.0f, -1.0f, 0.0f, 0.0f, 0.0f, opt.isAcoustoElastic, opt.acoustoElasticBoundaryZ, opt.model_file);
+            -1.0f, -1.0f, -1.0f, 0.0f, 0.0f, 0.0f, opt.isAcoustoElastic, opt.acoustoElasticBoundaryZ,
+            opt.DgSemBoundaryZ, opt.model_file);
         mesh_ = builder.getModel(opt.free_surface);
         break;
       }
@@ -1052,7 +1163,8 @@ void SEMproxy::InitMeshParams(const SemProxyOptions& opt) {
         model::CartesianStructBuilder<float, int, 5> builder(
             local_params_.ex, local_params_.lx, local_params_.ey, local_params_.ly, local_params_.ez, local_params_.lz,
             opt.isModelOnNodes, opt.isElastic, local_params_.origin_x, local_params_.origin_y, local_params_.origin_z,
-            -1.0f, -1.0f, -1.0f, 0.0f, 0.0f, 0.0f, opt.isAcoustoElastic, opt.acoustoElasticBoundaryZ, opt.model_file);
+            -1.0f, -1.0f, -1.0f, 0.0f, 0.0f, 0.0f, opt.isAcoustoElastic, opt.acoustoElasticBoundaryZ,
+            opt.DgSemBoundaryZ, opt.model_file);
         mesh_ = builder.getModel(opt.free_surface);
         break;
       }
