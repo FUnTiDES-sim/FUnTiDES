@@ -205,11 +205,11 @@ void DGSEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::A
 
   auto p_SEM_next = data.m_wavefield.m_SEMacoustic.getPreviousField(0);
   auto p_SEM_curr = data.m_wavefield.m_SEMacoustic.getCurrentField(0);
-  auto p_DG_next = data.m_wavefield.m_DGacoustic.getPreviousField(0);
+  auto p_DG_curr = data.m_wavefield.m_DGacoustic.getCurrentField(0);
   auto iface_list = m_interface_face_indices_;
   int const n_iface = num_interface_faces_;
   auto element_type = m_element_type_;
-  real_t const penalty_local = m_DG_solver_.getPenaltyFactor();
+  real_t const penalty_local =  m_DG_solver_.getPenaltyFactor();
   // SEM global mass matrix: coupling correction is applied post-Verlet and must be scaled by M^{-1}.
   vectorReal mass_sem = m_SEm_solver_.getMassMatrixAcoustic();
 
@@ -263,12 +263,12 @@ void DGSEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::A
               real_t const m_inv_i = 1.0f / mass_sem(gn_i);
               real_t const m_inv_j = 1.0f / mass_sem(gn_j);
               ATOMICADD(p_SEM_next(gn_i), -dt2 * inv_rho * m_inv_i * val * nk *
-                                              (-0.5f * p_SEM_curr(gn_j) + 0.5f * p_DG_next(dg_e, ej_perm)));
+                                               (-0.5f * p_SEM_curr(gn_j) + 0.5f * p_DG_curr(dg_e, ej_perm)));
               ATOMICADD(p_SEM_next(gn_j), -dt2 * inv_rho * m_inv_j * val * nk *
-                                              (-0.5f * p_SEM_curr(gn_i) + 0.5f * p_DG_next(dg_e, ei_perm)));
+                                               (-0.5f * p_SEM_curr(gn_i) + 0.5f * p_DG_curr(dg_e, ei_perm)));
             });
 
-        // SIPG penalty: γ · M_face(i) · (p_SEM^n_i − p_DG^{n+1}_perm(i))
+        // SIPG penalty: γ · M_face(i) · (p_SEM^n_i − p_DG^n_perm(i))
         for (int i = 0; i < knumNodesPerFace; ++i) {
           int const gn_i = face_connectivity_local.getGlobalNodeFromFace(f, i);
           int const ei_perm = faceLocalToElemLocal(static_cast<model::CubicFace>(fid_dg),
@@ -276,7 +276,7 @@ void DGSEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::A
           real_t const damp = INTEGRAL_TYPE::computeDampingTerm(i, faceCoords);
           real_t const m_inv_i = 1.0f / mass_sem(gn_i);
           ATOMICADD(p_SEM_next(gn_i),
-                    -dt2 * inv_rho * m_inv_i * gamma_sem * damp * (p_SEM_curr(gn_i) - p_DG_next(dg_e, ei_perm)));
+                    -dt2 * inv_rho * m_inv_i * gamma_sem * damp * (p_SEM_curr(gn_i) - p_DG_curr(dg_e, ei_perm)));
         }
       });
 }

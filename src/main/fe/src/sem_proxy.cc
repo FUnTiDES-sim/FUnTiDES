@@ -270,6 +270,10 @@ void SEMproxy::Run() {
 
     DGSEMsolverData dg_sem_data(wavefield, rhs);
 
+    bool const rcv_in_sem = (rcv_coord_[2] >= domain_size_[2] * 0.5f);
+    std::cout << "DG-SEM receiver domain: " << (rcv_in_sem ? "SEM" : "DG")
+              << "  z=" << rcv_coord_[2] << "  iface_z=" << domain_size_[2] * 0.5f << std::endl;
+
     for (int time_index = 0; time_index < num_samples_; time_index++) {
       start_compute_time = system_clock::now();
       solver_->computeOneStep(dt_, time_index, dg_sem_data);
@@ -278,10 +282,11 @@ void SEMproxy::Run() {
       start_output_time = system_clock::now();
 
       if (time_index % 50 == 0) {
-        solver_->outputSolutionValues(time_index, h_rhs_element_(0), pn_dg_prev_, "pnDGsrc");
-        solver_->outputSolutionValues(time_index, h_rhs_element_rcv_(0), pn_sem_prev_, "pnSEMrcv");
-        // solver_->outputSolutionValues(time_index, h_rhs_element_(0), pn_sem_prev_, "pnSEMsrc");
-        // solver_->outputSolutionValues(time_index, h_rhs_element_rcv_(0), pn_dg_prev_, "pnDGrcv");
+        int src_e = h_rhs_element_(0);
+        int rcv_e = h_rhs_element_rcv_(0);
+        solver_->outputSolutionValues(time_index, src_e, pn_dg_prev_, "pnDG_src");
+        solver_->outputSolutionValues(time_index, rcv_e, pn_dg_prev_, "pnDG_rcv");
+        solver_->outputSolutionValues(time_index, rcv_e, pn_sem_prev_, "pnSEM_rcv");
       }
 
       if (is_snapshots_ && time_index % snap_time_interval_ == 0) {
@@ -377,27 +382,31 @@ void SEMproxy::Run() {
         }
       }
 
-      Kokkos::deep_copy(h_pn_sem_curr_, pn_sem_curr_);
-      Kokkos::deep_copy(h_pn_dg_curr_, pn_dg_curr_);
-      const int order = mesh_->getOrder();
-      bool const rcv_in_dg = mesh_->nodeCoord(h_rhs_element_rcv_(0), 2) < local_params_.DgSemBoundaryZ;
-      float var_np1 = 0.0;
-      for (int i = 0; i < order + 1; i++) {
-        for (int j = 0; j < order + 1; j++) {
-          for (int k = 0; k < order + 1; k++) {
-            int node_idx = mesh_->globalNodeIndex(h_rhs_element_rcv_(0), i, j, k);
-            int global_node_on_elem = i + j * (order + 1) + k * (order + 1) * (order + 1);
-            if (rcv_in_dg) {
-              var_np1 += h_pn_dg_curr_(h_rhs_element_rcv_(0), global_node_on_elem) *
-                         h_rhs_weights_rcv_(0, global_node_on_elem);
-            } else {
-              var_np1 += h_pn_sem_curr_(node_idx) * h_rhs_weights_rcv_(0, global_node_on_elem);
-            }
-          }
+      {
+        const int order = mesh_->getOrder();
+        float var_np1 = 0.0f;
+        if (rcv_in_sem) {
+          auto h_rcv = Kokkos::create_mirror_view_and_copy(Kokkos::HostSpace{}, pn_sem_prev_);
+          for (int i = 0; i < order + 1; i++)
+            for (int j = 0; j < order + 1; j++)
+              for (int k = 0; k < order + 1; k++) {
+                int const dof = i + j * (order + 1) + k * (order + 1) * (order + 1);
+                int const gn = mesh_->globalNodeIndex(h_rhs_element_rcv_(0), i, j, k);
+                var_np1 += h_rcv(gn) * h_rhs_weights_rcv_(0, dof);
+              }
+        } else {
+          auto elem_view = Kokkos::subview(pn_dg_prev_, h_rhs_element_rcv_(0), Kokkos::ALL());
+          auto h_rcv = Kokkos::create_mirror_view_and_copy(Kokkos::HostSpace{}, elem_view);
+          for (int i = 0; i <= order; ++i)
+            for (int j = 0; j <= order; ++j)
+              for (int k = 0; k <= order; ++k) {
+                int const dof = i + j * (order + 1) + k * (order + 1) * (order + 1);
+                var_np1 += h_rcv(dof) * h_rhs_weights_rcv_(0, dof);
+              }
         }
+        h_pn_at_receiver_(0, time_index) = var_np1;
       }
 
-      h_pn_at_receiver_(0, time_index) = var_np1;
       dg_sem_data.swapWavefields();
       total_output_time += system_clock::now() - start_output_time;
     }
@@ -409,11 +418,13 @@ void SEMproxy::Run() {
       for (int j = 0; j < num_samples_; ++j) subset(j) = subview(j);
       io_ctrl_->saveReceiver(subset, src_coord_);
     }
-    std::ofstream fout("receiver_trace.txt");
-    fout << "# time pressure_at_receiver\n";
-    for (int t = 0; t < num_samples_; ++t) fout << t * dt_ << " " << h_pn_at_receiver_(0, t) << "\n";
-    fout.close();
     total_output_time += system_clock::now() - start_output_time;
+
+    {
+      std::ofstream fout("receiver_trace.txt");
+      fout << "# time pressure_at_receiver (" << (rcv_in_sem ? "SEM" : "DG") << " domain)\n";
+      for (int t = 0; t < num_samples_; ++t) fout << t * dt_ << " " << h_pn_at_receiver_(0, t) << "\n";
+    }
 
   } else if (is_acousto_elastic_) {
     WavefieldAcoustoElastic wavefield(pn_global_prev_, pn_global_curr_, uxn_global_prev_, uxn_global_curr_,
