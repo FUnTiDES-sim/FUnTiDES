@@ -189,6 +189,9 @@ class DGSEMsolver : public Solver {
   vectorInt SEm_node_list_;
 
   float const DG_SEM_interface_z_ = 1000.f;  ///< Z coordinate of the DG-SEM interface
+  // Penalty kept at 0: the DG sub-solver already applies SIPG on its own faces. Adding penalty
+  // here in the post-Verlet SEM correction would double-count it and destabilise the scheme.
+  real_t m_penalty_factor_ = 10.0f;
 };
 
 }  // namespace fe

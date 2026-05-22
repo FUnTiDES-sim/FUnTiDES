@@ -176,7 +176,7 @@ class DGsolver : public Solver {
     for (int i = 0; i < m_n_elem_list_; ++i) {
       const int e = m_elem_list_[i];
       for (int f = 0; f < 6; ++f) {
-        const int face_id = m_mesh.getGlobalFace(e, static_cast<model::CubicFace>(f));
+        const int face_id = m_face_connectivity_.getGlobalFace(e, static_cast<model::CubicFace>(f));
         visited_faces.insert(face_id);
       }
     }
@@ -192,6 +192,8 @@ class DGsolver : public Solver {
   MESH_TYPE m_mesh;
   model::FaceConnectivityUnstruct<float, int> m_face_connectivity_;
   real_t m_penalty_factor_ = 10.0f;
+
+ public:
 
   // List state used by updateFieldsFromList.
   bool m_list_mode_ = false;
