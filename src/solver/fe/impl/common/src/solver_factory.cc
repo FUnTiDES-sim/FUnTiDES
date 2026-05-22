@@ -191,7 +191,7 @@ std::unique_ptr<Solver> makeDgSemSolverUnstruct(bool isModelOnNodes, feenum::phy
  */
 template <auto ImplTag>
 std::unique_ptr<Solver> makeDgSemSolver(int order, feenum::meshType mesh, feenum::modelLocationType modelLocation,
-                                     feenum::physicType physic) {
+                                        feenum::physicType physic) {
   bool const isModelOnNodes = (modelLocation == feenum::modelLocationType::kOnNodes);
   return orderDispatch<MAX_DG_SEM_SOLVER_ACOUSTIC_ORDER>(order, [&](auto orderIC) {
     constexpr int ORDER = decltype(orderIC)::value;

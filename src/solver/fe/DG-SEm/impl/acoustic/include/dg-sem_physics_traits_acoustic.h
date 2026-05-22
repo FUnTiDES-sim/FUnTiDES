@@ -1,8 +1,8 @@
 #ifndef FUNTIDES_SOLVER_FE_DG_SEM_IMPL_ACOUSTIC_INCLUDE_DG_SEM_PHYSICS_TRAITS_ACOUSTIC_H_
 #define FUNTIDES_SOLVER_FE_DG_SEM_IMPL_ACOUSTIC_INCLUDE_DG_SEM_PHYSICS_TRAITS_ACOUSTIC_H_
 
-#include "dg-sem_wavefield_acoustic.h"
 #include "dg-sem_rhs_acoustic.h"
+#include "dg-sem_wavefield_acoustic.h"
 
 namespace solver {
 namespace fe {

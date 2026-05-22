@@ -14,7 +14,7 @@ namespace fe {
 /**
  * @brief Data structure passed to DGSEMsolver at each time step.
  *
- * Combines the acoustic wavefield of the DG domain, the acoustic wavefield of the SEM domain, 
+ * Combines the acoustic wavefield of the DG domain, the acoustic wavefield of the SEM domain,
  * and the acoustic source term.
  */
 struct DGSEMsolverData : public Solver::DataStruct {
