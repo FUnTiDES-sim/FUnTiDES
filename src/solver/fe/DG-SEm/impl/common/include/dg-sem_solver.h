@@ -132,17 +132,22 @@ class DGSEMsolver : public Solver {
   void computeOneStep(const float& dt, const int& timeSample, DataStruct& data) override;
 
   /**
-   * @brief Apply DG→SEM coupling post-Verlet.
-   * @param dt   Time step.
-   * @param data Coupled solver data.
-   */
-  void ApplyCouplingDGToSEM(float dt, const DataType& data);
-
-  /**
-   * @brief Apply SEM→DG coupling post-Verlet.
+   * @brief Compute SIPG interface flux contribution on the DG side.
+   *
+   * Reads p^n from both domains (no temporal lag). Accumulates into DG m_stiff_local_,
+   * consumed by applyVerlet.
    * @param data Coupled solver data.
    */
   void ApplyCouplingSEMToDG(const DataType& data);
+
+  /**
+   * @brief Compute SIPG interface flux contribution on the SEM side.
+   *
+   * Reads p^n from both domains (no temporal lag). Accumulates into SEM
+   * workVectorsGlobal_[0] (pre-Verlet force vector, Verlet applies dt²/M).
+   * @param data Coupled solver data.
+   */
+  void ApplyCouplingDGToSEM(const DataType& data);
 
   void outputSolutionValues(const int& t, int& e, const vectorReal& field, const char* fieldName) override;
   void outputSolutionValues(const int& t, int& e, const arrayReal& field, const char* fieldName) override;
@@ -188,10 +193,16 @@ class DGSEMsolver : public Solver {
   /// interface, size num_SEm_nodes_).
   vectorInt SEm_node_list_;
 
+  int m_n_DG_interior_faces_{0};  ///< Count of DG interior faces (excludes DG-SEM interface faces)
+  /// @brief Compact list of DG interior face indices (DG-DG faces only, excludes interface).
+  vectorInt m_DG_interior_face_list_;
+
+  /// @brief Build m_DG_interior_face_list_ from all DG faces minus interface faces.
+  void BuildDGInteriorFaceList();
+
   float const DG_SEM_interface_z_ = 1000.f;  ///< Z coordinate of the DG-SEM interface
-  // Penalty kept at 0: the DG sub-solver already applies SIPG on its own faces. Adding penalty
-  // here in the post-Verlet SEM correction would double-count it and destabilise the scheme.
-  real_t m_penalty_factor_ = 10.0f;
+  /// @brief SIPG penalty factor for DG-SEM interface coupling (matches DG internal penalty).
+  real_t m_penalty_factor_ = 15.0f;
 };
 
 }  // namespace fe
