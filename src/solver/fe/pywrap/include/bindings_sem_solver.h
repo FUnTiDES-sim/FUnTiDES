@@ -65,6 +65,13 @@ void bind_sem_solver_base(py::module_ &m) {
             return self.getMassMatrixAcoustic();
           },
           py::return_value_policy::reference_internal)
+      .def(
+          "get_force_vector",
+          [](Solver &self, int component) -> Kokkos::Experimental::python_view_type_t<vectorReal> {
+            return self.getForceVector(component);
+          },
+          py::arg("component"),
+          py::return_value_policy::reference_internal)
       .def("output_solution_values",
            static_cast<void (Solver::*)(const int &, int &, const vectorReal &, const char *)>(
                &Solver::outputSolutionValues),
