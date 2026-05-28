@@ -330,6 +330,12 @@ void DGSEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::c
   auto& myData = dynamic_cast<DataType&>(data);
   int const nNode = m_mesh_.getNumberOfNodes();
 
+  if (myData.isDistributed) {
+      throw std::runtime_error(
+          "computeOneStep called in distributed mode. Use computeForces() -> "
+          "synchronize() -> updateSolution().");
+  }
+
   // Sub-solver data views are constructed once and reused throughout the step.
   DGsolverDataAcoustic DG_data(myData.m_wavefield.m_DGacoustic, myData.m_rhs.m_rhs_DGacoustic);
 

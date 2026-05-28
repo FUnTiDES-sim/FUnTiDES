@@ -36,6 +36,8 @@ struct DGSEMsolverData : public Solver::DataStruct {
 
   DGSEMWavefieldAcoustic m_wavefield;  ///< Combined wavefield (p + u)
   DGSEMRhsAcoustic m_rhs;              ///< Acoustic source
+  
+  bool isDistributed{false};
 };
 
 }  // namespace fe
