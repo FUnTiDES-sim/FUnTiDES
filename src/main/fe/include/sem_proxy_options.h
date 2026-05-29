@@ -12,10 +12,10 @@ class SemProxyOptions {
  public:
   // Defaults
   int order = 2;
-  int ex = 50, ey = 50, ez = 50;
+  int ex = 100, ey = 100, ez = 100;
   float lx = 2000.f, ly = 2000.f, lz = 2000.f;
-  float srcx = 990.f, srcy = 990.f, srcz = 990.f;
-  float rcvx = 1310.f, rcvy = 1310.f, rcvz = 1310.f;
+  float srcx = 990.f, srcy = 990.f, srcz = 1310.f;
+  float rcvx = 1310.f, rcvy = 1310.f, rcvz = 210.f;
   float f0 = 5.0f;       // dominant frequency of the source in Hz
   int ricker_order = 2;  // order of the Ricker wavelet source
   float tpeak = 0.2f;    // peak time of the Ricker wavelet source
@@ -88,6 +88,8 @@ class SemProxyOptions {
         "is-acousto-elastic", "Acousto-elastic coupled simulation", cxxopts::value<bool>(o.isAcoustoElastic))(
         "acousto-elastic-boundary-z", "Z coordinate of the fluid–solid interface (meters)",
         cxxopts::value<float>(o.acoustoElasticBoundaryZ))(
+        "dg-sem-boundary-z", "Z coordinate of the DG-SEM interface (meters)",
+        cxxopts::value<float>(o.DgSemBoundaryZ))(
         "free-surface", "Enable free surface on top boundary (Z+). Default: true",
         cxxopts::value<bool>(o.free_surface))("anisotropy", "Anisotropy type for elastic: iso|vti|tti (default=iso)",
                                               cxxopts::value<std::string>(o.anisotropy))(

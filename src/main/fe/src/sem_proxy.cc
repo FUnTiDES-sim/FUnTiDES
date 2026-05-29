@@ -63,6 +63,11 @@ void SEMproxy::SetupSolver(const SemProxyOptions& opt) {
 
   solver_ = createSolver(method_type, implem_type, mesh_type, model_location, physic_type, opt.order);
 
+  if (is_dg_sem_) {
+    dg_sem_iface_z_ = (opt.DgSemBoundaryZ > 0.f) ? opt.DgSemBoundaryZ : opt.lz * 0.5f;
+    solver_->setDgSemBoundaryZ(dg_sem_iface_z_);
+  }
+
   const model::AnisotropyType anisotropy_type = GetAnisotropy(opt.anisotropy);
   sponge_size_ = {opt.boundaries_size, opt.boundaries_size, opt.boundaries_size};
   surface_sponge_ = opt.surface_sponge;
@@ -270,9 +275,9 @@ void SEMproxy::Run() {
 
     DGSEMsolverData dg_sem_data(wavefield, rhs);
 
-    bool const rcv_in_sem = (rcv_coord_[2] >= domain_size_[2] * 0.5f);
+    bool const rcv_in_sem = (rcv_coord_[2] >= dg_sem_iface_z_);
     std::cout << "DG-SEM receiver domain: " << (rcv_in_sem ? "SEM" : "DG")
-              << "  z=" << rcv_coord_[2] << "  iface_z=" << domain_size_[2] * 0.5f << std::endl;
+              << "  z=" << rcv_coord_[2] << "  iface_z=" << dg_sem_iface_z_ << std::endl;
 
     for (int time_index = 0; time_index < num_samples_; time_index++) {
       start_compute_time = system_clock::now();
@@ -299,9 +304,15 @@ void SEMproxy::Run() {
           const int ex = num_elements_[0];
           const int ey = num_elements_[1];
           const int ez = num_elements_[2];
-          const int zElem = ez / 4;  // DG domain occupies lower half; slice at quarter
+          const int ez_dg = (int)std::round(ez * dg_sem_iface_z_ / domain_size_[2]);
+          const int zElem = ez_dg / 2;
           const int n1d = order + 1;
           const int icZ = order / 2;
+
+          if (time_index == snap_time_interval_) {
+            std::ofstream fiface("dgsem_interface_row.txt");
+            fiface << ez_dg * n1d << "\n";
+          }
 
           std::ostringstream fname_dg;
           fname_dg << "slice_dgsem_dg_" << std::setfill('0') << std::setw(5) << time_index << ".dat";
@@ -326,7 +337,8 @@ void SEMproxy::Run() {
           const int nx = num_nodes_[0];
           const int ny = num_nodes_[1];
           const int nz = num_nodes_[2];
-          const int z_slice = nz * 3 / 4;  // SEM domain occupies upper half; slice at 3/4
+          const int nz_dg_nodes = ez_dg * order;
+          const int z_slice = nz_dg_nodes + (nz - nz_dg_nodes) / 2;
           std::ostringstream fname_sem;
           fname_sem << "slice_dgsem_sem_" << std::setfill('0') << std::setw(5) << time_index << ".dat";
           std::ofstream fslice_sem(fname_sem.str());
@@ -350,7 +362,7 @@ void SEMproxy::Run() {
           fname_xz << "slice_dgsem_xz_" << std::setfill('0') << std::setw(5) << time_index << ".dat";
           std::ofstream fxz(fname_xz.str());
 
-          for (int ez_i = 0; ez_i < ez / 2; ++ez_i) {
+          for (int ez_i = 0; ez_i < ez_dg; ++ez_i) {
             for (int iz_dof = 0; iz_dof < n1d; ++iz_dof) {
               for (int ix = 0; ix < nx; ++ix) {
                 int const ix_e = (ix == nx - 1) ? ex - 1 : ix / order;
@@ -364,7 +376,7 @@ void SEMproxy::Run() {
             }
           }
 
-          for (int iz = nz / 2; iz < nz; ++iz) {
+          for (int iz = nz_dg_nodes; iz < nz; ++iz) {
             for (int ix = 0; ix < nx; ++ix) {
               int const node_idx = ix + iy_mid_sem * nx + iz * nx * ny;
               fxz << h_sem(node_idx);
@@ -842,7 +854,7 @@ void SEMproxy::InitSource() {
       }
     }
   } else if (is_dg_sem_) {
-    float const iface_z = domain_size_[2] * 0.5f;
+    float const iface_z = dg_sem_iface_z_;
     if (src_coord_[2] < iface_z)
       for (int j = 0; j < num_samples_; j++) h_rhs_term_dg_(0, j) = source_term[j];
     else

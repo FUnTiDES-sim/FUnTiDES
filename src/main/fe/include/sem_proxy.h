@@ -114,6 +114,7 @@ class SEMproxy {
   bool free_surface_ = false;        ///< True if the top boundary acts as a free surface.
   bool is_dg_ = false;               ///< True if using Discontinuous Galerkin method.
   bool is_dg_sem_ = false;           ///< True if using Discontinuous Galerkin - Spectral Element method coupling.
+  float dg_sem_iface_z_ = 1000.f;   ///< Z coordinate of the DG-SEM interface.
 
   std::array<float, 3> sponge_size_ = {0, 0, 0};  ///< Thickness of absorbing boundaries (sponge layers).
   bool surface_sponge_ = false;                   ///< True if the top surface has an absorbing boundary.
