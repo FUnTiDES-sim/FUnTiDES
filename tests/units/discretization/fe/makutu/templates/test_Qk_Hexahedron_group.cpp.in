@@ -1,6 +1,6 @@
 // Auto-generated file - DO NOT EDIT
-// Generated for: Qk Hexahedron tests, order @ORDER@ (@QK_TYPE@)
-// To modify tests, edit: tests/units/discretization/fe/makutu/test_Qk_Hexahedron_impl.h
+// Generated for: Qk Hexahedron tests (group: @GROUP@), order @ORDER@ (@QK_TYPE@)
+// To modify tests, edit: tests/units/discretization/fe/makutu/impl/@GROUP@.h
 
 #include <gtest/gtest.h>
 #include "Qk_Hexahedron_Lagrange_GaussLobatto.h"
@@ -8,4 +8,4 @@
 // Single element type for this binary (order @ORDER@)
 using TestedBases = ::testing::Types<@QK_TYPE@>;
 
-#include "test_Qk_Hexahedron_impl.h"
+#include "impl/@GROUP@.h"
