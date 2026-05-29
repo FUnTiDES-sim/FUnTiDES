@@ -29,8 +29,7 @@ struct DGSEMRhsAcoustic : public Rhs {
    * @param weights        Per-node weights for source distribution.
    */
   DGSEMRhsAcoustic(arrayReal dg_acoustic_term, arrayReal sem_acoustic_term, vectorInt element, arrayReal weights)
-      : m_rhs_DGacoustic(dg_acoustic_term, element, weights),
-        m_rhs_SEMacoustic(sem_acoustic_term, element, weights) {}
+      : m_rhs_DGacoustic(dg_acoustic_term, element, weights), m_rhs_SEMacoustic(sem_acoustic_term, element, weights) {}
 
   int getNumRhsComponents() const override final { return kNumRhsComponents; }
 
@@ -52,8 +51,8 @@ struct DGSEMRhsAcoustic : public Rhs {
     m_rhs_SEMacoustic.print();
   }
 
-  RhsAcoustic m_rhs_DGacoustic;  ///< Acoustic (fluid) source
-  RhsAcoustic m_rhs_SEMacoustic;    ///< Elastic (solid) source
+  RhsAcoustic m_rhs_DGacoustic;   ///< Acoustic (fluid) source
+  RhsAcoustic m_rhs_SEMacoustic;  ///< Elastic (solid) source
 };
 
 }  // namespace fe

@@ -188,6 +188,8 @@ class DGsolver : public Solver {
     }
   }
 
+  real_t getPenaltyFactor() const { return m_penalty_factor_; }
+
  private:
   MESH_TYPE m_mesh;
   model::FaceConnectivityUnstruct<float, int> m_face_connectivity_;

@@ -5,13 +5,13 @@
 #include <cmath>
 
 #include "data_type.h"
+#include "dg-sem_physics_traits_acoustic.h"
+#include "dg-sem_solver_data.h"
+#include "dg_solver.h"
 #include "face_connectivity_unstruct.h"
 #include "model.h"
 #include "sem_enums.h"
 #include "sem_solver.h"
-#include "dg_solver.h"
-#include "dg-sem_solver_data.h"
-#include "dg-sem_physics_traits_acoustic.h"
 #include "solver.h"
 
 namespace solver {
@@ -34,13 +34,12 @@ static constexpr int kElementTypeSEM = 2;
  * @tparam IS_MODEL_ON_NODES If true, material properties are stored on nodes.
  * @tparam PHYSICS           Physical model type (Acoustic).
  */
-template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE, bool IS_MODEL_ON_NODES, utils::enums::physicType PHYSICS>
+template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE, bool IS_MODEL_ON_NODES,
+          utils::enums::physicType PHYSICS>
 class DGSEMsolver : public Solver {
  public:
-  using dgSolver =
-      DGsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>;
-  using semSolver =
-      SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>;
+  using dgSolver = DGsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>;
+  using semSolver = SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>;
   using DataType = DGSEMsolverData;
 
   DGSEMsolver() = default;
@@ -87,8 +86,8 @@ class DGSEMsolver : public Solver {
     throw std::runtime_error("getMassMatrixElastic not implemented for DG-SEM coupling");
   }
 
-  vectorReal& getDampingMatrix(int c) override { 
-    throw std::runtime_error("getDampingMatrix not implemented for DG"); 
+  vectorReal& getDampingMatrix(int c) override {
+    throw std::runtime_error("getDampingMatrix not implemented for DG");
     // Maybe return SEM damping matrix
   }
 
@@ -100,7 +99,7 @@ class DGSEMsolver : public Solver {
   void updateSolution(const float& dt, DataStruct& data) override {
     // Here for retrocompatibility
   }
-  
+
   void setAnisotropyType(model::AnisotropyType type) override {
     // TODO: Implement anisotropy setting
   }
@@ -165,7 +164,6 @@ class DGSEMsolver : public Solver {
   /// Number of interface faces (adjacent to both domains).
   int getNumInterfaceFaces() const { return num_interface_faces_; }
 
-
  private:
   dgSolver m_DG_solver_;    ///< DG sub-solver
   semSolver m_SEm_solver_;  ///< SEm sub-solver
@@ -176,8 +174,8 @@ class DGSEMsolver : public Solver {
 
   /// Per-element type tag (kElementTypeAcoustic or kElementTypeElastic).
   vectorInt m_element_type_;
-  
-  int num_interface_faces_{0};    ///< Count of interface faces
+
+  int num_interface_faces_{0};  ///< Count of interface faces
   /// Compact list of global interface face indices (size n_interface_faces_).
   vectorInt m_interface_face_indices_;
 

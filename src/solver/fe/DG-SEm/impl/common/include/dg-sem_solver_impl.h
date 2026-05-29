@@ -19,7 +19,8 @@ namespace fe {
 // computeFEInit
 //============================================================================
 
-template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE, bool IS_MODEL_ON_NODES, utils::enums::physicType PHYSICS>
+template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE, bool IS_MODEL_ON_NODES,
+          utils::enums::physicType PHYSICS>
 void DGSEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::computeFEInit(
     model::ModelApi<float, int>& mesh_in, const std::array<float, 3>& sponge_size, const bool surface_sponge,
     const float taper_delta) {
@@ -38,8 +39,8 @@ void DGSEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::c
   allocateFEarrays();
 
   TagElements();
-  std::cout << "DGSEMsolver: " << num_SEm_elements_ << " SEm elements, " << num_DG_elements_
-            << " DG elements." << std::endl;
+  std::cout << "DGSEMsolver: " << num_SEm_elements_ << " SEm elements, " << num_DG_elements_ << " DG elements."
+            << std::endl;
 
   TagNodes();
   std::cout << "DGSEMsolver: " << num_interface_faces_ << " interface faces." << std::endl;
@@ -49,7 +50,8 @@ void DGSEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::c
 // allocateFEarrays
 //============================================================================
 
-template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE, bool IS_MODEL_ON_NODES, utils::enums::physicType PHYSICS>
+template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE, bool IS_MODEL_ON_NODES,
+          utils::enums::physicType PHYSICS>
 void DGSEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::allocateFEarrays() {
   int const nElem = m_mesh_.getNumberOfElements();
   m_element_type_ = allocateVector<vectorInt>(nElem, "DGSEMElementType");
@@ -59,12 +61,13 @@ void DGSEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::a
 // TagElements
 //============================================================================
 
-template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE, bool IS_MODEL_ON_NODES, utils::enums::physicType PHYSICS>
+template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE, bool IS_MODEL_ON_NODES,
+          utils::enums::physicType PHYSICS>
 void DGSEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::TagElements() {
   int const nElem = m_mesh_.getNumberOfElements();
   int n_dg = 0;
   int n_sem = 0;
-  
+
   int const mid = ORDER / 2;
   for (int e = 0; e < nElem; ++e) {
     int const gIdx = m_mesh_.globalNodeIndex(e, mid, mid, mid);
@@ -97,7 +100,8 @@ void DGSEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::T
 // TagNodes
 //============================================================================
 
-template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE, bool IS_MODEL_ON_NODES, utils::enums::physicType PHYSICS>
+template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE, bool IS_MODEL_ON_NODES,
+          utils::enums::physicType PHYSICS>
 void DGSEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::TagNodes() {
   int const nNode = m_mesh_.getNumberOfNodes();
   int const nElem = m_mesh_.getNumberOfElements();
@@ -228,7 +232,8 @@ void DGSEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::B
 // ApplyCouplingSEMToDG — SIPG flux: SEM pressure → DG stiff_local_
 //============================================================================
 
-template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE, bool IS_MODEL_ON_NODES, utils::enums::physicType PHYSICS>
+template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE, bool IS_MODEL_ON_NODES,
+          utils::enums::physicType PHYSICS>
 void DGSEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::ApplyCouplingSEMToDG(
     const DataType& data) {
   auto mesh_local = m_mesh_;
@@ -398,12 +403,19 @@ void DGSEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::A
 // computeOneStep  (staggered DG-SEM coupling scheme)
 //============================================================================
 
-template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE, bool IS_MODEL_ON_NODES, utils::enums::physicType PHYSICS>
+template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE, bool IS_MODEL_ON_NODES,
+          utils::enums::physicType PHYSICS>
 void DGSEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::computeOneStep(const float& dt,
-                                                                                                 const int& timeSample,
-                                                                                                 DataStruct& data) {
+                                                                                              const int& timeSample,
+                                                                                              DataStruct& data) {
   auto& myData = dynamic_cast<DataType&>(data);
   int const nNode = m_mesh_.getNumberOfNodes();
+
+  if (myData.isDistributed) {
+      throw std::runtime_error(
+          "computeOneStep called in distributed mode. Use computeForces() -> "
+          "synchronize() -> updateSolution().");
+  }
 
   // Sub-solver data views are constructed once and reused throughout the step.
   DGsolverDataAcoustic DG_data(myData.m_wavefield.m_DGacoustic, myData.m_rhs.m_rhs_DGacoustic);
@@ -466,7 +478,8 @@ void DGSEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::c
 // outputSolutionValues (SEM solution output: p[nNodes])
 //============================================================================
 
-template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE, bool IS_MODEL_ON_NODES, utils::enums::physicType PHYSICS>
+template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE, bool IS_MODEL_ON_NODES,
+          utils::enums::physicType PHYSICS>
 void DGSEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::outputSolutionValues(
     const int& t, int& e, const vectorReal& field, const char* fieldName) {
   m_SEm_solver_.outputSolutionValues(t, e, field, fieldName);
@@ -476,7 +489,8 @@ void DGSEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::o
 // outputSolutionValues (DG solution output: p[nElem][nDof])
 //============================================================================
 
-template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE, bool IS_MODEL_ON_NODES, utils::enums::physicType PHYSICS>
+template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE, bool IS_MODEL_ON_NODES,
+          utils::enums::physicType PHYSICS>
 void DGSEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::outputSolutionValues(
     const int& t, int& e, const arrayReal& field, const char* fieldName) {
   m_DG_solver_.outputSolutionValues(t, e, field, fieldName);

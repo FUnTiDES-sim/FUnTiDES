@@ -3,8 +3,8 @@
 
 #include <data_type.h>
 
-#include "wavefield_acoustic.h"
 #include "dg_wavefield_acoustic.h"
+#include "wavefield_acoustic.h"
 
 namespace solver {
 namespace fe {
@@ -33,46 +33,34 @@ struct DGSEMWavefieldAcoustic {
    * @brief Get the current field of DG.
    */
   PROXY_HOST_DEVICE
-  arrayReal getDGCurrentField(int i) const {
-    return m_DGacoustic.getCurrentField(0);
-  }
+  arrayReal getDGCurrentField(int i) const { return m_DGacoustic.getCurrentField(0); }
 
   /**
    * @brief Get the current field of SEM.
    */
   PROXY_HOST_DEVICE
-  vectorReal getSEMCurrentField(int i) const {
-    return m_SEMacoustic.getCurrentField(0);
-  }
+  vectorReal getSEMCurrentField(int i) const { return m_SEMacoustic.getCurrentField(0); }
 
   /**
    * @brief Get the previous field of DG.
    */
   PROXY_HOST_DEVICE
-  arrayReal getDGPreviousField(int i) const {
-    return m_DGacoustic.getPreviousField(0);
-  }
+  arrayReal getDGPreviousField(int i) const { return m_DGacoustic.getPreviousField(0); }
 
   /**
    * @brief Get the previous field of SEM.
    */
   PROXY_HOST_DEVICE
-  vectorReal getSEMPreviousField(int i) const {
-    return m_SEMacoustic.getPreviousField(0);
-  }
+  vectorReal getSEMPreviousField(int i) const { return m_SEMacoustic.getPreviousField(0); }
 
   void swap() {
     m_DGacoustic.swap();
     m_SEMacoustic.swap();
   }
 
-  void swapWithRotationDG(arrayReal& prevPrevBuffer, int i) {
-    m_DGacoustic.swapWithRotation(prevPrevBuffer, 0);
-  }
+  void swapWithRotationDG(arrayReal& prevPrevBuffer, int i) { m_DGacoustic.swapWithRotation(prevPrevBuffer, 0); }
 
-  void swapWithRotationSEM(vectorReal& prevPrevBuffer, int i) {
-    m_SEMacoustic.swapWithRotation(prevPrevBuffer, 0);
-  }
+  void swapWithRotationSEM(vectorReal& prevPrevBuffer, int i) { m_SEMacoustic.swapWithRotation(prevPrevBuffer, 0); }
 
   void print() const {
     m_DGacoustic.print();
@@ -80,7 +68,7 @@ struct DGSEMWavefieldAcoustic {
   }
 
   DGWavefieldAcoustic m_DGacoustic;  ///< Acoustic pressure wavefield for DG
-  WavefieldAcoustic m_SEMacoustic;    ///< Acoustic pressure wavefield for SEM
+  WavefieldAcoustic m_SEMacoustic;   ///< Acoustic pressure wavefield for SEM
 };
 
 }  // namespace fe

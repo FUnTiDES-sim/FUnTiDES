@@ -14,8 +14,8 @@ class SemProxyOptions {
   int order = 2;
   int ex = 100, ey = 100, ez = 100;
   float lx = 2000.f, ly = 2000.f, lz = 2000.f;
-  float srcx = 990.f, srcy = 990.f, srcz = 1310.f;
-  float rcvx = 1310.f, rcvy = 1310.f, rcvz = 210.f;
+  float srcx = 1010.f, srcy = 1010.f, srcz = 1010.f;
+  float rcvx = 1310.f, rcvy = 1310.f, rcvz = 1310.f;
   float f0 = 5.0f;       // dominant frequency of the source in Hz
   int ricker_order = 2;  // order of the Ricker wavelet source
   float tpeak = 0.2f;    // peak time of the Ricker wavelet source
@@ -39,7 +39,7 @@ class SemProxyOptions {
   bool isElastic = false;
   bool isAcoustoElastic = false;
   float acoustoElasticBoundaryZ = 0.f;
-  float DgSemBoundaryZ =  0.f;
+  float DgSemBoundaryZ = 1000.f;
   bool free_surface = false;
   std::string model_file{""};
   float qp = -1.0f;  // quality factor for P-waves (<0 = not set)
@@ -71,7 +71,7 @@ class SemProxyOptions {
         "lz", "Domain size Z (Cartesian)", cxxopts::value<float>(o.lz))("implem", "Implementation: makutu",
                                                                         cxxopts::value<std::string>(o.implem))(
         "method", "Method: sem|dg|dg-sem", cxxopts::value<std::string>(o.method))("mesh", "Mesh: cartesian|ucartesian",
-                                                                           cxxopts::value<std::string>(o.mesh))(
+                                                                                  cxxopts::value<std::string>(o.mesh))(
         "dt", "Time step selection in s (default = 0.001s)", cxxopts::value<float>(o.dt))(
         "timemax", "Duration of the simulation in s (default = 1.5s)", cxxopts::value<float>(o.timemax))(
         "auto-dt", "Select automatique dt via CFL equation.", cxxopts::value<bool>(o.autodt))(
