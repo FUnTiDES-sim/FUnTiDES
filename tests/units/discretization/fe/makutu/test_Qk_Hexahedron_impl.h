@@ -1,7 +1,7 @@
-/**
- * @file test_Qk_Hexahedron.cpp
- * @brief Unit tests for Qk hexahedral elements
- */
+#pragma once
+// Shared implementation header for per-order Qk Hexahedron test binaries.
+// TestedBases must be defined BEFORE including this header (done in the
+// auto-generated per-order driver produced from templates/test_Qk_Hexahedron.cpp.in).
 
 #include <gtest/gtest.h>
 
@@ -75,7 +75,7 @@ void createUnitHex(real_t (&X)[8][3]) {
 /**
  * @brief Helper to compute matrix-matrix product
  */
-void matMul3x3(real_t const (&A)[3][3], real_t const (&B)[3][3], real_t (&C)[3][3]) {
+inline void matMul3x3(real_t const (&A)[3][3], real_t const (&B)[3][3], real_t (&C)[3][3]) {
   for (int i = 0; i < 3; ++i)
     for (int j = 0; j < 3; ++j) {
       C[i][j] = 0.0;
@@ -86,7 +86,7 @@ void matMul3x3(real_t const (&A)[3][3], real_t const (&B)[3][3], real_t (&C)[3][
 /**
  * @brief Check if matrix is identity
  */
-bool isIdentity(real_t const (&M)[3][3], double tol = TOL) {
+inline bool isIdentity(real_t const (&M)[3][3], double tol = TOL) {
   for (int i = 0; i < 3; ++i)
     for (int j = 0; j < 3; ++j) {
       real_t expected = (i == j) ? 1.0 : 0.0;
@@ -98,10 +98,7 @@ bool isIdentity(real_t const (&M)[3][3], double tol = TOL) {
 // ============================================================================
 // TEST FIXTURES
 // ============================================================================
-
-using TestedBases = ::testing::Types<Q1_Hexahedron_Lagrange_GaussLobatto, Q2_Hexahedron_Lagrange_GaussLobatto,
-                                     Q3_Hexahedron_Lagrange_GaussLobatto, Q4_Hexahedron_Lagrange_GaussLobatto,
-                                     Q5_Hexahedron_Lagrange_GaussLobatto>;
+// NOTE: TestedBases is defined by the per-order driver that includes this header.
 
 template <typename QK_BASIS>
 class MassMatrixTest : public ::testing::Test {};
