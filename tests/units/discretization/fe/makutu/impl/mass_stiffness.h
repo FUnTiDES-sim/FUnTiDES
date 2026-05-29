@@ -23,13 +23,11 @@ TYPED_TEST(MassMatrixTest, MassMatrixSumEqualsVolume_VariousCubes) {
     real_t expectedVolume;
   };
 
-  CubeConfig configs[] = {
-      {0.0, 0.0, 0.0, 1.0, 1.0},
-      {-1.0, -1.0, -1.0, 2.0, 8.0},
-      {5.0, 3.0, -2.0, 0.5, 0.125},
-      {-10.0, -5.0, 2.0, 3.0, 27.0},
-      {1.5, -0.5, 0.3, 2.5, 15.625}
-  };
+  CubeConfig configs[] = {{0.0, 0.0, 0.0, 1.0, 1.0},
+                          {-1.0, -1.0, -1.0, 2.0, 8.0},
+                          {5.0, 3.0, -2.0, 0.5, 0.125},
+                          {-10.0, -5.0, 2.0, 3.0, 27.0},
+                          {1.5, -0.5, 0.3, 2.5, 15.625}};
 
   for (const auto& config : configs) {
     real_t X[8][3];
@@ -43,8 +41,7 @@ TYPED_TEST(MassMatrixTest, MassMatrixSumEqualsVolume_VariousCubes) {
 
     EXPECT_NEAR(totalMass, config.expectedVolume, TOL_NUMERICAL)
         << "Sum of mass matrix should equal element volume"
-        << " for cube at (" << config.x0 << "," << config.y0 << "," << config.z0
-        << ") with size " << config.size;
+        << " for cube at (" << config.x0 << "," << config.y0 << "," << config.z0 << ") with size " << config.size;
   }
 }
 
@@ -90,8 +87,7 @@ TYPED_TEST(StiffnessMatrixTest, StiffnessTimesConstantIsZero_VariousCubes) {
     for (int i = 0; i < numNodes; ++i) {
       EXPECT_NEAR(Ku[i], 0.0, TOL_NUMERICAL)
           << "K*u should be zero for constant u (partition of unity property)"
-          << " for cube at (" << config.x0 << "," << config.y0 << "," << config.z0
-          << ") with size " << config.size;
+          << " for cube at (" << config.x0 << "," << config.y0 << "," << config.z0 << ") with size " << config.size;
     }
   }
 }
@@ -110,8 +106,7 @@ TYPED_TEST(StiffnessMatrixTest, StiffnessMatrixIsSymmetric) {
   for (int i = 0; i < numNodes; ++i) {
     for (int j = i + 1; j < numNodes; ++j) {
       EXPECT_NEAR(K[i][j], K[j][i], TOL_NUMERICAL)
-          << "Stiffness matrix should be symmetric: K[" << i << "][" << j
-          << "] != K[" << j << "][" << i << "]";
+          << "Stiffness matrix should be symmetric: K[" << i << "][" << j << "] != K[" << j << "][" << i << "]";
     }
   }
 }

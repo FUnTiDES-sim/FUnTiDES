@@ -32,9 +32,8 @@ TYPED_TEST(JacobianTest, JacobianDeterminantPositive_VariousCubes) {
 
       real_t detJ = determinant(J);
 
-      EXPECT_GT(detJ, 0.0) << "Jacobian determinant should be positive at quadrature point " << q
-                           << " for cube at (" << config.x0 << "," << config.y0 << "," << config.z0
-                           << ") with size " << config.size;
+      EXPECT_GT(detJ, 0.0) << "Jacobian determinant should be positive at quadrature point " << q << " for cube at ("
+                           << config.x0 << "," << config.y0 << "," << config.z0 << ") with size " << config.size;
     }
   }
 }
@@ -71,9 +70,8 @@ TYPED_TEST(JacobianTest, InverseJacobianCorrectness_VariousCubes) {
       matMul3x3(J, invJ, identity);
 
       EXPECT_TRUE(isIdentity(identity, TOL_MATRIX_INVERSION))
-          << "J * J^-1 should equal identity matrix at quadrature point " << q
-          << " for cube at (" << config.x0 << "," << config.y0 << "," << config.z0
-          << ") with size " << config.size;
+          << "J * J^-1 should equal identity matrix at quadrature point " << q << " for cube at (" << config.x0 << ","
+          << config.y0 << "," << config.z0 << ") with size " << config.size;
     }
   }
 }
@@ -161,8 +159,7 @@ TYPED_TEST(JacobianTest, QuadratureRuleIntegratesConstant_VariousCubes) {
 
     EXPECT_NEAR(integral, config.expectedVolume, TOL_NUMERICAL)
         << "Quadrature rule should exactly integrate constant functions"
-        << " for cube at (" << config.x0 << "," << config.y0 << "," << config.z0
-        << ") with size " << config.size;
+        << " for cube at (" << config.x0 << "," << config.y0 << "," << config.z0 << ") with size " << config.size;
   }
 }
 
