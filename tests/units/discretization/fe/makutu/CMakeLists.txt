@@ -9,7 +9,7 @@ set(_QK_TEST_GROUPS
   jacobian
   interp_gradient
   indexing_bmatrix
-  face_interface_virtual
+  face_interface
   sumfact_acoustic
   sumfact_elastic
 )
