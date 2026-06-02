@@ -188,3 +188,188 @@ TYPED_TEST(JacobianTest, TransformedQuadratureWeightConsistency) {
   EXPECT_NEAR(totalWeight, expectedVolume, TOL_NUMERICAL)
       << "Sum of transformed quadrature weights should equal element volume";
 }
+
+// ============================================================================
+// INVERSE JACOBIAN TESTS
+// ============================================================================
+
+TYPED_TEST(JacobianTest, InvJacobianTransformation3IndexGivesInverse) {
+  using QK = TypeParam;
+  real_t X[8][3];
+  createArbitraryCube<QK>(X, 1.0, -0.5, 2.0, 1.5);
+
+  int numTestPoints = (QK::numQuadraturePoints < 4) ? QK::numQuadraturePoints : 4;
+  for (int q = 0; q < numTestPoints; ++q) {
+    int qa, qb, qc;
+    QK::BasisType::TensorProduct3D::multiIndex(q, qa, qb, qc);
+
+    real_t J[3][3] = {{0}};
+    QK::jacobianTransformation(qa, qb, qc, X, J);
+
+    real_t invJ[3][3] = {{0}};
+    for (int i = 0; i < 3; ++i)
+      for (int j = 0; j < 3; ++j) invJ[i][j] = J[i][j];
+
+    real_t det = QK::invJacobianTransformation(qa, qb, qc, X, invJ);
+    EXPECT_GT(std::abs(det), TOL) << "Jacobian must be invertible at q=" << q;
+
+    real_t product[3][3] = {{0}};
+    matMul3x3(J, invJ, product);
+    EXPECT_TRUE(isIdentity(product, TOL_MATRIX_INVERSION)) << "J * invJ must be identity at q=" << q;
+  }
+}
+
+TYPED_TEST(JacobianTest, InvJacobianTransformation1IndexMatchesMultiIndex) {
+  using QK = TypeParam;
+  real_t X[8][3];
+  createArbitraryCube<QK>(X, 0.0, 0.0, 0.0, 1.0);
+
+  int numTestPoints = (QK::numQuadraturePoints < 4) ? QK::numQuadraturePoints : 4;
+  for (int q = 0; q < numTestPoints; ++q) {
+    int qa, qb, qc;
+    QK::BasisType::TensorProduct3D::multiIndex(q, qa, qb, qc);
+
+    real_t invJ1[3][3] = {{0}};
+    real_t invJ2[3][3] = {{0}};
+
+    real_t det1 = QK::invJacobianTransformation(qa, qb, qc, X, invJ1);
+    real_t det2 = QK::invJacobianTransformation(q, X, invJ2);
+
+    EXPECT_NEAR(det1, det2, TOL_MATRIX_INVERSION) << "det must match between 1-index and 3-index overloads";
+    for (int i = 0; i < 3; ++i)
+      for (int j = 0; j < 3; ++j)
+        EXPECT_NEAR(invJ1[i][j], invJ2[i][j], TOL_MATRIX_INVERSION)
+            << "invJ[" << i << "][" << j << "] mismatch between overloads";
+  }
+}
+
+// ============================================================================
+// COORDS-BASED JACOBIAN OVERLOADS
+// ============================================================================
+
+TYPED_TEST(JacobianTest, JacobianTransformationCoordsMatchesIndexed) {
+  using QK = TypeParam;
+  constexpr int numNodes = QK::numNodes;
+  real_t X[8][3];
+  createArbitraryCube<QK>(X, 1.0, 2.0, -1.0, 2.0);
+
+  real_t Xfull[numNodes][3];
+  if constexpr (numNodes == 8) {
+    for (int i = 0; i < 8; ++i)
+      for (int j = 0; j < 3; ++j) Xfull[i][j] = X[i][j];
+  } else {
+    QK::computeLocalCoords(X, Xfull);
+  }
+
+  int numTestPoints = (QK::numQuadraturePoints < 4) ? QK::numQuadraturePoints : 4;
+  for (int q = 0; q < numTestPoints; ++q) {
+    int qa, qb, qc;
+    QK::BasisType::TensorProduct3D::multiIndex(q, qa, qb, qc);
+
+    real_t J_idx[3][3] = {{0}};
+    QK::jacobianTransformation(qa, qb, qc, X, J_idx);
+
+    real_t coords[3] = {static_cast<real_t>(QK::BasisType::parentSupportCoord(qa)),
+                        static_cast<real_t>(QK::BasisType::parentSupportCoord(qb)),
+                        static_cast<real_t>(QK::BasisType::parentSupportCoord(qc))};
+    real_t J_coords[3][3] = {{0}};
+    QK::jacobianTransformation(coords, Xfull, J_coords);
+
+    for (int i = 0; i < 3; ++i)
+      for (int j = 0; j < 3; ++j)
+        EXPECT_NEAR(J_idx[i][j], J_coords[i][j], TOL_MATRIX_INVERSION)
+            << "jacobianTransformation(coords) must match indexed at GLL point q=" << q;
+  }
+}
+
+TYPED_TEST(JacobianTest, JacobianTransformationWithCornersMatchesIndexed) {
+  using QK = TypeParam;
+  real_t X[8][3];
+  createArbitraryCube<QK>(X, 0.0, 0.0, 0.0, 1.0);
+
+  int numTestPoints = (QK::numQuadraturePoints < 4) ? QK::numQuadraturePoints : 4;
+  for (int q = 0; q < numTestPoints; ++q) {
+    int qa, qb, qc;
+    QK::BasisType::TensorProduct3D::multiIndex(q, qa, qb, qc);
+
+    real_t J_idx[3][3] = {{0}};
+    QK::jacobianTransformation(qa, qb, qc, X, J_idx);
+
+    real_t coords[3] = {static_cast<real_t>(QK::BasisType::parentSupportCoord(qa)),
+                        static_cast<real_t>(QK::BasisType::parentSupportCoord(qb)),
+                        static_cast<real_t>(QK::BasisType::parentSupportCoord(qc))};
+    real_t J_wc[3][3] = {{0}};
+    QK::jacobianTransformationWithCorners(coords, X, J_wc);
+
+    for (int i = 0; i < 3; ++i)
+      for (int j = 0; j < 3; ++j)
+        EXPECT_NEAR(J_idx[i][j], J_wc[i][j], TOL_MATRIX_INVERSION)
+            << "jacobianTransformationWithCorners must match indexed at GLL point q=" << q;
+  }
+}
+
+// ============================================================================
+// TENSOROPS TESTS
+// ============================================================================
+
+TEST(TensorOpsTest, Invert3x3TwoArgPreservesSource) {
+  real_t J[3][3] = {{2.0, 1.0, 0.0}, {1.0, 3.0, 1.0}, {0.0, 1.0, 2.0}};
+  real_t Jinv[3][3] = {{0}};
+  real_t Jorig[3][3];
+  for (int i = 0; i < 3; ++i)
+    for (int j = 0; j < 3; ++j) Jorig[i][j] = J[i][j];
+
+  real_t det = invert3x3(Jinv, J);
+
+  for (int i = 0; i < 3; ++i)
+    for (int j = 0; j < 3; ++j) EXPECT_NEAR(J[i][j], Jorig[i][j], TOL) << "invert3x3(Jinv, J) must not modify J";
+
+  real_t product[3][3] = {{0}};
+  matMul3x3(J, Jinv, product);
+  EXPECT_TRUE(isIdentity(product, TOL_MATRIX_INVERSION));
+
+  real_t Jcopy[3][3];
+  for (int i = 0; i < 3; ++i)
+    for (int j = 0; j < 3; ++j) Jcopy[i][j] = Jorig[i][j];
+  real_t det_inplace = invert3x3(Jcopy);
+  EXPECT_NEAR(det, det_inplace, TOL_MATRIX_INVERSION) << "2-arg and in-place must return same det";
+}
+
+TEST(TensorOpsTest, SymDeterminant2DKnownValue) {
+  // Voigt [B00, B11, B01]: det = B00*B11 - B01^2 = 4*9 - 4 = 32
+  real_t B[3] = {4.0f, 9.0f, 2.0f};
+  real_t det = symDeterminant(B);
+  EXPECT_NEAR(det, 32.0f, TOL_MATRIX_INVERSION);
+}
+
+TEST(TensorOpsTest, SymDeterminant3DIdentity) {
+  // Voigt identity [B00,B11,B22,B12,B02,B01]: det = 1
+  real_t B[6] = {1.0f, 1.0f, 1.0f, 0.0f, 0.0f, 0.0f};
+  real_t det = symDeterminant(B);
+  EXPECT_NEAR(det, 1.0f, TOL_MATRIX_INVERSION);
+}
+
+TEST(TensorOpsTest, SymInvertTwoArgDiagonalMatrix) {
+  // Diagonal: [B00=4, B11=2, B22=3, B12=0, B02=0, B01=0]
+  // inv = [1/4, 1/2, 1/3, 0, 0, 0]; symInvert is void
+  real_t J[6] = {4.0f, 2.0f, 3.0f, 0.0f, 0.0f, 0.0f};
+  real_t dst[6] = {0};
+  symInvert(dst, J);
+  EXPECT_NEAR(dst[0], 1.0f / 4.0f, TOL_MATRIX_INVERSION);
+  EXPECT_NEAR(dst[1], 1.0f / 2.0f, TOL_MATRIX_INVERSION);
+  EXPECT_NEAR(dst[2], 1.0f / 3.0f, TOL_MATRIX_INVERSION);
+  EXPECT_NEAR(dst[3], 0.0f, TOL_MATRIX_INVERSION);
+  EXPECT_NEAR(dst[4], 0.0f, TOL_MATRIX_INVERSION);
+  EXPECT_NEAR(dst[5], 0.0f, TOL_MATRIX_INVERSION);
+}
+
+TEST(TensorOpsTest, SymInvertInPlaceMatchesTwoArg) {
+  real_t J1[6] = {4.0f, 2.0f, 3.0f, 0.0f, 0.0f, 0.0f};
+  real_t dst[6] = {0};
+  symInvert(dst, J1);
+
+  real_t J2[6] = {4.0f, 2.0f, 3.0f, 0.0f, 0.0f, 0.0f};
+  symInvert(J2);
+
+  for (int i = 0; i < 6; ++i) EXPECT_NEAR(dst[i], J2[i], TOL_MATRIX_INVERSION);
+}

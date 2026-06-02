@@ -240,3 +240,71 @@ TYPED_TEST(BasisGradientTest, BasisGradientZeroAtSameNode) {
     EXPECT_NEAR(grad, 0.0, TOL) << "Basis gradient should be zero at its own interior node";
   }
 }
+
+// ============================================================================
+// COORDS-BASED GRADIENT OVERLOADS
+// ============================================================================
+
+TYPED_TEST(GradientTest, CalcGradNCoordsMatchesIndexed) {
+  using QK = TypeParam;
+  constexpr int numNodes = QK::numNodes;
+  real_t X[8][3];
+  createArbitraryCube<QK>(X, 0.5, -1.0, 1.5, 2.0);
+
+  real_t Xfull[numNodes][3];
+  if constexpr (numNodes == 8) {
+    for (int i = 0; i < 8; ++i)
+      for (int j = 0; j < 3; ++j) Xfull[i][j] = X[i][j];
+  } else {
+    QK::computeLocalCoords(X, Xfull);
+  }
+
+  int numTestPoints = (QK::numQuadraturePoints < 4) ? QK::numQuadraturePoints : 4;
+  for (int q = 0; q < numTestPoints; ++q) {
+    int qa, qb, qc;
+    QK::BasisType::TensorProduct3D::multiIndex(q, qa, qb, qc);
+
+    real_t gradN_idx[numNodes][3] = {{0}};
+    real_t detJ_idx = QK::calcGradN(q, Xfull, gradN_idx);
+
+    real_t coords[3] = {static_cast<real_t>(QK::BasisType::parentSupportCoord(qa)),
+                        static_cast<real_t>(QK::BasisType::parentSupportCoord(qb)),
+                        static_cast<real_t>(QK::BasisType::parentSupportCoord(qc))};
+    real_t gradN_coords[numNodes][3] = {{0}};
+    real_t detJ_coords = QK::calcGradN(coords, Xfull, gradN_coords);
+
+    EXPECT_NEAR(detJ_idx, detJ_coords, TOL_NUMERICAL) << "detJ mismatch at q=" << q;
+    for (int i = 0; i < numNodes; ++i)
+      for (int j = 0; j < 3; ++j)
+        EXPECT_NEAR(gradN_idx[i][j], gradN_coords[i][j], TOL_NUMERICAL)
+            << "calcGradN(coords) must match indexed at GLL point q=" << q;
+  }
+}
+
+TYPED_TEST(GradientTest, CalcGradNWithCornersCoordsMatchesIndexed) {
+  using QK = TypeParam;
+  constexpr int numNodes = QK::numNodes;
+  real_t X[8][3];
+  createArbitraryCube<QK>(X, 0.0, 0.0, 0.0, 1.0);
+
+  int numTestPoints = (QK::numQuadraturePoints < 4) ? QK::numQuadraturePoints : 4;
+  for (int q = 0; q < numTestPoints; ++q) {
+    int qa, qb, qc;
+    QK::BasisType::TensorProduct3D::multiIndex(q, qa, qb, qc);
+
+    real_t gradN_idx[numNodes][3] = {{0}};
+    real_t detJ_idx = QK::calcGradNWithCorners(q, X, gradN_idx);
+
+    real_t coords[3] = {static_cast<real_t>(QK::BasisType::parentSupportCoord(qa)),
+                        static_cast<real_t>(QK::BasisType::parentSupportCoord(qb)),
+                        static_cast<real_t>(QK::BasisType::parentSupportCoord(qc))};
+    real_t gradN_coords[numNodes][3] = {{0}};
+    real_t detJ_coords = QK::calcGradNWithCorners(coords, X, gradN_coords);
+
+    EXPECT_NEAR(detJ_idx, detJ_coords, TOL_NUMERICAL) << "detJ mismatch at q=" << q;
+    for (int i = 0; i < numNodes; ++i)
+      for (int j = 0; j < 3; ++j)
+        EXPECT_NEAR(gradN_idx[i][j], gradN_coords[i][j], TOL_NUMERICAL)
+            << "calcGradNWithCorners(coords) must match indexed at GLL point q=" << q;
+  }
+}
