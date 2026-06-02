@@ -42,7 +42,7 @@ TEST(CartesianParamsTest, ParameterizedConstructorSetsFields) {
 // ============================================================================
 
 TEST(CartesianUnstructBuilderTest, InvalidOrderThrows) {
-  auto p = makeParams(10, 1, 1, 1, 10.0f, 10.0f, 10.0f, false, false);
+  auto p = makeParams(-1, 1, 1, 1, 10.0f, 10.0f, 10.0f, false, false);
   EXPECT_THROW((CartesianUnstructBuilder<float, int>(p)), std::runtime_error);
 }
 
@@ -128,6 +128,9 @@ TEST(CartesianUnstructBuilderTest, AcoustoElasticElementsBuildsValidModel) {
   ASSERT_NE(model, nullptr);
   EXPECT_EQ(model->getNumberOfElements(), 2 * 2 * 4);
   EXPECT_FLOAT_EQ(model->domainSize(2), 200.0f);
+  // k=0: centroid_z=25 < 100 → elastic; k=3: centroid_z=175 >= 100 → fluid
+  EXPECT_FLOAT_EQ(model->getModelVsOnElement(0), 1500.0f);
+  EXPECT_FLOAT_EQ(model->getModelVsOnElement(12), 0.0f);
 }
 
 // ============================================================================
@@ -142,6 +145,9 @@ TEST(CartesianUnstructBuilderTest, AcoustoElasticNodesBuildsValidModel) {
   auto model = b.getModel(true);
   ASSERT_NE(model, nullptr);
   EXPECT_TRUE(model->isModelOnNodes());
+  // nx=ny=3, nz=5; node 0: z=0 < 100 → elastic; node 36 (global_k=4): z=200 >= 100 → fluid
+  EXPECT_FLOAT_EQ(model->getModelVsOnNodes(0), 1500.0f);
+  EXPECT_FLOAT_EQ(model->getModelVsOnNodes(36), 0.0f);
 }
 
 // ============================================================================
@@ -153,7 +159,8 @@ TEST(CartesianUnstructBuilderTest, GetModelHasFaceConnectivity) {
   CartesianUnstructBuilder<float, int> b(p);
   auto model = b.getModel(true);
   ASSERT_NE(model, nullptr);
-  EXPECT_GT(model->getNumberOfFaces(), 0);
+  // 2x2x2 mesh: (2+1)*2*2 + 2*(2+1)*2 + 2*2*(2+1) = 36 faces
+  EXPECT_EQ(model->getNumberOfFaces(), 36);
 }
 
 // ============================================================================
@@ -167,7 +174,9 @@ TEST(CartesianUnstructBuilderTest, FreeSurfaceFlagProducesValidModel) {
   auto model_no_fs = b.getModel(false);
   ASSERT_NE(model_fs, nullptr);
   ASSERT_NE(model_no_fs, nullptr);
-  EXPECT_EQ(model_fs->getNumberOfElements(), model_no_fs->getNumberOfElements());
+  // nx=ny=nz=3; node at (0,0,2)=18 sits at z=z_max=100 → Surface when free_surface_on_top
+  EXPECT_TRUE(model_fs->isFreeSurface(18));
+  EXPECT_FALSE(model_no_fs->isFreeSurface(18));
 }
 
 // ============================================================================

@@ -16,6 +16,9 @@ TEST(GLLPointsTest, NumPointsEqualsOrderPlusOne) {
 
 // ============================================================================
 // Out-of-range inputs
+// GLLPoints::get is PROXY_HOST_DEVICE (GPU-callable); throwing exceptions from
+// device code is undefined behaviour in CUDA. Returning 0 is the intentional
+// GPU-safe contract for invalid inputs.
 // ============================================================================
 
 TEST(GLLPointsTest, InvalidOrderZeroReturnsZero) { EXPECT_FLOAT_EQ(GLLPoints::get(0, 0), 0.0f); }

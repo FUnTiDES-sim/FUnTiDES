@@ -963,9 +963,8 @@ TYPED_TEST(ModelStructTest, InitElasticityTensorsVTIReturnsEarly) {
   data.isModelOnNodes_ = false;
 
   ModelStructType model(data);
-  // kVTI should return early (no tensor allocation)
-  model.initElasticityTensors(model::kVTI);
-  SUCCEED();
+  // kVTI returns early without allocating the C-tensor array
+  EXPECT_NO_THROW(model.initElasticityTensors(model::kVTI));
 }
 
 // ============================================================================

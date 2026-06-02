@@ -114,6 +114,7 @@ TEST(CartesianStructBuilderAETest, AcoustoElasticElementsBuildsValidModel) {
   ASSERT_NE(model, nullptr);
   EXPECT_EQ(model->getNumberOfElements(), 2 * 2 * 4);
   EXPECT_FLOAT_EQ(model->domainSize(2), 200.0f);
+  EXPECT_FALSE(model->isModelOnNodes());
 }
 
 // ============================================================================

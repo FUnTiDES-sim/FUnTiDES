@@ -158,8 +158,8 @@ TYPED_TEST(JacobianTest, QuadratureRuleIntegratesConstant_VariousCubes) {
     }
 
     EXPECT_NEAR(integral, config.expectedVolume, TOL_NUMERICAL)
-        << "Quadrature rule should exactly integrate constant functions"
-        << " for cube at (" << config.x0 << "," << config.y0 << "," << config.z0 << ") with size " << config.size;
+        << "Quadrature rule should exactly integrate constant functions" << " for cube at (" << config.x0 << ","
+        << config.y0 << "," << config.z0 << ") with size " << config.size;
   }
 }
 

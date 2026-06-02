@@ -40,8 +40,8 @@ TYPED_TEST(MassMatrixTest, MassMatrixSumEqualsVolume_VariousCubes) {
     for (int i = 0; i < numNodes; ++i) totalMass += mass[i];
 
     EXPECT_NEAR(totalMass, config.expectedVolume, TOL_NUMERICAL)
-        << "Sum of mass matrix should equal element volume"
-        << " for cube at (" << config.x0 << "," << config.y0 << "," << config.z0 << ") with size " << config.size;
+        << "Sum of mass matrix should equal element volume" << " for cube at (" << config.x0 << "," << config.y0 << ","
+        << config.z0 << ") with size " << config.size;
   }
 }
 
@@ -86,8 +86,8 @@ TYPED_TEST(StiffnessMatrixTest, StiffnessTimesConstantIsZero_VariousCubes) {
 
     for (int i = 0; i < numNodes; ++i) {
       EXPECT_NEAR(Ku[i], 0.0, TOL_NUMERICAL)
-          << "K*u should be zero for constant u (partition of unity property)"
-          << " for cube at (" << config.x0 << "," << config.y0 << "," << config.z0 << ") with size " << config.size;
+          << "K*u should be zero for constant u (partition of unity property)" << " for cube at (" << config.x0 << ","
+          << config.y0 << "," << config.z0 << ") with size " << config.size;
     }
   }
 }

@@ -225,9 +225,8 @@ TYPED_TEST(BasisGradientTest, BasisGradientSymmetryProperty) {
       real_t g1 = QK::basisGradientAt(q, p);
       real_t g2 = QK::basisGradientAt(num1d - 1 - q, num1d - 1 - p);
 
-      EXPECT_NEAR(g1, -g2, TOL) << "Basis gradient should satisfy symmetry property: "
-                                << "grad(" << q << "," << p << ") = -grad(" << (num1d - 1 - q) << "," << (num1d - 1 - p)
-                                << ")";
+      EXPECT_NEAR(g1, -g2, TOL) << "Basis gradient should satisfy symmetry property: " << "grad(" << q << "," << p
+                                << ") = -grad(" << (num1d - 1 - q) << "," << (num1d - 1 - p) << ")";
     }
   }
 }
