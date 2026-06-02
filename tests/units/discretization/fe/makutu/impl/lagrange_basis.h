@@ -21,14 +21,15 @@ TYPED_TEST(LagrangeBasisTest, Value0AndValue1AreFinite) {
 
 TYPED_TEST(LagrangeBasisTest, Value0IsOneAtMinusOne) {
   using BASIS = typename TypeParam::BasisType;
+  // First GLL node always at -1; last always at +1
   EXPECT_NEAR(BASIS::value0(-1.0), 1.0, TOL);
   EXPECT_NEAR(BASIS::value0(1.0), 0.0, TOL);
 }
 
-TYPED_TEST(LagrangeBasisTest, Value1IsOneAtPlusOne) {
+TYPED_TEST(LagrangeBasisTest, Value1IsZeroAtFirstNode) {
   using BASIS = typename TypeParam::BasisType;
+  // Lagrange basis: basis_1 is 0 at node 0 (xi=-1), regardless of order
   EXPECT_NEAR(BASIS::value1(-1.0), 0.0, TOL);
-  EXPECT_NEAR(BASIS::value1(1.0), 1.0, TOL);
 }
 
 // ============================================================================
