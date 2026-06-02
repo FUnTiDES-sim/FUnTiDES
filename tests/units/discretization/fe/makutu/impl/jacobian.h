@@ -203,13 +203,11 @@ TYPED_TEST(JacobianTest, InvJacobianTransformation3IndexGivesInverse) {
     int qa, qb, qc;
     QK::BasisType::TensorProduct3D::multiIndex(q, qa, qb, qc);
 
+    // jacobianTransformation accumulates (+=) into J, so both must start zeroed
     real_t J[3][3] = {{0}};
     QK::jacobianTransformation(qa, qb, qc, X, J);
 
     real_t invJ[3][3] = {{0}};
-    for (int i = 0; i < 3; ++i)
-      for (int j = 0; j < 3; ++j) invJ[i][j] = J[i][j];
-
     real_t det = QK::invJacobianTransformation(qa, qb, qc, X, invJ);
     EXPECT_GT(std::abs(det), TOL) << "Jacobian must be invertible at q=" << q;
 
