@@ -52,3 +52,37 @@ unset(_QK_TEST_ORDERS)
 unset(_QK_TEST_GROUPS)
 unset(_gen_file)
 unset(_target)
+
+# ============================================================================
+# lagrange_basis group runs for ALL orders 1-9 so that LagrangeBasis4GL-9GL
+# functions (compiled but never called by existing tests) get coverage.
+# ============================================================================
+
+set(GROUP "lagrange_basis")
+foreach(ORDER RANGE 1 9)
+  set(QK_TYPE "Q${ORDER}_Hexahedron_Lagrange_GaussLobatto")
+  set(_gen_file "${CMAKE_CURRENT_BINARY_DIR}/test_Qk_Hexahedron_Q${ORDER}_lagrange_basis.cpp")
+
+  configure_file(
+    "${CMAKE_CURRENT_SOURCE_DIR}/templates/test_Qk_Hexahedron_group.cpp.in"
+    "${_gen_file}"
+    @ONLY
+  )
+
+  set(_target "semkernels_qk_hexahedron_Q${ORDER}_lagrange_basis_test")
+  add_gtest(${_target}
+    ${_gen_file}
+    discretization
+  )
+
+  target_include_directories(${_target} PRIVATE
+    ${CMAKE_SOURCE_DIR}/src
+    ${CMAKE_SOURCE_DIR}/src/finiteElement
+    ${CMAKE_SOURCE_DIR}/src/finiteElement/makutu
+    ${CMAKE_SOURCE_DIR}/src/common
+    ${CMAKE_CURRENT_SOURCE_DIR}
+  )
+endforeach()
+
+unset(_gen_file)
+unset(_target)
