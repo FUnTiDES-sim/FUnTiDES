@@ -40,8 +40,8 @@ TYPED_TEST(MassMatrixTest, MassMatrixSumEqualsVolume_VariousCubes) {
     for (int i = 0; i < numNodes; ++i) totalMass += mass[i];
 
     EXPECT_NEAR(totalMass, config.expectedVolume, TOL_NUMERICAL)
-        << "Sum of mass matrix should equal element volume"
-        << " for cube at (" << config.x0 << "," << config.y0 << "," << config.z0 << ") with size " << config.size;
+        << "Sum of mass matrix should equal element volume" << " for cube at (" << config.x0 << "," << config.y0 << ","
+        << config.z0 << ") with size " << config.size;
   }
 }
 
@@ -86,8 +86,8 @@ TYPED_TEST(StiffnessMatrixTest, StiffnessTimesConstantIsZero_VariousCubes) {
 
     for (int i = 0; i < numNodes; ++i) {
       EXPECT_NEAR(Ku[i], 0.0, TOL_NUMERICAL)
-          << "K*u should be zero for constant u (partition of unity property)"
-          << " for cube at (" << config.x0 << "," << config.y0 << "," << config.z0 << ") with size " << config.size;
+          << "K*u should be zero for constant u (partition of unity property)" << " for cube at (" << config.x0 << ","
+          << config.y0 << "," << config.z0 << ") with size " << config.size;
     }
   }
 }
@@ -109,4 +109,44 @@ TYPED_TEST(StiffnessMatrixTest, StiffnessMatrixIsSymmetric) {
           << "Stiffness matrix should be symmetric: K[" << i << "][" << j << "] != K[" << j << "][" << i << "]";
     }
   }
+}
+
+// ============================================================================
+// computeStiffNessTermwithJac — covers computeGradPhiGradPhi
+// ============================================================================
+
+TYPED_TEST(StiffnessMatrixTest, StiffNessTermWithJacIsSymmetric) {
+  using QK = TypeParam;
+  constexpr int numNodes = QK::numNodes;
+
+  real_t X[8][3];
+  createArbitraryCube<QK>(X, 1.5, -2.3, 0.8, 1.2);
+
+  // Accumulate sum over all (r,s) directions into a single K[i][j]
+  real_t K[numNodes][numNodes] = {{0}};
+  QK::computeStiffNessTermwithJac(
+      X, [](int, int, int, real_t const(&)[3][3]) {}, [&](int i, int j, real_t val, int, int) { K[i][j] += val; });
+
+  for (int i = 0; i < numNodes; ++i)
+    for (int j = i + 1; j < numNodes; ++j)
+      EXPECT_NEAR(K[i][j], K[j][i], TOL_NUMERICAL)
+          << "computeStiffNessTermwithJac: K[" << i << "][" << j << "] != K[" << j << "][" << i << "]";
+}
+
+TYPED_TEST(StiffnessMatrixTest, StiffNessTermWithJacConstantFieldIsZero) {
+  using QK = TypeParam;
+  constexpr int numNodes = QK::numNodes;
+
+  real_t X[8][3];
+  createArbitraryCube<QK>(X, 0.0, 0.0, 0.0, 1.0);
+
+  // Ku[i][r] = sum_j sum_s K_{ij}^{rs} * 1 — must be zero (partition of unity for gradients)
+  real_t Ku[numNodes][3] = {{0}};
+  QK::computeStiffNessTermwithJac(
+      X, [](int, int, int, real_t const(&)[3][3]) {}, [&](int i, int j, real_t val, int r, int) { Ku[i][r] += val; });
+
+  for (int i = 0; i < numNodes; ++i)
+    for (int r = 0; r < 3; ++r)
+      EXPECT_NEAR(Ku[i][r], 0.0f, TOL_NUMERICAL)
+          << "computeStiffNessTermwithJac: K*1 should be zero at node " << i << " dir " << r;
 }

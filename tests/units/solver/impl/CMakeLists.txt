@@ -35,6 +35,11 @@ add_gtest(sem_solver_acoustoelastic_test
   proxy_solver
 )
 
+add_gtest(physics_traits_test
+  test_physics_traits.cc
+  proxy_solver
+)
+
 add_gtest(solver_data_test
   test_solver_data.cc
   proxy_solver
@@ -62,6 +67,18 @@ add_gtest(sem_solver_elastic_test
   proxy_solver
 )
 target_link_libraries(sem_solver_elastic_test PRIVATE proxy_model_builder_cartesian)
+
+add_gtest(boundary_synchronizer_test
+  test_boundary_synchronizer.cc
+  proxy_solver
+)
+
+if(COMPILE_DG)
+  add_gtest(dg_solver_factory_test
+    test_dg_solver_factory.cc
+    proxy_solver
+  )
+endif()
 
 if(USE_MPI)
 add_executable(test_mpi_partitioning test_mpi_partitioning.cc)

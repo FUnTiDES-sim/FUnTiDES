@@ -133,7 +133,7 @@ class Qk_Hexahedron_Lagrange_GaussLobatto final {
    * @return The interpolation coefficient
    */
   constexpr static real_t interpolationCoord(const int q, const int k) {
-    const real_t alpha = (GL_BASIS::parentSupportCoord(q) + 1.0) / 2.0;
+    const real_t alpha = static_cast<real_t>((GL_BASIS::parentSupportCoord(q) + 1.0) / 2.0);
     return k == 0 ? (1.0 - alpha) : alpha;
   }
 
@@ -698,10 +698,12 @@ PROXY_HOST_DEVICE void Qk_Hexahedron_Lagrange_GaussLobatto<GL_BASIS>::supportLoo
   for (int c = 0; c < num1dNodes; ++c) {
     for (int b = 0; b < num1dNodes; ++b) {
       for (int a = 0; a < num1dNodes; ++a) {
-        real_t const dNdXi[3] = {
-            GL_BASIS::gradient(a, coords[0]) * GL_BASIS::value(b, coords[1]) * GL_BASIS::value(c, coords[2]),
-            GL_BASIS::value(a, coords[0]) * GL_BASIS::gradient(b, coords[1]) * GL_BASIS::value(c, coords[2]),
-            GL_BASIS::value(a, coords[0]) * GL_BASIS::value(b, coords[1]) * GL_BASIS::gradient(c, coords[2])};
+        real_t const dNdXi[3] = {static_cast<real_t>(GL_BASIS::gradient(a, coords[0]) * GL_BASIS::value(b, coords[1]) *
+                                                     GL_BASIS::value(c, coords[2])),
+                                 static_cast<real_t>(GL_BASIS::value(a, coords[0]) * GL_BASIS::gradient(b, coords[1]) *
+                                                     GL_BASIS::value(c, coords[2])),
+                                 static_cast<real_t>(GL_BASIS::value(a, coords[0]) * GL_BASIS::value(b, coords[1]) *
+                                                     GL_BASIS::gradient(c, coords[2]))};
 
         int const nodeIndex = GL_BASIS::TensorProduct3D::linearIndex(a, b, c);
 
@@ -910,9 +912,9 @@ PROXY_HOST_DEVICE void Qk_Hexahedron_Lagrange_GaussLobatto<GL_BASIS>::jacobianTr
         int qa, qb, qc;
         GL_BASIS::TensorProduct3D::multiIndex(nodeIndex, qa, qb, qc);
         real_t Xnode[3];
-        real_t alpha = (GL_BASIS::parentSupportCoord(qa) + 1.0) / 2.0;
-        real_t beta = (GL_BASIS::parentSupportCoord(qb) + 1.0) / 2.0;
-        real_t gamma = (GL_BASIS::parentSupportCoord(qc) + 1.0) / 2.0;
+        real_t alpha = static_cast<real_t>((GL_BASIS::parentSupportCoord(qa) + 1.0) / 2.0);
+        real_t beta = static_cast<real_t>((GL_BASIS::parentSupportCoord(qb) + 1.0) / 2.0);
+        real_t gamma = static_cast<real_t>((GL_BASIS::parentSupportCoord(qc) + 1.0) / 2.0);
         trilinearInterp(alpha, beta, gamma, X, Xnode);
         for (int i = 0; i < 3; ++i) {
           for (int j = 0; j < 3; ++j) {
@@ -941,9 +943,9 @@ PROXY_HOST_DEVICE void Qk_Hexahedron_Lagrange_GaussLobatto<GL_BASIS>::computeLoc
   int qa, qb, qc;
   for (int q = 0; q < numNodes; q++) {
     GL_BASIS::TensorProduct3D::multiIndex(q, qa, qb, qc);
-    real_t alpha = (GL_BASIS::parentSupportCoord(qa) + 1.0) / 2.0;
-    real_t beta = (GL_BASIS::parentSupportCoord(qb) + 1.0) / 2.0;
-    real_t gamma = (GL_BASIS::parentSupportCoord(qc) + 1.0) / 2.0;
+    real_t alpha = static_cast<real_t>((GL_BASIS::parentSupportCoord(qa) + 1.0) / 2.0);
+    real_t beta = static_cast<real_t>((GL_BASIS::parentSupportCoord(qb) + 1.0) / 2.0);
+    real_t gamma = static_cast<real_t>((GL_BASIS::parentSupportCoord(qc) + 1.0) / 2.0);
     trilinearInterp(alpha, beta, gamma, Xmesh, X[q]);
   }
 }
@@ -1002,7 +1004,7 @@ PROXY_HOST_DEVICE void Qk_Hexahedron_Lagrange_GaussLobatto<GL_BASIS>::computeGra
       ifb = 1;
       break;
   }
-  const real_t kW2D = GL_BASIS::weight(kQfa) * GL_BASIS::weight(kQfb);
+  const real_t kW2D = static_cast<real_t>(GL_BASIS::weight(kQfa) * GL_BASIS::weight(kQfb));
   real_t B[3];
   real_t J[3][2] = {{0}};
   jacobianTransformation2d(kQfa, kQfb, kX, J);
@@ -1049,7 +1051,7 @@ PROXY_HOST_DEVICE real_t Qk_Hexahedron_Lagrange_GaussLobatto<GL_BASIS>::computeD
                                                                                            real_t const (&X)[4][3]) {
   int qa, qb;
   GL_BASIS::TensorProduct2D::multiIndex(q, qa, qb);
-  const real_t w2D = GL_BASIS::weight(qa) * GL_BASIS::weight(qb);
+  const real_t w2D = static_cast<real_t>(GL_BASIS::weight(qa) * GL_BASIS::weight(qb));
   real_t B[3];
   real_t J[3][2] = {{0}};
   jacobianTransformation2d(qa, qb, X, J);
@@ -1084,7 +1086,7 @@ template <int qa, int qb, int qc, typename FUNC1, typename FUNC2>
 PROXY_HOST_DEVICE void Qk_Hexahedron_Lagrange_GaussLobatto<GL_BASIS>::computeGradPhiBGradPhi(real_t const (&B)[6],
                                                                                              FUNC1 &&func1,
                                                                                              FUNC2 &&func2) {
-  const real_t w = GL_BASIS::weight(qa) * GL_BASIS::weight(qb) * GL_BASIS::weight(qc);
+  const real_t w = static_cast<real_t>(GL_BASIS::weight(qa) * GL_BASIS::weight(qb) * GL_BASIS::weight(qc));
   func1(qa, qb, qc);
   for (int i = 0; i < num1dNodes; i++) {
     const int ibc = GL_BASIS::TensorProduct3D::linearIndex(i, qb, qc);
@@ -1321,7 +1323,7 @@ PROXY_HOST_DEVICE void Qk_Hexahedron_Lagrange_GaussLobatto<GL_BASIS>::computeGra
                                                                                             FUNC1 &&func1,
                                                                                             FUNC2 &&func2) {
   real_t const detJ = invert3x3(J.data);
-  const real_t w = GL_BASIS::weight(qa) * GL_BASIS::weight(qb) * GL_BASIS::weight(qc);
+  const real_t w = static_cast<real_t>(GL_BASIS::weight(qa) * GL_BASIS::weight(qb) * GL_BASIS::weight(qc));
   func1(qa, qb, qc, J.data);
 #pragma unroll 1
   for (int i = 0; i < num1dNodes; i++) {
