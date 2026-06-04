@@ -14,10 +14,8 @@ namespace solver {
 namespace fe {
 
 void bind_dg_acoustic_data(py::module_ &m) {
-  py::class_<DGsolverDataAcoustic, Solver::DataStruct, std::shared_ptr<DGsolverDataAcoustic>>(
-      m, "DGsolverDataAcoustic")
-      .def(py::init<const DGWavefieldAcoustic &, const RhsAcoustic &>(), py::arg("wavefield"),
-           py::arg("rhs"))
+  py::class_<DGsolverDataAcoustic, Solver::DataStruct, std::shared_ptr<DGsolverDataAcoustic>>(m, "DGsolverDataAcoustic")
+      .def(py::init<const DGWavefieldAcoustic &, const RhsAcoustic &>(), py::arg("wavefield"), py::arg("rhs"))
       .def("swap_wavefields", &DGsolverDataAcoustic::swapWavefields)
       .def("print", &DGsolverDataAcoustic::print);
 }
