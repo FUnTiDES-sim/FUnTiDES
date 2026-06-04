@@ -5,7 +5,7 @@ add_subdirectory(acoustic)
 add_subdirectory(common)
 add_subdirectory(elastic)
 
-set(INV_LIBS discretization proxy_utils proxy_model_struct proxy_model_unstruct funtides_gradient_api proxy_model_api)
+set(INV_LIBS discretization fun_utils proxy_model_struct proxy_model_unstruct funtides_gradient_api proxy_model_api)
 
 target_link_kokkos_if_enabled(funtides_gradient)
 

@@ -38,7 +38,7 @@
 #       proxy_model_struct
 #       proxy_model_unstruct
 #       discretization
-#       proxy_utils
+#       fun_utils
 #     THREADS
 #       2 4 8
 #     LABELS 

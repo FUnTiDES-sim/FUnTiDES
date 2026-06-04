@@ -7,5 +7,5 @@ target_include_directories(proxy_model_api
 
 target_link_libraries(proxy_model_api
   INTERFACE
-    proxy_utils
+    fun_utils
 )

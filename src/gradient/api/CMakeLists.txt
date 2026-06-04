@@ -8,5 +8,5 @@ target_include_directories(funtides_gradient_api
 target_link_libraries(funtides_gradient_api
   INTERFACE
     proxy_model_api
-    proxy_utils
+    fun_utils
 )

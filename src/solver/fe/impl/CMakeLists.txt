@@ -10,7 +10,7 @@ add_subdirectory(acoustoelastic)
 add_subdirectory(common)
 add_subdirectory(elastic)
 
-set(SOLV_LIBS discretization proxy_utils proxy_model_struct proxy_model_unstruct fun_solver_api proxy_model_api)
+set(SOLV_LIBS discretization fun_utils proxy_model_struct proxy_model_unstruct fun_solver_api proxy_model_api)
 
 target_link_kokkos_if_enabled(fun_solver)
 

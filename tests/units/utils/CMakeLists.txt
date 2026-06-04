@@ -1,6 +1,6 @@
 add_gtest(common_macros_find_max_1d_test
   test_common_macros_find_max_1d.cc
-  proxy_utils
+  fun_utils
 )
 
 add_gtest(das_receiver_test
@@ -10,7 +10,7 @@ add_gtest(das_receiver_test
 
 add_gtest(evaluate_ricker_test
   test_evaluate_ricker.cc
-  proxy_utils
+  fun_utils
 )
 
 add_gtest(source_and_receiver_utils_test
@@ -20,5 +20,5 @@ add_gtest(source_and_receiver_utils_test
 
 add_gtest(args_parse_test
   test_args_parse.cc
-  proxy_utils
+  fun_utils
 )

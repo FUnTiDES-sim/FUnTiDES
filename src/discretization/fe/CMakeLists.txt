@@ -6,4 +6,4 @@ target_include_directories( discretization INTERFACE
                           )
 message(STATUS "Binary include dir: ${CMAKE_BINARY_DIR}/include")
 
-target_link_libraries( discretization INTERFACE proxy_utils )
+target_link_libraries( discretization INTERFACE fun_utils )
