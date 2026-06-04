@@ -7,6 +7,11 @@
 #include "bindings_sem_solver.h"
 #include "bindings_wavefield.h"
 
+#ifdef COMPILE_DG
+#include "bindings_dg_solver.h"
+#include "bindings_dg_wavefield.h"
+#endif
+
 namespace py = pybind11;
 
 PYBIND11_MODULE(solver, m) {
@@ -37,4 +42,12 @@ PYBIND11_MODULE(solver, m) {
   // Bind Solver
   solver::fe::bind_sem_solver_base(m);
   solver::fe::bind_solver_factory(m);
+
+#ifdef COMPILE_DG
+  // Bind DG Wavefield
+  solver::fe::bind_dg_wavefield_acoustic(m);
+
+  // Bind DG Data Structures
+  solver::fe::bind_dg_acoustic_data(m);
+#endif
 }
