@@ -5,7 +5,7 @@ add_gtest(common_macros_find_max_1d_test
 
 add_gtest(das_receiver_test
   test_das_receiver.cc
-  discretization
+  fun_discretization
 )
 
 add_gtest(evaluate_ricker_test
@@ -15,7 +15,7 @@ add_gtest(evaluate_ricker_test
 
 add_gtest(source_and_receiver_utils_test
   test_source_and_receiver_utils.cc
-  discretization
+  fun_discretization
 )
 
 add_gtest(args_parse_test

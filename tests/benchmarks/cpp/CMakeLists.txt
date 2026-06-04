@@ -7,7 +7,7 @@ add_benchmark(bench_solver_fe_cartesian_struct_acoustic
    fun_solver
    proxy_model_builder_cartesian
    proxy_model_struct
-   discretization
+   fun_discretization
    fun_utils
  THREADS
    1 2 4 8 16 32 64
@@ -25,7 +25,7 @@ add_benchmark(bench_solver_fe_cartesian_struct_elastic
    fun_solver
    proxy_model_builder_cartesian
    proxy_model_struct
-   discretization
+   fun_discretization
    fun_utils
  THREADS
    1 2 4 8 16 32 64
@@ -44,7 +44,7 @@ add_benchmark(bench_solver_fe_cartesian_unstruct_acoustic
    fun_solver
    proxy_model_builder_cartesian
    proxy_model_unstruct
-   discretization
+   fun_discretization
    fun_utils
  THREADS
    1 2 4 8 16 32 64
@@ -62,7 +62,7 @@ add_benchmark(bench_solver_fe_cartesian_unstruct_elastic
    fun_solver
    proxy_model_builder_cartesian
    proxy_model_unstruct
-   discretization
+   fun_discretization
    fun_utils
  THREADS
    1 2 4 8 16 32 64

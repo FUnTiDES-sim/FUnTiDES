@@ -37,7 +37,7 @@
 #       proxy_model_builder_cartesian
 #       proxy_model_struct
 #       proxy_model_unstruct
-#       discretization
+#       fun_discretization
 #       fun_utils
 #     THREADS
 #       2 4 8

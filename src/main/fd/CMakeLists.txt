@@ -14,7 +14,7 @@ if(COMPILE_FD)
 
   target_link_libraries(funtides-fd
     PRIVATE
-      discretization
+      fun_discretization
       fun_utils
       fd_grid
       fd_solver
