@@ -1,11 +1,11 @@
-add_library(proxy_solver_api INTERFACE)
+add_library(fun_solver_api INTERFACE)
 
-target_include_directories(proxy_solver_api
+target_include_directories(fun_solver_api
   INTERFACE
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
 )
 
-target_link_libraries(proxy_solver_api
+target_link_libraries(fun_solver_api
   INTERFACE
     proxy_model_api
     proxy_utils

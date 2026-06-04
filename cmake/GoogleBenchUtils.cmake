@@ -33,7 +33,7 @@
 #     INCLUDES
 #       ${CMAKE_CURRENT_SOURCE_DIR}/include
 #     LIBS
-#       proxy_solver
+#       fun_solver
 #       proxy_model_builder_cartesian
 #       proxy_model_struct
 #       proxy_model_unstruct

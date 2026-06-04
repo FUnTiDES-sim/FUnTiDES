@@ -4,7 +4,7 @@ add_benchmark(bench_solver_fe_cartesian_struct_acoustic
  INCLUDES
    ${CMAKE_CURRENT_SOURCE_DIR}/include
  LIBS
-   proxy_solver
+   fun_solver
    proxy_model_builder_cartesian
    proxy_model_struct
    discretization
@@ -22,7 +22,7 @@ add_benchmark(bench_solver_fe_cartesian_struct_elastic
  INCLUDES
    ${CMAKE_CURRENT_SOURCE_DIR}/include
  LIBS
-   proxy_solver
+   fun_solver
    proxy_model_builder_cartesian
    proxy_model_struct
    discretization
@@ -41,7 +41,7 @@ add_benchmark(bench_solver_fe_cartesian_unstruct_acoustic
  INCLUDES
    ${CMAKE_CURRENT_SOURCE_DIR}/include
  LIBS
-   proxy_solver
+   fun_solver
    proxy_model_builder_cartesian
    proxy_model_unstruct
    discretization
@@ -59,7 +59,7 @@ add_benchmark(bench_solver_fe_cartesian_unstruct_elastic
  INCLUDES
    ${CMAKE_CURRENT_SOURCE_DIR}/include
  LIBS
-   proxy_solver
+   fun_solver
    proxy_model_builder_cartesian
    proxy_model_unstruct
    discretization
