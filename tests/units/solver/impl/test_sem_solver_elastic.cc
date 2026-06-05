@@ -556,6 +556,242 @@ TEST_F(SemSolverElasticSpongeTest, ComputeOneStepWithSpongeProducesFiniteValues)
     for (int i = 0; i < numNodes_; ++i) EXPECT_TRUE(std::isfinite(data.getCurrentField(c)(i)));
 }
 
+// ======================================================================
+// setSLSAttenuation size mismatch — exercises throw in sem_solver.h
+// ======================================================================
+
+TEST_P(SemSolverElasticTest, SetSLSAttenuationSizeMismatchThrows) {
+  auto ref = allocateVector<vectorReal>(3, "sls_ref");
+  auto coeffs = allocateVector<vectorReal>(2, "sls_coeffs");
+  for (int i = 0; i < 3; ++i) ref(i) = 10.0f * (i + 1);
+  for (int i = 0; i < 2; ++i) coeffs(i) = 0.1f;
+  EXPECT_THROW(solver_->setSLSAttenuation(ref, coeffs), std::runtime_error);
+}
+
+// ======================================================================
+// computeOneStep in distributed mode — exercises throw in sem_solver_impl.h
+// ======================================================================
+
+TEST_P(SemSolverElasticTest, ComputeOneStepDistributedThrows) {
+  WavefieldElastic wf(uxPrev_, uxCurr_, uyPrev_, uyCurr_, uzPrev_, uzCurr_);
+  RhsElastic rhs(rhsTermx_, rhsTermy_, rhsTermz_, rhsElem_, rhsWeights_);
+  SEMsolverDataElastic data(wf, rhs, /*isDistributed=*/true);
+  EXPECT_THROW(solver_->computeOneStep(kDt, 0, data), std::runtime_error);
+}
+
+// ======================================================================
+// SLS attenuation (Iso elastic) — exercises allocateFEarrays, initFEarrays,
+// resetGlobalVectors, computeAttenuationContributionsElastic, and the
+// attenuation loop inside updateFields (elastic).
+// ======================================================================
+class SemSolverElasticAttenuationTest : public ::testing::Test {
+ protected:
+  void SetUp() override {
+    constexpr int EX = 2, EY = 2, EZ = 2;
+    constexpr float LX = 200.0f, LY = 200.0f, LZ = 200.0f;
+    model::CartesianStructBuilder<float, int, 1> b(EX, LX, EY, LY, EZ, LZ, false, true);
+    mesh_ = b.getModel(false);
+    solver_ =
+        solver_factory::createSolver(feenum::methodType::kSem, feenum::implemType::kMakutu, feenum::meshType::kStruct,
+                                     feenum::modelLocationType::kOnElements, feenum::physicType::kElastic, 1);
+    solver_->setAnisotropyType(model::AnisotropyType::kIso);
+
+    auto ref = allocateVector<vectorReal>(2, "att_ref_el");
+    auto coeffs = allocateVector<vectorReal>(2, "att_coeffs_el");
+    ref(0) = 2.0f * 3.14159f * 1.0f;
+    ref(1) = 2.0f * 3.14159f * 10.0f;
+    coeffs(0) = 0.1f;
+    coeffs(1) = 0.1f;
+    solver_->setSLSAttenuation(ref, coeffs);
+    solver_->computeFEInit(*mesh_, {0.0f, 0.0f, 0.0f}, false, 0.0f);
+
+    numNodes_ = mesh_->getNumberOfNodes();
+    constexpr int npp = 8;
+    uxPrev_ = allocateVector<vectorReal>(numNodes_, "ux_p_att");
+    uxCurr_ = allocateVector<vectorReal>(numNodes_, "ux_c_att");
+    uyPrev_ = allocateVector<vectorReal>(numNodes_, "uy_p_att");
+    uyCurr_ = allocateVector<vectorReal>(numNodes_, "uy_c_att");
+    uzPrev_ = allocateVector<vectorReal>(numNodes_, "uz_p_att");
+    uzCurr_ = allocateVector<vectorReal>(numNodes_, "uz_c_att");
+    for (int i = 0; i < numNodes_; ++i)
+      uxPrev_(i) = uxCurr_(i) = uyPrev_(i) = uyCurr_(i) = uzPrev_(i) = uzCurr_(i) = 0.0f;
+    uzCurr_(numNodes_ / 2) = 1.0f;
+    rhsTermx_ = allocateArray2D<arrayReal>(1, kNumSteps, "rtx_att");
+    rhsTermy_ = allocateArray2D<arrayReal>(1, kNumSteps, "rty_att");
+    rhsTermz_ = allocateArray2D<arrayReal>(1, kNumSteps, "rtz_att");
+    rhsElem_ = allocateVector<vectorInt>(1, "re_att");
+    rhsWeights_ = allocateArray2D<arrayReal>(1, npp, "rw_att");
+    rhsElem_(0) = 0;
+    for (int j = 0; j < npp; ++j) rhsTermx_(0, j) = rhsTermy_(0, j) = rhsTermz_(0, j) = rhsWeights_(0, j) = 0.0f;
+  }
+
+  static constexpr int kNumSteps = 10;
+  static constexpr float kDt = 0.001f;
+
+  std::shared_ptr<model::ModelApi<float, int>> mesh_;
+  std::unique_ptr<Solver> solver_;
+  int numNodes_;
+  vectorReal uxPrev_, uxCurr_, uyPrev_, uyCurr_, uzPrev_, uzCurr_;
+  arrayReal rhsTermx_, rhsTermy_, rhsTermz_;
+  vectorInt rhsElem_;
+  arrayReal rhsWeights_;
+};
+
+TEST_F(SemSolverElasticAttenuationTest, ComputeOneStepDoesNotCrash) {
+  WavefieldElastic wf(uxPrev_, uxCurr_, uyPrev_, uyCurr_, uzPrev_, uzCurr_);
+  RhsElastic rhs(rhsTermx_, rhsTermy_, rhsTermz_, rhsElem_, rhsWeights_);
+  SEMsolverDataElastic data(wf, rhs);
+  EXPECT_NO_THROW(solver_->computeOneStep(kDt, 0, data));
+}
+
+TEST_F(SemSolverElasticAttenuationTest, ComputeOneStepProducesFiniteValues) {
+  WavefieldElastic wf(uxPrev_, uxCurr_, uyPrev_, uyCurr_, uzPrev_, uzCurr_);
+  RhsElastic rhs(rhsTermx_, rhsTermy_, rhsTermz_, rhsElem_, rhsWeights_);
+  SEMsolverDataElastic data(wf, rhs);
+  for (int t = 0; t < kNumSteps; ++t) {
+    solver_->computeOneStep(kDt, t, data);
+    data.swapWavefields();
+  }
+  for (int c = 0; c < 3; ++c)
+    for (int i = 0; i < numNodes_; ++i)
+      EXPECT_TRUE(std::isfinite(data.getCurrentField(c)(i))) << "NaN/Inf field " << c << " node " << i;
+}
+
+TEST_F(SemSolverElasticAttenuationTest, ResetGlobalVectorsZerosAttenuationWorkVectors) {
+  for (int c = 0; c < 3; ++c) solver_->getForceVector(c)(0) = 99.0f;
+  solver_->resetGlobalVectors(numNodes_);
+  Kokkos::fence();
+  for (int c = 0; c < 3; ++c) EXPECT_FLOAT_EQ(solver_->getForceVector(c)(0), 0.0f) << "component " << c;
+}
+
+// ======================================================================
+// SLS attenuation (VTI) — exercises early-return path in
+// computeAttenuationContributionsElastic (anisotropyType_ != kIso).
+// ======================================================================
+class SemSolverElasticAttenuationVtiTest : public ::testing::Test {
+ protected:
+  void SetUp() override {
+    constexpr int EX = 2, EY = 2, EZ = 2;
+    constexpr float LX = 200.0f, LY = 200.0f, LZ = 200.0f;
+    model::CartesianStructBuilder<float, int, 1> b(EX, LX, EY, LY, EZ, LZ, false, true);
+    mesh_ = b.getModel(false);
+    mesh_->initElasticityTensors(model::AnisotropyType::kVTI);
+    solver_ =
+        solver_factory::createSolver(feenum::methodType::kSem, feenum::implemType::kMakutu, feenum::meshType::kStruct,
+                                     feenum::modelLocationType::kOnElements, feenum::physicType::kElastic, 1);
+    solver_->setAnisotropyType(model::AnisotropyType::kVTI);
+
+    auto ref = allocateVector<vectorReal>(2, "att_ref_vti");
+    auto coeffs = allocateVector<vectorReal>(2, "att_coeffs_vti");
+    ref(0) = 2.0f * 3.14159f * 1.0f;
+    ref(1) = 2.0f * 3.14159f * 10.0f;
+    coeffs(0) = 0.1f;
+    coeffs(1) = 0.1f;
+    solver_->setSLSAttenuation(ref, coeffs);
+    solver_->computeFEInit(*mesh_, {0.0f, 0.0f, 0.0f}, false, 0.0f);
+
+    numNodes_ = mesh_->getNumberOfNodes();
+    constexpr int npp = 8;
+    uxPrev_ = allocateVector<vectorReal>(numNodes_, "ux_p_vatt");
+    uxCurr_ = allocateVector<vectorReal>(numNodes_, "ux_c_vatt");
+    uyPrev_ = allocateVector<vectorReal>(numNodes_, "uy_p_vatt");
+    uyCurr_ = allocateVector<vectorReal>(numNodes_, "uy_c_vatt");
+    uzPrev_ = allocateVector<vectorReal>(numNodes_, "uz_p_vatt");
+    uzCurr_ = allocateVector<vectorReal>(numNodes_, "uz_c_vatt");
+    for (int i = 0; i < numNodes_; ++i)
+      uxPrev_(i) = uxCurr_(i) = uyPrev_(i) = uyCurr_(i) = uzPrev_(i) = uzCurr_(i) = 0.0f;
+    uzCurr_(numNodes_ / 2) = 1.0f;
+    rhsTermx_ = allocateArray2D<arrayReal>(1, kNumSteps, "rtx_vatt");
+    rhsTermy_ = allocateArray2D<arrayReal>(1, kNumSteps, "rty_vatt");
+    rhsTermz_ = allocateArray2D<arrayReal>(1, kNumSteps, "rtz_vatt");
+    rhsElem_ = allocateVector<vectorInt>(1, "re_vatt");
+    rhsWeights_ = allocateArray2D<arrayReal>(1, npp, "rw_vatt");
+    rhsElem_(0) = 0;
+    for (int j = 0; j < npp; ++j) rhsTermx_(0, j) = rhsTermy_(0, j) = rhsTermz_(0, j) = rhsWeights_(0, j) = 0.0f;
+  }
+
+  static constexpr int kNumSteps = 5;
+  static constexpr float kDt = 0.001f;
+
+  std::shared_ptr<model::ModelApi<float, int>> mesh_;
+  std::unique_ptr<Solver> solver_;
+  int numNodes_;
+  vectorReal uxPrev_, uxCurr_, uyPrev_, uyCurr_, uzPrev_, uzCurr_;
+  arrayReal rhsTermx_, rhsTermy_, rhsTermz_;
+  vectorInt rhsElem_;
+  arrayReal rhsWeights_;
+};
+
+// ======================================================================
+// TTI + IS_MODEL_ON_NODES=true — exercises computeCMatrix (rotation of
+// the VTI tensor into the tilted frame) called from the TTI stiffness kernel.
+// ======================================================================
+class SemSolverElasticTtiOnNodesTest : public ::testing::Test {
+ protected:
+  void SetUp() override {
+    constexpr int EX = 2, EY = 2, EZ = 2;
+    constexpr float LX = 200.0f, LY = 200.0f, LZ = 200.0f;
+    model::CartesianStructBuilder<float, int, 1> b(EX, LX, EY, LY, EZ, LZ, true, true);
+    mesh_ = b.getModel(false);
+    mesh_->initElasticityTensors(model::AnisotropyType::kTTI);
+    solver_ =
+        solver_factory::createSolver(feenum::methodType::kSem, feenum::implemType::kMakutu, feenum::meshType::kStruct,
+                                     feenum::modelLocationType::kOnNodes, feenum::physicType::kElastic, 1);
+    solver_->setAnisotropyType(model::AnisotropyType::kTTI);
+    solver_->computeFEInit(*mesh_, {0.0f, 0.0f, 0.0f}, false, 0.0f);
+
+    numNodes_ = mesh_->getNumberOfNodes();
+    constexpr int npp = 8;
+    uxPrev_ = allocateVector<vectorReal>(numNodes_, "ux_p_tni");
+    uxCurr_ = allocateVector<vectorReal>(numNodes_, "ux_c_tni");
+    uyPrev_ = allocateVector<vectorReal>(numNodes_, "uy_p_tni");
+    uyCurr_ = allocateVector<vectorReal>(numNodes_, "uy_c_tni");
+    uzPrev_ = allocateVector<vectorReal>(numNodes_, "uz_p_tni");
+    uzCurr_ = allocateVector<vectorReal>(numNodes_, "uz_c_tni");
+    for (int i = 0; i < numNodes_; ++i)
+      uxPrev_(i) = uxCurr_(i) = uyPrev_(i) = uyCurr_(i) = uzPrev_(i) = uzCurr_(i) = 0.0f;
+    uzCurr_(numNodes_ / 2) = 1.0f;
+    rhsTermx_ = allocateArray2D<arrayReal>(1, kNumSteps, "rtx_tni");
+    rhsTermy_ = allocateArray2D<arrayReal>(1, kNumSteps, "rty_tni");
+    rhsTermz_ = allocateArray2D<arrayReal>(1, kNumSteps, "rtz_tni");
+    rhsElem_ = allocateVector<vectorInt>(1, "re_tni");
+    rhsWeights_ = allocateArray2D<arrayReal>(1, npp, "rw_tni");
+    rhsElem_(0) = 0;
+    for (int j = 0; j < npp; ++j) rhsTermx_(0, j) = rhsTermy_(0, j) = rhsTermz_(0, j) = rhsWeights_(0, j) = 0.0f;
+  }
+
+  static constexpr int kNumSteps = 10;
+  static constexpr float kDt = 0.001f;
+
+  std::shared_ptr<model::ModelApi<float, int>> mesh_;
+  std::unique_ptr<Solver> solver_;
+  int numNodes_;
+  vectorReal uxPrev_, uxCurr_, uyPrev_, uyCurr_, uzPrev_, uzCurr_;
+  arrayReal rhsTermx_, rhsTermy_, rhsTermz_;
+  vectorInt rhsElem_;
+  arrayReal rhsWeights_;
+};
+
+TEST_F(SemSolverElasticTtiOnNodesTest, ComputeOneStepDoesNotCrash) {
+  WavefieldElastic wf(uxPrev_, uxCurr_, uyPrev_, uyCurr_, uzPrev_, uzCurr_);
+  RhsElastic rhs(rhsTermx_, rhsTermy_, rhsTermz_, rhsElem_, rhsWeights_);
+  SEMsolverDataElastic data(wf, rhs);
+  EXPECT_NO_THROW(solver_->computeOneStep(kDt, 0, data));
+}
+
+TEST_F(SemSolverElasticTtiOnNodesTest, ComputeOneStepProducesFiniteValues) {
+  WavefieldElastic wf(uxPrev_, uxCurr_, uyPrev_, uyCurr_, uzPrev_, uzCurr_);
+  RhsElastic rhs(rhsTermx_, rhsTermy_, rhsTermz_, rhsElem_, rhsWeights_);
+  SEMsolverDataElastic data(wf, rhs);
+  for (int t = 0; t < kNumSteps; ++t) {
+    solver_->computeOneStep(kDt, t, data);
+    data.swapWavefields();
+  }
+  for (int c = 0; c < 3; ++c)
+    for (int i = 0; i < numNodes_; ++i)
+      EXPECT_TRUE(std::isfinite(data.getCurrentField(c)(i))) << "TTI+nodes NaN/Inf field " << c << " node " << i;
+}
+
 }  // namespace test
 }  // namespace fe
 }  // namespace solver

@@ -244,6 +244,85 @@ TEST_F(DGsolverAcousticTest, OutputSolutionValues_VectorView_DoesNotCrash) {
   EXPECT_NO_THROW(solver_.outputSolutionValues(t, e, field, "pressure"));
 }
 
+// ============================================================
+// Stub override methods — must be callable without crashing
+// ============================================================
+
+TEST_F(DGsolverAcousticTest, StubOverrides_DoNotCrash) {
+  solver_.initFEarrays();
+  solver_.allocateFEarrays();
+  solver_.initSpongeValues();
+  solver_.resetGlobalVectors(nElem_);
+  solver_.computeGlobalMassMatrix();
+  solver_.computeDampingMatrix();
+  solver_.setAnisotropyType(model::AnisotropyType::kIso);
+  auto ref = allocateVector<vectorReal>(2, "sls_ref_dg");
+  ref(0) = 6.28f;
+  ref(1) = 62.8f;
+  solver_.setSLSAttenuation(ref);
+  EXPECT_EQ(solver_.getNumComponents(), 1);
+}
+
+// ============================================================
+// updateFieldsFromList — exercises faceListFromElementList and
+// the list-mode code paths in computeVolumeAndBoundary,
+// computeBoundaryDamping, computeInterfaceFlux, applyVerlet.
+// ============================================================
+
+TEST_F(DGsolverAcousticTest, UpdateFieldsFromList_AllElems_DoesNotCrash) {
+  auto data = makeData(0.0f, 0.0f, /*nSample=*/1, /*srcElem=*/0, 1.0f);
+  solver_.computeForces(0.001f, 0, data);
+  Kokkos::fence();
+
+  auto elem_list = allocateVector<vectorInt>(nElem_, "elem_list");
+  for (int i = 0; i < nElem_; ++i) elem_list(i) = i;
+  EXPECT_NO_THROW(solver_.updateFieldsFromList(0.001f, data, elem_list, nElem_));
+}
+
+TEST_F(DGsolverAcousticTest, UpdateFieldsFromList_SubsetElems_DoesNotCrash) {
+  auto data = makeData(1.0f, 1.0f);
+  solver_.computeForces(0.001f, 0, data);
+  Kokkos::fence();
+
+  // Update only the first 4 elements out of 8
+  constexpr int kSubset = 4;
+  auto elem_list = allocateVector<vectorInt>(kSubset, "elem_list_sub");
+  for (int i = 0; i < kSubset; ++i) elem_list(i) = i;
+  EXPECT_NO_THROW(solver_.updateFieldsFromList(0.001f, data, elem_list, kSubset));
+}
+
+TEST_F(DGsolverAcousticTest, UpdateFieldsFromList_ProducesFiniteValues) {
+  constexpr int kNumSteps = 3;
+  constexpr float kDt = 0.001f;
+
+  auto pCurr = allocateArray2D<arrayReal>(nElem_, kNDof, "pCl");
+  auto pPrev = allocateArray2D<arrayReal>(nElem_, kNDof, "pPl");
+  auto rhsTerm = allocateArray2D<arrayReal>(1, kNumSteps, "rhsTl");
+  auto rhsElem = allocateVector<vectorInt>(1, "reL");
+  auto rhsWeights = allocateArray2D<arrayReal>(1, kNDof, "rwL");
+  rhsElem(0) = 0;
+  for (int t = 0; t < kNumSteps; ++t) rhsTerm(0, t) = 1.0f;
+  for (int d = 0; d < kNDof; ++d) rhsWeights(0, d) = 1.0f / kNDof;
+
+  DGWavefieldAcoustic wavefield(pPrev, pCurr);
+  RhsAcoustic rhs(rhsTerm, rhsElem, rhsWeights);
+  DGsolverDataAcoustic data(wavefield, rhs);
+
+  auto elem_list = allocateVector<vectorInt>(nElem_, "elem_list_fin");
+  for (int i = 0; i < nElem_; ++i) elem_list(i) = i;
+
+  for (int t = 0; t < kNumSteps; ++t) {
+    solver_.computeForces(kDt, t, data);
+    Kokkos::fence();
+    solver_.updateFieldsFromList(kDt, data, elem_list, nElem_);
+    data.swapWavefields();
+  }
+
+  for (int e = 0; e < nElem_; ++e)
+    for (int d = 0; d < kNDof; ++d)
+      EXPECT_TRUE(std::isfinite(data.getCurrentField(0)(e, d))) << "NaN/Inf at elem=" << e << " dof=" << d;
+}
+
 }  // namespace test
 }  // namespace fe
 }  // namespace solver

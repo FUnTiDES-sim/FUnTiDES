@@ -12,3 +12,13 @@ add_gtest(evaluate_ricker_test
   test_evaluate_ricker.cc
   proxy_utils
 )
+
+add_gtest(source_and_receiver_utils_test
+  test_source_and_receiver_utils.cc
+  discretization
+)
+
+add_gtest(args_parse_test
+  test_args_parse.cc
+  proxy_utils
+)

@@ -79,6 +79,7 @@ jobs:
             --exclude '.*/fd/.*' \
             --exclude '.*/main/.*' \
             --exclude '.*/grid/.*' \
+            --fail-under-line 90  \
             -j $(nproc)
 
       - name: Parse Coverage XML for GitHub
