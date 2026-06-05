@@ -34,14 +34,17 @@
       },                                                                                           \
       Kokkos::Max<decltype(Result)>(Result));
 
-#define FIND_MIN(Array, Range, Result)                                                                \
-  Kokkos::parallel_reduce(                                                                            \
-      Range, KOKKOS_CLASS_LAMBDA(const int i, decltype(Result)& local_min) { local_min = Array[i]; }, \
+#define FIND_MIN(Array, Range, Result)                                \
+  Kokkos::parallel_reduce(                                            \
+      Range,                                                          \
+      KOKKOS_CLASS_LAMBDA(const int i, decltype(Result)& local_min) { \
+        if (Array[i] < local_min) local_min = Array[i];               \
+      },                                                              \
       Kokkos::Min<decltype(Result)>(Result));
 
-#define SUM(Array, Range, Result)                                                                     \
-  Kokkos::parallel_reduce(                                                                            \
-      Range, KOKKOS_CLASS_LAMBDA(const int i, decltype(Result)& local_sum) { local_sum = Array[i]; }, \
+#define SUM(Array, Range, Result)                                                                      \
+  Kokkos::parallel_reduce(                                                                             \
+      Range, KOKKOS_CLASS_LAMBDA(const int i, decltype(Result)& local_sum) { local_sum += Array[i]; }, \
       Kokkos::Sum<decltype(Result)>(Result));
 
 #define KOKKOSNAME "v",
