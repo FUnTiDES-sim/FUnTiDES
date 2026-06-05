@@ -114,7 +114,7 @@ class SEMproxy {
   bool free_surface_ = false;        ///< True if the top boundary acts as a free surface.
   bool is_dg_ = false;               ///< True if using Discontinuous Galerkin method.
   bool is_dg_sem_ = false;           ///< True if using Discontinuous Galerkin - Spectral Element method coupling.
-  float dg_sem_iface_z_ = 1000.f;   ///< Z coordinate of the DG-SEM interface.
+  float dg_sem_iface_z_ = 1000.f;    ///< Z coordinate of the DG-SEM interface.
 
   std::array<float, 3> sponge_size_ = {0, 0, 0};  ///< Thickness of absorbing boundaries (sponge layers).
   bool surface_sponge_ = false;                   ///< True if the top surface has an absorbing boundary.
@@ -183,7 +183,7 @@ class SEMproxy {
   vectorInt::host_mirror_type h_rhs_element_rcv_;  ///< CPU mirror for receiver elements.
   arrayReal::host_mirror_type h_rhs_weights_;      ///< CPU mirror for source interpolation weights.
   arrayReal::host_mirror_type h_rhs_weights_rcv_;  ///< CPU mirror for receiver interpolation weights.
-  arrayReal::host_mirror_type h_rhs_term_;          ///< CPU mirror for acoustic source term.
+  arrayReal::host_mirror_type h_rhs_term_;         ///< CPU mirror for acoustic source term.
   arrayReal::host_mirror_type h_rhs_term_dg_;      ///< CPU mirror for DG-SEM DG source term.
   arrayReal::host_mirror_type h_rhs_term_sem_;     ///< CPU mirror for DG-SEM SEM source term.
   arrayReal::host_mirror_type h_rhs_term_x_;       ///< CPU mirror for elastic X source term.

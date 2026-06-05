@@ -196,7 +196,6 @@ class DGsolver : public Solver {
   real_t m_penalty_factor_ = 12.0f;
 
  public:
-
   // List state used by updateFieldsFromList.
   bool m_list_mode_ = false;
   vectorInt m_elem_list_;

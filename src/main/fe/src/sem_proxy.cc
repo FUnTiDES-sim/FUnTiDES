@@ -276,8 +276,8 @@ void SEMproxy::Run() {
     DGSEMsolverData dg_sem_data(wavefield, rhs);
 
     bool const rcv_in_sem = (rcv_coord_[2] >= dg_sem_iface_z_);
-    std::cout << "DG-SEM receiver domain: " << (rcv_in_sem ? "SEM" : "DG")
-              << "  z=" << rcv_coord_[2] << "  iface_z=" << dg_sem_iface_z_ << std::endl;
+    std::cout << "DG-SEM receiver domain: " << (rcv_in_sem ? "SEM" : "DG") << "  z=" << rcv_coord_[2]
+              << "  iface_z=" << dg_sem_iface_z_ << std::endl;
 
     for (int time_index = 0; time_index < num_samples_; time_index++) {
       start_compute_time = system_clock::now();

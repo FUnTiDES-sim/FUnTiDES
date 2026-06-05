@@ -50,12 +50,13 @@ using DGSEMSolverT = DGSEMsolver<kOrder, IntType, MeshType, false, physicType::k
 class DGSEMsolverAcousticTest : public ::testing::Test {
  protected:
   void SetUp() override {
-    model::CartesianStructBuilder<float, int, kOrder> builder(2, 2000.0f, 2, 2000.0f, 2, 2000.0f, false, false,
-                         0.0, 0.0, 0.0, -1.0, -1.0, -1.0, 0.0, 0.0, 0.0, false, 0.0f, // default parameters from the builder
-                         1000.0f); // DgSemBoundaryZ
+    model::CartesianStructBuilder<float, int, kOrder> builder(2, 2000.0f, 2, 2000.0f, 2, 2000.0f, false, false, 0.0,
+                                                              0.0, 0.0, -1.0, -1.0, -1.0, 0.0, 0.0, 0.0, false,
+                                                              0.0f,      // default parameters from the builder
+                                                              1000.0f);  // DgSemBoundaryZ
     mesh_ = builder.getModel(false);
-    nElem_ = mesh_->getNumberOfElements(); // 8 here
-    nNode_ = mesh_->getNumberOfNodes(); // 27 here
+    nElem_ = mesh_->getNumberOfElements();  // 8 here
+    nNode_ = mesh_->getNumberOfNodes();     // 27 here
     solver_.computeFEInit(*mesh_, {0.0f, 0.0f, 0.0f}, false, 0.0f);
   }
 
@@ -69,8 +70,8 @@ class DGSEMsolverAcousticTest : public ::testing::Test {
    * @param srcElem   Source element index (ignored when nSample == 0).
    * @param wavelet   Constant wavelet value for all time samples (ignored when nSample == 0).
    */
-  DGSEMsolverData makeData(float p_dg_CurrVal, float p_dg_PrevVal, float p_sem_CurrVal, float p_sem_PrevVal, int nSample = 0, int srcElem = 0,
-                                   float wavelet = 0.0f) {
+  DGSEMsolverData makeData(float p_dg_CurrVal, float p_dg_PrevVal, float p_sem_CurrVal, float p_sem_PrevVal,
+                           int nSample = 0, int srcElem = 0, float wavelet = 0.0f) {
     auto p_dg_Curr = allocateArray2D<arrayReal>(nElem_, kNDof, "pCurrDG");
     auto p_dg_Prev = allocateArray2D<arrayReal>(nElem_, kNDof, "pPrevDG");
     auto p_sem_Curr = allocateVector<vectorReal>(nNode_, "pCurrSEM");
@@ -96,7 +97,7 @@ class DGSEMsolverAcousticTest : public ::testing::Test {
       for (int t = 0; t < nSample; ++t) {
         rhsTerm_dg(0, t) = wavelet;
         rhsTerm_sem(0, t) = wavelet;
-      } 
+      }
       for (int d = 0; d < kNDof; ++d) rhsWeights(0, d) = 1.0f / kNDof;
     }
 
@@ -122,9 +123,10 @@ TEST_F(DGSEMsolverAcousticTest, ComputeFEInit_Succeeds) {
 TEST_F(DGSEMsolverAcousticTest, ComputeFEInit_IncompatibleMeshThrows) {
   // A ModelStruct<float,int,2> is a different C++ type from ModelStruct<float,int,1>.
   // The dynamic_cast in computeFEInit must fail and throw.
-  model::CartesianStructBuilder<float, int, 2> builder2(2, 2000.0f, 2, 2000.0f, 2, 2000.0f, false, false,
-                         0.0, 0.0, 0.0, -1.0, -1.0, -1.0, 0.0, 0.0, 0.0, false, 0.0f, // default parameters from the builder
-                         1000.0f); // DgSemBoundaryZ
+  model::CartesianStructBuilder<float, int, 2> builder2(2, 2000.0f, 2, 2000.0f, 2, 2000.0f, false, false, 0.0, 0.0, 0.0,
+                                                        -1.0, -1.0, -1.0, 0.0, 0.0, 0.0, false,
+                                                        0.0f,      // default parameters from the builder
+                                                        1000.0f);  // DgSemBoundaryZ
   auto mesh2 = builder2.getModel(false);
 
   DGSEMSolverT fresh_solver;
@@ -158,8 +160,7 @@ TEST_F(DGSEMsolverAcousticTest, ZeroFieldZeroSource_StaysZero) {
   for (int e = 0; e < nElem_; ++e)
     for (int d = 0; d < kNDof; ++d)
       EXPECT_FLOAT_EQ(data.m_wavefield.getDGPreviousField(0)(e, d), 0.0f) << "elem=" << e << " dof=" << d;
-  for (int n = 0; n < nNode_; ++n)
-    EXPECT_FLOAT_EQ(data.m_wavefield.getSEMPreviousField(0)(n), 0.0f) << "node=" << n;
+  for (int n = 0; n < nNode_; ++n) EXPECT_FLOAT_EQ(data.m_wavefield.getSEMPreviousField(0)(n), 0.0f) << "node=" << n;
 }
 
 TEST_F(DGSEMsolverAcousticTest, UniformFieldZeroSource_StaysUniform) {
@@ -173,8 +174,7 @@ TEST_F(DGSEMsolverAcousticTest, UniformFieldZeroSource_StaysUniform) {
   for (int e = 0; e < nElem_; ++e)
     for (int d = 0; d < kNDof; ++d)
       EXPECT_NEAR(data.m_wavefield.getDGPreviousField(0)(e, d), 1.0f, 1e-4f) << "elem=" << e << " dof=" << d;
-  for (int n = 0; n < nNode_; ++n)
-    EXPECT_NEAR(data.m_wavefield.getSEMPreviousField(0)(n), 1.0f, 1e-4f) << "node=" << n;
+  for (int n = 0; n < nNode_; ++n) EXPECT_NEAR(data.m_wavefield.getSEMPreviousField(0)(n), 1.0f, 1e-4f) << "node=" << n;
 }
 
 TEST_F(DGSEMsolverAcousticTest, NonzeroSourceDG_FieldChangesAtSourceElem) {
@@ -196,7 +196,6 @@ TEST_F(DGSEMsolverAcousticTest, NonzeroSourceSEM_FieldChangesAtSourceElem) {
   auto data = makeData(0.0f, 0.0f, 0.0f, 0.0f, /*nSample=*/1, /*srcElem=*/7, kWavelet);
   solver_.computeOneStep(0.001f, 0, data);
 
-
   // rhs_elem(0,d) = -kWavelet * (1/kNDof) < 0
   // Verlet (curr=prev=0): new_prev = -dt^2 * rhs / (M + ...) > 0
   EXPECT_GT(data.m_wavefield.getSEMPreviousField(0)(26), 0.0f);
@@ -205,17 +204,17 @@ TEST_F(DGSEMsolverAcousticTest, NonzeroSourceSEM_FieldChangesAtSourceElem) {
 TEST_F(DGSEMsolverAcousticTest, NoSourceElements_UnaffectedBySource) {
   // Elements other than the source element must remain zero when starting
   // from a zero initial field (the stiffness of the zero field is zero).
-  auto data = makeData(0.0f, 0.0f, 0.0f, 0.0f, /*nSample=*/1, /*srcElem=*/0, 1.0f); // source in DG
+  auto data = makeData(0.0f, 0.0f, 0.0f, 0.0f, /*nSample=*/1, /*srcElem=*/0, 1.0f);  // source in DG
   solver_.computeOneStep(0.001f, 0, data);
 
   // Elements != 0 should have zero field (the source kernel only writes
   // to element 0; interface flux from zero field is also zero).
-  for (int e = 1; e < nElem_; ++e) 
+  for (int e = 1; e < nElem_; ++e)
     for (int d = 0; d < kNDof; ++d)
       EXPECT_FLOAT_EQ(data.m_wavefield.getDGPreviousField(0)(e, d), 0.0f) << "elem=" << e << " dof=" << d;
   // SEM nodes which are not on the source element interface should have zero field
   EXPECT_FLOAT_EQ(data.m_wavefield.getSEMPreviousField(0)(11), 0.0f) << "node=" << 11;
-  for (int n = 14; n < nNode_; ++n) // test only SEM Nodes 
+  for (int n = 14; n < nNode_; ++n)  // test only SEM Nodes
     EXPECT_FLOAT_EQ(data.m_wavefield.getSEMPreviousField(0)(n), 0.0f) << "node=" << n;
 }
 
@@ -255,7 +254,8 @@ TEST_F(DGSEMsolverAcousticTest, MultipleSteps_NoNanOrInf) {
 
   for (int e = 0; e < nElem_; ++e)
     for (int d = 0; d < kNDof; ++d)
-      EXPECT_TRUE(std::isfinite(data.m_wavefield.getDGCurrentField(0)(e, d))) << "NaN/Inf at elem=" << e << " dof=" << d;
+      EXPECT_TRUE(std::isfinite(data.m_wavefield.getDGCurrentField(0)(e, d)))
+          << "NaN/Inf at elem=" << e << " dof=" << d;
   for (int n = 0; n < nNode_; ++n)
     EXPECT_TRUE(std::isfinite(data.m_wavefield.getSEMCurrentField(0)(n))) << "NaN/Inf at node=" << n;
 }

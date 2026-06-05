@@ -40,9 +40,9 @@ class DGSEMsolverDataTest : public ::testing::Test {
         p_dg_curr(e, d) = static_cast<float>(e * nDof_ + d) * 2.0f;
       }
     for (int n = 0; n < nNode_; ++n) {
-        p_sem_prev(n) = static_cast<float>(n);
-        p_sem_curr(n) = static_cast<float>(n) * 2.0f;
-      }
+      p_sem_prev(n) = static_cast<float>(n);
+      p_sem_curr(n) = static_cast<float>(n) * 2.0f;
+    }
 
     for (int s = 0; s < nSrc_; ++s) {
       rhsElem_(s) = s * 3;
@@ -100,15 +100,15 @@ TEST_F(DGSEMsolverDataTest, Constructor_DataValuesPreserved) {
       EXPECT_FLOAT_EQ(data.m_wavefield.getDGCurrentField(0)(e, d), static_cast<float>(e * nDof_ + d) * 2.0f);
     }
   for (int n = 0; n < nNode_; ++n) {
-      EXPECT_FLOAT_EQ(data.m_wavefield.getSEMPreviousField(0)(n), static_cast<float>(n));
-      EXPECT_FLOAT_EQ(data.m_wavefield.getSEMCurrentField(0)(n), static_cast<float>(n) * 2.0f);
-    }
+    EXPECT_FLOAT_EQ(data.m_wavefield.getSEMPreviousField(0)(n), static_cast<float>(n));
+    EXPECT_FLOAT_EQ(data.m_wavefield.getSEMCurrentField(0)(n), static_cast<float>(n) * 2.0f);
+  }
 
   for (int s = 0; s < nSrc_; ++s) {
     EXPECT_EQ(data.m_rhs.getElement()(s), s * 3);
     for (int t = 0; t < nSample_; ++t) {
-      EXPECT_FLOAT_EQ(data.m_rhs.getTerm(0)(s, t), static_cast<float>(s * 10 + t)); // DG term
-      EXPECT_FLOAT_EQ(data.m_rhs.getTerm(1)(s, t), static_cast<float>(s * 10 + t)); // SEM term
+      EXPECT_FLOAT_EQ(data.m_rhs.getTerm(0)(s, t), static_cast<float>(s * 10 + t));  // DG term
+      EXPECT_FLOAT_EQ(data.m_rhs.getTerm(1)(s, t), static_cast<float>(s * 10 + t));  // SEM term
     }
     for (int d = 0; d < nDof_; ++d) EXPECT_FLOAT_EQ(data.m_rhs.getWeights()(s, d), static_cast<float>(d) * 0.1f);
   }
@@ -167,8 +167,8 @@ TEST_F(DGSEMsolverDataTest, GetRhsTerm_ReturnsTerm) {
 
   DGSEMsolverData data(wavefield, rhs);
 
-  auto dg_term = data.m_rhs.getTerm(0); // DG term
-  auto sem_term = data.m_rhs.getTerm(1); // SEM term
+  auto dg_term = data.m_rhs.getTerm(0);   // DG term
+  auto sem_term = data.m_rhs.getTerm(1);  // SEM term
 
   ASSERT_EQ(dg_term.extent(0), static_cast<size_t>(nSrc_));
   ASSERT_EQ(dg_term.extent(1), static_cast<size_t>(nSample_));
@@ -281,9 +281,9 @@ TEST_F(DGSEMsolverDataTest, SwapWavefields_AllElementsSwapped) {
       EXPECT_FLOAT_EQ(data.m_wavefield.getDGCurrentField(0)(e, d), p_dg_prev(e, d));
     }
   for (int n = 0; n < nNode_; ++n) {
-      EXPECT_FLOAT_EQ(data.m_wavefield.getSEMPreviousField(0)(n), p_sem_curr(n));
-      EXPECT_FLOAT_EQ(data.m_wavefield.getSEMCurrentField(0)(n), p_sem_prev(n));
-    }
+    EXPECT_FLOAT_EQ(data.m_wavefield.getSEMPreviousField(0)(n), p_sem_curr(n));
+    EXPECT_FLOAT_EQ(data.m_wavefield.getSEMCurrentField(0)(n), p_sem_prev(n));
+  }
 }
 
 // ============================================================
@@ -318,8 +318,8 @@ TEST_F(DGSEMsolverDataTest, EmptyViews_ValidConstruction) {
   EXPECT_EQ(data.m_wavefield.getDGCurrentField(0).extent(0), 0u);
   EXPECT_EQ(data.m_wavefield.getSEMPreviousField(0).extent(0), 0u);
   EXPECT_EQ(data.m_wavefield.getSEMCurrentField(0).extent(0), 0u);
-  EXPECT_EQ(data.m_rhs.getTerm(0).extent(0), 0u); // DG term
-  EXPECT_EQ(data.m_rhs.getTerm(1).extent(0), 0u); // SEM term
+  EXPECT_EQ(data.m_rhs.getTerm(0).extent(0), 0u);  // DG term
+  EXPECT_EQ(data.m_rhs.getTerm(1).extent(0), 0u);  // SEM term
   EXPECT_EQ(data.m_rhs.getElement().extent(0), 0u);
   EXPECT_FALSE(data.isDistributed);
   EXPECT_NO_THROW(data.swapWavefields());

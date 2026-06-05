@@ -88,8 +88,7 @@ class SemProxyOptions {
         "is-acousto-elastic", "Acousto-elastic coupled simulation", cxxopts::value<bool>(o.isAcoustoElastic))(
         "acousto-elastic-boundary-z", "Z coordinate of the fluid–solid interface (meters)",
         cxxopts::value<float>(o.acoustoElasticBoundaryZ))(
-        "dg-sem-boundary-z", "Z coordinate of the DG-SEM interface (meters)",
-        cxxopts::value<float>(o.DgSemBoundaryZ))(
+        "dg-sem-boundary-z", "Z coordinate of the DG-SEM interface (meters)", cxxopts::value<float>(o.DgSemBoundaryZ))(
         "free-surface", "Enable free surface on top boundary (Z+). Default: true",
         cxxopts::value<bool>(o.free_surface))("anisotropy", "Anisotropy type for elastic: iso|vti|tti (default=iso)",
                                               cxxopts::value<std::string>(o.anisotropy))(

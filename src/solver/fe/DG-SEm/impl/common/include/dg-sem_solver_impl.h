@@ -197,7 +197,8 @@ void DGSEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::T
 // BuildDGInteriorFaceList
 //============================================================================
 
-template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE, bool IS_MODEL_ON_NODES, utils::enums::physicType PHYSICS>
+template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE, bool IS_MODEL_ON_NODES,
+          utils::enums::physicType PHYSICS>
 void DGSEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::BuildDGInteriorFaceList() {
   auto h_elem_type = Kokkos::create_mirror_view_and_copy(Kokkos::HostSpace{}, m_element_type_);
   auto h_iface = Kokkos::create_mirror_view_and_copy(Kokkos::HostSpace{}, m_interface_face_indices_);
@@ -205,8 +206,7 @@ void DGSEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::B
   int const num_faces_fc = static_cast<int>(m_face_connectivity_.getNumberOfFaces());
 
   std::vector<bool> is_iface(num_faces_fc, false);
-  for (int i = 0; i < num_interface_faces_; ++i)
-    is_iface[h_iface(i)] = true;
+  for (int i = 0; i < num_interface_faces_; ++i) is_iface[h_iface(i)] = true;
 
   // Collect faces adjacent to at least one DG element and not on the DG-SEM interface.
   std::vector<int> result;
@@ -223,8 +223,7 @@ void DGSEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::B
   m_n_DG_interior_faces_ = static_cast<int>(result.size());
   m_DG_interior_face_list_ = allocateVector<vectorInt>(m_n_DG_interior_faces_, "DGInteriorFaceList");
   auto h_list = Kokkos::create_mirror_view(m_DG_interior_face_list_);
-  for (int i = 0; i < m_n_DG_interior_faces_; ++i)
-    h_list(i) = result[i];
+  for (int i = 0; i < m_n_DG_interior_faces_; ++i) h_list(i) = result[i];
   Kokkos::deep_copy(m_DG_interior_face_list_, h_list);
 }
 
@@ -264,8 +263,7 @@ void DGSEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::A
 
         float faceCoords[4][3];
         for (int j = 0; j < 4; ++j) {
-          int const gni =
-              face_connectivity_local.getGlobalNodeFromFace(f, INTEGRAL_TYPE::meshIndexToLinearIndex2D(j));
+          int const gni = face_connectivity_local.getGlobalNodeFromFace(f, INTEGRAL_TYPE::meshIndexToLinearIndex2D(j));
           for (int d = 0; d < 3; ++d) faceCoords[j][d] = mesh_local.nodeCoord(gni, d);
         }
 
@@ -288,8 +286,7 @@ void DGSEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::A
         float stiff_dg_local[dgSolver::kPointsPerElement] = {0};
 
         INTEGRAL_TYPE::computeInterfaceFluxTerm(
-            faceCoords, dg_coords, fid_dg,
-            [&](const int i, const int j, const int k, const real_t val) {
+            faceCoords, dg_coords, fid_dg, [&](const int i, const int j, const int k, const real_t val) {
               int const ei = face_to_elem_dof[fid_dg][i];
               int const ej = face_to_elem_dof[fid_dg][j];
               int const gn_j =
@@ -309,8 +306,7 @@ void DGSEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::A
               gamma_dg * INTEGRAL_TYPE::computeDampingTerm(i, faceCoords) * (p_DG(dg_e, ei) - p_SEM(gn_i));
         }
 
-        for (int i = 0; i < dgSolver::kPointsPerElement; ++i)
-          ATOMICADD(stiff_dg(dg_e, i), stiff_dg_local[i]);
+        for (int i = 0; i < dgSolver::kPointsPerElement; ++i) ATOMICADD(stiff_dg(dg_e, i), stiff_dg_local[i]);
       });
 }
 
@@ -318,7 +314,8 @@ void DGSEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::A
 // ApplyCouplingDGToSEM — SIPG flux: DG pressure → SEM work vector
 //============================================================================
 
-template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE, bool IS_MODEL_ON_NODES, utils::enums::physicType PHYSICS>
+template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE, bool IS_MODEL_ON_NODES,
+          utils::enums::physicType PHYSICS>
 void DGSEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::ApplyCouplingDGToSEM(
     const DataType& data) {
   auto mesh_local = m_mesh_;
@@ -351,8 +348,7 @@ void DGSEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::A
 
         float faceCoords[4][3];
         for (int j = 0; j < 4; ++j) {
-          int const gni =
-              face_connectivity_local.getGlobalNodeFromFace(f, INTEGRAL_TYPE::meshIndexToLinearIndex2D(j));
+          int const gni = face_connectivity_local.getGlobalNodeFromFace(f, INTEGRAL_TYPE::meshIndexToLinearIndex2D(j));
           for (int d = 0; d < 3; ++d) faceCoords[j][d] = mesh_local.nodeCoord(gni, d);
         }
 
@@ -374,14 +370,11 @@ void DGSEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::A
 
         // Verlet applies -dt²/M; adding inv_rho*flux here yields -dt²/M * inv_rho * flux on p^{n+1}.
         INTEGRAL_TYPE::computeInterfaceFluxTerm(
-            faceCoords, sem_coords, fid_sem,
-            [&](const int i, const int j, const int k, const real_t val) {
+            faceCoords, sem_coords, fid_sem, [&](const int i, const int j, const int k, const real_t val) {
               int const gn_i = face_connectivity_local.getGlobalNodeFromFace(f, i);
               int const gn_j = face_connectivity_local.getGlobalNodeFromFace(f, j);
-              int const ej_perm =
-                  face_to_elem_dof[fid_dg][face_connectivity_local.getNeighborFaceDof(f, j)];
-              int const ei_perm =
-                  face_to_elem_dof[fid_dg][face_connectivity_local.getNeighborFaceDof(f, i)];
+              int const ej_perm = face_to_elem_dof[fid_dg][face_connectivity_local.getNeighborFaceDof(f, j)];
+              int const ei_perm = face_to_elem_dof[fid_dg][face_connectivity_local.getNeighborFaceDof(f, i)];
               float const nk = -dg_sign * normal[k];  // SEM outward = -DG outward
               ATOMICADD(work_sem(gn_i),
                         inv_rho_sem * nk * (-0.5f * val * p_SEM(gn_j) + 0.5f * val * p_DG(dg_e, ej_perm)));
@@ -391,8 +384,7 @@ void DGSEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::A
 
         for (int i = 0; i < knumNodesPerFace; ++i) {
           int const gn_i = face_connectivity_local.getGlobalNodeFromFace(f, i);
-          int const ei_perm =
-              face_to_elem_dof[fid_dg][face_connectivity_local.getNeighborFaceDof(f, i)];
+          int const ei_perm = face_to_elem_dof[fid_dg][face_connectivity_local.getNeighborFaceDof(f, i)];
           ATOMICADD(work_sem(gn_i), inv_rho_sem * gamma_sem * INTEGRAL_TYPE::computeDampingTerm(i, faceCoords) *
                                         (p_SEM(gn_i) - p_DG(dg_e, ei_perm)));
         }
@@ -412,16 +404,16 @@ void DGSEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::c
   int const nNode = m_mesh_.getNumberOfNodes();
 
   if (myData.isDistributed) {
-      throw std::runtime_error(
-          "computeOneStep called in distributed mode. Use computeForces() -> "
-          "synchronize() -> updateSolution().");
+    throw std::runtime_error(
+        "computeOneStep called in distributed mode. Use computeForces() -> "
+        "synchronize() -> updateSolution().");
   }
 
   // Sub-solver data views are constructed once and reused throughout the step.
   DGsolverDataAcoustic DG_data(myData.m_wavefield.m_DGacoustic, myData.m_rhs.m_rhs_DGacoustic);
 
   SEMsolverData<utils::enums::physicType::kAcoustic> SEm_data(myData.m_wavefield.m_SEMacoustic,
-                                                               myData.m_rhs.m_rhs_SEMacoustic);
+                                                              myData.m_rhs.m_rhs_SEMacoustic);
 
   // =========================================================================
   // DG: volume + DG-DG interior flux (interface faces excluded from face list)
