@@ -184,6 +184,23 @@ class FaceConnectivityUnstruct : public FaceConnectivityApi<FloatType, ScalarTyp
     return face_perm_(face_id, owner_dof);
   }
 
+  /**
+   * @brief Patch a boundary face to appear as an interior face pointing to a ghost element.
+   *
+   * Sets the neighbor element and local face, and initializes an identity permutation.
+   * Used for MPI domain decomposition: after patching, isBoundaryFace() returns false
+   * and elemNeighbor() returns the ghost element index.
+   *
+   * @param f                  Global face index to patch.
+   * @param neighbor_elem      Ghost element index (row in the extended wavefield array).
+   * @param neighbor_local_face Local face index on the ghost element (typically owner_face ^ 1).
+   */
+  void patchFace(ScalarType f, ScalarType neighbor_elem, int neighbor_local_face) {
+    face_elem_neighbor_(f) = neighbor_elem;
+    face_local_neighbor_(f) = neighbor_local_face;
+    for (int i = 0; i < ndofs_per_face_; ++i) face_perm_(f, i) = i;
+  }
+
  private:
   ScalarType n_faces_ = 0;
   int ndofs_per_face_ = 0;

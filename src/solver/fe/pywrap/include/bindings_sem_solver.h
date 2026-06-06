@@ -75,6 +75,9 @@ void bind_sem_solver_base(py::module_ &m) {
            static_cast<void (Solver::*)(const int &, int &, const vectorReal &, const char *)>(
                &Solver::outputSolutionValues),
            py::arg("t"), py::arg("e"), py::arg("field_global"), py::arg("field_name"))
+      .def("set_n_local_elem", &Solver::setNLocalElem, py::arg("n"))
+      .def("set_partition_faces_from_elems", &Solver::setPartitionFacesFromElems, py::arg("left_elems"),
+           py::arg("left_ghosts"), py::arg("right_elems"), py::arg("right_ghosts"))
       .def(
           "set_sls_attenuation",
           [](Solver &self, const std::vector<float> &freqs, const std::vector<float> &coeffs) {

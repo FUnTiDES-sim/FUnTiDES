@@ -155,7 +155,17 @@ void SEMproxy::Run() {
   auto start_run_init = std::chrono::high_resolution_clock::now();
   solver_->computeFEInit(*mesh_, sponge_size_, surface_sponge_, taper_delta_);
 
-  if (par_topology_.isDistributed()) {
+  if (is_dg_ && dist_ctx_.size > 1) {
+    const int n_pts = static_cast<int>(mesh_->getNumberOfPointsPerElement());
+    dg_comm_.setup(dist_ctx_.rank, dist_ctx_.size,
+                   local_params_.ex, local_params_.ey, local_params_.ez,
+                   n_pts, n_dg_local_);
+    solver_->setPartitionFacesFromElems(dg_comm_.leftElems(), dg_comm_.leftGhosts(),
+                                        dg_comm_.rightElems(), dg_comm_.rightGhosts());
+    solver_->setNLocalElem(n_dg_local_);
+  }
+
+  if (par_topology_.isDistributed() && !is_dg_) {
     if (is_acousto_elastic_) {
       syncer_->synchronize(solver_->getMassMatrixAcoustic(), par_topology_);
       syncer_->synchronize(solver_->getMassMatrixElastic(), par_topology_);
@@ -180,9 +190,15 @@ void SEMproxy::Run() {
 
     DGsolverDataAcoustic dgData(wavefield, rhs);
 
+    dg_curr_is_first_ = true;
     for (int time_index = 0; time_index < num_samples_; time_index++) {
       start_compute_time = system_clock::now();
-      solver_->computeOneStep(dt_, time_index, dgData);
+      if (dg_comm_.isActive()) {
+        arrayReal& curr = dg_curr_is_first_ ? pn_dg_curr_ : pn_dg_prev_;
+        dg_comm_.exchange(curr);
+      }
+      solver_->computeForces(dt_, time_index, dgData);
+      solver_->updateSolution(dt_, dgData);
       total_compute_time += system_clock::now() - start_compute_time;
 
       start_output_time = system_clock::now();
@@ -254,6 +270,7 @@ void SEMproxy::Run() {
       }
       h_pn_at_receiver_(0, time_index) = varnp1;
       dgData.swapWavefields();
+      dg_curr_is_first_ = !dg_curr_is_first_;
       total_output_time += system_clock::now() - start_output_time;
     }
 
@@ -545,9 +562,12 @@ void SEMproxy::InitArrays() {
     uyn_global_prev_ = allocateVector<vectorReal>(n_nodes, "uynGlobalPrev");
     uzn_global_prev_ = allocateVector<vectorReal>(n_nodes, "uznGlobalPrev");
   } else if (is_dg_) {
+    n_dg_local_ = static_cast<int>(n_elements);
+    n_dg_ghost_ = (dist_ctx_.size > 1) ? local_params_.ey * local_params_.ez : 0;
+    const int n_dg_total = n_dg_local_ + 2 * n_dg_ghost_;
     rhs_term_ = allocateArray2D<arrayReal>(num_rhs_, num_samples_, "RHSTerm");
-    pn_dg_prev_ = allocateArray2D<arrayReal>(n_elements, n_pts_per_elem, "pnDGPrev");
-    pn_dg_curr_ = allocateArray2D<arrayReal>(n_elements, n_pts_per_elem, "pnDGCurr");
+    pn_dg_prev_ = allocateArray2D<arrayReal>(n_dg_total, n_pts_per_elem, "pnDGPrev");
+    pn_dg_curr_ = allocateArray2D<arrayReal>(n_dg_total, n_pts_per_elem, "pnDGCurr");
     pn_at_receiver_ = allocateArray2D<arrayReal>(1, num_samples_, "pn_at_receiver_");
   } else if (!is_elastic_) {
     rhs_term_ = allocateArray2D<arrayReal>(num_rhs_, num_samples_, "RHSTerm");

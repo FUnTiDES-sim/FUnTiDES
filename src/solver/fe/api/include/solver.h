@@ -2,6 +2,7 @@
 #define FUNTIDES_SOLVER_FE_API_INCLUDE_SOLVER_H_
 #include <array>
 #include <cmath>
+#include <vector>
 
 #include "model.h"
 #include "parallel_topology.h"
@@ -163,6 +164,21 @@ class Solver {
 
   virtual void setSLSAttenuation(const vectorReal& reference_frequencies,
                                  const vectorReal& anelasticity_coefficients = vectorReal()) = 0;
+
+  // @brief Set the number of local (non-ghost) elements for DG MPI (no-op for SEM/FD).
+  // @param n Number of local elements; Verlet update is restricted to rows 0..n-1.
+  virtual void setNLocalElem(int /*n*/) {}
+
+  // @brief Register partition boundary faces from element lists (no-op for SEM/FD).
+  // Looks up actual face IDs via internal face connectivity.
+  // @param left_elems   Local element indices at left (−X) partition boundary.
+  // @param left_ghosts  Ghost row index for each left elem.
+  // @param right_elems  Local element indices at right (+X) partition boundary.
+  // @param right_ghosts Ghost row index for each right elem.
+  virtual void setPartitionFacesFromElems(const std::vector<int>& /*left_elems*/,
+                                          const std::vector<int>& /*left_ghosts*/,
+                                          const std::vector<int>& /*right_elems*/,
+                                          const std::vector<int>& /*right_ghosts*/) {}
 };
 }  // namespace fe
 }  // namespace solver
