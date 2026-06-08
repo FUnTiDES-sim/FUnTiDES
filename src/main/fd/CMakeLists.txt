@@ -16,7 +16,7 @@ if(COMPILE_FD)
     PRIVATE
       fun_discretization
       fun_utils
-      fd_grid
+      fun_model
       fd_solver
       fd_discretization
   )

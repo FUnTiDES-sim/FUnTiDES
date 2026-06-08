@@ -17,9 +17,7 @@ if(COMPILE_SEM)
     PRIVATE
       fun_discretization
       fun_solver
-      proxy_model_builder_cartesian
-      proxy_model_struct
-      proxy_model_unstruct
+      fun_model
       fun_utils
       adios2::adios2
       ${STDCXXFS_LIB}

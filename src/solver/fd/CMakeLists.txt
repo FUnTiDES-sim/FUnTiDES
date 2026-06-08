@@ -23,7 +23,7 @@ target_include_directories(fd_solver PRIVATE
 )
 
 target_link_libraries(fd_solver PUBLIC
-    fd_grid
+    fun_model
     fun_utils
 )
 
