@@ -1,6 +1,6 @@
 add_gtest(differentiator_elastic_makutu_struct_test
   test_differentiator_elastic_makutu_struct.cc
-  funtides_gradient
+  fun_gradient
 )
 
 target_compile_definitions(differentiator_elastic_makutu_struct_test PRIVATE
@@ -9,7 +9,7 @@ target_compile_definitions(differentiator_elastic_makutu_struct_test PRIVATE
 
 add_gtest(differentiator_elastic_makutu_unstruct_test
   test_differentiator_elastic_makutu_unstruct.cc
-  funtides_gradient
+  fun_gradient
 )
 
 target_compile_definitions(differentiator_elastic_makutu_unstruct_test PRIVATE
