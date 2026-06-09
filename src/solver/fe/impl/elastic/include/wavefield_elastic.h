@@ -73,9 +73,9 @@ struct WavefieldElastic : public Wavefield {
   }
 
   // NOTE: elastic has 3 components — the caller must manage one extra buffer
-  // per component and call swapWithRotation once per component with the
+  // per component and call rotate once per component with the
   // appropriate field index (0=ux, 1=uy, 2=uz).
-  void swapWithRotation(vectorReal& prevPrevBuffer, int i) override {
+  void rotate(vectorReal& prevPrevBuffer, int i) override {
     vectorReal tmp = prevPrevBuffer;
     switch (i) {
       case 0:  // ux component

@@ -172,13 +172,13 @@ TEST_F(WavefieldAcoustoElasticTest, SwapTwiceRestoresState) {
   }
 }
 
-TEST_F(WavefieldAcoustoElasticTest, SwapWithRotationAcoustic) {
+TEST_F(WavefieldAcoustoElasticTest, RotateAcoustic) {
   WavefieldAcoustoElastic wf(pPrev, pCurr, uxPrev, uxCurr, uyPrev, uyCurr, uzPrev, uzCurr);
 
   auto prevPrev = allocateVector<vectorReal>(size1, "prevPrev");
   for (size_t i = 0; i < size1; ++i) prevPrev(i) = 10.0f;
 
-  wf.swapWithRotation(prevPrev, 0);
+  wf.rotate(prevPrev, 0);
 
   // curr ← old prevPrev (10), prev ← old curr (i*2), prevPrev ← old prev (i)
   for (size_t i = 0; i < size1; ++i) {
@@ -191,13 +191,13 @@ TEST_F(WavefieldAcoustoElasticTest, SwapWithRotationAcoustic) {
   EXPECT_FLOAT_EQ(wf.m_elastic.m_uxnGlobalCurr(1), 4.0f);
 }
 
-TEST_F(WavefieldAcoustoElasticTest, SwapWithRotationElastic) {
+TEST_F(WavefieldAcoustoElasticTest, RotateElastic) {
   WavefieldAcoustoElastic wf(pPrev, pCurr, uxPrev, uxCurr, uyPrev, uyCurr, uzPrev, uzCurr);
 
   auto prevPrev = allocateVector<vectorReal>(size1, "prevPrev");
   for (size_t i = 0; i < size1; ++i) prevPrev(i) = 20.0f;
 
-  wf.swapWithRotation(prevPrev, 1);  // ux component
+  wf.rotate(prevPrev, 1);  // ux component
 
   // uxCurr ← prevPrev (20), uxPrev ← old uxCurr (i*4), prevPrev ← old uxPrev (i*3)
   for (size_t i = 0; i < size1; ++i) {
@@ -279,7 +279,7 @@ TEST_F(WavefieldAcoustoElasticTest, EmptyFields) {
   EXPECT_EQ(wf.m_elastic.m_uxnGlobalPrev.extent(0), 0);
 }
 
-TEST_F(WavefieldAcoustoElasticTest, SwapWithRotationThreeTimesRestoresAcoustic) {
+TEST_F(WavefieldAcoustoElasticTest, RotateThreeTimesRestoresAcoustic) {
   WavefieldAcoustoElastic wf(pPrev, pCurr, uxPrev, uxCurr, uyPrev, uyCurr, uzPrev, uzCurr);
 
   auto prevPrev = allocateVector<vectorReal>(size1, "prevPrev");
@@ -289,9 +289,9 @@ TEST_F(WavefieldAcoustoElasticTest, SwapWithRotationThreeTimesRestoresAcoustic) 
   float initialCurr0 = pCurr(0);
   float initialPrevPrev0 = prevPrev(0);
 
-  wf.swapWithRotation(prevPrev, 0);
-  wf.swapWithRotation(prevPrev, 0);
-  wf.swapWithRotation(prevPrev, 0);
+  wf.rotate(prevPrev, 0);
+  wf.rotate(prevPrev, 0);
+  wf.rotate(prevPrev, 0);
 
   EXPECT_FLOAT_EQ(wf.m_acoustic.m_pnGlobalPrev(0), initialPrev0);
   EXPECT_FLOAT_EQ(wf.m_acoustic.m_pnGlobalCurr(0), initialCurr0);

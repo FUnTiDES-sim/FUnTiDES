@@ -295,13 +295,13 @@ TEST_F(WavefieldAcousticTest, CopyInContainerClass) {
   EXPECT_FLOAT_EQ(original.m_pnGlobalCurr(30), 777.0f);
 }
 
-TEST_F(WavefieldAcousticTest, SwapWithRotationRotatesThreeBuffers) {
+TEST_F(WavefieldAcousticTest, RotateRotatesThreeBuffers) {
   // prevprev = {10, 10, ...}, prev = {i}, curr = {i*2}
   auto prevPrev = allocateVector<vectorReal>(size1, "prevPrev");
   for (size_t i = 0; i < size1; ++i) prevPrev(i) = 10.0f;
 
   WavefieldAcoustic wavefield(prevField, currField);
-  wavefield.swapWithRotation(prevPrev, 0);
+  wavefield.rotate(prevPrev, 0);
 
   // After rotation:
   //   curr      ← old prevPrev  (value = 10.0)
@@ -314,7 +314,7 @@ TEST_F(WavefieldAcousticTest, SwapWithRotationRotatesThreeBuffers) {
   }
 }
 
-TEST_F(WavefieldAcousticTest, SwapWithRotationThreeTimesRestoresState) {
+TEST_F(WavefieldAcousticTest, RotateThreeTimesRestoresState) {
   auto prevPrev = allocateVector<vectorReal>(size1, "prevPrev");
   for (size_t i = 0; i < size1; ++i) prevPrev(i) = 10.0f;
 
@@ -326,23 +326,23 @@ TEST_F(WavefieldAcousticTest, SwapWithRotationThreeTimesRestoresState) {
   WavefieldAcoustic wavefield(prevField, currField);
 
   // Three rotations on a 3-element ring must restore the original assignment
-  wavefield.swapWithRotation(prevPrev, 0);
-  wavefield.swapWithRotation(prevPrev, 0);
-  wavefield.swapWithRotation(prevPrev, 0);
+  wavefield.rotate(prevPrev, 0);
+  wavefield.rotate(prevPrev, 0);
+  wavefield.rotate(prevPrev, 0);
 
   EXPECT_FLOAT_EQ(wavefield.m_pnGlobalPrev(0), initialPrev0);
   EXPECT_FLOAT_EQ(wavefield.m_pnGlobalCurr(0), initialCurr0);
   EXPECT_FLOAT_EQ(prevPrev(0), initialPrevPrev0);
 }
 
-TEST_F(WavefieldAcousticTest, SwapWithRotationNoDataCopy) {
+TEST_F(WavefieldAcousticTest, RotateNoDataCopy) {
   // Verifies that the rotation is view-handle only: mutating the underlying
   // buffer is visible through the rotated handle.
   auto prevPrev = allocateVector<vectorReal>(size1, "prevPrev");
   for (size_t i = 0; i < size1; ++i) prevPrev(i) = 10.0f;
 
   WavefieldAcoustic wavefield(prevField, currField);
-  wavefield.swapWithRotation(prevPrev, 0);
+  wavefield.rotate(prevPrev, 0);
 
   // prevPrev now points to what was prevField; write through prevPrev
   prevPrev(0) = 999.0f;

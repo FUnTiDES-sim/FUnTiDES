@@ -103,7 +103,7 @@ class TestDifferentiatorWithRotation:
             qn_prevprev = np.array(self.kk_qn2, copy=False)[0]
             
             # Step 3: Rotate adjoint wavefield
-            self.kk_qn2 = self.adj_wavefield.swap_with_rotation(self.kk_qn2)
+            self.kk_qn2 = self.adj_wavefield.rotate(self.kk_qn2)
             adj_curr = self.adj_wavefield.get_current_field(0)
             adj_prev = self.adj_wavefield.get_previous_field(0)
             adj_prevprev = self.kk_qn2
@@ -219,7 +219,7 @@ class TestDifferentiatorWithRotation:
                     qn_prevprev_array[idx] += perturbation
         
         # Step 3: Rotate adjoint wavefield
-        self.kk_qn2 = self.adj_wavefield.swap_with_rotation(self.kk_qn2)
+        self.kk_qn2 = self.adj_wavefield.rotate(self.kk_qn2)
         adj_curr = self.adj_wavefield.get_current_field(0)
         adj_prev = self.adj_wavefield.get_previous_field(0)
         adj_prevprev = self.kk_qn2

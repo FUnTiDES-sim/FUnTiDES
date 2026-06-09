@@ -39,7 +39,7 @@ struct WavefieldAcoustic : public Wavefield {
 
   void swap() override { std::swap(m_pnGlobalPrev, m_pnGlobalCurr); }
 
-  void swapWithRotation(vectorReal& prevPrevBuffer, int i) override {
+  void rotate(vectorReal& prevPrevBuffer, int i) override {
     vectorReal tmp = prevPrevBuffer;
     prevPrevBuffer = m_pnGlobalPrev;
     m_pnGlobalPrev = m_pnGlobalCurr;

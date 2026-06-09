@@ -36,7 +36,7 @@ struct DGWavefieldAcoustic {
 
   void swap() { std::swap(m_pnPrev, m_pnCurr); }
 
-  void swapWithRotation(arrayReal& prevPrevBuffer, int i) {
+  void rotate(arrayReal& prevPrevBuffer, int i) {
     arrayReal tmp = prevPrevBuffer;
     prevPrevBuffer = m_pnPrev;
     m_pnPrev = m_pnCurr;

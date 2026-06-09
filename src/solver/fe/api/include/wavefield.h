@@ -66,7 +66,7 @@ struct Wavefield {
    * @param i               Field index to swap (0 = first field, 1 = second,
    * etc.).
    */
-  virtual void swapWithRotation(vectorReal& prevPrevBuffer, int i) = 0;
+  virtual void rotate(vectorReal& prevPrevBuffer, int i) = 0;
 
   virtual void print() const = 0;
 };
