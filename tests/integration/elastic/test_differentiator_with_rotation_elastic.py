@@ -129,7 +129,7 @@ class TestDifferentiatorWithRotationElastic:
             grad_before_rho = np.array(self.kk_grad_rho, copy=False).copy()
 
             # Step 3: Rotate adjoint wavefield
-             self.kk_ux_pp, self.kk_uy_pp, self.kk_uz_pp = self.adj_wavefield.rotate(
+            self.kk_ux_pp, self.kk_uy_pp, self.kk_uz_pp = self.adj_wavefield.rotate(
                 self.kk_ux_pp, self.kk_uy_pp, self.kk_uz_pp
             )
 
@@ -265,7 +265,7 @@ class TestDifferentiatorWithRotationElastic:
                         pp_arr[idx] += perturbation
 
         # Step 3: Rotate adjoint wavefield
-         self.kk_ux_pp, self.kk_uy_pp, self.kk_uz_pp = self.adj_wavefield.rotate(
+        self.kk_ux_pp, self.kk_uy_pp, self.kk_uz_pp = self.adj_wavefield.rotate(
             self.kk_ux_pp, self.kk_uy_pp, self.kk_uz_pp
         )
         adj_curr_views = [
