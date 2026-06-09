@@ -279,3 +279,139 @@ class TestSEMsolverDataElasticRotate:
         self.kk_ux_pp, self.kk_uy_pp, self.kk_uz_pp = self.data.rotate_wavefields(
             self.kk_ux_pp, self.kk_uy_pp, self.kk_uz_pp
         )
+
+
+# ---------------------------------------------------------------------------
+# Isolation: rotating the wavefield object does NOT update the solver data
+# ---------------------------------------------------------------------------
+#
+# SEMsolverData stores its wavefield BY VALUE (C++ copy at construction time).
+# Rotating the Python-side WavefieldAcoustic / WavefieldElastic object after
+# the solver data has been built only updates the Python object's internal
+# handles — the solver data's own copy is left untouched.
+#
+# Observable consequence:
+#   - wavefield.rotate(pp1) ejects the old kk_prev handle into pp1 and
+#     replaces the wavefield's curr with kk_pp1_old.
+#   - solver_data.rotate_wavefields(pp2) thereafter still ejects kk_prev
+#     (value 1.0), NOT kk_curr (value 2.0) — proving the solver data was
+#     blind to the wavefield-level rotation.
+#   - Had the rotation leaked into the solver data the ejected value would
+#     have been 2.0 (the old curr), not 1.0 (the old prev).
+
+
+class TestAcousticWavefieldRotateDoesNotAffectSolverData:
+    def setup_method(self):
+        # prev=1.0, curr=2.0 — distinct values so we can tell which was ejected
+        self.kk_prev = _vec(1.0)
+        self.kk_curr = _vec(2.0)
+        self.kk_pp1  = _vec(3.0)   # used for the wavefield-level rotate
+        self.kk_pp2  = _vec(10.0)  # used for the solver-data-level rotate
+        self.wavefield = Solver.WavefieldAcoustic(self.kk_prev, self.kk_curr)
+        rhs = _make_acoustic_rhs()
+        self.data = Solver.SEMsolverDataAcoustic(self.wavefield, rhs)
+
+    def teardown_method(self):
+        del self.kk_prev, self.kk_curr, self.kk_pp1, self.kk_pp2
+        del self.wavefield, self.data
+
+    def test_wavefield_rotate_does_not_update_solver_data_prev_pointer(self):
+        # Rotate via the *wavefield* object — solver data must be unaffected.
+        self.kk_pp1 = self.wavefield.rotate(self.kk_pp1)
+        # kk_pp1 now aliases kk_prev (value 1.0); wavefield's curr → old kk_pp1 (3.0)
+
+        # Now rotate via the *solver data* — it must still eject kk_prev (1.0),
+        # not kk_curr (2.0), because the solver data's copy was never changed.
+        self.kk_pp2 = self.data.rotate_wavefields(self.kk_pp2)
+        assert np.allclose(np.array(self.kk_pp2, copy=False), 1.0), (
+            "solver data ejected the wrong prev: wavefield.rotate() must not "
+            "update the solver data's internal view handles"
+        )
+
+    def test_wavefield_rotate_changes_wavefield_but_not_solver_data(self):
+        # After wavefield.rotate(), the wavefield's curr now points to what
+        # was kk_pp1 (value 3.0).  If the solver data had been updated, its
+        # next rotate_wavefields would eject kk_curr (2.0) instead of kk_prev (1.0).
+        self.kk_pp1 = self.wavefield.rotate(self.kk_pp1)
+        # Confirm the wavefield DID change: pp1 now has the old prev value (1.0).
+        assert np.allclose(np.array(self.kk_pp1, copy=False), 1.0)
+
+        # Confirm the solver data did NOT change: it still ejects kk_prev (1.0).
+        self.kk_pp2 = self.data.rotate_wavefields(self.kk_pp2)
+        assert np.allclose(np.array(self.kk_pp2, copy=False), 1.0)
+        # The solver data's ejected value is 1.0 (kk_prev), not 2.0 (kk_curr).
+        assert not np.allclose(np.array(self.kk_pp2, copy=False), 2.0)
+
+
+class TestElasticWavefieldRotateDoesNotAffectSolverData:
+    def setup_method(self):
+        # ux: prev=1.0, curr=2.0  |  uy: prev=4.0, curr=5.0  |  uz: prev=7.0, curr=8.0
+        self.kk_ux_prev = _vec(1.0)
+        self.kk_ux_curr = _vec(2.0)
+        self.kk_uy_prev = _vec(4.0)
+        self.kk_uy_curr = _vec(5.0)
+        self.kk_uz_prev = _vec(7.0)
+        self.kk_uz_curr = _vec(8.0)
+        # pp1 used for wavefield-level rotate, pp2 used for solver-data-level rotate
+        self.kk_ux_pp1 = _vec(3.0)
+        self.kk_uy_pp1 = _vec(6.0)
+        self.kk_uz_pp1 = _vec(9.0)
+        self.kk_ux_pp2 = _vec(10.0)
+        self.kk_uy_pp2 = _vec(20.0)
+        self.kk_uz_pp2 = _vec(30.0)
+        self.wavefield = Solver.WavefieldElastic(
+            self.kk_ux_prev, self.kk_ux_curr,
+            self.kk_uy_prev, self.kk_uy_curr,
+            self.kk_uz_prev, self.kk_uz_curr,
+        )
+        rhs = _make_elastic_rhs()
+        self.data = Solver.SEMsolverDataElastic(self.wavefield, rhs)
+
+    def teardown_method(self):
+        del self.kk_ux_prev, self.kk_ux_curr
+        del self.kk_uy_prev, self.kk_uy_curr
+        del self.kk_uz_prev, self.kk_uz_curr
+        del self.kk_ux_pp1, self.kk_uy_pp1, self.kk_uz_pp1
+        del self.kk_ux_pp2, self.kk_uy_pp2, self.kk_uz_pp2
+        del self.wavefield, self.data
+
+    def test_wavefield_rotate_does_not_update_solver_data_prev_pointers(self):
+        # Rotate via the *wavefield* object — solver data must be unaffected.
+        self.kk_ux_pp1, self.kk_uy_pp1, self.kk_uz_pp1 = self.wavefield.rotate(
+            self.kk_ux_pp1, self.kk_uy_pp1, self.kk_uz_pp1
+        )
+        # pp1 handles now alias the old prev allocations (1.0, 4.0, 7.0).
+        # The solver data should still eject the old prev handles (same values).
+        self.kk_ux_pp2, self.kk_uy_pp2, self.kk_uz_pp2 = self.data.rotate_wavefields(
+            self.kk_ux_pp2, self.kk_uy_pp2, self.kk_uz_pp2
+        )
+        assert np.allclose(np.array(self.kk_ux_pp2, copy=False), 1.0), (
+            "ux: solver data ejected the wrong prev"
+        )
+        assert np.allclose(np.array(self.kk_uy_pp2, copy=False), 4.0), (
+            "uy: solver data ejected the wrong prev"
+        )
+        assert np.allclose(np.array(self.kk_uz_pp2, copy=False), 7.0), (
+            "uz: solver data ejected the wrong prev"
+        )
+
+    def test_wavefield_rotate_changes_wavefield_but_not_solver_data(self):
+        # Confirm wavefield DID rotate (pp1 has old prev values).
+        self.kk_ux_pp1, self.kk_uy_pp1, self.kk_uz_pp1 = self.wavefield.rotate(
+            self.kk_ux_pp1, self.kk_uy_pp1, self.kk_uz_pp1
+        )
+        assert np.allclose(np.array(self.kk_ux_pp1, copy=False), 1.0)
+        assert np.allclose(np.array(self.kk_uy_pp1, copy=False), 4.0)
+        assert np.allclose(np.array(self.kk_uz_pp1, copy=False), 7.0)
+
+        # Confirm solver data did NOT change: it still ejects old prev (not old curr).
+        self.kk_ux_pp2, self.kk_uy_pp2, self.kk_uz_pp2 = self.data.rotate_wavefields(
+            self.kk_ux_pp2, self.kk_uy_pp2, self.kk_uz_pp2
+        )
+        # Must be old prev values (1.0, 4.0, 7.0), NOT old curr values (2.0, 5.0, 8.0).
+        assert np.allclose(np.array(self.kk_ux_pp2, copy=False), 1.0)
+        assert np.allclose(np.array(self.kk_uy_pp2, copy=False), 4.0)
+        assert np.allclose(np.array(self.kk_uz_pp2, copy=False), 7.0)
+        assert not np.allclose(np.array(self.kk_ux_pp2, copy=False), 2.0)
+        assert not np.allclose(np.array(self.kk_uy_pp2, copy=False), 5.0)
+        assert not np.allclose(np.array(self.kk_uz_pp2, copy=False), 8.0)
