@@ -35,7 +35,7 @@ void bind_acoustic_solver_data(py::module_ &m) {
       .def("swap_wavefields", &SEMsolverDataAcoustic::swapWavefields)
       .def(
           "rotate_wavefields",
-          [](SEMsolverDataAcoustic& self, Kokkos::Experimental::python_view_type_t<vectorReal>& prevPrevBuffer) {
+          [](SEMsolverDataAcoustic &self, Kokkos::Experimental::python_view_type_t<vectorReal> &prevPrevBuffer) {
             vectorReal view = prevPrevBuffer;
             self.rotateWavefields(view, 0);  // field index 0 for pressure
             return Kokkos::Experimental::python_view_type_t<vectorReal>(view);
@@ -50,10 +50,9 @@ void bind_elastic_solver_data(py::module_ &m) {
       .def("swap_wavefields", &SEMsolverDataElastic::swapWavefields)
       .def(
           "rotate_wavefields",
-          [](SEMsolverDataElastic& self,
-             Kokkos::Experimental::python_view_type_t<vectorReal>& uxPP,
-             Kokkos::Experimental::python_view_type_t<vectorReal>& uyPP,
-             Kokkos::Experimental::python_view_type_t<vectorReal>& uzPP) {
+          [](SEMsolverDataElastic &self, Kokkos::Experimental::python_view_type_t<vectorReal> &uxPP,
+             Kokkos::Experimental::python_view_type_t<vectorReal> &uyPP,
+             Kokkos::Experimental::python_view_type_t<vectorReal> &uzPP) {
             vectorReal vux = uxPP, vuy = uyPP, vuz = uzPP;
             self.rotateWavefields(vux, 0);  // ux component
             self.rotateWavefields(vuy, 1);  // uy component
