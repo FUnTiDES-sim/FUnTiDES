@@ -26,7 +26,7 @@ void bind_wavefield_base(py::module_& m) {
           [](Wavefield& self, Kokkos::Experimental::python_view_type_t<vectorReal>& prevPrevBuffer) {
             vectorReal view = prevPrevBuffer;
             self.swapWithRotation(view, 0);  // field index 0 for pressure
-            prevPrevBuffer = view;
+            return Kokkos::Experimental::python_view_type_t<vectorReal>(view);
           },
           py::arg("prev_prev_buffer"))
       .def(
@@ -56,7 +56,7 @@ void bind_wavefield_acoustic(py::module_& m) {
           [](WavefieldAcoustic& self, Kokkos::Experimental::python_view_type_t<vectorReal>& prevPrevBuffer) {
             vectorReal view = prevPrevBuffer;
             self.swapWithRotation(view, 0);  // field index 0 for pressure
-            prevPrevBuffer = view;
+            return Kokkos::Experimental::python_view_type_t<vectorReal>(view);
           },
           py::arg("prev_prev_buffer"))
       .def(
@@ -95,9 +95,9 @@ void bind_wavefield_elastic(py::module_& m) {
             self.swapWithRotation(vux, 0);  // ux component
             self.swapWithRotation(vuy, 1);  // uy component
             self.swapWithRotation(vuz, 2);  // uz component
-            uxPP = vux;
-            uyPP = vuy;
-            uzPP = vuz;
+            return std::make_tuple(Kokkos::Experimental::python_view_type_t<vectorReal>(vux),
+                                   Kokkos::Experimental::python_view_type_t<vectorReal>(vuy),
+                                   Kokkos::Experimental::python_view_type_t<vectorReal>(vuz));
           },
           py::arg("ux_prev_prev"), py::arg("uy_prev_prev"), py::arg("uz_prev_prev"))
       .def(

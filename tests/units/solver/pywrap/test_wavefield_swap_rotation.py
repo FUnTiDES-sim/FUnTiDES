@@ -49,22 +49,22 @@ class TestWavefieldAcousticSwapWithRotation:
         del self.wavefield
 
     def test_rotation_moves_prev_to_prevprev(self):
-        # After rotation, the prevprev parameter now points to what was prev
-        self.wavefield.swap_with_rotation(self.kk_prevprev)
+        # After rotation, the returned handle points to what was prev
+        self.kk_prevprev = self.wavefield.swap_with_rotation(self.kk_prevprev)
         assert np.allclose(np.array(self.kk_prevprev, copy=False), 1.0)
 
     def test_three_rotations_restore_state(self):
-        # Three rotations on a 3-element ring restores original state
-        # After 3 rotations, kk_prevprev points back to its original buffer
+        # Three rotations on a 3-element ring restores original state.
+        # Each call returns the rotated handle that must be kept for the next step.
         original_val = np.array(self.kk_prevprev, copy=False)[0]
         for _ in range(3):
-            self.wavefield.swap_with_rotation(self.kk_prevprev)
+            self.kk_prevprev = self.wavefield.swap_with_rotation(self.kk_prevprev)
         assert np.array(self.kk_prevprev, copy=False)[0] == pytest.approx(original_val)
 
     def test_no_data_copy_mutation_visible_through_rotated_handle(self):
-        # After rotation kk_prevprev aliases the old kk_prev allocation.
+        # After rotation the returned handle aliases the old kk_prev allocation.
         # Writing through one must be visible through the other.
-        self.wavefield.swap_with_rotation(self.kk_prevprev)
+        self.kk_prevprev = self.wavefield.swap_with_rotation(self.kk_prevprev)
         np.array(self.kk_prevprev, copy=False)[0] = 999.0
         # kk_prev is the underlying allocation that kk_prevprev now points to
         assert np.array(self.kk_prev, copy=False)[0] == pytest.approx(999.0)
@@ -73,10 +73,10 @@ class TestWavefieldAcousticSwapWithRotation:
         # Verify that swap() can be called after swap_with_rotation()
         # without crashing. We can't directly observe the internal state
         # from Python, but we can verify the operation completes.
-        self.wavefield.swap_with_rotation(self.kk_prevprev)
+        self.kk_prevprev = self.wavefield.swap_with_rotation(self.kk_prevprev)
         self.wavefield.swap()  # Should not crash
         # After rotation then swap, do another rotation to verify consistency
-        self.wavefield.swap_with_rotation(self.kk_prevprev)
+        self.kk_prevprev = self.wavefield.swap_with_rotation(self.kk_prevprev)
         # If we got here without crashing, the test passes
 
 
@@ -115,7 +115,7 @@ class TestWavefieldElasticSwapWithRotation:
         del self.wavefield
 
     def test_rotation_correct_for_all_components(self):
-        self.wavefield.swap_with_rotation(
+        self.kk_ux_pp, self.kk_uy_pp, self.kk_uz_pp = self.wavefield.swap_with_rotation(
             self.kk_ux_pp, self.kk_uy_pp, self.kk_uz_pp
         )
         # After rotation, prevprev parameters point to what was prev
@@ -130,7 +130,7 @@ class TestWavefieldElasticSwapWithRotation:
         orig_uz = np.array(self.kk_uz_pp, copy=False)[0]
         
         for _ in range(3):
-            self.wavefield.swap_with_rotation(
+            self.kk_ux_pp, self.kk_uy_pp, self.kk_uz_pp = self.wavefield.swap_with_rotation(
                 self.kk_ux_pp, self.kk_uy_pp, self.kk_uz_pp
             )
         
@@ -140,7 +140,7 @@ class TestWavefieldElasticSwapWithRotation:
         assert np.array(self.kk_uz_pp, copy=False)[0] == pytest.approx(orig_uz)
 
     def test_no_data_copy_ux(self):
-        self.wavefield.swap_with_rotation(
+        self.kk_ux_pp, self.kk_uy_pp, self.kk_uz_pp = self.wavefield.swap_with_rotation(
             self.kk_ux_pp, self.kk_uy_pp, self.kk_uz_pp
         )
         np.array(self.kk_ux_pp, copy=False)[0] = 999.0
