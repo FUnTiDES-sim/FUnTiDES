@@ -184,9 +184,7 @@ TEST_F(WavefieldAcoustoElasticTest, SwapWithThreeBuffersAcoustic) {
     uzPrevPrev(i) = 300.0f;
   }
 
-  WavefieldAcoustoElastic wf(pPrevPrev, pPrev, pCurr,
-                             uxPrevPrev, uxPrev, uxCurr,
-                             uyPrevPrev, uyPrev, uyCurr,
+  WavefieldAcoustoElastic wf(pPrevPrev, pPrev, pCurr, uxPrevPrev, uxPrev, uxCurr, uyPrevPrev, uyPrev, uyCurr,
                              uzPrevPrev, uzPrev, uzCurr);
   EXPECT_TRUE(wf.hasPrevPrev());
 
@@ -217,9 +215,7 @@ TEST_F(WavefieldAcoustoElasticTest, SwapWithThreeBuffersElastic) {
     uzPrevPrev(i) = 40.0f;
   }
 
-  WavefieldAcoustoElastic wf(pPrevPrev, pPrev, pCurr,
-                             uxPrevPrev, uxPrev, uxCurr,
-                             uyPrevPrev, uyPrev, uyCurr,
+  WavefieldAcoustoElastic wf(pPrevPrev, pPrev, pCurr, uxPrevPrev, uxPrev, uxCurr, uyPrevPrev, uyPrev, uyCurr,
                              uzPrevPrev, uzPrev, uzCurr);
   EXPECT_TRUE(wf.hasPrevPrev());
 
@@ -324,9 +320,7 @@ TEST_F(WavefieldAcoustoElasticTest, SwapThreeTimesRestoresStateWithThreeBuffers)
   float initialPCurr0 = pCurr(0);
   float initialPPrevPrev0 = pPrevPrev(0);
 
-  WavefieldAcoustoElastic wf(pPrevPrev, pPrev, pCurr,
-                             uxPrevPrev, uxPrev, uxCurr,
-                             uyPrevPrev, uyPrev, uyCurr,
+  WavefieldAcoustoElastic wf(pPrevPrev, pPrev, pCurr, uxPrevPrev, uxPrev, uxCurr, uyPrevPrev, uyPrev, uyCurr,
                              uzPrevPrev, uzPrev, uzCurr);
 
   wf.swap();

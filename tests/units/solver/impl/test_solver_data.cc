@@ -294,9 +294,7 @@ TEST_F(SEMSolverDataElasticSwapRotateTest, SwapWithThreeBuffersRotatesPerCompone
     uzPrevPrev(i) = 30.0f;
   }
 
-  WavefieldElastic wavefield(uxPrevPrev, uxPrev, uxCurr,
-                             uyPrevPrev, uyPrev, uyCurr,
-                             uzPrevPrev, uzPrev, uzCurr);
+  WavefieldElastic wavefield(uxPrevPrev, uxPrev, uxCurr, uyPrevPrev, uyPrev, uyCurr, uzPrevPrev, uzPrev, uzCurr);
   RhsElastic rhs;
   SEMsolverDataElastic solver_data(wavefield, rhs, false);
 
@@ -332,9 +330,7 @@ TEST_F(SEMSolverDataElasticSwapRotateTest, SwapThreeTimesRestoresStatePerCompone
     uzPrevPrev(i) = 30.0f;
   }
 
-  WavefieldElastic wavefield(uxPrevPrev, uxPrev, uxCurr,
-                             uyPrevPrev, uyPrev, uyCurr,
-                             uzPrevPrev, uzPrev, uzCurr);
+  WavefieldElastic wavefield(uxPrevPrev, uxPrev, uxCurr, uyPrevPrev, uyPrev, uyCurr, uzPrevPrev, uzPrev, uzCurr);
   RhsElastic rhs;
   SEMsolverDataElastic solver_data(wavefield, rhs, false);
 

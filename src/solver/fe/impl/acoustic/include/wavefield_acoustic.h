@@ -23,7 +23,7 @@ struct WavefieldAcoustic : public Wavefield {
   PROXY_HOST_DEVICE WavefieldAcoustic(const WavefieldAcoustic&) = default;
   PROXY_HOST_DEVICE WavefieldAcoustic& operator=(const WavefieldAcoustic&) = default;
 
-    /*
+  /*
    *  @brief Constructor for forward simulation (2-buffer mode).
    *  Contains current and previous fields for each displacement component.
    */
@@ -31,7 +31,7 @@ struct WavefieldAcoustic : public Wavefield {
   WavefieldAcoustic(vectorReal pnGlobalPrevPrev, vectorReal pnGlobalPrev, vectorReal pnGlobalCurr)
       : m_pnGlobalPrevPrev(pnGlobalPrevPrev), m_pnGlobalPrev(pnGlobalPrev), m_pnGlobalCurr(pnGlobalCurr) {}
 
-        /*
+  /*
    *  @brief Constructor for adjoint/backward simulation (3-buffer mode).
    *  Contains current, previous, and previous-previous fields for each displacement component.
    */

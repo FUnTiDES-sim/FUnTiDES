@@ -115,12 +115,12 @@ struct WavefieldElastic : public Wavefield {
       m_uxnGlobalPrevPrev = m_uxnGlobalPrev;
       m_uxnGlobalPrev = m_uxnGlobalCurr;
       m_uxnGlobalCurr = tempUx;
-      
+
       vectorReal tempUy = m_uynGlobalPrevPrev;
       m_uynGlobalPrevPrev = m_uynGlobalPrev;
       m_uynGlobalPrev = m_uynGlobalCurr;
       m_uynGlobalCurr = tempUy;
-      
+
       vectorReal tempUz = m_uznGlobalPrevPrev;
       m_uznGlobalPrevPrev = m_uznGlobalPrev;
       m_uznGlobalPrev = m_uznGlobalCurr;

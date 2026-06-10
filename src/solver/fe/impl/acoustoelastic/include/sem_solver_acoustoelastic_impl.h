@@ -468,8 +468,8 @@ void SEMsolverAcoustoElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES>
 //============================================================================
 
 template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE, bool IS_MODEL_ON_NODES>
-void SEMsolverAcoustoElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES>::updateSolutionForward(const float& dt,
-                                                                                                 DataStruct& data) {
+void SEMsolverAcoustoElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES>::updateSolutionForward(
+    const float& dt, DataStruct& data) {
   auto& myData = dynamic_cast<DataType&>(data);
 
   SEMsolverData<utils::enums::physicType::kElastic> elastic_data(myData.m_wavefield.m_elastic,

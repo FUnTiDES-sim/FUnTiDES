@@ -93,8 +93,8 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::com
 
 template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE, bool IS_MODEL_ON_NODES,
           utils::enums::physicType PHYSICS>
-void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::updateSolutionForward(const float& dt,
-                                                                                            Solver::DataStruct& data) {
+void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::updateSolutionForward(
+    const float& dt, Solver::DataStruct& data) {
   auto& myData = dynamic_cast<DataType&>(data);
   if (myData.getPrevPrevField(0).extent(0) > 0) {
     throw std::runtime_error(
@@ -111,8 +111,8 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::upd
 
 template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE, bool IS_MODEL_ON_NODES,
           utils::enums::physicType PHYSICS>
-void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::updateSolutionBackward(const float& dt,
-                                                                                            Solver::DataStruct& data) {
+void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::updateSolutionBackward(
+    const float& dt, Solver::DataStruct& data) {
   auto& myData = dynamic_cast<DataType&>(data);
   if (myData.getPrevPrevField(0).extent(0) == 0) {
     throw std::runtime_error(
@@ -884,7 +884,7 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::com
 //============================================================================
 template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE, bool IS_MODEL_ON_NODES, physicType PHYSICS>
 void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::updateFieldsForward(float dt,
-                                                                                          const DataType& data) {
+                                                                                                 const DataType& data) {
   // Extract scalar constants to local variables
   float const dt_local = dt;
   float const dt2_local = dt * dt;

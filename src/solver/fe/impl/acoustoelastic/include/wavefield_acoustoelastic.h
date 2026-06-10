@@ -24,7 +24,7 @@ struct WavefieldAcoustoElastic : public Wavefield {
   /// Field names in order: p, ux, uy, uz
   static constexpr const char* kFieldNames[4] = {"pressure", "ux", "uy", "uz"};
 
-    /*
+  /*
    *  @brief Constructor for forward simulation (2-buffer mode).
    *  Contains current and previous fields for each displacement component.
    */
@@ -43,8 +43,7 @@ struct WavefieldAcoustoElastic : public Wavefield {
                           vectorReal uynGlobalPrevPrev, vectorReal uynGlobalPrev, vectorReal uynGlobalCurr,
                           vectorReal uznGlobalPrevPrev, vectorReal uznGlobalPrev, vectorReal uznGlobalCurr)
       : m_acoustic(pnGlobalPrevPrev, pnGlobalPrev, pnGlobalCurr),
-        m_elastic(uxnGlobalPrevPrev, uxnGlobalPrev, uxnGlobalCurr, 
-                  uynGlobalPrevPrev, uynGlobalPrev, uynGlobalCurr,
+        m_elastic(uxnGlobalPrevPrev, uxnGlobalPrev, uxnGlobalCurr, uynGlobalPrevPrev, uynGlobalPrev, uynGlobalCurr,
                   uznGlobalPrevPrev, uznGlobalPrev, uznGlobalCurr) {}
 
   int getNumFields() const override final { return kNumFields; }

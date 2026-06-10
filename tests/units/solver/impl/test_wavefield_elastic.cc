@@ -439,9 +439,8 @@ TEST_F(WavefieldElasticTest, SwapWithThreeBuffersRotatesCorrectly) {
     uzPrevPrev(i) = 30.0f;
   }
 
-  WavefieldElastic wavefield(uxPrevPrev, uxPrevField, uxCurrField,
-                            uyPrevPrev, uyPrevField, uyCurrField,
-                            uzPrevPrev, uzPrevField, uzCurrField);
+  WavefieldElastic wavefield(uxPrevPrev, uxPrevField, uxCurrField, uyPrevPrev, uyPrevField, uyCurrField, uzPrevPrev,
+                             uzPrevField, uzCurrField);
   EXPECT_TRUE(wavefield.hasPrevPrev());
 
   wavefield.swap();
@@ -479,9 +478,8 @@ TEST_F(WavefieldElasticTest, SwapThreeTimesRestoresStateWithThreeBuffers) {
   float initialUxCurr0 = uxCurrField(0);
   float initialUxPP0 = uxPrevPrev(0);
 
-  WavefieldElastic wavefield(uxPrevPrev, uxPrevField, uxCurrField,
-                            uyPrevPrev, uyPrevField, uyCurrField,
-                            uzPrevPrev, uzPrevField, uzCurrField);
+  WavefieldElastic wavefield(uxPrevPrev, uxPrevField, uxCurrField, uyPrevPrev, uyPrevField, uyCurrField, uzPrevPrev,
+                             uzPrevField, uzCurrField);
   EXPECT_TRUE(wavefield.hasPrevPrev());
 
   wavefield.swap();
@@ -503,9 +501,8 @@ TEST_F(WavefieldElasticTest, SwapThreeBuffersNoDataCopy) {
     uzPrevPrev(i) = 30.0f;
   }
 
-  WavefieldElastic wavefield(uxPrevPrev, uxPrevField, uxCurrField,
-                            uyPrevPrev, uyPrevField, uyCurrField,
-                            uzPrevPrev, uzPrevField, uzCurrField);
+  WavefieldElastic wavefield(uxPrevPrev, uxPrevField, uxCurrField, uyPrevPrev, uyPrevField, uyCurrField, uzPrevPrev,
+                             uzPrevField, uzCurrField);
   wavefield.swap();
 
   // getPrevPrevField(0) now aliases uxPrevField; write through one and read through the other
