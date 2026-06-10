@@ -22,14 +22,6 @@ void bind_wavefield_base(py::module_& m) {
   py::class_<Wavefield, std::shared_ptr<Wavefield>>(m, "Wavefield")
       .def("swap", &Wavefield::swap)
       .def(
-          "rotate",
-          [](Wavefield& self, Kokkos::Experimental::python_view_type_t<vectorReal>& prevPrevBuffer) {
-            vectorReal view = prevPrevBuffer;
-            self.rotate(view, 0);  // field index 0 for pressure
-            return Kokkos::Experimental::python_view_type_t<vectorReal>(view);
-          },
-          py::arg("prev_prev_buffer"))
-      .def(
           "get_current_field",
           [](const Wavefield& self, int i) {
             return Kokkos::Experimental::python_view_type_t<vectorReal>(self.getCurrentField(i));
@@ -41,24 +33,29 @@ void bind_wavefield_base(py::module_& m) {
             return Kokkos::Experimental::python_view_type_t<vectorReal>(self.getPreviousField(i));
           },
           py::arg("i"))
+      .def(
+          "get_prevprev_field",
+          [](const Wavefield& self, int i) {
+            return Kokkos::Experimental::python_view_type_t<vectorReal>(self.getPrevPrevField(i));
+          },
+          py::arg("i"))
+      .def("has_prevprev", &Wavefield::hasPrevPrev)
       .def("print", &Wavefield::print);
 }
 
 void bind_wavefield_acoustic(py::module_& m) {
   // Bind WavefieldAcoustic (inherits from Wavefield)
   py::class_<WavefieldAcoustic, Wavefield, std::shared_ptr<WavefieldAcoustic>>(m, "WavefieldAcoustic")
+      // 2-arg constructor for forward simulation (2-buffer mode)
       .def(py::init<Kokkos::Experimental::python_view_type_t<vectorReal>,
                     Kokkos::Experimental::python_view_type_t<vectorReal>>(),
            py::arg("pn_global_prev"), py::arg("pn_global_curr"))
+      // 3-arg constructor for adjoint simulation (3-buffer mode)
+      .def(py::init<Kokkos::Experimental::python_view_type_t<vectorReal>,
+                    Kokkos::Experimental::python_view_type_t<vectorReal>,
+                    Kokkos::Experimental::python_view_type_t<vectorReal>>(),
+           py::arg("pn_global_prevprev"), py::arg("pn_global_prev"), py::arg("pn_global_curr"))
       .def("swap", &WavefieldAcoustic::swap)
-      .def(
-          "rotate",
-          [](WavefieldAcoustic& self, Kokkos::Experimental::python_view_type_t<vectorReal>& prevPrevBuffer) {
-            vectorReal view = prevPrevBuffer;
-            self.rotate(view, 0);  // field index 0 for pressure
-            return Kokkos::Experimental::python_view_type_t<vectorReal>(view);
-          },
-          py::arg("prev_prev_buffer"))
       .def(
           "get_current_field",
           [](const WavefieldAcoustic& self, int i) {
@@ -71,12 +68,20 @@ void bind_wavefield_acoustic(py::module_& m) {
             return Kokkos::Experimental::python_view_type_t<vectorReal>(self.getPreviousField(i));
           },
           py::arg("i"))
+      .def(
+          "get_prevprev_field",
+          [](const WavefieldAcoustic& self, int i) {
+            return Kokkos::Experimental::python_view_type_t<vectorReal>(self.getPrevPrevField(i));
+          },
+          py::arg("i"))
+      .def("has_prevprev", &WavefieldAcoustic::hasPrevPrev)
       .def("print", &WavefieldAcoustic::print);
 }
 
 void bind_wavefield_elastic(py::module_& m) {
   // Bind WavefieldElastic (inherits from Wavefield)
   py::class_<WavefieldElastic, Wavefield, std::shared_ptr<WavefieldElastic>>(m, "WavefieldElastic")
+      // 6-arg constructor for forward simulation (2-buffer mode)
       .def(py::init<Kokkos::Experimental::python_view_type_t<vectorReal>,
                     Kokkos::Experimental::python_view_type_t<vectorReal>,
                     Kokkos::Experimental::python_view_type_t<vectorReal>,
@@ -85,21 +90,20 @@ void bind_wavefield_elastic(py::module_& m) {
                     Kokkos::Experimental::python_view_type_t<vectorReal>>(),
            py::arg("uxn_global_prev"), py::arg("uxn_global_curr"), py::arg("uyn_global_prev"),
            py::arg("uyn_global_curr"), py::arg("uzn_global_prev"), py::arg("uzn_global_curr"))
+      // 9-arg constructor for adjoint simulation (3-buffer mode)
+      .def(py::init<Kokkos::Experimental::python_view_type_t<vectorReal>,
+                    Kokkos::Experimental::python_view_type_t<vectorReal>,
+                    Kokkos::Experimental::python_view_type_t<vectorReal>,
+                    Kokkos::Experimental::python_view_type_t<vectorReal>,
+                    Kokkos::Experimental::python_view_type_t<vectorReal>,
+                    Kokkos::Experimental::python_view_type_t<vectorReal>,
+                    Kokkos::Experimental::python_view_type_t<vectorReal>,
+                    Kokkos::Experimental::python_view_type_t<vectorReal>,
+                    Kokkos::Experimental::python_view_type_t<vectorReal>>(),
+           py::arg("uxn_global_prevprev"), py::arg("uxn_global_prev"), py::arg("uxn_global_curr"),
+           py::arg("uyn_global_prevprev"), py::arg("uyn_global_prev"), py::arg("uyn_global_curr"),
+           py::arg("uzn_global_prevprev"), py::arg("uzn_global_prev"), py::arg("uzn_global_curr"))
       .def("swap", &WavefieldElastic::swap)
-      .def(
-          "rotate",
-          [](WavefieldElastic& self, Kokkos::Experimental::python_view_type_t<vectorReal>& uxPP,
-             Kokkos::Experimental::python_view_type_t<vectorReal>& uyPP,
-             Kokkos::Experimental::python_view_type_t<vectorReal>& uzPP) {
-            vectorReal vux = uxPP, vuy = uyPP, vuz = uzPP;
-            self.rotate(vux, 0);  // ux component
-            self.rotate(vuy, 1);  // uy component
-            self.rotate(vuz, 2);  // uz component
-            return std::make_tuple(Kokkos::Experimental::python_view_type_t<vectorReal>(vux),
-                                   Kokkos::Experimental::python_view_type_t<vectorReal>(vuy),
-                                   Kokkos::Experimental::python_view_type_t<vectorReal>(vuz));
-          },
-          py::arg("ux_prev_prev"), py::arg("uy_prev_prev"), py::arg("uz_prev_prev"))
       .def(
           "get_current_field",
           [](const WavefieldElastic& self, int i) {
@@ -112,11 +116,19 @@ void bind_wavefield_elastic(py::module_& m) {
             return Kokkos::Experimental::python_view_type_t<vectorReal>(self.getPreviousField(i));
           },
           py::arg("i"))
+      .def(
+          "get_prevprev_field",
+          [](const WavefieldElastic& self, int i) {
+            return Kokkos::Experimental::python_view_type_t<vectorReal>(self.getPrevPrevField(i));
+          },
+          py::arg("i"))
+      .def("has_prevprev", &WavefieldElastic::hasPrevPrev)
       .def("print", &WavefieldElastic::print);
 }
 
 void bind_wavefield_acoustoelastic(py::module_& m) {
   py::class_<WavefieldAcoustoElastic, Wavefield, std::shared_ptr<WavefieldAcoustoElastic>>(m, "WavefieldAcoustoElastic")
+      // 8-arg constructor for forward simulation (2-buffer mode)
       .def(py::init<Kokkos::Experimental::python_view_type_t<vectorReal>,
                     Kokkos::Experimental::python_view_type_t<vectorReal>,
                     Kokkos::Experimental::python_view_type_t<vectorReal>,
@@ -128,6 +140,23 @@ void bind_wavefield_acoustoelastic(py::module_& m) {
            py::arg("pn_global_prev"), py::arg("pn_global_curr"), py::arg("uxn_global_prev"), py::arg("uxn_global_curr"),
            py::arg("uyn_global_prev"), py::arg("uyn_global_curr"), py::arg("uzn_global_prev"),
            py::arg("uzn_global_curr"))
+      // 12-arg constructor for adjoint simulation (3-buffer mode)
+      .def(py::init<Kokkos::Experimental::python_view_type_t<vectorReal>,
+                    Kokkos::Experimental::python_view_type_t<vectorReal>,
+                    Kokkos::Experimental::python_view_type_t<vectorReal>,
+                    Kokkos::Experimental::python_view_type_t<vectorReal>,
+                    Kokkos::Experimental::python_view_type_t<vectorReal>,
+                    Kokkos::Experimental::python_view_type_t<vectorReal>,
+                    Kokkos::Experimental::python_view_type_t<vectorReal>,
+                    Kokkos::Experimental::python_view_type_t<vectorReal>,
+                    Kokkos::Experimental::python_view_type_t<vectorReal>,
+                    Kokkos::Experimental::python_view_type_t<vectorReal>,
+                    Kokkos::Experimental::python_view_type_t<vectorReal>,
+                    Kokkos::Experimental::python_view_type_t<vectorReal>>(),
+           py::arg("pn_global_prevprev"), py::arg("pn_global_prev"), py::arg("pn_global_curr"),
+           py::arg("uxn_global_prevprev"), py::arg("uxn_global_prev"), py::arg("uxn_global_curr"),
+           py::arg("uyn_global_prevprev"), py::arg("uyn_global_prev"), py::arg("uyn_global_curr"),
+           py::arg("uzn_global_prevprev"), py::arg("uzn_global_prev"), py::arg("uzn_global_curr"))
       .def("swap", &WavefieldAcoustoElastic::swap)
       .def(
           "get_current_field",
@@ -141,6 +170,13 @@ void bind_wavefield_acoustoelastic(py::module_& m) {
             return Kokkos::Experimental::python_view_type_t<vectorReal>(self.getPreviousField(i));
           },
           py::arg("i"))
+      .def(
+          "get_prevprev_field",
+          [](const WavefieldAcoustoElastic& self, int i) {
+            return Kokkos::Experimental::python_view_type_t<vectorReal>(self.getPrevPrevField(i));
+          },
+          py::arg("i"))
+      .def("has_prevprev", &WavefieldAcoustoElastic::hasPrevPrev)
       .def("print", &WavefieldAcoustoElastic::print);
 }
 }  // namespace fe

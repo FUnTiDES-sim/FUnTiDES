@@ -23,9 +23,21 @@ struct WavefieldAcoustic : public Wavefield {
   PROXY_HOST_DEVICE WavefieldAcoustic(const WavefieldAcoustic&) = default;
   PROXY_HOST_DEVICE WavefieldAcoustic& operator=(const WavefieldAcoustic&) = default;
 
+    /*
+   *  @brief Constructor for forward simulation (2-buffer mode).
+   *  Contains current and previous fields for each displacement component.
+   */
+  PROXY_HOST_DEVICE
+  WavefieldAcoustic(vectorReal pnGlobalPrevPrev, vectorReal pnGlobalPrev, vectorReal pnGlobalCurr)
+      : m_pnGlobalPrevPrev(pnGlobalPrevPrev), m_pnGlobalPrev(pnGlobalPrev), m_pnGlobalCurr(pnGlobalCurr) {}
+
+        /*
+   *  @brief Constructor for adjoint/backward simulation (3-buffer mode).
+   *  Contains current, previous, and previous-previous fields for each displacement component.
+   */
   PROXY_HOST_DEVICE
   WavefieldAcoustic(vectorReal pnGlobalPrev, vectorReal pnGlobalCurr)
-      : m_pnGlobalPrev(pnGlobalPrev), m_pnGlobalCurr(pnGlobalCurr) {}
+      : m_pnGlobalPrevPrev(), m_pnGlobalPrev(pnGlobalPrev), m_pnGlobalCurr(pnGlobalCurr) {}
 
   int getNumFields() const override final { return kNumFields; }
 
@@ -37,22 +49,34 @@ struct WavefieldAcoustic : public Wavefield {
   PROXY_HOST_DEVICE
   vectorReal getPreviousField(int i) const override { return m_pnGlobalPrev; }
 
-  void swap() override { std::swap(m_pnGlobalPrev, m_pnGlobalCurr); }
+  PROXY_HOST_DEVICE
+  vectorReal getPrevPrevField(int i) const override { return m_pnGlobalPrevPrev; }
 
-  void rotate(vectorReal& prevPrevBuffer, int i) override {
-    vectorReal tmp = prevPrevBuffer;
-    prevPrevBuffer = m_pnGlobalPrev;
-    m_pnGlobalPrev = m_pnGlobalCurr;
-    m_pnGlobalCurr = tmp;
+  bool hasPrevPrev() const override { return m_pnGlobalPrevPrev.extent(0) > 0; }
+
+  void swap() override {
+    if (hasPrevPrev()) {
+      // 3-way rotation: prevprev ← prev ← curr ← prevprev
+      std::swap(m_pnGlobalPrevPrev, m_pnGlobalPrev);
+      std::swap(m_pnGlobalPrev, m_pnGlobalCurr);
+      std::swap(m_pnGlobalCurr, m_pnGlobalPrevPrev);
+    } else {
+      // 2-way swap: curr ↔ prev
+      std::swap(m_pnGlobalPrev, m_pnGlobalCurr);
+    }
   }
 
   void print() const override {
     std::cout << "Pn Global Prev size: " << m_pnGlobalPrev.extent(0) << std::endl;
     std::cout << "Pn Global Curr size: " << m_pnGlobalCurr.extent(0) << std::endl;
+    if (hasPrevPrev()) {
+      std::cout << "Pn Global PrevPrev size: " << m_pnGlobalPrevPrev.extent(0) << std::endl;
+    }
   }
 
-  vectorReal m_pnGlobalPrev;  ///< Pressure field at previous time step
-  vectorReal m_pnGlobalCurr;  ///< Pressure field at current time step
+  vectorReal m_pnGlobalPrevPrev;  ///< Pressure field at n-2 time step (for adjoint)
+  vectorReal m_pnGlobalPrev;      ///< Pressure field at previous time step
+  vectorReal m_pnGlobalCurr;      ///< Pressure field at current time step
 };
 }  // namespace fe
 }  // namespace solver

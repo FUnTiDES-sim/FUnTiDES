@@ -22,13 +22,38 @@ struct WavefieldElastic : public Wavefield {
   PROXY_HOST_DEVICE WavefieldElastic(const WavefieldElastic&) = default;
   PROXY_HOST_DEVICE WavefieldElastic& operator=(const WavefieldElastic&) = default;
 
+  /*
+   *  @brief Constructor for forward simulation (2-buffer mode).
+   *  Contains current and previous fields for each displacement component.
+   */
   PROXY_HOST_DEVICE
   WavefieldElastic(vectorReal uxnGlobalPrev, vectorReal uxnGlobalCurr, vectorReal uynGlobalPrev,
                    vectorReal uynGlobalCurr, vectorReal uznGlobalPrev, vectorReal uznGlobalCurr)
-      : m_uxnGlobalPrev(uxnGlobalPrev),
+      : m_uxnGlobalPrevPrev(),
+        m_uxnGlobalPrev(uxnGlobalPrev),
         m_uxnGlobalCurr(uxnGlobalCurr),
+        m_uynGlobalPrevPrev(),
         m_uynGlobalPrev(uynGlobalPrev),
         m_uynGlobalCurr(uynGlobalCurr),
+        m_uznGlobalPrevPrev(),
+        m_uznGlobalPrev(uznGlobalPrev),
+        m_uznGlobalCurr(uznGlobalCurr) {}
+
+  /*
+   *  @brief Constructor for adjoint/backward simulation (3-buffer mode).
+   *  Contains current, previous, and previous-previous fields for each displacement component.
+   */
+  PROXY_HOST_DEVICE
+  WavefieldElastic(vectorReal uxnGlobalPrevPrev, vectorReal uxnGlobalPrev, vectorReal uxnGlobalCurr,
+                   vectorReal uynGlobalPrevPrev, vectorReal uynGlobalPrev, vectorReal uynGlobalCurr,
+                   vectorReal uznGlobalPrevPrev, vectorReal uznGlobalPrev, vectorReal uznGlobalCurr)
+      : m_uxnGlobalPrevPrev(uxnGlobalPrevPrev),
+        m_uxnGlobalPrev(uxnGlobalPrev),
+        m_uxnGlobalCurr(uxnGlobalCurr),
+        m_uynGlobalPrevPrev(uynGlobalPrevPrev),
+        m_uynGlobalPrev(uynGlobalPrev),
+        m_uynGlobalCurr(uynGlobalCurr),
+        m_uznGlobalPrevPrev(uznGlobalPrevPrev),
         m_uznGlobalPrev(uznGlobalPrev),
         m_uznGlobalCurr(uznGlobalCurr) {}
 
@@ -66,36 +91,42 @@ struct WavefieldElastic : public Wavefield {
     }
   }
 
-  void swap() override {
-    std::swap(m_uxnGlobalPrev, m_uxnGlobalCurr);
-    std::swap(m_uynGlobalPrev, m_uynGlobalCurr);
-    std::swap(m_uznGlobalPrev, m_uznGlobalCurr);
+  // TODO use template + constexpr if when C++20 is available
+  PROXY_HOST_DEVICE
+  vectorReal getPrevPrevField(int i) const override {
+    switch (i) {
+      case 0:
+        return m_uxnGlobalPrevPrev;
+      case 1:
+        return m_uynGlobalPrevPrev;
+      case 2:
+        return m_uznGlobalPrevPrev;
+      default:
+        return m_uxnGlobalPrevPrev;  // make it cuda happy
+    }
   }
 
-  // NOTE: elastic has 3 components — the caller must manage one extra buffer
-  // per component and call rotate once per component with the
-  // appropriate field index (0=ux, 1=uy, 2=uz).
-  void rotate(vectorReal& prevPrevBuffer, int i) override {
-    vectorReal tmp = prevPrevBuffer;
-    switch (i) {
-      case 0:  // ux component
-        prevPrevBuffer = m_uxnGlobalPrev;
-        m_uxnGlobalPrev = m_uxnGlobalCurr;
-        m_uxnGlobalCurr = tmp;
-        break;
-      case 1:  // uy component
-        prevPrevBuffer = m_uynGlobalPrev;
-        m_uynGlobalPrev = m_uynGlobalCurr;
-        m_uynGlobalCurr = tmp;
-        break;
-      case 2:  // uz component
-        prevPrevBuffer = m_uznGlobalPrev;
-        m_uznGlobalPrev = m_uznGlobalCurr;
-        m_uznGlobalCurr = tmp;
-        break;
-      default:
-        // Invalid field index - no-op to make CUDA happy
-        break;
+  bool hasPrevPrev() const override { return m_uxnGlobalPrevPrev.extent(0) > 0; }
+
+  void swap() override {
+    if (hasPrevPrev()) {
+      // 3-way rotation: prevprev ← prev ← curr ← prevprev
+      std::swap(m_uxnGlobalPrevPrev, m_uxnGlobalPrev);
+      std::swap(m_uxnGlobalPrev, m_uxnGlobalCurr);
+      std::swap(m_uxnGlobalCurr, m_uxnGlobalPrevPrev);
+      
+      std::swap(m_uynGlobalPrevPrev, m_uynGlobalPrev);
+      std::swap(m_uynGlobalPrev, m_uynGlobalCurr);
+      std::swap(m_uynGlobalCurr, m_uynGlobalPrevPrev);
+      
+      std::swap(m_uznGlobalPrevPrev, m_uznGlobalPrev);
+      std::swap(m_uznGlobalPrev, m_uznGlobalCurr);
+      std::swap(m_uznGlobalCurr, m_uznGlobalPrevPrev);
+    } else {
+      // 2-way swap: curr ↔ prev
+      std::swap(m_uxnGlobalPrev, m_uxnGlobalCurr);
+      std::swap(m_uynGlobalPrev, m_uynGlobalCurr);
+      std::swap(m_uznGlobalPrev, m_uznGlobalCurr);
     }
   }
 
@@ -106,14 +137,22 @@ struct WavefieldElastic : public Wavefield {
     std::cout << "Uy Global Curr size: " << m_uynGlobalCurr.extent(0) << std::endl;
     std::cout << "Uz Global Prev size: " << m_uznGlobalPrev.extent(0) << std::endl;
     std::cout << "Uz Global Curr size: " << m_uznGlobalCurr.extent(0) << std::endl;
+    if (hasPrevPrev()) {
+      std::cout << "Ux Global PrevPrev size: " << m_uxnGlobalPrevPrev.extent(0) << std::endl;
+      std::cout << "Uy Global PrevPrev size: " << m_uynGlobalPrevPrev.extent(0) << std::endl;
+      std::cout << "Uz Global PrevPrev size: " << m_uznGlobalPrevPrev.extent(0) << std::endl;
+    }
   }
 
-  vectorReal m_uxnGlobalPrev;  ///< Displacement field in x at previous time step
-  vectorReal m_uxnGlobalCurr;  ///< Displacement field in x at current time step
-  vectorReal m_uynGlobalPrev;  ///< Displacement field in y at previous time step
-  vectorReal m_uynGlobalCurr;  ///< Displacement field in y at current time step
-  vectorReal m_uznGlobalPrev;  ///< Displacement field in z at previous time step
-  vectorReal m_uznGlobalCurr;  ///< Displacement field in z at current time step
+  vectorReal m_uxnGlobalPrevPrev;  ///< Displacement field in x at n-2 time step (for adjoint)
+  vectorReal m_uxnGlobalPrev;      ///< Displacement field in x at previous time step
+  vectorReal m_uxnGlobalCurr;      ///< Displacement field in x at current time step
+  vectorReal m_uynGlobalPrevPrev;  ///< Displacement field in y at n-2 time step (for adjoint)
+  vectorReal m_uynGlobalPrev;      ///< Displacement field in y at previous time step
+  vectorReal m_uynGlobalCurr;      ///< Displacement field in y at current time step
+  vectorReal m_uznGlobalPrevPrev;  ///< Displacement field in z at n-2 time step (for adjoint)
+  vectorReal m_uznGlobalPrev;      ///< Displacement field in z at previous time step
+  vectorReal m_uznGlobalCurr;      ///< Displacement field in z at current time step
 };
 }  // namespace fe
 }  // namespace solver

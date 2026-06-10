@@ -39,34 +39,26 @@ struct Wavefield {
   virtual vectorReal getPreviousField(int i) const = 0;
 
   /**
-   * @brief Swap data to advance the wavefield to the next time step.
-   * This method should exchange the current and previous field data.
+   * @brief Get the previous-previous field at a specific index.
+   * @param i The index of the field to retrieve.
+   * @return The requested previous-previous field (empty view if not allocated).
    */
-  virtual void swap() = 0;
+  PROXY_HOST_DEVICE
+  virtual vectorReal getPrevPrevField(int i) const = 0;
 
   /**
-   * @brief Rotate three buffers without any data copy.
-   *
-   * Performs a 3-way cyclic rotation of view handles:
-   *   prevPrevBuffer ← prev ← curr ← prevPrevBuffer
-   *
-   * After the call:
-   *   - curr      holds the slot previously occupied by prevPrevBuffer
-   *               (ready to be overwritten by the next solver step)
-   *   - prev      holds what was curr   (the most recently computed field)
-   *   - prevPrevBuffer holds what was prev (the field from two steps ago)
-   *
-   * This is intended for adjoint time-loops where the caller manages one
-   * extra external buffer and needs copy-free access to three consecutive
-   * time levels for gradient computation.
-   *
-   * @param prevPrevBuffer  External view handle for the n-2 time level.
-   *                        Updated in-place to point to the n-1 level after
-   *                        the call.
-   * @param i               Field index to swap (0 = first field, 1 = second,
-   * etc.).
+   * @brief Check if previous-previous field is allocated.
+   * @return True if prevprev buffer exists, false otherwise.
    */
-  virtual void rotate(vectorReal& prevPrevBuffer, int i) = 0;
+  virtual bool hasPrevPrev() const = 0;
+
+  /**
+   * @brief Swap data to advance the wavefield to the next time step.
+   * This method exchanges field data pointers.
+   * If hasPrevPrev() is true, performs 3-way rotation (prevprev ← prev ← curr ← prevprev).
+   * Otherwise performs 2-way swap (curr ↔ prev).
+   */
+  virtual void swap() = 0;
 
   virtual void print() const = 0;
 };
