@@ -172,47 +172,49 @@ TEST_F(SEMSolverDataAcousticSwapRotateTest, SwapTwiceRestoresOriginalValues) {
   }
 }
 
-TEST_F(SEMSolverDataAcousticSwapRotateTest, RotateRotatesThreeBuffers) {
+TEST_F(SEMSolverDataAcousticSwapRotateTest, SwapWithThreeBuffersRotatesCorrectly) {
   auto prevPrev = allocateVector<vectorReal>(size, "prevPrev");
   for (size_t i = 0; i < size; ++i) prevPrev(i) = 10.0f;
 
-  WavefieldAcoustic wavefield(prevField, currField);
+  WavefieldAcoustic wavefield(prevPrev, prevField, currField);
   RhsAcoustic rhs;
   SEMsolverDataAcoustic solver_data(wavefield, rhs);
 
-  solver_data.rotateWavefields(prevPrev, 0);
+  solver_data.swapWavefields();
 
-  // After rotation:
+  // After 3-way rotation:
   //   curr     <- old prevPrev (10.0)
   //   prev     <- old curr     (i*2)
   //   prevPrev <- old prev     (i)
   auto curr = solver_data.getCurrentField(0);
   auto prev = solver_data.getPreviousField(0);
+  auto pp = solver_data.getPrevPrevField(0);
   for (size_t i = 0; i < size; ++i) {
     EXPECT_FLOAT_EQ(curr(i), 10.0f);
     EXPECT_FLOAT_EQ(prev(i), static_cast<float>(i) * 2.0f);
-    EXPECT_FLOAT_EQ(prevPrev(i), static_cast<float>(i));
+    EXPECT_FLOAT_EQ(pp(i), static_cast<float>(i));
   }
 }
 
-TEST_F(SEMSolverDataAcousticSwapRotateTest, RotateThreeTimesRestoresState) {
+TEST_F(SEMSolverDataAcousticSwapRotateTest, SwapThreeTimesRestoresStateWithThreeBuffers) {
   auto prevPrev = allocateVector<vectorReal>(size, "prevPrev");
   for (size_t i = 0; i < size; ++i) prevPrev(i) = 10.0f;
 
-  WavefieldAcoustic wavefield(prevField, currField);
+  WavefieldAcoustic wavefield(prevPrev, prevField, currField);
   RhsAcoustic rhs;
   SEMsolverDataAcoustic solver_data(wavefield, rhs);
 
-  solver_data.rotateWavefields(prevPrev, 0);
-  solver_data.rotateWavefields(prevPrev, 0);
-  solver_data.rotateWavefields(prevPrev, 0);
+  solver_data.swapWavefields();
+  solver_data.swapWavefields();
+  solver_data.swapWavefields();
 
   auto curr = solver_data.getCurrentField(0);
   auto prev = solver_data.getPreviousField(0);
+  auto pp = solver_data.getPrevPrevField(0);
   for (size_t i = 0; i < size; ++i) {
     EXPECT_FLOAT_EQ(curr(i), static_cast<float>(i) * 2.0f);  // original curr
     EXPECT_FLOAT_EQ(prev(i), static_cast<float>(i));         // original prev
-    EXPECT_FLOAT_EQ(prevPrev(i), 10.0f);                     // original prevPrev
+    EXPECT_FLOAT_EQ(pp(i), 10.0f);                           // original prevPrev
   }
 }
 
@@ -282,7 +284,7 @@ TEST_F(SEMSolverDataElasticSwapRotateTest, SwapTwiceRestoresOriginalValues) {
   }
 }
 
-TEST_F(SEMSolverDataElasticSwapRotateTest, RotateRotatesThreeBuffersPerComponent) {
+TEST_F(SEMSolverDataElasticSwapRotateTest, SwapWithThreeBuffersRotatesPerComponent) {
   auto uxPrevPrev = allocateVector<vectorReal>(size, "uxPrevPrev");
   auto uyPrevPrev = allocateVector<vectorReal>(size, "uyPrevPrev");
   auto uzPrevPrev = allocateVector<vectorReal>(size, "uzPrevPrev");
@@ -292,15 +294,15 @@ TEST_F(SEMSolverDataElasticSwapRotateTest, RotateRotatesThreeBuffersPerComponent
     uzPrevPrev(i) = 30.0f;
   }
 
-  WavefieldElastic wavefield(uxPrev, uxCurr, uyPrev, uyCurr, uzPrev, uzCurr);
+  WavefieldElastic wavefield(uxPrevPrev, uxPrev, uxCurr,
+                             uyPrevPrev, uyPrev, uyCurr,
+                             uzPrevPrev, uzPrev, uzCurr);
   RhsElastic rhs;
   SEMsolverDataElastic solver_data(wavefield, rhs, false);
 
-  solver_data.rotateWavefields(uxPrevPrev, 0);
-  solver_data.rotateWavefields(uyPrevPrev, 1);
-  solver_data.rotateWavefields(uzPrevPrev, 2);
+  solver_data.swapWavefields();
 
-  // After rotation for each component:
+  // After 3-way rotation for each component:
   //   curr     <- old prevPrev
   //   prev     <- old curr
   //   prevPrev <- old prev
@@ -308,19 +310,19 @@ TEST_F(SEMSolverDataElasticSwapRotateTest, RotateRotatesThreeBuffersPerComponent
     // ux
     EXPECT_FLOAT_EQ(solver_data.getCurrentField(0)(i), 10.0f);
     EXPECT_FLOAT_EQ(solver_data.getPreviousField(0)(i), static_cast<float>(i) * 2.0f);
-    EXPECT_FLOAT_EQ(uxPrevPrev(i), static_cast<float>(i));
+    EXPECT_FLOAT_EQ(solver_data.getPrevPrevField(0)(i), static_cast<float>(i));
     // uy
     EXPECT_FLOAT_EQ(solver_data.getCurrentField(1)(i), 20.0f);
     EXPECT_FLOAT_EQ(solver_data.getPreviousField(1)(i), static_cast<float>(i) * 4.0f);
-    EXPECT_FLOAT_EQ(uyPrevPrev(i), static_cast<float>(i) * 3.0f);
+    EXPECT_FLOAT_EQ(solver_data.getPrevPrevField(1)(i), static_cast<float>(i) * 3.0f);
     // uz
     EXPECT_FLOAT_EQ(solver_data.getCurrentField(2)(i), 30.0f);
     EXPECT_FLOAT_EQ(solver_data.getPreviousField(2)(i), static_cast<float>(i) * 6.0f);
-    EXPECT_FLOAT_EQ(uzPrevPrev(i), static_cast<float>(i) * 5.0f);
+    EXPECT_FLOAT_EQ(solver_data.getPrevPrevField(2)(i), static_cast<float>(i) * 5.0f);
   }
 }
 
-TEST_F(SEMSolverDataElasticSwapRotateTest, RotateThreeTimesRestoresStatePerComponent) {
+TEST_F(SEMSolverDataElasticSwapRotateTest, SwapThreeTimesRestoresStatePerComponentWithThreeBuffers) {
   auto uxPrevPrev = allocateVector<vectorReal>(size, "uxPrevPrev");
   auto uyPrevPrev = allocateVector<vectorReal>(size, "uyPrevPrev");
   auto uzPrevPrev = allocateVector<vectorReal>(size, "uzPrevPrev");
@@ -330,29 +332,29 @@ TEST_F(SEMSolverDataElasticSwapRotateTest, RotateThreeTimesRestoresStatePerCompo
     uzPrevPrev(i) = 30.0f;
   }
 
-  WavefieldElastic wavefield(uxPrev, uxCurr, uyPrev, uyCurr, uzPrev, uzCurr);
+  WavefieldElastic wavefield(uxPrevPrev, uxPrev, uxCurr,
+                             uyPrevPrev, uyPrev, uyCurr,
+                             uzPrevPrev, uzPrev, uzCurr);
   RhsElastic rhs;
   SEMsolverDataElastic solver_data(wavefield, rhs, false);
 
   for (int r = 0; r < 3; ++r) {
-    solver_data.rotateWavefields(uxPrevPrev, 0);
-    solver_data.rotateWavefields(uyPrevPrev, 1);
-    solver_data.rotateWavefields(uzPrevPrev, 2);
+    solver_data.swapWavefields();
   }
 
   for (size_t i = 0; i < size; ++i) {
     // ux restored
     EXPECT_FLOAT_EQ(solver_data.getCurrentField(0)(i), static_cast<float>(i) * 2.0f);
     EXPECT_FLOAT_EQ(solver_data.getPreviousField(0)(i), static_cast<float>(i));
-    EXPECT_FLOAT_EQ(uxPrevPrev(i), 10.0f);
+    EXPECT_FLOAT_EQ(solver_data.getPrevPrevField(0)(i), 10.0f);
     // uy restored
     EXPECT_FLOAT_EQ(solver_data.getCurrentField(1)(i), static_cast<float>(i) * 4.0f);
     EXPECT_FLOAT_EQ(solver_data.getPreviousField(1)(i), static_cast<float>(i) * 3.0f);
-    EXPECT_FLOAT_EQ(uyPrevPrev(i), 20.0f);
+    EXPECT_FLOAT_EQ(solver_data.getPrevPrevField(1)(i), 20.0f);
     // uz restored
     EXPECT_FLOAT_EQ(solver_data.getCurrentField(2)(i), static_cast<float>(i) * 6.0f);
     EXPECT_FLOAT_EQ(solver_data.getPreviousField(2)(i), static_cast<float>(i) * 5.0f);
-    EXPECT_FLOAT_EQ(uzPrevPrev(i), 30.0f);
+    EXPECT_FLOAT_EQ(solver_data.getPrevPrevField(2)(i), 30.0f);
   }
 }
 

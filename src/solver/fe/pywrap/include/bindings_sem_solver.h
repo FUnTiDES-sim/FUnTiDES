@@ -33,14 +33,6 @@ void bind_acoustic_solver_data(py::module_ &m) {
                                                                                                 "SEMsolverDataAcoustic")
       .def(py::init<const WavefieldAcoustic &, const RhsAcoustic &>(), py::arg("wavefield"), py::arg("rhs"))
       .def("swap_wavefields", &SEMsolverDataAcoustic::swapWavefields)
-      .def(
-          "rotate_wavefields",
-          [](SEMsolverDataAcoustic &self, Kokkos::Experimental::python_view_type_t<vectorReal> &prevPrevBuffer) {
-            vectorReal view = prevPrevBuffer;
-            self.rotateWavefields(view, 0);  // field index 0 for pressure
-            return Kokkos::Experimental::python_view_type_t<vectorReal>(view);
-          },
-          py::arg("prev_prev_buffer"))
       .def("print", &SEMsolverDataAcoustic::print);
 }
 
@@ -48,20 +40,6 @@ void bind_elastic_solver_data(py::module_ &m) {
   py::class_<SEMsolverDataElastic, Solver::DataStruct, std::shared_ptr<SEMsolverDataElastic>>(m, "SEMsolverDataElastic")
       .def(py::init<const WavefieldElastic &, const RhsElastic &>(), py::arg("wavefield"), py::arg("rhs"))
       .def("swap_wavefields", &SEMsolverDataElastic::swapWavefields)
-      .def(
-          "rotate_wavefields",
-          [](SEMsolverDataElastic &self, Kokkos::Experimental::python_view_type_t<vectorReal> &uxPP,
-             Kokkos::Experimental::python_view_type_t<vectorReal> &uyPP,
-             Kokkos::Experimental::python_view_type_t<vectorReal> &uzPP) {
-            vectorReal vux = uxPP, vuy = uyPP, vuz = uzPP;
-            self.rotateWavefields(vux, 0);  // ux component
-            self.rotateWavefields(vuy, 1);  // uy component
-            self.rotateWavefields(vuz, 2);  // uz component
-            return std::make_tuple(Kokkos::Experimental::python_view_type_t<vectorReal>(vux),
-                                   Kokkos::Experimental::python_view_type_t<vectorReal>(vuy),
-                                   Kokkos::Experimental::python_view_type_t<vectorReal>(vuz));
-          },
-          py::arg("ux_prev_prev"), py::arg("uy_prev_prev"), py::arg("uz_prev_prev"))
       .def("print", &SEMsolverDataElastic::print);
 }
 
@@ -80,7 +58,8 @@ void bind_sem_solver_base(py::module_ &m) {
            py::arg("taper_delta") = 0)
       .def("compute_one_step", &Solver::computeOneStep, py::arg("dt"), py::arg("time_sample"), py::arg("data"))
       .def("compute_forces", &Solver::computeForces, py::arg("dt"), py::arg("time_sample"), py::arg("data"))
-      .def("update_solution", &Solver::updateSolution, py::arg("dt"), py::arg("data"))
+      .def("update_solution_forward", &Solver::updateSolutionForward, py::arg("dt"), py::arg("data"))
+      .def("update_solution_backward", &Solver::updateSolutionBackward, py::arg("dt"), py::arg("data"))
       .def(
           "get_mass_matrix",
           [](Solver &self) -> Kokkos::Experimental::python_view_type_t<vectorReal> {

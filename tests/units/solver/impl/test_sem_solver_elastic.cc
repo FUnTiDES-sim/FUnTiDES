@@ -2,7 +2,7 @@
  * @file test_sem_solver_elastic.cc
  * @brief Unit tests for single-physics elastic SEMsolver.
  *
- * Covers computeOneStep, computeForces, updateSolution, computeFEInit,
+ * Covers computeOneStep, computeForces, updateSolutionForward, computeFEInit,
  * mass matrix, damping matrix, and resetGlobalVectors on the elastic
  * physics path of SEMsolver without SLS attenuation.
  */
@@ -163,7 +163,7 @@ TEST_P(SemSolverElasticTest, ResetGlobalVectorsZerosForceVector) {
 }
 
 // ======================================================================
-// computeForces / updateSolution
+// computeForces / updateSolutionForward
 // ======================================================================
 TEST_P(SemSolverElasticTest, ComputeForcesDoesNotCrash) {
   WavefieldElastic wf(uxPrev_, uxCurr_, uyPrev_, uyCurr_, uzPrev_, uzCurr_);
@@ -172,12 +172,12 @@ TEST_P(SemSolverElasticTest, ComputeForcesDoesNotCrash) {
   EXPECT_NO_THROW(solver_->computeForces(kDt, 0, data));
 }
 
-TEST_P(SemSolverElasticTest, UpdateSolutionDoesNotCrash) {
+TEST_P(SemSolverElasticTest, updateSolutionForwardDoesNotCrash) {
   WavefieldElastic wf(uxPrev_, uxCurr_, uyPrev_, uyCurr_, uzPrev_, uzCurr_);
   RhsElastic rhs(rhsTermx_, rhsTermy_, rhsTermz_, rhsElem_, rhsWeights_);
   SEMsolverDataElastic data(wf, rhs);
   solver_->computeForces(kDt, 0, data);
-  EXPECT_NO_THROW(solver_->updateSolution(kDt, data));
+  EXPECT_NO_THROW(solver_->updateSolutionForward(kDt, data));
 }
 
 // ======================================================================

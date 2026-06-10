@@ -93,10 +93,33 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::com
 
 template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE, bool IS_MODEL_ON_NODES,
           utils::enums::physicType PHYSICS>
-void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::updateSolution(const float& dt,
+void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::updateSolutionForward(const float& dt,
                                                                                             Solver::DataStruct& data) {
   auto& myData = dynamic_cast<DataType&>(data);
-  updateFields(dt, myData);
+  if (myData.getPrevPrevField(0).extent(0) > 0) {
+    throw std::runtime_error(
+        "updateSolutionForward called with 3-buffer wavefield. "
+        "Use updateSolutionBackward() for adjoint mode.");
+  }
+  updateFieldsForward(dt, myData);
+  FENCE
+}
+
+//============================================================================
+// Update Solution Backward (Phase 2 - Adjoint Mode)
+//============================================================================
+
+template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE, bool IS_MODEL_ON_NODES,
+          utils::enums::physicType PHYSICS>
+void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::updateSolutionBackward(const float& dt,
+                                                                                            Solver::DataStruct& data) {
+  auto& myData = dynamic_cast<DataType&>(data);
+  if (myData.getPrevPrevField(0).extent(0) == 0) {
+    throw std::runtime_error(
+        "updateSolutionBackward requires 3-buffer wavefield. "
+        "Construct wavefield with prevprev buffer (3 args for acoustic, 9 for elastic).");
+  }
+  updateFieldsBackward(dt, myData);
   FENCE
 }
 
@@ -857,10 +880,10 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::com
 }
 
 //============================================================================
-// updateFields - Time integration update
+// updateFieldsForward - Time integration update
 //============================================================================
 template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE, bool IS_MODEL_ON_NODES, physicType PHYSICS>
-void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::updateFields(float dt,
+void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::updateFieldsForward(float dt,
                                                                                           const DataType& data) {
   // Extract scalar constants to local variables
   float const dt_local = dt;
@@ -986,6 +1009,146 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::upd
 
               prev_field[f](I) = next_val / (mass_matrix(I) + 0.5f * dt_local * damping_matrix[f](I));
               prev_field[f](I) *= taper_coeff(I);
+              current_field[f](I) *= taper_coeff(I);
+            }
+          }
+        });
+  }
+}
+
+//============================================================================
+// updateFieldsBackward - Time integration update (backward/adjoint mode)
+//============================================================================
+template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE, bool IS_MODEL_ON_NODES, physicType PHYSICS>
+void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::updateFieldsBackward(
+    float dt, const DataType& data) {
+  // Extract scalar constants to local variables
+  float const dt_local = dt;
+  float const dt2_local = dt * dt;
+  int const n_sls = nSls_;
+  bool const has_attenuation = (attenuationEnabled_ && nSls_ > 0);
+
+  // Extract single Views and objects to local variables
+  auto mesh_local = m_mesh;
+  auto mass_matrix = massMatrixGlobal_;
+  auto taper_coeff = spongeTaperCoeff_;
+
+  auto sls_w = slsReferenceAngularFrequencies_;
+  auto sls_beta = slsAnelasticityCoefficients_;
+
+  std::array<std::remove_reference_t<decltype(data.getCurrentField(0))>, kNumFields> current_field;
+  std::array<std::remove_reference_t<decltype(data.getPreviousField(0))>, kNumFields> prev_field;
+  std::array<std::remove_reference_t<decltype(data.getPrevPrevField(0))>, kNumFields> prevprev_field;
+  std::array<std::remove_reference_t<decltype(dampingMatrixGlobal_[0])>, kNumFields> damping_matrix;
+  std::array<std::remove_reference_t<decltype(workVectorsGlobal_[0])>, kNumFields> work_vector;
+  std::array<std::remove_reference_t<decltype(attenuationWorkVectorsGlobal_[0])>, kNumFields> atten_work_vec;
+  std::array<std::remove_reference_t<decltype(attenuationMemoryVariables_[0])>, kNumFields> atten_mem_vars;
+
+  for (int f = 0; f < kNumFields; ++f) {
+    current_field[f] = data.getCurrentField(f);
+    prev_field[f] = data.getPreviousField(f);
+    prevprev_field[f] = data.getPrevPrevField(f);
+    damping_matrix[f] = dampingMatrixGlobal_[f];
+    work_vector[f] = workVectorsGlobal_[f];
+    if (has_attenuation) {
+      atten_work_vec[f] = attenuationWorkVectorsGlobal_[f];
+      atten_mem_vars[f] = attenuationMemoryVariables_[f];
+    }
+  }
+
+  bool const list_on = m_node_list_mode_;
+  auto list_local = m_node_list_;
+
+  if constexpr (PHYSICS == utils::enums::physicType::kAcoustic) {
+    int const n_iter = list_on ? m_n_node_list_ : mesh_local.getNumberOfNodes();
+    Kokkos::parallel_for(
+        "Solver Update Field Acoustic Backward", n_iter, KOKKOS_LAMBDA(const int _node_idx) {
+          if (_node_idx >= n_iter) return;
+          int const I = list_on ? list_local[_node_idx] : _node_idx;
+          if (mass_matrix[I] <= 0.0f) return;
+
+          if (mesh_local.isFreeSurface(I)) {
+            current_field[0](I) = 0.0f;
+            prev_field[0](I) = 0.0f;
+            prevprev_field[0](I) = 0.0f;
+          } else {
+            float next_val = (2.0f * mass_matrix(I) * current_field[0](I) -
+                              (mass_matrix(I) - 0.5f * dt_local * damping_matrix[0](I)) * prev_field[0](I) -
+                              dt2_local * work_vector[0](I));
+
+            if (has_attenuation) {
+              for (int l = 0; l < n_sls; ++l) {
+                float const w = sls_w[l];
+                float const gamma = (2.0f - w * dt_local) / (2.0f + w * dt_local);
+                float const beta = sls_beta[l] * w * 2.0f * dt_local / (2.0f + w * dt_local);
+                float const gamma_p = 0.5f + 0.5f * gamma;
+                float const beta_p = 0.5f * beta;
+
+                next_val += dt2_local * (gamma_p * atten_mem_vars[0](I, l) + beta_p * atten_work_vec[0](I));
+
+                atten_mem_vars[0](I, l) = gamma * atten_mem_vars[0](I, l) + beta * atten_work_vec[0](I);
+              }
+            }
+
+            prevprev_field[0](I) = next_val / (mass_matrix(I) + 0.5f * dt_local * damping_matrix[0](I));
+            prevprev_field[0](I) *= taper_coeff(I);
+            current_field[0](I) *= taper_coeff(I);
+          }
+        });
+  } else  // ELASTIC
+  {
+    int const n_iter_el = list_on ? m_n_node_list_ : mesh_local.getNumberOfNodes();
+
+    Kokkos::parallel_for(
+        "Solver Update Field Elastic Backward", n_iter_el, KOKKOS_LAMBDA(const int _node_idx) {
+          if (_node_idx >= n_iter_el) return;
+          int const I = list_on ? list_local[_node_idx] : _node_idx;
+          if (mass_matrix[I] <= 0.0f) return;
+          if (mesh_local.isFreeSurface(I)) {
+            for (int f = 0; f < kNumFields; ++f) {
+              float next_val = (2.0f * mass_matrix(I) * current_field[f](I) - mass_matrix(I) * prev_field[f](I) -
+                                dt2_local * work_vector[f](I));
+
+              if (has_attenuation) {
+                for (int l = 0; l < n_sls; ++l) {
+                  float const w = sls_w[l];
+                  float const gamma = (2.0f - w * dt_local) / (2.0f + w * dt_local);
+                  float const beta = sls_beta[l] * w * 2.0f * dt_local / (2.0f + w * dt_local);
+                  float const gamma_p = 0.5f + 0.5f * gamma;
+                  float const beta_p = 0.5f * beta;
+
+                  next_val += dt2_local * (gamma_p * atten_mem_vars[f](I, l) + beta_p * atten_work_vec[f](I));
+
+                  atten_mem_vars[f](I, l) = gamma * atten_mem_vars[f](I, l) + beta * atten_work_vec[f](I);
+                }
+              }
+
+              prevprev_field[f](I) = next_val / mass_matrix(I);
+              prevprev_field[f](I) *= taper_coeff(I);
+              current_field[f](I) *= taper_coeff(I);
+            }
+          } else {
+            for (int f = 0; f < kNumFields; ++f) {
+              float next_val = (2.0f * mass_matrix(I) * current_field[f](I) -
+                                (mass_matrix(I) - 0.5f * dt_local * damping_matrix[f](I)) * prev_field[f](I) -
+                                dt2_local * work_vector[f](I));
+
+              if (has_attenuation) {
+                for (int l = 0; l < n_sls; ++l) {
+                  float const w = sls_w[l];
+                  float const gamma = (2.0f - w * dt_local) / (2.0f + w * dt_local);
+                  float const beta = sls_beta[l] * w * 2.0f * dt_local / (2.0f + w * dt_local);
+                  float const gamma_p = 0.5f + 0.5f * gamma;
+                  float const beta_p = 0.5f * beta;
+
+                  next_val += dt2_local * (gamma_p * atten_mem_vars[f](I, l) + beta_p * atten_work_vec[f](I));
+
+                  atten_mem_vars[f](I, l) = gamma * atten_mem_vars[f](I, l) + beta * atten_work_vec[f](I);
+                }
+              }
+
+              prevprev_field[f](I) = next_val / (mass_matrix(I) + 0.5f * dt_local * damping_matrix[f](I));
+              prevprev_field[f](I) *= taper_coeff(I);
               current_field[f](I) *= taper_coeff(I);
             }
           }
@@ -1459,16 +1622,30 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::com
 }
 
 //============================================================================
-// updateFieldsFromList - Verlet update restricted to a compact node list
+// updateFieldsFromListForward - Verlet update restricted to a compact node list (forward mode)
 //============================================================================
 
 template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE, bool IS_MODEL_ON_NODES, physicType PHYSICS>
-void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::updateFieldsFromList(
+void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::updateFieldsFromListForward(
     float dt, const DataType& data, const vectorInt& node_list, int n_nodes) {
   m_node_list_ = node_list;
   m_n_node_list_ = n_nodes;
   m_node_list_mode_ = true;
-  updateFields(dt, data);
+  updateFieldsForward(dt, data);
+  m_node_list_mode_ = false;
+}
+
+//============================================================================
+// updateFieldsFromListBackward - Verlet update restricted to a compact node list (backward mode)
+//============================================================================
+
+template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE, bool IS_MODEL_ON_NODES, physicType PHYSICS>
+void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::updateFieldsFromListBackward(
+    float dt, const DataType& data, const vectorInt& node_list, int n_nodes) {
+  m_node_list_ = node_list;
+  m_n_node_list_ = n_nodes;
+  m_node_list_mode_ = true;
+  updateFieldsBackward(dt, data);
   m_node_list_mode_ = false;
 }
 

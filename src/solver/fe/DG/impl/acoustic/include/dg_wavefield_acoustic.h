@@ -36,13 +36,6 @@ struct DGWavefieldAcoustic {
 
   void swap() { std::swap(m_pnPrev, m_pnCurr); }
 
-  void rotate(arrayReal& prevPrevBuffer, int i) {
-    arrayReal tmp = prevPrevBuffer;
-    prevPrevBuffer = m_pnPrev;
-    m_pnPrev = m_pnCurr;
-    m_pnCurr = tmp;
-  }
-
   void print() const {
     std::cout << "Pn Prev size: " << m_pnPrev.extent(0) << " elems " << m_pnPrev.extent(1) << " dofs" << std::endl;
     std::cout << "Pn Curr size: " << m_pnCurr.extent(0) << " elems " << m_pnCurr.extent(1) << " dofs" << std::endl;

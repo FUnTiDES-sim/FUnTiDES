@@ -67,8 +67,6 @@ struct SEMsolverData : public Solver::DataStruct {
 
   void swapWavefields() { m_wavefield.swap(); }
 
-  void rotateWavefields(vectorReal& prevPrevBuffer, int i) { m_wavefield.rotate(prevPrevBuffer, i); }
-
   void print() const override {
     std::cout << "SEMsolverData<" << Traits::kName << ">" << std::endl;
     for (int f = 0; f < kNumFields; ++f) {

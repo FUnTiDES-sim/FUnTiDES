@@ -22,14 +22,6 @@ void bind_wavefield_base(py::module_& m) {
   py::class_<Wavefield, std::shared_ptr<Wavefield>>(m, "Wavefield")
       .def("swap", &Wavefield::swap)
       .def(
-          "rotate",
-          [](Wavefield& self, Kokkos::Experimental::python_view_type_t<vectorReal>& prevPrevBuffer) {
-            vectorReal view = prevPrevBuffer;
-            self.rotate(view, 0);  // field index 0 for pressure
-            return Kokkos::Experimental::python_view_type_t<vectorReal>(view);
-          },
-          py::arg("prev_prev_buffer"))
-      .def(
           "get_current_field",
           [](const Wavefield& self, int i) {
             return Kokkos::Experimental::python_view_type_t<vectorReal>(self.getCurrentField(i));
@@ -51,14 +43,6 @@ void bind_wavefield_acoustic(py::module_& m) {
                     Kokkos::Experimental::python_view_type_t<vectorReal>>(),
            py::arg("pn_global_prev"), py::arg("pn_global_curr"))
       .def("swap", &WavefieldAcoustic::swap)
-      .def(
-          "rotate",
-          [](WavefieldAcoustic& self, Kokkos::Experimental::python_view_type_t<vectorReal>& prevPrevBuffer) {
-            vectorReal view = prevPrevBuffer;
-            self.rotate(view, 0);  // field index 0 for pressure
-            return Kokkos::Experimental::python_view_type_t<vectorReal>(view);
-          },
-          py::arg("prev_prev_buffer"))
       .def(
           "get_current_field",
           [](const WavefieldAcoustic& self, int i) {
@@ -86,20 +70,6 @@ void bind_wavefield_elastic(py::module_& m) {
            py::arg("uxn_global_prev"), py::arg("uxn_global_curr"), py::arg("uyn_global_prev"),
            py::arg("uyn_global_curr"), py::arg("uzn_global_prev"), py::arg("uzn_global_curr"))
       .def("swap", &WavefieldElastic::swap)
-      .def(
-          "rotate",
-          [](WavefieldElastic& self, Kokkos::Experimental::python_view_type_t<vectorReal>& uxPP,
-             Kokkos::Experimental::python_view_type_t<vectorReal>& uyPP,
-             Kokkos::Experimental::python_view_type_t<vectorReal>& uzPP) {
-            vectorReal vux = uxPP, vuy = uyPP, vuz = uzPP;
-            self.rotate(vux, 0);  // ux component
-            self.rotate(vuy, 1);  // uy component
-            self.rotate(vuz, 2);  // uz component
-            return std::make_tuple(Kokkos::Experimental::python_view_type_t<vectorReal>(vux),
-                                   Kokkos::Experimental::python_view_type_t<vectorReal>(vuy),
-                                   Kokkos::Experimental::python_view_type_t<vectorReal>(vuz));
-          },
-          py::arg("ux_prev_prev"), py::arg("uy_prev_prev"), py::arg("uz_prev_prev"))
       .def(
           "get_current_field",
           [](const WavefieldElastic& self, int i) {

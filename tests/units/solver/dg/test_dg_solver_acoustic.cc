@@ -264,22 +264,22 @@ TEST_F(DGsolverAcousticTest, StubOverrides_DoNotCrash) {
 }
 
 // ============================================================
-// updateFieldsFromList — exercises faceListFromElementList and
+// updateFieldsFromListForward — exercises faceListFromElementList and
 // the list-mode code paths in computeVolumeAndBoundary,
 // computeBoundaryDamping, computeInterfaceFlux, applyVerlet.
 // ============================================================
 
-TEST_F(DGsolverAcousticTest, UpdateFieldsFromList_AllElems_DoesNotCrash) {
+TEST_F(DGsolverAcousticTest, updateFieldsFromListForward_AllElems_DoesNotCrash) {
   auto data = makeData(0.0f, 0.0f, /*nSample=*/1, /*srcElem=*/0, 1.0f);
   solver_.computeForces(0.001f, 0, data);
   Kokkos::fence();
 
   auto elem_list = allocateVector<vectorInt>(nElem_, "elem_list");
   for (int i = 0; i < nElem_; ++i) elem_list(i) = i;
-  EXPECT_NO_THROW(solver_.updateFieldsFromList(0.001f, data, elem_list, nElem_));
+  EXPECT_NO_THROW(solver_.updateFieldsFromListForward(0.001f, data, elem_list, nElem_));
 }
 
-TEST_F(DGsolverAcousticTest, UpdateFieldsFromList_SubsetElems_DoesNotCrash) {
+TEST_F(DGsolverAcousticTest, updateFieldsFromListForward_SubsetElems_DoesNotCrash) {
   auto data = makeData(1.0f, 1.0f);
   solver_.computeForces(0.001f, 0, data);
   Kokkos::fence();
@@ -288,10 +288,10 @@ TEST_F(DGsolverAcousticTest, UpdateFieldsFromList_SubsetElems_DoesNotCrash) {
   constexpr int kSubset = 4;
   auto elem_list = allocateVector<vectorInt>(kSubset, "elem_list_sub");
   for (int i = 0; i < kSubset; ++i) elem_list(i) = i;
-  EXPECT_NO_THROW(solver_.updateFieldsFromList(0.001f, data, elem_list, kSubset));
+  EXPECT_NO_THROW(solver_.updateFieldsFromListForward(0.001f, data, elem_list, kSubset));
 }
 
-TEST_F(DGsolverAcousticTest, UpdateFieldsFromList_ProducesFiniteValues) {
+TEST_F(DGsolverAcousticTest, updateFieldsFromListForward_ProducesFiniteValues) {
   constexpr int kNumSteps = 3;
   constexpr float kDt = 0.001f;
 
@@ -314,7 +314,7 @@ TEST_F(DGsolverAcousticTest, UpdateFieldsFromList_ProducesFiniteValues) {
   for (int t = 0; t < kNumSteps; ++t) {
     solver_.computeForces(kDt, t, data);
     Kokkos::fence();
-    solver_.updateFieldsFromList(kDt, data, elem_list, nElem_);
+    solver_.updateFieldsFromListForward(kDt, data, elem_list, nElem_);
     data.swapWavefields();
   }
 

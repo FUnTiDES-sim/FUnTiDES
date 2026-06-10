@@ -468,18 +468,48 @@ void SEMsolverAcoustoElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES>
 //============================================================================
 
 template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE, bool IS_MODEL_ON_NODES>
-void SEMsolverAcoustoElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES>::updateSolution(const float& dt,
+void SEMsolverAcoustoElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES>::updateSolutionForward(const float& dt,
                                                                                                  DataStruct& data) {
   auto& myData = dynamic_cast<DataType&>(data);
 
   SEMsolverData<utils::enums::physicType::kElastic> elastic_data(myData.m_wavefield.m_elastic,
                                                                  myData.m_rhs.m_rhs_elastic);
-  m_elastic_solver_.updateFieldsFromList(dt, elastic_data, elastic_node_list_, num_elastic_nodes_);
+  if (myData.m_wavefield.hasPrevPrev()) {
+    throw std::runtime_error(
+        "updateSolutionForward called with 3-buffer wavefield. "
+        "Use updateSolutionBackward() for adjoint mode.");
+  }
+  m_elastic_solver_.updateFieldsFromListForward(dt, elastic_data, elastic_node_list_, num_elastic_nodes_);
   FENCE
 
   SEMsolverData<utils::enums::physicType::kAcoustic> acoustic_data(myData.m_wavefield.m_acoustic,
                                                                    myData.m_rhs.m_rhs_acoustic);
-  m_acoustic_solver_.updateFieldsFromList(dt, acoustic_data, acoustic_node_list_, num_acoustic_nodes_);
+  m_acoustic_solver_.updateFieldsFromListForward(dt, acoustic_data, acoustic_node_list_, num_acoustic_nodes_);
+  FENCE
+}
+
+//============================================================================
+// updateSolutionBackward  (both domains — backward/adjoint mode)
+//============================================================================
+
+template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE, bool IS_MODEL_ON_NODES>
+void SEMsolverAcoustoElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES>::updateSolutionBackward(
+    const float& dt, DataStruct& data) {
+  auto& myData = dynamic_cast<DataType&>(data);
+
+  if (!myData.m_wavefield.hasPrevPrev()) {
+    throw std::runtime_error(
+        "updateSolutionBackward called with 2-buffer wavefield. "
+        "Use updateSolutionForward() for forward mode.");
+  }
+  SEMsolverData<utils::enums::physicType::kElastic> elastic_data(myData.m_wavefield.m_elastic,
+                                                                 myData.m_rhs.m_rhs_elastic);
+  m_elastic_solver_.updateFieldsFromListBackward(dt, elastic_data, elastic_node_list_, num_elastic_nodes_);
+  FENCE
+
+  SEMsolverData<utils::enums::physicType::kAcoustic> acoustic_data(myData.m_wavefield.m_acoustic,
+                                                                   myData.m_rhs.m_rhs_acoustic);
+  m_acoustic_solver_.updateFieldsFromListBackward(dt, acoustic_data, acoustic_node_list_, num_acoustic_nodes_);
   FENCE
 }
 
@@ -622,7 +652,7 @@ void SEMsolverAcoustoElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES>
   }
 
   // 3. Elastic Verlet: u^{n+1} written into elastic_data.getPreviousField().
-  m_elastic_solver_.updateFieldsFromList(dt, elastic_data, elastic_node_list_, num_elastic_nodes_);
+  m_elastic_solver_.updateFieldsFromListForward(dt, elastic_data, elastic_node_list_, num_elastic_nodes_);
   FENCE
 
   // 4. A→E coupling (GEOS post-Verlet): u^{n+1} += dt²·c·(-p^n)/M_e.
@@ -646,7 +676,7 @@ void SEMsolverAcoustoElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES>
   FENCE
 
   // 8. Acoustic Verlet: p^{n+1} written into acoustic_data.getPreviousField().
-  m_acoustic_solver_.updateFieldsFromList(dt, acoustic_data, acoustic_node_list_, num_acoustic_nodes_);
+  m_acoustic_solver_.updateFieldsFromListForward(dt, acoustic_data, acoustic_node_list_, num_acoustic_nodes_);
   FENCE
 
   // 9. E→A coupling post-Verlet.

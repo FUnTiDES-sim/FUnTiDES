@@ -145,7 +145,7 @@ static std::vector<float> runAndRecordEnergy(std::shared_ptr<model::ModelApi<flo
 
   for (int t = 0; t < numTimeSteps; ++t) {
     solver->computeForces(dt, t, data);
-    solver->updateSolution(dt, data);
+    solver->updateSolutionForward(dt, data);
     data.swapWavefields();
 
     if (checkIdx < static_cast<int>(checkpoints.size()) && t + 1 == checkpoints[checkIdx]) {

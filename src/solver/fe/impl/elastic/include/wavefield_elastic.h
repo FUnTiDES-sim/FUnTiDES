@@ -110,18 +110,21 @@ struct WavefieldElastic : public Wavefield {
 
   void swap() override {
     if (hasPrevPrev()) {
-      // 3-way rotation: prevprev ← prev ← curr ← prevprev
-      std::swap(m_uxnGlobalPrevPrev, m_uxnGlobalPrev);
-      std::swap(m_uxnGlobalPrev, m_uxnGlobalCurr);
-      std::swap(m_uxnGlobalCurr, m_uxnGlobalPrevPrev);
+      // 3-way rotation: curr ← prevPrev, prev ← curr, prevPrev ← prev
+      vectorReal tempUx = m_uxnGlobalPrevPrev;
+      m_uxnGlobalPrevPrev = m_uxnGlobalPrev;
+      m_uxnGlobalPrev = m_uxnGlobalCurr;
+      m_uxnGlobalCurr = tempUx;
       
-      std::swap(m_uynGlobalPrevPrev, m_uynGlobalPrev);
-      std::swap(m_uynGlobalPrev, m_uynGlobalCurr);
-      std::swap(m_uynGlobalCurr, m_uynGlobalPrevPrev);
+      vectorReal tempUy = m_uynGlobalPrevPrev;
+      m_uynGlobalPrevPrev = m_uynGlobalPrev;
+      m_uynGlobalPrev = m_uynGlobalCurr;
+      m_uynGlobalCurr = tempUy;
       
-      std::swap(m_uznGlobalPrevPrev, m_uznGlobalPrev);
-      std::swap(m_uznGlobalPrev, m_uznGlobalCurr);
-      std::swap(m_uznGlobalCurr, m_uznGlobalPrevPrev);
+      vectorReal tempUz = m_uznGlobalPrevPrev;
+      m_uznGlobalPrevPrev = m_uznGlobalPrev;
+      m_uznGlobalPrev = m_uznGlobalCurr;
+      m_uznGlobalCurr = tempUz;
     } else {
       // 2-way swap: curr ↔ prev
       std::swap(m_uxnGlobalPrev, m_uxnGlobalCurr);

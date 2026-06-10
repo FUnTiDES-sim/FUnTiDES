@@ -428,7 +428,7 @@ TEST_F(WavefieldElasticTest, CopyInContainerClass) {
   EXPECT_FLOAT_EQ(original.m_uznGlobalCurr(30), 666.0f);
 }
 
-TEST_F(WavefieldElasticTest, RotateRotatesThreeBuffers) {
+TEST_F(WavefieldElasticTest, SwapWithThreeBuffersRotatesCorrectly) {
   // Allocate prevprev buffers initialised to 10*component_index
   auto uxPrevPrev = allocateVector<vectorReal>(size1, "uxPrevPrev");
   auto uyPrevPrev = allocateVector<vectorReal>(size1, "uyPrevPrev");
@@ -439,12 +439,14 @@ TEST_F(WavefieldElasticTest, RotateRotatesThreeBuffers) {
     uzPrevPrev(i) = 30.0f;
   }
 
-  WavefieldElastic wavefield(uxPrevField, uxCurrField, uyPrevField, uyCurrField, uzPrevField, uzCurrField);
-  wavefield.rotate(uxPrevPrev, 0);
-  wavefield.rotate(uyPrevPrev, 1);
-  wavefield.rotate(uzPrevPrev, 2);
+  WavefieldElastic wavefield(uxPrevPrev, uxPrevField, uxCurrField,
+                            uyPrevPrev, uyPrevField, uyCurrField,
+                            uzPrevPrev, uzPrevField, uzCurrField);
+  EXPECT_TRUE(wavefield.hasPrevPrev());
 
-  // After rotation:
+  wavefield.swap();
+
+  // After 3-way rotation:
   //   curr      ← old prevPrev  (ux=10, uy=20, uz=30)
   //   prev      ← old curr      (ux=i*2, uy=i*4, uz=i*6)
   //   prevPrev  ← old prev      (ux=i,   uy=i*3, uz=i*5)
@@ -457,13 +459,13 @@ TEST_F(WavefieldElasticTest, RotateRotatesThreeBuffers) {
     EXPECT_FLOAT_EQ(wavefield.m_uynGlobalPrev(i), i * 4);
     EXPECT_FLOAT_EQ(wavefield.m_uznGlobalPrev(i), i * 6);
 
-    EXPECT_FLOAT_EQ(uxPrevPrev(i), static_cast<float>(i));
-    EXPECT_FLOAT_EQ(uyPrevPrev(i), static_cast<float>(i) * 3);
-    EXPECT_FLOAT_EQ(uzPrevPrev(i), static_cast<float>(i) * 5);
+    EXPECT_FLOAT_EQ(wavefield.getPrevPrevField(0)(i), static_cast<float>(i));
+    EXPECT_FLOAT_EQ(wavefield.getPrevPrevField(1)(i), static_cast<float>(i) * 3);
+    EXPECT_FLOAT_EQ(wavefield.getPrevPrevField(2)(i), static_cast<float>(i) * 5);
   }
 }
 
-TEST_F(WavefieldElasticTest, RotateThreeTimesRestoresState) {
+TEST_F(WavefieldElasticTest, SwapThreeTimesRestoresStateWithThreeBuffers) {
   auto uxPrevPrev = allocateVector<vectorReal>(size1, "uxPrevPrev");
   auto uyPrevPrev = allocateVector<vectorReal>(size1, "uyPrevPrev");
   auto uzPrevPrev = allocateVector<vectorReal>(size1, "uzPrevPrev");
@@ -477,24 +479,21 @@ TEST_F(WavefieldElasticTest, RotateThreeTimesRestoresState) {
   float initialUxCurr0 = uxCurrField(0);
   float initialUxPP0 = uxPrevPrev(0);
 
-  WavefieldElastic wavefield(uxPrevField, uxCurrField, uyPrevField, uyCurrField, uzPrevField, uzCurrField);
+  WavefieldElastic wavefield(uxPrevPrev, uxPrevField, uxCurrField,
+                            uyPrevPrev, uyPrevField, uyCurrField,
+                            uzPrevPrev, uzPrevField, uzCurrField);
+  EXPECT_TRUE(wavefield.hasPrevPrev());
 
-  wavefield.rotate(uxPrevPrev, 0);
-  wavefield.rotate(uyPrevPrev, 1);
-  wavefield.rotate(uzPrevPrev, 2);
-  wavefield.rotate(uxPrevPrev, 0);
-  wavefield.rotate(uyPrevPrev, 1);
-  wavefield.rotate(uzPrevPrev, 2);
-  wavefield.rotate(uxPrevPrev, 0);
-  wavefield.rotate(uyPrevPrev, 1);
-  wavefield.rotate(uzPrevPrev, 2);
+  wavefield.swap();
+  wavefield.swap();
+  wavefield.swap();
 
   EXPECT_FLOAT_EQ(wavefield.m_uxnGlobalPrev(0), initialUxPrev0);
   EXPECT_FLOAT_EQ(wavefield.m_uxnGlobalCurr(0), initialUxCurr0);
-  EXPECT_FLOAT_EQ(uxPrevPrev(0), initialUxPP0);
+  EXPECT_FLOAT_EQ(wavefield.getPrevPrevField(0)(0), initialUxPP0);
 }
 
-TEST_F(WavefieldElasticTest, RotateNoDataCopy) {
+TEST_F(WavefieldElasticTest, SwapThreeBuffersNoDataCopy) {
   auto uxPrevPrev = allocateVector<vectorReal>(size1, "uxPrevPrev");
   auto uyPrevPrev = allocateVector<vectorReal>(size1, "uyPrevPrev");
   auto uzPrevPrev = allocateVector<vectorReal>(size1, "uzPrevPrev");
@@ -504,14 +503,13 @@ TEST_F(WavefieldElasticTest, RotateNoDataCopy) {
     uzPrevPrev(i) = 30.0f;
   }
 
-  WavefieldElastic wavefield(uxPrevField, uxCurrField, uyPrevField, uyCurrField, uzPrevField, uzCurrField);
-  wavefield.rotate(uxPrevPrev, 0);
-  wavefield.rotate(uyPrevPrev, 1);
-  wavefield.rotate(uzPrevPrev, 2);
+  WavefieldElastic wavefield(uxPrevPrev, uxPrevField, uxCurrField,
+                            uyPrevPrev, uyPrevField, uyCurrField,
+                            uzPrevPrev, uzPrevField, uzCurrField);
+  wavefield.swap();
 
-  // uxPrevPrev now aliases uxPrevField; write through one and read through the
-  // other
-  uxPrevPrev(0) = 999.0f;
+  // getPrevPrevField(0) now aliases uxPrevField; write through one and read through the other
+  wavefield.getPrevPrevField(0)(0) = 999.0f;
   EXPECT_FLOAT_EQ(uxPrevField(0), 999.0f);
 }
 

@@ -338,7 +338,7 @@ TYPED_TEST(AEsolverOnElemTest, ComputeOneStepRunsMultipleSteps) {
 }
 
 // =============================================================================
-// computeForces / updateSolution
+// computeForces / updateSolutionForward
 // =============================================================================
 
 TYPED_TEST(AEsolverOnElemTest, ComputeForcesDoesNotCrash) {
@@ -346,9 +346,9 @@ TYPED_TEST(AEsolverOnElemTest, ComputeForcesDoesNotCrash) {
   EXPECT_NO_THROW(this->solver_.computeForces(this->kDt, 0, data));
 }
 
-TYPED_TEST(AEsolverOnElemTest, UpdateSolutionDoesNotCrash) {
+TYPED_TEST(AEsolverOnElemTest, updateSolutionForwardDoesNotCrash) {
   auto data = this->makeData();
-  EXPECT_NO_THROW(this->solver_.updateSolution(this->kDt, data));
+  EXPECT_NO_THROW(this->solver_.updateSolutionForward(this->kDt, data));
 }
 
 // =============================================================================

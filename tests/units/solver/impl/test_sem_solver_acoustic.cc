@@ -2,7 +2,7 @@
  * @file test_sem_solver_acoustic.cc
  * @brief Unit tests for single-physics acoustic SEMsolver.
  *
- * Covers computeOneStep, computeForces, updateSolution, computeFEInit,
+ * Covers computeOneStep, computeForces, updateSolutionForward, computeFEInit,
  * mass matrix, damping matrix, and resetGlobalVectors — paths not exercised
  * by the attenuation tests (no SLS) and not reachable via the acoustoelastic
  * composite solver.
@@ -152,7 +152,7 @@ TEST_P(SemSolverAcousticTest, ResetGlobalVectorsZerosForceVector) {
 }
 
 // ======================================================================
-// computeForces / updateSolution
+// computeForces / updateSolutionForward
 // ======================================================================
 TEST_P(SemSolverAcousticTest, ComputeForcesDoesNotCrash) {
   WavefieldAcoustic wf(pPrev_, pCurr_);
@@ -161,12 +161,12 @@ TEST_P(SemSolverAcousticTest, ComputeForcesDoesNotCrash) {
   EXPECT_NO_THROW(solver_->computeForces(kDt, 0, data));
 }
 
-TEST_P(SemSolverAcousticTest, UpdateSolutionDoesNotCrash) {
+TEST_P(SemSolverAcousticTest, updateSolutionForwardDoesNotCrash) {
   WavefieldAcoustic wf(pPrev_, pCurr_);
   RhsAcoustic rhs(rhsTerm_, rhsElem_, rhsWeights_);
   SEMsolverDataAcoustic data(wf, rhs);
   solver_->computeForces(kDt, 0, data);
-  EXPECT_NO_THROW(solver_->updateSolution(kDt, data));
+  EXPECT_NO_THROW(solver_->updateSolutionForward(kDt, data));
 }
 
 // ======================================================================

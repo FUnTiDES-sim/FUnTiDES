@@ -107,7 +107,9 @@ class SEMsolverAcoustoElastic : public Solver {
 
   void computeForces(const float& dt, const int& timeSample, DataStruct& data) override;
 
-  void updateSolution(const float& dt, DataStruct& data) override;
+  void updateSolutionForward(const float& dt, DataStruct& data) override;
+
+  void updateSolutionBackward(const float& dt, DataStruct& data) override;
 
   void initFEarrays() override;
   void allocateFEarrays() override;
