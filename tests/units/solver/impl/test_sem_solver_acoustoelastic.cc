@@ -346,9 +346,52 @@ TYPED_TEST(AEsolverOnElemTest, ComputeForcesDoesNotCrash) {
   EXPECT_NO_THROW(this->solver_.computeForces(this->kDt, 0, data));
 }
 
-TYPED_TEST(AEsolverOnElemTest, updateSolutionForwardDoesNotCrash) {
+TYPED_TEST(AEsolverOnElemTest, updateSolutionForwardWith2BuffersWorks) {
   auto data = this->makeData();
   EXPECT_NO_THROW(this->solver_.updateSolutionForward(this->kDt, data));
+}
+
+TYPED_TEST(AEsolverOnElemTest, updateSolutionForwardWith3BuffersThrows) {
+  // Allocate prevprev buffers for 3-buffer mode
+  auto p_prevprev = allocateVector<vectorReal>(this->nNodes_, "pPrevPrev");
+  auto ux_prevprev = allocateVector<vectorReal>(this->nNodes_, "uxPrevPrev");
+  auto uy_prevprev = allocateVector<vectorReal>(this->nNodes_, "uyPrevPrev");
+  auto uz_prevprev = allocateVector<vectorReal>(this->nNodes_, "uzPrevPrev");
+  for (int i = 0; i < this->nNodes_; ++i) {
+    p_prevprev(i) = ux_prevprev(i) = uy_prevprev(i) = uz_prevprev(i) = 0.0f;
+  }
+  WavefieldAcoustoElastic wf(p_prevprev, this->p_prev_, this->p_curr_,
+                              ux_prevprev, this->ux_prev_, this->ux_curr_,
+                              uy_prevprev, this->uy_prev_, this->uy_curr_,
+                              uz_prevprev, this->uz_prev_, this->uz_curr_);
+  RhsAcoustoElastic rhs(this->rhs_term_, this->rhs_elem_, this->rhs_wts_,
+                        this->rhs_termx_, this->rhs_termy_, this->rhs_termz_);
+  SEMsolverDataAcoustoElastic data(wf, rhs);
+  EXPECT_THROW(this->solver_.updateSolutionForward(this->kDt, data), std::runtime_error);
+}
+
+TYPED_TEST(AEsolverOnElemTest, updateSolutionBackwardWith2BuffersThrows) {
+  auto data = this->makeData();
+  EXPECT_THROW(this->solver_.updateSolutionBackward(this->kDt, data), std::runtime_error);
+}
+
+TYPED_TEST(AEsolverOnElemTest, updateSolutionBackwardWith3BuffersWorks) {
+  // Allocate prevprev buffers for 3-buffer mode
+  auto p_prevprev = allocateVector<vectorReal>(this->nNodes_, "pPrevPrev");
+  auto ux_prevprev = allocateVector<vectorReal>(this->nNodes_, "uxPrevPrev");
+  auto uy_prevprev = allocateVector<vectorReal>(this->nNodes_, "uyPrevPrev");
+  auto uz_prevprev = allocateVector<vectorReal>(this->nNodes_, "uzPrevPrev");
+  for (int i = 0; i < this->nNodes_; ++i) {
+    p_prevprev(i) = ux_prevprev(i) = uy_prevprev(i) = uz_prevprev(i) = 0.0f;
+  }
+  WavefieldAcoustoElastic wf(p_prevprev, this->p_prev_, this->p_curr_,
+                              ux_prevprev, this->ux_prev_, this->ux_curr_,
+                              uy_prevprev, this->uy_prev_, this->uy_curr_,
+                              uz_prevprev, this->uz_prev_, this->uz_curr_);
+  RhsAcoustoElastic rhs(this->rhs_term_, this->rhs_elem_, this->rhs_wts_,
+                        this->rhs_termx_, this->rhs_termy_, this->rhs_termz_);
+  SEMsolverDataAcoustoElastic data(wf, rhs);
+  EXPECT_NO_THROW(this->solver_.updateSolutionBackward(this->kDt, data));
 }
 
 // =============================================================================
