@@ -191,6 +191,13 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::com
 template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE, bool IS_MODEL_ON_NODES, physicType PHYSICS>
 void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::computeElementContributions_Acoustic(
     const DataType& data) {
+  computeElementContributions_Acoustic_Flat(data);
+}
+}
+
+template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE, bool IS_MODEL_ON_NODES, physicType PHYSICS>
+void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::computeElementContributions_Acoustic_Flat(
+    const DataType& data) {
   auto mesh_local = m_mesh;
   bool const list_on = m_list_mode_;
   auto list_local = m_elem_list_;
@@ -337,6 +344,102 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::com
               for (int f = 0; f < kNumFields; ++f)
                 ATOMICADD(local_attenuationWorkVectorsGlobal[f][globalIdx], localWorkA[f][localIdx]);
             }
+      });
+}
+
+template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE, bool IS_MODEL_ON_NODES, physicType PHYSICS>
+void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::computeElementContributions_Acoustic_Teams(
+    const DataType& data) {
+  auto mesh_local = m_mesh;
+  bool const list_on = m_list_mode_;
+  auto list_local = m_elem_list_;
+  int const n_iter = list_on ? m_n_elem_list_ : mesh_local.getNumberOfElements();
+
+  std::array<std::remove_reference_t<decltype(workVectorsGlobal_[0])>, kNumFields> local_workVectorsGlobal;
+  for (int f = 0; f < kNumFields; ++f) {
+    local_workVectorsGlobal[f] = workVectorsGlobal_[f];
+  }
+
+  int const dim = mesh_local.getOrder() + 1;
+  int const pointsPerElem = dim * dim * dim;
+
+  using ExecSpace = Kokkos::DefaultExecutionSpace;
+  using TeamPolicyType = Kokkos::TeamPolicy<ExecSpace>;
+  using TeamMember = TeamPolicyType::member_type;
+
+  using ScratchView2D = Kokkos::View<float**, Kokkos::LayoutRight, ExecSpace::scratch_memory_space,
+                                     Kokkos::MemoryTraits<Kokkos::Unmanaged>>;
+  using ScratchView1D = Kokkos::View<float*, Kokkos::LayoutRight, ExecSpace::scratch_memory_space,
+                                     Kokkos::MemoryTraits<Kokkos::Unmanaged>>;
+
+  TeamPolicyType policy(n_iter, Kokkos::AUTO);
+
+  size_t bytes_2d = ScratchView2D::shmem_size(kNumFields, pointsPerElem) * 2;
+  size_t bytes_1d = ScratchView1D::shmem_size(pointsPerElem) * 3;
+  policy.set_scratch_size(0, Kokkos::PerTeam(bytes_2d + bytes_1d));
+
+  Kokkos::parallel_for(
+      "Solver Element Contribution Acoustic Teams", policy, KOKKOS_LAMBDA(const TeamMember& team) {
+        int const _loop_idx = team.league_rank();
+        int const elementNumber = list_on ? list_local[_loop_idx] : _loop_idx;
+
+        ScratchView2D localFields(team.team_scratch(0), kNumFields, pointsPerElem);
+        ScratchView2D localWork(team.team_scratch(0), kNumFields, pointsPerElem);
+        ScratchView1D G_xi(team.team_scratch(0), pointsPerElem);
+        ScratchView1D G_eta(team.team_scratch(0), pointsPerElem);
+        ScratchView1D G_zeta(team.team_scratch(0), pointsPerElem);
+
+        Kokkos::parallel_for(Kokkos::TeamThreadRange(team, pointsPerElem), [&](const int localIdx) {
+          int i = localIdx % dim;
+          int j = (localIdx / dim) % dim;
+          int k = localIdx / (dim * dim);
+          int const globalIdx = mesh_local.globalNodeIndex(elementNumber, i, j, k);
+
+          for (int f = 0; f < kNumFields; ++f) {
+            localFields(f, localIdx) = data.getCurrentField(f)(globalIdx);
+            localWork(f, localIdx) = 0.0f;
+          }
+        });
+
+        float cornerCoords[8][3];
+        auto const eIdx = mesh_local.elementIndex(elementNumber);
+        int I = 0;
+        for (int kv = 0; kv < 2; ++kv) {
+          for (int jv = 0; jv < 2; ++jv) {
+            for (int iv = 0; iv < 2; ++iv) {
+              mesh_local.vertexCoords(mesh_local.globalVertexIndex(eIdx, iv, jv, kv), cornerCoords[I++]);
+            }
+          }
+        }
+
+        team.team_barrier();
+
+        real_t inv_density = 0.0f;
+        if constexpr (!IS_MODEL_ON_NODES) {
+          inv_density = 1.0f / mesh_local.getModelRhoOnElement(elementNumber);
+        }
+
+        INTEGRAL_TYPE::computeStiffnessTermSumFact_Team(
+            team, cornerCoords, &localFields(0, 0), &localWork(0, 0), G_xi.data(), G_eta.data(), G_zeta.data(),
+            [&](const int qa, const int qb, const int qc) -> real_t {
+              if constexpr (IS_MODEL_ON_NODES) {
+                int const gIndex = mesh_local.globalNodeIndex(elementNumber, qa, qb, qc);
+                return 1.0f / mesh_local.getModelRhoOnNodes(gIndex);
+              } else {
+                return inv_density;
+              }
+            });
+
+        Kokkos::parallel_for(Kokkos::TeamThreadRange(team, pointsPerElem), [&](const int localIdx) {
+          int i = localIdx % dim;
+          int j = (localIdx / dim) % dim;
+          int k = localIdx / (dim * dim);
+          int const globalIdx = mesh_local.globalNodeIndex(elementNumber, i, j, k);
+
+          for (int f = 0; f < kNumFields; ++f) {
+            ATOMICADD(local_workVectorsGlobal[f][globalIdx], localWork(f, localIdx));
+          }
+        });
       });
 }
 

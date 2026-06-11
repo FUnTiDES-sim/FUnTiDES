@@ -1,3 +1,9 @@
+configure_file(
+  ${CMAKE_CURRENT_SOURCE_DIR}/include/bench_config.h.in
+  ${CMAKE_CURRENT_BINARY_DIR}/include/bench_config.h
+  @ONLY
+)
+
 add_benchmark(bench_solver_fe_cartesian_struct_acoustic
  SOURCES
    src/bench_solver_fe_cartesian_struct_acoustic.cc
@@ -69,4 +75,25 @@ add_benchmark(bench_solver_fe_cartesian_unstruct_elastic
  LABELS
    unstruct
    solver
+)
+
+add_benchmark(bench_acoustic_kernels
+  SOURCES
+    src/bench_acoustic_kernel.cc
+  INCLUDES
+    ${CMAKE_CURRENT_SOURCE_DIR}/include
+  LIBS
+    proxy_solver
+    proxy_model_unstruct
+    proxy_model_struct
+    proxy_model_builder_cartesian
+    discretization
+    proxy_utils
+  THREADS
+    1
+  LABELS
+    solver
+    acoustic
+    kernels
+    performance
 )

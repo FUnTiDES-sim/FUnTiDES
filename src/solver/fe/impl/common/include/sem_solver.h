@@ -175,6 +175,8 @@ class SEMsolver : public Solver {
   const vectorReal& getForceVector(int f) const { return workVectorsGlobal_[f]; }
 
   void computeElementContributions_Acoustic(const DataType& data);
+  void computeElementContributions_Acoustic_Flat(const DataType& data);
+  void computeElementContributions_Acoustic_Teams(const DataType& data);
   void computeElementContributions_Iso(const DataType& data);
   void computeElementContributions_Vti(const DataType& data);
   void computeElementContributions_Tti(const DataType& data);

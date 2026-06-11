@@ -69,13 +69,11 @@ function(add_benchmark name)
       benchmark::benchmark
   )
 
-  # Add include directories if provided
-  if(ARG_INCLUDES)
-    target_include_directories(${name}
-      PRIVATE
-        ${ARG_INCLUDES}
-    )
-  endif()
+  target_include_directories(${name}
+    PRIVATE
+      ${CMAKE_CURRENT_BINARY_DIR}/include
+      ${ARG_INCLUDES}
+  )
 
   target_link_kokkos_if_enabled(${name})
 
