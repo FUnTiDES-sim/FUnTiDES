@@ -40,8 +40,13 @@ add_gtest(physics_traits_test
   proxy_solver
 )
 
-add_gtest(solver_data_test
-  test_solver_data.cc
+add_gtest(solver_data_acoustic_test
+  test_solver_data_acoustic.cc
+  proxy_solver
+)
+
+add_gtest(solver_data_elastic_test
+  test_solver_data_elastic.cc
   proxy_solver
 )
 
