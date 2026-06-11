@@ -1,10 +1,12 @@
 #include "Integrals.h"
+#include "Qk_Hexahedron_Tensorial.h"
 #include "bench_main.h"
 #include "bench_solver_fe_cartesian_unstruct_common.h"
 #include "model_unstruct.h"
 #include "rhs_acoustic.h"
 #include "sem_enums.h"
 #include "sem_solver.h"
+#include "sem_solver_impl.h"
 #include "wavefield_acoustic.h"
 
 namespace model {
@@ -115,12 +117,54 @@ BENCHMARK_TEMPLATE_METHOD_F(AcousticKernelFixture, ElementContrib_Teams)(benchma
   this->setLabel(state);
 }
 
+// ==============================================================================
+// BENCHMARK 3 : Tensorial (GEMM intégré dans la boucle Flat)
+// ==============================================================================
+BENCHMARK_TEMPLATE_METHOD_F(AcousticKernelFixture, ElementContrib_Tensorial)(benchmark::State& state) {
+  auto model = this->createModel();
+
+  using Integral = typename Qk_Hexahedron_Tensorial_Selector<this->order>::type;
+  using Model = ModelUnstruct<float, int>;
+  using SolverOnNodes = solver::fe::SEMsolver<this->order, Integral, Model, true, solver::fe::physicType::kAcoustic>;
+  using SolverOnElems = solver::fe::SEMsolver<this->order, Integral, Model, false, solver::fe::physicType::kAcoustic>;
+
+  BenchmarkArrays arrays(this->n_rhs, this->n_time_steps, this->n_dof, model->getNumberOfPointsPerElement());
+  auto wavefield = WavefieldAcoustic(arrays.pnGlobalPrev, arrays.pnGlobalCurr);
+  auto rhs = RhsAcoustic(arrays.rhsTerm, arrays.rhsElement, arrays.rhsWeights);
+  SEMsolverDataAcoustic data(wavefield, rhs);
+
+  if (this->isModelOnNodes_) {
+    SolverOnNodes my_solver;
+    my_solver.computeFEInit(*model, this->sponge_size, this->surface_sponge, this->taper_delta);
+
+    for (auto _ : state) {
+      my_solver.computeElementContributions_Acoustic_Flat(data);
+      FENCE
+    }
+  } else {
+    SolverOnElems my_solver;
+    my_solver.computeFEInit(*model, this->sponge_size, this->surface_sponge, this->taper_delta);
+
+    for (auto _ : state) {
+      my_solver.computeElementContributions_Acoustic_Flat(data);
+      FENCE
+    }
+  }
+
+  this->setLabel(state);
+}
+
 BENCHMARK_FOR_ALL_ORDERS(AcousticKernelFixture, ElementContrib_Flat,
                          AcousticKernelConfig,
                              ->ArgsProduct({{0, 1}, {static_cast<int64_t>(implemType::kMakutu)}})
                              ->Unit(benchmark::kMicrosecond))
 
 BENCHMARK_FOR_ALL_ORDERS(AcousticKernelFixture, ElementContrib_Teams,
+                         AcousticKernelConfig,
+                             ->ArgsProduct({{0, 1}, {static_cast<int64_t>(implemType::kMakutu)}})
+                             ->Unit(benchmark::kMicrosecond))
+
+BENCHMARK_FOR_ALL_ORDERS(AcousticKernelFixture, ElementContrib_Tensorial,
                          AcousticKernelConfig,
                              ->ArgsProduct({{0, 1}, {static_cast<int64_t>(implemType::kMakutu)}})
                              ->Unit(benchmark::kMicrosecond))
