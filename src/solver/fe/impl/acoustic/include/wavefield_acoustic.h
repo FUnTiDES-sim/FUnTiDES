@@ -56,11 +56,11 @@ struct WavefieldAcoustic : public Wavefield {
 
   void swap() override {
     if (hasPrevPrev()) {
-      // 3-way rotation: curr ← prevPrev, prev ← curr, prevPrev ← prev
-      vectorReal temp = m_pnGlobalPrevPrev;
+      // Backward mode: curr ← prevPrev (new value), prev ← curr, prevPrev ← prev
+      vectorReal temp = m_pnGlobalCurr;
+      m_pnGlobalCurr = m_pnGlobalPrevPrev;  // New value goes to curr
       m_pnGlobalPrevPrev = m_pnGlobalPrev;
-      m_pnGlobalPrev = m_pnGlobalCurr;
-      m_pnGlobalCurr = temp;
+      m_pnGlobalPrev = temp;
     } else {
       // 2-way swap: curr ↔ prev
       std::swap(m_pnGlobalPrev, m_pnGlobalCurr);

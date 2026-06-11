@@ -110,21 +110,22 @@ struct WavefieldElastic : public Wavefield {
 
   void swap() override {
     if (hasPrevPrev()) {
-      // 3-way rotation: curr ← prevPrev, prev ← curr, prevPrev ← prev
-      vectorReal tempUx = m_uxnGlobalPrevPrev;
+      // Backward mode: curr ← prevPrev (new value), prev ← curr, prevPrev ← prev
+      vectorReal tempUx = m_uxnGlobalCurr;
+      vectorReal tempUy = m_uynGlobalCurr;
+      vectorReal tempUz = m_uznGlobalCurr;
+
+      m_uxnGlobalCurr = m_uxnGlobalPrevPrev;  // New value goes to curr
+      m_uynGlobalCurr = m_uynGlobalPrevPrev;
+      m_uznGlobalCurr = m_uznGlobalPrevPrev;
+
       m_uxnGlobalPrevPrev = m_uxnGlobalPrev;
-      m_uxnGlobalPrev = m_uxnGlobalCurr;
-      m_uxnGlobalCurr = tempUx;
-
-      vectorReal tempUy = m_uynGlobalPrevPrev;
       m_uynGlobalPrevPrev = m_uynGlobalPrev;
-      m_uynGlobalPrev = m_uynGlobalCurr;
-      m_uynGlobalCurr = tempUy;
-
-      vectorReal tempUz = m_uznGlobalPrevPrev;
       m_uznGlobalPrevPrev = m_uznGlobalPrev;
-      m_uznGlobalPrev = m_uznGlobalCurr;
-      m_uznGlobalCurr = tempUz;
+
+      m_uxnGlobalPrev = tempUx;
+      m_uynGlobalPrev = tempUy;
+      m_uznGlobalPrev = tempUz;
     } else {
       // 2-way swap: curr ↔ prev
       std::swap(m_uxnGlobalPrev, m_uxnGlobalCurr);
