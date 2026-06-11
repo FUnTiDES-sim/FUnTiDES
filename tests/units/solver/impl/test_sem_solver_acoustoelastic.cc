@@ -360,12 +360,10 @@ TYPED_TEST(AEsolverOnElemTest, updateSolutionForwardWith3BuffersThrows) {
   for (int i = 0; i < this->nNodes_; ++i) {
     p_prevprev(i) = ux_prevprev(i) = uy_prevprev(i) = uz_prevprev(i) = 0.0f;
   }
-  WavefieldAcoustoElastic wf(p_prevprev, this->p_prev_, this->p_curr_,
-                              ux_prevprev, this->ux_prev_, this->ux_curr_,
-                              uy_prevprev, this->uy_prev_, this->uy_curr_,
-                              uz_prevprev, this->uz_prev_, this->uz_curr_);
-  RhsAcoustoElastic rhs(this->rhs_term_, this->rhs_elem_, this->rhs_wts_,
-                        this->rhs_termx_, this->rhs_termy_, this->rhs_termz_);
+  WavefieldAcoustoElastic wf(p_prevprev, this->p_prev_, this->p_curr_, ux_prevprev, this->ux_prev_, this->ux_curr_,
+                             uy_prevprev, this->uy_prev_, this->uy_curr_, uz_prevprev, this->uz_prev_, this->uz_curr_);
+  RhsAcoustoElastic rhs(this->rhs_term_, this->rhs_elem_, this->rhs_wts_, this->rhs_termx_, this->rhs_termy_,
+                        this->rhs_termz_);
   SEMsolverDataAcoustoElastic data(wf, rhs);
   EXPECT_THROW(this->solver_.updateSolutionForward(this->kDt, data), std::runtime_error);
 }
@@ -384,12 +382,10 @@ TYPED_TEST(AEsolverOnElemTest, updateSolutionBackwardWith3BuffersWorks) {
   for (int i = 0; i < this->nNodes_; ++i) {
     p_prevprev(i) = ux_prevprev(i) = uy_prevprev(i) = uz_prevprev(i) = 0.0f;
   }
-  WavefieldAcoustoElastic wf(p_prevprev, this->p_prev_, this->p_curr_,
-                              ux_prevprev, this->ux_prev_, this->ux_curr_,
-                              uy_prevprev, this->uy_prev_, this->uy_curr_,
-                              uz_prevprev, this->uz_prev_, this->uz_curr_);
-  RhsAcoustoElastic rhs(this->rhs_term_, this->rhs_elem_, this->rhs_wts_,
-                        this->rhs_termx_, this->rhs_termy_, this->rhs_termz_);
+  WavefieldAcoustoElastic wf(p_prevprev, this->p_prev_, this->p_curr_, ux_prevprev, this->ux_prev_, this->ux_curr_,
+                             uy_prevprev, this->uy_prev_, this->uy_curr_, uz_prevprev, this->uz_prev_, this->uz_curr_);
+  RhsAcoustoElastic rhs(this->rhs_term_, this->rhs_elem_, this->rhs_wts_, this->rhs_termx_, this->rhs_termy_,
+                        this->rhs_termz_);
   SEMsolverDataAcoustoElastic data(wf, rhs);
   EXPECT_NO_THROW(this->solver_.updateSolutionBackward(this->kDt, data));
 }
