@@ -35,19 +35,19 @@ void bind_acoustic_solver_data(py::module_ &m) {
       .def("swap_wavefields", &SEMsolverDataAcoustic::swapWavefields)
       .def(
           "get_current_field",
-          [](const SEMsolverDataAcoustic& self, int i) {
+          [](const SEMsolverDataAcoustic &self, int i) {
             return Kokkos::Experimental::python_view_type_t<vectorReal>(self.getCurrentField(i));
           },
           py::arg("i"))
       .def(
           "get_previous_field",
-          [](const SEMsolverDataAcoustic& self, int i) {
+          [](const SEMsolverDataAcoustic &self, int i) {
             return Kokkos::Experimental::python_view_type_t<vectorReal>(self.getPreviousField(i));
           },
           py::arg("i"))
       .def(
           "get_prevprev_field",
-          [](const SEMsolverDataAcoustic& self, int i) {
+          [](const SEMsolverDataAcoustic &self, int i) {
             return Kokkos::Experimental::python_view_type_t<vectorReal>(self.getPrevPrevField(i));
           },
           py::arg("i"))
@@ -60,19 +60,19 @@ void bind_elastic_solver_data(py::module_ &m) {
       .def("swap_wavefields", &SEMsolverDataElastic::swapWavefields)
       .def(
           "get_current_field",
-          [](const SEMsolverDataElastic& self, int i) {
+          [](const SEMsolverDataElastic &self, int i) {
             return Kokkos::Experimental::python_view_type_t<vectorReal>(self.getCurrentField(i));
           },
           py::arg("i"))
       .def(
           "get_previous_field",
-          [](const SEMsolverDataElastic& self, int i) {
+          [](const SEMsolverDataElastic &self, int i) {
             return Kokkos::Experimental::python_view_type_t<vectorReal>(self.getPreviousField(i));
           },
           py::arg("i"))
       .def(
           "get_prevprev_field",
-          [](const SEMsolverDataElastic& self, int i) {
+          [](const SEMsolverDataElastic &self, int i) {
             return Kokkos::Experimental::python_view_type_t<vectorReal>(self.getPrevPrevField(i));
           },
           py::arg("i"))
@@ -86,19 +86,19 @@ void bind_acoustoelastic_solver_data(py::module_ &m) {
       .def("swap_wavefields", &SEMsolverDataAcoustoElastic::swapWavefields)
       .def(
           "get_current_field",
-          [](const SEMsolverDataAcoustoElastic& self, int i) {
+          [](const SEMsolverDataAcoustoElastic &self, int i) {
             return Kokkos::Experimental::python_view_type_t<vectorReal>(self.getCurrentField(i));
           },
           py::arg("i"))
       .def(
           "get_previous_field",
-          [](const SEMsolverDataAcoustoElastic& self, int i) {
+          [](const SEMsolverDataAcoustoElastic &self, int i) {
             return Kokkos::Experimental::python_view_type_t<vectorReal>(self.getPreviousField(i));
           },
           py::arg("i"))
       .def(
           "get_prevprev_field",
-          [](const SEMsolverDataAcoustoElastic& self, int i) {
+          [](const SEMsolverDataAcoustoElastic &self, int i) {
             return Kokkos::Experimental::python_view_type_t<vectorReal>(self.getPrevPrevField(i));
           },
           py::arg("i"))
