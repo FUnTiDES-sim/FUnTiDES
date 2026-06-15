@@ -198,7 +198,7 @@ void SEMproxy::Run() {
         dg_comm_.exchange(curr);
       }
       solver_->computeForces(dt_, time_index, dgData);
-      solver_->updateSolution(dt_, dgData);
+      solver_->updateSolutionForward(dt_, dgData);
       total_compute_time += system_clock::now() - start_compute_time;
 
       start_output_time = system_clock::now();
