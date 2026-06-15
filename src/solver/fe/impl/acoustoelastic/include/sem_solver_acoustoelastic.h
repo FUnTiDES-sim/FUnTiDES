@@ -35,6 +35,15 @@ struct SEMsolverDataAcoustoElastic : public Solver::DataStruct {
   SEMsolverDataAcoustoElastic(const WavefieldAcoustoElastic& wavefield, const RhsAcoustoElastic& rhs)
       : m_wavefield(wavefield), m_rhs(rhs) {}
 
+  PROXY_HOST_DEVICE
+  vectorReal getCurrentField(int i) const { return m_wavefield.getCurrentField(i); }
+
+  PROXY_HOST_DEVICE
+  vectorReal getPreviousField(int i) const { return m_wavefield.getPreviousField(i); }
+
+  PROXY_HOST_DEVICE
+  vectorReal getPrevPrevField(int i) const { return m_wavefield.getPrevPrevField(i); }
+
   void print() const override {
     m_wavefield.print();
     m_rhs.print();
@@ -107,7 +116,9 @@ class SEMsolverAcoustoElastic : public Solver {
 
   void computeForces(const float& dt, const int& timeSample, DataStruct& data) override;
 
-  void updateSolution(const float& dt, DataStruct& data) override;
+  void updateSolutionForward(const float& dt, DataStruct& data) override;
+
+  void updateSolutionBackward(const float& dt, DataStruct& data) override;
 
   void initFEarrays() override;
   void allocateFEarrays() override;

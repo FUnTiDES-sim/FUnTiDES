@@ -24,11 +24,27 @@ struct WavefieldAcoustoElastic : public Wavefield {
   /// Field names in order: p, ux, uy, uz
   static constexpr const char* kFieldNames[4] = {"pressure", "ux", "uy", "uz"};
 
+  /*
+   *  @brief Constructor for forward simulation (2-buffer mode).
+   *  Contains current and previous fields for each displacement component.
+   */
   WavefieldAcoustoElastic(vectorReal pnGlobalPrev, vectorReal pnGlobalCurr, vectorReal uxnGlobalPrev,
                           vectorReal uxnGlobalCurr, vectorReal uynGlobalPrev, vectorReal uynGlobalCurr,
                           vectorReal uznGlobalPrev, vectorReal uznGlobalCurr)
       : m_acoustic(pnGlobalPrev, pnGlobalCurr),
         m_elastic(uxnGlobalPrev, uxnGlobalCurr, uynGlobalPrev, uynGlobalCurr, uznGlobalPrev, uznGlobalCurr) {}
+
+  /*
+   *  @brief Constructor for adjoint/backward simulation (3-buffer mode).
+   *  Contains current, previous, and previous-previous fields for each displacement component.
+   */
+  WavefieldAcoustoElastic(vectorReal pnGlobalPrevPrev, vectorReal pnGlobalPrev, vectorReal pnGlobalCurr,
+                          vectorReal uxnGlobalPrevPrev, vectorReal uxnGlobalPrev, vectorReal uxnGlobalCurr,
+                          vectorReal uynGlobalPrevPrev, vectorReal uynGlobalPrev, vectorReal uynGlobalCurr,
+                          vectorReal uznGlobalPrevPrev, vectorReal uznGlobalPrev, vectorReal uznGlobalCurr)
+      : m_acoustic(pnGlobalPrevPrev, pnGlobalPrev, pnGlobalCurr),
+        m_elastic(uxnGlobalPrevPrev, uxnGlobalPrev, uxnGlobalCurr, uynGlobalPrevPrev, uynGlobalPrev, uynGlobalCurr,
+                  uznGlobalPrevPrev, uznGlobalPrev, uznGlobalCurr) {}
 
   int getNumFields() const override final { return kNumFields; }
 
@@ -56,17 +72,25 @@ struct WavefieldAcoustoElastic : public Wavefield {
     return m_elastic.getPreviousField(i - 1);
   }
 
+  /**
+   * @brief Get the previous-previous field by index.
+   *
+   * Index mapping: 0=p, 1=ux, 2=uy, 3=uz.
+   */
+  PROXY_HOST_DEVICE
+  vectorReal getPrevPrevField(int i) const override {
+    if (i == 0) return m_acoustic.getPrevPrevField(0);
+    return m_elastic.getPrevPrevField(i - 1);
+  }
+
+  bool hasPrevPrev() const override {
+    // Both must have prevprev or neither
+    return m_acoustic.hasPrevPrev() && m_elastic.hasPrevPrev();
+  }
+
   void swap() override {
     m_acoustic.swap();
     m_elastic.swap();
-  }
-
-  void swapWithRotation(vectorReal& prevPrevBuffer, int i) override {
-    if (i == 0) {
-      m_acoustic.swapWithRotation(prevPrevBuffer, 0);
-      return;
-    }
-    m_elastic.swapWithRotation(prevPrevBuffer, i - 1);
   }
 
   void print() const override {

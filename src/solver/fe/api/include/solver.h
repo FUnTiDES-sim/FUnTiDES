@@ -148,17 +148,33 @@ class Solver {
    * This method computes the local contributions to the force vectors.
    * In a distributed simulation, the caller MUST synchronize the force vectors
    * via BoundarySynchronizer after calling this method and before calling
-   * updateSolution.
+   * updateSolutionForward() or updateSolutionBackward().
    */
   virtual void computeForces(const float& dt, const int& timeSample, DataStruct& data) = 0;
 
   /**
-   * @brief Phase 2 of time step: Update solution using mass matrix and forces.
+   * @brief Phase 2 (fwd) of time step: Update solution using mass matrix and forces.
+   * Update solution writing to prev buffer.
    *
    * Assumes force vectors have been fully assembled (including boundary
    * synchronization).
    */
-  virtual void updateSolution(const float& dt, DataStruct& data) = 0;
+  virtual void updateSolutionForward(const float& dt, DataStruct& data) = 0;
+
+  /**
+   * @brief Phase 2 (bwd) of time step (backward/adjoint mode): Update solution using mass matrix and forces.
+   * Update solution writing to prevprev buffer.
+   *
+   * This method is identical to updateSolutionForward() except it writes the updated
+   * solution into the prevprev field instead of the prev field. This is used
+   * for adjoint/backward time-stepping where three time levels are needed.
+   *
+   * Assumes force vectors have been fully assembled (including boundary
+   * synchronization).
+   *
+   * @throws std::runtime_error if called with data that does not have prevprev buffer allocated.
+   */
+  virtual void updateSolutionBackward(const float& dt, DataStruct& data) = 0;
 
   virtual void setAnisotropyType(model::AnisotropyType type) = 0;
 

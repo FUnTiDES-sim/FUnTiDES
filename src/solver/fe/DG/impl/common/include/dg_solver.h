@@ -104,15 +104,22 @@ class DGsolver : public Solver {
 
   void computeForces(const float& dt, const int& timeSample, DataStruct& data) override;
 
-  void updateSolution(const float& dt, DataStruct& data) override;
+  void updateSolutionForward(const float& dt, DataStruct& data) override;
+  void updateSolutionBackward(const float& dt, DataStruct& data) override;
 
   /**
    * @brief Legacy/Serial wrapper.
    * @throws std::runtime_error if called in distributed mode.
    */
   void computeOneStep(const float& dt, const int& timeSample, DataStruct& data) override {
+    auto& myData = dynamic_cast<DataType&>(data);
+    if (myData.isDistributed) {
+      throw std::runtime_error(
+          "computeOneStep called in distributed mode. Use computeForces() -> "
+          "synchronize() -> updateSolutionForward().");
+    }
     computeForces(dt, timeSample, data);
-    updateSolution(dt, data);
+    updateSolutionForward(dt, data);
   }
 
   void setNLocalElem(int n) override { m_n_local_elem_ = n; }
@@ -136,18 +143,34 @@ class DGsolver : public Solver {
   void applyRHSTerm(int timeSample, float dt, const DataType& data);
 
   /**
-   * @brief Update the global solution fields at interior nodes.
+   * @brief Update the global solution fields at interior nodes (forward mode).
    */
-  void updateFields(float dt, const DataType& data);
+  void updateFieldsForward(float dt, const DataType& data);
 
   /**
-   * @brief Run Verlet update only for a compact subset of elements.
+   * @brief Update the global solution fields (backward/adjoint mode).
+   * Note: DG backward mode not yet fully implemented.
+   */
+  void updateFieldsBackward(float dt, const DataType& data);
+
+  /**
+   * @brief Run Verlet update only for a compact subset of elements (forward mode).
    * @param dt        Time step.
    * @param data      Wavefield data.
    * @param elem_list Compact array of element indices to update.
    * @param n_elems   Number of entries in @p elem_list.
    */
-  void updateFieldsFromList(float dt, const DataType& data, const vectorInt& elem_list, int n_elems);
+  void updateFieldsFromListForward(float dt, const DataType& data, const vectorInt& elem_list, int n_elems);
+
+  /**
+   * @brief Run Verlet update only for a compact subset of elements (backward mode).
+   * @param dt        Time step.
+   * @param data      Wavefield data.
+   * @param elem_list Compact array of element indices to update.
+   * @param n_elems   Number of entries in @p elem_list.
+   * Note: DG backward mode not yet fully implemented.
+   */
+  void updateFieldsFromListBackward(float dt, const DataType& data, const vectorInt& elem_list, int n_elems);
 
   /**
    * @brief Kernel 1 — volume mass + SumFact stiffness. Zeros the damping accumulator.

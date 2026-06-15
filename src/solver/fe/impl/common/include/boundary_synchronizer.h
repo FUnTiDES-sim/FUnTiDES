@@ -32,7 +32,7 @@ namespace fe {
 // @note
 // For single-rank execution, synchronization is a no-op (no neighbors exist).
 // For distributed execution, must be called after computeForces() and before
-// updateSolution() to ensure boundary values are complete.
+// updateSolutionForward() or updateSolutionBackward() to ensure boundary values are complete.
 class BoundarySynchronizer {
  public:
   // @brief Controls how received values are applied to the local field.
