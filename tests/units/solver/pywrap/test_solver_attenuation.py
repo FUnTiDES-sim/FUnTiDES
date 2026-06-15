@@ -90,7 +90,7 @@ def _run_acoustic_simulation(solver, sd, n_steps=200, dt=0.001):
 
     for t in range(n_steps):
         solver.compute_forces(dt, t, data)
-        solver.update_solution(dt, data)
+        solver.update_solution_forward(dt, data)
         data.swap_wavefields()
 
     field = np.array(kk_pCurr, copy=False)

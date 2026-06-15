@@ -62,6 +62,9 @@ struct SEMsolverData : public Solver::DataStruct {
   PROXY_HOST_DEVICE
   vectorReal getPreviousField(int i) const { return m_wavefield.getPreviousField(i); }
 
+  PROXY_HOST_DEVICE
+  vectorReal getPrevPrevField(int i) const { return m_wavefield.getPrevPrevField(i); }
+
   void swapWavefields() { m_wavefield.swap(); }
 
   void print() const override {

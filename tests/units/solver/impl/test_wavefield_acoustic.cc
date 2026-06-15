@@ -295,57 +295,59 @@ TEST_F(WavefieldAcousticTest, CopyInContainerClass) {
   EXPECT_FLOAT_EQ(original.m_pnGlobalCurr(30), 777.0f);
 }
 
-TEST_F(WavefieldAcousticTest, SwapWithRotationRotatesThreeBuffers) {
-  // prevprev = {10, 10, ...}, prev = {i}, curr = {i*2}
+TEST_F(WavefieldAcousticTest, SwapWithThreeBuffersRotatesCorrectly) {
+  // Test backward mode (3-buffer): prevprev = {10}, prev = {i}, curr = {i*2}
   auto prevPrev = allocateVector<vectorReal>(size1, "prevPrev");
   for (size_t i = 0; i < size1; ++i) prevPrev(i) = 10.0f;
 
-  WavefieldAcoustic wavefield(prevField, currField);
-  wavefield.swapWithRotation(prevPrev, 0);
+  WavefieldAcoustic wavefield(prevPrev, prevField, currField);
+  EXPECT_TRUE(wavefield.hasPrevPrev());
 
-  // After rotation:
+  wavefield.swap();
+
+  // After 3-way rotation:
   //   curr      ← old prevPrev  (value = 10.0)
   //   prev      ← old curr      (value = i*2)
   //   prevPrev  ← old prev      (value = i)
   for (size_t i = 0; i < size1; ++i) {
     EXPECT_FLOAT_EQ(wavefield.m_pnGlobalCurr(i), 10.0f);
     EXPECT_FLOAT_EQ(wavefield.m_pnGlobalPrev(i), i * 2);
-    EXPECT_FLOAT_EQ(prevPrev(i), static_cast<float>(i));
+    EXPECT_FLOAT_EQ(wavefield.getPrevPrevField(0)(i), static_cast<float>(i));
   }
 }
 
-TEST_F(WavefieldAcousticTest, SwapWithRotationThreeTimesRestoresState) {
+TEST_F(WavefieldAcousticTest, SwapThreeTimesRestoresStateWithThreeBuffers) {
   auto prevPrev = allocateVector<vectorReal>(size1, "prevPrev");
   for (size_t i = 0; i < size1; ++i) prevPrev(i) = 10.0f;
 
-  // Record identity of underlying data before rotation
+  // Record initial values
   float initialPrev0 = prevField(0);     // i=0 → 0
   float initialCurr0 = currField(0);     // i=0 → 0
   float initialPrevPrev0 = prevPrev(0);  // 10.0
 
-  WavefieldAcoustic wavefield(prevField, currField);
+  WavefieldAcoustic wavefield(prevPrev, prevField, currField);
+  EXPECT_TRUE(wavefield.hasPrevPrev());
 
-  // Three rotations on a 3-element ring must restore the original assignment
-  wavefield.swapWithRotation(prevPrev, 0);
-  wavefield.swapWithRotation(prevPrev, 0);
-  wavefield.swapWithRotation(prevPrev, 0);
+  // Three swaps on a 3-element ring must restore the original assignment
+  wavefield.swap();
+  wavefield.swap();
+  wavefield.swap();
 
   EXPECT_FLOAT_EQ(wavefield.m_pnGlobalPrev(0), initialPrev0);
   EXPECT_FLOAT_EQ(wavefield.m_pnGlobalCurr(0), initialCurr0);
-  EXPECT_FLOAT_EQ(prevPrev(0), initialPrevPrev0);
+  EXPECT_FLOAT_EQ(wavefield.getPrevPrevField(0)(0), initialPrevPrev0);
 }
 
-TEST_F(WavefieldAcousticTest, SwapWithRotationNoDataCopy) {
-  // Verifies that the rotation is view-handle only: mutating the underlying
-  // buffer is visible through the rotated handle.
+TEST_F(WavefieldAcousticTest, SwapThreeBuffersNoDataCopy) {
+  // Verifies that swap is view-handle only: no data copying
   auto prevPrev = allocateVector<vectorReal>(size1, "prevPrev");
   for (size_t i = 0; i < size1; ++i) prevPrev(i) = 10.0f;
 
-  WavefieldAcoustic wavefield(prevField, currField);
-  wavefield.swapWithRotation(prevPrev, 0);
+  WavefieldAcoustic wavefield(prevPrev, prevField, currField);
+  wavefield.swap();
 
-  // prevPrev now points to what was prevField; write through prevPrev
-  prevPrev(0) = 999.0f;
+  // After swap, getPrevPrevField(0) now points to what was prevField
+  wavefield.getPrevPrevField(0)(0) = 999.0f;
   // prevField is the same underlying allocation → must see the change
   EXPECT_FLOAT_EQ(prevField(0), 999.0f);
 }

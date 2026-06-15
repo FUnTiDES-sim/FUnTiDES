@@ -1,11 +1,11 @@
 """
-Integration test for elastic gradient computation with wavefield rotation.
+Integration test for elastic gradient computation with 3-buffer wavefield swap.
 
 Tests the complete adjoint gradient workflow for elastic media:
 1. Backward time loop
 2. Load forward displacement snapshots (fake values)
 3. Apply leapfrog update on adjoint elastic wavefield
-4. Rotate adjoint wavefield (3-component swap)
+4. Swap adjoint wavefield (3-way rotation: curr←prevprev, prev←curr, prevprev←prev)
 5. Compute gradient via differentiator
 6. Verify gradient values (gradRho, gradLambda, gradMu)
 """
@@ -44,7 +44,7 @@ def _alloc(value, name):
 
 
 class TestDifferentiatorWithRotationElastic:
-    """Integration test for elastic differentiator with wavefield rotation."""
+    """Integration test for elastic differentiator with 3-buffer wavefield swap."""
 
     def setup_method(self):
         # Create mesh/model (elastic = True)
@@ -55,30 +55,28 @@ class TestDifferentiatorWithRotationElastic:
         self.kk_uy_fwd = _alloc(0.0, "uy_fwd")
         self.kk_uz_fwd = _alloc(0.0, "uz_fwd")
 
-        # Adjoint wavefield: elastic has 3 components × 2 time levels
-        # plus 3 prev_prev buffers for rotation
+        # Adjoint wavefield: elastic has 3 components × 3 time levels (3-buffer mode)
+        # prevprev, prev, curr for each component
+        self.kk_ux_pp = _alloc(0.0, "ux_pp")
         self.kk_ux_prev = _alloc(0.0, "ux_prev")
         self.kk_ux_curr = _alloc(0.0, "ux_curr")
+        self.kk_uy_pp = _alloc(0.0, "uy_pp")
         self.kk_uy_prev = _alloc(0.0, "uy_prev")
         self.kk_uy_curr = _alloc(0.0, "uy_curr")
+        self.kk_uz_pp = _alloc(0.0, "uz_pp")
         self.kk_uz_prev = _alloc(0.0, "uz_prev")
         self.kk_uz_curr = _alloc(0.0, "uz_curr")
-
-        # prev_prev rotation buffers
-        self.kk_ux_pp = _alloc(0.0, "ux_pp")
-        self.kk_uy_pp = _alloc(0.0, "uy_pp")
-        self.kk_uz_pp = _alloc(0.0, "uz_pp")
 
         # Gradient outputs (accumulate over time)
         self.kk_grad_rho = _alloc(0.0, "grad_rho")
         self.kk_grad_lambda = _alloc(0.0, "grad_lambda")
         self.kk_grad_mu = _alloc(0.0, "grad_mu")
 
-        # Create adjoint wavefield
+        # Create adjoint wavefield with 3-buffer constructor (9 args)
         self.adj_wavefield = Solver.WavefieldElastic(
-            self.kk_ux_prev, self.kk_ux_curr,
-            self.kk_uy_prev, self.kk_uy_curr,
-            self.kk_uz_prev, self.kk_uz_curr,
+            self.kk_ux_pp, self.kk_ux_prev, self.kk_ux_curr,
+            self.kk_uy_pp, self.kk_uy_prev, self.kk_uy_curr,
+            self.kk_uz_pp, self.kk_uz_prev, self.kk_uz_curr,
         )
 
         # Create gradient data
@@ -104,7 +102,7 @@ class TestDifferentiatorWithRotationElastic:
 
     def test_gradient_rho_loop(self):
         """
-        Test complete elastic gradient computation loop with rotation.
+        Test complete elastic gradient computation loop with 3-buffer wavefield swap.
         Uses spatially uniform fields to verify gradRho accumulation.
         With uniform fields: div(u)=0, ε(u)=0, so gradLambda=gradMu=0.
         gradRho = ∫ ü† · u dΩ accumulates the mass term.
@@ -128,16 +126,17 @@ class TestDifferentiatorWithRotationElastic:
             # Capture state before gradient computation
             grad_before_rho = np.array(self.kk_grad_rho, copy=False).copy()
 
-            # Step 3: Rotate adjoint wavefield
-            self.adj_wavefield.swap_with_rotation(
-                self.kk_ux_pp, self.kk_uy_pp, self.kk_uz_pp
-            )
+            # Step 3: Swap adjoint wavefield (3-way rotation)
+            self.adj_wavefield.swap()
 
             adj_curr_views = [
                 self.adj_wavefield.get_current_field(i) for i in range(3)
             ]
             adj_prev_views = [
                 self.adj_wavefield.get_previous_field(i) for i in range(3)
+            ]
+            adj_pp_views = [
+                self.adj_wavefield.get_prevprev_field(i) for i in range(3)
             ]
 
             # Step 4: Compute second time derivative for backward wavefield
@@ -147,12 +146,11 @@ class TestDifferentiatorWithRotationElastic:
             kk_uz_dt2 = _alloc(0.0, "uz_dt2")
 
             dt2_views = [kk_ux_dt2, kk_uy_dt2, kk_uz_dt2]
-            pp_views = [self.kk_ux_pp, self.kk_uy_pp, self.kk_uz_pp]
 
             for comp_idx in range(3):
                 curr = np.array(adj_curr_views[comp_idx], copy=False)
                 prev = np.array(adj_prev_views[comp_idx], copy=False)
-                prevprev = np.array(pp_views[comp_idx], copy=False)
+                prevprev = np.array(adj_pp_views[comp_idx], copy=False)
                 np.array(dt2_views[comp_idx], copy=False)[:] = (
                     (curr - 2.0 * prev + prevprev) / (DT * DT)
                 )
@@ -241,8 +239,7 @@ class TestDifferentiatorWithRotationElastic:
                 self.adj_wavefield.get_previous_field(comp_idx), copy=False
             )
             pp_arr = np.array(
-                [self.kk_ux_pp, self.kk_uy_pp, self.kk_uz_pp][comp_idx],
-                copy=False,
+                self.adj_wavefield.get_prevprev_field(comp_idx), copy=False
             )
 
             curr_arr[:] = 50.0 + t * 5.0
@@ -264,17 +261,18 @@ class TestDifferentiatorWithRotationElastic:
                         prev_arr[idx] += perturbation
                         pp_arr[idx] += perturbation
 
-        # Step 3: Rotate adjoint wavefield
-        self.adj_wavefield.swap_with_rotation(
-            self.kk_ux_pp, self.kk_uy_pp, self.kk_uz_pp
-        )
+        # Step 3: Swap adjoint wavefield (3-way rotation)
+        self.adj_wavefield.swap()
+        
         adj_curr_views = [
             self.adj_wavefield.get_current_field(i) for i in range(3)
         ]
         adj_prev_views = [
             self.adj_wavefield.get_previous_field(i) for i in range(3)
         ]
-        pp_views = [self.kk_ux_pp, self.kk_uy_pp, self.kk_uz_pp]
+        adj_pp_views = [
+            self.adj_wavefield.get_prevprev_field(i) for i in range(3)
+        ]
 
         # Step 4: Compute second time derivative
         kk_ux_dt2 = _alloc(0.0, "ux_dt2")
@@ -285,7 +283,7 @@ class TestDifferentiatorWithRotationElastic:
         for comp_idx in range(3):
             curr = np.array(adj_curr_views[comp_idx], copy=False)
             prev = np.array(adj_prev_views[comp_idx], copy=False)
-            prevprev = np.array(pp_views[comp_idx], copy=False)
+            prevprev = np.array(adj_pp_views[comp_idx], copy=False)
             np.array(dt2_views[comp_idx], copy=False)[:] = (
                 (curr - 2.0 * prev + prevprev) / (DT * DT)
             )

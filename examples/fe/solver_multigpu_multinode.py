@@ -247,7 +247,7 @@ def run_simulation(args):
         solver.compute_forces(dt, t, data)
         force_vec = solver.get_force_vector(0)
         exchanger.sync_accumulate(force_vec)
-        solver.update_solution(dt, data)
+        solver.update_solution_forward(dt, data)
 
         # MPI sync acts as fence
         total_compute_time += (time.time() - t_c_start)

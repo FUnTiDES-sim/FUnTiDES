@@ -296,7 +296,7 @@ def run_simulation(args):
         exchanger.sync_accumulate(force_vec)
 
         # 3. Update
-        solver.update_solution(dt, data)
+        solver.update_solution_forward(dt, data)
 
         # 4. Snapshot
         if t % 100 == 0:
