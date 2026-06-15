@@ -4,11 +4,10 @@ add_benchmark(bench_solver_fe_cartesian_struct_acoustic
  INCLUDES
    ${CMAKE_CURRENT_SOURCE_DIR}/include
  LIBS
-   proxy_solver
-   proxy_model_builder_cartesian
-   proxy_model_struct
-   discretization
-   proxy_utils
+   fun_solver
+   fun_model
+   fun_discretization
+   fun_utils
  THREADS
    1 2 4 8 16 32 64
  LABELS
@@ -22,11 +21,10 @@ add_benchmark(bench_solver_fe_cartesian_struct_elastic
  INCLUDES
    ${CMAKE_CURRENT_SOURCE_DIR}/include
  LIBS
-   proxy_solver
-   proxy_model_builder_cartesian
-   proxy_model_struct
-   discretization
-   proxy_utils
+   fun_solver
+   fun_model
+   fun_discretization
+   fun_utils
  THREADS
    1 2 4 8 16 32 64
  LABELS
@@ -41,11 +39,10 @@ add_benchmark(bench_solver_fe_cartesian_unstruct_acoustic
  INCLUDES
    ${CMAKE_CURRENT_SOURCE_DIR}/include
  LIBS
-   proxy_solver
-   proxy_model_builder_cartesian
-   proxy_model_unstruct
-   discretization
-   proxy_utils
+   fun_solver
+   fun_model
+   fun_discretization
+   fun_utils
  THREADS
    1 2 4 8 16 32 64
  LABELS
@@ -59,11 +56,10 @@ add_benchmark(bench_solver_fe_cartesian_unstruct_elastic
  INCLUDES
    ${CMAKE_CURRENT_SOURCE_DIR}/include
  LIBS
-   proxy_solver
-   proxy_model_builder_cartesian
-   proxy_model_unstruct
-   discretization
-   proxy_utils
+   fun_solver
+   fun_model
+   fun_discretization
+   fun_utils
  THREADS
    1 2 4 8 16 32 64
  LABELS
