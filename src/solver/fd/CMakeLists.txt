@@ -23,8 +23,8 @@ target_include_directories(fd_solver PRIVATE
 )
 
 target_link_libraries(fd_solver PUBLIC
-    fd_grid
-    proxy_utils
+    fun_model
+    fun_utils
 )
 
 target_link_kokkos_if_enabled(fd_solver)

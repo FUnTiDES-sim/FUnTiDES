@@ -7,12 +7,7 @@ if(ENABLE_PYWRAP)
       ${CMAKE_SOURCE_DIR}/external/pykokkos-base/include
   )
 
-  target_link_libraries(model
-    PUBLIC
-      proxy_model_struct
-      proxy_model_unstruct
-      proxy_model_builder_cartesian
-  )
+target_link_libraries(model PUBLIC fun_model)
 
   configure_python_module(model)
 endif()
