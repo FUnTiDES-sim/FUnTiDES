@@ -2,6 +2,8 @@
 #include <pybind11/pybind11.h>
 #include <pybind11/stl.h>
 
+#include "bindings_dg_solver.h"
+#include "bindings_dg_wavefield.h"
 #include "bindings_rhs.h"
 #include "bindings_sem_enums.h"
 #include "bindings_sem_solver.h"
@@ -37,4 +39,8 @@ PYBIND11_MODULE(solver, m) {
   // Bind Solver
   solver::fe::bind_sem_solver_base(m);
   solver::fe::bind_solver_factory(m);
+
+  // Bind DG
+  solver::fe::bind_dg_wavefield_acoustic(m);
+  solver::fe::bind_dg_acoustic_data(m);
 }

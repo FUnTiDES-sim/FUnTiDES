@@ -2,7 +2,10 @@
 """
 solver_cartesian_dg.py — DG acoustic solver on a Cartesian mesh.
 
-Fields are stored per-element: shape (n_elem, n_dof_per_elem).
+This script is separate from solver_cartesian.py (SEM) because DG requires different
+data structures: 2D per-element pressure arrays (n_elem, n_dof_per_elem) instead of
+flat nodal arrays, DGWavefieldAcoustic/DGsolverDataAcoustic instead of their SEM
+counterparts, and per-element snapshot extraction instead of global nodal indexing.
 For help run with the --help option.
 """
 
