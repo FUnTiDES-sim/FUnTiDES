@@ -92,10 +92,8 @@ class BoundarySynchronizer {
   //
   // @throws std::runtime_error if exchange or accumulation fails
   template <typename ViewType>
-  void synchronize(ViewType& field, const ParallelTopology& topo,
-                   SyncMode mode = SyncMode::SUM) {
-    if (!topo.isDistributed())
-      return;
+  void synchronize(ViewType& field, const ParallelTopology& topo, SyncMode mode = SyncMode::SUM) {
+    if (!topo.isDistributed()) return;
 
     try {
       auto sendBufs = pack(field, topo);

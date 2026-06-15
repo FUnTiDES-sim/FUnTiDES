@@ -157,11 +157,10 @@ void SEMproxy::Run() {
 
   if (is_dg_ && dist_ctx_.size > 1) {
     const int n_pts = static_cast<int>(mesh_->getNumberOfPointsPerElement());
-    dg_comm_.setup(dist_ctx_.rank, dist_ctx_.size,
-                   local_params_.ex, local_params_.ey, local_params_.ez,
-                   n_pts, n_dg_local_);
-    solver_->setPartitionFacesFromElems(dg_comm_.leftElems(), dg_comm_.leftGhosts(),
-                                        dg_comm_.rightElems(), dg_comm_.rightGhosts());
+    dg_comm_.setup(dist_ctx_.rank, dist_ctx_.size, local_params_.ex, local_params_.ey, local_params_.ez, n_pts,
+                   n_dg_local_);
+    solver_->setPartitionFacesFromElems(dg_comm_.leftElems(), dg_comm_.leftGhosts(), dg_comm_.rightElems(),
+                                        dg_comm_.rightGhosts());
     solver_->setNLocalElem(n_dg_local_);
   }
 

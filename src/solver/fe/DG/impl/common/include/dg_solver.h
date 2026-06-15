@@ -125,8 +125,7 @@ class DGsolver : public Solver {
   void setNLocalElem(int n) override { m_n_local_elem_ = n; }
 
   void setPartitionFacesFromElems(const std::vector<int>& left_elems, const std::vector<int>& left_ghosts,
-                                  const std::vector<int>& right_elems,
-                                  const std::vector<int>& right_ghosts) override {
+                                  const std::vector<int>& right_elems, const std::vector<int>& right_ghosts) override {
     for (int idx = 0; idx < static_cast<int>(left_elems.size()); ++idx) {
       int fid = m_face_connectivity_.getGlobalFace(left_elems[idx], model::CubicFace::kXMinus);
       m_face_connectivity_.patchFace(fid, left_ghosts[idx], static_cast<int>(model::CubicFace::kXPlus));

@@ -253,8 +253,7 @@ void DGsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::comp
         float neighbor_coords[8][3];
         if (is_ghost_neighbor) {
           for (int v = 0; v < 8; ++v)
-            for (int d = 0; d < 3; ++d)
-              neighbor_coords[v][d] = owner_coords[v][d];
+            for (int d = 0; d < 3; ++d) neighbor_coords[v][d] = owner_coords[v][d];
         } else {
           auto const eIdx_n = mesh_local.elementIndex(neighbor_e);
           for (int kv = 0; kv < 2; ++kv)
