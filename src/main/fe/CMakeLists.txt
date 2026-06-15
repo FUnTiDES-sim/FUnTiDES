@@ -15,12 +15,10 @@ if(COMPILE_SEM)
 
   target_link_libraries(funtides-sem
     PRIVATE
-      discretization
-      proxy_solver
-      proxy_model_builder_cartesian
-      proxy_model_struct
-      proxy_model_unstruct
-      proxy_utils
+      fun_discretization
+      fun_solver
+      fun_model
+      fun_utils
       adios2::adios2
       ${STDCXXFS_LIB}
   )

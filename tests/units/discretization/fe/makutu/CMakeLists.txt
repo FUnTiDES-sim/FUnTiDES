@@ -35,7 +35,7 @@ foreach(ORDER ${_QK_TEST_ORDERS})
     set(_target "semkernels_qk_hexahedron_Q${ORDER}_${GROUP}_test")
     add_gtest(${_target}
       ${_gen_file}
-      discretization
+      fun_discretization
     )
 
     target_include_directories(${_target} PRIVATE
@@ -72,7 +72,7 @@ foreach(ORDER RANGE 1 9)
   set(_target "semkernels_qk_hexahedron_Q${ORDER}_lagrange_basis_test")
   add_gtest(${_target}
     ${_gen_file}
-    discretization
+    fun_discretization
   )
 
   target_include_directories(${_target} PRIVATE

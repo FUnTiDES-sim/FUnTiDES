@@ -1,3 +1,5 @@
 add_subdirectory(api)
 add_subdirectory(impl)
-add_subdirectory(pywrap)
+if(ENABLE_PYWRAP)
+  add_subdirectory(pywrap)
+endif()

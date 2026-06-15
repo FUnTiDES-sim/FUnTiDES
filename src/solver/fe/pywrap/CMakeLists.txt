@@ -9,7 +9,7 @@ if(ENABLE_PYWRAP)
 
   target_link_libraries(solver
     PUBLIC
-      proxy_solver
+      fun_solver
   )
 
   configure_python_module(solver)
