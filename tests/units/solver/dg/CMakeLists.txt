@@ -15,3 +15,8 @@ add_gtest(dg_solver_acoustic_test
   fun_solver
 )
 target_link_libraries(dg_solver_acoustic_test PRIVATE fun_model)
+
+add_gtest(dg_boundary_comm_test
+  test_dg_boundary_comm.cc
+  fun_solver
+)
