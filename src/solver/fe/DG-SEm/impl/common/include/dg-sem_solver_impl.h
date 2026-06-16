@@ -406,7 +406,7 @@ void DGSEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::c
   if (myData.isDistributed) {
     throw std::runtime_error(
         "computeOneStep called in distributed mode. Use computeForces() -> "
-        "synchronize() -> updateSolution().");
+        "synchronize() -> updateSolutionForward().");
   }
 
   // Sub-solver data views are constructed once and reused throughout the step.
@@ -462,7 +462,7 @@ void DGSEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::c
   m_DG_solver_.m_list_mode_ = false;
   FENCE
 
-  m_SEm_solver_.updateFieldsFromList(dt, SEm_data, SEm_node_list_, num_SEm_nodes_);
+  m_SEm_solver_.updateFieldsFromListForward(dt, SEm_data, SEm_node_list_, num_SEm_nodes_);
   FENCE
 }
 

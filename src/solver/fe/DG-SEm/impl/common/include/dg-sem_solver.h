@@ -96,7 +96,11 @@ class DGSEMsolver : public Solver {
     // Maybe return SEM force vector
   }
 
-  void updateSolution(const float& dt, DataStruct& data) override {
+  void updateSolutionForward(const float& dt, DataStruct& data) override {
+    // Here for retrocompatibility
+  }
+
+  void updateSolutionBackward(const float& dt, DataStruct& data) override {
     // Here for retrocompatibility
   }
 

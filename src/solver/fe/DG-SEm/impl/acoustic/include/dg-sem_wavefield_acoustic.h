@@ -58,10 +58,6 @@ struct DGSEMWavefieldAcoustic {
     m_SEMacoustic.swap();
   }
 
-  void swapWithRotationDG(arrayReal& prevPrevBuffer, int i) { m_DGacoustic.swapWithRotation(prevPrevBuffer, 0); }
-
-  void swapWithRotationSEM(vectorReal& prevPrevBuffer, int i) { m_SEMacoustic.swapWithRotation(prevPrevBuffer, 0); }
-
   void print() const {
     m_DGacoustic.print();
     m_SEMacoustic.print();
