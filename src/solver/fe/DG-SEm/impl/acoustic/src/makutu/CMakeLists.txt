@@ -34,4 +34,4 @@ generate_solver_implementations(
     OUTPUT_VAR MAKUTU_GENERATED_SOURCES
 )
 
-target_sources(proxy_solver PRIVATE ${MAKUTU_GENERATED_SOURCES})
+target_sources(fun_solver PRIVATE ${MAKUTU_GENERATED_SOURCES})
