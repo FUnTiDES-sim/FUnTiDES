@@ -85,6 +85,13 @@ if(COMPILE_DG)
   )
 endif()
 
+if(COMPILE_DG_SEM)
+  add_gtest(dg_sem_solver_factory_test
+    test_dg_sem_solver_factory.cc
+    fun_solver
+  )
+endif()
+
 if(USE_MPI)
 add_executable(test_mpi_partitioning test_mpi_partitioning.cc)
 target_link_libraries(test_mpi_partitioning
