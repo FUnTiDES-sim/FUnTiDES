@@ -1,11 +1,11 @@
 """
-Integration test for gradient computation with wavefield rotation.
+Integration test for gradient computation with 3-buffer wavefield swap.
 
 Tests the complete adjoint gradient workflow:
 1. Backward time loop
 2. Load forward snapshots (fake values)
 3. Apply leapfrog update on adjoint wavefield
-4. Rotate adjoint wavefield
+4. Swap adjoint wavefield (3-way rotation: curr←prevprev, prev←curr, prevprev←prev)
 5. Compute gradient via differentiator
 6. Verify gradient values
 """
@@ -42,7 +42,7 @@ def _alloc(value, name):
     return kk
 
 class TestDifferentiatorWithRotation:
-    """Integration test for differentiator with wavefield rotation."""
+    """Integration test for differentiator with 3-buffer wavefield swap."""
     
     def setup_method(self):
         # Create mesh/model
@@ -51,18 +51,18 @@ class TestDifferentiatorWithRotation:
         # Forward wavefield snapshot (will be loaded per time step)
         self.kk_pn = _alloc(0.0, "pn_snapshot")
         
-        # Adjoint wavefield: 3 buffers for rotation (t-1, t, t+1)
-        self.kk_qn0 = _alloc(0.0, "qn0")
-        self.kk_qn1 = _alloc(0.0, "qn1")
-        self.kk_qn2 = _alloc(0.0, "qn2")
+        # Adjoint wavefield: 3 buffers for 3-buffer mode (prevprev, prev, curr)
+        self.kk_qn_pp = _alloc(0.0, "qn_pp")
+        self.kk_qn_prev = _alloc(0.0, "qn_prev")
+        self.kk_qn_curr = _alloc(0.0, "qn_curr")
         
         # Gradient outputs (accumulate over time)
         self.kk_grad_kappa = _alloc(0.0, "grad_kappa")
         self.kk_grad_buoyancy = _alloc(0.0, "grad_buoyancy")
         
-        # Create adjoint wavefield
+        # Create adjoint wavefield with 3-buffer constructor
         self.adj_wavefield = Solver.WavefieldAcoustic(
-            self.kk_qn0, self.kk_qn1
+            self.kk_qn_pp, self.kk_qn_prev, self.kk_qn_curr
         )
 
         # Create gradient data
@@ -77,13 +77,13 @@ class TestDifferentiatorWithRotation:
             ORDER)
     
     def teardown_method(self):
-        del (self.kk_pn, self.kk_qn1, self.kk_qn2, self.kk_qn0,
+        del (self.kk_pn, self.kk_qn_prev, self.kk_qn_curr, self.kk_qn_pp,
              self.kk_grad_kappa, self.kk_grad_buoyancy,
              self.adj_wavefield, self.grad, self.differentiator, self.model)
         
     def test_gradient_kappa_loop(self):
         """
-        Test complete gradient computation loop with rotation.
+        Test complete gradient computation loop with 3-buffer wavefield swap.
         Verifies exact gradient values based on mathematical formula.
         """
         # Backward time loop
@@ -100,13 +100,13 @@ class TestDifferentiatorWithRotation:
             grad_before_kappa = np.array(self.kk_grad_kappa, copy=False)
             qn_curr = np.array(self.adj_wavefield.get_current_field(0), copy=False)[0]
             qn_prev = np.array(self.adj_wavefield.get_previous_field(0), copy=False)[0]
-            qn_prevprev = np.array(self.kk_qn2, copy=False)[0]
+            qn_prevprev = np.array(self.adj_wavefield.get_prevprev_field(0), copy=False)[0]
             
-            # Step 3: Rotate adjoint wavefield
-            self.adj_wavefield.swap_with_rotation(self.kk_qn2)
+            # Step 3: Swap adjoint wavefield (3-way rotation)
+            self.adj_wavefield.swap()
             adj_curr = self.adj_wavefield.get_current_field(0)
             adj_prev = self.adj_wavefield.get_previous_field(0)
-            adj_prevprev = self.kk_qn2
+            adj_prevprev = self.adj_wavefield.get_prevprev_field(0)
             # check that they all swapped
             assert np.array(adj_curr, copy=False)[0] == qn_prevprev
             assert np.array(adj_prev, copy=False)[0] == qn_curr
@@ -200,7 +200,7 @@ class TestDifferentiatorWithRotation:
         # This is critical for non-zero grad_buoyancy
         qn_curr_array = np.array(self.adj_wavefield.get_current_field(0), copy=False)
         qn_prev_array = np.array(self.adj_wavefield.get_previous_field(0), copy=False)
-        qn_prevprev_array = np.array(self.kk_qn2, copy=False)
+        qn_prevprev_array = np.array(self.adj_wavefield.get_prevprev_field(0), copy=False)
         
         # Add similar localized perturbation to adjoint fields
         qn_curr_array[:] = 50.0 + t * 5.0
@@ -218,11 +218,11 @@ class TestDifferentiatorWithRotation:
                     qn_prev_array[idx] += perturbation
                     qn_prevprev_array[idx] += perturbation
         
-        # Step 3: Rotate adjoint wavefield
-        self.adj_wavefield.swap_with_rotation(self.kk_qn2)
+        # Step 3: Swap adjoint wavefield (3-way rotation)
+        self.adj_wavefield.swap()
         adj_curr = self.adj_wavefield.get_current_field(0)
         adj_prev = self.adj_wavefield.get_previous_field(0)
-        adj_prevprev = self.kk_qn2
+        adj_prevprev = self.adj_wavefield.get_prevprev_field(0)
         
         # Step 4: Build gradient data structures
         fwd_view = Gradient.WavefieldViewForwardAcoustic(self.kk_pn)

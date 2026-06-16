@@ -13,16 +13,29 @@ namespace solver {
 namespace fe {
 
 //============================================================================
-// Update Solution
+// Update Solution Forward (Phase 2)
 //============================================================================
 
 template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE, bool IS_MODEL_ON_NODES,
           utils::enums::physicType PHYSICS>
-void DGsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::updateSolution(const float& dt,
-                                                                                           Solver::DataStruct& data) {
+void DGsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::updateSolutionForward(
+    const float& dt, Solver::DataStruct& data) {
   auto& myData = dynamic_cast<DataType&>(data);
-  updateFields(dt, myData);
+  updateFieldsForward(dt, myData);
   FENCE
+}
+
+//============================================================================
+// Update Solution Backward (Phase 2 - Adjoint Mode)
+//============================================================================
+
+template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE, bool IS_MODEL_ON_NODES,
+          utils::enums::physicType PHYSICS>
+void DGsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::updateSolutionBackward(
+    const float& dt, Solver::DataStruct& data) {
+  throw std::runtime_error(
+      "DGsolver::updateSolutionBackward not yet implemented. "
+      "DG backward mode requires 3-buffer wavefield support.");
 }
 
 //============================================================================
@@ -339,13 +352,14 @@ void DGsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::appl
 }
 
 //============================================================================
-// updateFields - Orchestrates the 3 kernels with fences between them
+//============================================================================
+// updateFieldsForward - Orchestrates the 3 kernels with fences between them
 //============================================================================
 
 template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE, bool IS_MODEL_ON_NODES,
           utils::enums::physicType PHYSICS>
-void DGsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::updateFields(float dt,
-                                                                                         const DataType& data) {
+void DGsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::updateFieldsForward(float dt,
+                                                                                                const DataType& data) {
   int const kNumElem = m_mesh.getNumberOfElements();
   int const kNumFaces = static_cast<int>(m_face_connectivity_.getNumberOfFaces());
   // SEM convention: current_field = p^n, prev_field = p^{n-1}; result written into prev_field
@@ -362,18 +376,43 @@ void DGsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::upda
 }
 
 //============================================================================
-// updateFieldsFromList - Verlet update restricted to a compact element list
+// updateFieldsBackward - Backward/adjoint mode (not yet fully implemented for DG)
+//============================================================================
+
+template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE, bool IS_MODEL_ON_NODES,
+          utils::enums::physicType PHYSICS>
+void DGsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::updateFieldsBackward(float dt,
+                                                                                                 const DataType& data) {
+  throw std::runtime_error(
+      "DGsolver::updateFieldsBackward not yet implemented. "
+      "DG backward mode requires 3-buffer wavefield support.");
+}
+
+//============================================================================
+// updateFieldsFromListForward - Verlet update restricted to a compact element list (forward mode)
 //============================================================================
 
 template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE, bool IS_MODEL_ON_NODES, physicType PHYSICS>
-void DGsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::updateFieldsFromList(
+void DGsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::updateFieldsFromListForward(
     float dt, const DataType& data, const vectorInt& elem_list, int n_elems) {
   m_elem_list_ = elem_list;
   m_n_elem_list_ = n_elems;
   faceListFromElementList();
   m_list_mode_ = true;
-  updateFields(dt, data);
+  updateFieldsForward(dt, data);
   m_list_mode_ = false;
+}
+
+//============================================================================
+// updateFieldsFromListBackward - Verlet update restricted to a compact element list (backward mode)
+//============================================================================
+
+template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE, bool IS_MODEL_ON_NODES, physicType PHYSICS>
+void DGsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::updateFieldsFromListBackward(
+    float dt, const DataType& data, const vectorInt& elem_list, int n_elems) {
+  throw std::runtime_error(
+      "DGsolver::updateFieldsFromListBackward not yet implemented. "
+      "DG backward mode requires 3-buffer wavefield support.");
 }
 
 }  // namespace fe

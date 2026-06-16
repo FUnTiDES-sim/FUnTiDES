@@ -197,7 +197,7 @@ static float runAcousticSimulation(std::shared_ptr<model::ModelApi<float, int>> 
 
   for (int t = 0; t < numTimeSteps; ++t) {
     solver->computeForces(dt, t, data);
-    solver->updateSolution(dt, data);
+    solver->updateSolutionForward(dt, data);
     data.swapWavefields();
   }
   return fieldL2Norm(data.getCurrentField(0), numNodes);
@@ -280,7 +280,7 @@ TEST(AttenuationAcoustic, NoNanOrInfWithAttenuation) {
   float dt = 0.001f;
   for (int t = 0; t < numSteps; ++t) {
     solver->computeForces(dt, t, data);
-    solver->updateSolution(dt, data);
+    solver->updateSolutionForward(dt, data);
     data.swapWavefields();
   }
 
@@ -349,7 +349,7 @@ TEST(AttenuationElastic, AttenuationDecaysAmplitude) {
   float dt = 0.001f;
   for (int t = 0; t < numTimeSteps; ++t) {
     solver_no_att->computeForces(dt, t, data_na);
-    solver_no_att->updateSolution(dt, data_na);
+    solver_no_att->updateSolutionForward(dt, data_na);
     data_na.swapWavefields();
   }
   float norm_no_att = fieldL2Norm(data_na.getCurrentField(0), numNodes) +
@@ -401,7 +401,7 @@ TEST(AttenuationElastic, AttenuationDecaysAmplitude) {
 
   for (int t = 0; t < numTimeSteps; ++t) {
     solver_att->computeForces(dt, t, data_a);
-    solver_att->updateSolution(dt, data_a);
+    solver_att->updateSolutionForward(dt, data_a);
     data_a.swapWavefields();
   }
   float norm_att = fieldL2Norm(data_a.getCurrentField(0), numNodes) + fieldL2Norm(data_a.getCurrentField(1), numNodes) +
@@ -468,7 +468,7 @@ TEST(AttenuationElastic, NoNanOrInfWithAttenuation) {
   float dt = 0.001f;
   for (int t = 0; t < numSteps; ++t) {
     solver->computeForces(dt, t, data);
-    solver->updateSolution(dt, data);
+    solver->updateSolutionForward(dt, data);
     data.swapWavefields();
   }
 
@@ -642,7 +642,7 @@ TEST(AttenuationElasticHighOrder, Order2DecaysAmplitude) {
 
   for (int t = 0; t < numTimeSteps; ++t) {
     solver_na->computeForces(dt, t, data_na);
-    solver_na->updateSolution(dt, data_na);
+    solver_na->updateSolutionForward(dt, data_na);
     data_na.swapWavefields();
   }
   float norm_na = fieldL2Norm(data_na.getCurrentField(0), numNodes) +
@@ -685,7 +685,7 @@ TEST(AttenuationElasticHighOrder, Order2DecaysAmplitude) {
 
   for (int t = 0; t < numTimeSteps; ++t) {
     solver_a->computeForces(dt, t, data_a);
-    solver_a->updateSolution(dt, data_a);
+    solver_a->updateSolutionForward(dt, data_a);
     data_a.swapWavefields();
   }
   float norm_a = fieldL2Norm(data_a.getCurrentField(0), numNodes) + fieldL2Norm(data_a.getCurrentField(1), numNodes) +
@@ -770,7 +770,7 @@ TEST(AttenuationAcousticHighOrder, Order2NoNanOrInf) {
   float dt = 0.0005f;
   for (int t = 0; t < numSteps; ++t) {
     solver->computeForces(dt, t, data);
-    solver->updateSolution(dt, data);
+    solver->updateSolutionForward(dt, data);
     data.swapWavefields();
   }
 
@@ -827,7 +827,7 @@ TEST(AttenuationElasticHighOrder, Order3NoNanOrInf) {
   float dt = 0.001f;  // CFL-safe (dt_max ~ 0.018 for order 3)
   for (int t = 0; t < numSteps; ++t) {
     solver->computeForces(dt, t, data);
-    solver->updateSolution(dt, data);
+    solver->updateSolutionForward(dt, data);
     data.swapWavefields();
   }
 

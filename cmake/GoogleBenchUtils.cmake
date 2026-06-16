@@ -33,12 +33,12 @@
 #     INCLUDES
 #       ${CMAKE_CURRENT_SOURCE_DIR}/include
 #     LIBS
-#       proxy_solver
+#       fun_solver
 #       proxy_model_builder_cartesian
 #       proxy_model_struct
 #       proxy_model_unstruct
-#       discretization
-#       proxy_utils
+#       fun_discretization
+#       fun_utils
 #     THREADS
 #       2 4 8
 #     LABELS 

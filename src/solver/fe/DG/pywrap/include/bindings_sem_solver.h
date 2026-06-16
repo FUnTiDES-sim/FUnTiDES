@@ -58,7 +58,8 @@ void bind_sem_solver_base(py::module_ &m) {
            py::arg("taper_delta") = 0)
       .def("compute_one_step", &Solver::computeOneStep, py::arg("dt"), py::arg("time_sample"), py::arg("data"))
       .def("compute_forces", &Solver::computeForces, py::arg("dt"), py::arg("time_sample"), py::arg("data"))
-      .def("update_solution", &Solver::updateSolution, py::arg("dt"), py::arg("data"))
+      .def("update_solution_forward", &Solver::updateSolutionForward, py::arg("dt"), py::arg("data"))
+      .def("update_solution_backward", &Solver::updateSolutionBackward, py::arg("dt"), py::arg("data"))
       .def(
           "get_mass_matrix",
           [](Solver &self) -> Kokkos::Experimental::python_view_type_t<vectorReal> {

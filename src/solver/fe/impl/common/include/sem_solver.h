@@ -51,7 +51,8 @@ class SEMsolver : public Solver {
 
   // Split-phase methods for DD
   void computeForces(const float& dt, const int& timeSample, DataStruct& data) override;
-  void updateSolution(const float& dt, DataStruct& data) override;
+  void updateSolutionForward(const float& dt, DataStruct& data) override;
+  void updateSolutionBackward(const float& dt, DataStruct& data) override;
 
   /**
    * @brief Legacy/Serial wrapper.
@@ -62,10 +63,10 @@ class SEMsolver : public Solver {
     if (myData.isDistributed) {
       throw std::runtime_error(
           "computeOneStep called in distributed mode. Use computeForces() -> "
-          "synchronize() -> updateSolution().");
+          "synchronize() -> updateSolutionForward().");
     }
     computeForces(dt, timeSample, data);
-    updateSolution(dt, data);
+    updateSolutionForward(dt, data);
   }
 
   void initFEarrays() override;
@@ -151,16 +152,36 @@ class SEMsolver : public Solver {
    * @param dt Delta time for this iteration.
    * @param data Data structure containing solution fields.
    */
-  void updateFields(float dt, const DataType& data);
+  void updateFieldsForward(float dt, const DataType& data);
 
   /**
-   * @brief Run Verlet update only for a compact subset of nodes.
+   * @brief Legacy/Serial wrapper.
+   *
+   * Identical to updateFieldsForward() except writes to prevprev buffer instead of prev.
+   * Used for adjoint time-stepping requiring three time levels.
+   *
+   * @param dt Delta time for this iteration.
+   * @param data Data structure containing solution fields (must have prevprev allocated).
+   */
+  void updateFieldsBackward(float dt, const DataType& data);
+
+  /**
+   * @brief Run Verlet update only for a compact subset of nodes (forward mode).
    * @param dt        Time step.
    * @param data      Wavefield data.
    * @param node_list Compact array of node indices to update.
    * @param n_nodes   Number of entries in @p node_list.
    */
-  void updateFieldsFromList(float dt, const DataType& data, const vectorInt& node_list, int n_nodes);
+  void updateFieldsFromListForward(float dt, const DataType& data, const vectorInt& node_list, int n_nodes);
+
+  /**
+   * @brief Run Verlet update only for a compact subset of nodes (backward mode).
+   * @param dt        Time step.
+   * @param data      Wavefield data (must have prevprev allocated).
+   * @param node_list Compact array of node indices to update.
+   * @param n_nodes   Number of entries in @p node_list.
+   */
+  void updateFieldsFromListBackward(float dt, const DataType& data, const vectorInt& node_list, int n_nodes);
 
   /**
    * @brief Read-only access to the f-th work (force) vector.

@@ -5,11 +5,31 @@ add_subdirectory(solver)
 add_subdirectory(gradient)
 add_subdirectory(main)
 
+add_library(funtides INTERFACE)
+add_library(funtides::funtides ALIAS funtides)
+
+target_link_libraries(funtides INTERFACE
+  fun_utils
+  fun_disctretization
+  fun_model
+  fun_solver
+  fun_gradient
+)
+
+install(TARGETS funtides fun_utils fun_discretization fun_model fun_solver fun_gradient
+        EXPORT funtidesTargets
+        LIBRARY DESTINATION lib
+        ARCHIVE DESTINATION lib
+        RUNTIME DESTINATION bin
+        INCLUDES DESTINATION include
+)
+
 if(ENABLE_PYWRAP)
   install_pyfuntides_package(model solver gradient)
 endif()
 
 
+## Clang formating
 # Collect all sources
 set(DIRS "${CMAKE_SOURCE_DIR}/src" "${CMAKE_SOURCE_DIR}/tests")
 set(EXTS cpp hpp cxx hxx cc c h hh)

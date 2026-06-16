@@ -514,7 +514,7 @@ void SEMproxy::Run() {
           syncer_->synchronize(solver_->getForceVector(c), par_topology_);
         }
       }
-      solver_->updateSolution(dt_, solver_data);
+      solver_->updateSolutionForward(dt_, solver_data);
       total_compute_time += std::chrono::high_resolution_clock::now() - start_compute_time;
 
       start_output_time = std::chrono::high_resolution_clock::now();
@@ -605,7 +605,7 @@ void SEMproxy::Run() {
         for (int c = 0; c < solver_->getNumComponents(); ++c)
           syncer_->synchronize(solver_->getForceVector(c), par_topology_);
       }
-      solver_->updateSolution(dt_, solver_data);
+      solver_->updateSolutionForward(dt_, solver_data);
       total_compute_time += std::chrono::high_resolution_clock::now() - start_compute_time;
 
       start_output_time = std::chrono::high_resolution_clock::now();
