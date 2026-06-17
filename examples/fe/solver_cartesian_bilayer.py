@@ -1027,7 +1027,7 @@ def compute_step(
     # m_syncer->synchronize(m_solver->getForceVector(c), par_topology_);
 
     # 3. Update solution using mass matrix and accumulated forces
-    solver.update_solution(dt, data)
+    solver.update_solution_forward(dt, data)
 
     iter_time = time.time() - iter_start
     iteration_times.append(iter_time)

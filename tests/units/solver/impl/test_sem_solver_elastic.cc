@@ -2,7 +2,7 @@
  * @file test_sem_solver_elastic.cc
  * @brief Unit tests for single-physics elastic SEMsolver.
  *
- * Covers computeOneStep, computeForces, updateSolution, computeFEInit,
+ * Covers computeOneStep, computeForces, updateSolutionForward, computeFEInit,
  * mass matrix, damping matrix, and resetGlobalVectors on the elastic
  * physics path of SEMsolver without SLS attenuation.
  */
@@ -69,15 +69,19 @@ class SemSolverElasticTest : public ::testing::TestWithParam<ElasticSolverOrderP
     numNodes_ = mesh_->getNumberOfNodes();
     int npp = (order + 1) * (order + 1) * (order + 1);
 
+    uxPrevPrev_ = allocateVector<vectorReal>(numNodes_, "uxPrevPrev");
     uxPrev_ = allocateVector<vectorReal>(numNodes_, "uxPrev");
     uxCurr_ = allocateVector<vectorReal>(numNodes_, "uxCurr");
+    uyPrevPrev_ = allocateVector<vectorReal>(numNodes_, "uyPrevPrev");
     uyPrev_ = allocateVector<vectorReal>(numNodes_, "uyPrev");
     uyCurr_ = allocateVector<vectorReal>(numNodes_, "uyCurr");
+    uzPrevPrev_ = allocateVector<vectorReal>(numNodes_, "uzPrevPrev");
     uzPrev_ = allocateVector<vectorReal>(numNodes_, "uzPrev");
     uzCurr_ = allocateVector<vectorReal>(numNodes_, "uzCurr");
     for (int i = 0; i < numNodes_; ++i) {
-      uxPrev_(i) = uxCurr_(i) = uyPrev_(i) = uyCurr_(i) = 0.0f;
-      uzPrev_(i) = uzCurr_(i) = 0.0f;
+      uxPrevPrev_(i) = uxPrev_(i) = uxCurr_(i) = 0.0f;
+      uyPrevPrev_(i) = uyPrev_(i) = uyCurr_(i) = 0.0f;
+      uzPrevPrev_(i) = uzPrev_(i) = uzCurr_(i) = 0.0f;
     }
     uzCurr_(numNodes_ / 2) = 1.0f;
 
@@ -99,7 +103,9 @@ class SemSolverElasticTest : public ::testing::TestWithParam<ElasticSolverOrderP
   std::shared_ptr<model::ModelApi<float, int>> mesh_;
   std::unique_ptr<Solver> solver_;
   int numNodes_;
-  vectorReal uxPrev_, uxCurr_, uyPrev_, uyCurr_, uzPrev_, uzCurr_;
+  vectorReal uxPrevPrev_, uxPrev_, uxCurr_;
+  vectorReal uyPrevPrev_, uyPrev_, uyCurr_;
+  vectorReal uzPrevPrev_, uzPrev_, uzCurr_;
   arrayReal rhsTermx_, rhsTermy_, rhsTermz_;
   vectorInt rhsElem_;
   arrayReal rhsWeights_;
@@ -163,7 +169,7 @@ TEST_P(SemSolverElasticTest, ResetGlobalVectorsZerosForceVector) {
 }
 
 // ======================================================================
-// computeForces / updateSolution
+// computeForces / updateSolutionForward
 // ======================================================================
 TEST_P(SemSolverElasticTest, ComputeForcesDoesNotCrash) {
   WavefieldElastic wf(uxPrev_, uxCurr_, uyPrev_, uyCurr_, uzPrev_, uzCurr_);
@@ -172,12 +178,36 @@ TEST_P(SemSolverElasticTest, ComputeForcesDoesNotCrash) {
   EXPECT_NO_THROW(solver_->computeForces(kDt, 0, data));
 }
 
-TEST_P(SemSolverElasticTest, UpdateSolutionDoesNotCrash) {
+TEST_P(SemSolverElasticTest, updateSolutionForwardWith2BuffersWorks) {
   WavefieldElastic wf(uxPrev_, uxCurr_, uyPrev_, uyCurr_, uzPrev_, uzCurr_);
   RhsElastic rhs(rhsTermx_, rhsTermy_, rhsTermz_, rhsElem_, rhsWeights_);
   SEMsolverDataElastic data(wf, rhs);
   solver_->computeForces(kDt, 0, data);
-  EXPECT_NO_THROW(solver_->updateSolution(kDt, data));
+  EXPECT_NO_THROW(solver_->updateSolutionForward(kDt, data));
+}
+
+TEST_P(SemSolverElasticTest, updateSolutionForwardWith3BuffersThrows) {
+  WavefieldElastic wf(uxPrevPrev_, uxPrev_, uxCurr_, uyPrevPrev_, uyPrev_, uyCurr_, uzPrevPrev_, uzPrev_, uzCurr_);
+  RhsElastic rhs(rhsTermx_, rhsTermy_, rhsTermz_, rhsElem_, rhsWeights_);
+  SEMsolverDataElastic data(wf, rhs);
+  solver_->computeForces(kDt, 0, data);
+  EXPECT_THROW(solver_->updateSolutionForward(kDt, data), std::runtime_error);
+}
+
+TEST_P(SemSolverElasticTest, updateSolutionBackwardWith2BuffersThrows) {
+  WavefieldElastic wf(uxPrev_, uxCurr_, uyPrev_, uyCurr_, uzPrev_, uzCurr_);
+  RhsElastic rhs(rhsTermx_, rhsTermy_, rhsTermz_, rhsElem_, rhsWeights_);
+  SEMsolverDataElastic data(wf, rhs);
+  solver_->computeForces(kDt, 0, data);
+  EXPECT_THROW(solver_->updateSolutionBackward(kDt, data), std::runtime_error);
+}
+
+TEST_P(SemSolverElasticTest, updateSolutionBackwardWith3BuffersWorks) {
+  WavefieldElastic wf(uxPrevPrev_, uxPrev_, uxCurr_, uyPrevPrev_, uyPrev_, uyCurr_, uzPrevPrev_, uzPrev_, uzCurr_);
+  RhsElastic rhs(rhsTermx_, rhsTermy_, rhsTermz_, rhsElem_, rhsWeights_);
+  SEMsolverDataElastic data(wf, rhs);
+  solver_->computeForces(kDt, 0, data);
+  EXPECT_NO_THROW(solver_->updateSolutionBackward(kDt, data));
 }
 
 // ======================================================================
