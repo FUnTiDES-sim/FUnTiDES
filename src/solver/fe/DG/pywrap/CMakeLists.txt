@@ -4,6 +4,7 @@ if(ENABLE_PYWRAP)
   target_include_directories(solver
     PRIVATE
       include
+      ${CMAKE_CURRENT_SOURCE_DIR}/../../pywrap/include
       ${CMAKE_SOURCE_DIR}/external/pykokkos-base/include
   )
 
