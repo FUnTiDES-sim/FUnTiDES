@@ -1,4 +1,4 @@
-if(ENABLE_PYWRAP)
+if(ENABLE_PYWRAP AND NOT COMPILE_DG)
   pybind11_add_module(solver src/bindings.cpp)
 
   target_include_directories(solver
