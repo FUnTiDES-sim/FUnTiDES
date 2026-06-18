@@ -177,6 +177,7 @@ class SEMsolver : public Solver {
   void computeElementContributions_Acoustic(const DataType& data);
   void computeElementContributions_Acoustic_Flat(const DataType& data);
   void computeElementContributions_Acoustic_Teams(const DataType& data);
+  void computeElementContributions_Acoustic_Gemm(const DataType& data);
   void computeElementContributions_Iso(const DataType& data);
   void computeElementContributions_Vti(const DataType& data);
   void computeElementContributions_Tti(const DataType& data);
@@ -246,6 +247,9 @@ class SEMsolver : public Solver {
   MESH_TYPE m_mesh;
 
   static constexpr int kPointsPerElement = (ORDER + 1) * (ORDER + 1) * (ORDER + 1);
+
+  vectorReal gemmMetrics_;
+  bool gemmMetricsReady_ = false;
 
   float sponge_size_[3];
   bool surface_sponge_;
