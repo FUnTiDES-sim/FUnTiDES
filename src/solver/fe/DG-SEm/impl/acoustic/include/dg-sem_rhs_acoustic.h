@@ -51,8 +51,8 @@ struct DGSEMRhsAcoustic : public Rhs {
     m_rhs_SEMacoustic.print();
   }
 
-  RhsAcoustic m_rhs_DGacoustic;   ///< Acoustic (fluid) source
-  RhsAcoustic m_rhs_SEMacoustic;  ///< Elastic (solid) source
+  RhsAcoustic m_rhs_DGacoustic;   ///< source from DG
+  RhsAcoustic m_rhs_SEMacoustic;  ///< source from SEM
 };
 
 }  // namespace fe
