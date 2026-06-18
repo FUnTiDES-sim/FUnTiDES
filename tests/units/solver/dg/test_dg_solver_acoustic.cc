@@ -323,6 +323,32 @@ TEST_F(DGsolverAcousticTest, updateFieldsFromListForward_ProducesFiniteValues) {
       EXPECT_TRUE(std::isfinite(data.getCurrentField(0)(e, d))) << "NaN/Inf at elem=" << e << " dof=" << d;
 }
 
+// ============================================================
+// MPI partition helpers (single-rank, no MPI runtime)
+// ============================================================
+
+TEST_F(DGsolverAcousticTest, SetNLocalElem_LimitsVerlet_GhostStayUnchanged) {
+  // Elements 0-3 = local, 4-7 = ghost (Verlet skipped for them).
+  // In the 2x2x2 mesh, elements 0-3 (iz=0) and 4-7 (iz=1) share Z-direction
+  // interior faces. With n_local=4 those faces trigger is_ghost_neighbor=true,
+  // exercising the ghost-neighbor branch in computeInterfaceFlux.
+  solver_.setNLocalElem(4);
+  auto data = makeData(5.0f, 3.0f);
+  solver_.computeOneStep(0.001f, 0, data);
+
+  auto h = Kokkos::create_mirror_view_and_copy(Kokkos::HostSpace{}, data.getPreviousField(0));
+  for (int e = 4; e < nElem_; ++e)
+    for (int d = 0; d < kNDof; ++d) EXPECT_FLOAT_EQ(h(e, d), 3.0f) << "ghost elem=" << e << " dof=" << d;
+}
+
+TEST_F(DGsolverAcousticTest, SetPartitionFacesFromElems_PatchesBoundaryFace) {
+  // Patches element 0's kXMinus boundary face to point to ghost element 99.
+  // Exercises setPartitionFacesFromElems() and FaceConnectivityUnstruct::patchFace().
+  std::vector<int> left_elems = {0};
+  std::vector<int> left_ghosts = {99};
+  EXPECT_NO_THROW(solver_.setPartitionFacesFromElems(left_elems, left_ghosts, {}, {}));
+}
+
 }  // namespace test
 }  // namespace fe
 }  // namespace solver

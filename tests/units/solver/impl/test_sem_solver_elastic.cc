@@ -822,6 +822,16 @@ TEST_F(SemSolverElasticTtiOnNodesTest, ComputeOneStepProducesFiniteValues) {
       EXPECT_TRUE(std::isfinite(data.getCurrentField(c)(i))) << "TTI+nodes NaN/Inf field " << c << " node " << i;
 }
 
+// ============================================================
+// Solver base-class default MPI stubs (no-op for SEM)
+// ============================================================
+
+TEST_P(SemSolverElasticTest, SetNLocalElem_DefaultNoOp) { EXPECT_NO_THROW(solver_->setNLocalElem(4)); }
+
+TEST_P(SemSolverElasticTest, SetPartitionFacesFromElems_DefaultNoOp) {
+  EXPECT_NO_THROW(solver_->setPartitionFacesFromElems({}, {}, {}, {}));
+}
+
 }  // namespace test
 }  // namespace fe
 }  // namespace solver

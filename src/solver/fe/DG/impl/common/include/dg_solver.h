@@ -8,6 +8,7 @@
 #include <stdexcept>
 #include <typeinfo>
 #include <unordered_set>
+#include <vector>
 
 #include "data_type.h"
 #include "dg_penalty.h"
@@ -121,6 +122,20 @@ class DGsolver : public Solver {
     updateSolutionForward(dt, data);
   }
 
+  void setNLocalElem(int n) override { m_n_local_elem_ = n; }
+
+  void setPartitionFacesFromElems(const std::vector<int>& left_elems, const std::vector<int>& left_ghosts,
+                                  const std::vector<int>& right_elems, const std::vector<int>& right_ghosts) override {
+    for (int idx = 0; idx < static_cast<int>(left_elems.size()); ++idx) {
+      int fid = m_face_connectivity_.getGlobalFace(left_elems[idx], model::CubicFace::kXMinus);
+      m_face_connectivity_.patchFace(fid, left_ghosts[idx], static_cast<int>(model::CubicFace::kXPlus));
+    }
+    for (int idx = 0; idx < static_cast<int>(right_elems.size()); ++idx) {
+      int fid = m_face_connectivity_.getGlobalFace(right_elems[idx], model::CubicFace::kXPlus);
+      m_face_connectivity_.patchFace(fid, right_ghosts[idx], static_cast<int>(model::CubicFace::kXMinus));
+    }
+  }
+
   /**
    * @brief Apply external forcing to the global fields.
    */
@@ -216,6 +231,8 @@ class DGsolver : public Solver {
   int m_n_elem_list_ = 0;
   vectorInt m_face_list_;
   int m_n_face_list_ = 0;
+
+  int m_n_local_elem_ = 0;
 
   arrayReal m_rhs_elem_;
   arrayReal m_mass_local_;   ///< Per-element mass diagonal (nElem x kPPE)

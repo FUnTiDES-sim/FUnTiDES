@@ -18,6 +18,7 @@
 
 #include "boundary_synchronizer.h"
 #include "cartesian_params.h"
+#include "dg_boundary_comm.h"
 #include "distributed_ctx.h"
 #include "model_struct.h"
 #include "model_unstruct.h"
@@ -134,7 +135,11 @@ class SEMproxy {
   std::shared_ptr<model::ModelApi<float, int>> mesh_;         ///< Pointer to the finite element mesh API.
   std::unique_ptr<solver::fe::Solver> solver_;                ///< Main numerical solver instance.
   std::unique_ptr<solver::fe::BoundarySynchronizer> syncer_;  ///< Handles MPI boundary ghost-node synchronization.
-  SolverUtils utils_;                                         ///< General solver math utilities.
+  solver::fe::DGBoundaryComm dg_comm_;                        ///< Ghost element exchange for DG MPI.
+  int n_dg_local_ = 0;                                        ///< Local element count for DG (without ghosts).
+  int n_dg_ghost_ = 0;                                        ///< Ghost element count per side for DG MPI.
+  bool dg_curr_is_first_ = true;  ///< Tracks which DG array is current after wavefields swap.
+  SolverUtils utils_;             ///< General solver math utilities.
 
   // --- Acoustic / Shared Arrays (Device) ---
   arrayReal rhs_term_;         ///< Source term array over time (Device).

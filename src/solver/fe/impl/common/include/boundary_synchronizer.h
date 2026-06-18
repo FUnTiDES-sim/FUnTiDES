@@ -35,6 +35,12 @@ namespace fe {
 // updateSolutionForward() or updateSolutionBackward() to ensure boundary values are complete.
 class BoundarySynchronizer {
  public:
+  // @brief Controls how received values are applied to the local field.
+  //
+  // SUM:  field(idx) += recv  — SEM force/mass assembly (partial contributions)
+  // COPY: field(idx) =  recv  — DG wavefield exchange (overwrite with neighbor values)
+  enum class SyncMode { SUM, COPY };
+
   // @brief Backend interface for communication.
   //
   // Implementations can provide different communication strategies:
@@ -74,53 +80,26 @@ class BoundarySynchronizer {
     }
   }
 
-  // @brief Synchronize a field (mass matrix or forces).
-  //
-  // For distributed execution, extracts boundary node values, exchanges with
-  // neighbors, and accumulates received values (summing). This is used for:
-  // - Mass matrix assembly: sums partial mass contributions at boundaries
-  // - Force assembly: sums partial stiffness contributions at boundaries
+  // @brief Synchronize a field across partition boundaries.
   //
   // @tparam ViewType Type providing operator()(int) access to field values
   //                  (e.g., std::vector, Kokkos::View)
   //
   // @param[in,out] field Field to synchronize (modified in-place)
   // @param[in] topo Topology describing shared nodes
+  // @param[in] mode SUM (default): accumulate partial contributions (SEM forces/mass);
+  //                 COPY: overwrite with neighbor values (DG wavefield exchange)
   //
   // @throws std::runtime_error if exchange or accumulation fails
-  //
-  // @details
-  // Process:
-  // 1. If not distributed, return immediately (no-op)
-  // 2. Pack boundary values from field
-  // 3. Exchange with neighbors via backend
-  // 4. Accumulate (sum) received values back into field
-  //
-  // After synchronization, boundary node values contain contributions from
-  // all neighboring elements, not just local elements.
-  //
-  // @note
-  // For single-rank execution (isDistributed() == false), this is a no-op.
-  // For distributed execution, caller must synchronize:
-  // - Mass matrix: once after computeFEInit()
-  // - Force vectors: every time step after computeForces()
   template <typename ViewType>
-  void synchronize(ViewType& field, const ParallelTopology& topo) {
-    if (!topo.isDistributed()) {
-      // Single rank: no synchronization needed
-      return;
-    }
+  void synchronize(ViewType& field, const ParallelTopology& topo, SyncMode mode = SyncMode::SUM) {
+    if (!topo.isDistributed()) return;
 
     try {
-      // Pack boundary values
       auto sendBufs = pack(field, topo);
-
-      // Exchange with neighbors
       std::map<int, std::vector<float>> recvBufs;
       m_backend->exchange(sendBufs, recvBufs);
-
-      // Accumulate (sum) received values
-      accumulate(field, recvBufs, topo);
+      accumulate(field, recvBufs, topo, mode);
     } catch (const std::exception& e) {
       throw std::runtime_error(std::string("Boundary synchronization failed: ") + e.what());
     }
@@ -153,55 +132,41 @@ class BoundarySynchronizer {
     return buffers;
   }
 
-  // @brief Accumulate (sum) received values back into field at boundary nodes.
-  //
-  // Sums contributions from neighbor ranks at shared nodes. This assembly
-  // operation is critical for correct boundary behavior in FEM:
-  // - Boundary nodes see partial contributions from local elements
-  // - Boundary nodes see partial contributions from neighbor elements
-  // - Summing produces the complete value
+  // @brief Apply received values into field at boundary nodes.
   //
   // @tparam ViewType Type providing operator()(int) access
-  // @param[in,out] field Field to accumulate into (modified in-place)
+  // @param[in,out] field Field to update (modified in-place)
   // @param[in] recvBufs Received data from neighbors
   // @param[in] topo Topology describing shared nodes
+  // @param[in] mode SUM: field(idx) += recv; COPY: field(idx) = recv
   //
   // @throws std::length_error if received buffer size != expected node count
   // @throws std::runtime_error if expected neighbor data is missing
-  //
-  // @details
-  // For each neighbor rank:
-  // 1. Verify received buffer exists (error in distributed mode)
-  // 2. Verify buffer size matches node count
-  // 3. Sum received values into field at boundary nodes
   template <typename ViewType>
   static void accumulate(ViewType& field, const std::map<int, std::vector<float>>& recvBufs,
-                         const ParallelTopology& topo) {
+                         const ParallelTopology& topo, SyncMode mode) {
     for (const auto& [neighborRank, nodeIndices] : topo.sharedNodes) {
       auto it = recvBufs.find(neighborRank);
 
       if (it == recvBufs.end()) {
-        // In distributed mode, missing data is an error
-        // In serial mode (no actual neighbors), it's OK to skip
-        if (topo.isDistributed()) {
+        if (topo.isDistributed())
           throw std::runtime_error("Expected data from rank " + std::to_string(neighborRank) +
                                    " but received nothing. Exchange failed or topology mismatch.");
-        }
         continue;
       }
 
       const auto& buf = it->second;
 
-      // Validate buffer size matches node count
-      if (buf.size() != nodeIndices.size()) {
+      if (buf.size() != nodeIndices.size())
         throw std::length_error("Buffer size mismatch from rank " + std::to_string(neighborRank) + ": expected " +
                                 std::to_string(nodeIndices.size()) + " values, got " + std::to_string(buf.size()));
-      }
 
-      // Accumulate (sum) received values
       for (size_t i = 0; i < nodeIndices.size(); ++i) {
         int nodeIdx = nodeIndices[i];
-        field(nodeIdx) += buf[i];
+        if (mode == SyncMode::COPY)
+          field(nodeIdx) = buf[i];
+        else
+          field(nodeIdx) += buf[i];
       }
     }
   }
