@@ -19,8 +19,8 @@ namespace fe {
  */
 struct DGSEMsolverData : public Solver::DataStruct {
   /**
-   * @param wavefield Combined acousto-elastic wavefield (p + ux/uy/uz).
-   * @param rhs       Acoustic source term applied to the fluid domain.
+   * @param wavefield Combined DG-SEM wavefield.
+   * @param rhs       source term (either in DG or SEM).
    */
   DGSEMsolverData(const DGSEMWavefieldAcoustic& wavefield, const DGSEMRhsAcoustic& rhs)
       : m_wavefield(wavefield), m_rhs(rhs) {}
@@ -34,8 +34,8 @@ struct DGSEMsolverData : public Solver::DataStruct {
   /// computeOneStep).
   void swapWavefields() { m_wavefield.swap(); }
 
-  DGSEMWavefieldAcoustic m_wavefield;  ///< Combined wavefield (p + u)
-  DGSEMRhsAcoustic m_rhs;              ///< Acoustic source
+  DGSEMWavefieldAcoustic m_wavefield;  ///< Combined wavefield DG+SEM
+  DGSEMRhsAcoustic m_rhs;              ///< source
 
   bool isDistributed{false};
 };

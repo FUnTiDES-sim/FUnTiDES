@@ -25,8 +25,8 @@ static constexpr int kElementTypeSEM = 2;
 /**
  * @brief DG-SEm coupled solver.
  *
- * Staggered explicit scheme: DG step → SEM→DG coupling → SEM step →
- * DG→SEM coupling. Each sub-solver processes only its own elements via a list of elements.
+ * Staggered explicit scheme: SEM→DG coupling → DG→SEM coupling → DG step → SEM step.
+ * Each sub-solver processes only its own elements via a list of elements.
  *
  * @tparam ORDER             Polynomial order of elements.
  * @tparam INTEGRAL_TYPE     Quadrature/basis function type (Makutu kernels).
