@@ -2,7 +2,7 @@
  * @file test_sem_solver_acoustic.cc
  * @brief Unit tests for single-physics acoustic SEMsolver.
  *
- * Covers computeOneStep, computeForces, updateSolution, computeFEInit,
+ * Covers computeOneStep, computeForces, updateSolutionForward, computeFEInit,
  * mass matrix, damping matrix, and resetGlobalVectors — paths not exercised
  * by the attenuation tests (no SLS) and not reachable via the acoustoelastic
  * composite solver.
@@ -70,9 +70,11 @@ class SemSolverAcousticTest : public ::testing::TestWithParam<AcousticSolverOrde
     numNodes_ = mesh_->getNumberOfNodes();
     int npp = (order + 1) * (order + 1) * (order + 1);
 
+    pPrevPrev_ = allocateVector<vectorReal>(numNodes_, "pPrevPrev");
     pPrev_ = allocateVector<vectorReal>(numNodes_, "pPrev");
     pCurr_ = allocateVector<vectorReal>(numNodes_, "pCurr");
     for (int i = 0; i < numNodes_; ++i) {
+      pPrevPrev_(i) = 0.0f;
       pPrev_(i) = 0.0f;
       pCurr_(i) = 0.0f;
     }
@@ -94,6 +96,7 @@ class SemSolverAcousticTest : public ::testing::TestWithParam<AcousticSolverOrde
   std::shared_ptr<model::ModelApi<float, int>> mesh_;
   std::unique_ptr<Solver> solver_;
   int numNodes_;
+  vectorReal pPrevPrev_;
   vectorReal pPrev_;
   vectorReal pCurr_;
   arrayReal rhsTerm_;
@@ -152,7 +155,7 @@ TEST_P(SemSolverAcousticTest, ResetGlobalVectorsZerosForceVector) {
 }
 
 // ======================================================================
-// computeForces / updateSolution
+// computeForces / updateSolutionForward
 // ======================================================================
 TEST_P(SemSolverAcousticTest, ComputeForcesDoesNotCrash) {
   WavefieldAcoustic wf(pPrev_, pCurr_);
@@ -161,12 +164,36 @@ TEST_P(SemSolverAcousticTest, ComputeForcesDoesNotCrash) {
   EXPECT_NO_THROW(solver_->computeForces(kDt, 0, data));
 }
 
-TEST_P(SemSolverAcousticTest, UpdateSolutionDoesNotCrash) {
+TEST_P(SemSolverAcousticTest, updateSolutionForwardWith2BuffersWorks) {
   WavefieldAcoustic wf(pPrev_, pCurr_);
   RhsAcoustic rhs(rhsTerm_, rhsElem_, rhsWeights_);
   SEMsolverDataAcoustic data(wf, rhs);
   solver_->computeForces(kDt, 0, data);
-  EXPECT_NO_THROW(solver_->updateSolution(kDt, data));
+  EXPECT_NO_THROW(solver_->updateSolutionForward(kDt, data));
+}
+
+TEST_P(SemSolverAcousticTest, updateSolutionForwardWith3BuffersThrows) {
+  WavefieldAcoustic wf(pPrevPrev_, pPrev_, pCurr_);
+  RhsAcoustic rhs(rhsTerm_, rhsElem_, rhsWeights_);
+  SEMsolverDataAcoustic data(wf, rhs);
+  solver_->computeForces(kDt, 0, data);
+  EXPECT_THROW(solver_->updateSolutionForward(kDt, data), std::runtime_error);
+}
+
+TEST_P(SemSolverAcousticTest, updateSolutionBackwardWith2BuffersThrows) {
+  WavefieldAcoustic wf(pPrev_, pCurr_);
+  RhsAcoustic rhs(rhsTerm_, rhsElem_, rhsWeights_);
+  SEMsolverDataAcoustic data(wf, rhs);
+  solver_->computeForces(kDt, 0, data);
+  EXPECT_THROW(solver_->updateSolutionBackward(kDt, data), std::runtime_error);
+}
+
+TEST_P(SemSolverAcousticTest, updateSolutionBackwardWith3BuffersWorks) {
+  WavefieldAcoustic wf(pPrevPrev_, pPrev_, pCurr_);
+  RhsAcoustic rhs(rhsTerm_, rhsElem_, rhsWeights_);
+  SEMsolverDataAcoustic data(wf, rhs);
+  solver_->computeForces(kDt, 0, data);
+  EXPECT_NO_THROW(solver_->updateSolutionBackward(kDt, data));
 }
 
 // ======================================================================

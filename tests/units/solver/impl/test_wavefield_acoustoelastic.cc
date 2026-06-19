@@ -172,42 +172,67 @@ TEST_F(WavefieldAcoustoElasticTest, SwapTwiceRestoresState) {
   }
 }
 
-TEST_F(WavefieldAcoustoElasticTest, SwapWithRotationAcoustic) {
-  WavefieldAcoustoElastic wf(pPrev, pCurr, uxPrev, uxCurr, uyPrev, uyCurr, uzPrev, uzCurr);
+TEST_F(WavefieldAcoustoElasticTest, SwapWithThreeBuffersAcoustic) {
+  auto pPrevPrev = allocateVector<vectorReal>(size1, "pPrevPrev");
+  auto uxPrevPrev = allocateVector<vectorReal>(size1, "uxPrevPrev");
+  auto uyPrevPrev = allocateVector<vectorReal>(size1, "uyPrevPrev");
+  auto uzPrevPrev = allocateVector<vectorReal>(size1, "uzPrevPrev");
+  for (size_t i = 0; i < size1; ++i) {
+    pPrevPrev(i) = 10.0f;
+    uxPrevPrev(i) = 100.0f;
+    uyPrevPrev(i) = 200.0f;
+    uzPrevPrev(i) = 300.0f;
+  }
 
-  auto prevPrev = allocateVector<vectorReal>(size1, "prevPrev");
-  for (size_t i = 0; i < size1; ++i) prevPrev(i) = 10.0f;
+  WavefieldAcoustoElastic wf(pPrevPrev, pPrev, pCurr, uxPrevPrev, uxPrev, uxCurr, uyPrevPrev, uyPrev, uyCurr,
+                             uzPrevPrev, uzPrev, uzCurr);
+  EXPECT_TRUE(wf.hasPrevPrev());
 
-  wf.swapWithRotation(prevPrev, 0);
+  wf.swap();
 
-  // curr ← old prevPrev (10), prev ← old curr (i*2), prevPrev ← old prev (i)
+  // After 3-way rotation:
+  // curr ← old prevPrev, prev ← old curr, prevPrev ← old prev
   for (size_t i = 0; i < size1; ++i) {
     EXPECT_FLOAT_EQ(wf.m_acoustic.m_pnGlobalCurr(i), 10.0f);
     EXPECT_FLOAT_EQ(wf.m_acoustic.m_pnGlobalPrev(i), i * 2);
-    EXPECT_FLOAT_EQ(prevPrev(i), static_cast<float>(i));
+    EXPECT_FLOAT_EQ(wf.getPrevPrevField(0)(i), static_cast<float>(i));
+
+    EXPECT_FLOAT_EQ(wf.m_elastic.m_uxnGlobalCurr(i), 100.0f);
+    EXPECT_FLOAT_EQ(wf.m_elastic.m_uxnGlobalPrev(i), i * 4);
+    EXPECT_FLOAT_EQ(wf.getPrevPrevField(1)(i), i * 3);
   }
-  // elastic unaffected
-  EXPECT_FLOAT_EQ(wf.m_elastic.m_uxnGlobalPrev(1), 3.0f);
-  EXPECT_FLOAT_EQ(wf.m_elastic.m_uxnGlobalCurr(1), 4.0f);
 }
 
-TEST_F(WavefieldAcoustoElasticTest, SwapWithRotationElastic) {
-  WavefieldAcoustoElastic wf(pPrev, pCurr, uxPrev, uxCurr, uyPrev, uyCurr, uzPrev, uzCurr);
+TEST_F(WavefieldAcoustoElasticTest, SwapWithThreeBuffersElastic) {
+  auto pPrevPrev = allocateVector<vectorReal>(size1, "pPrevPrev");
+  auto uxPrevPrev = allocateVector<vectorReal>(size1, "uxPrevPrev");
+  auto uyPrevPrev = allocateVector<vectorReal>(size1, "uyPrevPrev");
+  auto uzPrevPrev = allocateVector<vectorReal>(size1, "uzPrevPrev");
+  for (size_t i = 0; i < size1; ++i) {
+    pPrevPrev(i) = 10.0f;
+    uxPrevPrev(i) = 20.0f;
+    uyPrevPrev(i) = 30.0f;
+    uzPrevPrev(i) = 40.0f;
+  }
 
-  auto prevPrev = allocateVector<vectorReal>(size1, "prevPrev");
-  for (size_t i = 0; i < size1; ++i) prevPrev(i) = 20.0f;
+  WavefieldAcoustoElastic wf(pPrevPrev, pPrev, pCurr, uxPrevPrev, uxPrev, uxCurr, uyPrevPrev, uyPrev, uyCurr,
+                             uzPrevPrev, uzPrev, uzCurr);
+  EXPECT_TRUE(wf.hasPrevPrev());
 
-  wf.swapWithRotation(prevPrev, 1);  // ux component
+  wf.swap();
 
-  // uxCurr ← prevPrev (20), uxPrev ← old uxCurr (i*4), prevPrev ← old uxPrev (i*3)
+  // After 3-way rotation, verify all elastic components rotated correctly
   for (size_t i = 0; i < size1; ++i) {
     EXPECT_FLOAT_EQ(wf.m_elastic.m_uxnGlobalCurr(i), 20.0f);
     EXPECT_FLOAT_EQ(wf.m_elastic.m_uxnGlobalPrev(i), i * 4);
-    EXPECT_FLOAT_EQ(prevPrev(i), i * 3);
+    EXPECT_FLOAT_EQ(wf.getPrevPrevField(1)(i), i * 3);
+
+    EXPECT_FLOAT_EQ(wf.m_elastic.m_uynGlobalCurr(i), 30.0f);
+    EXPECT_FLOAT_EQ(wf.m_elastic.m_uznGlobalCurr(i), 40.0f);
   }
-  // acoustic unaffected
-  EXPECT_FLOAT_EQ(wf.m_acoustic.m_pnGlobalPrev(1), 1.0f);
-  EXPECT_FLOAT_EQ(wf.m_acoustic.m_pnGlobalCurr(1), 2.0f);
+  // Acoustic also rotated
+  EXPECT_FLOAT_EQ(wf.m_acoustic.m_pnGlobalCurr(1), 10.0f);
+  EXPECT_FLOAT_EQ(wf.m_acoustic.m_pnGlobalPrev(1), 2.0f);
 }
 
 TEST_F(WavefieldAcoustoElasticTest, CopyConstructor) {
@@ -279,23 +304,32 @@ TEST_F(WavefieldAcoustoElasticTest, EmptyFields) {
   EXPECT_EQ(wf.m_elastic.m_uxnGlobalPrev.extent(0), 0);
 }
 
-TEST_F(WavefieldAcoustoElasticTest, SwapWithRotationThreeTimesRestoresAcoustic) {
-  WavefieldAcoustoElastic wf(pPrev, pCurr, uxPrev, uxCurr, uyPrev, uyCurr, uzPrev, uzCurr);
+TEST_F(WavefieldAcoustoElasticTest, SwapThreeTimesRestoresStateWithThreeBuffers) {
+  auto pPrevPrev = allocateVector<vectorReal>(size1, "pPrevPrev");
+  auto uxPrevPrev = allocateVector<vectorReal>(size1, "uxPrevPrev");
+  auto uyPrevPrev = allocateVector<vectorReal>(size1, "uyPrevPrev");
+  auto uzPrevPrev = allocateVector<vectorReal>(size1, "uzPrevPrev");
+  for (size_t i = 0; i < size1; ++i) {
+    pPrevPrev(i) = 10.0f;
+    uxPrevPrev(i) = 20.0f;
+    uyPrevPrev(i) = 30.0f;
+    uzPrevPrev(i) = 40.0f;
+  }
 
-  auto prevPrev = allocateVector<vectorReal>(size1, "prevPrev");
-  for (size_t i = 0; i < size1; ++i) prevPrev(i) = 10.0f;
+  float initialPPrev0 = pPrev(0);
+  float initialPCurr0 = pCurr(0);
+  float initialPPrevPrev0 = pPrevPrev(0);
 
-  float initialPrev0 = pPrev(0);
-  float initialCurr0 = pCurr(0);
-  float initialPrevPrev0 = prevPrev(0);
+  WavefieldAcoustoElastic wf(pPrevPrev, pPrev, pCurr, uxPrevPrev, uxPrev, uxCurr, uyPrevPrev, uyPrev, uyCurr,
+                             uzPrevPrev, uzPrev, uzCurr);
 
-  wf.swapWithRotation(prevPrev, 0);
-  wf.swapWithRotation(prevPrev, 0);
-  wf.swapWithRotation(prevPrev, 0);
+  wf.swap();
+  wf.swap();
+  wf.swap();
 
-  EXPECT_FLOAT_EQ(wf.m_acoustic.m_pnGlobalPrev(0), initialPrev0);
-  EXPECT_FLOAT_EQ(wf.m_acoustic.m_pnGlobalCurr(0), initialCurr0);
-  EXPECT_FLOAT_EQ(prevPrev(0), initialPrevPrev0);
+  EXPECT_FLOAT_EQ(wf.m_acoustic.m_pnGlobalPrev(0), initialPPrev0);
+  EXPECT_FLOAT_EQ(wf.m_acoustic.m_pnGlobalCurr(0), initialPCurr0);
+  EXPECT_FLOAT_EQ(wf.getPrevPrevField(0)(0), initialPPrevPrev0);
 }
 
 }  // namespace test
