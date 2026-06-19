@@ -153,9 +153,7 @@ void DifferentiatorAcoustic<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES>:
         float localGradBuoyancy = 0.0f;
         INTEGRAL_TYPE::computeStiffnessTerm(
             X, [&](const int /*qa*/, const int /*qb*/, const int /*qc*/) {},
-            [&](const int i, const int j, const real_t val) {
-              localGradBuoyancy += val * localQn[j] * localPn[i];
-            });
+            [&](const int i, const int j, const real_t val) { localGradBuoyancy += val * localQn[j] * localPn[i]; });
         gradBuoyancy(elementNumber) += localGradBuoyancy;
       });
 }
@@ -288,9 +286,7 @@ void DifferentiatorAcoustic<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES>:
         float localGradBuoyancy = 0.0f;
         INTEGRAL_TYPE::computeStiffnessTerm(
             X, [&](const int /*qa*/, const int /*qb*/, const int /*qc*/) {},
-            [&](const int i, const int j, const real_t val) {
-              localGradBuoyancy += val * localQn[j] * localPn[i];
-            });
+            [&](const int i, const int j, const real_t val) { localGradBuoyancy += val * localQn[j] * localPn[i]; });
 
         // =====================================================
         // Distribute buoyancy gradient to nodes
