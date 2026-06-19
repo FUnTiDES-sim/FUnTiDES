@@ -187,10 +187,17 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::com
 //============================================================================
 // computeElementContributions_Acoustic - ACOUSTIC
 //============================================================================
+namespace detail {
+template <typename, typename = void>
+struct has_team_gemm : std::false_type {};
+template <typename T>
+struct has_team_gemm<T, std::void_t<typename T::TeamGemm>> : std::true_type {};
+}  // namespace detail
+
 template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE, bool IS_MODEL_ON_NODES, physicType PHYSICS>
 void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::computeElementContributions_Acoustic_Gemm(
     const DataType& data) {
-  if constexpr (requires { typename INTEGRAL_TYPE::TeamGemm; }) {
+  if constexpr (detail::has_team_gemm<INTEGRAL_TYPE>::value) {
     using ExecSpace = Kokkos::DefaultExecutionSpace;
     constexpr int kStride = INTEGRAL_TYPE::numNodes * 6;
 

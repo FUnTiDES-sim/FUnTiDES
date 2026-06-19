@@ -2,7 +2,6 @@
 #define FUNTIDES_DISCRETIZATION_FE_INTEGRALS_H_
 
 #include "../makutu/include/Qk_Hexahedron_Lagrange_GaussLobatto.h"
-// Adjust this path to wherever you drop the adapted header.
 #include "Qk_Hexahedron_Tensorial.h"
 
 template <int ORDER, int METHOD_TYPE>
