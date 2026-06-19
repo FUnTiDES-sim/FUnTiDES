@@ -37,6 +37,10 @@ void DifferentiatorElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES>::
     computeOnNodes(myMesh, dt, ux_fwd, uy_fwd, uz_fwd, ux_adj, uy_adj, uz_adj, ux_dt2, uy_dt2, uz_dt2, gradRho,
                    gradLambda, gradMu);
   Kokkos::fence();
+
+  // Compute the geometric mass matrix for FWI preconditioning
+  computeGeometricMassMatrix(myMesh);
+  Kokkos::fence();
 }
 
 template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE, bool IS_MODEL_ON_NODES>
@@ -54,6 +58,56 @@ void DifferentiatorElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES>::
   std::cout << "DifferentiatorElastic<ORDER=" << kOrder << ", INTEGRAL_TYPE=" << typeid(INTEGRAL_TYPE).name()
             << ", MESH_TYPE=" << typeid(MESH_TYPE).name()
             << ", IS_MODEL_ON_NODES=" << (kIsModelOnNodes ? "true" : "false") << ">\n";
+}
+
+template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE, bool IS_MODEL_ON_NODES>
+vectorReal& DifferentiatorElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES>::getGeometricMassMatrix() {
+  return geometricMassMatrix_;
+}
+
+template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE, bool IS_MODEL_ON_NODES>
+void DifferentiatorElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES>::computeGeometricMassMatrix(
+    MESH_TYPE mesh) const {
+  // Allocate geometric mass matrix if not already done
+  if (geometricMassMatrix_.extent(0) != mesh.getNumberOfNodes()) {
+    geometricMassMatrix_ = allocateVector<vectorReal>(mesh.getNumberOfNodes(), "geometricMassMatrix");
+    Kokkos::deep_copy(geometricMassMatrix_, 0.0f);
+  } else {
+    Kokkos::deep_copy(geometricMassMatrix_, 0.0f);
+  }
+
+  auto local_geometricMassMatrix = geometricMassMatrix_;
+
+  Kokkos::parallel_for(
+      "Differentiator Compute Geometric Mass Matrix",
+      Kokkos::RangePolicy<Kokkos::LaunchBounds<LaunchMaxThreadsPerBlock, LaunchMinBlocksPerSM>>(
+          0, mesh.getNumberOfElements()),
+      KOKKOS_LAMBDA(const int elementNumber) {
+        float massMatrixLocal[kPointsPerElement] = {0};
+        int const dim = mesh.getOrder() + 1;
+
+        float cornerCoords[8][3];
+        {
+          auto const eIdx = mesh.elementIndex(elementNumber);
+          int I = 0;
+          for (int kv = 0; kv < 2; ++kv)
+            for (int jv = 0; jv < 2; ++jv)
+              for (int iv = 0; iv < 2; ++iv)
+                mesh.vertexCoords(mesh.globalVertexIndex(eIdx, iv, jv, kv), cornerCoords[I++]);
+        }
+
+        // Compute mass term (geometric part only - no model factors)
+        INTEGRAL_TYPE::computeMassTerm(cornerCoords, [&](const int j, const real_t val) { massMatrixLocal[j] += val; });
+
+        for (int i = 0; i < mesh.getNumberOfPointsPerElement(); ++i) {
+          int x = i % dim;
+          int z = (i / dim) % dim;
+          int y = i / (dim * dim);
+          int const gIndex = mesh.globalNodeIndex(elementNumber, x, y, z);
+
+          ATOMICADD(local_geometricMassMatrix[gIndex], massMatrixLocal[i]);
+        }
+      });
 }
 
 template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE, bool IS_MODEL_ON_NODES>

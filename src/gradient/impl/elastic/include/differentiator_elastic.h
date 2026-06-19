@@ -19,17 +19,17 @@ namespace gradient {
  *
  * The elastic gradient for isotropic media computes three sensitivities:
  *
- *   grad_rho    = - ∑_t ∑_e ∫ ü† · u  dΩ
+ *   grad_rho    = - sum_t sum_e integral u_double_dot*  dot  u  dOmega
  *                 (density kernel via mass term with second time derivative)
  *
- *   grad_lambda = - ∑_t ∑_e ∫ div(u†) · div(u)  dΩ
+ *   grad_lambda = - sum_t sum_e integral div(u*)  dot  div(u)  dOmega
  *                 (volumetric / P-wave kernel via divergence interaction)
  *
- *   grad_mu     = - ∑_t ∑_e ∫ 2 ε(u†) : ε(u)  dΩ
+ *   grad_mu     = - sum_t sum_e integral 2 epsilon(u*) : epsilon(u)  dOmega
  *                 (shear / S-wave kernel via strain tensor interaction)
  *
  * For TTI (tilted transverse isotropy), the stiffness kernel uses the full
- * 6×6 Voigt elasticity tensor C_ij to compute the interaction between
+ * 6x6 Voigt elasticity tensor C_ij to compute the interaction between
  * adjoint and forward strain fields.
  *
  * Features:
@@ -56,6 +56,14 @@ class DifferentiatorElastic : public Differentiator {
    * @brief Compute elastic gradients (Rho, Lambda, Mu).
    */
   void compute(model::ModelApi<float, int>& mesh, DataStruct& data, float dt) const override;
+
+  /**
+   * @brief Get the geometric mass matrix for normalization in FWI.
+   *
+   * Returns the geometric nodal volumes Omega_I = sum_{einI} w_I^e |J_I^e|
+   * computed without model factors. Used for FWI preconditioning.
+   */
+  vectorReal& getGeometricMassMatrix() override;
 
   int getOrder() const override;
   bool isModelOnNodes() const override;
@@ -95,6 +103,16 @@ class DifferentiatorElastic : public Differentiator {
                       vectorReal const uz_adj, vectorReal const ux_dt2, vectorReal const uy_dt2,
                       vectorReal const uz_dt2, vectorReal const gradRho, vectorReal const gradLambda,
                       vectorReal const gradMu) const;
+
+  /**
+   * @brief Compute geometric mass matrix (nodal volumes without model factors).
+   * @param mesh The computational mesh.
+   * @note Public to accommodate CUDA device lambda requirements in Kokkos.
+   */
+  void computeGeometricMassMatrix(MESH_TYPE mesh) const;
+
+ private:
+  mutable vectorReal geometricMassMatrix_;
 };
 
 }  // namespace gradient

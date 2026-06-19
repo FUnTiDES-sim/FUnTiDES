@@ -475,5 +475,174 @@ TYPED_TEST(DifferentiatorAcousticNodeTest, PolymorphicInterface) {
   EXPECT_GT(this->sumGradKappa(), 0.0f);
 }
 
+// =============================================================================
+// GeometricMassMatrix tests — DifferentiatorAcousticElemTest
+// (IS_MODEL_ON_NODES = false)
+// =============================================================================
+
+TYPED_TEST(DifferentiatorAcousticElemTest, GeometricMassMatrixSizeAfterCompute) {
+  typename TestFixture::Diff diff;
+  auto mesh = makeMesh1x1x1<TestFixture::kOrder>();
+
+  WavefieldViewForwardAcoustic fwd(this->pn);
+  WavefieldViewBackwardAcoustic bwd(this->qn, this->qnPrev, this->qnPrevPrev);
+  GradientAcoustic grad(this->gradKappa, this->gradBuoyancy);
+  GradientDataAcoustic data(fwd, bwd, grad);
+  diff.compute(mesh, data, 0.001f);
+
+  EXPECT_EQ(diff.getGeometricMassMatrix().extent(0), static_cast<size_t>(TestFixture::kNumNodes));
+}
+
+TYPED_TEST(DifferentiatorAcousticElemTest, GeometricMassMatrixAllPositive) {
+  typename TestFixture::Diff diff;
+  auto mesh = makeMesh1x1x1<TestFixture::kOrder>();
+
+  WavefieldViewForwardAcoustic fwd(this->pn);
+  WavefieldViewBackwardAcoustic bwd(this->qn, this->qnPrev, this->qnPrevPrev);
+  GradientAcoustic grad(this->gradKappa, this->gradBuoyancy);
+  GradientDataAcoustic data(fwd, bwd, grad);
+  diff.compute(mesh, data, 0.001f);
+
+  auto& gmm = diff.getGeometricMassMatrix();
+  for (int i = 0; i < TestFixture::kNumNodes; ++i) EXPECT_GT(gmm(i), 0.0f);
+}
+
+TYPED_TEST(DifferentiatorAcousticElemTest, GeometricMassMatrixSumsToVolume) {
+  // For a unit cube [0,1]^3, sum of all nodal volumes = 1.0
+  typename TestFixture::Diff diff;
+  auto mesh = makeMesh1x1x1<TestFixture::kOrder>();
+
+  WavefieldViewForwardAcoustic fwd(this->pn);
+  WavefieldViewBackwardAcoustic bwd(this->qn, this->qnPrev, this->qnPrevPrev);
+  GradientAcoustic grad(this->gradKappa, this->gradBuoyancy);
+  GradientDataAcoustic data(fwd, bwd, grad);
+  diff.compute(mesh, data, 0.001f);
+
+  auto& gmm = diff.getGeometricMassMatrix();
+  float total = 0.0f;
+  for (int i = 0; i < TestFixture::kNumNodes; ++i) total += gmm(i);
+  EXPECT_NEAR(total, 1.0f, 1e-5f);
+}
+
+TYPED_TEST(DifferentiatorAcousticElemTest, GeometricMassMatrixIndependentOfWavefields) {
+  // GMM should be the same regardless of wavefields — it depends only on geometry
+  typename TestFixture::Diff diff;
+  auto mesh = makeMesh1x1x1<TestFixture::kOrder>();
+
+  // First: zero wavefields
+  {
+    WavefieldViewForwardAcoustic fwd(this->pn);
+    WavefieldViewBackwardAcoustic bwd(this->qn, this->qnPrev, this->qnPrevPrev);
+    GradientAcoustic grad(this->gradKappa, this->gradBuoyancy);
+    GradientDataAcoustic data(fwd, bwd, grad);
+    diff.compute(mesh, data, 0.001f);
+  }
+  auto& gmm0 = diff.getGeometricMassMatrix();
+  vectorReal saved = allocateVector<vectorReal>(TestFixture::kNumNodes, "saved_gmm");
+  Kokkos::deep_copy(saved, gmm0);
+
+  // Second: non-zero wavefields
+  for (int i = 0; i < TestFixture::kNumNodes; ++i) {
+    this->pn(i) = 3.0f;
+    this->qn(i) = 2.5f;
+  }
+  this->gradKappa(0) = 0.0f;
+  this->gradBuoyancy(0) = 0.0f;
+  {
+    WavefieldViewForwardAcoustic fwd(this->pn);
+    WavefieldViewBackwardAcoustic bwd(this->qn, this->qnPrev, this->qnPrevPrev);
+    GradientAcoustic grad(this->gradKappa, this->gradBuoyancy);
+    GradientDataAcoustic data(fwd, bwd, grad);
+    diff.compute(mesh, data, 0.001f);
+  }
+
+  auto& gmm1 = diff.getGeometricMassMatrix();
+  for (int i = 0; i < TestFixture::kNumNodes; ++i) EXPECT_FLOAT_EQ(gmm1(i), saved(i));
+}
+
+TYPED_TEST(DifferentiatorAcousticElemTest, GeometricMassMatrixPolymorphicAccess) {
+  std::unique_ptr<Differentiator> diff = std::make_unique<typename TestFixture::Diff>();
+  auto mesh = makeMesh1x1x1<TestFixture::kOrder>();
+
+  WavefieldViewForwardAcoustic fwd(this->pn);
+  WavefieldViewBackwardAcoustic bwd(this->qn, this->qnPrev, this->qnPrevPrev);
+  GradientAcoustic grad(this->gradKappa, this->gradBuoyancy);
+  GradientDataAcoustic data(fwd, bwd, grad);
+  diff->compute(mesh, data, 0.001f);
+
+  auto& gmm = diff->getGeometricMassMatrix();
+  EXPECT_EQ(gmm.extent(0), static_cast<size_t>(TestFixture::kNumNodes));
+  float total = 0.0f;
+  for (int i = 0; i < TestFixture::kNumNodes; ++i) total += gmm(i);
+  EXPECT_NEAR(total, 1.0f, 1e-5f);
+}
+
+// =============================================================================
+// GeometricMassMatrix tests — DifferentiatorAcousticNodeTest
+// (IS_MODEL_ON_NODES = true)
+// =============================================================================
+
+TYPED_TEST(DifferentiatorAcousticNodeTest, GeometricMassMatrixSizeAfterCompute) {
+  typename TestFixture::DiffNode diff;
+  auto mesh = makeMesh1x1x1<TestFixture::kOrder>();
+
+  WavefieldViewForwardAcoustic fwd(this->pn);
+  WavefieldViewBackwardAcoustic bwd(this->qn, this->qnPrev, this->qnPrevPrev);
+  GradientAcoustic grad(this->gradKappa, this->gradBuoyancy);
+  GradientDataAcoustic data(fwd, bwd, grad);
+  diff.compute(mesh, data, 0.001f);
+
+  EXPECT_EQ(diff.getGeometricMassMatrix().extent(0), static_cast<size_t>(TestFixture::kNumNodes));
+}
+
+TYPED_TEST(DifferentiatorAcousticNodeTest, GeometricMassMatrixSumsToVolume) {
+  // For a unit cube [0,1]^3, sum of all nodal volumes = 1.0
+  typename TestFixture::DiffNode diff;
+  auto mesh = makeMesh1x1x1<TestFixture::kOrder>();
+
+  WavefieldViewForwardAcoustic fwd(this->pn);
+  WavefieldViewBackwardAcoustic bwd(this->qn, this->qnPrev, this->qnPrevPrev);
+  GradientAcoustic grad(this->gradKappa, this->gradBuoyancy);
+  GradientDataAcoustic data(fwd, bwd, grad);
+  diff.compute(mesh, data, 0.001f);
+
+  auto& gmm = diff.getGeometricMassMatrix();
+  float total = 0.0f;
+  for (int i = 0; i < TestFixture::kNumNodes; ++i) total += gmm(i);
+  EXPECT_NEAR(total, 1.0f, 1e-5f);
+}
+
+TYPED_TEST(DifferentiatorAcousticNodeTest, GeometricMassMatrixSameForNodeAndElemVariant) {
+  // The geometric mass matrix is geometry-only and must agree between
+  // element-based and node-based differentiators on the same mesh.
+  auto mesh = makeMesh1x1x1<TestFixture::kOrder>();
+
+  WavefieldViewForwardAcoustic fwd(this->pn);
+  WavefieldViewBackwardAcoustic bwd(this->qn, this->qnPrev, this->qnPrevPrev);
+
+  typename TestFixture::DiffNode diffNode;
+  {
+    GradientAcoustic grad(this->gradKappa, this->gradBuoyancy);
+    GradientDataAcoustic data(fwd, bwd, grad);
+    diffNode.compute(mesh, data, 0.001f);
+  }
+
+  auto gradKappaElem = allocateVector<vectorReal>(1, "gradKappaElem");
+  auto gradBuoyancyElem = allocateVector<vectorReal>(1, "gradBuoyancyElem");
+  gradKappaElem(0) = 0.0f;
+  gradBuoyancyElem(0) = 0.0f;
+
+  typename TestFixture::DiffElem diffElem;
+  {
+    GradientAcoustic grad(gradKappaElem, gradBuoyancyElem);
+    GradientDataAcoustic data(fwd, bwd, grad);
+    diffElem.compute(mesh, data, 0.001f);
+  }
+
+  auto& gmmNode = diffNode.getGeometricMassMatrix();
+  auto& gmmElem = diffElem.getGeometricMassMatrix();
+  for (int i = 0; i < TestFixture::kNumNodes; ++i) EXPECT_FLOAT_EQ(gmmNode(i), gmmElem(i));
+}
+
 }  // namespace test
 }  // namespace gradient

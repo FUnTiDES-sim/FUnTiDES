@@ -49,6 +49,11 @@ void bind_gradient_data_elastic(py::module_& m) {
 void bind_differentiator_base(py::module_& m) {
   py::class_<Differentiator, std::shared_ptr<Differentiator>>(m, "Differentiator")
       .def("compute", &Differentiator::compute, py::arg("mesh"), py::arg("data"), py::arg("dt"))
+      .def("get_geometric_mass_matrix",
+           [](Differentiator& self) -> Kokkos::Experimental::python_view_type_t<vectorReal> {
+             return self.getGeometricMassMatrix();
+           },
+           py::return_value_policy::reference_internal)
       .def("print", &Differentiator::print);
 }
 

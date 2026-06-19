@@ -663,5 +663,147 @@ TYPED_TEST(DifferentiatorElasticNodeTest, PolymorphicInterface) {
   EXPECT_GT(this->sumGradRho(), 0.0f);
 }
 
+// =============================================================================
+// GeometricMassMatrix tests — DifferentiatorElasticElemTest
+// (IS_MODEL_ON_NODES = false)
+// =============================================================================
+
+TYPED_TEST(DifferentiatorElasticElemTest, GeometricMassMatrixSizeAfterCompute) {
+  typename TestFixture::Diff diff;
+  this->makeDataAndCompute(diff);
+
+  EXPECT_EQ(diff.getGeometricMassMatrix().extent(0), static_cast<size_t>(TestFixture::kNumNodes));
+}
+
+TYPED_TEST(DifferentiatorElasticElemTest, GeometricMassMatrixAllPositive) {
+  typename TestFixture::Diff diff;
+  this->makeDataAndCompute(diff);
+
+  auto& gmm = diff.getGeometricMassMatrix();
+  for (int i = 0; i < TestFixture::kNumNodes; ++i) EXPECT_GT(gmm(i), 0.0f);
+}
+
+TYPED_TEST(DifferentiatorElasticElemTest, GeometricMassMatrixSumsToVolume) {
+  // For a unit cube [0,1]^3, sum of all nodal volumes = 1.0
+  typename TestFixture::Diff diff;
+  this->makeDataAndCompute(diff);
+
+  auto& gmm = diff.getGeometricMassMatrix();
+  float total = 0.0f;
+  for (int i = 0; i < TestFixture::kNumNodes; ++i) total += gmm(i);
+  EXPECT_NEAR(total, 1.0f, 1e-5f);
+}
+
+TYPED_TEST(DifferentiatorElasticElemTest, GeometricMassMatrixIndependentOfWavefields) {
+  // GMM depends only on geometry, not wavefields
+  typename TestFixture::Diff diff;
+
+  // First compute: zero wavefields
+  this->makeDataAndCompute(diff);
+  auto& gmm0 = diff.getGeometricMassMatrix();
+  vectorReal saved = allocateVector<vectorReal>(TestFixture::kNumNodes, "saved_gmm");
+  Kokkos::deep_copy(saved, gmm0);
+
+  // Second compute: non-zero wavefields
+  for (int i = 0; i < TestFixture::kNumNodes; ++i) {
+    this->ux_fwd(i) = 3.0f;
+    this->ux_dt2(i) = 2.5f;
+  }
+  this->gradRho(0) = 0.0f;
+  this->gradLambda(0) = 0.0f;
+  this->gradMu(0) = 0.0f;
+  this->makeDataAndCompute(diff);
+
+  auto& gmm1 = diff.getGeometricMassMatrix();
+  for (int i = 0; i < TestFixture::kNumNodes; ++i) EXPECT_FLOAT_EQ(gmm1(i), saved(i));
+}
+
+TYPED_TEST(DifferentiatorElasticElemTest, GeometricMassMatrixPolymorphicAccess) {
+  std::unique_ptr<Differentiator> diff = std::make_unique<typename TestFixture::Diff>();
+  auto mesh = makeMesh1x1x1<TestFixture::kOrder>();
+
+  WavefieldViewForwardElastic fwd(this->ux_fwd, this->uy_fwd, this->uz_fwd);
+  WavefieldViewBackwardElastic bwd(this->ux_adj, this->uy_adj, this->uz_adj, this->ux_dt2, this->uy_dt2, this->uz_dt2);
+  GradientElastic grad(this->gradRho, this->gradLambda, this->gradMu);
+  GradientDataElastic data(fwd, bwd, grad);
+  diff->compute(mesh, data, 0.001f);
+
+  auto& gmm = diff->getGeometricMassMatrix();
+  EXPECT_EQ(gmm.extent(0), static_cast<size_t>(TestFixture::kNumNodes));
+  float total = 0.0f;
+  for (int i = 0; i < TestFixture::kNumNodes; ++i) total += gmm(i);
+  EXPECT_NEAR(total, 1.0f, 1e-5f);
+}
+
+// =============================================================================
+// GeometricMassMatrix tests — DifferentiatorElasticNodeTest
+// (IS_MODEL_ON_NODES = true)
+// =============================================================================
+
+TYPED_TEST(DifferentiatorElasticNodeTest, GeometricMassMatrixSizeAfterCompute) {
+  typename TestFixture::DiffNode diff;
+  auto mesh = makeMesh1x1x1<TestFixture::kOrder>();
+  WavefieldViewForwardElastic fwd(this->ux_fwd, this->uy_fwd, this->uz_fwd);
+  WavefieldViewBackwardElastic bwd(this->ux_adj, this->uy_adj, this->uz_adj, this->ux_dt2, this->uy_dt2, this->uz_dt2);
+  GradientElastic grad(this->gradRho, this->gradLambda, this->gradMu);
+  GradientDataElastic data(fwd, bwd, grad);
+  diff.compute(mesh, data, 0.001f);
+
+  EXPECT_EQ(diff.getGeometricMassMatrix().extent(0), static_cast<size_t>(TestFixture::kNumNodes));
+}
+
+TYPED_TEST(DifferentiatorElasticNodeTest, GeometricMassMatrixSumsToVolume) {
+  // For a unit cube [0,1]^3, sum of all nodal volumes = 1.0
+  typename TestFixture::DiffNode diff;
+  auto mesh = makeMesh1x1x1<TestFixture::kOrder>();
+  WavefieldViewForwardElastic fwd(this->ux_fwd, this->uy_fwd, this->uz_fwd);
+  WavefieldViewBackwardElastic bwd(this->ux_adj, this->uy_adj, this->uz_adj, this->ux_dt2, this->uy_dt2, this->uz_dt2);
+  GradientElastic grad(this->gradRho, this->gradLambda, this->gradMu);
+  GradientDataElastic data(fwd, bwd, grad);
+  diff.compute(mesh, data, 0.001f);
+
+  auto& gmm = diff.getGeometricMassMatrix();
+  float total = 0.0f;
+  for (int i = 0; i < TestFixture::kNumNodes; ++i) total += gmm(i);
+  EXPECT_NEAR(total, 1.0f, 1e-5f);
+}
+
+TYPED_TEST(DifferentiatorElasticNodeTest, GeometricMassMatrixSameForNodeAndElemVariant) {
+  // The geometric mass matrix must agree between element-based and node-based
+  // differentiators on the same mesh (geometry-only quantity).
+  auto mesh = makeMesh1x1x1<TestFixture::kOrder>();
+
+  typename TestFixture::DiffNode diffNode;
+  {
+    WavefieldViewForwardElastic fwd(this->ux_fwd, this->uy_fwd, this->uz_fwd);
+    WavefieldViewBackwardElastic bwd(this->ux_adj, this->uy_adj, this->uz_adj, this->ux_dt2, this->uy_dt2,
+                                     this->uz_dt2);
+    GradientElastic grad(this->gradRho, this->gradLambda, this->gradMu);
+    GradientDataElastic data(fwd, bwd, grad);
+    diffNode.compute(mesh, data, 0.001f);
+  }
+
+  auto gradRhoElem = allocateVector<vectorReal>(1, "gradRhoElem");
+  auto gradLambdaElem = allocateVector<vectorReal>(1, "gradLambdaElem");
+  auto gradMuElem = allocateVector<vectorReal>(1, "gradMuElem");
+  gradRhoElem(0) = 0.0f;
+  gradLambdaElem(0) = 0.0f;
+  gradMuElem(0) = 0.0f;
+
+  typename TestFixture::DiffElem diffElem;
+  {
+    WavefieldViewForwardElastic fwd(this->ux_fwd, this->uy_fwd, this->uz_fwd);
+    WavefieldViewBackwardElastic bwd(this->ux_adj, this->uy_adj, this->uz_adj, this->ux_dt2, this->uy_dt2,
+                                     this->uz_dt2);
+    GradientElastic grad(gradRhoElem, gradLambdaElem, gradMuElem);
+    GradientDataElastic data(fwd, bwd, grad);
+    diffElem.compute(mesh, data, 0.001f);
+  }
+
+  auto& gmmNode = diffNode.getGeometricMassMatrix();
+  auto& gmmElem = diffElem.getGeometricMassMatrix();
+  for (int i = 0; i < TestFixture::kNumNodes; ++i) EXPECT_FLOAT_EQ(gmmNode(i), gmmElem(i));
+}
+
 }  // namespace test
 }  // namespace gradient

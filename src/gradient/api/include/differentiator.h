@@ -43,6 +43,19 @@ class Differentiator {
   virtual void compute(model::ModelApi<float, int>& mesh, DataStruct& data, float dt) const = 0;
 
   /**
+   * @brief Get the geometric mass matrix (nodal volumes without velocities).
+   *
+   * The geometric mass matrix Omega_I = sum_{e in I} w_I^e |J_I^e| is computed
+   * without applying model factors (velocities/densities). It is used for FWI
+   * preconditioning: K(x_I) = G_I / Omega_I.
+   *
+   * Must be called after compute() to ensure it is properly initialized.
+   *
+   * @return Reference to the geometric mass matrix vector
+   */
+  virtual vectorReal& getGeometricMassMatrix() = 0;
+
+  /**
    * @brief Get polynomial order of this computation.
    * @return polynomial order
    */
