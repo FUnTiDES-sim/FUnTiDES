@@ -353,7 +353,6 @@ class Qk_Hexahedron_Tensorial_GEMM final {
     });
   }
 
-#ifdef USE_KOKKOS
   //==========================================================================
   // ACOUSTIC STIFFNESS via sum-factorization — TEAM path matching the solver's
   // EXISTING scratch contract (G_xi/G_eta/G_zeta of size numNodes each).
@@ -749,7 +748,6 @@ class Qk_Hexahedron_Tensorial_GEMM final {
 
     computeStiffnessOperatorTeamVector(member, u, Y, W_local.data(), D_flat);
   }
-#endif  // USE_KOKKOS
 
   //==========================================================================
   // Virtual compatibility hooks (match makutu).
