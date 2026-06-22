@@ -1,7 +1,6 @@
 #ifndef FUNTIDES_DISCRETIZATION_FE_QK_HEXAHEDRON_TENSORIAL_GEMM_H_
 #define FUNTIDES_DISCRETIZATION_FE_QK_HEXAHEDRON_TENSORIAL_GEMM_H_
 
-// data_type.h first: defines PROXY_HOST_DEVICE / real_t before the basis files.
 #include <data_type.h>
 
 #include "LagrangeBasis1.h"
@@ -13,7 +12,7 @@
 #include "LagrangeBasis7GL.h"
 #include "LagrangeBasis8GL.h"
 #include "LagrangeBasis9GL.h"
-#include "mathUtilites.h"  // determinant, invert3x3, symDeterminant, triple_loop, for_constexpr, ...
+#include "mathUtilites.h"
 
 /**
  * @class Qk_Hexahedron_Tensorial_GEMM
@@ -22,38 +21,32 @@
 template <typename GL_BASIS>
 class Qk_Hexahedron_Tensorial_GEMM final {
  public:
-  // Expose the basis type for tests and external use (makutu compatibility).
+  // Expose the basis type for tests and external use (makutu compatibility)
   using BasisType = GL_BASIS;
 
-  /// Number of nodes/support points per element per dimension.
+  /// Number of nodes/support points per element per dimension
   constexpr static int num1dNodes = GL_BASIS::numSupportPoints;
 
-  /// Half the number of support points, rounded down (precomputed).
+  /// Half the number of support points, rounded down (precomputed)
   constexpr static int halfNodes = (GL_BASIS::numSupportPoints - 1) / 2;
 
-  /// Total number of nodes/support points per element.
+  /// Total number of nodes/support points per element
   constexpr static int numNodes = GL_BASIS::TensorProduct3D::numSupportPoints;
 
-  /// Number of nodes/support points per face.
+  /// Number of nodes/support points per face
   constexpr static int numNodesPerFace = num1dNodes * num1dNodes;
 
-  /// Maximum number of support points per element.
+  /// Maximum number of support points per element
   constexpr static int maxSupportPoints = numNodes;
 
-  /// Number of quadrature points per element (== nodes for GL).
+  /// Number of quadrature points per element
   constexpr static int numQuadraturePoints = numNodes;
 
   struct JacobianType {
     float data[3][3];
   };
 
-  /// Marker trait: an INTEGRAL_TYPE exposing a team GEMM stiffness path.
   struct TeamGemm {};
-
-  //==========================================================================
-  // Index helpers (ported verbatim from makutu — required by the solver and by
-  // the assembly loops; identical node ordering: x fastest).
-  //==========================================================================
 
   PROXY_HOST_DEVICE
   constexpr static int linearIndex3DVal(const int qa, int const qb, int const qc) {
@@ -72,10 +65,6 @@ class Qk_Hexahedron_Tensorial_GEMM final {
   constexpr static int meshIndexToLinearIndex2D(int const k) {
     return linearIndex2DVal((num1dNodes - 1) * (k % 2), (num1dNodes - 1) * (k / 2));
   }
-
-  //==========================================================================
-  // Basis / quadrature primitives
-  //==========================================================================
 
   /// d(phi_p)/d(xi) evaluated at xi_q (direct polynomial eval, GL symmetry).
   PROXY_HOST_DEVICE
@@ -419,26 +408,6 @@ class Qk_Hexahedron_Tensorial_GEMM final {
 
     team.team_barrier();
   }
-
-  //==========================================================================
-  // ====================  THIRD-PARTY GEMM ACCELERATION PATH  ================
-  //
-  // Preserved UNCHANGED from the original tensorial implementation. This is
-  // where the high-order (> 3) speedup lives: the O(n^4) work is recast as
-  // dense [N]x[N^2] GEMMs staged in TEAM SCRATCH (shared) memory, instead of
-  // one thread per element holding O(n^3) data in registers.
-  //
-  // IMPORTANT — these are NOT reached by the API entry points above:
-  //   * They require `scratchBytesPerTeam[Streaming]()` bytes of team scratch,
-  //     which is LARGER than the solver's current `_Teams` allocation
-  //     (5*kPtsPerElem). Wiring them in requires a small solver-side change:
-  //     set the policy scratch to scratchBytesPerTeam*() and call
-  //     computeStiffnessOperatorTeamVector[Streaming] from a dedicated
-  //     computeElementContributions_Acoustic_Gemm kernel.
-  //   * The streaming W = w*B does NOT include alpha (1/rho). If you route the
-  //     acoustic operator through these, fold 1/rho into W_local (multiply each
-  //     6-tuple by get_alpha(qa,qb,qc)) — otherwise the density term is lost.
-  //==========================================================================
 
   /// Serial small matmul: C = A * B  (NN).
   template <int ROWS, int INNER, int COLS>

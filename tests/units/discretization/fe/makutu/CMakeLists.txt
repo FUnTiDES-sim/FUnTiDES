@@ -13,6 +13,7 @@ set(_QK_TEST_GROUPS
   sumfact_acoustic
   sumfact_elastic
   tensorial_gemm
+  tensorial_gemm_kokkos
 )
 
 set(_QK_TEST_ORDERS "")
