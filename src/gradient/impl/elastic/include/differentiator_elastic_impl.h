@@ -37,10 +37,6 @@ void DifferentiatorElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES>::
     computeOnNodes(myMesh, dt, ux_fwd, uy_fwd, uz_fwd, ux_adj, uy_adj, uz_adj, ux_dt2, uy_dt2, uz_dt2, gradRho,
                    gradLambda, gradMu);
   Kokkos::fence();
-
-  // Compute the geometric mass matrix for FWI preconditioning
-  computeGeometricMassMatrix(myMesh);
-  Kokkos::fence();
 }
 
 template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE, bool IS_MODEL_ON_NODES>
@@ -66,15 +62,14 @@ vectorReal& DifferentiatorElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_N
 }
 
 template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE, bool IS_MODEL_ON_NODES>
-void DifferentiatorElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES>::computeGeometricMassMatrix(
-    MESH_TYPE mesh) const {
-  // Allocate geometric mass matrix if not already done
-  if (geometricMassMatrix_.extent(0) != mesh.getNumberOfNodes()) {
+void DifferentiatorElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES>::initGeometricMassMatrix(
+    model::ModelApi<float, int>& meshApi) {
+  auto mesh = dynamic_cast<MESH_TYPE&>(meshApi);
+
+  // Allocate geometric mass matrix if not already done, then zero it
+  if (geometricMassMatrix_.extent(0) != mesh.getNumberOfNodes())
     geometricMassMatrix_ = allocateVector<vectorReal>(mesh.getNumberOfNodes(), "geometricMassMatrix");
-    Kokkos::deep_copy(geometricMassMatrix_, 0.0f);
-  } else {
-    Kokkos::deep_copy(geometricMassMatrix_, 0.0f);
-  }
+  Kokkos::deep_copy(geometricMassMatrix_, 0.0f);
 
   auto local_geometricMassMatrix = geometricMassMatrix_;
 
@@ -108,6 +103,7 @@ void DifferentiatorElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES>::
           ATOMICADD(local_geometricMassMatrix[gIndex], massMatrixLocal[i]);
         }
       });
+  Kokkos::fence();
 }
 
 template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE, bool IS_MODEL_ON_NODES>

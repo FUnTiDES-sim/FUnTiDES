@@ -105,14 +105,18 @@ class DifferentiatorElastic : public Differentiator {
                       vectorReal const gradMu) const;
 
   /**
-   * @brief Compute geometric mass matrix (nodal volumes without model factors).
+   * @brief Initialize the geometric mass matrix (nodal volumes without model factors).
+   *
+   * Must be called once before compute(). Exposed via getGeometricMassMatrix()
+   * for FWI preconditioning.
+   *
    * @param mesh The computational mesh.
    * @note Public to accommodate CUDA device lambda requirements in Kokkos.
    */
-  void computeGeometricMassMatrix(MESH_TYPE mesh) const;
+  void initGeometricMassMatrix(model::ModelApi<float, int>& mesh) override;
 
  private:
-  mutable vectorReal geometricMassMatrix_;
+  vectorReal geometricMassMatrix_;
 };
 
 }  // namespace gradient

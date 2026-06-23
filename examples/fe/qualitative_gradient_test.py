@@ -960,6 +960,10 @@ def adjoint_propagation(solver_adj, model_adj, data_adj, fields_adj,
         Solver.PhysicType.ACOUSTIC,
         ORDER
     )
+
+    # Initialize the geometric mass matrix once (required before compute() for
+    # node-based discretization, which reuses it for nodal normalization).
+    differentiator.init_geometric_mass_matrix(model_adj)
     
     # Allocate gradient arrays (must match model discretization, not wavefield resolution)
     if MODEL_DISCRETIZATION == "ONNODES":

@@ -72,14 +72,19 @@ class DifferentiatorAcoustic : public Differentiator {
                       vectorReal const qnPrevPrev, vectorReal const gradKappa, vectorReal const gradBuoyancy) const;
 
   /**
-   * @brief Compute geometric mass matrix (nodal volumes without model factors).
+   * @brief Initialize the geometric mass matrix (nodal volumes without model factors).
+   *
+   * Must be called once before compute(): for node-based models the geometric
+   * mass matrix is used to normalize node gradients, and it is also exposed via
+   * getGeometricMassMatrix() for FWI preconditioning.
+   *
    * @param mesh The computational mesh.
    * @note Public to accommodate CUDA device lambda requirements in Kokkos.
    */
-  void computeGeometricMassMatrix(MESH_TYPE mesh) const;
+  void initGeometricMassMatrix(model::ModelApi<float, int>& mesh) override;
 
  private:
-  mutable vectorReal geometricMassMatrix_;
+  vectorReal geometricMassMatrix_;
 };
 
 }  // namespace gradient

@@ -110,6 +110,7 @@ class DifferentiatorElasticElemTest : public ::testing::Test {
     WavefieldViewBackwardElastic bwd(ux_adj, uy_adj, uz_adj, ux_dt2, uy_dt2, uz_dt2);
     GradientElastic grad(gradRho, gradLambda, gradMu);
     GradientDataElastic data(fwd, bwd, grad);
+    diff.initGeometricMassMatrix(mesh);
     diff.compute(mesh, data, dt);
   }
 
@@ -726,6 +727,7 @@ TYPED_TEST(DifferentiatorElasticElemTest, GeometricMassMatrixPolymorphicAccess) 
   WavefieldViewBackwardElastic bwd(this->ux_adj, this->uy_adj, this->uz_adj, this->ux_dt2, this->uy_dt2, this->uz_dt2);
   GradientElastic grad(this->gradRho, this->gradLambda, this->gradMu);
   GradientDataElastic data(fwd, bwd, grad);
+  diff->initGeometricMassMatrix(mesh);
   diff->compute(mesh, data, 0.001f);
 
   auto& gmm = diff->getGeometricMassMatrix();
@@ -747,6 +749,7 @@ TYPED_TEST(DifferentiatorElasticNodeTest, GeometricMassMatrixSizeAfterCompute) {
   WavefieldViewBackwardElastic bwd(this->ux_adj, this->uy_adj, this->uz_adj, this->ux_dt2, this->uy_dt2, this->uz_dt2);
   GradientElastic grad(this->gradRho, this->gradLambda, this->gradMu);
   GradientDataElastic data(fwd, bwd, grad);
+  diff.initGeometricMassMatrix(mesh);
   diff.compute(mesh, data, 0.001f);
 
   EXPECT_EQ(diff.getGeometricMassMatrix().extent(0), static_cast<size_t>(TestFixture::kNumNodes));
@@ -760,6 +763,7 @@ TYPED_TEST(DifferentiatorElasticNodeTest, GeometricMassMatrixSumsToVolume) {
   WavefieldViewBackwardElastic bwd(this->ux_adj, this->uy_adj, this->uz_adj, this->ux_dt2, this->uy_dt2, this->uz_dt2);
   GradientElastic grad(this->gradRho, this->gradLambda, this->gradMu);
   GradientDataElastic data(fwd, bwd, grad);
+  diff.initGeometricMassMatrix(mesh);
   diff.compute(mesh, data, 0.001f);
 
   auto& gmm = diff.getGeometricMassMatrix();
@@ -780,6 +784,7 @@ TYPED_TEST(DifferentiatorElasticNodeTest, GeometricMassMatrixSameForNodeAndElemV
                                      this->uz_dt2);
     GradientElastic grad(this->gradRho, this->gradLambda, this->gradMu);
     GradientDataElastic data(fwd, bwd, grad);
+    diffNode.initGeometricMassMatrix(mesh);
     diffNode.compute(mesh, data, 0.001f);
   }
 
@@ -797,6 +802,7 @@ TYPED_TEST(DifferentiatorElasticNodeTest, GeometricMassMatrixSameForNodeAndElemV
                                      this->uz_dt2);
     GradientElastic grad(gradRhoElem, gradLambdaElem, gradMuElem);
     GradientDataElastic data(fwd, bwd, grad);
+    diffElem.initGeometricMassMatrix(mesh);
     diffElem.compute(mesh, data, 0.001f);
   }
 
