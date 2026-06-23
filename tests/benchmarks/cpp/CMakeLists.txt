@@ -72,3 +72,20 @@ add_benchmark(bench_solver_fe_cartesian_unstruct_elastic
    unstruct
    solver
 )
+
+add_benchmark(bench_solver_acoustic
+ SOURCES
+   src/bench_acoustic_kernel.cc
+ INCLUDES
+   ${CMAKE_CURRENT_SOURCE_DIR}/include
+ LIBS
+   fun_solver
+   fun_model
+   fun_discretization
+   fun_utils
+ THREADS
+   1
+ LABELS
+   unstruct
+   solver
+)
