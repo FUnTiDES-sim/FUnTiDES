@@ -184,6 +184,27 @@ class FaceConnectivityUnstruct : public FaceConnectivityApi<FloatType, ScalarTyp
     return face_perm_(face_id, owner_dof);
   }
 
+  /**
+   * @brief Release all internally-owned Kokkos Views.
+   *
+   * Host-only. Resets the managed device allocations to empty Views so that
+   * the underlying memory is freed immediately (while Kokkos is still alive).
+   * This allows deterministic cleanup before Kokkos::finalize(), avoiding the
+   * "deallocated after Kokkos::finalize was called" abort when the owning
+   * model is destroyed after finalize.
+   */
+  void release() {
+    n_faces_ = 0;
+    ndofs_per_face_ = 0;
+    elem_to_faces_ = arrayInt();
+    face_dofs_ = arrayInt();
+    face_perm_ = arrayInt();
+    face_elem_owner_ = vectorInt();
+    face_elem_neighbor_ = vectorInt();
+    face_local_owner_ = vectorInt();
+    face_local_neighbor_ = vectorInt();
+  }
+
  private:
   ScalarType n_faces_ = 0;
   int ndofs_per_face_ = 0;

@@ -6,6 +6,7 @@
 #include <pybind11/stl.h>
 
 #include <KokkosExp_InterOp.hpp>
+#include <Kokkos_Core.hpp>
 #include <memory>
 
 #include "data_type.h"
@@ -65,7 +66,19 @@ void bind_differentiator_factory(py::module_& m) {
       [](utils::enums::implemType implem, utils::enums::meshType mesh, utils::enums::modelLocationType modelLocation,
          utils::enums::physicType physic, int order) {
         auto diff = createDifferentiator(implem, mesh, modelLocation, physic, order);
-        return std::shared_ptr<Differentiator>(std::move(diff));
+        std::shared_ptr<Differentiator> shared(std::move(diff));
+        // Register a Kokkos finalize hook that releases the differentiator's
+        // internally owned device Views before Kokkos::finalize(). The python
+        // client may call kokkos.finalize() before this wrapper is destroyed
+        // (reference count / GC ordering); without this hook the managed Views
+        // would be deallocated after finalize and trigger a Kokkos host_abort.
+        // The hook captures a weak_ptr so it is a no-op if the differentiator is
+        // already gone.
+        std::weak_ptr<Differentiator> weak = shared;
+        Kokkos::push_finalize_hook([weak]() {
+          if (auto locked = weak.lock()) locked->release();
+        });
+        return shared;
       },
       py::arg("implem_type"), py::arg("mesh_type"), py::arg("model_location"), py::arg("physic_type"),
       py::arg("order"));

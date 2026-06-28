@@ -378,6 +378,19 @@ class ModelApi {
    */
   PROXY_HOST_DEVICE
   virtual ScalarType getGlobalNodeFromFace(ScalarType face_global, int local_dof) const = 0;
+
+  /**
+   * @brief Release any internally-owned face connectivity Kokkos Views.
+   *
+   * Resets the managed device allocations built by buildFaceConnectivity().
+   * Used to deterministically free these allocations (e.g. from a Kokkos
+   * finalize hook) so they are not destroyed after Kokkos::finalize().
+   * Default implementation is a no-op for models without face connectivity.
+   *
+   * Note: declared last in the class so it occupies the final vtable slot,
+   * keeping the ABI of the existing virtuals unchanged.
+   */
+  virtual void releaseFaceConnectivity() {}
 };
 
 }  // namespace model

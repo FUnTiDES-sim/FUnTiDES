@@ -159,8 +159,13 @@ void DifferentiatorAcoustic<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES>:
     MESH_TYPE mesh, float dt, vectorReal const pn, vectorReal const qn, vectorReal const qnPrev,
     vectorReal const qnPrevPrev, vectorReal const gradKappa, vectorReal const gradBuoyancy) const {
   // Reuse the precomputed geometric mass matrix (nodal volumes) as the mass
-  // matrix diagonal for node normalization. It must have been initialized via
-  // initGeometricMassMatrix() before compute() is called.
+  // matrix diagonal for node normalization. If initGeometricMassMatrix() was
+  // not called beforehand, build it lazily here so that compute() stays
+  // self-contained (and getGeometricMassMatrix() returns valid data). The
+  // result is cached, so subsequent compute() calls reuse it.
+  if (geometricMassMatrix_.extent(0) != mesh.getNumberOfNodes())
+    const_cast<DifferentiatorAcoustic<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES>*>(this)
+        ->initGeometricMassMatrix(mesh);
   auto massDiag = geometricMassMatrix_;
 
   // =====================================================

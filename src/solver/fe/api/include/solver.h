@@ -179,6 +179,18 @@ class Solver {
 
   virtual void setSLSAttenuation(const vectorReal& reference_frequencies,
                                  const vectorReal& anelasticity_coefficients = vectorReal()) = 0;
+
+  /**
+   * @brief Release every internally-owned Kokkos View before Kokkos::finalize().
+   *
+   * Host-only, default no-op. The python client may call kokkos.finalize()
+   * before this solver wrapper is destroyed (reference-count / GC ordering), so
+   * the managed Views would otherwise be deallocated after finalize and abort.
+   * Concrete solvers reset their managed Views here so the allocations are freed
+   * while Kokkos is still alive. Declared last so it occupies the final vtable
+   * slot and keeps existing virtual indices unchanged (ABI-safe).
+   */
+  virtual void release() {}
 };
 }  // namespace fe
 }  // namespace solver
