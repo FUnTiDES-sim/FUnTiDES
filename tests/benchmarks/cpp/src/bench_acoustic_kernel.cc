@@ -127,46 +127,7 @@ BENCHMARK_TEMPLATE_METHOD_F(AcousticKernelFixture, ElementContrib_Flat)(benchmar
 }
 
 // ==============================================================================
-// BENCHMARK 2 : Teams (makutu)
-// ==============================================================================
-BENCHMARK_TEMPLATE_METHOD_F(AcousticKernelFixture, ElementContrib_Teams)(benchmark::State& state) {
-  auto model = this->createModel();
-  auto solver =
-      solver_factory::createSolver(methodType::kSem, this->implem_, meshType::kUnstruct,
-                                   this->isModelOnNodes_ ? modelLocationType::kOnNodes : modelLocationType::kOnElements,
-                                   physicType::kAcoustic, this->order);
-  solver->computeFEInit(*model, this->sponge_size, this->surface_sponge, this->taper_delta);
-
-  BenchmarkArrays arrays(this->n_rhs, this->n_time_steps, this->n_dof, model->getNumberOfPointsPerElement());
-  auto wavefield = WavefieldAcoustic(arrays.pnGlobalPrev, arrays.pnGlobalCurr);
-  auto rhs = RhsAcoustic(arrays.rhsTerm, arrays.rhsElement, arrays.rhsWeights);
-  SEMsolverDataAcoustic data(wavefield, rhs);
-
-  using Integral = typename IntegralTypeSelector<this->order, IntegralType::MAKUTU>::type;
-  using Model = ModelUnstruct<float, int>;
-  using SolverOnNodes = solver::fe::SEMsolver<this->order, Integral, Model, true, solver::fe::physicType::kAcoustic>;
-  using SolverOnElems = solver::fe::SEMsolver<this->order, Integral, Model, false, solver::fe::physicType::kAcoustic>;
-
-  if (this->isModelOnNodes_) {
-    auto* s = dynamic_cast<SolverOnNodes*>(solver.get());
-    s->computeElementContributions_Acoustic_Teams(data);  // warmup
-    FENCE
-    for (auto _ : state)
-      state.SetIterationTime(timeDevice([&] { s->computeElementContributions_Acoustic_Teams(data); }));
-  } else {
-    auto* s = dynamic_cast<SolverOnElems*>(solver.get());
-    s->computeElementContributions_Acoustic_Teams(data);  // warmup
-    FENCE
-    for (auto _ : state)
-      state.SetIterationTime(timeDevice([&] { s->computeElementContributions_Acoustic_Teams(data); }));
-  }
-
-  setThroughput(state, this->n_dof);
-  this->setLabel(state);
-}
-
-// ==============================================================================
-// BENCHMARK 3 : Tensorial GEMM  (+ correctness gate vs Flat)
+// BENCHMARK 2 : Tensorial GEMM  (+ correctness gate vs Flat)
 // ==============================================================================
 BENCHMARK_TEMPLATE_METHOD_F(AcousticKernelFixture, ElementContrib_Tensorial)(benchmark::State& state) {
   auto model = this->createModel();
@@ -239,12 +200,6 @@ BENCHMARK_TEMPLATE_METHOD_F(AcousticKernelFixture, ElementContrib_Tensorial)(ben
 }
 
 BENCHMARK_FOR_ALL_ORDERS(AcousticKernelFixture, ElementContrib_Flat,
-                         AcousticKernelConfig,
-                             ->ArgsProduct({{0, 1}, {static_cast<int64_t>(implemType::kMakutu)}})
-                             ->UseManualTime()
-                             ->Unit(benchmark::kMicrosecond))
-
-BENCHMARK_FOR_ALL_ORDERS(AcousticKernelFixture, ElementContrib_Teams,
                          AcousticKernelConfig,
                              ->ArgsProduct({{0, 1}, {static_cast<int64_t>(implemType::kMakutu)}})
                              ->UseManualTime()
