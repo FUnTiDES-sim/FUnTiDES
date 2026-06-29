@@ -272,22 +272,12 @@ void DGsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::comp
               int const ei = face_to_elem_dof[fid_o][i];
               int const ej = face_to_elem_dof[fid_o][j];
               int const ej_perm = face_to_elem_dof[fid_n][face_connectivity_local.getNeighborFaceDof(f, j)];
-              int const ei_perm = face_to_elem_dof[fid_n][face_connectivity_local.getNeighborFaceDof(f, i)];
               float const nk = normal[k];
-              stiff_o[ei] += inv_rho_o * (-0.5f * val * current_field(owner_e, ej) * nk);
+              stiff_o[ei] += inv_rho_o * (-0.5f * val * current_field(owner_e, ej) * nk +
+                                          0.5f * val * current_field(neighbor_e, ej_perm) * nk);
               stiff_o[ej] += inv_rho_o * (-0.5f * val * current_field(owner_e, ei) * nk);
+              stiff_n[ej_perm] += inv_rho_o * (0.5f * val * current_field(owner_e, ei) * nk);
             });
-        INTEGRAL_TYPE::computeInterfaceFluxTerm(
-            faceCoords, neighbor_coords, fid_n, [&](const int i, const int j, const int k, const real_t val) {
-              int const ei = face_to_elem_dof[fid_n][i];
-              int const ej = face_to_elem_dof[fid_n][j];
-              int const ej_perm = face_to_elem_dof[fid_o][face_connectivity_local.getOwnerFaceDof(f, j)];
-              int const ei_perm = face_to_elem_dof[fid_o][face_connectivity_local.getOwnerFaceDof(f, i)];
-              float const nk = normal[k];
-              stiff_o[ei_perm] += inv_rho_n * (0.5f * val * current_field(neighbor_e, ej) * nk);
-              stiff_o[ej_perm] += inv_rho_n * (0.5f * val * current_field(neighbor_e, ei) * nk);
-            });
-
 
         for (int i = 0; i < knumNodesPerFace; ++i) {
           int const ei = face_to_elem_dof[fid_o][i];
@@ -302,25 +292,16 @@ void DGsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::comp
               int const ei = face_to_elem_dof[fid_n][i];
               int const ej = face_to_elem_dof[fid_n][j];
               int const ej_perm = face_to_elem_dof[fid_o][face_connectivity_local.getOwnerFaceDof(f, j)];
-              int const ei_perm = face_to_elem_dof[fid_o][face_connectivity_local.getOwnerFaceDof(f, i)];
               float const nk = -normal[k];
-              stiff_n[ei] += inv_rho_n * (-0.5f * val * current_field(neighbor_e, ej) * nk);
+              stiff_n[ei] += inv_rho_n * (-0.5f * val * current_field(neighbor_e, ej) * nk +
+                                          0.5f * val * current_field(owner_e, ej_perm) * nk);
               stiff_n[ej] += inv_rho_n * (-0.5f * val * current_field(neighbor_e, ei) * nk);
-            });
-        INTEGRAL_TYPE::computeInterfaceFluxTerm(
-            faceCoords, owner_coords, fid_o, [&](const int i, const int j, const int k, const real_t val) {
-              int const ei = face_to_elem_dof[fid_o][i];
-              int const ej = face_to_elem_dof[fid_o][j];
-              int const ej_perm = face_to_elem_dof[fid_n][face_connectivity_local.getNeighborFaceDof(f, j)];
-              int const ei_perm = face_to_elem_dof[fid_n][face_connectivity_local.getNeighborFaceDof(f, i)];
-              float const nk = -normal[k];
-              stiff_n[ei_perm] += inv_rho_o * (0.5f * val * current_field(owner_e, ej) * nk);
-              stiff_n[ej_perm] += inv_rho_o * (0.5f * val * current_field(owner_e, ei) * nk);
+              stiff_o[ej_perm] += inv_rho_n * (0.5f * val * current_field(neighbor_e, ei) * nk);
             });
 
         for (int i = 0; i < knumNodesPerFace; ++i) {
           int const ei = face_to_elem_dof[fid_n][i];
-          int const ei_perm = face_to_elem_dof[fid_o][face_connectivity_local.getNeighborFaceDof(f, i)];
+          int const ei_perm = face_to_elem_dof[fid_o][face_connectivity_local.getOwnerFaceDof(f, i)];
           stiff_n[ei] += gamma_n * INTEGRAL_TYPE::computeDampingTerm(i, faceCoords) *
                          (current_field(neighbor_e, ei) - current_field(owner_e, ei_perm));
         }
