@@ -46,30 +46,6 @@ class SEMsolver : public Solver {
 
   // -------------------------------------
 
-  /**
-   * @brief Release every internally-owned Kokkos View before Kokkos::finalize().
-   *
-   * Host-only. The python client may destroy this solver wrapper after calling
-   * kokkos.finalize() (reference-count / GC ordering). Resetting every managed
-   * View member to an empty View frees the allocations while Kokkos is still
-   * alive; Views that merely wrap python-owned buffers reset to a no-op.
-   */
-  void release() override {
-    spongeTaperCoeff_ = vectorReal();
-    massMatrixGlobal_ = vectorReal();
-    slsReferenceAngularFrequencies_ = vectorReal();
-    slsAnelasticityCoefficients_ = vectorReal();
-    m_element_mask_ = vectorInt();
-    m_elem_list_ = vectorInt();
-    m_node_list_ = vectorInt();
-    for (int c = 0; c < kNumFields; ++c) {
-      dampingMatrixGlobal_[c] = vectorReal();
-      workVectorsGlobal_[c] = vectorReal();
-      attenuationWorkVectorsGlobal_[c] = vectorReal();
-      attenuationMemoryVariables_[c] = arrayReal();
-    }
-  }
-
   void computeFEInit(model::ModelApi<float, int>& mesh, const std::array<float, 3>& sponge_size,
                      const bool surface_sponge, const float taper_delta) override;
 

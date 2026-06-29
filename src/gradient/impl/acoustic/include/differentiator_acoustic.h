@@ -54,15 +54,6 @@ class DifferentiatorAcoustic : public Differentiator {
   void print() const override;
 
   /**
-   * @brief Release the geometric mass matrix View before Kokkos::finalize().
-   *
-   * Host-only. The python client may destroy this differentiator after calling
-   * kokkos.finalize() (reference-count / GC ordering); resetting the managed
-   * View here frees the allocation while Kokkos is still alive.
-   */
-  void release() override { geometricMassMatrix_ = vectorReal(); }
-
-  /**
    * @brief Each element writes to a unique index — no atomic add required.
    *
    * Computes qdt2 = (qnPrevPrev - 2*qnPrev + qn) / dt^2 on the fly.

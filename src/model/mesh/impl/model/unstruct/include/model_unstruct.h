@@ -73,45 +73,6 @@ struct ModelUnstructData : public ModelDataBase<FloatType, ScalarType> {
         boundaries_t_(boundaries_t),
         face_connectivity_(face_connectivity) {}
 
-  /**
-   * @brief Release every Kokkos View held by this data carrier.
-   *
-   * Host-only. This struct may share managed allocations (e.g. the elastic
-   * stiffness tensor) with the ModelUnstruct built from it. The python client
-   * destroys this object after calling kokkos.finalize(), so its Views must be
-   * reset to empty here to drop their references before finalize; for Views
-   * that merely wrap python-owned buffers the reset is a harmless no-op.
-   */
-  void release() {
-    global_node_index_ = arrayInt();
-    nodes_coords_x_ = vectorReal();
-    nodes_coords_y_ = vectorReal();
-    nodes_coords_z_ = vectorReal();
-    model_vp_node_ = vectorReal();
-    model_vp_element_ = vectorReal();
-    model_rho_node_ = vectorReal();
-    model_rho_element_ = vectorReal();
-    model_vs_node_ = vectorReal();
-    model_vs_element_ = vectorReal();
-    model_qp_node_ = vectorReal();
-    model_qp_element_ = vectorReal();
-    model_qs_node_ = vectorReal();
-    model_qs_element_ = vectorReal();
-    model_delta_node_ = vectorReal();
-    model_delta_element_ = vectorReal();
-    model_epsilon_node_ = vectorReal();
-    model_epsilon_element_ = vectorReal();
-    model_gamma_node_ = vectorReal();
-    model_gamma_element_ = vectorReal();
-    model_theta_node_ = vectorReal();
-    model_theta_element_ = vectorReal();
-    model_phi_node_ = vectorReal();
-    model_phi_element_ = vectorReal();
-    model_C_tensor_element_ = array3DReal();
-    boundaries_t_ = vectorInt();
-    face_connectivity_ = FaceConnectivityUnstructData<FloatType, ScalarType>();
-  }
-
   FloatType origin_x_{0}, origin_y_{0}, origin_z_{0};
   FloatType ox_, oy_, oz_;  // Local origin
   ScalarType order_;
@@ -712,47 +673,6 @@ class ModelUnstruct final : public ModelApi<FloatType, ScalarType> {
     if (face_connectivity_.getNumberOfFaces() > 0) return;
 
     face_connectivity_.build(*this);
-  }
-
-  /**
-   * @brief Release all internally-owned Kokkos Views before Kokkos::finalize().
-   *
-   * Host-only. The client (python) calls kokkos.finalize() before destroying
-   * this model. Any Kokkos View that was allocated internally (face
-   * connectivity, the elastic stiffness tensor, the quality-factor element
-   * arrays, ...) would otherwise be deallocated after finalize and abort.
-   * Resetting every View member to an empty View frees the managed allocations
-   * here; for Views that merely wrap python-owned buffers (unmanaged) the reset
-   * is a no-op.
-   */
-  void releaseFaceConnectivity() override {
-    global_node_index_ = arrayInt();
-    nodes_coords_x_ = vectorReal();
-    nodes_coords_y_ = vectorReal();
-    nodes_coords_z_ = vectorReal();
-    model_vp_node_ = vectorReal();
-    model_vp_element_ = vectorReal();
-    model_rho_node_ = vectorReal();
-    model_rho_element_ = vectorReal();
-    model_vs_node_ = vectorReal();
-    model_vs_element_ = vectorReal();
-    model_qp_node_ = vectorReal();
-    model_qp_element_ = vectorReal();
-    model_qs_node_ = vectorReal();
-    model_qs_element_ = vectorReal();
-    model_delta_node_ = vectorReal();
-    model_delta_element_ = vectorReal();
-    model_epsilon_node_ = vectorReal();
-    model_epsilon_element_ = vectorReal();
-    model_theta_node_ = vectorReal();
-    model_theta_element_ = vectorReal();
-    model_gamma_node_ = vectorReal();
-    model_gamma_element_ = vectorReal();
-    model_phi_node_ = vectorReal();
-    model_phi_element_ = vectorReal();
-    model_C_tensor_element_ = array3DReal();
-    boundaries_t_ = vectorInt();
-    face_connectivity_.release();
   }
   /**
    * @brief Get global face ID from element and local face

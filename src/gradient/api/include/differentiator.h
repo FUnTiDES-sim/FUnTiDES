@@ -83,18 +83,6 @@ class Differentiator {
    * @brief Print information about this gradient computation.
    */
   virtual void print() const = 0;
-
-  /**
-   * @brief Release every internally-owned Kokkos View before Kokkos::finalize().
-   *
-   * Host-only, default no-op. The python client may call kokkos.finalize()
-   * before this differentiator wrapper is destroyed (reference-count / GC
-   * ordering), so the managed Views would otherwise be deallocated after
-   * finalize and abort. Concrete differentiators reset their managed Views here.
-   * Declared last so it occupies the final vtable slot, keeping existing virtual
-   * indices unchanged (ABI-safe).
-   */
-  virtual void release() {}
 };
 
 }  // namespace gradient

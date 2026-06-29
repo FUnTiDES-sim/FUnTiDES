@@ -8,8 +8,6 @@
 #include <pybind11/stl.h>
 
 #include <KokkosExp_InterOp.hpp>
-#include <Kokkos_Core.hpp>
-#include <memory>
 #include <string>
 
 #include "bindings_utils.h"
@@ -61,20 +59,7 @@ void bind_modelapi(py::module_ &m) {
       .def("domain_size", &T::domainSize)
       .def("get_min_spacing", &T::getMinSpacing)
       .def("get_max_speed", &T::getMaxSpeed)
-      // Build the face connectivity and register a Kokkos finalize hook that
-      // releases its internally-owned device Views before Kokkos::finalize().
-      // The client (pykokkos) may call kokkos.finalize() before this model is
-      // destroyed; without this hook, the managed Views would be deallocated
-      // after finalize and trigger a Kokkos host_abort. The hook captures a
-      // weak_ptr so it is a no-op if the model is already destroyed.
-      .def("build_face_connectivity",
-           [](std::shared_ptr<T> self) {
-             self->buildFaceConnectivity();
-             std::weak_ptr<T> weak = self;
-             Kokkos::push_finalize_hook([weak]() {
-               if (auto locked = weak.lock()) locked->releaseFaceConnectivity();
-             });
-           })
+      .def("build_face_connectivity", &T::buildFaceConnectivity)
       .def("get_number_of_faces", &T::getNumberOfFaces)
       .def("is_boundary_face", &T::isBoundaryFace)
       .def("get_global_node_from_face", &T::getGlobalNodeFromFace)
@@ -130,37 +115,31 @@ void bind_modelunstructdata(py::module_ &m) {
 
   std::string name = model_class_name<FloatType, ScalarType>("ModelUnstructData");
 
-  using PArrInt = Kokkos::Experimental::python_view_type_t<arrayInt>;
-  using PVecReal = Kokkos::Experimental::python_view_type_t<vectorReal>;
-  using PArr3Real = Kokkos::Experimental::python_view_type_t<array3DReal>;
-  using PVecInt = Kokkos::Experimental::python_view_type_t<vectorInt>;
-
-  py::class_<Data, std::shared_ptr<Data>>(m, name.c_str())
-      // Constructeur existant INCHANGÉ (sans face_connectivity). Construit via
-      // une fabrique afin d'enregistrer un finalize hook : le client détruit ce
-      // model_data APRÈS kokkos.finalize(), donc on relâche ici (via weak_ptr)
-      // les Views Kokkos gérées avant finalize pour éviter un host_abort.
-      .def(py::init([](ScalarType order, ScalarType n_element, ScalarType n_node, FloatType lx, FloatType ly,
-                       FloatType lz, bool is_model_on_nodes, bool is_elastic, PArrInt global_node_index,
-                       PVecReal nodes_coords_x, PVecReal nodes_coords_y, PVecReal nodes_coords_z, PVecReal model_vp_node,
-                       PVecReal model_vp_element, PVecReal model_rho_node, PVecReal model_rho_element,
-                       PVecReal model_vs_node, PVecReal model_vs_element, PVecReal model_delta_node,
-                       PVecReal model_delta_element, PVecReal model_epsilon_node, PVecReal model_epsilon_element,
-                       PVecReal model_gamma_node, PVecReal model_gamma_element, PVecReal model_theta_node,
-                       PVecReal model_theta_element, PVecReal model_phi_node, PVecReal model_phi_element,
-                       PArr3Real model_C_tensor_element, PVecInt boundaries_t) {
-             auto data = std::make_shared<Data>(
-                 order, n_element, n_node, lx, ly, lz, is_model_on_nodes, is_elastic, global_node_index, nodes_coords_x,
-                 nodes_coords_y, nodes_coords_z, model_vp_node, model_vp_element, model_rho_node, model_rho_element,
-                 model_vs_node, model_vs_element, model_delta_node, model_delta_element, model_epsilon_node,
-                 model_epsilon_element, model_gamma_node, model_gamma_element, model_theta_node, model_theta_element,
-                 model_phi_node, model_phi_element, model_C_tensor_element, boundaries_t);
-             std::weak_ptr<Data> weak = data;
-             Kokkos::push_finalize_hook([weak]() {
-               if (auto locked = weak.lock()) locked->release();
-             });
-             return data;
-           }),
+  py::class_<Data>(m, name.c_str())
+      // Constructeur existant INCHANGÉ (sans face_connectivity)
+      .def(py::init<ScalarType, ScalarType, ScalarType, FloatType, FloatType, FloatType, bool, bool,
+                    Kokkos::Experimental::python_view_type_t<arrayInt>,
+                    Kokkos::Experimental::python_view_type_t<vectorReal>,
+                    Kokkos::Experimental::python_view_type_t<vectorReal>,
+                    Kokkos::Experimental::python_view_type_t<vectorReal>,
+                    Kokkos::Experimental::python_view_type_t<vectorReal>,
+                    Kokkos::Experimental::python_view_type_t<vectorReal>,
+                    Kokkos::Experimental::python_view_type_t<vectorReal>,
+                    Kokkos::Experimental::python_view_type_t<vectorReal>,
+                    Kokkos::Experimental::python_view_type_t<vectorReal>,
+                    Kokkos::Experimental::python_view_type_t<vectorReal>,
+                    Kokkos::Experimental::python_view_type_t<vectorReal>,
+                    Kokkos::Experimental::python_view_type_t<vectorReal>,
+                    Kokkos::Experimental::python_view_type_t<vectorReal>,
+                    Kokkos::Experimental::python_view_type_t<vectorReal>,
+                    Kokkos::Experimental::python_view_type_t<vectorReal>,
+                    Kokkos::Experimental::python_view_type_t<vectorReal>,
+                    Kokkos::Experimental::python_view_type_t<vectorReal>,
+                    Kokkos::Experimental::python_view_type_t<vectorReal>,
+                    Kokkos::Experimental::python_view_type_t<vectorReal>,
+                    Kokkos::Experimental::python_view_type_t<vectorReal>,
+                    Kokkos::Experimental::python_view_type_t<array3DReal>,
+                    Kokkos::Experimental::python_view_type_t<vectorInt>>(),
            py::arg("order"), py::arg("n_element"), py::arg("n_node"), py::arg("lx"), py::arg("ly"), py::arg("lz"),
            py::arg("is_model_on_nodes"), py::arg("is_elastic"), py::arg("global_node_index"), py::arg("nodes_coords_x"),
            py::arg("nodes_coords_y"), py::arg("nodes_coords_z"), py::arg("model_vp_node"), py::arg("model_vp_element"),

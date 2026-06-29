@@ -5,7 +5,6 @@
 #include <pybind11/stl.h>
 
 #include <KokkosExp_InterOp.hpp>
-#include <Kokkos_Core.hpp>
 #include <memory>
 
 #include "common_macros.h"
@@ -155,18 +154,7 @@ void bind_solver_factory(py::module_ &m) {
       [](utils::enums::methodType method, utils::enums::implemType implem, utils::enums::meshType mesh,
          utils::enums::modelLocationType modelLocation, utils::enums::physicType physic, int order) {
         auto solver = solver_factory::createSolver(method, implem, mesh, modelLocation, physic, order);
-        std::shared_ptr<Solver> shared(std::move(solver));
-        // Register a Kokkos finalize hook that releases the solver's internally
-        // owned device Views before Kokkos::finalize(). The python client may
-        // call kokkos.finalize() before this wrapper is destroyed (reference
-        // count / GC ordering); without this hook the managed Views would be
-        // deallocated after finalize and trigger a Kokkos host_abort. The hook
-        // captures a weak_ptr so it is a no-op if the solver is already gone.
-        std::weak_ptr<Solver> weak = shared;
-        Kokkos::push_finalize_hook([weak]() {
-          if (auto locked = weak.lock()) locked->release();
-        });
-        return shared;
+        return std::shared_ptr<Solver>(std::move(solver));
       },
       py::arg("method_type"), py::arg("implem_type"), py::arg("mesh_type"), py::arg("model_location"),
       py::arg("physic_type"), py::arg("order"));
