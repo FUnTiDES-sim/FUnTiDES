@@ -118,10 +118,24 @@ class FaceConnectivityApi {
    * in different orders.
    *
    * @param face_id   Global face ID.
-   * @param owner_dof 2D face DOF index in the owner element [0, (N+1)^2).
+   * @param owner_dof 2D face DOF index in the owner element [0, (N+1)^2].
    * @return          Corresponding 2D face DOF index in the neighbor element.
    */
   PROXY_HOST_DEVICE virtual int getNeighborFaceDof(ScalarType face_id, int owner_dof) const = 0;
+
+  /**
+   * @brief Map an neighbor 2D face DOF index to the corresponding owner 2D
+   * face DOF index for the same physical node.
+   *
+   * This permutation is needed by DG flux kernels to match degrees of freedom
+   * across an interface when the two adjacent elements index the shared face
+   * in different orders.
+   *
+   * @param face_id       Global face ID.
+   * @param neighbor_dof  2D face DOF index in the neighbor element [0, (N+1)^2].
+   * @return              Corresponding 2D face DOF index in the owner element.
+   */
+  PROXY_HOST_DEVICE virtual int getOwnerFaceDof(ScalarType face_id, int neighbor_dof) const = 0;
 };
 
 }  // namespace model
