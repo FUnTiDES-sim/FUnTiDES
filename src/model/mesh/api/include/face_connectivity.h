@@ -123,7 +123,7 @@ class FaceConnectivityApi {
    */
   PROXY_HOST_DEVICE virtual int getNeighborFaceDof(ScalarType face_id, int owner_dof) const = 0;
 
-    /**
+  /**
    * @brief Map an neighbor 2D face DOF index to the corresponding owner 2D
    * face DOF index for the same physical node.
    *

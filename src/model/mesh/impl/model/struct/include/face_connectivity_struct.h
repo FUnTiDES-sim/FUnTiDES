@@ -234,7 +234,9 @@ class FaceConnectivityStruct : public FaceConnectivityApi<FloatType, ScalarType>
    * @brief On Cartesian structured meshes adjacent elements always index the
    * shared face in the same order, so the permutation is the identity.
    */
-  PROXY_HOST_DEVICE int getOwnerFaceDof(ScalarType /*face_id*/, int neighbor_dof) const override { return neighbor_dof; }
+  PROXY_HOST_DEVICE int getOwnerFaceDof(ScalarType /*face_id*/, int neighbor_dof) const override {
+    return neighbor_dof;
+  }
 
  private:
   ScalarType ex_{0}, ey_{0}, ez_{0};

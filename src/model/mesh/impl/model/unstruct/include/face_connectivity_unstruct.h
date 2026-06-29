@@ -38,7 +38,7 @@ struct FaceConnectivityUnstructData {
  * @tparam FloatType Floating point type
  * @tparam ScalarType Integer type for indexing
  */
-template <typename FloatType, typename ScalarType, int ORDER=-1>
+template <typename FloatType, typename ScalarType, int ORDER = -1>
 class FaceConnectivityUnstruct : public FaceConnectivityApi<FloatType, ScalarType> {
  public:
   FaceConnectivityUnstruct() = default;
