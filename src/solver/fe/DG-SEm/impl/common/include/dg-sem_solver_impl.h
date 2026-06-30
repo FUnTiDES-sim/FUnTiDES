@@ -233,8 +233,7 @@ void DGSEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::B
 
 template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE, bool IS_MODEL_ON_NODES,
           utils::enums::physicType PHYSICS>
-void DGSEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::ApplyCoupling(
-    const DataType& data) {
+void DGSEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::ApplyCoupling(const DataType& data) {
   auto mesh_local = m_mesh_;
   auto face_connectivity_local = m_face_connectivity_;
   auto const p_DG = data.m_wavefield.m_DGacoustic.getCurrentField(0);
@@ -258,20 +257,20 @@ void DGSEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::A
         int const fid_n = face_connectivity_local.localFaceNeighbor(f);
 
         bool const owner_is_dg = (element_type(owner_e) == kElementTypeDG);
-        int const dg_e   = owner_is_dg ? owner_e    : neighbor_e;
-        int const sem_e  = owner_is_dg ? neighbor_e : owner_e;
-        int const fid_dg  = owner_is_dg ? fid_o : fid_n;
+        int const dg_e = owner_is_dg ? owner_e : neighbor_e;
+        int const sem_e = owner_is_dg ? neighbor_e : owner_e;
+        int const fid_dg = owner_is_dg ? fid_o : fid_n;
         int const fid_sem = owner_is_dg ? fid_n : fid_o;
 
         auto dg_to_sem = [&](int i) {
-            return owner_is_dg ? face_connectivity_local.getNeighborFaceDof(f, i)
-                              : face_connectivity_local.getOwnerFaceDof(f, i);
+          return owner_is_dg ? face_connectivity_local.getNeighborFaceDof(f, i)
+                             : face_connectivity_local.getOwnerFaceDof(f, i);
         };
         auto sem_to_dg = [&](int i) {
-            return owner_is_dg ? face_connectivity_local.getOwnerFaceDof(f, i)
-                              : face_connectivity_local.getNeighborFaceDof(f, i);
+          return owner_is_dg ? face_connectivity_local.getOwnerFaceDof(f, i)
+                             : face_connectivity_local.getNeighborFaceDof(f, i);
         };
-        
+
         float faceCoords[4][3];
         for (int j = 0; j < 4; ++j) {
           int const gni = face_connectivity_local.getGlobalNodeFromFace(f, INTEGRAL_TYPE::meshIndexToLinearIndex2D(j));
@@ -336,8 +335,7 @@ void DGSEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::A
               stiff_dg_local[ej_perm] += inv_rho_sem * nk * (0.5f * val * p_SEM(gn_i));
               ATOMICADD(work_sem(gn_i),
                         inv_rho_sem * nk * (-0.5f * val * p_SEM(gn_j) + 0.5f * val * p_DG(dg_e, ej_perm)));
-              ATOMICADD(work_sem(gn_j),
-                        inv_rho_sem * nk * (-0.5f * val * p_SEM(gn_i)));
+              ATOMICADD(work_sem(gn_j), inv_rho_sem * nk * (-0.5f * val * p_SEM(gn_i)));
             });
 
         for (int i = 0; i < knumNodesPerFace; ++i) {

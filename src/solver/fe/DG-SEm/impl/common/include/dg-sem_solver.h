@@ -136,7 +136,7 @@ class DGSEMsolver : public Solver {
    */
   void computeOneStep(const float& dt, const int& timeSample, DataStruct& data) override;
 
-    /**
+  /**
    * @brief Compute SIPG interface flux contribution on both side (DG and SEM).
    *
    * Reads p^n from both domains (no temporal lag). Accumulates into DG m_stiff_local_ and SEM workVectorsGlobal_[0],
