@@ -75,6 +75,10 @@ class TestDifferentiatorWithRotation:
             LOC,
             PHYS,
             ORDER)
+
+        # Initialize the geometric mass matrix once before the time loop
+        # (required for node-based compute, which reuses it for normalization).
+        self.differentiator.init_geometric_mass_matrix(self.model)
     
     def teardown_method(self):
         del (self.kk_pn, self.kk_qn_prev, self.kk_qn_curr, self.kk_qn_pp,
