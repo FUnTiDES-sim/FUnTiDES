@@ -136,23 +136,14 @@ class DGSEMsolver : public Solver {
    */
   void computeOneStep(const float& dt, const int& timeSample, DataStruct& data) override;
 
-  /**
-   * @brief Compute SIPG interface flux contribution on the DG side.
+    /**
+   * @brief Compute SIPG interface flux contribution on both side (DG and SEM).
    *
-   * Reads p^n from both domains (no temporal lag). Accumulates into DG m_stiff_local_,
+   * Reads p^n from both domains (no temporal lag). Accumulates into DG m_stiff_local_ and SEM workVectorsGlobal_[0],
    * consumed by applyVerlet.
    * @param data Coupled solver data.
    */
-  void ApplyCouplingSEMToDG(const DataType& data);
-
-  /**
-   * @brief Compute SIPG interface flux contribution on the SEM side.
-   *
-   * Reads p^n from both domains (no temporal lag). Accumulates into SEM
-   * workVectorsGlobal_[0] (pre-Verlet force vector, Verlet applies dt²/M).
-   * @param data Coupled solver data.
-   */
-  void ApplyCouplingDGToSEM(const DataType& data);
+  void ApplyCoupling(const DataType& data);
 
   void outputSolutionValues(const int& t, int& e, const vectorReal& field, const char* fieldName) override;
   void outputSolutionValues(const int& t, int& e, const arrayReal& field, const char* fieldName) override;
