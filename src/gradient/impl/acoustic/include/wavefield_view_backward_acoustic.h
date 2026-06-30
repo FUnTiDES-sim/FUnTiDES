@@ -14,7 +14,7 @@ namespace gradient {
  *
  * Exposes three consecutive adjoint pressure snapshots required by the
  * acoustic gradient kernel to compute the second-order time derivative on
- * the fly: qdt2 = (qnPrevPrev - 2*qnPrev + qn) / dt².
+ * the fly: qdt2 = (qnPrevPrev - 2*qnPrev + qn) / dt^2.
  *
  * Constructed by the caller from solver adjoint wavefield data plus an
  * externally managed third buffer; no solver dependency here.

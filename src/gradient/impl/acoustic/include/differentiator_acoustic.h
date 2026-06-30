@@ -35,10 +35,19 @@ class DifferentiatorAcoustic : public Differentiator {
    * @brief Compute acoustic gradients (Kappa, Buoyancy).
    *
    * Computes:
-   *   grad_kappa   = ∑_elements ∑_quadrature q_dt² * p * mass_term
+   *   grad_kappa   = ∑_elements ∑_quadrature q_dt^2 * p * mass_term
    *   grad_buoyancy = ∑_elements ∑_stiffness stiffness_term * q * p
    */
   void compute(model::ModelApi<float, int>& mesh, DataStruct& data, float dt) const override;
+
+  /**
+   * @brief Get the geometric mass matrix for normalization in FWI.
+   *
+   * Returns the geometric nodal volumes Omega_I = sum_{e in I} w_I^e |J_I^e|
+   * computed without model factors. Used for FWI preconditioning:
+   * K^kappa(x_I) = G^kappa_I / Omega_I
+   */
+  vectorReal& getGeometricMassMatrix() override;
 
   int getOrder() const override;
   bool isModelOnNodes() const override;
@@ -47,7 +56,7 @@ class DifferentiatorAcoustic : public Differentiator {
   /**
    * @brief Each element writes to a unique index — no atomic add required.
    *
-   * Computes qdt2 = (qnPrevPrev - 2*qnPrev + qn) / dt² on the fly.
+   * Computes qdt2 = (qnPrevPrev - 2*qnPrev + qn) / dt^2 on the fly.
    */
   void computeOnElements(MESH_TYPE mesh, float dt, vectorReal const pn, vectorReal const qn, vectorReal const qnPrev,
                          vectorReal const qnPrevPrev, vectorReal const gradKappa, vectorReal const gradBuoyancy) const;
@@ -55,12 +64,27 @@ class DifferentiatorAcoustic : public Differentiator {
   /**
    * @brief Multiple elements share boundary nodes — ATOMICADD required.
    *
-   * Computes qdt2 = (qnPrevPrev - 2*qnPrev + qn) / dt² on the fly.
+   * Computes qdt2 = (qnPrevPrev - 2*qnPrev + qn) / dt^2 on the fly.
    * Gradients are normalized by the mass matrix diagonal to account for
    * multiple elements sharing nodes at the domain interior.
    */
   void computeOnNodes(MESH_TYPE mesh, float dt, vectorReal const pn, vectorReal const qn, vectorReal const qnPrev,
                       vectorReal const qnPrevPrev, vectorReal const gradKappa, vectorReal const gradBuoyancy) const;
+
+  /**
+   * @brief Initialize the geometric mass matrix (nodal volumes without model factors).
+   *
+   * Must be called once before compute(): for node-based models the geometric
+   * mass matrix is used to normalize node gradients, and it is also exposed via
+   * getGeometricMassMatrix() for FWI preconditioning.
+   *
+   * @param mesh The computational mesh.
+   * @note Public to accommodate CUDA device lambda requirements in Kokkos.
+   */
+  void initGeometricMassMatrix(model::ModelApi<float, int>& mesh) override;
+
+ private:
+  vectorReal geometricMassMatrix_;
 };
 
 }  // namespace gradient

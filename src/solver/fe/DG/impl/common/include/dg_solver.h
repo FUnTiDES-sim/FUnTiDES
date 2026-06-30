@@ -209,7 +209,7 @@ class DGsolver : public Solver {
 
  private:
   MESH_TYPE m_mesh;
-  model::FaceConnectivityUnstruct<float, int> m_face_connectivity_;
+  model::FaceConnectivityUnstruct<float, int, ORDER> m_face_connectivity_;
   real_t m_penalty_factor_ = 12.0f;
 
  public:
