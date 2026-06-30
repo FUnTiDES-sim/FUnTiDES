@@ -3,8 +3,8 @@
 
 #include <data_type.h>
 
-#include "mathUtilites.h"
 #include "fe_discretization.h"
+#include "mathUtilites.h"
 
 /**
  * @brief Implementation-independent core of the Qk hexahedral Gauss-Lobatto
@@ -187,10 +187,8 @@ class QkHexahedronBase : public discretization::fe::api::FeDiscretizationTag {
 };
 
 template <typename GL_BASIS>
-PROXY_HOST_DEVICE void QkHexahedronBase<GL_BASIS>::jacobianTransformation(int const qa, int const qb,
-                                                                                             int const qc,
-                                                                                             real_t const (&X)[8][3],
-                                                                                             real_t (&J)[3][3]) {
+PROXY_HOST_DEVICE void QkHexahedronBase<GL_BASIS>::jacobianTransformation(int const qa, int const qb, int const qc,
+                                                                          real_t const (&X)[8][3], real_t (&J)[3][3]) {
   for (int k = 0; k < 8; k++) {
     const int ka = k % 2;
     const int kb = (k % 4) / 2;
@@ -206,10 +204,9 @@ PROXY_HOST_DEVICE void QkHexahedronBase<GL_BASIS>::jacobianTransformation(int co
 }
 
 template <typename GL_BASIS>
-PROXY_HOST_DEVICE void QkHexahedronBase<GL_BASIS>::jacobianTransformation2d(int const qa,
-                                                                                               int const qb,
-                                                                                               real_t const (&X)[4][3],
-                                                                                               real_t (&J)[3][2]) {
+PROXY_HOST_DEVICE void QkHexahedronBase<GL_BASIS>::jacobianTransformation2d(int const qa, int const qb,
+                                                                            real_t const (&X)[4][3],
+                                                                            real_t (&J)[3][2]) {
   for (int k = 0; k < 4; k++) {
     int ka = k % 2;
     int kb = k / 2;
@@ -224,8 +221,7 @@ PROXY_HOST_DEVICE void QkHexahedronBase<GL_BASIS>::jacobianTransformation2d(int 
 
 template <typename GL_BASIS>
 template <typename FUNC>
-PROXY_HOST_DEVICE void QkHexahedronBase<GL_BASIS>::computeMassTerm(float const (&X)[8][3],
-                                                                                      FUNC &&func) {
+PROXY_HOST_DEVICE void QkHexahedronBase<GL_BASIS>::computeMassTerm(float const (&X)[8][3], FUNC &&func) {
   constexpr int N = num1dNodes;
   triple_loop<N, N, N>([&](auto const icqa, auto const icqb, auto const icqc) {
     constexpr int qa = decltype(icqa)::value;
@@ -241,8 +237,7 @@ PROXY_HOST_DEVICE void QkHexahedronBase<GL_BASIS>::computeMassTerm(float const (
 }
 
 template <typename GL_BASIS>
-PROXY_HOST_DEVICE real_t QkHexahedronBase<GL_BASIS>::computeDampingTerm(int const q,
-                                                                                           real_t const (&X)[4][3]) {
+PROXY_HOST_DEVICE real_t QkHexahedronBase<GL_BASIS>::computeDampingTerm(int const q, real_t const (&X)[4][3]) {
   int qa, qb;
   GL_BASIS::TensorProduct2D::multiIndex(q, qa, qb);
   const real_t w2D = static_cast<real_t>(GL_BASIS::weight(qa) * GL_BASIS::weight(qb));
@@ -257,8 +252,9 @@ PROXY_HOST_DEVICE real_t QkHexahedronBase<GL_BASIS>::computeDampingTerm(int cons
 }
 
 template <typename GL_BASIS>
-PROXY_HOST_DEVICE void QkHexahedronBase<GL_BASIS>::computeBMatrix(
-    int const qa, int const qb, int const qc, real_t const (&X)[8][3], real_t (&J)[3][3], real_t (&B)[6]) {
+PROXY_HOST_DEVICE void QkHexahedronBase<GL_BASIS>::computeBMatrix(int const qa, int const qb, int const qc,
+                                                                  real_t const (&X)[8][3], real_t (&J)[3][3],
+                                                                  real_t (&B)[6]) {
   jacobianTransformation(qa, qb, qc, X, J);
   real_t const detJ = determinant(J);
   real_t const invDetJ = 1.0 / detJ;
@@ -277,9 +273,8 @@ PROXY_HOST_DEVICE void QkHexahedronBase<GL_BASIS>::computeBMatrix(
 
 template <typename GL_BASIS>
 template <int qa, int qb, int qc, typename FUNC1, typename FUNC2>
-PROXY_HOST_DEVICE void QkHexahedronBase<GL_BASIS>::computeGradPhiBGradPhi(real_t const (&B)[6],
-                                                                                             FUNC1 &&func1,
-                                                                                             FUNC2 &&func2) {
+PROXY_HOST_DEVICE void QkHexahedronBase<GL_BASIS>::computeGradPhiBGradPhi(real_t const (&B)[6], FUNC1 &&func1,
+                                                                          FUNC2 &&func2) {
   const real_t w = static_cast<real_t>(GL_BASIS::weight(qa) * GL_BASIS::weight(qb) * GL_BASIS::weight(qc));
   func1(qa, qb, qc);
   for (int i = 0; i < num1dNodes; i++) {
@@ -319,9 +314,8 @@ PROXY_HOST_DEVICE void QkHexahedronBase<GL_BASIS>::computeGradPhiBGradPhi(real_t
 
 template <typename GL_BASIS>
 template <typename FUNC1, typename FUNC2>
-PROXY_HOST_DEVICE void QkHexahedronBase<GL_BASIS>::computeStiffnessTerm(float const (&X)[8][3],
-                                                                                           FUNC1 &&func1,
-                                                                                           FUNC2 &&func2) {
+PROXY_HOST_DEVICE void QkHexahedronBase<GL_BASIS>::computeStiffnessTerm(float const (&X)[8][3], FUNC1 &&func1,
+                                                                        FUNC2 &&func2) {
   triple_loop<num1dNodes, num1dNodes, num1dNodes>([&](auto const icqa, auto const icqb, auto const icqc) {
     constexpr int qa = decltype(icqa)::value;
     constexpr int qb = decltype(icqb)::value;
@@ -335,8 +329,10 @@ PROXY_HOST_DEVICE void QkHexahedronBase<GL_BASIS>::computeStiffnessTerm(float co
 
 template <typename GL_BASIS>
 template <typename FUNC_ALPHA>
-PROXY_HOST_DEVICE void QkHexahedronBase<GL_BASIS>::computeStiffnessTermSumFact(
-    float const (&X)[8][3], real_t const (&u_local)[numNodes], real_t (&v_local)[numNodes], FUNC_ALPHA &&get_alpha) {
+PROXY_HOST_DEVICE void QkHexahedronBase<GL_BASIS>::computeStiffnessTermSumFact(float const (&X)[8][3],
+                                                                               real_t const (&u_local)[numNodes],
+                                                                               real_t (&v_local)[numNodes],
+                                                                               FUNC_ALPHA &&get_alpha) {
   // Weighted fluxes G^{ξ,η,ζ}[q] = w_q * alpha_q * M(B_q) · ∇_ξ u_q
   real_t G_xi[numNodes] = {0};
   real_t G_eta[numNodes] = {0};

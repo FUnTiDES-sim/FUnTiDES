@@ -23,13 +23,10 @@ struct FeDiscretizationTag {};
 /// suite -- a single set of tests for all back-ends.
 template <typename T>
 constexpr bool AssertFeDiscretization() {
-  static_assert(std::is_base_of<FeDiscretizationTag, T>::value,
-                "discretization must derive from FeDiscretizationTag");
+  static_assert(std::is_base_of<FeDiscretizationTag, T>::value, "discretization must derive from FeDiscretizationTag");
   static_assert(T::num1dNodes > 0, "missing/invalid num1dNodes");
-  static_assert(T::numNodes == T::num1dNodes * T::num1dNodes * T::num1dNodes,
-                "numNodes must equal num1dNodes^3");
-  static_assert(T::numQuadraturePoints == T::numNodes,
-                "GLL: number of quadrature points must equal number of nodes");
+  static_assert(T::numNodes == T::num1dNodes * T::num1dNodes * T::num1dNodes, "numNodes must equal num1dNodes^3");
+  static_assert(T::numQuadraturePoints == T::numNodes, "GLL: number of quadrature points must equal number of nodes");
   static_assert(T::maxSupportPoints == T::numNodes, "maxSupportPoints mismatch");
   return true;
 }
