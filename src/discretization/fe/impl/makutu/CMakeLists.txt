@@ -5,4 +5,6 @@ target_include_directories(fun_discretization_makutu INTERFACE
                            $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include/>
                           )
 
-target_link_libraries(fun_discretization_makutu INTERFACE fun_utils)
+target_link_libraries(fun_discretization_makutu INTERFACE
+                      fun_utils
+                      fun_discretization_common)
