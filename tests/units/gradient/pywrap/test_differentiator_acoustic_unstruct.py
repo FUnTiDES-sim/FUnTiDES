@@ -84,4 +84,5 @@ class TestDifferentiatorAcousticUnstruct:
         grad = Gradient.GradientAcoustic(kk_grad_kappa, kk_grad_buoyancy)
         data = Gradient.GradientDataAcoustic(fwd, bwd, grad)
 
+        differentiator.init_geometric_mass_matrix(model)
         differentiator.compute(model, data, dt)
