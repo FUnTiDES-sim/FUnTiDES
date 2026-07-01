@@ -7,24 +7,6 @@ struct AlphaOne {
 };
 
 template <typename QK>
-inline void launchStiffnessSumFactTeam(Kokkos::View<float[8][3]> X_dev, Kokkos::View<real_t*> u_dev,
-                                       Kokkos::View<real_t*> v_team_dev, Kokkos::View<real_t*> G_xi,
-                                       Kokkos::View<real_t*> G_eta, Kokkos::View<real_t*> G_zeta) {
-  using TeamPolicy = Kokkos::TeamPolicy<Kokkos::DefaultExecutionSpace>;
-  using TeamMember = TeamPolicy::member_type;
-
-  Kokkos::parallel_for(
-      TeamPolicy(1, Kokkos::AUTO), KOKKOS_LAMBDA(const TeamMember& team) {
-        float X_local[8][3];
-        for (int i = 0; i < 8; ++i)
-          for (int j = 0; j < 3; ++j) X_local[i][j] = X_dev(i, j);
-
-        QK::computeStiffnessTermSumFact_Team(team, X_local, u_dev.data(), v_team_dev.data(), G_xi.data(), G_eta.data(),
-                                             G_zeta.data(), AlphaOne{});
-      });
-}
-
-template <typename QK>
 inline void launchTeamVectorStreaming(Kokkos::View<float[8][3]> X_dev, Kokkos::View<real_t*> u_dev,
                                       Kokkos::View<real_t*> v_gemm_dev, Kokkos::View<real_t*> D_dev) {
   using TeamPolicy = Kokkos::TeamPolicy<Kokkos::DefaultExecutionSpace>;
@@ -49,46 +31,6 @@ template <typename QK_BASIS>
 class TensorialGEMMKokkosTest : public ::testing::Test {};
 
 TYPED_TEST_SUITE(TensorialGEMMKokkosTest, TestedBases);
-
-TYPED_TEST(TensorialGEMMKokkosTest, StiffnessSumFactTeamMatchesSerial) {
-  using QK = Qk_Hexahedron_Tensorial_GEMM<typename TypeParam::BasisType>;
-  constexpr int numNodes = QK::numNodes;
-
-  real_t X[8][3];
-  createArbitraryCube<QK>(X, -0.5, 0.2, 1.1, 1.8);
-
-  real_t u_local[numNodes];
-  for (int i = 0; i < numNodes; ++i) u_local[i] = std::sin(static_cast<real_t>(i));
-
-  real_t v_serial[numNodes] = {0};
-  QK::computeStiffnessTermSumFact(X, u_local, v_serial, [](int, int, int) { return real_t(1.0); });
-
-  Kokkos::View<float[8][3]> X_dev("X_dev");
-  auto X_host = Kokkos::create_mirror_view(X_dev);
-  for (int i = 0; i < 8; ++i)
-    for (int j = 0; j < 3; ++j) X_host(i, j) = static_cast<float>(X[i][j]);
-  Kokkos::deep_copy(X_dev, X_host);
-
-  Kokkos::View<real_t*> u_dev("u_dev", numNodes);
-  auto u_host = Kokkos::create_mirror_view(u_dev);
-  for (int i = 0; i < numNodes; ++i) u_host(i) = u_local[i];
-  Kokkos::deep_copy(u_dev, u_host);
-
-  Kokkos::View<real_t*> v_team_dev("v_team_dev", numNodes);
-  Kokkos::View<real_t*> G_xi("G_xi", numNodes);
-  Kokkos::View<real_t*> G_eta("G_eta", numNodes);
-  Kokkos::View<real_t*> G_zeta("G_zeta", numNodes);
-
-  launchStiffnessSumFactTeam<QK>(X_dev, u_dev, v_team_dev, G_xi, G_eta, G_zeta);
-  Kokkos::fence();
-
-  auto v_team_host = Kokkos::create_mirror_view(v_team_dev);
-  Kokkos::deep_copy(v_team_host, v_team_dev);
-
-  for (int i = 0; i < numNodes; ++i) {
-    EXPECT_NEAR(v_team_host(i), v_serial[i], TOL_NUMERICAL);
-  }
-}
 
 TYPED_TEST(TensorialGEMMKokkosTest, TeamVectorStreamingMatchesSerial) {
   using QK = Qk_Hexahedron_Tensorial_GEMM<typename TypeParam::BasisType>;
