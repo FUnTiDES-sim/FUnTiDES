@@ -91,7 +91,7 @@ BENCHMARK_TEMPLATE_METHOD_F(ElasticFixture, OneStep)
 
   for (auto _ : state) {
     solver->computeForces(this->dt, this->time_sample, data);
-    solver->updateSolution(this->dt, data);
+    solver->updateSolutionForward(this->dt, data);
   }
 
   this->setLabel(state);

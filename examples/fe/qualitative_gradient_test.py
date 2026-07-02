@@ -749,7 +749,7 @@ def forward_propagation(solver, data, fields, output_key, save_snapshots=False):
     for t in range(N_TIME_STEPS):
         # Compute step
         solver.compute_forces(DT, t, data)
-        solver.update_solution(DT, data)
+        solver.update_solution_forward(DT, data)
         
         # Get CURRENT field reference FRESH from wavefield (not stored once)
         kk_p_curr = wavefield.get_current_field(0)
@@ -960,6 +960,10 @@ def adjoint_propagation(solver_adj, model_adj, data_adj, fields_adj,
         Solver.PhysicType.ACOUSTIC,
         ORDER
     )
+
+    # Initialize the geometric mass matrix once (required before compute() for
+    # node-based discretization, which reuses it for nodal normalization).
+    differentiator.init_geometric_mass_matrix(model_adj)
     
     # Allocate gradient arrays (must match model discretization, not wavefield resolution)
     if MODEL_DISCRETIZATION == "ONNODES":
@@ -1014,7 +1018,7 @@ def adjoint_propagation(solver_adj, model_adj, data_adj, fields_adj,
         
         # 1b. Perform adjoint update step
         solver_adj.compute_forces(DT, adjoint_step, data_adj)
-        solver_adj.update_solution(DT, data_adj)
+        solver_adj.update_solution_forward(DT, data_adj)
         
         # 1c. Swap wavefields for next iteration (this rotates the leapfrog state)
         data_adj.swap_wavefields()

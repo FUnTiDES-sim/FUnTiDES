@@ -34,4 +34,4 @@ generate_differentiator_implementations(
     OUTPUT_VAR DIFFERENTIATOR_MAKUTU_GENERATED_SOURCES
 )
 
-target_sources(funtides_gradient PRIVATE ${DIFFERENTIATOR_MAKUTU_GENERATED_SOURCES})
+target_sources(fun_gradient PRIVATE ${DIFFERENTIATOR_MAKUTU_GENERATED_SOURCES})

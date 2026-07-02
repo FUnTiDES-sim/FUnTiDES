@@ -22,6 +22,7 @@ struct FaceConnectivityUnstructData {
   arrayInt elem_to_faces;
   arrayInt face_dofs;
   arrayInt face_perm;
+  arrayInt face_perm_inv;
   vectorInt face_elem_owner;
   vectorInt face_elem_neighbor;
   vectorInt face_local_owner;
@@ -37,7 +38,7 @@ struct FaceConnectivityUnstructData {
  * @tparam FloatType Floating point type
  * @tparam ScalarType Integer type for indexing
  */
-template <typename FloatType, typename ScalarType>
+template <typename FloatType, typename ScalarType, int ORDER = -1>
 class FaceConnectivityUnstruct : public FaceConnectivityApi<FloatType, ScalarType> {
  public:
   FaceConnectivityUnstruct() = default;
@@ -52,6 +53,7 @@ class FaceConnectivityUnstruct : public FaceConnectivityApi<FloatType, ScalarTyp
         elem_to_faces_(data.elem_to_faces),
         face_dofs_(data.face_dofs),
         face_perm_(data.face_perm),
+        face_perm_inv_(data.face_perm_inv),
         face_elem_owner_(data.face_elem_owner),
         face_elem_neighbor_(data.face_elem_neighbor),
         face_local_owner_(data.face_local_owner),
@@ -65,7 +67,7 @@ class FaceConnectivityUnstruct : public FaceConnectivityApi<FloatType, ScalarTyp
    */
   void build(const ModelApi<FloatType, ScalarType>& mesh) {
     const ScalarType n_element = mesh.getNumberOfElements();
-    const int order = mesh.getOrder();
+    const int order = (ORDER >= 0) ? ORDER : mesh.getOrder();
     const ScalarType max_faces = n_element * 6;
     ndofs_per_face_ = (order + 1) * (order + 1);
 
@@ -73,6 +75,7 @@ class FaceConnectivityUnstruct : public FaceConnectivityApi<FloatType, ScalarTyp
     auto elem_to_faces_temp = allocateArray2D<arrayInt>(n_element, 6);
     auto face_dofs_temp = allocateArray2D<arrayInt>(max_faces, ndofs_per_face_);
     auto face_perm_temp = allocateArray2D<arrayInt>(max_faces, ndofs_per_face_);
+    auto face_perm_inv_temp = allocateArray2D<arrayInt>(max_faces, ndofs_per_face_);
     auto face_elem_owner_temp = allocateVector<vectorInt>(max_faces);
     auto face_elem_neighbor_temp = allocateVector<vectorInt>(max_faces);
     auto face_local_owner_temp = allocateVector<vectorInt>(max_faces);
@@ -119,6 +122,7 @@ class FaceConnectivityUnstruct : public FaceConnectivityApi<FloatType, ScalarTyp
             for (int j = 0; j < ndofs_per_face_; ++j) {
               if (neigh_dofs[j] == owner_node) {
                 face_perm_temp(face_id, i) = j;
+                face_perm_inv_temp(face_id, j) = i;
                 break;
               }
             }
@@ -132,6 +136,7 @@ class FaceConnectivityUnstruct : public FaceConnectivityApi<FloatType, ScalarTyp
     elem_to_faces_ = allocateArray2D<arrayInt>(n_element, 6);
     face_dofs_ = allocateArray2D<arrayInt>(face_count, ndofs_per_face_);
     face_perm_ = allocateArray2D<arrayInt>(face_count, ndofs_per_face_);
+    face_perm_inv_ = allocateArray2D<arrayInt>(face_count, ndofs_per_face_);
     face_elem_owner_ = allocateVector<vectorInt>(face_count);
     face_elem_neighbor_ = allocateVector<vectorInt>(face_count);
     face_local_owner_ = allocateVector<vectorInt>(face_count);
@@ -148,6 +153,7 @@ class FaceConnectivityUnstruct : public FaceConnectivityApi<FloatType, ScalarTyp
       for (int dof = 0; dof < ndofs_per_face_; ++dof) {
         face_dofs_(f, dof) = face_dofs_temp(f, dof);
         face_perm_(f, dof) = face_perm_temp(f, dof);
+        face_perm_inv_(f, dof) = face_perm_inv_temp(f, dof);
       }
     }
   }
@@ -184,6 +190,10 @@ class FaceConnectivityUnstruct : public FaceConnectivityApi<FloatType, ScalarTyp
     return face_perm_(face_id, owner_dof);
   }
 
+  PROXY_HOST_DEVICE int getOwnerFaceDof(ScalarType face_id, int neighbor_dof) const override {
+    return face_perm_inv_(face_id, neighbor_dof);
+  }
+
  private:
   ScalarType n_faces_ = 0;
   int ndofs_per_face_ = 0;
@@ -191,6 +201,7 @@ class FaceConnectivityUnstruct : public FaceConnectivityApi<FloatType, ScalarTyp
   arrayInt elem_to_faces_;
   arrayInt face_dofs_;
   arrayInt face_perm_;
+  arrayInt face_perm_inv_;
   vectorInt face_elem_owner_;
   vectorInt face_elem_neighbor_;
   vectorInt face_local_owner_;

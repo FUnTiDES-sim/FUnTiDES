@@ -9,7 +9,7 @@ if(ENABLE_PYWRAP)
 
   target_link_libraries(gradient
     PUBLIC
-      funtides_gradient
+      fun_gradient
   )
 
   configure_python_module(gradient)

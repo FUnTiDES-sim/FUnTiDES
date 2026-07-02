@@ -273,7 +273,7 @@ def main():
             comm_sync.sync_accumulate(force_vec)
 
             # C. Update Solution
-            solver.update_solution(args.dt, data)
+            solver.update_solution_forward(args.dt, data)
 
             # D. Snapshot
             if t % args.snap_interval == 0:

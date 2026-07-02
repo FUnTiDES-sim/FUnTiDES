@@ -147,7 +147,7 @@ static AcousticSeismogram runAcousticWithReceiver(std::shared_ptr<model::ModelAp
 
   for (int t = 0; t < numTimeSteps; ++t) {
     solver->computeForces(dt, t, data);
-    solver->updateSolution(dt, data);
+    solver->updateSolutionForward(dt, data);
     data.swapWavefields();
     result.trace.push_back(data.getCurrentField(0)(receiverNode));
   }
@@ -214,7 +214,7 @@ static ElasticSeismogram runElasticWithReceiver(std::shared_ptr<model::ModelApi<
 
   for (int t = 0; t < numTimeSteps; ++t) {
     solver->computeForces(dt, t, data);
-    solver->updateSolution(dt, data);
+    solver->updateSolutionForward(dt, data);
     data.swapWavefields();
     result.traceUz.push_back(data.getCurrentField(2)(receiverNode));
   }

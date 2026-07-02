@@ -46,6 +46,56 @@ void DifferentiatorAcoustic<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES>:
 }
 
 template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE, bool IS_MODEL_ON_NODES>
+vectorReal& DifferentiatorAcoustic<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES>::getGeometricMassMatrix() {
+  return geometricMassMatrix_;
+}
+
+template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE, bool IS_MODEL_ON_NODES>
+void DifferentiatorAcoustic<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES>::initGeometricMassMatrix(
+    model::ModelApi<float, int>& meshApi) {
+  auto mesh = dynamic_cast<MESH_TYPE&>(meshApi);
+
+  // Allocate geometric mass matrix if not already done, then zero it
+  if (geometricMassMatrix_.extent(0) != mesh.getNumberOfNodes())
+    geometricMassMatrix_ = allocateVector<vectorReal>(mesh.getNumberOfNodes(), "geometricMassMatrix");
+  Kokkos::deep_copy(geometricMassMatrix_, 0.0f);
+
+  auto local_geometricMassMatrix = geometricMassMatrix_;
+
+  Kokkos::parallel_for(
+      "Differentiator Compute Geometric Mass Matrix",
+      Kokkos::RangePolicy<Kokkos::LaunchBounds<LaunchMaxThreadsPerBlock, LaunchMinBlocksPerSM>>(
+          0, mesh.getNumberOfElements()),
+      KOKKOS_LAMBDA(const int elementNumber) {
+        float massMatrixLocal[kPointsPerElement] = {0};
+        int const dim = mesh.getOrder() + 1;
+
+        float cornerCoords[8][3];
+        {
+          auto const eIdx = mesh.elementIndex(elementNumber);
+          int I = 0;
+          for (int kv = 0; kv < 2; ++kv)
+            for (int jv = 0; jv < 2; ++jv)
+              for (int iv = 0; iv < 2; ++iv)
+                mesh.vertexCoords(mesh.globalVertexIndex(eIdx, iv, jv, kv), cornerCoords[I++]);
+        }
+
+        // Compute mass term (geometric part only - no model factors)
+        INTEGRAL_TYPE::computeMassTerm(cornerCoords, [&](const int j, const real_t val) { massMatrixLocal[j] += val; });
+
+        for (int i = 0; i < mesh.getNumberOfPointsPerElement(); ++i) {
+          int x = i % dim;
+          int z = (i / dim) % dim;
+          int y = i / (dim * dim);
+          int const gIndex = mesh.globalNodeIndex(elementNumber, x, y, z);
+
+          ATOMICADD(local_geometricMassMatrix[gIndex], massMatrixLocal[i]);
+        }
+      });
+  Kokkos::fence();
+}
+
+template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE, bool IS_MODEL_ON_NODES>
 void DifferentiatorAcoustic<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES>::computeOnElements(
     MESH_TYPE mesh, float dt, vectorReal const pn, vectorReal const qn, vectorReal const qnPrev,
     vectorReal const qnPrevPrev, vectorReal const gradKappa, vectorReal const gradBuoyancy) const {
@@ -108,58 +158,15 @@ template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE, bool IS_MODEL_O
 void DifferentiatorAcoustic<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES>::computeOnNodes(
     MESH_TYPE mesh, float dt, vectorReal const pn, vectorReal const qn, vectorReal const qnPrev,
     vectorReal const qnPrevPrev, vectorReal const gradKappa, vectorReal const gradBuoyancy) const {
-  // Get number of nodes
-  int const nNodes = mesh.getNumberOfNodes();
-
-  // Allocate mass matrix diagonal
-  vectorReal massDiag = vectorReal("massDiag", nNodes);
-
-  // Local copy of class members to avoid capturing 'this' on the device
-  constexpr int nPerElem = kPointsPerElement;
-
-  // =====================================================
-  // Compute mass matrix diagonal
-  // =====================================================
-  // TODO: This is currently computed on the fly within computeOnNodes, but it
-  // could be precomputed and reused across iterations for efficiency.
-  Kokkos::parallel_for(
-      "Compute Mass Matrix Diagonal",
-      Kokkos::RangePolicy<Kokkos::LaunchBounds<LaunchMaxThreadsPerBlock, LaunchMinBlocksPerSM>>(
-          0, mesh.getNumberOfElements()),
-      KOKKOS_LAMBDA(const int elementNumber) {
-        if (elementNumber >= mesh.getNumberOfElements()) return;
-
-        int const dim = mesh.getOrder() + 1;
-
-        float X[8][3];
-        {
-          auto const elementIndex = mesh.elementIndex(elementNumber);
-          int I = 0;
-          for (int kv = 0; kv < 2; ++kv)
-            for (int jv = 0; jv < 2; ++jv)
-              for (int iv = 0; iv < 2; ++iv) {
-                auto const vertexIndex = mesh.globalVertexIndex(elementIndex, iv, jv, kv);
-                mesh.vertexCoords(vertexIndex, X[I]);
-                ++I;
-              }
-        }
-
-        int localGIdx[nPerElem] = {0};
-        for (int i = 0; i < dim; ++i)
-          for (int j = 0; j < dim; ++j)
-            for (int k = 0; k < dim; ++k) {
-              int const gIdx = mesh.globalNodeIndex(elementNumber, i, j, k);
-              int const lIdx = i + j * dim + k * dim * dim;
-              localGIdx[lIdx] = gIdx;
-            }
-
-        // Accumulate mass matrix diagonal: M_ii = sum_K val_i
-        INTEGRAL_TYPE::computeMassTerm(X,
-                                       [&](const int q, const real_t val) { ATOMICADD(massDiag(localGIdx[q]), val); });
-      });
-
-  Kokkos::fence();  // Ensure mass diagonal computation is complete before
-                    // proceeding
+  // Reuse the precomputed geometric mass matrix (nodal volumes) as the mass
+  // matrix diagonal for node normalization. If initGeometricMassMatrix() was
+  // not called beforehand, build it lazily here so that compute() stays
+  // self-contained (and getGeometricMassMatrix() returns valid data). The
+  // result is cached, so subsequent compute() calls reuse it.
+  if (geometricMassMatrix_.extent(0) != mesh.getNumberOfNodes())
+    const_cast<DifferentiatorAcoustic<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES>*>(this)
+        ->initGeometricMassMatrix(mesh);
+  auto massDiag = geometricMassMatrix_;
 
   // =====================================================
   // Compute gradients and normalize

@@ -4,12 +4,13 @@ if(ENABLE_PYWRAP)
   target_include_directories(solver
     PRIVATE
       include
+      ${CMAKE_CURRENT_SOURCE_DIR}/../../pywrap/include
       ${CMAKE_SOURCE_DIR}/external/pykokkos-base/include
   )
 
   target_link_libraries(solver
     PUBLIC
-      proxy_solver
+      fun_solver
   )
 
   configure_python_module(solver)

@@ -338,7 +338,7 @@ TYPED_TEST(AEsolverOnElemTest, ComputeOneStepRunsMultipleSteps) {
 }
 
 // =============================================================================
-// computeForces / updateSolution
+// computeForces / updateSolutionForward
 // =============================================================================
 
 TYPED_TEST(AEsolverOnElemTest, ComputeForcesDoesNotCrash) {
@@ -346,9 +346,48 @@ TYPED_TEST(AEsolverOnElemTest, ComputeForcesDoesNotCrash) {
   EXPECT_NO_THROW(this->solver_.computeForces(this->kDt, 0, data));
 }
 
-TYPED_TEST(AEsolverOnElemTest, UpdateSolutionDoesNotCrash) {
+TYPED_TEST(AEsolverOnElemTest, updateSolutionForwardWith2BuffersWorks) {
   auto data = this->makeData();
-  EXPECT_NO_THROW(this->solver_.updateSolution(this->kDt, data));
+  EXPECT_NO_THROW(this->solver_.updateSolutionForward(this->kDt, data));
+}
+
+TYPED_TEST(AEsolverOnElemTest, updateSolutionForwardWith3BuffersThrows) {
+  // Allocate prevprev buffers for 3-buffer mode
+  auto p_prevprev = allocateVector<vectorReal>(this->nNodes_, "pPrevPrev");
+  auto ux_prevprev = allocateVector<vectorReal>(this->nNodes_, "uxPrevPrev");
+  auto uy_prevprev = allocateVector<vectorReal>(this->nNodes_, "uyPrevPrev");
+  auto uz_prevprev = allocateVector<vectorReal>(this->nNodes_, "uzPrevPrev");
+  for (int i = 0; i < this->nNodes_; ++i) {
+    p_prevprev(i) = ux_prevprev(i) = uy_prevprev(i) = uz_prevprev(i) = 0.0f;
+  }
+  WavefieldAcoustoElastic wf(p_prevprev, this->p_prev_, this->p_curr_, ux_prevprev, this->ux_prev_, this->ux_curr_,
+                             uy_prevprev, this->uy_prev_, this->uy_curr_, uz_prevprev, this->uz_prev_, this->uz_curr_);
+  RhsAcoustoElastic rhs(this->rhs_term_, this->rhs_elem_, this->rhs_wts_, this->rhs_termx_, this->rhs_termy_,
+                        this->rhs_termz_);
+  SEMsolverDataAcoustoElastic data(wf, rhs);
+  EXPECT_THROW(this->solver_.updateSolutionForward(this->kDt, data), std::runtime_error);
+}
+
+TYPED_TEST(AEsolverOnElemTest, updateSolutionBackwardWith2BuffersThrows) {
+  auto data = this->makeData();
+  EXPECT_THROW(this->solver_.updateSolutionBackward(this->kDt, data), std::runtime_error);
+}
+
+TYPED_TEST(AEsolverOnElemTest, updateSolutionBackwardWith3BuffersWorks) {
+  // Allocate prevprev buffers for 3-buffer mode
+  auto p_prevprev = allocateVector<vectorReal>(this->nNodes_, "pPrevPrev");
+  auto ux_prevprev = allocateVector<vectorReal>(this->nNodes_, "uxPrevPrev");
+  auto uy_prevprev = allocateVector<vectorReal>(this->nNodes_, "uyPrevPrev");
+  auto uz_prevprev = allocateVector<vectorReal>(this->nNodes_, "uzPrevPrev");
+  for (int i = 0; i < this->nNodes_; ++i) {
+    p_prevprev(i) = ux_prevprev(i) = uy_prevprev(i) = uz_prevprev(i) = 0.0f;
+  }
+  WavefieldAcoustoElastic wf(p_prevprev, this->p_prev_, this->p_curr_, ux_prevprev, this->ux_prev_, this->ux_curr_,
+                             uy_prevprev, this->uy_prev_, this->uy_curr_, uz_prevprev, this->uz_prev_, this->uz_curr_);
+  RhsAcoustoElastic rhs(this->rhs_term_, this->rhs_elem_, this->rhs_wts_, this->rhs_termx_, this->rhs_termy_,
+                        this->rhs_termz_);
+  SEMsolverDataAcoustoElastic data(wf, rhs);
+  EXPECT_NO_THROW(this->solver_.updateSolutionBackward(this->kDt, data));
 }
 
 // =============================================================================
@@ -365,6 +404,193 @@ TYPED_TEST(AEsolverOnElemTest, OutputSolutionValuesDoesNotCrash) {
 }
 
 TYPED_TEST(AEsolverOnElemTest, GetNumComponentsReturnsFour) { EXPECT_EQ(this->solver_.getNumComponents(), 4); }
+
+TYPED_TEST(AEsolverOnElemTest, SetAnisotropyTypeDoesNotCrash) {
+  EXPECT_NO_THROW(this->solver_.setAnisotropyType(model::AnisotropyType::kIso));
+}
+
+TYPED_TEST(AEsolverOnElemTest, SetSLSAttenuationDoesNotCrash) {
+  auto ref = allocateVector<vectorReal>(2, "sls_ref_ae");
+  ref(0) = 6.28f;
+  ref(1) = 62.8f;
+  EXPECT_NO_THROW(this->solver_.setSLSAttenuation(ref));
+}
+
+TYPED_TEST(AEsolverOnElemTest, DataStructPrintDoesNotCrash) {
+  auto data = this->makeData();
+  EXPECT_NO_THROW(data.print());
+}
+
+TYPED_TEST(AEsolverOnElemTest, DataStructSwapWavefieldsDoesNotCrash) {
+  auto data = this->makeData();
+  EXPECT_NO_THROW(data.swapWavefields());
+}
+
+// =============================================================================
+// Bilayer mesh helper — IS_MODEL_ON_NODES = true
+//
+//   Same 1×1×2 topology as makeBilayerMesh, but properties stored on nodes.
+//   Interface nodes (shared z-layer at iz=ORDER) carry fluid props (>= conv.)
+// =============================================================================
+
+template <int ORDER>
+model::ModelStruct<float, int, ORDER> makeBilayerMeshOnNodes() {
+  int const nx = ORDER + 1, ny = ORDER + 1, nz = 2 * ORDER + 1;
+  int const nNodes = nx * ny * nz;
+
+  model::ModelStructData<float, int> d;
+  d.ex_ = 1;
+  d.ey_ = 1;
+  d.ez_ = 2;
+  d.dx_ = 1.0f;
+  d.dy_ = 1.0f;
+  d.dz_ = 1.0f;
+  d.ox_ = 0.0f;
+  d.oy_ = 0.0f;
+  d.oz_ = 0.0f;
+  d.isModelOnNodes_ = true;
+  d.isElastic_ = false;
+
+  auto vp_node = allocateVector<vectorReal>(nNodes, "vp_node_n");
+  auto vs_node = allocateVector<vectorReal>(nNodes, "vs_node_n");
+  auto rho_node = allocateVector<vectorReal>(nNodes, "rho_node_n");
+
+  for (int iz = 0; iz < nz; ++iz)
+    for (int iy = 0; iy < ny; ++iy)
+      for (int ix = 0; ix < nx; ++ix) {
+        int const n = ix + nx * (iy + ny * iz);
+        if (iz < ORDER) {
+          vp_node(n) = 3000.0f;
+          vs_node(n) = 1500.0f;
+          rho_node(n) = 2000.0f;
+        } else {
+          vp_node(n) = 1500.0f;
+          vs_node(n) = 0.0f;
+          rho_node(n) = 1000.0f;
+        }
+      }
+
+  d.model_vp_node_ = vp_node;
+  d.model_vs_node_ = vs_node;
+  d.model_rho_node_ = rho_node;
+
+  return model::ModelStruct<float, int, ORDER>(d);
+}
+
+// =============================================================================
+// Fixture — IS_MODEL_ON_NODES = true
+// =============================================================================
+
+template <typename OrderWrapper>
+class AEsolverOnNodesTest : public ::testing::Test {
+ protected:
+  static constexpr int kOrder = OrderWrapper::kOrder;
+  static constexpr int kNdof = (kOrder + 1) * (kOrder + 1) * (kOrder + 1);
+  static constexpr float kDt = 0.001f;
+  static constexpr int kNumSamples = 10;
+
+  using Mesh = model::ModelStruct<float, int, kOrder>;
+  using Integral = typename IntegralTypeSelector<kOrder, IntegralType::MAKUTU>::type;
+  using Solver = SEMsolverAcoustoElastic<kOrder, Integral, Mesh, true>;
+
+  void SetUp() override {
+    mesh_ = makeBilayerMeshOnNodes<kOrder>();
+    solver_.computeFEInit(mesh_, {0.0f, 0.0f, 0.0f}, false, 0.0f);
+    nNodes_ = mesh_.getNumberOfNodes();
+
+    p_prev_ = allocateVector<vectorReal>(nNodes_, "pPrev_n");
+    p_curr_ = allocateVector<vectorReal>(nNodes_, "pCurr_n");
+    ux_prev_ = allocateVector<vectorReal>(nNodes_, "uxPrev_n");
+    ux_curr_ = allocateVector<vectorReal>(nNodes_, "uxCurr_n");
+    uy_prev_ = allocateVector<vectorReal>(nNodes_, "uyPrev_n");
+    uy_curr_ = allocateVector<vectorReal>(nNodes_, "uyCurr_n");
+    uz_prev_ = allocateVector<vectorReal>(nNodes_, "uzPrev_n");
+    uz_curr_ = allocateVector<vectorReal>(nNodes_, "uzCurr_n");
+    for (int i = 0; i < nNodes_; ++i) {
+      p_prev_(i) = p_curr_(i) = 0.0f;
+      ux_prev_(i) = ux_curr_(i) = 0.0f;
+      uy_prev_(i) = uy_curr_(i) = 0.0f;
+      uz_prev_(i) = uz_curr_(i) = 0.0f;
+    }
+
+    rhs_term_ = allocateArray2D<arrayReal>(1, kNumSamples, "rhsTerm_n");
+    rhs_termx_ = allocateArray2D<arrayReal>(1, kNumSamples, "rhsTermX_n");
+    rhs_termy_ = allocateArray2D<arrayReal>(1, kNumSamples, "rhsTermY_n");
+    rhs_termz_ = allocateArray2D<arrayReal>(1, kNumSamples, "rhsTermZ_n");
+    rhs_elem_ = allocateVector<vectorInt>(1, "rhsElem_n");
+    rhs_wts_ = allocateArray2D<arrayReal>(1, kNdof, "rhsWts_n");
+    rhs_elem_(0) = 0;
+    for (int t = 0; t < kNumSamples; ++t)
+      rhs_term_(0, t) = rhs_termx_(0, t) = rhs_termy_(0, t) = rhs_termz_(0, t) = 0.0f;
+    for (int k = 0; k < kNdof; ++k) rhs_wts_(0, k) = 0.0f;
+  }
+
+  SEMsolverDataAcoustoElastic makeData() const {
+    WavefieldAcoustoElastic wf(p_prev_, p_curr_, ux_prev_, ux_curr_, uy_prev_, uy_curr_, uz_prev_, uz_curr_);
+    RhsAcoustoElastic rhs(rhs_term_, rhs_elem_, rhs_wts_, rhs_termx_, rhs_termy_, rhs_termz_);
+    return SEMsolverDataAcoustoElastic(wf, rhs);
+  }
+
+  Solver solver_;
+  Mesh mesh_;
+  int nNodes_{0};
+
+  vectorReal p_prev_, p_curr_;
+  vectorReal ux_prev_, ux_curr_;
+  vectorReal uy_prev_, uy_curr_;
+  vectorReal uz_prev_, uz_curr_;
+
+  arrayReal rhs_term_, rhs_termx_, rhs_termy_, rhs_termz_;
+  vectorInt rhs_elem_;
+  arrayReal rhs_wts_;
+};
+
+TYPED_TEST_SUITE(AEsolverOnNodesTest, AEOrderTypes);
+
+TYPED_TEST(AEsolverOnNodesTest, TagElementsClassifiesOneAcousticOneElastic) {
+  EXPECT_EQ(this->solver_.getNumAcousticElements(), 1);
+  EXPECT_EQ(this->solver_.getNumElasticElements(), 1);
+}
+
+TYPED_TEST(AEsolverOnNodesTest, TagNodesDetectsCorrectInterfaceNodeCount) {
+  constexpr int kExpected = (TestFixture::kOrder + 1) * (TestFixture::kOrder + 1);
+  EXPECT_EQ(this->solver_.getNumInterfaceNodes(), kExpected);
+}
+
+TYPED_TEST(AEsolverOnNodesTest, ComputeOneStepDoesNotCrash) {
+  auto data = this->makeData();
+  EXPECT_NO_THROW(this->solver_.computeOneStep(this->kDt, 0, data));
+}
+
+TYPED_TEST(AEsolverOnNodesTest, ComputeOneStepZeroFieldsStayNearZero) {
+  auto data = this->makeData();
+  this->solver_.computeOneStep(this->kDt, 0, data);
+  FENCE
+  float max_p = 0.0f, max_uz = 0.0f;
+  for (int i = 0; i < this->nNodes_; ++i) {
+    max_p = std::fmax(max_p, std::fabs(this->p_prev_(i)));
+    max_uz = std::fmax(max_uz, std::fabs(this->uz_prev_(i)));
+  }
+  EXPECT_NEAR(max_p, 0.0f, 1e-10f);
+  EXPECT_NEAR(max_uz, 0.0f, 1e-10f);
+}
+
+TYPED_TEST(AEsolverOnNodesTest, ComputeForcesDoesNotCrash) {
+  auto data = this->makeData();
+  EXPECT_NO_THROW(this->solver_.computeForces(this->kDt, 0, data));
+}
+
+TYPED_TEST(AEsolverOnNodesTest, MassMatricesNonZero) {
+  float total_a = 0.0f, total_e = 0.0f;
+  auto& ma = this->solver_.getMassMatrixAcoustic();
+  auto& me = this->solver_.getMassMatrixElastic();
+  for (int i = 0; i < this->nNodes_; ++i) {
+    total_a += ma[i];
+    total_e += me[i];
+  }
+  EXPECT_GT(total_a, 0.0f);
+  EXPECT_GT(total_e, 0.0f);
+}
 
 }  // namespace test
 }  // namespace fe
