@@ -4,6 +4,7 @@
 
 #include <cstdlib>
 #include <cstring>
+#include <iostream>
 #include <stdexcept>
 #include <string>
 #ifdef USE_KOKKOS
@@ -60,6 +61,8 @@ static int runBenchmarks(int argc, char** argv) {
   Kokkos::InitializationSettings kkSettings;
   kkSettings.set_num_threads(nThreads);
   Kokkos::initialize(kkSettings);
+  Kokkos::print_configuration(std::cout, true);
+  std::cout << "DefaultExecutionSpace = " << Kokkos::DefaultExecutionSpace::name() << "\n";
 #endif
 
   benchmark::Initialize(&argc, argv);
