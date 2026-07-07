@@ -1,55 +1,32 @@
 #pragma once
 
-#include "bench_config.h"
-
 /**
- * @brief Macro to instantiate benchmark templates dynamically up to MAX_SOLVER_ORDER.
+ * @brief Macro to instantiate benchmark templates for multiple template order
+ * values.
  *
- * This macro automatically adapts to the compile-time maximum order provided by CMake.
+ * This macro generates four benchmark instantiations for orders 1 through 3,
+ * where each instantiation uses the specified fixture, name, and type template
+ * with a configurable configuration suffix.
+ *
+ * @param FIXTURE The benchmark fixture class to use for the instantiations
+ * @param NAME The name of the benchmark to instantiate
+ * @param TYPE The template type that accepts an integer template parameter
+ * (order)
+ * @param CONFIG Additional configuration or method calls to append to each
+ * instantiation
+ *
+ * @note The CONFIG parameter should include any leading dots or arrows for
+ * method chaining (e.g., "->Unit(benchmark::kMillisecond)")
+ *
+ * @note Known as the lizard macro ;)
+ *
+ * Example usage:
+ * @code
+ * BENCHMARK_FOR_ALL_ORDERS(MyFixture, MyBenchmark, MyType,
+ * ->Unit(benchmark::kMicrosecond))
+ * @endcode
  */
-#if BENCH_MAX_SOLVER_ORDER == 1
-
-#define BENCHMARK_FOR_ALL_ORDERS(FIXTURE, NAME, TYPE, CONFIG) \
-  BENCHMARK_TEMPLATE_INSTANTIATE_F(FIXTURE, NAME, TYPE<1>) CONFIG;
-
-#elif BENCH_MAX_SOLVER_ORDER == 2
-
-#define BENCHMARK_FOR_ALL_ORDERS(FIXTURE, NAME, TYPE, CONFIG)      \
-  BENCHMARK_TEMPLATE_INSTANTIATE_F(FIXTURE, NAME, TYPE<1>) CONFIG; \
-  BENCHMARK_TEMPLATE_INSTANTIATE_F(FIXTURE, NAME, TYPE<2>) CONFIG;
-
-#elif BENCH_MAX_SOLVER_ORDER == 3
-
 #define BENCHMARK_FOR_ALL_ORDERS(FIXTURE, NAME, TYPE, CONFIG)      \
   BENCHMARK_TEMPLATE_INSTANTIATE_F(FIXTURE, NAME, TYPE<1>) CONFIG; \
   BENCHMARK_TEMPLATE_INSTANTIATE_F(FIXTURE, NAME, TYPE<2>) CONFIG; \
   BENCHMARK_TEMPLATE_INSTANTIATE_F(FIXTURE, NAME, TYPE<3>) CONFIG;
-
-#elif BENCH_MAX_SOLVER_ORDER == 4
-
-#define BENCHMARK_FOR_ALL_ORDERS(FIXTURE, NAME, TYPE, CONFIG)      \
-  BENCHMARK_TEMPLATE_INSTANTIATE_F(FIXTURE, NAME, TYPE<1>) CONFIG; \
-  BENCHMARK_TEMPLATE_INSTANTIATE_F(FIXTURE, NAME, TYPE<2>) CONFIG; \
-  BENCHMARK_TEMPLATE_INSTANTIATE_F(FIXTURE, NAME, TYPE<3>) CONFIG; \
-  BENCHMARK_TEMPLATE_INSTANTIATE_F(FIXTURE, NAME, TYPE<4>) CONFIG;
-
-#elif BENCH_MAX_SOLVER_ORDER == 5
-
-#define BENCHMARK_FOR_ALL_ORDERS(FIXTURE, NAME, TYPE, CONFIG)      \
-  BENCHMARK_TEMPLATE_INSTANTIATE_F(FIXTURE, NAME, TYPE<1>) CONFIG; \
-  BENCHMARK_TEMPLATE_INSTANTIATE_F(FIXTURE, NAME, TYPE<2>) CONFIG; \
-  BENCHMARK_TEMPLATE_INSTANTIATE_F(FIXTURE, NAME, TYPE<3>) CONFIG; \
-  BENCHMARK_TEMPLATE_INSTANTIATE_F(FIXTURE, NAME, TYPE<4>) CONFIG; \
-  BENCHMARK_TEMPLATE_INSTANTIATE_F(FIXTURE, NAME, TYPE<5>) CONFIG;
-
-#else
-
-#define BENCHMARK_FOR_ALL_ORDERS(FIXTURE, NAME, TYPE, CONFIG)      \
-  BENCHMARK_TEMPLATE_INSTANTIATE_F(FIXTURE, NAME, TYPE<1>) CONFIG; \
-  BENCHMARK_TEMPLATE_INSTANTIATE_F(FIXTURE, NAME, TYPE<2>) CONFIG; \
-  BENCHMARK_TEMPLATE_INSTANTIATE_F(FIXTURE, NAME, TYPE<3>) CONFIG; \
-  BENCHMARK_TEMPLATE_INSTANTIATE_F(FIXTURE, NAME, TYPE<4>) CONFIG; \
-  BENCHMARK_TEMPLATE_INSTANTIATE_F(FIXTURE, NAME, TYPE<5>) CONFIG; \
-  BENCHMARK_TEMPLATE_INSTANTIATE_F(FIXTURE, NAME, TYPE<6>) CONFIG;
-
-#endif

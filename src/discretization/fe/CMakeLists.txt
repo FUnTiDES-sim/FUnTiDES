@@ -1,14 +1,9 @@
-add_subdirectory(api)
-add_subdirectory(impl)
-
-# Umbrella target kept for backward compatibility: the rest of the project links
-# `fun_discretization` and transitively gets the api + impl include paths.
 add_library(fun_discretization INTERFACE)
 
-target_link_libraries(fun_discretization INTERFACE
-                      fun_utils
-                      fun_discretization_api
-                      fun_discretization_impl
-                     )
+target_include_directories( fun_discretization INTERFACE
+                            $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/makutu/include/>
+                            $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/common/>
+                          )
+message(STATUS "Binary include dir: ${CMAKE_BINARY_DIR}/include")
 
-message(STATUS "fun_discretization: api + impl{common,makutu} configured")
+target_link_libraries( fun_discretization INTERFACE fun_utils )

@@ -1,9 +1,3 @@
-configure_file(
-  ${CMAKE_CURRENT_SOURCE_DIR}/include/bench_config.h.in
-  ${CMAKE_CURRENT_BINARY_DIR}/include/bench_config.h
-  @ONLY
-)
-
 add_benchmark(bench_solver_fe_cartesian_struct_acoustic
  SOURCES
    src/bench_solver_fe_cartesian_struct_acoustic.cc
@@ -68,23 +62,6 @@ add_benchmark(bench_solver_fe_cartesian_unstruct_elastic
    fun_utils
  THREADS
    1 2 4 8 16 32 64
- LABELS
-   unstruct
-   solver
-)
-
-add_benchmark(bench_solver_acoustic
- SOURCES
-   src/bench_acoustic_kernel.cc
- INCLUDES
-   ${CMAKE_CURRENT_SOURCE_DIR}/include
- LIBS
-   fun_solver
-   fun_model
-   fun_discretization
-   fun_utils
- THREADS
-   1
  LABELS
    unstruct
    solver

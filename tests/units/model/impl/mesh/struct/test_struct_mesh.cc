@@ -937,21 +937,11 @@ TYPED_TEST(ModelStructTest, MinSpacingForAllOrders) {
 
   // h = lx/ex = 100/10 = 10 for all orders
   FloatType h = 10.0f;
-  if constexpr (Order == 1) {
-    EXPECT_NEAR(min_spacing, h, 1e-4f);
-  }
-  if constexpr (Order == 2) {
-    EXPECT_NEAR(min_spacing, h * 0.5000000000f, 1e-4f);
-  }
-  if constexpr (Order == 3) {
-    EXPECT_NEAR(min_spacing, h * 0.2763932023f, 1e-4f);
-  }
-  if constexpr (Order == 4) {
-    EXPECT_NEAR(min_spacing, h * 0.1726731646f, 1e-4f);
-  }
-  if constexpr (Order == 5) {
-    EXPECT_NEAR(min_spacing, h * 0.1174723380f, 1e-4f);
-  }
+  if constexpr (Order == 1) EXPECT_NEAR(min_spacing, h, 1e-4f);
+  if constexpr (Order == 2) EXPECT_NEAR(min_spacing, h * 0.5000000000f, 1e-4f);
+  if constexpr (Order == 3) EXPECT_NEAR(min_spacing, h * 0.2763932023f, 1e-4f);
+  if constexpr (Order == 4) EXPECT_NEAR(min_spacing, h * 0.1726731646f, 1e-4f);
+  if constexpr (Order == 5) EXPECT_NEAR(min_spacing, h * 0.1174723380f, 1e-4f);
 }
 
 // ============================================================================

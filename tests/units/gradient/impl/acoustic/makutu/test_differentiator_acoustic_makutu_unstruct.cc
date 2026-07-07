@@ -164,7 +164,6 @@ TYPED_TEST(DifferentiatorAcousticElemUnstructTest, ZeroWavefieldsYieldZeroGradie
   GradientAcoustic grad(this->gradKappa, this->gradBuoyancy);
   GradientDataAcoustic data(fwd, bwd, grad);
 
-  diff.initGeometricMassMatrix(mesh);
   diff.compute(mesh, data, 0.001f);
 
   EXPECT_FLOAT_EQ(this->gradKappa(0), 0.0f);
@@ -189,7 +188,6 @@ TYPED_TEST(DifferentiatorAcousticElemUnstructTest, UniformFieldGradKappaEqualsVo
   GradientAcoustic grad(this->gradKappa, this->gradBuoyancy);
   GradientDataAcoustic data(fwd, bwd, grad);
 
-  diff.initGeometricMassMatrix(mesh);
   diff.compute(mesh, data, 0.001f);
 
   EXPECT_NEAR(this->gradKappa(0), 1.0f, 1e-5f);
@@ -210,7 +208,6 @@ TYPED_TEST(DifferentiatorAcousticElemUnstructTest, ConstantFieldGradBuoyancyIsZe
   GradientAcoustic grad(this->gradKappa, this->gradBuoyancy);
   GradientDataAcoustic data(fwd, bwd, grad);
 
-  diff.initGeometricMassMatrix(mesh);
   diff.compute(mesh, data, 0.001f);
 
   EXPECT_NEAR(this->gradBuoyancy(0), 0.0f, 1e-5f);
@@ -233,7 +230,6 @@ TYPED_TEST(DifferentiatorAcousticElemUnstructTest, GradKappaScalesWithAmplitude)
     WavefieldViewBackwardAcoustic bwd(this->qn, this->qnPrev, this->qnPrevPrev);
     GradientAcoustic grad(this->gradKappa, this->gradBuoyancy);
     GradientDataAcoustic data(fwd, bwd, grad);
-    diff.initGeometricMassMatrix(mesh);
     diff.compute(mesh, data, 0.001f);
   }
   float single = this->gradKappa(0);
@@ -246,7 +242,6 @@ TYPED_TEST(DifferentiatorAcousticElemUnstructTest, GradKappaScalesWithAmplitude)
     WavefieldViewBackwardAcoustic bwd(this->qn, this->qnPrev, this->qnPrevPrev);
     GradientAcoustic grad(this->gradKappa, this->gradBuoyancy);
     GradientDataAcoustic data(fwd, bwd, grad);
-    diff.initGeometricMassMatrix(mesh);
     diff.compute(mesh, data, 0.001f);
   }
 
@@ -270,7 +265,6 @@ TYPED_TEST(DifferentiatorAcousticElemUnstructTest, ComputeAccumulatesIntoExistin
   GradientAcoustic grad(this->gradKappa, this->gradBuoyancy);
   GradientDataAcoustic data(fwd, bwd, grad);
 
-  diff.initGeometricMassMatrix(mesh);
   diff.compute(mesh, data, 0.001f);
 
   // 5.0 (initial) + 1.0 (volume of unit cube) = 6.0
@@ -298,7 +292,6 @@ TYPED_TEST(DifferentiatorAcousticElemUnstructTest, PolymorphicInterface) {
   GradientAcoustic grad(this->gradKappa, this->gradBuoyancy);
   GradientDataAcoustic data(fwd, bwd, grad);
 
-  diff->initGeometricMassMatrix(mesh);
   EXPECT_NO_THROW(diff->compute(mesh, data, 0.001f));
   EXPECT_GT(this->gradKappa(0), 0.0f);
 }
@@ -394,7 +387,6 @@ TYPED_TEST(DifferentiatorAcousticNodeUnstructTest, ZeroWavefieldsYieldZeroGradie
   GradientAcoustic grad(this->gradKappa, this->gradBuoyancy);
   GradientDataAcoustic data(fwd, bwd, grad);
 
-  diff.initGeometricMassMatrix(mesh);
   diff.compute(mesh, data, 0.001f);
 
   EXPECT_FLOAT_EQ(this->sumGradKappa(), 0.0f);
@@ -419,7 +411,6 @@ TYPED_TEST(DifferentiatorAcousticNodeUnstructTest, UniformFieldGradKappaSumsToVo
   GradientAcoustic grad(this->gradKappa, this->gradBuoyancy);
   GradientDataAcoustic data(fwd, bwd, grad);
 
-  diff.initGeometricMassMatrix(mesh);
   diff.compute(mesh, data, 0.001f);
 
   EXPECT_NEAR(this->sumGradKappa(), (float)TestFixture::kNumNodes, 1e-5f);
@@ -440,7 +431,6 @@ TYPED_TEST(DifferentiatorAcousticNodeUnstructTest, ConstantFieldGradBuoyancySums
   GradientAcoustic grad(this->gradKappa, this->gradBuoyancy);
   GradientDataAcoustic data(fwd, bwd, grad);
 
-  diff.initGeometricMassMatrix(mesh);
   diff.compute(mesh, data, 0.001f);
 
   // Tolerance relaxed for higher orders due to accumulated numerical errors
@@ -467,7 +457,6 @@ TYPED_TEST(DifferentiatorAcousticNodeUnstructTest, NodeBasedSumEqualsElementBase
   typename TestFixture::DiffNode diffNode;
   GradientAcoustic gradNode(this->gradKappa, this->gradBuoyancy);
   GradientDataAcoustic dataNode(fwd, bwd, gradNode);
-  diffNode.initGeometricMassMatrix(mesh);
   diffNode.compute(mesh, dataNode, 0.001f);
   float nodeSum = this->sumGradKappa();
 
@@ -480,7 +469,6 @@ TYPED_TEST(DifferentiatorAcousticNodeUnstructTest, NodeBasedSumEqualsElementBase
   typename TestFixture::DiffElem diffElem;
   GradientAcoustic gradElem(gradKappaElem, gradBuoyancyElem);
   GradientDataAcoustic dataElem(fwd, bwd, gradElem);
-  diffElem.initGeometricMassMatrix(mesh);
   diffElem.compute(mesh, dataElem, 0.001f);
 
   EXPECT_NEAR(nodeSum, (float)TestFixture::kNumNodes * gradKappaElem(0), 1e-5f);
@@ -507,7 +495,6 @@ TYPED_TEST(DifferentiatorAcousticNodeUnstructTest, PolymorphicInterface) {
   GradientAcoustic grad(this->gradKappa, this->gradBuoyancy);
   GradientDataAcoustic data(fwd, bwd, grad);
 
-  diff->initGeometricMassMatrix(mesh);
   EXPECT_NO_THROW(diff->compute(mesh, data, 0.001f));
   EXPECT_GT(this->sumGradKappa(), 0.0f);
 }

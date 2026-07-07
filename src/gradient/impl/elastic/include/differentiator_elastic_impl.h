@@ -57,56 +57,6 @@ void DifferentiatorElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES>::
 }
 
 template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE, bool IS_MODEL_ON_NODES>
-vectorReal& DifferentiatorElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES>::getGeometricMassMatrix() {
-  return geometricMassMatrix_;
-}
-
-template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE, bool IS_MODEL_ON_NODES>
-void DifferentiatorElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES>::initGeometricMassMatrix(
-    model::ModelApi<float, int>& meshApi) {
-  auto mesh = dynamic_cast<MESH_TYPE&>(meshApi);
-
-  // Allocate geometric mass matrix if not already done, then zero it
-  if (geometricMassMatrix_.extent(0) != mesh.getNumberOfNodes())
-    geometricMassMatrix_ = allocateVector<vectorReal>(mesh.getNumberOfNodes(), "geometricMassMatrix");
-  Kokkos::deep_copy(geometricMassMatrix_, 0.0f);
-
-  auto local_geometricMassMatrix = geometricMassMatrix_;
-
-  Kokkos::parallel_for(
-      "Differentiator Compute Geometric Mass Matrix",
-      Kokkos::RangePolicy<Kokkos::LaunchBounds<LaunchMaxThreadsPerBlock, LaunchMinBlocksPerSM>>(
-          0, mesh.getNumberOfElements()),
-      KOKKOS_LAMBDA(const int elementNumber) {
-        float massMatrixLocal[kPointsPerElement] = {0};
-        int const dim = mesh.getOrder() + 1;
-
-        float cornerCoords[8][3];
-        {
-          auto const eIdx = mesh.elementIndex(elementNumber);
-          int I = 0;
-          for (int kv = 0; kv < 2; ++kv)
-            for (int jv = 0; jv < 2; ++jv)
-              for (int iv = 0; iv < 2; ++iv)
-                mesh.vertexCoords(mesh.globalVertexIndex(eIdx, iv, jv, kv), cornerCoords[I++]);
-        }
-
-        // Compute mass term (geometric part only - no model factors)
-        INTEGRAL_TYPE::computeMassTerm(cornerCoords, [&](const int j, const real_t val) { massMatrixLocal[j] += val; });
-
-        for (int i = 0; i < mesh.getNumberOfPointsPerElement(); ++i) {
-          int x = i % dim;
-          int z = (i / dim) % dim;
-          int y = i / (dim * dim);
-          int const gIndex = mesh.globalNodeIndex(elementNumber, x, y, z);
-
-          ATOMICADD(local_geometricMassMatrix[gIndex], massMatrixLocal[i]);
-        }
-      });
-  Kokkos::fence();
-}
-
-template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE, bool IS_MODEL_ON_NODES>
 KOKKOS_INLINE_FUNCTION void
 DifferentiatorElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES>::computeDisplacementGradient(
     int qa, int qb, int qc, float const (&J)[3][3], float const* localUx, float const* localUy, float const* localUz,

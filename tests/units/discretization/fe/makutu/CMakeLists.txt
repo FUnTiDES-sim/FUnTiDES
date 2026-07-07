@@ -12,8 +12,6 @@ set(_QK_TEST_GROUPS
   face_interface
   sumfact_acoustic
   sumfact_elastic
-  tensorial_gemm
-  tensorial_gemm_kokkos
 )
 
 set(_QK_TEST_ORDERS "")
