@@ -3,7 +3,7 @@
 
 #include <@MODEL_HEADER@>
 
-#include "dg_padative_solver_impl.h"
+#include "dg_padaptive_solver_impl.h"
 
 constexpr int ORDER = @ORDER@;
 
