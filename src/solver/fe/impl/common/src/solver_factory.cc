@@ -279,14 +279,18 @@ template <auto ImplTag>
 std::unique_ptr<Solver> makeDgPAdaptiveSolver(int order_min, int order_max, feenum::meshType mesh, feenum::modelLocationType modelLocation,
                                         feenum::physicType physic) {
   bool const isModelOnNodes = (modelLocation == feenum::modelLocationType::kOnNodes);
-  return orderDispatch<MAX_DG_PADATIVE_SOLVER_ACOUSTIC_ORDER>(order_max, [&](auto orderMaxIC) {
+  return orderDispatch<MAX_DG_PADAPTIVE_SOLVER_ACOUSTIC_ORDER>(order_max, [&](auto orderMaxIC) -> std::unique_ptr<Solver> {
     constexpr int ORDER_MAX = decltype(orderMaxIC)::value;
-    
-    return orderDispatch<ORDER_MAX - 1>(order_min, [&](auto orderMinIC) {
-      constexpr int ORDER_MIN = decltype(orderMinIC)::value;
-      return (mesh == feenum::meshType::kStruct) ? makeDgPAdaptiveSolverStruct<ImplTag, ORDER_MIN, ORDER_MAX>(isModelOnNodes, physic)
-                                                 : makeDgPAdaptiveSolverUnstruct<ImplTag, ORDER_MIN, ORDER_MAX>(isModelOnNodes, physic);
-    });
+
+    if constexpr (ORDER_MAX > 1) {
+      return orderDispatch<ORDER_MAX - 1>(order_min, [&](auto orderMinIC) {
+        constexpr int ORDER_MIN = decltype(orderMinIC)::value;
+        return (mesh == feenum::meshType::kStruct) ? makeDgPAdaptiveSolverStruct<ImplTag, ORDER_MIN, ORDER_MAX>(isModelOnNodes, physic)
+                                                   : makeDgPAdaptiveSolverUnstruct<ImplTag, ORDER_MIN, ORDER_MAX>(isModelOnNodes, physic);
+      });
+    } else {
+      throw std::runtime_error("DG p-adaptive requires order_max > 1");
+    }
   });
 }
 #endif
@@ -294,7 +298,7 @@ std::unique_ptr<Solver> makeDgPAdaptiveSolver(int order_min, int order_max, feen
 
 std::unique_ptr<Solver> createSolver(feenum::methodType const methodType, feenum::implemType const implemType,
                                      feenum::meshType const mesh, feenum::modelLocationType const modelLocation,
-                                     feenum::physicType const physicType, int const order, int order_min = 0) {
+                                     feenum::physicType const physicType, int const order, int const order_min) {
   if (methodType == feenum::methodType::kSem) {
     switch (implemType) {
       case feenum::implemType::kMakutu:

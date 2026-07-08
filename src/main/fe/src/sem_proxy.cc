@@ -67,13 +67,13 @@ void SEMproxy::SetupSolver(const SemProxyOptions& opt) {
 
   if (is_dg_sem_) {
     dg_sem_iface_z_ = (opt.ZBoundary > 0.f) ? opt.ZBoundary : opt.lz * 0.5f;
-    solver_->setDgSemBoundaryZ(dg_sem_iface_z_);
+    solver_->setZBoundary(dg_sem_iface_z_);
   }
 
   if (is_dg_padaptive_) {
     dg_padaptive_iface_z_ = (opt.ZBoundary > 0.f) ? opt.ZBoundary : opt.lz * 0.5f;
     order_min_ = opt.order_min;
-    solver_->setPAdaptiveBoundaryZ(dg_padaptive_iface_z_);
+    solver_->setZBoundary(dg_padaptive_iface_z_);
   }
 
   const model::AnisotropyType anisotropy_type = GetAnisotropy(opt.anisotropy);
@@ -466,9 +466,9 @@ void SEMproxy::Run() {
       if (time_index % 50 == 0) {
         int src_e = h_rhs_element_(0);
         int rcv_e = h_rhs_element_rcv_(0);
-        solver_->outputSolutionValues(time_index, src_e, pn_pmin_dg_prev_, 0, "pnDgPMin_src");
-        solver_->outputSolutionValues(time_index, rcv_e, pn_pmin_dg_prev_, 0, "pnDgPMin_rcv");
-        solver_->outputSolutionValues(time_index, rcv_e, pn_pmax_dg_prev_, 1, "pnDgPMax_rcv");
+        solver_->outputSolutionValues(time_index, src_e, pn_pmin_dg_prev_, "pnDgPMin_src");
+        solver_->outputSolutionValues(time_index, rcv_e, pn_pmin_dg_prev_, "pnDgPMin_rcv");
+        solver_->outputSolutionValues(time_index, rcv_e, pn_pmax_dg_prev_, "pnDgPMax_rcv");
       }
 
       // if (is_snapshots_ && time_index % snap_time_interval_ == 0) {
@@ -889,7 +889,7 @@ void SEMproxy::InitArrays() {
     rhs_term_y_ = allocateArray2D<arrayReal>(num_rhs_, num_samples_, "RHSTermy");
     rhs_term_z_ = allocateArray2D<arrayReal>(num_rhs_, num_samples_, "RHSTermz");
     rhs_weights_ = allocateArray2D<arrayReal>(num_rhs_, n_pts_per_elem, "RHSWeight");
-    rhs_weights_rcv_ = allocateArray2D<arrayReal>(1, n_pts_per_elem"RHSWeightRcv");
+    rhs_weights_rcv_ = allocateArray2D<arrayReal>(1, n_pts_per_elem, "RHSWeightRcv");
     pn_global_curr_ = allocateVector<vectorReal>(n_nodes, "pnGlobalCurr");
     pn_global_prev_ = allocateVector<vectorReal>(n_nodes, "pnGlobalPrev");
     pn_at_receiver_ = allocateArray2D<arrayReal>(1, num_samples_, "pn_at_receiver_");
@@ -902,7 +902,7 @@ void SEMproxy::InitArrays() {
   } else if (is_dg_) {
     rhs_term_ = allocateArray2D<arrayReal>(num_rhs_, num_samples_, "RHSTerm");
     rhs_weights_ = allocateArray2D<arrayReal>(num_rhs_, n_pts_per_elem, "RHSWeight");
-    rhs_weights_rcv_ = allocateArray2D<arrayReal>(1, n_pts_per_elem"RHSWeightRcv");
+    rhs_weights_rcv_ = allocateArray2D<arrayReal>(1, n_pts_per_elem, "RHSWeightRcv");
     pn_dg_prev_ = allocateArray2D<arrayReal>(n_elements, n_pts_per_elem, "pnDGPrev");
     pn_dg_curr_ = allocateArray2D<arrayReal>(n_elements, n_pts_per_elem, "pnDGCurr");
     pn_at_receiver_ = allocateArray2D<arrayReal>(1, num_samples_, "pn_at_receiver_");
@@ -910,7 +910,7 @@ void SEMproxy::InitArrays() {
     rhs_term_dg_ = allocateArray2D<arrayReal>(num_rhs_, num_samples_, "RHSTermDG");
     rhs_term_sem_ = allocateArray2D<arrayReal>(num_rhs_, num_samples_, "RHSTermSEM");
     rhs_weights_ = allocateArray2D<arrayReal>(num_rhs_, n_pts_per_elem, "RHSWeight");
-    rhs_weights_rcv_ = allocateArray2D<arrayReal>(1, n_pts_per_elem"RHSWeightRcv");
+    rhs_weights_rcv_ = allocateArray2D<arrayReal>(1, n_pts_per_elem, "RHSWeightRcv");
     pn_dg_prev_ = allocateArray2D<arrayReal>(n_elements, n_pts_per_elem, "pnDGPrev");
     pn_dg_curr_ = allocateArray2D<arrayReal>(n_elements, n_pts_per_elem, "pnDGCurr");
     pn_sem_curr_ = allocateVector<vectorReal>(n_nodes, "pnSEMCurr");
@@ -925,13 +925,13 @@ void SEMproxy::InitArrays() {
     rhs_pmax_weights_rcv_ = allocateArray2D<arrayReal>(1, n_pts_per_elem, "RHSWeightPMaxRcv");
     pn_pmin_dg_prev_ = allocateArray2D<arrayReal>(n_elements, n_pts_per_elem_min, "pnPMinDGPrev");
     pn_pmin_dg_curr_ = allocateArray2D<arrayReal>(n_elements, n_pts_per_elem_min, "pnPMinDGCurr");
-    pn_pmax_dg_prev_ = allocateVector<vectorReal>(n_elements, n_pts_per_elem, "pnPMaxDGPrev");
-    pn_pmax_dg_curr_ = allocateVector<vectorReal>(n_elements, n_pts_per_elem, "pnPMaxDGCurr");
+    pn_pmax_dg_prev_ = allocateArray2D<arrayReal>(n_elements, n_pts_per_elem, "pnPMaxDGPrev");
+    pn_pmax_dg_curr_ = allocateArray2D<arrayReal>(n_elements, n_pts_per_elem, "pnPMaxDGCurr");
     pn_at_receiver_ = allocateArray2D<arrayReal>(1, num_samples_, "pn_at_receiver_");
   } else if (!is_elastic_) {
     rhs_term_ = allocateArray2D<arrayReal>(num_rhs_, num_samples_, "RHSTerm");
     rhs_weights_ = allocateArray2D<arrayReal>(num_rhs_, n_pts_per_elem, "RHSWeight");
-    rhs_weights_rcv_ = allocateArray2D<arrayReal>(1, n_pts_per_elem"RHSWeightRcv");
+    rhs_weights_rcv_ = allocateArray2D<arrayReal>(1, n_pts_per_elem, "RHSWeightRcv");
     pn_global_curr_ = allocateVector<vectorReal>(n_nodes, "pnGlobalCurr");
     pn_global_prev_ = allocateVector<vectorReal>(n_nodes, "pnGlobalPrev");
     pn_at_receiver_ = allocateArray2D<arrayReal>(1, num_samples_, "pn_at_receiver_");

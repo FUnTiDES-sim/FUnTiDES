@@ -30,7 +30,6 @@ class CartesianUnstructBuilder : public ModelBuilderBase<FloatType, ScalarType> 
         isElastic_(p.isElastic),
         isAcoustoElastic_(p.isAcoustoElastic),
         acoustoElasticBoundaryZ_(p.acoustoElasticBoundaryZ),
-        DgSemBoundaryZ_(p.DgSemBoundaryZ),
         ox_(p.origin_x),
         oy_(p.origin_y),
         oz_(p.origin_z),
@@ -91,7 +90,6 @@ class CartesianUnstructBuilder : public ModelBuilderBase<FloatType, ScalarType> 
   bool isElastic_;
   bool isAcoustoElastic_{false};
   FloatType acoustoElasticBoundaryZ_{static_cast<FloatType>(0)};
-  FloatType DgSemBoundaryZ_{static_cast<FloatType>(0)};
   std::string model_file_;
 
   arrayInt global_node_index_;

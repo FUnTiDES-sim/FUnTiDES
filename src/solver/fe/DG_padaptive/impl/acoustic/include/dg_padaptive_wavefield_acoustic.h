@@ -21,8 +21,8 @@ struct DGPAdaptiveWavefieldAcoustic {
   /// Field names in order: pMinDGp, pMaxDGp
   static constexpr const char* kFieldNames[2] = {"pMinDGpressure", "pMaxDGpressure"};
 
-  DGPAdaptiveWavefieldAcoustic(arrayReal pnPMinDGPrev, arrayReal pnPMinDGCurr, vectorReal pnPMaxDGPrev, vectorReal pnPMaxDGCurr)
-      : m_p1acoustic(pnPMinDGPrev, pnPMinDGCurr), m_p2acoustic(pnPMaxDGPrev, pnPMaxDGCurr) {}
+  DGPAdaptiveWavefieldAcoustic(arrayReal pnPMinDGPrev, arrayReal pnPMinDGCurr, arrayReal pnPMaxDGPrev, arrayReal pnPMaxDGCurr)
+      : m_pMinAcoustic(pnPMinDGPrev, pnPMinDGCurr), m_pMaxAcoustic(pnPMaxDGPrev, pnPMaxDGCurr) {}
 
   int getNumFields() const { return kNumFields; }
 
@@ -38,7 +38,7 @@ struct DGPAdaptiveWavefieldAcoustic {
    * @brief Get the current field of order pMax.
    */
   PROXY_HOST_DEVICE
-  vectorReal getPMaxCurrentField(int i) const { return m_pMaxAcoustic.getCurrentField(0); }
+  arrayReal getPMaxCurrentField(int i) const { return m_pMaxAcoustic.getCurrentField(0); }
 
   /**
    * @brief Get the previous field of order pMin.
@@ -50,7 +50,7 @@ struct DGPAdaptiveWavefieldAcoustic {
    * @brief Get the previous field of order pMax.
    */
   PROXY_HOST_DEVICE
-  vectorReal getPMaxPreviousField(int i) const { return m_pMaxAcoustic.getPreviousField(0); }
+  arrayReal getPMaxPreviousField(int i) const { return m_pMaxAcoustic.getPreviousField(0); }
 
   void swap() {
     m_pMinAcoustic.swap();

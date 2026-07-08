@@ -157,6 +157,18 @@ class SEMproxy {
   arrayReal rhs_weights_rcv_;  ///< Interpolation weights for receivers (Device).
   arrayReal pn_at_receiver_;   ///< Recorded pressure traces at receivers (Device).
 
+  // --- DG p-adaptive Arrays (Device) ---
+  arrayReal rhs_term_pmin_;         ///< pMin domain DG source term array over time (Device).
+  arrayReal rhs_term_pmax_;         ///< pMax domain DG source term array over time (Device).
+  arrayReal rhs_pmin_weights_;      ///< Interpolation weights for sources in the pMin domain (Device).
+  arrayReal rhs_pmax_weights_;      ///< Interpolation weights for sources in the pMax domain (Device).
+  arrayReal rhs_pmin_weights_rcv_;  ///< Interpolation weights for receivers in the pMin domain (Device).
+  arrayReal rhs_pmax_weights_rcv_;  ///< Interpolation weights for receivers in the pMax domain (Device).
+  arrayReal pn_pmin_dg_prev_;       ///< pMin domain DG Pressure field at time t-1 (Device).
+  arrayReal pn_pmin_dg_curr_;       ///< pMin domain DG Pressure field at time t (Device).
+  arrayReal pn_pmax_dg_prev_;       ///< pMax domain DG Pressure field at time t-1 (Device).
+  arrayReal pn_pmax_dg_curr_;       ///< pMax domain DG Pressure field at time t (Device).
+
   // --- Elastic Arrays (Device) ---
   arrayReal rhs_term_x_;        ///< X-component of the source term (Device).
   arrayReal rhs_term_y_;        ///< Y-component of the source term (Device).
@@ -205,6 +217,17 @@ class SEMproxy {
   vectorReal::host_mirror_type h_pn_sem_prev_;      ///< CPU mirror for SEM previous pressure field.
   arrayReal::host_mirror_type h_pn_dg_curr_;        ///< CPU mirror for DG current pressure field.
   arrayReal::host_mirror_type h_pn_dg_prev_;        ///< CPU mirror for DG previous pressure field.
+
+  arrayReal::host_mirror_type h_rhs_term_pmin_;         ///< CPU mirror for pMin domain DG source term.
+  arrayReal::host_mirror_type h_rhs_term_pmax_;         ///< CPU mirror for pMax domain DG source term.
+  arrayReal::host_mirror_type h_rhs_pmin_weights_;      ///< CPU mirror for pMin domain source interpolation weights.
+  arrayReal::host_mirror_type h_rhs_pmax_weights_;      ///< CPU mirror for pMax domain source interpolation weights.
+  arrayReal::host_mirror_type h_rhs_pmin_weights_rcv_;  ///< CPU mirror for pMin domain receiver interpolation weights.
+  arrayReal::host_mirror_type h_rhs_pmax_weights_rcv_;  ///< CPU mirror for pMax domain receiver interpolation weights.
+  arrayReal::host_mirror_type h_pn_pmin_dg_curr_;       ///< CPU mirror for pMin domain DG current pressure field.
+  arrayReal::host_mirror_type h_pn_pmin_dg_prev_;       ///< CPU mirror for pMin domain DG previous pressure field.
+  arrayReal::host_mirror_type h_pn_pmax_dg_curr_;       ///< CPU mirror for pMax domain DG current pressure field.
+  arrayReal::host_mirror_type h_pn_pmax_dg_prev_;       ///< CPU mirror for pMax domain DG previous pressure field.
   vectorReal::host_mirror_type h_uxn_global_curr_;  ///< CPU mirror for current X-displacement.
   vectorReal::host_mirror_type h_uyn_global_curr_;  ///< CPU mirror for current Y-displacement.
   vectorReal::host_mirror_type h_uzn_global_curr_;  ///< CPU mirror for current Z-displacement.

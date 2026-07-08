@@ -29,7 +29,7 @@ struct DGPAdaptiveRhsAcoustic : public Rhs {
    * @param pMin_weights        Per-node pMin weights for source distribution.
    * @param pMax_weights        Per-node pMax weights for source distribution.
    */
-  DGSEMRhsAcoustic(arrayReal pMin_acoustic_term, arrayReal pMax_acoustic_term, vectorInt element, arrayReal pMin_weights, arrayReal pMax_weights)
+  DGPAdaptiveRhsAcoustic(arrayReal pMin_acoustic_term, arrayReal pMax_acoustic_term, vectorInt element, arrayReal pMin_weights, arrayReal pMax_weights)
       : m_rhs_pMinAcoustic(pMin_acoustic_term, element, pMin_weights), m_rhs_pMaxAcoustic(pMax_acoustic_term, element, pMax_weights) {}
 
   int getNumRhsComponents() const override final { return kNumRhsComponents; }
@@ -48,6 +48,10 @@ struct DGPAdaptiveRhsAcoustic : public Rhs {
   arrayReal getWeights(int i) const { 
     if (i == 0) return m_rhs_pMinAcoustic.getWeights();
     return m_rhs_pMaxAcoustic.getWeights();
+  }
+  PROXY_HOST_DEVICE
+  arrayReal getWeights() const override {
+    throw std::runtime_error("getWeights need an order indicator (0 : order_min_, 1 : order_max_)");
   }
 
   void print() const override {

@@ -108,7 +108,7 @@ class DGSEMsolver : public Solver {
     // TODO: Implement anisotropy setting
   }
 
-  void setDgSemBoundaryZ(float z) override { DG_SEM_interface_z_ = z; }
+  void setZBoundary(float z) override { DG_SEM_interface_z_ = z; }
 
   void setSLSAttenuation(const vectorReal& reference_frequencies,
                          const vectorReal& anelasticity_coefficients = vectorReal()) override {

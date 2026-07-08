@@ -23,9 +23,9 @@ set(MODEL_TYPES "onelements" "onnodes")
 # Generate solver implementation files
 # ============================================================================
 
-generate_solver_implementations(
+generate_padaptive_solver_implementations(
     SOLVER_NAME "makutu"
-    FILE_PREFIX "DGSEMQ"
+    FILE_PREFIX "DGPADAPTIVEQ"
     ORDERS ${ORDERS}
     MESH_TYPES ${MESH_TYPES}
     MODEL_TYPES ${MODEL_TYPES}

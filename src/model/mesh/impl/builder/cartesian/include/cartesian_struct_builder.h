@@ -18,8 +18,7 @@ class CartesianStructBuilder : public ModelBuilderBase<FloatType, ScalarType> {
                          FloatType oz = 0.0, FloatType global_lx = -1.0, FloatType global_ly = -1.0,
                          FloatType global_lz = -1.0, FloatType global_ox = 0.0, FloatType global_oy = 0.0,
                          FloatType global_oz = 0.0, bool isAcoustoElastic = false,
-                         FloatType acoustoElasticBoundaryZ = static_cast<FloatType>(0),
-                         FloatType DgSemBoundaryZ = static_cast<FloatType>(0), std::string model_file = "")
+                         FloatType acoustoElasticBoundaryZ = static_cast<FloatType>(0), std::string model_file = "")
       : ex_(ex),
         ey_(ey),
         ez_(ez),
@@ -39,7 +38,6 @@ class CartesianStructBuilder : public ModelBuilderBase<FloatType, ScalarType> {
         global_oz_(global_oz),
         isAcoustoElastic_(isAcoustoElastic),
         acoustoElasticBoundaryZ_(acoustoElasticBoundaryZ),
-        DgSemBoundaryZ_(DgSemBoundaryZ),
         model_file_(std::move(model_file)) {}
 
   ~CartesianStructBuilder() = default;
@@ -155,7 +153,6 @@ class CartesianStructBuilder : public ModelBuilderBase<FloatType, ScalarType> {
   bool isElastic_;
   bool isAcoustoElastic_{false};
   FloatType acoustoElasticBoundaryZ_{static_cast<FloatType>(0)};
-  FloatType DgSemBoundaryZ_{static_cast<FloatType>(0)};
   std::string model_file_;
 };
 }  // namespace model

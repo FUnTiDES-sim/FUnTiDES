@@ -8,6 +8,8 @@
 #include <vector>
 
 #include "Integrals.h"
+#include "dg_solver.h"
+#include "dg_solver_impl.h"
 #include "dg_padaptive_solver.h"
 #include "dg_padaptive_solver_data.h"
 
@@ -18,7 +20,7 @@ namespace fe {
 // computeFEInit
 //============================================================================
 
-template <int ORDER_MIN, int ORDER_MAX, template<int, int> class INTEGRAL_SELECTOR, auto IMPL_TAG, typename MESH_TYPE, bool IS_MODEL_ON_NODES,
+template <int ORDER_MIN, int ORDER_MAX, template<int, int> class INTEGRAL_SELECTOR, int IMPL_TAG, typename MESH_TYPE, bool IS_MODEL_ON_NODES,
           utils::enums::physicType PHYSICS>
 void DGPAdaptiveSolver<ORDER_MIN, ORDER_MAX, INTEGRAL_SELECTOR, IMPL_TAG, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::computeFEInit(
     model::ModelApi<float, int>& mesh_in, const std::array<float, 3>& sponge_size, const bool surface_sponge,
@@ -53,19 +55,19 @@ void DGPAdaptiveSolver<ORDER_MIN, ORDER_MAX, INTEGRAL_SELECTOR, IMPL_TAG, MESH_T
 // allocateFEarrays
 //============================================================================
 
-template <int ORDER_MIN, int ORDER_MAX, template<int, int> class INTEGRAL_SELECTOR, auto IMPL_TAG, typename MESH_TYPE, bool IS_MODEL_ON_NODES,
+template <int ORDER_MIN, int ORDER_MAX, template<int, int> class INTEGRAL_SELECTOR, int IMPL_TAG, typename MESH_TYPE, bool IS_MODEL_ON_NODES,
           utils::enums::physicType PHYSICS>
 void DGPAdaptiveSolver<ORDER_MIN, ORDER_MAX, INTEGRAL_SELECTOR, IMPL_TAG, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::allocateFEarrays() {
   int const nElem = m_mesh_.getNumberOfElements();
   m_element_type_ = allocateVector<vectorInt>(nElem, "pMinpMaxElementType");
-  m_mortar_projection = allocateArray<arrayReal>(pMaxSolver::knumNodesPerFace, pMinSolver::knumNodesPerFace, "mortarProjectionMatrix");
+  m_mortar_projection = allocateArray2D<arrayReal>(pMaxSolver::knumNodesPerFace, pMinSolver::knumNodesPerFace, "mortarProjectionMatrix");
 }
 
 //============================================================================
 // TagElements
 //============================================================================
 
-template <int ORDER_MIN, int ORDER_MAX, template<int, int> class INTEGRAL_SELECTOR, auto IMPL_TAG, typename MESH_TYPE, bool IS_MODEL_ON_NODES,
+template <int ORDER_MIN, int ORDER_MAX, template<int, int> class INTEGRAL_SELECTOR, int IMPL_TAG, typename MESH_TYPE, bool IS_MODEL_ON_NODES,
           utils::enums::physicType PHYSICS>
 void DGPAdaptiveSolver<ORDER_MIN, ORDER_MAX, INTEGRAL_SELECTOR, IMPL_TAG, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::TagElements() {
   int const nElem = m_mesh_.getNumberOfElements();
@@ -103,7 +105,7 @@ void DGPAdaptiveSolver<ORDER_MIN, ORDER_MAX, INTEGRAL_SELECTOR, IMPL_TAG, MESH_T
 // TagNodes
 //============================================================================
 
-template <int ORDER_MIN, int ORDER_MAX, template<int, int> class INTEGRAL_SELECTOR, auto IMPL_TAG, typename MESH_TYPE, bool IS_MODEL_ON_NODES,
+template <int ORDER_MIN, int ORDER_MAX, template<int, int> class INTEGRAL_SELECTOR, int IMPL_TAG, typename MESH_TYPE, bool IS_MODEL_ON_NODES,
           utils::enums::physicType PHYSICS>
 void DGPAdaptiveSolver<ORDER_MIN, ORDER_MAX, INTEGRAL_SELECTOR, IMPL_TAG, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::TagNodes() {
   int const nNode = m_mesh_.getNumberOfNodes();
@@ -151,7 +153,7 @@ void DGPAdaptiveSolver<ORDER_MIN, ORDER_MAX, INTEGRAL_SELECTOR, IMPL_TAG, MESH_T
   for (int f = 0; f < num_faces_fc; ++f) {
     if (m_face_connectivity_.isBoundaryFace(f)) continue;
     bool face_on_interface = true;
-    for (int j = 0; j < knumNodesPerFacePMax; ++j) {
+    for (int j = 0; j < pMaxSolver::knumNodesPerFace; ++j) {
       int const gn = m_face_connectivity_.getGlobalNodeFromFace(f, j);
       if (h_pMin_count(gn) == 0 || h_pMax_count(gn) == 0) {
         face_on_interface = false;
@@ -168,7 +170,7 @@ void DGPAdaptiveSolver<ORDER_MIN, ORDER_MAX, INTEGRAL_SELECTOR, IMPL_TAG, MESH_T
   for (int f = 0; f < num_faces_fc; ++f) {
     if (m_face_connectivity_.isBoundaryFace(f)) continue;
     bool face_on_interface = true;
-    for (int j = 0; j < knumNodesPerFacePMax; ++j) {
+    for (int j = 0; j < pMaxSolver::knumNodesPerFace; ++j) {
       int const gn = m_face_connectivity_.getGlobalNodeFromFace(f, j);
       if (h_pMin_count(gn) == 0 || h_pMax_count(gn) == 0) {
         face_on_interface = false;
@@ -187,7 +189,7 @@ void DGPAdaptiveSolver<ORDER_MIN, ORDER_MAX, INTEGRAL_SELECTOR, IMPL_TAG, MESH_T
 // BuildDGInteriorFaceList
 //============================================================================
 
-template <int ORDER_MIN, int ORDER_MAX, template<int, int> class INTEGRAL_SELECTOR, auto IMPL_TAG, typename MESH_TYPE, bool IS_MODEL_ON_NODES,
+template <int ORDER_MIN, int ORDER_MAX, template<int, int> class INTEGRAL_SELECTOR, int IMPL_TAG, typename MESH_TYPE, bool IS_MODEL_ON_NODES,
           utils::enums::physicType PHYSICS>
 void DGPAdaptiveSolver<ORDER_MIN, ORDER_MAX, INTEGRAL_SELECTOR, IMPL_TAG, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::BuildInteriorFaceLists() {
   auto h_elem_type = Kokkos::create_mirror_view_and_copy(Kokkos::HostSpace{}, m_element_type_);
@@ -235,14 +237,14 @@ void DGPAdaptiveSolver<ORDER_MIN, ORDER_MAX, INTEGRAL_SELECTOR, IMPL_TAG, MESH_T
 // ComputeMortarProjection 
 //============================================================================
 
-template <int ORDER_MIN, int ORDER_MAX, template<int, int> class INTEGRAL_SELECTOR, auto IMPL_TAG, typename MESH_TYPE, bool IS_MODEL_ON_NODES,
+template <int ORDER_MIN, int ORDER_MAX, template<int, int> class INTEGRAL_SELECTOR, int IMPL_TAG, typename MESH_TYPE, bool IS_MODEL_ON_NODES,
           utils::enums::physicType PHYSICS>
 void DGPAdaptiveSolver<ORDER_MIN, ORDER_MAX, INTEGRAL_SELECTOR, IMPL_TAG, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::ComputeMortarProjection() {
   for (int k=0; k<ORDER_MAX+1; ++k) {
     for (int l=0; l<ORDER_MAX+1; ++l) {
       for (int m=0; m<ORDER_MIN+1; ++m) {
         for (int n=0; n<ORDER_MIN+1; ++n) {
-          m_mortar_projection(k + l*(ORDER_MAX+1), m + n*(ORDER_MIN+1)) = INTEGRAL_TYPE_MIN::GL_BASIS::value(m, INTEGRAL_TYPE_MAX::GL_BASIS::parentSupportCoord(k)) * INTEGRAL_TYPE_MIN::GL_BASIS::value(n, INTEGRAL_TYPE_MAX::GL_BASIS::parentSupportCoord(l));
+          m_mortar_projection(k + l*(ORDER_MAX+1), m + n*(ORDER_MIN+1)) = INTEGRAL_TYPE_MIN::BasisType::value(m, INTEGRAL_TYPE_MAX::BasisType::parentSupportCoord(k)) * INTEGRAL_TYPE_MIN::BasisType::value(n, INTEGRAL_TYPE_MAX::BasisType::parentSupportCoord(l));
         }
       }
     }
@@ -254,14 +256,14 @@ void DGPAdaptiveSolver<ORDER_MIN, ORDER_MAX, INTEGRAL_SELECTOR, IMPL_TAG, MESH_T
 //                             pMax pressure → pMin pressure
 //============================================================================
 
-template <int ORDER_MIN, int ORDER_MAX, template<int, int> class INTEGRAL_SELECTOR, auto IMPL_TAG, typename MESH_TYPE, bool IS_MODEL_ON_NODES,
+template <int ORDER_MIN, int ORDER_MAX, template<int, int> class INTEGRAL_SELECTOR, int IMPL_TAG, typename MESH_TYPE, bool IS_MODEL_ON_NODES,
           utils::enums::physicType PHYSICS>
 void DGPAdaptiveSolver<ORDER_MIN, ORDER_MAX, INTEGRAL_SELECTOR, IMPL_TAG, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::ApplyCoupling(
     const DataType& data) {
   auto mesh_local = m_mesh_;
   auto face_connectivity_local = m_face_connectivity_;
-  auto const pField_pMin = data.m_wavefield.m_pMinacoustic.getCurrentField(0);
-  auto const pField_pMax = data.m_wavefield.m_pMaxacoustic.getCurrentField(0);
+  auto const pField_pMin = data.m_wavefield.m_pMinAcoustic.getCurrentField(0);
+  auto const pField_pMax = data.m_wavefield.m_pMaxAcoustic.getCurrentField(0);
 
   auto iface_list = m_interface_face_indices_;
   int const n_iface = num_interface_faces_;
@@ -396,7 +398,7 @@ void DGPAdaptiveSolver<ORDER_MIN, ORDER_MAX, INTEGRAL_SELECTOR, IMPL_TAG, MESH_T
 // computeOneStep  (staggered DG-SEM coupling scheme)
 //============================================================================
 
-template <int ORDER_MIN, int ORDER_MAX, template<int, int> class INTEGRAL_SELECTOR, auto IMPL_TAG, typename MESH_TYPE, bool IS_MODEL_ON_NODES,
+template <int ORDER_MIN, int ORDER_MAX, template<int, int> class INTEGRAL_SELECTOR, int IMPL_TAG, typename MESH_TYPE, bool IS_MODEL_ON_NODES,
           utils::enums::physicType PHYSICS>
 void DGPAdaptiveSolver<ORDER_MIN, ORDER_MAX, INTEGRAL_SELECTOR, IMPL_TAG, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::computeOneStep(const float& dt,
                                                                                               const int& timeSample,
@@ -477,15 +479,11 @@ void DGPAdaptiveSolver<ORDER_MIN, ORDER_MAX, INTEGRAL_SELECTOR, IMPL_TAG, MESH_T
 // outputSolutionValues (pMin or pMax solution output: p[nElem][nDof_pMax])
 //============================================================================
 
-template <int ORDER_MIN, int ORDER_MAX, template<int, int> class INTEGRAL_SELECTOR, auto IMPL_TAG, typename MESH_TYPE, bool IS_MODEL_ON_NODES,
+template <int ORDER_MIN, int ORDER_MAX, template<int, int> class INTEGRAL_SELECTOR, int IMPL_TAG, typename MESH_TYPE, bool IS_MODEL_ON_NODES,
           utils::enums::physicType PHYSICS>
 void DGPAdaptiveSolver<ORDER_MIN, ORDER_MAX, INTEGRAL_SELECTOR, IMPL_TAG, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::outputSolutionValues(
-    const int& t, int& e, const arrayReal& field, const int i, const char* fieldName) {
-  if(i==0){
-    m_pMin_solver_.outputSolutionValues(t, e, field, fieldName);
-  } else {
-      m_pMax_solver_.outputSolutionValues(t, e, field, fieldName);
-  }
+    const int& t, int& e, const arrayReal& field, const char* fieldName) {
+  m_pMin_solver_.outputSolutionValues(t, e, field, fieldName); // using pMin solver for pMax element too as outputSolutionValues display dof 0
 }
  
 

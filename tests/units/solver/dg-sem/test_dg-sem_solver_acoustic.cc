@@ -52,8 +52,7 @@ class DGSEMsolverAcousticTest : public ::testing::Test {
   void SetUp() override {
     model::CartesianStructBuilder<float, int, kOrder> builder(2, 2000.0f, 2, 2000.0f, 2, 2000.0f, false, false, 0.0,
                                                               0.0, 0.0, -1.0, -1.0, -1.0, 0.0, 0.0, 0.0, false,
-                                                              0.0f,      // default parameters from the builder
-                                                              1000.0f);  // DgSemBoundaryZ
+                                                              0.0f);      // default parameters from the builder
     mesh_ = builder.getModel(false);
     nElem_ = mesh_->getNumberOfElements();  // 8 here
     nNode_ = mesh_->getNumberOfNodes();     // 27 here
@@ -125,8 +124,7 @@ TEST_F(DGSEMsolverAcousticTest, ComputeFEInit_IncompatibleMeshThrows) {
   // The dynamic_cast in computeFEInit must fail and throw.
   model::CartesianStructBuilder<float, int, 2> builder2(2, 2000.0f, 2, 2000.0f, 2, 2000.0f, false, false, 0.0, 0.0, 0.0,
                                                         -1.0, -1.0, -1.0, 0.0, 0.0, 0.0, false,
-                                                        0.0f,      // default parameters from the builder
-                                                        1000.0f);  // DgSemBoundaryZ
+                                                        0.0f);      // default parameters from the builder
   auto mesh2 = builder2.getModel(false);
 
   DGSEMSolverT fresh_solver;

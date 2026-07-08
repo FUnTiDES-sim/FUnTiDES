@@ -12,13 +12,13 @@ namespace fe {
  *
  * Acoustic wave propagation uses a single scalar pressure field for each order.
  */
-struct DGSEMPhysicsTraits {
+struct DGPAdaptivePhysicsTraits {
   /// Human-readable name for logging
   static constexpr const char* kName = "DGPAdaptiveAcoustic";
 
   /// Concrete types for device access
   using WavefieldType = DGPAdaptiveWavefieldAcoustic;
-  using RhsType = DGPAdativeRhsAcoustic;
+  using RhsType = DGPAdaptiveRhsAcoustic;
 };
 
 }  // namespace fe

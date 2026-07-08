@@ -33,7 +33,7 @@ static constexpr int kElementTypePMax = 2;
  * @tparam IS_MODEL_ON_NODES  If true, material properties are stored on nodes.
  * @tparam PHYSICS            Physical model type (Acoustic).
  */
-template <int ORDER_MIN, int ORDER_MAX, template<int, int> class INTEGRAL_SELECTOR, auto IMPL_TAG, typename MESH_TYPE, bool IS_MODEL_ON_NODES,
+template <int ORDER_MIN, int ORDER_MAX, template<int, int> class INTEGRAL_SELECTOR, int IMPL_TAG, typename MESH_TYPE, bool IS_MODEL_ON_NODES,
           utils::enums::physicType PHYSICS>
 class DGPAdaptiveSolver : public Solver {
  public:
@@ -107,7 +107,7 @@ class DGPAdaptiveSolver : public Solver {
     // TODO: Implement anisotropy setting
   }
 
-  void setPAdaptiveBoundaryZ(float z) override { pAdaptive_interface_z_ = z; }
+  void setZBoundary(float z) override { pAdaptive_interface_z_ = z; }
 
   void setSLSAttenuation(const vectorReal& reference_frequencies,
                          const vectorReal& anelasticity_coefficients = vectorReal()) override {
@@ -148,8 +148,7 @@ class DGPAdaptiveSolver : public Solver {
   void ApplyCoupling(const DataType& data);
 
   void outputSolutionValues(const int& t, int& e, const vectorReal& field, const char* fieldName) override {};
-  void outputSolutionValues(const int& t, int& e, const arrayReal& field, const char* fieldName) override {};
-  void outputSolutionValues(const int& t, int& e, const arrayReal& field, const int i, const char* fieldName);
+  void outputSolutionValues(const int& t, int& e, const arrayReal& field, const char* fieldName) override;
 
   // --- Accessors for diagnostics ---
 
@@ -172,7 +171,7 @@ class DGPAdaptiveSolver : public Solver {
   model::FaceConnectivityUnstruct<float, int> m_face_connectivity_; // pMax face connectivity structure
 
   /// pMin projection matrix: pressure field → mortar space 
-  array3DReal m_mortar_projection;
+  arrayReal m_mortar_projection;
 
   /// Per-element type tag (kElementTypePMin or kElementTypePMax).
   vectorInt m_element_type_;

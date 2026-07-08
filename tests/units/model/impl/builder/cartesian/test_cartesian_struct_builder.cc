@@ -135,7 +135,7 @@ TEST(CartesianStructBuilderAETest, AcoustoElasticNodesBuildsValidModel) {
 
 TEST(CartesianStructBuilderAETest, ModelFileWithOnNodesModeThrows) {
   CartesianStructBuilder<float, int, 1> b(2, 100.0f, 2, 100.0f, 2, 100.0f, true, false, 0.0f, 0.0f, 0.0f, -1.0f, -1.0f,
-                                          -1.0f, 0.0f, 0.0f, 0.0f, false, 0.0f, 0.0f, "dummy.txt");
+                                          -1.0f, 0.0f, 0.0f, 0.0f, false, 0.0f, "dummy.txt");
   EXPECT_THROW(b.getModel(true), std::runtime_error);
 }
 
