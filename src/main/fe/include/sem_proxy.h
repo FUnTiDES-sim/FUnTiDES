@@ -109,12 +109,15 @@ class SEMproxy {
   void WaitSnapshots();
 
   // --- Physics & Meshing Flags ---
-  bool is_elastic_ = false;          ///< True if simulating elastic wave propagation.
-  bool is_acousto_elastic_ = false;  ///< True if simulating coupled acousto-elastic wave propagation.
-  bool free_surface_ = false;        ///< True if the top boundary acts as a free surface.
-  bool is_dg_ = false;               ///< True if using Discontinuous Galerkin method.
-  bool is_dg_sem_ = false;           ///< True if using Discontinuous Galerkin - Spectral Element method coupling.
-  float dg_sem_iface_z_ = 1000.f;    ///< Z coordinate of the DG-SEM interface.
+  bool is_elastic_ = false;             ///< True if simulating elastic wave propagation.
+  bool is_acousto_elastic_ = false;     ///< True if simulating coupled acousto-elastic wave propagation.
+  bool free_surface_ = false;           ///< True if the top boundary acts as a free surface.
+  bool is_dg_ = false;                  ///< True if using Discontinuous Galerkin method.
+  bool is_dg_sem_ = false;              ///< True if using Discontinuous Galerkin - Spectral Element method coupling.
+  bool is_dg_padaptive_ = false;        ///< True if using Discontinuous Galerkin p-adaptive method.
+  float dg_sem_iface_z_ = 1000.f;       ///< Z coordinate of the DG-SEM interface.
+  float dg_padaptive_iface_z_ = 1000.f; ///< Z coordinate of the DG p-adaptive interface.
+  int order_min_ = 0;   ///< Minimal order for p-adaptive discontinuous Galerkin.
 
   std::array<float, 3> sponge_size_ = {0, 0, 0};  ///< Thickness of absorbing boundaries (sponge layers).
   bool surface_sponge_ = false;                   ///< True if the top surface has an absorbing boundary.

@@ -5,7 +5,7 @@
 namespace utils {
 namespace enums {
 
-enum class methodType { kSem, kDg, kDgSem };
+enum class methodType { kSem, kDg, kDgSem, kDgPAdaptive };
 enum class implemType { kMakutu };
 enum class meshType { kStruct, kUnstruct };
 enum class modelLocationType { kOnNodes, kOnElements };
@@ -19,6 +19,8 @@ inline std::string to_string(methodType m) {
       return "DG";
     case methodType::kDgSem:
       return "DG-SEM";
+    case methodType::kDgPAdaptive:
+      return "DGPAdaptive";
     default:
       return "Unknown";
   }
