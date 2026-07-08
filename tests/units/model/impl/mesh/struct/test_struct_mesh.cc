@@ -8,6 +8,14 @@
 
 #include "model_struct.h"
 
+// Highest polynomial order compiled on this machine. Provided by CMake via
+// MAX_SOLVER_ORDER (see tests/units/model/impl/mesh/struct/CMakeLists.txt).
+// Fall back to the full implementation range when the build does not restrict
+// it, so environments compiling all orders still exercise them.
+#ifndef MAX_SOLVER_ORDER
+#define MAX_SOLVER_ORDER 9
+#endif
+
 namespace model {
 namespace {
 
@@ -57,6 +65,7 @@ struct DoubleOrder3 {
 };
 
 // Order 4 wrappers
+#if MAX_SOLVER_ORDER >= 4
 struct FloatOrder4 {
   using FloatType = float;
   using ScalarType = int;
@@ -68,8 +77,10 @@ struct DoubleOrder4 {
   using ScalarType = int;
   static constexpr int Order = 4;
 };
+#endif
 
 // Order 5 wrappers
+#if MAX_SOLVER_ORDER >= 5
 struct FloatOrder5 {
   using FloatType = float;
   using ScalarType = int;
@@ -81,6 +92,7 @@ struct DoubleOrder5 {
   using ScalarType = int;
   static constexpr int Order = 5;
 };
+#endif
 
 // ============================================================================
 // Test Fixture
@@ -120,9 +132,18 @@ class ModelStructTest : public ::testing::Test {
   std::unique_ptr<ModelStructType> model_;
 };
 
-// Register type wrappers for typed tests
+// Register type wrappers for typed tests. Orders 4 and 5 are only included
+// when they are compiled on the current machine (see MAX_SOLVER_ORDER above).
+#if MAX_SOLVER_ORDER >= 5
 using TypeWrappers = ::testing::Types<FloatOrder1, FloatOrder2, FloatOrder3, FloatOrder4, FloatOrder5, DoubleOrder1,
                                       DoubleOrder2, DoubleOrder3, DoubleOrder4, DoubleOrder5>;
+#elif MAX_SOLVER_ORDER == 4
+using TypeWrappers = ::testing::Types<FloatOrder1, FloatOrder2, FloatOrder3, FloatOrder4, DoubleOrder1, DoubleOrder2,
+                                      DoubleOrder3, DoubleOrder4>;
+#else
+using TypeWrappers =
+    ::testing::Types<FloatOrder1, FloatOrder2, FloatOrder3, DoubleOrder1, DoubleOrder2, DoubleOrder3>;
+#endif
 
 TYPED_TEST_SUITE(ModelStructTest, TypeWrappers);
 
@@ -937,11 +958,27 @@ TYPED_TEST(ModelStructTest, MinSpacingForAllOrders) {
 
   // h = lx/ex = 100/10 = 10 for all orders
   FloatType h = 10.0f;
-  if constexpr (Order == 1) EXPECT_NEAR(min_spacing, h, 1e-4f);
-  if constexpr (Order == 2) EXPECT_NEAR(min_spacing, h * 0.5000000000f, 1e-4f);
-  if constexpr (Order == 3) EXPECT_NEAR(min_spacing, h * 0.2763932023f, 1e-4f);
-  if constexpr (Order == 4) EXPECT_NEAR(min_spacing, h * 0.1726731646f, 1e-4f);
-  if constexpr (Order == 5) EXPECT_NEAR(min_spacing, h * 0.1174723380f, 1e-4f);
+  // NOTE: braces are required around each EXPECT here — nvc++ mis-parses an
+  // un-braced gtest macro used as the body of `if constexpr`.
+  if constexpr (Order == 1) {
+    EXPECT_NEAR(min_spacing, h, 1e-4f);
+  }
+  if constexpr (Order == 2) {
+    EXPECT_NEAR(min_spacing, h * 0.5000000000f, 1e-4f);
+  }
+  if constexpr (Order == 3) {
+    EXPECT_NEAR(min_spacing, h * 0.2763932023f, 1e-4f);
+  }
+#if MAX_SOLVER_ORDER >= 4
+  if constexpr (Order == 4) {
+    EXPECT_NEAR(min_spacing, h * 0.1726731646f, 1e-4f);
+  }
+#endif
+#if MAX_SOLVER_ORDER >= 5
+  if constexpr (Order == 5) {
+    EXPECT_NEAR(min_spacing, h * 0.1174723380f, 1e-4f);
+  }
+#endif
 }
 
 // ============================================================================
