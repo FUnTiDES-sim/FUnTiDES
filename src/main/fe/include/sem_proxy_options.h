@@ -15,8 +15,8 @@ class SemProxyOptions {
   int order_min = 1;
   int ex = 100, ey = 100, ez = 100;
   float lx = 2000.f, ly = 2000.f, lz = 2000.f;
-  float srcx = 1010.f, srcy = 1010.f, srcz = 1610.f;
-  float rcvx = 1310.f, rcvy = 1310.f, rcvz = 710.f;
+  float srcx = 1010.f, srcy = 1010.f, srcz = 1010.f;
+  float rcvx = 1310.f, rcvy = 1310.f, rcvz = 1310.f;
   float f0 = 5.0f;       // dominant frequency of the source in Hz
   int ricker_order = 2;  // order of the Ricker wavelet source
   float tpeak = 0.2f;    // peak time of the Ricker wavelet source
