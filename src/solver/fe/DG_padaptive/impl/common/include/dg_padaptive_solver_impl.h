@@ -43,6 +43,8 @@ void DGPAdaptiveSolver<ORDER_MIN, ORDER_MAX, INTEGRAL_SELECTOR, IMPL_TAG, MESH_T
 
   ComputeMortarProjection();
 
+  std::cout << "DGPAdaptiveSolver: ORDER_MIN=" << ORDER_MIN << ", ORDER_MAX=" << ORDER_MAX << std::endl;
+
   TagElements();
   std::cout << "DGPAdaptiveSolver: " << num_pMin_elements_ << " pMin elements, " << num_pMax_elements_ << " pMax elements."
             << std::endl;
@@ -273,6 +275,7 @@ void DGPAdaptiveSolver<ORDER_MIN, ORDER_MAX, INTEGRAL_SELECTOR, IMPL_TAG, MESH_T
   auto const min_face_to_elem_dof = pMinSolver::kFaceToElemDof;
   auto const max_face_to_elem_dof = pMaxSolver::kFaceToElemDof;
   real_t const penalty_local = m_penalty_factor_;
+  arrayReal mortar_projection_local = m_mortar_projection;
 
   Kokkos::parallel_for(
       "ApplyCoupling", n_iface, KOKKOS_LAMBDA(const int _loop_idx) {
@@ -340,7 +343,7 @@ void DGPAdaptiveSolver<ORDER_MIN, ORDER_MAX, INTEGRAL_SELECTOR, IMPL_TAG, MESH_T
         float pField_mortar[pMaxSolver::knumNodesPerFace] = {0};
         for(int i=0; i<pMaxSolver::knumNodesPerFace; ++i){
           for(int j=0; j<pMinSolver::knumNodesPerFace; ++j){
-            pField_mortar[i] += m_mortar_projection(i,j) * pField_pMin(pMin_e, min_face_to_elem_dof[fid_pMin][j]);
+            pField_mortar[i] += mortar_projection_local(i,j) * pField_pMin(pMin_e, min_face_to_elem_dof[fid_pMin][j]);
           }
         }
 
@@ -383,7 +386,7 @@ void DGPAdaptiveSolver<ORDER_MIN, ORDER_MAX, INTEGRAL_SELECTOR, IMPL_TAG, MESH_T
         // Map the stiffness matrix back into pMin space
         for(int i=0; i<pMinSolver::knumNodesPerFace; ++i){
           for(int j=0; j<pMaxSolver::knumNodesPerFace; ++j){
-            stiff_min[i] += m_mortar_projection(j,i) * stiff_min_mortar[j];
+            stiff_min[i] += mortar_projection_local(j,i) * stiff_min_mortar[j];
           }
         }
 

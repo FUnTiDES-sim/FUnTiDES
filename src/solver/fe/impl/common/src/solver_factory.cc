@@ -283,7 +283,7 @@ std::unique_ptr<Solver> makeDgPAdaptiveSolver(int order_min, int order_max, feen
     constexpr int ORDER_MAX = decltype(orderMaxIC)::value;
 
     if constexpr (ORDER_MAX > 1) {
-      return orderDispatch<ORDER_MAX - 1>(order_min, [&](auto orderMinIC) {
+      return orderDispatch<ORDER_MAX>(order_min, [&](auto orderMinIC) {
         constexpr int ORDER_MIN = decltype(orderMinIC)::value;
         return (mesh == feenum::meshType::kStruct) ? makeDgPAdaptiveSolverStruct<ImplTag, ORDER_MIN, ORDER_MAX>(isModelOnNodes, physic)
                                                    : makeDgPAdaptiveSolverUnstruct<ImplTag, ORDER_MIN, ORDER_MAX>(isModelOnNodes, physic);
@@ -335,7 +335,7 @@ std::unique_ptr<Solver> createSolver(feenum::methodType const methodType, feenum
     int const order_max = order;
     switch (implemType) {
       case feenum::implemType::kMakutu:
-        if (order_min <= 0 || order_min >= order_max) throw std::runtime_error("DG p-adaptive requires 0 < order_min < order_max");
+        if (order_min <= 0 || order_min > order_max) throw std::runtime_error("DG p-adaptive requires 0 < order_min <= order_max");
         return makeDgPAdaptiveSolver<IntegralType::MAKUTU>(order_min, order_max, mesh, modelLocation, physicType);
       default:
         throw std::runtime_error("Unknown DG p-adaptive implementation type: " + std::to_string(static_cast<int>(implemType)));

@@ -138,7 +138,7 @@ function(generate_padaptive_solver_implementations)
     # Generate solver implementation files for every ORDER_MIN < ORDER_MAX pair
     foreach(ORDER_MIN ${GEN_ORDERS})
         foreach(ORDER_MAX ${GEN_ORDERS})
-            if(ORDER_MIN LESS ORDER_MAX)
+            if(ORDER_MIN LESS_EQUAL ORDER_MAX)
                 foreach(MESH_TYPE ${GEN_MESH_TYPES})
                     foreach(PHYSIC_TYPE ${GEN_PHYSIC_TYPES})
                         set(TEMPLATE_FILE "${CMAKE_CURRENT_SOURCE_DIR}/templates/${GEN_SOLVER_NAME}_solver_template_${PHYSIC_TYPE}.cpp.in")

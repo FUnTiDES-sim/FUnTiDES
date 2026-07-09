@@ -471,105 +471,118 @@ void SEMproxy::Run() {
         solver_->outputSolutionValues(time_index, rcv_e, pn_pmax_dg_prev_, "pnDgPMax_rcv");
       }
 
-      // if (is_snapshots_ && time_index % snap_time_interval_ == 0) {
-      //   WaitSnapshots();
-      //   Kokkos::deep_copy(h_pn_pmin_dg_prev_, pn_pmin_dg_prev_);
-      //   Kokkos::deep_copy(h_pn_pmax_dg_prev_, pn_pmax_dg_prev_);
+      if (is_snapshots_ && time_index % snap_time_interval_ == 0) {
+        WaitSnapshots();
+        Kokkos::deep_copy(h_pn_pmin_dg_prev_, pn_pmin_dg_prev_);
+        Kokkos::deep_copy(h_pn_pmax_dg_prev_, pn_pmax_dg_prev_);
 
-      //   auto io_task = [this, time_index, h_dg = h_pn_dg_prev_, h_sem = h_pn_sem_prev_]() {
-      //     const int order = mesh_->getOrder();
-      //     const int ex = num_elements_[0];
-      //     const int ey = num_elements_[1];
-      //     const int ez = num_elements_[2];
-      //     const int ez_dg = (int)std::round(ez * dg_sem_iface_z_ / domain_size_[2]);
-      //     const int zElem = ez_dg / 2;
-      //     const int n1d = order + 1;
-      //     const int icZ = order / 2;
+        auto io_task = [this, time_index, h_pmin = h_pn_pmin_dg_prev_, h_pmax = h_pn_pmax_dg_prev_]() {
+          const int order_max = mesh_->getOrder();
+          const int ex = num_elements_[0];
+          const int ey = num_elements_[1];
+          const int ez = num_elements_[2];
+          const int ez_pmin = (int)std::round(ez * dg_padaptive_iface_z_ / domain_size_[2]);
+          const int n1d_min = order_min_ + 1;
+          const int n1d_max = order_max + 1;
+          const int zElem_pmin = ez_pmin / 2;
+          const int zElem_pmax = ez_pmin + (ez - ez_pmin) / 2;
+          const int icZ_min = order_min_ / 2;
+          const int icZ_max = order_max / 2;
 
-      //     if (time_index == snap_time_interval_) {
-      //       std::ofstream fiface("dgsem_interface_row.txt");
-      //       fiface << ez_dg * n1d << "\n";
-      //     }
+          if (time_index == snap_time_interval_) {
+            std::ofstream fiface("dgpadaptive_interface_row.txt");
+            fiface << ez_pmin << " " << n1d_min << " " << n1d_max << "\n";
+          }
 
-      //     std::ostringstream fname_dg;
-      //     fname_dg << "slice_dgsem_dg_" << std::setfill('0') << std::setw(5) << time_index << ".dat";
-      //     std::ofstream fslice_dg(fname_dg.str());
-      //     for (int ej_idx = 0; ej_idx < ey; ++ej_idx) {
-      //       for (int ib = 0; ib < n1d; ++ib) {
-      //         bool first = true;
-      //         for (int ei_idx = 0; ei_idx < ex; ++ei_idx) {
-      //           int const elem = ei_idx + ej_idx * ex + zElem * ex * ey;
-      //           for (int ia = 0; ia < n1d; ++ia) {
-      //             int const dof = ia + ib * n1d + icZ * n1d * n1d;
-      //             if (!first) fslice_dg << " ";
-      //             fslice_dg << h_dg(elem, dof);
-      //             first = false;
-      //           }
-      //         }
-      //         fslice_dg << "\n";
-      //       }
-      //     }
-      //     fslice_dg.close();
+          std::ostringstream fname_pmin;
+          fname_pmin << "slice_dgpadaptive_pmin_" << std::setfill('0') << std::setw(5) << time_index << ".dat";
+          std::ofstream fslice_pmin(fname_pmin.str());
+          for (int ej_idx = 0; ej_idx < ey; ++ej_idx) {
+            for (int ib = 0; ib < n1d_min; ++ib) {
+              bool first = true;
+              for (int ei_idx = 0; ei_idx < ex; ++ei_idx) {
+                int const elem = ei_idx + ej_idx * ex + zElem_pmin * ex * ey;
+                for (int ia = 0; ia < n1d_min; ++ia) {
+                  int const dof = ia + ib * n1d_min + icZ_min * n1d_min * n1d_min;
+                  if (!first) fslice_pmin << " ";
+                  fslice_pmin << h_pmin(elem, dof);
+                  first = false;
+                }
+              }
+              fslice_pmin << "\n";
+            }
+          }
+          fslice_pmin.close();
 
-      //     const int nx = num_nodes_[0];
-      //     const int ny = num_nodes_[1];
-      //     const int nz = num_nodes_[2];
-      //     const int nz_dg_nodes = ez_dg * order;
-      //     const int z_slice = nz_dg_nodes + (nz - nz_dg_nodes) / 2;
-      //     std::ostringstream fname_sem;
-      //     fname_sem << "slice_dgsem_sem_" << std::setfill('0') << std::setw(5) << time_index << ".dat";
-      //     std::ofstream fslice_sem(fname_sem.str());
-      //     for (int iy = 0; iy < ny; ++iy) {
-      //       for (int ix = 0; ix < nx; ++ix) {
-      //         int const node_idx = ix + iy * nx + z_slice * nx * ny;
-      //         fslice_sem << h_sem(node_idx);
-      //         if (ix < nx - 1) fslice_sem << " ";
-      //       }
-      //       fslice_sem << "\n";
-      //     }
-      //     fslice_sem.close();
+          std::ostringstream fname_pmax;
+          fname_pmax << "slice_dgpadaptive_pmax_" << std::setfill('0') << std::setw(5) << time_index << ".dat";
+          std::ofstream fslice_pmax(fname_pmax.str());
+          for (int ej_idx = 0; ej_idx < ey; ++ej_idx) {
+            for (int ib = 0; ib < n1d_max; ++ib) {
+              bool first = true;
+              for (int ei_idx = 0; ei_idx < ex; ++ei_idx) {
+                int const elem = ei_idx + ej_idx * ex + zElem_pmax * ex * ey;
+                for (int ia = 0; ia < n1d_max; ++ia) {
+                  int const dof = ia + ib * n1d_max + icZ_max * n1d_max * n1d_max;
+                  if (!first) fslice_pmax << " ";
+                  fslice_pmax << h_pmax(elem, dof);
+                  first = false;
+                }
+              }
+              fslice_pmax << "\n";
+            }
+          }
+          fslice_pmax.close();
 
-      //     // Full-domain combined x-z slice at mid-y: DG rows (bottom) then SEM rows (top).
-      //     // Visualise with: plot 'slice_dgsem_xz_XXXXX.dat' matrix with image
-      //     const int ey_mid = ey / 2;
-      //     const int ib_mid_xz = order / 2;
-      //     const int iy_mid_sem = ny / 2;
+          // Single combined x-z slice at mid-y: pMin rows (bottom) then pMax rows (top),
+          // resampled onto the dense (order_max) x-grid. Nearest-neighbor on the pMin side
+          // (visual sanity check only, not quantitatively accurate).
+          // Visualise with: plot 'slice_dgpadaptive_xz_XXXXX.dat' matrix with image
+          const int nx = num_nodes_[0];
+          const int ey_mid = ey / 2;
 
-      //     std::ostringstream fname_xz;
-      //     fname_xz << "slice_dgsem_xz_" << std::setfill('0') << std::setw(5) << time_index << ".dat";
-      //     std::ofstream fxz(fname_xz.str());
+          std::ostringstream fname_xz;
+          fname_xz << "slice_dgpadaptive_xz_" << std::setfill('0') << std::setw(5) << time_index << ".dat";
+          std::ofstream fxz(fname_xz.str());
 
-      //     for (int ez_i = 0; ez_i < ez_dg; ++ez_i) {
-      //       for (int iz_dof = 0; iz_dof < n1d; ++iz_dof) {
-      //         for (int ix = 0; ix < nx; ++ix) {
-      //           int const ix_e = (ix == nx - 1) ? ex - 1 : ix / order;
-      //           int const ix_d = (ix == nx - 1) ? order : ix % order;
-      //           int const elem = ix_e + ey_mid * ex + ez_i * ex * ey;
-      //           int const dof = ix_d + ib_mid_xz * n1d + iz_dof * n1d * n1d;
-      //           fxz << h_dg(elem, dof);
-      //           if (ix < nx - 1) fxz << " ";
-      //         }
-      //         fxz << "\n";
-      //       }
-      //     }
+          for (int ez_i = 0; ez_i < ez_pmin; ++ez_i) {
+            for (int iz_dof = 0; iz_dof < n1d_min; ++iz_dof) {
+              for (int ix = 0; ix < nx; ++ix) {
+                int const ix_e = (ix == nx - 1) ? ex - 1 : ix / order_max;
+                int const ix_d = (ix == nx - 1) ? order_max : ix % order_max;
+                int const ia_min =
+                    std::min(order_min_, (int)std::lround((float)ix_d / order_max * order_min_));
+                int const elem = ix_e + ey_mid * ex + ez_i * ex * ey;
+                int const dof = ia_min + icZ_min * n1d_min + iz_dof * n1d_min * n1d_min;
+                fxz << h_pmin(elem, dof);
+                if (ix < nx - 1) fxz << " ";
+              }
+              fxz << "\n";
+            }
+          }
 
-      //     for (int iz = nz_dg_nodes; iz < nz; ++iz) {
-      //       for (int ix = 0; ix < nx; ++ix) {
-      //         int const node_idx = ix + iy_mid_sem * nx + iz * nx * ny;
-      //         fxz << h_sem(node_idx);
-      //         if (ix < nx - 1) fxz << " ";
-      //       }
-      //       fxz << "\n";
-      //     }
-      //     fxz.close();
-      //   };
+          for (int ez_i = 0; ez_i < ez - ez_pmin; ++ez_i) {
+            for (int iz_dof = 0; iz_dof < n1d_max; ++iz_dof) {
+              for (int ix = 0; ix < nx; ++ix) {
+                int const ix_e = (ix == nx - 1) ? ex - 1 : ix / order_max;
+                int const ix_d = (ix == nx - 1) ? order_max : ix % order_max;
+                int const elem = ix_e + ey_mid * ex + (ez_pmin + ez_i) * ex * ey;
+                int const dof = ix_d + icZ_max * n1d_max + iz_dof * n1d_max * n1d_max;
+                fxz << h_pmax(elem, dof);
+                if (ix < nx - 1) fxz << " ";
+              }
+              fxz << "\n";
+            }
+          }
+          fxz.close();
+        };
 
-      //   if (pn_dg_prev_.data() != h_pn_dg_prev_.data()) {
-      //     snapshot_futures_.push_back(std::async(std::launch::async, io_task));
-      //   } else {
-      //     io_task();
-      //   }
-      // }
+        if (pn_pmin_dg_prev_.data() != h_pn_pmin_dg_prev_.data()) {
+          snapshot_futures_.push_back(std::async(std::launch::async, io_task));
+        } else {
+          io_task();
+        }
+      }
 
       {
         
@@ -988,6 +1001,8 @@ void SEMproxy::InitArrays() {
     h_pn_at_receiver_ = Kokkos::create_mirror_view(pn_at_receiver_);
   } else if (is_dg_) {
     h_rhs_term_ = Kokkos::create_mirror_view(rhs_term_);
+    h_rhs_weights_ = Kokkos::create_mirror_view(rhs_weights_);
+    h_rhs_weights_rcv_ = Kokkos::create_mirror_view(rhs_weights_rcv_);
     h_pn_at_receiver_ = Kokkos::create_mirror_view(pn_at_receiver_);
   } else if (is_dg_padaptive_) {
     h_rhs_term_pmin_ = Kokkos::create_mirror_view(rhs_term_pmin_);
@@ -1003,6 +1018,8 @@ void SEMproxy::InitArrays() {
     h_pn_at_receiver_ = Kokkos::create_mirror_view(pn_at_receiver_);
   } else if (!is_elastic_) {
     h_rhs_term_ = Kokkos::create_mirror_view(rhs_term_);
+    h_rhs_weights_ = Kokkos::create_mirror_view(rhs_weights_);
+    h_rhs_weights_rcv_ = Kokkos::create_mirror_view(rhs_weights_rcv_);
     h_pn_global_curr_ = Kokkos::create_mirror_view(pn_global_curr_);
     h_pn_global_prev_ = Kokkos::create_mirror_view(pn_global_prev_);
     h_pn_at_receiver_ = Kokkos::create_mirror_view(pn_at_receiver_);
@@ -1082,6 +1099,11 @@ void SEMproxy::InitSource() {
       for (int j = 0; j < num_samples_; j++) h_rhs_term_dg_(0, j) = source_term[j];
     else
       for (int j = 0; j < num_samples_; j++) h_rhs_term_sem_(0, j) = source_term[j];
+  } else if (is_dg_padaptive_) {
+    if (src_coord_[2] <= dg_padaptive_iface_z_)
+      for (int j = 0; j < num_samples_; j++) h_rhs_term_pmin_(0, j) = source_term[j];
+    else
+      for (int j = 0; j < num_samples_; j++) h_rhs_term_pmax_(0, j) = source_term[j];
   } else if (!is_elastic_) {
     for (int j = 0; j < num_samples_; j++) h_rhs_term_(0, j) = source_term[j];
   } else {
@@ -1095,7 +1117,57 @@ void SEMproxy::InitSource() {
   source_element_ = h_rhs_element_(0);
   int order = mesh_->getOrder();
 
-  if (source_on_rank) {
+  if (is_dg_padaptive_) {
+    bool const src_in_pmin = (src_coord_[2] <= dg_padaptive_iface_z_);
+    if (source_on_rank) {
+      if (src_in_pmin) {
+        switch (order_min_) {
+          case 1:
+            SourceAndReceiverUtils::ComputeRHSWeights<1>(corner_coords, src_coord_, h_rhs_pmin_weights_);
+            break;
+          case 2:
+            SourceAndReceiverUtils::ComputeRHSWeights<2>(corner_coords, src_coord_, h_rhs_pmin_weights_);
+            break;
+          case 3:
+            SourceAndReceiverUtils::ComputeRHSWeights<3>(corner_coords, src_coord_, h_rhs_pmin_weights_);
+            break;
+          case 4:
+            SourceAndReceiverUtils::ComputeRHSWeights<4>(corner_coords, src_coord_, h_rhs_pmin_weights_);
+            break;
+          case 5:
+            SourceAndReceiverUtils::ComputeRHSWeights<5>(corner_coords, src_coord_, h_rhs_pmin_weights_);
+            break;
+          default:
+            throw std::runtime_error("Unsupported order_min: " + std::to_string(order_min_));
+        }
+      } else {
+        switch (order) {
+          case 1:
+            SourceAndReceiverUtils::ComputeRHSWeights<1>(corner_coords, src_coord_, h_rhs_pmax_weights_);
+            break;
+          case 2:
+            SourceAndReceiverUtils::ComputeRHSWeights<2>(corner_coords, src_coord_, h_rhs_pmax_weights_);
+            break;
+          case 3:
+            SourceAndReceiverUtils::ComputeRHSWeights<3>(corner_coords, src_coord_, h_rhs_pmax_weights_);
+            break;
+          case 4:
+            SourceAndReceiverUtils::ComputeRHSWeights<4>(corner_coords, src_coord_, h_rhs_pmax_weights_);
+            break;
+          case 5:
+            SourceAndReceiverUtils::ComputeRHSWeights<5>(corner_coords, src_coord_, h_rhs_pmax_weights_);
+            break;
+          default:
+            throw std::runtime_error("Unsupported order: " + std::to_string(order));
+        }
+      }
+    } else {
+      if (src_in_pmin)
+        for (int k = 0; k < static_cast<int>(h_rhs_pmin_weights_.extent(1)); ++k) h_rhs_pmin_weights_(0, k) = 0.0f;
+      else
+        for (int k = 0; k < static_cast<int>(h_rhs_pmax_weights_.extent(1)); ++k) h_rhs_pmax_weights_(0, k) = 0.0f;
+    }
+  } else if (source_on_rank) {
     switch (order) {
       case 1:
         SourceAndReceiverUtils::ComputeRHSWeights<1>(corner_coords, src_coord_, h_rhs_weights_);
@@ -1140,24 +1212,69 @@ void SEMproxy::InitSource() {
     }
   }
 
-  switch (order) {
-    case 1:
-      SourceAndReceiverUtils::ComputeRHSWeights<1>(corner_coords_rcv, rcv_coord_, h_rhs_weights_rcv_);
-      break;
-    case 2:
-      SourceAndReceiverUtils::ComputeRHSWeights<2>(corner_coords_rcv, rcv_coord_, h_rhs_weights_rcv_);
-      break;
-    case 3:
-      SourceAndReceiverUtils::ComputeRHSWeights<3>(corner_coords_rcv, rcv_coord_, h_rhs_weights_rcv_);
-      break;
-    case 4:
-      SourceAndReceiverUtils::ComputeRHSWeights<4>(corner_coords_rcv, rcv_coord_, h_rhs_weights_rcv_);
-      break;
-    case 5:
-      SourceAndReceiverUtils::ComputeRHSWeights<5>(corner_coords_rcv, rcv_coord_, h_rhs_weights_rcv_);
-      break;
-    default:
-      throw std::runtime_error("Unsupported order: " + std::to_string(order));
+  if (is_dg_padaptive_) {
+    bool const rcv_in_pmax = (rcv_coord_[2] >= dg_padaptive_iface_z_);
+    if (rcv_in_pmax) {
+      switch (order) {
+        case 1:
+          SourceAndReceiverUtils::ComputeRHSWeights<1>(corner_coords_rcv, rcv_coord_, h_rhs_pmax_weights_rcv_);
+          break;
+        case 2:
+          SourceAndReceiverUtils::ComputeRHSWeights<2>(corner_coords_rcv, rcv_coord_, h_rhs_pmax_weights_rcv_);
+          break;
+        case 3:
+          SourceAndReceiverUtils::ComputeRHSWeights<3>(corner_coords_rcv, rcv_coord_, h_rhs_pmax_weights_rcv_);
+          break;
+        case 4:
+          SourceAndReceiverUtils::ComputeRHSWeights<4>(corner_coords_rcv, rcv_coord_, h_rhs_pmax_weights_rcv_);
+          break;
+        case 5:
+          SourceAndReceiverUtils::ComputeRHSWeights<5>(corner_coords_rcv, rcv_coord_, h_rhs_pmax_weights_rcv_);
+          break;
+        default:
+          throw std::runtime_error("Unsupported order: " + std::to_string(order));
+      }
+    } else {
+      switch (order_min_) {
+        case 1:
+          SourceAndReceiverUtils::ComputeRHSWeights<1>(corner_coords_rcv, rcv_coord_, h_rhs_pmin_weights_rcv_);
+          break;
+        case 2:
+          SourceAndReceiverUtils::ComputeRHSWeights<2>(corner_coords_rcv, rcv_coord_, h_rhs_pmin_weights_rcv_);
+          break;
+        case 3:
+          SourceAndReceiverUtils::ComputeRHSWeights<3>(corner_coords_rcv, rcv_coord_, h_rhs_pmin_weights_rcv_);
+          break;
+        case 4:
+          SourceAndReceiverUtils::ComputeRHSWeights<4>(corner_coords_rcv, rcv_coord_, h_rhs_pmin_weights_rcv_);
+          break;
+        case 5:
+          SourceAndReceiverUtils::ComputeRHSWeights<5>(corner_coords_rcv, rcv_coord_, h_rhs_pmin_weights_rcv_);
+          break;
+        default:
+          throw std::runtime_error("Unsupported order_min: " + std::to_string(order_min_));
+      }
+    }
+  } else {
+    switch (order) {
+      case 1:
+        SourceAndReceiverUtils::ComputeRHSWeights<1>(corner_coords_rcv, rcv_coord_, h_rhs_weights_rcv_);
+        break;
+      case 2:
+        SourceAndReceiverUtils::ComputeRHSWeights<2>(corner_coords_rcv, rcv_coord_, h_rhs_weights_rcv_);
+        break;
+      case 3:
+        SourceAndReceiverUtils::ComputeRHSWeights<3>(corner_coords_rcv, rcv_coord_, h_rhs_weights_rcv_);
+        break;
+      case 4:
+        SourceAndReceiverUtils::ComputeRHSWeights<4>(corner_coords_rcv, rcv_coord_, h_rhs_weights_rcv_);
+        break;
+      case 5:
+        SourceAndReceiverUtils::ComputeRHSWeights<5>(corner_coords_rcv, rcv_coord_, h_rhs_weights_rcv_);
+        break;
+      default:
+        throw std::runtime_error("Unsupported order: " + std::to_string(order));
+    }
   }
 
   if (das_type_ != SourceAndReceiverUtils::DASType::kNone) {
@@ -1251,6 +1368,12 @@ void SEMproxy::InitSource() {
   Kokkos::deep_copy(rhs_element_rcv_, h_rhs_element_rcv_);
   Kokkos::deep_copy(rhs_weights_, h_rhs_weights_);
   Kokkos::deep_copy(rhs_weights_rcv_, h_rhs_weights_rcv_);
+  if (is_dg_padaptive_) {
+    Kokkos::deep_copy(rhs_pmin_weights_, h_rhs_pmin_weights_);
+    Kokkos::deep_copy(rhs_pmax_weights_, h_rhs_pmax_weights_);
+    Kokkos::deep_copy(rhs_pmin_weights_rcv_, h_rhs_pmin_weights_rcv_);
+    Kokkos::deep_copy(rhs_pmax_weights_rcv_, h_rhs_pmax_weights_rcv_);
+  }
 
   if (is_acousto_elastic_) {
     if (src_coord_[2] >= local_params_.acoustoElasticBoundaryZ)
@@ -1304,6 +1427,7 @@ methodType SEMproxy::GetMethod(std::string method_arg) {
   if (method_arg == "sem") return methodType::kSem;
   if (method_arg == "dg") return methodType::kDg;
   if (method_arg == "dg-sem") return methodType::kDgSem;
+  if (method_arg == "dg-padaptive") return methodType::kDgPAdaptive;
   throw std::invalid_argument("Method type invalid.");
 };
 

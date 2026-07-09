@@ -51,7 +51,8 @@ struct DGPAdaptiveRhsAcoustic : public Rhs {
   }
   PROXY_HOST_DEVICE
   arrayReal getWeights() const override {
-    throw std::runtime_error("getWeights need an order indicator (0 : order_min_, 1 : order_max_)");
+    Kokkos::abort("getWeights need an order indicator (0 : order_min_, 1 : order_max_)");
+    return {};
   }
 
   void print() const override {
