@@ -207,6 +207,19 @@ class DGsolver : public Solver {
 
   real_t getPenaltyFactor() const { return m_penalty_factor_; }
 
+  /**
+   * @brief Rebuild this solver's own face connectivity using the mesh's true geometric order
+   * for the face-normal (fixed) coordinate, instead of this solver's own polynomial ORDER.
+   *
+   * No-op change for standalone DG/DG-SEM usage (where the mesh's own order already matches
+   * ORDER). Needed when this DGsolver is instantiated at a lower order than the shared mesh
+   * (e.g. the pMin sub-solver in the DG p-adaptive coupling): without it, face_connectivity's
+   * "Plus"-type faces (kXPlus/kYPlus/kZPlus) place the face-normal coordinate at ORDER instead
+   * of the mesh's true far edge, so neighbor node-ID matching fails silently for those faces.
+   * @param geometricOrder  The shared mesh's true polynomial order (mesh.getOrder()).
+   */
+  void rebuildFaceConnectivityGeometry(int geometricOrder) { m_face_connectivity_.build(m_mesh, geometricOrder); }
+
  private:
   MESH_TYPE m_mesh;
   model::FaceConnectivityUnstruct<float, int, ORDER> m_face_connectivity_;

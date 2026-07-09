@@ -65,7 +65,7 @@ class FaceConnectivityUnstruct : public FaceConnectivityApi<FloatType, ScalarTyp
    * Extracts faces from elements, identifies unique faces, and fills
    * connectivity tables using a map-based approach.
    */
-  void build(const ModelApi<FloatType, ScalarType>& mesh) {
+  void build(const ModelApi<FloatType, ScalarType>& mesh, int geom_order = -1) {
     const ScalarType n_element = mesh.getNumberOfElements();
     const int order = (ORDER >= 0) ? ORDER : mesh.getOrder();
     const ScalarType max_faces = n_element * 6;
@@ -99,7 +99,7 @@ class FaceConnectivityUnstruct : public FaceConnectivityApi<FloatType, ScalarTyp
           face_map[face_key] = face_id;
 
           fillFaceDofs(mesh, elem, local_face, order,
-                       [&](int idx, ScalarType node) { face_dofs_temp(face_id, idx) = node; });
+                       [&](int idx, ScalarType node) { face_dofs_temp(face_id, idx) = node; }, geom_order);
 
           face_elem_owner_temp(face_id) = elem;
           face_local_owner_temp(face_id) = lf;
@@ -115,7 +115,8 @@ class FaceConnectivityUnstruct : public FaceConnectivityApi<FloatType, ScalarTyp
           // ndofs_per_face <= (9+1)^2 = 100 (max order in the codebase).
           constexpr int kMaxDofsPerFace = 100;
           ScalarType neigh_dofs[kMaxDofsPerFace];
-          fillFaceDofs(mesh, elem, local_face, order, [&](int idx, ScalarType node) { neigh_dofs[idx] = node; });
+          fillFaceDofs(mesh, elem, local_face, order, [&](int idx, ScalarType node) { neigh_dofs[idx] = node; },
+                       geom_order);
 
           for (int i = 0; i < ndofs_per_face_; ++i) {
             ScalarType owner_node = face_dofs_temp(face_id, i);
@@ -213,9 +214,20 @@ class FaceConnectivityUnstruct : public FaceConnectivityApi<FloatType, ScalarTyp
    * @brief Fill face DOFs by iterating over the face nodes and invoking a
    * callback for each (local_idx, global_node) pair.
    */
+  /**
+   * @param order      Number of dofs per face direction minus 1 (drives the stored layout size,
+   *                    ndofs_per_face_ = (order+1)^2). Matches the solver's own polynomial order.
+   * @param geom_order  Element's true geometric order on the shared mesh (mesh.getOrder()). Used
+   *                    ONLY for the fixed face-normal coordinate ("Plus" faces), so the face plane
+   *                    genuinely sits at the element's real boundary even when order < geom_order
+   *                    (e.g. a lower-order DG sub-solver sharing a higher-order mesh, as in the
+   *                    DG p-adaptive coupling). Defaults to order (existing behaviour, unchanged)
+   *                    when the solver's own order already matches the mesh.
+   */
   template <typename FUNC>
   static void fillFaceDofs(const ModelApi<FloatType, ScalarType>& mesh, ScalarType elem, CubicFace local_face,
-                           int order, FUNC&& store) {
+                           int order, FUNC&& store, int geom_order = -1) {
+    int const far = (geom_order >= 0) ? geom_order : order;
     int idx = 0;
     switch (local_face) {
       case CubicFace::kXMinus:
@@ -224,7 +236,7 @@ class FaceConnectivityUnstruct : public FaceConnectivityApi<FloatType, ScalarTyp
         break;
       case CubicFace::kXPlus:
         for (int k = 0; k <= order; ++k)
-          for (int j = 0; j <= order; ++j) store(idx++, mesh.globalNodeIndex(elem, order, j, k));
+          for (int j = 0; j <= order; ++j) store(idx++, mesh.globalNodeIndex(elem, far, j, k));
         break;
       case CubicFace::kYMinus:
         for (int k = 0; k <= order; ++k)
@@ -232,7 +244,7 @@ class FaceConnectivityUnstruct : public FaceConnectivityApi<FloatType, ScalarTyp
         break;
       case CubicFace::kYPlus:
         for (int k = 0; k <= order; ++k)
-          for (int i = 0; i <= order; ++i) store(idx++, mesh.globalNodeIndex(elem, i, order, k));
+          for (int i = 0; i <= order; ++i) store(idx++, mesh.globalNodeIndex(elem, i, far, k));
         break;
       case CubicFace::kZMinus:
         for (int j = 0; j <= order; ++j)
@@ -240,7 +252,7 @@ class FaceConnectivityUnstruct : public FaceConnectivityApi<FloatType, ScalarTyp
         break;
       case CubicFace::kZPlus:
         for (int j = 0; j <= order; ++j)
-          for (int i = 0; i <= order; ++i) store(idx++, mesh.globalNodeIndex(elem, i, j, order));
+          for (int i = 0; i <= order; ++i) store(idx++, mesh.globalNodeIndex(elem, i, j, far));
         break;
     }
   }

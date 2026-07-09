@@ -37,6 +37,14 @@ void DGPAdaptiveSolver<ORDER_MIN, ORDER_MAX, INTEGRAL_SELECTOR, IMPL_TAG, MESH_T
   m_pMin_solver_.computeFEInit(mesh_in, sponge_size, surface_sponge, taper_delta);
   m_pMax_solver_.computeFEInit(mesh_in, sponge_size, surface_sponge, taper_delta);
 
+  // pMin's own face_connectivity_ was built at ORDER_MIN, but the shared mesh is templated at
+  // ORDER_MAX: without this, pMin's own interior "Plus"-type faces (kXPlus/kYPlus/kZPlus)
+  // silently fail neighbor node-ID matching (face-normal coordinate stuck at ORDER_MIN instead
+  // of the mesh's true far edge). No-op for pMax (already ORDER_MAX == mesh order).
+  if constexpr (ORDER_MIN != ORDER_MAX) {
+    m_pMin_solver_.rebuildFaceConnectivityGeometry(ORDER_MAX);
+  }
+
   m_penalty_factor_ = m_pMax_solver_.getPenaltyFactor(); // both solvers have the same penalty factor
 
   allocateFEarrays();
