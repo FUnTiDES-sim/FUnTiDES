@@ -228,31 +228,38 @@ class FaceConnectivityUnstruct : public FaceConnectivityApi<FloatType, ScalarTyp
   static void fillFaceDofs(const ModelApi<FloatType, ScalarType>& mesh, ScalarType elem, CubicFace local_face,
                            int order, FUNC&& store, int geom_order = -1) {
     int const far = (geom_order >= 0) ? geom_order : order;
+    // Rescale a local face-tangential index (0..order, this solver's own basis) to the shared
+    // mesh's true node-grid index (0..geom_order). Needed whenever this solver's polynomial order
+    // is lower than the mesh's true geometric order (p-adaptive coupling): without this, tangential
+    // indices equal to `order` (meant as "far edge") land on the mesh's interior/midpoint nodes
+    // instead of its true far edge, corrupting face corner coordinates (Jacobian/area/normal) on
+    // every face of the lower-order solver, not just the ones touching the p-adaptive interface.
+    auto rescale = [&](int idx) { return (geom_order >= 0 && order > 0) ? (idx * geom_order) / order : idx; };
     int idx = 0;
     switch (local_face) {
       case CubicFace::kXMinus:
         for (int k = 0; k <= order; ++k)
-          for (int j = 0; j <= order; ++j) store(idx++, mesh.globalNodeIndex(elem, 0, j, k));
+          for (int j = 0; j <= order; ++j) store(idx++, mesh.globalNodeIndex(elem, 0, rescale(j), rescale(k)));
         break;
       case CubicFace::kXPlus:
         for (int k = 0; k <= order; ++k)
-          for (int j = 0; j <= order; ++j) store(idx++, mesh.globalNodeIndex(elem, far, j, k));
+          for (int j = 0; j <= order; ++j) store(idx++, mesh.globalNodeIndex(elem, far, rescale(j), rescale(k)));
         break;
       case CubicFace::kYMinus:
         for (int k = 0; k <= order; ++k)
-          for (int i = 0; i <= order; ++i) store(idx++, mesh.globalNodeIndex(elem, i, 0, k));
+          for (int i = 0; i <= order; ++i) store(idx++, mesh.globalNodeIndex(elem, rescale(i), 0, rescale(k)));
         break;
       case CubicFace::kYPlus:
         for (int k = 0; k <= order; ++k)
-          for (int i = 0; i <= order; ++i) store(idx++, mesh.globalNodeIndex(elem, i, far, k));
+          for (int i = 0; i <= order; ++i) store(idx++, mesh.globalNodeIndex(elem, rescale(i), far, rescale(k)));
         break;
       case CubicFace::kZMinus:
         for (int j = 0; j <= order; ++j)
-          for (int i = 0; i <= order; ++i) store(idx++, mesh.globalNodeIndex(elem, i, j, 0));
+          for (int i = 0; i <= order; ++i) store(idx++, mesh.globalNodeIndex(elem, rescale(i), rescale(j), 0));
         break;
       case CubicFace::kZPlus:
         for (int j = 0; j <= order; ++j)
-          for (int i = 0; i <= order; ++i) store(idx++, mesh.globalNodeIndex(elem, i, j, far));
+          for (int i = 0; i <= order; ++i) store(idx++, mesh.globalNodeIndex(elem, rescale(i), rescale(j), far));
         break;
     }
   }
