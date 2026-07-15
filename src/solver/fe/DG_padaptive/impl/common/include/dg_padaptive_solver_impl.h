@@ -494,7 +494,8 @@ template <int ORDER_MIN, int ORDER_MAX, template<int, int> class INTEGRAL_SELECT
           utils::enums::physicType PHYSICS>
 void DGPAdaptiveSolver<ORDER_MIN, ORDER_MAX, INTEGRAL_SELECTOR, IMPL_TAG, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::outputSolutionValues(
     const int& t, int& e, const arrayReal& field, const char* fieldName) {
-  m_pMin_solver_.outputSolutionValues(t, e, field, fieldName); // using pMin solver for pMax element too as outputSolutionValues display dof 0
+  cout << "TimeStep=" << t << ";  " << fieldName << " @ elementSource location " << e
+       << " after computeOneStep = " << field(e, 0) << endl;
 }
  
 
