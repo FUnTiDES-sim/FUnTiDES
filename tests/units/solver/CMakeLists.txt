@@ -16,13 +16,15 @@ set(SOLVER_TEST_SOURCES
   impl/test_sem_solver_acoustic.cc
   impl/test_sem_solver_elastic.cc
   impl/test_boundary_synchronizer.cc
-  dg/test_dg_penalty.cc
-  dg/test_dg_solver_data.cc
-  dg/test_dg_solver_acoustic.cc
 )
 
 if(COMPILE_DG)
-  list(APPEND SOLVER_TEST_SOURCES impl/test_dg_solver_factory.cc)
+  list(APPEND SOLVER_TEST_SOURCES
+    impl/test_dg_solver_factory.cc
+    dg/test_dg_penalty.cc
+    dg/test_dg_solver_data.cc
+    dg/test_dg_solver_acoustic.cc
+  )
 endif()
 
 add_gtest_group(solver_tests
