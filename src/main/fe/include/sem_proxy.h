@@ -114,6 +114,7 @@ class SEMproxy {
   bool free_surface_ = false;        ///< True if the top boundary acts as a free surface.
   bool is_dg_ = false;               ///< True if using Discontinuous Galerkin method.
 
+  bool use_sponge_ = false;                       ///< True if sponge (taper) absorbing boundaries are enabled.
   std::array<float, 3> sponge_size_ = {0, 0, 0};  ///< Thickness of absorbing boundaries (sponge layers).
   bool surface_sponge_ = false;                   ///< True if the top surface has an absorbing boundary.
   float taper_delta_ = 0.015f;                    ///< Tapering coefficient for the sponge boundaries.

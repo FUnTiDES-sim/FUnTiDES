@@ -107,6 +107,7 @@ void bind_acoustoelastic_solver_data(py::module_ &m) {
 
 void bind_sem_solver_base(py::module_ &m) {
   py::class_<Solver, std::shared_ptr<Solver>>(m, "Solver")
+      .def("set_use_sponge", &Solver::setUseSponge, py::arg("use_sponge"))
       .def("compute_fe_init", &Solver::computeFEInit, py::arg("model"),
            py::arg("sponge_size") = std::array<float, 3>{0.0f, 0.0f, 0.0f}, py::arg("sponge_surface") = true,
            py::arg("taper_delta") = 0)

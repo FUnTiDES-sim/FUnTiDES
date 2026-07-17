@@ -1518,6 +1518,12 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::ini
 
 template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE, bool IS_MODEL_ON_NODES, physicType PHYSICS>
 void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::initSpongeValues() {
+  if (!use_sponge_) {
+    for (int n = 0; n < m_mesh.getNumberOfNodes(); n++) spongeTaperCoeff_(n) = 1.0;
+    FENCE
+    return;
+  }
+
   const double sigma_max = 0.15;
 
   for (int n = 0; n < m_mesh.getNumberOfNodes(); n++) {

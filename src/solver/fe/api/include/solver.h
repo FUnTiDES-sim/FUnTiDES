@@ -44,6 +44,14 @@ class Solver {
                              const bool surface_sponge, const float taper_delta_) = 0;
 
   /**
+   * @brief Enable or disable sponge (taper) absorbing boundaries.
+   * Must be called before computeFEInit(). No-op by default (e.g. DG, which
+   * does not implement a sponge layer).
+   * @param use_sponge True to activate the sponge layer.
+   */
+  virtual void setUseSponge(bool use_sponge) {}
+
+  /**
    * @brief Initialize arrays required by the finite element solver.
    */
   virtual void initFEarrays() = 0;

@@ -49,6 +49,8 @@ class SEMsolver : public Solver {
   void computeFEInit(model::ModelApi<float, int>& mesh, const std::array<float, 3>& sponge_size,
                      const bool surface_sponge, const float taper_delta) override;
 
+  void setUseSponge(bool use_sponge) override { use_sponge_ = use_sponge; }
+
   // Split-phase methods for DD
   void computeForces(const float& dt, const int& timeSample, DataStruct& data) override;
   void updateSolutionForward(const float& dt, DataStruct& data) override;
@@ -271,6 +273,7 @@ class SEMsolver : public Solver {
   vectorReal gemmMetrics_;
   bool gemmMetricsReady_ = false;
 
+  bool use_sponge_{false};
   float sponge_size_[3];
   bool surface_sponge_;
   float taper_delta_;

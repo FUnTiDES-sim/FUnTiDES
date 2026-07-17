@@ -105,6 +105,11 @@ class SEMsolverAcoustoElastic : public Solver {
   void computeFEInit(model::ModelApi<float, int>& mesh, const std::array<float, 3>& sponge_size,
                      const bool surface_sponge, const float taper_delta) override;
 
+  void setUseSponge(bool use_sponge) override {
+    m_acoustic_solver_.setUseSponge(use_sponge);
+    m_elastic_solver_.setUseSponge(use_sponge);
+  }
+
   /**
    * @brief Perform one coupled time step (serial / non-distributed mode).
    *

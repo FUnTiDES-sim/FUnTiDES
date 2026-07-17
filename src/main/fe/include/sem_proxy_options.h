@@ -31,6 +31,7 @@ class SemProxyOptions {
   bool snapshots = false;
   int snap_time_interval = 20;
   // sponge boundaries parameters
+  bool use_sponge = false;
   float boundaries_size = 0;
   bool surface_sponge = false;
   float taper_delta = 0.015;
@@ -76,8 +77,9 @@ class SemProxyOptions {
         "auto-dt", "Select automatique dt via CFL equation.", cxxopts::value<bool>(o.autodt))(
         "s,snapshots", "Enable snapshot.", cxxopts::value<bool>(o.snapshots))(
         "snap-interval", "Interval on iteration between two snapshots. (default=10)",
-        cxxopts::value<int>(o.snap_time_interval))("boundaries-size", "Size of absorbing boundaries (meters)",
-                                                   cxxopts::value<float>(o.boundaries_size))(
+        cxxopts::value<int>(o.snap_time_interval))("use-sponge", "Enable sponge (taper) absorbing boundaries",
+                                                   cxxopts::value<bool>(o.use_sponge))(
+        "boundaries-size", "Size of absorbing boundaries (meters)", cxxopts::value<float>(o.boundaries_size))(
         "sponge-surface", "Considere the surface's nodes as non sponge nodes", cxxopts::value<bool>(o.surface_sponge))(
         "taper-delta", "Taper delta for sponge boundaries value", cxxopts::value<float>(o.taper_delta))(
         "is-model-on-nodes",

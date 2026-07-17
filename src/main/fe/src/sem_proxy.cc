@@ -64,6 +64,7 @@ void SEMproxy::SetupSolver(const SemProxyOptions& opt) {
   solver_ = createSolver(method_type, implem_type, mesh_type, model_location, physic_type, opt.order);
 
   const model::AnisotropyType anisotropy_type = GetAnisotropy(opt.anisotropy);
+  use_sponge_ = opt.use_sponge;
   sponge_size_ = {opt.boundaries_size, opt.boundaries_size, opt.boundaries_size};
   surface_sponge_ = opt.surface_sponge;
   taper_delta_ = opt.taper_delta;
@@ -155,6 +156,7 @@ void SEMproxy::SetupDas(const SemProxyOptions& opt) {
 
 void SEMproxy::Run() {
   auto start_run_init = std::chrono::high_resolution_clock::now();
+  solver_->setUseSponge(use_sponge_);
   solver_->computeFEInit(*mesh_, sponge_size_, surface_sponge_, taper_delta_);
 
   if (par_topology_.isDistributed()) {
