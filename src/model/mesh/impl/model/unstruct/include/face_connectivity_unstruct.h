@@ -2,7 +2,7 @@
 #define FUNTIDES_MODEL_MESH_IMPL_MODEL_UNSTRUCT_INCLUDE_FACE_CONNECTIVITY_UNSTRUCT_H_
 #include <algorithm>
 #include <array>
-#include <map>
+#include <unordered_map>
 
 #include "face_connectivity.h"
 
@@ -84,7 +84,15 @@ class FaceConnectivityUnstruct : public FaceConnectivityApi<FloatType, ScalarTyp
     for (ScalarType i = 0; i < max_faces; ++i) face_elem_neighbor_temp(i) = -1;
 
     using FaceKey = std::array<ScalarType, 4>;
-    std::map<FaceKey, ScalarType> face_map;
+    struct FaceKeyHash {
+      size_t operator()(const FaceKey& key) const {
+        size_t h = 0;
+        for (ScalarType node : key) h ^= std::hash<ScalarType>{}(node) + 0x9e3779b9 + (h << 6) + (h >> 2);
+        return h;
+      }
+    };
+    std::unordered_map<FaceKey, ScalarType, FaceKeyHash> face_map;
+    face_map.reserve(max_faces);
     ScalarType face_count = 0;
 
     for (ScalarType elem = 0; elem < n_element; ++elem) {
