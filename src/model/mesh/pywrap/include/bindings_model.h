@@ -106,15 +106,7 @@ void bind_modelstructdata(py::module_ &m) {
       .def_readwrite("ez", &Data::ez_)
       .def_readwrite("dx", &Data::dx_)
       .def_readwrite("dy", &Data::dy_)
-      .def_readwrite("dz", &Data::dz_)
-      .def_property(
-          "boundaries_t",
-          [](Data &self) -> Kokkos::Experimental::python_view_type_t<decltype(self.boundaries_t_)> {
-            return self.boundaries_t_;
-          },
-          [](Data &self, Kokkos::Experimental::python_view_type_t<decltype(self.boundaries_t_)> v) {
-            self.boundaries_t_ = v;
-          });
+      .def_readwrite("dz", &Data::dz_);
 }
 
 // templated binder for ModelUnstruct
