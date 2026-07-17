@@ -21,6 +21,19 @@ namespace py = pybind11;
 
 namespace model {
 
+/**
+ * @brief Bind the BoundaryFlag enum (node classification for boundaries_t)
+ */
+inline void bind_boundary_flag(py::module_ &m) {
+  py::enum_<model::BoundaryFlag>(m, "BoundaryFlag")
+      .value("InteriorNode", model::BoundaryFlag::InteriorNode)
+      .value("Damping", model::BoundaryFlag::Damping)
+      .value("Sponge", model::BoundaryFlag::Sponge)
+      .value("Surface", model::BoundaryFlag::Surface)
+      .value("Ghost", model::BoundaryFlag::Ghost)
+      .export_values();
+}
+
 // template binder for ModelAPI
 template <typename FloatType, typename ScalarType>
 void bind_modelapi(py::module_ &m) {
@@ -93,7 +106,15 @@ void bind_modelstructdata(py::module_ &m) {
       .def_readwrite("ez", &Data::ez_)
       .def_readwrite("dx", &Data::dx_)
       .def_readwrite("dy", &Data::dy_)
-      .def_readwrite("dz", &Data::dz_);
+      .def_readwrite("dz", &Data::dz_)
+      .def_property(
+          "boundaries_t",
+          [](Data &self) -> Kokkos::Experimental::python_view_type_t<decltype(self.boundaries_t_)> {
+            return self.boundaries_t_;
+          },
+          [](Data &self, Kokkos::Experimental::python_view_type_t<decltype(self.boundaries_t_)> v) {
+            self.boundaries_t_ = v;
+          });
 }
 
 // templated binder for ModelUnstruct
