@@ -264,7 +264,7 @@ void SEMproxy::Run() {
     fout << "# time pressure_at_receiver\n";
     for (int t = 0; t < num_samples_; ++t) fout << t * dt_ << " " << h_pn_at_receiver_(0, t) << "\n";
     fout.close();
-  }
+  } else
 #endif  // COMPILE_DG
   if (is_acousto_elastic_) {
     WavefieldAcoustoElastic wavefield(pn_global_prev_, pn_global_curr_, uxn_global_prev_, uxn_global_curr_,
