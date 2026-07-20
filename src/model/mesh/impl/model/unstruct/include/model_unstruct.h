@@ -672,7 +672,14 @@ class ModelUnstruct final : public ModelApi<FloatType, ScalarType> {
   void buildFaceConnectivity() override {
     if (face_connectivity_.getNumberOfFaces() > 0) return;
 
+    auto t0 = std::chrono::high_resolution_clock::now();
     face_connectivity_.build(*this);
+    Kokkos::fence();
+    auto t1 = std::chrono::high_resolution_clock::now();
+    std::cout << "[TIMING] buildFaceConnectivity: " << std::chrono::duration<double>(t1 - t0).count() << " s"
+              << std::endl;
+    std::cout << "[TIMING] n_faces=" << face_connectivity_.getNumberOfFaces() << " n_element=" << n_element_
+              << std::endl;
   }
   /**
    * @brief Get global face ID from element and local face
