@@ -1,9 +1,8 @@
 #ifndef FUNTIDES_MODEL_MESH_IMPL_MODEL_UNSTRUCT_INCLUDE_FACE_CONNECTIVITY_UNSTRUCT_H_
 #define FUNTIDES_MODEL_MESH_IMPL_MODEL_UNSTRUCT_INCLUDE_FACE_CONNECTIVITY_UNSTRUCT_H_
+#include <Kokkos_UnorderedMap.hpp>
 #include <limits>
 #include <stdexcept>
-
-#include <Kokkos_UnorderedMap.hpp>
 
 #include "face_connectivity.h"
 
