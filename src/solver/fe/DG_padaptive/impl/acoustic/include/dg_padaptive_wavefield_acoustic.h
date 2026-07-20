@@ -21,7 +21,8 @@ struct DGPAdaptiveWavefieldAcoustic {
   /// Field names in order: pMinDGp, pMaxDGp
   static constexpr const char* kFieldNames[2] = {"pMinDGpressure", "pMaxDGpressure"};
 
-  DGPAdaptiveWavefieldAcoustic(arrayReal pnPMinDGPrev, arrayReal pnPMinDGCurr, arrayReal pnPMaxDGPrev, arrayReal pnPMaxDGCurr)
+  DGPAdaptiveWavefieldAcoustic(arrayReal pnPMinDGPrev, arrayReal pnPMinDGCurr, arrayReal pnPMaxDGPrev,
+                               arrayReal pnPMaxDGCurr)
       : m_pMinAcoustic(pnPMinDGPrev, pnPMinDGCurr), m_pMaxAcoustic(pnPMaxDGPrev, pnPMaxDGCurr) {}
 
   int getNumFields() const { return kNumFields; }

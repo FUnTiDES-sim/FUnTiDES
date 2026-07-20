@@ -98,8 +98,9 @@ class FaceConnectivityUnstruct : public FaceConnectivityApi<FloatType, ScalarTyp
           ScalarType face_id = face_count++;
           face_map[face_key] = face_id;
 
-          fillFaceDofs(mesh, elem, local_face, order,
-                       [&](int idx, ScalarType node) { face_dofs_temp(face_id, idx) = node; }, geom_order);
+          fillFaceDofs(
+              mesh, elem, local_face, order, [&](int idx, ScalarType node) { face_dofs_temp(face_id, idx) = node; },
+              geom_order);
 
           face_elem_owner_temp(face_id) = elem;
           face_local_owner_temp(face_id) = lf;
@@ -115,8 +116,8 @@ class FaceConnectivityUnstruct : public FaceConnectivityApi<FloatType, ScalarTyp
           // ndofs_per_face <= (9+1)^2 = 100 (max order in the codebase).
           constexpr int kMaxDofsPerFace = 100;
           ScalarType neigh_dofs[kMaxDofsPerFace];
-          fillFaceDofs(mesh, elem, local_face, order, [&](int idx, ScalarType node) { neigh_dofs[idx] = node; },
-                       geom_order);
+          fillFaceDofs(
+              mesh, elem, local_face, order, [&](int idx, ScalarType node) { neigh_dofs[idx] = node; }, geom_order);
 
           for (int i = 0; i < ndofs_per_face_; ++i) {
             ScalarType owner_node = face_dofs_temp(face_id, i);

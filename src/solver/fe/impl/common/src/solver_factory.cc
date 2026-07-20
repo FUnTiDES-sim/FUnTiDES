@@ -245,11 +245,11 @@ std::unique_ptr<Solver> makeDgPAdaptiveSolverStruct(bool isModelOnNodes, feenum:
 
   if (physic == feenum::physicType::kAcoustic) {
     if (isModelOnNodes)
-      return std::make_unique<
-          solver::fe::DGPAdaptiveSolver<ORDER_MIN, ORDER_MAX, IntegralTypeSelector, ImplTag, MeshT, true, feenum::physicType::kAcoustic>>();
+      return std::make_unique<solver::fe::DGPAdaptiveSolver<ORDER_MIN, ORDER_MAX, IntegralTypeSelector, ImplTag, MeshT,
+                                                            true, feenum::physicType::kAcoustic>>();
     else
-      return std::make_unique<
-          solver::fe::DGPAdaptiveSolver<ORDER_MIN, ORDER_MAX, IntegralTypeSelector, ImplTag, MeshT, false, feenum::physicType::kAcoustic>>();
+      return std::make_unique<solver::fe::DGPAdaptiveSolver<ORDER_MIN, ORDER_MAX, IntegralTypeSelector, ImplTag, MeshT,
+                                                            false, feenum::physicType::kAcoustic>>();
   }
   throw std::runtime_error("DG p-adaptive: unsupported physics type");
 }
@@ -263,11 +263,11 @@ std::unique_ptr<Solver> makeDgPAdaptiveSolverUnstruct(bool isModelOnNodes, feenu
 
   if (physic == feenum::physicType::kAcoustic) {
     if (isModelOnNodes)
-      return std::make_unique<
-          solver::fe::DGPAdaptiveSolver<ORDER_MIN, ORDER_MAX, IntegralTypeSelector, ImplTag, MeshT, true, feenum::physicType::kAcoustic>>();
+      return std::make_unique<solver::fe::DGPAdaptiveSolver<ORDER_MIN, ORDER_MAX, IntegralTypeSelector, ImplTag, MeshT,
+                                                            true, feenum::physicType::kAcoustic>>();
     else
-      return std::make_unique<
-          solver::fe::DGPAdaptiveSolver<ORDER_MIN, ORDER_MAX, IntegralTypeSelector, ImplTag, MeshT, false, feenum::physicType::kAcoustic>>();
+      return std::make_unique<solver::fe::DGPAdaptiveSolver<ORDER_MIN, ORDER_MAX, IntegralTypeSelector, ImplTag, MeshT,
+                                                            false, feenum::physicType::kAcoustic>>();
   }
   throw std::runtime_error("DG p-adaptive: unsupported physics type");
 }
@@ -276,25 +276,26 @@ std::unique_ptr<Solver> makeDgPAdaptiveSolverUnstruct(bool isModelOnNodes, feenu
  * @brief Creates a DG p-adaptive solver with the specified integral implementation.
  */
 template <auto ImplTag>
-std::unique_ptr<Solver> makeDgPAdaptiveSolver(int order_min, int order_max, feenum::meshType mesh, feenum::modelLocationType modelLocation,
-                                        feenum::physicType physic) {
+std::unique_ptr<Solver> makeDgPAdaptiveSolver(int order_min, int order_max, feenum::meshType mesh,
+                                              feenum::modelLocationType modelLocation, feenum::physicType physic) {
   bool const isModelOnNodes = (modelLocation == feenum::modelLocationType::kOnNodes);
-  return orderDispatch<MAX_DG_PADAPTIVE_SOLVER_ACOUSTIC_ORDER>(order_max, [&](auto orderMaxIC) -> std::unique_ptr<Solver> {
-    constexpr int ORDER_MAX = decltype(orderMaxIC)::value;
+  return orderDispatch<MAX_DG_PADAPTIVE_SOLVER_ACOUSTIC_ORDER>(
+      order_max, [&](auto orderMaxIC) -> std::unique_ptr<Solver> {
+        constexpr int ORDER_MAX = decltype(orderMaxIC)::value;
 
-    if constexpr (ORDER_MAX > 1) {
-      return orderDispatch<ORDER_MAX - 1>(order_min, [&](auto orderMinIC) {
-        constexpr int ORDER_MIN = decltype(orderMinIC)::value;
-        return (mesh == feenum::meshType::kStruct) ? makeDgPAdaptiveSolverStruct<ImplTag, ORDER_MIN, ORDER_MAX>(isModelOnNodes, physic)
-                                                   : makeDgPAdaptiveSolverUnstruct<ImplTag, ORDER_MIN, ORDER_MAX>(isModelOnNodes, physic);
+        if constexpr (ORDER_MAX > 1) {
+          return orderDispatch<ORDER_MAX - 1>(order_min, [&](auto orderMinIC) {
+            constexpr int ORDER_MIN = decltype(orderMinIC)::value;
+            return (mesh == feenum::meshType::kStruct)
+                       ? makeDgPAdaptiveSolverStruct<ImplTag, ORDER_MIN, ORDER_MAX>(isModelOnNodes, physic)
+                       : makeDgPAdaptiveSolverUnstruct<ImplTag, ORDER_MIN, ORDER_MAX>(isModelOnNodes, physic);
+          });
+        } else {
+          throw std::runtime_error("DG p-adaptive requires order_max > 1");
+        }
       });
-    } else {
-      throw std::runtime_error("DG p-adaptive requires order_max > 1");
-    }
-  });
 }
 #endif
-
 
 std::unique_ptr<Solver> createSolver(feenum::methodType const methodType, feenum::implemType const implemType,
                                      feenum::meshType const mesh, feenum::modelLocationType const modelLocation,
@@ -335,10 +336,12 @@ std::unique_ptr<Solver> createSolver(feenum::methodType const methodType, feenum
     int const order_max = order;
     switch (implemType) {
       case feenum::implemType::kMakutu:
-        if (order_min <= 0 || order_min >= order_max) throw std::runtime_error("DG p-adaptive requires 0 < order_min < order_max");
+        if (order_min <= 0 || order_min >= order_max)
+          throw std::runtime_error("DG p-adaptive requires 0 < order_min < order_max");
         return makeDgPAdaptiveSolver<IntegralType::MAKUTU>(order_min, order_max, mesh, modelLocation, physicType);
       default:
-        throw std::runtime_error("Unknown DG p-adaptive implementation type: " + std::to_string(static_cast<int>(implemType)));
+        throw std::runtime_error("Unknown DG p-adaptive implementation type: " +
+                                 std::to_string(static_cast<int>(implemType)));
     }
   }
 #endif

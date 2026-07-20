@@ -33,8 +33,8 @@ static constexpr int kElementTypePMax = 2;
  * @tparam IS_MODEL_ON_NODES  If true, material properties are stored on nodes.
  * @tparam PHYSICS            Physical model type (Acoustic).
  */
-template <int ORDER_MIN, int ORDER_MAX, template<int, int> class INTEGRAL_SELECTOR, int IMPL_TAG, typename MESH_TYPE, bool IS_MODEL_ON_NODES,
-          utils::enums::physicType PHYSICS>
+template <int ORDER_MIN, int ORDER_MAX, template <int, int> class INTEGRAL_SELECTOR, int IMPL_TAG, typename MESH_TYPE,
+          bool IS_MODEL_ON_NODES, utils::enums::physicType PHYSICS>
 class DGPAdaptiveSolver : public Solver {
  public:
   using INTEGRAL_TYPE_MIN = typename INTEGRAL_SELECTOR<ORDER_MIN, IMPL_TAG>::type;
@@ -87,9 +87,7 @@ class DGPAdaptiveSolver : public Solver {
     throw std::runtime_error("getMassMatrixElastic not implemented for DG");
   }
 
-  vectorReal& getDampingMatrix(int c) override {
-    throw std::runtime_error("getDampingMatrix not implemented for DG");
-  }
+  vectorReal& getDampingMatrix(int c) override { throw std::runtime_error("getDampingMatrix not implemented for DG"); }
 
   vectorReal& getForceVector(int component) override {
     throw std::runtime_error("getForceVector not implemented for DG");
@@ -168,9 +166,9 @@ class DGPAdaptiveSolver : public Solver {
   vectorInt order_list;
 
   MESH_TYPE m_mesh_;  ///< Local copy of the mesh built on the highest order
-  model::FaceConnectivityUnstruct<float, int> m_face_connectivity_; // pMax face connectivity structure
+  model::FaceConnectivityUnstruct<float, int> m_face_connectivity_;  // pMax face connectivity structure
 
-  /// pMin projection matrix: pressure field → mortar space 
+  /// pMin projection matrix: pressure field → mortar space
   arrayReal m_mortar_projection;
 
   /// Per-element type tag (kElementTypePMin or kElementTypePMax).
@@ -196,7 +194,7 @@ class DGPAdaptiveSolver : public Solver {
   /// @brief Compact list of pMax interior face indices (pMax-pMax faces only, excludes interface).
   vectorInt m_pMax_interior_face_list_;
 
-  /// @brief Build based on kElementType, m_pMin_interior_face_list_ 
+  /// @brief Build based on kElementType, m_pMin_interior_face_list_
   /// and m_pMax_interior_face_list_ from all faces minus interface faces.
   void BuildInteriorFaceLists();
 

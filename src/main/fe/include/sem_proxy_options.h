@@ -68,10 +68,10 @@ class SemProxyOptions {
         "ex", "Number of elements on X (Cartesian mesh)", cxxopts::value<int>(o.ex))(
         "ey", "Number of elements on Y (Cartesian mesh)", cxxopts::value<int>(o.ey))(
         "ez", "Number of elements on Z (Cartesian mesh)", cxxopts::value<int>(o.ez))(
-        "lx", "Domain size X (Cartesian)", cxxopts::value<float>(o.lx))(
-        "ly", "Domain size Y (Cartesian)", cxxopts::value<float>(o.ly))(
-        "lz", "Domain size Z (Cartesian)", cxxopts::value<float>(o.lz))(
-        "implem", "Implementation: makutu", cxxopts::value<std::string>(o.implem))(
+        "lx", "Domain size X (Cartesian)", cxxopts::value<float>(o.lx))("ly", "Domain size Y (Cartesian)",
+                                                                        cxxopts::value<float>(o.ly))(
+        "lz", "Domain size Z (Cartesian)", cxxopts::value<float>(o.lz))("implem", "Implementation: makutu",
+                                                                        cxxopts::value<std::string>(o.implem))(
         "method", "Method: sem|dg|dg-sem|dg-padaptive", cxxopts::value<std::string>(o.method))(
         "mesh", "Mesh: cartesian|ucartesian", cxxopts::value<std::string>(o.mesh))(
         "dt", "Time step selection in s (default = 0.001s)", cxxopts::value<float>(o.dt))(
@@ -79,21 +79,23 @@ class SemProxyOptions {
         "auto-dt", "Select automatique dt via CFL equation.", cxxopts::value<bool>(o.autodt))(
         "s,snapshots", "Enable snapshot.", cxxopts::value<bool>(o.snapshots))(
         "snap-interval", "Interval on iteration between two snapshots. (default=10)",
-        cxxopts::value<int>(o.snap_time_interval))(
-        "boundaries-size", "Size of absorbing boundaries (meters)", cxxopts::value<float>(o.boundaries_size))(
+        cxxopts::value<int>(o.snap_time_interval))("boundaries-size", "Size of absorbing boundaries (meters)",
+                                                   cxxopts::value<float>(o.boundaries_size))(
         "sponge-surface", "Considere the surface's nodes as non sponge nodes", cxxopts::value<bool>(o.surface_sponge))(
         "taper-delta", "Taper delta for sponge boundaries value", cxxopts::value<float>(o.taper_delta))(
-        "is-model-on-nodes", "Boolean to tell if the model is charged on nodes (true) or on element " "(false)",
-        cxxopts::value<bool>(o.isModelOnNodes))(
-        "is-elastic", "Elastic simulation", cxxopts::value<bool>(o.isElastic))(
+        "is-model-on-nodes",
+        "Boolean to tell if the model is charged on nodes (true) or on element "
+        "(false)",
+        cxxopts::value<bool>(o.isModelOnNodes))("is-elastic", "Elastic simulation", cxxopts::value<bool>(o.isElastic))(
         "is-acousto-elastic", "Acousto-elastic coupled simulation", cxxopts::value<bool>(o.isAcoustoElastic))(
         "acousto-elastic-boundary-z", "Z coordinate of the fluid–solid interface (meters)",
         cxxopts::value<float>(o.acoustoElasticBoundaryZ))(
-        "z-boundary", "Z coordinate of the DG-SEM or DG p-adaptive interface (meters)", cxxopts::value<float>(o.ZBoundary))(
-        "free-surface", "Enable free surface on top boundary (Z+). Default: true",
-        cxxopts::value<bool>(o.free_surface))(
-        "anisotropy", "Anisotropy type for elastic: iso|vti|tti (default=iso)", cxxopts::value<std::string>(o.anisotropy))(
-        "model-file", "Path to .ftmd heterogeneous model file (optional)", cxxopts::value<std::string>(o.model_file))(
+        "z-boundary", "Z coordinate of the DG-SEM or DG p-adaptive interface (meters)",
+        cxxopts::value<float>(o.ZBoundary))("free-surface", "Enable free surface on top boundary (Z+). Default: true",
+                                            cxxopts::value<bool>(o.free_surface))(
+        "anisotropy", "Anisotropy type for elastic: iso|vti|tti (default=iso)",
+        cxxopts::value<std::string>(o.anisotropy))("model-file", "Path to .ftmd heterogeneous model file (optional)",
+                                                   cxxopts::value<std::string>(o.model_file))(
         "das-type", "DAS receiver type: none|dipole|strain (default=none)", cxxopts::value<std::string>(o.das_type))(
         "das-dip", "DAS fiber dip angle in degrees (default=0)", cxxopts::value<float>(o.das_dip))(
         "das-azimuth", "DAS fiber azimuth angle in degrees (default=0)", cxxopts::value<float>(o.das_azimuth))(
@@ -102,18 +104,20 @@ class SemProxyOptions {
         "f0", "Dominant frequency of the source in Hz", cxxopts::value<float>(o.f0))(
         "tpeak", "Peak time of the Ricker wavelet source", cxxopts::value<float>(o.tpeak))(
         "ricker-order", "Order of the Ricker wavelet source", cxxopts::value<int>(o.ricker_order))(
-        "srcx", "Source position X (meters)", cxxopts::value<float>(o.srcx))(
-        "srcy", "Source position Y (meters)", cxxopts::value<float>(o.srcy))(
-        "srcz", "Source position Z (meters)", cxxopts::value<float>(o.srcz))(
-        "rcvx", "Receiver position X (meters)", cxxopts::value<float>(o.rcvx))(
-        "rcvy", "Receiver position Y (meters)", cxxopts::value<float>(o.rcvy))(
-        "rcvz", "Receiver position Z (meters)", cxxopts::value<float>(o.rcvz))(
+        "srcx", "Source position X (meters)", cxxopts::value<float>(o.srcx))("srcy", "Source position Y (meters)",
+                                                                             cxxopts::value<float>(o.srcy))(
+        "srcz", "Source position Z (meters)", cxxopts::value<float>(o.srcz))("rcvx", "Receiver position X (meters)",
+                                                                             cxxopts::value<float>(o.rcvx))(
+        "rcvy", "Receiver position Y (meters)", cxxopts::value<float>(o.rcvy))("rcvz", "Receiver position Z (meters)",
+                                                                               cxxopts::value<float>(o.rcvz))(
         "qp", "Quality factor for P-waves (default: no attenuation)", cxxopts::value<float>(o.qp))(
         "qs", "Quality factor for S-waves (default: no attenuation)", cxxopts::value<float>(o.qs))(
         "sls-reference-angular-frequencies", "Comma-separated SLS reference angular frequencies (rad/s)",
         cxxopts::value<std::vector<float>>(o.sls_reference_angular_frequencies))(
-        "sls-anelasticity-coefficients", "Comma-separated SLS anelasticity coefficients (same size as "
-        "frequencies)", cxxopts::value<std::vector<float>>(o.sls_anelasticity_coefficients));
+        "sls-anelasticity-coefficients",
+        "Comma-separated SLS anelasticity coefficients (same size as "
+        "frequencies)",
+        cxxopts::value<std::vector<float>>(o.sls_anelasticity_coefficients));
   }
 };
 

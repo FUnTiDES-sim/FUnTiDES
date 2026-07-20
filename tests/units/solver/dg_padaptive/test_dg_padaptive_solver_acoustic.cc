@@ -42,7 +42,8 @@ static constexpr int kOrder_min = 1;
 static constexpr int kNDof_min = (kOrder_min + 1) * (kOrder_min + 1) * (kOrder_min + 1);  // 8
 
 using MeshType = model::ModelStruct<float, int, kOrder_max>;
-using DGPAdaptiveSolverT = DGPAdaptiveSolver<kOrder_min, kOrder_max, IntegralTypeSelector, IntegralType::MAKUTU, MeshType, false, physicType::kAcoustic>;
+using DGPAdaptiveSolverT = DGPAdaptiveSolver<kOrder_min, kOrder_max, IntegralTypeSelector, IntegralType::MAKUTU,
+                                             MeshType, false, physicType::kAcoustic>;
 
 // ============================================================
 // Fixture
@@ -52,8 +53,8 @@ class DGPAdaptiveSolverAcousticTest : public ::testing::Test {
  protected:
   void SetUp() override {
     model::CartesianStructBuilder<float, int, kOrder_max> builder(2, 2000.0f, 2, 2000.0f, 2, 2000.0f, false, false, 0.0,
-                                                              0.0, 0.0, -1.0, -1.0, -1.0, 0.0, 0.0, 0.0, false,
-                                                              0.0f);      // default parameters from the builder
+                                                                  0.0, 0.0, -1.0, -1.0, -1.0, 0.0, 0.0, 0.0, false,
+                                                                  0.0f);  // default parameters from the builder
     mesh_ = builder.getModel(false);
     nElem_ = mesh_->getNumberOfElements();  // 8 here
     nNode_ = mesh_->getNumberOfNodes();     // 27 here
@@ -73,7 +74,7 @@ class DGPAdaptiveSolverAcousticTest : public ::testing::Test {
    * @param wavelet   Constant wavelet value for all time samples (ignored when nSample == 0).
    */
   DGPAdaptiveSolverData makeData(float p_min_CurrVal, float p_min_PrevVal, float p_max_CurrVal, float p_max_PrevVal,
-                           int nSample = 0, int srcElem = 0, float wavelet = 0.0f) {
+                                 int nSample = 0, int srcElem = 0, float wavelet = 0.0f) {
     auto p_min_Curr = allocateArray2D<arrayReal>(nElem_, kNDof_min, "pnPMinDGCurr");
     auto p_min_Prev = allocateArray2D<arrayReal>(nElem_, kNDof_min, "pnPMinDGPrev");
     auto p_max_Curr = allocateArray2D<arrayReal>(nElem_, kNDof_max, "pnPMaxDGCurr");
@@ -130,7 +131,7 @@ TEST_F(DGPAdaptiveSolverAcousticTest, ComputeFEInit_IncompatibleMeshThrows) {
   // The dynamic_cast in computeFEInit must fail and throw.
   model::CartesianStructBuilder<float, int, 3> builder2(2, 2000.0f, 2, 2000.0f, 2, 2000.0f, false, false, 0.0, 0.0, 0.0,
                                                         -1.0, -1.0, -1.0, 0.0, 0.0, 0.0, false,
-                                                        0.0f);      // default parameters from the builder
+                                                        0.0f);  // default parameters from the builder
   auto mesh2 = builder2.getModel(false);
 
   DGPAdaptiveSolverT fresh_solver;

@@ -12,7 +12,7 @@ namespace fe {
 /**
  * @brief RHS data structure for the p-adaptive DG solver.
  *
- * Holds one acoustic source in each DG sub-domain. 
+ * Holds one acoustic source in each DG sub-domain.
  * Either source may be zero-initialised when the
  * corresponding domain is inactive. The sub-solvers receive their respective
  * @ref RhsAcoustic member directly, so @p getTerm() is
@@ -23,14 +23,18 @@ struct DGPAdaptiveRhsAcoustic : public Rhs {
   static constexpr int kNumRhsComponents = 2;
 
   /**
-   * @param pMin_acoustic_term  2D array of acoustic source signals (n_src x n_t) for the pMin approximation order domain.
-   * @param pMax_acoustic_term  2D array of acoustic source signals (n_src x n_t) for the pMax approximation order domain.
+   * @param pMin_acoustic_term  2D array of acoustic source signals (n_src x n_t) for the pMin approximation order
+   * domain.
+   * @param pMax_acoustic_term  2D array of acoustic source signals (n_src x n_t) for the pMax approximation order
+   * domain.
    * @param element             Indices of elements containing source points.
    * @param pMin_weights        Per-node pMin weights for source distribution.
    * @param pMax_weights        Per-node pMax weights for source distribution.
    */
-  DGPAdaptiveRhsAcoustic(arrayReal pMin_acoustic_term, arrayReal pMax_acoustic_term, vectorInt element, arrayReal pMin_weights, arrayReal pMax_weights)
-      : m_rhs_pMinAcoustic(pMin_acoustic_term, element, pMin_weights), m_rhs_pMaxAcoustic(pMax_acoustic_term, element, pMax_weights) {}
+  DGPAdaptiveRhsAcoustic(arrayReal pMin_acoustic_term, arrayReal pMax_acoustic_term, vectorInt element,
+                         arrayReal pMin_weights, arrayReal pMax_weights)
+      : m_rhs_pMinAcoustic(pMin_acoustic_term, element, pMin_weights),
+        m_rhs_pMaxAcoustic(pMax_acoustic_term, element, pMax_weights) {}
 
   int getNumRhsComponents() const override final { return kNumRhsComponents; }
 
@@ -45,7 +49,7 @@ struct DGPAdaptiveRhsAcoustic : public Rhs {
   vectorInt getElement() const { return m_rhs_pMinAcoustic.getElement(); }
 
   PROXY_HOST_DEVICE
-  arrayReal getWeights(int i) const { 
+  arrayReal getWeights(int i) const {
     if (i == 0) return m_rhs_pMinAcoustic.getWeights();
     return m_rhs_pMaxAcoustic.getWeights();
   }
@@ -60,8 +64,8 @@ struct DGPAdaptiveRhsAcoustic : public Rhs {
     m_rhs_pMaxAcoustic.print();
   }
 
-  RhsAcoustic m_rhs_pMinAcoustic;   ///< pMin domain source
-  RhsAcoustic m_rhs_pMaxAcoustic;   ///< pMax domain source
+  RhsAcoustic m_rhs_pMinAcoustic;  ///< pMin domain source
+  RhsAcoustic m_rhs_pMaxAcoustic;  ///< pMax domain source
 };
 
 }  // namespace fe

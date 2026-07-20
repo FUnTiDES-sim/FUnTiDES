@@ -11,9 +11,9 @@
 #include <fstream>
 #include <iomanip>
 
-#include "dg_solver_data.h"
 #include "dg-sem_solver_data.h"
 #include "dg_padaptive_solver_data.h"
+#include "dg_solver_data.h"
 #include "rhs_acoustoelastic.h"
 #ifdef USE_MPI
 #include "mpi_backend.h"
@@ -550,8 +550,7 @@ void SEMproxy::Run() {
               for (int ix = 0; ix < nx; ++ix) {
                 int const ix_e = (ix == nx - 1) ? ex - 1 : ix / order_max;
                 int const ix_d = (ix == nx - 1) ? order_max : ix % order_max;
-                int const ia_min =
-                    std::min(order_min_, (int)std::lround((float)ix_d / order_max * order_min_));
+                int const ia_min = std::min(order_min_, (int)std::lround((float)ix_d / order_max * order_min_));
                 int const elem = ix_e + ey_mid * ex + ez_i * ex * ey;
                 int const dof = ia_min + icZ_min * n1d_min + iz_dof * n1d_min * n1d_min;
                 fxz << h_pmin(elem, dof);
@@ -585,7 +584,6 @@ void SEMproxy::Run() {
       }
 
       {
-        
         float var_np1 = 0.0f;
         if (rcv_in_pmax) {
           const int order = mesh_->getOrder();

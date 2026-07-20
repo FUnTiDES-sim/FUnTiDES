@@ -15,8 +15,8 @@ namespace solver {
 namespace fe {
 
 void bind_dgpadaptive_wavefield_acoustic(py::module_ &m) {
-  py::class_<DGPAdaptiveWavefieldAcoustic, std::shared_ptr<DGPAdaptiveWavefieldAcoustic>>(m,
-                                                                                          "DGPAdaptiveWavefieldAcoustic")
+  py::class_<DGPAdaptiveWavefieldAcoustic, std::shared_ptr<DGPAdaptiveWavefieldAcoustic>>(
+      m, "DGPAdaptiveWavefieldAcoustic")
       .def(py::init<Kokkos::Experimental::python_view_type_t<arrayReal>,
                     Kokkos::Experimental::python_view_type_t<arrayReal>,
                     Kokkos::Experimental::python_view_type_t<arrayReal>,

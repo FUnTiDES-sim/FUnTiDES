@@ -59,7 +59,8 @@ class DGPAdaptiveSolverDataTest : public ::testing::Test {
   }
 
   int nElem_, nDof_min_, nDof_max_, nNode_, nSrc_, nSample_;
-  arrayReal p_min_Prev, p_min_Curr, p_max_Prev, p_max_Curr, rhsTerm_pmin, rhsTerm_pmax, rhsWeights_pmin, rhsWeights_pmax;
+  arrayReal p_min_Prev, p_min_Curr, p_max_Prev, p_max_Curr, rhsTerm_pmin, rhsTerm_pmax, rhsWeights_pmin,
+      rhsWeights_pmax;
   vectorInt rhsElem_;
 };
 
@@ -215,9 +216,8 @@ TEST_F(DGPAdaptiveSolverDataTest, GetRhsWeights_ReturnsWeights) {
   auto w_pmin = data.m_rhs.getWeights(0);
   auto w_pmax = data.m_rhs.getWeights(1);
 
-
   ASSERT_EQ(w_pmin.extent(0), static_cast<size_t>(nSrc_));
-  ASSERT_EQ(w_pmin.extent(1), static_cast<size_t>(nDof_min_));  
+  ASSERT_EQ(w_pmin.extent(1), static_cast<size_t>(nDof_min_));
   ASSERT_EQ(w_pmax.extent(0), static_cast<size_t>(nSrc_));
   ASSERT_EQ(w_pmax.extent(1), static_cast<size_t>(nDof_max_));
   for (int s = 0; s < nSrc_; ++s) {
@@ -329,7 +329,6 @@ TEST_F(DGPAdaptiveSolverDataTest, EmptyViews_ValidConstruction) {
   auto emptyElem = allocateVector<vectorInt>(0, "ee");
   auto emptyW_pmin = allocateArray2D<arrayReal>(0, 0, "ewmin");
   auto emptyW_pmax = allocateArray2D<arrayReal>(0, 0, "ewmax");
-
 
   DGPAdaptiveWavefieldAcoustic empty_wavefield(emptyPrev_pmin, emptyCurr_pmin, emptyPrev_pmax, emptyCurr_pmax);
   DGPAdaptiveRhsAcoustic empty_rhs(emptyTerm_pmin, emptyTerm_pmax, emptyElem, emptyW_pmin, emptyW_pmax);

@@ -109,15 +109,15 @@ class SEMproxy {
   void WaitSnapshots();
 
   // --- Physics & Meshing Flags ---
-  bool is_elastic_ = false;             ///< True if simulating elastic wave propagation.
-  bool is_acousto_elastic_ = false;     ///< True if simulating coupled acousto-elastic wave propagation.
-  bool free_surface_ = false;           ///< True if the top boundary acts as a free surface.
-  bool is_dg_ = false;                  ///< True if using Discontinuous Galerkin method.
-  bool is_dg_sem_ = false;              ///< True if using Discontinuous Galerkin - Spectral Element method coupling.
-  bool is_dg_padaptive_ = false;        ///< True if using Discontinuous Galerkin p-adaptive method.
-  float dg_sem_iface_z_ = 1000.f;       ///< Z coordinate of the DG-SEM interface.
-  float dg_padaptive_iface_z_ = 1000.f; ///< Z coordinate of the DG p-adaptive interface.
-  int order_min_ = 0;   ///< Minimal order for p-adaptive discontinuous Galerkin.
+  bool is_elastic_ = false;              ///< True if simulating elastic wave propagation.
+  bool is_acousto_elastic_ = false;      ///< True if simulating coupled acousto-elastic wave propagation.
+  bool free_surface_ = false;            ///< True if the top boundary acts as a free surface.
+  bool is_dg_ = false;                   ///< True if using Discontinuous Galerkin method.
+  bool is_dg_sem_ = false;               ///< True if using Discontinuous Galerkin - Spectral Element method coupling.
+  bool is_dg_padaptive_ = false;         ///< True if using Discontinuous Galerkin p-adaptive method.
+  float dg_sem_iface_z_ = 1000.f;        ///< Z coordinate of the DG-SEM interface.
+  float dg_padaptive_iface_z_ = 1000.f;  ///< Z coordinate of the DG p-adaptive interface.
+  int order_min_ = 0;                    ///< Minimal order for p-adaptive discontinuous Galerkin.
 
   std::array<float, 3> sponge_size_ = {0, 0, 0};  ///< Thickness of absorbing boundaries (sponge layers).
   bool surface_sponge_ = false;                   ///< True if the top surface has an absorbing boundary.
@@ -211,12 +211,12 @@ class SEMproxy {
   arrayReal::host_mirror_type h_uzn_at_receiver_;  ///< CPU mirror for elastic Z receiver traces.
   vectorReal::host_mirror_type h_das_signal_;      ///< CPU mirror for DAS signal trace.
 
-  vectorReal::host_mirror_type h_pn_global_curr_;   ///< CPU mirror for current pressure field.
-  vectorReal::host_mirror_type h_pn_global_prev_;   ///< CPU mirror for previous pressure field.
-  vectorReal::host_mirror_type h_pn_sem_curr_;      ///< CPU mirror for SEM current pressure field.
-  vectorReal::host_mirror_type h_pn_sem_prev_;      ///< CPU mirror for SEM previous pressure field.
-  arrayReal::host_mirror_type h_pn_dg_curr_;        ///< CPU mirror for DG current pressure field.
-  arrayReal::host_mirror_type h_pn_dg_prev_;        ///< CPU mirror for DG previous pressure field.
+  vectorReal::host_mirror_type h_pn_global_curr_;  ///< CPU mirror for current pressure field.
+  vectorReal::host_mirror_type h_pn_global_prev_;  ///< CPU mirror for previous pressure field.
+  vectorReal::host_mirror_type h_pn_sem_curr_;     ///< CPU mirror for SEM current pressure field.
+  vectorReal::host_mirror_type h_pn_sem_prev_;     ///< CPU mirror for SEM previous pressure field.
+  arrayReal::host_mirror_type h_pn_dg_curr_;       ///< CPU mirror for DG current pressure field.
+  arrayReal::host_mirror_type h_pn_dg_prev_;       ///< CPU mirror for DG previous pressure field.
 
   arrayReal::host_mirror_type h_rhs_term_pmin_;         ///< CPU mirror for pMin domain DG source term.
   arrayReal::host_mirror_type h_rhs_term_pmax_;         ///< CPU mirror for pMax domain DG source term.
@@ -228,12 +228,12 @@ class SEMproxy {
   arrayReal::host_mirror_type h_pn_pmin_dg_prev_;       ///< CPU mirror for pMin domain DG previous pressure field.
   arrayReal::host_mirror_type h_pn_pmax_dg_curr_;       ///< CPU mirror for pMax domain DG current pressure field.
   arrayReal::host_mirror_type h_pn_pmax_dg_prev_;       ///< CPU mirror for pMax domain DG previous pressure field.
-  vectorReal::host_mirror_type h_uxn_global_curr_;  ///< CPU mirror for current X-displacement.
-  vectorReal::host_mirror_type h_uyn_global_curr_;  ///< CPU mirror for current Y-displacement.
-  vectorReal::host_mirror_type h_uzn_global_curr_;  ///< CPU mirror for current Z-displacement.
-  vectorReal::host_mirror_type h_uxn_global_prev_;  ///< CPU mirror for previous X-displacement.
-  vectorReal::host_mirror_type h_uyn_global_prev_;  ///< CPU mirror for previous Y-displacement.
-  vectorReal::host_mirror_type h_uzn_global_prev_;  ///< CPU mirror for previous Z-displacement.
+  vectorReal::host_mirror_type h_uxn_global_curr_;      ///< CPU mirror for current X-displacement.
+  vectorReal::host_mirror_type h_uyn_global_curr_;      ///< CPU mirror for current Y-displacement.
+  vectorReal::host_mirror_type h_uzn_global_curr_;      ///< CPU mirror for current Z-displacement.
+  vectorReal::host_mirror_type h_uxn_global_prev_;      ///< CPU mirror for previous X-displacement.
+  vectorReal::host_mirror_type h_uyn_global_prev_;      ///< CPU mirror for previous Y-displacement.
+  vectorReal::host_mirror_type h_uzn_global_prev_;      ///< CPU mirror for previous Z-displacement.
 
   // --- Performance Tracking ---
   double time_init_ = 0.0;     ///< Total initialization time in seconds.
