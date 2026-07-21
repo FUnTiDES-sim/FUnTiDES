@@ -352,6 +352,9 @@ void DGPAdaptiveSolver<ORDER_MIN, ORDER_MAX, INTEGRAL_SELECTOR, IMPL_TAG, MESH_T
 
         real_t const gamma_min = computeSIPGPenalty<ORDER_MIN>(faceCoords, pMin_coords, penalty_local);
         real_t const gamma_max = computeSIPGPenalty<ORDER_MAX>(faceCoords, pMax_coords, penalty_local);
+        // Symmetric penalty: same gamma on both sides of the interface, else the SIPG
+        // bilinear form loses symmetry across the hp-nonconforming face (spurious reflection).
+        real_t const gamma_iface = (gamma_min > gamma_max) ? gamma_min : gamma_max;
 
         float stiff_min[pMinSolver::knumNodesPerFace] = {0};
         float stiff_max[pMaxSolver::knumNodesPerFace] = {0};
@@ -379,7 +382,7 @@ void DGPAdaptiveSolver<ORDER_MIN, ORDER_MAX, INTEGRAL_SELECTOR, IMPL_TAG, MESH_T
 
         for (int i = 0; i < pMaxSolver::knumNodesPerFace; ++i) {
           int const ei_perm = max_face_to_elem_dof[fid_pMax][pMin_to_pMax(i)];
-          stiff_min_mortar[i] += gamma_min * INTEGRAL_TYPE_MAX::computeDampingTerm(i, faceCoords) *
+          stiff_min_mortar[i] += gamma_iface * INTEGRAL_TYPE_MAX::computeDampingTerm(i, faceCoords) *
                                  (pField_mortar[i] - pField_pMax(pMax_e, ei_perm));
         }
 
@@ -399,7 +402,7 @@ void DGPAdaptiveSolver<ORDER_MIN, ORDER_MAX, INTEGRAL_SELECTOR, IMPL_TAG, MESH_T
         for (int i = 0; i < pMaxSolver::knumNodesPerFace; ++i) {
           int const ei = max_face_to_elem_dof[fid_pMax][i];
           int const i_perm = pMax_to_pMin(i);
-          stiff_max[i] += gamma_max * INTEGRAL_TYPE_MAX::computeDampingTerm(i, faceCoords) *
+          stiff_max[i] += gamma_iface * INTEGRAL_TYPE_MAX::computeDampingTerm(i, faceCoords) *
                           (pField_pMax(pMax_e, ei) - pField_mortar[i_perm]);
         }
 

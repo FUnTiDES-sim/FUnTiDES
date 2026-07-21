@@ -223,7 +223,7 @@ class DGsolver : public Solver {
  private:
   MESH_TYPE m_mesh;
   model::FaceConnectivityUnstruct<float, int, ORDER> m_face_connectivity_;
-  real_t m_penalty_factor_ = 12.0f;
+  real_t m_penalty_factor_ = 75.0f;
 
  public:
   // List state used by updateFieldsFromList.

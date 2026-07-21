@@ -200,7 +200,7 @@ class DGPAdaptiveSolver : public Solver {
 
   float pAdaptive_interface_z_ = 1000.f;  ///< Z coordinate of the pMin-pMax interface
   /// @brief SIPG penalty factor for interface coupling (matches DG internal penalty of both solvers).
-  real_t m_penalty_factor_ = 12.0f;
+  real_t m_penalty_factor_ = 75.0f;
 };
 
 }  // namespace fe
