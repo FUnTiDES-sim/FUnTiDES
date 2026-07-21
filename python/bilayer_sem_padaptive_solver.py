@@ -33,9 +33,11 @@ Time step loop:
 
 import os
 import sys
+import time
 from pathlib import Path
 
 import numpy as np
+from numpy.polynomial import legendre
 import tempfile
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
@@ -48,8 +50,9 @@ import kokkos  # noqa: E402  (from pykokkos-base, built with the TPLs)
 
 from pyfuntides import model, solver  # noqa: E402
 
-ModelUnstruct = model.ModelUnstruct_f32_i32
-ModelUnstructData = model.ModelUnstructData_f32_i32
+from bilayer_mesh_common import (  # noqa: E402
+    detect_default_memspace, kk_zeros, build_bilayer_model,
+)
 
 # =============================================================================
 # Parameters
@@ -62,12 +65,15 @@ VEL_ROCK = 2000.0
 
 DT = 0.0001
 N_SAMPLES = 10000
-F0 = 10.0
+F0 = 5.0
 PRINT_INTERVAL = 100     # stdout |p|_max diagnostics every N steps
 SNAP_INTERVAL = 100      # x-z slice snapshot every N steps (gnuplot: plot 'file' matrix with image)
 SRC_COORD = (1000.0, 1000.0, 1400.0)   # rock region
-RCV_COORD = (1500.0, 1000.0, 1700.0)   # water region
+RCV_Y = 1000.0
+RCV_Z = 1700.0                          # water region (top mesh only)
+RCV_X_COORDS = np.linspace(200.0, 1800.0, 7)   # receiver line, top/water mesh only
 N_SRC = 1
+N_RCV = len(RCV_X_COORDS)
 
 
 ORDER_MIN = 2   # fast region, bottom(rock)
@@ -110,131 +116,10 @@ assert (SRC_COORD[2] > WATER_ROCK_ZBOUNDARY + WATER_DGSEM_ZBOUNDARY or
         SRC_COORD[2] < WATER_ROCK_ZBOUNDARY - ROCK_DGSEM_ZBOUNDARY), \
     f"SRC_COORD z={SRC_COORD[2]} falls in the DG/ghost cap, not in a SEM domain"
 
-assert (RCV_COORD[2] > WATER_ROCK_ZBOUNDARY + WATER_DGSEM_ZBOUNDARY or
-        RCV_COORD[2] < WATER_ROCK_ZBOUNDARY - ROCK_DGSEM_ZBOUNDARY), \
-    f"RCV_COORD z={RCV_COORD[2]} falls in the DG/ghost cap, not in a SEM domain"
+assert (RCV_Z > WATER_ROCK_ZBOUNDARY + WATER_DGSEM_ZBOUNDARY or
+        RCV_Z < WATER_ROCK_ZBOUNDARY - ROCK_DGSEM_ZBOUNDARY), \
+    f"RCV_Z={RCV_Z} falls in the DG/ghost cap, not in a SEM domain"
 
-
-
-def detect_default_memspace():
-    """Inspect the pybind11-generated docstring to know if this build is CPU or CUDA."""
-    doc = solver.DGSEMWavefieldAcoustic.__init__.__doc__
-    if doc and ("CudaUVMSpace" in doc or "CudaSpace" in doc):
-        return kokkos.CudaUVMSpace, kokkos.LayoutLeft
-    return kokkos.HostSpace, kokkos.LayoutRight
-
-
-def kk_zeros(shape, dtype, memspace, layout):
-    """Allocate a Kokkos array (portable CPU/GPU) and zero it via a numpy view."""
-    arr = kokkos.array(list(shape), dtype=dtype, space=memspace, layout=layout)
-    np.array(arr, copy=False)[:] = 0
-    return arr
-
-
-def build_bilayer_model(order, ex, ey, ez, lx, ly, lz, vel_top, vel_bottom,
-                         z_elem_interface, memspace, layout):
-    """Build a water/rock bilayer ModelUnstruct directly in Python (no C++ builder).
-
-    Adapted from examples/fe/solver_cartesian_bilayer.py:create_bilayer_model_data_from_params.
-    Returns (model_obj, nodes_coords_x, nodes_coords_y, nodes_coords_z) -- the coordinate
-    arrays are kept so callers can locate the nearest global node for receivers.
-    """
-    n_elem = ex * ey * ez
-
-    mesh_model_vp = np.empty((n_elem,), dtype=np.float32)
-    mesh_model_rho = np.ones((n_elem,), dtype=np.float32)  # acoustic: rho unused, keep at 1.0
-    for k in range(ez):
-        for j in range(ey):
-            for i in range(ex):
-                e = i + j * ex + k * ex * ey
-                mesh_model_vp[e] = vel_bottom if k < z_elem_interface else vel_top
-
-    nx_nodes, ny_nodes, nz_nodes = order * ex + 1, order * ey + 1, order * ez + 1
-    n_node = nx_nodes * ny_nodes * nz_nodes
-    dx_node, dy_node, dz_node = lx / (order * ex), ly / (order * ey), lz / (order * ez)
-
-    nodes_coords_x = np.empty(n_node, dtype=np.float32)
-    nodes_coords_y = np.empty(n_node, dtype=np.float32)
-    nodes_coords_z = np.empty(n_node, dtype=np.float32)
-    for k in range(nz_nodes):
-        for j in range(ny_nodes):
-            for i in range(nx_nodes):
-                idx = i + j * nx_nodes + k * nx_nodes * ny_nodes
-                nodes_coords_x[idx] = i * dx_node
-                nodes_coords_y[idx] = j * dy_node
-                nodes_coords_z[idx] = k * dz_node
-
-    n_gll_per_elem = (order + 1) ** 3
-    elem_to_nodes = np.empty((n_elem, n_gll_per_elem), dtype=np.int32)
-    for ez_i in range(ez):
-        for ey_i in range(ey):
-            for ex_i in range(ex):
-                e = ex_i + ey_i * ex + ez_i * ex * ey
-                for k_loc in range(order + 1):
-                    for j_loc in range(order + 1):
-                        for i_loc in range(order + 1):
-                            i_glob = ex_i * order + i_loc
-                            j_glob = ey_i * order + j_loc
-                            k_glob = ez_i * order + k_loc
-                            node_idx = i_glob + j_glob * nx_nodes + k_glob * nx_nodes * ny_nodes
-                            local_idx = i_loc + j_loc * (order + 1) + k_loc * (order + 1) ** 2
-                            elem_to_nodes[e, local_idx] = node_idx
-
-    kk_elem_to_nodes = kokkos.array([n_elem, n_gll_per_elem], dtype=kokkos.int32, space=memspace, layout=layout)
-    np.array(kk_elem_to_nodes, copy=False)[:] = elem_to_nodes
-
-    kk_nodes_coords_x = kk_zeros((n_node,), kokkos.float32, memspace, layout)
-    kk_nodes_coords_y = kk_zeros((n_node,), kokkos.float32, memspace, layout)
-    kk_nodes_coords_z = kk_zeros((n_node,), kokkos.float32, memspace, layout)
-    np.array(kk_nodes_coords_x, copy=False)[:] = nodes_coords_x
-    np.array(kk_nodes_coords_y, copy=False)[:] = nodes_coords_y
-    np.array(kk_nodes_coords_z, copy=False)[:] = nodes_coords_z
-
-    kk_model_vp_element = kk_zeros((n_elem,), kokkos.float32, memspace, layout)
-    kk_model_rho_element = kk_zeros((n_elem,), kokkos.float32, memspace, layout)
-    np.array(kk_model_vp_element, copy=False)[:] = mesh_model_vp
-    np.array(kk_model_rho_element, copy=False)[:] = mesh_model_rho
-
-    # Acoustic, model-on-elements: node-side property arrays and every elastic/anisotropic
-    # field are unused by the solver -- dummy 1-element placeholders, per
-    # solver_cartesian_bilayer.py's proven pattern.
-    kk_dummy_1d = kk_zeros((1,), kokkos.float32, memspace, layout)
-    kk_empty_1d_int = kokkos.array([0], dtype=kokkos.int32, space=memspace, layout=layout)
-    kk_dummy_3d = kk_zeros((1, 1, 1), kokkos.float32, memspace, layout)
-
-    model_data = ModelUnstructData(
-        order, n_elem, n_node, lx, ly, lz,
-        True,   # is_model_on_nodes (matches solver_cartesian_bilayer.py; solver still reads
-                # the element-side arrays via ModelLocationType.ONELEMENTS)
-        False,  # is_elastic
-        kk_elem_to_nodes,
-        kk_nodes_coords_x, kk_nodes_coords_y, kk_nodes_coords_z,
-        kk_dummy_1d, kk_model_vp_element,      # vp: node (dummy), element (real)
-        kk_dummy_1d, kk_model_rho_element,     # rho: node (dummy), element (real)
-        kk_dummy_1d, kk_dummy_1d,              # vs: node, element
-        kk_dummy_1d, kk_dummy_1d,              # delta: node, element
-        kk_dummy_1d, kk_dummy_1d,              # epsilon: node, element
-        kk_dummy_1d, kk_dummy_1d,              # gamma: node, element
-        kk_dummy_1d, kk_dummy_1d,              # theta: node, element
-        kk_dummy_1d, kk_dummy_1d,              # phi: node, element
-        kk_dummy_3d,                           # C_tensor_element
-        kk_empty_1d_int,                       # boundaries_t
-    )
-
-    model_obj = ModelUnstruct(model_data)
-    # CRITICAL: replicates what CartesianUnstructBuilder::getModel() does in C++.
-    # Skipping this leaves internal face/mesh structures uninitialised.
-    model_obj.build_face_connectivity()
-
-    # Keep the kokkos arrays alive for as long as model_obj is used: ModelUnstructData's
-    # bindings wrap these buffers via python_view_type_t (zero-copy), which may not extend
-    # their lifetime independently of the Python objects that created them. Letting them be
-    # garbage-collected once this function returns risks a use-after-free the first time the
-    # C++ side actually reads through them (e.g. DGSEMsolver::computeFEInit -> globalNodeIndex).
-    keepalive = (kk_elem_to_nodes, kk_nodes_coords_x, kk_nodes_coords_y, kk_nodes_coords_z,
-                 kk_model_vp_element, kk_model_rho_element, kk_dummy_1d, kk_empty_1d_int, kk_dummy_3d)
-
-    return model_obj, nodes_coords_x, nodes_coords_y, nodes_coords_z, keepalive
 
 
 def write_uniform_model_file(n_elem, vp):
@@ -252,55 +137,100 @@ def face_dofs(order, k_loc):
                       for j in range(order+1) for i in range(order+1)])
 
 
-def _dense_ix_map(ix, ex, order, dense_order):
-    """Map x-node index `ix` on the dense_order grid to (element_x, local_dof) in a region's
-    OWN order. Nearest-neighbor when order != dense_order (visual check only, not
-    quantitatively accurate) -- same trick as sem_proxy.cc's pMin/pMax x-resampling.
-    Identity when order == dense_order.
+_GLL_CACHE = {}
+
+
+def _gll(order):
+    """Gauss-Lobatto-Legendre nodes (on [-1, 1]) and barycentric interpolation weights for a
+    degree-`order` element -- matches the solver's internal 1D nodal basis (endpoints plus the
+    interior roots of P'_order). Cached per order since called every row/every snapshot.
     """
-    nx_dense = dense_order * ex + 1
-    ix_e = ex - 1 if ix == nx_dense - 1 else ix // dense_order
-    ix_d_dense = dense_order if ix == nx_dense - 1 else ix % dense_order
-    ix_d = min(order, round(ix_d_dense / dense_order * order))
-    return ix_e, ix_d
+    if order in _GLL_CACHE:
+        return _GLL_CACHE[order]
+    if order == 1:
+        nodes = np.array([-1.0, 1.0])
+    else:
+        interior = legendre.Legendre.basis(order).deriv().roots().real
+        nodes = np.sort(np.concatenate(([-1.0], interior, [1.0])))
+    weights = np.array([1.0 / np.prod(nodes[j] - np.delete(nodes, j)) for j in range(len(nodes))])
+    _GLL_CACHE[order] = (nodes, weights)
+    return nodes, weights
+
+
+def _lagrange_interp_1d(nodes, weights, values, x):
+    """Barycentric Lagrange interpolation of `values` (sampled at `nodes`) at point `x`."""
+    diff = x - nodes
+    hit = np.flatnonzero(np.abs(diff) < 1e-12)
+    if hit.size:
+        return values[hit[0]]
+    terms = weights / diff
+    return float(np.dot(terms, values) / np.sum(terms))
+
+
+def _dense_x_frac(ix, ex, dense_order):
+    """Physical x position of dense-grid index `ix`, in element units (integer part = element
+    index, fractional part = position within that element), plus its reference coordinate
+    in [-1, 1]. Clamps the last point to the right edge of the last element.
+    """
+    if ix == dense_order * ex:
+        return ex - 1, 1.0
+    frac = ix / dense_order
+    ix_e = int(frac)
+    return ix_e, 2.0 * (frac - ix_e) - 1.0
 
 
 def dg_region_rows(field_curr, order, ex, ey, ez_start, ez_count, dense_order):
     """X-z rows (mid-Y, one row per (z-element, z-dof)) of a per-element DG/DGPAdaptive field
-    region, resampled onto the dense_order x-grid. Port of sem_proxy.cc's slice_dgsem_xz /
-    slice_dgpadaptive_xz per-region loops.
+    region, resampled onto the dense_order x-grid. When order != dense_order, reconstructs the
+    true polynomial via Lagrange interpolation on the region's own GLL nodes (not
+    nearest-neighbor) so the transition between p-adaptive regions renders smoothly.
     """
     n1d = order + 1
     ey_mid, ib_mid = ey // 2, order // 2
     nx_dense = dense_order * ex + 1
+    identity = order == dense_order
+    nodes, weights = _gll(order)
     rows = []
     for ez_i in range(ez_start, ez_start + ez_count):
         for iz_dof in range(n1d):
             row = np.empty(nx_dense, dtype=field_curr.dtype)
+            dof0 = ib_mid * n1d + iz_dof * n1d * n1d
             for ix in range(nx_dense):
-                ix_e, ix_d = _dense_ix_map(ix, ex, order, dense_order)
+                ix_e, xi = _dense_x_frac(ix, ex, dense_order)
                 elem = ix_e + ey_mid * ex + ez_i * ex * ey
-                dof = ix_d + ib_mid * n1d + iz_dof * n1d * n1d
-                row[ix] = field_curr[elem, dof]
+                if identity:
+                    ix_d = order if ix == nx_dense - 1 else ix % dense_order
+                    row[ix] = field_curr[elem, ix_d + dof0]
+                else:
+                    local_vals = field_curr[elem, dof0:dof0 + n1d]
+                    row[ix] = _lagrange_interp_1d(nodes, weights, local_vals, xi)
             rows.append(row)
     return rows
 
 
 def sem_region_rows(sem_curr, order, ex, ey, ny, iz_start, iz_end, dense_order):
     """X-z rows (mid-Y, one row per z-node) of a nodal SEM field region, resampled onto the
-    dense_order x-grid (same per-element nearest-neighbor mapping as dg_region_rows, so the
-    seam with the neighboring DG region lines up column-for-column).
+    dense_order x-grid via true Lagrange interpolation when order != dense_order (see
+    dg_region_rows), so the seam with the neighboring DG region lines up smoothly.
     """
     nx_native = order * ex + 1
     nx_dense = dense_order * ex + 1
     iy_mid = ny // 2
+    identity = order == dense_order
+    nodes, weights = _gll(order)
     rows = []
     for iz in range(iz_start, iz_end):
         row = np.empty(nx_dense, dtype=sem_curr.dtype)
         for ix in range(nx_dense):
-            ix_e, ix_d = _dense_ix_map(ix, ex, order, dense_order)
-            native_ix = ix_e * order + ix_d
-            row[ix] = sem_curr[native_ix + iy_mid * nx_native + iz * nx_native * ny]
+            ix_e, xi = _dense_x_frac(ix, ex, dense_order)
+            if identity:
+                native_ix = ix_e * order + (order if ix == nx_dense - 1 else ix % dense_order)
+                row[ix] = sem_curr[native_ix + iy_mid * nx_native + iz * nx_native * ny]
+            else:
+                base = ix_e * order
+                local_vals = np.array([sem_curr[base + k + iy_mid * nx_native + iz * nx_native * ny]
+                                        for k in range(order + 1)])
+                row[ix] = _lagrange_interp_1d(nodes, weights, local_vals, xi)
         rows.append(row)
     return rows
 
@@ -314,6 +244,7 @@ def main():
 
 
 def run():
+    t_start = time.perf_counter()
     memspace, layout = detect_default_memspace()
 
     # -------------------------------------------------------------------
@@ -478,30 +409,27 @@ def run():
 
 
     # -------------------------------------------------------------------
-    # Receiver: nearest global SEM_high node to RCV_COORD (water region).
+    # Receiver line: nearest global SEM_high nodes along RCV_X_COORDS
+    # (water region, top mesh only -- bottom/rock line skipped for now).
     # -------------------------------------------------------------------
-    if RCV_COORD[2] > WATER_ROCK_ZBOUNDARY:
-        order_rcv = ORDER_MAX
-        rcv_local_z = RCV_COORD[2] - WATER_ROCK_ZBOUNDARY
-        dz = LZ_top / (ORDER_MAX * EZ_top)
-        wavefield_rcv = wavefield_top
-    else:
-        order_rcv = ORDER_MIN
-        rcv_local_z = LZ_bot - RCV_COORD[2]
-        dz = LZ_bot / (ORDER_MIN * EZ_bot)
-        wavefield_rcv = wavefield_bot
-        
+    order_rcv = ORDER_MAX
+    rcv_local_z = RCV_Z - WATER_ROCK_ZBOUNDARY
+    dz = LZ_top / (ORDER_MAX * EZ_top)
+    wavefield_rcv = wavefield_top
+
     nx_nodes = order_rcv * EX + 1
     ny_nodes = order_rcv * EY + 1
     ny_nodes_bot = ORDER_MIN * EY + 1
     dx = LX / (order_rcv * EX)
     dy = LY / (order_rcv * EY)
-    
-    i = round(RCV_COORD[0] / dx)
-    j = round(RCV_COORD[1] / dy)
-    k = round(rcv_local_z / dz)   
-    rcv_node = i + j * nx_nodes + k * nx_nodes * ny_nodes
-    rcv_trace = np.zeros(N_SAMPLES, dtype=np.float32)
+
+    j = round(RCV_Y / dy)
+    k = round(rcv_local_z / dz)
+    rcv_nodes = np.array([
+        round(x / dx) + j * nx_nodes + k * nx_nodes * ny_nodes
+        for x in RCV_X_COORDS
+    ])
+    rcv_trace = np.zeros((N_RCV, N_SAMPLES), dtype=np.float32)
 
 
     # -------------------------------------------------------------------
@@ -546,7 +474,7 @@ def run():
         data_bot.swap_wavefields()
 
         sem_rcv_prev_np = np.array(wavefield_rcv.get_sem_previous_field(0), copy=False)
-        rcv_trace[it] = sem_rcv_prev_np[rcv_node]
+        rcv_trace[:, it] = sem_rcv_prev_np[rcv_nodes]
 
         sem_top_prev_np = np.array(wavefield_top.get_sem_previous_field(0), copy=False)
         sem_bot_prev_np = np.array(wavefield_bot.get_sem_previous_field(0), copy=False)
@@ -578,9 +506,23 @@ def run():
 
 
     np.savetxt("bilayer_sem_padaptive_receiver_trace.txt",
-               np.column_stack([t, rcv_trace]),
-               header="time pressure_at_receiver (bilayer p-adative SEM, python orchestration)")
+               np.column_stack([t] + [rcv_trace[r] for r in range(N_RCV)]),
+               header="time " + " ".join(f"pressure_rcv{r}" for r in range(N_RCV)) +
+                      " (bilayer p-adaptive SEM, receiver line, water/top mesh only)")
     print("Wrote bilayer_sem_padaptive_receiver_trace.txt")
+
+    # -------------------------------------------------------------------
+    # Cost report: wall-clock time and total DOF count (approximate, local
+    # per-element DOF summed per region -- consistent across runs, not a
+    # unique-global-node count).
+    # -------------------------------------------------------------------
+    n_elem_mid_pmin = EX * EY * Z_ELEM_INTERFACE
+    n_elem_mid_pmax = EX * EY * (EZ_mid - Z_ELEM_INTERFACE)
+    total_dof = (N_DOF_MAX * N_ELEMENTS_top
+                 + N_DOF_MIN * n_elem_mid_pmin + N_DOF_MAX * n_elem_mid_pmax
+                 + N_DOF_MIN * N_ELEMENTS_bot)
+    elapsed = time.perf_counter() - t_start
+    print(f"wall_clock={elapsed:.2f}s  total_dof={total_dof}")
 
 
 if __name__ == "__main__":
