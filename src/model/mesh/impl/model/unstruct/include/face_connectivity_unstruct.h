@@ -314,6 +314,25 @@ class FaceConnectivityUnstruct : public FaceConnectivityApi<FloatType, ScalarTyp
     }
   }
 
+  /**
+   * @brief Build the 4-corner key identifying a local face.
+   *
+   * Extracts the 4 corner global node indices of the given local face, always
+   * in the same per-orientation traversal order. Two elements sharing a
+   * physical face see it from opposite orientations (e.g. kXPlus/kXMinus)
+   * whose traversal orders line up on the same global corner nodes, so both
+   * produce an equal FaceKey without needing to sort the 4 nodes. This
+   * relies on globalNodeIndex() returning identical global indices for
+   * shared corners regardless of which adjacent element queries them, and
+   * is what makes the Kokkos::UnorderedMap-based matching in build() work.
+   *
+   * @tparam MESH_TYPE Mesh type exposing a device-callable globalNodeIndex().
+   * @param mesh Mesh providing node indexing.
+   * @param mesh_order Polynomial order of the mesh.
+   * @param elem Element index owning the local face.
+   * @param local_face Local face identifier (see CubicFace).
+   * @return FaceKey holding the 4 corner global node indices of the face.
+   */
   template <typename MESH_TYPE>
   KOKKOS_INLINE_FUNCTION static FaceKey makeFaceKey(const MESH_TYPE& mesh, int mesh_order, ScalarType elem,
                                                     CubicFace local_face) {
