@@ -178,7 +178,6 @@ void SEMproxy::Run() {
 
 #ifdef COMPILE_DG
   if (is_dg_) {
-    printf("Running DG solver...\n");
     DGWavefieldAcoustic wavefield(pn_dg_prev_, pn_dg_curr_);
     RhsAcoustic rhs(rhs_term_, rhs_element_, rhs_weights_);
 
@@ -333,7 +332,6 @@ void SEMproxy::Run() {
       total_output_time += std::chrono::high_resolution_clock::now() - start_output_time;
 
     } else if (!is_elastic_) {
-      printf("Running acoustic solver...\n");
       WavefieldAcoustic wavefield(pn_global_prev_, pn_global_curr_);
       RhsAcoustic rhs(rhs_term_, rhs_element_, rhs_weights_);
       SEMsolverDataAcoustic solver_data(wavefield, rhs);
