@@ -178,6 +178,7 @@ void SEMproxy::Run() {
 
 #ifdef COMPILE_DG
   if (is_dg_) {
+    printf("Running DG solver...\n");
     DGWavefieldAcoustic wavefield(pn_dg_prev_, pn_dg_curr_);
     RhsAcoustic rhs(rhs_term_, rhs_element_, rhs_weights_);
 
@@ -264,8 +265,10 @@ void SEMproxy::Run() {
     fout << "# time pressure_at_receiver\n";
     for (int t = 0; t < num_samples_; ++t) fout << t * dt_ << " " << h_pn_at_receiver_(0, t) << "\n";
     fout.close();
-  } else
+  }
 #endif  // COMPILE_DG
+
+  if (!is_dg_) {
     if (is_acousto_elastic_) {
       WavefieldAcoustoElastic wavefield(pn_global_prev_, pn_global_curr_, uxn_global_prev_, uxn_global_curr_,
                                         uyn_global_prev_, uyn_global_curr_, uzn_global_prev_, uzn_global_curr_);
@@ -330,6 +333,7 @@ void SEMproxy::Run() {
       total_output_time += std::chrono::high_resolution_clock::now() - start_output_time;
 
     } else if (!is_elastic_) {
+      printf("Running acoustic solver...\n");
       WavefieldAcoustic wavefield(pn_global_prev_, pn_global_curr_);
       RhsAcoustic rhs(rhs_term_, rhs_element_, rhs_weights_);
       SEMsolverDataAcoustic solver_data(wavefield, rhs);
@@ -516,6 +520,7 @@ void SEMproxy::Run() {
       }
       total_output_time += std::chrono::high_resolution_clock::now() - start_output_time;
     }
+  }
 
   WaitSnapshots();
   time_compute_ = total_compute_time.count();
