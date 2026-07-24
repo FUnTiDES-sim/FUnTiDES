@@ -454,7 +454,6 @@ def run():
         round(x / dx_top) + j_top * nx_nodes + k_top * nx_nodes * ny_nodes
         for x in RCV_X_COORDS
     ])
-    rcv_trace_top = np.zeros((N_RCV, N_SAMPLES), dtype=np.float32)
 
     # BOTTOM receiver line (rock, SEM_low) -- local z runs reversed vs global,
     # same convention as the source placement above.
@@ -469,7 +468,6 @@ def run():
         round(x / dx_bot) + j_bot * nx_nodes_bot + k_bot * nx_nodes_bot * ny_nodes_bot
         for x in RCV_X_COORDS
     ])
-    rcv_trace_bot = np.zeros((N_RCV, N_SAMPLES), dtype=np.float32)
 
 
     # -------------------------------------------------------------------
@@ -493,6 +491,29 @@ def run():
     mid_pmax_real  = layer + 2*EX*EY
     mid_pmax_ghost = layer + 3*EX*EY
 
+    # -------------------------------------------------------------------
+    # Device-side index arrays + trace buffers: the whole time loop runs without
+    # numpy touching any wavefield buffer (solver.copy_face_dofs / gather_column /
+    # max_abs are device kernels). The UVM pages of the wavefields therefore stay
+    # device-resident all run long instead of ping-ponging host<->device at every
+    # step (was ~17% of wall-clock as t_sync).
+    # -------------------------------------------------------------------
+    def kk_int(np_arr):
+        v = kokkos.array([len(np_arr)], dtype=kokkos.int32, space=memspace, layout=layout)
+        np.array(v, copy=False)[:] = np_arr
+        return v
+
+    kk_top_ghost, kk_top_real = kk_int(top_ghost), kk_int(top_real)
+    kk_bot_ghost, kk_bot_real = kk_int(bot_ghost), kk_int(bot_real)
+    kk_mid_pmin_ghost, kk_mid_pmin_real = kk_int(mid_pmin_ghost), kk_int(mid_pmin_real)
+    kk_mid_pmax_ghost, kk_mid_pmax_real = kk_int(mid_pmax_ghost), kk_int(mid_pmax_real)
+    kk_face_high_max, kk_face_low_max = kk_int(face_high_max), kk_int(face_low_max)
+    kk_face_high_min, kk_face_low_min = kk_int(face_high_min), kk_int(face_low_min)
+    kk_rcv_top, kk_rcv_bot = kk_int(rcv_nodes_top), kk_int(rcv_nodes_bot)
+
+    rcv_trace_top_kk = kk_zeros((N_RCV, N_SAMPLES), kokkos.float32, memspace, layout)
+    rcv_trace_bot_kk = kk_zeros((N_RCV, N_SAMPLES), kokkos.float32, memspace, layout)
+
     t_setup = time.perf_counter() - t_start
     t_compute = 0.0
     t_sync = 0.0
@@ -515,33 +536,36 @@ def run():
         data_mid.swap_wavefields()
         data_bot.swap_wavefields()
 
-        pn_top_dg_curr_np = np.array(wavefield_top.get_dg_current_field(0), copy=False)
-        pn_bot_dg_curr_np = np.array(wavefield_bot.get_dg_current_field(0), copy=False)
-        pn_mid_pmax_curr_np = np.array(wavefield_mid.get_pmax_current_field(0), copy=False)
-        pn_mid_pmin_curr_np = np.array(wavefield_mid.get_pmin_current_field(0), copy=False)
-
-        pn_top_dg_curr_np[np.ix_(top_ghost, face_high_max)]      = pn_mid_pmax_curr_np[np.ix_(mid_pmax_real, face_high_max)]
-        pn_mid_pmax_curr_np[np.ix_(mid_pmax_ghost, face_low_max)] = pn_top_dg_curr_np[np.ix_(top_real, face_low_max)]
-
-        pn_bot_dg_curr_np[np.ix_(bot_ghost, face_high_min)]       = pn_mid_pmin_curr_np[np.ix_(mid_pmin_real, face_low_min)]
-        pn_mid_pmin_curr_np[np.ix_(mid_pmin_ghost, face_high_min)] = pn_bot_dg_curr_np[np.ix_(bot_real, face_low_min)]
+        # Device-side ghost exchange (async kernel launches on the solver stream; t_sync now
+        # measures launch cost only, execution overlaps into the next step's t_compute).
+        solver.copy_face_dofs(wavefield_top.get_dg_current_field(0), kk_top_ghost,
+                              wavefield_mid.get_pmax_current_field(0), kk_mid_pmax_real,
+                              kk_face_high_max, kk_face_high_max)
+        solver.copy_face_dofs(wavefield_mid.get_pmax_current_field(0), kk_mid_pmax_ghost,
+                              wavefield_top.get_dg_current_field(0), kk_top_real,
+                              kk_face_low_max, kk_face_low_max)
+        solver.copy_face_dofs(wavefield_bot.get_dg_current_field(0), kk_bot_ghost,
+                              wavefield_mid.get_pmin_current_field(0), kk_mid_pmin_real,
+                              kk_face_high_min, kk_face_low_min)
+        solver.copy_face_dofs(wavefield_mid.get_pmin_current_field(0), kk_mid_pmin_ghost,
+                              wavefield_bot.get_dg_current_field(0), kk_bot_real,
+                              kk_face_high_min, kk_face_low_min)
         _t2 = time.perf_counter()
         t_sync += _t2 - _t1
 
-        sem_top_prev_np = np.array(wavefield_top.get_sem_previous_field(0), copy=False)
-        sem_bot_prev_np = np.array(wavefield_bot.get_sem_previous_field(0), copy=False)
-        rcv_trace_top[:, it] = sem_top_prev_np[rcv_nodes_top]
-        rcv_trace_bot[:, it] = sem_bot_prev_np[rcv_nodes_bot]
+        # Receiver traces accumulate on the device; read back once after the loop.
+        solver.gather_column(rcv_trace_top_kk, it, wavefield_top.get_sem_previous_field(0), kk_rcv_top)
+        solver.gather_column(rcv_trace_bot_kk, it, wavefield_bot.get_sem_previous_field(0), kk_rcv_bot)
         _t3 = time.perf_counter()
         t_other += _t3 - _t2
 
         if it % PRINT_INTERVAL == 0:
-            print(f"step {it:5d}  |p|_max top.dg={np.abs(pn_top_dg_curr_np).max():.3e}"
-                  f"  top.sem={np.abs(sem_top_prev_np).max():.3e}"
-                  f"  mid.pmin={np.abs(pn_mid_pmin_curr_np).max():.3e}"
-                  f"  mid.pmax={np.abs(pn_mid_pmax_curr_np).max():.3e}"
-                  f"  bot.dg={np.abs(pn_bot_dg_curr_np).max():.3e}"
-                  f"  bot.sem={np.abs(sem_bot_prev_np).max():.3e}")
+            print(f"step {it:5d}  |p|_max top.dg={solver.max_abs(wavefield_top.get_dg_current_field(0)):.3e}"
+                  f"  top.sem={solver.max_abs(wavefield_top.get_sem_previous_field(0)):.3e}"
+                  f"  mid.pmin={solver.max_abs(wavefield_mid.get_pmin_current_field(0)):.3e}"
+                  f"  mid.pmax={solver.max_abs(wavefield_mid.get_pmax_current_field(0)):.3e}"
+                  f"  bot.dg={solver.max_abs(wavefield_bot.get_dg_current_field(0)):.3e}"
+                  f"  bot.sem={solver.max_abs(wavefield_bot.get_sem_previous_field(0)):.3e}")
 
         if it % SNAP_INTERVAL == 0:
             # Single x-z slice (mid-Y), bottom-to-top in GLOBAL z: bot's SEM+DG, mid's
@@ -549,6 +573,16 @@ def run():
             # columns line up and the three regions concatenate into one valid matrix.
             # model_bot's local z runs opposite to global z (see build_layered_model /
             # the LZ_bot - z conversions above), so its rows are reversed here.
+            # Only place inside the loop where numpy touches the wavefields (full host
+            # read, amortized over SNAP_INTERVAL steps); fence so the reads see the
+            # completed exchange/gather kernels above.
+            solver.device_fence()
+            pn_top_dg_curr_np = np.array(wavefield_top.get_dg_current_field(0), copy=False)
+            pn_bot_dg_curr_np = np.array(wavefield_bot.get_dg_current_field(0), copy=False)
+            pn_mid_pmax_curr_np = np.array(wavefield_mid.get_pmax_current_field(0), copy=False)
+            pn_mid_pmin_curr_np = np.array(wavefield_mid.get_pmin_current_field(0), copy=False)
+            sem_top_prev_np = np.array(wavefield_top.get_sem_previous_field(0), copy=False)
+            sem_bot_prev_np = np.array(wavefield_bot.get_sem_previous_field(0), copy=False)
             bot_rows = (dg_region_rows(pn_bot_dg_curr_np, ORDER_MIN, EX, EY, 0, 2, ORDER_MAX)
                         + sem_region_rows(sem_bot_prev_np, ORDER_MIN, EX, EY, ny_nodes_bot,
                                           2 * ORDER_MIN, ORDER_MIN * EZ_bot + 1, ORDER_MAX))
@@ -561,6 +595,10 @@ def run():
                                           2 * ORDER_MAX, ORDER_MAX * EZ_top + 1, ORDER_MAX))
             np.savetxt(f"slice_{it:05d}.dat", np.array(bot_rows + mid_rows + top_rows))
 
+    # Drain the device before reading the accumulated traces from the host.
+    solver.device_fence()
+    rcv_trace_top = np.array(rcv_trace_top_kk, copy=False)
+    rcv_trace_bot = np.array(rcv_trace_bot_kk, copy=False)
 
     np.savetxt("bilayer_sem_padaptive_receiver_trace_top.txt",
                np.column_stack([t] + [rcv_trace_top[r] for r in range(N_RCV)]),
