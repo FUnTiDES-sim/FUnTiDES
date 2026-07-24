@@ -44,6 +44,15 @@ void DGSEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::c
   std::cout << "DGSEMsolver: " << num_SEm_elements_ << " SEm elements, " << num_DG_elements_ << " DG elements."
             << std::endl;
 
+  // Re-assemble the SEM sub-solver's global mass/damping matrices restricted to the SEM
+  // subdomain. The full-mesh assembly done inside m_SEm_solver_.computeFEInit() above also
+  // accumulated contributions from DG-tagged elements, inflating the mass of the shared
+  // interface nodes (~2x) — the SEM weak form only owns the SEM elements (stiffness runs on
+  // SEm_elem_list_) — which acted as a heavy strip along the DG-SEM interface and produced a
+  // spurious partial reflection of waves crossing it.
+  m_SEm_solver_.computeGlobalMassMatrixMasked(m_element_type_, kElementTypeSEM);
+  m_SEm_solver_.computeDampingMatrixMasked(m_element_type_, kElementTypeSEM);
+
   TagNodes();
   std::cout << "DGSEMsolver: " << num_interface_faces_ << " interface faces." << std::endl;
 }

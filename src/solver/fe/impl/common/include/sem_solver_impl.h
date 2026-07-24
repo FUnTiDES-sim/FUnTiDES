@@ -1299,11 +1299,19 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::com
   auto mesh_local = m_mesh;
   auto local_massMatrixGlobal = massMatrixGlobal_;
 
+  // Element mask (set through computeGlobalMassMatrixMasked): restricts assembly to a
+  // subdomain so coupled solvers (DGSEMsolver) don't accumulate mass from elements owned
+  // by the other sub-solver at shared interface nodes.
+  bool const mask_on = m_mask_enabled_;
+  auto mask_local = m_element_mask_;
+  int const mask_active = m_mask_active_value_;
+
   Kokkos::parallel_for(
       "Solver Compute GMatrix",
       Kokkos::RangePolicy<Kokkos::LaunchBounds<LaunchMaxThreadsPerBlock, LaunchMinBlocksPerSM>>(
           0, mesh_local.getNumberOfElements()),
       KOKKOS_LAMBDA(const int elementNumber) {
+        if (mask_on && mask_local(elementNumber) != mask_active) return;
         float massMatrixLocal[kPointsPerElement] = {0};
         int const dim = mesh_local.getOrder() + 1;
 
@@ -1364,12 +1372,18 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::com
     local_dampingMatrixGlobal[f] = dampingMatrixGlobal_[f];
   }
 
+  // Element mask (set through computeDampingMatrixMasked): see computeGlobalMassMatrix.
+  bool const mask_on = m_mask_enabled_;
+  auto mask_local = m_element_mask_;
+  int const mask_active = m_mask_active_value_;
+
   Kokkos::parallel_for(
       "Solver Compute Damping Matrix",
       Kokkos::RangePolicy<Kokkos::LaunchBounds<LaunchMaxThreadsPerBlock, LaunchMinBlocksPerSM>>(
           0, mesh_local.getNumberOfElements()),
       KOKKOS_LAMBDA(const int elementNumber) {
         (void)local_dampingMatrixGlobal;
+        if (mask_on && mask_local(elementNumber) != mask_active) return;
         for (int i = 0; i < 6; ++i) {
           // Get global face ID for this element face
           int f = mesh_local.getGlobalFace(elementNumber, static_cast<model::CubicFace>(i));
@@ -1706,10 +1720,15 @@ PROXY_HOST_DEVICE void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NO
 template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE, bool IS_MODEL_ON_NODES, physicType PHYSICS>
 void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::computeGlobalMassMatrixMasked(
     const vectorInt& elem_mask, int active_value) {
+  // Zero first: the assembly kernel accumulates with ATOMICADD, and this entry point is
+  // used to RE-assemble on top of a previous full-mesh assembly (e.g. DGSEMsolver's
+  // sub-solver init), not to add to it.
+  Kokkos::deep_copy(massMatrixGlobal_, 0.0f);
   m_element_mask_ = elem_mask;
   m_mask_active_value_ = active_value;
   m_mask_enabled_ = true;
   computeGlobalMassMatrix();
+  FENCE
   m_mask_enabled_ = false;
 }
 
@@ -1720,10 +1739,13 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::com
 template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE, bool IS_MODEL_ON_NODES, physicType PHYSICS>
 void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::computeDampingMatrixMasked(
     const vectorInt& elem_mask, int active_value) {
+  // Zero first: same re-assembly semantics as computeGlobalMassMatrixMasked.
+  for (int f = 0; f < kNumFields; ++f) Kokkos::deep_copy(dampingMatrixGlobal_[f], 0.0f);
   m_element_mask_ = elem_mask;
   m_mask_active_value_ = active_value;
   m_mask_enabled_ = true;
   computeDampingMatrix();
+  FENCE
   m_mask_enabled_ = false;
 }
 

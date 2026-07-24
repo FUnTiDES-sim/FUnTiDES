@@ -484,6 +484,15 @@ def run():
         _t1 = time.perf_counter()
         t_compute += _t1 - _t0
 
+        # Swap FIRST, then exchange ghosts on the post-swap current buffers (p^{n+1}): these
+        # are exactly the buffers the next step's flux kernels read. Exchanging before the
+        # swap (as done previously) landed the neighbor values in what became the *previous*
+        # buffer, so the seam ran with a one-step lag -- an O(dt) transparency defect at both
+        # mesh-to-mesh interfaces that showed up as a spurious partial reflection.
+        data_top.swap_wavefields()
+        data_mid.swap_wavefields()
+        data_bot.swap_wavefields()
+
         pn_top_dg_curr_np = np.array(wavefield_top.get_dg_current_field(0), copy=False)
         pn_bot_dg_curr_np = np.array(wavefield_bot.get_dg_current_field(0), copy=False)
         pn_mid_pmax_curr_np = np.array(wavefield_mid.get_pmax_current_field(0), copy=False)
@@ -496,10 +505,6 @@ def run():
         pn_mid_pmin_curr_np[np.ix_(mid_pmin_ghost, face_high_min)] = pn_bot_dg_curr_np[np.ix_(bot_real, face_low_min)]
         _t2 = time.perf_counter()
         t_sync += _t2 - _t1
-
-        data_top.swap_wavefields()
-        data_mid.swap_wavefields()
-        data_bot.swap_wavefields()
 
         sem_top_prev_np = np.array(wavefield_top.get_sem_previous_field(0), copy=False)
         sem_bot_prev_np = np.array(wavefield_bot.get_sem_previous_field(0), copy=False)
