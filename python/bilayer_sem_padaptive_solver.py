@@ -51,7 +51,7 @@ import kokkos  # noqa: E402  (from pykokkos-base, built with the TPLs)
 from pyfuntides import model, solver  # noqa: E402
 
 from bilayer_mesh_common import (  # noqa: E402
-    detect_default_memspace, kk_zeros, build_bilayer_model,
+    build_bilayer_model, compute_rhs_weights, detect_default_memspace, kk_zeros,
 )
 
 # =============================================================================
@@ -388,17 +388,32 @@ def run():
     if SRC_COORD[2] > WATER_ROCK_ZBOUNDARY:
         src_term, src_element, src_weights = rhs_top_sem_term, rhs_top_element, rhs_top_weights
         local_src_z, dz_src = SRC_COORD[2] - WATER_ROCK_ZBOUNDARY, LZ_top / EZ_top
+        src_order = ORDER_MAX
     else:
+        # NOTE: the bottom mesh's local z runs REVERSED vs global z; the zeta coordinate
+        # fed to compute_rhs_weights below is expressed in that reversed local frame, which
+        # mirrors the weights along z. Fine while the source stays in the top/water domain
+        # (current scenario); revisit before placing the source in the bottom mesh.
         src_term, src_element, src_weights = rhs_bot_sem_term, rhs_bot_element, rhs_bot_weights
         local_src_z, dz_src = LZ_bot - SRC_COORD[2], LZ_bot / EZ_bot
+        src_order = ORDER_MIN
+
+    # True tensorised GLL nodal-basis weights at the physical source position -- NOT a delta
+    # on local dof 0: that hack pinned the source to the element's first node (up to one
+    # element-size position error, e.g. 20 m in y here) and made the injected amplitude
+    # depend on the order, which showed up as a time shift + amplitude mismatch vs the
+    # uniform reference (same fix as bilayer_uniform_solver.py / compute_rhs_weights).
+    dxe_src, dye_src = LX / EX, LY / EY
+    ex_src = int(SRC_COORD[0] / dxe_src)
+    ey_src = int(SRC_COORD[1] / dye_src)
+    ez_src = int(local_src_z / dz_src)
 
     np.array(src_term, copy=False)[0, :] = ricker
-    np.array(src_element, copy=False)[0] = (
-        int(SRC_COORD[0] / (LX / EX)) + 
-        int(SRC_COORD[1] / (LY / EY)) * EX +
-        int(local_src_z / dz_src) * EX * EY
-    )
-    np.array(src_weights, copy=False)[0, 0] = 1.0
+    np.array(src_element, copy=False)[0] = ex_src + ey_src * EX + ez_src * EX * EY
+    src_elem_origin = (ex_src * dxe_src, ey_src * dye_src, ez_src * dz_src)
+    np.array(src_weights, copy=False)[0, :] = compute_rhs_weights(
+        src_order, (SRC_COORD[0], SRC_COORD[1], local_src_z), src_elem_origin,
+        dxe_src, dye_src, dz_src)
 
 
     # -------------------------------------------------------------------
