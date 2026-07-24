@@ -383,29 +383,32 @@ void DGSEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::c
   m_DG_solver_.m_face_list_ = m_DG_interior_face_list_;
   m_DG_solver_.m_n_face_list_ = m_n_DG_interior_faces_;
 
-  // Interior phases below are plain sequential Kokkos::parallel_for calls on the single
-  // default execution space (no custom streams/instances anywhere in this solver) --
-  // same-stream kernel ordering already guarantees each phase's writes are visible to the
-  // next before it starts, so no intermediate FENCE is needed. Only the final FENCE (device
-  // fully done before returning to the caller, e.g. Python numpy reads) is kept.
   m_DG_solver_.applyRHSTerm(timeSample, dt, DG_data);
+  FENCE
   m_DG_solver_.computeVolumeAndBoundary(num_DG_elements_, DG_data.getCurrentField(0));
+  FENCE
   m_DG_solver_.computeBoundaryDamping(m_n_DG_interior_faces_);
+  FENCE
   m_DG_solver_.computeInterfaceFlux(m_n_DG_interior_faces_, DG_data.getCurrentField(0));
+  FENCE
 
   // =========================================================================
   // SEM: source + stiffness (Neumann = 0 at interface until coupling kernel)
   // =========================================================================
 
   m_SEm_solver_.resetGlobalVectors(nNode);
+  FENCE
   m_SEm_solver_.applyRHSTerm(timeSample, dt, SEm_data);
+  FENCE
   m_SEm_solver_.computeElementContributionsFromList(SEm_data, SEm_elem_list_, num_SEm_elements_);
+  FENCE
 
   // =========================================================================
   // Symmetric SIPG interface coupling: both sides read p^n (no temporal lag).
   // =========================================================================
 
   ApplyCoupling(myData);
+  FENCE
 
   // =========================================================================
   // Both Verlots
@@ -413,6 +416,7 @@ void DGSEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::c
 
   m_DG_solver_.applyVerlet(num_DG_elements_, dt, DG_data.getCurrentField(0), DG_data.getPreviousField(0));
   m_DG_solver_.m_list_mode_ = false;
+  FENCE
 
   m_SEm_solver_.updateFieldsFromListForward(dt, SEm_data, SEm_node_list_, num_SEm_nodes_);
   FENCE

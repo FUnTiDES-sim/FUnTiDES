@@ -75,14 +75,10 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::com
                                                                                            Solver::DataStruct& data) {
   auto& myData = dynamic_cast<DataType&>(data);
 
-  // resetGlobalVectors/applyRHSTerm are plain sequential Kokkos::parallel_for calls on the
-  // single default execution space (no custom streams/instances in this solver) -- same-stream
-  // kernel ordering already guarantees visibility to the next kernel, so no intermediate FENCE
-  // is needed here. The FENCE after computeElementContributions is kept: computeForces() is a
-  // publicly/independently callable entry point (distributed mode: computeForces() ->
-  // synchronize() -> updateSolutionForward()), so its result must be device-complete on return.
   resetGlobalVectors(m_mesh.getNumberOfNodes());
+  FENCE
   applyRHSTerm(timeSample, dt, myData);
+  FENCE
   computeElementContributions(myData);
   FENCE
   if (attenuationEnabled_ && nSls_ > 0) {
