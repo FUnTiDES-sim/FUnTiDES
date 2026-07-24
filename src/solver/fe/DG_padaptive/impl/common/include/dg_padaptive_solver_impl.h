@@ -452,14 +452,15 @@ void DGPAdaptiveSolver<ORDER_MIN, ORDER_MAX, INTEGRAL_SELECTOR, IMPL_TAG, MESH_T
   m_pMin_solver_.m_face_list_ = m_pMin_interior_face_list_;
   m_pMin_solver_.m_n_face_list_ = m_n_pMin_interior_faces_;
 
+  // Interior phases below are plain sequential Kokkos::parallel_for calls on the single
+  // default execution space (no custom streams/instances anywhere in this solver) --
+  // same-stream kernel ordering already guarantees each phase's writes are visible to the
+  // next before it starts, so no intermediate FENCE is needed. Only the final FENCE (device
+  // fully done before returning to the caller, e.g. Python numpy reads) is kept.
   m_pMin_solver_.applyRHSTerm(timeSample, dt, pMin_data);
-  FENCE
   m_pMin_solver_.computeVolumeAndBoundary(num_pMin_elements_, pMin_data.getCurrentField(0));
-  FENCE
   m_pMin_solver_.computeBoundaryDamping(m_n_pMin_interior_faces_);
-  FENCE
   m_pMin_solver_.computeInterfaceFlux(m_n_pMin_interior_faces_, pMin_data.getCurrentField(0));
-  FENCE
 
   // ====================================================================================
   // pMax DG: volume + pMax-pMax interior flux (interface faces excluded from face list)
@@ -472,20 +473,15 @@ void DGPAdaptiveSolver<ORDER_MIN, ORDER_MAX, INTEGRAL_SELECTOR, IMPL_TAG, MESH_T
   m_pMax_solver_.m_n_face_list_ = m_n_pMax_interior_faces_;
 
   m_pMax_solver_.applyRHSTerm(timeSample, dt, pMax_data);
-  FENCE
   m_pMax_solver_.computeVolumeAndBoundary(num_pMax_elements_, pMax_data.getCurrentField(0));
-  FENCE
   m_pMax_solver_.computeBoundaryDamping(m_n_pMax_interior_faces_);
-  FENCE
   m_pMax_solver_.computeInterfaceFlux(m_n_pMax_interior_faces_, pMax_data.getCurrentField(0));
-  FENCE
 
   // =========================================================================
   // Symmetric SIPG interface coupling: both sides read p^n (no temporal lag).
   // =========================================================================
 
   ApplyCoupling(myData);
-  FENCE
 
   // =========================================================================
   // Both Verlots
@@ -493,7 +489,6 @@ void DGPAdaptiveSolver<ORDER_MIN, ORDER_MAX, INTEGRAL_SELECTOR, IMPL_TAG, MESH_T
 
   m_pMin_solver_.applyVerlet(num_pMin_elements_, dt, pMin_data.getCurrentField(0), pMin_data.getPreviousField(0));
   m_pMin_solver_.m_list_mode_ = false;
-  FENCE
 
   m_pMax_solver_.applyVerlet(num_pMax_elements_, dt, pMax_data.getCurrentField(0), pMax_data.getPreviousField(0));
   m_pMax_solver_.m_list_mode_ = false;

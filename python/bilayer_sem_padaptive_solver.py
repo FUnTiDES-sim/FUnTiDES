@@ -468,10 +468,18 @@ def run():
     mid_pmax_real  = layer + 2*EX*EY
     mid_pmax_ghost = layer + 3*EX*EY
 
+    t_setup = time.perf_counter() - t_start
+    t_compute = 0.0
+    t_sync = 0.0
+    t_other = 0.0
+
     for it in range(N_SAMPLES):
+        _t0 = time.perf_counter()
         solver_top.compute_one_step(DT, it, data_top)
         solver_mid.compute_one_step(DT, it, data_mid)
         solver_bot.compute_one_step(DT, it, data_bot)
+        _t1 = time.perf_counter()
+        t_compute += _t1 - _t0
 
         pn_top_dg_curr_np = np.array(wavefield_top.get_dg_current_field(0), copy=False)
         pn_bot_dg_curr_np = np.array(wavefield_bot.get_dg_current_field(0), copy=False)
@@ -483,6 +491,8 @@ def run():
 
         pn_bot_dg_curr_np[np.ix_(bot_ghost, face_high_min)]       = pn_mid_pmin_curr_np[np.ix_(mid_pmin_real, face_low_min)]
         pn_mid_pmin_curr_np[np.ix_(mid_pmin_ghost, face_high_min)] = pn_bot_dg_curr_np[np.ix_(bot_real, face_low_min)]
+        _t2 = time.perf_counter()
+        t_sync += _t2 - _t1
 
         data_top.swap_wavefields()
         data_mid.swap_wavefields()
@@ -492,6 +502,8 @@ def run():
         sem_bot_prev_np = np.array(wavefield_bot.get_sem_previous_field(0), copy=False)
         rcv_trace_top[:, it] = sem_top_prev_np[rcv_nodes_top]
         rcv_trace_bot[:, it] = sem_bot_prev_np[rcv_nodes_bot]
+        _t3 = time.perf_counter()
+        t_other += _t3 - _t2
 
         if it % PRINT_INTERVAL == 0:
             print(f"step {it:5d}  |p|_max top.dg={np.abs(pn_top_dg_curr_np).max():.3e}"
@@ -541,7 +553,9 @@ def run():
                  + N_DOF_MIN * n_elem_mid_pmin + N_DOF_MAX * n_elem_mid_pmax
                  + N_DOF_MIN * N_ELEMENTS_bot)
     elapsed = time.perf_counter() - t_start
-    print(f"wall_clock={elapsed:.2f}s  total_dof={total_dof}")
+    print(f"wall_clock={elapsed:.2f}s  total_dof={total_dof}"
+          f"  t_setup={t_setup:.2f}s  t_compute={t_compute:.2f}s"
+          f"  t_sync={t_sync:.2f}s  t_other={t_other:.2f}s")
 
 
 if __name__ == "__main__":
