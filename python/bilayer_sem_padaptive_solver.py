@@ -258,9 +258,16 @@ def run():
     vp_path = write_uniform_model_file(N_ELEMENTS_top, VEL_WATER)
     try:
         model_top = CartesianStructBuilderTop(
-            EX, LX, EY, LY, EZ_top, LZ_top, 
-            is_model_on_nodes=False, is_elastic=False, 
-            model_file=vp_path).get_model(free_surface_on_top=True)
+            EX, LX, EY, LY, EZ_top, LZ_top,
+            is_model_on_nodes=False, is_elastic=False,
+            # free_surface_on_top=False: the uniform/reference and pure-DG-p-adaptive scripts
+            # build their model via build_bilayer_model() with an EMPTY boundaries_t array ->
+            # isFreeSurface() false everywhere -> absorbing top. The DG kernels never consult
+            # isFreeSurface at all, so an all-absorbing setup is the only boundary condition
+            # every config of the comparison can share. With True here, this run alone had a
+            # reflecting surface -> strong source/receiver ghost (delayed inflated 2nd lobe +
+            # trailing dip) absent from the reference, wrongly read as a coupling artifact.
+            model_file=vp_path).get_model(free_surface_on_top=False)
     finally:
         os.remove(vp_path)
 
