@@ -48,6 +48,17 @@ void DGPAdaptiveSolver<ORDER_MIN, ORDER_MAX, INTEGRAL_SELECTOR, IMPL_TAG, MESH_T
 
   m_penalty_factor_ = m_pMax_solver_.getPenaltyFactor();  // both solvers have the same penalty factor
 
+  // Two dedicated execution-space instances (CUDA streams on the CUDA backend), created once so
+  // pMin's and pMax's independent per-step kernel chains can be launched concurrently instead of
+  // serializing on the single default stream (see computeOneStep). Equal weight for now -- pMin
+  // and pMax element counts differ, but so does per-element cost; revisit if profiling shows one
+  // stream idling relative to the other.
+  {
+    auto exec_instances = Kokkos::Experimental::partition_space(Kokkos::DefaultExecutionSpace{}, 1, 1);
+    m_pMin_exec_ = exec_instances[0];
+    m_pMax_exec_ = exec_instances[1];
+  }
+
   allocateFEarrays();
 
   ComputeMortarProjection();
@@ -452,14 +463,16 @@ void DGPAdaptiveSolver<ORDER_MIN, ORDER_MAX, INTEGRAL_SELECTOR, IMPL_TAG, MESH_T
   m_pMin_solver_.m_face_list_ = m_pMin_interior_face_list_;
   m_pMin_solver_.m_n_face_list_ = m_n_pMin_interior_faces_;
 
-  m_pMin_solver_.applyRHSTerm(timeSample, dt, pMin_data);
-  FENCE
-  m_pMin_solver_.computeVolumeAndBoundary(num_pMin_elements_, pMin_data.getCurrentField(0));
-  FENCE
-  m_pMin_solver_.computeBoundaryDamping(m_n_pMin_interior_faces_);
-  FENCE
-  m_pMin_solver_.computeInterfaceFlux(m_n_pMin_interior_faces_, pMin_data.getCurrentField(0));
-  FENCE
+  // pMin and pMax read/write completely disjoint per-sub-solver arrays (separate DGsolver
+  // instances, separate m_stiff_local_/m_mass_local_/m_damp_local_/m_rhs_elem_) until
+  // ApplyCoupling below, so their phases are launched on two dedicated execution-space
+  // instances (m_pMin_exec_/m_pMax_exec_, see computeFEInit) to let both chains co-reside on
+  // the GPU instead of serializing on the single default stream. No FENCE between phases
+  // within a chain: kernels on the same stream are already ordered by construction.
+  m_pMin_solver_.applyRHSTerm(timeSample, dt, pMin_data, m_pMin_exec_);
+  m_pMin_solver_.computeVolumeAndBoundary(num_pMin_elements_, pMin_data.getCurrentField(0), m_pMin_exec_);
+  m_pMin_solver_.computeBoundaryDampingAndInterfaceFlux(m_n_pMin_interior_faces_, pMin_data.getCurrentField(0),
+                                                        m_pMin_exec_);
 
   // ====================================================================================
   // pMax DG: volume + pMax-pMax interior flux (interface faces excluded from face list)
@@ -471,33 +484,39 @@ void DGPAdaptiveSolver<ORDER_MIN, ORDER_MAX, INTEGRAL_SELECTOR, IMPL_TAG, MESH_T
   m_pMax_solver_.m_face_list_ = m_pMax_interior_face_list_;
   m_pMax_solver_.m_n_face_list_ = m_n_pMax_interior_faces_;
 
-  m_pMax_solver_.applyRHSTerm(timeSample, dt, pMax_data);
-  FENCE
-  m_pMax_solver_.computeVolumeAndBoundary(num_pMax_elements_, pMax_data.getCurrentField(0));
-  FENCE
-  m_pMax_solver_.computeBoundaryDamping(m_n_pMax_interior_faces_);
-  FENCE
-  m_pMax_solver_.computeInterfaceFlux(m_n_pMax_interior_faces_, pMax_data.getCurrentField(0));
-  FENCE
+  m_pMax_solver_.applyRHSTerm(timeSample, dt, pMax_data, m_pMax_exec_);
+  m_pMax_solver_.computeVolumeAndBoundary(num_pMax_elements_, pMax_data.getCurrentField(0), m_pMax_exec_);
+  m_pMax_solver_.computeBoundaryDampingAndInterfaceFlux(m_n_pMax_interior_faces_, pMax_data.getCurrentField(0),
+                                                        m_pMax_exec_);
 
   // =========================================================================
   // Symmetric SIPG interface coupling: both sides read p^n (no temporal lag).
+  // ApplyCoupling reads both m_stiff_local_ arrays, so both streams must be
+  // drained first (explicit per-instance fence, not the bare FENCE macro,
+  // since a bare Kokkos::fence() is not guaranteed to target these named
+  // instances specifically).
   // =========================================================================
 
+  m_pMin_exec_.fence();
+  m_pMax_exec_.fence();
   ApplyCoupling(myData);
   FENCE
 
   // =========================================================================
-  // Both Verlots
+  // Both Verlets -- still independent (disjoint arrays), overlap them too.
   // =========================================================================
 
-  m_pMin_solver_.applyVerlet(num_pMin_elements_, dt, pMin_data.getCurrentField(0), pMin_data.getPreviousField(0));
+  m_pMin_solver_.applyVerlet(num_pMin_elements_, dt, pMin_data.getCurrentField(0), pMin_data.getPreviousField(0),
+                             m_pMin_exec_);
   m_pMin_solver_.m_list_mode_ = false;
-  FENCE
 
-  m_pMax_solver_.applyVerlet(num_pMax_elements_, dt, pMax_data.getCurrentField(0), pMax_data.getPreviousField(0));
+  m_pMax_solver_.applyVerlet(num_pMax_elements_, dt, pMax_data.getCurrentField(0), pMax_data.getPreviousField(0),
+                             m_pMax_exec_);
   m_pMax_solver_.m_list_mode_ = false;
-  FENCE
+
+  // Device fully done (both named streams) before returning to the caller, e.g. Python numpy reads.
+  m_pMin_exec_.fence();
+  m_pMax_exec_.fence();
 }
 
 //============================================================================

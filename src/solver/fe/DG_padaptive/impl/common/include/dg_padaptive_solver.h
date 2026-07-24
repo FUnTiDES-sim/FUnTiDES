@@ -163,6 +163,13 @@ class DGPAdaptiveSolver : public Solver {
   pMinSolver m_pMin_solver_;  ///< pMin sub-solver
   pMaxSolver m_pMax_solver_;  ///< pMax sub-solver
 
+  /// Dedicated execution-space instances (CUDA streams on the CUDA backend) so pMin's and
+  /// pMax's per-step kernel chains -- fully independent until ApplyCoupling/applyVerlet -- can
+  /// co-reside on the GPU instead of serializing on the single default stream. Created once in
+  /// computeFEInit (stream creation has its own overhead, not worth paying every step).
+  Kokkos::DefaultExecutionSpace m_pMin_exec_;
+  Kokkos::DefaultExecutionSpace m_pMax_exec_;
+
   vectorInt order_list;
 
   MESH_TYPE m_mesh_;  ///< Local copy of the mesh built on the highest order

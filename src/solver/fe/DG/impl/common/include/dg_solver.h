@@ -123,8 +123,10 @@ class DGsolver : public Solver {
 
   /**
    * @brief Apply external forcing to the global fields.
+   * @param exec_space Execution-space instance to launch on (see computeVolumeAndBoundary).
    */
-  void applyRHSTerm(int timeSample, float dt, const DataType& data);
+  void applyRHSTerm(int timeSample, float dt, const DataType& data,
+                    Kokkos::DefaultExecutionSpace exec_space = Kokkos::DefaultExecutionSpace{});
 
   /**
    * @brief Update the global solution fields at interior nodes (forward mode).
@@ -160,21 +162,24 @@ class DGsolver : public Solver {
    * @brief Kernel 1 — volume mass + SumFact stiffness. Zeros the damping accumulator.
    * @param kNumElem Total number of elements.
    * @param current_field Pressure field at current time step p^n.
+   * @param exec_space Execution-space instance to launch on (defaults to the process-wide
+   * default instance/stream; callers that overlap independent sub-solvers on separate CUDA
+   * streams — see DGPAdaptiveSolver — pass a dedicated instance here).
    */
-  void computeVolumeAndBoundary(int kNumElem, arrayReal current_field);
+  void computeVolumeAndBoundary(int kNumElem, arrayReal current_field,
+                                Kokkos::DefaultExecutionSpace exec_space = Kokkos::DefaultExecutionSpace{});
 
   /**
-   * @brief Kernel 1b — boundary absorbing damping (face-loop, boundary faces only).
+   * @brief Kernel 1b+2 — boundary absorbing damping and SIPG interface flux terms, fused into a
+   * single face-loop kernel: both phases iterate the same face list with mutually exclusive
+   * branches (boundary vs interior face) and write to disjoint accumulators (m_damp_local_ vs
+   * m_stiff_local_), so there is no ordering dependency between them.
    * @param kNumFaces Total number of faces (interior + boundary).
-   */
-  void computeBoundaryDamping(int kNumFaces);
-
-  /**
-   * @brief Kernel 2 — SIPG interface flux terms (reads neighbor fields).
-   * @param kNumElem Total number of elements.
    * @param current_field Pressure field at current time step p^n.
+   * @param exec_space Execution-space instance to launch on (see computeVolumeAndBoundary).
    */
-  void computeInterfaceFlux(int kNumElem, arrayReal current_field);
+  void computeBoundaryDampingAndInterfaceFlux(int kNumFaces, arrayReal current_field,
+                                              Kokkos::DefaultExecutionSpace exec_space = Kokkos::DefaultExecutionSpace{});
 
   /**
    * @brief Kernel 3 — Verlet time update.
@@ -182,8 +187,10 @@ class DGsolver : public Solver {
    * @param dt Time step size.
    * @param current_field Pressure field at current time step p^n.
    * @param prev_field Pressure field at previous time step p^{n-1}; receives p^{n+1}.
+   * @param exec_space Execution-space instance to launch on (see computeVolumeAndBoundary).
    */
-  void applyVerlet(int kNumElem, float dt, arrayReal current_field, arrayReal prev_field);
+  void applyVerlet(int kNumElem, float dt, arrayReal current_field, arrayReal prev_field,
+                   Kokkos::DefaultExecutionSpace exec_space = Kokkos::DefaultExecutionSpace{});
 
   /**
    * @brief Given a list of elements, construct the corresponding list of faces for kernels that operate on faces.

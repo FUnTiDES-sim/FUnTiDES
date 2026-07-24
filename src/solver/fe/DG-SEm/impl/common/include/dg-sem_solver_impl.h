@@ -387,9 +387,7 @@ void DGSEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::c
   FENCE
   m_DG_solver_.computeVolumeAndBoundary(num_DG_elements_, DG_data.getCurrentField(0));
   FENCE
-  m_DG_solver_.computeBoundaryDamping(m_n_DG_interior_faces_);
-  FENCE
-  m_DG_solver_.computeInterfaceFlux(m_n_DG_interior_faces_, DG_data.getCurrentField(0));
+  m_DG_solver_.computeBoundaryDampingAndInterfaceFlux(m_n_DG_interior_faces_, DG_data.getCurrentField(0));
   FENCE
 
   // =========================================================================
