@@ -70,8 +70,9 @@ PRINT_INTERVAL = 100     # stdout |p|_max diagnostics every N steps
 SNAP_INTERVAL = 100      # x-z slice snapshot every N steps (gnuplot: plot 'file' matrix with image)
 SRC_COORD = (1000.0, 1000.0, 1400.0)   # rock region
 RCV_Y = 1000.0
-RCV_Z = 1700.0                          # water region (top mesh only)
-RCV_X_COORDS = np.linspace(200.0, 1800.0, 7)   # receiver line, top/water mesh only
+RCV_Z_TOP = 1400.0                              # water region (top mesh)
+RCV_Z_BOT = 200.0                               # rock region (bottom mesh)
+RCV_X_COORDS = np.linspace(200.0, 1800.0, 7)    # same X line reused for both domains
 N_SRC = 1
 N_RCV = len(RCV_X_COORDS)
 
@@ -116,9 +117,10 @@ assert (SRC_COORD[2] > WATER_ROCK_ZBOUNDARY + WATER_DGSEM_ZBOUNDARY or
         SRC_COORD[2] < WATER_ROCK_ZBOUNDARY - ROCK_DGSEM_ZBOUNDARY), \
     f"SRC_COORD z={SRC_COORD[2]} falls in the DG/ghost cap, not in a SEM domain"
 
-assert (RCV_Z > WATER_ROCK_ZBOUNDARY + WATER_DGSEM_ZBOUNDARY or
-        RCV_Z < WATER_ROCK_ZBOUNDARY - ROCK_DGSEM_ZBOUNDARY), \
-    f"RCV_Z={RCV_Z} falls in the DG/ghost cap, not in a SEM domain"
+for _name, _z in (("RCV_Z_TOP", RCV_Z_TOP), ("RCV_Z_BOT", RCV_Z_BOT)):
+    assert (_z > WATER_ROCK_ZBOUNDARY + WATER_DGSEM_ZBOUNDARY or
+            _z < WATER_ROCK_ZBOUNDARY - ROCK_DGSEM_ZBOUNDARY), \
+        f"{_name}={_z} falls in the DG/ghost cap, not in a SEM domain"
 
 
 
@@ -409,27 +411,40 @@ def run():
 
 
     # -------------------------------------------------------------------
-    # Receiver line: nearest global SEM_high nodes along RCV_X_COORDS
-    # (water region, top mesh only -- bottom/rock line skipped for now).
+    # Receiver lines: nearest global SEM nodes along RCV_X_COORDS, one line
+    # in each SEM domain (water/top, rock/bottom).
     # -------------------------------------------------------------------
-    order_rcv = ORDER_MAX
-    rcv_local_z = RCV_Z - WATER_ROCK_ZBOUNDARY
-    dz = LZ_top / (ORDER_MAX * EZ_top)
-    wavefield_rcv = wavefield_top
-
-    nx_nodes = order_rcv * EX + 1
-    ny_nodes = order_rcv * EY + 1
     ny_nodes_bot = ORDER_MIN * EY + 1
-    dx = LX / (order_rcv * EX)
-    dy = LY / (order_rcv * EY)
 
-    j = round(RCV_Y / dy)
-    k = round(rcv_local_z / dz)
-    rcv_nodes = np.array([
-        round(x / dx) + j * nx_nodes + k * nx_nodes * ny_nodes
+    # TOP receiver line (water, SEM_high)
+    rcv_local_z_top = RCV_Z_TOP - WATER_ROCK_ZBOUNDARY
+    dz_top = LZ_top / (ORDER_MAX * EZ_top)
+    nx_nodes = ORDER_MAX * EX + 1
+    ny_nodes = ORDER_MAX * EY + 1
+    dx_top = LX / (ORDER_MAX * EX)
+    dy_top = LY / (ORDER_MAX * EY)
+    j_top = round(RCV_Y / dy_top)
+    k_top = round(rcv_local_z_top / dz_top)
+    rcv_nodes_top = np.array([
+        round(x / dx_top) + j_top * nx_nodes + k_top * nx_nodes * ny_nodes
         for x in RCV_X_COORDS
     ])
-    rcv_trace = np.zeros((N_RCV, N_SAMPLES), dtype=np.float32)
+    rcv_trace_top = np.zeros((N_RCV, N_SAMPLES), dtype=np.float32)
+
+    # BOTTOM receiver line (rock, SEM_low) -- local z runs reversed vs global,
+    # same convention as the source placement above.
+    rcv_local_z_bot = LZ_bot - RCV_Z_BOT
+    dz_bot = LZ_bot / (ORDER_MIN * EZ_bot)
+    nx_nodes_bot = ORDER_MIN * EX + 1
+    dx_bot = LX / (ORDER_MIN * EX)
+    dy_bot = LY / (ORDER_MIN * EY)
+    j_bot = round(RCV_Y / dy_bot)
+    k_bot = round(rcv_local_z_bot / dz_bot)
+    rcv_nodes_bot = np.array([
+        round(x / dx_bot) + j_bot * nx_nodes_bot + k_bot * nx_nodes_bot * ny_nodes_bot
+        for x in RCV_X_COORDS
+    ])
+    rcv_trace_bot = np.zeros((N_RCV, N_SAMPLES), dtype=np.float32)
 
 
     # -------------------------------------------------------------------
@@ -473,11 +488,11 @@ def run():
         data_mid.swap_wavefields()
         data_bot.swap_wavefields()
 
-        sem_rcv_prev_np = np.array(wavefield_rcv.get_sem_previous_field(0), copy=False)
-        rcv_trace[:, it] = sem_rcv_prev_np[rcv_nodes]
-
         sem_top_prev_np = np.array(wavefield_top.get_sem_previous_field(0), copy=False)
         sem_bot_prev_np = np.array(wavefield_bot.get_sem_previous_field(0), copy=False)
+        rcv_trace_top[:, it] = sem_top_prev_np[rcv_nodes_top]
+        rcv_trace_bot[:, it] = sem_bot_prev_np[rcv_nodes_bot]
+
         if it % PRINT_INTERVAL == 0:
             print(f"step {it:5d}  |p|_max top.dg={np.abs(pn_top_dg_curr_np).max():.3e}"
                   f"  top.sem={np.abs(sem_top_prev_np).max():.3e}"
@@ -505,11 +520,15 @@ def run():
             np.savetxt(f"slice_{it:05d}.dat", np.array(bot_rows + mid_rows + top_rows))
 
 
-    np.savetxt("bilayer_sem_padaptive_receiver_trace.txt",
-               np.column_stack([t] + [rcv_trace[r] for r in range(N_RCV)]),
+    np.savetxt("bilayer_sem_padaptive_receiver_trace_top.txt",
+               np.column_stack([t] + [rcv_trace_top[r] for r in range(N_RCV)]),
                header="time " + " ".join(f"pressure_rcv{r}" for r in range(N_RCV)) +
-                      " (bilayer p-adaptive SEM, receiver line, water/top mesh only)")
-    print("Wrote bilayer_sem_padaptive_receiver_trace.txt")
+                      " (bilayer p-adaptive, receiver line, water/top mesh)")
+    np.savetxt("bilayer_sem_padaptive_receiver_trace_bot.txt",
+               np.column_stack([t] + [rcv_trace_bot[r] for r in range(N_RCV)]),
+               header="time " + " ".join(f"pressure_rcv{r}" for r in range(N_RCV)) +
+                      " (bilayer p-adaptive, receiver line, rock/bottom mesh)")
+    print("Wrote bilayer_sem_padaptive_receiver_trace_{top,bot}.txt")
 
     # -------------------------------------------------------------------
     # Cost report: wall-clock time and total DOF count (approximate, local
