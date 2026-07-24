@@ -57,28 +57,31 @@ from bilayer_mesh_common import (  # noqa: E402
 # =============================================================================
 # Parameters
 # =============================================================================
-EX, EY, EZ = 100, 100, 100               # elements per direction
-LX, LY, LZ = 2000.0, 2000.0, 2000.0   # domain size [m]
-WATER_ROCK_ZBOUNDARY = 1000.0   # water_rock interface in the global mesh (top mesh + middle mesh + bottom mesh)
-VEL_WATER = 2000.0
-VEL_ROCK = 2000.0
+EX, EY, EZ = 100, 45, 60                # elements per direction
+LX, LY, LZ = 4000.0, 1800.0, 1500.0     # domain size [m], per validation scenario doc
+WATER_ROCK_ZBOUNDARY = 1200.0   # water_rock interface in the global mesh (top mesh + middle mesh + bottom mesh)
+                                 # thin water (300m/20%) over thick rock (1200m/80%) -- realistic
+                                 # marine-seismic proportion, matches bilayer_uniform_solver.py /
+                                 # bilayer_dg_padaptive_solver.py
+VEL_WATER = 1500.0
+VEL_ROCK = 4000.0
 
 DT = 0.0001
 N_SAMPLES = 10000
-F0 = 5.0
+F0 = 10.0
 PRINT_INTERVAL = 100     # stdout |p|_max diagnostics every N steps
 SNAP_INTERVAL = 100      # x-z slice snapshot every N steps (gnuplot: plot 'file' matrix with image)
-SRC_COORD = (1000.0, 1000.0, 1400.0)   # rock region
-RCV_Y = 1000.0
+SRC_COORD = (2000.0, 900.0, 1450.0)     # water region, matches bilayer_uniform_solver.py
+RCV_Y = 900.0
 RCV_Z_TOP = 1400.0                              # water region (top mesh)
 RCV_Z_BOT = 200.0                               # rock region (bottom mesh)
-RCV_X_COORDS = np.linspace(200.0, 1800.0, 7)    # same X line reused for both domains
+RCV_X_COORDS = np.linspace(200.0, 3800.0, 7)    # same X line reused for both domains
 N_SRC = 1
 N_RCV = len(RCV_X_COORDS)
 
 
 ORDER_MIN = 2   # fast region, bottom(rock)
-ORDER_MAX = 3   # slow region, top(water)
+ORDER_MAX = 6   # slow region, top(water) -- hack-padaptive26.patch only builds the (2,6) pair
 N_DOF_MIN = (ORDER_MIN + 1) ** 3
 N_DOF_MAX = (ORDER_MAX + 1) ** 3
 
