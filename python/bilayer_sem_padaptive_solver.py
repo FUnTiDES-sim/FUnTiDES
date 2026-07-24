@@ -54,9 +54,29 @@ from bilayer_mesh_common import (  # noqa: E402
     build_bilayer_model, compute_rhs_weights, detect_default_memspace, kk_zeros,
 )
 
+def as_cupy(kk_view):
+    """Wrap a UVM-allocated kokkos view into a cupy.ndarray, zero-copy.
+
+    UVM means unified addressing: the pointer exposed through the numpy wrapper is
+    valid on the device too, so cupy can operate on the same memory without any
+    transfer. The kokkos view is kept as `owner` so the memory outlives the wrapper.
+    """
+    import cupy as cp
+    a = np.array(kk_view, copy=False)   # descriptor only, no data touch
+    mem = cp.cuda.UnownedMemory(a.ctypes.data, a.nbytes, owner=kk_view)
+    return cp.ndarray(a.shape, dtype=a.dtype,
+                      memptr=cp.cuda.MemoryPointer(mem, 0), strides=a.strides)
+
 # =============================================================================
 # Parameters
 # =============================================================================
+USE_CUPY_EXCHANGE = False   # False -> pyfuntides device utils (solver.copy_face_dofs & co.)
+                            # True  -> pure-Python device-side path via CuPy: the UVM buffers
+                            # are wrapped zero-copy into cupy.ndarray (unified addressing --
+                            # the host-visible pointer is device-valid), and cupy fancy
+                            # indexing runs the exchange/gather as device kernels. A/B knob
+                            # to decide whether the pywrap device utils can be dropped.
+
 EX, EY, EZ = 100, 45, 60                # elements per direction
 LX, LY, LZ = 4000.0, 1800.0, 1500.0     # domain size [m], per validation scenario doc
 WATER_ROCK_ZBOUNDARY = 1200.0   # water_rock interface in the global mesh (top mesh + middle mesh + bottom mesh)
@@ -514,6 +534,23 @@ def run():
     rcv_trace_top_kk = kk_zeros((N_RCV, N_SAMPLES), kokkos.float32, memspace, layout)
     rcv_trace_bot_kk = kk_zeros((N_RCV, N_SAMPLES), kokkos.float32, memspace, layout)
 
+    if USE_CUPY_EXCHANGE:
+        import cupy as cp
+        cp_top_ghost, cp_top_real = cp.asarray(top_ghost), cp.asarray(top_real)
+        cp_bot_ghost, cp_bot_real = cp.asarray(bot_ghost), cp.asarray(bot_real)
+        cp_mid_pmin_ghost, cp_mid_pmin_real = cp.asarray(mid_pmin_ghost), cp.asarray(mid_pmin_real)
+        cp_mid_pmax_ghost, cp_mid_pmax_real = cp.asarray(mid_pmax_ghost), cp.asarray(mid_pmax_real)
+        cp_face_high_max, cp_face_low_max = cp.asarray(face_high_max), cp.asarray(face_low_max)
+        cp_face_high_min, cp_face_low_min = cp.asarray(face_high_min), cp.asarray(face_low_min)
+        cp_rcv_top, cp_rcv_bot = cp.asarray(rcv_nodes_top), cp.asarray(rcv_nodes_bot)
+        # Same UVM trace buffers as the binding path, wrapped zero-copy: the end-of-run
+        # readback below stays identical for both paths.
+        rcv_trace_top_cp = as_cupy(rcv_trace_top_kk)
+        rcv_trace_bot_cp = as_cupy(rcv_trace_bot_kk)
+
+        def cp_pmax(view):
+            return float(cp.abs(as_cupy(view)).max())
+
     t_setup = time.perf_counter() - t_start
     t_compute = 0.0
     t_sync = 0.0
@@ -536,36 +573,63 @@ def run():
         data_mid.swap_wavefields()
         data_bot.swap_wavefields()
 
-        # Device-side ghost exchange (async kernel launches on the solver stream; t_sync now
-        # measures launch cost only, execution overlaps into the next step's t_compute).
-        solver.copy_face_dofs(wavefield_top.get_dg_current_field(0), kk_top_ghost,
-                              wavefield_mid.get_pmax_current_field(0), kk_mid_pmax_real,
-                              kk_face_high_max, kk_face_high_max)
-        solver.copy_face_dofs(wavefield_mid.get_pmax_current_field(0), kk_mid_pmax_ghost,
-                              wavefield_top.get_dg_current_field(0), kk_top_real,
-                              kk_face_low_max, kk_face_low_max)
-        solver.copy_face_dofs(wavefield_bot.get_dg_current_field(0), kk_bot_ghost,
-                              wavefield_mid.get_pmin_current_field(0), kk_mid_pmin_real,
-                              kk_face_high_min, kk_face_low_min)
-        solver.copy_face_dofs(wavefield_mid.get_pmin_current_field(0), kk_mid_pmin_ghost,
-                              wavefield_bot.get_dg_current_field(0), kk_bot_real,
-                              kk_face_high_min, kk_face_low_min)
+        # Device-side ghost exchange (async kernel launches; t_sync measures launch cost only,
+        # execution overlaps into the next step's t_compute). Both branches do the exact same
+        # copies -- binding path via pywrap kernels, cupy path via fancy-indexing kernels on
+        # zero-copy wrappers of the same UVM buffers.
+        if USE_CUPY_EXCHANGE:
+            top_dg = as_cupy(wavefield_top.get_dg_current_field(0))
+            bot_dg = as_cupy(wavefield_bot.get_dg_current_field(0))
+            mid_pmax = as_cupy(wavefield_mid.get_pmax_current_field(0))
+            mid_pmin = as_cupy(wavefield_mid.get_pmin_current_field(0))
+            top_dg[cp.ix_(cp_top_ghost, cp_face_high_max)] = mid_pmax[cp.ix_(cp_mid_pmax_real, cp_face_high_max)]
+            mid_pmax[cp.ix_(cp_mid_pmax_ghost, cp_face_low_max)] = top_dg[cp.ix_(cp_top_real, cp_face_low_max)]
+            bot_dg[cp.ix_(cp_bot_ghost, cp_face_high_min)] = mid_pmin[cp.ix_(cp_mid_pmin_real, cp_face_low_min)]
+            mid_pmin[cp.ix_(cp_mid_pmin_ghost, cp_face_high_min)] = bot_dg[cp.ix_(cp_bot_real, cp_face_low_min)]
+        else:
+            solver.copy_face_dofs(wavefield_top.get_dg_current_field(0), kk_top_ghost,
+                                  wavefield_mid.get_pmax_current_field(0), kk_mid_pmax_real,
+                                  kk_face_high_max, kk_face_high_max)
+            solver.copy_face_dofs(wavefield_mid.get_pmax_current_field(0), kk_mid_pmax_ghost,
+                                  wavefield_top.get_dg_current_field(0), kk_top_real,
+                                  kk_face_low_max, kk_face_low_max)
+            solver.copy_face_dofs(wavefield_bot.get_dg_current_field(0), kk_bot_ghost,
+                                  wavefield_mid.get_pmin_current_field(0), kk_mid_pmin_real,
+                                  kk_face_high_min, kk_face_low_min)
+            solver.copy_face_dofs(wavefield_mid.get_pmin_current_field(0), kk_mid_pmin_ghost,
+                                  wavefield_bot.get_dg_current_field(0), kk_bot_real,
+                                  kk_face_high_min, kk_face_low_min)
         _t2 = time.perf_counter()
         t_sync += _t2 - _t1
 
         # Receiver traces accumulate on the device; read back once after the loop.
-        solver.gather_column(rcv_trace_top_kk, it, wavefield_top.get_sem_previous_field(0), kk_rcv_top)
-        solver.gather_column(rcv_trace_bot_kk, it, wavefield_bot.get_sem_previous_field(0), kk_rcv_bot)
+        if USE_CUPY_EXCHANGE:
+            rcv_trace_top_cp[:, it] = as_cupy(wavefield_top.get_sem_previous_field(0))[cp_rcv_top]
+            rcv_trace_bot_cp[:, it] = as_cupy(wavefield_bot.get_sem_previous_field(0))[cp_rcv_bot]
+            # CuPy launches on the legacy default stream; Kokkos' default instance stream may
+            # differ, so drain before the next compute_one_step reads the exchanged ghosts.
+            cp.cuda.Stream.null.synchronize()
+        else:
+            solver.gather_column(rcv_trace_top_kk, it, wavefield_top.get_sem_previous_field(0), kk_rcv_top)
+            solver.gather_column(rcv_trace_bot_kk, it, wavefield_bot.get_sem_previous_field(0), kk_rcv_bot)
         _t3 = time.perf_counter()
         t_other += _t3 - _t2
 
         if it % PRINT_INTERVAL == 0:
-            print(f"step {it:5d}  |p|_max top.dg={solver.max_abs(wavefield_top.get_dg_current_field(0)):.3e}"
-                  f"  top.sem={solver.max_abs(wavefield_top.get_sem_previous_field(0)):.3e}"
-                  f"  mid.pmin={solver.max_abs(wavefield_mid.get_pmin_current_field(0)):.3e}"
-                  f"  mid.pmax={solver.max_abs(wavefield_mid.get_pmax_current_field(0)):.3e}"
-                  f"  bot.dg={solver.max_abs(wavefield_bot.get_dg_current_field(0)):.3e}"
-                  f"  bot.sem={solver.max_abs(wavefield_bot.get_sem_previous_field(0)):.3e}")
+            if USE_CUPY_EXCHANGE:
+                print(f"step {it:5d}  |p|_max top.dg={cp_pmax(wavefield_top.get_dg_current_field(0)):.3e}"
+                      f"  top.sem={cp_pmax(wavefield_top.get_sem_previous_field(0)):.3e}"
+                      f"  mid.pmin={cp_pmax(wavefield_mid.get_pmin_current_field(0)):.3e}"
+                      f"  mid.pmax={cp_pmax(wavefield_mid.get_pmax_current_field(0)):.3e}"
+                      f"  bot.dg={cp_pmax(wavefield_bot.get_dg_current_field(0)):.3e}"
+                      f"  bot.sem={cp_pmax(wavefield_bot.get_sem_previous_field(0)):.3e}")
+            else:
+                print(f"step {it:5d}  |p|_max top.dg={solver.max_abs(wavefield_top.get_dg_current_field(0)):.3e}"
+                      f"  top.sem={solver.max_abs(wavefield_top.get_sem_previous_field(0)):.3e}"
+                      f"  mid.pmin={solver.max_abs(wavefield_mid.get_pmin_current_field(0)):.3e}"
+                      f"  mid.pmax={solver.max_abs(wavefield_mid.get_pmax_current_field(0)):.3e}"
+                      f"  bot.dg={solver.max_abs(wavefield_bot.get_dg_current_field(0)):.3e}"
+                      f"  bot.sem={solver.max_abs(wavefield_bot.get_sem_previous_field(0)):.3e}")
 
         if it % SNAP_INTERVAL == 0:
             # Single x-z slice (mid-Y), bottom-to-top in GLOBAL z: bot's SEM+DG, mid's
@@ -577,6 +641,8 @@ def run():
             # read, amortized over SNAP_INTERVAL steps); fence so the reads see the
             # completed exchange/gather kernels above.
             solver.device_fence()
+            if USE_CUPY_EXCHANGE:
+                cp.cuda.Stream.null.synchronize()
             pn_top_dg_curr_np = np.array(wavefield_top.get_dg_current_field(0), copy=False)
             pn_bot_dg_curr_np = np.array(wavefield_bot.get_dg_current_field(0), copy=False)
             pn_mid_pmax_curr_np = np.array(wavefield_mid.get_pmax_current_field(0), copy=False)
@@ -597,6 +663,8 @@ def run():
 
     # Drain the device before reading the accumulated traces from the host.
     solver.device_fence()
+    if USE_CUPY_EXCHANGE:
+        cp.cuda.Stream.null.synchronize()
     rcv_trace_top = np.array(rcv_trace_top_kk, copy=False)
     rcv_trace_bot = np.array(rcv_trace_bot_kk, copy=False)
 
