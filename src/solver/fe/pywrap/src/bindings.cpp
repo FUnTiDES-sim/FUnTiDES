@@ -2,7 +2,6 @@
 #include <pybind11/pybind11.h>
 #include <pybind11/stl.h>
 
-#include "bindings_device_utils.h"
 #include "bindings_rhs.h"
 #include "bindings_sem_enums.h"
 #include "bindings_sem_solver.h"
@@ -29,9 +28,6 @@ PYBIND11_MODULE(solver, m) {
 
   // Bind Enums
   solver::fe::bind_all_sem_enums(m);
-
-  // Bind device-side utilities (ghost exchange, trace gather, diagnostics)
-  solver::fe::bind_device_utils(m);
 
   // Bind RHS
   solver::fe::bind_rhs_base(m);
