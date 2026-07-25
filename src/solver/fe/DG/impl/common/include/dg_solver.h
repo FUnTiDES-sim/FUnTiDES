@@ -159,7 +159,17 @@ class DGsolver : public Solver {
   void updateFieldsFromListBackward(float dt, const DataType& data, const vectorInt& elem_list, int n_elems);
 
   /**
-   * @brief Kernel 1 — volume mass + SumFact stiffness. Zeros the damping accumulator.
+   * @brief Precompute the time-invariant per-element mass diagonal.
+   *
+   * The DG mass diagonal depends only on element geometry and on the model (vp, rho), never on
+   * the wavefield, so it is computed once from computeFEInit() instead of being rebuilt at every
+   * time step inside computeVolumeAndBoundary(). Runs over the whole mesh: m_elem_list_ is not
+   * set yet at init time, and the full element set is a superset of every list used later.
+   */
+  void precomputeMassMatrix();
+
+  /**
+   * @brief Kernel 1 — SumFact stiffness. Zeros the damping accumulator.
    * @param kNumElem Total number of elements.
    * @param current_field Pressure field at current time step p^n.
    * @param exec_space Execution-space instance to launch on (defaults to the process-wide

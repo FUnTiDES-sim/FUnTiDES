@@ -70,6 +70,41 @@ void DGsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::comp
   m_mass_local_ = allocateArray2D<arrayReal>(kNumElem, kPointsPerElement, "massLocal");
   m_stiff_local_ = allocateArray2D<arrayReal>(kNumElem, kPointsPerElement, "stiffLocal");
   m_damp_local_ = allocateArray2D<arrayReal>(kNumElem, kPointsPerElement, "dampLocal");
+  precomputeMassMatrix();
+}
+
+//============================================================================
+// precomputeMassMatrix - time-invariant, computed once from computeFEInit
+//============================================================================
+
+template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE, bool IS_MODEL_ON_NODES,
+          utils::enums::physicType PHYSICS>
+void DGsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::precomputeMassMatrix() {
+  auto mesh_local = m_mesh;
+  arrayReal mass_local_view = m_mass_local_;
+  int const kNumElem = m_mesh.getNumberOfElements();
+
+  Kokkos::parallel_for(
+      "DG Precompute Mass", Kokkos::RangePolicy<Kokkos::DefaultExecutionSpace>(0, kNumElem), KOKKOS_LAMBDA(const int e) {
+        float massLocal[kPointsPerElement] = {0};
+        float elementCoords[8][3];
+        auto const eIdx = mesh_local.elementIndex(e);
+        for (int kv = 0; kv < 2; ++kv)
+          for (int jv = 0; jv < 2; ++jv)
+            for (int iv = 0; iv < 2; ++iv)
+              mesh_local.vertexCoords(mesh_local.globalVertexIndex(eIdx, iv, jv, kv),
+                                      elementCoords[iv + 2 * jv + 4 * kv]);
+
+        real_t const vp = mesh_local.getModelVpOnElement(e);
+        real_t const rho = mesh_local.getModelRhoOnElement(e);
+        real_t const inv_model_factor = 1.0f / (vp * vp * rho);
+
+        INTEGRAL_TYPE::computeMassTerm(elementCoords,
+                                       [&](const int j, const real_t val) { massLocal[j] += inv_model_factor * val; });
+
+        for (int i = 0; i < kPointsPerElement; ++i) mass_local_view(e, i) = massLocal[i];
+      });
+  FENCE
 }
 
 //============================================================================
@@ -126,7 +161,6 @@ void DGsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::comp
   auto list_local = m_elem_list_;
   int const n_iter = list_on ? m_n_elem_list_ : kNumElem;
 
-  arrayReal mass_local_view = m_mass_local_;
   arrayReal stiff_local_view = m_stiff_local_;
   arrayReal damp_local_view = m_damp_local_;
 
@@ -134,7 +168,6 @@ void DGsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::comp
       "DG Volume+Boundary", Kokkos::RangePolicy<Kokkos::DefaultExecutionSpace>(exec_space, 0, n_iter),
       KOKKOS_LAMBDA(const int _loop_idx) {
         int const e = list_on ? list_local[_loop_idx] : _loop_idx;
-        float massLocal[kPointsPerElement] = {0};
         float stiffLocal[kPointsPerElement] = {0};
         float elementCoords[8][3];
         auto const eIdx = mesh_local.elementIndex(e);
@@ -144,13 +177,8 @@ void DGsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::comp
               mesh_local.vertexCoords(mesh_local.globalVertexIndex(eIdx, iv, jv, kv),
                                       elementCoords[iv + 2 * jv + 4 * kv]);
 
-        real_t const vp = mesh_local.getModelVpOnElement(e);
         real_t const rho = mesh_local.getModelRhoOnElement(e);
-        real_t const inv_model_factor = 1.0f / (vp * vp * rho);
         real_t const inv_rho = 1.0f / rho;
-
-        INTEGRAL_TYPE::computeMassTerm(elementCoords,
-                                       [&](const int j, const real_t val) { massLocal[j] += inv_model_factor * val; });
 
         real_t p_local[kPointsPerElement];
         for (int i = 0; i < kPointsPerElement; ++i) p_local[i] = current_field(e, i);
@@ -158,7 +186,6 @@ void DGsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::comp
                                                    [&](const int, const int, const int) -> real_t { return inv_rho; });
 
         for (int i = 0; i < kPointsPerElement; ++i) {
-          mass_local_view(e, i) = massLocal[i];
           stiff_local_view(e, i) = stiffLocal[i];
           damp_local_view(e, i) = 0.0f;  // zeroed here; filled by computeBoundaryDampingAndInterfaceFlux
         }
