@@ -258,6 +258,15 @@ class DGsolver : public Solver {
   static constexpr int kPointsPerElement = (ORDER + 1) * (ORDER + 1) * (ORDER + 1);
   static constexpr int knumNodesPerFace = (ORDER + 1) * (ORDER + 1);
 
+  /// @brief CUDA launch bounds for the face-flux kernel (see computeBoundaryDampingAndInterfaceFlux).
+  ///
+  /// Purely empirical tuning knobs, not a correctness constraint: they only pin the register
+  /// allocation nvcc picks for that kernel. A small block with a single resident block per SM
+  /// maximises registers per thread, which is what a kernel holding ~110 floats per thread wants.
+  /// Re-measure after any change to that kernel's per-thread footprint.
+  static constexpr int kFaceLaunchMaxThreads = 128;
+  static constexpr int kFaceLaunchMinBlocks = 1;
+
   /// @brief Compile-time helper: maps (face_id, face_dof_2d) → element-local DOF index.
   static constexpr int faceToElemDofImpl(int face_id, int face_dof_2d) {
     const int n = ORDER + 1;

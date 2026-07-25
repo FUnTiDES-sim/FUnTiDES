@@ -215,8 +215,19 @@ void DGsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::comp
   arrayReal stiff_local_view = m_stiff_local_;
   real_t const penalty_local = m_penalty_factor_;
 
+  // Register-allocation pin. This kernel sits on an occupancy cliff: it holds ~110 floats per
+  // thread (two knumNodesPerFace accumulators plus owner/neighbor/face coordinates), so nvcc's
+  // choice between keeping them in registers and spilling them to local memory decides its
+  // runtime. That choice is made per translation unit, which makes it fragile -- removing an
+  // unrelated local array from computeVolumeAndBoundary (same file) shifted the allocation here
+  // and cost this kernel 24%. LaunchBounds fixes the block size nvcc compiles for, so the
+  // allocation stops depending on neighbouring kernels. Empirical value: retune (or drop) if the
+  // per-thread footprint changes, and always re-measure -- see kFaceLaunchMaxThreads.
+  using FaceLaunchBounds = Kokkos::LaunchBounds<kFaceLaunchMaxThreads, kFaceLaunchMinBlocks>;
+
   Kokkos::parallel_for(
-      "DG BoundaryDamping+InterfaceFlux", Kokkos::RangePolicy<Kokkos::DefaultExecutionSpace>(exec_space, 0, n_iter),
+      "DG BoundaryDamping+InterfaceFlux",
+      Kokkos::RangePolicy<Kokkos::DefaultExecutionSpace, FaceLaunchBounds>(exec_space, 0, n_iter),
       KOKKOS_LAMBDA(const int _loop_idx) {
         int const f = list_on ? list_local[_loop_idx] : _loop_idx;
 
