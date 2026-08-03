@@ -11,9 +11,15 @@
 #include <fstream>
 #include <iomanip>
 
-#include "dg-sem_solver_data.h"
-#include "dg_padaptive_solver_data.h"
+#ifdef COMPILE_DG
 #include "dg_solver_data.h"
+#endif  // COMPILE_DG
+#ifdef COMPILE_DG_SEM
+#include "dg-sem_solver_data.h"
+#endif  // COMPILE_DG_SEM
+#ifdef COMPILE_DG_PADAPTIVE
+#include "dg_padaptive_solver_data.h"
+#endif  // COMPILE_DG_PADAPTIVE
 #include "rhs_acoustoelastic.h"
 #ifdef USE_MPI
 #include "mpi_backend.h"
@@ -189,6 +195,7 @@ void SEMproxy::Run() {
   std::chrono::time_point<std::chrono::high_resolution_clock> start_compute_time, start_output_time;
   std::chrono::duration<double> total_compute_time(0), total_output_time(0);
 
+#ifdef COMPILE_DG
   if (is_dg_) {
     DGWavefieldAcoustic wavefield(pn_dg_prev_, pn_dg_curr_);
     RhsAcoustic rhs(rhs_term_, rhs_element_, rhs_weights_);
@@ -276,8 +283,10 @@ void SEMproxy::Run() {
     fout << "# time pressure_at_receiver\n";
     for (int t = 0; t < num_samples_; ++t) fout << t * dt_ << " " << h_pn_at_receiver_(0, t) << "\n";
     fout.close();
-
-  } else if (is_dg_sem_) {
+  } else
+#endif  // COMPILE_DG
+#ifdef COMPILE_DG_SEM
+  if (is_dg_sem_) {
     DGSEMWavefieldAcoustic wavefield(pn_dg_prev_, pn_dg_curr_, pn_sem_prev_, pn_sem_curr_);
     DGSEMRhsAcoustic rhs(rhs_term_dg_, rhs_term_sem_, rhs_element_, rhs_weights_);
 
@@ -445,8 +454,10 @@ void SEMproxy::Run() {
       fout << "# time pressure_at_receiver (" << (rcv_in_sem ? "SEM" : "DG") << " domain)\n";
       for (int t = 0; t < num_samples_; ++t) fout << t * dt_ << " " << h_pn_at_receiver_(0, t) << "\n";
     }
-
-  } else if (is_dg_padaptive_) {
+  } else
+#endif  // COMPILE_DG_SEM
+#ifdef COMPILE_DG_PADAPTIVE
+  if (is_dg_padaptive_) {
     DGPAdaptiveWavefieldAcoustic wavefield(pn_pmin_dg_prev_, pn_pmin_dg_curr_, pn_pmax_dg_prev_, pn_pmax_dg_curr_);
     DGPAdaptiveRhsAcoustic rhs(rhs_term_pmin_, rhs_term_pmax_, rhs_element_, rhs_pmin_weights_, rhs_pmax_weights_);
 
@@ -626,8 +637,9 @@ void SEMproxy::Run() {
       fout << "# time pressure_at_receiver (" << (rcv_in_pmax ? "PMax" : "PMin") << " domain)\n";
       for (int t = 0; t < num_samples_; ++t) fout << t * dt_ << " " << h_pn_at_receiver_(0, t) << "\n";
     }
-
-  } else if (is_acousto_elastic_) {
+  } else
+#endif  // COMPILE_DG_PADAPTIVE
+  if (is_acousto_elastic_) {
     WavefieldAcoustoElastic wavefield(pn_global_prev_, pn_global_curr_, uxn_global_prev_, uxn_global_curr_,
                                       uyn_global_prev_, uyn_global_curr_, uzn_global_prev_, uzn_global_curr_);
     RhsAcoustoElastic rhs(rhs_term_, rhs_element_, rhs_weights_, rhs_term_x_, rhs_term_y_, rhs_term_z_);
