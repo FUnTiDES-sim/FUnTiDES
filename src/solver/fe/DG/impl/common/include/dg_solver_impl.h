@@ -317,8 +317,7 @@ void DGsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::comp
 template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE, bool IS_MODEL_ON_NODES,
           utils::enums::physicType PHYSICS>
 void DGsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::applyVerlet(
-    int kNumElem, float dt, arrayReal current_field, arrayReal prev_field,
-    Kokkos::DefaultExecutionSpace exec_space) {
+    int kNumElem, float dt, arrayReal current_field, arrayReal prev_field, Kokkos::DefaultExecutionSpace exec_space) {
   float const dt_local = dt;
   float const dt2_local = dt * dt;
 

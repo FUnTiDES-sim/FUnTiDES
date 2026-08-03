@@ -178,8 +178,9 @@ class DGsolver : public Solver {
    * @param current_field Pressure field at current time step p^n.
    * @param exec_space Execution-space instance to launch on (see computeVolumeAndBoundary).
    */
-  void computeBoundaryDampingAndInterfaceFlux(int kNumFaces, arrayReal current_field,
-                                              Kokkos::DefaultExecutionSpace exec_space = Kokkos::DefaultExecutionSpace{});
+  void computeBoundaryDampingAndInterfaceFlux(
+      int kNumFaces, arrayReal current_field,
+      Kokkos::DefaultExecutionSpace exec_space = Kokkos::DefaultExecutionSpace{});
 
   /**
    * @brief Kernel 3 — Verlet time update.
