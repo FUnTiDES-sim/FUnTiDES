@@ -293,6 +293,13 @@ TEST_F(DGPAdaptiveSolverAcousticTest, OutputSolutionValues_ArrayView_DoesNotCras
   EXPECT_NO_THROW(solver_.outputSolutionValues(t, e, field_pmin, "pressurePMin"));
 }
 
+TEST_F(DGPAdaptiveSolverAcousticTest, OutputSolutionValues_VectorView_DoesNotCrash) {
+  // DG p-adaptive has no node-based (SEM) domain: this overload is a no-op stub.
+  auto field_vec = allocateVector<vectorReal>(nNode_, "field_vec");
+  int t = 0, e = 0;
+  EXPECT_NO_THROW(solver_.outputSolutionValues(t, e, field_vec, "pressureVec"));
+}
+
 }  // namespace test
 }  // namespace fe
 }  // namespace solver

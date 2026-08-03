@@ -92,6 +92,13 @@ if(COMPILE_DG_SEM)
   )
 endif()
 
+if(COMPILE_DG_PADAPTIVE)
+  add_gtest(dg_padaptive_solver_factory_test
+    test_dg_padaptive_solver_factory.cc
+    fun_solver
+  )
+endif()
+
 if(USE_MPI)
 add_executable(test_mpi_partitioning test_mpi_partitioning.cc)
 target_link_libraries(test_mpi_partitioning
