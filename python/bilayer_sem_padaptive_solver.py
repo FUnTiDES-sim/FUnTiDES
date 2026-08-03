@@ -37,7 +37,6 @@ import time
 from pathlib import Path
 
 import numpy as np
-from numpy.polynomial import legendre
 import tempfile
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
@@ -53,22 +52,8 @@ from pyfuntides import model, solver  # noqa: E402
 
 from bilayer_mesh_common import (  # noqa: E402
     build_bilayer_model, compute_rhs_weights, detect_default_memspace, kk_zeros,
+    dense_grid_rows, dg_local_block_getter, sem_local_block_getter, as_cupy, PhaseTimer,
 )
-
-
-def as_cupy(kk_view):
-    """Wrap a UVM-allocated kokkos view into a cupy.ndarray, zero-copy.
-
-    UVM means unified addressing: the pointer exposed through the numpy wrapper is
-    valid on the device too, so cupy can operate on the same memory without any
-    transfer. The kokkos view is kept as `owner` so the memory outlives the wrapper.
-    Chosen over dedicated pywrap bindings (benchmarked equivalent: 219s vs 221s on
-    the full pipeline) to keep the coupling plumbing local to this script.
-    """
-    a = np.array(kk_view, copy=False)   # descriptor only, no data touch
-    mem = cp.cuda.UnownedMemory(a.ctypes.data, a.nbytes, owner=kk_view)
-    return cp.ndarray(a.shape, dtype=a.dtype,
-                      memptr=cp.cuda.MemoryPointer(mem, 0), strides=a.strides)
 
 # =============================================================================
 # Parameters
@@ -87,6 +72,8 @@ N_SAMPLES = 10000
 F0 = 10.0
 PRINT_INTERVAL = 100     # stdout |p|_max diagnostics every N steps
 SNAP_INTERVAL = 100      # x-z slice snapshot every N steps (gnuplot: plot 'file' matrix with image)
+SYNC_TIMERS = True       # fence the device before stopping each phase's clock (see PhaseTimer);
+                         # set False to check the fences aren't inflating the reported total
 SRC_COORD = (2000.0, 900.0, 1450.0)     # water region, matches bilayer_uniform_solver.py
 RCV_Y = 900.0
 RCV_Z_TOP = 1400.0                              # water region (top mesh)
@@ -158,102 +145,44 @@ def face_dofs(order, k_loc):
                       for j in range(order+1) for i in range(order+1)])
 
 
-_GLL_CACHE = {}
+# -----------------------------------------------------------------------------
+# Snapshot grid: ONE shared dense (x, z) grid for the whole global domain, at
+# ORDER_MAX resolution. Every region (bot SEM/DG, mid pMin/pMax, top DG/SEM) is
+# resampled onto it via true tensor-product GLL Lagrange reconstruction (see
+# dense_grid_rows in bilayer_mesh_common.py) instead of each keeping its own
+# native per-order z-row spacing -- that native spacing is what produced the
+# "strata" look in gnuplot's matrix/image (row density jumps at every order
+# change: SEM/DG order2 vs order6, or DG cap vs SEM bulk). One shared grid means
+# every row is dz = LZ/(NZ_DENSE-1) apart everywhere, so the image reads like a
+# single uniform-order SEM solution.
+#
+# Regions are described by (order, ex, dxe, dze, z0, sign, ez_count, ez_offset):
+# global z = z0 + sign * local_z, ez_offset = how many local elements to skip
+# before this region's own [0, ez_count) (matches the ranges the previous
+# per-region dg_region_rows/sem_region_rows calls used).
+# -----------------------------------------------------------------------------
+NZ_DENSE = ORDER_MAX * EZ + 1
+NX_DENSE = ORDER_MAX * EX + 1
+DENSE_X = np.linspace(0.0, LX, NX_DENSE)
+DENSE_Z = np.linspace(0.0, LZ, NZ_DENSE)
+DXE = LX / EX
+DZE = LZ / EZ  # == LZ_top/EZ_top == LZ_mid/EZ_mid == LZ_bot/EZ_bot (25 m here)
+
+# Per-mesh (z0, sign) mapping local z=0 (element index 0, BEFORE any ez_offset) to global z:
+# global z = z0_mesh + sign * local_z. bot's local z runs opposite to global (see the
+# LZ_bot - z conversions used for its source/receivers above); mid and top run the same way.
+BOT_Z0, BOT_SIGN = WATER_ROCK_ZBOUNDARY, -1
+MID_Z0 = WATER_ROCK_ZBOUNDARY - Z_ELEM_INTERFACE * DZE  # global z at mid mesh's local z=0
+MID_SIGN = 1
+TOP_Z0, TOP_SIGN = WATER_ROCK_ZBOUNDARY, 1
 
 
-def _gll(order):
-    """Gauss-Lobatto-Legendre nodes (on [-1, 1]) and barycentric interpolation weights for a
-    degree-`order` element -- matches the solver's internal 1D nodal basis (endpoints plus the
-    interior roots of P'_order). Cached per order since called every row/every snapshot.
+def region_z0(mesh_z0, sign, ez_offset):
+    """z0 for dense_grid_rows when the region starts `ez_offset` elements into the mesh
+    (dense_grid_rows/get_local_block's ez_i is 0-based *within the region*, not the mesh,
+    so the region's own z0 must be shifted by the skipped elements' physical extent).
     """
-    if order in _GLL_CACHE:
-        return _GLL_CACHE[order]
-    if order == 1:
-        nodes = np.array([-1.0, 1.0])
-    else:
-        interior = legendre.Legendre.basis(order).deriv().roots().real
-        nodes = np.sort(np.concatenate(([-1.0], interior, [1.0])))
-    weights = np.array([1.0 / np.prod(nodes[j] - np.delete(nodes, j)) for j in range(len(nodes))])
-    _GLL_CACHE[order] = (nodes, weights)
-    return nodes, weights
-
-
-def _lagrange_interp_1d(nodes, weights, values, x):
-    """Barycentric Lagrange interpolation of `values` (sampled at `nodes`) at point `x`."""
-    diff = x - nodes
-    hit = np.flatnonzero(np.abs(diff) < 1e-12)
-    if hit.size:
-        return values[hit[0]]
-    terms = weights / diff
-    return float(np.dot(terms, values) / np.sum(terms))
-
-
-def _dense_x_frac(ix, ex, dense_order):
-    """Physical x position of dense-grid index `ix`, in element units (integer part = element
-    index, fractional part = position within that element), plus its reference coordinate
-    in [-1, 1]. Clamps the last point to the right edge of the last element.
-    """
-    if ix == dense_order * ex:
-        return ex - 1, 1.0
-    frac = ix / dense_order
-    ix_e = int(frac)
-    return ix_e, 2.0 * (frac - ix_e) - 1.0
-
-
-def dg_region_rows(field_curr, order, ex, ey, ez_start, ez_count, dense_order):
-    """X-z rows (mid-Y, one row per (z-element, z-dof)) of a per-element DG/DGPAdaptive field
-    region, resampled onto the dense_order x-grid. When order != dense_order, reconstructs the
-    true polynomial via Lagrange interpolation on the region's own GLL nodes (not
-    nearest-neighbor) so the transition between p-adaptive regions renders smoothly.
-    """
-    n1d = order + 1
-    ey_mid, ib_mid = ey // 2, order // 2
-    nx_dense = dense_order * ex + 1
-    identity = order == dense_order
-    nodes, weights = _gll(order)
-    rows = []
-    for ez_i in range(ez_start, ez_start + ez_count):
-        for iz_dof in range(n1d):
-            row = np.empty(nx_dense, dtype=field_curr.dtype)
-            dof0 = ib_mid * n1d + iz_dof * n1d * n1d
-            for ix in range(nx_dense):
-                ix_e, xi = _dense_x_frac(ix, ex, dense_order)
-                elem = ix_e + ey_mid * ex + ez_i * ex * ey
-                if identity:
-                    ix_d = order if ix == nx_dense - 1 else ix % dense_order
-                    row[ix] = field_curr[elem, ix_d + dof0]
-                else:
-                    local_vals = field_curr[elem, dof0:dof0 + n1d]
-                    row[ix] = _lagrange_interp_1d(nodes, weights, local_vals, xi)
-            rows.append(row)
-    return rows
-
-
-def sem_region_rows(sem_curr, order, ex, ey, ny, iz_start, iz_end, dense_order):
-    """X-z rows (mid-Y, one row per z-node) of a nodal SEM field region, resampled onto the
-    dense_order x-grid via true Lagrange interpolation when order != dense_order (see
-    dg_region_rows), so the seam with the neighboring DG region lines up smoothly.
-    """
-    nx_native = order * ex + 1
-    nx_dense = dense_order * ex + 1
-    iy_mid = ny // 2
-    identity = order == dense_order
-    nodes, weights = _gll(order)
-    rows = []
-    for iz in range(iz_start, iz_end):
-        row = np.empty(nx_dense, dtype=sem_curr.dtype)
-        for ix in range(nx_dense):
-            ix_e, xi = _dense_x_frac(ix, ex, dense_order)
-            if identity:
-                native_ix = ix_e * order + (order if ix == nx_dense - 1 else ix % dense_order)
-                row[ix] = sem_curr[native_ix + iy_mid * nx_native + iz * nx_native * ny]
-            else:
-                base = ix_e * order
-                local_vals = np.array([sem_curr[base + k + iy_mid * nx_native + iz * nx_native * ny]
-                                        for k in range(order + 1)])
-                row[ix] = _lagrange_interp_1d(nodes, weights, local_vals, xi)
-        rows.append(row)
-    return rows
+    return mesh_z0 + sign * ez_offset * DZE
 
 
 def main():
@@ -266,6 +195,8 @@ def main():
 
 def run():
     t_start = time.perf_counter()
+    timer = PhaseTimer(sync=SYNC_TIMERS)
+    timer.tic()
     memspace, layout = detect_default_memspace()
 
     # -------------------------------------------------------------------
@@ -513,7 +444,7 @@ def run():
     # |p|_max diagnostics all execute as device kernels through cupy on zero-copy
     # wrappers of the UVM buffers). The wavefields' UVM pages therefore stay
     # device-resident all run long instead of ping-ponging host<->device at every
-    # step (was ~17% of wall-clock as t_sync).
+    # step (was ~17% of wall-clock, see the "gather" row in PhaseTimer's report).
     # -------------------------------------------------------------------
     cp_top_ghost, cp_top_real = cp.asarray(top_ghost), cp.asarray(top_real)
     cp_bot_ghost, cp_bot_real = cp.asarray(bot_ghost), cp.asarray(bot_real)
@@ -533,18 +464,14 @@ def run():
     def cp_pmax(view):
         return float(cp.abs(as_cupy(view)).max())
 
-    t_setup = time.perf_counter() - t_start
-    t_compute = 0.0
-    t_sync = 0.0
-    t_other = 0.0
+    timer.toc("setup")
 
     for it in range(N_SAMPLES):
-        _t0 = time.perf_counter()
+        timer.tic()
         solver_top.compute_one_step(DT, it, data_top)
         solver_mid.compute_one_step(DT, it, data_mid)
         solver_bot.compute_one_step(DT, it, data_bot)
-        _t1 = time.perf_counter()
-        t_compute += _t1 - _t0
+        timer.toc("compute")
 
         # Swap FIRST, then exchange ghosts on the post-swap current buffers (p^{n+1}): these
         # are exactly the buffers the next step's flux kernels read. Exchanging before the
@@ -554,10 +481,11 @@ def run():
         data_top.swap_wavefields()
         data_mid.swap_wavefields()
         data_bot.swap_wavefields()
+        timer.toc("swap")
 
         # Device-side ghost exchange: cupy fancy-indexing kernels on zero-copy wrappers of
-        # the UVM buffers (t_sync measures launch cost only, execution overlaps into the
-        # next step's t_compute).
+        # the UVM buffers (launch cost only when SYNC_TIMERS=False; execution overlaps into
+        # the next step's compute).
         top_dg = as_cupy(wavefield_top.get_dg_current_field(0))
         bot_dg = as_cupy(wavefield_bot.get_dg_current_field(0))
         mid_pmax = as_cupy(wavefield_mid.get_pmax_current_field(0))
@@ -566,17 +494,17 @@ def run():
         mid_pmax[cp.ix_(cp_mid_pmax_ghost, cp_face_low_max)] = top_dg[cp.ix_(cp_top_real, cp_face_low_max)]
         bot_dg[cp.ix_(cp_bot_ghost, cp_face_high_min)] = mid_pmin[cp.ix_(cp_mid_pmin_real, cp_face_low_min)]
         mid_pmin[cp.ix_(cp_mid_pmin_ghost, cp_face_high_min)] = bot_dg[cp.ix_(cp_bot_real, cp_face_low_min)]
-        _t2 = time.perf_counter()
-        t_sync += _t2 - _t1
+        timer.toc("exchange")
 
         # Receiver traces accumulate on the device; read back once after the loop.
         rcv_trace_top_cp[:, it] = as_cupy(wavefield_top.get_sem_previous_field(0))[cp_rcv_top]
         rcv_trace_bot_cp[:, it] = as_cupy(wavefield_bot.get_sem_previous_field(0))[cp_rcv_bot]
         # CuPy launches on the legacy default stream; Kokkos' default instance stream may
-        # differ, so drain before the next compute_one_step reads the exchanged ghosts.
+        # differ, so drain before the next compute_one_step reads the exchanged ghosts. This
+        # sync is load-bearing for correctness (not just timing), so it stays regardless of
+        # SYNC_TIMERS -- PhaseTimer's own fence right after is then a cheap no-op.
         cp.cuda.Stream.null.synchronize()
-        _t3 = time.perf_counter()
-        t_other += _t3 - _t2
+        timer.toc("gather")
 
         if it % PRINT_INTERVAL == 0:
             print(f"step {it:5d}  |p|_max top.dg={cp_pmax(wavefield_top.get_dg_current_field(0)):.3e}"
@@ -585,13 +513,17 @@ def run():
                   f"  mid.pmax={cp_pmax(wavefield_mid.get_pmax_current_field(0)):.3e}"
                   f"  bot.dg={cp_pmax(wavefield_bot.get_dg_current_field(0)):.3e}"
                   f"  bot.sem={cp_pmax(wavefield_bot.get_sem_previous_field(0)):.3e}")
+        timer.toc("diag")
 
         if it % SNAP_INTERVAL == 0:
             # Single x-z slice (mid-Y), bottom-to-top in GLOBAL z: bot's SEM+DG, mid's
-            # pMin+pMax, top's DG+SEM -- all resampled onto the dense ORDER_MAX x-grid so
-            # columns line up and the three regions concatenate into one valid matrix.
-            # model_bot's local z runs opposite to global z (see build_layered_model /
-            # the LZ_bot - z conversions above), so its rows are reversed here.
+            # pMin+pMax, top's DG+SEM, each resampled by true tensor-product GLL Lagrange
+            # reconstruction onto the ONE shared dense (DENSE_X, DENSE_Z) grid (see
+            # dense_grid_rows in bilayer_mesh_common.py) instead of each region's own
+            # native per-order z-row spacing -- that's what used to render as "strata"
+            # (row density jumps at every SEM/DG or order2/order6 boundary). Every row
+            # below is dz = LZ/(NZ_DENSE-1) apart everywhere, no reversal needed: each
+            # dense_grid_rows call already returns rows in ascending global z.
             # Only place inside the loop where numpy touches the wavefields (full host
             # read, amortized over SNAP_INTERVAL steps). The per-step stream sync above
             # already drained the exchange/gather kernels; compute_one_step fences the
@@ -602,17 +534,36 @@ def run():
             pn_mid_pmin_curr_np = np.array(wavefield_mid.get_pmin_current_field(0), copy=False)
             sem_top_prev_np = np.array(wavefield_top.get_sem_previous_field(0), copy=False)
             sem_bot_prev_np = np.array(wavefield_bot.get_sem_previous_field(0), copy=False)
-            bot_rows = (dg_region_rows(pn_bot_dg_curr_np, ORDER_MIN, EX, EY, 0, 2, ORDER_MAX)
-                        + sem_region_rows(sem_bot_prev_np, ORDER_MIN, EX, EY, ny_nodes_bot,
-                                          2 * ORDER_MIN, ORDER_MIN * EZ_bot + 1, ORDER_MAX))
-            bot_rows = bot_rows[::-1]
-            mid_rows = (dg_region_rows(pn_mid_pmin_curr_np, ORDER_MIN, EX, EY, 0, Z_ELEM_INTERFACE, ORDER_MAX)
-                        + dg_region_rows(pn_mid_pmax_curr_np, ORDER_MAX, EX, EY, Z_ELEM_INTERFACE,
-                                         EZ_mid - Z_ELEM_INTERFACE, ORDER_MAX))
-            top_rows = (dg_region_rows(pn_top_dg_curr_np, ORDER_MAX, EX, EY, 0, 2, ORDER_MAX)
-                        + sem_region_rows(sem_top_prev_np, ORDER_MAX, EX, EY, ny_nodes,
-                                          2 * ORDER_MAX, ORDER_MAX * EZ_top + 1, ORDER_MAX))
-            np.savetxt(f"slice_{it:05d}.dat", np.array(bot_rows + mid_rows + top_rows))
+            timer.toc("snap_read")
+
+            # Each DG cap is 2 elements (1 ghost + 1 truly-solved, see WATER/ROCK_DGSEM_ZBOUNDARY
+            # above): the ghost only mirrors the neighboring mesh's own real boundary element, so
+            # drawing it too double-draws that physical slab (visible as an extra "layer" at every
+            # bot<->mid and mid<->top seam). ez_offset=1/count=1 below keeps only the truly-solved
+            # element; local index 0 (the ghost) is skipped in every DG-cap call.
+            ey_mid = EY // 2
+            bot_sem_rows = dense_grid_rows(
+                sem_local_block_getter(sem_bot_prev_np, ORDER_MIN, EX, EY, ny_nodes_bot, ny_nodes_bot // 2, 2),
+                ORDER_MIN, EX, DXE, DZE, region_z0(BOT_Z0, BOT_SIGN, 2), BOT_SIGN, EZ_bot - 2, DENSE_X, DENSE_Z)
+            bot_dg_rows = dense_grid_rows(
+                dg_local_block_getter(pn_bot_dg_curr_np, ORDER_MIN, EX, EY, ey_mid, 1),
+                ORDER_MIN, EX, DXE, DZE, region_z0(BOT_Z0, BOT_SIGN, 1), BOT_SIGN, 1, DENSE_X, DENSE_Z)
+            mid_pmin_rows = dense_grid_rows(
+                dg_local_block_getter(pn_mid_pmin_curr_np, ORDER_MIN, EX, EY, ey_mid, 1),
+                ORDER_MIN, EX, DXE, DZE, region_z0(MID_Z0, MID_SIGN, 1), MID_SIGN, 1, DENSE_X, DENSE_Z)
+            mid_pmax_rows = dense_grid_rows(
+                dg_local_block_getter(pn_mid_pmax_curr_np, ORDER_MAX, EX, EY, ey_mid, Z_ELEM_INTERFACE),
+                ORDER_MAX, EX, DXE, DZE, region_z0(MID_Z0, MID_SIGN, Z_ELEM_INTERFACE), MID_SIGN, 1, DENSE_X, DENSE_Z)
+            top_dg_rows = dense_grid_rows(
+                dg_local_block_getter(pn_top_dg_curr_np, ORDER_MAX, EX, EY, ey_mid, 1),
+                ORDER_MAX, EX, DXE, DZE, region_z0(TOP_Z0, TOP_SIGN, 1), TOP_SIGN, 1, DENSE_X, DENSE_Z)
+            top_sem_rows = dense_grid_rows(
+                sem_local_block_getter(sem_top_prev_np, ORDER_MAX, EX, EY, ny_nodes, ny_nodes // 2, 2),
+                ORDER_MAX, EX, DXE, DZE, region_z0(TOP_Z0, TOP_SIGN, 2), TOP_SIGN, EZ_top - 2, DENSE_X, DENSE_Z)
+
+            np.savetxt(f"slice_{it:05d}.dat", np.array(
+                bot_sem_rows + bot_dg_rows + mid_pmin_rows + mid_pmax_rows + top_dg_rows + top_sem_rows))
+            timer.toc("snap_write")
 
     # Drain the cupy stream before reading the accumulated traces from the host
     # (the Kokkos stream is already fenced by the last compute_one_step).
@@ -629,6 +580,7 @@ def run():
                header="time " + " ".join(f"pressure_rcv{r}" for r in range(N_RCV)) +
                       " (bilayer p-adaptive, receiver line, rock/bottom mesh)")
     print("Wrote bilayer_sem_padaptive_receiver_trace_{top,bot}.txt")
+    timer.toc("io_final")
 
     # -------------------------------------------------------------------
     # Cost report: wall-clock time and total DOF count (approximate, local
@@ -641,9 +593,7 @@ def run():
                  + N_DOF_MIN * n_elem_mid_pmin + N_DOF_MAX * n_elem_mid_pmax
                  + N_DOF_MIN * N_ELEMENTS_bot)
     elapsed = time.perf_counter() - t_start
-    print(f"wall_clock={elapsed:.2f}s  total_dof={total_dof}"
-          f"  t_setup={t_setup:.2f}s  t_compute={t_compute:.2f}s"
-          f"  t_sync={t_sync:.2f}s  t_other={t_other:.2f}s")
+    timer.report(elapsed, extra=f"dof={total_dof}  steps/s={N_SAMPLES / elapsed:.2f}")
 
 
 if __name__ == "__main__":
