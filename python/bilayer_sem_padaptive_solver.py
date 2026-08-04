@@ -74,7 +74,9 @@ PRINT_INTERVAL = 100     # stdout |p|_max diagnostics every N steps
 SNAP_INTERVAL = 100      # x-z slice snapshot every N steps (gnuplot: plot 'file' matrix with image)
 SYNC_TIMERS = True       # fence the device before stopping each phase's clock (see PhaseTimer);
                          # set False to check the fences aren't inflating the reported total
-SRC_COORD = (2000.0, 900.0, 1450.0)     # water region, matches bilayer_uniform_solver.py
+SRC_COORD = (2000.0, 900.0, 1212.5)     # mid mesh, pMax (order 6) truly-solved element --
+                                         # generic source routing below picks top/mid/bot and
+                                         # DG/SEM sub-region from this z, see routing table
 RCV_Y = 900.0
 RCV_Z_TOP = 1400.0                              # water region (top mesh)
 RCV_Z_BOT = 200.0                               # rock region (bottom mesh)
@@ -118,10 +120,6 @@ LZ_bot = WATER_ROCK_ZBOUNDARY     # z axe domain size [m]
 EZ_bot = int(EZ * LZ_bot/LZ)      # elements in z direction
 ROCK_DGSEM_ZBOUNDARY = 2 * LZ/EZ  # DG-SEM boundary: 2 z-directed element in DG (1 ghost + 1 truly solved)
 N_ELEMENTS_bot = EX * EY * EZ_bot
-
-assert (SRC_COORD[2] > WATER_ROCK_ZBOUNDARY + WATER_DGSEM_ZBOUNDARY or
-        SRC_COORD[2] < WATER_ROCK_ZBOUNDARY - ROCK_DGSEM_ZBOUNDARY), \
-    f"SRC_COORD z={SRC_COORD[2]} falls in the DG/ghost cap, not in a SEM domain"
 
 for _name, _z in (("RCV_Z_TOP", RCV_Z_TOP), ("RCV_Z_BOT", RCV_Z_BOT)):
     assert (_z > WATER_ROCK_ZBOUNDARY + WATER_DGSEM_ZBOUNDARY or
@@ -318,12 +316,15 @@ def run():
     rhs_top_element = kk_zeros((N_SRC,), kokkos.int32, memspace, layout)
     rhs_top_weights = kk_zeros((N_SRC, N_DOF_MAX), kokkos.float32, memspace, layout)
 
-    # MIDDLE source (0)
-    rhs_mid_pmin_term = kk_zeros((0, 0), kokkos.float32, memspace, layout)
-    rhs_mid_pmax_term = kk_zeros((0, 0), kokkos.float32, memspace, layout)
-    rhs_mid_element = kk_zeros((0,), kokkos.int32, memspace, layout)
-    rhs_mid_pmin_weights = kk_zeros((0, 0), kokkos.float32, memspace, layout)
-    rhs_mid_pmax_weights = kk_zeros((0, 0), kokkos.float32, memspace, layout)
+    # MIDDLE source: element is shared between the pmin/pmax sub-RHS (DGPAdaptiveRhsAcoustic
+    # ctor), and each sub-kernel loops over element.extent(0) reading its own term/weights --
+    # an (0,0) term next to a non-empty element is an out-of-bounds read, not "no source". So
+    # both sides stay full-size, only the routed side (below) gets a non-zero wavelet.
+    rhs_mid_pmin_term = kk_zeros((N_SRC, N_SAMPLES), kokkos.float32, memspace, layout)
+    rhs_mid_pmax_term = kk_zeros((N_SRC, N_SAMPLES), kokkos.float32, memspace, layout)
+    rhs_mid_element = kk_zeros((N_SRC,), kokkos.int32, memspace, layout)
+    rhs_mid_pmin_weights = kk_zeros((N_SRC, N_DOF_MIN), kokkos.float32, memspace, layout)
+    rhs_mid_pmax_weights = kk_zeros((N_SRC, N_DOF_MAX), kokkos.float32, memspace, layout)
 
     # BOTTOM source (ricker or 0)
     rhs_bot_dg_term = kk_zeros((N_SRC, N_SAMPLES), kokkos.float32, memspace, layout)
@@ -332,18 +333,33 @@ def run():
     rhs_bot_weights = kk_zeros((N_SRC, N_DOF_MIN), kokkos.float32, memspace, layout)
 
 
-    if SRC_COORD[2] > WATER_ROCK_ZBOUNDARY:
-        src_term, src_element, src_weights = rhs_top_sem_term, rhs_top_element, rhs_top_weights
+    # Generic routing by global z: each mesh overlaps its neighbor by one ghost element on
+    # every interface (ghosts get overwritten by the neighbor's exchange every step, see the
+    # time loop below), so the thresholds below are offset by one DZE from each mesh's own
+    # z0/boundary to always land on a truly-solved element, never a ghost.
+    if SRC_COORD[2] >= WATER_ROCK_ZBOUNDARY + DZE:
+        # top mesh (DGSEM): DG cap (real, first DZE past the ghost) or SEM bulk
         local_src_z, dz_src = SRC_COORD[2] - WATER_ROCK_ZBOUNDARY, LZ_top / EZ_top
         src_order = ORDER_MAX
+        src_element, src_weights = rhs_top_element, rhs_top_weights
+        src_term = rhs_top_dg_term if local_src_z < WATER_DGSEM_ZBOUNDARY else rhs_top_sem_term
+    elif SRC_COORD[2] >= MID_Z0 + DZE:
+        # mid mesh (DGPAdaptive): pmin (rock side, order 2) or pmax (water side, order 6),
+        # both truly-solved (the mid mesh's own ghosts are its first and last element)
+        local_src_z, dz_src = SRC_COORD[2] - MID_Z0, DZE
+        src_element = rhs_mid_element
+        if local_src_z < PADAPTIVE_ZBOUNDARY:
+            src_order, src_term, src_weights = ORDER_MIN, rhs_mid_pmin_term, rhs_mid_pmin_weights
+        else:
+            src_order, src_term, src_weights = ORDER_MAX, rhs_mid_pmax_term, rhs_mid_pmax_weights
     else:
-        # NOTE: the bottom mesh's local z runs REVERSED vs global z; the zeta coordinate
-        # fed to compute_rhs_weights below is expressed in that reversed local frame, which
-        # mirrors the weights along z. Fine while the source stays in the top/water domain
-        # (current scenario); revisit before placing the source in the bottom mesh.
-        src_term, src_element, src_weights = rhs_bot_sem_term, rhs_bot_element, rhs_bot_weights
+        # bottom mesh (DGSEM): DG cap (real) or SEM bulk. Local z runs REVERSED vs global z
+        # (BOT_SIGN=-1); compute_rhs_weights below is evaluated in that same local frame, and
+        # so are the mesh's own dofs, so this stays consistent regardless of which sub-region.
         local_src_z, dz_src = LZ_bot - SRC_COORD[2], LZ_bot / EZ_bot
         src_order = ORDER_MIN
+        src_element, src_weights = rhs_bot_element, rhs_bot_weights
+        src_term = rhs_bot_dg_term if local_src_z < ROCK_DGSEM_ZBOUNDARY else rhs_bot_sem_term
 
     # True tensorised GLL nodal-basis weights at the physical source position -- NOT a delta
     # on local dof 0: that hack pinned the source to the element's first node (up to one
