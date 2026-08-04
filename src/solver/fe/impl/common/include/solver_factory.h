@@ -30,7 +30,7 @@ namespace solver_factory {
  */
 std::unique_ptr<Solver> createSolver(utils::enums::methodType methodType, utils::enums::implemType implemType,
                                      utils::enums::meshType meshType, utils::enums::modelLocationType modelLocation,
-                                     utils::enums::physicType physicType, int order);
+                                     utils::enums::physicType physicType, int const order, int const order_min = 0);
 }  // namespace solver_factory
 }  // namespace fe
 }  // namespace solver

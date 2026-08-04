@@ -1,0 +1,16 @@
+// Auto-generated file - DO NOT EDIT
+// Generated for: DGPADAPTIVEQ@ORDER_MIN@_@ORDER_MAX@ @MESH_TYPE@ makutu solver @PHYSIC_TYPE@ model@MODEL_TYPE@
+
+#include <@MODEL_HEADER@>
+
+#include "dg_padaptive_solver_impl.h"
+
+constexpr int ORDER_MIN = @ORDER_MIN@;
+constexpr int ORDER_MAX = @ORDER_MAX@;
+
+template class solver::fe::DGPAdaptiveSolver<ORDER_MIN, ORDER_MAX,
+                         IntegralTypeSelector,
+                         IntegralType::MAKUTU,
+                         model::@MODEL_CLASS@<@MODEL_TEMPLATE_PARAMS@>,
+                         @MODEL_ON_NODES@,
+                         solver::fe::physicType::kAcoustic>;

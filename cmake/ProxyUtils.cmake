@@ -11,6 +11,8 @@ function(print_configuration_summary)
   message(STATUS "  COMPILE_SEM:          ${COMPILE_SEM}")
   message(STATUS "  COMPILE_FD:           ${COMPILE_FD}")
   message(STATUS "  COMPILE_DG:           ${COMPILE_DG}")
+  message(STATUS "  COMPILE_DG_SEM:       ${COMPILE_DG_SEM}")
+  message(STATUS "  COMPILE_DG_PADAPTIVE: ${COMPILE_DG_PADAPTIVE}")
   message(STATUS "")
 
   message(STATUS "Python Wrapping:")

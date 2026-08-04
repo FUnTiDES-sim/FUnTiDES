@@ -145,19 +145,20 @@ void bind_sem_solver_base(py::module_ &m) {
             }
             self.setSLSAttenuation(vf, vc);
           },
-          py::arg("reference_frequencies"), py::arg("anelasticity_coefficients") = std::vector<float>{});
+          py::arg("reference_frequencies"), py::arg("anelasticity_coefficients") = std::vector<float>{})
+      .def("set_z_boundary", &Solver::setZBoundary, py::arg("z"));
 }
 
 void bind_solver_factory(py::module_ &m) {
   m.def(
       "create_solver",
       [](utils::enums::methodType method, utils::enums::implemType implem, utils::enums::meshType mesh,
-         utils::enums::modelLocationType modelLocation, utils::enums::physicType physic, int order) {
-        auto solver = solver_factory::createSolver(method, implem, mesh, modelLocation, physic, order);
+         utils::enums::modelLocationType modelLocation, utils::enums::physicType physic, int order, int order_min) {
+        auto solver = solver_factory::createSolver(method, implem, mesh, modelLocation, physic, order, order_min);
         return std::shared_ptr<Solver>(std::move(solver));
       },
       py::arg("method_type"), py::arg("implem_type"), py::arg("mesh_type"), py::arg("model_location"),
-      py::arg("physic_type"), py::arg("order"));
+      py::arg("physic_type"), py::arg("order"), py::arg("order_min") = 0);
 }
 
 }  // namespace fe

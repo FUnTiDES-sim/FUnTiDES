@@ -90,7 +90,6 @@ class CartesianUnstructBuilder : public ModelBuilderBase<FloatType, ScalarType> 
   bool isElastic_;
   bool isAcoustoElastic_{false};
   FloatType acoustoElasticBoundaryZ_{static_cast<FloatType>(0)};
-
   std::string model_file_;
 
   arrayInt global_node_index_;

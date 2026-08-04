@@ -1,9 +1,12 @@
-if(ENABLE_PYWRAP AND NOT COMPILE_DG)
+if(ENABLE_PYWRAP)
   pybind11_add_module(solver src/bindings.cpp)
 
   target_include_directories(solver
     PRIVATE
       include
+      ${CMAKE_CURRENT_SOURCE_DIR}/../DG/pywrap/include
+      ${CMAKE_CURRENT_SOURCE_DIR}/../DG-SEm/pywrap/include
+      ${CMAKE_CURRENT_SOURCE_DIR}/../DG_padaptive/pywrap/include
       ${CMAKE_SOURCE_DIR}/external/pykokkos-base/include
   )
 
