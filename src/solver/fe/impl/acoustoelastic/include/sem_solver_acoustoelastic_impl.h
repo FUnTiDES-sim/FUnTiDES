@@ -42,7 +42,8 @@ void SEMsolverAcoustoElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES>
   computeDampingMatrix();
 
   TagNodes();
-  std::cout << "SEMsolverAcoustoElastic: " << num_interface_nodes_ << " interface nodes." << std::endl;
+  std::cout << "SEMsolverAcoustoElastic: " << num_interface_nodes_ << " interface nodes, "
+            << utils::enums::to_string(interface_property_convention_) << "." << std::endl;
 
   ComputeInterfaceCouplingCoefficients();
 }
@@ -288,6 +289,17 @@ void SEMsolverAcoustoElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES>
       // the >= convention, so interface nodes carry fluid properties).
       m_vp_fluid_iface_[i] = m_mesh_.getModelVpOnNodes(j);
       m_rho_fluid_iface_[i] = m_mesh_.getModelRhoOnNodes(j);
+
+      if (interface_property_convention_ ==
+          utils::enums::interfacePropertyConvention::kSharedOnInterfaceNodes) {
+        // The builder gave the interface node a single state meant for both
+        // sides, so there is nothing to rebuild and the mass fix below is a
+        // no-op.
+        m_vp_solid_iface_[i] = m_vp_fluid_iface_[i];
+        m_vs_solid_iface_[i] = m_mesh_.getModelVsOnNodes(j);
+        m_rho_solid_iface_[i] = m_rho_fluid_iface_[i];
+        continue;
+      }
 
       // Solid side: read from a non-interface node of the adjacent elastic
       // element to avoid picking up fluid-contaminated corner properties.

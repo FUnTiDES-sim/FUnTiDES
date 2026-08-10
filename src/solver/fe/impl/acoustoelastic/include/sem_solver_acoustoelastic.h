@@ -132,6 +132,10 @@ class SEMsolverAcoustoElastic : public Solver {
 
   void setAnisotropyType(model::AnisotropyType type) override { m_elastic_solver_.setAnisotropyType(type); }
 
+  void setInterfacePropertyConvention(utils::enums::interfacePropertyConvention convention) override {
+    interface_property_convention_ = convention;
+  }
+
   void setSLSAttenuation(const vectorReal& reference_frequencies,
                          const vectorReal& anelasticity_coefficients = vectorReal()) override {
     m_acoustic_solver_.setSLSAttenuation(reference_frequencies, anelasticity_coefficients);
@@ -217,6 +221,11 @@ class SEMsolverAcoustoElastic : public Solver {
   /// n_interface_nodes_).  Valid only when IS_MODEL_ON_NODES is true.
   vectorReal m_vp_fluid_iface_;
   vectorReal m_rho_fluid_iface_;
+
+  /// @brief Set by the caller before computeFEInit; drives how TagNodes fills
+  /// the solid side of the interface nodes.
+  utils::enums::interfacePropertyConvention interface_property_convention_{
+      utils::enums::interfacePropertyConvention::kFluidOnInterfaceNodes};
 
   int num_acoustic_elements_{0};  ///< Count of acoustic elements
   int num_elastic_elements_{0};   ///< Count of elastic elements

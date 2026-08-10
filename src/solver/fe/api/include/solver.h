@@ -5,6 +5,7 @@
 
 #include "model.h"
 #include "parallel_topology.h"
+#include "sem_enums.h"
 
 namespace solver {
 namespace fe {
@@ -176,6 +177,10 @@ class Solver {
   virtual void updateSolutionBackward(const float& dt, DataStruct& data) = 0;
 
   virtual void setAnisotropyType(model::AnisotropyType type) = 0;
+
+  /// @brief Declare how the mesh builder filled the acoustic/elastic interface
+  /// nodes. Ignored by the physics that have no such interface.
+  virtual void setInterfacePropertyConvention(utils::enums::interfacePropertyConvention) {}
 
   virtual void setSLSAttenuation(const vectorReal& reference_frequencies,
                                  const vectorReal& anelasticity_coefficients = vectorReal()) = 0;
