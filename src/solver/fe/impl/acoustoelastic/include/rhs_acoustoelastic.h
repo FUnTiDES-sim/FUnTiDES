@@ -36,6 +36,14 @@ struct RhsAcoustoElastic : public Rhs {
       : m_rhs_acoustic(acoustic_term, element, weights),
         m_rhs_elastic(elastic_termx, elastic_termy, elastic_termz, element, weights) {}
 
+  /// Variant with one weight array per elastic component.
+  RhsAcoustoElastic(arrayReal acoustic_term, vectorInt element, arrayReal weights, arrayReal elastic_termx,
+                    arrayReal elastic_termy, arrayReal elastic_termz, arrayReal elastic_weightsx,
+                    arrayReal elastic_weightsy, arrayReal elastic_weightsz)
+      : m_rhs_acoustic(acoustic_term, element, weights),
+        m_rhs_elastic(elastic_termx, elastic_termy, elastic_termz, element, elastic_weightsx, elastic_weightsy,
+                      elastic_weightsz) {}
+
   int getNumRhsComponents() const override final { return kNumRhsComponents; }
 
   /// @brief Returns term i: 0 = acoustic, 1/2/3 = elastic x/y/z.
@@ -50,6 +58,13 @@ struct RhsAcoustoElastic : public Rhs {
 
   PROXY_HOST_DEVICE
   arrayReal getWeights() const { return m_rhs_acoustic.getWeights(); }
+
+  /// @brief Returns the weights of term i: 0 = acoustic, 1/2/3 = elastic x/y/z.
+  PROXY_HOST_DEVICE
+  arrayReal getWeights(int i) const {
+    if (i == 0) return m_rhs_acoustic.getWeights();
+    return m_rhs_elastic.getWeights(i - 1);
+  }
 
   void print() const override {
     m_rhs_acoustic.print();
