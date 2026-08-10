@@ -145,7 +145,8 @@ void bind_sem_solver_base(py::module_ &m) {
             }
             self.setSLSAttenuation(vf, vc);
           },
-          py::arg("reference_frequencies"), py::arg("anelasticity_coefficients") = std::vector<float>{});
+          py::arg("reference_frequencies"), py::arg("anelasticity_coefficients") = std::vector<float>{})
+      .def("set_anisotropy_type", &Solver::setAnisotropyType, py::arg("anisotropy_type"));
 }
 
 void bind_solver_factory(py::module_ &m) {
