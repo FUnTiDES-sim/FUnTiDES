@@ -386,6 +386,32 @@ void SEMsolverAcoustoElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE,
 }
 
 //============================================================================
+// SaveInterfaceUnm1
+//============================================================================
+
+template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE, bool IS_MODEL_ON_NODES>
+void SEMsolverAcoustoElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES>::SaveInterfaceUnm1(
+    const DataType& data) {
+  auto ux_prev = data.m_wavefield.m_elastic.getPreviousField(0);
+  auto uy_prev = data.m_wavefield.m_elastic.getPreviousField(1);
+  auto uz_prev = data.m_wavefield.m_elastic.getPreviousField(2);
+  auto iface_list = m_interface_node_indices_;
+  auto ux_nm1 = m_ux_nm1_iface_;
+  auto uy_nm1 = m_uy_nm1_iface_;
+  auto uz_nm1 = m_uz_nm1_iface_;
+  int const n_iface = n_interface_nodes_;
+
+  Kokkos::parallel_for(
+      "SaveUnm1Interface_Loop", n_iface, KOKKOS_LAMBDA(const int i) {
+        int const j = iface_list[i];
+        ux_nm1[i] = ux_prev[j];
+        uy_nm1[i] = uy_prev[j];
+        uz_nm1[i] = uz_prev[j];
+      });
+  FENCE
+}
+
+//============================================================================
 // computeGlobalMassMatrix  (domain-masked override)
 //============================================================================
 
@@ -435,7 +461,10 @@ void SEMsolverAcoustoElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES>
 }
 
 //============================================================================
-// computeForces  (both domains, no coupling — for potential DD use)
+// computeForces  (both domains; the interface coupling is applied later, in
+// updateSolutionForward, because it acts on the updated fields rather than on
+// the right-hand side.  This split lets a distributed driver assemble the force
+// vector at partition boundaries in between.)
 //============================================================================
 
 template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE, bool IS_MODEL_ON_NODES>
@@ -491,12 +520,38 @@ void SEMsolverAcoustoElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES>
         "updateSolutionForward called with 3-buffer wavefield. "
         "Use updateSolutionBackward() for adjoint mode.");
   }
+  SaveInterfaceUnm1(myData);
   m_elastic_solver_.updateFieldsFromListForward(dt, elastic_data, elastic_node_list_, num_elastic_nodes_);
   FENCE
 
   SEMsolverData<utils::enums::physicType::kAcoustic> acoustic_data(myData.m_wavefield.m_acoustic,
                                                                    myData.m_rhs.m_rhs_acoustic);
   m_acoustic_solver_.updateFieldsFromListForward(dt, acoustic_data, acoustic_node_list_, num_acoustic_nodes_);
+  FENCE
+
+  ApplyInterfaceCoupling(dt, myData);
+}
+
+//============================================================================
+// ApplyInterfaceCoupling
+//============================================================================
+
+template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE, bool IS_MODEL_ON_NODES>
+void SEMsolverAcoustoElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES>::ApplyInterfaceCoupling(
+    float dt, const DataType& data) {
+  // Both sub-domains have been advanced independently and their predictors sit
+  // in the previous buffers: correct the solid with p^n, then the fluid with
+  // the displacement that correction just produced.
+  //
+  // The solid therefore sees the pressure one step late.  Replaying the pair as
+  // a Gauss-Seidel sweep (which is what DIVA-SEM does, m_coupling_solver_cpu.f90
+  // iterates it twice) does not work on this formulation: DIVA corrects Newmark
+  // velocities and pressures, whereas the corrections below act directly on the
+  // displacement, so the sweep has gain dt^2|c|^2/(M_e M_f) and diverges.  The
+  // lag is a first-order consistency error and vanishes with dt.
+  ApplyCouplingAcousticToElastic(dt, data);
+  FENCE
+  ApplyCouplingElasticToAcoustic(data);
   FENCE
 }
 
@@ -516,6 +571,11 @@ void SEMsolverAcoustoElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES>
   }
   SEMsolverData<utils::enums::physicType::kElastic> elastic_data(myData.m_wavefield.m_elastic,
                                                                  myData.m_rhs.m_rhs_elastic);
+  // NOTE: the interface coupling is deliberately not applied here.  In backward
+  // mode the Verlet writes u^{n-1} into the prevPrev buffer, whereas
+  // ApplyCoupling{AcousticToElastic,ElasticToAcoustic} read and correct the
+  // previous buffer.  The coupled adjoint is therefore still uncoupled, as it
+  // has always been; see updateSolutionForward for the coupled forward step.
   m_elastic_solver_.updateFieldsFromListBackward(dt, elastic_data, elastic_node_list_, num_elastic_nodes_);
   FENCE
 
@@ -643,57 +703,34 @@ void SEMsolverAcoustoElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES>
   // 2.5. Save u^{n-1} for interface nodes only (compact array, size
   // n_interface_nodes_).  getPreviousField() still holds u^{n-1} at this
   // point; it will be overwritten by the Verlet below.
-  {
-    auto ux_prev = elastic_data.getPreviousField(0);
-    auto uy_prev = elastic_data.getPreviousField(1);
-    auto uz_prev = elastic_data.getPreviousField(2);
-    auto iface_list = m_interface_node_indices_;
-    auto ux_nm1 = m_ux_nm1_iface_;
-    auto uy_nm1 = m_uy_nm1_iface_;
-    auto uz_nm1 = m_uz_nm1_iface_;
-    int const n_iface = n_interface_nodes_;
-
-    Kokkos::parallel_for(
-        "SaveUnm1Interface_Loop", n_iface, KOKKOS_LAMBDA(const int i) {
-          int const j = iface_list[i];
-          ux_nm1[i] = ux_prev[j];
-          uy_nm1[i] = uy_prev[j];
-          uz_nm1[i] = uz_prev[j];
-        });
-    FENCE
-  }
+  SaveInterfaceUnm1(myData);
 
   // 3. Elastic Verlet: u^{n+1} written into elastic_data.getPreviousField().
   m_elastic_solver_.updateFieldsFromListForward(dt, elastic_data, elastic_node_list_, num_elastic_nodes_);
-  FENCE
-
-  // 4. A→E coupling (GEOS post-Verlet): u^{n+1} += dt²·c·(-p^n)/M_e.
-  ApplyCouplingAcousticToElastic(dt, myData);
   FENCE
 
   // =========================================================================
   // ACOUSTIC STEP
   // =========================================================================
 
-  // 5. Reset acoustic work vector.
+  // 4. Reset acoustic work vector.
   m_acoustic_solver_.resetGlobalVectors(nNode);
   FENCE
 
-  // 6. Apply acoustic source term.
+  // 5. Apply acoustic source term.
   m_acoustic_solver_.applyRHSTerm(timeSample, dt, acoustic_data);
   FENCE
 
-  // 7. Compute acoustic stiffness (list: acoustic elements only).
+  // 6. Compute acoustic stiffness (list: acoustic elements only).
   m_acoustic_solver_.computeElementContributionsFromList(acoustic_data, acoustic_elem_list_, num_acoustic_elements_);
   FENCE
 
-  // 8. Acoustic Verlet: p^{n+1} written into acoustic_data.getPreviousField().
+  // 7. Acoustic Verlet: p^{n+1} written into acoustic_data.getPreviousField().
   m_acoustic_solver_.updateFieldsFromListForward(dt, acoustic_data, acoustic_node_list_, num_acoustic_nodes_);
   FENCE
 
-  // 9. E→A coupling post-Verlet.
-  ApplyCouplingElasticToAcoustic(myData);
-  FENCE
+  // 8. Enforce the fluid/solid interface conditions on the two predictors.
+  ApplyInterfaceCoupling(dt, myData);
 }
 
 //============================================================================
