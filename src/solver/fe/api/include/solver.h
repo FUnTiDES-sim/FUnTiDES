@@ -127,6 +127,19 @@ class Solver {
   virtual vectorReal& getMassMatrixElastic() = 0;
 
   /**
+   * @brief Access the acoustic/elastic interface coupling coefficient
+   * c = \int_\Gamma \phi n d\Gamma, one component per direction.
+   *
+   * It is assembled from the locally owned acoustic element faces only, so a
+   * distributed driver must sum it at partition boundaries. Returns an empty
+   * view for the physics that have no such interface.
+   */
+  virtual vectorReal& getInterfaceCouplingCoeff(int) {
+    static vectorReal empty;
+    return empty;
+  }
+
+  /**
    * @brief Access the Global Damping Matrix.
    * Used by the orchestrator to synchronize damping values at boundaries after
    * initialization.
