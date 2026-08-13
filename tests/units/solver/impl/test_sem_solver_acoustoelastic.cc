@@ -2,6 +2,7 @@
 
 #include <array>
 #include <cmath>
+#include <vector>
 
 #include "Integrals.h"
 #include "common_macros.h"
@@ -433,8 +434,11 @@ TYPED_TEST(AEsolverOnElemTest, DataStructSwapWavefieldsDoesNotCrash) {
 //   Interface nodes (shared z-layer at iz=ORDER) carry fluid props (>= conv.)
 // =============================================================================
 
+// vs_on_interface is stored on the shared plane only: the element type is
+// probed at the element centre, so putting shear anywhere else in the fluid
+// would turn that element elastic instead of exercising the interface.
 template <int ORDER>
-model::ModelStruct<float, int, ORDER> makeBilayerMeshOnNodes() {
+model::ModelStruct<float, int, ORDER> makeBilayerMeshOnNodes(float vs_on_interface = 0.0f) {
   int const nx = ORDER + 1, ny = ORDER + 1, nz = 2 * ORDER + 1;
   int const nNodes = nx * ny * nz;
 
@@ -465,7 +469,7 @@ model::ModelStruct<float, int, ORDER> makeBilayerMeshOnNodes() {
           rho_node(n) = 2000.0f;
         } else {
           vp_node(n) = 1500.0f;
-          vs_node(n) = 0.0f;
+          vs_node(n) = (iz == ORDER) ? vs_on_interface : 0.0f;
           rho_node(n) = 1000.0f;
         }
       }
@@ -590,6 +594,98 @@ TYPED_TEST(AEsolverOnNodesTest, MassMatricesNonZero) {
   }
   EXPECT_GT(total_a, 0.0f);
   EXPECT_GT(total_e, 0.0f);
+}
+
+// =============================================================================
+// Interface property convention and coupling scheme
+// =============================================================================
+
+namespace {
+
+/// Run a few coupled steps from a seeded pressure pulse and return the
+/// resulting pressure and vertical displacement.
+template <int ORDER, typename SolverT, typename MeshT>
+void runSeededSteps(float vs_on_interface, std::vector<float>& p_out, std::vector<float>& uz_out,
+                    float dt = 2.0e-4f) {
+  constexpr int kNdof = (ORDER + 1) * (ORDER + 1) * (ORDER + 1);
+  constexpr int kNumSamples = 4;
+
+  MeshT mesh = makeBilayerMeshOnNodes<ORDER>(vs_on_interface);
+  SolverT solver;
+  solver.setInterfacePropertyConvention(utils::enums::interfacePropertyConvention::kSharedOnInterfaceNodes);
+  solver.computeFEInit(mesh, {0.0f, 0.0f, 0.0f}, false, 0.0f);
+
+  int const n = mesh.getNumberOfNodes();
+  auto p_prev = allocateVector<vectorReal>(n, "pPrev_c");
+  auto p_curr = allocateVector<vectorReal>(n, "pCurr_c");
+  auto ux_prev = allocateVector<vectorReal>(n, "uxPrev_c");
+  auto ux_curr = allocateVector<vectorReal>(n, "uxCurr_c");
+  auto uy_prev = allocateVector<vectorReal>(n, "uyPrev_c");
+  auto uy_curr = allocateVector<vectorReal>(n, "uyCurr_c");
+  auto uz_prev = allocateVector<vectorReal>(n, "uzPrev_c");
+  auto uz_curr = allocateVector<vectorReal>(n, "uzCurr_c");
+  for (int i = 0; i < n; ++i) {
+    // A smooth, non-symmetric seed so every coupling term is exercised.
+    float const s = static_cast<float>(i % 7) / 7.0f;
+    p_prev(i) = p_curr(i) = s;
+    ux_prev(i) = ux_curr(i) = 0.5f * s;
+    uy_prev(i) = uy_curr(i) = -0.25f * s;
+    uz_prev(i) = uz_curr(i) = 0.75f * s;
+  }
+
+  auto rhs_term = allocateArray2D<arrayReal>(1, kNumSamples, "rhsTerm_c");
+  auto rhs_termx = allocateArray2D<arrayReal>(1, kNumSamples, "rhsTermX_c");
+  auto rhs_termy = allocateArray2D<arrayReal>(1, kNumSamples, "rhsTermY_c");
+  auto rhs_termz = allocateArray2D<arrayReal>(1, kNumSamples, "rhsTermZ_c");
+  auto rhs_elem = allocateVector<vectorInt>(1, "rhsElem_c");
+  auto rhs_wts = allocateArray2D<arrayReal>(1, kNdof, "rhsWts_c");
+  rhs_elem(0) = 0;
+  for (int t = 0; t < kNumSamples; ++t)
+    rhs_term(0, t) = rhs_termx(0, t) = rhs_termy(0, t) = rhs_termz(0, t) = 0.0f;
+  for (int k = 0; k < kNdof; ++k) rhs_wts(0, k) = 0.0f;
+
+  WavefieldAcoustoElastic wf(p_prev, p_curr, ux_prev, ux_curr, uy_prev, uy_curr, uz_prev, uz_curr);
+  RhsAcoustoElastic rhs(rhs_term, rhs_elem, rhs_wts, rhs_termx, rhs_termy, rhs_termz);
+  SEMsolverDataAcoustoElastic data(wf, rhs);
+
+  solver.computeForces(dt, 0, data);
+  FENCE
+  solver.updateSolutionForward(dt, data);
+  FENCE
+
+  p_out.assign(n, 0.0f);
+  uz_out.assign(n, 0.0f);
+  for (int i = 0; i < n; ++i) {
+    p_out[i] = p_prev(i);
+    uz_out[i] = uz_prev(i);
+  }
+}
+
+}  // namespace
+
+// Under the shared convention the interface node holds one state used by both
+// sides, so the shear speed stored there is what the elastic kernel sees.  It
+// must reach the solution: zeroing it removes the tangential stiffness that
+// holds the interface together and the coupled run diverges.
+TYPED_TEST(AEsolverOnNodesTest, SharedConventionPassesInterfaceShearToTheElasticKernel) {
+  using MeshT = typename TestFixture::Mesh;
+  using SolverT = typename TestFixture::Solver;
+  constexpr int kOrder = TestFixture::kOrder;
+
+  if constexpr (kOrder < 2) {
+    // At order 1 the element centre is a corner, i.e. an interface node, so
+    // the shear cannot be varied without also changing the element type.
+    GTEST_SKIP() << "needs an element centre that is not on the interface";
+  } else {
+    std::vector<float> p_no_shear, uz_no_shear, p_shear, uz_shear;
+    runSeededSteps<kOrder, SolverT, MeshT>(0.0f, p_no_shear, uz_no_shear);
+    runSeededSteps<kOrder, SolverT, MeshT>(800.0f, p_shear, uz_shear);
+
+    ASSERT_EQ(p_no_shear.size(), p_shear.size());
+    double diff = 0.0;
+    for (size_t i = 0; i < uz_no_shear.size(); ++i) diff += std::fabs(uz_shear[i] - uz_no_shear[i]);
+    EXPECT_GT(diff, 0.0) << "the interface shear speed never reached the elastic kernel";
+  }
 }
 
 }  // namespace test
