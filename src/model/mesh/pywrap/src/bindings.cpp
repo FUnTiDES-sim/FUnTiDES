@@ -21,6 +21,9 @@ PYBIND11_MODULE(model, m) {
   bindings::bindFaceConnectivityUnstruct<float, long>(m);
   bindings::bindFaceConnectivityUnstruct<double, long>(m);
 
+  // Bind BoundaryFlag enum
+  model::bind_boundary_flag(m);
+
   // Bind ModelApi
   model::bind_modelapi<float, int>(m);
   model::bind_modelapi<double, int>(m);

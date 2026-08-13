@@ -1,8 +1,8 @@
 #ifndef FUNTIDES_MODEL_MESH_IMPL_MODEL_UNSTRUCT_INCLUDE_FACE_CONNECTIVITY_UNSTRUCT_H_
 #define FUNTIDES_MODEL_MESH_IMPL_MODEL_UNSTRUCT_INCLUDE_FACE_CONNECTIVITY_UNSTRUCT_H_
-#include <algorithm>
-#include <array>
-#include <map>
+#include <Kokkos_UnorderedMap.hpp>
+#include <limits>
+#include <stdexcept>
 
 #include "face_connectivity.h"
 
@@ -60,78 +60,101 @@ class FaceConnectivityUnstruct : public FaceConnectivityApi<FloatType, ScalarTyp
         face_local_neighbor_(data.face_local_neighbor) {}
 
   /**
+   * @brief Canonical (sorted) 4-corner key identifying a face, independent
+   * of which adjacent element/local-face it's seen from.
+   *
+   * Public: nvcc requires types captured by an extended __device__ lambda
+   * (used inside build()) to have public accessibility.
+   */
+  struct FaceKey {
+    ScalarType nodes[4];
+
+    KOKKOS_INLINE_FUNCTION bool operator==(const FaceKey& other) const {
+      return nodes[0] == other.nodes[0] && nodes[1] == other.nodes[1] && nodes[2] == other.nodes[2] &&
+             nodes[3] == other.nodes[3];
+    }
+  };
+
+  /**
    * @brief Build face connectivity from mesh
    *
    * Extracts faces from elements, identifies unique faces, and fills
-   * connectivity tables using a map-based approach.
+   * connectivity tables using a thread-safe map-based approach.
+   *
+   * Runs as Kokkos::parallel_for kernels (both ModelStruct and ModelUnstruct
+   * expose a device-callable globalNodeIndex()) instead of a single-threaded
+   * host loop, since the per-face work (map insertion + O(ndofs^2)
+   * permutation search) is what dominates build() cost, not memory
+   * locality. Face ownership is elected deterministically (element with the
+   * smaller index owns the face) via an atomic minimum over a packed
+   * (elem, local_face) code, matching the outcome of the original serial
+   * elem-ascending loop.
+   *
+   * @tparam MESH_TYPE Concrete mesh type (struct or unstruct); must expose
+   *   a device-callable globalNodeIndex(elem,i,j,k), getNumberOfElements(),
+   *   getOrder().
    */
-  void build(const ModelApi<FloatType, ScalarType>& mesh) {
+  template <typename MESH_TYPE>
+  void build(const MESH_TYPE& mesh) {
     const ScalarType n_element = mesh.getNumberOfElements();
-    const int order = (ORDER >= 0) ? ORDER : mesh.getOrder();
+    const int mesh_order = mesh.getOrder();
+    const int order = (ORDER >= 0) ? ORDER : mesh_order;
     const ScalarType max_faces = n_element * 6;
     ndofs_per_face_ = (order + 1) * (order + 1);
 
-    // Temporary arrays at maximum size
-    auto elem_to_faces_temp = allocateArray2D<arrayInt>(n_element, 6);
-    auto face_dofs_temp = allocateArray2D<arrayInt>(max_faces, ndofs_per_face_);
-    auto face_perm_temp = allocateArray2D<arrayInt>(max_faces, ndofs_per_face_);
-    auto face_perm_inv_temp = allocateArray2D<arrayInt>(max_faces, ndofs_per_face_);
-    auto face_elem_owner_temp = allocateVector<vectorInt>(max_faces);
-    auto face_elem_neighbor_temp = allocateVector<vectorInt>(max_faces);
-    auto face_local_owner_temp = allocateVector<vectorInt>(max_faces);
-    auto face_local_neighbor_temp = allocateVector<vectorInt>(max_faces);
+    using FaceMap = Kokkos::UnorderedMap<FaceKey, void>;
+    FaceMap face_map(static_cast<uint32_t>(max_faces));
 
-    for (ScalarType i = 0; i < max_faces; ++i) face_elem_neighbor_temp(i) = -1;
+    // owner_code/face_id_of_bucket/face_count_dev are vectorInt (int-valued
+    // Kokkos views, independent of ScalarType) — use int's own max as the
+    // "unset" sentinel, not ScalarType's (which may be wider, e.g. long, and
+    // would silently truncate through deep_copy into an incorrect value).
+    vectorInt owner_code = allocateVector<vectorInt>(face_map.capacity());
+    Kokkos::deep_copy(owner_code, std::numeric_limits<int>::max());
 
-    using FaceKey = std::array<ScalarType, 4>;
-    std::map<FaceKey, ScalarType> face_map;
-    ScalarType face_count = 0;
-
-    for (ScalarType elem = 0; elem < n_element; ++elem) {
-      for (int lf = 0; lf < 6; ++lf) {
-        CubicFace local_face = static_cast<CubicFace>(lf);
-        auto corners = extractFaceCorners(mesh, elem, local_face);
-        auto face_key = makeFaceKey(corners);
-
-        auto it = face_map.find(face_key);
-        if (it == face_map.end()) {
-          ScalarType face_id = face_count++;
-          face_map[face_key] = face_id;
-
-          fillFaceDofs(mesh, elem, local_face, order,
-                       [&](int idx, ScalarType node) { face_dofs_temp(face_id, idx) = node; });
-
-          face_elem_owner_temp(face_id) = elem;
-          face_local_owner_temp(face_id) = lf;
-          elem_to_faces_temp(elem, lf) = face_id;
-        } else {
-          ScalarType face_id = it->second;
-          face_elem_neighbor_temp(face_id) = elem;
-          face_local_neighbor_temp(face_id) = lf;
-          elem_to_faces_temp(elem, lf) = face_id;
-
-          // Build permutation: for each owner DOF i, find neighbor DOF j
-          // such that both map to the same physical node.
-          // ndofs_per_face <= (9+1)^2 = 100 (max order in the codebase).
-          constexpr int kMaxDofsPerFace = 100;
-          ScalarType neigh_dofs[kMaxDofsPerFace];
-          fillFaceDofs(mesh, elem, local_face, order, [&](int idx, ScalarType node) { neigh_dofs[idx] = node; });
-
-          for (int i = 0; i < ndofs_per_face_; ++i) {
-            ScalarType owner_node = face_dofs_temp(face_id, i);
-            for (int j = 0; j < ndofs_per_face_; ++j) {
-              if (neigh_dofs[j] == owner_node) {
-                face_perm_temp(face_id, i) = j;
-                face_perm_inv_temp(face_id, j) = i;
-                break;
-              }
-            }
+    // Pass A: insert the (sorted-corner) key for every element face and
+    // atomically elect the owner as the smaller of the (at most two)
+    // elements touching it, via a packed (elem, local_face) code.
+    Kokkos::parallel_for(
+        "FaceConnectivityUnstruct_insert", n_element, KOKKOS_LAMBDA(const ScalarType elem) {
+          for (int lf = 0; lf < 6; ++lf) {
+            const FaceKey key = makeFaceKey(mesh, mesh_order, elem, static_cast<CubicFace>(lf));
+            const auto res = face_map.insert(key);
+            Kokkos::atomic_fetch_min(&owner_code(res.index()), static_cast<int>(elem * 8 + lf));
           }
-        }
-      }
+        });
+    Kokkos::fence();
+    if (face_map.failed_insert()) {
+      throw std::runtime_error("FaceConnectivityUnstruct::build: face map insertion failed (capacity too small)");
     }
 
-    // Final allocation at exact size + copy
+    // Pass B: compact the sparse map slots into dense face ids [0, face_count).
+    // Iterates by element (owner side only assigns an id) rather than by raw
+    // map bucket: GPU threads process elements in roughly ascending order, so
+    // this keeps face ids correlated with element order — matching the
+    // original serial algorithm's locality. Compacting by bucket order
+    // instead scrambles face ids relative to element adjacency, which hurts
+    // every downstream per-element face lookup (elem_to_faces_, face_dofs_,
+    // face_perm_) for the lifetime of the solver, not just at init.
+    vectorInt face_id_of_bucket = allocateVector<vectorInt>(face_map.capacity());
+    vectorInt face_count_dev = allocateVector<vectorInt>(1);
+    Kokkos::deep_copy(face_count_dev, 0);
+    Kokkos::parallel_for(
+        "FaceConnectivityUnstruct_compact", n_element, KOKKOS_LAMBDA(const ScalarType elem) {
+          for (int lf = 0; lf < 6; ++lf) {
+            const FaceKey key = makeFaceKey(mesh, mesh_order, elem, static_cast<CubicFace>(lf));
+            const uint32_t idx = face_map.find(key);
+            if (owner_code(idx) == static_cast<int>(elem * 8 + lf))
+              face_id_of_bucket(idx) = Kokkos::atomic_fetch_add(&face_count_dev(0), 1);
+          }
+        });
+    Kokkos::fence();
+
+    auto h_face_count = Kokkos::create_mirror_view(face_count_dev);
+    Kokkos::deep_copy(h_face_count, face_count_dev);
+    const ScalarType face_count = h_face_count(0);
+
+    // Final device allocation at exact size.
     n_faces_ = face_count;
     elem_to_faces_ = allocateArray2D<arrayInt>(n_element, 6);
     face_dofs_ = allocateArray2D<arrayInt>(face_count, ndofs_per_face_);
@@ -141,21 +164,67 @@ class FaceConnectivityUnstruct : public FaceConnectivityApi<FloatType, ScalarTyp
     face_elem_neighbor_ = allocateVector<vectorInt>(face_count);
     face_local_owner_ = allocateVector<vectorInt>(face_count);
     face_local_neighbor_ = allocateVector<vectorInt>(face_count);
+    Kokkos::deep_copy(face_elem_neighbor_, -1);
 
-    for (ScalarType elem = 0; elem < n_element; ++elem)
-      for (int lf = 0; lf < 6; ++lf) elem_to_faces_(elem, lf) = elem_to_faces_temp(elem, lf);
+    arrayInt face_dofs = face_dofs_;
+    vectorInt face_elem_owner = face_elem_owner_;
+    vectorInt face_local_owner = face_local_owner_;
+    arrayInt elem_to_faces = elem_to_faces_;
+    const int ndofs_per_face = ndofs_per_face_;
 
-    for (ScalarType f = 0; f < face_count; ++f) {
-      face_elem_owner_(f) = face_elem_owner_temp(f);
-      face_elem_neighbor_(f) = face_elem_neighbor_temp(f);
-      face_local_owner_(f) = face_local_owner_temp(f);
-      face_local_neighbor_(f) = face_local_neighbor_temp(f);
-      for (int dof = 0; dof < ndofs_per_face_; ++dof) {
-        face_dofs_(f, dof) = face_dofs_temp(f, dof);
-        face_perm_(f, dof) = face_perm_temp(f, dof);
-        face_perm_inv_(f, dof) = face_perm_inv_temp(f, dof);
-      }
-    }
+    // Pass C: record elem->face for every element; the elected owner fills
+    // face_dofs_ and owner metadata.
+    Kokkos::parallel_for(
+        "FaceConnectivityUnstruct_owner", n_element, KOKKOS_LAMBDA(const ScalarType elem) {
+          for (int lf = 0; lf < 6; ++lf) {
+            const FaceKey key = makeFaceKey(mesh, mesh_order, elem, static_cast<CubicFace>(lf));
+            const uint32_t idx = face_map.find(key);
+            const ScalarType face_id = face_id_of_bucket(idx);
+            elem_to_faces(elem, lf) = face_id;
+            if (owner_code(idx) == static_cast<int>(elem * 8 + lf)) {
+              fillFaceDofs(mesh, elem, static_cast<CubicFace>(lf), order,
+                           [&](int d, ScalarType node) { face_dofs(face_id, d) = node; });
+              face_elem_owner(face_id) = elem;
+              face_local_owner(face_id) = lf;
+            }
+          }
+        });
+    Kokkos::fence();
+
+    arrayInt face_perm = face_perm_;
+    arrayInt face_perm_inv = face_perm_inv_;
+    vectorInt face_elem_neighbor = face_elem_neighbor_;
+    vectorInt face_local_neighbor = face_local_neighbor_;
+
+    // Pass D: the non-owner side fills neighbor metadata and the
+    // owner<->neighbor DOF permutation (reads face_dofs_ written in Pass C).
+    Kokkos::parallel_for(
+        "FaceConnectivityUnstruct_neighbor", n_element, KOKKOS_LAMBDA(const ScalarType elem) {
+          for (int lf = 0; lf < 6; ++lf) {
+            const ScalarType face_id = elem_to_faces(elem, lf);
+            if (face_elem_owner(face_id) == elem && face_local_owner(face_id) == lf) continue;
+
+            face_elem_neighbor(face_id) = elem;
+            face_local_neighbor(face_id) = lf;
+
+            // ndofs_per_face <= (9+1)^2 = 100 (max order in the codebase).
+            constexpr int kMaxDofsPerFace = 100;
+            ScalarType neigh_dofs[kMaxDofsPerFace];
+            fillFaceDofs(mesh, elem, static_cast<CubicFace>(lf), order,
+                         [&](int d, ScalarType node) { neigh_dofs[d] = node; });
+
+            for (int i = 0; i < ndofs_per_face; ++i) {
+              const ScalarType owner_node = face_dofs(face_id, i);
+              for (int j = 0; j < ndofs_per_face; ++j) {
+                if (neigh_dofs[j] == owner_node) {
+                  face_perm(face_id, i) = j;
+                  face_perm_inv(face_id, j) = i;
+                  break;
+                }
+              }
+            }
+          }
+        });
   }
 
   // ==========================================================================
@@ -213,9 +282,9 @@ class FaceConnectivityUnstruct : public FaceConnectivityApi<FloatType, ScalarTyp
    * @brief Fill face DOFs by iterating over the face nodes and invoking a
    * callback for each (local_idx, global_node) pair.
    */
-  template <typename FUNC>
-  static void fillFaceDofs(const ModelApi<FloatType, ScalarType>& mesh, ScalarType elem, CubicFace local_face,
-                           int order, FUNC&& store) {
+  template <typename MESH_TYPE, typename FUNC>
+  KOKKOS_INLINE_FUNCTION static void fillFaceDofs(const MESH_TYPE& mesh, ScalarType elem, CubicFace local_face,
+                                                  int order, FUNC&& store) {
     int idx = 0;
     switch (local_face) {
       case CubicFace::kXMinus:
@@ -245,35 +314,67 @@ class FaceConnectivityUnstruct : public FaceConnectivityApi<FloatType, ScalarTyp
     }
   }
 
-  static std::array<ScalarType, 4> extractFaceCorners(const ModelApi<FloatType, ScalarType>& mesh, ScalarType elem,
-                                                      CubicFace local_face) {
-    const int o = mesh.getOrder();
+  /**
+   * @brief Build the 4-corner key identifying a local face.
+   *
+   * Extracts the 4 corner global node indices of the given local face, always
+   * in the same per-orientation traversal order. Two elements sharing a
+   * physical face see it from opposite orientations (e.g. kXPlus/kXMinus)
+   * whose traversal orders line up on the same global corner nodes, so both
+   * produce an equal FaceKey without needing to sort the 4 nodes. This
+   * relies on globalNodeIndex() returning identical global indices for
+   * shared corners regardless of which adjacent element queries them, and
+   * is what makes the Kokkos::UnorderedMap-based matching in build() work.
+   *
+   * @tparam MESH_TYPE Mesh type exposing a device-callable globalNodeIndex().
+   * @param mesh Mesh providing node indexing.
+   * @param mesh_order Polynomial order of the mesh.
+   * @param elem Element index owning the local face.
+   * @param local_face Local face identifier (see CubicFace).
+   * @return FaceKey holding the 4 corner global node indices of the face.
+   */
+  template <typename MESH_TYPE>
+  KOKKOS_INLINE_FUNCTION static FaceKey makeFaceKey(const MESH_TYPE& mesh, int mesh_order, ScalarType elem,
+                                                    CubicFace local_face) {
+    const int o = mesh_order;
+    FaceKey key{};
     switch (local_face) {
       case CubicFace::kXMinus:
-        return {mesh.globalNodeIndex(elem, 0, 0, 0), mesh.globalNodeIndex(elem, 0, o, 0),
-                mesh.globalNodeIndex(elem, 0, o, o), mesh.globalNodeIndex(elem, 0, 0, o)};
+        key = {mesh.globalNodeIndex(elem, 0, 0, 0), mesh.globalNodeIndex(elem, 0, o, 0),
+               mesh.globalNodeIndex(elem, 0, o, o), mesh.globalNodeIndex(elem, 0, 0, o)};
+        break;
       case CubicFace::kXPlus:
-        return {mesh.globalNodeIndex(elem, o, 0, 0), mesh.globalNodeIndex(elem, o, o, 0),
-                mesh.globalNodeIndex(elem, o, o, o), mesh.globalNodeIndex(elem, o, 0, o)};
+        key = {mesh.globalNodeIndex(elem, o, 0, 0), mesh.globalNodeIndex(elem, o, o, 0),
+               mesh.globalNodeIndex(elem, o, o, o), mesh.globalNodeIndex(elem, o, 0, o)};
+        break;
       case CubicFace::kYMinus:
-        return {mesh.globalNodeIndex(elem, 0, 0, 0), mesh.globalNodeIndex(elem, o, 0, 0),
-                mesh.globalNodeIndex(elem, o, 0, o), mesh.globalNodeIndex(elem, 0, 0, o)};
+        key = {mesh.globalNodeIndex(elem, 0, 0, 0), mesh.globalNodeIndex(elem, o, 0, 0),
+               mesh.globalNodeIndex(elem, o, 0, o), mesh.globalNodeIndex(elem, 0, 0, o)};
+        break;
       case CubicFace::kYPlus:
-        return {mesh.globalNodeIndex(elem, 0, o, 0), mesh.globalNodeIndex(elem, o, o, 0),
-                mesh.globalNodeIndex(elem, o, o, o), mesh.globalNodeIndex(elem, 0, o, o)};
+        key = {mesh.globalNodeIndex(elem, 0, o, 0), mesh.globalNodeIndex(elem, o, o, 0),
+               mesh.globalNodeIndex(elem, o, o, o), mesh.globalNodeIndex(elem, 0, o, o)};
+        break;
       case CubicFace::kZMinus:
-        return {mesh.globalNodeIndex(elem, 0, 0, 0), mesh.globalNodeIndex(elem, o, 0, 0),
-                mesh.globalNodeIndex(elem, o, o, 0), mesh.globalNodeIndex(elem, 0, o, 0)};
+        key = {mesh.globalNodeIndex(elem, 0, 0, 0), mesh.globalNodeIndex(elem, o, 0, 0),
+               mesh.globalNodeIndex(elem, o, o, 0), mesh.globalNodeIndex(elem, 0, o, 0)};
+        break;
       case CubicFace::kZPlus:
-        return {mesh.globalNodeIndex(elem, 0, 0, o), mesh.globalNodeIndex(elem, o, 0, o),
-                mesh.globalNodeIndex(elem, o, o, o), mesh.globalNodeIndex(elem, 0, o, o)};
+        key = {mesh.globalNodeIndex(elem, 0, 0, o), mesh.globalNodeIndex(elem, o, 0, o),
+               mesh.globalNodeIndex(elem, o, o, o), mesh.globalNodeIndex(elem, 0, o, o)};
+        break;
     }
-    return {};
-  }
-
-  static std::array<ScalarType, 4> makeFaceKey(std::array<ScalarType, 4> corners) {
-    std::sort(corners.begin(), corners.end());
-    return corners;
+    // Sort the 4 corners so both adjacent elements produce the same key
+    // regardless of local orientation (tiny fixed-size network, unrolled).
+    ScalarType* n = key.nodes;
+    for (int a = 0; a < 3; ++a)
+      for (int b = 0; b < 3 - a; ++b)
+        if (n[b] > n[b + 1]) {
+          const ScalarType tmp = n[b];
+          n[b] = n[b + 1];
+          n[b + 1] = tmp;
+        }
+    return key;
   }
 };
 
