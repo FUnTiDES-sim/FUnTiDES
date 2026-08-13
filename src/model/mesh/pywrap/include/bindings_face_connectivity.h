@@ -5,6 +5,7 @@
 #include <KokkosExp_InterOp.hpp>
 
 #include "face_connectivity_unstruct.h"
+#include "model_unstruct.h"
 
 namespace py = pybind11;
 
@@ -14,6 +15,7 @@ template <typename FloatType, typename ScalarType>
 void bindFaceConnectivityUnstruct(py::module &m) {
   using FaceConnData = model::FaceConnectivityUnstructData<FloatType, ScalarType>;
   using FaceConn = model::FaceConnectivityUnstruct<FloatType, ScalarType>;
+  using MeshType = model::ModelUnstruct<FloatType, ScalarType>;
 
   std::string data_name = model::model_class_name<FloatType, ScalarType>("FaceConnectivityUnstructData");
   std::string class_name = model::model_class_name<FloatType, ScalarType>("FaceConnectivityUnstruct");
@@ -80,7 +82,7 @@ void bindFaceConnectivityUnstruct(py::module &m) {
   py::class_<FaceConn>(m, class_name.c_str())
       .def(py::init<>())
       .def(py::init<const FaceConnData &>())
-      .def("build", &FaceConn::build)
+      .def("build", &FaceConn::template build<MeshType>)
       .def("get_number_of_faces", &FaceConn::getNumberOfFaces)
       .def("is_boundary_face", &FaceConn::isBoundaryFace)
       .def("get_global_face", &FaceConn::getGlobalFace)
