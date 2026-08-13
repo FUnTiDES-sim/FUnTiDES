@@ -673,6 +673,7 @@ class ModelUnstruct final : public ModelApi<FloatType, ScalarType> {
     if (face_connectivity_.getNumberOfFaces() > 0) return;
 
     face_connectivity_.build(*this);
+    Kokkos::fence();
   }
   /**
    * @brief Get global face ID from element and local face
