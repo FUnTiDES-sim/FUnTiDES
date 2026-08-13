@@ -539,16 +539,10 @@ void SEMsolverAcoustoElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES>
 template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE, bool IS_MODEL_ON_NODES>
 void SEMsolverAcoustoElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES>::ApplyInterfaceCoupling(
     float dt, const DataType& data) {
-  // Both sub-domains have been advanced independently and their predictors sit
-  // in the previous buffers: correct the solid with p^n, then the fluid with
-  // the displacement that correction just produced.
-  //
-  // The solid therefore sees the pressure one step late.  Replaying the pair as
-  // a Gauss-Seidel sweep (which is what DIVA-SEM does, m_coupling_solver_cpu.f90
-  // iterates it twice) does not work on this formulation: DIVA corrects Newmark
-  // velocities and pressures, whereas the corrections below act directly on the
-  // displacement, so the sweep has gain dt^2|c|^2/(M_e M_f) and diverges.  The
-  // lag is a first-order consistency error and vanishes with dt.
+  // Correct the solid with p^n, then the fluid with the discrete solid
+  // acceleration that correction has just produced: both corrections are then
+  // centred on time n.  Moving the traction to p^{n+1} instead breaks that
+  // symmetry and slowly injects energy, so the order below matters.
   ApplyCouplingAcousticToElastic(dt, data);
   FENCE
   ApplyCouplingElasticToAcoustic(data);
