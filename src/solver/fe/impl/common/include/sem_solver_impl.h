@@ -358,20 +358,22 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::com
     local_workVectorsGlobal[f] = workVectorsGlobal_[f];
   }
 
+  using Policy = Kokkos::RangePolicy<Kokkos::LaunchBounds<LaunchMaxThreadsPerBlock, LaunchMinBlocksPerSM>>;
+
   Kokkos::parallel_for(
-      "Solver Element Contribution Acoustic", Kokkos::RangePolicy(0, n_iter), KOKKOS_LAMBDA(const int _loop_idx) {
+      "Solver Element Contribution Acoustic", Policy(0, n_iter), KOKKOS_LAMBDA(const int _loop_idx) {
         int const elementNumber = list_on ? list_local[_loop_idx] : _loop_idx;
 
-        int const dim = mesh_local.getOrder() + 1;
-        float localFields[kNumFields][kPointsPerElement] = {{0}};
+        constexpr int dim = ORDER + 1;
+
+        float localFields[kNumFields][kPointsPerElement];
         float localWork[kNumFields][kPointsPerElement] = {{0}};
 
-        for (int i = 0; i < dim; ++i) {
+        for (int k = 0; k < dim; ++k) {
           for (int j = 0; j < dim; ++j) {
-            for (int k = 0; k < dim; ++k) {
+            for (int i = 0; i < dim; ++i) {
               int const globalIdx = mesh_local.globalNodeIndex(elementNumber, i, j, k);
               int const localIdx = i + j * dim + k * dim * dim;
-
               for (int f = 0; f < kNumFields; ++f) {
                 localFields[f][localIdx] = data.getCurrentField(f)(globalIdx);
               }
@@ -404,12 +406,11 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::com
               }
             });
 
-        for (int i = 0; i < dim; ++i) {
+        for (int k = 0; k < dim; ++k) {
           for (int j = 0; j < dim; ++j) {
-            for (int k = 0; k < dim; ++k) {
+            for (int i = 0; i < dim; ++i) {
               int const globalIdx = mesh_local.globalNodeIndex(elementNumber, i, j, k);
               int const localIdx = i + j * dim + k * dim * dim;
-
               for (int f = 0; f < kNumFields; ++f) {
                 ATOMICADD(local_workVectorsGlobal[f][globalIdx], localWork[f][localIdx]);
               }
