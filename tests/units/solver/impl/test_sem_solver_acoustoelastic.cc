@@ -256,8 +256,12 @@ TYPED_TEST(AEsolverOnElemTest, CouplingAEZeroPressureNoDisplacement) {
   for (int i = 0; i < this->nNodes_; ++i) EXPECT_FLOAT_EQ(this->uz_prev_(i), 5.0f);
 }
 
-TYPED_TEST(AEsolverOnElemTest, CouplingAEScalesWithDt2) {
-  // Δu ∝ dt² (formula: u += dt²·c·(-p)/M_e). Doubling dt → 4× change.
+TYPED_TEST(AEsolverOnElemTest, CouplingAEDtScalingIsBoundedByTheDampedLaw) {
+  // u += -dt^2*c*p*taper / (M_e + dt/2*C_e), the same denominator the Verlet
+  // update applies to the physical RHS.  Doubling dt therefore multiplies the
+  // correction by 4*(M_e + dt/2*C_e)/(M_e + dt*C_e), which is 4 undamped and
+  // tends to 2 as the damping dominates.  Every node of this fixture sits on an
+  // absorbing face, so only the bracket can be asserted here.
   for (int i = 0; i < this->nNodes_; ++i) this->p_curr_(i) = 100.0f;
 
   {
@@ -277,10 +281,12 @@ TYPED_TEST(AEsolverOnElemTest, CouplingAEScalesWithDt2) {
   float delta2 = 0.0f;
   for (int i = 0; i < this->nNodes_; ++i) delta2 += this->uz_prev_(i);
 
-  if (std::fabs(delta1) > 1e-10f)
-    EXPECT_NEAR(delta2 / delta1, 4.0f, 1e-4f);
-  else
-    GTEST_SKIP() << "coupling coefficient is zero; cannot verify dt² scaling";
+  if (std::fabs(delta1) <= 1e-10f)
+    GTEST_SKIP() << "coupling coefficient is zero; cannot verify the dt scaling";
+
+  float const ratio = delta2 / delta1;
+  EXPECT_GT(ratio, 2.0f);
+  EXPECT_LE(ratio, 4.0f + 1e-4f);
 }
 
 // =============================================================================
@@ -290,7 +296,7 @@ TYPED_TEST(AEsolverOnElemTest, CouplingAEScalesWithDt2) {
 TYPED_TEST(AEsolverOnElemTest, CouplingEAZeroDisplacementNoEffect) {
   // u^{n+1}=u^n=u^{n-1}=0 → FD(u)=0 → p unchanged.
   auto data = this->makeData();
-  this->solver_.ApplyCouplingElasticToAcoustic(data);
+  this->solver_.ApplyCouplingElasticToAcoustic(this->kDt, data);
   FENCE
   for (int i = 0; i < this->nNodes_; ++i) EXPECT_FLOAT_EQ(this->p_prev_(i), 0.0f);
 }
@@ -303,7 +309,7 @@ TYPED_TEST(AEsolverOnElemTest, CouplingEANonZeroAccelerationChangesP) {
     this->uz_curr_(i) = 0.0f;
   }
   auto data = this->makeData();
-  this->solver_.ApplyCouplingElasticToAcoustic(data);
+  this->solver_.ApplyCouplingElasticToAcoustic(this->kDt, data);
   FENCE
   float sum_p = 0.0f;
   for (int i = 0; i < this->nNodes_; ++i) sum_p += std::fabs(this->p_prev_(i));

@@ -42,6 +42,8 @@ class SEMsolver : public Solver {
 
   vectorReal& getDampingMatrix(int c) override { return dampingMatrixGlobal_[c]; }
 
+  vectorReal& getSpongeTaperCoeff() { return spongeTaperCoeff_; }
+
   vectorReal& getForceVector(int c) override { return workVectorsGlobal_[c]; }
 
   // -------------------------------------
