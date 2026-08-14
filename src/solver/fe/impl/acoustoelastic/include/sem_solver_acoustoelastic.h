@@ -189,7 +189,7 @@ class SEMsolverAcoustoElastic : public Solver {
    * @brief Apply elastic→acoustic coupling post-Verlet.
    * @param data Coupled solver data.
    */
-  void ApplyCouplingElasticToAcoustic(const DataType& data);
+  void ApplyCouplingElasticToAcoustic(float dt, const DataType& data);
 
   /**
    * @brief Enforce the fluid/solid interface conditions on the two predictors.

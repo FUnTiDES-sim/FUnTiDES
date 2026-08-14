@@ -545,7 +545,7 @@ void SEMsolverAcoustoElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES>
   // symmetry and slowly injects energy, so the order below matters.
   ApplyCouplingAcousticToElastic(dt, data);
   FENCE
-  ApplyCouplingElasticToAcoustic(data);
+  ApplyCouplingElasticToAcoustic(dt, data);
   FENCE
 }
 
@@ -587,11 +587,17 @@ template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE, bool IS_MODEL_O
 void SEMsolverAcoustoElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES>::ApplyCouplingAcousticToElastic(
     float dt, const DataType& data) {
   float const dt2 = dt * dt;
+  float const half_dt = 0.5f * dt;
   auto p_curr = data.m_wavefield.m_acoustic.getCurrentField(0);    // p^n
   auto u_prev_x = data.m_wavefield.m_elastic.getPreviousField(0);  // u_x^{n+1}
   auto u_prev_y = data.m_wavefield.m_elastic.getPreviousField(1);  // u_y^{n+1}
   auto u_prev_z = data.m_wavefield.m_elastic.getPreviousField(2);  // u_z^{n+1}
   auto M_e = m_elastic_solver_.getMassMatrixElastic();
+  auto C_ex = m_elastic_solver_.getDampingMatrix(0);
+  auto C_ey = m_elastic_solver_.getDampingMatrix(1);
+  auto C_ez = m_elastic_solver_.getDampingMatrix(2);
+  auto taper_e = m_elastic_solver_.getSpongeTaperCoeff();
+  auto mesh_local = m_mesh_;
   auto cx = m_coupling_coeff_x_;
   auto cy = m_coupling_coeff_y_;
   auto cz = m_coupling_coeff_z_;
@@ -601,11 +607,13 @@ void SEMsolverAcoustoElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES>
   Kokkos::parallel_for(
       "ApplyCouplingAcousticToElastic_Loop", n_iface, KOKKOS_LAMBDA(const int i) {
         int const j = iface_list[i];
-        if (M_e[j] > 0.0f) {
-          float const aux = -p_curr[j] / M_e[j];
-          u_prev_x[j] += dt2 * cx[j] * aux;
-          u_prev_y[j] += dt2 * cy[j] * aux;
-          u_prev_z[j] += dt2 * cz[j] * aux;
+        if (M_e[j] > 0.0f && !mesh_local.isFreeSurface(j)) {
+          // Same denominator and taper the Verlet update applied to the physical
+          // RHS: without them this correction is O(dt) inconsistent in the sponge.
+          float const aux = -dt2 * p_curr[j] * taper_e[j];
+          u_prev_x[j] += cx[j] * aux / (M_e[j] + half_dt * C_ex[j]);
+          u_prev_y[j] += cy[j] * aux / (M_e[j] + half_dt * C_ey[j]);
+          u_prev_z[j] += cz[j] * aux / (M_e[j] + half_dt * C_ez[j]);
         }
       });
 }
@@ -616,7 +624,8 @@ void SEMsolverAcoustoElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES>
 
 template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE, bool IS_MODEL_ON_NODES>
 void SEMsolverAcoustoElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES>::ApplyCouplingElasticToAcoustic(
-    const DataType& data) {
+    float dt, const DataType& data) {
+  float const half_dt = 0.5f * dt;
   auto p_prev = data.m_wavefield.m_acoustic.getPreviousField(0);
   auto u_np1_x = data.m_wavefield.m_elastic.getPreviousField(0);
   auto u_np1_y = data.m_wavefield.m_elastic.getPreviousField(1);
@@ -628,6 +637,9 @@ void SEMsolverAcoustoElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES>
   auto u_nm1_y = m_uy_nm1_iface_;
   auto u_nm1_z = m_uz_nm1_iface_;
   auto M_f = m_acoustic_solver_.getMassMatrixAcoustic();
+  auto C_f = m_acoustic_solver_.getDampingMatrix(0);
+  auto taper_f = m_acoustic_solver_.getSpongeTaperCoeff();
+  auto mesh_local = m_mesh_;
   auto cx = m_coupling_coeff_x_;
   auto cy = m_coupling_coeff_y_;
   auto cz = m_coupling_coeff_z_;
@@ -637,11 +649,13 @@ void SEMsolverAcoustoElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES>
   Kokkos::parallel_for(
       "ApplyCouplingElasticToAcoustic_Loop", n_iface, KOKKOS_LAMBDA(const int i) {
         int const j = iface_list[i];
-        if (M_f[j] > 0.0f) {
+        if (M_f[j] > 0.0f && !mesh_local.isFreeSurface(j)) {
           float const fd_x = u_np1_x[j] - 2.0f * u_n_x[j] + u_nm1_x[i];
           float const fd_y = u_np1_y[j] - 2.0f * u_n_y[j] + u_nm1_y[i];
           float const fd_z = u_np1_z[j] - 2.0f * u_n_z[j] + u_nm1_z[i];
-          p_prev[j] += (cx[j] * fd_x + cy[j] * fd_y + cz[j] * fd_z) / M_f[j];
+          // Same denominator and taper the Verlet update applied to the physical RHS.
+          p_prev[j] += taper_f[j] * (cx[j] * fd_x + cy[j] * fd_y + cz[j] * fd_z) /
+                       (M_f[j] + half_dt * C_f[j]);
         }
       });
 }
