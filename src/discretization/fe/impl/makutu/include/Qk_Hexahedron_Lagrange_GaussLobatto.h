@@ -25,7 +25,7 @@
  * this file.
  */
 template <typename GL_BASIS>
-class Qk_Hexahedron_Lagrange_GaussLobatto final {
+class Qk_Hexahedron_Lagrange_GaussLobatto {
  public:
   // Expose the basis type for tests and external use
   using BasisType = GL_BASIS;

@@ -29,6 +29,19 @@ inline void bind_anisotropy_type(py::module_ &m) {
       .export_values();
 }
 
+/**
+ * @brief Bind the BoundaryFlag enum (node classification for boundaries_t)
+ */
+inline void bind_boundary_flag(py::module_ &m) {
+  py::enum_<model::BoundaryFlag>(m, "BoundaryFlag")
+      .value("InteriorNode", model::BoundaryFlag::InteriorNode)
+      .value("Damping", model::BoundaryFlag::Damping)
+      .value("Sponge", model::BoundaryFlag::Sponge)
+      .value("Surface", model::BoundaryFlag::Surface)
+      .value("Ghost", model::BoundaryFlag::Ghost)
+      .export_values();
+}
+
 // template binder for ModelAPI
 template <typename FloatType, typename ScalarType>
 void bind_modelapi(py::module_ &m) {

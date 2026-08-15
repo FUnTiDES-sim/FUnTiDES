@@ -11,7 +11,9 @@
 #include <fstream>
 #include <iomanip>
 
+#ifdef COMPILE_DG
 #include "dg_solver_data.h"
+#endif
 #include "rhs_acoustoelastic.h"
 #ifdef USE_MPI
 #include "mpi_backend.h"
@@ -174,6 +176,7 @@ void SEMproxy::Run() {
   std::chrono::time_point<std::chrono::high_resolution_clock> start_compute_time, start_output_time;
   std::chrono::duration<double> total_compute_time(0), total_output_time(0);
 
+#ifdef COMPILE_DG
   if (is_dg_) {
     DGWavefieldAcoustic wavefield(pn_dg_prev_, pn_dg_curr_);
     RhsAcoustic rhs(rhs_term_, rhs_element_, rhs_weights_);
@@ -261,8 +264,9 @@ void SEMproxy::Run() {
     fout << "# time pressure_at_receiver\n";
     for (int t = 0; t < num_samples_; ++t) fout << t * dt_ << " " << h_pn_at_receiver_(0, t) << "\n";
     fout.close();
-
-  } else if (is_acousto_elastic_) {
+  }
+#endif  // COMPILE_DG
+  if (is_acousto_elastic_) {
     WavefieldAcoustoElastic wavefield(pn_global_prev_, pn_global_curr_, uxn_global_prev_, uxn_global_curr_,
                                       uyn_global_prev_, uyn_global_curr_, uzn_global_prev_, uzn_global_curr_);
     RhsAcoustoElastic rhs(rhs_term_, rhs_element_, rhs_weights_, rhs_term_x_, rhs_term_y_, rhs_term_z_);

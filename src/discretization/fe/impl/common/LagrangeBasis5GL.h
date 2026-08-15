@@ -636,6 +636,7 @@ class LagrangeBasis5GL {
      * @param N Array to hold the value of the basis functions at each support
      * point.
      */
+    PROXY_HOST_DEVICE
     static void value(const double (&coords)[3], double (&N)[numSupportPoints]) {
       for (int a = 0; a < 6; ++a) {
         for (int b = 0; b < 6; ++b) {
