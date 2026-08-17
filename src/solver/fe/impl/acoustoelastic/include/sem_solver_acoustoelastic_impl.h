@@ -290,8 +290,7 @@ void SEMsolverAcoustoElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES>
       m_vp_fluid_iface_[i] = m_mesh_.getModelVpOnNodes(j);
       m_rho_fluid_iface_[i] = m_mesh_.getModelRhoOnNodes(j);
 
-      if (interface_property_convention_ ==
-          utils::enums::interfacePropertyConvention::kSharedOnInterfaceNodes) {
+      if (interface_property_convention_ == utils::enums::interfacePropertyConvention::kSharedOnInterfaceNodes) {
         // The builder gave the interface node a single state meant for both
         // sides, so there is nothing to rebuild and the mass fix below is a
         // no-op.
@@ -654,8 +653,7 @@ void SEMsolverAcoustoElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES>
           float const fd_y = u_np1_y[j] - 2.0f * u_n_y[j] + u_nm1_y[i];
           float const fd_z = u_np1_z[j] - 2.0f * u_n_z[j] + u_nm1_z[i];
           // Same denominator and taper the Verlet update applied to the physical RHS.
-          p_prev[j] += taper_f[j] * (cx[j] * fd_x + cy[j] * fd_y + cz[j] * fd_z) /
-                       (M_f[j] + half_dt * C_f[j]);
+          p_prev[j] += taper_f[j] * (cx[j] * fd_x + cy[j] * fd_y + cz[j] * fd_z) / (M_f[j] + half_dt * C_f[j]);
         }
       });
 }

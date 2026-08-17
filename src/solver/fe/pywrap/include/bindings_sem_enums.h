@@ -43,10 +43,8 @@ void bind_physic_type(py::module_ &m) {
 
 void bind_interface_property_convention(py::module_ &m) {
   py::enum_<utils::enums::interfacePropertyConvention>(m, "InterfacePropertyConvention")
-      .value("FLUID_ON_INTERFACE_NODES",
-             utils::enums::interfacePropertyConvention::kFluidOnInterfaceNodes)
-      .value("SHARED_ON_INTERFACE_NODES",
-             utils::enums::interfacePropertyConvention::kSharedOnInterfaceNodes)
+      .value("FLUID_ON_INTERFACE_NODES", utils::enums::interfacePropertyConvention::kFluidOnInterfaceNodes)
+      .value("SHARED_ON_INTERFACE_NODES", utils::enums::interfacePropertyConvention::kSharedOnInterfaceNodes)
       .export_values();
 }
 

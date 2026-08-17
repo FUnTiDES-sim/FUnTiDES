@@ -73,8 +73,8 @@ void bind_rhs_acoustoelastic(py::module_& m) {
                     Kokkos::Experimental::python_view_type_t<arrayReal>   // elastic_weightsz
                     >(),
            py::arg("acoustic_term"), py::arg("element"), py::arg("weights"), py::arg("elastic_termx"),
-           py::arg("elastic_termy"), py::arg("elastic_termz"), py::arg("elastic_weightsx"),
-           py::arg("elastic_weightsy"), py::arg("elastic_weightsz"))
+           py::arg("elastic_termy"), py::arg("elastic_termz"), py::arg("elastic_weightsx"), py::arg("elastic_weightsy"),
+           py::arg("elastic_weightsz"))
       .def("print", &RhsAcoustoElastic::print);
 }
 }  // namespace fe

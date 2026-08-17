@@ -82,11 +82,11 @@ struct RhsElastic : public Rhs {
     std::cout << "RHS Weights size: " << m_weights.extent(0) << std::endl;
   }
 
-  arrayReal m_termx;    ///< X-component forcing term
-  arrayReal m_termy;    ///< Y-component forcing term
-  arrayReal m_termz;    ///< Z-component forcing term
-  vectorInt m_element;  ///< Source element indices
-  arrayReal m_weights;  ///< Forcing weights per node, X component
+  arrayReal m_termx;     ///< X-component forcing term
+  arrayReal m_termy;     ///< Y-component forcing term
+  arrayReal m_termz;     ///< Z-component forcing term
+  vectorInt m_element;   ///< Source element indices
+  arrayReal m_weights;   ///< Forcing weights per node, X component
   arrayReal m_weightsy;  ///< Forcing weights per node, Y component
   arrayReal m_weightsz;  ///< Forcing weights per node, Z component
 };
