@@ -281,8 +281,7 @@ TYPED_TEST(AEsolverOnElemTest, CouplingAEDtScalingIsBoundedByTheDampedLaw) {
   float delta2 = 0.0f;
   for (int i = 0; i < this->nNodes_; ++i) delta2 += this->uz_prev_(i);
 
-  if (std::fabs(delta1) <= 1e-10f)
-    GTEST_SKIP() << "coupling coefficient is zero; cannot verify the dt scaling";
+  if (std::fabs(delta1) <= 1e-10f) GTEST_SKIP() << "coupling coefficient is zero; cannot verify the dt scaling";
 
   float const ratio = delta2 / delta1;
   EXPECT_GT(ratio, 2.0f);
@@ -611,8 +610,7 @@ namespace {
 /// Run a few coupled steps from a seeded pressure pulse and return the
 /// resulting pressure and vertical displacement.
 template <int ORDER, typename SolverT, typename MeshT>
-void runSeededSteps(float vs_on_interface, std::vector<float>& p_out, std::vector<float>& uz_out,
-                    float dt = 2.0e-4f) {
+void runSeededSteps(float vs_on_interface, std::vector<float>& p_out, std::vector<float>& uz_out, float dt = 2.0e-4f) {
   constexpr int kNdof = (ORDER + 1) * (ORDER + 1) * (ORDER + 1);
   constexpr int kNumSamples = 4;
 
@@ -646,8 +644,7 @@ void runSeededSteps(float vs_on_interface, std::vector<float>& p_out, std::vecto
   auto rhs_elem = allocateVector<vectorInt>(1, "rhsElem_c");
   auto rhs_wts = allocateArray2D<arrayReal>(1, kNdof, "rhsWts_c");
   rhs_elem(0) = 0;
-  for (int t = 0; t < kNumSamples; ++t)
-    rhs_term(0, t) = rhs_termx(0, t) = rhs_termy(0, t) = rhs_termz(0, t) = 0.0f;
+  for (int t = 0; t < kNumSamples; ++t) rhs_term(0, t) = rhs_termx(0, t) = rhs_termy(0, t) = rhs_termz(0, t) = 0.0f;
   for (int k = 0; k < kNdof; ++k) rhs_wts(0, k) = 0.0f;
 
   WavefieldAcoustoElastic wf(p_prev, p_curr, ux_prev, ux_curr, uy_prev, uy_curr, uz_prev, uz_curr);
