@@ -491,20 +491,20 @@ void SEMsolverAcoustoElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES>
   m_acoustic_solver_.updateFieldsFromListForward(dt, acoustic_data, acoustic_node_list_, num_acoustic_nodes_);
   FENCE
 
-  ApplyInterfaceCoupling(dt, myData);
+  ApplyInterfaceCoupling(dt, myData, /*backward=*/false);
 }
 
 template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE, bool IS_MODEL_ON_NODES>
 void SEMsolverAcoustoElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES>::ApplyInterfaceCoupling(
-    float dt, const DataType& data) {
+    float dt, const DataType& data, bool backward) {
   // Correct the solid with p^n, then the fluid with the discrete solid
   // acceleration that correction has just produced: both corrections are then
   // centred on time n. Moving the traction to p^{n+1} instead breaks that
   // symmetry and slowly injects energy, so the order below matters.
   // Kernels run in order on the same execution space instance; the fence only
   // makes the step complete for the caller.
-  ApplyCouplingAcousticToElastic(dt, data);
-  ApplyCouplingElasticToAcoustic(dt, data);
+  ApplyCouplingAcousticToElastic(dt, data, backward);
+  ApplyCouplingElasticToAcoustic(dt, data, backward);
   FENCE
 }
 
@@ -520,9 +520,13 @@ void SEMsolverAcoustoElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES>
   }
   SEMsolverData<utils::enums::physicType::kElastic> elastic_data(myData.m_wavefield.m_elastic,
                                                                  myData.m_rhs.m_rhs_elastic);
-  // The interface coupling is not applied here: in backward mode the Verlet
-  // writes u^{n-1} into the prevPrev buffer, whereas ApplyCoupling* read and
-  // correct the previous buffer. The adjoint is therefore uncoupled.
+  // Mirror of updateSolutionForward.  The backward Verlet writes the new level
+  // into the prevPrev buffer instead of the previous one, so the coupling is
+  // told which buffer to correct; the interface snapshot taken here is u^{n+1}
+  // rather than u^{n-1}, which is the neighbour the second difference needs.
+  // Without this the solid is never driven by the fluid and the adjoint
+  // displacement stays identically zero, which zeroes the coupled gradient.
+  SaveInterfaceUnm1(myData);
   m_elastic_solver_.updateFieldsFromListBackward(dt, elastic_data, elastic_node_list_, num_elastic_nodes_);
   FENCE
 
@@ -530,17 +534,24 @@ void SEMsolverAcoustoElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES>
                                                                    myData.m_rhs.m_rhs_acoustic);
   m_acoustic_solver_.updateFieldsFromListBackward(dt, acoustic_data, acoustic_node_list_, num_acoustic_nodes_);
   FENCE
+
+  ApplyInterfaceCoupling(dt, myData, /*backward=*/true);
 }
 
 template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE, bool IS_MODEL_ON_NODES>
 void SEMsolverAcoustoElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES>::ApplyCouplingAcousticToElastic(
-    float dt, const DataType& data) {
+    float dt, const DataType& data, bool backward) {
   float const dt2 = dt * dt;
   float const half_dt = 0.5f * dt;
-  auto p_curr = data.m_wavefield.m_acoustic.getCurrentField(0);    // p^n
-  auto u_prev_x = data.m_wavefield.m_elastic.getPreviousField(0);  // u_x^{n+1}
-  auto u_prev_y = data.m_wavefield.m_elastic.getPreviousField(1);  // u_y^{n+1}
-  auto u_prev_z = data.m_wavefield.m_elastic.getPreviousField(2);  // u_z^{n+1}
+  auto p_curr = data.m_wavefield.m_acoustic.getCurrentField(0);  // p^n
+  // The Verlet writes the newly computed displacement level into the previous
+  // buffer in forward mode and into the prevPrev buffer in backward mode.
+  auto u_new_x = backward ? data.m_wavefield.m_elastic.getPrevPrevField(0)
+                          : data.m_wavefield.m_elastic.getPreviousField(0);
+  auto u_new_y = backward ? data.m_wavefield.m_elastic.getPrevPrevField(1)
+                          : data.m_wavefield.m_elastic.getPreviousField(1);
+  auto u_new_z = backward ? data.m_wavefield.m_elastic.getPrevPrevField(2)
+                          : data.m_wavefield.m_elastic.getPreviousField(2);
   auto M_e = m_elastic_solver_.getMassMatrixElastic();
   auto C_ex = m_elastic_solver_.getDampingMatrix(0);
   auto C_ey = m_elastic_solver_.getDampingMatrix(1);
@@ -560,21 +571,29 @@ void SEMsolverAcoustoElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES>
           // Same denominator and taper the Verlet update applied to the physical
           // RHS: without them this correction is O(dt) inconsistent in the sponge.
           float const aux = -dt2 * p_curr[j] * taper_e[j];
-          u_prev_x[j] += cx[j] * aux / (M_e[j] + half_dt * C_ex[j]);
-          u_prev_y[j] += cy[j] * aux / (M_e[j] + half_dt * C_ey[j]);
-          u_prev_z[j] += cz[j] * aux / (M_e[j] + half_dt * C_ez[j]);
+          u_new_x[j] += cx[j] * aux / (M_e[j] + half_dt * C_ex[j]);
+          u_new_y[j] += cy[j] * aux / (M_e[j] + half_dt * C_ey[j]);
+          u_new_z[j] += cz[j] * aux / (M_e[j] + half_dt * C_ez[j]);
         }
       });
 }
 
 template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE, bool IS_MODEL_ON_NODES>
 void SEMsolverAcoustoElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES>::ApplyCouplingElasticToAcoustic(
-    float dt, const DataType& data) {
+    float dt, const DataType& data, bool backward) {
   float const half_dt = 0.5f * dt;
-  auto p_prev = data.m_wavefield.m_acoustic.getPreviousField(0);
-  auto u_np1_x = data.m_wavefield.m_elastic.getPreviousField(0);
-  auto u_np1_y = data.m_wavefield.m_elastic.getPreviousField(1);
-  auto u_np1_z = data.m_wavefield.m_elastic.getPreviousField(2);
+  // Both the pressure and the displacement newly computed by the Verlet live in
+  // the previous buffer forward and in the prevPrev buffer backward.  The
+  // second difference below is symmetric in the two neighbouring levels, so the
+  // same expression serves both directions once the buffers are picked.
+  auto p_new = backward ? data.m_wavefield.m_acoustic.getPrevPrevField(0)
+                        : data.m_wavefield.m_acoustic.getPreviousField(0);
+  auto u_new_x = backward ? data.m_wavefield.m_elastic.getPrevPrevField(0)
+                          : data.m_wavefield.m_elastic.getPreviousField(0);
+  auto u_new_y = backward ? data.m_wavefield.m_elastic.getPrevPrevField(1)
+                          : data.m_wavefield.m_elastic.getPreviousField(1);
+  auto u_new_z = backward ? data.m_wavefield.m_elastic.getPrevPrevField(2)
+                          : data.m_wavefield.m_elastic.getPreviousField(2);
   auto u_n_x = data.m_wavefield.m_elastic.getCurrentField(0);
   auto u_n_y = data.m_wavefield.m_elastic.getCurrentField(1);
   auto u_n_z = data.m_wavefield.m_elastic.getCurrentField(2);
@@ -597,11 +616,11 @@ void SEMsolverAcoustoElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES>
         if (M_f[j] > 0.0f && !mesh_local.isFreeSurface(j)) {
           // Second time difference of the solid displacement; u_nm1_* are indexed by
           // the compact interface index i, the other fields by the global node j.
-          float const fd_x = u_np1_x[j] - 2.0f * u_n_x[j] + u_nm1_x[i];
-          float const fd_y = u_np1_y[j] - 2.0f * u_n_y[j] + u_nm1_y[i];
-          float const fd_z = u_np1_z[j] - 2.0f * u_n_z[j] + u_nm1_z[i];
+          float const fd_x = u_new_x[j] - 2.0f * u_n_x[j] + u_nm1_x[i];
+          float const fd_y = u_new_y[j] - 2.0f * u_n_y[j] + u_nm1_y[i];
+          float const fd_z = u_new_z[j] - 2.0f * u_n_z[j] + u_nm1_z[i];
           // Same denominator and taper the Verlet update applied to the physical RHS.
-          p_prev[j] += taper_f[j] * (cx[j] * fd_x + cy[j] * fd_y + cz[j] * fd_z) / (M_f[j] + half_dt * C_f[j]);
+          p_new[j] += taper_f[j] * (cx[j] * fd_x + cy[j] * fd_y + cz[j] * fd_z) / (M_f[j] + half_dt * C_f[j]);
         }
       });
 }
@@ -649,7 +668,7 @@ void SEMsolverAcoustoElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES>
   m_acoustic_solver_.updateFieldsFromListForward(dt, acoustic_data, acoustic_node_list_, num_acoustic_nodes_);
 
   // Enforce the fluid/solid interface conditions on the two predictors.
-  ApplyInterfaceCoupling(dt, myData);
+  ApplyInterfaceCoupling(dt, myData, /*backward=*/false);
 }
 
 template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE, bool IS_MODEL_ON_NODES>

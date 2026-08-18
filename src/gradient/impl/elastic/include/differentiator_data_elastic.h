@@ -24,13 +24,15 @@ struct DifferentiatorDataElastic : public Differentiator::DataStruct {
   /**
    * @brief Builds the data container from the three views.
    *
-   * @param[in] fwd       Forward wavefield view.
-   * @param[in] bwd       Adjoint wavefield view.
-   * @param[in] gradient  Gradient container for the elastic parameters.
+   * @param fwd           Forward wavefield view
+   * @param bwd           Adjoint wavefield view
+   * @param gradient      Gradient container for elastic parameters
+   * @param firstElement  First element to accumulate (default: all)
+   * @param lastElement   One past the last element, or -1 for all
    */
   DifferentiatorDataElastic(const WavefieldViewForwardElastic& fwd, const WavefieldViewBackwardElastic& bwd,
-                            const GradientElastic& gradient)
-      : m_fwd(fwd), m_bwd(bwd), m_gradient(gradient) {}
+                            const GradientElastic& gradient, int firstElement = 0, int lastElement = -1)
+      : m_fwd(fwd), m_bwd(bwd), m_gradient(gradient), m_firstElement(firstElement), m_lastElement(lastElement) {}
 
   /**
    * @brief Returns the i-th forward wavefield array.
@@ -70,9 +72,14 @@ struct DifferentiatorDataElastic : public Differentiator::DataStruct {
     m_gradient.print();
   }
 
-  WavefieldViewForwardType m_fwd;   ///< Forward wavefield view.
-  WavefieldViewBackwardType m_bwd;  ///< Adjoint wavefield view.
-  GradientType m_gradient;          ///< Gradient arrays (view handles).
+  WavefieldViewForwardType m_fwd;   ///< Forward wavefield snapshot(s)
+  WavefieldViewBackwardType m_bwd;  ///< Adjoint wavefield snapshot(s)
+  GradientType m_gradient;          ///< Gradient arrays (view handles)
+  // Restricts accumulation to a contiguous element range: the coupled
+  // acousto-elastic case must gather only from solid elements, and an
+  // interface node is shared, so it cannot be masked node-wise afterwards.
+  int m_firstElement;
+  int m_lastElement;
 };
 
 /// Alias of DifferentiatorDataElastic.

@@ -180,30 +180,36 @@ class SEMsolverAcoustoElastic : public Solver {
   /// outward normal integrated over each interface face).
   void ComputeInterfaceCouplingCoefficients();
 
-  /// @brief Save the elastic displacement at time n-1 on the interface nodes,
-  /// before the elastic update overwrites it; needed by the elastic-to-acoustic coupling.
+  /// @brief Snapshot the neighbouring displacement level at the interface nodes
+  /// before the elastic update overwrites it; needed by the elastic-to-acoustic
+  /// coupling.  Forward this is u^{n-1}, backward it is u^{n+1}: either way it
+  /// is the previous buffer, read before the Verlet writes the new level.
   void SaveInterfaceUnm1(const DataType& data);
 
   /**
-   * @brief Apply the acoustic-to-elastic coupling after the Verlet update.
-   * @param dt   Time step.
-   * @param data Coupled solver data.
+   * @brief Apply acoustic→elastic coupling post-Verlet.
+   * @param dt       Time step.
+   * @param data     Coupled solver data.
+   * @param backward True in adjoint mode, where the Verlet has written the new
+   *                 level into the prevPrev buffer instead of the previous one.
    */
-  void ApplyCouplingAcousticToElastic(float dt, const DataType& data);
+  void ApplyCouplingAcousticToElastic(float dt, const DataType& data, bool backward);
 
   /**
-   * @brief Apply the elastic-to-acoustic coupling after the Verlet update.
-   * @param dt   Time step.
-   * @param data Coupled solver data.
+   * @brief Apply elastic→acoustic coupling post-Verlet.
+   * @param dt       Time step.
+   * @param data     Coupled solver data.
+   * @param backward True in adjoint mode (new level in the prevPrev buffer).
    */
-  void ApplyCouplingElasticToAcoustic(float dt, const DataType& data);
+  void ApplyCouplingElasticToAcoustic(float dt, const DataType& data, bool backward);
 
   /**
    * @brief Enforce the fluid/solid interface conditions on the two predictors.
-   * @param dt   Time step.
-   * @param data Coupled solver data, with both sub-domains already advanced.
+   * @param dt       Time step.
+   * @param data     Coupled solver data, with both sub-domains already advanced.
+   * @param backward True in adjoint mode (new level in the prevPrev buffer).
    */
-  void ApplyInterfaceCoupling(float dt, const DataType& data);
+  void ApplyInterfaceCoupling(float dt, const DataType& data, bool backward);
 
   /**
    * @brief Write the solid or the fluid properties into the model at the interface nodes, on the device.
