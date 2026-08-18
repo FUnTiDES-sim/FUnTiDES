@@ -42,8 +42,10 @@ void bind_gradient_data_acoustic(py::module_& m) {
 void bind_gradient_data_elastic(py::module_& m) {
   py::class_<GradientDataElastic, Differentiator::DataStruct, std::shared_ptr<GradientDataElastic>>(
       m, "GradientDataElastic")
-      .def(py::init<const WavefieldViewForwardElastic&, const WavefieldViewBackwardElastic&, const GradientElastic&>(),
-           py::arg("fwd"), py::arg("bwd"), py::arg("gradient"))
+      .def(py::init<const WavefieldViewForwardElastic&, const WavefieldViewBackwardElastic&, const GradientElastic&,
+                    int, int>(),
+           py::arg("fwd"), py::arg("bwd"), py::arg("gradient"), py::arg("first_element") = 0,
+           py::arg("last_element") = -1)
       .def("print", &GradientDataElastic::print);
 }
 
