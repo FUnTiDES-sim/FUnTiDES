@@ -594,12 +594,12 @@ void SEMsolverAcoustoElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES>
   auto p_curr = data.m_wavefield.m_acoustic.getCurrentField(0);  // p^n
   // The Verlet writes the newly computed displacement level into the previous
   // buffer in forward mode and into the prevPrev buffer in backward mode.
-  auto u_new_x = backward ? data.m_wavefield.m_elastic.getPrevPrevField(0)
-                          : data.m_wavefield.m_elastic.getPreviousField(0);
-  auto u_new_y = backward ? data.m_wavefield.m_elastic.getPrevPrevField(1)
-                          : data.m_wavefield.m_elastic.getPreviousField(1);
-  auto u_new_z = backward ? data.m_wavefield.m_elastic.getPrevPrevField(2)
-                          : data.m_wavefield.m_elastic.getPreviousField(2);
+  auto u_new_x =
+      backward ? data.m_wavefield.m_elastic.getPrevPrevField(0) : data.m_wavefield.m_elastic.getPreviousField(0);
+  auto u_new_y =
+      backward ? data.m_wavefield.m_elastic.getPrevPrevField(1) : data.m_wavefield.m_elastic.getPreviousField(1);
+  auto u_new_z =
+      backward ? data.m_wavefield.m_elastic.getPrevPrevField(2) : data.m_wavefield.m_elastic.getPreviousField(2);
   auto M_e = m_elastic_solver_.getMassMatrixElastic();
   auto C_ex = m_elastic_solver_.getDampingMatrix(0);
   auto C_ey = m_elastic_solver_.getDampingMatrix(1);
@@ -638,14 +638,14 @@ void SEMsolverAcoustoElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES>
   // the previous buffer forward and in the prevPrev buffer backward.  The
   // second difference below is symmetric in the two neighbouring levels, so the
   // same expression serves both directions once the buffers are picked.
-  auto p_new = backward ? data.m_wavefield.m_acoustic.getPrevPrevField(0)
-                        : data.m_wavefield.m_acoustic.getPreviousField(0);
-  auto u_new_x = backward ? data.m_wavefield.m_elastic.getPrevPrevField(0)
-                          : data.m_wavefield.m_elastic.getPreviousField(0);
-  auto u_new_y = backward ? data.m_wavefield.m_elastic.getPrevPrevField(1)
-                          : data.m_wavefield.m_elastic.getPreviousField(1);
-  auto u_new_z = backward ? data.m_wavefield.m_elastic.getPrevPrevField(2)
-                          : data.m_wavefield.m_elastic.getPreviousField(2);
+  auto p_new =
+      backward ? data.m_wavefield.m_acoustic.getPrevPrevField(0) : data.m_wavefield.m_acoustic.getPreviousField(0);
+  auto u_new_x =
+      backward ? data.m_wavefield.m_elastic.getPrevPrevField(0) : data.m_wavefield.m_elastic.getPreviousField(0);
+  auto u_new_y =
+      backward ? data.m_wavefield.m_elastic.getPrevPrevField(1) : data.m_wavefield.m_elastic.getPreviousField(1);
+  auto u_new_z =
+      backward ? data.m_wavefield.m_elastic.getPrevPrevField(2) : data.m_wavefield.m_elastic.getPreviousField(2);
   auto u_n_x = data.m_wavefield.m_elastic.getCurrentField(0);
   auto u_n_y = data.m_wavefield.m_elastic.getCurrentField(1);
   auto u_n_z = data.m_wavefield.m_elastic.getCurrentField(2);
