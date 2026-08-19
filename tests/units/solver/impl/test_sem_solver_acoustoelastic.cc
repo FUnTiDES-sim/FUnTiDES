@@ -136,8 +136,8 @@ class AEsolverOnElemTest : public ::testing::Test {
 
   /// Same, but with the three-buffer wavefield the adjoint mode requires.
   SEMsolverDataAcoustoElastic makeAdjointData() const {
-    WavefieldAcoustoElastic wf(p_pp_, p_prev_, p_curr_, ux_pp_, ux_prev_, ux_curr_, uy_pp_, uy_prev_,
-                               uy_curr_, uz_pp_, uz_prev_, uz_curr_);
+    WavefieldAcoustoElastic wf(p_pp_, p_prev_, p_curr_, ux_pp_, ux_prev_, ux_curr_, uy_pp_, uy_prev_, uy_curr_, uz_pp_,
+                               uz_prev_, uz_curr_);
     RhsAcoustoElastic rhs(rhs_term_, rhs_elem_, rhs_wts_, rhs_termx_, rhs_termy_, rhs_termz_);
     return SEMsolverDataAcoustoElastic(wf, rhs);
   }
