@@ -20,11 +20,9 @@ function(add_gtest TEST_NAME TEST_FILE EXTRA_LINKS)
     add_dependencies(build_tests ${TEST_NAME})
 
     gtest_discover_tests(${TEST_NAME} DISCOVERY_TIMEOUT 60)
-    gtest_discover_tests(${TEST_NAME}
-        DISCOVERY_TIMEOUT 60)
 endfunction()
 
-# Group several test .cc files into a single executable: one main.cpp
+# Group several test .cc files into a single executable: one main.cc
 # compile + one link per group instead of one per file. Each source stays
 # its own translation unit; only the executable is shared.
 function(add_gtest_group GROUP_NAME)
