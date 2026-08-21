@@ -445,7 +445,6 @@ void SEMproxy::Run() {
       fout << "# time pressure_at_receiver (" << (rcv_in_sem ? "SEM" : "DG") << " domain)\n";
       for (int t = 0; t < num_samples_; ++t) fout << t * dt_ << " " << h_pn_at_receiver_(0, t) << "\n";
     }
-
   }
 #endif  // COMPILE_DG_SEM
 
