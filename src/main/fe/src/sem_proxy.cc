@@ -11,8 +11,12 @@
 #include <fstream>
 #include <iomanip>
 
+#ifdef COMPILE_DG_SEM
 #include "dg-sem_solver_data.h"
+#endif
+#ifdef COMPILE_DG
 #include "dg_solver_data.h"
+#endif
 #include "rhs_acoustoelastic.h"
 #ifdef USE_MPI
 #include "mpi_backend.h"
@@ -181,6 +185,7 @@ void SEMproxy::Run() {
   std::chrono::time_point<std::chrono::high_resolution_clock> start_compute_time, start_output_time;
   std::chrono::duration<double> total_compute_time(0), total_output_time(0);
 
+#ifdef COMPILE_DG
   if (is_dg_) {
     DGWavefieldAcoustic wavefield(pn_dg_prev_, pn_dg_curr_);
     RhsAcoustic rhs(rhs_term_, rhs_element_, rhs_weights_);
@@ -268,8 +273,11 @@ void SEMproxy::Run() {
     fout << "# time pressure_at_receiver\n";
     for (int t = 0; t < num_samples_; ++t) fout << t * dt_ << " " << h_pn_at_receiver_(0, t) << "\n";
     fout.close();
+  }
+#endif  // COMPILE_DG
 
-  } else if (is_dg_sem_) {
+#ifdef COMPILE_DG_SEM
+  if (is_dg_sem_) {
     DGSEMWavefieldAcoustic wavefield(pn_dg_prev_, pn_dg_curr_, pn_sem_prev_, pn_sem_curr_);
     DGSEMRhsAcoustic rhs(rhs_term_dg_, rhs_term_sem_, rhs_element_, rhs_weights_);
 
@@ -438,255 +446,260 @@ void SEMproxy::Run() {
       for (int t = 0; t < num_samples_; ++t) fout << t * dt_ << " " << h_pn_at_receiver_(0, t) << "\n";
     }
 
-  } else if (is_acousto_elastic_) {
-    WavefieldAcoustoElastic wavefield(pn_global_prev_, pn_global_curr_, uxn_global_prev_, uxn_global_curr_,
-                                      uyn_global_prev_, uyn_global_curr_, uzn_global_prev_, uzn_global_curr_);
-    RhsAcoustoElastic rhs(rhs_term_, rhs_element_, rhs_weights_, rhs_term_x_, rhs_term_y_, rhs_term_z_);
-    SEMsolverDataAcoustoElastic solver_data(wavefield, rhs);
+  }
+#endif  // COMPILE_DG_SEM
 
-    for (int time_index = 0; time_index < num_samples_; time_index++) {
-      start_compute_time = std::chrono::high_resolution_clock::now();
-      solver_->computeOneStep(dt_, time_index, solver_data);
-      total_compute_time += std::chrono::high_resolution_clock::now() - start_compute_time;
+  if (!is_dg_ && !is_dg_sem_) {
+    if (is_acousto_elastic_) {
+      WavefieldAcoustoElastic wavefield(pn_global_prev_, pn_global_curr_, uxn_global_prev_, uxn_global_curr_,
+                                        uyn_global_prev_, uyn_global_curr_, uzn_global_prev_, uzn_global_curr_);
+      RhsAcoustoElastic rhs(rhs_term_, rhs_element_, rhs_weights_, rhs_term_x_, rhs_term_y_, rhs_term_z_);
+      SEMsolverDataAcoustoElastic solver_data(wavefield, rhs);
 
-      start_output_time = std::chrono::high_resolution_clock::now();
-      if (time_index % 50 == 0) {
-        solver_->outputSolutionValues(time_index, h_rhs_element_(0), pn_global_prev_, "pnGlobal");
-        solver_->outputSolutionValues(time_index, h_rhs_element_rcv_(0), uxn_global_prev_, "uxnGlobal");
-        solver_->outputSolutionValues(time_index, h_rhs_element_rcv_(0), uyn_global_prev_, "uynGlobal");
-        solver_->outputSolutionValues(time_index, h_rhs_element_rcv_(0), uzn_global_prev_, "uznGlobal");
-      }
+      for (int time_index = 0; time_index < num_samples_; time_index++) {
+        start_compute_time = std::chrono::high_resolution_clock::now();
+        solver_->computeOneStep(dt_, time_index, solver_data);
+        total_compute_time += std::chrono::high_resolution_clock::now() - start_compute_time;
 
-      if (is_snapshots_ && time_index % snap_time_interval_ == 0) {
-        WaitSnapshots();
-        Kokkos::deep_copy(h_pn_global_prev_, pn_global_prev_);
-        Kokkos::deep_copy(h_uzn_global_prev_, uzn_global_prev_);
-
-        auto io_task = [this, time_index, h_pn = h_pn_global_prev_, h_uz = h_uzn_global_prev_]() {
-          io_ctrl_->saveSnapshot(h_pn, time_index);
-          io_ctrl_->saveSnapshot(h_uz, time_index);
-        };
-
-        // Fallback checks if GPU data == CPU data (CPU-only build)
-        if (pn_global_prev_.data() != h_pn_global_prev_.data()) {
-          snapshot_futures_.push_back(std::async(std::launch::async, io_task));
-        } else {
-          io_task();
+        start_output_time = std::chrono::high_resolution_clock::now();
+        if (time_index % 50 == 0) {
+          solver_->outputSolutionValues(time_index, h_rhs_element_(0), pn_global_prev_, "pnGlobal");
+          solver_->outputSolutionValues(time_index, h_rhs_element_rcv_(0), uxn_global_prev_, "uxnGlobal");
+          solver_->outputSolutionValues(time_index, h_rhs_element_rcv_(0), uyn_global_prev_, "uynGlobal");
+          solver_->outputSolutionValues(time_index, h_rhs_element_rcv_(0), uzn_global_prev_, "uznGlobal");
         }
-      }
 
-      Kokkos::deep_copy(h_pn_global_curr_, pn_global_curr_);
-      const int order = mesh_->getOrder();
-      float var_np1 = 0.0;
-      for (int i = 0; i < order + 1; i++) {
-        for (int j = 0; j < order + 1; j++) {
-          for (int k = 0; k < order + 1; k++) {
-            int node_idx = mesh_->globalNodeIndex(h_rhs_element_rcv_(0), i, j, k);
-            int global_node_on_elem = i + j * (order + 1) + k * (order + 1) * (order + 1);
-            var_np1 += h_pn_global_curr_(node_idx) * h_rhs_weights_rcv_(0, global_node_on_elem);
+        if (is_snapshots_ && time_index % snap_time_interval_ == 0) {
+          WaitSnapshots();
+          Kokkos::deep_copy(h_pn_global_prev_, pn_global_prev_);
+          Kokkos::deep_copy(h_uzn_global_prev_, uzn_global_prev_);
+
+          auto io_task = [this, time_index, h_pn = h_pn_global_prev_, h_uz = h_uzn_global_prev_]() {
+            io_ctrl_->saveSnapshot(h_pn, time_index);
+            io_ctrl_->saveSnapshot(h_uz, time_index);
+          };
+
+          // Fallback checks if GPU data == CPU data (CPU-only build)
+          if (pn_global_prev_.data() != h_pn_global_prev_.data()) {
+            snapshot_futures_.push_back(std::async(std::launch::async, io_task));
+          } else {
+            io_task();
           }
         }
-      }
-      h_pn_at_receiver_(0, time_index) = var_np1;
-      solver_data.swapWavefields();
-      total_output_time += std::chrono::high_resolution_clock::now() - start_output_time;
-    }
 
-    start_output_time = std::chrono::high_resolution_clock::now();
-    for (int i = 0; i < h_pn_at_receiver_.extent(0); i++) {
-      auto subview = Kokkos::subview(h_pn_at_receiver_, i, Kokkos::ALL());
-      vectorReal::host_mirror_type subset("receiver_save", num_samples_);
-      for (int j = 0; j < num_samples_; ++j) subset(j) = subview(j);
-      io_ctrl_->saveReceiver(subset, src_coord_);
-    }
-    total_output_time += std::chrono::high_resolution_clock::now() - start_output_time;
-
-  } else if (!is_elastic_) {
-    WavefieldAcoustic wavefield(pn_global_prev_, pn_global_curr_);
-    RhsAcoustic rhs(rhs_term_, rhs_element_, rhs_weights_);
-    SEMsolverDataAcoustic solver_data(wavefield, rhs);
-
-    for (int time_index = 0; time_index < num_samples_; time_index++) {
-      start_compute_time = std::chrono::high_resolution_clock::now();
-      solver_->computeForces(dt_, time_index, solver_data);
-      if (par_topology_.isDistributed()) {
-        for (int c = 0; c < solver_->getNumComponents(); ++c) {
-          syncer_->synchronize(solver_->getForceVector(c), par_topology_);
-        }
-      }
-      solver_->updateSolutionForward(dt_, solver_data);
-      total_compute_time += std::chrono::high_resolution_clock::now() - start_compute_time;
-
-      start_output_time = std::chrono::high_resolution_clock::now();
-
-      if (time_index % 50 == 0) {
-        solver_->outputSolutionValues(time_index, h_rhs_element_(0), pn_global_prev_, "pnGlobal");
-      }
-
-      if (is_snapshots_ && time_index % snap_time_interval_ == 0) {
-#ifdef USE_MPI
-        MPI_Barrier(MPI_COMM_WORLD);
-#endif
-        WaitSnapshots();
-        Kokkos::deep_copy(h_pn_global_prev_, pn_global_prev_);
-
-        // Offload both ADIOS2 and Slice formatting to background thread
-        auto io_task = [this, time_index, h_field = h_pn_global_prev_]() {
-          io_ctrl_->saveSnapshot(h_field, time_index);
-
-          int nx = num_nodes_[0];
-          int ny = num_nodes_[1];
-          int nz = num_nodes_[2];
-          int z_slice = nz / 2;
-          std::ostringstream fname;
-          fname << "slice_" << std::setfill('0') << std::setw(5) << time_index << ".dat";
-          std::ofstream fslice(fname.str());
-          for (int iy = 0; iy < ny; ++iy) {
-            for (int ix = 0; ix < nx; ++ix) {
-              int node_idx = ix + iy * nx + z_slice * nx * ny;
-              fslice << h_field(node_idx);
-              if (ix < nx - 1) fslice << " ";
+        Kokkos::deep_copy(h_pn_global_curr_, pn_global_curr_);
+        const int order = mesh_->getOrder();
+        float var_np1 = 0.0;
+        for (int i = 0; i < order + 1; i++) {
+          for (int j = 0; j < order + 1; j++) {
+            for (int k = 0; k < order + 1; k++) {
+              int node_idx = mesh_->globalNodeIndex(h_rhs_element_rcv_(0), i, j, k);
+              int global_node_on_elem = i + j * (order + 1) + k * (order + 1) * (order + 1);
+              var_np1 += h_pn_global_curr_(node_idx) * h_rhs_weights_rcv_(0, global_node_on_elem);
             }
-            fslice << "\n";
-          }
-          fslice.close();
-        };
-
-        if (pn_global_prev_.data() != h_pn_global_prev_.data()) {
-          snapshot_futures_.push_back(std::async(std::launch::async, io_task));
-        } else {
-          io_task();
-        }
-      }
-
-      // Bring wavefield array back to Host to compute Receiver Value
-      Kokkos::deep_copy(h_pn_global_curr_, pn_global_curr_);
-      const int order = mesh_->getOrder();
-      float var_np1 = 0.0;
-      for (int i = 0; i < order + 1; i++) {
-        for (int j = 0; j < order + 1; j++) {
-          for (int k = 0; k < order + 1; k++) {
-            int node_idx = mesh_->globalNodeIndex(h_rhs_element_rcv_(0), i, j, k);
-            int global_node_on_elem = i + j * (order + 1) + k * (order + 1) * (order + 1);
-            var_np1 += h_pn_global_curr_(node_idx) * h_rhs_weights_rcv_(0, global_node_on_elem);
           }
         }
+        h_pn_at_receiver_(0, time_index) = var_np1;
+        solver_data.swapWavefields();
+        total_output_time += std::chrono::high_resolution_clock::now() - start_output_time;
       }
-      h_pn_at_receiver_(0, time_index) = var_np1;
-
-      solver_data.swapWavefields();
-      total_output_time += std::chrono::high_resolution_clock::now() - start_output_time;
-    }
-
-    start_output_time = std::chrono::high_resolution_clock::now();
-    for (int i = 0; i < h_pn_at_receiver_.extent(0); i++) {
-      auto subview = Kokkos::subview(h_pn_at_receiver_, i, Kokkos::ALL());
-      vectorReal::host_mirror_type subset("receiver_save", num_samples_);
-      for (int j = 0; j < num_samples_; ++j) subset(j) = subview(j);
-      io_ctrl_->saveReceiver(subset, src_coord_);
-    }
-
-    std::ofstream fout("receiver_trace.txt");
-    fout << "# time pressure_at_receiver\n";
-    for (int t = 0; t < num_samples_; ++t) fout << t * dt_ << " " << h_pn_at_receiver_(0, t) << "\n";
-    fout.close();
-    total_output_time += std::chrono::high_resolution_clock::now() - start_output_time;
-
-  } else {  // elastic
-    WavefieldElastic wavefield(uxn_global_prev_, uxn_global_curr_, uyn_global_prev_, uyn_global_curr_, uzn_global_prev_,
-                               uzn_global_curr_);
-    RhsElastic rhs(rhs_term_x_, rhs_term_y_, rhs_term_z_, rhs_element_, rhs_weights_);
-    SEMsolverDataElastic solver_data(wavefield, rhs);
-
-    for (int time_index = 0; time_index < num_samples_; time_index++) {
-      start_compute_time = std::chrono::high_resolution_clock::now();
-      solver_->computeForces(dt_, time_index, solver_data);
-      if (par_topology_.isDistributed()) {
-        for (int c = 0; c < solver_->getNumComponents(); ++c)
-          syncer_->synchronize(solver_->getForceVector(c), par_topology_);
-      }
-      solver_->updateSolutionForward(dt_, solver_data);
-      total_compute_time += std::chrono::high_resolution_clock::now() - start_compute_time;
 
       start_output_time = std::chrono::high_resolution_clock::now();
-
-      if (time_index % 50 == 0) {
-        solver_->outputSolutionValues(time_index, h_rhs_element_(0), uxn_global_prev_, "uxnGlobal");
-        solver_->outputSolutionValues(time_index, h_rhs_element_(0), uyn_global_prev_, "uynGlobal");
-        solver_->outputSolutionValues(time_index, h_rhs_element_(0), uzn_global_prev_, "uznGlobal");
+      for (int i = 0; i < h_pn_at_receiver_.extent(0); i++) {
+        auto subview = Kokkos::subview(h_pn_at_receiver_, i, Kokkos::ALL());
+        vectorReal::host_mirror_type subset("receiver_save", num_samples_);
+        for (int j = 0; j < num_samples_; ++j) subset(j) = subview(j);
+        io_ctrl_->saveReceiver(subset, src_coord_);
       }
+      total_output_time += std::chrono::high_resolution_clock::now() - start_output_time;
 
-      if (is_snapshots_ && time_index % snap_time_interval_ == 0) {
-        WaitSnapshots();
-        Kokkos::deep_copy(h_uxn_global_prev_, uxn_global_prev_);
+    } else if (!is_elastic_) {
+      WavefieldAcoustic wavefield(pn_global_prev_, pn_global_curr_);
+      RhsAcoustic rhs(rhs_term_, rhs_element_, rhs_weights_);
+      SEMsolverDataAcoustic solver_data(wavefield, rhs);
 
-        auto io_task = [this, time_index, h_ux = h_uxn_global_prev_]() { io_ctrl_->saveSnapshot(h_ux, time_index); };
-
-        if (uxn_global_prev_.data() != h_uxn_global_prev_.data()) {
-          snapshot_futures_.push_back(std::async(std::launch::async, io_task));
-        } else {
-          io_task();
-        }
-      }
-
-      Kokkos::deep_copy(h_uxn_global_curr_, uxn_global_curr_);
-      Kokkos::deep_copy(h_uyn_global_curr_, uyn_global_curr_);
-      Kokkos::deep_copy(h_uzn_global_curr_, uzn_global_curr_);
-
-      const int order = mesh_->getOrder();
-      float var_ux_np1 = 0.0;
-      float var_uy_np1 = 0.0;
-      float var_uz_np1 = 0.0;
-      for (int i = 0; i < order + 1; i++) {
-        for (int j = 0; j < order + 1; j++) {
-          for (int k = 0; k < order + 1; k++) {
-            int node_idx = mesh_->globalNodeIndex(h_rhs_element_rcv_(0), i, j, k);
-            int global_node_on_elem = i + j * (order + 1) + k * (order + 1) * (order + 1);
-            var_ux_np1 += h_uxn_global_curr_(node_idx) * h_rhs_weights_rcv_(0, global_node_on_elem);
-            var_uy_np1 += h_uyn_global_curr_(node_idx) * h_rhs_weights_rcv_(0, global_node_on_elem);
-            var_uz_np1 += h_uzn_global_curr_(node_idx) * h_rhs_weights_rcv_(0, global_node_on_elem);
+      for (int time_index = 0; time_index < num_samples_; time_index++) {
+        start_compute_time = std::chrono::high_resolution_clock::now();
+        solver_->computeForces(dt_, time_index, solver_data);
+        if (par_topology_.isDistributed()) {
+          for (int c = 0; c < solver_->getNumComponents(); ++c) {
+            syncer_->synchronize(solver_->getForceVector(c), par_topology_);
           }
         }
+        solver_->updateSolutionForward(dt_, solver_data);
+        total_compute_time += std::chrono::high_resolution_clock::now() - start_compute_time;
+
+        start_output_time = std::chrono::high_resolution_clock::now();
+
+        if (time_index % 50 == 0) {
+          solver_->outputSolutionValues(time_index, h_rhs_element_(0), pn_global_prev_, "pnGlobal");
+        }
+
+        if (is_snapshots_ && time_index % snap_time_interval_ == 0) {
+#ifdef USE_MPI
+          MPI_Barrier(MPI_COMM_WORLD);
+#endif
+          WaitSnapshots();
+          Kokkos::deep_copy(h_pn_global_prev_, pn_global_prev_);
+
+          // Offload both ADIOS2 and Slice formatting to background thread
+          auto io_task = [this, time_index, h_field = h_pn_global_prev_]() {
+            io_ctrl_->saveSnapshot(h_field, time_index);
+
+            int nx = num_nodes_[0];
+            int ny = num_nodes_[1];
+            int nz = num_nodes_[2];
+            int z_slice = nz / 2;
+            std::ostringstream fname;
+            fname << "slice_" << std::setfill('0') << std::setw(5) << time_index << ".dat";
+            std::ofstream fslice(fname.str());
+            for (int iy = 0; iy < ny; ++iy) {
+              for (int ix = 0; ix < nx; ++ix) {
+                int node_idx = ix + iy * nx + z_slice * nx * ny;
+                fslice << h_field(node_idx);
+                if (ix < nx - 1) fslice << " ";
+              }
+              fslice << "\n";
+            }
+            fslice.close();
+          };
+
+          if (pn_global_prev_.data() != h_pn_global_prev_.data()) {
+            snapshot_futures_.push_back(std::async(std::launch::async, io_task));
+          } else {
+            io_task();
+          }
+        }
+
+        // Bring wavefield array back to Host to compute Receiver Value
+        Kokkos::deep_copy(h_pn_global_curr_, pn_global_curr_);
+        const int order = mesh_->getOrder();
+        float var_np1 = 0.0;
+        for (int i = 0; i < order + 1; i++) {
+          for (int j = 0; j < order + 1; j++) {
+            for (int k = 0; k < order + 1; k++) {
+              int node_idx = mesh_->globalNodeIndex(h_rhs_element_rcv_(0), i, j, k);
+              int global_node_on_elem = i + j * (order + 1) + k * (order + 1) * (order + 1);
+              var_np1 += h_pn_global_curr_(node_idx) * h_rhs_weights_rcv_(0, global_node_on_elem);
+            }
+          }
+        }
+        h_pn_at_receiver_(0, time_index) = var_np1;
+
+        solver_data.swapWavefields();
+        total_output_time += std::chrono::high_resolution_clock::now() - start_output_time;
       }
 
-      h_uxn_at_receiver_(0, time_index) = var_ux_np1;
-      h_uyn_at_receiver_(0, time_index) = var_uy_np1;
-      h_uzn_at_receiver_(0, time_index) = var_uz_np1;
+      start_output_time = std::chrono::high_resolution_clock::now();
+      for (int i = 0; i < h_pn_at_receiver_.extent(0); i++) {
+        auto subview = Kokkos::subview(h_pn_at_receiver_, i, Kokkos::ALL());
+        vectorReal::host_mirror_type subset("receiver_save", num_samples_);
+        for (int j = 0; j < num_samples_; ++j) subset(j) = subview(j);
+        io_ctrl_->saveReceiver(subset, src_coord_);
+      }
+
+      std::ofstream fout("receiver_trace.txt");
+      fout << "# time pressure_at_receiver\n";
+      for (int t = 0; t < num_samples_; ++t) fout << t * dt_ << " " << h_pn_at_receiver_(0, t) << "\n";
+      fout.close();
+      total_output_time += std::chrono::high_resolution_clock::now() - start_output_time;
+
+    } else {  // elastic
+      WavefieldElastic wavefield(uxn_global_prev_, uxn_global_curr_, uyn_global_prev_, uyn_global_curr_,
+                                 uzn_global_prev_, uzn_global_curr_);
+      RhsElastic rhs(rhs_term_x_, rhs_term_y_, rhs_term_z_, rhs_element_, rhs_weights_);
+      SEMsolverDataElastic solver_data(wavefield, rhs);
+
+      for (int time_index = 0; time_index < num_samples_; time_index++) {
+        start_compute_time = std::chrono::high_resolution_clock::now();
+        solver_->computeForces(dt_, time_index, solver_data);
+        if (par_topology_.isDistributed()) {
+          for (int c = 0; c < solver_->getNumComponents(); ++c)
+            syncer_->synchronize(solver_->getForceVector(c), par_topology_);
+        }
+        solver_->updateSolutionForward(dt_, solver_data);
+        total_compute_time += std::chrono::high_resolution_clock::now() - start_compute_time;
+
+        start_output_time = std::chrono::high_resolution_clock::now();
+
+        if (time_index % 50 == 0) {
+          solver_->outputSolutionValues(time_index, h_rhs_element_(0), uxn_global_prev_, "uxnGlobal");
+          solver_->outputSolutionValues(time_index, h_rhs_element_(0), uyn_global_prev_, "uynGlobal");
+          solver_->outputSolutionValues(time_index, h_rhs_element_(0), uzn_global_prev_, "uznGlobal");
+        }
+
+        if (is_snapshots_ && time_index % snap_time_interval_ == 0) {
+          WaitSnapshots();
+          Kokkos::deep_copy(h_uxn_global_prev_, uxn_global_prev_);
+
+          auto io_task = [this, time_index, h_ux = h_uxn_global_prev_]() { io_ctrl_->saveSnapshot(h_ux, time_index); };
+
+          if (uxn_global_prev_.data() != h_uxn_global_prev_.data()) {
+            snapshot_futures_.push_back(std::async(std::launch::async, io_task));
+          } else {
+            io_task();
+          }
+        }
+
+        Kokkos::deep_copy(h_uxn_global_curr_, uxn_global_curr_);
+        Kokkos::deep_copy(h_uyn_global_curr_, uyn_global_curr_);
+        Kokkos::deep_copy(h_uzn_global_curr_, uzn_global_curr_);
+
+        const int order = mesh_->getOrder();
+        float var_ux_np1 = 0.0;
+        float var_uy_np1 = 0.0;
+        float var_uz_np1 = 0.0;
+        for (int i = 0; i < order + 1; i++) {
+          for (int j = 0; j < order + 1; j++) {
+            for (int k = 0; k < order + 1; k++) {
+              int node_idx = mesh_->globalNodeIndex(h_rhs_element_rcv_(0), i, j, k);
+              int global_node_on_elem = i + j * (order + 1) + k * (order + 1) * (order + 1);
+              var_ux_np1 += h_uxn_global_curr_(node_idx) * h_rhs_weights_rcv_(0, global_node_on_elem);
+              var_uy_np1 += h_uyn_global_curr_(node_idx) * h_rhs_weights_rcv_(0, global_node_on_elem);
+              var_uz_np1 += h_uzn_global_curr_(node_idx) * h_rhs_weights_rcv_(0, global_node_on_elem);
+            }
+          }
+        }
+
+        h_uxn_at_receiver_(0, time_index) = var_ux_np1;
+        h_uyn_at_receiver_(0, time_index) = var_uy_np1;
+        h_uzn_at_receiver_(0, time_index) = var_uz_np1;
+
+        if (das_type_ != SourceAndReceiverUtils::DASType::kNone) {
+          float das_val = 0.0f;
+          const int total_das_nodes = static_cast<int>(das_node_ids_.size());
+          for (int i_node = 0; i_node < total_das_nodes; ++i_node) {
+            int n_id = das_node_ids_[i_node];
+            if (n_id >= 0) {
+              float w = das_weights_[i_node];
+              das_val += (h_uxn_global_curr_(n_id) * das_vector_[0] + h_uyn_global_curr_(n_id) * das_vector_[1] +
+                          h_uzn_global_curr_(n_id) * das_vector_[2]) *
+                         w;
+            }
+          }
+          h_das_signal_(time_index) = das_val;
+        }
+
+        solver_data.swapWavefields();
+        total_output_time += std::chrono::high_resolution_clock::now() - start_output_time;
+      }
+
+      start_output_time = std::chrono::high_resolution_clock::now();
+      for (int i = 0; i < h_uxn_at_receiver_.extent(0); i++) {
+        auto subview = Kokkos::subview(h_uxn_at_receiver_, i, Kokkos::ALL());
+        vectorReal::host_mirror_type subset("receiver_save", num_samples_);
+        for (int j = 0; j < num_samples_; ++j) subset(j) = subview(j);
+        io_ctrl_->saveReceiver(subset, src_coord_);
+      }
 
       if (das_type_ != SourceAndReceiverUtils::DASType::kNone) {
-        float das_val = 0.0f;
-        const int total_das_nodes = static_cast<int>(das_node_ids_.size());
-        for (int i_node = 0; i_node < total_das_nodes; ++i_node) {
-          int n_id = das_node_ids_[i_node];
-          if (n_id >= 0) {
-            float w = das_weights_[i_node];
-            das_val += (h_uxn_global_curr_(n_id) * das_vector_[0] + h_uyn_global_curr_(n_id) * das_vector_[1] +
-                        h_uzn_global_curr_(n_id) * das_vector_[2]) *
-                       w;
-          }
-        }
-        h_das_signal_(time_index) = das_val;
+        std::ofstream f_das("das_trace.txt");
+        f_das << "# time das_signal\n";
+        for (int t = 0; t < num_samples_; ++t) f_das << t * dt_ << " " << h_das_signal_(t) << "\n";
+        f_das.close();
       }
-
-      solver_data.swapWavefields();
       total_output_time += std::chrono::high_resolution_clock::now() - start_output_time;
     }
-
-    start_output_time = std::chrono::high_resolution_clock::now();
-    for (int i = 0; i < h_uxn_at_receiver_.extent(0); i++) {
-      auto subview = Kokkos::subview(h_uxn_at_receiver_, i, Kokkos::ALL());
-      vectorReal::host_mirror_type subset("receiver_save", num_samples_);
-      for (int j = 0; j < num_samples_; ++j) subset(j) = subview(j);
-      io_ctrl_->saveReceiver(subset, src_coord_);
-    }
-
-    if (das_type_ != SourceAndReceiverUtils::DASType::kNone) {
-      std::ofstream f_das("das_trace.txt");
-      f_das << "# time das_signal\n";
-      for (int t = 0; t < num_samples_; ++t) f_das << t * dt_ << " " << h_das_signal_(t) << "\n";
-      f_das.close();
-    }
-    total_output_time += std::chrono::high_resolution_clock::now() - start_output_time;
   }
 
   WaitSnapshots();
