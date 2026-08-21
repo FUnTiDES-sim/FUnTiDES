@@ -164,17 +164,12 @@ class DGsolver : public Solver {
   void computeVolumeAndBoundary(int kNumElem, arrayReal current_field);
 
   /**
-   * @brief Kernel 1b — boundary absorbing damping (face-loop, boundary faces only).
+   * @brief Kernel 1b+2 — boundary absorbing damping and SIPG interface flux terms, fused into a
+   * single face-loop (mutually exclusive per face, disjoint accumulators).
    * @param kNumFaces Total number of faces (interior + boundary).
-   */
-  void computeBoundaryDamping(int kNumFaces);
-
-  /**
-   * @brief Kernel 2 — SIPG interface flux terms (reads neighbor fields).
-   * @param kNumElem Total number of elements.
    * @param current_field Pressure field at current time step p^n.
    */
-  void computeInterfaceFlux(int kNumElem, arrayReal current_field);
+  void computeBoundaryDampingAndInterfaceFlux(int kNumFaces, arrayReal current_field);
 
   /**
    * @brief Kernel 3 — Verlet time update.
@@ -210,7 +205,7 @@ class DGsolver : public Solver {
  private:
   MESH_TYPE m_mesh;
   model::FaceConnectivityUnstruct<float, int, ORDER> m_face_connectivity_;
-  real_t m_penalty_factor_ = 12.0f;
+  real_t m_penalty_factor_ = 75.0f;
 
  public:
   // List state used by updateFieldsFromList.

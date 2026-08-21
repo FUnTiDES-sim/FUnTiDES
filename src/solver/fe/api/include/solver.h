@@ -177,7 +177,7 @@ class Solver {
 
   virtual void setAnisotropyType(model::AnisotropyType type) = 0;
 
-  virtual void setDgSemBoundaryZ(float) {}
+  virtual void setZBoundary(float) {}
 
   virtual void setSLSAttenuation(const vectorReal& reference_frequencies,
                                  const vectorReal& anelasticity_coefficients = vectorReal()) = 0;

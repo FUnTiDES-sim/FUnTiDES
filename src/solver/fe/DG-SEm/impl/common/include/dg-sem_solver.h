@@ -108,7 +108,7 @@ class DGSEMsolver : public Solver {
     // TODO: Implement anisotropy setting
   }
 
-  void setDgSemBoundaryZ(float z) override { DG_SEM_interface_z_ = z; }
+  void setZBoundary(float z) override { DG_SEM_interface_z_ = z; }
 
   void setSLSAttenuation(const vectorReal& reference_frequencies,
                          const vectorReal& anelasticity_coefficients = vectorReal()) override {
@@ -197,7 +197,7 @@ class DGSEMsolver : public Solver {
 
   float DG_SEM_interface_z_ = 1000.f;  ///< Z coordinate of the DG-SEM interface
   /// @brief SIPG penalty factor for DG-SEM interface coupling (matches DG internal penalty).
-  real_t m_penalty_factor_ = 12.0f;
+  real_t m_penalty_factor_ = 75.0f;
 };
 
 }  // namespace fe

@@ -69,7 +69,7 @@ void SEMproxy::SetupSolver(const SemProxyOptions& opt) {
 
   if (is_dg_sem_) {
     dg_sem_iface_z_ = (opt.DgSemBoundaryZ > 0.f) ? opt.DgSemBoundaryZ : opt.lz * 0.5f;
-    solver_->setDgSemBoundaryZ(dg_sem_iface_z_);
+    solver_->setZBoundary(dg_sem_iface_z_);
   }
 
   const model::AnisotropyType anisotropy_type = GetAnisotropy(opt.anisotropy);
@@ -1051,7 +1051,7 @@ void SEMproxy::InitSource() {
       Kokkos::deep_copy(rhs_term_z_, h_rhs_term_z_);
     }
   } else if (is_dg_sem_) {
-    if (src_coord_[2] <= local_params_.DgSemBoundaryZ)
+    if (src_coord_[2] <= dg_sem_iface_z_)
       Kokkos::deep_copy(rhs_term_dg_, h_rhs_term_dg_);
     else {
       Kokkos::deep_copy(rhs_term_sem_, h_rhs_term_sem_);

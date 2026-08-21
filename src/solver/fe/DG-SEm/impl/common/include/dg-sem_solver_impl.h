@@ -44,6 +44,15 @@ void DGSEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::c
   std::cout << "DGSEMsolver: " << num_SEm_elements_ << " SEm elements, " << num_DG_elements_ << " DG elements."
             << std::endl;
 
+  // Re-assemble the SEM sub-solver's global mass/damping matrices restricted to the SEM
+  // subdomain. The full-mesh assembly done inside m_SEm_solver_.computeFEInit() above also
+  // accumulated contributions from DG-tagged elements, inflating the mass of the shared
+  // interface nodes (~2x) — the SEM weak form only owns the SEM elements (stiffness runs on
+  // SEm_elem_list_) — which acted as a heavy strip along the DG-SEM interface and produced a
+  // spurious partial reflection of waves crossing it.
+  m_SEm_solver_.computeGlobalMassMatrixMasked(m_element_type_, kElementTypeSEM);
+  m_SEm_solver_.computeDampingMatrixMasked(m_element_type_, kElementTypeSEM);
+
   TagNodes();
   std::cout << "DGSEMsolver: " << num_interface_faces_ << " interface faces." << std::endl;
 }
@@ -305,34 +314,36 @@ void DGSEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::A
         real_t const inv_rho_sem = 1.0f / mesh_local.getModelRhoOnElement(sem_e);
         real_t const gamma_sem = computeSIPGPenalty<ORDER>(faceCoords, sem_coords, penalty_local);
 
-        float stiff_dg_local[dgSolver::kPointsPerElement] = {0};
+        // Face-sized accumulator indexed by DG-side face dof: the coupling flux only touches
+        // the shared face's (ORDER+1)^2 dofs, so an element-sized array forced a 7x larger
+        // per-thread local-memory footprint and an all-element atomic flush of mostly zeros.
+        float stiff_dg_local[knumNodesPerFace] = {0};
 
         INTEGRAL_TYPE::computeInterfaceFluxTerm(
             faceCoords, dg_coords, fid_dg, [&](const int i, const int j, const int k, const real_t val) {
               int const ei = face_to_elem_dof[fid_dg][i];
               int const ej = face_to_elem_dof[fid_dg][j];
               int const gn_j = face_connectivity_local.getGlobalNodeFromFace(f, dg_to_sem(j));
-              int const gn_i = face_connectivity_local.getGlobalNodeFromFace(f, dg_to_sem(i));
               float const nk = normal_dg[k];
-              stiff_dg_local[ei] += inv_rho_dg * nk * (-0.5f * val * p_DG(dg_e, ej) + 0.5f * val * p_SEM(gn_j));
-              stiff_dg_local[ej] += inv_rho_dg * nk * (-0.5f * val * p_DG(dg_e, ei));
+              stiff_dg_local[i] += inv_rho_dg * nk * (-0.5f * val * p_DG(dg_e, ej) + 0.5f * val * p_SEM(gn_j));
+              stiff_dg_local[j] += inv_rho_dg * nk * (-0.5f * val * p_DG(dg_e, ei));
               ATOMICADD(work_sem(gn_j), inv_rho_dg * nk * (0.5f * val * p_DG(dg_e, ei)));
             });
 
         for (int i = 0; i < knumNodesPerFace; ++i) {
           int const ei = face_to_elem_dof[fid_dg][i];
           int const gn_i = face_connectivity_local.getGlobalNodeFromFace(f, dg_to_sem(i));
-          stiff_dg_local[ei] +=
+          stiff_dg_local[i] +=
               gamma_dg * INTEGRAL_TYPE::computeDampingTerm(i, faceCoords) * (p_DG(dg_e, ei) - p_SEM(gn_i));
         }
         INTEGRAL_TYPE::computeInterfaceFluxTerm(
             faceCoords, sem_coords, fid_sem, [&](const int i, const int j, const int k, const real_t val) {
               int const gn_i = face_connectivity_local.getGlobalNodeFromFace(f, i);
               int const gn_j = face_connectivity_local.getGlobalNodeFromFace(f, j);
-              int const ej_perm = face_to_elem_dof[fid_dg][sem_to_dg(j)];
-              int const ei_perm = face_to_elem_dof[fid_dg][sem_to_dg(i)];
+              int const sd_j = sem_to_dg(j);
+              int const ej_perm = face_to_elem_dof[fid_dg][sd_j];
               float const nk = -normal_dg[k];  // SEM outward = -DG outward
-              stiff_dg_local[ej_perm] += inv_rho_sem * nk * (0.5f * val * p_SEM(gn_i));
+              stiff_dg_local[sd_j] += inv_rho_sem * nk * (0.5f * val * p_SEM(gn_i));
               ATOMICADD(work_sem(gn_i),
                         inv_rho_sem * nk * (-0.5f * val * p_SEM(gn_j) + 0.5f * val * p_DG(dg_e, ej_perm)));
               ATOMICADD(work_sem(gn_j), inv_rho_sem * nk * (-0.5f * val * p_SEM(gn_i)));
@@ -345,7 +356,8 @@ void DGSEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::A
                                         (p_SEM(gn_i) - p_DG(dg_e, ei_perm)));
         }
 
-        for (int i = 0; i < dgSolver::kPointsPerElement; ++i) ATOMICADD(stiff_dg(dg_e, i), stiff_dg_local[i]);
+        for (int i = 0; i < knumNodesPerFace; ++i)
+          ATOMICADD(stiff_dg(dg_e, face_to_elem_dof[fid_dg][i]), stiff_dg_local[i]);
       });
 }
 
@@ -387,9 +399,7 @@ void DGSEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::c
   FENCE
   m_DG_solver_.computeVolumeAndBoundary(num_DG_elements_, DG_data.getCurrentField(0));
   FENCE
-  m_DG_solver_.computeBoundaryDamping(m_n_DG_interior_faces_);
-  FENCE
-  m_DG_solver_.computeInterfaceFlux(m_n_DG_interior_faces_, DG_data.getCurrentField(0));
+  m_DG_solver_.computeBoundaryDampingAndInterfaceFlux(m_n_DG_interior_faces_, DG_data.getCurrentField(0));
   FENCE
 
   // =========================================================================

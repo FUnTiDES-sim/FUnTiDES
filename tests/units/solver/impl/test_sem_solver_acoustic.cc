@@ -493,9 +493,9 @@ TEST_F(SemSolverAcousticAttenuationTest, ResetGlobalVectorsZerosAttenuationWorkV
   EXPECT_FLOAT_EQ(fv(0), 0.0f);
 }
 
-// Covers Solver::setDgSemBoundaryZ default body (non-overriding solver).
-TEST_F(SemSolverAcousticAttenuationTest, SetDgSemBoundaryZ_DoesNotThrow) {
-  EXPECT_NO_THROW(solver_->setDgSemBoundaryZ(500.0f));
+// Covers Solver::setZBoundary default body (non-overriding solver).
+TEST_F(SemSolverAcousticAttenuationTest, SetZBoundary_DoesNotThrow) {
+  EXPECT_NO_THROW(solver_->setZBoundary(500.0f));
 }
 
 }  // namespace test
