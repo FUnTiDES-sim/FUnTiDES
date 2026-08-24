@@ -192,7 +192,7 @@ class DGSEMsolver : public Solver {
   void BuildDGInteriorFaceList();
 
   float DG_SEM_interface_z_ = 1000.f;  ///< Z coordinate of the DG-SEM interface
-  real_t m_penalty_factor_ = 12.0f;  ///< SIPG penalty; kept in sync with the DG sub-solver's own
+  real_t m_penalty_factor_ = 12.0f;    ///< SIPG penalty; kept in sync with the DG sub-solver's own
 };
 
 }  // namespace fe
