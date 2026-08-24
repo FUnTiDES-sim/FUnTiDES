@@ -1,9 +1,6 @@
 #ifndef FUNTIDES_SRC_SOLVER_FE_DG_SEM_IMPL_COMMON_INCLUDE_DG_SEM_SOLVER_DATA_H_
 #define FUNTIDES_SRC_SOLVER_FE_DG_SEM_IMPL_COMMON_INCLUDE_DG_SEM_SOLVER_DATA_H_
 
-#include <iostream>
-
-#include "data_type.h"
 #include "dg-sem_rhs_acoustic.h"
 #include "dg-sem_wavefield_acoustic.h"
 #include "solver.h"

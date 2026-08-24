@@ -2,7 +2,6 @@
 #define FUNTIDES_SOLVER_FE_DG_SEM_IMPL_COMMON_INCLUDE_DG_SEM_SOLVER_H_
 
 #include <array>
-#include <cmath>
 
 #include "data_type.h"
 #include "dg-sem_physics_traits_acoustic.h"
@@ -160,44 +159,40 @@ class DGSEMsolver : public Solver {
   int getNumInterfaceFaces() const { return num_interface_faces_; }
 
  private:
-  dgSolver m_DG_solver_;    ///< DG sub-solver
-  semSolver m_SEm_solver_;  ///< SEm sub-solver
+  dgSolver m_DG_solver_;
+  semSolver m_SEm_solver_;
 
-  MESH_TYPE m_mesh_;  ///< Local copy of the mesh
+  MESH_TYPE m_mesh_;
   model::FaceConnectivityUnstruct<float, int> m_face_connectivity_;
   static constexpr int knumNodesPerFace = (ORDER + 1) * (ORDER + 1);
 
-  /// Per-element type tag (kElementTypeAcoustic or kElementTypeElastic).
+  /// Per-element type tag (kElementTypeDG or kElementTypeSEM).
   vectorInt m_element_type_;
 
-  int num_interface_faces_{0};  ///< Count of interface faces
-  /// Compact list of global interface face indices (size n_interface_faces_).
+  int num_interface_faces_{0};
+  /// Compact list of global interface face indices (size num_interface_faces_).
   vectorInt m_interface_face_indices_;
 
-  int num_DG_elements_{0};   ///< Count of DG elements
-  int num_SEm_elements_{0};  ///< Count of SEm elements
-  /// @brief Compact list of DG element indices (size
-  /// num_DG_elements_).
+  int num_DG_elements_{0};
+  int num_SEm_elements_{0};
+  /// Compact list of DG element indices (size num_DG_elements_).
   vectorInt DG_elem_list_;
-  /// @brief Compact list of SEm element indices (size
-  /// num_SEm_elements_).
+  /// Compact list of SEm element indices (size num_SEm_elements_).
   vectorInt SEm_elem_list_;
 
-  int num_SEm_nodes_{0};  ///< Count of SEm-domain nodes
-  /// @brief Compact list of SEm-domain node indices (pure SEm +
-  /// interface, size num_SEm_nodes_).
+  int num_SEm_nodes_{0};
+  /// Compact list of SEm-domain node indices (pure SEm + interface, size num_SEm_nodes_).
   vectorInt SEm_node_list_;
 
-  int m_n_DG_interior_faces_{0};  ///< Count of DG interior faces (excludes DG-SEM interface faces)
-  /// @brief Compact list of DG interior face indices (DG-DG faces only, excludes interface).
+  int m_n_DG_interior_faces_{0};  ///< Excludes DG-SEM interface faces
+  /// Compact list of DG interior face indices (DG-DG faces only, excludes interface).
   vectorInt m_DG_interior_face_list_;
 
   /// @brief Build m_DG_interior_face_list_ from all DG faces minus interface faces.
   void BuildDGInteriorFaceList();
 
   float DG_SEM_interface_z_ = 1000.f;  ///< Z coordinate of the DG-SEM interface
-  /// @brief SIPG penalty factor for DG-SEM interface coupling (matches DG internal penalty).
-  real_t m_penalty_factor_ = 12.0f;
+  real_t m_penalty_factor_ = 12.0f;  ///< SIPG penalty; kept in sync with the DG sub-solver's own
 };
 
 }  // namespace fe

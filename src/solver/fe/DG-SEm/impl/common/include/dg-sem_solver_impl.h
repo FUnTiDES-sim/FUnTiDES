@@ -2,7 +2,6 @@
 #define FUNTIDES_SOLVER_FE_DG_SEM_IMPL_COMMON_INCLUDE_DG_SEM_SOLVER_IMPL_H_
 
 #include <array>
-#include <cmath>
 #include <iostream>
 #include <stdexcept>
 #include <vector>
@@ -10,7 +9,7 @@
 #include "Integrals.h"
 #include "data_type.h"
 #include "dg-sem_solver.h"
-#include "dg-sem_solver_data.h"
+#include "dg_penalty.h"
 
 namespace solver {
 namespace fe {
