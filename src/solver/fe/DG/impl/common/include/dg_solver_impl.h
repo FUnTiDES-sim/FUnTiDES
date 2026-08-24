@@ -218,7 +218,8 @@ void DGsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::comp
   int const n_iter = list_on ? m_n_face_list_ : kNumFaces;
 
   auto face_connectivity_local = m_face_connectivity_;
-  auto const face_to_elem_dof = kFaceToElemDof;  // local copy for device capture
+  auto const face_to_elem_dof = kFaceToElemDof;               // local copy for device capture
+  auto const face_to_elem_dof_depth = kFaceToElemDofAtDepth;  // idem, for the face-normal line
   arrayReal stiff_local_view = m_stiff_local_;
   real_t const penalty_local = m_penalty_factor_;
 
@@ -257,8 +258,11 @@ void DGsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::comp
         real_t const inv_rho_o = 1.0f / mesh_local.getModelRhoOnElement(owner_e);
         real_t const inv_rho_n = 1.0f / mesh_local.getModelRhoOnElement(neighbor_e);
 
+        // Oriented explicitly: faceNormal's convention differs between mesh implementations and
+        // the flux terms below are the first consumers that depend on it (see orientNormalOutward).
         float normal[3];
         mesh_local.faceNormal(owner_e, static_cast<model::CubicFace>(fid_o), normal);
+        orientNormalOutward(normal, owner_coords, fid_o);
 
         real_t const gamma_o = computeSIPGPenalty<ORDER>(faceCoords, owner_coords, penalty_local);
         real_t const gamma_n = computeSIPGPenalty<ORDER>(faceCoords, neighbor_coords, penalty_local);
@@ -268,7 +272,8 @@ void DGsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::comp
 
         // --- Owner side (outward normal = normal[]) ---
         INTEGRAL_TYPE::computeInterfaceFluxTerm(
-            faceCoords, owner_coords, fid_o, [&](const int i, const int j, const int k, const real_t val) {
+            faceCoords, owner_coords, fid_o,
+            [&](const int i, const int j, const int k, const real_t val) {
               int const ei = face_to_elem_dof[fid_o][i];
               int const ej = face_to_elem_dof[fid_o][j];
               int const ej_perm = face_to_elem_dof[fid_n][face_connectivity_local.getNeighborFaceDof(f, j)];
@@ -277,6 +282,20 @@ void DGsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::comp
                                           0.5f * val * current_field(neighbor_e, ej_perm) * nk);
               stiff_o[ej] += inv_rho_o * (-0.5f * val * current_field(owner_e, ei) * nk);
               stiff_n[ej_perm] += inv_rho_o * (0.5f * val * current_field(owner_e, ei) * nk);
+            },
+            // Same three terms with the trial dof at depth m on the face-normal line instead of on
+            // the face itself (see computeGradPhiPhiAt: the single-callback form drops this term
+            // entirely on a Cartesian mesh). em fits inside stiff_o (sized kPointsPerElement), so
+            // it is a plain local write, not an atomic one.
+            [&](const int m, const int j, const int k, const real_t val) {
+              int const em = face_to_elem_dof_depth[fid_o][j][m];
+              int const ej = face_to_elem_dof[fid_o][j];
+              int const ej_perm = face_to_elem_dof[fid_n][face_connectivity_local.getNeighborFaceDof(f, j)];
+              float const nk = normal[k];
+              stiff_o[em] += inv_rho_o * (-0.5f * val * current_field(owner_e, ej) * nk +
+                                          0.5f * val * current_field(neighbor_e, ej_perm) * nk);
+              stiff_o[ej] += inv_rho_o * (-0.5f * val * current_field(owner_e, em) * nk);
+              stiff_n[ej_perm] += inv_rho_o * (0.5f * val * current_field(owner_e, em) * nk);
             });
 
         for (int i = 0; i < knumNodesPerFace; ++i) {
@@ -288,7 +307,8 @@ void DGsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::comp
 
         // --- Neighbor side (outward normal = -normal[]) ---
         INTEGRAL_TYPE::computeInterfaceFluxTerm(
-            faceCoords, neighbor_coords, fid_n, [&](const int i, const int j, const int k, const real_t val) {
+            faceCoords, neighbor_coords, fid_n,
+            [&](const int i, const int j, const int k, const real_t val) {
               int const ei = face_to_elem_dof[fid_n][i];
               int const ej = face_to_elem_dof[fid_n][j];
               int const ej_perm = face_to_elem_dof[fid_o][face_connectivity_local.getOwnerFaceDof(f, j)];
@@ -297,6 +317,16 @@ void DGsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::comp
                                           0.5f * val * current_field(owner_e, ej_perm) * nk);
               stiff_n[ej] += inv_rho_n * (-0.5f * val * current_field(neighbor_e, ei) * nk);
               stiff_o[ej_perm] += inv_rho_n * (0.5f * val * current_field(neighbor_e, ei) * nk);
+            },
+            [&](const int m, const int j, const int k, const real_t val) {
+              int const em = face_to_elem_dof_depth[fid_n][j][m];
+              int const ej = face_to_elem_dof[fid_n][j];
+              int const ej_perm = face_to_elem_dof[fid_o][face_connectivity_local.getOwnerFaceDof(f, j)];
+              float const nk = -normal[k];
+              stiff_n[em] += inv_rho_n * (-0.5f * val * current_field(neighbor_e, ej) * nk +
+                                          0.5f * val * current_field(owner_e, ej_perm) * nk);
+              stiff_n[ej] += inv_rho_n * (-0.5f * val * current_field(neighbor_e, em) * nk);
+              stiff_o[ej_perm] += inv_rho_n * (0.5f * val * current_field(neighbor_e, em) * nk);
             });
 
         for (int i = 0; i < knumNodesPerFace; ++i) {

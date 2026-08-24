@@ -258,6 +258,43 @@ class DGsolver : public Solver {
   /// @brief Lookup table: kFaceToElemDof[face_id][face_dof_2d] → element-local DOF.
   /// Replaces runtime calls to model::faceLocalToElemLocal(..., ORDER) in GPU kernels.
   static constexpr auto kFaceToElemDof = buildFaceToElemDof();
+
+  /// @brief Compile-time helper: maps (face_id, face_dof_2d, depth) → element-local DOF index,
+  /// where depth walks the line running through the face dof PERPENDICULAR to the face
+  /// (0 = the face at index 0 of that direction, ORDER = the opposite face).
+  ///
+  /// The face-normal part of a trial function's gradient reads that whole line, not just the face
+  /// dof, so the interface-flux kernels need to address its off-face support points. At depth
+  /// equal to the face's own fixed index this reduces to faceToElemDofImpl(face_id, dof).
+  static constexpr int faceToElemDofAtDepthImpl(int face_id, int face_dof_2d, int depth) {
+    const int n = ORDER + 1;
+    const int u = face_dof_2d % n;
+    const int v = face_dof_2d / n;
+    switch (face_id) {
+      case 0:
+      case 1:
+        return depth + u * n + v * n * n;  // kXMinus / kXPlus: normal runs along x
+      case 2:
+      case 3:
+        return u + depth * n + v * n * n;  // kYMinus / kYPlus: normal runs along y
+      case 4:
+      case 5:
+        return u + v * n + depth * n * n;  // kZMinus / kZPlus: normal runs along z
+      default:
+        return -1;
+    }
+  }
+
+  static constexpr auto buildFaceToElemDofAtDepth() {
+    std::array<std::array<std::array<int, ORDER + 1>, knumNodesPerFace>, 6> t{};
+    for (int f = 0; f < 6; ++f)
+      for (int i = 0; i < knumNodesPerFace; ++i)
+        for (int m = 0; m <= ORDER; ++m) t[f][i][m] = faceToElemDofAtDepthImpl(f, i, m);
+    return t;
+  }
+
+  /// @brief Lookup table: kFaceToElemDofAtDepth[face_id][face_dof_2d][depth] → element-local DOF.
+  static constexpr auto kFaceToElemDofAtDepth = buildFaceToElemDofAtDepth();
 };
 
 // Backward Compatibility Aliases

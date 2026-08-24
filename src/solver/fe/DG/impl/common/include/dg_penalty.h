@@ -77,6 +77,50 @@ PROXY_HOST_DEVICE real_t computeHexVolume(real_t const (&X)[8][3]) {
 }
 
 /**
+ * @brief Force a face normal to point OUT of the element, whatever convention produced it.
+ *
+ * ModelApi::faceNormal has no single orientation convention across its implementations:
+ * ModelStruct returns the outward normal (v[face/2] = face%2 ? +1 : -1) while ModelUnstruct
+ * returns normalize(t1 x t2) with a vertex ordering that yields the INWARD normal on all six
+ * faces. The mismatch stayed invisible for a long time because the interface flux terms -- the
+ * only consumers whose result depends on the orientation -- summed to zero on a Cartesian mesh,
+ * so the normal multiplied nothing but zeros. The unit tests do not catch it either: the unstruct
+ * ones assert only that the normal is unit-length and that opposite faces are antiparallel, both
+ * of which a globally flipped normal satisfies.
+ *
+ * Rather than change faceNormal (its orientation is also consumed by the elastic SEM damping and
+ * by the acoustoelastic coupling, which may already compensate for it), the DG kernels orient it
+ * here. The outward direction is the one pointing from the element centroid towards the face
+ * centroid, which is geometric and therefore valid for deformed hexahedra as well -- and a no-op
+ * whenever faceNormal already returned the outward normal.
+ *
+ * @param n        Normal to orient in place.
+ * @param X8       Element corner coordinates, ordered X8[iv + 2*jv + 4*kv].
+ * @param kFaceId  Local face index (0..5), i.e. 2*direction + (0 for Minus, 1 for Plus).
+ */
+PROXY_HOST_DEVICE void orientNormalOutward(real_t (&n)[3], real_t const (&X8)[8][3], int const kFaceId) {
+  int const kDir = kFaceId / 2;
+  int const kHigh = kFaceId % 2;
+
+  real_t elemCentroid[3] = {0.0f, 0.0f, 0.0f};
+  for (int v = 0; v < 8; ++v)
+    for (int d = 0; d < 3; ++d) elemCentroid[d] += 0.125f * X8[v][d];
+
+  // The 4 corners of the face are those whose bit in direction kDir matches the face's side.
+  real_t faceCentroid[3] = {0.0f, 0.0f, 0.0f};
+  for (int v = 0; v < 8; ++v) {
+    if (((v >> kDir) & 1) != kHigh) continue;
+    for (int d = 0; d < 3; ++d) faceCentroid[d] += 0.25f * X8[v][d];
+  }
+
+  real_t outward = 0.0f;
+  for (int d = 0; d < 3; ++d) outward += n[d] * (faceCentroid[d] - elemCentroid[d]);
+
+  if (outward < 0.0f)
+    for (int d = 0; d < 3; ++d) n[d] = -n[d];
+}
+
+/**
  * @brief Compute the SIPG penalty parameter gamma for a face.
  *
  * Formula: gamma = penalty_factor * p * (p+1) / h_f
