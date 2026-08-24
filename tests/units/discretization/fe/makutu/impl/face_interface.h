@@ -153,17 +153,8 @@ TYPED_TEST(InterfaceFluxTest, InterfaceFluxIsZero) {
   }
 }
 
-// The interface flux operator must reproduce the EXACT normal derivative of a field, not only its
-// tangential part. A field varying only along the face normal is the case that isolates this: such
-// a field is constant over the face dofs, so any operator restricted to face dofs sees a constant
-// and returns zero by partition of unity -- which is precisely what InterfaceFluxIsZero asserts.
-// Reproducing it requires the dofs of the line perpendicular to the face, hence the funcNormal
-// channel.
-//
-// Unit cube, p = the physical coordinate running along the face normal. Then grad(p) = e_kDir and
-//   sum_i p_i C_i,j,kDir = int_F (dp/dx_kDir) phi_j = int_F phi_j = computeDampingTerm(j, X).
-// The face normal's own sign is applied by the caller, not by the operator, so it does not enter
-// the expected value.
+// funcNormal must reproduce the exact normal derivative of a field linear along the face normal:
+// grad(p) = e_kDir, so sum_i p_i C_i,j,kDir = int_F phi_j = computeDampingTerm(j, X).
 TYPED_TEST(InterfaceFluxTest, ReproducesNormalDerivativeOfLinearField) {
   using QK = TypeParam;
   constexpr int numNodesPerFace = QK::numNodesPerFace;

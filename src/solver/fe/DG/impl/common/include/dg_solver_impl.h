@@ -218,8 +218,8 @@ void DGsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::comp
   int const n_iter = list_on ? m_n_face_list_ : kNumFaces;
 
   auto face_connectivity_local = m_face_connectivity_;
-  auto const face_to_elem_dof = kFaceToElemDof;               // local copy for device capture
-  auto const face_to_elem_dof_depth = kFaceToElemDofAtDepth;  // idem, for the face-normal line
+  auto const face_to_elem_dof = kFaceToElemDof;  // local copy for device capture
+  auto const face_to_elem_dof_depth = kFaceToElemDofAtDepth;
   arrayReal stiff_local_view = m_stiff_local_;
   real_t const penalty_local = m_penalty_factor_;
 
@@ -258,8 +258,6 @@ void DGsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::comp
         real_t const inv_rho_o = 1.0f / mesh_local.getModelRhoOnElement(owner_e);
         real_t const inv_rho_n = 1.0f / mesh_local.getModelRhoOnElement(neighbor_e);
 
-        // Oriented explicitly: faceNormal's convention differs between mesh implementations and
-        // the flux terms below are the first consumers that depend on it (see orientNormalOutward).
         float normal[3];
         mesh_local.faceNormal(owner_e, static_cast<model::CubicFace>(fid_o), normal);
         orientNormalOutward(normal, owner_coords, fid_o);
@@ -283,10 +281,6 @@ void DGsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::comp
               stiff_o[ej] += inv_rho_o * (-0.5f * val * current_field(owner_e, ei) * nk);
               stiff_n[ej_perm] += inv_rho_o * (0.5f * val * current_field(owner_e, ei) * nk);
             },
-            // Same three terms with the trial dof at depth m on the face-normal line instead of on
-            // the face itself (see computeGradPhiPhiAt: the single-callback form drops this term
-            // entirely on a Cartesian mesh). em fits inside stiff_o (sized kPointsPerElement), so
-            // it is a plain local write, not an atomic one.
             [&](const int m, const int j, const int k, const real_t val) {
               int const em = face_to_elem_dof_depth[fid_o][j][m];
               int const ej = face_to_elem_dof[fid_o][j];
