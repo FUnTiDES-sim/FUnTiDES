@@ -1,11 +1,15 @@
 /**
- * @file test_dg_solver_acoustic.cc
- * @brief Integration and kernel tests for DGsolver (acoustic, ORDER=1).
+ * @file dg_solver_acoustic.h
+ * @brief Integration and kernel tests for DGsolver (acoustic), parameterized by kOrder.
  *
- * The solver is directly instantiated with ModelStruct<float,int,1> so all
- * template specialisations in dg_solver_impl.h are exercised without going
- * through the solver factory. A 2×2×2 element Cartesian mesh (domain 200³)
- * is built via CartesianStructBuilder; each element is a 100×100×100 cube.
+ * kOrder must be defined by the including .cpp (see
+ * templates/test_dg_solver_acoustic_order.cpp.in) before this header is included, one order per
+ * test binary — mirrors the per-order split used for the Qk_Hexahedron discretization tests.
+ *
+ * The solver is directly instantiated with ModelStruct<float,int,kOrder> so all template
+ * specialisations in dg_solver_impl.h are exercised without going through the solver factory.
+ * A 2x2x2 element Cartesian mesh (domain 200^3) is built via CartesianStructBuilder; each element
+ * is a 100x100x100 cube.
  *
  * Key numerical invariants verified:
  *   - Zero field + zero source: field remains zero (linearity sanity check).
@@ -33,11 +37,10 @@ namespace fe {
 namespace test {
 
 // ============================================================
-// Type aliases for ORDER=1 DG acoustic solver on structured mesh
+// Type aliases for the DG acoustic solver on structured mesh
 // ============================================================
 
-static constexpr int kOrder = 1;
-static constexpr int kNDof = (kOrder + 1) * (kOrder + 1) * (kOrder + 1);  // 8
+static constexpr int kNDof = (kOrder + 1) * (kOrder + 1) * (kOrder + 1);
 
 using MeshType = model::ModelStruct<float, int, kOrder>;
 using IntType = typename IntegralTypeSelector<kOrder, IntegralType::MAKUTU>::type;
@@ -108,9 +111,9 @@ TEST_F(DGsolverAcousticTest, ComputeFEInit_Succeeds) {
 }
 
 TEST_F(DGsolverAcousticTest, ComputeFEInit_IncompatibleMeshThrows) {
-  // A ModelStruct<float,int,2> is a different C++ type from ModelStruct<float,int,1>.
+  // A ModelStruct<float,int,kOrder+1> is a different C++ type from ModelStruct<float,int,kOrder>.
   // The dynamic_cast in computeFEInit must fail and throw.
-  model::CartesianStructBuilder<float, int, 2> builder2(2, 200.0f, 2, 200.0f, 2, 200.0f, false, false);
+  model::CartesianStructBuilder<float, int, kOrder + 1> builder2(2, 200.0f, 2, 200.0f, 2, 200.0f, false, false);
   auto mesh2 = builder2.getModel(false);
 
   DGSolverT fresh_solver;
