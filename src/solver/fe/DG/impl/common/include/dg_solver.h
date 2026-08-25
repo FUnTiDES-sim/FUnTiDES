@@ -260,12 +260,8 @@ class DGsolver : public Solver {
   static constexpr auto kFaceToElemDof = buildFaceToElemDof();
 
   /// @brief Compile-time helper: maps (face_id, face_dof_2d, depth) → element-local DOF index,
-  /// where depth walks the line running through the face dof PERPENDICULAR to the face
-  /// (0 = the face at index 0 of that direction, ORDER = the opposite face).
-  ///
-  /// The face-normal part of a trial function's gradient reads that whole line, not just the face
-  /// dof, so the interface-flux kernels need to address its off-face support points. At depth
-  /// equal to the face's own fixed index this reduces to faceToElemDofImpl(face_id, dof).
+  /// where depth walks the line through the face dof PERPENDICULAR to the face (0 = index 0 of
+  /// that direction, ORDER = the opposite face).
   static constexpr int faceToElemDofAtDepthImpl(int face_id, int face_dof_2d, int depth) {
     const int n = ORDER + 1;
     const int u = face_dof_2d % n;

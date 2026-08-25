@@ -441,26 +441,8 @@ class Qk_Hexahedron_Lagrange_GaussLobatto {
 
   /**
    * @brief Two-channel variant of computeGradPhiPhi() that also reports the face-normal
-   *   derivative contributions.
-   *
-   * The gradient of a trial function at a face quadrature point splits into two tangential
-   * contributions and one face-normal contribution. The tangential ones only involve basis
-   * functions whose support point lies ON the face, so a single face-indexed callback carries
-   * them. The normal one does not: it reads the (ORDER+1) support points of the line running
-   * through the quadrature point PERPENDICULAR to the face, of which only one is a face dof.
-   *
-   * The single-callback form above collapses that line onto the face dof itself, which makes the
-   * trial value constant over the line; what is left is the coefficient sum
-   * sum_m dPhi_m/dxi(kQFixed) = 0, the derivative of the partition of unity. The normal
-   * derivative therefore cancels exactly and never reaches the caller. On a Cartesian mesh the
-   * inverse Jacobian is diagonal, so the face normal selects the normal direction only and the
-   * whole consistency term of the numerical flux vanishes.
-   *
-   * This variant keeps the tangential contributions on @p func, unchanged, and routes the normal
-   * ones to @p funcNormal with the line depth as first index so the caller can address the
-   * off-face dofs. The single-callback form is left untouched and stays bit-for-bit identical
-   * for callers that have not migrated.
-   *
+   *   derivative contributions, which the single-callback form cancels identically (see
+   *   computeInterfaceFluxTerm()).
    * @tparam kQfa The 1d face quadrature point index in the first face direction.
    * @tparam kQfb The 1d face quadrature point index in the second face direction.
    * @param kDir Face-normal direction (kFaceId / 2).
@@ -504,13 +486,10 @@ class Qk_Hexahedron_Lagrange_GaussLobatto {
                                                          int const kFaceId, FUNC &&func);
 
   /**
-   * @brief Two-channel variant of computeInterfaceFluxTerm().
-   *
-   * Same quadrature, but the face-normal derivative contributions are reported separately so the
-   * caller can reach the off-face dofs they involve. Without this the consistency term of the
-   * numerical flux is identically zero on a Cartesian mesh; see computeGradPhiPhi() for the
-   * derivation.
-   *
+   * @brief Two-channel variant of computeInterfaceFluxTerm(): also reports the face-normal
+   *   derivative contributions, which the single-callback form cancels identically on a
+   *   Cartesian mesh (the trial value collapses to the face dof, so the gradient reduces to the
+   *   derivative of the partition of unity, sum_m dPhi_m/dxi = 0).
    * @param kX Coordinates of the 4 face corner support points.
    * @param X8 Coordinates of the 8 element corner support points.
    * @param kFaceId Integer (0..5) to specify the integrated face.
