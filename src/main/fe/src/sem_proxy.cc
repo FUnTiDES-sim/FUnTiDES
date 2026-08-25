@@ -313,52 +313,49 @@ void SEMproxy::Run() {
           const int ey = num_elements_[1];
           const int ez = num_elements_[2];
           const int ez_dg = (int)std::round(ez * dg_sem_iface_z_ / domain_size_[2]);
-          const int zElem = ez_dg / 2;
           const int n1d = order + 1;
-          const int icZ = order / 2;
 
           if (time_index == snap_time_interval_) {
             std::ofstream fiface("dgsem_interface_row.txt");
             fiface << ez_dg * n1d << "\n";
           }
 
-          std::ostringstream fname_dg;
-          fname_dg << "slice_dgsem_dg_" << std::setfill('0') << std::setw(5) << time_index << ".dat";
-          std::ofstream fslice_dg(fname_dg.str());
-          for (int ej_idx = 0; ej_idx < ey; ++ej_idx) {
-            for (int ib = 0; ib < n1d; ++ib) {
-              bool first = true;
-              for (int ei_idx = 0; ei_idx < ex; ++ei_idx) {
-                int const elem = ei_idx + ej_idx * ex + zElem * ex * ey;
-                for (int ia = 0; ia < n1d; ++ia) {
-                  int const dof = ia + ib * n1d + icZ * n1d * n1d;
-                  if (!first) fslice_dg << " ";
-                  fslice_dg << h_dg(elem, dof);
-                  first = false;
-                }
-              }
-              fslice_dg << "\n";
-            }
-          }
-          fslice_dg.close();
+          // std::ostringstream fname_dg;
+          // fname_dg << "slice_dgsem_dg_" << std::setfill('0') << std::setw(5) << time_index << ".dat";
+          // std::ofstream fslice_dg(fname_dg.str());
+          // for (int ej_idx = 0; ej_idx < ey; ++ej_idx) {
+          //   for (int ib = 0; ib < n1d; ++ib) {
+          //     bool first = true;
+          //     for (int ei_idx = 0; ei_idx < ex; ++ei_idx) {
+          //       int const elem = ei_idx + ej_idx * ex + zElem * ex * ey;
+          //       for (int ia = 0; ia < n1d; ++ia) {
+          //         int const dof = ia + ib * n1d + icZ * n1d * n1d;
+          //         if (!first) fslice_dg << " ";
+          //         fslice_dg << h_dg(elem, dof);
+          //         first = false;
+          //       }
+          //     }
+          //     fslice_dg << "\n";
+          //   }
+          // }
+          // fslice_dg.close();
 
           const int nx = num_nodes_[0];
           const int ny = num_nodes_[1];
           const int nz = num_nodes_[2];
           const int nz_dg_nodes = ez_dg * order;
-          const int z_slice = nz_dg_nodes + (nz - nz_dg_nodes) / 2;
-          std::ostringstream fname_sem;
-          fname_sem << "slice_dgsem_sem_" << std::setfill('0') << std::setw(5) << time_index << ".dat";
-          std::ofstream fslice_sem(fname_sem.str());
-          for (int iy = 0; iy < ny; ++iy) {
-            for (int ix = 0; ix < nx; ++ix) {
-              int const node_idx = ix + iy * nx + z_slice * nx * ny;
-              fslice_sem << h_sem(node_idx);
-              if (ix < nx - 1) fslice_sem << " ";
-            }
-            fslice_sem << "\n";
-          }
-          fslice_sem.close();
+          // std::ostringstream fname_sem;
+          // fname_sem << "slice_dgsem_sem_" << std::setfill('0') << std::setw(5) << time_index << ".dat";
+          // std::ofstream fslice_sem(fname_sem.str());
+          // for (int iy = 0; iy < ny; ++iy) {
+          //   for (int ix = 0; ix < nx; ++ix) {
+          //     int const node_idx = ix + iy * nx + z_slice * nx * ny;
+          //     fslice_sem << h_sem(node_idx);
+          //     if (ix < nx - 1) fslice_sem << " ";
+          //   }
+          //   fslice_sem << "\n";
+          // }
+          // fslice_sem.close();
 
           // Full-domain combined x-z slice at mid-y: DG rows (bottom) then SEM rows (top).
           // Visualise with: plot 'slice_dgsem_xz_XXXXX.dat' matrix with image
