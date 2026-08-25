@@ -87,8 +87,11 @@ jobs:
             --fail-under-line 90  \
             -j $(nproc)
 
+      # TEMP: if: always() added on the 4 steps below to debug the 89.9%<90%
+      # coverage gate failure on fix/fixdgfluxcomputation — remove once resolved.
       - name: Parse Coverage XML for GitHub
         uses: irongut/CodeCoverageSummary@v1.3.0
+        if: always()
         with:
           filename: build/coverage-report/coverage.xml
           badge: true
@@ -98,17 +101,19 @@ jobs:
           thresholds: '60 80'
 
       - name: Write to Job Summary
+        if: always()
         run: cat code-coverage-results.md >> $GITHUB_STEP_SUMMARY
 
       - name: Add Coverage PR Comment
         uses: marocchino/sticky-pull-request-comment@v2
-        if: github.event_name == 'pull_request'
+        if: always() && github.event_name == 'pull_request'
         with:
           recreate: true
           path: code-coverage-results.md
 
       - name: Upload Coverage Artifact
         uses: actions/upload-artifact@v4
+        if: always()
         with:
           name: cxx-coverage-report
           path: build/coverage-report/
