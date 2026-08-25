@@ -225,6 +225,10 @@ class DGsolver : public Solver {
   static constexpr int kPointsPerElement = (ORDER + 1) * (ORDER + 1) * (ORDER + 1);
   static constexpr int knumNodesPerFace = (ORDER + 1) * (ORDER + 1);
 
+  // GCOVR_EXCL_START: these constexpr helpers only ever run through the static constexpr
+  // table initializers below (kFaceToElemDof, kFaceToElemDofAtDepth); the C++17 constant
+  // evaluator executes them at compile time, but gcov still instruments the (never-called)
+  // runtime body it emits alongside, so they show as 0% covered by construction.
   /// @brief Compile-time helper: maps (face_id, face_dof_2d) → element-local DOF index.
   static constexpr int faceToElemDofImpl(int face_id, int face_dof_2d) {
     const int n = ORDER + 1;
@@ -291,6 +295,7 @@ class DGsolver : public Solver {
 
   /// @brief Lookup table: kFaceToElemDofAtDepth[face_id][face_dof_2d][depth] → element-local DOF.
   static constexpr auto kFaceToElemDofAtDepth = buildFaceToElemDofAtDepth();
+  // GCOVR_EXCL_STOP
 };
 
 // Backward Compatibility Aliases

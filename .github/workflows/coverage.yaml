@@ -76,9 +76,6 @@ jobs:
           # - finite difference will soon be removed (fd and grid)
           # - main will be split in other repo
           # - pywrap are wrappers and not relevant for C++ coverage
-          # - dg_solver.h's DOF lookup tables are constexpr, evaluated entirely at compile
-          #   time; gcov still emits (never-called) runtime bodies for them, so they show as
-          #   uncovered even though the constant evaluator already exercised them at build time.
           gcovr -r . build/ \
             --html-details build/coverage-report/coverage.html \
             --xml build/coverage-report/coverage.xml \
@@ -87,7 +84,6 @@ jobs:
             --exclude '.*/main/.*' \
             --exclude '.*/grid/.*' \
             --exclude '.*/pywrap/.*' \
-            --exclude '.*/dg_solver\.h' \
             --fail-under-line 90  \
             -j $(nproc)
 
