@@ -77,39 +77,6 @@ PROXY_HOST_DEVICE real_t computeHexVolume(real_t const (&X)[8][3]) {
 }
 
 /**
- * @brief Force a face normal to point OUT of the element, whatever convention produced it.
- *
- * ModelApi::faceNormal is not consistently outward across implementations (ModelUnstruct returns
- * the inward normal on all six faces). Rather than touch faceNormal itself, orient it here from
- * element/face centroids -- geometric, so valid for deformed hexahedra too, and a no-op when the
- * normal was already outward.
- *
- * @param n        Normal to orient in place.
- * @param X8       Element corner coordinates, ordered X8[iv + 2*jv + 4*kv].
- * @param kFaceId  Local face index (0..5), i.e. 2*direction + (0 for Minus, 1 for Plus).
- */
-PROXY_HOST_DEVICE void orientNormalOutward(real_t (&n)[3], real_t const (&X8)[8][3], int const kFaceId) {
-  int const kDir = kFaceId / 2;
-  int const kHigh = kFaceId % 2;
-
-  real_t elemCentroid[3] = {0.0f, 0.0f, 0.0f};
-  for (int v = 0; v < 8; ++v)
-    for (int d = 0; d < 3; ++d) elemCentroid[d] += 0.125f * X8[v][d];
-
-  real_t faceCentroid[3] = {0.0f, 0.0f, 0.0f};
-  for (int v = 0; v < 8; ++v) {
-    if (((v >> kDir) & 1) != kHigh) continue;
-    for (int d = 0; d < 3; ++d) faceCentroid[d] += 0.25f * X8[v][d];
-  }
-
-  real_t outward = 0.0f;
-  for (int d = 0; d < 3; ++d) outward += n[d] * (faceCentroid[d] - elemCentroid[d]);
-
-  if (outward < 0.0f)
-    for (int d = 0; d < 3; ++d) n[d] = -n[d];
-}
-
-/**
  * @brief Compute the SIPG penalty parameter gamma for a face.
  *
  * Formula: gamma = penalty_factor * p * (p+1) / h_f
