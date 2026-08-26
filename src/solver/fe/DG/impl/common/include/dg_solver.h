@@ -30,6 +30,14 @@ using physicType = utils::enums::physicType;
  *
  * Depends only on ORDER, not on mesh type, physics, or IS_MODEL_ON_NODES, so it is factored
  * out of DGsolver rather than duplicated per solver instantiation.
+ *
+ * Standalone (not a DGsolver member) so unit tests can call it directly: everything below is
+ * constexpr and only ever used from a constant-expression context (the kFaceToElemDof* table
+ * initializers), so it normally runs solely at compile time. In C++20, marking it consteval
+ * would make the compiler enforce that and skip emitting a runtime body altogether; C++17
+ * (this project's standard) has no such guarantee, so gcov still instruments a runtime body
+ * that a compile-time-only caller never reaches. Keeping this struct public lets a test call
+ * it with non-constant arguments to force a real runtime execution instead.
  */
 template <int ORDER>
 struct DgFaceDofTable {
