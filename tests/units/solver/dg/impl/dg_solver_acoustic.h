@@ -104,31 +104,28 @@ class DGsolverAcousticTest : public ::testing::Test {
 // ============================================================
 // DgFaceDofTable<kOrder> — compile-time DOF lookup tables
 //
-// faceToElemDofImpl/AtDepthImpl and the two tables built from them are constexpr and only
-// ever used from a constant-expression context (the static constexpr table initializers), so
-// the C++17 constant evaluator runs them entirely at compile time. Calling them again here
-// with loop-variable (non-constant) arguments forces a genuine runtime call, so this both
-// exercises the lines and checks the two invariants documented on faceToElemDofAtDepthImpl:
-// consistency with the depth-less table, and injectivity along each face-normal line.
+// buildFaceToElemDof[AtDepth]() are constexpr and only ever used from a constant-expression
+// context (the static constexpr kFaceToElemDof* initializers), so the C++17 constant evaluator
+// runs them entirely at compile time. Calling them again here forces a genuine runtime call
+// (exercising those lines), and cross-checks the result against model::faceLocalToElemLocal[At
+// Depth] (face_connectivity.h) — the actual indexing math, unit-tested there independently of
+// this compile-time caching layer.
 // ============================================================
 
-TEST(DgFaceDofTableTest, ConsistentAndInjective) {
+TEST(DgFaceDofTableTest, MatchesFaceConnectivity) {
   using DofTable = DgFaceDofTable<kOrder>;
+  const auto table = DofTable::buildFaceToElemDof();
+  const auto tableAtDepth = DofTable::buildFaceToElemDofAtDepth();
+
   for (int f = 0; f < 6; ++f) {
-    const int fixedDepth = (f % 2 == 0) ? 0 : kOrder;
     for (int i = 0; i < DofTable::kNumNodesPerFace; ++i) {
-      EXPECT_EQ(DofTable::faceToElemDofAtDepthImpl(f, i, fixedDepth), DofTable::faceToElemDofImpl(f, i))
+      EXPECT_EQ(table[f][i], model::faceLocalToElemLocal(static_cast<model::CubicFace>(f), i, kOrder))
           << "face=" << f << " dof=" << i;
 
-      for (int m = 0; m <= kOrder; ++m) {
-        const int dof_m = DofTable::faceToElemDofAtDepthImpl(f, i, m);
-        EXPECT_GE(dof_m, 0) << "face=" << f << " dof=" << i << " depth=" << m;
-        EXPECT_LT(dof_m, DofTable::kPointsPerElement) << "face=" << f << " dof=" << i << " depth=" << m;
-
-        for (int m2 = m + 1; m2 <= kOrder; ++m2)
-          EXPECT_NE(dof_m, DofTable::faceToElemDofAtDepthImpl(f, i, m2))
-              << "face=" << f << " dof=" << i << " depths " << m << "," << m2;
-      }
+      for (int m = 0; m <= kOrder; ++m)
+        EXPECT_EQ(tableAtDepth[f][i][m],
+                  model::faceLocalToElemLocalAtDepth(static_cast<model::CubicFace>(f), i, m, kOrder))
+            << "face=" << f << " dof=" << i << " depth=" << m;
     }
   }
 }
