@@ -550,9 +550,10 @@ class ModelUnstruct final : public ModelApi<FloatType, ScalarType> {
     t2[1] = p2[1] - p0[1];
     t2[2] = p2[2] - p0[2];
 
-    v[0] = t1[1] * t2[2] - t1[2] * t2[1];
-    v[1] = t1[2] * t2[0] - t1[0] * t2[2];
-    v[2] = t1[0] * t2[1] - t1[1] * t2[0];
+    // t1 x t2 points inward for this vertex ordering on all six faces; negate to face outward.
+    v[0] = -(t1[1] * t2[2] - t1[2] * t2[1]);
+    v[1] = -(t1[2] * t2[0] - t1[0] * t2[2]);
+    v[2] = -(t1[0] * t2[1] - t1[1] * t2[0]);
 
     FloatType norm = sqrt(v[0] * v[0] + v[1] * v[1] + v[2] * v[2]);
     if (norm > 1e-12) {

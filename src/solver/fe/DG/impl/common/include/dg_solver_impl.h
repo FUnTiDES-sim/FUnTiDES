@@ -219,6 +219,7 @@ void DGsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::comp
 
   auto face_connectivity_local = m_face_connectivity_;
   auto const face_to_elem_dof = kFaceToElemDof;  // local copy for device capture
+  auto const face_to_elem_dof_depth = kFaceToElemDofAtDepth;
   arrayReal stiff_local_view = m_stiff_local_;
   real_t const penalty_local = m_penalty_factor_;
 
@@ -268,7 +269,8 @@ void DGsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::comp
 
         // --- Owner side (outward normal = normal[]) ---
         INTEGRAL_TYPE::computeInterfaceFluxTerm(
-            faceCoords, owner_coords, fid_o, [&](const int i, const int j, const int k, const real_t val) {
+            faceCoords, owner_coords, fid_o,
+            [&](const int i, const int j, const int k, const real_t val) {
               int const ei = face_to_elem_dof[fid_o][i];
               int const ej = face_to_elem_dof[fid_o][j];
               int const ej_perm = face_to_elem_dof[fid_n][face_connectivity_local.getNeighborFaceDof(f, j)];
@@ -277,6 +279,16 @@ void DGsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::comp
                                           0.5f * val * current_field(neighbor_e, ej_perm) * nk);
               stiff_o[ej] += inv_rho_o * (-0.5f * val * current_field(owner_e, ei) * nk);
               stiff_n[ej_perm] += inv_rho_o * (0.5f * val * current_field(owner_e, ei) * nk);
+            },
+            [&](const int m, const int j, const int k, const real_t val) {
+              int const em = face_to_elem_dof_depth[fid_o][j][m];
+              int const ej = face_to_elem_dof[fid_o][j];
+              int const ej_perm = face_to_elem_dof[fid_n][face_connectivity_local.getNeighborFaceDof(f, j)];
+              float const nk = normal[k];
+              stiff_o[em] += inv_rho_o * (-0.5f * val * current_field(owner_e, ej) * nk +
+                                          0.5f * val * current_field(neighbor_e, ej_perm) * nk);
+              stiff_o[ej] += inv_rho_o * (-0.5f * val * current_field(owner_e, em) * nk);
+              stiff_n[ej_perm] += inv_rho_o * (0.5f * val * current_field(owner_e, em) * nk);
             });
 
         for (int i = 0; i < knumNodesPerFace; ++i) {
@@ -288,7 +300,8 @@ void DGsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::comp
 
         // --- Neighbor side (outward normal = -normal[]) ---
         INTEGRAL_TYPE::computeInterfaceFluxTerm(
-            faceCoords, neighbor_coords, fid_n, [&](const int i, const int j, const int k, const real_t val) {
+            faceCoords, neighbor_coords, fid_n,
+            [&](const int i, const int j, const int k, const real_t val) {
               int const ei = face_to_elem_dof[fid_n][i];
               int const ej = face_to_elem_dof[fid_n][j];
               int const ej_perm = face_to_elem_dof[fid_o][face_connectivity_local.getOwnerFaceDof(f, j)];
@@ -297,6 +310,16 @@ void DGsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::comp
                                           0.5f * val * current_field(owner_e, ej_perm) * nk);
               stiff_n[ej] += inv_rho_n * (-0.5f * val * current_field(neighbor_e, ei) * nk);
               stiff_o[ej_perm] += inv_rho_n * (0.5f * val * current_field(neighbor_e, ei) * nk);
+            },
+            [&](const int m, const int j, const int k, const real_t val) {
+              int const em = face_to_elem_dof_depth[fid_n][j][m];
+              int const ej = face_to_elem_dof[fid_n][j];
+              int const ej_perm = face_to_elem_dof[fid_o][face_connectivity_local.getOwnerFaceDof(f, j)];
+              float const nk = -normal[k];
+              stiff_n[em] += inv_rho_n * (-0.5f * val * current_field(neighbor_e, ej) * nk +
+                                          0.5f * val * current_field(owner_e, ej_perm) * nk);
+              stiff_n[ej] += inv_rho_n * (-0.5f * val * current_field(neighbor_e, em) * nk);
+              stiff_o[ej_perm] += inv_rho_n * (0.5f * val * current_field(neighbor_e, em) * nk);
             });
 
         for (int i = 0; i < knumNodesPerFace; ++i) {

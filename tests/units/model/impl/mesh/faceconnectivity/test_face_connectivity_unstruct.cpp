@@ -293,6 +293,46 @@ TEST(FaceLocalToElemLocalTest, CornersSpanAllElemDofs) {
 }
 
 // ============================================================================
+// faceLocalToElemLocalAtDepth — free function, orders 1-3
+// ============================================================================
+
+TEST(FaceLocalToElemLocalAtDepthTest, MatchesFaceLocalToElemLocalAtFixedDepth) {
+  // At the face's own fixed depth (0 for Minus faces, order for Plus faces), the depth-aware
+  // mapping must reduce to the depth-less one.
+  for (int order = 1; order <= 3; ++order) {
+    const int n = order + 1;
+    for (int lf = 0; lf < 6; ++lf) {
+      const int fixedDepth = (lf % 2 == 0) ? 0 : order;
+      for (int d = 0; d < n * n; ++d)
+        EXPECT_EQ(faceLocalToElemLocalAtDepth(static_cast<CubicFace>(lf), d, fixedDepth, order),
+                  faceLocalToElemLocal(static_cast<CubicFace>(lf), d, order))
+            << "order=" << order << " face=" << lf << " dof=" << d;
+    }
+  }
+}
+
+TEST(FaceLocalToElemLocalAtDepthTest, InjectiveAndInRangeAlongNormalLine) {
+  // For a fixed face dof, walking depth 0..order must hit order+1 distinct, in-range element
+  // DOFs — the line running through that face dof perpendicular to the face.
+  for (int order = 1; order <= 3; ++order) {
+    const int n = order + 1;
+    const int nDofsElem = n * n * n;
+    for (int lf = 0; lf < 6; ++lf) {
+      for (int d = 0; d < n * n; ++d) {
+        std::set<int> seen;
+        for (int depth = 0; depth <= order; ++depth) {
+          const int elemDof = faceLocalToElemLocalAtDepth(static_cast<CubicFace>(lf), d, depth, order);
+          EXPECT_GE(elemDof, 0) << "order=" << order << " face=" << lf << " dof=" << d << " depth=" << depth;
+          EXPECT_LT(elemDof, nDofsElem) << "order=" << order << " face=" << lf << " dof=" << d << " depth=" << depth;
+          seen.insert(elemDof);
+        }
+        EXPECT_EQ(static_cast<int>(seen.size()), n) << "order=" << order << " face=" << lf << " dof=" << d;
+      }
+    }
+  }
+}
+
+// ============================================================================
 // getNeighborFaceDof — aligned and rotated meshes
 // ============================================================================
 
