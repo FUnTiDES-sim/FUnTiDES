@@ -129,30 +129,33 @@ class FaceConnectivityUnstruct : public FaceConnectivityApi<FloatType, ScalarTyp
     }
 
     // Pass B: compact the sparse map slots into dense face ids [0, face_count).
-    // Iterates by element (owner side only assigns an id) rather than by raw
-    // map bucket: GPU threads process elements in roughly ascending order, so
-    // this keeps face ids correlated with element order — matching the
-    // original serial algorithm's locality. Compacting by bucket order
-    // instead scrambles face ids relative to element adjacency, which hurts
-    // every downstream per-element face lookup (elem_to_faces_, face_dofs_,
-    // face_perm_) for the lifetime of the solver, not just at init.
+    //
+    // Uses a prefix sum over the flattened (elem, local_face) space rather than
+    // an atomic counter: the scan makes face ids a pure function of the mesh, so
+    // two FaceConnectivityUnstruct instances built from the same mesh get the
+    // SAME numbering. Callers rely on that — DGSEMsolver builds face id lists
+    // with its own instance and feeds them to DGsolver's kernels (see
+    // BuildDGInteriorFaceList / m_face_list_) — and an atomic counter makes the
+    // id order depend on thread scheduling, so the two numberings diverge and
+    // the shared lists silently address the wrong faces. The scan order also
+    // reproduces the original serial elem-ascending numbering exactly, keeping
+    // face ids correlated with element order for downstream per-element
+    // lookups (elem_to_faces_, face_dofs_, face_perm_).
     vectorInt face_id_of_bucket = allocateVector<vectorInt>(face_map.capacity());
-    vectorInt face_count_dev = allocateVector<vectorInt>(1);
-    Kokkos::deep_copy(face_count_dev, 0);
-    Kokkos::parallel_for(
-        "FaceConnectivityUnstruct_compact", n_element, KOKKOS_LAMBDA(const ScalarType elem) {
-          for (int lf = 0; lf < 6; ++lf) {
-            const FaceKey key = makeFaceKey(mesh, mesh_order, elem, static_cast<CubicFace>(lf));
-            const uint32_t idx = face_map.find(key);
-            if (owner_code(idx) == static_cast<int>(elem * 8 + lf))
-              face_id_of_bucket(idx) = Kokkos::atomic_fetch_add(&face_count_dev(0), 1);
-          }
-        });
+    ScalarType face_count = 0;
+    Kokkos::parallel_scan(
+        "FaceConnectivityUnstruct_compact", n_element * 6,
+        KOKKOS_LAMBDA(const ScalarType flat, ScalarType& running_id, const bool is_final) {
+          const ScalarType elem = flat / 6;
+          const int lf = static_cast<int>(flat % 6);
+          const FaceKey key = makeFaceKey(mesh, mesh_order, elem, static_cast<CubicFace>(lf));
+          const uint32_t idx = face_map.find(key);
+          if (owner_code(idx) != static_cast<int>(elem * 8 + lf)) return;
+          if (is_final) face_id_of_bucket(idx) = running_id;
+          ++running_id;
+        },
+        face_count);
     Kokkos::fence();
-
-    auto h_face_count = Kokkos::create_mirror_view(face_count_dev);
-    Kokkos::deep_copy(h_face_count, face_count_dev);
-    const ScalarType face_count = h_face_count(0);
 
     // Final device allocation at exact size.
     n_faces_ = face_count;
@@ -225,6 +228,9 @@ class FaceConnectivityUnstruct : public FaceConnectivityApi<FloatType, ScalarTyp
             }
           }
         });
+    // Callers read the connectivity from the host right after build()
+    // (list construction, tagging); Pass D must be complete before they do.
+    Kokkos::fence();
   }
 
   // ==========================================================================

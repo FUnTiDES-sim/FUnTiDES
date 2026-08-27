@@ -163,7 +163,10 @@ class DGSEMsolver : public Solver {
   semSolver m_SEm_solver_;
 
   MESH_TYPE m_mesh_;
-  model::FaceConnectivityUnstruct<float, int> m_face_connectivity_;
+  /// Shared with m_DG_solver_ (see setFaceConnectivity): face id lists built
+  /// here are consumed by the DG solver's face kernels, so both must index the
+  /// same numbering. ORDER must match m_DG_solver_'s for the types to line up.
+  model::FaceConnectivityUnstruct<float, int, ORDER> m_face_connectivity_;
   static constexpr int knumNodesPerFace = (ORDER + 1) * (ORDER + 1);
 
   /// Per-element type tag (kElementTypeDG or kElementTypeSEM).

@@ -202,6 +202,21 @@ class DGsolver : public Solver {
 
   real_t getPenaltyFactor() const { return m_penalty_factor_; }
 
+  /**
+   * @brief Inject an externally built face connectivity.
+   *
+   * Used by DGSEMsolver, which builds its own connectivity and then feeds face
+   * id lists (m_face_list_) to this solver's face kernels: both sides must
+   * index the same face numbering, so they have to share one instance rather
+   * than each build their own. Must be called before computeFEInit(), which
+   * then skips its own build().
+   *
+   * @param face_connectivity Already-built connectivity for the same mesh.
+   */
+  void setFaceConnectivity(const model::FaceConnectivityUnstruct<float, int, ORDER>& face_connectivity) {
+    m_face_connectivity_ = face_connectivity;
+  }
+
  private:
   MESH_TYPE m_mesh;
   model::FaceConnectivityUnstruct<float, int, ORDER> m_face_connectivity_;

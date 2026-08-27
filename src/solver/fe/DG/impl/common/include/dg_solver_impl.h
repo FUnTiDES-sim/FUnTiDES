@@ -64,7 +64,10 @@ void DGsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::comp
   } else {
     throw std::runtime_error("Incompatible mesh type in DG solver");
   }
-  m_face_connectivity_.build(m_mesh);
+  // Skipped when a caller (DGSEMsolver) already injected its own connectivity
+  // via setFaceConnectivity(): face id lists are shared across both solvers, so
+  // the numbering must come from a single build.
+  if (m_face_connectivity_.getNumberOfFaces() == 0) m_face_connectivity_.build(m_mesh);
   int const kNumElem = m_mesh.getNumberOfElements();
   m_rhs_elem_ = allocateArray2D<arrayReal>(kNumElem, kPointsPerElement, "rhsElem");
   m_mass_local_ = allocateArray2D<arrayReal>(kNumElem, kPointsPerElement, "massLocal");
