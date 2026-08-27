@@ -64,9 +64,7 @@ void DGsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::comp
   } else {
     throw std::runtime_error("Incompatible mesh type in DG solver");
   }
-  // Skipped when a caller (DGSEMsolver) already injected its own connectivity
-  // via setFaceConnectivity(): face id lists are shared across both solvers, so
-  // the numbering must come from a single build.
+  // Skipped when a caller already injected one via setFaceConnectivity().
   if (m_face_connectivity_.getNumberOfFaces() == 0) m_face_connectivity_.build(m_mesh);
   int const kNumElem = m_mesh.getNumberOfElements();
   m_rhs_elem_ = allocateArray2D<arrayReal>(kNumElem, kPointsPerElement, "rhsElem");
@@ -246,8 +244,9 @@ void DGsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::comp
         float normal[3];
         mesh_local.faceNormal(owner_e, static_cast<model::CubicFace>(fid_o), normal);
 
-        real_t const gamma_o = computeSIPGPenalty<ORDER>(faceCoords, owner_coords, penalty_local);
-        real_t const gamma_n = computeSIPGPenalty<ORDER>(faceCoords, neighbor_coords, penalty_local);
+        real_t const face_area = computeFaceArea(faceCoords);
+        real_t const gamma_o = computeSIPGPenaltyFromArea<ORDER>(face_area, owner_coords, penalty_local);
+        real_t const gamma_n = computeSIPGPenaltyFromArea<ORDER>(face_area, neighbor_coords, penalty_local);
 
         float stiff_o[kPointsPerElement] = {0};
         float stiff_n[kPointsPerElement] = {0};

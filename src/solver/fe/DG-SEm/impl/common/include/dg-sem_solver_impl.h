@@ -33,9 +33,7 @@ void DGSEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::c
 
   // Initialise sub-solvers (mass/damping matrices are overridden below).
   m_SEm_solver_.computeFEInit(mesh_in, sponge_size, surface_sponge, taper_delta);
-  // Hand our connectivity to the DG sub-solver before its own init: the DG
-  // interior face list built below (BuildDGInteriorFaceList) holds face ids in
-  // this numbering and is fed to the DG face kernels through m_face_list_.
+  // Before its init: BuildDGInteriorFaceList() below emits ids in this numbering.
   m_DG_solver_.setFaceConnectivity(m_face_connectivity_);
   m_DG_solver_.computeFEInit(mesh_in, sponge_size, surface_sponge, taper_delta);
 
@@ -312,10 +310,11 @@ void DGSEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::A
         float normal_dg[3];
         mesh_local.faceNormal(dg_e, static_cast<model::CubicFace>(fid_dg), normal_dg);
 
+        real_t const face_area = computeFaceArea(faceCoords);
         real_t const inv_rho_dg = 1.0f / mesh_local.getModelRhoOnElement(dg_e);
-        real_t const gamma_dg = computeSIPGPenalty<ORDER>(faceCoords, dg_coords, penalty_local);
+        real_t const gamma_dg = computeSIPGPenaltyFromArea<ORDER>(face_area, dg_coords, penalty_local);
         real_t const inv_rho_sem = 1.0f / mesh_local.getModelRhoOnElement(sem_e);
-        real_t const gamma_sem = computeSIPGPenalty<ORDER>(faceCoords, sem_coords, penalty_local);
+        real_t const gamma_sem = computeSIPGPenaltyFromArea<ORDER>(face_area, sem_coords, penalty_local);
 
         // Face-sized accumulator indexed by DG-side face dof: the coupling flux only touches
         // the shared face's (ORDER+1)^2 dofs, so an element-sized array forced a 7x larger

@@ -129,18 +129,10 @@ class FaceConnectivityUnstruct : public FaceConnectivityApi<FloatType, ScalarTyp
     }
 
     // Pass B: compact the sparse map slots into dense face ids [0, face_count).
-    //
-    // Uses a prefix sum over the flattened (elem, local_face) space rather than
-    // an atomic counter: the scan makes face ids a pure function of the mesh, so
-    // two FaceConnectivityUnstruct instances built from the same mesh get the
-    // SAME numbering. Callers rely on that — DGSEMsolver builds face id lists
-    // with its own instance and feeds them to DGsolver's kernels (see
-    // BuildDGInteriorFaceList / m_face_list_) — and an atomic counter makes the
-    // id order depend on thread scheduling, so the two numberings diverge and
-    // the shared lists silently address the wrong faces. The scan order also
-    // reproduces the original serial elem-ascending numbering exactly, keeping
-    // face ids correlated with element order for downstream per-element
-    // lookups (elem_to_faces_, face_dofs_, face_perm_).
+    // The prefix sum makes ids a pure function of the mesh; an atomic counter
+    // would order them by thread scheduling, so two instances built from the
+    // same mesh would disagree — and callers share face id lists across
+    // instances (see DGsolver::setFaceConnectivity).
     vectorInt face_id_of_bucket = allocateVector<vectorInt>(face_map.capacity());
     ScalarType face_count = 0;
     Kokkos::parallel_scan(
