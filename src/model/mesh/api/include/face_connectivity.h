@@ -16,7 +16,7 @@ namespace model {
  * @param order  Polynomial order of the element.
  * @return  3D element-local DOF index in [0, (order+1)^3).
  */
-PROXY_HOST_DEVICE int faceLocalToElemLocal(CubicFace face, int face_dof_2d, int order) {
+PROXY_HOST_DEVICE constexpr int faceLocalToElemLocal(CubicFace face, int face_dof_2d, int order) {
   const int n = order + 1;
   const int u = face_dof_2d % n;
   const int v = face_dof_2d / n;
@@ -33,6 +33,39 @@ PROXY_HOST_DEVICE int faceLocalToElemLocal(CubicFace face, int face_dof_2d, int 
       return u + v * n;
     case CubicFace::kZPlus:
       return u + v * n + order * n * n;
+    default:
+      return -1;
+  }
+}
+
+/**
+ * @brief Map a 2D face DOF index and a depth along the face normal to the corresponding 3D
+ *   element DOF index.
+ *
+ * depth walks the line through the face dof PERPENDICULAR to the face (0 = the face at index 0
+ * of that direction, order = the opposite face). At depth equal to the face's own fixed index
+ * this reduces to faceLocalToElemLocal(face, face_dof_2d, order).
+ *
+ * @param face   Which of the 6 faces of the hexahedron (CubicFace enum).
+ * @param face_dof_2d  2D face DOF index in [0, (order+1)^2).
+ * @param depth  Depth along the face-normal direction, in [0, order].
+ * @param order  Polynomial order of the element.
+ * @return  3D element-local DOF index in [0, (order+1)^3).
+ */
+PROXY_HOST_DEVICE constexpr int faceLocalToElemLocalAtDepth(CubicFace face, int face_dof_2d, int depth, int order) {
+  const int n = order + 1;
+  const int u = face_dof_2d % n;
+  const int v = face_dof_2d / n;
+  switch (face) {
+    case CubicFace::kXMinus:
+    case CubicFace::kXPlus:
+      return depth + u * n + v * n * n;
+    case CubicFace::kYMinus:
+    case CubicFace::kYPlus:
+      return u + depth * n + v * n * n;
+    case CubicFace::kZMinus:
+    case CubicFace::kZPlus:
+      return u + v * n + depth * n * n;
     default:
       return -1;
   }

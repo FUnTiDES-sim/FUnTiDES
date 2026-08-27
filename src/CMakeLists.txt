@@ -10,7 +10,7 @@ add_library(funtides::funtides ALIAS funtides)
 
 target_link_libraries(funtides INTERFACE
   fun_utils
-  fun_disctretization
+  fun_discretization
   fun_model
   fun_solver
   fun_gradient

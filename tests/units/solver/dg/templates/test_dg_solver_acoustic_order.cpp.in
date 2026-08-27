@@ -1,0 +1,6 @@
+// Auto-generated file - DO NOT EDIT
+// Generated for: DGsolver acoustic tests, order @ORDER@
+// To modify tests, edit: tests/units/solver/dg/impl/dg_solver_acoustic.h
+
+static constexpr int kOrder = @ORDER@;
+#include "impl/dg_solver_acoustic.h"

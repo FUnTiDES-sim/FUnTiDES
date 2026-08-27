@@ -153,6 +153,42 @@ TYPED_TEST(InterfaceFluxTest, InterfaceFluxIsZero) {
   }
 }
 
+// funcNormal must reproduce the exact normal derivative of a field linear along the face normal:
+// grad(p) = e_kDir, so sum_i p_i C_i,j,kDir = int_F phi_j = computeDampingTerm(j, X).
+TYPED_TEST(InterfaceFluxTest, ReproducesNormalDerivativeOfLinearField) {
+  using QK = TypeParam;
+  constexpr int numNodesPerFace = QK::numNodesPerFace;
+  constexpr int num1dNodes = QK::num1dNodes;
+
+  real_t X8[8][3] = {{0, 0, 0}, {1, 0, 0}, {0, 1, 0}, {1, 1, 0}, {0, 0, 1}, {1, 0, 1}, {0, 1, 1}, {1, 1, 1}};
+  real_t X[4][3] = {{0, 0, 0}, {1, 0, 0}, {0, 1, 0}, {1, 1, 0}};
+
+  // Nodal values of that coordinate along one direction, in [0, 1] on the unit cube.
+  real_t coord1d[num1dNodes];
+  for (int m = 0; m < num1dNodes; ++m) coord1d[m] = QK::interpolationCoord(m, 1);
+
+  for (int faceId = 0; faceId < 6; ++faceId) {
+    const int kDir = faceId / 2;
+    const int kQFixed = (faceId % 2 == 0) ? 0 : num1dNodes - 1;
+
+    real_t acc[numNodesPerFace] = {0};
+    QK::computeInterfaceFluxTerm(
+        X, X8, faceId,
+        // Tangential channel: i is a face dof, where p takes its face-constant value.
+        [&](int i, int j, int k, real_t Cijk) {
+          (void)i;
+          if (k == kDir) acc[j] += coord1d[kQFixed] * Cijk;
+        },
+        // Normal channel: m is the depth along the line through face dof j, where p varies.
+        [&](int m, int j, int k, real_t Cijk) {
+          if (k == kDir) acc[j] += coord1d[m] * Cijk;
+        });
+
+    for (int j = 0; j < numNodesPerFace; ++j)
+      EXPECT_NEAR(acc[j], QK::computeDampingTerm(j, X), TOL_NUMERICAL) << "faceId=" << faceId << ", face dof " << j;
+  }
+}
+
 // ============================================================================
 // VIRTUAL METHOD TESTS
 // ============================================================================
