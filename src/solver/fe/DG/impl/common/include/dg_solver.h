@@ -25,6 +25,44 @@ namespace fe {
 
 using physicType = utils::enums::physicType;
 
+/**
+ * @brief Compile-time face/element DOF lookup tables for a hexahedron of the given order.
+ *
+ * Depends only on ORDER, not on mesh type, physics, or IS_MODEL_ON_NODES, so it is factored
+ * out of DGsolver rather than duplicated per solver instantiation. The indexing math itself
+ * lives in model::faceLocalToElemLocal[AtDepth] (face_connectivity.h), which the unstructured
+ * mesh builder already calls at runtime and is unit-tested there — this struct just bakes it
+ * into a flat array at compile time to avoid the per-lookup switch/call in GPU kernels.
+ */
+template <int ORDER>
+struct DgFaceDofTable {
+  static constexpr int kPointsPerElement = (ORDER + 1) * (ORDER + 1) * (ORDER + 1);
+  static constexpr int kNumNodesPerFace = (ORDER + 1) * (ORDER + 1);
+
+  static constexpr auto buildFaceToElemDof() {
+    std::array<std::array<int, kNumNodesPerFace>, 6> t{};
+    for (int f = 0; f < 6; ++f)
+      for (int i = 0; i < kNumNodesPerFace; ++i)
+        t[f][i] = model::faceLocalToElemLocal(static_cast<model::CubicFace>(f), i, ORDER);
+    return t;
+  }
+
+  /// @brief Lookup table: kFaceToElemDof[face_id][face_dof_2d] → element-local DOF.
+  static constexpr auto kFaceToElemDof = buildFaceToElemDof();
+
+  static constexpr auto buildFaceToElemDofAtDepth() {
+    std::array<std::array<std::array<int, ORDER + 1>, kNumNodesPerFace>, 6> t{};
+    for (int f = 0; f < 6; ++f)
+      for (int i = 0; i < kNumNodesPerFace; ++i)
+        for (int m = 0; m <= ORDER; ++m)
+          t[f][i][m] = model::faceLocalToElemLocalAtDepth(static_cast<model::CubicFace>(f), i, m, ORDER);
+    return t;
+  }
+
+  /// @brief Lookup table: kFaceToElemDofAtDepth[face_id][face_dof_2d][depth] → element-local DOF.
+  static constexpr auto kFaceToElemDofAtDepth = buildFaceToElemDofAtDepth();
+};
+
 template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE, bool IS_MODEL_ON_NODES,
           utils::enums::physicType PHYSICS>
 class DGsolver : public Solver {
@@ -220,7 +258,7 @@ class DGsolver : public Solver {
  private:
   MESH_TYPE m_mesh;
   model::FaceConnectivityUnstruct<float, int, ORDER> m_face_connectivity_;
-  real_t m_penalty_factor_ = 75.0f;
+  real_t m_penalty_factor_ = 12.0f;
 
  public:
   // List state used by updateFieldsFromList.
@@ -235,80 +273,11 @@ class DGsolver : public Solver {
   arrayReal m_stiff_local_;  ///< Per-element stiffness + interface flux accumulator (nElem x kPPE)
   arrayReal m_damp_local_;   ///< Per-element boundary absorbing damping (nElem x kPPE)
 
-  static constexpr int kPointsPerElement = (ORDER + 1) * (ORDER + 1) * (ORDER + 1);
-  static constexpr int knumNodesPerFace = (ORDER + 1) * (ORDER + 1);
-
-  /// @brief Compile-time helper: maps (face_id, face_dof_2d) → element-local DOF index.
-  static constexpr int faceToElemDofImpl(int face_id, int face_dof_2d) {
-    const int n = ORDER + 1;
-    const int u = face_dof_2d % n;
-    const int v = face_dof_2d / n;
-    switch (face_id) {
-      case 0:
-        return u * n + v * n * n;  // kXMinus
-      case 1:
-        return ORDER + u * n + v * n * n;  // kXPlus
-      case 2:
-        return u + v * n * n;  // kYMinus
-      case 3:
-        return u + ORDER * n + v * n * n;  // kYPlus
-      case 4:
-        return u + v * n;  // kZMinus
-      case 5:
-        return u + v * n + ORDER * n * n;  // kZPlus
-      default:
-        return -1;
-    }
-  }
-
-  static constexpr auto buildFaceToElemDof() {
-    std::array<std::array<int, knumNodesPerFace>, 6> t{};
-    for (int f = 0; f < 6; ++f)
-      for (int i = 0; i < knumNodesPerFace; ++i) t[f][i] = faceToElemDofImpl(f, i);
-    return t;
-  }
-
-  /// @brief Lookup table: kFaceToElemDof[face_id][face_dof_2d] → element-local DOF.
-  /// Replaces runtime calls to model::faceLocalToElemLocal(..., ORDER) in GPU kernels.
-  static constexpr auto kFaceToElemDof = buildFaceToElemDof();
-
-  /// @brief Compile-time helper: maps (face_id, face_dof_2d, depth) → element-local DOF index,
-  /// where depth walks the line running through the face dof PERPENDICULAR to the face
-  /// (0 = the face at index 0 of that direction, ORDER = the opposite face).
-  ///
-  /// The face-normal part of a trial function's gradient reads that whole line, not just the
-  /// face dof, so the interface-flux consistency term needs to address its off-face support
-  /// points (see Qk_Hexahedron_Lagrange_GaussLobatto::computeInterfaceFluxTermAt). At
-  /// depth == the face's own fixed index this reduces to faceToElemDofImpl(face_id, dof).
-  static constexpr int faceToElemDofAtDepthImpl(int face_id, int face_dof_2d, int depth) {
-    const int n = ORDER + 1;
-    const int u = face_dof_2d % n;
-    const int v = face_dof_2d / n;
-    switch (face_id) {
-      case 0:
-      case 1:
-        return depth + u * n + v * n * n;  // kXMinus / kXPlus: normal runs along x
-      case 2:
-      case 3:
-        return u + depth * n + v * n * n;  // kYMinus / kYPlus: normal runs along y
-      case 4:
-      case 5:
-        return u + v * n + depth * n * n;  // kZMinus / kZPlus: normal runs along z
-      default:
-        return -1;
-    }
-  }
-
-  static constexpr auto buildFaceToElemDofAtDepth() {
-    std::array<std::array<std::array<int, ORDER + 1>, knumNodesPerFace>, 6> t{};
-    for (int f = 0; f < 6; ++f)
-      for (int i = 0; i < knumNodesPerFace; ++i)
-        for (int m = 0; m <= ORDER; ++m) t[f][i][m] = faceToElemDofAtDepthImpl(f, i, m);
-    return t;
-  }
-
-  /// @brief Lookup table: kFaceToElemDofAtDepth[face_id][face_dof_2d][depth] → element-local DOF.
-  static constexpr auto kFaceToElemDofAtDepth = buildFaceToElemDofAtDepth();
+  using DofTable = DgFaceDofTable<ORDER>;
+  static constexpr int kPointsPerElement = DofTable::kPointsPerElement;
+  static constexpr int knumNodesPerFace = DofTable::kNumNodesPerFace;
+  static constexpr auto kFaceToElemDof = DofTable::kFaceToElemDof;
+  static constexpr auto kFaceToElemDofAtDepth = DofTable::kFaceToElemDofAtDepth;
 };
 
 // Backward Compatibility Aliases

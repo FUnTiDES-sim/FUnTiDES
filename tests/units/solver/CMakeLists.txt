@@ -23,7 +23,6 @@ if(COMPILE_DG)
     impl/test_dg_solver_factory.cc
     dg/test_dg_penalty.cc
     dg/test_dg_solver_data.cc
-    dg/test_dg_solver_acoustic.cc
   )
 endif()
 
@@ -39,6 +38,37 @@ add_gtest_group(solver_tests
   SOURCES ${SOLVER_TEST_SOURCES}
   EXTRA_LINKS fun_solver fun_model
 )
+
+# ============================================================================
+# One DGsolver acoustic test binary per polynomial order: each order is a
+# distinct explicit template instantiation of DGsolver (see
+# dg_solver_impl.h), so splitting per order (like the Qk_Hexahedron
+# discretization tests) is what actually exercises order > 1.
+# ============================================================================
+if(COMPILE_DG)
+  foreach(ORDER RANGE 1 ${TARGET_SOLVER_ACOUSTIC_ORDER})
+    set(_gen_file "${CMAKE_CURRENT_BINARY_DIR}/test_dg_solver_acoustic_Q${ORDER}.cpp")
+
+    configure_file(
+      "${CMAKE_CURRENT_SOURCE_DIR}/dg/templates/test_dg_solver_acoustic_order.cpp.in"
+      "${_gen_file}"
+      @ONLY
+    )
+
+    set(_target "dg_solver_acoustic_Q${ORDER}_test")
+    add_gtest(${_target}
+      ${_gen_file}
+      "fun_solver;fun_model"
+    )
+
+    target_include_directories(${_target} PRIVATE
+      ${CMAKE_CURRENT_SOURCE_DIR}/dg
+    )
+  endforeach()
+
+  unset(_gen_file)
+  unset(_target)
+endif()
 
 if(USE_MPI)
 add_executable(test_mpi_partitioning impl/test_mpi_partitioning.cc)
