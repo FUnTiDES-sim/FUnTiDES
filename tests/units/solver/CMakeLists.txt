@@ -26,6 +26,14 @@ if(COMPILE_DG)
   )
 endif()
 
+if(COMPILE_DG_SEM)
+  list(APPEND SOLVER_TEST_SOURCES
+    impl/test_dg_sem_solver_factory.cc
+    dg-sem/test_dg-sem_solver_data.cc
+    dg-sem/test_dg-sem_solver_acoustic.cc
+  )
+endif()
+
 add_gtest_group(solver_tests
   SOURCES ${SOLVER_TEST_SOURCES}
   EXTRA_LINKS fun_solver fun_model

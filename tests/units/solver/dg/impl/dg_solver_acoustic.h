@@ -298,7 +298,7 @@ TEST_F(DGsolverAcousticTest, StubOverrides_DoNotCrash) {
 // ============================================================
 // updateFieldsFromListForward — exercises faceListFromElementList and
 // the list-mode code paths in computeVolumeAndBoundary,
-// computeBoundaryDamping, computeInterfaceFlux, applyVerlet.
+// computeBoundaryDampingAndInterfaceFlux, applyVerlet.
 // ============================================================
 
 TEST_F(DGsolverAcousticTest, updateFieldsFromListForward_AllElems_DoesNotCrash) {

@@ -39,6 +39,7 @@ class SemProxyOptions {
   bool isElastic = false;
   bool isAcoustoElastic = false;
   float acoustoElasticBoundaryZ = 0.f;
+  float DgSemBoundaryZ = 1000.f;
   bool free_surface = false;
   std::string model_file{""};
   float qp = -1.0f;  // quality factor for P-waves (<0 = not set)
@@ -69,8 +70,8 @@ class SemProxyOptions {
                                                                         cxxopts::value<float>(o.ly))(
         "lz", "Domain size Z (Cartesian)", cxxopts::value<float>(o.lz))("implem", "Implementation: makutu",
                                                                         cxxopts::value<std::string>(o.implem))(
-        "method", "Method: sem|dg", cxxopts::value<std::string>(o.method))("mesh", "Mesh: cartesian|ucartesian",
-                                                                           cxxopts::value<std::string>(o.mesh))(
+        "method", "Method: sem|dg|dg-sem", cxxopts::value<std::string>(o.method))("mesh", "Mesh: cartesian|ucartesian",
+                                                                                  cxxopts::value<std::string>(o.mesh))(
         "dt", "Time step selection in s (default = 0.001s)", cxxopts::value<float>(o.dt))(
         "timemax", "Duration of the simulation in s (default = 1.5s)", cxxopts::value<float>(o.timemax))(
         "auto-dt", "Select automatique dt via CFL equation.", cxxopts::value<bool>(o.autodt))(
@@ -87,6 +88,7 @@ class SemProxyOptions {
         "is-acousto-elastic", "Acousto-elastic coupled simulation", cxxopts::value<bool>(o.isAcoustoElastic))(
         "acousto-elastic-boundary-z", "Z coordinate of the fluid–solid interface (meters)",
         cxxopts::value<float>(o.acoustoElasticBoundaryZ))(
+        "dg-sem-boundary-z", "Z coordinate of the DG-SEM interface (meters)", cxxopts::value<float>(o.DgSemBoundaryZ))(
         "free-surface", "Enable free surface on top boundary (Z+). Default: true",
         cxxopts::value<bool>(o.free_surface))("anisotropy", "Anisotropy type for elastic: iso|vti|tti (default=iso)",
                                               cxxopts::value<std::string>(o.anisotropy))(

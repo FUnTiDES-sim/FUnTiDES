@@ -202,17 +202,12 @@ class DGsolver : public Solver {
   void computeVolumeAndBoundary(int kNumElem, arrayReal current_field);
 
   /**
-   * @brief Kernel 1b — boundary absorbing damping (face-loop, boundary faces only).
+   * @brief Kernel 1b+2 — boundary absorbing damping and SIPG interface flux terms, fused into a
+   * single face-loop (mutually exclusive per face, disjoint accumulators).
    * @param kNumFaces Total number of faces (interior + boundary).
-   */
-  void computeBoundaryDamping(int kNumFaces);
-
-  /**
-   * @brief Kernel 2 — SIPG interface flux terms (reads neighbor fields).
-   * @param kNumElem Total number of elements.
    * @param current_field Pressure field at current time step p^n.
    */
-  void computeInterfaceFlux(int kNumElem, arrayReal current_field);
+  void computeBoundaryDampingAndInterfaceFlux(int kNumFaces, arrayReal current_field);
 
   /**
    * @brief Kernel 3 — Verlet time update.
@@ -231,7 +226,7 @@ class DGsolver : public Solver {
     for (int i = 0; i < m_n_elem_list_; ++i) {
       const int e = m_elem_list_[i];
       for (int f = 0; f < 6; ++f) {
-        const int face_id = m_mesh.getGlobalFace(e, static_cast<model::CubicFace>(f));
+        const int face_id = m_face_connectivity_.getGlobalFace(e, static_cast<model::CubicFace>(f));
         visited_faces.insert(face_id);
       }
     }
@@ -243,11 +238,28 @@ class DGsolver : public Solver {
     }
   }
 
+  real_t getPenaltyFactor() const { return m_penalty_factor_; }
+
+  /**
+   * @brief Inject an externally built face connectivity, sharing its numbering.
+   *
+   * DGSEMsolver feeds face id lists (m_face_list_) from its own connectivity to
+   * this solver's face kernels, so both must index the same numbering — hence
+   * one shared instance rather than two builds. Call before computeFEInit(),
+   * which then skips its own build().
+   *
+   * @param face_connectivity Already-built connectivity for the same mesh.
+   */
+  void setFaceConnectivity(const model::FaceConnectivityUnstruct<float, int, ORDER>& face_connectivity) {
+    m_face_connectivity_ = face_connectivity;
+  }
+
  private:
   MESH_TYPE m_mesh;
   model::FaceConnectivityUnstruct<float, int, ORDER> m_face_connectivity_;
-  real_t m_penalty_factor_ = 10.0f;
+  real_t m_penalty_factor_ = 12.0f;
 
+ public:
   // List state used by updateFieldsFromList.
   bool m_list_mode_ = false;
   vectorInt m_elem_list_;

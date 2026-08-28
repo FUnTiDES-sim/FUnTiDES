@@ -64,7 +64,8 @@ void DGsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::comp
   } else {
     throw std::runtime_error("Incompatible mesh type in DG solver");
   }
-  m_face_connectivity_.build(m_mesh);
+  // Skipped when a caller already injected one via setFaceConnectivity().
+  if (m_face_connectivity_.getNumberOfFaces() == 0) m_face_connectivity_.build(m_mesh);
   int const kNumElem = m_mesh.getNumberOfElements();
   m_rhs_elem_ = allocateArray2D<arrayReal>(kNumElem, kPointsPerElement, "rhsElem");
   m_mass_local_ = allocateArray2D<arrayReal>(kNumElem, kPointsPerElement, "massLocal");
@@ -158,58 +159,20 @@ void DGsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::comp
         for (int i = 0; i < kPointsPerElement; ++i) {
           mass_local_view(e, i) = massLocal[i];
           stiff_local_view(e, i) = stiffLocal[i];
-          damp_local_view(e, i) = 0.0f;  // zeroed here; filled by computeBoundaryDamping
+          damp_local_view(e, i) = 0.0f;  // zeroed here; filled by computeBoundaryDampingAndInterfaceFlux
         }
       });
 }
 
 //============================================================================
-// computeBoundaryDamping - Kernel 1b (face-loop, boundary faces only)
+// computeBoundaryDampingAndInterfaceFlux - Kernel 1b+2, fused (face-loop: boundary faces take
+// the damping branch, interior faces take the SIPG flux branch; mutually exclusive per face,
+// disjoint accumulators)
 //============================================================================
 
 template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE, bool IS_MODEL_ON_NODES,
           utils::enums::physicType PHYSICS>
-void DGsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::computeBoundaryDamping(int kNumFaces) {
-  auto mesh_local = m_mesh;
-
-  bool const list_on = m_list_mode_;
-  auto list_local = m_face_list_;
-  int const n_iter = list_on ? m_n_face_list_ : kNumFaces;
-
-  auto face_connectivity_local = m_face_connectivity_;
-  auto const face_to_elem_dof = kFaceToElemDof;  // local copy for device capture
-  arrayReal damp_local_view = m_damp_local_;
-
-  Kokkos::parallel_for(
-      "DG Boundary Damping", n_iter, KOKKOS_LAMBDA(const int _loop_idx) {
-        int const f = list_on ? list_local[_loop_idx] : _loop_idx;
-        if (!face_connectivity_local.isBoundaryFace(f)) return;
-
-        int const e = face_connectivity_local.elemOwner(f);
-        int const faceId = face_connectivity_local.localFaceOwner(f);
-
-        float faceCoords[4][3];
-        for (int j = 0; j < 4; ++j) {
-          int const gni = face_connectivity_local.getGlobalNodeFromFace(f, INTEGRAL_TYPE::meshIndexToLinearIndex2D(j));
-          for (int d = 0; d < 3; ++d) faceCoords[j][d] = mesh_local.nodeCoord(gni, d);
-        }
-
-        real_t const inv_vp = 1.0f / mesh_local.getModelVpOnElement(e);
-
-        for (int i = 0; i < knumNodesPerFace; ++i) {
-          int const ei = face_to_elem_dof[faceId][i];
-          ATOMICADD(damp_local_view(e, ei), inv_vp * INTEGRAL_TYPE::computeDampingTerm(i, faceCoords));
-        }
-      });
-}
-
-//============================================================================
-// computeInterfaceFlux - Kernel 2 (face-loop: each interior face processed once)
-//============================================================================
-
-template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE, bool IS_MODEL_ON_NODES,
-          utils::enums::physicType PHYSICS>
-void DGsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::computeInterfaceFlux(
+void DGsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::computeBoundaryDampingAndInterfaceFlux(
     int kNumFaces, arrayReal current_field) {
   auto mesh_local = m_mesh;
 
@@ -220,13 +183,33 @@ void DGsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::comp
   auto face_connectivity_local = m_face_connectivity_;
   auto const face_to_elem_dof = kFaceToElemDof;  // local copy for device capture
   auto const face_to_elem_dof_depth = kFaceToElemDofAtDepth;
+  arrayReal damp_local_view = m_damp_local_;
   arrayReal stiff_local_view = m_stiff_local_;
   real_t const penalty_local = m_penalty_factor_;
 
   Kokkos::parallel_for(
-      "DG Interface Flux", n_iter, KOKKOS_LAMBDA(const int _loop_idx) {
+      "DG BoundaryDamping+InterfaceFlux", n_iter, KOKKOS_LAMBDA(const int _loop_idx) {
         int const f = list_on ? list_local[_loop_idx] : _loop_idx;
-        if (face_connectivity_local.isBoundaryFace(f)) return;
+
+        if (face_connectivity_local.isBoundaryFace(f)) {
+          int const e = face_connectivity_local.elemOwner(f);
+          int const faceId = face_connectivity_local.localFaceOwner(f);
+
+          float faceCoords[4][3];
+          for (int j = 0; j < 4; ++j) {
+            int const gni =
+                face_connectivity_local.getGlobalNodeFromFace(f, INTEGRAL_TYPE::meshIndexToLinearIndex2D(j));
+            for (int d = 0; d < 3; ++d) faceCoords[j][d] = mesh_local.nodeCoord(gni, d);
+          }
+
+          real_t const inv_vp = 1.0f / mesh_local.getModelVpOnElement(e);
+
+          for (int i = 0; i < knumNodesPerFace; ++i) {
+            int const ei = face_to_elem_dof[faceId][i];
+            ATOMICADD(damp_local_view(e, ei), inv_vp * INTEGRAL_TYPE::computeDampingTerm(i, faceCoords));
+          }
+          return;
+        }
 
         int const owner_e = face_connectivity_local.elemOwner(f);
         int const neighbor_e = face_connectivity_local.elemNeighbor(f);
@@ -261,8 +244,9 @@ void DGsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::comp
         float normal[3];
         mesh_local.faceNormal(owner_e, static_cast<model::CubicFace>(fid_o), normal);
 
-        real_t const gamma_o = computeSIPGPenalty<ORDER>(faceCoords, owner_coords, penalty_local);
-        real_t const gamma_n = computeSIPGPenalty<ORDER>(faceCoords, neighbor_coords, penalty_local);
+        real_t const face_area = computeFaceArea(faceCoords);
+        real_t const gamma_o = computeSIPGPenaltyFromArea<ORDER>(face_area, owner_coords, penalty_local);
+        real_t const gamma_n = computeSIPGPenaltyFromArea<ORDER>(face_area, neighbor_coords, penalty_local);
 
         float stiff_o[kPointsPerElement] = {0};
         float stiff_n[kPointsPerElement] = {0};
@@ -389,9 +373,7 @@ void DGsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::upda
 
   computeVolumeAndBoundary(kNumElem, current_field);
   FENCE
-  computeBoundaryDamping(kNumFaces);
-  FENCE
-  computeInterfaceFlux(kNumFaces, current_field);
+  computeBoundaryDampingAndInterfaceFlux(kNumFaces, current_field);
   FENCE
   applyVerlet(kNumElem, dt, current_field, prev_field);
 }
