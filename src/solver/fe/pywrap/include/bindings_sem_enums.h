@@ -41,12 +41,20 @@ void bind_physic_type(py::module_ &m) {
       .export_values();
 }
 
+void bind_interface_property_convention(py::module_ &m) {
+  py::enum_<utils::enums::interfacePropertyConvention>(m, "InterfacePropertyConvention")
+      .value("FLUID_ON_INTERFACE_NODES", utils::enums::interfacePropertyConvention::kFluidOnInterfaceNodes)
+      .value("SHARED_ON_INTERFACE_NODES", utils::enums::interfacePropertyConvention::kSharedOnInterfaceNodes)
+      .export_values();
+}
+
 void bind_all_sem_enums(py::module_ &m) {
   bind_method_type(m);
   bind_implem_type(m);
   bind_mesh_type(m);
   bind_model_location_type(m);
   bind_physic_type(m);
+  bind_interface_property_convention(m);
 }
 
 }  // namespace fe

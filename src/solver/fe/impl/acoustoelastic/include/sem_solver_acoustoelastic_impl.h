@@ -42,7 +42,8 @@ void SEMsolverAcoustoElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES>
   computeDampingMatrix();
 
   TagNodes();
-  std::cout << "SEMsolverAcoustoElastic: " << num_interface_nodes_ << " interface nodes." << std::endl;
+  std::cout << "SEMsolverAcoustoElastic: " << num_interface_nodes_ << " interface nodes, "
+            << utils::enums::to_string(interface_property_convention_) << "." << std::endl;
 
   ComputeInterfaceCouplingCoefficients();
 }
@@ -289,6 +290,16 @@ void SEMsolverAcoustoElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES>
       m_vp_fluid_iface_[i] = m_mesh_.getModelVpOnNodes(j);
       m_rho_fluid_iface_[i] = m_mesh_.getModelRhoOnNodes(j);
 
+      if (interface_property_convention_ == utils::enums::interfacePropertyConvention::kSharedOnInterfaceNodes) {
+        // The builder gave the interface node a single state meant for both
+        // sides, so there is nothing to rebuild and the mass fix below is a
+        // no-op.
+        m_vp_solid_iface_[i] = m_vp_fluid_iface_[i];
+        m_vs_solid_iface_[i] = m_mesh_.getModelVsOnNodes(j);
+        m_rho_solid_iface_[i] = m_rho_fluid_iface_[i];
+        continue;
+      }
+
       // Solid side: read from a non-interface node of the adjacent elastic
       // element to avoid picking up fluid-contaminated corner properties.
       int const e_adj = m_interface_adj_elastic_elem_[i];
@@ -374,6 +385,32 @@ void SEMsolverAcoustoElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE,
 }
 
 //============================================================================
+// SaveInterfaceUnm1
+//============================================================================
+
+template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE, bool IS_MODEL_ON_NODES>
+void SEMsolverAcoustoElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES>::SaveInterfaceUnm1(
+    const DataType& data) {
+  auto ux_prev = data.m_wavefield.m_elastic.getPreviousField(0);
+  auto uy_prev = data.m_wavefield.m_elastic.getPreviousField(1);
+  auto uz_prev = data.m_wavefield.m_elastic.getPreviousField(2);
+  auto iface_list = m_interface_node_indices_;
+  auto ux_nm1 = m_ux_nm1_iface_;
+  auto uy_nm1 = m_uy_nm1_iface_;
+  auto uz_nm1 = m_uz_nm1_iface_;
+  int const n_iface = n_interface_nodes_;
+
+  Kokkos::parallel_for(
+      "SaveUnm1Interface_Loop", n_iface, KOKKOS_LAMBDA(const int i) {
+        int const j = iface_list[i];
+        ux_nm1[i] = ux_prev[j];
+        uy_nm1[i] = uy_prev[j];
+        uz_nm1[i] = uz_prev[j];
+      });
+  FENCE
+}
+
+//============================================================================
 // computeGlobalMassMatrix  (domain-masked override)
 //============================================================================
 
@@ -423,7 +460,10 @@ void SEMsolverAcoustoElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES>
 }
 
 //============================================================================
-// computeForces  (both domains, no coupling — for potential DD use)
+// computeForces  (both domains; the interface coupling is applied later, in
+// updateSolutionForward, because it acts on the updated fields rather than on
+// the right-hand side.  This split lets a distributed driver assemble the force
+// vector at partition boundaries in between.)
 //============================================================================
 
 template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE, bool IS_MODEL_ON_NODES>
@@ -479,12 +519,32 @@ void SEMsolverAcoustoElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES>
         "updateSolutionForward called with 3-buffer wavefield. "
         "Use updateSolutionBackward() for adjoint mode.");
   }
+  SaveInterfaceUnm1(myData);
   m_elastic_solver_.updateFieldsFromListForward(dt, elastic_data, elastic_node_list_, num_elastic_nodes_);
   FENCE
 
   SEMsolverData<utils::enums::physicType::kAcoustic> acoustic_data(myData.m_wavefield.m_acoustic,
                                                                    myData.m_rhs.m_rhs_acoustic);
   m_acoustic_solver_.updateFieldsFromListForward(dt, acoustic_data, acoustic_node_list_, num_acoustic_nodes_);
+  FENCE
+
+  ApplyInterfaceCoupling(dt, myData);
+}
+
+//============================================================================
+// ApplyInterfaceCoupling
+//============================================================================
+
+template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE, bool IS_MODEL_ON_NODES>
+void SEMsolverAcoustoElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES>::ApplyInterfaceCoupling(
+    float dt, const DataType& data) {
+  // Correct the solid with p^n, then the fluid with the discrete solid
+  // acceleration that correction has just produced: both corrections are then
+  // centred on time n.  Moving the traction to p^{n+1} instead breaks that
+  // symmetry and slowly injects energy, so the order below matters.
+  ApplyCouplingAcousticToElastic(dt, data);
+  FENCE
+  ApplyCouplingElasticToAcoustic(dt, data);
   FENCE
 }
 
@@ -504,6 +564,11 @@ void SEMsolverAcoustoElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES>
   }
   SEMsolverData<utils::enums::physicType::kElastic> elastic_data(myData.m_wavefield.m_elastic,
                                                                  myData.m_rhs.m_rhs_elastic);
+  // NOTE: the interface coupling is deliberately not applied here.  In backward
+  // mode the Verlet writes u^{n-1} into the prevPrev buffer, whereas
+  // ApplyCoupling{AcousticToElastic,ElasticToAcoustic} read and correct the
+  // previous buffer.  The coupled adjoint is therefore still uncoupled, as it
+  // has always been; see updateSolutionForward for the coupled forward step.
   m_elastic_solver_.updateFieldsFromListBackward(dt, elastic_data, elastic_node_list_, num_elastic_nodes_);
   FENCE
 
@@ -521,11 +586,17 @@ template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE, bool IS_MODEL_O
 void SEMsolverAcoustoElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES>::ApplyCouplingAcousticToElastic(
     float dt, const DataType& data) {
   float const dt2 = dt * dt;
+  float const half_dt = 0.5f * dt;
   auto p_curr = data.m_wavefield.m_acoustic.getCurrentField(0);    // p^n
   auto u_prev_x = data.m_wavefield.m_elastic.getPreviousField(0);  // u_x^{n+1}
   auto u_prev_y = data.m_wavefield.m_elastic.getPreviousField(1);  // u_y^{n+1}
   auto u_prev_z = data.m_wavefield.m_elastic.getPreviousField(2);  // u_z^{n+1}
   auto M_e = m_elastic_solver_.getMassMatrixElastic();
+  auto C_ex = m_elastic_solver_.getDampingMatrix(0);
+  auto C_ey = m_elastic_solver_.getDampingMatrix(1);
+  auto C_ez = m_elastic_solver_.getDampingMatrix(2);
+  auto taper_e = m_elastic_solver_.getSpongeTaperCoeff();
+  auto mesh_local = m_mesh_;
   auto cx = m_coupling_coeff_x_;
   auto cy = m_coupling_coeff_y_;
   auto cz = m_coupling_coeff_z_;
@@ -535,11 +606,13 @@ void SEMsolverAcoustoElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES>
   Kokkos::parallel_for(
       "ApplyCouplingAcousticToElastic_Loop", n_iface, KOKKOS_LAMBDA(const int i) {
         int const j = iface_list[i];
-        if (M_e[j] > 0.0f) {
-          float const aux = -p_curr[j] / M_e[j];
-          u_prev_x[j] += dt2 * cx[j] * aux;
-          u_prev_y[j] += dt2 * cy[j] * aux;
-          u_prev_z[j] += dt2 * cz[j] * aux;
+        if (M_e[j] > 0.0f && !mesh_local.isFreeSurface(j)) {
+          // Same denominator and taper the Verlet update applied to the physical
+          // RHS: without them this correction is O(dt) inconsistent in the sponge.
+          float const aux = -dt2 * p_curr[j] * taper_e[j];
+          u_prev_x[j] += cx[j] * aux / (M_e[j] + half_dt * C_ex[j]);
+          u_prev_y[j] += cy[j] * aux / (M_e[j] + half_dt * C_ey[j]);
+          u_prev_z[j] += cz[j] * aux / (M_e[j] + half_dt * C_ez[j]);
         }
       });
 }
@@ -550,7 +623,8 @@ void SEMsolverAcoustoElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES>
 
 template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE, bool IS_MODEL_ON_NODES>
 void SEMsolverAcoustoElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES>::ApplyCouplingElasticToAcoustic(
-    const DataType& data) {
+    float dt, const DataType& data) {
+  float const half_dt = 0.5f * dt;
   auto p_prev = data.m_wavefield.m_acoustic.getPreviousField(0);
   auto u_np1_x = data.m_wavefield.m_elastic.getPreviousField(0);
   auto u_np1_y = data.m_wavefield.m_elastic.getPreviousField(1);
@@ -562,6 +636,9 @@ void SEMsolverAcoustoElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES>
   auto u_nm1_y = m_uy_nm1_iface_;
   auto u_nm1_z = m_uz_nm1_iface_;
   auto M_f = m_acoustic_solver_.getMassMatrixAcoustic();
+  auto C_f = m_acoustic_solver_.getDampingMatrix(0);
+  auto taper_f = m_acoustic_solver_.getSpongeTaperCoeff();
+  auto mesh_local = m_mesh_;
   auto cx = m_coupling_coeff_x_;
   auto cy = m_coupling_coeff_y_;
   auto cz = m_coupling_coeff_z_;
@@ -571,11 +648,12 @@ void SEMsolverAcoustoElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES>
   Kokkos::parallel_for(
       "ApplyCouplingElasticToAcoustic_Loop", n_iface, KOKKOS_LAMBDA(const int i) {
         int const j = iface_list[i];
-        if (M_f[j] > 0.0f) {
+        if (M_f[j] > 0.0f && !mesh_local.isFreeSurface(j)) {
           float const fd_x = u_np1_x[j] - 2.0f * u_n_x[j] + u_nm1_x[i];
           float const fd_y = u_np1_y[j] - 2.0f * u_n_y[j] + u_nm1_y[i];
           float const fd_z = u_np1_z[j] - 2.0f * u_n_z[j] + u_nm1_z[i];
-          p_prev[j] += (cx[j] * fd_x + cy[j] * fd_y + cz[j] * fd_z) / M_f[j];
+          // Same denominator and taper the Verlet update applied to the physical RHS.
+          p_prev[j] += taper_f[j] * (cx[j] * fd_x + cy[j] * fd_y + cz[j] * fd_z) / (M_f[j] + half_dt * C_f[j]);
         }
       });
 }
@@ -631,57 +709,34 @@ void SEMsolverAcoustoElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES>
   // 2.5. Save u^{n-1} for interface nodes only (compact array, size
   // n_interface_nodes_).  getPreviousField() still holds u^{n-1} at this
   // point; it will be overwritten by the Verlet below.
-  {
-    auto ux_prev = elastic_data.getPreviousField(0);
-    auto uy_prev = elastic_data.getPreviousField(1);
-    auto uz_prev = elastic_data.getPreviousField(2);
-    auto iface_list = m_interface_node_indices_;
-    auto ux_nm1 = m_ux_nm1_iface_;
-    auto uy_nm1 = m_uy_nm1_iface_;
-    auto uz_nm1 = m_uz_nm1_iface_;
-    int const n_iface = n_interface_nodes_;
-
-    Kokkos::parallel_for(
-        "SaveUnm1Interface_Loop", n_iface, KOKKOS_LAMBDA(const int i) {
-          int const j = iface_list[i];
-          ux_nm1[i] = ux_prev[j];
-          uy_nm1[i] = uy_prev[j];
-          uz_nm1[i] = uz_prev[j];
-        });
-    FENCE
-  }
+  SaveInterfaceUnm1(myData);
 
   // 3. Elastic Verlet: u^{n+1} written into elastic_data.getPreviousField().
   m_elastic_solver_.updateFieldsFromListForward(dt, elastic_data, elastic_node_list_, num_elastic_nodes_);
-  FENCE
-
-  // 4. A→E coupling (GEOS post-Verlet): u^{n+1} += dt²·c·(-p^n)/M_e.
-  ApplyCouplingAcousticToElastic(dt, myData);
   FENCE
 
   // =========================================================================
   // ACOUSTIC STEP
   // =========================================================================
 
-  // 5. Reset acoustic work vector.
+  // 4. Reset acoustic work vector.
   m_acoustic_solver_.resetGlobalVectors(nNode);
   FENCE
 
-  // 6. Apply acoustic source term.
+  // 5. Apply acoustic source term.
   m_acoustic_solver_.applyRHSTerm(timeSample, dt, acoustic_data);
   FENCE
 
-  // 7. Compute acoustic stiffness (list: acoustic elements only).
+  // 6. Compute acoustic stiffness (list: acoustic elements only).
   m_acoustic_solver_.computeElementContributionsFromList(acoustic_data, acoustic_elem_list_, num_acoustic_elements_);
   FENCE
 
-  // 8. Acoustic Verlet: p^{n+1} written into acoustic_data.getPreviousField().
+  // 7. Acoustic Verlet: p^{n+1} written into acoustic_data.getPreviousField().
   m_acoustic_solver_.updateFieldsFromListForward(dt, acoustic_data, acoustic_node_list_, num_acoustic_nodes_);
   FENCE
 
-  // 9. E→A coupling post-Verlet.
-  ApplyCouplingElasticToAcoustic(myData);
-  FENCE
+  // 8. Enforce the fluid/solid interface conditions on the two predictors.
+  ApplyInterfaceCoupling(dt, myData);
 }
 
 //============================================================================

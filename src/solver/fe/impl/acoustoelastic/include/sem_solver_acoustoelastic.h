@@ -102,6 +102,15 @@ class SEMsolverAcoustoElastic : public Solver {
     return m_elastic_solver_.getForceVector(c - 1);
   }
 
+  /// @brief Interface coupling coefficient c = int_Gamma phi n dGamma, one
+  /// component per direction.  Assembled from the local acoustic element faces
+  /// only, so a distributed driver must sum it over rank boundaries.
+  vectorReal& getInterfaceCouplingCoeff(int c) override {
+    if (c == 0) return m_coupling_coeff_x_;
+    if (c == 1) return m_coupling_coeff_y_;
+    return m_coupling_coeff_z_;
+  }
+
   void computeFEInit(model::ModelApi<float, int>& mesh, const std::array<float, 3>& sponge_size,
                      const bool surface_sponge, const float taper_delta) override;
 
@@ -132,6 +141,10 @@ class SEMsolverAcoustoElastic : public Solver {
 
   void setAnisotropyType(model::AnisotropyType type) override { m_elastic_solver_.setAnisotropyType(type); }
 
+  void setInterfacePropertyConvention(utils::enums::interfacePropertyConvention convention) override {
+    interface_property_convention_ = convention;
+  }
+
   void setSLSAttenuation(const vectorReal& reference_frequencies,
                          const vectorReal& anelasticity_coefficients = vectorReal()) override {
     m_acoustic_solver_.setSLSAttenuation(reference_frequencies, anelasticity_coefficients);
@@ -161,6 +174,10 @@ class SEMsolverAcoustoElastic : public Solver {
    */
   void ComputeInterfaceCouplingCoefficients();
 
+  /// @brief Snapshot u^{n-1} at the interface nodes before the elastic update
+  /// overwrites it; needed by the elastic-to-acoustic coupling.
+  void SaveInterfaceUnm1(const DataType& data);
+
   /**
    * @brief Apply acoustic→elastic coupling post-Verlet.
    * @param dt   Time step.
@@ -172,7 +189,14 @@ class SEMsolverAcoustoElastic : public Solver {
    * @brief Apply elastic→acoustic coupling post-Verlet.
    * @param data Coupled solver data.
    */
-  void ApplyCouplingElasticToAcoustic(const DataType& data);
+  void ApplyCouplingElasticToAcoustic(float dt, const DataType& data);
+
+  /**
+   * @brief Enforce the fluid/solid interface conditions on the two predictors.
+   * @param dt   Time step.
+   * @param data Coupled solver data, with both sub-domains already advanced.
+   */
+  void ApplyInterfaceCoupling(float dt, const DataType& data);
 
  private:
   AcousticSolverType m_acoustic_solver_;  ///< Acoustic sub-solver
@@ -217,6 +241,11 @@ class SEMsolverAcoustoElastic : public Solver {
   /// n_interface_nodes_).  Valid only when IS_MODEL_ON_NODES is true.
   vectorReal m_vp_fluid_iface_;
   vectorReal m_rho_fluid_iface_;
+
+  /// @brief Set by the caller before computeFEInit; drives how TagNodes fills
+  /// the solid side of the interface nodes.
+  utils::enums::interfacePropertyConvention interface_property_convention_{
+      utils::enums::interfacePropertyConvention::kFluidOnInterfaceNodes};
 
   int num_acoustic_elements_{0};  ///< Count of acoustic elements
   int num_elastic_elements_{0};   ///< Count of elastic elements

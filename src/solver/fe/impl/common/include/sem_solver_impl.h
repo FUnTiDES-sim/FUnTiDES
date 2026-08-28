@@ -176,7 +176,7 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::app
               int nodeRHS = mesh_local.globalNodeIndex(data.getRhsElement()[i], x, y, z);
 
               for (int f = 0; f < kNumRhs; ++f) {
-                float source = data.getRhsTerm(f)(i, timeSample) * data.getRhsWeights()(i, localNodeId);
+                float source = data.getRhsTerm(f)(i, timeSample) * data.getRhsWeights(f)(i, localNodeId);
                 local_workVectorsGlobal[f](nodeRHS) -= source;
               }
             }

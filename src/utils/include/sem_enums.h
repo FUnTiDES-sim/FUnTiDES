@@ -11,6 +11,16 @@ enum class meshType { kStruct, kUnstruct };
 enum class modelLocationType { kOnNodes, kOnElements };
 enum class physicType : int { kAcoustic, kElastic, kAcoustoElastic };
 
+/// @brief How the mesh builder assigned material properties to the nodes that
+/// sit on an acoustic/elastic interface.
+enum class interfacePropertyConvention {
+  /// Interface nodes carry the fluid state; the solid state is rebuilt from an
+  /// adjacent elastic element.
+  kFluidOnInterfaceNodes,
+  /// Interface nodes carry a single state, meant to be used by both sides.
+  kSharedOnInterfaceNodes
+};
+
 inline std::string to_string(methodType m) {
   switch (m) {
     case methodType::kSem:
@@ -61,6 +71,17 @@ inline std::string to_string(physicType p) {
       return "Elastic";
     case physicType::kAcoustoElastic:
       return "AcoustoElastic";
+    default:
+      return "Unknown";
+  }
+}
+
+inline std::string to_string(interfacePropertyConvention c) {
+  switch (c) {
+    case interfacePropertyConvention::kFluidOnInterfaceNodes:
+      return "FluidOnInterfaceNodes";
+    case interfacePropertyConvention::kSharedOnInterfaceNodes:
+      return "SharedOnInterfaceNodes";
     default:
       return "Unknown";
   }
