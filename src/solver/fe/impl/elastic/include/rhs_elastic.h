@@ -18,7 +18,26 @@ struct RhsElastic : public Rhs {
   RhsElastic() = default;
 
   RhsElastic(arrayReal termx, arrayReal termy, arrayReal termz, vectorInt element, arrayReal weights)
-      : m_termx(termx), m_termy(termy), m_termz(termz), m_element(element), m_weights(weights) {}
+      : m_termx(termx),
+        m_termy(termy),
+        m_termz(termz),
+        m_element(element),
+        m_weights(weights),
+        m_weightsy(weights),
+        m_weightsz(weights) {}
+
+  /// Variant with one weight array per component, for a source whose spatial
+  /// pattern differs between components (moment tensor, explosion in a solid
+  /// expressed as a pressure gradient).
+  RhsElastic(arrayReal termx, arrayReal termy, arrayReal termz, vectorInt element, arrayReal weightsx,
+             arrayReal weightsy, arrayReal weightsz)
+      : m_termx(termx),
+        m_termy(termy),
+        m_termz(termz),
+        m_element(element),
+        m_weights(weightsx),
+        m_weightsy(weightsy),
+        m_weightsz(weightsz) {}
 
   int getNumRhsComponents() const override final { return kNumRhsComponents; }
 
@@ -43,6 +62,18 @@ struct RhsElastic : public Rhs {
   PROXY_HOST_DEVICE
   arrayReal getWeights() const { return m_weights; }
 
+  PROXY_HOST_DEVICE
+  arrayReal getWeights(int i) const {
+    switch (i) {
+      case 1:
+        return m_weightsy;
+      case 2:
+        return m_weightsz;
+      default:
+        return m_weights;
+    }
+  }
+
   void print() const override {
     std::cout << "RHSx Term size:   " << m_termx.extent(0) << std::endl;
     std::cout << "RHSy Term size:   " << m_termy.extent(0) << std::endl;
@@ -51,11 +82,13 @@ struct RhsElastic : public Rhs {
     std::cout << "RHS Weights size: " << m_weights.extent(0) << std::endl;
   }
 
-  arrayReal m_termx;    ///< X-component forcing term
-  arrayReal m_termy;    ///< Y-component forcing term
-  arrayReal m_termz;    ///< Z-component forcing term
-  vectorInt m_element;  ///< Source element indices
-  arrayReal m_weights;  ///< Forcing weights per node
+  arrayReal m_termx;     ///< X-component forcing term
+  arrayReal m_termy;     ///< Y-component forcing term
+  arrayReal m_termz;     ///< Z-component forcing term
+  vectorInt m_element;   ///< Source element indices
+  arrayReal m_weights;   ///< Forcing weights per node, X component
+  arrayReal m_weightsy;  ///< Forcing weights per node, Y component
+  arrayReal m_weightsz;  ///< Forcing weights per node, Z component
 };
 }  // namespace fe
 }  // namespace solver

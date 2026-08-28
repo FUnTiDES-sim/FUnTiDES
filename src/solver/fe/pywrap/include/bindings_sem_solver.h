@@ -126,6 +126,12 @@ void bind_sem_solver_base(py::module_ &m) {
             return self.getForceVector(component);
           },
           py::arg("component"), py::return_value_policy::reference_internal)
+      .def(
+          "get_interface_coupling_coeff",
+          [](Solver &self, int component) -> Kokkos::Experimental::python_view_type_t<vectorReal> {
+            return self.getInterfaceCouplingCoeff(component);
+          },
+          py::arg("component"), py::return_value_policy::reference_internal)
       .def("output_solution_values",
            static_cast<void (Solver::*)(const int &, int &, const vectorReal &, const char *)>(
                &Solver::outputSolutionValues),
@@ -145,7 +151,9 @@ void bind_sem_solver_base(py::module_ &m) {
             }
             self.setSLSAttenuation(vf, vc);
           },
-          py::arg("reference_frequencies"), py::arg("anelasticity_coefficients") = std::vector<float>{});
+          py::arg("reference_frequencies"), py::arg("anelasticity_coefficients") = std::vector<float>{})
+      .def("set_anisotropy_type", &Solver::setAnisotropyType, py::arg("anisotropy_type"))
+      .def("set_interface_property_convention", &Solver::setInterfacePropertyConvention, py::arg("convention"));
 }
 
 void bind_solver_factory(py::module_ &m) {

@@ -57,6 +57,9 @@ struct SEMsolverData : public Solver::DataStruct {
   arrayReal getRhsWeights() const { return m_rhs.getWeights(); }
 
   PROXY_HOST_DEVICE
+  arrayReal getRhsWeights(int i) const { return m_rhs.getWeights(i); }
+
+  PROXY_HOST_DEVICE
   vectorReal getCurrentField(int i) const { return m_wavefield.getCurrentField(i); }
 
   PROXY_HOST_DEVICE

@@ -34,6 +34,9 @@ struct RhsAcoustic : public Rhs {
   PROXY_HOST_DEVICE
   arrayReal getWeights() const { return m_weights; }
 
+  PROXY_HOST_DEVICE
+  arrayReal getWeights(int) const { return m_weights; }
+
   void print() const override {
     std::cout << "RHS Term size:    " << m_term.extent(0) << std::endl;
     std::cout << "RHS Element size: " << m_element.extent(0) << std::endl;

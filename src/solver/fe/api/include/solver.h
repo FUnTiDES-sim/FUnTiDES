@@ -5,6 +5,7 @@
 
 #include "model.h"
 #include "parallel_topology.h"
+#include "sem_enums.h"
 
 namespace solver {
 namespace fe {
@@ -126,6 +127,19 @@ class Solver {
   virtual vectorReal& getMassMatrixElastic() = 0;
 
   /**
+   * @brief Access the acoustic/elastic interface coupling coefficient
+   * c = \int_\Gamma \phi n d\Gamma, one component per direction.
+   *
+   * It is assembled from the locally owned acoustic element faces only, so a
+   * distributed driver must sum it at partition boundaries. Returns an empty
+   * view for the physics that have no such interface.
+   */
+  virtual vectorReal& getInterfaceCouplingCoeff(int) {
+    static vectorReal empty;
+    return empty;
+  }
+
+  /**
    * @brief Access the Global Damping Matrix.
    * Used by the orchestrator to synchronize damping values at boundaries after
    * initialization.
@@ -178,6 +192,10 @@ class Solver {
   virtual void setAnisotropyType(model::AnisotropyType type) = 0;
 
   virtual void setZBoundary(float) {}
+
+  /// @brief Declare how the mesh builder filled the acoustic/elastic interface
+  /// nodes. Ignored by the physics that have no such interface.
+  virtual void setInterfacePropertyConvention(utils::enums::interfacePropertyConvention) {}
 
   virtual void setSLSAttenuation(const vectorReal& reference_frequencies,
                                  const vectorReal& anelasticity_coefficients = vectorReal()) = 0;

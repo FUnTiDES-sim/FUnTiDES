@@ -21,6 +21,8 @@ PYBIND11_MODULE(model, m) {
   bindings::bindFaceConnectivityUnstruct<float, long>(m);
   bindings::bindFaceConnectivityUnstruct<double, long>(m);
 
+  model::bind_anisotropy_type(m);
+
   // Bind BoundaryFlag enum
   model::bind_boundary_flag(m);
 
