@@ -9,7 +9,6 @@ function(print_configuration_summary)
 
   message(STATUS "Discretization Methods:")
   message(STATUS "  COMPILE_SEM:          ${COMPILE_SEM}")
-  message(STATUS "  COMPILE_FD:           ${COMPILE_FD}")
   message(STATUS "  COMPILE_DG:           ${COMPILE_DG}")
   message(STATUS "")
 
