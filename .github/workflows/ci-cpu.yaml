@@ -93,7 +93,7 @@ jobs:
 
           # Extend CMAKE_FLAGS based on selections
           # Discretization, Orders, and Programming Model
-          CMAKE_FLAGS="-DCOMPILE_FD=ON -DCOMPILE_SEM=ON -DMAX_SOLVER_ORDER=$MAX_ORDER -DMAX_DIFFERENTIATOR_ORDER=$MAX_ORDER "
+          CMAKE_FLAGS="-DCOMPILE_SEM=ON -DMAX_SOLVER_ORDER=$MAX_ORDER -DMAX_DIFFERENTIATOR_ORDER=$MAX_ORDER "
           # Use sccache to speed up recompilation unless disabled
           if [[ "$SCCACHE_OFF" != "true" ]]; then
             export CMAKE_FLAGS="$CMAKE_FLAGS -DCMAKE_C_COMPILER_LAUNCHER=sccache -DCMAKE_CXX_COMPILER_LAUNCHER=sccache"
