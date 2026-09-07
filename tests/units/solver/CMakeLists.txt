@@ -15,6 +15,7 @@ set(SOLVER_TEST_SOURCES
   impl/test_attenuation.cc
   impl/test_sem_solver_acoustic.cc
   impl/test_sem_solver_elastic.cc
+  impl/test_elastic_flux_symmetry.cc
   impl/test_boundary_synchronizer.cc
 )
 
