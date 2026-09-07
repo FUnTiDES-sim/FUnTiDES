@@ -6,7 +6,7 @@
 
 namespace solver {
 namespace fe {
-namespace detail {
+namespace flux {
 
 /**
  * @brief Physical displacement gradient H[i][t] = du_t/dx_i.
@@ -112,7 +112,7 @@ PROXY_HOST_DEVICE void elasticFluxTti(float const (&J_inv)[3][3], float const (&
   pullBackStress(J_inv, sigma, flux);
 }
 
-}  // namespace detail
+}  // namespace flux
 }  // namespace fe
 }  // namespace solver
 

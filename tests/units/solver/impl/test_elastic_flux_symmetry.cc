@@ -69,7 +69,7 @@ TEST(ElasticFluxSymmetry, Isotropic) {
   // Vp/Vs = sqrt(3), which would mask the residual).
   float const mu = 2000.0f * 1500.0f * 1500.0f;
   float const lambda = 2000.0f * (3000.0f * 3000.0f - 2.0f * 1500.0f * 1500.0f);
-  ExpectMajorSymmetry([&](float const(&g)[3][3], float(&f)[3][3]) { detail::elasticFluxIso(kJinv, mu, lambda, g, f); },
+  ExpectMajorSymmetry([&](float const(&g)[3][3], float(&f)[3][3]) { flux::elasticFluxIso(kJinv, mu, lambda, g, f); },
                       mu + lambda);
 }
 
@@ -86,9 +86,9 @@ TEST(ElasticFluxSymmetry, Vti) {
   float const c66 = rho_vs2 * (1.0f + 2.0f * 0.08f);  // gamma = 0.08
   float const c13 = 0.6f * rho_vp2;                   // c13 != c44
   float const c12 = c11 - 2.0f * c66;                 // c12 != c66
-  ExpectMajorSymmetry([&](float const(&g)[3][3],
-                          float(&f)[3][3]) { detail::elasticFluxVti(kJinv, c11, c12, c13, c33, c44, c66, g, f); },
-                      c11);
+  ExpectMajorSymmetry(
+      [&](float const(&g)[3][3], float(&f)[3][3]) { flux::elasticFluxVti(kJinv, c11, c12, c13, c33, c44, c66, g, f); },
+      c11);
 }
 
 // ======================================================================
@@ -104,7 +104,7 @@ TEST(ElasticFluxSymmetry, Tti) {
       C[b][a] = val;
       v += 1.0f;
     }
-  ExpectMajorSymmetry([&](float const(&g)[3][3], float(&f)[3][3]) { detail::elasticFluxTti(kJinv, C, g, f); }, C[0][0]);
+  ExpectMajorSymmetry([&](float const(&g)[3][3], float(&f)[3][3]) { flux::elasticFluxTti(kJinv, C, g, f); }, C[0][0]);
 }
 
 // ======================================================================
@@ -119,9 +119,9 @@ TEST(ElasticFluxSymmetry, TtiAsymmetricTensorIsDetected) {
   for (int c = 0; c < 9; ++c) {
     float grad[3][3] = {};
     grad[c / 3][c % 3] = 1.0f;
-    float flux[3][3];
-    detail::elasticFluxTti(kJinv, C, grad, flux);
-    for (int r = 0; r < 9; ++r) M[r][c] = flux[r / 3][r % 3];
+    float f[3][3];
+    flux::elasticFluxTti(kJinv, C, grad, f);
+    for (int r = 0; r < 9; ++r) M[r][c] = f[r / 3][r % 3];
   }
   float max_asym = 0.0f;
   for (int i = 0; i < 9; ++i)
@@ -137,8 +137,7 @@ TEST(ElasticFluxSymmetry, DiagonalJacobianStaysSymmetric) {
   float const mu = 2000.0f * 1500.0f * 1500.0f;
   float const lambda = 2000.0f * (3000.0f * 3000.0f - 2.0f * 1500.0f * 1500.0f);
   ExpectMajorSymmetry(
-      [&](float const(&g)[3][3], float(&f)[3][3]) { detail::elasticFluxIso(kDiagJinv, mu, lambda, g, f); },
-      mu + lambda);
+      [&](float const(&g)[3][3], float(&f)[3][3]) { flux::elasticFluxIso(kDiagJinv, mu, lambda, g, f); }, mu + lambda);
 }
 
 }  // namespace test

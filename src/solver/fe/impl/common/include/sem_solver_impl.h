@@ -684,7 +684,7 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::com
                                                             lambda = lambda_e;
                                                           }
 
-                                                          detail::elasticFluxIso(J_inv, mu, lambda, grad_u_ref, flux);
+                                                          flux::elasticFluxIso(J_inv, mu, lambda, grad_u_ref, flux);
                                                         });
 
           for (int i = 0; i < dim; ++i) {
@@ -807,7 +807,7 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::com
                   c66 = c66_e;
                 }
 
-                detail::elasticFluxVti(J_inv, c11, c12, c13, c33, c44, c66, grad_u_ref, flux);
+                flux::elasticFluxVti(J_inv, c11, c12, c13, c33, c44, c66, grad_u_ref, flux);
               });
 
           for (int i = 0; i < dim; ++i) {
@@ -900,7 +900,7 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::com
                   computeCMatrix(vp, vs, rho, delta, epsilon, gamma, phi, theta, CTTI);
                 }
 
-                detail::elasticFluxTti(J_inv, CTTI, grad_u_ref, flux);
+                flux::elasticFluxTti(J_inv, CTTI, grad_u_ref, flux);
               });
 
           for (int i = 0; i < dim; ++i) {
