@@ -6,6 +6,7 @@
 #include <cstdlib>
 
 #include "Integrals.h"
+#include "elastic_flux.h"
 #include "sem_solver.h"
 
 namespace solver {
@@ -657,61 +658,34 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::com
                   mesh_local.vertexCoords(mesh_local.globalVertexIndex(eIdx, iv, jv, kv), cornerCoords[I++]);
           }
 
-          float mu_e = 0.0f, lambda_e = 0.0f, lam2mu_e = 0.0f;
+          float mu_e = 0.0f, lambda_e = 0.0f;
           if constexpr (!IS_MODEL_ON_NODES) {
             float const vp_e = mesh_local.getModelVpOnElement(elementNumber);
             float const vs_e = mesh_local.getModelVsOnElement(elementNumber);
             float const rho_e = mesh_local.getModelRhoOnElement(elementNumber);
             mu_e = rho_e * vs_e * vs_e;
             lambda_e = rho_e * (vp_e * vp_e - 2.0f * vs_e * vs_e);
-            lam2mu_e = lambda_e + 2.0f * mu_e;
           }
 
-          INTEGRAL_TYPE::computeElasticStiffnessSumFact(
-              cornerCoords, localFields, localWork,
-              [&](int qa, int qb, int qc, float const(&J_inv)[3][3], float const(&grad_u_ref)[3][3],
-                  float(&flux)[3][3]) {
-                float mu, lambda, lam2mu;
-                if constexpr (IS_MODEL_ON_NODES) {
-                  int const gIndex = mesh_local.globalNodeIndex(elementNumber, qa, qb, qc);
-                  float const vp = mesh_local.getModelVpOnNodes(gIndex);
-                  float const vs = mesh_local.getModelVsOnNodes(gIndex);
-                  float const rho = mesh_local.getModelRhoOnNodes(gIndex);
-                  mu = rho * vs * vs;
-                  lambda = rho * (vp * vp - 2.0f * vs * vs);
-                  lam2mu = lambda + 2.0f * mu;
-                } else {
-                  mu = mu_e;
-                  lambda = lambda_e;
-                  lam2mu = lam2mu_e;
-                }
+          INTEGRAL_TYPE::computeElasticStiffnessSumFact(cornerCoords, localFields, localWork,
+                                                        [&](int qa, int qb, int qc, float const(&J_inv)[3][3],
+                                                            float const(&grad_u_ref)[3][3], float(&flux)[3][3]) {
+                                                          float mu, lambda;
+                                                          if constexpr (IS_MODEL_ON_NODES) {
+                                                            int const gIndex =
+                                                                mesh_local.globalNodeIndex(elementNumber, qa, qb, qc);
+                                                            float const vp = mesh_local.getModelVpOnNodes(gIndex);
+                                                            float const vs = mesh_local.getModelVsOnNodes(gIndex);
+                                                            float const rho = mesh_local.getModelRhoOnNodes(gIndex);
+                                                            mu = rho * vs * vs;
+                                                            lambda = rho * (vp * vp - 2.0f * vs * vs);
+                                                          } else {
+                                                            mu = mu_e;
+                                                            lambda = lambda_e;
+                                                          }
 
-                for (int p = 0; p < 3; ++p) {
-                  float const Jp0 = J_inv[p][0];
-                  float const Jp1 = J_inv[p][1];
-                  float const Jp2 = J_inv[p][2];
-                  flux[p][0] = 0.0f;
-                  flux[p][1] = 0.0f;
-                  flux[p][2] = 0.0f;
-                  for (int r = 0; r < 3; ++r) {
-                    float const Jr0 = J_inv[r][0];
-                    float const Jr1 = J_inv[r][1];
-                    float const Jr2 = J_inv[r][2];
-                    float const v0 = lam2mu * Jp0 * Jr0 + mu * (Jp1 * Jr1 + Jp2 * Jr2);
-                    float const v1 = mu * Jp0 * Jr0 + lam2mu * Jp1 * Jr1 + mu * Jp2 * Jr2;
-                    float const v2 = mu * (Jp0 * Jr0 + Jp1 * Jr1) + lam2mu * Jp2 * Jr2;
-                    float const v3 = lambda * Jp0 * Jr1 + mu * Jp1 * Jr0;
-                    float const v4 = lambda * Jp0 * Jr2 + mu * Jp2 * Jr0;
-                    float const v5 = lambda * Jp1 * Jr2 + mu * Jp2 * Jr1;
-                    float const g0 = grad_u_ref[r][0];
-                    float const g1 = grad_u_ref[r][1];
-                    float const g2 = grad_u_ref[r][2];
-                    flux[p][0] += v0 * g0 + v3 * g1 + v4 * g2;
-                    flux[p][1] += v3 * g0 + v1 * g1 + v5 * g2;
-                    flux[p][2] += v4 * g0 + v5 * g1 + v2 * g2;
-                  }
-                }
-              });
+                                                          flux::elasticFluxIso(J_inv, mu, lambda, grad_u_ref, flux);
+                                                        });
 
           for (int i = 0; i < dim; ++i) {
             for (int j = 0; j < dim; ++j) {
@@ -833,34 +807,7 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::com
                   c66 = c66_e;
                 }
 
-                for (int p = 0; p < 3; ++p) {
-                  float const Jp0 = J_inv[p][0];
-                  float const Jp1 = J_inv[p][1];
-                  float const Jp2 = J_inv[p][2];
-                  flux[p][0] = 0.0f;
-                  flux[p][1] = 0.0f;
-                  flux[p][2] = 0.0f;
-                  for (int r = 0; r < 3; ++r) {
-                    float const Jr0 = J_inv[r][0];
-                    float const Jr1 = J_inv[r][1];
-                    float const Jr2 = J_inv[r][2];
-                    float const p0r0 = Jp0 * Jr0, p0r1 = Jp0 * Jr1, p0r2 = Jp0 * Jr2;
-                    float const p1r0 = Jp1 * Jr0, p1r1 = Jp1 * Jr1, p1r2 = Jp1 * Jr2;
-                    float const p2r0 = Jp2 * Jr0, p2r1 = Jp2 * Jr1, p2r2 = Jp2 * Jr2;
-                    float const v0 = c11 * p0r0 + c66 * p1r1 + c44 * p2r2;
-                    float const v1 = c66 * p0r0 + c11 * p1r1 + c44 * p2r2;
-                    float const v2 = c44 * p0r0 + c44 * p1r1 + c33 * p2r2;
-                    float const v3 = c66 * p0r1 + c12 * p1r0;
-                    float const v4 = c44 * p0r2 + c13 * p2r0;
-                    float const v5 = c44 * p1r2 + c13 * p2r1;
-                    float const g0 = grad_u_ref[r][0];
-                    float const g1 = grad_u_ref[r][1];
-                    float const g2 = grad_u_ref[r][2];
-                    flux[p][0] += v0 * g0 + v3 * g1 + v4 * g2;
-                    flux[p][1] += v3 * g0 + v1 * g1 + v5 * g2;
-                    flux[p][2] += v4 * g0 + v5 * g1 + v2 * g2;
-                  }
-                }
+                flux::elasticFluxVti(J_inv, c11, c12, c13, c33, c44, c66, grad_u_ref, flux);
               });
 
           for (int i = 0; i < dim; ++i) {
@@ -953,49 +900,7 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::com
                   computeCMatrix(vp, vs, rho, delta, epsilon, gamma, phi, theta, CTTI);
                 }
 
-                float const C00 = CTTI[0][0], C01 = CTTI[0][1], C02 = CTTI[0][2];
-                float const C03 = CTTI[0][3], C04 = CTTI[0][4], C05 = CTTI[0][5];
-                float const C11 = CTTI[1][1], C12 = CTTI[1][2], C13 = CTTI[1][3];
-                float const C14 = CTTI[1][4], C15 = CTTI[1][5];
-                float const C22 = CTTI[2][2], C23 = CTTI[2][3], C24 = CTTI[2][4], C25 = CTTI[2][5];
-                float const C33 = CTTI[3][3], C34 = CTTI[3][4], C35 = CTTI[3][5];
-                float const C44 = CTTI[4][4], C45 = CTTI[4][5];
-                float const C55 = CTTI[5][5];
-
-                for (int p = 0; p < 3; ++p) {
-                  float const Jp0 = J_inv[p][0];
-                  float const Jp1 = J_inv[p][1];
-                  float const Jp2 = J_inv[p][2];
-                  flux[p][0] = 0.0f;
-                  flux[p][1] = 0.0f;
-                  flux[p][2] = 0.0f;
-                  for (int r = 0; r < 3; ++r) {
-                    float const Jr0 = J_inv[r][0];
-                    float const Jr1 = J_inv[r][1];
-                    float const Jr2 = J_inv[r][2];
-                    float const p0r0 = Jp0 * Jr0, p0r1 = Jp0 * Jr1, p0r2 = Jp0 * Jr2;
-                    float const p1r0 = Jp1 * Jr0, p1r1 = Jp1 * Jr1, p1r2 = Jp1 * Jr2;
-                    float const p2r0 = Jp2 * Jr0, p2r1 = Jp2 * Jr1, p2r2 = Jp2 * Jr2;
-                    float const v0 = C00 * p0r0 + C05 * p0r1 + C04 * p0r2 + C05 * p1r0 + C55 * p1r1 + C45 * p1r2 +
-                                     C04 * p2r0 + C45 * p2r1 + C44 * p2r2;
-                    float const v1 = C55 * p0r0 + C15 * p0r1 + C35 * p0r2 + C15 * p1r0 + C11 * p1r1 + C13 * p1r2 +
-                                     C35 * p2r0 + C13 * p2r1 + C33 * p2r2;
-                    float const v2 = C44 * p0r0 + C34 * p0r1 + C24 * p0r2 + C34 * p1r0 + C33 * p1r1 + C23 * p1r2 +
-                                     C24 * p2r0 + C23 * p2r1 + C22 * p2r2;
-                    float const v3 = C05 * p0r0 + C01 * p0r1 + C03 * p0r2 + C55 * p1r0 + C15 * p1r1 + C35 * p1r2 +
-                                     C45 * p2r0 + C14 * p2r1 + C34 * p2r2;
-                    float const v4 = C04 * p0r0 + C03 * p0r1 + C02 * p0r2 + C45 * p1r0 + C35 * p1r1 + C25 * p1r2 +
-                                     C44 * p2r0 + C34 * p2r1 + C24 * p2r2;
-                    float const v5 = C45 * p0r0 + C35 * p0r1 + C25 * p0r2 + C14 * p1r0 + C13 * p1r1 + C12 * p1r2 +
-                                     C34 * p2r0 + C33 * p2r1 + C23 * p2r2;
-                    float const g0 = grad_u_ref[r][0];
-                    float const g1 = grad_u_ref[r][1];
-                    float const g2 = grad_u_ref[r][2];
-                    flux[p][0] += v0 * g0 + v3 * g1 + v4 * g2;
-                    flux[p][1] += v3 * g0 + v1 * g1 + v5 * g2;
-                    flux[p][2] += v4 * g0 + v5 * g1 + v2 * g2;
-                  }
-                }
+                flux::elasticFluxTti(J_inv, CTTI, grad_u_ref, flux);
               });
 
           for (int i = 0; i < dim; ++i) {
