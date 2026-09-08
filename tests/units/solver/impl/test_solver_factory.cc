@@ -94,4 +94,16 @@ TEST_F(SolverFactoryErrorTest, ThrowsOnUnknownImplTypeForSem) {
                std::runtime_error);
 }
 
+/* Covers the no-op default bodies of the Solver base API, i.e. the hooks that
+   only some physics/methods override (SEM acoustic overrides none of them) */
+TEST_F(SolverFactoryErrorTest, BaseClassOptionalHooksAreNoOps) {
+  auto s = createSolver(feenum::methodType::kSem, feenum::implemType::kMakutu, feenum::meshType::kStruct,
+                        feenum::modelLocationType::kOnNodes, feenum::physicType::kAcoustic, 1);
+  ASSERT_NE(s, nullptr);
+
+  EXPECT_NO_THROW(s->setZBoundary(0.f));
+  EXPECT_NO_THROW(s->setInterfacePropertyConvention(feenum::interfacePropertyConvention::kFluidOnInterfaceNodes));
+  EXPECT_EQ(s->getInterfaceCouplingCoeff(0).size(), 0u);
+}
+
 }  // namespace solver::fe::solver_factory

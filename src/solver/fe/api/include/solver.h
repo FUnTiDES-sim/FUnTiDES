@@ -191,6 +191,8 @@ class Solver {
 
   virtual void setAnisotropyType(model::AnisotropyType type) = 0;
 
+  virtual void setZBoundary(float) {}
+
   /// @brief Declare how the mesh builder filled the acoustic/elastic interface
   /// nodes. Ignored by the physics that have no such interface.
   virtual void setInterfacePropertyConvention(utils::enums::interfacePropertyConvention) {}
