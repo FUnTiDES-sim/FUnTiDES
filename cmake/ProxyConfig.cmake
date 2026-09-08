@@ -5,6 +5,7 @@
 # Discretization
 option(COMPILE_SEM "Compile Spectral Elements Method simulation" ON)
 option(COMPILE_DG "Compile Discontinuous Galerkin simulation" ON)
+option(COMPILE_DG_SEM "Compile Discontinuous Galerkin coupled with Spectral Elements Method simulation" ON)
 
 # Programming models
 option(USE_MPI "Enable MPI compilation" OFF)

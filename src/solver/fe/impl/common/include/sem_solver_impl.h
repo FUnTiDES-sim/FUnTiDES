@@ -1644,12 +1644,16 @@ template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE, bool IS_MODEL_O
 void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::computeGlobalMassMatrix() {
   auto mesh_local = m_mesh;
   auto local_massMatrixGlobal = massMatrixGlobal_;
+  bool const mask_enabled = m_mask_enabled_;
+  auto element_mask = m_element_mask_;
+  int const mask_active_value = m_mask_active_value_;
 
   Kokkos::parallel_for(
       "Solver Compute GMatrix",
       Kokkos::RangePolicy<Kokkos::LaunchBounds<LaunchMaxThreadsPerBlock, LaunchMinBlocksPerSM>>(
           0, mesh_local.getNumberOfElements()),
       KOKKOS_LAMBDA(const int elementNumber) {
+        if (mask_enabled && element_mask[elementNumber] != mask_active_value) return;
         float massMatrixLocal[kPointsPerElement] = {0};
         int const dim = mesh_local.getOrder() + 1;
 
@@ -1704,6 +1708,9 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::com
 template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE, bool IS_MODEL_ON_NODES, physicType PHYSICS>
 void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::computeDampingMatrix() {
   auto mesh_local = m_mesh;
+  bool const mask_enabled = m_mask_enabled_;
+  auto element_mask = m_element_mask_;
+  int const mask_active_value = m_mask_active_value_;
 
   std::array<std::remove_reference_t<decltype(dampingMatrixGlobal_[0])>, kNumFields> local_dampingMatrixGlobal;
   for (int f = 0; f < kNumFields; ++f) {
@@ -1716,6 +1723,7 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::com
           0, mesh_local.getNumberOfElements()),
       KOKKOS_LAMBDA(const int elementNumber) {
         (void)local_dampingMatrixGlobal;
+        if (mask_enabled && element_mask[elementNumber] != mask_active_value) return;
         for (int i = 0; i < 6; ++i) {
           // Get global face ID for this element face
           int f = mesh_local.getGlobalFace(elementNumber, static_cast<model::CubicFace>(i));
@@ -2052,6 +2060,7 @@ PROXY_HOST_DEVICE void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NO
 template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE, bool IS_MODEL_ON_NODES, physicType PHYSICS>
 void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::computeGlobalMassMatrixMasked(
     const vectorInt& elem_mask, int active_value) {
+  Kokkos::deep_copy(massMatrixGlobal_, 0.0f);
   m_element_mask_ = elem_mask;
   m_mask_active_value_ = active_value;
   m_mask_enabled_ = true;
@@ -2066,6 +2075,7 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::com
 template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE, bool IS_MODEL_ON_NODES, physicType PHYSICS>
 void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::computeDampingMatrixMasked(
     const vectorInt& elem_mask, int active_value) {
+  for (int f = 0; f < kNumFields; ++f) Kokkos::deep_copy(dampingMatrixGlobal_[f], 0.0f);
   m_element_mask_ = elem_mask;
   m_mask_active_value_ = active_value;
   m_mask_enabled_ = true;

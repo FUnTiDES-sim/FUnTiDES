@@ -19,19 +19,14 @@ print sprintf("Found %d slice files", n_files)
 do for [i=1:n_files] {
     filename = system(sprintf("ls slice*.dat | sort -V | sed -n '%dp'", i))
 
-    # Read dimensions
-    sizex = system(sprintf("head -1 %s", filename)) + 0
-    sizey = system(sprintf("head -2 %s | tail -1", filename)) + 0
-
     print sprintf("Frame %d/%d: %s", i, n_files, filename)
 
-    # Set ranges
-    set xrange [0:sizex-1]
-    set yrange [0:sizey-1]
-    set title sprintf("Frame %d/%d: %s (%dx%d)", i, n_files, filename, sizex, sizey)
+    # Get data range and dimensions in one pass (no header lines in these files)
+    stats filename matrix nooutput
 
-    # Get data range and handle edge cases
-    stats filename skip 2 matrix nooutput
+    set xrange [0:STATS_size_x-1]
+    set yrange [0:STATS_size_y-1]
+    set title sprintf("Frame %d/%d: %s (%dx%d)", i, n_files, filename, STATS_size_x, STATS_size_y)
 
     # Check if data has any variation
     if (STATS_max == STATS_min) {
@@ -51,7 +46,7 @@ do for [i=1:n_files] {
     }
 
     # Plot with centered colorbar
-    plot filename skip 2 matrix with image notitle
+    plot filename matrix with image notitle
 
     # Small delay between frames
     pause 0.15
