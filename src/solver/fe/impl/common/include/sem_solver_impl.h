@@ -2,6 +2,7 @@
 #define FUNTIDES_SOLVER_FE_IMPL_COMMON_INCLUDE_SEM_SOLVER_IMPL_H_
 #include <data_type.h>
 
+#include <algorithm>
 #include <array>
 #include <cstdlib>
 
@@ -749,14 +750,17 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::com
     // per-thread local memory to shared memory.
     //
     // Every team range covers kPointsPerElement, so a larger team only adds
-    // threads that idle at the barriers. Round up to a whole warp rather than
-    // asking for exactly kPointsPerElement, which would leave a partial warp at
-    // the orders where it is not a multiple of 32.
-    constexpr int kTeamSize = ((kPointsPerElement + 31) / 32) * 32;
+    // threads that idle at the barriers. Round up to a whole warp so no partial
+    // warp idles where kPointsPerElement is not a multiple of 32, then clamp to
+    // what the backend can actually provide: a host backend caps the team size
+    // at its thread count, and asking for more aborts at launch. A
+    // TeamThreadRange is correct at any team size.
+    constexpr int kPreferredTeamSize = ((kPointsPerElement + 31) / 32) * 32;
+    int const team_size = std::min<int>(kPreferredTeamSize, ExecSpace::concurrency());
     // Constant-Jacobian meshes carry the element geometry (9 inverse-Jacobian
     // entries + the determinant) in a small per-team scratch buffer.
     constexpr bool kConstJac = HasConstantJacobian<MESH_TYPE>::value;
-    TeamPolicyType policy(n_iter, kTeamSize);
+    TeamPolicyType policy(n_iter, team_size);
     // One buffer carries the displacements in and the forces out: the stiffness
     // kernel overwrites it after the barrier that ends its read phase. Halving
     // this buffer is what lifts the occupancy off its shared-memory limit.
@@ -1013,10 +1017,13 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::com
                                        Kokkos::MemoryTraits<Kokkos::Unmanaged>>;
 
     constexpr int dim = ORDER + 1;
-    constexpr int kTeamSize = ((kPointsPerElement + 31) / 32) * 32;
+    // Warp-aligned preferred size, clamped to what the backend can provide (a
+    // host backend caps it at its thread count; asking for more aborts).
+    constexpr int kPreferredTeamSize = ((kPointsPerElement + 31) / 32) * 32;
+    int const team_size = std::min<int>(kPreferredTeamSize, ExecSpace::concurrency());
     constexpr bool kConstJac = HasConstantJacobian<MESH_TYPE>::value;
 
-    TeamPolicyType policy(n_iter, kTeamSize);
+    TeamPolicyType policy(n_iter, team_size);
     size_t const bytes_fields = ScratchView1D::shmem_size(kNumFields * kPointsPerElement);
     size_t const bytes_flux = ScratchView1D::shmem_size(9 * kPointsPerElement);
     size_t const bytes_geom = kConstJac ? ScratchView1D::shmem_size(10) : 0;
@@ -1257,10 +1264,13 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::com
                                        Kokkos::MemoryTraits<Kokkos::Unmanaged>>;
 
     constexpr int dim = ORDER + 1;
-    constexpr int kTeamSize = ((kPointsPerElement + 31) / 32) * 32;
+    // Warp-aligned preferred size, clamped to what the backend can provide (a
+    // host backend caps it at its thread count; asking for more aborts).
+    constexpr int kPreferredTeamSize = ((kPointsPerElement + 31) / 32) * 32;
+    int const team_size = std::min<int>(kPreferredTeamSize, ExecSpace::concurrency());
     constexpr bool kConstJac = HasConstantJacobian<MESH_TYPE>::value;
 
-    TeamPolicyType policy(n_iter, kTeamSize);
+    TeamPolicyType policy(n_iter, team_size);
     size_t const bytes_fields = ScratchView1D::shmem_size(kNumFields * kPointsPerElement);
     size_t const bytes_flux = ScratchView1D::shmem_size(9 * kPointsPerElement);
     size_t const bytes_geom = kConstJac ? ScratchView1D::shmem_size(10) : 0;
