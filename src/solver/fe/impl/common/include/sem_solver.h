@@ -200,9 +200,27 @@ class SEMsolver : public Solver {
   void computeElementContributions_Acoustic(const DataType& data);
   void computeElementContributions_Acoustic_Flat(const DataType& data);
   void computeElementContributions_Acoustic_Gemm(const DataType& data);
+
+  /**
+   * @brief Highest order still served by the one-thread-per-element kernels.
+   *
+   * The team kernels give a whole warp to an element's kPointsPerElement
+   * quadrature points, so at order 1 (8 points) most of the warp idles at the
+   * barriers while the flat kernel keeps every thread busy on its own element.
+   * The crossover is hardware-dependent; re-measure it when moving to another
+   * GPU.
+   */
+  static constexpr int kMaxOrderForFlatElastic = 1;
+
   void computeElementContributions_Iso(const DataType& data);
+  void computeElementContributions_Iso_Flat(const DataType& data);
+  void computeElementContributions_Iso_Team(const DataType& data);
   void computeElementContributions_Vti(const DataType& data);
+  void computeElementContributions_Vti_Flat(const DataType& data);
+  void computeElementContributions_Vti_Team(const DataType& data);
   void computeElementContributions_Tti(const DataType& data);
+  void computeElementContributions_Tti_Flat(const DataType& data);
+  void computeElementContributions_Tti_Team(const DataType& data);
 
   void computeAttenuationContributions(const DataType& data);
   void computeAttenuationContributionsAcoustic(const DataType& data);

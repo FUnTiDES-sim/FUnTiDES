@@ -655,6 +655,56 @@ class Qk_Hexahedron_Lagrange_GaussLobatto {
                                                                real_t (&f_local)[3][numNodes], FUNC1 &&func1);
 
   /**
+   * @brief Team-parallel variant of computeElasticStiffnessSumFact.
+   *
+   * Same three passes and same arithmetic as the single-thread overload, but
+   * the two outer loops run over a TeamThreadRange: pass 1+2 spread the
+   * quadrature points over the team, pass 3 spreads the nodes. Every buffer is
+   * caller-provided (team scratch), so the large per-element arrays live in
+   * shared memory instead of per-thread local memory.
+   *
+   * The caller must gather @p u_local before calling and must not reuse @p F
+   * elsewhere in the same team. Unlike the single-thread overload, @p f_local is
+   * overwritten rather than accumulated: every node is written exactly once, by
+   * the thread that owns it, so the caller need not zero it. That also makes it
+   * safe to pass the same buffer as @p u_local and @p f_local -- the team
+   * barrier between the passes orders every read of the displacements before the
+   * first write of the forces, which lets a caller halve its scratch.
+   *
+   * @tparam TEAM_MEMBER Kokkos team member type.
+   * @param team     Team handle; a team maps to one element.
+   * @param X        8 corner coordinates of the hexahedral element.
+   * @param u_local  Displacement at element nodes, [3][numNodes] flattened.
+   * @param f_local  Force output buffer, [3][numNodes] flattened; may alias
+   *                 @p u_local.
+   * @param F        Flux scratch, [9][numNodes] flattened: reference direction
+   *                 p (xi, eta, zeta) then force component f, as p * 3 + f.
+   * @param func1    Constitutive callback; same signature as the single-thread
+   *                 overload.
+   */
+  template <typename TEAM_MEMBER, typename FUNC1>
+  PROXY_HOST_DEVICE static void computeElasticStiffnessSumFactTeam(TEAM_MEMBER const &team, float const (&X)[8][3],
+                                                                   real_t const *u_local, real_t *f_local, real_t *F,
+                                                                   FUNC1 &&func1);
+
+  /**
+   * @brief computeElasticStiffnessSumFactTeam for elements whose Jacobian is
+   *   constant (affine-mapped structured hexahedra).
+   *
+   * The caller evaluates the geometry once per element and passes it in, so the
+   * per-quadrature-point jacobianTransformation and invert3x3 disappear.
+   * Passing it through team scratch rather than a per-thread array keeps it out
+   * of local memory.
+   *
+   * @param geom Element geometry: the 9 entries of the inverse Jacobian in row
+   *             order, followed by the determinant.
+   */
+  template <typename TEAM_MEMBER, typename FUNC1>
+  PROXY_HOST_DEVICE static void computeElasticStiffnessSumFactTeam(TEAM_MEMBER const &team, real_t const *geom,
+                                                                   real_t const *u_local, real_t *f_local, real_t *F,
+                                                                   FUNC1 &&func1);
+
+  /**
    * @brief Apply a Jacobian transformation matrix from the parent space to the
    *   physical space on the parent shape function derivatives, producing the
    *   shape function derivatives in the physical space.
@@ -1414,6 +1464,134 @@ PROXY_HOST_DEVICE void Qk_Hexahedron_Lagrange_GaussLobatto<GL_BASIS>::computeEla
       for (int f = 0; f < 3; ++f) v[f] += g * F_zeta[f][q_zeta];
     });
     for (int f = 0; f < 3; ++f) f_local[f][node] += v[f];
+  });
+}
+
+template <typename GL_BASIS>
+template <typename TEAM_MEMBER, typename FUNC1>
+PROXY_HOST_DEVICE void Qk_Hexahedron_Lagrange_GaussLobatto<GL_BASIS>::computeElasticStiffnessSumFactTeam(
+    TEAM_MEMBER const &team, float const (&X)[8][3], real_t const *u_local, real_t *f_local, real_t *F, FUNC1 &&func1) {
+  // Pass 1+2: one thread per quadrature point. Reference gradients, then the
+  // constitutive callback, then scale and store into the flux scratch.
+  Kokkos::parallel_for(Kokkos::TeamThreadRange(team, numNodes), [&](const int q) {
+    int qa, qb, qc;
+    GL_BASIS::TensorProduct3D::multiIndex(q, qa, qb, qc);
+
+    real_t grad_u_ref[3][3] = {{0}};
+    for (int i = 0; i < num1dNodes; ++i) {
+      int const ibc = GL_BASIS::TensorProduct3D::linearIndex(i, qb, qc);
+      int const aic = GL_BASIS::TensorProduct3D::linearIndex(qa, i, qc);
+      int const abi = GL_BASIS::TensorProduct3D::linearIndex(qa, qb, i);
+      real_t const gxi = basisGradientAt(i, qa);
+      real_t const geta = basisGradientAt(i, qb);
+      real_t const gzeta = basisGradientAt(i, qc);
+      for (int s = 0; s < 3; ++s) {
+        grad_u_ref[0][s] += gxi * u_local[s * numNodes + ibc];
+        grad_u_ref[1][s] += geta * u_local[s * numNodes + aic];
+        grad_u_ref[2][s] += gzeta * u_local[s * numNodes + abi];
+      }
+    }
+
+    // jacobianTransformation accumulates into J, so it must start at zero.
+    JacobianType J = {{0}};
+    jacobianTransformation(qa, qb, qc, X, J.data);
+    real_t const detJ = invert3x3(J.data);
+    real_t const w = static_cast<real_t>(GL_BASIS::weight(qa) * GL_BASIS::weight(qb) * GL_BASIS::weight(qc));
+    real_t const scale = w * detJ;
+
+    real_t flux[3][3] = {{0}};
+    func1(qa, qb, qc, J.data, grad_u_ref, flux);
+
+    for (int p = 0; p < 3; ++p)
+      for (int f = 0; f < 3; ++f) F[(p * 3 + f) * numNodes + q] = scale * flux[p][f];
+  });
+  team.team_barrier();
+
+  // Pass 3: one thread per node, contract D^T with the stored fluxes. Each node
+  // is owned by exactly one thread, so the accumulation needs no atomics.
+  Kokkos::parallel_for(Kokkos::TeamThreadRange(team, numNodes), [&](const int node) {
+    int ia, ib, ic;
+    GL_BASIS::TensorProduct3D::multiIndex(node, ia, ib, ic);
+
+    real_t v[3] = {0};
+    for (int qa = 0; qa < num1dNodes; ++qa) {
+      int const q_xi = GL_BASIS::TensorProduct3D::linearIndex(qa, ib, ic);
+      real_t const g = basisGradientAt(ia, qa);
+      for (int f = 0; f < 3; ++f) v[f] += g * F[(0 * 3 + f) * numNodes + q_xi];
+    }
+    for (int qb = 0; qb < num1dNodes; ++qb) {
+      int const q_eta = GL_BASIS::TensorProduct3D::linearIndex(ia, qb, ic);
+      real_t const g = basisGradientAt(ib, qb);
+      for (int f = 0; f < 3; ++f) v[f] += g * F[(1 * 3 + f) * numNodes + q_eta];
+    }
+    for (int qc = 0; qc < num1dNodes; ++qc) {
+      int const q_zeta = GL_BASIS::TensorProduct3D::linearIndex(ia, ib, qc);
+      real_t const g = basisGradientAt(ic, qc);
+      for (int f = 0; f < 3; ++f) v[f] += g * F[(2 * 3 + f) * numNodes + q_zeta];
+    }
+    for (int f = 0; f < 3; ++f) f_local[f * numNodes + node] = v[f];
+  });
+}
+
+template <typename GL_BASIS>
+template <typename TEAM_MEMBER, typename FUNC1>
+PROXY_HOST_DEVICE void Qk_Hexahedron_Lagrange_GaussLobatto<GL_BASIS>::computeElasticStiffnessSumFactTeam(
+    TEAM_MEMBER const &team, real_t const *geom, real_t const *u_local, real_t *f_local, real_t *F, FUNC1 &&func1) {
+  Kokkos::parallel_for(Kokkos::TeamThreadRange(team, numNodes), [&](const int q) {
+    int qa, qb, qc;
+    GL_BASIS::TensorProduct3D::multiIndex(q, qa, qb, qc);
+
+    real_t grad_u_ref[3][3] = {{0}};
+    for (int i = 0; i < num1dNodes; ++i) {
+      int const ibc = GL_BASIS::TensorProduct3D::linearIndex(i, qb, qc);
+      int const aic = GL_BASIS::TensorProduct3D::linearIndex(qa, i, qc);
+      int const abi = GL_BASIS::TensorProduct3D::linearIndex(qa, qb, i);
+      real_t const gxi = basisGradientAt(i, qa);
+      real_t const geta = basisGradientAt(i, qb);
+      real_t const gzeta = basisGradientAt(i, qc);
+      for (int s = 0; s < 3; ++s) {
+        grad_u_ref[0][s] += gxi * u_local[s * numNodes + ibc];
+        grad_u_ref[1][s] += geta * u_local[s * numNodes + aic];
+        grad_u_ref[2][s] += gzeta * u_local[s * numNodes + abi];
+      }
+    }
+
+    // Geometry is element-wide: read it instead of rebuilding it per point.
+    real_t J_inv[3][3];
+    for (int a = 0; a < 3; ++a)
+      for (int b = 0; b < 3; ++b) J_inv[a][b] = geom[a * 3 + b];
+    real_t const w = static_cast<real_t>(GL_BASIS::weight(qa) * GL_BASIS::weight(qb) * GL_BASIS::weight(qc));
+    real_t const scale = w * geom[9];
+
+    real_t flux[3][3] = {{0}};
+    func1(qa, qb, qc, J_inv, grad_u_ref, flux);
+
+    for (int p = 0; p < 3; ++p)
+      for (int f = 0; f < 3; ++f) F[(p * 3 + f) * numNodes + q] = scale * flux[p][f];
+  });
+  team.team_barrier();
+
+  Kokkos::parallel_for(Kokkos::TeamThreadRange(team, numNodes), [&](const int node) {
+    int ia, ib, ic;
+    GL_BASIS::TensorProduct3D::multiIndex(node, ia, ib, ic);
+
+    real_t v[3] = {0};
+    for (int qa = 0; qa < num1dNodes; ++qa) {
+      int const q_xi = GL_BASIS::TensorProduct3D::linearIndex(qa, ib, ic);
+      real_t const g = basisGradientAt(ia, qa);
+      for (int f = 0; f < 3; ++f) v[f] += g * F[(0 * 3 + f) * numNodes + q_xi];
+    }
+    for (int qb = 0; qb < num1dNodes; ++qb) {
+      int const q_eta = GL_BASIS::TensorProduct3D::linearIndex(ia, qb, ic);
+      real_t const g = basisGradientAt(ib, qb);
+      for (int f = 0; f < 3; ++f) v[f] += g * F[(1 * 3 + f) * numNodes + q_eta];
+    }
+    for (int qc = 0; qc < num1dNodes; ++qc) {
+      int const q_zeta = GL_BASIS::TensorProduct3D::linearIndex(ia, ib, qc);
+      real_t const g = basisGradientAt(ic, qc);
+      for (int f = 0; f < 3; ++f) v[f] += g * F[(2 * 3 + f) * numNodes + q_zeta];
+    }
+    for (int f = 0; f < 3; ++f) f_local[f * numNodes + node] = v[f];
   });
 }
 
