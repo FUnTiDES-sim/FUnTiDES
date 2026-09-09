@@ -12,6 +12,7 @@ class SemProxyOptions {
  public:
   // Defaults
   int order = 2;
+  int order_min = 1;  // lower polynomial order for the DG p-adaptive method
   int ex = 50, ey = 50, ez = 50;
   float lx = 2000.f, ly = 2000.f, lz = 2000.f;
   float srcx = 1010.f, srcy = 1010.f, srcz = 1010.f;
@@ -40,6 +41,7 @@ class SemProxyOptions {
   bool isAcoustoElastic = false;
   float acoustoElasticBoundaryZ = 0.f;
   float DgSemBoundaryZ = 1000.f;
+  float DgPAdaptiveBoundaryZ = 1000.f;  // Z coordinate of the pMin/pMax interface (DG p-adaptive)
   bool free_surface = false;
   std::string model_file{""};
   float qp = -1.0f;  // quality factor for P-waves (<0 = not set)
@@ -63,6 +65,7 @@ class SemProxyOptions {
   // Bind CLI flags to this instance (no --help here)
   static void bind_cli(cxxopts::Options& opts, SemProxyOptions& o) {
     opts.add_options()("o,order", "Order of approximation", cxxopts::value<int>(o.order))(
+        "order-min", "Lower polynomial order for the DG p-adaptive method", cxxopts::value<int>(o.order_min))(
         "ex", "Number of elements on X (Cartesian mesh)", cxxopts::value<int>(o.ex))(
         "ey", "Number of elements on Y (Cartesian mesh)", cxxopts::value<int>(o.ey))(
         "ez", "Number of elements on Z (Cartesian mesh)", cxxopts::value<int>(o.ez))(
@@ -70,8 +73,8 @@ class SemProxyOptions {
                                                                         cxxopts::value<float>(o.ly))(
         "lz", "Domain size Z (Cartesian)", cxxopts::value<float>(o.lz))("implem", "Implementation: makutu",
                                                                         cxxopts::value<std::string>(o.implem))(
-        "method", "Method: sem|dg|dg-sem", cxxopts::value<std::string>(o.method))("mesh", "Mesh: cartesian|ucartesian",
-                                                                                  cxxopts::value<std::string>(o.mesh))(
+        "method", "Method: sem|dg|dg-sem|dg-padaptive", cxxopts::value<std::string>(o.method))(
+        "mesh", "Mesh: cartesian|ucartesian", cxxopts::value<std::string>(o.mesh))(
         "dt", "Time step selection in s (default = 0.001s)", cxxopts::value<float>(o.dt))(
         "timemax", "Duration of the simulation in s (default = 1.5s)", cxxopts::value<float>(o.timemax))(
         "auto-dt", "Select automatique dt via CFL equation.", cxxopts::value<bool>(o.autodt))(
@@ -89,6 +92,8 @@ class SemProxyOptions {
         "acousto-elastic-boundary-z", "Z coordinate of the fluid–solid interface (meters)",
         cxxopts::value<float>(o.acoustoElasticBoundaryZ))(
         "dg-sem-boundary-z", "Z coordinate of the DG-SEM interface (meters)", cxxopts::value<float>(o.DgSemBoundaryZ))(
+        "dg-padaptive-boundary-z", "Z coordinate of the DG p-adaptive pMin/pMax interface (meters)",
+        cxxopts::value<float>(o.DgPAdaptiveBoundaryZ))(
         "free-surface", "Enable free surface on top boundary (Z+). Default: true",
         cxxopts::value<bool>(o.free_surface))("anisotropy", "Anisotropy type for elastic: iso|vti|tti (default=iso)",
                                               cxxopts::value<std::string>(o.anisotropy))(

@@ -13,7 +13,9 @@ namespace fe {
 void bind_method_type(py::module_ &m) {
   py::enum_<utils::enums::methodType>(m, "MethodType")
       .value("SEM", utils::enums::methodType::kSem)
-      .value("DG", utils::enums::methodType::kDg);
+      .value("DG", utils::enums::methodType::kDg)
+      .value("DGSEM", utils::enums::methodType::kDgSem)
+      .value("DGPADAPTIVE", utils::enums::methodType::kDgPAdaptive);
 }
 
 void bind_implem_type(py::module_ &m) {

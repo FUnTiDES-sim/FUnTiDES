@@ -193,6 +193,13 @@ class Solver {
 
   virtual void setZBoundary(float) {}
 
+  /// @brief Provide the per-element domain split directly (e.g. kElementTypeDG/kElementTypeSEM or
+  /// kElementTypePMin/kElementTypePMax), indexed like the mesh this solver receives in
+  /// computeFEInit(). No-op default: TagElements() falls back to its Z-threshold heuristic unless
+  /// this was called first with a vector sized to the element count. Needed on deformed meshes,
+  /// where the Z-threshold probes a single node's deformed coordinate and no longer cuts a plane.
+  virtual void setElementTags(const vectorInt&) {}
+
   /// @brief Declare how the mesh builder filled the acoustic/elastic interface
   /// nodes. Ignored by the physics that have no such interface.
   virtual void setInterfacePropertyConvention(utils::enums::interfacePropertyConvention) {}

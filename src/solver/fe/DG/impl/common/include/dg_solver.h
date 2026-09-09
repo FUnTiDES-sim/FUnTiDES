@@ -254,6 +254,20 @@ class DGsolver : public Solver {
     m_face_connectivity_ = face_connectivity;
   }
 
+  /**
+   * @brief Rebuild this solver's own face connectivity sampling the face dofs against the shared
+   * mesh's true geometric order rather than this solver's polynomial ORDER.
+   *
+   * No-op for standalone DG/DG-SEM (the mesh order already equals ORDER). Needed when this
+   * DGsolver runs at a lower order than the shared mesh -- the pMin sub-solver of the DG
+   * p-adaptive coupling: without it, the "Plus"-type faces (kXPlus/kYPlus/kZPlus) place the
+   * face-normal coordinate at ORDER instead of the mesh's true far edge and neighbor node-ID
+   * matching fails silently for those faces.
+   *
+   * @param geometricOrder The shared mesh's true polynomial order (mesh.getOrder()).
+   */
+  void rebuildFaceConnectivityGeometry(int geometricOrder) { m_face_connectivity_.build(m_mesh, geometricOrder); }
+
  private:
   MESH_TYPE m_mesh;
   model::FaceConnectivityUnstruct<float, int, ORDER> m_face_connectivity_;

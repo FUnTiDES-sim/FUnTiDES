@@ -17,6 +17,9 @@
 #ifdef COMPILE_DG
 #include "dg_solver_data.h"
 #endif
+#ifdef COMPILE_DG_PADAPTIVE
+#include "dg_padaptive_solver_data.h"
+#endif
 #include "rhs_acoustoelastic.h"
 #ifdef USE_MPI
 #include "mpi_backend.h"
@@ -58,6 +61,7 @@ void SEMproxy::SetupSolver(const SemProxyOptions& opt) {
   const methodType method_type = GetMethod(opt.method);
   is_dg_ = (method_type == utils::enums::methodType::kDg);
   is_dg_sem_ = (method_type == utils::enums::methodType::kDgSem);
+  is_dg_padaptive_ = (method_type == utils::enums::methodType::kDgPAdaptive);
   const implemType implem_type = GetImplem(opt.implem);
   const meshType mesh_type = GetMesh(opt.mesh);
   const modelLocationType model_location =
@@ -65,11 +69,17 @@ void SEMproxy::SetupSolver(const SemProxyOptions& opt) {
   const physicType physic_type = is_acousto_elastic_ ? physicType::kAcoustoElastic
                                                      : (opt.isElastic ? physicType::kElastic : physicType::kAcoustic);
 
-  solver_ = createSolver(method_type, implem_type, mesh_type, model_location, physic_type, opt.order);
+  solver_ = createSolver(method_type, implem_type, mesh_type, model_location, physic_type, opt.order, opt.order_min);
 
   if (is_dg_sem_) {
     dg_sem_iface_z_ = (opt.DgSemBoundaryZ > 0.f) ? opt.DgSemBoundaryZ : opt.lz * 0.5f;
     solver_->setZBoundary(dg_sem_iface_z_);
+  }
+
+  if (is_dg_padaptive_) {
+    order_min_ = opt.order_min;
+    dg_padaptive_iface_z_ = (opt.DgPAdaptiveBoundaryZ > 0.f) ? opt.DgPAdaptiveBoundaryZ : opt.lz * 0.5f;
+    solver_->setZBoundary(dg_padaptive_iface_z_);
   }
 
   const model::AnisotropyType anisotropy_type = GetAnisotropy(opt.anisotropy);
@@ -445,7 +455,150 @@ void SEMproxy::Run() {
   }
 #endif  // COMPILE_DG_SEM
 
-  if (!is_dg_ && !is_dg_sem_) {
+#ifdef COMPILE_DG_PADAPTIVE
+  if (is_dg_padaptive_) {
+    DGPAdaptiveWavefieldAcoustic wavefield(pn_pmin_dg_prev_, pn_pmin_dg_curr_, pn_pmax_dg_prev_, pn_pmax_dg_curr_);
+    DGPAdaptiveRhsAcoustic rhs(rhs_term_pmin_, rhs_term_pmax_, rhs_element_, rhs_pmin_weights_, rhs_pmax_weights_);
+
+    DGPAdaptiveSolverData dg_padaptive_data(wavefield, rhs);
+
+    bool const rcv_in_pmax = (rcv_coord_[2] >= dg_padaptive_iface_z_);
+    std::cout << "DG p-adaptive receiver domain: " << (rcv_in_pmax ? "pMax" : "pMin") << "  z=" << rcv_coord_[2]
+              << "  iface_z=" << dg_padaptive_iface_z_ << std::endl;
+
+    for (int time_index = 0; time_index < num_samples_; time_index++) {
+      start_compute_time = system_clock::now();
+      solver_->computeOneStep(dt_, time_index, dg_padaptive_data);
+      total_compute_time += system_clock::now() - start_compute_time;
+
+      start_output_time = system_clock::now();
+
+      if (time_index % 50 == 0) {
+        int src_e = h_rhs_element_(0);
+        int rcv_e = h_rhs_element_rcv_(0);
+        solver_->outputSolutionValues(time_index, src_e, pn_pmin_dg_prev_, "pnDgPMin_src");
+        solver_->outputSolutionValues(time_index, rcv_e, pn_pmin_dg_prev_, "pnDgPMin_rcv");
+        solver_->outputSolutionValues(time_index, rcv_e, pn_pmax_dg_prev_, "pnDgPMax_rcv");
+      }
+
+      if (is_snapshots_ && time_index % snap_time_interval_ == 0) {
+        WaitSnapshots();
+        Kokkos::deep_copy(h_pn_pmin_dg_prev_, pn_pmin_dg_prev_);
+        Kokkos::deep_copy(h_pn_pmax_dg_prev_, pn_pmax_dg_prev_);
+
+        auto io_task = [this, time_index, h_pmin = h_pn_pmin_dg_prev_, h_pmax = h_pn_pmax_dg_prev_]() {
+          const int order_max = mesh_->getOrder();
+          const int ex = num_elements_[0];
+          const int ey = num_elements_[1];
+          const int ez = num_elements_[2];
+          const int ez_pmin = (int)std::round(ez * dg_padaptive_iface_z_ / domain_size_[2]);
+          const int n1d_min = order_min_ + 1;
+          const int n1d_max = order_max + 1;
+          const int zElem_pmin = ez_pmin / 2;
+          const int zElem_pmax = ez_pmin + (ez - ez_pmin) / 2;
+          const int icZ_min = order_min_ / 2;
+          const int icZ_max = order_max / 2;
+
+          if (time_index == snap_time_interval_) {
+            std::ofstream fiface("dgpadaptive_interface_row.txt");
+            fiface << ez_pmin << " " << n1d_min << " " << n1d_max << "\n";
+          }
+
+          std::ostringstream fname_pmin;
+          fname_pmin << "slice_dgpadaptive_pmin_" << std::setfill('0') << std::setw(5) << time_index << ".dat";
+          std::ofstream fslice_pmin(fname_pmin.str());
+          for (int ej_idx = 0; ej_idx < ey; ++ej_idx) {
+            for (int ib = 0; ib < n1d_min; ++ib) {
+              bool first = true;
+              for (int ei_idx = 0; ei_idx < ex; ++ei_idx) {
+                int const elem = ei_idx + ej_idx * ex + zElem_pmin * ex * ey;
+                for (int ia = 0; ia < n1d_min; ++ia) {
+                  int const dof = ia + ib * n1d_min + icZ_min * n1d_min * n1d_min;
+                  if (!first) fslice_pmin << " ";
+                  fslice_pmin << h_pmin(elem, dof);
+                  first = false;
+                }
+              }
+              fslice_pmin << "\n";
+            }
+          }
+          fslice_pmin.close();
+
+          std::ostringstream fname_pmax;
+          fname_pmax << "slice_dgpadaptive_pmax_" << std::setfill('0') << std::setw(5) << time_index << ".dat";
+          std::ofstream fslice_pmax(fname_pmax.str());
+          for (int ej_idx = 0; ej_idx < ey; ++ej_idx) {
+            for (int ib = 0; ib < n1d_max; ++ib) {
+              bool first = true;
+              for (int ei_idx = 0; ei_idx < ex; ++ei_idx) {
+                int const elem = ei_idx + ej_idx * ex + zElem_pmax * ex * ey;
+                for (int ia = 0; ia < n1d_max; ++ia) {
+                  int const dof = ia + ib * n1d_max + icZ_max * n1d_max * n1d_max;
+                  if (!first) fslice_pmax << " ";
+                  fslice_pmax << h_pmax(elem, dof);
+                  first = false;
+                }
+              }
+              fslice_pmax << "\n";
+            }
+          }
+          fslice_pmax.close();
+        };
+
+        if (pn_pmin_dg_prev_.data() != h_pn_pmin_dg_prev_.data()) {
+          snapshot_futures_.push_back(std::async(std::launch::async, io_task));
+        } else {
+          io_task();
+        }
+      }
+
+      {
+        float var_np1 = 0.0f;
+        if (rcv_in_pmax) {
+          const int order = mesh_->getOrder();
+          auto elem_view = Kokkos::subview(pn_pmax_dg_prev_, h_rhs_element_rcv_(0), Kokkos::ALL());
+          auto h_rcv = Kokkos::create_mirror_view_and_copy(Kokkos::HostSpace{}, elem_view);
+          for (int i = 0; i < order + 1; i++)
+            for (int j = 0; j < order + 1; j++)
+              for (int k = 0; k < order + 1; k++) {
+                int const dof = i + j * (order + 1) + k * (order + 1) * (order + 1);
+                var_np1 += h_rcv(dof) * h_rhs_pmax_weights_rcv_(0, dof);
+              }
+        } else {
+          auto elem_view = Kokkos::subview(pn_pmin_dg_prev_, h_rhs_element_rcv_(0), Kokkos::ALL());
+          auto h_rcv = Kokkos::create_mirror_view_and_copy(Kokkos::HostSpace{}, elem_view);
+          for (int i = 0; i < order_min_ + 1; ++i)
+            for (int j = 0; j < order_min_ + 1; ++j)
+              for (int k = 0; k < order_min_ + 1; ++k) {
+                int const dof = i + j * (order_min_ + 1) + k * (order_min_ + 1) * (order_min_ + 1);
+                var_np1 += h_rcv(dof) * h_rhs_pmin_weights_rcv_(0, dof);
+              }
+        }
+        h_pn_at_receiver_(0, time_index) = var_np1;
+      }
+
+      dg_padaptive_data.swapWavefields();
+      total_output_time += system_clock::now() - start_output_time;
+    }
+
+    start_output_time = std::chrono::high_resolution_clock::now();
+    for (int i = 0; i < h_pn_at_receiver_.extent(0); i++) {
+      auto subview = Kokkos::subview(h_pn_at_receiver_, i, Kokkos::ALL());
+      vectorReal::host_mirror_type subset("receiver_save", num_samples_);
+      for (int j = 0; j < num_samples_; ++j) subset(j) = subview(j);
+      io_ctrl_->saveReceiver(subset, src_coord_);
+    }
+    total_output_time += system_clock::now() - start_output_time;
+
+    {
+      std::ofstream fout("receiver_trace.txt");
+      fout << "# time pressure_at_receiver (" << (rcv_in_pmax ? "pMax" : "pMin") << " domain)\n";
+      for (int t = 0; t < num_samples_; ++t) fout << t * dt_ << " " << h_pn_at_receiver_(0, t) << "\n";
+    }
+  }
+#endif  // COMPILE_DG_PADAPTIVE
+
+  if (!is_dg_ && !is_dg_sem_ && !is_dg_padaptive_) {
     if (is_acousto_elastic_) {
       WavefieldAcoustoElastic wavefield(pn_global_prev_, pn_global_curr_, uxn_global_prev_, uxn_global_curr_,
                                         uyn_global_prev_, uyn_global_curr_, uzn_global_prev_, uzn_global_curr_);
@@ -742,6 +895,19 @@ void SEMproxy::InitArrays() {
     pn_sem_curr_ = allocateVector<vectorReal>(n_nodes, "pnSEMCurr");
     pn_sem_prev_ = allocateVector<vectorReal>(n_nodes, "pnSEMPrev");
     pn_at_receiver_ = allocateArray2D<arrayReal>(1, num_samples_, "pn_at_receiver_");
+  } else if (is_dg_padaptive_) {
+    const auto n_pts_per_elem_min = (order_min_ + 1) * (order_min_ + 1) * (order_min_ + 1);
+    rhs_term_pmin_ = allocateArray2D<arrayReal>(num_rhs_, num_samples_, "RHSTermPMinDG");
+    rhs_term_pmax_ = allocateArray2D<arrayReal>(num_rhs_, num_samples_, "RHSTermPMaxDG");
+    rhs_pmin_weights_ = allocateArray2D<arrayReal>(num_rhs_, n_pts_per_elem_min, "RHSWeightPMin");
+    rhs_pmax_weights_ = allocateArray2D<arrayReal>(num_rhs_, n_pts_per_elem, "RHSWeightPMax");
+    rhs_pmin_weights_rcv_ = allocateArray2D<arrayReal>(1, n_pts_per_elem_min, "RHSWeightPMinRcv");
+    rhs_pmax_weights_rcv_ = allocateArray2D<arrayReal>(1, n_pts_per_elem, "RHSWeightPMaxRcv");
+    pn_pmin_dg_prev_ = allocateArray2D<arrayReal>(n_elements, n_pts_per_elem_min, "pnPMinDGPrev");
+    pn_pmin_dg_curr_ = allocateArray2D<arrayReal>(n_elements, n_pts_per_elem_min, "pnPMinDGCurr");
+    pn_pmax_dg_prev_ = allocateArray2D<arrayReal>(n_elements, n_pts_per_elem, "pnPMaxDGPrev");
+    pn_pmax_dg_curr_ = allocateArray2D<arrayReal>(n_elements, n_pts_per_elem, "pnPMaxDGCurr");
+    pn_at_receiver_ = allocateArray2D<arrayReal>(1, num_samples_, "pn_at_receiver_");
   } else if (!is_elastic_) {
     rhs_term_ = allocateArray2D<arrayReal>(num_rhs_, num_samples_, "RHSTerm");
     pn_global_curr_ = allocateVector<vectorReal>(n_nodes, "pnGlobalCurr");
@@ -793,6 +959,18 @@ void SEMproxy::InitArrays() {
     h_pn_sem_prev_ = Kokkos::create_mirror_view(pn_sem_prev_);
     h_pn_dg_curr_ = Kokkos::create_mirror_view(pn_dg_curr_);
     h_pn_dg_prev_ = Kokkos::create_mirror_view(pn_dg_prev_);
+    h_pn_at_receiver_ = Kokkos::create_mirror_view(pn_at_receiver_);
+  } else if (is_dg_padaptive_) {
+    h_rhs_term_pmin_ = Kokkos::create_mirror_view(rhs_term_pmin_);
+    h_rhs_term_pmax_ = Kokkos::create_mirror_view(rhs_term_pmax_);
+    h_rhs_pmin_weights_ = Kokkos::create_mirror_view(rhs_pmin_weights_);
+    h_rhs_pmax_weights_ = Kokkos::create_mirror_view(rhs_pmax_weights_);
+    h_rhs_pmin_weights_rcv_ = Kokkos::create_mirror_view(rhs_pmin_weights_rcv_);
+    h_rhs_pmax_weights_rcv_ = Kokkos::create_mirror_view(rhs_pmax_weights_rcv_);
+    h_pn_pmin_dg_curr_ = Kokkos::create_mirror_view(pn_pmin_dg_curr_);
+    h_pn_pmin_dg_prev_ = Kokkos::create_mirror_view(pn_pmin_dg_prev_);
+    h_pn_pmax_dg_curr_ = Kokkos::create_mirror_view(pn_pmax_dg_curr_);
+    h_pn_pmax_dg_prev_ = Kokkos::create_mirror_view(pn_pmax_dg_prev_);
     h_pn_at_receiver_ = Kokkos::create_mirror_view(pn_at_receiver_);
   } else if (is_dg_) {
     h_rhs_term_ = Kokkos::create_mirror_view(rhs_term_);
@@ -868,6 +1046,11 @@ void SEMproxy::InitSource() {
       for (int j = 0; j < num_samples_; j++) h_rhs_term_dg_(0, j) = source_term[j];
     else
       for (int j = 0; j < num_samples_; j++) h_rhs_term_sem_(0, j) = source_term[j];
+  } else if (is_dg_padaptive_) {
+    if (src_coord_[2] <= dg_padaptive_iface_z_)
+      for (int j = 0; j < num_samples_; j++) h_rhs_term_pmin_(0, j) = source_term[j];
+    else
+      for (int j = 0; j < num_samples_; j++) h_rhs_term_pmax_(0, j) = source_term[j];
   } else if (!is_elastic_) {
     for (int j = 0; j < num_samples_; j++) h_rhs_term_(0, j) = source_term[j];
   } else {
@@ -881,26 +1064,45 @@ void SEMproxy::InitSource() {
   source_element_ = h_rhs_element_(0);
   int order = mesh_->getOrder();
 
-  if (source_on_rank) {
-    switch (order) {
+  // Dispatch the compile-time order of ComputeRHSWeights<N>() at run time. Reused for the
+  // pMin/pMax sub-domains of the DG p-adaptive method, which each carry their own order.
+  auto compute_rhs_weights = [](int ord, const float(&corners)[8][3], const std::array<float, 3>& coord, auto&& out) {
+    switch (ord) {
       case 1:
-        SourceAndReceiverUtils::ComputeRHSWeights<1>(corner_coords, src_coord_, h_rhs_weights_);
+        SourceAndReceiverUtils::ComputeRHSWeights<1>(corners, coord, out);
         break;
       case 2:
-        SourceAndReceiverUtils::ComputeRHSWeights<2>(corner_coords, src_coord_, h_rhs_weights_);
+        SourceAndReceiverUtils::ComputeRHSWeights<2>(corners, coord, out);
         break;
       case 3:
-        SourceAndReceiverUtils::ComputeRHSWeights<3>(corner_coords, src_coord_, h_rhs_weights_);
+        SourceAndReceiverUtils::ComputeRHSWeights<3>(corners, coord, out);
         break;
       case 4:
-        SourceAndReceiverUtils::ComputeRHSWeights<4>(corner_coords, src_coord_, h_rhs_weights_);
+        SourceAndReceiverUtils::ComputeRHSWeights<4>(corners, coord, out);
         break;
       case 5:
-        SourceAndReceiverUtils::ComputeRHSWeights<5>(corner_coords, src_coord_, h_rhs_weights_);
+        SourceAndReceiverUtils::ComputeRHSWeights<5>(corners, coord, out);
         break;
       default:
-        throw std::runtime_error("Unsupported order: " + std::to_string(order));
+        throw std::runtime_error("Unsupported order: " + std::to_string(ord));
     }
+  };
+
+  if (is_dg_padaptive_) {
+    bool const src_in_pmin = (src_coord_[2] <= dg_padaptive_iface_z_);
+    if (source_on_rank) {
+      if (src_in_pmin)
+        compute_rhs_weights(order_min_, corner_coords, src_coord_, h_rhs_pmin_weights_);
+      else
+        compute_rhs_weights(order, corner_coords, src_coord_, h_rhs_pmax_weights_);
+    } else {
+      if (src_in_pmin)
+        for (int k = 0; k < static_cast<int>(h_rhs_pmin_weights_.extent(1)); ++k) h_rhs_pmin_weights_(0, k) = 0.0f;
+      else
+        for (int k = 0; k < static_cast<int>(h_rhs_pmax_weights_.extent(1)); ++k) h_rhs_pmax_weights_(0, k) = 0.0f;
+    }
+  } else if (source_on_rank) {
+    compute_rhs_weights(order, corner_coords, src_coord_, h_rhs_weights_);
   } else {
     for (int k = 0; k < mesh_->getNumberOfPointsPerElement(); ++k) h_rhs_weights_(0, k) = 0.0f;
   }
@@ -926,24 +1128,13 @@ void SEMproxy::InitSource() {
     }
   }
 
-  switch (order) {
-    case 1:
-      SourceAndReceiverUtils::ComputeRHSWeights<1>(corner_coords_rcv, rcv_coord_, h_rhs_weights_rcv_);
-      break;
-    case 2:
-      SourceAndReceiverUtils::ComputeRHSWeights<2>(corner_coords_rcv, rcv_coord_, h_rhs_weights_rcv_);
-      break;
-    case 3:
-      SourceAndReceiverUtils::ComputeRHSWeights<3>(corner_coords_rcv, rcv_coord_, h_rhs_weights_rcv_);
-      break;
-    case 4:
-      SourceAndReceiverUtils::ComputeRHSWeights<4>(corner_coords_rcv, rcv_coord_, h_rhs_weights_rcv_);
-      break;
-    case 5:
-      SourceAndReceiverUtils::ComputeRHSWeights<5>(corner_coords_rcv, rcv_coord_, h_rhs_weights_rcv_);
-      break;
-    default:
-      throw std::runtime_error("Unsupported order: " + std::to_string(order));
+  if (is_dg_padaptive_) {
+    if (rcv_coord_[2] >= dg_padaptive_iface_z_)
+      compute_rhs_weights(order, corner_coords_rcv, rcv_coord_, h_rhs_pmax_weights_rcv_);
+    else
+      compute_rhs_weights(order_min_, corner_coords_rcv, rcv_coord_, h_rhs_pmin_weights_rcv_);
+  } else {
+    compute_rhs_weights(order, corner_coords_rcv, rcv_coord_, h_rhs_weights_rcv_);
   }
 
   if (das_type_ != SourceAndReceiverUtils::DASType::kNone) {
@@ -1035,8 +1226,15 @@ void SEMproxy::InitSource() {
   // --- DMA Copy everything to the GPU ---
   Kokkos::deep_copy(rhs_element_, h_rhs_element_);
   Kokkos::deep_copy(rhs_element_rcv_, h_rhs_element_rcv_);
-  Kokkos::deep_copy(rhs_weights_, h_rhs_weights_);
-  Kokkos::deep_copy(rhs_weights_rcv_, h_rhs_weights_rcv_);
+  if (is_dg_padaptive_) {
+    Kokkos::deep_copy(rhs_pmin_weights_, h_rhs_pmin_weights_);
+    Kokkos::deep_copy(rhs_pmax_weights_, h_rhs_pmax_weights_);
+    Kokkos::deep_copy(rhs_pmin_weights_rcv_, h_rhs_pmin_weights_rcv_);
+    Kokkos::deep_copy(rhs_pmax_weights_rcv_, h_rhs_pmax_weights_rcv_);
+  } else {
+    Kokkos::deep_copy(rhs_weights_, h_rhs_weights_);
+    Kokkos::deep_copy(rhs_weights_rcv_, h_rhs_weights_rcv_);
+  }
 
   if (is_acousto_elastic_) {
     if (src_coord_[2] >= local_params_.acoustoElasticBoundaryZ)
@@ -1053,6 +1251,11 @@ void SEMproxy::InitSource() {
       Kokkos::deep_copy(rhs_term_sem_, h_rhs_term_sem_);
     }
 
+  } else if (is_dg_padaptive_) {
+    if (src_coord_[2] <= dg_padaptive_iface_z_)
+      Kokkos::deep_copy(rhs_term_pmin_, h_rhs_term_pmin_);
+    else
+      Kokkos::deep_copy(rhs_term_pmax_, h_rhs_term_pmax_);
   } else if (!is_elastic_) {
     Kokkos::deep_copy(rhs_term_, h_rhs_term_);
   } else {
@@ -1085,6 +1288,7 @@ methodType SEMproxy::GetMethod(std::string method_arg) {
   if (method_arg == "sem") return methodType::kSem;
   if (method_arg == "dg") return methodType::kDg;
   if (method_arg == "dg-sem") return methodType::kDgSem;
+  if (method_arg == "dg-padaptive") return methodType::kDgPAdaptive;
   throw std::invalid_argument("Method type invalid.");
 };
 

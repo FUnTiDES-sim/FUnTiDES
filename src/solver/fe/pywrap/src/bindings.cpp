@@ -7,6 +7,19 @@
 #include "bindings_sem_solver.h"
 #include "bindings_wavefield.h"
 
+#ifdef COMPILE_DG
+#include "bindings_dg_solver.h"
+#include "bindings_dg_wavefield.h"
+#endif
+#ifdef COMPILE_DG_SEM
+#include "bindings_dgsem_solver.h"
+#include "bindings_dgsem_wavefield.h"
+#endif
+#ifdef COMPILE_DG_PADAPTIVE
+#include "bindings_dgpadaptive_solver.h"
+#include "bindings_dgpadaptive_wavefield.h"
+#endif
+
 namespace py = pybind11;
 
 PYBIND11_MODULE(solver, m) {
@@ -37,4 +50,24 @@ PYBIND11_MODULE(solver, m) {
   // Bind Solver
   solver::fe::bind_sem_solver_base(m);
   solver::fe::bind_solver_factory(m);
+
+#ifdef COMPILE_DG
+  // Bind DG
+  solver::fe::bind_dg_wavefield_acoustic(m);
+  solver::fe::bind_dg_acoustic_data(m);
+#endif
+
+#ifdef COMPILE_DG_SEM
+  // Bind DG-SEM
+  solver::fe::bind_dgsem_wavefield_acoustic(m);
+  solver::fe::bind_dgsem_rhs_acoustic(m);
+  solver::fe::bind_dgsem_acoustic_data(m);
+#endif
+
+#ifdef COMPILE_DG_PADAPTIVE
+  // Bind DG p-adaptive
+  solver::fe::bind_dgpadaptive_wavefield_acoustic(m);
+  solver::fe::bind_dgpadaptive_rhs_acoustic(m);
+  solver::fe::bind_dgpadaptive_acoustic_data(m);
+#endif
 }
