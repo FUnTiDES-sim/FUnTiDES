@@ -11,6 +11,7 @@ struct CartesianParams {
   std::string model_file;
   bool isAcoustoElastic{false};
   Coord acoustoElasticBoundaryZ{static_cast<Coord>(0)};
+  Coord DgSemBoundaryZ{static_cast<Coord>(0)};
 
   // Global domain info (for MPI decomposition)
   Coord global_lx{0}, global_ly{0}, global_lz{0};

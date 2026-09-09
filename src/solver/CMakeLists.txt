@@ -1,6 +1,3 @@
-if(COMPILE_FD)
-  add_subdirectory(fd)
-endif()
 if(COMPILE_SEM)
   add_subdirectory(fe)
 endif()

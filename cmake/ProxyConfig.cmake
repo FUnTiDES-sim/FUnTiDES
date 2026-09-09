@@ -4,8 +4,8 @@
 
 # Discretization
 option(COMPILE_SEM "Compile Spectral Elements Method simulation" ON)
-option(COMPILE_FD "Compile finite elements simulation" ON)
 option(COMPILE_DG "Compile Discontinuous Galerkin simulation" ON)
+option(COMPILE_DG_SEM "Compile Discontinuous Galerkin coupled with Spectral Elements Method simulation" ON)
 
 # Programming models
 option(USE_MPI "Enable MPI compilation" OFF)
@@ -14,7 +14,6 @@ option(USE_MPI "Enable MPI compilation" OFF)
 option(ENABLE_PYWRAP "Enable python binding compilation with pybind11" OFF)
 
 # Debugging options
-option(FD_SAVE_SNAPSHOTS "Save snapshots for FD-proxy" OFF)
 option(PRINT_ALLOC_INFO "Printout memory allocation info" OFF)
 # Build options
 option(BUILD_SHARED_LIBS "Build shared libraries" ON)

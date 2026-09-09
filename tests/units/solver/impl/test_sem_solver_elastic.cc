@@ -292,23 +292,35 @@ TEST_P(SemSolverElasticTest, OutputSolutionValuesDoesNotCrash) {
 // ======================================================================
 // VTI anisotropy — exercises computeElementContributions_Vti
 // ======================================================================
-class SemSolverElasticVtiTest : public ::testing::Test {
+class SemSolverElasticVtiTest : public ::testing::TestWithParam<ElasticSolverOrderParam> {
  protected:
   void SetUp() override {
+    int order = GetParam().order;
     constexpr int EX = 2, EY = 2, EZ = 2;
     constexpr float LX = 200.0f, LY = 200.0f, LZ = 200.0f;
-    model::CartesianStructBuilder<float, int, 1> b(EX, LX, EY, LY, EZ, LZ, false, true);
-    mesh_ = b.getModel(false);
+
+    switch (order) {
+      case 2: {
+        model::CartesianStructBuilder<float, int, 2> b(EX, LX, EY, LY, EZ, LZ, false, true);
+        mesh_ = b.getModel(false);
+        break;
+      }
+      default: {
+        model::CartesianStructBuilder<float, int, 1> b(EX, LX, EY, LY, EZ, LZ, false, true);
+        mesh_ = b.getModel(false);
+        break;
+      }
+    }
     mesh_->initElasticityTensors(model::AnisotropyType::kVTI);
 
     solver_ =
         solver_factory::createSolver(feenum::methodType::kSem, feenum::implemType::kMakutu, feenum::meshType::kStruct,
-                                     feenum::modelLocationType::kOnElements, feenum::physicType::kElastic, 1);
+                                     feenum::modelLocationType::kOnElements, feenum::physicType::kElastic, order);
     solver_->setAnisotropyType(model::AnisotropyType::kVTI);
     solver_->computeFEInit(*mesh_, {0.0f, 0.0f, 0.0f}, false, 0.0f);
 
     numNodes_ = mesh_->getNumberOfNodes();
-    constexpr int npp = 2 * 2 * 2;
+    int const npp = (order + 1) * (order + 1) * (order + 1);
 
     uxPrev_ = allocateVector<vectorReal>(numNodes_, "vux_p");
     uxCurr_ = allocateVector<vectorReal>(numNodes_, "vux_c");
@@ -341,14 +353,17 @@ class SemSolverElasticVtiTest : public ::testing::Test {
   arrayReal rhsWeights_;
 };
 
-TEST_F(SemSolverElasticVtiTest, ComputeOneStepDoesNotCrash) {
+INSTANTIATE_TEST_SUITE_P(ElasticVtiOrders, SemSolverElasticVtiTest,
+                         ::testing::Values(ElasticSolverOrderParam{1}, ElasticSolverOrderParam{2}));
+
+TEST_P(SemSolverElasticVtiTest, ComputeOneStepDoesNotCrash) {
   WavefieldElastic wf(uxPrev_, uxCurr_, uyPrev_, uyCurr_, uzPrev_, uzCurr_);
   RhsElastic rhs(rhsTermx_, rhsTermy_, rhsTermz_, rhsElem_, rhsWeights_);
   SEMsolverDataElastic data(wf, rhs);
   EXPECT_NO_THROW(solver_->computeOneStep(kDt, 0, data));
 }
 
-TEST_F(SemSolverElasticVtiTest, ComputeOneStepProducesFiniteValues) {
+TEST_P(SemSolverElasticVtiTest, ComputeOneStepProducesFiniteValues) {
   WavefieldElastic wf(uxPrev_, uxCurr_, uyPrev_, uyCurr_, uzPrev_, uzCurr_);
   RhsElastic rhs(rhsTermx_, rhsTermy_, rhsTermz_, rhsElem_, rhsWeights_);
   SEMsolverDataElastic data(wf, rhs);
@@ -361,7 +376,7 @@ TEST_F(SemSolverElasticVtiTest, ComputeOneStepProducesFiniteValues) {
       EXPECT_TRUE(std::isfinite(data.getCurrentField(c)(i))) << "VTI NaN/Inf field " << c << " node " << i;
 }
 
-TEST_F(SemSolverElasticVtiTest, MassMatrixNonZero) {
+TEST_P(SemSolverElasticVtiTest, MassMatrixNonZero) {
   auto& mm = solver_->getMassMatrixElastic();
   float sum = 0.0f;
   for (size_t i = 0; i < mm.extent(0); ++i) sum += mm(i);
@@ -371,23 +386,35 @@ TEST_F(SemSolverElasticVtiTest, MassMatrixNonZero) {
 // ======================================================================
 // TTI anisotropy — exercises computeElementContributions_Tti
 // ======================================================================
-class SemSolverElasticTtiTest : public ::testing::Test {
+class SemSolverElasticTtiTest : public ::testing::TestWithParam<ElasticSolverOrderParam> {
  protected:
   void SetUp() override {
+    int order = GetParam().order;
     constexpr int EX = 2, EY = 2, EZ = 2;
     constexpr float LX = 200.0f, LY = 200.0f, LZ = 200.0f;
-    model::CartesianStructBuilder<float, int, 1> b(EX, LX, EY, LY, EZ, LZ, false, true);
-    mesh_ = b.getModel(false);
+
+    switch (order) {
+      case 2: {
+        model::CartesianStructBuilder<float, int, 2> b(EX, LX, EY, LY, EZ, LZ, false, true);
+        mesh_ = b.getModel(false);
+        break;
+      }
+      default: {
+        model::CartesianStructBuilder<float, int, 1> b(EX, LX, EY, LY, EZ, LZ, false, true);
+        mesh_ = b.getModel(false);
+        break;
+      }
+    }
     mesh_->initElasticityTensors(model::AnisotropyType::kTTI);
 
     solver_ =
         solver_factory::createSolver(feenum::methodType::kSem, feenum::implemType::kMakutu, feenum::meshType::kStruct,
-                                     feenum::modelLocationType::kOnElements, feenum::physicType::kElastic, 1);
+                                     feenum::modelLocationType::kOnElements, feenum::physicType::kElastic, order);
     solver_->setAnisotropyType(model::AnisotropyType::kTTI);
     solver_->computeFEInit(*mesh_, {0.0f, 0.0f, 0.0f}, false, 0.0f);
 
     numNodes_ = mesh_->getNumberOfNodes();
-    constexpr int npp = 2 * 2 * 2;
+    int const npp = (order + 1) * (order + 1) * (order + 1);
 
     uxPrev_ = allocateVector<vectorReal>(numNodes_, "tux_p");
     uxCurr_ = allocateVector<vectorReal>(numNodes_, "tux_c");
@@ -420,14 +447,17 @@ class SemSolverElasticTtiTest : public ::testing::Test {
   arrayReal rhsWeights_;
 };
 
-TEST_F(SemSolverElasticTtiTest, ComputeOneStepDoesNotCrash) {
+INSTANTIATE_TEST_SUITE_P(ElasticTtiOrders, SemSolverElasticTtiTest,
+                         ::testing::Values(ElasticSolverOrderParam{1}, ElasticSolverOrderParam{2}));
+
+TEST_P(SemSolverElasticTtiTest, ComputeOneStepDoesNotCrash) {
   WavefieldElastic wf(uxPrev_, uxCurr_, uyPrev_, uyCurr_, uzPrev_, uzCurr_);
   RhsElastic rhs(rhsTermx_, rhsTermy_, rhsTermz_, rhsElem_, rhsWeights_);
   SEMsolverDataElastic data(wf, rhs);
   EXPECT_NO_THROW(solver_->computeOneStep(kDt, 0, data));
 }
 
-TEST_F(SemSolverElasticTtiTest, ComputeOneStepProducesFiniteValues) {
+TEST_P(SemSolverElasticTtiTest, ComputeOneStepProducesFiniteValues) {
   WavefieldElastic wf(uxPrev_, uxCurr_, uyPrev_, uyCurr_, uzPrev_, uzCurr_);
   RhsElastic rhs(rhsTermx_, rhsTermy_, rhsTermz_, rhsElem_, rhsWeights_);
   SEMsolverDataElastic data(wf, rhs);
@@ -440,14 +470,14 @@ TEST_F(SemSolverElasticTtiTest, ComputeOneStepProducesFiniteValues) {
       EXPECT_TRUE(std::isfinite(data.getCurrentField(c)(i))) << "TTI NaN/Inf field " << c << " node " << i;
 }
 
-TEST_F(SemSolverElasticTtiTest, MassMatrixNonZero) {
+TEST_P(SemSolverElasticTtiTest, MassMatrixNonZero) {
   auto& mm = solver_->getMassMatrixElastic();
   float sum = 0.0f;
   for (size_t i = 0; i < mm.extent(0); ++i) sum += mm(i);
   EXPECT_GT(sum, 0.0f);
 }
 
-TEST_F(SemSolverElasticTtiTest, ComputeForcesDoesNotCrash) {
+TEST_P(SemSolverElasticTtiTest, ComputeForcesDoesNotCrash) {
   WavefieldElastic wf(uxPrev_, uxCurr_, uyPrev_, uyCurr_, uzPrev_, uzCurr_);
   RhsElastic rhs(rhsTermx_, rhsTermy_, rhsTermz_, rhsElem_, rhsWeights_);
   SEMsolverDataElastic data(wf, rhs);

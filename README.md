@@ -4,13 +4,10 @@ FUnTiDES (Fast Unstructured Time Dynamic Equation Solver) is a high-performance 
 
 ## Included Applications
 
-The current implementation includes two proxy applications for solving the 2nd-order acoustic wave equation in 2D and 3D:
+The current implementation includes proxy applications for solving the 2nd-order acoustic wave equation in 2D and 3D:
 
   - **SEM (Spectral Element Method)**
     A benchmark designed to simulate wave propagation using SEM, a Galerkin-based finite element method for solving partial differential equations (PDEs).
-
-  - **FD (Finite Difference Method)**
-    A benchmark that uses finite-difference stencil operators to simulate wave propagation and solve PDEs.
 
 A key feature of these proxy applications is their adaptability to different programming models and HPC architectures. They are also easy to build and run, making them accessible to both researchers and developers.
 
@@ -20,7 +17,6 @@ The following options can be used to configure your build:
 
 | Option                     | Description                                                                        |
 |----------------------------|------------------------------------------------------------------------------------|
-| `COMPILE_FD`               | Enable compilation of the FD proxy (default: ON)                                   |
 | `COMPILE_SEM`              | Enable compilation of the SEM proxy (default: ON)                                  |
 | `ENABLE_PYWRAP`            | Enable Python bindings via pybind11 (experimental)                                 |
 | `ENABLE_COVERAGE`          | Enable Code coverage. Does not work with device enable                             |
@@ -58,7 +54,7 @@ For more TPL builds options see `FUnTiDES-TPL/install.sh --help`.
 Once the TPLs are installed and your environment is configured, you can build the applications.
 
 ```sh
-source FUnTiDES-TPL/setup_tpl_env.sh ${FUNTIDES_TPL_INSTALL_DIR}
+source FUnTiDES-TPL/setup_env.sh ${FUNTIDES_TPL_INSTALL_DIR}
 cd FUnTiDES
 mkdir build
 cd build
@@ -116,9 +112,6 @@ Inside the `build/bin` folder, you can run the generated executable binaries. Fo
 # Run SEM simulation (e.g., Acoustic, Cartesian Mesh, Makutu Implementation, Order 2)
 ./funtides-sem --ex 100 --ey 100 --ez 100 --method=sem --implem=makutu --mesh=cartesian -o 2 --dt 0.001 --timemax 1.5
 
-# Run FD simulation
-./funtidesfd
-
 # Run validation with custom parameters
 ./validate_solution --order 2 --mesh ucartesian --elastic --is-model-on-nodes
 ```
@@ -145,11 +138,11 @@ python3 python run_funtides.py examples/example_config.yaml
 The `example_config.yaml` file inside the examples folder, gives an example of a possible yaml file to use.
 
 
-You can also run a test using a model file in txt format. 
+You can also run a test using a model file in txt format.
 
 The format needed for model on the nodes or on elements can be seen in the two example files model_on_nodes.txt and model_on_elements,
 located inside the examples/ folder.
-To use this option with the code, you need to add --model-file /path/of/your/model_file in the command line or a section 
+To use this option with the code, you need to add --model-file /path/of/your/model_file in the command line or a section
 model_file inside the yaml where you put the path to your model file between commas.
 
 
@@ -234,7 +227,7 @@ within the folder containing the `receivers.bp` folder.
 
 ## Code Coverage
 
-**FUnTiDES** supports code coverage analysis. To enable this feature, set the CMake option `ENABLE_COVERAGE` to `ON`. 
+**FUnTiDES** supports code coverage analysis. To enable this feature, set the CMake option `ENABLE_COVERAGE` to `ON`.
 
 > **Note:** The application will run significantly slower when this option is enabled. Currently, this feature is fully supported on **CPU** but has not been tested on device-specific code (GPU). Ensure that your **Kokkos** installation was not compiled with CUDA or ROCm/AMD support enabled.
 

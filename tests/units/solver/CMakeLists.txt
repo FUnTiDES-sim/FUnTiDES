@@ -15,6 +15,7 @@ set(SOLVER_TEST_SOURCES
   impl/test_attenuation.cc
   impl/test_sem_solver_acoustic.cc
   impl/test_sem_solver_elastic.cc
+  impl/test_elastic_flux_symmetry.cc
   impl/test_boundary_synchronizer.cc
 )
 
@@ -23,6 +24,14 @@ if(COMPILE_DG)
     impl/test_dg_solver_factory.cc
     dg/test_dg_penalty.cc
     dg/test_dg_solver_data.cc
+  )
+endif()
+
+if(COMPILE_DG_SEM)
+  list(APPEND SOLVER_TEST_SOURCES
+    impl/test_dg_sem_solver_factory.cc
+    dg-sem/test_dg-sem_solver_data.cc
+    dg-sem/test_dg-sem_solver_acoustic.cc
   )
 endif()
 
