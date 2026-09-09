@@ -7,6 +7,12 @@ option(COMPILE_SEM "Compile Spectral Elements Method simulation" ON)
 option(COMPILE_DG "Compile Discontinuous Galerkin simulation" ON)
 option(COMPILE_DG_SEM "Compile Discontinuous Galerkin coupled with Spectral Elements Method simulation" ON)
 
+if (COMPILE_DG_SEM)
+  set(COMPILE_DG ON)
+  set(COMPILE_SEM ON)
+  message(STATUS "DGSEM simulation will be compiled, so DG and SEM simulations will also be compiled")
+endif()
+
 # Programming models
 option(USE_MPI "Enable MPI compilation" OFF)
 
