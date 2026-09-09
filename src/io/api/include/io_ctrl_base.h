@@ -92,8 +92,6 @@ class IOControllerBase {
   IOConfig config_;
 };
 
-// ---------------------------------------------------------------------------
-
 enum class BackendKind { kPosix, kAdios2 };
 enum class OpenMode { kWrite, kRead };
 
