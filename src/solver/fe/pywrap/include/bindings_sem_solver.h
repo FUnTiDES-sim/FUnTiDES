@@ -116,10 +116,16 @@ void bind_sem_solver_base(py::module_ &m) {
       .def("update_solution_backward", &Solver::updateSolutionBackward, py::arg("dt"), py::arg("data"))
       .def(
           "get_mass_matrix",
-          [](Solver &self) -> Kokkos::Experimental::python_view_type_t<vectorReal> {
-            return self.getMassMatrixAcoustic();
+          [](Solver &self, bool elastic) -> Kokkos::Experimental::python_view_type_t<vectorReal> {
+            return elastic ? self.getMassMatrixElastic() : self.getMassMatrixAcoustic();
           },
-          py::return_value_policy::reference_internal)
+          py::arg("elastic") = false, py::return_value_policy::reference_internal)
+      .def(
+          "get_damping_matrix",
+          [](Solver &self, int component) -> Kokkos::Experimental::python_view_type_t<vectorReal> {
+            return self.getDampingMatrix(component);
+          },
+          py::arg("component"), py::return_value_policy::reference_internal)
       .def(
           "get_force_vector",
           [](Solver &self, int component) -> Kokkos::Experimental::python_view_type_t<vectorReal> {
