@@ -202,12 +202,32 @@ class DGsolver : public Solver {
   void computeVolumeAndBoundary(int kNumElem, arrayReal current_field);
 
   /**
+   * @brief Highest order still served by the one-thread-per-face kernel.
+   *
+   * A thread that owns a whole face carries 2*(ORDER+1)^2 floats of accumulator plus the geometry.
+   * At low order that fits in registers and the flat form wins on lane occupancy, since a team would
+   * leave most of a warp idle on the (ORDER+1)^2 quadrature points. Measured on the uniform bilayer
+   * case at order 2: 17 s flat against 52.2 s teamed, same result. Order 3 (16 face dofs) stays
+   * flat. The crossover is hardware-dependent; re-measure it when moving to another GPU.
+   */
+  static constexpr int kMaxOrderForFlatFace = 3;
+
+  /**
    * @brief Kernel 1b+2 — boundary absorbing damping and SIPG interface flux terms, fused into a
    * single face-loop (mutually exclusive per face, disjoint accumulators).
+   *
+   * Dispatches to the flat or the teamed body on ORDER; see kMaxOrderForFlatFace.
    * @param kNumFaces Total number of faces (interior + boundary).
    * @param current_field Pressure field at current time step p^n.
    */
   void computeBoundaryDampingAndInterfaceFlux(int kNumFaces, arrayReal current_field);
+
+  /// @brief One thread per face. See computeBoundaryDampingAndInterfaceFlux().
+  void computeBoundaryDampingAndInterfaceFlux_Flat(int kNumFaces, arrayReal current_field);
+
+  /// @brief One team per face, face-dof accumulators in shared memory. See
+  /// computeBoundaryDampingAndInterfaceFlux().
+  void computeBoundaryDampingAndInterfaceFlux_Team(int kNumFaces, arrayReal current_field);
 
   /**
    * @brief Kernel 3 — Verlet time update.
@@ -291,6 +311,32 @@ class DGsolver : public Solver {
   static constexpr int knumNodesPerFace = DofTable::kNumNodesPerFace;
   static constexpr auto kFaceToElemDof = DofTable::kFaceToElemDof;
   static constexpr auto kFaceToElemDofAtDepth = DofTable::kFaceToElemDofAtDepth;
+
+  /**
+   * @brief Threads per team in the teamed face kernel.
+   *
+   * A team never has more than knumNodesPerFace quadrature points to distribute, and a surplus
+   * thread is not merely idle: it also widens the scratch the team must reserve, which is what caps
+   * occupancy. Capped at one warp, since a smaller team still occupies a full warp on CUDA.
+   */
+  static constexpr int kFaceTeamSize = (knumNodesPerFace < 32) ? knumNodesPerFace : 32;
+
+  /**
+   * @brief Lane-adjacent threads sharing one accumulator row.
+   *
+   * Sharing halves the scratch footprint -- the binding occupancy constraint -- for the price of a
+   * shared-memory atomic instead of a plain add. Contention stays 2-way and the hardware coalesces
+   * an adjacent pair's atomics on the same address.
+   */
+  static constexpr int kFaceGroupSize = 2;
+
+  /// @brief Accumulator rows per team. Rounded up: kFaceTeamSize is odd at several orders (9 at
+  /// order 2, 25 at order 4) and truncating would let the last thread index one row past the end.
+  static constexpr int kFaceScratchRows = (kFaceTeamSize + kFaceGroupSize - 1) / kFaceGroupSize;
+
+  /// @brief Floats of face-uniform geometry staged in team scratch: the 4 face corner nodes, then
+  /// the owner and neighbor element corner vertices, 3 coordinates each. Order-independent.
+  static constexpr int kFaceGeomFloats = 4 * 3 + 8 * 3 + 8 * 3;
 };
 
 // Backward Compatibility Aliases
