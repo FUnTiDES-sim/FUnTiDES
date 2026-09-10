@@ -10,7 +10,7 @@ option(COMPILE_DG_SEM "Compile Discontinuous Galerkin coupled with Spectral Elem
 if (COMPILE_DG_SEM)
   set(COMPILE_DG ON)
   set(COMPILE_SEM ON)
-  message(STATUS "DGSEM simulation will be compiled, so DG and SEM simulations will also be compiled")
+  message(STATUS "DGSEM simulation will be compiled, so DG and SEM solvers will also be compiled")
 endif()
 
 # Programming models
