@@ -17,6 +17,7 @@ endif()
 if(COMPILE_DG_PADAPTIVE)
   set(COMPILE_DG ON)
   message(STATUS "p-adaptive DG solver will be compiled, so DG solver will also be compiled")
+endif()
 
 # Programming models
 option(USE_MPI "Enable MPI compilation" OFF)
