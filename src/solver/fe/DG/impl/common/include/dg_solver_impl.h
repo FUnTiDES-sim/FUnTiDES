@@ -248,75 +248,99 @@ void DGsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::comp
         real_t const gamma_o = computeSIPGPenaltyFromArea<ORDER>(face_area, owner_coords, penalty_local);
         real_t const gamma_n = computeSIPGPenaltyFromArea<ORDER>(face_area, neighbor_coords, penalty_local);
 
-        float stiff_o[kPointsPerElement] = {0};
-        float stiff_n[kPointsPerElement] = {0};
+        // Face-sized accumulators, indexed by face dof in each side's own face numbering: the
+        // interface flux only ever touches the shared face's (ORDER+1)^2 dofs, so element-sized
+        // arrays cost a 7x larger per-thread footprint (which spills out of registers) and flush an
+        // atomic zero to every off-face dof. Same reasoning as the DG-SEM coupling kernel.
+        float stiff_o[knumNodesPerFace] = {0};
+        float stiff_n[knumNodesPerFace] = {0};
 
-        // --- Owner side (outward normal = normal[]) ---
-        INTEGRAL_TYPE::computeInterfaceFluxTerm(
-            faceCoords, owner_coords, fid_o,
-            [&](const int i, const int j, const int k, const real_t val) {
-              int const ei = face_to_elem_dof[fid_o][i];
-              int const ej = face_to_elem_dof[fid_o][j];
-              int const ej_perm = face_to_elem_dof[fid_n][face_connectivity_local.getNeighborFaceDof(f, j)];
-              float const nk = normal[k];
-              stiff_o[ei] += inv_rho_o * (-0.5f * val * current_field(owner_e, ej) * nk +
-                                          0.5f * val * current_field(neighbor_e, ej_perm) * nk);
-              stiff_o[ej] += inv_rho_o * (-0.5f * val * current_field(owner_e, ei) * nk);
-              stiff_n[ej_perm] += inv_rho_o * (0.5f * val * current_field(owner_e, ei) * nk);
-            },
-            [&](const int m, const int j, const int k, const real_t val) {
-              int const em = face_to_elem_dof_depth[fid_o][j][m];
-              int const ej = face_to_elem_dof[fid_o][j];
-              int const ej_perm = face_to_elem_dof[fid_n][face_connectivity_local.getNeighborFaceDof(f, j)];
-              float const nk = normal[k];
-              stiff_o[em] += inv_rho_o * (-0.5f * val * current_field(owner_e, ej) * nk +
-                                          0.5f * val * current_field(neighbor_e, ej_perm) * nk);
-              stiff_o[ej] += inv_rho_o * (-0.5f * val * current_field(owner_e, em) * nk);
-              stiff_n[ej_perm] += inv_rho_o * (0.5f * val * current_field(owner_e, em) * nk);
-            });
+        // Driving one quadrature point at a time is what keeps the accumulators face-sized: over a
+        // whole face the normal channel spans every element dof, but for a single point it only
+        // reaches the ORDER+1 dofs of the line through it.
+        for (int q = 0; q < knumNodesPerFace; ++q) {
+          // Face-normal accumulators. These dofs are off-face, so they cannot go through the
+          // face-sized rows. The lines of two quadrature points are disjoint, hence plain adds.
+          float norm_o[ORDER + 1] = {0};
+          float norm_n[ORDER + 1] = {0};
 
-        for (int i = 0; i < knumNodesPerFace; ++i) {
-          int const ei = face_to_elem_dof[fid_o][i];
-          int const ei_perm = face_to_elem_dof[fid_n][face_connectivity_local.getNeighborFaceDof(f, i)];
-          stiff_o[ei] += gamma_o * INTEGRAL_TYPE::computeDampingTerm(i, faceCoords) *
-                         (current_field(owner_e, ei) - current_field(neighbor_e, ei_perm));
+          // --- Owner side (outward normal = normal[]) ---
+          INTEGRAL_TYPE::computeInterfaceFluxTermAt(
+              q, faceCoords, owner_coords, fid_o,
+              [&](const int i, const int j, const int k, const real_t val) {
+                int const nfd_j = face_connectivity_local.getNeighborFaceDof(f, j);
+                int const ei = face_to_elem_dof[fid_o][i];
+                int const ej = face_to_elem_dof[fid_o][j];
+                int const ej_perm = face_to_elem_dof[fid_n][nfd_j];
+                float const nk = normal[k];
+                stiff_o[i] += inv_rho_o * (-0.5f * val * current_field(owner_e, ej) * nk +
+                                           0.5f * val * current_field(neighbor_e, ej_perm) * nk);
+                stiff_o[j] += inv_rho_o * (-0.5f * val * current_field(owner_e, ei) * nk);
+                stiff_n[nfd_j] += inv_rho_o * (0.5f * val * current_field(owner_e, ei) * nk);
+              },
+              [&](const int m, const int j, const int k, const real_t val) {
+                int const nfd_j = face_connectivity_local.getNeighborFaceDof(f, j);
+                int const em = face_to_elem_dof_depth[fid_o][j][m];
+                int const ej = face_to_elem_dof[fid_o][j];
+                int const ej_perm = face_to_elem_dof[fid_n][nfd_j];
+                float const nk = normal[k];
+                norm_o[m] += inv_rho_o * (-0.5f * val * current_field(owner_e, ej) * nk +
+                                          0.5f * val * current_field(neighbor_e, ej_perm) * nk);
+                stiff_o[j] += inv_rho_o * (-0.5f * val * current_field(owner_e, em) * nk);
+                stiff_n[nfd_j] += inv_rho_o * (0.5f * val * current_field(owner_e, em) * nk);
+              });
+
+          // --- Neighbor side (outward normal = -normal[]) ---
+          INTEGRAL_TYPE::computeInterfaceFluxTermAt(
+              q, faceCoords, neighbor_coords, fid_n,
+              [&](const int i, const int j, const int k, const real_t val) {
+                int const ofd_j = face_connectivity_local.getOwnerFaceDof(f, j);
+                int const ei = face_to_elem_dof[fid_n][i];
+                int const ej = face_to_elem_dof[fid_n][j];
+                int const ej_perm = face_to_elem_dof[fid_o][ofd_j];
+                float const nk = -normal[k];
+                stiff_n[i] += inv_rho_n * (-0.5f * val * current_field(neighbor_e, ej) * nk +
+                                           0.5f * val * current_field(owner_e, ej_perm) * nk);
+                stiff_n[j] += inv_rho_n * (-0.5f * val * current_field(neighbor_e, ei) * nk);
+                stiff_o[ofd_j] += inv_rho_n * (0.5f * val * current_field(neighbor_e, ei) * nk);
+              },
+              [&](const int m, const int j, const int k, const real_t val) {
+                int const ofd_j = face_connectivity_local.getOwnerFaceDof(f, j);
+                int const em = face_to_elem_dof_depth[fid_n][j][m];
+                int const ej = face_to_elem_dof[fid_n][j];
+                int const ej_perm = face_to_elem_dof[fid_o][ofd_j];
+                float const nk = -normal[k];
+                norm_n[m] += inv_rho_n * (-0.5f * val * current_field(neighbor_e, ej) * nk +
+                                          0.5f * val * current_field(owner_e, ej_perm) * nk);
+                stiff_n[j] += inv_rho_n * (-0.5f * val * current_field(neighbor_e, em) * nk);
+                stiff_o[ofd_j] += inv_rho_n * (0.5f * val * current_field(neighbor_e, em) * nk);
+              });
+
+          // The normal lines are off-face, so they bypass the face-sized flush below. Both
+          // callbacks always fire with j == q, so the line is the one through face dof q on each
+          // side, in that side's own face numbering.
+          for (int m = 0; m <= ORDER; ++m) {
+            ATOMICADD(stiff_local_view(owner_e, face_to_elem_dof_depth[fid_o][q][m]), norm_o[m]);
+            ATOMICADD(stiff_local_view(neighbor_e, face_to_elem_dof_depth[fid_n][q][m]), norm_n[m]);
+          }
         }
 
-        // --- Neighbor side (outward normal = -normal[]) ---
-        INTEGRAL_TYPE::computeInterfaceFluxTerm(
-            faceCoords, neighbor_coords, fid_n,
-            [&](const int i, const int j, const int k, const real_t val) {
-              int const ei = face_to_elem_dof[fid_n][i];
-              int const ej = face_to_elem_dof[fid_n][j];
-              int const ej_perm = face_to_elem_dof[fid_o][face_connectivity_local.getOwnerFaceDof(f, j)];
-              float const nk = -normal[k];
-              stiff_n[ei] += inv_rho_n * (-0.5f * val * current_field(neighbor_e, ej) * nk +
-                                          0.5f * val * current_field(owner_e, ej_perm) * nk);
-              stiff_n[ej] += inv_rho_n * (-0.5f * val * current_field(neighbor_e, ei) * nk);
-              stiff_o[ej_perm] += inv_rho_n * (0.5f * val * current_field(neighbor_e, ei) * nk);
-            },
-            [&](const int m, const int j, const int k, const real_t val) {
-              int const em = face_to_elem_dof_depth[fid_n][j][m];
-              int const ej = face_to_elem_dof[fid_n][j];
-              int const ej_perm = face_to_elem_dof[fid_o][face_connectivity_local.getOwnerFaceDof(f, j)];
-              float const nk = -normal[k];
-              stiff_n[em] += inv_rho_n * (-0.5f * val * current_field(neighbor_e, ej) * nk +
-                                          0.5f * val * current_field(owner_e, ej_perm) * nk);
-              stiff_n[ej] += inv_rho_n * (-0.5f * val * current_field(neighbor_e, em) * nk);
-              stiff_o[ej_perm] += inv_rho_n * (0.5f * val * current_field(neighbor_e, em) * nk);
-            });
-
+        // SIPG penalty and atomic write-back, fused: both sides use the same damping term at face
+        // dof i, so it is computed once here instead of once per side. Atomic because several faces
+        // share an element.
         for (int i = 0; i < knumNodesPerFace; ++i) {
-          int const ei = face_to_elem_dof[fid_n][i];
-          int const ei_perm = face_to_elem_dof[fid_o][face_connectivity_local.getOwnerFaceDof(f, i)];
-          stiff_n[ei] += gamma_n * INTEGRAL_TYPE::computeDampingTerm(i, faceCoords) *
-                         (current_field(neighbor_e, ei) - current_field(owner_e, ei_perm));
-        }
+          real_t const damping_i = INTEGRAL_TYPE::computeDampingTerm(i, faceCoords);
 
-        // Atomic write-back: multiple faces can share the same element
-        for (int i = 0; i < kPointsPerElement; ++i) {
-          ATOMICADD(stiff_local_view(owner_e, i), stiff_o[i]);
-          ATOMICADD(stiff_local_view(neighbor_e, i), stiff_n[i]);
+          int const ei_o = face_to_elem_dof[fid_o][i];
+          int const ei_o_perm = face_to_elem_dof[fid_n][face_connectivity_local.getNeighborFaceDof(f, i)];
+          stiff_o[i] += gamma_o * damping_i * (current_field(owner_e, ei_o) - current_field(neighbor_e, ei_o_perm));
+
+          int const ei_n = face_to_elem_dof[fid_n][i];
+          int const ei_n_perm = face_to_elem_dof[fid_o][face_connectivity_local.getOwnerFaceDof(f, i)];
+          stiff_n[i] += gamma_n * damping_i * (current_field(neighbor_e, ei_n) - current_field(owner_e, ei_n_perm));
+
+          ATOMICADD(stiff_local_view(owner_e, ei_o), stiff_o[i]);
+          ATOMICADD(stiff_local_view(neighbor_e, ei_n), stiff_n[i]);
         }
       });
 }

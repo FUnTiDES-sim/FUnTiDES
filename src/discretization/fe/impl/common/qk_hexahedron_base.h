@@ -257,7 +257,7 @@ PROXY_HOST_DEVICE void QkHexahedronBase<GL_BASIS>::computeBMatrix(int const qa, 
                                                                   real_t (&B)[6]) {
   jacobianTransformation(qa, qb, qc, X, J);
   real_t const detJ = determinant(J);
-  real_t const invDetJ = 1.0 / detJ;
+  real_t const invDetJ = real_t(1) / detJ;
 
   // compute J^T.J/det(J), using Voigt notation for B
   B[0] = (J[0][0] * J[0][0] + J[1][0] * J[1][0] + J[2][0] * J[2][0]) * invDetJ;
