@@ -92,7 +92,7 @@ class DifferentiatorElastic : public Differentiator {
                          vectorReal const uz_fwd, vectorReal const ux_adj, vectorReal const uy_adj,
                          vectorReal const uz_adj, vectorReal const ux_dt2, vectorReal const uy_dt2,
                          vectorReal const uz_dt2, vectorReal const gradRho, vectorReal const gradLambda,
-                         vectorReal const gradMu) const;
+                         vectorReal const gradMu, int firstElement, int lastElement) const;
 
   /**
    * @brief Node-based model: multiple elements share boundary nodes — ATOMICADD
@@ -102,7 +102,7 @@ class DifferentiatorElastic : public Differentiator {
                       vectorReal const uz_fwd, vectorReal const ux_adj, vectorReal const uy_adj,
                       vectorReal const uz_adj, vectorReal const ux_dt2, vectorReal const uy_dt2,
                       vectorReal const uz_dt2, vectorReal const gradRho, vectorReal const gradLambda,
-                      vectorReal const gradMu) const;
+                      vectorReal const gradMu, int firstElement, int lastElement) const;
 
   /**
    * @brief Initialize the geometric mass matrix (nodal volumes without model factors).
