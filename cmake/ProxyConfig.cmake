@@ -6,11 +6,17 @@
 option(COMPILE_SEM "Compile Spectral Elements Method simulation" ON)
 option(COMPILE_DG "Compile Discontinuous Galerkin simulation" ON)
 option(COMPILE_DG_SEM "Compile Discontinuous Galerkin coupled with Spectral Elements Method simulation" ON)
+option(COMPILE_DG_PADAPTIVE "Compile p-adaptive Discontinuous Galerkin simulation" ON)
 
 if (COMPILE_DG_SEM)
   set(COMPILE_DG ON)
   set(COMPILE_SEM ON)
-  message(STATUS "DGSEM simulation will be compiled, so DG and SEM solvers will also be compiled")
+  message(STATUS "DGSEM solver will be compiled, so DG and SEM solvers will also be compiled")
+endif()
+
+if(COMPILE_DG_PADAPTIVE)
+  set(COMPILE_DG ON)
+  message(STATUS "p-adaptive DG solver will be compiled, so DG solver will also be compiled")
 endif()
 
 # Programming models

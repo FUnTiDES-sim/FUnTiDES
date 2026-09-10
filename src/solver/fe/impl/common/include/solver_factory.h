@@ -24,13 +24,15 @@ namespace solver_factory {
  * @param modelLocation Where model parameters are stored (OnNodes or
  * OnElements)
  * @param physicType The physics type (Acoustic or Elastic)
- * @param order The polynomial order of spectral elements
+ * @param order The polynomial order of spectral elements (the pMax order for kDgPAdaptive)
+ * @param order_min The lower polynomial order, kDgPAdaptive only (0 < order_min < order); ignored
+ * by every other method
  * @return A unique pointer to the created solver
  * @throws std::runtime_error if the configuration is unsupported
  */
 std::unique_ptr<Solver> createSolver(utils::enums::methodType methodType, utils::enums::implemType implemType,
                                      utils::enums::meshType meshType, utils::enums::modelLocationType modelLocation,
-                                     utils::enums::physicType physicType, int order);
+                                     utils::enums::physicType physicType, int const order, int const order_min = 0);
 }  // namespace solver_factory
 }  // namespace fe
 }  // namespace solver

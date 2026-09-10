@@ -35,6 +35,14 @@ if(COMPILE_DG_SEM)
   )
 endif()
 
+if(COMPILE_DG_PADAPTIVE)
+  list(APPEND SOLVER_TEST_SOURCES
+    impl/test_dg_padaptive_solver_factory.cc
+    dg_padaptive/test_dg_padaptive_solver_data.cc
+    dg_padaptive/test_dg_padaptive_solver_acoustic.cc
+  )
+endif()
+
 add_gtest_group(solver_tests
   SOURCES ${SOLVER_TEST_SOURCES}
   EXTRA_LINKS fun_solver fun_model

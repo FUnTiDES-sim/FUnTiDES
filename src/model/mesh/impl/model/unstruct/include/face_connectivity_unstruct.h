@@ -93,9 +93,13 @@ class FaceConnectivityUnstruct : public FaceConnectivityApi<FloatType, ScalarTyp
    * @tparam MESH_TYPE Concrete mesh type (struct or unstruct); must expose
    *   a device-callable globalNodeIndex(elem,i,j,k), getNumberOfElements(),
    *   getOrder().
+   * @param geom_order True geometric order of the shared node grid, forwarded to fillFaceDofs()
+   *   for the "Plus"-face fixed coordinate. Pass it only when this connectivity's own order
+   *   (ORDER) is lower than the mesh it is built on (DG p-adaptive coupling); the -1 default
+   *   keeps the face dofs sampled at ORDER, i.e. the existing behaviour.
    */
   template <typename MESH_TYPE>
-  void build(const MESH_TYPE& mesh) {
+  void build(const MESH_TYPE& mesh, int geom_order = -1) {
     const ScalarType n_element = mesh.getNumberOfElements();
     const int mesh_order = mesh.getOrder();
     const int order = (ORDER >= 0) ? ORDER : mesh_order;
@@ -177,8 +181,9 @@ class FaceConnectivityUnstruct : public FaceConnectivityApi<FloatType, ScalarTyp
             const ScalarType face_id = face_id_of_bucket(idx);
             elem_to_faces(elem, lf) = face_id;
             if (owner_code(idx) == static_cast<int>(elem * 8 + lf)) {
-              fillFaceDofs(mesh, elem, static_cast<CubicFace>(lf), order,
-                           [&](int d, ScalarType node) { face_dofs(face_id, d) = node; });
+              fillFaceDofs(
+                  mesh, elem, static_cast<CubicFace>(lf), order,
+                  [&](int d, ScalarType node) { face_dofs(face_id, d) = node; }, geom_order);
               face_elem_owner(face_id) = elem;
               face_local_owner(face_id) = lf;
             }
@@ -205,8 +210,9 @@ class FaceConnectivityUnstruct : public FaceConnectivityApi<FloatType, ScalarTyp
             // ndofs_per_face <= (9+1)^2 = 100 (max order in the codebase).
             constexpr int kMaxDofsPerFace = 100;
             ScalarType neigh_dofs[kMaxDofsPerFace];
-            fillFaceDofs(mesh, elem, static_cast<CubicFace>(lf), order,
-                         [&](int d, ScalarType node) { neigh_dofs[d] = node; });
+            fillFaceDofs(
+                mesh, elem, static_cast<CubicFace>(lf), order, [&](int d, ScalarType node) { neigh_dofs[d] = node; },
+                geom_order);
 
             for (int i = 0; i < ndofs_per_face; ++i) {
               const ScalarType owner_node = face_dofs(face_id, i);
@@ -279,35 +285,46 @@ class FaceConnectivityUnstruct : public FaceConnectivityApi<FloatType, ScalarTyp
   /**
    * @brief Fill face DOFs by iterating over the face nodes and invoking a
    * callback for each (local_idx, global_node) pair.
+   *
+   * @param order      Dofs per face direction minus 1 (drives the stored layout, ndofs_per_face_
+   *                   = (order+1)^2); matches this connectivity's own polynomial order.
+   * @param geom_order Element's true geometric order on the shared node grid. Used only for the
+   *                   fixed face-normal coordinate ("Plus" faces) and to rescale tangential
+   *                   indices onto the true node grid, so a lower-order sub-solver sharing a
+   *                   higher-order mesh (DG p-adaptive coupling) still sees the element's real
+   *                   boundary. Defaults to @p order (existing behaviour, unchanged) when this
+   *                   connectivity's order already matches the mesh.
    */
   template <typename MESH_TYPE, typename FUNC>
   KOKKOS_INLINE_FUNCTION static void fillFaceDofs(const MESH_TYPE& mesh, ScalarType elem, CubicFace local_face,
-                                                  int order, FUNC&& store) {
+                                                  int order, FUNC&& store, int geom_order = -1) {
+    int const far = (geom_order >= 0) ? geom_order : order;
+    auto rescale = [&](int i) { return (geom_order >= 0 && order > 0) ? (i * geom_order) / order : i; };
     int idx = 0;
     switch (local_face) {
       case CubicFace::kXMinus:
         for (int k = 0; k <= order; ++k)
-          for (int j = 0; j <= order; ++j) store(idx++, mesh.globalNodeIndex(elem, 0, j, k));
+          for (int j = 0; j <= order; ++j) store(idx++, mesh.globalNodeIndex(elem, 0, rescale(j), rescale(k)));
         break;
       case CubicFace::kXPlus:
         for (int k = 0; k <= order; ++k)
-          for (int j = 0; j <= order; ++j) store(idx++, mesh.globalNodeIndex(elem, order, j, k));
+          for (int j = 0; j <= order; ++j) store(idx++, mesh.globalNodeIndex(elem, far, rescale(j), rescale(k)));
         break;
       case CubicFace::kYMinus:
         for (int k = 0; k <= order; ++k)
-          for (int i = 0; i <= order; ++i) store(idx++, mesh.globalNodeIndex(elem, i, 0, k));
+          for (int i = 0; i <= order; ++i) store(idx++, mesh.globalNodeIndex(elem, rescale(i), 0, rescale(k)));
         break;
       case CubicFace::kYPlus:
         for (int k = 0; k <= order; ++k)
-          for (int i = 0; i <= order; ++i) store(idx++, mesh.globalNodeIndex(elem, i, order, k));
+          for (int i = 0; i <= order; ++i) store(idx++, mesh.globalNodeIndex(elem, rescale(i), far, rescale(k)));
         break;
       case CubicFace::kZMinus:
         for (int j = 0; j <= order; ++j)
-          for (int i = 0; i <= order; ++i) store(idx++, mesh.globalNodeIndex(elem, i, j, 0));
+          for (int i = 0; i <= order; ++i) store(idx++, mesh.globalNodeIndex(elem, rescale(i), rescale(j), 0));
         break;
       case CubicFace::kZPlus:
         for (int j = 0; j <= order; ++j)
-          for (int i = 0; i <= order; ++i) store(idx++, mesh.globalNodeIndex(elem, i, j, order));
+          for (int i = 0; i <= order; ++i) store(idx++, mesh.globalNodeIndex(elem, rescale(i), rescale(j), far));
         break;
     }
   }

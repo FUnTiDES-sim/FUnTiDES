@@ -80,16 +80,28 @@ void DGSEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::T
   int n_dg = 0;
   int n_sem = 0;
 
-  int const mid = ORDER / 2;
-  for (int e = 0; e < nElem; ++e) {
-    int const gIdx = m_mesh_.globalNodeIndex(e, mid, mid, mid);
-    float const zCoord = m_mesh_.nodeCoord(gIdx, 2);
-    if (zCoord < DG_SEM_interface_z_) {
-      m_element_type_[e] = kElementTypeDG;
-      ++n_dg;
-    } else {
-      m_element_type_[e] = kElementTypeSEM;
-      ++n_sem;
+  if (m_external_element_type_.size() == static_cast<size_t>(nElem)) {
+    // Caller-provided split (setElementTags()): skip the Z-threshold heuristic entirely, since
+    // it only cuts the intended plane while the mesh is flat.
+    for (int e = 0; e < nElem; ++e) {
+      m_element_type_[e] = m_external_element_type_[e];
+      if (m_element_type_[e] == kElementTypeDG)
+        ++n_dg;
+      else
+        ++n_sem;
+    }
+  } else {
+    int const mid = ORDER / 2;
+    for (int e = 0; e < nElem; ++e) {
+      int const gIdx = m_mesh_.globalNodeIndex(e, mid, mid, mid);
+      float const zCoord = m_mesh_.nodeCoord(gIdx, 2);
+      if (zCoord < DG_SEM_interface_z_) {
+        m_element_type_[e] = kElementTypeDG;
+        ++n_dg;
+      } else {
+        m_element_type_[e] = kElementTypeSEM;
+        ++n_sem;
+      }
     }
   }
 

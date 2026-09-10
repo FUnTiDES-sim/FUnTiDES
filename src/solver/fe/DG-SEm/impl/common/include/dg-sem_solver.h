@@ -109,6 +109,20 @@ class DGSEMsolver : public Solver {
 
   void setZBoundary(float z) override { DG_SEM_interface_z_ = z; }
 
+  /**
+   * @brief Provide the DG/SEM element split directly, bypassing the Z-threshold heuristic in
+   * TagElements(). Must be called before computeFEInit(), whose call to TagElements() reads
+   * m_external_element_type_. Left unset (or sized differently from this mesh's element count),
+   * TagElements() falls back to the Z-threshold split.
+   *
+   * The threshold probes a single node's (deformed) Z coordinate, which only cuts the intended
+   * plane while the mesh is flat -- a caller that already knows the per-element split (e.g. by
+   * flat-coordinate layer index) should use this instead of fighting the geometry.
+   *
+   * @param tags Per-element type (kElementTypeDG or kElementTypeSEM), one entry per mesh element.
+   */
+  void setElementTags(const vectorInt& tags) override { m_external_element_type_ = tags; }
+
   void setSLSAttenuation(const vectorReal& reference_frequencies,
                          const vectorReal& anelasticity_coefficients = vectorReal()) override {
     // TODO: Implement SLS attenuation setting
@@ -193,7 +207,10 @@ class DGSEMsolver : public Solver {
   void BuildDGInteriorFaceList();
 
   float DG_SEM_interface_z_ = 1000.f;  ///< Z coordinate of the DG-SEM interface
-  real_t m_penalty_factor_ = 12.0f;    ///< SIPG penalty; kept in sync with the DG sub-solver's own
+  /// @brief Caller-provided per-element type tags (see setElementTags()). Empty unless set;
+  /// TagElements() falls back to the Z-threshold split when its size doesn't match nElem.
+  vectorInt m_external_element_type_;
+  real_t m_penalty_factor_ = 12.0f;  ///< SIPG penalty; kept in sync with the DG sub-solver's own
 };
 
 }  // namespace fe
