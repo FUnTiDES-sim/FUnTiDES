@@ -52,7 +52,7 @@ PROXY_HOST_DEVICE void computeVTICoefficients(FloatType vp, FloatType vs, FloatT
   c66 = rho_vs2 * (FloatType(1.0) + FloatType(2.0) * gamma);
 
   FloatType const vp2_vs2 = vp * vp - vs * vs;
-  FloatType const sqrt_arg = vp2_vs2 * vp2_vs2 + FloatType(2.0) * rho_vp2 * delta * vp2_vs2;
+  FloatType const sqrt_arg = vp2_vs2 * vp2_vs2 + FloatType(2.0) * vp * vp * delta * vp2_vs2;
   c13 = rho * sqrt(sqrt_arg) - rho_vs2;
   c12 = c11 - FloatType(2.0) * c66;
 }

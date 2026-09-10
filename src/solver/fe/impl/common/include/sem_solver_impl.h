@@ -925,7 +925,7 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::com
             c11_e = rho_vp2 * (1.0f + 2.0f * epsilon_e);
             c66_e = rho_vs2 * (1.0f + 2.0f * gamma_e);
             float const vp2_vs2 = vp_e * vp_e - vs_e * vs_e;
-            c13_e = rho_e * sqrtf(vp2_vs2 * vp2_vs2 + 2.0f * rho_vp2 * delta_e * vp2_vs2) - rho_vs2;
+            c13_e = rho_e * sqrtf(vp2_vs2 * vp2_vs2 + 2.0f * vp_e * vp_e * delta_e * vp2_vs2) - rho_vs2;
             c12_e = c11_e - 2.0f * c66_e;
           }
 
@@ -949,7 +949,7 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::com
                   c11 = rho_vp2 * (1.0f + 2.0f * epsilon);
                   c66 = rho_vs2 * (1.0f + 2.0f * gamma);
                   float const vp2_vs2 = vp * vp - vs * vs;
-                  c13 = rho * sqrtf(vp2_vs2 * vp2_vs2 + 2.0f * rho_vp2 * delta * vp2_vs2) - rho_vs2;
+                  c13 = rho * sqrtf(vp2_vs2 * vp2_vs2 + 2.0f * vp * vp * delta * vp2_vs2) - rho_vs2;
                   c12 = c11 - 2.0f * c66;
                 } else {
                   c11 = c11_e;
@@ -1073,7 +1073,7 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::com
             c11_e = rho_vp2 * (1.0f + 2.0f * epsilon_e);
             c66_e = rho_vs2 * (1.0f + 2.0f * gamma_e);
             float const vp2_vs2 = vp_e * vp_e - vs_e * vs_e;
-            c13_e = rho_e * sqrtf(vp2_vs2 * vp2_vs2 + 2.0f * rho_vp2 * delta_e * vp2_vs2) - rho_vs2;
+            c13_e = rho_e * sqrtf(vp2_vs2 * vp2_vs2 + 2.0f * vp_e * vp_e * delta_e * vp2_vs2) - rho_vs2;
             c12_e = c11_e - 2.0f * c66_e;
           }
 
@@ -1095,7 +1095,7 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::com
               c11 = rho_vp2 * (1.0f + 2.0f * epsilon);
               c66 = rho_vs2 * (1.0f + 2.0f * gamma);
               float const vp2_vs2 = vp * vp - vs * vs;
-              c13 = rho * sqrtf(vp2_vs2 * vp2_vs2 + 2.0f * rho_vp2 * delta * vp2_vs2) - rho_vs2;
+              c13 = rho * sqrtf(vp2_vs2 * vp2_vs2 + 2.0f * vp * vp * delta * vp2_vs2) - rho_vs2;
               c12 = c11 - 2.0f * c66;
             } else {
               c11 = c11_e;
@@ -1948,7 +1948,7 @@ PROXY_HOST_DEVICE void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NO
   CVTI[1][0] = CVTI[0][1];
 
   const float vp2_vs2 = vp * vp - vs * vs;
-  const float sqrt_arg = vp2_vs2 * vp2_vs2 + 2.0f * rho_vp2 * delta * vp2_vs2;
+  const float sqrt_arg = vp2_vs2 * vp2_vs2 + 2.0f * vp * vp * delta * vp2_vs2;
   CVTI[0][2] = rho * sqrtf(sqrt_arg) - rho_vs2;
   CVTI[1][2] = CVTI[0][2];
   CVTI[2][0] = CVTI[0][2];
