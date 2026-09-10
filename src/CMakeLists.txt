@@ -3,7 +3,9 @@ add_subdirectory(discretization)
 add_subdirectory(model)
 add_subdirectory(solver)
 add_subdirectory(gradient)
+add_subdirectory(io)
 add_subdirectory(main)
+
 
 add_library(funtides INTERFACE)
 add_library(funtides::funtides ALIAS funtides)
