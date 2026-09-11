@@ -638,6 +638,7 @@ void SEMsolverAcoustoElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES>
   auto M_f = m_acoustic_solver_.getMassMatrixAcoustic();
   auto C_f = m_acoustic_solver_.getDampingMatrix(0);
   auto taper_f = m_acoustic_solver_.getSpongeTaperCoeff();
+  auto taper_e = m_elastic_solver_.getSpongeTaperCoeff();
   auto mesh_local = m_mesh_;
   auto cx = m_coupling_coeff_x_;
   auto cy = m_coupling_coeff_y_;
@@ -649,9 +650,15 @@ void SEMsolverAcoustoElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES>
       "ApplyCouplingElasticToAcoustic_Loop", n_iface, KOKKOS_LAMBDA(const int i) {
         int const j = iface_list[i];
         if (M_f[j] > 0.0f && !mesh_local.isFreeSurface(j)) {
-          float const fd_x = u_np1_x[j] - 2.0f * u_n_x[j] + u_nm1_x[i];
-          float const fd_y = u_np1_y[j] - 2.0f * u_n_y[j] + u_nm1_y[i];
-          float const fd_z = u_np1_z[j] - 2.0f * u_n_z[j] + u_nm1_z[i];
+          // u^{n+1} and u^n were both multiplied by the taper by the update that
+          // has just run, while u^{n-1} was snapshotted before it. The second
+          // difference nearly cancels, so leaving that factor off one term of it
+          // is not a small error: it injects energy every step and the coupled
+          // run diverges wherever the interface crosses the sponge.
+          float const t_e = taper_e[j];
+          float const fd_x = u_np1_x[j] - 2.0f * u_n_x[j] + t_e * u_nm1_x[i];
+          float const fd_y = u_np1_y[j] - 2.0f * u_n_y[j] + t_e * u_nm1_y[i];
+          float const fd_z = u_np1_z[j] - 2.0f * u_n_z[j] + t_e * u_nm1_z[i];
           // Same denominator and taper the Verlet update applied to the physical RHS.
           p_prev[j] += taper_f[j] * (cx[j] * fd_x + cy[j] * fd_y + cz[j] * fd_z) / (M_f[j] + half_dt * C_f[j]);
         }
