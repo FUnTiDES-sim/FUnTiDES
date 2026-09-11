@@ -544,6 +544,57 @@ class Qk_Hexahedron_Lagrange_GaussLobatto {
                                                            FUNC_NORMAL &&funcNormal);
 
   /**
+   * @brief Normal-contracted variant of the two-channel computeGradPhiPhiAt().
+   *
+   * The uncontracted form reports C_ijk, one value per physical direction k, and every caller
+   * immediately forms sum_k C_ijk * n_k -- the payload it multiplies (a pressure difference) does
+   * not depend on k, so the contraction factors straight out of the callback. Doing it here
+   * evaluates the three inverse-Jacobian/normal dot products once per quadrature point instead of
+   * re-deriving them once per (i, k), and divides the number of callback invocations, of
+   * accumulator updates and of neighbour-field reads by three.
+   *
+   * Mathematically identical to the uncontracted form summed over k; the two differ only in
+   * floating-point summation order.
+   *
+   * @param qa The 1d face quadrature point index in the first face direction.
+   * @param qb The 1d face quadrature point index in the second face direction.
+   * @param kDir Face-normal direction (kFaceId / 2).
+   * @param kQFixed Quadrature index along the face-normal direction (0 or ORDER).
+   * @param kX Coordinates of the 4 face corner support points.
+   * @param invJ3D Inverse of the volumetric Jacobian at the quadrature point.
+   * @param kNormal Face normal to contract with, outward for the element @p invJ3D belongs to.
+   * @param func Callback (i, j, C_ij) for the tangential contributions, both indices face dofs.
+   * @param funcNormal Callback (m, j, C_mj) for the face-normal contributions, @p m the depth
+   *   along the face normal.
+   */
+  template <typename FUNC, typename FUNC_NORMAL>
+  PROXY_HOST_DEVICE static void computeGradPhiPhiAt(int const qa, int const qb, int const kDir, int const kQFixed,
+                                                    real_t const (&kX)[4][3], real_t const (&invJ3D)[3][3],
+                                                    real_t const (&kNormal)[3], FUNC &&func,
+                                                    FUNC_NORMAL &&funcNormal);
+
+  /**
+   * @brief Normal-contracted variant of the two-channel computeInterfaceFluxTermAt().
+   *
+   * Callbacks receive C_ij already dotted with @p kNormal, so the caller no longer carries a k
+   * index. See computeGradPhiPhiAt() for why the contraction belongs here.
+   *
+   * @param q Face quadrature point, in [0, (ORDER+1)^2).
+   * @param kX Coordinates of the 4 face corner support points.
+   * @param X8 Coordinates of the 8 element corner support points.
+   * @param kFaceId Integer (0..5) to specify the integrated face.
+   * @param kNormal Face normal to contract with, outward for the element described by @p X8.
+   * @param func Callback (i, j, C_ij) for the tangential contributions.
+   * @param funcNormal Callback (m, j, C_mj) for the face-normal contributions. Always fires with
+   *   @p j equal to @p q, so the line is the one through face dof @p q.
+   */
+  template <typename FUNC, typename FUNC_NORMAL>
+  PROXY_HOST_DEVICE static void computeInterfaceFluxTermAt(int const q, real_t const (&kX)[4][3],
+                                                           real_t const (&X8)[8][3], int const kFaceId,
+                                                           real_t const (&kNormal)[3], FUNC &&func,
+                                                           FUNC_NORMAL &&funcNormal);
+
+  /**
    * @brief computes the matrix B, defined as J^{-T}J^{-1}/det(J), where J is
    * the Jacobian matrix, at the given Gauss-Lobatto point.
    * @param qa The 1d quadrature point index in xi0 direction (0,1)
@@ -1297,6 +1348,71 @@ PROXY_HOST_DEVICE void Qk_Hexahedron_Lagrange_GaussLobatto<GL_BASIS>::computeInt
   real_t invJ3D[3][3] = {{0}};
   invJacobianTransformation(qa, qb, kQFixed, X8, invJ3D);
   computeGradPhiPhiAt(qa, qb, kDir, kQFixed, kX, invJ3D, func, funcNormal);
+}
+
+template <typename GL_BASIS>
+template <typename FUNC, typename FUNC_NORMAL>
+PROXY_HOST_DEVICE void Qk_Hexahedron_Lagrange_GaussLobatto<GL_BASIS>::computeGradPhiPhiAt(
+    int const qa, int const qb, int const kDir, int const kQFixed, real_t const (&kX)[4][3],
+    real_t const (&invJ3D)[3][3], real_t const (&kNormal)[3], FUNC &&func, FUNC_NORMAL &&funcNormal) {
+  int ifa, ifb;
+  switch (kDir) {
+    case 0:
+      ifa = 1;
+      ifb = 2;
+      break;
+    case 1:
+      ifa = 0;
+      ifb = 2;
+      break;
+    default:
+      ifa = 0;
+      ifb = 1;
+      break;
+  }
+  // Narrowed before the product: weight() returns double in several bases, and with runtime indices
+  // there is no constant folding left to absorb it.
+  const real_t kW2D = static_cast<real_t>(GL_BASIS::weight(qa)) * static_cast<real_t>(GL_BASIS::weight(qb));
+  real_t B[3];
+  real_t J[3][2] = {{0}};
+  jacobianTransformation2d(qa, qb, kX, J);
+  // compute J^T.J, using Voigt notation for B
+  B[0] = J[0][0] * J[0][0] + J[1][0] * J[1][0] + J[2][0] * J[2][0];
+  B[1] = J[0][1] * J[0][1] + J[1][1] * J[1][1] + J[2][1] * J[2][1];
+  B[2] = J[0][0] * J[0][1] + J[1][0] * J[1][1] + J[2][0] * J[2][1];
+  const real_t kDetJ = sqrt(std::abs(symDeterminant(B)));
+  const real_t kVal = kW2D * kDetJ;
+  const int kAbj = GL_BASIS::TensorProduct2D::linearIndex(qa, qb);
+
+  // The three contractions of the inverse Jacobian with the face normal. Every caller of the
+  // uncontracted form multiplies C_ijk by n_k and sums, and the payload it multiplies is the same
+  // for all three k, so the sum factors out of the callback entirely and is evaluated once per
+  // quadrature point instead of once per (i, k).
+  const real_t kSa = invJ3D[ifa][0] * kNormal[0] + invJ3D[ifa][1] * kNormal[1] + invJ3D[ifa][2] * kNormal[2];
+  const real_t kSb = invJ3D[ifb][0] * kNormal[0] + invJ3D[ifb][1] * kNormal[1] + invJ3D[ifb][2] * kNormal[2];
+  const real_t kSd = invJ3D[kDir][0] * kNormal[0] + invJ3D[kDir][1] * kNormal[1] + invJ3D[kDir][2] * kNormal[2];
+
+  for (int i = 0; i < num1dNodes; i++) {
+    const int kIb = GL_BASIS::TensorProduct2D::linearIndex(i, qb);
+    const int kAi = GL_BASIS::TensorProduct2D::linearIndex(qa, i);
+    func(kIb, kAbj, kVal * kSa * basisGradientAt(i, qa));
+    func(kAi, kAbj, kVal * kSb * basisGradientAt(i, qb));
+    funcNormal(i, kAbj, kVal * kSd * basisGradientAt(i, kQFixed));
+  }
+}
+
+template <typename GL_BASIS>
+template <typename FUNC, typename FUNC_NORMAL>
+PROXY_HOST_DEVICE void Qk_Hexahedron_Lagrange_GaussLobatto<GL_BASIS>::computeInterfaceFluxTermAt(
+    int const q, real_t const (&kX)[4][3], real_t const (&X8)[8][3], int const kFaceId,
+    real_t const (&kNormal)[3], FUNC &&func, FUNC_NORMAL &&funcNormal) {
+  const int kDir = kFaceId / 2;
+  const int kQFixed = (kFaceId % 2 == 0) ? 0 : num1dNodes - 1;
+  int qa, qb;
+  GL_BASIS::TensorProduct2D::multiIndex(q, qa, qb);
+  real_t invJ3D[3][3] = {{0}};
+  invJacobianTransformation(qa, qb, kQFixed, X8, invJ3D);
+  computeGradPhiPhiAt(qa, qb, kDir, kQFixed, kX, invJ3D, kNormal, func, funcNormal);
 }
 
 template <typename GL_BASIS>

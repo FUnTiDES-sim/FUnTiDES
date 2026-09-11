@@ -450,6 +450,7 @@ void DGsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::comp
 
         float normal[3];
         mesh_local.faceNormal(owner_e, static_cast<model::CubicFace>(fid_o), normal);
+        float const neg_normal[3] = {-normal[0], -normal[1], -normal[2]};
 
         // Groups of kFaceGroupSize lane-adjacent threads share one accumulator row: halves the
         // scratch, which is the binding occupancy constraint, for the price of a shared-memory
@@ -462,56 +463,55 @@ void DGsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::comp
           float norm_o[ORDER + 1] = {0};
           float norm_n[ORDER + 1] = {0};
 
+          // Normal-contracted callbacks: the discretization folds sum_k C_ijk * n_k, so each
+          // contribution fires once instead of once per physical direction. That divides the
+          // shared-memory atomics below -- the kernel's dominant cost -- by three.
           // --- Owner side (outward normal = normal[]) ---
           INTEGRAL_TYPE::computeInterfaceFluxTermAt(
-              q, faceCoords, owner_coords, fid_o,
-              [&](const int i, const int j, const int k, const real_t val) {
+              q, faceCoords, owner_coords, fid_o, normal,
+              [&](const int i, const int j, const real_t val) {
                 int const nfd_j = face_connectivity_local.getNeighborFaceDof(f, j);
                 int const ei = face_to_elem_dof[fid_o][i];
                 int const ej = face_to_elem_dof[fid_o][j];
                 int const ej_perm = face_to_elem_dof[fid_n][nfd_j];
-                float const nk = normal[k];
-                ATOMICADD(priv_o(group_id, i), inv_rho_o * (-0.5f * val * current_field(owner_e, ej) * nk +
-                                                            0.5f * val * current_field(neighbor_e, ej_perm) * nk));
-                ATOMICADD(priv_o(group_id, j), inv_rho_o * (-0.5f * val * current_field(owner_e, ei) * nk));
-                ATOMICADD(priv_n(group_id, nfd_j), inv_rho_o * (0.5f * val * current_field(owner_e, ei) * nk));
+                ATOMICADD(priv_o(group_id, i), inv_rho_o * (-0.5f * val * current_field(owner_e, ej) +
+                                                            0.5f * val * current_field(neighbor_e, ej_perm)));
+                ATOMICADD(priv_o(group_id, j), inv_rho_o * (-0.5f * val * current_field(owner_e, ei)));
+                ATOMICADD(priv_n(group_id, nfd_j), inv_rho_o * (0.5f * val * current_field(owner_e, ei)));
               },
-              [&](const int m, const int j, const int k, const real_t val) {
+              [&](const int m, const int j, const real_t val) {
                 int const nfd_j = face_connectivity_local.getNeighborFaceDof(f, j);
                 int const em = face_to_elem_dof_depth[fid_o][j][m];
                 int const ej = face_to_elem_dof[fid_o][j];
                 int const ej_perm = face_to_elem_dof[fid_n][nfd_j];
-                float const nk = normal[k];
-                norm_o[m] += inv_rho_o * (-0.5f * val * current_field(owner_e, ej) * nk +
-                                          0.5f * val * current_field(neighbor_e, ej_perm) * nk);
-                ATOMICADD(priv_o(group_id, j), inv_rho_o * (-0.5f * val * current_field(owner_e, em) * nk));
-                ATOMICADD(priv_n(group_id, nfd_j), inv_rho_o * (0.5f * val * current_field(owner_e, em) * nk));
+                norm_o[m] += inv_rho_o * (-0.5f * val * current_field(owner_e, ej) +
+                                          0.5f * val * current_field(neighbor_e, ej_perm));
+                ATOMICADD(priv_o(group_id, j), inv_rho_o * (-0.5f * val * current_field(owner_e, em)));
+                ATOMICADD(priv_n(group_id, nfd_j), inv_rho_o * (0.5f * val * current_field(owner_e, em)));
               });
 
           // --- Neighbor side (outward normal = -normal[]) ---
           INTEGRAL_TYPE::computeInterfaceFluxTermAt(
-              q, faceCoords, neighbor_coords, fid_n,
-              [&](const int i, const int j, const int k, const real_t val) {
+              q, faceCoords, neighbor_coords, fid_n, neg_normal,
+              [&](const int i, const int j, const real_t val) {
                 int const ofd_j = face_connectivity_local.getOwnerFaceDof(f, j);
                 int const ei = face_to_elem_dof[fid_n][i];
                 int const ej = face_to_elem_dof[fid_n][j];
                 int const ej_perm = face_to_elem_dof[fid_o][ofd_j];
-                float const nk = -normal[k];
-                ATOMICADD(priv_n(group_id, i), inv_rho_n * (-0.5f * val * current_field(neighbor_e, ej) * nk +
-                                                            0.5f * val * current_field(owner_e, ej_perm) * nk));
-                ATOMICADD(priv_n(group_id, j), inv_rho_n * (-0.5f * val * current_field(neighbor_e, ei) * nk));
-                ATOMICADD(priv_o(group_id, ofd_j), inv_rho_n * (0.5f * val * current_field(neighbor_e, ei) * nk));
+                ATOMICADD(priv_n(group_id, i), inv_rho_n * (-0.5f * val * current_field(neighbor_e, ej) +
+                                                            0.5f * val * current_field(owner_e, ej_perm)));
+                ATOMICADD(priv_n(group_id, j), inv_rho_n * (-0.5f * val * current_field(neighbor_e, ei)));
+                ATOMICADD(priv_o(group_id, ofd_j), inv_rho_n * (0.5f * val * current_field(neighbor_e, ei)));
               },
-              [&](const int m, const int j, const int k, const real_t val) {
+              [&](const int m, const int j, const real_t val) {
                 int const ofd_j = face_connectivity_local.getOwnerFaceDof(f, j);
                 int const em = face_to_elem_dof_depth[fid_n][j][m];
                 int const ej = face_to_elem_dof[fid_n][j];
                 int const ej_perm = face_to_elem_dof[fid_o][ofd_j];
-                float const nk = -normal[k];
-                norm_n[m] += inv_rho_n * (-0.5f * val * current_field(neighbor_e, ej) * nk +
-                                          0.5f * val * current_field(owner_e, ej_perm) * nk);
-                ATOMICADD(priv_n(group_id, j), inv_rho_n * (-0.5f * val * current_field(neighbor_e, em) * nk));
-                ATOMICADD(priv_o(group_id, ofd_j), inv_rho_n * (0.5f * val * current_field(neighbor_e, em) * nk));
+                norm_n[m] += inv_rho_n * (-0.5f * val * current_field(neighbor_e, ej) +
+                                          0.5f * val * current_field(owner_e, ej_perm));
+                ATOMICADD(priv_n(group_id, j), inv_rho_n * (-0.5f * val * current_field(neighbor_e, em)));
+                ATOMICADD(priv_o(group_id, ofd_j), inv_rho_n * (0.5f * val * current_field(neighbor_e, em)));
               });
 
           // The normal lines are off-face, so they bypass the column reduction below. Both callbacks
