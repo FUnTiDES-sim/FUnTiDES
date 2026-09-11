@@ -1873,40 +1873,89 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::ini
 template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE, bool IS_MODEL_ON_NODES, physicType PHYSICS>
 void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::initSpongeValues() {
   const double sigma_max = 0.15;
+  const int n_nodes = m_mesh.getNumberOfNodes();
 
-  for (int n = 0; n < m_mesh.getNumberOfNodes(); n++) {
-    const double x = m_mesh.nodeCoord(n, 0);
-    const double y = m_mesh.nodeCoord(n, 1);
-    const double z = m_mesh.nodeCoord(n, 2);
+  // taper_delta_ is a fraction of the sponge thickness, so the profile spans the
+  // whole layer whatever the units of the mesh. A non-positive value falls back
+  // to a third of the layer, which puts the attenuation knee in its middle.
+  const double delta_ratio = (taper_delta_ > 0.0f) ? static_cast<double>(taper_delta_) : (1.0 / 3.0);
 
-    const double distToFrontierX = (surface_sponge_) ? m_mesh.domainSize(0) - x : min(m_mesh.domainSize(0) - x, x);
-    const double distToFrontierY = min(m_mesh.domainSize(1) - y, y);
-    const double distToFrontierZ = min(m_mesh.domainSize(2) - z, z);
+  // Decide once which of the six faces of the box deserve a sponge layer.
+  // The mesh is asked rather than assuming an axis, because the builders put the
+  // free surface on z_max while a mesh imported from a depth-oriented code puts
+  // it on z_min.
+  bool damp_face[3][2] = {{true, true}, {true, true}, {true, true}};
+  {
+    // A face shared with a neighbour rank carries no boundary flag: the box
+    // below is the local partition, not the global domain, and damping there
+    // would eat the wavefield in the middle of the global domain. One flagged
+    // node is not enough to call a face global, since the nodes along the edge
+    // of an internal face are flagged by the global faces they also touch.
+    bool is_global[3][2] = {{true, true}, {true, true}, {true, true}};
+    bool any_flagged = false;
+    // A corner node lies on three faces at once, so the free surface is the face
+    // that every flagged node shares, not the first one a single node touches.
+    bool all_free[3][2] = {{true, true}, {true, true}, {true, true}};
+    bool any_free = false;
 
-    double minDistToFrontier = max(m_mesh.domainSize(0), max(m_mesh.domainSize(1), m_mesh.domainSize(2)));
+    for (int n = 0; n < n_nodes; n++) {
+      const bool on_boundary = (m_mesh.boundaryType(n) != model::BoundaryFlag::InteriorNode);
+      const bool on_free_surface = m_mesh.isFreeSurface(n);
+      any_flagged = any_flagged || on_boundary;
+      any_free = any_free || on_free_surface;
 
-    bool is_sponge = false;
-    if (distToFrontierX < sponge_size_[0]) {
-      is_sponge = true;
-      minDistToFrontier = min(minDistToFrontier, distToFrontierX);
+      for (int dim = 0; dim < 3; dim++) {
+        const double origin = m_mesh.domainOrigin(dim);
+        const double size = m_mesh.domainSize(dim);
+        const double coord = m_mesh.nodeCoord(n, dim);
+        const double tol = 1.0e-3 * size;
+        const bool touches[2] = {coord - origin <= tol, origin + size - coord <= tol};
+
+        for (int side = 0; side < 2; side++) {
+          if (touches[side] && !on_boundary) is_global[dim][side] = false;
+          if (on_free_surface && !touches[side]) all_free[dim][side] = false;
+        }
+      }
     }
-    if (distToFrontierY < sponge_size_[1]) {
-      is_sponge = true;
-      minDistToFrontier = min(minDistToFrontier, distToFrontierY);
+
+    // A mesh that carries no flag at all carries no partitioning either.
+    if (any_flagged)
+      for (int dim = 0; dim < 3; dim++)
+        for (int side = 0; side < 2; side++) damp_face[dim][side] = is_global[dim][side];
+
+    // Leave the free surface its reflections unless the caller asked for them to
+    // go away.
+    for (int dim = 0; !surface_sponge_ && any_free && dim < 3; dim++) {
+      bool done = false;
+      for (int side = 0; side < 2 && !done; side++) {
+        if (!all_free[dim][side]) continue;
+        damp_face[dim][side] = false;
+        done = true;
+      }
+      if (done) break;
     }
-    if (distToFrontierZ < sponge_size_[2]) {
-      is_sponge = true;
-      minDistToFrontier = min(minDistToFrontier, distToFrontierZ);
+  }
+
+  for (int n = 0; n < n_nodes; n++) {
+    // Deepest penetration into any of the sponge layers wins.
+    double sigma = 0.0;
+    for (int dim = 0; dim < 3; dim++) {
+      const double thickness = sponge_size_[dim];
+      if (thickness <= 0.0) continue;
+
+      // The mesh origin matters: a georeferenced mesh does not start at zero.
+      const double origin = m_mesh.domainOrigin(dim);
+      const double coord = m_mesh.nodeCoord(n, dim);
+      const double to_face[2] = {coord - origin, origin + m_mesh.domainSize(dim) - coord};
+
+      for (int side = 0; side < 2; side++) {
+        if (!damp_face[dim][side] || to_face[side] >= thickness) continue;
+        const double d = max(to_face[side], 0.0) / (delta_ratio * thickness);
+        sigma = max(sigma, sigma_max * std::exp(-d * d));
+      }
     }
 
-    if (is_sponge) {
-      double d = minDistToFrontier;
-      double delta = taper_delta_;
-      double sigma = sigma_max * std::exp(-((d / delta) * (d / delta)));
-      spongeTaperCoeff_(n) = 1.0 / (1.0 + sigma);
-    } else {
-      spongeTaperCoeff_(n) = 1.0;
-    }
+    spongeTaperCoeff_(n) = 1.0 / (1.0 + sigma);
   }
 
   FENCE
