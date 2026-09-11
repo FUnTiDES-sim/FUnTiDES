@@ -121,7 +121,7 @@ class SEMproxy {
 
   std::array<float, 3> sponge_size_ = {0, 0, 0};  ///< Thickness of absorbing boundaries (sponge layers).
   bool surface_sponge_ = false;                   ///< True if the top surface has an absorbing boundary.
-  float taper_delta_ = 0.015f;                    ///< Tapering coefficient for the sponge boundaries.
+  float taper_delta_ = 0.333f;                    ///< Sponge taper decay length, as a fraction of the sponge thickness.
 
   float dt_ = 0.0f;        ///< Time step size (seconds).
   float time_max_ = 0.0f;  ///< Maximum simulation time (seconds).

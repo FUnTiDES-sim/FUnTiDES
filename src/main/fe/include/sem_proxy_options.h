@@ -34,7 +34,7 @@ class SemProxyOptions {
   // sponge boundaries parameters
   float boundaries_size = 0;
   bool surface_sponge = false;
-  float taper_delta = 0.015;
+  float taper_delta = 0.333f;
   // Boolean to tell if the model is charged on nodes or on element
   bool isModelOnNodes = false;
   bool isElastic = false;
@@ -82,8 +82,10 @@ class SemProxyOptions {
         "snap-interval", "Interval on iteration between two snapshots. (default=10)",
         cxxopts::value<int>(o.snap_time_interval))("boundaries-size", "Size of absorbing boundaries (meters)",
                                                    cxxopts::value<float>(o.boundaries_size))(
-        "sponge-surface", "Considere the surface's nodes as non sponge nodes", cxxopts::value<bool>(o.surface_sponge))(
-        "taper-delta", "Taper delta for sponge boundaries value", cxxopts::value<float>(o.taper_delta))(
+        "sponge-surface", "Damp the free surface too, instead of keeping its reflections",
+        cxxopts::value<bool>(o.surface_sponge))(
+        "taper-delta", "Sponge taper decay length, as a fraction of the boundary size",
+        cxxopts::value<float>(o.taper_delta))(
         "is-model-on-nodes",
         "Boolean to tell if the model is charged on nodes (true) or on element "
         "(false)",

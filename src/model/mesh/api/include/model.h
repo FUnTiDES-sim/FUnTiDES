@@ -307,6 +307,16 @@ class ModelApi {
   PROXY_HOST_DEVICE virtual FloatType domainSize(int dim) const = 0;
 
   /**
+   * @brief Get the coordinate of the domain lower corner along a specific dimension
+   * @param dim Dimension index (0=x, 1=y, 2=z)
+   * @return Origin coordinate, so that the domain spans [origin, origin + size]
+   *
+   * Defaults to zero, which is correct for any mesh whose coordinates start at
+   * the origin of the coordinate system.
+   */
+  PROXY_HOST_DEVICE virtual FloatType domainOrigin(int /*dim*/) const { return FloatType(0); }
+
+  /**
    * @brief Get the minimum grid spacing in the mesh
    * @return Minimum spacing between nodes in meters
    */
