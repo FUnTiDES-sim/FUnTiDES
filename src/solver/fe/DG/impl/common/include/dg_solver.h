@@ -204,14 +204,19 @@ class DGsolver : public Solver {
   /**
    * @brief Highest order still served by the one-thread-per-face kernel.
    *
-   * Below the crossover a face has too few quadrature points to spread over a team: the surplus
-   * lanes idle and the team still pays barriers, a scratch reduction and shared-memory atomics.
-   * Measured on the uniform bilayer case at order 2: 17 s flat against 52.2 s teamed, same result.
-   * The team form only earns its overhead once the per-thread accumulator would otherwise spill,
-   * which is the high-order regime. The crossover is hardware-dependent; re-measure on the target
-   * GPU (GH200).
+   * The flat form carries two dynamically indexed accumulators of kPointsPerElement floats per
+   * thread, so its local-memory working set grows as (ORDER+1)^3: 1.0 kB/thread at order 4,
+   * 1.7 kB at order 5, 2.7 kB at order 6 -- 32, 55 and 88 kB per warp against a 256 kB unified
+   * L1. It stays cheap while that fits and falls off a cliff when it stops. The team form sizes
+   * its scratch on the face instead, roughly 110-200 B/thread across the same range, and pays a
+   * fixed overhead of three barriers, shared-memory atomics and a row reduction.
+   *
+   * So flat wins below the crossover and loses above it. Measured on GH200, 40^3 cartesian,
+   * homogeneous: order 4 = 13 s flat against 22 s teamed, order 5 = 68 s flat against 56 s teamed.
+   * Order 2 on the uniform bilayer case: 17 s flat against 52.2 s teamed. Re-measure on another
+   * GPU -- the crossover tracks the L1 size.
    */
-  static constexpr int kMaxOrderForFlatFace = 3;
+  static constexpr int kMaxOrderForFlatFace = 4;
 
   /**
    * @brief Kernel 1b+2 — boundary absorbing damping and SIPG interface flux terms, fused into a

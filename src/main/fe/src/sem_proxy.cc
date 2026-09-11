@@ -1083,6 +1083,9 @@ void SEMproxy::InitSource() {
       case 5:
         SourceAndReceiverUtils::ComputeRHSWeights<5>(corners, coord, out);
         break;
+      case 6:
+        SourceAndReceiverUtils::ComputeRHSWeights<6>(corners, coord, out);
+        break;
       default:
         throw std::runtime_error("Unsupported order: " + std::to_string(ord));
     }
@@ -1214,6 +1217,11 @@ void SEMproxy::InitSource() {
           break;
         case 5:
           SourceAndReceiverUtils::ComputeDASWeightsForSample<5>(sample_corners, sample_coord, das_direction_,
+                                                                integration_consts[i_sample], das_type_,
+                                                                &das_weights_[base_idx]);
+          break;
+        case 6:
+          SourceAndReceiverUtils::ComputeDASWeightsForSample<6>(sample_corners, sample_coord, das_direction_,
                                                                 integration_consts[i_sample], das_type_,
                                                                 &das_weights_[base_idx]);
           break;
@@ -1403,8 +1411,17 @@ void SEMproxy::InitMeshParams(const SemProxyOptions& opt) {
         mesh_ = builder.getModel(opt.free_surface);
         break;
       }
+      case 6: {
+        model::CartesianStructBuilder<float, int, 6> builder(
+            local_params_.ex, local_params_.lx, local_params_.ey, local_params_.ly, local_params_.ez, local_params_.lz,
+            opt.isModelOnNodes, opt.isElastic, local_params_.origin_x, local_params_.origin_y, local_params_.origin_z,
+            -1.0f, -1.0f, -1.0f, 0.0f, 0.0f, 0.0f, opt.isAcoustoElastic, opt.acoustoElasticBoundaryZ,
+            opt.DgSemBoundaryZ, opt.model_file);
+        mesh_ = builder.getModel(opt.free_surface);
+        break;
+      }
       default:
-        throw std::runtime_error("Order other than 1-5 is not supported");
+        throw std::runtime_error("Order other than 1-6 is not supported");
     }
   } else if (mesh_type == meshType::kUnstruct) {
     model::CartesianUnstructBuilder<float, int> builder(local_params_);
