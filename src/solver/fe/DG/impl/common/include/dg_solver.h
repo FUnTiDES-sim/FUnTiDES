@@ -204,19 +204,16 @@ class DGsolver : public Solver {
   /**
    * @brief Highest order still served by the one-thread-per-face kernel.
    *
-   * The flat form carries two dynamically indexed accumulators of kPointsPerElement floats per
-   * thread, so its local-memory working set grows as (ORDER+1)^3: 1.0 kB/thread at order 4,
-   * 1.7 kB at order 5, 2.7 kB at order 6 -- 32, 55 and 88 kB per warp against a 256 kB unified
-   * L1. It stays cheap while that fits and falls off a cliff when it stops. The team form sizes
-   * its scratch on the face instead, roughly 110-200 B/thread across the same range, and pays a
-   * fixed overhead of three barriers, shared-memory atomics and a row reduction.
+   * The teamed form only ever won where the flat one could not fill the device: measured on GH200
+   * at order 6, it beats flat 3x on a 20^3 mesh (25k faces) but loses on 40^3 (197k faces) and on
+   * 100x45x60 (823k faces). Since a production mesh is in the latter regime, the flat form is
+   * served at every order the solver is built for and the teamed body is left uninstantiated --
+   * nvcc arbitrates registers per compilation unit, so a dead second kernel there would still cost
+   * occupancy to the live one.
    *
-   * So flat wins below the crossover and loses above it. Measured on GH200, 40^3 cartesian,
-   * homogeneous: order 4 = 13 s flat against 22 s teamed, order 5 = 68 s flat against 56 s teamed.
-   * Order 2 on the uniform bilayer case: 17 s flat against 52.2 s teamed. Re-measure on another
-   * GPU -- the crossover tracks the L1 size.
+   * Lower this to route high orders back to the teamed body (e.g. 4 sends order 5 and up to it).
    */
-  static constexpr int kMaxOrderForFlatFace = 4;
+  static constexpr int kMaxOrderForFlatFace = 6;
 
   /**
    * @brief Kernel 1b+2 — boundary absorbing damping and SIPG interface flux terms, fused into a
