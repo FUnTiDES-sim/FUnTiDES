@@ -143,7 +143,7 @@ class Qk_Hexahedron_Tensorial_GEMM final {
                              real_t (&B)[6]) {
     jacobianTransformation(qa, qb, qc, X, J);
     real_t const detJ = determinant(J);
-    real_t const invDetJ = real_t(1) / detJ;
+    real_t const invDetJ = 1.0 / detJ;
 
     // J^T.J / det(J), Voigt notation [xx,yy,zz,yz,xz,xy]
     B[0] = (J[0][0] * J[0][0] + J[1][0] * J[1][0] + J[2][0] * J[2][0]) * invDetJ;

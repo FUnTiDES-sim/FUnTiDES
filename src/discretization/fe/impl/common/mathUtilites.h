@@ -102,7 +102,7 @@ static constexpr inline SEMKERNELS_HOST_DEVICE void symInvert(T (&dstSymMatrix)[
 
   T det = srcSymMatrix[0] * dstSymMatrix[0] + srcSymMatrix[5] * dstSymMatrix[5] + srcSymMatrix[4] * dstSymMatrix[4];
 
-  T const invDet = T(1) / det;
+  T const invDet = 1.0 / det;
 
   dstSymMatrix[0] *= invDet;
   dstSymMatrix[5] *= invDet;

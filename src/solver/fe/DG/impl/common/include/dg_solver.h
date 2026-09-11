@@ -204,11 +204,12 @@ class DGsolver : public Solver {
   /**
    * @brief Highest order still served by the one-thread-per-face kernel.
    *
-   * A thread that owns a whole face carries 2*(ORDER+1)^2 floats of accumulator plus the geometry.
-   * At low order that fits in registers and the flat form wins on lane occupancy, since a team would
-   * leave most of a warp idle on the (ORDER+1)^2 quadrature points. Measured on the uniform bilayer
-   * case at order 2: 17 s flat against 52.2 s teamed, same result. Order 3 (16 face dofs) stays
-   * flat. The crossover is hardware-dependent; re-measure it when moving to another GPU.
+   * Below the crossover a face has too few quadrature points to spread over a team: the surplus
+   * lanes idle and the team still pays barriers, a scratch reduction and shared-memory atomics.
+   * Measured on the uniform bilayer case at order 2: 17 s flat against 52.2 s teamed, same result.
+   * The team form only earns its overhead once the per-thread accumulator would otherwise spill,
+   * which is the high-order regime. The crossover is hardware-dependent; re-measure on the target
+   * GPU (GH200).
    */
   static constexpr int kMaxOrderForFlatFace = 3;
 
@@ -315,11 +316,11 @@ class DGsolver : public Solver {
   /**
    * @brief Threads per team in the teamed face kernel.
    *
-   * A team never has more than knumNodesPerFace quadrature points to distribute, and a surplus
-   * thread is not merely idle: it also widens the scratch the team must reserve, which is what caps
-   * occupancy. Capped at one warp, since a smaller team still occupies a full warp on CUDA.
+   * One warp per face. Kept at 32 rather than shrunk to the face-dof count at low order: a smaller
+   * team still occupies a full warp on CUDA, and a team of 16 measured slower on the bilayer
+   * pipeline (118.5 s against 116 s) -- see the scratch-groups work.
    */
-  static constexpr int kFaceTeamSize = (knumNodesPerFace < 32) ? knumNodesPerFace : 32;
+  static constexpr int kFaceTeamSize = 32;
 
   /**
    * @brief Lane-adjacent threads sharing one accumulator row.
@@ -330,9 +331,8 @@ class DGsolver : public Solver {
    */
   static constexpr int kFaceGroupSize = 2;
 
-  /// @brief Accumulator rows per team. Rounded up: kFaceTeamSize is odd at several orders (9 at
-  /// order 2, 25 at order 4) and truncating would let the last thread index one row past the end.
-  static constexpr int kFaceScratchRows = (kFaceTeamSize + kFaceGroupSize - 1) / kFaceGroupSize;
+  /// @brief Accumulator rows per team: one per group of kFaceGroupSize threads.
+  static constexpr int kFaceScratchRows = kFaceTeamSize / kFaceGroupSize;
 
   /// @brief Floats of face-uniform geometry staged in team scratch: the 4 face corner nodes, then
   /// the owner and neighbor element corner vertices, 3 coordinates each. Order-independent.
