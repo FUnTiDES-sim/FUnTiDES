@@ -238,3 +238,129 @@ grad_buoyancy_smooth = grad_buoyancy / nodal_volume
 | Raw `gradKappa[I]` | $\Omega_I \cdot K^\kappa(x_I)$ | Output of `DifferentiatorAcoustic` |
 | Raw `gradBuoyancy[I]` | $\Omega_I \cdot K^b(x_I)$ | Output of `DifferentiatorAcoustic` |
 | Smooth kernel | $K^\kappa(x_I) = G^\kappa_I / \Omega_I$ | Input to line search / model update |
+
+---
+
+## 7. Convolutional PML (C-PML) Absorbing Layer
+
+The sponge layer of §2 is a *non-matched* absorber: it multiplies the field by a taper
+$1/(1+\sigma)$ and reflects a fraction of the incident energy back into the domain. The
+Convolutional PML (C-PML) replaces it with a *matched* absorbing layer that, for a plane
+wave at normal incidence, is reflectionless at the interior interface and attenuates
+exponentially inside the layer.
+
+### 7.1 Stretched-coordinate formulation
+
+In the PML layer the spatial derivative in direction $i$ is replaced by the stretched
+derivative
+
+$$s_i = \kappa_i + \frac{d_i}{\alpha_i + i\omega}, \qquad \frac{\partial}{\partial x_i} \to \frac{1}{s_i}\frac{\partial}{\partial x_i}$$
+
+with $\kappa_i$ the coordinate-stretching factor, $d_i$ the damping profile and $\alpha_i$
+the frequency-shift parameter. The second-order acoustic equation inside the layer
+becomes
+
+$$\frac{1}{\kappa}\frac{\partial^2 p}{\partial t^2} = \nabla \cdot \left(\frac{1}{\rho}\,\widetilde{\nabla p}\right)$$
+
+where the stretched gradient is written in terms of a memory variable $\psi_i$
+(Komatitsch & Martin 2007):
+
+$$\widetilde{\nabla p}_i = \frac{1}{\kappa_i}\frac{\partial p}{\partial x_i} - \frac{1}{\kappa_i}\psi_i, \qquad
+\frac{\partial \psi_i}{\partial t} + \left(\alpha_i + \frac{d_i}{\kappa_i}\right)\psi_i = \frac{d_i}{\kappa_i}\frac{\partial p}{\partial x_i}$$
+
+The memory variables are advanced with the exact first-order convolution
+(Wang, Lee & Teixeira 2006, eq. 21):
+
+$$\psi_i^{n+1} = c^0_i\,\psi_i^n + c^1_i\left(\frac{\partial p}{\partial x_i}\right)^n, \qquad
+c^0_i = e^{-(\alpha_i + d_i/\kappa_i)\,dt}, \qquad
+c^1_i = \frac{d_i/\kappa_i}{\alpha_i + d_i/\kappa_i}\left(1 - c^0_i\right)$$
+
+The weak form is obtained by multiplying by a test function $v$ and integrating by
+parts. The implemented kernel uses the **two-sided** (weighted) form: both the trial
+gradient and the divergence of the test function are stretched,
+
+$$\int_\Omega \frac{1}{\kappa}\frac{\partial^2 p}{\partial t^2}\,v\,d\Omega
+\;+\; \int_\Omega \left(\frac{1}{\kappa}\nabla v\right)\cdot\left(\frac{1}{\kappa}\,\widetilde{\nabla p}\right)d\Omega = 0$$
+
+The divergence stretch introduces a second memory variable $\chi_i$ per direction,
+advanced by the same convolution as $\psi_i$ but driven by the flux divergence
+$\partial_i G_i$ (the reference divergence of the assembled flux $G = w\,\alpha\,\det
+J\,J^{-1}\widetilde{\nabla p}$) instead of the pressure gradient. Both memory variables
+are used at their *current* time level in the stretched quantities and advanced to the
+next level afterwards, so the force at step $n$ uses $\psi^n,\chi^n$ — the standard
+C-PML timing. Note that the $\frac{1}{\kappa}$ factor on the mass term is *not*
+applied in the implementation (see §7.3); the stiffness operator is stretched on both
+sides. This two-sided (weighted) form is a valid C-PML variant for the second-order
+form — note that the canonical reference implementation (SPECFEM3D, Komatitsch et al.)
+stretches only the trial gradient and leaves the divergence unstretched; both absorb,
+and the two-sided form is what the sum-factorization kernel computes here.
+
+### 7.2 Profiles
+
+With $\delta$ the distance from the inner edge of the layer and $L$ its thickness, the
+profiles are (Komatitsch & Martin 2007):
+
+$$d_i(\delta) = d_{\max}\left(\frac{\delta}{L}\right)^N, \qquad
+\kappa_i(\delta) = 1 + (\kappa_{\max}-1)\left(\frac{\delta}{L}\right)^N, \qquad
+\alpha_i(\delta) = \alpha_{\max}\left(1 - \frac{\delta}{L}\right)^N$$
+
+$$d_{\max} = -\frac{(N+1)\,v_p}{2L}\,\ln R$$
+
+where $R$ is the target reflection coefficient, $N$ the profile exponent (default 2,
+quadratic), $v_p$ the local P velocity, $\kappa_{\max}$ the maximum coordinate stretch
+(default 1 = none) and $\alpha_{\max}$ the maximum frequency shift (default 0).
+
+### 7.3 Implementation notes
+
+- **Kernel.** `computeStiffnessTermSumFactPML` (both the makutu and tensorial backends)
+  computes the reference gradient, the physical gradient $\nabla p = J^{-T}\nabla_\xi p$,
+  builds the stretched gradient and assembles the flux
+  $G = w\,\alpha\,\det J\,J^{-1}\widetilde{\nabla p}$ followed by the stretched
+  divergence. The memory variables are advanced *inside* the stiffness kernel, so no
+  separate memory-variable pass is needed.
+- **Two-sided stretching.** Both the trial gradient and the divergence of the test
+  function are stretched, each with its own memory variable:
+  $$\widetilde{\nabla p}_i = \frac{1}{\kappa_i}\left(\frac{\partial p}{\partial x_i} - \psi_i\right), \qquad
+  \widetilde{\mathrm{div}}_i = \frac{1}{\kappa_i}\left(\partial_i G_i - \chi_i\right)$$
+  with $\psi_i$ (gradient memory) and $\chi_i$ (divergence memory) advanced by the same
+  first-order convolution,
+  $$\psi_i^{n+1} = c^0_i\,\psi_i^n + c^1_i\left(\frac{\partial p}{\partial x_i}\right)^n, \qquad
+  \chi_i^{n+1} = c^0_i\,\chi_i^n + c^1_i\left(\partial_i G_i\right)^n$$
+  Both are used at their *current* time level in the stretched quantities and advanced
+  to the next level afterwards, so the force at step $n$ uses $\psi^n,\chi^n$ — the
+  standard C-PML timing. With a zero profile ($d=0$, $\kappa=1$) $\psi_i$ and $\chi_i$
+  stay zero and the stretched quantities equal the unstretched ones, so the PML kernel
+  reduces exactly to `computeStiffnessTermSumFact`. This is the consistency test oracle.
+- **Mass term.** The mass matrix is *not* stretched: the $\frac{1}{\kappa}$ factor on
+  $\partial^2 p/\partial t^2$ in §7.1 is not applied in `computeMassTerm`. The
+  implemented PML therefore stretches only the stiffness operator (both gradients),
+  a valid C-PML variant; the mass stretch is a higher-order correction that is not
+  needed for the absorbing behaviour.
+- **Storage.** Coefficients are stored per node (`pmlCoefficients_`, 18 floats/node:
+  $d,\kappa,\alpha,c^0,c^1,c^2$ per direction). The memory variables are stored per element
+  per GLL point (`pmlMemoryVariables_`, $6\times(r+1)^3$ per element: $\psi$ and $\chi$,
+  3 components each) because the gradient is element-local — a per-node storage would
+  race on shared nodes.
+- **Interaction with other boundaries.** In the PML region the sponge taper is set to 1
+  (no double absorption) and the first-order absorbing BC of §2 is disabled (the PML
+  replaces it). The free-surface condition is unaffected.
+- **GEMM path.** The tensorial GEMM path precomputes $W = w\,\alpha\,B$, which is only
+  valid for the unstretched operator. When the PML is enabled, the acoustic contribution
+  is routed through the sum-factorization (Flat) kernel instead.
+- **Adjoint mode.** The memory variables are advanced by the forward convolution inside
+  the stiffness kernel. In backward/adjoint mode (`updateFieldsBackward`) the same kernel
+  runs, but the convolution is not time-reversed, so the PML is not strictly
+  adjoint-consistent there. Forward-mode PML absorption is unaffected.
+
+### 7.4 CLI
+
+```
+--pml-size <meters>        PML thickness (0 = disabled, sponge used)
+--pml-profile <N>          profile exponent (default 2)
+--pml-reflection <R>       target reflection coefficient (default 1e-3)
+--pml-alpha-max <a>        max frequency shift (default 0)
+--pml-kappa-max <k>        max coordinate stretch (default 1)
+```
+
+The PML is only implemented for the acoustic physics; for elastic or acousto-elastic
+simulations the flags are ignored.

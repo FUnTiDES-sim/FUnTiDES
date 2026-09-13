@@ -38,6 +38,10 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::com
   allocateFEarrays();
   initFEarrays();
 
+  // C-PML setup (allocates coefficient/memory-variable arrays and fills the
+  // per-node profiles). No-op when pmlEnabled_ is false.
+  setupPML();
+
   // Compute Local Mass Matrix
   computeGlobalMassMatrix();
   // Compute Local Damping Matrix
@@ -341,8 +345,16 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::com
 template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE, bool IS_MODEL_ON_NODES, physicType PHYSICS>
 void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::computeElementContributions_Acoustic(
     const DataType& data) {
+  // The C-PML path needs the per-GLL-point memory variables and stretched
+  // gradient, so it always uses the sum-factorization (Flat) kernel — the
+  // GEMM path precomputes W = w·alpha·B which is only valid for the
+  // unstretched operator.
   if constexpr (detail::has_team_gemm<INTEGRAL_TYPE>::value) {
-    computeElementContributions_Acoustic_Gemm(data);  // tensorial -> GEMM
+    if (pmlEnabled_) {
+      computeElementContributions_Acoustic_Flat(data);
+    } else {
+      computeElementContributions_Acoustic_Gemm(data);  // tensorial -> GEMM
+    }
   } else {
     computeElementContributions_Acoustic_Flat(data);  // makutu (Gauss-Lobatto) -> flat
   }
@@ -360,6 +372,12 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::com
   for (int f = 0; f < kNumFields; ++f) {
     local_workVectorsGlobal[f] = workVectorsGlobal_[f];
   }
+
+  // C-PML state captured by value (device copies of the Views).
+  bool const pml_enabled = pmlEnabled_;
+  auto pml_coeff = pmlCoefficients_;
+  auto pml_mem = pmlMemoryVariables_;
+  auto pml_elem_mask = pmlElementMask_;
 
   using Policy = Kokkos::RangePolicy<Kokkos::LaunchBounds<LaunchMaxThreadsPerBlock, LaunchMinBlocksPerSM>>;
 
@@ -399,15 +417,42 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::com
           inv_density = 1.0f / mesh_local.getModelRhoOnElement(elementNumber);
         }
 
-        INTEGRAL_TYPE::computeStiffnessTermSumFact(
-            cornerCoords, localFields[0], localWork[0], [&](const int qa, const int qb, const int qc) -> real_t {
-              if constexpr (IS_MODEL_ON_NODES) {
+        auto get_alpha = [&](const int qa, const int qb, const int qc) -> real_t {
+          if constexpr (IS_MODEL_ON_NODES) {
+            int const gIndex = mesh_local.globalNodeIndex(elementNumber, qa, qb, qc);
+            return 1.0f / mesh_local.getModelRhoOnNodes(gIndex);
+          } else {
+            return inv_density;
+          }
+        };
+
+        if (pml_enabled && pml_elem_mask(elementNumber) == 1) {
+          // C-PML path: load the per-element memory variables (psi for the
+          // trial gradient, chi for the divergence), advance them in place
+          // inside the kernel, and store them back.
+          float mem_local[6][kPointsPerElement];
+          for (int j = 0; j < 6; ++j)
+            for (int q = 0; q < kPointsPerElement; ++q)
+              mem_local[j][q] = pml_mem(elementNumber, j * kPointsPerElement + q);
+
+          INTEGRAL_TYPE::computeStiffnessTermSumFactPML(
+              cornerCoords, localFields[0], localWork[0], mem_local, get_alpha,
+              [&](const int qa, const int qb, const int qc, real_t (&kappa)[3], real_t (&coef0)[3],
+                  real_t (&coef1)[3]) {
                 int const gIndex = mesh_local.globalNodeIndex(elementNumber, qa, qb, qc);
-                return 1.0f / mesh_local.getModelRhoOnNodes(gIndex);
-              } else {
-                return inv_density;
-              }
-            });
+                for (int j = 0; j < 3; ++j) {
+                  kappa[j] = pml_coeff(gIndex, 3 + j);
+                  coef0[j] = pml_coeff(gIndex, 9 + j);
+                  coef1[j] = pml_coeff(gIndex, 12 + j);
+                }
+              });
+
+          for (int j = 0; j < 6; ++j)
+            for (int q = 0; q < kPointsPerElement; ++q)
+              pml_mem(elementNumber, j * kPointsPerElement + q) = mem_local[j][q];
+        } else {
+          INTEGRAL_TYPE::computeStiffnessTermSumFact(cornerCoords, localFields[0], localWork[0], get_alpha);
+        }
 
         for (int k = 0; k < dim; ++k) {
           for (int j = 0; j < dim; ++j) {
@@ -1707,6 +1752,11 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::com
 
 template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE, bool IS_MODEL_ON_NODES, physicType PHYSICS>
 void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::computeDampingMatrix() {
+  // Zero the damping array before assembly: faces may be skipped (PML
+  // replaces the first-order absorbing BC, or a domain mask), so nodes not
+  // touched by any face must read 0, not uninitialized memory.
+  for (int f = 0; f < kNumFields; ++f) Kokkos::deep_copy(dampingMatrixGlobal_[f], 0.0f);
+
   auto mesh_local = m_mesh;
   bool const mask_enabled = m_mask_enabled_;
   auto element_mask = m_element_mask_;
@@ -1716,6 +1766,12 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::com
   for (int f = 0; f < kNumFields; ++f) {
     local_dampingMatrixGlobal[f] = dampingMatrixGlobal_[f];
   }
+
+  // C-PML: the first-order absorbing boundary condition (1/(rho*vp)) is
+  // replaced by the PML layer, so boundary faces whose nodes lie in the PML
+  // must not contribute to the damping matrix.
+  bool const pml_enabled = pmlEnabled_;
+  auto pml_node_mask = pmlNodeIndex_;
 
   Kokkos::parallel_for(
       "Solver Compute Damping Matrix",
@@ -1730,6 +1786,19 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::com
 
           // Skip internal faces (only process boundary faces)
           if (!mesh_local.isBoundaryFace(f)) continue;
+
+          // Skip faces whose nodes lie in the PML layer (C-PML replaces the
+          // first-order absorbing BC).
+          if (pml_enabled) {
+            bool face_in_pml = false;
+            for (int q = 0; q < (ORDER + 1) * (ORDER + 1); ++q) {
+              if (pml_node_mask(mesh_local.getGlobalNodeFromFace(f, q)) == 1) {
+                face_in_pml = true;
+                break;
+              }
+            }
+            if (face_in_pml) continue;
+          }
 
           // Get corner coordinates of the face for integration
           float coords[4][3];
@@ -1908,6 +1977,100 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::ini
       spongeTaperCoeff_(n) = 1.0;
     }
   }
+
+  FENCE
+}
+
+//============================================================================
+// setupPML - Allocate and fill C-PML coefficient / memory-variable arrays
+//============================================================================
+
+template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE, bool IS_MODEL_ON_NODES, physicType PHYSICS>
+void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::setupPML() {
+  if (!pmlEnabled_) return;
+
+  int const nNodes = m_mesh.getNumberOfNodes();
+  int const nElems = m_mesh.getNumberOfElements();
+  constexpr int kPmlStride = 18;  // d(3) + kappa(3) + alpha(3) + coef0/1/2(9)
+
+  pmlCoefficients_ = allocateArray2D<arrayReal>(nNodes, kPmlStride, "pmlCoefficients");
+  pmlNodeIndex_ = allocateVector<vectorInt>(nNodes, "pmlNodeIndex");
+  pmlElementMask_ = allocateVector<vectorInt>(nElems, "pmlElementMask");
+  pmlMemoryVariables_ = allocateArray2D<arrayReal>(nElems, 6 * kPointsPerElement, "pmlMemoryVariables");
+
+  // Domain extent for the profile distance computation.
+  float domainSize[3];
+  domainSize[0] = m_mesh.domainSize(0);
+  domainSize[1] = m_mesh.domainSize(1);
+  domainSize[2] = m_mesh.domainSize(2);
+
+  // Fill per-node coefficients and the per-node PML mask.
+  // For element-based models, build a node->element map once (linear in the
+  // number of nodes) so the P velocity at a node can be read from the first
+  // element touching it.
+  std::vector<int> nodeElem;
+  if constexpr (!IS_MODEL_ON_NODES) {
+    nodeElem.assign(nNodes, -1);
+    for (int e = 0; e < nElems; ++e)
+      for (int k = 0; k < ORDER + 1; ++k)
+        for (int j = 0; j < ORDER + 1; ++j)
+          for (int i = 0; i < ORDER + 1; ++i) {
+            int const g = m_mesh.globalNodeIndex(e, i, j, k);
+            if (nodeElem[g] < 0) nodeElem[g] = e;
+          }
+  }
+
+  for (int n = 0; n < nNodes; ++n) {
+    float const x = m_mesh.nodeCoord(n, 0);
+    float const y = m_mesh.nodeCoord(n, 1);
+    float const z = m_mesh.nodeCoord(n, 2);
+
+    // P velocity at the node (scales d_max).
+    float vp = 0.0f;
+    if constexpr (IS_MODEL_ON_NODES) {
+      vp = m_mesh.getModelVpOnNodes(n);
+    } else {
+      vp = m_mesh.getModelVpOnElement(nodeElem[n]);
+    }
+
+    PmlCoefficients pc;
+    fillPmlCoefficients(x, y, z, domainSize, pml_size_.data(), pml_dt_, vp, pml_profile_, pml_reflection_,
+                        pml_alpha_max_, pml_kappa_max_, pc);
+
+    pmlNodeIndex_(n) = pc.isPml ? 1 : 0;
+    // Direct indexed writes: correct under both LayoutLeft (CUDA default) and
+    // LayoutRight. A raw-pointer walk (&view(n,0)+i) would follow the memory
+    // layout and scramble the coefficients on LayoutLeft views.
+    for (int i = 0; i < 3; ++i) {
+      pmlCoefficients_(n, i) = pc.d[i];
+      pmlCoefficients_(n, 3 + i) = pc.kappa[i];
+      pmlCoefficients_(n, 6 + i) = pc.alpha[i];
+      pmlCoefficients_(n, 9 + i) = pc.coef0[i];
+      pmlCoefficients_(n, 12 + i) = pc.coef1[i];
+      pmlCoefficients_(n, 15 + i) = pc.coef2[i];
+    }
+  }
+
+  // Per-element PML mask: 1 if any GLL point of the element lies in the PML.
+  for (int e = 0; e < nElems; ++e) {
+    int mask = 0;
+    for (int k = 0; k < ORDER + 1 && !mask; ++k)
+      for (int j = 0; j < ORDER + 1 && !mask; ++j)
+        for (int i = 0; i < ORDER + 1 && !mask; ++i)
+          if (pmlNodeIndex_(m_mesh.globalNodeIndex(e, i, j, k)) == 1) mask = 1;
+    pmlElementMask_(e) = mask;
+  }
+
+  // Disable the sponge taper inside the PML layer: the C-PML replaces the
+  // sponge, and applying both would double-absorb and reflect. The taper was
+  // filled by initSpongeValues() before setupPML() ran.
+  for (int n = 0; n < nNodes; ++n) {
+    if (pmlNodeIndex_(n) == 1) spongeTaperCoeff_(n) = 1.0f;
+  }
+
+  // Zero the memory variables (psi: 3 gradient + chi: 3 divergence).
+  for (int e = 0; e < nElems; ++e)
+    for (int q = 0; q < 6 * kPointsPerElement; ++q) pmlMemoryVariables_(e, q) = 0.0f;
 
   FENCE
 }

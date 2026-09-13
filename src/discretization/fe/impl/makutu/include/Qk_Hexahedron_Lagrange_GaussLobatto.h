@@ -560,6 +560,48 @@ class Qk_Hexahedron_Lagrange_GaussLobatto {
                                                             real_t (&f_local)[numNodes], FUNC_ALPHA &&get_alpha);
 
   /**
+   * @brief C-PML acoustic stiffness K_PML·p via sum factorization.
+   *
+   * Computes the PML-modified elemental contribution for the second-order
+   * acoustic equation with stretched gradient (Komatitsch & Tromp 2003):
+   *
+   *   (K_PML p)_i = ∫ 1/ρ Σ_j (1/κ_j) ∂_j φ_i (∂_j p − ψ_j)
+   *
+   * where ψ_j are the per-direction gradient memory variables satisfying
+   *
+   *   dψ_j/dt + (α_j + d_j/κ_j) ψ_j = (d_j/κ_j) ∂_j p
+   *
+   * and κ_j is the coordinate-stretching profile. The memory variables are
+   * advanced in place with the first-order convolution (Wang, Lee & Teixeira
+   * 2006, eq. 21):
+   *
+   *   ψ_j^{n+1} = coef0_j ψ_j^n + coef1_j (∂_j p)^n
+   *
+   * using the gradient of the current pressure field, so the kernel both
+   * assembles the stiffness and advances the memory variables to the next
+   * time level. With κ_j = 1 and ψ_j = 0 the kernel reduces exactly to
+   * computeStiffnessTermSumFact.
+   *
+   * @tparam FUNC_ALPHA Callable `real_t(int qa,int qb,int qc)` returning 1/ρ.
+   * @tparam FUNC_PML   Callable
+   *   `void(int qa,int qb,int qc, real_t (&kappa)[3], real_t (&coef0)[3],
+   *   real_t (&coef1)[3])` returning the per-direction stretching κ and the
+   *   convolution coefficients at the GLL point.
+   * @param X 8 corner coordinates of the hexahedral element.
+   * @param p_local       Pressure at element nodes (size numNodes).
+   * @param f_local       Force accumulation buffer (size numNodes), added to.
+   * @param mem_local     Memory variables (6 × numNodes): rows 0-2 = gradient
+   *                      ψ_j, rows 3-5 = divergence χ_j; read as ψ^n/χ^n and
+   *                      written back as ψ^{n+1}/χ^{n+1}.
+   * @param get_alpha     1/ρ callback.
+   * @param get_pml       κ/coef0/coef1 callback.
+   */
+  template <typename FUNC_ALPHA, typename FUNC_PML>
+  PROXY_HOST_DEVICE static void computeStiffnessTermSumFactPML(
+      float const (&X)[8][3], real_t const (&p_local)[numNodes], real_t (&f_local)[numNodes],
+      real_t (&mem_local)[6][numNodes], FUNC_ALPHA &&get_alpha, FUNC_PML &&get_pml);
+
+  /**
    * @brief Computes the "Grad(Phi)*B*Grad(Phi)" coefficient of the stiffness
    * term. The matrix B must be provided and Phi denotes a basis function.
    * @param qa The 1d quadrature point index in xi0 direction (0,1)
@@ -1360,6 +1402,133 @@ PROXY_HOST_DEVICE void Qk_Hexahedron_Lagrange_GaussLobatto<GL_BASIS>::computeSti
   });
 }
 
+template <typename GL_BASIS>
+template <typename FUNC_ALPHA, typename FUNC_PML>
+PROXY_HOST_DEVICE void Qk_Hexahedron_Lagrange_GaussLobatto<GL_BASIS>::computeStiffnessTermSumFactPML(
+    float const (&X)[8][3], real_t const (&p_local)[numNodes], real_t (&f_local)[numNodes],
+    real_t (&mem_local)[6][numNodes], FUNC_ALPHA &&get_alpha, FUNC_PML &&get_pml) {
+  // Two-sided C-PML weighted stretched fluxes (Komatitsch & Martin 2007):
+  // both the trial gradient and the divergence are stretched,
+  //   grad_p_stretched[j] = (grad_p[j] - psi[j]) / kappa[j]
+  //   div_stretched[j]    = (divF[j] - chi[j]) / kappa[j]
+  // with the memory variables psi (gradient) and chi (divergence) advanced by
+  // the first-order convolution
+  //   psi[j] <- coef0[j] * psi[j] + coef1[j] * grad_p[j]
+  //   chi[j] <- coef0[j] * chi[j] + coef1[j] * divF[j]
+  // The memory variables are used at their CURRENT time level (psi^n, chi^n)
+  // in the stretched quantities and advanced to n+1 afterwards, so the force
+  // at step n uses psi^n — the standard C-PML timing. With a zero profile
+  // (psi=chi=0, kappa=1) this reduces exactly to
+  // computeStiffnessTermSumFact, since B = detJ * (J^T J)^{-1}.
+  real_t G_xi[numNodes] = {0};
+  real_t G_eta[numNodes] = {0};
+  real_t G_zeta[numNodes] = {0};
+
+  // Pass 1+2: reference gradient of p, physical gradient, stretched gradient
+  // (using psi at its current level), memory-variable advance, then metric +
+  // alpha + weight.
+  triple_loop<num1dNodes, num1dNodes, num1dNodes>([&](auto const icqa, auto const icqb, auto const icqc) {
+    constexpr int qa = decltype(icqa)::value;
+    constexpr int qb = decltype(icqb)::value;
+    constexpr int qc = decltype(icqc)::value;
+    constexpr int q = GL_BASIS::TensorProduct3D::linearIndex(qa, qb, qc);
+    constexpr real_t w = GL_BASIS::weight(qa) * GL_BASIS::weight(qb) * GL_BASIS::weight(qc);
+
+    // Reference gradient of p.
+    real_t dxi_q = 0, deta_q = 0, dzeta_q = 0;
+    for_constexpr<num1dNodes>([&](auto ici) {
+      constexpr int i = decltype(ici)::value;
+      constexpr int ibc = GL_BASIS::TensorProduct3D::linearIndex(i, qb, qc);
+      constexpr int aic = GL_BASIS::TensorProduct3D::linearIndex(qa, i, qc);
+      constexpr int abi = GL_BASIS::TensorProduct3D::linearIndex(qa, qb, i);
+      dxi_q += basisGradientAt(i, qa) * p_local[ibc];
+      deta_q += basisGradientAt(i, qb) * p_local[aic];
+      dzeta_q += basisGradientAt(i, qc) * p_local[abi];
+    });
+
+    // Jacobian (inverted in-place, returns det).
+    real_t J[3][3] = {{0}};
+    jacobianTransformation(qa, qb, qc, X, J);
+    real_t const detJ = invert3x3(J);
+
+    // Physical gradient grad_p = J^{-T} · grad_ref.
+    real_t grad_p[3];
+    grad_p[0] = J[0][0] * dxi_q + J[1][0] * deta_q + J[2][0] * dzeta_q;
+    grad_p[1] = J[0][1] * dxi_q + J[1][1] * deta_q + J[2][1] * dzeta_q;
+    grad_p[2] = J[0][2] * dxi_q + J[1][2] * deta_q + J[2][2] * dzeta_q;
+
+    // PML coefficients at this GLL point.
+    real_t kappa[3], coef0[3], coef1[3];
+    get_pml(qa, qb, qc, kappa, coef0, coef1);
+
+    // Stretched gradient using psi at its current level, then advance psi.
+    // C-PML (Komatitsch & Martin 2007): with s_x = kappa + d/(alpha + i*omega),
+    //   1/s_x = (1/kappa)[1 - (d/kappa)/(alpha + d/kappa + i*omega)]
+    // so the stretched gradient is
+    //   grad_p_stretched = (grad_p - psi)/kappa
+    // with the memory variable satisfying
+    //   d psi/dt + (alpha + d/kappa) psi = (d/kappa) grad_p
+    // advanced by the exact convolution (Wang/Lee/Teixeira 2006):
+    //   psi <- coef0*psi + coef1*grad_p,  coef1 = (d/kappa)/a * (1 - coef0).
+    // The MINUS sign inside the parentheses is essential: with a plus sign the
+    // steady-state stretched gradient vanishes (psi -> grad_p), turning the
+    // PML into a hard wall.
+    real_t grad_p_stretched[3];
+    for (int j = 0; j < 3; ++j) {
+      grad_p_stretched[j] = (grad_p[j] - mem_local[j][q]) / kappa[j];
+      mem_local[j][q] = coef0[j] * mem_local[j][q] + coef1[j] * grad_p[j];
+    }
+
+    // Flux: w * alpha * detJ * (J^{-1} · grad_p_stretched).
+    real_t const scale = w * get_alpha(qa, qb, qc) * detJ;
+    G_xi[q] = scale * (J[0][0] * grad_p_stretched[0] + J[0][1] * grad_p_stretched[1] + J[0][2] * grad_p_stretched[2]);
+    G_eta[q] = scale * (J[1][0] * grad_p_stretched[0] + J[1][1] * grad_p_stretched[1] + J[1][2] * grad_p_stretched[2]);
+    G_zeta[q] = scale * (J[2][0] * grad_p_stretched[0] + J[2][1] * grad_p_stretched[1] + J[2][2] * grad_p_stretched[2]);
+  });
+
+  // Pass 3: stretched divergence. The three reference divergences are computed
+  // separately (D^T·G^ξ, D^T·G^η, D^T·G^ζ), each stretched by its own
+  // direction's memory variable chi (divergence stretch), then summed:
+  //   f_{ia,ib,ic} += (divF_xi - chi_xi)/kappa_xi
+  //                 + (divF_eta - chi_eta)/kappa_eta
+  //                 + (divF_zeta - chi_zeta)/kappa_zeta
+  triple_loop<num1dNodes, num1dNodes, num1dNodes>([&](auto const icia, auto const icib, auto const icic) {
+    constexpr int ia = decltype(icia)::value;
+    constexpr int ib = decltype(icib)::value;
+    constexpr int ic = decltype(icic)::value;
+    constexpr int node = GL_BASIS::TensorProduct3D::linearIndex(ia, ib, ic);
+
+    real_t divF_xi = 0, divF_eta = 0, divF_zeta = 0;
+    for_constexpr<num1dNodes>([&](auto icqa) {
+      constexpr int qa = decltype(icqa)::value;
+      constexpr int q_xi = GL_BASIS::TensorProduct3D::linearIndex(qa, ib, ic);
+      divF_xi += basisGradientAt(ia, qa) * G_xi[q_xi];
+    });
+    for_constexpr<num1dNodes>([&](auto icqb) {
+      constexpr int qb = decltype(icqb)::value;
+      constexpr int q_eta = GL_BASIS::TensorProduct3D::linearIndex(ia, qb, ic);
+      divF_eta += basisGradientAt(ib, qb) * G_eta[q_eta];
+    });
+    for_constexpr<num1dNodes>([&](auto icqc) {
+      constexpr int qc = decltype(icqc)::value;
+      constexpr int q_zeta = GL_BASIS::TensorProduct3D::linearIndex(ia, ib, qc);
+      divF_zeta += basisGradientAt(ic, qc) * G_zeta[q_zeta];
+    });
+
+    // PML coefficients at this node (same profile as in pass 1).
+    real_t kappa[3], coef0[3], coef1[3];
+    get_pml(ia, ib, ic, kappa, coef0, coef1);
+
+    // Stretched divergence using chi at its current level, then advance chi.
+    real_t divF[3] = {divF_xi, divF_eta, divF_zeta};
+    real_t v = 0;
+    for (int j = 0; j < 3; ++j) {
+      v += (divF[j] - mem_local[3 + j][node]) / kappa[j];
+      mem_local[3 + j][node] = coef0[j] * mem_local[3 + j][node] + coef1[j] * divF[j];
+    }
+    f_local[node] += v;
+  });
+}
 template <typename GL_BASIS>
 template <typename FUNC1, typename FUNC2>
 PROXY_HOST_DEVICE void Qk_Hexahedron_Lagrange_GaussLobatto<GL_BASIS>::computeStiffNessTermwithJac(
