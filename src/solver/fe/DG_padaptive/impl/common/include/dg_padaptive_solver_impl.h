@@ -303,6 +303,9 @@ void DGPAdaptiveSolver<ORDER_MIN, ORDER_MAX, INTEGRAL_SELECTOR, IMPL_TAG, MESH_T
   arrayReal stiff_pMax = m_pMax_solver_.m_stiff_local_;
   auto const min_face_to_elem_dof = pMinSolver::kFaceToElemDof;
   auto const max_face_to_elem_dof = pMaxSolver::kFaceToElemDof;
+  // pMax side only: the pMin-side flux call evaluates on a fictitious ORDER_MAX-resolution
+  // representation of the pMin box, so its depth index has no matching real pMin dof.
+  auto const max_face_to_elem_dof_depth = pMaxSolver::kFaceToElemDofAtDepth;
   real_t const penalty_local = m_penalty_factor_;
   arrayReal mortar_projection_local = m_mortar_projection;
 
@@ -380,36 +383,74 @@ void DGPAdaptiveSolver<ORDER_MIN, ORDER_MAX, INTEGRAL_SELECTOR, IMPL_TAG, MESH_T
           }
         }
 
-        // Flux computation on pMin element with INTEGRAL_TYPE_MAX
-        INTEGRAL_TYPE_MAX::computeInterfaceFluxTerm(
-            faceCoords, pMin_coords, fid_pMin, [&](const int i, const int j, const int k, const real_t val) {
-              int const j_perm = pMin_to_pMax(j);
-              int const ej_perm = max_face_to_elem_dof[fid_pMax][j_perm];
-              float const nk = normal_pMin[k];
-              stiff_min_mortar[i] +=
-                  inv_rho_min * nk * (-0.5f * val * pField_mortar[j] + 0.5f * val * pField_pMax(pMax_e, ej_perm));
-              stiff_min_mortar[j] += inv_rho_min * nk * (-0.5f * val * pField_mortar[i]);
-              stiff_max[j_perm] += inv_rho_min * nk * (0.5f * val * pField_mortar[i]);
-            });
+        float const neg_normal_pMin[3] = {-normal_pMin[0], -normal_pMin[1], -normal_pMin[2]};
+        real_t const half_min = 0.5f * inv_rho_min;
+        real_t const half_max = 0.5f * inv_rho_max;
+
+        // One quadrature point at a time, both sides fused, at ORDER_MAX resolution. The contracted
+        // callbacks fold sum_k C_ijk * n_k, so each contribution fires once instead of once per
+        // physical direction; and since they always fire with j == q, everything derived from j is
+        // hoisted here rather than recomputed at every firing.
+        for (int q = 0; q < pMaxSolver::knumNodesPerFace; ++q) {
+          // pMax consistency channel: off-face dofs, so they bypass the face-sized rows.
+          float norm_max[ORDER_MAX + 1] = {0};
+
+          int const q_to_max = pMin_to_pMax(q);
+          int const ej_perm = max_face_to_elem_dof[fid_pMax][q_to_max];
+          int const ej_max = max_face_to_elem_dof[fid_pMax][q];
+          int const q_to_min = pMax_to_pMin(q);
+
+          real_t const dp_min = half_min * (pField_pMax(pMax_e, ej_perm) - pField_mortar[q]);
+          real_t const dp_max = half_max * (pField_mortar[q_to_min] - pField_pMax(pMax_e, ej_max));
+
+          // The two other contributions of each side land on fixed slots with equal magnitude and
+          // opposite sign, so one register carries both and is flushed once below.
+          float acc_min = 0.0f;
+          float acc_max = 0.0f;
+
+          // --- pMin side (outward normal = normal_pMin[]) ---
+          INTEGRAL_TYPE_MAX::computeInterfaceFluxTermAt(
+              q, faceCoords, pMin_coords, fid_pMin, normal_pMin,
+              [&](const int i, const int, const real_t val) {
+                stiff_min_mortar[i] += val * dp_min;
+                acc_min -= half_min * val * pField_mortar[i];
+              },
+              // Dropped, not omitted: the pMin box is only a fictitious ORDER_MAX grid here, so the
+              // depth index addresses no real pMin dof. The single-callback form used to route these
+              // onto the face dof, where they cancel -- sum_i phi_i'(x) = d/dx(1) = 0 -- so nothing
+              // is lost by not accumulating them.
+              [&](const int, const int, const real_t) {});
+
+          // --- pMax side (outward normal = -normal_pMin[]) ---
+          INTEGRAL_TYPE_MAX::computeInterfaceFluxTermAt(
+              q, faceCoords, pMax_coords, fid_pMax, neg_normal_pMin,
+              [&](const int i, const int, const real_t val) {
+                stiff_max[i] += val * dp_max;
+                acc_max -= half_max * val * pField_pMax(pMax_e, max_face_to_elem_dof[fid_pMax][i]);
+              },
+              [&](const int m, const int, const real_t val) {
+                norm_max[m] += val * dp_max;
+                acc_max -= half_max * val * pField_pMax(pMax_e, max_face_to_elem_dof_depth[fid_pMax][q][m]);
+              });
+
+          // Negation is exact in IEEE-754, so mirroring each register onto the opposite side gives
+          // the value the callbacks would have accumulated there.
+          stiff_min_mortar[q] += acc_min;
+          stiff_max[q_to_max] -= acc_min;
+          stiff_max[q] += acc_max;
+          stiff_min_mortar[q_to_min] -= acc_max;
+
+          // Off-face, so this bypasses the face-sized flush. Atomic because several faces of the
+          // same pMax element write these dofs.
+          for (int m = 0; m <= ORDER_MAX; ++m)
+            ATOMICADD(stiff_pMax(pMax_e, max_face_to_elem_dof_depth[fid_pMax][q][m]), norm_max[m]);
+        }
 
         for (int i = 0; i < pMaxSolver::knumNodesPerFace; ++i) {
           int const ei_perm = max_face_to_elem_dof[fid_pMax][pMin_to_pMax(i)];
           stiff_min_mortar[i] += gamma_iface * INTEGRAL_TYPE_MAX::computeDampingTerm(i, faceCoords) *
                                  (pField_mortar[i] - pField_pMax(pMax_e, ei_perm));
         }
-
-        // Flux computation on pMax element with INTEGRAL_TYPE_MAX
-        INTEGRAL_TYPE_MAX::computeInterfaceFluxTerm(
-            faceCoords, pMax_coords, fid_pMax, [&](const int i, const int j, const int k, const real_t val) {
-              int const ei = max_face_to_elem_dof[fid_pMax][i];
-              int const ej = max_face_to_elem_dof[fid_pMax][j];
-              int const j_perm = pMax_to_pMin(j);
-              float const nk = -normal_pMin[k];
-              stiff_max[i] +=
-                  inv_rho_max * nk * (-0.5f * val * pField_pMax(pMax_e, ej) + 0.5f * val * pField_mortar[j_perm]);
-              stiff_max[j] += inv_rho_max * nk * (-0.5f * val * pField_pMax(pMax_e, ei));
-              stiff_min_mortar[j_perm] += inv_rho_max * nk * (0.5f * val * pField_pMax(pMax_e, ei));
-            });
 
         for (int i = 0; i < pMaxSolver::knumNodesPerFace; ++i) {
           int const ei = max_face_to_elem_dof[fid_pMax][i];

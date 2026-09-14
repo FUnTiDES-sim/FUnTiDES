@@ -267,6 +267,7 @@ void DGSEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::A
   vectorReal work_sem = m_SEm_solver_.getForceVector(0);
   arrayReal stiff_dg = m_DG_solver_.m_stiff_local_;
   auto const face_to_elem_dof = dgSolver::kFaceToElemDof;
+  auto const face_to_elem_dof_depth = dgSolver::kFaceToElemDofAtDepth;
   real_t const penalty_local = m_penalty_factor_;
 
   Kokkos::parallel_for(
@@ -333,16 +334,84 @@ void DGSEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::A
         // per-thread local-memory footprint and an all-element atomic flush of mostly zeros.
         float stiff_dg_local[knumNodesPerFace] = {0};
 
-        INTEGRAL_TYPE::computeInterfaceFluxTerm(
-            faceCoords, dg_coords, fid_dg, [&](const int i, const int j, const int k, const real_t val) {
-              int const ei = face_to_elem_dof[fid_dg][i];
-              int const ej = face_to_elem_dof[fid_dg][j];
-              int const gn_j = face_connectivity_local.getGlobalNodeFromFace(f, dg_to_sem(j));
-              float const nk = normal_dg[k];
-              stiff_dg_local[i] += inv_rho_dg * nk * (-0.5f * val * p_DG(dg_e, ej) + 0.5f * val * p_SEM(gn_j));
-              stiff_dg_local[j] += inv_rho_dg * nk * (-0.5f * val * p_DG(dg_e, ei));
-              ATOMICADD(work_sem(gn_j), inv_rho_dg * nk * (0.5f * val * p_DG(dg_e, ei)));
-            });
+        float const neg_normal_dg[3] = {-normal_dg[0], -normal_dg[1], -normal_dg[2]};
+        real_t const half_dg = 0.5f * inv_rho_dg;
+        real_t const half_sem = 0.5f * inv_rho_sem;
+
+        // The SEM side numbers its dofs globally, so a depth dof has to be resolved through the
+        // mesh. faceLocalToElemLocalAtDepth() and globalNodeIndex() already agree on the element
+        // dof layout (i + j*n + k*n^2), so this only undoes that packing.
+        auto sem_node_at = [&](int const elem_dof) {
+          constexpr int n = ORDER + 1;
+          return mesh_local.globalNodeIndex(sem_e, elem_dof % n, (elem_dof / n) % n, elem_dof / (n * n));
+        };
+
+        // One quadrature point at a time, both sides fused, mirroring the DG interior kernel. The
+        // contracted callbacks fold sum_k C_ijk * n_k, so each contribution fires once instead of
+        // once per physical direction; and since they always fire with j == q, everything derived
+        // from j is hoisted here rather than recomputed at every firing.
+        for (int q = 0; q < knumNodesPerFace; ++q) {
+          // Face-normal accumulators: these dofs are off-face, so they bypass the face-sized row.
+          // This is the SIPG consistency channel, which the previous single-callback form collapsed
+          // onto the face dof, where it summed to zero.
+          float norm_dg[ORDER + 1] = {0};
+          float norm_sem[ORDER + 1] = {0};
+
+          int const sem_q = dg_to_sem(q);
+          int const gn_dg_q = face_connectivity_local.getGlobalNodeFromFace(f, sem_q);
+          int const ej_dg = face_to_elem_dof[fid_dg][q];
+          int const gn_sem_q = face_connectivity_local.getGlobalNodeFromFace(f, q);
+          int const dg_q = sem_to_dg(q);
+          int const ej_perm = face_to_elem_dof[fid_dg][dg_q];
+
+          // The pressure jump at q seen from each side; the first contribution of every callback is
+          // exactly val times it.
+          real_t const dp_dg = half_dg * (p_SEM(gn_dg_q) - p_DG(dg_e, ej_dg));
+          real_t const dp_sem = half_sem * (p_DG(dg_e, ej_perm) - p_SEM(gn_sem_q));
+
+          // The two other contributions of each side land on fixed slots with equal magnitude and
+          // opposite sign, so one register carries both and is flushed once below.
+          float acc_dg = 0.0f;
+          float acc_sem = 0.0f;
+
+          // --- DG side (outward normal = normal_dg[]) ---
+          INTEGRAL_TYPE::computeInterfaceFluxTermAt(
+              q, faceCoords, dg_coords, fid_dg, normal_dg,
+              [&](const int i, const int, const real_t val) {
+                stiff_dg_local[i] += val * dp_dg;
+                acc_dg -= half_dg * val * p_DG(dg_e, face_to_elem_dof[fid_dg][i]);
+              },
+              [&](const int m, const int, const real_t val) {
+                norm_dg[m] += val * dp_dg;
+                acc_dg -= half_dg * val * p_DG(dg_e, face_to_elem_dof_depth[fid_dg][q][m]);
+              });
+
+          // --- SEM side (outward normal = -normal_dg[]) ---
+          INTEGRAL_TYPE::computeInterfaceFluxTermAt(
+              q, faceCoords, sem_coords, fid_sem, neg_normal_dg,
+              [&](const int i, const int, const real_t val) {
+                int const gn_i = face_connectivity_local.getGlobalNodeFromFace(f, i);
+                ATOMICADD(work_sem(gn_i), val * dp_sem);
+                acc_sem -= half_sem * val * p_SEM(gn_i);
+              },
+              [&](const int m, const int, const real_t val) {
+                norm_sem[m] += val * dp_sem;
+                acc_sem -= half_sem * val * p_SEM(sem_node_at(face_to_elem_dof_depth[fid_sem][q][m]));
+              });
+
+          // Negation is exact in IEEE-754, so mirroring each register onto the opposite side gives
+          // the value the callbacks would have accumulated there.
+          stiff_dg_local[q] += acc_dg;
+          ATOMICADD(work_sem(gn_dg_q), -acc_dg);
+          ATOMICADD(work_sem(gn_sem_q), acc_sem);
+          stiff_dg_local[dg_q] -= acc_sem;
+
+          // Off-face dofs, so they bypass the face-sized flush at the end of the kernel.
+          for (int m = 0; m <= ORDER; ++m) {
+            ATOMICADD(stiff_dg(dg_e, face_to_elem_dof_depth[fid_dg][q][m]), norm_dg[m]);
+            ATOMICADD(work_sem(sem_node_at(face_to_elem_dof_depth[fid_sem][q][m])), norm_sem[m]);
+          }
+        }
 
         for (int i = 0; i < knumNodesPerFace; ++i) {
           int const ei = face_to_elem_dof[fid_dg][i];
@@ -350,19 +419,6 @@ void DGSEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::A
           stiff_dg_local[i] +=
               gamma_dg * INTEGRAL_TYPE::computeDampingTerm(i, faceCoords) * (p_DG(dg_e, ei) - p_SEM(gn_i));
         }
-
-        INTEGRAL_TYPE::computeInterfaceFluxTerm(
-            faceCoords, sem_coords, fid_sem, [&](const int i, const int j, const int k, const real_t val) {
-              int const gn_i = face_connectivity_local.getGlobalNodeFromFace(f, i);
-              int const gn_j = face_connectivity_local.getGlobalNodeFromFace(f, j);
-              int const sd_j = sem_to_dg(j);
-              int const ej_perm = face_to_elem_dof[fid_dg][sd_j];
-              float const nk = -normal_dg[k];  // SEM outward = -DG outward
-              stiff_dg_local[sd_j] += inv_rho_sem * nk * (0.5f * val * p_SEM(gn_i));
-              ATOMICADD(work_sem(gn_i),
-                        inv_rho_sem * nk * (-0.5f * val * p_SEM(gn_j) + 0.5f * val * p_DG(dg_e, ej_perm)));
-              ATOMICADD(work_sem(gn_j), inv_rho_sem * nk * (-0.5f * val * p_SEM(gn_i)));
-            });
 
         for (int i = 0; i < knumNodesPerFace; ++i) {
           int const gn_i = face_connectivity_local.getGlobalNodeFromFace(f, i);
