@@ -126,6 +126,19 @@ TEST_F(DGPAdaptiveSolverAcousticTest, ComputeFEInit_Succeeds) {
   EXPECT_EQ(nElem_, 8);
 }
 
+// Nothing else in this suite checks what TagElements() and BuildInteriorFaceLists() produced, so a
+// fixture that tagged every element with the same order would still pass every test below while
+// leaving the whole mortar coupling kernel unexecuted.
+TEST_F(DGPAdaptiveSolverAcousticTest, ElementPartitionIsConsistent) {
+  const int kNPMin = solver_.getNumPMinElements();
+  const int kNPMax = solver_.getNumPMaxElements();
+
+  EXPECT_GT(kNPMin, 0) << "no pMin element: the p-adaptive path is never taken";
+  EXPECT_GT(kNPMax, 0) << "no pMax element: the p-adaptive path is never taken";
+  EXPECT_EQ(kNPMin + kNPMax, nElem_) << "every element must carry exactly one order";
+  EXPECT_GT(solver_.getNumInterfaceFaces(), 0) << "a split mesh must have pMin/pMax interface faces";
+}
+
 TEST_F(DGPAdaptiveSolverAcousticTest, ComputeFEInit_IncompatibleMeshThrows) {
   // A ModelStruct<float,int,3> is a different C++ type from ModelStruct<float,int,2>.
   // The dynamic_cast in computeFEInit must fail and throw.

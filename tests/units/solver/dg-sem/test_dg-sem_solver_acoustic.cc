@@ -120,6 +120,19 @@ TEST_F(DGSEMsolverAcousticTest, ComputeFEInit_Succeeds) {
   EXPECT_EQ(nElem_, 8);
 }
 
+// Nothing else in this suite checks how the mesh was split between the two sub-solvers, so a
+// fixture that put every element on one side would still pass every test below while leaving the
+// whole DG/SEM coupling kernel unexecuted.
+TEST_F(DGSEMsolverAcousticTest, ElementPartitionIsConsistent) {
+  const int kNDG = solver_.getNumDGElements();
+  const int kNSEm = solver_.getNumSEmElements();
+
+  EXPECT_GT(kNDG, 0) << "no DG element: the coupling path is never taken";
+  EXPECT_GT(kNSEm, 0) << "no SEM element: the coupling path is never taken";
+  EXPECT_EQ(kNDG + kNSEm, nElem_) << "every element belongs to exactly one sub-solver";
+  EXPECT_GT(solver_.getNumInterfaceFaces(), 0) << "a coupled mesh must have DG/SEM interface faces";
+}
+
 TEST_F(DGSEMsolverAcousticTest, ComputeFEInit_IncompatibleMeshThrows) {
   // A ModelStruct<float,int,2> is a different C++ type from ModelStruct<float,int,1>.
   // The dynamic_cast in computeFEInit must fail and throw.
