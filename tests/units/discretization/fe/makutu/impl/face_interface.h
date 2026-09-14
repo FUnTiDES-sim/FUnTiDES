@@ -171,18 +171,24 @@ TYPED_TEST(InterfaceFluxTest, ReproducesNormalDerivativeOfLinearField) {
     const int kDir = faceId / 2;
     const int kQFixed = (faceId % 2 == 0) ? 0 : num1dNodes - 1;
 
+    // Contracting against e_kDir selects the k == kDir component the uncontracted form used to
+    // report separately: the callback value is kVal * (invJ3D[.] . n) * grad, which for n = e_kDir
+    // is exactly the old C_i,j,kDir.
+    real_t normal[3] = {0, 0, 0};
+    normal[kDir] = 1.0;
+
     real_t acc[numNodesPerFace] = {0};
-    QK::computeInterfaceFluxTerm(
-        X, X8, faceId,
-        // Tangential channel: i is a face dof, where p takes its face-constant value.
-        [&](int i, int j, int k, real_t Cijk) {
-          (void)i;
-          if (k == kDir) acc[j] += coord1d[kQFixed] * Cijk;
-        },
-        // Normal channel: m is the depth along the line through face dof j, where p varies.
-        [&](int m, int j, int k, real_t Cijk) {
-          if (k == kDir) acc[j] += coord1d[m] * Cijk;
-        });
+    // One quadrature point at a time, so the face loop lives here rather than inside the primitive.
+    for (int q = 0; q < numNodesPerFace; ++q)
+      QK::computeInterfaceFluxTermAt(
+          q, X, X8, faceId, normal,
+          // Tangential channel: i is a face dof, where p takes its face-constant value.
+          [&](int i, int j, real_t Cij) {
+            (void)i;
+            acc[j] += coord1d[kQFixed] * Cij;
+          },
+          // Normal channel: m is the depth along the line through face dof j, where p varies.
+          [&](int m, int j, real_t Cij) { acc[j] += coord1d[m] * Cij; });
 
     for (int j = 0; j < numNodesPerFace; ++j)
       EXPECT_NEAR(acc[j], QK::computeDampingTerm(j, X), TOL_NUMERICAL) << "faceId=" << faceId << ", face dof " << j;
