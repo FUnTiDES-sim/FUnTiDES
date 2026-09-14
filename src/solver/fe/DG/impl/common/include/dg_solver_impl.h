@@ -278,60 +278,70 @@ void DGsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::comp
           float norm_o[ORDER + 1] = {0};
           float norm_n[ORDER + 1] = {0};
 
+          // Both callbacks always fire with j == q, so everything the payload derives from j is
+          // invariant over the whole point: hoisted here, where it is evaluated once, instead of
+          // inside the callbacks, where it was re-evaluated at each of the 3*(ORDER+1) firings per
+          // side -- the two face-dof permutations among them being virtual calls.
+          int const nfd_q = face_connectivity_local.getNeighborFaceDof(f, q);
+          int const ofd_q = face_connectivity_local.getOwnerFaceDof(f, q);
+          int const ej_o = face_to_elem_dof[fid_o][q];
+          int const ej_o_perm = face_to_elem_dof[fid_n][nfd_q];
+          int const ej_n = face_to_elem_dof[fid_n][q];
+          int const ej_n_perm = face_to_elem_dof[fid_o][ofd_q];
+
+          real_t const half_o = 0.5f * inv_rho_o;
+          real_t const half_n = 0.5f * inv_rho_n;
+
+          // The pressure jump across the face at q, seen from each side. The first contribution of
+          // both callbacks is exactly val times this, so two field gathers and an add per firing
+          // collapse into one multiply.
+          real_t const dp_o = half_o * (current_field(neighbor_e, ej_o_perm) - current_field(owner_e, ej_o));
+          real_t const dp_n = half_n * (current_field(owner_e, ej_n_perm) - current_field(neighbor_e, ej_n));
+
+          // The two other contributions of each side land on fixed slots -- j and its image on the
+          // opposite side -- with the same magnitude and opposite signs, so one register carries
+          // both and is flushed once below. That takes the 42 dynamically indexed read-modify-writes
+          // they cost per side per point out of local memory, which is the pipe ncu measures as the
+          // kernel's busiest.
+          float acc_o = 0.0f;
+          float acc_n = 0.0f;
+
           // --- Owner side (outward normal = normal[]) ---
           // Normal-contracted callbacks: the discretization folds sum_k C_ijk * n_k, so each
           // contribution fires once instead of once per physical direction, dividing the local-memory
           // traffic on stiff_o/stiff_n by three.
           INTEGRAL_TYPE::computeInterfaceFluxTermAt(
               q, faceCoords, owner_coords, fid_o, normal,
-              [&](const int i, const int j, const real_t val) {
-                int const nfd_j = face_connectivity_local.getNeighborFaceDof(f, j);
-                int const ei = face_to_elem_dof[fid_o][i];
-                int const ej = face_to_elem_dof[fid_o][j];
-                int const ej_perm = face_to_elem_dof[fid_n][nfd_j];
-                stiff_o[i] += inv_rho_o * (-0.5f * val * current_field(owner_e, ej) +
-                                           0.5f * val * current_field(neighbor_e, ej_perm));
-                stiff_o[j] += inv_rho_o * (-0.5f * val * current_field(owner_e, ei));
-                stiff_n[nfd_j] += inv_rho_o * (0.5f * val * current_field(owner_e, ei));
+              [&](const int i, const int, const real_t val) {
+                stiff_o[i] += val * dp_o;
+                acc_o -= half_o * val * current_field(owner_e, face_to_elem_dof[fid_o][i]);
               },
-              [&](const int m, const int j, const real_t val) {
-                int const nfd_j = face_connectivity_local.getNeighborFaceDof(f, j);
-                int const em = face_to_elem_dof_depth[fid_o][j][m];
-                int const ej = face_to_elem_dof[fid_o][j];
-                int const ej_perm = face_to_elem_dof[fid_n][nfd_j];
-                norm_o[m] += inv_rho_o * (-0.5f * val * current_field(owner_e, ej) +
-                                          0.5f * val * current_field(neighbor_e, ej_perm));
-                stiff_o[j] += inv_rho_o * (-0.5f * val * current_field(owner_e, em));
-                stiff_n[nfd_j] += inv_rho_o * (0.5f * val * current_field(owner_e, em));
+              [&](const int m, const int, const real_t val) {
+                norm_o[m] += val * dp_o;
+                acc_o -= half_o * val * current_field(owner_e, face_to_elem_dof_depth[fid_o][q][m]);
               });
 
           // --- Neighbor side (outward normal = -normal[]) ---
           INTEGRAL_TYPE::computeInterfaceFluxTermAt(
               q, faceCoords, neighbor_coords, fid_n, neg_normal,
-              [&](const int i, const int j, const real_t val) {
-                int const ofd_j = face_connectivity_local.getOwnerFaceDof(f, j);
-                int const ei = face_to_elem_dof[fid_n][i];
-                int const ej = face_to_elem_dof[fid_n][j];
-                int const ej_perm = face_to_elem_dof[fid_o][ofd_j];
-                stiff_n[i] += inv_rho_n * (-0.5f * val * current_field(neighbor_e, ej) +
-                                           0.5f * val * current_field(owner_e, ej_perm));
-                stiff_n[j] += inv_rho_n * (-0.5f * val * current_field(neighbor_e, ei));
-                stiff_o[ofd_j] += inv_rho_n * (0.5f * val * current_field(neighbor_e, ei));
+              [&](const int i, const int, const real_t val) {
+                stiff_n[i] += val * dp_n;
+                acc_n -= half_n * val * current_field(neighbor_e, face_to_elem_dof[fid_n][i]);
               },
-              [&](const int m, const int j, const real_t val) {
-                int const ofd_j = face_connectivity_local.getOwnerFaceDof(f, j);
-                int const em = face_to_elem_dof_depth[fid_n][j][m];
-                int const ej = face_to_elem_dof[fid_n][j];
-                int const ej_perm = face_to_elem_dof[fid_o][ofd_j];
-                norm_n[m] += inv_rho_n * (-0.5f * val * current_field(neighbor_e, ej) +
-                                          0.5f * val * current_field(owner_e, ej_perm));
-                stiff_n[j] += inv_rho_n * (-0.5f * val * current_field(neighbor_e, em));
-                stiff_o[ofd_j] += inv_rho_n * (0.5f * val * current_field(neighbor_e, em));
+              [&](const int m, const int, const real_t val) {
+                norm_n[m] += val * dp_n;
+                acc_n -= half_n * val * current_field(neighbor_e, face_to_elem_dof_depth[fid_n][q][m]);
               });
 
-          // The normal lines are off-face, so they bypass the face-sized flush below. Both callbacks
-          // always fire with j == q, so the line is the one through face dof q on each side, in that
-          // side's own face numbering.
+          // Negation is exact in IEEE-754, so mirroring each register onto the opposite side is the
+          // same value the callbacks would have accumulated there.
+          stiff_o[q] += acc_o;
+          stiff_n[nfd_q] -= acc_o;
+          stiff_n[q] += acc_n;
+          stiff_o[ofd_q] -= acc_n;
+
+          // The normal lines are off-face, so they bypass the face-sized flush below. With j == q the
+          // line is the one through face dof q on each side, in that side's own face numbering.
           for (int m = 0; m <= ORDER; ++m) {
             ATOMICADD(stiff_local_view(owner_e, face_to_elem_dof_depth[fid_o][q][m]), norm_o[m]);
             ATOMICADD(stiff_local_view(neighbor_e, face_to_elem_dof_depth[fid_n][q][m]), norm_n[m]);
