@@ -492,8 +492,7 @@ class Qk_Hexahedron_Lagrange_GaussLobatto {
   template <typename FUNC, typename FUNC_NORMAL>
   PROXY_HOST_DEVICE static void computeGradPhiPhiAt(int const qa, int const qb, int const kDir, int const kQFixed,
                                                     real_t const (&kX)[4][3], real_t const (&invJ3D)[3][3],
-                                                    real_t const (&kNormal)[3], FUNC &&func,
-                                                    FUNC_NORMAL &&funcNormal);
+                                                    real_t const (&kNormal)[3], FUNC &&func, FUNC_NORMAL &&funcNormal);
 
   /**
    * @brief Normal-contracted variant of the two-channel computeInterfaceFluxTermAt().
@@ -1201,8 +1200,8 @@ PROXY_HOST_DEVICE void Qk_Hexahedron_Lagrange_GaussLobatto<GL_BASIS>::computeGra
 template <typename GL_BASIS>
 template <typename FUNC, typename FUNC_NORMAL>
 PROXY_HOST_DEVICE void Qk_Hexahedron_Lagrange_GaussLobatto<GL_BASIS>::computeInterfaceFluxTermAt(
-    int const q, real_t const (&kX)[4][3], real_t const (&X8)[8][3], int const kFaceId,
-    real_t const (&kNormal)[3], FUNC &&func, FUNC_NORMAL &&funcNormal) {
+    int const q, real_t const (&kX)[4][3], real_t const (&X8)[8][3], int const kFaceId, real_t const (&kNormal)[3],
+    FUNC &&func, FUNC_NORMAL &&funcNormal) {
   const int kDir = kFaceId / 2;
   const int kQFixed = (kFaceId % 2 == 0) ? 0 : num1dNodes - 1;
   int qa, qb;

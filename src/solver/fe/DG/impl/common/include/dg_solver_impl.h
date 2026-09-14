@@ -388,20 +388,20 @@ void DGsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::comp
   using ExecSpace = Kokkos::DefaultExecutionSpace;
   using TeamPolicyType = Kokkos::TeamPolicy<ExecSpace>;
   using TeamMember = typename TeamPolicyType::member_type;
-  using ScratchView1D =
-      Kokkos::View<float *, Kokkos::LayoutRight, ExecSpace::scratch_memory_space, Kokkos::MemoryTraits<Kokkos::Unmanaged>>;
-  using ScratchView2D = Kokkos::View<float **, Kokkos::LayoutRight, ExecSpace::scratch_memory_space,
+  using ScratchView1D = Kokkos::View<float*, Kokkos::LayoutRight, ExecSpace::scratch_memory_space,
+                                     Kokkos::MemoryTraits<Kokkos::Unmanaged>>;
+  using ScratchView2D = Kokkos::View<float**, Kokkos::LayoutRight, ExecSpace::scratch_memory_space,
                                      Kokkos::MemoryTraits<Kokkos::Unmanaged>>;
 
   // One team (one warp) per face, its threads spread over the face's (ORDER+1)^2 quadrature
   // points. A TeamThreadRange is correct whatever team size the backend hands back.
   TeamPolicyType policy(n_iter, kFaceTeamSize);
-  policy.set_scratch_size(0, Kokkos::PerTeam(ScratchView2D::shmem_size(kFaceScratchRows, knumNodesPerFace) * 2 +
-                                            ScratchView1D::shmem_size(kFaceGeomFloats) +
-                                            ScratchView1D::shmem_size(2)));
+  policy.set_scratch_size(0,
+                          Kokkos::PerTeam(ScratchView2D::shmem_size(kFaceScratchRows, knumNodesPerFace) * 2 +
+                                          ScratchView1D::shmem_size(kFaceGeomFloats) + ScratchView1D::shmem_size(2)));
 
   Kokkos::parallel_for(
-      "DG BoundaryDamping+InterfaceFlux Team", policy, KOKKOS_LAMBDA(const TeamMember &team) {
+      "DG BoundaryDamping+InterfaceFlux Team", policy, KOKKOS_LAMBDA(const TeamMember& team) {
         int const f = list_on ? list_local[team.league_rank()] : team.league_rank();
 
         // Allocated unconditionally, before the branch below, so every thread of the team walks the
@@ -413,9 +413,9 @@ void DGsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::comp
 
         // The discretization primitives take C-array references, so the geometry buffer is viewed as
         // the fixed-size arrays they expect. Layout: faceCoords | owner_coords | neighbor_coords.
-        auto &faceCoords = *reinterpret_cast<float(*)[4][3]>(geom.data());
-        auto &owner_coords = *reinterpret_cast<float(*)[8][3]>(geom.data() + 12);
-        auto &neighbor_coords = *reinterpret_cast<float(*)[8][3]>(geom.data() + 36);
+        auto& faceCoords = *reinterpret_cast<float(*)[4][3]>(geom.data());
+        auto& owner_coords = *reinterpret_cast<float(*)[8][3]>(geom.data() + 12);
+        auto& neighbor_coords = *reinterpret_cast<float(*)[8][3]>(geom.data() + 36);
 
         // f is a per-team value, so this branch is uniform across the team: the whole team takes the
         // same side and the early return leaves nobody behind at a later barrier.
@@ -458,7 +458,8 @@ void DGsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::comp
             mesh_local.vertexCoords(mesh_local.globalVertexIndex(eIdx_o, v % 2, (v / 2) % 2, v / 4), owner_coords[v]);
           } else {
             int const v = p - 12;
-            mesh_local.vertexCoords(mesh_local.globalVertexIndex(eIdx_n, v % 2, (v / 2) % 2, v / 4), neighbor_coords[v]);
+            mesh_local.vertexCoords(mesh_local.globalVertexIndex(eIdx_n, v % 2, (v / 2) % 2, v / 4),
+                                    neighbor_coords[v]);
           }
         });
 
