@@ -77,10 +77,10 @@ TEST(SpongeTaperTest, TaperAttenuatesAcrossTheWholeLayer) {
     if (d >= kSponge) interior = std::min(interior, taper(n));
   }
 
-  EXPECT_LT(boundary, 0.9f);          // 1 / (1 + sigma_max) with sigma_max = 0.15
-  EXPECT_GT(mid_layer, boundary);     // damping decays inwards
-  EXPECT_LT(mid_layer, 1.0f);         // but is still active in the middle of the layer
-  EXPECT_FLOAT_EQ(interior, 1.0f);    // and stops at the inner edge
+  EXPECT_LT(boundary, 0.9f);        // 1 / (1 + sigma_max) with sigma_max = 0.15
+  EXPECT_GT(mid_layer, boundary);   // damping decays inwards
+  EXPECT_LT(mid_layer, 1.0f);       // but is still active in the middle of the layer
+  EXPECT_FLOAT_EQ(interior, 1.0f);  // and stops at the inner edge
 }
 
 TEST(SpongeTaperTest, TaperFollowsAShiftedDomainOrigin) {

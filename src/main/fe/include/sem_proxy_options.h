@@ -83,9 +83,9 @@ class SemProxyOptions {
         cxxopts::value<int>(o.snap_time_interval))("boundaries-size", "Size of absorbing boundaries (meters)",
                                                    cxxopts::value<float>(o.boundaries_size))(
         "sponge-surface", "Damp the free surface too, instead of keeping its reflections",
-        cxxopts::value<bool>(o.surface_sponge))(
-        "taper-delta", "Sponge taper decay length, as a fraction of the boundary size",
-        cxxopts::value<float>(o.taper_delta))(
+        cxxopts::value<bool>(o.surface_sponge))("taper-delta",
+                                                "Sponge taper decay length, as a fraction of the boundary size",
+                                                cxxopts::value<float>(o.taper_delta))(
         "is-model-on-nodes",
         "Boolean to tell if the model is charged on nodes (true) or on element "
         "(false)",
