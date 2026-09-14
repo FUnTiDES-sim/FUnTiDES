@@ -135,21 +135,20 @@ TYPED_TEST(InterfaceFluxTest, InterfaceFluxIsZero) {
   X[3][1] = 1.0;
   X[3][2] = 0.0;
 
-  real_t CKK[numNodesPerFace][numNodesPerFace][3] = {{{0}}};
-  for (int faceId = 0; faceId < 6; ++faceId) {
-    QK::computeInterfaceFluxTerm(X, X8, faceId, [&](int i, int j, int k, real_t Cijk) { CKK[i][j][k] += Cijk; });
+  // Contracting against (1,1,1) sums the three physical components the uncontracted form used to
+  // report separately, so this checks the same quantity as before: sum over i, j, k of C_ijk. It
+  // vanishes because every channel carries a factor sum_i dPhi_i/dxi, the derivative of the
+  // partition of unity. Both callbacks feed the same sum: together they span every contribution.
+  real_t const normal[3] = {1.0, 1.0, 1.0};
 
-    real_t SumGrad[3] = {0};
-    real_t Sum;
-    for (int i = 0; i < numNodesPerFace; ++i) {
-      for (int j = 0; j < numNodesPerFace; ++j) {
-        for (int k = 0; k < 3; ++k) {
-          SumGrad[k] += CKK[i][j][k];
-        }
-      }
-    }
-    Sum = SumGrad[0] + SumGrad[1] + SumGrad[2];
-    EXPECT_NEAR(Sum, 0.0, TOL_NUMERICAL) << "Sum of all CKK coefficients should be zero";
+  for (int faceId = 0; faceId < 6; ++faceId) {
+    real_t sum = 0.0;
+    for (int q = 0; q < numNodesPerFace; ++q)
+      QK::computeInterfaceFluxTermAt(
+          q, X, X8, faceId, normal, [&](int, int, real_t Cij) { sum += Cij; },
+          [&](int, int, real_t Cij) { sum += Cij; });
+
+    EXPECT_NEAR(sum, 0.0, TOL_NUMERICAL) << "Sum of all interface flux coefficients should be zero, faceId=" << faceId;
   }
 }
 

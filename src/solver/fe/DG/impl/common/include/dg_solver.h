@@ -202,35 +202,19 @@ class DGsolver : public Solver {
   void computeVolumeAndBoundary(int kNumElem, arrayReal current_field);
 
   /**
-   * @brief Highest order still served by the one-thread-per-face kernel.
-   *
-   * The teamed form only ever won where the flat one could not fill the device: measured on GH200
-   * at order 6, it beats flat 3x on a 20^3 mesh (25k faces) but loses on 40^3 (197k faces) and on
-   * 100x45x60 (823k faces). Since a production mesh is in the latter regime, the flat form is
-   * served at every order the solver is built for and the teamed body is left uninstantiated --
-   * nvcc arbitrates registers per compilation unit, so a dead second kernel there would still cost
-   * occupancy to the live one.
-   *
-   * Lower this to route high orders back to the teamed body (e.g. 4 sends order 5 and up to it).
-   */
-  static constexpr int kMaxOrderForFlatFace = 6;
-
-  /**
    * @brief Kernel 1b+2 — boundary absorbing damping and SIPG interface flux terms, fused into a
    * single face-loop (mutually exclusive per face, disjoint accumulators).
    *
-   * Dispatches to the flat or the teamed body on ORDER; see kMaxOrderForFlatFace.
+   * One thread per face. A teamed variant (one warp per face, face-dof accumulators in team
+   * scratch) was measured and dropped: on GH200 at order 6 it beats this form 3x on a 20^3 mesh
+   * (25k faces) but loses on 40^3 (197k) and on 100x45x60 (823k), i.e. it only ever won where one
+   * thread per face could not fill the device. Face count, not order, is what moves that crossover,
+   * and a production mesh is always past it. Kept as dg-face-teampolicy-contracted.patch.
+   *
    * @param kNumFaces Total number of faces (interior + boundary).
    * @param current_field Pressure field at current time step p^n.
    */
   void computeBoundaryDampingAndInterfaceFlux(int kNumFaces, arrayReal current_field);
-
-  /// @brief One thread per face. See computeBoundaryDampingAndInterfaceFlux().
-  void computeBoundaryDampingAndInterfaceFlux_Flat(int kNumFaces, arrayReal current_field);
-
-  /// @brief One team per face, face-dof accumulators in shared memory. See
-  /// computeBoundaryDampingAndInterfaceFlux().
-  void computeBoundaryDampingAndInterfaceFlux_Team(int kNumFaces, arrayReal current_field);
 
   /**
    * @brief Kernel 3 — Verlet time update.
@@ -314,31 +298,6 @@ class DGsolver : public Solver {
   static constexpr int knumNodesPerFace = DofTable::kNumNodesPerFace;
   static constexpr auto kFaceToElemDof = DofTable::kFaceToElemDof;
   static constexpr auto kFaceToElemDofAtDepth = DofTable::kFaceToElemDofAtDepth;
-
-  /**
-   * @brief Threads per team in the teamed face kernel.
-   *
-   * One warp per face. Kept at 32 rather than shrunk to the face-dof count at low order: a smaller
-   * team still occupies a full warp on CUDA, and a team of 16 measured slower on the bilayer
-   * pipeline (118.5 s against 116 s) -- see the scratch-groups work.
-   */
-  static constexpr int kFaceTeamSize = 32;
-
-  /**
-   * @brief Lane-adjacent threads sharing one accumulator row.
-   *
-   * Sharing halves the scratch footprint -- the binding occupancy constraint -- for the price of a
-   * shared-memory atomic instead of a plain add. Contention stays 2-way and the hardware coalesces
-   * an adjacent pair's atomics on the same address.
-   */
-  static constexpr int kFaceGroupSize = 2;
-
-  /// @brief Accumulator rows per team: one per group of kFaceGroupSize threads.
-  static constexpr int kFaceScratchRows = kFaceTeamSize / kFaceGroupSize;
-
-  /// @brief Floats of face-uniform geometry staged in team scratch: the 4 face corner nodes, then
-  /// the owner and neighbor element corner vertices, 3 coordinates each. Order-independent.
-  static constexpr int kFaceGeomFloats = 4 * 3 + 8 * 3 + 8 * 3;
 };
 
 // Backward Compatibility Aliases
