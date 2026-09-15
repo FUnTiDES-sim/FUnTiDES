@@ -126,6 +126,36 @@ TEST_F(DGPAdaptiveSolverAcousticTest, ComputeFEInit_Succeeds) {
   EXPECT_EQ(nElem_, 8);
 }
 
+// Nothing else in this suite checks what TagElements() and BuildInteriorFaceLists() produced, so a
+// fixture that tagged every element with the same order would still pass every test below while
+// leaving the whole mortar coupling kernel unexecuted.
+TEST_F(DGPAdaptiveSolverAcousticTest, ElementPartitionIsConsistent) {
+  const int kNPMin = solver_.getNumPMinElements();
+  const int kNPMax = solver_.getNumPMaxElements();
+
+  EXPECT_GT(kNPMin, 0) << "no pMin element: the p-adaptive path is never taken";
+  EXPECT_GT(kNPMax, 0) << "no pMax element: the p-adaptive path is never taken";
+  EXPECT_EQ(kNPMin + kNPMax, nElem_) << "every element must carry exactly one order";
+  EXPECT_GT(solver_.getNumInterfaceFaces(), 0) << "a split mesh must have pMin/pMax interface faces";
+}
+
+// TagElements() has two paths and the fixture only ever takes the Z-threshold one. See the same
+// test in the DG-SEM suite for why the caller-provided split needs its own coverage.
+TEST_F(DGPAdaptiveSolverAcousticTest, SetElementTagsOverridesZThreshold) {
+  auto tags = allocateVector<vectorInt>(nElem_, "elementTags");
+  for (int e = 0; e < nElem_; ++e) tags(e) = (e < 2) ? kElementTypePMin : kElementTypePMax;
+
+  DGPAdaptiveSolverT tagged_solver;
+  tagged_solver.setElementTags(tags);
+  tagged_solver.computeFEInit(*mesh_, {0.0f, 0.0f, 0.0f}, false, 0.0f);
+
+  // The Z-threshold cuts this 2x2x2 mesh along a horizontal plane, so it can only ever produce
+  // 0, 4 or 8 pMin elements. A count of 2 can therefore only come from the tags.
+  EXPECT_EQ(tagged_solver.getNumPMinElements(), 2);
+  EXPECT_EQ(tagged_solver.getNumPMaxElements(), nElem_ - 2);
+  EXPECT_GT(tagged_solver.getNumInterfaceFaces(), 0) << "a 2/6 split still has pMin/pMax interface faces";
+}
+
 TEST_F(DGPAdaptiveSolverAcousticTest, ComputeFEInit_IncompatibleMeshThrows) {
   // A ModelStruct<float,int,3> is a different C++ type from ModelStruct<float,int,2>.
   // The dynamic_cast in computeFEInit must fail and throw.
