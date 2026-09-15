@@ -413,22 +413,21 @@ void DGSEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::A
           }
         }
 
+        // SIPG penalty and atomic write-back, fused: both sides use the same damping term at face
+        // dof i, so it is computed once here instead of once per side, mirroring the DG interior
+        // kernel. The DG row is complete once its penalty lands, so its flush joins the same loop.
         for (int i = 0; i < knumNodesPerFace; ++i) {
-          int const ei = face_to_elem_dof[fid_dg][i];
-          int const gn_i = face_connectivity_local.getGlobalNodeFromFace(f, dg_to_sem(i));
-          stiff_dg_local[i] +=
-              gamma_dg * INTEGRAL_TYPE::computeDampingTerm(i, faceCoords) * (p_DG(dg_e, ei) - p_SEM(gn_i));
-        }
+          real_t const damping_i = INTEGRAL_TYPE::computeDampingTerm(i, faceCoords);
 
-        for (int i = 0; i < knumNodesPerFace; ++i) {
+          int const ei = face_to_elem_dof[fid_dg][i];
+          int const gn_dg_i = face_connectivity_local.getGlobalNodeFromFace(f, dg_to_sem(i));
+          stiff_dg_local[i] += gamma_dg * damping_i * (p_DG(dg_e, ei) - p_SEM(gn_dg_i));
+          ATOMICADD(stiff_dg(dg_e, ei), stiff_dg_local[i]);
+
           int const gn_i = face_connectivity_local.getGlobalNodeFromFace(f, i);
           int const ei_perm = face_to_elem_dof[fid_dg][sem_to_dg(i)];
-          ATOMICADD(work_sem(gn_i), inv_rho_sem * gamma_sem * INTEGRAL_TYPE::computeDampingTerm(i, faceCoords) *
-                                        (p_SEM(gn_i) - p_DG(dg_e, ei_perm)));
+          ATOMICADD(work_sem(gn_i), inv_rho_sem * gamma_sem * damping_i * (p_SEM(gn_i) - p_DG(dg_e, ei_perm)));
         }
-
-        for (int i = 0; i < knumNodesPerFace; ++i)
-          ATOMICADD(stiff_dg(dg_e, face_to_elem_dof[fid_dg][i]), stiff_dg_local[i]);
       });
 }
 
