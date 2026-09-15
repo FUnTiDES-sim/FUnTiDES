@@ -139,9 +139,8 @@ TEST_F(DGPAdaptiveSolverAcousticTest, ElementPartitionIsConsistent) {
   EXPECT_GT(solver_.getNumInterfaceFaces(), 0) << "a split mesh must have pMin/pMax interface faces";
 }
 
-// TagElements() has two paths and the fixture only ever takes the Z-threshold one. The other path
-// is what the pipelines use on deformed meshes, where probing a single node's Z no longer picks out
-// the intended cut plane, so it needs a test of its own.
+// TagElements() has two paths and the fixture only ever takes the Z-threshold one. See the same
+// test in the DG-SEM suite for why the caller-provided split needs its own coverage.
 TEST_F(DGPAdaptiveSolverAcousticTest, SetElementTagsOverridesZThreshold) {
   auto tags = allocateVector<vectorInt>(nElem_, "elementTags");
   for (int e = 0; e < nElem_; ++e) tags(e) = (e < 2) ? kElementTypePMin : kElementTypePMax;

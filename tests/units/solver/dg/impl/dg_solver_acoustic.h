@@ -261,12 +261,11 @@ TEST_F(DGsolverAcousticTest, GettersThrowAsExpected) {
 }
 
 // ============================================================
-// Backward/adjoint mode: every entry point must refuse loudly
+// Backward/adjoint mode: must throw (not yet implemented for DG)
 // ============================================================
 
-// DG carries two wavefield buffers, and the adjoint update needs three. Without these, a caller
-// running a gradient in DG would silently get a forward step (or whatever the stub happened to do)
-// instead of an error, so the refusal is part of the contract, not an implementation detail.
+// DG carries two wavefield buffers and the adjoint update needs three. Throwing is the contract
+// until that lands, so a caller running a gradient gets an error rather than a wrong wavefield.
 TEST_F(DGsolverAcousticTest, BackwardEntryPointsThrow) {
   constexpr float kDt = 0.001f;
   auto data = makeData(0.0f, 0.0f);
