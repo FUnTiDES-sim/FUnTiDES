@@ -51,6 +51,11 @@ class DGPAdaptiveSolver : public Solver {
 
   static constexpr int kNumFields = DGPAdaptivePhysicsTraits::WavefieldType::kNumFields;
 
+  /// Number of 1D dofs per direction on each side. Class constants rather than kernel-local
+  /// constexpr, which nvcc rejects as host identifiers inside a device lambda.
+  static constexpr int kNumDofs1dMin = ORDER_MIN + 1;
+  static constexpr int kNumDofs1dMax = ORDER_MAX + 1;
+
   int getNumComponents() const override { return kNumFields; }
 
   // --- Mandatory overrides for Solver interface ---
@@ -139,8 +144,25 @@ class DGPAdaptiveSolver : public Solver {
   /// @brief Classify each element as pMin or pMax order.
   void TagElements();
 
-  /// @brief Fill the m_mortar_projection matrix.
+  /// @brief Fill the 1D order-raising matrix the mortar projection is built from.
   void ComputeMortarProjection();
+
+  /**
+   * @brief Raise the pMin pressure to ORDER_MAX on every interface-adjacent pMin element, and
+   * zero the matching interface stiffness accumulator.
+   *
+   * Exact, not an approximation: P_ORDER_MIN is a subspace of P_ORDER_MAX, so interpolating at
+   * the ORDER_MAX support points reproduces the same polynomial. ApplyCoupling needs the raised
+   * field on the whole element, not just the face layer, because the SIPG consistency term reads
+   * the normal derivative, which lives on the depth line behind each face dof.
+   *
+   * @param data Coupled solver data.
+   */
+  void ProlongPMinField(const DataType& data);
+
+  /// @brief Restrict the interface stiffness from the fictitious ORDER_MAX grid back onto the
+  /// real pMin dofs, and accumulate it into the pMin sub-solver. Adjoint of ProlongPMinField().
+  void RestrictPMinStiff();
 
   /**
    * @brief Perform one coupled time step (serial / non-distributed mode).
@@ -182,8 +204,22 @@ class DGPAdaptiveSolver : public Solver {
   MESH_TYPE m_mesh_;  ///< Local copy of the mesh built on the highest order
   model::FaceConnectivityUnstruct<float, int, ORDER_MAX> m_face_connectivity_;  ///< pMax face connectivity
 
-  /// pMin projection matrix: pressure field → mortar space
-  arrayReal m_mortar_projection;
+  /// @brief 1D order-raising matrix, m_p1d_projection_(k, m) = phi^pMin_m(xi^pMax_k). The mortar
+  /// projection ApplyCoupling uses is its threefold tensor product.
+  arrayReal m_p1d_projection_;
+
+  /// @brief Compact list of pMin elements touching the pMin-pMax interface, the only ones the
+  /// coupling ever reads at ORDER_MAX resolution. Sized by the interface surface, not the volume.
+  vectorInt m_iface_pMin_elem_list_;
+  /// @brief Row of the prolonged arrays each pMin element owns, -1 away from the interface.
+  vectorInt m_pMin_elem_to_slot_;
+  int m_n_iface_pMin_elements_{0};  ///< Count of interface-adjacent pMin elements
+
+  /// @brief pMin pressure raised to ORDER_MAX, one row per interface-adjacent pMin element.
+  arrayReal m_pMin_prolonged_field_;
+  /// @brief Interface stiffness accumulated on the fictitious ORDER_MAX grid, restricted onto the
+  /// real pMin dofs at the end of every step.
+  arrayReal m_pMin_prolonged_stiff_;
 
   /// Per-element type tag (kElementTypePMin or kElementTypePMax).
   vectorInt m_element_type_;
@@ -211,6 +247,10 @@ class DGPAdaptiveSolver : public Solver {
   /// @brief Build based on kElementType, m_pMin_interior_face_list_
   /// and m_pMax_interior_face_list_ from all faces minus interface faces.
   void BuildInteriorFaceLists();
+
+  /// @brief Build m_iface_pMin_elem_list_ / m_pMin_elem_to_slot_ and allocate the prolonged
+  /// arrays. Runs after the interface face list is known.
+  void BuildInterfaceElementList();
 
   float pAdaptive_interface_z_ = 1000.f;  ///< Z coordinate of the pMin-pMax interface
   /// @brief Caller-provided per-element type tags (see setElementTags()). Empty unless set;
