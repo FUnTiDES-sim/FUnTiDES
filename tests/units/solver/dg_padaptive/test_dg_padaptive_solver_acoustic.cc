@@ -139,6 +139,24 @@ TEST_F(DGPAdaptiveSolverAcousticTest, ElementPartitionIsConsistent) {
   EXPECT_GT(solver_.getNumInterfaceFaces(), 0) << "a split mesh must have pMin/pMax interface faces";
 }
 
+// TagElements() has two paths and the fixture only ever takes the Z-threshold one. The other path
+// is what the pipelines use on deformed meshes, where probing a single node's Z no longer picks out
+// the intended cut plane, so it needs a test of its own.
+TEST_F(DGPAdaptiveSolverAcousticTest, SetElementTagsOverridesZThreshold) {
+  auto tags = allocateVector<vectorInt>(nElem_, "elementTags");
+  for (int e = 0; e < nElem_; ++e) tags(e) = (e < 2) ? kElementTypePMin : kElementTypePMax;
+
+  DGPAdaptiveSolverT tagged_solver;
+  tagged_solver.setElementTags(tags);
+  tagged_solver.computeFEInit(*mesh_, {0.0f, 0.0f, 0.0f}, false, 0.0f);
+
+  // The Z-threshold cuts this 2x2x2 mesh along a horizontal plane, so it can only ever produce
+  // 0, 4 or 8 pMin elements. A count of 2 can therefore only come from the tags.
+  EXPECT_EQ(tagged_solver.getNumPMinElements(), 2);
+  EXPECT_EQ(tagged_solver.getNumPMaxElements(), nElem_ - 2);
+  EXPECT_GT(tagged_solver.getNumInterfaceFaces(), 0) << "a 2/6 split still has pMin/pMax interface faces";
+}
+
 TEST_F(DGPAdaptiveSolverAcousticTest, ComputeFEInit_IncompatibleMeshThrows) {
   // A ModelStruct<float,int,3> is a different C++ type from ModelStruct<float,int,2>.
   // The dynamic_cast in computeFEInit must fail and throw.

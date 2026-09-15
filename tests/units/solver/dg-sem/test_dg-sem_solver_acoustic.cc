@@ -133,6 +133,24 @@ TEST_F(DGSEMsolverAcousticTest, ElementPartitionIsConsistent) {
   EXPECT_GT(solver_.getNumInterfaceFaces(), 0) << "a coupled mesh must have DG/SEM interface faces";
 }
 
+// TagElements() has two paths and the fixture only ever takes the Z-threshold one. The other path
+// is what the pipelines use on deformed meshes, where probing a single node's Z no longer picks out
+// the intended cut plane, so it needs a test of its own.
+TEST_F(DGSEMsolverAcousticTest, SetElementTagsOverridesZThreshold) {
+  auto tags = allocateVector<vectorInt>(nElem_, "elementTags");
+  for (int e = 0; e < nElem_; ++e) tags(e) = (e < 2) ? kElementTypeDG : kElementTypeSEM;
+
+  DGSEMSolverT tagged_solver;
+  tagged_solver.setElementTags(tags);
+  tagged_solver.computeFEInit(*mesh_, {0.0f, 0.0f, 0.0f}, false, 0.0f);
+
+  // The Z-threshold cuts this 2x2x2 mesh along a horizontal plane, so it can only ever produce
+  // 0, 4 or 8 DG elements. A count of 2 can therefore only come from the tags.
+  EXPECT_EQ(tagged_solver.getNumDGElements(), 2);
+  EXPECT_EQ(tagged_solver.getNumSEmElements(), nElem_ - 2);
+  EXPECT_GT(tagged_solver.getNumInterfaceFaces(), 0) << "a 2/6 split still has DG/SEM interface faces";
+}
+
 TEST_F(DGSEMsolverAcousticTest, ComputeFEInit_IncompatibleMeshThrows) {
   // A ModelStruct<float,int,2> is a different C++ type from ModelStruct<float,int,1>.
   // The dynamic_cast in computeFEInit must fail and throw.
