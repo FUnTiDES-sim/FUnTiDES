@@ -9,6 +9,15 @@ The current implementation includes proxy applications for solving the 2nd-order
   - **SEM (Spectral Element Method)**
     A benchmark designed to simulate wave propagation using SEM, a Galerkin-based finite element method for solving partial differential equations (PDEs).
 
+  - **DG (Discontinuous Galerkin)**
+    A benchmark simulating wave propagation with a discontinuous Galerkin method, where the solution is discontinuous across element interfaces and coupling is enforced through numerical fluxes.
+
+  - **DG-SEM (Discontinuous Galerkin coupled with Spectral Element Method)**
+    A hybrid benchmark that couples a DG region to an SEM region (e.g. a DG absorbing/truncation layer around an SEM interior). The two sub-solvers exchange boundary values at each time step through a coupling interface.
+
+  - **DG-padaptive (p-adaptive Discontinuous Galerkin)**
+    A DG variant with per-element polynomial order adaptation.
+
 A key feature of these proxy applications is their adaptability to different programming models and HPC architectures. They are also easy to build and run, making them accessible to both researchers and developers.
 
 ## CMake Options
@@ -18,6 +27,9 @@ The following options can be used to configure your build:
 | Option                     | Description                                                                        |
 |----------------------------|------------------------------------------------------------------------------------|
 | `COMPILE_SEM`              | Enable compilation of the SEM proxy (default: ON)                                  |
+| `COMPILE_DG`               | Enable compilation of the DG proxy (default: ON)                                   |
+| `COMPILE_DG_SEM`           | Enable compilation of the DG-SEM proxy (default: ON; implies `COMPILE_DG` and `COMPILE_SEM`) |
+| `COMPILE_DG_PADAPTIVE`     | Enable compilation of the p-adaptive DG proxy (default: ON; implies `COMPILE_DG`)  |
 | `ENABLE_PYWRAP`            | Enable Python bindings via pybind11 (experimental)                                 |
 | `ENABLE_COVERAGE`          | Enable Code coverage. Does not work with device enable                             |
 | `CMAKE_INSTALL_PREFIX`     | Where to install FUnTiDES                                                          |
@@ -115,6 +127,22 @@ Inside the `build/bin` folder, you can run the generated executable binaries. Fo
 # Run validation with custom parameters
 ./validate_solution --order 2 --mesh ucartesian --elastic --is-model-on-nodes
 ```
+
+### Step 5: Run the DG-SEM Benchmark
+
+A standalone benchmark harness for the coupled DG-SEM acoustic solver is provided in `tests/benchmarks/cpp`. It builds a 24³ Cartesian mesh, splits it into a DG region and an SEM region, and runs a fixed number of time steps while reporting wall-clock time and peak memory. The final DG pressure field is written to a file so a reference comparison (relative L2 / L∞ error) can be computed against the analytical solution.
+
+```sh
+# Build the harness (requires a CUDA-capable build; see CMake options above)
+make -C build bench_solver_fe_cartesian_dgsem_acoustic
+
+# Run it with a parameter file (text file of key=value lines)
+./build/bin/bench_solver_fe_cartesian_dgsem_acoustic <param_file>
+```
+
+The harness prints a `PROXY_METRICS_BEGIN/END` block with `time_s`, `mem_bytes` and `output_file` metrics, which is consumed by the proxy-optimization workflow (see `proxy_bench/`).
+
+> **Note**: the DG-SEM solver must be built **without** `-O3` (i.e. no `CMAKE_BUILD_TYPE=Release`). The solver exhibits a latent use-after-free that `-O3` turns into a crash in `SEMsolver::updateFieldsForward`; the reference state (validated on V100) is the non-O3 build. Do not add `-O3`.
 
 You can also run the Python and MPI examples provided in the `examples/fe` folder:
 

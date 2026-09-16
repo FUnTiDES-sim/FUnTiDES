@@ -361,6 +361,13 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::com
     local_workVectorsGlobal[f] = workVectorsGlobal_[f];
   }
 
+  // RHS source data, folded into this kernel when m_rhs_time_sample_ >= 0.
+  int const rhs_time_sample = m_rhs_time_sample_;
+  int const nb_rhs_element = data.getRhsElement().extent(0);
+  auto rhs_element_view = data.getRhsElement();
+  auto rhs_term_view = data.getRhsTerm(0);
+  auto rhs_weights_view = data.getRhsWeights();
+
   using Policy = Kokkos::RangePolicy<Kokkos::LaunchBounds<LaunchMaxThreadsPerBlock, LaunchMinBlocksPerSM>>;
 
   Kokkos::parallel_for(
@@ -408,6 +415,21 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::com
                 return inv_density;
               }
             });
+
+        // Fold in the external RHS forcing: -source * weights for source elements.
+        if (rhs_time_sample >= 0) {
+          for (int s = 0; s < nb_rhs_element; ++s) {
+            if (rhs_element_view[s] == elementNumber) {
+              float const wavelet_val = rhs_term_view(s, rhs_time_sample);
+              for (int k = 0; k < dim; ++k)
+                for (int j = 0; j < dim; ++j)
+                  for (int i = 0; i < dim; ++i) {
+                    int const localIdx = i + j * dim + k * dim * dim;
+                    localWork[0][localIdx] -= wavelet_val * rhs_weights_view(s, localIdx);
+                  }
+            }
+          }
+        }
 
         for (int k = 0; k < dim; ++k) {
           for (int j = 0; j < dim; ++j) {
@@ -2123,6 +2145,15 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::upd
   m_node_list_mode_ = true;
   updateFieldsForward(dt, data);
   m_node_list_mode_ = false;
+}
+
+//============================================================================
+// setRhsTimeSample - Enable/disable RHS folding into the element kernel
+//============================================================================
+
+template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE, bool IS_MODEL_ON_NODES, physicType PHYSICS>
+void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::setRhsTimeSample(int time_sample) {
+  m_rhs_time_sample_ = time_sample;
 }
 
 //============================================================================

@@ -177,6 +177,14 @@ class SEMsolver : public Solver {
   void updateFieldsFromListForward(float dt, const DataType& data, const vectorInt& node_list, int n_nodes);
 
   /**
+   * @brief Enable RHS folding into the element-contribution kernel.
+   * When @p time_sample >= 0, computeElementContributionsFromList folds the
+   * external source term (instead of a separate applyRHSTerm launch). Pass -1
+   * to disable (standalone path keeps using applyRHSTerm).
+   */
+  void setRhsTimeSample(int time_sample);
+
+  /**
    * @brief Run Verlet update only for a compact subset of nodes (backward mode).
    * @param dt        Time step.
    * @param data      Wavefield data (must have prevprev allocated).
@@ -312,6 +320,11 @@ class SEMsolver : public Solver {
   bool m_node_list_mode_ = false;
   vectorInt m_node_list_;
   int m_n_node_list_ = 0;
+
+  // RHS folding state: when m_rhs_time_sample_ >= 0, the element-contribution
+  // kernel folds the external source term (instead of a separate applyRHSTerm
+  // launch). Set by the DG-SEM solver before computeElementContributionsFromList.
+  int m_rhs_time_sample_ = -1;
 
   vectorReal spongeTaperCoeff_;
   vectorReal massMatrixGlobal_;

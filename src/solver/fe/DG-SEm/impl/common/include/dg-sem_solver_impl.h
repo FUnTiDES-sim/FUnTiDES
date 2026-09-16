@@ -410,30 +410,23 @@ void DGSEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::c
   m_DG_solver_.m_face_list_ = m_DG_interior_face_list_;
   m_DG_solver_.m_n_face_list_ = m_n_DG_interior_faces_;
 
-  m_DG_solver_.applyRHSTerm(timeSample, dt, DG_data);
-  FENCE
-  m_DG_solver_.computeVolumeAndBoundary(num_DG_elements_, DG_data.getCurrentField(0));
-  FENCE
+  m_DG_solver_.computeVolumeAndBoundary(num_DG_elements_, DG_data.getCurrentField(0), timeSample, DG_data);
   m_DG_solver_.computeBoundaryDampingAndInterfaceFlux(m_n_DG_interior_faces_, DG_data.getCurrentField(0));
-  FENCE
 
   // =========================================================================
   // SEM: source + stiffness (Neumann = 0 at interface until coupling kernel)
-  // =========================================================================
-
   m_SEm_solver_.resetGlobalVectors(nNode);
-  FENCE
-  m_SEm_solver_.applyRHSTerm(timeSample, dt, SEm_data);
-  FENCE
+  // Fold the SEM source term into the element-contribution kernel (removes the
+  // separate applyRHSTerm launch). Disabled again after the step.
+  m_SEm_solver_.setRhsTimeSample(timeSample);
   m_SEm_solver_.computeElementContributionsFromList(SEm_data, SEm_elem_list_, num_SEm_elements_);
-  FENCE
+  m_SEm_solver_.setRhsTimeSample(-1);
 
   // =========================================================================
   // Symmetric SIPG interface coupling: both sides read p^n (no temporal lag).
   // =========================================================================
 
   ApplyCoupling(myData);
-  FENCE
 
   // =========================================================================
   // Both Verlots
@@ -441,9 +434,11 @@ void DGSEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::c
 
   m_DG_solver_.applyVerlet(num_DG_elements_, dt, DG_data.getCurrentField(0), DG_data.getPreviousField(0));
   m_DG_solver_.m_list_mode_ = false;
-  FENCE
 
   m_SEm_solver_.updateFieldsFromListForward(dt, SEm_data, SEm_node_list_, num_SEm_nodes_);
+  // Final fence: synchronizes the GPU with the host so the caller (unit test,
+  // benchmark loop) reads a completed step. Removing it would make time_s
+  // measure kernel-launch time instead of GPU execution (illusory speedup).
   FENCE
 }
 

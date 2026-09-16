@@ -120,7 +120,7 @@ void DGsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::appl
 template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE, bool IS_MODEL_ON_NODES,
           utils::enums::physicType PHYSICS>
 void DGsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::computeVolumeAndBoundary(
-    int kNumElem, arrayReal current_field) {
+    int kNumElem, arrayReal current_field, int timeSample, const DataType& data) {
   auto mesh_local = m_mesh;
   bool const list_on = m_list_mode_;
   auto list_local = m_elem_list_;
@@ -129,6 +129,13 @@ void DGsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::comp
   arrayReal mass_local_view = m_mass_local_;
   arrayReal stiff_local_view = m_stiff_local_;
   arrayReal damp_local_view = m_damp_local_;
+  arrayReal rhs_elem_view = m_rhs_elem_;
+
+  // RHS source data, folded into this kernel to avoid a separate launch.
+  int const nb_rhs_element = data.getRhsElement().extent(0);
+  auto rhs_element_view = data.getRhsElement();
+  auto rhs_term_view = data.getRhsTerm(0);
+  auto rhs_weights_view = data.getRhsWeights();
 
   Kokkos::parallel_for(
       "DG Volume+Boundary", n_iter, KOKKOS_LAMBDA(const int _loop_idx) {
@@ -155,6 +162,20 @@ void DGsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::comp
         for (int i = 0; i < kPointsPerElement; ++i) p_local[i] = current_field(e, i);
         INTEGRAL_TYPE::computeStiffnessTermSumFact(elementCoords, p_local, stiffLocal,
                                                    [&](const int, const int, const int) -> real_t { return inv_rho; });
+
+        // Fold in the external RHS forcing: write m_rhs_elem_ for DG source
+        // elements (same values applyRHSTerm would produce), so the separate
+        // applyRHSTerm launch can be skipped in the DG-SEM path. timeSample < 0
+        // means "do not fold" (standalone DG path fills m_rhs_elem_ separately).
+        if (timeSample >= 0) {
+          for (int s = 0; s < nb_rhs_element; ++s) {
+            if (rhs_element_view[s] == e) {
+              float const wavelet_val = rhs_term_view(s, timeSample);
+              for (int i = 0; i < kPointsPerElement; ++i)
+                rhs_elem_view(e, i) = -wavelet_val * rhs_weights_view(s, i);
+            }
+          }
+        }
 
         for (int i = 0; i < kPointsPerElement; ++i) {
           mass_local_view(e, i) = massLocal[i];
@@ -371,7 +392,7 @@ void DGsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::upda
   arrayReal current_field = data.getCurrentField(0);
   arrayReal prev_field = data.getPreviousField(0);
 
-  computeVolumeAndBoundary(kNumElem, current_field);
+  computeVolumeAndBoundary(kNumElem, current_field, -1, data);
   FENCE
   computeBoundaryDampingAndInterfaceFlux(kNumFaces, current_field);
   FENCE

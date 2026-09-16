@@ -196,10 +196,13 @@ class DGsolver : public Solver {
 
   /**
    * @brief Kernel 1 — volume mass + SumFact stiffness. Zeros the damping accumulator.
+   * Also folds in the external RHS forcing (source terms) for DG elements, so the
+   * separate applyRHSTerm launch is avoided.
    * @param kNumElem Total number of elements.
    * @param current_field Pressure field at current time step p^n.
+   * @param data Solver data carrying the RHS source views.
    */
-  void computeVolumeAndBoundary(int kNumElem, arrayReal current_field);
+  void computeVolumeAndBoundary(int kNumElem, arrayReal current_field, int timeSample, const DataType& data);
 
   /**
    * @brief Kernel 1b+2 — boundary absorbing damping and SIPG interface flux terms, fused into a
