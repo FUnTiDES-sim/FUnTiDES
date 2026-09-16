@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <array>
 #include <cmath>
+#include <iostream>
 #include <limits>
 #include <stdexcept>
 
@@ -266,8 +267,8 @@ class SEMsolver : public Solver {
    *
    * Must be called before computeFEInit(). When enabled, the solver replaces
    * the sponge taper in the PML layer with the C-PML stretched-gradient
-   * formulation (Komatitsch & Martin 2007) for the second-order acoustic
-   * equation. A zero thickness in a direction disables the PML there.
+   * formulation (Komatitsch & Martin 2007) for the second-order acoustic and
+   * elastic equations. A zero thickness in a direction disables the PML there.
    *
    * @param pml_size  PML thickness in each direction (meters).
    * @param profile   Profile exponent N (default 2, quadratic).
@@ -280,7 +281,8 @@ class SEMsolver : public Solver {
    */
   void setPML(const std::array<float, 3>& pml_size, float profile = 2.0f, float reflection = 1e-3f,
               float alpha_max = 0.0f, float kappa_max = 1.0f, float dt = 0.0f) override {
-    if constexpr (PHYSICS == utils::enums::physicType::kAcoustic) {
+    if constexpr (PHYSICS == utils::enums::physicType::kAcoustic ||
+                  PHYSICS == utils::enums::physicType::kElastic) {
       pmlEnabled_ = (pml_size[0] > 0.0f) || (pml_size[1] > 0.0f) || (pml_size[2] > 0.0f);
       pml_size_ = pml_size;
       pml_profile_ = profile;
@@ -288,8 +290,18 @@ class SEMsolver : public Solver {
       pml_alpha_max_ = alpha_max;
       pml_kappa_max_ = kappa_max;
       pml_dt_ = dt;
+      if constexpr (PHYSICS == utils::enums::physicType::kElastic) {
+        // The elastic C-PML is implemented on the sum-factorization (Flat)
+        // path, which is only instantiated up to kMaxOrderForFlatElastic.
+        // Higher orders use the Team kernel and would silently ignore the PML.
+        if (pmlEnabled_ && ORDER > kMaxOrderForFlatElastic) {
+          std::cerr << "[SEMsolver] Warning: elastic C-PML is only supported for order <= "
+                    << kMaxOrderForFlatElastic << " (requested order " << ORDER
+                    << "); the PML will not be applied.\n";
+        }
+      }
     }
-    // Non-acoustic physics: PML is not implemented, keep pmlEnabled_ = false.
+    // Other physics (acoustoelastic): PML is not implemented, keep pmlEnabled_ = false.
   }
 
   void setSLSAttenuation(const vectorReal& reference_frequencies,

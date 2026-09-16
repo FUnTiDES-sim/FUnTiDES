@@ -222,3 +222,104 @@ TYPED_TEST(SumFactElasticTest, TeamConstantJacobianMatchesSerial) {
     for (int i = 0; i < numNodes; ++i)
       EXPECT_NEAR(f_host(c * numNodes + i), f_serial[c][i], TOL_NUMERICAL) << "comp " << c << " node " << i;
 }
+
+// ============================================================================
+// SUM FACTORIZATION — ELASTIC C-PML (computeElasticStiffnessSumFactPML)
+// ============================================================================
+
+// Same physics in both kernels: flux = physical gradient H = J_inv · grad_u_ref.
+// The plain kernel receives grad_u_ref and builds H internally; the PML kernel
+// receives the (stretched) physical gradient directly.
+struct PhysicalGradientFlux {
+  KOKKOS_INLINE_FUNCTION void operator()(int, int, int, real_t const (&J_inv)[3][3], real_t const (&grad)[3][3],
+                                         real_t (&flux)[3][3]) const {
+    for (int p = 0; p < 3; ++p)
+      for (int s = 0; s < 3; ++s)
+        flux[p][s] = J_inv[0][p] * grad[0][s] + J_inv[1][p] * grad[1][s] + J_inv[2][p] * grad[2][s];
+  }
+};
+
+struct PassThroughStretchedFlux {
+  KOKKOS_INLINE_FUNCTION void operator()(int, int, int, real_t const (&)[3][3], real_t const (&H)[3][3],
+                                         real_t (&flux)[3][3]) const {
+    for (int p = 0; p < 3; ++p)
+      for (int s = 0; s < 3; ++s) flux[p][s] = H[p][s];
+  }
+};
+
+TYPED_TEST(SumFactElasticTest, PmlZeroProfileMatchesPlainKernel) {
+  using QK = TypeParam;
+  constexpr int numNodes = QK::numNodes;
+
+  real_t X[8][3];
+  createArbitraryCube<QK>(X, 0.5, -1.5, 2.0, 1.3);
+
+  real_t u[3][numNodes];
+  for (int c = 0; c < 3; ++c)
+    for (int i = 0; i < numNodes; ++i) u[c][i] = std::sin(static_cast<real_t>(c * numNodes + i));
+
+  // Identity PML profile: kappa=1, coef0=1, coef1=0 (psi/chi stay zero).
+  auto identity_pml = [](int, int, int, real_t (&kappa)[3], real_t (&coef0)[3], real_t (&coef1)[3]) {
+    for (int j = 0; j < 3; ++j) {
+      kappa[j] = real_t(1);
+      coef0[j] = real_t(1);
+      coef1[j] = real_t(0);
+    }
+  };
+
+  real_t f_plain[3][numNodes] = {{0}};
+  QK::computeElasticStiffnessSumFact(X, u, f_plain, PhysicalGradientFlux{});
+
+  real_t f_pml[3][numNodes] = {{0}};
+  real_t mem[18][numNodes] = {{0}};
+  QK::computeElasticStiffnessSumFactPML(X, u, f_pml, mem, PassThroughStretchedFlux{}, identity_pml);
+
+  for (int c = 0; c < 3; ++c)
+    for (int i = 0; i < numNodes; ++i)
+      EXPECT_NEAR(f_pml[c][i], f_plain[c][i], TOL_NUMERICAL)
+          << "Zero-profile PML must match plain kernel at comp " << c << " node " << i;
+  for (int j = 0; j < 18; ++j)
+    for (int i = 0; i < numNodes; ++i)
+      EXPECT_NEAR(mem[j][i], 0.0, TOL_NUMERICAL) << "Identity profile must keep mem zero at comp " << j << " node " << i;
+}
+
+TYPED_TEST(SumFactElasticTest, PmlNonZeroProfileChangesForce) {
+  using QK = TypeParam;
+  constexpr int numNodes = QK::numNodes;
+
+  real_t X[8][3];
+  createArbitraryCube<QK>(X, 0.5, -1.5, 2.0, 1.3);
+
+  real_t u[3][numNodes];
+  for (int c = 0; c < 3; ++c)
+    for (int i = 0; i < numNodes; ++i) u[c][i] = std::sin(static_cast<real_t>(c * numNodes + i));
+
+  // Non-trivial profile: stretch x only.
+  auto pml = [](int, int, int, real_t (&kappa)[3], real_t (&coef0)[3], real_t (&coef1)[3]) {
+    for (int j = 0; j < 3; ++j) {
+      kappa[j] = (j == 0) ? real_t(1.5) : real_t(1);
+      coef0[j] = (j == 0) ? real_t(0.5) : real_t(1);
+      coef1[j] = (j == 0) ? real_t(0.3) : real_t(0);
+    }
+  };
+
+  real_t f_plain[3][numNodes] = {{0}};
+  QK::computeElasticStiffnessSumFact(X, u, f_plain, PhysicalGradientFlux{});
+
+  real_t f_pml[3][numNodes] = {{0}};
+  real_t mem[18][numNodes] = {{0}};
+  QK::computeElasticStiffnessSumFactPML(X, u, f_pml, mem, PassThroughStretchedFlux{}, pml);
+
+  // The stretched operator must differ from the plain one somewhere.
+  bool differs = false;
+  for (int c = 0; c < 3; ++c)
+    for (int i = 0; i < numNodes; ++i)
+      if (std::fabs(f_pml[c][i] - f_plain[c][i]) > TOL_NUMERICAL) differs = true;
+  EXPECT_TRUE(differs) << "Non-zero PML profile must change the force";
+  // The memory variables must have been advanced (non-zero somewhere).
+  bool mem_moved = false;
+  for (int j = 0; j < 18; ++j)
+    for (int i = 0; i < numNodes; ++i)
+      if (std::fabs(mem[j][i]) > TOL_NUMERICAL) mem_moved = true;
+  EXPECT_TRUE(mem_moved) << "Non-zero PML profile must advance the memory variables";
+}

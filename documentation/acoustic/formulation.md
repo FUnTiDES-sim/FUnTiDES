@@ -362,5 +362,64 @@ quadratic), $v_p$ the local P velocity, $\kappa_{\max}$ the maximum coordinate s
 --pml-kappa-max <k>        max coordinate stretch (default 1)
 ```
 
-The PML is only implemented for the acoustic physics; for elastic or acousto-elastic
+The PML is implemented for the acoustic and elastic physics; for acousto-elastic
 simulations the flags are ignored.
+
+### 7.5 Elastic C-PML
+
+The elastic wave equation in second-order displacement form,
+
+$$\rho\,\frac{\partial^2 u_s}{\partial t^2} = \frac{\partial \sigma_{is}}{\partial x_i}, \qquad
+\sigma_{is} = C_{iskt}\,\frac{\partial u_t}{\partial x_k},$$
+
+is solved in the PML layer with the same stretched-coordinate substitution
+$\partial/\partial x_i \to (1/s_i)\,\partial/\partial x_i$ as the acoustic case (§7.1).
+The two-sided form generalises to the tensor trial field: the physical displacement
+gradient $H_{kt} = \partial u_t/\partial x_k$ is stretched per direction *and* per
+component,
+
+$$\widetilde{H}_{kt} = \frac{1}{\kappa_k}\left(H_{kt} - \psi_{kt}\right), \qquad
+\frac{\partial \psi_{kt}}{\partial t} + \left(\alpha_k + \frac{d_k}{\kappa_k}\right)\psi_{kt}
+= \frac{d_k}{\kappa_k}\,H_{kt},$$
+
+so the gradient stretch needs **9 memory variables** $\psi_{kt}$ (3 directions × 3
+components). The divergence of the test function is stretched per direction and per
+force component (the elastic flux is a vector over force components), needing another
+**9 memory variables** $\chi_{jf}$:
+
+$$\widetilde{\mathrm{div}}_{jf} = \frac{1}{\kappa_j}\left(\partial_j G_{jf} - \chi_{jf}\right), \qquad
+\chi_{jf}^{n+1} = c^0_j\,\chi_{jf}^n + c^1_j\left(\partial_j G_{jf}\right)^n.$$
+
+Both memory-variable families are advanced by the same first-order convolution
+(Wang, Lee & Teixeira 2006, eq. 21) as the acoustic case, used at their current time
+level and advanced afterwards (standard C-PML timing). The elastic C-PML therefore
+stores **18 memory variables per GLL point per element** (`pmlMemoryVariables_`,
+$18\times(r+1)^3$), versus 6 for the acoustic PML.
+
+Implementation notes:
+
+- **Kernel.** `computeElasticStiffnessSumFactPML` (makutu backend) mirrors
+  `computeElasticStiffnessSumFact`: it computes the reference gradient
+  $\partial u_s/\partial \xi_r$, inverts the Jacobian, builds the physical gradient
+  $H = J^{-1}\,\partial u/\partial \xi$, stretches it with $\psi$, calls the
+  constitutive callback with the stretched gradient (the `elasticFlux*FromH` variants
+  of `elastic_flux.h`), and applies the stretched divergence with $\chi$. The memory
+  variables are advanced inside the kernel. With a zero profile ($\psi=\chi=0$,
+  $\kappa=1$) the kernel reduces exactly to `computeElasticStiffnessSumFact` — the
+  consistency test oracle.
+- **Flux refactor.** `elasticFluxIso/Vti/Tti` are split into a "stress from physical
+  gradient" step (`elasticFluxIsoFromH/VtiFromH/TtiFromH`) and the reference-to-physical
+  gradient conversion; the PML path passes the stretched gradient directly to the
+  `FromH` variants.
+- **Order support.** The elastic sum-factorization (Flat) kernel is only instantiated
+  for `ORDER <= kMaxOrderForFlatElastic` (= 1); higher orders use the Team kernel,
+  which has no PML variant. Requesting a PML at a higher order prints a warning and the
+  PML is not applied. (The acoustic PML works at all orders because the acoustic Flat
+  kernel exists at all orders.)
+- **Interaction with other boundaries.** As for acoustic, the sponge taper is set to 1
+  and the first-order absorbing BC is disabled in the PML region; the free-surface
+  condition is unaffected. The GEMM path is not used when the PML is enabled (the
+  precomputed $W = w\,\alpha\,B$ is only valid for the unstretched operator).
+- **Adjoint mode.** As for acoustic, the convolution is not time-reversed in backward
+  mode, so the PML is not strictly adjoint-consistent there; forward-mode absorption is
+  unaffected.

@@ -667,6 +667,12 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::com
     local_workVectorsGlobal[f] = workVectorsGlobal_[f];
   }
 
+  // C-PML state captured by value (device copies of the Views).
+  bool const pml_enabled = pmlEnabled_;
+  auto pml_coeff = pmlCoefficients_;
+  auto pml_mem = pmlMemoryVariables_;
+  auto pml_elem_mask = pmlElementMask_;
+
   Kokkos::parallel_for(
       "Solver Element Contribution Iso Flat",
       Kokkos::RangePolicy<Kokkos::LaunchBounds<LaunchMaxThreadsPerBlock, LaunchMinBlocksPerSM>>(0, n_iter),
@@ -674,6 +680,10 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::com
         // avoid extended __host__ __device__ lambda cannot first-capture
         // variable in constexpr-if context
         (void)local_workVectorsGlobal;
+        (void)pml_enabled;
+        (void)pml_coeff;
+        (void)pml_mem;
+        (void)pml_elem_mask;
 
         int const elementNumber = list_on ? list_local[_loop_idx] : _loop_idx;
 
@@ -714,25 +724,58 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::com
             lambda_e = rho_e * (vp_e * vp_e - 2.0f * vs_e * vs_e);
           }
 
-          INTEGRAL_TYPE::computeElasticStiffnessSumFact(cornerCoords, localFields, localWork,
-                                                        [&](int qa, int qb, int qc, float const(&J_inv)[3][3],
-                                                            float const(&grad_u_ref)[3][3], float(&flux)[3][3]) {
-                                                          float mu, lambda;
-                                                          if constexpr (IS_MODEL_ON_NODES) {
-                                                            int const gIndex =
-                                                                mesh_local.globalNodeIndex(elementNumber, qa, qb, qc);
-                                                            float const vp = mesh_local.getModelVpOnNodes(gIndex);
-                                                            float const vs = mesh_local.getModelVsOnNodes(gIndex);
-                                                            float const rho = mesh_local.getModelRhoOnNodes(gIndex);
-                                                            mu = rho * vs * vs;
-                                                            lambda = rho * (vp * vp - 2.0f * vs * vs);
-                                                          } else {
-                                                            mu = mu_e;
-                                                            lambda = lambda_e;
-                                                          }
+          auto get_mu_lambda = [&](int qa, int qb, int qc, float& mu, float& lambda) {
+            if constexpr (IS_MODEL_ON_NODES) {
+              int const gIndex = mesh_local.globalNodeIndex(elementNumber, qa, qb, qc);
+              float const vp = mesh_local.getModelVpOnNodes(gIndex);
+              float const vs = mesh_local.getModelVsOnNodes(gIndex);
+              float const rho = mesh_local.getModelRhoOnNodes(gIndex);
+              mu = rho * vs * vs;
+              lambda = rho * (vp * vp - 2.0f * vs * vs);
+            } else {
+              mu = mu_e;
+              lambda = lambda_e;
+            }
+          };
 
-                                                          flux::elasticFluxIso(J_inv, mu, lambda, grad_u_ref, flux);
-                                                        });
+          if (pml_enabled && pml_elem_mask(elementNumber) == 1) {
+            // C-PML path: load the per-element memory variables (9 psi for the
+            // trial gradient, 9 chi for the divergence), advance them in place
+            // inside the kernel, and store them back.
+            float mem_local[18][kPointsPerElement];
+            for (int j = 0; j < 18; ++j)
+              for (int q = 0; q < kPointsPerElement; ++q)
+                mem_local[j][q] = pml_mem(elementNumber, j * kPointsPerElement + q);
+
+            INTEGRAL_TYPE::computeElasticStiffnessSumFactPML(
+                cornerCoords, localFields, localWork, mem_local,
+                [&](int qa, int qb, int qc, float const(&J_inv)[3][3], float const(&H_stretched)[3][3],
+                    float(&flux)[3][3]) {
+                  float mu, lambda;
+                  get_mu_lambda(qa, qb, qc, mu, lambda);
+                  flux::elasticFluxIsoFromH(J_inv, mu, lambda, H_stretched, flux);
+                },
+                [&](int qa, int qb, int qc, float (&kappa)[3], float (&coef0)[3], float (&coef1)[3]) {
+                  int const gIndex = mesh_local.globalNodeIndex(elementNumber, qa, qb, qc);
+                  for (int j = 0; j < 3; ++j) {
+                    kappa[j] = pml_coeff(gIndex, 3 + j);
+                    coef0[j] = pml_coeff(gIndex, 9 + j);
+                    coef1[j] = pml_coeff(gIndex, 12 + j);
+                  }
+                });
+
+            for (int j = 0; j < 18; ++j)
+              for (int q = 0; q < kPointsPerElement; ++q)
+                pml_mem(elementNumber, j * kPointsPerElement + q) = mem_local[j][q];
+          } else {
+            INTEGRAL_TYPE::computeElasticStiffnessSumFact(cornerCoords, localFields, localWork,
+                                                          [&](int qa, int qb, int qc, float const(&J_inv)[3][3],
+                                                              float const(&grad_u_ref)[3][3], float(&flux)[3][3]) {
+                                                            float mu, lambda;
+                                                            get_mu_lambda(qa, qb, qc, mu, lambda);
+                                                            flux::elasticFluxIso(J_inv, mu, lambda, grad_u_ref, flux);
+                                                          });
+          }
 
           for (int i = 0; i < dim; ++i) {
             for (int j = 0; j < dim; ++j) {
@@ -918,6 +961,12 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::com
     local_workVectorsGlobal[f] = workVectorsGlobal_[f];
   }
 
+  // C-PML state captured by value (device copies of the Views).
+  bool const pml_enabled = pmlEnabled_;
+  auto pml_coeff = pmlCoefficients_;
+  auto pml_mem = pmlMemoryVariables_;
+  auto pml_elem_mask = pmlElementMask_;
+
   Kokkos::parallel_for(
       "Solver Element Contribution Vti Flat",
       Kokkos::RangePolicy<Kokkos::LaunchBounds<LaunchMaxThreadsPerBlock, LaunchMinBlocksPerSM>>(0, n_iter),
@@ -925,6 +974,10 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::com
         // avoid extended __host__ __device__ lambda cannot first-capture
         // variable in constexpr-if context
         (void)local_workVectorsGlobal;
+        (void)pml_enabled;
+        (void)pml_coeff;
+        (void)pml_mem;
+        (void)pml_elem_mask;
         int const elementNumber = list_on ? list_local[_loop_idx] : _loop_idx;
 
         int const dim = mesh_local.getOrder() + 1;
@@ -974,39 +1027,74 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::com
             c12_e = c11_e - 2.0f * c66_e;
           }
 
-          INTEGRAL_TYPE::computeElasticStiffnessSumFact(
-              cornerCoords, localFields, localWork,
-              [&](int qa, int qb, int qc, float const(&J_inv)[3][3], float const(&grad_u_ref)[3][3],
-                  float(&flux)[3][3]) {
-                float c11, c12, c13, c33, c44, c66;
-                if constexpr (IS_MODEL_ON_NODES) {
-                  int const gIndex = mesh_local.globalNodeIndex(elementNumber, qa, qb, qc);
-                  float const vp = mesh_local.getModelVpOnNodes(gIndex);
-                  float const vs = mesh_local.getModelVsOnNodes(gIndex);
-                  float const rho = mesh_local.getModelRhoOnNodes(gIndex);
-                  float const delta = mesh_local.getModelDeltaOnNodes(gIndex);
-                  float const epsilon = mesh_local.getModelEpsilonOnNodes(gIndex);
-                  float const gamma = mesh_local.getModelGammaOnNodes(gIndex);
-                  float const rho_vp2 = rho * vp * vp;
-                  float const rho_vs2 = rho * vs * vs;
-                  c33 = rho_vp2;
-                  c44 = rho_vs2;
-                  c11 = rho_vp2 * (1.0f + 2.0f * epsilon);
-                  c66 = rho_vs2 * (1.0f + 2.0f * gamma);
-                  float const vp2_vs2 = vp * vp - vs * vs;
-                  c13 = rho * sqrtf(vp2_vs2 * vp2_vs2 + 2.0f * vp * vp * delta * vp2_vs2) - rho_vs2;
-                  c12 = c11 - 2.0f * c66;
-                } else {
-                  c11 = c11_e;
-                  c12 = c12_e;
-                  c13 = c13_e;
-                  c33 = c33_e;
-                  c44 = c44_e;
-                  c66 = c66_e;
-                }
+          auto get_vti = [&](int qa, int qb, int qc, float& c11, float& c12, float& c13, float& c33, float& c44,
+                             float& c66) {
+            if constexpr (IS_MODEL_ON_NODES) {
+              int const gIndex = mesh_local.globalNodeIndex(elementNumber, qa, qb, qc);
+              float const vp = mesh_local.getModelVpOnNodes(gIndex);
+              float const vs = mesh_local.getModelVsOnNodes(gIndex);
+              float const rho = mesh_local.getModelRhoOnNodes(gIndex);
+              float const delta = mesh_local.getModelDeltaOnNodes(gIndex);
+              float const epsilon = mesh_local.getModelEpsilonOnNodes(gIndex);
+              float const gamma = mesh_local.getModelGammaOnNodes(gIndex);
+              float const rho_vp2 = rho * vp * vp;
+              float const rho_vs2 = rho * vs * vs;
+              c33 = rho_vp2;
+              c44 = rho_vs2;
+              c11 = rho_vp2 * (1.0f + 2.0f * epsilon);
+              c66 = rho_vs2 * (1.0f + 2.0f * gamma);
+              float const vp2_vs2 = vp * vp - vs * vs;
+              c13 = rho * sqrtf(vp2_vs2 * vp2_vs2 + 2.0f * vp * vp * delta * vp2_vs2) - rho_vs2;
+              c12 = c11 - 2.0f * c66;
+            } else {
+              c11 = c11_e;
+              c12 = c12_e;
+              c13 = c13_e;
+              c33 = c33_e;
+              c44 = c44_e;
+              c66 = c66_e;
+            }
+          };
 
-                flux::elasticFluxVti(J_inv, c11, c12, c13, c33, c44, c66, grad_u_ref, flux);
-              });
+          if (pml_enabled && pml_elem_mask(elementNumber) == 1) {
+            // C-PML path: load the per-element memory variables (9 psi for the
+            // trial gradient, 9 chi for the divergence), advance them in place
+            // inside the kernel, and store them back.
+            float mem_local[18][kPointsPerElement];
+            for (int j = 0; j < 18; ++j)
+              for (int q = 0; q < kPointsPerElement; ++q)
+                mem_local[j][q] = pml_mem(elementNumber, j * kPointsPerElement + q);
+
+            INTEGRAL_TYPE::computeElasticStiffnessSumFactPML(
+                cornerCoords, localFields, localWork, mem_local,
+                [&](int qa, int qb, int qc, float const(&J_inv)[3][3], float const(&H_stretched)[3][3],
+                    float(&flux)[3][3]) {
+                  float c11, c12, c13, c33, c44, c66;
+                  get_vti(qa, qb, qc, c11, c12, c13, c33, c44, c66);
+                  flux::elasticFluxVtiFromH(J_inv, c11, c12, c13, c33, c44, c66, H_stretched, flux);
+                },
+                [&](int qa, int qb, int qc, float (&kappa)[3], float (&coef0)[3], float (&coef1)[3]) {
+                  int const gIndex = mesh_local.globalNodeIndex(elementNumber, qa, qb, qc);
+                  for (int j = 0; j < 3; ++j) {
+                    kappa[j] = pml_coeff(gIndex, 3 + j);
+                    coef0[j] = pml_coeff(gIndex, 9 + j);
+                    coef1[j] = pml_coeff(gIndex, 12 + j);
+                  }
+                });
+
+            for (int j = 0; j < 18; ++j)
+              for (int q = 0; q < kPointsPerElement; ++q)
+                pml_mem(elementNumber, j * kPointsPerElement + q) = mem_local[j][q];
+          } else {
+            INTEGRAL_TYPE::computeElasticStiffnessSumFact(
+                cornerCoords, localFields, localWork,
+                [&](int qa, int qb, int qc, float const(&J_inv)[3][3], float const(&grad_u_ref)[3][3],
+                    float(&flux)[3][3]) {
+                  float c11, c12, c13, c33, c44, c66;
+                  get_vti(qa, qb, qc, c11, c12, c13, c33, c44, c66);
+                  flux::elasticFluxVti(J_inv, c11, c12, c13, c33, c44, c66, grad_u_ref, flux);
+                });
+          }
 
           for (int i = 0; i < dim; ++i) {
             for (int j = 0; j < dim; ++j) {
@@ -1203,10 +1291,23 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::com
       local_workVectorsGlobal[f] = workVectorsGlobal_[f];
     }
 
+    // C-PML state captured by value (device copies of the Views).
+    bool const pml_enabled = pmlEnabled_;
+    auto pml_coeff = pmlCoefficients_;
+    auto pml_mem = pmlMemoryVariables_;
+    auto pml_elem_mask = pmlElementMask_;
+
     Kokkos::parallel_for(
         "Solver Element Contribution Tti Flat",
         Kokkos::RangePolicy<Kokkos::LaunchBounds<LaunchMaxThreadsPerBlock, LaunchMinBlocksPerSM>>(0, n_iter),
         KOKKOS_LAMBDA(const int _loop_idx) {
+          // avoid extended __host__ __device__ lambda cannot first-capture
+          // variable in constexpr-if context
+          (void)local_workVectorsGlobal;
+          (void)pml_enabled;
+          (void)pml_coeff;
+          (void)pml_mem;
+          (void)pml_elem_mask;
           int const elementNumber = list_on ? list_local[_loop_idx] : _loop_idx;
 
           int const dim = mesh_local.getOrder() + 1;
@@ -1241,25 +1342,63 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::com
             mesh_local.getCTensorOnElement(elementNumber, CTTI);
           }
 
-          INTEGRAL_TYPE::computeElasticStiffnessSumFact(
-              cornerCoords, localFields, localWork,
-              [&](int qa, int qb, int qc, float const(&J_inv)[3][3], float const(&grad_u_ref)[3][3],
-                  float(&flux)[3][3]) {
-                if constexpr (IS_MODEL_ON_NODES) {
-                  int const gIndex = mesh_local.globalNodeIndex(elementNumber, qa, qb, qc);
-                  float const vp = mesh_local.getModelVpOnNodes(gIndex);
-                  float const vs = mesh_local.getModelVsOnNodes(gIndex);
-                  float const rho = mesh_local.getModelRhoOnNodes(gIndex);
-                  float const delta = mesh_local.getModelDeltaOnNodes(gIndex);
-                  float const epsilon = mesh_local.getModelEpsilonOnNodes(gIndex);
-                  float const gamma = mesh_local.getModelGammaOnNodes(gIndex);
-                  float const phi = mesh_local.getModelPhiOnNodes(gIndex);
-                  float const theta = mesh_local.getModelThetaOnNodes(gIndex);
-                  computeCMatrix(vp, vs, rho, delta, epsilon, gamma, phi, theta, CTTI);
-                }
+          auto get_ctti = [&](int qa, int qb, int qc, float (&C)[6][6]) {
+            if constexpr (IS_MODEL_ON_NODES) {
+              int const gIndex = mesh_local.globalNodeIndex(elementNumber, qa, qb, qc);
+              float const vp = mesh_local.getModelVpOnNodes(gIndex);
+              float const vs = mesh_local.getModelVsOnNodes(gIndex);
+              float const rho = mesh_local.getModelRhoOnNodes(gIndex);
+              float const delta = mesh_local.getModelDeltaOnNodes(gIndex);
+              float const epsilon = mesh_local.getModelEpsilonOnNodes(gIndex);
+              float const gamma = mesh_local.getModelGammaOnNodes(gIndex);
+              float const phi = mesh_local.getModelPhiOnNodes(gIndex);
+              float const theta = mesh_local.getModelThetaOnNodes(gIndex);
+              computeCMatrix(vp, vs, rho, delta, epsilon, gamma, phi, theta, C);
+            } else {
+              for (int a = 0; a < 6; ++a)
+                for (int b = 0; b < 6; ++b) C[a][b] = CTTI[a][b];
+            }
+          };
 
-                flux::elasticFluxTti(J_inv, CTTI, grad_u_ref, flux);
-              });
+          if (pml_enabled && pml_elem_mask(elementNumber) == 1) {
+            // C-PML path: load the per-element memory variables (9 psi for the
+            // trial gradient, 9 chi for the divergence), advance them in place
+            // inside the kernel, and store them back.
+            float mem_local[18][kPointsPerElement];
+            for (int j = 0; j < 18; ++j)
+              for (int q = 0; q < kPointsPerElement; ++q)
+                mem_local[j][q] = pml_mem(elementNumber, j * kPointsPerElement + q);
+
+            INTEGRAL_TYPE::computeElasticStiffnessSumFactPML(
+                cornerCoords, localFields, localWork, mem_local,
+                [&](int qa, int qb, int qc, float const(&J_inv)[3][3], float const(&H_stretched)[3][3],
+                    float(&flux)[3][3]) {
+                  float C[6][6];
+                  get_ctti(qa, qb, qc, C);
+                  flux::elasticFluxTtiFromH(J_inv, C, H_stretched, flux);
+                },
+                [&](int qa, int qb, int qc, float (&kappa)[3], float (&coef0)[3], float (&coef1)[3]) {
+                  int const gIndex = mesh_local.globalNodeIndex(elementNumber, qa, qb, qc);
+                  for (int j = 0; j < 3; ++j) {
+                    kappa[j] = pml_coeff(gIndex, 3 + j);
+                    coef0[j] = pml_coeff(gIndex, 9 + j);
+                    coef1[j] = pml_coeff(gIndex, 12 + j);
+                  }
+                });
+
+            for (int j = 0; j < 18; ++j)
+              for (int q = 0; q < kPointsPerElement; ++q)
+                pml_mem(elementNumber, j * kPointsPerElement + q) = mem_local[j][q];
+          } else {
+            INTEGRAL_TYPE::computeElasticStiffnessSumFact(
+                cornerCoords, localFields, localWork,
+                [&](int qa, int qb, int qc, float const(&J_inv)[3][3], float const(&grad_u_ref)[3][3],
+                    float(&flux)[3][3]) {
+                  float C[6][6];
+                  get_ctti(qa, qb, qc, C);
+                  flux::elasticFluxTti(J_inv, C, grad_u_ref, flux);
+                });
+          }
 
           for (int i = 0; i < dim; ++i) {
             for (int j = 0; j < dim; ++j) {
@@ -1992,11 +2131,16 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::set
   int const nNodes = m_mesh.getNumberOfNodes();
   int const nElems = m_mesh.getNumberOfElements();
   constexpr int kPmlStride = 18;  // d(3) + kappa(3) + alpha(3) + coef0/1/2(9)
+  // Per-element memory variables per GLL point: acoustic = 6 (3 gradient psi
+  // + 3 divergence chi), elastic = 18 (9 gradient psi + 9 divergence chi).
+  constexpr int kPmlMemoryComponents =
+      (PHYSICS == utils::enums::physicType::kElastic) ? 18 : 6;
 
   pmlCoefficients_ = allocateArray2D<arrayReal>(nNodes, kPmlStride, "pmlCoefficients");
   pmlNodeIndex_ = allocateVector<vectorInt>(nNodes, "pmlNodeIndex");
   pmlElementMask_ = allocateVector<vectorInt>(nElems, "pmlElementMask");
-  pmlMemoryVariables_ = allocateArray2D<arrayReal>(nElems, 6 * kPointsPerElement, "pmlMemoryVariables");
+  pmlMemoryVariables_ = allocateArray2D<arrayReal>(nElems, kPmlMemoryComponents * kPointsPerElement,
+                                                   "pmlMemoryVariables");
 
   // Domain extent for the profile distance computation.
   float domainSize[3];
@@ -2068,9 +2212,10 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::set
     if (pmlNodeIndex_(n) == 1) spongeTaperCoeff_(n) = 1.0f;
   }
 
-  // Zero the memory variables (psi: 3 gradient + chi: 3 divergence).
+  // Zero the memory variables (acoustic: 3 gradient psi + 3 divergence chi;
+  // elastic: 9 gradient psi + 9 divergence chi).
   for (int e = 0; e < nElems; ++e)
-    for (int q = 0; q < 6 * kPointsPerElement; ++q) pmlMemoryVariables_(e, q) = 0.0f;
+    for (int q = 0; q < kPmlMemoryComponents * kPointsPerElement; ++q) pmlMemoryVariables_(e, q) = 0.0f;
 
   FENCE
 }

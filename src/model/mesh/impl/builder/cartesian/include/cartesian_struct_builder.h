@@ -126,6 +126,11 @@ class CartesianStructBuilder : public ModelBuilderBase<FloatType, ScalarType> {
       fill_view(data.model_vp_element_, "Vp", "model_vp_element");
       fill_view(data.model_rho_element_, "Rho", "model_rho_element");
       fill_view(data.model_vs_element_, "Vs", "model_vs_element");
+      fill_view(data.model_epsilon_element_, "Epsilon", "model_epsilon_element");
+      fill_view(data.model_delta_element_, "Delta", "model_delta_element");
+      fill_view(data.model_gamma_element_, "Gamma", "model_gamma_element");
+      fill_view(data.model_theta_element_, "Theta", "model_theta_element");
+      fill_view(data.model_phi_element_, "Phi", "model_phi_element");
       if (data.model_vp_element_.extent(0) != static_cast<size_t>(n_elem))
         throw std::runtime_error("[CartesianStructBuilder] model_file has " +
                                  std::to_string(data.model_vp_element_.extent(0)) + " elements but mesh has " +

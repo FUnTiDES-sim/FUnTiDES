@@ -36,6 +36,16 @@ struct ModelStructData final : public ModelDataBase<FloatType, ScalarType> {
   vectorReal model_vp_node_;      ///< Per-node Vp     (empty → 1500)
   vectorReal model_vs_node_;      ///< Per-node Vs     (empty → 755)
   vectorReal model_rho_node_;     ///< Per-node rho    (empty → 1)
+  vectorReal model_epsilon_element_;  ///< Per-element Thomsen epsilon (empty → 0)
+  vectorReal model_delta_element_;    ///< Per-element Thomsen delta   (empty → 0)
+  vectorReal model_gamma_element_;    ///< Per-element Thomsen gamma   (empty → 0)
+  vectorReal model_epsilon_node_;     ///< Per-node Thomsen epsilon    (empty → 0)
+  vectorReal model_delta_node_;       ///< Per-node Thomsen delta      (empty → 0)
+  vectorReal model_gamma_node_;       ///< Per-node Thomsen gamma      (empty → 0)
+  vectorReal model_theta_element_;    ///< Per-element tilt angle theta (empty → 0)
+  vectorReal model_phi_element_;      ///< Per-element azimuth angle phi (empty → 0)
+  vectorReal model_theta_node_;       ///< Per-node tilt angle theta    (empty → 0)
+  vectorReal model_phi_node_;         ///< Per-node azimuth angle phi   (empty → 0)
   vectorReal model_qp_element_;
   vectorReal model_qs_element_;
   vectorReal model_qp_node_;
@@ -80,6 +90,16 @@ class ModelStruct final : public ModelApi<FloatType, ScalarType> {
         model_vp_node_(data.model_vp_node_),
         model_vs_node_(data.model_vs_node_),
         model_rho_node_(data.model_rho_node_),
+        model_epsilon_element_(data.model_epsilon_element_),
+        model_delta_element_(data.model_delta_element_),
+        model_gamma_element_(data.model_gamma_element_),
+        model_epsilon_node_(data.model_epsilon_node_),
+        model_delta_node_(data.model_delta_node_),
+        model_gamma_node_(data.model_gamma_node_),
+        model_theta_element_(data.model_theta_element_),
+        model_phi_element_(data.model_phi_element_),
+        model_theta_node_(data.model_theta_node_),
+        model_phi_node_(data.model_phi_node_),
         model_qp_element_(data.model_qp_element_),
         model_qs_element_(data.model_qs_element_),
         model_qp_node_(data.model_qp_node_),
@@ -248,16 +268,46 @@ class ModelStruct final : public ModelApi<FloatType, ScalarType> {
     return 1.0e9f;
   }
 
-  PROXY_HOST_DEVICE FloatType getModelDeltaOnNodes(ScalarType n) const final { return 0.0f; }
-  PROXY_HOST_DEVICE FloatType getModelDeltaOnElement(ScalarType e) const final { return 0.0f; }
-  PROXY_HOST_DEVICE FloatType getModelEpsilonOnNodes(ScalarType n) const final { return 0.0f; }
-  PROXY_HOST_DEVICE FloatType getModelEpsilonOnElement(ScalarType e) const final { return 0.0f; }
-  PROXY_HOST_DEVICE FloatType getModelGammaOnNodes(ScalarType n) const final { return 0.0f; }
-  PROXY_HOST_DEVICE FloatType getModelGammaOnElement(ScalarType e) const final { return 0.0f; }
-  PROXY_HOST_DEVICE ScalarType getModelThetaOnNodes(ScalarType n) const final { return 0; }
-  PROXY_HOST_DEVICE ScalarType getModelThetaOnElement(ScalarType e) const final { return 0; }
-  PROXY_HOST_DEVICE ScalarType getModelPhiOnNodes(ScalarType n) const final { return 0; }
-  PROXY_HOST_DEVICE ScalarType getModelPhiOnElement(ScalarType e) const final { return 0; }
+  PROXY_HOST_DEVICE FloatType getModelDeltaOnNodes(ScalarType n) const final {
+    if (model_delta_node_.extent(0) > 0) return model_delta_node_[n];
+    return 0.0f;
+  }
+  PROXY_HOST_DEVICE FloatType getModelDeltaOnElement(ScalarType e) const final {
+    if (model_delta_element_.extent(0) > 0) return model_delta_element_[e];
+    return 0.0f;
+  }
+  PROXY_HOST_DEVICE FloatType getModelEpsilonOnNodes(ScalarType n) const final {
+    if (model_epsilon_node_.extent(0) > 0) return model_epsilon_node_[n];
+    return 0.0f;
+  }
+  PROXY_HOST_DEVICE FloatType getModelEpsilonOnElement(ScalarType e) const final {
+    if (model_epsilon_element_.extent(0) > 0) return model_epsilon_element_[e];
+    return 0.0f;
+  }
+  PROXY_HOST_DEVICE FloatType getModelGammaOnNodes(ScalarType n) const final {
+    if (model_gamma_node_.extent(0) > 0) return model_gamma_node_[n];
+    return 0.0f;
+  }
+  PROXY_HOST_DEVICE FloatType getModelGammaOnElement(ScalarType e) const final {
+    if (model_gamma_element_.extent(0) > 0) return model_gamma_element_[e];
+    return 0.0f;
+  }
+  PROXY_HOST_DEVICE ScalarType getModelThetaOnNodes(ScalarType n) const final {
+    if (model_theta_node_.extent(0) > 0) return model_theta_node_[n];
+    return 0;
+  }
+  PROXY_HOST_DEVICE ScalarType getModelThetaOnElement(ScalarType e) const final {
+    if (model_theta_element_.extent(0) > 0) return model_theta_element_[e];
+    return 0;
+  }
+  PROXY_HOST_DEVICE ScalarType getModelPhiOnNodes(ScalarType n) const final {
+    if (model_phi_node_.extent(0) > 0) return model_phi_node_[n];
+    return 0;
+  }
+  PROXY_HOST_DEVICE ScalarType getModelPhiOnElement(ScalarType e) const final {
+    if (model_phi_element_.extent(0) > 0) return model_phi_element_[e];
+    return 0;
+  }
 
   void initElasticityTensors(AnisotropyType anisotropy_type) override {
     if (!isElastic_) return;
@@ -267,15 +317,28 @@ class ModelStruct final : public ModelApi<FloatType, ScalarType> {
       int n_element = ex_ * ey_ * ez_;
       model_C_tensor_element_ = allocateArray3D<array3DReal>(n_element, 6, 6);
       auto C_tensor = model_C_tensor_element_;
+      auto vp_e = model_vp_element_;
+      auto vs_e = model_vs_element_;
+      auto rho_e = model_rho_element_;
+      auto eps_e = model_epsilon_element_;
+      auto del_e = model_delta_element_;
+      auto gam_e = model_gamma_element_;
+      auto theta_e = model_theta_element_;
+      auto phi_e = model_phi_element_;
 
       Kokkos::parallel_for(
           "Model init ElasticTensors",
           Kokkos::RangePolicy<Kokkos::LaunchBounds<LaunchMaxThreadsPerBlock, LaunchMinBlocksPerSM>>(0, n_element),
           KOKKOS_LAMBDA(const int i) {
             FloatType CTTI[6][6];
-            FloatType vp = 1500.0f, vs = 755.0f, rho = 1.0f;
-            FloatType delta = 0.0f, epsilon = 0.0f, gamma = 0.0f;
-            FloatType theta = 0.0f, phi = 0.0f;
+            FloatType vp = vp_e.extent(0) > 0 ? vp_e[i] : 1500.0f;
+            FloatType vs = vs_e.extent(0) > 0 ? vs_e[i] : 755.0f;
+            FloatType rho = rho_e.extent(0) > 0 ? rho_e[i] : 1.0f;
+            FloatType delta = del_e.extent(0) > 0 ? del_e[i] : 0.0f;
+            FloatType epsilon = eps_e.extent(0) > 0 ? eps_e[i] : 0.0f;
+            FloatType gamma = gam_e.extent(0) > 0 ? gam_e[i] : 0.0f;
+            FloatType theta = theta_e.extent(0) > 0 ? theta_e[i] : 0.0f;
+            FloatType phi = phi_e.extent(0) > 0 ? phi_e[i] : 0.0f;
             computeCTensor(vp, vs, rho, delta, epsilon, gamma, theta, phi, CTTI);
             for (int k = 0; k < 6; k++)
               for (int l = 0; l < 6; l++) C_tensor(i, k, l) = CTTI[k][l];
@@ -396,6 +459,10 @@ class ModelStruct final : public ModelApi<FloatType, ScalarType> {
   vectorReal model_qp_node_, model_qs_node_;
   vectorReal model_vp_element_, model_vs_element_, model_rho_element_;
   vectorReal model_vp_node_, model_vs_node_, model_rho_node_;
+  vectorReal model_epsilon_element_, model_delta_element_, model_gamma_element_;
+  vectorReal model_epsilon_node_, model_delta_node_, model_gamma_node_;
+  vectorReal model_theta_element_, model_phi_element_;
+  vectorReal model_theta_node_, model_phi_node_;
   FaceConnectivityStruct<FloatType, ScalarType> face_connectivity_;
 };
 

@@ -33,23 +33,23 @@ PROXY_HOST_DEVICE void pullBackStress(float const (&J_inv)[3][3], float const (&
 }
 
 /**
- * @brief Isotropic elastic flux: reference gradient to reference-element flux.
+ * @brief Isotropic elastic flux from a physical displacement gradient.
  *
  * Assembles the Cauchy stress once as a symmetric tensor
  * sigma = mu * (H + H^T) + lambda * tr(H) * I, then pulls it back. Because sigma
- * is built symmetric, the resulting linear map grad_u_ref -> flux carries the
- * major symmetry of the stiffness operator by construction.
+ * is built symmetric, the resulting linear map H -> flux carries the major
+ * symmetry of the stiffness operator by construction. The input H is the
+ * physical gradient du_t/dx_i; the C-PML path passes its stretched gradient
+ * here directly.
  *
  * @param J_inv Inverse Jacobian.
  * @param mu Lame parameter mu.
  * @param lambda Lame parameter lambda.
- * @param grad_u_ref Reference displacement gradient, grad_u_ref[r][t] = du_t/dxi_r.
+ * @param H Physical displacement gradient, H[i][t] = du_t/dx_i.
  * @param flux Output reference-element flux.
  */
-PROXY_HOST_DEVICE void elasticFluxIso(float const (&J_inv)[3][3], float mu, float lambda,
-                                      float const (&grad_u_ref)[3][3], float (&flux)[3][3]) {
-  float H[3][3];
-  physicalGradient(J_inv, grad_u_ref, H);
+PROXY_HOST_DEVICE void elasticFluxIsoFromH(float const (&J_inv)[3][3], float mu, float lambda,
+                                           float const (&H)[3][3], float (&flux)[3][3]) {
   float const div = H[0][0] + H[1][1] + H[2][2];
   float sigma[3][3];
   for (int a = 0; a < 3; ++a)
@@ -61,20 +61,38 @@ PROXY_HOST_DEVICE void elasticFluxIso(float const (&J_inv)[3][3], float mu, floa
 }
 
 /**
- * @brief VTI elastic flux: reference gradient to reference-element flux.
+ * @brief Isotropic elastic flux: reference gradient to reference-element flux.
+ *
+ * Computes the physical gradient H = J^{-1} * grad_u_ref, then delegates to
+ * elasticFluxIsoFromH.
+ *
+ * @param J_inv Inverse Jacobian.
+ * @param mu Lame parameter mu.
+ * @param lambda Lame parameter lambda.
+ * @param grad_u_ref Reference displacement gradient, grad_u_ref[r][t] = du_t/dxi_r.
+ * @param flux Output reference-element flux.
+ */
+PROXY_HOST_DEVICE void elasticFluxIso(float const (&J_inv)[3][3], float mu, float lambda,
+                                      float const (&grad_u_ref)[3][3], float (&flux)[3][3]) {
+  float H[3][3];
+  physicalGradient(J_inv, grad_u_ref, H);
+  elasticFluxIsoFromH(J_inv, mu, lambda, H, flux);
+}
+
+/**
+ * @brief VTI elastic flux from a physical displacement gradient.
  *
  * Stress from the six independent VTI stiffness coefficients (Voigt), built as a
- * symmetric tensor before the pull-back.
+ * symmetric tensor before the pull-back. The input H is the physical gradient
+ * du_t/dx_i; the C-PML path passes its stretched gradient here directly.
  *
  * @param J_inv Inverse Jacobian.
  * @param c11 c12 c13 c33 c44 c66 VTI stiffness coefficients.
- * @param grad_u_ref Reference displacement gradient.
+ * @param H Physical displacement gradient, H[i][t] = du_t/dx_i.
  * @param flux Output reference-element flux.
  */
-PROXY_HOST_DEVICE void elasticFluxVti(float const (&J_inv)[3][3], float c11, float c12, float c13, float c33, float c44,
-                                      float c66, float const (&grad_u_ref)[3][3], float (&flux)[3][3]) {
-  float H[3][3];
-  physicalGradient(J_inv, grad_u_ref, H);
+PROXY_HOST_DEVICE void elasticFluxVtiFromH(float const (&J_inv)[3][3], float c11, float c12, float c13, float c33,
+                                           float c44, float c66, float const (&H)[3][3], float (&flux)[3][3]) {
   float sigma[3][3];
   sigma[0][0] = c11 * H[0][0] + c12 * H[1][1] + c13 * H[2][2];
   sigma[1][1] = c12 * H[0][0] + c11 * H[1][1] + c13 * H[2][2];
@@ -86,11 +104,55 @@ PROXY_HOST_DEVICE void elasticFluxVti(float const (&J_inv)[3][3], float c11, flo
 }
 
 /**
- * @brief TTI elastic flux: reference gradient to reference-element flux.
+ * @brief VTI elastic flux: reference gradient to reference-element flux.
+ *
+ * Computes the physical gradient H = J^{-1} * grad_u_ref, then delegates to
+ * elasticFluxVtiFromH.
+ *
+ * @param J_inv Inverse Jacobian.
+ * @param c11 c12 c13 c33 c44 c66 VTI stiffness coefficients.
+ * @param grad_u_ref Reference displacement gradient.
+ * @param flux Output reference-element flux.
+ */
+PROXY_HOST_DEVICE void elasticFluxVti(float const (&J_inv)[3][3], float c11, float c12, float c13, float c33, float c44,
+                                      float c66, float const (&grad_u_ref)[3][3], float (&flux)[3][3]) {
+  float H[3][3];
+  physicalGradient(J_inv, grad_u_ref, H);
+  elasticFluxVtiFromH(J_inv, c11, c12, c13, c33, c44, c66, H, flux);
+}
+
+/**
+ * @brief TTI elastic flux from a physical displacement gradient.
  *
  * Full 6x6 stiffness matrix in Voigt notation with engineering shear strains.
  * CTTI is expected symmetric; the assembled stress tensor is symmetric, so the
- * map grad_u_ref -> flux inherits the major symmetry of the stiffness operator.
+ * map H -> flux inherits the major symmetry of the stiffness operator. The
+ * input H is the physical gradient du_t/dx_i; the C-PML path passes its
+ * stretched gradient here directly.
+ *
+ * @param J_inv Inverse Jacobian.
+ * @param CTTI Symmetric 6x6 stiffness matrix (Voigt).
+ * @param H Physical displacement gradient, H[i][t] = du_t/dx_i.
+ * @param flux Output reference-element flux.
+ */
+PROXY_HOST_DEVICE void elasticFluxTtiFromH(float const (&J_inv)[3][3], float const (&CTTI)[6][6],
+                                           float const (&H)[3][3], float (&flux)[3][3]) {
+  // Strain in Voigt notation (engineering shear strains).
+  float const eps[6] = {H[0][0], H[1][1], H[2][2], H[1][2] + H[2][1], H[0][2] + H[2][0], H[0][1] + H[1][0]};
+  float sv[6];
+  for (int a = 0; a < 6; ++a) {
+    sv[a] = 0.0f;
+    for (int b = 0; b < 6; ++b) sv[a] += CTTI[a][b] * eps[b];
+  }
+  float const sigma[3][3] = {{sv[0], sv[5], sv[4]}, {sv[5], sv[1], sv[3]}, {sv[4], sv[3], sv[2]}};
+  pullBackStress(J_inv, sigma, flux);
+}
+
+/**
+ * @brief TTI elastic flux: reference gradient to reference-element flux.
+ *
+ * Computes the physical gradient H = J^{-1} * grad_u_ref, then delegates to
+ * elasticFluxTtiFromH.
  *
  * @param J_inv Inverse Jacobian.
  * @param CTTI Symmetric 6x6 stiffness matrix (Voigt).
@@ -101,15 +163,7 @@ PROXY_HOST_DEVICE void elasticFluxTti(float const (&J_inv)[3][3], float const (&
                                       float const (&grad_u_ref)[3][3], float (&flux)[3][3]) {
   float H[3][3];
   physicalGradient(J_inv, grad_u_ref, H);
-  // Strain in Voigt notation (engineering shear strains).
-  float const eps[6] = {H[0][0], H[1][1], H[2][2], H[1][2] + H[2][1], H[0][2] + H[2][0], H[0][1] + H[1][0]};
-  float sv[6];
-  for (int a = 0; a < 6; ++a) {
-    sv[a] = 0.0f;
-    for (int b = 0; b < 6; ++b) sv[a] += CTTI[a][b] * eps[b];
-  }
-  float const sigma[3][3] = {{sv[0], sv[5], sv[4]}, {sv[5], sv[1], sv[3]}, {sv[4], sv[3], sv[2]}};
-  pullBackStress(J_inv, sigma, flux);
+  elasticFluxTtiFromH(J_inv, CTTI, H, flux);
 }
 
 }  // namespace flux
