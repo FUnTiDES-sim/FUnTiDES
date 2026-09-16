@@ -571,20 +571,21 @@ TEST_F(SemSolverAcousticPmlTest, PmlCoefficientsAreNonZero) {
   auto& elemMask = pml->getPmlElementMask();
   int nNodes = coeff.extent(0);
   int nPmlNodes = 0;
-  float dMax = 0.0f, kappaMax = 0.0f;
+  float kappaMax = 0.0f, coef1Max = 0.0f;
   for (int n = 0; n < nNodes; ++n) {
     if (nodeMask(n) == 1) {
       ++nPmlNodes;
       for (int j = 0; j < 3; ++j) {
-        dMax = std::max(dMax, std::fabs(coeff(n, j)));
-        kappaMax = std::max(kappaMax, std::fabs(coeff(n, 3 + j)));
+        // Compact layout: kappa(3) + coef0(3) + coef1(3).
+        kappaMax = std::max(kappaMax, std::fabs(coeff(n, j)));
+        coef1Max = std::max(coef1Max, std::fabs(coeff(n, 6 + j)));
       }
     }
   }
   int nElems = elemMask.extent(0);
   int nPmlElems = 0;
   for (int e = 0; e < nElems; ++e) nPmlElems += elemMask(e);
-  EXPECT_GT(dMax, 0.0f) << "PML profile is identically zero — no absorption possible";
+  EXPECT_GT(coef1Max, 0.0f) << "PML profile is identically zero — no absorption possible";
   EXPECT_GT(nPmlNodes, 0) << "No nodes in PML layer";
   EXPECT_GT(nPmlElems, 0) << "No elements in PML layer";
 }

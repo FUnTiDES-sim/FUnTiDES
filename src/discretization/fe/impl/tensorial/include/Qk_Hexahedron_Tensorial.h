@@ -473,6 +473,160 @@ class Qk_Hexahedron_Tensorial_GEMM final {
     });
   }
 
+  //==========================================================================
+  // ACOUSTIC STIFFNESS via sum-factorization — team-parallel C-PML path.
+  // Same math as computeStiffnessTermSumFactPML, but the numNodes quadrature
+  // points are split across the team (TeamVectorRange), so occupancy scales
+  // with team_size instead of being one-thread-per-element. The caller
+  // provides scratch for G_xi/G_eta/G_zeta (numNodes reals each) and the
+  // memory variables mem_local ([6][numNodes], flat).
+  //==========================================================================
+
+  template <typename MemberType, typename FUNC_ALPHA, typename FUNC_PML>
+  KOKKOS_INLINE_FUNCTION static void computeStiffnessTermSumFactPML_team(
+      const MemberType& member, float const (&X)[8][3], real_t const* p_local, real_t* f_local,
+      real_t* mem_local /* [6][numNodes] */, real_t* G_xi, real_t* G_eta, real_t* G_zeta, FUNC_ALPHA&& get_alpha,
+      FUNC_PML&& get_pml) {
+    // Local constexpr copies: the class-scope static constexpr members are not
+    // addressable in device code (ODR-use), so bind them to local constants.
+    constexpr int kN = numNodes;
+    constexpr int k1d = num1dNodes;
+    // Pass 1+2: reference gradient of p, physical gradient, stretched gradient
+    // (using psi at its current level), memory-variable advance, then metric +
+    // alpha + weight. One thread per quadrature point.
+    Kokkos::parallel_for(Kokkos::TeamVectorRange(member, kN), [&](int q) {
+      int qa, qb, qc;
+      GL_BASIS::TensorProduct3D::multiIndex(q, qa, qb, qc);
+      const real_t w = GL_BASIS::weight(qa) * GL_BASIS::weight(qb) * GL_BASIS::weight(qc);
+
+      real_t dxi_q = 0, deta_q = 0, dzeta_q = 0;
+      for (int i = 0; i < k1d; ++i) {
+        const int ibc = GL_BASIS::TensorProduct3D::linearIndex(i, qb, qc);
+        const int aic = GL_BASIS::TensorProduct3D::linearIndex(qa, i, qc);
+        const int abi = GL_BASIS::TensorProduct3D::linearIndex(qa, qb, i);
+        dxi_q += basisGradientAt(i, qa) * p_local[ibc];
+        deta_q += basisGradientAt(i, qb) * p_local[aic];
+        dzeta_q += basisGradientAt(i, qc) * p_local[abi];
+      }
+
+      real_t J[3][3] = {{0}};
+      jacobianTransformation(qa, qb, qc, X, J);
+      real_t const detJ = invert3x3(J);
+
+      real_t grad_p[3];
+      grad_p[0] = J[0][0] * dxi_q + J[1][0] * deta_q + J[2][0] * dzeta_q;
+      grad_p[1] = J[0][1] * dxi_q + J[1][1] * deta_q + J[2][1] * dzeta_q;
+      grad_p[2] = J[0][2] * dxi_q + J[1][2] * deta_q + J[2][2] * dzeta_q;
+
+      real_t kappa[3], coef0[3], coef1[3];
+      get_pml(qa, qb, qc, kappa, coef0, coef1);
+
+      real_t grad_p_stretched[3];
+      for (int j = 0; j < 3; ++j) {
+        grad_p_stretched[j] = (grad_p[j] - mem_local[j * kN + q]) / kappa[j];
+        mem_local[j * kN + q] = coef0[j] * mem_local[j * kN + q] + coef1[j] * grad_p[j];
+      }
+
+      real_t const scale = w * get_alpha(qa, qb, qc) * detJ;
+      G_xi[q] = scale * (J[0][0] * grad_p_stretched[0] + J[0][1] * grad_p_stretched[1] + J[0][2] * grad_p_stretched[2]);
+      G_eta[q] = scale * (J[1][0] * grad_p_stretched[0] + J[1][1] * grad_p_stretched[1] + J[1][2] * grad_p_stretched[2]);
+      G_zeta[q] = scale * (J[2][0] * grad_p_stretched[0] + J[2][1] * grad_p_stretched[1] + J[2][2] * grad_p_stretched[2]);
+    });
+    member.team_barrier();
+
+    // Pass 3: stretched divergence. One thread per output node.
+    Kokkos::parallel_for(Kokkos::TeamVectorRange(member, kN), [&](int node) {
+      int ia, ib, ic;
+      GL_BASIS::TensorProduct3D::multiIndex(node, ia, ib, ic);
+
+      real_t divF_xi = 0, divF_eta = 0, divF_zeta = 0;
+      for (int qa = 0; qa < k1d; ++qa) {
+        const int q_xi = GL_BASIS::TensorProduct3D::linearIndex(qa, ib, ic);
+        divF_xi += basisGradientAt(ia, qa) * G_xi[q_xi];
+      }
+      for (int qb = 0; qb < k1d; ++qb) {
+        const int q_eta = GL_BASIS::TensorProduct3D::linearIndex(ia, qb, ic);
+        divF_eta += basisGradientAt(ib, qb) * G_eta[q_eta];
+      }
+      for (int qc = 0; qc < k1d; ++qc) {
+        const int q_zeta = GL_BASIS::TensorProduct3D::linearIndex(ia, ib, qc);
+        divF_zeta += basisGradientAt(ic, qc) * G_zeta[q_zeta];
+      }
+
+      real_t kappa[3], coef0[3], coef1[3];
+      get_pml(ia, ib, ic, kappa, coef0, coef1);
+
+      real_t divF[3] = {divF_xi, divF_eta, divF_zeta};
+      real_t v = 0;
+      for (int j = 0; j < 3; ++j) {
+        v += (divF[j] - mem_local[(3 + j) * kN + node]) / kappa[j];
+        mem_local[(3 + j) * kN + node] = coef0[j] * mem_local[(3 + j) * kN + node] + coef1[j] * divF[j];
+      }
+      f_local[node] += v;
+    });
+    member.team_barrier();
+  }
+
+  //==========================================================================
+  // ACOUSTIC STIFFNESS via sum-factorization — team-parallel non-PML path.
+  // Same math as computeStiffnessTermSumFact. Caller provides G scratch.
+  //==========================================================================
+
+  template <typename MemberType, typename FUNC_ALPHA>
+  KOKKOS_INLINE_FUNCTION static void computeStiffnessTermSumFact_team(
+      const MemberType& member, float const (&X)[8][3], real_t const* u_local, real_t* v_local, real_t* G_xi,
+      real_t* G_eta, real_t* G_zeta, FUNC_ALPHA&& get_alpha) {
+    // Local constexpr copies (see computeStiffnessTermSumFactPML_team).
+    constexpr int kN = numNodes;
+    constexpr int k1d = num1dNodes;
+    Kokkos::parallel_for(Kokkos::TeamVectorRange(member, kN), [&](int q) {
+      int qa, qb, qc;
+      GL_BASIS::TensorProduct3D::multiIndex(q, qa, qb, qc);
+      const real_t w = GL_BASIS::weight(qa) * GL_BASIS::weight(qb) * GL_BASIS::weight(qc);
+
+      real_t dxi_q = 0, deta_q = 0, dzeta_q = 0;
+      for (int i = 0; i < k1d; ++i) {
+        const int ibc = GL_BASIS::TensorProduct3D::linearIndex(i, qb, qc);
+        const int aic = GL_BASIS::TensorProduct3D::linearIndex(qa, i, qc);
+        const int abi = GL_BASIS::TensorProduct3D::linearIndex(qa, qb, i);
+        dxi_q += basisGradientAt(i, qa) * u_local[ibc];
+        deta_q += basisGradientAt(i, qb) * u_local[aic];
+        dzeta_q += basisGradientAt(i, qc) * u_local[abi];
+      }
+
+      real_t J[3][3] = {{0}};
+      real_t B[6] = {0};
+      computeBMatrix(qa, qb, qc, X, J, B);
+
+      real_t const scale = w * get_alpha(qa, qb, qc);
+      G_xi[q] = scale * (B[0] * dxi_q + B[5] * deta_q + B[4] * dzeta_q);
+      G_eta[q] = scale * (B[5] * dxi_q + B[1] * deta_q + B[3] * dzeta_q);
+      G_zeta[q] = scale * (B[4] * dxi_q + B[3] * deta_q + B[2] * dzeta_q);
+    });
+    member.team_barrier();
+
+    Kokkos::parallel_for(Kokkos::TeamVectorRange(member, kN), [&](int node) {
+      int ia, ib, ic;
+      GL_BASIS::TensorProduct3D::multiIndex(node, ia, ib, ic);
+
+      real_t v = 0;
+      for (int qa = 0; qa < k1d; ++qa) {
+        const int q_xi = GL_BASIS::TensorProduct3D::linearIndex(qa, ib, ic);
+        v += basisGradientAt(ia, qa) * G_xi[q_xi];
+      }
+      for (int qb = 0; qb < k1d; ++qb) {
+        const int q_eta = GL_BASIS::TensorProduct3D::linearIndex(ia, qb, ic);
+        v += basisGradientAt(ib, qb) * G_eta[q_eta];
+      }
+      for (int qc = 0; qc < k1d; ++qc) {
+        const int q_zeta = GL_BASIS::TensorProduct3D::linearIndex(ia, ib, qc);
+        v += basisGradientAt(ic, qc) * G_zeta[q_zeta];
+      }
+      v_local[node] += v;
+    });
+    member.team_barrier();
+  }
+
   /// Serial small matmul: C = A * B  (NN).
   template <int ROWS, int INNER, int COLS>
   PROXY_HOST_DEVICE static void matmul_NN(real_t const (&A)[ROWS][INNER], real_t const (&B)[INNER][COLS],
