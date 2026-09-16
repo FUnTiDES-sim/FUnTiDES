@@ -24,7 +24,12 @@ static constexpr int kElementTypeSEM = 2;
 /**
  * @brief DG-SEm coupled solver.
  *
- * Staggered explicit scheme: SEM→DG coupling → DG→SEM coupling → DG step → SEM step.
+ * Staggered explicit scheme, one fused launch per phase:
+ *  1. DG volume + boundary — the face kernel also carries the DG-SEM interface coupling
+ *     (SIPG flux), writing both the DG stiff vector and the SEM force vector;
+ *  2. SEM source + element contributions (after resetting the SEM force vector, which
+ *     must precede the fused face kernel so the coupling contributions survive);
+ *  3. fused Verlet update for both sub-domains in a single launch.
  * Each sub-solver processes only its own elements via a list of elements.
  *
  * @tparam ORDER             Polynomial order of elements.
@@ -150,13 +155,16 @@ class DGSEMsolver : public Solver {
   void computeOneStep(const float& dt, const int& timeSample, DataStruct& data) override;
 
   /**
-   * @brief Compute SIPG interface flux contribution on both side (DG and SEM).
+   * @brief Fused Verlet update for both sub-domains in a single launch.
    *
-   * Reads p^n from both domains (no temporal lag). Accumulates into DG m_stiff_local_ and SEM workVectorsGlobal_[0],
-   * consumed by applyVerlet.
+   * The DG update is element-wise (m_mass_local_/m_stiff_local_/m_damp_local_/m_rhs_elem_),
+   * the SEM update is node-wise (massMatrixGlobal_/dampingMatrixGlobal_/workVectorsGlobal_/
+   * spongeTaperCoeff_). Both read p^n/p^{n-1} and write p^{n+1} independently, so they share
+   * one kernel over n_elem + n_node indices, removing one launch per step.
+   * @param dt Time step size.
    * @param data Coupled solver data.
    */
-  void ApplyCoupling(const DataType& data);
+  void applyVerletFused(const float& dt, const DataType& data);
 
   void outputSolutionValues(const int& t, int& e, const vectorReal& field, const char* fieldName) override;
   void outputSolutionValues(const int& t, int& e, const arrayReal& field, const char* fieldName) override;
@@ -202,6 +210,10 @@ class DGSEMsolver : public Solver {
   int m_n_DG_interior_faces_{0};  ///< Excludes DG-SEM interface faces
   /// Compact list of DG interior face indices (DG-DG faces only, excludes interface).
   vectorInt m_DG_interior_face_list_;
+
+  int m_n_DG_all_faces_{0};  ///< All DG-adjacent faces (interior + interface)
+  /// Compact list of all DG-adjacent face indices (used by the fused face kernel).
+  vectorInt m_DG_all_face_list_;
 
   /// @brief Build m_DG_interior_face_list_ from all DG faces minus interface faces.
   void BuildDGInteriorFaceList();

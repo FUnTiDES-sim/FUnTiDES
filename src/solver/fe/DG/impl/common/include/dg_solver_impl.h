@@ -194,7 +194,8 @@ void DGsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::comp
 template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE, bool IS_MODEL_ON_NODES,
           utils::enums::physicType PHYSICS>
 void DGsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::computeBoundaryDampingAndInterfaceFlux(
-    int kNumFaces, arrayReal current_field) {
+    int kNumFaces, arrayReal current_field, const vectorReal* p_sem, const vectorReal* work_sem,
+    const vectorInt* element_type) {
   auto mesh_local = m_mesh;
 
   bool const list_on = m_list_mode_;
@@ -207,6 +208,12 @@ void DGsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::comp
   arrayReal damp_local_view = m_damp_local_;
   arrayReal stiff_local_view = m_stiff_local_;
   real_t const penalty_local = m_penalty_factor_;
+
+  // DG-SEM coupling state (null when running standalone DG).
+  bool const has_coupling = (p_sem != nullptr) && (work_sem != nullptr) && (element_type != nullptr);
+  auto p_sem_view = has_coupling ? *p_sem : vectorReal();
+  auto work_sem_view = has_coupling ? *work_sem : vectorReal();
+  auto element_type_view = has_coupling ? *element_type : vectorInt();
 
   Kokkos::parallel_for(
       "DG BoundaryDamping+InterfaceFlux", n_iter, KOKKOS_LAMBDA(const int _loop_idx) {
@@ -236,6 +243,110 @@ void DGsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::comp
         int const neighbor_e = face_connectivity_local.elemNeighbor(f);
         int const fid_o = face_connectivity_local.localFaceOwner(f);
         int const fid_n = face_connectivity_local.localFaceNeighbor(f);
+
+        // DG-SEM interface face: owner and neighbor belong to different domains.
+        // Take the SIPG coupling branch (SEM pressure ↔ DG stiff_local_ and work_sem).
+        // kElementTypeDG == 1 (defined in dg-sem_solver.h); the DG solver uses the literal
+        // to avoid a cross-header dependency.
+        if (has_coupling && element_type_view(owner_e) != element_type_view(neighbor_e)) {
+          bool const owner_is_dg = (element_type_view(owner_e) == 1);
+          int const dg_e = owner_is_dg ? owner_e : neighbor_e;
+          int const sem_e = owner_is_dg ? neighbor_e : owner_e;
+          int const fid_dg = owner_is_dg ? fid_o : fid_n;
+          int const fid_sem = owner_is_dg ? fid_n : fid_o;
+
+          auto dg_to_sem = [&](int i) {
+            return owner_is_dg ? face_connectivity_local.getNeighborFaceDof(f, i)
+                               : face_connectivity_local.getOwnerFaceDof(f, i);
+          };
+          auto sem_to_dg = [&](int i) {
+            return owner_is_dg ? face_connectivity_local.getOwnerFaceDof(f, i)
+                               : face_connectivity_local.getNeighborFaceDof(f, i);
+          };
+
+          float faceCoords[4][3];
+          for (int j = 0; j < 4; ++j) {
+            int const gni =
+                face_connectivity_local.getGlobalNodeFromFace(f, INTEGRAL_TYPE::meshIndexToLinearIndex2D(j));
+            for (int d = 0; d < 3; ++d) faceCoords[j][d] = mesh_local.nodeCoord(gni, d);
+          }
+
+          float dg_coords[8][3];
+          {
+            auto const eIdx = mesh_local.elementIndex(dg_e);
+            for (int kv = 0; kv < 2; ++kv)
+              for (int jv = 0; jv < 2; ++jv)
+                for (int iv = 0; iv < 2; ++iv)
+                  mesh_local.vertexCoords(mesh_local.globalVertexIndex(eIdx, iv, jv, kv),
+                                          dg_coords[iv + 2 * jv + 4 * kv]);
+          }
+
+          float sem_coords[8][3];
+          {
+            auto const eIdx = mesh_local.elementIndex(sem_e);
+            for (int kv = 0; kv < 2; ++kv)
+              for (int jv = 0; jv < 2; ++jv)
+                for (int iv = 0; iv < 2; ++iv)
+                  mesh_local.vertexCoords(mesh_local.globalVertexIndex(eIdx, iv, jv, kv),
+                                          sem_coords[iv + 2 * jv + 4 * kv]);
+          }
+
+          float normal_dg[3];
+          mesh_local.faceNormal(dg_e, static_cast<model::CubicFace>(fid_dg), normal_dg);
+
+          real_t const face_area = computeFaceArea(faceCoords);
+          real_t const inv_rho_dg = 1.0f / mesh_local.getModelRhoOnElement(dg_e);
+          real_t const gamma_dg = computeSIPGPenaltyFromArea<ORDER>(face_area, dg_coords, penalty_local);
+          real_t const inv_rho_sem = 1.0f / mesh_local.getModelRhoOnElement(sem_e);
+          real_t const gamma_sem = computeSIPGPenaltyFromArea<ORDER>(face_area, sem_coords, penalty_local);
+
+          float stiff_dg_local[knumNodesPerFace] = {0};
+          float work_sem_local[knumNodesPerFace] = {0};
+
+          INTEGRAL_TYPE::computeInterfaceFluxTerm(
+              faceCoords, dg_coords, fid_dg, [&](const int i, const int j, const int k, const real_t val) {
+                int const ei = face_to_elem_dof[fid_dg][i];
+                int const ej = face_to_elem_dof[fid_dg][j];
+                int const sd_j = dg_to_sem(j);
+                int const gn_j = face_connectivity_local.getGlobalNodeFromFace(f, sd_j);
+                float const nk = normal_dg[k];
+                stiff_dg_local[i] += inv_rho_dg * nk * (-0.5f * val * current_field(dg_e, ej) + 0.5f * val * p_sem_view(gn_j));
+                stiff_dg_local[j] += inv_rho_dg * nk * (-0.5f * val * current_field(dg_e, ei));
+                work_sem_local[sd_j] += inv_rho_dg * nk * (0.5f * val * current_field(dg_e, ei));
+              });
+
+          for (int i = 0; i < knumNodesPerFace; ++i) {
+            int const ei = face_to_elem_dof[fid_dg][i];
+            int const gn_i = face_connectivity_local.getGlobalNodeFromFace(f, dg_to_sem(i));
+            stiff_dg_local[i] +=
+                gamma_dg * INTEGRAL_TYPE::computeDampingTerm(i, faceCoords) * (current_field(dg_e, ei) - p_sem_view(gn_i));
+          }
+
+          INTEGRAL_TYPE::computeInterfaceFluxTerm(
+              faceCoords, sem_coords, fid_sem, [&](const int i, const int j, const int k, const real_t val) {
+                int const gn_i = face_connectivity_local.getGlobalNodeFromFace(f, i);
+                int const gn_j = face_connectivity_local.getGlobalNodeFromFace(f, j);
+                int const sd_j = sem_to_dg(j);
+                int const ej_perm = face_to_elem_dof[fid_dg][sd_j];
+                float const nk = -normal_dg[k];  // SEM outward = -DG outward
+                stiff_dg_local[sd_j] += inv_rho_sem * nk * (0.5f * val * p_sem_view(gn_i));
+                work_sem_local[i] += inv_rho_sem * nk * (-0.5f * val * p_sem_view(gn_j) + 0.5f * val * current_field(dg_e, ej_perm));
+                work_sem_local[j] += inv_rho_sem * nk * (-0.5f * val * p_sem_view(gn_i));
+              });
+
+          for (int i = 0; i < knumNodesPerFace; ++i) {
+            int const gn_i = face_connectivity_local.getGlobalNodeFromFace(f, i);
+            int const ei_perm = face_to_elem_dof[fid_dg][sem_to_dg(i)];
+            work_sem_local[i] += inv_rho_sem * gamma_sem * INTEGRAL_TYPE::computeDampingTerm(i, faceCoords) *
+                                 (p_sem_view(gn_i) - current_field(dg_e, ei_perm));
+          }
+
+          for (int i = 0; i < knumNodesPerFace; ++i) {
+            ATOMICADD(stiff_local_view(dg_e, face_to_elem_dof[fid_dg][i]), stiff_dg_local[i]);
+            ATOMICADD(work_sem_view(face_connectivity_local.getGlobalNodeFromFace(f, i)), work_sem_local[i]);
+          }
+          return;
+        }
 
         float faceCoords[4][3];
         for (int j = 0; j < 4; ++j) {

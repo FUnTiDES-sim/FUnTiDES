@@ -209,8 +209,17 @@ class DGsolver : public Solver {
    * single face-loop (mutually exclusive per face, disjoint accumulators).
    * @param kNumFaces Total number of faces (interior + boundary).
    * @param current_field Pressure field at current time step p^n.
+   * @param p_sem Optional SEM pressure field (DG-SEM coupling). When non-null, faces whose
+   *              owner/neighbor belong to different domains take the DG-SEM SIPG coupling branch
+   *              instead of the DG-DG flux branch, and their SEM-side contribution is accumulated
+   *              into @p work_sem.
+   * @param work_sem Optional SEM force vector (DG-SEM coupling), flushed by the coupling branch.
+   * @param element_type Optional per-element domain tag (kElementTypeDG / kElementTypeSEM).
    */
-  void computeBoundaryDampingAndInterfaceFlux(int kNumFaces, arrayReal current_field);
+  void computeBoundaryDampingAndInterfaceFlux(int kNumFaces, arrayReal current_field,
+                                              const vectorReal* p_sem = nullptr,
+                                              const vectorReal* work_sem = nullptr,
+                                              const vectorInt* element_type = nullptr);
 
   /**
    * @brief Kernel 3 — Verlet time update.

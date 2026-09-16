@@ -235,11 +235,20 @@ void DGSEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::B
   // Collect faces adjacent to at least one DG element and not on the DG-SEM interface.
   std::vector<int> result;
   result.reserve(num_faces_fc / 2);
+  // Collect ALL faces adjacent to at least one DG element (interior + interface).
+  // Used by the fused face kernel (DG-DG flux + DG-SEM coupling in one launch).
+  std::vector<int> result_all;
+  result_all.reserve(num_faces_fc / 2);
   for (int f = 0; f < num_faces_fc; ++f) {
     if (is_iface[f]) continue;
     int const oe = m_face_connectivity_.elemOwner(f);
     bool dg_adj = (h_elem_type(oe) == kElementTypeDG);
     if (dg_adj) result.push_back(f);
+  }
+  for (int f = 0; f < num_faces_fc; ++f) {
+    int const oe = m_face_connectivity_.elemOwner(f);
+    bool dg_adj = (h_elem_type(oe) == kElementTypeDG);
+    if (dg_adj) result_all.push_back(f);
   }
 
   m_n_DG_interior_faces_ = static_cast<int>(result.size());
@@ -247,132 +256,75 @@ void DGSEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::B
   auto h_list = Kokkos::create_mirror_view(m_DG_interior_face_list_);
   for (int i = 0; i < m_n_DG_interior_faces_; ++i) h_list(i) = result[i];
   Kokkos::deep_copy(m_DG_interior_face_list_, h_list);
+
+  m_n_DG_all_faces_ = static_cast<int>(result_all.size());
+  m_DG_all_face_list_ = allocateVector<vectorInt>(m_n_DG_all_faces_, "DGAllFaceList");
+  auto h_all = Kokkos::create_mirror_view(m_DG_all_face_list_);
+  for (int i = 0; i < m_n_DG_all_faces_; ++i) h_all(i) = result_all[i];
+  Kokkos::deep_copy(m_DG_all_face_list_, h_all);
 }
 
 //============================================================================
-// ApplyCoupling — SIPG flux: SEM pressure → DG stiff_local_ and DG stiff_local_ → SEM pressure
+// applyVerletFused - single-launch Verlet update for both sub-domains
 //============================================================================
 
 template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE, bool IS_MODEL_ON_NODES,
           utils::enums::physicType PHYSICS>
-void DGSEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::ApplyCoupling(const DataType& data) {
+void DGSEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::applyVerletFused(const float& dt,
+                                                                                                const DataType& data) {
+  float const dt_local = dt;
+  float const dt2_local = dt * dt;
+
+  // DG side: element-wise Verlet over the DG element list.
   auto mesh_local = m_mesh_;
-  auto face_connectivity_local = m_face_connectivity_;
-  auto const p_DG = data.m_wavefield.m_DGacoustic.getCurrentField(0);
-  auto const p_SEM = data.m_wavefield.m_SEMacoustic.getCurrentField(0);
-
-  auto iface_list = m_interface_face_indices_;
-  int const n_iface = num_interface_faces_;
-  auto element_type = m_element_type_;
-  vectorReal work_sem = m_SEm_solver_.getForceVector(0);
+  auto const p_DG_cur = data.m_wavefield.m_DGacoustic.getCurrentField(0);
+  auto const p_DG_prev = data.m_wavefield.m_DGacoustic.getPreviousField(0);
+  arrayReal mass_dg = m_DG_solver_.m_mass_local_;
   arrayReal stiff_dg = m_DG_solver_.m_stiff_local_;
-  auto const face_to_elem_dof = dgSolver::kFaceToElemDof;
-  real_t const penalty_local = m_penalty_factor_;
+  arrayReal damp_dg = m_DG_solver_.m_damp_local_;
+  arrayReal rhs_dg = m_DG_solver_.m_rhs_elem_;
+  auto dg_elem_list = DG_elem_list_;
+  int const n_dg = num_DG_elements_;
+  constexpr int kPPE = dgSolver::kPointsPerElement;
 
+  // SEM side: node-wise Verlet over the SEM node list.
+  auto const p_SEM_cur = data.m_wavefield.m_SEMacoustic.getCurrentField(0);
+  auto const p_SEM_prev = data.m_wavefield.m_SEMacoustic.getPreviousField(0);
+  vectorReal mass_sem = m_SEm_solver_.getMassMatrixAcoustic();
+  vectorReal damp_sem = m_SEm_solver_.getDampingMatrix(0);
+  vectorReal work_sem = m_SEm_solver_.getForceVector(0);
+  vectorReal taper_sem = m_SEm_solver_.getSpongeTaperCoeff();
+  auto sem_node_list = SEm_node_list_;
+  int const n_sem = num_SEm_nodes_;
+
+  int const n_total = n_dg + n_sem;
   Kokkos::parallel_for(
-      "ApplyCouplingSEMToDG", n_iface, KOKKOS_LAMBDA(const int _loop_idx) {
-        int const f = iface_list(_loop_idx);
-
-        int const owner_e = face_connectivity_local.elemOwner(f);
-        int const neighbor_e = face_connectivity_local.elemNeighbor(f);
-        int const fid_o = face_connectivity_local.localFaceOwner(f);
-        int const fid_n = face_connectivity_local.localFaceNeighbor(f);
-
-        bool const owner_is_dg = (element_type(owner_e) == kElementTypeDG);
-        int const dg_e = owner_is_dg ? owner_e : neighbor_e;
-        int const sem_e = owner_is_dg ? neighbor_e : owner_e;
-        int const fid_dg = owner_is_dg ? fid_o : fid_n;
-        int const fid_sem = owner_is_dg ? fid_n : fid_o;
-
-        auto dg_to_sem = [&](int i) {
-          return owner_is_dg ? face_connectivity_local.getNeighborFaceDof(f, i)
-                             : face_connectivity_local.getOwnerFaceDof(f, i);
-        };
-        auto sem_to_dg = [&](int i) {
-          return owner_is_dg ? face_connectivity_local.getOwnerFaceDof(f, i)
-                             : face_connectivity_local.getNeighborFaceDof(f, i);
-        };
-
-        float faceCoords[4][3];
-        for (int j = 0; j < 4; ++j) {
-          int const gni = face_connectivity_local.getGlobalNodeFromFace(f, INTEGRAL_TYPE::meshIndexToLinearIndex2D(j));
-          for (int d = 0; d < 3; ++d) faceCoords[j][d] = mesh_local.nodeCoord(gni, d);
+      "DG-SEM Fused Verlet", n_total, KOKKOS_LAMBDA(const int idx) {
+        if (idx < n_dg) {
+          int const e = dg_elem_list[idx];
+          for (int i = 0; i < kPPE; ++i) {
+            float const M = mass_dg(e, i);
+            float const K = stiff_dg(e, i) + rhs_dg(e, i);
+            float const D = damp_dg(e, i);
+            p_DG_prev(e, i) =
+                (2.0f * M * p_DG_cur(e, i) - dt2_local * K - (M - 0.5f * dt_local * D) * p_DG_prev(e, i)) /
+                (M + 0.5f * dt_local * D);
+          }
+        } else {
+          int const I = sem_node_list[idx - n_dg];
+          if (mass_sem(I) <= 0.0f) return;
+          if (mesh_local.isFreeSurface(I)) {
+            p_SEM_cur(I) = 0.0f;
+            p_SEM_prev(I) = 0.0f;
+          } else {
+            float next_val = (2.0f * mass_sem(I) * p_SEM_cur(I) -
+                              (mass_sem(I) - 0.5f * dt_local * damp_sem(I)) * p_SEM_prev(I) -
+                              dt2_local * work_sem(I));
+            p_SEM_prev(I) = next_val / (mass_sem(I) + 0.5f * dt_local * damp_sem(I));
+            p_SEM_prev(I) *= taper_sem(I);
+            p_SEM_cur(I) *= taper_sem(I);
+          }
         }
-
-        float dg_coords[8][3];
-        {
-          auto const eIdx = mesh_local.elementIndex(dg_e);
-          for (int kv = 0; kv < 2; ++kv)
-            for (int jv = 0; jv < 2; ++jv)
-              for (int iv = 0; iv < 2; ++iv)
-                mesh_local.vertexCoords(mesh_local.globalVertexIndex(eIdx, iv, jv, kv),
-                                        dg_coords[iv + 2 * jv + 4 * kv]);
-        }
-
-        float sem_coords[8][3];
-        {
-          auto const eIdx = mesh_local.elementIndex(sem_e);
-          for (int kv = 0; kv < 2; ++kv)
-            for (int jv = 0; jv < 2; ++jv)
-              for (int iv = 0; iv < 2; ++iv)
-                mesh_local.vertexCoords(mesh_local.globalVertexIndex(eIdx, iv, jv, kv),
-                                        sem_coords[iv + 2 * jv + 4 * kv]);
-        }
-
-        float normal_dg[3];
-        mesh_local.faceNormal(dg_e, static_cast<model::CubicFace>(fid_dg), normal_dg);
-
-        real_t const face_area = computeFaceArea(faceCoords);
-        real_t const inv_rho_dg = 1.0f / mesh_local.getModelRhoOnElement(dg_e);
-        real_t const gamma_dg = computeSIPGPenaltyFromArea<ORDER>(face_area, dg_coords, penalty_local);
-        real_t const inv_rho_sem = 1.0f / mesh_local.getModelRhoOnElement(sem_e);
-        real_t const gamma_sem = computeSIPGPenaltyFromArea<ORDER>(face_area, sem_coords, penalty_local);
-
-        // Face-sized accumulator indexed by DG-side face dof: the coupling flux only touches
-        // the shared face's (ORDER+1)^2 dofs, so an element-sized array forced a 7x larger
-        // per-thread local-memory footprint and an all-element atomic flush of mostly zeros.
-        float stiff_dg_local[knumNodesPerFace] = {0};
-
-        INTEGRAL_TYPE::computeInterfaceFluxTerm(
-            faceCoords, dg_coords, fid_dg, [&](const int i, const int j, const int k, const real_t val) {
-              int const ei = face_to_elem_dof[fid_dg][i];
-              int const ej = face_to_elem_dof[fid_dg][j];
-              int const gn_j = face_connectivity_local.getGlobalNodeFromFace(f, dg_to_sem(j));
-              float const nk = normal_dg[k];
-              stiff_dg_local[i] += inv_rho_dg * nk * (-0.5f * val * p_DG(dg_e, ej) + 0.5f * val * p_SEM(gn_j));
-              stiff_dg_local[j] += inv_rho_dg * nk * (-0.5f * val * p_DG(dg_e, ei));
-              ATOMICADD(work_sem(gn_j), inv_rho_dg * nk * (0.5f * val * p_DG(dg_e, ei)));
-            });
-
-        for (int i = 0; i < knumNodesPerFace; ++i) {
-          int const ei = face_to_elem_dof[fid_dg][i];
-          int const gn_i = face_connectivity_local.getGlobalNodeFromFace(f, dg_to_sem(i));
-          stiff_dg_local[i] +=
-              gamma_dg * INTEGRAL_TYPE::computeDampingTerm(i, faceCoords) * (p_DG(dg_e, ei) - p_SEM(gn_i));
-        }
-
-        INTEGRAL_TYPE::computeInterfaceFluxTerm(
-            faceCoords, sem_coords, fid_sem, [&](const int i, const int j, const int k, const real_t val) {
-              int const gn_i = face_connectivity_local.getGlobalNodeFromFace(f, i);
-              int const gn_j = face_connectivity_local.getGlobalNodeFromFace(f, j);
-              int const sd_j = sem_to_dg(j);
-              int const ej_perm = face_to_elem_dof[fid_dg][sd_j];
-              float const nk = -normal_dg[k];  // SEM outward = -DG outward
-              stiff_dg_local[sd_j] += inv_rho_sem * nk * (0.5f * val * p_SEM(gn_i));
-              ATOMICADD(work_sem(gn_i),
-                        inv_rho_sem * nk * (-0.5f * val * p_SEM(gn_j) + 0.5f * val * p_DG(dg_e, ej_perm)));
-              ATOMICADD(work_sem(gn_j), inv_rho_sem * nk * (-0.5f * val * p_SEM(gn_i)));
-            });
-
-        for (int i = 0; i < knumNodesPerFace; ++i) {
-          int const gn_i = face_connectivity_local.getGlobalNodeFromFace(f, i);
-          int const ei_perm = face_to_elem_dof[fid_dg][sem_to_dg(i)];
-          ATOMICADD(work_sem(gn_i), inv_rho_sem * gamma_sem * INTEGRAL_TYPE::computeDampingTerm(i, faceCoords) *
-                                        (p_SEM(gn_i) - p_DG(dg_e, ei_perm)));
-        }
-
-        for (int i = 0; i < knumNodesPerFace; ++i)
-          ATOMICADD(stiff_dg(dg_e, face_to_elem_dof[fid_dg][i]), stiff_dg_local[i]);
       });
 }
 
@@ -401,20 +353,21 @@ void DGSEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::c
                                                               myData.m_rhs.m_rhs_SEMacoustic);
 
   // =========================================================================
-  // DG: volume + DG-DG interior flux (interface faces excluded from face list)
+  // DG: volume + DG-DG interior flux + DG-SEM interface coupling (fused face kernel)
   // =========================================================================
 
   m_DG_solver_.m_list_mode_ = true;
   m_DG_solver_.m_elem_list_ = DG_elem_list_;
   m_DG_solver_.m_n_elem_list_ = num_DG_elements_;
-  m_DG_solver_.m_face_list_ = m_DG_interior_face_list_;
-  m_DG_solver_.m_n_face_list_ = m_n_DG_interior_faces_;
+  m_DG_solver_.m_face_list_ = m_DG_all_face_list_;
+  m_DG_solver_.m_n_face_list_ = m_n_DG_all_faces_;
 
   m_DG_solver_.computeVolumeAndBoundary(num_DG_elements_, DG_data.getCurrentField(0), timeSample, DG_data);
-  m_DG_solver_.computeBoundaryDampingAndInterfaceFlux(m_n_DG_interior_faces_, DG_data.getCurrentField(0));
 
   // =========================================================================
-  // SEM: source + stiffness (Neumann = 0 at interface until coupling kernel)
+  // SEM: source + stiffness (Neumann = 0 at interface until coupling kernel).
+  // Must run BEFORE the fused face kernel: the coupling branch writes work_sem,
+  // and resetGlobalVectors zeroes it — so the reset must precede the coupling.
   m_SEm_solver_.resetGlobalVectors(nNode);
   // Fold the SEM source term into the element-contribution kernel (removes the
   // separate applyRHSTerm launch). Disabled again after the step.
@@ -422,20 +375,22 @@ void DGSEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::c
   m_SEm_solver_.computeElementContributionsFromList(SEm_data, SEm_elem_list_, num_SEm_elements_);
   m_SEm_solver_.setRhsTimeSample(-1);
 
+  // Fused face kernel: DG-DG interior flux + DG-SEM interface coupling in one launch.
+  // Interface faces (owner/neighbor in different domains) take the SIPG coupling branch,
+  // writing both stiff_dg and work_sem (after the SEM reset, so the coupling survives).
+  {
+    auto const p_sem = myData.m_wavefield.m_SEMacoustic.getCurrentField(0);
+    auto work_sem = m_SEm_solver_.getForceVector(0);
+    m_DG_solver_.computeBoundaryDampingAndInterfaceFlux(m_n_DG_all_faces_, DG_data.getCurrentField(0), &p_sem,
+                                                        &work_sem, &m_element_type_);
+  }
+
   // =========================================================================
-  // Symmetric SIPG interface coupling: both sides read p^n (no temporal lag).
+  // Both Verlots — fused into a single launch (DG element-wise + SEM node-wise).
   // =========================================================================
 
-  ApplyCoupling(myData);
-
-  // =========================================================================
-  // Both Verlots
-  // =========================================================================
-
-  m_DG_solver_.applyVerlet(num_DG_elements_, dt, DG_data.getCurrentField(0), DG_data.getPreviousField(0));
   m_DG_solver_.m_list_mode_ = false;
-
-  m_SEm_solver_.updateFieldsFromListForward(dt, SEm_data, SEm_node_list_, num_SEm_nodes_);
+  applyVerletFused(dt, myData);
   // Final fence: synchronizes the GPU with the host so the caller (unit test,
   // benchmark loop) reads a completed step. Removing it would make time_s
   // measure kernel-launch time instead of GPU execution (illusory speedup).

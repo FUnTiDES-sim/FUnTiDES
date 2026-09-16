@@ -142,6 +142,8 @@ make -C build bench_solver_fe_cartesian_dgsem_acoustic
 
 The harness prints a `PROXY_METRICS_BEGIN/END` block with `time_s`, `mem_bytes` and `output_file` metrics, which is consumed by the proxy-optimization workflow (see `proxy_bench/`).
 
+The coupled solver's per-step work is fused into three kernel launches: (1) the DG volume kernel plus a face kernel that carries both the DG-DG interior flux and the DG-SEM interface coupling (SIPG flux, writing the DG stiff vector and the SEM force vector), (2) the SEM source and element contributions, and (3) a single fused Verlet update for both sub-domains. The SEM force vector is reset before the fused face kernel so the coupling contributions survive.
+
 > **Note**: the DG-SEM solver must be built **without** `-O3` (i.e. no `CMAKE_BUILD_TYPE=Release`). The solver exhibits a latent use-after-free that `-O3` turns into a crash in `SEMsolver::updateFieldsForward`; the reference state (validated on V100) is the non-O3 build. Do not add `-O3`.
 
 You can also run the Python and MPI examples provided in the `examples/fe` folder:
