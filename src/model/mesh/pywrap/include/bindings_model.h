@@ -78,6 +78,7 @@ void bind_modelapi(py::module_ &m) {
       .def("boundary_type", &T::boundaryType)
       .def("face_normal", &T::faceNormal)
       .def("domain_size", &T::domainSize)
+      .def("domain_origin", &T::domainOrigin)
       .def("get_min_spacing", &T::getMinSpacing)
       .def("get_max_speed", &T::getMaxSpeed)
       .def("build_face_connectivity", &T::buildFaceConnectivity)
@@ -172,7 +173,10 @@ void bind_modelunstructdata(py::module_ &m) {
            py::arg("model_phi_node"), py::arg("model_phi_element"), py::arg("model_C_tensor_element"),
            py::arg("boundaries_t"))
 
-      .def_readwrite("face_connectivity", &Data::face_connectivity_);
+      .def_readwrite("face_connectivity", &Data::face_connectivity_)
+      .def_readwrite("ox", &Data::ox_)
+      .def_readwrite("oy", &Data::oy_)
+      .def_readwrite("oz", &Data::oz_);
 }
 
 }  // namespace model

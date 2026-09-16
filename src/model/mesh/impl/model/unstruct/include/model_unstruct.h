@@ -73,8 +73,7 @@ struct ModelUnstructData : public ModelDataBase<FloatType, ScalarType> {
         boundaries_t_(boundaries_t),
         face_connectivity_(face_connectivity) {}
 
-  FloatType origin_x_{0}, origin_y_{0}, origin_z_{0};
-  FloatType ox_, oy_, oz_;  // Local origin
+  FloatType ox_{0}, oy_{0}, oz_{0};  // Local origin
   ScalarType order_;
   ScalarType n_element_;
   ScalarType n_node_;
@@ -589,6 +588,24 @@ class ModelUnstruct final : public ModelApi<FloatType, ScalarType> {
         return lz_;
       default:
         return FloatType(-1);
+    }
+  }
+
+  /**
+   * @brief Get the coordinate of the domain lower corner in the specified dimension
+   * @param dim Dimension (0=x, 1=y, 2=z)
+   * @return Origin coordinate (meters)
+   */
+  PROXY_HOST_DEVICE FloatType domainOrigin(int dim) const final {
+    switch (dim) {
+      case 0:
+        return ox_;
+      case 1:
+        return oy_;
+      case 2:
+        return oz_;
+      default:
+        return FloatType(0);
     }
   }
 

@@ -291,10 +291,12 @@ class SEMsolver : public Solver {
   vectorReal gemmMetrics_;
   bool gemmMetricsReady_ = false;
 
-  float sponge_size_[3];
-  bool surface_sponge_;
-  float taper_delta_;
-  model::AnisotropyType anisotropyType_;
+  float sponge_size_[3] = {0.0f, 0.0f, 0.0f};
+  bool surface_sponge_ = false;
+  float taper_delta_ = 0.333f;
+  // Left uninitialised, a recycled-heap value falls into the kTTI dispatch branch
+  // and reads a C tensor that is only allocated for kTTI.
+  model::AnisotropyType anisotropyType_ = model::AnisotropyType::kIso;
 
   INTEGRAL_TYPE myQkIntegrals_;
 

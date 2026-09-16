@@ -35,11 +35,12 @@ class Solver {
    * @param mesh BaseMesh structure containing the domain information.
    * @param origin_x Local subdomain origin in X (for topology discovery).
    * @param local_lx Local subdomain width in X (for topology discovery).
-   * @param sponge_size Thickness (in elements) of absorbing sponge layers
+   * @param sponge_size Thickness (in mesh units) of absorbing sponge layers
    *                    in each direction [x, y, z] to prevent reflections.
-   * @param surface_sponge Enable sponge at free surface (typically false
-   *                       for geophysics to preserve natural reflections).
-   * @param taper_delta_ Attenuation parameter for sponge layers.
+   * @param surface_sponge Damp the free surface too (typically false for
+   *                       geophysics, to preserve natural reflections).
+   * @param taper_delta_ Decay length of the sponge taper, as a fraction of
+   *                     the sponge thickness. Non-positive means one third.
    */
   virtual void computeFEInit(model::ModelApi<float, int>& mesh, const std::array<float, 3>& sponge_size,
                              const bool surface_sponge, const float taper_delta_) = 0;

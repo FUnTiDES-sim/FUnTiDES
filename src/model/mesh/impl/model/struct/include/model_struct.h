@@ -313,6 +313,13 @@ class ModelStruct final : public ModelApi<FloatType, ScalarType> {
     return -1.0f;
   }
 
+  PROXY_HOST_DEVICE FloatType domainOrigin(int dim) const final {
+    if (dim == 0) return ox_;
+    if (dim == 1) return oy_;
+    if (dim == 2) return oz_;
+    return 0.0f;
+  }
+
   PROXY_HOST_DEVICE FloatType getMinSpacing() const final {
     const FloatType h = min(hx_, min(hy_, hz_));
     if constexpr (Order == 1) return h;
