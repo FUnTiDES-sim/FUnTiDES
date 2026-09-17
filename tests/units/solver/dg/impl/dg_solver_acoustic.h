@@ -261,6 +261,23 @@ TEST_F(DGsolverAcousticTest, GettersThrowAsExpected) {
 }
 
 // ============================================================
+// Backward/adjoint mode: must throw (not yet implemented for DG)
+// ============================================================
+
+// DG carries two wavefield buffers and the adjoint update needs three. Throwing is the contract
+// until that lands, so a caller running a gradient gets an error rather than a wrong wavefield.
+TEST_F(DGsolverAcousticTest, BackwardEntryPointsThrow) {
+  constexpr float kDt = 0.001f;
+  auto data = makeData(0.0f, 0.0f);
+  auto elem_list = allocateVector<vectorInt>(1, "elemList");
+  elem_list(0) = 0;
+
+  EXPECT_THROW(solver_.updateSolutionBackward(kDt, data), std::runtime_error);
+  EXPECT_THROW(solver_.updateFieldsBackward(kDt, data), std::runtime_error);
+  EXPECT_THROW(solver_.updateFieldsFromListBackward(kDt, data, elem_list, 1), std::runtime_error);
+}
+
+// ============================================================
 // outputSolutionValues
 // ============================================================
 

@@ -925,7 +925,7 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::com
             c11_e = rho_vp2 * (1.0f + 2.0f * epsilon_e);
             c66_e = rho_vs2 * (1.0f + 2.0f * gamma_e);
             float const vp2_vs2 = vp_e * vp_e - vs_e * vs_e;
-            c13_e = rho_e * sqrtf(vp2_vs2 * vp2_vs2 + 2.0f * rho_vp2 * delta_e * vp2_vs2) - rho_vs2;
+            c13_e = rho_e * sqrtf(vp2_vs2 * vp2_vs2 + 2.0f * vp_e * vp_e * delta_e * vp2_vs2) - rho_vs2;
             c12_e = c11_e - 2.0f * c66_e;
           }
 
@@ -949,7 +949,7 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::com
                   c11 = rho_vp2 * (1.0f + 2.0f * epsilon);
                   c66 = rho_vs2 * (1.0f + 2.0f * gamma);
                   float const vp2_vs2 = vp * vp - vs * vs;
-                  c13 = rho * sqrtf(vp2_vs2 * vp2_vs2 + 2.0f * rho_vp2 * delta * vp2_vs2) - rho_vs2;
+                  c13 = rho * sqrtf(vp2_vs2 * vp2_vs2 + 2.0f * vp * vp * delta * vp2_vs2) - rho_vs2;
                   c12 = c11 - 2.0f * c66;
                 } else {
                   c11 = c11_e;
@@ -1073,7 +1073,7 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::com
             c11_e = rho_vp2 * (1.0f + 2.0f * epsilon_e);
             c66_e = rho_vs2 * (1.0f + 2.0f * gamma_e);
             float const vp2_vs2 = vp_e * vp_e - vs_e * vs_e;
-            c13_e = rho_e * sqrtf(vp2_vs2 * vp2_vs2 + 2.0f * rho_vp2 * delta_e * vp2_vs2) - rho_vs2;
+            c13_e = rho_e * sqrtf(vp2_vs2 * vp2_vs2 + 2.0f * vp_e * vp_e * delta_e * vp2_vs2) - rho_vs2;
             c12_e = c11_e - 2.0f * c66_e;
           }
 
@@ -1095,7 +1095,7 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::com
               c11 = rho_vp2 * (1.0f + 2.0f * epsilon);
               c66 = rho_vs2 * (1.0f + 2.0f * gamma);
               float const vp2_vs2 = vp * vp - vs * vs;
-              c13 = rho * sqrtf(vp2_vs2 * vp2_vs2 + 2.0f * rho_vp2 * delta * vp2_vs2) - rho_vs2;
+              c13 = rho * sqrtf(vp2_vs2 * vp2_vs2 + 2.0f * vp * vp * delta * vp2_vs2) - rho_vs2;
               c12 = c11 - 2.0f * c66;
             } else {
               c11 = c11_e;
@@ -1948,7 +1948,7 @@ PROXY_HOST_DEVICE void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NO
   CVTI[1][0] = CVTI[0][1];
 
   const float vp2_vs2 = vp * vp - vs * vs;
-  const float sqrt_arg = vp2_vs2 * vp2_vs2 + 2.0f * rho_vp2 * delta * vp2_vs2;
+  const float sqrt_arg = vp2_vs2 * vp2_vs2 + 2.0f * vp * vp * delta * vp2_vs2;
   CVTI[0][2] = rho * sqrtf(sqrt_arg) - rho_vs2;
   CVTI[1][2] = CVTI[0][2];
   CVTI[2][0] = CVTI[0][2];
@@ -1999,30 +1999,32 @@ PROXY_HOST_DEVICE void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NO
   M[2][0] = R20_2;
   M[2][1] = R21_2;
   M[2][2] = R22_2;
-  M[0][3] = R[0][1] * R[0][2];
-  M[0][4] = R[0][0] * R[0][2];
-  M[0][5] = R[0][0] * R[0][1];
-  M[1][3] = R[1][1] * R[1][2];
-  M[1][4] = R[1][0] * R[1][2];
-  M[1][5] = R[1][0] * R[1][1];
-  M[2][3] = R[2][1] * R[2][2];
-  M[2][4] = R[2][0] * R[2][2];
-  M[2][5] = R[2][0] * R[2][1];
-  M[3][0] = 2.0f * R[1][0] * R[2][0];
-  M[3][1] = 2.0f * R[1][1] * R[2][1];
-  M[3][2] = 2.0f * R[1][2] * R[2][2];
+  // M * CVTI * M^T needs the Bond matrix for stress, whose factors of two sit in
+  // the upper right block; the lower left placement builds the one for strain.
+  M[0][3] = 2.0f * R[0][1] * R[0][2];
+  M[0][4] = 2.0f * R[0][0] * R[0][2];
+  M[0][5] = 2.0f * R[0][0] * R[0][1];
+  M[1][3] = 2.0f * R[1][1] * R[1][2];
+  M[1][4] = 2.0f * R[1][0] * R[1][2];
+  M[1][5] = 2.0f * R[1][0] * R[1][1];
+  M[2][3] = 2.0f * R[2][1] * R[2][2];
+  M[2][4] = 2.0f * R[2][0] * R[2][2];
+  M[2][5] = 2.0f * R[2][0] * R[2][1];
+  M[3][0] = R[1][0] * R[2][0];
+  M[3][1] = R[1][1] * R[2][1];
+  M[3][2] = R[1][2] * R[2][2];
   M[3][3] = R[1][1] * R[2][2] + R[1][2] * R[2][1];
   M[3][4] = R[1][0] * R[2][2] + R[1][2] * R[2][0];
   M[3][5] = R[1][0] * R[2][1] + R[1][1] * R[2][0];
-  M[4][0] = 2.0f * R[0][0] * R[2][0];
-  M[4][1] = 2.0f * R[0][1] * R[2][1];
-  M[4][2] = 2.0f * R[0][2] * R[2][2];
+  M[4][0] = R[0][0] * R[2][0];
+  M[4][1] = R[0][1] * R[2][1];
+  M[4][2] = R[0][2] * R[2][2];
   M[4][3] = R[0][1] * R[2][2] + R[0][2] * R[2][1];
   M[4][4] = R[0][0] * R[2][2] + R[0][2] * R[2][0];
   M[4][5] = R[0][0] * R[2][1] + R[0][1] * R[2][0];
-  M[5][0] = 2.0f * R[0][0] * R[1][0];
-  M[5][1] = 2.0f * R[0][1] * R[1][1];
-  M[5][2] = 2.0f * R[0][2] * R[1][2];
+  M[5][0] = R[0][0] * R[1][0];
+  M[5][1] = R[0][1] * R[1][1];
+  M[5][2] = R[0][2] * R[1][2];
   M[5][3] = R[0][1] * R[1][2] + R[0][2] * R[1][1];
   M[5][4] = R[0][0] * R[1][2] + R[0][2] * R[1][0];
   M[5][5] = R[0][0] * R[1][1] + R[0][1] * R[1][0];

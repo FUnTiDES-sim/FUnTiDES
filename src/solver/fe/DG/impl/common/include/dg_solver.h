@@ -204,6 +204,13 @@ class DGsolver : public Solver {
   /**
    * @brief Kernel 1b+2 — boundary absorbing damping and SIPG interface flux terms, fused into a
    * single face-loop (mutually exclusive per face, disjoint accumulators).
+   *
+   * One thread per face. A teamed variant (one warp per face, face-dof accumulators in team
+   * scratch) was measured and dropped: on GH200 at order 6 it beats this form 3x on a 20^3 mesh
+   * (25k faces) but loses on 40^3 (197k) and on 100x45x60 (823k), i.e. it only ever won where one
+   * thread per face could not fill the device. Face count, not order, is what moves that crossover,
+   * and a production mesh is always past it. Kept as dg-face-teampolicy-contracted.patch.
+   *
    * @param kNumFaces Total number of faces (interior + boundary).
    * @param current_field Pressure field at current time step p^n.
    */
@@ -253,6 +260,20 @@ class DGsolver : public Solver {
   void setFaceConnectivity(const model::FaceConnectivityUnstruct<float, int, ORDER>& face_connectivity) {
     m_face_connectivity_ = face_connectivity;
   }
+
+  /**
+   * @brief Rebuild this solver's own face connectivity sampling the face dofs against the shared
+   * mesh's true geometric order rather than this solver's polynomial ORDER.
+   *
+   * No-op for standalone DG/DG-SEM (the mesh order already equals ORDER). Needed when this
+   * DGsolver runs at a lower order than the shared mesh -- the pMin sub-solver of the DG
+   * p-adaptive coupling: without it, the "Plus"-type faces (kXPlus/kYPlus/kZPlus) place the
+   * face-normal coordinate at ORDER instead of the mesh's true far edge and neighbor node-ID
+   * matching fails silently for those faces.
+   *
+   * @param geometricOrder The shared mesh's true polynomial order (mesh.getOrder()).
+   */
+  void rebuildFaceConnectivityGeometry(int geometricOrder) { m_face_connectivity_.build(m_mesh, geometricOrder); }
 
  private:
   MESH_TYPE m_mesh;

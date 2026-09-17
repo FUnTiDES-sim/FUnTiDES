@@ -11,6 +11,9 @@
 #ifdef COMPILE_DG_SEM
 #include "dg-sem_solver.h"
 #endif
+#ifdef COMPILE_DG_PADAPTIVE
+#include "dg_padaptive_solver.h"
+#endif
 
 namespace solver {
 namespace fe {
@@ -201,6 +204,72 @@ std::unique_ptr<Solver> makeDgSemSolver(int order, feenum::meshType mesh, feenum
 }
 #endif
 
+#ifdef COMPILE_DG_PADAPTIVE
+/**
+ * @brief Creates DG p-adaptive solver for structured mesh (acoustic only).
+ */
+template <auto ImplTag, int ORDER_MIN, int ORDER_MAX>
+std::unique_ptr<Solver> makeDgPAdaptiveSolverStruct(bool isModelOnNodes, feenum::physicType physic) {
+  using MeshT = model::ModelStruct<float, int, ORDER_MAX>;
+
+  if (physic == feenum::physicType::kAcoustic) {
+    if (isModelOnNodes)
+      return std::make_unique<solver::fe::DGPAdaptiveSolver<ORDER_MIN, ORDER_MAX, IntegralTypeSelector, ImplTag, MeshT,
+                                                            true, feenum::physicType::kAcoustic>>();
+    else
+      return std::make_unique<solver::fe::DGPAdaptiveSolver<ORDER_MIN, ORDER_MAX, IntegralTypeSelector, ImplTag, MeshT,
+                                                            false, feenum::physicType::kAcoustic>>();
+  }
+  throw std::runtime_error("DG p-adaptive: unsupported physics type");
+}
+
+/**
+ * @brief Creates DG p-adaptive solver for unstructured mesh (acoustic only).
+ */
+template <auto ImplTag, int ORDER_MIN, int ORDER_MAX>
+std::unique_ptr<Solver> makeDgPAdaptiveSolverUnstruct(bool isModelOnNodes, feenum::physicType physic) {
+  using MeshT = model::ModelUnstruct<float, int>;
+
+  if (physic == feenum::physicType::kAcoustic) {
+    if (isModelOnNodes)
+      return std::make_unique<solver::fe::DGPAdaptiveSolver<ORDER_MIN, ORDER_MAX, IntegralTypeSelector, ImplTag, MeshT,
+                                                            true, feenum::physicType::kAcoustic>>();
+    else
+      return std::make_unique<solver::fe::DGPAdaptiveSolver<ORDER_MIN, ORDER_MAX, IntegralTypeSelector, ImplTag, MeshT,
+                                                            false, feenum::physicType::kAcoustic>>();
+  }
+  throw std::runtime_error("DG p-adaptive: unsupported physics type");
+}
+
+/**
+ * @brief Creates a DG p-adaptive solver with the specified integral implementation.
+ *
+ * Dispatches ORDER_MAX over [1, MAX_DG_PADAPTIVE_SOLVER_ACOUSTIC_ORDER], then ORDER_MIN over
+ * [1, ORDER_MAX - 1] -- one explicit instantiation exists per ordered pair (see
+ * generate_padaptive_solver_implementations()).
+ */
+template <auto ImplTag>
+std::unique_ptr<Solver> makeDgPAdaptiveSolver(int order_min, int order_max, feenum::meshType mesh,
+                                              feenum::modelLocationType modelLocation, feenum::physicType physic) {
+  bool const isModelOnNodes = (modelLocation == feenum::modelLocationType::kOnNodes);
+  return orderDispatch<MAX_DG_PADAPTIVE_SOLVER_ACOUSTIC_ORDER>(
+      order_max, [&](auto orderMaxIC) -> std::unique_ptr<Solver> {
+        constexpr int ORDER_MAX = decltype(orderMaxIC)::value;
+
+        if constexpr (ORDER_MAX > 1) {
+          return orderDispatch<ORDER_MAX - 1>(order_min, [&](auto orderMinIC) {
+            constexpr int ORDER_MIN = decltype(orderMinIC)::value;
+            return (mesh == feenum::meshType::kStruct)
+                       ? makeDgPAdaptiveSolverStruct<ImplTag, ORDER_MIN, ORDER_MAX>(isModelOnNodes, physic)
+                       : makeDgPAdaptiveSolverUnstruct<ImplTag, ORDER_MIN, ORDER_MAX>(isModelOnNodes, physic);
+          });
+        } else {
+          throw std::runtime_error("DG p-adaptive requires order_max > 1");
+        }
+      });
+}
+#endif
+
 /**
  * @brief Creates a SEM solver with the specified integral implementation.
  */
@@ -234,7 +303,7 @@ std::unique_ptr<Solver> makeSemSolver(int order, feenum::meshType mesh, feenum::
 
 std::unique_ptr<Solver> createSolver(feenum::methodType const methodType, feenum::implemType const implemType,
                                      feenum::meshType const mesh, feenum::modelLocationType const modelLocation,
-                                     feenum::physicType const physicType, int const order) {
+                                     feenum::physicType const physicType, int const order, int const order_min) {
   if (methodType == feenum::methodType::kSem) {
     switch (implemType) {
       case feenum::implemType::kMakutu:
@@ -262,6 +331,21 @@ std::unique_ptr<Solver> createSolver(feenum::methodType const methodType, feenum
         return makeDgSemSolver<IntegralType::MAKUTU>(order, mesh, modelLocation, physicType);
       default:
         throw std::runtime_error("Unknown DG-SEM implementation type: " + std::to_string(static_cast<int>(implemType)));
+    }
+  }
+#endif
+
+#ifdef COMPILE_DG_PADAPTIVE
+  if (methodType == feenum::methodType::kDgPAdaptive) {
+    int const order_max = order;
+    switch (implemType) {
+      case feenum::implemType::kMakutu:
+        if (order_min <= 0 || order_min >= order_max)
+          throw std::runtime_error("DG p-adaptive requires 0 < order_min < order_max");
+        return makeDgPAdaptiveSolver<IntegralType::MAKUTU>(order_min, order_max, mesh, modelLocation, physicType);
+      default:
+        throw std::runtime_error("Unknown DG p-adaptive implementation type: " +
+                                 std::to_string(static_cast<int>(implemType)));
     }
   }
 #endif

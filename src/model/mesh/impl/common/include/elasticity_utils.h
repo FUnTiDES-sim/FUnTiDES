@@ -52,7 +52,7 @@ PROXY_HOST_DEVICE void computeVTICoefficients(FloatType vp, FloatType vs, FloatT
   c66 = rho_vs2 * (FloatType(1.0) + FloatType(2.0) * gamma);
 
   FloatType const vp2_vs2 = vp * vp - vs * vs;
-  FloatType const sqrt_arg = vp2_vs2 * vp2_vs2 + FloatType(2.0) * rho_vp2 * delta * vp2_vs2;
+  FloatType const sqrt_arg = vp2_vs2 * vp2_vs2 + FloatType(2.0) * vp * vp * delta * vp2_vs2;
   c13 = rho * sqrt(sqrt_arg) - rho_vs2;
   c12 = c11 - FloatType(2.0) * c66;
 }
@@ -134,30 +134,34 @@ PROXY_HOST_DEVICE void computeCTensor(FloatType vp, FloatType vs, FloatType rho,
   M[2][0] = R[2][0] * R[2][0];
   M[2][1] = R[2][1] * R[2][1];
   M[2][2] = R[2][2] * R[2][2];
-  M[0][3] = R[0][1] * R[0][2];
-  M[0][4] = R[0][0] * R[0][2];
-  M[0][5] = R[0][0] * R[0][1];
-  M[1][3] = R[1][1] * R[1][2];
-  M[1][4] = R[1][0] * R[1][2];
-  M[1][5] = R[1][0] * R[1][1];
-  M[2][3] = R[2][1] * R[2][2];
-  M[2][4] = R[2][0] * R[2][2];
-  M[2][5] = R[2][0] * R[2][1];
-  M[3][0] = 2.0 * R[1][0] * R[2][0];
-  M[3][1] = 2.0 * R[1][1] * R[2][1];
-  M[3][2] = 2.0 * R[1][2] * R[2][2];
+  // The product below is M * C * M^T, which calls for the Bond matrix that
+  // transforms stress, so the factors of two belong in the upper right block.
+  // Putting them in the lower left instead builds the strain Bond matrix, whose
+  // inverse transpose is the one wanted here.
+  M[0][3] = 2.0 * R[0][1] * R[0][2];
+  M[0][4] = 2.0 * R[0][0] * R[0][2];
+  M[0][5] = 2.0 * R[0][0] * R[0][1];
+  M[1][3] = 2.0 * R[1][1] * R[1][2];
+  M[1][4] = 2.0 * R[1][0] * R[1][2];
+  M[1][5] = 2.0 * R[1][0] * R[1][1];
+  M[2][3] = 2.0 * R[2][1] * R[2][2];
+  M[2][4] = 2.0 * R[2][0] * R[2][2];
+  M[2][5] = 2.0 * R[2][0] * R[2][1];
+  M[3][0] = R[1][0] * R[2][0];
+  M[3][1] = R[1][1] * R[2][1];
+  M[3][2] = R[1][2] * R[2][2];
   M[3][3] = R[1][1] * R[2][2] + R[1][2] * R[2][1];
   M[3][4] = R[1][0] * R[2][2] + R[1][2] * R[2][0];
   M[3][5] = R[1][0] * R[2][1] + R[1][1] * R[2][0];
-  M[4][0] = 2.0 * R[0][0] * R[2][0];
-  M[4][1] = 2.0 * R[0][1] * R[2][1];
-  M[4][2] = 2.0 * R[0][2] * R[2][2];
+  M[4][0] = R[0][0] * R[2][0];
+  M[4][1] = R[0][1] * R[2][1];
+  M[4][2] = R[0][2] * R[2][2];
   M[4][3] = R[0][1] * R[2][2] + R[0][2] * R[2][1];
   M[4][4] = R[0][0] * R[2][2] + R[0][2] * R[2][0];
   M[4][5] = R[0][0] * R[2][1] + R[0][1] * R[2][0];
-  M[5][0] = 2.0 * R[0][0] * R[1][0];
-  M[5][1] = 2.0 * R[0][1] * R[1][1];
-  M[5][2] = 2.0 * R[0][2] * R[1][2];
+  M[5][0] = R[0][0] * R[1][0];
+  M[5][1] = R[0][1] * R[1][1];
+  M[5][2] = R[0][2] * R[1][2];
   M[5][3] = R[0][1] * R[1][2] + R[0][2] * R[1][1];
   M[5][4] = R[0][0] * R[1][2] + R[0][2] * R[1][0];
   M[5][5] = R[0][0] * R[1][1] + R[0][1] * R[1][0];

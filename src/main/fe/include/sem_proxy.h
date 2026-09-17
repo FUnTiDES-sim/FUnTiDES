@@ -109,12 +109,15 @@ class SEMproxy {
   void WaitSnapshots();
 
   // --- Physics & Meshing Flags ---
-  bool is_elastic_ = false;          ///< True if simulating elastic wave propagation.
-  bool is_acousto_elastic_ = false;  ///< True if simulating coupled acousto-elastic wave propagation.
-  bool free_surface_ = false;        ///< True if the top boundary acts as a free surface.
-  bool is_dg_ = false;               ///< True if using Discontinuous Galerkin method.
-  bool is_dg_sem_ = false;           ///< True if using Discontinuous Galerkin - Spectral Element method coupling.
-  float dg_sem_iface_z_ = 1000.f;    ///< Z coordinate of the DG-SEM interface.
+  bool is_elastic_ = false;              ///< True if simulating elastic wave propagation.
+  bool is_acousto_elastic_ = false;      ///< True if simulating coupled acousto-elastic wave propagation.
+  bool free_surface_ = false;            ///< True if the top boundary acts as a free surface.
+  bool is_dg_ = false;                   ///< True if using Discontinuous Galerkin method.
+  bool is_dg_sem_ = false;               ///< True if using Discontinuous Galerkin - Spectral Element method coupling.
+  bool is_dg_padaptive_ = false;         ///< True if using the p-adaptive Discontinuous Galerkin method.
+  float dg_sem_iface_z_ = 1000.f;        ///< Z coordinate of the DG-SEM interface.
+  float dg_padaptive_iface_z_ = 1000.f;  ///< Z coordinate of the DG p-adaptive pMin/pMax interface.
+  int order_min_ = 0;                    ///< Lower polynomial order for the DG p-adaptive method.
 
   std::array<float, 3> sponge_size_ = {0, 0, 0};  ///< Thickness of absorbing boundaries (sponge layers).
   bool surface_sponge_ = false;                   ///< True if the top surface has an absorbing boundary.
@@ -139,20 +142,30 @@ class SEMproxy {
   SolverUtils utils_;                                         ///< General solver math utilities.
 
   // --- Acoustic / Shared Arrays (Device) ---
-  arrayReal rhs_term_;         ///< Source term array over time (Device).
-  arrayReal rhs_term_dg_;      ///< DG source term array over time (Device).
-  arrayReal rhs_term_sem_;     ///< SEM source term array over time (Device).
-  vectorReal pn_global_prev_;  ///< Pressure field at time t-1 (Device).
-  vectorReal pn_global_curr_;  ///< Pressure field at time t (Device).
-  arrayReal pn_dg_prev_;       ///< DG Pressure field at time t-1 (Device).
-  arrayReal pn_dg_curr_;       ///< DG Pressure field at time t (Device).
-  vectorReal pn_sem_prev_;     ///< SEM Pressure field at time t-1 (Device).
-  vectorReal pn_sem_curr_;     ///< SEM Pressure field at time t (Device).
-  vectorInt rhs_element_;      ///< Element indices containing sources (Device).
-  vectorInt rhs_element_rcv_;  ///< Element indices containing receivers (Device).
-  arrayReal rhs_weights_;      ///< Interpolation weights for sources (Device).
-  arrayReal rhs_weights_rcv_;  ///< Interpolation weights for receivers (Device).
-  arrayReal pn_at_receiver_;   ///< Recorded pressure traces at receivers (Device).
+  arrayReal rhs_term_;              ///< Source term array over time (Device).
+  arrayReal rhs_term_dg_;           ///< DG source term array over time (Device).
+  arrayReal rhs_term_sem_;          ///< SEM source term array over time (Device).
+  arrayReal rhs_term_pmin_;         ///< DG p-adaptive pMin-domain source term array over time (Device).
+  arrayReal rhs_term_pmax_;         ///< DG p-adaptive pMax-domain source term array over time (Device).
+  vectorReal pn_global_prev_;       ///< Pressure field at time t-1 (Device).
+  vectorReal pn_global_curr_;       ///< Pressure field at time t (Device).
+  arrayReal pn_dg_prev_;            ///< DG Pressure field at time t-1 (Device).
+  arrayReal pn_dg_curr_;            ///< DG Pressure field at time t (Device).
+  vectorReal pn_sem_prev_;          ///< SEM Pressure field at time t-1 (Device).
+  vectorReal pn_sem_curr_;          ///< SEM Pressure field at time t (Device).
+  arrayReal pn_pmin_dg_prev_;       ///< DG p-adaptive pMin Pressure field at time t-1 (Device).
+  arrayReal pn_pmin_dg_curr_;       ///< DG p-adaptive pMin Pressure field at time t (Device).
+  arrayReal pn_pmax_dg_prev_;       ///< DG p-adaptive pMax Pressure field at time t-1 (Device).
+  arrayReal pn_pmax_dg_curr_;       ///< DG p-adaptive pMax Pressure field at time t (Device).
+  vectorInt rhs_element_;           ///< Element indices containing sources (Device).
+  vectorInt rhs_element_rcv_;       ///< Element indices containing receivers (Device).
+  arrayReal rhs_weights_;           ///< Interpolation weights for sources (Device).
+  arrayReal rhs_weights_rcv_;       ///< Interpolation weights for receivers (Device).
+  arrayReal rhs_pmin_weights_;      ///< pMin-domain source interpolation weights (Device).
+  arrayReal rhs_pmax_weights_;      ///< pMax-domain source interpolation weights (Device).
+  arrayReal rhs_pmin_weights_rcv_;  ///< pMin-domain receiver interpolation weights (Device).
+  arrayReal rhs_pmax_weights_rcv_;  ///< pMax-domain receiver interpolation weights (Device).
+  arrayReal pn_at_receiver_;        ///< Recorded pressure traces at receivers (Device).
 
   // --- Elastic Arrays (Device) ---
   arrayReal rhs_term_x_;        ///< X-component of the source term (Device).
@@ -179,16 +192,22 @@ class SEMproxy {
   vectorReal das_signal_;                           ///< Output DAS signal trace over time (Device).
 
   // --- HOST MIRRORS (Used to avoid UVM overhead when CPU needs data) ---
-  vectorInt::host_mirror_type h_rhs_element_;      ///< CPU mirror for source elements.
-  vectorInt::host_mirror_type h_rhs_element_rcv_;  ///< CPU mirror for receiver elements.
-  arrayReal::host_mirror_type h_rhs_weights_;      ///< CPU mirror for source interpolation weights.
-  arrayReal::host_mirror_type h_rhs_weights_rcv_;  ///< CPU mirror for receiver interpolation weights.
-  arrayReal::host_mirror_type h_rhs_term_;         ///< CPU mirror for acoustic source term.
-  arrayReal::host_mirror_type h_rhs_term_dg_;      ///< CPU mirror for DG-SEM DG source term.
-  arrayReal::host_mirror_type h_rhs_term_sem_;     ///< CPU mirror for DG-SEM SEM source term.
-  arrayReal::host_mirror_type h_rhs_term_x_;       ///< CPU mirror for elastic X source term.
-  arrayReal::host_mirror_type h_rhs_term_y_;       ///< CPU mirror for elastic Y source term.
-  arrayReal::host_mirror_type h_rhs_term_z_;       ///< CPU mirror for elastic Z source term.
+  vectorInt::host_mirror_type h_rhs_element_;           ///< CPU mirror for source elements.
+  vectorInt::host_mirror_type h_rhs_element_rcv_;       ///< CPU mirror for receiver elements.
+  arrayReal::host_mirror_type h_rhs_weights_;           ///< CPU mirror for source interpolation weights.
+  arrayReal::host_mirror_type h_rhs_weights_rcv_;       ///< CPU mirror for receiver interpolation weights.
+  arrayReal::host_mirror_type h_rhs_term_;              ///< CPU mirror for acoustic source term.
+  arrayReal::host_mirror_type h_rhs_term_dg_;           ///< CPU mirror for DG-SEM DG source term.
+  arrayReal::host_mirror_type h_rhs_term_sem_;          ///< CPU mirror for DG-SEM SEM source term.
+  arrayReal::host_mirror_type h_rhs_term_pmin_;         ///< CPU mirror for DG p-adaptive pMin source term.
+  arrayReal::host_mirror_type h_rhs_term_pmax_;         ///< CPU mirror for DG p-adaptive pMax source term.
+  arrayReal::host_mirror_type h_rhs_pmin_weights_;      ///< CPU mirror for pMin source interpolation weights.
+  arrayReal::host_mirror_type h_rhs_pmax_weights_;      ///< CPU mirror for pMax source interpolation weights.
+  arrayReal::host_mirror_type h_rhs_pmin_weights_rcv_;  ///< CPU mirror for pMin receiver interpolation weights.
+  arrayReal::host_mirror_type h_rhs_pmax_weights_rcv_;  ///< CPU mirror for pMax receiver interpolation weights.
+  arrayReal::host_mirror_type h_rhs_term_x_;            ///< CPU mirror for elastic X source term.
+  arrayReal::host_mirror_type h_rhs_term_y_;            ///< CPU mirror for elastic Y source term.
+  arrayReal::host_mirror_type h_rhs_term_z_;            ///< CPU mirror for elastic Z source term.
 
   arrayReal::host_mirror_type h_pn_at_receiver_;   ///< CPU mirror for acoustic receiver traces.
   arrayReal::host_mirror_type h_uxn_at_receiver_;  ///< CPU mirror for elastic X receiver traces.
@@ -202,6 +221,10 @@ class SEMproxy {
   vectorReal::host_mirror_type h_pn_sem_prev_;      ///< CPU mirror for SEM previous pressure field.
   arrayReal::host_mirror_type h_pn_dg_curr_;        ///< CPU mirror for DG current pressure field.
   arrayReal::host_mirror_type h_pn_dg_prev_;        ///< CPU mirror for DG previous pressure field.
+  arrayReal::host_mirror_type h_pn_pmin_dg_curr_;   ///< CPU mirror for DG p-adaptive pMin current pressure field.
+  arrayReal::host_mirror_type h_pn_pmin_dg_prev_;   ///< CPU mirror for DG p-adaptive pMin previous pressure field.
+  arrayReal::host_mirror_type h_pn_pmax_dg_curr_;   ///< CPU mirror for DG p-adaptive pMax current pressure field.
+  arrayReal::host_mirror_type h_pn_pmax_dg_prev_;   ///< CPU mirror for DG p-adaptive pMax previous pressure field.
   vectorReal::host_mirror_type h_uxn_global_curr_;  ///< CPU mirror for current X-displacement.
   vectorReal::host_mirror_type h_uyn_global_curr_;  ///< CPU mirror for current Y-displacement.
   vectorReal::host_mirror_type h_uzn_global_curr_;  ///< CPU mirror for current Z-displacement.
