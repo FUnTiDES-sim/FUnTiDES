@@ -174,29 +174,36 @@ class SEMsolverAcoustoElastic : public Solver {
    */
   void ComputeInterfaceCouplingCoefficients();
 
-  /// @brief Snapshot u^{n-1} at the interface nodes before the elastic update
-  /// overwrites it; needed by the elastic-to-acoustic coupling.
+  /// @brief Snapshot the neighbouring displacement level at the interface nodes
+  /// before the elastic update overwrites it; needed by the elastic-to-acoustic
+  /// coupling.  Forward this is u^{n-1}, backward it is u^{n+1}: either way it
+  /// is the previous buffer, read before the Verlet writes the new level.
   void SaveInterfaceUnm1(const DataType& data);
 
   /**
    * @brief Apply acoustic→elastic coupling post-Verlet.
-   * @param dt   Time step.
-   * @param data Coupled solver data.
+   * @param dt       Time step.
+   * @param data     Coupled solver data.
+   * @param backward True in adjoint mode, where the Verlet has written the new
+   *                 level into the prevPrev buffer instead of the previous one.
    */
-  void ApplyCouplingAcousticToElastic(float dt, const DataType& data);
+  void ApplyCouplingAcousticToElastic(float dt, const DataType& data, bool backward);
 
   /**
    * @brief Apply elastic→acoustic coupling post-Verlet.
-   * @param data Coupled solver data.
+   * @param dt       Time step.
+   * @param data     Coupled solver data.
+   * @param backward True in adjoint mode (new level in the prevPrev buffer).
    */
-  void ApplyCouplingElasticToAcoustic(float dt, const DataType& data);
+  void ApplyCouplingElasticToAcoustic(float dt, const DataType& data, bool backward);
 
   /**
    * @brief Enforce the fluid/solid interface conditions on the two predictors.
-   * @param dt   Time step.
-   * @param data Coupled solver data, with both sub-domains already advanced.
+   * @param dt       Time step.
+   * @param data     Coupled solver data, with both sub-domains already advanced.
+   * @param backward True in adjoint mode (new level in the prevPrev buffer).
    */
-  void ApplyInterfaceCoupling(float dt, const DataType& data);
+  void ApplyInterfaceCoupling(float dt, const DataType& data, bool backward);
 
  private:
   AcousticSolverType m_acoustic_solver_;  ///< Acoustic sub-solver
