@@ -742,10 +742,26 @@ class Qk_Hexahedron_Lagrange_GaussLobatto {
    * @param func1      Constitutive callback (see @tparam FUNC1).
    * @param get_pml    κ/coef0/coef1 callback (see @tparam FUNC_PML).
    */
-  template <typename FUNC1, typename FUNC_PML>
+  template <typename FUNC_MEM, typename FUNC1, typename FUNC_PML>
   PROXY_HOST_DEVICE static void computeElasticStiffnessSumFactPML(
       float const (&X)[8][3], real_t const (&u_local)[3][numNodes], real_t (&f_local)[3][numNodes],
-      real_t (&mem_local)[18][numNodes], FUNC1 &&func1, FUNC_PML &&get_pml);
+      FUNC_MEM &&get_mem, FUNC1 &&func1, FUNC_PML &&get_pml);
+
+  /**
+   * @brief C-PML elastic stiffness for constant-Jacobian elements.
+   *
+   * Same kernel as computeElasticStiffnessSumFactPML, but the element geometry
+   * (9 inverse-Jacobian entries + determinant) is read from the caller-provided
+   * @p geom buffer instead of being rebuilt per quadrature point. On regular
+   * Cartesian grids (ModelStruct) the Jacobian is identical at every GLL point,
+   * so the per-point rebuild is pure redundancy.
+   *
+   * @param geom  [10] floats: J_inv[a*3+b] then detJ at geom[9].
+   */
+  template <typename FUNC_MEM, typename FUNC1, typename FUNC_PML>
+  PROXY_HOST_DEVICE static void computeElasticStiffnessSumFactPMLGeom(
+      real_t const *geom, real_t const (&u_local)[3][numNodes], real_t (&f_local)[3][numNodes], FUNC_MEM &&get_mem,
+      FUNC1 &&func1, FUNC_PML &&get_pml);
 
   /**
    * @brief Team-parallel variant of computeElasticStiffnessSumFact.
@@ -1687,10 +1703,10 @@ PROXY_HOST_DEVICE void Qk_Hexahedron_Lagrange_GaussLobatto<GL_BASIS>::computeEla
   });
 }
 template <typename GL_BASIS>
-template <typename FUNC1, typename FUNC_PML>
+template <typename FUNC_MEM, typename FUNC1, typename FUNC_PML>
 PROXY_HOST_DEVICE void Qk_Hexahedron_Lagrange_GaussLobatto<GL_BASIS>::computeElasticStiffnessSumFactPML(
-    float const (&X)[8][3], real_t const (&u_local)[3][numNodes], real_t (&f_local)[3][numNodes],
-    real_t (&mem_local)[18][numNodes], FUNC1 &&func1, FUNC_PML &&get_pml) {
+    float const (&X)[8][3], real_t const (&u_local)[3][numNodes], real_t (&f_local)[3][numNodes], FUNC_MEM &&get_mem,
+    FUNC1 &&func1, FUNC_PML &&get_pml) {
   // 9 flux arrays: F_xi/F_eta/F_zeta[force_comp][quad_point]
   real_t F_xi[3][numNodes] = {{0}};
   real_t F_eta[3][numNodes] = {{0}};
@@ -1755,8 +1771,8 @@ PROXY_HOST_DEVICE void Qk_Hexahedron_Lagrange_GaussLobatto<GL_BASIS>::computeEla
     real_t H_stretched[3][3];
     for (int k = 0; k < 3; ++k)
       for (int t = 0; t < 3; ++t) {
-        H_stretched[k][t] = (H[k][t] - mem_local[k * 3 + t][q]) / kappa[k];
-        mem_local[k * 3 + t][q] = coef0[k] * mem_local[k * 3 + t][q] + coef1[k] * H[k][t];
+        H_stretched[k][t] = (H[k][t] - get_mem(k * 3 + t, q)) / kappa[k];
+        get_mem(k * 3 + t, q) = coef0[k] * get_mem(k * 3 + t, q) + coef1[k] * H[k][t];
       }
 
     // flux[p][f] = unscaled flux contribution for test direction p and force
@@ -1817,8 +1833,129 @@ PROXY_HOST_DEVICE void Qk_Hexahedron_Lagrange_GaussLobatto<GL_BASIS>::computeEla
     real_t v[3] = {0};
     for (int j = 0; j < 3; ++j)
       for (int f = 0; f < 3; ++f) {
-        v[f] += (divF[j][f] - mem_local[9 + j * 3 + f][node]) / kappa[j];
-        mem_local[9 + j * 3 + f][node] = coef0[j] * mem_local[9 + j * 3 + f][node] + coef1[j] * divF[j][f];
+        v[f] += (divF[j][f] - get_mem(9 + j * 3 + f, node)) / kappa[j];
+        get_mem(9 + j * 3 + f, node) = coef0[j] * get_mem(9 + j * 3 + f, node) + coef1[j] * divF[j][f];
+      }
+    for (int f = 0; f < 3; ++f) f_local[f][node] += v[f];
+  });
+}
+template <typename GL_BASIS>
+template <typename FUNC_MEM, typename FUNC1, typename FUNC_PML>
+PROXY_HOST_DEVICE void Qk_Hexahedron_Lagrange_GaussLobatto<GL_BASIS>::computeElasticStiffnessSumFactPMLGeom(
+    real_t const *geom, real_t const (&u_local)[3][numNodes], real_t (&f_local)[3][numNodes], FUNC_MEM &&get_mem,
+    FUNC1 &&func1, FUNC_PML &&get_pml) {
+  // 9 flux arrays: F_xi/F_eta/F_zeta[force_comp][quad_point]
+  real_t F_xi[3][numNodes] = {{0}};
+  real_t F_eta[3][numNodes] = {{0}};
+  real_t F_zeta[3][numNodes] = {{0}};
+
+  // Constant-Jacobian geometry: read once, reuse for every GLL point.
+  real_t J_inv[3][3];
+  for (int a = 0; a < 3; ++a)
+    for (int b = 0; b < 3; ++b) J_inv[a][b] = geom[a * 3 + b];
+  real_t const detJ = geom[9];
+
+  // Pass 1+2: gradient + stretch + flux.
+  triple_loop<num1dNodes, num1dNodes, num1dNodes>([&](auto const icqa, auto const icqb, auto const icqc) {
+    constexpr int qa = decltype(icqa)::value;
+    constexpr int qb = decltype(icqb)::value;
+    constexpr int qc = decltype(icqc)::value;
+    constexpr int q = GL_BASIS::TensorProduct3D::linearIndex(qa, qb, qc);
+    constexpr real_t w = GL_BASIS::weight(qa) * GL_BASIS::weight(qb) * GL_BASIS::weight(qc);
+    const real_t scale = w * detJ;
+
+    // Reference gradients of each displacement component along ξ, η, ζ.
+    real_t grad_u_ref[3][3] = {{0}};
+    for_constexpr<num1dNodes>([&](auto ici) {
+      constexpr int i = decltype(ici)::value;
+      constexpr int ibc = GL_BASIS::TensorProduct3D::linearIndex(i, qb, qc);
+      constexpr int aic = GL_BASIS::TensorProduct3D::linearIndex(qa, i, qc);
+      constexpr int abi = GL_BASIS::TensorProduct3D::linearIndex(qa, qb, i);
+      const real_t gxi = basisGradientAt(i, qa);
+      const real_t geta = basisGradientAt(i, qb);
+      const real_t gzeta = basisGradientAt(i, qc);
+      for (int s = 0; s < 3; ++s) {
+        grad_u_ref[0][s] += gxi * u_local[s][ibc];
+        grad_u_ref[1][s] += geta * u_local[s][aic];
+        grad_u_ref[2][s] += gzeta * u_local[s][abi];
+      }
+    });
+
+    // Physical gradient H[k][t] = ∂u_t/∂x_k = J_inv[k][i] * grad_u_ref[i][t].
+    real_t H[3][3];
+    for (int k = 0; k < 3; ++k)
+      for (int t = 0; t < 3; ++t)
+        H[k][t] = J_inv[0][k] * grad_u_ref[0][t] + J_inv[1][k] * grad_u_ref[1][t] + J_inv[2][k] * grad_u_ref[2][t];
+
+    // PML coefficients at this GLL point.
+    real_t kappa[3], coef0[3], coef1[3];
+    get_pml(qa, qb, qc, kappa, coef0, coef1);
+
+    // Stretched gradient using psi at its current level, then advance psi.
+    real_t H_stretched[3][3];
+    for (int k = 0; k < 3; ++k)
+      for (int t = 0; t < 3; ++t) {
+        H_stretched[k][t] = (H[k][t] - get_mem(k * 3 + t, q)) / kappa[k];
+        get_mem(k * 3 + t, q) = coef0[k] * get_mem(k * 3 + t, q) + coef1[k] * H[k][t];
+      }
+
+    // flux[p][f] = unscaled flux contribution for test direction p and force
+    // component f — filled by the constitutive callback from the stretched
+    // gradient.
+    real_t flux[3][3] = {{0}};
+    func1(qa, qb, qc, J_inv, H_stretched, flux);
+
+    F_xi[0][q] = scale * flux[0][0];
+    F_xi[1][q] = scale * flux[0][1];
+    F_xi[2][q] = scale * flux[0][2];
+    F_eta[0][q] = scale * flux[1][0];
+    F_eta[1][q] = scale * flux[1][1];
+    F_eta[2][q] = scale * flux[1][2];
+    F_zeta[0][q] = scale * flux[2][0];
+    F_zeta[1][q] = scale * flux[2][1];
+    F_zeta[2][q] = scale * flux[2][2];
+  });
+
+  // Pass 3: stretched divergence — f_{ia,ib,ic} += Σ_j (D^T·F^j − χ_j)/κ_j.
+  triple_loop<num1dNodes, num1dNodes, num1dNodes>([&](auto const icia, auto const icib, auto const icic) {
+    constexpr int ia = decltype(icia)::value;
+    constexpr int ib = decltype(icib)::value;
+    constexpr int ic = decltype(icic)::value;
+    constexpr int node = GL_BASIS::TensorProduct3D::linearIndex(ia, ib, ic);
+
+    real_t divF_xi[3] = {0}, divF_eta[3] = {0}, divF_zeta[3] = {0};
+    for_constexpr<num1dNodes>([&](auto icqa) {
+      constexpr int qa = decltype(icqa)::value;
+      constexpr int q_xi = GL_BASIS::TensorProduct3D::linearIndex(qa, ib, ic);
+      const real_t g = basisGradientAt(ia, qa);
+      for (int f = 0; f < 3; ++f) divF_xi[f] += g * F_xi[f][q_xi];
+    });
+    for_constexpr<num1dNodes>([&](auto icqb) {
+      constexpr int qb = decltype(icqb)::value;
+      constexpr int q_eta = GL_BASIS::TensorProduct3D::linearIndex(ia, qb, ic);
+      const real_t g = basisGradientAt(ib, qb);
+      for (int f = 0; f < 3; ++f) divF_eta[f] += g * F_eta[f][q_eta];
+    });
+    for_constexpr<num1dNodes>([&](auto icqc) {
+      constexpr int qc = decltype(icqc)::value;
+      constexpr int q_zeta = GL_BASIS::TensorProduct3D::linearIndex(ia, ib, qc);
+      const real_t g = basisGradientAt(ic, qc);
+      for (int f = 0; f < 3; ++f) divF_zeta[f] += g * F_zeta[f][q_zeta];
+    });
+
+    // PML coefficients at this node (same profile as in pass 1).
+    real_t kappa[3], coef0[3], coef1[3];
+    get_pml(ia, ib, ic, kappa, coef0, coef1);
+
+    // Stretched divergence using chi at its current level, then advance chi.
+    real_t const divF[3][3] = {{divF_xi[0], divF_xi[1], divF_xi[2]},
+                               {divF_eta[0], divF_eta[1], divF_eta[2]},
+                               {divF_zeta[0], divF_zeta[1], divF_zeta[2]}};
+    real_t v[3] = {0};
+    for (int j = 0; j < 3; ++j)
+      for (int f = 0; f < 3; ++f) {
+        v[f] += (divF[j][f] - get_mem(9 + j * 3 + f, node)) / kappa[j];
+        get_mem(9 + j * 3 + f, node) = coef0[j] * get_mem(9 + j * 3 + f, node) + coef1[j] * divF[j][f];
       }
     for (int f = 0; f < 3; ++f) f_local[f][node] += v[f];
   });

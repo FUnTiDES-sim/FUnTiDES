@@ -390,7 +390,8 @@ class SEMsolver : public Solver {
   // divergence are element-local, so the memory variables must be stored per
   // element, NOT per node (shared nodes would otherwise race).
   // Layout: [e][j*numNodes + q] for component j (0-2 = psi, 3-5 = chi),
-  // GLL point q.
+  // GLL point q. Only PML elements carry non-zero memory variables, so the
+  // array is compacted to PML elements: row e is indexed by pmlMemIndex_(e).
   arrayReal pmlMemoryVariables_;
   // Per-node PML mask: 1 if the node lies inside the PML layer, else 0.
   // Used to disable the sponge taper and the first-order boundary damping in
@@ -399,6 +400,10 @@ class SEMsolver : public Solver {
   // Per-element PML mask: 1 if any GLL point of the element lies in the PML.
   // Used to dispatch PML vs plain stiffness kernels.
   vectorInt pmlElementMask_;
+  // Element -> compacted row of pmlMemoryVariables_ (sequential index over
+  // PML elements; -1 for non-PML elements). Lets pmlMemoryVariables_ be
+  // allocated for PML elements only instead of all elements.
+  vectorInt pmlMemIndex_;
 
   bool attenuationEnabled_ = false;
   int nSls_ = 0;

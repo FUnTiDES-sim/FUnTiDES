@@ -83,14 +83,10 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::com
   auto& myData = dynamic_cast<DataType&>(data);
 
   resetGlobalVectors(m_mesh.getNumberOfNodes());
-  FENCE
   applyRHSTerm(timeSample, dt, myData);
-  FENCE
   computeElementContributions(myData);
-  FENCE
   if (attenuationEnabled_ && nSls_ > 0) {
     computeAttenuationContributions(myData);
-    FENCE
   }
 }
 
@@ -378,6 +374,7 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::com
   auto pml_coeff = pmlCoefficients_;
   auto pml_mem = pmlMemoryVariables_;
   auto pml_elem_mask = pmlElementMask_;
+  auto pml_mem_index = pmlMemIndex_;
 
   using Policy = Kokkos::RangePolicy<Kokkos::LaunchBounds<LaunchMaxThreadsPerBlock, LaunchMinBlocksPerSM>>;
 
@@ -429,11 +426,13 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::com
         if (pml_enabled && pml_elem_mask(elementNumber) == 1) {
           // C-PML path: load the per-element memory variables (psi for the
           // trial gradient, chi for the divergence), advance them in place
-          // inside the kernel, and store them back.
+          // inside the kernel, and store them back. The memory array is
+          // compacted to PML elements, so index it through pml_mem_index.
+          int const mem_row = pml_mem_index(elementNumber);
           float mem_local[6][kPointsPerElement];
           for (int j = 0; j < 6; ++j)
             for (int q = 0; q < kPointsPerElement; ++q)
-              mem_local[j][q] = pml_mem(elementNumber, j * kPointsPerElement + q);
+              mem_local[j][q] = pml_mem(mem_row, j * kPointsPerElement + q);
 
           INTEGRAL_TYPE::computeStiffnessTermSumFactPML(
               cornerCoords, localFields[0], localWork[0], mem_local, get_alpha,
@@ -441,15 +440,15 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::com
                   real_t (&coef1)[3]) {
                 int const gIndex = mesh_local.globalNodeIndex(elementNumber, qa, qb, qc);
                 for (int j = 0; j < 3; ++j) {
-                  kappa[j] = pml_coeff(gIndex, 3 + j);
-                  coef0[j] = pml_coeff(gIndex, 9 + j);
-                  coef1[j] = pml_coeff(gIndex, 12 + j);
+                  kappa[j] = pml_coeff(gIndex, j);
+                  coef0[j] = pml_coeff(gIndex, 3 + j);
+                  coef1[j] = pml_coeff(gIndex, 6 + j);
                 }
               });
 
           for (int j = 0; j < 6; ++j)
             for (int q = 0; q < kPointsPerElement; ++q)
-              pml_mem(elementNumber, j * kPointsPerElement + q) = mem_local[j][q];
+              pml_mem(mem_row, j * kPointsPerElement + q) = mem_local[j][q];
         } else {
           INTEGRAL_TYPE::computeStiffnessTermSumFact(cornerCoords, localFields[0], localWork[0], get_alpha);
         }
@@ -672,6 +671,7 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::com
   auto pml_coeff = pmlCoefficients_;
   auto pml_mem = pmlMemoryVariables_;
   auto pml_elem_mask = pmlElementMask_;
+  auto pml_mem_index = pmlMemIndex_;
 
   Kokkos::parallel_for(
       "Solver Element Contribution Iso Flat",
@@ -684,6 +684,7 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::com
         (void)pml_coeff;
         (void)pml_mem;
         (void)pml_elem_mask;
+        (void)pml_mem_index;
 
         int const elementNumber = list_on ? list_local[_loop_idx] : _loop_idx;
 
@@ -738,35 +739,47 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::com
             }
           };
 
+          auto const iso_flux_pml = [&](int qa, int qb, int qc, float const(&J_inv)[3][3],
+                                        float const(&H_stretched)[3][3], float(&flux)[3][3]) {
+            float mu, lambda;
+            get_mu_lambda(qa, qb, qc, mu, lambda);
+            flux::elasticFluxIsoFromH(J_inv, mu, lambda, H_stretched, flux);
+          };
+          auto const get_pml = [&](int qa, int qb, int qc, float (&kappa)[3], float (&coef0)[3], float (&coef1)[3]) {
+            int const gIndex = mesh_local.globalNodeIndex(elementNumber, qa, qb, qc);
+            for (int j = 0; j < 3; ++j) {
+              kappa[j] = pml_coeff(gIndex, j);
+              coef0[j] = pml_coeff(gIndex, 3 + j);
+              coef1[j] = pml_coeff(gIndex, 6 + j);
+            }
+          };
+
           if (pml_enabled && pml_elem_mask(elementNumber) == 1) {
-            // C-PML path: load the per-element memory variables (9 psi for the
-            // trial gradient, 9 chi for the divergence), advance them in place
-            // inside the kernel, and store them back.
-            float mem_local[18][kPointsPerElement];
-            for (int j = 0; j < 18; ++j)
-              for (int q = 0; q < kPointsPerElement; ++q)
-                mem_local[j][q] = pml_mem(elementNumber, j * kPointsPerElement + q);
+            // C-PML path: the kernel reads and advances the memory variables
+            // directly in global memory (each is touched exactly once), so no
+            // per-thread staging buffer is needed. Indexed through the View so
+            // the access is correct under any Kokkos layout.
+            int const mem_row = pml_mem_index(elementNumber);
+            auto get_mem = [&](int row, int q) -> float& {
+              return pml_mem(mem_row, row * kPointsPerElement + q);
+            };
 
-            INTEGRAL_TYPE::computeElasticStiffnessSumFactPML(
-                cornerCoords, localFields, localWork, mem_local,
-                [&](int qa, int qb, int qc, float const(&J_inv)[3][3], float const(&H_stretched)[3][3],
-                    float(&flux)[3][3]) {
-                  float mu, lambda;
-                  get_mu_lambda(qa, qb, qc, mu, lambda);
-                  flux::elasticFluxIsoFromH(J_inv, mu, lambda, H_stretched, flux);
-                },
-                [&](int qa, int qb, int qc, float (&kappa)[3], float (&coef0)[3], float (&coef1)[3]) {
-                  int const gIndex = mesh_local.globalNodeIndex(elementNumber, qa, qb, qc);
-                  for (int j = 0; j < 3; ++j) {
-                    kappa[j] = pml_coeff(gIndex, 3 + j);
-                    coef0[j] = pml_coeff(gIndex, 9 + j);
-                    coef1[j] = pml_coeff(gIndex, 12 + j);
-                  }
-                });
-
-            for (int j = 0; j < 18; ++j)
-              for (int q = 0; q < kPointsPerElement; ++q)
-                pml_mem(elementNumber, j * kPointsPerElement + q) = mem_local[j][q];
+            if constexpr (HasConstantJacobian<MESH_TYPE>::value) {
+              // Constant-Jacobian mesh: build the element geometry once and let
+              // the kernel reuse it instead of rebuilding the Jacobian at every
+              // GLL point.
+              float geom[10];
+              float J_inv[3][3] = {{0}};
+              float const detJ = INTEGRAL_TYPE::invJacobianTransformation(0, 0, 0, cornerCoords, J_inv);
+              for (int a = 0; a < 3; ++a)
+                for (int b = 0; b < 3; ++b) geom[a * 3 + b] = J_inv[a][b];
+              geom[9] = detJ;
+              INTEGRAL_TYPE::computeElasticStiffnessSumFactPMLGeom(geom, localFields, localWork, get_mem, iso_flux_pml,
+                                                                   get_pml);
+            } else {
+              INTEGRAL_TYPE::computeElasticStiffnessSumFactPML(cornerCoords, localFields, localWork, get_mem,
+                                                               iso_flux_pml, get_pml);
+            }
           } else {
             INTEGRAL_TYPE::computeElasticStiffnessSumFact(cornerCoords, localFields, localWork,
                                                           [&](int qa, int qb, int qc, float const(&J_inv)[3][3],
@@ -966,6 +979,7 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::com
   auto pml_coeff = pmlCoefficients_;
   auto pml_mem = pmlMemoryVariables_;
   auto pml_elem_mask = pmlElementMask_;
+  auto pml_mem_index = pmlMemIndex_;
 
   Kokkos::parallel_for(
       "Solver Element Contribution Vti Flat",
@@ -978,6 +992,7 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::com
         (void)pml_coeff;
         (void)pml_mem;
         (void)pml_elem_mask;
+        (void)pml_mem_index;
         int const elementNumber = list_on ? list_local[_loop_idx] : _loop_idx;
 
         int const dim = mesh_local.getOrder() + 1;
@@ -1057,16 +1072,17 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::com
           };
 
           if (pml_enabled && pml_elem_mask(elementNumber) == 1) {
-            // C-PML path: load the per-element memory variables (9 psi for the
-            // trial gradient, 9 chi for the divergence), advance them in place
-            // inside the kernel, and store them back.
-            float mem_local[18][kPointsPerElement];
-            for (int j = 0; j < 18; ++j)
-              for (int q = 0; q < kPointsPerElement; ++q)
-                mem_local[j][q] = pml_mem(elementNumber, j * kPointsPerElement + q);
+            // C-PML path: the kernel reads and advances the memory variables
+            // directly in global memory (each is touched exactly once), so no
+            // per-thread staging buffer is needed. Indexed through the View so
+            // the access is correct under any Kokkos layout.
+            int const mem_row = pml_mem_index(elementNumber);
+            auto get_mem = [&](int row, int q) -> float& {
+              return pml_mem(mem_row, row * kPointsPerElement + q);
+            };
 
             INTEGRAL_TYPE::computeElasticStiffnessSumFactPML(
-                cornerCoords, localFields, localWork, mem_local,
+                cornerCoords, localFields, localWork, get_mem,
                 [&](int qa, int qb, int qc, float const(&J_inv)[3][3], float const(&H_stretched)[3][3],
                     float(&flux)[3][3]) {
                   float c11, c12, c13, c33, c44, c66;
@@ -1076,15 +1092,11 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::com
                 [&](int qa, int qb, int qc, float (&kappa)[3], float (&coef0)[3], float (&coef1)[3]) {
                   int const gIndex = mesh_local.globalNodeIndex(elementNumber, qa, qb, qc);
                   for (int j = 0; j < 3; ++j) {
-                    kappa[j] = pml_coeff(gIndex, 3 + j);
-                    coef0[j] = pml_coeff(gIndex, 9 + j);
-                    coef1[j] = pml_coeff(gIndex, 12 + j);
+                    kappa[j] = pml_coeff(gIndex, j);
+                    coef0[j] = pml_coeff(gIndex, 3 + j);
+                    coef1[j] = pml_coeff(gIndex, 6 + j);
                   }
                 });
-
-            for (int j = 0; j < 18; ++j)
-              for (int q = 0; q < kPointsPerElement; ++q)
-                pml_mem(elementNumber, j * kPointsPerElement + q) = mem_local[j][q];
           } else {
             INTEGRAL_TYPE::computeElasticStiffnessSumFact(
                 cornerCoords, localFields, localWork,
@@ -1296,6 +1308,7 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::com
     auto pml_coeff = pmlCoefficients_;
     auto pml_mem = pmlMemoryVariables_;
     auto pml_elem_mask = pmlElementMask_;
+    auto pml_mem_index = pmlMemIndex_;
 
     Kokkos::parallel_for(
         "Solver Element Contribution Tti Flat",
@@ -1308,6 +1321,7 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::com
           (void)pml_coeff;
           (void)pml_mem;
           (void)pml_elem_mask;
+          (void)pml_mem_index;
           int const elementNumber = list_on ? list_local[_loop_idx] : _loop_idx;
 
           int const dim = mesh_local.getOrder() + 1;
@@ -1361,16 +1375,17 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::com
           };
 
           if (pml_enabled && pml_elem_mask(elementNumber) == 1) {
-            // C-PML path: load the per-element memory variables (9 psi for the
-            // trial gradient, 9 chi for the divergence), advance them in place
-            // inside the kernel, and store them back.
-            float mem_local[18][kPointsPerElement];
-            for (int j = 0; j < 18; ++j)
-              for (int q = 0; q < kPointsPerElement; ++q)
-                mem_local[j][q] = pml_mem(elementNumber, j * kPointsPerElement + q);
+            // C-PML path: the kernel reads and advances the memory variables
+            // directly in global memory (each is touched exactly once), so no
+            // per-thread staging buffer is needed. Indexed through the View so
+            // the access is correct under any Kokkos layout.
+            int const mem_row = pml_mem_index(elementNumber);
+            auto get_mem = [&](int row, int q) -> float& {
+              return pml_mem(mem_row, row * kPointsPerElement + q);
+            };
 
             INTEGRAL_TYPE::computeElasticStiffnessSumFactPML(
-                cornerCoords, localFields, localWork, mem_local,
+                cornerCoords, localFields, localWork, get_mem,
                 [&](int qa, int qb, int qc, float const(&J_inv)[3][3], float const(&H_stretched)[3][3],
                     float(&flux)[3][3]) {
                   float C[6][6];
@@ -1380,15 +1395,11 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::com
                 [&](int qa, int qb, int qc, float (&kappa)[3], float (&coef0)[3], float (&coef1)[3]) {
                   int const gIndex = mesh_local.globalNodeIndex(elementNumber, qa, qb, qc);
                   for (int j = 0; j < 3; ++j) {
-                    kappa[j] = pml_coeff(gIndex, 3 + j);
-                    coef0[j] = pml_coeff(gIndex, 9 + j);
-                    coef1[j] = pml_coeff(gIndex, 12 + j);
+                    kappa[j] = pml_coeff(gIndex, j);
+                    coef0[j] = pml_coeff(gIndex, 3 + j);
+                    coef1[j] = pml_coeff(gIndex, 6 + j);
                   }
                 });
-
-            for (int j = 0; j < 18; ++j)
-              for (int q = 0; q < kPointsPerElement; ++q)
-                pml_mem(elementNumber, j * kPointsPerElement + q) = mem_local[j][q];
           } else {
             INTEGRAL_TYPE::computeElasticStiffnessSumFact(
                 cornerCoords, localFields, localWork,
@@ -2130,7 +2141,11 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::set
 
   int const nNodes = m_mesh.getNumberOfNodes();
   int const nElems = m_mesh.getNumberOfElements();
-  constexpr int kPmlStride = 18;  // d(3) + kappa(3) + alpha(3) + coef0/1/2(9)
+  // Compact per-node layout: only the coefficients the kernels actually read —
+  // kappa(3), coef0(3), coef1(3). The d/alpha/coef2 values are consumed inside
+  // fillPmlCoefficients() to build coef0/coef1 and are never read back, so they
+  // are not stored (halves the coefficient array vs the 18-float layout).
+  constexpr int kPmlStride = 9;
   // Per-element memory variables per GLL point: acoustic = 6 (3 gradient psi
   // + 3 divergence chi), elastic = 18 (9 gradient psi + 9 divergence chi).
   constexpr int kPmlMemoryComponents =
@@ -2139,8 +2154,7 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::set
   pmlCoefficients_ = allocateArray2D<arrayReal>(nNodes, kPmlStride, "pmlCoefficients");
   pmlNodeIndex_ = allocateVector<vectorInt>(nNodes, "pmlNodeIndex");
   pmlElementMask_ = allocateVector<vectorInt>(nElems, "pmlElementMask");
-  pmlMemoryVariables_ = allocateArray2D<arrayReal>(nElems, kPmlMemoryComponents * kPointsPerElement,
-                                                   "pmlMemoryVariables");
+  pmlMemIndex_ = allocateVector<vectorInt>(nElems, "pmlMemIndex");
 
   // Domain extent for the profile distance computation.
   float domainSize[3];
@@ -2186,16 +2200,17 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::set
     // LayoutRight. A raw-pointer walk (&view(n,0)+i) would follow the memory
     // layout and scramble the coefficients on LayoutLeft views.
     for (int i = 0; i < 3; ++i) {
-      pmlCoefficients_(n, i) = pc.d[i];
-      pmlCoefficients_(n, 3 + i) = pc.kappa[i];
-      pmlCoefficients_(n, 6 + i) = pc.alpha[i];
-      pmlCoefficients_(n, 9 + i) = pc.coef0[i];
-      pmlCoefficients_(n, 12 + i) = pc.coef1[i];
-      pmlCoefficients_(n, 15 + i) = pc.coef2[i];
+      pmlCoefficients_(n, i) = pc.kappa[i];
+      pmlCoefficients_(n, 3 + i) = pc.coef0[i];
+      pmlCoefficients_(n, 6 + i) = pc.coef1[i];
     }
   }
 
   // Per-element PML mask: 1 if any GLL point of the element lies in the PML.
+  // Also build the element -> compacted-row map so pmlMemoryVariables_ can be
+  // allocated for PML elements only (non-PML elements carry zero memory
+  // variables and never touch the array).
+  int nPmlElems = 0;
   for (int e = 0; e < nElems; ++e) {
     int mask = 0;
     for (int k = 0; k < ORDER + 1 && !mask; ++k)
@@ -2203,7 +2218,10 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::set
         for (int i = 0; i < ORDER + 1 && !mask; ++i)
           if (pmlNodeIndex_(m_mesh.globalNodeIndex(e, i, j, k)) == 1) mask = 1;
     pmlElementMask_(e) = mask;
+    pmlMemIndex_(e) = mask ? nPmlElems++ : -1;
   }
+  pmlMemoryVariables_ = allocateArray2D<arrayReal>(nPmlElems, kPmlMemoryComponents * kPointsPerElement,
+                                                   "pmlMemoryVariables");
 
   // Disable the sponge taper inside the PML layer: the C-PML replaces the
   // sponge, and applying both would double-absorb and reflect. The taper was
@@ -2213,8 +2231,9 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::set
   }
 
   // Zero the memory variables (acoustic: 3 gradient psi + 3 divergence chi;
-  // elastic: 9 gradient psi + 9 divergence chi).
-  for (int e = 0; e < nElems; ++e)
+  // elastic: 9 gradient psi + 9 divergence chi). The array is compacted to
+  // PML elements, so zero every row.
+  for (int e = 0; e < nPmlElems; ++e)
     for (int q = 0; q < kPmlMemoryComponents * kPointsPerElement; ++q) pmlMemoryVariables_(e, q) = 0.0f;
 
   FENCE

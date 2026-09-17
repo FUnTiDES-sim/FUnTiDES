@@ -950,17 +950,18 @@ TEST_F(SemSolverElasticPmlTest, PmlCoefficientsAreNonZero) {
   auto& elemMask = pml->getPmlElementMask();
   int nNodes = coeff.extent(0);
   int nPmlNodes = 0;
-  float dMax = 0.0f;
+  float kappaMax = 0.0f;
   for (int n = 0; n < nNodes; ++n) {
     if (nodeMask(n) == 1) {
       ++nPmlNodes;
-      for (int j = 0; j < 3; ++j) dMax = std::max(dMax, std::fabs(coeff(n, j)));
+      // Compact layout: kappa at (n, 0..2), coef0 at (n, 3..5), coef1 at (n, 6..8).
+      for (int j = 0; j < 3; ++j) kappaMax = std::max(kappaMax, std::fabs(coeff(n, j)));
     }
   }
   int nElems = elemMask.extent(0);
   int nPmlElems = 0;
   for (int e = 0; e < nElems; ++e) nPmlElems += elemMask(e);
-  EXPECT_GT(dMax, 0.0f) << "PML profile is identically zero — no absorption possible";
+  EXPECT_GT(kappaMax, 0.0f) << "PML profile is identically zero — no absorption possible";
   EXPECT_GT(nPmlNodes, 0) << "No nodes in PML layer";
   EXPECT_GT(nPmlElems, 0) << "No elements in PML layer";
 }
