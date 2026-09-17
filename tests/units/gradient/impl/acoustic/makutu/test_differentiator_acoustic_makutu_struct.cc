@@ -461,7 +461,7 @@ TYPED_TEST(DifferentiatorAcousticNodeTest, NodeBasedSumEqualsElementBasedResult)
 
   // Tolerance relaxed: float32 accumulation order differs on GPU, causing
   // small rounding drift that scales with kNumNodes.
-  EXPECT_NEAR(nodeSum, (float)TestFixture::kNumNodes * gradKappaElem(0), 1e-4f);
+  EXPECT_NEAR(nodeSum, (float)TestFixture::kNumNodes * gradKappaElem(0), 2e-5f);
 }
 
 // --- Polymorphic interface ---
