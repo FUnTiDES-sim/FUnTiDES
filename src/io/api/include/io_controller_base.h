@@ -23,7 +23,7 @@ struct IOConfig {
   std::vector<std::size_t> start_offsets;  ///< This rank's offset in it.
   std::vector<std::size_t> local_dims;     ///< This rank's chunk.
 
-  std::size_t nb_iter{0};
+  std::size_t nt{0};
   std::size_t nb_receiver{0};
 
   bool async_snapshots{false};
@@ -55,24 +55,11 @@ class IOControllerBase {
   virtual void writeSnapshot(const HostVectorReal& field, int timestep, float time) = 0;
 
   /**
-   * @brief Writes receiver traces and their coordinates.
-   *
-   * @param traces  Shape {nb_receiver, nb_iter}.
-   * @param coords  Shape {nb_receiver, 3}.
-   *
-   * Synchronous: both buffers are free as soon as this returns.
-   */
-  virtual void writeReceivers(const HostArrayReal& traces, const HostArrayReal& coords) = 0;
-
-  /**
    * @brief Reads snapshot number `index` into a caller-allocated view.
    * @throws std::runtime_error if `index` is out of range or the extents of
    *         `field` do not match what is stored.
    */
   virtual void readSnapshot(const HostVectorReal& field, std::size_t index) = 0;
-
-  /// Same contract: `traces` must already be sized {nb_receiver, nb_iter}.
-  virtual void readReceivers(const HostArrayReal& traces) = 0;
 
   /// Blocks until every pending write has landed. Buffers handed to
   /// writeSnapshot() are free afterwards.

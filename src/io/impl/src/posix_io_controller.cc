@@ -144,10 +144,6 @@ std::string PosixIOController::snapshotPath(std::size_t index) const {
   return config().output_dir + "/" + config().prefix + buf;
 }
 
-std::string PosixIOController::receiversPath() const {
-  return config().output_dir + "/" + config().prefix + "_receivers.bin";
-}
-
 void PosixIOController::requireMode(OpenMode expected, const char* what) const {
   if (mode_ != expected) {
     throw std::runtime_error(std::string("funtides::io: ") + what +
@@ -184,37 +180,6 @@ void PosixIOController::writeSnapshot(const HostVectorReal& field, int timestep,
   ++next_index_;
 }
 
-void PosixIOController::writeReceivers(const HostArrayReal& traces, const HostArrayReal& coords) {
-  requireMode(OpenMode::kWrite, "writeReceivers");
-  if (closed_) throw std::runtime_error("funtides::io: writeReceivers after close");
-
-  if (config().ctx.rank != 0) return;
-
-  if (coords.extent(1) != 3) {
-    throw std::runtime_error("funtides::io: coords must have extent(1) == 3");
-  }
-  if (traces.extent(0) != coords.extent(0)) {
-    throw std::runtime_error("funtides::io: traces and coords disagree on the receiver count");
-  }
-
-  FileHeader h = makeHeader(kMagicRcv);
-  h.ndim = 2;
-  h.dims[0] = traces.extent(0);
-  h.dims[1] = traces.extent(1);
-  h.nelem = traces.size();
-
-  File f(receiversPath(), "wb");
-  f.write(&h, sizeof(h));
-
-  packRowMajor(traces, pack_);
-  f.write(pack_.data(), pack_.size() * sizeof(float));
-
-  packRowMajor(coords, pack_);
-  f.write(pack_.data(), pack_.size() * sizeof(float));
-
-  f.closeChecked();
-}
-
 void PosixIOController::readSnapshot(const HostVectorReal& field, std::size_t index) {
   requireMode(OpenMode::kRead, "readSnapshot");
 
@@ -233,26 +198,6 @@ void PosixIOController::readSnapshot(const HostVectorReal& field, std::size_t in
                              std::to_string(field.size()));
   }
   f.read(field.data(), field.size() * sizeof(float));
-}
-
-void PosixIOController::readReceivers(const HostArrayReal& traces) {
-  requireMode(OpenMode::kRead, "readReceivers");
-
-  const std::string path = receiversPath();
-  File f(path, "rb");
-  FileHeader h{};
-  f.read(&h, sizeof(h));
-  checkHeader(h, kMagicRcv, path);
-
-  if (h.dims[0] != traces.extent(0) || h.dims[1] != traces.extent(1)) {
-    throw std::runtime_error("funtides::io: " + path + " holds a " + std::to_string(h.dims[0]) + "x" +
-                             std::to_string(h.dims[1]) + " array, the view is " + std::to_string(traces.extent(0)) +
-                             "x" + std::to_string(traces.extent(1)));
-  }
-
-  pack_.resize(traces.size());
-  f.read(pack_.data(), pack_.size() * sizeof(float));
-  unpackRowMajor(pack_, traces);
 }
 
 void PosixIOController::flush() {

@@ -37,7 +37,7 @@ class IOControllerFixture : public ::testing::Test {
     cfg.global_dims = dims;
     cfg.start_offsets.assign(dims.size(), 0);
     cfg.nb_receiver = nb_receiver;
-    cfg.nb_iter = nb_iter;
+    cfg.nt = nb_iter;
     cfg.async_snapshots = false;
     return cfg;
   }

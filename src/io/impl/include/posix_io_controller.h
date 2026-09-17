@@ -32,17 +32,13 @@ class PosixIOController final : public IOControllerBase {
   ~PosixIOController() override;
 
   void writeSnapshot(const HostVectorReal& field, int timestep, float time) override;
-  void writeReceivers(const HostArrayReal& traces, const HostArrayReal& coords) override;
-
   void readSnapshot(const HostVectorReal& field, std::size_t index) override;
-  void readReceivers(const HostArrayReal& traces) override;
 
   void flush() override;
   void close() override;
 
  private:
   std::string snapshotPath(std::size_t index) const;
-  std::string receiversPath() const;
   void requireMode(OpenMode expected, const char* what) const;
 
   OpenMode mode_;

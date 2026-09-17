@@ -97,53 +97,6 @@ TEST_F(PosixIOControllerTest, LargeField) {
 }
 
 // ============================================================================
-// Receiver round trip
-// ============================================================================
-
-// Receivers are rank 2, so this is the test that catches a row-major mistake.
-// The array is deliberately non-square: a transposed write shows up as wrong
-// extents instead of passing by accident.
-TEST_F(PosixIOControllerTest, ReceiversRoundTrip) {
-  const IOConfig cfg = makeConfig({4, 5, 6}, 3, 10);
-  const HostArrayReal traces = makeArray(3, 10);
-  const HostArrayReal coords = makeArray(3, 3, 7.0f);
-
-  {
-    auto io = open(OpenMode::kWrite, cfg);
-    io->writeReceivers(traces, coords);
-    io->close();
-  }
-
-  HostArrayReal dst("dst", 3, 10);
-  auto io = open(OpenMode::kRead, cfg);
-  io->readReceivers(dst);
-  io->close();
-
-  expectEqual(traces, dst);
-}
-
-// A single receiver makes both extents equal in one dimension, where a
-// transposition bug can hide.
-TEST_F(PosixIOControllerTest, SingleReceiver) {
-  const IOConfig cfg = makeConfig({2, 2, 2}, 1, 5);
-  const HostArrayReal traces = makeArray(1, 5);
-  const HostArrayReal coords = makeArray(1, 3);
-
-  {
-    auto io = open(OpenMode::kWrite, cfg);
-    io->writeReceivers(traces, coords);
-    io->close();
-  }
-
-  HostArrayReal dst("dst", 1, 5);
-  auto io = open(OpenMode::kRead, cfg);
-  io->readReceivers(dst);
-  io->close();
-
-  expectEqual(traces, dst);
-}
-
-// ============================================================================
 // Lifecycle
 // ============================================================================
 
@@ -272,27 +225,6 @@ TEST_F(PosixIOControllerTest, ReadingOnAWriteControllerThrows) {
   auto io = open(OpenMode::kWrite, cfg);
   HostVectorReal dst("dst", 4 * 5 * 6);
   EXPECT_THROW(io->readSnapshot(dst, 0), std::runtime_error);
-}
-
-// coords must be {nb_receiver, 3}. This is exactly the bug in the current
-// SemIOController, where a std::array<float, 3> was handed to a variable
-// declared {nb_receiver, 3}.
-TEST_F(PosixIOControllerTest, MismatchedCoordsExtentThrows) {
-  const IOConfig cfg = makeConfig({2, 2, 2}, 3, 5);
-  auto io = open(OpenMode::kWrite, cfg);
-
-  const HostArrayReal traces = makeArray(3, 5);
-  const HostArrayReal bad_coords = makeArray(3, 2);
-  EXPECT_THROW(io->writeReceivers(traces, bad_coords), std::runtime_error);
-}
-
-TEST_F(PosixIOControllerTest, ReceiverCountMismatchThrows) {
-  const IOConfig cfg = makeConfig({2, 2, 2}, 3, 5);
-  auto io = open(OpenMode::kWrite, cfg);
-
-  const HostArrayReal traces = makeArray(3, 5);
-  const HostArrayReal coords = makeArray(2, 3);
-  EXPECT_THROW(io->writeReceivers(traces, coords), std::runtime_error);
 }
 
 TEST_F(PosixIOControllerTest, WritingAfterCloseThrows) {
