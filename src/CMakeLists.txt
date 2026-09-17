@@ -1,22 +1,33 @@
-add_subdirectory(utils)
+add_subdirectory(core)
 add_subdirectory(discretization)
 add_subdirectory(model)
+add_subdirectory(parallel)
+add_subdirectory(acquisition)
 add_subdirectory(solver)
 add_subdirectory(gradient)
 add_subdirectory(main)
+
+# Deprecated compatibility target: fun_utils was split into fun_core,
+# fun_parallel and fun_acquisition. Kept so that in-flight branches still
+# configure; to be removed once all links are migrated.
+add_library(fun_utils INTERFACE)
+target_link_libraries(fun_utils INTERFACE fun_core fun_parallel fun_acquisition)
 
 add_library(funtides INTERFACE)
 add_library(funtides::funtides ALIAS funtides)
 
 target_link_libraries(funtides INTERFACE
-  fun_utils
+  fun_core
+  fun_parallel
+  fun_acquisition
   fun_discretization
   fun_model
   fun_solver
   fun_gradient
 )
 
-install(TARGETS funtides fun_utils fun_discretization fun_model fun_solver fun_gradient
+install(TARGETS funtides fun_core fun_parallel fun_acquisition fun_utils
+                fun_discretization fun_model fun_solver fun_gradient
         EXPORT funtidesTargets
         LIBRARY DESTINATION lib
         ARCHIVE DESTINATION lib

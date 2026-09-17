@@ -6,7 +6,7 @@ add_subdirectory(impl)
 add_library(fun_discretization INTERFACE)
 
 target_link_libraries(fun_discretization INTERFACE
-                      fun_utils
+                      fun_core
                       fun_discretization_api
                       fun_discretization_impl
                      )

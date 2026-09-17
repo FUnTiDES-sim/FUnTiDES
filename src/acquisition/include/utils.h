@@ -1,5 +1,5 @@
-#ifndef FUNTIDES_UTILS_INCLUDE_UTILS_H_
-#define FUNTIDES_UTILS_INCLUDE_UTILS_H_
+#ifndef FUNTIDES_ACQUISITION_INCLUDE_UTILS_H_
+#define FUNTIDES_ACQUISITION_INCLUDE_UTILS_H_
 #include "data_type.h"
 
 using namespace std::chrono;
@@ -54,4 +54,4 @@ struct SolverUtils {
     return sourceTerm;
   }
 };
-#endif  // FUNTIDES_UTILS_INCLUDE_UTILS_H_
+#endif  // FUNTIDES_ACQUISITION_INCLUDE_UTILS_H_

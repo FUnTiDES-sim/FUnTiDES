@@ -1,5 +1,5 @@
-#ifndef FUNTIDES_UTILS_INCLUDE_SEM_ENUMS_H_
-#define FUNTIDES_UTILS_INCLUDE_SEM_ENUMS_H_
+#ifndef FUNTIDES_CORE_INCLUDE_SEM_ENUMS_H_
+#define FUNTIDES_CORE_INCLUDE_SEM_ENUMS_H_
 #include <string>
 
 namespace utils {
@@ -93,4 +93,4 @@ inline std::string to_string(interfacePropertyConvention c) {
 
 }  // namespace enums
 }  // namespace utils
-#endif  // FUNTIDES_UTILS_INCLUDE_SEM_ENUMS_H_
+#endif  // FUNTIDES_CORE_INCLUDE_SEM_ENUMS_H_
