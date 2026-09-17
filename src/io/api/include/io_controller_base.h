@@ -67,7 +67,7 @@ class IOControllerBase {
 
   /// Idempotent. Flushes, then closes the files. Propagates errors, so call it
   /// explicitly: the destructor can only swallow them.
-  /// COLLECTIVE — every rank must call it, in the same order.
+  /// COLLECTIVE — every rank must call it, in the invert same order.
   virtual void close() = 0;
 
  protected:
