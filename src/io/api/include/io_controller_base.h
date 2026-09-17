@@ -18,6 +18,7 @@ struct IOConfig {
   utils::DistributedContext ctx{};
   std::string output_dir{"."};
   std::string prefix{"funtides"};
+  std::string shotId{""};
 
   std::vector<std::size_t> global_dims;    ///< Global snapshot grid.
   std::vector<std::size_t> start_offsets;  ///< This rank's offset in it.
@@ -52,7 +53,7 @@ class IOControllerBase {
    * read the memory later. Use two host mirrors alternately if the solver
    * needs to keep producing.
    */
-  virtual void writeSnapshot(const HostVectorReal& field, int timestep, float time) = 0;
+  virtual void writeSnapshot(const HostVectorReal& field) = 0;
 
   /**
    * @brief Reads snapshot number `index` into a caller-allocated view.

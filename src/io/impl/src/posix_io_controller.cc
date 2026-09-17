@@ -152,7 +152,7 @@ void PosixIOController::requireMode(OpenMode expected, const char* what) const {
   }
 }
 
-void PosixIOController::writeSnapshot(const HostVectorReal& field, int timestep, float time) {
+void PosixIOController::writeSnapshot(HostVectorReal& field) {
   requireMode(OpenMode::kWrite, "writeSnapshot");
   if (closed_) throw std::runtime_error("funtides::io: writeSnapshot after close");
 

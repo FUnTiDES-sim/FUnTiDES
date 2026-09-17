@@ -31,7 +31,7 @@ class PosixIOController final : public IOControllerBase {
   PosixIOController(OpenMode mode, const IOConfig& config);
   ~PosixIOController() override;
 
-  void writeSnapshot(const HostVectorReal& field, int timestep, float time) override;
+  void writeSnapshot(const HostVectorReal& field) override;
   void readSnapshot(const HostVectorReal& field, std::size_t index) override;
 
   void flush() override;
