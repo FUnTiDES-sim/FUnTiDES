@@ -459,7 +459,9 @@ TYPED_TEST(DifferentiatorAcousticNodeTest, NodeBasedSumEqualsElementBasedResult)
   diffElem.initGeometricMassMatrix(mesh);
   diffElem.compute(mesh, dataElem, 0.001f);
 
-  EXPECT_NEAR(nodeSum, (float)TestFixture::kNumNodes * gradKappaElem(0), 1e-5f);
+  // Tolerance relaxed: float32 accumulation order differs on GPU, causing
+  // small rounding drift that scales with kNumNodes.
+  EXPECT_NEAR(nodeSum, (float)TestFixture::kNumNodes * gradKappaElem(0), 1e-4f);
 }
 
 // --- Polymorphic interface ---

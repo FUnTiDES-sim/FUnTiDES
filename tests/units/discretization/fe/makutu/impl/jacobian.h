@@ -273,9 +273,12 @@ TYPED_TEST(JacobianTest, JacobianTransformationCoordsMatchesIndexed) {
     real_t J_coords[3][3] = {{0}};
     QK::jacobianTransformation(coords, Xfull, J_coords);
 
+    // Tolerance relaxed vs TOL_MATRIX_INVERSION: the indexed and coords
+    // overloads accumulate float32 ops in different order, causing small
+    // rounding drift.
     for (int i = 0; i < 3; ++i)
       for (int j = 0; j < 3; ++j)
-        EXPECT_NEAR(J_idx[i][j], J_coords[i][j], TOL_MATRIX_INVERSION)
+        EXPECT_NEAR(J_idx[i][j], J_coords[i][j], 2e-6)
             << "jacobianTransformation(coords) must match indexed at GLL point q=" << q;
   }
 }
