@@ -18,7 +18,12 @@ struct IOConfig {
   utils::DistributedContext ctx{};
   std::string output_dir{"."};
   std::string prefix{"funtides"};
-  std::string shotId{""};
+
+  /// Optional shot identifier. When set, output goes to <output_dir>/<shot_id>
+  /// so that a multi-shot run keeps its files apart and no single directory
+  /// accumulates millions of entries. Must contain only alphanumerics, '_' or
+  /// '-': it becomes a path component.
+  std::string shot_id{""};
 
   std::vector<std::size_t> global_dims;    ///< Global snapshot grid.
   std::vector<std::size_t> start_offsets;  ///< This rank's offset in it.
@@ -68,7 +73,7 @@ class IOControllerBase {
 
   /// Idempotent. Flushes, then closes the files. Propagates errors, so call it
   /// explicitly: the destructor can only swallow them.
-  /// COLLECTIVE — every rank must call it, in the invert same order.
+  /// COLLECTIVE — every rank must call it, in the same order.
   virtual void close() = 0;
 
  protected:

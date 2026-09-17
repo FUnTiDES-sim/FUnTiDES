@@ -1,17 +1,17 @@
 #include "posix_io_controller.h"
 
+#include <cerrno>
 #include <cstdint>
 #include <cstdio>
 #include <cstring>
 #include <filesystem>
-#include <memory>
 #include <stdexcept>
+#include <string>
 
 namespace funtides::io {
 namespace {
 
 constexpr char kMagicSnap[8] = {'F', 'U', 'N', 'T', 'S', 'N', 'A', 'P'};
-constexpr char kMagicRcv[8] = {'F', 'U', 'N', 'T', 'R', 'C', 'V', ' '};
 constexpr std::uint32_t kFormatVersion = 1;
 constexpr std::size_t kMaxDims = 4;
 
@@ -23,13 +23,24 @@ struct FileHeader {
   std::uint64_t dims[kMaxDims];         ///< Local extents of the payload.
   std::uint64_t global_dims[kMaxDims];  ///< Global shape, 0 if not distributed.
   std::uint64_t offsets[kMaxDims];      ///< This rank's offset in the global shape.
-  std::int32_t timestep;
-  float time;
+  std::uint64_t snapshot_index;         ///< Ordinal of this snapshot in the run.
   std::uint32_t scalar_bytes;
   std::uint32_t reserved;
   std::uint64_t nelem;  ///< Number of scalars in the payload.
 };
 static_assert(sizeof(FileHeader) == 136, "unexpected padding in FileHeader");
+
+/// `shot_id` becomes a path component, so anything that could escape the output
+/// directory is rejected rather than sanitized silently.
+void validateShotId(const std::string& shot_id) {
+  for (const char c : shot_id) {
+    const bool ok = (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') || c == '_' || c == '-';
+    if (!ok) {
+      throw std::invalid_argument("funtides::io: shot_id must contain only alphanumerics, '_' or '-', got \"" +
+                                  shot_id + "\"");
+    }
+  }
+}
 
 class File {
  public:
@@ -95,35 +106,23 @@ void checkHeader(const FileHeader& h, const char (&magic)[8], const std::string&
   }
 }
 
-void packRowMajor(const HostArrayReal& v, std::vector<float>& out) {
-  const std::size_t n0 = v.extent(0);
-  const std::size_t n1 = v.extent(1);
-  out.resize(n0 * n1);
-  for (std::size_t i = 0; i < n0; ++i) {
-    for (std::size_t j = 0; j < n1; ++j) {
-      out[i * n1 + j] = v(i, j);
-    }
-  }
-}
-
-void unpackRowMajor(const std::vector<float>& in, const HostArrayReal& v) {
-  const std::size_t n0 = v.extent(0);
-  const std::size_t n1 = v.extent(1);
-  for (std::size_t i = 0; i < n0; ++i) {
-    for (std::size_t j = 0; j < n1; ++j) {
-      v(i, j) = in[i * n1 + j];
-    }
-  }
-}
-
 }  // namespace
 
 PosixIOController::PosixIOController(OpenMode mode, const IOConfig& config) : IOControllerBase(config), mode_(mode) {
+  validateShotId(config.shot_id);
+
   if (mode_ == OpenMode::kWrite) {
+    // create_directories() creates parents too, so the shot subdirectory and
+    // the output directory itself both land here.
+    // NOTE: every rank races on this call. error_code keeps an already-existing
+    // directory from throwing, which is enough on a local filesystem; a
+    // parallel filesystem would want rank 0 to create it and a barrier after,
+    // which needs the communicator DistributedContext does not carry yet.
+    const std::string dir = outputDir();
     std::error_code ec;
-    std::filesystem::create_directories(config.output_dir, ec);
+    std::filesystem::create_directories(dir, ec);
     if (ec) {
-      throw std::runtime_error("funtides::io: cannot create " + config.output_dir + ": " + ec.message());
+      throw std::runtime_error("funtides::io: cannot create " + dir + ": " + ec.message());
     }
   }
 }
@@ -138,10 +137,15 @@ PosixIOController::~PosixIOController() {
   }
 }
 
+std::string PosixIOController::outputDir() const {
+  const std::string& shot = config().shot_id;
+  return shot.empty() ? config().output_dir : config().output_dir + "/" + shot;
+}
+
 std::string PosixIOController::snapshotPath(std::size_t index) const {
   char buf[64];
-  std::snprintf(buf, sizeof(buf), "_snap_%06zu_r%04d.bin", index, config().ctx.rank);
-  return config().output_dir + "/" + config().prefix + buf;
+  std::snprintf(buf, sizeof(buf), "/%s_snap_%06zu_r%04d.bin", config().prefix.c_str(), index, config().ctx.rank);
+  return outputDir() + buf;
 }
 
 void PosixIOController::requireMode(OpenMode expected, const char* what) const {
@@ -152,7 +156,7 @@ void PosixIOController::requireMode(OpenMode expected, const char* what) const {
   }
 }
 
-void PosixIOController::writeSnapshot(HostVectorReal& field) {
+void PosixIOController::writeSnapshot(const HostVectorReal& field) {
   requireMode(OpenMode::kWrite, "writeSnapshot");
   if (closed_) throw std::runtime_error("funtides::io: writeSnapshot after close");
 
@@ -168,8 +172,7 @@ void PosixIOController::writeSnapshot(HostVectorReal& field) {
     h.global_dims[d] = d < cfg.global_dims.size() ? cfg.global_dims[d] : 0;
     h.offsets[d] = d < cfg.start_offsets.size() ? cfg.start_offsets[d] : 0;
   }
-  h.timestep = timestep;
-  h.time = time;
+  h.snapshot_index = next_index_;
   h.nelem = field.size();
 
   File f(snapshotPath(next_index_), "wb");

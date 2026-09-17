@@ -3,7 +3,6 @@
 
 #include <cstddef>
 #include <string>
-#include <vector>
 
 #include "io_controller_base.h"
 
@@ -13,8 +12,7 @@ namespace funtides::io {
  * @brief Reference I/O backend writing plain binary files through <cstdio>.
  *
  * One file per snapshot and per rank:
- *   <output_dir>/<prefix>_snap_<index>_r<rank>.bin
- *   <output_dir>/<prefix>_receivers.bin
+ *   <output_dir>[/<shot_id>]/<prefix>_snap_<index>_r<rank>.bin
  *
  * Each file starts with a fixed-size self-describing header, so a reader can
  * validate extents without external metadata. Writes are synchronous: the
@@ -23,8 +21,7 @@ namespace funtides::io {
  *
  * MPI: ranks write independent files; nothing is merged. The global shape and
  * this rank's offset are recorded in each header so a post-processing tool can
- * reassemble. Receiver traces are replicated data and are written by rank 0
- * only.
+ * reassemble.
  */
 class PosixIOController final : public IOControllerBase {
  public:
@@ -38,14 +35,13 @@ class PosixIOController final : public IOControllerBase {
   void close() override;
 
  private:
+  std::string outputDir() const;
   std::string snapshotPath(std::size_t index) const;
   void requireMode(OpenMode expected, const char* what) const;
 
   OpenMode mode_;
   std::size_t next_index_{0};
   bool closed_{false};
-
-  std::vector<float> pack_;
 };
 
 }  // namespace funtides::io

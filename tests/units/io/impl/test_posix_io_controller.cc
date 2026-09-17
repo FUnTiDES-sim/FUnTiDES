@@ -22,7 +22,7 @@ TEST_F(PosixIOControllerTest, SnapshotRoundTrip) {
 
   {
     auto io = open(OpenMode::kWrite, cfg);
-    io->writeSnapshot(src, 42, 0.42f);
+    io->writeSnapshot(src);
     io->close();
   }
 
@@ -34,7 +34,7 @@ TEST_F(PosixIOControllerTest, SnapshotRoundTrip) {
   expectEqual(src, dst);
 }
 
-// Snapshots are addressed by ordinal, not by timestep. Reading three of them
+// Snapshots are addressed by the order they were written. Reading three of them
 // back out of order is what proves the indexing is right.
 TEST_F(PosixIOControllerTest, MultipleSnapshotsKeepTheirOrder) {
   const IOConfig cfg = makeConfig();
@@ -45,7 +45,7 @@ TEST_F(PosixIOControllerTest, MultipleSnapshotsKeepTheirOrder) {
 
   {
     auto io = open(OpenMode::kWrite, cfg);
-    for (int k = 0; k < 3; ++k) io->writeSnapshot(src[k], k * 10, k * 0.1f);
+    for (int k = 0; k < 3; ++k) io->writeSnapshot(src[k]);
     io->close();
   }
 
@@ -64,7 +64,7 @@ TEST_F(PosixIOControllerTest, SingleElementField) {
 
   {
     auto io = open(OpenMode::kWrite, cfg);
-    io->writeSnapshot(src, 0, 0.0f);
+    io->writeSnapshot(src);
     io->close();
   }
 
@@ -84,7 +84,7 @@ TEST_F(PosixIOControllerTest, LargeField) {
 
   {
     auto io = open(OpenMode::kWrite, cfg);
-    io->writeSnapshot(src, 0, 0.0f);
+    io->writeSnapshot(src);
     io->close();
   }
 
@@ -97,6 +97,58 @@ TEST_F(PosixIOControllerTest, LargeField) {
 }
 
 // ============================================================================
+// Shot separation
+// ============================================================================
+
+// A shot id sends output to its own subdirectory, so two shots sharing an
+// output_dir never overwrite each other.
+TEST_F(PosixIOControllerTest, ShotIdSeparatesOutput) {
+  const std::size_t n = 4 * 5 * 6;
+  const HostVectorReal src_a = makeField(n, 1.0f);
+  const HostVectorReal src_b = makeField(n, 2.0f);
+
+  IOConfig cfg_a = makeConfig();
+  cfg_a.shot_id = "shot_042";
+  IOConfig cfg_b = makeConfig();
+  cfg_b.shot_id = "shot_043";
+
+  {
+    auto io = open(OpenMode::kWrite, cfg_a);
+    io->writeSnapshot(src_a);
+    io->close();
+  }
+  {
+    auto io = open(OpenMode::kWrite, cfg_b);
+    io->writeSnapshot(src_b);
+    io->close();
+  }
+
+  EXPECT_TRUE(std::filesystem::is_directory(dir_ / "shot_042"));
+  EXPECT_TRUE(std::filesystem::is_directory(dir_ / "shot_043"));
+
+  HostVectorReal dst("dst", n);
+  auto io_a = open(OpenMode::kRead, cfg_a);
+  io_a->readSnapshot(dst, 0);
+  io_a->close();
+  expectEqual(src_a, dst);
+
+  auto io_b = open(OpenMode::kRead, cfg_b);
+  io_b->readSnapshot(dst, 0);
+  io_b->close();
+  expectEqual(src_b, dst);
+}
+
+// shot_id becomes a path component, so anything that could escape the output
+// directory is rejected rather than quietly sanitized.
+TEST_F(PosixIOControllerTest, InvalidShotIdThrows) {
+  for (const char* bad : {"../escape", "sub/dir", "with space", "dollar$"}) {
+    IOConfig cfg = makeConfig();
+    cfg.shot_id = bad;
+    EXPECT_THROW(open(OpenMode::kWrite, cfg), std::invalid_argument) << "shot_id = " << bad;
+  }
+}
+
+// ============================================================================
 // Lifecycle
 // ============================================================================
 
@@ -104,7 +156,7 @@ TEST_F(PosixIOControllerTest, LargeField) {
 TEST_F(PosixIOControllerTest, CloseIsIdempotent) {
   const IOConfig cfg = makeConfig();
   auto io = open(OpenMode::kWrite, cfg);
-  io->writeSnapshot(makeField(4 * 5 * 6), 0, 0.0f);
+  io->writeSnapshot(makeField(4 * 5 * 6));
   io->close();
   EXPECT_NO_THROW(io->close());
 }
@@ -119,7 +171,7 @@ TEST_F(PosixIOControllerTest, DestructorFlushes) {
 
   {
     auto io = open(OpenMode::kWrite, cfg);
-    io->writeSnapshot(src, 0, 0.0f);
+    io->writeSnapshot(src);
   }
 
   HostVectorReal dst("dst", n);
@@ -138,9 +190,9 @@ TEST_F(PosixIOControllerTest, FlushBetweenWrites) {
 
   {
     auto io = open(OpenMode::kWrite, cfg);
-    io->writeSnapshot(a, 0, 0.0f);
+    io->writeSnapshot(a);
     io->flush();
-    io->writeSnapshot(b, 1, 0.1f);
+    io->writeSnapshot(b);
     io->close();
   }
 
@@ -152,32 +204,6 @@ TEST_F(PosixIOControllerTest, FlushBetweenWrites) {
   expectEqual(b, dst);
 }
 
-// The buffer contract the interface promises: the caller may overwrite its view
-// as soon as writeSnapshot() returns. Trivial here, but this is the test that
-// will catch a missing staging copy in the asynchronous ADIOS2 backend.
-TEST_F(PosixIOControllerTest, CallerMayReuseBufferImmediately) {
-  IOConfig cfg = makeConfig();
-  cfg.async_snapshots = true;
-  const std::size_t n = 4 * 5 * 6;
-
-  const HostVectorReal expected = makeField(n, 1.0f);
-  HostVectorReal scratch = makeField(n, 1.0f);
-
-  {
-    auto io = open(OpenMode::kWrite, cfg);
-    io->writeSnapshot(scratch, 0, 0.0f);
-    for (std::size_t i = 0; i < n; ++i) scratch(i) = -999.0f;
-    io->close();
-  }
-
-  HostVectorReal dst("dst", n);
-  auto io = open(OpenMode::kRead, cfg);
-  io->readSnapshot(dst, 0);
-  io->close();
-
-  expectEqual(expected, dst);
-}
-
 // ============================================================================
 // Error paths
 // ============================================================================
@@ -186,7 +212,7 @@ TEST_F(PosixIOControllerTest, ReadingAMissingSnapshotThrows) {
   const IOConfig cfg = makeConfig();
   {
     auto io = open(OpenMode::kWrite, cfg);
-    io->writeSnapshot(makeField(4 * 5 * 6), 0, 0.0f);
+    io->writeSnapshot(makeField(4 * 5 * 6));
     io->close();
   }
 
@@ -199,7 +225,7 @@ TEST_F(PosixIOControllerTest, ReadingIntoAMissizedViewThrows) {
   const IOConfig cfg = makeConfig();
   {
     auto io = open(OpenMode::kWrite, cfg);
-    io->writeSnapshot(makeField(4 * 5 * 6), 0, 0.0f);
+    io->writeSnapshot(makeField(4 * 5 * 6));
     io->close();
   }
 
@@ -212,12 +238,12 @@ TEST_F(PosixIOControllerTest, WritingOnAReadControllerThrows) {
   const IOConfig cfg = makeConfig();
   {
     auto io = open(OpenMode::kWrite, cfg);
-    io->writeSnapshot(makeField(4 * 5 * 6), 0, 0.0f);
+    io->writeSnapshot(makeField(4 * 5 * 6));
     io->close();
   }
 
   auto io = open(OpenMode::kRead, cfg);
-  EXPECT_THROW(io->writeSnapshot(makeField(4 * 5 * 6), 1, 0.1f), std::runtime_error);
+  EXPECT_THROW(io->writeSnapshot(makeField(4 * 5 * 6)), std::runtime_error);
 }
 
 TEST_F(PosixIOControllerTest, ReadingOnAWriteControllerThrows) {
@@ -231,7 +257,7 @@ TEST_F(PosixIOControllerTest, WritingAfterCloseThrows) {
   const IOConfig cfg = makeConfig();
   auto io = open(OpenMode::kWrite, cfg);
   io->close();
-  EXPECT_THROW(io->writeSnapshot(makeField(4 * 5 * 6), 0, 0.0f), std::runtime_error);
+  EXPECT_THROW(io->writeSnapshot(makeField(4 * 5 * 6)), std::runtime_error);
 }
 
 TEST_F(PosixIOControllerTest, ReadingFromAnEmptyDirectoryThrows) {
