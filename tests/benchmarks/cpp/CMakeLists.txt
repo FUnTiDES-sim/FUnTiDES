@@ -13,7 +13,7 @@ add_benchmark(bench_solver_fe_cartesian_struct_acoustic
    fun_solver
    fun_model
    fun_discretization
-   fun_utils
+   fun_acquisition
  THREADS
    1 2 4 8 16 32 64
  LABELS
@@ -30,7 +30,7 @@ add_benchmark(bench_solver_fe_cartesian_struct_elastic
    fun_solver
    fun_model
    fun_discretization
-   fun_utils
+   fun_acquisition
  THREADS
    1 2 4 8 16 32 64
  LABELS
@@ -48,7 +48,7 @@ add_benchmark(bench_solver_fe_cartesian_unstruct_acoustic
    fun_solver
    fun_model
    fun_discretization
-   fun_utils
+   fun_acquisition
  THREADS
    1 2 4 8 16 32 64
  LABELS
@@ -65,7 +65,7 @@ add_benchmark(bench_solver_fe_cartesian_unstruct_elastic
    fun_solver
    fun_model
    fun_discretization
-   fun_utils
+   fun_acquisition
  THREADS
    1 2 4 8 16 32 64
  LABELS
@@ -82,7 +82,7 @@ add_benchmark(bench_solver_acoustic
    fun_solver
    fun_model
    fun_discretization
-   fun_utils
+   fun_acquisition
  THREADS
    1
  LABELS

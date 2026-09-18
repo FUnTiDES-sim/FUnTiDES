@@ -10,6 +10,6 @@ target_include_directories(fun_discretization_common INTERFACE
 # Integrals.h uses DiscretizationKind). It does NOT link makutu: the back-end
 # headers it includes are resolved transitively through fun_discretization.
 target_link_libraries(fun_discretization_common INTERFACE
-                       fun_utils
+                       fun_core
                        fun_discretization_api
                       )

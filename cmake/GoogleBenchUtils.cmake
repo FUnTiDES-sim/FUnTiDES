@@ -38,7 +38,7 @@
 #       proxy_model_struct
 #       proxy_model_unstruct
 #       fun_discretization
-#       fun_utils
+#       fun_acquisition
 #     THREADS
 #       2 4 8
 #     LABELS 

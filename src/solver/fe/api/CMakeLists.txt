@@ -7,6 +7,6 @@ target_include_directories(fun_solver_api
 
 target_link_libraries(fun_solver_api
   INTERFACE
-    fun_utils
+    fun_core
     fun_model
 )

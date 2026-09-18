@@ -1027,7 +1027,8 @@ void SEMproxy::InitSource() {
     }
   }
 
-  std::vector<float> source_term = utils_.computeSourceTerm(num_samples_, dt_, f0_, ricker_order_, t_peak_);
+  std::vector<float> source_term =
+      source_time_function_.computeSourceTerm(num_samples_, dt_, f0_, ricker_order_, t_peak_);
 
   if (is_acousto_elastic_) {
     bool const source_in_fluid = (src_coord_[2] >= local_params_.acoustoElasticBoundaryZ);
