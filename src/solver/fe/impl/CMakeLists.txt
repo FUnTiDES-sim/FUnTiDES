@@ -10,8 +10,6 @@ add_subdirectory(acoustoelastic)
 add_subdirectory(common)
 add_subdirectory(elastic)
 
-# fun_parallel: sem_solver.h, dg_solver.h and boundary_synchronizer.h use
-# ParallelTopology. This edge is the target of the MPI extraction (lot 5).
 set(SOLV_LIBS fun_discretization fun_core fun_parallel fun_model fun_solver_api)
 
 target_link_kokkos_if_enabled(fun_solver)
