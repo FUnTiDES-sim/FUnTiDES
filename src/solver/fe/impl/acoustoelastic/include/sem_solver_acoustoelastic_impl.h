@@ -439,21 +439,8 @@ void SEMsolverAcoustoElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES>
 
 template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE, bool IS_MODEL_ON_NODES>
 void SEMsolverAcoustoElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES>::computeDampingMatrix() {
-  int const nNode = m_mesh_.getNumberOfNodes();
-
-  auto acoustic_d0 = m_acoustic_solver_.getDampingMatrix(0);
-  auto elastic_d0 = m_elastic_solver_.getDampingMatrix(0);
-  auto elastic_d1 = m_elastic_solver_.getDampingMatrix(1);
-  auto elastic_d2 = m_elastic_solver_.getDampingMatrix(2);
-  Kokkos::parallel_for(
-      "computeDampingMatrix_init", nNode, KOKKOS_LAMBDA(const int i) {
-        acoustic_d0[i] = 0.0f;
-        elastic_d0[i] = 0.0f;
-        elastic_d1[i] = 0.0f;
-        elastic_d2[i] = 0.0f;
-      });
-  FENCE
-
+  // The masked passes below reset each sub-solver's damping matrix before
+  // assembling, so no separate zeroing is needed here.
   m_acoustic_solver_.computeDampingMatrixMasked(m_element_type_, kElementTypeAcoustic);
   m_elastic_solver_.computeDampingMatrixMasked(m_element_type_, kElementTypeElastic);
   FENCE
