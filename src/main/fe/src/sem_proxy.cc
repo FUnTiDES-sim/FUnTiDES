@@ -90,8 +90,8 @@ void SEMproxy::SetupSolver(const SemProxyOptions& opt) {
   // C-PML absorbing layer (acoustic). dt_ is set by InitTimeParams() before
   // SetupSolver() is called, so the convolution coefficients can be built.
   if (opt.pml_size > 0.0f) {
-    solver_->setPML({opt.pml_size, opt.pml_size, opt.pml_size}, opt.pml_profile, opt.pml_reflection,
-                    opt.pml_alpha_max, opt.pml_kappa_max, dt_);
+    solver_->setPML({opt.pml_size, opt.pml_size, opt.pml_size}, opt.pml_profile, opt.pml_reflection, opt.pml_alpha_max,
+                    opt.pml_kappa_max, dt_);
   }
 
   if (opt.isElastic) {

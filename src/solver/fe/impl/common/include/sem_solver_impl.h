@@ -82,10 +82,6 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::com
                                                                                            Solver::DataStruct& data) {
   auto& myData = dynamic_cast<DataType&>(data);
 
-  // All kernels below run on the same Kokkos stream, so they are ordered
-  // without explicit fences. Only the final fence (in updateSolutionForward)
-  // is required — it synchronizes GPU->host for correctness and honest timing.
-  // The intermediate fences between same-stream kernels only stall the CPU.
   resetGlobalVectors(m_mesh.getNumberOfNodes());
   applyRHSTerm(timeSample, dt, myData);
   computeElementContributions(myData);
@@ -458,8 +454,7 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::com
             INTEGRAL_TYPE::computeStiffnessTermSumFactPML_team(
                 team, cornerCoords, &localFields(0, 0), &localWork(0, 0), &mem_local(0, 0), &G(0, 0), &G(1, 0),
                 &G(2, 0), get_alpha,
-                [&](const int qa, const int qb, const int qc, real_t (&kappa)[3], real_t (&coef0)[3],
-                    real_t (&coef1)[3]) {
+                [&](const int qa, const int qb, const int qc, real_t(&kappa)[3], real_t(&coef0)[3], real_t(&coef1)[3]) {
                   int const gIndex = mesh_local.globalNodeIndex(elementNumber, qa, qb, qc);
                   for (int j = 0; j < 3; ++j) {
                     kappa[j] = pml_coeff(gIndex, j);
@@ -549,8 +544,7 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::com
 
             INTEGRAL_TYPE::computeStiffnessTermSumFactPML(
                 cornerCoords, localFields[0], localWork[0], mem_local, get_alpha,
-                [&](const int qa, const int qb, const int qc, real_t (&kappa)[3], real_t (&coef0)[3],
-                    real_t (&coef1)[3]) {
+                [&](const int qa, const int qb, const int qc, real_t(&kappa)[3], real_t(&coef0)[3], real_t(&coef1)[3]) {
                   int const gIndex = mesh_local.globalNodeIndex(elementNumber, qa, qb, qc);
                   for (int j = 0; j < 3; ++j) {
                     kappa[j] = pml_coeff(gIndex, j);
@@ -1865,10 +1859,11 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::com
 
 template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE, bool IS_MODEL_ON_NODES, physicType PHYSICS>
 void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::computeDampingMatrix() {
-  // Zero the damping array before assembly: faces may be skipped (PML
-  // replaces the first-order absorbing BC, or a domain mask), so nodes not
-  // touched by any face must read 0, not uninitialized memory.
-  for (int f = 0; f < kNumFields; ++f) Kokkos::deep_copy(dampingMatrixGlobal_[f], 0.0f);
+  // Assembles into dampingMatrixGlobal_ by accumulation (ATOMICADD), so the
+  // target must already be zero. allocateFEarrays() allocates it fresh and
+  // Kokkos value-initializes a View on construction, which covers the first
+  // assembly from computeFEInit(). A re-assembly must zero it first; see
+  // computeDampingMatrixMasked(), which does.
 
   auto mesh_local = m_mesh;
   bool const mask_enabled = m_mask_enabled_;
@@ -2354,7 +2349,12 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::com
 template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE, bool IS_MODEL_ON_NODES, physicType PHYSICS>
 void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::computeDampingMatrixMasked(
     const vectorInt& elem_mask, int active_value) {
+  // computeDampingMatrix() accumulates, so zero the target first: this pass
+  // overwrites the full-mesh result assembled by computeFEInit() instead of
+  // adding to it. dampingMatrixGlobal_ is a std::array of Views, for which
+  // Kokkos has no deep_copy overload, hence the per-field loop.
   for (int f = 0; f < kNumFields; ++f) Kokkos::deep_copy(dampingMatrixGlobal_[f], 0.0f);
+
   m_element_mask_ = elem_mask;
   m_mask_active_value_ = active_value;
   m_mask_enabled_ = true;

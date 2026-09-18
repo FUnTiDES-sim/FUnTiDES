@@ -29,6 +29,13 @@
  * NOTE: this file is the measuring instrument, never the subject of the
  * optimization. The ratchet edits the solver sources, not this harness.
  */
+#include <chrono>
+#include <cstdio>
+#include <cstdlib>
+#include <fstream>
+#include <string>
+#include <vector>
+
 #include "cartesian_struct_builder.h"
 #include "data_type.h"
 #include "model.h"
@@ -36,13 +43,6 @@
 #include "sem_solver_impl.h"
 #include "source_and_receiver_utils.h"
 #include "utils.h"
-
-#include <chrono>
-#include <cstdio>
-#include <cstdlib>
-#include <fstream>
-#include <string>
-#include <vector>
 
 namespace {
 
@@ -86,8 +86,10 @@ Params readParams(const char* path) {
     if (eq == std::string::npos) continue;
     std::string key = line.substr(0, eq);
     std::string val = line.substr(eq + 1);
-    if (key == "n") p.n_steps = std::atoi(val.c_str());
-    else if (key == "output_file") p.output_file = val;
+    if (key == "n")
+      p.n_steps = std::atoi(val.c_str());
+    else if (key == "output_file")
+      p.output_file = val;
   }
   return p;
 }
@@ -197,12 +199,12 @@ int main(int argc, char** argv) {
     // allocation (e.g. a compacted coefficient stride) rather than a fixed
     // model. The rest mirror the solver's persistent allocations.
     const size_t solver_fe = 4ull * n_node * sizeof(float);  // mass + damping + work + sponge
-    const size_t pml_coeff = solver.getPmlCoefficients().extent(0) * solver.getPmlCoefficients().extent(1) *
-                             sizeof(float);
-    const size_t pml_masks = solver.getPmlNodeIndex().extent(0) * sizeof(int) +
-                             solver.getPmlElementMask().extent(0) * sizeof(int);
-    const size_t pml_mem = solver.getPmlMemoryVariables().extent(0) * solver.getPmlMemoryVariables().extent(1) *
-                           sizeof(float);
+    const size_t pml_coeff =
+        solver.getPmlCoefficients().extent(0) * solver.getPmlCoefficients().extent(1) * sizeof(float);
+    const size_t pml_masks =
+        solver.getPmlNodeIndex().extent(0) * sizeof(int) + solver.getPmlElementMask().extent(0) * sizeof(int);
+    const size_t pml_mem =
+        solver.getPmlMemoryVariables().extent(0) * solver.getPmlMemoryVariables().extent(1) * sizeof(float);
     const size_t wavefield_bytes = 2ull * n_node * sizeof(float);
     const size_t rhs_arrays = 1ull * kNRhs * params.n_steps * sizeof(float) + 1ull * kNRhs * sizeof(int) +
                               1ull * kNRhs * kNDof * sizeof(float);

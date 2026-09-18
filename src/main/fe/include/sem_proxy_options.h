@@ -38,10 +38,10 @@ class SemProxyOptions {
   // Convolutional PML (C-PML) absorbing layer parameters (acoustic).
   // pml_size = 0 disables the PML (sponge is used instead).
   float pml_size = 0;
-  float pml_profile = 2.0f;       // profile exponent N (quadratic)
-  float pml_reflection = 1e-3f;   // target reflection coefficient R
-  float pml_alpha_max = 0.0f;     // max frequency-shift alpha
-  float pml_kappa_max = 1.0f;     // max coordinate-stretch kappa
+  float pml_profile = 2.0f;      // profile exponent N (quadratic)
+  float pml_reflection = 1e-3f;  // target reflection coefficient R
+  float pml_alpha_max = 0.0f;    // max frequency-shift alpha
+  float pml_kappa_max = 1.0f;    // max coordinate-stretch kappa
   // Boolean to tell if the model is charged on nodes or on element
   bool isModelOnNodes = false;
   bool isElastic = false;
@@ -92,11 +92,11 @@ class SemProxyOptions {
         "sponge-surface", "Considere the surface's nodes as non sponge nodes", cxxopts::value<bool>(o.surface_sponge))(
         "taper-delta", "Taper delta for sponge boundaries value", cxxopts::value<float>(o.taper_delta))(
         "pml-size", "C-PML absorbing layer thickness (meters); 0 disables PML (sponge used)",
-        cxxopts::value<float>(o.pml_size))(
-        "pml-profile", "C-PML profile exponent N (default 2, quadratic)", cxxopts::value<float>(o.pml_profile))(
+        cxxopts::value<float>(o.pml_size))("pml-profile", "C-PML profile exponent N (default 2, quadratic)",
+                                           cxxopts::value<float>(o.pml_profile))(
         "pml-reflection", "C-PML target reflection coefficient R (default 1e-3)",
-        cxxopts::value<float>(o.pml_reflection))(
-        "pml-alpha-max", "C-PML maximum frequency-shift alpha (default 0)", cxxopts::value<float>(o.pml_alpha_max))(
+        cxxopts::value<float>(o.pml_reflection))("pml-alpha-max", "C-PML maximum frequency-shift alpha (default 0)",
+                                                 cxxopts::value<float>(o.pml_alpha_max))(
         "pml-kappa-max", "C-PML maximum coordinate-stretch kappa (default 1)", cxxopts::value<float>(o.pml_kappa_max))(
         "is-model-on-nodes",
         "Boolean to tell if the model is charged on nodes (true) or on element "

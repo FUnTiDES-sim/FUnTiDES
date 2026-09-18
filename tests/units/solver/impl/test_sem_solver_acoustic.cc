@@ -747,8 +747,7 @@ TEST_F(SemSolverAcousticPmlReflectionTest, PmlAbsorbsBetterThanPlain) {
 
   // The PML must absorb the outgoing wave: it should leave at most 30% of the
   // energy that the plain (first-order absorbing BC) run keeps in the domain.
-  EXPECT_LT(energy_pml, 0.3f * energy_plain) << "PML energy_pml=" << energy_pml
-                                             << " energy_plain=" << energy_plain;
+  EXPECT_LT(energy_pml, 0.3f * energy_plain) << "PML energy_pml=" << energy_pml << " energy_plain=" << energy_plain;
 }
 
 }  // namespace test

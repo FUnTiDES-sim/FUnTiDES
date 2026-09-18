@@ -358,9 +358,11 @@ class Qk_Hexahedron_Tensorial_GEMM final {
   //==========================================================================
 
   template <typename FUNC_ALPHA, typename FUNC_PML>
-  PROXY_HOST_DEVICE static void computeStiffnessTermSumFactPML(
-      float const (&X)[8][3], real_t const (&p_local)[numNodes], real_t (&f_local)[numNodes],
-      real_t (&mem_local)[6][numNodes], FUNC_ALPHA &&get_alpha, FUNC_PML &&get_pml) {
+  PROXY_HOST_DEVICE static void computeStiffnessTermSumFactPML(float const (&X)[8][3],
+                                                               real_t const (&p_local)[numNodes],
+                                                               real_t (&f_local)[numNodes],
+                                                               real_t (&mem_local)[6][numNodes], FUNC_ALPHA &&get_alpha,
+                                                               FUNC_PML &&get_pml) {
     // Two-sided C-PML weighted stretched fluxes (Komatitsch & Martin 2007):
     // both the trial gradient and the divergence are stretched,
     //   grad_p_stretched[j] = (grad_p[j] - psi[j]) / kappa[j]
@@ -425,8 +427,10 @@ class Qk_Hexahedron_Tensorial_GEMM final {
       // Flux: w * alpha * detJ * (J^{-1} · grad_p_stretched).
       real_t const scale = w * get_alpha(qa, qb, qc) * detJ;
       G_xi[q] = scale * (J[0][0] * grad_p_stretched[0] + J[0][1] * grad_p_stretched[1] + J[0][2] * grad_p_stretched[2]);
-      G_eta[q] = scale * (J[1][0] * grad_p_stretched[0] + J[1][1] * grad_p_stretched[1] + J[1][2] * grad_p_stretched[2]);
-      G_zeta[q] = scale * (J[2][0] * grad_p_stretched[0] + J[2][1] * grad_p_stretched[1] + J[2][2] * grad_p_stretched[2]);
+      G_eta[q] =
+          scale * (J[1][0] * grad_p_stretched[0] + J[1][1] * grad_p_stretched[1] + J[1][2] * grad_p_stretched[2]);
+      G_zeta[q] =
+          scale * (J[2][0] * grad_p_stretched[0] + J[2][1] * grad_p_stretched[1] + J[2][2] * grad_p_stretched[2]);
     });
 
     // Pass 3: stretched divergence. The three reference divergences are
@@ -483,10 +487,12 @@ class Qk_Hexahedron_Tensorial_GEMM final {
   //==========================================================================
 
   template <typename MemberType, typename FUNC_ALPHA, typename FUNC_PML>
-  KOKKOS_INLINE_FUNCTION static void computeStiffnessTermSumFactPML_team(
-      const MemberType& member, float const (&X)[8][3], real_t const* p_local, real_t* f_local,
-      real_t* mem_local /* [6][numNodes] */, real_t* G_xi, real_t* G_eta, real_t* G_zeta, FUNC_ALPHA&& get_alpha,
-      FUNC_PML&& get_pml) {
+  KOKKOS_INLINE_FUNCTION static void computeStiffnessTermSumFactPML_team(const MemberType &member,
+                                                                         float const (&X)[8][3], real_t const *p_local,
+                                                                         real_t *f_local,
+                                                                         real_t *mem_local /* [6][numNodes] */,
+                                                                         real_t *G_xi, real_t *G_eta, real_t *G_zeta,
+                                                                         FUNC_ALPHA &&get_alpha, FUNC_PML &&get_pml) {
     // Local constexpr copies: the class-scope static constexpr members are not
     // addressable in device code (ODR-use), so bind them to local constants.
     constexpr int kN = numNodes;
@@ -529,8 +535,10 @@ class Qk_Hexahedron_Tensorial_GEMM final {
 
       real_t const scale = w * get_alpha(qa, qb, qc) * detJ;
       G_xi[q] = scale * (J[0][0] * grad_p_stretched[0] + J[0][1] * grad_p_stretched[1] + J[0][2] * grad_p_stretched[2]);
-      G_eta[q] = scale * (J[1][0] * grad_p_stretched[0] + J[1][1] * grad_p_stretched[1] + J[1][2] * grad_p_stretched[2]);
-      G_zeta[q] = scale * (J[2][0] * grad_p_stretched[0] + J[2][1] * grad_p_stretched[1] + J[2][2] * grad_p_stretched[2]);
+      G_eta[q] =
+          scale * (J[1][0] * grad_p_stretched[0] + J[1][1] * grad_p_stretched[1] + J[1][2] * grad_p_stretched[2]);
+      G_zeta[q] =
+          scale * (J[2][0] * grad_p_stretched[0] + J[2][1] * grad_p_stretched[1] + J[2][2] * grad_p_stretched[2]);
     });
     member.team_barrier();
 
@@ -573,9 +581,10 @@ class Qk_Hexahedron_Tensorial_GEMM final {
   //==========================================================================
 
   template <typename MemberType, typename FUNC_ALPHA>
-  KOKKOS_INLINE_FUNCTION static void computeStiffnessTermSumFact_team(
-      const MemberType& member, float const (&X)[8][3], real_t const* u_local, real_t* v_local, real_t* G_xi,
-      real_t* G_eta, real_t* G_zeta, FUNC_ALPHA&& get_alpha) {
+  KOKKOS_INLINE_FUNCTION static void computeStiffnessTermSumFact_team(const MemberType &member, float const (&X)[8][3],
+                                                                      real_t const *u_local, real_t *v_local,
+                                                                      real_t *G_xi, real_t *G_eta, real_t *G_zeta,
+                                                                      FUNC_ALPHA &&get_alpha) {
     // Local constexpr copies (see computeStiffnessTermSumFactPML_team).
     constexpr int kN = numNodes;
     constexpr int k1d = num1dNodes;

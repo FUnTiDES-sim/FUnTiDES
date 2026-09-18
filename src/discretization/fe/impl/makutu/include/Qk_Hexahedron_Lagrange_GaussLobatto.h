@@ -597,9 +597,11 @@ class Qk_Hexahedron_Lagrange_GaussLobatto {
    * @param get_pml       κ/coef0/coef1 callback.
    */
   template <typename FUNC_ALPHA, typename FUNC_PML>
-  PROXY_HOST_DEVICE static void computeStiffnessTermSumFactPML(
-      float const (&X)[8][3], real_t const (&p_local)[numNodes], real_t (&f_local)[numNodes],
-      real_t (&mem_local)[6][numNodes], FUNC_ALPHA &&get_alpha, FUNC_PML &&get_pml);
+  PROXY_HOST_DEVICE static void computeStiffnessTermSumFactPML(float const (&X)[8][3],
+                                                               real_t const (&p_local)[numNodes],
+                                                               real_t (&f_local)[numNodes],
+                                                               real_t (&mem_local)[6][numNodes], FUNC_ALPHA &&get_alpha,
+                                                               FUNC_PML &&get_pml);
 
   /**
    * @brief Computes the "Grad(Phi)*B*Grad(Phi)" coefficient of the stiffness

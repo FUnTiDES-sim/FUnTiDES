@@ -59,7 +59,15 @@ class SEMsolver : public Solver {
   void computeFEInit(model::ModelApi<float, int>& mesh, const std::array<float, 3>& sponge_size,
                      const bool surface_sponge, const float taper_delta) override;
 
-  // Split-phase methods for DD
+  /**
+   * @brief Phase 1 of the time step: assemble the local force vectors.
+   *
+   * Ordering contract: this method and updateSolutionForward() launch their
+   * kernels on the same Kokkos stream, so they are ordered without explicit
+   * fences. Only the final fence (in updateSolutionForward) is required — it
+   * synchronizes GPU->host for correctness and honest timing. The intermediate
+   * fences between same-stream kernels only stall the CPU.
+   */
   void computeForces(const float& dt, const int& timeSample, DataStruct& data) override;
   void updateSolutionForward(const float& dt, DataStruct& data) override;
   void updateSolutionBackward(const float& dt, DataStruct& data) override;

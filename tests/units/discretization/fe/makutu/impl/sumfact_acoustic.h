@@ -77,7 +77,7 @@ TYPED_TEST(SumFactAcousticTest, PmlZeroProfileMatchesPlainKernel) {
   for (int i = 0; i < numNodes; ++i) p[i] = std::sin(static_cast<real_t>(i));
 
   // Identity PML profile: kappa=1, coef0=1, coef1=0 (psi stays zero).
-  auto identity_pml = [](int, int, int, real_t (&kappa)[3], real_t (&coef0)[3], real_t (&coef1)[3]) {
+  auto identity_pml = [](int, int, int, real_t(&kappa)[3], real_t(&coef0)[3], real_t(&coef1)[3]) {
     for (int j = 0; j < 3; ++j) {
       kappa[j] = real_t(1);
       coef0[j] = real_t(1);
@@ -96,7 +96,8 @@ TYPED_TEST(SumFactAcousticTest, PmlZeroProfileMatchesPlainKernel) {
     EXPECT_NEAR(f_pml[i], f_plain[i], TOL_NUMERICAL) << "Zero-profile PML must match plain kernel at node " << i;
   for (int j = 0; j < 6; ++j)
     for (int i = 0; i < numNodes; ++i)
-      EXPECT_NEAR(mem[j][i], 0.0, TOL_NUMERICAL) << "Identity profile must keep mem zero at comp " << j << " node " << i;
+      EXPECT_NEAR(mem[j][i], 0.0, TOL_NUMERICAL)
+          << "Identity profile must keep mem zero at comp " << j << " node " << i;
 }
 
 TYPED_TEST(SumFactAcousticTest, PmlNonZeroProfileChangesForce) {
@@ -110,7 +111,7 @@ TYPED_TEST(SumFactAcousticTest, PmlNonZeroProfileChangesForce) {
   for (int i = 0; i < numNodes; ++i) p[i] = std::sin(static_cast<real_t>(i));
 
   // Non-trivial profile: stretch x only.
-  auto pml = [](int, int, int, real_t (&kappa)[3], real_t (&coef0)[3], real_t (&coef1)[3]) {
+  auto pml = [](int, int, int, real_t(&kappa)[3], real_t(&coef0)[3], real_t(&coef1)[3]) {
     for (int j = 0; j < 3; ++j) {
       kappa[j] = (j == 0) ? real_t(1.5) : real_t(1);
       coef0[j] = (j == 0) ? real_t(0.5) : real_t(1);

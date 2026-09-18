@@ -231,11 +231,6 @@ class Solver {
     static vectorInt empty;
     return empty;
   }
-  /// @brief Per-element PML memory variables (empty view when disabled).
-  virtual const arrayReal& getPmlMemoryVariables() const {
-    static arrayReal empty;
-    return empty;
-  }
 };
 }  // namespace fe
 }  // namespace solver

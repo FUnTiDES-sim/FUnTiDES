@@ -86,8 +86,8 @@ struct PmlCoefficients {
  * @param kappaMax   Maximum kappa (default 1 = no coordinate stretching).
  * @param out        Output coefficients.
  */
-inline void fillPmlCoefficients(float x, float y, float z, const float domainSize[3], const float pmlSize[3],
-                                float dt, float vp, float profile, float reflection, float alphaMax, float kappaMax,
+inline void fillPmlCoefficients(float x, float y, float z, const float domainSize[3], const float pmlSize[3], float dt,
+                                float vp, float profile, float reflection, float alphaMax, float kappaMax,
                                 PmlCoefficients& out) {
   const float coord[3] = {x, y, z};
   const float kProfile = (profile > 0.0f) ? profile : 2.0f;
@@ -119,9 +119,8 @@ inline void fillPmlCoefficients(float x, float y, float z, const float domainSiz
 
     const float r = delta / L;  // 0 at inner edge, 1 at outer boundary
     const float rN = std::pow(r, kProfile);
-    const float dMax = (vp > 0.0f && reflection > 0.0f)
-                           ? -(kProfile + 1.0f) * vp / (2.0f * L) * std::log(reflection)
-                           : 0.0f;
+    const float dMax =
+        (vp > 0.0f && reflection > 0.0f) ? -(kProfile + 1.0f) * vp / (2.0f * L) * std::log(reflection) : 0.0f;
 
     out.d[i] = dMax * rN;
     out.kappa[i] = 1.0f + (kappaMax - 1.0f) * rN;
