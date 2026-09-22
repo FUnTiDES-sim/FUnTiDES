@@ -246,6 +246,16 @@ class SEMsolver : public Solver {
                                                float phi, float theta, float (&C)[6][6]);
 
   /**
+   * @brief Build the per-node TTI elasticity tensors, once per model.
+   *
+   * The model does not change while the time loop runs, so the rotated tensor of a node is the
+   * same at every time step. Building it here keeps the Bond rotation, its two transcendental
+   * pairs and its three 6x6 temporaries out of the stiffness kernel. No-op unless the physics is
+   * elastic and the model lives on nodes; cheap to call repeatedly.
+   */
+  void precomputeTtiTensorsOnNodes();
+
+  /**
    * @brief Set the anisotropy type for the solver.
    */
   void setAnisotropyType(model::AnisotropyType type) { anisotropyType_ = type; }
@@ -288,8 +298,14 @@ class SEMsolver : public Solver {
 
   static constexpr int kPointsPerElement = (ORDER + 1) * (ORDER + 1) * (ORDER + 1);
 
+  // The rotated tensor is symmetric, so only its upper triangle is stored.
+  static constexpr int kCttiPackedSize = 21;
+
   vectorReal gemmMetrics_;
   bool gemmMetricsReady_ = false;
+
+  arrayReal cttiNodes_;
+  bool cttiNodesReady_ = false;
 
   float sponge_size_[3];
   bool surface_sponge_;

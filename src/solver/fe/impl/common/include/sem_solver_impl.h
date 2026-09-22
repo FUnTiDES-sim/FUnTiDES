@@ -29,6 +29,10 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::com
     throw std::runtime_error("Incompatible mesh type in solver");
   }
 
+  // The caches below are derived from the model, which has just been replaced.
+  cttiNodesReady_ = false;
+  gemmMetricsReady_ = false;
+
   sponge_size_[0] = sponge_size[0];
   sponge_size_[1] = sponge_size[1];
   sponge_size_[2] = sponge_size[2];
@@ -1144,11 +1148,52 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::com
 //============================================================================
 
 template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE, bool IS_MODEL_ON_NODES, physicType PHYSICS>
+void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::precomputeTtiTensorsOnNodes() {
+  if constexpr (PHYSICS != utils::enums::physicType::kElastic || !IS_MODEL_ON_NODES) {
+    return;
+  } else {
+    if (cttiNodesReady_) {
+      return;
+    }
+
+    using ExecSpace = Kokkos::DefaultExecutionSpace;
+    int const numNodes = m_mesh.getNumberOfNodes();
+    cttiNodes_ = allocateArray2D<arrayReal>(numNodes, kCttiPackedSize, "cttiNodes");
+
+    auto ctti = cttiNodes_;
+    auto mesh_pc = m_mesh;
+    Kokkos::parallel_for(
+        "Tti Precompute C On Nodes", Kokkos::RangePolicy<ExecSpace>(0, numNodes), KOKKOS_LAMBDA(const int g) {
+          float C[6][6] = {};
+          computeCMatrix(mesh_pc.getModelVpOnNodes(g), mesh_pc.getModelVsOnNodes(g), mesh_pc.getModelRhoOnNodes(g),
+                         mesh_pc.getModelDeltaOnNodes(g), mesh_pc.getModelEpsilonOnNodes(g),
+                         mesh_pc.getModelGammaOnNodes(g), mesh_pc.getModelPhiOnNodes(g),
+                         mesh_pc.getModelThetaOnNodes(g), C);
+
+          int k = 0;
+          for (int a = 0; a < 6; ++a) {
+            for (int b = a; b < 6; ++b, ++k) {
+              ctti(g, k) = C[a][b];
+            }
+          }
+        });
+    Kokkos::fence();
+
+    cttiNodesReady_ = true;
+  }
+}
+
+//============================================================================
+
+template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE, bool IS_MODEL_ON_NODES, physicType PHYSICS>
 void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::computeElementContributions_Tti_Flat(
     const DataType& data) {
   if constexpr (PHYSICS != utils::enums::physicType::kElastic) {
   } else {
+    precomputeTtiTensorsOnNodes();
+
     auto mesh_local = m_mesh;
+    [[maybe_unused]] auto ctti_local = cttiNodes_;
     bool const list_on = m_list_mode_;
     auto list_local = m_elem_list_;
     int const n_iter = list_on ? m_n_elem_list_ : mesh_local.getNumberOfElements();
@@ -1191,30 +1236,31 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::com
                   mesh_local.vertexCoords(mesh_local.globalVertexIndex(eIdx, iv, jv, kv), cornerCoords[I++]);
           }
 
+          // Captured here, not at first use: nvcc rejects an extended lambda that first-captures
+          // a variable inside an if-constexpr branch.
+          [[maybe_unused]] auto const ctti = ctti_local;
+
           float CTTI[6][6] = {};
           if constexpr (!IS_MODEL_ON_NODES) {
             mesh_local.getCTensorOnElement(elementNumber, CTTI);
           }
 
-          INTEGRAL_TYPE::computeElasticStiffnessSumFact(
-              cornerCoords, localFields, localWork,
-              [&](int qa, int qb, int qc, float const(&J_inv)[3][3], float const(&grad_u_ref)[3][3],
-                  float(&flux)[3][3]) {
-                if constexpr (IS_MODEL_ON_NODES) {
-                  int const gIndex = mesh_local.globalNodeIndex(elementNumber, qa, qb, qc);
-                  float const vp = mesh_local.getModelVpOnNodes(gIndex);
-                  float const vs = mesh_local.getModelVsOnNodes(gIndex);
-                  float const rho = mesh_local.getModelRhoOnNodes(gIndex);
-                  float const delta = mesh_local.getModelDeltaOnNodes(gIndex);
-                  float const epsilon = mesh_local.getModelEpsilonOnNodes(gIndex);
-                  float const gamma = mesh_local.getModelGammaOnNodes(gIndex);
-                  float const phi = mesh_local.getModelPhiOnNodes(gIndex);
-                  float const theta = mesh_local.getModelThetaOnNodes(gIndex);
-                  computeCMatrix(vp, vs, rho, delta, epsilon, gamma, phi, theta, CTTI);
+          auto ttiFlux = [&](int qa, int qb, int qc, float const(&J_inv)[3][3], float const(&grad_u_ref)[3][3],
+                             float(&flux)[3][3]) {
+            if constexpr (IS_MODEL_ON_NODES) {
+              int const gIndex = mesh_local.globalNodeIndex(elementNumber, qa, qb, qc);
+              int k = 0;
+              for (int a = 0; a < 6; ++a) {
+                for (int b = a; b < 6; ++b, ++k) {
+                  CTTI[a][b] = CTTI[b][a] = ctti(gIndex, k);
                 }
+              }
+            }
 
-                flux::elasticFluxTti(J_inv, CTTI, grad_u_ref, flux);
-              });
+            flux::elasticFluxTti(J_inv, CTTI, grad_u_ref, flux);
+          };
+
+          INTEGRAL_TYPE::computeElasticStiffnessSumFact(cornerCoords, localFields, localWork, ttiFlux);
 
           for (int i = 0; i < dim; ++i) {
             for (int j = 0; j < dim; ++j) {
@@ -1247,7 +1293,10 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::com
     const DataType& data) {
   if constexpr (PHYSICS != utils::enums::physicType::kElastic) {
   } else {
+    precomputeTtiTensorsOnNodes();
+
     auto mesh_local = m_mesh;
+    [[maybe_unused]] auto ctti_local = cttiNodes_;
     bool const list_on = m_list_mode_;
     auto list_local = m_elem_list_;
     int const n_iter = list_on ? m_n_elem_list_ : mesh_local.getNumberOfElements();
@@ -1305,7 +1354,11 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::com
                   mesh_local.vertexCoords(mesh_local.globalVertexIndex(eIdx, iv, jv, kv), cornerCoords[I++]);
           }
 
-          // Thread-local: the on-nodes path rebuilds it at every quadrature point.
+          // Captured here, not at first use: nvcc rejects an extended lambda that first-captures
+          // a variable inside an if-constexpr branch.
+          [[maybe_unused]] auto const ctti = ctti_local;
+
+          // Thread-local: the on-nodes path refills it at every quadrature point.
           float CTTI[6][6] = {};
           if constexpr (!IS_MODEL_ON_NODES) {
             mesh_local.getCTensorOnElement(elementNumber, CTTI);
@@ -1315,15 +1368,12 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::com
                                     float(&flux)[3][3]) {
             if constexpr (IS_MODEL_ON_NODES) {
               int const gIndex = mesh_local.globalNodeIndex(elementNumber, qa, qb, qc);
-              float const vp = mesh_local.getModelVpOnNodes(gIndex);
-              float const vs = mesh_local.getModelVsOnNodes(gIndex);
-              float const rho = mesh_local.getModelRhoOnNodes(gIndex);
-              float const delta = mesh_local.getModelDeltaOnNodes(gIndex);
-              float const epsilon = mesh_local.getModelEpsilonOnNodes(gIndex);
-              float const gamma = mesh_local.getModelGammaOnNodes(gIndex);
-              float const phi = mesh_local.getModelPhiOnNodes(gIndex);
-              float const theta = mesh_local.getModelThetaOnNodes(gIndex);
-              computeCMatrix(vp, vs, rho, delta, epsilon, gamma, phi, theta, CTTI);
+              int k = 0;
+              for (int a = 0; a < 6; ++a) {
+                for (int b = a; b < 6; ++b, ++k) {
+                  CTTI[a][b] = CTTI[b][a] = ctti(gIndex, k);
+                }
+              }
             }
             flux::elasticFluxTti(J_inv, CTTI, grad_u_ref, flux);
           };
