@@ -243,16 +243,6 @@ class Qk_Hexahedron_Lagrange_GaussLobatto {
   static real_t calcGradNWithCorners(real_t const (&coords)[3], real_t const (&X)[8][3], real_t (&gradN)[numNodes][3]);
 
   /**
-   * @brief Calculate the integration weights for a quadrature point.
-   * @param q Index of the quadrature point.
-   * @param X Array containing the coordinates of the support points.
-   * @return The product of the quadrature rule weight and the determinate of
-   *   the parent/physical transformation matrix.
-   */
-  PROXY_HOST_DEVICE
-  static real_t transformedQuadratureWeight(int const q, real_t const (&X)[numNodes][3]);
-
-  /**
    * @brief Calculates the isoparametric "Jacobian" transformation
    *   matrix/mapping from the parent space to the physical space on a 2D domain
    * (face).
@@ -413,93 +403,54 @@ class Qk_Hexahedron_Lagrange_GaussLobatto {
   static real_t computeDampingTerm(int const q, real_t const (&X)[4][3]);
 
   /**
-   * @brief Computes the "Grad(Phi)*Phi" coefficient of the interface flux
-   *    term. Phi denotes a basis function.
-   * @param dir An integer between 0 and 2 to specify the fixed direction
-   * @param qfa The 1d quadrature point index in the first direction of the face
-   * @param qfb The 1d quadrature point index in the second direction of the
-   * face
-   * @param qFixed The 1d quadrature point index of the fixed direction
-   * @param kX Array containing the coordinates of the support points of the
-   * face (4 corners).
-   * @param invJ3D Inverse of the volumetric Jacobian J^{-1} at the quadrature
-   * point, used to map reference-space gradients to physical-space gradients.
-   * @param func Callback function accepting four parameters: i, j, k and C_ijk
-   *    invoked when processing each interface flux matrix contribution. The
-   * interface flux matrix is assembled in a tensorial form prior to computing
-   * the dot product with the normal vector. Each matrix entry is therefore a 3D
-   * vector. The function will compute the index i (line of the matrix and
-   * degree of freedom associated to the trial function "Grad(Phi)"), index j
-   * (column of the matrix and degree of freedom associated to the test function
-   * "Phi"), index k (k = 0,1,2 corresponding to physical x,y,z directions) and
-   * C_ijk which is the value of the k-th component associated to the matrix
-   * entry (i,j).
-   */
-  template <int kQfa, int kQfb, typename FUNC>
-  PROXY_HOST_DEVICE static void computeGradPhiPhi(int const kDir, int const kQFixed, real_t const (&kX)[4][3],
-                                                  real_t const (&invJ3D)[3][3], FUNC &&func);
-
-  /**
-   * @brief Two-channel variant of computeGradPhiPhi() that also reports the face-normal
-   *   derivative contributions, which the single-callback form cancels identically (see
-   *   computeInterfaceFluxTerm()).
-   * @tparam kQfa The 1d face quadrature point index in the first face direction.
-   * @tparam kQfb The 1d face quadrature point index in the second face direction.
+   * @brief Normal-contracted variant of the two-channel computeGradPhiPhiAt().
+   *
+   * The uncontracted form reports C_ijk, one value per physical direction k, and every caller
+   * immediately forms sum_k C_ijk * n_k -- the payload it multiplies (a pressure difference) does
+   * not depend on k, so the contraction factors straight out of the callback. Doing it here
+   * evaluates the three inverse-Jacobian/normal dot products once per quadrature point instead of
+   * re-deriving them once per (i, k), and divides the number of callback invocations, of
+   * accumulator updates and of neighbour-field reads by three.
+   *
+   * Mathematically identical to the uncontracted form summed over k; the two differ only in
+   * floating-point summation order.
+   *
+   * @param qa The 1d face quadrature point index in the first face direction.
+   * @param qb The 1d face quadrature point index in the second face direction.
    * @param kDir Face-normal direction (kFaceId / 2).
    * @param kQFixed Quadrature index along the face-normal direction (0 or ORDER).
    * @param kX Coordinates of the 4 face corner support points.
    * @param invJ3D Inverse of the volumetric Jacobian at the quadrature point.
-   * @param func Callback (i, j, k, C_ijk) for the tangential contributions, i and j both face
-   *   dofs, see computeGradPhiPhi().
-   * @param funcNormal Callback (m, j, k, C_mjk) for the face-normal contributions. @p m is the
-   *   depth along the face normal, in [0, ORDER]: the trial dof is the element support point at
-   *   depth @p m on the line through face dof @p j. @p j is the face dof of the quadrature point.
+   * @param kNormal Face normal to contract with, outward for the element @p invJ3D belongs to.
+   * @param func Callback (i, j, C_ij) for the tangential contributions, both indices face dofs.
+   * @param funcNormal Callback (m, j, C_mj) for the face-normal contributions, @p m the depth
+   *   along the face normal.
    */
-  template <int kQfa, int kQfb, typename FUNC, typename FUNC_NORMAL>
-  PROXY_HOST_DEVICE static void computeGradPhiPhi(int const kDir, int const kQFixed, real_t const (&kX)[4][3],
-                                                  real_t const (&invJ3D)[3][3], FUNC &&func, FUNC_NORMAL &&funcNormal);
+  template <typename FUNC, typename FUNC_NORMAL>
+  PROXY_HOST_DEVICE static void computeGradPhiPhiAt(int const qa, int const qb, int const kDir, int const kQFixed,
+                                                    real_t const (&kX)[4][3], real_t const (&invJ3D)[3][3],
+                                                    real_t const (&kNormal)[3], FUNC &&func, FUNC_NORMAL &&funcNormal);
 
   /**
-   * @brief computes the non-zero contributions of the interface flux
-   *   block matrix CKL, i.e., the integration of "Grad(Phi_i)*Phi_j"
-   *   over a face with the test function "Phi_i" in the element K
-   *   and the trial function "Phi_j" in the element L.
-   * @param kX Array containing the coordinates of the 4 face corner support
-   * points, used for the surface Jacobian (integration weight).
-   * @param X8 Array containing the coordinates of the 8 element corner support
-   * points, used to compute the volumetric inverse Jacobian for physical
-   * gradient evaluation.
-   * @param kFaceId Integer (0,1,2,3,4 or 5) to specify the integrated face.
-   * @param func Callback function accepting four parameters: i, j, k and C_ijk
-   *   invoked when processing each interface flux matrix contribution. The
-   * interface flux matrix is assembled in a tensorial form prior to computing
-   * the dot product with the normal vector. Each matrix entry is therefore a 3D
-   * vector. The function will compute the index i (line of the matrix and
-   * degree of freedom associated to the trial function "Grad(Phi)"), index j
-   * (column of the matrix and degree of freedom associated to the test function
-   * "Phi"), index k (k = 0,1,2 corresponding to physical x,y,z directions) and
-   * C_ijk which is the value of the k-th component associated to the matrix
-   * entry (i,j).
-   */
-  template <typename FUNC>
-  PROXY_HOST_DEVICE static void computeInterfaceFluxTerm(real_t const (&kX)[4][3], real_t const (&X8)[8][3],
-                                                         int const kFaceId, FUNC &&func);
-
-  /**
-   * @brief Two-channel variant of computeInterfaceFluxTerm(): also reports the face-normal
-   *   derivative contributions, which the single-callback form cancels identically on a
-   *   Cartesian mesh (the trial value collapses to the face dof, so the gradient reduces to the
-   *   derivative of the partition of unity, sum_m dPhi_m/dxi = 0).
+   * @brief Normal-contracted variant of the two-channel computeInterfaceFluxTermAt().
+   *
+   * Callbacks receive C_ij already dotted with @p kNormal, so the caller no longer carries a k
+   * index. See computeGradPhiPhiAt() for why the contraction belongs here.
+   *
+   * @param q Face quadrature point, in [0, (ORDER+1)^2).
    * @param kX Coordinates of the 4 face corner support points.
    * @param X8 Coordinates of the 8 element corner support points.
    * @param kFaceId Integer (0..5) to specify the integrated face.
-   * @param func Callback (i, j, k, C_ijk) for the tangential contributions.
-   * @param funcNormal Callback (m, j, k, C_mjk) for the face-normal contributions, @p m being the
-   *   depth along the normal and @p j the face dof of the quadrature point.
+   * @param kNormal Face normal to contract with, outward for the element described by @p X8.
+   * @param func Callback (i, j, C_ij) for the tangential contributions.
+   * @param funcNormal Callback (m, j, C_mj) for the face-normal contributions. Always fires with
+   *   @p j equal to @p q, so the line is the one through face dof @p q.
    */
   template <typename FUNC, typename FUNC_NORMAL>
-  PROXY_HOST_DEVICE static void computeInterfaceFluxTerm(real_t const (&kX)[4][3], real_t const (&X8)[8][3],
-                                                         int const kFaceId, FUNC &&func, FUNC_NORMAL &&funcNormal);
+  PROXY_HOST_DEVICE static void computeInterfaceFluxTermAt(int const q, real_t const (&kX)[4][3],
+                                                           real_t const (&X8)[8][3], int const kFaceId,
+                                                           real_t const (&kNormal)[3], FUNC &&func,
+                                                           FUNC_NORMAL &&funcNormal);
 
   /**
    * @brief computes the matrix B, defined as J^{-T}J^{-1}/det(J), where J is
@@ -988,16 +939,6 @@ constexpr void triple_loop(Lambda &&lambda) {
       [&](auto I) { for_constexpr<BoundJ>([&](auto J) { for_constexpr<BoundK>([&](auto K) { lambda(I, J, K); }); }); });
 }
 
-/*
- * Perform a double nested compile-time loop from 0 to BoundI-1, 0 to BoundJ-1,
- * calling a lambda with std::integral_constant<int, I>,
- * std::integral_constant<int, J> as arguments.
- */
-template <int BoundI, int BoundJ, typename Lambda>
-constexpr void double_loop(Lambda &&lambda) {
-  for_constexpr<BoundI>([&](auto I) { for_constexpr<BoundJ>([&](auto J) { lambda(I, J); }); });
-}
-
 template <typename GL_BASIS>
 PROXY_HOST_DEVICE void Qk_Hexahedron_Lagrange_GaussLobatto<GL_BASIS>::jacobianTransformation(int const qa, int const qb,
                                                                                              int const qc,
@@ -1116,9 +1057,10 @@ PROXY_HOST_DEVICE void Qk_Hexahedron_Lagrange_GaussLobatto<GL_BASIS>::computeMas
 }
 
 template <typename GL_BASIS>
-template <int kQfa, int kQfb, typename FUNC>
-PROXY_HOST_DEVICE void Qk_Hexahedron_Lagrange_GaussLobatto<GL_BASIS>::computeGradPhiPhi(
-    int const kDir, int const kQFixed, real_t const (&kX)[4][3], real_t const (&invJ3D)[3][3], FUNC &&func) {
+template <typename FUNC, typename FUNC_NORMAL>
+PROXY_HOST_DEVICE void Qk_Hexahedron_Lagrange_GaussLobatto<GL_BASIS>::computeGradPhiPhiAt(
+    int const qa, int const qb, int const kDir, int const kQFixed, real_t const (&kX)[4][3],
+    real_t const (&invJ3D)[3][3], real_t const (&kNormal)[3], FUNC &&func, FUNC_NORMAL &&funcNormal) {
   int ifa, ifb;
   switch (kDir) {
     case 0:
@@ -1134,110 +1076,49 @@ PROXY_HOST_DEVICE void Qk_Hexahedron_Lagrange_GaussLobatto<GL_BASIS>::computeGra
       ifb = 1;
       break;
   }
-  const real_t kW2D = static_cast<real_t>(GL_BASIS::weight(kQfa) * GL_BASIS::weight(kQfb));
+  // Narrowed before the product: weight() returns double in several bases, and with runtime indices
+  // there is no constant folding left to absorb it.
+  const real_t kW2D = static_cast<real_t>(GL_BASIS::weight(qa)) * static_cast<real_t>(GL_BASIS::weight(qb));
   real_t B[3];
   real_t J[3][2] = {{0}};
-  jacobianTransformation2d(kQfa, kQfb, kX, J);
+  jacobianTransformation2d(qa, qb, kX, J);
   // compute J^T.J, using Voigt notation for B
   B[0] = J[0][0] * J[0][0] + J[1][0] * J[1][0] + J[2][0] * J[2][0];
   B[1] = J[0][1] * J[0][1] + J[1][1] * J[1][1] + J[2][1] * J[2][1];
   B[2] = J[0][0] * J[0][1] + J[1][0] * J[1][1] + J[2][0] * J[2][1];
   const real_t kDetJ = sqrt(std::abs(symDeterminant(B)));
   const real_t kVal = kW2D * kDetJ;
-  const int kAbj = GL_BASIS::TensorProduct2D::linearIndex(kQfa, kQfb);
-  for (int i = 0; i < num1dNodes; i++) {
-    const int kIb = GL_BASIS::TensorProduct2D::linearIndex(i, kQfb);
-    const int kAi = GL_BASIS::TensorProduct2D::linearIndex(kQfa, i);
-    const real_t kGifa = basisGradientAt(i, kQfa);
-    const real_t kGifb = basisGradientAt(i, kQfb);
-    const real_t kGiFixed = basisGradientAt(i, kQFixed);
-    for (int k = 0; k < 3; ++k) {
-      func(kIb, kAbj, k, kVal * invJ3D[ifa][k] * kGifa);
-      func(kAi, kAbj, k, kVal * invJ3D[ifb][k] * kGifb);
-      func(kAbj, kAbj, k, kVal * invJ3D[kDir][k] * kGiFixed);
-    }
-  }
-}
+  const int kAbj = GL_BASIS::TensorProduct2D::linearIndex(qa, qb);
 
-template <typename GL_BASIS>
-template <typename FUNC>
-PROXY_HOST_DEVICE void Qk_Hexahedron_Lagrange_GaussLobatto<GL_BASIS>::computeInterfaceFluxTerm(real_t const (&kX)[4][3],
-                                                                                               real_t const (&X8)[8][3],
-                                                                                               int const kFaceId,
-                                                                                               FUNC &&func) {
-  const int kDir = kFaceId / 2;
-  const int kQFixed = (kFaceId % 2 == 0) ? 0 : num1dNodes - 1;
-  double_loop<num1dNodes, num1dNodes>([&](auto const kIcqfa, auto const kIcqfb) {
-    constexpr int kQfa = decltype(kIcqfa)::value;
-    constexpr int kQfb = decltype(kIcqfb)::value;
-    real_t invJ3D[3][3] = {{0}};
-    invJacobianTransformation(kQfa, kQfb, kQFixed, X8, invJ3D);
-    computeGradPhiPhi<kQfa, kQfb>(kDir, kQFixed, kX, invJ3D, func);
-  });
-}
+  // The three contractions of the inverse Jacobian with the face normal. Every caller of the
+  // uncontracted form multiplies C_ijk by n_k and sums, and the payload it multiplies is the same
+  // for all three k, so the sum factors out of the callback entirely and is evaluated once per
+  // quadrature point instead of once per (i, k).
+  const real_t kSa = invJ3D[ifa][0] * kNormal[0] + invJ3D[ifa][1] * kNormal[1] + invJ3D[ifa][2] * kNormal[2];
+  const real_t kSb = invJ3D[ifb][0] * kNormal[0] + invJ3D[ifb][1] * kNormal[1] + invJ3D[ifb][2] * kNormal[2];
+  const real_t kSd = invJ3D[kDir][0] * kNormal[0] + invJ3D[kDir][1] * kNormal[1] + invJ3D[kDir][2] * kNormal[2];
 
-template <typename GL_BASIS>
-template <int kQfa, int kQfb, typename FUNC, typename FUNC_NORMAL>
-PROXY_HOST_DEVICE void Qk_Hexahedron_Lagrange_GaussLobatto<GL_BASIS>::computeGradPhiPhi(
-    int const kDir, int const kQFixed, real_t const (&kX)[4][3], real_t const (&invJ3D)[3][3], FUNC &&func,
-    FUNC_NORMAL &&funcNormal) {
-  int ifa, ifb;
-  switch (kDir) {
-    case 0:
-      ifa = 1;
-      ifb = 2;
-      break;
-    case 1:
-      ifa = 0;
-      ifb = 2;
-      break;
-    default:
-      ifa = 0;
-      ifb = 1;
-      break;
-  }
-  const real_t kW2D = static_cast<real_t>(GL_BASIS::weight(kQfa) * GL_BASIS::weight(kQfb));
-  real_t B[3];
-  real_t J[3][2] = {{0}};
-  jacobianTransformation2d(kQfa, kQfb, kX, J);
-  // compute J^T.J, using Voigt notation for B
-  B[0] = J[0][0] * J[0][0] + J[1][0] * J[1][0] + J[2][0] * J[2][0];
-  B[1] = J[0][1] * J[0][1] + J[1][1] * J[1][1] + J[2][1] * J[2][1];
-  B[2] = J[0][0] * J[0][1] + J[1][0] * J[1][1] + J[2][0] * J[2][1];
-  const real_t kDetJ = sqrt(std::abs(symDeterminant(B)));
-  const real_t kVal = kW2D * kDetJ;
-  const int kAbj = GL_BASIS::TensorProduct2D::linearIndex(kQfa, kQfb);
   for (int i = 0; i < num1dNodes; i++) {
-    const int kIb = GL_BASIS::TensorProduct2D::linearIndex(i, kQfb);
-    const int kAi = GL_BASIS::TensorProduct2D::linearIndex(kQfa, i);
-    const real_t kGifa = basisGradientAt(i, kQfa);
-    const real_t kGifb = basisGradientAt(i, kQfb);
-    const real_t kGiFixed = basisGradientAt(i, kQFixed);
-    for (int k = 0; k < 3; ++k) {
-      // Tangential: the trial support point stays on the face, so a face index carries it.
-      func(kIb, kAbj, k, kVal * invJ3D[ifa][k] * kGifa);
-      func(kAi, kAbj, k, kVal * invJ3D[ifb][k] * kGifb);
-      // Normal: i is the depth along the line perpendicular to the face. Reporting it as a face
-      // index instead (as the single-callback form does) makes the trial value constant over the
-      // line and the sum collapses to sum_i dPhi_i/dxi(kQFixed) = 0.
-      funcNormal(i, kAbj, k, kVal * invJ3D[kDir][k] * kGiFixed);
-    }
+    const int kIb = GL_BASIS::TensorProduct2D::linearIndex(i, qb);
+    const int kAi = GL_BASIS::TensorProduct2D::linearIndex(qa, i);
+    func(kIb, kAbj, kVal * kSa * basisGradientAt(i, qa));
+    func(kAi, kAbj, kVal * kSb * basisGradientAt(i, qb));
+    funcNormal(i, kAbj, kVal * kSd * basisGradientAt(i, kQFixed));
   }
 }
 
 template <typename GL_BASIS>
 template <typename FUNC, typename FUNC_NORMAL>
-PROXY_HOST_DEVICE void Qk_Hexahedron_Lagrange_GaussLobatto<GL_BASIS>::computeInterfaceFluxTerm(
-    real_t const (&kX)[4][3], real_t const (&X8)[8][3], int const kFaceId, FUNC &&func, FUNC_NORMAL &&funcNormal) {
+PROXY_HOST_DEVICE void Qk_Hexahedron_Lagrange_GaussLobatto<GL_BASIS>::computeInterfaceFluxTermAt(
+    int const q, real_t const (&kX)[4][3], real_t const (&X8)[8][3], int const kFaceId, real_t const (&kNormal)[3],
+    FUNC &&func, FUNC_NORMAL &&funcNormal) {
   const int kDir = kFaceId / 2;
   const int kQFixed = (kFaceId % 2 == 0) ? 0 : num1dNodes - 1;
-  double_loop<num1dNodes, num1dNodes>([&](auto const kIcqfa, auto const kIcqfb) {
-    constexpr int kQfa = decltype(kIcqfa)::value;
-    constexpr int kQfb = decltype(kIcqfb)::value;
-    real_t invJ3D[3][3] = {{0}};
-    invJacobianTransformation(kQfa, kQfb, kQFixed, X8, invJ3D);
-    computeGradPhiPhi<kQfa, kQfb>(kDir, kQFixed, kX, invJ3D, func, funcNormal);
-  });
+  int qa, qb;
+  GL_BASIS::TensorProduct2D::multiIndex(q, qa, qb);
+  real_t invJ3D[3][3] = {{0}};
+  invJacobianTransformation(qa, qb, kQFixed, X8, invJ3D);
+  computeGradPhiPhiAt(qa, qb, kDir, kQFixed, kX, invJ3D, kNormal, func, funcNormal);
 }
 
 template <typename GL_BASIS>
@@ -1845,19 +1726,6 @@ PROXY_HOST_DEVICE void Qk_Hexahedron_Lagrange_GaussLobatto<GL_BASIS>::applyTrans
         gradN[nodeIndex][2] = dNdXi[0] * invJ[0][2] + dNdXi[1] * invJ[1][2] + dNdXi[2] * invJ[2][2];
       },
       invJ, gradN);
-}
-
-template <typename GL_BASIS>
-
-PROXY_HOST_DEVICE real_t Qk_Hexahedron_Lagrange_GaussLobatto<GL_BASIS>::transformedQuadratureWeight(
-    int const q, real_t const (&X)[numNodes][3]) {
-  int qa, qb, qc;
-  GL_BASIS::TensorProduct3D::multiIndex(q, qa, qb, qc);
-  real_t J[3][3] = {{0}};
-
-  jacobianTransformation(qa, qb, qc, X, J);
-
-  return determinant(J);
 }
 
 template <typename GL_BASIS>

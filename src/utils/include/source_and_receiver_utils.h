@@ -34,6 +34,10 @@ template <>
 struct LagrangeBasisSelector<5> {
   using type = LagrangeBasis5GL;
 };
+template <>
+struct LagrangeBasisSelector<6> {
+  using type = LagrangeBasis6GL;
+};
 
 /// DAS (Distributed Acoustic Sensing) receiver type.
 /// Ported from GEOS WaveSolverUtils::DASType.

@@ -204,6 +204,13 @@ class DGsolver : public Solver {
   /**
    * @brief Kernel 1b+2 — boundary absorbing damping and SIPG interface flux terms, fused into a
    * single face-loop (mutually exclusive per face, disjoint accumulators).
+   *
+   * One thread per face. A teamed variant (one warp per face, face-dof accumulators in team
+   * scratch) was measured and dropped: on GH200 at order 6 it beats this form 3x on a 20^3 mesh
+   * (25k faces) but loses on 40^3 (197k) and on 100x45x60 (823k), i.e. it only ever won where one
+   * thread per face could not fill the device. Face count, not order, is what moves that crossover,
+   * and a production mesh is always past it. Kept as dg-face-teampolicy-contracted.patch.
+   *
    * @param kNumFaces Total number of faces (interior + boundary).
    * @param current_field Pressure field at current time step p^n.
    */

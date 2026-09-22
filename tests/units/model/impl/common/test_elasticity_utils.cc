@@ -168,10 +168,51 @@ TEST(ElasticityUtilsTest, TtiTensorStaysSymmetricUnderRotation) {
   expectSymmetric(C);
 }
 
-// The rotation itself (frame invariance of an isotropic medium, invariance of a
-// VTI medium under a spin about its symmetry axis, conservation of C_iijj and
-// C_ikik) is not covered here: those properties currently fail, and the cause is
-// the Bond matrix rather than anything this file changes. Tracked separately.
+TEST(ElasticityUtilsTest, IsotropicMediumIsRotationInvariant) {
+  double lambda = 0.0, mu = 0.0;
+  computeIsotropicCoefficients(kVp, kVs, kRho, lambda, mu);
+  double expected[6][6];
+  buildIsotropicTensor(lambda, mu, expected);
+
+  double C[6][6];
+  computeCTensor(kVp, kVs, kRho, 0.0, 0.0, 0.0, 37.0, 121.0, C);
+
+  const double tol = 1.0e-6 * (lambda + 2.0 * mu);
+  for (int i = 0; i < 6; ++i)
+    for (int j = 0; j < 6; ++j) EXPECT_NEAR(C[i][j], expected[i][j], tol) << "at (" << i << "," << j << ")";
+}
+
+TEST(ElasticityUtilsTest, RotationPreservesTheTraceInvariants) {
+  double reference[6][6], rotated[6][6];
+  computeCTensor(kVp, kVs, kRho, 0.12, 0.2, 0.08, 0.0, 0.0, reference);
+  computeCTensor(kVp, kVs, kRho, 0.12, 0.2, 0.08, 37.0, 121.0, rotated);
+
+  // C_iijj and C_ikik are linear invariants of a fourth-order elastic tensor,
+  // so a pure change of frame must leave them untouched.
+  double sum_ref = 0.0, sum_rot = 0.0, shear_ref = 0.0, shear_rot = 0.0;
+  for (int i = 0; i < 3; ++i) {
+    for (int j = 0; j < 3; ++j) {
+      sum_ref += reference[i][j];
+      sum_rot += rotated[i][j];
+    }
+    shear_ref += reference[i][i] + 2.0 * reference[i + 3][i + 3];
+    shear_rot += rotated[i][i] + 2.0 * rotated[i + 3][i + 3];
+  }
+  EXPECT_NEAR(sum_rot, sum_ref, 1.0e-6 * std::abs(sum_ref));
+  EXPECT_NEAR(shear_rot, shear_ref, 1.0e-6 * std::abs(shear_ref));
+}
+
+TEST(ElasticityUtilsTest, SingleRotationAxisComposesOverPhi) {
+  // A VTI medium has a vertical symmetry axis, so tilting it by theta and then
+  // spinning it about that axis by phi cannot change the vertical response.
+  double a[6][6], b[6][6];
+  computeCTensor(kVp, kVs, kRho, 0.12, 0.2, 0.08, 0.0, 0.0, a);
+  computeCTensor(kVp, kVs, kRho, 0.12, 0.2, 0.08, 0.0, 55.0, b);
+
+  const double tol = 1.0e-6 * a[0][0];
+  for (int i = 0; i < 6; ++i)
+    for (int j = 0; j < 6; ++j) EXPECT_NEAR(b[i][j], a[i][j], tol) << "at (" << i << "," << j << ")";
+}
 
 // ======================================================================
 // float instantiation
