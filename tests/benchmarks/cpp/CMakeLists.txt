@@ -101,7 +101,7 @@ target_link_libraries(bench_solver_fe_cartesian_struct_acoustic_pml
     fun_solver
     fun_model
     fun_discretization
-    fun_utils
+    fun_acquisition
 )
 target_include_directories(bench_solver_fe_cartesian_struct_acoustic_pml
   PRIVATE

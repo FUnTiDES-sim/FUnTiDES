@@ -42,7 +42,7 @@
 #include "sem_solver_data.h"
 #include "sem_solver_impl.h"
 #include "source_and_receiver_utils.h"
-#include "utils.h"
+#include "source_time_function.h"
 
 namespace {
 
@@ -156,7 +156,7 @@ int main(int argc, char** argv) {
                          static_cast<int>(std::floor((kSrcZ * kEz) / kDomainSize)) * kEy * kEx;
     h_rhsElement(0) = src_elem;
 
-    SolverUtils utils;
+    SourceTimeFunction utils;
     float const tpeak = 1.0f / kF0;
     std::vector<float> sourceTerm = utils.computeSourceTerm(params.n_steps, kDt, kF0, 2, tpeak);
     for (int j = 0; j < params.n_steps; ++j) {
