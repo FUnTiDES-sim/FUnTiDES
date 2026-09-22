@@ -8,5 +8,5 @@ target_include_directories(fun_gradient_api
 target_link_libraries(fun_gradient_api
   INTERFACE
     fun_model
-    fun_utils
+    fun_core
 )

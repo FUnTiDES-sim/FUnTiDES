@@ -1,5 +1,5 @@
-#ifndef FUNTIDES_UTILS_INCLUDE_DATA_TYPE_KOKKOS_H_
-#define FUNTIDES_UTILS_INCLUDE_DATA_TYPE_KOKKOS_H_
+#ifndef FUNTIDES_CORE_INCLUDE_DATA_TYPE_KOKKOS_H_
+#define FUNTIDES_CORE_INCLUDE_DATA_TYPE_KOKKOS_H_
 
 #include <Kokkos_Core.hpp>
 
@@ -18,4 +18,4 @@ typedef Kokkos::View<int ***, Layout, DeviceSpace> array3DInt;
 typedef Kokkos::View<float ***, Layout, DeviceSpace> array3DReal;
 typedef Kokkos::View<double ***, Layout, DeviceSpace> array3DDouble;
 
-#endif  // FUNTIDES_UTILS_INCLUDE_DATA_TYPE_KOKKOS_H_
+#endif  // FUNTIDES_CORE_INCLUDE_DATA_TYPE_KOKKOS_H_

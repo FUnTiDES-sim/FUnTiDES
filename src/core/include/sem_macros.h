@@ -1,5 +1,5 @@
-#ifndef FUNTIDES_UTILS_INCLUDE_SEM_MACROS_H_
-#define FUNTIDES_UTILS_INCLUDE_SEM_MACROS_H_
+#ifndef FUNTIDES_CORE_INCLUDE_SEM_MACROS_H_
+#define FUNTIDES_CORE_INCLUDE_SEM_MACROS_H_
 #include "common_config.h"
 
 #define DIMENSION 3
@@ -10,4 +10,4 @@
 #define ATOMICADD(ADD1, ADD2) Kokkos::atomic_add(&ADD1, ADD2)
 
 #define FENCE Kokkos::fence();
-#endif  // FUNTIDES_UTILS_INCLUDE_SEM_MACROS_H_
+#endif  // FUNTIDES_CORE_INCLUDE_SEM_MACROS_H_

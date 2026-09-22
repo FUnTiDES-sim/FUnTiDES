@@ -2,14 +2,14 @@
 
 #include <cmath>
 
-#include "utils.h"
+#include "source_time_function.h"
 
 namespace utils {
 namespace test {
 
 class EvaluateRickerTest : public ::testing::Test {
  protected:
-  SolverUtils ricker;
+  SourceTimeFunction ricker;
   static constexpr float f0 = 5.0f;
   static constexpr float tpeak = 1.0f / f0;
   static constexpr float pi = static_cast<float>(M_PI);
