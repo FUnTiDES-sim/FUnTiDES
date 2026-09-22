@@ -34,9 +34,7 @@
 #       ${CMAKE_CURRENT_SOURCE_DIR}/include
 #     LIBS
 #       fun_solver
-#       proxy_model_builder_cartesian
-#       proxy_model_struct
-#       proxy_model_unstruct
+#       fun_model
 #       fun_discretization
 #       fun_acquisition
 #     THREADS
