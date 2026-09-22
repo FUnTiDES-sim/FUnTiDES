@@ -1,5 +1,5 @@
-#ifndef FUNTIDES_UTILS_INCLUDE_DATA_TYPE_H_
-#define FUNTIDES_UTILS_INCLUDE_DATA_TYPE_H_
+#ifndef FUNTIDES_CORE_INCLUDE_DATA_TYPE_H_
+#define FUNTIDES_CORE_INCLUDE_DATA_TYPE_H_
 #include <chrono>
 #include <cmath>
 #include <fstream>
@@ -71,4 +71,4 @@ void printBMatrix(const int &element, T &B) {
 
 #define timewatch(timepoint) chrono::time_point<std::chrono::system_clock> timepoint = chrono::system_clock::now();
 #define accumtime(accumulatedtime, starttime) accumulatedtime += (chrono::system_clock::now() - starttime).count();
-#endif  // FUNTIDES_UTILS_INCLUDE_DATA_TYPE_H_
+#endif  // FUNTIDES_CORE_INCLUDE_DATA_TYPE_H_

@@ -7,7 +7,7 @@
 #define FUNTIDES_MAIN_FE_INCLUDE_SEM_PROXY_H_
 
 #include <data_type.h>
-#include <utils.h>
+#include <source_time_function.h>
 
 #include <array>
 #include <chrono>
@@ -139,7 +139,7 @@ class SEMproxy {
   std::shared_ptr<model::ModelApi<float, int>> mesh_;         ///< Pointer to the finite element mesh API.
   std::unique_ptr<solver::fe::Solver> solver_;                ///< Main numerical solver instance.
   std::unique_ptr<solver::fe::BoundarySynchronizer> syncer_;  ///< Handles MPI boundary ghost-node synchronization.
-  SolverUtils utils_;                                         ///< General solver math utilities.
+  SourceTimeFunction source_time_function_;                   ///< Source time function (Ricker wavelet).
 
   // --- Acoustic / Shared Arrays (Device) ---
   arrayReal rhs_term_;              ///< Source term array over time (Device).

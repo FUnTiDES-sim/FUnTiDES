@@ -4,7 +4,6 @@
 #include <cmath>
 
 #include "model.h"
-#include "parallel_topology.h"
 #include "sem_enums.h"
 
 namespace solver {

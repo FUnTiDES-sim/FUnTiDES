@@ -1,10 +1,10 @@
-#ifndef FUNTIDES_UTILS_INCLUDE_UTILS_H_
-#define FUNTIDES_UTILS_INCLUDE_UTILS_H_
+#ifndef FUNTIDES_ACQUISITION_INCLUDE_SOURCE_TIME_FUNCTION_H_
+#define FUNTIDES_ACQUISITION_INCLUDE_SOURCE_TIME_FUNCTION_H_
 #include "data_type.h"
 
 using namespace std::chrono;
 
-struct SolverUtils {
+struct SourceTimeFunction {
   float evaluateRicker(float const& time_n, float const& f0, int order, float const& tpeak) {
     // float const tpeak = 1.0 / f0;
     float pulse = 0.0;
@@ -54,4 +54,4 @@ struct SolverUtils {
     return sourceTerm;
   }
 };
-#endif  // FUNTIDES_UTILS_INCLUDE_UTILS_H_
+#endif  // FUNTIDES_ACQUISITION_INCLUDE_SOURCE_TIME_FUNCTION_H_

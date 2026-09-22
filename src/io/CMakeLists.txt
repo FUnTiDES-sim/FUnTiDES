@@ -5,7 +5,7 @@ target_include_directories(funtides_io_api
 )
 
 target_link_libraries(funtides_io_api
-  INTERFACE Kokkos::kokkos fun_utils
+  INTERFACE Kokkos::kokkos fun_core fun_parallel
 )
 
 add_subdirectory(impl)

@@ -1,24 +1,28 @@
-add_subdirectory(utils)
+add_subdirectory(core)
 add_subdirectory(discretization)
 add_subdirectory(model)
+add_subdirectory(parallel)
+add_subdirectory(acquisition)
 add_subdirectory(solver)
 add_subdirectory(gradient)
 add_subdirectory(io)
 add_subdirectory(main)
 
-
 add_library(funtides INTERFACE)
 add_library(funtides::funtides ALIAS funtides)
 
 target_link_libraries(funtides INTERFACE
-  fun_utils
+  fun_core
+  fun_parallel
+  fun_acquisition
   fun_discretization
   fun_model
   fun_solver
   fun_gradient
 )
 
-install(TARGETS funtides fun_utils fun_discretization fun_model fun_solver fun_gradient
+install(TARGETS funtides fun_core fun_parallel fun_acquisition
+                fun_discretization fun_model fun_solver fun_gradient
         EXPORT funtidesTargets
         LIBRARY DESTINATION lib
         ARCHIVE DESTINATION lib
