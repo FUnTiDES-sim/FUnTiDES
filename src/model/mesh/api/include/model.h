@@ -1,7 +1,6 @@
 #ifndef FUNTIDES_MODEL_MESH_API_INCLUDE_MODEL_H_
 #define FUNTIDES_MODEL_MESH_API_INCLUDE_MODEL_H_
 #include "data_type.h"
-#include "parallel_topology.h"
 #include "sem_macros.h"
 
 /**

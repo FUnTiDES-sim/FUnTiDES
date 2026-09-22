@@ -18,7 +18,9 @@ if(COMPILE_SEM)
       fun_discretization
       fun_solver
       fun_model
-      fun_utils
+      fun_core
+      fun_parallel
+      fun_acquisition
       adios2::adios2
       ${STDCXXFS_LIB}
   )

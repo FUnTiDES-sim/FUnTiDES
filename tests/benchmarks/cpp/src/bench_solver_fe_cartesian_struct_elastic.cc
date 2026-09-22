@@ -77,7 +77,7 @@ BENCHMARK_TEMPLATE_METHOD_F(ElasticFixture, OneStep)
   arrays.rhsElement(0) = this->ex / 2 + this->ey / 2 * this->ex + this->ez / 2 * this->ey * this->ex;
   arrays.rhsElement(1) = this->ex / 3 + this->ey / 2 * this->ex + this->ez / 2 * this->ey * this->ex;
 
-  SolverUtils myUtils;
+  SourceTimeFunction myUtils;
   float const tpeak = 1.0f / this->f0;
   std::vector<float> sourceTerm = myUtils.computeSourceTerm(this->n_time_steps, this->dt, this->f0, 2, tpeak);
   for (int j = 0; j < this->n_time_steps; j++) {
