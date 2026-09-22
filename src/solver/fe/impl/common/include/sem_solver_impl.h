@@ -1245,22 +1245,22 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::com
             mesh_local.getCTensorOnElement(elementNumber, CTTI);
           }
 
-          INTEGRAL_TYPE::computeElasticStiffnessSumFact(
-              cornerCoords, localFields, localWork,
-              [&](int qa, int qb, int qc, float const(&J_inv)[3][3], float const(&grad_u_ref)[3][3],
-                  float(&flux)[3][3]) {
-                if constexpr (IS_MODEL_ON_NODES) {
-                  int const gIndex = mesh_local.globalNodeIndex(elementNumber, qa, qb, qc);
-                  int k = 0;
-                  for (int a = 0; a < 6; ++a) {
-                    for (int b = a; b < 6; ++b, ++k) {
-                      CTTI[a][b] = CTTI[b][a] = ctti(gIndex, k);
-                    }
-                  }
+          auto ttiFlux = [&](int qa, int qb, int qc, float const(&J_inv)[3][3], float const(&grad_u_ref)[3][3],
+                             float(&flux)[3][3]) {
+            if constexpr (IS_MODEL_ON_NODES) {
+              int const gIndex = mesh_local.globalNodeIndex(elementNumber, qa, qb, qc);
+              int k = 0;
+              for (int a = 0; a < 6; ++a) {
+                for (int b = a; b < 6; ++b, ++k) {
+                  CTTI[a][b] = CTTI[b][a] = ctti(gIndex, k);
                 }
+              }
+            }
 
-                flux::elasticFluxTti(J_inv, CTTI, grad_u_ref, flux);
-              });
+            flux::elasticFluxTti(J_inv, CTTI, grad_u_ref, flux);
+          };
+
+          INTEGRAL_TYPE::computeElasticStiffnessSumFact(cornerCoords, localFields, localWork, ttiFlux);
 
           for (int i = 0; i < dim; ++i) {
             for (int j = 0; j < dim; ++j) {
