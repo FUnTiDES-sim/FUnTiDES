@@ -82,3 +82,11 @@ Nothing here has been fixed yet.
   namespace `solver::fe` inside the discretization API (whose other header uses
   `discretization::fe::api`), and duplicates the runtime selector `utils::enums::implemType`
   (`sem_enums.h`), which only has `kMakutu`: two unrelated enums name the same back-ends.
+- `src/io/api/include/io_controller_base.h`, `IOControllerBase`: no solver or driver uses
+  it; snapshots still go through the ADIOS2-based `SemIOController`
+  (`src/main/fe/include/sem_io_controller.h`). `BackendKind::kAdios2` has no implementation
+  (`makeIOController` throws), and `IOConfig::nt`, `IOConfig::nb_receiver` and
+  `HostArrayReal` are read by nothing: planned architecture not implemented.
+- `IOControllerBase`: the class comment promised row-major storage of multi-dimensional
+  arrays independent of `Layout`, but the interface only takes a flat `HostVectorReal` that
+  is written verbatim; `local_dims` is metadata never checked against the view size.
