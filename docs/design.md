@@ -86,3 +86,19 @@ not in the repository.
 
 The discretization kernels store a symmetric 3x3 matrix `A` as 6 values in the order
 `(A00, A11, A22, A12, A02, A01)`, and a symmetric 2x2 matrix as `(A00, A11, A01)`.
+
+## Element geometry
+
+Hexahedral kernels receive an element as the coordinates of its 8 vertices, `X[8][3]`
+(`X[vertex][axis]`). Vertex `k` sits on side `k % 2`, `(k / 2) % 2` and `k / 4` (0 = minus,
+1 = plus) of the first, second and third parent axes, i.e. at element-local node
+`meshIndexToLinearIndex3D(k)`; solvers fill it as `iv + 2*jv + 4*kv`. A face is given by its 4
+vertices, `X[4][3]`, vertex `k` on side `k % 2` and `k / 2` of the two face axes
+(`meshIndexToLinearIndex2D(k)`).
+
+The geometric map is the trilinear (bilinear on a face) interpolation of these vertices from the
+parent cube `[-1, 1]^3`; high-order nodes are placed by the same map. The Jacobian is
+`J[i][j] = d x_i / d xi_j` (physical axis `i`, parent axis `j`), and every inverse Jacobian passed
+to a callback is `invJ[r][i] = d xi_r / d x_i`, so `d phi / d x_i = sum_r d phi / d xi_r *
+invJ[r][i]`. Functions that "add" the Jacobian accumulate into `J`: the caller zeroes it.
+

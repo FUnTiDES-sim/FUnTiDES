@@ -108,4 +108,28 @@ Nothing here has been fixed yet.
 - `src/discretization/fe/impl/common/mathUtilites.h`: `determinant(T const&)`,
   `linearIndex<ORDER>`, `tripleIndex<ORDER>`, `invert3x3` and `computeB` are used nowhere, and
   `src/discretization/fe/impl/makutu/include/tensorops.h`, included by nothing, redefines
-  `invert3x3`, `symDeterminant` and `symInvert` with different signatures: dead duplicate code.
+  `invert3x3`, `symDeterminant` and `symInvert` with different signatures: dead duplicate code. Its
+  `symDeterminant<2>` / `<3>` definitions are partial specializations of function templates,
+  which would not compile if the header were included.
+- `src/discretization/fe/impl/makutu/include/Qk_Hexahedron_Lagrange_GaussLobatto.h`,
+  `computeInterfaceFluxTermAt`: the volume inverse Jacobian is evaluated at the parent point
+  `(qa, qb, kQFixed)` for every face, while the face point is `(kQFixed, qa, qb)` on x faces and
+  `(qa, kQFixed, qb)` on y faces. Invisible on affine elements (the unit tests only use the unit
+  cube), suspected wrong on distorted hexahedra.
+- `Qk_Hexahedron_Lagrange_GaussLobatto`: `computeMassTerm`, `computeStiffnessTerm`,
+  `computeStiffnessTermSumFact`, `computeStiffNessTermwithJac`, `computeElasticStiffnessSumFact`
+  and the vertex overload of `computeElasticStiffnessSumFactTeam` take `float const (&X)[8][3]`,
+  and `JacobianType::data` is `float`, but pass them to functions expecting `real_t`: these
+  kernels cannot compile when `data_type.h` selects `real_t = double`.
+- `Qk_Hexahedron_Lagrange_GaussLobatto`: the mass term uses `|det J|`, while the stiffness kernels
+  (`computeBMatrix`, `computeGradPhiGradPhi`, `computeElasticStiffnessSumFact*`) use the signed
+  `det J`. For an element whose vertex order gives `det J < 0`, the stiffness changes sign while
+  the mass stays positive.
+- `Qk_Hexahedron_Lagrange_GaussLobatto::calcGradN`: the quadrature-point overload builds the
+  geometry from the 8 vertex nodes of `X[numNodes][3]` only, the parent-coordinate overload from
+  all nodes. Same argument, two geometric models.
+- `Qk_Hexahedron_Lagrange_GaussLobatto`: dead or legacy members. `getNumQuadraturePoints`,
+  `getNumSupportPoints` (non-const) and `getMaxSupportPoints` are virtual in a class with no base,
+  a non-virtual destructor and device use; `parentLength` / `parentVolume` are unused and hold
+  the first node spacing, not the parent length (2); the header ends with
+  `#undef PARENT_GRADIENT_METHOD`, a macro defined nowhere.
