@@ -1,3 +1,13 @@
+/**
+ * @file
+ * @brief Small 3x3 matrix helpers and element index maps used by the
+ * hexahedral discretization kernels.
+ *
+ * Symmetric matrices use the Voigt storage of docs/design.md. Some helpers use
+ * PROXY_HOST_DEVICE, which this header does not define (see
+ * docs/design-red-flags.md).
+ * @see docs/design.md, "Symmetric 3x3 matrices (Voigt storage)".
+ */
 #pragma once
 
 #include <cmath>
@@ -5,12 +15,19 @@
 
 #include "macros.h"
 
+/**
+ * @brief Determinant of a 3x3 matrix stored as a C array, m[row][column].
+ */
 template <typename T>
 static constexpr inline SEMKERNELS_HOST_DEVICE T determinant(T const (&m)[3][3]) {
   return +m[0][0] * (m[1][1] * m[2][2] - m[2][1] * m[1][2]) - m[0][1] * (m[1][0] * m[2][2] - m[2][0] * m[1][2]) +
          m[0][2] * (m[1][0] * m[2][1] - m[2][0] * m[1][1]);
 }
 
+/**
+ * @brief Determinant of a 3x3 matrix accessed as m(row, column).
+ * @tparam T Matrix type with operator()(int, int) and a value_type member.
+ */
 template <typename T>
 static constexpr inline SEMKERNELS_HOST_DEVICE typename T::value_type determinant(T const& m) {
   return +m(0, 0) * (m(1, 1) * m(2, 2) - m(2, 1) * m(1, 2)) - m(0, 1) * (m(1, 0) * m(2, 2) - m(2, 0) * m(1, 2)) +
@@ -18,13 +35,13 @@ static constexpr inline SEMKERNELS_HOST_DEVICE typename T::value_type determinan
 }
 
 /**
- * @brief Calculates the linear index for support/quadrature points from ijk
- *   coordinates.
- * @param r order of polynomial approximation
- * @param i The index in the xi0 direction (0,r)
- * @param j The index in the xi1 direction (0,r)
- * @param k The index in the xi2 direction (0,r)
- * @return The linear index of the support/quadrature point (0-(r+1)^3)
+ * @brief Element-local index of the node (i, j, k) of a hexahedron.
+ * @tparam ORDER Polynomial order; i, j and k lie in [0, ORDER].
+ * @param[in] i Index along the first parent axis (xi0).
+ * @param[in] j Index along the second parent axis (xi1).
+ * @param[in] k Index along the third parent axis (xi2).
+ * @return i + (ORDER+1)*j + (ORDER+1)^2*k, in [0, (ORDER+1)^3).
+ * @see docs/design.md, "Hexahedron local numbering".
  */
 template <int ORDER>
 static constexpr inline SEMKERNELS_HOST_DEVICE int linearIndex(const int i, const int j, const int k) {
@@ -32,13 +49,12 @@ static constexpr inline SEMKERNELS_HOST_DEVICE int linearIndex(const int i, cons
 }
 
 /**
- * @brief Calculate the Cartesian/TensorProduct index given the linear index
- *   of a support point.
- * @param linearIndex The linear index of support point
- * @param r order of polynomial approximation
- * @param i0 The Cartesian index of the support point in the xi0 direction.
- * @param i1 The Cartesian index of the support point in the xi1 direction.
- * @param i2 The Cartesian index of the support point in the xi2 direction.
+ * @brief Inverse of linearIndex(): the (i, j, k) indices of an element-local
+ * node.
+ * @tparam ORDER Polynomial order.
+ * @param[in] linearIndex Element-local node index, in [0, (ORDER+1)^3).
+ * @return The tuple (i, j, k), each in [0, ORDER].
+ * @see docs/design.md, "Hexahedron local numbering".
  */
 template <int ORDER>
 static constexpr inline SEMKERNELS_HOST_DEVICE std::tuple<int, int, int> tripleIndex(int const linearIndex) {
@@ -46,16 +62,31 @@ static constexpr inline SEMKERNELS_HOST_DEVICE std::tuple<int, int, int> tripleI
           (linearIndex % ((ORDER + 1) * (ORDER + 1))) / (ORDER + 1), (linearIndex / ((ORDER + 1) * (ORDER + 1)))};
 }
 
+/**
+ * @brief Determinant of a symmetric 2x2 matrix in Voigt storage
+ * (B00, B11, B01).
+ */
 template <typename T>
 PROXY_HOST_DEVICE T symDeterminant(T (&B)[3]) {
   return B[0] * B[1] - B[2] * B[2];
 }
 
+/**
+ * @brief Determinant of a symmetric 3x3 matrix in Voigt storage.
+ * @see docs/design.md, "Symmetric 3x3 matrices (Voigt storage)".
+ */
 template <typename T>
 PROXY_HOST_DEVICE T symDeterminant(T (&B)[6]) {
   return B[0] * B[1] * B[2] + B[5] * B[4] * B[3] * 2 - B[0] * B[3] * B[3] - B[1] * B[4] * B[4] - B[2] * B[5] * B[5];
 }
 
+/**
+ * @brief Inverts a 3x3 matrix.
+ * @param[out] Jinv Inverse of @p J; must not alias @p J.
+ * @param[in] J Matrix to invert, J[row][column]. It must be invertible: a zero
+ * determinant is not detected.
+ * @return The determinant of @p J.
+ */
 template <typename T>
 PROXY_HOST_DEVICE auto invert3x3(T (&Jinv)[3][3], T const (&J)[3][3]) {
   Jinv[0][0] = J[1][1] * J[2][2] - J[1][2] * J[2][1];
@@ -78,6 +109,12 @@ PROXY_HOST_DEVICE auto invert3x3(T (&Jinv)[3][3], T const (&J)[3][3]) {
   return det;
 }
 
+/**
+ * @brief Inverts a 3x3 matrix in place.
+ * @param[in,out] Jinv Matrix to invert, replaced by its inverse. It must be
+ * invertible: a zero determinant is not detected.
+ * @return The determinant of the input matrix.
+ */
 template <typename T>
 PROXY_HOST_DEVICE auto invert3x3(T (&Jinv)[3][3]) {
   T const J[3][3] = {
@@ -86,13 +123,11 @@ PROXY_HOST_DEVICE auto invert3x3(T (&Jinv)[3][3]) {
 }
 
 /**
- * @brief Invert the symmetric matrix @p srcSymMatrix and store the result in @p
- * dstSymMatrix.
- * @param dstSymMatrix The 3x3 symmetric matrix to write the inverse to.
- * @param srcSymMatrix The 3x3 symmetric matrix to take the inverse of.
- * @return The determinant.
- * @note @p srcSymMatrix can contain integers but @p dstMatrix must contain
- * floating point values.
+ * @brief Inverts a symmetric 3x3 matrix in Voigt storage.
+ * @param[out] dstSymMatrix Inverse of @p srcSymMatrix; must not alias it.
+ * @param[in] srcSymMatrix Matrix to invert. It must be invertible: a zero
+ * determinant is not detected.
+ * @see docs/design.md, "Symmetric 3x3 matrices (Voigt storage)".
  */
 template <typename T>
 static constexpr inline SEMKERNELS_HOST_DEVICE void symInvert(T (&dstSymMatrix)[6], T const (&srcSymMatrix)[6]) {
@@ -113,12 +148,10 @@ static constexpr inline SEMKERNELS_HOST_DEVICE void symInvert(T (&dstSymMatrix)[
 }
 
 /**
- * @brief Invert the symmetric matrix @p symMatrix overwritting it.
- * @param symMatrix The 3x3 symmetric matrix to take the inverse of and
- * overwrite.
- * @return The determinant.
- * @note @p symMatrix can contain integers but @p dstMatrix must contain
- * floating point values.
+ * @brief Inverts a symmetric 3x3 matrix in Voigt storage, in place.
+ * @param[in,out] symMatrix Matrix to invert, replaced by its inverse. It must
+ * be invertible: a zero determinant is not detected.
+ * @see docs/design.md, "Symmetric 3x3 matrices (Voigt storage)".
  */
 template <typename T>
 static inline SEMKERNELS_HOST_DEVICE void symInvert(T (&symMatrix)[6]) {
@@ -133,6 +166,12 @@ static inline SEMKERNELS_HOST_DEVICE void symInvert(T (&symMatrix)[6]) {
   symMatrix[5] = temp[5];
 }
 
+/**
+ * @brief Computes B = (J^T J)^-1 from a Jacobian matrix.
+ * @param[in] J Jacobian matrix, J[row][column].
+ * @param[out] B (J^T J)^-1 in Voigt storage.
+ * @see docs/design.md, "Symmetric 3x3 matrices (Voigt storage)".
+ */
 template <typename T>
 static constexpr inline SEMKERNELS_HOST_DEVICE void computeB(T const (&J)[3][3], T (&B)[6]) {
   B[0] = (J[0][0] * J[0][0] + J[1][0] * J[1][0] + J[2][0] * J[2][0]);
@@ -145,6 +184,14 @@ static constexpr inline SEMKERNELS_HOST_DEVICE void computeB(T const (&J)[3][3],
   symInvert(B);
 }
 
+/**
+ * @brief Computes B = (J^T J)^-1 from a Jacobian matrix accessed as J(row,
+ * column).
+ * @tparam T Matrix type with operator()(int, int) and a value_type member.
+ * @param[in] J Jacobian matrix.
+ * @param[out] B (J^T J)^-1 in Voigt storage.
+ * @see docs/design.md, "Symmetric 3x3 matrices (Voigt storage)".
+ */
 template <typename T>
 static constexpr inline SEMKERNELS_HOST_DEVICE void computeB(T const& J, typename T::value_type (&B)[6]) {
   B[0] = (J(0, 0) * J(0, 0) + J(1, 0) * J(1, 0) + J(2, 0) * J(2, 0));

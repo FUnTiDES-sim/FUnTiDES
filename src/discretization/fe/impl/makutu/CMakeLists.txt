@@ -1,4 +1,5 @@
-# Concrete back-ends (Lagrange-GaussLobatto + tensorial GEMM) and the GLL bases.
+# makutu back-end (header only): Qk hexahedron kernels on Gauss-Lobatto-Legendre
+# nodes. The 1D bases come from fun_discretization_common.
 add_library(fun_discretization_makutu INTERFACE)
 
 target_include_directories(fun_discretization_makutu INTERFACE

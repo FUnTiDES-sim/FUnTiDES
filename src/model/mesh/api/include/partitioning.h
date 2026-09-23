@@ -4,38 +4,29 @@
 
 namespace model {
 
-/** @brief Interface for domain decomposition strategy.
- * Responsible for determining local mesh parameters from global ones.
- * Different partitioning strategies (1D X-decomposition, 2D XY-decomposition,
- * METIS-based, etc.) can be implemented by subclassing this interface.
+/**
+ * @brief Domain decomposition strategy: derives the parameters of one rank's subdomain from
+ * the parameters of the global problem.
  *
- * @tparam GlobalParams Type describing the global problem (e.g.,
- * CartesianParams, or a filename string)
- * @tparam LocalParams Type describing the local partition (e.g.,
- * CartesianParams, or a list of element IDs)
+ * @tparam GlobalParams Description of the global problem.
+ * @tparam LocalParams Description of one subdomain.
  */
 template <typename GlobalParams, typename LocalParams = GlobalParams>
 class PartitioningStrategy {
  public:
   virtual ~PartitioningStrategy() = default;
 
-  /** @brief Partition global domain into local subdomain for given rank.
+  /**
+   * @brief Compute the subdomain owned by a rank.
    *
-   * Takes global mesh parameters and computes the local parameters for
-   * the given rank. This includes:
-   * - Number of elements in local domain
-   * - Physical size of local domain
-   * - Global origin of local domain (for coordinate mapping)
+   * The result gives the local element count, the local physical size and the origin of the
+   * subdomain in global coordinates.
    *
-   * @param[in] globalParams Description of the global domain/mesh
-   * @param[in] rank Current MPI rank (0-based)
-   * @param[in] numRanks Total number of ranks
-   *
-   * @return CartesianParams containing local mesh parameters with correct
-   *         origin, element count, and dimensions
-   *
-   * @throws std::invalid_argument if rank or
-   * numRanks are invalid
+   * @param[in] globalParams Description of the global domain.
+   * @param[in] rank Rank whose subdomain is requested, in [0, numRanks).
+   * @param[in] numRanks Total number of ranks.
+   * @return Parameters of the subdomain of rank.
+   * @throws std::invalid_argument if numRanks <= 0 or rank is outside [0, numRanks).
    */
   virtual LocalParams partition(const GlobalParams& globalParams, int rank, int numRanks) const = 0;
 };

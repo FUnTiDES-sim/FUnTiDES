@@ -4,62 +4,72 @@
 namespace solver {
 namespace fe {
 /**
- * @brief Base Wavefield data structure.
+ * @brief Solution fields of a solver at the time levels of the explicit
+ * scheme: current, previous and, in backward mode only, previous-previous.
+ *
+ * Each field component is a vector with one value per global mesh node.
+ *
+ * @see docs/design.md, "Time levels and the split time step" for the buffer
+ * roles, and "Device calls on mesh objects" for why kernels use the concrete
+ * type.
  */
 struct Wavefield {
   PROXY_HOST_DEVICE
   virtual ~Wavefield() = default;
 
   /**
-   * @brief Get the number of solution fields in this wavefield.
-   * @return The number of fields.
+   * @brief Number of field components.
+   * @return Bound of the component index of the field getters.
    */
   virtual int getNumFields() const = 0;
 
   /**
-   * @brief Get the names of the solution fields.
-   * @return Pointer to array of field names.
+   * @brief Names of the field components, for output and logging.
+   * @return Array of getNumFields() null-terminated strings.
    */
   virtual const char* const* getFieldNames() const = 0;
 
   /**
-   * @brief Get the current field at a specific index.
-   * @param i The index of the field to retrieve.
-   * @return The requested current field.
+   * @brief Field at the current time level.
+   * @param[in] i Component index, in [0, getNumFields()).
+   * @return View on the buffer, one value per global mesh node.
    */
   PROXY_HOST_DEVICE
   virtual vectorReal getCurrentField(int i) const = 0;
 
   /**
-   * @brief Get the previous field at a specific index.
-   * @param i The index of the field to retrieve.
-   * @return The requested current field.
+   * @brief Field at the previous time level.
+   * @param[in] i Component index, in [0, getNumFields()).
+   * @return View on the buffer, one value per global mesh node.
    */
   PROXY_HOST_DEVICE
   virtual vectorReal getPreviousField(int i) const = 0;
 
   /**
-   * @brief Get the previous-previous field at a specific index.
-   * @param i The index of the field to retrieve.
-   * @return The requested previous-previous field (empty view if not allocated).
+   * @brief Previous-previous buffer, used in backward mode only.
+   * @param[in] i Component index, in [0, getNumFields()).
+   * @return The buffer, or an empty view when hasPrevPrev() is false.
    */
   PROXY_HOST_DEVICE
   virtual vectorReal getPrevPrevField(int i) const = 0;
 
   /**
-   * @brief Check if previous-previous field is allocated.
-   * @return True if prevprev buffer exists, false otherwise.
+   * @brief Whether the wavefield is in backward mode.
+   * @return True if the previous-previous buffer is allocated.
    */
   virtual bool hasPrevPrev() const = 0;
 
   /**
-   * @brief Swap data to advance the wavefield to the next time step.
-   * This method exchanges field data pointers.
-   * If hasPrevPrev() is true, performs 3-way rotation (prevprev ← prev ← curr ← prevprev).
-   * Otherwise performs 2-way swap (curr ↔ prev).
+   * @brief Advance to the next time level by exchanging buffers, without
+   * copying data.
+   *
+   * Call after the solver has written the new time level. Forward mode
+   * exchanges current and previous. Backward mode moves previous-previous to
+   * current, current to previous and previous to previous-previous.
    */
   virtual void swap() = 0;
 
+  /** @brief Print a debug summary to standard output. */
   virtual void print() const = 0;
 };
 }  // namespace fe

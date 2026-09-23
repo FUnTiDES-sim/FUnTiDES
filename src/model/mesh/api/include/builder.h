@@ -8,19 +8,28 @@
 #include <memory>
 
 namespace model {
+/**
+ * @brief Abstract factory of ModelApi instances.
+ *
+ * A builder is configured with its mesh and material parameters at construction; getModel()
+ * then creates the model. Host only.
+ *
+ * @tparam FloatType Floating-point type of the built model.
+ * @tparam ScalarType Integer type of the built model.
+ */
 template <typename FloatType, typename ScalarType>
 class ModelBuilderBase {
  public:
   ModelBuilderBase() = default;
   ~ModelBuilderBase() = default;
 
-  static constexpr int MAX_ORDER = 9;
+  static constexpr int MAX_ORDER = 9;  ///< Highest supported polynomial order.
 
   /**
-   * @brief Get the model instance.
-   * @param free_surface_on_top Indicates if the free surface is on top, else we
-   * use damping on the top boundary.
-   * @return A shared pointer to the model instance.
+   * @brief Build the model.
+   * @param[in] free_surface_on_top true to flag the nodes of the z-max global face as Surface,
+   * false to flag them as Damping like the other global boundary faces.
+   * @return The new model.
    */
   virtual std::shared_ptr<model::ModelApi<FloatType, ScalarType>> getModel(bool free_surface_on_top) const = 0;
 };

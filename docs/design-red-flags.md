@@ -1,0 +1,135 @@
+# Design red flags
+
+Problems found while documenting the code. Each entry: location, problem.
+Nothing here has been fixed yet.
+
+- `src/model/mesh/api/include/model.h`, `getModelTheta*` / `getModelPhi*`: return
+  `ScalarType` (int) although `ModelUnstruct` stores angles in radians and
+  `sem_solver_impl.h` reads them as float. Angles are truncated; TTI is wrong for
+  any angle below 1 rad on unstructured meshes.
+- `src/model/mesh/api/include/model.h`, `ModelApi(const ModelDataBase<ScalarType,
+  FloatType>&)`: template arguments swapped with respect to
+  `ModelDataBase<FloatType, ScalarType>`; the constructor is unused.
+- `ModelApi` and `FaceConnectivityApi` both expose `getNumberOfFaces`,
+  `getGlobalFace`, `getGlobalNodeFromFace` and `isBoundaryFace`, with different
+  semantics for `isBoundaryFace`: duplicated interface.
+- `src/discretization/fe/`: unfinished migration. `QkHexahedronBase` is never
+  derived from, so `FeDiscretizationTag` reaches no back-end and
+  `AssertFeDiscretization` would reject both; it and `DiscretizationTraits` are never
+  used; dispatch still goes through the deprecated `IntegralTypeSelector`.
+- Mass matrix assembly (`computeGlobalMassMatrix` in `sem_solver_impl.h`,
+  `initGeometricMassMatrix` in both differentiators): the local index is decoded
+  as x = i % n, z = (i/n) % n, y = i/n^2, then passed to globalNodeIndex(e, x, y, z),
+  which swaps y and z relative to computeMassTerm's linearIndex(qa, qb, qc).
+  Invisible on axis-aligned boxes, suspected wrong on distorted hexahedra.
+- TTI angle unit: `computeCTensor()` (`elasticity_utils.h`, used by
+  `ModelApi::initElasticityTensors()`) converts theta and phi from degrees, while
+  `computeCMatrix()` in `sem_solver.h`, fed by `getModelTheta/PhiOnNodes`, documents
+  radians. The same model data is read in two units depending on the code path.
+- `src/model/mesh/api/include/model.h`, `ModelApi::nodeCoord`: `ModelStruct` adds the
+  subdomain origin, `ModelUnstruct` returns coordinates built with a zero offset
+  (`CartesianUnstructBuilder::initNodesCoords`), so unstructured subdomains of
+  different ranks overlap in space.
+- `ModelApi::getMinSpacing`: `ModelUnstruct` only measures element 0, which is wrong
+  for non-uniform meshes.
+- `ModelStruct::getMaxSpeed` returns a constant 1500 and
+  `ModelStruct::initElasticityTensors` builds the TTI tensor from hardcoded
+  vp/vs/rho, both ignoring the per-node/per-element arrays the model may hold.
+- `BoundaryFlag::Sponge` and `BoundaryFlag::Ghost` are never assigned (only exposed
+  to Python): planned architecture not implemented.
+- `ModelBuilderBase` and `ModelApi` are polymorphic bases with a non-virtual
+  destructor; deleting a derived object through a base pointer is undefined.
+- `ModelBuilderBase::MAX_ORDER` and `MAX_GLL_ORDER` (`gllpoints.h`) are two
+  independent constants that must stay equal: `CartesianUnstructBuilder` sizes
+  buffers with the first and validates the order against the second.
+- `src/solver/fe/api/include/solver.h`, `Solver`: `initFEarrays`, `allocateFEarrays`,
+  `initSpongeValues`, `resetGlobalVectors`, `computeGlobalMassMatrix` and
+  `computeDampingMatrix` are internal steps of `computeFEInit`/`computeForces` exposed as
+  public pure virtuals: the interface leaks the SEM implementation.
+- `Solver`: the interface is not uniformly implemented. The DG, DG-SEM and p-adaptive
+  solvers throw on `getMassMatrix*`, `getDampingMatrix` and `getForceVector`, ignore
+  `sponge_size`/`surface_sponge`/`taper_delta` in `computeFEInit` and silently ignore
+  `setSLSAttenuation`; each `outputSolutionValues` overload is a no-op in one solver family.
+- `Solver::computeFEInit`, `surface_sponge`: contradictory meaning. The CLI help says
+  surface nodes are "non sponge nodes", `SemProxy::surface_sponge_` says "the top surface has
+  an absorbing boundary", and `SEMsolver::initSpongeValues` drops the sponge on the x = 0
+  side (not z).
+- `Solver::setZBoundary` and `Solver::setElementTags`: hooks for two coupled solvers on the
+  base interface, whose tag values are defined per implementation (`kElementTypeSEM`,
+  `kElementTypePMin`...), so a caller cannot use them through `Solver` alone.
+- `Solver::getInterfaceCouplingCoeff`: the default returns a non-const reference to a
+  function-local static shared by all solvers; a caller can write into it.
+- `src/solver/fe/api/include/rhs.h`, `Rhs::getWeights()`: no component index, while elastic
+  sources carry one weight set per component (`RhsElastic::getWeights(int)`); the base
+  interface cannot express per-component weights.
+- `physics_traits.h` and `physics_traits_{acoustic,elastic}.h` exist with the same file
+  names in `src/solver/fe` (namespace `solver::fe`) and `src/gradient` (namespace
+  `gradient`); which one `#include "physics_traits.h"` picks depends on include path order.
+- `src/gradient/api/include/wavefield_view.h` and `gradient.h`: the `WavefieldView` and
+  `Gradient` bases are never used polymorphically. The differentiator data classes hold the
+  concrete types, the Python bindings only expose `print`, and `getNumFields`,
+  `getFieldName`, `getNumGradients`, `getGradientName` and `gradient::PhysicsTraits::kName`
+  are never called.
+- `src/gradient/api/include/differentiator.h`, `Differentiator::compute`, `dt`: used by the
+  acoustic differentiator to build the adjoint second time derivative from three snapshots,
+  ignored by the elastic one, whose adjoint view carries a precomputed second derivative.
+  The two physics expect different adjoint inputs behind the same interface.
+- `Differentiator::initGeometricMassMatrix`: documented as required before `compute()`, but
+  the acoustic node-based `compute()` builds it lazily and the elastic `compute()` never uses
+  it: acoustic node gradients are divided by the nodal volumes, elastic node gradients are
+  not. The lazy build also mutates the object from a `const` method through `const_cast`.
+- `src/discretization/fe/api/fe_discretization_kind.h`, `DiscretizationKind`: declared in
+  namespace `solver::fe` inside the discretization API (whose other header uses
+  `discretization::fe::api`), and duplicates the runtime selector `utils::enums::implemType`
+  (`sem_enums.h`), which only has `kMakutu`: two unrelated enums name the same back-ends.
+- `src/io/api/include/io_controller_base.h`, `IOControllerBase`: no solver or driver uses
+  it; snapshots still go through the ADIOS2-based `SemIOController`
+  (`src/main/fe/include/sem_io_controller.h`). `BackendKind::kAdios2` has no implementation
+  (`makeIOController` throws), and `IOConfig::nt`, `IOConfig::nb_receiver` and
+  `HostArrayReal` are read by nothing: planned architecture not implemented.
+- `IOControllerBase`: the class comment promised row-major storage of multi-dimensional
+  arrays independent of `Layout`, but the interface only takes a flat `HostVectorReal` that
+  is written verbatim; `local_dims` is metadata never checked against the view size.
+- `src/discretization/fe/impl/common/qk_hexahedron_base.h`, `computeMassTerm`,
+  `computeStiffnessTerm`, `computeStiffnessTermSumFact`: they take the vertex coordinates as
+  `float const (&X)[8][3]` and pass them to `jacobianTransformation` / `computeBMatrix`, which
+  expect `real_t const (&)[8][3]`: this cannot compile when `real_t` is `double`. Hidden
+  because the class is never instantiated.
+- `src/discretization/fe/impl/common/`: the headers are not self-contained. `mathUtilites.h`
+  uses `PROXY_HOST_DEVICE` without including `common_macros.h` and mixes it with a second
+  host/device macro, `SEMKERNELS_HOST_DEVICE` (`macros.h`); `LagrangeBasis*.h` use `real_t`,
+  `PROXY_HOST_DEVICE` and `pow` without including them; `qk_hexahedron_base.h` uses
+  `triple_loop` / `for_constexpr`, defined in the makutu back-end header. Conversely
+  `Integrals.h` includes both back-end headers, which include `common`: the shared layer
+  depends on the back-ends.
+- `LagrangeBasis*::gradientAt`: orders 1 to 5 only tabulate the nodes `p <= (n-1)/2` and return
+  meaningless values beyond, orders 6 to 9 tabulate every node. The contract depends on the
+  order and nothing checks that callers stay in the valid half.
+- `src/discretization/fe/impl/common/mathUtilites.h`: `determinant(T const&)`,
+  `linearIndex<ORDER>`, `tripleIndex<ORDER>`, `invert3x3` and `computeB` are used nowhere, and
+  `src/discretization/fe/impl/makutu/include/tensorops.h`, included by nothing, redefines
+  `invert3x3`, `symDeterminant` and `symInvert` with different signatures: dead duplicate code. Its
+  `symDeterminant<2>` / `<3>` definitions are partial specializations of function templates,
+  which would not compile if the header were included.
+- `src/discretization/fe/impl/makutu/include/Qk_Hexahedron_Lagrange_GaussLobatto.h`,
+  `computeInterfaceFluxTermAt`: the volume inverse Jacobian is evaluated at the parent point
+  `(qa, qb, kQFixed)` for every face, while the face point is `(kQFixed, qa, qb)` on x faces and
+  `(qa, kQFixed, qb)` on y faces. Invisible on affine elements (the unit tests only use the unit
+  cube), suspected wrong on distorted hexahedra.
+- `Qk_Hexahedron_Lagrange_GaussLobatto`: `computeMassTerm`, `computeStiffnessTerm`,
+  `computeStiffnessTermSumFact`, `computeStiffNessTermwithJac`, `computeElasticStiffnessSumFact`
+  and the vertex overload of `computeElasticStiffnessSumFactTeam` take `float const (&X)[8][3]`,
+  and `JacobianType::data` is `float`, but pass them to functions expecting `real_t`: these
+  kernels cannot compile when `data_type.h` selects `real_t = double`.
+- `Qk_Hexahedron_Lagrange_GaussLobatto`: the mass term uses `|det J|`, while the stiffness kernels
+  (`computeBMatrix`, `computeGradPhiGradPhi`, `computeElasticStiffnessSumFact*`) use the signed
+  `det J`. For an element whose vertex order gives `det J < 0`, the stiffness changes sign while
+  the mass stays positive.
+- `Qk_Hexahedron_Lagrange_GaussLobatto::calcGradN`: the quadrature-point overload builds the
+  geometry from the 8 vertex nodes of `X[numNodes][3]` only, the parent-coordinate overload from
+  all nodes. Same argument, two geometric models.
+- `Qk_Hexahedron_Lagrange_GaussLobatto`: dead or legacy members. `getNumQuadraturePoints`,
+  `getNumSupportPoints` (non-const) and `getMaxSupportPoints` are virtual in a class with no base,
+  a non-virtual destructor and device use; `parentLength` / `parentVolume` are unused and hold
+  the first node spacing, not the parent length (2); the header ends with
+  `#undef PARENT_GRADIENT_METHOD`, a macro defined nowhere.

@@ -1,12 +1,19 @@
 #ifndef TENSOROPS_H_
 #define TENSOROPS_H_
 
-// #include <commonMacro.hpp>
 /**
- * @brief Inverts a 3x3 matrix and returns its determinant.
- *        The matrix is modified in place.
- * @param J The 3x3 matrix to invert.
- * @return The determinant of the original matrix.
+ * @file tensorops.h
+ * @brief Small dense and symmetric 3x3 matrix helpers.
+ * @note Included by no file, and duplicates helpers of mathUtilites.h with
+ * different signatures (see docs/design-red-flags.md). It relies on
+ * PROXY_HOST_DEVICE and std type traits without including them.
+ */
+
+/**
+ * @brief Inverts a 3x3 matrix in place.
+ * @param[in,out] J The matrix; holds its inverse on return. Must be invertible:
+ * a zero determinant is not detected.
+ * @return The determinant of the input matrix.
  */
 template <typename T>
 PROXY_HOST_DEVICE T invert3x3(T (&J)[3][3]);
@@ -40,14 +47,11 @@ PROXY_HOST_DEVICE T invert3x3(T (&J)[3][3]) {
 }
 
 /**
- * @brief Invert the source matrix @p J and store the result in @p Jinv.
- * @tparam Jinv The type of @p Jinv.
- * @tparam J The type of @p J.
- * @param Jinv The 3v3 matrix to write the inverse to.
- * @param srcMatrix The 3x3 matrix to take the inverse of.
- * @return The determinant.
- * @note @p srcMatrix can contain integers but @p dstMatrix must contain
- * floating point values.
+ * @brief Inverts a 3x3 matrix into another one.
+ * @param[out] Jinv The inverse of @p J.
+ * @param[in] J The matrix to invert (not modified, although not const). Must
+ * be invertible: a zero determinant is not detected.
+ * @return The determinant of @p J.
  */
 template <typename T>
 PROXY_HOST_DEVICE auto invert3x3(T (&Jinv)[3][3], T (&J)[3][3]);
@@ -75,20 +79,14 @@ PROXY_HOST_DEVICE auto invert3x3(T (&Jinv)[3][3], T (&J)[3][3]) {
   return det;
 }
 
-// template< int N, typename T >
-// PROXY_HOST_DEVICE
-// T determinant(const T (&A)[N][N]);
-
-// template<typename T>
-// PROXY_HOST_DEVICE
-// T determinant(const T (&A)[3][3])
-// {
-//   return
-//       A[0][0] * (A[1][1] * A[2][2] - A[1][2] * A[2][1]) -
-//       A[0][1] * (A[1][0] * A[2][2] - A[1][2] * A[2][0]) +
-//       A[0][2] * (A[1][0] * A[2][1] - A[1][1] * A[2][0]);
-// }
-
+/**
+ * @brief Determinant of a symmetric NxN matrix in Voigt storage.
+ * @tparam N 2, with B = (B00, B11, B01).
+ * @note The definitions below are partial specializations of function
+ * templates, which C++ does not allow: this header would not compile if
+ * included.
+ * @see docs/design.md, "Symmetric 3x3 matrices (Voigt storage)".
+ */
 template <int N, typename T>
 PROXY_HOST_DEVICE T symDeterminant(T (&B)[3]);
 
@@ -97,6 +95,11 @@ PROXY_HOST_DEVICE T symDeterminant<2>(T (&B)[3]) {
   return B[0] * B[1] - B[2] * B[2];
 }
 
+/**
+ * @brief Determinant of a symmetric NxN matrix in Voigt storage.
+ * @tparam N 3, with B = (B00, B11, B22, B12, B02, B01).
+ * @see docs/design.md, "Symmetric 3x3 matrices (Voigt storage)".
+ */
 template <int N, typename T>
 PROXY_HOST_DEVICE T symDeterminant(T (&B)[6]);
 
@@ -106,14 +109,12 @@ PROXY_HOST_DEVICE T symDeterminant<3>(T (&B)[6]) {
 }
 
 /**
- * @brief Invert the symmetric matrix @p J and store the result in @p dst.
- * @tparam DST_SYM_MATRIX The type of @p dst.
- * @tparam SRC_SYM_MATRIX The type of @p J.
- * @param dst The 3x3 symmetric matrix to write the inverse to.
- * @param J The 3x3 symmetric matrix to take the inverse of.
- * @return The determinant.
- * @note @p J can contain integers but @p dstMatrix must contain floating point
- * values.
+ * @brief Inverts a symmetric 3x3 matrix in Voigt storage.
+ * @param[out] dst The inverse of @p J.
+ * @param[in] J The matrix to invert. Must be invertible: a zero determinant is
+ * not detected.
+ * @return The determinant of @p J.
+ * @see docs/design.md, "Symmetric 3x3 matrices (Voigt storage)".
  */
 template <typename T>
 PROXY_HOST_DEVICE static auto symInvert(T (&dst)[6], T const (&J)[6]) {
@@ -136,11 +137,15 @@ PROXY_HOST_DEVICE static auto symInvert(T (&dst)[6], T const (&J)[6]) {
   return det;
 }
 
+/**
+ * @brief Inverts a symmetric 3x3 matrix in Voigt storage, in place.
+ * @param[in,out] J The matrix; holds its inverse on return.
+ * @return The determinant of the input matrix.
+ */
 template <typename T>
 PROXY_HOST_DEVICE static auto symInvert(T (&J)[6]) {
   std::remove_reference_t<decltype(J[0])> temp[6];
   auto const det = symInvert(temp, J);
-  // std::copy< 6 >( J, temp );
   for (int i = 0; i < 6; i++) J[i] = temp[i];
 
   return det;

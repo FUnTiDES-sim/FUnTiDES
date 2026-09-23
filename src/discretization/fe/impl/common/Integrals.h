@@ -1,3 +1,8 @@
+/**
+ * @file
+ * @brief Compile-time selection of the hexahedral discretization type from a
+ * polynomial order and a back-end.
+ */
 #ifndef FUNTIDES_DISCRETIZATION_FE_IMPL_COMMON_INTEGRALS_H_
 #define FUNTIDES_DISCRETIZATION_FE_IMPL_COMMON_INTEGRALS_H_
 
@@ -8,10 +13,17 @@
 namespace solver {
 namespace fe {
 
-// Maps a (polynomial order, back-end) pair to the concrete discretization type,
-// mirroring the PhysicsTraits<PHYSICS> policy pattern. `kHasGemm` exposes the
-// team/GEMM capability as plain data so the solver can dispatch with
-// `if constexpr` instead of a SFINAE probe.
+/**
+ * @brief Maps a polynomial order and a back-end to the discretization type.
+ *
+ * Each specialization provides `type`, the discretization class, and
+ * `kHasGemm`, true when `type` provides the team-level GEMM kernels, so that a
+ * caller can branch with `if constexpr`.
+ * @tparam ORDER Polynomial order, from 1 to 9.
+ * @tparam KIND Discretization back-end.
+ * @note Not used by any solver yet: dispatch goes through IntegralTypeSelector
+ * (see docs/design-red-flags.md).
+ */
 template <int ORDER, DiscretizationKind KIND>
 struct DiscretizationTraits;
 
@@ -27,20 +39,25 @@ struct DiscretizationTraits<ORDER, DiscretizationKind::kTensorialGemm> {
   static constexpr bool kHasGemm = true;
 };
 
+/// Discretization type for polynomial order ORDER and back-end KIND.
 template <int ORDER, DiscretizationKind KIND>
 using DiscretizationType = typename DiscretizationTraits<ORDER, KIND>::type;
 
 }  // namespace fe
 }  // namespace solver
 
-// ---------------------------------------------------------------------------
-// Legacy selection API (DEPRECATED). Kept so the still-INTEGRAL_TYPE-templated
-// SEMsolver keeps compiling during the migration to DiscretizationKind.
-// Delete once the solver signature is switched over.
-// ---------------------------------------------------------------------------
+/**
+ * @brief Maps a polynomial order and an IntegralType value to the
+ * discretization type, exposed as `type`.
+ * @tparam ORDER Polynomial order, from 1 to 9.
+ * @tparam METHOD_TYPE One of the IntegralType values.
+ * @deprecated Same role as solver::fe::DiscretizationTraits; the solvers and
+ * differentiators still use this one (see docs/design-red-flags.md).
+ */
 template <int ORDER, int METHOD_TYPE>
 struct IntegralTypeSelector;
 
+/// Back-end keys of IntegralTypeSelector.
 namespace IntegralType {
 enum { MAKUTU, TENSORIAL_GEMM };
 }

@@ -7,20 +7,31 @@ namespace discretization {
 namespace fe {
 namespace api {
 
-/// Empty tag base for every Qk discretization back-end.
-///
-/// Lets the solver and the tests constrain on "is a discretization" WITHOUT a
-/// vtable: all real dispatch stays compile-time, which is mandatory on GPU.
+/**
+ * @brief Empty base that marks a type as a Qk hexahedral discretization
+ * back-end.
+ *
+ * Carries no virtual function: back-ends are selected at compile time because
+ * virtual dispatch is unusable in device code.
+ * @see docs/design.md, "Device calls on mesh objects".
+ * @note No back-end currently derives from this tag (see
+ * docs/design-red-flags.md).
+ */
 struct FeDiscretizationTag {};
 
-/// Compile-time contract ("named requirements") for a discretization type.
-///
-/// C++17 has no concepts, so the contract is expressed as static_asserts.
-/// Call it from a unit test or a static_assert site to document and enforce the
-/// static surface every back-end must provide. The heavy static kernels
-/// (jacobianTransformation, computeBMatrix, computeMassTerm, computeDampingTerm,
-/// computeStiffnessTermSumFact, ...) are exercised by the shared TYPED_TEST
-/// suite -- a single set of tests for all back-ends.
+/**
+ * @brief Checks at compile time the static members every discretization
+ * back-end must provide.
+ *
+ * Compilation fails unless @p T derives from FeDiscretizationTag, has
+ * num1dNodes > 0, numNodes == num1dNodes^3, and numQuadraturePoints and
+ * maxSupportPoints both equal to numNodes (Gauss-Lobatto quadrature on the
+ * support points). The static kernels are not checked.
+ *
+ * @tparam T Candidate discretization type.
+ * @return Always true, so the call can sit inside a static_assert.
+ * @note Not called anywhere yet (see docs/design-red-flags.md).
+ */
 template <typename T>
 constexpr bool AssertFeDiscretization() {
   static_assert(std::is_base_of<FeDiscretizationTag, T>::value, "discretization must derive from FeDiscretizationTag");

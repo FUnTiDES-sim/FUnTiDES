@@ -8,44 +8,34 @@
 namespace gradient {
 
 /**
- * @brief Abstract interface for read-only wavefield views (aka snapshots) in
- * gradient computation.
+ * @brief Read-only set of wavefield arrays (forward or adjoint snapshots) given
+ * to a Differentiator, without exposing solver data structures.
  *
- * WavefieldView provides a physics-agnostic interface to access the required
- * forward and adjoint wavefield snapshots for gradient computation, without
- * exposing solver-specific data structures.
- *
- * Concrete implementations (e.g. WavefieldViewForwardAcoustic) will wrap solver
- * wavefield data and expose only the fields needed by the gradient kernels.
- *
- * This design allows the Differentiator to operate on abstract wavefield views,
- * decoupling it from solver internals and enabling flexible data management.
+ * Each field is a view handle with one value per global node.
+ * No caller uses this interface polymorphically; see docs/design-red-flags.md.
+ * @see docs/design.md, "Device calls on mesh objects".
  */
 class WavefieldView {
  public:
   virtual ~WavefieldView() = default;
 
-  /**
-   * @brief Get the number of solution fields in this wavefield.
-   * @return The number of fields.
-   */
+  /** @brief Returns the number of fields. */
   virtual int getNumFields() const = 0;
 
   /**
-   * @brief Get the name of a specific solution field.
-   * @param i The index of the field.
-   * @return Name of the field.
+   * @brief Returns the name of field @p i.
+   * @param[in] i Index in [0, getNumFields()).
    */
   virtual std::string getFieldName(int i) const = 0;
 
   /**
-   * @brief Get the field at a specific index.
-   * @param i The index of the field to retrieve.
-   * @return The requested field.
+   * @brief Returns the handle of field @p i.
+   * @param[in] i Index in [0, getNumFields()).
    */
   PROXY_HOST_DEVICE
   virtual vectorReal getField(int i) const = 0;
 
+  /** @brief Prints a description of the fields to standard output. */
   virtual void print() const = 0;
 };
 
