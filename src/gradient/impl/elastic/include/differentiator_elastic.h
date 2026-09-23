@@ -72,13 +72,14 @@ class DifferentiatorElastic : public Differentiator {
   /**
    * @brief Compute displacement gradients at a quadrature point given J^{-1}.
    *
-   * Computes grad[component][spatial] = ∂u_component/∂x_spatial
+   * Computes grad[component][spatial] = d u_component / d x_spatial
    * using the tensor-product basis and the inverse Jacobian.
    *
-   * @param qa,qb,qc  Quadrature indices in each reference direction
-   * @param J          Inverse Jacobian matrix J^{-1}[ref_dir][phys_dir]
-   * @param localU     Array of displacement values indexed by local node
-   * @param grad       Output: gradient tensor grad[3] (spatial derivatives)
+   * @param[in] qa,qb,qc  Quadrature indices in each reference direction
+   * @param[in] J          Inverse Jacobian matrix J^{-1}[ref_dir][phys_dir]
+   * @param[in] localUx,localUy,localUz  x, y and z displacement components of
+   *            the element, each indexed by local node
+   * @param[out] grad      Gradient tensor grad[component][spatial]
    */
   KOKKOS_INLINE_FUNCTION
   static void computeDisplacementGradient(int qa, int qb, int qc, float const (&J)[3][3], float const* localUx,

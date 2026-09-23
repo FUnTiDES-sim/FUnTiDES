@@ -19,7 +19,9 @@ template <typename FloatType, typename ScalarType>
 struct ModelDataBase {
   PROXY_HOST_DEVICE ModelDataBase() = default;
   PROXY_HOST_DEVICE ~ModelDataBase() = default;
+  /// Copyable on host and device.
   PROXY_HOST_DEVICE ModelDataBase(const ModelDataBase&) = default;
+  /// Copyable on host and device.
   PROXY_HOST_DEVICE ModelDataBase& operator=(const ModelDataBase&) = default;
 };
 
@@ -88,7 +90,9 @@ class ModelApi {
    */
   PROXY_HOST_DEVICE ModelApi(const ModelDataBase<ScalarType, FloatType>& data) {}
 
+  /// Copyable on host and device.
   PROXY_HOST_DEVICE ModelApi(const ModelApi&) = default;
+  /// Copyable on host and device.
   PROXY_HOST_DEVICE ModelApi& operator=(const ModelApi&) = default;
   PROXY_HOST_DEVICE ~ModelApi() = default;
 

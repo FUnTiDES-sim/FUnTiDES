@@ -32,7 +32,7 @@ struct IOConfig {
   std::string output_dir{"."};      ///< Root output directory.
   std::string prefix{"funtides"};   ///< Prefix of every file name.
 
-  /// Optional shot identifier. When set, output goes to <output_dir>/<shot_id>
+  /// Optional shot identifier. When set, output goes to `<output_dir>/<shot_id>`
   /// so that a multi-shot run keeps its files apart and no single directory
   /// accumulates millions of entries. Must contain only alphanumerics, '_' or
   /// '-': it becomes a path component.

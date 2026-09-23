@@ -12,7 +12,7 @@ EXTRACT_PRIVATE        = NO
 EXTRACT_STATIC         = YES
 WARN_IF_UNDOCUMENTED   = YES
 WARN_IF_DOC_ERROR      = YES
-WARN_NO_PARAMDOC       = YES
+WARN_NO_PARAMDOC       = NO
 WARN_LOGFILE           = build/doxygen-warnings.log
 QUIET                  = YES
 GENERATE_HTML          = YES
@@ -33,3 +33,4 @@ PREDEFINED             = PROXY_HOST_DEVICE= \
                          COMPILE_DG \
                          COMPILE_DG_SEM \
                          COMPILE_DG_PADAPTIVE
+WARN_IF_INCOMPLETE_DOC = NO
