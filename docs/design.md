@@ -31,6 +31,10 @@ The same rule applies to `solver::fe::Wavefield` and `solver::fe::Rhs`: device c
 them through the concrete types selected by `solver::fe::PhysicsTraits<PHYSICS>`, never through
 the base class.
 
+Likewise, `gradient::WavefieldView` and `gradient::Gradient` declare `PROXY_HOST_DEVICE`
+virtual getters, but device code may only call them on the concrete types selected by
+`gradient::PhysicsTraits<PHYSICS>`.
+
 ## Time levels and the split time step
 
 Solvers use an explicit second-order scheme on three time levels. A wavefield holds, per

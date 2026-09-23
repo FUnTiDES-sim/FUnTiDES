@@ -65,3 +65,16 @@ Nothing here has been fixed yet.
 - `physics_traits.h` and `physics_traits_{acoustic,elastic}.h` exist with the same file
   names in `src/solver/fe` (namespace `solver::fe`) and `src/gradient` (namespace
   `gradient`); which one `#include "physics_traits.h"` picks depends on include path order.
+- `src/gradient/api/include/wavefield_view.h` and `gradient.h`: the `WavefieldView` and
+  `Gradient` bases are never used polymorphically. The differentiator data classes hold the
+  concrete types, the Python bindings only expose `print`, and `getNumFields`,
+  `getFieldName`, `getNumGradients`, `getGradientName` and `gradient::PhysicsTraits::kName`
+  are never called.
+- `src/gradient/api/include/differentiator.h`, `Differentiator::compute`, `dt`: used by the
+  acoustic differentiator to build the adjoint second time derivative from three snapshots,
+  ignored by the elastic one, whose adjoint view carries a precomputed second derivative.
+  The two physics expect different adjoint inputs behind the same interface.
+- `Differentiator::initGeometricMassMatrix`: documented as required before `compute()`, but
+  the acoustic node-based `compute()` builds it lazily and the elastic `compute()` never uses
+  it: acoustic node gradients are divided by the nodal volumes, elastic node gradients are
+  not. The lazy build also mutates the object from a `const` method through `const_cast`.
