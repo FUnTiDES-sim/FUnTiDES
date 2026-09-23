@@ -22,3 +22,23 @@ Nothing here has been fixed yet.
   as x = i % n, z = (i/n) % n, y = i/n^2, then passed to globalNodeIndex(e, x, y, z),
   which swaps y and z relative to computeMassTerm's linearIndex(qa, qb, qc).
   Invisible on axis-aligned boxes, suspected wrong on distorted hexahedra.
+- TTI angle unit: `computeCTensor()` (`elasticity_utils.h`, used by
+  `ModelApi::initElasticityTensors()`) converts theta and phi from degrees, while
+  `computeCMatrix()` in `sem_solver.h`, fed by `getModelTheta/PhiOnNodes`, documents
+  radians. The same model data is read in two units depending on the code path.
+- `src/model/mesh/api/include/model.h`, `ModelApi::nodeCoord`: `ModelStruct` adds the
+  subdomain origin, `ModelUnstruct` returns coordinates built with a zero offset
+  (`CartesianUnstructBuilder::initNodesCoords`), so unstructured subdomains of
+  different ranks overlap in space.
+- `ModelApi::getMinSpacing`: `ModelUnstruct` only measures element 0, which is wrong
+  for non-uniform meshes.
+- `ModelStruct::getMaxSpeed` returns a constant 1500 and
+  `ModelStruct::initElasticityTensors` builds the TTI tensor from hardcoded
+  vp/vs/rho, both ignoring the per-node/per-element arrays the model may hold.
+- `BoundaryFlag::Sponge` and `BoundaryFlag::Ghost` are never assigned (only exposed
+  to Python): planned architecture not implemented.
+- `ModelBuilderBase` and `ModelApi` are polymorphic bases with a non-virtual
+  destructor; deleting a derived object through a base pointer is undefined.
+- `ModelBuilderBase::MAX_ORDER` and `MAX_GLL_ORDER` (`gllpoints.h`) are two
+  independent constants that must stay equal: `CartesianUnstructBuilder` sizes
+  buffers with the first and validates the order against the second.
