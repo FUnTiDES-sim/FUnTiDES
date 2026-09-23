@@ -22,9 +22,9 @@ namespace gradient {
 template <utils::enums::physicType PHYSICS>
 struct PhysicsTraits {
   static constexpr const char* kName = "";  ///< Physics name, for logging.
-  using WavefieldViewForwardType = void;  ///< Concrete forward view type.
-  using WavefieldViewBackwardType = void;  ///< Concrete adjoint view type.
-  using GradientType = void;  ///< Concrete Gradient type.
+  using WavefieldViewForwardType = void;    ///< Concrete forward view type.
+  using WavefieldViewBackwardType = void;   ///< Concrete adjoint view type.
+  using GradientType = void;                ///< Concrete Gradient type.
 };
 
 }  // namespace gradient

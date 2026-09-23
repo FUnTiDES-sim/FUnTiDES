@@ -68,8 +68,8 @@ enum AnisotropyType : uint8_t {
  * @brief Abstract interface to a 3D hexahedral spectral-element mesh and the material model
  * defined on it.
  *
- * Material properties are stored either per node or per element, see isModelOnNodes(). Methods marked PROXY_HOST_DEVICE may be called from Kokkos kernels through
- * the concrete type; the others are host only.
+ * Material properties are stored either per node or per element, see isModelOnNodes(). Methods marked PROXY_HOST_DEVICE
+ * may be called from Kokkos kernels through the concrete type; the others are host only.
  * @see docs/design.md, sections "Hexahedron local numbering" and "Device calls on mesh objects".
  *
  * @todo VERIFY: are all lengths (coordinates, domainSize(), getMinSpacing()) in meters, as

@@ -22,8 +22,8 @@ namespace fe {
 template <utils::enums::physicType PHYSICS>
 struct PhysicsTraits {
   static constexpr const char* kName = "";  ///< Physics name, for logging.
-  using WavefieldType = void;  ///< Concrete Wavefield type.
-  using RhsType = void;  ///< Concrete Rhs type.
+  using WavefieldType = void;               ///< Concrete Wavefield type.
+  using RhsType = void;                     ///< Concrete Rhs type.
 };
 
 }  // namespace fe

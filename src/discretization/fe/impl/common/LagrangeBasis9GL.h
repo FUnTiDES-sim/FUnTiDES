@@ -594,7 +594,7 @@ class LagrangeBasis9GL {
    * See docs/design.md, "1D Lagrange bases".
    */
   struct TensorProduct2D {
-    constexpr static int numSupportPoints1D = LagrangeBasis9GL::numSupportPoints;  ///< Number of 1D nodes.
+    constexpr static int numSupportPoints1D = LagrangeBasis9GL::numSupportPoints;     ///< Number of 1D nodes.
     constexpr static int numSupportPoints = numSupportPoints1D * numSupportPoints1D;  ///< Number of nodes, 10^2.
 
     /**
@@ -635,7 +635,7 @@ class LagrangeBasis9GL {
    */
   struct TensorProduct3D {
     constexpr static int numSupportPoints1D = LagrangeBasis9GL::numSupportPoints;  ///< Number of 1D nodes.
-    constexpr static int numSupportPoints =  ///< Number of nodes, 10^3.
+    constexpr static int numSupportPoints =                                        ///< Number of nodes, 10^3.
         numSupportPoints1D * numSupportPoints1D * numSupportPoints1D;
 
     /**

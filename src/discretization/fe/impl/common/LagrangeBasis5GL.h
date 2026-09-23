@@ -119,7 +119,6 @@ class LagrangeBasis5GL {
    * @brief Value at @p xi of the basis function of node 0.
    */
   constexpr static double value0(const double xi) {
-
     double lambda4 = LagrangeBasis5GL::parentSupportCoord(4);  ///< Parent coordinate of node 1, opposite of node 4.
     double lambda3 = LagrangeBasis5GL::parentSupportCoord(3);  ///< Parent coordinate of node 2, opposite of node 3.
 
@@ -133,7 +132,6 @@ class LagrangeBasis5GL {
    * @brief Value at @p xi of the basis function of node 1.
    */
   constexpr static double value1(const double xi) {
-
     double lambda3 = LagrangeBasis5GL::parentSupportCoord(3);  ///< Parent coordinate of node 2, opposite of node 3.
     double lambda4 = LagrangeBasis5GL::parentSupportCoord(4);  ///< Parent coordinate of node 1, opposite of node 4.
 
@@ -146,7 +144,6 @@ class LagrangeBasis5GL {
    * @brief Value at @p xi of the basis function of node 2.
    */
   constexpr static double value2(const double xi) {
-
     double lambda4 = LagrangeBasis5GL::parentSupportCoord(4);  ///< Parent coordinate of node 1, opposite of node 4.
     double lambda3 = LagrangeBasis5GL::parentSupportCoord(3);  ///< Parent coordinate of node 2, opposite of node 3.
 
@@ -159,7 +156,6 @@ class LagrangeBasis5GL {
    * @brief Value at @p xi of the basis function of node 3.
    */
   constexpr static double value3(const double xi) {
-
     double lambda4 = LagrangeBasis5GL::parentSupportCoord(4);  ///< Parent coordinate of node 1, opposite of node 4.
     double lambda3 = LagrangeBasis5GL::parentSupportCoord(3);  ///< Parent coordinate of node 2, opposite of node 3.
 
@@ -172,7 +168,6 @@ class LagrangeBasis5GL {
    * @brief Value at @p xi of the basis function of node 4.
    */
   constexpr static double value4(const double xi) {
-
     double lambda4 = LagrangeBasis5GL::parentSupportCoord(4);  ///< Parent coordinate of node 1, opposite of node 4.
     double lambda3 = LagrangeBasis5GL::parentSupportCoord(3);  ///< Parent coordinate of node 2, opposite of node 3.
 
@@ -185,7 +180,6 @@ class LagrangeBasis5GL {
    * @brief Value at @p xi of the basis function of node 5.
    */
   constexpr static double value5(const double xi) {
-
     double lambda3 = LagrangeBasis5GL::parentSupportCoord(3);  ///< Parent coordinate of node 2, opposite of node 3.
     double lambda4 = LagrangeBasis5GL::parentSupportCoord(4);  ///< Parent coordinate of node 1, opposite of node 4.
 

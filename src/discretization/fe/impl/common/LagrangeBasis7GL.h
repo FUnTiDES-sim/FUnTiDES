@@ -433,7 +433,7 @@ class LagrangeBasis7GL {
    * See docs/design.md, "1D Lagrange bases".
    */
   struct TensorProduct2D {
-    constexpr static int numSupportPoints1D = LagrangeBasis7GL::numSupportPoints;  ///< Number of 1D nodes.
+    constexpr static int numSupportPoints1D = LagrangeBasis7GL::numSupportPoints;     ///< Number of 1D nodes.
     constexpr static int numSupportPoints = numSupportPoints1D * numSupportPoints1D;  ///< Number of nodes, 8^2.
 
     /**

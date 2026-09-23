@@ -113,17 +113,11 @@ class Qk_Hexahedron_Lagrange_GaussLobatto {
 
   /// Number of quadrature points per element.
   PROXY_HOST_DEVICE
-  virtual int getNumQuadraturePoints()
-  {
-    return numQuadraturePoints;
-  }
+  virtual int getNumQuadraturePoints() { return numQuadraturePoints; }
 
   /// Number of nodes per element.
   PROXY_HOST_DEVICE
-  virtual int getNumSupportPoints()
-  {
-    return numNodes;
-  }
+  virtual int getNumSupportPoints() { return numNodes; }
 
   /// Number of support points per element.
   PROXY_HOST_DEVICE
@@ -704,7 +698,6 @@ PROXY_HOST_DEVICE void Qk_Hexahedron_Lagrange_GaussLobatto<GL_BASIS>::supportLoo
     func(dNdXi, nodeIndex, std::forward<PARAMS>(params)...);
   }
 }
-
 
 template <typename GL_BASIS>
 PROXY_HOST_DEVICE real_t Qk_Hexahedron_Lagrange_GaussLobatto<GL_BASIS>::calcGradN(int const q,

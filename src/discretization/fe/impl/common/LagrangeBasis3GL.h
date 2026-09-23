@@ -29,9 +29,7 @@ class LagrangeBasis3GL {
   /**
    * @brief Parent coordinate of node @p supportPointIndex, in [-1, 1].
    */
-  inline
-      constexpr static double
-      parentSupportCoord(const int supportPointIndex) {
+  inline constexpr static double parentSupportCoord(const int supportPointIndex) {
     double result = 0.0;
 
     switch (supportPointIndex) {
@@ -57,9 +55,7 @@ class LagrangeBasis3GL {
   /**
    * @brief Value at @p xi of the basis function of node @p index.
    */
-  inline
-      constexpr static double
-      value(const int index, const double xi) {
+  inline constexpr static double value(const int index, const double xi) {
     double result = 0.0;
 
     switch (index) {
@@ -85,9 +81,7 @@ class LagrangeBasis3GL {
   /**
    * @brief Value at @p xi of the basis function of node 0.
    */
-  inline
-      constexpr static double
-      value0(const double xi) {
+  inline constexpr static double value0(const double xi) {
     return -(5.0 / 8.0) * (xi * xi * xi - xi * xi - (1.0 / 5.0) * xi + 1.0 / 5.0);
   }
 
@@ -115,9 +109,7 @@ class LagrangeBasis3GL {
   /**
    * @brief Derivative at @p xi of the basis function of node @p index.
    */
-  inline
-      constexpr static double
-      gradient(const int index, const double xi) {
+  inline constexpr static double gradient(const int index, const double xi) {
     double result = 0.0;
 
     switch (index) {
@@ -244,11 +236,7 @@ class LagrangeBasis3GL {
      *
      * See docs/design.md, "Hexahedron local numbering".
      */
-    inline
-        constexpr static int
-        linearIndex(const int i, const int j, const int k) {
-      return i + 4 * j + 16 * k;
-    }
+    inline constexpr static int linearIndex(const int i, const int j, const int k) { return i + 4 * j + 16 * k; }
 
     /**
      * @brief Inverse of linearIndex().
@@ -257,9 +245,7 @@ class LagrangeBasis3GL {
      * @param[out] i1 Index along xi1.
      * @param[out] i2 Index along xi2.
      */
-    inline
-        constexpr static void
-        multiIndex(int const linearIndex, int &i0, int &i1, int &i2) {
+    inline constexpr static void multiIndex(int const linearIndex, int &i0, int &i1, int &i2) {
       i2 = linearIndex / 16;
 
       i1 = (linearIndex % 16) / 4;
