@@ -8,17 +8,11 @@
 namespace gradient {
 
 /**
- * @brief Elastic data container for differentiator computation.
+ * @brief Elastic data passed to a differentiator: forward and adjoint wavefield
+ *        views plus the output gradient arrays.
  *
- * Stores forward and adjoint wavefield views along with gradient arrays
- * for elastic model parameters (rho, lambda, mu). Passed to
- * DifferentiatorElastic::compute() at runtime.
- *
- * Usage:
- *   DifferentiatorDataElastic data(fwd, bwd, gradient);
- *   float dt = 0.001;
- *   differentiator->compute(mesh, data, dt);
- *   auto rho = data.getGradient(0);
+ * The members are lightweight view handles; the class does not own the
+ * underlying arrays.
  */
 struct DifferentiatorDataElastic : public Differentiator::DataStruct {
   using Traits = PhysicsTraits<utils::enums::physicType::kElastic>;
@@ -28,25 +22,47 @@ struct DifferentiatorDataElastic : public Differentiator::DataStruct {
   using GradientType = typename Traits::GradientType;
 
   /**
-   * @brief Construct elastic differentiator data.
+   * @brief Builds the data container from the three views.
    *
-   * @param fwd       Forward wavefield view
-   * @param bwd       Adjoint wavefield view
-   * @param gradient  Gradient container for elastic parameters
+   * @param[in] fwd       Forward wavefield view.
+   * @param[in] bwd       Adjoint wavefield view.
+   * @param[in] gradient  Gradient container for the elastic parameters.
    */
   DifferentiatorDataElastic(const WavefieldViewForwardElastic& fwd, const WavefieldViewBackwardElastic& bwd,
                             const GradientElastic& gradient)
       : m_fwd(fwd), m_bwd(bwd), m_gradient(gradient) {}
 
+  /**
+   * @brief Returns the i-th forward wavefield array.
+   *
+   * @param[in] i  Field index.
+   * @return View handle on the forward field.
+   * @todo VERIFY: what is the field ordering for index i (which component or derivative does each i select)?
+   */
   PROXY_HOST_DEVICE
   vectorReal getForwardField(int i) const { return m_fwd.getField(i); }
 
+  /**
+   * @brief Returns the i-th adjoint wavefield array.
+   *
+   * @param[in] i  Field index.
+   * @return View handle on the adjoint field.
+   * @todo VERIFY: what is the field ordering for index i (which component or derivative does each i select)?
+   */
   PROXY_HOST_DEVICE
   vectorReal getBackwardField(int i) const { return m_bwd.getField(i); }
 
+  /**
+   * @brief Returns the i-th gradient array.
+   *
+   * @param[in] i  Gradient index.
+   * @return View handle on the gradient array.
+   * @todo VERIFY: which elastic parameter does each index i select (rho, lambda, mu order)?
+   */
   PROXY_HOST_DEVICE
   vectorReal getGradient(int i) const { return m_gradient.getGradient(i); }
 
+  /// @brief Prints a description of the three views to stdout. Host only.
   void print() const override {
     std::cout << "DifferentiatorDataElastic\n";
     m_fwd.print();
@@ -54,11 +70,12 @@ struct DifferentiatorDataElastic : public Differentiator::DataStruct {
     m_gradient.print();
   }
 
-  WavefieldViewForwardType m_fwd;   ///< Forward wavefield snapshot(s)
-  WavefieldViewBackwardType m_bwd;  ///< Adjoint wavefield snapshot(s)
-  GradientType m_gradient;          ///< Gradient arrays (view handles)
+  WavefieldViewForwardType m_fwd;   ///< Forward wavefield view.
+  WavefieldViewBackwardType m_bwd;  ///< Adjoint wavefield view.
+  GradientType m_gradient;          ///< Gradient arrays (view handles).
 };
 
+/// Alias of DifferentiatorDataElastic.
 using GradientDataElastic = DifferentiatorDataElastic;
 
 }  // namespace gradient

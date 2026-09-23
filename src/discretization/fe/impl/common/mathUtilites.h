@@ -3,9 +3,7 @@
  * @brief Small 3x3 matrix helpers and element index maps used by the
  * hexahedral discretization kernels.
  *
- * Symmetric matrices use the Voigt storage of docs/design.md. Some helpers use
- * PROXY_HOST_DEVICE, which this header does not define (see
- * docs/design-red-flags.md).
+ * Symmetric matrices use the Voigt storage of docs/design.md.
  * @see docs/design.md, "Symmetric 3x3 matrices (Voigt storage)".
  */
 #pragma once
@@ -17,6 +15,7 @@
 
 /**
  * @brief Determinant of a 3x3 matrix stored as a C array, m[row][column].
+ * @tparam T Scalar type of the matrix entries.
  */
 template <typename T>
 static constexpr inline SEMKERNELS_HOST_DEVICE T determinant(T const (&m)[3][3]) {
@@ -65,6 +64,7 @@ static constexpr inline SEMKERNELS_HOST_DEVICE std::tuple<int, int, int> tripleI
 /**
  * @brief Determinant of a symmetric 2x2 matrix in Voigt storage
  * (B00, B11, B01).
+ * @tparam T Scalar type of the matrix entries.
  */
 template <typename T>
 PROXY_HOST_DEVICE T symDeterminant(T (&B)[3]) {
@@ -73,6 +73,7 @@ PROXY_HOST_DEVICE T symDeterminant(T (&B)[3]) {
 
 /**
  * @brief Determinant of a symmetric 3x3 matrix in Voigt storage.
+ * @tparam T Scalar type of the matrix entries.
  * @see docs/design.md, "Symmetric 3x3 matrices (Voigt storage)".
  */
 template <typename T>
@@ -82,6 +83,7 @@ PROXY_HOST_DEVICE T symDeterminant(T (&B)[6]) {
 
 /**
  * @brief Inverts a 3x3 matrix.
+ * @tparam T Scalar type of the matrix entries.
  * @param[out] Jinv Inverse of @p J; must not alias @p J.
  * @param[in] J Matrix to invert, J[row][column]. It must be invertible: a zero
  * determinant is not detected.
@@ -111,6 +113,7 @@ PROXY_HOST_DEVICE auto invert3x3(T (&Jinv)[3][3], T const (&J)[3][3]) {
 
 /**
  * @brief Inverts a 3x3 matrix in place.
+ * @tparam T Scalar type of the matrix entries.
  * @param[in,out] Jinv Matrix to invert, replaced by its inverse. It must be
  * invertible: a zero determinant is not detected.
  * @return The determinant of the input matrix.
@@ -124,6 +127,7 @@ PROXY_HOST_DEVICE auto invert3x3(T (&Jinv)[3][3]) {
 
 /**
  * @brief Inverts a symmetric 3x3 matrix in Voigt storage.
+ * @tparam T Scalar type of the matrix entries.
  * @param[out] dstSymMatrix Inverse of @p srcSymMatrix; must not alias it.
  * @param[in] srcSymMatrix Matrix to invert. It must be invertible: a zero
  * determinant is not detected.
@@ -149,6 +153,7 @@ static constexpr inline SEMKERNELS_HOST_DEVICE void symInvert(T (&dstSymMatrix)[
 
 /**
  * @brief Inverts a symmetric 3x3 matrix in Voigt storage, in place.
+ * @tparam T Scalar type of the matrix entries.
  * @param[in,out] symMatrix Matrix to invert, replaced by its inverse. It must
  * be invertible: a zero determinant is not detected.
  * @see docs/design.md, "Symmetric 3x3 matrices (Voigt storage)".
@@ -168,7 +173,8 @@ static inline SEMKERNELS_HOST_DEVICE void symInvert(T (&symMatrix)[6]) {
 
 /**
  * @brief Computes B = (J^T J)^-1 from a Jacobian matrix.
- * @param[in] J Jacobian matrix, J[row][column].
+ * @tparam T Scalar type of the matrix entries.
+ * @param[in] J Jacobian matrix, J[row][column]. J^T J must be invertible.
  * @param[out] B (J^T J)^-1 in Voigt storage.
  * @see docs/design.md, "Symmetric 3x3 matrices (Voigt storage)".
  */
@@ -188,7 +194,7 @@ static constexpr inline SEMKERNELS_HOST_DEVICE void computeB(T const (&J)[3][3],
  * @brief Computes B = (J^T J)^-1 from a Jacobian matrix accessed as J(row,
  * column).
  * @tparam T Matrix type with operator()(int, int) and a value_type member.
- * @param[in] J Jacobian matrix.
+ * @param[in] J Jacobian matrix. J^T J must be invertible.
  * @param[out] B (J^T J)^-1 in Voigt storage.
  * @see docs/design.md, "Symmetric 3x3 matrices (Voigt storage)".
  */

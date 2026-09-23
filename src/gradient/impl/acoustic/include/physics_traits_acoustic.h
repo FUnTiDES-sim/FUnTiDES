@@ -8,12 +8,15 @@
 
 namespace gradient {
 
+/**
+ * @brief Maps the acoustic physics tag to its wavefield view and gradient types.
+ */
 template <>
 struct PhysicsTraits<utils::enums::physicType::kAcoustic> {
-  static constexpr const char* kName = "Acoustic";
-  using WavefieldViewForwardType = WavefieldViewForwardAcoustic;
-  using WavefieldViewBackwardType = WavefieldViewBackwardAcoustic;
-  using GradientType = GradientAcoustic;
+  static constexpr const char* kName = "Acoustic";  ///< Human-readable physics name.
+  using WavefieldViewForwardType = WavefieldViewForwardAcoustic;  ///< Forward wavefield view.
+  using WavefieldViewBackwardType = WavefieldViewBackwardAcoustic;  ///< Backward (adjoint) wavefield view.
+  using GradientType = GradientAcoustic;  ///< Gradient container.
 };
 
 }  // namespace gradient

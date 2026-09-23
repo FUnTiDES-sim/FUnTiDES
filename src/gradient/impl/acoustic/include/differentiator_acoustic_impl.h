@@ -55,7 +55,6 @@ void DifferentiatorAcoustic<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES>:
     model::ModelApi<float, int>& meshApi) {
   auto mesh = dynamic_cast<MESH_TYPE&>(meshApi);
 
-  // Allocate geometric mass matrix if not already done, then zero it
   if (geometricMassMatrix_.extent(0) != mesh.getNumberOfNodes())
     geometricMassMatrix_ = allocateVector<vectorReal>(mesh.getNumberOfNodes(), "geometricMassMatrix");
   Kokkos::deep_copy(geometricMassMatrix_, 0.0f);
@@ -80,7 +79,7 @@ void DifferentiatorAcoustic<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES>:
                 mesh.vertexCoords(mesh.globalVertexIndex(eIdx, iv, jv, kv), cornerCoords[I++]);
         }
 
-        // Compute mass term (geometric part only - no model factors)
+        // Geometric part only: no model factors.
         INTEGRAL_TYPE::computeMassTerm(cornerCoords, [&](const int j, const real_t val) { massMatrixLocal[j] += val; });
 
         for (int i = 0; i < mesh.getNumberOfPointsPerElement(); ++i) {
@@ -158,19 +157,14 @@ template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE, bool IS_MODEL_O
 void DifferentiatorAcoustic<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES>::computeOnNodes(
     MESH_TYPE mesh, float dt, vectorReal const pn, vectorReal const qn, vectorReal const qnPrev,
     vectorReal const qnPrevPrev, vectorReal const gradKappa, vectorReal const gradBuoyancy) const {
-  // Reuse the precomputed geometric mass matrix (nodal volumes) as the mass
-  // matrix diagonal for node normalization. If initGeometricMassMatrix() was
-  // not called beforehand, build it lazily here so that compute() stays
-  // self-contained (and getGeometricMassMatrix() returns valid data). The
-  // result is cached, so subsequent compute() calls reuse it.
+  // The geometric mass matrix (nodal volumes) normalizes the nodal gradients.
+  // It is built here on first use if initGeometricMassMatrix() was not called,
+  // and cached for later calls.
   if (geometricMassMatrix_.extent(0) != mesh.getNumberOfNodes())
     const_cast<DifferentiatorAcoustic<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES>*>(this)
         ->initGeometricMassMatrix(mesh);
   auto massDiag = geometricMassMatrix_;
 
-  // =====================================================
-  // Compute gradients and normalize
-  // =====================================================
   Kokkos::parallel_for(
       "Compute and Distribute Element Gradients to Nodes",
       Kokkos::RangePolicy<Kokkos::LaunchBounds<LaunchMaxThreadsPerBlock, LaunchMinBlocksPerSM>>(
@@ -213,39 +207,27 @@ void DifferentiatorAcoustic<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES>:
 
         float const invDt2 = 1.0f / (dt * dt);
 
-        // =====================================================
-        // Compute element gradient for kappa
-        // =====================================================
         float localGradKappa = 0.0f;
         INTEGRAL_TYPE::computeMassTerm(X, [&](const int q, const real_t val) {
           float const qdt2 = (localQnPrevPrev[q] - 2.0f * localQnPrev[q] + localQn[q]) * invDt2;
           localGradKappa += qdt2 * localPn[q] * val;
         });
 
-        // =====================================================
-        // Distribute kappa gradient to nodes, weighted by mass matrix
-        // =====================================================
+        // Each node receives the element gradient weighted by its local mass
+        // value divided by its global mass diagonal.
         INTEGRAL_TYPE::computeMassTerm(X, [&](const int q, const real_t val) {
           int const gIdx = localGIdx[q];
-          // Weight: local mass value / global mass diagonal (ensures proper
-          // normalization)
           float const weight = val / massDiag(gIdx);
           float const contrib = localGradKappa * weight;
           ATOMICADD(gradKappa(gIdx), contrib);
         });
 
-        // =====================================================
-        // Compute element gradient for buoyancy
-        // =====================================================
         float localGradBuoyancy = 0.0f;
         INTEGRAL_TYPE::computeStiffnessTerm(
             X, [&](const int /*qa*/, const int /*qb*/, const int /*qc*/) {},
             [&](const int i, const int j, const real_t val) { localGradBuoyancy += val * localQn[j] * localPn[i]; });
 
-        // =====================================================
-        // Distribute buoyancy gradient to nodes
-        // For buoyancy, use the mass matrix weights of the test function nodes
-        // =====================================================
+        // Same mass-based weights as for kappa.
         INTEGRAL_TYPE::computeMassTerm(X, [&](const int q, const real_t val) {
           int const gIdx = localGIdx[q];
           float const weight = val / massDiag(gIdx);

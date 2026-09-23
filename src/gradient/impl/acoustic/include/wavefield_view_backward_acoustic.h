@@ -9,35 +9,41 @@
 namespace gradient {
 
 /**
- * @brief Read-only view of an acoustic adjoint wavefield for gradient
- * computation.
+ * @brief Read-only view of three consecutive acoustic adjoint pressure snapshots.
  *
- * Exposes three consecutive adjoint pressure snapshots required by the
- * acoustic gradient kernel to compute the second-order time derivative on
- * the fly: qdt2 = (qnPrevPrev - 2*qnPrev + qn) / dt^2.
+ * The acoustic gradient kernel uses the three snapshots to build the adjoint
+ * second time derivative on the fly:
+ * qdt2 = (qnPrevPrev - 2*qnPrev + qn) / dt^2.
  *
- * Constructed by the caller from solver adjoint wavefield data plus an
- * externally managed third buffer; no solver dependency here.
+ * The view only stores handles to buffers owned by the caller; it never copies
+ * data. In a time loop the caller rotates the three handles at each step and
+ * rebuilds the view.
  *
- * In a time loop, the solver's WavefieldAcoustic provides qn (current) and
- * qnPrev (previous). The caller must allocate one extra buffer qnPrevPrev
- * and rotate the three handles each step without any data copy — see the
- * three-buffer ring pattern described in the solver time-loop documentation.
- *
- * Fields:
- *   getField(0) = qn          (adjoint pressure at time n)
- *   getField(1) = qnPrev      (adjoint pressure at time n-1)
- *   getField(2) = qnPrevPrev  (adjoint pressure at time n-2)
+ * Field indices:
+ * - getField(0) = qn         (adjoint pressure at time n)
+ * - getField(1) = qnPrev     (adjoint pressure at time n-1)
+ * - getField(2) = qnPrevPrev (adjoint pressure at time n-2)
  */
 class WavefieldViewBackwardAcoustic : public WavefieldView {
  public:
-  static constexpr int kNumFields = 3;
+  static constexpr int kNumFields = 3;  ///< Number of exposed fields (qn, qnPrev, qnPrevPrev).
 
+  /**
+   * @brief Builds a view from three externally owned snapshots.
+   * @param[in] qn Adjoint pressure at time n.
+   * @param[in] qnPrev Adjoint pressure at time n-1.
+   * @param[in] qnPrevPrev Adjoint pressure at time n-2.
+   */
   WavefieldViewBackwardAcoustic(vectorReal qn, vectorReal qnPrev, vectorReal qnPrevPrev)
       : qn_(qn), qnPrev_(qnPrev), qnPrevPrev_(qnPrevPrev) {}
 
+  /** @brief Returns the number of exposed fields (kNumFields). */
   int getNumFields() const override { return kNumFields; }
 
+  /**
+   * @brief Returns the name of field i ("qn", "qnPrev" or "qnPrevPrev").
+   * @param[in] i Field index in [0, kNumFields).
+   */
   std::string getFieldName(int i) const override {
     switch (i) {
       case 0:
@@ -51,7 +57,12 @@ class WavefieldViewBackwardAcoustic : public WavefieldView {
     }
   }
 
-  // TODO use template + constexpr if when C++20 is available
+  /**
+   * @brief Returns the handle of field i.
+   * @param[in] i Field index in [0, kNumFields).
+   * @return The snapshot handle; no data is copied.
+   */
+  // TODO: replace the switch by a template and constexpr if once C++20 is available.
   PROXY_HOST_DEVICE
   vectorReal getField(int i) const override {
     switch (i) {
@@ -62,10 +73,11 @@ class WavefieldViewBackwardAcoustic : public WavefieldView {
       case 2:
         return qnPrevPrev_;
       default:
-        return qn_;  // make it cuda happy
+        return qn_;  // the CUDA compiler requires a return on every path
     }
   }
 
+  /** @brief Prints the size of each snapshot to stdout. */
   void print() const override {
     std::cout << "WavefieldViewBackwardAcoustic:" << " qn size=" << qn_.extent(0)
               << " qnPrev size=" << qnPrev_.extent(0) << " qnPrevPrev size=" << qnPrevPrev_.extent(0) << "\n";

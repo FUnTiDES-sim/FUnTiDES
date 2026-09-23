@@ -21,8 +21,7 @@ namespace fe {
  * caller can branch with `if constexpr`.
  * @tparam ORDER Polynomial order, from 1 to 9.
  * @tparam KIND Discretization back-end.
- * @note Not used by any solver yet: dispatch goes through IntegralTypeSelector
- * (see docs/design-red-flags.md).
+ * @note Currently unused by the solvers (see docs/design-red-flags.md).
  */
 template <int ORDER, DiscretizationKind KIND>
 struct DiscretizationTraits;
@@ -39,7 +38,11 @@ struct DiscretizationTraits<ORDER, DiscretizationKind::kTensorialGemm> {
   static constexpr bool kHasGemm = true;
 };
 
-/// Discretization type for polynomial order ORDER and back-end KIND.
+/**
+ * @brief Discretization type for polynomial order ORDER and back-end KIND.
+ * @tparam ORDER Polynomial order, from 1 to 9.
+ * @tparam KIND Discretization back-end.
+ */
 template <int ORDER, DiscretizationKind KIND>
 using DiscretizationType = typename DiscretizationTraits<ORDER, KIND>::type;
 
@@ -51,13 +54,15 @@ using DiscretizationType = typename DiscretizationTraits<ORDER, KIND>::type;
  * discretization type, exposed as `type`.
  * @tparam ORDER Polynomial order, from 1 to 9.
  * @tparam METHOD_TYPE One of the IntegralType values.
- * @deprecated Same role as solver::fe::DiscretizationTraits; the solvers and
- * differentiators still use this one (see docs/design-red-flags.md).
+ * @deprecated Use solver::fe::DiscretizationTraits (see
+ * docs/design-red-flags.md).
  */
 template <int ORDER, int METHOD_TYPE>
 struct IntegralTypeSelector;
 
-/// Back-end keys of IntegralTypeSelector.
+/**
+ * @brief Back-end keys for the METHOD_TYPE parameter of IntegralTypeSelector.
+ */
 namespace IntegralType {
 enum { MAKUTU, TENSORIAL_GEMM };
 }

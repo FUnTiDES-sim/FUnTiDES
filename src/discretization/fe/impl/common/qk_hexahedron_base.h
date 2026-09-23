@@ -30,8 +30,7 @@ class QkHexahedronBase : public discretization::fe::api::FeDiscretizationTag {
   /// Number of nodes per element edge (order + 1).
   constexpr static int num1dNodes = GL_BASIS::numSupportPoints;
 
-  /// Largest 1D node index for which GL_BASIS::gradientAt() is queried; the
-  /// other half follows by symmetry.
+  /// Largest 1D node index for which GL_BASIS::gradientAt() is queried; the other half follows by symmetry.
   constexpr static int halfNodes = (GL_BASIS::numSupportPoints - 1) / 2;
 
   /// Number of nodes per element, num1dNodes^3.
@@ -43,8 +42,7 @@ class QkHexahedronBase : public discretization::fe::api::FeDiscretizationTag {
   /// Number of support points per element, equal to numNodes.
   constexpr static int maxSupportPoints = numNodes;
 
-  /// Number of quadrature points per element: the quadrature points are the
-  /// nodes.
+  /// Number of quadrature points per element: the quadrature points are the nodes.
   constexpr static int numQuadraturePoints = numNodes;
 
   /// A 3x3 Jacobian matrix. Unused by this class.
@@ -111,6 +109,8 @@ class QkHexahedronBase : public discretization::fe::api::FeDiscretizationTag {
    *
    * Valid for every p in [0, num1dNodes): the half p > halfNodes is obtained by
    * symmetry from GL_BASIS::gradientAt().
+   * @param[in] q 1D basis function index.
+   * @param[in] p 1D node index.
    */
   PROXY_HOST_DEVICE
   constexpr static real_t basisGradientAt(const int q, const int p) {
@@ -143,15 +143,17 @@ class QkHexahedronBase : public discretization::fe::api::FeDiscretizationTag {
     }
   }
 
-  /// 1D Gauss-Lobatto quadrature weight of node q, for the interval [-1, 1].
+  /**
+   * @brief 1D Gauss-Lobatto quadrature weight of node q, for the interval [-1, 1].
+   */
   PROXY_HOST_DEVICE
   constexpr static real_t quadratureWeight(const int q) { return GL_BASIS::weight(q); }
 
-  /// Number of quadrature points per element.
+  /** @brief Number of quadrature points per element. */
   PROXY_HOST_DEVICE static constexpr int getNumQuadraturePoints() { return numQuadraturePoints; }
-  /// Number of nodes per element.
+  /** @brief Number of nodes per element. */
   PROXY_HOST_DEVICE static constexpr int getNumSupportPoints() { return numNodes; }
-  /// Number of support points per element.
+  /** @brief Number of support points per element. */
   PROXY_HOST_DEVICE static constexpr int getMaxSupportPoints() { return maxSupportPoints; }
 
   /**
@@ -249,8 +251,10 @@ class QkHexahedronBase : public discretization::fe::api::FeDiscretizationTag {
   PROXY_HOST_DEVICE static void computeGradPhiBGradPhi(real_t const (&B)[6], FUNC1 &&func1, FUNC2 &&func2);
 
  protected:
-  /// Protected and non-virtual: the class is never used through a base
-  /// pointer, and a vtable would be unusable on device.
+  /**
+   * @brief Protected and non-virtual: the class is never used through a base
+   * pointer, and a vtable would be unusable on device.
+   */
   PROXY_HOST_DEVICE ~QkHexahedronBase() = default;
 };
 

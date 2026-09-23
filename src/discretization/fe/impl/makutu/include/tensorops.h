@@ -5,12 +5,13 @@
  * @file tensorops.h
  * @brief Small dense and symmetric 3x3 matrix helpers.
  * @note Included by no file, and duplicates helpers of mathUtilites.h with
- * different signatures (see docs/design-red-flags.md). It relies on
- * PROXY_HOST_DEVICE and std type traits without including them.
+ * different signatures. It relies on PROXY_HOST_DEVICE and std type traits
+ * without including them.
  */
 
 /**
  * @brief Inverts a 3x3 matrix in place.
+ * @tparam T Floating-point scalar type.
  * @param[in,out] J The matrix; holds its inverse on return. Must be invertible:
  * a zero determinant is not detected.
  * @return The determinant of the input matrix.
@@ -20,7 +21,6 @@ PROXY_HOST_DEVICE T invert3x3(T (&J)[3][3]);
 
 template <typename T>
 PROXY_HOST_DEVICE T invert3x3(T (&J)[3][3]) {
-  // Compute the determinant
   T det = J[0][0] * (J[1][1] * J[2][2] - J[1][2] * J[2][1]) - J[0][1] * (J[1][0] * J[2][2] - J[1][2] * J[2][0]) +
           J[0][2] * (J[1][0] * J[2][1] - J[1][1] * J[2][0]);
 
@@ -48,6 +48,7 @@ PROXY_HOST_DEVICE T invert3x3(T (&J)[3][3]) {
 
 /**
  * @brief Inverts a 3x3 matrix into another one.
+ * @tparam T Floating-point scalar type.
  * @param[out] Jinv The inverse of @p J.
  * @param[in] J The matrix to invert (not modified, although not const). Must
  * be invertible: a zero determinant is not detected.
@@ -80,11 +81,14 @@ PROXY_HOST_DEVICE auto invert3x3(T (&Jinv)[3][3], T (&J)[3][3]) {
 }
 
 /**
- * @brief Determinant of a symmetric NxN matrix in Voigt storage.
- * @tparam N 2, with B = (B00, B11, B01).
- * @note The definitions below are partial specializations of function
- * templates, which C++ does not allow: this header would not compile if
- * included.
+ * @brief Determinant of a symmetric 2x2 matrix in Voigt storage.
+ * @tparam N Matrix size; 2 here.
+ * @tparam T Floating-point scalar type.
+ * @param[in] B Matrix entries in the order (B00, B11, B01).
+ * @return The determinant of @p B.
+ * @note The definition below is a partial specialization of a function
+ * template, which C++ does not allow: it would not compile if this header
+ * were included.
  * @see docs/design.md, "Symmetric 3x3 matrices (Voigt storage)".
  */
 template <int N, typename T>
@@ -96,8 +100,12 @@ PROXY_HOST_DEVICE T symDeterminant<2>(T (&B)[3]) {
 }
 
 /**
- * @brief Determinant of a symmetric NxN matrix in Voigt storage.
- * @tparam N 3, with B = (B00, B11, B22, B12, B02, B01).
+ * @brief Determinant of a symmetric 3x3 matrix in Voigt storage.
+ * @tparam N Matrix size; 3 here.
+ * @tparam T Floating-point scalar type.
+ * @param[in] B Matrix entries in the order (B00, B11, B22, B12, B02, B01).
+ * @return The determinant of @p B.
+ * @note Same partial-specialization limitation as the 2x2 overload.
  * @see docs/design.md, "Symmetric 3x3 matrices (Voigt storage)".
  */
 template <int N, typename T>
@@ -110,7 +118,8 @@ PROXY_HOST_DEVICE T symDeterminant<3>(T (&B)[6]) {
 
 /**
  * @brief Inverts a symmetric 3x3 matrix in Voigt storage.
- * @param[out] dst The inverse of @p J.
+ * @tparam T Floating-point scalar type.
+ * @param[out] dst The inverse of @p J, in the same storage.
  * @param[in] J The matrix to invert. Must be invertible: a zero determinant is
  * not detected.
  * @return The determinant of @p J.
@@ -139,6 +148,7 @@ PROXY_HOST_DEVICE static auto symInvert(T (&dst)[6], T const (&J)[6]) {
 
 /**
  * @brief Inverts a symmetric 3x3 matrix in Voigt storage, in place.
+ * @tparam T Floating-point scalar type.
  * @param[in,out] J The matrix; holds its inverse on return.
  * @return The determinant of the input matrix.
  */

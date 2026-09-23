@@ -8,17 +8,14 @@
 namespace gradient {
 
 /**
- * @brief Acoustic data container for differentiator computation.
+ * @brief Data container passed to a differentiator for the acoustic physics.
  *
- * Stores forward and adjoint wavefield views along with gradient arrays
- * for acoustic model parameters (kappa, buoyancy). Passed to
- * DifferentiatorAcoustic::compute() at runtime.
+ * Holds the forward and adjoint wavefield views and the gradient arrays for the
+ * acoustic model parameters (kappa, buoyancy). The gradient arrays are the output
+ * of the differentiator; the wavefield views are its input.
  *
- * Usage:
- *   DifferentiatorDataAcoustic data(fwd, bwd, gradient);
- *   float dt = 0.001;
- *   differentiator->compute(mesh, data, dt);
- *   auto kappa = data.getGradient(0);
+ * @todo VERIFY: which gradient index is kappa and which is buoyancy, and which field
+ * index is which wavefield component in the forward and adjoint views?
  */
 struct DifferentiatorDataAcoustic : public Differentiator::DataStruct {
   using Traits = PhysicsTraits<utils::enums::physicType::kAcoustic>;
@@ -28,25 +25,29 @@ struct DifferentiatorDataAcoustic : public Differentiator::DataStruct {
   using GradientType = typename Traits::GradientType;
 
   /**
-   * @brief Construct acoustic differentiator data.
+   * @brief Constructs the container from the views it stores.
    *
-   * @param fwd       Forward wavefield view
-   * @param bwd       Adjoint wavefield view
-   * @param gradient  Gradient container for acoustic parameters
+   * @param[in] fwd       Forward wavefield view.
+   * @param[in] bwd       Adjoint wavefield view.
+   * @param[in] gradient  Gradient container for the acoustic parameters.
    */
   DifferentiatorDataAcoustic(const WavefieldViewForwardAcoustic& fwd, const WavefieldViewBackwardAcoustic& bwd,
                              const GradientAcoustic& gradient)
       : m_fwd(fwd), m_bwd(bwd), m_gradient(gradient) {}
 
+  /// @brief Returns the forward wavefield array number @p i.
   PROXY_HOST_DEVICE
   vectorReal getForwardField(int i) const { return m_fwd.getField(i); }
 
+  /// @brief Returns the adjoint wavefield array number @p i.
   PROXY_HOST_DEVICE
   vectorReal getBackwardField(int i) const { return m_bwd.getField(i); }
 
+  /// @brief Returns the gradient array number @p i.
   PROXY_HOST_DEVICE
   vectorReal getGradient(int i) const { return m_gradient.getGradient(i); }
 
+  /// @brief Prints the forward view, the adjoint view and the gradients to stdout.
   void print() const override {
     std::cout << "DifferentiatorDataAcoustic\n";
     m_fwd.print();
@@ -59,6 +60,7 @@ struct DifferentiatorDataAcoustic : public Differentiator::DataStruct {
   GradientType m_gradient;          ///< Gradient arrays (view handles)
 };
 
+/// Alias of DifferentiatorDataAcoustic.
 using GradientDataAcoustic = DifferentiatorDataAcoustic;
 
 }  // namespace gradient
