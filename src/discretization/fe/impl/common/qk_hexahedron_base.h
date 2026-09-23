@@ -7,54 +7,55 @@
 #include "mathUtilites.h"
 
 /**
- * @brief Implementation-independent core of the Qk hexahedral Gauss-Lobatto
- *        spectral-element discretization.
+ * @brief Back-end independent part of the Qk hexahedral spectral-element
+ * discretization on Gauss-Lobatto nodes.
  *
- * Holds every quantity and kernel shared by all back-ends: compile-time sizes,
- * index maps, the isoparametric Jacobian / B-matrix, and the mass, damping and
- * acoustic-stiffness (flat sum-factorization) kernels. The concrete back-ends
- * (makutu Lagrange-GaussLobatto and tensorial GEMM) derive from this class and
- * add only their own machinery.
- *
- * Every member is static and host/device-callable: no vtable, no instance
- * state. This is mandatory for GPU execution -- all dispatch is compile-time.
+ * Provides the compile-time sizes, the local index maps, the Jacobian of the
+ * trilinear map from the parent cube [-1, 1]^3 to a hexahedron given by its 8
+ * vertices, and the element mass, damping and stiffness kernels. Every member
+ * is static and host/device callable, since virtual dispatch is unusable on
+ * GPU.
+ * @tparam GL_BASIS 1D Lagrange basis, with the interface described in
+ * docs/design.md, "1D Lagrange bases".
+ * @note No back-end derives from this class yet, and it uses triple_loop and
+ * for_constexpr without including their definition (see
+ * docs/design-red-flags.md).
+ * @see docs/design.md, "Hexahedron local numbering".
  */
 template <typename GL_BASIS>
 class QkHexahedronBase : public discretization::fe::api::FeDiscretizationTag {
  public:
-  // Expose the basis type for tests and external use
-  using BasisType = GL_BASIS;
+  using BasisType = GL_BASIS;  ///< The 1D Lagrange basis.
 
-  /// The number of nodes/support points per element per dimension.
+  /// Number of nodes per element edge (order + 1).
   constexpr static int num1dNodes = GL_BASIS::numSupportPoints;
 
-  /// Half the number of support points, rounded down. Precomputed for
-  /// efficiency
+  /// Largest 1D node index for which GL_BASIS::gradientAt() is queried; the
+  /// other half follows by symmetry.
   constexpr static int halfNodes = (GL_BASIS::numSupportPoints - 1) / 2;
 
-  /// The number of nodes/support points per element.
+  /// Number of nodes per element, num1dNodes^3.
   constexpr static int numNodes = GL_BASIS::TensorProduct3D::numSupportPoints;
 
-  /// The number of nodes/support points per face
+  /// Number of nodes per face, num1dNodes^2.
   constexpr static int numNodesPerFace = GL_BASIS::TensorProduct2D::numSupportPoints;
 
-  /// The maximum number of support points per element.
+  /// Number of support points per element, equal to numNodes.
   constexpr static int maxSupportPoints = numNodes;
 
-  /// The number of quadrature points per element.
+  /// Number of quadrature points per element: the quadrature points are the
+  /// nodes.
   constexpr static int numQuadraturePoints = numNodes;
 
+  /// A 3x3 Jacobian matrix. Unused by this class.
   struct JacobianType {
-    float data[3][3];
+    float data[3][3];  ///< Matrix entries.
   };
 
   /**
-   * @brief The linear index associated to the given one-dimensional indices in
-   * the three directions
-   * @param qa The index in the first direction
-   * @param qb The index in the second direction
-   * @param qc The index in the third direction
-   * @return The linear index in 3D
+   * @brief Element-local index of the node (qa, qb, qc).
+   * @return qa + qb*num1dNodes + qc*num1dNodes^2.
+   * @see docs/design.md, "Hexahedron local numbering".
    */
   PROXY_HOST_DEVICE
   constexpr static int linearIndex3DVal(const int qa, int const qb, int const qc) {
@@ -62,10 +63,10 @@ class QkHexahedronBase : public discretization::fe::api::FeDiscretizationTag {
   }
 
   /**
-   * @brief Converts from the index of the point in the mesh and the linear 3D
-   * index of the corresponding dof.
-   * @param k The index of the mesh vertex, from 0 to 7
-   * @return The linear index in 3D
+   * @brief Element-local index of the node at a vertex of the hexahedron.
+   * @param[in] k Vertex index in [0, 7]; bits 0, 1 and 2 give the side (0 =
+   * minus, 1 = plus) along the first, second and third parent axes.
+   * @return The element-local node index.
    */
   PROXY_HOST_DEVICE
   constexpr static int meshIndexToLinearIndex3D(int const k) {
@@ -73,20 +74,18 @@ class QkHexahedronBase : public discretization::fe::api::FeDiscretizationTag {
   }
 
   /**
-   * @brief The linear index associated to the given one-dimensional indices in
-   * the two directions
-   * @param qa The index in the first direction
-   * @param qb The index in the second direction
-   * @return The linear index in 2D
+   * @brief Face-local index of the node (qa, qb).
+   * @return qa + qb*num1dNodes.
+   * @see docs/design.md, "Hexahedron local numbering".
    */
   PROXY_HOST_DEVICE
   constexpr static int linearIndex2DVal(const int qa, const int qb) { return qa + qb * num1dNodes; }
 
   /**
-   * @brief Converts from the index of the point in the mesh and the linear 2D
-   * index of the corresponding dof.
-   * @param k The index of the mesh vertex, from 0 to 3
-   * @return The linear index in 2D
+   * @brief Face-local index of the node at a vertex of a quadrilateral face.
+   * @param[in] k Vertex index in [0, 3]; bits 0 and 1 give the side (0 =
+   * minus, 1 = plus) along the first and second face axes.
+   * @return The face-local node index.
    */
   PROXY_HOST_DEVICE
   constexpr static int meshIndexToLinearIndex2D(int const k) {
@@ -94,11 +93,12 @@ class QkHexahedronBase : public discretization::fe::api::FeDiscretizationTag {
   }
 
   /**
-   * @brief Compute the interpolation coefficients of the q-th quadrature point
-   * in a given direction
-   * @param q the index of the quadrature point in 1D
-   * @param k the index of the interval endpoint (0 or 1)
-   * @return The interpolation coefficient
+   * @brief Weight of an endpoint of [-1, 1] in the linear interpolation at the
+   * 1D node q.
+   * @param[in] q 1D node index.
+   * @param[in] k Endpoint: 0 for -1, 1 for +1.
+   * @return (1 - xi_q)/2 for k = 0, (1 + xi_q)/2 for k = 1, where xi_q is the
+   * parent coordinate of node q.
    */
   constexpr static real_t interpolationCoord(const int q, const int k) {
     const real_t alpha = static_cast<real_t>((GL_BASIS::parentSupportCoord(q) + 1.0) / 2.0);
@@ -106,11 +106,11 @@ class QkHexahedronBase : public discretization::fe::api::FeDiscretizationTag {
   }
 
   /**
-   * @brief Compute the 1st derivative of the q-th 1D basis function at
-   * quadrature point p
-   * @param q the index of the 1D basis funcion
-   * @param p the index of the 1D quadrature point
-   * @return The derivative value
+   * @brief Derivative of the 1D basis function q at the 1D node p, with respect
+   * to the parent coordinate in [-1, 1].
+   *
+   * Valid for every p in [0, num1dNodes): the half p > halfNodes is obtained by
+   * symmetry from GL_BASIS::gradientAt().
    */
   PROXY_HOST_DEVICE
   constexpr static real_t basisGradientAt(const int q, const int p) {
@@ -122,16 +122,17 @@ class QkHexahedronBase : public discretization::fe::api::FeDiscretizationTag {
   }
 
   /**
-   * @brief Compute the 1D factor of the coefficient of the jacobian on the q-th
-   * quadrature point, with respect to the k-th interval endpoint (0 or 1). The
-   * computation depends on the position in the basis tensor product of this
-   * term (i, equal to 0, 1 or 2) and on the direction in which the gradient is
-   * being computed (dir, from 0 to 2)
-   * @param q The index of the quadrature point in 1D
-   * @param i The index of the position in the tensor product
-   * @param k The index of the interval endpoint (0 or 1)
-   * @param dir The direction in which the derivatives are being computed
-   * @return The value of the jacobian factor
+   * @brief One 1D factor of the derivative of a trilinear vertex shape
+   * function at a quadrature point.
+   *
+   * The derivative along parent axis @p dir of the shape function of the vertex
+   * with sides (k0, k1, k2) is the product over i = 0, 1, 2 of
+   * jacobianCoefficient1D(q_i, i, k_i, dir).
+   * @param[in] q 1D quadrature point index along axis @p i.
+   * @param[in] i Parent axis of this factor, in [0, 2].
+   * @param[in] k Vertex side along axis @p i: 0 for -1, 1 for +1.
+   * @param[in] dir Parent axis of the derivative, in [0, 2].
+   * @return -1/2 or 1/2 when i == dir, interpolationCoord(q, k) otherwise.
    */
   PROXY_HOST_DEVICE
   constexpr static real_t jacobianCoefficient1D(const int q, const int i, const int k, const int dir) {
@@ -142,47 +143,114 @@ class QkHexahedronBase : public discretization::fe::api::FeDiscretizationTag {
     }
   }
 
-  /// 1D Gauss-Lobatto quadrature weight at node q.
+  /// 1D Gauss-Lobatto quadrature weight of node q, for the interval [-1, 1].
   PROXY_HOST_DEVICE
   constexpr static real_t quadratureWeight(const int q) { return GL_BASIS::weight(q); }
 
-  // Non-virtual, compile-time replacements for the former virtual hooks.
-  // (The old virtual versions added a vtable that was never dispatched and is
-  //  unsafe on device.)
+  /// Number of quadrature points per element.
   PROXY_HOST_DEVICE static constexpr int getNumQuadraturePoints() { return numQuadraturePoints; }
+  /// Number of nodes per element.
   PROXY_HOST_DEVICE static constexpr int getNumSupportPoints() { return numNodes; }
+  /// Number of support points per element.
   PROXY_HOST_DEVICE static constexpr int getMaxSupportPoints() { return maxSupportPoints; }
 
+  /**
+   * @brief Adds the Jacobian of the bilinear map from [-1, 1]^2 to a
+   * quadrilateral face, at the face quadrature point (qa, qb).
+   * @param[in] X Coordinates of the 4 face vertices, X[vertex][axis], with the
+   * vertex order of meshIndexToLinearIndex2D().
+   * @param[in,out] J J[i][j] += d x_i / d xi_j; the caller zeroes it first.
+   */
   PROXY_HOST_DEVICE
   static void jacobianTransformation2d(int const qa, int const qb, real_t const (&X)[4][3], real_t (&J)[3][2]);
 
+  /**
+   * @brief Adds the Jacobian of the trilinear map from [-1, 1]^3 to the
+   * hexahedron, at the quadrature point (qa, qb, qc).
+   * @param[in] X Coordinates of the 8 vertices, X[vertex][axis], with the
+   * vertex order of meshIndexToLinearIndex3D().
+   * @param[in,out] J J[i][j] += d x_i / d xi_j; the caller zeroes it first.
+   */
   PROXY_HOST_DEVICE
   static void jacobianTransformation(int const qa, int const qb, int const qc, real_t const (&X)[8][3],
                                      real_t (&J)[3][3]);
 
+  /**
+   * @brief Computes the diagonal of the element mass matrix for a unit
+   * coefficient: |det J| times the quadrature weight, at each node.
+   * @param[in] X Coordinates of the 8 vertices, as in jacobianTransformation().
+   * @param[in] func Called as func(q, value) once per node, q being the
+   * element-local node index.
+   */
   template <typename FUNC>
   PROXY_HOST_DEVICE static void computeMassTerm(float const (&X)[8][3], FUNC &&func);
 
+  /**
+   * @brief Surface measure times quadrature weight at a face node:
+   * sqrt(det(J^T J)) * w, J being the 3x2 face Jacobian.
+   * @param[in] q Face-local node index.
+   * @param[in] X Coordinates of the 4 face vertices, as in
+   * jacobianTransformation2d().
+   */
   PROXY_HOST_DEVICE
   static real_t computeDampingTerm(int const q, real_t const (&X)[4][3]);
 
+  /**
+   * @brief Computes the Jacobian and the stiffness metric at the quadrature
+   * point (qa, qb, qc).
+   * @param[in] X Coordinates of the 8 vertices, as in jacobianTransformation().
+   * @param[in,out] J Jacobian, accumulated as in jacobianTransformation(); the
+   * caller zeroes it first.
+   * @param[out] B det(J) * J^-1 J^-T in Voigt storage (docs/design.md,
+   * "Symmetric 3x3 matrices"). det(J) is signed.
+   */
   PROXY_HOST_DEVICE
   static void computeBMatrix(int const qa, int const qb, int const qc, real_t const (&X)[8][3], real_t (&J)[3][3],
                              real_t (&B)[6]);
 
+  /**
+   * @brief Enumerates the entries of the element stiffness matrix
+   * K(i, j) = sum over quadrature points of w * grad(phi_i) . B grad(phi_j),
+   * where grad is the gradient in parent coordinates, w the 3D quadrature
+   * weight and B comes from computeBMatrix().
+   * @param[in] X Coordinates of the 8 vertices, as in jacobianTransformation().
+   * @param[in] func1 Called as func1(qa, qb, qc) at each quadrature point,
+   * before the func2 calls of that point.
+   * @param[in] func2 Called as func2(i, j, value), i and j being element-local
+   * node indices; the calls for the same (i, j) must be summed.
+   */
   template <typename FUNC1, typename FUNC2>
   PROXY_HOST_DEVICE static void computeStiffnessTerm(float const (&X)[8][3], FUNC1 &&func1, FUNC2 &&func2);
 
+  /**
+   * @brief Adds K(alpha) p_local to f_local by sum factorization, without
+   * forming the element stiffness matrix.
+   *
+   * K(alpha) is the stiffness matrix of computeStiffnessTerm() with each
+   * quadrature point weighted by alpha.
+   * @param[in] X Coordinates of the 8 vertices, as in jacobianTransformation().
+   * @param[in] p_local Nodal values, indexed by element-local node index.
+   * @param[in,out] f_local Result, accumulated (not zeroed).
+   * @param[in] get_alpha Called as get_alpha(qa, qb, qc); returns the
+   * coefficient at that quadrature point.
+   */
   template <typename FUNC_ALPHA>
   PROXY_HOST_DEVICE static void computeStiffnessTermSumFact(float const (&X)[8][3], real_t const (&p_local)[numNodes],
                                                             real_t (&f_local)[numNodes], FUNC_ALPHA &&get_alpha);
 
+  /**
+   * @brief Stiffness contributions of the quadrature point (qa, qb, qc); one
+   * step of computeStiffnessTerm().
+   * @param[in] B Metric at this point, from computeBMatrix().
+   * @param[in] func1 See computeStiffnessTerm().
+   * @param[in] func2 See computeStiffnessTerm().
+   */
   template <int qa, int qb, int qc, typename FUNC1, typename FUNC2>
   PROXY_HOST_DEVICE static void computeGradPhiBGradPhi(real_t const (&B)[6], FUNC1 &&func1, FUNC2 &&func2);
 
  protected:
-  // Static-interface base: never deleted through a base pointer, never holds a
-  // vtable. Protected + non-virtual is the GPU-safe choice.
+  /// Protected and non-virtual: the class is never used through a base
+  /// pointer, and a vtable would be unusable on device.
   PROXY_HOST_DEVICE ~QkHexahedronBase() = default;
 };
 
@@ -244,7 +312,7 @@ PROXY_HOST_DEVICE real_t QkHexahedronBase<GL_BASIS>::computeDampingTerm(int cons
   real_t B[3];
   real_t J[3][2] = {{0}};
   jacobianTransformation2d(qa, qb, X, J);
-  // compute J^T.J, using Voigt notation for B
+  // B = J^T J, 2x2 Voigt storage (B00, B11, B01).
   B[0] = J[0][0] * J[0][0] + J[1][0] * J[1][0] + J[2][0] * J[2][0];
   B[1] = J[0][1] * J[0][1] + J[1][1] * J[1][1] + J[2][1] * J[2][1];
   B[2] = J[0][0] * J[0][1] + J[1][0] * J[1][1] + J[2][0] * J[2][1];
@@ -259,7 +327,7 @@ PROXY_HOST_DEVICE void QkHexahedronBase<GL_BASIS>::computeBMatrix(int const qa, 
   real_t const detJ = determinant(J);
   real_t const invDetJ = 1.0 / detJ;
 
-  // compute J^T.J/det(J), using Voigt notation for B
+  // B = J^T J / det(J), then inverted in place into det(J) J^-1 J^-T.
   B[0] = (J[0][0] * J[0][0] + J[1][0] * J[1][0] + J[2][0] * J[2][0]) * invDetJ;
   B[1] = (J[0][1] * J[0][1] + J[1][1] * J[1][1] + J[2][1] * J[2][1]) * invDetJ;
   B[2] = (J[0][2] * J[0][2] + J[1][2] * J[1][2] + J[2][2] * J[2][2]) * invDetJ;
@@ -267,7 +335,6 @@ PROXY_HOST_DEVICE void QkHexahedronBase<GL_BASIS>::computeBMatrix(int const qa, 
   B[4] = (J[0][0] * J[0][2] + J[1][0] * J[1][2] + J[2][0] * J[2][2]) * invDetJ;
   B[5] = (J[0][0] * J[0][1] + J[1][0] * J[1][1] + J[2][0] * J[2][1]) * invDetJ;
 
-  // compute detJ*J^{-1}J^{-T}
   symInvert(B);
 }
 
@@ -291,14 +358,13 @@ PROXY_HOST_DEVICE void QkHexahedronBase<GL_BASIS>::computeGradPhiBGradPhi(real_t
       const real_t gja = basisGradientAt(j, qa);
       const real_t gjb = basisGradientAt(j, qb);
       const real_t gjc = basisGradientAt(j, qc);
-      // diagonal terms
       const real_t w0 = w * gia * gja;
       func2(ibc, jbc, w0 * B[0]);
       const real_t w1 = w * gib * gjb;
       func2(aic, ajc, w1 * B[1]);
       const real_t w2 = w * gic * gjc;
       func2(abi, abj, w2 * B[2]);
-      // off-diagonal terms
+      // B is symmetric: each off-diagonal term contributes to (i, j) and (j, i).
       const real_t w3 = w * gib * gjc;
       func2(aic, abj, w3 * B[3]);
       func2(abj, aic, w3 * B[3]);
@@ -333,19 +399,18 @@ PROXY_HOST_DEVICE void QkHexahedronBase<GL_BASIS>::computeStiffnessTermSumFact(f
                                                                                real_t const (&u_local)[numNodes],
                                                                                real_t (&v_local)[numNodes],
                                                                                FUNC_ALPHA &&get_alpha) {
-  // Weighted fluxes G^{ξ,η,ζ}[q] = w_q * alpha_q * M(B_q) · ∇_ξ u_q
+  // Weighted fluxes at each quadrature point q:
+  // (G_xi, G_eta, G_zeta)[q] = w_q * alpha_q * B_q * (parent gradient of u at q).
   real_t G_xi[numNodes] = {0};
   real_t G_eta[numNodes] = {0};
   real_t G_zeta[numNodes] = {0};
 
-  // Pass 1+2 fused: gradient of u, then application of the metric, alpha and weight
   triple_loop<num1dNodes, num1dNodes, num1dNodes>([&](auto const icqa, auto const icqb, auto const icqc) {
     constexpr int qa = decltype(icqa)::value;
     constexpr int qb = decltype(icqb)::value;
     constexpr int qc = decltype(icqc)::value;
     constexpr int q = GL_BASIS::TensorProduct3D::linearIndex(qa, qb, qc);
 
-    // Quadrature weight management is internal to the math library
     constexpr real_t w = GL_BASIS::weight(qa) * GL_BASIS::weight(qb) * GL_BASIS::weight(qc);
 
     real_t dxi_q = 0, deta_q = 0, dzeta_q = 0;
@@ -364,7 +429,6 @@ PROXY_HOST_DEVICE void QkHexahedronBase<GL_BASIS>::computeStiffnessTermSumFact(f
     real_t B[6] = {0};
     computeBMatrix(qa, qb, qc, X, J, B);
 
-    // 'scale' combines physics (alpha) and quadrature weight (w)
     real_t const scale = w * get_alpha(qa, qb, qc);
 
     G_xi[q] = scale * (B[0] * dxi_q + B[5] * deta_q + B[4] * dzeta_q);
@@ -372,7 +436,8 @@ PROXY_HOST_DEVICE void QkHexahedronBase<GL_BASIS>::computeStiffnessTermSumFact(f
     G_zeta[q] = scale * (B[4] * dxi_q + B[3] * deta_q + B[2] * dzeta_q);
   });
 
-  // Pass 3: divergence — v_{ia,ib,ic} += D^T·G^ξ + D^T·G^η + D^T·G^ζ
+  // Apply the transposed 1D derivative matrix along each axis:
+  // v[node] += sum over the quadrature points on the node's three lines.
   triple_loop<num1dNodes, num1dNodes, num1dNodes>([&](auto const icia, auto const icib, auto const icic) {
     constexpr int ia = decltype(icia)::value;
     constexpr int ib = decltype(icib)::value;

@@ -90,3 +90,22 @@ Nothing here has been fixed yet.
 - `IOControllerBase`: the class comment promised row-major storage of multi-dimensional
   arrays independent of `Layout`, but the interface only takes a flat `HostVectorReal` that
   is written verbatim; `local_dims` is metadata never checked against the view size.
+- `src/discretization/fe/impl/common/qk_hexahedron_base.h`, `computeMassTerm`,
+  `computeStiffnessTerm`, `computeStiffnessTermSumFact`: they take the vertex coordinates as
+  `float const (&X)[8][3]` and pass them to `jacobianTransformation` / `computeBMatrix`, which
+  expect `real_t const (&)[8][3]`: this cannot compile when `real_t` is `double`. Hidden
+  because the class is never instantiated.
+- `src/discretization/fe/impl/common/`: the headers are not self-contained. `mathUtilites.h`
+  uses `PROXY_HOST_DEVICE` without including `common_macros.h` and mixes it with a second
+  host/device macro, `SEMKERNELS_HOST_DEVICE` (`macros.h`); `LagrangeBasis*.h` use `real_t`,
+  `PROXY_HOST_DEVICE` and `pow` without including them; `qk_hexahedron_base.h` uses
+  `triple_loop` / `for_constexpr`, defined in the makutu back-end header. Conversely
+  `Integrals.h` includes both back-end headers, which include `common`: the shared layer
+  depends on the back-ends.
+- `LagrangeBasis*::gradientAt`: orders 1 to 5 only tabulate the nodes `p <= (n-1)/2` and return
+  meaningless values beyond, orders 6 to 9 tabulate every node. The contract depends on the
+  order and nothing checks that callers stay in the valid half.
+- `src/discretization/fe/impl/common/mathUtilites.h`: `determinant(T const&)`,
+  `linearIndex<ORDER>`, `tripleIndex<ORDER>`, `invert3x3` and `computeB` are used nowhere, and
+  `src/discretization/fe/impl/makutu/include/tensorops.h`, included by nothing, redefines
+  `invert3x3`, `symDeterminant` and `symInvert` with different signatures: dead duplicate code.

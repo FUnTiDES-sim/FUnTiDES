@@ -56,3 +56,33 @@ the caller's.
 `Rhs` stores the point sources of one run. For source `s`: `getElement()[s]` is the element that
 contains it, `getTerm(c)(s, t)` is the amplitude of component `c` at time sample `t`, and
 `getWeights()(s, l)` the weight of element-local DOF `l` (hexahedron local numbering above).
+
+## 1D Lagrange bases (`LagrangeBasis*`)
+
+`LagrangeBasis1`, `LagrangeBasis2` and `LagrangeBasisNGL` (N = 3 to 9) are stateless classes with
+the same static interface, used as the `GL_BASIS` template argument of the hexahedral
+discretizations. For a basis of order `r`, with `n = r + 1` nodes:
+
+- The parent interval is `[-1, 1]`. Its nodes are the `n` Gauss-Lobatto-Legendre points, in
+  increasing order: node 0 is -1, node `r` is +1 (for `r` = 1 and 2 they are equispaced).
+  `parentSupportCoord(q)` returns node `q`, `weight(q)` its quadrature weight (the weights sum
+  to 2).
+- `value(q, xi)` is the Lagrange polynomial of node `q` (1 at node `q`, 0 at the other nodes);
+  `gradient(q, xi)` is its derivative with respect to `xi`. `valueK()` / `gradientK()` are the
+  same for a fixed `q = K`. Indices must lie in `[0, r]`; no bound is checked.
+- `gradientAt(q, p)` is `gradient(q, parentSupportCoord(p))`, precomputed. Callers only query
+  `p <= (n - 1) / 2` and obtain the other half from the symmetry
+  `gradientAt(q, p) = -gradientAt(r - q, r - p)`. For `r <= 5` the table only holds that half
+  and returns meaningless values beyond it; for `r >= 6` it is complete.
+- `TensorProduct2D` and `TensorProduct3D` give the tensor-product nodes: `linearIndex(i, j)` is
+  `i + n*j` and `linearIndex(i, j, k)` is `i + n*j + n*n*k` (hexahedron local numbering above),
+  `multiIndex()` is its inverse, and `value(coords, N)` fills `N[linearIndex]` with the product
+  of the 1D basis values at the parent coordinates `coords`.
+
+The coefficients of orders 6 to 9 were produced by a generator script (`computGL.py`) that is
+not in the repository.
+
+## Symmetric 3x3 matrices (Voigt storage)
+
+The discretization kernels store a symmetric 3x3 matrix `A` as 6 values in the order
+`(A00, A11, A22, A12, A02, A01)`, and a symmetric 2x2 matrix as `(A00, A11, A01)`.

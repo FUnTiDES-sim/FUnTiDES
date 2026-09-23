@@ -2,30 +2,19 @@
 #define _LAGRANGEBASIS4GL_HPP_
 
 /**
- * @file LagrangeBasis4GL.hpp
- */
-
-/**
- * This class contains the implementation for a second order (quadratic)
- * Lagrange polynomial basis. The parent space is defined by:
+ * @brief Order 4 Lagrange basis on the 5 Gauss-Lobatto-Legendre nodes -1,
+ * -sqrt(3/7), 0, sqrt(3/7) and 1.
  *
- *                 o------o------o------o------o  ---> xi
- *  Index:         0      1      2      3      4
- *  Coordinate:   -1 -sqrt(3/7)  0  sqrt(3/7)  1
- *
+ * See docs/design.md, "1D Lagrange bases".
  */
 class LagrangeBasis4GL {
  public:
-  /// The number of support points for the basis
-  constexpr static int numSupportPoints = 5;
+  constexpr static int numSupportPoints = 5;  ///< Number of nodes, order + 1.
 
-  /// sqrt(3/7)
-  constexpr static double sqrt3_7 = 0.6546536707079771;
+  constexpr static double sqrt3_7 = 0.6546536707079771;  ///< sqrt(3/7).
 
   /**
-   * @brief The value of the weight for the given support point
-   * @param q The index of the support point
-   * @return The value of the weight
+   * @brief Gauss-Lobatto quadrature weight of node @p q on [-1, 1].
    */
   constexpr static double weight(const int q) {
     switch (q) {
@@ -41,13 +30,8 @@ class LagrangeBasis4GL {
   }
 
   /**
-   * @brief Calculate the parent coordinates for the xi0 direction, given the
-   *   linear index of a support point.
-   * @param supportPointIndex The linear index of support point
-   * @return parent coordinate in the xi0 direction.
+   * @brief Parent coordinate of node @p supportPointIndex, in [-1, 1].
    */
-  // depending on the supportPointIndex value
-  // Switch case
   constexpr static double parentSupportCoord(const int supportPointIndex) {
     double result = 0.0;
 
@@ -75,11 +59,7 @@ class LagrangeBasis4GL {
   }
 
   /**
-   * @brief The value of the basis function for a support point evaluated at a
-   *   point along the axes.
-   * @param index The index of the support point.
-   * @param xi The coordinate at which to evaluate the basis.
-   * @return The value of basis function.
+   * @brief Value at @p xi of the basis function of node @p index.
    */
   constexpr static double value(const int index, const double xi) {
     double result = 0.0;
@@ -108,49 +88,34 @@ class LagrangeBasis4GL {
   }
 
   /**
-   * @brief The value of the basis function for support point 0.
-   * @param xi The coordinate at which to evaluate the basis.
-   * @return The value of the basis.
+   * @brief Value at @p xi of the basis function of node 0.
    */
-  // MODFI4 : Implemented new base functions and their derivative for Q3
   constexpr static double value0(const double xi) { return (1.0 / 8.0) * (-1.0 + xi) * xi * (-3.0 + 7.0 * xi * xi); }
 
   /**
-   * @brief The value of the basis function for support point 1.
-   * @param xi The coordinate at which to evaluate the basis.
-   * @return The value of the basis.
+   * @brief Value at @p xi of the basis function of node 1.
    */
   constexpr static double value1(const double xi) { return (49.0 / 24.0) * (sqrt3_7 - xi) * xi * (-1.0 + xi * xi); }
 
   /**
-   * @brief The value of the basis function for support point 2.
-   * @param xi The coordinate at which to evaluate the basis.
-   * @return The value of the basis.
+   * @brief Value at @p xi of the basis function of node 2.
    */
   constexpr static double value2(const double xi) {
     return (1.0 / 3.0) * (3.0 - 10.0 * xi * xi + 7.0 * xi * xi * xi * xi);
   }
 
   /**
-   * @brief The value of the basis function for support point 3.
-   * @param xi The coordinate at which to evaluate the basis.
-   * @return The value of the basis.
+   * @brief Value at @p xi of the basis function of node 3.
    */
   constexpr static double value3(const double xi) { return -(49.0 / 24.0) * (sqrt3_7 + xi) * xi * (-1.0 + xi * xi); }
 
   /**
-   * @brief The value of the basis function for support point 4.
-   * @param xi The coordinate at which to evaluate the basis.
-   * @return The value of the basis.
+   * @brief Value at @p xi of the basis function of node 4.
    */
   constexpr static double value4(const double xi) { return (1.0 / 8.0) * (1.0 + xi) * xi * (-3.0 + 7.0 * xi * xi); }
 
   /**
-   * @brief The gradient of the basis function for a support point evaluated at
-   * a point along the axes.
-   * @param index The index of the support point.
-   * @param xi The coordinate at which to evaluate the basis.
-   * @return The value of basis function.
+   * @brief Derivative at @p xi of the basis function of node @p index.
    */
   constexpr static double gradient(const int index, const double xi) {
     double result = 0.0;
@@ -179,59 +144,43 @@ class LagrangeBasis4GL {
   }
 
   /**
-   * @brief The gradient of the basis function for support point 0 evaluated at
-   *   a point along the axes.
-   * @param xi The coordinate at which to evaluate the gradient.
-   * @return The gradient of basis function
+   * @brief Derivative at @p xi of the basis function of node 0.
    */
   constexpr static double gradient0(const double xi) {
     return (1.0 / 8.0) * (3.0 + xi * (-6.0 + 7.0 * xi * (-3.0 + 4.0 * xi)));
   }
 
   /**
-   * @brief The gradient of the basis function for support point 1 evaluated at
-   *   a point along the axes.
-   * @param xi The coordinate at which to evaluate the gradient.
-   * @return The gradient of basis function
+   * @brief Derivative at @p xi of the basis function of node 1.
    */
   constexpr static double gradient1(const double xi) {
     return (49.0 / 24.0) * (-sqrt3_7 + xi * (2.0 + 3.0 * sqrt3_7 * xi - 4.0 * xi * xi));
   }
 
   /**
-   * @brief The gradient of the basis function for support point 1 evaluated at
-   *   a point along the axes.
-   * @param xi The coordinate at which to evaluate the gradient.
-   * @return The gradient of basis function
+   * @brief Derivative at @p xi of the basis function of node 2.
    */
   constexpr static double gradient2(const double xi) { return (4.0 / 3.0) * xi * (-5.0 + 7.0 * xi * xi); }
 
   /**
-   * @brief The gradient of the basis function for support point 3 evaluated at
-   *   a point along the axes.
-   * @param xi The coordinate at which to evaluate the gradient.
-   * @return The gradient of basis function
+   * @brief Derivative at @p xi of the basis function of node 3.
    */
   constexpr static double gradient3(const double xi) {
     return (49.0 / 24.0) * (sqrt3_7 + xi * (2.0 - 3.0 * sqrt3_7 * xi - 4.0 * xi * xi));
   }
 
   /**
-   * @brief The gradient of the basis function for support point 4 evaluated at
-   *   a point along the axes.
-   * @param xi The coordinate at which to evaluate the gradient.
-   * @return The gradient of basis function
+   * @brief Derivative at @p xi of the basis function of node 4.
    */
   constexpr static double gradient4(const double xi) {
     return (1.0 / 8.0) * (-3.0 + xi * (-6.0 + 7.0 * xi * (3.0 + 4.0 * xi)));
   }
 
   /**
-   * @brief The gradient of the basis function for a support point evaluated at
-   *   a given support point. By symmetry, p is assumed to be in 0, ..., (N-1)/2
-   * @param q The index of the basis function
-   * @param p The index of the support point
-   * @return The gradient of basis function.
+   * @brief Derivative of the basis function of node @p q at node @p p.
+   *
+   * @pre p <= (numSupportPoints - 1) / 2: other values of @p p return a
+   * meaningless result. See docs/design.md, "1D Lagrange bases".
    */
   constexpr static double gradientAt(const int q, const int p) {
     switch (q) {
@@ -290,49 +239,23 @@ class LagrangeBasis4GL {
   }
 
   /**
-   * @class TensorProduct2D
+   * @brief Tensor product of the 1D basis on the parent square [-1, 1]^2.
    *
-   *                                                                    _____________________________
-   *        20       21      22         23     24                      |Node xi0
-   * xi1    | o-------o-------o-------o-------o                        |=====
-   * ===         ===    | |                               | |  0       -1 -1 |
-   *          |                               |                        |  1
-   * -sqrt(3/7)      -1     | 15 o    16 o    17 o       o 18    o 19 |  2 0 -1
-   * | |                               |                        |  3 sqrt(3/7)
-   * -1     | |                               |                        |  4 1 -1
-   * | |                               |                        |  5       -1
-   * -sqrt(3/7) | 10 o    11 o    12 o       o 13    o 14                     |
-   * 6   -sqrt(3/7)  -sqrt(3/7) | |                               | |  7 0
-   * -sqrt(3/7) | |                               |                        |  8
-   * sqrt(3/7)  -sqrt(3/7) | |                               | |  9        1
-   * -sqrt(3/7) | 5 o     6 o     7 o       o 8     o 9         xi1          |
-   * 10       -1           0     | |                               | | | 11
-   * -sqrt(3/7)       0     | |                               |            | |
-   * ........................... | o-------o-------o-------o-------o | | 13 0 1
-   * | 0        1       2       3       4            o----- xi0  | 14 sqrt(3/7)
-   * 1     | | 15        1           1     |
-   *                                                                   |_____________________________|
-   *
+   * See docs/design.md, "1D Lagrange bases".
    */
   struct TensorProduct2D {
-    /// The number of support points in the 2D tensor product
-    constexpr static int numSupportPoints = 25;
+    constexpr static int numSupportPoints = 25;  ///< Number of nodes, 5^2.
 
     /**
-     * @brief Calculates the linear index for support/quadrature points from ij
-     *   coordinates.
-     * @param i The index in the xi0 direction (0,1)
-     * @param j The index in the xi1 direction (0,1)
-     * @return The linear index of the support/quadrature point (0-15)
+     * @brief Index i + 5*j of the node (i, j), with i and j in [0, 4].
      */
     constexpr static int linearIndex(const int i, const int j) { return i + 5 * j; }
 
     /**
-     * @brief Calculate the Cartesian/TensorProduct index given the linear index
-     *   of a support point.
-     * @param linearIndex The linear index of support point
-     * @param i0 The Cartesian index of the support point in the xi0 direction.
-     * @param i1 The Cartesian index of the support point in the xi1 direction.
+     * @brief Inverse of linearIndex().
+     * @param[in] linearIndex Node index.
+     * @param[out] i0 Index along xi0.
+     * @param[out] i1 Index along xi1.
      */
     constexpr static void multiIndex(int const linearIndex, int& i0, int& i1) {
       i1 = linearIndex / 5;
@@ -341,13 +264,9 @@ class LagrangeBasis4GL {
     }
 
     /**
-     * @brief The value of the basis function for a support point evaluated at a
-     *   point along the axes.
-     *
-     * @param coords The coordinates (in the parent frame) at which to evaluate
-     * the basis
-     * @param N Array to hold the value of the basis functions at each support
-     * point.
+     * @brief Values at one point of all the 2D basis functions.
+     * @param[in] coords Parent coordinates (xi0, xi1).
+     * @param[out] N N[linearIndex(a, b)] = value(a, xi0) * value(b, xi1).
      */
     static void value(const double (&coords)[2], double (&N)[numSupportPoints]) {
       for (int a = 0; a < 5; ++a) {
@@ -360,66 +279,27 @@ class LagrangeBasis4GL {
   };
 
   /**
-   * @class TensorProduct3D
+   * @brief Tensor product of the 1D basis on the parent cube [-1, 1]^3.
    *
-   *
-   *
-   *                                                                  _____________________________________
-   *                120      121     122     123       124           |Node xi0
-   * xi1         xi2 | o-------o-------o-------o-------o              |===== ===
-   * ===         === |
-   *                 /.                              /|              |   0 -1 -1
-   * -1 | 115 o .  116o    117o    118o    119o |              |   1 -sqrt(3/7)
-   * -1          -1 | /  o                            /  o              |   2 0
-   * -1          -1 | 110 o   .111o    112o    113o    114o   |              |
-   * 3    sqrt(3/7)      -1          -1 | /  o .                          /  o |
-   * |   4        1          -1          -1 | 105 o     . o106    o107    o108
-   * 109o     |              |   5       -1      -sqrt(3/7)      -1 | /  o   o
-   * 102     103    104/  o   o              |   6   -sqrt(3/7)  -sqrt(3/7) -1 |
-   *      100 o-------o-------o-------o-------o       |              |   7 0
-   * -sqrt(3/7)      -1 | | o   o . 101                   | o   o | |   8
-   * sqrt(3/7)  -sqrt(3/7)      -1 | |       .                       |       |
-   * |   9        1      -sqrt(3/7)      -1 | o   o   o       o       o       o
-   * o   o              |  10       -1           0          -1 | |       . | |
-   * |  11   -sqrt(3/7)       0          -1 | | o   o .20     21      22    23|
-   * o   o |24            |  12        0           0          -1 | |
-   * o.......o.......o.......|.......o              |  13    sqrt(3/7)       0
-   * -1 | o   o  ,o       o       o       o   o  /               |  14        1
-   * 0          -1 | |     o       o       o       o |     o                | ..
-   * ..          ..          .. | | o  ,15      13      17      18| o  /19 |  ..
-   * ..          ..          .. | |   o       o       o       o   |   o |  .. ..
-   * ..          .. | o  ,10  o   11  o   12  o   13  o  /14     xi2         |
-   * 121        -1          1           1 | | o       o       o       o     | o
-   * |           | 122    -sqrt(3/7)      1           1 |
-   *          |,5       6       7       8     |/9        | / xi1     | 123 0 1
-   * 1 | o-------o-------o-------o-------o          |/          | 124 sqrt(3/7)
-   * 1           1 | 0        1       2       3        4         o----- xi0  |
-   * 125         1          1           1 |
-   *                                                                 |______________________________________|
-   *
-   *
+   * See docs/design.md, "1D Lagrange bases".
    */
   struct TensorProduct3D {
-    /// The number of support points in the 3D tensor product
-    constexpr static int numSupportPoints = 125;
+    constexpr static int numSupportPoints = 125;  ///< Number of nodes, 5^3.
 
     /**
-     * @brief Calculates the linear index for support/quadrature points from ijk
-     *   coordinates.
-     * @param i The index in the xi0 direction (0,1)
-     * @param j The index in the xi1 direction (0,1)
-     * @param k The index in the xi2 direction (0,1)
-     * @return The linear index of the support/quadrature point (0-124)
+     * @brief Index i + 5*j + 25*k of the node (i, j, k), with i, j and k in
+     * [0, 4].
+     *
+     * See docs/design.md, "Hexahedron local numbering".
      */
     constexpr static int linearIndex(const int i, const int j, const int k) { return i + 5 * j + 25 * k; }
 
     /**
-     * @brief Calculate the Cartesian/TensorProduct index given the linear index
-     *   of a support point.
-     * @param linearIndex The linear index of support point
-     * @param i0 The Cartesian index of the support point in the xi0 direction.
-     * @param i1 The Cartesian index of the support point in the xi1 direction.
-     * @param i2 The Cartesian index of the support point in the xi2 direction.
+     * @brief Inverse of linearIndex().
+     * @param[in] linearIndex Node index.
+     * @param[out] i0 Index along xi0.
+     * @param[out] i1 Index along xi1.
+     * @param[out] i2 Index along xi2.
      */
     constexpr static void multiIndex(int const linearIndex, int& i0, int& i1, int& i2) {
       i2 = linearIndex / 25;
@@ -430,13 +310,10 @@ class LagrangeBasis4GL {
     }
 
     /**
-     * @brief The value of the basis function for a support point evaluated at a
-     *   point along the axes.
-     *
-     * @param coords The coordinates (in the parent frame) at which to evaluate
-     * the basis
-     * @param N Array to hold the value of the basis functions at each support
-     * point.
+     * @brief Values at one point of all the 3D basis functions.
+     * @param[in] coords Parent coordinates (xi0, xi1, xi2).
+     * @param[out] N N[linearIndex(a, b, c)] = value(a, xi0) * value(b, xi1) *
+     * value(c, xi2).
      */
     PROXY_HOST_DEVICE
     static void value(const double (&coords)[3], double (&N)[numSupportPoints]) {

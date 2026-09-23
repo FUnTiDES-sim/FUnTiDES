@@ -1,5 +1,6 @@
-# Shared implementation: mother class QkHexahedronBase, DiscretizationTraits,
-# and the compile-time / math helpers shared by every back-end.
+# Header-only code shared by the discretization back-ends: the 1D Lagrange
+# bases, the math helpers, the type selectors of Integrals.h, and
+# QkHexahedronBase (derived by no back-end yet, see docs/design-red-flags.md).
 add_library(fun_discretization_common INTERFACE)
 
 target_include_directories(fun_discretization_common INTERFACE
