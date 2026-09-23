@@ -1,0 +1,17 @@
+{
+  "permissions": {
+    "defaultMode": "acceptEdits",
+    "allow": [
+      "Read", "Grep", "Glob", "Edit", "Write",
+      "Bash(git status:*)", "Bash(git diff:*)", "Bash(git log:*)", "Bash(git show:*)",
+      "Bash(git merge-base:*)", "Bash(git add:*)", "Bash(git commit:*)",
+      "Bash(git checkout -- :*)",
+      "Bash(cmake --build:*)", "Bash(doxygen:*)", "Bash(grep:*)", "Bash(wc:*)",
+      "Bash(mkdir:*)", "Bash(scripts/check_comments_only.sh:*)"
+    ],
+    "deny": [
+      "Bash(git push:*)", "Bash(git reset:*)", "Bash(git rebase:*)",
+      "Bash(git stash:*)", "Bash(git checkout main:*)", "Bash(rm:*)"
+    ]
+  }
+}
