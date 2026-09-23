@@ -475,14 +475,16 @@ class Qk_Hexahedron_Tensorial_GEMM final {
     }
   }
 
-  /// @brief Team scratch size in bytes (level 0) needed by computeStiffnessOperatorTeamVector: 12 tensors [num1dNodes][num1dNodes^2].
+  /// @brief Team scratch size in bytes (level 0) needed by computeStiffnessOperatorTeamVector: 12 tensors
+  /// [num1dNodes][num1dNodes^2].
   static constexpr size_t scratchBytesPerTeam() {
     constexpr size_t sva = (sizeof(real_t) >= 8) ? sizeof(real_t) : 8;
     constexpr size_t per2d = num1dNodes * numNodesPerFace * sizeof(real_t) + sva;
     return 12 * per2d;
   }
 
-  /// @brief Team scratch size in bytes (level 0) needed by computeStiffnessOperatorTeamVectorStreaming: scratchBytesPerTeam() plus numNodes * 6 reals.
+  /// @brief Team scratch size in bytes (level 0) needed by computeStiffnessOperatorTeamVectorStreaming:
+  /// scratchBytesPerTeam() plus numNodes * 6 reals.
   static constexpr size_t scratchBytesPerTeamStreaming() {
     constexpr size_t sva = (sizeof(real_t) >= 8) ? sizeof(real_t) : 8;
     constexpr size_t perW = numNodes * 6 * sizeof(real_t) + sva;
@@ -526,7 +528,8 @@ class Qk_Hexahedron_Tensorial_GEMM final {
     }
   }
 
-  /// @brief Team-parallel matrix product C = A * B, output entries distributed over TeamVectorRange. The caller must synchronize the team afterwards.
+  /// @brief Team-parallel matrix product C = A * B, output entries distributed over TeamVectorRange. The caller must
+  /// synchronize the team afterwards.
   template <int ROWS, int INNER, int COLS, typename MemberType, typename ViewA, typename ViewB, typename ViewC>
   KOKKOS_INLINE_FUNCTION static void matmul_NN_team(const MemberType &member, const ViewA &A, const ViewB &B,
                                                     const ViewC &C) {
@@ -539,7 +542,8 @@ class Qk_Hexahedron_Tensorial_GEMM final {
     });
   }
 
-  /// @brief Team-parallel matrix product C = A^T * B, output entries distributed over TeamVectorRange. The caller must synchronize the team afterwards.
+  /// @brief Team-parallel matrix product C = A^T * B, output entries distributed over TeamVectorRange. The caller must
+  /// synchronize the team afterwards.
   template <int ROWS, int INNER, int COLS, typename MemberType, typename ViewA, typename ViewB, typename ViewC>
   KOKKOS_INLINE_FUNCTION static void matmul_TN_team(const MemberType &member, const ViewA &A, const ViewB &B,
                                                     const ViewC &C) {
@@ -562,7 +566,8 @@ class Qk_Hexahedron_Tensorial_GEMM final {
    * @param      member Team handle.
    * @param[in]  u      Nodal input field, size numNodes.
    * @param[out] Y      Nodal output field, size numNodes; overwritten.
-   * @param[in]  W      Weighted metrics from computeElementMetrics, size numNodes * 6. Any coefficient (1/rho for acoustics) must already be folded into W.
+   * @param[in]  W      Weighted metrics from computeElementMetrics, size numNodes * 6. Any coefficient (1/rho for
+   * acoustics) must already be folded into W.
    * @param[in]  D_flat 1D derivative operator, row-major, see fillDerivativeMatrix.
    */
   template <typename MemberType>

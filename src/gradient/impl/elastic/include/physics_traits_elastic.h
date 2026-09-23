@@ -14,7 +14,7 @@ namespace gradient {
  */
 template <>
 struct PhysicsTraits<utils::enums::physicType::kElastic> {
-  static constexpr const char* kName = "Elastic";  ///< Human-readable physics name.
+  static constexpr const char* kName = "Elastic";                  ///< Human-readable physics name.
   using WavefieldViewForwardType = WavefieldViewForwardElastic;    ///< Forward wavefield view.
   using WavefieldViewBackwardType = WavefieldViewBackwardElastic;  ///< Backward wavefield view.
   using GradientType = GradientElastic;                            ///< Gradient container.

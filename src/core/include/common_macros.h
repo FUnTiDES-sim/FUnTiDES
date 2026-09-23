@@ -92,7 +92,8 @@
       Range, KOKKOS_CLASS_LAMBDA(const int i, decltype(Result)& local_sum) { local_sum += Array[i]; }, \
       Kokkos::Sum<decltype(Result)>(Result));
 
-/// @todo VERIFY: what is KOKKOSNAME used for? It expands to the string literal "v" followed by a comma, apparently as the label argument of a Kokkos::View constructor.
+/// @todo VERIFY: what is KOKKOSNAME used for? It expands to the string literal "v" followed by a comma, apparently as
+/// the label argument of a Kokkos::View constructor.
 #define KOKKOSNAME "v",
 
 #endif  // FUNTIDES_CORE_INCLUDE_COMMON_MACROS_H_

@@ -23,7 +23,7 @@ namespace gradient {
 template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE, bool IS_MODEL_ON_NODES>
 class DifferentiatorAcoustic : public Differentiator {
  public:
-  static constexpr int kOrder = ORDER;                    ///< Polynomial order.
+  static constexpr int kOrder = ORDER;                        ///< Polynomial order.
   static constexpr bool kIsModelOnNodes = IS_MODEL_ON_NODES;  ///< True if the model is stored per node.
   static constexpr int kPointsPerElement = (ORDER + 1) * (ORDER + 1) * (ORDER + 1);  ///< Nodes per element.
 
