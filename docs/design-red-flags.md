@@ -14,9 +14,9 @@ Nothing here has been fixed yet.
   `getGlobalFace`, `getGlobalNodeFromFace` and `isBoundaryFace`, with different
   semantics for `isBoundaryFace`: duplicated interface.
 - `src/discretization/fe/`: unfinished migration. `QkHexahedronBase` is never
-  derived from, `FeDiscretizationTag` is never inherited, `AssertFeDiscretization`
-  and `DiscretizationTraits` are never used; dispatch still goes through the
-  deprecated `IntegralTypeSelector`.
+  derived from, so `FeDiscretizationTag` reaches no back-end and
+  `AssertFeDiscretization` would reject both; it and `DiscretizationTraits` are never
+  used; dispatch still goes through the deprecated `IntegralTypeSelector`.
 - Mass matrix assembly (`computeGlobalMassMatrix` in `sem_solver_impl.h`,
   `initGeometricMassMatrix` in both differentiators): the local index is decoded
   as x = i % n, z = (i/n) % n, y = i/n^2, then passed to globalNodeIndex(e, x, y, z),
@@ -78,3 +78,7 @@ Nothing here has been fixed yet.
   the acoustic node-based `compute()` builds it lazily and the elastic `compute()` never uses
   it: acoustic node gradients are divided by the nodal volumes, elastic node gradients are
   not. The lazy build also mutates the object from a `const` method through `const_cast`.
+- `src/discretization/fe/api/fe_discretization_kind.h`, `DiscretizationKind`: declared in
+  namespace `solver::fe` inside the discretization API (whose other header uses
+  `discretization::fe::api`), and duplicates the runtime selector `utils::enums::implemType`
+  (`sem_enums.h`), which only has `kMakutu`: two unrelated enums name the same back-ends.
