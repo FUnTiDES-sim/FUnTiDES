@@ -42,6 +42,10 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::com
   allocateFEarrays();
   initFEarrays();
 
+  // C-PML setup (allocates coefficient/memory-variable arrays and fills the
+  // per-node profiles). No-op when pmlEnabled_ is false.
+  setupPML();
+
   // Compute Local Mass Matrix
   computeGlobalMassMatrix();
   // Compute Local Damping Matrix
@@ -83,14 +87,10 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::com
   auto& myData = dynamic_cast<DataType&>(data);
 
   resetGlobalVectors(m_mesh.getNumberOfNodes());
-  FENCE
   applyRHSTerm(timeSample, dt, myData);
-  FENCE
   computeElementContributions(myData);
-  FENCE
   if (attenuationEnabled_ && nSls_ > 0) {
     computeAttenuationContributions(myData);
-    FENCE
   }
 }
 
@@ -345,8 +345,16 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::com
 template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE, bool IS_MODEL_ON_NODES, physicType PHYSICS>
 void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::computeElementContributions_Acoustic(
     const DataType& data) {
+  // The C-PML path needs the per-GLL-point memory variables and stretched
+  // gradient, so it always uses the sum-factorization (Flat) kernel — the
+  // GEMM path precomputes W = w·alpha·B which is only valid for the
+  // unstretched operator.
   if constexpr (detail::has_team_gemm<INTEGRAL_TYPE>::value) {
-    computeElementContributions_Acoustic_Gemm(data);  // tensorial -> GEMM
+    if (pmlEnabled_) {
+      computeElementContributions_Acoustic_Flat(data);
+    } else {
+      computeElementContributions_Acoustic_Gemm(data);  // tensorial -> GEMM
+    }
   } else {
     computeElementContributions_Acoustic_Flat(data);  // makutu (Gauss-Lobatto) -> flat
   }
@@ -365,66 +373,210 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::com
     local_workVectorsGlobal[f] = workVectorsGlobal_[f];
   }
 
-  using Policy = Kokkos::RangePolicy<Kokkos::LaunchBounds<LaunchMaxThreadsPerBlock, LaunchMinBlocksPerSM>>;
+  // C-PML state captured by value (device copies of the Views).
+  bool const pml_enabled = pmlEnabled_;
+  auto pml_coeff = pmlCoefficients_;
+  auto pml_mem = pmlMemoryVariables_;
+  auto pml_elem_mask = pmlElementMask_;
 
-  Kokkos::parallel_for(
-      "Solver Element Contribution Acoustic", Policy(0, n_iter), KOKKOS_LAMBDA(const int _loop_idx) {
-        int const elementNumber = list_on ? list_local[_loop_idx] : _loop_idx;
+  if constexpr (detail::has_team_gemm<INTEGRAL_TYPE>::value) {
+    // ---- Team-parallel path (tensorial GEMM type) ----
+    // One team per element, the numNodes quadrature points split across the
+    // team (TeamVectorRange), so occupancy scales with team_size instead of
+    // being one-thread-per-element. Scratch: fields + work + PML memory
+    // variables + the G flux arrays.
+    using ExecSpace = Kokkos::DefaultExecutionSpace;
+    using TeamPolicyType = Kokkos::TeamPolicy<ExecSpace>;
+    using TeamMember = typename TeamPolicyType::member_type;
+    using ScratchView2D = Kokkos::View<float**, Kokkos::LayoutRight, ExecSpace::scratch_memory_space,
+                                       Kokkos::MemoryTraits<Kokkos::Unmanaged>>;
 
-        constexpr int dim = ORDER + 1;
+    constexpr int dim = ORDER + 1;
+    constexpr int pointsPerElem = dim * dim * dim;
 
-        float localFields[kNumFields][kPointsPerElement];
-        float localWork[kNumFields][kPointsPerElement] = {{0}};
+    TeamPolicyType policy(n_iter, Kokkos::AUTO);
+    size_t bytes_fields = ScratchView2D::shmem_size(kNumFields, pointsPerElem) * 2;
+    size_t bytes_mem = ScratchView2D::shmem_size(6, pointsPerElem);
+    size_t bytes_g = ScratchView2D::shmem_size(3, pointsPerElem);
+    policy.set_scratch_size(0, Kokkos::PerTeam(bytes_fields + bytes_mem + bytes_g));
 
-        for (int k = 0; k < dim; ++k) {
-          for (int j = 0; j < dim; ++j) {
-            for (int i = 0; i < dim; ++i) {
-              int const globalIdx = mesh_local.globalNodeIndex(elementNumber, i, j, k);
-              int const localIdx = i + j * dim + k * dim * dim;
-              for (int f = 0; f < kNumFields; ++f) {
-                localFields[f][localIdx] = data.getCurrentField(f)(globalIdx);
-              }
+    Kokkos::parallel_for(
+        "Solver Element Contribution Acoustic", policy, KOKKOS_LAMBDA(const TeamMember& team) {
+          int const _loop_idx = team.league_rank();
+          int const elementNumber = list_on ? list_local[_loop_idx] : _loop_idx;
+
+          ScratchView2D localFields(team.team_scratch(0), kNumFields, pointsPerElem);
+          ScratchView2D localWork(team.team_scratch(0), kNumFields, pointsPerElem);
+          ScratchView2D mem_local(team.team_scratch(0), 6, pointsPerElem);
+          ScratchView2D G(team.team_scratch(0), 3, pointsPerElem);
+
+          // Load fields into scratch.
+          Kokkos::parallel_for(Kokkos::TeamThreadRange(team, pointsPerElem), [&](const int localIdx) {
+            int i = localIdx % dim;
+            int j = (localIdx / dim) % dim;
+            int k = localIdx / (dim * dim);
+            int const globalIdx = mesh_local.globalNodeIndex(elementNumber, i, j, k);
+            for (int f = 0; f < kNumFields; ++f) {
+              localFields(f, localIdx) = data.getCurrentField(f)(globalIdx);
+              localWork(f, localIdx) = 0.0f;
             }
+          });
+          team.team_barrier();
+
+          float cornerCoords[8][3];
+          {
+            auto const eIdx = mesh_local.elementIndex(elementNumber);
+            int I = 0;
+            for (int kv = 0; kv < 2; ++kv)
+              for (int jv = 0; jv < 2; ++jv)
+                for (int iv = 0; iv < 2; ++iv)
+                  mesh_local.vertexCoords(mesh_local.globalVertexIndex(eIdx, iv, jv, kv), cornerCoords[I++]);
           }
-        }
 
-        float cornerCoords[8][3];
-        {
-          auto const eIdx = mesh_local.elementIndex(elementNumber);
-          int I = 0;
-          for (int kv = 0; kv < 2; ++kv)
-            for (int jv = 0; jv < 2; ++jv)
-              for (int iv = 0; iv < 2; ++iv)
-                mesh_local.vertexCoords(mesh_local.globalVertexIndex(eIdx, iv, jv, kv), cornerCoords[I++]);
-        }
+          real_t inv_density = 0.0f;
+          if constexpr (!IS_MODEL_ON_NODES) {
+            inv_density = 1.0f / mesh_local.getModelRhoOnElement(elementNumber);
+          }
 
-        real_t inv_density = 0.0f;
-        if constexpr (!IS_MODEL_ON_NODES) {
-          inv_density = 1.0f / mesh_local.getModelRhoOnElement(elementNumber);
-        }
+          auto get_alpha = [&](const int qa, const int qb, const int qc) -> real_t {
+            if constexpr (IS_MODEL_ON_NODES) {
+              int const gIndex = mesh_local.globalNodeIndex(elementNumber, qa, qb, qc);
+              return 1.0f / mesh_local.getModelRhoOnNodes(gIndex);
+            } else {
+              return inv_density;
+            }
+          };
 
-        INTEGRAL_TYPE::computeStiffnessTermSumFact(
-            cornerCoords, localFields[0], localWork[0], [&](const int qa, const int qb, const int qc) -> real_t {
-              if constexpr (IS_MODEL_ON_NODES) {
-                int const gIndex = mesh_local.globalNodeIndex(elementNumber, qa, qb, qc);
-                return 1.0f / mesh_local.getModelRhoOnNodes(gIndex);
-              } else {
-                return inv_density;
-              }
+          if (pml_enabled && pml_elem_mask(elementNumber) == 1) {
+            // Load the per-element memory variables (psi for the trial gradient,
+            // chi for the divergence) into scratch.
+            Kokkos::parallel_for(Kokkos::TeamThreadRange(team, 6 * pointsPerElem), [&](const int idx) {
+              mem_local(idx / pointsPerElem, idx % pointsPerElem) = pml_mem(elementNumber, idx);
             });
+            team.team_barrier();
 
-        for (int k = 0; k < dim; ++k) {
-          for (int j = 0; j < dim; ++j) {
-            for (int i = 0; i < dim; ++i) {
-              int const globalIdx = mesh_local.globalNodeIndex(elementNumber, i, j, k);
-              int const localIdx = i + j * dim + k * dim * dim;
-              for (int f = 0; f < kNumFields; ++f) {
-                ATOMICADD(local_workVectorsGlobal[f][globalIdx], localWork[f][localIdx]);
+            INTEGRAL_TYPE::computeStiffnessTermSumFactPML_team(
+                team, cornerCoords, &localFields(0, 0), &localWork(0, 0), &mem_local(0, 0), &G(0, 0), &G(1, 0),
+                &G(2, 0), get_alpha,
+                [&](const int qa, const int qb, const int qc, real_t(&kappa)[3], real_t(&coef0)[3], real_t(&coef1)[3]) {
+                  int const gIndex = mesh_local.globalNodeIndex(elementNumber, qa, qb, qc);
+                  for (int j = 0; j < 3; ++j) {
+                    kappa[j] = pml_coeff(gIndex, j);
+                    coef0[j] = pml_coeff(gIndex, 3 + j);
+                    coef1[j] = pml_coeff(gIndex, 6 + j);
+                  }
+                });
+
+            // Store the advanced memory variables back.
+            Kokkos::parallel_for(Kokkos::TeamThreadRange(team, 6 * pointsPerElem), [&](const int idx) {
+              pml_mem(elementNumber, idx) = mem_local(idx / pointsPerElem, idx % pointsPerElem);
+            });
+            team.team_barrier();
+          } else {
+            INTEGRAL_TYPE::computeStiffnessTermSumFact_team(team, cornerCoords, &localFields(0, 0), &localWork(0, 0),
+                                                            &G(0, 0), &G(1, 0), &G(2, 0), get_alpha);
+          }
+
+          // Scatter to global with atomics.
+          Kokkos::parallel_for(Kokkos::TeamThreadRange(team, pointsPerElem), [&](const int localIdx) {
+            int i = localIdx % dim;
+            int j = (localIdx / dim) % dim;
+            int k = localIdx / (dim * dim);
+            int const globalIdx = mesh_local.globalNodeIndex(elementNumber, i, j, k);
+            for (int f = 0; f < kNumFields; ++f) {
+              ATOMICADD(local_workVectorsGlobal[f][globalIdx], localWork(f, localIdx));
+            }
+          });
+        });
+  } else {
+    // ---- Serial path (makutu Gauss-Lobatto type) ----
+    using Policy = Kokkos::RangePolicy<Kokkos::LaunchBounds<LaunchMaxThreadsPerBlock, LaunchMinBlocksPerSM>>;
+
+    Kokkos::parallel_for(
+        "Solver Element Contribution Acoustic", Policy(0, n_iter), KOKKOS_LAMBDA(const int _loop_idx) {
+          int const elementNumber = list_on ? list_local[_loop_idx] : _loop_idx;
+
+          constexpr int dim = ORDER + 1;
+
+          float localFields[kNumFields][kPointsPerElement];
+          float localWork[kNumFields][kPointsPerElement] = {{0}};
+
+          for (int k = 0; k < dim; ++k) {
+            for (int j = 0; j < dim; ++j) {
+              for (int i = 0; i < dim; ++i) {
+                int const globalIdx = mesh_local.globalNodeIndex(elementNumber, i, j, k);
+                int const localIdx = i + j * dim + k * dim * dim;
+                for (int f = 0; f < kNumFields; ++f) {
+                  localFields[f][localIdx] = data.getCurrentField(f)(globalIdx);
+                }
               }
             }
           }
-        }
-      });
+
+          float cornerCoords[8][3];
+          {
+            auto const eIdx = mesh_local.elementIndex(elementNumber);
+            int I = 0;
+            for (int kv = 0; kv < 2; ++kv)
+              for (int jv = 0; jv < 2; ++jv)
+                for (int iv = 0; iv < 2; ++iv)
+                  mesh_local.vertexCoords(mesh_local.globalVertexIndex(eIdx, iv, jv, kv), cornerCoords[I++]);
+          }
+
+          real_t inv_density = 0.0f;
+          if constexpr (!IS_MODEL_ON_NODES) {
+            inv_density = 1.0f / mesh_local.getModelRhoOnElement(elementNumber);
+          }
+
+          auto get_alpha = [&](const int qa, const int qb, const int qc) -> real_t {
+            if constexpr (IS_MODEL_ON_NODES) {
+              int const gIndex = mesh_local.globalNodeIndex(elementNumber, qa, qb, qc);
+              return 1.0f / mesh_local.getModelRhoOnNodes(gIndex);
+            } else {
+              return inv_density;
+            }
+          };
+
+          if (pml_enabled && pml_elem_mask(elementNumber) == 1) {
+            // C-PML path: load the per-element memory variables (psi for the
+            // trial gradient, chi for the divergence), advance them in place
+            // inside the kernel, and store them back.
+            float mem_local[6][kPointsPerElement];
+            for (int j = 0; j < 6; ++j)
+              for (int q = 0; q < kPointsPerElement; ++q)
+                mem_local[j][q] = pml_mem(elementNumber, j * kPointsPerElement + q);
+
+            INTEGRAL_TYPE::computeStiffnessTermSumFactPML(
+                cornerCoords, localFields[0], localWork[0], mem_local, get_alpha,
+                [&](const int qa, const int qb, const int qc, real_t(&kappa)[3], real_t(&coef0)[3], real_t(&coef1)[3]) {
+                  int const gIndex = mesh_local.globalNodeIndex(elementNumber, qa, qb, qc);
+                  for (int j = 0; j < 3; ++j) {
+                    kappa[j] = pml_coeff(gIndex, j);
+                    coef0[j] = pml_coeff(gIndex, 3 + j);
+                    coef1[j] = pml_coeff(gIndex, 6 + j);
+                  }
+                });
+
+            for (int j = 0; j < 6; ++j)
+              for (int q = 0; q < kPointsPerElement; ++q)
+                pml_mem(elementNumber, j * kPointsPerElement + q) = mem_local[j][q];
+          } else {
+            INTEGRAL_TYPE::computeStiffnessTermSumFact(cornerCoords, localFields[0], localWork[0], get_alpha);
+          }
+
+          for (int k = 0; k < dim; ++k) {
+            for (int j = 0; j < dim; ++j) {
+              for (int i = 0; i < dim; ++i) {
+                int const globalIdx = mesh_local.globalNodeIndex(elementNumber, i, j, k);
+                int const localIdx = i + j * dim + k * dim * dim;
+                for (int f = 0; f < kNumFields; ++f) {
+                  ATOMICADD(local_workVectorsGlobal[f][globalIdx], localWork[f][localIdx]);
+                }
+              }
+            }
+          }
+        });
+  }
 }
 
 //============================================================================
@@ -1757,6 +1909,12 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::com
 
 template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE, bool IS_MODEL_ON_NODES, physicType PHYSICS>
 void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::computeDampingMatrix() {
+  // Assembles into dampingMatrixGlobal_ by accumulation (ATOMICADD), so the
+  // target must already be zero. allocateFEarrays() allocates it fresh and
+  // Kokkos value-initializes a View on construction, which covers the first
+  // assembly from computeFEInit(). A re-assembly must zero it first; see
+  // computeDampingMatrixMasked(), which does.
+
   auto mesh_local = m_mesh;
   bool const mask_enabled = m_mask_enabled_;
   auto element_mask = m_element_mask_;
@@ -1766,6 +1924,12 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::com
   for (int f = 0; f < kNumFields; ++f) {
     local_dampingMatrixGlobal[f] = dampingMatrixGlobal_[f];
   }
+
+  // C-PML: the first-order absorbing boundary condition (1/(rho*vp)) is
+  // replaced by the PML layer, so boundary faces whose nodes lie in the PML
+  // must not contribute to the damping matrix.
+  bool const pml_enabled = pmlEnabled_;
+  auto pml_node_mask = pmlNodeIndex_;
 
   Kokkos::parallel_for(
       "Solver Compute Damping Matrix",
@@ -1780,6 +1944,19 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::com
 
           // Skip internal faces (only process boundary faces)
           if (!mesh_local.isBoundaryFace(f)) continue;
+
+          // Skip faces whose nodes lie in the PML layer (C-PML replaces the
+          // first-order absorbing BC).
+          if (pml_enabled) {
+            bool face_in_pml = false;
+            for (int q = 0; q < (ORDER + 1) * (ORDER + 1); ++q) {
+              if (pml_node_mask(mesh_local.getGlobalNodeFromFace(f, q)) == 1) {
+                face_in_pml = true;
+                break;
+              }
+            }
+            if (face_in_pml) continue;
+          }
 
           // Get corner coordinates of the face for integration
           float coords[4][3];
@@ -1963,6 +2140,103 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::ini
 }
 
 //============================================================================
+// setupPML - Allocate and fill C-PML coefficient / memory-variable arrays
+//============================================================================
+
+template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE, bool IS_MODEL_ON_NODES, physicType PHYSICS>
+void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::setupPML() {
+  if (!pmlEnabled_) return;
+
+  int const nNodes = m_mesh.getNumberOfNodes();
+  int const nElems = m_mesh.getNumberOfElements();
+  // Compact per-node coefficient block: only the 9 floats the kernel reads
+  // (kappa(3) + coef0(3) + coef1(3)). The raw profile fields (d, alpha,
+  // coef2) are only needed to build coef0/coef1 at setup time, so they are
+  // not stored — this halves the coefficient array (18 -> 9 floats/node) and
+  // the kernel's strided coefficient reads.
+  constexpr int kPmlStride = 9;
+
+  pmlCoefficients_ = allocateArray2D<arrayReal>(nNodes, kPmlStride, "pmlCoefficients");
+  pmlNodeIndex_ = allocateVector<vectorInt>(nNodes, "pmlNodeIndex");
+  pmlElementMask_ = allocateVector<vectorInt>(nElems, "pmlElementMask");
+  pmlMemoryVariables_ = allocateArray2D<arrayReal>(nElems, 6 * kPointsPerElement, "pmlMemoryVariables");
+
+  // Domain extent for the profile distance computation.
+  float domainSize[3];
+  domainSize[0] = m_mesh.domainSize(0);
+  domainSize[1] = m_mesh.domainSize(1);
+  domainSize[2] = m_mesh.domainSize(2);
+
+  // Fill per-node coefficients and the per-node PML mask.
+  // For element-based models, build a node->element map once (linear in the
+  // number of nodes) so the P velocity at a node can be read from the first
+  // element touching it.
+  std::vector<int> nodeElem;
+  if constexpr (!IS_MODEL_ON_NODES) {
+    nodeElem.assign(nNodes, -1);
+    for (int e = 0; e < nElems; ++e)
+      for (int k = 0; k < ORDER + 1; ++k)
+        for (int j = 0; j < ORDER + 1; ++j)
+          for (int i = 0; i < ORDER + 1; ++i) {
+            int const g = m_mesh.globalNodeIndex(e, i, j, k);
+            if (nodeElem[g] < 0) nodeElem[g] = e;
+          }
+  }
+
+  for (int n = 0; n < nNodes; ++n) {
+    float const x = m_mesh.nodeCoord(n, 0);
+    float const y = m_mesh.nodeCoord(n, 1);
+    float const z = m_mesh.nodeCoord(n, 2);
+
+    // P velocity at the node (scales d_max).
+    float vp = 0.0f;
+    if constexpr (IS_MODEL_ON_NODES) {
+      vp = m_mesh.getModelVpOnNodes(n);
+    } else {
+      vp = m_mesh.getModelVpOnElement(nodeElem[n]);
+    }
+
+    PmlCoefficients pc;
+    fillPmlCoefficients(x, y, z, domainSize, pml_size_.data(), pml_dt_, vp, pml_profile_, pml_reflection_,
+                        pml_alpha_max_, pml_kappa_max_, pc);
+
+    pmlNodeIndex_(n) = pc.isPml ? 1 : 0;
+    // Direct indexed writes: correct under both LayoutLeft (CUDA default) and
+    // LayoutRight. A raw-pointer walk (&view(n,0)+i) would follow the memory
+    // layout and scramble the coefficients on LayoutLeft views.
+    // Compact layout: kappa(3) + coef0(3) + coef1(3).
+    for (int i = 0; i < 3; ++i) {
+      pmlCoefficients_(n, i) = pc.kappa[i];
+      pmlCoefficients_(n, 3 + i) = pc.coef0[i];
+      pmlCoefficients_(n, 6 + i) = pc.coef1[i];
+    }
+  }
+
+  // Per-element PML mask: 1 if any GLL point of the element lies in the PML.
+  for (int e = 0; e < nElems; ++e) {
+    int mask = 0;
+    for (int k = 0; k < ORDER + 1 && !mask; ++k)
+      for (int j = 0; j < ORDER + 1 && !mask; ++j)
+        for (int i = 0; i < ORDER + 1 && !mask; ++i)
+          if (pmlNodeIndex_(m_mesh.globalNodeIndex(e, i, j, k)) == 1) mask = 1;
+    pmlElementMask_(e) = mask;
+  }
+
+  // Disable the sponge taper inside the PML layer: the C-PML replaces the
+  // sponge, and applying both would double-absorb and reflect. The taper was
+  // filled by initSpongeValues() before setupPML() ran.
+  for (int n = 0; n < nNodes; ++n) {
+    if (pmlNodeIndex_(n) == 1) spongeTaperCoeff_(n) = 1.0f;
+  }
+
+  // Zero the memory variables (psi: 3 gradient + chi: 3 divergence).
+  for (int e = 0; e < nElems; ++e)
+    for (int q = 0; q < 6 * kPointsPerElement; ++q) pmlMemoryVariables_(e, q) = 0.0f;
+
+  FENCE
+}
+
+//============================================================================
 // outputSolutionValues - Output field values for diagnostics
 //============================================================================
 
@@ -2127,7 +2401,12 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::com
 template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE, bool IS_MODEL_ON_NODES, physicType PHYSICS>
 void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::computeDampingMatrixMasked(
     const vectorInt& elem_mask, int active_value) {
+  // computeDampingMatrix() accumulates, so zero the target first: this pass
+  // overwrites the full-mesh result assembled by computeFEInit() instead of
+  // adding to it. dampingMatrixGlobal_ is a std::array of Views, for which
+  // Kokkos has no deep_copy overload, hence the per-field loop.
   for (int f = 0; f < kNumFields; ++f) Kokkos::deep_copy(dampingMatrixGlobal_[f], 0.0f);
+
   m_element_mask_ = elem_mask;
   m_mask_active_value_ = active_value;
   m_mask_enabled_ = true;

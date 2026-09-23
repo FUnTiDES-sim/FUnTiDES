@@ -13,6 +13,7 @@
 #include "physics_traits.h"
 #include "physics_traits_acoustic.h"
 #include "physics_traits_elastic.h"
+#include "pml_coefficients.h"
 #include "sem_enums.h"
 #include "sem_solver_data.h"
 #include "solver.h"
@@ -44,6 +45,13 @@ class SEMsolver : public Solver {
 
   vectorReal& getSpongeTaperCoeff() { return spongeTaperCoeff_; }
 
+  // C-PML diagnostic accessors (tests only).
+  bool isPmlEnabled() const override { return pmlEnabled_; }
+  const arrayReal& getPmlCoefficients() const override { return pmlCoefficients_; }
+  const vectorInt& getPmlNodeIndex() const override { return pmlNodeIndex_; }
+  const vectorInt& getPmlElementMask() const override { return pmlElementMask_; }
+  const arrayReal& getPmlMemoryVariables() const { return pmlMemoryVariables_; }
+
   vectorReal& getForceVector(int c) override { return workVectorsGlobal_[c]; }
 
   // -------------------------------------
@@ -51,7 +59,15 @@ class SEMsolver : public Solver {
   void computeFEInit(model::ModelApi<float, int>& mesh, const std::array<float, 3>& sponge_size,
                      const bool surface_sponge, const float taper_delta) override;
 
-  // Split-phase methods for DD
+  /**
+   * @brief Phase 1 of the time step: assemble the local force vectors.
+   *
+   * Ordering contract: this method and updateSolutionForward() launch their
+   * kernels on the same Kokkos stream, so they are ordered without explicit
+   * fences. Only the final fence (in updateSolutionForward) is required — it
+   * synchronizes GPU->host for correctness and honest timing. The intermediate
+   * fences between same-stream kernels only stall the CPU.
+   */
   void computeForces(const float& dt, const int& timeSample, DataStruct& data) override;
   void updateSolutionForward(const float& dt, DataStruct& data) override;
   void updateSolutionBackward(const float& dt, DataStruct& data) override;
@@ -77,6 +93,9 @@ class SEMsolver : public Solver {
   void resetGlobalVectors(int numNodes) override;
   void computeGlobalMassMatrix() override;
   void computeDampingMatrix() override;
+  /// @brief Allocate and fill the C-PML coefficient / memory-variable arrays.
+  /// Called from computeFEInit() when pmlEnabled_. Requires pml_dt_ to be set.
+  void setupPML();
 
   /**
    * @brief Assemble mass matrix restricted to elements matching a mask.
@@ -260,6 +279,37 @@ class SEMsolver : public Solver {
    */
   void setAnisotropyType(model::AnisotropyType type) { anisotropyType_ = type; }
 
+  /**
+   * @brief Enable the Convolutional PML (C-PML) absorbing layer.
+   *
+   * Must be called before computeFEInit(). When enabled, the solver replaces
+   * the sponge taper in the PML layer with the C-PML stretched-gradient
+   * formulation (Komatitsch & Martin 2007) for the second-order acoustic
+   * equation. A zero thickness in a direction disables the PML there.
+   *
+   * @param pml_size  PML thickness in each direction (meters).
+   * @param profile   Profile exponent N (default 2, quadratic).
+   * @param reflection Target reflection coefficient R (default 1e-3).
+   * @param alpha_max Maximum alpha frequency-shift (default 0).
+   * @param kappa_max Maximum kappa coordinate-stretch (default 1).
+   * @param dt        Time step used for the convolution coefficients.
+   *                  Must be > 0 for a non-trivial PML; 0 (default) keeps the
+   *                  identity profile (coef0=1, coef1=0).
+   */
+  void setPML(const std::array<float, 3>& pml_size, float profile = 2.0f, float reflection = 1e-3f,
+              float alpha_max = 0.0f, float kappa_max = 1.0f, float dt = 0.0f) override {
+    if constexpr (PHYSICS == utils::enums::physicType::kAcoustic) {
+      pmlEnabled_ = (pml_size[0] > 0.0f) || (pml_size[1] > 0.0f) || (pml_size[2] > 0.0f);
+      pml_size_ = pml_size;
+      pml_profile_ = profile;
+      pml_reflection_ = reflection;
+      pml_alpha_max_ = alpha_max;
+      pml_kappa_max_ = kappa_max;
+      pml_dt_ = dt;
+    }
+    // Non-acoustic physics: PML is not implemented, keep pmlEnabled_ = false.
+  }
+
   void setSLSAttenuation(const vectorReal& reference_frequencies,
                          const vectorReal& anelasticity_coefficients = vectorReal()) override {
     attenuationEnabled_ = reference_frequencies.extent(0) > 0;
@@ -333,6 +383,34 @@ class SEMsolver : public Solver {
   vectorReal massMatrixGlobal_;
   std::array<vectorReal, kNumFields> dampingMatrixGlobal_;
   std::array<vectorReal, kNumFields> workVectorsGlobal_;
+
+  // Convolutional PML (C-PML) state. Only active for acoustic physics.
+  bool pmlEnabled_ = false;
+  std::array<float, 3> pml_size_ = {0.0f, 0.0f, 0.0f};
+  float pml_profile_ = 2.0f;
+  float pml_reflection_ = 1e-3f;
+  float pml_alpha_max_ = 0.0f;
+  float pml_kappa_max_ = 1.0f;
+  float pml_dt_ = 0.0f;
+  // Per-node C-PML coefficients, indexed directly by global node.
+  // Row layout: [node][0..2]=d, [3..5]=kappa, [6..8]=alpha,
+  //             [9..11]=coef0, [12..14]=coef1, [15..17]=coef2.
+  // Non-PML nodes hold the identity profile (d=0, kappa=1, coef0=1, coef1=0).
+  arrayReal pmlCoefficients_;
+  // Memory variables per element per GLL point (6 components: 3 gradient psi
+  // + 3 divergence chi), advanced by the convolution update. The gradient and
+  // divergence are element-local, so the memory variables must be stored per
+  // element, NOT per node (shared nodes would otherwise race).
+  // Layout: [e][j*numNodes + q] for component j (0-2 = psi, 3-5 = chi),
+  // GLL point q.
+  arrayReal pmlMemoryVariables_;
+  // Per-node PML mask: 1 if the node lies inside the PML layer, else 0.
+  // Used to disable the sponge taper and the first-order boundary damping in
+  // the PML region (the C-PML replaces both).
+  vectorInt pmlNodeIndex_;
+  // Per-element PML mask: 1 if any GLL point of the element lies in the PML.
+  // Used to dispatch PML vs plain stiffness kernels.
+  vectorInt pmlElementMask_;
 
   bool attenuationEnabled_ = false;
   int nSls_ = 0;

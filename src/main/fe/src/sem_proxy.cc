@@ -87,6 +87,13 @@ void SEMproxy::SetupSolver(const SemProxyOptions& opt) {
   surface_sponge_ = opt.surface_sponge;
   taper_delta_ = opt.taper_delta;
 
+  // C-PML absorbing layer (acoustic). dt_ is set by InitTimeParams() before
+  // SetupSolver() is called, so the convolution coefficients can be built.
+  if (opt.pml_size > 0.0f) {
+    solver_->setPML({opt.pml_size, opt.pml_size, opt.pml_size}, opt.pml_profile, opt.pml_reflection, opt.pml_alpha_max,
+                    opt.pml_kappa_max, dt_);
+  }
+
   if (opt.isElastic) {
     solver_->setAnisotropyType(anisotropy_type);
     if (anisotropy_type == model::AnisotropyType::kTTI && !opt.isModelOnNodes) {

@@ -205,6 +205,31 @@ class Solver {
 
   virtual void setSLSAttenuation(const vectorReal& reference_frequencies,
                                  const vectorReal& anelasticity_coefficients = vectorReal()) = 0;
+
+  /// @brief Enable the Convolutional PML (C-PML) absorbing layer (acoustic).
+  /// Must be called before computeFEInit(). A zero thickness in a direction
+  /// disables the PML there. No-op default for solvers without PML support.
+  virtual void setPML(const std::array<float, 3>& pml_size, float profile = 2.0f, float reflection = 1e-3f,
+                      float alpha_max = 0.0f, float kappa_max = 1.0f, float dt = 0.0f) {}
+
+  // --- C-PML diagnostic accessors (tests only) ---
+  /// @brief True if the C-PML layer is enabled.
+  virtual bool isPmlEnabled() const { return false; }
+  /// @brief Per-node C-PML coefficients (empty view when disabled).
+  virtual const arrayReal& getPmlCoefficients() const {
+    static arrayReal empty;
+    return empty;
+  }
+  /// @brief Per-node PML mask (empty view when disabled).
+  virtual const vectorInt& getPmlNodeIndex() const {
+    static vectorInt empty;
+    return empty;
+  }
+  /// @brief Per-element PML mask (empty view when disabled).
+  virtual const vectorInt& getPmlElementMask() const {
+    static vectorInt empty;
+    return empty;
+  }
 };
 }  // namespace fe
 }  // namespace solver
