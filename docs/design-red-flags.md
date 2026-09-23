@@ -42,3 +42,26 @@ Nothing here has been fixed yet.
 - `ModelBuilderBase::MAX_ORDER` and `MAX_GLL_ORDER` (`gllpoints.h`) are two
   independent constants that must stay equal: `CartesianUnstructBuilder` sizes
   buffers with the first and validates the order against the second.
+- `src/solver/fe/api/include/solver.h`, `Solver`: `initFEarrays`, `allocateFEarrays`,
+  `initSpongeValues`, `resetGlobalVectors`, `computeGlobalMassMatrix` and
+  `computeDampingMatrix` are internal steps of `computeFEInit`/`computeForces` exposed as
+  public pure virtuals: the interface leaks the SEM implementation.
+- `Solver`: the interface is not uniformly implemented. The DG, DG-SEM and p-adaptive
+  solvers throw on `getMassMatrix*`, `getDampingMatrix` and `getForceVector`, ignore
+  `sponge_size`/`surface_sponge`/`taper_delta` in `computeFEInit` and silently ignore
+  `setSLSAttenuation`; each `outputSolutionValues` overload is a no-op in one solver family.
+- `Solver::computeFEInit`, `surface_sponge`: contradictory meaning. The CLI help says
+  surface nodes are "non sponge nodes", `SemProxy::surface_sponge_` says "the top surface has
+  an absorbing boundary", and `SEMsolver::initSpongeValues` drops the sponge on the x = 0
+  side (not z).
+- `Solver::setZBoundary` and `Solver::setElementTags`: hooks for two coupled solvers on the
+  base interface, whose tag values are defined per implementation (`kElementTypeSEM`,
+  `kElementTypePMin`...), so a caller cannot use them through `Solver` alone.
+- `Solver::getInterfaceCouplingCoeff`: the default returns a non-const reference to a
+  function-local static shared by all solvers; a caller can write into it.
+- `src/solver/fe/api/include/rhs.h`, `Rhs::getWeights()`: no component index, while elastic
+  sources carry one weight set per component (`RhsElastic::getWeights(int)`); the base
+  interface cannot express per-component weights.
+- `physics_traits.h` and `physics_traits_{acoustic,elastic}.h` exist with the same file
+  names in `src/solver/fe` (namespace `solver::fe`) and `src/gradient` (namespace
+  `gradient`); which one `#include "physics_traits.h"` picks depends on include path order.

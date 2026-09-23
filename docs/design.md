@@ -26,3 +26,29 @@ GPU. Kokkos kernels call `PROXY_HOST_DEVICE` methods on the concrete type (solve
 `FaceConnectivityUnstruct::build()` are templated on the mesh type), never through a base
 pointer. Methods without `PROXY_HOST_DEVICE` (e.g. `initElasticityTensors()`,
 `buildFaceConnectivity()`, `setQualityFactors()`, `getMaxSpeed()`) are host only.
+
+The same rule applies to `solver::fe::Wavefield` and `solver::fe::Rhs`: device code reaches
+them through the concrete types selected by `solver::fe::PhysicsTraits<PHYSICS>`, never through
+the base class.
+
+## Time levels and the split time step
+
+Solvers use an explicit second-order scheme on three time levels. A wavefield holds, per
+component, a *current* buffer (u^n), a *previous* buffer (u^(n-1)) and, in backward (adjoint)
+mode only, a *previous-previous* buffer. One time step is:
+
+1. `Solver::computeForces()` zeroes and fills the force vectors (`Solver::getForceVector()`),
+   one value per global node and component.
+2. In a distributed run, the driver sums the force vectors at partition boundaries.
+3. `Solver::updateSolutionForward()` writes u^(n+1) into the *previous* buffer;
+   `Solver::updateSolutionBackward()` writes it into the *previous-previous* buffer.
+4. `Wavefield::swap()` rotates the buffers so that *current* holds u^(n+1) and *previous* u^n.
+
+`Solver::computeOneStep()` performs steps 1 and 3 for non-distributed runs; step 4 is always
+the caller's.
+
+## Source terms
+
+`Rhs` stores the point sources of one run. For source `s`: `getElement()[s]` is the element that
+contains it, `getTerm(c)(s, t)` is the amplitude of component `c` at time sample `t`, and
+`getWeights()(s, l)` the weight of element-local DOF `l` (hexahedron local numbering above).

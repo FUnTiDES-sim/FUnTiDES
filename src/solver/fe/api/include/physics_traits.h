@@ -7,23 +7,23 @@ namespace solver {
 namespace fe {
 
 /**
- * @brief Compile-time properties for each physics type.
+ * @brief Maps a physics type to the concrete wavefield and RHS types that
+ * device kernels use instead of the Wavefield and Rhs base classes.
  *
- * All specializations MUST define:
- * - kName: Human-readable name for logging (const char*)
- * - WavefieldType: Concrete wavefield type for device access
- * - RhsType: Concrete RHS type for device access
+ * The primary template is empty; each supported physics provides a
+ * specialization defining:
+ * - kName: name of the physics, for logging;
+ * - WavefieldType: concrete Wavefield type;
+ * - RhsType: concrete Rhs type.
  *
- * @tparam PHYSICS The physics type (kAcoustic, kElastic, etc.)
- *
- * Note: physicType enum is forward declared. Include sem_enums.h
- * or physics-specific trait headers for full definitions.
+ * @tparam PHYSICS Physics type.
+ * @see docs/design.md, "Device calls on mesh objects".
  */
 template <utils::enums::physicType PHYSICS>
 struct PhysicsTraits {
-  static constexpr const char* kName = "";
-  using WavefieldType = void;
-  using RhsType = void;
+  static constexpr const char* kName = "";  ///< Physics name, for logging.
+  using WavefieldType = void;  ///< Concrete Wavefield type.
+  using RhsType = void;  ///< Concrete Rhs type.
 };
 
 }  // namespace fe
