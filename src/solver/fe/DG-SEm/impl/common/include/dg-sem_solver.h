@@ -78,9 +78,7 @@ class DGSEMsolver : public Solver {
   }
 
   /// @throws std::runtime_error always: there is no global damping matrix.
-  vectorReal& getDampingMatrix(int c) override {
-    throw std::runtime_error("getDampingMatrix not implemented for DG");
-  }
+  vectorReal& getDampingMatrix(int c) override { throw std::runtime_error("getDampingMatrix not implemented for DG"); }
 
   /// @throws std::runtime_error always: there is no global force vector.
   vectorReal& getForceVector(int component) override {

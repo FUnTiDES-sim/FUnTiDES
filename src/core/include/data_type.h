@@ -121,6 +121,7 @@ void printBMatrix(const int &element, T &B) {
 
 /// Declares a std::chrono::system_clock time point named @p timepoint, set to the current time.
 #define timewatch(timepoint) chrono::time_point<std::chrono::system_clock> timepoint = chrono::system_clock::now();
-/// Adds the time elapsed since @p starttime to @p accumulatedtime, in clock ticks (period of system_clock, not seconds).
+/// Adds the time elapsed since @p starttime to @p accumulatedtime, in clock ticks (period of system_clock, not
+/// seconds).
 #define accumtime(accumulatedtime, starttime) accumulatedtime += (chrono::system_clock::now() - starttime).count();
 #endif  // FUNTIDES_CORE_INCLUDE_DATA_TYPE_H_

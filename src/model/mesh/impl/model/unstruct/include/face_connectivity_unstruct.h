@@ -16,16 +16,16 @@ namespace model {
  */
 template <typename FloatType, typename ScalarType>
 struct FaceConnectivityUnstructData {
-  ScalarType n_faces = 0;                ///< Number of unique faces.
-  int ndofs_per_face = 0;                ///< Nodes per face, (order + 1)^2.
-  arrayInt elem_to_faces;                ///< Global face id, shape (numElements, 6), indexed by CubicFace.
-  arrayInt face_dofs;                    ///< Global node index of each owner-side face dof, shape (n_faces, ndofs_per_face).
-  arrayInt face_perm;                    ///< Owner dof to neighbor dof, shape (n_faces, ndofs_per_face).
-  arrayInt face_perm_inv;                ///< Neighbor dof to owner dof, shape (n_faces, ndofs_per_face).
-  vectorInt face_elem_owner;             ///< Owner element, size n_faces.
-  vectorInt face_elem_neighbor;          ///< Neighbor element, size n_faces, -1 on a boundary face.
-  vectorInt face_local_owner;            ///< Local face index seen from the owner, size n_faces.
-  vectorInt face_local_neighbor;         ///< Local face index seen from the neighbor, size n_faces.
+  ScalarType n_faces = 0;         ///< Number of unique faces.
+  int ndofs_per_face = 0;         ///< Nodes per face, (order + 1)^2.
+  arrayInt elem_to_faces;         ///< Global face id, shape (numElements, 6), indexed by CubicFace.
+  arrayInt face_dofs;             ///< Global node index of each owner-side face dof, shape (n_faces, ndofs_per_face).
+  arrayInt face_perm;             ///< Owner dof to neighbor dof, shape (n_faces, ndofs_per_face).
+  arrayInt face_perm_inv;         ///< Neighbor dof to owner dof, shape (n_faces, ndofs_per_face).
+  vectorInt face_elem_owner;      ///< Owner element, size n_faces.
+  vectorInt face_elem_neighbor;   ///< Neighbor element, size n_faces, -1 on a boundary face.
+  vectorInt face_local_owner;     ///< Local face index seen from the owner, size n_faces.
+  vectorInt face_local_neighbor;  ///< Local face index seen from the neighbor, size n_faces.
 };
 
 /**

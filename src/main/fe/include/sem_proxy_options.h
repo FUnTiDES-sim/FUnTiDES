@@ -17,40 +17,40 @@
  */
 class SemProxyOptions {
  public:
-  int order = 2;      ///< Polynomial order of the approximation
-  int order_min = 1;  ///< Lower polynomial order for the DG p-adaptive method
-  int ex = 50, ey = 50, ez = 50;  ///< Number of elements along x, y, z
-  float lx = 2000.f, ly = 2000.f, lz = 2000.f;  ///< Domain size along x, y, z (m)
+  int order = 2;                                      ///< Polynomial order of the approximation
+  int order_min = 1;                                  ///< Lower polynomial order for the DG p-adaptive method
+  int ex = 50, ey = 50, ez = 50;                      ///< Number of elements along x, y, z
+  float lx = 2000.f, ly = 2000.f, lz = 2000.f;        ///< Domain size along x, y, z (m)
   float srcx = 1010.f, srcy = 1010.f, srcz = 1010.f;  ///< Source position (m)
   float rcvx = 1310.f, rcvy = 1310.f, rcvz = 1310.f;  ///< Receiver position (m)
-  float f0 = 5.0f;       ///< Dominant frequency of the source (Hz)
-  int ricker_order = 2;  ///< Order of the Ricker wavelet source
-  float tpeak = 0.2f;    ///< Peak time of the Ricker wavelet source (s)
+  float f0 = 5.0f;                                    ///< Dominant frequency of the source (Hz)
+  int ricker_order = 2;                               ///< Order of the Ricker wavelet source
+  float tpeak = 0.2f;                                 ///< Peak time of the Ricker wavelet source (s)
 
-  std::string implem = "makutu";   ///< Implementation name, parsed by the application
-  std::string method = "sem";      ///< Method name: sem|dg|dg-sem|dg-padaptive
-  std::string mesh = "cartesian";  ///< Mesh name: cartesian|ucartesian
-  std::string anisotropy = "iso";  ///< Anisotropy type for elastic runs: iso|vti|tti
-  float dt = 0.006;                ///< Time step (s)
-  float timemax = 0.7;             ///< Simulation duration (s)
-  bool autodt = false;             ///< Select dt from the CFL condition
-  bool snapshots = false;          ///< Enable snapshot output
-  int snap_time_interval = 20;     ///< Number of iterations between two snapshots
-  float boundaries_size = 0;       ///< Size of the absorbing boundary layer (m)
-  bool surface_sponge = false;     ///< @todo VERIFY: exact meaning, see Solver::computeFEInit red flag
-  float taper_delta = 0.015;       ///< Taper parameter of the sponge boundaries
-  bool isModelOnNodes = false;     ///< Model values are given on nodes (true) or on elements (false)
-  bool isElastic = false;          ///< Run an elastic simulation instead of an acoustic one
-  bool isAcoustoElastic = false;   ///< Run a coupled acoustic-elastic simulation
+  std::string implem = "makutu";        ///< Implementation name, parsed by the application
+  std::string method = "sem";           ///< Method name: sem|dg|dg-sem|dg-padaptive
+  std::string mesh = "cartesian";       ///< Mesh name: cartesian|ucartesian
+  std::string anisotropy = "iso";       ///< Anisotropy type for elastic runs: iso|vti|tti
+  float dt = 0.006;                     ///< Time step (s)
+  float timemax = 0.7;                  ///< Simulation duration (s)
+  bool autodt = false;                  ///< Select dt from the CFL condition
+  bool snapshots = false;               ///< Enable snapshot output
+  int snap_time_interval = 20;          ///< Number of iterations between two snapshots
+  float boundaries_size = 0;            ///< Size of the absorbing boundary layer (m)
+  bool surface_sponge = false;          ///< @todo VERIFY: exact meaning, see Solver::computeFEInit red flag
+  float taper_delta = 0.015;            ///< Taper parameter of the sponge boundaries
+  bool isModelOnNodes = false;          ///< Model values are given on nodes (true) or on elements (false)
+  bool isElastic = false;               ///< Run an elastic simulation instead of an acoustic one
+  bool isAcoustoElastic = false;        ///< Run a coupled acoustic-elastic simulation
   float acoustoElasticBoundaryZ = 0.f;  ///< Z coordinate of the fluid-solid interface (m)
   float DgSemBoundaryZ = 1000.f;        ///< Z coordinate of the DG-SEM interface (m)
   float DgPAdaptiveBoundaryZ = 1000.f;  ///< Z coordinate of the pMin/pMax interface, DG p-adaptive (m)
   bool free_surface = false;            ///< Enable a free surface on the top boundary (Z+)
   std::string model_file{""};           ///< Path to a .ftmd heterogeneous model file, empty if none
-  float qp = -1.0f;  ///< Quality factor for P-waves, negative if not set
-  float qs = -1.0f;  ///< Quality factor for S-waves, negative if not set
+  float qp = -1.0f;                     ///< Quality factor for P-waves, negative if not set
+  float qs = -1.0f;                     ///< Quality factor for S-waves, negative if not set
   std::vector<float> sls_reference_angular_frequencies{};  ///< SLS reference angular frequencies (rad/s)
-  std::vector<float> sls_anelasticity_coefficients{};  ///< SLS anelasticity coefficients, one per frequency
+  std::vector<float> sls_anelasticity_coefficients{};      ///< SLS anelasticity coefficients, one per frequency
 
   std::string das_type = "none";  ///< DAS receiver type: none | dipole | strain
   float das_dip = 0.f;            ///< Fiber dip angle (degrees)

@@ -37,7 +37,8 @@ struct ModelUnstructData : public ModelDataBase<FloatType, ScalarType> {
    * @param lz Local domain length along z.
    * @param isModelOnNodes True if material properties are given per node, false if per element.
    * @param isElastic True for elastic propagation, false for acoustic.
-   * @param global_node_index Node table, shape (n_element, (order+1)^3), indexed by (e, i + j*(order+1) + k*(order+1)^2).
+   * @param global_node_index Node table, shape (n_element, (order+1)^3), indexed by (e, i + j*(order+1) +
+   * k*(order+1)^2).
    * @param nodes_coords_x X coordinate of each node (size n_node).
    * @param nodes_coords_y Y coordinate of each node (size n_node).
    * @param nodes_coords_z Z coordinate of each node (size n_node).

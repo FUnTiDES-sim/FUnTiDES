@@ -8,15 +8,17 @@ namespace model {
  */
 template <typename Coord, typename Index>
 struct CartesianParams {
-  int order;                      ///< Polynomial order of the elements.
-  Index ex, ey, ez;               ///< Number of elements along x, y, z (local subdomain).
-  Coord lx, ly, lz;               ///< Extent along x, y, z (local subdomain).
-  bool isModelOnNodes;            ///< True if model properties are given per node, false if per element.
-  bool isElastic;                 ///< True for an elastic model, false for an acoustic one.
-  std::string model_file;         ///< Path of the model file; empty if no file is used.
-  bool isAcoustoElastic{false};   ///< True if the domain couples an acoustic and an elastic part.
-  Coord acoustoElasticBoundaryZ{static_cast<Coord>(0)};  ///< @todo VERIFY: z coordinate of the acousto-elastic interface, in which unit and frame?
-  Coord DgSemBoundaryZ{static_cast<Coord>(0)};           ///< @todo VERIFY: z coordinate of the DG/SEM interface, in which unit and frame?
+  int order;                     ///< Polynomial order of the elements.
+  Index ex, ey, ez;              ///< Number of elements along x, y, z (local subdomain).
+  Coord lx, ly, lz;              ///< Extent along x, y, z (local subdomain).
+  bool isModelOnNodes;           ///< True if model properties are given per node, false if per element.
+  bool isElastic;                ///< True for an elastic model, false for an acoustic one.
+  std::string model_file;        ///< Path of the model file; empty if no file is used.
+  bool isAcoustoElastic{false};  ///< True if the domain couples an acoustic and an elastic part.
+  Coord acoustoElasticBoundaryZ{static_cast<Coord>(
+      0)};  ///< @todo VERIFY: z coordinate of the acousto-elastic interface, in which unit and frame?
+  Coord DgSemBoundaryZ{
+      static_cast<Coord>(0)};  ///< @todo VERIFY: z coordinate of the DG/SEM interface, in which unit and frame?
 
   /// @name Global domain (for MPI decomposition)
   /// @{

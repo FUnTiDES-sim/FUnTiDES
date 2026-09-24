@@ -105,9 +105,7 @@ struct WavefieldAcoustoElastic : public Wavefield {
   }
 
   /// @return True if both the acoustic and the elastic parts hold a previous-previous level.
-  bool hasPrevPrev() const override {
-    return m_acoustic.hasPrevPrev() && m_elastic.hasPrevPrev();
-  }
+  bool hasPrevPrev() const override { return m_acoustic.hasPrevPrev() && m_elastic.hasPrevPrev(); }
 
   /// Advances the time levels of both the acoustic and the elastic parts.
   void swap() override {

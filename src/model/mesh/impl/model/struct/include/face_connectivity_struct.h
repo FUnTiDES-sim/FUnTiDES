@@ -255,10 +255,10 @@ class FaceConnectivityStruct : public FaceConnectivityApi<FloatType, ScalarType>
   }
 
  private:
-  ScalarType ex_{0}, ey_{0}, ez_{0};  ///< Number of elements along x, y, z
-  ScalarType nx_{0}, ny_{0};          ///< Number of nodes along x and y
+  ScalarType ex_{0}, ey_{0}, ez_{0};      ///< Number of elements along x, y, z
+  ScalarType nx_{0}, ny_{0};              ///< Number of nodes along x and y
   ScalarType offset_y_{0}, offset_z_{0};  ///< Id of the first Y face and of the first Z face
-  int order_{0};                      ///< Polynomial order of the elements
+  int order_{0};                          ///< Polynomial order of the elements
 };
 
 }  // namespace model

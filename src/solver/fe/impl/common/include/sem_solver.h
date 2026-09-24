@@ -342,9 +342,9 @@ class SEMsolver : public Solver {
   int m_n_node_list_ = 0;
 
   vectorReal spongeTaperCoeff_;
-  vectorReal massMatrixGlobal_;                              ///< Size numNodes.
-  std::array<vectorReal, kNumFields> dampingMatrixGlobal_;   ///< One vector of size numNodes per component.
-  std::array<vectorReal, kNumFields> workVectorsGlobal_;     ///< One vector of size numNodes per component.
+  vectorReal massMatrixGlobal_;                             ///< Size numNodes.
+  std::array<vectorReal, kNumFields> dampingMatrixGlobal_;  ///< One vector of size numNodes per component.
+  std::array<vectorReal, kNumFields> workVectorsGlobal_;    ///< One vector of size numNodes per component.
 
   bool attenuationEnabled_ = false;
   int nSls_ = 0;

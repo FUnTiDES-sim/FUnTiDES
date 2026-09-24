@@ -68,7 +68,8 @@ class SEMproxy {
    * @param[in] size_x Extent of the slice along X.
    * @param[in] size_y Extent of the slice along Y.
    * @param[in] filepath Destination file.
-   * @todo VERIFY: are size_x and size_y counted in nodes or elements, and what is the storage order and file format of host_slice?
+   * @todo VERIFY: are size_x and size_y counted in nodes or elements, and what is the storage order and file format of
+   * host_slice?
    */
   void SaveSlice(const vectorReal& host_slice, int size_x, int size_y, const std::string& filepath) const;
 
@@ -123,8 +124,8 @@ class SEMproxy {
   int order_min_ = 0;                    ///< Lower polynomial order of the p-adaptive DG method.
 
   std::array<float, 3> sponge_size_ = {0, 0, 0};  ///< Thickness of the sponge layers along x, y, z.
-  bool surface_sponge_ = false;                   ///< See Solver::computeFEInit. @todo VERIFY: is the top surface absorbing when true?
-  float taper_delta_ = 0.015f;                    ///< Taper coefficient of the sponge damping.
+  bool surface_sponge_ = false;  ///< See Solver::computeFEInit. @todo VERIFY: is the top surface absorbing when true?
+  float taper_delta_ = 0.015f;   ///< Taper coefficient of the sponge damping.
 
   float dt_ = 0.0f;        ///< Time step in seconds.
   float time_max_ = 0.0f;  ///< Simulated duration in seconds.
@@ -132,9 +133,10 @@ class SEMproxy {
 
   const int num_rhs_ = 1;   ///< Number of sources.
   int source_element_ = 0;  ///< Index of the element containing the source.
-  float t_peak_ = 0.0f;     ///< Time of the peak of the source wavelet. @todo VERIFY: unit and reference (seconds from t = 0?).
-  float f0_ = 0.0f;         ///< Dominant frequency of the source in Hz.
-  int ricker_order_ = 0;    ///< Derivative order of the Ricker wavelet.
+  float t_peak_ =
+      0.0f;  ///< Time of the peak of the source wavelet. @todo VERIFY: unit and reference (seconds from t = 0?).
+  float f0_ = 0.0f;       ///< Dominant frequency of the source in Hz.
+  int ricker_order_ = 0;  ///< Derivative order of the Ricker wavelet.
 
   std::array<float, 3> src_coord_ = {0};  ///< Global coordinates (x, y, z) of the source.
   std::array<float, 3> rcv_coord_ = {0};  ///< Global coordinates (x, y, z) of the receiver.
@@ -189,10 +191,11 @@ class SEMproxy {
   int das_num_samples_ = 5;                         ///< Number of integration samples along the fiber.
   float das_gauge_length_ = 1.0f;                   ///< Gauge length of the fiber in meters.
   std::array<float, 3> das_direction_ = {1, 0, 0};  ///< Unit vector along the fiber.
-  std::array<float, 3> das_vector_ = {1, 0, 0};     ///< Fiber direction scaled by a length. @todo VERIFY: which length (gauge length?).
-  std::vector<int> das_node_ids_;                   ///< Global node indices used by the DAS integration.
-  std::vector<float> das_weights_;                  ///< Weights of the DAS integration points.
-  vectorReal das_signal_;                           ///< DAS signal over time (device).
+  std::array<float, 3> das_vector_ = {
+      1, 0, 0};                     ///< Fiber direction scaled by a length. @todo VERIFY: which length (gauge length?).
+  std::vector<int> das_node_ids_;   ///< Global node indices used by the DAS integration.
+  std::vector<float> das_weights_;  ///< Weights of the DAS integration points.
+  vectorReal das_signal_;           ///< DAS signal over time (device).
 
   // Host mirrors of the device arrays above, used when the CPU reads or writes data.
   vectorInt::host_mirror_type h_rhs_element_;           ///< Mirror of rhs_element_.

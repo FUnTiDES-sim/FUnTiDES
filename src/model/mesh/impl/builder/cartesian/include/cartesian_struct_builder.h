@@ -197,7 +197,7 @@ class CartesianStructBuilder : public ModelBuilderBase<FloatType, ScalarType> {
   bool isAcoustoElastic_{false};                 ///< Build a fluid/solid two-layer model.
   FloatType acoustoElasticBoundaryZ_{static_cast<FloatType>(0)};  ///< Z of the fluid/solid interface.
   FloatType DgSemBoundaryZ_{static_cast<FloatType>(0)};           ///< Unused, see constructor.
-  std::string model_file_;                       ///< Per-element model file path, empty if none.
+  std::string model_file_;                                        ///< Per-element model file path, empty if none.
 };
 }  // namespace model
 
