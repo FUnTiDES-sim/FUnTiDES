@@ -8,27 +8,36 @@
 
 namespace model {
 /**
- * @brief Classifies boundary flags for nodes of an unstructured Cartesian mesh.
+ * @brief Assigns a BoundaryFlag to each node of an unstructured Cartesian mesh.
  *
- * Nodes are classified against the *global* domain bounds so that nodes on
- * interior partition boundaries (e.g. MPI subdomain edges) are not marked as
+ * Nodes are tested against the global domain bounds, so nodes on interior
+ * partition boundaries (for example MPI subdomain edges) are not marked as
  * physical boundaries.
  *
- * Classification rules:
- *  - Not on any global face              → InteriorNode
- *  - On the z_max global face AND
- *    free_surface_on_top == true         → Surface
- *  - On any other global face            → Damping
+ * Rules:
+ *  - not on any global face: InteriorNode
+ *  - on the global z_max face and free_surface_on_top is true: Surface
+ *  - on any other global face: Damping
  *
- * @tparam FloatType Floating-point type for coordinates and bounds
- * @tparam ScalarType Integer type used to cast BoundaryFlag values
+ * @tparam FloatType Floating-point type of coordinates and bounds.
+ * @tparam ScalarType Integer type the BoundaryFlag values are cast to.
  */
 template <typename FloatType, typename ScalarType>
 class CartesianUnstructBoundaryClassifier {
  public:
   /**
-   * @param tol Distance tolerance for boundary detection (typically
-   *            min_grid_spacing * 1e-4)
+   * @brief Builds a classifier for the given global domain.
+   *
+   * @param x_min Global lower bound along x.
+   * @param x_max Global upper bound along x.
+   * @param y_min Global lower bound along y.
+   * @param y_max Global upper bound along y.
+   * @param z_min Global lower bound along z.
+   * @param z_max Global upper bound along z.
+   * @param tol Distance below which a node is considered on a face
+   *            (typically min_grid_spacing * 1e-4).
+   * @param free_surface_on_top If true, nodes on the z_max face are Surface
+   *                            instead of Damping.
    */
   CartesianUnstructBoundaryClassifier(FloatType x_min, FloatType x_max, FloatType y_min, FloatType y_max,
                                       FloatType z_min, FloatType z_max, FloatType tol, bool free_surface_on_top)
@@ -42,13 +51,13 @@ class CartesianUnstructBoundaryClassifier {
         free_surface_on_top_(free_surface_on_top) {}
 
   /**
-   * @brief Classify every node against the global domain bounds.
+   * @brief Classifies every node against the global domain bounds.
    *
-   * @param n_node Total number of nodes
-   * @param coords_x X-coordinates of each node
-   * @param coords_y Y-coordinates of each node
-   * @param coords_z Z-coordinates of each node
-   * @return vectorInt of size @p n_node with BoundaryFlag values
+   * @param n_node Number of nodes.
+   * @param coords_x X coordinate of each node, size n_node.
+   * @param coords_y Y coordinate of each node, size n_node.
+   * @param coords_z Z coordinate of each node, size n_node.
+   * @return Vector of size @p n_node holding one BoundaryFlag value per node.
    */
   vectorInt classify(int n_node, vectorReal coords_x, vectorReal coords_y, vectorReal coords_z) const {
     auto boundaries_t = allocateVector<vectorInt>(n_node, "boundaries_t");

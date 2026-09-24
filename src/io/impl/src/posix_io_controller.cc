@@ -15,7 +15,11 @@ constexpr char kMagicSnap[8] = {'F', 'U', 'N', 'T', 'S', 'N', 'A', 'P'};
 constexpr std::uint32_t kFormatVersion = 1;
 constexpr std::size_t kMaxDims = 4;
 
-/// Fixed-size, naturally aligned. Written verbatim at the start of each file.
+/**
+ * @brief On-disk header written verbatim (host byte order) at the start of each snapshot file.
+ *
+ * Fixed size, naturally aligned, followed by `nelem` scalars.
+ */
 struct FileHeader {
   char magic[8];
   std::uint32_t version;
@@ -24,14 +28,21 @@ struct FileHeader {
   std::uint64_t global_dims[kMaxDims];  ///< Global shape, 0 if not distributed.
   std::uint64_t offsets[kMaxDims];      ///< This rank's offset in the global shape.
   std::uint64_t snapshot_index;         ///< Ordinal of this snapshot in the run.
-  std::uint32_t scalar_bytes;
+  std::uint32_t scalar_bytes;           ///< Size in bytes of one payload scalar.
   std::uint32_t reserved;
   std::uint64_t nelem;  ///< Number of scalars in the payload.
 };
 static_assert(sizeof(FileHeader) == 136, "unexpected padding in FileHeader");
 
-/// `shot_id` becomes a path component, so anything that could escape the output
-/// directory is rejected rather than sanitized silently.
+/**
+ * @brief Rejects a shot identifier that is not safe to use as a path component.
+ *
+ * `shot_id` becomes a directory name, so anything that could escape the output
+ * directory is rejected rather than silently sanitized.
+ *
+ * @param[in] shot_id Candidate identifier; only alphanumerics, '_' and '-' are accepted.
+ * @throws std::invalid_argument If a forbidden character is present.
+ */
 void validateShotId(const std::string& shot_id) {
   for (const char c : shot_id) {
     const bool ok = (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') || c == '_' || c == '-';
@@ -42,8 +53,15 @@ void validateShotId(const std::string& shot_id) {
   }
 }
 
+/**
+ * @brief RAII wrapper around a C `FILE*` that reports every failure by exception.
+ *
+ * Non-copyable. The destructor closes silently; call closeChecked() to detect
+ * errors on close.
+ */
 class File {
  public:
+  /// @throws std::runtime_error If the file cannot be opened.
   File(const std::string& path, const char* mode) : path_(path) {
     fp_ = std::fopen(path.c_str(), mode);
     if (fp_ == nullptr) {
@@ -57,6 +75,7 @@ class File {
   File(const File&) = delete;
   File& operator=(const File&) = delete;
 
+  /// @throws std::runtime_error On a short write.
   void write(const void* data, std::size_t bytes) {
     if (bytes == 0) return;
     if (std::fwrite(data, 1, bytes, fp_) != bytes) {
@@ -64,6 +83,7 @@ class File {
     }
   }
 
+  /// @throws std::runtime_error On a short read.
   void read(void* data, std::size_t bytes) {
     if (bytes == 0) return;
     if (std::fread(data, 1, bytes, fp_) != bytes) {
@@ -71,6 +91,8 @@ class File {
     }
   }
 
+  /// @brief Closes the file and reports failure; no-op if already closed.
+  /// @throws std::runtime_error If `fclose` fails.
   void closeChecked() {
     if (fp_ == nullptr) return;
     const int rc = std::fclose(fp_);
@@ -85,6 +107,7 @@ class File {
   std::string path_;
 };
 
+/// @brief Returns a zero-initialized header with magic, version and scalar size filled in.
 FileHeader makeHeader(const char (&magic)[8]) {
   FileHeader h{};
   std::memcpy(h.magic, magic, sizeof(h.magic));
@@ -93,6 +116,10 @@ FileHeader makeHeader(const char (&magic)[8]) {
   return h;
 }
 
+/**
+ * @brief Validates magic, format version and scalar size of a header read from `path`.
+ * @throws std::runtime_error On any mismatch.
+ */
 void checkHeader(const FileHeader& h, const char (&magic)[8], const std::string& path) {
   if (std::memcmp(h.magic, magic, sizeof(h.magic)) != 0) {
     throw std::runtime_error("funtides::io: " + path + " is not a FUnTiDES file");
@@ -112,12 +139,12 @@ PosixIOController::PosixIOController(OpenMode mode, const IOConfig& config) : IO
   validateShotId(config.shot_id);
 
   if (mode_ == OpenMode::kWrite) {
-    // create_directories() creates parents too, so the shot subdirectory and
-    // the output directory itself both land here.
-    // NOTE: every rank races on this call. error_code keeps an already-existing
-    // directory from throwing, which is enough on a local filesystem; a
-    // parallel filesystem would want rank 0 to create it and a barrier after,
-    // which needs the communicator DistributedContext does not carry yet.
+    // create_directories() also creates the parents, so the output directory
+    // and the shot subdirectory are both handled here.
+    // TODO: every rank calls this concurrently; error_code keeps an already
+    // existing directory from throwing, which is enough on a local filesystem.
+    // A parallel filesystem needs rank 0 to create it followed by a barrier,
+    // which requires a communicator that DistributedContext does not carry yet.
     const std::string dir = outputDir();
     std::error_code ec;
     std::filesystem::create_directories(dir, ec);
@@ -128,6 +155,7 @@ PosixIOController::PosixIOController(OpenMode mode, const IOConfig& config) : IO
 }
 
 PosixIOController::~PosixIOController() {
+  // A destructor must not throw: close errors are reported on stderr only.
   try {
     close();
   } catch (const std::exception& e) {
@@ -204,9 +232,8 @@ void PosixIOController::readSnapshot(const HostVectorReal& field, std::size_t in
 }
 
 void PosixIOController::flush() {
-  // Each write opens, writes and closes its own file, so nothing is ever
-  // pending at the library level. Data already left the process; whether it
-  // reached the platters is up to the OS page cache, as everywhere else.
+  // Each write opens, writes and closes its own file, so nothing is pending
+  // in this class. Durability beyond the OS page cache is not guaranteed.
 }
 
 void PosixIOController::close() {

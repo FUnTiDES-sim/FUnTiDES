@@ -10,9 +10,38 @@
 #include "cartesian_struct_boundary_classifier.h"
 
 namespace model {
+/**
+ * @brief Builds a structured Cartesian hexahedral model for one subdomain.
+ *
+ * The builder describes the local subdomain (element counts, sizes, origin) and the
+ * global domain it belongs to. The global extents are used to classify boundary nodes,
+ * so that only faces on the global boundary are tagged as boundaries.
+ *
+ * @tparam FloatType Floating-point type of coordinates and material values.
+ * @tparam ScalarType Integer type of element counts.
+ * @tparam Order Polynomial order of the spectral elements.
+ */
 template <typename FloatType, typename ScalarType, int Order>
 class CartesianStructBuilder : public ModelBuilderBase<FloatType, ScalarType> {
  public:
+  /**
+   * @brief Stores the description of the local subdomain and of the global domain.
+   *
+   * @param[in] ex,ey,ez Number of local elements along x, y, z.
+   * @param[in] lx,ly,lz Local subdomain size along x, y, z (meters).
+   * @param[in] isModelOnNodes True if the material model is given per node, false if per element.
+   * @param[in] isElastic True for an elastic model, false for an acoustic one.
+   * @param[in] ox,oy,oz Coordinates of the local subdomain origin.
+   * @param[in] global_lx,global_ly,global_lz Global domain size; a negative value means
+   *            "same as the local size".
+   * @param[in] global_ox,global_oy,global_oz Coordinates of the global domain origin.
+   * @param[in] isAcoustoElastic If true, getModel() builds a two-layer fluid/solid model.
+   * @param[in] acoustoElasticBoundaryZ Z coordinate of the fluid/solid interface; the fluid
+   *            is the part with z at or above it. Only used when isAcoustoElastic is true.
+   * @param[in] DgSemBoundaryZ @todo VERIFY: meaning and unit; stored but read by no method of this class.
+   * @param[in] model_file Path of a per-element model file; empty means no file.
+   *            Requires isModelOnNodes to be false.
+   */
   CartesianStructBuilder(ScalarType ex, FloatType lx, ScalarType ey, FloatType ly, ScalarType ez, FloatType lz,
                          bool isModelOnNodes, bool isElastic, FloatType ox = 0.0, FloatType oy = 0.0,
                          FloatType oz = 0.0, FloatType global_lx = -1.0, FloatType global_ly = -1.0,
@@ -44,6 +73,19 @@ class CartesianStructBuilder : public ModelBuilderBase<FloatType, ScalarType> {
 
   ~CartesianStructBuilder() = default;
 
+  /**
+   * @brief Builds the structured model of the local subdomain, with its face connectivity.
+   *
+   * Boundary flags are classified against the global domain. If isAcoustoElastic is set,
+   * per-node or per-element vp, vs and rho are filled with a fluid layer above the
+   * interface and a solid below. If a model file was given, per-element vp, rho and vs
+   * are read from it and replace the values of the corresponding properties.
+   *
+   * @param[in] free_surface_on_top Forwarded to the boundary classifier for the top (z max) face.
+   * @return The built model.
+   * @throws std::runtime_error If a model file is given with isModelOnNodes set, or if the
+   *         number of vp values in the file differs from the number of elements.
+   */
   std::shared_ptr<model::ModelApi<FloatType, ScalarType>> getModel(bool free_surface_on_top) const override {
     model::ModelStructData<FloatType, ScalarType> data;
     data.ex_ = ex_;
@@ -69,8 +111,8 @@ class CartesianStructBuilder : public ModelBuilderBase<FloatType, ScalarType> {
                              global_oz_ + global_lz_, tol, free_surface_on_top)
                              .classify(n_node, nx, ny, nz, ox_, oy_, oz_, lx_, ly_, lz_);
 
-    // Bicouche model for acoustoelastic: fluid layer (z >= boundary) vs solid.
-    // vs=0 in the fluid → TagElements classifies it as acoustic.
+    // Two-layer model: fluid (z >= boundary) over solid. vs = 0 in the fluid, which is
+    // what TagElements uses to classify an element as acoustic.
     if (isAcoustoElastic_) {
       auto temp_model = model::ModelStruct<FloatType, ScalarType, Order>(data);
 
@@ -93,6 +135,7 @@ class CartesianStructBuilder : public ModelBuilderBase<FloatType, ScalarType> {
         data.model_vs_element_ = allocateVector<vectorReal>(n_elem, "model_vs_elem");
         data.model_rho_element_ = allocateVector<vectorReal>(n_elem, "model_rho_elem");
 
+        // An element is fluid if its centroid is at or above the interface.
         for (int k = 0; k < ez_; ++k) {
           FloatType const centroid_z = oz_ + (k + static_cast<FloatType>(0.5)) * hz;
           bool const is_fluid = (centroid_z >= acoustoElasticBoundaryZ_);
@@ -134,10 +177,8 @@ class CartesianStructBuilder : public ModelBuilderBase<FloatType, ScalarType> {
                 << " vp[last]=" << data.model_vp_element_[n_elem - 1] << std::endl;
     }
 
-    // -------------------------------------------------------------------------
-    // Construct model with local coordinates and dimensions, but use global
-    // boundaries for boundary classification.
-    // -------------------------------------------------------------------------
+    // The model uses the local origin and sizes; boundary flags were classified
+    // above against the global domain.
     auto model = std::make_shared<model::ModelStruct<FloatType, ScalarType, Order>>(data);
 
     model->buildFaceConnectivity();
@@ -146,17 +187,17 @@ class CartesianStructBuilder : public ModelBuilderBase<FloatType, ScalarType> {
   }
 
  private:
-  FloatType ox_, oy_, oz_;                       // Local origin coordinate in 3D
-  FloatType global_ox_, global_oy_, global_oz_;  // Global origin
-  ScalarType ex_, ey_, ez_;                      // Number of elements for each axis (local)
-  FloatType lx_, ly_, lz_;                       // Domain size (local)
-  FloatType global_lx_, global_ly_, global_lz_;  // Domain size (global)
-  bool isModelOnNodes_;
-  bool isElastic_;
-  bool isAcoustoElastic_{false};
-  FloatType acoustoElasticBoundaryZ_{static_cast<FloatType>(0)};
-  FloatType DgSemBoundaryZ_{static_cast<FloatType>(0)};
-  std::string model_file_;
+  FloatType ox_, oy_, oz_;                       ///< Local subdomain origin.
+  FloatType global_ox_, global_oy_, global_oz_;  ///< Global domain origin.
+  ScalarType ex_, ey_, ez_;                      ///< Number of local elements along each axis.
+  FloatType lx_, ly_, lz_;                       ///< Local subdomain size (meters).
+  FloatType global_lx_, global_ly_, global_lz_;  ///< Global domain size (meters).
+  bool isModelOnNodes_;                          ///< Material model given per node (true) or per element (false).
+  bool isElastic_;                               ///< Elastic (true) or acoustic (false) model.
+  bool isAcoustoElastic_{false};                 ///< Build a fluid/solid two-layer model.
+  FloatType acoustoElasticBoundaryZ_{static_cast<FloatType>(0)};  ///< Z of the fluid/solid interface.
+  FloatType DgSemBoundaryZ_{static_cast<FloatType>(0)};           ///< Unused, see constructor.
+  std::string model_file_;                       ///< Per-element model file path, empty if none.
 };
 }  // namespace model
 

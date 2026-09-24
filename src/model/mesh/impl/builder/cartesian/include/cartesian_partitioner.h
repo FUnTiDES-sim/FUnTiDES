@@ -10,29 +10,22 @@
 namespace model {
 
 /**
- * @brief 1D domain decomposition along X-axis.
+ * @brief 1D domain decomposition of a Cartesian box along the X axis.
  *
- * Distributes the global X-range evenly across ranks, with remainder
- * elements distributed to the first few ranks. This ensures load balancing
- * while maintaining consecutive element assignment.
+ * The global element count along X is split evenly across ranks; the first
+ * (ex % size) ranks receive one extra element, so each rank owns a contiguous
+ * block of elements. Y and Z are not split.
  *
- * Example with 10 elements across 3 ranks:
- * - Rank 0: elements 0-3 (4 elements)
- * - Rank 1: elements 4-7 (4 elements)
- * - Rank 2: elements 8-9 (2 elements)
+ * Example with 10 elements across 3 ranks: rank 0 owns elements 0-3, rank 1
+ * owns 4-7, rank 2 owns 8-9.
  *
- * @tparam FloatType Floating point type (float, double)
- * @tparam ScalarType Integer type for indices (int, long)
+ * Each local Params carries the local element count and size along X, the
+ * origin of the subdomain, and the global sizes and origin. The global origin
+ * lets the topology factory identify boundary nodes by comparing coordinates
+ * in distributed runs.
  *
- * @details
- * For each rank, computes:
- * - Local element count: base_ex + (1 if rank < remainder else 0)
- * - Global element offset: rank * base_ex + min(rank, remainder)
- * - Local physical size: local_ex * dx
- * - Global origin: global_origin + offset * dx
- *
- * The global origin is critical for distributed execution, as it ensures
- * TopologyFactory can identify boundary nodes by comparing coordinates.
+ * @tparam FloatType Floating point type of the coordinates and sizes.
+ * @tparam ScalarType Integer type of the element counts.
  */
 template <typename FloatType, typename ScalarType>
 class CartesianXPartitioner : public PartitioningStrategy<CartesianParams<FloatType, ScalarType>> {
@@ -40,12 +33,17 @@ class CartesianXPartitioner : public PartitioningStrategy<CartesianParams<FloatT
   using Params = CartesianParams<FloatType, ScalarType>;
 
   /**
-   * @brief Implements the partition method for Cartesian parameters.
-   * Matches the signature: LocalParams partition(const GlobalParams&, int, int)
-   * const
+   * @brief Builds the parameters of the subdomain owned by one rank.
+   *
+   * All fields of @p global not listed in the class description are copied unchanged.
+   *
+   * @param[in] global Parameters of the whole domain; global.ex must be at least 1.
+   * @param[in] rank Rank of the subdomain, in [0, size).
+   * @param[in] size Number of ranks, strictly positive.
+   * @return Parameters of the subdomain of @p rank.
+   * @throws std::invalid_argument If size <= 0 or rank is outside [0, size).
    */
   Params partition(const Params& global, int rank, int size) const override {
-    // Validation
     if (size <= 0) {
       throw std::invalid_argument("CartesianPartitioner: size must be > 0");
     }
@@ -55,33 +53,26 @@ class CartesianXPartitioner : public PartitioningStrategy<CartesianParams<FloatT
 
     auto local = global;
 
-    // 1D Decomposition along X axis
     ScalarType base_ex = global.ex / size;
     ScalarType remainder = global.ex % size;
 
-    // Determine local element count
     local.ex = base_ex + (rank < remainder ? 1 : 0);
 
-    // Calculate Global Offset (in elements)
+    // Offset of the first local element, in elements.
     ScalarType element_offset_x = rank * base_ex + std::min((ScalarType)rank, remainder);
 
-    // Calculate Element Size
     FloatType dx = global.lx / global.ex;
 
-    // Set Local Physical Size
     local.lx = local.ex * dx;
 
-    // Critical: Set Global Origin for this subdomain
     local.origin_x = global.origin_x + element_offset_x * dx;
     local.origin_y = global.origin_y;
     local.origin_z = global.origin_z;
 
-    // Store global dimensions for reference
     local.global_lx = global.lx;
     local.global_ly = global.ly;
     local.global_lz = global.lz;
 
-    // Store global origins
     local.global_origin_x = global.origin_x;
     local.global_origin_y = global.origin_y;
     local.global_origin_z = global.origin_z;

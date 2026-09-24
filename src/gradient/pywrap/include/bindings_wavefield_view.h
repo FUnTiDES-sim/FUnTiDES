@@ -18,21 +18,36 @@ namespace py = pybind11;
 
 namespace gradient {
 
+/**
+ * @brief Registers the Python class @c WavefieldView, exposing only @c print.
+ * @param[in,out] m Python module receiving the class.
+ * @note Must be called before the registration of the derived view classes.
+ */
 void bind_wavefield_view_base(py::module_& m) {
-  // Bind WavefieldView (base class)
   py::class_<WavefieldView, std::shared_ptr<WavefieldView>>(m, "WavefieldView").def("print", &WavefieldView::print);
 }
 
+/**
+ * @brief Registers the Python class @c WavefieldViewForwardAcoustic.
+ *
+ * The Python constructor takes one array, @c pn, converted to a Kokkos view.
+ * @param[in,out] m Python module receiving the class.
+ */
 void bind_wavefield_view_forward_acoustic(py::module_& m) {
-  // Bind WavefieldViewForwardAcoustic (inherits from WavefieldView)
   py::class_<WavefieldViewForwardAcoustic, WavefieldView, std::shared_ptr<WavefieldViewForwardAcoustic>>(
       m, "WavefieldViewForwardAcoustic")
       .def(py::init<Kokkos::Experimental::python_view_type_t<vectorReal>>(), py::arg("pn"))
       .def("print", &WavefieldViewForwardAcoustic::print);
 }
 
+/**
+ * @brief Registers the Python class @c WavefieldViewBackwardAcoustic.
+ *
+ * The Python constructor takes three arrays: @c qn, @c qn_prev and @c qn_prev_prev.
+ * @param[in,out] m Python module receiving the class.
+ * @todo VERIFY: do qn_prev and qn_prev_prev denote the adjoint field at the two previous time steps?
+ */
 void bind_wavefield_view_backward_acoustic(py::module_& m) {
-  // Bind WavefieldViewBackwardAcoustic (inherits from WavefieldView)
   py::class_<WavefieldViewBackwardAcoustic, WavefieldView, std::shared_ptr<WavefieldViewBackwardAcoustic>>(
       m, "WavefieldViewBackwardAcoustic")
       .def(py::init<Kokkos::Experimental::python_view_type_t<vectorReal>,
@@ -42,8 +57,13 @@ void bind_wavefield_view_backward_acoustic(py::module_& m) {
       .def("print", &WavefieldViewBackwardAcoustic::print);
 }
 
+/**
+ * @brief Registers the Python class @c WavefieldViewForwardElastic.
+ *
+ * The Python constructor takes three arrays: @c ux_n, @c uy_n and @c uz_n.
+ * @param[in,out] m Python module receiving the class.
+ */
 void bind_wavefield_view_forward_elastic(py::module_& m) {
-  // Bind WavefieldViewForwardElastic (inherits from WavefieldView)
   py::class_<WavefieldViewForwardElastic, WavefieldView, std::shared_ptr<WavefieldViewForwardElastic>>(
       m, "WavefieldViewForwardElastic")
       .def(py::init<Kokkos::Experimental::python_view_type_t<vectorReal>,
@@ -53,8 +73,14 @@ void bind_wavefield_view_forward_elastic(py::module_& m) {
       .def("print", &WavefieldViewForwardElastic::print);
 }
 
+/**
+ * @brief Registers the Python class @c WavefieldViewBackwardElastic.
+ *
+ * The Python constructor takes six arrays: the displacement components @c ux_n, @c uy_n,
+ * @c uz_n, then the second time derivative components @c ux_dt2, @c uy_dt2, @c uz_dt2.
+ * @param[in,out] m Python module receiving the class.
+ */
 void bind_wavefield_view_backward_elastic(py::module_& m) {
-  // Bind WavefieldViewBackwardElastic (inherits from WavefieldView)
   py::class_<WavefieldViewBackwardElastic, WavefieldView, std::shared_ptr<WavefieldViewBackwardElastic>>(
       m, "WavefieldViewBackwardElastic")
       .def(py::init<Kokkos::Experimental::python_view_type_t<vectorReal>,

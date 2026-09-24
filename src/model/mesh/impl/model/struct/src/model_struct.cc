@@ -1,5 +1,6 @@
 #include "model_struct.h"
 
+/// Explicit instantiations of ModelStruct<float, int, Order> for Order = 1 to 9.
 namespace model {
 template class ModelStruct<float, int, 1>;
 template class ModelStruct<float, int, 2>;

@@ -9,34 +9,35 @@
 namespace model {
 
 /**
- * @brief Data structure for unstructured face connectivity initialization
+ * @brief Plain data used to initialize a FaceConnectivityUnstruct from pre-computed tables.
  *
- * Public members allow direct injection from Python (e.g., from HDF5 files).
- * Same pattern as ModelUnstructData.
+ * Members are public so the tables can be injected directly (for example from Python).
+ * Table layouts are those of the matching members of FaceConnectivityUnstruct.
  */
 template <typename FloatType, typename ScalarType>
 struct FaceConnectivityUnstructData {
-  ScalarType n_faces = 0;
-  int ndofs_per_face = 0;
-
-  arrayInt elem_to_faces;
-  arrayInt face_dofs;
-  arrayInt face_perm;
-  arrayInt face_perm_inv;
-  vectorInt face_elem_owner;
-  vectorInt face_elem_neighbor;
-  vectorInt face_local_owner;
-  vectorInt face_local_neighbor;
+  ScalarType n_faces = 0;                ///< Number of unique faces.
+  int ndofs_per_face = 0;                ///< Nodes per face, (order + 1)^2.
+  arrayInt elem_to_faces;                ///< Global face id, shape (numElements, 6), indexed by CubicFace.
+  arrayInt face_dofs;                    ///< Global node index of each owner-side face dof, shape (n_faces, ndofs_per_face).
+  arrayInt face_perm;                    ///< Owner dof to neighbor dof, shape (n_faces, ndofs_per_face).
+  arrayInt face_perm_inv;                ///< Neighbor dof to owner dof, shape (n_faces, ndofs_per_face).
+  vectorInt face_elem_owner;             ///< Owner element, size n_faces.
+  vectorInt face_elem_neighbor;          ///< Neighbor element, size n_faces, -1 on a boundary face.
+  vectorInt face_local_owner;            ///< Local face index seen from the owner, size n_faces.
+  vectorInt face_local_neighbor;         ///< Local face index seen from the neighbor, size n_faces.
 };
 
 /**
- * @brief Face connectivity for unstructured meshes
+ * @brief Face connectivity of an unstructured hexahedral mesh, stored in Kokkos views.
  *
- * Implements FaceConnectivityApi via pre-computed Kokkos views.
- * Can be constructed from FaceConnectivityUnstructData or built from mesh.
+ * Can be filled from a FaceConnectivityUnstructData or built from a mesh with build().
+ * Every face is shared by at most two elements: the one with the smaller index is the
+ * owner, the other one the neighbor.
  *
- * @tparam FloatType Floating point type
- * @tparam ScalarType Integer type for indexing
+ * @tparam FloatType Floating point type.
+ * @tparam ScalarType Integer type used for element, face and node indices.
+ * @tparam ORDER Polynomial order of the face dofs; -1 means the order of the mesh given to build().
  */
 template <typename FloatType, typename ScalarType, int ORDER = -1>
 class FaceConnectivityUnstruct : public FaceConnectivityApi<FloatType, ScalarType> {
@@ -44,7 +45,8 @@ class FaceConnectivityUnstruct : public FaceConnectivityApi<FloatType, ScalarTyp
   FaceConnectivityUnstruct() = default;
 
   /**
-   * @brief Construct from data structure (for Python injection)
+   * @brief Construct from pre-computed tables.
+   * @param data Tables to copy (the views are shared, not deep-copied).
    */
   PROXY_HOST_DEVICE
   FaceConnectivityUnstruct(const FaceConnectivityUnstructData<FloatType, ScalarType>& data)
@@ -60,14 +62,14 @@ class FaceConnectivityUnstruct : public FaceConnectivityApi<FloatType, ScalarTyp
         face_local_neighbor_(data.face_local_neighbor) {}
 
   /**
-   * @brief Canonical (sorted) 4-corner key identifying a face, independent
-   * of which adjacent element/local-face it's seen from.
+   * @brief Key identifying a face by its 4 corner nodes, sorted in ascending order.
    *
-   * Public: nvcc requires types captured by an extended __device__ lambda
-   * (used inside build()) to have public accessibility.
+   * Independent of the element and local face the face is seen from.
+   * Public because nvcc requires types captured by an extended __device__ lambda
+   * (used in build()) to be publicly accessible.
    */
   struct FaceKey {
-    ScalarType nodes[4];
+    ScalarType nodes[4];  ///< Global node indices of the 4 corners, ascending.
 
     KOKKOS_INLINE_FUNCTION bool operator==(const FaceKey& other) const {
       return nodes[0] == other.nodes[0] && nodes[1] == other.nodes[1] && nodes[2] == other.nodes[2] &&
@@ -76,27 +78,19 @@ class FaceConnectivityUnstruct : public FaceConnectivityApi<FloatType, ScalarTyp
   };
 
   /**
-   * @brief Build face connectivity from mesh
+   * @brief Build the face connectivity of a mesh.
    *
-   * Extracts faces from elements, identifies unique faces, and fills
-   * connectivity tables using a thread-safe map-based approach.
+   * Identifies the unique faces and fills all tables on the device. Face ids are a
+   * deterministic function of the mesh (ascending element, then local face, of the owner).
+   * The tables are complete and visible to the host when the call returns.
    *
-   * Runs as Kokkos::parallel_for kernels (both ModelStruct and ModelUnstruct
-   * expose a device-callable globalNodeIndex()) instead of a single-threaded
-   * host loop, since the per-face work (map insertion + O(ndofs^2)
-   * permutation search) is what dominates build() cost, not memory
-   * locality. Face ownership is elected deterministically (element with the
-   * smaller index owns the face) via an atomic minimum over a packed
-   * (elem, local_face) code, matching the outcome of the original serial
-   * elem-ascending loop.
-   *
-   * @tparam MESH_TYPE Concrete mesh type (struct or unstruct); must expose
-   *   a device-callable globalNodeIndex(elem,i,j,k), getNumberOfElements(),
-   *   getOrder().
-   * @param geom_order True geometric order of the shared node grid, forwarded to fillFaceDofs()
-   *   for the "Plus"-face fixed coordinate. Pass it only when this connectivity's own order
-   *   (ORDER) is lower than the mesh it is built on (DG p-adaptive coupling); the -1 default
-   *   keeps the face dofs sampled at ORDER, i.e. the existing behaviour.
+   * @tparam MESH_TYPE Mesh type; must provide a device-callable globalNodeIndex(elem, i, j, k),
+   *   getNumberOfElements() and getOrder().
+   * @param[in] mesh Mesh to analyze.
+   * @param[in] geom_order Geometric order of the node grid of the mesh, used to locate the "Plus"
+   *   faces and to rescale the face dof indices. Pass it only when ORDER is lower than the order
+   *   of the mesh (p-adaptive coupling); -1 samples the face dofs at ORDER.
+   * @throws std::runtime_error If the face map overflows.
    */
   template <typename MESH_TYPE>
   void build(const MESH_TYPE& mesh, int geom_order = -1) {
@@ -109,16 +103,13 @@ class FaceConnectivityUnstruct : public FaceConnectivityApi<FloatType, ScalarTyp
     using FaceMap = Kokkos::UnorderedMap<FaceKey, void>;
     FaceMap face_map(static_cast<uint32_t>(max_faces));
 
-    // owner_code/face_id_of_bucket/face_count_dev are vectorInt (int-valued
-    // Kokkos views, independent of ScalarType) — use int's own max as the
-    // "unset" sentinel, not ScalarType's (which may be wider, e.g. long, and
-    // would silently truncate through deep_copy into an incorrect value).
+    // These views are vectorInt, independent of ScalarType: the "unset" sentinel is
+    // int's max, because a wider ScalarType would be truncated by deep_copy.
     vectorInt owner_code = allocateVector<vectorInt>(face_map.capacity());
     Kokkos::deep_copy(owner_code, std::numeric_limits<int>::max());
 
-    // Pass A: insert the (sorted-corner) key for every element face and
-    // atomically elect the owner as the smaller of the (at most two)
-    // elements touching it, via a packed (elem, local_face) code.
+    // Pass A: insert every element face and elect the owner as the smaller of the
+    // (at most two) packed (elem, local_face) codes touching it.
     Kokkos::parallel_for(
         "FaceConnectivityUnstruct_insert", n_element, KOKKOS_LAMBDA(const ScalarType elem) {
           for (int lf = 0; lf < 6; ++lf) {
@@ -133,10 +124,9 @@ class FaceConnectivityUnstruct : public FaceConnectivityApi<FloatType, ScalarTyp
     }
 
     // Pass B: compact the sparse map slots into dense face ids [0, face_count).
-    // The prefix sum makes ids a pure function of the mesh; an atomic counter
-    // would order them by thread scheduling, so two instances built from the
-    // same mesh would disagree — and callers share face id lists across
-    // instances (see DGsolver::setFaceConnectivity).
+    // A prefix sum is used instead of an atomic counter so that ids do not depend on
+    // thread scheduling: callers share face id lists across instances built from the
+    // same mesh (see DGsolver::setFaceConnectivity).
     vectorInt face_id_of_bucket = allocateVector<vectorInt>(face_map.capacity());
     ScalarType face_count = 0;
     Kokkos::parallel_scan(
@@ -153,7 +143,6 @@ class FaceConnectivityUnstruct : public FaceConnectivityApi<FloatType, ScalarTyp
         face_count);
     Kokkos::fence();
 
-    // Final device allocation at exact size.
     n_faces_ = face_count;
     elem_to_faces_ = allocateArray2D<arrayInt>(n_element, 6);
     face_dofs_ = allocateArray2D<arrayInt>(face_count, ndofs_per_face_);
@@ -171,8 +160,8 @@ class FaceConnectivityUnstruct : public FaceConnectivityApi<FloatType, ScalarTyp
     arrayInt elem_to_faces = elem_to_faces_;
     const int ndofs_per_face = ndofs_per_face_;
 
-    // Pass C: record elem->face for every element; the elected owner fills
-    // face_dofs_ and owner metadata.
+    // Pass C: every element records its face ids; the owner also fills face_dofs_
+    // and the owner metadata.
     Kokkos::parallel_for(
         "FaceConnectivityUnstruct_owner", n_element, KOKKOS_LAMBDA(const ScalarType elem) {
           for (int lf = 0; lf < 6; ++lf) {
@@ -196,8 +185,8 @@ class FaceConnectivityUnstruct : public FaceConnectivityApi<FloatType, ScalarTyp
     vectorInt face_elem_neighbor = face_elem_neighbor_;
     vectorInt face_local_neighbor = face_local_neighbor_;
 
-    // Pass D: the non-owner side fills neighbor metadata and the
-    // owner<->neighbor DOF permutation (reads face_dofs_ written in Pass C).
+    // Pass D: the non-owner side fills the neighbor metadata and the dof permutations.
+    // Needs face_dofs_ from Pass C.
     Kokkos::parallel_for(
         "FaceConnectivityUnstruct_neighbor", n_element, KOKKOS_LAMBDA(const ScalarType elem) {
           for (int lf = 0; lf < 6; ++lf) {
@@ -207,7 +196,7 @@ class FaceConnectivityUnstruct : public FaceConnectivityApi<FloatType, ScalarTyp
             face_elem_neighbor(face_id) = elem;
             face_local_neighbor(face_id) = lf;
 
-            // ndofs_per_face <= (9+1)^2 = 100 (max order in the codebase).
+            // Upper bound: (9 + 1)^2 dofs at the maximum order of the codebase.
             constexpr int kMaxDofsPerFace = 100;
             ScalarType neigh_dofs[kMaxDofsPerFace];
             fillFaceDofs(
@@ -226,14 +215,9 @@ class FaceConnectivityUnstruct : public FaceConnectivityApi<FloatType, ScalarTyp
             }
           }
         });
-    // Callers read the connectivity from the host right after build()
-    // (list construction, tagging); Pass D must be complete before they do.
+    // Callers read the tables from the host right after build().
     Kokkos::fence();
   }
-
-  // ==========================================================================
-  // FaceConnectivityApi implementation
-  // ==========================================================================
 
   PROXY_HOST_DEVICE ScalarType getNumberOfFaces() const override { return n_faces_; }
 
@@ -268,32 +252,32 @@ class FaceConnectivityUnstruct : public FaceConnectivityApi<FloatType, ScalarTyp
   }
 
  private:
-  ScalarType n_faces_ = 0;
-  int ndofs_per_face_ = 0;
+  ScalarType n_faces_ = 0;  ///< Number of unique faces.
+  int ndofs_per_face_ = 0;  ///< Nodes per face, (order + 1)^2.
 
-  arrayInt elem_to_faces_;
-  arrayInt face_dofs_;
-  arrayInt face_perm_;
-  arrayInt face_perm_inv_;
-  vectorInt face_elem_owner_;
-  vectorInt face_elem_neighbor_;
-  vectorInt face_local_owner_;
-  vectorInt face_local_neighbor_;
-
-  // Helper methods for build()
+  arrayInt elem_to_faces_;         ///< Global face id, shape (numElements, 6), indexed by CubicFace.
+  arrayInt face_dofs_;             ///< Global node of each owner-side face dof, shape (n_faces, ndofs_per_face).
+  arrayInt face_perm_;             ///< Owner dof to neighbor dof, shape (n_faces, ndofs_per_face).
+  arrayInt face_perm_inv_;         ///< Neighbor dof to owner dof, shape (n_faces, ndofs_per_face).
+  vectorInt face_elem_owner_;      ///< Owner element, size n_faces.
+  vectorInt face_elem_neighbor_;   ///< Neighbor element, size n_faces, -1 on a boundary face.
+  vectorInt face_local_owner_;     ///< Local face index seen from the owner, size n_faces.
+  vectorInt face_local_neighbor_;  ///< Local face index seen from the neighbor, size n_faces.
 
   /**
-   * @brief Fill face DOFs by iterating over the face nodes and invoking a
-   * callback for each (local_idx, global_node) pair.
+   * @brief Enumerate the nodes of a local face and pass each to a callback.
    *
-   * @param order      Dofs per face direction minus 1 (drives the stored layout, ndofs_per_face_
-   *                   = (order+1)^2); matches this connectivity's own polynomial order.
-   * @param geom_order Element's true geometric order on the shared node grid. Used only for the
-   *                   fixed face-normal coordinate ("Plus" faces) and to rescale tangential
-   *                   indices onto the true node grid, so a lower-order sub-solver sharing a
-   *                   higher-order mesh (DG p-adaptive coupling) still sees the element's real
-   *                   boundary. Defaults to @p order (existing behaviour, unchanged) when this
-   *                   connectivity's order already matches the mesh.
+   * @tparam MESH_TYPE Mesh type providing a device-callable globalNodeIndex(elem, i, j, k).
+   * @tparam FUNC Callable with signature void(int local_dof, ScalarType global_node).
+   * @param[in] mesh Mesh providing node indexing.
+   * @param[in] elem Element index.
+   * @param[in] local_face Local face of the element.
+   * @param[in] order Polynomial order of the face dofs; ndofs_per_face_ = (order + 1)^2.
+   * @param[in] store Callback invoked once per face dof, in storage order.
+   * @param[in] geom_order Geometric order of the node grid of the element. Used for the fixed
+   *   face-normal coordinate of the "Plus" faces and to rescale the tangential indices onto that
+   *   grid, so that a lower-order sub-solver sharing a higher-order mesh still sees the real
+   *   element boundary. -1 means @p order.
    */
   template <typename MESH_TYPE, typename FUNC>
   KOKKOS_INLINE_FUNCTION static void fillFaceDofs(const MESH_TYPE& mesh, ScalarType elem, CubicFace local_face,
@@ -330,23 +314,18 @@ class FaceConnectivityUnstruct : public FaceConnectivityApi<FloatType, ScalarTyp
   }
 
   /**
-   * @brief Build the 4-corner key identifying a local face.
+   * @brief Build the key of a local face from its 4 corner nodes.
    *
-   * Extracts the 4 corner global node indices of the given local face, always
-   * in the same per-orientation traversal order. Two elements sharing a
-   * physical face see it from opposite orientations (e.g. kXPlus/kXMinus)
-   * whose traversal orders line up on the same global corner nodes, so both
-   * produce an equal FaceKey without needing to sort the 4 nodes. This
-   * relies on globalNodeIndex() returning identical global indices for
-   * shared corners regardless of which adjacent element queries them, and
-   * is what makes the Kokkos::UnorderedMap-based matching in build() work.
+   * Two elements sharing a face produce equal keys because globalNodeIndex() returns the
+   * same global index for a shared corner whichever element queries it, and the corners
+   * are sorted before returning.
    *
-   * @tparam MESH_TYPE Mesh type exposing a device-callable globalNodeIndex().
-   * @param mesh Mesh providing node indexing.
-   * @param mesh_order Polynomial order of the mesh.
-   * @param elem Element index owning the local face.
-   * @param local_face Local face identifier (see CubicFace).
-   * @return FaceKey holding the 4 corner global node indices of the face.
+   * @tparam MESH_TYPE Mesh type providing a device-callable globalNodeIndex().
+   * @param[in] mesh Mesh providing node indexing.
+   * @param[in] mesh_order Polynomial order of the mesh.
+   * @param[in] elem Element owning the local face.
+   * @param[in] local_face Local face of the element.
+   * @return Key holding the 4 sorted corner node indices.
    */
   template <typename MESH_TYPE>
   KOKKOS_INLINE_FUNCTION static FaceKey makeFaceKey(const MESH_TYPE& mesh, int mesh_order, ScalarType elem,
@@ -379,8 +358,7 @@ class FaceConnectivityUnstruct : public FaceConnectivityApi<FloatType, ScalarTyp
                mesh.globalNodeIndex(elem, o, o, o), mesh.globalNodeIndex(elem, 0, o, o)};
         break;
     }
-    // Sort the 4 corners so both adjacent elements produce the same key
-    // regardless of local orientation (tiny fixed-size network, unrolled).
+    // Sort the 4 corners so that the key does not depend on the local orientation.
     ScalarType* n = key.nodes;
     for (int a = 0; a < 3; ++a)
       for (int b = 0; b < 3 - a; ++b)

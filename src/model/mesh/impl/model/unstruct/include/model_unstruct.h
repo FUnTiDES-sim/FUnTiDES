@@ -12,7 +12,13 @@
 namespace model {
 
 /**
- * @brief Data structure for unstructured mesh initialization
+ * @brief Plain data holder used to build a ModelUnstruct.
+ *
+ * Per-node arrays have one entry per global node, per-element arrays one entry per element.
+ * For each material property only the node or the element variant is expected to be filled,
+ * according to isModelOnNodes_; the other one may be empty.
+ * @tparam FloatType Floating-point type of the geometry and material scalars.
+ * @tparam ScalarType Integer type of counts and indices.
  */
 template <typename FloatType, typename ScalarType>
 struct ModelUnstructData : public ModelDataBase<FloatType, ScalarType> {
@@ -22,7 +28,23 @@ struct ModelUnstructData : public ModelDataBase<FloatType, ScalarType> {
   PROXY_HOST_DEVICE ModelUnstructData& operator=(const ModelUnstructData&) = default;
 
   /**
-   * @brief Full constructor with all mesh data
+   * @brief Full constructor. Every array is stored as given (shallow copy of the views).
+   * @param order Polynomial order of the elements.
+   * @param n_element Number of local elements.
+   * @param n_node Number of local nodes.
+   * @param lx Local domain length along x.
+   * @param ly Local domain length along y.
+   * @param lz Local domain length along z.
+   * @param isModelOnNodes True if material properties are given per node, false if per element.
+   * @param isElastic True for elastic propagation, false for acoustic.
+   * @param global_node_index Node table, shape (n_element, (order+1)^3), indexed by (e, i + j*(order+1) + k*(order+1)^2).
+   * @param nodes_coords_x X coordinate of each node (size n_node).
+   * @param nodes_coords_y Y coordinate of each node (size n_node).
+   * @param nodes_coords_z Z coordinate of each node (size n_node).
+   * @param boundaries_t BoundaryFlag value of each node (size n_node), may be empty.
+   * @param model_C_tensor_element Per-element 6x6 Voigt elasticity tensor, shape (n_element, 6, 6).
+   * @param face_connectivity Optional precomputed face connectivity.
+   * @todo VERIFY: units of the angles model_theta_* and model_phi_* (radians or degrees).
    */
   PROXY_HOST_DEVICE
   ModelUnstructData(ScalarType order, ScalarType n_element, ScalarType n_node, FloatType lx, FloatType ly, FloatType lz,
@@ -73,20 +95,21 @@ struct ModelUnstructData : public ModelDataBase<FloatType, ScalarType> {
         boundaries_t_(boundaries_t),
         face_connectivity_(face_connectivity) {}
 
+  /// @todo VERIFY: is origin_x_/y_/z_ read anywhere, and how does it relate to ox_/oy_/oz_?
   FloatType origin_x_{0}, origin_y_{0}, origin_z_{0};
-  FloatType ox_, oy_, oz_;  // Local origin
-  ScalarType order_;
-  ScalarType n_element_;
-  ScalarType n_node_;
-  FloatType lx_, ly_, lz_;  // Local dimensions
+  FloatType ox_, oy_, oz_;  ///< Origin of the local subdomain.
+  ScalarType order_;        ///< Polynomial order of the elements.
+  ScalarType n_element_;    ///< Number of local elements.
+  ScalarType n_node_;       ///< Number of local nodes.
+  FloatType lx_, ly_, lz_;  ///< Local domain lengths.
 
-  bool isModelOnNodes_;
-  bool isElastic_;
+  bool isModelOnNodes_;  ///< True if material properties are stored per node, false if per element.
+  bool isElastic_;       ///< True for elastic propagation, false for acoustic.
 
-  arrayInt global_node_index_;
-  vectorReal nodes_coords_x_;
-  vectorReal nodes_coords_y_;
-  vectorReal nodes_coords_z_;
+  arrayInt global_node_index_;  ///< Shape (n_element, (order+1)^3), indexed by (e, i + j*(order+1) + k*(order+1)^2).
+  vectorReal nodes_coords_x_;   ///< X coordinate of each node, size n_node.
+  vectorReal nodes_coords_y_;   ///< Y coordinate of each node, size n_node.
+  vectorReal nodes_coords_z_;   ///< Z coordinate of each node, size n_node.
 
   vectorReal model_vp_node_;
   vectorReal model_vp_element_;
@@ -108,13 +131,18 @@ struct ModelUnstructData : public ModelDataBase<FloatType, ScalarType> {
   vectorReal model_theta_element_;
   vectorReal model_phi_node_;
   vectorReal model_phi_element_;
-  array3DReal model_C_tensor_element_;
-  vectorInt boundaries_t_;
+  array3DReal model_C_tensor_element_;  ///< Shape (n_element, 6, 6), Voigt notation.
+  vectorInt boundaries_t_;              ///< BoundaryFlag value of each node, size n_node; may be empty.
   FaceConnectivityUnstructData<FloatType, ScalarType> face_connectivity_;
 };
 
 /**
- * @brief Unstructured 3D hexahedral mesh implementation
+ * @brief Unstructured mesh of hexahedral elements with an explicit node table and node coordinates.
+ *
+ * Holds the geometry, the material properties (per node or per element) and the face
+ * connectivity of the local subdomain. Copies share the underlying Kokkos views.
+ * @tparam FloatType Floating-point type of the geometry and material scalars.
+ * @tparam ScalarType Integer type of counts and indices.
  */
 template <typename FloatType, typename ScalarType>
 class ModelUnstruct final : public ModelApi<FloatType, ScalarType> {
@@ -124,7 +152,8 @@ class ModelUnstruct final : public ModelApi<FloatType, ScalarType> {
   PROXY_HOST_DEVICE ModelUnstruct() = default;
 
   /**
-   * @brief Construct from data structure
+   * @brief Construct from a data structure (shallow copy of the views).
+   * @param data Mesh and material data.
    */
   PROXY_HOST_DEVICE ModelUnstruct(const ModelUnstructData<FloatType, ScalarType>& data)
       : order_(data.order_),
@@ -171,20 +200,20 @@ class ModelUnstruct final : public ModelApi<FloatType, ScalarType> {
   PROXY_HOST_DEVICE ~ModelUnstruct() = default;
 
   /**
-   * @brief Convert linear element index to element identifier
-   * @param linearIndex Linear element index
-   * @return Element index (identity for unstructured)
+   * @brief Convert a linear element index to an element index.
+   * @param linearIndex Linear element index.
+   * @return linearIndex unchanged.
    */
   PROXY_HOST_DEVICE
   IndexType elementIndex(const int linearIndex) const { return linearIndex; }
 
   /**
-   * @brief Get global vertex index from element and local vertex coordinates
-   * @param e Element index
-   * @param i Local i-coordinate (0 or 1)
-   * @param j Local j-coordinate (0 or 1)
-   * @param k Local k-coordinate (0 or 1)
-   * @return Global vertex index
+   * @brief Get the global node index of a vertex of an element.
+   * @param e Element index.
+   * @param i Vertex coordinate along the first local axis, 0 or 1.
+   * @param j Vertex coordinate along the second local axis, 0 or 1.
+   * @param k Vertex coordinate along the third local axis, 0 or 1.
+   * @return Global node index of the corner node.
    */
   PROXY_HOST_DEVICE
   IndexType globalVertexIndex(IndexType e, int const i, int const j, int const k) const {
@@ -196,9 +225,9 @@ class ModelUnstruct final : public ModelApi<FloatType, ScalarType> {
   }
 
   /**
-   * @brief Get vertex coordinates
-   * @param dofGlobal Global vertex index
-   * @param coords Output array for coordinates [x, y, z]
+   * @brief Get the coordinates of a node.
+   * @param dofGlobal Global node index.
+   * @param[out] coords Array of at least 3 entries, receives x, y, z.
    */
   PROXY_HOST_DEVICE
   void vertexCoords(IndexType dofGlobal, FloatType* const coords) const {
@@ -208,10 +237,10 @@ class ModelUnstruct final : public ModelApi<FloatType, ScalarType> {
   }
 
   /**
-   * @brief Get node coordinate in specified dimension
-   * @param dofGlobal Global node index
-   * @param dim Dimension (0=x, 1=y, 2=z)
-   * @return Coordinate value
+   * @brief Get one coordinate of a node.
+   * @param dofGlobal Global node index.
+   * @param dim Axis: 0 = x, 1 = y, 2 = z.
+   * @return Coordinate value, or -1 if dim is not in 0..2.
    */
   PROXY_HOST_DEVICE
   FloatType nodeCoord(ScalarType dofGlobal, int dim) const final {
@@ -231,12 +260,12 @@ class ModelUnstruct final : public ModelApi<FloatType, ScalarType> {
   }
 
   /**
-   * @brief Get global node index from element and local coordinates
-   * @param e Element index
-   * @param i Local i-coordinate [0, order]
-   * @param j Local j-coordinate [0, order]
-   * @param k Local k-coordinate [0, order]
-   * @return Global node index
+   * @brief Get the global node index of a local node of an element.
+   * @param e Element index.
+   * @param i Local index along the first axis, in [0, order].
+   * @param j Local index along the second axis, in [0, order].
+   * @param k Local index along the third axis, in [0, order].
+   * @return Global node index. The local node number is i + j*(order+1) + k*(order+1)^2.
    */
   PROXY_HOST_DEVICE
   ScalarType globalNodeIndex(ScalarType e, int i, int j, int k) const final {
@@ -245,58 +274,55 @@ class ModelUnstruct final : public ModelApi<FloatType, ScalarType> {
   }
 
   /**
-   * @brief Get P-wave velocity at node
-   * @param n Node index
-   * @return P-wave velocity (m/s)
+   * @brief Get the P-wave velocity at a node.
+   * @param n Node index.
+   * @return P-wave velocity (m/s).
    */
   PROXY_HOST_DEVICE FloatType getModelVpOnNodes(ScalarType n) const final { return model_vp_node_[n]; }
 
   /**
-   * @brief Get P-wave velocity at element
-   * @param e Element index
-   * @return P-wave velocity (m/s)
+   * @brief Get the P-wave velocity of an element.
+   * @param e Element index.
+   * @return P-wave velocity (m/s).
    */
   PROXY_HOST_DEVICE FloatType getModelVpOnElement(ScalarType e) const final { return model_vp_element_[e]; }
 
   /**
-   * @brief Get density at node
-   * @param n Node index
-   * @return Density (kg/m³)
+   * @brief Get the density at a node.
+   * @param n Node index.
+   * @return Density (kg/m^3).
    */
   PROXY_HOST_DEVICE FloatType getModelRhoOnNodes(ScalarType n) const final { return model_rho_node_[n]; }
 
   /**
-   * @brief Get density at element
-   * @param e Element index
-   * @return Density (kg/m³)
+   * @brief Get the density of an element.
+   * @param e Element index.
+   * @return Density (kg/m^3).
    */
   PROXY_HOST_DEVICE FloatType getModelRhoOnElement(ScalarType e) const final { return model_rho_element_[e]; }
 
   /**
-   * @brief Get S-wave velocity at node
-   * @param n Node index
-   * @return S-wave velocity (m/s)
+   * @brief Get the S-wave velocity at a node.
+   * @param n Node index.
+   * @return S-wave velocity (m/s).
    */
   PROXY_HOST_DEVICE FloatType getModelVsOnNodes(ScalarType n) const final { return model_vs_node_[n]; }
 
   /**
-   * @brief Get S-wave velocity at element
-   * @param e Element index
-   * @return S-wave velocity (m/s)
+   * @brief Get the S-wave velocity of an element.
+   * @param e Element index.
+   * @return S-wave velocity (m/s).
    */
   PROXY_HOST_DEVICE FloatType getModelVsOnElement(ScalarType e) const final { return model_vs_element_[e]; }
 
   /**
-   * @brief Override per-node material properties at node @p n.
+   * @brief Overwrite the per-node vp, vs and rho at a node.
    *
-   * Used by the acousto-elastic solver to temporarily apply solid properties
-   * at interface nodes before computing elastic element contributions, and to
-   * restore fluid properties afterwards.
-   *
-   * @param n   Global node index.
-   * @param vp  P-wave velocity (m/s).
-   * @param vs  S-wave velocity (m/s).
-   * @param rho Density (kg/m³).
+   * Host only. The per-node arrays must be allocated.
+   * @param n Global node index.
+   * @param vp P-wave velocity (m/s).
+   * @param vs S-wave velocity (m/s).
+   * @param rho Density (kg/m^3).
    */
   void setModelNodeProps(ScalarType n, FloatType vp, FloatType vs, FloatType rho) {
     model_vp_node_[n] = vp;
@@ -304,108 +330,132 @@ class ModelUnstruct final : public ModelApi<FloatType, ScalarType> {
     model_rho_node_[n] = rho;
   }
 
+  /**
+   * @brief Get the P-wave quality factor at a node.
+   * @param n Node index.
+   * @return Quality factor Qp (dimensionless), or 1.0e9 if no per-node array is stored.
+   */
   PROXY_HOST_DEVICE FloatType getModelQpOnNodes(ScalarType n) const final {
     if (model_qp_node_.extent(0) > 0) return model_qp_node_[n];
     return static_cast<FloatType>(1.0e9);
   }
 
+  /**
+   * @brief Get the P-wave quality factor of an element.
+   * @param e Element index.
+   * @return Quality factor Qp (dimensionless), or 1.0e9 if no per-element array is stored.
+   */
   PROXY_HOST_DEVICE FloatType getModelQpOnElement(ScalarType e) const final {
     if (model_qp_element_.extent(0) > 0) return model_qp_element_[e];
     return static_cast<FloatType>(1.0e9);
   }
 
+  /**
+   * @brief Get the S-wave quality factor at a node.
+   * @param n Node index.
+   * @return Quality factor Qs (dimensionless), or 1.0e9 if no per-node array is stored.
+   */
   PROXY_HOST_DEVICE FloatType getModelQsOnNodes(ScalarType n) const final {
     if (model_qs_node_.extent(0) > 0) return model_qs_node_[n];
     return static_cast<FloatType>(1.0e9);
   }
 
+  /**
+   * @brief Get the S-wave quality factor of an element.
+   * @param e Element index.
+   * @return Quality factor Qs (dimensionless), or 1.0e9 if no per-element array is stored.
+   */
   PROXY_HOST_DEVICE FloatType getModelQsOnElement(ScalarType e) const final {
     if (model_qs_element_.extent(0) > 0) return model_qs_element_[e];
     return static_cast<FloatType>(1.0e9);
   }
 
   /**
-   * @brief Get Thomsen delta parameter at node
-   * @param n Node index
-   * @return Thomsen delta (dimensionless)
+   * @brief Get the Thomsen delta parameter at a node.
+   * @param n Node index.
+   * @return Thomsen delta (dimensionless).
    */
   PROXY_HOST_DEVICE FloatType getModelDeltaOnNodes(ScalarType n) const final { return model_delta_node_[n]; }
 
   /**
-   * @brief Get Thomsen delta parameter at element
-   * @param e Element index
-   * @return Thomsen delta (dimensionless)
+   * @brief Get the Thomsen delta parameter of an element.
+   * @param e Element index.
+   * @return Thomsen delta (dimensionless).
    */
   PROXY_HOST_DEVICE FloatType getModelDeltaOnElement(ScalarType e) const final { return model_delta_element_[e]; }
 
   /**
-   * @brief Get Thomsen epsilon parameter at node
-   * @param n Node index
-   * @return Thomsen epsilon (dimensionless)
+   * @brief Get the Thomsen epsilon parameter at a node.
+   * @param n Node index.
+   * @return Thomsen epsilon (dimensionless).
    */
   PROXY_HOST_DEVICE FloatType getModelEpsilonOnNodes(ScalarType n) const final { return model_epsilon_node_[n]; }
 
   /**
-   * @brief Get Thomsen epsilon parameter at element
-   * @param e Element index
-   * @return Thomsen epsilon (dimensionless)
+   * @brief Get the Thomsen epsilon parameter of an element.
+   * @param e Element index.
+   * @return Thomsen epsilon (dimensionless).
    */
   PROXY_HOST_DEVICE FloatType getModelEpsilonOnElement(ScalarType e) const final { return model_epsilon_element_[e]; }
 
   /**
-   * @brief Get Thomsen gamma parameter at node
-   * @param n Node index
-   * @return Thomsen gamma (dimensionless)
+   * @brief Get the Thomsen gamma parameter at a node.
+   * @param n Node index.
+   * @return Thomsen gamma (dimensionless).
    */
   PROXY_HOST_DEVICE FloatType getModelGammaOnNodes(ScalarType n) const final { return model_gamma_node_[n]; }
 
   /**
-   * @brief Get Thomsen gamma parameter at element
-   * @param e Element index
-   * @return Thomsen gamma (dimensionless)
+   * @brief Get the Thomsen gamma parameter of an element.
+   * @param e Element index.
+   * @return Thomsen gamma (dimensionless).
    */
   PROXY_HOST_DEVICE FloatType getModelGammaOnElement(ScalarType e) const final { return model_gamma_element_[e]; }
 
   /**
-   * @brief Get azimuth angle at node
-   * @param n Node index
-   * @return Azimuth angle phi (radians)
+   * @brief Get the azimuth angle phi at a node.
+   * @param n Node index.
+   * @return Azimuth angle phi.
+   * @todo VERIFY: unit of the stored angle (radians here, degrees in computeCTensor).
    */
   PROXY_HOST_DEVICE ScalarType getModelPhiOnNodes(ScalarType n) const final { return model_phi_node_[n]; }
 
   /**
-   * @brief Get azimuth angle at element
-   * @param e Element index
-   * @return Azimuth angle phi (radians)
+   * @brief Get the azimuth angle phi of an element.
+   * @param e Element index.
+   * @return Azimuth angle phi.
+   * @todo VERIFY: unit of the stored angle (radians here, degrees in computeCTensor).
    */
   PROXY_HOST_DEVICE ScalarType getModelPhiOnElement(ScalarType e) const final { return model_phi_element_[e]; }
 
   /**
-   * @brief Get tilt angle at node
-   * @param n Node index
-   * @return Tilt angle theta (radians)
+   * @brief Get the tilt angle theta at a node.
+   * @param n Node index.
+   * @return Tilt angle theta.
+   * @todo VERIFY: unit of the stored angle (radians here, degrees in computeCTensor).
    */
   PROXY_HOST_DEVICE ScalarType getModelThetaOnNodes(ScalarType n) const final { return model_theta_node_[n]; }
 
   /**
-   * @brief Get tilt angle at element
-   * @param e Element index
-   * @return Tilt angle theta (radians)
+   * @brief Get the tilt angle theta of an element.
+   * @param e Element index.
+   * @return Tilt angle theta.
+   * @todo VERIFY: unit of the stored angle (radians here, degrees in computeCTensor).
    */
   PROXY_HOST_DEVICE ScalarType getModelThetaOnElement(ScalarType e) const final { return model_theta_element_[e]; }
 
   /**
-   * @brief Initialize elasticity tensors for all elements
+   * @brief Precompute the per-element 6x6 Voigt elasticity tensors.
    *
-   * Computes the 6x6 Voigt elasticity tensor from material properties.
-   * Only executed if isElastic_ is true.
+   * Does nothing if the mesh is not elastic. Only the TTI case allocates and fills
+   * model_C_tensor_element_ from the per-element vp, vs, rho and Thomsen parameters.
+   * @param anisotropy_type Anisotropy of the medium.
    */
   void initElasticityTensors(AnisotropyType anisotropy_type) final {
     if (!isElastic_) return;
 
     if (anisotropy_type == AnisotropyType::kIso || anisotropy_type == AnisotropyType::kVTI) {
-      // No precomputation needed for ISOTROPIC and VTI, computed on-the-fly
-      // inside solver
+      // Isotropic and VTI tensors are not stored: the solver builds them on the fly.
       return;
     }
 
@@ -445,9 +495,9 @@ class ModelUnstruct final : public ModelApi<FloatType, ScalarType> {
   }
 
   /**
-   * @brief Get elasticity tensor for element
-   * @param e Element index
-   * @param CTTI Output 6x6 Voigt elasticity tensor
+   * @brief Get the stored elasticity tensor of an element.
+   * @param e Element index.
+   * @param[out] CTTI 6x6 elasticity tensor in Voigt notation.
    */
   PROXY_HOST_DEVICE
   void getCTensorOnElement(ScalarType e, FloatType CTTI[6][6]) const final {
@@ -456,46 +506,49 @@ class ModelUnstruct final : public ModelApi<FloatType, ScalarType> {
   }
 
   /**
-   * @brief Check if material properties are stored on nodes
-   * @return True if on nodes, false if on elements
+   * @brief Tell where the material properties are stored.
+   * @return True if per node, false if per element.
    */
   PROXY_HOST_DEVICE bool isModelOnNodes() const final { return isModelOnNodes_; }
 
   /**
-   * @brief Check if mesh is for elastic wave propagation
-   * @return True if elastic, false if acoustic
+   * @brief Tell the wave equation the mesh is set up for.
+   * @return True if elastic, false if acoustic.
    */
   PROXY_HOST_DEVICE bool isElastic() const final { return isElastic_; }
 
   /**
-   * @brief Get total number of elements
-   * @return Number of elements
+   * @brief Get the number of local elements.
+   * @return Number of elements.
    */
   PROXY_HOST_DEVICE ScalarType getNumberOfElements() const final { return n_element_; }
 
   /**
-   * @brief Get total number of nodes
-   * @return Number of nodes
+   * @brief Get the number of local nodes.
+   * @return Number of nodes.
    */
   PROXY_HOST_DEVICE ScalarType getNumberOfNodes() const final { return n_node_; }
 
   /**
-   * @brief Get number of nodes per element
-   * @return (order+1)³ nodes per element
+   * @brief Get the number of nodes per element.
+   * @return (order+1)^3.
    */
   PROXY_HOST_DEVICE int getNumberOfPointsPerElement() const final { return n_points_per_element_; }
 
   /**
-   * @brief Get polynomial order of elements
-   * @return Element order
+   * @brief Get the polynomial order of the elements.
+   * @return Element order.
    */
   PROXY_HOST_DEVICE int getOrder() const final { return static_cast<int>(order_); }
 
   /**
-   * @brief Compute outward normal vector for element face
-   * @param e Element index
-   * @param local_face Face identifier (kXMinus, kXPlus, etc.)
-   * @param v Output normal vector [nx, ny, nz] (normalized)
+   * @brief Compute the unit outward normal of an element face.
+   *
+   * The normal is built from three corner nodes of the face. It is left unnormalized
+   * if its norm is below 1e-12.
+   * @param e Element index.
+   * @param local_face Local face of the element.
+   * @param[out] v Array of 3 entries, receives the normal (x, y, z).
    */
   PROXY_HOST_DEVICE
   void faceNormal(ScalarType e, CubicFace local_face, FloatType v[3]) const final {
@@ -564,9 +617,9 @@ class ModelUnstruct final : public ModelApi<FloatType, ScalarType> {
   }
 
   /**
-   * @brief Get boundary type flag for a node
-   * @param n Node index
-   * @return BoundaryFlag enum value
+   * @brief Get the boundary flag of a node.
+   * @param n Node index.
+   * @return BoundaryFlag of the node; InteriorNode if no boundary flags are stored.
    */
   PROXY_HOST_DEVICE
   BoundaryFlag boundaryType(ScalarType n) const override {
@@ -575,9 +628,9 @@ class ModelUnstruct final : public ModelApi<FloatType, ScalarType> {
   }
 
   /**
-   * @brief Get domain size in specified dimension
-   * @param dim Dimension (0=x, 1=y, 2=z)
-   * @return Domain size (meters)
+   * @brief Get the local domain length along an axis.
+   * @param dim Axis: 0 = x, 1 = y, 2 = z.
+   * @return Domain length (m), or -1 if dim is not in 0..2.
    */
   PROXY_HOST_DEVICE FloatType domainSize(int dim) const final {
     switch (dim) {
@@ -593,8 +646,8 @@ class ModelUnstruct final : public ModelApi<FloatType, ScalarType> {
   }
 
   /**
-   * @brief Compute minimum node spacing in mesh
-   * @return Minimum spacing between adjacent nodes (meters)
+   * @brief Get the minimum distance between adjacent nodes.
+   * @return Minimum node spacing (m).
    */
   PROXY_HOST_DEVICE FloatType getMinSpacing() const final {
     FloatType minSpacing = std::numeric_limits<FloatType>::max();
@@ -637,8 +690,9 @@ class ModelUnstruct final : public ModelApi<FloatType, ScalarType> {
   }
 
   /**
-   * @brief Find maximum wave speed in mesh
-   * @return Maximum P-wave velocity (m/s)
+   * @brief Get the maximum P-wave velocity of the local mesh.
+   * @return Maximum P-wave velocity (m/s).
+   * @throws std::runtime_error if neither per-node nor per-element vp is stored.
    */
   FloatType getMaxSpeed() const final {
     FloatType maxSpeedNode = std::numeric_limits<FloatType>::lowest();
@@ -654,21 +708,12 @@ class ModelUnstruct final : public ModelApi<FloatType, ScalarType> {
     return max(maxSpeedElem, maxSpeedNode);
   }
 
-  // ============================================================================
-  // FACE CONNECTIVITY FUNCTIONS
-  // ============================================================================
-
   /**
-   * @brief Build face connectivity tables for absorbing boundary conditions
+   * @brief Build the face connectivity tables.
    *
-   * Constructs mappings between elements, faces, and nodes:
-   * - Identifies unique faces across all elements
-   * - Detects shared internal faces between adjacent elements
-   * - Flags boundary faces (faces with only one adjacent element)
-   * - Builds node lists for each face (for quadrature integration)
-   *
-   * Must be called before using face-related query functions.
-   * Complexity: O(N_elem) with map-based face matching.
+   * Identifies the unique faces, the element pair sharing each internal face, and the
+   * nodes of each face. Does nothing if the tables already exist. Must be called before
+   * any face query.
    */
   void buildFaceConnectivity() override {
     if (face_connectivity_.getNumberOfFaces() > 0) return;
@@ -676,10 +721,10 @@ class ModelUnstruct final : public ModelApi<FloatType, ScalarType> {
     face_connectivity_.build(*this);
   }
   /**
-   * @brief Get global face ID from element and local face
-   * @param elem Element index
-   * @param local_face Local face identifier (0-5)
-   * @return Global face ID
+   * @brief Get the global face index of a local face of an element.
+   * @param elem Element index.
+   * @param local_face Local face of the element.
+   * @return Global face index.
    */
   PROXY_HOST_DEVICE
   ScalarType getGlobalFace(ScalarType elem, CubicFace local_face) const override {
@@ -687,10 +732,10 @@ class ModelUnstruct final : public ModelApi<FloatType, ScalarType> {
   }
 
   /**
-   * @brief Get global node index from face and local DOF
-   * @param face_global Global face ID
-   * @param local_dof Local node index on face [0, (order+1)²)
-   * @return Global node index
+   * @brief Get the global node index of a node lying on a face.
+   * @param face_global Global face index.
+   * @param local_dof Node number on the face, in [0, (order+1)^2).
+   * @return Global node index.
    */
   PROXY_HOST_DEVICE
   ScalarType getGlobalNodeFromFace(ScalarType face_global, int local_dof) const override {
@@ -698,9 +743,12 @@ class ModelUnstruct final : public ModelApi<FloatType, ScalarType> {
   }
 
   /**
-   * @brief Check if face is on domain boundary
-   * @param face_global Global face ID
-   * @return True if boundary face (no neighbor element)
+   * @brief Tell whether a face lies on the domain boundary.
+   *
+   * If node boundary flags are stored, a face is a boundary face when none of its nodes
+   * is InteriorNode; otherwise the face connectivity decides (no neighbor element).
+   * @param face_global Global face index.
+   * @return True if boundary face.
    */
   PROXY_HOST_DEVICE
   bool isBoundaryFace(ScalarType face_global) const override {
@@ -714,16 +762,16 @@ class ModelUnstruct final : public ModelApi<FloatType, ScalarType> {
   }
 
   /**
-   * @brief Get total number of faces in mesh
-   * @return Number of unique faces
+   * @brief Get the number of unique faces.
+   * @return Number of faces (0 until buildFaceConnectivity() has run).
    */
   PROXY_HOST_DEVICE
   ScalarType getNumberOfFaces() const override { return face_connectivity_.getNumberOfFaces(); }
 
   /**
-   * @brief Check if node is on free surface
-   * @param n Node index
-   * @return True if free surface node, false otherwise
+   * @brief Tell whether a node is on the free surface.
+   * @param n Node index.
+   * @return True if the node flag is Surface; false if no boundary flags are stored.
    */
   PROXY_HOST_DEVICE
   bool isFreeSurface(ScalarType n) const override {
@@ -731,6 +779,13 @@ class ModelUnstruct final : public ModelApi<FloatType, ScalarType> {
     return boundaries_t_[n] == static_cast<ScalarType>(BoundaryFlag::Surface);
   }
 
+  /**
+   * @brief Set uniform per-element quality factors.
+   *
+   * Allocates and fills the per-element Qp and Qs arrays; host only.
+   * @param qp P-wave quality factor (dimensionless).
+   * @param qs S-wave quality factor (dimensionless).
+   */
   void setQualityFactors(FloatType qp, FloatType qs) override {
     ScalarType nElem = getNumberOfElements();
     model_qp_element_ = allocateVector<vectorReal>(nElem, "model_qp_element");

@@ -1,4 +1,7 @@
-// Driver file for the SEM proxy simulation.
+/**
+ * @file main.cc
+ * @brief Command-line driver: parses options, initializes MPI and Kokkos, and runs one SEMproxy simulation.
+ */
 
 #include <cstdlib>
 #include <iostream>
@@ -11,19 +14,21 @@
 #include "sem_proxy_options.h"
 
 /**
- * @brief Initializes the MPI environment if USE_MPI is defined.
+ * @brief Initializes MPI when built with USE_MPI; otherwise only prints a message.
+ *
+ * Requests MPI_THREAD_MULTIPLE because snapshot writing runs on background threads.
+ * Prints a warning if that thread level is not provided.
  *
  * @param argc Number of command-line arguments.
- * @param argv Array of command-line arguments.
- * @param rank Pointer to store the MPI rank of the calling process.
- * @param size Pointer to store the total number of MPI processes.
+ * @param argv Command-line arguments.
+ * @param[out] rank MPI rank of the calling process (left unchanged without USE_MPI).
+ * @param[out] size Number of MPI processes (left unchanged without USE_MPI).
  */
 void InitMpi(int argc, char** argv, int* rank, int* size) {
 #ifdef USE_MPI
   std::cout << "Initializing MPI..." << std::endl;
 
   int provided;
-  // CRITICAL: Request MULTIPLE for background I/O threads
   MPI_Init_thread(&argc, &argv, MPI_THREAD_MULTIPLE, &provided);
   if (provided < MPI_THREAD_MULTIPLE) {
     std::cout << "WARNING: MPI_THREAD_MULTIPLE not supported. Async I/O may be unstable.\n";
@@ -37,7 +42,7 @@ void InitMpi(int argc, char** argv, int* rank, int* size) {
 }
 
 /**
- * @brief Finalizes the MPI environment if USE_MPI is defined.
+ * @brief Waits on a barrier and finalizes MPI when built with USE_MPI; otherwise only prints a message.
  */
 void FinalizeMpi() {
 #ifdef USE_MPI
@@ -50,15 +55,19 @@ void FinalizeMpi() {
 }
 
 /**
- * @brief Parses command-line arguments to build simulation options.
+ * @brief Parses the command line into simulation options and validates them.
+ *
+ * Unrecognised options are accepted so that Kokkos flags pass through.
+ * Prints the help text and exits with EXIT_SUCCESS on --help; prints the error
+ * and exits with EXIT_FAILURE if validation fails.
  *
  * @param argc Number of command-line arguments.
- * @param argv Array of command-line arguments.
- * @return Parsed and validated simulation configuration options.
+ * @param argv Command-line arguments.
+ * @return Validated simulation options.
  */
 SemProxyOptions ParseOptions(int argc, char** argv) {
   cxxopts::Options options("SEM Proxy", "Runs the SEM simulation.");
-  options.allow_unrecognised_options();  // Allows Kokkos flags to pass through
+  options.allow_unrecognised_options();
   options.add_options()("h,help", "Print help message");
 
   SemProxyOptions opt;
@@ -81,12 +90,18 @@ SemProxyOptions ParseOptions(int argc, char** argv) {
   return opt;
 }
 
+/**
+ * @brief Program entry point.
+ *
+ * Initializes MPI, sets the OpenMP binding environment, initializes Kokkos,
+ * then builds and runs a SEMproxy. The simulation object is scoped so that it is
+ * destroyed before Kokkos::finalize().
+ */
 int main(int argc, char** argv) {
   int rank = 0;
   int size = 1;
   InitMpi(argc, argv, &rank, &size);
 
-  // Configure OpenMP thread bindings for performance
   setenv("OMP_PROC_BIND", "spread", 1);
   setenv("OMP_PLACES", "threads", 1);
 

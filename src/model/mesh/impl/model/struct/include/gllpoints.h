@@ -3,13 +3,29 @@
 #include <array>
 #include <cstddef>
 
+/// Highest polynomial order for which GLLPoints tabulates points.
 constexpr int MAX_GLL_ORDER = 9;
 
+/**
+ * @brief Tabulated Gauss-Lobatto-Legendre points on the reference interval [-1, 1].
+ *
+ * Points are sorted in increasing order; the first is -1 and the last is +1.
+ * Usable from host and device code.
+ */
 struct GLLPoints {
-  /// Return the number of points for given order
+  /**
+   * @brief Number of GLL points for a given polynomial order.
+   * @param[in] order Polynomial order.
+   * @return order + 1.
+   */
   PROXY_HOST_DEVICE static constexpr int num_points(int order) { return order + 1; }
 
-  /// Return the i-th GLL point for given order (reference element [-1, 1])
+  /**
+   * @brief i-th GLL point on the reference interval [-1, 1].
+   * @param[in] order Polynomial order, in [1, MAX_GLL_ORDER].
+   * @param[in] i Point index, in [0, order].
+   * @return The point coordinate, or 0.0f if order or i is out of range.
+   */
   PROXY_HOST_DEVICE static float get(int order, int i) {
     if (order < 1 || order > MAX_GLL_ORDER) return 0.0f;
     if (i < 0 || i >= (order + 1)) return 0.0f;
@@ -36,7 +52,7 @@ struct GLLPoints {
         break;
 
       case 3:
-        // interior: ±1/√5
+        // interior: +-1/sqrt(5)
         switch (i) {
           case 0:
             return -1.0f;
@@ -50,7 +66,7 @@ struct GLLPoints {
         break;
 
       case 4:
-        // interior: ±√(3/7), 0
+        // interior: +-sqrt(3/7), 0
         switch (i) {
           case 0:
             return -1.0f;

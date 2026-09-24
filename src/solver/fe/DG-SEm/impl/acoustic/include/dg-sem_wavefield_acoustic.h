@@ -10,61 +10,76 @@ namespace solver {
 namespace fe {
 
 /**
- * @brief Combined wavefield for the dg-sem coupled solver.
+ * @brief Pair of acoustic pressure wavefields, one for the DG domain and one for the SEM domain.
  *
- * Holds both the acoustic pressure field of dg and sem at two consecutive time levels (previous and current).
- * This struct is passed to DGSEMsolverDataAcoustic at each time step.
+ * Each sub-wavefield holds the previous and current time levels of its pressure field.
+ * The two sub-wavefields are public members, accessed directly or through the getters below.
  */
 struct DGSEMWavefieldAcoustic {
-  /// Total number of solution fields: 1 dg acoustic (p) + 1 sem acoustic (p).
+  /// Total number of solution fields: 1 DG pressure + 1 SEM pressure.
   static constexpr int kNumFields = 2;
 
-  /// Field names in order: DGp, SEMp
+  /// Field names, in order: DG pressure, SEM pressure.
   static constexpr const char* kFieldNames[2] = {"DGpressure", "SEMpressure"};
 
+  /**
+   * @brief Builds the two sub-wavefields from their previous and current pressure arrays.
+   * @param[in] pnDGPrev DG pressure at the previous time level.
+   * @param[in] pnDGCurr DG pressure at the current time level.
+   * @param[in] pnSEMPrev SEM pressure at the previous time level.
+   * @param[in] pnSEMCurr SEM pressure at the current time level.
+   */
   DGSEMWavefieldAcoustic(arrayReal pnDGPrev, arrayReal pnDGCurr, vectorReal pnSEMPrev, vectorReal pnSEMCurr)
       : m_DGacoustic(pnDGPrev, pnDGCurr), m_SEMacoustic(pnSEMPrev, pnSEMCurr) {}
 
+  /// @return Number of solution fields (kNumFields).
   int getNumFields() const { return kNumFields; }
 
+  /// @return Array of kNumFields field names, in the order of kFieldNames.
   const char* const* getFieldNames() const { return kFieldNames; }
 
   /**
-   * @brief Get the current field of DG.
+   * @brief Returns the DG pressure at the current time level.
+   * @param[in] i Field index, currently ignored: the DG pressure is always returned.
    */
   PROXY_HOST_DEVICE
   arrayReal getDGCurrentField(int i) const { return m_DGacoustic.getCurrentField(0); }
 
   /**
-   * @brief Get the current field of SEM.
+   * @brief Returns the SEM pressure at the current time level.
+   * @param[in] i Field index, currently ignored: the SEM pressure is always returned.
    */
   PROXY_HOST_DEVICE
   vectorReal getSEMCurrentField(int i) const { return m_SEMacoustic.getCurrentField(0); }
 
   /**
-   * @brief Get the previous field of DG.
+   * @brief Returns the DG pressure at the previous time level.
+   * @param[in] i Field index, currently ignored: the DG pressure is always returned.
    */
   PROXY_HOST_DEVICE
   arrayReal getDGPreviousField(int i) const { return m_DGacoustic.getPreviousField(0); }
 
   /**
-   * @brief Get the previous field of SEM.
+   * @brief Returns the SEM pressure at the previous time level.
+   * @param[in] i Field index, currently ignored: the SEM pressure is always returned.
    */
   PROXY_HOST_DEVICE
   vectorReal getSEMPreviousField(int i) const { return m_SEMacoustic.getPreviousField(0); }
 
+  /// @brief Swaps the previous and current time levels of both sub-wavefields.
   void swap() {
     m_DGacoustic.swap();
     m_SEMacoustic.swap();
   }
 
+  /// @brief Prints both sub-wavefields.
   void print() const {
     m_DGacoustic.print();
     m_SEMacoustic.print();
   }
 
-  DGWavefieldAcoustic m_DGacoustic;  ///< Acoustic pressure wavefield for DG
-  WavefieldAcoustic m_SEMacoustic;   ///< Acoustic pressure wavefield for SEM
+  DGWavefieldAcoustic m_DGacoustic;  ///< Acoustic pressure wavefield of the DG domain.
+  WavefieldAcoustic m_SEMacoustic;   ///< Acoustic pressure wavefield of the SEM domain.
 };
 
 }  // namespace fe

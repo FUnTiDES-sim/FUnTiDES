@@ -3,7 +3,14 @@
 #include <data_type.h>
 
 /**
- * @brief Compute isotropic elasticity coefficients (Lamé parameters)
+ * @brief Computes the isotropic Lame parameters from wave speeds and density.
+ * @tparam FloatType Floating-point type of the inputs and outputs.
+ * @param[in] vp P-wave speed.
+ * @param[in] vs S-wave speed.
+ * @param[in] rho Density.
+ * @param[out] lambda First Lame parameter, rho * (vp^2 - 2 vs^2).
+ * @param[out] mu Shear modulus, rho * vs^2.
+ * @todo VERIFY: units of vp, vs and rho (m/s and kg/m^3 assumed).
  */
 template <typename FloatType>
 PROXY_HOST_DEVICE void computeIsotropicCoefficients(FloatType vp, FloatType vs, FloatType rho, FloatType& lambda,
@@ -13,7 +20,12 @@ PROXY_HOST_DEVICE void computeIsotropicCoefficients(FloatType vp, FloatType vs, 
 }
 
 /**
- * @brief Build isotropic elasticity tensor in Voigt notation
+ * @brief Builds the isotropic elasticity tensor in Voigt notation.
+ * @tparam FloatType Floating-point type of the tensor.
+ * @param[in] lambda First Lame parameter.
+ * @param[in] mu Shear modulus.
+ * @param[out] C Symmetric 6x6 tensor, fully overwritten.
+ * @todo VERIFY: Voigt component order (0=xx, 1=yy, 2=zz, 3=yz, 4=xz, 5=xy assumed).
  */
 template <typename FloatType>
 PROXY_HOST_DEVICE void buildIsotropicTensor(FloatType lambda, FloatType mu, FloatType C[6][6]) {
@@ -37,7 +49,21 @@ PROXY_HOST_DEVICE void buildIsotropicTensor(FloatType lambda, FloatType mu, Floa
 }
 
 /**
- * @brief Compute VTI elasticity coefficients (no rotation)
+ * @brief Computes the independent stiffness coefficients of a VTI medium (symmetry axis not rotated).
+ * @tparam FloatType Floating-point type of the inputs and outputs.
+ * @param[in] vp Vertical P-wave speed.
+ * @param[in] vs Vertical S-wave speed.
+ * @param[in] rho Density.
+ * @param[in] delta Thomsen parameter delta (dimensionless).
+ * @param[in] epsilon Thomsen parameter epsilon (dimensionless).
+ * @param[in] gamma Thomsen parameter gamma (dimensionless).
+ * @param[out] c11 Coefficient c11.
+ * @param[out] c12 Coefficient c12, c11 - 2 c66.
+ * @param[out] c13 Coefficient c13.
+ * @param[out] c33 Coefficient c33, rho * vp^2.
+ * @param[out] c44 Coefficient c44, rho * vs^2.
+ * @param[out] c66 Coefficient c66.
+ * @todo VERIFY: units of vp, vs and rho (m/s and kg/m^3 assumed).
  */
 template <typename FloatType>
 PROXY_HOST_DEVICE void computeVTICoefficients(FloatType vp, FloatType vs, FloatType rho, FloatType delta,
@@ -58,7 +84,16 @@ PROXY_HOST_DEVICE void computeVTICoefficients(FloatType vp, FloatType vs, FloatT
 }
 
 /**
- * @brief Build VTI elasticity tensor in Voigt notation (no rotation)
+ * @brief Builds the VTI elasticity tensor in Voigt notation (symmetry axis not rotated).
+ * @tparam FloatType Floating-point type of the tensor.
+ * @param[in] c11 Coefficient c11.
+ * @param[in] c12 Coefficient c12.
+ * @param[in] c13 Coefficient c13.
+ * @param[in] c33 Coefficient c33.
+ * @param[in] c44 Coefficient c44.
+ * @param[in] c66 Coefficient c66.
+ * @param[out] C Symmetric 6x6 tensor, fully overwritten.
+ * @todo VERIFY: Voigt component order (0=xx, 1=yy, 2=zz, 3=yz, 4=xz, 5=xy assumed).
  */
 template <typename FloatType>
 PROXY_HOST_DEVICE void buildVTITensor(FloatType c11, FloatType c12, FloatType c13, FloatType c33, FloatType c44,
@@ -81,7 +116,20 @@ PROXY_HOST_DEVICE void buildVTITensor(FloatType c11, FloatType c12, FloatType c1
 }
 
 /**
- * @brief Compute the full TTI elasticity tensor (VTI + rotation)
+ * @brief Computes the full TTI elasticity tensor: a VTI tensor rotated by the tilt angles.
+ * @tparam FloatType Floating-point type of the inputs and outputs.
+ * @param[in] vp Vertical P-wave speed.
+ * @param[in] vs Vertical S-wave speed.
+ * @param[in] rho Density.
+ * @param[in] delta Thomsen parameter delta (dimensionless).
+ * @param[in] epsilon Thomsen parameter epsilon (dimensionless).
+ * @param[in] gamma Thomsen parameter gamma (dimensionless).
+ * @param[in] theta Tilt angle, in degrees.
+ * @param[in] phi Azimuth angle, in degrees.
+ * @param[out] CTTI Symmetric 6x6 tensor in Voigt notation, fully overwritten.
+ * @todo VERIFY: axes and sign convention of theta and phi, and the Voigt component order
+ * (0=xx, 1=yy, 2=zz, 3=yz, 4=xz, 5=xy assumed).
+ * @todo VERIFY: units of vp, vs and rho (m/s and kg/m^3 assumed).
  */
 template <typename FloatType>
 PROXY_HOST_DEVICE void computeCTensor(FloatType vp, FloatType vs, FloatType rho, FloatType delta, FloatType epsilon,

@@ -14,6 +14,16 @@ namespace py = pybind11;
 namespace solver {
 namespace fe {
 
+/**
+ * @brief Registers DGSEMWavefieldAcoustic in a Python module.
+ *
+ * The constructor takes the DG previous/current arrays and the SEM previous/current
+ * vectors as Python views. The getters return the field views for a given index.
+ *
+ * @param[in,out] m Python module receiving the class.
+ * @todo VERIFY: what are the valid values of the index `i` of the get_*_field
+ *       bindings, given that the C++ getters ignore it?
+ */
 void bind_dgsem_wavefield_acoustic(py::module_ &m) {
   py::class_<DGSEMWavefieldAcoustic, std::shared_ptr<DGSEMWavefieldAcoustic>>(m, "DGSEMWavefieldAcoustic")
       .def(py::init<Kokkos::Experimental::python_view_type_t<arrayReal>,

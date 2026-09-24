@@ -11,6 +11,17 @@ namespace py = pybind11;
 
 namespace bindings {
 
+/**
+ * @brief Registers the unstructured face-connectivity data struct and class in a Python module.
+ *
+ * The Python class names are derived from the template arguments through
+ * model::model_class_name. The connectivity tables of the data struct are exposed as
+ * read/write properties backed by Kokkos views.
+ *
+ * @tparam FloatType Floating-point type of the bound model.
+ * @tparam ScalarType Integer type of the bound model.
+ * @param[in,out] m Python module receiving the two classes.
+ */
 template <typename FloatType, typename ScalarType>
 void bindFaceConnectivityUnstruct(py::module &m) {
   using FaceConnData = model::FaceConnectivityUnstructData<FloatType, ScalarType>;
@@ -20,7 +31,6 @@ void bindFaceConnectivityUnstruct(py::module &m) {
   std::string data_name = model::model_class_name<FloatType, ScalarType>("FaceConnectivityUnstructData");
   std::string class_name = model::model_class_name<FloatType, ScalarType>("FaceConnectivityUnstruct");
 
-  // Bind Data struct
   py::class_<FaceConnData>(m, data_name.c_str())
       .def(py::init<>())
       .def_readwrite("n_faces", &FaceConnData::n_faces)
@@ -78,7 +88,6 @@ void bindFaceConnectivityUnstruct(py::module &m) {
           [](FaceConnData &self, Kokkos::Experimental::python_view_type_t<decltype(self.face_local_neighbor)> v) {
             self.face_local_neighbor = v;
           });
-  // Bind Class
   py::class_<FaceConn>(m, class_name.c_str())
       .def(py::init<>())
       .def(py::init<const FaceConnData &>())
