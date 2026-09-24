@@ -12,10 +12,6 @@
 namespace solver {
 namespace fe {
 
-//============================================================================
-// Update Solution Forward (Phase 2)
-//============================================================================
-
 template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE, bool IS_MODEL_ON_NODES,
           utils::enums::physicType PHYSICS>
 void DGsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::updateSolutionForward(
@@ -24,10 +20,6 @@ void DGsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::upda
   updateFieldsForward(dt, myData);
   FENCE
 }
-
-//============================================================================
-// Update Solution Backward (Phase 2 - Adjoint Mode)
-//============================================================================
 
 template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE, bool IS_MODEL_ON_NODES,
           utils::enums::physicType PHYSICS>
@@ -38,10 +30,6 @@ void DGsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::upda
       "DG backward mode requires 3-buffer wavefield support.");
 }
 
-//============================================================================
-// outputSolutionValues
-//============================================================================
-
 template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE, bool IS_MODEL_ON_NODES,
           utils::enums::physicType PHYSICS>
 void DGsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::outputSolutionValues(
@@ -49,10 +37,6 @@ void DGsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::outp
   cout << "TimeStep=" << t << ";  " << fieldName << " @ elementSource location " << e
        << " after computeOneStep = " << fieldGlobal(e, 0) << endl;
 }
-
-//============================================================================
-// computeFEInit - Initialize mesh, face connectivity, and persistent arrays
-//============================================================================
 
 template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE, bool IS_MODEL_ON_NODES,
           utils::enums::physicType PHYSICS>
@@ -73,10 +57,6 @@ void DGsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::comp
   m_damp_local_ = allocateArray2D<arrayReal>(kNumElem, kPointsPerElement, "dampLocal");
 }
 
-//============================================================================
-// Compute Forces (Phase 1)
-//============================================================================
-
 template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE, bool IS_MODEL_ON_NODES,
           utils::enums::physicType PHYSICS>
 void DGsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::computeForces(const float& dt,
@@ -86,10 +66,6 @@ void DGsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::comp
   applyRHSTerm(timeSample, dt, myData);
   FENCE
 }
-
-//============================================================================
-// applyRHSTerm
-//============================================================================
 
 template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE, bool IS_MODEL_ON_NODES,
           utils::enums::physicType PHYSICS>
@@ -101,8 +77,8 @@ void DGsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::appl
   auto rhs_term_view = data.getRhsTerm(0);
   auto rhs_weights_view = data.getRhsWeights();
 
-  // Direct assignment (not +=): m_rhs_elem_ is zero-initialized at allocation and
-  // non-source entries are never touched, so only source entries need overwriting.
+  // Assignment, not +=: m_rhs_elem_ is zero-initialized at allocation and non-source
+  // entries are never touched, so only source entries need overwriting.
   Kokkos::parallel_for(
       "Solver Apply RHSTerm", nb_rhs_element, KOKKOS_LAMBDA(const int s) {
         int const src_elem = rhs_element_view[s];
@@ -113,10 +89,7 @@ void DGsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::appl
       });
 }
 
-//============================================================================
-// computeVolumeAndBoundary - Kernel 1
-//============================================================================
-
+/// Kernel 1: per-element mass and stiffness (volume term); resets the damping accumulator.
 template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE, bool IS_MODEL_ON_NODES,
           utils::enums::physicType PHYSICS>
 void DGsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::computeVolumeAndBoundary(
@@ -159,17 +132,14 @@ void DGsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::comp
         for (int i = 0; i < kPointsPerElement; ++i) {
           mass_local_view(e, i) = massLocal[i];
           stiff_local_view(e, i) = stiffLocal[i];
-          damp_local_view(e, i) = 0.0f;  // zeroed here; filled by computeBoundaryDampingAndInterfaceFlux
+          damp_local_view(e, i) = 0.0f;  // accumulated later by computeBoundaryDampingAndInterfaceFlux
         }
       });
 }
 
-//============================================================================
-// computeBoundaryDampingAndInterfaceFlux - Kernel 1b+2, fused (face-loop: boundary faces take
-// the damping branch, interior faces take the SIPG flux branch; mutually exclusive per face,
-// disjoint accumulators)
-//============================================================================
-
+/// Kernels 1b and 2, fused: loop over faces. Boundary faces add absorbing damping, interior faces
+/// add the SIPG interface flux. The two branches are exclusive per face and write disjoint
+/// accumulators (damping vs stiffness).
 template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE, bool IS_MODEL_ON_NODES,
           utils::enums::physicType PHYSICS>
 void DGsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::computeBoundaryDampingAndInterfaceFlux(
@@ -249,27 +219,25 @@ void DGsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::comp
         real_t const gamma_o = computeSIPGPenaltyFromArea<ORDER>(face_area, owner_coords, penalty_local);
         real_t const gamma_n = computeSIPGPenaltyFromArea<ORDER>(face_area, neighbor_coords, penalty_local);
 
-        // Face-sized accumulators, indexed by face dof in each side's own face numbering. These are
-        // indexed dynamically, so they never live in registers: element-sized arrays put
-        // 2*(ORDER+1)^3 floats per thread in local memory (2.7 kB at order 6) and every read-modify-
-        // write in the quadrature loop goes through L1, which ncu measures as the kernel's busiest
-        // pipe. Face-sized cuts that by (ORDER+1).
+        // Face-sized accumulators, indexed by face dof in each side's own face numbering. They are
+        // indexed dynamically, so they live in local memory: element-sized arrays would put
+        // 2*(ORDER+1)^3 floats per thread there (2.7 kB at order 6), and every read-modify-write in
+        // the quadrature loop goes through L1. Face-sized arrays cut that by (ORDER+1).
         float stiff_o[knumNodesPerFace] = {0};
         float stiff_n[knumNodesPerFace] = {0};
 
-        // Driving one quadrature point at a time is what keeps the accumulators face-sized: over a
-        // whole face the normal channel spans every element dof, but for a single point it only
-        // reaches the ORDER+1 dofs of the line through it, which fit in registers.
+        // One quadrature point at a time keeps the accumulators face-sized: over a whole face the
+        // normal channel spans every element dof, but for a single point it only reaches the
+        // ORDER+1 dofs of the line through it, which fit in registers.
         for (int q = 0; q < knumNodesPerFace; ++q) {
-          // Face-normal accumulators. Off-face dofs, so they bypass the face-sized rows; the lines
-          // of two quadrature points are disjoint, hence plain adds.
+          // Face-normal accumulators for the off-face dofs, so they bypass the face-sized arrays.
+          // The lines of two quadrature points are disjoint, hence plain adds.
           float norm_o[ORDER + 1] = {0};
           float norm_n[ORDER + 1] = {0};
 
-          // Both callbacks always fire with j == q, so everything the payload derives from j is
-          // invariant over the whole point: hoisted here, where it is evaluated once, instead of
-          // inside the callbacks, where it was re-evaluated at each of the 3*(ORDER+1) firings per
-          // side -- the two face-dof permutations among them being virtual calls.
+          // Both callbacks always fire with j == q, so everything derived from j is invariant over
+          // the point and hoisted here. This includes the two face-dof permutations, which are
+          // virtual calls.
           int const nfd_q = face_connectivity_local.getNeighborFaceDof(f, q);
           int const ofd_q = face_connectivity_local.getOwnerFaceDof(f, q);
           int const ej_o = face_to_elem_dof[fid_o][q];
@@ -280,24 +248,20 @@ void DGsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::comp
           real_t const half_o = 0.5f * inv_rho_o;
           real_t const half_n = 0.5f * inv_rho_n;
 
-          // The pressure jump across the face at q, seen from each side. The first contribution of
-          // both callbacks is exactly val times this, so two field gathers and an add per firing
-          // collapse into one multiply.
+          // Pressure jump across the face at q, seen from each side. The first contribution of
+          // both callbacks is exactly val times this.
           real_t const dp_o = half_o * (current_field(neighbor_e, ej_o_perm) - current_field(owner_e, ej_o));
           real_t const dp_n = half_n * (current_field(owner_e, ej_n_perm) - current_field(neighbor_e, ej_n));
 
-          // The two other contributions of each side land on fixed slots -- j and its image on the
-          // opposite side -- with the same magnitude and opposite signs, so one register carries
-          // both and is flushed once below. That takes the 42 dynamically indexed read-modify-writes
-          // they cost per side per point out of local memory, which is the pipe ncu measures as the
-          // kernel's busiest.
+          // The two other contributions of each side land on fixed slots (j and its image on the
+          // opposite side) with the same magnitude and opposite signs. One register carries both
+          // and is flushed once below, which avoids many dynamically indexed read-modify-writes.
           float acc_o = 0.0f;
           float acc_n = 0.0f;
 
-          // --- Owner side (outward normal = normal[]) ---
-          // Normal-contracted callbacks: the discretization folds sum_k C_ijk * n_k, so each
-          // contribution fires once instead of once per physical direction, dividing the local-memory
-          // traffic on stiff_o/stiff_n by three.
+          // Owner side, outward normal = normal[]. The callbacks are normal-contracted (the
+          // discretization folds sum_k C_ijk * n_k), so each contribution fires once instead of
+          // once per physical direction.
           INTEGRAL_TYPE::computeInterfaceFluxTermAt(
               q, faceCoords, owner_coords, fid_o, normal,
               [&](const int i, const int, const real_t val) {
@@ -309,7 +273,7 @@ void DGsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::comp
                 acc_o -= half_o * val * current_field(owner_e, face_to_elem_dof_depth[fid_o][q][m]);
               });
 
-          // --- Neighbor side (outward normal = -normal[]) ---
+          // Neighbor side, outward normal = -normal[].
           INTEGRAL_TYPE::computeInterfaceFluxTermAt(
               q, faceCoords, neighbor_coords, fid_n, neg_normal,
               [&](const int i, const int, const real_t val) {
@@ -321,24 +285,23 @@ void DGsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::comp
                 acc_n -= half_n * val * current_field(neighbor_e, face_to_elem_dof_depth[fid_n][q][m]);
               });
 
-          // Negation is exact in IEEE-754, so mirroring each register onto the opposite side is the
-          // same value the callbacks would have accumulated there.
+          // Mirror each register onto the opposite side (negation is exact in IEEE-754, so this
+          // equals what the callbacks would have accumulated there).
           stiff_o[q] += acc_o;
           stiff_n[nfd_q] -= acc_o;
           stiff_n[q] += acc_n;
           stiff_o[ofd_q] -= acc_n;
 
-          // The normal lines are off-face, so they bypass the face-sized flush below. With j == q the
-          // line is the one through face dof q on each side, in that side's own face numbering.
+          // Flush the off-face normal lines: with j == q, the line is the one through face dof q
+          // on each side, in that side's own face numbering.
           for (int m = 0; m <= ORDER; ++m) {
             ATOMICADD(stiff_local_view(owner_e, face_to_elem_dof_depth[fid_o][q][m]), norm_o[m]);
             ATOMICADD(stiff_local_view(neighbor_e, face_to_elem_dof_depth[fid_n][q][m]), norm_n[m]);
           }
         }
 
-        // SIPG penalty and atomic write-back, fused: both sides use the same damping term at face
-        // dof i, so it is computed once here instead of once per side. Atomic because several faces
-        // share an element.
+        // SIPG penalty and write-back, fused: both sides use the same damping term at face dof i,
+        // so it is computed once. Atomic because several faces share an element.
         for (int i = 0; i < knumNodesPerFace; ++i) {
           real_t const damping_i = INTEGRAL_TYPE::computeDampingTerm(i, faceCoords);
 
@@ -356,10 +319,8 @@ void DGsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::comp
       });
 }
 
-//============================================================================
-// applyVerlet - Kernel 3
-//============================================================================
-
+/// Kernel 3: explicit Verlet step with damping. Reads current_field (step n) and overwrites
+/// prev_field (step n-1) with the field at step n+1.
 template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE, bool IS_MODEL_ON_NODES,
           utils::enums::physicType PHYSICS>
 void DGsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::applyVerlet(int kNumElem, float dt,
@@ -391,18 +352,14 @@ void DGsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::appl
       });
 }
 
-//============================================================================
-//============================================================================
-// updateFieldsForward - Orchestrates the 3 kernels with fences between them
-//============================================================================
-
+/// Runs the three kernels in order with a fence between them: volume terms, face terms, Verlet.
 template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE, bool IS_MODEL_ON_NODES,
           utils::enums::physicType PHYSICS>
 void DGsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::updateFieldsForward(float dt,
                                                                                                 const DataType& data) {
   int const kNumElem = m_mesh.getNumberOfElements();
   int const kNumFaces = static_cast<int>(m_face_connectivity_.getNumberOfFaces());
-  // SEM convention: current_field = p^n, prev_field = p^{n-1}; result written into prev_field
+  // current_field = p^n, prev_field = p^{n-1}; the result is written into prev_field.
   arrayReal current_field = data.getCurrentField(0);
   arrayReal prev_field = data.getPreviousField(0);
 
@@ -413,10 +370,6 @@ void DGsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::upda
   applyVerlet(kNumElem, dt, current_field, prev_field);
 }
 
-//============================================================================
-// updateFieldsBackward - Backward/adjoint mode (not yet fully implemented for DG)
-//============================================================================
-
 template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE, bool IS_MODEL_ON_NODES,
           utils::enums::physicType PHYSICS>
 void DGsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::updateFieldsBackward(float dt,
@@ -426,10 +379,8 @@ void DGsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::upda
       "DG backward mode requires 3-buffer wavefield support.");
 }
 
-//============================================================================
-// updateFieldsFromListForward - Verlet update restricted to a compact element list (forward mode)
-//============================================================================
-
+/// Same as updateFieldsForward, restricted to the first n_elems elements of elem_list (and the
+/// faces derived from them).
 template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE, bool IS_MODEL_ON_NODES, physicType PHYSICS>
 void DGsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::updateFieldsFromListForward(
     float dt, const DataType& data, const vectorInt& elem_list, int n_elems) {
@@ -441,10 +392,6 @@ void DGsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::upda
   m_list_mode_ = false;
 }
 
-//============================================================================
-// updateFieldsFromListBackward - Verlet update restricted to a compact element list (backward mode)
-//============================================================================
-
 template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE, bool IS_MODEL_ON_NODES, physicType PHYSICS>
 void DGsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::updateFieldsFromListBackward(
     float dt, const DataType& data, const vectorInt& elem_list, int n_elems) {
@@ -455,4 +402,4 @@ void DGsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::upda
 
 }  // namespace fe
 }  // namespace solver
-#endif  // FUNTIDES_SOLVER_FE_IMPL_COMMON_INCLUDE_SEM_SOLVER_IMPL_H_
+#endif  // FUNTIDES_SOLVER_FE_IMPL_COMMON_INCLUDE_DG_SOLVER_IMPL_H_

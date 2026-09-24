@@ -15,23 +15,22 @@
 namespace solver {
 namespace fe {
 
-/// Element belongs to the pMin order domain.
-static constexpr int kElementTypePMin = 1;
-/// Element belongs to the pMax order domain.
-static constexpr int kElementTypePMax = 2;
+static constexpr int kElementTypePMin = 1;  ///< Element tag: element belongs to the pMin order domain.
+static constexpr int kElementTypePMax = 2;  ///< Element tag: element belongs to the pMax order domain.
 
 /**
- * @brief p-adaptive DG solver.
+ * @brief Acoustic DG solver with two polynomial orders (pMin and pMax) on one mesh.
  *
- * Staggered explicit scheme: pMax→pMin coupling and pMin→pMax coupling → pMin step → pMax step.
- * Each sub-solver processes only its own elements via a list of elements.
+ * Each time step couples the two domains through a SIPG interface flux, then advances the pMin
+ * and pMax sub-solvers in turn. Each sub-solver only processes its own list of elements.
  *
- * @tparam ORDER_MIN          Polynomial order pMin of elements.
- * @tparam ORDER_MAX          Polynomial order pMax of elements.
- * @tparam INTEGRAL_TYPE      Quadrature/basis function type (Makutu kernels).
- * @tparam MESH_TYPE          Mesh implementation (ModelStruct or ModelUnstruct).
+ * @tparam ORDER_MIN          Polynomial order pMin of the low-order elements.
+ * @tparam ORDER_MAX          Polynomial order pMax of the high-order elements.
+ * @tparam INTEGRAL_SELECTOR  Template mapping (order, IMPL_TAG) to the quadrature/basis type.
+ * @tparam IMPL_TAG           Implementation tag passed to INTEGRAL_SELECTOR.
+ * @tparam MESH_TYPE          Mesh implementation.
  * @tparam IS_MODEL_ON_NODES  If true, material properties are stored on nodes.
- * @tparam PHYSICS            Physical model type (Acoustic).
+ * @tparam PHYSICS            Physical model type.
  */
 template <int ORDER_MIN, int ORDER_MAX, template <int, int> class INTEGRAL_SELECTOR, int IMPL_TAG, typename MESH_TYPE,
           bool IS_MODEL_ON_NODES, utils::enums::physicType PHYSICS>
@@ -47,217 +46,214 @@ class DGPAdaptiveSolver : public Solver {
   DGPAdaptiveSolver() = default;
   ~DGPAdaptiveSolver() = default;
 
-  // --- Solver interface ---
+  static constexpr int kNumFields = DGPAdaptivePhysicsTraits::WavefieldType::kNumFields;  ///< Fields per wavefield.
 
-  static constexpr int kNumFields = DGPAdaptivePhysicsTraits::WavefieldType::kNumFields;
-
-  /// Number of 1D dofs per direction on each side. Class constants rather than kernel-local
-  /// constexpr, which nvcc rejects as host identifiers inside a device lambda.
+  /// Number of 1D dofs per direction in the pMin domain. Class constant because nvcc rejects a
+  /// kernel-local constexpr used as a host identifier inside a device lambda.
   static constexpr int kNumDofs1dMin = ORDER_MIN + 1;
+  /// Number of 1D dofs per direction in the pMax domain. Same rationale as kNumDofs1dMin.
   static constexpr int kNumDofs1dMax = ORDER_MAX + 1;
 
+  /// @return Number of wavefield components.
   int getNumComponents() const override { return kNumFields; }
 
-  // --- Mandatory overrides for Solver interface ---
+  /// No-op: this solver has no global finite-element arrays.
+  void initFEarrays() override {}
 
-  void initFEarrays() override {
-    // Here for retrocompatibility
-  }
+  /// No-op: sponge values are not used by this solver.
+  void initSpongeValues() override {}
 
-  void initSpongeValues() override {
-    // Here for retrocompatibility
-  }
+  /// No-op: this solver has no global vectors.
+  void resetGlobalVectors(int numNodes) override {}
 
-  void resetGlobalVectors(int numNodes) override {
-    // Here for retrocompatibility, no global vector for DG-SEM
-  }
+  /// No-op: this solver has no global mass matrix.
+  void computeGlobalMassMatrix() override {}
 
-  void computeGlobalMassMatrix() override {
-    // Here for retrocompatibility, no global mass matrix for DG-SEM
-  }
+  /// No-op: this solver has no global damping matrix.
+  void computeDampingMatrix() override {}
 
-  void computeDampingMatrix() override {
-    // Here for retrocompatibility, no global damping matrix for DG-SEM
-  }
+  /// No-op: forces are applied inside computeOneStep().
+  void computeForces(const float& dt, const int& timeSample, DataStruct& data) override {}
 
-  void computeForces(const float& dt, const int& timeSample, DataStruct& data) override {
-    // Here for retrocompatibility
-  }
-
+  /// @throws std::runtime_error Always: there is no global mass matrix.
   vectorReal& getMassMatrixAcoustic() override {
     throw std::runtime_error("getMassMatrixAcoustic not implemented for DG");
   }
 
+  /// @throws std::runtime_error Always: there is no global mass matrix.
   vectorReal& getMassMatrixElastic() override {
     throw std::runtime_error("getMassMatrixElastic not implemented for DG");
   }
 
+  /// @throws std::runtime_error Always: there is no global damping matrix.
   vectorReal& getDampingMatrix(int c) override { throw std::runtime_error("getDampingMatrix not implemented for DG"); }
 
+  /// @throws std::runtime_error Always: there is no global force vector.
   vectorReal& getForceVector(int component) override {
     throw std::runtime_error("getForceVector not implemented for DG");
   }
 
-  void updateSolutionForward(const float& dt, DataStruct& data) override {
-    // Here for retrocompatibility
-  }
+  /// No-op: the update is done by computeOneStep().
+  void updateSolutionForward(const float& dt, DataStruct& data) override {}
 
-  void updateSolutionBackward(const float& dt, DataStruct& data) override {
-    // Here for retrocompatibility
-  }
+  /// No-op: backward propagation is not supported.
+  void updateSolutionBackward(const float& dt, DataStruct& data) override {}
 
+  /// No-op: anisotropy is not supported.
   void setAnisotropyType(model::AnisotropyType type) override {
-    // TODO: Implement anisotropy setting
+    // TODO: anisotropy is not supported by the DG solvers.
   }
 
+  /// @param z Z coordinate of the pMin/pMax interface, used by TagElements() when no element tags were given.
   void setZBoundary(float z) override { pAdaptive_interface_z_ = z; }
 
   /**
-   * @brief Provide the pMin/pMax element split directly, bypassing the Z-threshold heuristic in
-   * TagElements(). Must be called before computeFEInit(), whose call to TagElements() reads
-   * m_external_element_type_. Sized differently from this mesh's element count (or left
-   * unset), TagElements() falls back to the Z-threshold split.
+   * @brief Provide the pMin/pMax element split directly instead of the Z-threshold split.
    *
-   * See DGSEMsolver::setElementTags() for the full rationale (Z-threshold probes a single
-   * node's deformed coordinate, which only cuts the intended plane on a flat mesh).
+   * Must be called before computeFEInit(), which calls TagElements(). If the size of the tags differs
+   * from the mesh element count (or if this is never called), TagElements() falls back to the
+   * Z-threshold split. The Z-threshold probes the deformed coordinate of a single node per
+   * element, so it only cuts the intended plane on a flat mesh.
    *
-   * @param tags Per-element type (kElementTypePMin or kElementTypePMax), one entry per mesh
-   *   element.
+   * @param[in] tags Per-element type (kElementTypePMin or kElementTypePMax), one entry per mesh element.
    */
   void setElementTags(const vectorInt& tags) override { m_external_element_type_ = tags; }
 
+  /// No-op: attenuation is not supported.
   void setSLSAttenuation(const vectorReal& reference_frequencies,
                          const vectorReal& anelasticity_coefficients = vectorReal()) override {
-    // TODO: Implement SLS attenuation setting
+    // TODO: SLS attenuation is not supported by the DG solvers.
   }
 
-  // --- Core solver methods ---
-
+  /**
+   * @brief Tag elements and interface nodes, build the sub-solvers and the interface data.
+   *
+   * @param[in,out] mesh Mesh, must be of type MESH_TYPE.
+   * @todo VERIFY: are sponge_size, surface_sponge and taper_delta ignored on purpose?
+   */
   void computeFEInit(model::ModelApi<float, int>& mesh, const std::array<float, 3>& sponge_size,
                      const bool surface_sponge, const float taper_delta) override;
 
+  /// Allocate the arrays of the sub-solvers and of the interface coupling.
   void allocateFEarrays() override;
 
-  /// @brief Identify interface nodes (adjacent to both domains).
+  /// Identify the interface nodes (adjacent to both domains).
   void TagNodes();
 
-  /// @brief Classify each element as pMin or pMax order.
+  /// Classify each element as pMin or pMax order and build the element lists.
   void TagElements();
 
-  /// @brief Fill the 1D order-raising matrix the mortar projection is built from.
+  /// Fill the 1D order-raising matrix m_p1d_projection_, from which the mortar projection is built.
   void ComputeMortarProjection();
 
   /**
    * @brief Raise the pMin pressure to ORDER_MAX on every interface-adjacent pMin element, and
    * zero the matching interface stiffness accumulator.
    *
-   * Exact, not an approximation: P_ORDER_MIN is a subspace of P_ORDER_MAX, so interpolating at
-   * the ORDER_MAX support points reproduces the same polynomial. ApplyCoupling needs the raised
-   * field on the whole element, not just the face layer, because the SIPG consistency term reads
-   * the normal derivative, which lives on the depth line behind each face dof.
+   * The raise is exact: P_ORDER_MIN is a subspace of P_ORDER_MAX. The whole element is raised,
+   * not only the face layer, because the SIPG consistency term reads the normal derivative,
+   * which lives on the depth line behind each face dof.
    *
-   * @param data Coupled solver data.
+   * @param[in] data Coupled solver data.
    */
   void ProlongPMinField(const DataType& data);
 
-  /// @brief Restrict the interface stiffness from the fictitious ORDER_MAX grid back onto the
-  /// real pMin dofs, and accumulate it into the pMin sub-solver. Adjoint of ProlongPMinField().
+  /// Restrict the interface stiffness from the fictitious ORDER_MAX grid onto the real pMin dofs
+  /// and accumulate it into the pMin sub-solver. Adjoint of ProlongPMinField().
   void RestrictPMinStiff();
 
   /**
-   * @brief Perform one coupled time step (serial / non-distributed mode).
+   * @brief Perform one coupled time step (non-distributed mode).
    *
-   * Implements the staggered explicit scheme
-   * with interface coupling applied between the two sub-steps.
+   * Applies the interface coupling, then advances the pMin domain, then the pMax domain.
+   *
+   * @param[in] dt         Time step.
+   * @param[in] timeSample Index of the current time sample.
+   * @param[in,out] data   Must be a DataType.
+   * @throws std::bad_cast If data is not a DataType.
    */
   void computeOneStep(const float& dt, const int& timeSample, DataStruct& data) override;
 
   /**
-   * @brief Compute SIPG interface flux contribution between pMax and pMin.
+   * @brief Compute the SIPG interface flux between the pMax and pMin domains.
    *
-   * Reads p^n from both domains (no temporal lag). Accumulates into DG m_stiff_local_,
-   * consumed by applyVerlet.
-   * @param data Coupled solver data.
+   * Reads the pressure of the current step from both domains and accumulates the result into the
+   * local stiffness of the DG sub-solvers, which applyVerlet consumes.
+   *
+   * @param[in] data Coupled solver data.
    */
   void ApplyCoupling(const DataType& data);
 
+  /// No-op for a vectorReal field.
   void outputSolutionValues(const int& t, int& e, const vectorReal& field, const char* fieldName) override {};
   void outputSolutionValues(const int& t, int& e, const arrayReal& field, const char* fieldName) override;
 
-  // --- Accessors for diagnostics ---
-
-  /// Number of pMin elements detected in the mesh.
+  /// @return Number of pMin elements in the mesh.
   int getNumPMinElements() const { return num_pMin_elements_; }
 
-  /// Number of pMax elements detected in the mesh.
+  /// @return Number of pMax elements in the mesh.
   int getNumPMaxElements() const { return num_pMax_elements_; }
 
-  /// Number of interface faces (adjacent to both domains).
+  /// @return Number of interface faces (adjacent to both domains).
   int getNumInterfaceFaces() const { return num_interface_faces_; }
 
  private:
-  pMinSolver m_pMin_solver_;  ///< pMin sub-solver
-  pMaxSolver m_pMax_solver_;  ///< pMax sub-solver
+  pMinSolver m_pMin_solver_;  ///< Sub-solver of the pMin domain.
+  pMaxSolver m_pMax_solver_;  ///< Sub-solver of the pMax domain.
 
   vectorInt order_list;
 
-  MESH_TYPE m_mesh_;  ///< Local copy of the mesh built on the highest order
-  model::FaceConnectivityUnstruct<float, int, ORDER_MAX> m_face_connectivity_;  ///< pMax face connectivity
+  MESH_TYPE m_mesh_;  ///< Local copy of the mesh, built at the highest order.
+  model::FaceConnectivityUnstruct<float, int, ORDER_MAX> m_face_connectivity_;  ///< Face connectivity at ORDER_MAX.
 
-  /// @brief 1D order-raising matrix, m_p1d_projection_(k, m) = phi^pMin_m(xi^pMax_k). The mortar
-  /// projection ApplyCoupling uses is its threefold tensor product.
+  /// 1D order-raising matrix, m_p1d_projection_(k, m) = phi^pMin_m(xi^pMax_k). The mortar
+  /// projection of ApplyCoupling is its threefold tensor product.
   arrayReal m_p1d_projection_;
 
-  /// @brief Compact list of pMin elements touching the pMin-pMax interface, the only ones the
-  /// coupling ever reads at ORDER_MAX resolution. Sized by the interface surface, not the volume.
+  /// Compact list of the pMin elements touching the interface, the only ones the coupling reads
+  /// at ORDER_MAX resolution. Sized by the interface surface, not the volume.
   vectorInt m_iface_pMin_elem_list_;
-  /// @brief Row of the prolonged arrays each pMin element owns, -1 away from the interface.
+  /// Row of the prolonged arrays owned by each pMin element, -1 away from the interface.
   vectorInt m_pMin_elem_to_slot_;
-  int m_n_iface_pMin_elements_{0};  ///< Count of interface-adjacent pMin elements
+  int m_n_iface_pMin_elements_{0};  ///< Number of interface-adjacent pMin elements.
 
-  /// @brief pMin pressure raised to ORDER_MAX, one row per interface-adjacent pMin element.
+  /// pMin pressure raised to ORDER_MAX, one row per interface-adjacent pMin element.
   arrayReal m_pMin_prolonged_field_;
-  /// @brief Interface stiffness accumulated on the fictitious ORDER_MAX grid, restricted onto the
-  /// real pMin dofs at the end of every step.
+  /// Interface stiffness accumulated on the fictitious ORDER_MAX grid, restricted onto the real
+  /// pMin dofs at the end of every step.
   arrayReal m_pMin_prolonged_stiff_;
 
-  /// Per-element type tag (kElementTypePMin or kElementTypePMax).
-  vectorInt m_element_type_;
+  vectorInt m_element_type_;  ///< Per-element type tag (kElementTypePMin or kElementTypePMax).
 
-  int num_interface_faces_{0};  ///< Count of interface faces
-  /// Compact list of global interface face indices (size n_interface_faces_).
+  int num_interface_faces_{0};  ///< Number of interface faces.
+  /// Global indices of the interface faces, size num_interface_faces_.
   vectorInt m_interface_face_indices_;
 
-  int num_pMin_elements_{0};  ///< Count of pMin elements
-  int num_pMax_elements_{0};  ///< Count of pMax elements
-  /// @brief Compact list of pMin element indices (size
-  /// num_pMin_elements_).
-  vectorInt pMin_elem_list_;
-  /// @brief Compact list of pMax element indices (size
-  /// num_pMax_elements_).
-  vectorInt pMax_elem_list_;
+  int num_pMin_elements_{0};  ///< Number of pMin elements.
+  int num_pMax_elements_{0};  ///< Number of pMax elements.
+  vectorInt pMin_elem_list_;  ///< Indices of the pMin elements, size num_pMin_elements_.
+  vectorInt pMax_elem_list_;  ///< Indices of the pMax elements, size num_pMax_elements_.
 
-  int m_n_pMin_interior_faces_{0};  ///< Count of pMin interior faces (excludes pMin-pMax interface faces)
-  int m_n_pMax_interior_faces_{0};  ///< Count of pMax interior faces (excludes pMin-pMax interface faces)
-  /// @brief Compact list of pMin interior face indices (pMin-pMin faces only, excludes interface).
+  int m_n_pMin_interior_faces_{0};  ///< Number of pMin-pMin interior faces (excludes interface faces).
+  int m_n_pMax_interior_faces_{0};  ///< Number of pMax-pMax interior faces (excludes interface faces).
+  /// Indices of the pMin-pMin interior faces.
   vectorInt m_pMin_interior_face_list_;
-  /// @brief Compact list of pMax interior face indices (pMax-pMax faces only, excludes interface).
+  /// Indices of the pMax-pMax interior faces.
   vectorInt m_pMax_interior_face_list_;
 
-  /// @brief Build based on kElementType, m_pMin_interior_face_list_
-  /// and m_pMax_interior_face_list_ from all faces minus interface faces.
+  /// Build m_pMin_interior_face_list_ and m_pMax_interior_face_list_ from the element types:
+  /// all faces minus the interface faces.
   void BuildInteriorFaceLists();
 
-  /// @brief Build m_iface_pMin_elem_list_ / m_pMin_elem_to_slot_ and allocate the prolonged
-  /// arrays. Runs after the interface face list is known.
+  /// Build m_iface_pMin_elem_list_ and m_pMin_elem_to_slot_ and allocate the prolonged arrays.
+  /// Requires the interface face list.
   void BuildInterfaceElementList();
 
-  float pAdaptive_interface_z_ = 1000.f;  ///< Z coordinate of the pMin-pMax interface
-  /// @brief Caller-provided per-element type tags (see setElementTags()). Empty unless set;
-  /// TagElements() falls back to the Z-threshold split when its size doesn't match nElem.
+  float pAdaptive_interface_z_ = 1000.f;  ///< Z coordinate of the pMin/pMax interface (Z-threshold split).
+  /// Caller-provided per-element type tags, see setElementTags(). Empty unless set.
   vectorInt m_external_element_type_;
-  /// @brief SIPG penalty factor for interface coupling. Overwritten in computeFEInit() with the
-  /// sub-solvers' own penalty factor so the interface matches the DG interior.
+  /// SIPG penalty factor of the interface coupling. Overwritten in computeFEInit() with the
+  /// penalty factor of the sub-solvers.
   real_t m_penalty_factor_ = 12.0f;
 };
 

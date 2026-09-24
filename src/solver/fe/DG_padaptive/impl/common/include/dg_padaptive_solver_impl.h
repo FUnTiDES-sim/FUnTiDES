@@ -16,10 +16,6 @@
 namespace solver {
 namespace fe {
 
-//============================================================================
-// computeFEInit
-//============================================================================
-
 template <int ORDER_MIN, int ORDER_MAX, template <int, int> class INTEGRAL_SELECTOR, int IMPL_TAG, typename MESH_TYPE,
           bool IS_MODEL_ON_NODES, utils::enums::physicType PHYSICS>
 void DGPAdaptiveSolver<ORDER_MIN, ORDER_MAX, INTEGRAL_SELECTOR, IMPL_TAG, MESH_TYPE, IS_MODEL_ON_NODES,
@@ -34,14 +30,13 @@ void DGPAdaptiveSolver<ORDER_MIN, ORDER_MAX, INTEGRAL_SELECTOR, IMPL_TAG, MESH_T
 
   m_face_connectivity_.build(m_mesh_);
 
-  // Initialise sub-solvers (mass/damping matrices are overridden below).
   m_pMin_solver_.computeFEInit(mesh_in, sponge_size, surface_sponge, taper_delta);
   m_pMax_solver_.computeFEInit(mesh_in, sponge_size, surface_sponge, taper_delta);
 
-  // pMin's own face_connectivity_ was built at ORDER_MIN, but the shared mesh has order
-  // ORDER_MAX: without this, pMin's own interior "Plus"-type faces (kXPlus/kYPlus/kZPlus)
-  // silently fail neighbor node-ID matching (face-normal coordinate stuck at ORDER_MIN instead
-  // of the mesh's true far edge). No-op for pMax (already ORDER_MAX == mesh order).
+  // The pMin sub-solver built its face connectivity at ORDER_MIN, but the shared mesh has order
+  // ORDER_MAX. Without this rebuild, its interior "Plus" faces (kXPlus/kYPlus/kZPlus) fail the
+  // neighbor node-id matching, because the face-normal coordinate stays at ORDER_MIN instead of
+  // the far edge of the mesh. No-op for pMax, whose order already equals the mesh order.
   if constexpr (ORDER_MIN != ORDER_MAX) {
     m_pMin_solver_.rebuildFaceConnectivityGeometry(ORDER_MAX);
   }
@@ -62,10 +57,6 @@ void DGPAdaptiveSolver<ORDER_MIN, ORDER_MAX, INTEGRAL_SELECTOR, IMPL_TAG, MESH_T
   std::cout << "DGPAdaptiveSolver: " << num_interface_faces_ << " interface faces." << std::endl;
 }
 
-//============================================================================
-// allocateFEarrays
-//============================================================================
-
 template <int ORDER_MIN, int ORDER_MAX, template <int, int> class INTEGRAL_SELECTOR, int IMPL_TAG, typename MESH_TYPE,
           bool IS_MODEL_ON_NODES, utils::enums::physicType PHYSICS>
 void DGPAdaptiveSolver<ORDER_MIN, ORDER_MAX, INTEGRAL_SELECTOR, IMPL_TAG, MESH_TYPE, IS_MODEL_ON_NODES,
@@ -74,10 +65,6 @@ void DGPAdaptiveSolver<ORDER_MIN, ORDER_MAX, INTEGRAL_SELECTOR, IMPL_TAG, MESH_T
   m_element_type_ = allocateVector<vectorInt>(nElem, "pMinpMaxElementType");
   m_p1d_projection_ = allocateArray2D<arrayReal>(ORDER_MAX + 1, ORDER_MIN + 1, "p1dProjectionMatrix");
 }
-
-//============================================================================
-// TagElements
-//============================================================================
 
 template <int ORDER_MIN, int ORDER_MAX, template <int, int> class INTEGRAL_SELECTOR, int IMPL_TAG, typename MESH_TYPE,
           bool IS_MODEL_ON_NODES, utils::enums::physicType PHYSICS>
@@ -88,7 +75,7 @@ void DGPAdaptiveSolver<ORDER_MIN, ORDER_MAX, INTEGRAL_SELECTOR, IMPL_TAG, MESH_T
   int n_pMax = 0;
 
   if (m_external_element_type_.size() == static_cast<size_t>(nElem)) {
-    // Caller-provided split (setElementTags()): skip the Z-threshold heuristic entirely, since
+    // Caller-provided split (setElementTags()): the Z-threshold heuristic is skipped, since
     // it only cuts the intended plane while the mesh is flat.
     for (int e = 0; e < nElem; ++e) {
       m_element_type_[e] = m_external_element_type_[e];
@@ -125,10 +112,6 @@ void DGPAdaptiveSolver<ORDER_MIN, ORDER_MAX, INTEGRAL_SELECTOR, IMPL_TAG, MESH_T
       pMax_elem_list_[ipMax++] = e;
   }
 }
-
-//============================================================================
-// TagNodes
-//============================================================================
 
 template <int ORDER_MIN, int ORDER_MAX, template <int, int> class INTEGRAL_SELECTOR, int IMPL_TAG, typename MESH_TYPE,
           bool IS_MODEL_ON_NODES, utils::enums::physicType PHYSICS>
@@ -169,11 +152,12 @@ void DGPAdaptiveSolver<ORDER_MIN, ORDER_MAX, INTEGRAL_SELECTOR, IMPL_TAG, MESH_T
       });
   FENCE
 
-  // Host mirrors: pMin_count/pMax_count are filled by device kernel; need host access for face loop.
+  // The counts are filled on the device; the face loops below run on the host.
   auto h_pMin_count = Kokkos::create_mirror_view_and_copy(Kokkos::HostSpace{}, pMin_count);
   auto h_pMax_count = Kokkos::create_mirror_view_and_copy(Kokkos::HostSpace{}, pMax_count);
 
-  // Iterate over m_face_connectivity_ faces — same index space as coupling kernels.
+  // Iterate over the faces of m_face_connectivity_, the same index space as the coupling kernels.
+  // A face is on the interface when all its nodes belong to both a pMin and a pMax element.
   int const num_faces_fc = static_cast<int>(m_face_connectivity_.getNumberOfFaces());
   int n_interface = 0;
   for (int f = 0; f < num_faces_fc; ++f) {
@@ -214,10 +198,6 @@ void DGPAdaptiveSolver<ORDER_MIN, ORDER_MAX, INTEGRAL_SELECTOR, IMPL_TAG, MESH_T
   std::cout << "DGPAdaptiveSolver: " << m_n_iface_pMin_elements_ << " interface-adjacent pMin elements." << std::endl;
 }
 
-//============================================================================
-// BuildInteriorFaceLists
-//============================================================================
-
 template <int ORDER_MIN, int ORDER_MAX, template <int, int> class INTEGRAL_SELECTOR, int IMPL_TAG, typename MESH_TYPE,
           bool IS_MODEL_ON_NODES, utils::enums::physicType PHYSICS>
 void DGPAdaptiveSolver<ORDER_MIN, ORDER_MAX, INTEGRAL_SELECTOR, IMPL_TAG, MESH_TYPE, IS_MODEL_ON_NODES,
@@ -230,7 +210,7 @@ void DGPAdaptiveSolver<ORDER_MIN, ORDER_MAX, INTEGRAL_SELECTOR, IMPL_TAG, MESH_T
   std::vector<bool> is_iface(num_faces_fc, false);
   for (int i = 0; i < num_interface_faces_; ++i) is_iface[h_iface(i)] = true;
 
-  // Collect faces adjacent to at least one pMin element and not on the pMin-pMax interface.
+  // Faces whose owner is a pMin element and which are not on the pMin-pMax interface.
   std::vector<int> result_pMin;
   result_pMin.reserve(num_faces_fc / 2);
   for (int f = 0; f < num_faces_fc; ++f) {
@@ -246,7 +226,7 @@ void DGPAdaptiveSolver<ORDER_MIN, ORDER_MAX, INTEGRAL_SELECTOR, IMPL_TAG, MESH_T
   for (int i = 0; i < m_n_pMin_interior_faces_; ++i) h_pMin_list(i) = result_pMin[i];
   Kokkos::deep_copy(m_pMin_interior_face_list_, h_pMin_list);
 
-  // Collect faces adjacent to at least one pMax element and not on the pMin-pMax interface.
+  // Faces whose owner is a pMax element and which are not on the pMin-pMax interface.
   std::vector<int> result_pMax;
   result_pMax.reserve(num_faces_fc / 2);
   for (int f = 0; f < num_faces_fc; ++f) {
@@ -263,27 +243,20 @@ void DGPAdaptiveSolver<ORDER_MIN, ORDER_MAX, INTEGRAL_SELECTOR, IMPL_TAG, MESH_T
   Kokkos::deep_copy(m_pMax_interior_face_list_, h_pMax_list);
 }
 
-//============================================================================
-// ComputeMortarProjection
-//============================================================================
-
 template <int ORDER_MIN, int ORDER_MAX, template <int, int> class INTEGRAL_SELECTOR, int IMPL_TAG, typename MESH_TYPE,
           bool IS_MODEL_ON_NODES, utils::enums::physicType PHYSICS>
 void DGPAdaptiveSolver<ORDER_MIN, ORDER_MAX, INTEGRAL_SELECTOR, IMPL_TAG, MESH_TYPE, IS_MODEL_ON_NODES,
                        PHYSICS>::ComputeMortarProjection() {
-  // Only the 1D factor is stored: the projection the coupling applies is the threefold tensor
-  // product of this matrix, and ProlongPMinField()/RestrictPMinStiff() apply it one direction at a
-  // time. Storing the 2D or 3D form instead would cost (ORDER_MAX+1)^d (ORDER_MIN+1)^d entries and
-  // turn each application into a dense product for no gain.
+  // Only the 1D factor is stored, of size (ORDER_MAX+1) x (ORDER_MIN+1): the projection applied by
+  // the coupling is the threefold tensor product of this matrix, and
+  // ProlongPMinField()/RestrictPMinStiff() apply it one direction at a time. Storing the 2D or 3D
+  // form would cost (ORDER_MAX+1)^d (ORDER_MIN+1)^d entries and turn each application into a dense
+  // product for no gain.
   for (int k = 0; k < ORDER_MAX + 1; ++k)
     for (int m = 0; m < ORDER_MIN + 1; ++m)
       m_p1d_projection_(k, m) =
           INTEGRAL_TYPE_MIN::BasisType::value(m, INTEGRAL_TYPE_MAX::BasisType::parentSupportCoord(k));
 }
-
-//============================================================================
-// BuildInterfaceElementList
-//============================================================================
 
 template <int ORDER_MIN, int ORDER_MAX, template <int, int> class INTEGRAL_SELECTOR, int IMPL_TAG, typename MESH_TYPE,
           bool IS_MODEL_ON_NODES, utils::enums::physicType PHYSICS>
@@ -323,10 +296,6 @@ void DGPAdaptiveSolver<ORDER_MIN, ORDER_MAX, INTEGRAL_SELECTOR, IMPL_TAG, MESH_T
   m_pMin_prolonged_stiff_ =
       allocateArray2D<arrayReal>(m_n_iface_pMin_elements_, pMaxSolver::kPointsPerElement, "pMinProlongedStiff");
 }
-
-//============================================================================
-// ProlongPMinField
-//============================================================================
 
 template <int ORDER_MIN, int ORDER_MAX, template <int, int> class INTEGRAL_SELECTOR, int IMPL_TAG, typename MESH_TYPE,
           bool IS_MODEL_ON_NODES, utils::enums::physicType PHYSICS>
@@ -376,10 +345,6 @@ void DGPAdaptiveSolver<ORDER_MIN, ORDER_MAX, INTEGRAL_SELECTOR, IMPL_TAG, MESH_T
       });
 }
 
-//============================================================================
-// RestrictPMinStiff
-//============================================================================
-
 template <int ORDER_MIN, int ORDER_MAX, template <int, int> class INTEGRAL_SELECTOR, int IMPL_TAG, typename MESH_TYPE,
           bool IS_MODEL_ON_NODES, utils::enums::physicType PHYSICS>
 void DGPAdaptiveSolver<ORDER_MIN, ORDER_MAX, INTEGRAL_SELECTOR, IMPL_TAG, MESH_TYPE, IS_MODEL_ON_NODES,
@@ -414,8 +379,8 @@ void DGPAdaptiveSolver<ORDER_MIN, ORDER_MAX, INTEGRAL_SELECTOR, IMPL_TAG, MESH_T
               tmp_ij[i + kNMin * (j + kNMin * c)] = acc;
             }
 
-        // One thread per pMin element and the sub-solver kernels are fenced, so no atomic: this is
-        // the only writer of this element's row at this point.
+        // No atomic: one thread per pMin element, and the sub-solver kernels are fenced, so this
+        // is the only writer of this element's row at this point.
         for (int k = 0; k < kNMin; ++k)
           for (int j = 0; j < kNMin; ++j)
             for (int i = 0; i < kNMin; ++i) {
@@ -425,11 +390,6 @@ void DGPAdaptiveSolver<ORDER_MIN, ORDER_MAX, INTEGRAL_SELECTOR, IMPL_TAG, MESH_T
             }
       });
 }
-
-//============================================================================
-// ApplyCoupling - SIPG flux:  pMin pressure → pMax pressure
-//                             pMax pressure → pMin pressure
-//============================================================================
 
 template <int ORDER_MIN, int ORDER_MAX, template <int, int> class INTEGRAL_SELECTOR, int IMPL_TAG, typename MESH_TYPE,
           bool IS_MODEL_ON_NODES, utils::enums::physicType PHYSICS>
@@ -510,15 +470,15 @@ void DGPAdaptiveSolver<ORDER_MIN, ORDER_MAX, INTEGRAL_SELECTOR, IMPL_TAG, MESH_T
 
         real_t const gamma_min = computeSIPGPenalty<ORDER_MIN>(faceCoords, pMin_coords, penalty_local);
         real_t const gamma_max = computeSIPGPenalty<ORDER_MAX>(faceCoords, pMax_coords, penalty_local);
-        // Symmetric penalty: same gamma on both sides of the interface, else the SIPG
+        // Symmetric penalty: the same gamma on both sides of the interface, otherwise the SIPG
         // bilinear form loses symmetry across the hp-nonconforming face (spurious reflection).
         real_t const gamma_iface = (gamma_min > gamma_max) ? gamma_min : gamma_max;
 
         int const slot = elem_to_slot(pMin_e);
 
-        // Face-sized accumulators, one per side, each in its own side's face numbering. Same
-        // reason as the DG interior kernel: element-sized rows would put 2*(ORDER_MAX+1)^3 floats
-        // per thread in local memory and route every quadrature update through L1.
+        // Face-sized accumulators, one per side, each in its own side's face numbering.
+        // Element-sized rows would put 2*(ORDER_MAX+1)^3 floats per thread in local memory and
+        // route every quadrature update through L1.
         float stiff_min[pMaxSolver::knumNodesPerFace] = {0};
         float stiff_max[pMaxSolver::knumNodesPerFace] = {0};
 
@@ -528,13 +488,13 @@ void DGPAdaptiveSolver<ORDER_MIN, ORDER_MAX, INTEGRAL_SELECTOR, IMPL_TAG, MESH_T
 
         // One quadrature point at a time, both sides fused, at ORDER_MAX resolution. The contracted
         // callbacks fold sum_k C_ijk * n_k, so each contribution fires once instead of once per
-        // physical direction; and since they always fire with j == q, everything derived from j is
-        // hoisted here rather than recomputed at every firing.
+        // physical direction. They always fire with j == q, so everything derived from j is
+        // hoisted here.
         for (int q = 0; q < pMaxSolver::knumNodesPerFace; ++q) {
-          // Face-normal accumulators, one per side. These carry the SIPG consistency channel
-          // sum_k C_ijk n_k restricted to the depth direction, which on an axis-aligned face is
-          // the *only* non-zero channel: there invJ is diagonal, so the two tangential factors
-          // vanish and dropping this one would leave the side with nothing but its penalty.
+          // Face-normal accumulators, one per side. They carry the SIPG consistency channel
+          // sum_k C_ijk n_k restricted to the depth direction. On an axis-aligned face this is
+          // the only non-zero channel (invJ is diagonal, so the two tangential factors vanish);
+          // dropping it would leave the side with nothing but its penalty.
           float norm_min[ORDER_MAX + 1] = {0};
           float norm_max[ORDER_MAX + 1] = {0};
 
@@ -584,8 +544,8 @@ void DGPAdaptiveSolver<ORDER_MIN, ORDER_MAX, INTEGRAL_SELECTOR, IMPL_TAG, MESH_T
           stiff_max[q] += acc_max;
           stiff_min[q_to_min] -= acc_max;
 
-          // Off-face, so this bypasses the face-sized flush. Atomic because several faces of the
-          // same element write these dofs.
+          // Off-face dofs, so they bypass the face-sized flush. Atomic because several faces of the
+          // same element write them.
           for (int m = 0; m <= ORDER_MAX; ++m) {
             ATOMICADD(stiff_pMin_up(slot, face_to_elem_dof_depth[fid_pMin][q][m]), norm_min[m]);
             ATOMICADD(stiff_pMax(pMax_e, face_to_elem_dof_depth[fid_pMax][q][m]), norm_max[m]);
@@ -593,8 +553,8 @@ void DGPAdaptiveSolver<ORDER_MIN, ORDER_MAX, INTEGRAL_SELECTOR, IMPL_TAG, MESH_T
         }
 
         // SIPG penalty and atomic write-back, fused: both sides use the same damping term at face
-        // dof i and the same symmetric gamma, so the weight is computed once here instead of once
-        // per side.
+        // dof i and the same symmetric gamma, so the weight is computed once instead of once per
+        // side.
         for (int i = 0; i < pMaxSolver::knumNodesPerFace; ++i) {
           real_t const pen_i = gamma_iface * INTEGRAL_TYPE_MAX::computeDampingTerm(i, faceCoords);
 
@@ -612,10 +572,6 @@ void DGPAdaptiveSolver<ORDER_MIN, ORDER_MAX, INTEGRAL_SELECTOR, IMPL_TAG, MESH_T
       });
 }
 
-//============================================================================
-// computeOneStep  (staggered p-adaptive DG coupling scheme)
-//============================================================================
-
 template <int ORDER_MIN, int ORDER_MAX, template <int, int> class INTEGRAL_SELECTOR, int IMPL_TAG, typename MESH_TYPE,
           bool IS_MODEL_ON_NODES, utils::enums::physicType PHYSICS>
 void DGPAdaptiveSolver<ORDER_MIN, ORDER_MAX, INTEGRAL_SELECTOR, IMPL_TAG, MESH_TYPE, IS_MODEL_ON_NODES,
@@ -632,10 +588,8 @@ void DGPAdaptiveSolver<ORDER_MIN, ORDER_MAX, INTEGRAL_SELECTOR, IMPL_TAG, MESH_T
   DGsolverDataAcoustic pMin_data(myData.m_wavefield.m_pMinAcoustic, myData.m_rhs.m_rhs_pMinAcoustic);
   DGsolverDataAcoustic pMax_data(myData.m_wavefield.m_pMaxAcoustic, myData.m_rhs.m_rhs_pMaxAcoustic);
 
-  // ====================================================================================
-  // pMin DG: volume + pMin-pMin interior flux (interface faces excluded from face list)
-  // ====================================================================================
-
+  // pMin DG: volume terms and pMin-pMin interior fluxes (interface faces are excluded from the
+  // face list).
   m_pMin_solver_.m_list_mode_ = true;
   m_pMin_solver_.m_elem_list_ = pMin_elem_list_;
   m_pMin_solver_.m_n_elem_list_ = num_pMin_elements_;
@@ -649,10 +603,8 @@ void DGPAdaptiveSolver<ORDER_MIN, ORDER_MAX, INTEGRAL_SELECTOR, IMPL_TAG, MESH_T
   m_pMin_solver_.computeBoundaryDampingAndInterfaceFlux(m_n_pMin_interior_faces_, pMin_data.getCurrentField(0));
   FENCE
 
-  // ====================================================================================
-  // pMax DG: volume + pMax-pMax interior flux (interface faces excluded from face list)
-  // ====================================================================================
-
+  // pMax DG: volume terms and pMax-pMax interior fluxes (interface faces are excluded from the
+  // face list).
   m_pMax_solver_.m_list_mode_ = true;
   m_pMax_solver_.m_elem_list_ = pMax_elem_list_;
   m_pMax_solver_.m_n_elem_list_ = num_pMax_elements_;
@@ -666,13 +618,10 @@ void DGPAdaptiveSolver<ORDER_MIN, ORDER_MAX, INTEGRAL_SELECTOR, IMPL_TAG, MESH_T
   m_pMax_solver_.computeBoundaryDampingAndInterfaceFlux(m_n_pMax_interior_faces_, pMax_data.getCurrentField(0));
   FENCE
 
-  // =========================================================================
-  // Symmetric SIPG interface coupling: both sides read p^n (no temporal lag).
-  // Both m_stiff_local_ arrays are complete at this point (FENCE above).
-  // The pMin side is raised to ORDER_MAX before the coupling and restricted after, so the
-  // interface kernel sees two same-order elements and evaluates the full SIPG form on both.
-  // =========================================================================
-
+  // Symmetric SIPG interface coupling: both sides read p^n (no temporal lag). Both
+  // m_stiff_local_ arrays are complete at this point (FENCE above). The pMin side is raised to
+  // ORDER_MAX before the coupling and restricted after, so the interface kernel sees two
+  // same-order elements and evaluates the full SIPG form on both.
   ProlongPMinField(myData);
   FENCE
 
@@ -682,10 +631,7 @@ void DGPAdaptiveSolver<ORDER_MIN, ORDER_MAX, INTEGRAL_SELECTOR, IMPL_TAG, MESH_T
   RestrictPMinStiff();
   FENCE
 
-  // =========================================================================
-  // Both Verlets
-  // =========================================================================
-
+  // Time update of both sub-solvers.
   m_pMin_solver_.applyVerlet(num_pMin_elements_, dt, pMin_data.getCurrentField(0), pMin_data.getPreviousField(0));
   m_pMin_solver_.m_list_mode_ = false;
   FENCE
@@ -694,10 +640,6 @@ void DGPAdaptiveSolver<ORDER_MIN, ORDER_MAX, INTEGRAL_SELECTOR, IMPL_TAG, MESH_T
   m_pMax_solver_.m_list_mode_ = false;
   FENCE
 }
-
-//============================================================================
-// outputSolutionValues (pMin or pMax solution output: p[nElem][nDof_pMax])
-//============================================================================
 
 template <int ORDER_MIN, int ORDER_MAX, template <int, int> class INTEGRAL_SELECTOR, int IMPL_TAG, typename MESH_TYPE,
           bool IS_MODEL_ON_NODES, utils::enums::physicType PHYSICS>

@@ -11,22 +11,24 @@ namespace solver {
 namespace fe {
 
 /**
- * @brief RHS data structure for the acousto-elastic coupled solver.
+ * @brief Source term of the acousto-elastic coupled problem.
  *
  * Holds one acoustic source (pressure, fluid domain) and one elastic source
  * (force, solid domain). Either source may be zero-initialised when the
- * corresponding domain is inactive. The sub-solvers receive their respective
- * @ref RhsAcoustic / @ref RhsElastic member directly, so @p getTerm() is
- * provided for interface compliance only.
+ * corresponding domain is inactive. The two members are meant to be read
+ * directly by the per-domain code; getTerm() gives a flat view over both.
  */
 struct RhsAcoustoElastic : public Rhs {
   /// Number of RHS components: 1 acoustic (p) + 3 elastic (fx, fy, fz).
   static constexpr int kNumRhsComponents = 4;
 
   /**
-   * @param acoustic_term  2D array of acoustic source signals (n_src x n_t).
-   * @param element        Indices of elements containing source points.
-   * @param weights        Per-node weights for source distribution.
+   * @brief Builds the source with one weight array shared by all components.
+   *
+   * @param acoustic_term  Acoustic source signals (n_src x n_t).
+   * @param element        Indices of the elements containing the source points.
+   * @param weights        Per-node weights for source distribution, shared by the acoustic
+   *                       and the three elastic components.
    * @param elastic_termx  X-component elastic source signals (n_src x n_t).
    * @param elastic_termy  Y-component elastic source signals.
    * @param elastic_termz  Z-component elastic source signals.
@@ -36,7 +38,19 @@ struct RhsAcoustoElastic : public Rhs {
       : m_rhs_acoustic(acoustic_term, element, weights),
         m_rhs_elastic(elastic_termx, elastic_termy, elastic_termz, element, weights) {}
 
-  /// Variant with one weight array per elastic component.
+  /**
+   * @brief Builds the source with one weight array per elastic component.
+   *
+   * @param acoustic_term    Acoustic source signals (n_src x n_t).
+   * @param element          Indices of the elements containing the source points.
+   * @param weights          Per-node weights of the acoustic component.
+   * @param elastic_termx    X-component elastic source signals (n_src x n_t).
+   * @param elastic_termy    Y-component elastic source signals.
+   * @param elastic_termz    Z-component elastic source signals.
+   * @param elastic_weightsx Per-node weights of the elastic x component.
+   * @param elastic_weightsy Per-node weights of the elastic y component.
+   * @param elastic_weightsz Per-node weights of the elastic z component.
+   */
   RhsAcoustoElastic(arrayReal acoustic_term, vectorInt element, arrayReal weights, arrayReal elastic_termx,
                     arrayReal elastic_termy, arrayReal elastic_termz, arrayReal elastic_weightsx,
                     arrayReal elastic_weightsy, arrayReal elastic_weightsz)
@@ -44,28 +58,40 @@ struct RhsAcoustoElastic : public Rhs {
         m_rhs_elastic(elastic_termx, elastic_termy, elastic_termz, element, elastic_weightsx, elastic_weightsy,
                       elastic_weightsz) {}
 
+  /// @return Number of RHS components (4).
   int getNumRhsComponents() const override final { return kNumRhsComponents; }
 
-  /// @brief Returns term i: 0 = acoustic, 1/2/3 = elastic x/y/z.
+  /**
+   * @brief Returns the source signals of one component.
+   * @param[in] i Component: 0 = acoustic, 1/2/3 = elastic x/y/z.
+   * @return Source signals of component i.
+   */
   PROXY_HOST_DEVICE
   arrayReal getTerm(int i) const override {
     if (i == 0) return m_rhs_acoustic.getTerm(0);
     return m_rhs_elastic.getTerm(i - 1);
   }
 
+  /// @return Indices of the elements containing the source points (those of the acoustic member).
   PROXY_HOST_DEVICE
   vectorInt getElement() const { return m_rhs_acoustic.getElement(); }
 
+  /// @return Per-node weights of the acoustic component.
   PROXY_HOST_DEVICE
   arrayReal getWeights() const { return m_rhs_acoustic.getWeights(); }
 
-  /// @brief Returns the weights of term i: 0 = acoustic, 1/2/3 = elastic x/y/z.
+  /**
+   * @brief Returns the per-node weights of one component.
+   * @param[in] i Component: 0 = acoustic, 1/2/3 = elastic x/y/z.
+   * @return Weights of component i.
+   */
   PROXY_HOST_DEVICE
   arrayReal getWeights(int i) const {
     if (i == 0) return m_rhs_acoustic.getWeights();
     return m_rhs_elastic.getWeights(i - 1);
   }
 
+  /// @brief Prints the acoustic source, then the elastic source.
   void print() const override {
     m_rhs_acoustic.print();
     m_rhs_elastic.print();

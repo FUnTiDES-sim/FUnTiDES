@@ -9,62 +9,77 @@ namespace solver {
 namespace fe {
 
 /**
- * @brief Combined wavefield for the p-adative DG solver.
+ * @brief Acoustic pressure wavefields of the two p-adaptive DG sub-domains (orders pMin and pMax).
  *
- * Holds one acoustic pressure field in each DG sub-domain at two consecutive time levels (previous and current).
- * This struct is passed to DGPAdaptiveSolverData at each time step.
+ * Each sub-domain holds a previous and a current time level, wrapped in a DGWavefieldAcoustic.
+ * The two members are public and are accessed directly by the sub-solvers.
  */
 struct DGPAdaptiveWavefieldAcoustic {
-  /// Total number of solution fields: 2 dg acoustic (p).
+  /// Number of solution fields (one pressure field per sub-domain).
   static constexpr int kNumFields = 2;
 
-  /// Field names in order: pMinDGp, pMaxDGp
+  /// Field names, in the order pMin, pMax.
   static constexpr const char* kFieldNames[2] = {"pMinDGpressure", "pMaxDGpressure"};
 
+  /**
+   * @brief Wraps the four pressure arrays.
+   * @param[in] pnPMinDGPrev Pressure of the pMin sub-domain at the previous time level.
+   * @param[in] pnPMinDGCurr Pressure of the pMin sub-domain at the current time level.
+   * @param[in] pnPMaxDGPrev Pressure of the pMax sub-domain at the previous time level.
+   * @param[in] pnPMaxDGCurr Pressure of the pMax sub-domain at the current time level.
+   */
   DGPAdaptiveWavefieldAcoustic(arrayReal pnPMinDGPrev, arrayReal pnPMinDGCurr, arrayReal pnPMaxDGPrev,
                                arrayReal pnPMaxDGCurr)
       : m_pMinAcoustic(pnPMinDGPrev, pnPMinDGCurr), m_pMaxAcoustic(pnPMaxDGPrev, pnPMaxDGCurr) {}
 
+  /// @return Number of solution fields.
   int getNumFields() const { return kNumFields; }
 
+  /// @return Array of kNumFields field names.
   const char* const* getFieldNames() const { return kFieldNames; }
 
   /**
-   * @brief Get the current field of order pMin.
+   * @brief Current pressure of the pMin sub-domain.
+   * @param[in] i Unused.
    */
   PROXY_HOST_DEVICE
   arrayReal getPMinCurrentField(int i) const { return m_pMinAcoustic.getCurrentField(0); }
 
   /**
-   * @brief Get the current field of order pMax.
+   * @brief Current pressure of the pMax sub-domain.
+   * @param[in] i Unused.
    */
   PROXY_HOST_DEVICE
   arrayReal getPMaxCurrentField(int i) const { return m_pMaxAcoustic.getCurrentField(0); }
 
   /**
-   * @brief Get the previous field of order pMin.
+   * @brief Previous pressure of the pMin sub-domain.
+   * @param[in] i Unused.
    */
   PROXY_HOST_DEVICE
   arrayReal getPMinPreviousField(int i) const { return m_pMinAcoustic.getPreviousField(0); }
 
   /**
-   * @brief Get the previous field of order pMax.
+   * @brief Previous pressure of the pMax sub-domain.
+   * @param[in] i Unused.
    */
   PROXY_HOST_DEVICE
   arrayReal getPMaxPreviousField(int i) const { return m_pMaxAcoustic.getPreviousField(0); }
 
+  /// @brief Swaps the previous and current levels of both sub-domains.
   void swap() {
     m_pMinAcoustic.swap();
     m_pMaxAcoustic.swap();
   }
 
+  /// @brief Prints both sub-domain wavefields.
   void print() const {
     m_pMinAcoustic.print();
     m_pMaxAcoustic.print();
   }
 
-  DGWavefieldAcoustic m_pMinAcoustic;  ///< Acoustic pressure wavefield for order pMin
-  DGWavefieldAcoustic m_pMaxAcoustic;  ///< Acoustic pressure wavefield for order pMax
+  DGWavefieldAcoustic m_pMinAcoustic;  ///< Pressure wavefield of the pMin sub-domain.
+  DGWavefieldAcoustic m_pMaxAcoustic;  ///< Pressure wavefield of the pMax sub-domain.
 };
 
 }  // namespace fe

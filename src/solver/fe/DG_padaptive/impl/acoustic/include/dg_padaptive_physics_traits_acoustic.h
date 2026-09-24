@@ -8,17 +8,16 @@ namespace solver {
 namespace fe {
 
 /**
- * @brief Specialization for p-adaptive acoustic physics.
+ * @brief Bundles the wavefield and source types of the p-adaptive acoustic solver.
  *
- * Acoustic wave propagation uses a single scalar pressure field for each order.
+ * Only carries type aliases and a name; it holds no data.
  */
 struct DGPAdaptivePhysicsTraits {
-  /// Human-readable name for logging
+  /// Name used in log messages.
   static constexpr const char* kName = "DGPAdaptiveAcoustic";
 
-  /// Concrete types for device access
-  using WavefieldType = DGPAdaptiveWavefieldAcoustic;
-  using RhsType = DGPAdaptiveRhsAcoustic;
+  using WavefieldType = DGPAdaptiveWavefieldAcoustic;  ///< Wavefield storage type.
+  using RhsType = DGPAdaptiveRhsAcoustic;              ///< Source term storage type.
 };
 
 }  // namespace fe

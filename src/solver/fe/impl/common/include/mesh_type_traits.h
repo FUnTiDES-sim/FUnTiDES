@@ -18,7 +18,7 @@ namespace fe {
  * path: a wrong true here would silently degrade the operator, a wrong false
  * only costs time.
  *
- * @tparam MESH_TYPE The model type held by the solver.
+ * @tparam MESH_TYPE Mesh (model) type held by the solver.
  */
 template <typename MESH_TYPE>
 struct HasConstantJacobian {
@@ -26,8 +26,12 @@ struct HasConstantJacobian {
 };
 
 /**
- * @brief ModelStruct is a regular Cartesian grid: axis-aligned elements of
- *   identical size, hence a Jacobian that is constant over each element.
+ * @brief Structured Cartesian meshes have axis-aligned elements of identical
+ *   size, hence a Jacobian that is constant over each element.
+ *
+ * @tparam FloatType Floating-point type of the model.
+ * @tparam ScalarType Integer type of the model.
+ * @tparam Order Polynomial order of the model.
  */
 template <typename FloatType, typename ScalarType, int Order>
 struct HasConstantJacobian<model::ModelStruct<FloatType, ScalarType, Order>> {

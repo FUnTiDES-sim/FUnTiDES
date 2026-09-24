@@ -14,6 +14,15 @@ namespace py = pybind11;
 namespace solver {
 namespace fe {
 
+/**
+ * @brief Registers the p-adaptive acoustic source term in a Python module.
+ *
+ * The Python constructor takes, in order, the pMin and pMax acoustic terms, the source element
+ * indices, and the pMin and pMax weights. Exposes `print`.
+ *
+ * @param[in,out] m Module receiving the class.
+ * @todo VERIFY: shapes and layouts of the term and weight arrays expected by the Python constructor.
+ */
 void bind_dgpadaptive_rhs_acoustic(py::module_ &m) {
   py::class_<DGPAdaptiveRhsAcoustic, Rhs, std::shared_ptr<DGPAdaptiveRhsAcoustic>>(m, "DGPAdaptiveRhsAcoustic")
       .def(py::init<
@@ -25,6 +34,13 @@ void bind_dgpadaptive_rhs_acoustic(py::module_ &m) {
       .def("print", &DGPAdaptiveRhsAcoustic::print);
 }
 
+/**
+ * @brief Registers the p-adaptive solver data (wavefield and source) in a Python module.
+ *
+ * The Python constructor takes a wavefield and a source term. Exposes `swap_wavefields` and `print`.
+ *
+ * @param[in,out] m Module receiving the class.
+ */
 void bind_dgpadaptive_acoustic_data(py::module_ &m) {
   py::class_<DGPAdaptiveSolverData, Solver::DataStruct, std::shared_ptr<DGPAdaptiveSolverData>>(m,
                                                                                                 "DGPAdaptiveSolverData")

@@ -1,5 +1,5 @@
 // Auto-generated file - DO NOT EDIT
-// Generated for: SEMQ@ORDER@ @MESH_TYPE@ makutu solver @PHYSIC_TYPE@ model@MODEL_TYPE@
+// Generated for: SEMQ@ORDER@ @MESH_TYPE@ tensorial GEMM solver @PHYSIC_TYPE@ model@MODEL_TYPE@
 
 #include <@MODEL_HEADER@>
 
