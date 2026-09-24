@@ -30,12 +30,15 @@ void DifferentiatorElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES>::
   vectorReal const gradLambda = myData.getGradient(1);
   vectorReal const gradMu = myData.getGradient(2);
 
+  int const firstElement = myData.m_firstElement;
+  int const lastElement = myData.m_lastElement < 0 ? myMesh.getNumberOfElements() : myData.m_lastElement;
+
   if constexpr (!IS_MODEL_ON_NODES)
     computeOnElements(myMesh, dt, ux_fwd, uy_fwd, uz_fwd, ux_adj, uy_adj, uz_adj, ux_dt2, uy_dt2, uz_dt2, gradRho,
-                      gradLambda, gradMu);
+                      gradLambda, gradMu, firstElement, lastElement);
   else
     computeOnNodes(myMesh, dt, ux_fwd, uy_fwd, uz_fwd, ux_adj, uy_adj, uz_adj, ux_dt2, uy_dt2, uz_dt2, gradRho,
-                   gradLambda, gradMu);
+                   gradLambda, gradMu, firstElement, lastElement);
   Kokkos::fence();
 }
 
@@ -150,11 +153,10 @@ void DifferentiatorElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES>::
     MESH_TYPE mesh, float dt, vectorReal const ux_fwd, vectorReal const uy_fwd, vectorReal const uz_fwd,
     vectorReal const ux_adj, vectorReal const uy_adj, vectorReal const uz_adj, vectorReal const ux_dt2,
     vectorReal const uy_dt2, vectorReal const uz_dt2, vectorReal const gradRho, vectorReal const gradLambda,
-    vectorReal const gradMu) const {
+    vectorReal const gradMu, int firstElement, int lastElement) const {
+  using Policy = Kokkos::RangePolicy<Kokkos::LaunchBounds<LaunchMaxThreadsPerBlock, LaunchMinBlocksPerSM>>;
   Kokkos::parallel_for(
-      "Compute Elastic Gradient on Elements",
-      Kokkos::RangePolicy<Kokkos::LaunchBounds<LaunchMaxThreadsPerBlock, LaunchMinBlocksPerSM>>(
-          0, mesh.getNumberOfElements()),
+      "Compute Elastic Gradient on Elements", Policy(firstElement, lastElement),
       KOKKOS_LAMBDA(const int elementNumber) {
         if (elementNumber >= mesh.getNumberOfElements()) return;
 
@@ -257,12 +259,10 @@ void DifferentiatorElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES>::
     MESH_TYPE mesh, float dt, vectorReal const ux_fwd, vectorReal const uy_fwd, vectorReal const uz_fwd,
     vectorReal const ux_adj, vectorReal const uy_adj, vectorReal const uz_adj, vectorReal const ux_dt2,
     vectorReal const uy_dt2, vectorReal const uz_dt2, vectorReal const gradRho, vectorReal const gradLambda,
-    vectorReal const gradMu) const {
+    vectorReal const gradMu, int firstElement, int lastElement) const {
+  using Policy = Kokkos::RangePolicy<Kokkos::LaunchBounds<LaunchMaxThreadsPerBlock, LaunchMinBlocksPerSM>>;
   Kokkos::parallel_for(
-      "Compute Elastic Gradient on Nodes",
-      Kokkos::RangePolicy<Kokkos::LaunchBounds<LaunchMaxThreadsPerBlock, LaunchMinBlocksPerSM>>(
-          0, mesh.getNumberOfElements()),
-      KOKKOS_LAMBDA(const int elementNumber) {
+      "Compute Elastic Gradient on Nodes", Policy(firstElement, lastElement), KOKKOS_LAMBDA(const int elementNumber) {
         if (elementNumber >= mesh.getNumberOfElements()) return;
 
         int const dim = mesh.getOrder() + 1;
