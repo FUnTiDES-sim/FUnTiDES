@@ -1,5 +1,5 @@
-// Auto-generated file - DO NOT EDIT
-// Generated for: DGQ@ORDER@ @MESH_TYPE@ makutu solver @PHYSIC_TYPE@ model@MODEL_TYPE@
+// Template of a generated file: edit this template, not its generated output.
+// Explicit instantiation of DGsolver for DGQ@ORDER@, @MESH_TYPE@ mesh, makutu integrals, @PHYSIC_TYPE@ physics, model@MODEL_TYPE@.
 
 #include <@MODEL_HEADER@>
 

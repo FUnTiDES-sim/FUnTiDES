@@ -8,17 +8,15 @@ namespace solver {
 namespace fe {
 
 /**
- * @brief Specialization for acoustic physics.
+ * @brief Compile-time bundle of the wavefield and source types of acoustic DG.
  *
- * Acoustic wave propagation uses a single scalar pressure field.
+ * Acoustic propagation uses a single scalar pressure field.
  */
 struct DGPhysicsTraits {
-  /// Human-readable name for logging
-  static constexpr const char* kName = "DGAcoustic";
+  static constexpr const char* kName = "DGAcoustic";  ///< Name used in log messages.
 
-  /// Concrete types for device access
-  using WavefieldType = DGWavefieldAcoustic;
-  using RhsType = RhsAcoustic;
+  using WavefieldType = DGWavefieldAcoustic;  ///< Wavefield storage type.
+  using RhsType = RhsAcoustic;                ///< Source (right-hand side) type.
 };
 
 }  // namespace fe
