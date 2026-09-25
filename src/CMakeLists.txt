@@ -19,10 +19,12 @@ target_link_libraries(funtides INTERFACE
   fun_model
   fun_solver
   fun_gradient
+  fun_io
 )
 
 install(TARGETS funtides fun_core fun_parallel fun_acquisition
                 fun_discretization fun_model fun_solver fun_gradient
+                fun_io_api fun_io
         EXPORT funtidesTargets
         LIBRARY DESTINATION lib
         ARCHIVE DESTINATION lib

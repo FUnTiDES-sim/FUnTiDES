@@ -1,10 +1,12 @@
-add_library(funtides_io_api INTERFACE)
+add_library(fun_io_api INTERFACE)
+add_library(funtides::io_api ALIAS fun_io_api)
 
-target_include_directories(funtides_io_api
-  INTERFACE ${CMAKE_CURRENT_SOURCE_DIR}/api/include
+target_include_directories(fun_io_api
+  INTERFACE
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/api/include>
 )
 
-target_link_libraries(funtides_io_api
+target_link_libraries(fun_io_api
   INTERFACE Kokkos::kokkos fun_core fun_parallel
 )
 
