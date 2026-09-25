@@ -9,31 +9,32 @@ namespace solver {
 namespace fe {
 
 /**
- * @brief Data structure passed to DGSEMsolver at each time step.
+ * @brief Per-time-step data of the coupled DG-SEM acoustic solver.
  *
- * Combines the acoustic wavefield of the DG domain, the acoustic wavefield of the SEM domain,
- * and the acoustic source term.
+ * Bundles the acoustic wavefields of the DG and SEM domains with the acoustic source term.
  */
 struct DGSEMsolverData : public Solver::DataStruct {
   /**
-   * @param wavefield Combined DG-SEM wavefield.
-   * @param rhs       source term (either in DG or SEM).
+   * @brief Builds the data from a combined wavefield and a source term.
+   * @param[in] wavefield Combined DG-SEM wavefield (copied).
+   * @param[in] rhs       Source term for the DG and SEM domains (copied).
    */
   DGSEMsolverData(const DGSEMWavefieldAcoustic& wavefield, const DGSEMRhsAcoustic& rhs)
       : m_wavefield(wavefield), m_rhs(rhs) {}
 
+  /// @brief Prints the wavefield and the source term.
   void print() const override {
     m_wavefield.print();
     m_rhs.print();
   }
 
-  /// Swap previous/current wavefields (call once per time step after
-  /// computeOneStep).
+  /// @brief Swaps the previous and current wavefields; call once per time step, after the step.
   void swapWavefields() { m_wavefield.swap(); }
 
-  DGSEMWavefieldAcoustic m_wavefield;  ///< Combined wavefield DG+SEM
-  DGSEMRhsAcoustic m_rhs;              ///< source
+  DGSEMWavefieldAcoustic m_wavefield;  ///< Combined DG and SEM wavefield.
+  DGSEMRhsAcoustic m_rhs;              ///< Source term.
 
+  /// @todo VERIFY: what does isDistributed select (MPI run with several ranks?) and who reads it?
   bool isDistributed{false};
 };
 

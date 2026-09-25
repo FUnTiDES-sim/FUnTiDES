@@ -14,6 +14,14 @@ namespace py = pybind11;
 namespace solver {
 namespace fe {
 
+/**
+ * @brief Registers DGPAdaptiveWavefieldAcoustic in a Python module.
+ *
+ * Exposes the constructor (four 2D views: pMin previous/current, pMax previous/current),
+ * `swap`, `print` and one getter per stored field.
+ *
+ * @param[in,out] m Python module that receives the class.
+ */
 void bind_dgpadaptive_wavefield_acoustic(py::module_ &m) {
   py::class_<DGPAdaptiveWavefieldAcoustic, std::shared_ptr<DGPAdaptiveWavefieldAcoustic>>(
       m, "DGPAdaptiveWavefieldAcoustic")

@@ -3,14 +3,14 @@
 namespace utils {
 
 /**
- * @brief Hold the distributed context.
+ * @brief Identifies this process within the set of parallel ranks.
  *
- * Discribs the distributed context, such as number of parallel ranks, current
- * rank and later on the MPI context or other kind of communicator.
- * */
+ * Holds the rank count and the current rank. Defaults describe a
+ * single-process run.
+ */
 struct DistributedContext {
-  int rank{0};  //< Current rank
-  int size{1};  //< Total number of rank
+  int rank{0};  ///< Index of the current rank, in [0, size).
+  int size{1};  ///< Total number of ranks.
 };
 
 }  // namespace utils

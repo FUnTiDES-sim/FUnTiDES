@@ -3,7 +3,8 @@
 
 #include <@MODEL_HEADER@>
 
-// use impl to take advantage of external template
+// The implementation header is included (not the declaration header) so that the
+// member definitions are visible for the explicit instantiation below.
 #include "differentiator_elastic_impl.h"
 #include "Integrals.h"
 

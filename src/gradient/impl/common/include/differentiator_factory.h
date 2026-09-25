@@ -7,27 +7,18 @@
 namespace gradient {
 
 /**
- * @brief Factory function to create a Differentiator instance with specified
- * parameters.
+ * @brief Creates the Differentiator matching the requested configuration.
  *
- * This function instantiates and returns a Differentiator object configured
- * according to the provided implementation, mesh, model location, and physics
- * type specifications.
+ * @param implemType Back-end selector.
+ * @param meshType Mesh kind (structured or unstructured).
+ * @param modelLocation Where the model parameters are stored.
+ * @param physicType Physics of the differentiator (selects the wavefield and gradient types).
+ * @param order Polynomial order of the spectral elements.
+ * @todo VERIFY: is `order` the polynomial order of the elements, and which orders are supported?
  *
- * @param implemType The implementation type that determines the computational
- * backend or algorithm.
- * @param meshType The type of mesh used in the finite element analysis.
- * @param modelLocation The location within the model where computations are
- * performed.
- * @param physicType The physics type governing the differentiation behavior.
- * @param order The order of differentiation or accuracy order for the numerical
- * scheme.
+ * @return Newly created differentiator; the caller owns it.
  *
- * @return std::unique_ptr<Differentiator> A unique pointer to the created
- * Differentiator object. The caller takes ownership of the returned object.
- *
- * @throws Potentially throws exceptions if invalid parameter combinations are
- * provided or if memory allocation fails.
+ * @throws @todo VERIFY: which exception type, and for which unsupported combinations of arguments?
  */
 std::unique_ptr<Differentiator> createDifferentiator(utils::enums::implemType implemType,
                                                      utils::enums::meshType meshType,

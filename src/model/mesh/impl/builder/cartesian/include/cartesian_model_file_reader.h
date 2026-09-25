@@ -11,47 +11,53 @@
 namespace model {
 
 /**
- * @brief Parses a text model file and exposes per-property value arrays.
+ * @brief Parses a text model file and exposes one value array per property.
  *
- * File format (one value per line):
+ * File format: one value per line, one section per property.
  * @code
  * Model Vp element
- * <Nber of elements>
- * Value 1
- * Value 2
+ * <number of values>
+ * value 1
  * ...
- * Value N
+ * value N
  *
  * Model Rho element
- * <Nber of elements>
- * Value 1
- * Value 2
+ * <number of values>
+ * value 1
  * ...
- * Value N
+ * value N
  * @endcode
  *
- * All sections in a file must share the same support (`element` or `node`).
- * Supported property names: Vp, Vs, Rho, Qp, Qs, Delta, Epsilon, Gamma,
- * Theta, Phi.
+ * The support keyword of a section is `element` or `node`, and all sections of
+ * a file must use the same one. Every section must hold the same number of
+ * values, and a property may appear only once. Lines that do not start with
+ * "Model" outside a section are ignored. Property names are stored as written
+ * in the file (for example Vp, Vs, Rho, Qp, Qs, Delta, Epsilon, Gamma, Theta,
+ * Phi).
+ * @todo VERIFY: are property names case-sensitive for the consumers, and are
+ * the units of each property (for example Theta and Phi) defined by the file
+ * or by the consumer?
  */
 class CartesianModelFileReader {
  public:
   /**
-   * @brief Constructs the reader and immediately parses the file.
+   * @brief Constructs the reader and parses the whole file.
    * @param path Path to the model text file.
    * @throws std::runtime_error if the file cannot be opened or is malformed.
    */
   explicit CartesianModelFileReader(const std::string& path) { parse(path); }
 
   /**
-   * @brief Returns whether a property was found in the file.
-   * @param prop Property name (e.g. "Vp", "Vs", "Rho").
+   * @brief Tells whether a property is present in the file.
+   * @param prop Property name, as written in the section header.
+   * @return true if a section for prop was parsed.
    */
   bool has(const std::string& prop) const { return data_.find(prop) != data_.end(); }
 
   /**
-   * @brief Returns the parsed values for a given property.
-   * @param prop Property name.
+   * @brief Returns the values of a property, in file order.
+   * @param prop Property name, as written in the section header.
+   * @return Array of count() values.
    * @throws std::runtime_error if the property is absent.
    */
   const std::vector<double>& get(const std::string& prop) const {
@@ -62,20 +68,21 @@ class CartesianModelFileReader {
   }
 
   /**
-   * @brief Returns true if the support is `node`, false if `element`.
+   * @brief Tells whether the values are attached to nodes or to elements.
+   * @return true if the support is `node`, false if it is `element`.
    */
   bool onNodes() const { return on_nodes_; }
 
   /**
-   * @brief Returns the number of values per property.
+   * @brief Returns the number of values of each property.
    */
   size_t count() const { return count_; }
 
  private:
-  std::map<std::string, std::vector<double>> data_;
-  bool on_nodes_{false};
-  size_t count_{0};
-  bool support_set_{false};
+  std::map<std::string, std::vector<double>> data_;  ///< Values by property name.
+  bool on_nodes_{false};                             ///< Support shared by all sections.
+  size_t count_{0};                                  ///< Values per property.
+  bool support_set_{false};                          ///< True once the first section fixed the support.
 
   void parse(const std::string& path) {
     std::ifstream file(path);
@@ -84,7 +91,6 @@ class CartesianModelFileReader {
     for (std::string line; std::getline(file, line);) {
       if (line.empty()) continue;
 
-      // Detect section header: "Model <Prop> <support>"
       std::stringstream header(line);
       std::string keyword;
       header >> keyword;
@@ -108,7 +114,7 @@ class CartesianModelFileReader {
 
       std::string count_line;
       for (; std::getline(file, count_line) && count_line.empty();) {
-        // Skip empty lines between header and count
+        // Blank lines between the header and the count are allowed.
       }
 
       size_t section_count = 0;

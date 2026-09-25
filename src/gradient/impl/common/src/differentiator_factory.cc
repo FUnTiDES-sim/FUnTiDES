@@ -14,9 +14,17 @@ using modelLocationType = utils::enums::modelLocationType;
 using implemType = utils::enums::implemType;
 
 /**
- * @brief C++17 recursive template that replaces a hard-coded switch statement.
- * It stops exactly at CurrentOrder (defined via CMake) and recurses
- * down to 1.
+ * @brief Maps a runtime polynomial order to a compile-time constant.
+ *
+ * Tries CurrentOrder, then recurses down to 1, and calls @p func with the matching
+ * std::integral_constant<int, order>.
+ *
+ * @tparam CurrentOrder Highest order that can be dispatched.
+ * @param[in] order Runtime polynomial order.
+ * @param[in] func Callable taking a std::integral_constant<int, order> and returning a
+ *                 std::unique_ptr<Differentiator>.
+ * @return The differentiator returned by @p func.
+ * @throws std::runtime_error If @p order is not in [1, CurrentOrder].
  */
 template <int CurrentOrder, typename FUNC>
 std::unique_ptr<Differentiator> orderDispatch(int const order, FUNC&& func) {
@@ -32,7 +40,13 @@ std::unique_ptr<Differentiator> orderDispatch(int const order, FUNC&& func) {
 }
 
 /**
- * @brief Creates differentiator for structured mesh.
+ * @brief Creates a differentiator on a structured mesh.
+ *
+ * @tparam ImplTag Integral back-end tag passed to IntegralTypeSelector.
+ * @tparam ORDER Polynomial order.
+ * @param[in] isModelOnNodes True if the model is defined on nodes, false if per element.
+ * @param[in] physic Physics of the differentiator; any value other than kAcoustic
+ *                   selects the elastic one.
  */
 template <auto ImplTag, int ORDER>
 std::unique_ptr<Differentiator> makeDifferentiatorStruct(bool isModelOnNodes, physicType physic) {
@@ -56,7 +70,13 @@ std::unique_ptr<Differentiator> makeDifferentiatorStruct(bool isModelOnNodes, ph
 }
 
 /**
- * @brief Creates differentiator for unstructured mesh.
+ * @brief Creates a differentiator on an unstructured mesh.
+ *
+ * @tparam ImplTag Integral back-end tag passed to IntegralTypeSelector.
+ * @tparam ORDER Polynomial order.
+ * @param[in] isModelOnNodes True if the model is defined on nodes, false if per element.
+ * @param[in] physic Physics of the differentiator; any value other than kAcoustic
+ *                   selects the elastic one.
  */
 template <auto ImplTag, int ORDER>
 std::unique_ptr<Differentiator> makeDifferentiatorUnstruct(bool isModelOnNodes, physicType physic) {
@@ -80,14 +100,21 @@ std::unique_ptr<Differentiator> makeDifferentiatorUnstruct(bool isModelOnNodes, 
 }
 
 /**
- * @brief Creates a SEM solver with the specified integral implementation.
+ * @brief Creates a differentiator for one integral back-end, from runtime options.
+ *
+ * @tparam ImplTag Integral back-end tag.
+ * @param[in] order Polynomial order, limited by the per-physics maximum order.
+ * @param[in] mesh Structured or unstructured mesh.
+ * @param[in] modelLocation Whether the model is defined on nodes or per element.
+ * @param[in] physic Acoustic or elastic.
+ * @throws std::runtime_error If the order is unsupported or the physics is unknown.
  */
 template <auto ImplTag>
 std::unique_ptr<Differentiator> makeDifferentiatorSem(int order, meshType mesh, modelLocationType modelLocation,
                                                       physicType physic) {
   bool const isModelOnNodes = (modelLocation == modelLocationType::kOnNodes);
 
-// macro fallback in case of cmake error
+// Fallback maximum orders, used when the build system does not define them.
 #ifndef MAX_DIFFERENTIATOR_ACOUSTIC_ORDER
 #define MAX_DIFFERENTIATOR_ACOUSTIC_ORDER 3
 #endif
@@ -95,8 +122,7 @@ std::unique_ptr<Differentiator> makeDifferentiatorSem(int order, meshType mesh, 
 #define MAX_DIFFERENTIATOR_ELASTIC_ORDER 3
 #endif
 
-  // On dispatch selon la physique D'ABORD, pour injecter la bonne limite
-  // d'ordre max.
+  // Dispatch on the physics first, so that each physics uses its own maximum order.
   if (physic == physicType::kAcoustic) {
     return orderDispatch<MAX_DIFFERENTIATOR_ACOUSTIC_ORDER>(order, [&](auto orderIC) {
       constexpr int ORDER = decltype(orderIC)::value;
@@ -114,6 +140,17 @@ std::unique_ptr<Differentiator> makeDifferentiatorSem(int order, meshType mesh, 
   throw std::runtime_error("Unknown physics type");
 }
 
+/**
+ * @brief Creates the differentiator matching the given runtime options.
+ *
+ * @param[in] implemType Integral implementation.
+ * @param[in] mesh Structured or unstructured mesh.
+ * @param[in] modelLocation Whether the model is defined on nodes or per element.
+ * @param[in] physicType Acoustic or elastic.
+ * @param[in] order Polynomial order.
+ * @return Newly allocated differentiator, owned by the caller.
+ * @throws std::runtime_error If the implementation, physics or order is unsupported.
+ */
 std::unique_ptr<Differentiator> createDifferentiator(implemType const implemType, meshType const mesh,
                                                      modelLocationType const modelLocation, physicType const physicType,
                                                      int const order) {

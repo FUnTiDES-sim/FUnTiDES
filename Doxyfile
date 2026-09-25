@@ -1,0 +1,36 @@
+# Only non-default settings; everything else keeps Doxygen defaults.
+PROJECT_NAME           = FUnTiDES
+OUTPUT_DIRECTORY       = build/doc
+INPUT                  = src docs README.md
+RECURSIVE              = YES
+FILE_PATTERNS          = *.h *.hpp *.cc *.cpp *.cpp.in *.md
+EXTENSION_MAPPING      = in=C++
+EXCLUDE_PATTERNS       = */build/*
+USE_MDFILE_AS_MAINPAGE = README.md
+EXTRACT_ALL            = NO
+EXTRACT_PRIVATE        = NO
+EXTRACT_STATIC         = YES
+WARN_IF_UNDOCUMENTED   = YES
+WARN_IF_DOC_ERROR      = YES
+WARN_NO_PARAMDOC       = NO
+WARN_LOGFILE           = build/doxygen-warnings.log
+QUIET                  = YES
+GENERATE_HTML          = YES
+GENERATE_LATEX         = NO
+SOURCE_BROWSER         = YES
+ENABLE_PREPROCESSING   = YES
+MACRO_EXPANSION        = YES
+EXPAND_ONLY_PREDEF     = YES
+PREDEFINED             = PROXY_HOST_DEVICE= \
+                         SEMKERNELS_HOST_DEVICE= \
+                         SEMKERNELS_INLINE= \
+                         KOKKOS_INLINE_FUNCTION=inline \
+                         KOKKOS_FORCEINLINE_FUNCTION=inline \
+                         KOKKOS_FUNCTION= \
+                         "KOKKOS_LAMBDA=[=]" \
+                         USE_MPI \
+                         COMPILE_SEM \
+                         COMPILE_DG \
+                         COMPILE_DG_SEM \
+                         COMPILE_DG_PADAPTIVE
+WARN_IF_INCOMPLETE_DOC = NO

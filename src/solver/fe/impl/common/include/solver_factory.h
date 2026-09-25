@@ -12,23 +12,18 @@ namespace fe {
 namespace solver_factory {
 
 /**
- * @brief Creates a SEM solver instance based on the specified configuration.
+ * @brief Creates the solver matching a runtime configuration.
  *
- * This factory function creates the appropriate solver type based on the
- * method type, implementation type, mesh type, model location, physics type,
- * and polynomial order.
- *
- * @param methodType The numerical method (SEM or DG)
- * @param implemType The implementation backend (Makutu)
- * @param meshType The mesh type (Struct or Unstruct)
- * @param modelLocation Where model parameters are stored (OnNodes or
- * OnElements)
- * @param physicType The physics type (Acoustic or Elastic)
- * @param order The polynomial order of spectral elements (the pMax order for kDgPAdaptive)
- * @param order_min The lower polynomial order, kDgPAdaptive only (0 < order_min < order); ignored
- * by every other method
- * @return A unique pointer to the created solver
- * @throws std::runtime_error if the configuration is unsupported
+ * @param[in] methodType Numerical method.
+ * @param[in] implemType Integral back-end.
+ * @param[in] meshType Mesh kind (structured or unstructured).
+ * @param[in] modelLocation Whether model parameters are stored on nodes or on elements.
+ * @param[in] physicType Physics of the equation solved.
+ * @param[in] order Polynomial order of the elements (the higher order for the p-adaptive method).
+ * @param[in] order_min Lower polynomial order, used by the p-adaptive method only
+ *            (0 < order_min < order); ignored by the other methods.
+ * @return Owning pointer to the created solver.
+ * @throws std::runtime_error if the configuration is unsupported.
  */
 std::unique_ptr<Solver> createSolver(utils::enums::methodType methodType, utils::enums::implemType implemType,
                                      utils::enums::meshType meshType, utils::enums::modelLocationType modelLocation,

@@ -14,10 +14,6 @@
 namespace solver {
 namespace fe {
 
-//============================================================================
-// computeFEInit - Initialize finite element structures
-//============================================================================
-
 template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE, bool IS_MODEL_ON_NODES,
           utils::enums::physicType PHYSICS>
 void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::computeFEInit(
@@ -42,12 +38,11 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::com
   allocateFEarrays();
   initFEarrays();
 
-  // Compute Local Mass Matrix
   computeGlobalMassMatrix();
-  // Compute Local Damping Matrix
   computeDampingMatrix();
 
   if (attenuationEnabled_ && nSls_ > 0) {
+    // Smallest quality factor over the elements, sampled at local node (0,0,0) of each element.
     float minQVal = std::numeric_limits<float>::max();
     for (int e = 0; e < m_mesh.getNumberOfElements(); ++e) {
       if constexpr (PHYSICS == utils::enums::physicType::kAcoustic) {
@@ -63,6 +58,8 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::com
       }
     }
 
+    // A negative coefficient means "not set by the user": it is replaced by a default derived from minQVal.
+    // @todo VERIFY: origin and meaning of the default 2*Qmin/(max(1.0001, Qmin) - 1).
     for (int l = 0; l < nSls_; ++l) {
       if (slsAnelasticityCoefficients_.extent(0) > 0 && slsAnelasticityCoefficients_[l] < 0.0f) {
         slsAnelasticityCoefficients_[l] = 2.0f * minQVal / (std::max(1.0001f, minQVal) - 1.0f);
@@ -70,10 +67,6 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::com
     }
   }
 }
-
-//============================================================================
-// Compute Forces (Phase 1)
-//============================================================================
 
 template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE, bool IS_MODEL_ON_NODES,
           utils::enums::physicType PHYSICS>
@@ -94,10 +87,6 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::com
   }
 }
 
-//============================================================================
-// Update Solution (Phase 2)
-//============================================================================
-
 template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE, bool IS_MODEL_ON_NODES,
           utils::enums::physicType PHYSICS>
 void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::updateSolutionForward(
@@ -112,10 +101,6 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::upd
   FENCE
 }
 
-//============================================================================
-// Update Solution Backward (Phase 2 - Adjoint Mode)
-//============================================================================
-
 template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE, bool IS_MODEL_ON_NODES,
           utils::enums::physicType PHYSICS>
 void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::updateSolutionBackward(
@@ -129,10 +114,6 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::upd
   updateFieldsBackward(dt, myData);
   FENCE
 }
-
-//============================================================================
-// resetGlobalVectors
-//============================================================================
 
 template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE, bool IS_MODEL_ON_NODES, physicType PHYSICS>
 void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::resetGlobalVectors(int numNodes) {
@@ -159,15 +140,11 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::res
       });
 }
 
-//============================================================================
-// applyRHSTerm
-//============================================================================
-
 template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE, bool IS_MODEL_ON_NODES, physicType PHYSICS>
 void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::applyRHSTerm(int timeSample, float dt,
                                                                                           const DataType& data) {
   int nb_rhs_element = data.getRhsElement().extent(0);
-  auto mesh_local = m_mesh;  // Capture mesh for lambda
+  auto mesh_local = m_mesh;
 
   std::array<std::remove_reference_t<decltype(workVectorsGlobal_[0])>, kNumFields> local_workVectorsGlobal;
   for (int f = 0; f < kNumFields; ++f) {
@@ -192,10 +169,6 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::app
       });
 }
 
-//============================================================================
-// computeElementContributions - DISPATCH
-//============================================================================
-
 template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE, bool IS_MODEL_ON_NODES, physicType PHYSICS>
 void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::computeElementContributions(
     const DataType& data) {
@@ -204,20 +177,16 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::com
       computeElementContributions_Iso(data);
     } else if (anisotropyType_ == model::AnisotropyType::kVTI) {
       computeElementContributions_Vti(data);
-    } else  // kTTI
-    {
+    } else {
       computeElementContributions_Tti(data);
     }
-  } else  // Acoustic - DISPATCH
-  {
+  } else {
     computeElementContributions_Acoustic(data);
   }
 }
 
-//============================================================================
-// computeElementContributions_Acoustic - ACOUSTIC
-//============================================================================
 namespace detail {
+/// @brief True when T declares a nested type `TeamGemm`, i.e. the integral back-end provides the team GEMM kernels.
 template <typename, typename = void>
 struct has_team_gemm : std::false_type {};
 template <typename T>
@@ -236,9 +205,8 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::com
     int const pointsPerElem = dim * dim * dim;
     int const nElemsFull = mesh_local.getNumberOfElements();
 
-    // ---- one-time precompute of W = w * alpha * B for every element ----------
-    // Triggered on the first call (i.e. during the benchmark warmup), so it does
-    // not land inside the timed loop.
+    // W = w * alpha * B is precomputed once for every element, kStride values per element.
+    // It runs on the first call (the benchmark warmup), so it stays out of the timed loop.
     if (!gemmMetricsReady_) {
       gemmMetrics_ = allocateVector<vectorReal>(static_cast<size_t>(nElemsFull) * kStride, "gemmMetrics");
       auto W_global = gemmMetrics_;
@@ -274,7 +242,6 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::com
       gemmMetricsReady_ = true;
     }
 
-    // ---- hot kernel: pure matmul, reads precomputed W from global memory -----
     bool const list_on = m_list_mode_;
     auto list_local = m_elem_list_;
     int const n_iter = list_on ? m_n_elem_list_ : nElemsFull;
@@ -294,9 +261,9 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::com
                                        Kokkos::MemoryTraits<Kokkos::Unmanaged>>;
 
     TeamPolicyType policy(n_iter, Kokkos::AUTO);
-    // Scratch = gather/scatter buffers + the 12 [N][N^2] GEMM tensors.
-    // (W is in global memory now, so no W scratch -- less shared mem than the
-    // streaming variant, which also slightly relaxes the occupancy limit.)
+    // Scratch holds the gather/scatter buffers and the 12 [N][N^2] GEMM tensors.
+    // W lives in global memory, so it needs no scratch: less shared memory than
+    // the streaming variant, which also relaxes the occupancy limit slightly.
     size_t bytes_fields = ScratchView2D::shmem_size(kNumFields, pointsPerElem) * 2;
     size_t bytes_gemm = ScratchView2D::shmem_size(INTEGRAL_TYPE::num1dNodes, INTEGRAL_TYPE::numNodesPerFace) * 12;
     policy.set_scratch_size(0, Kokkos::PerTeam(bytes_fields + bytes_gemm));
@@ -346,9 +313,9 @@ template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE, bool IS_MODEL_O
 void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::computeElementContributions_Acoustic(
     const DataType& data) {
   if constexpr (detail::has_team_gemm<INTEGRAL_TYPE>::value) {
-    computeElementContributions_Acoustic_Gemm(data);  // tensorial -> GEMM
+    computeElementContributions_Acoustic_Gemm(data);
   } else {
-    computeElementContributions_Acoustic_Flat(data);  // makutu (Gauss-Lobatto) -> flat
+    computeElementContributions_Acoustic_Flat(data);
   }
 }
 
@@ -426,10 +393,6 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::com
         }
       });
 }
-
-//============================================================================
-// computeAttenuationContributions - Assemble attenuation stiffness terms
-//============================================================================
 
 template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE, bool IS_MODEL_ON_NODES, physicType PHYSICS>
 void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::computeAttenuationContributions(
@@ -542,6 +505,9 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::com
                 mesh_local.vertexCoords(mesh_local.globalVertexIndex(eIdx, iv, jv, kv), cornerCoords[I++]);
         }
 
+        // Per (p, r) pair of reference directions: the six distinct coefficients of the
+        // isotropic stiffness contracted with the inverse Jacobian.
+        // a0, a1, a2 multiply the diagonal displacement terms; a3, b0, b1 the xy, xz, yz couplings.
         struct CJPacked {
           float a0, a1, a2, a3;
           float b0, b1;
@@ -608,10 +574,6 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::com
             }
       });
 }
-
-//============================================================================
-// computeElementContributions_Iso - ISOTROPIC OPTIMIZED
-//============================================================================
 
 template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE, bool IS_MODEL_ON_NODES, physicType PHYSICS>
 void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::computeElementContributions_Iso_Flat(
@@ -859,10 +821,6 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::com
         });
   }
 }
-
-//============================================================================
-// computeElementContributions_VTI - VTI
-//============================================================================
 
 template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE, bool IS_MODEL_ON_NODES, physicType PHYSICS>
 void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::computeElementContributions_Vti_Flat(
@@ -1143,10 +1101,7 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::com
   }
 }
 
-//============================================================================
-// computeElementContributions_TTI - TTI
-//============================================================================
-
+// Packs the upper triangle of the 6x6 TTI tensor of every node, row by row, into cttiNodes_.
 template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE, bool IS_MODEL_ON_NODES, physicType PHYSICS>
 void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::precomputeTtiTensorsOnNodes() {
   if constexpr (PHYSICS != utils::enums::physicType::kElastic || !IS_MODEL_ON_NODES) {
@@ -1182,8 +1137,6 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::pre
     cttiNodesReady_ = true;
   }
 }
-
-//============================================================================
 
 template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE, bool IS_MODEL_ON_NODES, physicType PHYSICS>
 void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::computeElementContributions_Tti_Flat(
@@ -1409,19 +1362,15 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::com
   }
 }
 
-//============================================================================
-// updateFieldsForward - Time integration update
-//============================================================================
 template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE, bool IS_MODEL_ON_NODES, physicType PHYSICS>
 void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::updateFieldsForward(float dt,
                                                                                                  const DataType& data) {
-  // Extract scalar constants to local variables
+  // Members are copied into locals so that the device lambdas capture values, not this.
   float const dt_local = dt;
   float const dt2_local = dt * dt;
   int const n_sls = nSls_;
   bool const has_attenuation = (attenuationEnabled_ && nSls_ > 0);
 
-  // Extract single Views and objects to local variables
   auto mesh_local = m_mesh;
   auto mass_matrix = massMatrixGlobal_;
   auto taper_coeff = spongeTaperCoeff_;
@@ -1450,6 +1399,7 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::upd
   bool const list_on = m_node_list_mode_;
   auto list_local = m_node_list_;
 
+  // The new value is written into the previous-field buffer (leapfrog), which the caller swaps afterwards.
   if constexpr (PHYSICS == utils::enums::physicType::kAcoustic) {
     int const n_iter = list_on ? m_n_node_list_ : mesh_local.getNumberOfNodes();
     Kokkos::parallel_for(
@@ -1485,8 +1435,7 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::upd
             current_field[0](I) *= taper_coeff(I);
           }
         });
-  } else  // ELASTIC
-  {
+  } else {
     int const n_iter_el = list_on ? m_n_node_list_ : mesh_local.getNumberOfNodes();
 
     Kokkos::parallel_for(
@@ -1546,19 +1495,15 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::upd
   }
 }
 
-//============================================================================
-// updateFieldsBackward - Time integration update (backward/adjoint mode)
-//============================================================================
 template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE, bool IS_MODEL_ON_NODES, physicType PHYSICS>
 void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::updateFieldsBackward(
     float dt, const DataType& data) {
-  // Extract scalar constants to local variables
+  // Members are copied into locals so that the device lambdas capture values, not this.
   float const dt_local = dt;
   float const dt2_local = dt * dt;
   int const n_sls = nSls_;
   bool const has_attenuation = (attenuationEnabled_ && nSls_ > 0);
 
-  // Extract single Views and objects to local variables
   auto mesh_local = m_mesh;
   auto mass_matrix = massMatrixGlobal_;
   auto taper_coeff = spongeTaperCoeff_;
@@ -1589,6 +1534,8 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::upd
   bool const list_on = m_node_list_mode_;
   auto list_local = m_node_list_;
 
+  // Same scheme as updateFieldsForward, but the new value goes to the third buffer (prevprev),
+  // so the previous-field buffer is kept for the caller.
   if constexpr (PHYSICS == utils::enums::physicType::kAcoustic) {
     int const n_iter = list_on ? m_n_node_list_ : mesh_local.getNumberOfNodes();
     Kokkos::parallel_for(
@@ -1625,8 +1572,7 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::upd
             current_field[0](I) *= taper_coeff(I);
           }
         });
-  } else  // ELASTIC
-  {
+  } else {
     int const n_iter_el = list_on ? m_n_node_list_ : mesh_local.getNumberOfNodes();
 
     Kokkos::parallel_for(
@@ -1686,10 +1632,6 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::upd
   }
 }
 
-//============================================================================
-// computeGlobalMassMatrix - Assemble mass matrix
-//============================================================================
-
 template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE, bool IS_MODEL_ON_NODES, physicType PHYSICS>
 void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::computeGlobalMassMatrix() {
   auto mesh_local = m_mesh;
@@ -1719,6 +1661,7 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::com
 
         INTEGRAL_TYPE::computeMassTerm(cornerCoords, [&](const int j, const real_t val) { massMatrixLocal[j] += val; });
 
+        // Acoustic: 1 / (vp^2 rho). Elastic: rho.
         real_t model_factor = 0.0f;
         if constexpr (!IS_MODEL_ON_NODES) {
           if constexpr (PHYSICS == utils::enums::physicType::kAcoustic) {
@@ -1751,10 +1694,6 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::com
       });
 }
 
-//============================================================================
-// computeGlobalDampingMatrix - Assemble damping matrix
-//============================================================================
-
 template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE, bool IS_MODEL_ON_NODES, physicType PHYSICS>
 void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::computeDampingMatrix() {
   auto mesh_local = m_mesh;
@@ -1775,13 +1714,11 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::com
         (void)local_dampingMatrixGlobal;
         if (mask_enabled && element_mask[elementNumber] != mask_active_value) return;
         for (int i = 0; i < 6; ++i) {
-          // Get global face ID for this element face
           int f = mesh_local.getGlobalFace(elementNumber, static_cast<model::CubicFace>(i));
 
-          // Skip internal faces (only process boundary faces)
+          // Only boundary faces carry an absorbing term.
           if (!mesh_local.isBoundaryFace(f)) continue;
 
-          // Get corner coordinates of the face for integration
           float coords[4][3];
           for (int j = 0; j < 4; ++j) {
             int const globalNodeIndex = mesh_local.getGlobalNodeFromFace(f, INTEGRAL_TYPE::meshIndexToLinearIndex2D(j));
@@ -1791,7 +1728,6 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::com
           }
 
           if constexpr (PHYSICS == utils::enums::physicType::kAcoustic) {
-            // Acoustic damping
             real_t model_rho = 0.0f;
             real_t model_vp = 0.0f;
             real_t alpha = 0.0f;
@@ -1806,7 +1742,7 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::com
             for (int q = 0; q < numNodesPerFace; ++q) {
               int const globalNodeIndex = mesh_local.getGlobalNodeFromFace(f, q);
 
-              // Skip free surface nodes (no damping on free surface)
+              // Free-surface nodes are not damped.
               if (mesh_local.isFreeSurface(globalNodeIndex)) {
                 continue;
               }
@@ -1820,9 +1756,7 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::com
               real_t localIncrement = alpha * INTEGRAL_TYPE::computeDampingTerm(q, coords);
               ATOMICADD(local_dampingMatrixGlobal[0][globalNodeIndex], localIncrement);
             }
-          } else  // Elastic
-          {
-            // Elastic damping
+          } else {
             float normal[3];
             mesh_local.faceNormal(elementNumber, static_cast<model::CubicFace>(i), normal);
             real_t nx = normal[0], ny = normal[1], nz = normal[2];
@@ -1839,7 +1773,7 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::com
             for (int q = 0; q < numNodesPerFace; ++q) {
               int const globalNodeIndex = mesh_local.getGlobalNodeFromFace(f, q);
 
-              // Skip free surface nodes (no damping on free surface)
+              // Free-surface nodes are not damped.
               if (mesh_local.isFreeSurface(globalNodeIndex)) {
                 continue;
               }
@@ -1864,10 +1798,6 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::com
       });
 }
 
-//============================================================================
-// allocateFEarrays - Allocate memory for FE arrays
-//============================================================================
-
 template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE, bool IS_MODEL_ON_NODES, physicType PHYSICS>
 void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::allocateFEarrays() {
   massMatrixGlobal_ = allocateVector<vectorReal>(m_mesh.getNumberOfNodes(), "massMatrixGlobal");
@@ -1877,7 +1807,6 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::all
     dampingMatrixGlobal_[f] = allocateVector<vectorReal>(m_mesh.getNumberOfNodes(), dampingNames[f]);
   }
 
-  // Allocate work vectors for each field
   static constexpr const char* workVectorNames[3] = {"workVec0", "workVec1", "workVec2"};
   for (int f = 0; f < kNumFields; ++f) {
     workVectorsGlobal_[f] = allocateVector<vectorReal>(m_mesh.getNumberOfNodes(), workVectorNames[f]);
@@ -1894,10 +1823,6 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::all
 
   spongeTaperCoeff_ = allocateVector<vectorReal>(m_mesh.getNumberOfNodes(), "spongeTaperCoeff");
 }
-
-//============================================================================
-// initFEarrays - Initialize FE arrays
-//============================================================================
 
 template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE, bool IS_MODEL_ON_NODES, physicType PHYSICS>
 void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::initFEarrays() {
@@ -1916,12 +1841,9 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::ini
   }
 }
 
-//============================================================================
-// initSpongeValues - Initialize absorbing boundary coefficients
-//============================================================================
-
 template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE, bool IS_MODEL_ON_NODES, physicType PHYSICS>
 void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::initSpongeValues() {
+  // @todo VERIFY: unit and origin of the peak damping factor sigma_max = 0.15 (dimensionless?).
   const double sigma_max = 0.15;
 
   for (int n = 0; n < m_mesh.getNumberOfNodes(); n++) {
@@ -1949,6 +1871,7 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::ini
       minDistToFrontier = min(minDistToFrontier, distToFrontierZ);
     }
 
+    // Gaussian taper in the distance to the closest sponge frontier.
     if (is_sponge) {
       double d = minDistToFrontier;
       double delta = taper_delta_;
@@ -1962,10 +1885,6 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::ini
   FENCE
 }
 
-//============================================================================
-// outputSolutionValues - Output field values for diagnostics
-//============================================================================
-
 template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE, bool IS_MODEL_ON_NODES, physicType PHYSICS>
 void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::outputSolutionValues(
     const int& t, int& e, const vectorReal& fieldGlobal, const char* fieldName) {
@@ -1973,10 +1892,9 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::out
        << " after computeOneStep = " << fieldGlobal(m_mesh.globalNodeIndex(e, 0, 0, 0)) << endl;
 }
 
-//============================================================================
-// computeCMatrix - Compute TTI elasticity tensor (for nodes only)
-//============================================================================
-
+// Builds the TTI tensor CTTI = M * CVTI * M^T, with CVTI the VTI tensor (symmetry axis z) in Voigt storage
+// and M the rotation of the symmetry axis given by theta and phi.
+// theta and phi are converted from degrees here.
 template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE, bool IS_MODEL_ON_NODES, physicType PHYSICS>
 template <physicType P, typename>
 PROXY_HOST_DEVICE void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::computeCMatrix(
@@ -2081,7 +1999,6 @@ PROXY_HOST_DEVICE void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NO
 
   float temp[6][6];
 
-  // M * CVTI
   for (int i = 0; i < 6; i++) {
     for (int j = 0; j < 6; j++) {
       float sum = 0.0f;
@@ -2092,7 +2009,6 @@ PROXY_HOST_DEVICE void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NO
     }
   }
 
-  // temp * M^T
   for (int i = 0; i < 6; i++) {
     for (int j = i; j < 6; j++) {
       float sum = 0.0f;
@@ -2105,10 +2021,6 @@ PROXY_HOST_DEVICE void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NO
   }
 }
 
-//============================================================================
-// computeGlobalMassMatrixMasked - domain-masked mass matrix assembly
-//============================================================================
-
 template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE, bool IS_MODEL_ON_NODES, physicType PHYSICS>
 void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::computeGlobalMassMatrixMasked(
     const vectorInt& elem_mask, int active_value) {
@@ -2119,10 +2031,6 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::com
   computeGlobalMassMatrix();
   m_mask_enabled_ = false;
 }
-
-//============================================================================
-// computeDampingMatrixMasked - domain-masked damping matrix assembly
-//============================================================================
 
 template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE, bool IS_MODEL_ON_NODES, physicType PHYSICS>
 void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::computeDampingMatrixMasked(
@@ -2135,10 +2043,6 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::com
   m_mask_enabled_ = false;
 }
 
-//============================================================================
-// computeElementContributionsMasked - domain-masked stiffness assembly
-//============================================================================
-
 template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE, bool IS_MODEL_ON_NODES, physicType PHYSICS>
 void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::computeElementContributionsMasked(
     const DataType& data, const vectorInt& elem_mask, int active_value) {
@@ -2148,10 +2052,6 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::com
   computeElementContributions(data);
   m_mask_enabled_ = false;
 }
-
-//============================================================================
-// computeElementContributionsFromList - stiffness assembly from compact list
-//============================================================================
 
 template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE, bool IS_MODEL_ON_NODES, physicType PHYSICS>
 void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::computeElementContributionsFromList(
@@ -2163,10 +2063,6 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::com
   m_list_mode_ = false;
 }
 
-//============================================================================
-// updateFieldsFromListForward - Verlet update restricted to a compact node list (forward mode)
-//============================================================================
-
 template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE, bool IS_MODEL_ON_NODES, physicType PHYSICS>
 void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::updateFieldsFromListForward(
     float dt, const DataType& data, const vectorInt& node_list, int n_nodes) {
@@ -2176,10 +2072,6 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::upd
   updateFieldsForward(dt, data);
   m_node_list_mode_ = false;
 }
-
-//============================================================================
-// updateFieldsFromListBackward - Verlet update restricted to a compact node list (backward mode)
-//============================================================================
 
 template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE, bool IS_MODEL_ON_NODES, physicType PHYSICS>
 void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::updateFieldsFromListBackward(

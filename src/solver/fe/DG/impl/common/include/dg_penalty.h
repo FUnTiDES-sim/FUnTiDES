@@ -10,13 +10,13 @@ namespace solver {
 namespace fe {
 
 /**
- * @brief Compute the face area of a bilinear quadrilateral from its 4 corners.
+ * @brief Area of a quadrilateral face given by its 4 corners.
  *
- * Splits the quad on the X[0]-X[2] diagonal and sums the two triangle areas,
- * 0.5 * |(Xa - X0) x (Xb - X0)|.
+ * The quadrilateral is split along the diagonal X[0]-X[2] into two triangles whose
+ * areas are summed. The corners must therefore be given in cyclic order around the face.
  *
- * @param X  Corner coordinates [4][3].
- * @return   Face area.
+ * @param[in] X  Corner coordinates, X[corner][component].
+ * @return Face area.
  */
 PROXY_HOST_DEVICE real_t computeFaceArea(const real_t (&X)[4][3]) {
   real_t d1[3], d2[3], d3[3];
@@ -38,15 +38,16 @@ PROXY_HOST_DEVICE real_t computeFaceArea(const real_t (&X)[4][3]) {
 }
 
 /**
- * @brief Estimate the volume of a trilinear hexahedron from its 8 corners.
+ * @brief Approximate volume of a trilinear hexahedron from its 8 corners.
  *
- * Approximates vol ≈ 8 * |det(J_center)| where J is evaluated at (0,0,0)
- * in the reference element [-1,1]^3.
+ * Returns 8 * |det J| where the columns of J are the derivatives of the position
+ * along the three element directions, evaluated at the element center from the
+ * corner differences.
  *
- * Corner ordering: X[iv + 2*jv + 4*kv] for iv,jv,kv in {0,1}.
+ * Corner ordering: X[iv + 2*jv + 4*kv] for iv, jv, kv in {0, 1}.
  *
- * @param X  Corner coordinates [8][3].
- * @return   Approximate element volume.
+ * @param[in] X  Corner coordinates, X[corner][component].
+ * @return Approximate element volume.
  */
 PROXY_HOST_DEVICE real_t computeHexVolume(real_t const (&X)[8][3]) {
   real_t dxi[3], deta[3], dzeta[3];
@@ -62,22 +63,19 @@ PROXY_HOST_DEVICE real_t computeHexVolume(real_t const (&X)[8][3]) {
 }
 
 /**
- * @brief Compute the SIPG penalty parameter gamma for a face of known area.
+ * @brief SIPG penalty parameter gamma for a face of known area.
  *
- * Formula: gamma = penalty_factor * (p+1)^2 / h_f
- * where h_f = vol_e / area_f is the characteristic face length scale,
- * and penalty_factor is a user-supplied constant (>= 1, typically 10).
+ * gamma = penalty_factor * (ORDER + 1)^2 / h_f, with h_f = volume / area the
+ * characteristic length of the face. The area is passed instead of the face corners
+ * so that a caller evaluating gamma on both sides of a face (same area, different
+ * X8) computes it once.
  *
- * Takes the face area rather than the corners so that callers computing gamma
- * on both sides of the same face (the two elements share area_f, only X8
- * differs) pay for it once.
- *
- * @tparam ORDER      Polynomial order p.
- * @param area        Face area, from computeFaceArea().
- * @param X8          Element corner coordinates [8][3].
- * @param penalty_factor  Dimensionless constant (must be large enough for
- *                        coercivity; problem-dependent).
- * @return            Penalty parameter gamma.
+ * @tparam ORDER  Polynomial order.
+ * @param[in] area            Face area, see computeFaceArea().
+ * @param[in] X8              Corner coordinates of the element, X8[corner][component].
+ * @param[in] penalty_factor  Dimensionless user constant.
+ * @return Penalty parameter gamma.
+ * @todo VERIFY: valid range of penalty_factor (the old comment said >= 1, typically 10, needed for coercivity).
  */
 template <int ORDER>
 PROXY_HOST_DEVICE real_t computeSIPGPenaltyFromArea(real_t const area, real_t const (&X8)[8][3],
@@ -87,14 +85,15 @@ PROXY_HOST_DEVICE real_t computeSIPGPenaltyFromArea(real_t const area, real_t co
 }
 
 /**
- * @brief Compute the SIPG penalty parameter gamma for a face.
+ * @brief SIPG penalty parameter gamma for a face given by its corners.
  *
- * @tparam ORDER      Polynomial order p.
- * @param faceCoords  Face corner coordinates [4][3].
- * @param X8          Element corner coordinates [8][3].
- * @param penalty_factor  Dimensionless constant (must be large enough for
- *                        coercivity; problem-dependent).
- * @return            Penalty parameter gamma.
+ * Same as computeSIPGPenaltyFromArea() with the area computed from faceCoords.
+ *
+ * @tparam ORDER  Polynomial order.
+ * @param[in] faceCoords      Face corner coordinates, faceCoords[corner][component].
+ * @param[in] X8              Corner coordinates of the element, X8[corner][component].
+ * @param[in] penalty_factor  Dimensionless user constant.
+ * @return Penalty parameter gamma.
  */
 template <int ORDER>
 PROXY_HOST_DEVICE real_t computeSIPGPenalty(real_t const (&faceCoords)[4][3], real_t const (&X8)[8][3],

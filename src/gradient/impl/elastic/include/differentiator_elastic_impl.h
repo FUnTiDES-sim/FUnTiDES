@@ -66,7 +66,6 @@ void DifferentiatorElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES>::
     model::ModelApi<float, int>& meshApi) {
   auto mesh = dynamic_cast<MESH_TYPE&>(meshApi);
 
-  // Allocate geometric mass matrix if not already done, then zero it
   if (geometricMassMatrix_.extent(0) != mesh.getNumberOfNodes())
     geometricMassMatrix_ = allocateVector<vectorReal>(mesh.getNumberOfNodes(), "geometricMassMatrix");
   Kokkos::deep_copy(geometricMassMatrix_, 0.0f);
@@ -91,7 +90,7 @@ void DifferentiatorElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES>::
                 mesh.vertexCoords(mesh.globalVertexIndex(eIdx, iv, jv, kv), cornerCoords[I++]);
         }
 
-        // Compute mass term (geometric part only - no model factors)
+        // Geometric part only: no model factors.
         INTEGRAL_TYPE::computeMassTerm(cornerCoords, [&](const int j, const real_t val) { massMatrixLocal[j] += val; });
 
         for (int i = 0; i < mesh.getNumberOfPointsPerElement(); ++i) {
@@ -199,6 +198,8 @@ void DifferentiatorElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES>::
               }
         }
 
+        // Per quadrature point: strainDiv = div(adj) * div(fwd); strainEps = 2 eps(adj):eps(fwd), with the
+        // off-diagonal terms counted twice.
         float strainDiv[kPointsPerElement] = {0};
         float strainEps[kPointsPerElement] = {0};
 

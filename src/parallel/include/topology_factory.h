@@ -11,78 +11,51 @@
 using namespace utils;
 
 /**
- * @brief Configuration for boundary detection tolerance.
- *
- * Controls how TopologyFactory identifies boundary nodes by comparing
- * node coordinates to expected boundary locations.
+ * @brief Tolerance used to decide whether a node lies on a partition boundary.
  */
 struct TopologyTolerance {
-  double absolute = 1e-6;    //< Absolute tolerance for coordinate comparison
-  bool auto_compute = true;  //< Auto-compute from element spacing if true
+  double absolute = 1e-6;    ///< Absolute tolerance on the x coordinate, same unit as the mesh coordinates
+  bool auto_compute = true;  ///< If true, createFromMesh() overrides `absolute` with a fraction of the minimum spacing
 };
 
 /**
- * @brief Factory for discovering distributed topology from mesh coordinates.
+ * @brief Discovers the distributed topology of a mesh from its node coordinates.
  *
- * This class inspects a mesh and identifies which nodes lie on partition
- * boundaries. It does this by comparing node coordinates to the expected
- * boundary locations, rather than assuming index formulas. This approach
- * is **correct by construction** - if the mesh structure changes internally,
- * the topology discovery still works correctly.
+ * Nodes whose x coordinate matches the left or right edge of the local subdomain
+ * (within a tolerance) are recorded as shared with the neighbor rank. Only a
+ * decomposition along x, with rank r adjacent to ranks r-1 and r+1, is supported.
  *
- * @details
- * The topology discovery process:
- * 1. Determines boundary locations from origin and domain width
- * 2. Iterates all mesh nodes, comparing coordinates to boundaries
- * 3. Validates that:
- *    - No node appears on both left and right boundaries
- *    - Expected boundaries have at least one node
- * 4. Returns topology with shared node lists
- *
- * @warning
- * Tolerance is critical. If too large, nodes far from boundaries may be
- * included; if too small, actual boundary nodes may be missed. Use
- * auto_compute=true for most cases, or provide a tolerance based on
- * element size.
+ * @warning The tolerance is critical: too large and nodes near a boundary are
+ * wrongly shared, too small and true boundary nodes are missed.
  */
 class TopologyFactory {
  public:
   /**
-   * @brief Generates topology by inspecting mesh coordinates.
+   * @brief Builds the ParallelTopology of one rank by comparing node coordinates to the subdomain edges.
    *
-   * Scans all nodes in the mesh, comparing their coordinates to the
-   * expected partition boundaries. Nodes within tolerance of a boundary
-   * are marked as shared with the neighbor rank.
+   * For a serial run (size <= 1) the returned topology has no shared node. Otherwise
+   * every expected neighbor must own at least one shared node.
    *
-   * @tparam FloatType Floating point type (float, double)
-   * @tparam ScalarType Integer type for node counts (int, long)
+   * @tparam FloatType Floating point type of the mesh coordinates.
+   * @tparam ScalarType Integer type of the mesh node indices.
    *
-   * @param[in] mesh Mesh to inspect (must provide nodeCoord, getNumberOfNodes)
-   * @param[in] rank Current MPI rank (0-based)
-   * @param[in] size Total number of ranks
-   * @param[in] origin_x Local subdomain origin in X direction
-   * @param[in] domain_width_x Local subdomain width in X direction
-   * @param[in] tol Tolerance configuration (optional, defaults provided)
+   * @param[in] mesh Mesh to inspect; its node indices are local to this rank.
+   * @param[in] rank MPI rank of the caller, in [0, size).
+   * @param[in] size Total number of ranks.
+   * @param[in] origin_x X coordinate of the left edge of the local subdomain.
+   * @param[in] domain_width_x Width of the local subdomain along x, must be positive.
+   * @param[in] tol Boundary detection tolerance.
    *
-   * @return ParallelTopology with shared nodes identified
+   * @return Topology whose sharedNodes maps each neighbor rank to the local indices of the shared nodes.
    *
-   * @throws std::invalid_argument
-   *   - if rank < 0 or rank >= size
-   *   - if domain_width_x <= 0
+   * @throws std::invalid_argument if rank is outside [0, size) or domain_width_x <= 0.
+   * @throws std::logic_error if a node lies on both edges, or if an expected neighbor has no shared node.
    *
-   * @throws std::logic_error
-   *   - if node appears on both left and right boundaries
-   *   - if expected left boundary found no nodes (rank > 0)
-   *   - if expected right boundary found no nodes (rank < size-1)
-   *
-   * @note
-   * For serial execution (size == 1), returns empty topology immediately.
-   * For distributed execution, validates that all expected boundaries exist.
+   * @todo VERIFY: is tol.absolute expressed in mesh coordinate units (meters)?
    */
   template <typename FloatType, typename ScalarType>
   static ParallelTopology createFromMesh(const model::ModelApi<FloatType, ScalarType>& mesh, int rank, int size,
                                          FloatType origin_x, FloatType domain_width_x, TopologyTolerance tol = {}) {
-    // Input validation
     if (rank < 0 || rank >= size) {
       throw std::invalid_argument("Invalid rank " + std::to_string(rank) + " for numRanks " + std::to_string(size));
     }
@@ -98,7 +71,6 @@ class TopologyFactory {
       return topo;
     }
 
-    // Auto-compute tolerance
     if (tol.auto_compute) {
       try {
         FloatType minDx = mesh.getMinSpacing();
@@ -137,7 +109,6 @@ class TopologyFactory {
       }
     }
 
-    // Validation
     if (hasLeft && topo.sharedNodes[rank - 1].empty()) {
       throw std::logic_error("Topology Error: Rank " + std::to_string(rank) + " missing left boundary nodes.");
     }

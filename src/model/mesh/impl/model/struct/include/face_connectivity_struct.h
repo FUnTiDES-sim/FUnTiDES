@@ -5,11 +5,12 @@
 namespace model {
 
 /**
- * @brief Face connectivity for structured Cartesian meshes — fully on-the-fly
+ * @brief Face connectivity of a structured Cartesian hexahedral mesh, computed from
+ * the element counts alone (no tables are stored).
  *
- * All FaceConnectivityApi methods are implemented using pure arithmetic.
- * No Kokkos views, no allocations.
- * Only stores ex_, ey_, ez_, order_, nx_, ny_, offset_y_, offset_z_.
+ * Elements are numbered with i fastest, then j, then k. Global faces are numbered
+ * X faces first, then Y faces, then Z faces. Global nodes are numbered
+ * ix + iy * nx + iz * nx * ny, with nx = order * ex + 1 and ny = order * ey + 1.
  *
  * @tparam FloatType Floating point type
  * @tparam ScalarType Integer type for indexing
@@ -19,6 +20,13 @@ class FaceConnectivityStruct : public FaceConnectivityApi<FloatType, ScalarType>
  public:
   PROXY_HOST_DEVICE FaceConnectivityStruct() = default;
 
+  /**
+   * @brief Build the connectivity of an ex x ey x ez element mesh.
+   * @param[in] ex Number of elements along x
+   * @param[in] ey Number of elements along y
+   * @param[in] ez Number of elements along z
+   * @param[in] order Polynomial order of the elements
+   */
   PROXY_HOST_DEVICE
   FaceConnectivityStruct(ScalarType ex, ScalarType ey, ScalarType ez, int order)
       : ex_(ex), ey_(ey), ez_(ez), order_(order) {
@@ -28,14 +36,18 @@ class FaceConnectivityStruct : public FaceConnectivityApi<FloatType, ScalarType>
     offset_z_ = offset_y_ + ex_ * (ey_ + 1) * ez_;
   }
 
-  // ==========================================================================
-  // Implementation of FaceConnectivityApi — all on-the-fly
-  // ==========================================================================
-
+  /** @brief Total number of faces (X, Y and Z faces). */
   PROXY_HOST_DEVICE ScalarType getNumberOfFaces() const override { return offset_z_ + ex_ * ey_ * (ez_ + 1); }
 
+  /** @brief Number of nodes on one face, (order + 1)^2. */
   PROXY_HOST_DEVICE int getDofsPerFace() const override { return (order_ + 1) * (order_ + 1); }
 
+  /**
+   * @brief Global id of a face of an element.
+   * @param[in] elem Element index
+   * @param[in] local_face Local face of the element
+   * @return Global face id, or -1 if local_face is not a valid face
+   */
   PROXY_HOST_DEVICE ScalarType getGlobalFace(ScalarType elem, CubicFace local_face) const override {
     ScalarType elem_k = elem / (ex_ * ey_);
     ScalarType tmp = elem % (ex_ * ey_);
@@ -61,18 +73,21 @@ class FaceConnectivityStruct : public FaceConnectivityApi<FloatType, ScalarType>
   }
 
   /**
-   * @brief Reconstruct the global node from face_id + local_dof
+   * @brief Global node index of a node of a face.
    *
-   * Local DOF convention:
-   *   X-face : for k in [0,order], for j in [0,order] → local_dof =
-   * k*(order+1)+j Y-face : for k in [0,order], for i in [0,order] → local_dof =
-   * k*(order+1)+i Z-face : for j in [0,order], for i in [0,order] → local_dof =
-   * j*(order+1)+i
+   * The local dof runs over the two tangential directions, the first one fastest:
+   * - X face: local_dof = k * (order + 1) + j
+   * - Y face: local_dof = k * (order + 1) + i
+   * - Z face: local_dof = j * (order + 1) + i
+   *
+   * @param[in] face_id Global face id
+   * @param[in] local_dof Local dof on the face, in [0, (order + 1)^2)
+   * @return Global node index
    */
   PROXY_HOST_DEVICE ScalarType getGlobalNodeFromFace(ScalarType face_id, int local_dof) const override {
     ScalarType ix, iy, iz;
 
-    if (face_id < offset_y_)  // X-face
+    if (face_id < offset_y_)  // X face
     {
       ScalarType i_face = face_id % (ex_ + 1);
       ScalarType j_face = (face_id / (ex_ + 1)) % ey_;
@@ -84,7 +99,7 @@ class FaceConnectivityStruct : public FaceConnectivityApi<FloatType, ScalarType>
       ix = i_face * order_;
       iy = j_face * order_ + j_local;
       iz = k_face * order_ + k_local;
-    } else if (face_id < offset_z_)  // Y-face
+    } else if (face_id < offset_z_)  // Y face
     {
       ScalarType local = face_id - offset_y_;
       ScalarType i_face = local % ex_;
@@ -97,7 +112,7 @@ class FaceConnectivityStruct : public FaceConnectivityApi<FloatType, ScalarType>
       ix = i_face * order_ + i_local;
       iy = j_face * order_;
       iz = k_face * order_ + k_local;
-    } else  // Z-face
+    } else  // Z face
     {
       ScalarType local = face_id - offset_z_;
       ScalarType i_face = local % ex_;
@@ -116,11 +131,9 @@ class FaceConnectivityStruct : public FaceConnectivityApi<FloatType, ScalarType>
   }
 
   /**
-   * @brief Determine if a face is on the boundary (no neighbor)
-   *  - X-face is boundary if i_face == 0 or i_face == ex
-   *  - Y-face is boundary if j_face == 0 or j_face == ey
-   *  - Z-face is boundary if k_face == 0 or k_face == ez
-   * @return True if boundary face
+   * @brief Tell whether a face lies on the mesh boundary (has no neighbor).
+   * @param[in] face_id Global face id
+   * @return True if the face is on the outer boundary of the mesh
    */
   PROXY_HOST_DEVICE bool isBoundaryFace(ScalarType face_id) const override {
     if (face_id < offset_y_) {
@@ -138,9 +151,10 @@ class FaceConnectivityStruct : public FaceConnectivityApi<FloatType, ScalarType>
   }
 
   /**
-   * @brief Get owner element of a face
-   * @param face_id Global face ID
-   * @return Owner element index or -1 if boundary
+   * @brief Owner element of a face: the element on its minus side, or the only
+   * adjacent element for a face on the maximum boundary.
+   * @param[in] face_id Global face id
+   * @return Owner element index
    */
   PROXY_HOST_DEVICE ScalarType elemOwner(ScalarType face_id) const override {
     if (face_id < offset_y_) {
@@ -167,9 +181,9 @@ class FaceConnectivityStruct : public FaceConnectivityApi<FloatType, ScalarType>
   }
 
   /**
-   * @brief Get neighbor element of a face (-1 if boundary)
-   * * @param face_id Global face ID
-   * * @return Neighbor element index or -1 if boundary
+   * @brief Neighbor element of a face, the one on the opposite side from the owner.
+   * @param[in] face_id Global face id
+   * @return Neighbor element index, or -1 if the face is on the boundary
    */
   PROXY_HOST_DEVICE ScalarType elemNeighbor(ScalarType face_id) const override {
     if (isBoundaryFace(face_id)) return -1;
@@ -195,9 +209,9 @@ class FaceConnectivityStruct : public FaceConnectivityApi<FloatType, ScalarType>
   }
 
   /**
-   * @brief Get local face index of the owner element
-   * @param face_id Global face ID
-   * @return Local face index (0-5) in owner element
+   * @brief Local face index of a face in its owner element.
+   * @param[in] face_id Global face id
+   * @return Value of the CubicFace enumerator, in [0, 5]
    */
   PROXY_HOST_DEVICE int localFaceOwner(ScalarType face_id) const override {
     if (face_id < offset_y_) {
@@ -215,35 +229,36 @@ class FaceConnectivityStruct : public FaceConnectivityApi<FloatType, ScalarType>
   }
 
   /**
-   * @brief Get local face index of the neighbor element
-   * @param face_id Global face ID
-   * @return Local face index (0-5) in neighbor element, or -1 if boundary
+   * @brief Local face index of a face in its neighbor element.
+   * @param[in] face_id Global face id
+   * @return Value of the CubicFace enumerator, or -1 if the face is on the boundary
    */
   PROXY_HOST_DEVICE int localFaceNeighbor(ScalarType face_id) const override {
     if (isBoundaryFace(face_id)) return -1;
-    return localFaceOwner(face_id) ^ 1;  // XMinus↔XPlus, YMinus↔YPlus, ZMinus↔ZPlus
+    return localFaceOwner(face_id) ^ 1;  // opposite face; relies on the CubicFace enumerator order
   }
 
   /**
-   * @brief On Cartesian structured meshes adjacent elements always index the
-   * shared face in the same order, so the permutation is the identity.
+   * @brief Face dof of the neighbor matching a face dof of the owner.
+   *
+   * Adjacent elements index a shared face in the same order, so this is the identity.
    */
   PROXY_HOST_DEVICE int getNeighborFaceDof(ScalarType /*face_id*/, int owner_dof) const override { return owner_dof; }
 
   /**
-   * @brief On Cartesian structured meshes adjacent elements always index the
-   * shared face in the same order, so the permutation is the identity.
+   * @brief Face dof of the owner matching a face dof of the neighbor.
+   *
+   * Adjacent elements index a shared face in the same order, so this is the identity.
    */
   PROXY_HOST_DEVICE int getOwnerFaceDof(ScalarType /*face_id*/, int neighbor_dof) const override {
     return neighbor_dof;
   }
 
  private:
-  ScalarType ex_{0}, ey_{0}, ez_{0};
-  ScalarType nx_{0}, ny_{0};
-  ScalarType offset_y_{0}, offset_z_{0};
-  int order_{0};
-  // Zero Kokkos views — zero allocations
+  ScalarType ex_{0}, ey_{0}, ez_{0};      ///< Number of elements along x, y, z
+  ScalarType nx_{0}, ny_{0};              ///< Number of nodes along x and y
+  ScalarType offset_y_{0}, offset_z_{0};  ///< Id of the first Y face and of the first Z face
+  int order_{0};                          ///< Polynomial order of the elements
 };
 
 }  // namespace model

@@ -2,28 +2,21 @@
 #define SRC__DISCRETIZATION_FE_MAKUTU_INCLUDE_LAGRANGEBASIS6GL_H_
 
 /**
- * @file LagrangeBasis6GL.hpp
+ * @brief Order 6 Lagrange basis on the 7 Gauss-Lobatto-Legendre nodes -1,
+ * -lambda1, -lambda2, 0, lambda2, lambda1 and 1.
  *
- * 1D Lagrange basis on Gauss-Lobatto-Legendre nodes for degree 6 (7 nodes).
- * Follows the same implementation pattern as LagrangeBasis5GL.hpp.
- * Polynomial formulas and gradientAt table generated via GL.py.
- *
- * GLL nodes: { -1, -lambda1, -lambda2, 0, lambda2, lambda1, 1 }
- *   lambda1 = 0.8302238962785670
- *   lambda2 = 0.4688487934707142
+ * See docs/design.md, "1D Lagrange bases".
  */
 class LagrangeBasis6GL {
  public:
-  constexpr static int numSupportPoints = 7;
+  constexpr static int numSupportPoints = 7;  ///< Number of nodes, order + 1.
 
-  /// |nodes[5]| = |nodes[1]|
-  static constexpr double lambda1 = 0.8302238962785670;
+  static constexpr double lambda1 = 0.8302238962785670;  ///< Parent coordinate of node 5, opposite of node 1.
 
-  /// |nodes[4]| = |nodes[2]|
-  static constexpr double lambda2 = 0.4688487934707142;
+  static constexpr double lambda2 = 0.4688487934707142;  ///< Parent coordinate of node 4, opposite of node 2.
 
   /**
-   * @brief GLL quadrature weight for node q.
+   * @brief Gauss-Lobatto quadrature weight of node @p q on [-1, 1].
    */
   constexpr static double weight(const int q) {
     switch (q) {
@@ -41,7 +34,7 @@ class LagrangeBasis6GL {
   }
 
   /**
-   * @brief Parent coordinate of support point @p supportPointIndex.
+   * @brief Parent coordinate of node @p supportPointIndex, in [-1, 1].
    */
   constexpr static double parentSupportCoord(const int supportPointIndex) {
     switch (supportPointIndex) {
@@ -65,7 +58,7 @@ class LagrangeBasis6GL {
   }
 
   /**
-   * @brief Value of basis function @p index at @p xi.
+   * @brief Value at @p xi of the basis function of node @p index.
    */
   constexpr static double value(const int index, const double xi) {
     switch (index) {
@@ -89,7 +82,7 @@ class LagrangeBasis6GL {
   }
 
   /**
-   * @brief Basis function for support point 0.
+   * @brief Value at @p xi of the basis function of node 0.
    */
   constexpr static double value0(const double xi) {
     return 2.0625 * xi * xi * xi * xi * xi * xi - 2.0625 * xi * xi * xi * xi * xi - 1.875 * xi * xi * xi * xi +
@@ -97,7 +90,7 @@ class LagrangeBasis6GL {
   }
 
   /**
-   * @brief Basis function for support point 1.
+   * @brief Value at @p xi of the basis function of node 1.
    */
   constexpr static double value1(const double xi) {
     return -4.97286970608696 * xi * xi * xi * xi * xi * xi + 4.12859526307317 * xi * xi * xi * xi * xi +
@@ -106,7 +99,7 @@ class LagrangeBasis6GL {
   }
 
   /**
-   * @brief Basis function for support point 2.
+   * @brief Value at @p xi of the basis function of node 2.
    */
   constexpr static double value2(const double xi) {
     return 6.21036970608696 * xi * xi * xi * xi * xi * xi - 2.91172434370594 * xi * xi * xi * xi * xi -
@@ -115,14 +108,14 @@ class LagrangeBasis6GL {
   }
 
   /**
-   * @brief Basis function for support point 3 (center node).
+   * @brief Value at @p xi of the basis function of node 3.
    */
   constexpr static double value3(const double xi) {
     return -6.6 * xi * xi * xi * xi * xi * xi + 12.6 * xi * xi * xi * xi - 7.0 * xi * xi + 1.0;
   }
 
   /**
-   * @brief Basis function for support point 4.
+   * @brief Value at @p xi of the basis function of node 4.
    */
   constexpr static double value4(const double xi) {
     return 6.21036970608696 * xi * xi * xi * xi * xi * xi + 2.91172434370594 * xi * xi * xi * xi * xi -
@@ -131,7 +124,7 @@ class LagrangeBasis6GL {
   }
 
   /**
-   * @brief Basis function for support point 5.
+   * @brief Value at @p xi of the basis function of node 5.
    */
   constexpr static double value5(const double xi) {
     return -4.97286970608696 * xi * xi * xi * xi * xi * xi - 4.12859526307317 * xi * xi * xi * xi * xi +
@@ -140,7 +133,7 @@ class LagrangeBasis6GL {
   }
 
   /**
-   * @brief Basis function for support point 6.
+   * @brief Value at @p xi of the basis function of node 6.
    */
   constexpr static double value6(const double xi) {
     return 2.0625 * xi * xi * xi * xi * xi * xi + 2.0625 * xi * xi * xi * xi * xi - 1.875 * xi * xi * xi * xi -
@@ -148,7 +141,7 @@ class LagrangeBasis6GL {
   }
 
   /**
-   * @brief Gradient of basis function @p index at @p xi.
+   * @brief Derivative at @p xi of the basis function of node @p index.
    */
   constexpr static double gradient(const int index, const double xi) {
     switch (index) {
@@ -172,7 +165,7 @@ class LagrangeBasis6GL {
   }
 
   /**
-   * @brief Gradient of basis function for support point 0.
+   * @brief Derivative at @p xi of the basis function of node 0.
    */
   constexpr static double gradient0(const double xi) {
     return 12.375 * xi * xi * xi * xi * xi - 10.3125 * xi * xi * xi * xi - 7.5 * xi * xi * xi + 5.625 * xi * xi +
@@ -180,7 +173,7 @@ class LagrangeBasis6GL {
   }
 
   /**
-   * @brief Gradient of basis function for support point 1.
+   * @brief Derivative at @p xi of the basis function of node 1.
    */
   constexpr static double gradient1(const double xi) {
     return -29.8372182365218 * xi * xi * xi * xi * xi + 20.6429763153658 * xi * xi * xi * xi +
@@ -188,7 +181,7 @@ class LagrangeBasis6GL {
   }
 
   /**
-   * @brief Gradient of basis function for support point 2.
+   * @brief Derivative at @p xi of the basis function of node 2.
    */
   constexpr static double gradient2(const double xi) {
     return 37.2622182365217 * xi * xi * xi * xi * xi - 14.5586217185297 * xi * xi * xi * xi -
@@ -196,14 +189,14 @@ class LagrangeBasis6GL {
   }
 
   /**
-   * @brief Gradient of basis function for support point 3 (center node).
+   * @brief Derivative at @p xi of the basis function of node 3.
    */
   constexpr static double gradient3(const double xi) {
     return -39.6 * xi * xi * xi * xi * xi + 50.4 * xi * xi * xi - 14.0 * xi;
   }
 
   /**
-   * @brief Gradient of basis function for support point 4.
+   * @brief Derivative at @p xi of the basis function of node 4.
    */
   constexpr static double gradient4(const double xi) {
     return 37.2622182365217 * xi * xi * xi * xi * xi + 14.5586217185297 * xi * xi * xi * xi -
@@ -211,7 +204,7 @@ class LagrangeBasis6GL {
   }
 
   /**
-   * @brief Gradient of basis function for support point 5.
+   * @brief Derivative at @p xi of the basis function of node 5.
    */
   constexpr static double gradient5(const double xi) {
     return -29.8372182365218 * xi * xi * xi * xi * xi - 20.6429763153658 * xi * xi * xi * xi +
@@ -219,7 +212,7 @@ class LagrangeBasis6GL {
   }
 
   /**
-   * @brief Gradient of basis function for support point 6.
+   * @brief Derivative at @p xi of the basis function of node 6.
    */
   constexpr static double gradient6(const double xi) {
     return 12.375 * xi * xi * xi * xi * xi + 10.3125 * xi * xi * xi * xi - 7.5 * xi * xi * xi - 5.625 * xi * xi +
@@ -227,9 +220,9 @@ class LagrangeBasis6GL {
   }
 
   /**
-   * @brief Gradient of basis function q evaluated at support point p.
-   * Full 7x7 table computed via GL.py.
-   * Anti-symmetry: gradientAt(q,p) == -gradientAt(6-q, 6-p).
+   * @brief Derivative of the basis function of node @p q at node @p p.
+   *
+   * Tabulated for every node @p p. See docs/design.md, "1D Lagrange bases".
    */
   constexpr static double gradientAt(const int q, const int p) {
     switch (q) {
@@ -363,18 +356,36 @@ class LagrangeBasis6GL {
     return 0.0;
   }
 
-  /* Tensor product helpers (2D / 3D) */
+  /**
+   * @brief Tensor product of the 1D basis on the parent square [-1, 1]^2.
+   *
+   * See docs/design.md, "1D Lagrange bases".
+   */
   struct TensorProduct2D {
-    constexpr static int numSupportPoints1D = LagrangeBasis6GL::numSupportPoints;
-    constexpr static int numSupportPoints = numSupportPoints1D * numSupportPoints1D;  // 7*7 = 49
+    constexpr static int numSupportPoints1D = LagrangeBasis6GL::numSupportPoints;     ///< Number of 1D nodes.
+    constexpr static int numSupportPoints = numSupportPoints1D * numSupportPoints1D;  ///< Number of nodes, 7^2.
 
+    /**
+     * @brief Index i + 7*j of the node (i, j), with i and j in [0, 6].
+     */
     constexpr static int linearIndex(const int i, const int j) { return i + numSupportPoints1D * j; }
 
+    /**
+     * @brief Inverse of linearIndex().
+     * @param[in] linearIndex Node index.
+     * @param[out] i0 Index along xi0.
+     * @param[out] i1 Index along xi1.
+     */
     constexpr static void multiIndex(const int linearIndex, int& i0, int& i1) {
       i1 = linearIndex / numSupportPoints1D;
       i0 = linearIndex % numSupportPoints1D;
     }
 
+    /**
+     * @brief Values at one point of all the 2D basis functions.
+     * @param[in] coords Parent coordinates (xi0, xi1).
+     * @param[out] N N[linearIndex(a, b)] = value(a, xi0) * value(b, xi1).
+     */
     static void value(const double (&coords)[2], double (&N)[numSupportPoints]) {
       for (int a = 0; a < LagrangeBasis6GL::numSupportPoints; ++a) {
         for (int b = 0; b < LagrangeBasis6GL::numSupportPoints; ++b) {
@@ -385,20 +396,45 @@ class LagrangeBasis6GL {
     }
   };
 
+  /**
+   * @brief Tensor product of the 1D basis on the parent cube [-1, 1]^3.
+   *
+   * See docs/design.md, "1D Lagrange bases".
+   */
   struct TensorProduct3D {
-    constexpr static int numSupportPoints1D = LagrangeBasis6GL::numSupportPoints;
-    constexpr static int numSupportPoints = numSupportPoints1D * numSupportPoints1D * numSupportPoints1D;  // 7^3 = 343
+    constexpr static int numSupportPoints1D = LagrangeBasis6GL::numSupportPoints;  ///< Number of 1D nodes.
+    /// Number of nodes, 7^3.
+    constexpr static int numSupportPoints = numSupportPoints1D * numSupportPoints1D * numSupportPoints1D;
 
+    /**
+     * @brief Index i + 7*j + 49*k of the node (i, j, k), with i, j and k in
+     * [0, 6].
+     *
+     * See docs/design.md, "Hexahedron local numbering".
+     */
     constexpr static int linearIndex(const int i, const int j, const int k) {
       return i + numSupportPoints1D * j + numSupportPoints1D * numSupportPoints1D * k;
     }
 
+    /**
+     * @brief Inverse of linearIndex().
+     * @param[in] linearIndex Node index.
+     * @param[out] i0 Index along xi0.
+     * @param[out] i1 Index along xi1.
+     * @param[out] i2 Index along xi2.
+     */
     constexpr static void multiIndex(const int linearIndex, int& i0, int& i1, int& i2) {
       i2 = linearIndex / (numSupportPoints1D * numSupportPoints1D);
       i1 = (linearIndex % (numSupportPoints1D * numSupportPoints1D)) / numSupportPoints1D;
       i0 = linearIndex % numSupportPoints1D;
     }
 
+    /**
+     * @brief Values at one point of all the 3D basis functions.
+     * @param[in] coords Parent coordinates (xi0, xi1, xi2).
+     * @param[out] N N[linearIndex(a, b, c)] = value(a, xi0) * value(b, xi1) *
+     * value(c, xi2).
+     */
     static void value(const double (&coords)[3], double (&N)[numSupportPoints]) {
       for (int a = 0; a < LagrangeBasis6GL::numSupportPoints; ++a) {
         for (int b = 0; b < LagrangeBasis6GL::numSupportPoints; ++b) {

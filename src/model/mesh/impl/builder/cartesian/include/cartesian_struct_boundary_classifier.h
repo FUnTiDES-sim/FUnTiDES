@@ -8,26 +8,31 @@
 
 namespace model {
 /**
- * @brief Classifies boundary flags for nodes of a structured Cartesian mesh.
+ * @brief Assigns a BoundaryFlag to every node of a structured Cartesian subdomain.
  *
- * Node ordering follows the structured convention:
- *   n = k*(nx*ny) + j*nx + i,  with i∈[0,nx), j∈[0,ny), k∈[0,nz).
+ * A node is on a global boundary when it lies on a face of the local subdomain
+ * whose coordinate matches a face of the global domain within a tolerance.
+ * Such nodes get Surface (top face with a free surface) or Damping; all other
+ * nodes get InteriorNode. Faces shared with a neighbouring subdomain are
+ * never boundaries.
  *
- * Nodes on faces whose coordinate matches a global domain boundary (within
- * tol) receive Damping or Surface flags; all others are InteriorNode.
+ * Node numbering is n = k*(nx*ny) + j*nx + i, with i in [0,nx), j in [0,ny),
+ * k in [0,nz).
  *
- * Classification rules:
- *  - Not on any global face     → InteriorNode
- *  - z_max global face AND
- *    free_surface_on_top        → Surface
- *  - Any other global face      → Damping
- *
- * @tparam FloatType  Floating-point type for coordinates and bounds
- * @tparam ScalarType Integer type used to cast BoundaryFlag values
+ * @tparam FloatType  Floating-point type of coordinates and bounds.
+ * @tparam ScalarType Integer type the BoundaryFlag values are cast to.
  */
 template <typename FloatType, typename ScalarType>
 class CartesianStructBoundaryClassifier {
  public:
+  /**
+   * @brief Stores the global domain bounds and the classification options.
+   *
+   * @param x_min,x_max,y_min,y_max,z_min,z_max Global domain bounds.
+   * @param tol Tolerance used to compare subdomain faces with the global bounds.
+   * @param free_surface_on_top If true, nodes on the global z_max face are Surface instead of Damping.
+   * @todo VERIFY: are the bounds and tol in the same length unit as the origin and size passed to classify()?
+   */
   CartesianStructBoundaryClassifier(FloatType x_min, FloatType x_max, FloatType y_min, FloatType y_max, FloatType z_min,
                                     FloatType z_max, FloatType tol, bool free_surface_on_top)
       : x_min_(x_min),
@@ -40,13 +45,13 @@ class CartesianStructBoundaryClassifier {
         free_surface_on_top_(free_surface_on_top) {}
 
   /**
-   * @brief Classify every node of the structured grid.
+   * @brief Classifies every node of the local structured grid.
    *
-   * @param n_node Total number of nodes (nx*ny*nz)
-   * @param nx, ny, nz  Node counts in each dimension
-   * @param ox, oy, oz  Local domain origin
-   * @param lx, ly, lz  Local domain dimensions
-   * @return vectorInt of size n_node with BoundaryFlag values
+   * @param n_node Total number of nodes, must equal nx*ny*nz.
+   * @param nx,ny,nz Node counts along each axis.
+   * @param ox,oy,oz Origin of the local subdomain.
+   * @param lx,ly,lz Extent of the local subdomain along each axis.
+   * @return Newly allocated vector of size n_node, indexed by node number, holding BoundaryFlag values.
    */
   vectorInt classify(int n_node, int nx, int ny, int nz, FloatType ox, FloatType oy, FloatType oz, FloatType lx,
                      FloatType ly, FloatType lz) const {

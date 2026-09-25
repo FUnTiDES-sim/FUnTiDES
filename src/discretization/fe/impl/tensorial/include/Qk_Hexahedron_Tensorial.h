@@ -15,58 +15,80 @@
 #include "mathUtilites.h"
 
 /**
- * @class Qk_Hexahedron_Tensorial_GEMM
- * @tparam GL_BASIS The Lagrange basis type (LagrangeBasis1, LagrangeBasis2, ...)
+ * @brief Element kernels of a Qk Gauss-Lobatto hexahedron (mass, damping, stiffness).
+ *
+ * Nodes and quadrature points coincide. Local node index is
+ * qa + qb * num1dNodes + qc * num1dNodes^2 (qa runs fastest), see linearIndex3DVal.
+ * Vertex k of an element (8 corners) has 3D indices (k % 2, (k % 4) / 2, k / 4).
+ * Voigt order for symmetric 3x3 tensors is [xx, yy, zz, yz, xz, xy].
+ *
+ * The stiffness operators are available as a sparse two-callback form, a flat
+ * sum-factorization form and dense-GEMM forms (serial and Kokkos team-parallel).
+ *
+ * @tparam GL_BASIS Lagrange basis type (LagrangeBasis1, LagrangeBasis2, LagrangeBasis3GL, ...).
  */
 template <typename GL_BASIS>
 class Qk_Hexahedron_Tensorial_GEMM final {
  public:
-  // Expose the basis type for tests and external use (makutu compatibility)
-  using BasisType = GL_BASIS;
+  using BasisType = GL_BASIS;  ///< Basis type, exposed for tests and external use.
 
-  /// Number of nodes/support points per element per dimension
+  /// Number of nodes per element per dimension.
   constexpr static int num1dNodes = GL_BASIS::numSupportPoints;
 
-  /// Half the number of support points, rounded down (precomputed)
+  /// Half the number of nodes per dimension, rounded down ((num1dNodes - 1) / 2).
   constexpr static int halfNodes = (GL_BASIS::numSupportPoints - 1) / 2;
 
-  /// Total number of nodes/support points per element
+  /// Total number of nodes per element.
   constexpr static int numNodes = GL_BASIS::TensorProduct3D::numSupportPoints;
 
-  /// Number of nodes/support points per face
+  /// Number of nodes per element face.
   constexpr static int numNodesPerFace = num1dNodes * num1dNodes;
 
-  /// Maximum number of support points per element
+  /// Maximum number of support points per element.
   constexpr static int maxSupportPoints = numNodes;
 
-  /// Number of quadrature points per element
+  /// Number of quadrature points per element.
   constexpr static int numQuadraturePoints = numNodes;
 
+  /// Jacobian storage type.
   struct JacobianType {
     float data[3][3];
   };
 
+  /// Tag type.
   struct TeamGemm {};
 
+  /// @brief Local node index of 3D indices (qa, qb, qc); qa runs fastest.
   PROXY_HOST_DEVICE
   constexpr static int linearIndex3DVal(const int qa, int const qb, int const qc) {
     return qa + qb * num1dNodes + qc * numNodesPerFace;
   }
 
+  /// @brief Local node index of element vertex k (0 to 7), see the class comment for the vertex order.
   PROXY_HOST_DEVICE
   constexpr static int meshIndexToLinearIndex3D(int const k) {
     return linearIndex3DVal((num1dNodes - 1) * (k % 2), (num1dNodes - 1) * ((k % 4) / 2), (num1dNodes - 1) * (k / 4));
   }
 
+  /// @brief Local face node index of 2D indices (qa, qb); qa runs fastest.
   PROXY_HOST_DEVICE
   constexpr static int linearIndex2DVal(const int qa, const int qb) { return qa + qb * num1dNodes; }
 
+  /// @brief Local face node index of face vertex k (0 to 3), with 2D indices (k % 2, k / 2).
   PROXY_HOST_DEVICE
   constexpr static int meshIndexToLinearIndex2D(int const k) {
     return linearIndex2DVal((num1dNodes - 1) * (k % 2), (num1dNodes - 1) * (k / 2));
   }
 
-  /// d(phi_p)/d(xi) evaluated at xi_q (direct polynomial eval, GL symmetry).
+  /**
+   * @brief Derivative of the 1D Lagrange polynomial of node p, evaluated at node q, in reference coordinates.
+   * @param q Evaluation node, in [0, num1dNodes).
+   * @param p Polynomial node, in [0, num1dNodes).
+   * @return d(phi_p)/d(xi) at xi_q.
+   *
+   * Only the first half of the basis derivative table is used; the second half is
+   * obtained by the Gauss-Lobatto symmetry.
+   */
   PROXY_HOST_DEVICE
   constexpr static real_t basisGradientAt(const int q, const int p) {
     if (p <= halfNodes) {
@@ -76,16 +98,29 @@ class Qk_Hexahedron_Tensorial_GEMM final {
     }
   }
 
-  /// 1D Gauss-Lobatto quadrature weight at node q.
+  /// @brief 1D Gauss-Lobatto quadrature weight at node q.
   PROXY_HOST_DEVICE
   constexpr static real_t quadratureWeight(const int q) { return GL_BASIS::weight(q); }
 
+  /**
+   * @brief Value at node q of the 1D linear shape function of vertex k.
+   * @param q Node index, in [0, num1dNodes).
+   * @param k 0 for the vertex at xi = -1, 1 for the vertex at xi = +1.
+   */
   PROXY_HOST_DEVICE
   constexpr static real_t interpolationCoord(const int q, const int k) {
     const real_t alpha = static_cast<real_t>((GL_BASIS::parentSupportCoord(q) + 1.0) / 2.0);
     return k == 0 ? (1.0 - alpha) : alpha;
   }
 
+  /**
+   * @brief Factor of the trilinear Jacobian coming from one vertex along one direction.
+   * @param q   Node index along direction i.
+   * @param i   Direction of this factor (0, 1 or 2).
+   * @param k   Vertex index along direction i (0 or 1).
+   * @param dir Derivative direction (0, 1 or 2).
+   * @return Derivative of the linear shape function if i == dir, its value at node q otherwise.
+   */
   PROXY_HOST_DEVICE
   constexpr static real_t jacobianCoefficient1D(const int q, const int i, const int k, const int dir) {
     if (i == dir)
@@ -94,11 +129,11 @@ class Qk_Hexahedron_Tensorial_GEMM final {
       return interpolationCoord(q, k);
   }
 
-  //==========================================================================
-  // Jacobians
-  //==========================================================================
-
-  /// 3D isoparametric (trilinear, 8-vertex) Jacobian at GL point (qa,qb,qc).
+  /**
+   * @brief Jacobian of the trilinear (8-vertex) geometric map at node (qa, qb, qc).
+   * @param[in]  X 8 vertex coordinates, X[k][i] is coordinate i of vertex k.
+   * @param[out] J J[i][j] = d x_i / d xi_j.
+   */
   PROXY_HOST_DEVICE
   static void jacobianTransformation(int const qa, int const qb, int const qc, real_t const (&X)[8][3],
                                      real_t (&J)[3][3]) {
@@ -117,7 +152,11 @@ class Qk_Hexahedron_Tensorial_GEMM final {
     }
   }
 
-  /// 2D face Jacobian (bilinear, 4-corner). Ported verbatim from makutu.
+  /**
+   * @brief Jacobian of the bilinear (4-vertex) face geometric map at face node (qa, qb).
+   * @param[in]  X 4 face vertex coordinates, X[k][i] is coordinate i of vertex k.
+   * @param[out] J J[i][j] = d x_i / d xi_j, j in {0, 1}.
+   */
   PROXY_HOST_DEVICE
   static void jacobianTransformation2d(int const qa, int const qb, real_t const (&X)[4][3], real_t (&J)[3][2]) {
     for (int i = 0; i < 3; ++i)
@@ -133,10 +172,10 @@ class Qk_Hexahedron_Tensorial_GEMM final {
   }
 
   /**
-   * @brief B = det(J) * (J^T J)^{-1} in Voigt notation [xx,yy,zz,yz,xz,xy].
-   *
-   * Same quantity and same Voigt ordering as makutu::computeBMatrix, so the
-   * flux contraction below matches the makutu kernel term by term.
+   * @brief Metric tensor B = det(J) * (J^T J)^{-1} at node (qa, qb, qc), in Voigt order.
+   * @param[in]  X 8 vertex coordinates.
+   * @param[out] J Jacobian at the node.
+   * @param[out] B Symmetric metric tensor, Voigt order [xx, yy, zz, yz, xz, xy].
    */
   PROXY_HOST_DEVICE
   static void computeBMatrix(int const qa, int const qb, int const qc, real_t const (&X)[8][3], real_t (&J)[3][3],
@@ -145,7 +184,7 @@ class Qk_Hexahedron_Tensorial_GEMM final {
     real_t const detJ = determinant(J);
     real_t const invDetJ = 1.0 / detJ;
 
-    // J^T.J / det(J), Voigt notation [xx,yy,zz,yz,xz,xy]
+    // B holds J^T J / det(J) here; the inversion below turns it into det(J) * (J^T J)^{-1}.
     B[0] = (J[0][0] * J[0][0] + J[1][0] * J[1][0] + J[2][0] * J[2][0]) * invDetJ;
     B[1] = (J[0][1] * J[0][1] + J[1][1] * J[1][1] + J[2][1] * J[2][1]) * invDetJ;
     B[2] = (J[0][2] * J[0][2] + J[1][2] * J[1][2] + J[2][2] * J[2][2]) * invDetJ;
@@ -153,18 +192,14 @@ class Qk_Hexahedron_Tensorial_GEMM final {
     B[4] = (J[0][0] * J[0][2] + J[1][0] * J[1][2] + J[2][0] * J[2][2]) * invDetJ;
     B[5] = (J[0][0] * J[0][1] + J[1][0] * J[1][1] + J[2][0] * J[2][1]) * invDetJ;
 
-    // B <- det(J) * (J^T J)^{-1}  (same quantity & Voigt order as makutu)
     symInvert(B);
   }
 
-  //==========================================================================
-  // MASS TERM  (ported verbatim from makutu — numerically identical)
-  //==========================================================================
-
   /**
-   * @brief Diagonal mass contribution per quadrature point.
-   * @param X    8 corner coordinates of the element.
-   * @param func Callback func(int q, real_t val).
+   * @brief Diagonal mass contribution |det(J)| * w3D of every node of the element.
+   * @tparam FUNC Callable with signature void(int q, real_t val).
+   * @param[in] X    8 vertex coordinates.
+   * @param     func Called once per node q with its mass contribution val.
    */
   template <typename FUNC>
   PROXY_HOST_DEVICE static void computeMassTerm(float const (&X)[8][3], FUNC &&func) {
@@ -182,15 +217,11 @@ class Qk_Hexahedron_Tensorial_GEMM final {
     });
   }
 
-  //==========================================================================
-  // DAMPING TERM  (ported verbatim from makutu — numerically identical)
-  //==========================================================================
-
   /**
-   * @brief Diagonal damping (face-integrated) contribution for d.o.f. q.
-   * @param q Face quadrature point index (2D).
-   * @param X 4 corner coordinates of the face.
-   * @return  The surface quadrature factor sqrt(|det(J^T J)|) * w2D.
+   * @brief Diagonal face-integrated (damping) contribution of one face node.
+   * @param q Face node index, see linearIndex2DVal.
+   * @param X 4 face vertex coordinates.
+   * @return Surface factor sqrt(|det(J^T J)|) * w2D.
    */
   PROXY_HOST_DEVICE
   static real_t computeDampingTerm(int const q, real_t const (&X)[4][3]) {
@@ -200,18 +231,22 @@ class Qk_Hexahedron_Tensorial_GEMM final {
     real_t B[3];
     real_t J[3][2] = {{0}};
     jacobianTransformation2d(qa, qb, X, J);
-    // J^T.J in Voigt notation (2x2 symmetric)
+    // J^T J, 2x2 symmetric, Voigt order [00, 11, 01].
     B[0] = J[0][0] * J[0][0] + J[1][0] * J[1][0] + J[2][0] * J[2][0];
     B[1] = J[0][1] * J[0][1] + J[1][1] * J[1][1] + J[2][1] * J[2][1];
     B[2] = J[0][0] * J[0][1] + J[1][0] * J[1][1] + J[2][0] * J[2][1];
     return sqrt(std::abs(symDeterminant(B))) * w2D;
   }
 
-  //==========================================================================
-  // STIFFNESS — sparse two-lambda form (used by the SLS attenuation path).
-  // Voigt ordering matches makutu, so the assembled term is identical.
-  //==========================================================================
-
+  /**
+   * @brief Emits the stiffness contributions of quadrature point (qa, qb, qc).
+   * @tparam qa,qb,qc Quadrature point indices.
+   * @tparam FUNC1    Callable with signature void(int qa, int qb, int qc).
+   * @tparam FUNC2    Callable with signature void(int i, int j, real_t value).
+   * @param[in] B     Metric tensor at the point, Voigt order [xx, yy, zz, yz, xz, xy].
+   * @param func1     Called once, before any func2 call.
+   * @param func2     Called once per contribution to the stiffness entry (i, j), i and j being local node indices.
+   */
   template <int qa, int qb, int qc, typename FUNC1, typename FUNC2>
   PROXY_HOST_DEVICE static void computeGradPhiBGradPhi(real_t const (&B)[6], FUNC1 &&func1, FUNC2 &&func2) {
     const real_t w = static_cast<real_t>(GL_BASIS::weight(qa) * GL_BASIS::weight(qb) * GL_BASIS::weight(qc));
@@ -251,10 +286,12 @@ class Qk_Hexahedron_Tensorial_GEMM final {
   }
 
   /**
-   * @brief Sparse stiffness assembly (two-lambda makutu API).
-   * @param X     8 corner coordinates.
-   * @param func1 func1(qa,qb,qc) — invoked once per quad point (model-on-nodes).
-   * @param func2 func2(i,j,R_ij) — invoked per stiffness contribution.
+   * @brief Sparse stiffness assembly of one element through two callbacks.
+   * @tparam FUNC1 Callable with signature void(int qa, int qb, int qc).
+   * @tparam FUNC2 Callable with signature void(int i, int j, real_t value).
+   * @param[in] X 8 vertex coordinates.
+   * @param func1 Called once per quadrature point, before the func2 calls of that point (used to fetch model values).
+   * @param func2 Called once per contribution to the stiffness entry (i, j), i and j being local node indices.
    */
   template <typename FUNC1, typename FUNC2>
   PROXY_HOST_DEVICE static void computeStiffnessTerm(float const (&X)[8][3], FUNC1 &&func1, FUNC2 &&func2) {
@@ -269,15 +306,18 @@ class Qk_Hexahedron_Tensorial_GEMM final {
     });
   }
 
-  //==========================================================================
-  // ACOUSTIC STIFFNESS via sum-factorization — FLAT (RangePolicy) path.
-  //
-  // Register-lean (3 flux buffers), bit-equivalent to makutu. The physics
-  // factor alpha (= 1/rho) is folded into the flux scaling, exactly as in
-  // makutu (scale = w * alpha). This is what the default acoustic dispatch
-  // (_Acoustic_Flat) calls.
-  //==========================================================================
-
+  /**
+   * @brief Acoustic stiffness of one element by sum-factorization, flat (one thread per element) path.
+   *
+   * Accumulates the product of the element stiffness matrix and u_local into
+   * v_local. The factor alpha returned by get_alpha is folded into the flux scaling.
+   *
+   * @tparam FUNC_ALPHA Callable with signature real_t(int qa, int qb, int qc).
+   * @param[in]     X         8 vertex coordinates.
+   * @param[in]     u_local   Nodal input field, size numNodes.
+   * @param[in,out] v_local   Nodal output field, size numNodes; the result is added to it.
+   * @param         get_alpha Returns the coefficient alpha at quadrature point (qa, qb, qc); 1/rho for acoustics.
+   */
   template <typename FUNC_ALPHA>
   PROXY_HOST_DEVICE static void computeStiffnessTermSumFact(float const (&X)[8][3], real_t const (&u_local)[numNodes],
                                                             real_t (&v_local)[numNodes], FUNC_ALPHA &&get_alpha) {
@@ -308,7 +348,7 @@ class Qk_Hexahedron_Tensorial_GEMM final {
       real_t B[6] = {0};
       computeBMatrix(qa, qb, qc, X, J, B);
 
-      real_t const scale = w * get_alpha(qa, qb, qc);  // alpha = 1/rho for acoustics
+      real_t const scale = w * get_alpha(qa, qb, qc);
       G_xi[q] = scale * (B[0] * dxi_q + B[5] * deta_q + B[4] * dzeta_q);
       G_eta[q] = scale * (B[5] * dxi_q + B[1] * deta_q + B[3] * dzeta_q);
       G_zeta[q] = scale * (B[4] * dxi_q + B[3] * deta_q + B[2] * dzeta_q);
@@ -342,7 +382,7 @@ class Qk_Hexahedron_Tensorial_GEMM final {
     });
   }
 
-  /// Serial small matmul: C = A * B  (NN).
+  /// @brief Serial small matrix product C = A * B.
   template <int ROWS, int INNER, int COLS>
   PROXY_HOST_DEVICE static void matmul_NN(real_t const (&A)[ROWS][INNER], real_t const (&B)[INNER][COLS],
                                           real_t (&C)[ROWS][COLS]) {
@@ -354,7 +394,7 @@ class Qk_Hexahedron_Tensorial_GEMM final {
       }
   }
 
-  /// Serial small matmul: C = A^T * B  (TN).
+  /// @brief Serial small matrix product C = A^T * B.
   template <int ROWS, int INNER, int COLS>
   PROXY_HOST_DEVICE static void matmul_TN(real_t const (&A)[INNER][ROWS], real_t const (&B)[INNER][COLS],
                                           real_t (&C)[ROWS][COLS]) {
@@ -367,12 +407,11 @@ class Qk_Hexahedron_Tensorial_GEMM final {
   }
 
   /**
-   * @brief Serial (one-thread-per-element) GEMM stiffness operator.
-   * @param u  element-local input field (size numNodes)
-   * @param Y  element-local output field (size numNodes)  [overwritten]
-   * @param W  pre-computed weighted metrics (numNodes*6)
-   * @param D  1D reference gradient operator [num1dNodes][num1dNodes],
-   *           with D[row][col] == basisGradientAt(col,row).
+   * @brief Stiffness operator of one element by dense GEMMs, executed by a single thread.
+   * @param[in]  u Nodal input field, size numNodes.
+   * @param[out] Y Nodal output field, size numNodes; overwritten.
+   * @param[in]  W Weighted metrics from computeElementMetrics, size numNodes * 6, Voigt order per node.
+   * @param[in]  D 1D reference gradient operator, D[row][col] == basisGradientAt(col, row), see fillDerivativeMatrix.
    */
   PROXY_HOST_DEVICE
   static void computeStiffnessOperatorDevice(real_t const *u, real_t *Y, real_t const *W,
@@ -436,14 +475,16 @@ class Qk_Hexahedron_Tensorial_GEMM final {
     }
   }
 
-  /// Scratch needed per team for the GEMM team operator (12 [N][N^2] tensors).
+  /// @brief Team scratch size in bytes (level 0) needed by computeStiffnessOperatorTeamVector: 12 tensors
+  /// [num1dNodes][num1dNodes^2].
   static constexpr size_t scratchBytesPerTeam() {
     constexpr size_t sva = (sizeof(real_t) >= 8) ? sizeof(real_t) : 8;
     constexpr size_t per2d = num1dNodes * numNodesPerFace * sizeof(real_t) + sva;
     return 12 * per2d;
   }
 
-  /// Scratch for the streaming variant (adds a W_local of numNodes*6 reals).
+  /// @brief Team scratch size in bytes (level 0) needed by computeStiffnessOperatorTeamVectorStreaming:
+  /// scratchBytesPerTeam() plus numNodes * 6 reals.
   static constexpr size_t scratchBytesPerTeamStreaming() {
     constexpr size_t sva = (sizeof(real_t) >= 8) ? sizeof(real_t) : 8;
     constexpr size_t perW = numNodes * 6 * sizeof(real_t) + sva;
@@ -451,12 +492,11 @@ class Qk_Hexahedron_Tensorial_GEMM final {
   }
 
   /**
-   * @brief Fill the 1D reference-gradient operator expected by the GEMM ops.
+   * @brief Fills the 1D reference gradient operator expected by the GEMM operators.
+   * @param[out] D_flat Row-major array of size num1dNodes * num1dNodes,
+   *                    D_flat[row * num1dNodes + col] == basisGradientAt(col, row).
    *
-   * Row-major, size num1dNodes*num1dNodes, with the convention required by
-   * matmul_NN/TN_team: D_flat[row*num1dNodes + col] == basisGradientAt(col,row),
-   * i.e. (D u)_row = sum_col phi'_col(xi_row) * u_col. Call once on the host and
-   * deep_copy into a device View before launching the GEMM kernel.
+   * Call once on the host, then copy to a device View before launching a GEMM kernel.
    */
   PROXY_HOST_DEVICE
   static void fillDerivativeMatrix(real_t *D_flat) {
@@ -465,15 +505,15 @@ class Qk_Hexahedron_Tensorial_GEMM final {
   }
 
   /**
-   * @brief Precompute the weighted metric W = w * alpha * B for one element.
+   * @brief Precomputes the weighted metric W = w3D * alpha * B of one element, for the GEMM operators.
    *
-   * Writes numNodes*6 reals into @p W_out (Voigt order [xx,yy,zz,yz,xz,xy]).
-   * This is the branchy part (computeBMatrix / basisGradientAt / symInvert) that
-   * the streaming kernel re-did every timestep; precompute it ONCE per element
-   * and the hot stiffness kernel becomes a pure matmul reading W
-   * (computeStiffnessOperatorTeamVector). For acoustics, get_alpha = 1/rho.
+   * Computing W once per element leaves the stiffness kernel as pure matrix
+   * products. Storing W for a whole mesh costs nElements * numNodes * 6 reals.
    *
-   * Memory cost of storing W for the whole mesh: nElements * numNodes * 6 reals.
+   * @tparam FUNC_ALPHA Callable with signature real_t(int qa, int qb, int qc).
+   * @param[in]  X         8 vertex coordinates.
+   * @param      get_alpha Coefficient alpha at quadrature point (qa, qb, qc); 1/rho for acoustics.
+   * @param[out] W_out     Size numNodes * 6; node q occupies W_out[6*q .. 6*q+5], Voigt order [xx, yy, zz, yz, xz, xy].
    */
   template <typename FUNC_ALPHA>
   PROXY_HOST_DEVICE static void computeElementMetrics(float const (&X)[8][3], FUNC_ALPHA &&get_alpha, real_t *W_out) {
@@ -488,7 +528,8 @@ class Qk_Hexahedron_Tensorial_GEMM final {
     }
   }
 
-  /// Team-parallel C = A * B (NN), output distributed over TeamVectorRange.
+  /// @brief Team-parallel matrix product C = A * B, output entries distributed over TeamVectorRange. The caller must
+  /// synchronize the team afterwards.
   template <int ROWS, int INNER, int COLS, typename MemberType, typename ViewA, typename ViewB, typename ViewC>
   KOKKOS_INLINE_FUNCTION static void matmul_NN_team(const MemberType &member, const ViewA &A, const ViewB &B,
                                                     const ViewC &C) {
@@ -501,7 +542,8 @@ class Qk_Hexahedron_Tensorial_GEMM final {
     });
   }
 
-  /// Team-parallel C = A^T * B (TN), output distributed over TeamVectorRange.
+  /// @brief Team-parallel matrix product C = A^T * B, output entries distributed over TeamVectorRange. The caller must
+  /// synchronize the team afterwards.
   template <int ROWS, int INNER, int COLS, typename MemberType, typename ViewA, typename ViewB, typename ViewC>
   KOKKOS_INLINE_FUNCTION static void matmul_TN_team(const MemberType &member, const ViewA &A, const ViewB &B,
                                                     const ViewC &C) {
@@ -515,12 +557,18 @@ class Qk_Hexahedron_Tensorial_GEMM final {
   }
 
   /**
-   * @brief TeamPolicy GEMM stiffness operator (no KokkosBlas dependency).
-   *        Needs scratchBytesPerTeam() bytes at level 0.
-   * @param W      pre-computed weighted metrics (numNodes*6). For acoustics,
-   *               fold 1/rho into W before calling (see note above).
-   * @param D_flat 1D derivative operator (num1dNodes*num1dNodes, row-major),
-   *               D_flat[row*num1dNodes+col] == basisGradientAt(col,row).
+   * @brief Stiffness operator of one element by dense GEMMs, executed by one Kokkos team.
+   *
+   * Needs scratchBytesPerTeam() bytes of level-0 team scratch. The output is
+   * visible to the team on return.
+   *
+   * @tparam MemberType Kokkos team member type.
+   * @param      member Team handle.
+   * @param[in]  u      Nodal input field, size numNodes.
+   * @param[out] Y      Nodal output field, size numNodes; overwritten.
+   * @param[in]  W      Weighted metrics from computeElementMetrics, size numNodes * 6. Any coefficient (1/rho for
+   * acoustics) must already be folded into W.
+   * @param[in]  D_flat 1D derivative operator, row-major, see fillDerivativeMatrix.
    */
   template <typename MemberType>
   KOKKOS_INLINE_FUNCTION static void computeStiffnessOperatorTeamVector(const MemberType &member, real_t *u, real_t *Y,
@@ -608,17 +656,23 @@ class Qk_Hexahedron_Tensorial_GEMM final {
       const int qc = tmp / n;
       Y[q] = y_Xi(qa, qb * n + qc) + y_Eta(qb, qa * n + qc) + y_Zeta(qc, qa * n + qb);
     });
-    member.team_barrier();  // ensure all Y writes are visible before the caller scatters
+    member.team_barrier();  // all Y writes must be visible before the caller scatters
   }
 
   /**
-   * @brief Streaming GEMM operator: builds W = w*alpha*B in scratch on the fly,
-   *        then delegates to computeStiffnessOperatorTeamVector.
-   *        Needs scratchBytesPerTeamStreaming() bytes at level 0.
+   * @brief Team GEMM stiffness operator that builds the weighted metric W in team scratch, then applies it.
    *
-   * @param get_alpha  Callback get_alpha(qa,qb,qc) -> real_t. For acoustics this
-   *                   is 1/rho at the quadrature point; the density factor is
-   *                   folded into W exactly as in the makutu sum-fact kernel.
+   * Needs scratchBytesPerTeamStreaming() bytes of level-0 team scratch. Same
+   * contract as computeStiffnessOperatorTeamVector for u, Y and D_flat.
+   *
+   * @tparam MemberType Kokkos team member type.
+   * @tparam FUNC_ALPHA Callable with signature real_t(int qa, int qb, int qc).
+   * @param      member       Team handle.
+   * @param[in]  u            Nodal input field, size numNodes.
+   * @param[out] Y            Nodal output field, size numNodes; overwritten.
+   * @param[in]  cornerCoords 8 vertex coordinates.
+   * @param[in]  D_flat       1D derivative operator, row-major, see fillDerivativeMatrix.
+   * @param      get_alpha    Coefficient alpha at quadrature point (qa, qb, qc); 1/rho for acoustics.
    */
   template <typename MemberType, typename FUNC_ALPHA>
   KOKKOS_INLINE_FUNCTION static void computeStiffnessOperatorTeamVectorStreaming(const MemberType &member, real_t *u,
@@ -651,9 +705,6 @@ class Qk_Hexahedron_Tensorial_GEMM final {
     computeStiffnessOperatorTeamVector(member, u, Y, W_local.data(), D_flat);
   }
 
-  //==========================================================================
-  // Virtual compatibility hooks (match makutu).
-  //==========================================================================
   PROXY_HOST_DEVICE virtual int getNumQuadraturePoints() { return numQuadraturePoints; }
   PROXY_HOST_DEVICE virtual int getNumSupportPoints() { return numNodes; }
   PROXY_HOST_DEVICE virtual int getMaxSupportPoints() const { return maxSupportPoints; }
@@ -662,9 +713,6 @@ class Qk_Hexahedron_Tensorial_GEMM final {
   ~Qk_Hexahedron_Tensorial_GEMM() = default;
 };
 
-//============================================================================
-// Per-order aliases
-//============================================================================
 using Q1_Hexahedron_Lagrange_GaussLobatto_Tensorial_GEMM = Qk_Hexahedron_Tensorial_GEMM<LagrangeBasis1>;
 using Q2_Hexahedron_Lagrange_GaussLobatto_Tensorial_GEMM = Qk_Hexahedron_Tensorial_GEMM<LagrangeBasis2>;
 using Q3_Hexahedron_Lagrange_GaussLobatto_Tensorial_GEMM = Qk_Hexahedron_Tensorial_GEMM<LagrangeBasis3GL>;
@@ -675,9 +723,12 @@ using Q7_Hexahedron_Lagrange_GaussLobatto_Tensorial_GEMM = Qk_Hexahedron_Tensori
 using Q8_Hexahedron_Lagrange_GaussLobatto_Tensorial_GEMM = Qk_Hexahedron_Tensorial_GEMM<LagrangeBasis8GL>;
 using Q9_Hexahedron_Lagrange_GaussLobatto_Tensorial_GEMM = Qk_Hexahedron_Tensorial_GEMM<LagrangeBasis9GL>;
 
-//============================================================================
-// Order selector (mirrors makutu's selector convention)
-//============================================================================
+/**
+ * @brief Maps a polynomial order to the corresponding Qk_Hexahedron_Tensorial_GEMM type.
+ * @tparam ORDER Polynomial order, 1 to 9. Other values are not defined.
+ *
+ * The selected type is the member alias `type`.
+ */
 template <int ORDER>
 struct Qk_Hexahedron_Lagrange_GaussLobatto_Tensorial_GEMM_Selector;
 

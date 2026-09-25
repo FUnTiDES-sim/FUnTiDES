@@ -10,42 +10,45 @@
 namespace gradient {
 
 /**
- * @brief Acoustic gradient computation for independent use.
- * Computes model parameter gradients (grad_kappa, grad_buoyancy) from acoustic
- * forward and adjoint wavefields. Completely independent from the Solver.
- * Features:
- * - Supports both node-based and element-based model discretization
- * - Uses standard SEM assembly with mass and stiffness matrices
- * Template Parameters:
- *   ORDER                 - Polynomial order (1, 2, 3, ...)
- *   INTEGRAL_TYPE         - Integration kernel (e.g., makutu)
- *   MESH_TYPE             - Mesh topology (e.g., Cartesian)
- *   IS_MODEL_ON_NODES     - Model discretization (true=nodes, false=elements)
+ * @brief Computes acoustic model gradients (grad_kappa, grad_buoyancy) from forward and
+ * adjoint pressure wavefields.
+ *
+ * Works on its own, without a Solver. The model parameters may live on nodes or on elements.
+ *
+ * @tparam ORDER             Polynomial order of the elements.
+ * @tparam INTEGRAL_TYPE     Element integration kernel.
+ * @tparam MESH_TYPE         Mesh/model type the gradients are computed on.
+ * @tparam IS_MODEL_ON_NODES True if the model is stored per node, false if per element.
  */
 template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE, bool IS_MODEL_ON_NODES>
 class DifferentiatorAcoustic : public Differentiator {
  public:
-  static constexpr int kOrder = ORDER;
-  static constexpr bool kIsModelOnNodes = IS_MODEL_ON_NODES;
-  static constexpr int kPointsPerElement = (ORDER + 1) * (ORDER + 1) * (ORDER + 1);
+  static constexpr int kOrder = ORDER;                        ///< Polynomial order.
+  static constexpr bool kIsModelOnNodes = IS_MODEL_ON_NODES;  ///< True if the model is stored per node.
+  static constexpr int kPointsPerElement = (ORDER + 1) * (ORDER + 1) * (ORDER + 1);  ///< Nodes per element.
 
   KOKKOS_DEFAULTED_FUNCTION ~DifferentiatorAcoustic() override = default;
 
   /**
-   * @brief Compute acoustic gradients (Kappa, Buoyancy).
+   * @brief Computes the acoustic gradients (kappa, buoyancy).
    *
-   * Computes:
-   *   grad_kappa   = ∑_elements ∑_quadrature q_dt^2 * p * mass_term
-   *   grad_buoyancy = ∑_elements ∑_stiffness stiffness_term * q * p
+   * grad_kappa is built from the second time derivative of the adjoint field times the
+   * forward field, weighted by the mass term. grad_buoyancy is built from the product of
+   * the forward and adjoint stiffness terms.
+   *
+   * @param[in]     mesh Mesh and model.
+   * @param[in,out] data Forward and adjoint wavefield views and output gradients.
+   * @param[in]     dt   Time step between the wavefield snapshots.
    */
   void compute(model::ModelApi<float, int>& mesh, DataStruct& data, float dt) const override;
 
   /**
-   * @brief Get the geometric mass matrix for normalization in FWI.
+   * @brief Returns the geometric mass matrix, i.e. the nodal volumes without model factors.
    *
-   * Returns the geometric nodal volumes Omega_I = sum_{e in I} w_I^e |J_I^e|
-   * computed without model factors. Used for FWI preconditioning:
-   * K^kappa(x_I) = G^kappa_I / Omega_I
+   * Omega_I = sum over elements e containing node I of w_I^e |J_I^e|. Used to normalize
+   * gradients for FWI preconditioning: K^kappa(x_I) = G^kappa_I / Omega_I.
+   *
+   * @return Reference to the internal vector.
    */
   vectorReal& getGeometricMassMatrix() override;
 
@@ -54,44 +57,61 @@ class DifferentiatorAcoustic : public Differentiator {
   void print() const override;
 
   /**
-   * @brief Each element writes to a unique index — no atomic add required.
+   * @brief Element-based gradient kernel.
    *
-   * Computes qdt2 = (qnPrevPrev - 2*qnPrev + qn) / dt^2 on the fly.
+   * Each element writes to its own index, so no atomic add is needed. The second time
+   * derivative of q is computed on the fly as (qnPrevPrev - 2*qnPrev + qn) / dt^2.
+   *
+   * @param[in]  mesh            Mesh and model.
+   * @param[in]  dt              Time step between snapshots.
+   * @param[in]  pn              Forward field.
+   * @param[in]  qn              Adjoint field at the current step.
+   * @param[in]  qnPrev          Adjoint field at the previous step.
+   * @param[in]  qnPrevPrev      Adjoint field two steps back.
+   * @param[out] gradKappa       Gradient with respect to kappa.
+   * @param[out] gradBuoyancy    Gradient with respect to buoyancy.
    */
   void computeOnElements(MESH_TYPE mesh, float dt, vectorReal const pn, vectorReal const qn, vectorReal const qnPrev,
                          vectorReal const qnPrevPrev, vectorReal const gradKappa, vectorReal const gradBuoyancy) const;
 
   /**
-   * @brief Multiple elements share boundary nodes — ATOMICADD required.
+   * @brief Node-based gradient kernel.
    *
-   * Computes qdt2 = (qnPrevPrev - 2*qnPrev + qn) / dt^2 on the fly.
-   * Gradients are normalized by the mass matrix diagonal to account for
-   * multiple elements sharing nodes at the domain interior.
+   * Elements share boundary nodes, so contributions are accumulated with ATOMICADD. The
+   * second time derivative of q is computed on the fly as
+   * (qnPrevPrev - 2*qnPrev + qn) / dt^2. Gradients are then normalized by the diagonal of
+   * the geometric mass matrix.
+   *
+   * @param[in]  mesh            Mesh and model.
+   * @param[in]  dt              Time step between snapshots.
+   * @param[in]  pn              Forward field.
+   * @param[in]  qn              Adjoint field at the current step.
+   * @param[in]  qnPrev          Adjoint field at the previous step.
+   * @param[in]  qnPrevPrev      Adjoint field two steps back.
+   * @param[out] gradKappa       Gradient with respect to kappa.
+   * @param[out] gradBuoyancy    Gradient with respect to buoyancy.
    */
   void computeOnNodes(MESH_TYPE mesh, float dt, vectorReal const pn, vectorReal const qn, vectorReal const qnPrev,
                       vectorReal const qnPrevPrev, vectorReal const gradKappa, vectorReal const gradBuoyancy) const;
 
   /**
-   * @brief Initialize the geometric mass matrix (nodal volumes without model factors).
+   * @brief Builds the geometric mass matrix (nodal volumes without model factors).
    *
-   * Must be called once before compute(): for node-based models the geometric
-   * mass matrix is used to normalize node gradients, and it is also exposed via
-   * getGeometricMassMatrix() for FWI preconditioning.
+   * The result is exposed through getGeometricMassMatrix().
    *
-   * @param mesh The computational mesh.
-   * @note Public to accommodate CUDA device lambda requirements in Kokkos.
+   * @param[in] mesh The computational mesh.
+   * @note Public because CUDA device lambdas in Kokkos cannot be defined in private members.
    */
   void initGeometricMassMatrix(model::ModelApi<float, int>& mesh) override;
 
  private:
-  vectorReal geometricMassMatrix_;
+  vectorReal geometricMassMatrix_;  ///< Nodal volumes without model factors.
 };
 
 }  // namespace gradient
 
-// ============================================================================
-// EXTERN TEMPLATES (avoid template bloat)
-// ============================================================================
+// Explicit instantiations for orders 1 to 3 live in a source file; declare them extern
+// here so that includers do not instantiate the class again.
 #include "Integrals.h"
 #include "model_struct.h"
 #include "model_unstruct.h"

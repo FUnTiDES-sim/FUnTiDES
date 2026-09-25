@@ -1,6 +1,6 @@
 /**
  * @file sem_proxy.h
- * @brief Defines the main interface and orchestrator for the Spectral Element Method (SEM) proxy simulation.
+ * @brief Driver of a SEM/DG wave-propagation run: setup, time loop, I/O and timing.
  */
 
 #ifndef FUNTIDES_MAIN_FE_INCLUDE_SEM_PROXY_H_
@@ -29,28 +29,28 @@
 #include "source_and_receiver_utils.h"
 
 /**
- * @class SEMproxy
- * @brief Main driver class for the Spectral Element Method (SEM) simulation.
+ * @brief Owns the mesh, the solver, the source/receiver data and the device
+ *        fields of one simulation, and runs the time loop.
  *
- * Orchestrates the entire simulation lifecycle, including MPI setup,
- * mesh parameters, memory allocation (Device/Host), solver initialization,
- * time-stepping, and asynchronous I/O operations.
+ * Built from a parsed option set. After construction, InitFiniteElem() must be
+ * called before Run(). Snapshots are written asynchronously; pending writes are
+ * awaited internally.
  */
 class SEMproxy {
  public:
   /**
-   * @brief Constructs the SEMproxy simulation environment.
-   * @param cfg The parsed configuration options for the simulation.
+   * @brief Builds the simulation from the parsed options.
+   * @param[in] cfg Parsed configuration options.
    */
   explicit SEMproxy(const SemProxyOptions& cfg);
 
   /**
-   * @brief Destroys the SEMproxy instance, safely releasing I/O controllers.
+   * @brief Releases the I/O controller.
    */
   ~SEMproxy() { io_ctrl_.reset(); }
 
   /**
-   * @brief Initializes the finite element arrays, host mirrors, and compute sources.
+   * @brief Allocates the solution arrays and host mirrors and computes the source terms.
    */
   void InitFiniteElem() {
     InitArrays();
@@ -58,186 +58,192 @@ class SEMproxy {
   };
 
   /**
-   * @brief Executes the main time-stepping compute loop of the simulation.
+   * @brief Runs the time loop for num_samples_ steps.
    */
   void Run();
 
   /**
-   * @brief Saves a 2D slice of the computational domain to a file.
-   * @param host_slice The host-side data array containing the slice data.
-   * @param size_x The number of elements along the X axis.
-   * @param size_y The number of elements along the Y axis.
-   * @param filepath The destination file path.
+   * @brief Writes a 2D slice of the domain to a file.
+   * @param[in] host_slice Slice values on the host.
+   * @param[in] size_x Extent of the slice along X.
+   * @param[in] size_y Extent of the slice along Y.
+   * @param[in] filepath Destination file.
+   * @todo VERIFY: are size_x and size_y counted in nodes or elements, and what is the storage order and file format of
+   * host_slice?
    */
   void SaveSlice(const vectorReal& host_slice, int size_x, int size_y, const std::string& filepath) const;
 
   /**
-   * @brief Dispatches a deep copy from Device to Host and asynchronously saves the snapshot.
-   * @param time_sample The current iteration step.
-   * @param d_data The Device view containing the data to save.
-   * @param h_data The pre-allocated Host mirror to copy data into.
+   * @brief Copies a device field to the host and writes it as a snapshot in a background task.
+   * @param[in] time_sample Index of the current time step.
+   * @param[in] d_data Device field to save.
+   * @param[in,out] h_data Preallocated host mirror used as the copy destination.
    */
   void SaveSnapshot(int time_sample, const vectorReal& d_data, vectorReal::host_mirror_type& h_data) const;
 
   /**
-   * @brief Computes a stable time step (dt) automatically based on the CFL condition.
-   * @param cfl_factor The Courant-Friedrichs-Lewy stability factor.
-   * @return The computed time step in seconds.
+   * @brief Computes a time step from a CFL stability factor.
+   * @param[in] cfl_factor Courant-Friedrichs-Lewy factor.
+   * @return Time step in seconds.
+   * @todo VERIFY: which spacing and speed (min spacing, max speed) enter the estimate?
    */
   float FindCflDt(float cfl_factor);
 
  private:
-  model::CartesianParams<float, int> local_params_;  ///< Local Cartesian parameters for the subdomain.
-  utils::DistributedContext dist_ctx_;               ///< MPI distributed context (rank, size).
-  utils::ParallelTopology par_topology_;             ///< Parallel topology layout.
+  model::CartesianParams<float, int> local_params_;  ///< Cartesian parameters of the local subdomain.
+  utils::DistributedContext dist_ctx_;               ///< MPI rank and size.
+  utils::ParallelTopology par_topology_;             ///< Layout of the ranks.
 
-  int num_elements_[3] = {0};   ///< Number of elements along [X, Y, Z] for this MPI rank.
-  int num_nodes_[3] = {0};      ///< Number of nodes along [X, Y, Z] for this MPI rank.
-  float domain_size_[3] = {0};  ///< Physical dimensions of the local domain.
+  int num_elements_[3] = {0};   ///< Number of elements along x, y, z on this rank.
+  int num_nodes_[3] = {0};      ///< Number of nodes along x, y, z on this rank.
+  float domain_size_[3] = {0};  ///< Extent of the local domain along x, y, z. @todo VERIFY: unit (meters?).
 
-  // --- I/O ---
-  bool is_snapshots_ = false;                 ///< Flag indicating if 3D snapshots are enabled.
-  int snap_time_interval_ = 0;                ///< Number of iterations between snapshots.
-  std::string snap_folder_;                   ///< Directory path for saving snapshots.
-  std::shared_ptr<SemIOController> io_ctrl_;  ///< Controller for ADIOS2 I/O operations.
+  // Snapshot I/O.
+  bool is_snapshots_ = false;                 ///< True if 3D snapshots are written.
+  int snap_time_interval_ = 0;                ///< Number of time steps between two snapshots.
+  std::string snap_folder_;                   ///< Output directory of the snapshots.
+  std::shared_ptr<SemIOController> io_ctrl_;  ///< ADIOS2 controller used for snapshots and receivers.
 
-  // --- ASYNC I/O ---
-  std::vector<std::future<void>> snapshot_futures_;  ///< Tracks background async I/O threads.
+  // Asynchronous I/O.
+  std::vector<std::future<void>> snapshot_futures_;  ///< Pending background snapshot writes.
+
   /**
-   * @brief Blocks the main thread until all pending async I/O tasks complete.
+   * @brief Blocks until all pending snapshot writes are complete.
    */
   void WaitSnapshots();
 
-  // --- Physics & Meshing Flags ---
-  bool is_elastic_ = false;              ///< True if simulating elastic wave propagation.
-  bool is_acousto_elastic_ = false;      ///< True if simulating coupled acousto-elastic wave propagation.
-  bool free_surface_ = false;            ///< True if the top boundary acts as a free surface.
-  bool is_dg_ = false;                   ///< True if using Discontinuous Galerkin method.
-  bool is_dg_sem_ = false;               ///< True if using Discontinuous Galerkin - Spectral Element method coupling.
-  bool is_dg_padaptive_ = false;         ///< True if using the p-adaptive Discontinuous Galerkin method.
-  float dg_sem_iface_z_ = 1000.f;        ///< Z coordinate of the DG-SEM interface.
-  float dg_padaptive_iface_z_ = 1000.f;  ///< Z coordinate of the DG p-adaptive pMin/pMax interface.
-  int order_min_ = 0;                    ///< Lower polynomial order for the DG p-adaptive method.
+  // Physics and method selection.
+  bool is_elastic_ = false;              ///< True for elastic propagation.
+  bool is_acousto_elastic_ = false;      ///< True for coupled acousto-elastic propagation.
+  bool free_surface_ = false;            ///< True if the top boundary is a free surface.
+  bool is_dg_ = false;                   ///< True if the DG method is used.
+  bool is_dg_sem_ = false;               ///< True if DG is coupled with SEM.
+  bool is_dg_padaptive_ = false;         ///< True if the p-adaptive DG method is used.
+  float dg_sem_iface_z_ = 1000.f;        ///< z coordinate of the DG-SEM interface.
+  float dg_padaptive_iface_z_ = 1000.f;  ///< z coordinate of the pMin/pMax interface of the p-adaptive DG method.
+  int order_min_ = 0;                    ///< Lower polynomial order of the p-adaptive DG method.
 
-  std::array<float, 3> sponge_size_ = {0, 0, 0};  ///< Thickness of absorbing boundaries (sponge layers).
-  bool surface_sponge_ = false;                   ///< True if the top surface has an absorbing boundary.
-  float taper_delta_ = 0.015f;                    ///< Tapering coefficient for the sponge boundaries.
+  std::array<float, 3> sponge_size_ = {0, 0, 0};  ///< Thickness of the sponge layers along x, y, z.
+  bool surface_sponge_ = false;  ///< See Solver::computeFEInit. @todo VERIFY: is the top surface absorbing when true?
+  float taper_delta_ = 0.015f;   ///< Taper coefficient of the sponge damping.
 
-  float dt_ = 0.0f;        ///< Time step size (seconds).
-  float time_max_ = 0.0f;  ///< Maximum simulation time (seconds).
-  int num_samples_ = 0;    ///< Total number of time steps to compute.
+  float dt_ = 0.0f;        ///< Time step in seconds.
+  float time_max_ = 0.0f;  ///< Simulated duration in seconds.
+  int num_samples_ = 0;    ///< Number of time steps.
 
-  const int num_rhs_ = 1;   ///< Number of Right-Hand Side source terms.
+  const int num_rhs_ = 1;   ///< Number of sources.
   int source_element_ = 0;  ///< Index of the element containing the source.
-  float t_peak_ = 0.0f;     ///< Time peak of the Ricker wavelet source.
-  float f0_ = 0.0f;         ///< Dominant frequency of the source in Hz.
-  int ricker_order_ = 0;    ///< Order of the Ricker wavelet.
+  float t_peak_ =
+      0.0f;  ///< Time of the peak of the source wavelet. @todo VERIFY: unit and reference (seconds from t = 0?).
+  float f0_ = 0.0f;       ///< Dominant frequency of the source in Hz.
+  int ricker_order_ = 0;  ///< Derivative order of the Ricker wavelet.
 
-  std::array<float, 3> src_coord_ = {0};  ///< Global coordinates of the source (X, Y, Z).
-  std::array<float, 3> rcv_coord_ = {0};  ///< Global coordinates of the receiver (X, Y, Z).
+  std::array<float, 3> src_coord_ = {0};  ///< Global coordinates (x, y, z) of the source.
+  std::array<float, 3> rcv_coord_ = {0};  ///< Global coordinates (x, y, z) of the receiver.
 
-  std::shared_ptr<model::ModelApi<float, int>> mesh_;         ///< Pointer to the finite element mesh API.
-  std::unique_ptr<solver::fe::Solver> solver_;                ///< Main numerical solver instance.
-  std::unique_ptr<solver::fe::BoundarySynchronizer> syncer_;  ///< Handles MPI boundary ghost-node synchronization.
-  SourceTimeFunction source_time_function_;                   ///< Source time function (Ricker wavelet).
+  std::shared_ptr<model::ModelApi<float, int>> mesh_;         ///< Mesh and model of the local subdomain.
+  std::unique_ptr<solver::fe::Solver> solver_;                ///< Solver advancing the fields.
+  std::unique_ptr<solver::fe::BoundarySynchronizer> syncer_;  ///< Exchanges boundary nodes between MPI ranks.
+  SourceTimeFunction source_time_function_;                   ///< Source wavelet.
 
-  // --- Acoustic / Shared Arrays (Device) ---
-  arrayReal rhs_term_;              ///< Source term array over time (Device).
-  arrayReal rhs_term_dg_;           ///< DG source term array over time (Device).
-  arrayReal rhs_term_sem_;          ///< SEM source term array over time (Device).
-  arrayReal rhs_term_pmin_;         ///< DG p-adaptive pMin-domain source term array over time (Device).
-  arrayReal rhs_term_pmax_;         ///< DG p-adaptive pMax-domain source term array over time (Device).
-  vectorReal pn_global_prev_;       ///< Pressure field at time t-1 (Device).
-  vectorReal pn_global_curr_;       ///< Pressure field at time t (Device).
-  arrayReal pn_dg_prev_;            ///< DG Pressure field at time t-1 (Device).
-  arrayReal pn_dg_curr_;            ///< DG Pressure field at time t (Device).
-  vectorReal pn_sem_prev_;          ///< SEM Pressure field at time t-1 (Device).
-  vectorReal pn_sem_curr_;          ///< SEM Pressure field at time t (Device).
-  arrayReal pn_pmin_dg_prev_;       ///< DG p-adaptive pMin Pressure field at time t-1 (Device).
-  arrayReal pn_pmin_dg_curr_;       ///< DG p-adaptive pMin Pressure field at time t (Device).
-  arrayReal pn_pmax_dg_prev_;       ///< DG p-adaptive pMax Pressure field at time t-1 (Device).
-  arrayReal pn_pmax_dg_curr_;       ///< DG p-adaptive pMax Pressure field at time t (Device).
-  vectorInt rhs_element_;           ///< Element indices containing sources (Device).
-  vectorInt rhs_element_rcv_;       ///< Element indices containing receivers (Device).
-  arrayReal rhs_weights_;           ///< Interpolation weights for sources (Device).
-  arrayReal rhs_weights_rcv_;       ///< Interpolation weights for receivers (Device).
-  arrayReal rhs_pmin_weights_;      ///< pMin-domain source interpolation weights (Device).
-  arrayReal rhs_pmax_weights_;      ///< pMax-domain source interpolation weights (Device).
-  arrayReal rhs_pmin_weights_rcv_;  ///< pMin-domain receiver interpolation weights (Device).
-  arrayReal rhs_pmax_weights_rcv_;  ///< pMax-domain receiver interpolation weights (Device).
-  arrayReal pn_at_receiver_;        ///< Recorded pressure traces at receivers (Device).
+  // Acoustic and shared arrays (device).
+  arrayReal rhs_term_;              ///< Source term over time.
+  arrayReal rhs_term_dg_;           ///< Source term over time, DG part.
+  arrayReal rhs_term_sem_;          ///< Source term over time, SEM part.
+  arrayReal rhs_term_pmin_;         ///< Source term over time, pMin domain.
+  arrayReal rhs_term_pmax_;         ///< Source term over time, pMax domain.
+  vectorReal pn_global_prev_;       ///< Pressure at time step n-1.
+  vectorReal pn_global_curr_;       ///< Pressure at time step n.
+  arrayReal pn_dg_prev_;            ///< DG pressure at time step n-1.
+  arrayReal pn_dg_curr_;            ///< DG pressure at time step n.
+  vectorReal pn_sem_prev_;          ///< SEM pressure at time step n-1.
+  vectorReal pn_sem_curr_;          ///< SEM pressure at time step n.
+  arrayReal pn_pmin_dg_prev_;       ///< pMin DG pressure at time step n-1.
+  arrayReal pn_pmin_dg_curr_;       ///< pMin DG pressure at time step n.
+  arrayReal pn_pmax_dg_prev_;       ///< pMax DG pressure at time step n-1.
+  arrayReal pn_pmax_dg_curr_;       ///< pMax DG pressure at time step n.
+  vectorInt rhs_element_;           ///< Elements containing the sources.
+  vectorInt rhs_element_rcv_;       ///< Elements containing the receivers.
+  arrayReal rhs_weights_;           ///< Interpolation weights of the sources.
+  arrayReal rhs_weights_rcv_;       ///< Interpolation weights of the receivers.
+  arrayReal rhs_pmin_weights_;      ///< Source interpolation weights, pMin domain.
+  arrayReal rhs_pmax_weights_;      ///< Source interpolation weights, pMax domain.
+  arrayReal rhs_pmin_weights_rcv_;  ///< Receiver interpolation weights, pMin domain.
+  arrayReal rhs_pmax_weights_rcv_;  ///< Receiver interpolation weights, pMax domain.
+  arrayReal pn_at_receiver_;        ///< Pressure traces recorded at the receivers.
 
-  // --- Elastic Arrays (Device) ---
-  arrayReal rhs_term_x_;        ///< X-component of the source term (Device).
-  arrayReal rhs_term_y_;        ///< Y-component of the source term (Device).
-  arrayReal rhs_term_z_;        ///< Z-component of the source term (Device).
-  vectorReal uxn_global_prev_;  ///< X-displacement at time t-1 (Device).
-  vectorReal uyn_global_prev_;  ///< Y-displacement at time t-1 (Device).
-  vectorReal uzn_global_prev_;  ///< Z-displacement at time t-1 (Device).
-  vectorReal uxn_global_curr_;  ///< X-displacement at time t (Device).
-  vectorReal uyn_global_curr_;  ///< Y-displacement at time t (Device).
-  vectorReal uzn_global_curr_;  ///< Z-displacement at time t (Device).
-  arrayReal uxn_at_receiver_;   ///< Recorded X-displacement traces at receivers (Device).
-  arrayReal uyn_at_receiver_;   ///< Recorded Y-displacement traces at receivers (Device).
-  arrayReal uzn_at_receiver_;   ///< Recorded Z-displacement traces at receivers (Device).
+  // Elastic arrays (device).
+  arrayReal rhs_term_x_;        ///< X component of the source term.
+  arrayReal rhs_term_y_;        ///< Y component of the source term.
+  arrayReal rhs_term_z_;        ///< Z component of the source term.
+  vectorReal uxn_global_prev_;  ///< X displacement at time step n-1.
+  vectorReal uyn_global_prev_;  ///< Y displacement at time step n-1.
+  vectorReal uzn_global_prev_;  ///< Z displacement at time step n-1.
+  vectorReal uxn_global_curr_;  ///< X displacement at time step n.
+  vectorReal uyn_global_curr_;  ///< Y displacement at time step n.
+  vectorReal uzn_global_curr_;  ///< Z displacement at time step n.
+  arrayReal uxn_at_receiver_;   ///< X displacement traces recorded at the receivers.
+  arrayReal uyn_at_receiver_;   ///< Y displacement traces recorded at the receivers.
+  arrayReal uzn_at_receiver_;   ///< Z displacement traces recorded at the receivers.
 
-  // --- DAS Receiver Data ---
-  SourceAndReceiverUtils::DASType das_type_ = SourceAndReceiverUtils::DASType::kNone;  ///< Type of DAS receiver.
+  // DAS receiver.
+  SourceAndReceiverUtils::DASType das_type_ = SourceAndReceiverUtils::DASType::kNone;  ///< DAS receiver type.
   int das_num_samples_ = 5;                         ///< Number of integration samples along the fiber.
-  float das_gauge_length_ = 1.0f;                   ///< Gauge length for the DAS fiber in meters.
-  std::array<float, 3> das_direction_ = {1, 0, 0};  ///< Fiber direction unit vector.
-  std::array<float, 3> das_vector_ = {1, 0, 0};     ///< Scaled fiber direction vector.
-  std::vector<int> das_node_ids_;                   ///< Node IDs involved in DAS integration.
-  std::vector<float> das_weights_;                  ///< Weights for DAS integration points.
-  vectorReal das_signal_;                           ///< Output DAS signal trace over time (Device).
+  float das_gauge_length_ = 1.0f;                   ///< Gauge length of the fiber in meters.
+  std::array<float, 3> das_direction_ = {1, 0, 0};  ///< Unit vector along the fiber.
+  std::array<float, 3> das_vector_ = {
+      1, 0, 0};                     ///< Fiber direction scaled by a length. @todo VERIFY: which length (gauge length?).
+  std::vector<int> das_node_ids_;   ///< Global node indices used by the DAS integration.
+  std::vector<float> das_weights_;  ///< Weights of the DAS integration points.
+  vectorReal das_signal_;           ///< DAS signal over time (device).
 
-  // --- HOST MIRRORS (Used to avoid UVM overhead when CPU needs data) ---
-  vectorInt::host_mirror_type h_rhs_element_;           ///< CPU mirror for source elements.
-  vectorInt::host_mirror_type h_rhs_element_rcv_;       ///< CPU mirror for receiver elements.
-  arrayReal::host_mirror_type h_rhs_weights_;           ///< CPU mirror for source interpolation weights.
-  arrayReal::host_mirror_type h_rhs_weights_rcv_;       ///< CPU mirror for receiver interpolation weights.
-  arrayReal::host_mirror_type h_rhs_term_;              ///< CPU mirror for acoustic source term.
-  arrayReal::host_mirror_type h_rhs_term_dg_;           ///< CPU mirror for DG-SEM DG source term.
-  arrayReal::host_mirror_type h_rhs_term_sem_;          ///< CPU mirror for DG-SEM SEM source term.
-  arrayReal::host_mirror_type h_rhs_term_pmin_;         ///< CPU mirror for DG p-adaptive pMin source term.
-  arrayReal::host_mirror_type h_rhs_term_pmax_;         ///< CPU mirror for DG p-adaptive pMax source term.
-  arrayReal::host_mirror_type h_rhs_pmin_weights_;      ///< CPU mirror for pMin source interpolation weights.
-  arrayReal::host_mirror_type h_rhs_pmax_weights_;      ///< CPU mirror for pMax source interpolation weights.
-  arrayReal::host_mirror_type h_rhs_pmin_weights_rcv_;  ///< CPU mirror for pMin receiver interpolation weights.
-  arrayReal::host_mirror_type h_rhs_pmax_weights_rcv_;  ///< CPU mirror for pMax receiver interpolation weights.
-  arrayReal::host_mirror_type h_rhs_term_x_;            ///< CPU mirror for elastic X source term.
-  arrayReal::host_mirror_type h_rhs_term_y_;            ///< CPU mirror for elastic Y source term.
-  arrayReal::host_mirror_type h_rhs_term_z_;            ///< CPU mirror for elastic Z source term.
+  // Host mirrors of the device arrays above, used when the CPU reads or writes data.
+  vectorInt::host_mirror_type h_rhs_element_;           ///< Mirror of rhs_element_.
+  vectorInt::host_mirror_type h_rhs_element_rcv_;       ///< Mirror of rhs_element_rcv_.
+  arrayReal::host_mirror_type h_rhs_weights_;           ///< Mirror of rhs_weights_.
+  arrayReal::host_mirror_type h_rhs_weights_rcv_;       ///< Mirror of rhs_weights_rcv_.
+  arrayReal::host_mirror_type h_rhs_term_;              ///< Mirror of rhs_term_.
+  arrayReal::host_mirror_type h_rhs_term_dg_;           ///< Mirror of rhs_term_dg_.
+  arrayReal::host_mirror_type h_rhs_term_sem_;          ///< Mirror of rhs_term_sem_.
+  arrayReal::host_mirror_type h_rhs_term_pmin_;         ///< Mirror of rhs_term_pmin_.
+  arrayReal::host_mirror_type h_rhs_term_pmax_;         ///< Mirror of rhs_term_pmax_.
+  arrayReal::host_mirror_type h_rhs_pmin_weights_;      ///< Mirror of rhs_pmin_weights_.
+  arrayReal::host_mirror_type h_rhs_pmax_weights_;      ///< Mirror of rhs_pmax_weights_.
+  arrayReal::host_mirror_type h_rhs_pmin_weights_rcv_;  ///< Mirror of rhs_pmin_weights_rcv_.
+  arrayReal::host_mirror_type h_rhs_pmax_weights_rcv_;  ///< Mirror of rhs_pmax_weights_rcv_.
+  arrayReal::host_mirror_type h_rhs_term_x_;            ///< Mirror of rhs_term_x_.
+  arrayReal::host_mirror_type h_rhs_term_y_;            ///< Mirror of rhs_term_y_.
+  arrayReal::host_mirror_type h_rhs_term_z_;            ///< Mirror of rhs_term_z_.
 
-  arrayReal::host_mirror_type h_pn_at_receiver_;   ///< CPU mirror for acoustic receiver traces.
-  arrayReal::host_mirror_type h_uxn_at_receiver_;  ///< CPU mirror for elastic X receiver traces.
-  arrayReal::host_mirror_type h_uyn_at_receiver_;  ///< CPU mirror for elastic Y receiver traces.
-  arrayReal::host_mirror_type h_uzn_at_receiver_;  ///< CPU mirror for elastic Z receiver traces.
-  vectorReal::host_mirror_type h_das_signal_;      ///< CPU mirror for DAS signal trace.
+  arrayReal::host_mirror_type h_pn_at_receiver_;   ///< Mirror of pn_at_receiver_.
+  arrayReal::host_mirror_type h_uxn_at_receiver_;  ///< Mirror of uxn_at_receiver_.
+  arrayReal::host_mirror_type h_uyn_at_receiver_;  ///< Mirror of uyn_at_receiver_.
+  arrayReal::host_mirror_type h_uzn_at_receiver_;  ///< Mirror of uzn_at_receiver_.
+  vectorReal::host_mirror_type h_das_signal_;      ///< Mirror of das_signal_.
 
-  vectorReal::host_mirror_type h_pn_global_curr_;   ///< CPU mirror for current pressure field.
-  vectorReal::host_mirror_type h_pn_global_prev_;   ///< CPU mirror for previous pressure field.
-  vectorReal::host_mirror_type h_pn_sem_curr_;      ///< CPU mirror for SEM current pressure field.
-  vectorReal::host_mirror_type h_pn_sem_prev_;      ///< CPU mirror for SEM previous pressure field.
-  arrayReal::host_mirror_type h_pn_dg_curr_;        ///< CPU mirror for DG current pressure field.
-  arrayReal::host_mirror_type h_pn_dg_prev_;        ///< CPU mirror for DG previous pressure field.
-  arrayReal::host_mirror_type h_pn_pmin_dg_curr_;   ///< CPU mirror for DG p-adaptive pMin current pressure field.
-  arrayReal::host_mirror_type h_pn_pmin_dg_prev_;   ///< CPU mirror for DG p-adaptive pMin previous pressure field.
-  arrayReal::host_mirror_type h_pn_pmax_dg_curr_;   ///< CPU mirror for DG p-adaptive pMax current pressure field.
-  arrayReal::host_mirror_type h_pn_pmax_dg_prev_;   ///< CPU mirror for DG p-adaptive pMax previous pressure field.
-  vectorReal::host_mirror_type h_uxn_global_curr_;  ///< CPU mirror for current X-displacement.
-  vectorReal::host_mirror_type h_uyn_global_curr_;  ///< CPU mirror for current Y-displacement.
-  vectorReal::host_mirror_type h_uzn_global_curr_;  ///< CPU mirror for current Z-displacement.
-  vectorReal::host_mirror_type h_uxn_global_prev_;  ///< CPU mirror for previous X-displacement.
-  vectorReal::host_mirror_type h_uyn_global_prev_;  ///< CPU mirror for previous Y-displacement.
-  vectorReal::host_mirror_type h_uzn_global_prev_;  ///< CPU mirror for previous Z-displacement.
+  vectorReal::host_mirror_type h_pn_global_curr_;   ///< Mirror of pn_global_curr_.
+  vectorReal::host_mirror_type h_pn_global_prev_;   ///< Mirror of pn_global_prev_.
+  vectorReal::host_mirror_type h_pn_sem_curr_;      ///< Mirror of pn_sem_curr_.
+  vectorReal::host_mirror_type h_pn_sem_prev_;      ///< Mirror of pn_sem_prev_.
+  arrayReal::host_mirror_type h_pn_dg_curr_;        ///< Mirror of pn_dg_curr_.
+  arrayReal::host_mirror_type h_pn_dg_prev_;        ///< Mirror of pn_dg_prev_.
+  arrayReal::host_mirror_type h_pn_pmin_dg_curr_;   ///< Mirror of pn_pmin_dg_curr_.
+  arrayReal::host_mirror_type h_pn_pmin_dg_prev_;   ///< Mirror of pn_pmin_dg_prev_.
+  arrayReal::host_mirror_type h_pn_pmax_dg_curr_;   ///< Mirror of pn_pmax_dg_curr_.
+  arrayReal::host_mirror_type h_pn_pmax_dg_prev_;   ///< Mirror of pn_pmax_dg_prev_.
+  vectorReal::host_mirror_type h_uxn_global_curr_;  ///< Mirror of uxn_global_curr_.
+  vectorReal::host_mirror_type h_uyn_global_curr_;  ///< Mirror of uyn_global_curr_.
+  vectorReal::host_mirror_type h_uzn_global_curr_;  ///< Mirror of uzn_global_curr_.
+  vectorReal::host_mirror_type h_uxn_global_prev_;  ///< Mirror of uxn_global_prev_.
+  vectorReal::host_mirror_type h_uyn_global_prev_;  ///< Mirror of uyn_global_prev_.
+  vectorReal::host_mirror_type h_uzn_global_prev_;  ///< Mirror of uzn_global_prev_.
 
-  // --- Performance Tracking ---
-  double time_init_ = 0.0;     ///< Total initialization time in seconds.
-  double time_compute_ = 0.0;  ///< Total solver execution time in seconds.
-  double time_io_ = 0.0;       ///< Total I/O operations time in seconds.
+  // Timing.
+  double time_init_ = 0.0;     ///< Initialization time in seconds.
+  double time_compute_ = 0.0;  ///< Solver time in seconds.
+  double time_io_ = 0.0;       ///< I/O time in seconds.
 
-  // --- Initialization Helpers ---
+  // Initialization steps.
   void InitSource();
   void InitArrays();
   void InitMpi(int* mpi_init);
@@ -255,7 +261,7 @@ class SEMproxy {
   void DisplayInitMsg(const SemProxyOptions& opt);
   void DisplayPerfMsg() const;
 
-  // --- Options Translators ---
+  // Conversion of option strings to enums.
   int GetPhysic(std::string physic_arg);
   utils::enums::implemType GetImplem(std::string implem_arg);
   utils::enums::methodType GetMethod(std::string method_arg);

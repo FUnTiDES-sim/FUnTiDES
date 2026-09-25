@@ -25,11 +25,26 @@ namespace py = pybind11;
 
 namespace gradient {
 
+/**
+ * @brief Registers the abstract differentiator data holder as `DataStruct`.
+ * @param[in,out] m Python module receiving the class.
+ *
+ * Only `print` is exposed; instances are built through the physics-specific
+ * data classes.
+ */
 void bind_data_struct(py::module_& m) {
   py::class_<Differentiator::DataStruct, std::shared_ptr<Differentiator::DataStruct>>(m, "DataStruct")
       .def("print", &Differentiator::DataStruct::print);
 }
 
+/**
+ * @brief Registers the acoustic differentiator data as `GradientDataAcoustic`.
+ * @param[in,out] m Python module receiving the class.
+ *
+ * The Python constructor takes the forward view `fwd`, the backward view `bwd`
+ * and the output `gradient`. Its base class `DataStruct` must be registered
+ * first (see bind_data_struct()).
+ */
 void bind_gradient_data_acoustic(py::module_& m) {
   py::class_<GradientDataAcoustic, Differentiator::DataStruct, std::shared_ptr<GradientDataAcoustic>>(
       m, "GradientDataAcoustic")
@@ -39,6 +54,14 @@ void bind_gradient_data_acoustic(py::module_& m) {
       .def("print", &GradientDataAcoustic::print);
 }
 
+/**
+ * @brief Registers the elastic differentiator data as `GradientDataElastic`.
+ * @param[in,out] m Python module receiving the class.
+ *
+ * The Python constructor takes the forward view `fwd`, the backward view `bwd`
+ * and the output `gradient`. Its base class `DataStruct` must be registered
+ * first (see bind_data_struct()).
+ */
 void bind_gradient_data_elastic(py::module_& m) {
   py::class_<GradientDataElastic, Differentiator::DataStruct, std::shared_ptr<GradientDataElastic>>(
       m, "GradientDataElastic")
@@ -47,6 +70,15 @@ void bind_gradient_data_elastic(py::module_& m) {
       .def("print", &GradientDataElastic::print);
 }
 
+/**
+ * @brief Registers the `Differentiator` interface.
+ * @param[in,out] m Python module receiving the class.
+ *
+ * Exposes `compute`, `init_geometric_mass_matrix`, `get_geometric_mass_matrix`
+ * and `print`. `get_geometric_mass_matrix` returns a Python view of the
+ * differentiator's Kokkos array, tied to the lifetime of the differentiator
+ * (reference_internal), not a copy. `DataStruct` must be registered first.
+ */
 void bind_differentiator_base(py::module_& m) {
   py::class_<Differentiator, std::shared_ptr<Differentiator>>(m, "Differentiator")
       .def("compute", &Differentiator::compute, py::arg("mesh"), py::arg("data"), py::arg("dt"))
@@ -60,6 +92,15 @@ void bind_differentiator_base(py::module_& m) {
       .def("print", &Differentiator::print);
 }
 
+/**
+ * @brief Registers the free function `create_differentiator`.
+ * @param[in,out] m Python module receiving the function.
+ *
+ * Python arguments `implem_type`, `mesh_type`, `model_location`,
+ * `physic_type` and `order` are forwarded to createDifferentiator(); the result
+ * is returned as a shared `Differentiator`. The enum types must be registered
+ * in the module beforehand.
+ */
 void bind_differentiator_factory(py::module_& m) {
   m.def(
       "create_differentiator",

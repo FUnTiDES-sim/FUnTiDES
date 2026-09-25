@@ -4,14 +4,17 @@
 namespace solver {
 namespace fe {
 
-/// Selects a discretization back-end at compile time.
-///
-/// Mirrors the PhysicsTraits<PHYSICS> pattern: a small enum drives a traits map
-/// (DiscretizationTraits, see Integrals.h) instead of threading a bare type
-/// template parameter through the whole solver. Zero runtime cost.
+/**
+ * @brief Compile-time selector of the discretization back-end.
+ *
+ * Used as the key of DiscretizationTraits (Integrals.h), which maps a
+ * (polynomial order, kind) pair to the concrete discretization type.
+ * @note The solvers do not use it yet; they still select the back-end through
+ * IntegralTypeSelector (see docs/design-red-flags.md).
+ */
 enum class DiscretizationKind {
-  kMakutu,        ///< Qk_Hexahedron_Lagrange_GaussLobatto  (flat sum-factorization)
-  kTensorialGemm  ///< Qk_Hexahedron_Tensorial_GEMM         (team / GEMM)
+  kMakutu,        ///< Qk_Hexahedron_Lagrange_GaussLobatto: flat sum-factorization kernels.
+  kTensorialGemm  ///< Qk_Hexahedron_Tensorial_GEMM: team-level GEMM kernels.
 };
 
 }  // namespace fe

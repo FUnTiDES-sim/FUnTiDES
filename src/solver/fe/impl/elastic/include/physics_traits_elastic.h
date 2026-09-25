@@ -8,17 +8,19 @@ namespace solver {
 namespace fe {
 
 /**
- * @brief Specialization for elastic physics.
+ * @brief Elastic specialization of PhysicsTraits.
  *
- * Elastic wave propagation uses three displacement components (ux, uy, uz).
+ * Associates the elastic wavefield and source types (three displacement
+ * components: ux, uy, uz) with the elastic physics tag.
  */
 template <>
 struct PhysicsTraits<utils::enums::physicType::kElastic> {
-  /// Human-readable name for logging
+  /// Human-readable name for logging.
   static constexpr const char* kName = "Elastic";
 
-  /// Concrete types for device access
+  /// Wavefield type holding the elastic fields.
   using WavefieldType = WavefieldElastic;
+  /// Source term type for elastic physics.
   using RhsType = RhsElastic;
 };
 

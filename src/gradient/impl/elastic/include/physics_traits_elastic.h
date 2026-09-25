@@ -8,12 +8,16 @@
 
 namespace gradient {
 
+/**
+ * @brief Type bundle of the elastic physics: forward and backward wavefield
+ * views and gradient container.
+ */
 template <>
 struct PhysicsTraits<utils::enums::physicType::kElastic> {
-  static constexpr const char* kName = "Elastic";
-  using WavefieldViewForwardType = WavefieldViewForwardElastic;
-  using WavefieldViewBackwardType = WavefieldViewBackwardElastic;
-  using GradientType = GradientElastic;
+  static constexpr const char* kName = "Elastic";                  ///< Human-readable physics name.
+  using WavefieldViewForwardType = WavefieldViewForwardElastic;    ///< Forward wavefield view.
+  using WavefieldViewBackwardType = WavefieldViewBackwardElastic;  ///< Backward wavefield view.
+  using GradientType = GradientElastic;                            ///< Gradient container.
 };
 
 }  // namespace gradient

@@ -11,57 +11,49 @@
 namespace gradient {
 
 /**
- * @brief Elastic gradient computation for independent use.
+ * @brief Elastic model gradients (rho, lambda, mu) from forward and adjoint displacement wavefields.
  *
- * Computes model parameter gradients (grad_rho, grad_lambda, grad_mu) from
- * elastic forward and adjoint displacement wavefields. Completely independent
- * from the Solver.
+ * Runs independently of the Solver. For isotropic media the three sensitivities are
+ * (u = forward displacement, u* = adjoint displacement, u_dd* = adjoint second time derivative):
  *
- * The elastic gradient for isotropic media computes three sensitivities:
+ *   grad_rho    = - sum_t sum_e integral u_dd* . u dOmega
+ *   grad_lambda = - sum_t sum_e integral div(u*) div(u) dOmega
+ *   grad_mu     = - sum_t sum_e integral 2 eps(u*) : eps(u) dOmega
  *
- *   grad_rho    = - sum_t sum_e integral u_double_dot*  dot  u  dOmega
- *                 (density kernel via mass term with second time derivative)
+ * For TTI media the strain interaction uses the full 6x6 Voigt elasticity tensor.
+ * The model can be discretized on nodes or on elements (see IS_MODEL_ON_NODES).
  *
- *   grad_lambda = - sum_t sum_e integral div(u*)  dot  div(u)  dOmega
- *                 (volumetric / P-wave kernel via divergence interaction)
- *
- *   grad_mu     = - sum_t sum_e integral 2 epsilon(u*) : epsilon(u)  dOmega
- *                 (shear / S-wave kernel via strain tensor interaction)
- *
- * For TTI (tilted transverse isotropy), the stiffness kernel uses the full
- * 6x6 Voigt elasticity tensor C_ij to compute the interaction between
- * adjoint and forward strain fields.
- *
- * Features:
- * - Supports both node-based and element-based model discretization
- * - Uses standard SEM assembly with mass and stiffness matrices
- * - Supports isotropic and TTI anisotropy via computeStiffNessTermwithJac
- *
- * Template Parameters:
- *   ORDER                 - Polynomial order (1, 2, 3, ...)
- *   INTEGRAL_TYPE         - Integration kernel (e.g., makutu)
- *   MESH_TYPE             - Mesh topology (e.g., Cartesian)
- *   IS_MODEL_ON_NODES     - Model discretization (true=nodes, false=elements)
+ * @tparam ORDER              Polynomial order of the spectral elements.
+ * @tparam INTEGRAL_TYPE      Integration kernel class providing the element integrals.
+ * @tparam MESH_TYPE          Mesh/model type traversed by the kernels.
+ * @tparam IS_MODEL_ON_NODES  true if the model parameters and gradients live on nodes,
+ *                            false if they live on elements.
  */
 template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE, bool IS_MODEL_ON_NODES>
 class DifferentiatorElastic : public Differentiator {
  public:
-  static constexpr int kOrder = ORDER;
-  static constexpr bool kIsModelOnNodes = IS_MODEL_ON_NODES;
-  static constexpr int kPointsPerElement = (ORDER + 1) * (ORDER + 1) * (ORDER + 1);
+  static constexpr int kOrder = ORDER;                        ///< Polynomial order.
+  static constexpr bool kIsModelOnNodes = IS_MODEL_ON_NODES;  ///< Model on nodes (true) or elements (false).
+  static constexpr int kPointsPerElement = (ORDER + 1) * (ORDER + 1) * (ORDER + 1);  ///< Nodes per hexahedron.
 
   ~DifferentiatorElastic() override = default;
 
   /**
-   * @brief Compute elastic gradients (Rho, Lambda, Mu).
+   * @brief Compute the elastic gradients (rho, lambda, mu) from the wavefield data.
+   *
+   * @param[in,out] mesh  Mesh and model.
+   * @param[in,out] data  Forward and adjoint wavefield views and output gradients.
+   * @param[in] dt        Time step.
    */
   void compute(model::ModelApi<float, int>& mesh, DataStruct& data, float dt) const override;
 
   /**
-   * @brief Get the geometric mass matrix for normalization in FWI.
+   * @brief Geometric mass matrix used to normalize gradients in FWI.
    *
-   * Returns the geometric nodal volumes Omega_I = sum_{einI} w_I^e |J_I^e|
-   * computed without model factors. Used for FWI preconditioning.
+   * Nodal volumes Omega_I = sum over elements e containing I of w_I^e |J_I^e|, without model factors.
+   *
+   * @return Reference to the vector, size number of global nodes.
+   *         @todo VERIFY: is it filled only after initGeometricMassMatrix()?
    */
   vectorReal& getGeometricMassMatrix() override;
 
@@ -70,23 +62,31 @@ class DifferentiatorElastic : public Differentiator {
   void print() const override;
 
   /**
-   * @brief Compute displacement gradients at a quadrature point given J^{-1}.
+   * @brief Displacement gradient at a quadrature point of one element.
    *
-   * Computes grad[component][spatial] = ∂u_component/∂x_spatial
-   * using the tensor-product basis and the inverse Jacobian.
+   * Computes grad[component][spatial] = d u_component / d x_spatial.
    *
-   * @param qa,qb,qc  Quadrature indices in each reference direction
-   * @param J          Inverse Jacobian matrix J^{-1}[ref_dir][phys_dir]
-   * @param localU     Array of displacement values indexed by local node
-   * @param grad       Output: gradient tensor grad[3] (spatial derivatives)
+   * @param[in] qa,qb,qc  Quadrature indices in each reference direction.
+   * @param[in] J         Inverse Jacobian J^{-1}[ref_dir][phys_dir].
+   * @param[in] localUx,localUy,localUz  x, y and z displacement components of the element,
+   *            each indexed by local node.
+   * @param[out] grad     Gradient tensor grad[component][spatial].
    */
   KOKKOS_INLINE_FUNCTION
   static void computeDisplacementGradient(int qa, int qb, int qc, float const (&J)[3][3], float const* localUx,
                                           float const* localUy, float const* localUz, float (&grad)[3][3]);
 
   /**
-   * @brief Element-based model: each element writes to a unique index — no
-   * atomic add required.
+   * @brief Gradient kernel for a model discretized on elements.
+   *
+   * @param[in] mesh  Mesh and model.
+   * @param[in] dt    Time step.
+   * @param[in] ux_fwd,uy_fwd,uz_fwd  Forward displacement components.
+   * @param[in] ux_adj,uy_adj,uz_adj  Adjoint displacement components.
+   * @param[in] ux_dt2,uy_dt2,uz_dt2  @todo VERIFY: second time derivative of the adjoint
+   *            displacement, precomputed by the caller?
+   * @param[out] gradRho,gradLambda,gradMu  Gradients, one value per element.
+   *            @todo VERIFY: accumulated into or overwritten?
    */
   void computeOnElements(MESH_TYPE mesh, float dt, vectorReal const ux_fwd, vectorReal const uy_fwd,
                          vectorReal const uz_fwd, vectorReal const ux_adj, vectorReal const uy_adj,
@@ -95,8 +95,10 @@ class DifferentiatorElastic : public Differentiator {
                          vectorReal const gradMu) const;
 
   /**
-   * @brief Node-based model: multiple elements share boundary nodes — ATOMICADD
-   * required.
+   * @brief Gradient kernel for a model discretized on nodes.
+   *
+   * Contributions of elements sharing a node are summed with atomic adds.
+   * Parameters are the same as computeOnElements(); the gradients have one value per node.
    */
   void computeOnNodes(MESH_TYPE mesh, float dt, vectorReal const ux_fwd, vectorReal const uy_fwd,
                       vectorReal const uz_fwd, vectorReal const ux_adj, vectorReal const uy_adj,
@@ -105,25 +107,22 @@ class DifferentiatorElastic : public Differentiator {
                       vectorReal const gradMu) const;
 
   /**
-   * @brief Initialize the geometric mass matrix (nodal volumes without model factors).
+   * @brief Build the geometric mass matrix (nodal volumes without model factors).
    *
-   * Must be called once before compute(). Exposed via getGeometricMassMatrix()
-   * for FWI preconditioning.
+   * The result is read through getGeometricMassMatrix().
    *
-   * @param mesh The computational mesh.
-   * @note Public to accommodate CUDA device lambda requirements in Kokkos.
+   * @param[in,out] mesh  Mesh and model.
+   * @note Public because Kokkos CUDA device lambdas cannot be defined in private members.
    */
   void initGeometricMassMatrix(model::ModelApi<float, int>& mesh) override;
 
  private:
-  vectorReal geometricMassMatrix_;
+  vectorReal geometricMassMatrix_;  ///< Nodal volumes, see getGeometricMassMatrix().
 };
 
 }  // namespace gradient
 
-// ============================================================================
-// EXTERN TEMPLATES (avoid template bloat)
-// ============================================================================
+// Explicit instantiations are compiled elsewhere; these declarations avoid re-instantiation.
 #include "Integrals.h"
 #include "model_struct.h"
 #include "model_unstruct.h"

@@ -14,6 +14,14 @@ namespace py = pybind11;
 namespace solver {
 namespace fe {
 
+/**
+ * @brief Registers DGWavefieldAcoustic in a Python module.
+ *
+ * Exposes the constructor from the previous and current pressure arrays, swap(),
+ * get_current_field(i), get_previous_field(i) and print().
+ *
+ * @param[in,out] m Python module that receives the class.
+ */
 void bind_dg_wavefield_acoustic(py::module_ &m) {
   py::class_<DGWavefieldAcoustic, std::shared_ptr<DGWavefieldAcoustic>>(m, "DGWavefieldAcoustic")
       .def(py::init<Kokkos::Experimental::python_view_type_t<arrayReal>,

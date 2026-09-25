@@ -21,6 +21,10 @@ namespace py = pybind11;
 
 namespace model {
 
+/**
+ * @brief Binds the AnisotropyType enum to Python and exports its values to the module scope.
+ * @param[in,out] m Python module receiving the enum.
+ */
 inline void bind_anisotropy_type(py::module_ &m) {
   py::enum_<model::AnisotropyType>(m, "AnisotropyType")
       .value("ISO", model::AnisotropyType::kIso)
@@ -30,7 +34,9 @@ inline void bind_anisotropy_type(py::module_ &m) {
 }
 
 /**
- * @brief Bind the BoundaryFlag enum (node classification for boundaries_t)
+ * @brief Binds the BoundaryFlag enum (node classification stored in boundaries_t) to Python
+ *        and exports its values to the module scope.
+ * @param[in,out] m Python module receiving the enum.
  */
 inline void bind_boundary_flag(py::module_ &m) {
   py::enum_<model::BoundaryFlag>(m, "BoundaryFlag")
@@ -42,7 +48,13 @@ inline void bind_boundary_flag(py::module_ &m) {
       .export_values();
 }
 
-// template binder for ModelAPI
+/**
+ * @brief Binds the ModelApi interface to Python with snake_case method names.
+ * @tparam FloatType Floating-point type of the model.
+ * @tparam ScalarType Integer type of the model indices.
+ * @param[in,out] m Python module receiving the class.
+ * @see model_class_name for the name given to the Python class.
+ */
 template <typename FloatType, typename ScalarType>
 void bind_modelapi(py::module_ &m) {
   using T = model::ModelApi<FloatType, ScalarType>;
@@ -90,7 +102,14 @@ void bind_modelapi(py::module_ &m) {
       .def("is_free_surface", &T::isFreeSurface);
 }
 
-// templated binder for one ModelStruct instantiation
+/**
+ * @brief Binds one ModelStruct instantiation to Python, constructible from a ModelStructData.
+ * @tparam FloatType Floating-point type of the model.
+ * @tparam ScalarType Integer type of the model indices.
+ * @tparam Order Polynomial order of the elements.
+ * @param[in,out] m Python module receiving the class.
+ * @pre The ModelApi base class for the same template arguments is already registered.
+ */
 template <typename FloatType, typename ScalarType, int Order>
 void bind_modelstruct(py::module_ &m) {
   using Base = model::ModelApi<FloatType, ScalarType>;
@@ -102,7 +121,13 @@ void bind_modelstruct(py::module_ &m) {
   py::class_<T, Base, std::shared_ptr<T>>(m, name.c_str()).def(py::init<const Data &>());
 }
 
-// templated binder for ModelStructData
+/**
+ * @brief Binds ModelStructData to Python. Only the element counts (ex, ey, ez) and the
+ *        dx, dy, dz members are exposed as read-write attributes.
+ * @tparam FloatType Floating-point type of the model.
+ * @tparam ScalarType Integer type of the model indices.
+ * @param[in,out] m Python module receiving the class.
+ */
 template <typename FloatType, typename ScalarType>
 void bind_modelstructdata(py::module_ &m) {
   using Data = model::ModelStructData<FloatType, ScalarType>;
@@ -118,7 +143,14 @@ void bind_modelstructdata(py::module_ &m) {
       .def_readwrite("dz", &Data::dz_);
 }
 
-// templated binder for ModelUnstruct
+/**
+ * @brief Binds one ModelUnstruct instantiation to Python, constructible from a
+ *        ModelUnstructData.
+ * @tparam FloatType Floating-point type of the model.
+ * @tparam ScalarType Integer type of the model indices.
+ * @param[in,out] m Python module receiving the class.
+ * @pre The ModelApi base class for the same template arguments is already registered.
+ */
 template <typename FloatType, typename ScalarType>
 void bind_modelunstruct(py::module_ &m) {
   using Base = model::ModelApi<FloatType, ScalarType>;
@@ -130,7 +162,17 @@ void bind_modelunstruct(py::module_ &m) {
   py::class_<T, Base, std::shared_ptr<T>>(m, name.c_str()).def(py::init<const Data &>());
 }
 
-// template binder for ModelUnstructData
+/**
+ * @brief Binds ModelUnstructData to Python.
+ *
+ * The constructor takes the model scalars followed by the node and element property
+ * arrays as Python views, in the order given by its keyword arguments. The face
+ * connectivity is not a constructor argument and is set through the read-write attribute
+ * `face_connectivity`.
+ * @tparam FloatType Floating-point type of the model.
+ * @tparam ScalarType Integer type of the model indices.
+ * @param[in,out] m Python module receiving the class.
+ */
 template <typename FloatType, typename ScalarType>
 void bind_modelunstructdata(py::module_ &m) {
   using Data = model::ModelUnstructData<FloatType, ScalarType>;
@@ -138,7 +180,6 @@ void bind_modelunstructdata(py::module_ &m) {
   std::string name = model_class_name<FloatType, ScalarType>("ModelUnstructData");
 
   py::class_<Data>(m, name.c_str())
-      // Constructeur existant INCHANGÉ (sans face_connectivity)
       .def(py::init<ScalarType, ScalarType, ScalarType, FloatType, FloatType, FloatType, bool, bool,
                     Kokkos::Experimental::python_view_type_t<arrayInt>,
                     Kokkos::Experimental::python_view_type_t<vectorReal>,

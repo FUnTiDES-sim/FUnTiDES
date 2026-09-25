@@ -5,10 +5,19 @@
 namespace utils {
 namespace enums {
 
+/// @brief Discretization method used by the solver.
 enum class methodType { kSem, kDg, kDgSem, kDgPAdaptive };
+
+/// @brief Runtime selector of the finite-element back-end.
 enum class implemType { kMakutu };
+
+/// @brief Kind of mesh: structured or unstructured.
 enum class meshType { kStruct, kUnstruct };
+
+/// @brief Where the model properties are stored.
 enum class modelLocationType { kOnNodes, kOnElements };
+
+/// @brief Physics solved by the simulation.
 enum class physicType : int { kAcoustic, kElastic, kAcoustoElastic };
 
 /// @brief How the mesh builder assigned material properties to the nodes that
@@ -21,6 +30,7 @@ enum class interfacePropertyConvention {
   kSharedOnInterfaceNodes
 };
 
+/// @brief Human-readable name of a method type ("Unknown" if out of range).
 inline std::string to_string(methodType m) {
   switch (m) {
     case methodType::kSem:
@@ -36,6 +46,7 @@ inline std::string to_string(methodType m) {
   }
 }
 
+/// @brief Human-readable name of an implementation type ("Unknown" if out of range).
 inline std::string to_string(implemType i) {
   switch (i) {
     case implemType::kMakutu:
@@ -45,6 +56,7 @@ inline std::string to_string(implemType i) {
   }
 }
 
+/// @brief Human-readable name of a mesh type ("Unknown" if out of range).
 inline std::string to_string(meshType m) {
   switch (m) {
     case meshType::kStruct:
@@ -56,6 +68,7 @@ inline std::string to_string(meshType m) {
   }
 }
 
+/// @brief Human-readable name of a model location ("Unknown" if out of range).
 inline std::string to_string(modelLocationType loc) {
   switch (loc) {
     case modelLocationType::kOnNodes:
@@ -67,6 +80,7 @@ inline std::string to_string(modelLocationType loc) {
   }
 }
 
+/// @brief Human-readable name of a physics type ("Unknown" if out of range).
 inline std::string to_string(physicType p) {
   switch (p) {
     case physicType::kAcoustic:
@@ -80,6 +94,7 @@ inline std::string to_string(physicType p) {
   }
 }
 
+/// @brief Human-readable name of an interface property convention ("Unknown" if out of range).
 inline std::string to_string(interfacePropertyConvention c) {
   switch (c) {
     case interfacePropertyConvention::kFluidOnInterfaceNodes:

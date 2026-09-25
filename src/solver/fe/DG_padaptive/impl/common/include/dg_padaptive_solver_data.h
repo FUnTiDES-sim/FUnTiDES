@@ -12,32 +12,34 @@ namespace solver {
 namespace fe {
 
 /**
- * @brief Data structure passed to DGPAdaptiveSolver at each time step.
+ * @brief Per-time-step data of the p-adaptive DG acoustic solver.
  *
- * Combines two DG acoustic wavefield, one for each approximation (Lagrange basis) order,
- * and the acoustic source term.
+ * Bundles the two-order acoustic wavefield (one DG field per approximation
+ * order) and the acoustic source term. Members are copied shallowly (Kokkos
+ * views).
  */
 struct DGPAdaptiveSolverData : public Solver::DataStruct {
   /**
-   * @param wavefield Combined the two DG wavefield with different approximation order.
-   * @param rhs       source term.
+   * @brief Builds the data object from a wavefield and a source term.
+   * @param[in] wavefield Wavefield holding the fields of both approximation orders.
+   * @param[in] rhs       Acoustic source term.
    */
   DGPAdaptiveSolverData(const DGPAdaptiveWavefieldAcoustic& wavefield, const DGPAdaptiveRhsAcoustic& rhs)
       : m_wavefield(wavefield), m_rhs(rhs) {}
 
+  /// @brief Prints the wavefield and the source term.
   void print() const override {
     m_wavefield.print();
     m_rhs.print();
   }
 
-  /// Swap previous/current wavefields (call once per time step after
-  /// computeOneStep).
+  /// @brief Swaps the previous and current wavefields; call once per time step after computeOneStep.
   void swapWavefields() { m_wavefield.swap(); }
 
-  DGPAdaptiveWavefieldAcoustic m_wavefield;  ///< Combined wavefield
-  DGPAdaptiveRhsAcoustic m_rhs;              ///< source
+  DGPAdaptiveWavefieldAcoustic m_wavefield;  ///< Wavefield of both approximation orders.
+  DGPAdaptiveRhsAcoustic m_rhs;              ///< Acoustic source term.
 
-  bool isDistributed{false};
+  bool isDistributed{false};  ///< @todo VERIFY: what does this flag mean and who reads it?
 };
 
 }  // namespace fe

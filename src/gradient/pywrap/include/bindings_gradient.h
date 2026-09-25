@@ -16,13 +16,20 @@ namespace py = pybind11;
 
 namespace gradient {
 
+/**
+ * @brief Registers the Python class "Gradient", exposing only `print`.
+ * @param[in,out] m Python module receiving the class.
+ */
 void bind_gradient_base(py::module_& m) {
-  // Bind Gradient (base class)
   py::class_<Gradient, std::shared_ptr<Gradient>>(m, "Gradient").def("print", &Gradient::print);
 }
 
+/**
+ * @brief Registers the Python class "GradientAcoustic", constructed from two gradient vectors.
+ * @param[in,out] m Python module receiving the class.
+ * @pre bind_gradient_base() has been called on the same module.
+ */
 void bind_gradient_acoustic(py::module_& m) {
-  // Bind GradientAcoustic (inherits from Gradient)
   py::class_<GradientAcoustic, Gradient, std::shared_ptr<GradientAcoustic>>(m, "GradientAcoustic")
       .def(py::init<Kokkos::Experimental::python_view_type_t<vectorReal>,
                     Kokkos::Experimental::python_view_type_t<vectorReal>>(),
@@ -30,8 +37,12 @@ void bind_gradient_acoustic(py::module_& m) {
       .def("print", &GradientAcoustic::print);
 }
 
+/**
+ * @brief Registers the Python class "GradientElastic", constructed from three gradient vectors.
+ * @param[in,out] m Python module receiving the class.
+ * @pre bind_gradient_base() has been called on the same module.
+ */
 void bind_gradient_elastic(py::module_& m) {
-  // Bind GradientElastic (inherits from Gradient)
   py::class_<GradientElastic, Gradient, std::shared_ptr<GradientElastic>>(m, "GradientElastic")
       .def(py::init<Kokkos::Experimental::python_view_type_t<vectorReal>,
                     Kokkos::Experimental::python_view_type_t<vectorReal>,

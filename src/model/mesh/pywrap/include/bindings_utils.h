@@ -7,7 +7,15 @@
 
 namespace model {
 
-// helper to make a readable suffix for class names (specialize as needed)
+/**
+ * @brief Short suffix naming a (FloatType, ScalarType) pair in Python class names.
+ *
+ * The primary template is only declared: a pair without a specialization
+ * (float/double with int/long are provided) does not compile.
+ * @tparam FloatType Floating-point type of the bound class.
+ * @tparam ScalarType Integer type of the bound class.
+ * @return Suffix such as "f32_i32", a string literal with static storage.
+ */
 template <typename FloatType, typename ScalarType>
 constexpr const char* type_suffix();
 template <>
@@ -27,7 +35,12 @@ constexpr const char* type_suffix<double, long>() {
   return "f64_i64";
 }
 
-// helper to make a readable suffix for order
+/**
+ * @brief Short suffix naming a polynomial order in Python class names.
+ * @param[in] order Polynomial order, from 1 to 9.
+ * @return Suffix such as "O3", a string literal with static storage.
+ * @throws std::runtime_error If order is outside 1..9.
+ */
 constexpr const char* order_suffix(int order) {
   switch (order) {
     case 1:
@@ -53,6 +66,14 @@ constexpr const char* order_suffix(int order) {
   }
 }
 
+/**
+ * @brief Calls a functor with the run-time order turned into a compile-time constant.
+ * @tparam FUNC Callable taking a std::integral_constant<int, Order>.
+ * @param[in] order Polynomial order, from 1 to 9.
+ * @param[in] func Callable invoked once. Its return type must be the same for every order.
+ * @return The value returned by func.
+ * @throws std::invalid_argument If order is outside 1..9.
+ */
 template <typename FUNC>
 auto orderDispatch(int const order, FUNC&& func) {
   switch (order) {
@@ -79,13 +100,27 @@ auto orderDispatch(int const order, FUNC&& func) {
   }
 }
 
-// helper to generate class name
+/**
+ * @brief Python class name for a class specialized on types and order.
+ * @tparam FloatType Floating-point type of the bound class.
+ * @tparam ScalarType Integer type of the bound class.
+ * @tparam Order Polynomial order, from 1 to 9.
+ * @param[in] basename Class name without suffix.
+ * @return basename followed by the type suffix and the order suffix, joined by "_".
+ * @throws std::runtime_error If Order is outside 1..9.
+ */
 template <typename FloatType, typename ScalarType, int Order>
 std::string model_class_name(std::string basename) {
   return basename + "_" + type_suffix<FloatType, ScalarType>() + "_" + order_suffix(Order);
 }
 
-// helper to generate class name
+/**
+ * @brief Python class name for a class specialized on types only.
+ * @tparam FloatType Floating-point type of the bound class.
+ * @tparam ScalarType Integer type of the bound class.
+ * @param[in] basename Class name without suffix.
+ * @return basename followed by the type suffix, joined by "_".
+ */
 template <typename FloatType, typename ScalarType>
 std::string model_class_name(std::string basename) {
   return basename + "_" + type_suffix<FloatType, ScalarType>();

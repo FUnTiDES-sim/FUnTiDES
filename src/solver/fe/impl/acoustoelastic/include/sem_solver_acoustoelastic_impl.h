@@ -14,10 +14,6 @@
 namespace solver {
 namespace fe {
 
-//============================================================================
-// computeFEInit
-//============================================================================
-
 template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE, bool IS_MODEL_ON_NODES>
 void SEMsolverAcoustoElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES>::computeFEInit(
     model::ModelApi<float, int>& mesh_in, const std::array<float, 3>& sponge_size, const bool surface_sponge,
@@ -28,7 +24,8 @@ void SEMsolverAcoustoElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES>
     throw std::runtime_error("SEMsolverAcoustoElastic: incompatible mesh type in computeFEInit");
   }
 
-  // Initialise sub-solvers (mass/damping matrices are overridden below).
+  // The sub-solvers assemble full-mesh mass and damping matrices here; they are
+  // zeroed and rebuilt per domain by computeGlobalMassMatrix / computeDampingMatrix below.
   m_acoustic_solver_.computeFEInit(mesh_in, sponge_size, surface_sponge, taper_delta);
   m_elastic_solver_.computeFEInit(mesh_in, sponge_size, surface_sponge, taper_delta);
 
@@ -47,10 +44,6 @@ void SEMsolverAcoustoElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES>
 
   ComputeInterfaceCouplingCoefficients();
 }
-
-//============================================================================
-// allocateFEarrays
-//============================================================================
 
 template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE, bool IS_MODEL_ON_NODES>
 void SEMsolverAcoustoElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES>::allocateFEarrays() {
@@ -78,26 +71,14 @@ void SEMsolverAcoustoElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES>
       });
 }
 
-//============================================================================
-// initFEarrays / initSpongeValues
-//============================================================================
-
 template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE, bool IS_MODEL_ON_NODES>
-void SEMsolverAcoustoElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES>::initFEarrays() {
-  // Sub-solvers handle their own sponge via computeFEInit.
-  // The coupled solver's sponge taper is initialised in allocateFEarrays.
-}
+void SEMsolverAcoustoElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES>::initFEarrays() {}
 
 template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE, bool IS_MODEL_ON_NODES>
 void SEMsolverAcoustoElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES>::initSpongeValues() {
-  // Sponge taper is owned by each sub-solver; delegate reinitialisation.
   m_acoustic_solver_.initSpongeValues();
   m_elastic_solver_.initSpongeValues();
 }
-
-//============================================================================
-// resetGlobalVectors
-//============================================================================
 
 template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE, bool IS_MODEL_ON_NODES>
 void SEMsolverAcoustoElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES>::resetGlobalVectors(int numNodes) {
@@ -115,10 +96,6 @@ void SEMsolverAcoustoElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES>
       });
 }
 
-//============================================================================
-// TagElements
-//============================================================================
-
 template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE, bool IS_MODEL_ON_NODES>
 void SEMsolverAcoustoElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES>::TagElements() {
   int const nElem = m_mesh_.getNumberOfElements();
@@ -128,8 +105,8 @@ void SEMsolverAcoustoElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES>
   for (int e = 0; e < nElem; ++e) {
     float vs, rho;
     if constexpr (IS_MODEL_ON_NODES) {
-      // Use interior node to avoid interface contamination (corner node may
-      // carry fluid properties when >= convention is used at the boundary).
+      // Read an interior node: a corner node may carry fluid properties when
+      // the >= convention is used at the interface.
       int const mid = ORDER / 2;
       int const gIdx = m_mesh_.globalNodeIndex(e, mid, mid, mid);
       vs = m_mesh_.getModelVsOnNodes(gIdx);
@@ -164,10 +141,6 @@ void SEMsolverAcoustoElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES>
   }
 }
 
-//============================================================================
-// TagNodes
-//============================================================================
-
 template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE, bool IS_MODEL_ON_NODES>
 void SEMsolverAcoustoElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES>::TagNodes() {
   int const nNode = m_mesh_.getNumberOfNodes();
@@ -187,6 +160,7 @@ void SEMsolverAcoustoElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES>
   auto elem_type = m_element_type_;
   auto mesh_local = m_mesh_;
 
+  // An interface node is a node shared by at least one acoustic and one elastic element.
   Kokkos::parallel_for(
       "TagNodes_mainLoop", nElem, KOKKOS_LAMBDA(const int e) {
         if (e >= nElem) return;
@@ -225,9 +199,8 @@ void SEMsolverAcoustoElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES>
   }
   FENCE
 
-  // Build compact acoustic and elastic node lists for updateFieldsFromList.
-  // Interface nodes appear in both lists: acoustic solver updates pressure
-  // there, elastic solver updates displacement there.
+  // Compact node lists per domain. Interface nodes appear in both lists: the
+  // acoustic solver updates pressure there, the elastic solver displacement.
   {
     int n_acou = 0, n_elas = 0;
     for (int n = 0; n < nNode; ++n) {
@@ -245,7 +218,7 @@ void SEMsolverAcoustoElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES>
     }
   }
 
-  // Allocate compact nm1 arrays (one entry per interface node).
+  // u^{n-1} of the solid, one entry per interface node (indexed by the compact interface index).
   m_ux_nm1_iface_ = allocateVector<vectorReal>(n_interface_nodes_, "uxNm1Iface");
   m_uy_nm1_iface_ = allocateVector<vectorReal>(n_interface_nodes_, "uyNm1Iface");
   m_uz_nm1_iface_ = allocateVector<vectorReal>(n_interface_nodes_, "uzNm1Iface");
@@ -255,11 +228,11 @@ void SEMsolverAcoustoElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES>
     m_uz_nm1_iface_[i] = 0.0f;
   }
 
-  // Build dual-property interface arrays for IS_MODEL_ON_NODES: solid and
-  // fluid properties stored separately so the elastic stiffness and mass
-  // kernels use the correct material side.
+  // With node-based models an interface node holds a single set of properties,
+  // so the solid and fluid sides are stored separately and swapped into the
+  // mesh around each domain kernel.
   if constexpr (IS_MODEL_ON_NODES) {
-    // Map each interface node to one adjacent elastic element.
+    // One adjacent elastic element per interface node, used to read the solid side.
     m_interface_adj_elastic_elem_ = allocateVector<vectorInt>(n_interface_nodes_, "interfaceAdjElasticElem");
     for (int i = 0; i < n_interface_nodes_; ++i) m_interface_adj_elastic_elem_[i] = -1;
 
@@ -275,7 +248,6 @@ void SEMsolverAcoustoElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES>
           }
     }
 
-    // Allocate compact solid/fluid property arrays.
     m_vp_solid_iface_ = allocateVector<vectorReal>(n_interface_nodes_, "vpSolidIface");
     m_vs_solid_iface_ = allocateVector<vectorReal>(n_interface_nodes_, "vsSolidIface");
     m_rho_solid_iface_ = allocateVector<vectorReal>(n_interface_nodes_, "rhoSolidIface");
@@ -285,8 +257,8 @@ void SEMsolverAcoustoElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES>
     for (int i = 0; i < n_interface_nodes_; ++i) {
       int const j = m_interface_node_indices_[i];
 
-      // Fluid side: current values in the mesh (assigned by the builder with
-      // the >= convention, so interface nodes carry fluid properties).
+      // Fluid side: the builder assigns interface nodes with the >= convention,
+      // so the values currently in the mesh are the fluid ones.
       m_vp_fluid_iface_[i] = m_mesh_.getModelVpOnNodes(j);
       m_rho_fluid_iface_[i] = m_mesh_.getModelRhoOnNodes(j);
 
@@ -318,16 +290,16 @@ void SEMsolverAcoustoElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES>
             }
       }
       if (!found) {
-        // Fallback: no non-interface node found (degenerate case).
+        // Degenerate case: the adjacent element has no non-interface node.
         m_vp_solid_iface_[i] = m_vp_fluid_iface_[i];
         m_vs_solid_iface_[i] = 0.0f;
         m_rho_solid_iface_[i] = m_rho_fluid_iface_[i];
       }
     }
 
-    // Fix elastic mass matrix at interface nodes: computeGlobalMassMatrix ran
-    // before TagNodes and integrated rho_fluid over elastic elements.  In SEM
-    // the lumped mass M_e[j] = rho[j] * J * w_j, so the correction is exact.
+    // computeGlobalMassMatrix ran before TagNodes and integrated rho_fluid over
+    // the elastic elements. The SEM lumped mass is M_e[j] = rho[j] * J * w_j,
+    // so rescaling by rho_solid / rho_fluid is exact.
     auto elastic_mass = m_elastic_solver_.getMassMatrixElastic();
     for (int i = 0; i < n_interface_nodes_; ++i) {
       int const j = m_interface_node_indices_[i];
@@ -338,10 +310,6 @@ void SEMsolverAcoustoElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES>
     FENCE
   }
 }
-
-//============================================================================
-// ComputeInterfaceCouplingCoefficients
-//============================================================================
 
 template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE, bool IS_MODEL_ON_NODES>
 void SEMsolverAcoustoElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE,
@@ -356,7 +324,8 @@ void SEMsolverAcoustoElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE,
     for (int fi = 0; fi < 6; ++fi) {
       int const f = m_mesh_.getGlobalFace(elementNumber, static_cast<model::CubicFace>(fi));
 
-      // All nodes must be interface nodes (excludes lateral corner faces).
+      // A coupling face has all its nodes on the interface; this excludes lateral faces
+      // that only touch it at a corner or an edge.
       int iface_count = 0;
       for (int q = 0; q < numNodesPerFace; ++q) {
         if (m_interface_node_index_[m_mesh_.getGlobalNodeFromFace(f, q)] >= 0) ++iface_count;
@@ -384,10 +353,6 @@ void SEMsolverAcoustoElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE,
   FENCE
 }
 
-//============================================================================
-// SaveInterfaceUnm1
-//============================================================================
-
 template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE, bool IS_MODEL_ON_NODES>
 void SEMsolverAcoustoElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES>::SaveInterfaceUnm1(
     const DataType& data) {
@@ -410,10 +375,6 @@ void SEMsolverAcoustoElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES>
   FENCE
 }
 
-//============================================================================
-// computeGlobalMassMatrix  (domain-masked override)
-//============================================================================
-
 template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE, bool IS_MODEL_ON_NODES>
 void SEMsolverAcoustoElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES>::computeGlobalMassMatrix() {
   int const nNode = m_mesh_.getNumberOfNodes();
@@ -432,10 +393,6 @@ void SEMsolverAcoustoElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES>
   m_elastic_solver_.computeGlobalMassMatrixMasked(m_element_type_, kElementTypeElastic);
   FENCE
 }
-
-//============================================================================
-// computeDampingMatrix  (domain-masked override)
-//============================================================================
 
 template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE, bool IS_MODEL_ON_NODES>
 void SEMsolverAcoustoElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES>::computeDampingMatrix() {
@@ -459,17 +416,14 @@ void SEMsolverAcoustoElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES>
   FENCE
 }
 
-//============================================================================
-// computeForces  (both domains; the interface coupling is applied later, in
-// updateSolutionForward, because it acts on the updated fields rather than on
-// the right-hand side.  This split lets a distributed driver assemble the force
-// vector at partition boundaries in between.)
-//============================================================================
-
 template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE, bool IS_MODEL_ON_NODES>
 void SEMsolverAcoustoElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES>::computeForces(const float& dt,
                                                                                                 const int& timeSample,
                                                                                                 DataStruct& data) {
+  // The interface coupling is not applied here but in updateSolutionForward,
+  // because it acts on the updated fields rather than on the right-hand side.
+  // This split lets a distributed driver assemble the force vector at
+  // partition boundaries in between.
   auto& myData = dynamic_cast<DataType&>(data);
 
   SEMsolverData<utils::enums::physicType::kAcoustic> acoustic_data(myData.m_wavefield.m_acoustic,
@@ -487,6 +441,7 @@ void SEMsolverAcoustoElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES>
 
   m_acoustic_solver_.computeElementContributionsFromList(acoustic_data, acoustic_elem_list_, num_acoustic_elements_);
   FENCE
+  // Swap in the solid properties at interface nodes for the elastic kernel, then restore the fluid ones.
   if constexpr (IS_MODEL_ON_NODES) {
     for (int i = 0; i < n_interface_nodes_; ++i) {
       int const j = m_interface_node_indices_[i];
@@ -502,10 +457,6 @@ void SEMsolverAcoustoElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES>
     }
   }
 }
-
-//============================================================================
-// updateSolution  (both domains simultaneously — delegates to sub-solvers)
-//============================================================================
 
 template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE, bool IS_MODEL_ON_NODES>
 void SEMsolverAcoustoElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES>::updateSolutionForward(
@@ -531,26 +482,18 @@ void SEMsolverAcoustoElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES>
   ApplyInterfaceCoupling(dt, myData);
 }
 
-//============================================================================
-// ApplyInterfaceCoupling
-//============================================================================
-
 template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE, bool IS_MODEL_ON_NODES>
 void SEMsolverAcoustoElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES>::ApplyInterfaceCoupling(
     float dt, const DataType& data) {
   // Correct the solid with p^n, then the fluid with the discrete solid
   // acceleration that correction has just produced: both corrections are then
-  // centred on time n.  Moving the traction to p^{n+1} instead breaks that
+  // centred on time n. Moving the traction to p^{n+1} instead breaks that
   // symmetry and slowly injects energy, so the order below matters.
   ApplyCouplingAcousticToElastic(dt, data);
   FENCE
   ApplyCouplingElasticToAcoustic(dt, data);
   FENCE
 }
-
-//============================================================================
-// updateSolutionBackward  (both domains — backward/adjoint mode)
-//============================================================================
 
 template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE, bool IS_MODEL_ON_NODES>
 void SEMsolverAcoustoElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES>::updateSolutionBackward(
@@ -564,11 +507,9 @@ void SEMsolverAcoustoElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES>
   }
   SEMsolverData<utils::enums::physicType::kElastic> elastic_data(myData.m_wavefield.m_elastic,
                                                                  myData.m_rhs.m_rhs_elastic);
-  // NOTE: the interface coupling is deliberately not applied here.  In backward
-  // mode the Verlet writes u^{n-1} into the prevPrev buffer, whereas
-  // ApplyCoupling{AcousticToElastic,ElasticToAcoustic} read and correct the
-  // previous buffer.  The coupled adjoint is therefore still uncoupled, as it
-  // has always been; see updateSolutionForward for the coupled forward step.
+  // The interface coupling is not applied here: in backward mode the Verlet
+  // writes u^{n-1} into the prevPrev buffer, whereas ApplyCoupling* read and
+  // correct the previous buffer. The adjoint is therefore uncoupled.
   m_elastic_solver_.updateFieldsFromListBackward(dt, elastic_data, elastic_node_list_, num_elastic_nodes_);
   FENCE
 
@@ -577,10 +518,6 @@ void SEMsolverAcoustoElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES>
   m_acoustic_solver_.updateFieldsFromListBackward(dt, acoustic_data, acoustic_node_list_, num_acoustic_nodes_);
   FENCE
 }
-
-//============================================================================
-// ApplyCouplingAcousticToElastic
-//============================================================================
 
 template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE, bool IS_MODEL_ON_NODES>
 void SEMsolverAcoustoElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES>::ApplyCouplingAcousticToElastic(
@@ -617,10 +554,6 @@ void SEMsolverAcoustoElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES>
       });
 }
 
-//============================================================================
-// ApplyCouplingElasticToAcoustic
-//============================================================================
-
 template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE, bool IS_MODEL_ON_NODES>
 void SEMsolverAcoustoElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES>::ApplyCouplingElasticToAcoustic(
     float dt, const DataType& data) {
@@ -649,6 +582,8 @@ void SEMsolverAcoustoElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES>
       "ApplyCouplingElasticToAcoustic_Loop", n_iface, KOKKOS_LAMBDA(const int i) {
         int const j = iface_list[i];
         if (M_f[j] > 0.0f && !mesh_local.isFreeSurface(j)) {
+          // Second time difference of the solid displacement; u_nm1_* are indexed by
+          // the compact interface index i, the other fields by the global node j.
           float const fd_x = u_np1_x[j] - 2.0f * u_n_x[j] + u_nm1_x[i];
           float const fd_y = u_np1_y[j] - 2.0f * u_n_y[j] + u_nm1_y[i];
           float const fd_z = u_np1_z[j] - 2.0f * u_n_z[j] + u_nm1_z[i];
@@ -658,10 +593,6 @@ void SEMsolverAcoustoElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES>
       });
 }
 
-//============================================================================
-// computeOneStep  (staggered elasto-acoustic coupling scheme)
-//============================================================================
-
 template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE, bool IS_MODEL_ON_NODES>
 void SEMsolverAcoustoElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES>::computeOneStep(const float& dt,
                                                                                                  const int& timeSample,
@@ -669,27 +600,20 @@ void SEMsolverAcoustoElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES>
   auto& myData = dynamic_cast<DataType&>(data);
   int const nNode = m_mesh_.getNumberOfNodes();
 
-  // Sub-solver data views are constructed once and reused throughout the step.
   SEMsolverData<utils::enums::physicType::kElastic> elastic_data(myData.m_wavefield.m_elastic,
                                                                  myData.m_rhs.m_rhs_elastic);
   SEMsolverData<utils::enums::physicType::kAcoustic> acoustic_data(myData.m_wavefield.m_acoustic,
                                                                    myData.m_rhs.m_rhs_acoustic);
 
-  // =========================================================================
-  // ELASTIC STEP
-  // =========================================================================
-
-  // 1. Reset elastic work vectors.
+  // Elastic step.
   m_elastic_solver_.resetGlobalVectors(nNode);
   FENCE
 
-  // 1b. Apply elastic source term (zero if no solid source).
   m_elastic_solver_.applyRHSTerm(timeSample, dt, elastic_data);
   FENCE
 
-  // 2. Compute elastic stiffness (list: elastic elements only).
-  // When IS_MODEL_ON_NODES, temporarily override interface node properties
-  // to solid values so the elastic kernel uses the correct λ/μ/ρ.
+  // With node-based models, swap in the solid properties at interface nodes so
+  // the elastic kernel uses the correct lambda, mu and rho.
   if constexpr (IS_MODEL_ON_NODES) {
     for (int i = 0; i < n_interface_nodes_; ++i) {
       int const j = m_interface_node_indices_[i];
@@ -698,7 +622,6 @@ void SEMsolverAcoustoElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES>
   }
   m_elastic_solver_.computeElementContributionsFromList(elastic_data, elastic_elem_list_, num_elastic_elements_);
   FENCE
-  // Restore fluid properties at interface nodes for subsequent acoustic step.
   if constexpr (IS_MODEL_ON_NODES) {
     for (int i = 0; i < n_interface_nodes_; ++i) {
       int const j = m_interface_node_indices_[i];
@@ -706,42 +629,30 @@ void SEMsolverAcoustoElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES>
     }
   }
 
-  // 2.5. Save u^{n-1} for interface nodes only (compact array, size
-  // n_interface_nodes_).  getPreviousField() still holds u^{n-1} at this
-  // point; it will be overwritten by the Verlet below.
+  // The previous buffer still holds u^{n-1} here; the Verlet update below overwrites it.
   SaveInterfaceUnm1(myData);
 
-  // 3. Elastic Verlet: u^{n+1} written into elastic_data.getPreviousField().
+  // u^{n+1} is written into the previous buffer.
   m_elastic_solver_.updateFieldsFromListForward(dt, elastic_data, elastic_node_list_, num_elastic_nodes_);
   FENCE
 
-  // =========================================================================
-  // ACOUSTIC STEP
-  // =========================================================================
-
-  // 4. Reset acoustic work vector.
+  // Acoustic step.
   m_acoustic_solver_.resetGlobalVectors(nNode);
   FENCE
 
-  // 5. Apply acoustic source term.
   m_acoustic_solver_.applyRHSTerm(timeSample, dt, acoustic_data);
   FENCE
 
-  // 6. Compute acoustic stiffness (list: acoustic elements only).
   m_acoustic_solver_.computeElementContributionsFromList(acoustic_data, acoustic_elem_list_, num_acoustic_elements_);
   FENCE
 
-  // 7. Acoustic Verlet: p^{n+1} written into acoustic_data.getPreviousField().
+  // p^{n+1} is written into the previous buffer.
   m_acoustic_solver_.updateFieldsFromListForward(dt, acoustic_data, acoustic_node_list_, num_acoustic_nodes_);
   FENCE
 
-  // 8. Enforce the fluid/solid interface conditions on the two predictors.
+  // Enforce the fluid/solid interface conditions on the two predictors.
   ApplyInterfaceCoupling(dt, myData);
 }
-
-//============================================================================
-// outputSolutionValues
-//============================================================================
 
 template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE, bool IS_MODEL_ON_NODES>
 void SEMsolverAcoustoElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES>::outputSolutionValues(

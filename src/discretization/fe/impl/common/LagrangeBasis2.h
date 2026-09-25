@@ -1,29 +1,18 @@
 #ifndef LAGRANGEBASIS2_HPP_
 #define LAGRANGEBASIS2_HPP_
-/**
- * @file LagrangeBasis2.hpp
- */
-
-// #include <data_type.h>
 
 /**
- * This class contains the implementation for a second order (quadratic)
- * Lagrange polynomial basis. The parent space is defined by:
+ * @brief Quadratic (order 2) Lagrange basis on the nodes -1, 0 and 1 of
+ * [-1, 1].
  *
- *                 o-------------o-------------o  ---> xi
- *  Index:         0             1             2
- *  Coordinate:   -1             0             1
- *
+ * See docs/design.md, "1D Lagrange bases".
  */
 class LagrangeBasis2 {
  public:
-  /// The number of support points for the basis
-  constexpr static int numSupportPoints = 3;
+  constexpr static int numSupportPoints = 3;  ///< Number of nodes, order + 1.
 
   /**
-   * @brief The value of the weight for the given support point
-   * @param q The index of the support point
-   * @return The value of the weight
+   * @brief Gauss-Lobatto quadrature weight of node @p q on [-1, 1].
    */
   PROXY_HOST_DEVICE
   constexpr static real_t weight(const int q) {
@@ -37,10 +26,7 @@ class LagrangeBasis2 {
   }
 
   /**
-   * @brief Calculate the parent coordinates for the xi0 direction, given the
-   *   linear index of a support point.
-   * @param supportPointIndex The linear index of support point
-   * @return parent coordinate in the xi0 direction.
+   * @brief Parent coordinate of node @p supportPointIndex, in [-1, 1].
    */
   PROXY_HOST_DEVICE
   constexpr static double parentSupportCoord(const int supportPointIndex) {
@@ -57,11 +43,7 @@ class LagrangeBasis2 {
   }
 
   /**
-   * @brief The value of the basis function for a support point evaluated at a
-   *   point along the axes.
-   * @param index The index of the support point.
-   * @param xi The coordinate at which to evaluate the basis.
-   * @return The value of basis function.
+   * @brief Value at @p xi of the basis function of node @p index.
    */
   PROXY_HOST_DEVICE
   constexpr static double value(const int index, const double xi) {
@@ -77,9 +59,7 @@ class LagrangeBasis2 {
   }
 
   /**
-   * @brief The value of the basis function for support point 0.
-   * @param xi The coordinate at which to evaluate the basis.
-   * @return The value of the basis.
+   * @brief Value at @p xi of the basis function of node 0.
    */
   PROXY_HOST_DEVICE
   constexpr static double value0(const double xi) {
@@ -88,17 +68,13 @@ class LagrangeBasis2 {
   }
 
   /**
-   * @brief The value of the basis function for support point 1.
-   * @param xi The coordinate at which to evaluate the basis.
-   * @return The value of the basis.
+   * @brief Value at @p xi of the basis function of node 1.
    */
   PROXY_HOST_DEVICE
   constexpr static double value1(const double xi) { return 1.0 - xi * xi; }
 
   /**
-   * @brief The value of the basis function for support point 2.
-   * @param xi The coordinate at which to evaluate the basis.
-   * @return The value of the basis.
+   * @brief Value at @p xi of the basis function of node 2.
    */
   PROXY_HOST_DEVICE
   constexpr static double value2(const double xi) {
@@ -107,38 +83,25 @@ class LagrangeBasis2 {
   }
 
   /**
-   * @brief The gradient of the basis function for support point 0 evaluated at
-   *   a point along the axes.
-   * @param xi The coordinate at which to evaluate the gradient.
-   * @return The gradient of basis function
+   * @brief Derivative at @p xi of the basis function of node 0.
    */
   PROXY_HOST_DEVICE
   constexpr static double gradient0(const double xi) { return -0.5 + xi; }
 
   /**
-   * @brief The gradient of the basis function for support point 1 evaluated at
-   *   a point along the axes.
-   * @param xi The coordinate at which to evaluate the gradient.
-   * @return The gradient of basis function
+   * @brief Derivative at @p xi of the basis function of node 1.
    */
   PROXY_HOST_DEVICE
   constexpr static double gradient1(const double xi) { return -2 * xi; }
 
   /**
-   * @brief The gradient of the basis function for support point 1 evaluated at
-   *   a point along the axes.
-   * @param xi The coordinate at which to evaluate the gradient.
-   * @return The gradient of basis function
+   * @brief Derivative at @p xi of the basis function of node 2.
    */
   PROXY_HOST_DEVICE
   constexpr static double gradient2(const double xi) { return 0.5 + xi; }
 
   /**
-   * @brief The gradient of the basis function for a support point evaluated at
-   * a point along the axes.
-   * @param index The index of the support point.
-   * @param xi The coordinate at which to evaluate the basis.
-   * @return The value of basis function.
+   * @brief Derivative at @p xi of the basis function of node @p index.
    */
   PROXY_HOST_DEVICE
   constexpr static double gradient(const int index, const double xi) {
@@ -154,11 +117,10 @@ class LagrangeBasis2 {
   }
 
   /**
-   * @brief The gradient of the basis function for a support point evaluated at
-   *   a given support point. By symmetry, p is assumed to be in 0, ..., (N-1)/2
-   * @param q The index of the basis function
-   * @param p The index of the support point
-   * @return The gradient of basis function.
+   * @brief Derivative of the basis function of node @p q at node @p p.
+   *
+   * @pre p <= (numSupportPoints - 1) / 2: other values of @p p return a
+   * meaningless result. See docs/design.md, "1D Lagrange bases".
    */
   PROXY_HOST_DEVICE
   constexpr static double gradientAt(const int q, const int p) {
@@ -175,64 +137,37 @@ class LagrangeBasis2 {
   }
 
   /**
-   * @class TensorProduct2D
+   * @brief Tensor product of the 1D basis on the parent square [-1, 1]^2.
    *
-   *         6               7               8
-   *          o--------------o--------------o ________________ | | |Node   xi0
-   * xi1 | |                             |                         |=====  ===
-   * === | |                             |                         |  0    -1 -1
-   * | |                             |                         |  1     0   -1 |
-   *          |                             |                         |  2     1
-   * -1  | |                             |                         |  3    -1 0
-   * | 3 o              o 4            o 5                       |  4     0    0
-   * | |                             |                         |  5     1    0 |
-   *          |                             |                         |  6    -1
-   * 1  | |                             |                         |  7     0 1 |
-   *          |                             |            xi1          |  8     1
-   * 1  | |                             |            | |________________| | | |
-   *          o--------------o--------------o            |
-   *         0               1               2           o----- xi0
-   *
-   *
-   *
+   * See docs/design.md, "1D Lagrange bases".
    */
   struct TensorProduct2D {
-    /// The number of support points in the basis.
-    constexpr static int numSupportPoints = 9;
+    constexpr static int numSupportPoints = 9;  ///< Number of nodes, 3^2.
 
     /**
-     * @brief Calculates the linear index for support/quadrature points from ij
-     *   coordinates.
-     * @param i The index in the xi0 direction (0,1)
-     * @param j The index in the xi1 direction (0,1)
-     * @return The linear index of the support/quadrature point (0-8)
+     * @brief Index i + 3*j of the node (i, j), with i and j in [0, 2].
      */
     PROXY_HOST_DEVICE
     constexpr static int linearIndex(const int i, const int j) { return i + 3 * j; }
 
     /**
-     * @brief Calculate the Cartesian/TensorProduct index given the linear index
-     *   of a support point.
-     * @param linearIndex The linear index of support point
-     * @param i0 The Cartesian index of the support point in the xi0 direction.
-     * @param i1 The Cartesian index of the support point in the xi1 direction.
+     * @brief Inverse of linearIndex().
+     * @param[in] linearIndex Node index.
+     * @param[out] i0 Index along xi0.
+     * @param[out] i1 Index along xi1.
      */
     PROXY_HOST_DEVICE
     constexpr static void multiIndex(const int linearIndex, int &i0, int &i1) {
+      // (x * 22) >> 6 == x / 3 for x in [0, 26].
       i1 = ((linearIndex * 22) >> 6);
-      // i1 = a/3;
 
       i0 = linearIndex - i1 * 3;
     }
 
     /**
-     * @brief The value of the basis function for a support point evaluated at a
-     *   point along the axes.
-     *
-     * @param coords The coordinates (in the parent frame) at which to evaluate
-     * the basis
-     * @param N Array to hold the value of the basis functions at each support
-     * point.
+     * @brief Values at one point of all the 2D basis functions.
+     * @param[in] coords Parent coordinates (xi0, xi1).
+     * @param[out] N N[linearIndex(a, b)] = value(a, xi0) * value(b, xi1).
      */
     PROXY_HOST_DEVICE
     static void value(double const (&coords)[2], double (&N)[numSupportPoints]) {
@@ -246,82 +181,43 @@ class LagrangeBasis2 {
   };
 
   /**
-   * @class TensorProduct3D
+   * @brief Tensor product of the 1D basis on the parent cube [-1, 1]^3.
    *
-   *                                                                  ____________________
-   *                                                                 |Node   xi0
-   * xi1  xi2|
-   *                                                                 |=====  ===
-   * ===  ===| |  0    -1   -1   -1 | |  1     0   -1   -1 | |  2     1   -1 -1
-   * | 24              25               26                |  3    -1    0   -1 |
-   *                o--------------o--------------o                  |  4     0
-   * 0   -1 |
-   *               /.                            /|                  |  5     1
-   * 0   -1 | / .                           / |                  |  6    -1    1
-   * -1 | 21 o  .           o 22        23 o  |                  |  7     0    1
-   * -1 | /   .                         /   |                  |  8     1    1
-   * -1 | /    .         19             /    |                  |  9    -1   -1
-   * 0 | 18 o--------------o--------------o 20  |                  | 10     0 -1
-   * 0 | |     o              o        |     o                  | 11     1   -1
-   * 0 | |     .15             16      |     |17                | 12    -1    0
-   * 0 | |     .                       |     |                  | 13     0    0
-   * 0 | |  o  .           o           |  o  |                  | 14     1    0
-   * 0 | |   12.            13         |   14|                  | 15    -1    1
-   * 0 | |     .                       |     |                  | 16     0    1
-   * 0 | 9 o     .        o 10           o 11  |                  | 17     1 1
-   * 0 | |     o..............o........|.....o                  | 18    -1   -1
-   * 1 | |    , 6              7       |    / 8                 | 19     0   -1
-   * 1 | |   ,                         |   /                    | 20     1   -1
-   * 1 | |  o              o           |  o         xi2         | 21    -1    0
-   * 1 | | , 3              4          | / 5        |           | 22     0    0
-   * 1 |
-   *          |,                            |/           | / xi1     | 23     1
-   * 0    1 | o--------------o--------------o            |/          | 24    -1
-   * 1    1 | 0                1              2           o----- xi0  | 25     0
-   * 1    1 | | 26     1    1    1 |
-   *                                                                 |____________________|
-   *
+   * See docs/design.md, "1D Lagrange bases".
    */
   struct TensorProduct3D {
-    /// The number of support points in the basis.
-    constexpr static int numSupportPoints = 27;
+    constexpr static int numSupportPoints = 27;  ///< Number of nodes, 3^3.
 
     /**
-     * @brief Calculates the linear index for support/quadrature points from ijk
-     *   coordinates.
-     * @param i The index in the xi0 direction (0,1)
-     * @param j The index in the xi1 direction (0,1)
-     * @param k The index in the xi2 direction (0,1)
-     * @return The linear index of the support/quadrature point (0-26)
+     * @brief Index i + 3*j + 9*k of the node (i, j, k), with i, j and k in
+     * [0, 2].
+     *
+     * See docs/design.md, "Hexahedron local numbering".
      */
     constexpr static int linearIndex(const int i, const int j, const int k) { return i + 3 * j + 9 * k; }
 
     /**
-     * @brief Calculate the Cartesian/TensorProduct index given the linear index
-     *   of a support point.
-     * @param linearIndex The linear index of support point
-     * @param i0 The Cartesian index of the support point in the xi0 direction.
-     * @param i1 The Cartesian index of the support point in the xi1 direction.
-     * @param i2 The Cartesian index of the support point in the xi2 direction.
+     * @brief Inverse of linearIndex().
+     * @param[in] linearIndex Node index.
+     * @param[out] i0 Index along xi0.
+     * @param[out] i1 Index along xi1.
+     * @param[out] i2 Index along xi2.
      */
     constexpr static void multiIndex(const int linearIndex, int &i0, int &i1, int &i2) {
+      // Divisions by shifts: (x * 29) >> 8 == x / 9 and (x * 22) >> 6 == x / 3
+      // for x in [0, 26].
       i2 = (linearIndex * 29) >> 8;
-      // i2 = a/9;
 
       i1 = ((linearIndex * 22) >> 6) - i2 * 3;
-      // i1 = a/3 - i2 * 3;
 
       i0 = linearIndex - i1 * 3 - i2 * 9;
     }
 
     /**
-     * @brief The value of the basis function for a support point evaluated at a
-     *   point along the axes.
-     *
-     * @param coords The coordinates (in the parent frame) at which to evaluate
-     * the basis
-     * @param N Array to hold the value of the basis functions at each support
-     * point.
+     * @brief Values at one point of all the 3D basis functions.
+     * @param[in] coords Parent coordinates (xi0, xi1, xi2).
+     * @param[out] N N[linearIndex(a, b, c)] = value(a, xi0) * value(b, xi1) *
+     * value(c, xi2).
      */
     PROXY_HOST_DEVICE
     static void value(const double (&coords)[3], double (&N)[numSupportPoints]) {

@@ -1,3 +1,7 @@
+/**
+ * @file cartesian_struct_builder.cc
+ * @brief Explicit instantiations of model::CartesianStructBuilder for float/int and orders 1 to 9.
+ */
 #include "cartesian_struct_builder.h"
 
 template class model::CartesianStructBuilder<float, int, 1>;

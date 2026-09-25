@@ -8,17 +8,13 @@ namespace solver {
 namespace fe {
 
 /**
- * @brief Specialization for acoustic physics.
- *
- * Acoustic wave propagation uses a single scalar pressure field.
+ * @brief Type bundle for the acoustic DG-SEM solver (single scalar pressure field).
  */
 struct DGSEMPhysicsTraits {
-  /// Human-readable name for logging
-  static constexpr const char* kName = "DGSEMAcoustic";
+  static constexpr const char* kName = "DGSEMAcoustic";  ///< Name used in log messages.
 
-  /// Concrete types for device access
-  using WavefieldType = DGSEMWavefieldAcoustic;
-  using RhsType = DGSEMRhsAcoustic;
+  using WavefieldType = DGSEMWavefieldAcoustic;  ///< Wavefield container type.
+  using RhsType = DGSEMRhsAcoustic;              ///< Right-hand-side (source) type.
 };
 
 }  // namespace fe

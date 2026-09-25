@@ -6,28 +6,25 @@
 namespace gradient {
 
 /**
- * @brief Compile-time properties for each gradient physics type.
+ * @brief Maps a physics type to the concrete wavefield view and gradient types
+ * used by the differentiator data of that physics.
  *
- * All specializations MUST define:
- * - kName:                     Human-readable name for logging (const char*)
- * - WavefieldViewForwardType:  Read-only forward wavefield view for this
- * physics
- * - WavefieldViewBackwardType: Read-only adjoint wavefield view for this
- * physics
- * - GradientType:              Concrete gradient data type for this physics
+ * The primary template is empty; each supported physics provides a
+ * specialization defining:
+ * - kName: name of the physics, for logging;
+ * - WavefieldViewForwardType: concrete forward WavefieldView type;
+ * - WavefieldViewBackwardType: concrete adjoint WavefieldView type;
+ * - GradientType: concrete Gradient type.
  *
- * @tparam PHYSICS The physics type (kAcoustic, kElastic)
- *
- * Include the physics-specific trait header for full specialization:
- *   - physics_traits_acoustic.h
- *   - physics_traits_elastic.h
+ * @tparam PHYSICS Physics type.
+ * @see docs/design.md, "Device calls on mesh objects".
  */
 template <utils::enums::physicType PHYSICS>
 struct PhysicsTraits {
-  static constexpr const char* kName = "";
-  using WavefieldViewForwardType = void;
-  using WavefieldViewBackwardType = void;
-  using GradientType = void;
+  static constexpr const char* kName = "";  ///< Physics name, for logging.
+  using WavefieldViewForwardType = void;    ///< Concrete forward view type.
+  using WavefieldViewBackwardType = void;   ///< Concrete adjoint view type.
+  using GradientType = void;                ///< Concrete Gradient type.
 };
 
 }  // namespace gradient

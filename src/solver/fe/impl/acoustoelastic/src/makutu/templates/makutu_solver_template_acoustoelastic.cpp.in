@@ -1,5 +1,10 @@
-// Auto-generated file - DO NOT EDIT
-// Generated for: SEMQ@ORDER@ @MESH_TYPE@ makutu solver @PHYSIC_TYPE@ model@MODEL_TYPE@
+/**
+ * @file makutu_solver_template_acoustoelastic.cpp.in
+ * @brief CMake template for the explicit instantiation of SEMsolverAcoustoElastic.
+ *
+ * Generated file, do not edit. Placeholders: ORDER, MESH_TYPE, PHYSIC_TYPE,
+ * MODEL_TYPE, MODEL_HEADER, MODEL_CLASS, MODEL_TEMPLATE_PARAMS, MODEL_ON_NODES.
+ */
 
 #include <@MODEL_HEADER@>
 
@@ -12,3 +17,4 @@ template class solver::fe::SEMsolverAcoustoElastic<
     IntegralTypeSelector<ORDER, IntegralType::MAKUTU>::type,
     model::@MODEL_CLASS@<@MODEL_TEMPLATE_PARAMS@>,
     @MODEL_ON_NODES@>;
+

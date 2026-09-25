@@ -14,10 +14,14 @@
 namespace solver {
 namespace fe {
 
-//============================================================================
-// computeFEInit
-//============================================================================
-
+/**
+ * @brief Builds the connectivity, initializes both sub-solvers and splits the mesh into DG and SEM parts.
+ * @param[in,out] mesh_in Mesh; must be of type MESH_TYPE.
+ * @param[in] sponge_size Forwarded unchanged to the sub-solvers.
+ * @param[in] surface_sponge Forwarded unchanged to the sub-solvers.
+ * @param[in] taper_delta Forwarded unchanged to the sub-solvers.
+ * @throws std::runtime_error If @p mesh_in is not a MESH_TYPE.
+ */
 template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE, bool IS_MODEL_ON_NODES,
           utils::enums::physicType PHYSICS>
 void DGSEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::computeFEInit(
@@ -31,9 +35,8 @@ void DGSEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::c
 
   m_face_connectivity_.build(m_mesh_);
 
-  // Initialise sub-solvers (mass/damping matrices are overridden below).
   m_SEm_solver_.computeFEInit(mesh_in, sponge_size, surface_sponge, taper_delta);
-  // Before its init: BuildDGInteriorFaceList() below emits ids in this numbering.
+  // Must precede the DG init: BuildDGInteriorFaceList() below emits face ids in this numbering.
   m_DG_solver_.setFaceConnectivity(m_face_connectivity_);
   m_DG_solver_.computeFEInit(mesh_in, sponge_size, surface_sponge, taper_delta);
 
@@ -45,12 +48,10 @@ void DGSEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::c
   std::cout << "DGSEMsolver: " << num_SEm_elements_ << " SEm elements, " << num_DG_elements_ << " DG elements."
             << std::endl;
 
-  // Re-assemble the SEM sub-solver's global mass/damping matrices restricted to the SEM
-  // subdomain. The full-mesh assembly done inside m_SEm_solver_.computeFEInit() above also
-  // accumulated contributions from DG-tagged elements, inflating the mass of the shared
-  // interface nodes (~2x) — the SEM weak form only owns the SEM elements (stiffness runs on
-  // SEm_elem_list_) — which acted as a heavy strip along the DG-SEM interface and produced a
-  // spurious partial reflection of waves crossing it.
+  // The full-mesh assembly done by m_SEm_solver_.computeFEInit() also accumulated the
+  // contributions of DG-tagged elements, which doubled (about 2x) the mass of the shared interface
+  // nodes and produced a spurious partial reflection along the interface. The SEM weak form only
+  // owns the SEM elements, so both matrices are rebuilt restricted to them.
   m_SEm_solver_.computeGlobalMassMatrixMasked(m_element_type_, kElementTypeSEM);
   m_SEm_solver_.computeDampingMatrixMasked(m_element_type_, kElementTypeSEM);
 
@@ -58,10 +59,7 @@ void DGSEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::c
   std::cout << "DGSEMsolver: " << num_interface_faces_ << " interface faces." << std::endl;
 }
 
-//============================================================================
-// allocateFEarrays
-//============================================================================
-
+/// @brief Allocates the per-element type tag, size numberOfElements.
 template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE, bool IS_MODEL_ON_NODES,
           utils::enums::physicType PHYSICS>
 void DGSEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::allocateFEarrays() {
@@ -69,10 +67,12 @@ void DGSEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::a
   m_element_type_ = allocateVector<vectorInt>(nElem, "DGSEMElementType");
 }
 
-//============================================================================
-// TagElements
-//============================================================================
-
+/**
+ * @brief Tags each element as DG or SEM and builds the two element lists.
+ *
+ * Uses the split given through setElementTags() when its size matches the mesh; otherwise an
+ * element is DG when the z coordinate of its central node is below DG_SEM_interface_z_.
+ */
 template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE, bool IS_MODEL_ON_NODES,
           utils::enums::physicType PHYSICS>
 void DGSEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::TagElements() {
@@ -81,8 +81,7 @@ void DGSEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::T
   int n_sem = 0;
 
   if (m_external_element_type_.size() == static_cast<size_t>(nElem)) {
-    // Caller-provided split (setElementTags()): skip the Z-threshold heuristic entirely, since
-    // it only cuts the intended plane while the mesh is flat.
+    // The z-threshold heuristic is skipped: it only cuts the intended plane on a flat mesh.
     for (int e = 0; e < nElem; ++e) {
       m_element_type_[e] = m_external_element_type_[e];
       if (m_element_type_[e] == kElementTypeDG)
@@ -120,10 +119,12 @@ void DGSEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::T
   }
 }
 
-//============================================================================
-// TagNodes
-//============================================================================
-
+/**
+ * @brief Builds the interface face list, the SEM node list and the DG interior face list.
+ *
+ * A face is on the DG-SEM interface when it is not a boundary face and each of its nodes belongs
+ * to at least one DG element and at least one SEM element.
+ */
 template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE, bool IS_MODEL_ON_NODES,
           utils::enums::physicType PHYSICS>
 void DGSEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::TagNodes() {
@@ -162,11 +163,11 @@ void DGSEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::T
       });
   FENCE
 
-  // Host mirrors: dg_count/sem_count are filled by device kernel; need host access for face loop.
+  // The counts are filled on the device; the face loops below run on the host.
   auto h_dg_count = Kokkos::create_mirror_view_and_copy(Kokkos::HostSpace{}, dg_count);
   auto h_sem_count = Kokkos::create_mirror_view_and_copy(Kokkos::HostSpace{}, sem_count);
 
-  // Iterate over m_face_connectivity_ faces — same index space as coupling kernels.
+  // Face ids are those of m_face_connectivity_, the same index space as the coupling kernels.
   int const num_faces_fc = static_cast<int>(m_face_connectivity_.getNumberOfFaces());
   int n_interface = 0;
   for (int f = 0; f < num_faces_fc; ++f) {
@@ -199,7 +200,7 @@ void DGSEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::T
     if (face_on_interface) m_interface_face_indices_[idx++] = f;
   }
 
-  // Build compact SEM node list.
+  // Compact list of the nodes owned by at least one SEM element.
   {
     int n_sem = 0;
     for (int n = 0; n < nNode; ++n)
@@ -217,10 +218,12 @@ void DGSEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::T
   std::cout << "DGSEMsolver: " << m_n_DG_interior_faces_ << " DG interior faces." << std::endl;
 }
 
-//============================================================================
-// BuildDGInteriorFaceList
-//============================================================================
-
+/**
+ * @brief Builds the list of faces handled by the DG interior flux kernel.
+ *
+ * Selects every face whose owner element is DG and which is not on the DG-SEM interface.
+ * Requires m_interface_face_indices_ to be built.
+ */
 template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE, bool IS_MODEL_ON_NODES,
           utils::enums::physicType PHYSICS>
 void DGSEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::BuildDGInteriorFaceList() {
@@ -232,7 +235,6 @@ void DGSEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::B
   std::vector<bool> is_iface(num_faces_fc, false);
   for (int i = 0; i < num_interface_faces_; ++i) is_iface[h_iface(i)] = true;
 
-  // Collect faces adjacent to at least one DG element and not on the DG-SEM interface.
   std::vector<int> result;
   result.reserve(num_faces_fc / 2);
   for (int f = 0; f < num_faces_fc; ++f) {
@@ -249,10 +251,13 @@ void DGSEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::B
   Kokkos::deep_copy(m_DG_interior_face_list_, h_list);
 }
 
-//============================================================================
-// ApplyCoupling — SIPG flux: SEM pressure → DG stiff_local_ and DG stiff_local_ → SEM pressure
-//============================================================================
-
+/**
+ * @brief Adds the symmetric SIPG interface flux between the SEM pressure and the DG pressure.
+ *
+ * Both sides read the current pressure. The DG contribution is accumulated (atomically) into the
+ * DG stiffness array of the DG sub-solver and the SEM contribution into the SEM force vector.
+ * @param[in] data Coupled wavefield; only the current fields are read.
+ */
 template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE, bool IS_MODEL_ON_NODES,
           utils::enums::physicType PHYSICS>
 void DGSEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::ApplyCoupling(const DataType& data) {
@@ -329,8 +334,8 @@ void DGSEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::A
         real_t const inv_rho_sem = 1.0f / mesh_local.getModelRhoOnElement(sem_e);
         real_t const gamma_sem = computeSIPGPenaltyFromArea<ORDER>(face_area, sem_coords, penalty_local);
 
-        // Face-sized accumulator indexed by DG-side face dof: the coupling flux only touches
-        // the shared face's (ORDER+1)^2 dofs, so an element-sized array forced a 7x larger
+        // Face-sized accumulator indexed by DG-side face dof. The coupling flux only touches the
+        // (ORDER+1)^2 dofs of the shared face, so an element-sized array would cost a much larger
         // per-thread local-memory footprint and an all-element atomic flush of mostly zeros.
         float stiff_dg_local[knumNodesPerFace] = {0};
 
@@ -338,22 +343,20 @@ void DGSEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::A
         real_t const half_dg = 0.5f * inv_rho_dg;
         real_t const half_sem = 0.5f * inv_rho_sem;
 
-        // The SEM side numbers its dofs globally, so a depth dof has to be resolved through the
-        // mesh. faceLocalToElemLocalAtDepth() and globalNodeIndex() already agree on the element
-        // dof layout (i + j*n + k*n^2), so this only undoes that packing.
+        // The SEM side numbers its dofs globally, so an element dof at depth is resolved through the
+        // mesh. The element dof layout is i + j*n + k*n^2 (as in faceLocalToElemLocalAtDepth() and
+        // globalNodeIndex()); this only undoes that packing.
         auto sem_node_at = [&](int const elem_dof) {
           constexpr int n = ORDER + 1;
           return mesh_local.globalNodeIndex(sem_e, elem_dof % n, (elem_dof / n) % n, elem_dof / (n * n));
         };
 
-        // One quadrature point at a time, both sides fused, mirroring the DG interior kernel. The
-        // contracted callbacks fold sum_k C_ijk * n_k, so each contribution fires once instead of
-        // once per physical direction; and since they always fire with j == q, everything derived
-        // from j is hoisted here rather than recomputed at every firing.
+        // One face quadrature point q at a time, both sides fused. The contracted callbacks fold
+        // sum_k C_ijk * n_k, so each contribution fires once instead of once per physical
+        // direction. They always fire with j == q, so everything derived from q is computed here.
         for (int q = 0; q < knumNodesPerFace; ++q) {
-          // Face-normal accumulators: these dofs are off-face, so they bypass the face-sized row.
-          // This is the SIPG consistency channel, which the previous single-callback form collapsed
-          // onto the face dof, where it summed to zero.
+          // Face-normal accumulators (SIPG consistency term). These dofs are off the face, so they
+          // bypass the face-sized array.
           float norm_dg[ORDER + 1] = {0};
           float norm_sem[ORDER + 1] = {0};
 
@@ -364,8 +367,8 @@ void DGSEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::A
           int const dg_q = sem_to_dg(q);
           int const ej_perm = face_to_elem_dof[fid_dg][dg_q];
 
-          // The pressure jump at q seen from each side; the first contribution of every callback is
-          // exactly val times it.
+          // Half-weighted pressure jump at q seen from each side; the first contribution of every
+          // callback is val times it.
           real_t const dp_dg = half_dg * (p_SEM(gn_dg_q) - p_DG(dg_e, ej_dg));
           real_t const dp_sem = half_sem * (p_DG(dg_e, ej_perm) - p_SEM(gn_sem_q));
 
@@ -374,7 +377,7 @@ void DGSEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::A
           float acc_dg = 0.0f;
           float acc_sem = 0.0f;
 
-          // --- DG side (outward normal = normal_dg[]) ---
+          // DG side, outward normal normal_dg.
           INTEGRAL_TYPE::computeInterfaceFluxTermAt(
               q, faceCoords, dg_coords, fid_dg, normal_dg,
               [&](const int i, const int, const real_t val) {
@@ -386,7 +389,7 @@ void DGSEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::A
                 acc_dg -= half_dg * val * p_DG(dg_e, face_to_elem_dof_depth[fid_dg][q][m]);
               });
 
-          // --- SEM side (outward normal = -normal_dg[]) ---
+          // SEM side, outward normal -normal_dg.
           INTEGRAL_TYPE::computeInterfaceFluxTermAt(
               q, faceCoords, sem_coords, fid_sem, neg_normal_dg,
               [&](const int i, const int, const real_t val) {
@@ -399,23 +402,22 @@ void DGSEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::A
                 acc_sem -= half_sem * val * p_SEM(sem_node_at(face_to_elem_dof_depth[fid_sem][q][m]));
               });
 
-          // Negation is exact in IEEE-754, so mirroring each register onto the opposite side gives
-          // the value the callbacks would have accumulated there.
+          // Negation is exact in IEEE-754, so each register is mirrored onto the opposite side.
           stiff_dg_local[q] += acc_dg;
           ATOMICADD(work_sem(gn_dg_q), -acc_dg);
           ATOMICADD(work_sem(gn_sem_q), acc_sem);
           stiff_dg_local[dg_q] -= acc_sem;
 
-          // Off-face dofs, so they bypass the face-sized flush at the end of the kernel.
+          // Off-face dofs: written directly, not through the face-sized array.
           for (int m = 0; m <= ORDER; ++m) {
             ATOMICADD(stiff_dg(dg_e, face_to_elem_dof_depth[fid_dg][q][m]), norm_dg[m]);
             ATOMICADD(work_sem(sem_node_at(face_to_elem_dof_depth[fid_sem][q][m])), norm_sem[m]);
           }
         }
 
-        // SIPG penalty and atomic write-back, fused: both sides use the same damping term at face
-        // dof i, so it is computed once here instead of once per side, mirroring the DG interior
-        // kernel. The DG row is complete once its penalty lands, so its flush joins the same loop.
+        // SIPG penalty and atomic write-back. Both sides use the same damping term at face dof i,
+        // so it is computed once. The DG row is complete once its penalty is added, so its flush
+        // is done in the same loop.
         for (int i = 0; i < knumNodesPerFace; ++i) {
           real_t const damping_i = INTEGRAL_TYPE::computeDampingTerm(i, faceCoords);
 
@@ -431,10 +433,16 @@ void DGSEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::A
       });
 }
 
-//============================================================================
-// computeOneStep  (staggered DG-SEM coupling scheme)
-//============================================================================
-
+/**
+ * @brief Advances the coupled DG and SEM acoustic fields by one time step.
+ *
+ * Both sub-solvers read the pressure at step n, so the interface coupling has no temporal lag.
+ * @param[in] dt Time step.
+ * @param[in] timeSample Index of the current time sample.
+ * @param[in,out] data Must be a DataType.
+ * @throws std::runtime_error If @p data is in distributed mode.
+ * @throws std::bad_cast If @p data is not a DataType.
+ */
 template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE, bool IS_MODEL_ON_NODES,
           utils::enums::physicType PHYSICS>
 void DGSEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::computeOneStep(const float& dt,
@@ -449,16 +457,12 @@ void DGSEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::c
         "synchronize() -> updateSolutionForward().");
   }
 
-  // Sub-solver data views are constructed once and reused throughout the step.
   DGsolverDataAcoustic DG_data(myData.m_wavefield.m_DGacoustic, myData.m_rhs.m_rhs_DGacoustic);
 
   SEMsolverData<utils::enums::physicType::kAcoustic> SEm_data(myData.m_wavefield.m_SEMacoustic,
                                                               myData.m_rhs.m_rhs_SEMacoustic);
 
-  // =========================================================================
-  // DG: volume + DG-DG interior flux (interface faces excluded from face list)
-  // =========================================================================
-
+  // DG: volume terms and DG-DG interior flux. The interface faces are excluded from the face list.
   m_DG_solver_.m_list_mode_ = true;
   m_DG_solver_.m_elem_list_ = DG_elem_list_;
   m_DG_solver_.m_n_elem_list_ = num_DG_elements_;
@@ -472,10 +476,7 @@ void DGSEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::c
   m_DG_solver_.computeBoundaryDampingAndInterfaceFlux(m_n_DG_interior_faces_, DG_data.getCurrentField(0));
   FENCE
 
-  // =========================================================================
-  // SEM: source + stiffness (Neumann = 0 at interface until coupling kernel)
-  // =========================================================================
-
+  // SEM: source and stiffness; the interface contributes nothing until ApplyCoupling().
   m_SEm_solver_.resetGlobalVectors(nNode);
   FENCE
   m_SEm_solver_.applyRHSTerm(timeSample, dt, SEm_data);
@@ -483,17 +484,10 @@ void DGSEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::c
   m_SEm_solver_.computeElementContributionsFromList(SEm_data, SEm_elem_list_, num_SEm_elements_);
   FENCE
 
-  // =========================================================================
-  // Symmetric SIPG interface coupling: both sides read p^n (no temporal lag).
-  // =========================================================================
-
   ApplyCoupling(myData);
   FENCE
 
-  // =========================================================================
-  // Both Verlots
-  // =========================================================================
-
+  // Time integration of both sides (Verlet).
   m_DG_solver_.applyVerlet(num_DG_elements_, dt, DG_data.getCurrentField(0), DG_data.getPreviousField(0));
   m_DG_solver_.m_list_mode_ = false;
   FENCE
@@ -502,10 +496,7 @@ void DGSEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::c
   FENCE
 }
 
-//============================================================================
-// outputSolutionValues (SEM solution output: p[nNodes])
-//============================================================================
-
+/// @brief Writes a SEM field, one value per node, through the SEM sub-solver.
 template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE, bool IS_MODEL_ON_NODES,
           utils::enums::physicType PHYSICS>
 void DGSEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::outputSolutionValues(
@@ -513,10 +504,7 @@ void DGSEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::o
   m_SEm_solver_.outputSolutionValues(t, e, field, fieldName);
 }
 
-//============================================================================
-// outputSolutionValues (DG solution output: p[nElem][nDof])
-//============================================================================
-
+/// @brief Writes a DG field, indexed by (element, dof), through the DG sub-solver.
 template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE, bool IS_MODEL_ON_NODES,
           utils::enums::physicType PHYSICS>
 void DGSEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::outputSolutionValues(
