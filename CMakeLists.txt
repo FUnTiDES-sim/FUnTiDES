@@ -8,7 +8,7 @@ set(CMAKE_VERBOSE_MAKEFILE OFF)
 #--------------------------------------------------------
 # Configure compiler/project
 #--------------------------------------------------------
-project(proxyapp LANGUAGES CXX)
+project(funtides VERSION 0.1.0 LANGUAGES CXX)
 include(cmake/CompilerConfig.cmake) # This must go *after* project()
 include(cmake/ProxyConfig.cmake)    # This must go *before* other configurations
 

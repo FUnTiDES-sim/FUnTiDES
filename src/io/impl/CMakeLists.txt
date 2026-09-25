@@ -3,6 +3,7 @@ add_library(fun_io
   src/io_controller_factory.cc
 )
 add_library(funtides::io ALIAS fun_io)
+set_target_properties(fun_io PROPERTIES EXPORT_NAME io)
 
 target_include_directories(fun_io
   PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include

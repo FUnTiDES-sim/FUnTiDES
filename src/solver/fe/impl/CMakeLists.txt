@@ -1,8 +1,14 @@
 add_library(fun_solver)
+add_library(funtides::solver ALIAS fun_solver)
+set_target_properties(fun_solver PROPERTIES EXPORT_NAME solver)
 target_compile_definitions(fun_solver PUBLIC
     MAX_SOLVER_ACOUSTIC_ORDER=${TARGET_SOLVER_ACOUSTIC_ORDER}
     MAX_SOLVER_ELASTIC_ORDER=${TARGET_SOLVER_ELASTIC_ORDER}
     MAX_SOLVER_ELASTOACOUSTIC_ORDER=${TARGET_SOLVER_ELASTOACOUSTIC_ORDER}
+)
+
+target_include_directories(fun_solver PUBLIC
+    $<INSTALL_INTERFACE:include/funtides/solver>
 )
 
 add_subdirectory(acoustic)
@@ -18,9 +24,3 @@ target_link_libraries(fun_solver PUBLIC ${SOLV_LIBS})
 if(USE_MPI)
 target_link_libraries(fun_solver INTERFACE MPI::MPI_CXX)
 endif()
-
-install(TARGETS fun_solver
-  EXPORT fun_solver_targets
-  ARCHIVE DESTINATION lib
-  LIBRARY DESTINATION lib
-  INCLUDES DESTINATION include)
