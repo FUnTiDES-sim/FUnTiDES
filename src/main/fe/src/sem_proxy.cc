@@ -87,7 +87,7 @@ void SEMproxy::SetupSolver(const SemProxyOptions& opt) {
   surface_sponge_ = opt.surface_sponge;
   taper_delta_ = opt.taper_delta;
 
-  if (opt.isElastic) {
+  if (opt.isElastic || opt.isAcoustoElastic) {
     solver_->setAnisotropyType(anisotropy_type);
     if (anisotropy_type == model::AnisotropyType::kTTI && !opt.isModelOnNodes) {
       mesh_->initElasticityTensors(anisotropy_type);
@@ -605,6 +605,24 @@ void SEMproxy::Run() {
       RhsAcoustoElastic rhs(rhs_term_, rhs_element_, rhs_weights_, rhs_term_x_, rhs_term_y_, rhs_term_z_);
       SEMsolverDataAcoustoElastic solver_data(wavefield, rhs);
 
+      // Receiver trace (p, ux, uy, uz), gathered on the device from the current buffers. The
+      // wavefield rotates its buffers internally, so they are fetched through it at every step.
+      int const n_rcv_dof = static_cast<int>(h_rhs_weights_rcv_.extent(1));
+      vectorInt rcv_nodes("rcvNodes", n_rcv_dof);
+      auto h_rcv_nodes = Kokkos::create_mirror_view(rcv_nodes);
+      {
+        int const order = mesh_->getOrder();
+        for (int k = 0; k < order + 1; k++)
+          for (int j = 0; j < order + 1; j++)
+            for (int i = 0; i < order + 1; i++)
+              h_rcv_nodes(i + j * (order + 1) + k * (order + 1) * (order + 1)) =
+                  mesh_->globalNodeIndex(h_rhs_element_rcv_(0), i, j, k);
+      }
+      Kokkos::deep_copy(rcv_nodes, h_rcv_nodes);
+      arrayReal rcv_vals("rcvVals", 4, n_rcv_dof);
+      auto h_rcv_vals = Kokkos::create_mirror_view(rcv_vals);
+      std::vector<std::array<float, 4>> rcv_trace(num_samples_);
+
       for (int time_index = 0; time_index < num_samples_; time_index++) {
         start_compute_time = std::chrono::high_resolution_clock::now();
         solver_->computeOneStep(dt_, time_index, solver_data);
@@ -650,10 +668,40 @@ void SEMproxy::Run() {
         }
         h_pn_at_receiver_(0, time_index) = var_np1;
         solver_data.swapWavefields();
+
+        // After the swap the current buffers hold the fields at t = (time_index + 1) * dt.
+        {
+          auto p_cur = solver_data.m_wavefield.getCurrentField(0);
+          auto ux_cur = solver_data.m_wavefield.getCurrentField(1);
+          auto uy_cur = solver_data.m_wavefield.getCurrentField(2);
+          auto uz_cur = solver_data.m_wavefield.getCurrentField(3);
+          Kokkos::parallel_for(
+              "Gather Receiver AcoustoElastic", n_rcv_dof, KOKKOS_LAMBDA(const int l) {
+                int const g = rcv_nodes(l);
+                rcv_vals(0, l) = p_cur(g);
+                rcv_vals(1, l) = ux_cur(g);
+                rcv_vals(2, l) = uy_cur(g);
+                rcv_vals(3, l) = uz_cur(g);
+              });
+          Kokkos::deep_copy(h_rcv_vals, rcv_vals);
+          Kokkos::fence();
+          for (int c = 0; c < 4; ++c) {
+            float v = 0.0f;
+            for (int l = 0; l < n_rcv_dof; ++l) v += h_rcv_vals(c, l) * h_rhs_weights_rcv_(0, l);
+            rcv_trace[time_index][c] = v;
+          }
+        }
         total_output_time += std::chrono::high_resolution_clock::now() - start_output_time;
       }
 
       start_output_time = std::chrono::high_resolution_clock::now();
+      {
+        std::ofstream fout("receiver_trace_acoustoelastic.txt");
+        fout << "# time p ux uy uz\n";
+        for (int t = 0; t < num_samples_; ++t)
+          fout << (t + 1) * dt_ << " " << rcv_trace[t][0] << " " << rcv_trace[t][1] << " " << rcv_trace[t][2] << " "
+               << rcv_trace[t][3] << "\n";
+      }
       for (int i = 0; i < h_pn_at_receiver_.extent(0); i++) {
         auto subview = Kokkos::subview(h_pn_at_receiver_, i, Kokkos::ALL());
         vectorReal::host_mirror_type subset("receiver_save", num_samples_);

@@ -245,7 +245,7 @@ class ModelStruct final : public ModelApi<FloatType, ScalarType> {
    * @param vs S-wave velocity (m/s).
    * @param rho Density (kg/m^3).
    */
-  void setModelNodeProps(ScalarType n, FloatType vp, FloatType vs, FloatType rho) {
+  PROXY_HOST_DEVICE void setModelNodeProps(ScalarType n, FloatType vp, FloatType vs, FloatType rho) const {
     if (model_vp_node_.extent(0) > 0) model_vp_node_[n] = vp;
     if (model_vs_node_.extent(0) > 0) model_vs_node_[n] = vs;
     if (model_rho_node_.extent(0) > 0) model_rho_node_[n] = rho;

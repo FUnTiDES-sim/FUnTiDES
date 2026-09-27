@@ -199,6 +199,15 @@ class SEMsolverAcoustoElastic : public Solver {
    */
   void ApplyInterfaceCoupling(float dt, const DataType& data);
 
+  /**
+   * @brief Write the solid or the fluid properties into the model at the interface nodes, on the device.
+   *
+   * No-op unless the model lives on nodes. The elastic kernel needs the solid values there, the
+   * acoustic kernel the fluid ones.
+   * @param solid True for the solid properties, false for the fluid ones (vs = 0).
+   */
+  void SetInterfaceNodeProps(bool solid);
+
  private:
   AcousticSolverType m_acoustic_solver_;  ///< Solver of the acoustic domain.
   ElasticSolverType m_elastic_solver_;    ///< Solver of the elastic domain.

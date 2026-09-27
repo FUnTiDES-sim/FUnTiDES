@@ -7,6 +7,7 @@
 #include <stdexcept>
 
 #include "data_type.h"
+#include "elastic_flux.h"
 #include "face_connectivity_unstruct.h"
 #include "model.h"
 #include "parallel_topology.h"
@@ -180,6 +181,14 @@ class SEMsolver : public Solver {
   void updateFieldsFromListForward(float dt, const DataType& data, const vectorInt& node_list, int n_nodes);
 
   /**
+   * @brief Zeroes the force vectors on a list of nodes only.
+   *
+   * @param node_list Compact array of node indices to reset.
+   * @param n_nodes Number of valid entries in @p node_list.
+   */
+  void resetGlobalVectorsFromList(const vectorInt& node_list, int n_nodes);
+
+  /**
    * @brief Backward Verlet update restricted to a list of nodes.
    *
    * @param dt Time step.
@@ -206,6 +215,23 @@ class SEMsolver : public Solver {
   void computeElementContributions_Acoustic_Gemm(const DataType& data);
 
   /**
+   * @brief Flat acoustic kernel for meshes whose elements are deformed along z only.
+   *
+   * Reads the per-element geometry and the 1/rho table built by prepareZDeformedGeometry()
+   * instead of rebuilding the full Jacobian at every quadrature point.
+   */
+  void computeElementContributions_Acoustic_FlatZ(const DataType& data);
+
+  /**
+   * @brief Checks whether every element keeps its xi and eta edges parallel to x and y, and if
+   * so builds the tables read by computeElementContributions_Acoustic_FlatZ() and
+   * computeElementContributions_Tti_TeamZ().
+   *
+   * Runs once per model; cheap to call repeatedly.
+   */
+  void prepareZDeformedGeometry();
+
+  /**
    * @brief Highest order still served by the one-thread-per-element kernels.
    *
    * The team kernels give a whole warp to the kPointsPerElement quadrature points of an
@@ -225,6 +251,14 @@ class SEMsolver : public Solver {
   void computeElementContributions_Tti(const DataType& data);
   void computeElementContributions_Tti_Flat(const DataType& data);
   void computeElementContributions_Tti_Team(const DataType& data);
+
+  /**
+   * @brief Variant of computeElementContributions_Tti_Team() for z-deformed meshes, model on nodes.
+   *
+   * Reads node indices, geometry and basis values from the tables built by
+   * prepareZDeformedGeometry(), and the compact TTI description of computeTtiCompact().
+   */
+  void computeElementContributions_Tti_TeamZ(const DataType& data);
 
   /// Add the attenuation (SLS) contributions to the work vectors; no effect unless attenuation is enabled.
   void computeAttenuationContributions(const DataType& data);
@@ -250,11 +284,24 @@ class SEMsolver : public Solver {
                                                float phi, float theta, float (&C)[6][6]);
 
   /**
+   * @brief Compact TTI description at a node, equivalent to computeCMatrix(). Elastic physics only.
+   *
+   * Parameters as in computeCMatrix(). The symmetry axis is the one computeCMatrix() rotates the
+   * VTI axis to, (-sin(theta), 0, cos(theta)), which does not depend on phi.
+   *
+   * @param[out] p Compact description read by flux::elasticFluxTtiCompact().
+   */
+  template <physicType P = PHYSICS, typename = std::enable_if_t<P == utils::enums::physicType::kElastic>>
+  static PROXY_HOST_DEVICE void computeTtiCompact(float vp, float vs, float rho, float delta, float epsilon,
+                                                  float gamma, float phi, float theta,
+                                                  float (&p)[flux::kTtiCompactSize]);
+
+  /**
    * @brief Build the per-node TTI elasticity tensors, once per model.
    *
-   * The model is constant during the time loop, so the rotated tensor of a node is the same at
-   * every step. Building it once keeps the rotation out of the stiffness kernel. No-op unless
-   * the physics is elastic and the model lives on nodes; cheap to call repeatedly.
+   * The model is constant during the time loop, so the tensor of a node is the same at every
+   * step. Each node stores the compact description of computeTtiCompact(). No-op unless the
+   * physics is elastic and the model lives on nodes; cheap to call repeatedly.
    */
   void precomputeTtiTensorsOnNodes();
 
@@ -310,13 +357,26 @@ class SEMsolver : public Solver {
 
   static constexpr int kPointsPerElement = (ORDER + 1) * (ORDER + 1) * (ORDER + 1);
 
-  /// The rotated tensor is symmetric, so only its upper triangle (21 entries) is stored.
-  static constexpr int kCttiPackedSize = 21;
-
   vectorReal gemmMetrics_;
   bool gemmMetricsReady_ = false;
 
-  arrayReal cttiNodes_;  ///< Packed rotated TTI tensor per node, kCttiPackedSize entries each.
+  /// Entries per element of zDeformedGeom_: J00, J11, the 8 vertex z, and 1/rho of the element.
+  static constexpr int kZGeomStride = 11;
+
+  /// Per-element geometry for the z-deformed kernel, entry c of element e at c * nElements + e.
+  vectorReal zDeformedGeom_;
+  /// Acoustic, model on nodes: 1/rho of node q of element e at q * nElements + e.
+  vectorReal zDeformedInvRho_;
+  /// Elastic: global node index of node q of element e at e * kPointsPerElement + q.
+  vectorInt zDeformedNodes_;
+  /// Elastic: the kBasisTableSize entries of basisTableEntry().
+  vectorReal zDeformedBasisTab_;
+  bool zDeformedReady_ = false;
+  bool zDeformedEnabled_ = false;
+
+  /// Node-major, so that the entries a thread reads for one node are contiguous.
+  using CttiView = Kokkos::View<float**, Kokkos::LayoutRight, DeviceSpace>;
+  CttiView cttiNodes_;  ///< Compact TTI description per node, flux::kTtiCompactSize entries each.
   bool cttiNodesReady_ = false;
 
   float sponge_size_[3];

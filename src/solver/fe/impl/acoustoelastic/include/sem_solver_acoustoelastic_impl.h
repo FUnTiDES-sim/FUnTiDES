@@ -442,19 +442,25 @@ void SEMsolverAcoustoElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES>
   m_acoustic_solver_.computeElementContributionsFromList(acoustic_data, acoustic_elem_list_, num_acoustic_elements_);
   FENCE
   // Swap in the solid properties at interface nodes for the elastic kernel, then restore the fluid ones.
-  if constexpr (IS_MODEL_ON_NODES) {
-    for (int i = 0; i < n_interface_nodes_; ++i) {
-      int const j = m_interface_node_indices_[i];
-      m_mesh_.setModelNodeProps(j, m_vp_solid_iface_[i], m_vs_solid_iface_[i], m_rho_solid_iface_[i]);
-    }
-  }
+  SetInterfaceNodeProps(true);
   m_elastic_solver_.computeElementContributionsFromList(elastic_data, elastic_elem_list_, num_elastic_elements_);
   FENCE
+  SetInterfaceNodeProps(false);
+}
+
+template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE, bool IS_MODEL_ON_NODES>
+void SEMsolverAcoustoElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES>::SetInterfaceNodeProps(bool solid) {
   if constexpr (IS_MODEL_ON_NODES) {
-    for (int i = 0; i < n_interface_nodes_; ++i) {
-      int const j = m_interface_node_indices_[i];
-      m_mesh_.setModelNodeProps(j, m_vp_fluid_iface_[i], 0.0f, m_rho_fluid_iface_[i]);
-    }
+    auto mesh_local = m_mesh_;
+    auto node_indices = m_interface_node_indices_;
+    auto vp = solid ? m_vp_solid_iface_ : m_vp_fluid_iface_;
+    auto vs = m_vs_solid_iface_;
+    auto rho = solid ? m_rho_solid_iface_ : m_rho_fluid_iface_;
+    Kokkos::parallel_for(
+        "AcoustoElastic Set Interface Node Props", n_interface_nodes_, KOKKOS_LAMBDA(const int i) {
+          mesh_local.setModelNodeProps(node_indices[i], vp[i], solid ? vs[i] : 0.0f, rho[i]);
+        });
+    FENCE
   }
 }
 
@@ -598,15 +604,16 @@ void SEMsolverAcoustoElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES>
                                                                                                  const int& timeSample,
                                                                                                  DataStruct& data) {
   auto& myData = dynamic_cast<DataType&>(data);
-  int const nNode = m_mesh_.getNumberOfNodes();
 
   SEMsolverData<utils::enums::physicType::kElastic> elastic_data(myData.m_wavefield.m_elastic,
                                                                  myData.m_rhs.m_rhs_elastic);
   SEMsolverData<utils::enums::physicType::kAcoustic> acoustic_data(myData.m_wavefield.m_acoustic,
                                                                    myData.m_rhs.m_rhs_acoustic);
 
+  // Each sub-solver only accumulates forces on the nodes of its own elements, so only those are reset.
+
   // Elastic step.
-  m_elastic_solver_.resetGlobalVectors(nNode);
+  m_elastic_solver_.resetGlobalVectorsFromList(elastic_node_list_, num_elastic_nodes_);
   FENCE
 
   m_elastic_solver_.applyRHSTerm(timeSample, dt, elastic_data);
@@ -614,20 +621,10 @@ void SEMsolverAcoustoElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES>
 
   // With node-based models, swap in the solid properties at interface nodes so
   // the elastic kernel uses the correct lambda, mu and rho.
-  if constexpr (IS_MODEL_ON_NODES) {
-    for (int i = 0; i < n_interface_nodes_; ++i) {
-      int const j = m_interface_node_indices_[i];
-      m_mesh_.setModelNodeProps(j, m_vp_solid_iface_[i], m_vs_solid_iface_[i], m_rho_solid_iface_[i]);
-    }
-  }
+  SetInterfaceNodeProps(true);
   m_elastic_solver_.computeElementContributionsFromList(elastic_data, elastic_elem_list_, num_elastic_elements_);
   FENCE
-  if constexpr (IS_MODEL_ON_NODES) {
-    for (int i = 0; i < n_interface_nodes_; ++i) {
-      int const j = m_interface_node_indices_[i];
-      m_mesh_.setModelNodeProps(j, m_vp_fluid_iface_[i], 0.0f, m_rho_fluid_iface_[i]);
-    }
-  }
+  SetInterfaceNodeProps(false);
 
   // The previous buffer still holds u^{n-1} here; the Verlet update below overwrites it.
   SaveInterfaceUnm1(myData);
@@ -637,7 +634,7 @@ void SEMsolverAcoustoElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES>
   FENCE
 
   // Acoustic step.
-  m_acoustic_solver_.resetGlobalVectors(nNode);
+  m_acoustic_solver_.resetGlobalVectorsFromList(acoustic_node_list_, num_acoustic_nodes_);
   FENCE
 
   m_acoustic_solver_.applyRHSTerm(timeSample, dt, acoustic_data);

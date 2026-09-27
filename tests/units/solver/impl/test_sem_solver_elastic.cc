@@ -783,8 +783,8 @@ class SemSolverElasticAttenuationVtiTest : public ::testing::Test {
 };
 
 // ======================================================================
-// TTI + IS_MODEL_ON_NODES=true — exercises computeCMatrix (rotation of
-// the VTI tensor into the tilted frame) called from the TTI stiffness kernel.
+// TTI + IS_MODEL_ON_NODES=true — exercises computeTtiCompact (VTI
+// coefficients and tilted symmetry axis) read by the TTI stiffness kernel.
 // ======================================================================
 class SemSolverElasticTtiOnNodesTest : public ::testing::Test {
  protected:

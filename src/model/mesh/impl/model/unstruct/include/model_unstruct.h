@@ -325,7 +325,7 @@ class ModelUnstruct final : public ModelApi<FloatType, ScalarType> {
    * @param vs S-wave velocity (m/s).
    * @param rho Density (kg/m^3).
    */
-  void setModelNodeProps(ScalarType n, FloatType vp, FloatType vs, FloatType rho) {
+  PROXY_HOST_DEVICE void setModelNodeProps(ScalarType n, FloatType vp, FloatType vs, FloatType rho) const {
     model_vp_node_[n] = vp;
     model_vs_node_[n] = vs;
     model_rho_node_[n] = rho;

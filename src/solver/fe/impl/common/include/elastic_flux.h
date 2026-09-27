@@ -117,6 +117,75 @@ PROXY_HOST_DEVICE void elasticFluxTti(float const (&J_inv)[3][3], float const (&
   pullBackStress(J_inv, sigma, flux);
 }
 
+/// Number of floats of the compact TTI description used by elasticFluxTtiCompact().
+constexpr int kTtiCompactSize = 8;
+
+/**
+ * @brief Compact TTI description from the VTI coefficients and the symmetry axis.
+ *
+ * A TTI medium is a VTI medium whose symmetry axis is the unit vector n, so its stress is
+ *   sigma = (lambda tr(e) + alpha e_n) I + 2 mu_t e + (alpha tr(e) + beta e_n) n n^T
+ *         + 2 (mu_l - mu_t) (n w^T + w n^T),
+ * with e the strain, w = e n and e_n = n.w. Five coefficients and n replace the 21 entries
+ * of the rotated 6x6 tensor.
+ *
+ * @param[in] c11 VTI stiffness coefficient C11.
+ * @param[in] c13 VTI stiffness coefficient C13.
+ * @param[in] c33 VTI stiffness coefficient C33.
+ * @param[in] c44 VTI stiffness coefficient C44.
+ * @param[in] c66 VTI stiffness coefficient C66 (C12 = C11 - 2 C66).
+ * @param[in] n Unit symmetry axis.
+ * @param[out] p lambda, mu_t, alpha, mu_l - mu_t, beta, n.
+ */
+PROXY_HOST_DEVICE void ttiCompactFromVti(float c11, float c13, float c33, float c44, float c66, float const (&n)[3],
+                                         float (&p)[kTtiCompactSize]) {
+  float const lambda = c11 - 2.0f * c66;
+  p[0] = lambda;
+  p[1] = c66;
+  p[2] = c13 - lambda;
+  p[3] = c44 - c66;
+  p[4] = c11 + c33 - 2.0f * c13 - 4.0f * c44;
+  p[5] = n[0];
+  p[6] = n[1];
+  p[7] = n[2];
+}
+
+/**
+ * @brief TTI elastic flux from the compact description built by ttiCompactFromVti().
+ *
+ * Same result as elasticFluxTti() with the equivalent rotated 6x6 tensor.
+ *
+ * @param[in] J_inv Inverse Jacobian, J_inv[r][i] = dxi_r/dx_i.
+ * @param[in] p Compact TTI description.
+ * @param[in] grad_u_ref Reference displacement gradient, grad_u_ref[r][t] = du_t/dxi_r.
+ * @param[out] flux Reference-element flux.
+ */
+PROXY_HOST_DEVICE void elasticFluxTtiCompact(float const (&J_inv)[3][3], float const (&p)[kTtiCompactSize],
+                                             float const (&grad_u_ref)[3][3], float (&flux)[3][3]) {
+  float H[3][3];
+  physicalGradient(J_inv, grad_u_ref, H);
+  float const e[3][3] = {{H[0][0], 0.5f * (H[0][1] + H[1][0]), 0.5f * (H[0][2] + H[2][0])},
+                         {0.5f * (H[0][1] + H[1][0]), H[1][1], 0.5f * (H[1][2] + H[2][1])},
+                         {0.5f * (H[0][2] + H[2][0]), 0.5f * (H[1][2] + H[2][1]), H[2][2]}};
+  float const n[3] = {p[5], p[6], p[7]};
+  float w[3];
+  for (int i = 0; i < 3; ++i) w[i] = e[i][0] * n[0] + e[i][1] * n[1] + e[i][2] * n[2];
+  float const tr = e[0][0] + e[1][1] + e[2][2];
+  float const en = n[0] * w[0] + n[1] * w[1] + n[2] * w[2];
+
+  float const diag = p[0] * tr + p[2] * en;
+  float const two_mu_t = 2.0f * p[1];
+  float const axial = p[2] * tr + p[4] * en;
+  float const two_dmu = 2.0f * p[3];
+  float sigma[3][3];
+  for (int i = 0; i < 3; ++i)
+    for (int j = i; j < 3; ++j) {
+      float const s = two_mu_t * e[i][j] + axial * n[i] * n[j] + two_dmu * (n[i] * w[j] + w[i] * n[j]);
+      sigma[i][j] = sigma[j][i] = (i == j) ? s + diag : s;
+    }
+  pullBackStress(J_inv, sigma, flux);
+}
+
 }  // namespace flux
 }  // namespace fe
 }  // namespace solver
