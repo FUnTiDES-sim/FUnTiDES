@@ -37,6 +37,11 @@ if(CMAKE_INSTALL_PREFIX_INITIALIZED_TO_DEFAULT)
       "Install path prefix" FORCE)
 endif()
 
+# Installed binaries find the FUnTiDES libraries next to them and the external
+# ones (Kokkos, MPI...) where they were linked, without LD_LIBRARY_PATH.
+set(CMAKE_INSTALL_RPATH "$ORIGIN/../lib")
+set(CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
+
 # Macro definitions
 configure_file(${CMAKE_CURRENT_SOURCE_DIR}/src/core/include/common_config.h.in
                ${CMAKE_BINARY_DIR}/src/core/include/common_config.h)
