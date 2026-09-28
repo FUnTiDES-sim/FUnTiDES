@@ -55,12 +55,12 @@ class CartesianStructBoundaryClassifier {
    */
   vectorInt classify(int n_node, int nx, int ny, int nz, FloatType ox, FloatType oy, FloatType oz, FloatType lx,
                      FloatType ly, FloatType lz) const {
-    const bool x_min_is_global = fabs(ox - x_min_) < tol_;
-    const bool x_max_is_global = fabs((ox + lx) - x_max_) < tol_;
-    const bool y_min_is_global = fabs(oy - y_min_) < tol_;
-    const bool y_max_is_global = fabs((oy + ly) - y_max_) < tol_;
-    const bool z_min_is_global = fabs(oz - z_min_) < tol_;
-    const bool z_max_is_global = fabs((oz + lz) - z_max_) < tol_;
+    const bool x_min_is_global = std::fabs(ox - x_min_) < tol_;
+    const bool x_max_is_global = std::fabs((ox + lx) - x_max_) < tol_;
+    const bool y_min_is_global = std::fabs(oy - y_min_) < tol_;
+    const bool y_max_is_global = std::fabs((oy + ly) - y_max_) < tol_;
+    const bool z_min_is_global = std::fabs(oz - z_min_) < tol_;
+    const bool z_max_is_global = std::fabs((oz + lz) - z_max_) < tol_;
 
     auto boundaries_t = allocateVector<vectorInt>(n_node, "boundaries_t");
 

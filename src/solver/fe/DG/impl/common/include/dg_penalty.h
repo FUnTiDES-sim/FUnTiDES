@@ -34,7 +34,7 @@ PROXY_HOST_DEVICE real_t computeFaceArea(const real_t (&X)[4][3]) {
   real_t const by = d2[2] * d3[0] - d2[0] * d3[2];
   real_t const bz = d2[0] * d3[1] - d2[1] * d3[0];
 
-  return 0.5f * (sqrt(ax * ax + ay * ay + az * az) + sqrt(bx * bx + by * by + bz * bz));
+  return 0.5f * (std::sqrt(ax * ax + ay * ay + az * az) + std::sqrt(bx * bx + by * by + bz * bz));
 }
 
 /**
@@ -59,7 +59,7 @@ PROXY_HOST_DEVICE real_t computeHexVolume(real_t const (&X)[8][3]) {
   real_t const det = dxi[0] * (deta[1] * dzeta[2] - deta[2] * dzeta[1]) -
                      dxi[1] * (deta[0] * dzeta[2] - deta[2] * dzeta[0]) +
                      dxi[2] * (deta[0] * dzeta[1] - deta[1] * dzeta[0]);
-  return 8.0f * fabs(det);
+  return 8.0f * std::fabs(det);
 }
 
 /**

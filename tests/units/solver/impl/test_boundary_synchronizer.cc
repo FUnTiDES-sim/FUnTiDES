@@ -49,7 +49,7 @@ TEST(SerialBackendTest, ExchangeClearsRecvBuffers) {
 }
 
 TEST(BoundarySynchronizerTest, SynchronizeNoop_SingleRank) {
-  utils::ParallelTopology topo;
+  parallel::ParallelTopology topo;
   topo.numRanks = 1;
 
   FloatView field(5, 3.0f);
@@ -75,7 +75,7 @@ TEST(DebugBackendTest, ExchangeReturnsZeroBuffers) {
 }
 
 TEST(BoundarySynchronizerTest, SynchronizeWithDebugBackend_AccumulatesZeros) {
-  utils::ParallelTopology topo;
+  parallel::ParallelTopology topo;
   topo.myRank = 0;
   topo.numRanks = 2;
   topo.sharedNodes[1] = {2, 4};
@@ -94,7 +94,7 @@ TEST(BoundarySynchronizerTest, SynchronizeWithDebugBackend_AccumulatesZeros) {
 
 TEST(BoundarySynchronizerTest, MissingNeighborDataThrows) {
   // SerialBackend clears recvBuffers; distributed topo expects neighbor data → throws
-  utils::ParallelTopology topo;
+  parallel::ParallelTopology topo;
   topo.myRank = 0;
   topo.numRanks = 2;
   topo.sharedNodes[1] = {0, 1};
@@ -106,7 +106,7 @@ TEST(BoundarySynchronizerTest, MissingNeighborDataThrows) {
 
 TEST(BoundarySynchronizerTest, WrongBufferSizeThrows) {
   // length_error in accumulate is caught and re-wrapped as runtime_error
-  utils::ParallelTopology topo;
+  parallel::ParallelTopology topo;
   topo.myRank = 0;
   topo.numRanks = 2;
   topo.sharedNodes[1] = {0, 1};

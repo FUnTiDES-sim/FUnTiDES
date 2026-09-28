@@ -646,8 +646,8 @@ template <int ORDER_MIN, int ORDER_MAX, template <int, int> class INTEGRAL_SELEC
 void DGPAdaptiveSolver<ORDER_MIN, ORDER_MAX, INTEGRAL_SELECTOR, IMPL_TAG, MESH_TYPE, IS_MODEL_ON_NODES,
                        PHYSICS>::outputSolutionValues(const int& t, int& e, const arrayReal& field,
                                                       const char* fieldName) {
-  cout << "TimeStep=" << t << ";  " << fieldName << " @ elementSource location " << e
-       << " after computeOneStep = " << field(e, 0) << endl;
+  std::cout << "TimeStep=" << t << ";  " << fieldName << " @ elementSource location " << e
+            << " after computeOneStep = " << field(e, 0) << std::endl;
 }
 
 }  // namespace fe

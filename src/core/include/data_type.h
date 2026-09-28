@@ -4,14 +4,11 @@
 #include <cmath>
 #include <fstream>
 #include <iostream>
+#include <string>
 #include <vector>
 
 #include "common_macros.h"
 #include "data_type_kokkos.h"
-
-using real_t = float;
-
-using namespace std;
 
 /// Floating-point type of the solver. Double if USE_DOUBLE is defined, float otherwise.
 #ifdef USE_DOUBLE
@@ -93,9 +90,9 @@ T allocateArray3D(int n1, int n2, int n3) {
  * @param[in] args Values streamed to std::cout before the header line.
  */
 template <typename T, typename... Args>
-void printJMatrix(const int &element, T &J, string matrixname, Args... args) {
+void printJMatrix(const int &element, T &J, std::string matrixname, Args... args) {
   if (element < 2) {
-    (cout << ... << args) << '\n';
+    (std::cout << ... << args) << '\n';
     printf("%s at element %d\n", matrixname.c_str(), element);
     for (int l = 0; l < 3; l++) printf("%f, %f, %f\n", J[l][0], J[l][1], J[l][2]);
   }
@@ -120,8 +117,9 @@ void printBMatrix(const int &element, T &B) {
 }
 
 /// Declares a std::chrono::system_clock time point named @p timepoint, set to the current time.
-#define timewatch(timepoint) chrono::time_point<std::chrono::system_clock> timepoint = chrono::system_clock::now();
+#define timewatch(timepoint) \
+  std::chrono::time_point<std::chrono::system_clock> timepoint = std::chrono::system_clock::now();
 /// Adds the time elapsed since @p starttime to @p accumulatedtime, in clock ticks (period of system_clock, not
 /// seconds).
-#define accumtime(accumulatedtime, starttime) accumulatedtime += (chrono::system_clock::now() - starttime).count();
+#define accumtime(accumulatedtime, starttime) accumulatedtime += (std::chrono::system_clock::now() - starttime).count();
 #endif  // FUNTIDES_CORE_INCLUDE_DATA_TYPE_H_

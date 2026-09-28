@@ -1,8 +1,8 @@
-#ifndef FUNTIDES_GRADIENT_IMPL_ACOUSTIC_INCLUDE_PHYSICS_TRAITS_ACOUSTIC_H_
-#define FUNTIDES_GRADIENT_IMPL_ACOUSTIC_INCLUDE_PHYSICS_TRAITS_ACOUSTIC_H_
+#ifndef FUNTIDES_GRADIENT_IMPL_ACOUSTIC_INCLUDE_GRADIENT_PHYSICS_TRAITS_ACOUSTIC_H_
+#define FUNTIDES_GRADIENT_IMPL_ACOUSTIC_INCLUDE_GRADIENT_PHYSICS_TRAITS_ACOUSTIC_H_
 
 #include "gradient_acoustic.h"
-#include "physics_traits.h"
+#include "gradient_physics_traits.h"
 #include "wavefield_view_backward_acoustic.h"
 #include "wavefield_view_forward_acoustic.h"
 
@@ -21,4 +21,4 @@ struct PhysicsTraits<utils::enums::physicType::kAcoustic> {
 
 }  // namespace gradient
 
-#endif  // FUNTIDES_GRADIENT_IMPL_ACOUSTIC_INCLUDE_PHYSICS_TRAITS_ACOUSTIC_H_
+#endif  // FUNTIDES_GRADIENT_IMPL_ACOUSTIC_INCLUDE_GRADIENT_PHYSICS_TRAITS_ACOUSTIC_H_

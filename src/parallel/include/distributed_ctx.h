@@ -1,6 +1,6 @@
 #ifndef FUNTIDES_PARALLEL_INCLUDE_DISTRIBUTED_CTX_H_
 #define FUNTIDES_PARALLEL_INCLUDE_DISTRIBUTED_CTX_H_
-namespace utils {
+namespace parallel {
 
 /**
  * @brief Identifies this process within the set of parallel ranks.
@@ -13,5 +13,5 @@ struct DistributedContext {
   int size{1};  ///< Total number of ranks.
 };
 
-}  // namespace utils
+}  // namespace parallel
 #endif  // FUNTIDES_PARALLEL_INCLUDE_DISTRIBUTED_CTX_H_

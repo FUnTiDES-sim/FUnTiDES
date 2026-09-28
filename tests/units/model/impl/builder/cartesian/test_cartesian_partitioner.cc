@@ -92,7 +92,7 @@ TEST_F(TopologyFactoryTest, SingleRankReturnsEmptySharedNodes) {
   mesh.addNode(0.0, 0.0, 0.0);
   mesh.addNode(1.0, 0.0, 0.0);
 
-  auto topo = TopologyFactory::createFromMesh(mesh, 0, 1, 0.0f, 10.0f);
+  auto topo = parallel::TopologyFactory::createFromMesh(mesh, 0, 1, 0.0f, 10.0f);
 
   EXPECT_FALSE(topo.isDistributed());
   EXPECT_EQ(topo.sharedNodes.size(), 0);
@@ -110,7 +110,7 @@ TEST_F(TopologyFactoryTest, LeftBoundaryDetection) {
   float origin_x = 10.0f;
   float width_x = 10.0f;
 
-  auto topo = TopologyFactory::createFromMesh(mesh, 1, 3, origin_x, width_x);
+  auto topo = parallel::TopologyFactory::createFromMesh(mesh, 1, 3, origin_x, width_x);
 
   EXPECT_TRUE(topo.isDistributed());
 
@@ -134,7 +134,7 @@ TEST_F(TopologyFactoryTest, AutoToleranceFromSpacing) {
   // Should detect using auto-computed tolerance (0.1 * 1e-4)
   // 1e-6 < 1e-5, so should match
 
-  auto topo = TopologyFactory::createFromMesh(mesh, 1, 2, origin_x, 10.0f);
+  auto topo = parallel::TopologyFactory::createFromMesh(mesh, 1, 2, origin_x, 10.0f);
 
   EXPECT_FALSE(topo.sharedNodes[0].empty());
 }
@@ -146,7 +146,7 @@ TEST_F(TopologyFactoryTest, ThrowsOnMissingBoundaryNodes) {
   mesh.addNode(20.0f, 0.0f, 0.0f);
 
   // CHANGE: Expect logic_error instead of runtime_error
-  EXPECT_THROW({ TopologyFactory::createFromMesh(mesh, 1, 3, 10.0f, 10.0f); }, std::logic_error);
+  EXPECT_THROW({ parallel::TopologyFactory::createFromMesh(mesh, 1, 3, 10.0f, 10.0f); }, std::logic_error);
 }
 
 TEST_F(TopologyFactoryTest, ThrowsOnAmbiguousBoundary) {
@@ -164,7 +164,7 @@ TEST_F(TopologyFactoryTest, ThrowsOnAmbiguousBoundary) {
   // (bad input)
   EXPECT_THROW(
 
-      { TopologyFactory::createFromMesh(mesh, 1, 3, 10.0f, width); }, std::logic_error);
+      { parallel::TopologyFactory::createFromMesh(mesh, 1, 3, 10.0f, width); }, std::logic_error);
 }
 
 }  // namespace
