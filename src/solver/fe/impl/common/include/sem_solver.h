@@ -257,6 +257,15 @@ class SEMsolver : public Solver {
   void prepareZDeformedGeometry();
 
   /**
+   * @brief Global node indices of the elements visited by the z-deformed kernels, in visiting order.
+   *
+   * Indexed by the position in the element list in list mode, so the kernels find the nodes of
+   * their element without first reading the list. Rebuilt only when the element list changes.
+   * @return Device pointer to zDeformedNodes_.
+   */
+  int const* zDeformedNodeTable();
+
+  /**
    * @brief Highest order still served by the one-thread-per-element kernels.
    *
    * The team kernels give a whole warp to the kPointsPerElement quadrature points of an
@@ -392,9 +401,11 @@ class SEMsolver : public Solver {
   vectorReal zDeformedGeom_;
   /// Acoustic, model on nodes: 1/rho of node q of element e at q * nElements + e.
   vectorReal zDeformedInvRho_;
-  /// Global node index of node q of element e, at e * kPointsPerElement + q for the elastic team
-  /// kernel and at q * nElements + e for the acoustic one-thread-per-element kernel.
+  /// Global node index of node q of the i-th visited element, at i * kPointsPerElement + q for the
+  /// elastic team kernel and at q * nVisited + i for the acoustic one-thread-per-element kernel.
   vectorInt zDeformedNodes_;
+  /// Element list zDeformedNodes_ was built for; empty when built for all elements.
+  vectorInt zDeformedNodesList_;
   /// Elastic: the kBasisTableSize entries of basisTableEntry().
   vectorReal zDeformedBasisTab_;
   bool zDeformedReady_ = false;

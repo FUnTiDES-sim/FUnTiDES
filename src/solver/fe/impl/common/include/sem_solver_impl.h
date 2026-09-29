@@ -379,6 +379,7 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::pre
   zDeformedGeom_ = vectorReal();
   zDeformedInvRho_ = vectorReal();
   zDeformedNodes_ = vectorInt();
+  zDeformedNodesList_ = vectorInt();
   zDeformedBasisTab_ = vectorReal();
 
   bool const is_acoustic = (PHYSICS == utils::enums::physicType::kAcoustic);
@@ -389,12 +390,8 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::pre
   vectorReal invRho;
   if (is_acoustic && IS_MODEL_ON_NODES)
     invRho = allocateVector<vectorReal>(nElems * kPointsPerElement, "zDeformedInvRho");
-  // Filled on the device, so that the kernels never read the mesh connectivity, whose pages the
-  // host may pull back under unified memory.
-  vectorInt nodes = allocateVector<vectorInt>(nElems * kPointsPerElement, "zDeformedNodes");
   float* geomPtr = geom.data();
   float* invRhoPtr = invRho.data();
-  int* nodesPtr = nodes.data();
 
   int nonConforming = 0;
   Kokkos::parallel_reduce(
@@ -420,11 +417,6 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::pre
           }
         }
 
-        // The elastic team kernel reads the indices element by element, the acoustic kernel node by node.
-        for (int q = 0; q < kPointsPerElement; ++q)
-          nodesPtr[is_acoustic ? q * nElems + e : e * kPointsPerElement + q] =
-              mesh_pc.globalNodeIndex(e, q % dim, (q / dim) % dim, q / (dim * dim));
-
         geomPtr[e] = 0.5f * hx;
         geomPtr[nElems + e] = 0.5f * hy;
         for (int k = 0; k < 8; ++k) geomPtr[(2 + k) * nElems + e] = X[k][2];
@@ -447,7 +439,6 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::pre
 
   zDeformedGeom_ = geom;
   zDeformedInvRho_ = invRho;
-  zDeformedNodes_ = nodes;
   zDeformedEnabled_ = true;
   if constexpr (detail::has_z_deformed_sumfact<INTEGRAL_TYPE>::value) {
     if (!is_acoustic) {
@@ -461,6 +452,37 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::pre
 }
 
 template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE, bool IS_MODEL_ON_NODES, physicType PHYSICS>
+int const* SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::zDeformedNodeTable() {
+  bool const list_on = m_list_mode_;
+  int const n_visited = list_on ? m_n_elem_list_ : m_mesh.getNumberOfElements();
+  int const* list_key = list_on ? m_elem_list_.data() : nullptr;
+  if (zDeformedNodes_.extent(0) == static_cast<size_t>(n_visited) * kPointsPerElement &&
+      zDeformedNodesList_.data() == list_key)
+    return zDeformedNodes_.data();
+
+  bool const is_acoustic = (PHYSICS == utils::enums::physicType::kAcoustic);
+  auto mesh_pc = m_mesh;
+  auto list_local = m_elem_list_;
+  // Filled on the device, so that the kernels never read the mesh connectivity, whose pages the
+  // host may pull back under unified memory.
+  vectorInt nodes = allocateVector<vectorInt>(n_visited * kPointsPerElement, "zDeformedNodes");
+  int* nodesPtr = nodes.data();
+  Kokkos::parallel_for(
+      "ZDeformed Node Table", Kokkos::RangePolicy<>(0, n_visited), KOKKOS_LAMBDA(const int i) {
+        constexpr int dim = ORDER + 1;
+        int const e = list_on ? list_local[i] : i;
+        // The elastic team kernel reads the indices element by element, the acoustic kernel node by node.
+        for (int q = 0; q < kPointsPerElement; ++q)
+          nodesPtr[is_acoustic ? q * n_visited + i : i * kPointsPerElement + q] =
+              mesh_pc.globalNodeIndex(e, q % dim, (q / dim) % dim, q / (dim * dim));
+      });
+
+  zDeformedNodes_ = nodes;
+  zDeformedNodesList_ = list_on ? m_elem_list_ : vectorInt();
+  return zDeformedNodes_.data();
+}
+
+template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE, bool IS_MODEL_ON_NODES, physicType PHYSICS>
 void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::computeElementContributions_Acoustic_FlatZ(
     const DataType& data) {
   if constexpr (detail::has_z_deformed_sumfact<INTEGRAL_TYPE>::value) {
@@ -471,7 +493,7 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::com
     int const n_iter = list_on ? m_n_elem_list_ : nElems;
     auto geom = zDeformedGeom_;
     float const* invRhoNodes = zDeformedInvRho_.data();
-    int const* elemNodes = zDeformedNodes_.data();
+    int const* elemNodes = zDeformedNodeTable();
     auto force = workVectorsGlobal_[0];
 
     // Input and output arrays of one element live in registers: 3 blocks per SM leave room for both.
@@ -486,7 +508,8 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::com
           for (int k = 0; k < dim; ++k)
             for (int j = 0; j < dim; ++j)
               for (int i = 0; i < dim; ++i)
-                u[i + j * dim + k * dim * dim] = data.getCurrentField(0)(elemNodes[(i + j * dim + k * dim * dim) * nElems + e]);
+                u[i + j * dim + k * dim * dim] =
+                    data.getCurrentField(0)(elemNodes[(i + j * dim + k * dim * dim) * n_iter + _loop_idx]);
 
           real_t const J00 = geom(e);
           real_t const J11 = geom(nElems + e);
@@ -505,7 +528,8 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::com
           for (int k = 0; k < dim; ++k)
             for (int j = 0; j < dim; ++j)
               for (int i = 0; i < dim; ++i)
-                ATOMICADD(force[elemNodes[(i + j * dim + k * dim * dim) * nElems + e]], v[i + j * dim + k * dim * dim]);
+                ATOMICADD(force[elemNodes[(i + j * dim + k * dim * dim) * n_iter + _loop_idx]],
+                          v[i + j * dim + k * dim * dim]);
         });
   } else {
     throw std::runtime_error(
@@ -1599,7 +1623,7 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::com
     int const nElems = m_mesh.getNumberOfElements();
     int const n_iter = list_on ? m_n_elem_list_ : nElems;
     auto zgeom = zDeformedGeom_;
-    int const* elemNodes = zDeformedNodes_.data();
+    int const* elemNodes = zDeformedNodeTable();
     float const* basisTabGlobal = zDeformedBasisTab_.data();
 
     std::array<std::remove_reference_t<decltype(workVectorsGlobal_[0])>, kNumFields> local_workVectorsGlobal;
@@ -1647,7 +1671,8 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::com
                                [&](const int idx) { basisTab[idx] = basisTabGlobal[idx]; });
 
           Kokkos::parallel_for(Kokkos::TeamThreadRange(team, kPointsPerElement), [&](const int localIdx) {
-            int const globalIdx = elemNodes[elementNumber * kPointsPerElement + localIdx];
+            // Indexed by the league rank, so the gather does not wait for the element list.
+            int const globalIdx = elemNodes[team.league_rank() * kPointsPerElement + localIdx];
             nodeIdx(localIdx) = globalIdx;
             for (int f = 0; f < kNumFields; ++f)
               localFields[f * kPointsPerElement + localIdx] = data.getCurrentField(f)(globalIdx);
