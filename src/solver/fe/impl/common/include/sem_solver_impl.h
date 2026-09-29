@@ -1620,68 +1620,6 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::com
     size_t const bytes = ScratchView1D::shmem_size(kScratchFloats) + ScratchViewInt::shmem_size(kPointsPerElement);
     policy.set_scratch_size(0, Kokkos::PerTeam(bytes));
 
-    // TEMPORARY A/B switch: per-node triplets stored as 16-byte groups in scratch (vector shared memory accesses).
-    static bool const use_vec = [] {
-      bool const on = std::getenv("FUNTIDES_TTI_VEC") != nullptr;
-      if (on) std::cout << "SEM: TTI TeamZ uses vector shared memory accesses (FUNTIDES_TTI_VEC)" << std::endl;
-      return on;
-    }();
-    if (use_vec) {
-      constexpr int kVecFluxOffset = 4 * kPointsPerElement;
-      constexpr int kVecTabOffset = kVecFluxOffset + 12 * kPointsPerElement;
-      constexpr int kVecFloats = kVecTabOffset + INTEGRAL_TYPE::kBasisVecTableSize;
-      TeamPolicyType policy_vec(n_iter, team_size);
-      policy_vec.set_scratch_size(
-          0, Kokkos::PerTeam(kVecFloats * sizeof(float) + 16 + ScratchViewInt::shmem_size(kPointsPerElement)));
-
-      Kokkos::parallel_for(
-          "Solver Element Contribution Tti TeamZ Vec", policy_vec, KOKKOS_LAMBDA(const TeamMember& team) {
-            int const elementNumber = list_on ? list_local[team.league_rank()] : team.league_rank();
-
-            auto* scratch = static_cast<float*>(team.team_scratch(0).get_shmem_aligned(kVecFloats * sizeof(float), 16));
-            ScratchViewInt nodeIdx(team.team_scratch(0), kPointsPerElement);
-            // Displacements in, forces out, at [node * 4 + component].
-            float* localFields = scratch;
-            float* fluxScratch = scratch + kVecFluxOffset;
-            float* basisVec = scratch + kVecTabOffset;
-
-            Kokkos::parallel_for(Kokkos::TeamThreadRange(team, INTEGRAL_TYPE::kBasisVecTableSize), [&](const int idx) {
-              int const src = INTEGRAL_TYPE::basisVecTableSource(idx);
-              basisVec[idx] = src < 0 ? 0.0f : basisTabGlobal[src];
-            });
-
-            Kokkos::parallel_for(Kokkos::TeamThreadRange(team, kPointsPerElement), [&](const int localIdx) {
-              int const globalIdx = elemNodes[elementNumber * kPointsPerElement + localIdx];
-              nodeIdx(localIdx) = globalIdx;
-              for (int f = 0; f < kNumFields; ++f) localFields[localIdx * 4 + f] = data.getCurrentField(f)(globalIdx);
-            });
-            team.team_barrier();
-
-            float Z[8];
-            for (int k = 0; k < 8; ++k) Z[k] = zgeom((2 + k) * nElems + elementNumber);
-
-            auto const tti_flux = [&](int qa, int qb, int qc, float const(&J_inv)[3][3],
-                                      float const(&grad_u_ref)[3][3], float(&flux)[3][3]) {
-              int const gIndex = nodeIdx(qa + qb * dim + qc * dim * dim);
-              float p[flux::kTtiCompactSize];
-              for (int k = 0; k < flux::kTtiCompactSize; ++k) p[k] = ctti_local(gIndex, k);
-              flux::elasticFluxTtiCompact(J_inv, p, grad_u_ref, flux);
-            };
-
-            INTEGRAL_TYPE::computeElasticStiffnessSumFactTeamZDeformedVec(
-                team, zgeom(elementNumber), zgeom(nElems + elementNumber), Z, localFields, localFields, fluxScratch,
-                tti_flux, basisVec);
-            team.team_barrier();
-
-            Kokkos::parallel_for(Kokkos::TeamThreadRange(team, kPointsPerElement), [&](const int localIdx) {
-              int const globalIdx = nodeIdx(localIdx);
-              for (int f = 0; f < kNumFields; ++f)
-                ATOMICADD(local_workVectorsGlobal[f][globalIdx], localFields[localIdx * 4 + f]);
-            });
-          });
-      return;
-    }
-
     Kokkos::parallel_for(
         "Solver Element Contribution Tti TeamZ", policy, KOKKOS_LAMBDA(const TeamMember& team) {
           int const elementNumber = list_on ? list_local[team.league_rank()] : team.league_rank();
