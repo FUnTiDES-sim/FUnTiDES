@@ -1620,81 +1620,7 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::com
     size_t const bytes = ScratchView1D::shmem_size(kScratchFloats) + ScratchViewInt::shmem_size(kPointsPerElement);
     policy.set_scratch_size(0, Kokkos::PerTeam(bytes));
 
-    // TEMPORARY A/B switch: the TTI tensor and the element geometry are loaded into scratch together with the
-    // gather, so that no global load is left after the gather barrier.
-    static bool const use_prefetch = [] {
-      bool const on = std::getenv("FUNTIDES_TTI_PREFETCH") != nullptr;
-      if (on) std::cout << "SEM: TTI TeamZ prefetches tensor and geometry (FUNTIDES_TTI_PREFETCH)" << std::endl;
-      return on;
-    }();
-    if (use_prefetch) {
-      constexpr int kCttiOffset = kScratchFloats;
-      constexpr int kGeomOffset = kCttiOffset + flux::kTtiCompactSize * kPointsPerElement;
-      constexpr int kGeomSize = 10;  // J00, J11, then the 8 vertex z.
-      constexpr int kPrefetchFloats = kGeomOffset + kGeomSize;
-      // 14 teams of 64 threads per SM caps registers at 72, the count of the default kernel.
-      constexpr int kMinTeamsPerSMPf = (896 / kPreferredTeamSize) > 0 ? (896 / kPreferredTeamSize) : 1;
-      using TeamPolicyPf = Kokkos::TeamPolicy<ExecSpace, Kokkos::LaunchBounds<kPreferredTeamSize, kMinTeamsPerSMPf>>;
-      TeamPolicyPf policy_pf(n_iter, team_size);
-      policy_pf.set_scratch_size(0, Kokkos::PerTeam(ScratchView1D::shmem_size(kPrefetchFloats) +
-                                                     ScratchViewInt::shmem_size(kPointsPerElement)));
-
-      Kokkos::parallel_for(
-          "Solver Element Contribution Tti TeamZ Prefetch", detail::lightWeight(policy_pf), KOKKOS_LAMBDA(const TeamMember& team) {
-            int const elementNumber = list_on ? list_local[team.league_rank()] : team.league_rank();
-
-            ScratchView1D scratch(team.team_scratch(0), kPrefetchFloats);
-            ScratchViewInt nodeIdx(team.team_scratch(0), kPointsPerElement);
-            float* localFields = scratch.data();
-            float* fluxScratch = scratch.data() + kFluxOffset;
-            float* basisTab = scratch.data() + kTabOffset;
-            // Compact tensor of each node at [k * kPointsPerElement + node]: the reads after the barrier are
-            // consecutive across threads.
-            float* cttiScratch = scratch.data() + kCttiOffset;
-            float* geomScratch = scratch.data() + kGeomOffset;
-
-            Kokkos::parallel_for(Kokkos::TeamThreadRange(team, INTEGRAL_TYPE::kBasisTableSize),
-                                 [&](const int idx) { basisTab[idx] = basisTabGlobal[idx]; });
-            Kokkos::parallel_for(Kokkos::TeamThreadRange(team, kGeomSize),
-                                 [&](const int g) { geomScratch[g] = zgeom(g * nElems + elementNumber); });
-
-            Kokkos::parallel_for(Kokkos::TeamThreadRange(team, kPointsPerElement), [&](const int localIdx) {
-              int const globalIdx = elemNodes[elementNumber * kPointsPerElement + localIdx];
-              nodeIdx(localIdx) = globalIdx;
-              for (int f = 0; f < kNumFields; ++f)
-                localFields[f * kPointsPerElement + localIdx] = data.getCurrentField(f)(globalIdx);
-              for (int k = 0; k < flux::kTtiCompactSize; ++k)
-                cttiScratch[k * kPointsPerElement + localIdx] = ctti_local(globalIdx, k);
-            });
-            team.team_barrier();
-
-            float Z[8];
-            for (int k = 0; k < 8; ++k) Z[k] = geomScratch[2 + k];
-
-            auto const tti_flux = [&](int qa, int qb, int qc, float const(&J_inv)[3][3],
-                                      float const(&grad_u_ref)[3][3], float(&flux)[3][3]) {
-              int const q = qa + qb * dim + qc * dim * dim;
-              float p[flux::kTtiCompactSize];
-              for (int k = 0; k < flux::kTtiCompactSize; ++k) p[k] = cttiScratch[k * kPointsPerElement + q];
-              flux::elasticFluxTtiCompact(J_inv, p, grad_u_ref, flux);
-            };
-
-            INTEGRAL_TYPE::computeElasticStiffnessSumFactTeamZDeformed(team, geomScratch[0], geomScratch[1], Z,
-                                                                       localFields, localFields, fluxScratch,
-                                                                       tti_flux, basisTab);
-            team.team_barrier();
-
-            Kokkos::parallel_for(Kokkos::TeamThreadRange(team, kPointsPerElement), [&](const int localIdx) {
-              int const globalIdx = nodeIdx(localIdx);
-              for (int f = 0; f < kNumFields; ++f)
-                ATOMICADD(local_workVectorsGlobal[f][globalIdx], localFields[f * kPointsPerElement + localIdx]);
-            });
-          });
-      return;
-    }
-
-    Kokkos::parallel_for(
-        "Solver Element Contribution Tti TeamZ", detail::lightWeight(policy), KOKKOS_LAMBDA(const TeamMember& team) {
+    auto const kernel = KOKKOS_LAMBDA(const TeamMember& team) {
           int const elementNumber = list_on ? list_local[team.league_rank()] : team.league_rank();
 
           ScratchView1D scratch(team.team_scratch(0), kScratchFloats);
@@ -1740,7 +1666,23 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::com
               ATOMICADD(local_workVectorsGlobal[f][globalIdx], localFields[f * kPointsPerElement + localIdx]);
             }
           });
-        });
+        };
+
+    // TEMPORARY A/B switch: 16 teams of 64 threads per SM caps registers at 64 (50 % occupancy instead of 44 %).
+    static bool const use_occ = [] {
+      bool const on = std::getenv("FUNTIDES_TTI_OCC") != nullptr;
+      if (on) std::cout << "SEM: TTI TeamZ capped at 64 registers (FUNTIDES_TTI_OCC)" << std::endl;
+      return on;
+    }();
+    if (use_occ) {
+      constexpr int kMinTeamsPerSMOcc = (1024 / kPreferredTeamSize) > 0 ? (1024 / kPreferredTeamSize) : 1;
+      using TeamPolicyOcc = Kokkos::TeamPolicy<ExecSpace, Kokkos::LaunchBounds<kPreferredTeamSize, kMinTeamsPerSMOcc>>;
+      TeamPolicyOcc policy_occ(n_iter, team_size);
+      policy_occ.set_scratch_size(0, Kokkos::PerTeam(bytes));
+      Kokkos::parallel_for("Solver Element Contribution Tti TeamZ Occ", detail::lightWeight(policy_occ), kernel);
+    } else {
+      Kokkos::parallel_for("Solver Element Contribution Tti TeamZ", detail::lightWeight(policy), kernel);
+    }
   }
 }
 
