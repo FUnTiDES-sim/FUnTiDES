@@ -39,6 +39,11 @@ auto lightWeight(Policy const& policy) {
 
 /// @brief lightWeight() of a RangePolicy on [0, n).
 inline auto lightWeightRange(int const n) { return lightWeight(Kokkos::RangePolicy<>(0, n)); }
+
+/// @brief Four floats read as one 16-byte load.
+struct alignas(16) Float4 {
+  float v[4];
+};
 }  // namespace detail
 
 /**

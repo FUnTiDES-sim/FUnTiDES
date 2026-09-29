@@ -4,6 +4,7 @@
 
 #include <algorithm>
 #include <array>
+#include <cstdint>
 #include <cstdlib>
 
 #include "Integrals.h"
@@ -1584,6 +1585,19 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::com
     throw std::runtime_error("computeElementContributions_Tti_TeamZ: needs an elastic on-nodes z-deformed setup.");
   } else {
     auto ctti_local = cttiNodes_;
+    // TEMPORARY A/B switch: ctti read as two 16-byte loads per node instead of eight scalar loads.
+    using CttiQuad = detail::Float4;
+    static_assert(flux::kTtiCompactSize == 8, "two 16-byte loads per node");
+    static bool const use_f4 = [] {
+      bool const on = std::getenv("FUNTIDES_TTI_F4") != nullptr;
+      if (on) std::cout << "SEM: TTI TeamZ ctti read as 16-byte loads (FUNTIDES_TTI_F4)" << std::endl;
+      return on;
+    }();
+    if (use_f4 && (ctti_local.stride(0) != flux::kTtiCompactSize ||
+                   reinterpret_cast<std::uintptr_t>(ctti_local.data()) % alignof(CttiQuad) != 0))
+      throw std::runtime_error("computeElementContributions_Tti_TeamZ: cttiNodes_ not packed for 16-byte loads.");
+    bool const f4_on = use_f4;
+    CttiQuad const* ctti_quads = reinterpret_cast<CttiQuad const*>(ctti_local.data());
     bool const list_on = m_list_mode_;
     auto list_local = m_elem_list_;
     int const nElems = m_mesh.getNumberOfElements();
@@ -1652,7 +1666,16 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::com
                                     float(&flux)[3][3]) {
             int const gIndex = nodeIdx(qa + qb * dim + qc * dim * dim);
             float p[flux::kTtiCompactSize];
-            for (int k = 0; k < flux::kTtiCompactSize; ++k) p[k] = ctti_local(gIndex, k);
+            if (f4_on) {
+              CttiQuad const lo = ctti_quads[2 * static_cast<size_t>(gIndex)];
+              CttiQuad const hi = ctti_quads[2 * static_cast<size_t>(gIndex) + 1];
+              for (int k = 0; k < 4; ++k) {
+                p[k] = lo.v[k];
+                p[k + 4] = hi.v[k];
+              }
+            } else {
+              for (int k = 0; k < flux::kTtiCompactSize; ++k) p[k] = ctti_local(gIndex, k);
+            }
             flux::elasticFluxTtiCompact(J_inv, p, grad_u_ref, flux);
           };
 
