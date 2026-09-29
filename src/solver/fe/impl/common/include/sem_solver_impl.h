@@ -172,28 +172,36 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::res
 template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE, bool IS_MODEL_ON_NODES, physicType PHYSICS>
 void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::applyRHSTerm(int timeSample, float dt,
                                                                                           const DataType& data) {
-  int nb_rhs_element = data.getRhsElement().extent(0);
+  constexpr int kDim = ORDER + 1;
+  constexpr int kPointsPerElem = kDim * kDim * kDim;
+  auto const rhs_element = data.getRhsElement();
+  int const nb_rhs_element = rhs_element.extent(0);
   auto mesh_local = m_mesh;
 
   std::array<std::remove_reference_t<decltype(workVectorsGlobal_[0])>, kNumFields> local_workVectorsGlobal;
   for (int f = 0; f < kNumFields; ++f) {
     local_workVectorsGlobal[f] = workVectorsGlobal_[f];
   }
+  std::array<arrayReal, kNumRhs> rhs_term;
+  std::array<arrayReal, kNumRhs> rhs_weights;
+  for (int f = 0; f < kNumRhs; ++f) {
+    rhs_term[f] = data.getRhsTerm(f);
+    rhs_weights[f] = data.getRhsWeights(f);
+  }
 
+  // One thread per (source element, node): source elements may share nodes, hence the atomics.
   Kokkos::parallel_for(
-      "Solver Apply RHSTerm", nb_rhs_element, KOKKOS_LAMBDA(const int i) {
-        for (int z = 0; z < ORDER + 1; z++) {
-          for (int y = 0; y < ORDER + 1; y++) {
-            for (int x = 0; x < ORDER + 1; x++) {
-              int localNodeId = x + y * (ORDER + 1) + z * (ORDER + 1) * (ORDER + 1);
-              int nodeRHS = mesh_local.globalNodeIndex(data.getRhsElement()[i], x, y, z);
+      "Solver Apply RHSTerm", nb_rhs_element * kPointsPerElem, KOKKOS_LAMBDA(const int t) {
+        int const i = t / kPointsPerElem;
+        int const localNodeId = t - i * kPointsPerElem;
+        int const x = localNodeId % kDim;
+        int const y = (localNodeId / kDim) % kDim;
+        int const z = localNodeId / (kDim * kDim);
+        int const nodeRHS = mesh_local.globalNodeIndex(rhs_element[i], x, y, z);
 
-              for (int f = 0; f < kNumRhs; ++f) {
-                float source = data.getRhsTerm(f)(i, timeSample) * data.getRhsWeights(f)(i, localNodeId);
-                local_workVectorsGlobal[f](nodeRHS) -= source;
-              }
-            }
-          }
+        for (int f = 0; f < kNumRhs; ++f) {
+          float const source = rhs_term[f](i, timeSample) * rhs_weights[f](i, localNodeId);
+          ATOMICADD(local_workVectorsGlobal[f](nodeRHS), -source);
         }
       });
 }
@@ -227,6 +235,11 @@ template <typename, typename = void>
 struct has_z_deformed_sumfact : std::false_type {};
 template <typename T>
 struct has_z_deformed_sumfact<T, std::void_t<typename T::ZDeformedSumFact>> : std::true_type {};
+
+/// @brief 16-byte aligned block of four floats, read with a single vector load.
+struct alignas(16) Float4 {
+  float x[4];
+};
 }  // namespace detail
 
 template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE, bool IS_MODEL_ON_NODES, physicType PHYSICS>
@@ -1612,6 +1625,12 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::com
     size_t const bytes = ScratchView1D::shmem_size(kScratchFloats) + ScratchViewInt::shmem_size(kPointsPerElement);
     policy.set_scratch_size(0, Kokkos::PerTeam(bytes));
 
+    using Float4 = detail::Float4;
+    static_assert(flux::kTtiCompactSize % 4 == 0, "compact TTI rows must split into 16-byte blocks");
+    constexpr int kCttiVec = flux::kTtiCompactSize / 4;
+    if (ctti_local.stride(0) != static_cast<size_t>(flux::kTtiCompactSize))
+      throw std::runtime_error("computeElementContributions_Tti_TeamZ: cttiNodes_ rows must be contiguous.");
+
     Kokkos::parallel_for(
         "Solver Element Contribution Tti TeamZ", policy, KOKKOS_LAMBDA(const TeamMember& team) {
           int const elementNumber = list_on ? list_local[team.league_rank()] : team.league_rank();
@@ -1643,8 +1662,15 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::com
           auto const tti_flux = [&](int qa, int qb, int qc, float const(&J_inv)[3][3], float const(&grad_u_ref)[3][3],
                                     float(&flux)[3][3]) {
             int const gIndex = nodeIdx(qa + qb * dim + qc * dim * dim);
+            // Each thread reads a different node row: 16-byte loads touch the row's sector
+            // twice instead of once per entry.
+            auto const* row = reinterpret_cast<const Float4*>(ctti_local.data() +
+                                                              static_cast<size_t>(gIndex) * flux::kTtiCompactSize);
+            Float4 p4[kCttiVec];
+            for (int v = 0; v < kCttiVec; ++v) p4[v] = row[v];
             float p[flux::kTtiCompactSize];
-            for (int k = 0; k < flux::kTtiCompactSize; ++k) p[k] = ctti_local(gIndex, k);
+            for (int v = 0; v < kCttiVec; ++v)
+              for (int k = 0; k < 4; ++k) p[4 * v + k] = p4[v].x[k];
             flux::elasticFluxTtiCompact(J_inv, p, grad_u_ref, flux);
           };
 
