@@ -688,6 +688,51 @@ class Qk_Hexahedron_Lagrange_GaussLobatto {
                                                                 real_t const *u_local, real_t *f_local, real_t *F,
                                                                 FUNC1 &&func1, real_t const *basis_tab);
 
+  /// 16-byte aligned group of four reals, read or written with one vector shared memory access.
+  struct alignas(16) Vec4 {
+    real_t v[4];
+  };
+
+  /// num1dNodes rounded up to a multiple of 4, the row length of the vector basis table.
+  constexpr static int kNodes1dPadded = (num1dNodes + 3) / 4 * 4;
+
+  /// Size of the vector basis table: D columns, D rows (each padded to kNodes1dPadded), then w[q], then alpha[q].
+  constexpr static int kBasisVecTableSize = 2 * num1dNodes * kNodes1dPadded + 2 * num1dNodes;
+
+  /**
+   * @brief Index in the basisTableEntry() table of entry @p idx of the vector basis table, or -1 for padding.
+   *
+   * [0, n P): column qa of D at qa * P + i, i.e. basisGradientAt(i, qa); [n P, 2 n P): row i of D at
+   * n P + i * P + qa; then weight(q) and interpolationCoord(q, 1). With n = num1dNodes and P = kNodes1dPadded.
+   */
+  PROXY_HOST_DEVICE
+  constexpr static int basisVecTableSource(int const idx) {
+    constexpr int n = num1dNodes;
+    constexpr int P = kNodes1dPadded;
+    if (idx < n * P) return idx % P < n ? (idx % P) * n + idx / P : -1;
+    if (idx < 2 * n * P) {
+      int const r = idx - n * P;
+      return r % P < n ? (r / P) * n + r % P : -1;
+    }
+    return n * n + (idx - 2 * n * P);
+  }
+
+  /**
+   * @brief computeElasticStiffnessSumFactTeamZDeformed() with every per-node triplet stored as a Vec4, so that
+   * one vector shared memory access replaces three scalar ones.
+   *
+   * The synchronization rules are those of computeElasticStiffnessSumFactTeam(). All pointers must be
+   * 16-byte aligned.
+   * @param[in] u_local Displacement, size 4*numNodes, at u_local[node * 4 + component]; entry 3 is unused.
+   * @param[out] f_local Result, same layout as @p u_local; may alias it.
+   * @param[out] F Scratch of size 12*numNodes, at F[(p * numNodes + q) * 4 + f].
+   * @param[in] basis_vec Table filled from basisVecTableSource(), size kBasisVecTableSize.
+   */
+  template <typename TEAM_MEMBER, typename FUNC1>
+  PROXY_HOST_DEVICE static void computeElasticStiffnessSumFactTeamZDeformedVec(
+      TEAM_MEMBER const &team, real_t const J00, real_t const J11, real_t const (&Z)[8], real_t const *u_local,
+      real_t *f_local, real_t *F, FUNC1 &&func1, real_t const *basis_vec);
+
   /**
    * @brief Trilinear Jacobian at a point given by its interpolation coordinates.
    * @param[in] alpha Position of the point in [0, 1] along each parent axis.
@@ -1682,6 +1727,93 @@ PROXY_HOST_DEVICE void Qk_Hexahedron_Lagrange_GaussLobatto<GL_BASIS>::computeEla
     return invJacobianZDeformedBilinear(alpha, J00, J11, dZ, J_inv);
   };
   elasticStiffnessSumFactTeamImpl<true>(team, geom_at, u_local, f_local, F, func1, basis_tab);
+}
+
+template <typename GL_BASIS>
+template <typename TEAM_MEMBER, typename FUNC1>
+PROXY_HOST_DEVICE void Qk_Hexahedron_Lagrange_GaussLobatto<GL_BASIS>::computeElasticStiffnessSumFactTeamZDeformedVec(
+    TEAM_MEMBER const &team, real_t const J00, real_t const J11, real_t const (&Z)[8], real_t const *u_local,
+    real_t *f_local, real_t *F, FUNC1 &&func1, real_t const *basis_vec) {
+  constexpr int n = num1dNodes;
+  constexpr int P = kNodes1dPadded;
+  real_t const *D_col = basis_vec;
+  real_t const *D_row = basis_vec + n * P;
+  real_t const *w1d = basis_vec + 2 * n * P;
+  real_t const *alpha1d = w1d + n;
+  auto const load4 = [](real_t const *p) -> Vec4 { return *reinterpret_cast<Vec4 const *>(p); };
+
+  real_t dZ[3][4];
+  zDeformedHalfDifferences(Z, dZ);
+
+  // Pass 1+2: one thread per quadrature point. Threads of a warp sharing two of the three indices read the same
+  // node, so each vector load serves several threads at once.
+  Kokkos::parallel_for(Kokkos::TeamThreadRange(team, numNodes), [&](const int q) {
+    int qa, qb, qc;
+    GL_BASIS::TensorProduct3D::multiIndex(q, qa, qb, qc);
+
+    real_t grad_u_ref[3][3] = {{0}};
+    for (int c = 0; c < P / 4; ++c) {
+      Vec4 const g_xi = load4(D_col + qa * P + 4 * c);
+      Vec4 const g_eta = load4(D_col + qb * P + 4 * c);
+      Vec4 const g_zeta = load4(D_col + qc * P + 4 * c);
+      for (int k = 0; k < 4; ++k) {
+        int const i = 4 * c + k;
+        if (i >= n) break;
+        Vec4 const u_xi = load4(u_local + GL_BASIS::TensorProduct3D::linearIndex(i, qb, qc) * 4);
+        Vec4 const u_eta = load4(u_local + GL_BASIS::TensorProduct3D::linearIndex(qa, i, qc) * 4);
+        Vec4 const u_zeta = load4(u_local + GL_BASIS::TensorProduct3D::linearIndex(qa, qb, i) * 4);
+        for (int s = 0; s < 3; ++s) {
+          grad_u_ref[0][s] += g_xi.v[k] * u_xi.v[s];
+          grad_u_ref[1][s] += g_eta.v[k] * u_eta.v[s];
+          grad_u_ref[2][s] += g_zeta.v[k] * u_zeta.v[s];
+        }
+      }
+    }
+
+    real_t const alpha[3] = {alpha1d[qa], alpha1d[qb], alpha1d[qc]};
+    real_t J_inv[3][3];
+    real_t const detJ = invJacobianZDeformedBilinear(alpha, J00, J11, dZ, J_inv);
+    real_t const scale = w1d[qa] * w1d[qb] * w1d[qc] * detJ;
+
+    real_t flux[3][3] = {{0}};
+    func1(qa, qb, qc, J_inv, grad_u_ref, flux);
+
+    for (int p = 0; p < 3; ++p) {
+      Vec4 out;
+      for (int f = 0; f < 3; ++f) out.v[f] = scale * flux[p][f];
+      out.v[3] = real_t(0);
+      *reinterpret_cast<Vec4 *>(F + (p * numNodes + q) * 4) = out;
+    }
+  });
+  team.team_barrier();
+
+  // Pass 3: one thread per node, contract D^T with the stored fluxes.
+  Kokkos::parallel_for(Kokkos::TeamThreadRange(team, numNodes), [&](const int node) {
+    int ia, ib, ic;
+    GL_BASIS::TensorProduct3D::multiIndex(node, ia, ib, ic);
+
+    // Same summation order as elasticStiffnessSumFactTeamImpl(): all xi terms, then eta, then zeta.
+    int const own[3] = {ia, ib, ic};
+    real_t v[3] = {0};
+    for (int d = 0; d < 3; ++d) {
+      for (int c = 0; c < P / 4; ++c) {
+        Vec4 const g = load4(D_row + own[d] * P + 4 * c);
+        for (int k = 0; k < 4; ++k) {
+          int const q = 4 * c + k;
+          if (q >= n) break;
+          int const qq = d == 0   ? GL_BASIS::TensorProduct3D::linearIndex(q, ib, ic)
+                         : d == 1 ? GL_BASIS::TensorProduct3D::linearIndex(ia, q, ic)
+                                  : GL_BASIS::TensorProduct3D::linearIndex(ia, ib, q);
+          Vec4 const Fq = load4(F + (d * numNodes + qq) * 4);
+          for (int f = 0; f < 3; ++f) v[f] += g.v[k] * Fq.v[f];
+        }
+      }
+    }
+    Vec4 out;
+    for (int f = 0; f < 3; ++f) out.v[f] = v[f];
+    out.v[3] = real_t(0);
+    *reinterpret_cast<Vec4 *>(f_local + node * 4) = out;
+  });
 }
 
 template <typename GL_BASIS>
