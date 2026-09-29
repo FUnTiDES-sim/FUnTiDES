@@ -372,7 +372,6 @@ void SEMsolverAcoustoElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES>
         uy_nm1[i] = uy_prev[j];
         uz_nm1[i] = uz_prev[j];
       });
-  FENCE
 }
 
 template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE, bool IS_MODEL_ON_NODES>
@@ -446,6 +445,7 @@ void SEMsolverAcoustoElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES>
   m_elastic_solver_.computeElementContributionsFromList(elastic_data, elastic_elem_list_, num_elastic_elements_);
   FENCE
   SetInterfaceNodeProps(false);
+  FENCE
 }
 
 template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE, bool IS_MODEL_ON_NODES>
@@ -460,7 +460,6 @@ void SEMsolverAcoustoElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES>
         "AcoustoElastic Set Interface Node Props", n_interface_nodes_, KOKKOS_LAMBDA(const int i) {
           mesh_local.setModelNodeProps(node_indices[i], vp[i], solid ? vs[i] : 0.0f, rho[i]);
         });
-    FENCE
   }
 }
 
@@ -495,8 +494,9 @@ void SEMsolverAcoustoElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES>
   // acceleration that correction has just produced: both corrections are then
   // centred on time n. Moving the traction to p^{n+1} instead breaks that
   // symmetry and slowly injects energy, so the order below matters.
+  // Kernels run in order on the same execution space instance; the fence only
+  // makes the step complete for the caller.
   ApplyCouplingAcousticToElastic(dt, data);
-  FENCE
   ApplyCouplingElasticToAcoustic(dt, data);
   FENCE
 }
@@ -611,19 +611,18 @@ void SEMsolverAcoustoElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES>
                                                                    myData.m_rhs.m_rhs_acoustic);
 
   // Each sub-solver only accumulates forces on the nodes of its own elements, so only those are reset.
+  // All kernels below run in order on one execution space instance: no fence is needed between them,
+  // ApplyInterfaceCoupling() fences once at the end of the step.
 
   // Elastic step.
   m_elastic_solver_.resetGlobalVectorsFromList(elastic_node_list_, num_elastic_nodes_);
-  FENCE
 
   m_elastic_solver_.applyRHSTerm(timeSample, dt, elastic_data);
-  FENCE
 
   // With node-based models, swap in the solid properties at interface nodes so
   // the elastic kernel uses the correct lambda, mu and rho.
   SetInterfaceNodeProps(true);
   m_elastic_solver_.computeElementContributionsFromList(elastic_data, elastic_elem_list_, num_elastic_elements_);
-  FENCE
   SetInterfaceNodeProps(false);
 
   // The previous buffer still holds u^{n-1} here; the Verlet update below overwrites it.
@@ -631,21 +630,16 @@ void SEMsolverAcoustoElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES>
 
   // u^{n+1} is written into the previous buffer.
   m_elastic_solver_.updateFieldsFromListForward(dt, elastic_data, elastic_node_list_, num_elastic_nodes_);
-  FENCE
 
   // Acoustic step.
   m_acoustic_solver_.resetGlobalVectorsFromList(acoustic_node_list_, num_acoustic_nodes_);
-  FENCE
 
   m_acoustic_solver_.applyRHSTerm(timeSample, dt, acoustic_data);
-  FENCE
 
   m_acoustic_solver_.computeElementContributionsFromList(acoustic_data, acoustic_elem_list_, num_acoustic_elements_);
-  FENCE
 
   // p^{n+1} is written into the previous buffer.
   m_acoustic_solver_.updateFieldsFromListForward(dt, acoustic_data, acoustic_node_list_, num_acoustic_nodes_);
-  FENCE
 
   // Enforce the fluid/solid interface conditions on the two predictors.
   ApplyInterfaceCoupling(dt, myData);
