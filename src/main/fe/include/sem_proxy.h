@@ -91,8 +91,8 @@ class SEMproxy {
 
  private:
   model::CartesianParams<float, int> local_params_;  ///< Cartesian parameters of the local subdomain.
-  utils::DistributedContext dist_ctx_;               ///< MPI rank and size.
-  utils::ParallelTopology par_topology_;             ///< Layout of the ranks.
+  parallel::DistributedContext dist_ctx_;            ///< MPI rank and size.
+  parallel::ParallelTopology par_topology_;          ///< Layout of the ranks.
 
   int num_elements_[3] = {0};   ///< Number of elements along x, y, z on this rank.
   int num_nodes_[3] = {0};      ///< Number of nodes along x, y, z on this rank.

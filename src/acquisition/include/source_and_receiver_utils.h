@@ -11,8 +11,6 @@
 #include "Qk_Hexahedron_Lagrange_GaussLobatto.h"
 #include "data_type.h"
 
-using namespace std::chrono;
-
 namespace SourceAndReceiverUtils {
 
 /**

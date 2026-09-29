@@ -951,7 +951,7 @@ PROXY_HOST_DEVICE void Qk_Hexahedron_Lagrange_GaussLobatto<GL_BASIS>::computeGra
   B[0] = J[0][0] * J[0][0] + J[1][0] * J[1][0] + J[2][0] * J[2][0];
   B[1] = J[0][1] * J[0][1] + J[1][1] * J[1][1] + J[2][1] * J[2][1];
   B[2] = J[0][0] * J[0][1] + J[1][0] * J[1][1] + J[2][0] * J[2][1];
-  const real_t kDetJ = sqrt(std::abs(symDeterminant(B)));
+  const real_t kDetJ = std::sqrt(std::abs(symDeterminant(B)));
   const real_t kVal = kW2D * kDetJ;
   const int kAbj = GL_BASIS::TensorProduct2D::linearIndex(qa, qb);
 
@@ -996,7 +996,7 @@ PROXY_HOST_DEVICE real_t Qk_Hexahedron_Lagrange_GaussLobatto<GL_BASIS>::computeD
   B[0] = J[0][0] * J[0][0] + J[1][0] * J[1][0] + J[2][0] * J[2][0];
   B[1] = J[0][1] * J[0][1] + J[1][1] * J[1][1] + J[2][1] * J[2][1];
   B[2] = J[0][0] * J[0][1] + J[1][0] * J[1][1] + J[2][0] * J[2][1];
-  return sqrt(std::abs(symDeterminant(B))) * w2D;
+  return std::sqrt(std::abs(symDeterminant(B))) * w2D;
 }
 
 template <typename GL_BASIS>

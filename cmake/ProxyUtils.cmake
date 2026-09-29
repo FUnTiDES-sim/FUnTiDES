@@ -39,3 +39,12 @@ function(print_configuration_summary)
   message(STATUS "==========================================")
   message(STATUS "")
 endfunction()
+
+# Installs the headers of a source directory into include/funtides/<component>.
+# All the headers of a component land in the same flat directory, which is the
+# include path exported by the component targets.
+function(install_funtides_headers component directory)
+  install(DIRECTORY ${directory}/
+          DESTINATION include/funtides/${component}
+          FILES_MATCHING PATTERN "*.h")
+endfunction()

@@ -363,7 +363,7 @@ class ModelStruct final : public ModelApi<FloatType, ScalarType> {
    * order above 9.
    */
   PROXY_HOST_DEVICE FloatType getMinSpacing() const final {
-    const FloatType h = min(hx_, min(hy_, hz_));
+    const FloatType h = Kokkos::min(hx_, Kokkos::min(hy_, hz_));
     if constexpr (Order == 1) return h;
     if constexpr (Order == 2) return h * 0.5000000000f;
     if constexpr (Order == 3) return h * 0.2763932023f;

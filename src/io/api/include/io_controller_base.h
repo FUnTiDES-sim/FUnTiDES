@@ -28,9 +28,9 @@ using HostArrayReal = arrayReal::host_mirror_type;
  * `prefix` and `shot_id` to address the same files.
  */
 struct IOConfig {
-  utils::DistributedContext ctx{};  ///< Rank of this process, part of file names.
-  std::string output_dir{"."};      ///< Root output directory.
-  std::string prefix{"funtides"};   ///< Prefix of every file name.
+  parallel::DistributedContext ctx{};  ///< Rank of this process, part of file names.
+  std::string output_dir{"."};         ///< Root output directory.
+  std::string prefix{"funtides"};      ///< Prefix of every file name.
 
   /// Optional shot identifier. When set, output goes to `<output_dir>/<shot_id>`
   /// so that a multi-shot run keeps its files apart and no single directory

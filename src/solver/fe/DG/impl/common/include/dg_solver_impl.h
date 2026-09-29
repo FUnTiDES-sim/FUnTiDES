@@ -34,8 +34,8 @@ template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE, bool IS_MODEL_O
           utils::enums::physicType PHYSICS>
 void DGsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::outputSolutionValues(
     const int& t, int& e, const arrayReal& fieldGlobal, const char* fieldName) {
-  cout << "TimeStep=" << t << ";  " << fieldName << " @ elementSource location " << e
-       << " after computeOneStep = " << fieldGlobal(e, 0) << endl;
+  std::cout << "TimeStep=" << t << ";  " << fieldName << " @ elementSource location " << e
+            << " after computeOneStep = " << fieldGlobal(e, 0) << std::endl;
 }
 
 template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE, bool IS_MODEL_ON_NODES,

@@ -31,10 +31,16 @@ option(PRINT_ALLOC_INFO "Printout memory allocation info" OFF)
 option(BUILD_SHARED_LIBS "Build shared libraries" ON)
 
 # Install options
-# So make install will copy pykokkos onto proxy folder
+# Without an explicit prefix, make install fills <build>/install.
 if(CMAKE_INSTALL_PREFIX_INITIALIZED_TO_DEFAULT)
-  set(CMAKE_INSTALL_PREFIX "." CACHE PATH "Install path prefix" FORCE)
+  set(CMAKE_INSTALL_PREFIX "${CMAKE_BINARY_DIR}/install" CACHE PATH
+      "Install path prefix" FORCE)
 endif()
+
+# Installed binaries find the FUnTiDES libraries next to them and the external
+# ones (Kokkos, MPI...) where they were linked, without LD_LIBRARY_PATH.
+set(CMAKE_INSTALL_RPATH "$ORIGIN/../lib")
+set(CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
 
 # Macro definitions
 configure_file(${CMAKE_CURRENT_SOURCE_DIR}/src/core/include/common_config.h.in

@@ -67,12 +67,12 @@ class CartesianUnstructBoundaryClassifier {
       const FloatType y = coords_y(n);
       const FloatType z = coords_z(n);
 
-      const bool at_xmin = (fabs(x - x_min_) < tol_);
-      const bool at_xmax = (fabs(x - x_max_) < tol_);
-      const bool at_ymin = (fabs(y - y_min_) < tol_);
-      const bool at_ymax = (fabs(y - y_max_) < tol_);
-      const bool at_zmin = (fabs(z - z_min_) < tol_);
-      const bool at_zmax = (fabs(z - z_max_) < tol_);
+      const bool at_xmin = (std::fabs(x - x_min_) < tol_);
+      const bool at_xmax = (std::fabs(x - x_max_) < tol_);
+      const bool at_ymin = (std::fabs(y - y_min_) < tol_);
+      const bool at_ymax = (std::fabs(y - y_max_) < tol_);
+      const bool at_zmin = (std::fabs(z - z_min_) < tol_);
+      const bool at_zmax = (std::fabs(z - z_max_) < tol_);
 
       const bool on_boundary = at_xmin || at_xmax || at_ymin || at_ymax || at_zmin || at_zmax;
 

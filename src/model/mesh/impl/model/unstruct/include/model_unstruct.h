@@ -609,7 +609,7 @@ class ModelUnstruct final : public ModelApi<FloatType, ScalarType> {
     v[1] = -(t1[2] * t2[0] - t1[0] * t2[2]);
     v[2] = -(t1[0] * t2[1] - t1[1] * t2[0]);
 
-    FloatType norm = sqrt(v[0] * v[0] + v[1] * v[1] + v[2] * v[2]);
+    FloatType norm = std::sqrt(v[0] * v[0] + v[1] * v[1] + v[2] * v[2]);
     if (norm > 1e-12) {
       v[0] /= norm;
       v[1] /= norm;
@@ -662,7 +662,7 @@ class ModelUnstruct final : public ModelApi<FloatType, ScalarType> {
           FloatType dx = nodeCoord(node2, 0) - nodeCoord(node1, 0);
           FloatType dy = nodeCoord(node2, 1) - nodeCoord(node1, 1);
           FloatType dz = nodeCoord(node2, 2) - nodeCoord(node1, 2);
-          minSpacing = fmin(minSpacing, sqrt(dx * dx + dy * dy + dz * dz));
+          minSpacing = std::fmin(minSpacing, std::sqrt(dx * dx + dy * dy + dz * dz));
         }
 
     for (int k = 0; k <= order_; ++k)
@@ -673,7 +673,7 @@ class ModelUnstruct final : public ModelApi<FloatType, ScalarType> {
           FloatType dx = nodeCoord(node2, 0) - nodeCoord(node1, 0);
           FloatType dy = nodeCoord(node2, 1) - nodeCoord(node1, 1);
           FloatType dz = nodeCoord(node2, 2) - nodeCoord(node1, 2);
-          minSpacing = fmin(minSpacing, sqrt(dx * dx + dy * dy + dz * dz));
+          minSpacing = std::fmin(minSpacing, std::sqrt(dx * dx + dy * dy + dz * dz));
         }
 
     for (int j = 0; j <= order_; ++j)
@@ -684,7 +684,7 @@ class ModelUnstruct final : public ModelApi<FloatType, ScalarType> {
           FloatType dx = nodeCoord(node2, 0) - nodeCoord(node1, 0);
           FloatType dy = nodeCoord(node2, 1) - nodeCoord(node1, 1);
           FloatType dz = nodeCoord(node2, 2) - nodeCoord(node1, 2);
-          minSpacing = fmin(minSpacing, sqrt(dx * dx + dy * dy + dz * dz));
+          minSpacing = std::fmin(minSpacing, std::sqrt(dx * dx + dy * dy + dz * dz));
         }
 
     return minSpacing;
@@ -706,7 +706,7 @@ class ModelUnstruct final : public ModelApi<FloatType, ScalarType> {
     } else {
       throw std::runtime_error("No model initialized (model unstruct getMaxSpeed).");
     }
-    return max(maxSpeedElem, maxSpeedNode);
+    return std::max(maxSpeedElem, maxSpeedNode);
   }
 
   /**

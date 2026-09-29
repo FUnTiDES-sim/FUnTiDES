@@ -84,7 +84,7 @@ class SolverStructFixture : public benchmark::Fixture {
   }
 
   void setLabel(benchmark::State& state) const {
-    state.SetLabel("Order=" + std::to_string(order) + " OnNodes=" + to_string(isModelOnNodes_) +
+    state.SetLabel("Order=" + std::to_string(order) + " OnNodes=" + std::to_string(isModelOnNodes_) +
                    " Implem=" + to_string(implem_) + " IsElastic=" + std::to_string(is_elastic));
   }
 };

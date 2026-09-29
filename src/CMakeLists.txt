@@ -19,15 +19,51 @@ target_link_libraries(funtides INTERFACE
   fun_model
   fun_solver
   fun_gradient
+  fun_io
 )
 
-install(TARGETS funtides fun_core fun_parallel fun_acquisition
-                fun_discretization fun_model fun_solver fun_gradient
+install(TARGETS funtides
+                fun_core
+                fun_parallel
+                fun_acquisition
+                fun_discretization fun_discretization_api fun_discretization_impl
+                fun_discretization_common fun_discretization_makutu
+                fun_discretization_tensorial
+                fun_model
+                fun_solver_api fun_solver
+                fun_gradient_api fun_gradient
+                fun_io_api fun_io
         EXPORT funtidesTargets
         LIBRARY DESTINATION lib
         ARCHIVE DESTINATION lib
         RUNTIME DESTINATION bin
         INCLUDES DESTINATION include
+)
+
+# CMake package: find_package(funtides) then link funtides::funtides, or a
+# single component such as funtides::solver.
+include(CMakePackageConfigHelpers)
+
+install(EXPORT funtidesTargets
+        NAMESPACE funtides::
+        DESTINATION lib/cmake/funtides
+)
+
+configure_package_config_file(
+  ${CMAKE_SOURCE_DIR}/cmake/funtidesConfig.cmake.in
+  ${CMAKE_BINARY_DIR}/funtidesConfig.cmake
+  INSTALL_DESTINATION lib/cmake/funtides
+)
+
+write_basic_package_version_file(
+  ${CMAKE_BINARY_DIR}/funtidesConfigVersion.cmake
+  VERSION ${PROJECT_VERSION}
+  COMPATIBILITY SameMajorVersion
+)
+
+install(FILES ${CMAKE_BINARY_DIR}/funtidesConfig.cmake
+              ${CMAKE_BINARY_DIR}/funtidesConfigVersion.cmake
+        DESTINATION lib/cmake/funtides
 )
 
 if(ENABLE_PYWRAP)
