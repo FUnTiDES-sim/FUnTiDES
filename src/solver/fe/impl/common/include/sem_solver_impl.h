@@ -191,7 +191,7 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::app
 
   // One thread per (source element, node): source elements may share nodes, hence the atomics.
   Kokkos::parallel_for(
-      "Solver Apply RHSTerm", nb_rhs_element * kPointsPerElem, KOKKOS_LAMBDA(const int t) {
+      "Solver Apply RHSTerm", detail::lightWeightRange(nb_rhs_element * kPointsPerElem), KOKKOS_LAMBDA(const int t) {
         int const i = t / kPointsPerElem;
         int const localNodeId = t - i * kPointsPerElem;
         int const x = localNodeId % kDim;
@@ -475,7 +475,7 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::com
     using Policy = Kokkos::RangePolicy<Kokkos::LaunchBounds<LaunchMaxThreadsPerBlock, 3>>;
 
     Kokkos::parallel_for(
-        "Solver Element Contribution Acoustic FlatZ", Policy(0, n_iter), KOKKOS_LAMBDA(const int _loop_idx) {
+        "Solver Element Contribution Acoustic FlatZ", detail::lightWeight(Policy(0, n_iter)), KOKKOS_LAMBDA(const int _loop_idx) {
           int const e = list_on ? list_local[_loop_idx] : _loop_idx;
           constexpr int dim = ORDER + 1;
 
@@ -1632,12 +1632,15 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::com
       constexpr int kGeomOffset = kCttiOffset + flux::kTtiCompactSize * kPointsPerElement;
       constexpr int kGeomSize = 10;  // J00, J11, then the 8 vertex z.
       constexpr int kPrefetchFloats = kGeomOffset + kGeomSize;
-      TeamPolicyType policy_pf(n_iter, team_size);
+      // 14 teams of 64 threads per SM caps registers at 72, the count of the default kernel.
+      constexpr int kMinTeamsPerSMPf = (896 / kPreferredTeamSize) > 0 ? (896 / kPreferredTeamSize) : 1;
+      using TeamPolicyPf = Kokkos::TeamPolicy<ExecSpace, Kokkos::LaunchBounds<kPreferredTeamSize, kMinTeamsPerSMPf>>;
+      TeamPolicyPf policy_pf(n_iter, team_size);
       policy_pf.set_scratch_size(0, Kokkos::PerTeam(ScratchView1D::shmem_size(kPrefetchFloats) +
                                                      ScratchViewInt::shmem_size(kPointsPerElement)));
 
       Kokkos::parallel_for(
-          "Solver Element Contribution Tti TeamZ Prefetch", policy_pf, KOKKOS_LAMBDA(const TeamMember& team) {
+          "Solver Element Contribution Tti TeamZ Prefetch", detail::lightWeight(policy_pf), KOKKOS_LAMBDA(const TeamMember& team) {
             int const elementNumber = list_on ? list_local[team.league_rank()] : team.league_rank();
 
             ScratchView1D scratch(team.team_scratch(0), kPrefetchFloats);
@@ -1691,7 +1694,7 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::com
     }
 
     Kokkos::parallel_for(
-        "Solver Element Contribution Tti TeamZ", policy, KOKKOS_LAMBDA(const TeamMember& team) {
+        "Solver Element Contribution Tti TeamZ", detail::lightWeight(policy), KOKKOS_LAMBDA(const TeamMember& team) {
           int const elementNumber = list_on ? list_local[team.league_rank()] : team.league_rank();
 
           ScratchView1D scratch(team.team_scratch(0), kScratchFloats);
@@ -1782,7 +1785,7 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::upd
   if constexpr (PHYSICS == utils::enums::physicType::kAcoustic) {
     int const n_iter = list_on ? m_n_node_list_ : mesh_local.getNumberOfNodes();
     Kokkos::parallel_for(
-        "Solver Update Field Acoustic", n_iter, KOKKOS_LAMBDA(const int _node_idx) {
+        "Solver Update Field Acoustic", detail::lightWeightRange(n_iter), KOKKOS_LAMBDA(const int _node_idx) {
           if (_node_idx >= n_iter) return;
           int const I = list_on ? list_local[_node_idx] : _node_idx;
           if (mass_matrix[I] <= 0.0f) return;
@@ -1818,7 +1821,7 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::upd
     int const n_iter_el = list_on ? m_n_node_list_ : mesh_local.getNumberOfNodes();
 
     Kokkos::parallel_for(
-        "Solver Update Field Elastic", n_iter_el, KOKKOS_LAMBDA(const int _node_idx) {
+        "Solver Update Field Elastic", detail::lightWeightRange(n_iter_el), KOKKOS_LAMBDA(const int _node_idx) {
           if (_node_idx >= n_iter_el) return;
           int const I = list_on ? list_local[_node_idx] : _node_idx;
           if (mass_matrix[I] <= 0.0f) return;

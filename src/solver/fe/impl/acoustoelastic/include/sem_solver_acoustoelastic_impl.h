@@ -457,7 +457,7 @@ void SEMsolverAcoustoElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES>
     auto vs = m_vs_solid_iface_;
     auto rho = solid ? m_rho_solid_iface_ : m_rho_fluid_iface_;
     Kokkos::parallel_for(
-        "AcoustoElastic Set Interface Node Props", n_interface_nodes_, KOKKOS_LAMBDA(const int i) {
+        "AcoustoElastic Set Interface Node Props", detail::lightWeightRange(n_interface_nodes_), KOKKOS_LAMBDA(const int i) {
           mesh_local.setModelNodeProps(node_indices[i], vp[i], solid ? vs[i] : 0.0f, rho[i]);
         });
   }
@@ -547,7 +547,7 @@ void SEMsolverAcoustoElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES>
   int const n_iface = n_interface_nodes_;
 
   Kokkos::parallel_for(
-      "ApplyCouplingAcousticToElastic_Loop", n_iface, KOKKOS_LAMBDA(const int i) {
+      "ApplyCouplingAcousticToElastic_Loop", detail::lightWeightRange(n_iface), KOKKOS_LAMBDA(const int i) {
         int const j = iface_list[i];
         if (M_e[j] > 0.0f && !mesh_local.isFreeSurface(j)) {
           // Same denominator and taper the Verlet update applied to the physical
@@ -585,7 +585,7 @@ void SEMsolverAcoustoElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES>
   int const n_iface = n_interface_nodes_;
 
   Kokkos::parallel_for(
-      "ApplyCouplingElasticToAcoustic_Loop", n_iface, KOKKOS_LAMBDA(const int i) {
+      "ApplyCouplingElasticToAcoustic_Loop", detail::lightWeightRange(n_iface), KOKKOS_LAMBDA(const int i) {
         int const j = iface_list[i];
         if (M_f[j] > 0.0f && !mesh_local.isFreeSurface(j)) {
           // Second time difference of the solid displacement; u_nm1_* are indexed by
