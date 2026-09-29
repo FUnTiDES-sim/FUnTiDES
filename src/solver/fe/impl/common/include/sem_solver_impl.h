@@ -1599,9 +1599,9 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::com
 
     constexpr int dim = ORDER + 1;
     constexpr int kPreferredTeamSize = ((kPointsPerElement + 31) / 32) * 32;
-    // Enough resident teams for half the maximum warps per SM, so that the compiler does not
-    // trade occupancy for registers.
-    constexpr int kMinTeamsPerSM = (768 / kPreferredTeamSize) > 0 ? (768 / kPreferredTeamSize) : 1;
+    // Enough resident teams for half the maximum warps per SM, which caps registers at 64 per thread
+    // without spilling.
+    constexpr int kMinTeamsPerSM = (1024 / kPreferredTeamSize) > 0 ? (1024 / kPreferredTeamSize) : 1;
 
     using ExecSpace = Kokkos::DefaultExecutionSpace;
     using TeamPolicyType = Kokkos::TeamPolicy<ExecSpace, Kokkos::LaunchBounds<kPreferredTeamSize, kMinTeamsPerSM>>;
@@ -1620,7 +1620,8 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::com
     size_t const bytes = ScratchView1D::shmem_size(kScratchFloats) + ScratchViewInt::shmem_size(kPointsPerElement);
     policy.set_scratch_size(0, Kokkos::PerTeam(bytes));
 
-    auto const kernel = KOKKOS_LAMBDA(const TeamMember& team) {
+    Kokkos::parallel_for(
+        "Solver Element Contribution Tti TeamZ", detail::lightWeight(policy), KOKKOS_LAMBDA(const TeamMember& team) {
           int const elementNumber = list_on ? list_local[team.league_rank()] : team.league_rank();
 
           ScratchView1D scratch(team.team_scratch(0), kScratchFloats);
@@ -1666,23 +1667,7 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::com
               ATOMICADD(local_workVectorsGlobal[f][globalIdx], localFields[f * kPointsPerElement + localIdx]);
             }
           });
-        };
-
-    // TEMPORARY A/B switch: 16 teams of 64 threads per SM caps registers at 64 (50 % occupancy instead of 44 %).
-    static bool const use_occ = [] {
-      bool const on = std::getenv("FUNTIDES_TTI_OCC") != nullptr;
-      if (on) std::cout << "SEM: TTI TeamZ capped at 64 registers (FUNTIDES_TTI_OCC)" << std::endl;
-      return on;
-    }();
-    if (use_occ) {
-      constexpr int kMinTeamsPerSMOcc = (1024 / kPreferredTeamSize) > 0 ? (1024 / kPreferredTeamSize) : 1;
-      using TeamPolicyOcc = Kokkos::TeamPolicy<ExecSpace, Kokkos::LaunchBounds<kPreferredTeamSize, kMinTeamsPerSMOcc>>;
-      TeamPolicyOcc policy_occ(n_iter, team_size);
-      policy_occ.set_scratch_size(0, Kokkos::PerTeam(bytes));
-      Kokkos::parallel_for("Solver Element Contribution Tti TeamZ Occ", detail::lightWeight(policy_occ), kernel);
-    } else {
-      Kokkos::parallel_for("Solver Element Contribution Tti TeamZ", detail::lightWeight(policy), kernel);
-    }
+        });
   }
 }
 
