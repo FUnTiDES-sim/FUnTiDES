@@ -387,11 +387,11 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::pre
   int const nElems = mesh_pc.getNumberOfElements();
   vectorReal geom = allocateVector<vectorReal>(nElems * kZGeomStride, "zDeformedGeom");
   vectorReal invRho;
-  vectorInt nodes;
   if (is_acoustic && IS_MODEL_ON_NODES)
     invRho = allocateVector<vectorReal>(nElems * kPointsPerElement, "zDeformedInvRho");
-  // The elastic kernel is a team kernel: it reads the node indices element by element.
-  if (!is_acoustic) nodes = allocateVector<vectorInt>(nElems * kPointsPerElement, "zDeformedNodes");
+  // Filled on the device, so that the kernels never read the mesh connectivity, whose pages the
+  // host may pull back under unified memory.
+  vectorInt nodes = allocateVector<vectorInt>(nElems * kPointsPerElement, "zDeformedNodes");
   float* geomPtr = geom.data();
   float* invRhoPtr = invRho.data();
   int* nodesPtr = nodes.data();
@@ -420,9 +420,10 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::pre
           }
         }
 
-        if (!is_acoustic)
-          for (int q = 0; q < kPointsPerElement; ++q)
-            nodesPtr[e * kPointsPerElement + q] = mesh_pc.globalNodeIndex(e, q % dim, (q / dim) % dim, q / (dim * dim));
+        // The elastic team kernel reads the indices element by element, the acoustic kernel node by node.
+        for (int q = 0; q < kPointsPerElement; ++q)
+          nodesPtr[is_acoustic ? q * nElems + e : e * kPointsPerElement + q] =
+              mesh_pc.globalNodeIndex(e, q % dim, (q / dim) % dim, q / (dim * dim));
 
         geomPtr[e] = 0.5f * hx;
         geomPtr[nElems + e] = 0.5f * hy;
@@ -470,6 +471,7 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::com
     int const n_iter = list_on ? m_n_elem_list_ : nElems;
     auto geom = zDeformedGeom_;
     float const* invRhoNodes = zDeformedInvRho_.data();
+    int const* elemNodes = zDeformedNodes_.data();
     auto force = workVectorsGlobal_[0];
 
     // Input and output arrays of one element live in registers: 3 blocks per SM leave room for both.
@@ -484,7 +486,7 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::com
           for (int k = 0; k < dim; ++k)
             for (int j = 0; j < dim; ++j)
               for (int i = 0; i < dim; ++i)
-                u[i + j * dim + k * dim * dim] = data.getCurrentField(0)(mesh_local.globalNodeIndex(e, i, j, k));
+                u[i + j * dim + k * dim * dim] = data.getCurrentField(0)(elemNodes[(i + j * dim + k * dim * dim) * nElems + e]);
 
           real_t const J00 = geom(e);
           real_t const J11 = geom(nElems + e);
@@ -503,7 +505,7 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::com
           for (int k = 0; k < dim; ++k)
             for (int j = 0; j < dim; ++j)
               for (int i = 0; i < dim; ++i)
-                ATOMICADD(force[mesh_local.globalNodeIndex(e, i, j, k)], v[i + j * dim + k * dim * dim]);
+                ATOMICADD(force[elemNodes[(i + j * dim + k * dim * dim) * nElems + e]], v[i + j * dim + k * dim * dim]);
         });
   } else {
     throw std::runtime_error(

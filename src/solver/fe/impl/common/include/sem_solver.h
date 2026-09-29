@@ -392,7 +392,8 @@ class SEMsolver : public Solver {
   vectorReal zDeformedGeom_;
   /// Acoustic, model on nodes: 1/rho of node q of element e at q * nElements + e.
   vectorReal zDeformedInvRho_;
-  /// Elastic: global node index of node q of element e at e * kPointsPerElement + q.
+  /// Global node index of node q of element e, at e * kPointsPerElement + q for the elastic team
+  /// kernel and at q * nElements + e for the acoustic one-thread-per-element kernel.
   vectorInt zDeformedNodes_;
   /// Elastic: the kBasisTableSize entries of basisTableEntry().
   vectorReal zDeformedBasisTab_;
