@@ -1649,7 +1649,14 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::com
     // With one thread per node, a team handles two elements and loads the second one's fields into registers
     // while it computes the first, so the gather latency overlaps the computation.
     bool const pipelined = team_size >= kPointsPerElement;
-    int const elems_per_team = pipelined ? 2 : 1;
+    // TEMPORARY A/B switch: FUNTIDES_TTI_ELEMS sets the number of elements per team (default 2).
+    static int const kElemsFromEnv = [] {
+      char const* env = std::getenv("FUNTIDES_TTI_ELEMS");
+      int const n = env ? std::atoi(env) : 2;
+      std::cout << "SEM: TTI TeamZ " << (n > 0 ? n : 2) << " elements per team" << std::endl;
+      return n > 0 ? n : 2;
+    }();
+    int const elems_per_team = pipelined ? kElemsFromEnv : 1;
     TeamPolicyType policy((n_iter + elems_per_team - 1) / elems_per_team, team_size);
     // One float block: fields (then forces), fluxes and basis table.
     constexpr int kFluxOffset = kNumFields * kPointsPerElement;
