@@ -363,7 +363,17 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::com
     if constexpr (detail::has_z_deformed_sumfact<INTEGRAL_TYPE>::value) {
       prepareZDeformedGeometry();
       if (zDeformedEnabled_) {
-        computeElementContributions_Acoustic_FlatZ(data);
+        // TEMPORARY A/B switch: FUNTIDES_ACOUSTIC_TEAM=1 selects the team kernel.
+        static bool const kTeam = [] {
+          char const* env = std::getenv("FUNTIDES_ACOUSTIC_TEAM");
+          bool const team = env && std::atoi(env) == 1;
+          std::cout << "SEM: acoustic z-deformed kernel " << (team ? "TeamZ" : "FlatZ") << std::endl;
+          return team;
+        }();
+        if (kTeam)
+          computeElementContributions_Acoustic_TeamZ(data);
+        else
+          computeElementContributions_Acoustic_FlatZ(data);
         return;
       }
     }
@@ -380,6 +390,7 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::pre
   zDeformedInvRho_ = vectorReal();
   zDeformedNodes_ = vectorInt();
   zDeformedNodesList_ = vectorInt();
+  zDeformedInvRhoNodes_ = vectorReal();
   zDeformedBasisTab_ = vectorReal();
 
   bool const is_acoustic = (PHYSICS == utils::enums::physicType::kAcoustic);
@@ -441,26 +452,24 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::pre
   zDeformedInvRho_ = invRho;
   zDeformedEnabled_ = true;
   if constexpr (detail::has_z_deformed_sumfact<INTEGRAL_TYPE>::value) {
-    if (!is_acoustic) {
-      vectorReal basisTab = allocateVector<vectorReal>(INTEGRAL_TYPE::kBasisTableSize, "zDeformedBasisTab");
-      auto h_basisTab = Kokkos::create_mirror_view(basisTab);
-      for (int idx = 0; idx < INTEGRAL_TYPE::kBasisTableSize; ++idx) h_basisTab(idx) = INTEGRAL_TYPE::basisTableEntry(idx);
-      Kokkos::deep_copy(basisTab, h_basisTab);
-      zDeformedBasisTab_ = basisTab;
-    }
+    vectorReal basisTab = allocateVector<vectorReal>(INTEGRAL_TYPE::kBasisTableSize, "zDeformedBasisTab");
+    auto h_basisTab = Kokkos::create_mirror_view(basisTab);
+    for (int idx = 0; idx < INTEGRAL_TYPE::kBasisTableSize; ++idx) h_basisTab(idx) = INTEGRAL_TYPE::basisTableEntry(idx);
+    Kokkos::deep_copy(basisTab, h_basisTab);
+    zDeformedBasisTab_ = basisTab;
   }
 }
 
 template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE, bool IS_MODEL_ON_NODES, physicType PHYSICS>
-int const* SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::zDeformedNodeTable() {
+int const* SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::zDeformedNodeTable(
+    bool element_major) {
   bool const list_on = m_list_mode_;
   int const n_visited = list_on ? m_n_elem_list_ : m_mesh.getNumberOfElements();
   int const* list_key = list_on ? m_elem_list_.data() : nullptr;
   if (zDeformedNodes_.extent(0) == static_cast<size_t>(n_visited) * kPointsPerElement &&
-      zDeformedNodesList_.data() == list_key)
+      zDeformedNodesList_.data() == list_key && zDeformedNodesElementMajor_ == element_major)
     return zDeformedNodes_.data();
 
-  bool const is_acoustic = (PHYSICS == utils::enums::physicType::kAcoustic);
   auto mesh_pc = m_mesh;
   auto list_local = m_elem_list_;
   // Filled on the device, so that the kernels never read the mesh connectivity, whose pages the
@@ -471,15 +480,32 @@ int const* SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS
       "ZDeformed Node Table", Kokkos::RangePolicy<>(0, n_visited), KOKKOS_LAMBDA(const int i) {
         constexpr int dim = ORDER + 1;
         int const e = list_on ? list_local[i] : i;
-        // The elastic team kernel reads the indices element by element, the acoustic kernel node by node.
+        // The team kernels read the indices element by element, the flat kernel node by node.
         for (int q = 0; q < kPointsPerElement; ++q)
-          nodesPtr[is_acoustic ? q * n_visited + i : i * kPointsPerElement + q] =
+          nodesPtr[element_major ? i * kPointsPerElement + q : q * n_visited + i] =
               mesh_pc.globalNodeIndex(e, q % dim, (q / dim) % dim, q / (dim * dim));
       });
 
   zDeformedNodes_ = nodes;
   zDeformedNodesList_ = list_on ? m_elem_list_ : vectorInt();
+  zDeformedNodesElementMajor_ = element_major;
   return zDeformedNodes_.data();
+}
+
+template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE, bool IS_MODEL_ON_NODES, physicType PHYSICS>
+float const* SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::zDeformedInvRhoNodeTable() {
+  if constexpr (IS_MODEL_ON_NODES) {
+    int const n_nodes = m_mesh.getNumberOfNodes();
+    if (zDeformedInvRhoNodes_.extent(0) == static_cast<size_t>(n_nodes)) return zDeformedInvRhoNodes_.data();
+    auto mesh_pc = m_mesh;
+    vectorReal table = allocateVector<vectorReal>(n_nodes, "zDeformedInvRhoNodes");
+    float* tablePtr = table.data();
+    Kokkos::parallel_for(
+        "ZDeformed InvRho Node Table", Kokkos::RangePolicy<>(0, n_nodes),
+        KOKKOS_LAMBDA(const int g) { tablePtr[g] = 1.0f / mesh_pc.getModelRhoOnNodes(g); });
+    zDeformedInvRhoNodes_ = table;
+  }
+  return zDeformedInvRhoNodes_.data();
 }
 
 template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE, bool IS_MODEL_ON_NODES, physicType PHYSICS>
@@ -534,6 +560,172 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::com
   } else {
     throw std::runtime_error(
         "computeElementContributions_Acoustic_FlatZ: INTEGRAL_TYPE has no z-deformed sum-factorization path.");
+  }
+}
+
+template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE, bool IS_MODEL_ON_NODES, physicType PHYSICS>
+void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::computeElementContributions_Acoustic_TeamZ(
+    const DataType& data) {
+  if constexpr (PHYSICS != utils::enums::physicType::kAcoustic || !detail::has_z_deformed_sumfact<INTEGRAL_TYPE>::value) {
+    throw std::runtime_error("computeElementContributions_Acoustic_TeamZ: needs an acoustic z-deformed setup.");
+  } else {
+    constexpr int n = ORDER + 1;
+    constexpr int kPreferredTeamSize = ((kPointsPerElement + 31) / 32) * 32;
+    constexpr int kMinTeamsPerSM = std::clamp(1024 / kPreferredTeamSize, 1, 16);
+
+    using ExecSpace = Kokkos::DefaultExecutionSpace;
+    using TeamPolicyType = Kokkos::TeamPolicy<ExecSpace, Kokkos::LaunchBounds<kPreferredTeamSize, kMinTeamsPerSM>>;
+    using TeamMember = typename TeamPolicyType::member_type;
+    using ScratchView1D = Kokkos::View<float*, Kokkos::LayoutRight, ExecSpace::scratch_memory_space,
+                                       Kokkos::MemoryTraits<Kokkos::Unmanaged>>;
+
+    int const team_size = std::min<int>(kPreferredTeamSize, ExecSpace::concurrency());
+    // One thread per node is required.
+    if (team_size < kPointsPerElement) {
+      computeElementContributions_Acoustic_FlatZ(data);
+      return;
+    }
+
+    bool const list_on = m_list_mode_;
+    auto list_local = m_elem_list_;
+    int const nElems = m_mesh.getNumberOfElements();
+    int const n_iter = list_on ? m_n_elem_list_ : nElems;
+    auto zgeom = zDeformedGeom_;
+    int const* elemNodes = zDeformedNodeTable(true);
+    float const* invRhoNodes = zDeformedInvRhoNodeTable();
+    float const* basisTabGlobal = zDeformedBasisTab_.data();
+    auto force = workVectorsGlobal_[0];
+
+    // Same choice as the TTI team kernel: up to 8 elements per team, at least four waves of teams.
+    constexpr int kMaxElemsPerTeam = 8;
+    constexpr int kMinWaves = 4;
+    int const resident_teams = std::max<int>(1, ExecSpace::concurrency() / kPreferredTeamSize);
+    int const elems_per_team = std::clamp(n_iter / (kMinWaves * resident_teams), 1, kMaxElemsPerTeam);
+    TeamPolicyType policy((n_iter + elems_per_team - 1) / elems_per_team, team_size);
+
+    // Nodal values, then the three fluxes, then the basis table.
+    constexpr int kFluxOffset = kPointsPerElement;
+    constexpr int kTabOffset = kFluxOffset + 3 * kPointsPerElement;
+    constexpr int kScratchFloats = kTabOffset + INTEGRAL_TYPE::kBasisTableSize;
+    policy.set_scratch_size(0, Kokkos::PerTeam(ScratchView1D::shmem_size(kScratchFloats)));
+
+    Kokkos::parallel_for(
+        "Solver Element Contribution Acoustic TeamZ", detail::lightWeight(policy),
+        KOKKOS_LAMBDA(const TeamMember& team) {
+          ScratchView1D scratch(team.team_scratch(0), kScratchFloats);
+          // Captured here rather than first inside an if constexpr branch, which nvcc rejects.
+          float const* inv_rho_nodes = invRhoNodes;
+          auto const geom = zgeom;
+          float* u = scratch.data();
+          float* G = scratch.data() + kFluxOffset;
+          float* tab = scratch.data() + kTabOffset;
+
+          // Thread q owns point q, which is also node q.
+          int const q = team.team_rank();
+          bool const owns = q < kPointsPerElement;
+          int const qa = q % n;
+          int const qb = (q / n) % n;
+          int const qc = q / (n * n);
+
+          // Filled before the first barrier, which covers it.
+          Kokkos::parallel_for(Kokkos::TeamThreadRange(team, INTEGRAL_TYPE::kBasisTableSize),
+                               [&](const int idx) { tab[idx] = basisTabGlobal[idx]; });
+
+          // The same for every element of the team: basis derivatives along the three lines through q,
+          // the quadrature weight and the interpolation coordinates of q.
+          float d_xi[n];
+          float d_eta[n];
+          float d_zeta[n];
+          float weight = 0.0f;
+          float alpha[3] = {0.0f, 0.0f, 0.0f};
+          if (owns) {
+            for (int i = 0; i < n; ++i) {
+              d_xi[i] = basisTabGlobal[i * n + qa];
+              d_eta[i] = basisTabGlobal[i * n + qb];
+              d_zeta[i] = basisTabGlobal[i * n + qc];
+            }
+            weight = basisTabGlobal[n * n + qa] * basisTabGlobal[n * n + qb] * basisTabGlobal[n * n + qc];
+            alpha[0] = basisTabGlobal[n * n + n + qa];
+            alpha[1] = basisTabGlobal[n * n + n + qb];
+            alpha[2] = basisTabGlobal[n * n + n + qc];
+          }
+
+          int const first_rank = team.league_rank() * elems_per_team;
+          int const n_here = Kokkos::min(elems_per_team, n_iter - first_rank);
+
+          // Next element's node index, value and 1/rho, held in registers across the current element.
+          int next_node = 0;
+          float next_u = 0.0f;
+          float next_inv_rho = 0.0f;
+          auto const prefetch = [&](int rank) {
+            if (owns) {
+              next_node = elemNodes[rank * kPointsPerElement + q];
+              next_u = data.getCurrentField(0)(next_node);
+              if constexpr (IS_MODEL_ON_NODES) next_inv_rho = inv_rho_nodes[next_node];
+            }
+          };
+          prefetch(first_rank);
+
+          for (int k = 0; k < n_here; ++k) {
+            int const rank = first_rank + k;
+            int const e = list_on ? list_local[rank] : rank;
+            int const node = next_node;
+
+            // Same address for the whole team: one broadcast load per entry.
+            float const J00 = geom(e);
+            float const J11 = geom(nElems + e);
+            float Z[8];
+            for (int j = 0; j < 8; ++j) Z[j] = geom((2 + j) * nElems + e);
+            float inv_rho = next_inv_rho;
+            if constexpr (!IS_MODEL_ON_NODES) inv_rho = geom((kZGeomStride - 1) * nElems + e);
+
+            if (owns) u[q] = next_u;
+            team.team_barrier();
+
+            if (k + 1 < n_here) prefetch(rank + 1);
+
+            if (owns) {
+              float du[3] = {0.0f, 0.0f, 0.0f};
+              for (int i = 0; i < n; ++i) {
+                du[0] += d_xi[i] * u[i + qb * n + qc * n * n];
+                du[1] += d_eta[i] * u[qa + i * n + qc * n * n];
+                du[2] += d_zeta[i] * u[qa + qb * n + i * n * n];
+              }
+
+              float dZ[3][4];
+              INTEGRAL_TYPE::zDeformedHalfDifferences(Z, dZ);
+              float invJ[3][3];
+              float const detJ = INTEGRAL_TYPE::invJacobianZDeformedBilinear(alpha, J00, J11, dZ, invJ);
+              float const a = invJ[0][0];
+              float const b = invJ[1][1];
+              float const c = invJ[2][0];
+              float const d = invJ[2][1];
+              float const ez = invJ[2][2];
+              // B = det(J) J^-1 J^-T, whose xy entry is zero.
+              float const scale = weight * inv_rho * detJ;
+              float const B0 = a * a;
+              float const B1 = b * b;
+              float const B2 = c * c + d * d + ez * ez;
+              float const B3 = b * d;
+              float const B4 = a * c;
+              G[q] = scale * (B0 * du[0] + B4 * du[2]);
+              G[kPointsPerElement + q] = scale * (B1 * du[1] + B3 * du[2]);
+              G[2 * kPointsPerElement + q] = scale * (B4 * du[0] + B3 * du[1] + B2 * du[2]);
+            }
+            team.team_barrier();
+
+            // Transpose: node (qa, qb, qc) gathers D(qa, p) G_xi(p, qb, qc), and so on.
+            if (owns) {
+              float v = 0.0f;
+              for (int p = 0; p < n; ++p) {
+                v += tab[qa * n + p] * G[p + qb * n + qc * n * n];
+                v += tab[qb * n + p] * G[kPointsPerElement + qa + p * n + qc * n * n];
+                v += tab[qc * n + p] * G[2 * kPointsPerElement + qa + qb * n + p * n * n];
+              }
+              ATOMICADD(force[node], v);
+            }
+          }
+        });
   }
 }
 
@@ -1635,7 +1827,8 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::com
     constexpr int kPreferredTeamSize = ((kPointsPerElement + 31) / 32) * 32;
     // Enough resident teams for half the maximum warps per SM, which caps registers at 64 per thread
     // without spilling.
-    constexpr int kMinTeamsPerSM = (1024 / kPreferredTeamSize) > 0 ? (1024 / kPreferredTeamSize) : 1;
+    // Capped at 16, the lowest resident-block limit per SM among the targeted GPUs (24 on Ada, 16 on GA10x).
+    constexpr int kMinTeamsPerSM = std::clamp(1024 / kPreferredTeamSize, 1, 16);
 
     using ExecSpace = Kokkos::DefaultExecutionSpace;
     using TeamPolicyType = Kokkos::TeamPolicy<ExecSpace, Kokkos::LaunchBounds<kPreferredTeamSize, kMinTeamsPerSM>>;

@@ -260,6 +260,12 @@ class SEMsolver : public Solver {
   void computeElementContributions_Acoustic_FlatZ(const DataType& data);
 
   /**
+   * @brief Team version of computeElementContributions_Acoustic_FlatZ(): one thread per node, several
+   * elements per team, the next element's fields loaded while the current one is computed.
+   */
+  void computeElementContributions_Acoustic_TeamZ(const DataType& data);
+
+  /**
    * @brief Checks whether every element keeps its xi and eta edges parallel to x and y, and if
    * so builds the tables read by computeElementContributions_Acoustic_FlatZ() and
    * computeElementContributions_Tti_TeamZ().
@@ -275,7 +281,13 @@ class SEMsolver : public Solver {
    * their element without first reading the list. Rebuilt only when the element list changes.
    * @return Device pointer to zDeformedNodes_.
    */
-  int const* zDeformedNodeTable();
+  int const* zDeformedNodeTable(bool element_major = PHYSICS != utils::enums::physicType::kAcoustic);
+
+  /**
+   * @brief 1/rho at every global node, read by computeElementContributions_Acoustic_TeamZ().
+   * @return Device pointer to zDeformedInvRhoNodes_.
+   */
+  float const* zDeformedInvRhoNodeTable();
 
   /**
    * @brief Highest order still served by the one-thread-per-element kernels.
@@ -414,11 +426,14 @@ class SEMsolver : public Solver {
   /// Acoustic, model on nodes: 1/rho of node q of element e at q * nElements + e.
   vectorReal zDeformedInvRho_;
   /// Global node index of node q of the i-th visited element, at i * kPointsPerElement + q for the
-  /// elastic team kernel and at q * nVisited + i for the acoustic one-thread-per-element kernel.
+  /// team kernels (element major) and at q * nVisited + i for the one-thread-per-element kernel.
   vectorInt zDeformedNodes_;
+  bool zDeformedNodesElementMajor_ = false;
+  /// Acoustic team kernel, model on nodes: 1/rho per global node.
+  vectorReal zDeformedInvRhoNodes_;
   /// Element list zDeformedNodes_ was built for; empty when built for all elements.
   vectorInt zDeformedNodesList_;
-  /// Elastic: the kBasisTableSize entries of basisTableEntry().
+  /// The kBasisTableSize entries of basisTableEntry().
   vectorReal zDeformedBasisTab_;
   bool zDeformedReady_ = false;
   bool zDeformedEnabled_ = false;
