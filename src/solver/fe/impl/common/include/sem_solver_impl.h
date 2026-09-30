@@ -2320,14 +2320,15 @@ PROXY_HOST_DEVICE void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NO
   const float st_sp = stheta * sphi;
 
   float R[3][3];
+  // Rotates the VTI axis to (sin(theta)cos(phi), sin(theta)sin(phi), cos(theta)).
   R[0][0] = ct_cp;
-  R[0][1] = ct_sp;
-  R[0][2] = -stheta;
-  R[1][0] = -sphi;
+  R[0][1] = -sphi;
+  R[0][2] = st_cp;
+  R[1][0] = ct_sp;
   R[1][1] = cphi;
-  R[1][2] = 0.0f;
-  R[2][0] = st_cp;
-  R[2][1] = st_sp;
+  R[1][2] = st_sp;
+  R[2][0] = -stheta;
+  R[2][1] = 0.0f;
   R[2][2] = ctheta;
 
   const float R00_2 = R[0][0] * R[0][0];
@@ -2408,7 +2409,7 @@ template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE, bool IS_MODEL_O
 template <physicType P, typename>
 PROXY_HOST_DEVICE void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::computeTtiCompact(
     float const vp, float const vs, float const rho, float const delta, float const epsilon, float const gamma,
-    [[maybe_unused]] float const phi, float const theta, float (&p)[flux::kTtiCompactSize]) {
+    float const phi, float const theta, float (&p)[flux::kTtiCompactSize]) {
   // Same VTI coefficients as computeCMatrix().
   const float rho_vp2 = rho * vp * vp;
   const float rho_vs2 = rho * vs * vs;
@@ -2419,7 +2420,9 @@ PROXY_HOST_DEVICE void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NO
 
   constexpr float DEG_TO_RAD = 3.14159265358979323846f / 180.0f;
   const float theta_rad = theta * DEG_TO_RAD;
-  float const n[3] = {-sinf(theta_rad), 0.0f, cosf(theta_rad)};
+  const float phi_rad = phi * DEG_TO_RAD;
+  const float stheta = sinf(theta_rad);
+  float const n[3] = {stheta * cosf(phi_rad), stheta * sinf(phi_rad), cosf(theta_rad)};
   flux::ttiCompactFromVti(c11, c13, rho_vp2, rho_vs2, c66, n, p);
 }
 
