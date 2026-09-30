@@ -1879,36 +1879,37 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::upd
             damp[f] = damping_matrix[f](I);
             work[f] = work_vector[f](I);
           }
-          if (reset_forces) {
-            for (int f = 0; f < kNumFields; ++f) work_vector[f](I) = 0.0f;
-            // Otherwise the attenuation forces are zeroed after their last read below.
-            if (has_attenuation && mass <= 0.0f)
-              for (int f = 0; f < kNumFields; ++f) atten_work_vec[f](I) = 0.0f;
-          }
-          if (mass <= 0.0f) return;
 
-          for (int f = 0; f < kNumFields; ++f) {
-            // No damping on the free surface.
-            float const d = free_surface ? 0.0f : damp[f];
-            float next_val = (2.0f * mass * cur[f] - (mass - 0.5f * dt_local * d) * prev[f] - dt2_local * work[f]);
+          // No early return: the stores all come after the loads.
+          if (mass > 0.0f) {
+            for (int f = 0; f < kNumFields; ++f) {
+              // No damping on the free surface.
+              float const d = free_surface ? 0.0f : damp[f];
+              float next_val = (2.0f * mass * cur[f] - (mass - 0.5f * dt_local * d) * prev[f] - dt2_local * work[f]);
 
-            if (has_attenuation) {
-              for (int l = 0; l < n_sls; ++l) {
-                float const w = sls_w[l];
-                float const gamma = (2.0f - w * dt_local) / (2.0f + w * dt_local);
-                float const beta = sls_beta[l] * w * 2.0f * dt_local / (2.0f + w * dt_local);
-                float const gamma_p = 0.5f + 0.5f * gamma;
-                float const beta_p = 0.5f * beta;
+              if (has_attenuation) {
+                for (int l = 0; l < n_sls; ++l) {
+                  float const w = sls_w[l];
+                  float const gamma = (2.0f - w * dt_local) / (2.0f + w * dt_local);
+                  float const beta = sls_beta[l] * w * 2.0f * dt_local / (2.0f + w * dt_local);
+                  float const gamma_p = 0.5f + 0.5f * gamma;
+                  float const beta_p = 0.5f * beta;
 
-                next_val += dt2_local * (gamma_p * atten_mem_vars[f](I, l) + beta_p * atten_work_vec[f](I));
+                  next_val += dt2_local * (gamma_p * atten_mem_vars[f](I, l) + beta_p * atten_work_vec[f](I));
 
-                atten_mem_vars[f](I, l) = gamma * atten_mem_vars[f](I, l) + beta * atten_work_vec[f](I);
+                  atten_mem_vars[f](I, l) = gamma * atten_mem_vars[f](I, l) + beta * atten_work_vec[f](I);
+                }
               }
-            }
 
-            prev_field[f](I) = next_val / (mass + 0.5f * dt_local * d) * taper;
-            current_field[f](I) = cur[f] * taper;
-            if (reset_forces && has_attenuation) atten_work_vec[f](I) = 0.0f;
+              prev_field[f](I) = next_val / (mass + 0.5f * dt_local * d) * taper;
+              current_field[f](I) = cur[f] * taper;
+            }
+          }
+          if (reset_forces) {
+            for (int f = 0; f < kNumFields; ++f) {
+              work_vector[f](I) = 0.0f;
+              if (has_attenuation) atten_work_vec[f](I) = 0.0f;
+            }
           }
         });
   }
