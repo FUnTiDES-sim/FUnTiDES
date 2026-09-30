@@ -1786,6 +1786,8 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::upd
 
   bool const list_on = m_node_list_mode_;
   auto list_local = m_node_list_;
+  // The forces are zeroed right after being read, which saves the reset at the start of the next step.
+  bool const reset_forces = m_reset_forces_in_update_;
 
   // The new value is written into the previous-field buffer (leapfrog), which the caller swaps afterwards.
   // Every per-node value is loaded before the first test and the first store: the loads then go out
@@ -1794,33 +1796,25 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::upd
     int const n_iter = list_on ? m_n_node_list_ : mesh_local.getNumberOfNodes();
     // A node only needs 40 bytes, so each thread takes two to keep more loads in flight. The second node
     // is n_threads further, which keeps every load of a warp contiguous.
-    constexpr int kMaxNodesPerThread = 2;
-    // TEMPORARY A/B switch: FUNTIDES_UPD_AC_NODES=1 goes back to one node per thread.
-    static int const kNodesFromEnv = [] {
-      char const* env = std::getenv("FUNTIDES_UPD_AC_NODES");
-      int const n = (env && std::atoi(env) == 1) ? 1 : kMaxNodesPerThread;
-      std::cout << "SEM: acoustic update " << n << " node(s) per thread" << std::endl;
-      return n;
-    }();
-    int const nodes_per_thread = kNodesFromEnv;
-    int const n_threads = (n_iter + nodes_per_thread - 1) / nodes_per_thread;
+    constexpr int kNodesPerThread = 2;
+    int const n_threads = (n_iter + kNodesPerThread - 1) / kNodesPerThread;
     Kokkos::parallel_for(
         "Solver Update Field Acoustic", detail::lightWeightRange(n_threads), KOKKOS_LAMBDA(const int _thread_idx) {
-          int I[kMaxNodesPerThread];
-          bool active[kMaxNodesPerThread];
-          float mass[kMaxNodesPerThread];
-          bool free_surface[kMaxNodesPerThread];
-          float taper[kMaxNodesPerThread];
-          float cur[kMaxNodesPerThread];
-          float prev[kMaxNodesPerThread];
-          float damp[kMaxNodesPerThread];
-          float work[kMaxNodesPerThread];
-          for (int n = 0; n < kMaxNodesPerThread; ++n) {
+          int I[kNodesPerThread];
+          bool active[kNodesPerThread];
+          float mass[kNodesPerThread];
+          bool free_surface[kNodesPerThread];
+          float taper[kNodesPerThread];
+          float cur[kNodesPerThread];
+          float prev[kNodesPerThread];
+          float damp[kNodesPerThread];
+          float work[kNodesPerThread];
+          for (int n = 0; n < kNodesPerThread; ++n) {
             int const node_idx = _thread_idx + n * n_threads;
-            active[n] = n < nodes_per_thread && node_idx < n_iter;
+            active[n] = node_idx < n_iter;
             I[n] = active[n] ? (list_on ? list_local[node_idx] : node_idx) : 0;
           }
-          for (int n = 0; n < kMaxNodesPerThread; ++n) {
+          for (int n = 0; n < kNodesPerThread; ++n) {
             if (!active[n]) continue;
             mass[n] = mass_matrix(I[n]);
             free_surface[n] = mesh_local.isFreeSurface(I[n]);
@@ -1831,10 +1825,11 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::upd
             work[n] = work_vector[0](I[n]);
           }
 
-          for (int n = 0; n < kMaxNodesPerThread; ++n) {
-            if (!active[n] || mass[n] <= 0.0f) continue;
+          for (int n = 0; n < kNodesPerThread; ++n) {
+            if (!active[n]) continue;
             int const node = I[n];
-            if (free_surface[n]) {
+            if (mass[n] <= 0.0f) {
+            } else if (free_surface[n]) {
               current_field[0](node) = 0.0f;
               prev_field[0](node) = 0.0f;
             } else {
@@ -1858,6 +1853,10 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::upd
               prev_field[0](node) = next_val / (mass[n] + 0.5f * dt_local * damp[n]) * taper[n];
               current_field[0](node) = cur[n] * taper[n];
             }
+            if (reset_forces) {
+              work_vector[0](node) = 0.0f;
+              if (has_attenuation) atten_work_vec[0](node) = 0.0f;
+            }
           }
         });
   } else {
@@ -1879,6 +1878,12 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::upd
             prev[f] = prev_field[f](I);
             damp[f] = damping_matrix[f](I);
             work[f] = work_vector[f](I);
+          }
+          if (reset_forces) {
+            for (int f = 0; f < kNumFields; ++f) work_vector[f](I) = 0.0f;
+            // Otherwise the attenuation forces are zeroed after their last read below.
+            if (has_attenuation && mass <= 0.0f)
+              for (int f = 0; f < kNumFields; ++f) atten_work_vec[f](I) = 0.0f;
           }
           if (mass <= 0.0f) return;
 
@@ -1903,6 +1908,7 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::upd
 
             prev_field[f](I) = next_val / (mass + 0.5f * dt_local * d) * taper;
             current_field[f](I) = cur[f] * taper;
+            if (reset_forces && has_attenuation) atten_work_vec[f](I) = 0.0f;
           }
         });
   }
@@ -2503,6 +2509,14 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::upd
   m_node_list_mode_ = true;
   updateFieldsForward(dt, data);
   m_node_list_mode_ = false;
+}
+
+template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE, bool IS_MODEL_ON_NODES, physicType PHYSICS>
+void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::updateFieldsFromListForwardAndReset(
+    float dt, const DataType& data, const vectorInt& node_list, int n_nodes) {
+  m_reset_forces_in_update_ = true;
+  updateFieldsFromListForward(dt, data, node_list, n_nodes);
+  m_reset_forces_in_update_ = false;
 }
 
 template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE, bool IS_MODEL_ON_NODES, physicType PHYSICS>

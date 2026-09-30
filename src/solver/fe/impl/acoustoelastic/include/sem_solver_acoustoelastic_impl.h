@@ -432,6 +432,8 @@ void SEMsolverAcoustoElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES>
 
   resetGlobalVectors(m_mesh_.getNumberOfNodes());
   FENCE
+  // The forces are left non-zero for the separate update and adjoint paths.
+  forces_zeroed_ = false;
 
   m_acoustic_solver_.applyRHSTerm(timeSample, dt, acoustic_data);
   FENCE
@@ -614,8 +616,12 @@ void SEMsolverAcoustoElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES>
   // All kernels below run in order on one execution space instance: no fence is needed between them,
   // ApplyInterfaceCoupling() fences once at the end of the step.
 
+  // The updates of the previous step zeroed the forces after reading them; only the first step, or a
+  // step following computeForces(), needs the resets.
+  bool const needs_reset = !forces_zeroed_;
+
   // Elastic step.
-  m_elastic_solver_.resetGlobalVectorsFromList(elastic_node_list_, num_elastic_nodes_);
+  if (needs_reset) m_elastic_solver_.resetGlobalVectorsFromList(elastic_node_list_, num_elastic_nodes_);
 
   m_elastic_solver_.applyRHSTerm(timeSample, dt, elastic_data);
 
@@ -629,17 +635,19 @@ void SEMsolverAcoustoElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES>
   SaveInterfaceUnm1(myData);
 
   // u^{n+1} is written into the previous buffer.
-  m_elastic_solver_.updateFieldsFromListForward(dt, elastic_data, elastic_node_list_, num_elastic_nodes_);
+  m_elastic_solver_.updateFieldsFromListForwardAndReset(dt, elastic_data, elastic_node_list_, num_elastic_nodes_);
 
   // Acoustic step.
-  m_acoustic_solver_.resetGlobalVectorsFromList(acoustic_node_list_, num_acoustic_nodes_);
+  if (needs_reset) m_acoustic_solver_.resetGlobalVectorsFromList(acoustic_node_list_, num_acoustic_nodes_);
 
   m_acoustic_solver_.applyRHSTerm(timeSample, dt, acoustic_data);
 
   m_acoustic_solver_.computeElementContributionsFromList(acoustic_data, acoustic_elem_list_, num_acoustic_elements_);
 
   // p^{n+1} is written into the previous buffer.
-  m_acoustic_solver_.updateFieldsFromListForward(dt, acoustic_data, acoustic_node_list_, num_acoustic_nodes_);
+  m_acoustic_solver_.updateFieldsFromListForwardAndReset(dt, acoustic_data, acoustic_node_list_,
+                                                          num_acoustic_nodes_);
+  forces_zeroed_ = true;
 
   // Enforce the fluid/solid interface conditions on the two predictors.
   ApplyInterfaceCoupling(dt, myData);

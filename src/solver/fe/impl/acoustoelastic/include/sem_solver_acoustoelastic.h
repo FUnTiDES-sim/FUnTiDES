@@ -265,6 +265,9 @@ class SEMsolverAcoustoElastic : public Solver {
   /// Indices of the elastic elements, size num_elastic_elements_.
   vectorInt elastic_elem_list_;
 
+  /// True when computeOneStep() left the force vectors of both node lists at zero.
+  bool forces_zeroed_{false};
+
   int num_acoustic_nodes_{0};  ///< Number of acoustic-domain nodes.
   int num_elastic_nodes_{0};   ///< Number of elastic-domain nodes.
 

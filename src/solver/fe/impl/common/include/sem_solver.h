@@ -206,6 +206,18 @@ class SEMsolver : public Solver {
   void updateFieldsFromListForward(float dt, const DataType& data, const vectorInt& node_list, int n_nodes);
 
   /**
+   * @brief updateFieldsFromListForward() that also zeroes the force vectors of the listed nodes once read.
+   *
+   * Replaces resetGlobalVectorsFromList() on the same list at the start of the next step.
+   *
+   * @param dt Time step.
+   * @param data Solver data holding the wavefield.
+   * @param node_list Compact array of node indices to update.
+   * @param n_nodes Number of valid entries in @p node_list.
+   */
+  void updateFieldsFromListForwardAndReset(float dt, const DataType& data, const vectorInt& node_list, int n_nodes);
+
+  /**
    * @brief Zeroes the force vectors on a list of nodes only.
    *
    * @param node_list Compact array of node indices to reset.
@@ -437,6 +449,8 @@ class SEMsolver : public Solver {
   bool m_node_list_mode_ = false;
   vectorInt m_node_list_;
   int m_n_node_list_ = 0;
+  // Set by updateFieldsFromListForwardAndReset.
+  bool m_reset_forces_in_update_ = false;
 
   vectorReal spongeTaperCoeff_;
   vectorReal massMatrixGlobal_;                             ///< Size numNodes.
