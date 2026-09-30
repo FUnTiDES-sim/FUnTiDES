@@ -254,8 +254,8 @@ class SEMsolver : public Solver {
   /**
    * @brief Flat acoustic kernel for meshes whose elements are deformed along z only.
    *
-   * Reads the per-element geometry and the 1/rho table built by prepareZDeformedGeometry()
-   * instead of rebuilding the full Jacobian at every quadrature point.
+   * Reads the per-element geometry built by prepareZDeformedGeometry() instead of rebuilding the
+   * full Jacobian at every quadrature point.
    */
   void computeElementContributions_Acoustic_FlatZ(const DataType& data);
 
@@ -284,7 +284,7 @@ class SEMsolver : public Solver {
   int const* zDeformedNodeTable(bool element_major = PHYSICS != utils::enums::physicType::kAcoustic);
 
   /**
-   * @brief 1/rho at every global node, read by computeElementContributions_Acoustic_TeamZ().
+   * @brief 1/rho at every global node, read by the z-deformed acoustic kernels.
    * @return Device pointer to zDeformedInvRhoNodes_.
    */
   float const* zDeformedInvRhoNodeTable();
@@ -423,8 +423,6 @@ class SEMsolver : public Solver {
 
   /// Per-element geometry for the z-deformed kernel, entry c of element e at c * nElements + e.
   vectorReal zDeformedGeom_;
-  /// Acoustic, model on nodes: 1/rho of node q of element e at q * nElements + e.
-  vectorReal zDeformedInvRho_;
   /// Global node index of node q of the i-th visited element, at i * kPointsPerElement + q for the
   /// team kernels (element major) and at q * nVisited + i for the one-thread-per-element kernel.
   vectorInt zDeformedNodes_;

@@ -377,7 +377,6 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::pre
   zDeformedReady_ = true;
   zDeformedEnabled_ = false;
   zDeformedGeom_ = vectorReal();
-  zDeformedInvRho_ = vectorReal();
   zDeformedNodes_ = vectorInt();
   zDeformedNodesList_ = vectorInt();
   zDeformedInvRhoNodes_ = vectorReal();
@@ -388,17 +387,12 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::pre
   auto mesh_pc = m_mesh;
   int const nElems = mesh_pc.getNumberOfElements();
   vectorReal geom = allocateVector<vectorReal>(nElems * kZGeomStride, "zDeformedGeom");
-  vectorReal invRho;
-  if (is_acoustic && IS_MODEL_ON_NODES)
-    invRho = allocateVector<vectorReal>(nElems * kPointsPerElement, "zDeformedInvRho");
   float* geomPtr = geom.data();
-  float* invRhoPtr = invRho.data();
 
   int nonConforming = 0;
   Kokkos::parallel_reduce(
       "ZDeformed Geometry", Kokkos::RangePolicy<>(0, nElems),
       KOKKOS_LAMBDA(const int e, int& bad) {
-        constexpr int dim = ORDER + 1;
         float X[8][3];
         auto const eIdx = mesh_pc.elementIndex(e);
         int I = 0;
@@ -422,24 +416,17 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::pre
         geomPtr[nElems + e] = 0.5f * hy;
         for (int k = 0; k < 8; ++k) geomPtr[(2 + k) * nElems + e] = X[k][2];
 
-        if (!is_acoustic) {
-          geomPtr[(kZGeomStride - 1) * nElems + e] = 0.0f;
-        } else if (IS_MODEL_ON_NODES) {
-          geomPtr[(kZGeomStride - 1) * nElems + e] = 0.0f;
-          for (int q = 0; q < kPointsPerElement; ++q) {
-            int const g = mesh_pc.globalNodeIndex(e, q % dim, (q / dim) % dim, q / (dim * dim));
-            invRhoPtr[q * nElems + e] = 1.0f / mesh_pc.getModelRhoOnNodes(g);
-          }
-        } else {
+        // With the model on nodes, 1/rho comes from zDeformedInvRhoNodeTable().
+        if (is_acoustic && !IS_MODEL_ON_NODES)
           geomPtr[(kZGeomStride - 1) * nElems + e] = 1.0f / mesh_pc.getModelRhoOnElement(e);
-        }
+        else
+          geomPtr[(kZGeomStride - 1) * nElems + e] = 0.0f;
       },
       nonConforming);
 
   if (nonConforming > 0) return;
 
   zDeformedGeom_ = geom;
-  zDeformedInvRho_ = invRho;
   zDeformedEnabled_ = true;
   if constexpr (detail::has_z_deformed_sumfact<INTEGRAL_TYPE>::value) {
     vectorReal basisTab = allocateVector<vectorReal>(INTEGRAL_TYPE::kBasisTableSize, "zDeformedBasisTab");
@@ -508,7 +495,7 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::com
     int const nElems = mesh_local.getNumberOfElements();
     int const n_iter = list_on ? m_n_elem_list_ : nElems;
     auto geom = zDeformedGeom_;
-    float const* invRhoNodes = zDeformedInvRho_.data();
+    float const* invRhoNodes = zDeformedInvRhoNodeTable();
     int const* elemNodes = zDeformedNodeTable();
     auto force = workVectorsGlobal_[0];
 
@@ -534,7 +521,7 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::com
           real_t const invRhoElem = geom((kZGeomStride - 1) * nElems + e);
 
           auto get_alpha = [&](const int q) -> real_t {
-            if (IS_MODEL_ON_NODES) return invRhoNodes[q * nElems + e];
+            if (IS_MODEL_ON_NODES) return invRhoNodes[elemNodes[q * n_iter + _loop_idx]];
             return invRhoElem;
           };
 
@@ -566,8 +553,6 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::com
     using ExecSpace = Kokkos::DefaultExecutionSpace;
     using TeamPolicyType = Kokkos::TeamPolicy<ExecSpace, Kokkos::LaunchBounds<kPreferredTeamSize, kMinTeamsPerSM>>;
     using TeamMember = typename TeamPolicyType::member_type;
-    using ScratchView1D = Kokkos::View<float*, Kokkos::LayoutRight, ExecSpace::scratch_memory_space,
-                                       Kokkos::MemoryTraits<Kokkos::Unmanaged>>;
 
     // One thread per node and one per geometry entry are required. The last geometry entry, 1/rho of
     // the element, is only read when the model lives on elements.
@@ -595,24 +580,34 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::com
     int const elems_per_team = std::clamp(n_iter / (kMinWaves * resident_teams), 1, kMaxElemsPerTeam);
     TeamPolicyType policy((n_iter + elems_per_team - 1) / elems_per_team, team_size);
 
-    // Nodal values, then the three fluxes, then the basis table, then the element geometry.
-    constexpr int kFluxOffset = kPointsPerElement;
-    constexpr int kTabOffset = kFluxOffset + 3 * kPointsPerElement;
-    constexpr int kGeomOffset = kTabOffset + INTEGRAL_TYPE::kBasisTableSize;
-    constexpr int kScratchFloats = kGeomOffset + kZGeomStride;
-    policy.set_scratch_size(0, Kokkos::PerTeam(ScratchView1D::shmem_size(kScratchFloats)));
+    // Shared memory is read in 16-byte blocks where every thread of a warp needs the same few values:
+    // the rows of D for the transpose, each padded to a multiple of 4, and the element geometry.
+    // Then the nodal values and the three fluxes. Every block starts on a 16-byte boundary.
+    constexpr int kRowChunks = (n + 3) / 4;
+    constexpr int kRowStride = 4 * kRowChunks;
+    constexpr int kGeomPadded = ((kZGeomStride + 3) / 4) * 4;
+    static_assert(kGeomPadded == 12, "the geometry is read as three 16-byte blocks");
+    constexpr int kGeomOffset = n * kRowStride;
+    constexpr int kValueOffset = kGeomOffset + kGeomPadded;
+    constexpr int kFluxOffset = kValueOffset + kPointsPerElement;
+    constexpr int kScratchFloats = kFluxOffset + 3 * kPointsPerElement;
+    constexpr size_t kScratchBytes = kScratchFloats * sizeof(float);
+    policy.set_scratch_size(0, Kokkos::PerTeam(kScratchBytes + alignof(detail::Float4)));
 
     Kokkos::parallel_for(
         "Solver Element Contribution Acoustic TeamZ", detail::lightWeight(policy),
         KOKKOS_LAMBDA(const TeamMember& team) {
-          ScratchView1D scratch(team.team_scratch(0), kScratchFloats);
+          float* scratch =
+              static_cast<float*>(team.team_scratch(0).get_shmem_aligned(kScratchBytes, alignof(detail::Float4)));
           // Captured here rather than first inside an if constexpr branch, which nvcc rejects.
           float const* inv_rho_nodes = invRhoNodes;
           auto const geom = zgeom;
-          float* u = scratch.data();
-          float* G = scratch.data() + kFluxOffset;
-          float* tab = scratch.data() + kTabOffset;
-          float* geom_sh = scratch.data() + kGeomOffset;
+          float* rows = scratch;
+          float* geom_sh = scratch + kGeomOffset;
+          float* u = scratch + kValueOffset;
+          float* G = scratch + kFluxOffset;
+          detail::Float4 const* rows4 = reinterpret_cast<detail::Float4 const*>(rows);
+          detail::Float4 const* geom4 = reinterpret_cast<detail::Float4 const*>(geom_sh);
 
           // Thread q owns point q, which is also node q.
           int const q = team.team_rank();
@@ -622,8 +617,11 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::com
           int const qc = q / (n * n);
 
           // Filled before the first barrier, which covers it.
-          Kokkos::parallel_for(Kokkos::TeamThreadRange(team, INTEGRAL_TYPE::kBasisTableSize),
-                               [&](const int idx) { tab[idx] = basisTabGlobal[idx]; });
+          Kokkos::parallel_for(Kokkos::TeamThreadRange(team, n * kRowStride), [&](const int idx) {
+            int const r = idx / kRowStride;
+            int const p = idx % kRowStride;
+            rows[idx] = p < n ? basisTabGlobal[r * n + p] : 0.0f;
+          });
 
           // The same for every element of the team: basis derivatives along the three lines through q,
           // the quadrature weight and the interpolation coordinates of q.
@@ -683,11 +681,14 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::com
             if (k + 1 < n_here) load_values();
             if (k + 2 < n_here) load_index(first_rank + k + 2);
 
-            float const J00 = geom_sh[0];
-            float const J11 = geom_sh[1];
-            float Z[8];
-            for (int j = 0; j < 8; ++j) Z[j] = geom_sh[2 + j];
-            if constexpr (!IS_MODEL_ON_NODES) inv_rho = geom_sh[kZGeomStride - 1];
+            // Entries J00, J11, the eight vertex z and 1/rho of the element, in that order.
+            detail::Float4 const g0 = geom4[0];
+            detail::Float4 const g1 = geom4[1];
+            detail::Float4 const g2 = geom4[2];
+            float const J00 = g0.v[0];
+            float const J11 = g0.v[1];
+            float const Z[8] = {g0.v[2], g0.v[3], g1.v[0], g1.v[1], g1.v[2], g1.v[3], g2.v[0], g2.v[1]};
+            if constexpr (!IS_MODEL_ON_NODES) inv_rho = g2.v[2];
 
             if (owns) {
               float du[3] = {0.0f, 0.0f, 0.0f};
@@ -722,10 +723,18 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::com
             // Transpose: node (qa, qb, qc) gathers D(qa, p) G_xi(p, qb, qc), and so on.
             if (owns) {
               float v = 0.0f;
-              for (int p = 0; p < n; ++p) {
-                v += tab[qa * n + p] * G[p + qb * n + qc * n * n];
-                v += tab[qb * n + p] * G[kPointsPerElement + qa + p * n + qc * n * n];
-                v += tab[qc * n + p] * G[2 * kPointsPerElement + qa + qb * n + p * n * n];
+              for (int c = 0; c < kRowChunks; ++c) {
+                detail::Float4 const ra = rows4[qa * kRowChunks + c];
+                detail::Float4 const rb = rows4[qb * kRowChunks + c];
+                detail::Float4 const rc = rows4[qc * kRowChunks + c];
+                for (int j = 0; j < 4; ++j) {
+                  int const p = 4 * c + j;
+                  if (p < n) {
+                    v += ra.v[j] * G[p + qb * n + qc * n * n];
+                    v += rb.v[j] * G[kPointsPerElement + qa + p * n + qc * n * n];
+                    v += rc.v[j] * G[2 * kPointsPerElement + qa + qb * n + p * n * n];
+                  }
+                }
               }
               ATOMICADD(force[node], v);
             }
