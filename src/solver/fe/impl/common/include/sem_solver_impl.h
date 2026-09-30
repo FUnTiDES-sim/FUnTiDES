@@ -1847,8 +1847,6 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::com
     using ExecSpace = Kokkos::DefaultExecutionSpace;
     using TeamPolicyType = Kokkos::TeamPolicy<ExecSpace, Kokkos::LaunchBounds<kPreferredTeamSize, kMinTeamsPerSM>>;
     using TeamMember = typename TeamPolicyType::member_type;
-    using ScratchView1D = Kokkos::View<float*, Kokkos::LayoutRight, ExecSpace::scratch_memory_space,
-                                       Kokkos::MemoryTraits<Kokkos::Unmanaged>>;
     using ScratchViewInt = Kokkos::View<int*, Kokkos::LayoutRight, ExecSpace::scratch_memory_space,
                                         Kokkos::MemoryTraits<Kokkos::Unmanaged>>;
 
@@ -1865,24 +1863,30 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::com
     int const elems_per_team =
         pipelined ? std::clamp(n_iter / (kMinWaves * resident_teams), 1, kMaxElemsPerTeam) : 1;
     TeamPolicyType policy((n_iter + elems_per_team - 1) / elems_per_team, team_size);
-    // One float block: fields (then forces), fluxes, basis table and element geometry.
+    // One float block: fields (then forces), fluxes, basis table and element geometry. The geometry is
+    // read by the whole team as three 16-byte blocks, so it starts on a 16-byte boundary.
     constexpr int kFluxOffset = kNumFields * kPointsPerElement;
     constexpr int kTabOffset = kFluxOffset + 9 * kPointsPerElement;
-    constexpr int kGeomOffset = kTabOffset + INTEGRAL_TYPE::kBasisTableSize;
-    constexpr int kScratchFloats = kGeomOffset + kGeomEntries;
-    size_t const bytes = ScratchView1D::shmem_size(kScratchFloats) + ScratchViewInt::shmem_size(kPointsPerElement);
+    constexpr int kGeomOffset = ((kTabOffset + INTEGRAL_TYPE::kBasisTableSize + 3) / 4) * 4;
+    constexpr int kGeomPadded = ((kGeomEntries + 3) / 4) * 4;
+    static_assert(kGeomPadded == 12, "the geometry is read as three 16-byte blocks");
+    constexpr int kScratchFloats = kGeomOffset + kGeomPadded;
+    constexpr size_t kScratchBytes = kScratchFloats * sizeof(float);
+    size_t const bytes = kScratchBytes + alignof(detail::Float4) + ScratchViewInt::shmem_size(kPointsPerElement);
     policy.set_scratch_size(0, Kokkos::PerTeam(bytes));
 
     Kokkos::parallel_for(
         "Solver Element Contribution Tti TeamZ", detail::lightWeight(policy), KOKKOS_LAMBDA(const TeamMember& team) {
-          ScratchView1D scratch(team.team_scratch(0), kScratchFloats);
+          float* scratch =
+              static_cast<float*>(team.team_scratch(0).get_shmem_aligned(kScratchBytes, alignof(detail::Float4)));
           // Global index of each node, read once here and reused by the callback and the scatter.
           ScratchViewInt nodeIdx(team.team_scratch(0), kPointsPerElement);
           // Displacements in, forces out, same storage.
-          float* localFields = scratch.data();
-          float* fluxScratch = scratch.data() + kFluxOffset;
-          float* basisTab = scratch.data() + kTabOffset;
-          float* geomSh = scratch.data() + kGeomOffset;
+          float* localFields = scratch;
+          float* fluxScratch = scratch + kFluxOffset;
+          float* basisTab = scratch + kTabOffset;
+          float* geomSh = scratch + kGeomOffset;
+          detail::Float4 const* geom4 = reinterpret_cast<detail::Float4 const*>(geomSh);
 
           int const first_rank = team.league_rank() * elems_per_team;
           int const n_here = Kokkos::min(elems_per_team, n_iter - first_rank);
@@ -1947,8 +1951,11 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::com
             if (k + 1 < n_here) load_values();
             if (k + 2 < n_here) load_index(rank + 2);
 
-            float Z[8];
-            for (int j = 0; j < 8; ++j) Z[j] = geomSh[2 + j];
+            // Entries J00, J11 and the eight vertex z, in that order.
+            detail::Float4 const g0 = geom4[0];
+            detail::Float4 const g1 = geom4[1];
+            detail::Float4 const g2 = geom4[2];
+            float const Z[8] = {g0.v[2], g0.v[3], g1.v[0], g1.v[1], g1.v[2], g1.v[3], g2.v[0], g2.v[1]};
 
             auto const tti_flux = [&](int qa, int qb, int qc, float const(&J_inv)[3][3],
                                       float const(&grad_u_ref)[3][3], float(&flux)[3][3]) {
@@ -1964,7 +1971,7 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::com
             };
 
             INTEGRAL_TYPE::computeElasticStiffnessSumFactTeamZDeformed(
-                team, geomSh[0], geomSh[1], Z, localFields, localFields, fluxScratch, tti_flux, basisTab);
+                team, g0.v[0], g0.v[1], Z, localFields, localFields, fluxScratch, tti_flux, basisTab);
             team.team_barrier();
 
             Kokkos::parallel_for(Kokkos::TeamThreadRange(team, kPointsPerElement), [&](const int localIdx) {
