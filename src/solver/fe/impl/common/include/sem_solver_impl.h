@@ -1792,41 +1792,72 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::upd
   // together instead of waiting for each other.
   if constexpr (PHYSICS == utils::enums::physicType::kAcoustic) {
     int const n_iter = list_on ? m_n_node_list_ : mesh_local.getNumberOfNodes();
+    // A node only needs 40 bytes, so each thread takes two to keep more loads in flight. The second node
+    // is n_threads further, which keeps every load of a warp contiguous.
+    constexpr int kMaxNodesPerThread = 2;
+    // TEMPORARY A/B switch: FUNTIDES_UPD_AC_NODES=1 goes back to one node per thread.
+    static int const kNodesFromEnv = [] {
+      char const* env = std::getenv("FUNTIDES_UPD_AC_NODES");
+      int const n = (env && std::atoi(env) == 1) ? 1 : kMaxNodesPerThread;
+      std::cout << "SEM: acoustic update " << n << " node(s) per thread" << std::endl;
+      return n;
+    }();
+    int const nodes_per_thread = kNodesFromEnv;
+    int const n_threads = (n_iter + nodes_per_thread - 1) / nodes_per_thread;
     Kokkos::parallel_for(
-        "Solver Update Field Acoustic", detail::lightWeightRange(n_iter), KOKKOS_LAMBDA(const int _node_idx) {
-          if (_node_idx >= n_iter) return;
-          int const I = list_on ? list_local[_node_idx] : _node_idx;
-          float const mass = mass_matrix(I);
-          bool const free_surface = mesh_local.isFreeSurface(I);
-          float const taper = taper_coeff(I);
-          float const cur = current_field[0](I);
-          float const prev = prev_field[0](I);
-          float const damp = damping_matrix[0](I);
-          float const work = work_vector[0](I);
-          if (mass <= 0.0f) return;
+        "Solver Update Field Acoustic", detail::lightWeightRange(n_threads), KOKKOS_LAMBDA(const int _thread_idx) {
+          int I[kMaxNodesPerThread];
+          bool active[kMaxNodesPerThread];
+          float mass[kMaxNodesPerThread];
+          bool free_surface[kMaxNodesPerThread];
+          float taper[kMaxNodesPerThread];
+          float cur[kMaxNodesPerThread];
+          float prev[kMaxNodesPerThread];
+          float damp[kMaxNodesPerThread];
+          float work[kMaxNodesPerThread];
+          for (int n = 0; n < kMaxNodesPerThread; ++n) {
+            int const node_idx = _thread_idx + n * n_threads;
+            active[n] = n < nodes_per_thread && node_idx < n_iter;
+            I[n] = active[n] ? (list_on ? list_local[node_idx] : node_idx) : 0;
+          }
+          for (int n = 0; n < kMaxNodesPerThread; ++n) {
+            if (!active[n]) continue;
+            mass[n] = mass_matrix(I[n]);
+            free_surface[n] = mesh_local.isFreeSurface(I[n]);
+            taper[n] = taper_coeff(I[n]);
+            cur[n] = current_field[0](I[n]);
+            prev[n] = prev_field[0](I[n]);
+            damp[n] = damping_matrix[0](I[n]);
+            work[n] = work_vector[0](I[n]);
+          }
 
-          if (free_surface) {
-            current_field[0](I) = 0.0f;
-            prev_field[0](I) = 0.0f;
-          } else {
-            float next_val = (2.0f * mass * cur - (mass - 0.5f * dt_local * damp) * prev - dt2_local * work);
+          for (int n = 0; n < kMaxNodesPerThread; ++n) {
+            if (!active[n] || mass[n] <= 0.0f) continue;
+            int const node = I[n];
+            if (free_surface[n]) {
+              current_field[0](node) = 0.0f;
+              prev_field[0](node) = 0.0f;
+            } else {
+              float next_val =
+                  (2.0f * mass[n] * cur[n] - (mass[n] - 0.5f * dt_local * damp[n]) * prev[n] - dt2_local * work[n]);
 
-            if (has_attenuation) {
-              for (int l = 0; l < n_sls; ++l) {
-                float const w = sls_w[l];
-                float const gamma = (2.0f - w * dt_local) / (2.0f + w * dt_local);
-                float const beta = sls_beta[l] * w * 2.0f * dt_local / (2.0f + w * dt_local);
-                float const gamma_p = 0.5f + 0.5f * gamma;
-                float const beta_p = 0.5f * beta;
+              if (has_attenuation) {
+                for (int l = 0; l < n_sls; ++l) {
+                  float const w = sls_w[l];
+                  float const gamma = (2.0f - w * dt_local) / (2.0f + w * dt_local);
+                  float const beta = sls_beta[l] * w * 2.0f * dt_local / (2.0f + w * dt_local);
+                  float const gamma_p = 0.5f + 0.5f * gamma;
+                  float const beta_p = 0.5f * beta;
 
-                next_val += dt2_local * (gamma_p * atten_mem_vars[0](I, l) + beta_p * atten_work_vec[0](I));
+                  next_val += dt2_local * (gamma_p * atten_mem_vars[0](node, l) + beta_p * atten_work_vec[0](node));
 
-                atten_mem_vars[0](I, l) = gamma * atten_mem_vars[0](I, l) + beta * atten_work_vec[0](I);
+                  atten_mem_vars[0](node, l) = gamma * atten_mem_vars[0](node, l) + beta * atten_work_vec[0](node);
+                }
               }
-            }
 
-            prev_field[0](I) = next_val / (mass + 0.5f * dt_local * damp) * taper;
-            current_field[0](I) = cur * taper;
+              prev_field[0](node) = next_val / (mass[n] + 0.5f * dt_local * damp[n]) * taper[n];
+              current_field[0](node) = cur[n] * taper[n];
+            }
           }
         });
   } else {
