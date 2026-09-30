@@ -1646,7 +1646,11 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::com
                                         Kokkos::MemoryTraits<Kokkos::Unmanaged>>;
 
     int const team_size = std::min<int>(kPreferredTeamSize, ExecSpace::concurrency());
-    TeamPolicyType policy(n_iter, team_size);
+    // With one thread per node, a team handles two elements and loads the second one's fields into registers
+    // while it computes the first, so the gather latency overlaps the computation.
+    bool const pipelined = team_size >= kPointsPerElement;
+    int const elems_per_team = pipelined ? 2 : 1;
+    TeamPolicyType policy((n_iter + elems_per_team - 1) / elems_per_team, team_size);
     // One float block: fields (then forces), fluxes and basis table.
     constexpr int kFluxOffset = kNumFields * kPointsPerElement;
     constexpr int kTabOffset = kFluxOffset + 9 * kPointsPerElement;
@@ -1656,8 +1660,6 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::com
 
     Kokkos::parallel_for(
         "Solver Element Contribution Tti TeamZ", detail::lightWeight(policy), KOKKOS_LAMBDA(const TeamMember& team) {
-          int const elementNumber = list_on ? list_local[team.league_rank()] : team.league_rank();
-
           ScratchView1D scratch(team.team_scratch(0), kScratchFloats);
           // Global index of each node, read once here and reused by the callback and the scatter.
           ScratchViewInt nodeIdx(team.team_scratch(0), kPointsPerElement);
@@ -1666,47 +1668,79 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::com
           float* fluxScratch = scratch.data() + kFluxOffset;
           float* basisTab = scratch.data() + kTabOffset;
 
-          // Filled before the gather barrier, so it needs no barrier of its own.
-          Kokkos::parallel_for(Kokkos::TeamThreadRange(team, INTEGRAL_TYPE::kBasisTableSize),
-                               [&](const int idx) { basisTab[idx] = basisTabGlobal[idx]; });
+          int const first_rank = team.league_rank() * elems_per_team;
+          int const n_here = Kokkos::min(elems_per_team, n_iter - first_rank);
+          int const point = team.team_rank();
+          bool const owns_point = pipelined && point < kPointsPerElement;
 
-          Kokkos::parallel_for(Kokkos::TeamThreadRange(team, kPointsPerElement), [&](const int localIdx) {
-            // Indexed by the league rank, so the gather does not wait for the element list.
-            int const globalIdx = elemNodes[team.league_rank() * kPointsPerElement + localIdx];
-            nodeIdx(localIdx) = globalIdx;
-            for (int f = 0; f < kNumFields; ++f)
-              localFields[f * kPointsPerElement + localIdx] = data.getCurrentField(f)(globalIdx);
-          });
-          team.team_barrier();
-
-          // Same address for the whole team: one broadcast load per entry.
-          float Z[8];
-          for (int k = 0; k < 8; ++k) Z[k] = zgeom((2 + k) * nElems + elementNumber);
-
-          auto const tti_flux = [&](int qa, int qb, int qc, float const(&J_inv)[3][3], float const(&grad_u_ref)[3][3],
-                                    float(&flux)[3][3]) {
-            int const gIndex = nodeIdx(qa + qb * dim + qc * dim * dim);
-            float p[flux::kTtiCompactSize];
-            detail::Float4 const lo = ctti_quads[2 * static_cast<size_t>(gIndex)];
-            detail::Float4 const hi = ctti_quads[2 * static_cast<size_t>(gIndex) + 1];
-            for (int k = 0; k < 4; ++k) {
-              p[k] = lo.v[k];
-              p[k + 4] = hi.v[k];
+          // Next element's node index and fields, held in registers across the current element's computation.
+          int next_node = 0;
+          float next_fields[kNumFields] = {};
+          auto const prefetch = [&](int rank) {
+            if (owns_point) {
+              // Indexed by the league position, so the gather does not wait for the element list.
+              next_node = elemNodes[rank * kPointsPerElement + point];
+              for (int f = 0; f < kNumFields; ++f) next_fields[f] = data.getCurrentField(f)(next_node);
             }
-            flux::elasticFluxTtiCompact(J_inv, p, grad_u_ref, flux);
           };
+          prefetch(first_rank);
 
-          INTEGRAL_TYPE::computeElasticStiffnessSumFactTeamZDeformed(
-              team, zgeom(elementNumber), zgeom(nElems + elementNumber), Z, localFields, localFields, fluxScratch,
-              tti_flux, basisTab);
-          team.team_barrier();
+          for (int k = 0; k < n_here; ++k) {
+            int const rank = first_rank + k;
+            int const elementNumber = list_on ? list_local[rank] : rank;
 
-          Kokkos::parallel_for(Kokkos::TeamThreadRange(team, kPointsPerElement), [&](const int localIdx) {
-            int const globalIdx = nodeIdx(localIdx);
-            for (int f = 0; f < kNumFields; ++f) {
-              ATOMICADD(local_workVectorsGlobal[f][globalIdx], localFields[f * kPointsPerElement + localIdx]);
+            if (k == 0) {
+              // Filled before the gather barrier, so it needs no barrier of its own.
+              Kokkos::parallel_for(Kokkos::TeamThreadRange(team, INTEGRAL_TYPE::kBasisTableSize),
+                                   [&](const int idx) { basisTab[idx] = basisTabGlobal[idx]; });
             }
-          });
+
+            if (pipelined) {
+              if (owns_point) {
+                nodeIdx(point) = next_node;
+                for (int f = 0; f < kNumFields; ++f) localFields[f * kPointsPerElement + point] = next_fields[f];
+              }
+            } else {
+              Kokkos::parallel_for(Kokkos::TeamThreadRange(team, kPointsPerElement), [&](const int localIdx) {
+                int const globalIdx = elemNodes[rank * kPointsPerElement + localIdx];
+                nodeIdx(localIdx) = globalIdx;
+                for (int f = 0; f < kNumFields; ++f)
+                  localFields[f * kPointsPerElement + localIdx] = data.getCurrentField(f)(globalIdx);
+              });
+            }
+            team.team_barrier();
+
+            if (k + 1 < n_here) prefetch(rank + 1);
+
+            // Same address for the whole team: one broadcast load per entry.
+            float Z[8];
+            for (int j = 0; j < 8; ++j) Z[j] = zgeom((2 + j) * nElems + elementNumber);
+
+            auto const tti_flux = [&](int qa, int qb, int qc, float const(&J_inv)[3][3],
+                                      float const(&grad_u_ref)[3][3], float(&flux)[3][3]) {
+              int const gIndex = nodeIdx(qa + qb * dim + qc * dim * dim);
+              float p[flux::kTtiCompactSize];
+              detail::Float4 const lo = ctti_quads[2 * static_cast<size_t>(gIndex)];
+              detail::Float4 const hi = ctti_quads[2 * static_cast<size_t>(gIndex) + 1];
+              for (int j = 0; j < 4; ++j) {
+                p[j] = lo.v[j];
+                p[j + 4] = hi.v[j];
+              }
+              flux::elasticFluxTtiCompact(J_inv, p, grad_u_ref, flux);
+            };
+
+            INTEGRAL_TYPE::computeElasticStiffnessSumFactTeamZDeformed(
+                team, zgeom(elementNumber), zgeom(nElems + elementNumber), Z, localFields, localFields, fluxScratch,
+                tti_flux, basisTab);
+            team.team_barrier();
+
+            Kokkos::parallel_for(Kokkos::TeamThreadRange(team, kPointsPerElement), [&](const int localIdx) {
+              int const globalIdx = nodeIdx(localIdx);
+              for (int f = 0; f < kNumFields; ++f) {
+                ATOMICADD(local_workVectorsGlobal[f][globalIdx], localFields[f * kPointsPerElement + localIdx]);
+              }
+            });
+          }
         });
   }
 }
