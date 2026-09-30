@@ -1646,17 +1646,15 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::com
                                         Kokkos::MemoryTraits<Kokkos::Unmanaged>>;
 
     int const team_size = std::min<int>(kPreferredTeamSize, ExecSpace::concurrency());
-    // With one thread per node, a team handles two elements and loads the second one's fields into registers
-    // while it computes the first, so the gather latency overlaps the computation.
+    // With one thread per node, a team handles several consecutive elements and loads the next one's fields
+    // into registers while it computes the current one, so the gather latency overlaps the computation.
+    // Fewer elements per team on small meshes, so that the league still fills the device several times over.
+    constexpr int kMaxElemsPerTeam = 8;
+    constexpr int kMinWaves = 4;
+    int const resident_teams = std::max<int>(1, ExecSpace::concurrency() / kPreferredTeamSize);
     bool const pipelined = team_size >= kPointsPerElement;
-    // TEMPORARY A/B switch: FUNTIDES_TTI_ELEMS sets the number of elements per team (default 2).
-    static int const kElemsFromEnv = [] {
-      char const* env = std::getenv("FUNTIDES_TTI_ELEMS");
-      int const n = env ? std::atoi(env) : 2;
-      std::cout << "SEM: TTI TeamZ " << (n > 0 ? n : 2) << " elements per team" << std::endl;
-      return n > 0 ? n : 2;
-    }();
-    int const elems_per_team = pipelined ? kElemsFromEnv : 1;
+    int const elems_per_team =
+        pipelined ? std::clamp(n_iter / (kMinWaves * resident_teams), 1, kMaxElemsPerTeam) : 1;
     TeamPolicyType policy((n_iter + elems_per_team - 1) / elems_per_team, team_size);
     // One float block: fields (then forces), fluxes and basis table.
     constexpr int kFluxOffset = kNumFields * kPointsPerElement;
