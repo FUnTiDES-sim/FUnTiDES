@@ -363,17 +363,7 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::com
     if constexpr (detail::has_z_deformed_sumfact<INTEGRAL_TYPE>::value) {
       prepareZDeformedGeometry();
       if (zDeformedEnabled_) {
-        // TEMPORARY A/B switch: FUNTIDES_ACOUSTIC_TEAM=1 selects the team kernel.
-        static bool const kTeam = [] {
-          char const* env = std::getenv("FUNTIDES_ACOUSTIC_TEAM");
-          bool const team = env && std::atoi(env) == 1;
-          std::cout << "SEM: acoustic z-deformed kernel " << (team ? "TeamZ" : "FlatZ") << std::endl;
-          return team;
-        }();
-        if (kTeam)
-          computeElementContributions_Acoustic_TeamZ(data);
-        else
-          computeElementContributions_Acoustic_FlatZ(data);
+        computeElementContributions_Acoustic_TeamZ(data);
         return;
       }
     }
@@ -579,9 +569,11 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::com
     using ScratchView1D = Kokkos::View<float*, Kokkos::LayoutRight, ExecSpace::scratch_memory_space,
                                        Kokkos::MemoryTraits<Kokkos::Unmanaged>>;
 
+    // One thread per node and one per geometry entry are required. The last geometry entry, 1/rho of
+    // the element, is only read when the model lives on elements.
+    constexpr int kGeomLoaded = IS_MODEL_ON_NODES ? kZGeomStride - 1 : kZGeomStride;
     int const team_size = std::min<int>(kPreferredTeamSize, ExecSpace::concurrency());
-    // One thread per node is required.
-    if (team_size < kPointsPerElement) {
+    if (team_size < std::max(kPointsPerElement, kGeomLoaded)) {
       computeElementContributions_Acoustic_FlatZ(data);
       return;
     }
@@ -603,10 +595,11 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::com
     int const elems_per_team = std::clamp(n_iter / (kMinWaves * resident_teams), 1, kMaxElemsPerTeam);
     TeamPolicyType policy((n_iter + elems_per_team - 1) / elems_per_team, team_size);
 
-    // Nodal values, then the three fluxes, then the basis table.
+    // Nodal values, then the three fluxes, then the basis table, then the element geometry.
     constexpr int kFluxOffset = kPointsPerElement;
     constexpr int kTabOffset = kFluxOffset + 3 * kPointsPerElement;
-    constexpr int kScratchFloats = kTabOffset + INTEGRAL_TYPE::kBasisTableSize;
+    constexpr int kGeomOffset = kTabOffset + INTEGRAL_TYPE::kBasisTableSize;
+    constexpr int kScratchFloats = kGeomOffset + kZGeomStride;
     policy.set_scratch_size(0, Kokkos::PerTeam(ScratchView1D::shmem_size(kScratchFloats)));
 
     Kokkos::parallel_for(
@@ -619,6 +612,7 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::com
           float* u = scratch.data();
           float* G = scratch.data() + kFluxOffset;
           float* tab = scratch.data() + kTabOffset;
+          float* geom_sh = scratch.data() + kGeomOffset;
 
           // Thread q owns point q, which is also node q.
           int const q = team.team_rank();
@@ -653,36 +647,47 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::com
           int const first_rank = team.league_rank() * elems_per_team;
           int const n_here = Kokkos::min(elems_per_team, n_iter - first_rank);
 
-          // Next element's node index, value and 1/rho, held in registers across the current element.
+          // Two-stage pipeline held in registers: the node index and element number two elements
+          // ahead, so that loading the next element's values never waits on its index. Each of the
+          // first kGeomLoaded threads also carries one geometry entry of the next element.
+          int ahead_node = 0;
+          int ahead_e = 0;
           int next_node = 0;
           float next_u = 0.0f;
           float next_inv_rho = 0.0f;
-          auto const prefetch = [&](int rank) {
+          float next_geom = 0.0f;
+          auto const load_index = [&](int rank) {
+            if (owns) ahead_node = elemNodes[rank * kPointsPerElement + q];
+            if (q < kGeomLoaded) ahead_e = list_on ? list_local[rank] : rank;
+          };
+          auto const load_values = [&]() {
             if (owns) {
-              next_node = elemNodes[rank * kPointsPerElement + q];
+              next_node = ahead_node;
               next_u = data.getCurrentField(0)(next_node);
               if constexpr (IS_MODEL_ON_NODES) next_inv_rho = inv_rho_nodes[next_node];
             }
+            if (q < kGeomLoaded) next_geom = geom(q * nElems + ahead_e);
           };
-          prefetch(first_rank);
+          load_index(first_rank);
+          load_values();
+          if (n_here > 1) load_index(first_rank + 1);
 
           for (int k = 0; k < n_here; ++k) {
-            int const rank = first_rank + k;
-            int const e = list_on ? list_local[rank] : rank;
             int const node = next_node;
-
-            // Same address for the whole team: one broadcast load per entry.
-            float const J00 = geom(e);
-            float const J11 = geom(nElems + e);
-            float Z[8];
-            for (int j = 0; j < 8; ++j) Z[j] = geom((2 + j) * nElems + e);
             float inv_rho = next_inv_rho;
-            if constexpr (!IS_MODEL_ON_NODES) inv_rho = geom((kZGeomStride - 1) * nElems + e);
 
             if (owns) u[q] = next_u;
+            if (q < kGeomLoaded) geom_sh[q] = next_geom;
             team.team_barrier();
 
-            if (k + 1 < n_here) prefetch(rank + 1);
+            if (k + 1 < n_here) load_values();
+            if (k + 2 < n_here) load_index(first_rank + k + 2);
+
+            float const J00 = geom_sh[0];
+            float const J11 = geom_sh[1];
+            float Z[8];
+            for (int j = 0; j < 8; ++j) Z[j] = geom_sh[2 + j];
+            if constexpr (!IS_MODEL_ON_NODES) inv_rho = geom_sh[kZGeomStride - 1];
 
             if (owns) {
               float du[3] = {0.0f, 0.0f, 0.0f};
