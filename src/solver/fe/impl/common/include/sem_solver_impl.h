@@ -1788,21 +1788,28 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::upd
   auto list_local = m_node_list_;
 
   // The new value is written into the previous-field buffer (leapfrog), which the caller swaps afterwards.
+  // Every per-node value is loaded before the first test and the first store: the loads then go out
+  // together instead of waiting for each other.
   if constexpr (PHYSICS == utils::enums::physicType::kAcoustic) {
     int const n_iter = list_on ? m_n_node_list_ : mesh_local.getNumberOfNodes();
     Kokkos::parallel_for(
         "Solver Update Field Acoustic", detail::lightWeightRange(n_iter), KOKKOS_LAMBDA(const int _node_idx) {
           if (_node_idx >= n_iter) return;
           int const I = list_on ? list_local[_node_idx] : _node_idx;
-          if (mass_matrix[I] <= 0.0f) return;
+          float const mass = mass_matrix(I);
+          bool const free_surface = mesh_local.isFreeSurface(I);
+          float const taper = taper_coeff(I);
+          float const cur = current_field[0](I);
+          float const prev = prev_field[0](I);
+          float const damp = damping_matrix[0](I);
+          float const work = work_vector[0](I);
+          if (mass <= 0.0f) return;
 
-          if (mesh_local.isFreeSurface(I)) {
+          if (free_surface) {
             current_field[0](I) = 0.0f;
             prev_field[0](I) = 0.0f;
           } else {
-            float next_val = (2.0f * mass_matrix(I) * current_field[0](I) -
-                              (mass_matrix(I) - 0.5f * dt_local * damping_matrix[0](I)) * prev_field[0](I) -
-                              dt2_local * work_vector[0](I));
+            float next_val = (2.0f * mass * cur - (mass - 0.5f * dt_local * damp) * prev - dt2_local * work);
 
             if (has_attenuation) {
               for (int l = 0; l < n_sls; ++l) {
@@ -1818,9 +1825,8 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::upd
               }
             }
 
-            prev_field[0](I) = next_val / (mass_matrix(I) + 0.5f * dt_local * damping_matrix[0](I));
-            prev_field[0](I) *= taper_coeff(I);
-            current_field[0](I) *= taper_coeff(I);
+            prev_field[0](I) = next_val / (mass + 0.5f * dt_local * damp) * taper;
+            current_field[0](I) = cur * taper;
           }
         });
   } else {
@@ -1830,54 +1836,42 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::upd
         "Solver Update Field Elastic", detail::lightWeightRange(n_iter_el), KOKKOS_LAMBDA(const int _node_idx) {
           if (_node_idx >= n_iter_el) return;
           int const I = list_on ? list_local[_node_idx] : _node_idx;
-          if (mass_matrix[I] <= 0.0f) return;
-          if (mesh_local.isFreeSurface(I)) {
-            for (int f = 0; f < kNumFields; ++f) {
-              float next_val = (2.0f * mass_matrix(I) * current_field[f](I) - mass_matrix(I) * prev_field[f](I) -
-                                dt2_local * work_vector[f](I));
+          float const mass = mass_matrix(I);
+          bool const free_surface = mesh_local.isFreeSurface(I);
+          float const taper = taper_coeff(I);
+          float cur[kNumFields];
+          float prev[kNumFields];
+          float damp[kNumFields];
+          float work[kNumFields];
+          for (int f = 0; f < kNumFields; ++f) {
+            cur[f] = current_field[f](I);
+            prev[f] = prev_field[f](I);
+            damp[f] = damping_matrix[f](I);
+            work[f] = work_vector[f](I);
+          }
+          if (mass <= 0.0f) return;
 
-              if (has_attenuation) {
-                for (int l = 0; l < n_sls; ++l) {
-                  float const w = sls_w[l];
-                  float const gamma = (2.0f - w * dt_local) / (2.0f + w * dt_local);
-                  float const beta = sls_beta[l] * w * 2.0f * dt_local / (2.0f + w * dt_local);
-                  float const gamma_p = 0.5f + 0.5f * gamma;
-                  float const beta_p = 0.5f * beta;
+          for (int f = 0; f < kNumFields; ++f) {
+            // No damping on the free surface.
+            float const d = free_surface ? 0.0f : damp[f];
+            float next_val = (2.0f * mass * cur[f] - (mass - 0.5f * dt_local * d) * prev[f] - dt2_local * work[f]);
 
-                  next_val += dt2_local * (gamma_p * atten_mem_vars[f](I, l) + beta_p * atten_work_vec[f](I));
+            if (has_attenuation) {
+              for (int l = 0; l < n_sls; ++l) {
+                float const w = sls_w[l];
+                float const gamma = (2.0f - w * dt_local) / (2.0f + w * dt_local);
+                float const beta = sls_beta[l] * w * 2.0f * dt_local / (2.0f + w * dt_local);
+                float const gamma_p = 0.5f + 0.5f * gamma;
+                float const beta_p = 0.5f * beta;
 
-                  atten_mem_vars[f](I, l) = gamma * atten_mem_vars[f](I, l) + beta * atten_work_vec[f](I);
-                }
+                next_val += dt2_local * (gamma_p * atten_mem_vars[f](I, l) + beta_p * atten_work_vec[f](I));
+
+                atten_mem_vars[f](I, l) = gamma * atten_mem_vars[f](I, l) + beta * atten_work_vec[f](I);
               }
-
-              prev_field[f](I) = next_val / mass_matrix(I);
-              prev_field[f](I) *= taper_coeff(I);
-              current_field[f](I) *= taper_coeff(I);
             }
-          } else {
-            for (int f = 0; f < kNumFields; ++f) {
-              float next_val = (2.0f * mass_matrix(I) * current_field[f](I) -
-                                (mass_matrix(I) - 0.5f * dt_local * damping_matrix[f](I)) * prev_field[f](I) -
-                                dt2_local * work_vector[f](I));
 
-              if (has_attenuation) {
-                for (int l = 0; l < n_sls; ++l) {
-                  float const w = sls_w[l];
-                  float const gamma = (2.0f - w * dt_local) / (2.0f + w * dt_local);
-                  float const beta = sls_beta[l] * w * 2.0f * dt_local / (2.0f + w * dt_local);
-                  float const gamma_p = 0.5f + 0.5f * gamma;
-                  float const beta_p = 0.5f * beta;
-
-                  next_val += dt2_local * (gamma_p * atten_mem_vars[f](I, l) + beta_p * atten_work_vec[f](I));
-
-                  atten_mem_vars[f](I, l) = gamma * atten_mem_vars[f](I, l) + beta * atten_work_vec[f](I);
-                }
-              }
-
-              prev_field[f](I) = next_val / (mass_matrix(I) + 0.5f * dt_local * damping_matrix[f](I));
-              prev_field[f](I) *= taper_coeff(I);
-              current_field[f](I) *= taper_coeff(I);
-            }
+            prev_field[f](I) = next_val / (mass + 0.5f * dt_local * d) * taper;
+            current_field[f](I) = cur[f] * taper;
           }
         });
   }
