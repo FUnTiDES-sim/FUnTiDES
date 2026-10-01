@@ -272,6 +272,13 @@ void SEMsolverAcoustoElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES>
         continue;
       }
 
+      if (m_rho_solid_node_.extent(0) > 0) {
+        m_vp_solid_iface_[i] = m_vp_solid_node_[j];
+        m_vs_solid_iface_[i] = m_vs_solid_node_[j];
+        m_rho_solid_iface_[i] = m_rho_solid_node_[j];
+        continue;
+      }
+
       // Solid side: read from a non-interface node of the adjacent elastic
       // element to avoid picking up fluid-contaminated corner properties.
       int const e_adj = m_interface_adj_elastic_elem_[i];

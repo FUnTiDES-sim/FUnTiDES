@@ -345,7 +345,7 @@ class SEMsolver : public Solver {
    * @brief Compact TTI description at a node, equivalent to computeCMatrix(). Elastic physics only.
    *
    * Parameters as in computeCMatrix(). The symmetry axis is the one computeCMatrix() rotates the
-   * VTI axis to, (-sin(theta), 0, cos(theta)), which does not depend on phi.
+   * VTI axis to, (sin(theta)cos(phi), sin(theta)sin(phi), cos(theta)).
    *
    * @param[out] p Compact description read by flux::elasticFluxTtiCompact().
    */

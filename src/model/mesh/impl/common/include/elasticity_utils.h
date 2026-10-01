@@ -127,8 +127,9 @@ PROXY_HOST_DEVICE void buildVTITensor(FloatType c11, FloatType c12, FloatType c1
  * @param[in] theta Tilt angle, in degrees.
  * @param[in] phi Azimuth angle, in degrees.
  * @param[out] CTTI Symmetric 6x6 tensor in Voigt notation, fully overwritten.
- * @todo VERIFY: axes and sign convention of theta and phi, and the Voigt component order
- * (0=xx, 1=yy, 2=zz, 3=yz, 4=xz, 5=xy assumed).
+ *
+ * The symmetry axis is (sin(theta)cos(phi), sin(theta)sin(phi), cos(theta)) and the Voigt
+ * order is 0=xx, 1=yy, 2=zz, 3=yz, 4=xz, 5=xy.
  * @todo VERIFY: units of vp, vs and rho (m/s and kg/m^3 assumed).
  */
 template <typename FloatType>
@@ -162,14 +163,15 @@ PROXY_HOST_DEVICE void computeCTensor(FloatType vp, FloatType vs, FloatType rho,
   FloatType sphi = sin(phi_rad);
 
   FloatType R[3][3];
+  // Rotates the VTI axis to (sin(theta)cos(phi), sin(theta)sin(phi), cos(theta)).
   R[0][0] = ctheta * cphi;
-  R[0][1] = ctheta * sphi;
-  R[0][2] = -stheta;
-  R[1][0] = -sphi;
+  R[0][1] = -sphi;
+  R[0][2] = stheta * cphi;
+  R[1][0] = ctheta * sphi;
   R[1][1] = cphi;
-  R[1][2] = 0.0;
-  R[2][0] = stheta * cphi;
-  R[2][1] = stheta * sphi;
+  R[1][2] = stheta * sphi;
+  R[2][0] = -stheta;
+  R[2][1] = 0.0;
   R[2][2] = ctheta;
 
   FloatType M[6][6] = {0.0};
