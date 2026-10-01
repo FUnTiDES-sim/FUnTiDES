@@ -257,6 +257,13 @@ class Solver {
   virtual void setInterfacePropertyConvention(utils::enums::interfacePropertyConvention) {}
 
   /**
+   * @brief With kFluidOnInterfaceNodes, give the solid vp, vs and rho of every
+   * node (size: number of nodes) instead of borrowing them from a neighbouring
+   * node of an adjacent elastic element. Only interface nodes are read.
+   */
+  virtual void setSolidOnInterfaceNodes(const vectorReal&, const vectorReal&, const vectorReal&) {}
+
+  /**
    * @brief Enable viscoelastic attenuation with standard linear solids (SLS),
    * or disable it with an empty reference_frequencies.
    *
