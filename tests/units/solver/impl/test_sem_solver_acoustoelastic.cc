@@ -691,6 +691,44 @@ TYPED_TEST(AEsolverOnNodesTest, SharedConventionPassesInterfaceShearToTheElastic
   }
 }
 
+// A solid side given per node must replace the one borrowed from a neighbouring
+// node. The elastic mass on the interface is rescaled by rho_solid / rho_fluid,
+// so a solid density of 2500 instead of the neighbour's 2000 scales it by 1.25.
+TYPED_TEST(AEsolverOnNodesTest, SolidOnInterfaceNodesSetsTheInterfaceElasticMass) {
+  using MeshT = typename TestFixture::Mesh;
+  using SolverT = typename TestFixture::Solver;
+  constexpr int kOrder = TestFixture::kOrder;
+  constexpr int kN = kOrder + 1;
+
+  MeshT mesh_borrowed = makeBilayerMeshOnNodes<kOrder>();
+  SolverT borrowed;
+  borrowed.computeFEInit(mesh_borrowed, {0.0f, 0.0f, 0.0f}, false, 0.0f);
+
+  MeshT mesh_given = makeBilayerMeshOnNodes<kOrder>();
+  int const n = mesh_given.getNumberOfNodes();
+  auto vp = allocateVector<vectorReal>(n, "solidVp");
+  auto vs = allocateVector<vectorReal>(n, "solidVs");
+  auto rho = allocateVector<vectorReal>(n, "solidRho");
+  for (int i = 0; i < n; ++i) {
+    vp(i) = 3000.0f;
+    vs(i) = 1500.0f;
+    rho(i) = 2500.0f;
+  }
+  SolverT given;
+  given.setSolidOnInterfaceNodes(vp, vs, rho);
+  given.computeFEInit(mesh_given, {0.0f, 0.0f, 0.0f}, false, 0.0f);
+  FENCE
+
+  auto& m_borrowed = borrowed.getMassMatrixElastic();
+  auto& m_given = given.getMassMatrixElastic();
+  for (int iy = 0; iy < kN; ++iy)
+    for (int ix = 0; ix < kN; ++ix) {
+      int const i = ix + kN * (iy + kN * kOrder);
+      ASSERT_GT(m_borrowed[i], 0.0f);
+      EXPECT_NEAR(m_given[i] / m_borrowed[i], 2500.0f / 2000.0f, 1e-5f) << "interface node " << i;
+    }
+}
+
 }  // namespace test
 }  // namespace fe
 }  // namespace solver

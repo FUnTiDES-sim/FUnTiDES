@@ -161,6 +161,21 @@ void bind_sem_solver_base(py::module_ &m) {
       .def("set_anisotropy_type", &Solver::setAnisotropyType, py::arg("anisotropy_type"))
       .def("set_interface_property_convention", &Solver::setInterfacePropertyConvention, py::arg("convention"))
       .def(
+          "set_solid_on_interface_nodes",
+          [](Solver &self, const std::vector<float> &vp, const std::vector<float> &vs,
+             const std::vector<float> &rho) {
+            if (vp.size() != vs.size() || vp.size() != rho.size())
+              throw std::invalid_argument("set_solid_on_interface_nodes: vp, vs and rho differ in size");
+            auto to_view = [](const std::vector<float> &v, const char *name) {
+              vectorReal out = allocateVector<vectorReal>(v.size(), name);
+              for (size_t i = 0; i < v.size(); ++i) out[i] = v[i];
+              return out;
+            };
+            self.setSolidOnInterfaceNodes(to_view(vp, "solid_vp_node"), to_view(vs, "solid_vs_node"),
+                                          to_view(rho, "solid_rho_node"));
+          },
+          py::arg("vp"), py::arg("vs"), py::arg("rho"))
+      .def(
           "set_element_tags",
           [](Solver &self, const std::vector<int> &tags) {
             vectorInt vt;

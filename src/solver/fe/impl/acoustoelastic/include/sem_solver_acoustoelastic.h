@@ -149,6 +149,12 @@ class SEMsolverAcoustoElastic : public Solver {
     interface_property_convention_ = convention;
   }
 
+  void setSolidOnInterfaceNodes(const vectorReal& vp, const vectorReal& vs, const vectorReal& rho) override {
+    m_vp_solid_node_ = vp;
+    m_vs_solid_node_ = vs;
+    m_rho_solid_node_ = rho;
+  }
+
   void setSLSAttenuation(const vectorReal& reference_frequencies,
                          const vectorReal& anelasticity_coefficients = vectorReal()) override {
     m_acoustic_solver_.setSLSAttenuation(reference_frequencies, anelasticity_coefficients);
@@ -251,6 +257,11 @@ class SEMsolverAcoustoElastic : public Solver {
   /// Valid only when IS_MODEL_ON_NODES is true.
   vectorReal m_vp_fluid_iface_;
   vectorReal m_rho_fluid_iface_;
+
+  /// Optional per-node solid vp, vs and rho set by setSolidOnInterfaceNodes; empty when unset.
+  vectorReal m_vp_solid_node_;
+  vectorReal m_vs_solid_node_;
+  vectorReal m_rho_solid_node_;
 
   /// Drives how TagNodes fills the solid side of the interface nodes; must be set before computeFEInit.
   utils::enums::interfacePropertyConvention interface_property_convention_{
