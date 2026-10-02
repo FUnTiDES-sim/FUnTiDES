@@ -3,6 +3,7 @@
  * @brief Command-line driver: parses options, initializes MPI and Kokkos, and runs one SEMproxy simulation.
  */
 
+#include <Kokkos_Core.hpp>
 #include <cstdlib>
 #include <iostream>
 
@@ -105,8 +106,9 @@ int main(int argc, char** argv) {
   setenv("OMP_PROC_BIND", "spread", 1);
   setenv("OMP_PLACES", "threads", 1);
 
-  Kokkos::initialize(argc, argv);
   {
+    Kokkos::ScopeGuard guard(argc, argv);
+
     auto opt = ParseOptions(argc, argv);
     SEMproxy semsim(opt);
 
@@ -114,7 +116,6 @@ int main(int argc, char** argv) {
     semsim.Run();
     std::cout << "Ending simulation." << std::endl;
   }
-  Kokkos::finalize();
 
   FinalizeMpi();
 
