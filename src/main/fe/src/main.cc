@@ -4,6 +4,7 @@
  */
 
 #include <cstdlib>
+#include <impl/Kokkos_ScopeGuard.hpp>
 #include <iostream>
 
 #ifdef USE_MPI
@@ -105,16 +106,14 @@ int main(int argc, char** argv) {
   setenv("OMP_PROC_BIND", "spread", 1);
   setenv("OMP_PLACES", "threads", 1);
 
-  Kokkos::initialize(argc, argv);
-  {
-    auto opt = ParseOptions(argc, argv);
-    SEMproxy semsim(opt);
+  Kokkos::ScopeGuard guard(argc, argv);
 
-    std::cout << "Launching simulation." << std::endl;
-    semsim.Run();
-    std::cout << "Ending simulation." << std::endl;
-  }
-  Kokkos::finalize();
+  auto opt = ParseOptions(argc, argv);
+  SEMproxy semsim(opt);
+
+  std::cout << "Launching simulation." << std::endl;
+  semsim.Run();
+  std::cout << "Ending simulation." << std::endl;
 
   FinalizeMpi();
 
