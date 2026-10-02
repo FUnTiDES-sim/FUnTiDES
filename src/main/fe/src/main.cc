@@ -3,8 +3,8 @@
  * @brief Command-line driver: parses options, initializes MPI and Kokkos, and runs one SEMproxy simulation.
  */
 
+#include <Kokkos_Core.hpp>
 #include <cstdlib>
-#include <impl/Kokkos_ScopeGuard.hpp>
 #include <iostream>
 
 #ifdef USE_MPI
