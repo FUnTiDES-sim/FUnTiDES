@@ -106,14 +106,16 @@ int main(int argc, char** argv) {
   setenv("OMP_PROC_BIND", "spread", 1);
   setenv("OMP_PLACES", "threads", 1);
 
-  Kokkos::ScopeGuard guard(argc, argv);
+  {
+    Kokkos::ScopeGuard guard(argc, argv);
 
-  auto opt = ParseOptions(argc, argv);
-  SEMproxy semsim(opt);
+    auto opt = ParseOptions(argc, argv);
+    SEMproxy semsim(opt);
 
-  std::cout << "Launching simulation." << std::endl;
-  semsim.Run();
-  std::cout << "Ending simulation." << std::endl;
+    std::cout << "Launching simulation." << std::endl;
+    semsim.Run();
+    std::cout << "Ending simulation." << std::endl;
+  }
 
   FinalizeMpi();
 
