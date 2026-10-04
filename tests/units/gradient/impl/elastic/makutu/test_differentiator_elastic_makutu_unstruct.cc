@@ -2,6 +2,7 @@
 
 #include <cmath>
 #include <memory>
+#include <vector>
 
 #include "Integrals.h"
 #include "data_type.h"
@@ -368,6 +369,51 @@ TYPED_TEST(DifferentiatorElasticElemUnstructTest, ComputeAccumulatesIntoExisting
   EXPECT_NEAR(this->gradRho(0), 6.0f, 1e-5f);
 }
 
+// Fills prev/prevprev levels and the matching dt2 = (prevprev - 2 prev + n) / dt^2 for every component.
+static void fillTimeLevels(vectorReal const (&fwd)[3], vectorReal const (&n)[3], vectorReal const (&dt2)[3],
+                           int nNodes, float dt, vectorReal (&prev)[3], vectorReal (&prevprev)[3]) {
+  for (int c = 0; c < 3; ++c) {
+    prev[c] = allocateVector<vectorReal>(nNodes, "prev");
+    prevprev[c] = allocateVector<vectorReal>(nNodes, "prevprev");
+    for (int i = 0; i < nNodes; ++i) {
+      fwd[c](i) = 0.25f * (c + 1) + 0.125f * i;
+      n[c](i) = 0.5f * (c + 1) - 0.0625f * i;
+      prev[c](i) = 0.375f * (c + 2) + 0.03125f * i;
+      prevprev[c](i) = 0.125f * (c + 3) - 0.015625f * i;
+      dt2[c](i) = (prevprev[c](i) - 2.0f * prev[c](i) + n[c](i)) / (dt * dt);
+    }
+  }
+}
+
+TYPED_TEST(DifferentiatorElasticElemUnstructTest, TimeLevelsMatchPrecomputedDt2) {
+  float const dt = 0.5f;
+  vectorReal prev[3], prevprev[3];
+  fillTimeLevels({this->ux_fwd, this->uy_fwd, this->uz_fwd}, {this->ux_adj, this->uy_adj, this->uz_adj},
+                 {this->ux_dt2, this->uy_dt2, this->uz_dt2}, TestFixture::kNumNodes, dt, prev, prevprev);
+  auto mesh = makeUnstructMesh1x1x1<TestFixture::kOrder>();
+  typename TestFixture::Diff diff;
+  WavefieldViewForwardElastic fwd(this->ux_fwd, this->uy_fwd, this->uz_fwd);
+
+  WavefieldViewBackwardElastic bwdDt2(this->ux_adj, this->uy_adj, this->uz_adj, this->ux_dt2, this->uy_dt2,
+                                      this->uz_dt2);
+  GradientDataElastic dataDt2(fwd, bwdDt2, GradientElastic(this->gradRho, this->gradLambda, this->gradMu));
+  diff.compute(mesh, dataDt2, dt);
+  float const rho = this->gradRho(0), lambda = this->gradLambda(0), mu = this->gradMu(0);
+
+  this->gradRho(0) = this->gradLambda(0) = this->gradMu(0) = 0.0f;
+  WavefieldViewBackwardElastic bwdLevels(this->ux_adj, this->uy_adj, this->uz_adj, prev[0], prev[1], prev[2],
+                                         prevprev[0], prevprev[1], prevprev[2]);
+  EXPECT_TRUE(bwdLevels.fromTimeLevels());
+  EXPECT_FALSE(bwdDt2.fromTimeLevels());
+  GradientDataElastic dataLevels(fwd, bwdLevels, GradientElastic(this->gradRho, this->gradLambda, this->gradMu));
+  diff.compute(mesh, dataLevels, dt);
+
+  EXPECT_NE(rho, 0.0f);
+  EXPECT_NEAR(this->gradRho(0), rho, 1e-5f * std::fabs(rho));
+  EXPECT_FLOAT_EQ(this->gradLambda(0), lambda);
+  EXPECT_FLOAT_EQ(this->gradMu(0), mu);
+}
+
 // --- Node-based unstructured ---
 
 template <typename OrderWrapper>
@@ -538,6 +584,38 @@ TYPED_TEST(DifferentiatorElasticNodeUnstructTest, PolymorphicInterface) {
 
   EXPECT_NO_THROW(diff->compute(mesh, data, 0.001f));
   EXPECT_GT(this->sumGradRho(), 0.0f);
+}
+
+TYPED_TEST(DifferentiatorElasticNodeUnstructTest, TimeLevelsMatchPrecomputedDt2) {
+  float const dt = 0.5f;
+  vectorReal prev[3], prevprev[3];
+  fillTimeLevels({this->ux_fwd, this->uy_fwd, this->uz_fwd}, {this->ux_adj, this->uy_adj, this->uz_adj},
+                 {this->ux_dt2, this->uy_dt2, this->uz_dt2}, TestFixture::kNumNodes, dt, prev, prevprev);
+  auto mesh = makeUnstructMesh1x1x1<TestFixture::kOrder>();
+  typename TestFixture::DiffNode diff;
+  WavefieldViewForwardElastic fwd(this->ux_fwd, this->uy_fwd, this->uz_fwd);
+
+  WavefieldViewBackwardElastic bwdDt2(this->ux_adj, this->uy_adj, this->uz_adj, this->ux_dt2, this->uy_dt2,
+                                      this->uz_dt2);
+  GradientDataElastic dataDt2(fwd, bwdDt2, GradientElastic(this->gradRho, this->gradLambda, this->gradMu));
+  diff.compute(mesh, dataDt2, dt);
+  std::vector<float> rho(TestFixture::kNumNodes);
+  for (int i = 0; i < TestFixture::kNumNodes; ++i) {
+    rho[i] = this->gradRho(i);
+    this->gradRho(i) = 0.0f;
+  }
+  float const lambda = this->sumGradLambda(), mu = this->sumGradMu();
+  for (int i = 0; i < TestFixture::kNumNodes; ++i) this->gradLambda(i) = this->gradMu(i) = 0.0f;
+
+  WavefieldViewBackwardElastic bwdLevels(this->ux_adj, this->uy_adj, this->uz_adj, prev[0], prev[1], prev[2],
+                                         prevprev[0], prevprev[1], prevprev[2]);
+  GradientDataElastic dataLevels(fwd, bwdLevels, GradientElastic(this->gradRho, this->gradLambda, this->gradMu));
+  diff.compute(mesh, dataLevels, dt);
+
+  for (int i = 0; i < TestFixture::kNumNodes; ++i)
+    EXPECT_NEAR(this->gradRho(i), rho[i], 1e-5f * std::fabs(rho[i]) + 1e-7f) << "node " << i;
+  EXPECT_FLOAT_EQ(this->sumGradLambda(), lambda);
+  EXPECT_FLOAT_EQ(this->sumGradMu(), mu);
 }
 
 }  // namespace test
