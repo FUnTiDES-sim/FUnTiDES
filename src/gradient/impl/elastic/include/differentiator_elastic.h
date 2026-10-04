@@ -91,8 +91,10 @@ class DifferentiatorElastic : public Differentiator {
   void computeOnElements(MESH_TYPE mesh, float dt, vectorReal const ux_fwd, vectorReal const uy_fwd,
                          vectorReal const uz_fwd, vectorReal const ux_adj, vectorReal const uy_adj,
                          vectorReal const uz_adj, vectorReal const ux_dt2, vectorReal const uy_dt2,
-                         vectorReal const uz_dt2, vectorReal const gradRho, vectorReal const gradLambda,
-                         vectorReal const gradMu, int firstElement, int lastElement) const;
+                         vectorReal const uz_dt2, vectorReal const ux_pp, vectorReal const uy_pp,
+                         vectorReal const uz_pp, bool fromLevels, vectorReal const gradRho,
+                         vectorReal const gradLambda, vectorReal const gradMu, int firstElement,
+                         int lastElement) const;
 
   /**
    * @brief Gradient kernel for a model discretized on nodes.
@@ -103,8 +105,10 @@ class DifferentiatorElastic : public Differentiator {
   void computeOnNodes(MESH_TYPE mesh, float dt, vectorReal const ux_fwd, vectorReal const uy_fwd,
                       vectorReal const uz_fwd, vectorReal const ux_adj, vectorReal const uy_adj,
                       vectorReal const uz_adj, vectorReal const ux_dt2, vectorReal const uy_dt2,
-                      vectorReal const uz_dt2, vectorReal const gradRho, vectorReal const gradLambda,
-                      vectorReal const gradMu, int firstElement, int lastElement) const;
+                      vectorReal const uz_dt2, vectorReal const ux_pp, vectorReal const uy_pp,
+                      vectorReal const uz_pp, bool fromLevels, vectorReal const gradRho,
+                      vectorReal const gradLambda, vectorReal const gradMu, int firstElement,
+                      int lastElement) const;
 
   /**
    * @brief Build the geometric mass matrix (nodal volumes without model factors).
