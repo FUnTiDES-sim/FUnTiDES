@@ -501,10 +501,19 @@ void SEMsolverAcoustoElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES>
   // acceleration that correction has just produced: both corrections are then
   // centred on time n. Moving the traction to p^{n+1} instead breaks that
   // symmetry and slowly injects energy, so the order below matters.
+  // Backward the transpose has the same chaining the other way round: the
+  // solid is driven by the second difference of the adjoint pressure, which is
+  // only complete once the fluid has taken its own correction, so the two
+  // kernels have to run in the opposite order.
   // Kernels run in order on the same execution space instance; the fence only
   // makes the step complete for the caller.
-  ApplyCouplingAcousticToElastic(dt, data, backward);
-  ApplyCouplingElasticToAcoustic(dt, data, backward);
+  if (backward) {
+    ApplyCouplingElasticToAcoustic(dt, data, true);
+    ApplyCouplingAcousticToElastic(dt, data, true);
+  } else {
+    ApplyCouplingAcousticToElastic(dt, data, false);
+    ApplyCouplingElasticToAcoustic(dt, data, false);
+  }
   FENCE
 }
 
@@ -544,6 +553,12 @@ void SEMsolverAcoustoElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES>
   float const dt2 = dt * dt;
   float const half_dt = 0.5f * dt;
   auto p_curr = data.m_wavefield.m_acoustic.getCurrentField(0);  // p^n
+  // Backward mode runs the adjoint, not the time reverse.  In (u, p) the coupled
+  // operator is NOT symmetric -- the fluid row carries the second time derivative
+  // of the solid -- so its transpose carries that derivative on the solid row
+  // instead and drives the solid with p_tt rather than with p.
+  auto p_new = backward ? data.m_wavefield.m_acoustic.getPrevPrevField(0) : p_curr;
+  auto p_other = backward ? data.m_wavefield.m_acoustic.getPreviousField(0) : p_curr;
   // The Verlet writes the newly computed displacement level into the previous
   // buffer in forward mode and into the prevPrev buffer in backward mode.
   auto u_new_x =
@@ -570,7 +585,8 @@ void SEMsolverAcoustoElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES>
         if (M_e[j] > 0.0f && !mesh_local.isFreeSurface(j)) {
           // Same denominator and taper the Verlet update applied to the physical
           // RHS: without them this correction is O(dt) inconsistent in the sponge.
-          float const aux = -dt2 * p_curr[j] * taper_e[j];
+          float const aux = backward ? (p_new[j] - 2.0f * p_curr[j] + p_other[j]) * taper_e[j]
+                                     : -dt2 * p_curr[j] * taper_e[j];
           u_new_x[j] += cx[j] * aux / (M_e[j] + half_dt * C_ex[j]);
           u_new_y[j] += cy[j] * aux / (M_e[j] + half_dt * C_ey[j]);
           u_new_z[j] += cz[j] * aux / (M_e[j] + half_dt * C_ez[j]);
@@ -581,11 +597,13 @@ void SEMsolverAcoustoElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES>
 template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE, bool IS_MODEL_ON_NODES>
 void SEMsolverAcoustoElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES>::ApplyCouplingElasticToAcoustic(
     float dt, const DataType& data, bool backward) {
+  float const dt2 = dt * dt;
   float const half_dt = 0.5f * dt;
   // Both the pressure and the displacement newly computed by the Verlet live in
-  // the previous buffer forward and in the prevPrev buffer backward.  The
-  // second difference below is symmetric in the two neighbouring levels, so the
-  // same expression serves both directions once the buffers are picked.
+  // the previous buffer forward and in the prevPrev buffer backward.  Forward
+  // the fluid is driven by the second time difference of the solid; backward it
+  // is the transpose that applies, so the fluid is driven by the adjoint
+  // displacement itself and the derivative moves to the solid row.
   auto p_new =
       backward ? data.m_wavefield.m_acoustic.getPrevPrevField(0) : data.m_wavefield.m_acoustic.getPreviousField(0);
   auto u_new_x =
@@ -614,13 +632,19 @@ void SEMsolverAcoustoElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES>
       "ApplyCouplingElasticToAcoustic_Loop", detail::lightWeightRange(n_iface), KOKKOS_LAMBDA(const int i) {
         int const j = iface_list[i];
         if (M_f[j] > 0.0f && !mesh_local.isFreeSurface(j)) {
-          // Second time difference of the solid displacement; u_nm1_* are indexed by
-          // the compact interface index i, the other fields by the global node j.
-          float const fd_x = u_new_x[j] - 2.0f * u_n_x[j] + u_nm1_x[i];
-          float const fd_y = u_new_y[j] - 2.0f * u_n_y[j] + u_nm1_y[i];
-          float const fd_z = u_new_z[j] - 2.0f * u_n_z[j] + u_nm1_z[i];
+          // u_nm1_* are indexed by the compact interface index i, the other
+          // fields by the global node j.
+          float coupled;
+          if (backward) {
+            coupled = -dt2 * (cx[j] * u_n_x[j] + cy[j] * u_n_y[j] + cz[j] * u_n_z[j]);
+          } else {
+            float const fd_x = u_new_x[j] - 2.0f * u_n_x[j] + u_nm1_x[i];
+            float const fd_y = u_new_y[j] - 2.0f * u_n_y[j] + u_nm1_y[i];
+            float const fd_z = u_new_z[j] - 2.0f * u_n_z[j] + u_nm1_z[i];
+            coupled = cx[j] * fd_x + cy[j] * fd_y + cz[j] * fd_z;
+          }
           // Same denominator and taper the Verlet update applied to the physical RHS.
-          p_new[j] += taper_f[j] * (cx[j] * fd_x + cy[j] * fd_y + cz[j] * fd_z) / (M_f[j] + half_dt * C_f[j]);
+          p_new[j] += taper_f[j] * coupled / (M_f[j] + half_dt * C_f[j]);
         }
       });
 }
