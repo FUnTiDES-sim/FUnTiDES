@@ -25,10 +25,7 @@ namespace detail {
 /**
  * @brief Adds the light-weight hint to a Kokkos policy.
  *
- * Functors above 512 bytes are otherwise passed through the constant-memory buffer,
- * whose reuse makes the host wait for the previous kernel before each launch. With
- * the hint they go through kernel parameters (or global memory), so launches queue
- * without host synchronization.
+ * Launches then queue without the host waiting for the previous kernel.
  * @param[in] policy Execution policy.
  * @return The same policy with the light-weight hint.
  */
@@ -462,7 +459,7 @@ class SEMsolver : public Solver {
   bool m_node_list_mode_ = false;
   vectorInt m_node_list_;
   int m_n_node_list_ = 0;
-  // Set by updateFieldsFromListForwardAndReset.
+  /// Set by updateFieldsFromListForwardAndReset().
   bool m_reset_forces_in_update_ = false;
 
   vectorReal spongeTaperCoeff_;

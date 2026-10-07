@@ -431,7 +431,8 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::pre
   if constexpr (detail::has_z_deformed_sumfact<INTEGRAL_TYPE>::value) {
     vectorReal basisTab = allocateVector<vectorReal>(INTEGRAL_TYPE::kBasisTableSize, "zDeformedBasisTab");
     auto h_basisTab = Kokkos::create_mirror_view(basisTab);
-    for (int idx = 0; idx < INTEGRAL_TYPE::kBasisTableSize; ++idx) h_basisTab(idx) = INTEGRAL_TYPE::basisTableEntry(idx);
+    for (int idx = 0; idx < INTEGRAL_TYPE::kBasisTableSize; ++idx)
+      h_basisTab(idx) = INTEGRAL_TYPE::basisTableEntry(idx);
     Kokkos::deep_copy(basisTab, h_basisTab);
     zDeformedBasisTab_ = basisTab;
   }
@@ -503,7 +504,8 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::com
     using Policy = Kokkos::RangePolicy<Kokkos::LaunchBounds<LaunchMaxThreadsPerBlock, 3>>;
 
     Kokkos::parallel_for(
-        "Solver Element Contribution Acoustic FlatZ", detail::lightWeight(Policy(0, n_iter)), KOKKOS_LAMBDA(const int _loop_idx) {
+        "Solver Element Contribution Acoustic FlatZ", detail::lightWeight(Policy(0, n_iter)),
+        KOKKOS_LAMBDA(const int _loop_idx) {
           int const e = list_on ? list_local[_loop_idx] : _loop_idx;
           constexpr int dim = ORDER + 1;
 
@@ -543,7 +545,8 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::com
 template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE, bool IS_MODEL_ON_NODES, physicType PHYSICS>
 void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::computeElementContributions_Acoustic_TeamZ(
     const DataType& data) {
-  if constexpr (PHYSICS != utils::enums::physicType::kAcoustic || !detail::has_z_deformed_sumfact<INTEGRAL_TYPE>::value) {
+  if constexpr (PHYSICS != utils::enums::physicType::kAcoustic ||
+                !detail::has_z_deformed_sumfact<INTEGRAL_TYPE>::value) {
     throw std::runtime_error("computeElementContributions_Acoustic_TeamZ: needs an acoustic z-deformed setup.");
   } else {
     constexpr int n = ORDER + 1;
@@ -580,9 +583,8 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::com
     int const elems_per_team = std::clamp(n_iter / (kMinWaves * resident_teams), 1, kMaxElemsPerTeam);
     TeamPolicyType policy((n_iter + elems_per_team - 1) / elems_per_team, team_size);
 
-    // Shared memory is read in 16-byte blocks where every thread of a warp needs the same few values:
-    // the rows of D for the transpose, each padded to a multiple of 4, and the element geometry.
-    // Then the nodal values and the three fluxes. Every block starts on a 16-byte boundary.
+    // Shared scratch, every block on a 16-byte boundary: rows of D padded to a multiple of 4, element
+    // geometry, nodal values, then the three fluxes.
     constexpr int kRowChunks = (n + 3) / 4;
     constexpr int kRowStride = 4 * kRowChunks;
     constexpr int kGeomPadded = ((kZGeomStride + 3) / 4) * 4;
@@ -645,9 +647,8 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::com
           int const first_rank = team.league_rank() * elems_per_team;
           int const n_here = Kokkos::min(elems_per_team, n_iter - first_rank);
 
-          // Two-stage pipeline held in registers: the node index and element number two elements
-          // ahead, so that loading the next element's values never waits on its index. Each of the
-          // first kGeomLoaded threads also carries one geometry entry of the next element.
+          // Two-stage pipeline held in registers: node index and element number two elements ahead, values
+          // and one geometry entry one element ahead, so that a load never waits on its index.
           int ahead_node = 0;
           int ahead_e = 0;
           int next_node = 0;
@@ -1839,9 +1840,7 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::com
 
     constexpr int dim = ORDER + 1;
     constexpr int kPreferredTeamSize = ((kPointsPerElement + 31) / 32) * 32;
-    // Enough resident teams for half the maximum warps per SM, which caps registers at 64 per thread
-    // without spilling.
-    // Capped at 16, the lowest resident-block limit per SM among the targeted GPUs (24 on Ada, 16 on GA10x).
+    // Caps registers at 64 per thread; at most 16 teams, the lowest resident-block limit per SM.
     constexpr int kMinTeamsPerSM = std::clamp(1024 / kPreferredTeamSize, 1, 16);
 
     using ExecSpace = Kokkos::DefaultExecutionSpace;
@@ -1851,17 +1850,14 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::com
                                         Kokkos::MemoryTraits<Kokkos::Unmanaged>>;
 
     int const team_size = std::min<int>(kPreferredTeamSize, ExecSpace::concurrency());
-    // With one thread per node, a team handles several consecutive elements and loads the next one's fields
-    // into registers while it computes the current one, so the gather latency overlaps the computation.
-    // Fewer elements per team on small meshes, so that the league still fills the device several times over.
+    // Several consecutive elements per team, fewer on small meshes so that the league still fills the device.
     constexpr int kMaxElemsPerTeam = 8;
     constexpr int kMinWaves = 4;
     int const resident_teams = std::max<int>(1, ExecSpace::concurrency() / kPreferredTeamSize);
     // J00, J11 and the eight vertex z; the last entry of the geometry table is unused in elastic.
     constexpr int kGeomEntries = kZGeomStride - 1;
     bool const pipelined = team_size >= std::max(kPointsPerElement, kGeomEntries);
-    int const elems_per_team =
-        pipelined ? std::clamp(n_iter / (kMinWaves * resident_teams), 1, kMaxElemsPerTeam) : 1;
+    int const elems_per_team = pipelined ? std::clamp(n_iter / (kMinWaves * resident_teams), 1, kMaxElemsPerTeam) : 1;
     TeamPolicyType policy((n_iter + elems_per_team - 1) / elems_per_team, team_size);
     // One float block: fields (then forces), fluxes, basis table and element geometry. The geometry is
     // read by the whole team as three 16-byte blocks, so it starts on a 16-byte boundary.
@@ -1894,9 +1890,7 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::com
           bool const owns_point = pipelined && point < kPointsPerElement;
           bool const carries_geom = pipelined && point < kGeomEntries;
 
-          // Two-stage pipeline held in registers: the node index and element number two elements ahead, so
-          // that loading the next element's fields never waits on its index. Each of the first kGeomEntries
-          // threads also carries one geometry entry of the next element.
+          // Same two-stage pipeline as computeElementContributions_Acoustic_TeamZ().
           int ahead_node = 0;
           int ahead_e = 0;
           int next_node = 0;
@@ -1957,8 +1951,8 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::com
             detail::Float4 const g2 = geom4[2];
             float const Z[8] = {g0.v[2], g0.v[3], g1.v[0], g1.v[1], g1.v[2], g1.v[3], g2.v[0], g2.v[1]};
 
-            auto const tti_flux = [&](int qa, int qb, int qc, float const(&J_inv)[3][3],
-                                      float const(&grad_u_ref)[3][3], float(&flux)[3][3]) {
+            auto const tti_flux = [&](int qa, int qb, int qc, float const(&J_inv)[3][3], float const(&grad_u_ref)[3][3],
+                                      float(&flux)[3][3]) {
               int const gIndex = nodeIdx(qa + qb * dim + qc * dim * dim);
               float p[flux::kTtiCompactSize];
               detail::Float4 const lo = ctti_quads[2 * static_cast<size_t>(gIndex)];
@@ -1970,8 +1964,8 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::com
               flux::elasticFluxTtiCompact(J_inv, p, grad_u_ref, flux);
             };
 
-            INTEGRAL_TYPE::computeElasticStiffnessSumFactTeamZDeformed(
-                team, g0.v[0], g0.v[1], Z, localFields, localFields, fluxScratch, tti_flux, basisTab);
+            INTEGRAL_TYPE::computeElasticStiffnessSumFactTeamZDeformed(team, g0.v[0], g0.v[1], Z, localFields,
+                                                                       localFields, fluxScratch, tti_flux, basisTab);
             team.team_barrier();
 
             Kokkos::parallel_for(Kokkos::TeamThreadRange(team, kPointsPerElement), [&](const int localIdx) {
@@ -2025,12 +2019,10 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::upd
   bool const reset_forces = m_reset_forces_in_update_;
 
   // The new value is written into the previous-field buffer (leapfrog), which the caller swaps afterwards.
-  // Every per-node value is loaded before the first test and the first store: the loads then go out
-  // together instead of waiting for each other.
+  // Every per-node value is loaded before the first test and the first store.
   if constexpr (PHYSICS == utils::enums::physicType::kAcoustic) {
     int const n_iter = list_on ? m_n_node_list_ : mesh_local.getNumberOfNodes();
-    // A node only needs 40 bytes, so each thread takes two to keep more loads in flight. The second node
-    // is n_threads further, which keeps every load of a warp contiguous.
+    // Two nodes per thread, n_threads apart so that the loads of a warp stay contiguous.
     constexpr int kNodesPerThread = 2;
     int const n_threads = (n_iter + kNodesPerThread - 1) / kNodesPerThread;
     Kokkos::parallel_for(

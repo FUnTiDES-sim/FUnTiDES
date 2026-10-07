@@ -459,7 +459,8 @@ void SEMsolverAcoustoElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES>
     auto vs = m_vs_solid_iface_;
     auto rho = solid ? m_rho_solid_iface_ : m_rho_fluid_iface_;
     Kokkos::parallel_for(
-        "AcoustoElastic Set Interface Node Props", detail::lightWeightRange(n_interface_nodes_), KOKKOS_LAMBDA(const int i) {
+        "AcoustoElastic Set Interface Node Props", detail::lightWeightRange(n_interface_nodes_),
+        KOKKOS_LAMBDA(const int i) {
           mesh_local.setModelNodeProps(node_indices[i], vp[i], solid ? vs[i] : 0.0f, rho[i]);
         });
   }
@@ -612,12 +613,8 @@ void SEMsolverAcoustoElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES>
   SEMsolverData<utils::enums::physicType::kAcoustic> acoustic_data(myData.m_wavefield.m_acoustic,
                                                                    myData.m_rhs.m_rhs_acoustic);
 
-  // Each sub-solver only accumulates forces on the nodes of its own elements, so only those are reset.
-  // All kernels below run in order on one execution space instance: no fence is needed between them,
-  // ApplyInterfaceCoupling() fences once at the end of the step.
-
-  // The updates of the previous step zeroed the forces after reading them; only the first step, or a
-  // step following computeForces(), needs the resets.
+  // Each sub-solver only accumulates forces on the nodes of its own elements, so only those are reset,
+  // and only when the previous step did not zero them. ApplyInterfaceCoupling() fences once at the end.
   bool const needs_reset = !forces_zeroed_;
 
   // Elastic step.
@@ -645,8 +642,7 @@ void SEMsolverAcoustoElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES>
   m_acoustic_solver_.computeElementContributionsFromList(acoustic_data, acoustic_elem_list_, num_acoustic_elements_);
 
   // p^{n+1} is written into the previous buffer.
-  m_acoustic_solver_.updateFieldsFromListForwardAndReset(dt, acoustic_data, acoustic_node_list_,
-                                                          num_acoustic_nodes_);
+  m_acoustic_solver_.updateFieldsFromListForwardAndReset(dt, acoustic_data, acoustic_node_list_, num_acoustic_nodes_);
   forces_zeroed_ = true;
 
   // Enforce the fluid/solid interface conditions on the two predictors.

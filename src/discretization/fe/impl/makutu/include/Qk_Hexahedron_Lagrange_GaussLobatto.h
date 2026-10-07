@@ -513,10 +513,8 @@ class Qk_Hexahedron_Lagrange_GaussLobatto {
   /**
    * @brief Metric B = det(J) J^-1 J^-T of an element deformed along z only.
    *
-   * The element edges along xi and eta stay parallel to x and y, so x depends
-   * on xi only and y on eta only: J is lower triangular with constant
-   * J[0][0] and J[1][1], and only the z row varies over the element. B[5]
-   * (xy) is then zero. Same result as computeBMatrix() on such an element.
+   * Same geometry as invJacobianZDeformed(); B[5] (xy) is then zero. Same result
+   * as computeBMatrix() on such an element.
    * @param[in] J00 dx/dxi, half the element size along x.
    * @param[in] J11 dy/deta, half the element size along y.
    * @param[in] Z z coordinate of the 8 vertices.
@@ -530,10 +528,8 @@ class Qk_Hexahedron_Lagrange_GaussLobatto {
    * @brief computeStiffnessTermSumFact() for an element deformed along z only, without the
    * flux arrays.
    *
-   * The metric comes from computeBMatrixZDeformed() instead of the full Jacobian. Each quadrature point adds its three fluxes to @p v_local as soon as they are
-   * computed, so only @p u_local and @p v_local stay live: this keeps a
-   * one-thread-per-element kernel within its registers. @p v_local is
-   * overwritten and must not alias @p u_local.
+   * The metric comes from computeBMatrixZDeformed() instead of the full Jacobian. Each quadrature point adds its three
+   * fluxes to @p v_local as soon as they are computed, so only @p u_local and @p v_local stay live.
    * @param[in] J00 dx/dxi, half the element size along x.
    * @param[in] J11 dy/deta, half the element size along y.
    * @param[in] Z z coordinate of the 8 vertices.
@@ -659,9 +655,11 @@ class Qk_Hexahedron_Lagrange_GaussLobatto {
    * @param[in] Z z coordinate of the 8 vertices.
    */
   template <typename TEAM_MEMBER, typename FUNC1>
-  PROXY_HOST_DEVICE static void computeElasticStiffnessSumFactTeamZDeformed(
-      TEAM_MEMBER const &team, real_t const J00, real_t const J11, real_t const (&Z)[8], real_t const *u_local,
-      real_t *f_local, real_t *F, FUNC1 &&func1, real_t const *basis_tab);
+  PROXY_HOST_DEVICE static void computeElasticStiffnessSumFactTeamZDeformed(TEAM_MEMBER const &team, real_t const J00,
+                                                                            real_t const J11, real_t const (&Z)[8],
+                                                                            real_t const *u_local, real_t *f_local,
+                                                                            real_t *F, FUNC1 &&func1,
+                                                                            real_t const *basis_tab);
 
   /// Size of the table read by the team kernels: D[q][p], then w[q], then alpha[q].
   constexpr static int kBasisTableSize = num1dNodes * num1dNodes + 2 * num1dNodes;
@@ -702,8 +700,8 @@ class Qk_Hexahedron_Lagrange_GaussLobatto {
    * coordinates instead of its node indices.
    */
   PROXY_HOST_DEVICE
-  static real_t invJacobianZDeformed(real_t const (&alpha)[3], real_t const J00, real_t const J11,
-                                     real_t const (&Z)[8], real_t (&invJ)[3][3]);
+  static real_t invJacobianZDeformed(real_t const (&alpha)[3], real_t const J00, real_t const J11, real_t const (&Z)[8],
+                                     real_t (&invJ)[3][3]);
 
   /**
    * @brief Half differences of the vertex z along each parent axis, the input of
@@ -1353,7 +1351,7 @@ PROXY_HOST_DEVICE real_t Qk_Hexahedron_Lagrange_GaussLobatto<GL_BASIS>::invJacob
 
 template <typename GL_BASIS>
 PROXY_HOST_DEVICE void Qk_Hexahedron_Lagrange_GaussLobatto<GL_BASIS>::zDeformedHalfDifferences(real_t const (&Z)[8],
-                                                                                              real_t (&dZ)[3][4]) {
+                                                                                               real_t (&dZ)[3][4]) {
   for (int s1 = 0; s1 < 2; ++s1)
     for (int s0 = 0; s0 < 2; ++s0) {
       dZ[0][s0 + 2 * s1] = real_t(0.5) * (Z[1 + 2 * s0 + 4 * s1] - Z[2 * s0 + 4 * s1]);
