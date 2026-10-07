@@ -162,13 +162,19 @@ void bind_sem_solver_base(py::module_ &m) {
       .def("set_interface_property_convention", &Solver::setInterfacePropertyConvention, py::arg("convention"))
       .def(
           "set_solid_on_interface_nodes",
-          [](Solver &self, const std::vector<float> &vp, const std::vector<float> &vs,
-             const std::vector<float> &rho) {
+          [](Solver &self, const py::array_t<float, py::array::c_style | py::array::forcecast> &vp,
+             const py::array_t<float, py::array::c_style | py::array::forcecast> &vs,
+             const py::array_t<float, py::array::c_style | py::array::forcecast> &rho) {
             if (vp.size() != vs.size() || vp.size() != rho.size())
               throw std::invalid_argument("set_solid_on_interface_nodes: vp, vs and rho differ in size");
-            auto to_view = [](const std::vector<float> &v, const char *name) {
-              vectorReal out = allocateVector<vectorReal>(v.size(), name);
-              for (size_t i = 0; i < v.size(); ++i) out[i] = v[i];
+            // One bulk copy per array: converting element by element through std::vector
+            // costs about a minute per call on a production-size mesh.
+            auto to_view = [](const py::array_t<float, py::array::c_style | py::array::forcecast> &a,
+                              const char *name) {
+              vectorReal out = allocateVector<vectorReal>(a.size(), name);
+              Kokkos::View<const float *, Kokkos::HostSpace, Kokkos::MemoryTraits<Kokkos::Unmanaged>> in(a.data(),
+                                                                                                       a.size());
+              Kokkos::deep_copy(out, in);
               return out;
             };
             self.setSolidOnInterfaceNodes(to_view(vp, "solid_vp_node"), to_view(vs, "solid_vs_node"),
@@ -177,11 +183,13 @@ void bind_sem_solver_base(py::module_ &m) {
           py::arg("vp"), py::arg("vs"), py::arg("rho"))
       .def(
           "set_element_tags",
-          [](Solver &self, const std::vector<int> &tags) {
+          [](Solver &self, const py::array_t<int, py::array::c_style | py::array::forcecast> &tags) {
             vectorInt vt;
-            if (!tags.empty()) {
+            if (tags.size() > 0) {
               vt = allocateVector<vectorInt>(tags.size(), "external_element_tags");
-              for (size_t i = 0; i < tags.size(); ++i) vt[i] = tags[i];
+              Kokkos::View<const int *, Kokkos::HostSpace, Kokkos::MemoryTraits<Kokkos::Unmanaged>> in(tags.data(),
+                                                                                                     tags.size());
+              Kokkos::deep_copy(vt, in);
             }
             self.setElementTags(vt);
           },
