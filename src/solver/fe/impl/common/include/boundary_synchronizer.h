@@ -8,8 +8,6 @@
 
 #include "parallel_topology.h"
 
-using namespace utils;
-
 namespace solver {
 namespace fe {
 /**
@@ -81,7 +79,7 @@ class BoundarySynchronizer {
    *         (including a buffer size mismatch or missing neighbor data).
    */
   template <typename ViewType>
-  void synchronize(ViewType& field, const ParallelTopology& topo) {
+  void synchronize(ViewType& field, const parallel::ParallelTopology& topo) {
     if (!topo.isDistributed()) {
       return;
     }
@@ -112,7 +110,7 @@ class BoundarySynchronizer {
    *         topo.sharedNodes for that rank.
    */
   template <typename ViewType>
-  static std::map<int, std::vector<float>> pack(const ViewType& field, const ParallelTopology& topo) {
+  static std::map<int, std::vector<float>> pack(const ViewType& field, const parallel::ParallelTopology& topo) {
     std::map<int, std::vector<float>> buffers;
 
     for (const auto& [neighborRank, nodeIndices] : topo.sharedNodes) {
@@ -144,7 +142,7 @@ class BoundarySynchronizer {
    */
   template <typename ViewType>
   static void accumulate(ViewType& field, const std::map<int, std::vector<float>>& recvBufs,
-                         const ParallelTopology& topo) {
+                         const parallel::ParallelTopology& topo) {
     for (const auto& [neighborRank, nodeIndices] : topo.sharedNodes) {
       auto it = recvBufs.find(neighborRank);
 

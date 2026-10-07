@@ -3,7 +3,7 @@
 #include <map>
 #include <vector>
 
-namespace utils {
+namespace parallel {
 
 /**
  * @brief Distributed connectivity of the local mesh subdomain.
@@ -39,5 +39,5 @@ struct ParallelTopology {
   }
 };
 
-}  // namespace utils
+}  // namespace parallel
 #endif  // FUNTIDES_PARALLEL_INCLUDE_PARALLEL_TOPOLOGY_H_

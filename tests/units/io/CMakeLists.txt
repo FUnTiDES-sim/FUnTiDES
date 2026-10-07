@@ -4,5 +4,5 @@ set(IO_TEST_SOURCES
 
 add_gtest_group(io_tests
   SOURCES ${IO_TEST_SOURCES}
-  EXTRA_LINKS funtides_io
+  EXTRA_LINKS fun_io
 )

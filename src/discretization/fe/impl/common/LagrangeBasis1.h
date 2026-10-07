@@ -40,7 +40,7 @@ class LagrangeBasis1 {
   /**
    * @brief Bubble function 1 - xi^2, which vanishes at both nodes.
    */
-  constexpr static double valueBubble(const double xi) { return 1.0 - pow(xi, 2); }
+  constexpr static double valueBubble(const double xi) { return 1.0 - std::pow(xi, 2); }
 
   /**
    * @brief Derivative at @p xi of the basis function of node @p index.

@@ -203,11 +203,11 @@ void SEMproxy::Run() {
     DGsolverDataAcoustic dgData(wavefield, rhs);
 
     for (int time_index = 0; time_index < num_samples_; time_index++) {
-      start_compute_time = system_clock::now();
+      start_compute_time = std::chrono::system_clock::now();
       solver_->computeOneStep(dt_, time_index, dgData);
-      total_compute_time += system_clock::now() - start_compute_time;
+      total_compute_time += std::chrono::system_clock::now() - start_compute_time;
 
-      start_output_time = system_clock::now();
+      start_output_time = std::chrono::system_clock::now();
 
       auto d_field = dgData.getPreviousField(0);
 
@@ -276,7 +276,7 @@ void SEMproxy::Run() {
       }
       h_pn_at_receiver_(0, time_index) = varnp1;
       dgData.swapWavefields();
-      total_output_time += system_clock::now() - start_output_time;
+      total_output_time += std::chrono::system_clock::now() - start_output_time;
     }
 
     std::ofstream fout("receiver_trace.txt");
@@ -298,11 +298,11 @@ void SEMproxy::Run() {
               << "  iface_z=" << dg_sem_iface_z_ << std::endl;
 
     for (int time_index = 0; time_index < num_samples_; time_index++) {
-      start_compute_time = system_clock::now();
+      start_compute_time = std::chrono::system_clock::now();
       solver_->computeOneStep(dt_, time_index, dg_sem_data);
-      total_compute_time += system_clock::now() - start_compute_time;
+      total_compute_time += std::chrono::system_clock::now() - start_compute_time;
 
-      start_output_time = system_clock::now();
+      start_output_time = std::chrono::system_clock::now();
 
       if (time_index % 50 == 0) {
         int src_e = h_rhs_element_(0);
@@ -435,7 +435,7 @@ void SEMproxy::Run() {
       }
 
       dg_sem_data.swapWavefields();
-      total_output_time += system_clock::now() - start_output_time;
+      total_output_time += std::chrono::system_clock::now() - start_output_time;
     }
 
     start_output_time = std::chrono::high_resolution_clock::now();
@@ -445,7 +445,7 @@ void SEMproxy::Run() {
       for (int j = 0; j < num_samples_; ++j) subset(j) = subview(j);
       io_ctrl_->saveReceiver(subset, src_coord_);
     }
-    total_output_time += system_clock::now() - start_output_time;
+    total_output_time += std::chrono::system_clock::now() - start_output_time;
 
     {
       std::ofstream fout("receiver_trace.txt");
@@ -467,11 +467,11 @@ void SEMproxy::Run() {
               << "  iface_z=" << dg_padaptive_iface_z_ << std::endl;
 
     for (int time_index = 0; time_index < num_samples_; time_index++) {
-      start_compute_time = system_clock::now();
+      start_compute_time = std::chrono::system_clock::now();
       solver_->computeOneStep(dt_, time_index, dg_padaptive_data);
-      total_compute_time += system_clock::now() - start_compute_time;
+      total_compute_time += std::chrono::system_clock::now() - start_compute_time;
 
-      start_output_time = system_clock::now();
+      start_output_time = std::chrono::system_clock::now();
 
       if (time_index % 50 == 0) {
         int src_e = h_rhs_element_(0);
@@ -578,7 +578,7 @@ void SEMproxy::Run() {
       }
 
       dg_padaptive_data.swapWavefields();
-      total_output_time += system_clock::now() - start_output_time;
+      total_output_time += std::chrono::system_clock::now() - start_output_time;
     }
 
     start_output_time = std::chrono::high_resolution_clock::now();
@@ -588,7 +588,7 @@ void SEMproxy::Run() {
       for (int j = 0; j < num_samples_; ++j) subset(j) = subview(j);
       io_ctrl_->saveReceiver(subset, src_coord_);
     }
-    total_output_time += system_clock::now() - start_output_time;
+    total_output_time += std::chrono::system_clock::now() - start_output_time;
 
     {
       std::ofstream fout("receiver_trace.txt");
@@ -1053,8 +1053,8 @@ void SEMproxy::InitSource() {
   float rel_src_z = src_coord_[2] - local_params_.origin_z;
 
   bool source_on_rank = (rel_src_x >= 0 && rel_src_x < lx);
-  int src_index = source_on_rank ? floor((rel_src_x * ex) / lx) + floor((rel_src_y * ey) / ly) * ex +
-                                       floor((rel_src_z * ez) / lz) * ey * ex
+  int src_index = source_on_rank ? std::floor((rel_src_x * ex) / lx) + std::floor((rel_src_y * ey) / ly) * ex +
+                                       std::floor((rel_src_z * ez) / lz) * ey * ex
                                  : 0;
 
   for (int i = 0; i < 1; i++) h_rhs_element_(i) = src_index;
@@ -1160,8 +1160,8 @@ void SEMproxy::InitSource() {
   }
 
   float rel_rcv_x = rcv_coord_[0] - local_params_.origin_x;
-  int rcv_index =
-      floor((rel_rcv_x * ex) / lx) + floor((rcv_coord_[1] * ey) / ly) * ex + floor((rcv_coord_[2] * ez) / lz) * ey * ex;
+  int rcv_index = std::floor((rel_rcv_x * ex) / lx) + std::floor((rcv_coord_[1] * ey) / ly) * ex +
+                  std::floor((rcv_coord_[2] * ez) / lz) * ey * ex;
 
   if (rcv_index < 0 || rcv_index >= mesh_->getNumberOfElements()) rcv_index = 0;
   for (int i = 0; i < 1; i++) h_rhs_element_rcv_(i) = rcv_index;
@@ -1479,8 +1479,8 @@ void SEMproxy::InitMeshParams(const SemProxyOptions& opt) {
 }
 
 void SEMproxy::InitTopology() {
-  par_topology_ =
-      TopologyFactory::createFromMesh(*mesh_, dist_ctx_.rank, dist_ctx_.size, local_params_.origin_x, local_params_.lx);
+  par_topology_ = parallel::TopologyFactory::createFromMesh(*mesh_, dist_ctx_.rank, dist_ctx_.size,
+                                                            local_params_.origin_x, local_params_.lx);
 }
 
 void SEMproxy::InitSync() {

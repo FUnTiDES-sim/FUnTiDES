@@ -79,7 +79,7 @@ PROXY_HOST_DEVICE void computeVTICoefficients(FloatType vp, FloatType vs, FloatT
 
   FloatType const vp2_vs2 = vp * vp - vs * vs;
   FloatType const sqrt_arg = vp2_vs2 * vp2_vs2 + FloatType(2.0) * vp * vp * delta * vp2_vs2;
-  c13 = rho * sqrt(sqrt_arg) - rho_vs2;
+  c13 = rho * std::sqrt(sqrt_arg) - rho_vs2;
   c12 = c11 - FloatType(2.0) * c66;
 }
 
@@ -147,7 +147,7 @@ PROXY_HOST_DEVICE void computeCTensor(FloatType vp, FloatType vs, FloatType rho,
   FloatType vp2 = vp * vp;
   FloatType vs2 = vs * vs;
   FloatType diff = vp2 - vs2;
-  CVTI[0][2] = rho * sqrt(diff * diff + 2.0 * vp2 * delta * diff) - rho * vs2;
+  CVTI[0][2] = rho * std::sqrt(diff * diff + 2.0 * vp2 * delta * diff) - rho * vs2;
   CVTI[1][2] = CVTI[0][2];
   CVTI[2][0] = CVTI[0][2];
   CVTI[2][1] = CVTI[0][2];
@@ -156,10 +156,10 @@ PROXY_HOST_DEVICE void computeCTensor(FloatType vp, FloatType vs, FloatType rho,
   FloatType theta_rad = theta * PI / FloatType(180.0);
   FloatType phi_rad = phi * PI / FloatType(180.0);
 
-  FloatType ctheta = cos(theta_rad);
-  FloatType stheta = sin(theta_rad);
-  FloatType cphi = cos(phi_rad);
-  FloatType sphi = sin(phi_rad);
+  FloatType ctheta = std::cos(theta_rad);
+  FloatType stheta = std::sin(theta_rad);
+  FloatType cphi = std::cos(phi_rad);
+  FloatType sphi = std::sin(phi_rad);
 
   FloatType R[3][3];
   R[0][0] = ctheta * cphi;

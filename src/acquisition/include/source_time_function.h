@@ -2,8 +2,6 @@
 #define FUNTIDES_ACQUISITION_INCLUDE_SOURCE_TIME_FUNCTION_H_
 #include "data_type.h"
 
-using namespace std::chrono;
-
 /**
  * @brief Evaluates source time functions of the Ricker family and samples them on a regular time grid.
  *
@@ -39,21 +37,21 @@ struct SourceTimeFunction {
         pulse = 4.0 * lam * lam *
                 (3.0 - 12.0 * lam * (time_n - tpeak) * (time_n - tpeak) +
                  4.0 * lam * lam * (time_n - tpeak) * (time_n - tpeak) * (time_n - tpeak) * (time_n - tpeak)) *
-                exp(-lam * (time_n - tpeak) * (time_n - tpeak));
+                std::exp(-lam * (time_n - tpeak) * (time_n - tpeak));
       } break;
       case 3: {
         pulse = 4.0 * lam * lam * (time_n - tpeak) * (3.0 - 2.0 * lam * (time_n - tpeak) * (time_n - tpeak)) *
-                exp(-lam * (time_n - tpeak) * (time_n - tpeak));
+                std::exp(-lam * (time_n - tpeak) * (time_n - tpeak));
       } break;
       case 2: {
         pulse = 2.0 * lam * (2.0 * lam * (time_n - tpeak) * (time_n - tpeak) - 1.0) *
-                exp(-lam * (time_n - tpeak) * (time_n - tpeak));
+                std::exp(-lam * (time_n - tpeak) * (time_n - tpeak));
       } break;
       case 1: {
-        pulse = -2.0 * lam * (time_n - tpeak) * exp(-lam * (time_n - tpeak) * (time_n - tpeak));
+        pulse = -2.0 * lam * (time_n - tpeak) * std::exp(-lam * (time_n - tpeak) * (time_n - tpeak));
       } break;
       case 0: {
-        pulse = -(time_n - tpeak) * exp(-2 * lam * (time_n - tpeak) * (time_n - tpeak));
+        pulse = -(time_n - tpeak) * std::exp(-2 * lam * (time_n - tpeak) * (time_n - tpeak));
       } break;
       default:
         std::cout << "This option is not supported yet, rickerOrder must be 0, 1 or 2" << std::endl;

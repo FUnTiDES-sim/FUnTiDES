@@ -2440,9 +2440,9 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::com
               }
 
               real_t aux = density * INTEGRAL_TYPE::computeDampingTerm(q, coords);
-              real_t localIncrementx = aux * (velocityVp * fabs(nx) + velocityVs * sqrt(ny * ny + nz * nz));
-              real_t localIncrementy = aux * (velocityVp * fabs(ny) + velocityVs * sqrt(nx * nx + nz * nz));
-              real_t localIncrementz = aux * (velocityVp * fabs(nz) + velocityVs * sqrt(nx * nx + ny * ny));
+              real_t localIncrementx = aux * (velocityVp * std::fabs(nx) + velocityVs * std::sqrt(ny * ny + nz * nz));
+              real_t localIncrementy = aux * (velocityVp * std::fabs(ny) + velocityVs * std::sqrt(nx * nx + nz * nz));
+              real_t localIncrementz = aux * (velocityVp * std::fabs(nz) + velocityVs * std::sqrt(nx * nx + ny * ny));
 
               ATOMICADD(local_dampingMatrixGlobal[0][globalNodeIndex], localIncrementx);
               ATOMICADD(local_dampingMatrixGlobal[1][globalNodeIndex], localIncrementy);
@@ -2506,24 +2506,24 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::ini
     const double y = m_mesh.nodeCoord(n, 1);
     const double z = m_mesh.nodeCoord(n, 2);
 
-    const double distToFrontierX = (surface_sponge_) ? m_mesh.domainSize(0) - x : min(m_mesh.domainSize(0) - x, x);
-    const double distToFrontierY = min(m_mesh.domainSize(1) - y, y);
-    const double distToFrontierZ = min(m_mesh.domainSize(2) - z, z);
+    const double distToFrontierX = (surface_sponge_) ? m_mesh.domainSize(0) - x : std::min(m_mesh.domainSize(0) - x, x);
+    const double distToFrontierY = std::min(m_mesh.domainSize(1) - y, y);
+    const double distToFrontierZ = std::min(m_mesh.domainSize(2) - z, z);
 
-    double minDistToFrontier = max(m_mesh.domainSize(0), max(m_mesh.domainSize(1), m_mesh.domainSize(2)));
+    double minDistToFrontier = std::max(m_mesh.domainSize(0), std::max(m_mesh.domainSize(1), m_mesh.domainSize(2)));
 
     bool is_sponge = false;
     if (distToFrontierX < sponge_size_[0]) {
       is_sponge = true;
-      minDistToFrontier = min(minDistToFrontier, distToFrontierX);
+      minDistToFrontier = std::min(minDistToFrontier, distToFrontierX);
     }
     if (distToFrontierY < sponge_size_[1]) {
       is_sponge = true;
-      minDistToFrontier = min(minDistToFrontier, distToFrontierY);
+      minDistToFrontier = std::min(minDistToFrontier, distToFrontierY);
     }
     if (distToFrontierZ < sponge_size_[2]) {
       is_sponge = true;
-      minDistToFrontier = min(minDistToFrontier, distToFrontierZ);
+      minDistToFrontier = std::min(minDistToFrontier, distToFrontierZ);
     }
 
     // Gaussian taper in the distance to the closest sponge frontier.
@@ -2543,8 +2543,8 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::ini
 template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE, bool IS_MODEL_ON_NODES, physicType PHYSICS>
 void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::outputSolutionValues(
     const int& t, int& e, const vectorReal& fieldGlobal, const char* fieldName) {
-  cout << "TimeStep=" << t << ";  " << fieldName << " @ elementSource location " << e
-       << " after computeOneStep = " << fieldGlobal(m_mesh.globalNodeIndex(e, 0, 0, 0)) << endl;
+  std::cout << "TimeStep=" << t << ";  " << fieldName << " @ elementSource location " << e
+            << " after computeOneStep = " << fieldGlobal(m_mesh.globalNodeIndex(e, 0, 0, 0)) << std::endl;
 }
 
 // Builds the TTI tensor CTTI = M * CVTI * M^T, with CVTI the VTI tensor (symmetry axis z) in Voigt storage

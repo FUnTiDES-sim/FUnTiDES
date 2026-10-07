@@ -20,7 +20,7 @@ The following options can be used to configure your build:
 | `COMPILE_SEM`              | Enable compilation of the SEM proxy (default: ON)                                  |
 | `ENABLE_PYWRAP`            | Enable Python bindings via pybind11 (experimental)                                 |
 | `ENABLE_COVERAGE`          | Enable Code coverage. Does not work with device enable                             |
-| `CMAKE_INSTALL_PREFIX`     | Where to install FUnTiDES                                                          |
+| `CMAKE_INSTALL_PREFIX`     | Where to install FUnTiDES (default: `<build>/install`)                             |
 | `MAX_SOLVER_ORDER`         | Max polynomial order generated for solvers (reduces compile time & binary size)    |
 | `MAX_DIFFERENTIATOR_ORDER` | Max polynomial order generated for differentiators (reduces compile time)          |
 
@@ -61,6 +61,19 @@ cd build
 cmake ..
 make install
 ```
+
+### Using FUnTiDES from another CMake project
+
+The installed tree provides a CMake package. Point `CMAKE_PREFIX_PATH` to the
+install prefix, then:
+
+```cmake
+find_package(funtides REQUIRED)
+target_link_libraries(my_app PRIVATE funtides::funtides)
+```
+
+`funtides::funtides` brings every component; a single one can be linked instead
+(`funtides::model`, `funtides::solver`, `funtides::gradient`, `funtides::io`, ...).
 
 ### Step 3: Run Tests & Benchmarks
 

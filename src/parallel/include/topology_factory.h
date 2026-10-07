@@ -8,7 +8,7 @@
 #include "model.h"
 #include "parallel_topology.h"
 
-using namespace utils;
+namespace parallel {
 
 /**
  * @brief Tolerance used to decide whether a node lies on a partition boundary.
@@ -119,4 +119,6 @@ class TopologyFactory {
     return topo;
   }
 };
+
+}  // namespace parallel
 #endif  // FUNTIDES_PARALLEL_INCLUDE_TOPOLOGY_FACTORY_H_

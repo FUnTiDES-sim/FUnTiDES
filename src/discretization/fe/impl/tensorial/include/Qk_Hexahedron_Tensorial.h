@@ -235,7 +235,7 @@ class Qk_Hexahedron_Tensorial_GEMM final {
     B[0] = J[0][0] * J[0][0] + J[1][0] * J[1][0] + J[2][0] * J[2][0];
     B[1] = J[0][1] * J[0][1] + J[1][1] * J[1][1] + J[2][1] * J[2][1];
     B[2] = J[0][0] * J[0][1] + J[1][0] * J[1][1] + J[2][0] * J[2][1];
-    return sqrt(std::abs(symDeterminant(B))) * w2D;
+    return std::sqrt(std::abs(symDeterminant(B))) * w2D;
   }
 
   /**

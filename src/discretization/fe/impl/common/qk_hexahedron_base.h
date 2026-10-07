@@ -320,7 +320,7 @@ PROXY_HOST_DEVICE real_t QkHexahedronBase<GL_BASIS>::computeDampingTerm(int cons
   B[0] = J[0][0] * J[0][0] + J[1][0] * J[1][0] + J[2][0] * J[2][0];
   B[1] = J[0][1] * J[0][1] + J[1][1] * J[1][1] + J[2][1] * J[2][1];
   B[2] = J[0][0] * J[0][1] + J[1][0] * J[1][1] + J[2][0] * J[2][1];
-  return sqrt(std::abs(symDeterminant(B))) * w2D;
+  return std::sqrt(std::abs(symDeterminant(B))) * w2D;
 }
 
 template <typename GL_BASIS>

@@ -3,7 +3,7 @@
 #include <iostream>
 
 #include "differentiator.h"
-#include "physics_traits_elastic.h"
+#include "gradient_physics_traits_elastic.h"
 
 namespace gradient {
 
