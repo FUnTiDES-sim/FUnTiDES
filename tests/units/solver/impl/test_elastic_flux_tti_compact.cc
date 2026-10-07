@@ -25,7 +25,8 @@ namespace test {
 namespace {
 
 using Integral = typename IntegralTypeSelector<1, IntegralType::MAKUTU>::type;
-using ElasticSolver = SEMsolver<1, Integral, model::ModelUnstruct<float, int>, true, utils::enums::physicType::kElastic>;
+using ElasticSolver =
+    SEMsolver<1, Integral, model::ModelUnstruct<float, int>, true, utils::enums::physicType::kElastic>;
 
 constexpr float kJinv[3][3] = {{1.3f, 0.2f, -0.4f}, {0.1f, 0.9f, 0.3f}, {-0.2f, 0.5f, 1.1f}};
 
@@ -72,7 +73,8 @@ TEST(ElasticFluxTtiCompact, MatchesRotatedTensor) {
     ASSERT_GT(scale, 0.0f);
     for (int a = 0; a < 3; ++a)
       for (int b = 0; b < 3; ++b)
-        EXPECT_NEAR(compact[a][b], ref[a][b], 1e-5f * scale) << "trial " << trial << ", entry (" << a << "," << b << ")";
+        EXPECT_NEAR(compact[a][b], ref[a][b], 1e-5f * scale)
+            << "trial " << trial << ", entry (" << a << "," << b << ")";
   }
 }
 

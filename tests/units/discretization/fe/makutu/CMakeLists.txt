@@ -14,6 +14,7 @@ set(_QK_TEST_GROUPS
   sumfact_elastic
   tensorial_gemm
   tensorial_gemm_kokkos
+  zdeformed
 )
 
 set(_QK_TEST_ORDERS "")
