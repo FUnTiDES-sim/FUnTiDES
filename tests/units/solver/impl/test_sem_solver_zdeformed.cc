@@ -112,8 +112,7 @@ void CheckAcoustic() {
   vectorInt reversed = allocateVector<vectorInt>(kNumElements, "reversed");
   for (int i = 0; i < kNumElements; ++i) reversed(i) = kNumElements - 1 - i;
   ExpectSameForces(
-      ref,
-      Assemble(solver, n_nodes, [&] { solver.computeElementContributionsFromList(data, reversed, kNumElements); }),
+      ref, Assemble(solver, n_nodes, [&] { solver.computeElementContributionsFromList(data, reversed, kNumElements); }),
       "reversed list");
 
   // Two lists of the same size: the node table of the first must not be reused for the second.
