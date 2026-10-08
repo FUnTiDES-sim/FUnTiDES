@@ -184,8 +184,9 @@ inline void bind_io_controller(py::module_& m) {
       .def("flush", &PyIOController::flush)
       .def("close", &PyIOController::close)
       .def_property_readonly("closed", &PyIOController::closed)
-      .def("__enter__", [](PyIOController& self) -> PyIOController& { return self; },
-           py::return_value_policy::reference_internal)
+      .def(
+          "__enter__", [](PyIOController& self) -> PyIOController& { return self; },
+          py::return_value_policy::reference_internal)
       .def("__exit__", [](PyIOController& self, const py::object&, const py::object&, const py::object&) {
         self.close();
         return false;  // never swallow the exception of the with block
