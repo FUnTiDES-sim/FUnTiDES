@@ -158,8 +158,8 @@ class Adios2IOController::Impl {
     std::unique_lock lk(mu_);
     rethrowIfFailed();
     if (index >= nsteps_) {
-      throw std::runtime_error("funtides::io: no snapshot with index " + std::to_string(index) + " in " + path_ +
-                               " (" + std::to_string(nsteps_) + " stored)");
+      throw std::runtime_error("funtides::io: no snapshot with index " + std::to_string(index) + " in " + path_ + " (" +
+                               std::to_string(nsteps_) + " stored)");
     }
     if (n != *nelem_) {
       throw std::runtime_error("funtides::io: " + path_ + " holds " + std::to_string(*nelem_) +
@@ -348,8 +348,7 @@ class Adios2IOController::Impl {
       }
       const adios2::Dims shape = var.Shape();
       if (shape.size() != 1) {
-        throw std::runtime_error("funtides::io: \"" + std::string(kVariableName) + "\" in " + path_ +
-                                 " is not 1D");
+        throw std::runtime_error("funtides::io: \"" + std::string(kVariableName) + "\" in " + path_ + " is not 1D");
       }
       {
         std::lock_guard lk(mu_);
@@ -398,10 +397,10 @@ class Adios2IOController::Impl {
   std::optional<std::size_t> nelem_;  ///< Values per snapshot, set by the first write or by open (read).
 
   // Write side.
-  std::vector<Buffer> pool_;   ///< Staging buffers; never resized after start().
-  std::deque<Buffer*> free_;   ///< Buffers the caller may fill.
-  std::deque<Buffer*> jobs_;   ///< Buffers waiting to be written, in snapshot order.
-  bool busy_{false};           ///< True while the thread writes a buffer.
+  std::vector<Buffer> pool_;  ///< Staging buffers; never resized after start().
+  std::deque<Buffer*> free_;  ///< Buffers the caller may fill.
+  std::deque<Buffer*> jobs_;  ///< Buffers waiting to be written, in snapshot order.
+  bool busy_{false};          ///< True while the thread writes a buffer.
 
   // Read side.
   std::size_t nsteps_{0};
@@ -412,8 +411,7 @@ class Adios2IOController::Impl {
 
 // -----------------------------------------------------------------------------
 
-Adios2IOController::Adios2IOController(OpenMode mode, const IOConfig& config)
-    : IOControllerBase(config), mode_(mode) {
+Adios2IOController::Adios2IOController(OpenMode mode, const IOConfig& config) : IOControllerBase(config), mode_(mode) {
   validateShotId(config.shot_id);
   const std::string path = bpPath(config);
 
