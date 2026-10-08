@@ -3,6 +3,10 @@
 #include "io_controller_base.h"
 #include "posix_io_controller.h"
 
+#ifdef FUNTIDES_IO_HAVE_ADIOS2
+#include "adios2_io_controller.h"
+#endif
+
 namespace funtides::io {
 
 /**
@@ -19,9 +23,28 @@ std::unique_ptr<IOControllerBase> makeIOController(BackendKind kind, OpenMode mo
     case BackendKind::kPosix:
       return std::make_unique<PosixIOController>(mode, config);
     case BackendKind::kAdios2:
-      throw std::runtime_error("funtides::io: ADIOS2 backend not built in");
+#ifdef FUNTIDES_IO_HAVE_ADIOS2
+      return std::make_unique<Adios2IOController>(mode, config);
+#else
+      throw std::runtime_error(
+          "funtides::io: ADIOS2 backend not built in (configure with -DFUNTIDES_ENABLE_ADIOS2=ON)");
+#endif
   }
   throw std::invalid_argument("funtides::io: unknown backend");
+}
+
+bool isBackendAvailable(BackendKind kind) noexcept {
+  switch (kind) {
+    case BackendKind::kPosix:
+      return true;
+    case BackendKind::kAdios2:
+#ifdef FUNTIDES_IO_HAVE_ADIOS2
+      return true;
+#else
+      return false;
+#endif
+  }
+  return false;
 }
 
 }  // namespace funtides::io
