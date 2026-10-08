@@ -1,3 +1,5 @@
+option(FUNTIDES_ENABLE_ADIOS2 "Build the ADIOS2 snapshot I/O backend (requires ADIOS2 >= 2.9)" OFF)
+
 add_library(fun_io_api INTERFACE)
 add_library(funtides::io_api ALIAS fun_io_api)
 set_target_properties(fun_io_api PROPERTIES EXPORT_NAME io_api)
@@ -15,3 +17,7 @@ target_link_libraries(fun_io_api
 install_funtides_headers(io ${CMAKE_CURRENT_SOURCE_DIR}/api/include)
 
 add_subdirectory(impl)
+
+if(ENABLE_PYWRAP)
+  add_subdirectory(pywrap)
+endif()
