@@ -131,8 +131,8 @@ class IOControllerBase {
 /**
  * @brief Storage back-end selected by makeIOController().
  *
- * kAdios2 has no implementation: makeIOController() throws for it; see
- * docs/design-red-flags.md.
+ * kAdios2 exists only in builds configured with -DFUNTIDES_ENABLE_ADIOS2=ON;
+ * query isBackendAvailable() before asking for it.
  */
 enum class BackendKind { kPosix, kAdios2 };
 /** @brief Direction of a controller: it either writes or reads snapshots. */
@@ -149,6 +149,13 @@ enum class OpenMode { kWrite, kRead };
  *         directory cannot be created.
  */
 std::unique_ptr<IOControllerBase> makeIOController(BackendKind kind, OpenMode mode, const IOConfig& config);
+
+/**
+ * @brief Tells whether `kind` is compiled into this build of the library.
+ *
+ * kPosix is always available; kAdios2 depends on FUNTIDES_ENABLE_ADIOS2.
+ */
+bool isBackendAvailable(BackendKind kind) noexcept;
 
 }  // namespace funtides::io
 
