@@ -372,7 +372,6 @@ void SEMsolverAcoustoElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES>
         uy_nm1[i] = uy_prev[j];
         uz_nm1[i] = uz_prev[j];
       });
-  FENCE
 }
 
 template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE, bool IS_MODEL_ON_NODES>
@@ -433,6 +432,8 @@ void SEMsolverAcoustoElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES>
 
   resetGlobalVectors(m_mesh_.getNumberOfNodes());
   FENCE
+  // The forces are left non-zero for the separate update and adjoint paths.
+  forces_zeroed_ = false;
 
   m_acoustic_solver_.applyRHSTerm(timeSample, dt, acoustic_data);
   FENCE
@@ -442,19 +443,26 @@ void SEMsolverAcoustoElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES>
   m_acoustic_solver_.computeElementContributionsFromList(acoustic_data, acoustic_elem_list_, num_acoustic_elements_);
   FENCE
   // Swap in the solid properties at interface nodes for the elastic kernel, then restore the fluid ones.
-  if constexpr (IS_MODEL_ON_NODES) {
-    for (int i = 0; i < n_interface_nodes_; ++i) {
-      int const j = m_interface_node_indices_[i];
-      m_mesh_.setModelNodeProps(j, m_vp_solid_iface_[i], m_vs_solid_iface_[i], m_rho_solid_iface_[i]);
-    }
-  }
+  SetInterfaceNodeProps(true);
   m_elastic_solver_.computeElementContributionsFromList(elastic_data, elastic_elem_list_, num_elastic_elements_);
   FENCE
+  SetInterfaceNodeProps(false);
+  FENCE
+}
+
+template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE, bool IS_MODEL_ON_NODES>
+void SEMsolverAcoustoElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES>::SetInterfaceNodeProps(bool solid) {
   if constexpr (IS_MODEL_ON_NODES) {
-    for (int i = 0; i < n_interface_nodes_; ++i) {
-      int const j = m_interface_node_indices_[i];
-      m_mesh_.setModelNodeProps(j, m_vp_fluid_iface_[i], 0.0f, m_rho_fluid_iface_[i]);
-    }
+    auto mesh_local = m_mesh_;
+    auto node_indices = m_interface_node_indices_;
+    auto vp = solid ? m_vp_solid_iface_ : m_vp_fluid_iface_;
+    auto vs = m_vs_solid_iface_;
+    auto rho = solid ? m_rho_solid_iface_ : m_rho_fluid_iface_;
+    Kokkos::parallel_for(
+        "AcoustoElastic Set Interface Node Props", detail::lightWeightRange(n_interface_nodes_),
+        KOKKOS_LAMBDA(const int i) {
+          mesh_local.setModelNodeProps(node_indices[i], vp[i], solid ? vs[i] : 0.0f, rho[i]);
+        });
   }
 }
 
@@ -489,8 +497,9 @@ void SEMsolverAcoustoElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES>
   // acceleration that correction has just produced: both corrections are then
   // centred on time n. Moving the traction to p^{n+1} instead breaks that
   // symmetry and slowly injects energy, so the order below matters.
+  // Kernels run in order on the same execution space instance; the fence only
+  // makes the step complete for the caller.
   ApplyCouplingAcousticToElastic(dt, data);
-  FENCE
   ApplyCouplingElasticToAcoustic(dt, data);
   FENCE
 }
@@ -541,7 +550,7 @@ void SEMsolverAcoustoElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES>
   int const n_iface = n_interface_nodes_;
 
   Kokkos::parallel_for(
-      "ApplyCouplingAcousticToElastic_Loop", n_iface, KOKKOS_LAMBDA(const int i) {
+      "ApplyCouplingAcousticToElastic_Loop", detail::lightWeightRange(n_iface), KOKKOS_LAMBDA(const int i) {
         int const j = iface_list[i];
         if (M_e[j] > 0.0f && !mesh_local.isFreeSurface(j)) {
           // Same denominator and taper the Verlet update applied to the physical
@@ -579,7 +588,7 @@ void SEMsolverAcoustoElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES>
   int const n_iface = n_interface_nodes_;
 
   Kokkos::parallel_for(
-      "ApplyCouplingElasticToAcoustic_Loop", n_iface, KOKKOS_LAMBDA(const int i) {
+      "ApplyCouplingElasticToAcoustic_Loop", detail::lightWeightRange(n_iface), KOKKOS_LAMBDA(const int i) {
         int const j = iface_list[i];
         if (M_f[j] > 0.0f && !mesh_local.isFreeSurface(j)) {
           // Second time difference of the solid displacement; u_nm1_* are indexed by
@@ -598,57 +607,43 @@ void SEMsolverAcoustoElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES>
                                                                                                  const int& timeSample,
                                                                                                  DataStruct& data) {
   auto& myData = dynamic_cast<DataType&>(data);
-  int const nNode = m_mesh_.getNumberOfNodes();
 
   SEMsolverData<utils::enums::physicType::kElastic> elastic_data(myData.m_wavefield.m_elastic,
                                                                  myData.m_rhs.m_rhs_elastic);
   SEMsolverData<utils::enums::physicType::kAcoustic> acoustic_data(myData.m_wavefield.m_acoustic,
                                                                    myData.m_rhs.m_rhs_acoustic);
 
+  // Each sub-solver only accumulates forces on the nodes of its own elements, so only those are reset,
+  // and only when the previous step did not zero them. ApplyInterfaceCoupling() fences once at the end.
+  bool const needs_reset = !forces_zeroed_;
+
   // Elastic step.
-  m_elastic_solver_.resetGlobalVectors(nNode);
-  FENCE
+  if (needs_reset) m_elastic_solver_.resetGlobalVectorsFromList(elastic_node_list_, num_elastic_nodes_);
 
   m_elastic_solver_.applyRHSTerm(timeSample, dt, elastic_data);
-  FENCE
 
   // With node-based models, swap in the solid properties at interface nodes so
   // the elastic kernel uses the correct lambda, mu and rho.
-  if constexpr (IS_MODEL_ON_NODES) {
-    for (int i = 0; i < n_interface_nodes_; ++i) {
-      int const j = m_interface_node_indices_[i];
-      m_mesh_.setModelNodeProps(j, m_vp_solid_iface_[i], m_vs_solid_iface_[i], m_rho_solid_iface_[i]);
-    }
-  }
+  SetInterfaceNodeProps(true);
   m_elastic_solver_.computeElementContributionsFromList(elastic_data, elastic_elem_list_, num_elastic_elements_);
-  FENCE
-  if constexpr (IS_MODEL_ON_NODES) {
-    for (int i = 0; i < n_interface_nodes_; ++i) {
-      int const j = m_interface_node_indices_[i];
-      m_mesh_.setModelNodeProps(j, m_vp_fluid_iface_[i], 0.0f, m_rho_fluid_iface_[i]);
-    }
-  }
+  SetInterfaceNodeProps(false);
 
   // The previous buffer still holds u^{n-1} here; the Verlet update below overwrites it.
   SaveInterfaceUnm1(myData);
 
   // u^{n+1} is written into the previous buffer.
-  m_elastic_solver_.updateFieldsFromListForward(dt, elastic_data, elastic_node_list_, num_elastic_nodes_);
-  FENCE
+  m_elastic_solver_.updateFieldsFromListForwardAndReset(dt, elastic_data, elastic_node_list_, num_elastic_nodes_);
 
   // Acoustic step.
-  m_acoustic_solver_.resetGlobalVectors(nNode);
-  FENCE
+  if (needs_reset) m_acoustic_solver_.resetGlobalVectorsFromList(acoustic_node_list_, num_acoustic_nodes_);
 
   m_acoustic_solver_.applyRHSTerm(timeSample, dt, acoustic_data);
-  FENCE
 
   m_acoustic_solver_.computeElementContributionsFromList(acoustic_data, acoustic_elem_list_, num_acoustic_elements_);
-  FENCE
 
   // p^{n+1} is written into the previous buffer.
-  m_acoustic_solver_.updateFieldsFromListForward(dt, acoustic_data, acoustic_node_list_, num_acoustic_nodes_);
-  FENCE
+  m_acoustic_solver_.updateFieldsFromListForwardAndReset(dt, acoustic_data, acoustic_node_list_, num_acoustic_nodes_);
+  forces_zeroed_ = true;
 
   // Enforce the fluid/solid interface conditions on the two predictors.
   ApplyInterfaceCoupling(dt, myData);

@@ -87,7 +87,7 @@ void SEMproxy::SetupSolver(const SemProxyOptions& opt) {
   surface_sponge_ = opt.surface_sponge;
   taper_delta_ = opt.taper_delta;
 
-  if (opt.isElastic) {
+  if (opt.isElastic || opt.isAcoustoElastic) {
     solver_->setAnisotropyType(anisotropy_type);
     if (anisotropy_type == model::AnisotropyType::kTTI && !opt.isModelOnNodes) {
       mesh_->initElasticityTensors(anisotropy_type);

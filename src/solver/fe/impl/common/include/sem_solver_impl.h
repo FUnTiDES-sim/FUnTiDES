@@ -4,6 +4,7 @@
 
 #include <algorithm>
 #include <array>
+#include <cstdint>
 #include <cstdlib>
 
 #include "Integrals.h"
@@ -28,6 +29,7 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::com
   // The caches below are derived from the model, which has just been replaced.
   cttiNodesReady_ = false;
   gemmMetricsReady_ = false;
+  zDeformedReady_ = false;
 
   sponge_size_[0] = sponge_size[0];
   sponge_size_[1] = sponge_size[1];
@@ -141,30 +143,66 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::res
 }
 
 template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE, bool IS_MODEL_ON_NODES, physicType PHYSICS>
+void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::resetGlobalVectorsFromList(
+    const vectorInt& node_list, int n_nodes) {
+  bool const has_attenuation = (attenuationEnabled_ && nSls_ > 0);
+  std::array<std::remove_reference_t<decltype(workVectorsGlobal_[0])>, kNumFields> local_workVectorsGlobal;
+  std::array<std::remove_reference_t<decltype(attenuationWorkVectorsGlobal_[0])>, kNumFields>
+      local_attenuationWorkVectorsGlobal;
+
+  for (int f = 0; f < kNumFields; ++f) {
+    local_workVectorsGlobal[f] = workVectorsGlobal_[f];
+    if (has_attenuation) {
+      local_attenuationWorkVectorsGlobal[f] = attenuationWorkVectorsGlobal_[f];
+    }
+  }
+  auto list_local = node_list;
+
+  Kokkos::parallel_for(
+      "Solver Reset GVector From List", n_nodes, KOKKOS_LAMBDA(const int n) {
+        int const i = list_local[n];
+        for (int f = 0; f < kNumFields; ++f) {
+          local_workVectorsGlobal[f][i] = 0;
+          if (has_attenuation) {
+            local_attenuationWorkVectorsGlobal[f][i] = 0;
+          }
+        }
+      });
+}
+
+template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE, bool IS_MODEL_ON_NODES, physicType PHYSICS>
 void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::applyRHSTerm(int timeSample, float dt,
                                                                                           const DataType& data) {
-  int nb_rhs_element = data.getRhsElement().extent(0);
+  constexpr int kDim = ORDER + 1;
+  constexpr int kPointsPerElem = kDim * kDim * kDim;
+  auto const rhs_element = data.getRhsElement();
+  int const nb_rhs_element = rhs_element.extent(0);
   auto mesh_local = m_mesh;
 
   std::array<std::remove_reference_t<decltype(workVectorsGlobal_[0])>, kNumFields> local_workVectorsGlobal;
   for (int f = 0; f < kNumFields; ++f) {
     local_workVectorsGlobal[f] = workVectorsGlobal_[f];
   }
+  std::array<arrayReal, kNumRhs> rhs_term;
+  std::array<arrayReal, kNumRhs> rhs_weights;
+  for (int f = 0; f < kNumRhs; ++f) {
+    rhs_term[f] = data.getRhsTerm(f);
+    rhs_weights[f] = data.getRhsWeights(f);
+  }
 
+  // One thread per (source element, node): source elements may share nodes, hence the atomics.
   Kokkos::parallel_for(
-      "Solver Apply RHSTerm", nb_rhs_element, KOKKOS_LAMBDA(const int i) {
-        for (int z = 0; z < ORDER + 1; z++) {
-          for (int y = 0; y < ORDER + 1; y++) {
-            for (int x = 0; x < ORDER + 1; x++) {
-              int localNodeId = x + y * (ORDER + 1) + z * (ORDER + 1) * (ORDER + 1);
-              int nodeRHS = mesh_local.globalNodeIndex(data.getRhsElement()[i], x, y, z);
+      "Solver Apply RHSTerm", detail::lightWeightRange(nb_rhs_element * kPointsPerElem), KOKKOS_LAMBDA(const int t) {
+        int const i = t / kPointsPerElem;
+        int const localNodeId = t - i * kPointsPerElem;
+        int const x = localNodeId % kDim;
+        int const y = (localNodeId / kDim) % kDim;
+        int const z = localNodeId / (kDim * kDim);
+        int const nodeRHS = mesh_local.globalNodeIndex(rhs_element[i], x, y, z);
 
-              for (int f = 0; f < kNumRhs; ++f) {
-                float source = data.getRhsTerm(f)(i, timeSample) * data.getRhsWeights(f)(i, localNodeId);
-                local_workVectorsGlobal[f](nodeRHS) -= source;
-              }
-            }
-          }
+        for (int f = 0; f < kNumRhs; ++f) {
+          float const source = rhs_term[f](i, timeSample) * rhs_weights[f](i, localNodeId);
+          ATOMICADD(local_workVectorsGlobal[f](nodeRHS), -source);
         }
       });
 }
@@ -191,6 +229,13 @@ template <typename, typename = void>
 struct has_team_gemm : std::false_type {};
 template <typename T>
 struct has_team_gemm<T, std::void_t<typename T::TeamGemm>> : std::true_type {};
+
+/// @brief True when T declares a nested type `ZDeformedSumFact`, i.e. the integral back-end provides
+/// the z-deformed sum-factorization kernels.
+template <typename, typename = void>
+struct has_z_deformed_sumfact : std::false_type {};
+template <typename T>
+struct has_z_deformed_sumfact<T, std::void_t<typename T::ZDeformedSumFact>> : std::true_type {};
 }  // namespace detail
 
 template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE, bool IS_MODEL_ON_NODES, physicType PHYSICS>
@@ -315,7 +360,387 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::com
   if constexpr (detail::has_team_gemm<INTEGRAL_TYPE>::value) {
     computeElementContributions_Acoustic_Gemm(data);
   } else {
+    if constexpr (detail::has_z_deformed_sumfact<INTEGRAL_TYPE>::value) {
+      prepareZDeformedGeometry();
+      if (zDeformedEnabled_) {
+        computeElementContributions_Acoustic_TeamZ(data);
+        return;
+      }
+    }
     computeElementContributions_Acoustic_Flat(data);
+  }
+}
+
+template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE, bool IS_MODEL_ON_NODES, physicType PHYSICS>
+void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::prepareZDeformedGeometry() {
+  if (zDeformedReady_) return;
+  zDeformedReady_ = true;
+  zDeformedEnabled_ = false;
+  zDeformedGeom_ = vectorReal();
+  zDeformedNodes_ = vectorInt();
+  zDeformedNodesList_ = vectorInt();
+  zDeformedInvRhoNodes_ = vectorReal();
+  zDeformedBasisTab_ = vectorReal();
+
+  bool const is_acoustic = (PHYSICS == utils::enums::physicType::kAcoustic);
+
+  auto mesh_pc = m_mesh;
+  int const nElems = mesh_pc.getNumberOfElements();
+  vectorReal geom = allocateVector<vectorReal>(nElems * kZGeomStride, "zDeformedGeom");
+  float* geomPtr = geom.data();
+
+  int nonConforming = 0;
+  Kokkos::parallel_reduce(
+      "ZDeformed Geometry", Kokkos::RangePolicy<>(0, nElems),
+      KOKKOS_LAMBDA(const int e, int& bad) {
+        float X[8][3];
+        auto const eIdx = mesh_pc.elementIndex(e);
+        int I = 0;
+        for (int kv = 0; kv < 2; ++kv)
+          for (int jv = 0; jv < 2; ++jv)
+            for (int iv = 0; iv < 2; ++iv) mesh_pc.vertexCoords(mesh_pc.globalVertexIndex(eIdx, iv, jv, kv), X[I++]);
+
+        // Vertex k has indices (k % 2, (k % 4) / 2, k / 4): x may follow the first only, y the second only.
+        float const hx = X[1][0] - X[0][0];
+        float const hy = X[2][1] - X[0][1];
+        float const tolX = 1e-4f * Kokkos::fabs(hx);
+        float const tolY = 1e-4f * Kokkos::fabs(hy);
+        for (int k = 0; k < 8; ++k) {
+          if (Kokkos::fabs(X[k][0] - X[k % 2][0]) > tolX || Kokkos::fabs(X[k][1] - X[2 * ((k % 4) / 2)][1]) > tolY) {
+            ++bad;
+            break;
+          }
+        }
+
+        geomPtr[e] = 0.5f * hx;
+        geomPtr[nElems + e] = 0.5f * hy;
+        for (int k = 0; k < 8; ++k) geomPtr[(2 + k) * nElems + e] = X[k][2];
+
+        // With the model on nodes, 1/rho comes from zDeformedInvRhoNodeTable().
+        if (is_acoustic && !IS_MODEL_ON_NODES)
+          geomPtr[(kZGeomStride - 1) * nElems + e] = 1.0f / mesh_pc.getModelRhoOnElement(e);
+        else
+          geomPtr[(kZGeomStride - 1) * nElems + e] = 0.0f;
+      },
+      nonConforming);
+
+  if (nonConforming > 0) return;
+
+  zDeformedGeom_ = geom;
+  zDeformedEnabled_ = true;
+  if constexpr (detail::has_z_deformed_sumfact<INTEGRAL_TYPE>::value) {
+    vectorReal basisTab = allocateVector<vectorReal>(INTEGRAL_TYPE::kBasisTableSize, "zDeformedBasisTab");
+    auto h_basisTab = Kokkos::create_mirror_view(basisTab);
+    for (int idx = 0; idx < INTEGRAL_TYPE::kBasisTableSize; ++idx)
+      h_basisTab(idx) = INTEGRAL_TYPE::basisTableEntry(idx);
+    Kokkos::deep_copy(basisTab, h_basisTab);
+    zDeformedBasisTab_ = basisTab;
+  }
+}
+
+template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE, bool IS_MODEL_ON_NODES, physicType PHYSICS>
+int const* SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::zDeformedNodeTable(
+    bool element_major) {
+  bool const list_on = m_list_mode_;
+  int const n_visited = list_on ? m_n_elem_list_ : m_mesh.getNumberOfElements();
+  int const* list_key = list_on ? m_elem_list_.data() : nullptr;
+  if (zDeformedNodes_.extent(0) == static_cast<size_t>(n_visited) * kPointsPerElement &&
+      zDeformedNodesList_.data() == list_key && zDeformedNodesElementMajor_ == element_major)
+    return zDeformedNodes_.data();
+
+  auto mesh_pc = m_mesh;
+  auto list_local = m_elem_list_;
+  // Filled on the device, so that the kernels never read the mesh connectivity, whose pages the
+  // host may pull back under unified memory.
+  vectorInt nodes = allocateVector<vectorInt>(n_visited * kPointsPerElement, "zDeformedNodes");
+  int* nodesPtr = nodes.data();
+  Kokkos::parallel_for(
+      "ZDeformed Node Table", Kokkos::RangePolicy<>(0, n_visited), KOKKOS_LAMBDA(const int i) {
+        constexpr int dim = ORDER + 1;
+        int const e = list_on ? list_local[i] : i;
+        // The team kernels read the indices element by element, the flat kernel node by node.
+        for (int q = 0; q < kPointsPerElement; ++q)
+          nodesPtr[element_major ? i * kPointsPerElement + q : q * n_visited + i] =
+              mesh_pc.globalNodeIndex(e, q % dim, (q / dim) % dim, q / (dim * dim));
+      });
+
+  zDeformedNodes_ = nodes;
+  zDeformedNodesList_ = list_on ? m_elem_list_ : vectorInt();
+  zDeformedNodesElementMajor_ = element_major;
+  return zDeformedNodes_.data();
+}
+
+template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE, bool IS_MODEL_ON_NODES, physicType PHYSICS>
+float const* SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::zDeformedInvRhoNodeTable() {
+  if constexpr (IS_MODEL_ON_NODES) {
+    int const n_nodes = m_mesh.getNumberOfNodes();
+    if (zDeformedInvRhoNodes_.extent(0) == static_cast<size_t>(n_nodes)) return zDeformedInvRhoNodes_.data();
+    auto mesh_pc = m_mesh;
+    vectorReal table = allocateVector<vectorReal>(n_nodes, "zDeformedInvRhoNodes");
+    float* tablePtr = table.data();
+    Kokkos::parallel_for(
+        "ZDeformed InvRho Node Table", Kokkos::RangePolicy<>(0, n_nodes),
+        KOKKOS_LAMBDA(const int g) { tablePtr[g] = 1.0f / mesh_pc.getModelRhoOnNodes(g); });
+    zDeformedInvRhoNodes_ = table;
+  }
+  return zDeformedInvRhoNodes_.data();
+}
+
+template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE, bool IS_MODEL_ON_NODES, physicType PHYSICS>
+void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::computeElementContributions_Acoustic_FlatZ(
+    const DataType& data) {
+  if constexpr (detail::has_z_deformed_sumfact<INTEGRAL_TYPE>::value) {
+    auto mesh_local = m_mesh;
+    bool const list_on = m_list_mode_;
+    auto list_local = m_elem_list_;
+    int const nElems = mesh_local.getNumberOfElements();
+    int const n_iter = list_on ? m_n_elem_list_ : nElems;
+    auto geom = zDeformedGeom_;
+    float const* invRhoNodes = zDeformedInvRhoNodeTable();
+    int const* elemNodes = zDeformedNodeTable();
+    auto force = workVectorsGlobal_[0];
+
+    // Input and output arrays of one element live in registers: 3 blocks per SM leave room for both.
+    using Policy = Kokkos::RangePolicy<Kokkos::LaunchBounds<LaunchMaxThreadsPerBlock, 3>>;
+
+    Kokkos::parallel_for(
+        "Solver Element Contribution Acoustic FlatZ", detail::lightWeight(Policy(0, n_iter)),
+        KOKKOS_LAMBDA(const int _loop_idx) {
+          int const e = list_on ? list_local[_loop_idx] : _loop_idx;
+          constexpr int dim = ORDER + 1;
+
+          float u[kPointsPerElement];
+          for (int k = 0; k < dim; ++k)
+            for (int j = 0; j < dim; ++j)
+              for (int i = 0; i < dim; ++i)
+                u[i + j * dim + k * dim * dim] =
+                    data.getCurrentField(0)(elemNodes[(i + j * dim + k * dim * dim) * n_iter + _loop_idx]);
+
+          real_t const J00 = geom(e);
+          real_t const J11 = geom(nElems + e);
+          real_t Z[8];
+          for (int k = 0; k < 8; ++k) Z[k] = geom((2 + k) * nElems + e);
+          real_t const invRhoElem = geom((kZGeomStride - 1) * nElems + e);
+
+          auto get_alpha = [&](const int q) -> real_t {
+            if (IS_MODEL_ON_NODES) return invRhoNodes[elemNodes[q * n_iter + _loop_idx]];
+            return invRhoElem;
+          };
+
+          float v[kPointsPerElement];
+          INTEGRAL_TYPE::computeStiffnessTermSumFactZDeformedScatter(J00, J11, Z, u, v, get_alpha);
+
+          for (int k = 0; k < dim; ++k)
+            for (int j = 0; j < dim; ++j)
+              for (int i = 0; i < dim; ++i)
+                ATOMICADD(force[elemNodes[(i + j * dim + k * dim * dim) * n_iter + _loop_idx]],
+                          v[i + j * dim + k * dim * dim]);
+        });
+  } else {
+    throw std::runtime_error(
+        "computeElementContributions_Acoustic_FlatZ: INTEGRAL_TYPE has no z-deformed sum-factorization path.");
+  }
+}
+
+template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE, bool IS_MODEL_ON_NODES, physicType PHYSICS>
+void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::computeElementContributions_Acoustic_TeamZ(
+    const DataType& data) {
+  if constexpr (PHYSICS != utils::enums::physicType::kAcoustic ||
+                !detail::has_z_deformed_sumfact<INTEGRAL_TYPE>::value) {
+    throw std::runtime_error("computeElementContributions_Acoustic_TeamZ: needs an acoustic z-deformed setup.");
+  } else {
+    constexpr int n = ORDER + 1;
+    constexpr int kPreferredTeamSize = ((kPointsPerElement + 31) / 32) * 32;
+    constexpr int kMinTeamsPerSM = std::clamp(1024 / kPreferredTeamSize, 1, 16);
+
+    using ExecSpace = Kokkos::DefaultExecutionSpace;
+    using TeamPolicyType = Kokkos::TeamPolicy<ExecSpace, Kokkos::LaunchBounds<kPreferredTeamSize, kMinTeamsPerSM>>;
+    using TeamMember = typename TeamPolicyType::member_type;
+
+    // One thread per node and one per geometry entry are required. The last geometry entry, 1/rho of
+    // the element, is only read when the model lives on elements.
+    constexpr int kGeomLoaded = IS_MODEL_ON_NODES ? kZGeomStride - 1 : kZGeomStride;
+    int const team_size = std::min<int>(kPreferredTeamSize, ExecSpace::concurrency());
+    if (team_size < std::max(kPointsPerElement, kGeomLoaded)) {
+      computeElementContributions_Acoustic_FlatZ(data);
+      return;
+    }
+
+    bool const list_on = m_list_mode_;
+    auto list_local = m_elem_list_;
+    int const nElems = m_mesh.getNumberOfElements();
+    int const n_iter = list_on ? m_n_elem_list_ : nElems;
+    auto zgeom = zDeformedGeom_;
+    int const* elemNodes = zDeformedNodeTable(true);
+    float const* invRhoNodes = zDeformedInvRhoNodeTable();
+    float const* basisTabGlobal = zDeformedBasisTab_.data();
+    auto force = workVectorsGlobal_[0];
+
+    // Same choice as the TTI team kernel: up to 8 elements per team, at least four waves of teams.
+    constexpr int kMaxElemsPerTeam = 8;
+    constexpr int kMinWaves = 4;
+    int const resident_teams = std::max<int>(1, ExecSpace::concurrency() / kPreferredTeamSize);
+    int const elems_per_team = std::clamp(n_iter / (kMinWaves * resident_teams), 1, kMaxElemsPerTeam);
+    TeamPolicyType policy((n_iter + elems_per_team - 1) / elems_per_team, team_size);
+
+    // Shared scratch, every block on a 16-byte boundary: rows of D padded to a multiple of 4, element
+    // geometry, nodal values, then the three fluxes.
+    constexpr int kRowChunks = (n + 3) / 4;
+    constexpr int kRowStride = 4 * kRowChunks;
+    constexpr int kGeomPadded = ((kZGeomStride + 3) / 4) * 4;
+    static_assert(kGeomPadded == 12, "the geometry is read as three 16-byte blocks");
+    constexpr int kGeomOffset = n * kRowStride;
+    constexpr int kValueOffset = kGeomOffset + kGeomPadded;
+    constexpr int kFluxOffset = kValueOffset + kPointsPerElement;
+    constexpr int kScratchFloats = kFluxOffset + 3 * kPointsPerElement;
+    constexpr size_t kScratchBytes = kScratchFloats * sizeof(float);
+    policy.set_scratch_size(0, Kokkos::PerTeam(kScratchBytes + alignof(detail::Float4)));
+
+    Kokkos::parallel_for(
+        "Solver Element Contribution Acoustic TeamZ", detail::lightWeight(policy),
+        KOKKOS_LAMBDA(const TeamMember& team) {
+          float* scratch =
+              static_cast<float*>(team.team_scratch(0).get_shmem_aligned(kScratchBytes, alignof(detail::Float4)));
+          // Captured here rather than first inside an if constexpr branch, which nvcc rejects.
+          float const* inv_rho_nodes = invRhoNodes;
+          auto const geom = zgeom;
+          float* rows = scratch;
+          float* geom_sh = scratch + kGeomOffset;
+          float* u = scratch + kValueOffset;
+          float* G = scratch + kFluxOffset;
+          detail::Float4 const* rows4 = reinterpret_cast<detail::Float4 const*>(rows);
+          detail::Float4 const* geom4 = reinterpret_cast<detail::Float4 const*>(geom_sh);
+
+          // Thread q owns point q, which is also node q.
+          int const q = team.team_rank();
+          bool const owns = q < kPointsPerElement;
+          int const qa = q % n;
+          int const qb = (q / n) % n;
+          int const qc = q / (n * n);
+
+          // Filled before the first barrier, which covers it.
+          Kokkos::parallel_for(Kokkos::TeamThreadRange(team, n * kRowStride), [&](const int idx) {
+            int const r = idx / kRowStride;
+            int const p = idx % kRowStride;
+            rows[idx] = p < n ? basisTabGlobal[r * n + p] : 0.0f;
+          });
+
+          // The same for every element of the team: basis derivatives along the three lines through q,
+          // the quadrature weight and the interpolation coordinates of q.
+          float d_xi[n];
+          float d_eta[n];
+          float d_zeta[n];
+          float weight = 0.0f;
+          float alpha[3] = {0.0f, 0.0f, 0.0f};
+          if (owns) {
+            for (int i = 0; i < n; ++i) {
+              d_xi[i] = basisTabGlobal[i * n + qa];
+              d_eta[i] = basisTabGlobal[i * n + qb];
+              d_zeta[i] = basisTabGlobal[i * n + qc];
+            }
+            weight = basisTabGlobal[n * n + qa] * basisTabGlobal[n * n + qb] * basisTabGlobal[n * n + qc];
+            alpha[0] = basisTabGlobal[n * n + n + qa];
+            alpha[1] = basisTabGlobal[n * n + n + qb];
+            alpha[2] = basisTabGlobal[n * n + n + qc];
+          }
+
+          int const first_rank = team.league_rank() * elems_per_team;
+          int const n_here = Kokkos::min(elems_per_team, n_iter - first_rank);
+
+          // Two-stage pipeline held in registers: node index and element number two elements ahead, values
+          // and one geometry entry one element ahead, so that a load never waits on its index.
+          int ahead_node = 0;
+          int ahead_e = 0;
+          int next_node = 0;
+          float next_u = 0.0f;
+          float next_inv_rho = 0.0f;
+          float next_geom = 0.0f;
+          auto const load_index = [&](int rank) {
+            if (owns) ahead_node = elemNodes[rank * kPointsPerElement + q];
+            if (q < kGeomLoaded) ahead_e = list_on ? list_local[rank] : rank;
+          };
+          auto const load_values = [&]() {
+            if (owns) {
+              next_node = ahead_node;
+              next_u = data.getCurrentField(0)(next_node);
+              if constexpr (IS_MODEL_ON_NODES) next_inv_rho = inv_rho_nodes[next_node];
+            }
+            if (q < kGeomLoaded) next_geom = geom(q * nElems + ahead_e);
+          };
+          load_index(first_rank);
+          load_values();
+          if (n_here > 1) load_index(first_rank + 1);
+
+          for (int k = 0; k < n_here; ++k) {
+            int const node = next_node;
+            float inv_rho = next_inv_rho;
+
+            if (owns) u[q] = next_u;
+            if (q < kGeomLoaded) geom_sh[q] = next_geom;
+            team.team_barrier();
+
+            if (k + 1 < n_here) load_values();
+            if (k + 2 < n_here) load_index(first_rank + k + 2);
+
+            // Entries J00, J11, the eight vertex z and 1/rho of the element, in that order.
+            detail::Float4 const g0 = geom4[0];
+            detail::Float4 const g1 = geom4[1];
+            detail::Float4 const g2 = geom4[2];
+            float const J00 = g0.v[0];
+            float const J11 = g0.v[1];
+            float const Z[8] = {g0.v[2], g0.v[3], g1.v[0], g1.v[1], g1.v[2], g1.v[3], g2.v[0], g2.v[1]};
+            if constexpr (!IS_MODEL_ON_NODES) inv_rho = g2.v[2];
+
+            if (owns) {
+              float du[3] = {0.0f, 0.0f, 0.0f};
+              for (int i = 0; i < n; ++i) {
+                du[0] += d_xi[i] * u[i + qb * n + qc * n * n];
+                du[1] += d_eta[i] * u[qa + i * n + qc * n * n];
+                du[2] += d_zeta[i] * u[qa + qb * n + i * n * n];
+              }
+
+              float dZ[3][4];
+              INTEGRAL_TYPE::zDeformedHalfDifferences(Z, dZ);
+              float invJ[3][3];
+              float const detJ = INTEGRAL_TYPE::invJacobianZDeformedBilinear(alpha, J00, J11, dZ, invJ);
+              float const a = invJ[0][0];
+              float const b = invJ[1][1];
+              float const c = invJ[2][0];
+              float const d = invJ[2][1];
+              float const ez = invJ[2][2];
+              // B = det(J) J^-1 J^-T, whose xy entry is zero.
+              float const scale = weight * inv_rho * detJ;
+              float const B0 = a * a;
+              float const B1 = b * b;
+              float const B2 = c * c + d * d + ez * ez;
+              float const B3 = b * d;
+              float const B4 = a * c;
+              G[q] = scale * (B0 * du[0] + B4 * du[2]);
+              G[kPointsPerElement + q] = scale * (B1 * du[1] + B3 * du[2]);
+              G[2 * kPointsPerElement + q] = scale * (B4 * du[0] + B3 * du[1] + B2 * du[2]);
+            }
+            team.team_barrier();
+
+            // Transpose: node (qa, qb, qc) gathers D(qa, p) G_xi(p, qb, qc), and so on.
+            if (owns) {
+              float v = 0.0f;
+              for (int c = 0; c < kRowChunks; ++c) {
+                detail::Float4 const ra = rows4[qa * kRowChunks + c];
+                detail::Float4 const rb = rows4[qb * kRowChunks + c];
+                detail::Float4 const rc = rows4[qc * kRowChunks + c];
+                for (int j = 0; j < 4; ++j) {
+                  int const p = 4 * c + j;
+                  if (p < n) {
+                    v += ra.v[j] * G[p + qb * n + qc * n * n];
+                    v += rb.v[j] * G[kPointsPerElement + qa + p * n + qc * n * n];
+                    v += rc.v[j] * G[2 * kPointsPerElement + qa + qb * n + p * n * n];
+                  }
+                }
+              }
+              ATOMICADD(force[node], v);
+            }
+          }
+        });
   }
 }
 
@@ -708,6 +1133,8 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::com
     using TeamMember = typename TeamPolicyType::member_type;
     using ScratchView1D = Kokkos::View<float*, Kokkos::LayoutRight, ExecSpace::scratch_memory_space,
                                        Kokkos::MemoryTraits<Kokkos::Unmanaged>>;
+    using ScratchViewInt = Kokkos::View<int*, Kokkos::LayoutRight, ExecSpace::scratch_memory_space,
+                                        Kokkos::MemoryTraits<Kokkos::Unmanaged>>;
 
     constexpr int dim = ORDER + 1;
 
@@ -733,7 +1160,9 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::com
     size_t const bytes_fields = ScratchView1D::shmem_size(kNumFields * kPointsPerElement);
     size_t const bytes_flux = ScratchView1D::shmem_size(9 * kPointsPerElement);
     size_t const bytes_geom = kConstJac ? ScratchView1D::shmem_size(10) : 0;
-    policy.set_scratch_size(0, Kokkos::PerTeam(bytes_fields + bytes_flux + bytes_geom));
+    size_t const bytes_tab = ScratchView1D::shmem_size(INTEGRAL_TYPE::kBasisTableSize);
+    size_t const bytes_idx = ScratchViewInt::shmem_size(kPointsPerElement);
+    policy.set_scratch_size(0, Kokkos::PerTeam(bytes_fields + bytes_flux + bytes_geom + bytes_tab + bytes_idx));
 
     Kokkos::parallel_for(
         "Solver Element Contribution Iso Team", policy, KOKKOS_LAMBDA(const TeamMember& team) {
@@ -743,12 +1172,19 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::com
           // Displacements in, forces out, same storage.
           ScratchView1D localFields(team.team_scratch(0), kNumFields * kPointsPerElement);
           ScratchView1D fluxScratch(team.team_scratch(0), 9 * kPointsPerElement);
+          ScratchView1D basisTab(team.team_scratch(0), INTEGRAL_TYPE::kBasisTableSize);
+          // Global index of each node, read once here and reused by the callback and the scatter.
+          ScratchViewInt nodeIdx(team.team_scratch(0), kPointsPerElement);
+          // Filled before the gather barrier, so it needs no barrier of its own.
+          Kokkos::parallel_for(Kokkos::TeamThreadRange(team, INTEGRAL_TYPE::kBasisTableSize),
+                               [&](const int idx) { basisTab(idx) = INTEGRAL_TYPE::basisTableEntry(idx); });
 
           Kokkos::parallel_for(Kokkos::TeamThreadRange(team, kPointsPerElement), [&](const int localIdx) {
             int const i = localIdx % dim;
             int const j = (localIdx / dim) % dim;
             int const k = localIdx / (dim * dim);
             int const globalIdx = mesh_local.globalNodeIndex(elementNumber, i, j, k);
+            nodeIdx(localIdx) = globalIdx;
             for (int f = 0; f < kNumFields; ++f)
               localFields(f * kPointsPerElement + localIdx) = data.getCurrentField(f)(globalIdx);
           });
@@ -777,7 +1213,7 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::com
                                     float(&flux)[3][3]) {
             float mu, lambda;
             if constexpr (IS_MODEL_ON_NODES) {
-              int const gIndex = mesh_local.globalNodeIndex(elementNumber, qa, qb, qc);
+              int const gIndex = nodeIdx(qa + qb * dim + qc * dim * dim);
               float const vp = mesh_local.getModelVpOnNodes(gIndex);
               float const vs = mesh_local.getModelVsOnNodes(gIndex);
               float const rho = mesh_local.getModelRhoOnNodes(gIndex);
@@ -802,18 +1238,15 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::com
             }
             team.team_barrier();
             INTEGRAL_TYPE::computeElasticStiffnessSumFactTeam(team, &geom(0), &localFields(0), &localFields(0),
-                                                              &fluxScratch(0), iso_flux);
+                                                              &fluxScratch(0), iso_flux, &basisTab(0));
           } else {
             INTEGRAL_TYPE::computeElasticStiffnessSumFactTeam(team, cornerCoords, &localFields(0), &localFields(0),
-                                                              &fluxScratch(0), iso_flux);
+                                                              &fluxScratch(0), iso_flux, &basisTab(0));
           }
           team.team_barrier();
 
           Kokkos::parallel_for(Kokkos::TeamThreadRange(team, kPointsPerElement), [&](const int localIdx) {
-            int const i = localIdx % dim;
-            int const j = (localIdx / dim) % dim;
-            int const k = localIdx / (dim * dim);
-            int const globalIdx = mesh_local.globalNodeIndex(elementNumber, i, j, k);
+            int const globalIdx = nodeIdx(localIdx);
             for (int f = 0; f < kNumFields; ++f) {
               ATOMICADD(local_workVectorsGlobal[f][globalIdx], localFields(f * kPointsPerElement + localIdx));
             }
@@ -977,6 +1410,8 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::com
     using TeamMember = typename TeamPolicyType::member_type;
     using ScratchView1D = Kokkos::View<float*, Kokkos::LayoutRight, ExecSpace::scratch_memory_space,
                                        Kokkos::MemoryTraits<Kokkos::Unmanaged>>;
+    using ScratchViewInt = Kokkos::View<int*, Kokkos::LayoutRight, ExecSpace::scratch_memory_space,
+                                        Kokkos::MemoryTraits<Kokkos::Unmanaged>>;
 
     constexpr int dim = ORDER + 1;
     // Warp-aligned preferred size, clamped to what the backend can provide (a
@@ -989,7 +1424,9 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::com
     size_t const bytes_fields = ScratchView1D::shmem_size(kNumFields * kPointsPerElement);
     size_t const bytes_flux = ScratchView1D::shmem_size(9 * kPointsPerElement);
     size_t const bytes_geom = kConstJac ? ScratchView1D::shmem_size(10) : 0;
-    policy.set_scratch_size(0, Kokkos::PerTeam(bytes_fields + bytes_flux + bytes_geom));
+    size_t const bytes_tab = ScratchView1D::shmem_size(INTEGRAL_TYPE::kBasisTableSize);
+    size_t const bytes_idx = ScratchViewInt::shmem_size(kPointsPerElement);
+    policy.set_scratch_size(0, Kokkos::PerTeam(bytes_fields + bytes_flux + bytes_geom + bytes_tab + bytes_idx));
 
     Kokkos::parallel_for(
         "Solver Element Contribution Vti Team", policy, KOKKOS_LAMBDA(const TeamMember& team) {
@@ -999,12 +1436,19 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::com
           // Displacements in, forces out, same storage.
           ScratchView1D localFields(team.team_scratch(0), kNumFields * kPointsPerElement);
           ScratchView1D fluxScratch(team.team_scratch(0), 9 * kPointsPerElement);
+          ScratchView1D basisTab(team.team_scratch(0), INTEGRAL_TYPE::kBasisTableSize);
+          // Global index of each node, read once here and reused by the callback and the scatter.
+          ScratchViewInt nodeIdx(team.team_scratch(0), kPointsPerElement);
+          // Filled before the gather barrier, so it needs no barrier of its own.
+          Kokkos::parallel_for(Kokkos::TeamThreadRange(team, INTEGRAL_TYPE::kBasisTableSize),
+                               [&](const int idx) { basisTab(idx) = INTEGRAL_TYPE::basisTableEntry(idx); });
 
           Kokkos::parallel_for(Kokkos::TeamThreadRange(team, kPointsPerElement), [&](const int localIdx) {
             int const i = localIdx % dim;
             int const j = (localIdx / dim) % dim;
             int const k = localIdx / (dim * dim);
             int const globalIdx = mesh_local.globalNodeIndex(elementNumber, i, j, k);
+            nodeIdx(localIdx) = globalIdx;
             for (int f = 0; f < kNumFields; ++f)
               localFields(f * kPointsPerElement + localIdx) = data.getCurrentField(f)(globalIdx);
           });
@@ -1043,7 +1487,7 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::com
                                     float(&flux)[3][3]) {
             float c11, c12, c13, c33, c44, c66;
             if constexpr (IS_MODEL_ON_NODES) {
-              int const gIndex = mesh_local.globalNodeIndex(elementNumber, qa, qb, qc);
+              int const gIndex = nodeIdx(qa + qb * dim + qc * dim * dim);
               float const vp = mesh_local.getModelVpOnNodes(gIndex);
               float const vs = mesh_local.getModelVsOnNodes(gIndex);
               float const rho = mesh_local.getModelRhoOnNodes(gIndex);
@@ -1081,18 +1525,15 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::com
             }
             team.team_barrier();
             INTEGRAL_TYPE::computeElasticStiffnessSumFactTeam(team, &geom(0), &localFields(0), &localFields(0),
-                                                              &fluxScratch(0), vti_flux);
+                                                              &fluxScratch(0), vti_flux, &basisTab(0));
           } else {
             INTEGRAL_TYPE::computeElasticStiffnessSumFactTeam(team, cornerCoords, &localFields(0), &localFields(0),
-                                                              &fluxScratch(0), vti_flux);
+                                                              &fluxScratch(0), vti_flux, &basisTab(0));
           }
           team.team_barrier();
 
           Kokkos::parallel_for(Kokkos::TeamThreadRange(team, kPointsPerElement), [&](const int localIdx) {
-            int const i = localIdx % dim;
-            int const j = (localIdx / dim) % dim;
-            int const k = localIdx / (dim * dim);
-            int const globalIdx = mesh_local.globalNodeIndex(elementNumber, i, j, k);
+            int const globalIdx = nodeIdx(localIdx);
             for (int f = 0; f < kNumFields; ++f) {
               ATOMICADD(local_workVectorsGlobal[f][globalIdx], localFields(f * kPointsPerElement + localIdx));
             }
@@ -1101,7 +1542,7 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::com
   }
 }
 
-// Packs the upper triangle of the 6x6 TTI tensor of every node, row by row, into cttiNodes_.
+// Stores the compact TTI description of every node (see computeTtiCompact()) into cttiNodes_.
 template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE, bool IS_MODEL_ON_NODES, physicType PHYSICS>
 void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::precomputeTtiTensorsOnNodes() {
   if constexpr (PHYSICS != utils::enums::physicType::kElastic || !IS_MODEL_ON_NODES) {
@@ -1113,24 +1554,18 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::pre
 
     using ExecSpace = Kokkos::DefaultExecutionSpace;
     int const numNodes = m_mesh.getNumberOfNodes();
-    cttiNodes_ = allocateArray2D<arrayReal>(numNodes, kCttiPackedSize, "cttiNodes");
+    cttiNodes_ = allocateArray2D<CttiView>(numNodes, flux::kTtiCompactSize, "cttiNodes");
 
     auto ctti = cttiNodes_;
     auto mesh_pc = m_mesh;
     Kokkos::parallel_for(
-        "Tti Precompute C On Nodes", Kokkos::RangePolicy<ExecSpace>(0, numNodes), KOKKOS_LAMBDA(const int g) {
-          float C[6][6] = {};
-          computeCMatrix(mesh_pc.getModelVpOnNodes(g), mesh_pc.getModelVsOnNodes(g), mesh_pc.getModelRhoOnNodes(g),
-                         mesh_pc.getModelDeltaOnNodes(g), mesh_pc.getModelEpsilonOnNodes(g),
-                         mesh_pc.getModelGammaOnNodes(g), mesh_pc.getModelPhiOnNodes(g),
-                         mesh_pc.getModelThetaOnNodes(g), C);
-
-          int k = 0;
-          for (int a = 0; a < 6; ++a) {
-            for (int b = a; b < 6; ++b, ++k) {
-              ctti(g, k) = C[a][b];
-            }
-          }
+        "Tti Precompute Compact On Nodes", Kokkos::RangePolicy<ExecSpace>(0, numNodes), KOKKOS_LAMBDA(const int g) {
+          float p[flux::kTtiCompactSize];
+          computeTtiCompact(mesh_pc.getModelVpOnNodes(g), mesh_pc.getModelVsOnNodes(g), mesh_pc.getModelRhoOnNodes(g),
+                            mesh_pc.getModelDeltaOnNodes(g), mesh_pc.getModelEpsilonOnNodes(g),
+                            mesh_pc.getModelGammaOnNodes(g), mesh_pc.getModelPhiOnNodes(g),
+                            mesh_pc.getModelThetaOnNodes(g), p);
+          for (int k = 0; k < flux::kTtiCompactSize; ++k) ctti(g, k) = p[k];
         });
     Kokkos::fence();
 
@@ -1193,7 +1628,8 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::com
           // a variable inside an if-constexpr branch.
           [[maybe_unused]] auto const ctti = ctti_local;
 
-          float CTTI[6][6] = {};
+          // Model on elements only: one tensor for the whole element.
+          [[maybe_unused]] float CTTI[6][6] = {};
           if constexpr (!IS_MODEL_ON_NODES) {
             mesh_local.getCTensorOnElement(elementNumber, CTTI);
           }
@@ -1202,15 +1638,12 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::com
                              float(&flux)[3][3]) {
             if constexpr (IS_MODEL_ON_NODES) {
               int const gIndex = mesh_local.globalNodeIndex(elementNumber, qa, qb, qc);
-              int k = 0;
-              for (int a = 0; a < 6; ++a) {
-                for (int b = a; b < 6; ++b, ++k) {
-                  CTTI[a][b] = CTTI[b][a] = ctti(gIndex, k);
-                }
-              }
+              float p[flux::kTtiCompactSize];
+              for (int k = 0; k < flux::kTtiCompactSize; ++k) p[k] = ctti(gIndex, k);
+              flux::elasticFluxTtiCompact(J_inv, p, grad_u_ref, flux);
+            } else {
+              flux::elasticFluxTti(J_inv, CTTI, grad_u_ref, flux);
             }
-
-            flux::elasticFluxTti(J_inv, CTTI, grad_u_ref, flux);
           };
 
           INTEGRAL_TYPE::computeElasticStiffnessSumFact(cornerCoords, localFields, localWork, ttiFlux);
@@ -1246,6 +1679,15 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::com
     const DataType& data) {
   if constexpr (PHYSICS != utils::enums::physicType::kElastic) {
   } else {
+    if constexpr (!HasConstantJacobian<MESH_TYPE>::value && IS_MODEL_ON_NODES &&
+                  detail::has_z_deformed_sumfact<INTEGRAL_TYPE>::value) {
+      prepareZDeformedGeometry();
+      if (zDeformedEnabled_) {
+        precomputeTtiTensorsOnNodes();
+        computeElementContributions_Tti_TeamZ(data);
+        return;
+      }
+    }
     precomputeTtiTensorsOnNodes();
 
     auto mesh_local = m_mesh;
@@ -1264,6 +1706,8 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::com
     using TeamMember = typename TeamPolicyType::member_type;
     using ScratchView1D = Kokkos::View<float*, Kokkos::LayoutRight, ExecSpace::scratch_memory_space,
                                        Kokkos::MemoryTraits<Kokkos::Unmanaged>>;
+    using ScratchViewInt = Kokkos::View<int*, Kokkos::LayoutRight, ExecSpace::scratch_memory_space,
+                                        Kokkos::MemoryTraits<Kokkos::Unmanaged>>;
 
     constexpr int dim = ORDER + 1;
     // Warp-aligned preferred size, clamped to what the backend can provide (a
@@ -1276,7 +1720,9 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::com
     size_t const bytes_fields = ScratchView1D::shmem_size(kNumFields * kPointsPerElement);
     size_t const bytes_flux = ScratchView1D::shmem_size(9 * kPointsPerElement);
     size_t const bytes_geom = kConstJac ? ScratchView1D::shmem_size(10) : 0;
-    policy.set_scratch_size(0, Kokkos::PerTeam(bytes_fields + bytes_flux + bytes_geom));
+    size_t const bytes_tab = ScratchView1D::shmem_size(INTEGRAL_TYPE::kBasisTableSize);
+    size_t const bytes_idx = ScratchViewInt::shmem_size(kPointsPerElement);
+    policy.set_scratch_size(0, Kokkos::PerTeam(bytes_fields + bytes_flux + bytes_geom + bytes_tab + bytes_idx));
 
     Kokkos::parallel_for(
         "Solver Element Contribution Tti Team", policy, KOKKOS_LAMBDA(const TeamMember& team) {
@@ -1286,12 +1732,19 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::com
           // Displacements in, forces out, same storage.
           ScratchView1D localFields(team.team_scratch(0), kNumFields * kPointsPerElement);
           ScratchView1D fluxScratch(team.team_scratch(0), 9 * kPointsPerElement);
+          ScratchView1D basisTab(team.team_scratch(0), INTEGRAL_TYPE::kBasisTableSize);
+          // Global index of each node, read once here and reused by the callback and the scatter.
+          ScratchViewInt nodeIdx(team.team_scratch(0), kPointsPerElement);
+          // Filled before the gather barrier, so it needs no barrier of its own.
+          Kokkos::parallel_for(Kokkos::TeamThreadRange(team, INTEGRAL_TYPE::kBasisTableSize),
+                               [&](const int idx) { basisTab(idx) = INTEGRAL_TYPE::basisTableEntry(idx); });
 
           Kokkos::parallel_for(Kokkos::TeamThreadRange(team, kPointsPerElement), [&](const int localIdx) {
             int const i = localIdx % dim;
             int const j = (localIdx / dim) % dim;
             int const k = localIdx / (dim * dim);
             int const globalIdx = mesh_local.globalNodeIndex(elementNumber, i, j, k);
+            nodeIdx(localIdx) = globalIdx;
             for (int f = 0; f < kNumFields; ++f)
               localFields(f * kPointsPerElement + localIdx) = data.getCurrentField(f)(globalIdx);
           });
@@ -1311,8 +1764,8 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::com
           // a variable inside an if-constexpr branch.
           [[maybe_unused]] auto const ctti = ctti_local;
 
-          // Thread-local: the on-nodes path refills it at every quadrature point.
-          float CTTI[6][6] = {};
+          // Model on elements only: one tensor for the whole element.
+          [[maybe_unused]] float CTTI[6][6] = {};
           if constexpr (!IS_MODEL_ON_NODES) {
             mesh_local.getCTensorOnElement(elementNumber, CTTI);
           }
@@ -1320,15 +1773,13 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::com
           auto const tti_flux = [&](int qa, int qb, int qc, float const(&J_inv)[3][3], float const(&grad_u_ref)[3][3],
                                     float(&flux)[3][3]) {
             if constexpr (IS_MODEL_ON_NODES) {
-              int const gIndex = mesh_local.globalNodeIndex(elementNumber, qa, qb, qc);
-              int k = 0;
-              for (int a = 0; a < 6; ++a) {
-                for (int b = a; b < 6; ++b, ++k) {
-                  CTTI[a][b] = CTTI[b][a] = ctti(gIndex, k);
-                }
-              }
+              int const gIndex = nodeIdx(qa + qb * dim + qc * dim * dim);
+              float p[flux::kTtiCompactSize];
+              for (int k = 0; k < flux::kTtiCompactSize; ++k) p[k] = ctti(gIndex, k);
+              flux::elasticFluxTtiCompact(J_inv, p, grad_u_ref, flux);
+            } else {
+              flux::elasticFluxTti(J_inv, CTTI, grad_u_ref, flux);
             }
-            flux::elasticFluxTti(J_inv, CTTI, grad_u_ref, flux);
           };
 
           if constexpr (HasConstantJacobian<MESH_TYPE>::value) {
@@ -1342,22 +1793,188 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::com
             }
             team.team_barrier();
             INTEGRAL_TYPE::computeElasticStiffnessSumFactTeam(team, &geom(0), &localFields(0), &localFields(0),
-                                                              &fluxScratch(0), tti_flux);
+                                                              &fluxScratch(0), tti_flux, &basisTab(0));
           } else {
             INTEGRAL_TYPE::computeElasticStiffnessSumFactTeam(team, cornerCoords, &localFields(0), &localFields(0),
-                                                              &fluxScratch(0), tti_flux);
+                                                              &fluxScratch(0), tti_flux, &basisTab(0));
           }
           team.team_barrier();
 
           Kokkos::parallel_for(Kokkos::TeamThreadRange(team, kPointsPerElement), [&](const int localIdx) {
-            int const i = localIdx % dim;
-            int const j = (localIdx / dim) % dim;
-            int const k = localIdx / (dim * dim);
-            int const globalIdx = mesh_local.globalNodeIndex(elementNumber, i, j, k);
+            int const globalIdx = nodeIdx(localIdx);
             for (int f = 0; f < kNumFields; ++f) {
               ATOMICADD(local_workVectorsGlobal[f][globalIdx], localFields(f * kPointsPerElement + localIdx));
             }
           });
+        });
+  }
+}
+
+template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE, bool IS_MODEL_ON_NODES, physicType PHYSICS>
+void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::computeElementContributions_Tti_TeamZ(
+    const DataType& data) {
+  if constexpr (PHYSICS != utils::enums::physicType::kElastic || !IS_MODEL_ON_NODES ||
+                !detail::has_z_deformed_sumfact<INTEGRAL_TYPE>::value) {
+    throw std::runtime_error("computeElementContributions_Tti_TeamZ: needs an elastic on-nodes z-deformed setup.");
+  } else {
+    auto ctti_local = cttiNodes_;
+    // Two 16-byte loads per node instead of eight scalar ones: each scalar load of a warp
+    // touches the same cache lines again.
+    static_assert(flux::kTtiCompactSize == 8, "two 16-byte loads per node");
+    if (ctti_local.stride(0) != flux::kTtiCompactSize ||
+        reinterpret_cast<std::uintptr_t>(ctti_local.data()) % alignof(detail::Float4) != 0)
+      throw std::runtime_error("computeElementContributions_Tti_TeamZ: cttiNodes_ not packed for 16-byte loads.");
+    detail::Float4 const* ctti_quads = reinterpret_cast<detail::Float4 const*>(ctti_local.data());
+    bool const list_on = m_list_mode_;
+    auto list_local = m_elem_list_;
+    int const nElems = m_mesh.getNumberOfElements();
+    int const n_iter = list_on ? m_n_elem_list_ : nElems;
+    auto zgeom = zDeformedGeom_;
+    int const* elemNodes = zDeformedNodeTable();
+    float const* basisTabGlobal = zDeformedBasisTab_.data();
+
+    std::array<std::remove_reference_t<decltype(workVectorsGlobal_[0])>, kNumFields> local_workVectorsGlobal;
+    for (int f = 0; f < kNumFields; ++f) {
+      local_workVectorsGlobal[f] = workVectorsGlobal_[f];
+    }
+
+    constexpr int dim = ORDER + 1;
+    constexpr int kPreferredTeamSize = ((kPointsPerElement + 31) / 32) * 32;
+    // Caps registers at 64 per thread; at most 16 teams, the lowest resident-block limit per SM.
+    constexpr int kMinTeamsPerSM = std::clamp(1024 / kPreferredTeamSize, 1, 16);
+
+    using ExecSpace = Kokkos::DefaultExecutionSpace;
+    using TeamPolicyType = Kokkos::TeamPolicy<ExecSpace, Kokkos::LaunchBounds<kPreferredTeamSize, kMinTeamsPerSM>>;
+    using TeamMember = typename TeamPolicyType::member_type;
+    using ScratchViewInt = Kokkos::View<int*, Kokkos::LayoutRight, ExecSpace::scratch_memory_space,
+                                        Kokkos::MemoryTraits<Kokkos::Unmanaged>>;
+
+    int const team_size = std::min<int>(kPreferredTeamSize, ExecSpace::concurrency());
+    // Several consecutive elements per team, fewer on small meshes so that the league still fills the device.
+    constexpr int kMaxElemsPerTeam = 8;
+    constexpr int kMinWaves = 4;
+    int const resident_teams = std::max<int>(1, ExecSpace::concurrency() / kPreferredTeamSize);
+    // J00, J11 and the eight vertex z; the last entry of the geometry table is unused in elastic.
+    constexpr int kGeomEntries = kZGeomStride - 1;
+    bool const pipelined = team_size >= std::max(kPointsPerElement, kGeomEntries);
+    int const elems_per_team = pipelined ? std::clamp(n_iter / (kMinWaves * resident_teams), 1, kMaxElemsPerTeam) : 1;
+    TeamPolicyType policy((n_iter + elems_per_team - 1) / elems_per_team, team_size);
+    // One float block: fields (then forces), fluxes, basis table and element geometry. The geometry is
+    // read by the whole team as three 16-byte blocks, so it starts on a 16-byte boundary.
+    constexpr int kFluxOffset = kNumFields * kPointsPerElement;
+    constexpr int kTabOffset = kFluxOffset + 9 * kPointsPerElement;
+    constexpr int kGeomOffset = ((kTabOffset + INTEGRAL_TYPE::kBasisTableSize + 3) / 4) * 4;
+    constexpr int kGeomPadded = ((kGeomEntries + 3) / 4) * 4;
+    static_assert(kGeomPadded == 12, "the geometry is read as three 16-byte blocks");
+    constexpr int kScratchFloats = kGeomOffset + kGeomPadded;
+    constexpr size_t kScratchBytes = kScratchFloats * sizeof(float);
+    size_t const bytes = kScratchBytes + alignof(detail::Float4) + ScratchViewInt::shmem_size(kPointsPerElement);
+    policy.set_scratch_size(0, Kokkos::PerTeam(bytes));
+
+    Kokkos::parallel_for(
+        "Solver Element Contribution Tti TeamZ", detail::lightWeight(policy), KOKKOS_LAMBDA(const TeamMember& team) {
+          float* scratch =
+              static_cast<float*>(team.team_scratch(0).get_shmem_aligned(kScratchBytes, alignof(detail::Float4)));
+          // Global index of each node, read once here and reused by the callback and the scatter.
+          ScratchViewInt nodeIdx(team.team_scratch(0), kPointsPerElement);
+          // Displacements in, forces out, same storage.
+          float* localFields = scratch;
+          float* fluxScratch = scratch + kFluxOffset;
+          float* basisTab = scratch + kTabOffset;
+          float* geomSh = scratch + kGeomOffset;
+          detail::Float4 const* geom4 = reinterpret_cast<detail::Float4 const*>(geomSh);
+
+          int const first_rank = team.league_rank() * elems_per_team;
+          int const n_here = Kokkos::min(elems_per_team, n_iter - first_rank);
+          int const point = team.team_rank();
+          bool const owns_point = pipelined && point < kPointsPerElement;
+          bool const carries_geom = pipelined && point < kGeomEntries;
+
+          // Same two-stage pipeline as computeElementContributions_Acoustic_TeamZ().
+          int ahead_node = 0;
+          int ahead_e = 0;
+          int next_node = 0;
+          float next_fields[kNumFields] = {};
+          float next_geom = 0.0f;
+          auto const load_index = [&](int rank) {
+            // Indexed by the league position, so the gather does not wait for the element list.
+            if (owns_point) ahead_node = elemNodes[rank * kPointsPerElement + point];
+            if (carries_geom) ahead_e = list_on ? list_local[rank] : rank;
+          };
+          auto const load_values = [&]() {
+            if (owns_point) {
+              next_node = ahead_node;
+              for (int f = 0; f < kNumFields; ++f) next_fields[f] = data.getCurrentField(f)(next_node);
+            }
+            if (carries_geom) next_geom = zgeom(point * nElems + ahead_e);
+          };
+          if (pipelined) {
+            load_index(first_rank);
+            load_values();
+            if (n_here > 1) load_index(first_rank + 1);
+          }
+
+          for (int k = 0; k < n_here; ++k) {
+            int const rank = first_rank + k;
+
+            if (k == 0) {
+              // Filled before the gather barrier, so it needs no barrier of its own.
+              Kokkos::parallel_for(Kokkos::TeamThreadRange(team, INTEGRAL_TYPE::kBasisTableSize),
+                                   [&](const int idx) { basisTab[idx] = basisTabGlobal[idx]; });
+            }
+
+            if (pipelined) {
+              if (owns_point) {
+                nodeIdx(point) = next_node;
+                for (int f = 0; f < kNumFields; ++f) localFields[f * kPointsPerElement + point] = next_fields[f];
+              }
+              if (carries_geom) geomSh[point] = next_geom;
+            } else {
+              Kokkos::parallel_for(Kokkos::TeamThreadRange(team, kPointsPerElement), [&](const int localIdx) {
+                int const globalIdx = elemNodes[rank * kPointsPerElement + localIdx];
+                nodeIdx(localIdx) = globalIdx;
+                for (int f = 0; f < kNumFields; ++f)
+                  localFields[f * kPointsPerElement + localIdx] = data.getCurrentField(f)(globalIdx);
+              });
+              int const elementNumber = list_on ? list_local[rank] : rank;
+              Kokkos::parallel_for(Kokkos::TeamThreadRange(team, kGeomEntries),
+                                   [&](const int j) { geomSh[j] = zgeom(j * nElems + elementNumber); });
+            }
+            team.team_barrier();
+
+            if (k + 1 < n_here) load_values();
+            if (k + 2 < n_here) load_index(rank + 2);
+
+            // Entries J00, J11 and the eight vertex z, in that order.
+            detail::Float4 const g0 = geom4[0];
+            detail::Float4 const g1 = geom4[1];
+            detail::Float4 const g2 = geom4[2];
+            float const Z[8] = {g0.v[2], g0.v[3], g1.v[0], g1.v[1], g1.v[2], g1.v[3], g2.v[0], g2.v[1]};
+
+            auto const tti_flux = [&](int qa, int qb, int qc, float const(&J_inv)[3][3], float const(&grad_u_ref)[3][3],
+                                      float(&flux)[3][3]) {
+              int const gIndex = nodeIdx(qa + qb * dim + qc * dim * dim);
+              float p[flux::kTtiCompactSize];
+              detail::Float4 const lo = ctti_quads[2 * static_cast<size_t>(gIndex)];
+              detail::Float4 const hi = ctti_quads[2 * static_cast<size_t>(gIndex) + 1];
+              for (int j = 0; j < 4; ++j) {
+                p[j] = lo.v[j];
+                p[j + 4] = hi.v[j];
+              }
+              flux::elasticFluxTtiCompact(J_inv, p, grad_u_ref, flux);
+            };
+
+            INTEGRAL_TYPE::computeElasticStiffnessSumFactTeamZDeformed(team, g0.v[0], g0.v[1], Z, localFields,
+                                                                       localFields, fluxScratch, tti_flux, basisTab);
+            team.team_barrier();
+
+            Kokkos::parallel_for(Kokkos::TeamThreadRange(team, kPointsPerElement), [&](const int localIdx) {
+              int const globalIdx = nodeIdx(localIdx);
+              for (int f = 0; f < kNumFields; ++f) {
+                ATOMICADD(local_workVectorsGlobal[f][globalIdx], localFields[f * kPointsPerElement + localIdx]);
+              }
+            });
+          }
         });
   }
 }
@@ -1398,55 +2015,104 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::upd
 
   bool const list_on = m_node_list_mode_;
   auto list_local = m_node_list_;
+  // The forces are zeroed right after being read, which saves the reset at the start of the next step.
+  bool const reset_forces = m_reset_forces_in_update_;
 
   // The new value is written into the previous-field buffer (leapfrog), which the caller swaps afterwards.
+  // Every per-node value is loaded before the first test and the first store.
   if constexpr (PHYSICS == utils::enums::physicType::kAcoustic) {
     int const n_iter = list_on ? m_n_node_list_ : mesh_local.getNumberOfNodes();
+    // Two nodes per thread, n_threads apart so that the loads of a warp stay contiguous.
+    constexpr int kNodesPerThread = 2;
+    int const n_threads = (n_iter + kNodesPerThread - 1) / kNodesPerThread;
     Kokkos::parallel_for(
-        "Solver Update Field Acoustic", n_iter, KOKKOS_LAMBDA(const int _node_idx) {
-          if (_node_idx >= n_iter) return;
-          int const I = list_on ? list_local[_node_idx] : _node_idx;
-          if (mass_matrix[I] <= 0.0f) return;
+        "Solver Update Field Acoustic", detail::lightWeightRange(n_threads), KOKKOS_LAMBDA(const int _thread_idx) {
+          int I[kNodesPerThread];
+          bool active[kNodesPerThread];
+          float mass[kNodesPerThread];
+          bool free_surface[kNodesPerThread];
+          float taper[kNodesPerThread];
+          float cur[kNodesPerThread];
+          float prev[kNodesPerThread];
+          float damp[kNodesPerThread];
+          float work[kNodesPerThread];
+          for (int n = 0; n < kNodesPerThread; ++n) {
+            int const node_idx = _thread_idx + n * n_threads;
+            active[n] = node_idx < n_iter;
+            I[n] = active[n] ? (list_on ? list_local[node_idx] : node_idx) : 0;
+          }
+          for (int n = 0; n < kNodesPerThread; ++n) {
+            if (!active[n]) continue;
+            mass[n] = mass_matrix(I[n]);
+            free_surface[n] = mesh_local.isFreeSurface(I[n]);
+            taper[n] = taper_coeff(I[n]);
+            cur[n] = current_field[0](I[n]);
+            prev[n] = prev_field[0](I[n]);
+            damp[n] = damping_matrix[0](I[n]);
+            work[n] = work_vector[0](I[n]);
+          }
 
-          if (mesh_local.isFreeSurface(I)) {
-            current_field[0](I) = 0.0f;
-            prev_field[0](I) = 0.0f;
-          } else {
-            float next_val = (2.0f * mass_matrix(I) * current_field[0](I) -
-                              (mass_matrix(I) - 0.5f * dt_local * damping_matrix[0](I)) * prev_field[0](I) -
-                              dt2_local * work_vector[0](I));
+          for (int n = 0; n < kNodesPerThread; ++n) {
+            if (!active[n]) continue;
+            int const node = I[n];
+            if (mass[n] <= 0.0f) {
+            } else if (free_surface[n]) {
+              current_field[0](node) = 0.0f;
+              prev_field[0](node) = 0.0f;
+            } else {
+              float next_val =
+                  (2.0f * mass[n] * cur[n] - (mass[n] - 0.5f * dt_local * damp[n]) * prev[n] - dt2_local * work[n]);
 
-            if (has_attenuation) {
-              for (int l = 0; l < n_sls; ++l) {
-                float const w = sls_w[l];
-                float const gamma = (2.0f - w * dt_local) / (2.0f + w * dt_local);
-                float const beta = sls_beta[l] * w * 2.0f * dt_local / (2.0f + w * dt_local);
-                float const gamma_p = 0.5f + 0.5f * gamma;
-                float const beta_p = 0.5f * beta;
+              if (has_attenuation) {
+                for (int l = 0; l < n_sls; ++l) {
+                  float const w = sls_w[l];
+                  float const gamma = (2.0f - w * dt_local) / (2.0f + w * dt_local);
+                  float const beta = sls_beta[l] * w * 2.0f * dt_local / (2.0f + w * dt_local);
+                  float const gamma_p = 0.5f + 0.5f * gamma;
+                  float const beta_p = 0.5f * beta;
 
-                next_val += dt2_local * (gamma_p * atten_mem_vars[0](I, l) + beta_p * atten_work_vec[0](I));
+                  next_val += dt2_local * (gamma_p * atten_mem_vars[0](node, l) + beta_p * atten_work_vec[0](node));
 
-                atten_mem_vars[0](I, l) = gamma * atten_mem_vars[0](I, l) + beta * atten_work_vec[0](I);
+                  atten_mem_vars[0](node, l) = gamma * atten_mem_vars[0](node, l) + beta * atten_work_vec[0](node);
+                }
               }
-            }
 
-            prev_field[0](I) = next_val / (mass_matrix(I) + 0.5f * dt_local * damping_matrix[0](I));
-            prev_field[0](I) *= taper_coeff(I);
-            current_field[0](I) *= taper_coeff(I);
+              prev_field[0](node) = next_val / (mass[n] + 0.5f * dt_local * damp[n]) * taper[n];
+              current_field[0](node) = cur[n] * taper[n];
+            }
+            if (reset_forces) {
+              work_vector[0](node) = 0.0f;
+              if (has_attenuation) atten_work_vec[0](node) = 0.0f;
+            }
           }
         });
   } else {
     int const n_iter_el = list_on ? m_n_node_list_ : mesh_local.getNumberOfNodes();
 
     Kokkos::parallel_for(
-        "Solver Update Field Elastic", n_iter_el, KOKKOS_LAMBDA(const int _node_idx) {
+        "Solver Update Field Elastic", detail::lightWeightRange(n_iter_el), KOKKOS_LAMBDA(const int _node_idx) {
           if (_node_idx >= n_iter_el) return;
           int const I = list_on ? list_local[_node_idx] : _node_idx;
-          if (mass_matrix[I] <= 0.0f) return;
-          if (mesh_local.isFreeSurface(I)) {
+          float const mass = mass_matrix(I);
+          bool const free_surface = mesh_local.isFreeSurface(I);
+          float const taper = taper_coeff(I);
+          float cur[kNumFields];
+          float prev[kNumFields];
+          float damp[kNumFields];
+          float work[kNumFields];
+          for (int f = 0; f < kNumFields; ++f) {
+            cur[f] = current_field[f](I);
+            prev[f] = prev_field[f](I);
+            damp[f] = damping_matrix[f](I);
+            work[f] = work_vector[f](I);
+          }
+
+          // No early return: the stores all come after the loads.
+          if (mass > 0.0f) {
             for (int f = 0; f < kNumFields; ++f) {
-              float next_val = (2.0f * mass_matrix(I) * current_field[f](I) - mass_matrix(I) * prev_field[f](I) -
-                                dt2_local * work_vector[f](I));
+              // No damping on the free surface.
+              float const d = free_surface ? 0.0f : damp[f];
+              float next_val = (2.0f * mass * cur[f] - (mass - 0.5f * dt_local * d) * prev[f] - dt2_local * work[f]);
 
               if (has_attenuation) {
                 for (int l = 0; l < n_sls; ++l) {
@@ -1462,33 +2128,14 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::upd
                 }
               }
 
-              prev_field[f](I) = next_val / mass_matrix(I);
-              prev_field[f](I) *= taper_coeff(I);
-              current_field[f](I) *= taper_coeff(I);
+              prev_field[f](I) = next_val / (mass + 0.5f * dt_local * d) * taper;
+              current_field[f](I) = cur[f] * taper;
             }
-          } else {
+          }
+          if (reset_forces) {
             for (int f = 0; f < kNumFields; ++f) {
-              float next_val = (2.0f * mass_matrix(I) * current_field[f](I) -
-                                (mass_matrix(I) - 0.5f * dt_local * damping_matrix[f](I)) * prev_field[f](I) -
-                                dt2_local * work_vector[f](I));
-
-              if (has_attenuation) {
-                for (int l = 0; l < n_sls; ++l) {
-                  float const w = sls_w[l];
-                  float const gamma = (2.0f - w * dt_local) / (2.0f + w * dt_local);
-                  float const beta = sls_beta[l] * w * 2.0f * dt_local / (2.0f + w * dt_local);
-                  float const gamma_p = 0.5f + 0.5f * gamma;
-                  float const beta_p = 0.5f * beta;
-
-                  next_val += dt2_local * (gamma_p * atten_mem_vars[f](I, l) + beta_p * atten_work_vec[f](I));
-
-                  atten_mem_vars[f](I, l) = gamma * atten_mem_vars[f](I, l) + beta * atten_work_vec[f](I);
-                }
-              }
-
-              prev_field[f](I) = next_val / (mass_matrix(I) + 0.5f * dt_local * damping_matrix[f](I));
-              prev_field[f](I) *= taper_coeff(I);
-              current_field[f](I) *= taper_coeff(I);
+              work_vector[f](I) = 0.0f;
+              if (has_attenuation) atten_work_vec[f](I) = 0.0f;
             }
           }
         });
@@ -2022,6 +2669,25 @@ PROXY_HOST_DEVICE void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NO
 }
 
 template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE, bool IS_MODEL_ON_NODES, physicType PHYSICS>
+template <physicType P, typename>
+PROXY_HOST_DEVICE void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::computeTtiCompact(
+    float const vp, float const vs, float const rho, float const delta, float const epsilon, float const gamma,
+    [[maybe_unused]] float const phi, float const theta, float (&p)[flux::kTtiCompactSize]) {
+  // Same VTI coefficients as computeCMatrix().
+  const float rho_vp2 = rho * vp * vp;
+  const float rho_vs2 = rho * vs * vs;
+  const float c11 = rho_vp2 * (1.0f + 2.0f * epsilon);
+  const float c66 = rho_vs2 * (1.0f + 2.0f * gamma);
+  const float vp2_vs2 = vp * vp - vs * vs;
+  const float c13 = rho * sqrtf(vp2_vs2 * vp2_vs2 + 2.0f * vp * vp * delta * vp2_vs2) - rho_vs2;
+
+  constexpr float DEG_TO_RAD = 3.14159265358979323846f / 180.0f;
+  const float theta_rad = theta * DEG_TO_RAD;
+  float const n[3] = {-sinf(theta_rad), 0.0f, cosf(theta_rad)};
+  flux::ttiCompactFromVti(c11, c13, rho_vp2, rho_vs2, c66, n, p);
+}
+
+template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE, bool IS_MODEL_ON_NODES, physicType PHYSICS>
 void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::computeGlobalMassMatrixMasked(
     const vectorInt& elem_mask, int active_value) {
   Kokkos::deep_copy(massMatrixGlobal_, 0.0f);
@@ -2071,6 +2737,14 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::upd
   m_node_list_mode_ = true;
   updateFieldsForward(dt, data);
   m_node_list_mode_ = false;
+}
+
+template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE, bool IS_MODEL_ON_NODES, physicType PHYSICS>
+void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::updateFieldsFromListForwardAndReset(
+    float dt, const DataType& data, const vectorInt& node_list, int n_nodes) {
+  m_reset_forces_in_update_ = true;
+  updateFieldsFromListForward(dt, data, node_list, n_nodes);
+  m_reset_forces_in_update_ = false;
 }
 
 template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE, bool IS_MODEL_ON_NODES, physicType PHYSICS>

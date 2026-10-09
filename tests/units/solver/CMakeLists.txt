@@ -16,6 +16,8 @@ set(SOLVER_TEST_SOURCES
   impl/test_sem_solver_acoustic.cc
   impl/test_sem_solver_elastic.cc
   impl/test_elastic_flux_symmetry.cc
+  impl/test_elastic_flux_tti_compact.cc
+  impl/test_sem_solver_zdeformed.cc
   impl/test_boundary_synchronizer.cc
 )
 
@@ -46,6 +48,18 @@ endif()
 add_gtest_group(solver_tests
   SOURCES ${SOLVER_TEST_SOURCES}
   EXTRA_LINKS fun_solver fun_model
+)
+
+# The z-deformed team kernels need one thread per element node and fall back to
+# simpler paths below that, so their tests run once more with enough threads.
+# OMP_THREAD_LIMIT is raised too: below the Kokkos thread count, team barriers
+# wait for threads that are never created.
+add_test(NAME solver_tests_zdeformed_team
+  COMMAND solver_tests --gtest_filter=SemSolverZDeformed.*
+)
+set_tests_properties(solver_tests_zdeformed_team PROPERTIES
+  ENVIRONMENT "OMP_NUM_THREADS=12;OMP_THREAD_LIMIT=12;KOKKOS_NUM_THREADS=12;OMP_PROC_BIND=false;OMP_WAIT_POLICY=passive"
+  TIMEOUT 120
 )
 
 # ============================================================================

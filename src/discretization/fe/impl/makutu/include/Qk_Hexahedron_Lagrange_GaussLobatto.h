@@ -65,6 +65,9 @@ class Qk_Hexahedron_Lagrange_GaussLobatto {
     float data[3][3];  ///< Matrix entries, data[row][column].
   };
 
+  /// Tag: this back-end provides the z-deformed sum-factorization kernels.
+  struct ZDeformedSumFact {};
+
   /**
    * @brief Element-local index of the node (qa, qb, qc).
    * @return qa + qb*num1dNodes + qc*num1dNodes^2.
@@ -493,6 +496,56 @@ class Qk_Hexahedron_Lagrange_GaussLobatto {
                                                             real_t (&f_local)[numNodes], FUNC_ALPHA &&get_alpha);
 
   /**
+   * @brief Inverse Jacobian at (qa, qb, qc) of an element deformed along z only.
+   *
+   * The element edges along xi and eta stay parallel to x and y, so J is lower
+   * triangular with constant J[0][0] and J[1][1]; only its z row varies.
+   * @param[in] J00 dx/dxi, half the element size along x.
+   * @param[in] J11 dy/deta, half the element size along y.
+   * @param[in] Z z coordinate of the 8 vertices.
+   * @param[out] invJ invJ[r][i] = d xi_r / d x_i.
+   * @return det(J).
+   */
+  PROXY_HOST_DEVICE
+  static real_t invJacobianZDeformed(int const qa, int const qb, int const qc, real_t const J00, real_t const J11,
+                                     real_t const (&Z)[8], real_t (&invJ)[3][3]);
+
+  /**
+   * @brief Metric B = det(J) J^-1 J^-T of an element deformed along z only.
+   *
+   * Same geometry as invJacobianZDeformed(); B[5] (xy) is then zero. Same result
+   * as computeBMatrix() on such an element.
+   * @param[in] J00 dx/dxi, half the element size along x.
+   * @param[in] J11 dy/deta, half the element size along y.
+   * @param[in] Z z coordinate of the 8 vertices.
+   * @param[out] B Voigt order [xx, yy, zz, yz, xz, xy].
+   */
+  PROXY_HOST_DEVICE
+  static void computeBMatrixZDeformed(int const qa, int const qb, int const qc, real_t const J00, real_t const J11,
+                                      real_t const (&Z)[8], real_t (&B)[6]);
+
+  /**
+   * @brief computeStiffnessTermSumFact() for an element deformed along z only, without the
+   * flux arrays.
+   *
+   * The metric comes from computeBMatrixZDeformed() instead of the full Jacobian. Each quadrature point adds its three
+   * fluxes to @p v_local as soon as they are computed, so only @p u_local and @p v_local stay live.
+   * @param[in] J00 dx/dxi, half the element size along x.
+   * @param[in] J11 dy/deta, half the element size along y.
+   * @param[in] Z z coordinate of the 8 vertices.
+   * @param[in] u_local Nodal values, indexed by element-local node index.
+   * @param[out] v_local Result; must not alias @p u_local.
+   * @param[in] get_alpha Called as get_alpha(q); returns the coefficient at the
+   * quadrature point q.
+   */
+  template <typename FUNC_ALPHA>
+  PROXY_HOST_DEVICE static void computeStiffnessTermSumFactZDeformedScatter(real_t const J00, real_t const J11,
+                                                                            real_t const (&Z)[8],
+                                                                            real_t const (&u_local)[numNodes],
+                                                                            real_t (&v_local)[numNodes],
+                                                                            FUNC_ALPHA &&get_alpha);
+
+  /**
    * @brief Stiffness contributions of the quadrature point (qa, qb, qc); one
    * step of computeStiffnessTerm().
    * @param[in] B Metric at this point, from computeBMatrix().
@@ -568,11 +621,14 @@ class Qk_Hexahedron_Lagrange_GaussLobatto {
    * @param[out] f_local Result, same layout as @p u_local.
    * @param[out] F Scratch of size 9*numNodes, at F[(p * 3 + f) * numNodes + q].
    * @param[in] func1 Same as in computeElasticStiffnessSumFact().
+   * @param[in] basis_tab Optional table filled by basisTableEntry(), e.g. in
+   * team scratch; the 1D basis values are then read from it instead of being
+   * evaluated per thread from runtime indices. nullptr evaluates them.
    */
   template <typename TEAM_MEMBER, typename FUNC1>
   PROXY_HOST_DEVICE static void computeElasticStiffnessSumFactTeam(TEAM_MEMBER const &team, float const (&X)[8][3],
                                                                    real_t const *u_local, real_t *f_local, real_t *F,
-                                                                   FUNC1 &&func1);
+                                                                   FUNC1 &&func1, real_t const *basis_tab = nullptr);
 
   /**
    * @brief Same as the vertex overload, for an element whose Jacobian is
@@ -586,7 +642,84 @@ class Qk_Hexahedron_Lagrange_GaussLobatto {
   template <typename TEAM_MEMBER, typename FUNC1>
   PROXY_HOST_DEVICE static void computeElasticStiffnessSumFactTeam(TEAM_MEMBER const &team, real_t const *geom,
                                                                    real_t const *u_local, real_t *f_local, real_t *F,
-                                                                   FUNC1 &&func1);
+                                                                   FUNC1 &&func1, real_t const *basis_tab = nullptr);
+
+  /**
+   * @brief Same as the vertex overload, for an element deformed along z only
+   * (see invJacobianZDeformedBilinear()).
+   *
+   * The other parameters and the synchronization rules are those of the vertex
+   * overload; @p basis_tab is required.
+   * @param[in] J00 dx/dxi, half the element size along x.
+   * @param[in] J11 dy/deta, half the element size along y.
+   * @param[in] Z z coordinate of the 8 vertices.
+   */
+  template <typename TEAM_MEMBER, typename FUNC1>
+  PROXY_HOST_DEVICE static void computeElasticStiffnessSumFactTeamZDeformed(TEAM_MEMBER const &team, real_t const J00,
+                                                                            real_t const J11, real_t const (&Z)[8],
+                                                                            real_t const *u_local, real_t *f_local,
+                                                                            real_t *F, FUNC1 &&func1,
+                                                                            real_t const *basis_tab);
+
+  /// Size of the table read by the team kernels: D[q][p], then w[q], then alpha[q].
+  constexpr static int kBasisTableSize = num1dNodes * num1dNodes + 2 * num1dNodes;
+
+  /**
+   * @brief Entry @p idx of the 1D basis table read by the team kernels.
+   *
+   * [0, n^2): basisGradientAt(q, p) at q * n + p; [n^2, n^2 + n): weight(q);
+   * [n^2 + n, n^2 + 2n): interpolationCoord(q, 1), the position of node q in
+   * [0, 1]. With n = num1dNodes.
+   */
+  PROXY_HOST_DEVICE
+  static real_t basisTableEntry(int const idx);
+
+  /**
+   * @brief Body shared by the team overloads; @p geom_at gives the inverse
+   * Jacobian and det(J) at each quadrature point.
+   * @tparam kTab True to read the 1D basis from @p basis_tab.
+   * @tparam GEOM Callable real_t(int qa, int qb, int qc, real_t const (&alpha)[3], real_t (&invJ)[3][3]),
+   * returns det(J); alpha holds the interpolation coordinates of qa, qb, qc.
+   */
+  template <bool kTab, typename TEAM_MEMBER, typename GEOM, typename FUNC1>
+  PROXY_HOST_DEVICE static void elasticStiffnessSumFactTeamImpl(TEAM_MEMBER const &team, GEOM &&geom_at,
+                                                                real_t const *u_local, real_t *f_local, real_t *F,
+                                                                FUNC1 &&func1, real_t const *basis_tab);
+
+  /**
+   * @brief Trilinear Jacobian at a point given by its interpolation coordinates.
+   * @param[in] alpha Position of the point in [0, 1] along each parent axis.
+   * @param[in] X Coordinates of the 8 vertices, X[vertex][axis].
+   * @param[out] J J[i][j] = d x_i / d xi_j.
+   */
+  PROXY_HOST_DEVICE
+  static void trilinearJacobian(real_t const (&alpha)[3], real_t const (&X)[8][3], real_t (&J)[3][3]);
+
+  /**
+   * @brief invJacobianZDeformed() at a point given by its interpolation
+   * coordinates instead of its node indices.
+   */
+  PROXY_HOST_DEVICE
+  static real_t invJacobianZDeformed(real_t const (&alpha)[3], real_t const J00, real_t const J11, real_t const (&Z)[8],
+                                     real_t (&invJ)[3][3]);
+
+  /**
+   * @brief Half differences of the vertex z along each parent axis, the input of
+   * invJacobianZDeformedBilinear().
+   * @param[in] Z z coordinate of the 8 vertices, vertex k = ka + 2 kb + 4 kc.
+   * @param[out] dZ dZ[d][s0 + 2 s1]: half difference along axis d, (s0, s1) the sides on
+   * the two other axes in increasing order.
+   */
+  PROXY_HOST_DEVICE
+  static void zDeformedHalfDifferences(real_t const (&Z)[8], real_t (&dZ)[3][4]);
+
+  /**
+   * @brief invJacobianZDeformed() from zDeformedHalfDifferences(): each derivative of z is a
+   * bilinear interpolation of the half differences, instead of a sum over the 8 vertices.
+   */
+  PROXY_HOST_DEVICE
+  static real_t invJacobianZDeformedBilinear(real_t const (&alpha)[3], real_t const J00, real_t const J11,
+                                             real_t const (&dZ)[3][4], real_t (&invJ)[3][3]);
 
   /**
    * @brief Physical gradients of the numNodes shape functions at the
@@ -1004,7 +1137,7 @@ PROXY_HOST_DEVICE void Qk_Hexahedron_Lagrange_GaussLobatto<GL_BASIS>::computeBMa
     int const qa, int const qb, int const qc, real_t const (&X)[8][3], real_t (&J)[3][3], real_t (&B)[6]) {
   jacobianTransformation(qa, qb, qc, X, J);
   real_t const detJ = determinant(J);
-  real_t const invDetJ = 1.0 / detJ;
+  real_t const invDetJ = real_t(1) / detJ;
 
   // B = J^T J / det(J), then inverted in place into det(J) J^-1 J^-T.
   B[0] = (J[0][0] * J[0][0] + J[1][0] * J[1][0] + J[2][0] * J[2][0]) * invDetJ;
@@ -1146,6 +1279,178 @@ PROXY_HOST_DEVICE void Qk_Hexahedron_Lagrange_GaussLobatto<GL_BASIS>::computeSti
 }
 
 template <typename GL_BASIS>
+PROXY_HOST_DEVICE real_t Qk_Hexahedron_Lagrange_GaussLobatto<GL_BASIS>::basisTableEntry(int const idx) {
+  constexpr int n = num1dNodes;
+  if (idx < n * n) return basisGradientAt(idx / n, idx % n);
+  if (idx < n * n + n) return static_cast<real_t>(GL_BASIS::weight(idx - n * n));
+  return interpolationCoord(idx - n * n - n, 1);
+}
+
+/// Factor of the trilinear shape function derivative along direction j, for
+/// parent axis d, vertex side kd (0 or 1) and interpolation coordinate a.
+PROXY_HOST_DEVICE real_t qkTrilinearFactor(int const d, int const kd, int const j, real_t const a) {
+  if (d == j) return kd == 0 ? real_t(-0.5) : real_t(0.5);
+  return kd == 0 ? real_t(1) - a : a;
+}
+
+template <typename GL_BASIS>
+PROXY_HOST_DEVICE void Qk_Hexahedron_Lagrange_GaussLobatto<GL_BASIS>::trilinearJacobian(real_t const (&alpha)[3],
+                                                                                        real_t const (&X)[8][3],
+                                                                                        real_t (&J)[3][3]) {
+  for (int i = 0; i < 3; i++)
+    for (int j = 0; j < 3; j++) J[i][j] = real_t(0);
+  for (int k = 0; k < 8; k++) {
+    const int ka = k % 2;
+    const int kb = (k % 4) / 2;
+    const int kc = k / 4;
+    for (int j = 0; j < 3; j++) {
+      real_t const c = qkTrilinearFactor(0, ka, j, alpha[0]) * qkTrilinearFactor(1, kb, j, alpha[1]) *
+                       qkTrilinearFactor(2, kc, j, alpha[2]);
+      for (int i = 0; i < 3; i++) J[i][j] += c * X[k][i];
+    }
+  }
+}
+
+template <typename GL_BASIS>
+PROXY_HOST_DEVICE real_t Qk_Hexahedron_Lagrange_GaussLobatto<GL_BASIS>::invJacobianZDeformed(
+    int const qa, int const qb, int const qc, real_t const J00, real_t const J11, real_t const (&Z)[8],
+    real_t (&invJ)[3][3]) {
+  real_t const alpha[3] = {interpolationCoord(qa, 1), interpolationCoord(qb, 1), interpolationCoord(qc, 1)};
+  return invJacobianZDeformed(alpha, J00, J11, Z, invJ);
+}
+
+template <typename GL_BASIS>
+PROXY_HOST_DEVICE real_t Qk_Hexahedron_Lagrange_GaussLobatto<GL_BASIS>::invJacobianZDeformed(
+    real_t const (&alpha)[3], real_t const J00, real_t const J11, real_t const (&Z)[8], real_t (&invJ)[3][3]) {
+  real_t J2[3] = {0, 0, 0};
+  for (int k = 0; k < 8; k++) {
+    const int ka = k % 2;
+    const int kb = (k % 4) / 2;
+    const int kc = k / 4;
+    for (int j = 0; j < 3; j++) {
+      J2[j] += qkTrilinearFactor(0, ka, j, alpha[0]) * qkTrilinearFactor(1, kb, j, alpha[1]) *
+               qkTrilinearFactor(2, kc, j, alpha[2]) * Z[k];
+    }
+  }
+
+  // J^-1 rows: (a, 0, 0), (0, b, 0), (c, d, e).
+  real_t const a = real_t(1) / J00;
+  real_t const b = real_t(1) / J11;
+  real_t const e = real_t(1) / J2[2];
+  invJ[0][0] = a;
+  invJ[0][1] = real_t(0);
+  invJ[0][2] = real_t(0);
+  invJ[1][0] = real_t(0);
+  invJ[1][1] = b;
+  invJ[1][2] = real_t(0);
+  invJ[2][0] = -a * J2[0] * e;
+  invJ[2][1] = -b * J2[1] * e;
+  invJ[2][2] = e;
+  return J00 * J11 * J2[2];
+}
+
+template <typename GL_BASIS>
+PROXY_HOST_DEVICE void Qk_Hexahedron_Lagrange_GaussLobatto<GL_BASIS>::zDeformedHalfDifferences(real_t const (&Z)[8],
+                                                                                               real_t (&dZ)[3][4]) {
+  for (int s1 = 0; s1 < 2; ++s1)
+    for (int s0 = 0; s0 < 2; ++s0) {
+      dZ[0][s0 + 2 * s1] = real_t(0.5) * (Z[1 + 2 * s0 + 4 * s1] - Z[2 * s0 + 4 * s1]);
+      dZ[1][s0 + 2 * s1] = real_t(0.5) * (Z[s0 + 2 + 4 * s1] - Z[s0 + 4 * s1]);
+      dZ[2][s0 + 2 * s1] = real_t(0.5) * (Z[s0 + 2 * s1 + 4] - Z[s0 + 2 * s1]);
+    }
+}
+
+template <typename GL_BASIS>
+PROXY_HOST_DEVICE real_t Qk_Hexahedron_Lagrange_GaussLobatto<GL_BASIS>::invJacobianZDeformedBilinear(
+    real_t const (&alpha)[3], real_t const J00, real_t const J11, real_t const (&dZ)[3][4], real_t (&invJ)[3][3]) {
+  real_t const a0 = alpha[0], a1 = alpha[1], a2 = alpha[2];
+  real_t const J20 = (real_t(1) - a2) * ((real_t(1) - a1) * dZ[0][0] + a1 * dZ[0][1]) +
+                     a2 * ((real_t(1) - a1) * dZ[0][2] + a1 * dZ[0][3]);
+  real_t const J21 = (real_t(1) - a2) * ((real_t(1) - a0) * dZ[1][0] + a0 * dZ[1][1]) +
+                     a2 * ((real_t(1) - a0) * dZ[1][2] + a0 * dZ[1][3]);
+  real_t const J22 = (real_t(1) - a1) * ((real_t(1) - a0) * dZ[2][0] + a0 * dZ[2][1]) +
+                     a1 * ((real_t(1) - a0) * dZ[2][2] + a0 * dZ[2][3]);
+
+  // J^-1 rows: (a, 0, 0), (0, b, 0), (c, d, e).
+  real_t const a = real_t(1) / J00;
+  real_t const b = real_t(1) / J11;
+  real_t const e = real_t(1) / J22;
+  invJ[0][0] = a;
+  invJ[0][1] = real_t(0);
+  invJ[0][2] = real_t(0);
+  invJ[1][0] = real_t(0);
+  invJ[1][1] = b;
+  invJ[1][2] = real_t(0);
+  invJ[2][0] = -a * J20 * e;
+  invJ[2][1] = -b * J21 * e;
+  invJ[2][2] = e;
+  return J00 * J11 * J22;
+}
+
+template <typename GL_BASIS>
+PROXY_HOST_DEVICE void Qk_Hexahedron_Lagrange_GaussLobatto<GL_BASIS>::computeBMatrixZDeformed(
+    int const qa, int const qb, int const qc, real_t const J00, real_t const J11, real_t const (&Z)[8],
+    real_t (&B)[6]) {
+  real_t invJ[3][3];
+  real_t const detJ = invJacobianZDeformed(qa, qb, qc, J00, J11, Z, invJ);
+  real_t const a = invJ[0][0];
+  real_t const b = invJ[1][1];
+  real_t const c = invJ[2][0];
+  real_t const d = invJ[2][1];
+  real_t const e = invJ[2][2];
+
+  B[0] = detJ * a * a;
+  B[1] = detJ * b * b;
+  B[2] = detJ * (c * c + d * d + e * e);
+  B[3] = detJ * b * d;
+  B[4] = detJ * a * c;
+  B[5] = real_t(0);
+}
+
+template <typename GL_BASIS>
+template <typename FUNC_ALPHA>
+PROXY_HOST_DEVICE void Qk_Hexahedron_Lagrange_GaussLobatto<GL_BASIS>::computeStiffnessTermSumFactZDeformedScatter(
+    real_t const J00, real_t const J11, real_t const (&Z)[8], real_t const (&u_local)[numNodes],
+    real_t (&v_local)[numNodes], FUNC_ALPHA &&get_alpha) {
+  for_constexpr<numNodes>([&](auto icn) { v_local[decltype(icn)::value] = 0; });
+
+  triple_loop<num1dNodes, num1dNodes, num1dNodes>([&](auto const icqa, auto const icqb, auto const icqc) {
+    constexpr int qa = decltype(icqa)::value;
+    constexpr int qb = decltype(icqb)::value;
+    constexpr int qc = decltype(icqc)::value;
+    constexpr int q = GL_BASIS::TensorProduct3D::linearIndex(qa, qb, qc);
+
+    constexpr real_t w = GL_BASIS::weight(qa) * GL_BASIS::weight(qb) * GL_BASIS::weight(qc);
+
+    real_t dxi_q = 0, deta_q = 0, dzeta_q = 0;
+    for_constexpr<num1dNodes>([&](auto ici) {
+      constexpr int i = decltype(ici)::value;
+      dxi_q += basisGradientAt(i, qa) * u_local[GL_BASIS::TensorProduct3D::linearIndex(i, qb, qc)];
+      deta_q += basisGradientAt(i, qb) * u_local[GL_BASIS::TensorProduct3D::linearIndex(qa, i, qc)];
+      dzeta_q += basisGradientAt(i, qc) * u_local[GL_BASIS::TensorProduct3D::linearIndex(qa, qb, i)];
+    });
+
+    real_t B[6];
+    computeBMatrixZDeformed(qa, qb, qc, J00, J11, Z, B);
+
+    real_t const scale = w * get_alpha(q);
+
+    // B[5] (xy) is zero.
+    real_t const g_xi = scale * (B[0] * dxi_q + B[4] * dzeta_q);
+    real_t const g_eta = scale * (B[1] * deta_q + B[3] * dzeta_q);
+    real_t const g_zeta = scale * (B[4] * dxi_q + B[3] * deta_q + B[2] * dzeta_q);
+
+    // Transpose of the gradient above: node (i, qb, qc) receives D(i, qa) g_xi, and so on.
+    for_constexpr<num1dNodes>([&](auto ici) {
+      constexpr int i = decltype(ici)::value;
+      v_local[GL_BASIS::TensorProduct3D::linearIndex(i, qb, qc)] += basisGradientAt(i, qa) * g_xi;
+      v_local[GL_BASIS::TensorProduct3D::linearIndex(qa, i, qc)] += basisGradientAt(i, qb) * g_eta;
+      v_local[GL_BASIS::TensorProduct3D::linearIndex(qa, qb, i)] += basisGradientAt(i, qc) * g_zeta;
+    });
+  });
+}
+
+template <typename GL_BASIS>
 template <typename FUNC1, typename FUNC2>
 PROXY_HOST_DEVICE void Qk_Hexahedron_Lagrange_GaussLobatto<GL_BASIS>::computeStiffNessTermwithJac(
     float const (&X)[8][3], FUNC1 &&func1, FUNC2 &&func2) {
@@ -1244,9 +1549,34 @@ PROXY_HOST_DEVICE void Qk_Hexahedron_Lagrange_GaussLobatto<GL_BASIS>::computeEla
 }
 
 template <typename GL_BASIS>
-template <typename TEAM_MEMBER, typename FUNC1>
-PROXY_HOST_DEVICE void Qk_Hexahedron_Lagrange_GaussLobatto<GL_BASIS>::computeElasticStiffnessSumFactTeam(
-    TEAM_MEMBER const &team, float const (&X)[8][3], real_t const *u_local, real_t *f_local, real_t *F, FUNC1 &&func1) {
+template <bool kTab, typename TEAM_MEMBER, typename GEOM, typename FUNC1>
+PROXY_HOST_DEVICE void Qk_Hexahedron_Lagrange_GaussLobatto<GL_BASIS>::elasticStiffnessSumFactTeamImpl(
+    TEAM_MEMBER const &team, GEOM &&geom_at, real_t const *u_local, real_t *f_local, real_t *F, FUNC1 &&func1,
+    real_t const *basis_tab) {
+  constexpr int n = num1dNodes;
+  // With runtime indices, the basis functions compile to branches returning doubles; the table avoids both.
+  auto const grad = [&](int const q, int const p) -> real_t {
+    if constexpr (kTab) {
+      return basis_tab[q * n + p];
+    } else {
+      return basisGradientAt(q, p);
+    }
+  };
+  auto const weight1d = [&](int const q) -> real_t {
+    if constexpr (kTab) {
+      return basis_tab[n * n + q];
+    } else {
+      return static_cast<real_t>(GL_BASIS::weight(q));
+    }
+  };
+  auto const alpha1d = [&](int const q) -> real_t {
+    if constexpr (kTab) {
+      return basis_tab[n * n + n + q];
+    } else {
+      return interpolationCoord(q, 1);
+    }
+  };
+
   // Pass 1+2: one thread per quadrature point. Reference gradients, then the
   // constitutive callback, then scale and store into the flux scratch.
   Kokkos::parallel_for(Kokkos::TeamThreadRange(team, numNodes), [&](const int q) {
@@ -1254,13 +1584,13 @@ PROXY_HOST_DEVICE void Qk_Hexahedron_Lagrange_GaussLobatto<GL_BASIS>::computeEla
     GL_BASIS::TensorProduct3D::multiIndex(q, qa, qb, qc);
 
     real_t grad_u_ref[3][3] = {{0}};
-    for (int i = 0; i < num1dNodes; ++i) {
+    for (int i = 0; i < n; ++i) {
       int const ibc = GL_BASIS::TensorProduct3D::linearIndex(i, qb, qc);
       int const aic = GL_BASIS::TensorProduct3D::linearIndex(qa, i, qc);
       int const abi = GL_BASIS::TensorProduct3D::linearIndex(qa, qb, i);
-      real_t const gxi = basisGradientAt(i, qa);
-      real_t const geta = basisGradientAt(i, qb);
-      real_t const gzeta = basisGradientAt(i, qc);
+      real_t const gxi = grad(i, qa);
+      real_t const geta = grad(i, qb);
+      real_t const gzeta = grad(i, qc);
       for (int s = 0; s < 3; ++s) {
         grad_u_ref[0][s] += gxi * u_local[s * numNodes + ibc];
         grad_u_ref[1][s] += geta * u_local[s * numNodes + aic];
@@ -1268,15 +1598,13 @@ PROXY_HOST_DEVICE void Qk_Hexahedron_Lagrange_GaussLobatto<GL_BASIS>::computeEla
       }
     }
 
-    // jacobianTransformation accumulates into J, so it must start at zero.
-    JacobianType J = {{0}};
-    jacobianTransformation(qa, qb, qc, X, J.data);
-    real_t const detJ = invert3x3(J.data);
-    real_t const w = static_cast<real_t>(GL_BASIS::weight(qa) * GL_BASIS::weight(qb) * GL_BASIS::weight(qc));
-    real_t const scale = w * detJ;
+    real_t const alpha[3] = {alpha1d(qa), alpha1d(qb), alpha1d(qc)};
+    real_t J_inv[3][3];
+    real_t const detJ = geom_at(qa, qb, qc, alpha, J_inv);
+    real_t const scale = weight1d(qa) * weight1d(qb) * weight1d(qc) * detJ;
 
     real_t flux[3][3] = {{0}};
-    func1(qa, qb, qc, J.data, grad_u_ref, flux);
+    func1(qa, qb, qc, J_inv, grad_u_ref, flux);
 
     for (int p = 0; p < 3; ++p)
       for (int f = 0; f < 3; ++f) F[(p * 3 + f) * numNodes + q] = scale * flux[p][f];
@@ -1290,19 +1618,19 @@ PROXY_HOST_DEVICE void Qk_Hexahedron_Lagrange_GaussLobatto<GL_BASIS>::computeEla
     GL_BASIS::TensorProduct3D::multiIndex(node, ia, ib, ic);
 
     real_t v[3] = {0};
-    for (int qa = 0; qa < num1dNodes; ++qa) {
+    for (int qa = 0; qa < n; ++qa) {
       int const q_xi = GL_BASIS::TensorProduct3D::linearIndex(qa, ib, ic);
-      real_t const g = basisGradientAt(ia, qa);
+      real_t const g = grad(ia, qa);
       for (int f = 0; f < 3; ++f) v[f] += g * F[(0 * 3 + f) * numNodes + q_xi];
     }
-    for (int qb = 0; qb < num1dNodes; ++qb) {
+    for (int qb = 0; qb < n; ++qb) {
       int const q_eta = GL_BASIS::TensorProduct3D::linearIndex(ia, qb, ic);
-      real_t const g = basisGradientAt(ib, qb);
+      real_t const g = grad(ib, qb);
       for (int f = 0; f < 3; ++f) v[f] += g * F[(1 * 3 + f) * numNodes + q_eta];
     }
-    for (int qc = 0; qc < num1dNodes; ++qc) {
+    for (int qc = 0; qc < n; ++qc) {
       int const q_zeta = GL_BASIS::TensorProduct3D::linearIndex(ia, ib, qc);
-      real_t const g = basisGradientAt(ic, qc);
+      real_t const g = grad(ic, qc);
       for (int f = 0; f < 3; ++f) v[f] += g * F[(2 * 3 + f) * numNodes + q_zeta];
     }
     for (int f = 0; f < 3; ++f) f_local[f * numNodes + node] = v[f];
@@ -1312,63 +1640,46 @@ PROXY_HOST_DEVICE void Qk_Hexahedron_Lagrange_GaussLobatto<GL_BASIS>::computeEla
 template <typename GL_BASIS>
 template <typename TEAM_MEMBER, typename FUNC1>
 PROXY_HOST_DEVICE void Qk_Hexahedron_Lagrange_GaussLobatto<GL_BASIS>::computeElasticStiffnessSumFactTeam(
-    TEAM_MEMBER const &team, real_t const *geom, real_t const *u_local, real_t *f_local, real_t *F, FUNC1 &&func1) {
-  Kokkos::parallel_for(Kokkos::TeamThreadRange(team, numNodes), [&](const int q) {
-    int qa, qb, qc;
-    GL_BASIS::TensorProduct3D::multiIndex(q, qa, qb, qc);
+    TEAM_MEMBER const &team, float const (&X)[8][3], real_t const *u_local, real_t *f_local, real_t *F, FUNC1 &&func1,
+    real_t const *basis_tab) {
+  auto const geom_at = [&](int, int, int, real_t const(&alpha)[3], real_t(&J_inv)[3][3]) -> real_t {
+    trilinearJacobian(alpha, X, J_inv);
+    return invert3x3(J_inv);
+  };
+  if (basis_tab != nullptr)
+    elasticStiffnessSumFactTeamImpl<true>(team, geom_at, u_local, f_local, F, func1, basis_tab);
+  else
+    elasticStiffnessSumFactTeamImpl<false>(team, geom_at, u_local, f_local, F, func1, basis_tab);
+}
 
-    real_t grad_u_ref[3][3] = {{0}};
-    for (int i = 0; i < num1dNodes; ++i) {
-      int const ibc = GL_BASIS::TensorProduct3D::linearIndex(i, qb, qc);
-      int const aic = GL_BASIS::TensorProduct3D::linearIndex(qa, i, qc);
-      int const abi = GL_BASIS::TensorProduct3D::linearIndex(qa, qb, i);
-      real_t const gxi = basisGradientAt(i, qa);
-      real_t const geta = basisGradientAt(i, qb);
-      real_t const gzeta = basisGradientAt(i, qc);
-      for (int s = 0; s < 3; ++s) {
-        grad_u_ref[0][s] += gxi * u_local[s * numNodes + ibc];
-        grad_u_ref[1][s] += geta * u_local[s * numNodes + aic];
-        grad_u_ref[2][s] += gzeta * u_local[s * numNodes + abi];
-      }
-    }
-
-    // Geometry is element-wide: read it instead of rebuilding it per point.
-    real_t J_inv[3][3];
+template <typename GL_BASIS>
+template <typename TEAM_MEMBER, typename FUNC1>
+PROXY_HOST_DEVICE void Qk_Hexahedron_Lagrange_GaussLobatto<GL_BASIS>::computeElasticStiffnessSumFactTeam(
+    TEAM_MEMBER const &team, real_t const *geom, real_t const *u_local, real_t *f_local, real_t *F, FUNC1 &&func1,
+    real_t const *basis_tab) {
+  // Geometry is element-wide: read it instead of rebuilding it per point.
+  auto const geom_at = [&](int, int, int, real_t const(&)[3], real_t(&J_inv)[3][3]) -> real_t {
     for (int a = 0; a < 3; ++a)
       for (int b = 0; b < 3; ++b) J_inv[a][b] = geom[a * 3 + b];
-    real_t const w = static_cast<real_t>(GL_BASIS::weight(qa) * GL_BASIS::weight(qb) * GL_BASIS::weight(qc));
-    real_t const scale = w * geom[9];
+    return geom[9];
+  };
+  if (basis_tab != nullptr)
+    elasticStiffnessSumFactTeamImpl<true>(team, geom_at, u_local, f_local, F, func1, basis_tab);
+  else
+    elasticStiffnessSumFactTeamImpl<false>(team, geom_at, u_local, f_local, F, func1, basis_tab);
+}
 
-    real_t flux[3][3] = {{0}};
-    func1(qa, qb, qc, J_inv, grad_u_ref, flux);
-
-    for (int p = 0; p < 3; ++p)
-      for (int f = 0; f < 3; ++f) F[(p * 3 + f) * numNodes + q] = scale * flux[p][f];
-  });
-  team.team_barrier();
-
-  Kokkos::parallel_for(Kokkos::TeamThreadRange(team, numNodes), [&](const int node) {
-    int ia, ib, ic;
-    GL_BASIS::TensorProduct3D::multiIndex(node, ia, ib, ic);
-
-    real_t v[3] = {0};
-    for (int qa = 0; qa < num1dNodes; ++qa) {
-      int const q_xi = GL_BASIS::TensorProduct3D::linearIndex(qa, ib, ic);
-      real_t const g = basisGradientAt(ia, qa);
-      for (int f = 0; f < 3; ++f) v[f] += g * F[(0 * 3 + f) * numNodes + q_xi];
-    }
-    for (int qb = 0; qb < num1dNodes; ++qb) {
-      int const q_eta = GL_BASIS::TensorProduct3D::linearIndex(ia, qb, ic);
-      real_t const g = basisGradientAt(ib, qb);
-      for (int f = 0; f < 3; ++f) v[f] += g * F[(1 * 3 + f) * numNodes + q_eta];
-    }
-    for (int qc = 0; qc < num1dNodes; ++qc) {
-      int const q_zeta = GL_BASIS::TensorProduct3D::linearIndex(ia, ib, qc);
-      real_t const g = basisGradientAt(ic, qc);
-      for (int f = 0; f < 3; ++f) v[f] += g * F[(2 * 3 + f) * numNodes + q_zeta];
-    }
-    for (int f = 0; f < 3; ++f) f_local[f * numNodes + node] = v[f];
-  });
+template <typename GL_BASIS>
+template <typename TEAM_MEMBER, typename FUNC1>
+PROXY_HOST_DEVICE void Qk_Hexahedron_Lagrange_GaussLobatto<GL_BASIS>::computeElasticStiffnessSumFactTeamZDeformed(
+    TEAM_MEMBER const &team, real_t const J00, real_t const J11, real_t const (&Z)[8], real_t const *u_local,
+    real_t *f_local, real_t *F, FUNC1 &&func1, real_t const *basis_tab) {
+  real_t dZ[3][4];
+  zDeformedHalfDifferences(Z, dZ);
+  auto const geom_at = [&](int, int, int, real_t const(&alpha)[3], real_t(&J_inv)[3][3]) -> real_t {
+    return invJacobianZDeformedBilinear(alpha, J00, J11, dZ, J_inv);
+  };
+  elasticStiffnessSumFactTeamImpl<true>(team, geom_at, u_local, f_local, F, func1, basis_tab);
 }
 
 template <typename GL_BASIS>
