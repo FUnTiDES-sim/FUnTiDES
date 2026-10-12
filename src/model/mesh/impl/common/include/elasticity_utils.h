@@ -162,17 +162,12 @@ PROXY_HOST_DEVICE void computeCTensor(FloatType vp, FloatType vs, FloatType rho,
   FloatType cphi = std::cos(phi_rad);
   FloatType sphi = std::sin(phi_rad);
 
-  FloatType R[3][3];
   // Rotates the VTI axis to (sin(theta)cos(phi), sin(theta)sin(phi), cos(theta)).
-  R[0][0] = ctheta * cphi;
-  R[0][1] = -sphi;
-  R[0][2] = stheta * cphi;
-  R[1][0] = ctheta * sphi;
-  R[1][1] = cphi;
-  R[1][2] = stheta * sphi;
-  R[2][0] = -stheta;
-  R[2][1] = 0.0;
-  R[2][2] = ctheta;
+  // Built as a braced initializer: same values as nine separate assignments,
+  // but a single-construction AST (nvc++ 23.1's backend chokes on the split
+  // form once the #418 kernels inline this function).
+  const FloatType R[3][3] = {
+      {ctheta * cphi, -sphi, stheta * cphi}, {ctheta * sphi, cphi, stheta * sphi}, {-stheta, 0.0, ctheta}};
 
   FloatType M[6][6] = {0.0};
   M[0][0] = R[0][0] * R[0][0];
