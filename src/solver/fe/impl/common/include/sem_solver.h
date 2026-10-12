@@ -441,7 +441,7 @@ class SEMsolver : public Solver {
   float sponge_size_[3];
   bool surface_sponge_;
   float taper_delta_;
-  model::AnisotropyType anisotropyType_;
+  model::AnisotropyType anisotropyType_ = model::AnisotropyType::kIso;
 
   INTEGRAL_TYPE myQkIntegrals_;
 
