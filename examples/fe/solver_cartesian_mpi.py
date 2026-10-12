@@ -296,6 +296,7 @@ def main():
         # Cleanup
         try:
             del data, wavefield, rhs, solver, model
+            del np_rhs_e, np_rhs_w, active
             del kk_prev, kk_curr, kk_rhs_t, kk_rhs_e, kk_rhs_w
             if 'mass_matrix' in locals(): del mass_matrix
             if 'force_vec' in locals(): del force_vec

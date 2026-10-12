@@ -72,13 +72,11 @@ jobs:
           mkdir -p build/coverage-report
 
           # Exlude files that are not relevant for coverage analysis
-          # - main will be split in other repo
           # - pywrap are wrappers and not relevant for C++ coverage
           gcovr -r . build/ \
             --html-details build/coverage-report/coverage.html \
             --xml build/coverage-report/coverage.xml \
             --filter '^src/' \
-            --exclude '.*/main/.*' \
             --exclude '.*/pywrap/.*' \
             --fail-under-line 90  \
             -j $(nproc)
