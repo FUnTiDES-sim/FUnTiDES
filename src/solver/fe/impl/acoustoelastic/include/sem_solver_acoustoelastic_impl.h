@@ -588,8 +588,8 @@ void SEMsolverAcoustoElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES>
         if (M_e[j] > 0.0f && !mesh_local.isFreeSurface(j)) {
           // Same denominator and taper the Verlet update applied to the physical
           // RHS: without them this correction is O(dt) inconsistent in the sponge.
-          float const aux = backward ? (p_new[j] - 2.0f * p_curr[j] + p_other[j]) * taper_e[j]
-                                     : -dt2 * p_curr[j] * taper_e[j];
+          float const aux =
+              backward ? (p_new[j] - 2.0f * p_curr[j] + p_other[j]) * taper_e[j] : -dt2 * p_curr[j] * taper_e[j];
           u_new_x[j] += cx[j] * aux / (M_e[j] + half_dt * C_ex[j]);
           u_new_y[j] += cy[j] * aux / (M_e[j] + half_dt * C_ey[j]);
           u_new_z[j] += cz[j] * aux / (M_e[j] + half_dt * C_ez[j]);

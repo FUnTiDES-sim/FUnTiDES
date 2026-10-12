@@ -173,7 +173,7 @@ void bind_sem_solver_base(py::module_ &m) {
                               const char *name) {
               vectorReal out = allocateVector<vectorReal>(a.size(), name);
               Kokkos::View<const float *, Kokkos::HostSpace, Kokkos::MemoryTraits<Kokkos::Unmanaged>> in(a.data(),
-                                                                                                       a.size());
+                                                                                                         a.size());
               Kokkos::deep_copy(out, in);
               return out;
             };
@@ -188,7 +188,7 @@ void bind_sem_solver_base(py::module_ &m) {
             if (tags.size() > 0) {
               vt = allocateVector<vectorInt>(tags.size(), "external_element_tags");
               Kokkos::View<const int *, Kokkos::HostSpace, Kokkos::MemoryTraits<Kokkos::Unmanaged>> in(tags.data(),
-                                                                                                     tags.size());
+                                                                                                       tags.size());
               Kokkos::deep_copy(vt, in);
             }
             self.setElementTags(vt);

@@ -56,8 +56,8 @@ class WavefieldViewBackwardElastic : public WavefieldView {
    * @param[in] ux_prevprev, uy_prevprev, uz_prevprev Adjoint displacement two steps back.
    */
   WavefieldViewBackwardElastic(vectorReal ux_n, vectorReal uy_n, vectorReal uz_n, vectorReal ux_prev,
-                               vectorReal uy_prev, vectorReal uz_prev, vectorReal ux_prevprev,
-                               vectorReal uy_prevprev, vectorReal uz_prevprev)
+                               vectorReal uy_prev, vectorReal uz_prev, vectorReal ux_prevprev, vectorReal uy_prevprev,
+                               vectorReal uz_prevprev)
       : ux_n_(ux_n),
         uy_n_(uy_n),
         uz_n_(uz_n),

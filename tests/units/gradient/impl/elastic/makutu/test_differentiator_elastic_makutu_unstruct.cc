@@ -370,8 +370,8 @@ TYPED_TEST(DifferentiatorElasticElemUnstructTest, ComputeAccumulatesIntoExisting
 }
 
 // Fills prev/prevprev levels and the matching dt2 = (prevprev - 2 prev + n) / dt^2 for every component.
-static void fillTimeLevels(vectorReal const (&fwd)[3], vectorReal const (&n)[3], vectorReal const (&dt2)[3],
-                           int nNodes, float dt, vectorReal (&prev)[3], vectorReal (&prevprev)[3]) {
+static void fillTimeLevels(vectorReal const (&fwd)[3], vectorReal const (&n)[3], vectorReal const (&dt2)[3], int nNodes,
+                           float dt, vectorReal (&prev)[3], vectorReal (&prevprev)[3]) {
   for (int c = 0; c < 3; ++c) {
     prev[c] = allocateVector<vectorReal>(nNodes, "prev");
     prevprev[c] = allocateVector<vectorReal>(nNodes, "prevprev");
