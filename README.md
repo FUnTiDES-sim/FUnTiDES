@@ -114,10 +114,6 @@ mpirun -n 4 python3 examples/fe/solver_cartesian_mpi.py --ex 200 --snap_interval
 
 ```
 
-The cartesian builders can also read the model from a text file. The expected format, for a
-model defined on nodes or on elements, is shown by `model_on_nodes.txt` and
-`model_on_elements.txt` in the `examples/` folder.
-
 > **Note**: A dedicated python env can be made via TPLs.
 
 ## 🐍 Python wrappers
