@@ -33,9 +33,8 @@ namespace gradient {
  * one step apart, and reassigning the vectors cannot close that gap. An
  * adjoint-state gradient needs every kernel term at the same time level,
  * so the host must center dt2 on n-1 itself, pass the n-1 displacement as
- * fields 0-2, and delay the forward field to match. diva-pyfwi does
- * exactly this; a one-step mismatch there flipped the sign of its
- * finite-difference density probes until it was fixed.
+ * fields 0-2, and delay the forward field to match. A one-step mismatch
+ * flips the sign of the resulting density gradient.
  */
 class WavefieldViewBackwardElastic : public WavefieldView {
  public:
