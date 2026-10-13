@@ -10,39 +10,32 @@
 namespace gradient {
 
 /**
- * @brief Read-only view of an elastic adjoint wavefield, holding the adjoint
- * displacement and its second time derivative, either precomputed or as the
- * two previous time levels it is formed from in the kernel (as for acoustics).
+ * @brief Read-only view of an elastic adjoint wavefield: the adjoint
+ * displacement plus its second time derivative, either precomputed by the
+ * host or stored as the raw time levels the differentiator derives it from.
  *
- * The view stores shallow copies of the vectors given at construction and
- * does not own their data. Field indices:
+ * The view stores shallow copies; it does not own the data. Field indices:
  *  - 0, 1, 2: adjoint displacement ux_n, uy_n, uz_n
- *  - 3, 4, 5: second time derivative ux_dt2, uy_dt2, uz_dt2, or, when built
- *             from time levels, the previous displacement ux_prev, uy_prev, uz_prev
- *  - 6, 7, 8: (time levels only) displacement two steps back ux_prevprev, ...
+ *  - 3, 4, 5: d2u/dt2 (precomputed mode) or the previous time level (time-levels mode)
+ *  - 6, 7, 8: (time-levels mode only) the time level two steps back
  *
- * Why two construction modes: the density kernel needs the second time
- * derivative of the adjoint displacement, which the leapfrog backward scheme
- * hands over in either form. The nine-field constructor passes the raw time
- * levels and lets the differentiator form (prevprev - 2 prev + n) / dt^2 in
- * its kernels -- as the acoustic differentiator already does -- so the caller
- * needs no host-side dt2 buffers; the six-field constructor keeps the
- * original precomputed-dt2 behaviour. Both yield identical gradients
+ * fromTimeLevels() tells the differentiator which of the two it received:
+ *  - false (six-field constructor): fields 3-5 already hold d2u/dt2;
+ *    the kernels use them as they are.
+ *  - true (nine-field constructor): fields 3-8 hold the raw levels
+ *    n-1 and n-2; the kernels form (pp - 2*prev + n) / dt^2 themselves,
+ *    so the host needs no extra dt2 buffers (as in the acoustic path).
+ * With the same vectors, both give identical gradients
  * (TimeLevelsMatchPrecomputedDt2, orders 1-3, element and node kernels).
  *
- * Time-level caveat for FWI callers: the difference rebuilt in the kernels is
- * centered on the middle sample -- the previous level -- while fields 0-2 hold
- * the newest level, and no assignment of the three vectors closes that gap
- * (fields 0-2 always receive the newest dt2 sample). So in the nine-field
- * mode the rho kernel (dt2 paired with the forward displacement) samples one
- * time step away from the lambda/mu kernels (adjoint strain paired with the
- * forward strain). An adjoint-state gradient needs all of them at the SAME
- * level, which with three stored levels is the previous one; only the
- * six-field mode can express that: the host centers dt2 on the previous
- * level, passes the previous-level displacement as fields 0-2 and delays the
- * forward one step to match. diva-pyfwi does exactly this; a one-step
- * mismatch there flipped the sign of its finite-difference density probes
- * until it was fixed.
+ * FWI callers must use the precomputed mode. The difference formed from
+ * levels n-2, n-1, n is centered on n-1, while fields 0-2 hold level n --
+ * one step apart, and reassigning the vectors cannot close that gap. An
+ * adjoint-state gradient needs every kernel term at the same time level,
+ * so the host must center dt2 on n-1 itself, pass the n-1 displacement as
+ * fields 0-2, and delay the forward field to match. diva-pyfwi does
+ * exactly this; a one-step mismatch there flipped the sign of its
+ * finite-difference density probes until it was fixed.
  */
 class WavefieldViewBackwardElastic : public WavefieldView {
  public:
