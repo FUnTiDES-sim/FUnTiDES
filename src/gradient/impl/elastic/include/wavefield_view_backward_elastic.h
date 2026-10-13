@@ -20,6 +20,15 @@ namespace gradient {
  *  - 3, 4, 5: second time derivative ux_dt2, uy_dt2, uz_dt2, or, when built
  *             from time levels, the previous displacement ux_prev, uy_prev, uz_prev
  *  - 6, 7, 8: (time levels only) displacement two steps back ux_prevprev, ...
+ *
+ * Why two construction modes: the density kernel needs the second time
+ * derivative of the adjoint displacement, which the leapfrog backward scheme
+ * hands over in either form. The nine-field constructor passes the raw time
+ * levels and lets the differentiator form (prevprev - 2 prev + n) / dt^2 in
+ * its kernels -- as the acoustic differentiator already does -- so the caller
+ * needs no host-side dt2 buffers; the six-field constructor keeps the
+ * original precomputed-dt2 behaviour. Both yield identical gradients
+ * (TimeLevelsMatchPrecomputedDt2, orders 1-3, element and node kernels).
  */
 class WavefieldViewBackwardElastic : public WavefieldView {
  public:
@@ -69,7 +78,12 @@ class WavefieldViewBackwardElastic : public WavefieldView {
         uz_pp_(uz_prevprev),
         fromTimeLevels_(true) {}
 
-  /** @brief True when built from time levels rather than a precomputed dt2. */
+  /**
+   * @brief True when the view carries the raw adjoint time levels (nine-field
+   * constructor) and the differentiator must form the second time difference
+   * in its kernels; false when fields 3-5 already hold a host-precomputed dt2
+   * (six-field constructor).
+   */
   PROXY_HOST_DEVICE
   bool fromTimeLevels() const { return fromTimeLevels_; }
 

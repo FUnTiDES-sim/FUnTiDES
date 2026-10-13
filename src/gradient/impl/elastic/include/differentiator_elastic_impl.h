@@ -26,7 +26,12 @@ void DifferentiatorElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES>::
   vectorReal const uy_dt2 = myData.getBackwardField(4);
   vectorReal const uz_dt2 = myData.getBackwardField(5);
 
-  // Built from time levels, fields 3-5 are the previous step and 6-8 the one before.
+  // Two backward conventions (see WavefieldViewBackwardElastic): fields 3-5 hold
+  // either a host-precomputed second time derivative (fromLevels == false) or
+  // the adjoint level n-1, fields 6-8 then being the level n-2. The kernels
+  // rebuild the centered difference (pp - 2 prev + n) / dt^2 in the first
+  // case; in the second there is nothing to reconstruct and ux_pp aliases
+  // ux_dt2. Both conventions give identical gradients.
   bool const fromLevels = myData.m_bwd.fromTimeLevels();
   vectorReal const ux_pp = myData.getBackwardField(fromLevels ? 6 : 3);
   vectorReal const uy_pp = myData.getBackwardField(fromLevels ? 7 : 4);
@@ -190,6 +195,10 @@ void DifferentiatorElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES>::
               localUxAdj[lIdx] = ux_adj(gIdx);
               localUyAdj[lIdx] = uy_adj(gIdx);
               localUzAdj[lIdx] = uz_adj(gIdx);
+              // Time-level convention: form the centered second difference
+              // from the three stored adjoint levels -- the expression the
+              // dt2 convention receives precomputed, so both conventions give
+              // identical gradients (TimeLevelsMatchPrecomputedDt2).
               if (fromLevels) {
                 localUxDt2[lIdx] = (ux_pp(gIdx) - 2.0f * ux_dt2(gIdx) + ux_adj(gIdx)) * invDt2;
                 localUyDt2[lIdx] = (uy_pp(gIdx) - 2.0f * uy_dt2(gIdx) + uy_adj(gIdx)) * invDt2;
@@ -307,6 +316,10 @@ void DifferentiatorElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES>::
               localUxAdj[lIdx] = ux_adj(gIdx);
               localUyAdj[lIdx] = uy_adj(gIdx);
               localUzAdj[lIdx] = uz_adj(gIdx);
+              // Time-level convention: form the centered second difference
+              // from the three stored adjoint levels -- the expression the
+              // dt2 convention receives precomputed, so both conventions give
+              // identical gradients (TimeLevelsMatchPrecomputedDt2).
               if (fromLevels) {
                 localUxDt2[lIdx] = (ux_pp(gIdx) - 2.0f * ux_dt2(gIdx) + ux_adj(gIdx)) * invDt2;
                 localUyDt2[lIdx] = (uy_pp(gIdx) - 2.0f * uy_dt2(gIdx) + uy_adj(gIdx)) * invDt2;
