@@ -29,6 +29,20 @@ namespace gradient {
  * needs no host-side dt2 buffers; the six-field constructor keeps the
  * original precomputed-dt2 behaviour. Both yield identical gradients
  * (TimeLevelsMatchPrecomputedDt2, orders 1-3, element and node kernels).
+ *
+ * Time-level caveat for FWI callers: the difference rebuilt in the kernels is
+ * centered on the middle sample -- the previous level -- while fields 0-2 hold
+ * the newest level, and no assignment of the three vectors closes that gap
+ * (fields 0-2 always receive the newest dt2 sample). So in the nine-field
+ * mode the rho kernel (dt2 paired with the forward displacement) samples one
+ * time step away from the lambda/mu kernels (adjoint strain paired with the
+ * forward strain). An adjoint-state gradient needs all of them at the SAME
+ * level, which with three stored levels is the previous one; only the
+ * six-field mode can express that: the host centers dt2 on the previous
+ * level, passes the previous-level displacement as fields 0-2 and delays the
+ * forward one step to match. diva-pyfwi does exactly this; a one-step
+ * mismatch there flipped the sign of its finite-difference density probes
+ * until it was fixed.
  */
 class WavefieldViewBackwardElastic : public WavefieldView {
  public:
