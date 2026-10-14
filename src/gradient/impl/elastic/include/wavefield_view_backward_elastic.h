@@ -14,33 +14,32 @@ namespace gradient {
  * displacement plus its second time derivative, passed either precomputed
  * by the host or as the raw time levels the kernels derive it from.
  *
- * Why two modes: the gradient kernels need d2u/dt2 of the adjoint field,
- * but the propagator stores leapfrog time levels, not derivatives.
- * Callers hold one shape or the other, so the view accepts both:
+ * The kernels need d2u/dt2 of the adjoint field, but the propagator stores
+ * leapfrog time levels, not derivatives. Callers naturally hold one shape
+ * or the other, so the view accepts both and tells the kernels which one
+ * it got via fromTimeLevels().
  *
- *  - Precomputed mode (six-field constructor, fromTimeLevels() == false):
- *    fields 3-5 already hold d2u/dt2, formed and time-centered by the
- *    host. The kernels use them as they are. This is the mode every FWI
- *    caller uses.
- *  - Time-levels mode (nine-field constructor, fromTimeLevels() == true):
- *    fields 3-8 hold the raw levels n-1 and n-2 exactly as the leapfrog
- *    scheme stores them; the kernels form (pp - 2*prev + n) / dt^2
- *    themselves, so the host needs no extra dt2 buffers -- the same
- *    convention as the acoustic path. Used by the C++ unit test
- *    TimeLevelsMatchPrecomputedDt2 and by any internal caller that holds
- *    raw levels rather than a formed dt2.
+ * Precomputed mode -- six-field constructor, fromTimeLevels() == false.
+ * Fields 3-5 hold d2u/dt2 already formed by the host; the kernels use it
+ * as given. When needed: always for adjoint-state FWI. The reason is time
+ * centering: the three-level leapfrog difference is centered on n-1 while
+ * fields 0-2 hold level n, and an FWI gradient needs every kernel term at
+ * one common time level -- a one-step offset flips the sign of the density
+ * gradient, and swapping vectors cannot close it. So the host aligns time
+ * itself: form dt2 on n-1, pass the n-1 adjoint displacement as fields
+ * 0-2, and delay the forward field to that level. Every FWI caller
+ * (pyfwi's elastic propagator and all Python tests) uses this mode.
  *
- * Why FWI must use the precomputed mode: the difference over levels
- * n-2, n-1, n is centered on n-1, one step behind the displacement in
- * fields 0-2, and an adjoint-state gradient needs every kernel term at
- * one common time level. That one-step offset flips the sign of the
- * density gradient, and no reassignment of the vectors can close it.
- * The host must align the levels itself: form d2u/dt2, pass the adjoint
- * displacement from the same center in fields 0-2, and delay the forward
- * field to that level.
- *
- * With the same vectors, both modes give identical gradients
- * (TimeLevelsMatchPrecomputedDt2, orders 1-3, element and node kernels).
+ * Time-levels mode -- nine-field constructor, fromTimeLevels() == true.
+ * Fields 3-8 hold the raw levels n-1 and n-2 exactly as the leapfrog
+ * scheme stores them; the kernels form (pp - 2*prev + n) / dt^2 internally.
+ * When needed: when the caller holds only raw levels, wants no extra dt2
+ * buffers -- the same convenience as the acoustic view -- and does not
+ * need FWI time centering, e.g. standalone checks of the kernels
+ * themselves. Never for FWI, for the centering reason above. Today this
+ * mode is exercised by the C++ test TimeLevelsMatchPrecomputedDt2, which
+ * feeds both modes the same vectors and asserts identical gradients
+ * (orders 1-3, element and node kernels).
  *
  * The view stores shallow copies; it does not own the data. Field indices:
  *  - 0, 1, 2: adjoint displacement ux_n, uy_n, uz_n
