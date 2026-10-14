@@ -26,13 +26,13 @@ void DifferentiatorElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES>::
   vectorReal const uy_dt2 = myData.getBackwardField(4);
   vectorReal const uz_dt2 = myData.getBackwardField(5);
 
-  // Two backward conventions (see WavefieldViewBackwardElastic):
-  //  - fromLevels == false: fields 3-5 hold the host-precomputed d2u/dt2;
-  //    nothing to rebuild, so ux_pp aliases ux_dt2.
-  //  - fromLevels == true: fields 3-5 hold level n-1 and fields 6-8 level
-  //    n-2; the kernels rebuild (pp - 2*prev + n) / dt^2, centered one
-  //    step behind fields 0-2 -- FWI needs the precomputed mode for that
-  //    reason (see the class doc).
+  // Two backward modes (see WavefieldViewBackwardElastic):
+  //  - fromLevels == false (precomputed mode): fields 3-5 hold the
+  //    host-precomputed d2u/dt2; nothing to rebuild, so ux_pp aliases ux_dt2.
+  //  - fromLevels == true (time-levels mode): fields 3-5 hold level n-1
+  //    and fields 6-8 level n-2; the kernels rebuild (pp - 2*prev + n) / dt^2,
+  //    centered one step behind fields 0-2 -- which is why FWI must use the
+  //    precomputed mode (see the class doc).
   // Same vectors in, same gradients out (TimeLevelsMatchPrecomputedDt2).
   bool const fromLevels = myData.m_bwd.fromTimeLevels();
   vectorReal const ux_pp = myData.getBackwardField(fromLevels ? 6 : 3);
