@@ -29,14 +29,18 @@ T allocateVector(int n1) {
   return vect;
 }
 /**
- * @brief Allocates a 1D Kokkos view.
- * @tparam T Kokkos view type of rank 1.
+ * @brief Allocates a 1D Kokkos view or DualView labeled @p name.
+ *
+ * The label appears in Kokkos error messages (out-of-bounds or inaccessible memory space) and
+ * in the Kokkos Tools, so it should identify the array.
+ * @tparam T Kokkos view or DualView type of rank 1.
  * @param[in] n1 Number of entries.
- * @return The allocated view.
+ * @param[in] name Label of the allocation.
+ * @return The allocated view, zero-initialized.
  */
 template <class T>
 T allocateVector(int n1, const char *name) {
-  T vect(KOKKOSNAME n1);
+  T vect(std::string(name), n1);  // View labels must be std::string or char arrays, not const char*
   return vect;
 }
 /**
@@ -52,19 +56,20 @@ T allocateArray2D(int n1, int n2) {
   return array;
 }
 /**
- * @brief Allocates a 2D Kokkos view and, if PRINT_ALLOC_INFO is defined, prints its name and size.
- * @tparam T Kokkos view type of rank 2.
+ * @brief Allocates a 2D Kokkos view or DualView labeled @p name and, if PRINT_ALLOC_INFO is
+ * defined, prints its name and size.
+ * @tparam T Kokkos view or DualView type of rank 2.
  * @param[in] n1 Extent of the first dimension.
  * @param[in] n2 Extent of the second dimension.
- * @param[in] name Label used only in the allocation trace.
- * @return The allocated view.
+ * @param[in] name Label of the allocation, see allocateVector().
+ * @return The allocated view, zero-initialized.
  */
 template <class T>
 T allocateArray2D(int n1, int n2, const char *name) {
 #ifdef PRINT_ALLOC_INFO
   std::cout << "allocate array : " << name << " of size: (" << n1 << ", " << n2 << ")" << std::endl;
 #endif
-  T array(KOKKOSNAME n1, n2);
+  T array(std::string(name), n1, n2);
   return array;
 }
 /**
@@ -79,6 +84,23 @@ template <class T>
 T allocateArray3D(int n1, int n2, int n3) {
   T array(KOKKOSNAME n1, n2, n3);
   return array;
+}
+
+/**
+ * @brief Wraps an existing device view into a DualView, with a host copy of its content.
+ *
+ * Both sides are in sync on return. An unallocated view gives an unallocated DualView
+ * (extent 0), so "array not provided" stays detectable with extent(0) == 0.
+ * @tparam DualViewType Kokkos::DualView type whose t_dev is the type of @p device_view.
+ * @param[in] device_view View to wrap; the DualView shares its memory on the device side.
+ * @return DualView holding @p device_view and its host copy.
+ */
+template <class DualViewType>
+DualViewType makeDualView(const typename DualViewType::t_dev &device_view) {
+  if (!device_view.is_allocated()) return DualViewType();
+  auto host_view = Kokkos::create_mirror_view(device_view);
+  Kokkos::deep_copy(host_view, device_view);
+  return DualViewType(device_view, host_view);
 }
 
 /**

@@ -53,14 +53,22 @@ class CartesianUnstructBoundaryClassifier {
   /**
    * @brief Classifies every node against the global domain bounds.
    *
+   * Reads the host side of the coordinates, which must be up to date.
+   *
    * @param n_node Number of nodes.
-   * @param coords_x X coordinate of each node, size n_node.
-   * @param coords_y Y coordinate of each node, size n_node.
-   * @param coords_z Z coordinate of each node, size n_node.
-   * @return Vector of size @p n_node holding one BoundaryFlag value per node.
+   * @param coords_x_dual X coordinate of each node, size n_node.
+   * @param coords_y_dual Y coordinate of each node, size n_node.
+   * @param coords_z_dual Z coordinate of each node, size n_node.
+   * @return DualView of size @p n_node holding one BoundaryFlag value per node. Filled on the host
+   *         and marked modified there: the model copies it to the device.
    */
-  vectorInt classify(int n_node, vectorReal coords_x, vectorReal coords_y, vectorReal coords_z) const {
-    auto boundaries_t = allocateVector<vectorInt>(n_node, "boundaries_t");
+  dualVectorInt classify(int n_node, const dualVectorReal& coords_x_dual, const dualVectorReal& coords_y_dual,
+                         const dualVectorReal& coords_z_dual) const {
+    auto boundaries_dual = allocateVector<dualVectorInt>(n_node, "boundaries_t");
+    auto boundaries_t = boundaries_dual.view_host();
+    auto coords_x = coords_x_dual.view_host();
+    auto coords_y = coords_y_dual.view_host();
+    auto coords_z = coords_z_dual.view_host();
 
     for (int n = 0; n < n_node; ++n) {
       const FloatType x = coords_x(n);
@@ -84,7 +92,8 @@ class CartesianUnstructBoundaryClassifier {
         boundaries_t(n) = static_cast<ScalarType>(BoundaryFlag::Damping);
     }
 
-    return boundaries_t;
+    boundaries_dual.modify_host();
+    return boundaries_dual;
   }
 
  private:

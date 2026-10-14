@@ -77,9 +77,9 @@ class SEMsolver : public Solver {
 
   vectorReal& getDampingMatrix(int c) override { return dampingMatrixGlobal_[c]; }
 
-  /// @return Sponge taper coefficients.
+  /// @return Device copy of the sponge taper coefficients (a view sharing the solver's memory).
   /// @todo VERIFY: size and indexing of the taper vector (per node?).
-  vectorReal& getSpongeTaperCoeff() { return spongeTaperCoeff_; }
+  vectorReal getSpongeTaperCoeff() const { return spongeTaperCoeff_.view_device(); }
 
   vectorReal& getForceVector(int c) override { return workVectorsGlobal_[c]; }
 
@@ -368,9 +368,12 @@ class SEMsolver : public Solver {
    *
    * An empty @p reference_frequencies disables attenuation.
    *
-   * @param reference_frequencies Reference angular frequencies of the SLS mechanisms.
-   * @param anelasticity_coefficients One coefficient per mechanism; if empty, every coefficient
-   *        is set to -1.
+   * The values are copied to the host side of the solver's DualViews (computeFEInit() may still
+   * replace the default coefficients there), then to the device.
+   *
+   * @param reference_frequencies Reference angular frequencies of the SLS mechanisms (device view).
+   * @param anelasticity_coefficients One coefficient per mechanism (device view); if empty, every
+   *        coefficient is set to -1.
    * @throws std::runtime_error if the two arrays have different sizes.
    * @todo VERIFY: meaning of the default coefficient -1, and whether the frequencies are angular (rad/s) or in Hz.
    */
@@ -380,31 +383,29 @@ class SEMsolver : public Solver {
     nSls_ = static_cast<int>(reference_frequencies.extent(0));
     if (!attenuationEnabled_) {
       nSls_ = 0;
-      slsReferenceAngularFrequencies_ = vectorReal();
-      slsAnelasticityCoefficients_ = vectorReal();
+      slsReferenceAngularFrequencies_ = dualVectorReal();
+      slsAnelasticityCoefficients_ = dualVectorReal();
       return;
     }
-
-    slsReferenceAngularFrequencies_ = allocateVector<vectorReal>(nSls_, "slsReferenceAngularFrequencies");
-    for (int i = 0; i < nSls_; ++i) {
-      slsReferenceAngularFrequencies_[i] = reference_frequencies[i];
+    if (anelasticity_coefficients.extent(0) != 0 && static_cast<int>(anelasticity_coefficients.extent(0)) != nSls_) {
+      throw std::runtime_error(
+          "SLS anelasticity coefficients must match reference frequencies "
+          "size");
     }
 
-    slsAnelasticityCoefficients_ = allocateVector<vectorReal>(nSls_, "slsAnelasticityCoefficients");
+    slsReferenceAngularFrequencies_ = allocateVector<dualVectorReal>(nSls_, "slsReferenceAngularFrequencies");
+    Kokkos::deep_copy(slsReferenceAngularFrequencies_.view_host(), reference_frequencies);
+    slsReferenceAngularFrequencies_.modify_host();
+    slsReferenceAngularFrequencies_.sync_device();
+
+    slsAnelasticityCoefficients_ = allocateVector<dualVectorReal>(nSls_, "slsAnelasticityCoefficients");
     if (anelasticity_coefficients.extent(0) == 0) {
-      for (int i = 0; i < nSls_; ++i) {
-        slsAnelasticityCoefficients_[i] = -1.0f;
-      }
+      Kokkos::deep_copy(slsAnelasticityCoefficients_.view_host(), -1.0f);
     } else {
-      if (static_cast<int>(anelasticity_coefficients.extent(0)) != nSls_) {
-        throw std::runtime_error(
-            "SLS anelasticity coefficients must match reference frequencies "
-            "size");
-      }
-      for (int i = 0; i < nSls_; ++i) {
-        slsAnelasticityCoefficients_[i] = anelasticity_coefficients[i];
-      }
+      Kokkos::deep_copy(slsAnelasticityCoefficients_.view_host(), anelasticity_coefficients);
     }
+    slsAnelasticityCoefficients_.modify_host();
+    slsAnelasticityCoefficients_.sync_device();
   }
 
  private:
@@ -462,15 +463,15 @@ class SEMsolver : public Solver {
   /// Set by updateFieldsFromListForwardAndReset().
   bool m_reset_forces_in_update_ = false;
 
-  vectorReal spongeTaperCoeff_;
-  vectorReal massMatrixGlobal_;                             ///< Size numNodes.
+  dualVectorReal spongeTaperCoeff_;  ///< Size numNodes. Filled on the host by initSpongeValues().
+  vectorReal massMatrixGlobal_;      ///< Size numNodes.
   std::array<vectorReal, kNumFields> dampingMatrixGlobal_;  ///< One vector of size numNodes per component.
   std::array<vectorReal, kNumFields> workVectorsGlobal_;    ///< One vector of size numNodes per component.
 
   bool attenuationEnabled_ = false;
   int nSls_ = 0;
-  vectorReal slsReferenceAngularFrequencies_;
-  vectorReal slsAnelasticityCoefficients_;
+  dualVectorReal slsReferenceAngularFrequencies_;  ///< Size nSls_. Set on the host by setSLSAttenuation().
+  dualVectorReal slsAnelasticityCoefficients_;     ///< Size nSls_. Defaults completed on the host by computeFEInit().
   std::array<vectorReal, kNumFields> attenuationWorkVectorsGlobal_;
   std::array<arrayReal, kNumFields> attenuationMemoryVariables_;
 };

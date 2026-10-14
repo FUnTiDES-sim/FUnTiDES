@@ -17,6 +17,10 @@ namespace model {
  * Per-node arrays have one entry per global node, per-element arrays one entry per element.
  * For each material property only the node or the element variant is expected to be filled,
  * according to isModelOnNodes_; the other one may be empty.
+ *
+ * Arrays are DualViews. A builder fills their host side and calls modify_host(); the ModelUnstruct
+ * constructor then copies them to the device. The full constructor below instead takes device
+ * views (as produced by the Python bindings) and wraps them, with a host copy.
  * @tparam FloatType Floating-point type of the geometry and material scalars.
  * @tparam ScalarType Integer type of counts and indices.
  */
@@ -28,7 +32,10 @@ struct ModelUnstructData : public ModelDataBase<FloatType, ScalarType> {
   PROXY_HOST_DEVICE ModelUnstructData& operator=(const ModelUnstructData&) = default;
 
   /**
-   * @brief Full constructor. Every array is stored as given (shallow copy of the views).
+   * @brief Full constructor from device views.
+   *
+   * Every array is wrapped into a DualView: the device side shares the memory of the given view,
+   * the host side receives a copy. Empty (unallocated) views stay empty. Host only.
    * @param order Polynomial order of the elements.
    * @param n_element Number of local elements.
    * @param n_node Number of local nodes.
@@ -47,7 +54,6 @@ struct ModelUnstructData : public ModelDataBase<FloatType, ScalarType> {
    * @param face_connectivity Optional precomputed face connectivity.
    * @todo VERIFY: units of the angles model_theta_* and model_phi_* (radians or degrees).
    */
-  PROXY_HOST_DEVICE
   ModelUnstructData(ScalarType order, ScalarType n_element, ScalarType n_node, FloatType lx, FloatType ly, FloatType lz,
                     bool isModelOnNodes, bool isElastic, arrayInt global_node_index, vectorReal nodes_coords_x,
                     vectorReal nodes_coords_y, vectorReal nodes_coords_z, vectorReal model_vp_node,
@@ -68,32 +74,32 @@ struct ModelUnstructData : public ModelDataBase<FloatType, ScalarType> {
         lz_(lz),
         isModelOnNodes_(isModelOnNodes),
         isElastic_(isElastic),
-        global_node_index_(global_node_index),
-        nodes_coords_x_(nodes_coords_x),
-        nodes_coords_y_(nodes_coords_y),
-        nodes_coords_z_(nodes_coords_z),
-        model_vp_node_(model_vp_node),
-        model_vp_element_(model_vp_element),
-        model_rho_node_(model_rho_node),
-        model_rho_element_(model_rho_element),
-        model_vs_node_(model_vs_node),
-        model_vs_element_(model_vs_element),
-        model_qp_node_(model_qp_node),
-        model_qp_element_(model_qp_element),
-        model_qs_node_(model_qs_node),
-        model_qs_element_(model_qs_element),
-        model_delta_node_(model_delta_node),
-        model_delta_element_(model_delta_element),
-        model_epsilon_node_(model_epsilon_node),
-        model_epsilon_element_(model_epsilon_element),
-        model_gamma_node_(model_gamma_node),
-        model_gamma_element_(model_gamma_element),
-        model_theta_node_(model_theta_node),
-        model_theta_element_(model_theta_element),
-        model_phi_node_(model_phi_node),
-        model_phi_element_(model_phi_element),
+        global_node_index_(makeDualView<dualArrayInt>(global_node_index)),
+        nodes_coords_x_(makeDualView<dualVectorReal>(nodes_coords_x)),
+        nodes_coords_y_(makeDualView<dualVectorReal>(nodes_coords_y)),
+        nodes_coords_z_(makeDualView<dualVectorReal>(nodes_coords_z)),
+        model_vp_node_(makeDualView<dualVectorReal>(model_vp_node)),
+        model_vp_element_(makeDualView<dualVectorReal>(model_vp_element)),
+        model_rho_node_(makeDualView<dualVectorReal>(model_rho_node)),
+        model_rho_element_(makeDualView<dualVectorReal>(model_rho_element)),
+        model_vs_node_(makeDualView<dualVectorReal>(model_vs_node)),
+        model_vs_element_(makeDualView<dualVectorReal>(model_vs_element)),
+        model_qp_node_(makeDualView<dualVectorReal>(model_qp_node)),
+        model_qp_element_(makeDualView<dualVectorReal>(model_qp_element)),
+        model_qs_node_(makeDualView<dualVectorReal>(model_qs_node)),
+        model_qs_element_(makeDualView<dualVectorReal>(model_qs_element)),
+        model_delta_node_(makeDualView<dualVectorReal>(model_delta_node)),
+        model_delta_element_(makeDualView<dualVectorReal>(model_delta_element)),
+        model_epsilon_node_(makeDualView<dualVectorReal>(model_epsilon_node)),
+        model_epsilon_element_(makeDualView<dualVectorReal>(model_epsilon_element)),
+        model_gamma_node_(makeDualView<dualVectorReal>(model_gamma_node)),
+        model_gamma_element_(makeDualView<dualVectorReal>(model_gamma_element)),
+        model_theta_node_(makeDualView<dualVectorReal>(model_theta_node)),
+        model_theta_element_(makeDualView<dualVectorReal>(model_theta_element)),
+        model_phi_node_(makeDualView<dualVectorReal>(model_phi_node)),
+        model_phi_element_(makeDualView<dualVectorReal>(model_phi_element)),
         model_C_tensor_element_(model_C_tensor_element),
-        boundaries_t_(boundaries_t),
+        boundaries_t_(makeDualView<dualVectorInt>(boundaries_t)),
         face_connectivity_(face_connectivity) {}
 
   /// @todo VERIFY: is origin_x_/y_/z_ read anywhere, and how does it relate to ox_/oy_/oz_?
@@ -107,33 +113,34 @@ struct ModelUnstructData : public ModelDataBase<FloatType, ScalarType> {
   bool isModelOnNodes_;  ///< True if material properties are stored per node, false if per element.
   bool isElastic_;       ///< True for elastic propagation, false for acoustic.
 
-  arrayInt global_node_index_;  ///< Shape (n_element, (order+1)^3), indexed by (e, i + j*(order+1) + k*(order+1)^2).
-  vectorReal nodes_coords_x_;   ///< X coordinate of each node, size n_node.
-  vectorReal nodes_coords_y_;   ///< Y coordinate of each node, size n_node.
-  vectorReal nodes_coords_z_;   ///< Z coordinate of each node, size n_node.
+  dualArrayInt
+      global_node_index_;          ///< Shape (n_element, (order+1)^3), indexed by (e, i + j*(order+1) + k*(order+1)^2).
+  dualVectorReal nodes_coords_x_;  ///< X coordinate of each node, size n_node.
+  dualVectorReal nodes_coords_y_;  ///< Y coordinate of each node, size n_node.
+  dualVectorReal nodes_coords_z_;  ///< Z coordinate of each node, size n_node.
 
-  vectorReal model_vp_node_;
-  vectorReal model_vp_element_;
-  vectorReal model_rho_node_;
-  vectorReal model_rho_element_;
-  vectorReal model_vs_node_;
-  vectorReal model_vs_element_;
-  vectorReal model_qp_node_;
-  vectorReal model_qp_element_;
-  vectorReal model_qs_node_;
-  vectorReal model_qs_element_;
-  vectorReal model_delta_node_;
-  vectorReal model_delta_element_;
-  vectorReal model_epsilon_node_;
-  vectorReal model_epsilon_element_;
-  vectorReal model_gamma_node_;
-  vectorReal model_gamma_element_;
-  vectorReal model_theta_node_;
-  vectorReal model_theta_element_;
-  vectorReal model_phi_node_;
-  vectorReal model_phi_element_;
-  array3DReal model_C_tensor_element_;  ///< Shape (n_element, 6, 6), Voigt notation.
-  vectorInt boundaries_t_;              ///< BoundaryFlag value of each node, size n_node; may be empty.
+  dualVectorReal model_vp_node_;
+  dualVectorReal model_vp_element_;
+  dualVectorReal model_rho_node_;
+  dualVectorReal model_rho_element_;
+  dualVectorReal model_vs_node_;
+  dualVectorReal model_vs_element_;
+  dualVectorReal model_qp_node_;
+  dualVectorReal model_qp_element_;
+  dualVectorReal model_qs_node_;
+  dualVectorReal model_qs_element_;
+  dualVectorReal model_delta_node_;
+  dualVectorReal model_delta_element_;
+  dualVectorReal model_epsilon_node_;
+  dualVectorReal model_epsilon_element_;
+  dualVectorReal model_gamma_node_;
+  dualVectorReal model_gamma_element_;
+  dualVectorReal model_theta_node_;
+  dualVectorReal model_theta_element_;
+  dualVectorReal model_phi_node_;
+  dualVectorReal model_phi_element_;
+  array3DReal model_C_tensor_element_;  ///< Shape (n_element, 6, 6), Voigt notation. Device only, filled by a kernel.
+  dualVectorInt boundaries_t_;          ///< BoundaryFlag value of each node, size n_node; may be empty.
   FaceConnectivityUnstructData<FloatType, ScalarType> face_connectivity_;
 };
 
@@ -142,6 +149,10 @@ struct ModelUnstructData : public ModelDataBase<FloatType, ScalarType> {
  *
  * Holds the geometry, the material properties (per node or per element) and the face
  * connectivity of the local subdomain. Copies share the underlying Kokkos views.
+ *
+ * Geometry, material and boundary arrays are DualViews: accessors read the device copy in
+ * kernels and the host copy on the host. Both copies are in sync after construction. The face
+ * connectivity tables and the elasticity tensors are built by kernels and live on the device only.
  * @tparam FloatType Floating-point type of the geometry and material scalars.
  * @tparam ScalarType Integer type of counts and indices.
  */
@@ -153,10 +164,11 @@ class ModelUnstruct final : public ModelApi<FloatType, ScalarType> {
   PROXY_HOST_DEVICE ModelUnstruct() = default;
 
   /**
-   * @brief Construct from a data structure (shallow copy of the views).
+   * @brief Construct from a data structure (shallow copy of the views), then copy to the device
+   * the arrays whose host side was modified. Host only.
    * @param data Mesh and material data.
    */
-  PROXY_HOST_DEVICE ModelUnstruct(const ModelUnstructData<FloatType, ScalarType>& data)
+  ModelUnstruct(const ModelUnstructData<FloatType, ScalarType>& data)
       : order_(data.order_),
         n_element_(data.n_element_),
         n_node_(data.n_node_),
@@ -195,7 +207,9 @@ class ModelUnstruct final : public ModelApi<FloatType, ScalarType> {
         model_C_tensor_element_(data.model_C_tensor_element_),
         boundaries_t_(data.boundaries_t_),
         face_connectivity_(data.face_connectivity_),
-        n_points_per_element_((order_ + 1) * (order_ + 1) * (order_ + 1)) {}
+        n_points_per_element_((order_ + 1) * (order_ + 1) * (order_ + 1)) {
+    syncToDevice();
+  }
 
   PROXY_HOST_DEVICE ModelUnstruct& operator=(const ModelUnstruct&) = default;
   PROXY_HOST_DEVICE ~ModelUnstruct() = default;
@@ -222,7 +236,7 @@ class ModelUnstruct final : public ModelApi<FloatType, ScalarType> {
     int local_j = j * order_;
     int local_k = k * order_;
     const auto localDofIndex = local_i + local_j * (order_ + 1) + local_k * (order_ + 1) * (order_ + 1);
-    return global_node_index_(e, localDofIndex);
+    return dualAt(global_node_index_, e, localDofIndex);
   }
 
   /**
@@ -232,9 +246,9 @@ class ModelUnstruct final : public ModelApi<FloatType, ScalarType> {
    */
   PROXY_HOST_DEVICE
   void vertexCoords(IndexType dofGlobal, FloatType* const coords) const {
-    coords[0] = nodes_coords_x_[dofGlobal];
-    coords[1] = nodes_coords_y_[dofGlobal];
-    coords[2] = nodes_coords_z_[dofGlobal];
+    coords[0] = dualAt(nodes_coords_x_, dofGlobal);
+    coords[1] = dualAt(nodes_coords_y_, dofGlobal);
+    coords[2] = dualAt(nodes_coords_z_, dofGlobal);
   }
 
   /**
@@ -247,13 +261,13 @@ class ModelUnstruct final : public ModelApi<FloatType, ScalarType> {
   FloatType nodeCoord(ScalarType dofGlobal, int dim) const final {
     switch (dim) {
       case 0: {
-        return nodes_coords_x_[dofGlobal];
+        return dualAt(nodes_coords_x_, dofGlobal);
       }
       case 1: {
-        return nodes_coords_y_[dofGlobal];
+        return dualAt(nodes_coords_y_, dofGlobal);
       }
       case 2: {
-        return nodes_coords_z_[dofGlobal];
+        return dualAt(nodes_coords_z_, dofGlobal);
       }
       default:
         return FloatType(-1);
@@ -271,7 +285,7 @@ class ModelUnstruct final : public ModelApi<FloatType, ScalarType> {
   PROXY_HOST_DEVICE
   ScalarType globalNodeIndex(ScalarType e, int i, int j, int k) const final {
     const auto localDofIndex = i + j * (order_ + 1) + k * (order_ + 1) * (order_ + 1);
-    return global_node_index_(e, localDofIndex);
+    return dualAt(global_node_index_, e, localDofIndex);
   }
 
   /**
@@ -279,56 +293,81 @@ class ModelUnstruct final : public ModelApi<FloatType, ScalarType> {
    * @param n Node index.
    * @return P-wave velocity (m/s).
    */
-  PROXY_HOST_DEVICE FloatType getModelVpOnNodes(ScalarType n) const final { return model_vp_node_[n]; }
+  PROXY_HOST_DEVICE FloatType getModelVpOnNodes(ScalarType n) const final { return dualAt(model_vp_node_, n); }
 
   /**
    * @brief Get the P-wave velocity of an element.
    * @param e Element index.
    * @return P-wave velocity (m/s).
    */
-  PROXY_HOST_DEVICE FloatType getModelVpOnElement(ScalarType e) const final { return model_vp_element_[e]; }
+  PROXY_HOST_DEVICE FloatType getModelVpOnElement(ScalarType e) const final { return dualAt(model_vp_element_, e); }
 
   /**
    * @brief Get the density at a node.
    * @param n Node index.
    * @return Density (kg/m^3).
    */
-  PROXY_HOST_DEVICE FloatType getModelRhoOnNodes(ScalarType n) const final { return model_rho_node_[n]; }
+  PROXY_HOST_DEVICE FloatType getModelRhoOnNodes(ScalarType n) const final { return dualAt(model_rho_node_, n); }
 
   /**
    * @brief Get the density of an element.
    * @param e Element index.
    * @return Density (kg/m^3).
    */
-  PROXY_HOST_DEVICE FloatType getModelRhoOnElement(ScalarType e) const final { return model_rho_element_[e]; }
+  PROXY_HOST_DEVICE FloatType getModelRhoOnElement(ScalarType e) const final { return dualAt(model_rho_element_, e); }
 
   /**
    * @brief Get the S-wave velocity at a node.
    * @param n Node index.
    * @return S-wave velocity (m/s).
    */
-  PROXY_HOST_DEVICE FloatType getModelVsOnNodes(ScalarType n) const final { return model_vs_node_[n]; }
+  PROXY_HOST_DEVICE FloatType getModelVsOnNodes(ScalarType n) const final { return dualAt(model_vs_node_, n); }
 
   /**
    * @brief Get the S-wave velocity of an element.
    * @param e Element index.
    * @return S-wave velocity (m/s).
    */
-  PROXY_HOST_DEVICE FloatType getModelVsOnElement(ScalarType e) const final { return model_vs_element_[e]; }
+  PROXY_HOST_DEVICE FloatType getModelVsOnElement(ScalarType e) const final { return dualAt(model_vs_element_, e); }
 
   /**
    * @brief Overwrite the per-node vp, vs and rho at a node.
    *
-   * Host only. The per-node arrays must be allocated.
+   * Writes the device copy in a kernel and the host copy on the host. The per-node arrays must be
+   * allocated. Once the writes are done, declare them from the host with
+   * markNodePropsModifiedOnDevice() (after a kernel) or markNodePropsModifiedOnHost() (after a host
+   * loop, followed by syncToDevice() before the next kernel).
    * @param n Global node index.
    * @param vp P-wave velocity (m/s).
    * @param vs S-wave velocity (m/s).
    * @param rho Density (kg/m^3).
    */
   PROXY_HOST_DEVICE void setModelNodeProps(ScalarType n, FloatType vp, FloatType vs, FloatType rho) const {
-    model_vp_node_[n] = vp;
-    model_vs_node_[n] = vs;
-    model_rho_node_[n] = rho;
+    dualSet(model_vp_node_, vp, n);
+    dualSet(model_vs_node_, vs, n);
+    dualSet(model_rho_node_, rho, n);
+  }
+
+  /**
+   * @brief Declare that setModelNodeProps() wrote the device copy of vp, vs and rho. Host only.
+   *
+   * Aborts (Kokkos DualView check) if the host copy holds modifications not yet synchronized.
+   */
+  void markNodePropsModifiedOnDevice() {
+    model_vp_node_.modify_device();
+    model_vs_node_.modify_device();
+    model_rho_node_.modify_device();
+  }
+
+  /**
+   * @brief Declare that setModelNodeProps() wrote the host copy of vp, vs and rho. Host only.
+   *
+   * Call syncToDevice() before the next kernel reads them.
+   */
+  void markNodePropsModifiedOnHost() {
+    model_vp_node_.modify_host();
+    model_vs_node_.modify_host();
+    model_rho_node_.modify_host();
   }
 
   /**
@@ -337,7 +376,7 @@ class ModelUnstruct final : public ModelApi<FloatType, ScalarType> {
    * @return Quality factor Qp (dimensionless), or 1.0e9 if no per-node array is stored.
    */
   PROXY_HOST_DEVICE FloatType getModelQpOnNodes(ScalarType n) const final {
-    if (model_qp_node_.extent(0) > 0) return model_qp_node_[n];
+    if (model_qp_node_.extent(0) > 0) return dualAt(model_qp_node_, n);
     return static_cast<FloatType>(1.0e9);
   }
 
@@ -347,7 +386,7 @@ class ModelUnstruct final : public ModelApi<FloatType, ScalarType> {
    * @return Quality factor Qp (dimensionless), or 1.0e9 if no per-element array is stored.
    */
   PROXY_HOST_DEVICE FloatType getModelQpOnElement(ScalarType e) const final {
-    if (model_qp_element_.extent(0) > 0) return model_qp_element_[e];
+    if (model_qp_element_.extent(0) > 0) return dualAt(model_qp_element_, e);
     return static_cast<FloatType>(1.0e9);
   }
 
@@ -357,7 +396,7 @@ class ModelUnstruct final : public ModelApi<FloatType, ScalarType> {
    * @return Quality factor Qs (dimensionless), or 1.0e9 if no per-node array is stored.
    */
   PROXY_HOST_DEVICE FloatType getModelQsOnNodes(ScalarType n) const final {
-    if (model_qs_node_.extent(0) > 0) return model_qs_node_[n];
+    if (model_qs_node_.extent(0) > 0) return dualAt(model_qs_node_, n);
     return static_cast<FloatType>(1.0e9);
   }
 
@@ -367,7 +406,7 @@ class ModelUnstruct final : public ModelApi<FloatType, ScalarType> {
    * @return Quality factor Qs (dimensionless), or 1.0e9 if no per-element array is stored.
    */
   PROXY_HOST_DEVICE FloatType getModelQsOnElement(ScalarType e) const final {
-    if (model_qs_element_.extent(0) > 0) return model_qs_element_[e];
+    if (model_qs_element_.extent(0) > 0) return dualAt(model_qs_element_, e);
     return static_cast<FloatType>(1.0e9);
   }
 
@@ -376,42 +415,50 @@ class ModelUnstruct final : public ModelApi<FloatType, ScalarType> {
    * @param n Node index.
    * @return Thomsen delta (dimensionless).
    */
-  PROXY_HOST_DEVICE FloatType getModelDeltaOnNodes(ScalarType n) const final { return model_delta_node_[n]; }
+  PROXY_HOST_DEVICE FloatType getModelDeltaOnNodes(ScalarType n) const final { return dualAt(model_delta_node_, n); }
 
   /**
    * @brief Get the Thomsen delta parameter of an element.
    * @param e Element index.
    * @return Thomsen delta (dimensionless).
    */
-  PROXY_HOST_DEVICE FloatType getModelDeltaOnElement(ScalarType e) const final { return model_delta_element_[e]; }
+  PROXY_HOST_DEVICE FloatType getModelDeltaOnElement(ScalarType e) const final {
+    return dualAt(model_delta_element_, e);
+  }
 
   /**
    * @brief Get the Thomsen epsilon parameter at a node.
    * @param n Node index.
    * @return Thomsen epsilon (dimensionless).
    */
-  PROXY_HOST_DEVICE FloatType getModelEpsilonOnNodes(ScalarType n) const final { return model_epsilon_node_[n]; }
+  PROXY_HOST_DEVICE FloatType getModelEpsilonOnNodes(ScalarType n) const final {
+    return dualAt(model_epsilon_node_, n);
+  }
 
   /**
    * @brief Get the Thomsen epsilon parameter of an element.
    * @param e Element index.
    * @return Thomsen epsilon (dimensionless).
    */
-  PROXY_HOST_DEVICE FloatType getModelEpsilonOnElement(ScalarType e) const final { return model_epsilon_element_[e]; }
+  PROXY_HOST_DEVICE FloatType getModelEpsilonOnElement(ScalarType e) const final {
+    return dualAt(model_epsilon_element_, e);
+  }
 
   /**
    * @brief Get the Thomsen gamma parameter at a node.
    * @param n Node index.
    * @return Thomsen gamma (dimensionless).
    */
-  PROXY_HOST_DEVICE FloatType getModelGammaOnNodes(ScalarType n) const final { return model_gamma_node_[n]; }
+  PROXY_HOST_DEVICE FloatType getModelGammaOnNodes(ScalarType n) const final { return dualAt(model_gamma_node_, n); }
 
   /**
    * @brief Get the Thomsen gamma parameter of an element.
    * @param e Element index.
    * @return Thomsen gamma (dimensionless).
    */
-  PROXY_HOST_DEVICE FloatType getModelGammaOnElement(ScalarType e) const final { return model_gamma_element_[e]; }
+  PROXY_HOST_DEVICE FloatType getModelGammaOnElement(ScalarType e) const final {
+    return dualAt(model_gamma_element_, e);
+  }
 
   /**
    * @brief Get the azimuth angle phi at a node.
@@ -419,7 +466,7 @@ class ModelUnstruct final : public ModelApi<FloatType, ScalarType> {
    * @return Azimuth angle phi.
    * @todo VERIFY: unit of the stored angle (radians here, degrees in computeCTensor).
    */
-  PROXY_HOST_DEVICE ScalarType getModelPhiOnNodes(ScalarType n) const final { return model_phi_node_[n]; }
+  PROXY_HOST_DEVICE ScalarType getModelPhiOnNodes(ScalarType n) const final { return dualAt(model_phi_node_, n); }
 
   /**
    * @brief Get the azimuth angle phi of an element.
@@ -427,7 +474,7 @@ class ModelUnstruct final : public ModelApi<FloatType, ScalarType> {
    * @return Azimuth angle phi.
    * @todo VERIFY: unit of the stored angle (radians here, degrees in computeCTensor).
    */
-  PROXY_HOST_DEVICE ScalarType getModelPhiOnElement(ScalarType e) const final { return model_phi_element_[e]; }
+  PROXY_HOST_DEVICE ScalarType getModelPhiOnElement(ScalarType e) const final { return dualAt(model_phi_element_, e); }
 
   /**
    * @brief Get the tilt angle theta at a node.
@@ -435,7 +482,7 @@ class ModelUnstruct final : public ModelApi<FloatType, ScalarType> {
    * @return Tilt angle theta.
    * @todo VERIFY: unit of the stored angle (radians here, degrees in computeCTensor).
    */
-  PROXY_HOST_DEVICE ScalarType getModelThetaOnNodes(ScalarType n) const final { return model_theta_node_[n]; }
+  PROXY_HOST_DEVICE ScalarType getModelThetaOnNodes(ScalarType n) const final { return dualAt(model_theta_node_, n); }
 
   /**
    * @brief Get the tilt angle theta of an element.
@@ -443,7 +490,9 @@ class ModelUnstruct final : public ModelApi<FloatType, ScalarType> {
    * @return Tilt angle theta.
    * @todo VERIFY: unit of the stored angle (radians here, degrees in computeCTensor).
    */
-  PROXY_HOST_DEVICE ScalarType getModelThetaOnElement(ScalarType e) const final { return model_theta_element_[e]; }
+  PROXY_HOST_DEVICE ScalarType getModelThetaOnElement(ScalarType e) const final {
+    return dualAt(model_theta_element_, e);
+  }
 
   /**
    * @brief Precompute the per-element 6x6 Voigt elasticity tensors.
@@ -464,14 +513,14 @@ class ModelUnstruct final : public ModelApi<FloatType, ScalarType> {
       model_C_tensor_element_ = allocateArray3D<array3DReal>(n_element_, 6, 6);
 
       auto C_tensor = model_C_tensor_element_;
-      auto vp = model_vp_element_;
-      auto vs = model_vs_element_;
-      auto rho = model_rho_element_;
-      auto delta = model_delta_element_;
-      auto epsilon = model_epsilon_element_;
-      auto gamma = model_gamma_element_;
-      auto theta = model_theta_element_;
-      auto phi = model_phi_element_;
+      auto vp = model_vp_element_.view_device();
+      auto vs = model_vs_element_.view_device();
+      auto rho = model_rho_element_.view_device();
+      auto delta = model_delta_element_.view_device();
+      auto epsilon = model_epsilon_element_.view_device();
+      auto gamma = model_gamma_element_.view_device();
+      auto theta = model_theta_element_.view_device();
+      auto phi = model_phi_element_.view_device();
 
       Kokkos::parallel_for(
           "Model init ElasticTensors",
@@ -625,7 +674,7 @@ class ModelUnstruct final : public ModelApi<FloatType, ScalarType> {
   PROXY_HOST_DEVICE
   BoundaryFlag boundaryType(ScalarType n) const override {
     if (boundaries_t_.extent(0) == 0) return BoundaryFlag::InteriorNode;
-    return static_cast<BoundaryFlag>(boundaries_t_[n]);
+    return static_cast<BoundaryFlag>(dualAt(boundaries_t_, n));
   }
 
   /**
@@ -699,10 +748,13 @@ class ModelUnstruct final : public ModelApi<FloatType, ScalarType> {
     FloatType maxSpeedNode = std::numeric_limits<FloatType>::lowest();
     FloatType maxSpeedElem = std::numeric_limits<FloatType>::lowest();
 
-    if (model_vp_node_.extent(0) > 0) {
-      FIND_MAX_1D(model_vp_node_, n_node_, maxSpeedNode);
-    } else if (model_vp_element_.extent(0) > 0) {
-      FIND_MAX_1D(model_vp_element_, n_element_, maxSpeedElem);
+    // Reduced on the device: it holds the current values even if kernels modified them.
+    auto vp_node = model_vp_node_.view_device();
+    auto vp_element = model_vp_element_.view_device();
+    if (vp_node.extent(0) > 0) {
+      FIND_MAX_1D(vp_node, n_node_, maxSpeedNode);
+    } else if (vp_element.extent(0) > 0) {
+      FIND_MAX_1D(vp_element, n_element_, maxSpeedElem);
     } else {
       throw std::runtime_error("No model initialized (model unstruct getMaxSpeed).");
     }
@@ -756,7 +808,8 @@ class ModelUnstruct final : public ModelApi<FloatType, ScalarType> {
     if (boundaries_t_.extent(0) == 0) return face_connectivity_.isBoundaryFace(face_global);
     int const n_dofs = face_connectivity_.getDofsPerFace();
     for (int q = 0; q < n_dofs; ++q) {
-      if (boundaries_t_[getGlobalNodeFromFace(face_global, q)] == static_cast<ScalarType>(BoundaryFlag::InteriorNode))
+      if (dualAt(boundaries_t_, getGlobalNodeFromFace(face_global, q)) ==
+          static_cast<ScalarType>(BoundaryFlag::InteriorNode))
         return false;
     }
     return true;
@@ -777,27 +830,70 @@ class ModelUnstruct final : public ModelApi<FloatType, ScalarType> {
   PROXY_HOST_DEVICE
   bool isFreeSurface(ScalarType n) const override {
     if (boundaries_t_.extent(0) == 0) return false;
-    return boundaries_t_[n] == static_cast<ScalarType>(BoundaryFlag::Surface);
+    return dualAt(boundaries_t_, n) == static_cast<ScalarType>(BoundaryFlag::Surface);
   }
 
   /**
    * @brief Set uniform per-element quality factors.
    *
-   * Allocates and fills the per-element Qp and Qs arrays; host only.
+   * Allocates the per-element Qp and Qs arrays, fills them on the host and copies them to the
+   * device; host only.
    * @param qp P-wave quality factor (dimensionless).
    * @param qs S-wave quality factor (dimensionless).
    */
   void setQualityFactors(FloatType qp, FloatType qs) override {
     ScalarType nElem = getNumberOfElements();
-    model_qp_element_ = allocateVector<vectorReal>(nElem, "model_qp_element");
-    model_qs_element_ = allocateVector<vectorReal>(nElem, "model_qs_element");
-    for (ScalarType e = 0; e < nElem; ++e) {
-      model_qp_element_(e) = qp;
-      model_qs_element_(e) = qs;
-    }
+    model_qp_element_ = allocateVector<dualVectorReal>(nElem, "model_qp_element");
+    model_qs_element_ = allocateVector<dualVectorReal>(nElem, "model_qs_element");
+    Kokkos::deep_copy(model_qp_element_.view_host(), qp);
+    Kokkos::deep_copy(model_qs_element_.view_host(), qs);
+    model_qp_element_.modify_host();
+    model_qs_element_.modify_host();
+    model_qp_element_.sync_device();
+    model_qs_element_.sync_device();
+  }
+
+  /// @copydoc ModelApi::syncToDevice()
+  void syncToDevice() override {
+    forEachDualView([](auto& dv) { dv.sync_device(); });
+  }
+
+  /// @copydoc ModelApi::syncToHost()
+  void syncToHost() override {
+    forEachDualView([](auto& dv) { dv.sync_host(); });
   }
 
  private:
+  /// Applies @p f to every DualView member (sync and modify helpers).
+  template <typename F>
+  void forEachDualView(F&& f) {
+    f(global_node_index_);
+    f(nodes_coords_x_);
+    f(nodes_coords_y_);
+    f(nodes_coords_z_);
+    f(model_vp_node_);
+    f(model_vp_element_);
+    f(model_rho_node_);
+    f(model_rho_element_);
+    f(model_vs_node_);
+    f(model_vs_element_);
+    f(model_qp_node_);
+    f(model_qp_element_);
+    f(model_qs_node_);
+    f(model_qs_element_);
+    f(model_delta_node_);
+    f(model_delta_element_);
+    f(model_epsilon_node_);
+    f(model_epsilon_element_);
+    f(model_theta_node_);
+    f(model_theta_element_);
+    f(model_gamma_node_);
+    f(model_gamma_element_);
+    f(model_phi_node_);
+    f(model_phi_element_);
+    f(boundaries_t_);
+  }
+
   ScalarType order_;
   ScalarType n_element_;
   ScalarType n_node_;
@@ -808,33 +904,33 @@ class ModelUnstruct final : public ModelApi<FloatType, ScalarType> {
   bool isModelOnNodes_;
   bool isElastic_;
 
-  arrayInt global_node_index_;
-  vectorReal nodes_coords_x_;
-  vectorReal nodes_coords_y_;
-  vectorReal nodes_coords_z_;
+  dualArrayInt global_node_index_;
+  dualVectorReal nodes_coords_x_;
+  dualVectorReal nodes_coords_y_;
+  dualVectorReal nodes_coords_z_;
 
-  vectorReal model_vp_node_;
-  vectorReal model_vp_element_;
-  vectorReal model_rho_node_;
-  vectorReal model_rho_element_;
-  vectorReal model_vs_node_;
-  vectorReal model_vs_element_;
-  vectorReal model_qp_node_;
-  vectorReal model_qp_element_;
-  vectorReal model_qs_node_;
-  vectorReal model_qs_element_;
-  vectorReal model_delta_node_;
-  vectorReal model_delta_element_;
-  vectorReal model_epsilon_node_;
-  vectorReal model_epsilon_element_;
-  vectorReal model_theta_node_;
-  vectorReal model_theta_element_;
-  vectorReal model_gamma_node_;
-  vectorReal model_gamma_element_;
-  vectorReal model_phi_node_;
-  vectorReal model_phi_element_;
-  array3DReal model_C_tensor_element_;
-  vectorInt boundaries_t_;
+  dualVectorReal model_vp_node_;
+  dualVectorReal model_vp_element_;
+  dualVectorReal model_rho_node_;
+  dualVectorReal model_rho_element_;
+  dualVectorReal model_vs_node_;
+  dualVectorReal model_vs_element_;
+  dualVectorReal model_qp_node_;
+  dualVectorReal model_qp_element_;
+  dualVectorReal model_qs_node_;
+  dualVectorReal model_qs_element_;
+  dualVectorReal model_delta_node_;
+  dualVectorReal model_delta_element_;
+  dualVectorReal model_epsilon_node_;
+  dualVectorReal model_epsilon_element_;
+  dualVectorReal model_theta_node_;
+  dualVectorReal model_theta_element_;
+  dualVectorReal model_gamma_node_;
+  dualVectorReal model_gamma_element_;
+  dualVectorReal model_phi_node_;
+  dualVectorReal model_phi_element_;
+  array3DReal model_C_tensor_element_;  ///< Device only, filled by initElasticityTensors().
+  dualVectorInt boundaries_t_;
 
   FaceConnectivityUnstruct<FloatType, ScalarType> face_connectivity_;
 };

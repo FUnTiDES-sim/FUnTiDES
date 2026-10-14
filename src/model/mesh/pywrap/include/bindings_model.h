@@ -99,7 +99,9 @@ void bind_modelapi(py::module_ &m) {
       .def("get_global_face", &T::getGlobalFace)
       .def("set_quality_factors", &T::setQualityFactors, py::arg("qp"), py::arg("qs"))
       .def("init_elasticity_tensors", &T::initElasticityTensors, py::arg("anisotropy_type"))
-      .def("is_free_surface", &T::isFreeSurface);
+      .def("is_free_surface", &T::isFreeSurface)
+      .def("sync_to_device", &T::syncToDevice)
+      .def("sync_to_host", &T::syncToHost);
 }
 
 /**

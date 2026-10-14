@@ -51,10 +51,11 @@ class CartesianStructBoundaryClassifier {
    * @param nx,ny,nz Node counts along each axis.
    * @param ox,oy,oz Origin of the local subdomain.
    * @param lx,ly,lz Extent of the local subdomain along each axis.
-   * @return Newly allocated vector of size n_node, indexed by node number, holding BoundaryFlag values.
+   * @return Newly allocated DualView of size n_node, indexed by node number, holding BoundaryFlag
+   *         values. Filled on the host and marked modified there: the model copies it to the device.
    */
-  vectorInt classify(int n_node, int nx, int ny, int nz, FloatType ox, FloatType oy, FloatType oz, FloatType lx,
-                     FloatType ly, FloatType lz) const {
+  dualVectorInt classify(int n_node, int nx, int ny, int nz, FloatType ox, FloatType oy, FloatType oz, FloatType lx,
+                         FloatType ly, FloatType lz) const {
     const bool x_min_is_global = std::fabs(ox - x_min_) < tol_;
     const bool x_max_is_global = std::fabs((ox + lx) - x_max_) < tol_;
     const bool y_min_is_global = std::fabs(oy - y_min_) < tol_;
@@ -62,7 +63,8 @@ class CartesianStructBoundaryClassifier {
     const bool z_min_is_global = std::fabs(oz - z_min_) < tol_;
     const bool z_max_is_global = std::fabs((oz + lz) - z_max_) < tol_;
 
-    auto boundaries_t = allocateVector<vectorInt>(n_node, "boundaries_t");
+    auto boundaries_dual = allocateVector<dualVectorInt>(n_node, "boundaries_t");
+    auto boundaries_t = boundaries_dual.view_host();
 
     for (int n = 0; n < n_node; ++n) {
       const int i = n % nx;
@@ -86,7 +88,8 @@ class CartesianStructBoundaryClassifier {
         boundaries_t(n) = static_cast<ScalarType>(BoundaryFlag::Damping);
     }
 
-    return boundaries_t;
+    boundaries_dual.modify_host();
+    return boundaries_dual;
   }
 
  private:

@@ -463,6 +463,8 @@ void SEMsolverAcoustoElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES>
         KOKKOS_LAMBDA(const int i) {
           mesh_local.setModelNodeProps(node_indices[i], vp[i], solid ? vs[i] : 0.0f, rho[i]);
         });
+    // The kernel wrote the device copy of the mesh properties (shared with the sub-solvers' meshes).
+    m_mesh_.markNodePropsModifiedOnDevice();
   }
 }
 
