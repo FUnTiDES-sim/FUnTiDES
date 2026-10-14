@@ -127,8 +127,9 @@ PROXY_HOST_DEVICE void buildVTITensor(FloatType c11, FloatType c12, FloatType c1
  * @param[in] theta Tilt angle, in degrees.
  * @param[in] phi Azimuth angle, in degrees.
  * @param[out] CTTI Symmetric 6x6 tensor in Voigt notation, fully overwritten.
- * @todo VERIFY: axes and sign convention of theta and phi, and the Voigt component order
- * (0=xx, 1=yy, 2=zz, 3=yz, 4=xz, 5=xy assumed).
+ *
+ * The symmetry axis is (sin(theta)cos(phi), sin(theta)sin(phi), cos(theta)) and the Voigt
+ * order is 0=xx, 1=yy, 2=zz, 3=yz, 4=xz, 5=xy.
  * @todo VERIFY: units of vp, vs and rho (m/s and kg/m^3 assumed).
  */
 template <typename FloatType>
@@ -161,16 +162,12 @@ PROXY_HOST_DEVICE void computeCTensor(FloatType vp, FloatType vs, FloatType rho,
   FloatType cphi = std::cos(phi_rad);
   FloatType sphi = std::sin(phi_rad);
 
-  FloatType R[3][3];
-  R[0][0] = ctheta * cphi;
-  R[0][1] = ctheta * sphi;
-  R[0][2] = -stheta;
-  R[1][0] = -sphi;
-  R[1][1] = cphi;
-  R[1][2] = 0.0;
-  R[2][0] = stheta * cphi;
-  R[2][1] = stheta * sphi;
-  R[2][2] = ctheta;
+  // Rotates the VTI axis to (sin(theta)cos(phi), sin(theta)sin(phi), cos(theta)).
+  // Built as a braced initializer: same values as nine separate assignments,
+  // but a single-construction AST (nvc++ 23.1's backend chokes on the split
+  // form once the #418 kernels inline this function).
+  const FloatType R[3][3] = {
+      {ctheta * cphi, -sphi, stheta * cphi}, {ctheta * sphi, cphi, stheta * sphi}, {-stheta, 0.0, ctheta}};
 
   FloatType M[6][6] = {0.0};
   M[0][0] = R[0][0] * R[0][0];

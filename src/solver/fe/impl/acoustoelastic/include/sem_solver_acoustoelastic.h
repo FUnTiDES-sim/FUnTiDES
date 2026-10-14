@@ -149,6 +149,12 @@ class SEMsolverAcoustoElastic : public Solver {
     interface_property_convention_ = convention;
   }
 
+  void setSolidOnInterfaceNodes(const vectorReal& vp, const vectorReal& vs, const vectorReal& rho) override {
+    m_vp_solid_node_ = vp;
+    m_vs_solid_node_ = vs;
+    m_rho_solid_node_ = rho;
+  }
+
   void setSLSAttenuation(const vectorReal& reference_frequencies,
                          const vectorReal& anelasticity_coefficients = vectorReal()) override {
     m_acoustic_solver_.setSLSAttenuation(reference_frequencies, anelasticity_coefficients);
@@ -174,30 +180,36 @@ class SEMsolverAcoustoElastic : public Solver {
   /// outward normal integrated over each interface face).
   void ComputeInterfaceCouplingCoefficients();
 
-  /// @brief Save the elastic displacement at time n-1 on the interface nodes,
-  /// before the elastic update overwrites it; needed by the elastic-to-acoustic coupling.
+  /// @brief Snapshot the neighbouring displacement level at the interface nodes
+  /// before the elastic update overwrites it; needed by the elastic-to-acoustic
+  /// coupling.  Forward this is u^{n-1}, backward it is u^{n+1}: either way it
+  /// is the previous buffer, read before the Verlet writes the new level.
   void SaveInterfaceUnm1(const DataType& data);
 
   /**
-   * @brief Apply the acoustic-to-elastic coupling after the Verlet update.
-   * @param dt   Time step.
-   * @param data Coupled solver data.
+   * @brief Apply acoustic→elastic coupling post-Verlet.
+   * @param dt       Time step.
+   * @param data     Coupled solver data.
+   * @param backward True in adjoint mode, where the Verlet has written the new
+   *                 level into the prevPrev buffer instead of the previous one.
    */
-  void ApplyCouplingAcousticToElastic(float dt, const DataType& data);
+  void ApplyCouplingAcousticToElastic(float dt, const DataType& data, bool backward);
 
   /**
-   * @brief Apply the elastic-to-acoustic coupling after the Verlet update.
-   * @param dt   Time step.
-   * @param data Coupled solver data.
+   * @brief Apply elastic→acoustic coupling post-Verlet.
+   * @param dt       Time step.
+   * @param data     Coupled solver data.
+   * @param backward True in adjoint mode (new level in the prevPrev buffer).
    */
-  void ApplyCouplingElasticToAcoustic(float dt, const DataType& data);
+  void ApplyCouplingElasticToAcoustic(float dt, const DataType& data, bool backward);
 
   /**
    * @brief Enforce the fluid/solid interface conditions on the two predictors.
-   * @param dt   Time step.
-   * @param data Coupled solver data, with both sub-domains already advanced.
+   * @param dt       Time step.
+   * @param data     Coupled solver data, with both sub-domains already advanced.
+   * @param backward True in adjoint mode (new level in the prevPrev buffer).
    */
-  void ApplyInterfaceCoupling(float dt, const DataType& data);
+  void ApplyInterfaceCoupling(float dt, const DataType& data, bool backward);
 
   /**
    * @brief Write the solid or the fluid properties into the model at the interface nodes, on the device.
@@ -251,6 +263,11 @@ class SEMsolverAcoustoElastic : public Solver {
   /// Valid only when IS_MODEL_ON_NODES is true.
   vectorReal m_vp_fluid_iface_;
   vectorReal m_rho_fluid_iface_;
+
+  /// Optional per-node solid vp, vs and rho set by setSolidOnInterfaceNodes; empty when unset.
+  vectorReal m_vp_solid_node_;
+  vectorReal m_vs_solid_node_;
+  vectorReal m_rho_solid_node_;
 
   /// Drives how TagNodes fills the solid side of the interface nodes; must be set before computeFEInit.
   utils::enums::interfacePropertyConvention interface_property_convention_{
