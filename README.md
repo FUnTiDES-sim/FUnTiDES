@@ -181,8 +181,9 @@ python ./scripts/adios/inspect_bp5.py <bp_folder>
 python ./scripts/adios/inspect_bp5_detailed.py <bp_folder>
 ```
 
-`adios_cartesian_snap_viz.py` and `adios_single_receiver_viz.py` plot the snapshots
-(`snapshots.bp`) and receivers (`receivers.bp`) written by the `funtides-sem` driver:
+`adios_cartesian_snap_viz.py` and `adios_single_receiver_viz.py` plot snapshots
+(`snapshots.bp`) and receivers (`receivers.bp`) stored as a single 3D `PressureField`
+variable and an `AccousticReceiver` variable:
 
 ```bash
 python ./scripts/adios/adios_cartesian_snap_viz.py 201 201 201 --file snapshots.bp --slice
@@ -190,7 +191,8 @@ python ./scripts/adios/adios_single_receiver_viz.py
 ```
 
 where the 201 values are the number of nodes on x, y and z. They do not read the
-snapshots written through the `io` module yet.
+snapshots written through the `io` module yet (one flat `field` variable per rank,
+no receivers).
 
 ## Code Coverage
 

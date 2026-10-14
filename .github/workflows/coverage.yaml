@@ -65,7 +65,7 @@ jobs:
           KOKKOS_NUM_THREADS: 2
         run: |
           cd build
-          ctest -LE "benchmark|validation" --output-on-failure
+          ctest -LE "benchmark" --output-on-failure
 
       - name: Generate Coverage Report
         run: |
