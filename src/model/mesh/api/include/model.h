@@ -72,6 +72,11 @@ enum AnisotropyType : uint8_t {
  *
  * Material properties are stored either per node or per element, see isModelOnNodes(). Methods marked PROXY_HOST_DEVICE
  * may be called from Kokkos kernels through the concrete type; the others are host only.
+ *
+ * Implementations keep their arrays as Kokkos::DualView: PROXY_HOST_DEVICE accessors read the device copy in kernels
+ * and the host copy on the host. A model is built on the host and synchronized to the device by its constructor;
+ * after that, syncToDevice() and syncToHost() propagate later modifications (see each implementation for the
+ * methods that modify the arrays).
  * @see docs/design.md, sections "Hexahedron local numbering" and "Device calls on mesh objects".
  *
  * @todo VERIFY: are all lengths (coordinates, domainSize(), getMinSpacing()) in meters, as
@@ -381,6 +386,21 @@ class ModelApi {
    * @param[in] qs S-wave quality factor, meaningful for elastic models only.
    */
   virtual void setQualityFactors(FloatType qp, FloatType qs) = 0;
+
+  /**
+   * @brief Copy to the device the arrays modified on the host since the last synchronization.
+   *
+   * Host only. Arrays that were not modified on the host are not copied, so calling it when nothing changed costs
+   * nothing.
+   */
+  virtual void syncToDevice() {}
+
+  /**
+   * @brief Copy to the host the arrays modified on the device since the last synchronization.
+   *
+   * Host only. Call it before reading on the host an array that kernels modified (and declared so).
+   */
+  virtual void syncToHost() {}
 
   /**
    * @brief Get the number of distinct faces of the mesh. Requires buildFaceConnectivity().

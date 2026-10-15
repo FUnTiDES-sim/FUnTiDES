@@ -51,9 +51,10 @@ template <bool kOnNodes>
 using AcousticSolver = SEMsolver<kOrder, Integral, Mesh, kOnNodes, utils::enums::physicType::kAcoustic>;
 using ElasticSolver = SEMsolver<kOrder, Integral, Mesh, true, utils::enums::physicType::kElastic>;
 
-vectorReal MakeUniform(int size, float value, const char* name) {
-  vectorReal values = allocateVector<vectorReal>(size, name);
-  for (int i = 0; i < size; ++i) values(i) = value;
+dualVectorReal MakeUniform(int size, float value, const char* name) {
+  dualVectorReal values = allocateVector<dualVectorReal>(size, name);
+  Kokkos::deep_copy(values.view_host(), value);
+  values.modify_host();
   return values;
 }
 
@@ -84,21 +85,21 @@ std::shared_ptr<model::ModelApi<float, int>> MakeDeformedMesh(bool on_nodes, boo
   data.isModelOnNodes_ = on_nodes;
   data.isElastic_ = elastic;
 
-  data.nodes_coords_x_ = allocateVector<vectorReal>(kNumNodes, "nodes coords x");
-  data.nodes_coords_y_ = allocateVector<vectorReal>(kNumNodes, "nodes coords y");
-  data.nodes_coords_z_ = allocateVector<vectorReal>(kNumNodes, "nodes coords z");
+  data.nodes_coords_x_ = allocateVector<dualVectorReal>(kNumNodes, "nodes coords x");
+  data.nodes_coords_y_ = allocateVector<dualVectorReal>(kNumNodes, "nodes coords y");
+  data.nodes_coords_z_ = allocateVector<dualVectorReal>(kNumNodes, "nodes coords z");
   for (int k = 0; k < kNodesZ; ++k)
     for (int j = 0; j < kNodesY; ++j)
       for (int i = 0; i < kNodesX; ++i) {
         int const node = i + j * kNodesX + k * kNodesX * kNodesY;
         bool const inner = k > 0 && k < kNodesZ - 1;
         float const shift = inner ? 0.2f * kStepZ * std::sin(1.9f * static_cast<float>(node) + 0.4f) : 0.0f;
-        data.nodes_coords_x_(node) = static_cast<float>(i) * kStepX;
-        data.nodes_coords_y_(node) = static_cast<float>(j) * kStepY;
-        data.nodes_coords_z_(node) = static_cast<float>(k) * kStepZ + shift;
+        data.nodes_coords_x_.view_host()(node) = static_cast<float>(i) * kStepX;
+        data.nodes_coords_y_.view_host()(node) = static_cast<float>(j) * kStepY;
+        data.nodes_coords_z_.view_host()(node) = static_cast<float>(k) * kStepZ + shift;
       }
 
-  data.global_node_index_ = allocateArray2D<arrayInt>(kNumElements, kPointsPerElement, "global node index");
+  data.global_node_index_ = allocateArray2D<dualArrayInt>(kNumElements, kPointsPerElement, "global node index");
   for (int n = 0; n < kElementsZ; ++n)
     for (int m = 0; m < kElementsY; ++m)
       for (int l = 0; l < kElementsX; ++l) {
@@ -106,7 +107,8 @@ std::shared_ptr<model::ModelApi<float, int>> MakeDeformedMesh(bool on_nodes, boo
         for (int k = 0; k < 2; ++k)
           for (int j = 0; j < 2; ++j)
             for (int i = 0; i < 2; ++i)
-              data.global_node_index_(e, i + 2 * j + 4 * k) = (l + i) + (m + j) * kNodesX + (n + k) * kNodesX * kNodesY;
+              data.global_node_index_.view_host()(e, i + 2 * j + 4 * k) =
+                  (l + i) + (m + j) * kNodesX + (n + k) * kNodesX * kNodesY;
       }
 
   // Same uniform material as the Cartesian builder.

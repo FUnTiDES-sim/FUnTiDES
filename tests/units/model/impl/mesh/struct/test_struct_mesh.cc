@@ -842,13 +842,13 @@ TYPED_TEST(ModelStructTest, PerElementMaterialArraysUsedWhenPopulated) {
   data.isElastic_ = true;
 
   int n_elem = 8;
-  data.model_vp_element_ = allocateVector<vectorReal>(n_elem, "vp_e");
-  data.model_vs_element_ = allocateVector<vectorReal>(n_elem, "vs_e");
-  data.model_rho_element_ = allocateVector<vectorReal>(n_elem, "rho_e");
+  data.model_vp_element_ = allocateVector<dualVectorReal>(n_elem, "vp_e");
+  data.model_vs_element_ = allocateVector<dualVectorReal>(n_elem, "vs_e");
+  data.model_rho_element_ = allocateVector<dualVectorReal>(n_elem, "rho_e");
   for (int e = 0; e < n_elem; ++e) {
-    data.model_vp_element_(e) = 3000.0f;
-    data.model_vs_element_(e) = 1500.0f;
-    data.model_rho_element_(e) = 2000.0f;
+    data.model_vp_element_.view_host()(e) = 3000.0f;
+    data.model_vs_element_.view_host()(e) = 1500.0f;
+    data.model_rho_element_.view_host()(e) = 2000.0f;
   }
 
   ModelStructType model(data);
@@ -874,13 +874,13 @@ TYPED_TEST(ModelStructTest, PerNodeMaterialArraysUsedWhenPopulated) {
 
   constexpr int Order = TestFixture::Order;
   int n_nodes = (Order * 2 + 1) * (Order * 2 + 1) * (Order * 2 + 1);
-  data.model_vp_node_ = allocateVector<vectorReal>(n_nodes, "vp_n");
-  data.model_vs_node_ = allocateVector<vectorReal>(n_nodes, "vs_n");
-  data.model_rho_node_ = allocateVector<vectorReal>(n_nodes, "rho_n");
+  data.model_vp_node_ = allocateVector<dualVectorReal>(n_nodes, "vp_n");
+  data.model_vs_node_ = allocateVector<dualVectorReal>(n_nodes, "vs_n");
+  data.model_rho_node_ = allocateVector<dualVectorReal>(n_nodes, "rho_n");
   for (int n = 0; n < n_nodes; ++n) {
-    data.model_vp_node_(n) = 2500.0f;
-    data.model_vs_node_(n) = 1200.0f;
-    data.model_rho_node_(n) = 1800.0f;
+    data.model_vp_node_.view_host()(n) = 2500.0f;
+    data.model_vs_node_.view_host()(n) = 1200.0f;
+    data.model_rho_node_.view_host()(n) = 1800.0f;
   }
 
   ModelStructType model(data);
@@ -905,13 +905,13 @@ TYPED_TEST(ModelStructTest, SetModelNodePropsUpdatesValues) {
 
   constexpr int Order = TestFixture::Order;
   int n_nodes = (Order * 2 + 1) * (Order * 2 + 1) * (Order * 2 + 1);
-  data.model_vp_node_ = allocateVector<vectorReal>(n_nodes, "vp_n");
-  data.model_vs_node_ = allocateVector<vectorReal>(n_nodes, "vs_n");
-  data.model_rho_node_ = allocateVector<vectorReal>(n_nodes, "rho_n");
+  data.model_vp_node_ = allocateVector<dualVectorReal>(n_nodes, "vp_n");
+  data.model_vs_node_ = allocateVector<dualVectorReal>(n_nodes, "vs_n");
+  data.model_rho_node_ = allocateVector<dualVectorReal>(n_nodes, "rho_n");
   for (int n = 0; n < n_nodes; ++n) {
-    data.model_vp_node_(n) = 1500.0f;
-    data.model_vs_node_(n) = 755.0f;
-    data.model_rho_node_(n) = 1.0f;
+    data.model_vp_node_.view_host()(n) = 1500.0f;
+    data.model_vs_node_.view_host()(n) = 755.0f;
+    data.model_rho_node_.view_host()(n) = 1.0f;
   }
 
   ModelStructType model(data);

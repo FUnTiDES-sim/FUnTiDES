@@ -13,6 +13,9 @@ namespace model {
  *
  * Filled by the builder of a structured Cartesian mesh, then copied into the model.
  *
+ * Arrays are DualViews: the builder fills their host side and calls modify_host(), and the
+ * ModelStruct constructor copies them to the device.
+ *
  * @tparam FloatType Floating point type.
  * @tparam ScalarType Integer type used for indexing.
  */
@@ -29,23 +32,23 @@ struct ModelStructData final : public ModelDataBase<FloatType, ScalarType> {
   /// the element size from them; is dx_, dy_, dz_ a domain length or an element size?
   FloatType dx_, dy_, dz_;
   FloatType ox_{0.0f}, oy_{0.0f}, oz_{0.0f};  ///< Origin of the local subdomain.
-  vectorInt boundaries_t_;  ///< Per-node BoundaryFlag values; empty when no boundary data is provided.
+  dualVectorInt boundaries_t_;  ///< Per-node BoundaryFlag values; empty when no boundary data is provided.
 
   bool isModelOnNodes_;  ///< True if material properties are given per node, false if per element.
   bool isElastic_;       ///< True for an elastic model, false for an acoustic one.
 
   /// Optional material arrays. When an array is empty, the matching getter of ModelStruct
   /// returns a hardcoded uniform value (given in each line).
-  vectorReal model_vp_element_;   ///< Per-element Vp (empty: 1500).
-  vectorReal model_vs_element_;   ///< Per-element Vs (empty: 755).
-  vectorReal model_rho_element_;  ///< Per-element rho (empty: 1).
-  vectorReal model_vp_node_;      ///< Per-node Vp (empty: 1500).
-  vectorReal model_vs_node_;      ///< Per-node Vs (empty: 755).
-  vectorReal model_rho_node_;     ///< Per-node rho (empty: 1).
-  vectorReal model_qp_element_;   ///< Per-element P quality factor (empty: 1.0e9).
-  vectorReal model_qs_element_;   ///< Per-element S quality factor (empty: 1.0e9).
-  vectorReal model_qp_node_;      ///< Per-node P quality factor (empty: 1.0e9).
-  vectorReal model_qs_node_;      ///< Per-node S quality factor (empty: 1.0e9).
+  dualVectorReal model_vp_element_;   ///< Per-element Vp (empty: 1500).
+  dualVectorReal model_vs_element_;   ///< Per-element Vs (empty: 755).
+  dualVectorReal model_rho_element_;  ///< Per-element rho (empty: 1).
+  dualVectorReal model_vp_node_;      ///< Per-node Vp (empty: 1500).
+  dualVectorReal model_vs_node_;      ///< Per-node Vs (empty: 755).
+  dualVectorReal model_rho_node_;     ///< Per-node rho (empty: 1).
+  dualVectorReal model_qp_element_;   ///< Per-element P quality factor (empty: 1.0e9).
+  dualVectorReal model_qs_element_;   ///< Per-element S quality factor (empty: 1.0e9).
+  dualVectorReal model_qp_node_;      ///< Per-node P quality factor (empty: 1.0e9).
+  dualVectorReal model_qs_node_;      ///< Per-node S quality factor (empty: 1.0e9).
 };
 
 /**
@@ -66,7 +69,9 @@ class ModelStruct final : public ModelApi<FloatType, ScalarType> {
 
   PROXY_HOST_DEVICE ModelStruct() = default;
 
-  PROXY_HOST_DEVICE ModelStruct(const ModelStructData<FloatType, ScalarType>& data)
+  /// Copies the parameters and shares the arrays of @p data, then copies to the device the arrays
+  /// whose host side was modified. Host only.
+  ModelStruct(const ModelStructData<FloatType, ScalarType>& data)
       : ex_(data.ex_),
         ey_(data.ey_),
         ez_(data.ez_),
@@ -97,6 +102,8 @@ class ModelStruct final : public ModelApi<FloatType, ScalarType> {
     hx_ = lx_ / static_cast<FloatType>(ex_);
     hy_ = ly_ / static_cast<FloatType>(ey_);
     hz_ = lz_ / static_cast<FloatType>(ez_);
+
+    syncToDevice();
   }
 
   PROXY_HOST_DEVICE ModelStruct(const ModelStruct&) = default;
@@ -206,39 +213,42 @@ class ModelStruct final : public ModelApi<FloatType, ScalarType> {
 
   /// @brief Vp at node @p n; 1500 when no per-node array is stored.
   PROXY_HOST_DEVICE FloatType getModelVpOnNodes(ScalarType n) const final {
-    if (model_vp_node_.extent(0) > 0) return model_vp_node_[n];
+    if (model_vp_node_.extent(0) > 0) return dualAt(model_vp_node_, n);
     return 1500.0f;
   }
   /// @brief Vp of element @p e; 1500 when no per-element array is stored.
   PROXY_HOST_DEVICE FloatType getModelVpOnElement(ScalarType e) const final {
-    if (model_vp_element_.extent(0) > 0) return model_vp_element_[e];
+    if (model_vp_element_.extent(0) > 0) return dualAt(model_vp_element_, e);
     return 1500.0f;
   }
   /// @brief Density at node @p n; 1 when no per-node array is stored.
   PROXY_HOST_DEVICE FloatType getModelRhoOnNodes(ScalarType n) const final {
-    if (model_rho_node_.extent(0) > 0) return model_rho_node_[n];
+    if (model_rho_node_.extent(0) > 0) return dualAt(model_rho_node_, n);
     return 1.0f;
   }
   /// @brief Density of element @p e; 1 when no per-element array is stored.
   PROXY_HOST_DEVICE FloatType getModelRhoOnElement(ScalarType e) const final {
-    if (model_rho_element_.extent(0) > 0) return model_rho_element_[e];
+    if (model_rho_element_.extent(0) > 0) return dualAt(model_rho_element_, e);
     return 1.0f;
   }
   /// @brief Vs at node @p n; 755 when no per-node array is stored.
   PROXY_HOST_DEVICE FloatType getModelVsOnNodes(ScalarType n) const final {
-    if (model_vs_node_.extent(0) > 0) return model_vs_node_[n];
+    if (model_vs_node_.extent(0) > 0) return dualAt(model_vs_node_, n);
     return 755.0f;
   }
   /// @brief Vs of element @p e; 755 when no per-element array is stored.
   PROXY_HOST_DEVICE FloatType getModelVsOnElement(ScalarType e) const final {
-    if (model_vs_element_.extent(0) > 0) return model_vs_element_[e];
+    if (model_vs_element_.extent(0) > 0) return dualAt(model_vs_element_, e);
     return 755.0f;
   }
 
   /**
    * @brief Overwrites the stored material properties at one node.
    *
-   * Only the arrays that are allocated are written. Host-only.
+   * Only the arrays that are allocated are written: the device copy in a kernel, the host copy on
+   * the host. Once the writes are done, declare them from the host with
+   * markNodePropsModifiedOnDevice() (after a kernel) or markNodePropsModifiedOnHost() (after a host
+   * loop, followed by syncToDevice() before the next kernel).
    *
    * @param n Global node index.
    * @param vp P-wave velocity (m/s).
@@ -246,29 +256,48 @@ class ModelStruct final : public ModelApi<FloatType, ScalarType> {
    * @param rho Density (kg/m^3).
    */
   PROXY_HOST_DEVICE void setModelNodeProps(ScalarType n, FloatType vp, FloatType vs, FloatType rho) const {
-    if (model_vp_node_.extent(0) > 0) model_vp_node_[n] = vp;
-    if (model_vs_node_.extent(0) > 0) model_vs_node_[n] = vs;
-    if (model_rho_node_.extent(0) > 0) model_rho_node_[n] = rho;
+    if (model_vp_node_.extent(0) > 0) dualSet(model_vp_node_, vp, n);
+    if (model_vs_node_.extent(0) > 0) dualSet(model_vs_node_, vs, n);
+    if (model_rho_node_.extent(0) > 0) dualSet(model_rho_node_, rho, n);
+  }
+
+  /// @brief Declares that setModelNodeProps() wrote the device copy of vp, vs and rho. Host only.
+  ///
+  /// Aborts (Kokkos DualView check) if the host copy holds modifications not yet synchronized.
+  /// Unallocated arrays are ignored.
+  void markNodePropsModifiedOnDevice() {
+    model_vp_node_.modify_device();
+    model_vs_node_.modify_device();
+    model_rho_node_.modify_device();
+  }
+
+  /// @brief Declares that setModelNodeProps() wrote the host copy of vp, vs and rho. Host only.
+  ///
+  /// Call syncToDevice() before the next kernel reads them.
+  void markNodePropsModifiedOnHost() {
+    model_vp_node_.modify_host();
+    model_vs_node_.modify_host();
+    model_rho_node_.modify_host();
   }
 
   /// @brief P quality factor at node @p n; 1.0e9 when no per-node array is stored.
   PROXY_HOST_DEVICE FloatType getModelQpOnNodes(ScalarType n) const final {
-    if (model_qp_node_.extent(0) > 0) return model_qp_node_[n];
+    if (model_qp_node_.extent(0) > 0) return dualAt(model_qp_node_, n);
     return 1.0e9f;
   }
   /// @brief P quality factor of element @p e; 1.0e9 when no per-element array is stored.
   PROXY_HOST_DEVICE FloatType getModelQpOnElement(ScalarType e) const final {
-    if (model_qp_element_.extent(0) > 0) return model_qp_element_[e];
+    if (model_qp_element_.extent(0) > 0) return dualAt(model_qp_element_, e);
     return 1.0e9f;
   }
   /// @brief S quality factor at node @p n; 1.0e9 when no per-node array is stored.
   PROXY_HOST_DEVICE FloatType getModelQsOnNodes(ScalarType n) const final {
-    if (model_qs_node_.extent(0) > 0) return model_qs_node_[n];
+    if (model_qs_node_.extent(0) > 0) return dualAt(model_qs_node_, n);
     return 1.0e9f;
   }
   /// @brief S quality factor of element @p e; 1.0e9 when no per-element array is stored.
   PROXY_HOST_DEVICE FloatType getModelQsOnElement(ScalarType e) const final {
-    if (model_qs_element_.extent(0) > 0) return model_qs_element_[e];
+    if (model_qs_element_.extent(0) > 0) return dualAt(model_qs_element_, e);
     return 1.0e9f;
   }
 
@@ -383,24 +412,37 @@ class ModelStruct final : public ModelApi<FloatType, ScalarType> {
   /// @brief Boundary flag of node @p n; InteriorNode when no boundary data is stored.
   PROXY_HOST_DEVICE BoundaryFlag boundaryType(ScalarType n) const override {
     if (boundaries_t_.extent(0) == 0) return BoundaryFlag::InteriorNode;
-    return static_cast<BoundaryFlag>(boundaries_t_(n));
+    return static_cast<BoundaryFlag>(dualAt(boundaries_t_, n));
   }
 
   /// @brief True if node @p n is flagged Surface; false when no boundary data is stored.
   PROXY_HOST_DEVICE bool isFreeSurface(ScalarType n) const override {
     if (boundaries_t_.extent(0) == 0) return false;
-    return boundaries_t_(n) == static_cast<ScalarType>(BoundaryFlag::Surface);
+    return dualAt(boundaries_t_, n) == static_cast<ScalarType>(BoundaryFlag::Surface);
   }
 
-  /// @brief Sets a uniform per-element quality factor for P and S waves; host-only.
+  /// @brief Sets a uniform per-element quality factor for P and S waves, on the host and the
+  /// device; host-only.
   void setQualityFactors(FloatType qp, FloatType qs) override {
     ScalarType nElem = getNumberOfElements();
-    model_qp_element_ = allocateVector<vectorReal>(nElem, "model_qp_element");
-    model_qs_element_ = allocateVector<vectorReal>(nElem, "model_qs_element");
-    for (ScalarType e = 0; e < nElem; ++e) {
-      model_qp_element_(e) = qp;
-      model_qs_element_(e) = qs;
-    }
+    model_qp_element_ = allocateVector<dualVectorReal>(nElem, "model_qp_element");
+    model_qs_element_ = allocateVector<dualVectorReal>(nElem, "model_qs_element");
+    Kokkos::deep_copy(model_qp_element_.view_host(), qp);
+    Kokkos::deep_copy(model_qs_element_.view_host(), qs);
+    model_qp_element_.modify_host();
+    model_qs_element_.modify_host();
+    model_qp_element_.sync_device();
+    model_qs_element_.sync_device();
+  }
+
+  /// @copydoc ModelApi::syncToDevice()
+  void syncToDevice() override {
+    forEachDualView([](auto& dv) { dv.sync_device(); });
+  }
+
+  /// @copydoc ModelApi::syncToHost()
+  void syncToHost() override {
+    forEachDualView([](auto& dv) { dv.sync_host(); });
   }
 
   /// @brief Rebuilds the face connectivity from the element counts.
@@ -426,7 +468,8 @@ class ModelStruct final : public ModelApi<FloatType, ScalarType> {
     if (boundaries_t_.extent(0) == 0) return face_connectivity_.isBoundaryFace(face_id);
     int const n_dofs = face_connectivity_.getDofsPerFace();
     for (int q = 0; q < n_dofs; ++q) {
-      if (boundaries_t_(getGlobalNodeFromFace(face_id, q)) == static_cast<ScalarType>(BoundaryFlag::InteriorNode))
+      if (dualAt(boundaries_t_, getGlobalNodeFromFace(face_id, q)) ==
+          static_cast<ScalarType>(BoundaryFlag::InteriorNode))
         return false;
     }
     return true;
@@ -443,6 +486,22 @@ class ModelStruct final : public ModelApi<FloatType, ScalarType> {
   }
 
  private:
+  /// Applies @p f to every DualView member (sync and modify helpers).
+  template <typename F>
+  void forEachDualView(F&& f) {
+    f(boundaries_t_);
+    f(model_qp_element_);
+    f(model_qs_element_);
+    f(model_qp_node_);
+    f(model_qs_node_);
+    f(model_vp_element_);
+    f(model_vs_element_);
+    f(model_rho_element_);
+    f(model_vp_node_);
+    f(model_vs_node_);
+    f(model_rho_node_);
+  }
+
   ScalarType ex_, ey_, ez_;
   ScalarType nx_, ny_, nz_;
   FloatType lx_, ly_, lz_;
@@ -450,12 +509,12 @@ class ModelStruct final : public ModelApi<FloatType, ScalarType> {
   FloatType ox_, oy_, oz_;
   bool isModelOnNodes_;
   bool isElastic_;
-  array3DReal model_C_tensor_element_;
-  vectorInt boundaries_t_;
-  vectorReal model_qp_element_, model_qs_element_;
-  vectorReal model_qp_node_, model_qs_node_;
-  vectorReal model_vp_element_, model_vs_element_, model_rho_element_;
-  vectorReal model_vp_node_, model_vs_node_, model_rho_node_;
+  array3DReal model_C_tensor_element_;  ///< Device only, filled by initElasticityTensors().
+  dualVectorInt boundaries_t_;
+  dualVectorReal model_qp_element_, model_qs_element_;
+  dualVectorReal model_qp_node_, model_qs_node_;
+  dualVectorReal model_vp_element_, model_vs_element_, model_rho_element_;
+  dualVectorReal model_vp_node_, model_vs_node_, model_rho_node_;
   FaceConnectivityStruct<FloatType, ScalarType> face_connectivity_;
 };
 
