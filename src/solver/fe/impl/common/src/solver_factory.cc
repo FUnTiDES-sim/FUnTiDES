@@ -1,5 +1,6 @@
 #include "solver_factory.h"
 
+#include <Integrals.h>
 #include <model_struct.h>
 #include <model_unstruct.h>
 
@@ -45,14 +46,20 @@ std::unique_ptr<Solver> orderDispatch(int const order, FUNC&& func) {
   }
 }
 
+// ============================================================================
+// SEM solver (acoustic, elastic or acousto-elastic)
+// ============================================================================
+
 /**
- * @brief Creates a SEM-type solver (acoustic, elastic or acousto-elastic) for a structured mesh.
+ * @brief Creates a SEM-type solver for one mesh type.
  *
  * Any physic other than kAcoustic and kAcoustoElastic selects the elastic solver.
+ *
+ * @tparam MeshT Mesh type; structured meshes carry the polynomial order as a
+ *         template argument, unstructured meshes do not.
  */
-template <auto ImplTag, int ORDER>
-std::unique_ptr<Solver> makeSolverStruct(bool isModelOnNodes, feenum::physicType physic) {
-  using MeshT = model::ModelStruct<float, int, ORDER>;
+template <auto ImplTag, int ORDER, typename MeshT>
+std::unique_ptr<Solver> makeSemSolverForMesh(bool isModelOnNodes, feenum::physicType physic) {
   using SelectedIntegral = typename IntegralTypeSelector<ORDER, ImplTag>::type;
 
   if (physic == feenum::physicType::kAcoustic) {
@@ -79,46 +86,56 @@ std::unique_ptr<Solver> makeSolverStruct(bool isModelOnNodes, feenum::physicType
 }
 
 /**
- * @brief Creates a SEM-type solver (acoustic, elastic or acousto-elastic) for an unstructured mesh.
- *
- * Any physic other than kAcoustic and kAcoustoElastic selects the elastic solver.
+ * @brief Creates a SEM-type solver of order ORDER, selecting the mesh type.
  */
 template <auto ImplTag, int ORDER>
-std::unique_ptr<Solver> makeSolverUnstruct(bool isModelOnNodes, feenum::physicType physic) {
-  using MeshT = model::ModelUnstruct<float, int>;
-  using SelectedIntegral = typename IntegralTypeSelector<ORDER, ImplTag>::type;
+std::unique_ptr<Solver> makeSemSolverForOrder(bool isModelOnNodes, feenum::meshType mesh, feenum::physicType physic) {
+  if (mesh == feenum::meshType::kStruct) {
+    return makeSemSolverForMesh<ImplTag, ORDER, model::ModelStruct<float, int, ORDER>>(isModelOnNodes, physic);
+  }
+  return makeSemSolverForMesh<ImplTag, ORDER, model::ModelUnstruct<float, int>>(isModelOnNodes, physic);
+}
+
+/**
+ * @brief Creates a SEM-type solver, dispatching the runtime order, mesh type and physics to template arguments.
+ *
+ * The maximum supported order depends on the physics.
+ *
+ * @throws std::runtime_error If the order or the physics is unsupported.
+ */
+template <auto ImplTag>
+std::unique_ptr<Solver> makeSemSolver(int order, feenum::meshType mesh, feenum::modelLocationType modelLocation,
+                                      feenum::physicType physic) {
+  bool const isModelOnNodes = (modelLocation == feenum::modelLocationType::kOnNodes);
 
   if (physic == feenum::physicType::kAcoustic) {
-    if (isModelOnNodes)
-      return std::make_unique<
-          solver::fe::SEMsolver<ORDER, SelectedIntegral, MeshT, true, feenum::physicType::kAcoustic>>();
-    else
-      return std::make_unique<
-          solver::fe::SEMsolver<ORDER, SelectedIntegral, MeshT, false, feenum::physicType::kAcoustic>>();
+    return orderDispatch<MAX_SOLVER_ACOUSTIC_ORDER>(order, [&](auto orderIC) {
+      return makeSemSolverForOrder<ImplTag, decltype(orderIC)::value>(isModelOnNodes, mesh, physic);
+    });
+  } else if (physic == feenum::physicType::kElastic) {
+    return orderDispatch<MAX_SOLVER_ELASTIC_ORDER>(order, [&](auto orderIC) {
+      return makeSemSolverForOrder<ImplTag, decltype(orderIC)::value>(isModelOnNodes, mesh, physic);
+    });
   } else if (physic == feenum::physicType::kAcoustoElastic) {
-    if (isModelOnNodes)
-      return std::make_unique<solver::fe::SEMsolverAcoustoElastic<ORDER, SelectedIntegral, MeshT, true>>();
-    else
-      return std::make_unique<solver::fe::SEMsolverAcoustoElastic<ORDER, SelectedIntegral, MeshT, false>>();
-  } else  // any other value selects elastic
-  {
-    if (isModelOnNodes)
-      return std::make_unique<
-          solver::fe::SEMsolver<ORDER, SelectedIntegral, MeshT, true, feenum::physicType::kElastic>>();
-    else
-      return std::make_unique<
-          solver::fe::SEMsolver<ORDER, SelectedIntegral, MeshT, false, feenum::physicType::kElastic>>();
+    return orderDispatch<MAX_SOLVER_ELASTOACOUSTIC_ORDER>(order, [&](auto orderIC) {
+      return makeSemSolverForOrder<ImplTag, decltype(orderIC)::value>(isModelOnNodes, mesh, physic);
+    });
   }
+
+  throw std::runtime_error("Unknown physics type");
 }
 
 #ifdef COMPILE_DG
+// ============================================================================
+// DG solver (acoustic only)
+// ============================================================================
+
 /**
- * @brief Creates a DG solver for a structured mesh.
+ * @brief Creates a DG solver for one mesh type.
  * @throws std::runtime_error If physic is not kAcoustic.
  */
-template <auto ImplTag, int ORDER>
-std::unique_ptr<Solver> makeDgSolverStruct(bool isModelOnNodes, feenum::physicType physic) {
-  using MeshT = model::ModelStruct<float, int, ORDER>;
+template <auto ImplTag, int ORDER, typename MeshT>
+std::unique_ptr<Solver> makeDgSolverForMesh(bool isModelOnNodes, feenum::physicType physic) {
   using SelectedIntegral = typename IntegralTypeSelector<ORDER, ImplTag>::type;
 
   if (physic == feenum::physicType::kAcoustic) {
@@ -133,23 +150,14 @@ std::unique_ptr<Solver> makeDgSolverStruct(bool isModelOnNodes, feenum::physicTy
 }
 
 /**
- * @brief Creates a DG solver for an unstructured mesh.
- * @throws std::runtime_error If physic is not kAcoustic.
+ * @brief Creates a DG solver of order ORDER, selecting the mesh type.
  */
 template <auto ImplTag, int ORDER>
-std::unique_ptr<Solver> makeDgSolverUnstruct(bool isModelOnNodes, feenum::physicType physic) {
-  using MeshT = model::ModelUnstruct<float, int>;
-  using SelectedIntegral = typename IntegralTypeSelector<ORDER, ImplTag>::type;
-
-  if (physic == feenum::physicType::kAcoustic) {
-    if (isModelOnNodes)
-      return std::make_unique<
-          solver::fe::DGsolver<ORDER, SelectedIntegral, MeshT, true, feenum::physicType::kAcoustic>>();
-    else
-      return std::make_unique<
-          solver::fe::DGsolver<ORDER, SelectedIntegral, MeshT, false, feenum::physicType::kAcoustic>>();
+std::unique_ptr<Solver> makeDgSolverForOrder(bool isModelOnNodes, feenum::meshType mesh, feenum::physicType physic) {
+  if (mesh == feenum::meshType::kStruct) {
+    return makeDgSolverForMesh<ImplTag, ORDER, model::ModelStruct<float, int, ORDER>>(isModelOnNodes, physic);
   }
-  throw std::runtime_error("DG: unsupported physics type");
+  return makeDgSolverForMesh<ImplTag, ORDER, model::ModelUnstruct<float, int>>(isModelOnNodes, physic);
 }
 
 /**
@@ -161,21 +169,22 @@ std::unique_ptr<Solver> makeDgSolver(int order, feenum::meshType mesh, feenum::m
                                      feenum::physicType physic) {
   bool const isModelOnNodes = (modelLocation == feenum::modelLocationType::kOnNodes);
   return orderDispatch<MAX_DG_SOLVER_ACOUSTIC_ORDER>(order, [&](auto orderIC) {
-    constexpr int ORDER = decltype(orderIC)::value;
-    return (mesh == feenum::meshType::kStruct) ? makeDgSolverStruct<ImplTag, ORDER>(isModelOnNodes, physic)
-                                               : makeDgSolverUnstruct<ImplTag, ORDER>(isModelOnNodes, physic);
+    return makeDgSolverForOrder<ImplTag, decltype(orderIC)::value>(isModelOnNodes, mesh, physic);
   });
 }
 #endif
 
 #ifdef COMPILE_DG_SEM
+// ============================================================================
+// Coupled DG-SEM solver (acoustic only)
+// ============================================================================
+
 /**
- * @brief Creates a coupled DG-SEM solver for a structured mesh.
+ * @brief Creates a coupled DG-SEM solver for one mesh type.
  * @throws std::runtime_error If physic is not kAcoustic.
  */
-template <auto ImplTag, int ORDER>
-std::unique_ptr<Solver> makeDgSemSolverStruct(bool isModelOnNodes, feenum::physicType physic) {
-  using MeshT = model::ModelStruct<float, int, ORDER>;
+template <auto ImplTag, int ORDER, typename MeshT>
+std::unique_ptr<Solver> makeDgSemSolverForMesh(bool isModelOnNodes, feenum::physicType physic) {
   using SelectedIntegral = typename IntegralTypeSelector<ORDER, ImplTag>::type;
 
   if (physic == feenum::physicType::kAcoustic) {
@@ -190,23 +199,14 @@ std::unique_ptr<Solver> makeDgSemSolverStruct(bool isModelOnNodes, feenum::physi
 }
 
 /**
- * @brief Creates a coupled DG-SEM solver for an unstructured mesh.
- * @throws std::runtime_error If physic is not kAcoustic.
+ * @brief Creates a coupled DG-SEM solver of order ORDER, selecting the mesh type.
  */
 template <auto ImplTag, int ORDER>
-std::unique_ptr<Solver> makeDgSemSolverUnstruct(bool isModelOnNodes, feenum::physicType physic) {
-  using MeshT = model::ModelUnstruct<float, int>;
-  using SelectedIntegral = typename IntegralTypeSelector<ORDER, ImplTag>::type;
-
-  if (physic == feenum::physicType::kAcoustic) {
-    if (isModelOnNodes)
-      return std::make_unique<
-          solver::fe::DGSEMsolver<ORDER, SelectedIntegral, MeshT, true, feenum::physicType::kAcoustic>>();
-    else
-      return std::make_unique<
-          solver::fe::DGSEMsolver<ORDER, SelectedIntegral, MeshT, false, feenum::physicType::kAcoustic>>();
+std::unique_ptr<Solver> makeDgSemSolverForOrder(bool isModelOnNodes, feenum::meshType mesh, feenum::physicType physic) {
+  if (mesh == feenum::meshType::kStruct) {
+    return makeDgSemSolverForMesh<ImplTag, ORDER, model::ModelStruct<float, int, ORDER>>(isModelOnNodes, physic);
   }
-  throw std::runtime_error("DG-SEM: unsupported physics type");
+  return makeDgSemSolverForMesh<ImplTag, ORDER, model::ModelUnstruct<float, int>>(isModelOnNodes, physic);
 }
 
 /**
@@ -218,22 +218,24 @@ std::unique_ptr<Solver> makeDgSemSolver(int order, feenum::meshType mesh, feenum
                                         feenum::physicType physic) {
   bool const isModelOnNodes = (modelLocation == feenum::modelLocationType::kOnNodes);
   return orderDispatch<MAX_DG_SEM_SOLVER_ACOUSTIC_ORDER>(order, [&](auto orderIC) {
-    constexpr int ORDER = decltype(orderIC)::value;
-    return (mesh == feenum::meshType::kStruct) ? makeDgSemSolverStruct<ImplTag, ORDER>(isModelOnNodes, physic)
-                                               : makeDgSemSolverUnstruct<ImplTag, ORDER>(isModelOnNodes, physic);
+    return makeDgSemSolverForOrder<ImplTag, decltype(orderIC)::value>(isModelOnNodes, mesh, physic);
   });
 }
 #endif
 
 #ifdef COMPILE_DG_PADAPTIVE
+// ============================================================================
+// DG p-adaptive solver (acoustic only)
+// ============================================================================
+
 /**
- * @brief Creates a DG p-adaptive solver for a structured mesh.
+ * @brief Creates a DG p-adaptive solver for one mesh type.
+ *
+ * The structured mesh type carries ORDER_MAX as its polynomial order.
  * @throws std::runtime_error If physic is not kAcoustic.
  */
-template <auto ImplTag, int ORDER_MIN, int ORDER_MAX>
-std::unique_ptr<Solver> makeDgPAdaptiveSolverStruct(bool isModelOnNodes, feenum::physicType physic) {
-  using MeshT = model::ModelStruct<float, int, ORDER_MAX>;
-
+template <auto ImplTag, int ORDER_MIN, int ORDER_MAX, typename MeshT>
+std::unique_ptr<Solver> makeDgPAdaptiveSolverForMesh(bool isModelOnNodes, feenum::physicType physic) {
   if (physic == feenum::physicType::kAcoustic) {
     if (isModelOnNodes)
       return std::make_unique<solver::fe::DGPAdaptiveSolver<ORDER_MIN, ORDER_MAX, IntegralTypeSelector, ImplTag, MeshT,
@@ -246,22 +248,17 @@ std::unique_ptr<Solver> makeDgPAdaptiveSolverStruct(bool isModelOnNodes, feenum:
 }
 
 /**
- * @brief Creates a DG p-adaptive solver for an unstructured mesh.
- * @throws std::runtime_error If physic is not kAcoustic.
+ * @brief Creates a DG p-adaptive solver of orders (ORDER_MIN, ORDER_MAX), selecting the mesh type.
  */
 template <auto ImplTag, int ORDER_MIN, int ORDER_MAX>
-std::unique_ptr<Solver> makeDgPAdaptiveSolverUnstruct(bool isModelOnNodes, feenum::physicType physic) {
-  using MeshT = model::ModelUnstruct<float, int>;
-
-  if (physic == feenum::physicType::kAcoustic) {
-    if (isModelOnNodes)
-      return std::make_unique<solver::fe::DGPAdaptiveSolver<ORDER_MIN, ORDER_MAX, IntegralTypeSelector, ImplTag, MeshT,
-                                                            true, feenum::physicType::kAcoustic>>();
-    else
-      return std::make_unique<solver::fe::DGPAdaptiveSolver<ORDER_MIN, ORDER_MAX, IntegralTypeSelector, ImplTag, MeshT,
-                                                            false, feenum::physicType::kAcoustic>>();
+std::unique_ptr<Solver> makeDgPAdaptiveSolverForOrders(bool isModelOnNodes, feenum::meshType mesh,
+                                                        feenum::physicType physic) {
+  if (mesh == feenum::meshType::kStruct) {
+    return makeDgPAdaptiveSolverForMesh<ImplTag, ORDER_MIN, ORDER_MAX, model::ModelStruct<float, int, ORDER_MAX>>(
+        isModelOnNodes, physic);
   }
-  throw std::runtime_error("DG p-adaptive: unsupported physics type");
+  return makeDgPAdaptiveSolverForMesh<ImplTag, ORDER_MIN, ORDER_MAX, model::ModelUnstruct<float, int>>(
+      isModelOnNodes, physic);
 }
 
 /**
@@ -283,10 +280,8 @@ std::unique_ptr<Solver> makeDgPAdaptiveSolver(int order_min, int order_max, feen
 
         if constexpr (ORDER_MAX > 1) {
           return orderDispatch<ORDER_MAX - 1>(order_min, [&](auto orderMinIC) {
-            constexpr int ORDER_MIN = decltype(orderMinIC)::value;
-            return (mesh == feenum::meshType::kStruct)
-                       ? makeDgPAdaptiveSolverStruct<ImplTag, ORDER_MIN, ORDER_MAX>(isModelOnNodes, physic)
-                       : makeDgPAdaptiveSolverUnstruct<ImplTag, ORDER_MIN, ORDER_MAX>(isModelOnNodes, physic);
+            return makeDgPAdaptiveSolverForOrders<ImplTag, decltype(orderMinIC)::value, ORDER_MAX>(isModelOnNodes, mesh,
+                                                                                                   physic);
           });
         } else {
           throw std::runtime_error("DG p-adaptive requires order_max > 1");
@@ -294,41 +289,6 @@ std::unique_ptr<Solver> makeDgPAdaptiveSolver(int order_min, int order_max, feen
       });
 }
 #endif
-
-/**
- * @brief Creates a SEM-type solver, dispatching the runtime order, mesh type and physics to template arguments.
- *
- * The maximum supported order depends on the physics.
- *
- * @throws std::runtime_error If the order or the physics is unsupported.
- */
-template <auto ImplTag>
-std::unique_ptr<Solver> makeSemSolver(int order, feenum::meshType mesh, feenum::modelLocationType modelLocation,
-                                      feenum::physicType physic) {
-  bool const isModelOnNodes = (modelLocation == feenum::modelLocationType::kOnNodes);
-
-  if (physic == feenum::physicType::kAcoustic) {
-    return orderDispatch<MAX_SOLVER_ACOUSTIC_ORDER>(order, [&](auto orderIC) {
-      constexpr int ORDER = decltype(orderIC)::value;
-      return (mesh == feenum::meshType::kStruct) ? makeSolverStruct<ImplTag, ORDER>(isModelOnNodes, physic)
-                                                 : makeSolverUnstruct<ImplTag, ORDER>(isModelOnNodes, physic);
-    });
-  } else if (physic == feenum::physicType::kElastic) {
-    return orderDispatch<MAX_SOLVER_ELASTIC_ORDER>(order, [&](auto orderIC) {
-      constexpr int ORDER = decltype(orderIC)::value;
-      return (mesh == feenum::meshType::kStruct) ? makeSolverStruct<ImplTag, ORDER>(isModelOnNodes, physic)
-                                                 : makeSolverUnstruct<ImplTag, ORDER>(isModelOnNodes, physic);
-    });
-  } else if (physic == feenum::physicType::kAcoustoElastic) {
-    return orderDispatch<MAX_SOLVER_ELASTOACOUSTIC_ORDER>(order, [&](auto orderIC) {
-      constexpr int ORDER = decltype(orderIC)::value;
-      return (mesh == feenum::meshType::kStruct) ? makeSolverStruct<ImplTag, ORDER>(isModelOnNodes, physic)
-                                                 : makeSolverUnstruct<ImplTag, ORDER>(isModelOnNodes, physic);
-    });
-  }
-
-  throw std::runtime_error("Unknown physics type");
-}
 
 /**
  * @brief Creates the solver matching a run configuration.
@@ -391,8 +351,9 @@ std::unique_ptr<Solver> createSolver(feenum::methodType const methodType, feenum
 #endif
 
   throw std::runtime_error(
-      "Unsupported solver configuration: methodType=" + std::to_string(static_cast<int>(methodType)) + ", implemType=" +
-      std::to_string(static_cast<int>(implemType)) + ", physicType=" + std::to_string(static_cast<int>(physicType)));
+      "Unsupported solver configuration: methodType=" + std::to_string(static_cast<int>(methodType)) +
+      ", implemType=" + std::to_string(static_cast<int>(implemType)) + ", physicType=" +
+      std::to_string(static_cast<int>(physicType)));
 }
 
 }  // namespace solver_factory
