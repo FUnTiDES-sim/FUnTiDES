@@ -18,6 +18,9 @@ namespace model {
  * material arrays of the local subdomain. getModel() then assembles the model with boundary flags
  * classified against the global domain.
  *
+ * All arrays are DualViews filled on the host and marked modified there; the ModelUnstruct built
+ * by getModel() copies them to the device.
+ *
  * @tparam FloatType Floating-point type of the model data.
  * @tparam ScalarType Integer type of the model indices.
  */
@@ -87,12 +90,38 @@ class CartesianUnstructBuilder : public ModelBuilderBase<FloatType, ScalarType> 
                             global_oz_ + global_lz_, tol, free_surface_on_top)
                             .classify(n_node, nodes_coords_x_, nodes_coords_y_, nodes_coords_z_);
 
-    model::ModelUnstructData<FloatType, ScalarType> modelData(
-        order_, ex_ * ey_ * ez_, n_node, lx_, ly_, lz_, isModelOnNodes_, isElastic_, global_node_index_,
-        nodes_coords_x_, nodes_coords_y_, nodes_coords_z_, model_vp_node_, model_vp_element_, model_rho_node_,
-        model_rho_element_, model_vs_node_, model_vs_element_, model_delta_node_, model_delta_element_,
-        model_epsilon_node_, model_epsilon_element_, model_gamma_node_, model_gamma_element_, model_theta_node_,
-        model_theta_element_, model_phi_node_, model_phi_element_, model_C_tensor_element_, boundaries_t);
+    // The arrays are shared with the builder (shallow copies of the DualViews).
+    model::ModelUnstructData<FloatType, ScalarType> modelData;
+    modelData.order_ = order_;
+    modelData.n_element_ = ex_ * ey_ * ez_;
+    modelData.n_node_ = n_node;
+    modelData.lx_ = lx_;
+    modelData.ly_ = ly_;
+    modelData.lz_ = lz_;
+    modelData.isModelOnNodes_ = isModelOnNodes_;
+    modelData.isElastic_ = isElastic_;
+    modelData.global_node_index_ = global_node_index_;
+    modelData.nodes_coords_x_ = nodes_coords_x_;
+    modelData.nodes_coords_y_ = nodes_coords_y_;
+    modelData.nodes_coords_z_ = nodes_coords_z_;
+    modelData.model_vp_node_ = model_vp_node_;
+    modelData.model_vp_element_ = model_vp_element_;
+    modelData.model_rho_node_ = model_rho_node_;
+    modelData.model_rho_element_ = model_rho_element_;
+    modelData.model_vs_node_ = model_vs_node_;
+    modelData.model_vs_element_ = model_vs_element_;
+    modelData.model_delta_node_ = model_delta_node_;
+    modelData.model_delta_element_ = model_delta_element_;
+    modelData.model_epsilon_node_ = model_epsilon_node_;
+    modelData.model_epsilon_element_ = model_epsilon_element_;
+    modelData.model_gamma_node_ = model_gamma_node_;
+    modelData.model_gamma_element_ = model_gamma_element_;
+    modelData.model_theta_node_ = model_theta_node_;
+    modelData.model_theta_element_ = model_theta_element_;
+    modelData.model_phi_node_ = model_phi_node_;
+    modelData.model_phi_element_ = model_phi_element_;
+    modelData.model_C_tensor_element_ = model_C_tensor_element_;
+    modelData.boundaries_t_ = boundaries_t;
 
     modelData.ox_ = ox_;
     modelData.oy_ = oy_;
@@ -121,27 +150,27 @@ class CartesianUnstructBuilder : public ModelBuilderBase<FloatType, ScalarType> 
   FloatType DgSemBoundaryZ_{static_cast<FloatType>(0)};
   std::string model_file_;
 
-  arrayInt global_node_index_;  ///< Size numElements x (order+1)^3, global node of each local node.
-  vectorReal nodes_coords_x_;   ///< Size total node count, indexed by global node number.
-  vectorReal nodes_coords_y_;
-  vectorReal nodes_coords_z_;
+  dualArrayInt global_node_index_;  ///< Size numElements x (order+1)^3, global node of each local node.
+  dualVectorReal nodes_coords_x_;   ///< Size total node count, indexed by global node number.
+  dualVectorReal nodes_coords_y_;
+  dualVectorReal nodes_coords_z_;
 
-  vectorReal model_vp_node_;
-  vectorReal model_vp_element_;
-  vectorReal model_rho_node_;
-  vectorReal model_rho_element_;
-  vectorReal model_vs_node_;
-  vectorReal model_vs_element_;
-  vectorReal model_delta_node_;
-  vectorReal model_delta_element_;
-  vectorReal model_epsilon_node_;
-  vectorReal model_epsilon_element_;
-  vectorReal model_gamma_node_;
-  vectorReal model_gamma_element_;
-  vectorReal model_theta_node_;
-  vectorReal model_theta_element_;
-  vectorReal model_phi_node_;
-  vectorReal model_phi_element_;
+  dualVectorReal model_vp_node_;
+  dualVectorReal model_vp_element_;
+  dualVectorReal model_rho_node_;
+  dualVectorReal model_rho_element_;
+  dualVectorReal model_vs_node_;
+  dualVectorReal model_vs_element_;
+  dualVectorReal model_delta_node_;
+  dualVectorReal model_delta_element_;
+  dualVectorReal model_epsilon_node_;
+  dualVectorReal model_epsilon_element_;
+  dualVectorReal model_gamma_node_;
+  dualVectorReal model_gamma_element_;
+  dualVectorReal model_theta_node_;
+  dualVectorReal model_theta_element_;
+  dualVectorReal model_phi_node_;
+  dualVectorReal model_phi_element_;
   array3DReal model_C_tensor_element_;
 
   /// Fills global_node_index_. Elements are numbered i + j*ex + k*ex*ey, local nodes l + n*(order+1) + m*(order+1)^2
@@ -151,7 +180,8 @@ class CartesianUnstructBuilder : public ModelBuilderBase<FloatType, ScalarType> 
     int nodes_y = order_ + 1;
     int nodes_z = order_ + 1;
     int total_nodes = nodes_x * nodes_y * nodes_z;
-    global_node_index_ = allocateArray2D<arrayInt>(ex_ * ey_ * ez_, total_nodes, "global node index");
+    global_node_index_ = allocateArray2D<dualArrayInt>(ex_ * ey_ * ez_, total_nodes, "global node index");
+    auto global_node_index = global_node_index_.view_host();
     int nx = ex_ * order_ + 1;
     int ny = ey_ * order_ + 1;
     int nz = ez_ * order_ + 1;
@@ -167,13 +197,14 @@ class CartesianUnstructBuilder : public ModelBuilderBase<FloatType, ScalarType> 
               for (int l = 0; l < order_ + 1; l++) {
                 int dofLocal = l + n * (order_ + 1) + m * (order_ + 1) * (order_ + 1);
                 int dofGlobal = offset + l + n * nx + m * nx * ny;
-                global_node_index_(elementNum, dofLocal) = dofGlobal;
+                global_node_index(elementNum, dofLocal) = dofGlobal;
               }
             }
           }
         }
       }
     }
+    global_node_index_.modify_host();
   }
 
   /// Writes the order+1 GLL node coordinates of element n_element along one axis into coord.
@@ -195,9 +226,12 @@ class CartesianUnstructBuilder : public ModelBuilderBase<FloatType, ScalarType> 
     int nodes_z = ez_ * order_ + 1;
     int total_nodes = nodes_x * nodes_y * nodes_z;
 
-    nodes_coords_x_ = allocateVector<vectorReal>(total_nodes, "nodes coords x");
-    nodes_coords_y_ = allocateVector<vectorReal>(total_nodes, "nodes coords y");
-    nodes_coords_z_ = allocateVector<vectorReal>(total_nodes, "nodes coords z");
+    nodes_coords_x_ = allocateVector<dualVectorReal>(total_nodes, "nodes coords x");
+    nodes_coords_y_ = allocateVector<dualVectorReal>(total_nodes, "nodes coords y");
+    nodes_coords_z_ = allocateVector<dualVectorReal>(total_nodes, "nodes coords z");
+    auto coords_x_host = nodes_coords_x_.view_host();
+    auto coords_y_host = nodes_coords_y_.view_host();
+    auto coords_z_host = nodes_coords_z_.view_host();
 
     float coord_x[MAX_ORDER + 1];
     float coord_y[MAX_ORDER + 1];
@@ -224,9 +258,9 @@ class CartesianUnstructBuilder : public ModelBuilderBase<FloatType, ScalarType> 
                 int global_node_index = global_i + global_j * nodes_x + global_k * nodes_x * nodes_y;
 
                 if (global_i < nodes_x && global_j < nodes_y && global_k < nodes_z) {
-                  nodes_coords_x_(global_node_index) = coord_x[i];
-                  nodes_coords_y_(global_node_index) = coord_y[j];
-                  nodes_coords_z_(global_node_index) = coord_z[k];
+                  coords_x_host(global_node_index) = coord_x[i];
+                  coords_y_host(global_node_index) = coord_y[j];
+                  coords_z_host(global_node_index) = coord_z[k];
                 }
               }
             }
@@ -234,79 +268,63 @@ class CartesianUnstructBuilder : public ModelBuilderBase<FloatType, ScalarType> 
         }
       }
     }
+    nodes_coords_x_.modify_host();
+    nodes_coords_y_.modify_host();
+    nodes_coords_z_.modify_host();
   }
 
   /// Fills the material arrays (per node or per element) with uniform or two-layer values, then
-  /// overrides per-element properties from model_file_ if one is given.
+  /// overrides per-element properties from model_file_ if one is given. All writes go to the host
+  /// side of the DualViews, which are then marked modified on the host.
   void initModels() {
     // TODO: only uniform and two-layer models are generated; no user-defined material
     // variation other than the element-based model file.
     int n_element = ex_ * ey_ * ez_;
     int n_node = (ex_ * order_ + 1) * (ey_ * order_ + 1) * (ez_ * order_ + 1);
     if (isModelOnNodes_) {
-      model_rho_node_ = allocateVector<vectorReal>(n_node, "model rho node");
-      model_vp_node_ = allocateVector<vectorReal>(n_node, "model vp node");
+      model_rho_node_ = allocateVector<dualVectorReal>(n_node, "model rho node");
+      model_vp_node_ = allocateVector<dualVectorReal>(n_node, "model vp node");
+      auto rho = model_rho_node_.view_host();
+      auto vp = model_vp_node_.view_host();
 
       if (isAcoustoElastic_) {
         // Two layers: fluid for z >= boundary, solid below. The coupled solver classifies
         // elements by vs: vs = 0 means fluid.
-        model_vs_node_ = allocateVector<vectorReal>(n_node, "model vs node");
-        model_delta_node_ = allocateVector<vectorReal>(n_node, "model delta node");
-        model_gamma_node_ = allocateVector<vectorReal>(n_node, "model gamma node");
-        model_epsilon_node_ = allocateVector<vectorReal>(n_node, "model epsilon node");
-        model_theta_node_ = allocateVector<vectorReal>(n_node, "model theta node");
-        model_phi_node_ = allocateVector<vectorReal>(n_node, "model phi node");
+        allocateAnisotropyNodes(n_node);
+        auto vs = model_vs_node_.view_host();
+        auto coords_z = nodes_coords_z_.view_host();
 
         for (int n = 0; n < n_node; ++n) {
-          FloatType z = nodes_coords_z_(n);
+          FloatType z = coords_z(n);
           bool const is_fluid = (z >= acoustoElasticBoundaryZ_);
-          model_rho_node_[n] = is_fluid ? static_cast<FloatType>(1020) : static_cast<FloatType>(2500);
-          model_vp_node_[n] = is_fluid ? static_cast<FloatType>(1500) : static_cast<FloatType>(3000);
-          model_vs_node_[n] = is_fluid ? static_cast<FloatType>(0) : static_cast<FloatType>(1500);
-          model_delta_node_[n] = 0;
-          model_epsilon_node_[n] = 0;
-          model_gamma_node_[n] = 0;
-          model_theta_node_[n] = 0;
-          model_phi_node_[n] = 0;
+          rho(n) = is_fluid ? static_cast<FloatType>(1020) : static_cast<FloatType>(2500);
+          vp(n) = is_fluid ? static_cast<FloatType>(1500) : static_cast<FloatType>(3000);
+          vs(n) = is_fluid ? static_cast<FloatType>(0) : static_cast<FloatType>(1500);
         }
+        // delta, epsilon, gamma, theta and phi stay at 0 (allocations are zero-initialized).
       } else {
         for (int i = 0; i < n_node; i++) {
-          model_rho_node_[i] = 1;
-          model_vp_node_[i] = 1500;
+          rho(i) = 1;
+          vp(i) = 1500;
         }
         if (isElastic_) {
-          model_vs_node_ = allocateVector<vectorReal>(n_node, "model vs node");
-          model_delta_node_ = allocateVector<vectorReal>(n_node, "model delta node");
-          model_gamma_node_ = allocateVector<vectorReal>(n_node, "model gamma node");
-          model_epsilon_node_ = allocateVector<vectorReal>(n_node, "model epsilon node");
-          model_theta_node_ = allocateVector<vectorReal>(n_node, "model theta node");
-          model_phi_node_ = allocateVector<vectorReal>(n_node, "model phi node");
-
-          for (int i = 0; i < n_node; i++) {
-            model_vs_node_[i] = 755;
-            model_delta_node_[i] = 0.0;
-            model_epsilon_node_[i] = 0.0;
-            model_gamma_node_[i] = 0.0;
-            model_theta_node_[i] = 0.0;
-            model_phi_node_[i] = 0.0;
-          }
+          allocateAnisotropyNodes(n_node);
+          Kokkos::deep_copy(model_vs_node_.view_host(), static_cast<FloatType>(755));
         }
       }
     }
 
     else {
-      model_rho_element_ = allocateVector<vectorReal>(n_element, "model rho elem");
-      model_vp_element_ = allocateVector<vectorReal>(n_element, "model vp elem");
+      model_rho_element_ = allocateVector<dualVectorReal>(n_element, "model rho elem");
+      model_vp_element_ = allocateVector<dualVectorReal>(n_element, "model vp elem");
+      auto rho = model_rho_element_.view_host();
+      auto vp = model_vp_element_.view_host();
 
       if (isAcoustoElastic_) {
         // Two layers: fluid when the element centroid z >= boundary, solid below. The coupled
         // solver classifies elements by vs: vs = 0 means fluid.
-        model_vs_element_ = allocateVector<vectorReal>(n_element, "model vs element");
-        model_delta_element_ = allocateVector<vectorReal>(n_element, "model delta element");
-        model_gamma_element_ = allocateVector<vectorReal>(n_element, "model gamma element");
-        model_epsilon_element_ = allocateVector<vectorReal>(n_element, "model epsilon element");
-        model_theta_element_ = allocateVector<vectorReal>(n_element, "model theta element");
-        model_phi_element_ = allocateVector<vectorReal>(n_element, "model phi element");
+        allocateAnisotropyElements(n_element);
+        auto vs = model_vs_element_.view_host();
 
         FloatType const hz = lz_ / ez_;
         for (int k = 0; k < ez_; ++k) {
@@ -315,39 +333,22 @@ class CartesianUnstructBuilder : public ModelBuilderBase<FloatType, ScalarType> 
           for (int j = 0; j < ey_; ++j) {
             for (int i = 0; i < ex_; ++i) {
               int const e = i + j * ex_ + k * ex_ * ey_;
-              model_rho_element_[e] = is_fluid ? static_cast<FloatType>(1000) : static_cast<FloatType>(2000);
-              model_vp_element_[e] = is_fluid ? static_cast<FloatType>(1500) : static_cast<FloatType>(3000);
-              model_vs_element_[e] = is_fluid ? static_cast<FloatType>(0) : static_cast<FloatType>(1500);
-              model_delta_element_[e] = 0;
-              model_epsilon_element_[e] = 0;
-              model_gamma_element_[e] = 0;
-              model_theta_element_[e] = 0;
-              model_phi_element_[e] = 0;
+              rho(e) = is_fluid ? static_cast<FloatType>(1000) : static_cast<FloatType>(2000);
+              vp(e) = is_fluid ? static_cast<FloatType>(1500) : static_cast<FloatType>(3000);
+              vs(e) = is_fluid ? static_cast<FloatType>(0) : static_cast<FloatType>(1500);
             }
           }
         }
+        // delta, epsilon, gamma, theta and phi stay at 0 (allocations are zero-initialized).
       } else {
         for (int i = 0; i < n_element; i++) {
-          model_rho_element_[i] = 1;
-          model_vp_element_[i] = 1500;
+          rho(i) = 1;
+          vp(i) = 1500;
         }
 
         if (isElastic_) {
-          model_vs_element_ = allocateVector<vectorReal>(n_element, "model vs element");
-          model_delta_element_ = allocateVector<vectorReal>(n_element, "model delta element");
-          model_gamma_element_ = allocateVector<vectorReal>(n_element, "model gamma element");
-          model_epsilon_element_ = allocateVector<vectorReal>(n_element, "model epsilon element");
-          model_theta_element_ = allocateVector<vectorReal>(n_element, "model theta element");
-          model_phi_element_ = allocateVector<vectorReal>(n_element, "model phi element");
-
-          for (int i = 0; i < n_element; i++) {
-            model_vs_element_[i] = 755;
-            model_delta_element_[i] = 0.0;
-            model_epsilon_element_[i] = 0.0;
-            model_gamma_element_[i] = 0.0;
-            model_theta_element_[i] = 0.0;
-            model_phi_element_[i] = 0.0;
-          }
+          allocateAnisotropyElements(n_element);
+          Kokkos::deep_copy(model_vs_element_.view_host(), static_cast<FloatType>(755));
         }
       }
     }
@@ -359,13 +360,12 @@ class CartesianUnstructBuilder : public ModelBuilderBase<FloatType, ScalarType> 
       }
       model::CartesianModelFileReader reader(model_file_);
       const size_t n = reader.count();
-      auto fill_view = [&](vectorReal& view, const std::string& prop, const std::string& label) {
+      auto fill_view = [&](dualVectorReal& view, const std::string& prop, const std::string& label) {
         if (!reader.has(prop)) return;
-        view = allocateVector<vectorReal>(static_cast<int>(n), label.c_str());
+        view = allocateVector<dualVectorReal>(static_cast<int>(n), label.c_str());
         const auto& buf = reader.get(prop);
-        auto host = Kokkos::create_mirror_view(view);
-        for (size_t i = 0; i < n; ++i) host[i] = static_cast<FloatType>(buf[i]);
-        Kokkos::deep_copy(view, host);
+        auto host = view.view_host();
+        for (size_t i = 0; i < n; ++i) host(i) = static_cast<FloatType>(buf[i]);
       };
       fill_view(model_vp_element_, "Vp", "model_vp_element");
       fill_view(model_rho_element_, "Rho", "model_rho_element");
@@ -376,8 +376,9 @@ class CartesianUnstructBuilder : public ModelBuilderBase<FloatType, ScalarType> 
       fill_view(model_theta_element_, "Theta", "model_theta_element");
       fill_view(model_phi_element_, "Phi", "model_phi_element");
 
-      std::cout << "[Model] vp[0]=" << model_vp_element_[0] << " vp[mid]=" << model_vp_element_[n_element / 2]
-                << " vp[last]=" << model_vp_element_[n_element - 1] << std::endl;
+      auto vp_host = model_vp_element_.view_host();
+      std::cout << "[Model] vp[0]=" << vp_host(0) << " vp[mid]=" << vp_host(n_element / 2)
+                << " vp[last]=" << vp_host(n_element - 1) << std::endl;
 
       // The file must provide one value per element of the local mesh.
       if (model_vp_element_.extent(0) != static_cast<size_t>(n_element))
@@ -385,6 +386,35 @@ class CartesianUnstructBuilder : public ModelBuilderBase<FloatType, ScalarType> 
                                  std::to_string(model_vp_element_.extent(0)) + " elements but mesh has " +
                                  std::to_string(n_element));
     }
+
+    // Every material array was written on the host (unallocated ones are ignored).
+    for (dualVectorReal* view :
+         {&model_vp_node_, &model_vp_element_, &model_rho_node_, &model_rho_element_, &model_vs_node_,
+          &model_vs_element_, &model_delta_node_, &model_delta_element_, &model_epsilon_node_, &model_epsilon_element_,
+          &model_gamma_node_, &model_gamma_element_, &model_theta_node_, &model_theta_element_, &model_phi_node_,
+          &model_phi_element_}) {
+      view->modify_host();
+    }
+  }
+
+  /// Allocates the per-node vs and anisotropy arrays (zero-initialized).
+  void allocateAnisotropyNodes(int n_node) {
+    model_vs_node_ = allocateVector<dualVectorReal>(n_node, "model vs node");
+    model_delta_node_ = allocateVector<dualVectorReal>(n_node, "model delta node");
+    model_gamma_node_ = allocateVector<dualVectorReal>(n_node, "model gamma node");
+    model_epsilon_node_ = allocateVector<dualVectorReal>(n_node, "model epsilon node");
+    model_theta_node_ = allocateVector<dualVectorReal>(n_node, "model theta node");
+    model_phi_node_ = allocateVector<dualVectorReal>(n_node, "model phi node");
+  }
+
+  /// Allocates the per-element vs and anisotropy arrays (zero-initialized).
+  void allocateAnisotropyElements(int n_element) {
+    model_vs_element_ = allocateVector<dualVectorReal>(n_element, "model vs element");
+    model_delta_element_ = allocateVector<dualVectorReal>(n_element, "model delta element");
+    model_gamma_element_ = allocateVector<dualVectorReal>(n_element, "model gamma element");
+    model_epsilon_element_ = allocateVector<dualVectorReal>(n_element, "model epsilon element");
+    model_theta_element_ = allocateVector<dualVectorReal>(n_element, "model theta element");
+    model_phi_element_ = allocateVector<dualVectorReal>(n_element, "model phi element");
   }
 };
 

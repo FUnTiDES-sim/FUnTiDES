@@ -117,23 +117,33 @@ class CartesianStructBuilder : public ModelBuilderBase<FloatType, ScalarType> {
       auto temp_model = model::ModelStruct<FloatType, ScalarType, Order>(data);
 
       if (isModelOnNodes_) {
-        data.model_vp_node_ = allocateVector<vectorReal>(n_node, "model_vp_node");
-        data.model_vs_node_ = allocateVector<vectorReal>(n_node, "model_vs_node");
-        data.model_rho_node_ = allocateVector<vectorReal>(n_node, "model_rho_node");
+        data.model_vp_node_ = allocateVector<dualVectorReal>(n_node, "model_vp_node");
+        data.model_vs_node_ = allocateVector<dualVectorReal>(n_node, "model_vs_node");
+        data.model_rho_node_ = allocateVector<dualVectorReal>(n_node, "model_rho_node");
 
+        // Filled on the host; the ModelStruct constructor copies them to the device.
+        auto vp = data.model_vp_node_.view_host();
+        auto vs = data.model_vs_node_.view_host();
+        auto rho = data.model_rho_node_.view_host();
         for (int n = 0; n < n_node; ++n) {
           bool const is_fluid = (temp_model.nodeCoord(n, 2) >= acoustoElasticBoundaryZ_);
-          data.model_vp_node_[n] = is_fluid ? static_cast<FloatType>(1500) : static_cast<FloatType>(3400);
-          data.model_vs_node_[n] = is_fluid ? static_cast<FloatType>(0) : static_cast<FloatType>(1963);
-          data.model_rho_node_[n] = is_fluid ? static_cast<FloatType>(1020) : static_cast<FloatType>(2500);
+          vp(n) = is_fluid ? static_cast<FloatType>(1500) : static_cast<FloatType>(3400);
+          vs(n) = is_fluid ? static_cast<FloatType>(0) : static_cast<FloatType>(1963);
+          rho(n) = is_fluid ? static_cast<FloatType>(1020) : static_cast<FloatType>(2500);
         }
+        data.model_vp_node_.modify_host();
+        data.model_vs_node_.modify_host();
+        data.model_rho_node_.modify_host();
       } else {
         int const n_elem = ex_ * ey_ * ez_;
         FloatType const hz = lz_ / ez_;
 
-        data.model_vp_element_ = allocateVector<vectorReal>(n_elem, "model_vp_elem");
-        data.model_vs_element_ = allocateVector<vectorReal>(n_elem, "model_vs_elem");
-        data.model_rho_element_ = allocateVector<vectorReal>(n_elem, "model_rho_elem");
+        data.model_vp_element_ = allocateVector<dualVectorReal>(n_elem, "model_vp_elem");
+        data.model_vs_element_ = allocateVector<dualVectorReal>(n_elem, "model_vs_elem");
+        data.model_rho_element_ = allocateVector<dualVectorReal>(n_elem, "model_rho_elem");
+        auto vp = data.model_vp_element_.view_host();
+        auto vs = data.model_vs_element_.view_host();
+        auto rho = data.model_rho_element_.view_host();
 
         // An element is fluid if its centroid is at or above the interface.
         for (int k = 0; k < ez_; ++k) {
@@ -142,12 +152,15 @@ class CartesianStructBuilder : public ModelBuilderBase<FloatType, ScalarType> {
           for (int j = 0; j < ey_; ++j) {
             for (int i = 0; i < ex_; ++i) {
               int const e = i + j * ex_ + k * ex_ * ey_;
-              data.model_vp_element_[e] = is_fluid ? static_cast<FloatType>(1500) : static_cast<FloatType>(3400);
-              data.model_vs_element_[e] = is_fluid ? static_cast<FloatType>(0) : static_cast<FloatType>(1963);
-              data.model_rho_element_[e] = is_fluid ? static_cast<FloatType>(1020) : static_cast<FloatType>(2500);
+              vp(e) = is_fluid ? static_cast<FloatType>(1500) : static_cast<FloatType>(3400);
+              vs(e) = is_fluid ? static_cast<FloatType>(0) : static_cast<FloatType>(1963);
+              rho(e) = is_fluid ? static_cast<FloatType>(1020) : static_cast<FloatType>(2500);
             }
           }
         }
+        data.model_vp_element_.modify_host();
+        data.model_vs_element_.modify_host();
+        data.model_rho_element_.modify_host();
       }
     }
 
@@ -158,13 +171,13 @@ class CartesianStructBuilder : public ModelBuilderBase<FloatType, ScalarType> {
       int const n_elem = ex_ * ey_ * ez_;
       model::CartesianModelFileReader reader(model_file_);
       const size_t n = reader.count();
-      auto fill_view = [&](vectorReal& view, const std::string& prop, const std::string& label) {
+      auto fill_view = [&](dualVectorReal& view, const std::string& prop, const std::string& label) {
         if (!reader.has(prop)) return;
-        view = allocateVector<vectorReal>(static_cast<int>(n), label.c_str());
+        view = allocateVector<dualVectorReal>(static_cast<int>(n), label.c_str());
         const auto& buf = reader.get(prop);
-        auto host = Kokkos::create_mirror_view(view);
-        for (size_t i = 0; i < n; ++i) host[i] = static_cast<FloatType>(buf[i]);
-        Kokkos::deep_copy(view, host);
+        auto host = view.view_host();
+        for (size_t i = 0; i < n; ++i) host(i) = static_cast<FloatType>(buf[i]);
+        view.modify_host();
       };
       fill_view(data.model_vp_element_, "Vp", "model_vp_element");
       fill_view(data.model_rho_element_, "Rho", "model_rho_element");
@@ -173,8 +186,9 @@ class CartesianStructBuilder : public ModelBuilderBase<FloatType, ScalarType> {
         throw std::runtime_error("[CartesianStructBuilder] model_file has " +
                                  std::to_string(data.model_vp_element_.extent(0)) + " elements but mesh has " +
                                  std::to_string(n_elem));
-      std::cout << "[Model] vp[0]=" << data.model_vp_element_[0] << " vp[mid]=" << data.model_vp_element_[n_elem / 2]
-                << " vp[last]=" << data.model_vp_element_[n_elem - 1] << std::endl;
+      auto vp_host = data.model_vp_element_.view_host();
+      std::cout << "[Model] vp[0]=" << vp_host(0) << " vp[mid]=" << vp_host(n_elem / 2)
+                << " vp[last]=" << vp_host(n_elem - 1) << std::endl;
     }
 
     // The model uses the local origin and sizes; boundary flags were classified

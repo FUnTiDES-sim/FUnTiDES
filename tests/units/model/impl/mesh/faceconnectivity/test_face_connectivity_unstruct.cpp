@@ -18,21 +18,21 @@ ModelUnstruct<FloatType, ScalarType> createSingleCube() {
   data.lz_ = 1.0;
   data.isModelOnNodes_ = false;
   data.isElastic_ = false;
-  data.global_node_index_ = allocateArray2D<arrayInt>(1, 8);
-  data.nodes_coords_x_ = allocateVector<vectorReal>(8);
-  data.nodes_coords_y_ = allocateVector<vectorReal>(8);
-  data.nodes_coords_z_ = allocateVector<vectorReal>(8);
-  data.model_vp_element_ = allocateVector<vectorReal>(1);
-  data.model_rho_element_ = allocateVector<vectorReal>(1);
-  data.boundaries_t_ = allocateVector<vectorInt>(8);
+  data.global_node_index_ = allocateArray2D<dualArrayInt>(1, 8);
+  data.nodes_coords_x_ = allocateVector<dualVectorReal>(8);
+  data.nodes_coords_y_ = allocateVector<dualVectorReal>(8);
+  data.nodes_coords_z_ = allocateVector<dualVectorReal>(8);
+  data.model_vp_element_ = allocateVector<dualVectorReal>(1);
+  data.model_rho_element_ = allocateVector<dualVectorReal>(1);
+  data.boundaries_t_ = allocateVector<dualVectorInt>(8);
   for (int i = 0; i < 8; ++i) {
-    data.global_node_index_(0, i) = i;
-    data.nodes_coords_x_[i] = (i & 1) ? 1.0 : 0.0;
-    data.nodes_coords_y_[i] = (i & 2) ? 1.0 : 0.0;
-    data.nodes_coords_z_[i] = (i & 4) ? 1.0 : 0.0;
+    data.global_node_index_.view_host()(0, i) = i;
+    data.nodes_coords_x_.view_host()(i) = (i & 1) ? 1.0 : 0.0;
+    data.nodes_coords_y_.view_host()(i) = (i & 2) ? 1.0 : 0.0;
+    data.nodes_coords_z_.view_host()(i) = (i & 4) ? 1.0 : 0.0;
   }
-  data.model_vp_element_[0] = 1500.0;
-  data.model_rho_element_[0] = 1.0;
+  data.model_vp_element_.view_host()(0) = 1500.0;
+  data.model_rho_element_.view_host()(0) = 1.0;
   return ModelUnstruct<FloatType, ScalarType>(data);
 }
 
@@ -51,48 +51,48 @@ ModelUnstruct<FloatType, ScalarType> createTwoAdjacentCubesRotated() {
   data.lz_ = 1.0;
   data.isModelOnNodes_ = false;
   data.isElastic_ = false;
-  data.global_node_index_ = allocateArray2D<arrayInt>(2, 8);
-  data.nodes_coords_x_ = allocateVector<vectorReal>(12);
-  data.nodes_coords_y_ = allocateVector<vectorReal>(12);
-  data.nodes_coords_z_ = allocateVector<vectorReal>(12);
-  data.model_vp_element_ = allocateVector<vectorReal>(2);
-  data.model_rho_element_ = allocateVector<vectorReal>(2);
-  data.boundaries_t_ = allocateVector<vectorInt>(12);
+  data.global_node_index_ = allocateArray2D<dualArrayInt>(2, 8);
+  data.nodes_coords_x_ = allocateVector<dualVectorReal>(12);
+  data.nodes_coords_y_ = allocateVector<dualVectorReal>(12);
+  data.nodes_coords_z_ = allocateVector<dualVectorReal>(12);
+  data.model_vp_element_ = allocateVector<dualVectorReal>(2);
+  data.model_rho_element_ = allocateVector<dualVectorReal>(2);
+  data.boundaries_t_ = allocateVector<dualVectorInt>(12);
   // Elem 0: standard cube [0,1]^3, nodes 0-7
   for (int i = 0; i < 8; ++i) {
-    data.global_node_index_(0, i) = i;
-    data.nodes_coords_x_[i] = (i & 1) ? 1.0 : 0.0;
-    data.nodes_coords_y_[i] = (i & 2) ? 1.0 : 0.0;
-    data.nodes_coords_z_[i] = (i & 4) ? 1.0 : 0.0;
+    data.global_node_index_.view_host()(0, i) = i;
+    data.nodes_coords_x_.view_host()(i) = (i & 1) ? 1.0 : 0.0;
+    data.nodes_coords_y_.view_host()(i) = (i & 2) ? 1.0 : 0.0;
+    data.nodes_coords_z_.view_host()(i) = (i & 4) ? 1.0 : 0.0;
   }
   // Elem 1: local j-axis points in global z-direction, local k-axis in global
   // y-direction (90-degree rotation of the tangential axes on the shared face).
   // local (i,j,k) → global node mapping:
   //   (0,0,0)→1  (1,0,0)→8   (0,1,0)→5  (1,1,0)→10
   //   (0,0,1)→3  (1,0,1)→9   (0,1,1)→7  (1,1,1)→11
-  data.global_node_index_(1, 0) = 1;
-  data.global_node_index_(1, 1) = 8;
-  data.global_node_index_(1, 2) = 5;
-  data.global_node_index_(1, 3) = 10;
-  data.global_node_index_(1, 4) = 3;
-  data.global_node_index_(1, 5) = 9;
-  data.global_node_index_(1, 6) = 7;
-  data.global_node_index_(1, 7) = 11;
+  data.global_node_index_.view_host()(1, 0) = 1;
+  data.global_node_index_.view_host()(1, 1) = 8;
+  data.global_node_index_.view_host()(1, 2) = 5;
+  data.global_node_index_.view_host()(1, 3) = 10;
+  data.global_node_index_.view_host()(1, 4) = 3;
+  data.global_node_index_.view_host()(1, 5) = 9;
+  data.global_node_index_.view_host()(1, 6) = 7;
+  data.global_node_index_.view_host()(1, 7) = 11;
   // New nodes at x=2
-  data.nodes_coords_x_[8] = 2.0;
-  data.nodes_coords_y_[8] = 0.0;
-  data.nodes_coords_z_[8] = 0.0;
-  data.nodes_coords_x_[9] = 2.0;
-  data.nodes_coords_y_[9] = 1.0;
-  data.nodes_coords_z_[9] = 0.0;
-  data.nodes_coords_x_[10] = 2.0;
-  data.nodes_coords_y_[10] = 0.0;
-  data.nodes_coords_z_[10] = 1.0;
-  data.nodes_coords_x_[11] = 2.0;
-  data.nodes_coords_y_[11] = 1.0;
-  data.nodes_coords_z_[11] = 1.0;
-  data.model_vp_element_[0] = data.model_vp_element_[1] = 1500.0;
-  data.model_rho_element_[0] = data.model_rho_element_[1] = 1.0;
+  data.nodes_coords_x_.view_host()(8) = 2.0;
+  data.nodes_coords_y_.view_host()(8) = 0.0;
+  data.nodes_coords_z_.view_host()(8) = 0.0;
+  data.nodes_coords_x_.view_host()(9) = 2.0;
+  data.nodes_coords_y_.view_host()(9) = 1.0;
+  data.nodes_coords_z_.view_host()(9) = 0.0;
+  data.nodes_coords_x_.view_host()(10) = 2.0;
+  data.nodes_coords_y_.view_host()(10) = 0.0;
+  data.nodes_coords_z_.view_host()(10) = 1.0;
+  data.nodes_coords_x_.view_host()(11) = 2.0;
+  data.nodes_coords_y_.view_host()(11) = 1.0;
+  data.nodes_coords_z_.view_host()(11) = 1.0;
+  data.model_vp_element_.view_host()(0) = data.model_vp_element_.view_host()(1) = 1500.0;
+  data.model_rho_element_.view_host()(0) = data.model_rho_element_.view_host()(1) = 1.0;
   return ModelUnstruct<FloatType, ScalarType>(data);
 }
 
@@ -107,34 +107,34 @@ ModelUnstruct<FloatType, ScalarType> createTwoAdjacentCubes() {
   data.lz_ = 1.0;
   data.isModelOnNodes_ = false;
   data.isElastic_ = false;
-  data.global_node_index_ = allocateArray2D<arrayInt>(2, 8);
-  data.nodes_coords_x_ = allocateVector<vectorReal>(12);
-  data.nodes_coords_y_ = allocateVector<vectorReal>(12);
-  data.nodes_coords_z_ = allocateVector<vectorReal>(12);
-  data.model_vp_element_ = allocateVector<vectorReal>(2);
-  data.model_rho_element_ = allocateVector<vectorReal>(2);
-  data.boundaries_t_ = allocateVector<vectorInt>(12);
+  data.global_node_index_ = allocateArray2D<dualArrayInt>(2, 8);
+  data.nodes_coords_x_ = allocateVector<dualVectorReal>(12);
+  data.nodes_coords_y_ = allocateVector<dualVectorReal>(12);
+  data.nodes_coords_z_ = allocateVector<dualVectorReal>(12);
+  data.model_vp_element_ = allocateVector<dualVectorReal>(2);
+  data.model_rho_element_ = allocateVector<dualVectorReal>(2);
+  data.boundaries_t_ = allocateVector<dualVectorInt>(12);
   for (int i = 0; i < 8; ++i) {
-    data.global_node_index_(0, i) = i;
-    data.nodes_coords_x_[i] = (i & 1) ? 1.0 : 0.0;
-    data.nodes_coords_y_[i] = (i & 2) ? 1.0 : 0.0;
-    data.nodes_coords_z_[i] = (i & 4) ? 1.0 : 0.0;
+    data.global_node_index_.view_host()(0, i) = i;
+    data.nodes_coords_x_.view_host()(i) = (i & 1) ? 1.0 : 0.0;
+    data.nodes_coords_y_.view_host()(i) = (i & 2) ? 1.0 : 0.0;
+    data.nodes_coords_z_.view_host()(i) = (i & 4) ? 1.0 : 0.0;
   }
-  data.global_node_index_(1, 0) = 1;
-  data.global_node_index_(1, 1) = 8;
-  data.global_node_index_(1, 2) = 3;
-  data.global_node_index_(1, 3) = 9;
-  data.global_node_index_(1, 4) = 5;
-  data.global_node_index_(1, 5) = 10;
-  data.global_node_index_(1, 6) = 7;
-  data.global_node_index_(1, 7) = 11;
+  data.global_node_index_.view_host()(1, 0) = 1;
+  data.global_node_index_.view_host()(1, 1) = 8;
+  data.global_node_index_.view_host()(1, 2) = 3;
+  data.global_node_index_.view_host()(1, 3) = 9;
+  data.global_node_index_.view_host()(1, 4) = 5;
+  data.global_node_index_.view_host()(1, 5) = 10;
+  data.global_node_index_.view_host()(1, 6) = 7;
+  data.global_node_index_.view_host()(1, 7) = 11;
   for (int i = 8; i < 12; ++i) {
-    data.nodes_coords_x_[i] = 2.0;
-    data.nodes_coords_y_[i] = (i & 2) ? 1.0 : 0.0;
-    data.nodes_coords_z_[i] = (i & 4) ? 1.0 : 0.0;
+    data.nodes_coords_x_.view_host()(i) = 2.0;
+    data.nodes_coords_y_.view_host()(i) = (i & 2) ? 1.0 : 0.0;
+    data.nodes_coords_z_.view_host()(i) = (i & 4) ? 1.0 : 0.0;
   }
-  data.model_vp_element_[0] = data.model_vp_element_[1] = 1500.0;
-  data.model_rho_element_[0] = data.model_rho_element_[1] = 1.0;
+  data.model_vp_element_.view_host()(0) = data.model_vp_element_.view_host()(1) = 1500.0;
+  data.model_rho_element_.view_host()(0) = data.model_rho_element_.view_host()(1) = 1.0;
   return ModelUnstruct<FloatType, ScalarType>(data);
 }
 

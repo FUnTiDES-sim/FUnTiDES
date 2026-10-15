@@ -56,21 +56,21 @@ static model::ModelUnstruct<float, int> makeUnstructMesh1x1x1() {
   data.isModelOnNodes_ = false;
   data.isElastic_ = true;
 
-  data.global_node_index_ = allocateArray2D<arrayInt>(1, npe, "gni");
-  data.nodes_coords_x_ = allocateVector<vectorReal>(npe, "cx");
-  data.nodes_coords_y_ = allocateVector<vectorReal>(npe, "cy");
-  data.nodes_coords_z_ = allocateVector<vectorReal>(npe, "cz");
+  data.global_node_index_ = allocateArray2D<dualArrayInt>(1, npe, "gni");
+  data.nodes_coords_x_ = allocateVector<dualVectorReal>(npe, "cx");
+  data.nodes_coords_y_ = allocateVector<dualVectorReal>(npe, "cy");
+  data.nodes_coords_z_ = allocateVector<dualVectorReal>(npe, "cz");
 
   for (int lDof = 0; lDof < npe; ++lDof) {
-    data.global_node_index_(0, lDof) = lDof;
+    data.global_node_index_.view_host()(0, lDof) = lDof;
 
     int k = lDof / ((ORDER + 1) * (ORDER + 1));
     int j = (lDof / (ORDER + 1)) % (ORDER + 1);
     int i = lDof % (ORDER + 1);
 
-    data.nodes_coords_x_[lDof] = static_cast<float>(i) / ORDER;
-    data.nodes_coords_y_[lDof] = static_cast<float>(j) / ORDER;
-    data.nodes_coords_z_[lDof] = static_cast<float>(k) / ORDER;
+    data.nodes_coords_x_.view_host()(lDof) = static_cast<float>(i) / ORDER;
+    data.nodes_coords_y_.view_host()(lDof) = static_cast<float>(j) / ORDER;
+    data.nodes_coords_z_.view_host()(lDof) = static_cast<float>(k) / ORDER;
   }
 
   return model::ModelUnstruct<float, int>(data);

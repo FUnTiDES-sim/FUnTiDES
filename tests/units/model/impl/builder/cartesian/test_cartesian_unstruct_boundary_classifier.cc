@@ -6,12 +6,14 @@ namespace model {
 namespace test {
 
 // ---------------------------------------------------------------------------
-// Helper: fill vectorReal from a std::initializer_list of floats
+// Helper: fill the host side of a dualVectorReal from a std::initializer_list of floats
 // ---------------------------------------------------------------------------
-static vectorReal makeCoords(std::initializer_list<float> vals) {
-  auto v = allocateVector<vectorReal>(static_cast<int>(vals.size()), "test_coords");
+static dualVectorReal makeCoords(std::initializer_list<float> vals) {
+  auto v = allocateVector<dualVectorReal>(static_cast<int>(vals.size()), "test_coords");
+  auto host = v.view_host();
   int i = 0;
-  for (float val : vals) v(i++) = val;
+  for (float val : vals) host(i++) = val;
+  v.modify_host();
   return v;
 }
 
@@ -29,7 +31,7 @@ TEST_F(CartesianUnstructBoundaryClassifierTest, InteriorNodeIsInterior) {
   auto y = makeCoords({1.f});
   auto z = makeCoords({1.f});
 
-  auto flags = classifier.classify(1, x, y, z);
+  auto flags = classifier.classify(1, x, y, z).view_host();
   EXPECT_EQ(flags(0), static_cast<int>(BoundaryFlag::InteriorNode));
 }
 
@@ -38,7 +40,7 @@ TEST_F(CartesianUnstructBoundaryClassifierTest, ZmaxNodeIsSurfaceWhenFreeSurface
   auto y = makeCoords({1.f});
   auto z = makeCoords({2.f});  // at z_max
 
-  auto flags = classifier.classify(1, x, y, z);
+  auto flags = classifier.classify(1, x, y, z).view_host();
   EXPECT_EQ(flags(0), static_cast<int>(BoundaryFlag::Surface));
 }
 
@@ -49,7 +51,7 @@ TEST_F(CartesianUnstructBoundaryClassifierTest, ZmaxNodeIsDampingWhenFreeSurface
   auto y = makeCoords({1.f});
   auto z = makeCoords({2.f});
 
-  auto flags = noSurface.classify(1, x, y, z);
+  auto flags = noSurface.classify(1, x, y, z).view_host();
   EXPECT_EQ(flags(0), static_cast<int>(BoundaryFlag::Damping));
 }
 
@@ -59,7 +61,7 @@ TEST_F(CartesianUnstructBoundaryClassifierTest, AllSixFacesAreDamping) {
   auto y = makeCoords({1.f, 1.f, 0.f, 2.f, 1.f});
   auto z = makeCoords({1.f, 1.f, 1.f, 1.f, 0.f});  // last node on z_min
 
-  auto flags = classifier.classify(5, x, y, z);
+  auto flags = classifier.classify(5, x, y, z).view_host();
   for (int n = 0; n < 5; ++n) EXPECT_EQ(flags(n), static_cast<int>(BoundaryFlag::Damping)) << "node " << n;
 }
 
@@ -69,7 +71,7 @@ TEST_F(CartesianUnstructBoundaryClassifierTest, MixedNodeTypes) {
   auto y = makeCoords({1.f, 1.f, 1.f, 1.f});
   auto z = makeCoords({1.f, 2.f, 1.f, 0.f});
 
-  auto flags = classifier.classify(4, x, y, z);
+  auto flags = classifier.classify(4, x, y, z).view_host();
   EXPECT_EQ(flags(0), static_cast<int>(BoundaryFlag::InteriorNode));
   EXPECT_EQ(flags(1), static_cast<int>(BoundaryFlag::Surface));
   EXPECT_EQ(flags(2), static_cast<int>(BoundaryFlag::Damping));
@@ -91,7 +93,7 @@ TEST(CartesianUnstructBoundaryClassifierMpiTest, InternalPartitionFaceIsInterior
   auto y = makeCoords({1.f});
   auto z = makeCoords({1.f});
 
-  auto flags = classifier.classify(1, x, y, z);
+  auto flags = classifier.classify(1, x, y, z).view_host();
   EXPECT_EQ(flags(0), static_cast<int>(BoundaryFlag::InteriorNode));
 }
 
@@ -102,7 +104,7 @@ TEST(CartesianUnstructBoundaryClassifierMpiTest, GlobalXminIsStillDampingInSubdo
   auto y = makeCoords({1.f});
   auto z = makeCoords({1.f});
 
-  auto flags = classifier.classify(1, x, y, z);
+  auto flags = classifier.classify(1, x, y, z).view_host();
   EXPECT_EQ(flags(0), static_cast<int>(BoundaryFlag::Damping));
 }
 

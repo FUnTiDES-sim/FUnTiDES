@@ -62,10 +62,17 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::com
 
     // A negative coefficient means "not set by the user": it is replaced by a default derived from minQVal.
     // @todo VERIFY: origin and meaning of the default 2*Qmin/(max(1.0001, Qmin) - 1).
-    for (int l = 0; l < nSls_; ++l) {
-      if (slsAnelasticityCoefficients_.extent(0) > 0 && slsAnelasticityCoefficients_[l] < 0.0f) {
-        slsAnelasticityCoefficients_[l] = 2.0f * minQVal / (std::max(1.0001f, minQVal) - 1.0f);
+    // The coefficients are completed on the host (where setSLSAttenuation() put them), then copied to the device.
+    if (slsAnelasticityCoefficients_.extent(0) > 0) {
+      slsAnelasticityCoefficients_.sync_host();
+      auto coefficients = slsAnelasticityCoefficients_.view_host();
+      for (int l = 0; l < nSls_; ++l) {
+        if (coefficients(l) < 0.0f) {
+          coefficients(l) = 2.0f * minQVal / (std::max(1.0001f, minQVal) - 1.0f);
+        }
       }
+      slsAnelasticityCoefficients_.modify_host();
+      slsAnelasticityCoefficients_.sync_device();
     }
   }
 }
@@ -1990,10 +1997,10 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::upd
 
   auto mesh_local = m_mesh;
   auto mass_matrix = massMatrixGlobal_;
-  auto taper_coeff = spongeTaperCoeff_;
+  auto taper_coeff = spongeTaperCoeff_.view_device();
 
-  auto sls_w = slsReferenceAngularFrequencies_;
-  auto sls_beta = slsAnelasticityCoefficients_;
+  auto sls_w = slsReferenceAngularFrequencies_.view_device();
+  auto sls_beta = slsAnelasticityCoefficients_.view_device();
 
   std::array<std::remove_reference_t<decltype(data.getCurrentField(0))>, kNumFields> current_field;
   std::array<std::remove_reference_t<decltype(data.getPreviousField(0))>, kNumFields> prev_field;
@@ -2153,10 +2160,10 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::upd
 
   auto mesh_local = m_mesh;
   auto mass_matrix = massMatrixGlobal_;
-  auto taper_coeff = spongeTaperCoeff_;
+  auto taper_coeff = spongeTaperCoeff_.view_device();
 
-  auto sls_w = slsReferenceAngularFrequencies_;
-  auto sls_beta = slsAnelasticityCoefficients_;
+  auto sls_w = slsReferenceAngularFrequencies_.view_device();
+  auto sls_beta = slsAnelasticityCoefficients_.view_device();
 
   std::array<std::remove_reference_t<decltype(data.getCurrentField(0))>, kNumFields> current_field;
   std::array<std::remove_reference_t<decltype(data.getPreviousField(0))>, kNumFields> prev_field;
@@ -2468,7 +2475,7 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::all
     }
   }
 
-  spongeTaperCoeff_ = allocateVector<vectorReal>(m_mesh.getNumberOfNodes(), "spongeTaperCoeff");
+  spongeTaperCoeff_ = allocateVector<dualVectorReal>(m_mesh.getNumberOfNodes(), "spongeTaperCoeff");
 }
 
 template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE, bool IS_MODEL_ON_NODES, physicType PHYSICS>
@@ -2476,13 +2483,10 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::ini
   initSpongeValues();
 
   if (attenuationEnabled_ && nSls_ > 0) {
-    for (int n = 0; n < m_mesh.getNumberOfNodes(); ++n) {
-      for (int f = 0; f < kNumFields; ++f) {
-        attenuationWorkVectorsGlobal_[f](n) = 0.0f;
-        for (int l = 0; l < nSls_; ++l) {
-          attenuationMemoryVariables_[f](n, l) = 0.0f;
-        }
-      }
+    // Device-only work arrays: zeroed in place.
+    for (int f = 0; f < kNumFields; ++f) {
+      Kokkos::deep_copy(attenuationWorkVectorsGlobal_[f], 0.0f);
+      Kokkos::deep_copy(attenuationMemoryVariables_[f], 0.0f);
     }
     FENCE
   }
@@ -2493,6 +2497,8 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::ini
   // @todo VERIFY: unit and origin of the peak damping factor sigma_max = 0.15 (dimensionless?).
   const double sigma_max = 0.15;
 
+  // Computed on the host (the mesh accessors read its host copy), then copied to the device.
+  auto taper_host = spongeTaperCoeff_.view_host();
   for (int n = 0; n < m_mesh.getNumberOfNodes(); n++) {
     const double x = m_mesh.nodeCoord(n, 0);
     const double y = m_mesh.nodeCoord(n, 1);
@@ -2523,20 +2529,24 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::ini
       double d = minDistToFrontier;
       double delta = taper_delta_;
       double sigma = sigma_max * std::exp(-((d / delta) * (d / delta)));
-      spongeTaperCoeff_(n) = 1.0 / (1.0 + sigma);
+      taper_host(n) = 1.0 / (1.0 + sigma);
     } else {
-      spongeTaperCoeff_(n) = 1.0;
+      taper_host(n) = 1.0;
     }
   }
 
-  FENCE
+  spongeTaperCoeff_.modify_host();
+  spongeTaperCoeff_.sync_device();
 }
 
 template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE, bool IS_MODEL_ON_NODES, physicType PHYSICS>
 void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::outputSolutionValues(
     const int& t, int& e, const vectorReal& fieldGlobal, const char* fieldName) {
+  // fieldGlobal lives on the device: only the printed value is copied to the host.
+  float value = 0.0f;
+  Kokkos::deep_copy(value, Kokkos::subview(fieldGlobal, m_mesh.globalNodeIndex(e, 0, 0, 0)));
   std::cout << "TimeStep=" << t << ";  " << fieldName << " @ elementSource location " << e
-            << " after computeOneStep = " << fieldGlobal(m_mesh.globalNodeIndex(e, 0, 0, 0)) << std::endl;
+            << " after computeOneStep = " << value << std::endl;
 }
 
 // Builds the TTI tensor CTTI = M * CVTI * M^T, with CVTI the VTI tensor (symmetry axis z) in Voigt storage

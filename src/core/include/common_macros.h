@@ -92,8 +92,9 @@
       Range, KOKKOS_CLASS_LAMBDA(const int i, decltype(Result)& local_sum) { local_sum += Array[i]; }, \
       Kokkos::Sum<decltype(Result)>(Result));
 
-/// @todo VERIFY: what is KOKKOSNAME used for? It expands to the string literal "v" followed by a comma, apparently as
-/// the label argument of a Kokkos::View constructor.
+/// Default label ("v") of the views allocated by the allocateVector() / allocateArray*() overloads that take no
+/// name. Every such view gets the same label, so Kokkos error messages cannot tell them apart: prefer the
+/// overloads taking a name.
 #define KOKKOSNAME "v",
 
 #endif  // FUNTIDES_CORE_INCLUDE_COMMON_MACROS_H_
