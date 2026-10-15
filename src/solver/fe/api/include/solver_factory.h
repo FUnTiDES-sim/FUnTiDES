@@ -1,6 +1,5 @@
-#ifndef FUNTIDES_SOLVER_FE_IMPL_COMMON_INCLUDE_SOLVER_FACTORY_H_
-#define FUNTIDES_SOLVER_FE_IMPL_COMMON_INCLUDE_SOLVER_FACTORY_H_
-#include <Integrals.h>
+#ifndef FUNTIDES_SOLVER_FE_API_INCLUDE_SOLVER_FACTORY_H_
+#define FUNTIDES_SOLVER_FE_API_INCLUDE_SOLVER_FACTORY_H_
 
 #include <memory>
 
@@ -13,6 +12,11 @@ namespace solver_factory {
 
 /**
  * @brief Creates the solver matching a runtime configuration.
+ *
+ * This is the public entry point of the solver library: it maps a run
+ * configuration to one of the concrete solvers (SEM, DG, coupled DG-SEM or
+ * p-adaptive DG, according to the build options) and hands it back through
+ * the abstract Solver interface.
  *
  * @param[in] methodType Numerical method.
  * @param[in] implemType Integral back-end.
@@ -31,4 +35,4 @@ std::unique_ptr<Solver> createSolver(utils::enums::methodType methodType, utils:
 }  // namespace solver_factory
 }  // namespace fe
 }  // namespace solver
-#endif  // FUNTIDES_SOLVER_FE_IMPL_COMMON_INCLUDE_SOLVER_FACTORY_H_
+#endif  // FUNTIDES_SOLVER_FE_API_INCLUDE_SOLVER_FACTORY_H_
