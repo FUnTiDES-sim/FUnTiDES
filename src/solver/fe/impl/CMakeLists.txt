@@ -11,6 +11,8 @@ target_include_directories(fun_solver PUBLIC
     $<INSTALL_INTERFACE:include/funtides/solver>
 )
 
+include(${CMAKE_SOURCE_DIR}/cmake/GenerateSolverImplementations.cmake)
+
 add_subdirectory(acoustic)
 add_subdirectory(acoustoelastic)
 add_subdirectory(common)

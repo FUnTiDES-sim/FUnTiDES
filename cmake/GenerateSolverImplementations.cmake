@@ -4,6 +4,58 @@
 # Function to generate solver implementation files from templates
 # ============================================================================
 
+# Convenience wrapper for the most common instantiation pattern: one physics,
+# all orders from 1 to a variable holding the maximum, both mesh types, both
+# model locations, added to one library target. Each directory that used to
+# carry a hand-written copy of this boilerplate now calls:
+#
+#   add_solver_instantiations(
+#     PHYSIC      acoustic|elastic|acoustoelastic
+#     MAX_ORDER   <variable holding the maximum polynomial order>
+#     [SOLVER_NAME makutu|gemm]  integral back-end (default makutu)
+#     [FILE_PREFIX ...]          file prefix override (default per generator)
+#     [TARGET fun_solver]        target receiving the sources (default)
+#   )
+function(add_solver_instantiations)
+    set(oneValueArgs PHYSIC MAX_ORDER SOLVER_NAME FILE_PREFIX TARGET)
+    cmake_parse_arguments(ASI "" "${oneValueArgs}" "" ${ARGN})
+
+    if(NOT DEFINED ASI_PHYSIC)
+        message(FATAL_ERROR "add_solver_instantiations: PHYSIC is required")
+    endif()
+    if(NOT DEFINED ASI_MAX_ORDER)
+        message(FATAL_ERROR "add_solver_instantiations: MAX_ORDER is required")
+    endif()
+    if(NOT DEFINED ASI_SOLVER_NAME)
+        set(ASI_SOLVER_NAME "makutu")
+    endif()
+    if(NOT DEFINED ASI_TARGET)
+        set(ASI_TARGET "fun_solver")
+    endif()
+
+    set(ORDERS "")
+    foreach(order RANGE 1 ${${ASI_MAX_ORDER}})
+        list(APPEND ORDERS ${order})
+    endforeach()
+
+    set(EXTRA_ARGS "")
+    if(DEFINED ASI_FILE_PREFIX)
+        list(APPEND EXTRA_ARGS FILE_PREFIX "${ASI_FILE_PREFIX}")
+    endif()
+
+    generate_solver_implementations(
+        SOLVER_NAME "${ASI_SOLVER_NAME}"
+        ${EXTRA_ARGS}
+        ORDERS ${ORDERS}
+        MESH_TYPES "struct" "unstruct"
+        MODEL_TYPES "onelements" "onnodes"
+        PHYSIC_TYPES "${ASI_PHYSIC}"
+        OUTPUT_DIR "${CMAKE_CURRENT_BINARY_DIR}"
+        OUTPUT_VAR ASI_GENERATED_SOURCES
+    )
+    target_sources(${ASI_TARGET} PRIVATE ${ASI_GENERATED_SOURCES})
+endfunction()
+
 function(generate_solver_implementations)
     set(options "")
     set(oneValueArgs OUTPUT_DIR OUTPUT_VAR SOLVER_NAME FILE_PREFIX)

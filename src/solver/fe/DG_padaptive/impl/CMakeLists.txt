@@ -6,5 +6,7 @@ if(COMPILE_DG_PADAPTIVE)
   target_compile_definitions(fun_solver PUBLIC COMPILE_DG_PADAPTIVE)
 endif()
 
+include(${CMAKE_SOURCE_DIR}/cmake/GenerateSolverImplementations.cmake)
+
 add_subdirectory(acoustic)
 add_subdirectory(common)
