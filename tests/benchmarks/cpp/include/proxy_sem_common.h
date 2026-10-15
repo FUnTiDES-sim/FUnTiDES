@@ -76,12 +76,18 @@ inline std::shared_ptr<model::ModelApi<float, int>> buildStructModel(int order, 
 /**
  * @brief Creates a structured Makutu SEM solver through the public factory,
  * the same entry point every production caller uses.
+ *
+ * @param anisotropy Constitutive law the solver is configured for; the
+ *        default kIso is the behaviour every existing harness relies on.
+ *        The model-side tensors (initElasticityTensors) are the caller's
+ *        to initialise before computeFEInit.
  */
-inline std::unique_ptr<Solver> makeSemSolver(utils::enums::physicType physic, int order) {
+inline std::unique_ptr<Solver> makeSemSolver(utils::enums::physicType physic, int order,
+                                             model::AnisotropyType anisotropy = model::AnisotropyType::kIso) {
   auto solver = solver_factory::createSolver(utils::enums::methodType::kSem, utils::enums::implemType::kMakutu,
                                              utils::enums::meshType::kStruct,
                                              utils::enums::modelLocationType::kOnElements, physic, order);
-  solver->setAnisotropyType(model::AnisotropyType::kIso);
+  solver->setAnisotropyType(anisotropy);
   return solver;
 }
 

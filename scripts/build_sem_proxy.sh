@@ -60,4 +60,4 @@ KOKKOS_DIR=${SEMPROXY_KOKKOS_DIR:-/appli_RD/j1039830/local/lib64/cmake/Kokkos}
 # Parallel build: fun_solver is a dozen heavy template TUs that rebuild on
 # every header touch; serial make costs ~20 min. 192 cores are available; cap
 # at 32 to keep memory per compiler sane.
-make -j32 -C "${BUILD}" proxy_sem_acoustic proxy_sem_elastic
+make -j32 -C "${BUILD}" proxy_sem_acoustic proxy_sem_elastic proxy_sem_elastic_tti
