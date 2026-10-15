@@ -74,24 +74,47 @@ ne dépend que de `solver.h` et des énumérations) ; l'implémentation reste da
 
 ## Découpage de `sem_solver_impl.h`
 
-Les définitions out-of-line de `SEMsolver` sont réparties en quatre en-têtes
+Les définitions out-of-line de `SEMsolver` sont réparties en en-têtes
 thématiques, tous ré-inclus dans l'ordre original par le parapluie
 `sem_solver_impl.h` (aucun TU ne change) :
 
 - `sem_solver_step.h` — `computeFEInit` et les drivers de pas (`computeForces`,
   `updateSolution*`, `reset*`, `applyRHSTerm`, dispatcheur
   `computeElementContributions`) ;
-- `sem_solver_kernels.h` — noyaux d'éléments (acoustique GEMM/flat/team,
-  atténuation, élastique Iso/Tti, variantes z-deformées) et leurs sondes
-  `detail::` ;
+- `sem_solver_kernels.h` (dans `impl/common/`) — les sondes de capacité
+  `detail::`, les helpers de géométrie z-deformée et le dispatcheur
+  d'atténuation, partagés par les deux physiques ;
+- `impl/physics/acoustic/sem_solver_acoustic_kernels.h` — noyaux d'éléments
+  acoustiques (GEMM/flat/team, variantes z-deformées, atténuation acoustique) ;
+- `impl/physics/elastic/sem_solver_elastic_kernels.h` — noyaux d'éléments
+  élastiques (Iso/Vti/Tti, variantes flat/team/z-deformées, atténuation
+  élastique, précalcul des tenseurs TTI) ;
 - `sem_solver_update.h` — `updateFieldsForward/Backward` ;
 - `sem_solver_assembly.h` — masse, amortissement, allocation, sponge,
   diagnostics, `computeCMatrix`, variantes masquées/node-list.
 
-Le découpage est purement mécanique (réassemblage vérifié octet-identique à
-l'original). C'est aussi la couture où un futur pré-calcul de géométrie
-(aujourd'hui recalculée chaque pas par les noyaux de faces) pourra se brancher
-sans toucher au stepping.
+Le découpage est purement mécanique (chaque extraction vérifiée être une
+partition exacte de l'original, réassemblage octet-identique). C'est aussi la
+couture où un futur pré-calcul de géométrie (aujourd'hui recalculée chaque pas
+par les noyaux de faces) pourra se brancher sans toucher au stepping.
+
+## Hiérarchie par physique (`impl/physics/`)
+
+Depuis la migration en politiques (voir `documentation/physics-policy-design.md`),
+chaque physique possède son répertoire : `impl/physics/acoustic/` et
+`impl/physics/elastic/`, chacun avec sa racine d'inclusion ajoutée à
+`fun_solver` (convention des arbres par variante). Outre les noyaux ci-dessus,
+ils portent les types nommés :
+
+- `AcousticSolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES>` —
+  sous-classe `final` mince de `SEMsolver<..., kAcoustic>` ;
+- `ElasticSolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES>` —
+  idem pour `kElastic` (l'anisotropie Iso/Vti/Tti reste un choix d'exécution
+  du modèle, comme pour le template sous-jacent).
+
+Ces noms existent pour la lisibilité ; la fabrique reste le seul chemin de
+construction. Le dispatch reste compile-time (paramètre template) — aucune
+méthode virtuelle n'est ajoutée sur un chemin GPU.
 
 ## Fourche acoustoélastique
 
