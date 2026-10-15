@@ -100,6 +100,10 @@ class AEsolverOnElemTest : public ::testing::Test {
     uy_curr_ = allocateVector<vectorReal>(nNodes_, "uyCurr");
     uz_prev_ = allocateVector<vectorReal>(nNodes_, "uzPrev");
     uz_curr_ = allocateVector<vectorReal>(nNodes_, "uzCurr");
+    p_pp_ = allocateVector<vectorReal>(nNodes_, "pPrevPrev");
+    ux_pp_ = allocateVector<vectorReal>(nNodes_, "uxPrevPrev");
+    uy_pp_ = allocateVector<vectorReal>(nNodes_, "uyPrevPrev");
+    uz_pp_ = allocateVector<vectorReal>(nNodes_, "uzPrevPrev");
     zeroWavefields();
 
     rhs_term_ = allocateArray2D<arrayReal>(1, kNumSamples, "rhsTerm");
@@ -120,12 +124,21 @@ class AEsolverOnElemTest : public ::testing::Test {
       ux_prev_(i) = ux_curr_(i) = 0.0f;
       uy_prev_(i) = uy_curr_(i) = 0.0f;
       uz_prev_(i) = uz_curr_(i) = 0.0f;
+      p_pp_(i) = ux_pp_(i) = uy_pp_(i) = uz_pp_(i) = 0.0f;
     }
   }
 
   /// Build a DataStruct whose views alias the fixture wavefields/rhs.
   SEMsolverDataAcoustoElastic makeData() const {
     WavefieldAcoustoElastic wf(p_prev_, p_curr_, ux_prev_, ux_curr_, uy_prev_, uy_curr_, uz_prev_, uz_curr_);
+    RhsAcoustoElastic rhs(rhs_term_, rhs_elem_, rhs_wts_, rhs_termx_, rhs_termy_, rhs_termz_);
+    return SEMsolverDataAcoustoElastic(wf, rhs);
+  }
+
+  /// Same, but with the three-buffer wavefield the adjoint mode requires.
+  SEMsolverDataAcoustoElastic makeAdjointData() const {
+    WavefieldAcoustoElastic wf(p_pp_, p_prev_, p_curr_, ux_pp_, ux_prev_, ux_curr_, uy_pp_, uy_prev_, uy_curr_, uz_pp_,
+                               uz_prev_, uz_curr_);
     RhsAcoustoElastic rhs(rhs_term_, rhs_elem_, rhs_wts_, rhs_termx_, rhs_termy_, rhs_termz_);
     return SEMsolverDataAcoustoElastic(wf, rhs);
   }
@@ -138,6 +151,7 @@ class AEsolverOnElemTest : public ::testing::Test {
   vectorReal ux_prev_, ux_curr_;
   vectorReal uy_prev_, uy_curr_;
   vectorReal uz_prev_, uz_curr_;
+  vectorReal p_pp_, ux_pp_, uy_pp_, uz_pp_;
 
   arrayReal rhs_term_, rhs_termx_, rhs_termy_, rhs_termz_;
   vectorInt rhs_elem_;
@@ -219,7 +233,7 @@ TYPED_TEST(AEsolverOnElemTest, CouplingCoeffZNonZeroForHorizontalInterface) {
   // Apply A→E with uniform p=1 from zero uz; at least one node must change.
   for (int i = 0; i < this->nNodes_; ++i) this->p_curr_(i) = 1.0f;
   auto data = this->makeData();
-  this->solver_.ApplyCouplingAcousticToElastic(this->kDt, data);
+  this->solver_.ApplyCouplingAcousticToElastic(this->kDt, data, /*backward=*/false);
   FENCE
   float sum = 0.0f;
   for (int i = 0; i < this->nNodes_; ++i) sum += std::fabs(this->uz_prev_(i));
@@ -230,7 +244,7 @@ TYPED_TEST(AEsolverOnElemTest, CouplingCoeffXYZeroForHorizontalInterface) {
   // Horizontal z-interface: cx=cy=0 → ux and uy unchanged.
   for (int i = 0; i < this->nNodes_; ++i) this->p_curr_(i) = 1.0f;
   auto data = this->makeData();
-  this->solver_.ApplyCouplingAcousticToElastic(this->kDt, data);
+  this->solver_.ApplyCouplingAcousticToElastic(this->kDt, data, /*backward=*/false);
   FENCE
   float sum_ux = 0.0f, sum_uy = 0.0f;
   for (int i = 0; i < this->nNodes_; ++i) {
@@ -252,7 +266,7 @@ TYPED_TEST(AEsolverOnElemTest, CouplingAEZeroPressureNoDisplacement) {
     this->uz_prev_(i) = 5.0f;
   }
   auto data = this->makeData();
-  this->solver_.ApplyCouplingAcousticToElastic(this->kDt, data);
+  this->solver_.ApplyCouplingAcousticToElastic(this->kDt, data, /*backward=*/false);
   FENCE
   for (int i = 0; i < this->nNodes_; ++i) EXPECT_FLOAT_EQ(this->uz_prev_(i), 5.0f);
 }
@@ -267,7 +281,7 @@ TYPED_TEST(AEsolverOnElemTest, CouplingAEDtScalingIsBoundedByTheDampedLaw) {
 
   {
     auto data = this->makeData();
-    this->solver_.ApplyCouplingAcousticToElastic(this->kDt, data);
+    this->solver_.ApplyCouplingAcousticToElastic(this->kDt, data, /*backward=*/false);
     FENCE
   }
   float delta1 = 0.0f;
@@ -276,7 +290,7 @@ TYPED_TEST(AEsolverOnElemTest, CouplingAEDtScalingIsBoundedByTheDampedLaw) {
   for (int i = 0; i < this->nNodes_; ++i) this->uz_prev_(i) = 0.0f;
   {
     auto data = this->makeData();
-    this->solver_.ApplyCouplingAcousticToElastic(2.0f * this->kDt, data);
+    this->solver_.ApplyCouplingAcousticToElastic(2.0f * this->kDt, data, /*backward=*/false);
     FENCE
   }
   float delta2 = 0.0f;
@@ -290,13 +304,122 @@ TYPED_TEST(AEsolverOnElemTest, CouplingAEDtScalingIsBoundedByTheDampedLaw) {
 }
 
 // =============================================================================
+// Backward (adjoint) coupling
+// =============================================================================
+
+TYPED_TEST(AEsolverOnElemTest, CouplingAEBackwardCorrectsPrevPrevAndLeavesPrevAlone) {
+  // The backward Verlet writes the new level into the prevPrev buffer, so the
+  // traction correction must land there.  Before the fix the adjoint solid was
+  // never driven and stayed identically zero.
+  for (int i = 0; i < this->nNodes_; ++i) this->p_curr_(i) = 1.0f;
+  auto data = this->makeAdjointData();
+  this->solver_.ApplyCouplingAcousticToElastic(this->kDt, data, /*backward=*/true);
+  FENCE
+  float sum_pp = 0.0f, sum_prev = 0.0f;
+  for (int i = 0; i < this->nNodes_; ++i) {
+    sum_pp += std::fabs(this->uz_pp_(i));
+    sum_prev += std::fabs(this->uz_prev_(i));
+  }
+  EXPECT_GT(sum_pp, 0.0f);
+  EXPECT_FLOAT_EQ(sum_prev, 0.0f);
+}
+
+TYPED_TEST(AEsolverOnElemTest, CouplingAEBackwardAppliesSecondDifferenceOfPressure) {
+  // Forward the solid is driven by p^n.  Backward the transpose drives it by
+  // the second time difference of the adjoint pressure instead, the derivative
+  // having moved off the fluid row.  Feeding the forward kernel the pressure
+  // -(p_tt)/dt^2, which is what makes its own -dt^2 p^n factor reproduce that
+  // difference, must therefore give the very same increment.
+  constexpr float kPnew = 3.0f, kPn = 1.0f, kPother = -2.0f;
+  float const second_diff = kPnew - 2.0f * kPn + kPother;
+  float const dt2 = this->kDt * this->kDt;
+
+  std::vector<float> fwd_inc(this->nNodes_);
+  {
+    auto data = this->makeData();
+    for (int i = 0; i < this->nNodes_; ++i) this->p_curr_(i) = -second_diff / dt2;
+    this->solver_.ApplyCouplingAcousticToElastic(this->kDt, data, /*backward=*/false);
+    FENCE
+    for (int i = 0; i < this->nNodes_; ++i) fwd_inc[i] = this->uz_prev_(i);
+  }
+
+  this->zeroWavefields();
+  {
+    auto data = this->makeAdjointData();
+    for (int i = 0; i < this->nNodes_; ++i) {
+      this->p_pp_(i) = kPnew;
+      this->p_curr_(i) = kPn;
+      this->p_prev_(i) = kPother;
+    }
+    this->solver_.ApplyCouplingAcousticToElastic(this->kDt, data, /*backward=*/true);
+    FENCE
+  }
+
+  float total = 0.0f;
+  for (int i = 0; i < this->nNodes_; ++i) total += std::fabs(fwd_inc[i]);
+  ASSERT_GT(total, 0.0f) << "no coupling happened, so the comparison proves nothing";
+  for (int i = 0; i < this->nNodes_; ++i)
+    EXPECT_NEAR(this->uz_pp_(i), fwd_inc[i], 1e-5f * std::fabs(fwd_inc[i]) + 1e-20f) << "node " << i;
+}
+
+TYPED_TEST(AEsolverOnElemTest, CouplingEABackwardReadsCurrentDisplacement) {
+  // Backward the transpose feeds the fluid the adjoint displacement itself, at
+  // level n: the second difference belongs to the forward direction only.  A
+  // prevPrev displacement alone must therefore leave the pressure untouched.
+  for (int i = 0; i < this->nNodes_; ++i) this->uz_pp_(i) = 1.0f;
+  {
+    auto data = this->makeAdjointData();
+    this->solver_.ApplyCouplingElasticToAcoustic(this->kDt, data, /*backward=*/true);
+    FENCE
+  }
+  for (int i = 0; i < this->nNodes_; ++i) EXPECT_FLOAT_EQ(this->p_pp_(i), 0.0f) << "node " << i;
+
+  // while the level-n displacement does move it, into prevPrev.
+  this->zeroWavefields();
+  for (int i = 0; i < this->nNodes_; ++i) this->uz_curr_(i) = 1.0f;
+  {
+    auto data = this->makeAdjointData();
+    this->solver_.ApplyCouplingElasticToAcoustic(this->kDt, data, /*backward=*/true);
+    FENCE
+  }
+  float sum_p_pp = 0.0f, sum_p_prev = 0.0f;
+  for (int i = 0; i < this->nNodes_; ++i) {
+    sum_p_pp += std::fabs(this->p_pp_(i));
+    sum_p_prev += std::fabs(this->p_prev_(i));
+  }
+  EXPECT_GT(sum_p_pp, 0.0f);
+  EXPECT_FLOAT_EQ(sum_p_prev, 0.0f);
+}
+
+TYPED_TEST(AEsolverOnElemTest, InterfaceCouplingBackwardExchangesEnergyBothWays) {
+  // The composite step must move information in both directions, which is what
+  // makes the coupled adjoint carry the fluid residual into the solid.
+  // Backward the fluid reacts to the level-n displacement rather than to its
+  // acceleration, so that level is the one that has to be excited here.
+  for (int i = 0; i < this->nNodes_; ++i) {
+    this->p_curr_(i) = 2.0f;
+    this->uz_curr_(i) = 1.0f;
+  }
+  auto data = this->makeAdjointData();
+  this->solver_.ApplyInterfaceCoupling(this->kDt, data, /*backward=*/true);
+  FENCE
+  float sum_u = 0.0f, sum_p = 0.0f;
+  for (int i = 0; i < this->nNodes_; ++i) {
+    sum_u += std::fabs(this->uz_pp_(i));
+    sum_p += std::fabs(this->p_pp_(i));
+  }
+  EXPECT_GT(sum_u, 0.0f) << "fluid pressure did not drive the solid";
+  EXPECT_GT(sum_p, 0.0f) << "solid acceleration did not react on the fluid";
+}
+
+// =============================================================================
 // ApplyCouplingElasticToAcoustic
 // =============================================================================
 
 TYPED_TEST(AEsolverOnElemTest, CouplingEAZeroDisplacementNoEffect) {
   // u^{n+1}=u^n=u^{n-1}=0 → FD(u)=0 → p unchanged.
   auto data = this->makeData();
-  this->solver_.ApplyCouplingElasticToAcoustic(this->kDt, data);
+  this->solver_.ApplyCouplingElasticToAcoustic(this->kDt, data, /*backward=*/false);
   FENCE
   for (int i = 0; i < this->nNodes_; ++i) EXPECT_FLOAT_EQ(this->p_prev_(i), 0.0f);
 }
@@ -309,7 +432,7 @@ TYPED_TEST(AEsolverOnElemTest, CouplingEANonZeroAccelerationChangesP) {
     this->uz_curr_(i) = 0.0f;
   }
   auto data = this->makeData();
-  this->solver_.ApplyCouplingElasticToAcoustic(this->kDt, data);
+  this->solver_.ApplyCouplingElasticToAcoustic(this->kDt, data, /*backward=*/false);
   FENCE
   float sum_p = 0.0f;
   for (int i = 0; i < this->nNodes_; ++i) sum_p += std::fabs(this->p_prev_(i));
@@ -395,6 +518,92 @@ TYPED_TEST(AEsolverOnElemTest, updateSolutionBackwardWith3BuffersWorks) {
                         this->rhs_termz_);
   SEMsolverDataAcoustoElastic data(wf, rhs);
   EXPECT_NO_THROW(this->solver_.updateSolutionBackward(this->kDt, data));
+}
+
+// =============================================================================
+// The backward interface coupling is the ADJOINT of the forward one
+//
+// In the (u, p) variables the coupled operator is not symmetric, because the
+// fluid row carries the second time derivative of the solid:
+//
+//   [ Me d_tt + Ke         C       ] [u]   [fu]
+//   [   -C^T d_tt    Mf d_tt + Kf  ] [p] = [fp]
+//
+// Its transpose moves that derivative onto the solid row.  The adjoint-state
+// gradient needs the transpose, so replaying the forward coupling backwards is
+// wrong at interface nodes however time-reversible it looks -- and it is only
+// wrong there, which is why the bulk gradient checks out while the seabed does
+// not.  Writing Me, Mf for the lumped masses, the kernels must satisfy
+//
+//   Me * d u_new_d / d p^n     |fwd  ==  Mf * d p_new / d u^n_d     |bwd
+//   Mf * d p_new   / d u_new_d |fwd  ==  Me * d u_new_d / d p_new   |bwd
+//
+// and both sides are the bare coupling coefficient, times -dt^2 for the first.
+// A dropped dt^2 or a sign slip on either side breaks one of the identities.
+// =============================================================================
+
+TYPED_TEST(AEsolverOnElemTest, BackwardInterfaceCouplingIsTheTransposeOfForward) {
+  // Damping would make the two denominators differ and is not what is tested.
+  for (int c = 0; c < 4; ++c) {
+    auto damping = this->solver_.getDampingMatrix(c);
+    for (int i = 0; i < this->nNodes_; ++i) damping(i) = 0.0f;
+  }
+  auto M_e = this->solver_.getMassMatrixElastic();
+  auto M_f = this->solver_.getMassMatrixAcoustic();
+  auto cz = this->solver_.getInterfaceCouplingCoeff(2);
+
+  // Pick an interface node from the coupling coefficient itself: it is non-zero
+  // exactly there, so no private index list is needed.
+  int node = -1;
+  for (int i = 0; i < this->nNodes_ && node < 0; ++i)
+    if (std::fabs(cz(i)) > 0.0f && M_e(i) > 0.0f && M_f(i) > 0.0f) node = i;
+  ASSERT_GE(node, 0) << "no interface node carries a coupling coefficient";
+
+  constexpr float kDtC = 1.0f;  // no stiffness here, so dt is free; keeps dt^2 visible
+
+  auto fwd = this->makeData();
+  auto bwd = this->makeAdjointData();
+
+  // d u_new_z / d p^n, forward: the new displacement level lives in prev.
+  this->zeroWavefields();
+  this->p_curr_(node) = 1.0f;
+  this->solver_.ApplyInterfaceCoupling(kDtC, fwd, /*backward=*/false);
+  float const dU_dP_fwd = this->uz_prev_(node);
+
+  // d p_new / d u_new_z, forward.
+  this->zeroWavefields();
+  this->uz_prev_(node) = 1.0f;
+  this->solver_.ApplyInterfaceCoupling(kDtC, fwd, /*backward=*/false);
+  float const dP_dU_fwd = this->p_prev_(node);
+
+  // d p_new / d u^n_z, backward: the new level lives in prevPrev.
+  this->zeroWavefields();
+  this->uz_curr_(node) = 1.0f;
+  this->solver_.ApplyInterfaceCoupling(kDtC, bwd, /*backward=*/true);
+  float const dP_dU_bwd = this->p_pp_(node);
+
+  // d u_new_z / d p_new, backward.
+  this->zeroWavefields();
+  this->p_pp_(node) = 1.0f;
+  this->solver_.ApplyInterfaceCoupling(kDtC, bwd, /*backward=*/true);
+  float const dU_dP_bwd = this->uz_pp_(node);
+
+  ASSERT_NE(dU_dP_fwd, 0.0f) << "the fluid never reached the solid; test is vacuous";
+  ASSERT_NE(dP_dU_fwd, 0.0f) << "the solid never reached the fluid; test is vacuous";
+
+  float const lhs1 = M_e(node) * dU_dP_fwd;
+  float const rhs1 = M_f(node) * dP_dU_bwd;
+  float const lhs2 = M_f(node) * dP_dU_fwd;
+  float const rhs2 = M_e(node) * dU_dP_bwd;
+
+  EXPECT_NEAR(lhs1, rhs1, 1e-5f * std::fabs(lhs1))
+      << "Me du/dp (fwd) != Mf dp/du (bwd): the adjoint solid forcing is wrong";
+  EXPECT_NEAR(lhs2, rhs2, 1e-5f * std::fabs(lhs2))
+      << "Mf dp/du (fwd) != Me du/dp (bwd): the adjoint fluid forcing is wrong";
+
+  // Pin the closed forms too, so a matching pair of errors cannot pass.
+  EXPECT_NEAR(lhs1, -kDtC * kDtC * cz(node), 1e-5f * std::fabs(lhs1));
+  EXPECT_NEAR(lhs2, cz(node), 1e-5f * std::fabs(lhs2));
 }
 
 // =============================================================================
@@ -690,6 +899,44 @@ TYPED_TEST(AEsolverOnNodesTest, SharedConventionPassesInterfaceShearToTheElastic
     for (size_t i = 0; i < uz_no_shear.size(); ++i) diff += std::fabs(uz_shear[i] - uz_no_shear[i]);
     EXPECT_GT(diff, 0.0) << "the interface shear speed never reached the elastic kernel";
   }
+}
+
+// A solid side given per node must replace the one borrowed from a neighbouring
+// node. The elastic mass on the interface is rescaled by rho_solid / rho_fluid,
+// so a solid density of 2500 instead of the neighbour's 2000 scales it by 1.25.
+TYPED_TEST(AEsolverOnNodesTest, SolidOnInterfaceNodesSetsTheInterfaceElasticMass) {
+  using MeshT = typename TestFixture::Mesh;
+  using SolverT = typename TestFixture::Solver;
+  constexpr int kOrder = TestFixture::kOrder;
+  constexpr int kN = kOrder + 1;
+
+  MeshT mesh_borrowed = makeBilayerMeshOnNodes<kOrder>();
+  SolverT borrowed;
+  borrowed.computeFEInit(mesh_borrowed, {0.0f, 0.0f, 0.0f}, false, 0.0f);
+
+  MeshT mesh_given = makeBilayerMeshOnNodes<kOrder>();
+  int const n = mesh_given.getNumberOfNodes();
+  auto vp = allocateVector<vectorReal>(n, "solidVp");
+  auto vs = allocateVector<vectorReal>(n, "solidVs");
+  auto rho = allocateVector<vectorReal>(n, "solidRho");
+  for (int i = 0; i < n; ++i) {
+    vp(i) = 3000.0f;
+    vs(i) = 1500.0f;
+    rho(i) = 2500.0f;
+  }
+  SolverT given;
+  given.setSolidOnInterfaceNodes(vp, vs, rho);
+  given.computeFEInit(mesh_given, {0.0f, 0.0f, 0.0f}, false, 0.0f);
+  FENCE
+
+  auto& m_borrowed = borrowed.getMassMatrixElastic();
+  auto& m_given = given.getMassMatrixElastic();
+  for (int iy = 0; iy < kN; ++iy)
+    for (int ix = 0; ix < kN; ++ix) {
+      int const i = ix + kN * (iy + kN * kOrder);
+      ASSERT_GT(m_borrowed[i], 0.0f);
+      EXPECT_NEAR(m_given[i] / m_borrowed[i], 2500.0f / 2000.0f, 1e-5f) << "interface node " << i;
+    }
 }
 
 }  // namespace test

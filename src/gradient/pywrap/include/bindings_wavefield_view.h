@@ -76,20 +76,22 @@ void bind_wavefield_view_forward_elastic(py::module_& m) {
 /**
  * @brief Registers the Python class @c WavefieldViewBackwardElastic.
  *
- * The Python constructor takes six arrays: the displacement components @c ux_n, @c uy_n,
- * @c uz_n, then the second time derivative components @c ux_dt2, @c uy_dt2, @c uz_dt2.
+ * Two Python constructors: six arrays (@c ux_n, @c uy_n, @c uz_n, then the precomputed second
+ * time derivative @c ux_dt2, @c uy_dt2, @c uz_dt2), or nine arrays (@c ux_n ... then the two
+ * previous time levels @c ux_prev ... and @c ux_prevprev ...), from which the differentiator
+ * forms the second time derivative itself.
  * @param[in,out] m Python module receiving the class.
  */
 void bind_wavefield_view_backward_elastic(py::module_& m) {
+  using PyView = Kokkos::Experimental::python_view_type_t<vectorReal>;
   py::class_<WavefieldViewBackwardElastic, WavefieldView, std::shared_ptr<WavefieldViewBackwardElastic>>(
       m, "WavefieldViewBackwardElastic")
-      .def(py::init<Kokkos::Experimental::python_view_type_t<vectorReal>,
-                    Kokkos::Experimental::python_view_type_t<vectorReal>,
-                    Kokkos::Experimental::python_view_type_t<vectorReal>,
-                    Kokkos::Experimental::python_view_type_t<vectorReal>,
-                    Kokkos::Experimental::python_view_type_t<vectorReal>,
-                    Kokkos::Experimental::python_view_type_t<vectorReal>>(),
-           py::arg("ux_n"), py::arg("uy_n"), py::arg("uz_n"), py::arg("ux_dt2"), py::arg("uy_dt2"), py::arg("uz_dt2"))
+      .def(py::init<PyView, PyView, PyView, PyView, PyView, PyView>(), py::arg("ux_n"), py::arg("uy_n"),
+           py::arg("uz_n"), py::arg("ux_dt2"), py::arg("uy_dt2"), py::arg("uz_dt2"))
+      .def(py::init<PyView, PyView, PyView, PyView, PyView, PyView, PyView, PyView, PyView>(), py::arg("ux_n"),
+           py::arg("uy_n"), py::arg("uz_n"), py::arg("ux_prev"), py::arg("uy_prev"), py::arg("uz_prev"),
+           py::arg("ux_prevprev"), py::arg("uy_prevprev"), py::arg("uz_prevprev"))
+      .def("from_time_levels", &WavefieldViewBackwardElastic::fromTimeLevels)
       .def("print", &WavefieldViewBackwardElastic::print);
 }
 

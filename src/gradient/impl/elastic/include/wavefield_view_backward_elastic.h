@@ -10,17 +10,46 @@
 namespace gradient {
 
 /**
- * @brief Read-only view of an elastic adjoint wavefield, holding the adjoint
- * displacement and its precomputed second time derivative.
+ * @brief Read-only view of an elastic adjoint wavefield: the adjoint
+ * displacement plus its second time derivative, passed either precomputed
+ * by the host or as the raw time levels the kernels derive it from.
  *
- * The view stores shallow copies of the vectors given at construction and
- * does not own their data. Field indices:
+ * The kernels need d2u/dt2 of the adjoint field, but the propagator stores
+ * leapfrog time levels, not derivatives. Callers naturally hold one shape
+ * or the other, so the view accepts both and tells the kernels which one
+ * it got via fromTimeLevels().
+ *
+ * Precomputed mode -- six-field constructor, fromTimeLevels() == false.
+ * Fields 3-5 hold d2u/dt2 already formed by the host; the kernels use it
+ * as given. When needed: always for adjoint-state FWI. The reason is time
+ * centering: the three-level leapfrog difference is centered on n-1 while
+ * fields 0-2 hold level n, and an FWI gradient needs every kernel term at
+ * one common time level -- a one-step offset flips the sign of the density
+ * gradient, and swapping vectors cannot close it. So the host aligns time
+ * itself: form dt2 on n-1, pass the n-1 adjoint displacement as fields
+ * 0-2, and delay the forward field to that level. Every FWI caller
+ * (pyfwi's elastic propagator and all Python tests) uses this mode.
+ *
+ * Time-levels mode -- nine-field constructor, fromTimeLevels() == true.
+ * Fields 3-8 hold the raw levels n-1 and n-2 exactly as the leapfrog
+ * scheme stores them; the kernels form (pp - 2*prev + n) / dt^2 internally.
+ * When needed: when the caller holds only raw levels, wants no extra dt2
+ * buffers -- the same convenience as the acoustic view -- and does not
+ * need FWI time centering, e.g. standalone checks of the kernels
+ * themselves. Never for FWI, for the centering reason above. Today this
+ * mode is exercised by the C++ test TimeLevelsMatchPrecomputedDt2, which
+ * feeds both modes the same vectors and asserts identical gradients
+ * (orders 1-3, element and node kernels).
+ *
+ * The view stores shallow copies; it does not own the data. Field indices:
  *  - 0, 1, 2: adjoint displacement ux_n, uy_n, uz_n
- *  - 3, 4, 5: second time derivative ux_dt2, uy_dt2, uz_dt2
+ *  - 3, 4, 5: d2u/dt2 (precomputed mode) or the level n-1 (time-levels mode)
+ *  - 6, 7, 8: (time-levels mode only) the level n-2
  */
 class WavefieldViewBackwardElastic : public WavefieldView {
  public:
-  static constexpr int kNumFields = 6;  ///< Number of fields exposed by the view.
+  static constexpr int kNumFields = 6;            ///< Number of fields with a precomputed dt2.
+  static constexpr int kNumFieldsTimeLevels = 9;  ///< Number of fields when built from time levels.
 
   /**
    * @brief Builds the view from the six adjoint vectors.
@@ -33,10 +62,49 @@ class WavefieldViewBackwardElastic : public WavefieldView {
    */
   WavefieldViewBackwardElastic(vectorReal ux_n, vectorReal uy_n, vectorReal uz_n, vectorReal ux_dt2, vectorReal uy_dt2,
                                vectorReal uz_dt2)
-      : ux_n_(ux_n), uy_n_(uy_n), uz_n_(uz_n), ux_dt2_(ux_dt2), uy_dt2_(uy_dt2), uz_dt2_(uz_dt2) {}
+      : ux_n_(ux_n),
+        uy_n_(uy_n),
+        uz_n_(uz_n),
+        ux_dt2_(ux_dt2),
+        uy_dt2_(uy_dt2),
+        uz_dt2_(uz_dt2),
+        ux_pp_(ux_dt2),
+        uy_pp_(uy_dt2),
+        uz_pp_(uz_dt2),
+        fromTimeLevels_(false) {}
 
-  /** @brief Returns the number of fields, kNumFields. */
-  int getNumFields() const override { return kNumFields; }
+  /**
+   * @brief Builds the view from three adjoint time levels; the differentiator
+   * forms the second time derivative (prevprev - 2 prev + n) / dt^2 itself.
+   * @param[in] ux_n, uy_n, uz_n Adjoint displacement at the current step.
+   * @param[in] ux_prev, uy_prev, uz_prev Adjoint displacement one step back.
+   * @param[in] ux_prevprev, uy_prevprev, uz_prevprev Adjoint displacement two steps back.
+   */
+  WavefieldViewBackwardElastic(vectorReal ux_n, vectorReal uy_n, vectorReal uz_n, vectorReal ux_prev,
+                               vectorReal uy_prev, vectorReal uz_prev, vectorReal ux_prevprev, vectorReal uy_prevprev,
+                               vectorReal uz_prevprev)
+      : ux_n_(ux_n),
+        uy_n_(uy_n),
+        uz_n_(uz_n),
+        ux_dt2_(ux_prev),
+        uy_dt2_(uy_prev),
+        uz_dt2_(uz_prev),
+        ux_pp_(ux_prevprev),
+        uy_pp_(uy_prevprev),
+        uz_pp_(uz_prevprev),
+        fromTimeLevels_(true) {}
+
+  /**
+   * @brief True when the view carries the raw adjoint time levels (nine-field
+   * constructor) and the differentiator must form the second time difference
+   * in its kernels; false when fields 3-5 already hold a host-precomputed dt2
+   * (six-field constructor).
+   */
+  PROXY_HOST_DEVICE
+  bool fromTimeLevels() const { return fromTimeLevels_; }
+
+  /** @brief Returns the number of fields: kNumFields, or kNumFieldsTimeLevels. */
+  int getNumFields() const override { return fromTimeLevels_ ? kNumFieldsTimeLevels : kNumFields; }
 
   /**
    * @brief Returns the name of field i.
@@ -51,11 +119,17 @@ class WavefieldViewBackwardElastic : public WavefieldView {
       case 2:
         return "uz_n";
       case 3:
-        return "ux_dt2";
+        return fromTimeLevels_ ? "ux_prev" : "ux_dt2";
       case 4:
-        return "uy_dt2";
+        return fromTimeLevels_ ? "uy_prev" : "uy_dt2";
       case 5:
-        return "uz_dt2";
+        return fromTimeLevels_ ? "uz_prev" : "uz_dt2";
+      case 6:
+        return "ux_prevprev";
+      case 7:
+        return "uy_prevprev";
+      case 8:
+        return "uz_prevprev";
       default:
         return "ux_n";
     }
@@ -82,6 +156,12 @@ class WavefieldViewBackwardElastic : public WavefieldView {
         return uy_dt2_;
       case 5:
         return uz_dt2_;
+      case 6:
+        return ux_pp_;
+      case 7:
+        return uy_pp_;
+      case 8:
+        return uz_pp_;
       default:
         return ux_n_;  // make it cuda happy
     }
@@ -91,16 +171,21 @@ class WavefieldViewBackwardElastic : public WavefieldView {
   void print() const override {
     std::cout << "WavefieldViewBackwardElastic:" << " ux_n size=" << ux_n_.extent(0) << " uy_n size=" << uy_n_.extent(0)
               << " uz_n size=" << uz_n_.extent(0) << " ux_dt2 size=" << ux_dt2_.extent(0)
-              << " uy_dt2 size=" << uy_dt2_.extent(0) << " uz_dt2 size=" << uz_dt2_.extent(0) << "\n";
+              << " uy_dt2 size=" << uy_dt2_.extent(0) << " uz_dt2 size=" << uz_dt2_.extent(0)
+              << (fromTimeLevels_ ? " (time levels)" : "") << "\n";
   }
 
  private:
-  vectorReal ux_n_;    ///< Adjoint displacement, x component.
-  vectorReal uy_n_;    ///< Adjoint displacement, y component.
-  vectorReal uz_n_;    ///< Adjoint displacement, z component.
-  vectorReal ux_dt2_;  ///< Second time derivative, x component.
-  vectorReal uy_dt2_;  ///< Second time derivative, y component.
-  vectorReal uz_dt2_;  ///< Second time derivative, z component.
+  vectorReal ux_n_;      ///< Adjoint displacement, x component.
+  vectorReal uy_n_;      ///< Adjoint displacement, y component.
+  vectorReal uz_n_;      ///< Adjoint displacement, z component.
+  vectorReal ux_dt2_;    ///< Second time derivative (or previous level), x component.
+  vectorReal uy_dt2_;    ///< Second time derivative (or previous level), y component.
+  vectorReal uz_dt2_;    ///< Second time derivative (or previous level), z component.
+  vectorReal ux_pp_;     ///< Level two steps back, x component (time levels only).
+  vectorReal uy_pp_;     ///< Level two steps back, y component (time levels only).
+  vectorReal uz_pp_;     ///< Level two steps back, z component (time levels only).
+  bool fromTimeLevels_;  ///< Whether fields 3-8 are time levels rather than dt2.
 };
 
 }  // namespace gradient

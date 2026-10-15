@@ -26,16 +26,32 @@ void DifferentiatorElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES>::
   vectorReal const uy_dt2 = myData.getBackwardField(4);
   vectorReal const uz_dt2 = myData.getBackwardField(5);
 
+  // Two backward modes (see WavefieldViewBackwardElastic):
+  //  - fromLevels == false (precomputed mode): fields 3-5 hold the
+  //    host-precomputed d2u/dt2; nothing to rebuild, so ux_pp aliases ux_dt2.
+  //  - fromLevels == true (time-levels mode): fields 3-5 hold level n-1
+  //    and fields 6-8 level n-2; the kernels rebuild (pp - 2*prev + n) / dt^2,
+  //    centered one step behind fields 0-2 -- which is why FWI must use the
+  //    precomputed mode (see the class doc).
+  // Same vectors in, same gradients out (TimeLevelsMatchPrecomputedDt2).
+  bool const fromLevels = myData.m_bwd.fromTimeLevels();
+  vectorReal const ux_pp = myData.getBackwardField(fromLevels ? 6 : 3);
+  vectorReal const uy_pp = myData.getBackwardField(fromLevels ? 7 : 4);
+  vectorReal const uz_pp = myData.getBackwardField(fromLevels ? 8 : 5);
+
   vectorReal const gradRho = myData.getGradient(0);
   vectorReal const gradLambda = myData.getGradient(1);
   vectorReal const gradMu = myData.getGradient(2);
 
+  int const firstElement = myData.m_firstElement;
+  int const lastElement = myData.m_lastElement < 0 ? myMesh.getNumberOfElements() : myData.m_lastElement;
+
   if constexpr (!IS_MODEL_ON_NODES)
-    computeOnElements(myMesh, dt, ux_fwd, uy_fwd, uz_fwd, ux_adj, uy_adj, uz_adj, ux_dt2, uy_dt2, uz_dt2, gradRho,
-                      gradLambda, gradMu);
+    computeOnElements(myMesh, dt, ux_fwd, uy_fwd, uz_fwd, ux_adj, uy_adj, uz_adj, ux_dt2, uy_dt2, uz_dt2, ux_pp, uy_pp,
+                      uz_pp, fromLevels, gradRho, gradLambda, gradMu, firstElement, lastElement);
   else
-    computeOnNodes(myMesh, dt, ux_fwd, uy_fwd, uz_fwd, ux_adj, uy_adj, uz_adj, ux_dt2, uy_dt2, uz_dt2, gradRho,
-                   gradLambda, gradMu);
+    computeOnNodes(myMesh, dt, ux_fwd, uy_fwd, uz_fwd, ux_adj, uy_adj, uz_adj, ux_dt2, uy_dt2, uz_dt2, ux_pp, uy_pp,
+                   uz_pp, fromLevels, gradRho, gradLambda, gradMu, firstElement, lastElement);
   Kokkos::fence();
 }
 
@@ -148,12 +164,13 @@ template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE, bool IS_MODEL_O
 void DifferentiatorElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES>::computeOnElements(
     MESH_TYPE mesh, float dt, vectorReal const ux_fwd, vectorReal const uy_fwd, vectorReal const uz_fwd,
     vectorReal const ux_adj, vectorReal const uy_adj, vectorReal const uz_adj, vectorReal const ux_dt2,
-    vectorReal const uy_dt2, vectorReal const uz_dt2, vectorReal const gradRho, vectorReal const gradLambda,
-    vectorReal const gradMu) const {
+    vectorReal const uy_dt2, vectorReal const uz_dt2, vectorReal const ux_pp, vectorReal const uy_pp,
+    vectorReal const uz_pp, bool fromLevels, vectorReal const gradRho, vectorReal const gradLambda,
+    vectorReal const gradMu, int firstElement, int lastElement) const {
+  using Policy = Kokkos::RangePolicy<Kokkos::LaunchBounds<LaunchMaxThreadsPerBlock, LaunchMinBlocksPerSM>>;
+  float const invDt2 = 1.0f / (dt * dt);
   Kokkos::parallel_for(
-      "Compute Elastic Gradient on Elements",
-      Kokkos::RangePolicy<Kokkos::LaunchBounds<LaunchMaxThreadsPerBlock, LaunchMinBlocksPerSM>>(
-          0, mesh.getNumberOfElements()),
+      "Compute Elastic Gradient on Elements", Policy(firstElement, lastElement),
       KOKKOS_LAMBDA(const int elementNumber) {
         if (elementNumber >= mesh.getNumberOfElements()) return;
 
@@ -180,9 +197,19 @@ void DifferentiatorElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES>::
               localUxAdj[lIdx] = ux_adj(gIdx);
               localUyAdj[lIdx] = uy_adj(gIdx);
               localUzAdj[lIdx] = uz_adj(gIdx);
-              localUxDt2[lIdx] = ux_dt2(gIdx);
-              localUyDt2[lIdx] = uy_dt2(gIdx);
-              localUzDt2[lIdx] = uz_dt2(gIdx);
+              // Time-level convention: form the centered second difference
+              // from the three stored adjoint levels -- the expression the
+              // dt2 convention receives precomputed, so both conventions give
+              // identical gradients (TimeLevelsMatchPrecomputedDt2).
+              if (fromLevels) {
+                localUxDt2[lIdx] = (ux_pp(gIdx) - 2.0f * ux_dt2(gIdx) + ux_adj(gIdx)) * invDt2;
+                localUyDt2[lIdx] = (uy_pp(gIdx) - 2.0f * uy_dt2(gIdx) + uy_adj(gIdx)) * invDt2;
+                localUzDt2[lIdx] = (uz_pp(gIdx) - 2.0f * uz_dt2(gIdx) + uz_adj(gIdx)) * invDt2;
+              } else {
+                localUxDt2[lIdx] = ux_dt2(gIdx);
+                localUyDt2[lIdx] = uy_dt2(gIdx);
+                localUzDt2[lIdx] = uz_dt2(gIdx);
+              }
             }
 
         float X[8][3];
@@ -257,13 +284,13 @@ template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE, bool IS_MODEL_O
 void DifferentiatorElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES>::computeOnNodes(
     MESH_TYPE mesh, float dt, vectorReal const ux_fwd, vectorReal const uy_fwd, vectorReal const uz_fwd,
     vectorReal const ux_adj, vectorReal const uy_adj, vectorReal const uz_adj, vectorReal const ux_dt2,
-    vectorReal const uy_dt2, vectorReal const uz_dt2, vectorReal const gradRho, vectorReal const gradLambda,
-    vectorReal const gradMu) const {
+    vectorReal const uy_dt2, vectorReal const uz_dt2, vectorReal const ux_pp, vectorReal const uy_pp,
+    vectorReal const uz_pp, bool fromLevels, vectorReal const gradRho, vectorReal const gradLambda,
+    vectorReal const gradMu, int firstElement, int lastElement) const {
+  using Policy = Kokkos::RangePolicy<Kokkos::LaunchBounds<LaunchMaxThreadsPerBlock, LaunchMinBlocksPerSM>>;
+  float const invDt2 = 1.0f / (dt * dt);
   Kokkos::parallel_for(
-      "Compute Elastic Gradient on Nodes",
-      Kokkos::RangePolicy<Kokkos::LaunchBounds<LaunchMaxThreadsPerBlock, LaunchMinBlocksPerSM>>(
-          0, mesh.getNumberOfElements()),
-      KOKKOS_LAMBDA(const int elementNumber) {
+      "Compute Elastic Gradient on Nodes", Policy(firstElement, lastElement), KOKKOS_LAMBDA(const int elementNumber) {
         if (elementNumber >= mesh.getNumberOfElements()) return;
 
         int const dim = mesh.getOrder() + 1;
@@ -291,9 +318,19 @@ void DifferentiatorElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES>::
               localUxAdj[lIdx] = ux_adj(gIdx);
               localUyAdj[lIdx] = uy_adj(gIdx);
               localUzAdj[lIdx] = uz_adj(gIdx);
-              localUxDt2[lIdx] = ux_dt2(gIdx);
-              localUyDt2[lIdx] = uy_dt2(gIdx);
-              localUzDt2[lIdx] = uz_dt2(gIdx);
+              // Time-level convention: form the centered second difference
+              // from the three stored adjoint levels -- the expression the
+              // dt2 convention receives precomputed, so both conventions give
+              // identical gradients (TimeLevelsMatchPrecomputedDt2).
+              if (fromLevels) {
+                localUxDt2[lIdx] = (ux_pp(gIdx) - 2.0f * ux_dt2(gIdx) + ux_adj(gIdx)) * invDt2;
+                localUyDt2[lIdx] = (uy_pp(gIdx) - 2.0f * uy_dt2(gIdx) + uy_adj(gIdx)) * invDt2;
+                localUzDt2[lIdx] = (uz_pp(gIdx) - 2.0f * uz_dt2(gIdx) + uz_adj(gIdx)) * invDt2;
+              } else {
+                localUxDt2[lIdx] = ux_dt2(gIdx);
+                localUyDt2[lIdx] = uy_dt2(gIdx);
+                localUzDt2[lIdx] = uz_dt2(gIdx);
+              }
             }
 
         float X[8][3];
