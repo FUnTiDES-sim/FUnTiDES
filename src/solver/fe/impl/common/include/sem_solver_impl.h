@@ -14,9 +14,12 @@
  *                           (computeForces, updateSolution*, reset*, applyRHSTerm,
  *                           computeElementContributions dispatcher);
  * - sem_solver_kernels.h  — the shared capability probes, z-deformed geometry
- *                           helpers and the elastic element kernels;
+ *                           helpers and the attenuation dispatcher;
  * - sem_solver_acoustic_kernels.h — the acoustic element kernels
  *                           (physics-policy migration, step 1: moved verbatim
+ *                           from sem_solver_kernels.h);
+ * - sem_solver_elastic_kernels.h — the elastic element kernels
+ *                           (physics-policy migration, step 2: moved verbatim
  *                           from sem_solver_kernels.h);
  * - sem_solver_update.h   — updateFieldsForward / updateFieldsBackward;
  * - sem_solver_assembly.h — mass matrix, damping, array allocation, sponge
@@ -34,6 +37,8 @@
 #include "sem_solver_kernels.h"
 
 #include "sem_solver_acoustic_kernels.h"
+
+#include "sem_solver_elastic_kernels.h"
 
 #include "sem_solver_update.h"
 
