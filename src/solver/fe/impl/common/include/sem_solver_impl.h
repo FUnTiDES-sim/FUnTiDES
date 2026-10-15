@@ -44,4 +44,9 @@
 
 #include "sem_solver_assembly.h"
 
+// Named physics solver types (physics-policy migration, step 3) — after all
+// fragments, where SEMsolver's definition is complete.
+#include "acoustic_solver.h"
+#include "elastic_solver.h"
+
 #endif  // FUNTIDES_SOLVER_FE_IMPL_COMMON_INCLUDE_SEM_SOLVER_IMPL_H_
