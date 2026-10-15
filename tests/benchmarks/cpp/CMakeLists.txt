@@ -134,3 +134,25 @@ set_target_properties(proxy_sem_elastic
   PROPERTIES
     RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin/benchmarks
 )
+
+# TTI oracle: same fixed problem as proxy_sem_elastic, anisotropic tensors
+# (initElasticityTensors(kTTI) + setAnisotropyType(kTTI)). Guards the TTI
+# kernels the isotropic reference cannot see.
+add_executable(proxy_sem_elastic_tti src/proxy_sem_elastic_tti.cc)
+target_include_directories(proxy_sem_elastic_tti
+  PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/include
+    ${CMAKE_CURRENT_BINARY_DIR}/include
+)
+target_link_libraries(proxy_sem_elastic_tti
+  PRIVATE
+    fun_solver
+    fun_model
+    fun_discretization
+    fun_acquisition
+)
+target_link_kokkos_if_enabled(proxy_sem_elastic_tti)
+set_target_properties(proxy_sem_elastic_tti
+  PROPERTIES
+    RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin/benchmarks
+)

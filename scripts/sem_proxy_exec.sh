@@ -53,9 +53,10 @@ QUIET_WAIT=${SEMPROXY_QUIET_WAIT:-45}
 QUIET_ON=${SEMPROXY_QUIET_ON:-1}
 
 case "$PHYSICS" in
-  acoustic) BINARY=proxy_sem_acoustic ;;
-  elastic)  BINARY=proxy_sem_elastic ;;
-  *) echo "[exec] unknown physics '$PHYSICS' (expected acoustic|elastic)" >&2; exit 2 ;;
+  acoustic)     BINARY=proxy_sem_acoustic ;;
+  elastic)      BINARY=proxy_sem_elastic ;;
+  elastic_tti)  BINARY=proxy_sem_elastic_tti ;;
+  *) echo "[exec] unknown physics '$PHYSICS' (expected acoustic|elastic|elastic_tti)" >&2; exit 2 ;;
 esac
 REAL=/appli_RD/j1039830/FUnTiDES/build/bin/benchmarks/${BINARY}
 
