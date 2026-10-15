@@ -17,6 +17,7 @@ add_subdirectory(acoustic)
 add_subdirectory(acoustoelastic)
 add_subdirectory(common)
 add_subdirectory(elastic)
+add_subdirectory(physics)
 
 set(SOLV_LIBS fun_discretization fun_core fun_parallel fun_model fun_solver_api)
 

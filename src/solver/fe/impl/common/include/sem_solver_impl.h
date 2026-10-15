@@ -13,9 +13,11 @@
  * - sem_solver_step.h     — computeFEInit and the one-step drivers
  *                           (computeForces, updateSolution*, reset*, applyRHSTerm,
  *                           computeElementContributions dispatcher);
- * - sem_solver_kernels.h  — the element kernels (acoustic GEMM/flat/team,
- *                           attenuation, elastic Iso/Tti, z-deformed variants)
- *                           and their detail:: capability probes;
+ * - sem_solver_kernels.h  — the shared capability probes, z-deformed geometry
+ *                           helpers and the elastic element kernels;
+ * - sem_solver_acoustic_kernels.h — the acoustic element kernels
+ *                           (physics-policy migration, step 1: moved verbatim
+ *                           from sem_solver_kernels.h);
  * - sem_solver_update.h   — updateFieldsForward / updateFieldsBackward;
  * - sem_solver_assembly.h — mass matrix, damping, array allocation, sponge
  *                           values, diagnostics output, computeCMatrix and the
@@ -30,6 +32,8 @@
 #include "sem_solver_step.h"
 
 #include "sem_solver_kernels.h"
+
+#include "sem_solver_acoustic_kernels.h"
 
 #include "sem_solver_update.h"
 
