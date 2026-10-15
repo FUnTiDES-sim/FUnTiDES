@@ -21,10 +21,10 @@ class ModelUnstructTest : public ::testing::Test {
 
   static void fillGeometry(ModelUnstructData<FloatType, ScalarType>& data) {
     for (int i = 0; i < 8; ++i) {
-      data.global_node_index_(0, i) = i;
-      data.nodes_coords_x_[i] = (i & 1) ? 1.0 : 0.0;
-      data.nodes_coords_y_[i] = (i & 2) ? 1.0 : 0.0;
-      data.nodes_coords_z_[i] = (i & 4) ? 1.0 : 0.0;
+      data.global_node_index_.view_host()(0, i) = i;
+      data.nodes_coords_x_.view_host()(i) = (i & 1) ? 1.0 : 0.0;
+      data.nodes_coords_y_.view_host()(i) = (i & 2) ? 1.0 : 0.0;
+      data.nodes_coords_z_.view_host()(i) = (i & 4) ? 1.0 : 0.0;
     }
   }
 
@@ -38,16 +38,16 @@ class ModelUnstructTest : public ::testing::Test {
     data.isModelOnNodes_ = false;
     data.isElastic_ = false;
 
-    data.global_node_index_ = allocateArray2D<arrayInt>(1, 8);
-    data.nodes_coords_x_ = allocateVector<vectorReal>(8);
-    data.nodes_coords_y_ = allocateVector<vectorReal>(8);
-    data.nodes_coords_z_ = allocateVector<vectorReal>(8);
-    data.model_vp_element_ = allocateVector<vectorReal>(1);
-    data.model_rho_element_ = allocateVector<vectorReal>(1);
+    data.global_node_index_ = allocateArray2D<dualArrayInt>(1, 8);
+    data.nodes_coords_x_ = allocateVector<dualVectorReal>(8);
+    data.nodes_coords_y_ = allocateVector<dualVectorReal>(8);
+    data.nodes_coords_z_ = allocateVector<dualVectorReal>(8);
+    data.model_vp_element_ = allocateVector<dualVectorReal>(1);
+    data.model_rho_element_ = allocateVector<dualVectorReal>(1);
 
     fillGeometry(data);
-    data.model_vp_element_[0] = 1500.0;
-    data.model_rho_element_[0] = 1.0;
+    data.model_vp_element_.view_host()(0) = 1500.0;
+    data.model_rho_element_.view_host()(0) = 1.0;
 
     return ModelType(data);
   }
@@ -62,22 +62,22 @@ class ModelUnstructTest : public ::testing::Test {
     data.isModelOnNodes_ = true;
     data.isElastic_ = false;
 
-    data.global_node_index_ = allocateArray2D<arrayInt>(1, 8);
-    data.nodes_coords_x_ = allocateVector<vectorReal>(8);
-    data.nodes_coords_y_ = allocateVector<vectorReal>(8);
-    data.nodes_coords_z_ = allocateVector<vectorReal>(8);
-    data.model_vp_node_ = allocateVector<vectorReal>(8);
-    data.model_rho_node_ = allocateVector<vectorReal>(8);
-    data.model_vs_node_ = allocateVector<vectorReal>(8);
-    data.boundaries_t_ = allocateVector<vectorInt>(8);
+    data.global_node_index_ = allocateArray2D<dualArrayInt>(1, 8);
+    data.nodes_coords_x_ = allocateVector<dualVectorReal>(8);
+    data.nodes_coords_y_ = allocateVector<dualVectorReal>(8);
+    data.nodes_coords_z_ = allocateVector<dualVectorReal>(8);
+    data.model_vp_node_ = allocateVector<dualVectorReal>(8);
+    data.model_rho_node_ = allocateVector<dualVectorReal>(8);
+    data.model_vs_node_ = allocateVector<dualVectorReal>(8);
+    data.boundaries_t_ = allocateVector<dualVectorInt>(8);
 
     fillGeometry(data);
     for (int i = 0; i < 8; ++i) {
-      data.model_vp_node_[i] = 1500.0;
-      data.model_rho_node_[i] = 1.0;
-      data.model_vs_node_[i] = 0.0;
+      data.model_vp_node_.view_host()(i) = 1500.0;
+      data.model_rho_node_.view_host()(i) = 1.0;
+      data.model_vs_node_.view_host()(i) = 0.0;
       // Mark node 7 (top corner, z=1) as Surface for boundary tests
-      data.boundaries_t_[i] =
+      data.boundaries_t_.view_host()(i) =
           (i == 7) ? static_cast<int>(BoundaryFlag::Surface) : static_cast<int>(BoundaryFlag::InteriorNode);
     }
     return ModelType(data);
@@ -93,29 +93,29 @@ class ModelUnstructTest : public ::testing::Test {
     data.isModelOnNodes_ = false;
     data.isElastic_ = true;
 
-    data.global_node_index_ = allocateArray2D<arrayInt>(1, 8);
-    data.nodes_coords_x_ = allocateVector<vectorReal>(8);
-    data.nodes_coords_y_ = allocateVector<vectorReal>(8);
-    data.nodes_coords_z_ = allocateVector<vectorReal>(8);
-    data.model_vp_element_ = allocateVector<vectorReal>(1);
-    data.model_rho_element_ = allocateVector<vectorReal>(1);
-    data.model_vs_element_ = allocateVector<vectorReal>(1);
-    data.model_delta_element_ = allocateVector<vectorReal>(1);
-    data.model_epsilon_element_ = allocateVector<vectorReal>(1);
-    data.model_gamma_element_ = allocateVector<vectorReal>(1);
-    data.model_theta_element_ = allocateVector<vectorReal>(1);
-    data.model_phi_element_ = allocateVector<vectorReal>(1);
-    data.boundaries_t_ = allocateVector<vectorInt>(8);
+    data.global_node_index_ = allocateArray2D<dualArrayInt>(1, 8);
+    data.nodes_coords_x_ = allocateVector<dualVectorReal>(8);
+    data.nodes_coords_y_ = allocateVector<dualVectorReal>(8);
+    data.nodes_coords_z_ = allocateVector<dualVectorReal>(8);
+    data.model_vp_element_ = allocateVector<dualVectorReal>(1);
+    data.model_rho_element_ = allocateVector<dualVectorReal>(1);
+    data.model_vs_element_ = allocateVector<dualVectorReal>(1);
+    data.model_delta_element_ = allocateVector<dualVectorReal>(1);
+    data.model_epsilon_element_ = allocateVector<dualVectorReal>(1);
+    data.model_gamma_element_ = allocateVector<dualVectorReal>(1);
+    data.model_theta_element_ = allocateVector<dualVectorReal>(1);
+    data.model_phi_element_ = allocateVector<dualVectorReal>(1);
+    data.boundaries_t_ = allocateVector<dualVectorInt>(8);
 
     fillGeometry(data);
-    data.model_vp_element_[0] = 3000.0;
-    data.model_rho_element_[0] = 2000.0;
-    data.model_vs_element_[0] = 1500.0;
-    data.model_delta_element_[0] = 0.0;
-    data.model_epsilon_element_[0] = 0.0;
-    data.model_gamma_element_[0] = 0.0;
-    data.model_theta_element_[0] = 0.0;
-    data.model_phi_element_[0] = 0.0;
+    data.model_vp_element_.view_host()(0) = 3000.0;
+    data.model_rho_element_.view_host()(0) = 2000.0;
+    data.model_vs_element_.view_host()(0) = 1500.0;
+    data.model_delta_element_.view_host()(0) = 0.0;
+    data.model_epsilon_element_.view_host()(0) = 0.0;
+    data.model_gamma_element_.view_host()(0) = 0.0;
+    data.model_theta_element_.view_host()(0) = 0.0;
+    data.model_phi_element_.view_host()(0) = 0.0;
     return ModelType(data);
   }
 };
@@ -378,16 +378,16 @@ TYPED_TEST(ModelUnstructTest, BoundaryTypeWithEmptyBoundariesIsInterior) {
   data.lx_ = data.ly_ = data.lz_ = 1.0;
   data.isModelOnNodes_ = false;
   data.isElastic_ = false;
-  data.global_node_index_ = allocateArray2D<arrayInt>(1, 8);
-  data.nodes_coords_x_ = allocateVector<vectorReal>(8);
-  data.nodes_coords_y_ = allocateVector<vectorReal>(8);
-  data.nodes_coords_z_ = allocateVector<vectorReal>(8);
-  data.model_vp_element_ = allocateVector<vectorReal>(1);
-  data.model_rho_element_ = allocateVector<vectorReal>(1);
+  data.global_node_index_ = allocateArray2D<dualArrayInt>(1, 8);
+  data.nodes_coords_x_ = allocateVector<dualVectorReal>(8);
+  data.nodes_coords_y_ = allocateVector<dualVectorReal>(8);
+  data.nodes_coords_z_ = allocateVector<dualVectorReal>(8);
+  data.model_vp_element_ = allocateVector<dualVectorReal>(1);
+  data.model_rho_element_ = allocateVector<dualVectorReal>(1);
   // boundaries_t_ left empty on purpose
   TestFixture::fillGeometry(data);
-  data.model_vp_element_[0] = 1500.0;
-  data.model_rho_element_[0] = 1.0;
+  data.model_vp_element_.view_host()(0) = 1500.0;
+  data.model_rho_element_.view_host()(0) = 1.0;
   typename TestFixture::ModelType model(data);
   EXPECT_EQ(model.boundaryType(0), BoundaryFlag::InteriorNode);
   EXPECT_FALSE(model.isFreeSurface(0));

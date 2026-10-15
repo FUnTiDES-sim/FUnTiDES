@@ -53,18 +53,19 @@ model::ModelStruct<float, int, ORDER> makeBilayerMesh() {
   d.isModelOnNodes_ = false;
   d.isElastic_ = false;
 
-  auto vp = allocateVector<vectorReal>(kNumElems, "vp");
-  auto vs = allocateVector<vectorReal>(kNumElems, "vs");
-  auto rho = allocateVector<vectorReal>(kNumElems, "rho");
-  vp[0] = 3000.0f;
-  vs[0] = 1500.0f;
-  rho[0] = 2000.0f;  // elastic
-  vp[1] = 1500.0f;
-  vs[1] = 0.0f;
-  rho[1] = 1000.0f;  // acoustic
-  d.model_vp_element_ = vp;
-  d.model_vs_element_ = vs;
-  d.model_rho_element_ = rho;
+  // Filled on the host; the ModelStruct constructor copies them to the device.
+  d.model_vp_element_ = allocateVector<dualVectorReal>(kNumElems, "vp");
+  d.model_vs_element_ = allocateVector<dualVectorReal>(kNumElems, "vs");
+  d.model_rho_element_ = allocateVector<dualVectorReal>(kNumElems, "rho");
+  auto vp = d.model_vp_element_.view_host();
+  auto vs = d.model_vs_element_.view_host();
+  auto rho = d.model_rho_element_.view_host();
+  vp(0) = 3000.0f;
+  vs(0) = 1500.0f;
+  rho(0) = 2000.0f;  // elastic
+  vp(1) = 1500.0f;
+  vs(1) = 0.0f;
+  rho(1) = 1000.0f;  // acoustic
 
   return model::ModelStruct<float, int, ORDER>(d);
 }
@@ -460,9 +461,13 @@ model::ModelStruct<float, int, ORDER> makeBilayerMeshOnNodes(float vs_on_interfa
   d.isModelOnNodes_ = true;
   d.isElastic_ = false;
 
-  auto vp_node = allocateVector<vectorReal>(nNodes, "vp_node_n");
-  auto vs_node = allocateVector<vectorReal>(nNodes, "vs_node_n");
-  auto rho_node = allocateVector<vectorReal>(nNodes, "rho_node_n");
+  // Filled on the host; the ModelStruct constructor copies them to the device.
+  d.model_vp_node_ = allocateVector<dualVectorReal>(nNodes, "vp_node_n");
+  d.model_vs_node_ = allocateVector<dualVectorReal>(nNodes, "vs_node_n");
+  d.model_rho_node_ = allocateVector<dualVectorReal>(nNodes, "rho_node_n");
+  auto vp_node = d.model_vp_node_.view_host();
+  auto vs_node = d.model_vs_node_.view_host();
+  auto rho_node = d.model_rho_node_.view_host();
 
   for (int iz = 0; iz < nz; ++iz)
     for (int iy = 0; iy < ny; ++iy)
@@ -478,10 +483,6 @@ model::ModelStruct<float, int, ORDER> makeBilayerMeshOnNodes(float vs_on_interfa
           rho_node(n) = 1000.0f;
         }
       }
-
-  d.model_vp_node_ = vp_node;
-  d.model_vs_node_ = vs_node;
-  d.model_rho_node_ = rho_node;
 
   return model::ModelStruct<float, int, ORDER>(d);
 }
