@@ -30,7 +30,7 @@ PARTITION=${SEMPROXY_BUILD_PARTITION:-COMPUTE_GPU_B300}
 if [ "$(hostname -s)" != "$NODE" ]; then
   exec /usr/bin/srun --partition="$PARTITION" --nodelist="$NODE" \
     --cpus-per-task=32 --mem=64G --time=02:00:00 --quiet \
-    --comment="mimir proxy build SEM harnesses (FUnTiDES solver refactor)" \
+    --comment="FUnTiDES,LLM4CSE,OT/R&D/SUB/SC" \
     /appli_RD/j1039830/FUnTiDES/scripts/build_sem_proxy.sh
 fi
 

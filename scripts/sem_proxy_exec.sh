@@ -119,6 +119,6 @@ fi
 
 exec /usr/bin/srun --partition="$PARTITION" --nodelist="$NODE" --gres=gpu:1 \
   --cpus-per-task=8 --mem=32G --time=01:00:00 --quiet \
-  --comment="mimir proxy run SEM ${PHYSICS} (FUnTiDES solver refactor)" \
+  --comment="FUnTiDES,LLM4CSE,OT/R&D/SUB/SC" \
   env SEMPROXY_ON_NODE=1 \
   /appli_RD/j1039830/FUnTiDES/scripts/sem_proxy_exec.sh "$PHYSICS" "$@"
