@@ -24,7 +24,6 @@
 #include "wavefield_acoustic.h"
 
 namespace solver {
-namespace fe {
 namespace test {
 
 namespace feenum = utils::enums;
@@ -497,5 +496,4 @@ TEST_F(SemSolverAcousticAttenuationTest, ResetGlobalVectorsZerosAttenuationWorkV
 TEST_F(SemSolverAcousticAttenuationTest, SetZBoundary_DoesNotThrow) { EXPECT_NO_THROW(solver_->setZBoundary(500.0f)); }
 
 }  // namespace test
-}  // namespace fe
 }  // namespace solver

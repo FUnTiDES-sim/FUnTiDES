@@ -13,7 +13,6 @@
 #include "dg_padaptive_solver_data.h"
 
 namespace solver {
-namespace fe {
 namespace test {
 
 class DGPAdaptiveSolverDataTest : public ::testing::Test {
@@ -347,5 +346,4 @@ TEST_F(DGPAdaptiveSolverDataTest, EmptyViews_ValidConstruction) {
 }
 
 }  // namespace test
-}  // namespace fe
 }  // namespace solver

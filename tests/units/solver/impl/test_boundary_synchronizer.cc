@@ -9,7 +9,6 @@
 #include "parallel_topology.h"
 
 namespace solver {
-namespace fe {
 namespace test {
 
 struct FloatView {
@@ -117,5 +116,4 @@ TEST(BoundarySynchronizerTest, WrongBufferSizeThrows) {
 }
 
 }  // namespace test
-}  // namespace fe
 }  // namespace solver

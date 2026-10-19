@@ -10,7 +10,6 @@
 #include "wavefield_acoustic.h"
 
 namespace solver {
-namespace fe {
 namespace testing {
 
 // ============================================================================
@@ -193,5 +192,4 @@ TEST_F(SEMSolverDataAcousticSwapRotateTest, SwapThreeTimesRestoresStateWithThree
 }
 
 }  // namespace testing
-}  // namespace fe
 }  // namespace solver

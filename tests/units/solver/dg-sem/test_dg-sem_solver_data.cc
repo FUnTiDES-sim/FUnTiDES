@@ -13,7 +13,6 @@
 #include "dg-sem_solver_data.h"
 
 namespace solver {
-namespace fe {
 namespace test {
 
 class DGSEMsolverDataTest : public ::testing::Test {
@@ -326,5 +325,4 @@ TEST_F(DGSEMsolverDataTest, EmptyViews_ValidConstruction) {
 }
 
 }  // namespace test
-}  // namespace fe
 }  // namespace solver

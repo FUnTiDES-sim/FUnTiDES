@@ -19,7 +19,6 @@
 #include "sem_solver_impl.h"
 
 namespace solver {
-namespace fe {
 namespace test {
 
 namespace {
@@ -79,5 +78,4 @@ TEST(ElasticFluxTtiCompact, MatchesRotatedTensor) {
 }
 
 }  // namespace test
-}  // namespace fe
 }  // namespace solver

@@ -30,7 +30,6 @@
 #include "wavefield_elastic.h"
 
 namespace solver {
-namespace fe {
 namespace test {
 
 namespace {
@@ -268,5 +267,4 @@ TEST(SemSolverZDeformed, AcousticOnNodesMatchesGenericKernelOnDeformedMesh) { Ch
 TEST(SemSolverZDeformed, TtiOnNodesMatchesGenericKernelOnDeformedMesh) { CheckTti(true); }
 
 }  // namespace test
-}  // namespace fe
 }  // namespace solver

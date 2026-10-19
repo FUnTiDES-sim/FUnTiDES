@@ -29,7 +29,6 @@
 #include "model_struct.h"
 
 namespace solver {
-namespace fe {
 namespace test {
 
 // ============================================================
@@ -319,5 +318,4 @@ TEST_F(DGSEMsolverAcousticTest, OutputSolutionValues_VectorView_DoesNotCrash) {
 }
 
 }  // namespace test
-}  // namespace fe
 }  // namespace solver

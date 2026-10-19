@@ -5,7 +5,6 @@
 #include "rhs_acoustic.h"
 
 namespace solver {
-namespace fe {
 namespace test {
 
 class RhsAcousticTest : public ::testing::Test {
@@ -276,5 +275,4 @@ TEST_F(RhsAcousticTest, PrintDoesNotCrash) {
 }
 
 }  // namespace test
-}  // namespace fe
 }  // namespace solver

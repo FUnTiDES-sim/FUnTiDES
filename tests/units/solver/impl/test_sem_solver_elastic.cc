@@ -23,7 +23,6 @@
 #include "wavefield_elastic.h"
 
 namespace solver {
-namespace fe {
 namespace test {
 
 namespace feenum = utils::enums;
@@ -853,5 +852,4 @@ TEST_F(SemSolverElasticTtiOnNodesTest, ComputeOneStepProducesFiniteValues) {
 }
 
 }  // namespace test
-}  // namespace fe
 }  // namespace solver

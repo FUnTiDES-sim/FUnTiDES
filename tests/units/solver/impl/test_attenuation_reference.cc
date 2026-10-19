@@ -69,7 +69,6 @@
 #include "wavefield_acoustic.h"
 
 namespace solver {
-namespace fe {
 namespace test {
 static vectorReal toView(const std::vector<float>& v, const char* name) {
   if (v.empty()) return vectorReal();
@@ -257,5 +256,4 @@ TEST(AttenuationReferenceAcoustic, Order2EnergyDecayScalesWithQ) {
 }
 
 }  // namespace test
-}  // namespace fe
 }  // namespace solver

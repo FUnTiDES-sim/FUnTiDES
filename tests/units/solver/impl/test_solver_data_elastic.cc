@@ -10,7 +10,6 @@
 #include "wavefield_elastic.h"
 
 namespace solver {
-namespace fe {
 namespace testing {
 
 // ============================================================================
@@ -241,5 +240,4 @@ TEST_F(SEMSolverDataElasticSwapRotateTest, SwapThreeTimesRestoresStatePerCompone
 }
 
 }  // namespace testing
-}  // namespace fe
 }  // namespace solver

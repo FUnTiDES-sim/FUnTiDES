@@ -8,7 +8,7 @@
 
 #ifdef COMPILE_DG_SEM
 
-namespace solver::fe::solver_factory {
+namespace solver::solver_factory {
 
 namespace feenum = utils::enums;
 
@@ -69,6 +69,6 @@ TEST_F(DgSemSolverFactoryTest, UnknownImplTypeThrows) {
                std::runtime_error);
 }
 
-}  // namespace solver::fe::solver_factory
+}  // namespace solver::solver_factory
 
 #endif  // COMPILE_DG_SEM

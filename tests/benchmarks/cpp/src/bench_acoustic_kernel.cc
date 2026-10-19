@@ -105,8 +105,8 @@ BENCHMARK_TEMPLATE_METHOD_F(AcousticKernelFixture, ElementContrib_Flat)(benchmar
 
   using Integral = typename IntegralTypeSelector<this->order, IntegralType::MAKUTU>::type;
   using Model = ModelUnstruct<float, int>;
-  using SolverOnNodes = solver::fe::SEMsolver<this->order, Integral, Model, true, solver::fe::physicType::kAcoustic>;
-  using SolverOnElems = solver::fe::SEMsolver<this->order, Integral, Model, false, solver::fe::physicType::kAcoustic>;
+  using SolverOnNodes = solver::SEMsolver<this->order, Integral, Model, true, solver::physicType::kAcoustic>;
+  using SolverOnElems = solver::SEMsolver<this->order, Integral, Model, false, solver::physicType::kAcoustic>;
 
   if (this->isModelOnNodes_) {
     auto* s = dynamic_cast<SolverOnNodes*>(solver.get());
@@ -135,10 +135,10 @@ BENCHMARK_TEMPLATE_METHOD_F(AcousticKernelFixture, ElementContrib_Tensorial)(ben
   using GemmIntegral = typename Qk_Hexahedron_Tensorial_Selector<this->order>::type;
   using RefIntegral = typename IntegralTypeSelector<this->order, IntegralType::MAKUTU>::type;
   using Model = ModelUnstruct<float, int>;
-  using GemmOnNodes = solver::fe::SEMsolver<this->order, GemmIntegral, Model, true, solver::fe::physicType::kAcoustic>;
-  using GemmOnElems = solver::fe::SEMsolver<this->order, GemmIntegral, Model, false, solver::fe::physicType::kAcoustic>;
-  using RefOnNodes = solver::fe::SEMsolver<this->order, RefIntegral, Model, true, solver::fe::physicType::kAcoustic>;
-  using RefOnElems = solver::fe::SEMsolver<this->order, RefIntegral, Model, false, solver::fe::physicType::kAcoustic>;
+  using GemmOnNodes = solver::SEMsolver<this->order, GemmIntegral, Model, true, solver::physicType::kAcoustic>;
+  using GemmOnElems = solver::SEMsolver<this->order, GemmIntegral, Model, false, solver::physicType::kAcoustic>;
+  using RefOnNodes = solver::SEMsolver<this->order, RefIntegral, Model, true, solver::physicType::kAcoustic>;
+  using RefOnElems = solver::SEMsolver<this->order, RefIntegral, Model, false, solver::physicType::kAcoustic>;
 
   BenchmarkArrays arrays(this->n_rhs, this->n_time_steps, this->n_dof, model->getNumberOfPointsPerElement());
   auto wavefield = WavefieldAcoustic(arrays.pnGlobalPrev, arrays.pnGlobalCurr);

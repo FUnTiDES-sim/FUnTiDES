@@ -5,7 +5,6 @@
 #include "wavefield_acoustoelastic.h"
 
 namespace solver {
-namespace fe {
 namespace test {
 
 class WavefieldAcoustoElasticTest : public ::testing::Test {
@@ -333,5 +332,4 @@ TEST_F(WavefieldAcoustoElasticTest, SwapThreeTimesRestoresStateWithThreeBuffers)
 }
 
 }  // namespace test
-}  // namespace fe
 }  // namespace solver

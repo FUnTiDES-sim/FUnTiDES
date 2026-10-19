@@ -29,7 +29,6 @@
 #include "model_struct.h"
 
 namespace solver {
-namespace fe {
 namespace test {
 
 // ============================================================
@@ -331,5 +330,4 @@ TEST_F(DGPAdaptiveSolverAcousticTest, OutputSolutionValues_VectorView_DoesNotCra
 }
 
 }  // namespace test
-}  // namespace fe
 }  // namespace solver

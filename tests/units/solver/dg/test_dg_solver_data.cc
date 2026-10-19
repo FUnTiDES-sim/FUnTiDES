@@ -13,7 +13,6 @@
 #include "dg_solver_data.h"
 
 namespace solver {
-namespace fe {
 namespace test {
 
 class DGsolverDataAcousticTest : public ::testing::Test {
@@ -267,5 +266,4 @@ TEST_F(DGsolverDataAcousticTest, EmptyViews_ValidConstruction) {
 }
 
 }  // namespace test
-}  // namespace fe
 }  // namespace solver

@@ -20,7 +20,6 @@
 #include "elastic_flux.h"
 
 namespace solver {
-namespace fe {
 namespace test {
 
 namespace {
@@ -141,5 +140,4 @@ TEST(ElasticFluxSymmetry, DiagonalJacobianStaysSymmetric) {
 }
 
 }  // namespace test
-}  // namespace fe
 }  // namespace solver

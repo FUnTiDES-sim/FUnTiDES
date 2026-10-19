@@ -22,10 +22,10 @@
 
 namespace {
 
-using namespace solver::fe::proxy;
-using solver::fe::SEMsolverDataAcoustic;
-using solver::fe::RhsAcoustic;
-using solver::fe::WavefieldAcoustic;
+using namespace solver::proxy;
+using solver::SEMsolverDataAcoustic;
+using solver::RhsAcoustic;
+using solver::WavefieldAcoustic;
 
 constexpr int kOrder = 2;  // 24^3 elements, order 2 -> 49^3 = 117,649 dofs.
 

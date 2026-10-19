@@ -142,8 +142,8 @@ class SEMproxy {
   std::array<float, 3> rcv_coord_ = {0};  ///< Global coordinates (x, y, z) of the receiver.
 
   std::shared_ptr<model::ModelApi<float, int>> mesh_;         ///< Mesh and model of the local subdomain.
-  std::unique_ptr<solver::fe::Solver> solver_;                ///< Solver advancing the fields.
-  std::unique_ptr<solver::fe::BoundarySynchronizer> syncer_;  ///< Exchanges boundary nodes between MPI ranks.
+  std::unique_ptr<solver::Solver> solver_;                ///< Solver advancing the fields.
+  std::unique_ptr<solver::BoundarySynchronizer> syncer_;  ///< Exchanges boundary nodes between MPI ranks.
   SourceTimeFunction source_time_function_;                   ///< Source wavelet.
 
   // Acoustic and shared arrays (device).
