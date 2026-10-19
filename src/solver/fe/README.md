@@ -13,10 +13,18 @@ Toutes les variantes compilent dans la même bibliothèque `fun_solver` ; les
 répertoires `impl/*/include` sont tous sur le chemin d'inclusion du target, ce
 qui autorise les inclusions inter-arbres documentées ci-dessous.
 
-Historique : les répertoires `fe/DG/api` et `fe/DG-SEm/api` (un
+Historique : les répertoires `fe/DG/api` et `fe/DG-SEm/api` d'origine (un
 `CMakeLists.txt` orphelin sans `add_subdirectory` correspondant, sans
-`include/`) étaient morts et ont été supprimés. Le point d'entrée public reste
-`fe/api/include/solver.h` seul.
+`include/`) étaient morts et ont été supprimés. Réintroduits en
+`refactor/dg-boundaries`, cette fois peuplés : chaque variante DG porte
+désormais son `api/include/` avec sa face publique — l'en-tête de classe
+(consommé par `fe/impl/common/src/solver_factory.cc`), l'en-tête de données
+(consommé par `src/main/fe`), et `dg_penalty.h` pour `fe/DG` — déclaré comme
+répertoire d'inclusion PUBLIC de `fun_solver` et installé par
+`install_funtides_headers`, symétrique de `fe/api`. Les `*_impl.h` et les
+en-têtes par physique restent dans `impl/` (consommateurs à feu blanche :
+tests unitaires). Les inclusions se font par nom nu : aucun consommateur
+n'a changé. Le point d'entrée générique reste `fe/api/include/solver.h`.
 
 ## Composition des types wavefield / RHS
 
