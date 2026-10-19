@@ -1,37 +1,10 @@
-# ============================================================================
-# Include the generator function
-# ============================================================================
-include(${CMAKE_SOURCE_DIR}/cmake/GenerateSolverImplementations.cmake)
-
-# ============================================================================
-# Configuration: Define all combinations to generate
-# ============================================================================
-
-# Define polynomial orders
-set(ORDERS "")
-foreach(order RANGE 1 ${TARGET_SOLVER_ACOUSTIC_ORDER})
-    list(APPEND ORDERS ${order})
-endforeach()
-
-# Define mesh types
-set(MESH_TYPES "struct" "unstruct")
-
-# Define model types
-set(MODEL_TYPES "onelements" "onnodes")
-
-# ============================================================================
-# Generate solver implementation files
-# ============================================================================
-
-generate_padaptive_solver_implementations(
-    SOLVER_NAME "makutu"
-    FILE_PREFIX "DGPADAPTIVEQ"
-    ORDERS ${ORDERS}
-    MESH_TYPES ${MESH_TYPES}
-    MODEL_TYPES ${MODEL_TYPES}
-    PHYSIC_TYPES "acoustic"
-    OUTPUT_DIR "${CMAKE_CURRENT_BINARY_DIR}"
-    OUTPUT_VAR MAKUTU_GENERATED_SOURCES
+# Boilerplate shared by every physics lives in add_solver_instantiations().
+# The p-adaptive solver couples two sub-domains of different polynomial order
+# (ORDER_MIN, ORDER_MAX): ORDER_PAIRS dispatches to the generator that emits
+# one file per ordered pair instead of one per order.
+add_solver_instantiations(
+    PHYSIC acoustic
+    MAX_ORDER TARGET_SOLVER_ACOUSTIC_ORDER
+    FILE_PREFIX DGPADAPTIVEQ
+    ORDER_PAIRS
 )
-
-target_sources(fun_solver PRIVATE ${MAKUTU_GENERATED_SOURCES})
