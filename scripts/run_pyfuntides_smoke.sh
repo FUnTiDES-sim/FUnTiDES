@@ -14,7 +14,7 @@ PARTITION=${SEMPROXY_BUILD_PARTITION:-COMPUTE_GPU_B300}
 if [ "$(hostname -s)" != "$NODE" ]; then
   exec /usr/bin/srun --partition="$PARTITION" --nodelist="$NODE" \
     --gres=gpu:1 --cpus-per-task=16 --mem=48G --time=02:00:00 --quiet \
-    --comment="mimir pyfuntides smoke (FUnTiDES solver refactor validation)" \
+    --comment="FUnTiDES,LLM4CSE,OT/R&D/SUB/SC" \
     /appli_RD/j1039830/FUnTiDES/scripts/run_pyfuntides_smoke.sh
 fi
 

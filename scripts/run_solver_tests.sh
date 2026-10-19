@@ -11,7 +11,7 @@ PARTITION=${SEMPROXY_BUILD_PARTITION:-COMPUTE_GPU_B300}
 if [ "$(hostname -s)" != "$NODE" ]; then
   exec /usr/bin/srun --partition="$PARTITION" --nodelist="$NODE" \
     --cpus-per-task=32 --mem=64G --time=04:00:00 --quiet \
-    --comment="mimir solver_tests build+run (FUnTiDES solver refactor validation)" \
+    --comment="FUnTiDES,LLM4CSE,OT/R&D/SUB/SC" \
     /appli_RD/j1039830/FUnTiDES/scripts/run_solver_tests.sh "$@"
 fi
 
