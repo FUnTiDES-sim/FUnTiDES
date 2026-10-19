@@ -30,7 +30,6 @@
 #include "wavefield_elastic.h"
 
 namespace solver {
-namespace fe {
 namespace test {
 static vectorReal toView(const std::vector<float>& v, const char* name) {
   if (v.empty()) return vectorReal();
@@ -840,5 +839,4 @@ TEST(AttenuationElasticHighOrder, Order3NoNanOrInf) {
 }
 
 }  // namespace test
-}  // namespace fe
 }  // namespace solver

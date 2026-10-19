@@ -5,6 +5,23 @@
 **Arbitre** : serveur proxy MIMIR (proxies `sem_acoustic` / `sem_elastic`, oracle `l2_rel` scellé)
 **Contraintes respectées** : travail sur `main` uniquement ; aucun commit sans feu vert de l'utilisateur ; aucun contact avec les jobs FWI après l'incident du 14-10 (règle enregistrée).
 
+> **Addendum — itération de revue (2026-10-19).** Sur commentaires d'un
+> développeur, trois changements ont suivi ce rapport : (1) la couche `fe`
+> (vestige de la cohabitation avec les solveurs `fd`, supprimés depuis) est
+> retirée — `src/solver/fe/{api,impl,pywrap}` devient `src/solver/SEM/`, les
+> variantes `fe/DG*` passent à la racine `src/solver/`, et le namespace
+> `solver::fe` devient `solver` (convention dossier = namespace, comme
+> `src/gradient`) ; (2) le fragment `sem_solver_assembly.h` est renommé
+> `sem_solver_init.h` (son contenu initialise : masse, amortissement,
+> allocations, sponge), ses points d'entrée sur sous-ensembles
+> (`*Masked`, `*FromList`) sont extraits vers
+> `sem_solver_element_subset.h`, et les constructeurs de tenseur TTI
+> (`computeCMatrix`, `computeTtiCompact`) rejoignent `sem_solver_kernels.h` ;
+> (3) le point « compiler une seule physique/méthode/maillage » est acté
+> pour plus tard (retaper la fabrique). Les chemins cités dans le corps de ce
+> rapport décrivent l'état du 2026-10-15 (avec `fe/`) et ne sont pas
+> rétro-corrigés.
+
 ---
 
 ## 1. Objectif et périmètre

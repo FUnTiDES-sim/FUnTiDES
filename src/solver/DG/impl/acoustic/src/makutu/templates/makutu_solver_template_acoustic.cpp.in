@@ -1,0 +1,14 @@
+// Template of a generated file: edit this template, not its generated output.
+// Explicit instantiation of DGsolver for DGQ@ORDER@, @MESH_TYPE@ mesh, makutu integrals, @PHYSIC_TYPE@ physics, model@MODEL_TYPE@.
+
+#include <@MODEL_HEADER@>
+
+#include "dg_solver_impl.h"
+
+constexpr int ORDER = @ORDER@;
+
+template class solver::DGsolver<ORDER,
+                         IntegralTypeSelector<ORDER, IntegralType::MAKUTU>::type,
+                         model::@MODEL_CLASS@<@MODEL_TEMPLATE_PARAMS@>,
+                         @MODEL_ON_NODES@,
+                         solver::physicType::kAcoustic>;

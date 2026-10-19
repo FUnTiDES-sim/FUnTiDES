@@ -5,7 +5,6 @@
 #include "wavefield_acoustic.h"
 
 namespace solver {
-namespace fe {
 namespace test {
 
 class WavefieldAcousticTest : public ::testing::Test {
@@ -372,5 +371,4 @@ TEST_F(WavefieldAcousticTest, PrintDoesNotCrash) {
 }
 
 }  // namespace test
-}  // namespace fe
 }  // namespace solver

@@ -36,7 +36,6 @@
 #include "solver_factory.h"
 
 namespace solver {
-namespace fe {
 namespace proxy {
 
 /// Fixed problem parameters, shared by both harnesses.
@@ -140,7 +139,6 @@ inline void printMetrics(double time_s_per_step, bool finite, double max_abs, lo
 }
 
 }  // namespace proxy
-}  // namespace fe
 }  // namespace solver
 
 #endif  // TESTS_BENCHMARKS_CPP_INCLUDE_PROXY_SEM_COMMON_H_

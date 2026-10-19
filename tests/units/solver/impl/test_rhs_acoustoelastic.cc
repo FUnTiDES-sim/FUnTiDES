@@ -5,7 +5,6 @@
 #include "rhs_acoustoelastic.h"
 
 namespace solver {
-namespace fe {
 namespace test {
 
 class RhsAcoustoElasticTest : public ::testing::Test {
@@ -227,5 +226,4 @@ TEST_F(RhsAcoustoElasticTest, ModifyAfterConstruction) {
 }
 
 }  // namespace test
-}  // namespace fe
 }  // namespace solver

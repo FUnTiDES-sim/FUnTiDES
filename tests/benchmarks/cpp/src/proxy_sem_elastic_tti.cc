@@ -33,10 +33,10 @@
 
 namespace {
 
-using namespace solver::fe::proxy;
-using solver::fe::SEMsolverDataElastic;
-using solver::fe::RhsElastic;
-using solver::fe::WavefieldElastic;
+using namespace solver::proxy;
+using solver::SEMsolverDataElastic;
+using solver::RhsElastic;
+using solver::WavefieldElastic;
 
 // Order 1 mirrors proxy_sem_elastic.cc so the TTI and Iso oracles differ
 // only in the constitutive law: 24^3 elements -> 25^3 = 15,625 nodes x 3 dofs.

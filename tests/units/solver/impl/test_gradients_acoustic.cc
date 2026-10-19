@@ -5,7 +5,6 @@
 #include "gradients_acoustic.h"
 
 namespace solver {
-namespace fe {
 namespace test {
 
 class GradientsAcousticTest : public ::testing::Test {
@@ -113,5 +112,4 @@ TEST_F(GradientsAcousticTest, AccumulationPattern) {
 }
 
 }  // namespace test
-}  // namespace fe
 }  // namespace solver

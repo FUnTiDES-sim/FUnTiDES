@@ -30,8 +30,8 @@
 #include "wavefield_acoustoelastic.h"
 
 using namespace SourceAndReceiverUtils;
-using namespace solver::fe;
-using namespace solver::fe::solver_factory;
+using namespace solver;
+using namespace solver::solver_factory;
 using namespace utils::enums;
 
 SEMproxy::SEMproxy(const SemProxyOptions& opt) {
@@ -1438,7 +1438,7 @@ void SEMproxy::InitTopology() {
 void SEMproxy::InitSync() {
 #if USE_MPI
   if (dist_ctx_.size > 1) {
-    syncer_ = std::make_unique<BoundarySynchronizer>(std::make_unique<solver::fe::MPIBackend>());
+    syncer_ = std::make_unique<BoundarySynchronizer>(std::make_unique<solver::MPIBackend>());
   } else {
     syncer_ = std::make_unique<BoundarySynchronizer>(std::make_unique<SerialBackend>());
   }

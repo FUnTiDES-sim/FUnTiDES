@@ -33,7 +33,6 @@
 #include "model_struct.h"
 
 namespace solver {
-namespace fe {
 namespace test {
 
 // ============================================================
@@ -373,5 +372,4 @@ TEST_F(DGsolverAcousticTest, updateFieldsFromListForward_ProducesFiniteValues) {
 }
 
 }  // namespace test
-}  // namespace fe
 }  // namespace solver

@@ -5,7 +5,6 @@
 #include "gradients_elastic.h"
 
 namespace solver {
-namespace fe {
 namespace test {
 
 class GradientsElasticTest : public ::testing::Test {
@@ -133,5 +132,4 @@ TEST_F(GradientsElasticTest, Print) {
 }
 
 }  // namespace test
-}  // namespace fe
 }  // namespace solver

@@ -6,7 +6,7 @@
 #include "solver.h"
 #include "solver_factory.h"
 
-namespace solver::fe::solver_factory {
+namespace solver::solver_factory {
 
 namespace feenum = utils::enums;
 
@@ -106,4 +106,4 @@ TEST_F(SolverFactoryErrorTest, BaseClassOptionalHooksAreNoOps) {
   EXPECT_EQ(s->getInterfaceCouplingCoeff(0).size(), 0u);
 }
 
-}  // namespace solver::fe::solver_factory
+}  // namespace solver::solver_factory

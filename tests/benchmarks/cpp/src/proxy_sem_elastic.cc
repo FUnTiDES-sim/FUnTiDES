@@ -23,10 +23,10 @@
 
 namespace {
 
-using namespace solver::fe::proxy;
-using solver::fe::SEMsolverDataElastic;
-using solver::fe::RhsElastic;
-using solver::fe::WavefieldElastic;
+using namespace solver::proxy;
+using solver::SEMsolverDataElastic;
+using solver::RhsElastic;
+using solver::WavefieldElastic;
 
 // Order 1: the flat sum-factorization elastic path is exercised and
 // unit-tested at this order; 24^3 elements -> 25^3 = 15,625 nodes x 3 dofs.

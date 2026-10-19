@@ -6,7 +6,6 @@
 #include "sem_enums.h"
 
 namespace solver {
-namespace fe {
 namespace test {
 
 using utils::enums::physicType;
@@ -37,5 +36,4 @@ TEST(PhysicsTraitsTest, PrimaryTemplateWavefieldTypeIsVoid) {
 }
 
 }  // namespace test
-}  // namespace fe
 }  // namespace solver

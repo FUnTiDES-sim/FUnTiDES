@@ -20,7 +20,6 @@
 #include "dg_penalty.h"
 
 namespace solver {
-namespace fe {
 namespace test {
 
 // ============================================================
@@ -138,5 +137,4 @@ TEST(ComputeSIPGPenalty, InverseLengthScaling) {
 }
 
 }  // namespace test
-}  // namespace fe
 }  // namespace solver

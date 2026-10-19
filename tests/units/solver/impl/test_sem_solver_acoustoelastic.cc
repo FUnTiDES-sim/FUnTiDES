@@ -11,7 +11,6 @@
 #include "sem_solver_acoustoelastic.h"
 
 namespace solver {
-namespace fe {
 namespace test {
 
 // =============================================================================
@@ -940,5 +939,4 @@ TYPED_TEST(AEsolverOnNodesTest, SolidOnInterfaceNodesSetsTheInterfaceElasticMass
 }
 
 }  // namespace test
-}  // namespace fe
 }  // namespace solver

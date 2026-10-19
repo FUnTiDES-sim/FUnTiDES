@@ -8,7 +8,7 @@
 
 #ifdef COMPILE_DG_PADAPTIVE
 
-namespace solver::fe::solver_factory {
+namespace solver::solver_factory {
 
 namespace feenum = utils::enums;
 
@@ -81,6 +81,6 @@ TEST_F(DgPAdaptiveSolverFactoryTest, OrderMinGreaterOrEqualOrderMaxThrows) {
                std::runtime_error);
 }
 
-}  // namespace solver::fe::solver_factory
+}  // namespace solver::solver_factory
 
 #endif  // COMPILE_DG_PADAPTIVE

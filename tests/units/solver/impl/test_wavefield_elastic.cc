@@ -5,7 +5,6 @@
 #include "wavefield_elastic.h"
 
 namespace solver {
-namespace fe {
 namespace test {
 
 class WavefieldElasticTest : public ::testing::Test {
@@ -532,5 +531,4 @@ TEST_F(WavefieldElasticTest, PrintDoesNotCrash) {
 }
 
 }  // namespace test
-}  // namespace fe
 }  // namespace solver

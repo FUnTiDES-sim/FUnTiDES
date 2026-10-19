@@ -54,7 +54,7 @@ using DiscretizationType = typename DiscretizationTraits<ORDER, KIND>::type;
  * discretization type, exposed as `type`.
  * @tparam ORDER Polynomial order, from 1 to 9.
  * @tparam METHOD_TYPE One of the IntegralType values.
- * @deprecated Use solver::fe::DiscretizationTraits (see
+ * @deprecated Use solver::DiscretizationTraits (see
  * docs/design-red-flags.md).
  */
 template <int ORDER, int METHOD_TYPE>

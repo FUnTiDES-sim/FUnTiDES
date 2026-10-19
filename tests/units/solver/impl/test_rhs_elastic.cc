@@ -5,7 +5,6 @@
 #include "rhs_elastic.h"
 
 namespace solver {
-namespace fe {
 namespace test {
 
 class RhsElasticTest : public ::testing::Test {
@@ -330,5 +329,4 @@ TEST_F(RhsElasticTest, PrintDoesNotCrash) {
 }
 
 }  // namespace test
-}  // namespace fe
 }  // namespace solver
