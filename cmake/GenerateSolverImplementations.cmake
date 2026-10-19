@@ -15,10 +15,17 @@
 #     [SOLVER_NAME makutu|gemm]  integral back-end (default makutu)
 #     [FILE_PREFIX ...]          file prefix override (default per generator)
 #     [TARGET fun_solver]        target receiving the sources (default)
+#     [ORDER_PAIRS]              p-adaptive: one file per ordered pair
+#                                ORDER_MIN < ORDER_MAX instead of one per
+#                                order (dispatches to the p-adaptive
+#                                generator; requires the *_solver_template_*.cpp.in
+#                                of the calling directory to use @ORDER_MIN@/
+#                                @ORDER_MAX@)
 #   )
 function(add_solver_instantiations)
+    set(options ORDER_PAIRS)
     set(oneValueArgs PHYSIC MAX_ORDER SOLVER_NAME FILE_PREFIX TARGET)
-    cmake_parse_arguments(ASI "" "${oneValueArgs}" "" ${ARGN})
+    cmake_parse_arguments(ASI "${options}" "${oneValueArgs}" "" ${ARGN})
 
     if(NOT DEFINED ASI_PHYSIC)
         message(FATAL_ERROR "add_solver_instantiations: PHYSIC is required")
@@ -43,7 +50,11 @@ function(add_solver_instantiations)
         list(APPEND EXTRA_ARGS FILE_PREFIX "${ASI_FILE_PREFIX}")
     endif()
 
-    generate_solver_implementations(
+    # Arguments common to both generators; the ORDER_PAIRS option only
+    # selects which one iterates: generate_solver_implementations() emits one
+    # file per order, generate_padaptive_solver_implementations() one per
+    # ordered pair ORDER_MIN < ORDER_MAX.
+    set(GEN_ARGS
         SOLVER_NAME "${ASI_SOLVER_NAME}"
         ${EXTRA_ARGS}
         ORDERS ${ORDERS}
@@ -53,6 +64,11 @@ function(add_solver_instantiations)
         OUTPUT_DIR "${CMAKE_CURRENT_BINARY_DIR}"
         OUTPUT_VAR ASI_GENERATED_SOURCES
     )
+    if(ASI_ORDER_PAIRS)
+        generate_padaptive_solver_implementations(${GEN_ARGS})
+    else()
+        generate_solver_implementations(${GEN_ARGS})
+    endif()
     target_sources(${ASI_TARGET} PRIVATE ${ASI_GENERATED_SOURCES})
 endfunction()
 
