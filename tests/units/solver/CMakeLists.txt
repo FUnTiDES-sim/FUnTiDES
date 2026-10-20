@@ -32,8 +32,8 @@ endif()
 if(COMPILE_DG_SEM)
   list(APPEND SOLVER_TEST_SOURCES
     impl/test_dg_sem_solver_factory.cc
-    dg-sem/test_dg-sem_solver_data.cc
-    dg-sem/test_dg-sem_solver_acoustic.cc
+    dgsem/test_dgsem_solver_data.cc
+    dgsem/test_dgsem_solver_acoustic.cc
   )
 endif()
 

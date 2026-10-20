@@ -12,7 +12,7 @@
 #include <iomanip>
 
 #ifdef COMPILE_DG_SEM
-#include "dg-sem_solver_data.h"
+#include "dgsem_solver_data.h"
 #endif
 #ifdef COMPILE_DG
 #include "dg_solver_data.h"
