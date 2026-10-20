@@ -1024,6 +1024,8 @@ def main():
 
     # release kokkos arrays and vectors
     del data
+    del wavefield
+    del rhs
     del solver
     del model
 
