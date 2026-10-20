@@ -26,98 +26,98 @@ def pytest_addoption(parser):
         help="Activate debug to have more prints and snapshots (default: False)",
     )
     group.addoption(
-        "--mem",
+        "--sa-mem",
         choices=["CPU", "GPU"],
         default="default_mem",
         help="Choose Kokkos memspace: CPU, GPU (default: [auto-detected])",
     )
     group.addoption(
-        "--model",
+        "--sa-model",
         choices=["STRUCTURED", "UNSTRUCTURED"],
         default="STRUCTURED",
         help="Choose model type: STRUCTURED, UNSTRUCTURED (default: STRUCTURED)",
     )
     group.addoption(
-        "--impl",
+        "--sa-impl",
         choices=["CLASSIC", "MAKUTU", "OPTIM", "SHIVA"],
         default="MAKUTU",
         help="Choose implementation type: CLASSIC, MAKUTU, OPTIM, SHIVA (default: MAKUTU)",
     )
     group.addoption(
-        "--order",
+        "--sa-order",
         type=int,
         default=2,
         choices=range(1, 4),
         help="Polynomial order of the elements (default: 2, max 3)",
     )
     group.addoption(
-        "--domain_size",
+        "--sa-domain_size",
         type=float,
         default=1500.0,
         help="Size of the cubic domain (default: 1500.0)",
     )
     group.addoption(
-        "--ex",
+        "--sa-ex",
         type=int,
         default=50,
         help="Number of elements in x-direction (default: 50)",
     )
     group.addoption(
-        "--ey",
+        "--sa-ey",
         type=int,
         default=50,
         help="Number of elements in y-direction (default: 50)",
     )
     group.addoption(
-        "--ez",
+        "--sa-ez",
         type=int,
         default=50,
         help="Number of elements in z-direction (default: 50)",
     )
     group.addoption(
-        "--f0",
+        "--sa-f0",
         type=float,
         default=5.0,
         help="Peak frequency for the Ricker source term (default: 5.0)",
     )
     group.addoption(
-        "--dt",
+        "--sa-dt",
         type=float,
         default=0.001,
         help="Time step size (default: 0.001)",
     )
     group.addoption(
-        "--n_time_steps",
+        "--sa-n_time_steps",
         type=int,
         default=1500,
         help="Number of time steps to run (default: 1500)",
     )
     group.addoption(
-        "--n_rhs",
+        "--sa-n_rhs",
         type=int,
         default=1,
         help="Number of right-hand side sources (default: 1)",
     )
     group.addoption(
-        "--on_nodes",
+        "--sa-on_nodes",
         action="store_true",
         default=False,
         help="Whether to apply model on nodes (default: False)",
     )
     group.addoption(
-        "--n_rcv",
+        "--sa-n_rcv",
         type=int,
         default=1,
         help="Number of receivers (default: 1)",
     )
     group.addoption(
-        "--is_elastic",
+        "--sa-is_elastic",
         action="store_true",
         default=False,
         help="Solving Elastic wave equation (True) or Acoustic wave equation (False) (default: False)",
     )
     group.addoption(
-        "--is_backward",
+        "--sa-is_backward",
         action="store_true",
         default=False,
         help="Reverse time step by taking -dt (default: False)",

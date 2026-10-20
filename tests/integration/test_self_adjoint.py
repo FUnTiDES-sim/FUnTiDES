@@ -1246,67 +1246,67 @@ def sa_debug(request):
 
 @pytest.fixture
 def on_nodes(request):
-    return request.config.getoption("--on_nodes")
+    return request.config.getoption("--sa-on_nodes")
 
 @pytest.fixture
 def is_elastic(request):
-    return request.config.getoption("--is_elastic")
+    return request.config.getoption("--sa-is_elastic")
 
 @pytest.fixture
 def is_backward(request):
-    return request.config.getoption("--is_backward")
+    return request.config.getoption("--sa-is_backward")
 
 @pytest.fixture
 def dt(request):
-    return request.config.getoption("--dt")
+    return request.config.getoption("--sa-dt")
 
 @pytest.fixture
 def f0(request):
-    return request.config.getoption("--f0")
+    return request.config.getoption("--sa-f0")
 
 @pytest.fixture
 def n_time_steps(request):
-    return request.config.getoption("--n_time_steps")
+    return request.config.getoption("--sa-n_time_steps")
 
 @pytest.fixture
 def n_rhs(request):
-    return request.config.getoption("--n_rhs")
+    return request.config.getoption("--sa-n_rhs")
 
 @pytest.fixture
 def n_rcv(request):
-    return request.config.getoption("--n_rcv")
+    return request.config.getoption("--sa-n_rcv")
 
 @pytest.fixture
 def order(request):
-    return request.config.getoption("--order")
+    return request.config.getoption("--sa-order")
 
 @pytest.fixture
 def domain_size(request):
-    return request.config.getoption("--domain_size")
+    return request.config.getoption("--sa-domain_size")
 
 @pytest.fixture
 def ex(request):
-    return request.config.getoption("--ex")
+    return request.config.getoption("--sa-ex")
 
 @pytest.fixture
 def ey(request):
-    return request.config.getoption("--ey")
+    return request.config.getoption("--sa-ey")
 
 @pytest.fixture
 def ez(request):
-    return request.config.getoption("--ez")
+    return request.config.getoption("--sa-ez")
 
 @pytest.fixture
 def mem(request):
-    return request.config.getoption("--mem")
+    return request.config.getoption("--sa-mem")
 
 @pytest.fixture
 def impl(request):
-    return request.config.getoption("--impl")
+    return request.config.getoption("--sa-impl")
 
 @pytest.fixture
 def model(request):
-    return request.config.getoption("--model")
+    return request.config.getoption("--sa-model")
 
 
 @pytest.mark.slow
