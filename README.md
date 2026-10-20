@@ -80,7 +80,7 @@ target_link_libraries(my_app PRIVATE funtides::funtides)
 Unit tests only:
 
 ```sh
-ctest -LE "benchmark|validation"
+ctest -LE "benchmark"
 ```
 
 Benchmarks only, results will be stored in `build/Benchmarking` as a json file:
@@ -159,6 +159,13 @@ pytest -vv -s  tests/units --kokkos-num-threads=12
 pytest -vv -s  tests/integration --kokkos-num-threads=12
 ```
 
+Tests marked `slow` (full simulations, such as the self-adjoint check) are skipped
+unless `--run-slow` is given:
+
+```bash
+pytest -vv -s tests/integration/test_self_adjoint.py --run-slow --kokkos-num-threads=12
+```
+
 To run python benchmarks (default is using 6 threads):
 
 ```bash
@@ -171,7 +178,7 @@ To run all python benchmarks (default is using 1,2,4,8,16,32,64 threads):
 python scripts/benchmarks/run_pywrap_benchmarks.py --verbose
 ```
 
-### Inspecting and Plotting ADIOS2 Outputs
+### Inspecting ADIOS2 Outputs
 
 The `scripts/adios` folder provides Python helpers for BP5 outputs:
 
@@ -180,19 +187,6 @@ The `scripts/adios` folder provides Python helpers for BP5 outputs:
 python ./scripts/adios/inspect_bp5.py <bp_folder>
 python ./scripts/adios/inspect_bp5_detailed.py <bp_folder>
 ```
-
-`adios_cartesian_snap_viz.py` and `adios_single_receiver_viz.py` plot snapshots
-(`snapshots.bp`) and receivers (`receivers.bp`) stored as a single 3D `PressureField`
-variable and an `AccousticReceiver` variable:
-
-```bash
-python ./scripts/adios/adios_cartesian_snap_viz.py 201 201 201 --file snapshots.bp --slice
-python ./scripts/adios/adios_single_receiver_viz.py
-```
-
-where the 201 values are the number of nodes on x, y and z. They do not read the
-snapshots written through the `io` module yet (one flat `field` variable per rank,
-no receivers).
 
 ## Code Coverage
 
@@ -204,9 +198,9 @@ no receivers).
 First, compile the code, then execute the tests using the following command:
 
 ```bash
-ctest -LE "benchmark|validation" --output-on-failure
+ctest -LE "benchmark" --output-on-failure
 ```
-This command runs all standard tests while excluding benchmarks and validation tests, which can be time-consuming.
+This command runs all standard tests while excluding benchmarks, which can be time-consuming.
 
 ### Generating Reports
 To generate a readable **HTML report**, execute the following commands:
