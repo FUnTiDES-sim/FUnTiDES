@@ -129,8 +129,8 @@ TEST(ElasticFluxSymmetry, TtiAsymmetricTensorIsDetected) {
 }
 
 // ======================================================================
-// Documents why the homogeneous cartesian validation could never see the
-// bug: with a diagonal J_inv the map is symmetric regardless.
+// A homogeneous cartesian mesh cannot detect a non-symmetric flux: with a
+// diagonal J_inv the map is symmetric regardless.
 // ======================================================================
 TEST(ElasticFluxSymmetry, DiagonalJacobianStaysSymmetric) {
   float const mu = 2000.0f * 1500.0f * 1500.0f;

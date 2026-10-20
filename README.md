@@ -80,7 +80,7 @@ target_link_libraries(my_app PRIVATE funtides::funtides)
 Unit tests only:
 
 ```sh
-ctest -LE "benchmark|validation"
+ctest -LE "benchmark"
 ```
 
 Benchmarks only, results will be stored in `build/Benchmarking` as a json file:
@@ -89,47 +89,21 @@ Benchmarks only, results will be stored in `build/Benchmarking` as a json file:
 ctest -L benchmark
 ```
 
-Validation tests (compare against analytical solutions):
-
-```sh
-# All 24 tests (2 mesh types × 3 orders × 2 physics × 2 model-on-nodes)
-make validate
-
-# Quick validation (12 tests, without model-on-nodes)
-make validate_no_model_on_nodes
-
-# Specific groups
-make validate_acoustic      # Acoustic tests only
-make validate_cartesian     # Cartesian mesh tests only
-
-# Fine-grained filtering
-ctest -L validation_acoustic        # Acoustic tests
-ctest -L order2                     # Order 2 tests
-ctest -L mesh_ucartesian            # Ucartesian mesh tests
-ctest -R acoustic_order2_cartesian  # Specific test
-```
-
 Or just all tests:
 
 ```sh
 ctest
 ```
 
-> **Note**: Validation tests require analytical reference solutions in `tests/analyticalsolution/` (P.dat for acoustic, Ux.dat for elastic). You also need to install the adios2 python module to run the validation tests as it runs a python script for receiver output.
+The validation against analytical solutions (`make validate`) runs the `funtides-sem`
+driver and lives with it in the FUnTiDES-App repository.
 
 ### Step 4: Run Examples
 
-Inside the `build/bin` folder, you can run the generated executable binaries. For the SEM proxy, use `semproxy` (or `funtides-sem`) and specify your mesh and implementation preferences.
+The `funtides-sem` command-line driver and its YAML launcher (`run_funtides.py`) are
+provided by the FUnTiDES-App repository, which builds against an installed FUnTiDES.
 
-```sh
-# Run SEM simulation (e.g., Acoustic, Cartesian Mesh, Makutu Implementation, Order 2)
-./funtides-sem --ex 100 --ey 100 --ez 100 --method=sem --implem=makutu --mesh=cartesian -o 2 --dt 0.001 --timemax 1.5
-
-# Run validation with custom parameters
-./validate_solution --order 2 --mesh ucartesian --elastic --is-model-on-nodes
-```
-
-You can also run the Python and MPI examples provided in the `examples/fe` folder:
+The Python and MPI examples are provided in the `examples/fe` folder:
 
 ```sh
 # Run a simple Python cartesian solver example
@@ -139,28 +113,6 @@ python3 examples/fe/solver_cartesian.py --ex 100 --ey 100 --ez 100 --order 2
 mpirun -n 4 python3 examples/fe/solver_cartesian_mpi.py --ex 200 --snap_interval 20
 
 ```
-
-If you want to easily modify the cli option when you launch the code (eg: modify the number of elements by directions, the spacial order etc), you can also use `run_funtides.py` script inside `python` folder, to run the executable using a yaml input file where you can define all the options for your simulation
-
-```sh
-
-# Run python script with input file
-python3 python run_funtides.py examples/example_config.yaml
-```
-
-The `example_config.yaml` file inside the examples folder, gives an example of a possible yaml file to use.
-
-
-You can also run a test using a model file in txt format.
-
-The format needed for model on the nodes or on elements can be seen in the two example files model_on_nodes.txt and model_on_elements,
-located inside the examples/ folder.
-To use this option with the code, you need to add --model-file /path/of/your/model_file in the command line or a section
-model_file inside the yaml where you put the path to your model file between commas.
-
-
-
-> **Note**: The script can also handle mpi simulation with or without a scheduler with dedicated option inside the yaml
 
 > **Note**: A dedicated python env can be made via TPLs.
 
@@ -207,6 +159,13 @@ pytest -vv -s  tests/units --kokkos-num-threads=12
 pytest -vv -s  tests/integration --kokkos-num-threads=12
 ```
 
+Tests marked `slow` (full simulations, such as the self-adjoint check) are skipped
+unless `--run-slow` is given:
+
+```bash
+pytest -vv -s tests/integration/test_self_adjoint.py --run-slow --kokkos-num-threads=12
+```
+
 To run python benchmarks (default is using 6 threads):
 
 ```bash
@@ -219,24 +178,15 @@ To run all python benchmarks (default is using 1,2,4,8,16,32,64 threads):
 python scripts/benchmarks/run_pywrap_benchmarks.py --verbose
 ```
 
-### Plotting Receivers and Snapshots
+### Inspecting ADIOS2 Outputs
 
-To plot the snapshots we provide a python script:
-
-```bash
-python ./scripts/adios/adios_cartesian_snap_viz.py 201 201 201 --file snapshots.bp --slice
-```
-
-where 201 values should be replaced by number of nodes on x, y, and z. And file corresponds to the `snapshots.bp` folder with bp5 files.
-
-For the receivers:
+The `scripts/adios` folder provides Python helpers for BP5 outputs:
 
 ```bash
-python ./scripts/adios/adios_single_receiver_viz.py
+# Inspect the content of a BP5 folder
+python ./scripts/adios/inspect_bp5.py <bp_folder>
+python ./scripts/adios/inspect_bp5_detailed.py <bp_folder>
 ```
-
-within the folder containing the `receivers.bp` folder.
-
 
 ## Code Coverage
 
@@ -248,9 +198,9 @@ within the folder containing the `receivers.bp` folder.
 First, compile the code, then execute the tests using the following command:
 
 ```bash
-ctest -LE "benchmark|validation" --output-on-failure
+ctest -LE "benchmark" --output-on-failure
 ```
-This command runs all standard tests while excluding benchmarks and validation tests, which can be time-consuming.
+This command runs all standard tests while excluding benchmarks, which can be time-consuming.
 
 ### Generating Reports
 To generate a readable **HTML report**, execute the following commands:

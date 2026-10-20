@@ -1,13 +1,16 @@
-#!/usr/bin/env python3
 """
-This module runs the solver using a cartesian model with:
+Self-adjointness check of the SEM operator on a cartesian model.
+
+Runs two shots (source and receiver swapped) and checks that the reciprocal
+scalar products match, with:
   - Kokkos GPU or CPU memory space
   - Structured or unstructured cartesian mesh
   - Polynomial order 1, 2 or 3
   - Implementation type: CLASSIC, MAKUTU, OPTIM or SHIVA
-  - Only acoustic physics is implemented for now
-It demonstrates usage of pybind11 wrapped C++ classes and functions from the proxys library.
-For help run with the --help option.
+  - Acoustic or elastic physics
+
+This is a full simulation, marked slow: run it with --run-slow. Its parameters
+are pytest options declared in tests/conftest.py (see pytest --help).
 """
 
 import pytest
@@ -15,9 +18,8 @@ import os
 import time
 from datetime import datetime
 from enum import Enum
-import sys
 
-import matplotlib.pyplot as plt
+plt = pytest.importorskip("matplotlib.pyplot")
 import numpy as np
 import kokkos  # must be imported after matplotlib to avoid conflicts
 import pyfuntides.model as Model
@@ -34,6 +36,9 @@ CartesianParams = Model.CartesianParams_f32_i32
 os.environ.setdefault("OMP_NUM_THREADS", "6")
 os.environ.setdefault("OMP_THREAD_LIMIT", "6")
 os.environ.setdefault("KOKKOS_NUM_THREADS", "6")
+
+# Set from the --sa-debug option by test_self_adjoint
+debug = False
 
 
 class MemSpace(Enum):
@@ -1233,9 +1238,82 @@ def run_elastic(model, solver, dt, n_time_steps, kk_RHSTermx, kk_RHSTermy, kk_RH
 
     for i in range(len(rcv_files)):
         rcv_files[i].close()
-        
 
-def test_self_adjoint(on_nodes,is_elastic,is_backward,f0,dt,n_time_steps,n_rhs,n_rcv,order,domain_size,ex,ey,ez,mem,impl,model):
+
+@pytest.fixture
+def sa_debug(request):
+    return request.config.getoption("--sa-debug")
+
+@pytest.fixture
+def on_nodes(request):
+    return request.config.getoption("--sa-on_nodes")
+
+@pytest.fixture
+def is_elastic(request):
+    return request.config.getoption("--sa-is_elastic")
+
+@pytest.fixture
+def is_backward(request):
+    return request.config.getoption("--sa-is_backward")
+
+@pytest.fixture
+def dt(request):
+    return request.config.getoption("--sa-dt")
+
+@pytest.fixture
+def f0(request):
+    return request.config.getoption("--sa-f0")
+
+@pytest.fixture
+def n_time_steps(request):
+    return request.config.getoption("--sa-n_time_steps")
+
+@pytest.fixture
+def n_rhs(request):
+    return request.config.getoption("--sa-n_rhs")
+
+@pytest.fixture
+def n_rcv(request):
+    return request.config.getoption("--sa-n_rcv")
+
+@pytest.fixture
+def order(request):
+    return request.config.getoption("--sa-order")
+
+@pytest.fixture
+def domain_size(request):
+    return request.config.getoption("--sa-domain_size")
+
+@pytest.fixture
+def ex(request):
+    return request.config.getoption("--sa-ex")
+
+@pytest.fixture
+def ey(request):
+    return request.config.getoption("--sa-ey")
+
+@pytest.fixture
+def ez(request):
+    return request.config.getoption("--sa-ez")
+
+@pytest.fixture
+def mem(request):
+    return request.config.getoption("--sa-mem")
+
+@pytest.fixture
+def impl(request):
+    return request.config.getoption("--sa-impl")
+
+@pytest.fixture
+def model(request):
+    return request.config.getoption("--sa-model")
+
+
+@pytest.mark.slow
+def test_self_adjoint(sa_debug,on_nodes,is_elastic,is_backward,f0,dt,n_time_steps,n_rhs,n_rcv,order,domain_size,ex,ey,ez,mem,impl,model):
+
+    global debug
+    debug = sa_debug
 
     if mem=="default_mem":
         mem=detect_default_memspace()
@@ -1277,10 +1355,7 @@ def test_self_adjoint(on_nodes,is_elastic,is_backward,f0,dt,n_time_steps,n_rhs,n
         cmp_value=0.1
     _, _, im = setup_plot(nx, nz, cmpvalue=cmp_value)
     print("Plot set up")
-    
-    # Initialize Kokkos
-    kokkos.initialize()
-    print("Kokkos initialized")
+
     memspace, layout = select_kokkos_memspace(mem)
 
     # Add timing variables
@@ -1532,14 +1607,11 @@ def test_self_adjoint(on_nodes,is_elastic,is_backward,f0,dt,n_time_steps,n_rhs,n
         os.remove("Src_0")
     except OSError:
         pass
-            
-    if not is_elastic:
-        tolerance=1e-6
-    else:
-        tolerance=1e-4
-    assert abs(prod_u1f2 - prod_u2f1)/(np.sqrt(f1_norm)*np.sqrt(u2_norm)) < tolerance
-    
-    # release kokkos arrays and vectors
+
+    rel_diff = abs(prod_u1f2 - prod_u2f1)/(np.sqrt(f1_norm)*np.sqrt(u2_norm))
+
+    # Release Kokkos arrays before the assert: on failure, pytest would keep
+    # them alive past the Kokkos::finalize of the session.
     if is_elastic:
         del uxnGlobalPrev
         del uynGlobalPrev
@@ -1574,12 +1646,7 @@ def test_self_adjoint(on_nodes,is_elastic,is_backward,f0,dt,n_time_steps,n_rhs,n
     del solver
     del model
 
-    kokkos.finalize()
     print("End of  computation")
 
-    if (abs(prod_u1f2 - prod_u2f1)/(np.sqrt(f1_norm)*np.sqrt(u2_norm)) > 1e-4):
-        print(f"scalar products relative diff too big (> 1e-4): {abs(prod_u1f2 - prod_u2f1)/(np.sqrt(f1_norm)*np.sqrt(u2_norm))}")
-        sys.exit(-1)
-
-if __name__ == "__main__":
-    main()
+    tolerance = 1e-4 if is_elastic else 1e-6
+    assert rel_diff < tolerance

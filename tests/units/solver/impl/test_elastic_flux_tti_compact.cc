@@ -4,8 +4,7 @@
  *
  * SEMsolver::computeTtiCompact() and SEMsolver::computeCMatrix() describe the same medium, so
  * flux::elasticFluxTtiCompact() and flux::elasticFluxTti() must give the same flux for any
- * gradient. The acousto-elastic validation case has all Thomsen parameters at zero, so this
- * test is what covers the anisotropic terms.
+ * gradient. This test covers the anisotropic terms (non-zero Thomsen parameters).
  */
 
 #include <gtest/gtest.h>
