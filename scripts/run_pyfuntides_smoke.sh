@@ -29,7 +29,7 @@ export LD_LIBRARY_PATH=/appli_RD/j1039830/local/cuda/lib64:/appli_RD/j1039830/lo
 # requires; the smoke only needs the solver module refreshed.
 cd /appli_RD/j1039830/FUnTiDES
 cmake --build build --target solver -j16
-cp build/src/solver/SEM/pywrap/solver.cpython-311-x86_64-linux-gnu.so \
+cp build/src/solver/sem/pywrap/solver.cpython-311-x86_64-linux-gnu.so \
    /appli_RD/j1039830/local/funtides-install/python/pyfuntides/solver.cpython-311-x86_64-linux-gnu.so
 
 export PYTHONPATH="/appli_RD/j1039830/local/funtides-install/python:${PYTHONPATH:-}"

@@ -22,6 +22,25 @@
 > rapport décrivent l'état du 2026-10-15 (avec `fe/`) et ne sont pas
 > rétro-corrigés.
 
+> **Addendum 2 — itération de revue 2 (2026-10-19).** Deuxième passe sur
+> commentaires du développeur : l'API devient **commune à toutes les
+> méthodes** et l'arbre est restructuré selon son croquis. Le contrat
+> (`solver.h`, `wavefield.h`, `rhs.h`, `physics_traits.h`) est hissé à
+> `src/solver/api/`, indépendant de toute méthode ; la fabrique est sortie du
+> sous-arbre SEM vers `src/solver/factory/` (`solver_factory.{h,cc}`), seule
+> à connaître toutes les méthodes. Chaque méthode vit en minuscules avec sa
+> colonne vertébrale dans `common/` et ses physiques en sous-arbres
+> `{include,src}` : `sem/{common,acoustic,elastic,acoustoelastic,pywrap}`,
+> `dg/`, `dgsem/`, `dg_padaptive/` (les trois dernières réduites à
+> l'acoustique, comme avant). Les types et noyaux par physique de
+> `sem/impl/physics/` sont fondus dans `sem/{acoustic,elastic}`
+> (`sem_solver_{acoustic,elastic}_impl.h`, ex-`*_kernels.h`). Les fichiers
+> des variantes DG suivent : `dg-sem_*.h` → `dgsem_*.h`. Le namespace reste
+> `solver` partout ; `fun_solver` est déclaré dans `sem/CMakeLists.txt`,
+> la fabrique s'y raccroche par `target_sources`. Validation identique :
+> build des 6 cibles, `solver_tests` 463/463 (1 skip AE préexistant), trois
+> oracles proxy vs références scellées (`l2_rel < 1e-3`).
+
 ---
 
 ## 1. Objectif et périmètre

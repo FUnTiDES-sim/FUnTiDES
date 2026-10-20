@@ -5,6 +5,15 @@
 **Base** : branche `refactor/src-solver` (fragments en place, PR ouverte)
 **Décision actée** : architecture en classes dérivées par physique — `SEMsolver` en haut, `AcousticSolver`/`ElasticSolver` en dessous — avec mécanisme compile-time (politiques), zéro vtable sur les chemins GPU.
 
+> **Note d'actualisation (2026-10-19)** — la migration décrite ici a été
+> réalisée puis intégrée à la restructuration de `src/solver` (voir
+> `documentation/refactor-src-solver-2026-10-15.md`). Les chemins cités dans
+> cette note décrivent l'arbre d'alors : la couche `fe/` a été supprimée
+> (contrat directement sous `src/solver/api/`), la fabrique est sortie du
+> sous-arbre méthode (`src/solver/factory/`), et `impl/physics/` a été fondu
+> dans les sous-arbres par méthode — les politiques vivent désormais dans
+> `sem/acoustic/` et `sem/elastic/` (`sem_solver_{acoustic,elastic}_impl.h`).
+
 ---
 
 ## 1. Objectif
@@ -19,7 +28,7 @@ La physique est un paramètre template `PHYSICS` de `SEMsolver` ; la variance es
 2. **`sem_solver_kernels.h`** — 16+ corps membres par variante : `computeElementContributions_Acoustic{,_Gemm,_Flat,_FlatZ,_TeamZ}`, `_{Iso,Vti,Tti}{,_Flat,_Team,_TeamZ}` (l.34-1606), plus `computeAttenuationContributions{Acoustic,Elastic}` (l.615-626).
 3. **`sem_solver_assembly.h`** — coefficients : `computeCMatrix` (l.283) et `computeTtiCompact` (l.410), membres spécialisés par physique.
 
-Les traits existants (`fe/api/include/physics_traits.h`, spécialisations acoustique/élastique dans chaque arbre `impl/`) exposent déjà `kName`, `WavefieldType`, `RhsType` — c'est le germe du contrat.
+Les traits existants (`api/include/physics_traits.h`, spécialisations acoustique/élastique dans chaque arbre `impl/`) exposent déjà `kName`, `WavefieldType`, `RhsType` — c'est le germe du contrat.
 
 ## 3. Contrat `PhysicsPolicy`
 
@@ -59,7 +68,7 @@ graph TD
     subgraph API["fe/api"]
         factory["solver_factory<br/><small>seul point de construction</small>"]
     end
-    subgraph SPINE["colonne vertébrale — impl/common"]
+    subgraph SPINE["colonne vertébrale — sem/common"]
         core["SEMsolver&lt;O, I, M, N, PHYSICS&gt;<br/><small>stepping · update · assemblage · MPI · PML<br/>consomme PhysicsPolicy, physique-agnostique</small>"]
     end
     subgraph PHYS["impl/physics/ — classes par physique"]
@@ -95,10 +104,10 @@ Les arêtes pointillées sont des relations compile-time (paramètre template), 
 
 | # | Pas | Porte |
 |---|---|---|
-| 1 | `impl/physics/acoustic/policy.h` : coefficients `computeCMatrix` acoustique extraits d'assembly | proxies + gtest acoustique |
+| 1 | `sem/acoustic/policy.h` : coefficients `computeCMatrix` acoustique extraits d'assembly | proxies + gtest acoustique |
 | 2 | Noyaux flat → team → GEMM déplacés, le cœur appelle `Physics::applyElement` | chaque variante : proxies + gtest |
 | 3 | Atténuation acoustique extraite | gtest atténuation |
-| 4 | `impl/physics/elastic/policy.h` : `computeCMatrix`/`computeTtiCompact` élastiques | gtest élastique + (voir §7) |
+| 4 | `sem/elastic/policy.h` : `computeCMatrix`/`computeTtiCompact` élastiques | gtest élastique + (voir §7) |
 | 5 | Noyaux Iso → Vti → Tti → z-deformés déplacés | idem |
 | 6 | `AcousticSolver`/`ElasticSolver` nommés + fabrique inchangée | validation complète + smoke pyfuntides |
 
@@ -117,7 +126,7 @@ Proxies `sem_acoustic`/`sem_elastic` (et le cas TTI si option (a)) vs référenc
 
 ## 9. Risques
 
-- **Chemin d'inclusion** : les politiques vivront dans `impl/physics/` et doivent rester hors de `fe/api` (détails d'implémentation) ; seule la fabrique et les types nommés sont publics.
+- **Chemin d'inclusion** : les politiques vivront dans `impl/physics/` et doivent rester hors de `api` (détails d'implémentation) ; seule la fabrique et les types nommés sont publics.
 - **Instantiations explicites** : les 104 TU générés référencent les corps par leur nom qualifié actuel — le pas 2/5 change la qualification, le générateur `add_solver_instantiations()` devra suivre. Piste : tester d'abord un seul ordre (Q2) bout en bout avant de dérouler.
 - **`sem_solver_data.h`** : déjà paramétré par traits — devrait suivre sans remaniement.
 - **Multi-sessions** : chantier estimé à plusieurs sessions ; chaque pas est indépendamment revertible, la branche reste fusionnable à tout pas vert.

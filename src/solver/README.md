@@ -4,33 +4,35 @@
 
 | Arbre | Option CMake | Contenu |
 |---|---|---|
-| `SEM/api` + `SEM/impl` + `SEM/pywrap` | (toujours) | Solveurs SEM (acoustique, élastique, acoustoélastique) ; cible `fun_solver`, fabrique `solver_factory::createSolver` |
-| `DG` | `COMPILE_DG` | Solveur DG acoustique (base des autres variantes) |
-| `DG-SEm` | `COMPILE_DG_SEM` (implique `COMPILE_DG`) | DG-SEM couplé (domaines DG + SEM) |
-| `DG_padaptive` | `COMPILE_DG_PADAPTIVE` (implique `COMPILE_DG`) | DG p-adaptatif (sous-domaines pMin/pMax) |
+| `api` | (toujours) | Interfaces pures communes à toutes les méthodes : `solver.h` (base), `wavefield.h`, `rhs.h`, `physics_traits.h` |
+| `factory` | (toujours) | Point d'entrée de construction : `solver_factory.{h,cc}` |
+| `sem` | `COMPILE_SEM` | Solveurs SEM : `common/` (squelette partagé) + `{acoustic,elastic,acoustoelastic}/{include,src}` + `pywrap/` ; cible `fun_solver`, fabrique `solver_factory::createSolver` |
+| `dg` | `COMPILE_DG` | Solveur DG acoustique (base des autres variantes) : `common/` + `acoustic/{include,src}` + `pywrap/` |
+| `dgsem` | `COMPILE_DG_SEM` (implique `COMPILE_DG`) | DG-SEM couplé (domaines DG + SEM), composite réutilisant `sem/` + `dg/` |
+| `dg_padaptive` | `COMPILE_DG_PADAPTIVE` (implique `COMPILE_DG`) | DG p-adaptatif (sous-domaines pMin/pMax), composite réutilisant `dg/` |
 
 Toutes les variantes compilent dans la même bibliothèque `fun_solver` ; les
-répertoires `impl/*/include` sont tous sur le chemin d'inclusion du target, ce
-qui autorise les inclusions inter-arbres documentées ci-dessous.
+répertoires `<méthode>/{common,<physique>}/include` sont tous sur le chemin
+d'inclusion du target, ce qui autorise les inclusions inter-arbres documentées
+ci-dessous.
 
 Historique : la couche `fe/` (`src/solver/fe/...`) existait pour cohabiter
 avec les solveurs `fd`, aujourd'hui supprimés ; elle a été retirée sur revue
-(2026-10-19) : l'arbre SEM vit dans `SEM/`, les variantes DG à la racine, et
-le namespace `solver::fe` est devenu `solver` (convention dossier =
-namespace, comme `src/gradient`).
+(2026-10-19), et le namespace `solver::fe` est devenu `solver` (convention
+dossier = namespace, comme `src/gradient`).
 
-Historique : les répertoires `DG/api` et `DG-SEm/api` d'origine (un
-`CMakeLists.txt` orphelin sans `add_subdirectory` correspondant, sans
-`include/`) étaient morts et ont été supprimés. Réintroduits en
-`refactor/dg-boundaries`, cette fois peuplés : chaque variante DG porte
-désormais son `api/include/` avec sa face publique — l'en-tête de classe
-(consommé par `SEM/impl/common/src/solver_factory.cc`), l'en-tête de données
-(consommé par `src/main/fe`), et `dg_penalty.h` pour `DG` — déclaré comme
-répertoire d'inclusion PUBLIC de `fun_solver` et installé par
-`install_funtides_headers`, symétrique de `SEM/api`. Les `*_impl.h` et les
-en-têtes par physique restent dans `impl/` (consommateurs à feu blanche :
-tests unitaires). Les inclusions se font par nom nu : aucun consommateur
-n'a changé. Le point d'entrée générique reste `SEM/api/include/solver.h`.
+Historique (2e itération de revue, 2026-10-19) : l'`api` doit être commune à
+toutes les méthodes, pas propre au SEM. Elle vit donc à la racine
+(`api/include/{solver,wavefield,rhs,physics_traits}.h`, consommées par SEM et
+par les compositions DG), le couple `solver_factory.{h,cc}` a son dossier
+dédié `factory/`, et chaque méthode suit le même schéma interne :
+`common/include` (en-têtes partagés de la méthode, anciens `api/` +
+`impl/common/` fondus) + une sous-arborescence par physique
+(`{include,src}`) + `pywrap/`. Les fichiers `dg-sem_*` sont renommés
+`dgsem_*` pour matcher le dossier, et les noyaux par physique extraits de la
+migration en politiques deviennent `sem_solver_{acoustic,elastic}_impl.h`
+dans `sem/{acoustic,elastic}/include/`. Le point d'entrée générique reste
+`api/include/solver.h`.
 
 ## Composition des types wavefield / RHS
 
@@ -39,14 +41,14 @@ l'héritage : chaque variante réutilise les types de l'arbre de base et ne
 définit que ses propres accès. Aucun type de données n'est copié.
 
 ```
-WavefieldAcoustic        (SEM/impl/acoustic, SEM nodal : 2 vues vectorReal)
-DGWavefieldAcoustic      (DG, DG par élément : 2 vues arrayReal)
- ├── DGSEMWavefieldAcoustic   (DG-SEm) = DGWavefieldAcoustic + WavefieldAcoustic
- └── DGPAdaptiveWavefieldAcoustic (DG_padaptive) = DGWavefieldAcoustic + DGWavefieldAcoustic (pMin/pMax)
+WavefieldAcoustic        (sem/acoustic, SEM nodal : 2 vues vectorReal)
+DGWavefieldAcoustic      (dg, DG par élément : 2 vues arrayReal)
+ ├── DGSEMWavefieldAcoustic   (dgsem) = DGWavefieldAcoustic + WavefieldAcoustic
+ └── DGPAdaptiveWavefieldAcoustic (dg_padaptive) = DGWavefieldAcoustic + DGWavefieldAcoustic (pMin/pMax)
 
-RhsAcoustic              (SEM/impl/acoustic, SEM : term/element/weights)
- ├── DGSEMRhsAcoustic    (DG-SEm) = 2 x RhsAcoustic (domaines DG et SEM, élément partagé)
- └── DGPAdaptiveRhsAcoustic (DG_padaptive) = 2 x RhsAcoustic (pMin/pMax, weights distincts)
+RhsAcoustic              (sem/acoustic, SEM : term/element/weights)
+ ├── DGSEMRhsAcoustic    (dgsem) = 2 x RhsAcoustic (domaines DG et SEM, élément partagé)
+ └── DGPAdaptiveRhsAcoustic (dg_padaptive) = 2 x RhsAcoustic (pMin/pMax, weights distincts)
 ```
 
 Le wavefield/RHS DG de base est réutilisé tel quel par les variantes
@@ -58,11 +60,11 @@ Le wavefield/RHS DG de base est réutilisé tel quel par les variantes
 Chaque variante possède un *type bundle* de trois alias
 (`kName`, `WavefieldType`, `RhsType`) consommé par son en-tête de solveur :
 
-- `SEM/impl/acoustic` : spécialisation `PhysicsTraits<physicType::kAcoustic>` du
-  gabarit déclaré dans `SEM/api/include/physics_traits.h` (dispatch par physique) ;
-- `DG` : `DGPhysicsTraits` (`dg_physics_traits_acoustic.h`) ;
-- `DG-SEm` : `DGSEMPhysicsTraits` (`dg-sem_physics_traits_acoustic.h`) ;
-- `DG_padaptive` : `DGPAdaptivePhysicsTraits` (`dg_padaptive_physics_traits_acoustic.h`).
+- `sem/acoustic` : spécialisation `PhysicsTraits<physicType::kAcoustic>` du
+  gabarit déclaré dans `api/include/physics_traits.h` (dispatch par physique) ;
+- `dg` : `DGPhysicsTraits` (`dg_physics_traits_acoustic.h`) ;
+- `dgsem` : `DGSEMPhysicsTraits` (`dgsem_physics_traits_acoustic.h`) ;
+- `dg_padaptive` : `DGPAdaptivePhysicsTraits` (`dg_padaptive_physics_traits_acoustic.h`).
 
 Ces fichiers sont volontairement restés distincts : contrairement aux
 wavefields/RHS, leurs jeux d'inclusions diffèrent (chaque variante n'existe que
@@ -82,9 +84,10 @@ changerait l'API Python exposée pour un gain de lignes marginal.
 
 `solver_factory::createSolver` est le seul point d'entrée : il dispatch (méthode, implémentation, maillage, physique, ordre) vers `SEMsolver`, `SEMsolverAcoustoElastic`, `DGsolver`, `DGSEMsolver`
 ou `DGPAdaptiveSolver` selon les options de compilation. Son en-tête de
-déclaration, `solver_factory.h`, vit dans `SEM/api/include` (frontière publique,
-ne dépend que de `solver.h` et des énumérations) ; l'implémentation reste dans
-`SEM/impl/common/src/solver_factory.cc`.
+déclaration, `solver_factory.h`, vit dans `factory/include` (frontière
+publique commune à toutes les méthodes, ne dépend que de `solver.h` et des
+énumérations) ; l'implémentation, `factory/src/solver_factory.cc`, a son
+dossier dédié hors de tout arbre de méthode.
 
 ## Découpage de `sem_solver_impl.h`
 
@@ -95,13 +98,13 @@ thématiques, tous ré-inclus dans l'ordre original par le parapluie
 - `sem_solver_step.h` — `computeFEInit` et les drivers de pas (`computeForces`,
   `updateSolution*`, `reset*`, `applyRHSTerm`, dispatcheur
   `computeElementContributions`) ;
-- `sem_solver_kernels.h` (dans `impl/common/`) — les sondes de capacité
+- `sem_solver_kernels.h` (dans `sem/common/`) — les sondes de capacité
   `detail::`, les helpers de géométrie z-deformée, le dispatcheur
   d'atténuation, partagés par les deux physiques, et les constructeurs de
   tenseur TTI (`computeCMatrix`, `computeTtiCompact`) ;
-- `impl/physics/acoustic/sem_solver_acoustic_kernels.h` — noyaux d'éléments
+- `sem/acoustic/sem_solver_acoustic_impl.h` — noyaux d'éléments
   acoustiques (GEMM/flat/team, variantes z-deformées, atténuation acoustique) ;
-- `impl/physics/elastic/sem_solver_elastic_kernels.h` — noyaux d'éléments
+- `sem/elastic/sem_solver_elastic_impl.h` — noyaux d'éléments
   élastiques (Iso/Vti/Tti, variantes flat/team/z-deformées, atténuation
   élastique, précalcul des tenseurs TTI) ;
 - `sem_solver_update.h` — `updateFieldsForward/Backward` ;
@@ -117,13 +120,14 @@ partition exacte de l'original, réassemblage octet-identique). C'est aussi la
 couture où un futur pré-calcul de géométrie (aujourd'hui recalculée chaque pas
 par les noyaux de faces) pourra se brancher sans toucher au stepping.
 
-## Hiérarchie par physique (`impl/physics/`)
+## Hiérarchie par physique
 
 Depuis la migration en politiques (voir `documentation/physics-policy-design.md`),
-chaque physique possède son répertoire : `impl/physics/acoustic/` et
-`impl/physics/elastic/`, chacun avec sa racine d'inclusion ajoutée à
-`fun_solver` (convention des arbres par variante). Outre les noyaux ci-dessus,
-ils portent les types nommés :
+chaque physique vit dans son sous-arbre de méthode : `sem/acoustic/` et
+`sem/elastic/`, chacun avec ses types (wavefield, rhs, traits), son fragment
+d'implémentation (`sem_solver_{acoustic,elastic}_impl.h`) et ses
+instanciations dans `src/`, sa racine d'inclusion étant ajoutée à
+`fun_solver`. Outre les noyaux ci-dessus, ils portent les types nommés :
 
 - `AcousticSolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES>` —
   sous-classe `final` mince de `SEMsolver<..., kAcoustic>` ;
@@ -137,7 +141,7 @@ méthode virtuelle n'est ajoutée sur un chemin GPU.
 
 ## Fourche acoustoélastique
 
-`SEMsolverAcoustoElastic` (`SEM/impl/acoustoelastic/`) n'est **pas** une
+`SEMsolverAcoustoElastic` (`sem/acoustoelastic/`) n'est **pas** une
 duplication fusionnable de `SEMsolver` : elle hérite directement de `Solver`
 (elle n'instancie pas `SEMsolver`) et sa spécificité est physique, pas
 structurelle — classification des éléments/nœuds (`TagElements`, `TagNodes`),

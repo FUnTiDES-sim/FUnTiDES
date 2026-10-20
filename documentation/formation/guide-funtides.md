@@ -164,7 +164,7 @@ qu'une fois. Deux instances réelles dans le dépôt :
   `dg_solver_impl.h`, ligne 196) ;
 - **« Fused Verlet » DG-SEM** : la mise à jour temporelle des deux
   sous-domaines (DG et SEM) fusionnée en un seul lancement
-  (`applyVerletFused`, `dg-sem_solver_impl.h`, lignes 273 et 302).
+  (`applyVerletFused`, `dgsem_solver_impl.h`, lignes 273 et 302).
 
 C'est par des fusions de ce type sur le membre de droite que les sessions
 passées ont obtenu leurs ~16 % (§6.3). **Contrepartie à connaître** : la
@@ -368,7 +368,7 @@ $$\kappa\,\frac{\partial^2 p}{\partial t^2} \;-\; \nabla \cdot \bigl( b\, \nabla
 
 où $p$ est le champ de pression et $f$ le terme source. Le champ discrétisé ne
 comporte qu'une composante : `WavefieldAcoustic::kNumFields = 1`, nommée
-`"pressure"` (`src/solver/SEM/impl/acoustic/include/wavefield_acoustic.h`,
+`"pressure"` (`src/solver/sem/acoustic/include/wavefield_acoustic.h`,
 lignes 15–18).
 
 Pourquoi cette paramétrisation plutôt que $(v_p, \rho)$ ? Parce que les matrices
@@ -384,7 +384,7 @@ niveau maths qui contraint toute la chaîne logicielle en aval.
 
 L'élastique est une formulation en **déplacement** $\mathbf{u} = (u_x, u_y, u_z)$,
 second ordre en temps : `WavefieldElastic::kNumFields = 3`
-(`src/solver/SEM/impl/elastic/include/wavefield_elastic.h`, ligne 17), avec
+(`src/solver/sem/elastic/include/wavefield_elastic.h`, ligne 17), avec
 `kNumRhsComponents = 3` côté source (`rhs_elastic.h`, ligne 14) — un terme source
 peut porter des poids par composante, ce qui permet d'injecter un **moment tensor**
 (source élastique réalistique) et pas seulement une force ponctuelle.
@@ -395,7 +395,7 @@ $\mu$), avec les vitesses converties depuis $(v_p, v_s, \rho)$ dans le noyau
 
 $$\mu = \rho\, v_s^2, \qquad \lambda = \rho\, (v_p^2 - 2 v_s^2),$$
 
-c'est-à-dire, en code (`src/solver/SEM/impl/common/include/sem_solver_impl.h`,
+c'est-à-dire, en code (`src/solver/sem/common/include/sem_solver_impl.h`,
 lignes 588–589) :
 
 ```cpp Conversion des vitesses en paramètres de Lamé
@@ -409,7 +409,7 @@ $H[i][t] = \partial u_t / \partial x_i$ (symétrisé en déformation) :
 $$\sigma \;=\; \mu\,(H + H^{\mathrm{T}}) \;+\; \lambda\, \mathrm{tr}(H)\, I.$$
 
 C'est exactement le contenu de `elasticFluxIso`
-(`src/solver/SEM/impl/common/include/elastic_flux.h`, ligne 49) : calcul du gradient
+(`src/solver/sem/common/include/elastic_flux.h`, ligne 49) : calcul du gradient
 physique (`physicalGradient`, ligne 17), assemblage de $\sigma$ symétrique, puis
 « pull-back » vers l'élément de référence (`pullBackStress`, ligne 29). Le fichier
 fournit aussi deux variantes anisotropes — utilisées quand la physique des roches
@@ -426,7 +426,7 @@ La variante est choisie au runtime via `setAnisotropyType`
 (`sem_solver.h`, ligne 259) et dispatchée dans le calcul des contributions
 élémentaires (`sem_solver_impl.h`, lignes 196–212). Il existe enfin un solveur
 **acousto-élastique** couplant les deux physiques
-(`src/solver/SEM/impl/acoustoelastic/`), hors du périmètre de ce cours.
+(`src/solver/sem/acoustoelastic/`), hors du périmètre de ce cours.
 
 ### 3.3 Sources et récepteurs
 
@@ -515,7 +515,7 @@ physique se paie en mémoire et en bande passante au niveau HPC.
 | Coût par pas | rigidité scalaire : 1 gradient | rigidité vectorielle : 9 flux + loi de comportement |
 | Damping de bord | scalaire $1/(\rho v_p)$ | directionnel $v_p$/$v_s$ par composante |
 | Variante GEMM | oui (§4.2) | non (sum-factorization uniquement) |
-| Chemin dans le code | `src/solver/SEM/impl/acoustic/` | `src/solver/SEM/impl/elastic/` |
+| Chemin dans le code | `src/solver/sem/acoustic/` | `src/solver/sem/elastic/` |
 
 Le coût élastique est structurellement plus lourd : trois champs signifient trois
 mises à jour temporelles, neuf flux de référence dans la sum-factorization (§4.2),
@@ -670,13 +670,13 @@ Le noyau de faces `computeBoundaryDampingAndInterfaceFlux`
 externes (amortissement) et les faces internes (flux d'interface), un exemple
 précoce de fusion de noyaux dans ce code.
 
-Le solveur **DG-SEM** (`src/solver/DG-SEm/`) couple les deux mondes dans un
+Le solveur **DG-SEM** (`src/solver/dgsem/`) couple les deux mondes dans un
 seul domaine : un **intérieur SEM** (efficace, où la solution est lisse) entouré
 d'une **couche DG** qui joue le rôle de frontière absorbante/troncature. Le
 découpage spatial est un simple seuil en $z$ (`DgSemBoundaryZ`, cf. §6.2). Le pas
 de temps est un schéma décalé (*staggered*) : contribution DG, contribution SEM,
 puis **mise à jour de Verlet fusionnée des deux sous-domaines dans un seul
-lancement de noyau** (`applyVerletFused`, `dg-sem_solver_impl.h`, ligne 273 ;
+lancement de noyau** (`applyVerletFused`, `dgsem_solver_impl.h`, ligne 273 ;
 lancement unique `"DG-SEM Fused Verlet"`, ligne 302 ; orchestration dans
 `computeOneStep`, ligne 337). C'est ce solveur, historiquement profilé et
 optimisé, qui sert de cas test au chapitre 6 — et son mode distribué est
@@ -796,7 +796,7 @@ Deux autres mécanismes traversent tous les noyaux :
 
 La parallélisation inter-nœuds est **séparée du solveur** : elle passe par une
 interface pluggable, `BoundarySynchronizer`
-(`src/solver/SEM/impl/common/include/boundary_synchronizer.h`, ligne 36).
+(`src/solver/sem/common/include/boundary_synchronizer.h`, ligne 36).
 Son backend MPI (`MPIBackend`, `mpi_backend.h`, ligne 19) fait les échanges non
 bloquants `MPI_Isend`/`MPI_Irecv` des zones fantômes. La séquence canonique d'un
 pas distribué est :
