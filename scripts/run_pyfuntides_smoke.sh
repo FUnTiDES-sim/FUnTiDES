@@ -22,15 +22,24 @@ source /appli_RD/j1039830/local/tpl-venv/bin/activate
 export PATH=/appli_RD/j1039830/local/cmake/bin:/appli_RD/j1039830/local/cuda/bin:$PATH
 export LD_LIBRARY_PATH=/appli_RD/j1039830/local/cuda/lib64:/appli_RD/j1039830/local/lib64:${LD_LIBRARY_PATH:-}
 
-# Rebuild the pywrap module (links the refactored libfun_solver) and copy the
-# freshly built module into the installed package so the smoke exercises the
-# CURRENT tree. A full `cmake --install` is not used: this build tree has never
-# built every installable target (e.g. libfun_io.so), which a full install
-# requires; the smoke only needs the solver module refreshed.
+# Rebuild the pywrap module AND the libraries it loads, then copy both into
+# the installed package so the smoke exercises the CURRENT tree. A full
+# `cmake --install` is not used: this build tree has never built every
+# installable target (e.g. libfun_io.so), which a full install requires; the
+# smoke only needs the solver module and its direct libs refreshed. The
+# module resolves libfun_solver.so through its RPATH ($ORIGIN/../../lib),
+# so the fresh library must be copied beside the installed one or the import
+# loads the stale one and fails on missing symbols.
 cd /appli_RD/j1039830/FUnTiDES
-cmake --build build --target solver -j16
-cp build/src/solver/sem/pywrap/solver.cpython-311-x86_64-linux-gnu.so \
+cmake --build build --target solver model -j16
+cp build/src/solver/pywrap/solver.cpython-311-x86_64-linux-gnu.so \
    /appli_RD/j1039830/local/funtides-install/python/pyfuntides/solver.cpython-311-x86_64-linux-gnu.so
+cp build/src/model/mesh/pywrap/model.cpython-311-x86_64-linux-gnu.so \
+   /appli_RD/j1039830/local/funtides-install/python/pyfuntides/model.cpython-311-x86_64-linux-gnu.so
+cp build/src/solver/impl/libfun_solver.so \
+   /appli_RD/j1039830/local/funtides-install/lib/libfun_solver.so
+cp build/src/model/libfun_model.so \
+   /appli_RD/j1039830/local/funtides-install/lib/libfun_model.so
 
 export PYTHONPATH="/appli_RD/j1039830/local/funtides-install/python:${PYTHONPATH:-}"
 
@@ -41,7 +50,7 @@ python -c "import pyfuntides; import pyfuntides.solver as S; print('import OK:',
 
 echo "[smoke] 2/2 GPU solver run (solver_cartesian, MAKUTU, n_rhs=2)"
 SMOKE_LOG=/appli_RD/j1039830/FUnTiDES/proxy_bench/smoke/solver_cartesian_run.log
-python -u examples/fe/solver_cartesian.py --mem GPU --impl MAKUTU --order 1 \
+python -u examples/solver_cartesian.py --mem GPU --impl MAKUTU --order 1 \
   --ex 8 --ey 8 --ez 8 --n_time_steps 20 --n_rhs 2 > "${SMOKE_LOG}" 2>&1
 RUN_RC=$?
 echo "[smoke] run exit code: ${RUN_RC} (full log: ${SMOKE_LOG})"

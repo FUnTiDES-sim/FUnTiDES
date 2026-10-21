@@ -326,7 +326,7 @@ FUnTiDES n'implémente pas la boucle d'inversion elle-même : il fournit la briq
 du modèle — `src/gradient/impl/acoustic/` et `src/gradient/impl/elastic/`), le reste
 de la chaîne (optimisation du modèle) appartenant à la couche appelante. La
 démonstration de bout en bout existe toutefois dans le dépôt :
-`examples/fe/qualitative_gradient_test.py` vérifie qualitativement le gradient,
+`examples/qualitative_gradient_test.py` vérifie qualitativement le gradient,
 et `documentation/acoustic/formulation.md` §3–4 documente la linéarisation de Born
 et l'état adjoint jusqu'aux expressions de gradient effectivement codées.
 
@@ -334,7 +334,7 @@ et l'état adjoint jusqu'aux expressions de gradient effectivement codées.
 
 Deux points d'entrée :
 
-- **Python** (interface principale) : les exemples `examples/fe/solver_cartesian.py`
+- **Python** (interface principale) : les exemples `examples/solver_cartesian.py`
   (mono-rang), `solver_cartesian_mpi.py` (MPI), `solver_multigpu.py` /
   `solver_multigpu_multinode.py` construisent un maillage cartésien, créent le
   solveur via la fabrique, allouent les champs et font tourner la boucle en temps ;
@@ -368,7 +368,7 @@ $$\kappa\,\frac{\partial^2 p}{\partial t^2} \;-\; \nabla \cdot \bigl( b\, \nabla
 
 où $p$ est le champ de pression et $f$ le terme source. Le champ discrétisé ne
 comporte qu'une composante : `WavefieldAcoustic::kNumFields = 1`, nommée
-`"pressure"` (`src/solver/sem/acoustic/include/wavefield_acoustic.h`,
+`"pressure"` (`src/solver/impl/sem/acoustic/include/wavefield_acoustic.h`,
 lignes 15–18).
 
 Pourquoi cette paramétrisation plutôt que $(v_p, \rho)$ ? Parce que les matrices
@@ -384,7 +384,7 @@ niveau maths qui contraint toute la chaîne logicielle en aval.
 
 L'élastique est une formulation en **déplacement** $\mathbf{u} = (u_x, u_y, u_z)$,
 second ordre en temps : `WavefieldElastic::kNumFields = 3`
-(`src/solver/sem/elastic/include/wavefield_elastic.h`, ligne 17), avec
+(`src/solver/impl/sem/elastic/include/wavefield_elastic.h`, ligne 17), avec
 `kNumRhsComponents = 3` côté source (`rhs_elastic.h`, ligne 14) — un terme source
 peut porter des poids par composante, ce qui permet d'injecter un **moment tensor**
 (source élastique réalistique) et pas seulement une force ponctuelle.
@@ -395,7 +395,7 @@ $\mu$), avec les vitesses converties depuis $(v_p, v_s, \rho)$ dans le noyau
 
 $$\mu = \rho\, v_s^2, \qquad \lambda = \rho\, (v_p^2 - 2 v_s^2),$$
 
-c'est-à-dire, en code (`src/solver/sem/common/include/sem_solver_impl.h`,
+c'est-à-dire, en code (`src/solver/impl/sem/common/include/sem_solver_impl.h`,
 lignes 588–589) :
 
 ```cpp Conversion des vitesses en paramètres de Lamé
@@ -409,7 +409,7 @@ $H[i][t] = \partial u_t / \partial x_i$ (symétrisé en déformation) :
 $$\sigma \;=\; \mu\,(H + H^{\mathrm{T}}) \;+\; \lambda\, \mathrm{tr}(H)\, I.$$
 
 C'est exactement le contenu de `elasticFluxIso`
-(`src/solver/sem/common/include/elastic_flux.h`, ligne 49) : calcul du gradient
+(`src/solver/impl/sem/elastic/include/elastic_flux.h`, ligne 49) : calcul du gradient
 physique (`physicalGradient`, ligne 17), assemblage de $\sigma$ symétrique, puis
 « pull-back » vers l'élément de référence (`pullBackStress`, ligne 29). Le fichier
 fournit aussi deux variantes anisotropes — utilisées quand la physique des roches
@@ -426,7 +426,7 @@ La variante est choisie au runtime via `setAnisotropyType`
 (`sem_solver.h`, ligne 259) et dispatchée dans le calcul des contributions
 élémentaires (`sem_solver_impl.h`, lignes 196–212). Il existe enfin un solveur
 **acousto-élastique** couplant les deux physiques
-(`src/solver/sem/acoustoelastic/`), hors du périmètre de ce cours.
+(`src/solver/impl/sem/acoustoelastic/`), hors du périmètre de ce cours.
 
 ### 3.3 Sources et récepteurs
 
@@ -515,7 +515,7 @@ physique se paie en mémoire et en bande passante au niveau HPC.
 | Coût par pas | rigidité scalaire : 1 gradient | rigidité vectorielle : 9 flux + loi de comportement |
 | Damping de bord | scalaire $1/(\rho v_p)$ | directionnel $v_p$/$v_s$ par composante |
 | Variante GEMM | oui (§4.2) | non (sum-factorization uniquement) |
-| Chemin dans le code | `src/solver/sem/acoustic/` | `src/solver/sem/elastic/` |
+| Chemin dans le code | `src/solver/impl/sem/acoustic/` | `src/solver/impl/sem/elastic/` |
 
 Le coût élastique est structurellement plus lourd : trois champs signifient trois
 mises à jour temporelles, neuf flux de référence dans la sum-factorization (§4.2),
@@ -670,7 +670,7 @@ Le noyau de faces `computeBoundaryDampingAndInterfaceFlux`
 externes (amortissement) et les faces internes (flux d'interface), un exemple
 précoce de fusion de noyaux dans ce code.
 
-Le solveur **DG-SEM** (`src/solver/dgsem/`) couple les deux mondes dans un
+Le solveur **DG-SEM** (`src/solver/impl/dgsem/`) couple les deux mondes dans un
 seul domaine : un **intérieur SEM** (efficace, où la solution est lisse) entouré
 d'une **couche DG** qui joue le rôle de frontière absorbante/troncature. Le
 découpage spatial est un simple seuil en $z$ (`DgSemBoundaryZ`, cf. §6.2). Le pas
@@ -742,7 +742,7 @@ Concepts Kokkos à connaître pour lire le code :
   est un `View` de `float`.
 - **Espaces mémoire** : `HostSpace` (CPU) contre `CudaUVMSpace`/`CudaSpace` (GPU).
   L'exemple Python laisse le choix à l'utilisateur —
-  `examples/fe/solver_cartesian.py` documente `MemSpace.CPU = "HostSpace"` contre
+  `examples/solver_cartesian.py` documente `MemSpace.CPU = "HostSpace"` contre
   `MemSpace.GPU = "CudaUVMSpace"` (mémoire unifiée, lignes 44–50), et
   `solver_cartesian_mpi.py` retombe sur `HostSpace` si l'installation Kokkos
   locale n'a pas de CUDA (lignes 47–50).
@@ -796,7 +796,7 @@ Deux autres mécanismes traversent tous les noyaux :
 
 La parallélisation inter-nœuds est **séparée du solveur** : elle passe par une
 interface pluggable, `BoundarySynchronizer`
-(`src/solver/sem/common/include/boundary_synchronizer.h`, ligne 36).
+(`src/solver/impl/sem/common/include/boundary_synchronizer.h`, ligne 36).
 Son backend MPI (`MPIBackend`, `mpi_backend.h`, ligne 19) fait les échanges non
 bloquants `MPI_Isend`/`MPI_Irecv` des zones fantômes. La séquence canonique d'un
 pas distribué est :
@@ -810,10 +810,10 @@ Deux choix à connaître :
 
 - la **partition** n'est pas faite par un bibliothèque de partitionnement : c'est
   une **découpe 1D en slabs** calculée côté Python (`get_partition_1d`,
-  `examples/fe/solver_cartesian_mpi.py`, ligne 65) — suffisant pour des maillages
+  `examples/solver_cartesian_mpi.py`, ligne 65) — suffisant pour des maillages
   cartésiens, et représentatif de la physique (le split DG/SEM du §4.4 est lui
   aussi une découpe en $z$) ;
-- la **découpe MPI × GPU** : les exemples `examples/fe/solver_multigpu.py` et
+- la **découpe MPI × GPU** : les exemples `examples/solver_multigpu.py` et
   `solver_multigpu_multinode.py` montrent le mode multi-GPU (un rang par GPU) et
   multi-nœud.
 
