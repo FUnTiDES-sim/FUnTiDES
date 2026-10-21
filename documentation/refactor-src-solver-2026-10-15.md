@@ -41,6 +41,32 @@
 > build des 6 cibles, `solver_tests` 463/463 (1 skip AE préexistant), trois
 > oracles proxy vs références scellées (`l2_rel < 1e-3`).
 
+> **Addendum 3 — itération de revue 3 (2026-10-21).** Troisième passe sur
+> croquis du développeur : l'arbre devient `api/` + `impl/` + `pywrap/` à la
+> racine de `src/solver`. Le contrat `api/include/` est inchangé ; sous
+> `impl/common/` vivent la fabrique `solver_factory.{h,cc}` (comme
+> `differentiator_factory` du gradient) et, par physique, les types partagés
+> par toutes les méthodes (`rhs_*.h` et le nouveau descripteur
+> `physics_info*.h` — `kName`/`kNumFields`/`kNumRhs`, consommé par
+> `dg_solver.h` à la place des traits SEM) ; chaque méthode garde son
+> sous-arbre `impl/{sem,dg,dgsem,dg_padaptive}/{common,<physique>}` ; le
+> pywrap est un module unique `pywrap/` (comme `gradient/pywrap`). Les
+> implémentations DG rejoignent leur physique (`dg_solver_impl.h` →
+> `dg/acoustic/`, idem dgsem/dg_padaptive), `elastic_flux.h` et les
+> constructeurs de tenseur TTI (`computeCMatrix`, `computeTtiCompact`)
+> rejoignent `sem/elastic/` (l'histoire des tenseurs est élastique).
+> `fun_solver` est déclaré hors de `sem/` (dans `impl/CMakeLists.txt`) et la
+> fabrique comme le pywrap gardent leurs parties par méthode par
+> `#ifdef COMPILE_*` — un build `COMPILE_SEM=OFF` compile désormais la
+> frontière partagée seule. Les tests miroir l'arbre source
+> (`tests/units/solver/impl/{common,sem,dg,dgsem,dg_padaptive}/`), les
+> sources SEM portent la garde `#ifdef COMPILE_SEM` (motif des tests DG).
+> Nettoyage : include guards réalignées sur les chemins finaux (62 en-têtes),
+> commentaires et `src/solver/README.md` sans historique (README en anglais),
+> alias `feenum` supprimés des tests, exemples déplacés `examples/fe/` →
+> `examples/`, trois fichiers de tests morts supprimés (headers disparus :
+> `gradients_*.h`, `pml_coefficients.h`).
+
 ---
 
 ## 1. Objectif et périmètre

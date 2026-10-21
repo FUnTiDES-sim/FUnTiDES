@@ -1,47 +1,56 @@
 link_libraries(GTest::gtest GTest::gtest_main)
 
+# The tree mirrors src/solver: the shared per-physics types under
+# impl/common/<physics>, one subtree per method under impl/. Method-specific
+# sources compile only under their COMPILE_* option here, and carry the
+# matching #ifdef guard in the source.
 set(SOLVER_TEST_SOURCES
-  impl/test_wavefield_acoustic.cc
-  impl/test_wavefield_elastic.cc
-  impl/test_rhs_acoustic.cc
-  impl/test_rhs_elastic.cc
-  impl/test_wavefield_acoustoelastic.cc
-  impl/test_rhs_acoustoelastic.cc
-  impl/test_sem_solver_acoustoelastic.cc
-  impl/test_physics_traits.cc
-  impl/test_solver_data_acoustic.cc
-  impl/test_solver_data_elastic.cc
-  impl/test_solver_factory.cc
-  impl/test_attenuation.cc
-  impl/test_sem_solver_acoustic.cc
-  impl/test_sem_solver_elastic.cc
-  impl/test_elastic_flux_symmetry.cc
-  impl/test_elastic_flux_tti_compact.cc
-  impl/test_sem_solver_zdeformed.cc
-  impl/test_boundary_synchronizer.cc
+  impl/common/acoustic/test_rhs_acoustic.cc
+  impl/common/elastic/test_rhs_elastic.cc
+  impl/common/acoustoelastic/test_rhs_acoustoelastic.cc
 )
+
+if(COMPILE_SEM)
+  list(APPEND SOLVER_TEST_SOURCES
+    impl/common/test_solver_factory.cc
+    impl/sem/common/test_physics_traits.cc
+    impl/sem/common/test_solver_data_acoustic.cc
+    impl/sem/common/test_solver_data_elastic.cc
+    impl/sem/common/test_attenuation.cc
+    impl/sem/common/test_boundary_synchronizer.cc
+    impl/sem/common/test_sem_solver_zdeformed.cc
+    impl/sem/acoustic/test_wavefield_acoustic.cc
+    impl/sem/acoustic/test_sem_solver_acoustic.cc
+    impl/sem/elastic/test_wavefield_elastic.cc
+    impl/sem/elastic/test_sem_solver_elastic.cc
+    impl/sem/elastic/test_elastic_flux_symmetry.cc
+    impl/sem/elastic/test_elastic_flux_tti_compact.cc
+    impl/sem/acoustoelastic/test_wavefield_acoustoelastic.cc
+    impl/sem/acoustoelastic/test_sem_solver_acoustoelastic.cc
+  )
+endif()
 
 if(COMPILE_DG)
   list(APPEND SOLVER_TEST_SOURCES
-    impl/test_dg_solver_factory.cc
-    dg/test_dg_penalty.cc
-    dg/test_dg_solver_data.cc
+    impl/dg/test_dg_solver_factory.cc
+    impl/dg/test_dg_penalty.cc
+    impl/dg/test_dg_solver_data.cc
   )
 endif()
 
 if(COMPILE_DG_SEM)
   list(APPEND SOLVER_TEST_SOURCES
-    impl/test_dg_sem_solver_factory.cc
-    dgsem/test_dgsem_solver_data.cc
-    dgsem/test_dgsem_solver_acoustic.cc
+    impl/dgsem/test_dg_sem_solver_factory.cc
+    impl/dgsem/test_dgsem_solver_data.cc
+    impl/dgsem/test_dgsem_solver_acoustic.cc
   )
 endif()
 
 if(COMPILE_DG_PADAPTIVE)
   list(APPEND SOLVER_TEST_SOURCES
-    impl/test_dg_padaptive_solver_factory.cc
-    dg_padaptive/test_dg_padaptive_solver_data.cc
-    dg_padaptive/test_dg_padaptive_solver_acoustic.cc
+    impl/dg_padaptive/test_dg_padaptive_solver_factory.cc
+    impl/dg_padaptive/test_dg_padaptive_solver_data.cc
+    impl/dg_padaptive/test_dg_padaptive_solver_acoustic.cc
   )
 endif()
 
@@ -73,7 +82,7 @@ if(COMPILE_DG)
     set(_gen_file "${CMAKE_CURRENT_BINARY_DIR}/test_dg_solver_acoustic_Q${ORDER}.cpp")
 
     configure_file(
-      "${CMAKE_CURRENT_SOURCE_DIR}/dg/templates/test_dg_solver_acoustic_order.cpp.in"
+      "${CMAKE_CURRENT_SOURCE_DIR}/impl/dg/templates/test_dg_solver_acoustic_order.cpp.in"
       "${_gen_file}"
       @ONLY
     )
@@ -85,7 +94,7 @@ if(COMPILE_DG)
     )
 
     target_include_directories(${_target} PRIVATE
-      ${CMAKE_CURRENT_SOURCE_DIR}/dg
+      ${CMAKE_CURRENT_SOURCE_DIR}/impl/dg
     )
   endforeach()
 
@@ -94,7 +103,7 @@ if(COMPILE_DG)
 endif()
 
 if(USE_MPI)
-add_executable(test_mpi_partitioning impl/test_mpi_partitioning.cc)
+add_executable(test_mpi_partitioning test_mpi_partitioning.cc)
 target_link_libraries(test_mpi_partitioning
     PRIVATE
     fun_model
@@ -106,4 +115,5 @@ add_test(NAME test_mpi_partitioning COMMAND test_mpi_partitioning)
 endif()
 
 # Disabled — kept for reference, not wired into any target:
-# impl/test_attenuation_receiver.cc, impl/test_attenuation_reference.cc
+# impl/sem/common/test_attenuation_receiver.cc,
+# impl/sem/common/test_attenuation_reference.cc

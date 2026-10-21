@@ -43,7 +43,7 @@ for TASKS in 1 2 4 8; do
 
     mpirun -np $TASKS \
            --bind-to socket \
-           python3 -u $FUNTIDES_PATH/examples/fe/solver_multigpu_multinode.py \
+           python3 -u $FUNTIDES_PATH/examples/solver_multigpu_multinode.py \
            --ex $GLOBAL_EX --ey $EY --ez $EZ --steps $STEPS \
            --benchmark --type-scaling strong
 
