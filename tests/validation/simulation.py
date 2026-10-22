@@ -1,5 +1,5 @@
 """
-Runs one validation case with the pyfuntides SEM solver and records the
+Runs one validation case with the pyfuntides solver and records the
 receiver trace.
 
 Kokkos must be initialized by the caller, and finalized only after this
@@ -48,7 +48,7 @@ def build_model(case):
 
 def build_solver(case):
     solver = Solver.create_solver(
-        Solver.MethodType.SEM,
+        Solver.MethodType.DG if case.method == "dg" else Solver.MethodType.SEM,
         Solver.ImplemType.MAKUTU,
         Solver.MeshType.STRUCT if case.mesh == "cartesian" else Solver.MeshType.UNSTRUCT,
         Solver.ModelLocationType.ONNODES if case.on_nodes else Solver.ModelLocationType.ONELEMENTS,
@@ -78,6 +78,33 @@ def _zeros(shape, dtype, space, layout):
     return view
 
 
+def _source_and_receiver(model, case):
+    n_elements = (case.elements_per_direction,) * 3
+    src_element = element_index(cases.SOURCE, n_elements, cases.DOMAIN_SIZE)
+    rcv_element = element_index(cases.RECEIVER, n_elements, cases.DOMAIN_SIZE)
+    src_weights = interpolation_weights(model, src_element, case.order, cases.SOURCE)
+    rcv_weights = interpolation_weights(model, rcv_element, case.order, cases.RECEIVER)
+    return src_element, rcv_element, src_weights, rcv_weights
+
+
+def _rhs_arrays(case, src_element, src_weights, memspace, layout):
+    """Kokkos arrays of the point source: element, weights, and one time series per field."""
+    n_points = len(src_weights)
+    rhs_element = _zeros([1], kokkos.int32, memspace, layout)
+    np.array(rhs_element, copy=False)[0] = src_element
+    rhs_weights = _zeros([1, n_points], kokkos.float32, memspace, layout)
+    np.array(rhs_weights, copy=False)[0, :] = src_weights
+
+    # Same sampling as SourceTimeFunction::computeSourceTerm: sample k is the source at time k * dt.
+    wavelet = evaluate_ricker(np.arange(case.n_samples) * case.dt, cases.F0, cases.RICKER_ORDER, cases.TPEAK)
+    rhs_terms = []
+    for _ in case.components:
+        term = _zeros([1, case.n_samples], kokkos.float32, memspace, layout)
+        np.array(term, copy=False)[0, :] = wavelet
+        rhs_terms.append(term)
+    return rhs_element, rhs_weights, rhs_terms
+
+
 def run(case, memspace=None, layout=None):
     """
     Simulate one case.
@@ -88,33 +115,27 @@ def run(case, memspace=None, layout=None):
     """
     if memspace is None:
         memspace, layout = default_memspace()
-    n_elements = (case.elements_per_direction,) * 3
-    n_samples = case.n_samples
-    n_fields = len(case.components)
-
     model = build_model(case)
     solver = build_solver(case)
     solver.compute_fe_init(model, [0.0, 0.0, 0.0], False, 0.015)
-
-    src_element = element_index(cases.SOURCE, n_elements, cases.DOMAIN_SIZE)
-    rcv_element = element_index(cases.RECEIVER, n_elements, cases.DOMAIN_SIZE)
-    rcv_nodes = element_nodes(model, rcv_element, case.order)
-    rcv_weights = interpolation_weights(model, rcv_element, case.order, cases.RECEIVER)
+    src_element, rcv_element, src_weights, rcv_weights = _source_and_receiver(model, case)
     material = material_at_source(model, case, src_element)
+    rhs_element, rhs_weights, rhs_terms = _rhs_arrays(case, src_element, src_weights, memspace, layout)
 
-    n_points = model.get_number_of_points_per_element()
-    rhs_element = _zeros([1], kokkos.int32, memspace, layout)
-    np.array(rhs_element, copy=False)[0] = src_element
-    rhs_weights = _zeros([1, n_points], kokkos.float32, memspace, layout)
-    np.array(rhs_weights, copy=False)[0, :] = interpolation_weights(model, src_element, case.order, cases.SOURCE)
+    if case.method == "dg":
+        trace = _time_loop_dg(case, model, solver, rcv_element, rcv_weights,
+                              (rhs_element, rhs_weights, rhs_terms), memspace, layout)
+    else:
+        trace = _time_loop_sem(case, model, solver, rcv_element, rcv_weights,
+                               (rhs_element, rhs_weights, rhs_terms), memspace, layout)
+    time = (np.arange(case.n_samples) + 1) * case.dt
+    return time, trace, material
 
-    # Same sampling as SourceTimeFunction::computeSourceTerm: sample k is the source at time k * dt.
-    wavelet = evaluate_ricker(np.arange(n_samples) * cases.DT, cases.F0, cases.RICKER_ORDER, cases.TPEAK)
-    rhs_terms = []
-    for _ in range(n_fields):
-        term = _zeros([1, n_samples], kokkos.float32, memspace, layout)
-        np.array(term, copy=False)[0, :] = wavelet
-        rhs_terms.append(term)
+
+def _time_loop_sem(case, model, solver, rcv_element, rcv_weights, rhs_arrays, memspace, layout):
+    rhs_element, rhs_weights, rhs_terms = rhs_arrays
+    n_fields = len(case.components)
+    rcv_nodes = element_nodes(model, rcv_element, case.order)
 
     n_nodes = model.get_number_of_nodes()
     fields = [_zeros([n_nodes], kokkos.float32, memspace, layout) for _ in range(2 * n_fields)]
@@ -127,15 +148,34 @@ def run(case, memspace=None, layout=None):
         rhs = Solver.RhsAcoustic(rhs_terms[0], rhs_element, rhs_weights)
         data = Solver.SEMsolverDataAcoustic(wavefield, rhs)
 
-    trace = np.zeros((n_samples, n_fields))
-    for k in range(n_samples):
-        solver.compute_forces(cases.DT, k, data)
-        solver.update_solution_forward(cases.DT, data)
+    trace = np.zeros((case.n_samples, n_fields))
+    for k in range(case.n_samples):
+        solver.compute_forces(case.dt, k, data)
+        solver.update_solution_forward(case.dt, data)
         # The update writes the new field into the previous-field buffer: read it once swapped.
         data.swap_wavefields()
         for c in range(n_fields):
             field = np.array(data.get_current_field(c), copy=False)
             trace[k, c] = field[rcv_nodes] @ rcv_weights
+    return trace
 
-    time = (np.arange(n_samples) + 1) * cases.DT
-    return time, trace, material
+
+def _time_loop_dg(case, model, solver, rcv_element, rcv_weights, rhs_arrays, memspace, layout):
+    rhs_element, rhs_weights, rhs_terms = rhs_arrays
+    shape = [model.get_number_of_elements(), model.get_number_of_points_per_element()]
+    prev = _zeros(shape, kokkos.float32, memspace, layout)
+    curr = _zeros(shape, kokkos.float32, memspace, layout)
+    wavefield = Solver.DGWavefieldAcoustic(prev, curr)
+    rhs = Solver.RhsAcoustic(rhs_terms[0], rhs_element, rhs_weights)
+    data = Solver.DGsolverDataAcoustic(wavefield, rhs)
+
+    # The data object has no field accessor: the update writes the new field into the buffer that
+    # was "previous" before the step, and the swap exchanges the two, so the buffers alternate.
+    buffers = (np.array(prev, copy=False), np.array(curr, copy=False))
+    trace = np.zeros((case.n_samples, 1))
+    for k in range(case.n_samples):
+        solver.compute_forces(case.dt, k, data)
+        solver.update_solution_forward(case.dt, data)
+        data.swap_wavefields()
+        trace[k, 0] = buffers[k % 2][rcv_element, :] @ rcv_weights
+    return trace

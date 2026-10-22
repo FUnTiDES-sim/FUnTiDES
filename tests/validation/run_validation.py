@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Validate the SEM solvers against closed-form homogeneous solutions.
+Validate the SEM and DG solvers against closed-form homogeneous solutions.
 
 For each selected case (see cases.py), three steps:
   1. run the solver through pyfuntides, write <output-dir>/<case>/receiver_trace.txt
@@ -12,7 +12,8 @@ Both trace files can be compared again by hand with compare_traces.py
 (--plot, --align, --kinematics-check).
 
 Usage:
-    python3 run_validation.py                          # the 24 cases
+    python3 run_validation.py                          # every case (SEM and DG)
+    python3 run_validation.py --method dg
     python3 run_validation.py --physics acoustic --mesh cartesian --order 2
     python3 run_validation.py --on-nodes yes --list
 """
@@ -83,7 +84,8 @@ def select_cases(args):
     return [
         c
         for c in cases.all_cases()
-        if c.physics in args.physics
+        if c.method in args.method
+        and c.physics in args.physics
         and c.mesh in args.mesh
         and c.order in args.order
         and c.on_nodes in {on_nodes[v] for v in args.on_nodes}
@@ -106,6 +108,7 @@ def print_summary(results, failures):
 
 def main():
     p = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    p.add_argument("--method", nargs="+", choices=cases.METHODS, default=list(cases.METHODS))
     p.add_argument("--physics", nargs="+", choices=cases.PHYSICS, default=list(cases.PHYSICS))
     p.add_argument("--mesh", nargs="+", choices=cases.MESHES, default=list(cases.MESHES))
     p.add_argument("--order", nargs="+", type=int, choices=cases.ORDERS, default=list(cases.ORDERS))
@@ -113,9 +116,14 @@ def main():
                    help="model given on nodes (yes), on elements (no), or both (default)")
     p.add_argument("--output-dir", default="validation_output", help="where the traces are written (default: ./validation_output)")
     p.add_argument("--kokkos-num-threads", type=int, default=6, help="host threads given to Kokkos (default: 6)")
+    p.add_argument("--dg-cfl", type=float, default=None, dest="dg_cfl",
+                   help="DG time step as a fraction of h / (vp * order^2), for every order "
+                        f"(default: {cases.DG_CFL})")
     p.add_argument("--list", action="store_true", help="print the selected cases and exit")
     args = p.parse_args()
 
+    if args.dg_cfl is not None:
+        cases.DG_CFL = {o: args.dg_cfl for o in cases.ORDERS}
     selected = select_cases(args)
     if args.list or not selected:
         for c in selected:
@@ -131,7 +139,7 @@ def main():
     try:
         for i, case in enumerate(selected, 1):
             print(f"\n[{i}/{len(selected)}] {case.name}: {case.elements_per_direction}^3 elements, "
-                  f"{case.n_samples} steps", flush=True)
+                  f"{case.n_samples} steps of {case.dt:g} s", flush=True)
             try:
                 r = validate_case(case, args.output_dir)
             except Exception:
