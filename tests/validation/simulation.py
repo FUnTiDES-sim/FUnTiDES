@@ -46,14 +46,23 @@ def build_model(case):
     return builder.get_model()
 
 
+METHOD_TYPES = {
+    "sem": Solver.MethodType.SEM,
+    "dg": Solver.MethodType.DG,
+    "dgsem": Solver.MethodType.DGSEM,
+    "dgpadaptive": Solver.MethodType.DGPADAPTIVE,
+}
+
+
 def build_solver(case):
     solver = Solver.create_solver(
-        Solver.MethodType.DG if case.method == "dg" else Solver.MethodType.SEM,
+        METHOD_TYPES[case.method],
         Solver.ImplemType.MAKUTU,
         Solver.MeshType.STRUCT if case.mesh == "cartesian" else Solver.MeshType.UNSTRUCT,
         Solver.ModelLocationType.ONNODES if case.on_nodes else Solver.ModelLocationType.ONELEMENTS,
         Solver.PhysicType.ELASTIC if case.is_elastic else Solver.PhysicType.ACOUSTIC,
         case.order,
+        case.order_min,
     )
     if case.is_elastic:
         solver.set_anisotropy_type(Model.AnisotropyType.ISO)
@@ -72,37 +81,22 @@ def material_at_source(model, case, element):
     return float(vp), float(vs), float(rho)
 
 
-def _zeros(shape, dtype, space, layout):
-    view = kokkos.array(shape, dtype=dtype, space=space, layout=layout)
-    np.array(view, copy=False)[...] = 0
-    return view
+def _allocator(memspace, layout):
+    """Returns alloc(shape, values=None, dtype=float32): a Kokkos array filled with values, or zeros."""
+
+    def alloc(shape, values=None, dtype=kokkos.float32):
+        view = kokkos.array(list(shape), dtype=dtype, space=memspace, layout=layout)
+        np.array(view, copy=False)[...] = 0 if values is None else values
+        return view
+
+    return alloc
 
 
-def _source_and_receiver(model, case):
+def _locate(model, case, point):
+    """(element, interpolation weights) of a point, in the basis of the sub-domain holding it."""
     n_elements = (case.elements_per_direction,) * 3
-    src_element = element_index(cases.SOURCE, n_elements, cases.DOMAIN_SIZE)
-    rcv_element = element_index(cases.RECEIVER, n_elements, cases.DOMAIN_SIZE)
-    src_weights = interpolation_weights(model, src_element, case.order, cases.SOURCE)
-    rcv_weights = interpolation_weights(model, rcv_element, case.order, cases.RECEIVER)
-    return src_element, rcv_element, src_weights, rcv_weights
-
-
-def _rhs_arrays(case, src_element, src_weights, memspace, layout):
-    """Kokkos arrays of the point source: element, weights, and one time series per field."""
-    n_points = len(src_weights)
-    rhs_element = _zeros([1], kokkos.int32, memspace, layout)
-    np.array(rhs_element, copy=False)[0] = src_element
-    rhs_weights = _zeros([1, n_points], kokkos.float32, memspace, layout)
-    np.array(rhs_weights, copy=False)[0, :] = src_weights
-
-    # Same sampling as SourceTimeFunction::computeSourceTerm: sample k is the source at time k * dt.
-    wavelet = evaluate_ricker(np.arange(case.n_samples) * case.dt, cases.F0, cases.RICKER_ORDER, cases.TPEAK)
-    rhs_terms = []
-    for _ in case.components:
-        term = _zeros([1, case.n_samples], kokkos.float32, memspace, layout)
-        np.array(term, copy=False)[0, :] = wavelet
-        rhs_terms.append(term)
-    return rhs_element, rhs_weights, rhs_terms
+    element = element_index(point, n_elements, cases.DOMAIN_SIZE)
+    return element, interpolation_weights(model, element, case.order, point, case.basis_order(point))
 
 
 def run(case, memspace=None, layout=None):
@@ -118,27 +112,29 @@ def run(case, memspace=None, layout=None):
     model = build_model(case)
     solver = build_solver(case)
     solver.compute_fe_init(model, [0.0, 0.0, 0.0], False, 0.015)
-    src_element, rcv_element, src_weights, rcv_weights = _source_and_receiver(model, case)
-    material = material_at_source(model, case, src_element)
-    rhs_element, rhs_weights, rhs_terms = _rhs_arrays(case, src_element, src_weights, memspace, layout)
+    source = _locate(model, case, case.source)
+    receiver = _locate(model, case, case.receiver)
+    material = material_at_source(model, case, source[0])
+    # Same sampling as SourceTimeFunction::computeSourceTerm: sample k is the source at time k * dt.
+    wavelet = evaluate_ricker(np.arange(case.n_samples) * case.dt, cases.F0, cases.RICKER_ORDER, cases.TPEAK)
 
-    if case.method == "dg":
-        trace = _time_loop_dg(case, model, solver, rcv_element, rcv_weights,
-                              (rhs_element, rhs_weights, rhs_terms), memspace, layout)
-    else:
-        trace = _time_loop_sem(case, model, solver, rcv_element, rcv_weights,
-                               (rhs_element, rhs_weights, rhs_terms), memspace, layout)
+    time_loop = {
+        "sem": _time_loop_sem,
+        "dg": _time_loop_dg,
+        "dgsem": _time_loop_dgsem,
+        "dgpadaptive": _time_loop_dgpadaptive,
+    }[case.method]
+    trace = time_loop(case, model, solver, source, receiver, wavelet, _allocator(memspace, layout))
     time = (np.arange(case.n_samples) + 1) * case.dt
     return time, trace, material
 
 
-def _time_loop_sem(case, model, solver, rcv_element, rcv_weights, rhs_arrays, memspace, layout):
-    rhs_element, rhs_weights, rhs_terms = rhs_arrays
+def _time_loop_sem(case, model, solver, source, receiver, wavelet, alloc):
     n_fields = len(case.components)
-    rcv_nodes = element_nodes(model, rcv_element, case.order)
-
-    n_nodes = model.get_number_of_nodes()
-    fields = [_zeros([n_nodes], kokkos.float32, memspace, layout) for _ in range(2 * n_fields)]
+    rhs_element = alloc([1], [source[0]], kokkos.int32)
+    rhs_weights = alloc([1, len(source[1])], source[1])
+    rhs_terms = [alloc([1, case.n_samples], wavelet) for _ in range(n_fields)]
+    fields = [alloc([model.get_number_of_nodes()]) for _ in range(2 * n_fields)]
     if case.is_elastic:
         wavefield = Solver.WavefieldElastic(*fields)
         rhs = Solver.RhsElastic(*rhs_terms, rhs_element, rhs_weights)
@@ -148,6 +144,7 @@ def _time_loop_sem(case, model, solver, rcv_element, rcv_weights, rhs_arrays, me
         rhs = Solver.RhsAcoustic(rhs_terms[0], rhs_element, rhs_weights)
         data = Solver.SEMsolverDataAcoustic(wavefield, rhs)
 
+    rcv_nodes = element_nodes(model, receiver[0], case.order)
     trace = np.zeros((case.n_samples, n_fields))
     for k in range(case.n_samples):
         solver.compute_forces(case.dt, k, data)
@@ -156,26 +153,89 @@ def _time_loop_sem(case, model, solver, rcv_element, rcv_weights, rhs_arrays, me
         data.swap_wavefields()
         for c in range(n_fields):
             field = np.array(data.get_current_field(c), copy=False)
-            trace[k, c] = field[rcv_nodes] @ rcv_weights
+            trace[k, c] = field[rcv_nodes] @ receiver[1]
     return trace
 
 
-def _time_loop_dg(case, model, solver, rcv_element, rcv_weights, rhs_arrays, memspace, layout):
-    rhs_element, rhs_weights, rhs_terms = rhs_arrays
-    shape = [model.get_number_of_elements(), model.get_number_of_points_per_element()]
-    prev = _zeros(shape, kokkos.float32, memspace, layout)
-    curr = _zeros(shape, kokkos.float32, memspace, layout)
-    wavefield = Solver.DGWavefieldAcoustic(prev, curr)
-    rhs = Solver.RhsAcoustic(rhs_terms[0], rhs_element, rhs_weights)
-    data = Solver.DGsolverDataAcoustic(wavefield, rhs)
+def _alternating_loop(case, solver, data, buffers, read):
+    """
+    Time loop of the DG-based solvers, whose data objects have no field accessor.
 
-    # The data object has no field accessor: the update writes the new field into the buffer that
-    # was "previous" before the step, and the swap exchanges the two, so the buffers alternate.
-    buffers = (np.array(prev, copy=False), np.array(curr, copy=False))
+    The update writes the new field into the buffer that was "previous" before the step and the
+    swap exchanges the two, so the new field alternates between buffers[0] and buffers[1].
+    The coupled solvers implement the step only as compute_one_step: their compute_forces and
+    update_solution_forward do nothing.
+    """
     trace = np.zeros((case.n_samples, 1))
     for k in range(case.n_samples):
-        solver.compute_forces(case.dt, k, data)
-        solver.update_solution_forward(case.dt, data)
+        if case.is_coupled:
+            solver.compute_one_step(case.dt, k, data)
+        else:
+            solver.compute_forces(case.dt, k, data)
+            solver.update_solution_forward(case.dt, data)
         data.swap_wavefields()
-        trace[k, 0] = buffers[k % 2][rcv_element, :] @ rcv_weights
+        trace[k, 0] = read(buffers[k % 2])
     return trace
+
+
+def _dg_reader(receiver):
+    element, weights = receiver
+    return lambda field: field[element, :] @ weights
+
+
+def _time_loop_dg(case, model, solver, source, receiver, wavelet, alloc):
+    rhs_element = alloc([1], [source[0]], kokkos.int32)
+    rhs_weights = alloc([1, len(source[1])], source[1])
+    rhs_term = alloc([1, case.n_samples], wavelet)
+    shape = [model.get_number_of_elements(), model.get_number_of_points_per_element()]
+    prev, curr = alloc(shape), alloc(shape)
+    wavefield = Solver.DGWavefieldAcoustic(prev, curr)
+    rhs = Solver.RhsAcoustic(rhs_term, rhs_element, rhs_weights)
+    data = Solver.DGsolverDataAcoustic(wavefield, rhs)
+    buffers = (np.array(prev, copy=False), np.array(curr, copy=False))
+    return _alternating_loop(case, solver, data, buffers, _dg_reader(receiver))
+
+
+def _time_loop_dgsem(case, model, solver, source, receiver, wavelet, alloc):
+    src_in_dg = case.in_lower_domain(case.source)
+    rhs_element = alloc([1], [source[0]], kokkos.int32)
+    rhs_weights = alloc([1, len(source[1])], source[1])
+    dg_term = alloc([1, case.n_samples], wavelet if src_in_dg else None)
+    sem_term = alloc([1, case.n_samples], None if src_in_dg else wavelet)
+    dg_shape = [model.get_number_of_elements(), model.get_number_of_points_per_element()]
+    dg_prev, dg_curr = alloc(dg_shape), alloc(dg_shape)
+    sem_prev, sem_curr = alloc([model.get_number_of_nodes()]), alloc([model.get_number_of_nodes()])
+    wavefield = Solver.DGSEMWavefieldAcoustic(dg_prev, dg_curr, sem_prev, sem_curr)
+    rhs = Solver.DGSEMRhsAcoustic(dg_term, sem_term, rhs_element, rhs_weights)
+    data = Solver.DGSEMsolverData(wavefield, rhs)
+
+    if case.in_lower_domain(case.receiver):
+        buffers = (np.array(dg_prev, copy=False), np.array(dg_curr, copy=False))
+        read = _dg_reader(receiver)
+    else:
+        buffers = (np.array(sem_prev, copy=False), np.array(sem_curr, copy=False))
+        rcv_nodes = element_nodes(model, receiver[0], case.order)
+        read = lambda field: field[rcv_nodes] @ receiver[1]
+    return _alternating_loop(case, solver, data, buffers, read)
+
+
+def _time_loop_dgpadaptive(case, model, solver, source, receiver, wavelet, alloc):
+    n_elements = model.get_number_of_elements()
+    n_min, n_max = (case.order_min + 1) ** 3, (case.order + 1) ** 3
+    src_in_pmin = case.in_lower_domain(case.source)
+    rhs_element = alloc([1], [source[0]], kokkos.int32)
+    pmin_weights = alloc([1, n_min], source[1] if src_in_pmin else None)
+    pmax_weights = alloc([1, n_max], None if src_in_pmin else source[1])
+    pmin_term = alloc([1, case.n_samples], wavelet if src_in_pmin else None)
+    pmax_term = alloc([1, case.n_samples], None if src_in_pmin else wavelet)
+    pmin_prev, pmin_curr = alloc([n_elements, n_min]), alloc([n_elements, n_min])
+    pmax_prev, pmax_curr = alloc([n_elements, n_max]), alloc([n_elements, n_max])
+    wavefield = Solver.DGPAdaptiveWavefieldAcoustic(pmin_prev, pmin_curr, pmax_prev, pmax_curr)
+    rhs = Solver.DGPAdaptiveRhsAcoustic(pmin_term, pmax_term, rhs_element, pmin_weights, pmax_weights)
+    data = Solver.DGPAdaptiveSolverData(wavefield, rhs)
+
+    if case.in_lower_domain(case.receiver):
+        buffers = (np.array(pmin_prev, copy=False), np.array(pmin_curr, copy=False))
+    else:
+        buffers = (np.array(pmax_prev, copy=False), np.array(pmax_curr, copy=False))
+    return _alternating_loop(case, solver, data, buffers, _dg_reader(receiver))

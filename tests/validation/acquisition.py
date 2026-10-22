@@ -10,6 +10,7 @@ import math
 
 import numpy as np
 
+""" Gauss-Lobatto-Legendre points for orders 1, 2, and 3. """
 GLL_POINTS = {
     1: np.array([-1.0, 1.0]),
     2: np.array([-1.0, 0.0, 1.0]),
@@ -48,13 +49,19 @@ def element_nodes(model, element, order):
     )
 
 
-def interpolation_weights(model, element, order, point):
-    """Basis function values at the point, ordered as element_nodes()."""
-    nodes = element_nodes(model, element, order)
-    lo = np.array([model.node_coord(int(nodes[0]), d) for d in range(3)], dtype=np.float64)
-    hi = np.array([model.node_coord(int(nodes[-1]), d) for d in range(3)], dtype=np.float64)
+def interpolation_weights(model, element, order, point, basis_order=None):
+    """
+    Basis function values at the point, local index i + j*(n) + k*(n)^2 with n = basis_order + 1.
+
+    order is the order of the mesh, used to locate the element corners; basis_order, which
+    defaults to it, is the order of the interpolating basis (lower in the pMin domain of the
+    p-adaptive DG solver).
+    """
+    basis_order = order if basis_order is None else basis_order
+    corners = (model.global_node_index(element, 0, 0, 0), model.global_node_index(element, order, order, order))
+    lo, hi = (np.array([model.node_coord(int(n), d) for d in range(3)], dtype=np.float64) for n in corners)
     xi = -1.0 + 2.0 * (np.asarray(point, dtype=np.float64) - lo) / (hi - lo)
     if np.any(np.abs(xi) > 1.0 + 1e-6):
         raise ValueError(f"point {point} is not inside element {element} (reference coordinates {xi})")
-    lx, ly, lz = (lagrange_1d(order, x) for x in xi)
+    lx, ly, lz = (lagrange_1d(basis_order, x) for x in xi)
     return np.einsum("k,j,i->kji", lz, ly, lx).ravel()

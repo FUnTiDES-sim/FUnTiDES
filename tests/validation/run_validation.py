@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """
-Validate the SEM and DG solvers against closed-form homogeneous solutions.
+Validate the SEM, DG, DG-SEM and p-adaptive DG solvers against closed-form
+homogeneous solutions.
 
 For each selected case (see cases.py), three steps:
   1. run the solver through pyfuntides, write <output-dir>/<case>/receiver_trace.txt
@@ -12,8 +13,8 @@ Both trace files can be compared again by hand with compare_traces.py
 (--plot, --align, --kinematics-check).
 
 Usage:
-    python3 run_validation.py                          # every case (SEM and DG)
-    python3 run_validation.py --method dg
+    python3 run_validation.py                          # every case
+    python3 run_validation.py --method dgsem dgpadaptive --order 3   # p-adaptive: --order is pMax
     python3 run_validation.py --physics acoustic --mesh cartesian --order 2
     python3 run_validation.py --on-nodes yes --list
 """
@@ -48,7 +49,7 @@ class CaseResult:
 
 def analytical_trace(case, t, vp, vs, rho):
     """Analytical solution at the receiver, one column per entry of case.components."""
-    common = (t, cases.SOURCE, cases.RECEIVER, cases.F0, cases.RICKER_ORDER, cases.TPEAK, vp, rho)
+    common = (t, case.source, case.receiver, cases.F0, cases.RICKER_ORDER, cases.TPEAK, vp, rho)
     if case.is_elastic:
         return analytical_displacement(*common, vs)
     return analytical_pressure(*common)[:, None]
