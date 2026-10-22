@@ -256,7 +256,7 @@ def main():
     for t in range(n_time_steps):
         t0 = time.time()
         solver.compute_forces(dt, t, data)
-        solver.update_solution(dt, data)
+        solver.update_solution_forward(dt, data)
         iter_times.append(time.time() - t0)
 
         data.swap_wavefields()
