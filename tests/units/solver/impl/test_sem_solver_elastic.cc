@@ -16,6 +16,7 @@
 #include "cartesian_struct_builder.h"
 #include "common_macros.h"
 #include "data_type.h"
+#include "device_view_access.h"
 #include "rhs_elastic.h"
 #include "sem_solver.h"
 #include "sem_solver_data.h"
@@ -25,6 +26,11 @@
 namespace solver {
 namespace fe {
 namespace test {
+
+using test_utils::fillFromList;
+using test_utils::getAt;
+using test_utils::setAt;
+using test_utils::toHost;
 
 namespace feenum = utils::enums;
 
@@ -78,23 +84,27 @@ class SemSolverElasticTest : public ::testing::TestWithParam<ElasticSolverOrderP
     uzPrevPrev_ = allocateVector<vectorReal>(numNodes_, "uzPrevPrev");
     uzPrev_ = allocateVector<vectorReal>(numNodes_, "uzPrev");
     uzCurr_ = allocateVector<vectorReal>(numNodes_, "uzCurr");
-    for (int i = 0; i < numNodes_; ++i) {
-      uxPrevPrev_(i) = uxPrev_(i) = uxCurr_(i) = 0.0f;
-      uyPrevPrev_(i) = uyPrev_(i) = uyCurr_(i) = 0.0f;
-      uzPrevPrev_(i) = uzPrev_(i) = uzCurr_(i) = 0.0f;
-    }
-    uzCurr_(numNodes_ / 2) = 1.0f;
+    Kokkos::deep_copy(uxPrevPrev_, 0.0f);
+    Kokkos::deep_copy(uxPrev_, 0.0f);
+    Kokkos::deep_copy(uxCurr_, 0.0f);
+    Kokkos::deep_copy(uyPrevPrev_, 0.0f);
+    Kokkos::deep_copy(uyPrev_, 0.0f);
+    Kokkos::deep_copy(uyCurr_, 0.0f);
+    Kokkos::deep_copy(uzPrevPrev_, 0.0f);
+    Kokkos::deep_copy(uzPrev_, 0.0f);
+    Kokkos::deep_copy(uzCurr_, 0.0f);
+    setAt(uzCurr_, 1.0f, numNodes_ / 2);
 
     rhsTermx_ = allocateArray2D<arrayReal>(1, kNumSteps, "rhsTermx");
     rhsTermy_ = allocateArray2D<arrayReal>(1, kNumSteps, "rhsTermy");
     rhsTermz_ = allocateArray2D<arrayReal>(1, kNumSteps, "rhsTermz");
     rhsElem_ = allocateVector<vectorInt>(1, "rhsElem");
     rhsWeights_ = allocateArray2D<arrayReal>(1, npp, "rhsWeights");
-    rhsElem_(0) = 0;
-    for (int j = 0; j < npp; ++j) {
-      rhsTermx_(0, j) = rhsTermy_(0, j) = rhsTermz_(0, j) = 0.0f;
-      rhsWeights_(0, j) = 0.0f;
-    }
+    Kokkos::deep_copy(rhsElem_, 0);
+    Kokkos::deep_copy(rhsTermx_, 0.0f);
+    Kokkos::deep_copy(rhsTermy_, 0.0f);
+    Kokkos::deep_copy(rhsTermz_, 0.0f);
+    Kokkos::deep_copy(rhsWeights_, 0.0f);
   }
 
   static constexpr int kNumSteps = 50;
@@ -123,7 +133,7 @@ TEST_P(SemSolverElasticTest, ComputeFEInitDoesNotCrash) { EXPECT_NE(solver_, nul
 // Mass matrix
 // ======================================================================
 TEST_P(SemSolverElasticTest, MassMatrixNonZero) {
-  auto& mm = solver_->getMassMatrixElastic();
+  auto mm = toHost(solver_->getMassMatrixElastic());
   ASSERT_GT(mm.extent(0), 0u);
   float sum = 0.0f;
   for (size_t i = 0; i < mm.extent(0); ++i) sum += mm(i);
@@ -131,7 +141,7 @@ TEST_P(SemSolverElasticTest, MassMatrixNonZero) {
 }
 
 TEST_P(SemSolverElasticTest, MassMatrixAllPositive) {
-  auto& mm = solver_->getMassMatrixElastic();
+  auto mm = toHost(solver_->getMassMatrixElastic());
   for (size_t i = 0; i < mm.extent(0); ++i) EXPECT_GT(mm(i), 0.0f) << "mass matrix zero at node " << i;
 }
 
@@ -140,7 +150,7 @@ TEST_P(SemSolverElasticTest, MassMatrixAllPositive) {
 // ======================================================================
 TEST_P(SemSolverElasticTest, DampingMatrixNonNegativeAllComponents) {
   for (int c = 0; c < 3; ++c) {
-    auto& dm = solver_->getDampingMatrix(c);
+    auto dm = toHost(solver_->getDampingMatrix(c));
     for (size_t i = 0; i < dm.extent(0); ++i)
       EXPECT_GE(dm(i), 0.0f) << "negative damping component " << c << " at node " << i;
   }
@@ -149,7 +159,7 @@ TEST_P(SemSolverElasticTest, DampingMatrixNonNegativeAllComponents) {
 TEST_P(SemSolverElasticTest, DampingMatrixHasBoundaryContribution) {
   float sum = 0.0f;
   for (int c = 0; c < 3; ++c) {
-    auto& dm = solver_->getDampingMatrix(c);
+    auto dm = toHost(solver_->getDampingMatrix(c));
     for (size_t i = 0; i < dm.extent(0); ++i) sum += dm(i);
   }
   EXPECT_GT(sum, 0.0f);
@@ -160,12 +170,11 @@ TEST_P(SemSolverElasticTest, DampingMatrixHasBoundaryContribution) {
 // ======================================================================
 TEST_P(SemSolverElasticTest, ResetGlobalVectorsZerosForceVector) {
   for (int c = 0; c < 3; ++c) {
-    auto& fv = solver_->getForceVector(c);
-    fv(0) = 99.0f;
+    setAt(solver_->getForceVector(c), 99.0f, 0);
   }
   solver_->resetGlobalVectors(numNodes_);
   Kokkos::fence();
-  for (int c = 0; c < 3; ++c) EXPECT_FLOAT_EQ(solver_->getForceVector(c)(0), 0.0f) << "component " << c;
+  for (int c = 0; c < 3; ++c) EXPECT_FLOAT_EQ(getAt(solver_->getForceVector(c), 0), 0.0f) << "component " << c;
 }
 
 // ======================================================================
@@ -228,14 +237,19 @@ TEST_P(SemSolverElasticTest, ComputeOneStepProducesFiniteValues) {
     solver_->computeOneStep(kDt, t, data);
     data.swapWavefields();
   }
-  for (int c = 0; c < 3; ++c)
-    for (int i = 0; i < numNodes_; ++i)
-      EXPECT_TRUE(std::isfinite(data.getCurrentField(c)(i))) << "NaN/Inf field " << c << " node " << i;
+  for (int c = 0; c < 3; ++c) {
+    auto h_curr = toHost(data.getCurrentField(c));
+    for (int i = 0; i < numNodes_; ++i) EXPECT_TRUE(std::isfinite(h_curr(i))) << "NaN/Inf field " << c << " node " << i;
+  }
 }
 
 TEST_P(SemSolverElasticTest, ComputeOneStepZeroSourceStaysBounded) {
-  for (int i = 0; i < numNodes_; ++i)
-    uxPrev_(i) = uxCurr_(i) = uyPrev_(i) = uyCurr_(i) = uzPrev_(i) = uzCurr_(i) = 0.0f;
+  Kokkos::deep_copy(uxPrev_, 0.0f);
+  Kokkos::deep_copy(uxCurr_, 0.0f);
+  Kokkos::deep_copy(uyPrev_, 0.0f);
+  Kokkos::deep_copy(uyCurr_, 0.0f);
+  Kokkos::deep_copy(uzPrev_, 0.0f);
+  Kokkos::deep_copy(uzCurr_, 0.0f);
 
   WavefieldElastic wf(uxPrev_, uxCurr_, uyPrev_, uyCurr_, uzPrev_, uzCurr_);
   RhsElastic rhs(rhsTermx_, rhsTermy_, rhsTermz_, rhsElem_, rhsWeights_);
@@ -246,7 +260,8 @@ TEST_P(SemSolverElasticTest, ComputeOneStepZeroSourceStaysBounded) {
   }
   for (int c = 0; c < 3; ++c) {
     float sum = 0.0f;
-    for (int i = 0; i < numNodes_; ++i) sum += std::fabs(data.getCurrentField(c)(i));
+    auto h_curr = toHost(data.getCurrentField(c));
+    for (int i = 0; i < numNodes_; ++i) sum += std::fabs(h_curr(i));
     EXPECT_FLOAT_EQ(sum, 0.0f) << "non-zero field " << c << " with zero source";
   }
 }
@@ -260,8 +275,10 @@ TEST_P(SemSolverElasticTest, ComputeOneStepPropagatesEnergy) {
     data.swapWavefields();
   }
   float norm = 0.0f;
-  for (int c = 0; c < 3; ++c)
-    for (int i = 0; i < numNodes_; ++i) norm += data.getCurrentField(c)(i) * data.getCurrentField(c)(i);
+  for (int c = 0; c < 3; ++c) {
+    auto h_curr = toHost(data.getCurrentField(c));
+    for (int i = 0; i < numNodes_; ++i) norm += h_curr(i) * h_curr(i);
+  }
   EXPECT_GT(norm, 0.0f);
 }
 
@@ -328,17 +345,24 @@ class SemSolverElasticVtiTest : public ::testing::TestWithParam<ElasticSolverOrd
     uyCurr_ = allocateVector<vectorReal>(numNodes_, "vuy_c");
     uzPrev_ = allocateVector<vectorReal>(numNodes_, "vuz_p");
     uzCurr_ = allocateVector<vectorReal>(numNodes_, "vuz_c");
-    for (int i = 0; i < numNodes_; ++i)
-      uxPrev_(i) = uxCurr_(i) = uyPrev_(i) = uyCurr_(i) = uzPrev_(i) = uzCurr_(i) = 0.0f;
-    uzCurr_(numNodes_ / 2) = 1.0f;
+    Kokkos::deep_copy(uxPrev_, 0.0f);
+    Kokkos::deep_copy(uxCurr_, 0.0f);
+    Kokkos::deep_copy(uyPrev_, 0.0f);
+    Kokkos::deep_copy(uyCurr_, 0.0f);
+    Kokkos::deep_copy(uzPrev_, 0.0f);
+    Kokkos::deep_copy(uzCurr_, 0.0f);
+    setAt(uzCurr_, 1.0f, numNodes_ / 2);
 
     rhsTermx_ = allocateArray2D<arrayReal>(1, kNumSteps, "rtx_v");
     rhsTermy_ = allocateArray2D<arrayReal>(1, kNumSteps, "rty_v");
     rhsTermz_ = allocateArray2D<arrayReal>(1, kNumSteps, "rtz_v");
     rhsElem_ = allocateVector<vectorInt>(1, "re_v");
     rhsWeights_ = allocateArray2D<arrayReal>(1, npp, "rw_v");
-    rhsElem_(0) = 0;
-    for (int j = 0; j < npp; ++j) rhsTermx_(0, j) = rhsTermy_(0, j) = rhsTermz_(0, j) = rhsWeights_(0, j) = 0.0f;
+    Kokkos::deep_copy(rhsElem_, 0);
+    Kokkos::deep_copy(rhsTermx_, 0.0f);
+    Kokkos::deep_copy(rhsTermy_, 0.0f);
+    Kokkos::deep_copy(rhsTermz_, 0.0f);
+    Kokkos::deep_copy(rhsWeights_, 0.0f);
   }
 
   static constexpr int kNumSteps = 30;
@@ -371,13 +395,15 @@ TEST_P(SemSolverElasticVtiTest, ComputeOneStepProducesFiniteValues) {
     solver_->computeOneStep(kDt, t, data);
     data.swapWavefields();
   }
-  for (int c = 0; c < 3; ++c)
+  for (int c = 0; c < 3; ++c) {
+    auto h_curr = toHost(data.getCurrentField(c));
     for (int i = 0; i < numNodes_; ++i)
-      EXPECT_TRUE(std::isfinite(data.getCurrentField(c)(i))) << "VTI NaN/Inf field " << c << " node " << i;
+      EXPECT_TRUE(std::isfinite(h_curr(i))) << "VTI NaN/Inf field " << c << " node " << i;
+  }
 }
 
 TEST_P(SemSolverElasticVtiTest, MassMatrixNonZero) {
-  auto& mm = solver_->getMassMatrixElastic();
+  auto mm = toHost(solver_->getMassMatrixElastic());
   float sum = 0.0f;
   for (size_t i = 0; i < mm.extent(0); ++i) sum += mm(i);
   EXPECT_GT(sum, 0.0f);
@@ -422,17 +448,24 @@ class SemSolverElasticTtiTest : public ::testing::TestWithParam<ElasticSolverOrd
     uyCurr_ = allocateVector<vectorReal>(numNodes_, "tuy_c");
     uzPrev_ = allocateVector<vectorReal>(numNodes_, "tuz_p");
     uzCurr_ = allocateVector<vectorReal>(numNodes_, "tuz_c");
-    for (int i = 0; i < numNodes_; ++i)
-      uxPrev_(i) = uxCurr_(i) = uyPrev_(i) = uyCurr_(i) = uzPrev_(i) = uzCurr_(i) = 0.0f;
-    uzCurr_(numNodes_ / 2) = 1.0f;
+    Kokkos::deep_copy(uxPrev_, 0.0f);
+    Kokkos::deep_copy(uxCurr_, 0.0f);
+    Kokkos::deep_copy(uyPrev_, 0.0f);
+    Kokkos::deep_copy(uyCurr_, 0.0f);
+    Kokkos::deep_copy(uzPrev_, 0.0f);
+    Kokkos::deep_copy(uzCurr_, 0.0f);
+    setAt(uzCurr_, 1.0f, numNodes_ / 2);
 
     rhsTermx_ = allocateArray2D<arrayReal>(1, kNumSteps, "rtx_t");
     rhsTermy_ = allocateArray2D<arrayReal>(1, kNumSteps, "rty_t");
     rhsTermz_ = allocateArray2D<arrayReal>(1, kNumSteps, "rtz_t");
     rhsElem_ = allocateVector<vectorInt>(1, "re_t");
     rhsWeights_ = allocateArray2D<arrayReal>(1, npp, "rw_t");
-    rhsElem_(0) = 0;
-    for (int j = 0; j < npp; ++j) rhsTermx_(0, j) = rhsTermy_(0, j) = rhsTermz_(0, j) = rhsWeights_(0, j) = 0.0f;
+    Kokkos::deep_copy(rhsElem_, 0);
+    Kokkos::deep_copy(rhsTermx_, 0.0f);
+    Kokkos::deep_copy(rhsTermy_, 0.0f);
+    Kokkos::deep_copy(rhsTermz_, 0.0f);
+    Kokkos::deep_copy(rhsWeights_, 0.0f);
   }
 
   static constexpr int kNumSteps = 30;
@@ -465,13 +498,15 @@ TEST_P(SemSolverElasticTtiTest, ComputeOneStepProducesFiniteValues) {
     solver_->computeOneStep(kDt, t, data);
     data.swapWavefields();
   }
-  for (int c = 0; c < 3; ++c)
+  for (int c = 0; c < 3; ++c) {
+    auto h_curr = toHost(data.getCurrentField(c));
     for (int i = 0; i < numNodes_; ++i)
-      EXPECT_TRUE(std::isfinite(data.getCurrentField(c)(i))) << "TTI NaN/Inf field " << c << " node " << i;
+      EXPECT_TRUE(std::isfinite(h_curr(i))) << "TTI NaN/Inf field " << c << " node " << i;
+  }
 }
 
 TEST_P(SemSolverElasticTtiTest, MassMatrixNonZero) {
-  auto& mm = solver_->getMassMatrixElastic();
+  auto mm = toHost(solver_->getMassMatrixElastic());
   float sum = 0.0f;
   for (size_t i = 0; i < mm.extent(0); ++i) sum += mm(i);
   EXPECT_GT(sum, 0.0f);
@@ -507,16 +542,23 @@ class SemSolverElasticOnNodesTest : public ::testing::Test {
     uyCurr_ = allocateVector<vectorReal>(numNodes_, "uy_c_n");
     uzPrev_ = allocateVector<vectorReal>(numNodes_, "uz_p_n");
     uzCurr_ = allocateVector<vectorReal>(numNodes_, "uz_c_n");
-    for (int i = 0; i < numNodes_; ++i)
-      uxPrev_(i) = uxCurr_(i) = uyPrev_(i) = uyCurr_(i) = uzPrev_(i) = uzCurr_(i) = 0.0f;
-    uzCurr_(numNodes_ / 2) = 1.0f;
+    Kokkos::deep_copy(uxPrev_, 0.0f);
+    Kokkos::deep_copy(uxCurr_, 0.0f);
+    Kokkos::deep_copy(uyPrev_, 0.0f);
+    Kokkos::deep_copy(uyCurr_, 0.0f);
+    Kokkos::deep_copy(uzPrev_, 0.0f);
+    Kokkos::deep_copy(uzCurr_, 0.0f);
+    setAt(uzCurr_, 1.0f, numNodes_ / 2);
     rhsTermx_ = allocateArray2D<arrayReal>(1, kNumSteps, "rtx_n");
     rhsTermy_ = allocateArray2D<arrayReal>(1, kNumSteps, "rty_n");
     rhsTermz_ = allocateArray2D<arrayReal>(1, kNumSteps, "rtz_n");
     rhsElem_ = allocateVector<vectorInt>(1, "re_n");
     rhsWeights_ = allocateArray2D<arrayReal>(1, npp, "rw_n");
-    rhsElem_(0) = 0;
-    for (int j = 0; j < npp; ++j) rhsTermx_(0, j) = rhsTermy_(0, j) = rhsTermz_(0, j) = rhsWeights_(0, j) = 0.0f;
+    Kokkos::deep_copy(rhsElem_, 0);
+    Kokkos::deep_copy(rhsTermx_, 0.0f);
+    Kokkos::deep_copy(rhsTermy_, 0.0f);
+    Kokkos::deep_copy(rhsTermz_, 0.0f);
+    Kokkos::deep_copy(rhsWeights_, 0.0f);
   }
 
   static constexpr int kNumSteps = 10;
@@ -546,13 +588,14 @@ TEST_F(SemSolverElasticOnNodesTest, ComputeOneStepProducesFiniteValues) {
     solver_->computeOneStep(kDt, t, data);
     data.swapWavefields();
   }
-  for (int c = 0; c < 3; ++c)
-    for (int i = 0; i < numNodes_; ++i)
-      EXPECT_TRUE(std::isfinite(data.getCurrentField(c)(i))) << "NaN/Inf field " << c << " node " << i;
+  for (int c = 0; c < 3; ++c) {
+    auto h_curr = toHost(data.getCurrentField(c));
+    for (int i = 0; i < numNodes_; ++i) EXPECT_TRUE(std::isfinite(h_curr(i))) << "NaN/Inf field " << c << " node " << i;
+  }
 }
 
 TEST_F(SemSolverElasticOnNodesTest, MassMatrixAllPositive) {
-  auto& mm = solver_->getMassMatrixElastic();
+  auto mm = toHost(solver_->getMassMatrixElastic());
   for (size_t i = 0; i < mm.extent(0); ++i) EXPECT_GT(mm(i), 0.0f);
 }
 
@@ -580,16 +623,23 @@ class SemSolverElasticSpongeTest : public ::testing::Test {
     uyCurr_ = allocateVector<vectorReal>(numNodes_, "uy_c_s");
     uzPrev_ = allocateVector<vectorReal>(numNodes_, "uz_p_s");
     uzCurr_ = allocateVector<vectorReal>(numNodes_, "uz_c_s");
-    for (int i = 0; i < numNodes_; ++i)
-      uxPrev_(i) = uxCurr_(i) = uyPrev_(i) = uyCurr_(i) = uzPrev_(i) = uzCurr_(i) = 0.0f;
-    uzCurr_(numNodes_ / 2) = 1.0f;
+    Kokkos::deep_copy(uxPrev_, 0.0f);
+    Kokkos::deep_copy(uxCurr_, 0.0f);
+    Kokkos::deep_copy(uyPrev_, 0.0f);
+    Kokkos::deep_copy(uyCurr_, 0.0f);
+    Kokkos::deep_copy(uzPrev_, 0.0f);
+    Kokkos::deep_copy(uzCurr_, 0.0f);
+    setAt(uzCurr_, 1.0f, numNodes_ / 2);
     rhsTermx_ = allocateArray2D<arrayReal>(1, kNumSteps, "rtx_s");
     rhsTermy_ = allocateArray2D<arrayReal>(1, kNumSteps, "rty_s");
     rhsTermz_ = allocateArray2D<arrayReal>(1, kNumSteps, "rtz_s");
     rhsElem_ = allocateVector<vectorInt>(1, "re_s");
     rhsWeights_ = allocateArray2D<arrayReal>(1, npp, "rw_s");
-    rhsElem_(0) = 0;
-    for (int j = 0; j < npp; ++j) rhsTermx_(0, j) = rhsTermy_(0, j) = rhsTermz_(0, j) = rhsWeights_(0, j) = 0.0f;
+    Kokkos::deep_copy(rhsElem_, 0);
+    Kokkos::deep_copy(rhsTermx_, 0.0f);
+    Kokkos::deep_copy(rhsTermy_, 0.0f);
+    Kokkos::deep_copy(rhsTermz_, 0.0f);
+    Kokkos::deep_copy(rhsWeights_, 0.0f);
   }
 
   static constexpr int kNumSteps = 10;
@@ -612,8 +662,10 @@ TEST_F(SemSolverElasticSpongeTest, ComputeOneStepWithSpongeProducesFiniteValues)
     solver_->computeOneStep(kDt, t, data);
     data.swapWavefields();
   }
-  for (int c = 0; c < 3; ++c)
-    for (int i = 0; i < numNodes_; ++i) EXPECT_TRUE(std::isfinite(data.getCurrentField(c)(i)));
+  for (int c = 0; c < 3; ++c) {
+    auto h_curr = toHost(data.getCurrentField(c));
+    for (int i = 0; i < numNodes_; ++i) EXPECT_TRUE(std::isfinite(h_curr(i)));
+  }
 }
 
 // ======================================================================
@@ -623,8 +675,8 @@ TEST_F(SemSolverElasticSpongeTest, ComputeOneStepWithSpongeProducesFiniteValues)
 TEST_P(SemSolverElasticTest, SetSLSAttenuationSizeMismatchThrows) {
   auto ref = allocateVector<vectorReal>(3, "sls_ref");
   auto coeffs = allocateVector<vectorReal>(2, "sls_coeffs");
-  for (int i = 0; i < 3; ++i) ref(i) = 10.0f * (i + 1);
-  for (int i = 0; i < 2; ++i) coeffs(i) = 0.1f;
+  fillFromList(ref, {10.0f, 20.0f, 30.0f});
+  fillFromList(coeffs, {0.1f, 0.1f});
   EXPECT_THROW(solver_->setSLSAttenuation(ref, coeffs), std::runtime_error);
 }
 
@@ -658,10 +710,8 @@ class SemSolverElasticAttenuationTest : public ::testing::Test {
 
     auto ref = allocateVector<vectorReal>(2, "att_ref_el");
     auto coeffs = allocateVector<vectorReal>(2, "att_coeffs_el");
-    ref(0) = 2.0f * 3.14159f * 1.0f;
-    ref(1) = 2.0f * 3.14159f * 10.0f;
-    coeffs(0) = 0.1f;
-    coeffs(1) = 0.1f;
+    fillFromList(ref, {2.0f * 3.14159f * 1.0f, 2.0f * 3.14159f * 10.0f});
+    fillFromList(coeffs, {0.1f, 0.1f});
     solver_->setSLSAttenuation(ref, coeffs);
     solver_->computeFEInit(*mesh_, {0.0f, 0.0f, 0.0f}, false, 0.0f);
 
@@ -673,16 +723,23 @@ class SemSolverElasticAttenuationTest : public ::testing::Test {
     uyCurr_ = allocateVector<vectorReal>(numNodes_, "uy_c_att");
     uzPrev_ = allocateVector<vectorReal>(numNodes_, "uz_p_att");
     uzCurr_ = allocateVector<vectorReal>(numNodes_, "uz_c_att");
-    for (int i = 0; i < numNodes_; ++i)
-      uxPrev_(i) = uxCurr_(i) = uyPrev_(i) = uyCurr_(i) = uzPrev_(i) = uzCurr_(i) = 0.0f;
-    uzCurr_(numNodes_ / 2) = 1.0f;
+    Kokkos::deep_copy(uxPrev_, 0.0f);
+    Kokkos::deep_copy(uxCurr_, 0.0f);
+    Kokkos::deep_copy(uyPrev_, 0.0f);
+    Kokkos::deep_copy(uyCurr_, 0.0f);
+    Kokkos::deep_copy(uzPrev_, 0.0f);
+    Kokkos::deep_copy(uzCurr_, 0.0f);
+    setAt(uzCurr_, 1.0f, numNodes_ / 2);
     rhsTermx_ = allocateArray2D<arrayReal>(1, kNumSteps, "rtx_att");
     rhsTermy_ = allocateArray2D<arrayReal>(1, kNumSteps, "rty_att");
     rhsTermz_ = allocateArray2D<arrayReal>(1, kNumSteps, "rtz_att");
     rhsElem_ = allocateVector<vectorInt>(1, "re_att");
     rhsWeights_ = allocateArray2D<arrayReal>(1, npp, "rw_att");
-    rhsElem_(0) = 0;
-    for (int j = 0; j < npp; ++j) rhsTermx_(0, j) = rhsTermy_(0, j) = rhsTermz_(0, j) = rhsWeights_(0, j) = 0.0f;
+    Kokkos::deep_copy(rhsElem_, 0);
+    Kokkos::deep_copy(rhsTermx_, 0.0f);
+    Kokkos::deep_copy(rhsTermy_, 0.0f);
+    Kokkos::deep_copy(rhsTermz_, 0.0f);
+    Kokkos::deep_copy(rhsWeights_, 0.0f);
   }
 
   static constexpr int kNumSteps = 10;
@@ -712,16 +769,17 @@ TEST_F(SemSolverElasticAttenuationTest, ComputeOneStepProducesFiniteValues) {
     solver_->computeOneStep(kDt, t, data);
     data.swapWavefields();
   }
-  for (int c = 0; c < 3; ++c)
-    for (int i = 0; i < numNodes_; ++i)
-      EXPECT_TRUE(std::isfinite(data.getCurrentField(c)(i))) << "NaN/Inf field " << c << " node " << i;
+  for (int c = 0; c < 3; ++c) {
+    auto h_curr = toHost(data.getCurrentField(c));
+    for (int i = 0; i < numNodes_; ++i) EXPECT_TRUE(std::isfinite(h_curr(i))) << "NaN/Inf field " << c << " node " << i;
+  }
 }
 
 TEST_F(SemSolverElasticAttenuationTest, ResetGlobalVectorsZerosAttenuationWorkVectors) {
-  for (int c = 0; c < 3; ++c) solver_->getForceVector(c)(0) = 99.0f;
+  for (int c = 0; c < 3; ++c) setAt(solver_->getForceVector(c), 99.0f, 0);
   solver_->resetGlobalVectors(numNodes_);
   Kokkos::fence();
-  for (int c = 0; c < 3; ++c) EXPECT_FLOAT_EQ(solver_->getForceVector(c)(0), 0.0f) << "component " << c;
+  for (int c = 0; c < 3; ++c) EXPECT_FLOAT_EQ(getAt(solver_->getForceVector(c), 0), 0.0f) << "component " << c;
 }
 
 // ======================================================================
@@ -743,10 +801,8 @@ class SemSolverElasticAttenuationVtiTest : public ::testing::Test {
 
     auto ref = allocateVector<vectorReal>(2, "att_ref_vti");
     auto coeffs = allocateVector<vectorReal>(2, "att_coeffs_vti");
-    ref(0) = 2.0f * 3.14159f * 1.0f;
-    ref(1) = 2.0f * 3.14159f * 10.0f;
-    coeffs(0) = 0.1f;
-    coeffs(1) = 0.1f;
+    fillFromList(ref, {2.0f * 3.14159f * 1.0f, 2.0f * 3.14159f * 10.0f});
+    fillFromList(coeffs, {0.1f, 0.1f});
     solver_->setSLSAttenuation(ref, coeffs);
     solver_->computeFEInit(*mesh_, {0.0f, 0.0f, 0.0f}, false, 0.0f);
 
@@ -758,16 +814,23 @@ class SemSolverElasticAttenuationVtiTest : public ::testing::Test {
     uyCurr_ = allocateVector<vectorReal>(numNodes_, "uy_c_vatt");
     uzPrev_ = allocateVector<vectorReal>(numNodes_, "uz_p_vatt");
     uzCurr_ = allocateVector<vectorReal>(numNodes_, "uz_c_vatt");
-    for (int i = 0; i < numNodes_; ++i)
-      uxPrev_(i) = uxCurr_(i) = uyPrev_(i) = uyCurr_(i) = uzPrev_(i) = uzCurr_(i) = 0.0f;
-    uzCurr_(numNodes_ / 2) = 1.0f;
+    Kokkos::deep_copy(uxPrev_, 0.0f);
+    Kokkos::deep_copy(uxCurr_, 0.0f);
+    Kokkos::deep_copy(uyPrev_, 0.0f);
+    Kokkos::deep_copy(uyCurr_, 0.0f);
+    Kokkos::deep_copy(uzPrev_, 0.0f);
+    Kokkos::deep_copy(uzCurr_, 0.0f);
+    setAt(uzCurr_, 1.0f, numNodes_ / 2);
     rhsTermx_ = allocateArray2D<arrayReal>(1, kNumSteps, "rtx_vatt");
     rhsTermy_ = allocateArray2D<arrayReal>(1, kNumSteps, "rty_vatt");
     rhsTermz_ = allocateArray2D<arrayReal>(1, kNumSteps, "rtz_vatt");
     rhsElem_ = allocateVector<vectorInt>(1, "re_vatt");
     rhsWeights_ = allocateArray2D<arrayReal>(1, npp, "rw_vatt");
-    rhsElem_(0) = 0;
-    for (int j = 0; j < npp; ++j) rhsTermx_(0, j) = rhsTermy_(0, j) = rhsTermz_(0, j) = rhsWeights_(0, j) = 0.0f;
+    Kokkos::deep_copy(rhsElem_, 0);
+    Kokkos::deep_copy(rhsTermx_, 0.0f);
+    Kokkos::deep_copy(rhsTermy_, 0.0f);
+    Kokkos::deep_copy(rhsTermz_, 0.0f);
+    Kokkos::deep_copy(rhsWeights_, 0.0f);
   }
 
   static constexpr int kNumSteps = 5;
@@ -808,16 +871,23 @@ class SemSolverElasticTtiOnNodesTest : public ::testing::Test {
     uyCurr_ = allocateVector<vectorReal>(numNodes_, "uy_c_tni");
     uzPrev_ = allocateVector<vectorReal>(numNodes_, "uz_p_tni");
     uzCurr_ = allocateVector<vectorReal>(numNodes_, "uz_c_tni");
-    for (int i = 0; i < numNodes_; ++i)
-      uxPrev_(i) = uxCurr_(i) = uyPrev_(i) = uyCurr_(i) = uzPrev_(i) = uzCurr_(i) = 0.0f;
-    uzCurr_(numNodes_ / 2) = 1.0f;
+    Kokkos::deep_copy(uxPrev_, 0.0f);
+    Kokkos::deep_copy(uxCurr_, 0.0f);
+    Kokkos::deep_copy(uyPrev_, 0.0f);
+    Kokkos::deep_copy(uyCurr_, 0.0f);
+    Kokkos::deep_copy(uzPrev_, 0.0f);
+    Kokkos::deep_copy(uzCurr_, 0.0f);
+    setAt(uzCurr_, 1.0f, numNodes_ / 2);
     rhsTermx_ = allocateArray2D<arrayReal>(1, kNumSteps, "rtx_tni");
     rhsTermy_ = allocateArray2D<arrayReal>(1, kNumSteps, "rty_tni");
     rhsTermz_ = allocateArray2D<arrayReal>(1, kNumSteps, "rtz_tni");
     rhsElem_ = allocateVector<vectorInt>(1, "re_tni");
     rhsWeights_ = allocateArray2D<arrayReal>(1, npp, "rw_tni");
-    rhsElem_(0) = 0;
-    for (int j = 0; j < npp; ++j) rhsTermx_(0, j) = rhsTermy_(0, j) = rhsTermz_(0, j) = rhsWeights_(0, j) = 0.0f;
+    Kokkos::deep_copy(rhsElem_, 0);
+    Kokkos::deep_copy(rhsTermx_, 0.0f);
+    Kokkos::deep_copy(rhsTermy_, 0.0f);
+    Kokkos::deep_copy(rhsTermz_, 0.0f);
+    Kokkos::deep_copy(rhsWeights_, 0.0f);
   }
 
   static constexpr int kNumSteps = 10;
@@ -847,9 +917,11 @@ TEST_F(SemSolverElasticTtiOnNodesTest, ComputeOneStepProducesFiniteValues) {
     solver_->computeOneStep(kDt, t, data);
     data.swapWavefields();
   }
-  for (int c = 0; c < 3; ++c)
+  for (int c = 0; c < 3; ++c) {
+    auto h_curr = toHost(data.getCurrentField(c));
     for (int i = 0; i < numNodes_; ++i)
-      EXPECT_TRUE(std::isfinite(data.getCurrentField(c)(i))) << "TTI+nodes NaN/Inf field " << c << " node " << i;
+      EXPECT_TRUE(std::isfinite(h_curr(i))) << "TTI+nodes NaN/Inf field " << c << " node " << i;
+  }
 }
 
 }  // namespace test

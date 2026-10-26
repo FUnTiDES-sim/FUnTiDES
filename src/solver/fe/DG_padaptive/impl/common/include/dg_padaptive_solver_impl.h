@@ -74,28 +74,43 @@ void DGPAdaptiveSolver<ORDER_MIN, ORDER_MAX, INTEGRAL_SELECTOR, IMPL_TAG, MESH_T
   int n_pMin = 0;
   int n_pMax = 0;
 
+  auto mesh_local = m_mesh_;
+  auto elem_type = m_element_type_;
+
+  float const padaptive_interface_z = pAdaptive_interface_z_;
+
+  auto external_elem_type = m_external_element_type_;
+
   if (m_external_element_type_.size() == static_cast<size_t>(nElem)) {
     // Caller-provided split (setElementTags()): the Z-threshold heuristic is skipped, since
     // it only cuts the intended plane while the mesh is flat.
-    for (int e = 0; e < nElem; ++e) {
-      m_element_type_[e] = m_external_element_type_[e];
-      if (m_element_type_[e] == kElementTypePMin)
-        ++n_pMin;
-      else
-        ++n_pMax;
-    }
+
+    Kokkos::parallel_reduce(
+        "TagElements_mainLoop", nElem,
+        KOKKOS_LAMBDA(const int e, int& local_n_pMin, int& local_n_pMax) {
+          elem_type(e) = external_elem_type(e);
+          if (elem_type(e) == kElementTypePMin)
+            ++local_n_pMin;
+          else
+            ++local_n_pMax;
+        },
+        n_pMin, n_pMax);
+
   } else {
-    for (int e = 0; e < nElem; ++e) {
-      int const gIdx = m_mesh_.globalNodeIndex(e, 0, 0, 0);
-      float const zCoord = m_mesh_.nodeCoord(gIdx, 2);
-      if (zCoord < pAdaptive_interface_z_) {
-        m_element_type_[e] = kElementTypePMin;
-        ++n_pMin;
-      } else {
-        m_element_type_[e] = kElementTypePMax;
-        ++n_pMax;
-      }
-    }
+    Kokkos::parallel_reduce(
+        "TagElements_mainLoop", nElem,
+        KOKKOS_LAMBDA(const int e, int& local_n_pMin, int& local_n_pMax) {
+          int const gIdx = mesh_local.globalNodeIndex(e, 0, 0, 0);
+          float const zCoord = mesh_local.nodeCoord(gIdx, 2);
+          if (zCoord < padaptive_interface_z) {
+            elem_type(e) = kElementTypePMin;
+            ++local_n_pMin;
+          } else {
+            elem_type(e) = kElementTypePMax;
+            ++local_n_pMax;
+          }
+        },
+        n_pMin, n_pMax);
   }
 
   num_pMin_elements_ = n_pMin;
@@ -103,14 +118,20 @@ void DGPAdaptiveSolver<ORDER_MIN, ORDER_MAX, INTEGRAL_SELECTOR, IMPL_TAG, MESH_T
 
   pMin_elem_list_ = allocateVector<vectorInt>(num_pMin_elements_, "pMinElemList");
   pMax_elem_list_ = allocateVector<vectorInt>(num_pMax_elements_, "pMaxElemList");
-  int ipMin = 0;
-  int ipMax = 0;
-  for (int e = 0; e < nElem; ++e) {
-    if (m_element_type_[e] == kElementTypePMin)
-      pMin_elem_list_[ipMin++] = e;
-    else
-      pMax_elem_list_[ipMax++] = e;
-  }
+
+  auto pMin_elem_list = pMin_elem_list_;
+  auto pMax_elem_list = pMax_elem_list_;
+
+  Kokkos::parallel_scan(
+      "BuildElementLists", nElem, KOKKOS_LAMBDA(const int e, int& update, const bool is_final) {
+        if (elem_type(e) == kElementTypePMin) {
+          if (is_final) pMin_elem_list(update) = e;
+          ++update;
+        } else {
+          if (is_final) pMax_elem_list(e - update) = e;
+        }
+      });
+  FENCE
 }
 
 template <int ORDER_MIN, int ORDER_MAX, template <int, int> class INTEGRAL_SELECTOR, int IMPL_TAG, typename MESH_TYPE,
@@ -152,43 +173,49 @@ void DGPAdaptiveSolver<ORDER_MIN, ORDER_MAX, INTEGRAL_SELECTOR, IMPL_TAG, MESH_T
       });
   FENCE
 
-  // The counts are filled on the device; the face loops below run on the host.
-  auto h_pMin_count = Kokkos::create_mirror_view_and_copy(Kokkos::HostSpace{}, pMin_count);
-  auto h_pMax_count = Kokkos::create_mirror_view_and_copy(Kokkos::HostSpace{}, pMax_count);
-
-  // Iterate over the faces of m_face_connectivity_, the same index space as the coupling kernels.
-  // A face is on the interface when all its nodes belong to both a pMin and a pMax element.
   int const num_faces_fc = static_cast<int>(m_face_connectivity_.getNumberOfFaces());
-  int n_interface = 0;
-  for (int f = 0; f < num_faces_fc; ++f) {
-    if (m_face_connectivity_.isBoundaryFace(f)) continue;
-    bool face_on_interface = true;
-    for (int j = 0; j < pMaxSolver::knumNodesPerFace; ++j) {
-      int const gn = m_face_connectivity_.getGlobalNodeFromFace(f, j);
-      if (h_pMin_count(gn) == 0 || h_pMax_count(gn) == 0) {
-        face_on_interface = false;
-        break;
-      }
-    }
-    if (face_on_interface) ++n_interface;
-  }
+  auto face_connectivity = m_face_connectivity_;
 
-  num_interface_faces_ = n_interface;
+  Kokkos::parallel_reduce(
+      "CountInterfaceFaces", num_faces_fc,
+      KOKKOS_LAMBDA(const int f, int& local_count) {
+        if (face_connectivity.isBoundaryFace(f)) return;
+
+        bool face_on_interface = true;
+        for (int j = 0; j < pMaxSolver::knumNodesPerFace; ++j) {
+          int const gn = face_connectivity.getGlobalNodeFromFace(f, j);
+          if (pMin_count(gn) == 0 || pMax_count(gn) == 0) {
+            face_on_interface = false;
+            break;
+          }
+        }
+        if (face_on_interface) ++local_count;
+      },
+      num_interface_faces_);
+  FENCE
+
   m_interface_face_indices_ = allocateVector<vectorInt>(num_interface_faces_, "interfaceFaceIndices");
 
-  int idx = 0;
-  for (int f = 0; f < num_faces_fc; ++f) {
-    if (m_face_connectivity_.isBoundaryFace(f)) continue;
-    bool face_on_interface = true;
-    for (int j = 0; j < pMaxSolver::knumNodesPerFace; ++j) {
-      int const gn = m_face_connectivity_.getGlobalNodeFromFace(f, j);
-      if (h_pMin_count(gn) == 0 || h_pMax_count(gn) == 0) {
-        face_on_interface = false;
-        break;
-      }
-    }
-    if (face_on_interface) m_interface_face_indices_[idx++] = f;
-  }
+  auto interface_face_indices = m_interface_face_indices_;
+
+  Kokkos::parallel_scan(
+      "BuildInterfaceFaceList", num_faces_fc, KOKKOS_LAMBDA(const int f, int& update, const bool is_final) {
+        if (face_connectivity.isBoundaryFace(f)) return;
+
+        bool face_on_interface = true;
+        for (int j = 0; j < pMaxSolver::knumNodesPerFace; ++j) {
+          int const gn = face_connectivity.getGlobalNodeFromFace(f, j);
+          if (pMin_count(gn) == 0 || pMax_count(gn) == 0) {
+            face_on_interface = false;
+            break;
+          }
+        }
+        if (face_on_interface) {
+          if (is_final) interface_face_indices(update) = f;
+          ++update;
+        }
+      });
+  FENCE
 
   BuildInteriorFaceLists();
   std::cout << "DGPAdaptiveSolver: " << m_n_pMin_interior_faces_ << " pMin interior faces." << std::endl;
@@ -202,45 +229,74 @@ template <int ORDER_MIN, int ORDER_MAX, template <int, int> class INTEGRAL_SELEC
           bool IS_MODEL_ON_NODES, utils::enums::physicType PHYSICS>
 void DGPAdaptiveSolver<ORDER_MIN, ORDER_MAX, INTEGRAL_SELECTOR, IMPL_TAG, MESH_TYPE, IS_MODEL_ON_NODES,
                        PHYSICS>::BuildInteriorFaceLists() {
-  auto h_elem_type = Kokkos::create_mirror_view_and_copy(Kokkos::HostSpace{}, m_element_type_);
-  auto h_iface = Kokkos::create_mirror_view_and_copy(Kokkos::HostSpace{}, m_interface_face_indices_);
-
   int const num_faces_fc = static_cast<int>(m_face_connectivity_.getNumberOfFaces());
 
-  std::vector<bool> is_iface(num_faces_fc, false);
-  for (int i = 0; i < num_interface_faces_; ++i) is_iface[h_iface(i)] = true;
+  auto iface_list = m_interface_face_indices_;
+  vectorInt is_iface = allocateVector<vectorInt>(num_faces_fc, "isIface");
+  auto inum_interface_faces = num_interface_faces_;
 
-  // Faces whose owner is a pMin element and which are not on the pMin-pMax interface.
-  std::vector<int> result_pMin;
-  result_pMin.reserve(num_faces_fc / 2);
-  for (int f = 0; f < num_faces_fc; ++f) {
-    if (is_iface[f]) continue;
-    int const oe = m_face_connectivity_.elemOwner(f);
-    bool pMin_adj = (h_elem_type(oe) == kElementTypePMin);
-    if (pMin_adj) result_pMin.push_back(f);
-  }
+  Kokkos::parallel_for(
+      "MarkInterfaceFaces", inum_interface_faces, KOKKOS_LAMBDA(const int i) { is_iface[iface_list(i)] = 1; });
+  FENCE
 
-  m_n_pMin_interior_faces_ = static_cast<int>(result_pMin.size());
+  auto face_connectivity = m_face_connectivity_;
+  auto elem_type = m_element_type_;
+
+  // Face whose owner is a pMin element and which are not on the pMin-pMax interface.
+  Kokkos::parallel_reduce(
+      "CountpMinInteriorFaces", num_faces_fc,
+      KOKKOS_LAMBDA(const int f, int& local_count) {
+        if (is_iface[f]) return;
+
+        int const oe = face_connectivity.elemOwner(f);
+        if (elem_type(oe) != kElementTypePMin) return;
+        ++local_count;
+      },
+      m_n_pMin_interior_faces_);
+  FENCE
+
   m_pMin_interior_face_list_ = allocateVector<vectorInt>(m_n_pMin_interior_faces_, "pMinInteriorFaceList");
-  auto h_pMin_list = Kokkos::create_mirror_view(m_pMin_interior_face_list_);
-  for (int i = 0; i < m_n_pMin_interior_faces_; ++i) h_pMin_list(i) = result_pMin[i];
-  Kokkos::deep_copy(m_pMin_interior_face_list_, h_pMin_list);
+  auto pMin_interior_face_list = m_pMin_interior_face_list_;
 
-  // Faces whose owner is a pMax element and which are not on the pMin-pMax interface.
-  std::vector<int> result_pMax;
-  result_pMax.reserve(num_faces_fc / 2);
-  for (int f = 0; f < num_faces_fc; ++f) {
-    if (is_iface[f]) continue;
-    int const oe = m_face_connectivity_.elemOwner(f);
-    bool pMax_adj = (h_elem_type(oe) == kElementTypePMax);
-    if (pMax_adj) result_pMax.push_back(f);
-  }
+  Kokkos::parallel_scan(
+      "BuildpMinInteriorFaceList", num_faces_fc, KOKKOS_LAMBDA(const int f, int& update, const bool is_final) {
+        if (is_iface[f]) return;
 
-  m_n_pMax_interior_faces_ = static_cast<int>(result_pMax.size());
+        int const oe = face_connectivity.elemOwner(f);
+        if (elem_type(oe) != kElementTypePMin) return;
+
+        if (is_final) pMin_interior_face_list(update) = f;
+        ++update;
+      });
+  FENCE
+
+  // Face whose owner is a pMax element and which are not on the pMin-pMax interface.
+  Kokkos::parallel_reduce(
+      "CountpMaxInteriorFaces", num_faces_fc,
+      KOKKOS_LAMBDA(const int f, int& local_count) {
+        if (is_iface[f]) return;
+
+        int const oe = face_connectivity.elemOwner(f);
+        if (elem_type(oe) != kElementTypePMax) return;
+        ++local_count;
+      },
+      m_n_pMax_interior_faces_);
+  FENCE
+
   m_pMax_interior_face_list_ = allocateVector<vectorInt>(m_n_pMax_interior_faces_, "pMaxInteriorFaceList");
-  auto h_pMax_list = Kokkos::create_mirror_view(m_pMax_interior_face_list_);
-  for (int i = 0; i < m_n_pMax_interior_faces_; ++i) h_pMax_list(i) = result_pMax[i];
-  Kokkos::deep_copy(m_pMax_interior_face_list_, h_pMax_list);
+  auto pMax_interior_face_list = m_pMax_interior_face_list_;
+
+  Kokkos::parallel_scan(
+      "BuildpMaxInteriorFaceList", num_faces_fc, KOKKOS_LAMBDA(const int f, int& update, const bool is_final) {
+        if (is_iface[f]) return;
+
+        int const oe = face_connectivity.elemOwner(f);
+        if (elem_type(oe) != kElementTypePMax) return;
+
+        if (is_final) pMax_interior_face_list(update) = f;
+        ++update;
+      });
+  FENCE
 }
 
 template <int ORDER_MIN, int ORDER_MAX, template <int, int> class INTEGRAL_SELECTOR, int IMPL_TAG, typename MESH_TYPE,
@@ -252,10 +308,11 @@ void DGPAdaptiveSolver<ORDER_MIN, ORDER_MAX, INTEGRAL_SELECTOR, IMPL_TAG, MESH_T
   // ProlongPMinField()/RestrictPMinStiff() apply it one direction at a time. Storing the 2D or 3D
   // form would cost (ORDER_MAX+1)^d (ORDER_MIN+1)^d entries and turn each application into a dense
   // product for no gain.
+  auto h_p1d = Kokkos::create_mirror_view(m_p1d_projection_);
   for (int k = 0; k < ORDER_MAX + 1; ++k)
     for (int m = 0; m < ORDER_MIN + 1; ++m)
-      m_p1d_projection_(k, m) =
-          INTEGRAL_TYPE_MIN::BasisType::value(m, INTEGRAL_TYPE_MAX::BasisType::parentSupportCoord(k));
+      h_p1d(k, m) = INTEGRAL_TYPE_MIN::BasisType::value(m, INTEGRAL_TYPE_MAX::BasisType::parentSupportCoord(k));
+  Kokkos::deep_copy(m_p1d_projection_, h_p1d);
 }
 
 template <int ORDER_MIN, int ORDER_MAX, template <int, int> class INTEGRAL_SELECTOR, int IMPL_TAG, typename MESH_TYPE,
@@ -263,33 +320,56 @@ template <int ORDER_MIN, int ORDER_MAX, template <int, int> class INTEGRAL_SELEC
 void DGPAdaptiveSolver<ORDER_MIN, ORDER_MAX, INTEGRAL_SELECTOR, IMPL_TAG, MESH_TYPE, IS_MODEL_ON_NODES,
                        PHYSICS>::BuildInterfaceElementList() {
   int const nElem = m_mesh_.getNumberOfElements();
-  auto h_elem_type = Kokkos::create_mirror_view_and_copy(Kokkos::HostSpace{}, m_element_type_);
-  auto h_iface = Kokkos::create_mirror_view_and_copy(Kokkos::HostSpace{}, m_interface_face_indices_);
 
-  std::vector<int> slot(nElem, -1);
-  std::vector<int> elems;
-  for (int i = 0; i < num_interface_faces_; ++i) {
-    int const f = h_iface(i);
-    int const sides[2] = {m_face_connectivity_.elemOwner(f), m_face_connectivity_.elemNeighbor(f)};
-    for (int s = 0; s < 2; ++s) {
-      int const e = sides[s];
-      // An element facing the interface through several faces still needs raising only once.
-      if (h_elem_type(e) != kElementTypePMin || slot[e] >= 0) continue;
-      slot[e] = static_cast<int>(elems.size());
-      elems.push_back(e);
-    }
-  }
+  vectorInt touches_iface = allocateVector<vectorInt>(nElem, "touchesIface");
+  auto face_connectivity = m_face_connectivity_;
+  auto num_interface_faces = num_interface_faces_;
+  auto iface_list = m_interface_face_indices_;
+  auto elem_type = m_element_type_;
 
-  m_n_iface_pMin_elements_ = static_cast<int>(elems.size());
+  // Flag the pMin elements that touch an interface face.
+  Kokkos::parallel_for(
+      "MarkCommonFaces", num_interface_faces, KOKKOS_LAMBDA(const int i) {
+        int const f = iface_list(i);
+        int const sides[2] = {face_connectivity.elemOwner(f), face_connectivity.elemNeighbor(f)};
+        for (int s = 0; s < 2; ++s) {
+          int const e = sides[s];
+          if (elem_type(e) == kElementTypePMin) {
+            touches_iface(e) = 1;
+          }
+        }
+      });
+  FENCE
+
+  // Count the number of pMin elements facing the interface
+  int n_iface_pMin_elements = 0;
+  Kokkos::parallel_reduce(
+      "CountInterfaceElements", nElem,
+      KOKKOS_LAMBDA(const int e, int& local_count) {
+        if (touches_iface(e) > 0) ++local_count;
+      },
+      n_iface_pMin_elements);
+  FENCE
+
+  m_n_iface_pMin_elements_ = n_iface_pMin_elements;
   m_iface_pMin_elem_list_ = allocateVector<vectorInt>(m_n_iface_pMin_elements_, "ifacePMinElemList");
+  auto iface_pMin_elem_list = m_iface_pMin_elem_list_;
   m_pMin_elem_to_slot_ = allocateVector<vectorInt>(nElem, "pMinElemToSlot");
+  auto pMin_elem_to_slot = m_pMin_elem_to_slot_;
 
-  auto h_list = Kokkos::create_mirror_view(m_iface_pMin_elem_list_);
-  auto h_slot = Kokkos::create_mirror_view(m_pMin_elem_to_slot_);
-  for (int i = 0; i < m_n_iface_pMin_elements_; ++i) h_list(i) = elems[i];
-  for (int e = 0; e < nElem; ++e) h_slot(e) = slot[e];
-  Kokkos::deep_copy(m_iface_pMin_elem_list_, h_list);
-  Kokkos::deep_copy(m_pMin_elem_to_slot_, h_slot);
+  Kokkos::parallel_scan(
+      "BuildInterfaceElementList", nElem, KOKKOS_LAMBDA(const int e, int& slot, const bool is_final) {
+        if (touches_iface(e) > 0) {
+          if (is_final) {
+            iface_pMin_elem_list(slot) = e;
+            pMin_elem_to_slot(e) = slot;
+          }
+          ++slot;
+        } else {
+          if (is_final) pMin_elem_to_slot(e) = -1;
+        }
+      });
+  FENCE
 
   m_pMin_prolonged_field_ =
       allocateArray2D<arrayReal>(m_n_iface_pMin_elements_, pMaxSolver::kPointsPerElement, "pMinProlongedField");
@@ -646,8 +726,11 @@ template <int ORDER_MIN, int ORDER_MAX, template <int, int> class INTEGRAL_SELEC
 void DGPAdaptiveSolver<ORDER_MIN, ORDER_MAX, INTEGRAL_SELECTOR, IMPL_TAG, MESH_TYPE, IS_MODEL_ON_NODES,
                        PHYSICS>::outputSolutionValues(const int& t, int& e, const arrayReal& field,
                                                       const char* fieldName) {
+  // field lives on the device: only the printed value is copied to the host.
+  float value = 0.0f;
+  Kokkos::deep_copy(value, Kokkos::subview(field, e, 0));
   std::cout << "TimeStep=" << t << ";  " << fieldName << " @ elementSource location " << e
-            << " after computeOneStep = " << field(e, 0) << std::endl;
+            << " after computeOneStep = " << value << std::endl;
 }
 
 }  // namespace fe

@@ -7,12 +7,19 @@
 #include "Integrals.h"
 #include "common_macros.h"
 #include "data_type.h"
+#include "device_view_access.h"
 #include "model_struct.h"
 #include "sem_solver_acoustoelastic.h"
 
 namespace solver {
 namespace fe {
 namespace test {
+
+using test_utils::fillFromHost;
+using test_utils::fillFromList;
+using test_utils::getAt;
+using test_utils::setAt;
+using test_utils::toHost;
 
 // =============================================================================
 // Order wrappers
@@ -66,6 +73,9 @@ model::ModelStruct<float, int, ORDER> makeBilayerMesh() {
   vp(1) = 1500.0f;
   vs(1) = 0.0f;
   rho(1) = 1000.0f;  // acoustic
+  d.model_vp_element_.modify_host();
+  d.model_vs_element_.modify_host();
+  d.model_rho_element_.modify_host();
 
   return model::ModelStruct<float, int, ORDER>(d);
 }
@@ -112,20 +122,18 @@ class AEsolverOnElemTest : public ::testing::Test {
     rhs_termz_ = allocateArray2D<arrayReal>(1, kNumSamples, "rhsTermZ");
     rhs_elem_ = allocateVector<vectorInt>(1, "rhsElem");
     rhs_wts_ = allocateArray2D<arrayReal>(1, kNdof, "rhsWts");
-    rhs_elem_(0) = 0;
-    for (int t = 0; t < kNumSamples; ++t)
-      rhs_term_(0, t) = rhs_termx_(0, t) = rhs_termy_(0, t) = rhs_termz_(0, t) = 0.0f;
-    for (int k = 0; k < kNdof; ++k) rhs_wts_(0, k) = 0.0f;
+    Kokkos::deep_copy(rhs_elem_, 0);
+    Kokkos::deep_copy(rhs_term_, 0.0f);
+    Kokkos::deep_copy(rhs_termx_, 0.0f);
+    Kokkos::deep_copy(rhs_termy_, 0.0f);
+    Kokkos::deep_copy(rhs_termz_, 0.0f);
+    Kokkos::deep_copy(rhs_wts_, 0.0f);
   }
 
   void zeroWavefields() {
-    for (int i = 0; i < nNodes_; ++i) {
-      p_prev_(i) = p_curr_(i) = 0.0f;
-      ux_prev_(i) = ux_curr_(i) = 0.0f;
-      uy_prev_(i) = uy_curr_(i) = 0.0f;
-      uz_prev_(i) = uz_curr_(i) = 0.0f;
-      p_pp_(i) = ux_pp_(i) = uy_pp_(i) = uz_pp_(i) = 0.0f;
-    }
+    for (auto* v : {&p_prev_, &p_curr_, &ux_prev_, &ux_curr_, &uy_prev_, &uy_curr_, &uz_prev_, &uz_curr_, &p_pp_,
+                    &ux_pp_, &uy_pp_, &uz_pp_})
+      Kokkos::deep_copy(*v, 0.0f);
   }
 
   /// Build a DataStruct whose views alias the fixture wavefields/rhs.
@@ -182,14 +190,16 @@ TYPED_TEST(AEsolverOnElemTest, TagNodesDetectsCorrectInterfaceNodeCount) {
 TYPED_TEST(AEsolverOnElemTest, AcousticMassMatrixNonZeroInDomain) {
   auto& m = this->solver_.getMassMatrixAcoustic();
   float total = 0.0f;
-  for (int i = 0; i < this->nNodes_; ++i) total += m[i];
+  auto h_m = toHost(m);
+  for (int i = 0; i < this->nNodes_; ++i) total += h_m(i);
   EXPECT_GT(total, 0.0f);
 }
 
 TYPED_TEST(AEsolverOnElemTest, ElasticMassMatrixNonZeroInDomain) {
   auto& m = this->solver_.getMassMatrixElastic();
   float total = 0.0f;
-  for (int i = 0; i < this->nNodes_; ++i) total += m[i];
+  auto h_m = toHost(m);
+  for (int i = 0; i < this->nNodes_; ++i) total += h_m(i);
   EXPECT_GT(total, 0.0f);
 }
 
@@ -199,9 +209,10 @@ TYPED_TEST(AEsolverOnElemTest, DampingMatrixNonNegativeAbsorbingBC) {
   for (int c = 0; c < 4; ++c) {
     auto& d = this->solver_.getDampingMatrix(c);
     float total = 0.0f;
+    auto h_d = toHost(d);
     for (int i = 0; i < this->nNodes_; ++i) {
-      EXPECT_GE(d[i], 0.0f) << "component " << c << " node " << i;
-      total += d[i];
+      EXPECT_GE(h_d(i), 0.0f) << "component " << c << " node " << i;
+      total += h_d(i);
     }
     EXPECT_GT(total, 0.0f) << "no absorbing-BC damping for component " << c;
   }
@@ -213,14 +224,14 @@ TYPED_TEST(AEsolverOnElemTest, DampingMatrixNonNegativeAbsorbingBC) {
 
 TYPED_TEST(AEsolverOnElemTest, ResetGlobalVectorsZerosForceArrays) {
   for (int c = 0; c < 4; ++c) {
-    auto& f = this->solver_.getForceVector(c);
-    for (int i = 0; i < this->nNodes_; ++i) f[i] = 1.0f;
+    Kokkos::deep_copy(this->solver_.getForceVector(c), 1.0f);
   }
   this->solver_.resetGlobalVectors(this->nNodes_);
   FENCE
   for (int c = 0; c < 4; ++c) {
     auto& f = this->solver_.getForceVector(c);
-    for (int i = 0; i < this->nNodes_; ++i) EXPECT_FLOAT_EQ(f[i], 0.0f) << "comp=" << c << " node=" << i;
+    auto h_f = toHost(f);
+    for (int i = 0; i < this->nNodes_; ++i) EXPECT_FLOAT_EQ(h_f(i), 0.0f) << "comp=" << c << " node=" << i;
   }
 }
 
@@ -231,25 +242,28 @@ TYPED_TEST(AEsolverOnElemTest, ResetGlobalVectorsZerosForceArrays) {
 TYPED_TEST(AEsolverOnElemTest, CouplingCoeffZNonZeroForHorizontalInterface) {
   // Horizontal z-interface: normal is ±z → coupling modifies uz, not ux/uy.
   // Apply A→E with uniform p=1 from zero uz; at least one node must change.
-  for (int i = 0; i < this->nNodes_; ++i) this->p_curr_(i) = 1.0f;
+  Kokkos::deep_copy(this->p_curr_, 1.0f);
   auto data = this->makeData();
   this->solver_.ApplyCouplingAcousticToElastic(this->kDt, data, /*backward=*/false);
   FENCE
   float sum = 0.0f;
-  for (int i = 0; i < this->nNodes_; ++i) sum += std::fabs(this->uz_prev_(i));
+  auto h_uz_prev = toHost(this->uz_prev_);
+  for (int i = 0; i < this->nNodes_; ++i) sum += std::fabs(h_uz_prev(i));
   EXPECT_GT(sum, 0.0f);
 }
 
 TYPED_TEST(AEsolverOnElemTest, CouplingCoeffXYZeroForHorizontalInterface) {
   // Horizontal z-interface: cx=cy=0 → ux and uy unchanged.
-  for (int i = 0; i < this->nNodes_; ++i) this->p_curr_(i) = 1.0f;
+  Kokkos::deep_copy(this->p_curr_, 1.0f);
   auto data = this->makeData();
   this->solver_.ApplyCouplingAcousticToElastic(this->kDt, data, /*backward=*/false);
   FENCE
   float sum_ux = 0.0f, sum_uy = 0.0f;
+  auto h_ux_prev = toHost(this->ux_prev_);
+  auto h_uy_prev = toHost(this->uy_prev_);
   for (int i = 0; i < this->nNodes_; ++i) {
-    sum_ux += std::fabs(this->ux_prev_(i));
-    sum_uy += std::fabs(this->uy_prev_(i));
+    sum_ux += std::fabs(h_ux_prev(i));
+    sum_uy += std::fabs(h_uy_prev(i));
   }
   EXPECT_NEAR(sum_ux, 0.0f, 1e-6f);
   EXPECT_NEAR(sum_uy, 0.0f, 1e-6f);
@@ -261,14 +275,13 @@ TYPED_TEST(AEsolverOnElemTest, CouplingCoeffXYZeroForHorizontalInterface) {
 
 TYPED_TEST(AEsolverOnElemTest, CouplingAEZeroPressureNoDisplacement) {
   // p=0 everywhere → coupling formula gives 0 increment.
-  for (int i = 0; i < this->nNodes_; ++i) {
-    this->p_curr_(i) = 0.0f;
-    this->uz_prev_(i) = 5.0f;
-  }
+  Kokkos::deep_copy(this->p_curr_, 0.0f);
+  Kokkos::deep_copy(this->uz_prev_, 5.0f);
   auto data = this->makeData();
   this->solver_.ApplyCouplingAcousticToElastic(this->kDt, data, /*backward=*/false);
   FENCE
-  for (int i = 0; i < this->nNodes_; ++i) EXPECT_FLOAT_EQ(this->uz_prev_(i), 5.0f);
+  auto h_uz_prev = toHost(this->uz_prev_);
+  for (int i = 0; i < this->nNodes_; ++i) EXPECT_FLOAT_EQ(h_uz_prev(i), 5.0f);
 }
 
 TYPED_TEST(AEsolverOnElemTest, CouplingAEDtScalingIsBoundedByTheDampedLaw) {
@@ -277,7 +290,7 @@ TYPED_TEST(AEsolverOnElemTest, CouplingAEDtScalingIsBoundedByTheDampedLaw) {
   // correction by 4*(M_e + dt/2*C_e)/(M_e + dt*C_e), which is 4 undamped and
   // tends to 2 as the damping dominates.  Every node of this fixture sits on an
   // absorbing face, so only the bracket can be asserted here.
-  for (int i = 0; i < this->nNodes_; ++i) this->p_curr_(i) = 100.0f;
+  Kokkos::deep_copy(this->p_curr_, 100.0f);
 
   {
     auto data = this->makeData();
@@ -285,16 +298,18 @@ TYPED_TEST(AEsolverOnElemTest, CouplingAEDtScalingIsBoundedByTheDampedLaw) {
     FENCE
   }
   float delta1 = 0.0f;
-  for (int i = 0; i < this->nNodes_; ++i) delta1 += this->uz_prev_(i);
+  auto h_uz_prev = toHost(this->uz_prev_);
+  for (int i = 0; i < this->nNodes_; ++i) delta1 += h_uz_prev(i);
 
-  for (int i = 0; i < this->nNodes_; ++i) this->uz_prev_(i) = 0.0f;
+  Kokkos::deep_copy(this->uz_prev_, 0.0f);
   {
     auto data = this->makeData();
     this->solver_.ApplyCouplingAcousticToElastic(2.0f * this->kDt, data, /*backward=*/false);
     FENCE
   }
   float delta2 = 0.0f;
-  for (int i = 0; i < this->nNodes_; ++i) delta2 += this->uz_prev_(i);
+  h_uz_prev = toHost(this->uz_prev_);
+  for (int i = 0; i < this->nNodes_; ++i) delta2 += h_uz_prev(i);
 
   if (std::fabs(delta1) <= 1e-10f) GTEST_SKIP() << "coupling coefficient is zero; cannot verify the dt scaling";
 
@@ -311,14 +326,16 @@ TYPED_TEST(AEsolverOnElemTest, CouplingAEBackwardCorrectsPrevPrevAndLeavesPrevAl
   // The backward Verlet writes the new level into the prevPrev buffer, so the
   // traction correction must land there.  Before the fix the adjoint solid was
   // never driven and stayed identically zero.
-  for (int i = 0; i < this->nNodes_; ++i) this->p_curr_(i) = 1.0f;
+  Kokkos::deep_copy(this->p_curr_, 1.0f);
   auto data = this->makeAdjointData();
   this->solver_.ApplyCouplingAcousticToElastic(this->kDt, data, /*backward=*/true);
   FENCE
   float sum_pp = 0.0f, sum_prev = 0.0f;
+  auto h_uz_pp = toHost(this->uz_pp_);
+  auto h_uz_prev = toHost(this->uz_prev_);
   for (int i = 0; i < this->nNodes_; ++i) {
-    sum_pp += std::fabs(this->uz_pp_(i));
-    sum_prev += std::fabs(this->uz_prev_(i));
+    sum_pp += std::fabs(h_uz_pp(i));
+    sum_prev += std::fabs(h_uz_prev(i));
   }
   EXPECT_GT(sum_pp, 0.0f);
   EXPECT_FLOAT_EQ(sum_prev, 0.0f);
@@ -337,20 +354,19 @@ TYPED_TEST(AEsolverOnElemTest, CouplingAEBackwardAppliesSecondDifferenceOfPressu
   std::vector<float> fwd_inc(this->nNodes_);
   {
     auto data = this->makeData();
-    for (int i = 0; i < this->nNodes_; ++i) this->p_curr_(i) = -second_diff / dt2;
+    Kokkos::deep_copy(this->p_curr_, -second_diff / dt2);
     this->solver_.ApplyCouplingAcousticToElastic(this->kDt, data, /*backward=*/false);
     FENCE
-    for (int i = 0; i < this->nNodes_; ++i) fwd_inc[i] = this->uz_prev_(i);
+    auto h_uz_prev = toHost(this->uz_prev_);
+    for (int i = 0; i < this->nNodes_; ++i) fwd_inc[i] = h_uz_prev(i);
   }
 
   this->zeroWavefields();
   {
     auto data = this->makeAdjointData();
-    for (int i = 0; i < this->nNodes_; ++i) {
-      this->p_pp_(i) = kPnew;
-      this->p_curr_(i) = kPn;
-      this->p_prev_(i) = kPother;
-    }
+    Kokkos::deep_copy(this->p_pp_, kPnew);
+    Kokkos::deep_copy(this->p_curr_, kPn);
+    Kokkos::deep_copy(this->p_prev_, kPother);
     this->solver_.ApplyCouplingAcousticToElastic(this->kDt, data, /*backward=*/true);
     FENCE
   }
@@ -358,34 +374,38 @@ TYPED_TEST(AEsolverOnElemTest, CouplingAEBackwardAppliesSecondDifferenceOfPressu
   float total = 0.0f;
   for (int i = 0; i < this->nNodes_; ++i) total += std::fabs(fwd_inc[i]);
   ASSERT_GT(total, 0.0f) << "no coupling happened, so the comparison proves nothing";
+  auto h_uz_pp = toHost(this->uz_pp_);
   for (int i = 0; i < this->nNodes_; ++i)
-    EXPECT_NEAR(this->uz_pp_(i), fwd_inc[i], 1e-5f * std::fabs(fwd_inc[i]) + 1e-20f) << "node " << i;
+    EXPECT_NEAR(h_uz_pp(i), fwd_inc[i], 1e-5f * std::fabs(fwd_inc[i]) + 1e-20f) << "node " << i;
 }
 
 TYPED_TEST(AEsolverOnElemTest, CouplingEABackwardReadsCurrentDisplacement) {
   // Backward the transpose feeds the fluid the adjoint displacement itself, at
   // level n: the second difference belongs to the forward direction only.  A
   // prevPrev displacement alone must therefore leave the pressure untouched.
-  for (int i = 0; i < this->nNodes_; ++i) this->uz_pp_(i) = 1.0f;
+  Kokkos::deep_copy(this->uz_pp_, 1.0f);
   {
     auto data = this->makeAdjointData();
     this->solver_.ApplyCouplingElasticToAcoustic(this->kDt, data, /*backward=*/true);
     FENCE
   }
-  for (int i = 0; i < this->nNodes_; ++i) EXPECT_FLOAT_EQ(this->p_pp_(i), 0.0f) << "node " << i;
+  auto h_p_pp = toHost(this->p_pp_);
+  for (int i = 0; i < this->nNodes_; ++i) EXPECT_FLOAT_EQ(h_p_pp(i), 0.0f) << "node " << i;
 
   // while the level-n displacement does move it, into prevPrev.
   this->zeroWavefields();
-  for (int i = 0; i < this->nNodes_; ++i) this->uz_curr_(i) = 1.0f;
+  Kokkos::deep_copy(this->uz_curr_, 1.0f);
   {
     auto data = this->makeAdjointData();
     this->solver_.ApplyCouplingElasticToAcoustic(this->kDt, data, /*backward=*/true);
     FENCE
   }
   float sum_p_pp = 0.0f, sum_p_prev = 0.0f;
+  h_p_pp = toHost(this->p_pp_);
+  auto h_p_prev = toHost(this->p_prev_);
   for (int i = 0; i < this->nNodes_; ++i) {
-    sum_p_pp += std::fabs(this->p_pp_(i));
-    sum_p_prev += std::fabs(this->p_prev_(i));
+    sum_p_pp += std::fabs(h_p_pp(i));
+    sum_p_prev += std::fabs(h_p_prev(i));
   }
   EXPECT_GT(sum_p_pp, 0.0f);
   EXPECT_FLOAT_EQ(sum_p_prev, 0.0f);
@@ -396,17 +416,17 @@ TYPED_TEST(AEsolverOnElemTest, InterfaceCouplingBackwardExchangesEnergyBothWays)
   // makes the coupled adjoint carry the fluid residual into the solid.
   // Backward the fluid reacts to the level-n displacement rather than to its
   // acceleration, so that level is the one that has to be excited here.
-  for (int i = 0; i < this->nNodes_; ++i) {
-    this->p_curr_(i) = 2.0f;
-    this->uz_curr_(i) = 1.0f;
-  }
+  Kokkos::deep_copy(this->p_curr_, 2.0f);
+  Kokkos::deep_copy(this->uz_curr_, 1.0f);
   auto data = this->makeAdjointData();
   this->solver_.ApplyInterfaceCoupling(this->kDt, data, /*backward=*/true);
   FENCE
   float sum_u = 0.0f, sum_p = 0.0f;
+  auto h_uz_pp = toHost(this->uz_pp_);
+  auto h_p_pp = toHost(this->p_pp_);
   for (int i = 0; i < this->nNodes_; ++i) {
-    sum_u += std::fabs(this->uz_pp_(i));
-    sum_p += std::fabs(this->p_pp_(i));
+    sum_u += std::fabs(h_uz_pp(i));
+    sum_p += std::fabs(h_p_pp(i));
   }
   EXPECT_GT(sum_u, 0.0f) << "fluid pressure did not drive the solid";
   EXPECT_GT(sum_p, 0.0f) << "solid acceleration did not react on the fluid";
@@ -421,21 +441,21 @@ TYPED_TEST(AEsolverOnElemTest, CouplingEAZeroDisplacementNoEffect) {
   auto data = this->makeData();
   this->solver_.ApplyCouplingElasticToAcoustic(this->kDt, data, /*backward=*/false);
   FENCE
-  for (int i = 0; i < this->nNodes_; ++i) EXPECT_FLOAT_EQ(this->p_prev_(i), 0.0f);
+  auto h_p_prev = toHost(this->p_prev_);
+  for (int i = 0; i < this->nNodes_; ++i) EXPECT_FLOAT_EQ(h_p_prev(i), 0.0f);
 }
 
 TYPED_TEST(AEsolverOnElemTest, CouplingEANonZeroAccelerationChangesP) {
   // uz_prev (= u^{n+1}) = 1, uz_curr (= u^n) = 0, nm1 = 0 (initialized by TagNodes)
   // FD_z = 1 - 0 + 0 = 1 ≠ 0 → pressure at interface nodes must change.
-  for (int i = 0; i < this->nNodes_; ++i) {
-    this->uz_prev_(i) = 1.0f;
-    this->uz_curr_(i) = 0.0f;
-  }
+  Kokkos::deep_copy(this->uz_prev_, 1.0f);
+  Kokkos::deep_copy(this->uz_curr_, 0.0f);
   auto data = this->makeData();
   this->solver_.ApplyCouplingElasticToAcoustic(this->kDt, data, /*backward=*/false);
   FENCE
   float sum_p = 0.0f;
-  for (int i = 0; i < this->nNodes_; ++i) sum_p += std::fabs(this->p_prev_(i));
+  auto h_p_prev = toHost(this->p_prev_);
+  for (int i = 0; i < this->nNodes_; ++i) sum_p += std::fabs(h_p_prev(i));
   EXPECT_GT(sum_p, 0.0f);
 }
 
@@ -454,9 +474,11 @@ TYPED_TEST(AEsolverOnElemTest, ComputeOneStepZeroFieldsStayNearZero) {
   this->solver_.computeOneStep(this->kDt, 0, data);
   FENCE
   float max_p = 0.0f, max_uz = 0.0f;
+  auto h_p_prev = toHost(this->p_prev_);
+  auto h_uz_prev = toHost(this->uz_prev_);
   for (int i = 0; i < this->nNodes_; ++i) {
-    max_p = std::fmax(max_p, std::fabs(this->p_prev_(i)));
-    max_uz = std::fmax(max_uz, std::fabs(this->uz_prev_(i)));
+    max_p = std::fmax(max_p, std::fabs(h_p_prev(i)));
+    max_uz = std::fmax(max_uz, std::fabs(h_uz_prev(i)));
   }
   EXPECT_NEAR(max_p, 0.0f, 1e-10f);
   EXPECT_NEAR(max_uz, 0.0f, 1e-10f);
@@ -487,9 +509,10 @@ TYPED_TEST(AEsolverOnElemTest, updateSolutionForwardWith3BuffersThrows) {
   auto ux_prevprev = allocateVector<vectorReal>(this->nNodes_, "uxPrevPrev");
   auto uy_prevprev = allocateVector<vectorReal>(this->nNodes_, "uyPrevPrev");
   auto uz_prevprev = allocateVector<vectorReal>(this->nNodes_, "uzPrevPrev");
-  for (int i = 0; i < this->nNodes_; ++i) {
-    p_prevprev(i) = ux_prevprev(i) = uy_prevprev(i) = uz_prevprev(i) = 0.0f;
-  }
+  Kokkos::deep_copy(p_prevprev, 0.0f);
+  Kokkos::deep_copy(ux_prevprev, 0.0f);
+  Kokkos::deep_copy(uy_prevprev, 0.0f);
+  Kokkos::deep_copy(uz_prevprev, 0.0f);
   WavefieldAcoustoElastic wf(p_prevprev, this->p_prev_, this->p_curr_, ux_prevprev, this->ux_prev_, this->ux_curr_,
                              uy_prevprev, this->uy_prev_, this->uy_curr_, uz_prevprev, this->uz_prev_, this->uz_curr_);
   RhsAcoustoElastic rhs(this->rhs_term_, this->rhs_elem_, this->rhs_wts_, this->rhs_termx_, this->rhs_termy_,
@@ -509,9 +532,10 @@ TYPED_TEST(AEsolverOnElemTest, updateSolutionBackwardWith3BuffersWorks) {
   auto ux_prevprev = allocateVector<vectorReal>(this->nNodes_, "uxPrevPrev");
   auto uy_prevprev = allocateVector<vectorReal>(this->nNodes_, "uyPrevPrev");
   auto uz_prevprev = allocateVector<vectorReal>(this->nNodes_, "uzPrevPrev");
-  for (int i = 0; i < this->nNodes_; ++i) {
-    p_prevprev(i) = ux_prevprev(i) = uy_prevprev(i) = uz_prevprev(i) = 0.0f;
-  }
+  Kokkos::deep_copy(p_prevprev, 0.0f);
+  Kokkos::deep_copy(ux_prevprev, 0.0f);
+  Kokkos::deep_copy(uy_prevprev, 0.0f);
+  Kokkos::deep_copy(uz_prevprev, 0.0f);
   WavefieldAcoustoElastic wf(p_prevprev, this->p_prev_, this->p_curr_, ux_prevprev, this->ux_prev_, this->ux_curr_,
                              uy_prevprev, this->uy_prev_, this->uy_curr_, uz_prevprev, this->uz_prev_, this->uz_curr_);
   RhsAcoustoElastic rhs(this->rhs_term_, this->rhs_elem_, this->rhs_wts_, this->rhs_termx_, this->rhs_termy_,
@@ -546,7 +570,7 @@ TYPED_TEST(AEsolverOnElemTest, BackwardInterfaceCouplingIsTheTransposeOfForward)
   // Damping would make the two denominators differ and is not what is tested.
   for (int c = 0; c < 4; ++c) {
     auto damping = this->solver_.getDampingMatrix(c);
-    for (int i = 0; i < this->nNodes_; ++i) damping(i) = 0.0f;
+    Kokkos::deep_copy(damping, 0.0f);
   }
   auto M_e = this->solver_.getMassMatrixElastic();
   auto M_f = this->solver_.getMassMatrixAcoustic();
@@ -555,8 +579,11 @@ TYPED_TEST(AEsolverOnElemTest, BackwardInterfaceCouplingIsTheTransposeOfForward)
   // Pick an interface node from the coupling coefficient itself: it is non-zero
   // exactly there, so no private index list is needed.
   int node = -1;
+  auto h_cz = toHost(cz);
+  auto h_m_e = toHost(M_e);
+  auto h_m_f = toHost(M_f);
   for (int i = 0; i < this->nNodes_ && node < 0; ++i)
-    if (std::fabs(cz(i)) > 0.0f && M_e(i) > 0.0f && M_f(i) > 0.0f) node = i;
+    if (std::fabs(h_cz(i)) > 0.0f && h_m_e(i) > 0.0f && h_m_f(i) > 0.0f) node = i;
   ASSERT_GE(node, 0) << "no interface node carries a coupling coefficient";
 
   constexpr float kDtC = 1.0f;  // no stiffness here, so dt is free; keeps dt^2 visible
@@ -566,35 +593,35 @@ TYPED_TEST(AEsolverOnElemTest, BackwardInterfaceCouplingIsTheTransposeOfForward)
 
   // d u_new_z / d p^n, forward: the new displacement level lives in prev.
   this->zeroWavefields();
-  this->p_curr_(node) = 1.0f;
+  setAt(this->p_curr_, 1.0f, node);
   this->solver_.ApplyInterfaceCoupling(kDtC, fwd, /*backward=*/false);
-  float const dU_dP_fwd = this->uz_prev_(node);
+  float const dU_dP_fwd = getAt(this->uz_prev_, node);
 
   // d p_new / d u_new_z, forward.
   this->zeroWavefields();
-  this->uz_prev_(node) = 1.0f;
+  setAt(this->uz_prev_, 1.0f, node);
   this->solver_.ApplyInterfaceCoupling(kDtC, fwd, /*backward=*/false);
-  float const dP_dU_fwd = this->p_prev_(node);
+  float const dP_dU_fwd = getAt(this->p_prev_, node);
 
   // d p_new / d u^n_z, backward: the new level lives in prevPrev.
   this->zeroWavefields();
-  this->uz_curr_(node) = 1.0f;
+  setAt(this->uz_curr_, 1.0f, node);
   this->solver_.ApplyInterfaceCoupling(kDtC, bwd, /*backward=*/true);
-  float const dP_dU_bwd = this->p_pp_(node);
+  float const dP_dU_bwd = getAt(this->p_pp_, node);
 
   // d u_new_z / d p_new, backward.
   this->zeroWavefields();
-  this->p_pp_(node) = 1.0f;
+  setAt(this->p_pp_, 1.0f, node);
   this->solver_.ApplyInterfaceCoupling(kDtC, bwd, /*backward=*/true);
-  float const dU_dP_bwd = this->uz_pp_(node);
+  float const dU_dP_bwd = getAt(this->uz_pp_, node);
 
   ASSERT_NE(dU_dP_fwd, 0.0f) << "the fluid never reached the solid; test is vacuous";
   ASSERT_NE(dP_dU_fwd, 0.0f) << "the solid never reached the fluid; test is vacuous";
 
-  float const lhs1 = M_e(node) * dU_dP_fwd;
-  float const rhs1 = M_f(node) * dP_dU_bwd;
-  float const lhs2 = M_f(node) * dP_dU_fwd;
-  float const rhs2 = M_e(node) * dU_dP_bwd;
+  float const lhs1 = getAt(M_e, node) * dU_dP_fwd;
+  float const rhs1 = getAt(M_f, node) * dP_dU_bwd;
+  float const lhs2 = getAt(M_f, node) * dP_dU_fwd;
+  float const rhs2 = getAt(M_e, node) * dU_dP_bwd;
 
   EXPECT_NEAR(lhs1, rhs1, 1e-5f * std::fabs(lhs1))
       << "Me du/dp (fwd) != Mf dp/du (bwd): the adjoint solid forcing is wrong";
@@ -602,8 +629,8 @@ TYPED_TEST(AEsolverOnElemTest, BackwardInterfaceCouplingIsTheTransposeOfForward)
       << "Mf dp/du (fwd) != Me du/dp (bwd): the adjoint fluid forcing is wrong";
 
   // Pin the closed forms too, so a matching pair of errors cannot pass.
-  EXPECT_NEAR(lhs1, -kDtC * kDtC * cz(node), 1e-5f * std::fabs(lhs1));
-  EXPECT_NEAR(lhs2, cz(node), 1e-5f * std::fabs(lhs2));
+  EXPECT_NEAR(lhs1, -kDtC * kDtC * getAt(cz, node), 1e-5f * std::fabs(lhs1));
+  EXPECT_NEAR(lhs2, getAt(cz, node), 1e-5f * std::fabs(lhs2));
 }
 
 // =============================================================================
@@ -627,8 +654,7 @@ TYPED_TEST(AEsolverOnElemTest, SetAnisotropyTypeDoesNotCrash) {
 
 TYPED_TEST(AEsolverOnElemTest, SetSLSAttenuationDoesNotCrash) {
   auto ref = allocateVector<vectorReal>(2, "sls_ref_ae");
-  ref(0) = 6.28f;
-  ref(1) = 62.8f;
+  fillFromList(ref, {6.28f, 62.8f});
   EXPECT_NO_THROW(this->solver_.setSLSAttenuation(ref));
 }
 
@@ -692,6 +718,9 @@ model::ModelStruct<float, int, ORDER> makeBilayerMeshOnNodes(float vs_on_interfa
           rho_node(n) = 1000.0f;
         }
       }
+  d.model_vp_node_.modify_host();
+  d.model_vs_node_.modify_host();
+  d.model_rho_node_.modify_host();
 
   return model::ModelStruct<float, int, ORDER>(d);
 }
@@ -725,12 +754,14 @@ class AEsolverOnNodesTest : public ::testing::Test {
     uy_curr_ = allocateVector<vectorReal>(nNodes_, "uyCurr_n");
     uz_prev_ = allocateVector<vectorReal>(nNodes_, "uzPrev_n");
     uz_curr_ = allocateVector<vectorReal>(nNodes_, "uzCurr_n");
-    for (int i = 0; i < nNodes_; ++i) {
-      p_prev_(i) = p_curr_(i) = 0.0f;
-      ux_prev_(i) = ux_curr_(i) = 0.0f;
-      uy_prev_(i) = uy_curr_(i) = 0.0f;
-      uz_prev_(i) = uz_curr_(i) = 0.0f;
-    }
+    Kokkos::deep_copy(p_prev_, 0.0f);
+    Kokkos::deep_copy(p_curr_, 0.0f);
+    Kokkos::deep_copy(ux_prev_, 0.0f);
+    Kokkos::deep_copy(ux_curr_, 0.0f);
+    Kokkos::deep_copy(uy_prev_, 0.0f);
+    Kokkos::deep_copy(uy_curr_, 0.0f);
+    Kokkos::deep_copy(uz_prev_, 0.0f);
+    Kokkos::deep_copy(uz_curr_, 0.0f);
 
     rhs_term_ = allocateArray2D<arrayReal>(1, kNumSamples, "rhsTerm_n");
     rhs_termx_ = allocateArray2D<arrayReal>(1, kNumSamples, "rhsTermX_n");
@@ -738,10 +769,12 @@ class AEsolverOnNodesTest : public ::testing::Test {
     rhs_termz_ = allocateArray2D<arrayReal>(1, kNumSamples, "rhsTermZ_n");
     rhs_elem_ = allocateVector<vectorInt>(1, "rhsElem_n");
     rhs_wts_ = allocateArray2D<arrayReal>(1, kNdof, "rhsWts_n");
-    rhs_elem_(0) = 0;
-    for (int t = 0; t < kNumSamples; ++t)
-      rhs_term_(0, t) = rhs_termx_(0, t) = rhs_termy_(0, t) = rhs_termz_(0, t) = 0.0f;
-    for (int k = 0; k < kNdof; ++k) rhs_wts_(0, k) = 0.0f;
+    Kokkos::deep_copy(rhs_elem_, 0);
+    Kokkos::deep_copy(rhs_term_, 0.0f);
+    Kokkos::deep_copy(rhs_termx_, 0.0f);
+    Kokkos::deep_copy(rhs_termy_, 0.0f);
+    Kokkos::deep_copy(rhs_termz_, 0.0f);
+    Kokkos::deep_copy(rhs_wts_, 0.0f);
   }
 
   SEMsolverDataAcoustoElastic makeData() const {
@@ -786,9 +819,11 @@ TYPED_TEST(AEsolverOnNodesTest, ComputeOneStepZeroFieldsStayNearZero) {
   this->solver_.computeOneStep(this->kDt, 0, data);
   FENCE
   float max_p = 0.0f, max_uz = 0.0f;
+  auto h_p_prev = toHost(this->p_prev_);
+  auto h_uz_prev = toHost(this->uz_prev_);
   for (int i = 0; i < this->nNodes_; ++i) {
-    max_p = std::fmax(max_p, std::fabs(this->p_prev_(i)));
-    max_uz = std::fmax(max_uz, std::fabs(this->uz_prev_(i)));
+    max_p = std::fmax(max_p, std::fabs(h_p_prev(i)));
+    max_uz = std::fmax(max_uz, std::fabs(h_uz_prev(i)));
   }
   EXPECT_NEAR(max_p, 0.0f, 1e-10f);
   EXPECT_NEAR(max_uz, 0.0f, 1e-10f);
@@ -803,9 +838,11 @@ TYPED_TEST(AEsolverOnNodesTest, MassMatricesNonZero) {
   float total_a = 0.0f, total_e = 0.0f;
   auto& ma = this->solver_.getMassMatrixAcoustic();
   auto& me = this->solver_.getMassMatrixElastic();
+  auto h_ma = toHost(ma);
+  auto h_me = toHost(me);
   for (int i = 0; i < this->nNodes_; ++i) {
-    total_a += ma[i];
-    total_e += me[i];
+    total_a += h_ma(i);
+    total_e += h_me(i);
   }
   EXPECT_GT(total_a, 0.0f);
   EXPECT_GT(total_e, 0.0f);
@@ -838,14 +875,20 @@ void runSeededSteps(float vs_on_interface, std::vector<float>& p_out, std::vecto
   auto uy_curr = allocateVector<vectorReal>(n, "uyCurr_c");
   auto uz_prev = allocateVector<vectorReal>(n, "uzPrev_c");
   auto uz_curr = allocateVector<vectorReal>(n, "uzCurr_c");
-  for (int i = 0; i < n; ++i) {
-    // A smooth, non-symmetric seed so every coupling term is exercised.
-    float const s = static_cast<float>(i % 7) / 7.0f;
-    p_prev(i) = p_curr(i) = s;
-    ux_prev(i) = ux_curr(i) = 0.5f * s;
-    uy_prev(i) = uy_curr(i) = -0.25f * s;
-    uz_prev(i) = uz_curr(i) = 0.75f * s;
-  }
+  // A smooth, non-symmetric seed so every coupling term is exercised.
+  auto seed = [&](vectorReal view, float factor) {
+    fillFromHost(view, [&](const auto& h) {
+      for (int i = 0; i < n; ++i) h(i) = factor * static_cast<float>(i % 7) / 7.0f;
+    });
+  };
+  seed(p_prev, 1.0f);
+  seed(p_curr, 1.0f);
+  seed(ux_prev, 0.5f);
+  seed(ux_curr, 0.5f);
+  seed(uy_prev, -0.25f);
+  seed(uy_curr, -0.25f);
+  seed(uz_prev, 0.75f);
+  seed(uz_curr, 0.75f);
 
   auto rhs_term = allocateArray2D<arrayReal>(1, kNumSamples, "rhsTerm_c");
   auto rhs_termx = allocateArray2D<arrayReal>(1, kNumSamples, "rhsTermX_c");
@@ -853,9 +896,12 @@ void runSeededSteps(float vs_on_interface, std::vector<float>& p_out, std::vecto
   auto rhs_termz = allocateArray2D<arrayReal>(1, kNumSamples, "rhsTermZ_c");
   auto rhs_elem = allocateVector<vectorInt>(1, "rhsElem_c");
   auto rhs_wts = allocateArray2D<arrayReal>(1, kNdof, "rhsWts_c");
-  rhs_elem(0) = 0;
-  for (int t = 0; t < kNumSamples; ++t) rhs_term(0, t) = rhs_termx(0, t) = rhs_termy(0, t) = rhs_termz(0, t) = 0.0f;
-  for (int k = 0; k < kNdof; ++k) rhs_wts(0, k) = 0.0f;
+  Kokkos::deep_copy(rhs_elem, 0);
+  Kokkos::deep_copy(rhs_term, 0.0f);
+  Kokkos::deep_copy(rhs_termx, 0.0f);
+  Kokkos::deep_copy(rhs_termy, 0.0f);
+  Kokkos::deep_copy(rhs_termz, 0.0f);
+  Kokkos::deep_copy(rhs_wts, 0.0f);
 
   WavefieldAcoustoElastic wf(p_prev, p_curr, ux_prev, ux_curr, uy_prev, uy_curr, uz_prev, uz_curr);
   RhsAcoustoElastic rhs(rhs_term, rhs_elem, rhs_wts, rhs_termx, rhs_termy, rhs_termz);
@@ -866,12 +912,10 @@ void runSeededSteps(float vs_on_interface, std::vector<float>& p_out, std::vecto
   solver.updateSolutionForward(dt, data);
   FENCE
 
-  p_out.assign(n, 0.0f);
-  uz_out.assign(n, 0.0f);
-  for (int i = 0; i < n; ++i) {
-    p_out[i] = p_prev(i);
-    uz_out[i] = uz_prev(i);
-  }
+  auto p_host = toHost(p_prev);
+  auto uz_host = toHost(uz_prev);
+  p_out.assign(p_host.data(), p_host.data() + n);
+  uz_out.assign(uz_host.data(), uz_host.data() + n);
 }
 
 }  // namespace
@@ -919,11 +963,9 @@ TYPED_TEST(AEsolverOnNodesTest, SolidOnInterfaceNodesSetsTheInterfaceElasticMass
   auto vp = allocateVector<vectorReal>(n, "solidVp");
   auto vs = allocateVector<vectorReal>(n, "solidVs");
   auto rho = allocateVector<vectorReal>(n, "solidRho");
-  for (int i = 0; i < n; ++i) {
-    vp(i) = 3000.0f;
-    vs(i) = 1500.0f;
-    rho(i) = 2500.0f;
-  }
+  Kokkos::deep_copy(vp, 3000.0f);
+  Kokkos::deep_copy(vs, 1500.0f);
+  Kokkos::deep_copy(rho, 2500.0f);
   SolverT given;
   given.setSolidOnInterfaceNodes(vp, vs, rho);
   given.computeFEInit(mesh_given, {0.0f, 0.0f, 0.0f}, false, 0.0f);
@@ -931,11 +973,13 @@ TYPED_TEST(AEsolverOnNodesTest, SolidOnInterfaceNodesSetsTheInterfaceElasticMass
 
   auto& m_borrowed = borrowed.getMassMatrixElastic();
   auto& m_given = given.getMassMatrixElastic();
+  auto h_borrowed = toHost(m_borrowed);
+  auto h_given = toHost(m_given);
   for (int iy = 0; iy < kN; ++iy)
     for (int ix = 0; ix < kN; ++ix) {
       int const i = ix + kN * (iy + kN * kOrder);
-      ASSERT_GT(m_borrowed[i], 0.0f);
-      EXPECT_NEAR(m_given[i] / m_borrowed[i], 2500.0f / 2000.0f, 1e-5f) << "interface node " << i;
+      ASSERT_GT(h_borrowed(i), 0.0f);
+      EXPECT_NEAR(h_given(i) / h_borrowed(i), 2500.0f / 2000.0f, 1e-5f) << "interface node " << i;
     }
 }
 

@@ -129,6 +129,10 @@ class DGSEMsolver : public Solver {
   /// @brief Classify each element as DG or SEM.
   void TagElements();
 
+  // Public because GPU kernels (extended lambdas) cannot live in private or protected methods.
+  /// @brief Build m_DG_interior_face_list_ from all DG faces minus the interface faces.
+  void BuildDGInteriorFaceList();
+
   /**
    * @brief Perform one coupled time step.
    *
@@ -188,9 +192,6 @@ class DGSEMsolver : public Solver {
   int m_n_DG_interior_faces_{0};  ///< Number of DG-DG faces, interface faces excluded.
   /// Indices of the DG-DG faces, interface faces excluded, size m_n_DG_interior_faces_.
   vectorInt m_DG_interior_face_list_;
-
-  /// @brief Build m_DG_interior_face_list_ from all DG faces minus the interface faces.
-  void BuildDGInteriorFaceList();
 
   float DG_SEM_interface_z_ = 1000.f;  ///< Z coordinate of the DG-SEM interface.
   ///< Element types given by the caller through setElementTags(). Empty unless set.

@@ -10,11 +10,16 @@
 
 #include "common_macros.h"
 #include "data_type.h"
+#include "device_view_access.h"
 #include "dg_padaptive_solver_data.h"
 
 namespace solver {
 namespace fe {
 namespace test {
+
+using test_utils::fillFromHost;
+using test_utils::getAt;
+using test_utils::toHost;
 
 class DGPAdaptiveSolverDataTest : public ::testing::Test {
  protected:
@@ -36,26 +41,39 @@ class DGPAdaptiveSolverDataTest : public ::testing::Test {
     rhsWeights_pmin = allocateArray2D<arrayReal>(nSrc_, nDof_min_, "rhsWeightsPMin");
     rhsWeights_pmax = allocateArray2D<arrayReal>(nSrc_, nDof_max_, "rhsWeightsPMax");
 
-    for (int e = 0; e < nElem_; ++e) {
-      for (int d = 0; d < nDof_min_; ++d) {
-        p_min_Prev(e, d) = static_cast<float>(e * nDof_min_ + d);
-        p_min_Curr(e, d) = static_cast<float>(e * nDof_min_ + d) * 2.0f;
-      }
-      for (int d = 0; d < nDof_max_; ++d) {
-        p_max_Prev(e, d) = static_cast<float>(e * nDof_max_ + d);
-        p_max_Curr(e, d) = static_cast<float>(e * nDof_max_ + d) * 2.0f;
-      }
-    }
+    fillFromHost(p_min_Prev, [&](const auto& h) {
+      for (int e = 0; e < nElem_; ++e)
+        for (int d = 0; d < nDof_min_; ++d) h(e, d) = static_cast<float>(e * nDof_min_ + d);
+    });
+    fillFromHost(p_min_Curr, [&](const auto& h) {
+      for (int e = 0; e < nElem_; ++e)
+        for (int d = 0; d < nDof_min_; ++d) h(e, d) = static_cast<float>(e * nDof_min_ + d) * 2.0f;
+    });
+    fillFromHost(p_max_Prev, [&](const auto& h) {
+      for (int e = 0; e < nElem_; ++e)
+        for (int d = 0; d < nDof_max_; ++d) h(e, d) = static_cast<float>(e * nDof_max_ + d);
+    });
+    fillFromHost(p_max_Curr, [&](const auto& h) {
+      for (int e = 0; e < nElem_; ++e)
+        for (int d = 0; d < nDof_max_; ++d) h(e, d) = static_cast<float>(e * nDof_max_ + d) * 2.0f;
+    });
 
-    for (int s = 0; s < nSrc_; ++s) {
-      rhsElem_(s) = s * 3;
-      for (int t = 0; t < nSample_; ++t) {
-        rhsTerm_pmin(s, t) = static_cast<float>(s * 10 + t);
-        rhsTerm_pmax(s, t) = static_cast<float>(s * 10 + t);
-      }
-      for (int d = 0; d < nDof_min_; ++d) rhsWeights_pmin(s, d) = static_cast<float>(d) * 0.1f;
-      for (int d = 0; d < nDof_max_; ++d) rhsWeights_pmax(s, d) = static_cast<float>(d) * 0.1f;
-    }
+    fillFromHost(rhsElem_, [&](const auto& h) {
+      for (int s = 0; s < nSrc_; ++s) h(s) = s * 3;
+    });
+    fillFromHost(rhsTerm_pmin, [&](const auto& h) {
+      for (int s = 0; s < nSrc_; ++s)
+        for (int t = 0; t < nSample_; ++t) h(s, t) = static_cast<float>(s * 10 + t);
+    });
+    Kokkos::deep_copy(rhsTerm_pmax, rhsTerm_pmin);
+    fillFromHost(rhsWeights_pmin, [&](const auto& h) {
+      for (int s = 0; s < nSrc_; ++s)
+        for (int d = 0; d < nDof_min_; ++d) h(s, d) = static_cast<float>(d) * 0.1f;
+    });
+    fillFromHost(rhsWeights_pmax, [&](const auto& h) {
+      for (int s = 0; s < nSrc_; ++s)
+        for (int d = 0; d < nDof_max_; ++d) h(s, d) = static_cast<float>(d) * 0.1f;
+    });
   }
 
   int nElem_, nDof_min_, nDof_max_, nNode_, nSrc_, nSample_;
@@ -102,25 +120,34 @@ TEST_F(DGPAdaptiveSolverDataTest, Constructor_DataValuesPreserved) {
 
   DGPAdaptiveSolverData data(wavefield, rhs);
 
+  auto h_pmin_prev0 = toHost(data.m_wavefield.getPMinPreviousField(0));
+  auto h_pmin_curr0 = toHost(data.m_wavefield.getPMinCurrentField(0));
+  auto h_pmax_prev0 = toHost(data.m_wavefield.getPMaxPreviousField(0));
+  auto h_pmax_curr0 = toHost(data.m_wavefield.getPMaxCurrentField(0));
   for (int e = 0; e < nElem_; ++e) {
     for (int d = 0; d < nDof_min_; ++d) {
-      EXPECT_FLOAT_EQ(data.m_wavefield.getPMinPreviousField(0)(e, d), static_cast<float>(e * nDof_min_ + d));
-      EXPECT_FLOAT_EQ(data.m_wavefield.getPMinCurrentField(0)(e, d), static_cast<float>(e * nDof_min_ + d) * 2.0f);
+      EXPECT_FLOAT_EQ(h_pmin_prev0(e, d), static_cast<float>(e * nDof_min_ + d));
+      EXPECT_FLOAT_EQ(h_pmin_curr0(e, d), static_cast<float>(e * nDof_min_ + d) * 2.0f);
     }
     for (int d = 0; d < nDof_max_; ++d) {
-      EXPECT_FLOAT_EQ(data.m_wavefield.getPMaxPreviousField(0)(e, d), static_cast<float>(e * nDof_max_ + d));
-      EXPECT_FLOAT_EQ(data.m_wavefield.getPMaxCurrentField(0)(e, d), static_cast<float>(e * nDof_max_ + d) * 2.0f);
+      EXPECT_FLOAT_EQ(h_pmax_prev0(e, d), static_cast<float>(e * nDof_max_ + d));
+      EXPECT_FLOAT_EQ(h_pmax_curr0(e, d), static_cast<float>(e * nDof_max_ + d) * 2.0f);
     }
   }
 
+  auto h_element = toHost(data.m_rhs.getElement());
+  auto h_term0 = toHost(data.m_rhs.getTerm(0));
+  auto h_term1 = toHost(data.m_rhs.getTerm(1));
+  auto h_weights0 = toHost(data.m_rhs.getWeights(0));
+  auto h_weights1 = toHost(data.m_rhs.getWeights(1));
   for (int s = 0; s < nSrc_; ++s) {
-    EXPECT_EQ(data.m_rhs.getElement()(s), s * 3);
+    EXPECT_EQ(h_element(s), s * 3);
     for (int t = 0; t < nSample_; ++t) {
-      EXPECT_FLOAT_EQ(data.m_rhs.getTerm(0)(s, t), static_cast<float>(s * 10 + t));  // PMin term
-      EXPECT_FLOAT_EQ(data.m_rhs.getTerm(1)(s, t), static_cast<float>(s * 10 + t));  // PMax term
+      EXPECT_FLOAT_EQ(h_term0(s, t), static_cast<float>(s * 10 + t));  // PMin term
+      EXPECT_FLOAT_EQ(h_term1(s, t), static_cast<float>(s * 10 + t));  // PMax term
     }
-    for (int d = 0; d < nDof_min_; ++d) EXPECT_FLOAT_EQ(data.m_rhs.getWeights(0)(s, d), static_cast<float>(d) * 0.1f);
-    for (int d = 0; d < nDof_max_; ++d) EXPECT_FLOAT_EQ(data.m_rhs.getWeights(1)(s, d), static_cast<float>(d) * 0.1f);
+    for (int d = 0; d < nDof_min_; ++d) EXPECT_FLOAT_EQ(h_weights0(s, d), static_cast<float>(d) * 0.1f);
+    for (int d = 0; d < nDof_max_; ++d) EXPECT_FLOAT_EQ(h_weights1(s, d), static_cast<float>(d) * 0.1f);
   }
 }
 
@@ -143,8 +170,8 @@ TEST_F(DGPAdaptiveSolverDataTest, GetCurrentField_ReturnsPnCurr) {
 
   DGPAdaptiveSolverData data(wavefield, rhs);
 
-  auto pmin_curr = data.m_wavefield.getPMinCurrentField(0);
-  auto pmax_curr = data.m_wavefield.getPMaxCurrentField(0);
+  auto pmin_curr = toHost(data.m_wavefield.getPMinCurrentField(0));
+  auto pmax_curr = toHost(data.m_wavefield.getPMaxCurrentField(0));
 
   ASSERT_EQ(pmin_curr.extent(0), static_cast<size_t>(nElem_));
   ASSERT_EQ(pmin_curr.extent(1), static_cast<size_t>(nDof_min_));
@@ -162,8 +189,8 @@ TEST_F(DGPAdaptiveSolverDataTest, GetPreviousField_ReturnsPnPrev) {
 
   DGPAdaptiveSolverData data(wavefield, rhs);
 
-  auto pmin_prev = data.m_wavefield.getPMinPreviousField(0);
-  auto pmax_prev = data.m_wavefield.getPMaxPreviousField(0);
+  auto pmin_prev = toHost(data.m_wavefield.getPMinPreviousField(0));
+  auto pmax_prev = toHost(data.m_wavefield.getPMaxPreviousField(0));
 
   ASSERT_EQ(pmin_prev.extent(0), static_cast<size_t>(nElem_));
   ASSERT_EQ(pmin_prev.extent(1), static_cast<size_t>(nDof_min_));
@@ -181,8 +208,8 @@ TEST_F(DGPAdaptiveSolverDataTest, GetRhsTerm_ReturnsTerm) {
 
   DGPAdaptiveSolverData data(wavefield, rhs);
 
-  auto pmin_term = data.m_rhs.getTerm(0);  // PMin term
-  auto pmax_term = data.m_rhs.getTerm(1);  // PMax term
+  auto pmin_term = toHost(data.m_rhs.getTerm(0));  // PMin term
+  auto pmax_term = toHost(data.m_rhs.getTerm(1));  // PMax term
 
   ASSERT_EQ(pmin_term.extent(0), static_cast<size_t>(nSrc_));
   ASSERT_EQ(pmin_term.extent(1), static_cast<size_t>(nSample_));
@@ -201,7 +228,7 @@ TEST_F(DGPAdaptiveSolverDataTest, GetRhsElement_ReturnsElem) {
 
   DGPAdaptiveSolverData data(wavefield, rhs);
 
-  auto elem = data.m_rhs.getElement();
+  auto elem = toHost(data.m_rhs.getElement());
 
   ASSERT_EQ(elem.extent(0), static_cast<size_t>(nSrc_));
   for (int s = 0; s < nSrc_; ++s) EXPECT_EQ(elem(s), s * 3);
@@ -213,8 +240,8 @@ TEST_F(DGPAdaptiveSolverDataTest, GetRhsWeights_ReturnsWeights) {
 
   DGPAdaptiveSolverData data(wavefield, rhs);
 
-  auto w_pmin = data.m_rhs.getWeights(0);
-  auto w_pmax = data.m_rhs.getWeights(1);
+  auto w_pmin = toHost(data.m_rhs.getWeights(0));
+  auto w_pmax = toHost(data.m_rhs.getWeights(1));
 
   ASSERT_EQ(w_pmin.extent(0), static_cast<size_t>(nSrc_));
   ASSERT_EQ(w_pmin.extent(1), static_cast<size_t>(nDof_min_));
@@ -236,17 +263,17 @@ TEST_F(DGPAdaptiveSolverDataTest, SwapWavefields_ExchangesPrevAndCurr) {
 
   DGPAdaptiveSolverData data(wavefield, rhs);
 
-  float const pmin_prev00 = data.m_wavefield.getPMinPreviousField(0)(0, 0);
-  float const pmin_curr00 = data.m_wavefield.getPMinCurrentField(0)(0, 0);
-  float const pmax_prev00 = data.m_wavefield.getPMaxPreviousField(0)(0, 0);
-  float const pmax_curr00 = data.m_wavefield.getPMaxCurrentField(0)(0, 0);
+  float const pmin_prev00 = getAt(data.m_wavefield.getPMinPreviousField(0), 0, 0);
+  float const pmin_curr00 = getAt(data.m_wavefield.getPMinCurrentField(0), 0, 0);
+  float const pmax_prev00 = getAt(data.m_wavefield.getPMaxPreviousField(0), 0, 0);
+  float const pmax_curr00 = getAt(data.m_wavefield.getPMaxCurrentField(0), 0, 0);
 
   data.swapWavefields();
 
-  EXPECT_FLOAT_EQ(data.m_wavefield.getPMinPreviousField(0)(0, 0), pmin_curr00);
-  EXPECT_FLOAT_EQ(data.m_wavefield.getPMinCurrentField(0)(0, 0), pmin_prev00);
-  EXPECT_FLOAT_EQ(data.m_wavefield.getPMaxPreviousField(0)(0, 0), pmax_curr00);
-  EXPECT_FLOAT_EQ(data.m_wavefield.getPMaxCurrentField(0)(0, 0), pmax_prev00);
+  EXPECT_FLOAT_EQ(getAt(data.m_wavefield.getPMinPreviousField(0), 0, 0), pmin_curr00);
+  EXPECT_FLOAT_EQ(getAt(data.m_wavefield.getPMinCurrentField(0), 0, 0), pmin_prev00);
+  EXPECT_FLOAT_EQ(getAt(data.m_wavefield.getPMaxPreviousField(0), 0, 0), pmax_curr00);
+  EXPECT_FLOAT_EQ(getAt(data.m_wavefield.getPMaxCurrentField(0), 0, 0), pmax_prev00);
 }
 
 TEST_F(DGPAdaptiveSolverDataTest, SwapWavefields_TwiceRestoresOriginal) {
@@ -255,18 +282,18 @@ TEST_F(DGPAdaptiveSolverDataTest, SwapWavefields_TwiceRestoresOriginal) {
 
   DGPAdaptiveSolverData data(wavefield, rhs);
 
-  float const pmin_prev00 = data.m_wavefield.getPMinPreviousField(0)(0, 0);
-  float const pmin_curr00 = data.m_wavefield.getPMinCurrentField(0)(0, 0);
-  float const pmax_prev00 = data.m_wavefield.getPMaxPreviousField(0)(0, 0);
-  float const pmax_curr00 = data.m_wavefield.getPMaxCurrentField(0)(0, 0);
+  float const pmin_prev00 = getAt(data.m_wavefield.getPMinPreviousField(0), 0, 0);
+  float const pmin_curr00 = getAt(data.m_wavefield.getPMinCurrentField(0), 0, 0);
+  float const pmax_prev00 = getAt(data.m_wavefield.getPMaxPreviousField(0), 0, 0);
+  float const pmax_curr00 = getAt(data.m_wavefield.getPMaxCurrentField(0), 0, 0);
 
   data.swapWavefields();
   data.swapWavefields();
 
-  EXPECT_FLOAT_EQ(data.m_wavefield.getPMinPreviousField(0)(0, 0), pmin_prev00);
-  EXPECT_FLOAT_EQ(data.m_wavefield.getPMinCurrentField(0)(0, 0), pmin_curr00);
-  EXPECT_FLOAT_EQ(data.m_wavefield.getPMaxPreviousField(0)(0, 0), pmax_prev00);
-  EXPECT_FLOAT_EQ(data.m_wavefield.getPMaxCurrentField(0)(0, 0), pmax_curr00);
+  EXPECT_FLOAT_EQ(getAt(data.m_wavefield.getPMinPreviousField(0), 0, 0), pmin_prev00);
+  EXPECT_FLOAT_EQ(getAt(data.m_wavefield.getPMinCurrentField(0), 0, 0), pmin_curr00);
+  EXPECT_FLOAT_EQ(getAt(data.m_wavefield.getPMaxPreviousField(0), 0, 0), pmax_prev00);
+  EXPECT_FLOAT_EQ(getAt(data.m_wavefield.getPMaxCurrentField(0), 0, 0), pmax_curr00);
 }
 
 TEST_F(DGPAdaptiveSolverDataTest, SwapWavefields_IsShallowHandleSwap) {
@@ -279,11 +306,11 @@ TEST_F(DGPAdaptiveSolverDataTest, SwapWavefields_IsShallowHandleSwap) {
   data.swapWavefields();
 
   // pnPrev now references the old pCurr_ allocation
-  EXPECT_FLOAT_EQ(data.m_wavefield.getPMinPreviousField(0)(0, 0), p_min_Curr(0, 0));
-  EXPECT_FLOAT_EQ(data.m_wavefield.getPMaxPreviousField(0)(0, 0), p_max_Curr(0, 0));
+  EXPECT_FLOAT_EQ(getAt(data.m_wavefield.getPMinPreviousField(0), 0, 0), getAt(p_min_Curr, 0, 0));
+  EXPECT_FLOAT_EQ(getAt(data.m_wavefield.getPMaxPreviousField(0), 0, 0), getAt(p_max_Curr, 0, 0));
   // pnCurr now references the old pPrev_ allocation
-  EXPECT_FLOAT_EQ(data.m_wavefield.getPMinCurrentField(0)(0, 0), p_min_Prev(0, 0));
-  EXPECT_FLOAT_EQ(data.m_wavefield.getPMaxCurrentField(0)(0, 0), p_max_Prev(0, 0));
+  EXPECT_FLOAT_EQ(getAt(data.m_wavefield.getPMinCurrentField(0), 0, 0), getAt(p_min_Prev, 0, 0));
+  EXPECT_FLOAT_EQ(getAt(data.m_wavefield.getPMaxCurrentField(0), 0, 0), getAt(p_max_Prev, 0, 0));
 }
 
 TEST_F(DGPAdaptiveSolverDataTest, SwapWavefields_AllElementsSwapped) {
@@ -294,14 +321,22 @@ TEST_F(DGPAdaptiveSolverDataTest, SwapWavefields_AllElementsSwapped) {
 
   data.swapWavefields();
 
+  auto h_pmin_prev0 = toHost(data.m_wavefield.getPMinPreviousField(0));
+  auto h_p_min_curr = toHost(p_min_Curr);
+  auto h_pmin_curr0 = toHost(data.m_wavefield.getPMinCurrentField(0));
+  auto h_p_min_prev = toHost(p_min_Prev);
+  auto h_pmax_prev0 = toHost(data.m_wavefield.getPMaxPreviousField(0));
+  auto h_p_max_curr = toHost(p_max_Curr);
+  auto h_pmax_curr0 = toHost(data.m_wavefield.getPMaxCurrentField(0));
+  auto h_p_max_prev = toHost(p_max_Prev);
   for (int e = 0; e < nElem_; ++e) {
     for (int d = 0; d < nDof_min_; ++d) {
-      EXPECT_FLOAT_EQ(data.m_wavefield.getPMinPreviousField(0)(e, d), p_min_Curr(e, d));
-      EXPECT_FLOAT_EQ(data.m_wavefield.getPMinCurrentField(0)(e, d), p_min_Prev(e, d));
+      EXPECT_FLOAT_EQ(h_pmin_prev0(e, d), h_p_min_curr(e, d));
+      EXPECT_FLOAT_EQ(h_pmin_curr0(e, d), h_p_min_prev(e, d));
     }
     for (int d = 0; d < nDof_max_; ++d) {
-      EXPECT_FLOAT_EQ(data.m_wavefield.getPMaxPreviousField(0)(e, d), p_max_Curr(e, d));
-      EXPECT_FLOAT_EQ(data.m_wavefield.getPMaxCurrentField(0)(e, d), p_max_Prev(e, d));
+      EXPECT_FLOAT_EQ(h_pmax_prev0(e, d), h_p_max_curr(e, d));
+      EXPECT_FLOAT_EQ(h_pmax_curr0(e, d), h_p_max_prev(e, d));
     }
   }
 }

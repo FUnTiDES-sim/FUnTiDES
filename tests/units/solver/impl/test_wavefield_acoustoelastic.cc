@@ -2,11 +2,17 @@
 
 #include "common_macros.h"
 #include "data_type.h"
+#include "device_view_access.h"
 #include "wavefield_acoustoelastic.h"
 
 namespace solver {
 namespace fe {
 namespace test {
+
+using test_utils::fillFromHost;
+using test_utils::getAt;
+using test_utils::setAt;
+using test_utils::toHost;
 
 class WavefieldAcoustoElasticTest : public ::testing::Test {
  protected:
@@ -32,27 +38,55 @@ class WavefieldAcoustoElasticTest : public ::testing::Test {
     uzPrev2 = allocateVector<vectorReal>(size2, "uzPrev2");
     uzCurr2 = allocateVector<vectorReal>(size2, "uzCurr2");
 
-    for (size_t i = 0; i < size1; ++i) {
-      pPrev(i) = i;
-      pCurr(i) = i * 2;
-      uxPrev(i) = i * 3;
-      uxCurr(i) = i * 4;
-      uyPrev(i) = i * 5;
-      uyCurr(i) = i * 6;
-      uzPrev(i) = i * 7;
-      uzCurr(i) = i * 8;
-    }
+    fillFromHost(pPrev, [&](const auto& h) {
+      for (size_t i = 0; i < size1; ++i) h(i) = i;
+    });
+    fillFromHost(pCurr, [&](const auto& h) {
+      for (size_t i = 0; i < size1; ++i) h(i) = i * 2;
+    });
+    fillFromHost(uxPrev, [&](const auto& h) {
+      for (size_t i = 0; i < size1; ++i) h(i) = i * 3;
+    });
+    fillFromHost(uxCurr, [&](const auto& h) {
+      for (size_t i = 0; i < size1; ++i) h(i) = i * 4;
+    });
+    fillFromHost(uyPrev, [&](const auto& h) {
+      for (size_t i = 0; i < size1; ++i) h(i) = i * 5;
+    });
+    fillFromHost(uyCurr, [&](const auto& h) {
+      for (size_t i = 0; i < size1; ++i) h(i) = i * 6;
+    });
+    fillFromHost(uzPrev, [&](const auto& h) {
+      for (size_t i = 0; i < size1; ++i) h(i) = i * 7;
+    });
+    fillFromHost(uzCurr, [&](const auto& h) {
+      for (size_t i = 0; i < size1; ++i) h(i) = i * 8;
+    });
 
-    for (size_t i = 0; i < size2; ++i) {
-      pPrev2(i) = i * 9;
-      pCurr2(i) = i * 10;
-      uxPrev2(i) = i * 11;
-      uxCurr2(i) = i * 12;
-      uyPrev2(i) = i * 13;
-      uyCurr2(i) = i * 14;
-      uzPrev2(i) = i * 15;
-      uzCurr2(i) = i * 16;
-    }
+    fillFromHost(pPrev2, [&](const auto& h) {
+      for (size_t i = 0; i < size2; ++i) h(i) = i * 9;
+    });
+    fillFromHost(pCurr2, [&](const auto& h) {
+      for (size_t i = 0; i < size2; ++i) h(i) = i * 10;
+    });
+    fillFromHost(uxPrev2, [&](const auto& h) {
+      for (size_t i = 0; i < size2; ++i) h(i) = i * 11;
+    });
+    fillFromHost(uxCurr2, [&](const auto& h) {
+      for (size_t i = 0; i < size2; ++i) h(i) = i * 12;
+    });
+    fillFromHost(uyPrev2, [&](const auto& h) {
+      for (size_t i = 0; i < size2; ++i) h(i) = i * 13;
+    });
+    fillFromHost(uyCurr2, [&](const auto& h) {
+      for (size_t i = 0; i < size2; ++i) h(i) = i * 14;
+    });
+    fillFromHost(uzPrev2, [&](const auto& h) {
+      for (size_t i = 0; i < size2; ++i) h(i) = i * 15;
+    });
+    fillFromHost(uzCurr2, [&](const auto& h) {
+      for (size_t i = 0; i < size2; ++i) h(i) = i * 16;
+    });
   }
 
   size_t size1;
@@ -79,15 +113,23 @@ TEST_F(WavefieldAcoustoElasticTest, Constructor) {
   EXPECT_EQ(wf.m_elastic.m_uznGlobalPrev.extent(0), size1);
   EXPECT_EQ(wf.m_elastic.m_uznGlobalCurr.extent(0), size1);
 
+  auto p_prev = toHost(wf.m_acoustic.m_pnGlobalPrev);
+  auto p_curr = toHost(wf.m_acoustic.m_pnGlobalCurr);
+  auto ux_prev = toHost(wf.m_elastic.m_uxnGlobalPrev);
+  auto ux_curr = toHost(wf.m_elastic.m_uxnGlobalCurr);
+  auto uy_prev = toHost(wf.m_elastic.m_uynGlobalPrev);
+  auto uy_curr = toHost(wf.m_elastic.m_uynGlobalCurr);
+  auto uz_prev = toHost(wf.m_elastic.m_uznGlobalPrev);
+  auto uz_curr = toHost(wf.m_elastic.m_uznGlobalCurr);
   for (size_t i = 0; i < size1; ++i) {
-    EXPECT_FLOAT_EQ(wf.m_acoustic.m_pnGlobalPrev(i), i);
-    EXPECT_FLOAT_EQ(wf.m_acoustic.m_pnGlobalCurr(i), i * 2);
-    EXPECT_FLOAT_EQ(wf.m_elastic.m_uxnGlobalPrev(i), i * 3);
-    EXPECT_FLOAT_EQ(wf.m_elastic.m_uxnGlobalCurr(i), i * 4);
-    EXPECT_FLOAT_EQ(wf.m_elastic.m_uynGlobalPrev(i), i * 5);
-    EXPECT_FLOAT_EQ(wf.m_elastic.m_uynGlobalCurr(i), i * 6);
-    EXPECT_FLOAT_EQ(wf.m_elastic.m_uznGlobalPrev(i), i * 7);
-    EXPECT_FLOAT_EQ(wf.m_elastic.m_uznGlobalCurr(i), i * 8);
+    EXPECT_FLOAT_EQ(p_prev(i), i);
+    EXPECT_FLOAT_EQ(p_curr(i), i * 2);
+    EXPECT_FLOAT_EQ(ux_prev(i), i * 3);
+    EXPECT_FLOAT_EQ(ux_curr(i), i * 4);
+    EXPECT_FLOAT_EQ(uy_prev(i), i * 5);
+    EXPECT_FLOAT_EQ(uy_curr(i), i * 6);
+    EXPECT_FLOAT_EQ(uz_prev(i), i * 7);
+    EXPECT_FLOAT_EQ(uz_curr(i), i * 8);
   }
 }
 
@@ -108,10 +150,10 @@ TEST_F(WavefieldAcoustoElasticTest, GetFieldNames) {
 TEST_F(WavefieldAcoustoElasticTest, GetCurrentField) {
   WavefieldAcoustoElastic wf(pPrev, pCurr, uxPrev, uxCurr, uyPrev, uyCurr, uzPrev, uzCurr);
 
-  auto p = wf.getCurrentField(0);
-  auto ux = wf.getCurrentField(1);
-  auto uy = wf.getCurrentField(2);
-  auto uz = wf.getCurrentField(3);
+  auto p = toHost(wf.getCurrentField(0));
+  auto ux = toHost(wf.getCurrentField(1));
+  auto uy = toHost(wf.getCurrentField(2));
+  auto uz = toHost(wf.getCurrentField(3));
 
   for (size_t i = 0; i < size1; ++i) {
     EXPECT_FLOAT_EQ(p(i), i * 2);
@@ -124,10 +166,10 @@ TEST_F(WavefieldAcoustoElasticTest, GetCurrentField) {
 TEST_F(WavefieldAcoustoElasticTest, GetPreviousField) {
   WavefieldAcoustoElastic wf(pPrev, pCurr, uxPrev, uxCurr, uyPrev, uyCurr, uzPrev, uzCurr);
 
-  auto p = wf.getPreviousField(0);
-  auto ux = wf.getPreviousField(1);
-  auto uy = wf.getPreviousField(2);
-  auto uz = wf.getPreviousField(3);
+  auto p = toHost(wf.getPreviousField(0));
+  auto ux = toHost(wf.getPreviousField(1));
+  auto uy = toHost(wf.getPreviousField(2));
+  auto uz = toHost(wf.getPreviousField(3));
 
   for (size_t i = 0; i < size1; ++i) {
     EXPECT_FLOAT_EQ(p(i), i);
@@ -142,15 +184,23 @@ TEST_F(WavefieldAcoustoElasticTest, Swap) {
 
   wf.swap();
 
+  auto p_prev = toHost(wf.m_acoustic.m_pnGlobalPrev);
+  auto p_curr = toHost(wf.m_acoustic.m_pnGlobalCurr);
+  auto ux_prev = toHost(wf.m_elastic.m_uxnGlobalPrev);
+  auto ux_curr = toHost(wf.m_elastic.m_uxnGlobalCurr);
+  auto uy_prev = toHost(wf.m_elastic.m_uynGlobalPrev);
+  auto uy_curr = toHost(wf.m_elastic.m_uynGlobalCurr);
+  auto uz_prev = toHost(wf.m_elastic.m_uznGlobalPrev);
+  auto uz_curr = toHost(wf.m_elastic.m_uznGlobalCurr);
   for (size_t i = 0; i < size1; ++i) {
-    EXPECT_FLOAT_EQ(wf.m_acoustic.m_pnGlobalPrev(i), i * 2);
-    EXPECT_FLOAT_EQ(wf.m_acoustic.m_pnGlobalCurr(i), i);
-    EXPECT_FLOAT_EQ(wf.m_elastic.m_uxnGlobalPrev(i), i * 4);
-    EXPECT_FLOAT_EQ(wf.m_elastic.m_uxnGlobalCurr(i), i * 3);
-    EXPECT_FLOAT_EQ(wf.m_elastic.m_uynGlobalPrev(i), i * 6);
-    EXPECT_FLOAT_EQ(wf.m_elastic.m_uynGlobalCurr(i), i * 5);
-    EXPECT_FLOAT_EQ(wf.m_elastic.m_uznGlobalPrev(i), i * 8);
-    EXPECT_FLOAT_EQ(wf.m_elastic.m_uznGlobalCurr(i), i * 7);
+    EXPECT_FLOAT_EQ(p_prev(i), i * 2);
+    EXPECT_FLOAT_EQ(p_curr(i), i);
+    EXPECT_FLOAT_EQ(ux_prev(i), i * 4);
+    EXPECT_FLOAT_EQ(ux_curr(i), i * 3);
+    EXPECT_FLOAT_EQ(uy_prev(i), i * 6);
+    EXPECT_FLOAT_EQ(uy_curr(i), i * 5);
+    EXPECT_FLOAT_EQ(uz_prev(i), i * 8);
+    EXPECT_FLOAT_EQ(uz_curr(i), i * 7);
   }
 }
 
@@ -160,15 +210,23 @@ TEST_F(WavefieldAcoustoElasticTest, SwapTwiceRestoresState) {
   wf.swap();
   wf.swap();
 
+  auto p_prev = toHost(wf.m_acoustic.m_pnGlobalPrev);
+  auto p_curr = toHost(wf.m_acoustic.m_pnGlobalCurr);
+  auto ux_prev = toHost(wf.m_elastic.m_uxnGlobalPrev);
+  auto ux_curr = toHost(wf.m_elastic.m_uxnGlobalCurr);
+  auto uy_prev = toHost(wf.m_elastic.m_uynGlobalPrev);
+  auto uy_curr = toHost(wf.m_elastic.m_uynGlobalCurr);
+  auto uz_prev = toHost(wf.m_elastic.m_uznGlobalPrev);
+  auto uz_curr = toHost(wf.m_elastic.m_uznGlobalCurr);
   for (size_t i = 0; i < size1; ++i) {
-    EXPECT_FLOAT_EQ(wf.m_acoustic.m_pnGlobalPrev(i), i);
-    EXPECT_FLOAT_EQ(wf.m_acoustic.m_pnGlobalCurr(i), i * 2);
-    EXPECT_FLOAT_EQ(wf.m_elastic.m_uxnGlobalPrev(i), i * 3);
-    EXPECT_FLOAT_EQ(wf.m_elastic.m_uxnGlobalCurr(i), i * 4);
-    EXPECT_FLOAT_EQ(wf.m_elastic.m_uynGlobalPrev(i), i * 5);
-    EXPECT_FLOAT_EQ(wf.m_elastic.m_uynGlobalCurr(i), i * 6);
-    EXPECT_FLOAT_EQ(wf.m_elastic.m_uznGlobalPrev(i), i * 7);
-    EXPECT_FLOAT_EQ(wf.m_elastic.m_uznGlobalCurr(i), i * 8);
+    EXPECT_FLOAT_EQ(p_prev(i), i);
+    EXPECT_FLOAT_EQ(p_curr(i), i * 2);
+    EXPECT_FLOAT_EQ(ux_prev(i), i * 3);
+    EXPECT_FLOAT_EQ(ux_curr(i), i * 4);
+    EXPECT_FLOAT_EQ(uy_prev(i), i * 5);
+    EXPECT_FLOAT_EQ(uy_curr(i), i * 6);
+    EXPECT_FLOAT_EQ(uz_prev(i), i * 7);
+    EXPECT_FLOAT_EQ(uz_curr(i), i * 8);
   }
 }
 
@@ -177,12 +235,10 @@ TEST_F(WavefieldAcoustoElasticTest, SwapWithThreeBuffersAcoustic) {
   auto uxPrevPrev = allocateVector<vectorReal>(size1, "uxPrevPrev");
   auto uyPrevPrev = allocateVector<vectorReal>(size1, "uyPrevPrev");
   auto uzPrevPrev = allocateVector<vectorReal>(size1, "uzPrevPrev");
-  for (size_t i = 0; i < size1; ++i) {
-    pPrevPrev(i) = 10.0f;
-    uxPrevPrev(i) = 100.0f;
-    uyPrevPrev(i) = 200.0f;
-    uzPrevPrev(i) = 300.0f;
-  }
+  Kokkos::deep_copy(pPrevPrev, 10.0f);
+  Kokkos::deep_copy(uxPrevPrev, 100.0f);
+  Kokkos::deep_copy(uyPrevPrev, 200.0f);
+  Kokkos::deep_copy(uzPrevPrev, 300.0f);
 
   WavefieldAcoustoElastic wf(pPrevPrev, pPrev, pCurr, uxPrevPrev, uxPrev, uxCurr, uyPrevPrev, uyPrev, uyCurr,
                              uzPrevPrev, uzPrev, uzCurr);
@@ -192,14 +248,20 @@ TEST_F(WavefieldAcoustoElasticTest, SwapWithThreeBuffersAcoustic) {
 
   // After 3-way rotation:
   // curr ← old prevPrev, prev ← old curr, prevPrev ← old prev
+  auto p_curr = toHost(wf.m_acoustic.m_pnGlobalCurr);
+  auto p_prev = toHost(wf.m_acoustic.m_pnGlobalPrev);
+  auto p_prevprev = toHost(wf.getPrevPrevField(0));
+  auto ux_curr = toHost(wf.m_elastic.m_uxnGlobalCurr);
+  auto ux_prev = toHost(wf.m_elastic.m_uxnGlobalPrev);
+  auto ux_prevprev = toHost(wf.getPrevPrevField(1));
   for (size_t i = 0; i < size1; ++i) {
-    EXPECT_FLOAT_EQ(wf.m_acoustic.m_pnGlobalCurr(i), 10.0f);
-    EXPECT_FLOAT_EQ(wf.m_acoustic.m_pnGlobalPrev(i), i * 2);
-    EXPECT_FLOAT_EQ(wf.getPrevPrevField(0)(i), static_cast<float>(i));
+    EXPECT_FLOAT_EQ(p_curr(i), 10.0f);
+    EXPECT_FLOAT_EQ(p_prev(i), i * 2);
+    EXPECT_FLOAT_EQ(p_prevprev(i), static_cast<float>(i));
 
-    EXPECT_FLOAT_EQ(wf.m_elastic.m_uxnGlobalCurr(i), 100.0f);
-    EXPECT_FLOAT_EQ(wf.m_elastic.m_uxnGlobalPrev(i), i * 4);
-    EXPECT_FLOAT_EQ(wf.getPrevPrevField(1)(i), i * 3);
+    EXPECT_FLOAT_EQ(ux_curr(i), 100.0f);
+    EXPECT_FLOAT_EQ(ux_prev(i), i * 4);
+    EXPECT_FLOAT_EQ(ux_prevprev(i), i * 3);
   }
 }
 
@@ -208,12 +270,10 @@ TEST_F(WavefieldAcoustoElasticTest, SwapWithThreeBuffersElastic) {
   auto uxPrevPrev = allocateVector<vectorReal>(size1, "uxPrevPrev");
   auto uyPrevPrev = allocateVector<vectorReal>(size1, "uyPrevPrev");
   auto uzPrevPrev = allocateVector<vectorReal>(size1, "uzPrevPrev");
-  for (size_t i = 0; i < size1; ++i) {
-    pPrevPrev(i) = 10.0f;
-    uxPrevPrev(i) = 20.0f;
-    uyPrevPrev(i) = 30.0f;
-    uzPrevPrev(i) = 40.0f;
-  }
+  Kokkos::deep_copy(pPrevPrev, 10.0f);
+  Kokkos::deep_copy(uxPrevPrev, 20.0f);
+  Kokkos::deep_copy(uyPrevPrev, 30.0f);
+  Kokkos::deep_copy(uzPrevPrev, 40.0f);
 
   WavefieldAcoustoElastic wf(pPrevPrev, pPrev, pCurr, uxPrevPrev, uxPrev, uxCurr, uyPrevPrev, uyPrev, uyCurr,
                              uzPrevPrev, uzPrev, uzCurr);
@@ -222,17 +282,22 @@ TEST_F(WavefieldAcoustoElasticTest, SwapWithThreeBuffersElastic) {
   wf.swap();
 
   // After 3-way rotation, verify all elastic components rotated correctly
+  auto ux_curr = toHost(wf.m_elastic.m_uxnGlobalCurr);
+  auto ux_prev = toHost(wf.m_elastic.m_uxnGlobalPrev);
+  auto ux_prevprev = toHost(wf.getPrevPrevField(1));
+  auto uy_curr = toHost(wf.m_elastic.m_uynGlobalCurr);
+  auto uz_curr = toHost(wf.m_elastic.m_uznGlobalCurr);
   for (size_t i = 0; i < size1; ++i) {
-    EXPECT_FLOAT_EQ(wf.m_elastic.m_uxnGlobalCurr(i), 20.0f);
-    EXPECT_FLOAT_EQ(wf.m_elastic.m_uxnGlobalPrev(i), i * 4);
-    EXPECT_FLOAT_EQ(wf.getPrevPrevField(1)(i), i * 3);
+    EXPECT_FLOAT_EQ(ux_curr(i), 20.0f);
+    EXPECT_FLOAT_EQ(ux_prev(i), i * 4);
+    EXPECT_FLOAT_EQ(ux_prevprev(i), i * 3);
 
-    EXPECT_FLOAT_EQ(wf.m_elastic.m_uynGlobalCurr(i), 30.0f);
-    EXPECT_FLOAT_EQ(wf.m_elastic.m_uznGlobalCurr(i), 40.0f);
+    EXPECT_FLOAT_EQ(uy_curr(i), 30.0f);
+    EXPECT_FLOAT_EQ(uz_curr(i), 40.0f);
   }
   // Acoustic also rotated
-  EXPECT_FLOAT_EQ(wf.m_acoustic.m_pnGlobalCurr(1), 10.0f);
-  EXPECT_FLOAT_EQ(wf.m_acoustic.m_pnGlobalPrev(1), 2.0f);
+  EXPECT_FLOAT_EQ(getAt(wf.m_acoustic.m_pnGlobalCurr, 1), 10.0f);
+  EXPECT_FLOAT_EQ(getAt(wf.m_acoustic.m_pnGlobalPrev, 1), 2.0f);
 }
 
 TEST_F(WavefieldAcoustoElasticTest, CopyConstructor) {
@@ -242,18 +307,22 @@ TEST_F(WavefieldAcoustoElasticTest, CopyConstructor) {
   EXPECT_EQ(copy.m_acoustic.m_pnGlobalPrev.extent(0), size1);
   EXPECT_EQ(copy.m_elastic.m_uxnGlobalPrev.extent(0), size1);
 
+  auto copy_p_prev = toHost(copy.m_acoustic.m_pnGlobalPrev);
+  auto original_p_prev = toHost(original.m_acoustic.m_pnGlobalPrev);
+  auto copy_ux_curr = toHost(copy.m_elastic.m_uxnGlobalCurr);
+  auto original_ux_curr = toHost(original.m_elastic.m_uxnGlobalCurr);
   for (size_t i = 0; i < size1; ++i) {
-    EXPECT_FLOAT_EQ(copy.m_acoustic.m_pnGlobalPrev(i), original.m_acoustic.m_pnGlobalPrev(i));
-    EXPECT_FLOAT_EQ(copy.m_elastic.m_uxnGlobalCurr(i), original.m_elastic.m_uxnGlobalCurr(i));
+    EXPECT_FLOAT_EQ(copy_p_prev(i), original_p_prev(i));
+    EXPECT_FLOAT_EQ(copy_ux_curr(i), original_ux_curr(i));
   }
 
   // Kokkos views are shallow: modifying original affects copy
-  original.m_acoustic.m_pnGlobalPrev(0) = 999.0f;
-  EXPECT_FLOAT_EQ(copy.m_acoustic.m_pnGlobalPrev(0), 999.0f);
-  original.m_elastic.m_uxnGlobalCurr(0) = 888.0f;
-  EXPECT_FLOAT_EQ(copy.m_elastic.m_uxnGlobalCurr(0), 888.0f);
-  original.m_elastic.m_uynGlobalPrev(0) = 777.0f;
-  EXPECT_FLOAT_EQ(copy.m_elastic.m_uynGlobalPrev(0), 777.0f);
+  setAt(original.m_acoustic.m_pnGlobalPrev, 999.0f, 0);
+  EXPECT_FLOAT_EQ(getAt(copy.m_acoustic.m_pnGlobalPrev, 0), 999.0f);
+  setAt(original.m_elastic.m_uxnGlobalCurr, 888.0f, 0);
+  EXPECT_FLOAT_EQ(getAt(copy.m_elastic.m_uxnGlobalCurr, 0), 888.0f);
+  setAt(original.m_elastic.m_uynGlobalPrev, 777.0f, 0);
+  EXPECT_FLOAT_EQ(getAt(copy.m_elastic.m_uynGlobalPrev, 0), 777.0f);
 }
 
 TEST_F(WavefieldAcoustoElasticTest, CopyAssignmentOperator) {
@@ -268,10 +337,10 @@ TEST_F(WavefieldAcoustoElasticTest, CopyAssignmentOperator) {
   EXPECT_EQ(wf2.m_elastic.m_uxnGlobalPrev.extent(0), size1);
 
   // Shallow copy after assignment
-  wf1.m_acoustic.m_pnGlobalPrev(0) = 777.0f;
-  EXPECT_FLOAT_EQ(wf2.m_acoustic.m_pnGlobalPrev(0), 777.0f);
-  wf1.m_elastic.m_uznGlobalCurr(0) = 666.0f;
-  EXPECT_FLOAT_EQ(wf2.m_elastic.m_uznGlobalCurr(0), 666.0f);
+  setAt(wf1.m_acoustic.m_pnGlobalPrev, 777.0f, 0);
+  EXPECT_FLOAT_EQ(getAt(wf2.m_acoustic.m_pnGlobalPrev, 0), 777.0f);
+  setAt(wf1.m_elastic.m_uznGlobalCurr, 666.0f, 0);
+  EXPECT_FLOAT_EQ(getAt(wf2.m_elastic.m_uznGlobalCurr, 0), 666.0f);
 }
 
 TEST_F(WavefieldAcoustoElasticTest, CopyAssignmentSelfAssignment) {
@@ -282,11 +351,15 @@ TEST_F(WavefieldAcoustoElasticTest, CopyAssignmentSelfAssignment) {
   EXPECT_EQ(wf.m_acoustic.m_pnGlobalPrev.extent(0), size1);
   EXPECT_EQ(wf.m_elastic.m_uxnGlobalPrev.extent(0), size1);
 
+  auto p_prev = toHost(wf.m_acoustic.m_pnGlobalPrev);
+  auto p_curr = toHost(wf.m_acoustic.m_pnGlobalCurr);
+  auto ux_prev = toHost(wf.m_elastic.m_uxnGlobalPrev);
+  auto uz_curr = toHost(wf.m_elastic.m_uznGlobalCurr);
   for (size_t i = 0; i < size1; ++i) {
-    EXPECT_FLOAT_EQ(wf.m_acoustic.m_pnGlobalPrev(i), i);
-    EXPECT_FLOAT_EQ(wf.m_acoustic.m_pnGlobalCurr(i), i * 2);
-    EXPECT_FLOAT_EQ(wf.m_elastic.m_uxnGlobalPrev(i), i * 3);
-    EXPECT_FLOAT_EQ(wf.m_elastic.m_uznGlobalCurr(i), i * 8);
+    EXPECT_FLOAT_EQ(p_prev(i), i);
+    EXPECT_FLOAT_EQ(p_curr(i), i * 2);
+    EXPECT_FLOAT_EQ(ux_prev(i), i * 3);
+    EXPECT_FLOAT_EQ(uz_curr(i), i * 8);
   }
 }
 
@@ -309,16 +382,14 @@ TEST_F(WavefieldAcoustoElasticTest, SwapThreeTimesRestoresStateWithThreeBuffers)
   auto uxPrevPrev = allocateVector<vectorReal>(size1, "uxPrevPrev");
   auto uyPrevPrev = allocateVector<vectorReal>(size1, "uyPrevPrev");
   auto uzPrevPrev = allocateVector<vectorReal>(size1, "uzPrevPrev");
-  for (size_t i = 0; i < size1; ++i) {
-    pPrevPrev(i) = 10.0f;
-    uxPrevPrev(i) = 20.0f;
-    uyPrevPrev(i) = 30.0f;
-    uzPrevPrev(i) = 40.0f;
-  }
+  Kokkos::deep_copy(pPrevPrev, 10.0f);
+  Kokkos::deep_copy(uxPrevPrev, 20.0f);
+  Kokkos::deep_copy(uyPrevPrev, 30.0f);
+  Kokkos::deep_copy(uzPrevPrev, 40.0f);
 
-  float initialPPrev0 = pPrev(0);
-  float initialPCurr0 = pCurr(0);
-  float initialPPrevPrev0 = pPrevPrev(0);
+  float initialPPrev0 = getAt(pPrev, 0);
+  float initialPCurr0 = getAt(pCurr, 0);
+  float initialPPrevPrev0 = getAt(pPrevPrev, 0);
 
   WavefieldAcoustoElastic wf(pPrevPrev, pPrev, pCurr, uxPrevPrev, uxPrev, uxCurr, uyPrevPrev, uyPrev, uyCurr,
                              uzPrevPrev, uzPrev, uzCurr);
@@ -327,9 +398,9 @@ TEST_F(WavefieldAcoustoElasticTest, SwapThreeTimesRestoresStateWithThreeBuffers)
   wf.swap();
   wf.swap();
 
-  EXPECT_FLOAT_EQ(wf.m_acoustic.m_pnGlobalPrev(0), initialPPrev0);
-  EXPECT_FLOAT_EQ(wf.m_acoustic.m_pnGlobalCurr(0), initialPCurr0);
-  EXPECT_FLOAT_EQ(wf.getPrevPrevField(0)(0), initialPPrevPrev0);
+  EXPECT_FLOAT_EQ(getAt(wf.m_acoustic.m_pnGlobalPrev, 0), initialPPrev0);
+  EXPECT_FLOAT_EQ(getAt(wf.m_acoustic.m_pnGlobalCurr, 0), initialPCurr0);
+  EXPECT_FLOAT_EQ(getAt(wf.getPrevPrevField(0), 0), initialPPrevPrev0);
 }
 
 }  // namespace test

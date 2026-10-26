@@ -80,28 +80,42 @@ void DGSEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::T
   int n_dg = 0;
   int n_sem = 0;
 
+  auto elem_type = m_element_type_;
+  auto mesh_local = m_mesh_;
+  float const z_interface = DG_SEM_interface_z_;
+  auto external_elem_type = m_external_element_type_;
+
   if (m_external_element_type_.size() == static_cast<size_t>(nElem)) {
     // The z-threshold heuristic is skipped: it only cuts the intended plane on a flat mesh.
-    for (int e = 0; e < nElem; ++e) {
-      m_element_type_[e] = m_external_element_type_[e];
-      if (m_element_type_[e] == kElementTypeDG)
-        ++n_dg;
-      else
-        ++n_sem;
-    }
+
+    Kokkos::parallel_reduce(
+        "TagElements_mainLoop", nElem,
+        KOKKOS_LAMBDA(const int e, int& local_n_dg, int& local_n_sem) {
+          elem_type(e) = external_elem_type(e);
+          if (elem_type(e) == kElementTypeDG)
+            ++local_n_dg;
+          else
+            ++local_n_sem;
+        },
+        n_dg, n_sem);
+
   } else {
     int const mid = ORDER / 2;
-    for (int e = 0; e < nElem; ++e) {
-      int const gIdx = m_mesh_.globalNodeIndex(e, mid, mid, mid);
-      float const zCoord = m_mesh_.nodeCoord(gIdx, 2);
-      if (zCoord < DG_SEM_interface_z_) {
-        m_element_type_[e] = kElementTypeDG;
-        ++n_dg;
-      } else {
-        m_element_type_[e] = kElementTypeSEM;
-        ++n_sem;
-      }
-    }
+
+    Kokkos::parallel_reduce(
+        "TagElements_mainLoop", nElem,
+        KOKKOS_LAMBDA(const int e, int& local_n_dg, int& local_n_sem) {
+          int const gIdx = mesh_local.globalNodeIndex(e, mid, mid, mid);
+          float const zCoord = mesh_local.nodeCoord(gIdx, 2);
+          if (zCoord < z_interface) {
+            elem_type(e) = kElementTypeDG;
+            ++local_n_dg;
+          } else {
+            elem_type(e) = kElementTypeSEM;
+            ++local_n_sem;
+          }
+        },
+        n_dg, n_sem);
   }
 
   num_DG_elements_ = n_dg;
@@ -109,14 +123,20 @@ void DGSEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::T
 
   DG_elem_list_ = allocateVector<vectorInt>(num_DG_elements_, "DGElemList");
   SEm_elem_list_ = allocateVector<vectorInt>(num_SEm_elements_, "SEmElemList");
-  int idg = 0;
-  int isem = 0;
-  for (int e = 0; e < nElem; ++e) {
-    if (m_element_type_[e] == kElementTypeDG)
-      DG_elem_list_[idg++] = e;
-    else
-      SEm_elem_list_[isem++] = e;
-  }
+
+  auto dg_elem_list = DG_elem_list_;
+  auto sem_elem_list = SEm_elem_list_;
+
+  Kokkos::parallel_scan(
+      "BuildElementLists", nElem, KOKKOS_LAMBDA(const int e, int& update, const bool is_final) {
+        if (elem_type(e) == kElementTypeDG) {
+          if (is_final) dg_elem_list(update) = e;
+          ++update;
+        } else {
+          if (is_final) sem_elem_list(e - update) = e;
+        }
+      });
+  FENCE
 }
 
 /**
@@ -163,55 +183,89 @@ void DGSEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::T
       });
   FENCE
 
-  // The counts are filled on the device; the face loops below run on the host.
-  auto h_dg_count = Kokkos::create_mirror_view_and_copy(Kokkos::HostSpace{}, dg_count);
-  auto h_sem_count = Kokkos::create_mirror_view_and_copy(Kokkos::HostSpace{}, sem_count);
-
   // Face ids are those of m_face_connectivity_, the same index space as the coupling kernels.
   int const num_faces_fc = static_cast<int>(m_face_connectivity_.getNumberOfFaces());
   int n_interface = 0;
-  for (int f = 0; f < num_faces_fc; ++f) {
-    if (m_face_connectivity_.isBoundaryFace(f)) continue;
-    bool face_on_interface = true;
-    for (int j = 0; j < knumNodesPerFace; ++j) {
-      int const gn = m_face_connectivity_.getGlobalNodeFromFace(f, j);
-      if (h_dg_count(gn) == 0 || h_sem_count(gn) == 0) {
-        face_on_interface = false;
-        break;
-      }
-    }
-    if (face_on_interface) ++n_interface;
-  }
+
+  auto face_connectivity = m_face_connectivity_;
+
+  Kokkos::parallel_scan(
+      "CountInterfaceFaces", num_faces_fc,
+      KOKKOS_LAMBDA(const int f, int& update, const bool is_final) {
+        if (face_connectivity.isBoundaryFace(f)) return;
+
+        bool face_on_interface = true;
+        for (int j = 0; j < knumNodesPerFace; ++j) {
+          int const gn = face_connectivity.getGlobalNodeFromFace(f, j);
+          if (dg_count(gn) == 0 || sem_count(gn) == 0) {
+            face_on_interface = false;
+            break;
+          }
+        }
+        if (face_on_interface) {
+          ++update;
+        }
+      },
+      n_interface);
+  FENCE
 
   num_interface_faces_ = n_interface;
   m_interface_face_indices_ = allocateVector<vectorInt>(num_interface_faces_, "interfaceFaceIndices");
 
   int idx = 0;
-  for (int f = 0; f < num_faces_fc; ++f) {
-    if (m_face_connectivity_.isBoundaryFace(f)) continue;
-    bool face_on_interface = true;
-    for (int j = 0; j < knumNodesPerFace; ++j) {
-      int const gn = m_face_connectivity_.getGlobalNodeFromFace(f, j);
-      if (h_dg_count(gn) == 0 || h_sem_count(gn) == 0) {
-        face_on_interface = false;
-        break;
-      }
-    }
-    if (face_on_interface) m_interface_face_indices_[idx++] = f;
-  }
+
+  auto interface_face_indices = m_interface_face_indices_;
+
+  Kokkos::parallel_scan(
+      "BuildInterfaceFaceList", num_faces_fc,
+      KOKKOS_LAMBDA(const int f, int& update, const bool is_final) {
+        if (face_connectivity.isBoundaryFace(f)) return;
+
+        bool face_on_interface = true;
+        for (int j = 0; j < knumNodesPerFace; ++j) {
+          int const gn = face_connectivity.getGlobalNodeFromFace(f, j);
+          if (dg_count(gn) == 0 || sem_count(gn) == 0) {
+            face_on_interface = false;
+            break;
+          }
+        }
+        if (face_on_interface) {
+          if (is_final) interface_face_indices(update) = f;
+          ++update;
+        }
+      },
+      idx);
+  FENCE
 
   // Compact list of the nodes owned by at least one SEM element.
   {
     int n_sem = 0;
-    for (int n = 0; n < nNode; ++n)
-      if (h_sem_count(n) > 0) ++n_sem;
+
+    Kokkos::parallel_reduce(
+        "CountSEmNodes", nNode,
+        KOKKOS_LAMBDA(const int n, int& local_n_sem) {
+          if (sem_count(n) > 0) ++local_n_sem;
+        },
+        n_sem);
+    FENCE
 
     num_SEm_nodes_ = n_sem;
     SEm_node_list_ = allocateVector<vectorInt>(n_sem, "SEmNodeList");
 
     int isem = 0;
-    for (int n = 0; n < nNode; ++n)
-      if (h_sem_count(n) > 0) SEm_node_list_[isem++] = n;
+
+    auto sem_node_list = SEm_node_list_;
+
+    Kokkos::parallel_scan(
+        "BuildSEmNodeList", nNode,
+        KOKKOS_LAMBDA(const int n, int& local_isem, const bool is_final) {
+          if (sem_count(n) > 0) {
+            if (is_final) sem_node_list(local_isem) = n;
+            ++local_isem;
+          }
+        },
+        isem);
+    FENCE
   }
 
   BuildDGInteriorFaceList();
@@ -227,28 +281,47 @@ void DGSEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::T
 template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE, bool IS_MODEL_ON_NODES,
           utils::enums::physicType PHYSICS>
 void DGSEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::BuildDGInteriorFaceList() {
-  auto h_elem_type = Kokkos::create_mirror_view_and_copy(Kokkos::HostSpace{}, m_element_type_);
-  auto h_iface = Kokkos::create_mirror_view_and_copy(Kokkos::HostSpace{}, m_interface_face_indices_);
-
   int const num_faces_fc = static_cast<int>(m_face_connectivity_.getNumberOfFaces());
 
-  std::vector<bool> is_iface(num_faces_fc, false);
-  for (int i = 0; i < num_interface_faces_; ++i) is_iface[h_iface(i)] = true;
+  auto iface_list = m_interface_face_indices_;
+  vectorInt is_iface = allocateVector<vectorInt>(num_faces_fc, "isIface");
+  auto inum_interface_faces = num_interface_faces_;
 
-  std::vector<int> result;
-  result.reserve(num_faces_fc / 2);
-  for (int f = 0; f < num_faces_fc; ++f) {
-    if (is_iface[f]) continue;
-    int const oe = m_face_connectivity_.elemOwner(f);
-    bool dg_adj = (h_elem_type(oe) == kElementTypeDG);
-    if (dg_adj) result.push_back(f);
-  }
+  Kokkos::parallel_for(
+      "MarkInterfaceFaces", inum_interface_faces, KOKKOS_LAMBDA(const int i) { is_iface[iface_list(i)] = 1; });
+  FENCE
 
-  m_n_DG_interior_faces_ = static_cast<int>(result.size());
+  auto face_connectivity = m_face_connectivity_;
+  auto elem_type = m_element_type_;
+
+  Kokkos::parallel_reduce(
+      "CountDGInteriorFaces", num_faces_fc,
+      KOKKOS_LAMBDA(const int f, int& local_count) {
+        if (is_iface[f]) return;
+
+        int const oe = face_connectivity.elemOwner(f);
+        if (elem_type(oe) != kElementTypeDG) return;
+        ++local_count;
+      },
+      m_n_DG_interior_faces_);
+  FENCE
+
   m_DG_interior_face_list_ = allocateVector<vectorInt>(m_n_DG_interior_faces_, "DGInteriorFaceList");
-  auto h_list = Kokkos::create_mirror_view(m_DG_interior_face_list_);
-  for (int i = 0; i < m_n_DG_interior_faces_; ++i) h_list(i) = result[i];
-  Kokkos::deep_copy(m_DG_interior_face_list_, h_list);
+  auto dg_interior_face_list = m_DG_interior_face_list_;
+
+  Kokkos::parallel_scan(
+      "BuildDGInteriorFaceList", num_faces_fc,
+      KOKKOS_LAMBDA(const int f, int& update, const bool is_final) {
+        if (is_iface[f]) return;
+
+        int const oe = face_connectivity.elemOwner(f);
+        if (elem_type(oe) != kElementTypeDG) return;
+
+        if (is_final) dg_interior_face_list(update) = f;
+        ++update;
+      },
+      m_n_DG_interior_faces_);
+  FENCE
 }
 
 /**

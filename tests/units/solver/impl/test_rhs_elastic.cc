@@ -2,11 +2,18 @@
 
 #include "common_macros.h"
 #include "data_type.h"
+#include "device_view_access.h"
 #include "rhs_elastic.h"
 
 namespace solver {
 namespace fe {
 namespace test {
+
+using test_utils::fillFromHost;
+
+using test_utils::getAt;
+using test_utils::setAt;
+using test_utils::toHost;
 
 class RhsElasticTest : public ::testing::Test {
  protected:
@@ -28,25 +35,45 @@ class RhsElasticTest : public ::testing::Test {
     weights2 = allocateArray2D<arrayReal>(20, 12, "weights2");
 
     // Initialize with test values
-    for (size_t i = 0; i < numElements; ++i) {
-      element(i) = i * 10;
-      for (size_t j = 0; j < numNodesPerElement; ++j) {
-        termx(i, j) = i * 100 + j;
-        termy(i, j) = i * 200 + j;
-        termz(i, j) = i * 300 + j;
-        weights(i, j) = i + j * 0.1;
-      }
-    }
+    fillFromHost(element, [&](const auto& h) {
+      for (size_t i = 0; i < numElements; ++i) h(i) = i * 10;
+    });
+    fillFromHost(termx, [&](const auto& h) {
+      for (size_t i = 0; i < numElements; ++i)
+        for (size_t j = 0; j < numNodesPerElement; ++j) h(i, j) = i * 100 + j;
+    });
+    fillFromHost(termy, [&](const auto& h) {
+      for (size_t i = 0; i < numElements; ++i)
+        for (size_t j = 0; j < numNodesPerElement; ++j) h(i, j) = i * 200 + j;
+    });
+    fillFromHost(termz, [&](const auto& h) {
+      for (size_t i = 0; i < numElements; ++i)
+        for (size_t j = 0; j < numNodesPerElement; ++j) h(i, j) = i * 300 + j;
+    });
+    fillFromHost(weights, [&](const auto& h) {
+      for (size_t i = 0; i < numElements; ++i)
+        for (size_t j = 0; j < numNodesPerElement; ++j) h(i, j) = i + j * 0.1;
+    });
 
-    for (size_t i = 0; i < 20; ++i) {
-      element2(i) = i * 5;
-      for (size_t j = 0; j < 12; ++j) {
-        termx2(i, j) = i * 50 + j;
-        termy2(i, j) = i * 60 + j;
-        termz2(i, j) = i * 70 + j;
-        weights2(i, j) = i * 2 + j * 0.2;
-      }
-    }
+    fillFromHost(element2, [&](const auto& h) {
+      for (size_t i = 0; i < 20; ++i) h(i) = i * 5;
+    });
+    fillFromHost(termx2, [&](const auto& h) {
+      for (size_t i = 0; i < 20; ++i)
+        for (size_t j = 0; j < 12; ++j) h(i, j) = i * 50 + j;
+    });
+    fillFromHost(termy2, [&](const auto& h) {
+      for (size_t i = 0; i < 20; ++i)
+        for (size_t j = 0; j < 12; ++j) h(i, j) = i * 60 + j;
+    });
+    fillFromHost(termz2, [&](const auto& h) {
+      for (size_t i = 0; i < 20; ++i)
+        for (size_t j = 0; j < 12; ++j) h(i, j) = i * 70 + j;
+    });
+    fillFromHost(weights2, [&](const auto& h) {
+      for (size_t i = 0; i < 20; ++i)
+        for (size_t j = 0; j < 12; ++j) h(i, j) = i * 2 + j * 0.2;
+    });
   }
 
   size_t numElements;
@@ -71,13 +98,18 @@ TEST_F(RhsElasticTest, Constructor) {
   EXPECT_EQ(rhs.m_weights.extent(1), numNodesPerElement);
 
   // Verify data is correctly stored
+  auto h_element = toHost(rhs.m_element);
+  auto h_termx = toHost(rhs.m_termx);
+  auto h_termy = toHost(rhs.m_termy);
+  auto h_termz = toHost(rhs.m_termz);
+  auto h_weights = toHost(rhs.m_weights);
   for (size_t i = 0; i < numElements; ++i) {
-    EXPECT_EQ(rhs.m_element(i), i * 10);
+    EXPECT_EQ(h_element(i), i * 10);
     for (size_t j = 0; j < numNodesPerElement; ++j) {
-      EXPECT_FLOAT_EQ(rhs.m_termx(i, j), i * 100 + j);
-      EXPECT_FLOAT_EQ(rhs.m_termy(i, j), i * 200 + j);
-      EXPECT_FLOAT_EQ(rhs.m_termz(i, j), i * 300 + j);
-      EXPECT_FLOAT_EQ(rhs.m_weights(i, j), i + j * 0.1);
+      EXPECT_FLOAT_EQ(h_termx(i, j), i * 100 + j);
+      EXPECT_FLOAT_EQ(h_termy(i, j), i * 200 + j);
+      EXPECT_FLOAT_EQ(h_termz(i, j), i * 300 + j);
+      EXPECT_FLOAT_EQ(h_weights(i, j), i + j * 0.1);
     }
   }
 }
@@ -98,28 +130,38 @@ TEST_F(RhsElasticTest, CopyConstructor) {
   EXPECT_EQ(copy.m_weights.extent(1), original.m_weights.extent(1));
 
   // Check that copy has the same data
+  auto h_copy_element = toHost(copy.m_element);
+  auto h_original_element = toHost(original.m_element);
+  auto h_copy_termx = toHost(copy.m_termx);
+  auto h_original_termx = toHost(original.m_termx);
+  auto h_copy_termy = toHost(copy.m_termy);
+  auto h_original_termy = toHost(original.m_termy);
+  auto h_copy_termz = toHost(copy.m_termz);
+  auto h_original_termz = toHost(original.m_termz);
+  auto h_copy_weights = toHost(copy.m_weights);
+  auto h_original_weights = toHost(original.m_weights);
   for (size_t i = 0; i < numElements; ++i) {
-    EXPECT_EQ(copy.m_element(i), original.m_element(i));
+    EXPECT_EQ(h_copy_element(i), h_original_element(i));
     for (size_t j = 0; j < numNodesPerElement; ++j) {
-      EXPECT_FLOAT_EQ(copy.m_termx(i, j), original.m_termx(i, j));
-      EXPECT_FLOAT_EQ(copy.m_termy(i, j), original.m_termy(i, j));
-      EXPECT_FLOAT_EQ(copy.m_termz(i, j), original.m_termz(i, j));
-      EXPECT_FLOAT_EQ(copy.m_weights(i, j), original.m_weights(i, j));
+      EXPECT_FLOAT_EQ(h_copy_termx(i, j), h_original_termx(i, j));
+      EXPECT_FLOAT_EQ(h_copy_termy(i, j), h_original_termy(i, j));
+      EXPECT_FLOAT_EQ(h_copy_termz(i, j), h_original_termz(i, j));
+      EXPECT_FLOAT_EQ(h_copy_weights(i, j), h_original_weights(i, j));
     }
   }
 
   // Modify original data to verify shallow copy behavior (Kokkos views are
   // shallow by default)
-  original.m_termx(0, 0) = 999.0f;
-  EXPECT_FLOAT_EQ(copy.m_termx(0, 0), 999.0f);
-  original.m_termy(1, 1) = 888.0f;
-  EXPECT_FLOAT_EQ(copy.m_termy(1, 1), 888.0f);
-  original.m_termz(2, 2) = 777.0f;
-  EXPECT_FLOAT_EQ(copy.m_termz(2, 2), 777.0f);
-  original.m_element(3) = 666;
-  EXPECT_EQ(copy.m_element(3), 666);
-  original.m_weights(4, 5) = 555.0f;
-  EXPECT_FLOAT_EQ(copy.m_weights(4, 5), 555.0f);
+  setAt(original.m_termx, 999.0f, 0, 0);
+  EXPECT_FLOAT_EQ(getAt(copy.m_termx, 0, 0), 999.0f);
+  setAt(original.m_termy, 888.0f, 1, 1);
+  EXPECT_FLOAT_EQ(getAt(copy.m_termy, 1, 1), 888.0f);
+  setAt(original.m_termz, 777.0f, 2, 2);
+  EXPECT_FLOAT_EQ(getAt(copy.m_termz, 2, 2), 777.0f);
+  setAt(original.m_element, 666, 3);
+  EXPECT_EQ(getAt(copy.m_element, 3), 666);
+  setAt(original.m_weights, 555.0f, 4, 5);
+  EXPECT_FLOAT_EQ(getAt(copy.m_weights, 4, 5), 555.0f);
 }
 
 TEST_F(RhsElasticTest, CopyAssignmentOperator) {
@@ -146,24 +188,34 @@ TEST_F(RhsElasticTest, CopyAssignmentOperator) {
   EXPECT_EQ(rhs2.m_weights.extent(1), numNodesPerElement);
 
   // Check that data matches
+  auto h_rhs2_element = toHost(rhs2.m_element);
+  auto h_rhs1_element = toHost(rhs1.m_element);
+  auto h_rhs2_termx = toHost(rhs2.m_termx);
+  auto h_rhs1_termx = toHost(rhs1.m_termx);
+  auto h_rhs2_termy = toHost(rhs2.m_termy);
+  auto h_rhs1_termy = toHost(rhs1.m_termy);
+  auto h_rhs2_termz = toHost(rhs2.m_termz);
+  auto h_rhs1_termz = toHost(rhs1.m_termz);
+  auto h_rhs2_weights = toHost(rhs2.m_weights);
+  auto h_rhs1_weights = toHost(rhs1.m_weights);
   for (size_t i = 0; i < numElements; ++i) {
-    EXPECT_EQ(rhs2.m_element(i), rhs1.m_element(i));
+    EXPECT_EQ(h_rhs2_element(i), h_rhs1_element(i));
     for (size_t j = 0; j < numNodesPerElement; ++j) {
-      EXPECT_FLOAT_EQ(rhs2.m_termx(i, j), rhs1.m_termx(i, j));
-      EXPECT_FLOAT_EQ(rhs2.m_termy(i, j), rhs1.m_termy(i, j));
-      EXPECT_FLOAT_EQ(rhs2.m_termz(i, j), rhs1.m_termz(i, j));
-      EXPECT_FLOAT_EQ(rhs2.m_weights(i, j), rhs1.m_weights(i, j));
+      EXPECT_FLOAT_EQ(h_rhs2_termx(i, j), h_rhs1_termx(i, j));
+      EXPECT_FLOAT_EQ(h_rhs2_termy(i, j), h_rhs1_termy(i, j));
+      EXPECT_FLOAT_EQ(h_rhs2_termz(i, j), h_rhs1_termz(i, j));
+      EXPECT_FLOAT_EQ(h_rhs2_weights(i, j), h_rhs1_weights(i, j));
     }
   }
 
   // Modify original data to verify shallow copy behavior (Kokkos views are
   // shallow by default)
-  rhs1.m_termx(0, 0) = 777.0f;
-  EXPECT_FLOAT_EQ(rhs2.m_termx(0, 0), 777.0f);
-  rhs1.m_termy(1, 1) = 666.0f;
-  EXPECT_FLOAT_EQ(rhs2.m_termy(1, 1), 666.0f);
-  rhs1.m_element(2) = 555;
-  EXPECT_EQ(rhs2.m_element(2), 555);
+  setAt(rhs1.m_termx, 777.0f, 0, 0);
+  EXPECT_FLOAT_EQ(getAt(rhs2.m_termx, 0, 0), 777.0f);
+  setAt(rhs1.m_termy, 666.0f, 1, 1);
+  EXPECT_FLOAT_EQ(getAt(rhs2.m_termy, 1, 1), 666.0f);
+  setAt(rhs1.m_element, 555, 2);
+  EXPECT_EQ(getAt(rhs2.m_element, 2), 555);
 }
 
 TEST_F(RhsElasticTest, CopyAssignmentSelfAssignment) {
@@ -179,13 +231,18 @@ TEST_F(RhsElasticTest, CopyAssignmentSelfAssignment) {
   EXPECT_EQ(rhs.m_termz.extent(0), numElements);
   EXPECT_EQ(rhs.m_element.extent(0), numElements);
 
+  auto h_element = toHost(rhs.m_element);
+  auto h_termx = toHost(rhs.m_termx);
+  auto h_termy = toHost(rhs.m_termy);
+  auto h_termz = toHost(rhs.m_termz);
+  auto h_weights = toHost(rhs.m_weights);
   for (size_t i = 0; i < numElements; ++i) {
-    EXPECT_EQ(rhs.m_element(i), i * 10);
+    EXPECT_EQ(h_element(i), i * 10);
     for (size_t j = 0; j < numNodesPerElement; ++j) {
-      EXPECT_FLOAT_EQ(rhs.m_termx(i, j), i * 100 + j);
-      EXPECT_FLOAT_EQ(rhs.m_termy(i, j), i * 200 + j);
-      EXPECT_FLOAT_EQ(rhs.m_termz(i, j), i * 300 + j);
-      EXPECT_FLOAT_EQ(rhs.m_weights(i, j), i + j * 0.1);
+      EXPECT_FLOAT_EQ(h_termx(i, j), i * 100 + j);
+      EXPECT_FLOAT_EQ(h_termy(i, j), i * 200 + j);
+      EXPECT_FLOAT_EQ(h_termz(i, j), i * 300 + j);
+      EXPECT_FLOAT_EQ(h_weights(i, j), i + j * 0.1);
     }
   }
 }
@@ -204,11 +261,14 @@ TEST_F(RhsElasticTest, GetTerm) {
   EXPECT_EQ(tz.extent(0), numElements);
   EXPECT_EQ(tz.extent(1), numNodesPerElement);
 
+  auto h_tx = toHost(tx);
+  auto h_ty = toHost(ty);
+  auto h_tz = toHost(tz);
   for (size_t i = 0; i < numElements; ++i) {
     for (size_t j = 0; j < numNodesPerElement; ++j) {
-      EXPECT_FLOAT_EQ(tx(i, j), i * 100 + j);
-      EXPECT_FLOAT_EQ(ty(i, j), i * 200 + j);
-      EXPECT_FLOAT_EQ(tz(i, j), i * 300 + j);
+      EXPECT_FLOAT_EQ(h_tx(i, j), i * 100 + j);
+      EXPECT_FLOAT_EQ(h_ty(i, j), i * 200 + j);
+      EXPECT_FLOAT_EQ(h_tz(i, j), i * 300 + j);
     }
   }
 }
@@ -219,8 +279,9 @@ TEST_F(RhsElasticTest, GetElement) {
   auto elem = rhs.getElement();
 
   EXPECT_EQ(elem.extent(0), numElements);
+  auto h_elem = toHost(elem);
   for (size_t i = 0; i < numElements; ++i) {
-    EXPECT_EQ(elem(i), i * 10);
+    EXPECT_EQ(h_elem(i), i * 10);
   }
 }
 
@@ -231,9 +292,10 @@ TEST_F(RhsElasticTest, GetWeights) {
 
   EXPECT_EQ(w.extent(0), numElements);
   EXPECT_EQ(w.extent(1), numNodesPerElement);
+  auto h_w = toHost(w);
   for (size_t i = 0; i < numElements; ++i) {
     for (size_t j = 0; j < numNodesPerElement; ++j) {
-      EXPECT_FLOAT_EQ(w(i, j), i + j * 0.1);
+      EXPECT_FLOAT_EQ(h_w(i, j), i + j * 0.1);
     }
   }
 }
@@ -258,25 +320,25 @@ TEST_F(RhsElasticTest, ModifyAfterConstruction) {
   RhsElastic rhs(termx, termy, termz, element, weights);
 
   // Modify data through the RHS object
-  rhs.m_termx(5, 3) = 123.456f;
-  rhs.m_termy(6, 2) = 234.567f;
-  rhs.m_termz(7, 1) = 345.678f;
-  rhs.m_element(8) = 789;
-  rhs.m_weights(2, 1) = 0.999f;
+  setAt(rhs.m_termx, 123.456f, 5, 3);
+  setAt(rhs.m_termy, 234.567f, 6, 2);
+  setAt(rhs.m_termz, 345.678f, 7, 1);
+  setAt(rhs.m_element, 789, 8);
+  setAt(rhs.m_weights, 0.999f, 2, 1);
 
   // Verify modifications
-  EXPECT_FLOAT_EQ(rhs.m_termx(5, 3), 123.456f);
-  EXPECT_FLOAT_EQ(rhs.m_termy(6, 2), 234.567f);
-  EXPECT_FLOAT_EQ(rhs.m_termz(7, 1), 345.678f);
-  EXPECT_EQ(rhs.m_element(8), 789);
-  EXPECT_FLOAT_EQ(rhs.m_weights(2, 1), 0.999f);
+  EXPECT_FLOAT_EQ(getAt(rhs.m_termx, 5, 3), 123.456f);
+  EXPECT_FLOAT_EQ(getAt(rhs.m_termy, 6, 2), 234.567f);
+  EXPECT_FLOAT_EQ(getAt(rhs.m_termz, 7, 1), 345.678f);
+  EXPECT_EQ(getAt(rhs.m_element, 8), 789);
+  EXPECT_FLOAT_EQ(getAt(rhs.m_weights, 2, 1), 0.999f);
 
   // Original views should reflect changes (shallow copy)
-  EXPECT_FLOAT_EQ(termx(5, 3), 123.456f);
-  EXPECT_FLOAT_EQ(termy(6, 2), 234.567f);
-  EXPECT_FLOAT_EQ(termz(7, 1), 345.678f);
-  EXPECT_EQ(element(8), 789);
-  EXPECT_FLOAT_EQ(weights(2, 1), 0.999f);
+  EXPECT_FLOAT_EQ(getAt(termx, 5, 3), 123.456f);
+  EXPECT_FLOAT_EQ(getAt(termy, 6, 2), 234.567f);
+  EXPECT_FLOAT_EQ(getAt(termz, 7, 1), 345.678f);
+  EXPECT_EQ(getAt(element, 8), 789);
+  EXPECT_FLOAT_EQ(getAt(weights, 2, 1), 0.999f);
 }
 
 TEST_F(RhsElasticTest, CopyInContainerClass) {
@@ -299,22 +361,22 @@ TEST_F(RhsElasticTest, CopyInContainerClass) {
   EXPECT_EQ(container.rhs.m_element.extent(0), numElements);
 
   // Modify original
-  original.m_termx(0, 0) = 999.0f;
-  original.m_termy(1, 1) = 888.0f;
-  original.m_termz(2, 2) = 777.0f;
-  original.m_element(3) = 666;
+  setAt(original.m_termx, 999.0f, 0, 0);
+  setAt(original.m_termy, 888.0f, 1, 1);
+  setAt(original.m_termz, 777.0f, 2, 2);
+  setAt(original.m_element, 666, 3);
 
   // Container should reflect changes (shallow copy via Kokkos views)
-  EXPECT_FLOAT_EQ(container.rhs.m_termx(0, 0), 999.0f);
-  EXPECT_FLOAT_EQ(container.rhs.m_termy(1, 1), 888.0f);
-  EXPECT_FLOAT_EQ(container.rhs.m_termz(2, 2), 777.0f);
-  EXPECT_EQ(container.rhs.m_element(3), 666);
+  EXPECT_FLOAT_EQ(getAt(container.rhs.m_termx, 0, 0), 999.0f);
+  EXPECT_FLOAT_EQ(getAt(container.rhs.m_termy, 1, 1), 888.0f);
+  EXPECT_FLOAT_EQ(getAt(container.rhs.m_termz, 2, 2), 777.0f);
+  EXPECT_EQ(getAt(container.rhs.m_element, 3), 666);
 
   // Modify through container
-  container.rhs.m_weights(4, 5) = 0.555f;
+  setAt(container.rhs.m_weights, 0.555f, 4, 5);
 
   // Original should reflect change
-  EXPECT_FLOAT_EQ(original.m_weights(4, 5), 0.555f);
+  EXPECT_FLOAT_EQ(getAt(original.m_weights, 4, 5), 0.555f);
 }
 
 TEST_F(RhsElasticTest, GetNumRhsComponentsReturnsThree) {

@@ -24,6 +24,7 @@
 #include "cartesian_struct_builder.h"
 #include "common_macros.h"
 #include "data_type.h"
+#include "device_view_access.h"
 #include "dg_padaptive_solver_data.h"
 #include "dg_padaptive_solver_impl.h"
 #include "model_struct.h"
@@ -31,6 +32,10 @@
 namespace solver {
 namespace fe {
 namespace test {
+
+using test_utils::fillFromHost;
+using test_utils::setAt;
+using test_utils::toHost;
 
 // ============================================================
 // Type aliases for ORDER_Max=2 DG p-adaptive acoustic solver on structured mesh
@@ -80,16 +85,10 @@ class DGPAdaptiveSolverAcousticTest : public ::testing::Test {
     auto p_max_Curr = allocateArray2D<arrayReal>(nElem_, kNDof_max, "pnPMaxDGCurr");
     auto p_max_Prev = allocateArray2D<arrayReal>(nElem_, kNDof_max, "pnPMaxDGPrev");
 
-    for (int e = 0; e < nElem_; ++e) {
-      for (int d = 0; d < kNDof_min; ++d) {
-        p_min_Curr(e, d) = p_min_CurrVal;
-        p_min_Prev(e, d) = p_min_PrevVal;
-      }
-      for (int d = 0; d < kNDof_max; ++d) {
-        p_max_Curr(e, d) = p_max_CurrVal;
-        p_max_Prev(e, d) = p_max_PrevVal;
-      }
-    }
+    Kokkos::deep_copy(p_min_Curr, p_min_CurrVal);
+    Kokkos::deep_copy(p_min_Prev, p_min_PrevVal);
+    Kokkos::deep_copy(p_max_Curr, p_max_CurrVal);
+    Kokkos::deep_copy(p_max_Prev, p_max_PrevVal);
     int const nSrc = (nSample > 0) ? 1 : 0;
     auto rhsTerm_pmin = allocateArray2D<arrayReal>(nSrc, (nSample > 0 ? nSample : 1), "rhsTermPMin");
     auto rhsTerm_pmax = allocateArray2D<arrayReal>(nSrc, (nSample > 0 ? nSample : 1), "rhsTermPMax");
@@ -98,13 +97,11 @@ class DGPAdaptiveSolverAcousticTest : public ::testing::Test {
     auto rhsWeights_pmax = allocateArray2D<arrayReal>(nSrc, kNDof_max, "rhsWeightsPMax");
 
     if (nSrc > 0) {
-      rhsElem(0) = srcElem;
-      for (int t = 0; t < nSample; ++t) {
-        rhsTerm_pmin(0, t) = wavelet;
-        rhsTerm_pmax(0, t) = wavelet;
-      }
-      for (int d = 0; d < kNDof_min; ++d) rhsWeights_pmin(0, d) = 1.0f / kNDof_min;
-      for (int d = 0; d < kNDof_max; ++d) rhsWeights_pmax(0, d) = 1.0f / kNDof_max;
+      setAt(rhsElem, srcElem, 0);
+      Kokkos::deep_copy(rhsTerm_pmin, wavelet);
+      Kokkos::deep_copy(rhsTerm_pmax, wavelet);
+      Kokkos::deep_copy(rhsWeights_pmin, 1.0f / kNDof_min);
+      Kokkos::deep_copy(rhsWeights_pmax, 1.0f / kNDof_max);
     }
 
     DGPAdaptiveWavefieldAcoustic wavefield(p_min_Prev, p_min_Curr, p_max_Prev, p_max_Curr);
@@ -143,7 +140,9 @@ TEST_F(DGPAdaptiveSolverAcousticTest, ElementPartitionIsConsistent) {
 // test in the DG-SEM suite for why the caller-provided split needs its own coverage.
 TEST_F(DGPAdaptiveSolverAcousticTest, SetElementTagsOverridesZThreshold) {
   auto tags = allocateVector<vectorInt>(nElem_, "elementTags");
-  for (int e = 0; e < nElem_; ++e) tags(e) = (e < 2) ? kElementTypePMin : kElementTypePMax;
+  fillFromHost(tags, [&](const auto& h) {
+    for (int e = 0; e < nElem_; ++e) h(e) = (e < 2) ? kElementTypePMin : kElementTypePMax;
+  });
 
   DGPAdaptiveSolverT tagged_solver;
   tagged_solver.setElementTags(tags);
@@ -192,11 +191,11 @@ TEST_F(DGPAdaptiveSolverAcousticTest, ZeroFieldZeroSource_StaysZero) {
   solver_.computeOneStep(0.001f, 0, data);
 
   // After one step from p=0 with no source, p must remain 0.
+  auto pmin_prev = toHost(data.m_wavefield.getPMinPreviousField(0));
+  auto pmax_prev = toHost(data.m_wavefield.getPMaxPreviousField(0));
   for (int e = 0; e < nElem_; ++e) {
-    for (int d = 0; d < kNDof_min; ++d)
-      EXPECT_FLOAT_EQ(data.m_wavefield.getPMinPreviousField(0)(e, d), 0.0f) << "elem=" << e << " dof=" << d;
-    for (int d = 0; d < kNDof_max; ++d)
-      EXPECT_FLOAT_EQ(data.m_wavefield.getPMaxPreviousField(0)(e, d), 0.0f) << "elem=" << e << " dof=" << d;
+    for (int d = 0; d < kNDof_min; ++d) EXPECT_FLOAT_EQ(pmin_prev(e, d), 0.0f) << "elem=" << e << " dof=" << d;
+    for (int d = 0; d < kNDof_max; ++d) EXPECT_FLOAT_EQ(pmax_prev(e, d), 0.0f) << "elem=" << e << " dof=" << d;
   }
 }
 
@@ -208,11 +207,11 @@ TEST_F(DGPAdaptiveSolverAcousticTest, UniformFieldZeroSource_StaysUniform) {
   auto data = makeData(1.0f, 1.0f, 1.0f, 1.0f);
   solver_.computeOneStep(0.001f, 0, data);
 
+  auto pmin_prev = toHost(data.m_wavefield.getPMinPreviousField(0));
+  auto pmax_prev = toHost(data.m_wavefield.getPMaxPreviousField(0));
   for (int e = 0; e < nElem_; ++e) {
-    for (int d = 0; d < kNDof_min; ++d)
-      EXPECT_NEAR(data.m_wavefield.getPMinPreviousField(0)(e, d), 1.0f, 1e-4f) << "elem=" << e << " dof=" << d;
-    for (int d = 0; d < kNDof_max; ++d)
-      EXPECT_NEAR(data.m_wavefield.getPMaxPreviousField(0)(e, d), 1.0f, 1e-4f) << "elem=" << e << " dof=" << d;
+    for (int d = 0; d < kNDof_min; ++d) EXPECT_NEAR(pmin_prev(e, d), 1.0f, 1e-4f) << "elem=" << e << " dof=" << d;
+    for (int d = 0; d < kNDof_max; ++d) EXPECT_NEAR(pmax_prev(e, d), 1.0f, 1e-4f) << "elem=" << e << " dof=" << d;
   }
 }
 
@@ -225,7 +224,8 @@ TEST_F(DGPAdaptiveSolverAcousticTest, NonzeroSourcePMin_FieldChangesAtSourceElem
 
   // rhs_elem(0,d) = -kWavelet * (1/kNDof) < 0
   // Verlet (curr=prev=0): new_prev = -dt^2 * rhs / (M + ...) > 0
-  for (int d = 0; d < kNDof_min; ++d) EXPECT_GT(data.m_wavefield.getPMinPreviousField(0)(0, d), 0.0f) << "dof=" << d;
+  auto pmin_prev = toHost(data.m_wavefield.getPMinPreviousField(0));
+  for (int d = 0; d < kNDof_min; ++d) EXPECT_GT(pmin_prev(0, d), 0.0f) << "dof=" << d;
 }
 
 TEST_F(DGPAdaptiveSolverAcousticTest, NonzeroSourcePMax_FieldChangesAtSourceElem) {
@@ -237,7 +237,8 @@ TEST_F(DGPAdaptiveSolverAcousticTest, NonzeroSourcePMax_FieldChangesAtSourceElem
 
   // rhs_elem(0,d) = -kWavelet * (1/kNDof) < 0
   // Verlet (curr=prev=0): new_prev = -dt^2 * rhs / (M + ...) > 0
-  for (int d = 0; d < kNDof_max; ++d) EXPECT_GT(data.m_wavefield.getPMaxPreviousField(0)(7, d), 0.0f) << "dof=" << d;
+  auto pmax_prev = toHost(data.m_wavefield.getPMaxPreviousField(0));
+  for (int d = 0; d < kNDof_max; ++d) EXPECT_GT(pmax_prev(7, d), 0.0f) << "dof=" << d;
 }
 
 TEST_F(DGPAdaptiveSolverAcousticTest, NoSourceElements_UnaffectedBySource) {
@@ -248,11 +249,11 @@ TEST_F(DGPAdaptiveSolverAcousticTest, NoSourceElements_UnaffectedBySource) {
 
   // Elements != 0 should have zero field (the source kernel only writes
   // to element 0; interface flux from zero field is also zero).
+  auto pmin_prev = toHost(data.m_wavefield.getPMinPreviousField(0));
+  auto pmax_prev = toHost(data.m_wavefield.getPMaxPreviousField(0));
   for (int e = 1; e < nElem_; ++e) {
-    for (int d = 0; d < kNDof_min; ++d)
-      EXPECT_FLOAT_EQ(data.m_wavefield.getPMinPreviousField(0)(e, d), 0.0f) << "elem=" << e << " dof=" << d;
-    for (int d = 0; d < kNDof_max; ++d)
-      EXPECT_FLOAT_EQ(data.m_wavefield.getPMaxPreviousField(0)(e, d), 0.0f) << "elem=" << e << " dof=" << d;
+    for (int d = 0; d < kNDof_min; ++d) EXPECT_FLOAT_EQ(pmin_prev(e, d), 0.0f) << "elem=" << e << " dof=" << d;
+    for (int d = 0; d < kNDof_max; ++d) EXPECT_FLOAT_EQ(pmax_prev(e, d), 0.0f) << "elem=" << e << " dof=" << d;
   }
 }
 
@@ -274,13 +275,13 @@ TEST_F(DGPAdaptiveSolverAcousticTest, MultipleSteps_NoNanOrInf) {
   auto rhsWeights_pmin = allocateArray2D<arrayReal>(1, kNDof_min, "rhsWeightsPMin");
   auto rhsWeights_pmax = allocateArray2D<arrayReal>(1, kNDof_max, "rhsWeightsPMax");
 
-  rhsElem(0) = 0;
-  for (int t = 0; t < kNumSteps; ++t) {
-    rhsTerm_pmin(0, t) = std::sin(t * 0.1f);
-    rhsTerm_pmax(0, t) = std::sin(t * 0.1f);
-  }
-  for (int d = 0; d < kNDof_min; ++d) rhsWeights_pmin(0, d) = 1.0f / kNDof_min;
-  for (int d = 0; d < kNDof_max; ++d) rhsWeights_pmax(0, d) = 1.0f / kNDof_max;
+  Kokkos::deep_copy(rhsElem, 0);
+  fillFromHost(rhsTerm_pmin, [&](const auto& h) {
+    for (int t = 0; t < kNumSteps; ++t) h(0, t) = std::sin(t * 0.1f);
+  });
+  Kokkos::deep_copy(rhsTerm_pmax, rhsTerm_pmin);
+  Kokkos::deep_copy(rhsWeights_pmin, 1.0f / kNDof_min);
+  Kokkos::deep_copy(rhsWeights_pmax, 1.0f / kNDof_max);
 
   DGPAdaptiveWavefieldAcoustic wavefield(p_min_Prev, p_min_Curr, p_max_Prev, p_max_Curr);
   DGPAdaptiveRhsAcoustic rhs(rhsTerm_pmin, rhsTerm_pmax, rhsElem, rhsWeights_pmin, rhsWeights_pmax);
@@ -292,13 +293,13 @@ TEST_F(DGPAdaptiveSolverAcousticTest, MultipleSteps_NoNanOrInf) {
     data.swapWavefields();
   }
 
+  auto pmin_curr = toHost(data.m_wavefield.getPMinCurrentField(0));
+  auto pmax_curr = toHost(data.m_wavefield.getPMaxCurrentField(0));
   for (int e = 0; e < nElem_; ++e) {
     for (int d = 0; d < kNDof_min; ++d)
-      EXPECT_TRUE(std::isfinite(data.m_wavefield.getPMinCurrentField(0)(e, d)))
-          << "NaN/Inf at elem=" << e << " dof=" << d;
+      EXPECT_TRUE(std::isfinite(pmin_curr(e, d))) << "NaN/Inf at elem=" << e << " dof=" << d;
     for (int d = 0; d < kNDof_max; ++d)
-      EXPECT_TRUE(std::isfinite(data.m_wavefield.getPMaxCurrentField(0)(e, d)))
-          << "NaN/Inf at elem=" << e << " dof=" << d;
+      EXPECT_TRUE(std::isfinite(pmax_curr(e, d))) << "NaN/Inf at elem=" << e << " dof=" << d;
   }
 }
 

@@ -1,10 +1,16 @@
 #include <gtest/gtest.h>
 
 #include "data_type.h"
+#include "device_view_access.h"
 #include "gradient_acoustic.h"
 
 namespace gradient {
 namespace test {
+
+using test_utils::fillFromHost;
+using test_utils::getAt;
+using test_utils::setAt;
+using test_utils::toHost;
 
 class GradientAcousticTest : public ::testing::Test {
  protected:
@@ -17,14 +23,18 @@ class GradientAcousticTest : public ::testing::Test {
     gradKappaNode = allocateVector<vectorReal>(numNodes, "gradKappaNode");
     gradBuoyancyNode = allocateVector<vectorReal>(numNodes, "gradBuoyancyNode");
 
-    for (int i = 0; i < numElements; ++i) {
-      gradKappaElem(i) = static_cast<float>(i) * 1.5f;
-      gradBuoyancyElem(i) = static_cast<float>(i) * 2.5f;
-    }
-    for (int i = 0; i < numNodes; ++i) {
-      gradKappaNode(i) = static_cast<float>(i) * 0.5f;
-      gradBuoyancyNode(i) = static_cast<float>(i) * 1.0f;
-    }
+    fillFromHost(gradKappaElem, [&](const auto& h) {
+      for (int i = 0; i < numElements; ++i) h(i) = static_cast<float>(i) * 1.5f;
+    });
+    fillFromHost(gradBuoyancyElem, [&](const auto& h) {
+      for (int i = 0; i < numElements; ++i) h(i) = static_cast<float>(i) * 2.5f;
+    });
+    fillFromHost(gradKappaNode, [&](const auto& h) {
+      for (int i = 0; i < numNodes; ++i) h(i) = static_cast<float>(i) * 0.5f;
+    });
+    fillFromHost(gradBuoyancyNode, [&](const auto& h) {
+      for (int i = 0; i < numNodes; ++i) h(i) = static_cast<float>(i) * 1.0f;
+    });
   }
 
   int numElements;
@@ -66,7 +76,7 @@ TEST_F(GradientAcousticTest, GetGradientNameByIndex) {
 
 TEST_F(GradientAcousticTest, GetGradientKappaElementBased) {
   GradientAcoustic grad(gradKappaElem, gradBuoyancyElem);
-  auto kappa = grad.getGradient(0);
+  auto kappa = toHost(grad.getGradient(0));
 
   ASSERT_EQ(kappa.extent(0), static_cast<size_t>(numElements));
   for (int i = 0; i < numElements; ++i) EXPECT_FLOAT_EQ(kappa(i), static_cast<float>(i) * 1.5f);
@@ -74,7 +84,7 @@ TEST_F(GradientAcousticTest, GetGradientKappaElementBased) {
 
 TEST_F(GradientAcousticTest, GetGradientBuoyancyElementBased) {
   GradientAcoustic grad(gradKappaElem, gradBuoyancyElem);
-  auto buoyancy = grad.getGradient(1);
+  auto buoyancy = toHost(grad.getGradient(1));
 
   ASSERT_EQ(buoyancy.extent(0), static_cast<size_t>(numElements));
   for (int i = 0; i < numElements; ++i) EXPECT_FLOAT_EQ(buoyancy(i), static_cast<float>(i) * 2.5f);
@@ -82,7 +92,7 @@ TEST_F(GradientAcousticTest, GetGradientBuoyancyElementBased) {
 
 TEST_F(GradientAcousticTest, GetGradientKappaNodeBased) {
   GradientAcoustic grad(gradKappaNode, gradBuoyancyNode);
-  auto kappa = grad.getGradient(0);
+  auto kappa = toHost(grad.getGradient(0));
 
   ASSERT_EQ(kappa.extent(0), static_cast<size_t>(numNodes));
   for (int i = 0; i < numNodes; ++i) EXPECT_FLOAT_EQ(kappa(i), static_cast<float>(i) * 0.5f);
@@ -90,7 +100,7 @@ TEST_F(GradientAcousticTest, GetGradientKappaNodeBased) {
 
 TEST_F(GradientAcousticTest, GetGradientBuoyancyNodeBased) {
   GradientAcoustic grad(gradKappaNode, gradBuoyancyNode);
-  auto buoyancy = grad.getGradient(1);
+  auto buoyancy = toHost(grad.getGradient(1));
 
   ASSERT_EQ(buoyancy.extent(0), static_cast<size_t>(numNodes));
   for (int i = 0; i < numNodes; ++i) EXPECT_FLOAT_EQ(buoyancy(i), static_cast<float>(i) * 1.0f);
@@ -98,19 +108,19 @@ TEST_F(GradientAcousticTest, GetGradientBuoyancyNodeBased) {
 
 TEST_F(GradientAcousticTest, GetGradientOutOfBoundsFallsBackToKappa) {
   GradientAcoustic grad(gradKappaElem, gradBuoyancyElem);
-  auto fallback = grad.getGradient(99);
+  auto fallback = toHost(grad.getGradient(99));
 
   // Default case returns m_gradKappa
   EXPECT_EQ(fallback.extent(0), static_cast<size_t>(numElements));
-  EXPECT_FLOAT_EQ(fallback(0), gradKappaElem(0));
+  EXPECT_FLOAT_EQ(fallback(0), getAt(gradKappaElem, 0));
 }
 
 TEST_F(GradientAcousticTest, ViewsAreShallowCopies) {
   GradientAcoustic grad(gradKappaElem, gradBuoyancyElem);
 
   // Modify through original view — change should be visible through gradient
-  gradKappaElem(0) = 999.0f;
-  EXPECT_FLOAT_EQ(grad.getGradient(0)(0), 999.0f);
+  setAt(gradKappaElem, 999.0f, 0);
+  EXPECT_FLOAT_EQ(getAt(grad.getGradient(0), 0), 999.0f);
 }
 
 TEST_F(GradientAcousticTest, PrintDoesNotThrow) {
