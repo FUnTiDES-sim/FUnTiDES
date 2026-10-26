@@ -146,6 +146,15 @@ class DGPAdaptiveSolver : public Solver {
   /// Fill the 1D order-raising matrix m_p1d_projection_, from which the mortar projection is built.
   void ComputeMortarProjection();
 
+  // Public because GPU kernels (extended lambdas) cannot live in private or protected methods.
+  /// Build m_pMin_interior_face_list_ and m_pMax_interior_face_list_ from the element types:
+  /// all faces minus the interface faces.
+  void BuildInteriorFaceLists();
+
+  /// Build m_iface_pMin_elem_list_ and m_pMin_elem_to_slot_ and allocate the prolonged arrays.
+  /// Requires the interface face list.
+  void BuildInterfaceElementList();
+
   /**
    * @brief Raise the pMin pressure to ORDER_MAX on every interface-adjacent pMin element, and
    * zero the matching interface stiffness accumulator.
@@ -240,14 +249,6 @@ class DGPAdaptiveSolver : public Solver {
   vectorInt m_pMin_interior_face_list_;
   /// Indices of the pMax-pMax interior faces.
   vectorInt m_pMax_interior_face_list_;
-
-  /// Build m_pMin_interior_face_list_ and m_pMax_interior_face_list_ from the element types:
-  /// all faces minus the interface faces.
-  void BuildInteriorFaceLists();
-
-  /// Build m_iface_pMin_elem_list_ and m_pMin_elem_to_slot_ and allocate the prolonged arrays.
-  /// Requires the interface face list.
-  void BuildInterfaceElementList();
 
   float pAdaptive_interface_z_ = 1000.f;  ///< Z coordinate of the pMin/pMax interface (Z-threshold split).
   /// Caller-provided per-element type tags, see setElementTags(). Empty unless set.

@@ -34,8 +34,11 @@ template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE, bool IS_MODEL_O
           utils::enums::physicType PHYSICS>
 void DGsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::outputSolutionValues(
     const int& t, int& e, const arrayReal& fieldGlobal, const char* fieldName) {
+  // fieldGlobal lives on the device: only the printed value is copied to the host.
+  float value = 0.0f;
+  Kokkos::deep_copy(value, Kokkos::subview(fieldGlobal, e, 0));
   std::cout << "TimeStep=" << t << ";  " << fieldName << " @ elementSource location " << e
-            << " after computeOneStep = " << fieldGlobal(e, 0) << std::endl;
+            << " after computeOneStep = " << value << std::endl;
 }
 
 template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE, bool IS_MODEL_ON_NODES,

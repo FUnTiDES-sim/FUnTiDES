@@ -4,6 +4,7 @@
 #include <array>
 #include <cmath>
 #include <iostream>
+#include <limits>
 #include <stdexcept>
 
 #include "Integrals.h"
@@ -102,43 +103,57 @@ void SEMsolverAcoustoElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES>
   int n_acoustic = 0;
   int n_elastic = 0;
 
-  for (int e = 0; e < nElem; ++e) {
-    float vs, rho;
-    if constexpr (IS_MODEL_ON_NODES) {
-      // Read an interior node: a corner node may carry fluid properties when
-      // the >= convention is used at the interface.
-      int const mid = ORDER / 2;
-      int const gIdx = m_mesh_.globalNodeIndex(e, mid, mid, mid);
-      vs = m_mesh_.getModelVsOnNodes(gIdx);
-      rho = m_mesh_.getModelRhoOnNodes(gIdx);
-    } else {
-      vs = m_mesh_.getModelVsOnElement(e);
-      rho = m_mesh_.getModelRhoOnElement(e);
-    }
+  auto mesh_local = m_mesh_;
+  auto elem_type = m_element_type_;
 
-    float const mu = rho * vs * vs;
-    if (mu < kMuTolerance) {
-      m_element_type_[e] = kElementTypeAcoustic;
-      ++n_acoustic;
-    } else {
-      m_element_type_[e] = kElementTypeElastic;
-      ++n_elastic;
-    }
-  }
+  // Count the number of acoustic and elastic elements based on the shear modulus mu = rho * vs^2.
+  Kokkos::parallel_reduce(
+      "TagElements_mainLoop", nElem,
+      KOKKOS_LAMBDA(const int e, int& local_n_acoustic, int& local_n_elastic) {
+        float vs, rho;
+        auto const& mesh = mesh_local;
+        if constexpr (IS_MODEL_ON_NODES) {
+          // Read an interior node: a corner node may carry fluid properties when
+          // the >= convention is used at the interface.
+          int const mid = ORDER / 2;
+          int const gIdx = mesh.globalNodeIndex(e, mid, mid, mid);
+          vs = mesh.getModelVsOnNodes(gIdx);
+          rho = mesh.getModelRhoOnNodes(gIdx);
+        } else {
+          vs = mesh.getModelVsOnElement(e);
+          rho = mesh.getModelRhoOnElement(e);
+        }
+        float const mu = rho * vs * vs;
+        if (mu < kMuTolerance) {
+          elem_type(e) = kElementTypeAcoustic;
+          ++local_n_acoustic;
+        } else {
+          elem_type(e) = kElementTypeElastic;
+          ++local_n_elastic;
+        }
+      },
+      n_acoustic, n_elastic);
+  FENCE
 
   num_acoustic_elements_ = n_acoustic;
   num_elastic_elements_ = n_elastic;
 
   acoustic_elem_list_ = allocateVector<vectorInt>(num_acoustic_elements_, "acousticElemList");
   elastic_elem_list_ = allocateVector<vectorInt>(num_elastic_elements_, "elasticElemList");
-  int ia = 0;
-  int ie = 0;
-  for (int e = 0; e < nElem; ++e) {
-    if (m_element_type_[e] == kElementTypeAcoustic)
-      acoustic_elem_list_[ia++] = e;
-    else
-      elastic_elem_list_[ie++] = e;
-  }
+
+  auto acoustic_elem_list = acoustic_elem_list_;
+  auto elastic_elem_list = elastic_elem_list_;
+
+  Kokkos::parallel_scan(
+      "BuildElementLists", nElem, KOKKOS_LAMBDA(const int e, int& update, const bool is_final) {
+        if (elem_type(e) == kElementTypeAcoustic) {
+          if (is_final) acoustic_elem_list(update) = e;
+          ++update;
+        } else {
+          if (is_final) elastic_elem_list(e - update) = e;
+        }
+      });
+  FENCE
 }
 
 template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE, bool IS_MODEL_ON_NODES>
@@ -179,54 +194,79 @@ void SEMsolverAcoustoElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES>
       });
   FENCE
 
-  int n_interface = 0;
-  for (int n = 0; n < nNode; ++n) {
-    if (acoustic_count[n] > 0 && elastic_count[n] > 0) ++n_interface;
-  }
-  num_interface_nodes_ = n_interface;
-  n_interface_nodes_ = n_interface;
+  // Count the number of interface nodes and build the compact list of their global indices.
+  Kokkos::parallel_reduce(
+      "CountInterfaceNodes", nNode,
+      KOKKOS_LAMBDA(const int n, int& local_count) {
+        if (acoustic_count(n) > 0 && elastic_count(n) > 0) ++local_count;
+      },
+      n_interface_nodes_);
+  FENCE
+
+  num_interface_nodes_ = n_interface_nodes_;
+
   m_interface_node_indices_ = allocateVector<vectorInt>(n_interface_nodes_, "interfaceNodeIndices");
 
-  int idx = 0;
-  for (int n = 0; n < nNode; ++n) {
-    if (acoustic_count[n] > 0 && elastic_count[n] > 0) {
-      m_interface_node_index_[n] = idx;
-      m_interface_node_indices_[idx] = n;
-      ++idx;
-    } else {
-      m_interface_node_index_[n] = -1;
-    }
-  }
+  auto interface_node_indices = m_interface_node_indices_;
+  auto interface_node_index = m_interface_node_index_;
+
+  // Fill the compact list of interface node global indices and the mapping from global to compact indices.
+  Kokkos::parallel_scan(
+      "BuildInterfaceNodeList", nNode, KOKKOS_LAMBDA(const int n, int& update, const bool is_final) {
+        if (acoustic_count[n] > 0 && elastic_count[n] > 0) {
+          if (is_final) {
+            interface_node_indices(update) = n;
+            interface_node_index(n) = update;
+          }
+          ++update;
+        } else {
+          if (is_final) interface_node_index(n) = -1;
+        }
+      });
   FENCE
 
   // Compact node lists per domain. Interface nodes appear in both lists: the
   // acoustic solver updates pressure there, the elastic solver displacement.
-  {
-    int n_acou = 0, n_elas = 0;
-    for (int n = 0; n < nNode; ++n) {
-      if (acoustic_count[n] > 0) ++n_acou;
-      if (elastic_count[n] > 0) ++n_elas;
-    }
-    num_acoustic_nodes_ = n_acou;
-    num_elastic_nodes_ = n_elas;
-    acoustic_node_list_ = allocateVector<vectorInt>(n_acou, "acousticNodeList");
-    elastic_node_list_ = allocateVector<vectorInt>(n_elas, "elasticNodeList");
-    int ia = 0, ie = 0;
-    for (int n = 0; n < nNode; ++n) {
-      if (acoustic_count[n] > 0) acoustic_node_list_[ia++] = n;
-      if (elastic_count[n] > 0) elastic_node_list_[ie++] = n;
-    }
-  }
+
+  int n_acou = 0, n_elas = 0;
+  Kokkos::parallel_reduce(
+      "CountDomainNodes", nNode,
+      KOKKOS_LAMBDA(const int n, int& local_n_acou, int& local_n_elas) {
+        if (acoustic_count(n) > 0) ++local_n_acou;
+        if (elastic_count(n) > 0) ++local_n_elas;
+      },
+      n_acou, n_elas);
+  FENCE
+
+  num_acoustic_nodes_ = n_acou;
+  num_elastic_nodes_ = n_elas;
+  acoustic_node_list_ = allocateVector<vectorInt>(n_acou, "acousticNodeList");
+  elastic_node_list_ = allocateVector<vectorInt>(n_elas, "elasticNodeList");
+  auto acoustic_node_list = acoustic_node_list_;
+  auto elastic_node_list = elastic_node_list_;
+
+  Kokkos::parallel_scan(
+      "BuildDomainNodeLists", nNode, KOKKOS_LAMBDA(const int n, int& update, const bool is_final) {
+        if (acoustic_count(n) > 0) {
+          if (is_final) acoustic_node_list(update) = n;
+          ++update;
+        }
+      });
+  FENCE
+
+  Kokkos::parallel_scan(
+      "BuildDomainNodeLists", nNode, KOKKOS_LAMBDA(const int n, int& update, const bool is_final) {
+        if (elastic_count(n) > 0) {
+          if (is_final) elastic_node_list(update) = n;
+          ++update;
+        }
+      });
+  FENCE
 
   // u^{n-1} of the solid, one entry per interface node (indexed by the compact interface index).
   m_ux_nm1_iface_ = allocateVector<vectorReal>(n_interface_nodes_, "uxNm1Iface");
   m_uy_nm1_iface_ = allocateVector<vectorReal>(n_interface_nodes_, "uyNm1Iface");
   m_uz_nm1_iface_ = allocateVector<vectorReal>(n_interface_nodes_, "uzNm1Iface");
-  for (int i = 0; i < n_interface_nodes_; ++i) {
-    m_ux_nm1_iface_[i] = 0.0f;
-    m_uy_nm1_iface_[i] = 0.0f;
-    m_uz_nm1_iface_[i] = 0.0f;
-  }
 
   // With node-based models an interface node holds a single set of properties,
   // so the solid and fluid sides are stored separately and swapped into the
@@ -234,19 +274,35 @@ void SEMsolverAcoustoElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES>
   if constexpr (IS_MODEL_ON_NODES) {
     // One adjacent elastic element per interface node, used to read the solid side.
     m_interface_adj_elastic_elem_ = allocateVector<vectorInt>(n_interface_nodes_, "interfaceAdjElasticElem");
-    for (int i = 0; i < n_interface_nodes_; ++i) m_interface_adj_elastic_elem_[i] = -1;
 
-    for (int ei = 0; ei < num_elastic_elements_; ++ei) {
-      int const e = elastic_elem_list_[ei];
-      for (int ii = 0; ii < dim; ++ii)
-        for (int jj = 0; jj < dim; ++jj)
-          for (int kk = 0; kk < dim; ++kk) {
-            int const gn = m_mesh_.globalNodeIndex(e, ii, jj, kk);
-            int const iface_idx = m_interface_node_index_[gn];
-            if (iface_idx >= 0 && m_interface_adj_elastic_elem_[iface_idx] < 0)
-              m_interface_adj_elastic_elem_[iface_idx] = e;
-          }
-    }
+    auto interface_adj_elastic_elem = m_interface_adj_elastic_elem_;
+    int const int_max = std::numeric_limits<int>::max();
+
+    Kokkos::parallel_for(
+        "TagNodes_adjacentElasticElem", n_interface_nodes_,
+        KOKKOS_LAMBDA(const int i) { interface_adj_elastic_elem(i) = int_max; });
+    FENCE
+
+    auto elastic_elem_list = elastic_elem_list_;
+
+    Kokkos::parallel_for(
+        "TagNodes_findAdjacentElasticElem", num_elastic_elements_, KOKKOS_LAMBDA(const int ei) {
+          int const e = elastic_elem_list(ei);
+          for (int ii = 0; ii < dim; ++ii)
+            for (int jj = 0; jj < dim; ++jj)
+              for (int kk = 0; kk < dim; ++kk) {
+                int const gn = mesh_local.globalNodeIndex(e, ii, jj, kk);
+                int const iface_idx = interface_node_index(gn);
+                if (iface_idx >= 0) Kokkos::atomic_min(&interface_adj_elastic_elem(iface_idx), e);
+              }
+        });
+    FENCE
+
+    Kokkos::parallel_for(
+        "TagNodes_checkAdjacentElasticElem", n_interface_nodes_, KOKKOS_LAMBDA(const int i) {
+          if (interface_adj_elastic_elem(i) == int_max) interface_adj_elastic_elem(i) = -1;
+        });
+    FENCE
 
     m_vp_solid_iface_ = allocateVector<vectorReal>(n_interface_nodes_, "vpSolidIface");
     m_vs_solid_iface_ = allocateVector<vectorReal>(n_interface_nodes_, "vsSolidIface");
@@ -254,66 +310,80 @@ void SEMsolverAcoustoElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES>
     m_vp_fluid_iface_ = allocateVector<vectorReal>(n_interface_nodes_, "vpFluidIface");
     m_rho_fluid_iface_ = allocateVector<vectorReal>(n_interface_nodes_, "rhoFluidIface");
 
-    for (int i = 0; i < n_interface_nodes_; ++i) {
-      int const j = m_interface_node_indices_[i];
+    auto vp_solid_iface = m_vp_solid_iface_;
+    auto vs_solid_iface = m_vs_solid_iface_;
+    auto rho_solid_iface = m_rho_solid_iface_;
+    auto vp_fluid_iface = m_vp_fluid_iface_;
+    auto rho_fluid_iface = m_rho_fluid_iface_;
+    auto vp_solid_node = m_vp_solid_node_;
+    auto vs_solid_node = m_vs_solid_node_;
+    auto rho_solid_node = m_rho_solid_node_;
+    auto const interface_property_convention = interface_property_convention_;
 
-      // Fluid side: the builder assigns interface nodes with the >= convention,
-      // so the values currently in the mesh are the fluid ones.
-      m_vp_fluid_iface_[i] = m_mesh_.getModelVpOnNodes(j);
-      m_rho_fluid_iface_[i] = m_mesh_.getModelRhoOnNodes(j);
+    Kokkos::parallel_for(
+        "TagNodes_readInterfaceProperties", n_interface_nodes_, KOKKOS_LAMBDA(const int i) {
+          int const j = interface_node_indices(i);
 
-      if (interface_property_convention_ == utils::enums::interfacePropertyConvention::kSharedOnInterfaceNodes) {
-        // The builder gave the interface node a single state meant for both
-        // sides, so there is nothing to rebuild and the mass fix below is a
-        // no-op.
-        m_vp_solid_iface_[i] = m_vp_fluid_iface_[i];
-        m_vs_solid_iface_[i] = m_mesh_.getModelVsOnNodes(j);
-        m_rho_solid_iface_[i] = m_rho_fluid_iface_[i];
-        continue;
-      }
+          // Fluid side: the builder assigns interface nodes with the >= convention,
+          // so the values currently in the mesh are the fluid ones.
+          vp_fluid_iface(i) = mesh_local.getModelVpOnNodes(j);
+          rho_fluid_iface(i) = mesh_local.getModelRhoOnNodes(j);
 
-      if (m_rho_solid_node_.extent(0) > 0) {
-        m_vp_solid_iface_[i] = m_vp_solid_node_[j];
-        m_vs_solid_iface_[i] = m_vs_solid_node_[j];
-        m_rho_solid_iface_[i] = m_rho_solid_node_[j];
-        continue;
-      }
+          if (interface_property_convention == utils::enums::interfacePropertyConvention::kSharedOnInterfaceNodes) {
+            // The builder gave the interface node a single state meant for both
+            // sides, so there is nothing to rebuild and the mass fix below is a
+            // no-op.
+            vp_solid_iface(i) = vp_fluid_iface(i);
+            vs_solid_iface(i) = mesh_local.getModelVsOnNodes(j);
+            rho_solid_iface(i) = rho_fluid_iface(i);
+            return;
+          }
 
-      // Solid side: read from a non-interface node of the adjacent elastic
-      // element to avoid picking up fluid-contaminated corner properties.
-      int const e_adj = m_interface_adj_elastic_elem_[i];
-      bool found = false;
-      if (e_adj >= 0) {
-        for (int ii = 0; ii < dim && !found; ++ii)
-          for (int jj = 0; jj < dim && !found; ++jj)
-            for (int kk = 0; kk < dim && !found; ++kk) {
-              int const g = m_mesh_.globalNodeIndex(e_adj, ii, jj, kk);
-              if (m_interface_node_index_[g] < 0) {
-                m_vp_solid_iface_[i] = m_mesh_.getModelVpOnNodes(g);
-                m_vs_solid_iface_[i] = m_mesh_.getModelVsOnNodes(g);
-                m_rho_solid_iface_[i] = m_mesh_.getModelRhoOnNodes(g);
-                found = true;
-              }
-            }
-      }
-      if (!found) {
-        // Degenerate case: the adjacent element has no non-interface node.
-        m_vp_solid_iface_[i] = m_vp_fluid_iface_[i];
-        m_vs_solid_iface_[i] = 0.0f;
-        m_rho_solid_iface_[i] = m_rho_fluid_iface_[i];
-      }
-    }
+          if (rho_solid_node.extent(0) > 0) {
+            vp_solid_iface(i) = vp_solid_node(j);
+            vs_solid_iface(i) = vs_solid_node(j);
+            rho_solid_iface(i) = rho_solid_node(j);
+            return;
+          }
+
+          // Solid side: read from a non-interface node of the adjacent elastic
+          // element to avoid picking up fluid-contaminated corner properties.
+          int const e_adj = interface_adj_elastic_elem(i);
+          bool found = false;
+          if (e_adj >= 0) {
+            for (int ii = 0; ii < dim && !found; ++ii)
+              for (int jj = 0; jj < dim && !found; ++jj)
+                for (int kk = 0; kk < dim && !found; ++kk) {
+                  int const g = mesh_local.globalNodeIndex(e_adj, ii, jj, kk);
+                  if (interface_node_index(g) < 0) {
+                    vp_solid_iface(i) = mesh_local.getModelVpOnNodes(g);
+                    vs_solid_iface(i) = mesh_local.getModelVsOnNodes(g);
+                    rho_solid_iface(i) = mesh_local.getModelRhoOnNodes(g);
+                    found = true;
+                  }
+                }
+          }
+          if (!found) {
+            // Degenerate case: the adjacent element has no non-interface node.
+            vp_solid_iface(i) = vp_fluid_iface(i);
+            vs_solid_iface(i) = 0.0f;
+            rho_solid_iface(i) = rho_fluid_iface(i);
+          }
+        });
+    FENCE
 
     // computeGlobalMassMatrix ran before TagNodes and integrated rho_fluid over
     // the elastic elements. The SEM lumped mass is M_e[j] = rho[j] * J * w_j,
     // so rescaling by rho_solid / rho_fluid is exact.
     auto elastic_mass = m_elastic_solver_.getMassMatrixElastic();
-    for (int i = 0; i < n_interface_nodes_; ++i) {
-      int const j = m_interface_node_indices_[i];
-      float const rho_fluid = m_rho_fluid_iface_[i];
-      float const rho_solid = m_rho_solid_iface_[i];
-      if (rho_fluid > 0.0f && rho_solid != rho_fluid) elastic_mass[j] *= rho_solid / rho_fluid;
-    }
+
+    Kokkos::parallel_for(
+        "TagNodes_fixElasticMass", n_interface_nodes_, KOKKOS_LAMBDA(const int i) {
+          int const j = interface_node_indices(i);
+          float const rho_fluid = rho_fluid_iface(i);
+          float const rho_solid = rho_solid_iface(i);
+          if (rho_fluid > 0.0f && rho_solid != rho_fluid) elastic_mass(j) *= rho_solid / rho_fluid;
+        });
     FENCE
   }
 }
@@ -325,38 +395,46 @@ void SEMsolverAcoustoElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE,
 
   int const nElem = m_mesh_.getNumberOfElements();
 
-  for (int elementNumber = 0; elementNumber < nElem; ++elementNumber) {
-    if (m_element_type_[elementNumber] != kElementTypeAcoustic) continue;
+  auto mesh_local = m_mesh_;
+  auto elem_type = m_element_type_;
+  auto interface_node_index = m_interface_node_index_;
+  auto coupling_coeff_x = m_coupling_coeff_x_;
+  auto coupling_coeff_y = m_coupling_coeff_y_;
+  auto coupling_coeff_z = m_coupling_coeff_z_;
 
-    for (int fi = 0; fi < 6; ++fi) {
-      int const f = m_mesh_.getGlobalFace(elementNumber, static_cast<model::CubicFace>(fi));
+  Kokkos::parallel_for(
+      "ComputeInterfaceCouplingCoefficients", nElem, KOKKOS_LAMBDA(const int e) {
+        if (elem_type(e) != kElementTypeAcoustic) return;
 
-      // A coupling face has all its nodes on the interface; this excludes lateral faces
-      // that only touch it at a corner or an edge.
-      int iface_count = 0;
-      for (int q = 0; q < numNodesPerFace; ++q) {
-        if (m_interface_node_index_[m_mesh_.getGlobalNodeFromFace(f, q)] >= 0) ++iface_count;
-      }
-      if (iface_count < numNodesPerFace) continue;
+        for (int fi = 0; fi < 6; ++fi) {
+          int const f = mesh_local.getGlobalFace(e, static_cast<model::CubicFace>(fi));
 
-      float normal[3];
-      m_mesh_.faceNormal(elementNumber, static_cast<model::CubicFace>(fi), normal);
+          // A coupling face has all its nodes on the interface; this excludes lateral faces
+          // that only touch it at a corner or an edge.
+          int iface_count = 0;
+          for (int q = 0; q < numNodesPerFace; ++q) {
+            if (interface_node_index(mesh_local.getGlobalNodeFromFace(f, q)) >= 0) ++iface_count;
+          }
+          if (iface_count < numNodesPerFace) continue;
 
-      float coords[4][3];
-      for (int j = 0; j < 4; ++j) {
-        int const gn = m_mesh_.getGlobalNodeFromFace(f, INTEGRAL_TYPE::meshIndexToLinearIndex2D(j));
-        for (int d = 0; d < 3; ++d) coords[j][d] = m_mesh_.nodeCoord(gn, d);
-      }
+          float normal[3];
+          mesh_local.faceNormal(e, static_cast<model::CubicFace>(fi), normal);
 
-      for (int q = 0; q < numNodesPerFace; ++q) {
-        int const gn = m_mesh_.getGlobalNodeFromFace(f, q);
-        float const aux = static_cast<float>(INTEGRAL_TYPE::computeDampingTerm(q, coords));
-        m_coupling_coeff_x_[gn] += aux * normal[0];
-        m_coupling_coeff_y_[gn] += aux * normal[1];
-        m_coupling_coeff_z_[gn] += aux * normal[2];
-      }
-    }
-  }
+          float coords[4][3];
+          for (int j = 0; j < 4; ++j) {
+            int const gn = mesh_local.getGlobalNodeFromFace(f, INTEGRAL_TYPE::meshIndexToLinearIndex2D(j));
+            for (int d = 0; d < 3; ++d) coords[j][d] = mesh_local.nodeCoord(gn, d);
+          }
+
+          for (int q = 0; q < numNodesPerFace; ++q) {
+            int const gn = mesh_local.getGlobalNodeFromFace(f, q);
+            float const aux = static_cast<float>(INTEGRAL_TYPE::computeDampingTerm(q, coords));
+            ATOMICADD(coupling_coeff_x(gn), aux * normal[0]);
+            ATOMICADD(coupling_coeff_y(gn), aux * normal[1]);
+            ATOMICADD(coupling_coeff_z(gn), aux * normal[2]);
+          }
+        }
+      });
   FENCE
 }
 

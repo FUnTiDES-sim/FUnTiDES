@@ -7,7 +7,6 @@
 #include <limits>
 #include <stdexcept>
 #include <typeinfo>
-#include <unordered_set>
 
 #include "data_type.h"
 #include "dg_penalty.h"
@@ -262,23 +261,45 @@ class DGsolver : public Solver {
   /**
    * @brief Fills m_face_list_ and m_n_face_list_ with the faces of the elements in m_elem_list_.
    *
-   * Each face appears once. The order of the resulting list is unspecified.
+   * Each face appears once.
    */
   void faceListFromElementList() {
-    std::unordered_set<int> visited_faces;
-    for (int i = 0; i < m_n_elem_list_; ++i) {
-      const int e = m_elem_list_[i];
-      for (int f = 0; f < 6; ++f) {
-        const int face_id = m_face_connectivity_.getGlobalFace(e, static_cast<model::CubicFace>(f));
-        visited_faces.insert(face_id);
-      }
-    }
-    m_n_face_list_ = static_cast<int>(visited_faces.size());
+    auto elem_list = m_elem_list_;
+    auto face_connectivity = m_face_connectivity_;
+
+    int const n_elem_list = m_n_elem_list_;
+    int const n_faces_fc = face_connectivity.getNumberOfFaces();
+    vectorInt is_face = allocateVector<vectorInt>(n_faces_fc, "isFace");
+
+    Kokkos::parallel_for(
+        "MarkFacesFromElementList", n_elem_list, KOKKOS_LAMBDA(const int _loop_idx) {
+          const int e = elem_list[_loop_idx];
+          for (int f = 0; f < 6; ++f) {
+            const int face_id = face_connectivity.getGlobalFace(e, static_cast<model::CubicFace>(f));
+            is_face(face_id) = 1;
+          }
+        });
+    FENCE;
+
+    Kokkos::parallel_reduce(
+        "CountFacesFromElementList", n_faces_fc,
+        KOKKOS_LAMBDA(const int f, int& local_count) {
+          if (is_face[f]) ++local_count;
+        },
+        m_n_face_list_);
+    FENCE;
+
     m_face_list_ = allocateVector<vectorInt>(m_n_face_list_, "faceList");
-    int i = 0;
-    for (const int face_id : visited_faces) {
-      m_face_list_(i++) = face_id;
-    }
+    auto face_list = m_face_list_;
+
+    Kokkos::parallel_scan(
+        "BuildFaceListFromElementList", n_faces_fc, KOKKOS_LAMBDA(const int f, int& update, const bool is_final) {
+          if (is_face[f]) {
+            if (is_final) face_list(update) = f;
+            ++update;
+          }
+        });
+    FENCE;
   }
 
   /// @brief SIPG penalty factor.

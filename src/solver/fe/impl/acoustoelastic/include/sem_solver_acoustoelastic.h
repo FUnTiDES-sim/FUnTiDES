@@ -173,6 +173,9 @@ class SEMsolverAcoustoElastic : public Solver {
   // The methods below are public because GPU kernels (extended lambdas) cannot
   // live in private or protected methods.
 
+  /// @brief Classify each element as acoustic or elastic (mu < kMuTolerance).
+  void TagElements();
+
   /// @brief Identify the interface nodes and the node lists of each domain.
   void TagNodes();
 
@@ -295,9 +298,6 @@ class SEMsolverAcoustoElastic : public Solver {
 
   /// Shear-modulus threshold below which an element is classified as acoustic.
   static constexpr float kMuTolerance = 1.0e-6f;
-
-  /// @brief Classify each element as acoustic or elastic (mu < kMuTolerance).
-  void TagElements();
 };
 
 }  // namespace fe
