@@ -2,11 +2,17 @@
 
 #include "common_macros.h"
 #include "data_type.h"
+#include "device_view_access.h"
 #include "wavefield_elastic.h"
 
 namespace solver {
 namespace fe {
 namespace test {
+
+using test_utils::fillFromHost;
+using test_utils::getAt;
+using test_utils::setAt;
+using test_utils::toHost;
 
 class WavefieldElasticTest : public ::testing::Test {
  protected:
@@ -30,23 +36,43 @@ class WavefieldElasticTest : public ::testing::Test {
     uzCurrField2 = allocateVector<vectorReal>(size2, "uzCurrField2");
 
     // Initialize with test values
-    for (size_t i = 0; i < size1; ++i) {
-      uxPrevField(i) = i;
-      uxCurrField(i) = i * 2;
-      uyPrevField(i) = i * 3;
-      uyCurrField(i) = i * 4;
-      uzPrevField(i) = i * 5;
-      uzCurrField(i) = i * 6;
-    }
+    fillFromHost(uxPrevField, [&](const auto& h) {
+      for (size_t i = 0; i < size1; ++i) h(i) = i;
+    });
+    fillFromHost(uxCurrField, [&](const auto& h) {
+      for (size_t i = 0; i < size1; ++i) h(i) = i * 2;
+    });
+    fillFromHost(uyPrevField, [&](const auto& h) {
+      for (size_t i = 0; i < size1; ++i) h(i) = i * 3;
+    });
+    fillFromHost(uyCurrField, [&](const auto& h) {
+      for (size_t i = 0; i < size1; ++i) h(i) = i * 4;
+    });
+    fillFromHost(uzPrevField, [&](const auto& h) {
+      for (size_t i = 0; i < size1; ++i) h(i) = i * 5;
+    });
+    fillFromHost(uzCurrField, [&](const auto& h) {
+      for (size_t i = 0; i < size1; ++i) h(i) = i * 6;
+    });
 
-    for (size_t i = 0; i < size2; ++i) {
-      uxPrevField2(i) = i * 7;
-      uxCurrField2(i) = i * 8;
-      uyPrevField2(i) = i * 9;
-      uyCurrField2(i) = i * 10;
-      uzPrevField2(i) = i * 11;
-      uzCurrField2(i) = i * 12;
-    }
+    fillFromHost(uxPrevField2, [&](const auto& h) {
+      for (size_t i = 0; i < size2; ++i) h(i) = i * 7;
+    });
+    fillFromHost(uxCurrField2, [&](const auto& h) {
+      for (size_t i = 0; i < size2; ++i) h(i) = i * 8;
+    });
+    fillFromHost(uyPrevField2, [&](const auto& h) {
+      for (size_t i = 0; i < size2; ++i) h(i) = i * 9;
+    });
+    fillFromHost(uyCurrField2, [&](const auto& h) {
+      for (size_t i = 0; i < size2; ++i) h(i) = i * 10;
+    });
+    fillFromHost(uzPrevField2, [&](const auto& h) {
+      for (size_t i = 0; i < size2; ++i) h(i) = i * 11;
+    });
+    fillFromHost(uzCurrField2, [&](const auto& h) {
+      for (size_t i = 0; i < size2; ++i) h(i) = i * 12;
+    });
   }
 
   size_t size1;
@@ -70,13 +96,19 @@ TEST_F(WavefieldElasticTest, Constructor) {
   EXPECT_EQ(wavefield.m_uznGlobalCurr.extent(0), size1);
 
   // Verify data is correctly stored
+  auto ux_prev = toHost(wavefield.m_uxnGlobalPrev);
+  auto ux_curr = toHost(wavefield.m_uxnGlobalCurr);
+  auto uy_prev = toHost(wavefield.m_uynGlobalPrev);
+  auto uy_curr = toHost(wavefield.m_uynGlobalCurr);
+  auto uz_prev = toHost(wavefield.m_uznGlobalPrev);
+  auto uz_curr = toHost(wavefield.m_uznGlobalCurr);
   for (size_t i = 0; i < size1; ++i) {
-    EXPECT_FLOAT_EQ(wavefield.m_uxnGlobalPrev(i), i);
-    EXPECT_FLOAT_EQ(wavefield.m_uxnGlobalCurr(i), i * 2);
-    EXPECT_FLOAT_EQ(wavefield.m_uynGlobalPrev(i), i * 3);
-    EXPECT_FLOAT_EQ(wavefield.m_uynGlobalCurr(i), i * 4);
-    EXPECT_FLOAT_EQ(wavefield.m_uznGlobalPrev(i), i * 5);
-    EXPECT_FLOAT_EQ(wavefield.m_uznGlobalCurr(i), i * 6);
+    EXPECT_FLOAT_EQ(ux_prev(i), i);
+    EXPECT_FLOAT_EQ(ux_curr(i), i * 2);
+    EXPECT_FLOAT_EQ(uy_prev(i), i * 3);
+    EXPECT_FLOAT_EQ(uy_curr(i), i * 4);
+    EXPECT_FLOAT_EQ(uz_prev(i), i * 5);
+    EXPECT_FLOAT_EQ(uz_curr(i), i * 6);
   }
 }
 
@@ -93,29 +125,35 @@ TEST_F(WavefieldElasticTest, CopyConstructor) {
   EXPECT_EQ(copy.m_uznGlobalCurr.extent(0), original.m_uznGlobalCurr.extent(0));
 
   // Check that copy has the same data
+  auto copy_ux_prev = toHost(copy.m_uxnGlobalPrev), orig_ux_prev = toHost(original.m_uxnGlobalPrev);
+  auto copy_ux_curr = toHost(copy.m_uxnGlobalCurr), orig_ux_curr = toHost(original.m_uxnGlobalCurr);
+  auto copy_uy_prev = toHost(copy.m_uynGlobalPrev), orig_uy_prev = toHost(original.m_uynGlobalPrev);
+  auto copy_uy_curr = toHost(copy.m_uynGlobalCurr), orig_uy_curr = toHost(original.m_uynGlobalCurr);
+  auto copy_uz_prev = toHost(copy.m_uznGlobalPrev), orig_uz_prev = toHost(original.m_uznGlobalPrev);
+  auto copy_uz_curr = toHost(copy.m_uznGlobalCurr), orig_uz_curr = toHost(original.m_uznGlobalCurr);
   for (size_t i = 0; i < size1; ++i) {
-    EXPECT_FLOAT_EQ(copy.m_uxnGlobalPrev(i), original.m_uxnGlobalPrev(i));
-    EXPECT_FLOAT_EQ(copy.m_uxnGlobalCurr(i), original.m_uxnGlobalCurr(i));
-    EXPECT_FLOAT_EQ(copy.m_uynGlobalPrev(i), original.m_uynGlobalPrev(i));
-    EXPECT_FLOAT_EQ(copy.m_uynGlobalCurr(i), original.m_uynGlobalCurr(i));
-    EXPECT_FLOAT_EQ(copy.m_uznGlobalPrev(i), original.m_uznGlobalPrev(i));
-    EXPECT_FLOAT_EQ(copy.m_uznGlobalCurr(i), original.m_uznGlobalCurr(i));
+    EXPECT_FLOAT_EQ(copy_ux_prev(i), orig_ux_prev(i));
+    EXPECT_FLOAT_EQ(copy_ux_curr(i), orig_ux_curr(i));
+    EXPECT_FLOAT_EQ(copy_uy_prev(i), orig_uy_prev(i));
+    EXPECT_FLOAT_EQ(copy_uy_curr(i), orig_uy_curr(i));
+    EXPECT_FLOAT_EQ(copy_uz_prev(i), orig_uz_prev(i));
+    EXPECT_FLOAT_EQ(copy_uz_curr(i), orig_uz_curr(i));
   }
 
   // Modify original data to verify shallow copy behavior (Kokkos views are
   // shallow by default)
-  original.m_uxnGlobalPrev(0) = 999.0f;
-  EXPECT_FLOAT_EQ(copy.m_uxnGlobalPrev(0), 999.0f);
-  original.m_uxnGlobalCurr(0) = 888.0f;
-  EXPECT_FLOAT_EQ(copy.m_uxnGlobalCurr(0), 888.0f);
-  original.m_uynGlobalPrev(0) = 777.0f;
-  EXPECT_FLOAT_EQ(copy.m_uynGlobalPrev(0), 777.0f);
-  original.m_uynGlobalCurr(0) = 666.0f;
-  EXPECT_FLOAT_EQ(copy.m_uynGlobalCurr(0), 666.0f);
-  original.m_uznGlobalPrev(0) = 555.0f;
-  EXPECT_FLOAT_EQ(copy.m_uznGlobalPrev(0), 555.0f);
-  original.m_uznGlobalCurr(0) = 444.0f;
-  EXPECT_FLOAT_EQ(copy.m_uznGlobalCurr(0), 444.0f);
+  setAt(original.m_uxnGlobalPrev, 999.0f, 0);
+  EXPECT_FLOAT_EQ(getAt(copy.m_uxnGlobalPrev, 0), 999.0f);
+  setAt(original.m_uxnGlobalCurr, 888.0f, 0);
+  EXPECT_FLOAT_EQ(getAt(copy.m_uxnGlobalCurr, 0), 888.0f);
+  setAt(original.m_uynGlobalPrev, 777.0f, 0);
+  EXPECT_FLOAT_EQ(getAt(copy.m_uynGlobalPrev, 0), 777.0f);
+  setAt(original.m_uynGlobalCurr, 666.0f, 0);
+  EXPECT_FLOAT_EQ(getAt(copy.m_uynGlobalCurr, 0), 666.0f);
+  setAt(original.m_uznGlobalPrev, 555.0f, 0);
+  EXPECT_FLOAT_EQ(getAt(copy.m_uznGlobalPrev, 0), 555.0f);
+  setAt(original.m_uznGlobalCurr, 444.0f, 0);
+  EXPECT_FLOAT_EQ(getAt(copy.m_uznGlobalCurr, 0), 444.0f);
 }
 
 TEST_F(WavefieldElasticTest, CopyAssignmentOperator) {
@@ -138,21 +176,27 @@ TEST_F(WavefieldElasticTest, CopyAssignmentOperator) {
   EXPECT_EQ(wavefield2.m_uznGlobalCurr.extent(0), size1);
 
   // Check that data matches
+  auto w2_ux_prev = toHost(wavefield2.m_uxnGlobalPrev), w1_ux_prev = toHost(wavefield1.m_uxnGlobalPrev);
+  auto w2_ux_curr = toHost(wavefield2.m_uxnGlobalCurr), w1_ux_curr = toHost(wavefield1.m_uxnGlobalCurr);
+  auto w2_uy_prev = toHost(wavefield2.m_uynGlobalPrev), w1_uy_prev = toHost(wavefield1.m_uynGlobalPrev);
+  auto w2_uy_curr = toHost(wavefield2.m_uynGlobalCurr), w1_uy_curr = toHost(wavefield1.m_uynGlobalCurr);
+  auto w2_uz_prev = toHost(wavefield2.m_uznGlobalPrev), w1_uz_prev = toHost(wavefield1.m_uznGlobalPrev);
+  auto w2_uz_curr = toHost(wavefield2.m_uznGlobalCurr), w1_uz_curr = toHost(wavefield1.m_uznGlobalCurr);
   for (size_t i = 0; i < size1; ++i) {
-    EXPECT_FLOAT_EQ(wavefield2.m_uxnGlobalPrev(i), wavefield1.m_uxnGlobalPrev(i));
-    EXPECT_FLOAT_EQ(wavefield2.m_uxnGlobalCurr(i), wavefield1.m_uxnGlobalCurr(i));
-    EXPECT_FLOAT_EQ(wavefield2.m_uynGlobalPrev(i), wavefield1.m_uynGlobalPrev(i));
-    EXPECT_FLOAT_EQ(wavefield2.m_uynGlobalCurr(i), wavefield1.m_uynGlobalCurr(i));
-    EXPECT_FLOAT_EQ(wavefield2.m_uznGlobalPrev(i), wavefield1.m_uznGlobalPrev(i));
-    EXPECT_FLOAT_EQ(wavefield2.m_uznGlobalCurr(i), wavefield1.m_uznGlobalCurr(i));
+    EXPECT_FLOAT_EQ(w2_ux_prev(i), w1_ux_prev(i));
+    EXPECT_FLOAT_EQ(w2_ux_curr(i), w1_ux_curr(i));
+    EXPECT_FLOAT_EQ(w2_uy_prev(i), w1_uy_prev(i));
+    EXPECT_FLOAT_EQ(w2_uy_curr(i), w1_uy_curr(i));
+    EXPECT_FLOAT_EQ(w2_uz_prev(i), w1_uz_prev(i));
+    EXPECT_FLOAT_EQ(w2_uz_curr(i), w1_uz_curr(i));
   }
 
   // Modify original data to verify shallow copy behavior (Kokkos views are
   // shallow by default)
-  wavefield1.m_uxnGlobalPrev(0) = 777.0f;
-  EXPECT_FLOAT_EQ(wavefield2.m_uxnGlobalPrev(0), 777.0f);
-  wavefield1.m_uxnGlobalCurr(0) = 666.0f;
-  EXPECT_FLOAT_EQ(wavefield2.m_uxnGlobalCurr(0), 666.0f);
+  setAt(wavefield1.m_uxnGlobalPrev, 777.0f, 0);
+  EXPECT_FLOAT_EQ(getAt(wavefield2.m_uxnGlobalPrev, 0), 777.0f);
+  setAt(wavefield1.m_uxnGlobalCurr, 666.0f, 0);
+  EXPECT_FLOAT_EQ(getAt(wavefield2.m_uxnGlobalCurr, 0), 666.0f);
 }
 
 TEST_F(WavefieldElasticTest, CopyAssignmentSelfAssignment) {
@@ -169,13 +213,19 @@ TEST_F(WavefieldElasticTest, CopyAssignmentSelfAssignment) {
   EXPECT_EQ(wavefield.m_uznGlobalPrev.extent(0), size1);
   EXPECT_EQ(wavefield.m_uznGlobalCurr.extent(0), size1);
 
+  auto ux_prev = toHost(wavefield.m_uxnGlobalPrev);
+  auto ux_curr = toHost(wavefield.m_uxnGlobalCurr);
+  auto uy_prev = toHost(wavefield.m_uynGlobalPrev);
+  auto uy_curr = toHost(wavefield.m_uynGlobalCurr);
+  auto uz_prev = toHost(wavefield.m_uznGlobalPrev);
+  auto uz_curr = toHost(wavefield.m_uznGlobalCurr);
   for (size_t i = 0; i < size1; ++i) {
-    EXPECT_FLOAT_EQ(wavefield.m_uxnGlobalPrev(i), i);
-    EXPECT_FLOAT_EQ(wavefield.m_uxnGlobalCurr(i), i * 2);
-    EXPECT_FLOAT_EQ(wavefield.m_uynGlobalPrev(i), i * 3);
-    EXPECT_FLOAT_EQ(wavefield.m_uynGlobalCurr(i), i * 4);
-    EXPECT_FLOAT_EQ(wavefield.m_uznGlobalPrev(i), i * 5);
-    EXPECT_FLOAT_EQ(wavefield.m_uznGlobalCurr(i), i * 6);
+    EXPECT_FLOAT_EQ(ux_prev(i), i);
+    EXPECT_FLOAT_EQ(ux_curr(i), i * 2);
+    EXPECT_FLOAT_EQ(uy_prev(i), i * 3);
+    EXPECT_FLOAT_EQ(uy_curr(i), i * 4);
+    EXPECT_FLOAT_EQ(uz_prev(i), i * 5);
+    EXPECT_FLOAT_EQ(uz_curr(i), i * 6);
   }
 }
 
@@ -190,10 +240,11 @@ TEST_F(WavefieldElasticTest, GetCurrentField) {
   EXPECT_EQ(currentY.extent(0), size1);
   EXPECT_EQ(currentZ.extent(0), size1);
 
+  auto h_x = toHost(currentX), h_y = toHost(currentY), h_z = toHost(currentZ);
   for (size_t i = 0; i < size1; ++i) {
-    EXPECT_FLOAT_EQ(currentX(i), i * 2);
-    EXPECT_FLOAT_EQ(currentY(i), i * 4);
-    EXPECT_FLOAT_EQ(currentZ(i), i * 6);
+    EXPECT_FLOAT_EQ(h_x(i), i * 2);
+    EXPECT_FLOAT_EQ(h_y(i), i * 4);
+    EXPECT_FLOAT_EQ(h_z(i), i * 6);
   }
 }
 
@@ -208,10 +259,11 @@ TEST_F(WavefieldElasticTest, GetPreviousField) {
   EXPECT_EQ(previousY.extent(0), size1);
   EXPECT_EQ(previousZ.extent(0), size1);
 
+  auto h_x = toHost(previousX), h_y = toHost(previousY), h_z = toHost(previousZ);
   for (size_t i = 0; i < size1; ++i) {
-    EXPECT_FLOAT_EQ(previousX(i), i);
-    EXPECT_FLOAT_EQ(previousY(i), i * 3);
-    EXPECT_FLOAT_EQ(previousZ(i), i * 5);
+    EXPECT_FLOAT_EQ(h_x(i), i);
+    EXPECT_FLOAT_EQ(h_y(i), i * 3);
+    EXPECT_FLOAT_EQ(h_z(i), i * 5);
   }
 }
 
@@ -219,32 +271,38 @@ TEST_F(WavefieldElasticTest, Swap) {
   WavefieldElastic wavefield(uxPrevField, uxCurrField, uyPrevField, uyCurrField, uzPrevField, uzCurrField);
 
   // Store original values
-  float originalUxPrev0 = wavefield.m_uxnGlobalPrev(0);
-  float originalUxCurr0 = wavefield.m_uxnGlobalCurr(0);
-  float originalUyPrev0 = wavefield.m_uynGlobalPrev(0);
-  float originalUyCurr0 = wavefield.m_uynGlobalCurr(0);
-  float originalUzPrev0 = wavefield.m_uznGlobalPrev(0);
-  float originalUzCurr0 = wavefield.m_uznGlobalCurr(0);
+  float originalUxPrev0 = getAt(wavefield.m_uxnGlobalPrev, 0);
+  float originalUxCurr0 = getAt(wavefield.m_uxnGlobalCurr, 0);
+  float originalUyPrev0 = getAt(wavefield.m_uynGlobalPrev, 0);
+  float originalUyCurr0 = getAt(wavefield.m_uynGlobalCurr, 0);
+  float originalUzPrev0 = getAt(wavefield.m_uznGlobalPrev, 0);
+  float originalUzCurr0 = getAt(wavefield.m_uznGlobalCurr, 0);
 
   // Perform swap
   wavefield.swap();
 
   // Verify that prev and curr have been swapped
-  EXPECT_FLOAT_EQ(wavefield.m_uxnGlobalPrev(0), originalUxCurr0);
-  EXPECT_FLOAT_EQ(wavefield.m_uxnGlobalCurr(0), originalUxPrev0);
-  EXPECT_FLOAT_EQ(wavefield.m_uynGlobalPrev(0), originalUyCurr0);
-  EXPECT_FLOAT_EQ(wavefield.m_uynGlobalCurr(0), originalUyPrev0);
-  EXPECT_FLOAT_EQ(wavefield.m_uznGlobalPrev(0), originalUzCurr0);
-  EXPECT_FLOAT_EQ(wavefield.m_uznGlobalCurr(0), originalUzPrev0);
+  EXPECT_FLOAT_EQ(getAt(wavefield.m_uxnGlobalPrev, 0), originalUxCurr0);
+  EXPECT_FLOAT_EQ(getAt(wavefield.m_uxnGlobalCurr, 0), originalUxPrev0);
+  EXPECT_FLOAT_EQ(getAt(wavefield.m_uynGlobalPrev, 0), originalUyCurr0);
+  EXPECT_FLOAT_EQ(getAt(wavefield.m_uynGlobalCurr, 0), originalUyPrev0);
+  EXPECT_FLOAT_EQ(getAt(wavefield.m_uznGlobalPrev, 0), originalUzCurr0);
+  EXPECT_FLOAT_EQ(getAt(wavefield.m_uznGlobalCurr, 0), originalUzPrev0);
 
   // Verify all elements were swapped
+  auto ux_prev = toHost(wavefield.m_uxnGlobalPrev);
+  auto ux_curr = toHost(wavefield.m_uxnGlobalCurr);
+  auto uy_prev = toHost(wavefield.m_uynGlobalPrev);
+  auto uy_curr = toHost(wavefield.m_uynGlobalCurr);
+  auto uz_prev = toHost(wavefield.m_uznGlobalPrev);
+  auto uz_curr = toHost(wavefield.m_uznGlobalCurr);
   for (size_t i = 0; i < size1; ++i) {
-    EXPECT_FLOAT_EQ(wavefield.m_uxnGlobalPrev(i), i * 2);
-    EXPECT_FLOAT_EQ(wavefield.m_uxnGlobalCurr(i), i);
-    EXPECT_FLOAT_EQ(wavefield.m_uynGlobalPrev(i), i * 4);
-    EXPECT_FLOAT_EQ(wavefield.m_uynGlobalCurr(i), i * 3);
-    EXPECT_FLOAT_EQ(wavefield.m_uznGlobalPrev(i), i * 6);
-    EXPECT_FLOAT_EQ(wavefield.m_uznGlobalCurr(i), i * 5);
+    EXPECT_FLOAT_EQ(ux_prev(i), i * 2);
+    EXPECT_FLOAT_EQ(ux_curr(i), i);
+    EXPECT_FLOAT_EQ(uy_prev(i), i * 4);
+    EXPECT_FLOAT_EQ(uy_curr(i), i * 3);
+    EXPECT_FLOAT_EQ(uz_prev(i), i * 6);
+    EXPECT_FLOAT_EQ(uz_curr(i), i * 5);
   }
 }
 
@@ -252,31 +310,31 @@ TEST_F(WavefieldElasticTest, SwapTwice) {
   WavefieldElastic wavefield(uxPrevField, uxCurrField, uyPrevField, uyCurrField, uzPrevField, uzCurrField);
 
   // Store original values
-  std::vector<float> originalUxPrev(size1), originalUxCurr(size1);
-  std::vector<float> originalUyPrev(size1), originalUyCurr(size1);
-  std::vector<float> originalUzPrev(size1), originalUzCurr(size1);
-
-  for (size_t i = 0; i < size1; ++i) {
-    originalUxPrev[i] = wavefield.m_uxnGlobalPrev(i);
-    originalUxCurr[i] = wavefield.m_uxnGlobalCurr(i);
-    originalUyPrev[i] = wavefield.m_uynGlobalPrev(i);
-    originalUyCurr[i] = wavefield.m_uynGlobalCurr(i);
-    originalUzPrev[i] = wavefield.m_uznGlobalPrev(i);
-    originalUzCurr[i] = wavefield.m_uznGlobalCurr(i);
-  }
+  auto original_ux_prev = toHost(wavefield.m_uxnGlobalPrev);
+  auto original_ux_curr = toHost(wavefield.m_uxnGlobalCurr);
+  auto original_uy_prev = toHost(wavefield.m_uynGlobalPrev);
+  auto original_uy_curr = toHost(wavefield.m_uynGlobalCurr);
+  auto original_uz_prev = toHost(wavefield.m_uznGlobalPrev);
+  auto original_uz_curr = toHost(wavefield.m_uznGlobalCurr);
 
   // Swap twice should restore original state
   wavefield.swap();
   wavefield.swap();
 
   // Verify restoration
+  auto ux_prev = toHost(wavefield.m_uxnGlobalPrev);
+  auto ux_curr = toHost(wavefield.m_uxnGlobalCurr);
+  auto uy_prev = toHost(wavefield.m_uynGlobalPrev);
+  auto uy_curr = toHost(wavefield.m_uynGlobalCurr);
+  auto uz_prev = toHost(wavefield.m_uznGlobalPrev);
+  auto uz_curr = toHost(wavefield.m_uznGlobalCurr);
   for (size_t i = 0; i < size1; ++i) {
-    EXPECT_FLOAT_EQ(wavefield.m_uxnGlobalPrev(i), originalUxPrev[i]);
-    EXPECT_FLOAT_EQ(wavefield.m_uxnGlobalCurr(i), originalUxCurr[i]);
-    EXPECT_FLOAT_EQ(wavefield.m_uynGlobalPrev(i), originalUyPrev[i]);
-    EXPECT_FLOAT_EQ(wavefield.m_uynGlobalCurr(i), originalUyCurr[i]);
-    EXPECT_FLOAT_EQ(wavefield.m_uznGlobalPrev(i), originalUzPrev[i]);
-    EXPECT_FLOAT_EQ(wavefield.m_uznGlobalCurr(i), originalUzCurr[i]);
+    EXPECT_FLOAT_EQ(ux_prev(i), original_ux_prev(i));
+    EXPECT_FLOAT_EQ(ux_curr(i), original_ux_curr(i));
+    EXPECT_FLOAT_EQ(uy_prev(i), original_uy_prev(i));
+    EXPECT_FLOAT_EQ(uy_curr(i), original_uy_curr(i));
+    EXPECT_FLOAT_EQ(uz_prev(i), original_uz_prev(i));
+    EXPECT_FLOAT_EQ(uz_curr(i), original_uz_curr(i));
   }
 }
 
@@ -284,20 +342,20 @@ TEST_F(WavefieldElasticTest, SwapWithModification) {
   WavefieldElastic wavefield(uxPrevField, uxCurrField, uyPrevField, uyCurrField, uzPrevField, uzCurrField);
 
   // Modify current fields
-  wavefield.m_uxnGlobalCurr(5) = 123.456f;
-  wavefield.m_uynGlobalCurr(7) = 234.567f;
-  wavefield.m_uznGlobalCurr(9) = 345.678f;
+  setAt(wavefield.m_uxnGlobalCurr, 123.456f, 5);
+  setAt(wavefield.m_uynGlobalCurr, 234.567f, 7);
+  setAt(wavefield.m_uznGlobalCurr, 345.678f, 9);
 
   // Swap
   wavefield.swap();
 
   // The modified values should now be in the previous fields
-  EXPECT_FLOAT_EQ(wavefield.m_uxnGlobalPrev(5), 123.456f);
-  EXPECT_FLOAT_EQ(wavefield.m_uxnGlobalCurr(5), 5.0f);
-  EXPECT_FLOAT_EQ(wavefield.m_uynGlobalPrev(7), 234.567f);
-  EXPECT_FLOAT_EQ(wavefield.m_uynGlobalCurr(7), 21.0f);
-  EXPECT_FLOAT_EQ(wavefield.m_uznGlobalPrev(9), 345.678f);
-  EXPECT_FLOAT_EQ(wavefield.m_uznGlobalCurr(9), 45.0f);
+  EXPECT_FLOAT_EQ(getAt(wavefield.m_uxnGlobalPrev, 5), 123.456f);
+  EXPECT_FLOAT_EQ(getAt(wavefield.m_uxnGlobalCurr, 5), 5.0f);
+  EXPECT_FLOAT_EQ(getAt(wavefield.m_uynGlobalPrev, 7), 234.567f);
+  EXPECT_FLOAT_EQ(getAt(wavefield.m_uynGlobalCurr, 7), 21.0f);
+  EXPECT_FLOAT_EQ(getAt(wavefield.m_uznGlobalPrev, 9), 345.678f);
+  EXPECT_FLOAT_EQ(getAt(wavefield.m_uznGlobalCurr, 9), 45.0f);
 }
 
 TEST_F(WavefieldElasticTest, CopyConstructorAfterSwap) {
@@ -310,13 +368,19 @@ TEST_F(WavefieldElasticTest, CopyConstructorAfterSwap) {
   WavefieldElastic copy(original);
 
   // Verify copy has the swapped state
+  auto ux_prev = toHost(copy.m_uxnGlobalPrev);
+  auto ux_curr = toHost(copy.m_uxnGlobalCurr);
+  auto uy_prev = toHost(copy.m_uynGlobalPrev);
+  auto uy_curr = toHost(copy.m_uynGlobalCurr);
+  auto uz_prev = toHost(copy.m_uznGlobalPrev);
+  auto uz_curr = toHost(copy.m_uznGlobalCurr);
   for (size_t i = 0; i < size1; ++i) {
-    EXPECT_FLOAT_EQ(copy.m_uxnGlobalPrev(i), i * 2);
-    EXPECT_FLOAT_EQ(copy.m_uxnGlobalCurr(i), i);
-    EXPECT_FLOAT_EQ(copy.m_uynGlobalPrev(i), i * 4);
-    EXPECT_FLOAT_EQ(copy.m_uynGlobalCurr(i), i * 3);
-    EXPECT_FLOAT_EQ(copy.m_uznGlobalPrev(i), i * 6);
-    EXPECT_FLOAT_EQ(copy.m_uznGlobalCurr(i), i * 5);
+    EXPECT_FLOAT_EQ(ux_prev(i), i * 2);
+    EXPECT_FLOAT_EQ(ux_curr(i), i);
+    EXPECT_FLOAT_EQ(uy_prev(i), i * 4);
+    EXPECT_FLOAT_EQ(uy_curr(i), i * 3);
+    EXPECT_FLOAT_EQ(uz_prev(i), i * 6);
+    EXPECT_FLOAT_EQ(uz_curr(i), i * 5);
   }
 }
 
@@ -360,72 +424,72 @@ TEST_F(WavefieldElasticTest, CopyInContainerClass) {
   WavefieldElastic original(uxPrevField, uxCurrField, uyPrevField, uyCurrField, uzPrevField, uzCurrField);
 
   // Store original values
-  std::vector<float> originalUxPrev(size1), originalUxCurr(size1);
-  std::vector<float> originalUyPrev(size1), originalUyCurr(size1);
-  std::vector<float> originalUzPrev(size1), originalUzCurr(size1);
-
-  for (size_t i = 0; i < size1; ++i) {
-    originalUxPrev[i] = original.m_uxnGlobalPrev(i);
-    originalUxCurr[i] = original.m_uxnGlobalCurr(i);
-    originalUyPrev[i] = original.m_uynGlobalPrev(i);
-    originalUyCurr[i] = original.m_uynGlobalCurr(i);
-    originalUzPrev[i] = original.m_uznGlobalPrev(i);
-    originalUzCurr[i] = original.m_uznGlobalCurr(i);
-  }
+  auto original_ux_prev = toHost(original.m_uxnGlobalPrev);
+  auto original_ux_curr = toHost(original.m_uxnGlobalCurr);
+  auto original_uy_prev = toHost(original.m_uynGlobalPrev);
+  auto original_uy_curr = toHost(original.m_uynGlobalCurr);
+  auto original_uz_prev = toHost(original.m_uznGlobalPrev);
+  auto original_uz_curr = toHost(original.m_uznGlobalCurr);
 
   // Create container with wavefield copy
   WavefieldContainer container(original);
 
   // Verify container has correct initial state
+  auto ux_prev = toHost(container.wavefield.m_uxnGlobalPrev);
+  auto ux_curr = toHost(container.wavefield.m_uxnGlobalCurr);
+  auto uy_prev = toHost(container.wavefield.m_uynGlobalPrev);
+  auto uy_curr = toHost(container.wavefield.m_uynGlobalCurr);
+  auto uz_prev = toHost(container.wavefield.m_uznGlobalPrev);
+  auto uz_curr = toHost(container.wavefield.m_uznGlobalCurr);
   for (size_t i = 0; i < size1; ++i) {
-    EXPECT_FLOAT_EQ(container.wavefield.m_uxnGlobalPrev(i), originalUxPrev[i]);
-    EXPECT_FLOAT_EQ(container.wavefield.m_uxnGlobalCurr(i), originalUxCurr[i]);
-    EXPECT_FLOAT_EQ(container.wavefield.m_uynGlobalPrev(i), originalUyPrev[i]);
-    EXPECT_FLOAT_EQ(container.wavefield.m_uynGlobalCurr(i), originalUyCurr[i]);
-    EXPECT_FLOAT_EQ(container.wavefield.m_uznGlobalPrev(i), originalUzPrev[i]);
-    EXPECT_FLOAT_EQ(container.wavefield.m_uznGlobalCurr(i), originalUzCurr[i]);
+    EXPECT_FLOAT_EQ(ux_prev(i), original_ux_prev(i));
+    EXPECT_FLOAT_EQ(ux_curr(i), original_ux_curr(i));
+    EXPECT_FLOAT_EQ(uy_prev(i), original_uy_prev(i));
+    EXPECT_FLOAT_EQ(uy_curr(i), original_uy_curr(i));
+    EXPECT_FLOAT_EQ(uz_prev(i), original_uz_prev(i));
+    EXPECT_FLOAT_EQ(uz_curr(i), original_uz_curr(i));
   }
 
   // Modify original wavefield
-  original.m_uxnGlobalCurr(10) = 999.0f;
-  original.m_uxnGlobalPrev(20) = 888.0f;
-  original.m_uynGlobalCurr(15) = 777.0f;
+  setAt(original.m_uxnGlobalCurr, 999.0f, 10);
+  setAt(original.m_uxnGlobalPrev, 888.0f, 20);
+  setAt(original.m_uynGlobalCurr, 777.0f, 15);
 
   // Container should reflect changes (shallow copy via Kokkos views)
-  EXPECT_FLOAT_EQ(container.wavefield.m_uxnGlobalCurr(10), 999.0f);
-  EXPECT_FLOAT_EQ(container.wavefield.m_uxnGlobalPrev(20), 888.0f);
-  EXPECT_FLOAT_EQ(container.wavefield.m_uynGlobalCurr(15), 777.0f);
+  EXPECT_FLOAT_EQ(getAt(container.wavefield.m_uxnGlobalCurr, 10), 999.0f);
+  EXPECT_FLOAT_EQ(getAt(container.wavefield.m_uxnGlobalPrev, 20), 888.0f);
+  EXPECT_FLOAT_EQ(getAt(container.wavefield.m_uynGlobalCurr, 15), 777.0f);
 
   // Perform multiple swaps on container, checking after each
   container.swap();
   // After first swap
-  EXPECT_FLOAT_EQ(container.wavefield.m_uxnGlobalPrev(10), 999.0f);
-  EXPECT_FLOAT_EQ(container.wavefield.m_uxnGlobalCurr(20), 888.0f);
-  EXPECT_FLOAT_EQ(container.wavefield.m_uynGlobalPrev(15), 777.0f);
+  EXPECT_FLOAT_EQ(getAt(container.wavefield.m_uxnGlobalPrev, 10), 999.0f);
+  EXPECT_FLOAT_EQ(getAt(container.wavefield.m_uxnGlobalCurr, 20), 888.0f);
+  EXPECT_FLOAT_EQ(getAt(container.wavefield.m_uynGlobalPrev, 15), 777.0f);
 
   container.swap();
   // After second swap (back to original)
-  EXPECT_FLOAT_EQ(container.wavefield.m_uxnGlobalCurr(10), 999.0f);
-  EXPECT_FLOAT_EQ(container.wavefield.m_uxnGlobalPrev(20), 888.0f);
-  EXPECT_FLOAT_EQ(container.wavefield.m_uynGlobalCurr(15), 777.0f);
+  EXPECT_FLOAT_EQ(getAt(container.wavefield.m_uxnGlobalCurr, 10), 999.0f);
+  EXPECT_FLOAT_EQ(getAt(container.wavefield.m_uxnGlobalPrev, 20), 888.0f);
+  EXPECT_FLOAT_EQ(getAt(container.wavefield.m_uynGlobalCurr, 15), 777.0f);
 
   container.swap();
   // After third swap
-  EXPECT_FLOAT_EQ(container.wavefield.m_uxnGlobalPrev(10), 999.0f);
-  EXPECT_FLOAT_EQ(container.wavefield.m_uxnGlobalCurr(20), 888.0f);
-  EXPECT_FLOAT_EQ(container.wavefield.m_uynGlobalPrev(15), 777.0f);
+  EXPECT_FLOAT_EQ(getAt(container.wavefield.m_uxnGlobalPrev, 10), 999.0f);
+  EXPECT_FLOAT_EQ(getAt(container.wavefield.m_uxnGlobalCurr, 20), 888.0f);
+  EXPECT_FLOAT_EQ(getAt(container.wavefield.m_uynGlobalPrev, 15), 777.0f);
 
   // Swap container's wavefield independently
   container.swap();
 
   // Now container should be back to original order
-  EXPECT_FLOAT_EQ(container.wavefield.m_uxnGlobalCurr(10), 999.0f);
-  EXPECT_FLOAT_EQ(container.wavefield.m_uxnGlobalPrev(20), 888.0f);
-  EXPECT_FLOAT_EQ(container.wavefield.m_uynGlobalCurr(15), 777.0f);
+  EXPECT_FLOAT_EQ(getAt(container.wavefield.m_uxnGlobalCurr, 10), 999.0f);
+  EXPECT_FLOAT_EQ(getAt(container.wavefield.m_uxnGlobalPrev, 20), 888.0f);
+  EXPECT_FLOAT_EQ(getAt(container.wavefield.m_uynGlobalCurr, 15), 777.0f);
 
   // Verify they still share the same underlying data
-  container.wavefield.m_uznGlobalCurr(30) = 666.0f;
-  EXPECT_FLOAT_EQ(original.m_uznGlobalCurr(30), 666.0f);
+  setAt(container.wavefield.m_uznGlobalCurr, 666.0f, 30);
+  EXPECT_FLOAT_EQ(getAt(original.m_uznGlobalCurr, 30), 666.0f);
 }
 
 TEST_F(WavefieldElasticTest, SwapWithThreeBuffersRotatesCorrectly) {
@@ -433,11 +497,9 @@ TEST_F(WavefieldElasticTest, SwapWithThreeBuffersRotatesCorrectly) {
   auto uxPrevPrev = allocateVector<vectorReal>(size1, "uxPrevPrev");
   auto uyPrevPrev = allocateVector<vectorReal>(size1, "uyPrevPrev");
   auto uzPrevPrev = allocateVector<vectorReal>(size1, "uzPrevPrev");
-  for (size_t i = 0; i < size1; ++i) {
-    uxPrevPrev(i) = 10.0f;
-    uyPrevPrev(i) = 20.0f;
-    uzPrevPrev(i) = 30.0f;
-  }
+  Kokkos::deep_copy(uxPrevPrev, 10.0f);
+  Kokkos::deep_copy(uyPrevPrev, 20.0f);
+  Kokkos::deep_copy(uzPrevPrev, 30.0f);
 
   WavefieldElastic wavefield(uxPrevPrev, uxPrevField, uxCurrField, uyPrevPrev, uyPrevField, uyCurrField, uzPrevPrev,
                              uzPrevField, uzCurrField);
@@ -449,18 +511,27 @@ TEST_F(WavefieldElasticTest, SwapWithThreeBuffersRotatesCorrectly) {
   //   curr      ← old prevPrev  (ux=10, uy=20, uz=30)
   //   prev      ← old curr      (ux=i*2, uy=i*4, uz=i*6)
   //   prevPrev  ← old prev      (ux=i,   uy=i*3, uz=i*5)
+  auto ux_curr = toHost(wavefield.m_uxnGlobalCurr);
+  auto uy_curr = toHost(wavefield.m_uynGlobalCurr);
+  auto uz_curr = toHost(wavefield.m_uznGlobalCurr);
+  auto ux_prev = toHost(wavefield.m_uxnGlobalPrev);
+  auto uy_prev = toHost(wavefield.m_uynGlobalPrev);
+  auto uz_prev = toHost(wavefield.m_uznGlobalPrev);
+  auto ux_prevprev = toHost(wavefield.getPrevPrevField(0));
+  auto uy_prevprev = toHost(wavefield.getPrevPrevField(1));
+  auto uz_prevprev = toHost(wavefield.getPrevPrevField(2));
   for (size_t i = 0; i < size1; ++i) {
-    EXPECT_FLOAT_EQ(wavefield.m_uxnGlobalCurr(i), 10.0f);
-    EXPECT_FLOAT_EQ(wavefield.m_uynGlobalCurr(i), 20.0f);
-    EXPECT_FLOAT_EQ(wavefield.m_uznGlobalCurr(i), 30.0f);
+    EXPECT_FLOAT_EQ(ux_curr(i), 10.0f);
+    EXPECT_FLOAT_EQ(uy_curr(i), 20.0f);
+    EXPECT_FLOAT_EQ(uz_curr(i), 30.0f);
 
-    EXPECT_FLOAT_EQ(wavefield.m_uxnGlobalPrev(i), i * 2);
-    EXPECT_FLOAT_EQ(wavefield.m_uynGlobalPrev(i), i * 4);
-    EXPECT_FLOAT_EQ(wavefield.m_uznGlobalPrev(i), i * 6);
+    EXPECT_FLOAT_EQ(ux_prev(i), i * 2);
+    EXPECT_FLOAT_EQ(uy_prev(i), i * 4);
+    EXPECT_FLOAT_EQ(uz_prev(i), i * 6);
 
-    EXPECT_FLOAT_EQ(wavefield.getPrevPrevField(0)(i), static_cast<float>(i));
-    EXPECT_FLOAT_EQ(wavefield.getPrevPrevField(1)(i), static_cast<float>(i) * 3);
-    EXPECT_FLOAT_EQ(wavefield.getPrevPrevField(2)(i), static_cast<float>(i) * 5);
+    EXPECT_FLOAT_EQ(ux_prevprev(i), static_cast<float>(i));
+    EXPECT_FLOAT_EQ(uy_prevprev(i), static_cast<float>(i) * 3);
+    EXPECT_FLOAT_EQ(uz_prevprev(i), static_cast<float>(i) * 5);
   }
 }
 
@@ -468,15 +539,13 @@ TEST_F(WavefieldElasticTest, SwapThreeTimesRestoresStateWithThreeBuffers) {
   auto uxPrevPrev = allocateVector<vectorReal>(size1, "uxPrevPrev");
   auto uyPrevPrev = allocateVector<vectorReal>(size1, "uyPrevPrev");
   auto uzPrevPrev = allocateVector<vectorReal>(size1, "uzPrevPrev");
-  for (size_t i = 0; i < size1; ++i) {
-    uxPrevPrev(i) = 10.0f;
-    uyPrevPrev(i) = 20.0f;
-    uzPrevPrev(i) = 30.0f;
-  }
+  Kokkos::deep_copy(uxPrevPrev, 10.0f);
+  Kokkos::deep_copy(uyPrevPrev, 20.0f);
+  Kokkos::deep_copy(uzPrevPrev, 30.0f);
 
-  float initialUxPrev0 = uxPrevField(0);
-  float initialUxCurr0 = uxCurrField(0);
-  float initialUxPP0 = uxPrevPrev(0);
+  float initialUxPrev0 = getAt(uxPrevField, 0);
+  float initialUxCurr0 = getAt(uxCurrField, 0);
+  float initialUxPP0 = getAt(uxPrevPrev, 0);
 
   WavefieldElastic wavefield(uxPrevPrev, uxPrevField, uxCurrField, uyPrevPrev, uyPrevField, uyCurrField, uzPrevPrev,
                              uzPrevField, uzCurrField);
@@ -486,28 +555,26 @@ TEST_F(WavefieldElasticTest, SwapThreeTimesRestoresStateWithThreeBuffers) {
   wavefield.swap();
   wavefield.swap();
 
-  EXPECT_FLOAT_EQ(wavefield.m_uxnGlobalPrev(0), initialUxPrev0);
-  EXPECT_FLOAT_EQ(wavefield.m_uxnGlobalCurr(0), initialUxCurr0);
-  EXPECT_FLOAT_EQ(wavefield.getPrevPrevField(0)(0), initialUxPP0);
+  EXPECT_FLOAT_EQ(getAt(wavefield.m_uxnGlobalPrev, 0), initialUxPrev0);
+  EXPECT_FLOAT_EQ(getAt(wavefield.m_uxnGlobalCurr, 0), initialUxCurr0);
+  EXPECT_FLOAT_EQ(getAt(wavefield.getPrevPrevField(0), 0), initialUxPP0);
 }
 
 TEST_F(WavefieldElasticTest, SwapThreeBuffersNoDataCopy) {
   auto uxPrevPrev = allocateVector<vectorReal>(size1, "uxPrevPrev");
   auto uyPrevPrev = allocateVector<vectorReal>(size1, "uyPrevPrev");
   auto uzPrevPrev = allocateVector<vectorReal>(size1, "uzPrevPrev");
-  for (size_t i = 0; i < size1; ++i) {
-    uxPrevPrev(i) = 10.0f;
-    uyPrevPrev(i) = 20.0f;
-    uzPrevPrev(i) = 30.0f;
-  }
+  Kokkos::deep_copy(uxPrevPrev, 10.0f);
+  Kokkos::deep_copy(uyPrevPrev, 20.0f);
+  Kokkos::deep_copy(uzPrevPrev, 30.0f);
 
   WavefieldElastic wavefield(uxPrevPrev, uxPrevField, uxCurrField, uyPrevPrev, uyPrevField, uyCurrField, uzPrevPrev,
                              uzPrevField, uzCurrField);
   wavefield.swap();
 
   // getPrevPrevField(0) now aliases uxPrevField; write through one and read through the other
-  wavefield.getPrevPrevField(0)(0) = 999.0f;
-  EXPECT_FLOAT_EQ(uxPrevField(0), 999.0f);
+  setAt(wavefield.getPrevPrevField(0), 999.0f, 0);
+  EXPECT_FLOAT_EQ(getAt(uxPrevField, 0), 999.0f);
 }
 
 TEST_F(WavefieldElasticTest, GetNumFieldsReturnsThree) {

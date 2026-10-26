@@ -1,10 +1,16 @@
 #include <gtest/gtest.h>
 
 #include "data_type.h"
+#include "device_view_access.h"
 #include "gradient_elastic.h"
 
 namespace gradient {
 namespace test {
+
+using test_utils::fillFromHost;
+using test_utils::getAt;
+using test_utils::setAt;
+using test_utils::toHost;
 
 class GradientElasticTest : public ::testing::Test {
  protected:
@@ -20,16 +26,24 @@ class GradientElasticTest : public ::testing::Test {
     gradLambdaNode = allocateVector<vectorReal>(numNodes, "gradLambdaNode");
     gradMuNode = allocateVector<vectorReal>(numNodes, "gradMuNode");
 
-    for (int i = 0; i < numElements; ++i) {
-      gradRhoElem(i) = static_cast<float>(i) * 1.0f;
-      gradLambdaElem(i) = static_cast<float>(i) * 2.0f;
-      gradMuElem(i) = static_cast<float>(i) * 3.0f;
-    }
-    for (int i = 0; i < numNodes; ++i) {
-      gradRhoNode(i) = static_cast<float>(i) * 0.1f;
-      gradLambdaNode(i) = static_cast<float>(i) * 0.2f;
-      gradMuNode(i) = static_cast<float>(i) * 0.3f;
-    }
+    fillFromHost(gradRhoElem, [&](const auto& h) {
+      for (int i = 0; i < numElements; ++i) h(i) = static_cast<float>(i) * 1.0f;
+    });
+    fillFromHost(gradLambdaElem, [&](const auto& h) {
+      for (int i = 0; i < numElements; ++i) h(i) = static_cast<float>(i) * 2.0f;
+    });
+    fillFromHost(gradMuElem, [&](const auto& h) {
+      for (int i = 0; i < numElements; ++i) h(i) = static_cast<float>(i) * 3.0f;
+    });
+    fillFromHost(gradRhoNode, [&](const auto& h) {
+      for (int i = 0; i < numNodes; ++i) h(i) = static_cast<float>(i) * 0.1f;
+    });
+    fillFromHost(gradLambdaNode, [&](const auto& h) {
+      for (int i = 0; i < numNodes; ++i) h(i) = static_cast<float>(i) * 0.2f;
+    });
+    fillFromHost(gradMuNode, [&](const auto& h) {
+      for (int i = 0; i < numNodes; ++i) h(i) = static_cast<float>(i) * 0.3f;
+    });
   }
 
   int numElements;
@@ -84,7 +98,7 @@ TEST_F(GradientElasticTest, GetGradientNameByIndex) {
 
 TEST_F(GradientElasticTest, GetGradientRhoElementBased) {
   GradientElastic grad(gradRhoElem, gradLambdaElem, gradMuElem);
-  auto rho = grad.getGradient(0);
+  auto rho = toHost(grad.getGradient(0));
 
   ASSERT_EQ(rho.extent(0), static_cast<size_t>(numElements));
   for (int i = 0; i < numElements; ++i) EXPECT_FLOAT_EQ(rho(i), static_cast<float>(i) * 1.0f);
@@ -92,7 +106,7 @@ TEST_F(GradientElasticTest, GetGradientRhoElementBased) {
 
 TEST_F(GradientElasticTest, GetGradientLambdaElementBased) {
   GradientElastic grad(gradRhoElem, gradLambdaElem, gradMuElem);
-  auto lambda = grad.getGradient(1);
+  auto lambda = toHost(grad.getGradient(1));
 
   ASSERT_EQ(lambda.extent(0), static_cast<size_t>(numElements));
   for (int i = 0; i < numElements; ++i) EXPECT_FLOAT_EQ(lambda(i), static_cast<float>(i) * 2.0f);
@@ -100,7 +114,7 @@ TEST_F(GradientElasticTest, GetGradientLambdaElementBased) {
 
 TEST_F(GradientElasticTest, GetGradientMuElementBased) {
   GradientElastic grad(gradRhoElem, gradLambdaElem, gradMuElem);
-  auto mu = grad.getGradient(2);
+  auto mu = toHost(grad.getGradient(2));
 
   ASSERT_EQ(mu.extent(0), static_cast<size_t>(numElements));
   for (int i = 0; i < numElements; ++i) EXPECT_FLOAT_EQ(mu(i), static_cast<float>(i) * 3.0f);
@@ -108,7 +122,7 @@ TEST_F(GradientElasticTest, GetGradientMuElementBased) {
 
 TEST_F(GradientElasticTest, GetGradientRhoNodeBased) {
   GradientElastic grad(gradRhoNode, gradLambdaNode, gradMuNode);
-  auto rho = grad.getGradient(0);
+  auto rho = toHost(grad.getGradient(0));
 
   ASSERT_EQ(rho.extent(0), static_cast<size_t>(numNodes));
   for (int i = 0; i < numNodes; ++i) EXPECT_FLOAT_EQ(rho(i), static_cast<float>(i) * 0.1f);
@@ -116,7 +130,7 @@ TEST_F(GradientElasticTest, GetGradientRhoNodeBased) {
 
 TEST_F(GradientElasticTest, GetGradientLambdaNodeBased) {
   GradientElastic grad(gradRhoNode, gradLambdaNode, gradMuNode);
-  auto lambda = grad.getGradient(1);
+  auto lambda = toHost(grad.getGradient(1));
 
   ASSERT_EQ(lambda.extent(0), static_cast<size_t>(numNodes));
   for (int i = 0; i < numNodes; ++i) EXPECT_FLOAT_EQ(lambda(i), static_cast<float>(i) * 0.2f);
@@ -124,7 +138,7 @@ TEST_F(GradientElasticTest, GetGradientLambdaNodeBased) {
 
 TEST_F(GradientElasticTest, GetGradientMuNodeBased) {
   GradientElastic grad(gradRhoNode, gradLambdaNode, gradMuNode);
-  auto mu = grad.getGradient(2);
+  auto mu = toHost(grad.getGradient(2));
 
   ASSERT_EQ(mu.extent(0), static_cast<size_t>(numNodes));
   for (int i = 0; i < numNodes; ++i) EXPECT_FLOAT_EQ(mu(i), static_cast<float>(i) * 0.3f);
@@ -132,25 +146,25 @@ TEST_F(GradientElasticTest, GetGradientMuNodeBased) {
 
 TEST_F(GradientElasticTest, GetGradientOutOfBoundsFallsBackToRho) {
   GradientElastic grad(gradRhoElem, gradLambdaElem, gradMuElem);
-  auto fallback = grad.getGradient(99);
+  auto fallback = toHost(grad.getGradient(99));
 
   // Default case returns m_gradRho
   EXPECT_EQ(fallback.extent(0), static_cast<size_t>(numElements));
-  EXPECT_FLOAT_EQ(fallback(0), gradRhoElem(0));
+  EXPECT_FLOAT_EQ(fallback(0), getAt(gradRhoElem, 0));
 }
 
 // --- Shared-view (shallow copy) semantics ---
 
 TEST_F(GradientElasticTest, RhoViewIsShallowCopy) {
   GradientElastic grad(gradRhoElem, gradLambdaElem, gradMuElem);
-  gradRhoElem(0) = 777.0f;
-  EXPECT_FLOAT_EQ(grad.getGradient(0)(0), 777.0f);
+  setAt(gradRhoElem, 777.0f, 0);
+  EXPECT_FLOAT_EQ(getAt(grad.getGradient(0), 0), 777.0f);
 }
 
 TEST_F(GradientElasticTest, LambdaViewIsShallowCopy) {
   GradientElastic grad(gradRhoElem, gradLambdaElem, gradMuElem);
-  gradLambdaElem(2) = 888.0f;
-  EXPECT_FLOAT_EQ(grad.getGradient(1)(2), 888.0f);
+  setAt(gradLambdaElem, 888.0f, 2);
+  EXPECT_FLOAT_EQ(getAt(grad.getGradient(1), 2), 888.0f);
 }
 
 // --- print() ---

@@ -28,6 +28,7 @@
 #include "cartesian_struct_builder.h"
 #include "common_macros.h"
 #include "data_type.h"
+#include "device_view_access.h"
 #include "dg_solver_data.h"
 #include "dg_solver_impl.h"
 #include "model_struct.h"
@@ -35,6 +36,11 @@
 namespace solver {
 namespace fe {
 namespace test {
+
+using test_utils::fillFromHost;
+using test_utils::fillFromList;
+using test_utils::setAt;
+using test_utils::toHost;
 
 // ============================================================
 // Type aliases for the DG acoustic solver on structured mesh
@@ -74,11 +80,8 @@ class DGsolverAcousticTest : public ::testing::Test {
     auto pCurr = allocateArray2D<arrayReal>(nElem_, kNDof, "pCurr");
     auto pPrev = allocateArray2D<arrayReal>(nElem_, kNDof, "pPrev");
 
-    for (int e = 0; e < nElem_; ++e)
-      for (int d = 0; d < kNDof; ++d) {
-        pCurr(e, d) = pCurrVal;
-        pPrev(e, d) = pPrevVal;
-      }
+    Kokkos::deep_copy(pCurr, pCurrVal);
+    Kokkos::deep_copy(pPrev, pPrevVal);
 
     int const nSrc = (nSample > 0) ? 1 : 0;
     auto rhsTerm = allocateArray2D<arrayReal>(nSrc, (nSample > 0 ? nSample : 1), "rhsTerm");
@@ -86,9 +89,9 @@ class DGsolverAcousticTest : public ::testing::Test {
     auto rhsWeights = allocateArray2D<arrayReal>(nSrc, kNDof, "rhsWeights");
 
     if (nSrc > 0) {
-      rhsElem(0) = srcElem;
-      for (int t = 0; t < nSample; ++t) rhsTerm(0, t) = wavelet;
-      for (int d = 0; d < kNDof; ++d) rhsWeights(0, d) = 1.0f / kNDof;
+      setAt(rhsElem, srcElem, 0);
+      Kokkos::deep_copy(rhsTerm, wavelet);
+      Kokkos::deep_copy(rhsWeights, 1.0f / kNDof);
     }
 
     DGWavefieldAcoustic wavefield(pPrev, pCurr);
@@ -173,9 +176,9 @@ TEST_F(DGsolverAcousticTest, ZeroFieldZeroSource_StaysZero) {
   solver_.computeOneStep(0.001f, 0, data);
 
   // After one step from p=0 with no source, p must remain 0.
+  auto prev = toHost(data.getPreviousField(0));
   for (int e = 0; e < nElem_; ++e)
-    for (int d = 0; d < kNDof; ++d)
-      EXPECT_FLOAT_EQ(data.getPreviousField(0)(e, d), 0.0f) << "elem=" << e << " dof=" << d;
+    for (int d = 0; d < kNDof; ++d) EXPECT_FLOAT_EQ(prev(e, d), 0.0f) << "elem=" << e << " dof=" << d;
 }
 
 TEST_F(DGsolverAcousticTest, UniformFieldZeroSource_StaysUniform) {
@@ -186,9 +189,9 @@ TEST_F(DGsolverAcousticTest, UniformFieldZeroSource_StaysUniform) {
   auto data = makeData(1.0f, 1.0f);
   solver_.computeOneStep(0.001f, 0, data);
 
+  auto prev = toHost(data.getPreviousField(0));
   for (int e = 0; e < nElem_; ++e)
-    for (int d = 0; d < kNDof; ++d)
-      EXPECT_NEAR(data.getPreviousField(0)(e, d), 1.0f, 1e-4f) << "elem=" << e << " dof=" << d;
+    for (int d = 0; d < kNDof; ++d) EXPECT_NEAR(prev(e, d), 1.0f, 1e-4f) << "elem=" << e << " dof=" << d;
 }
 
 TEST_F(DGsolverAcousticTest, NonzeroSource_FieldChangesAtSourceElem) {
@@ -200,7 +203,8 @@ TEST_F(DGsolverAcousticTest, NonzeroSource_FieldChangesAtSourceElem) {
 
   // rhs_elem(0,d) = -kWavelet * (1/kNDof) < 0
   // Verlet (curr=prev=0): new_prev = -dt^2 * rhs / (M + ...) > 0
-  for (int d = 0; d < kNDof; ++d) EXPECT_GT(data.getPreviousField(0)(0, d), 0.0f) << "dof=" << d;
+  auto prev = toHost(data.getPreviousField(0));
+  for (int d = 0; d < kNDof; ++d) EXPECT_GT(prev(0, d), 0.0f) << "dof=" << d;
 }
 
 TEST_F(DGsolverAcousticTest, NoSourceElements_UnaffectedBySource) {
@@ -211,9 +215,9 @@ TEST_F(DGsolverAcousticTest, NoSourceElements_UnaffectedBySource) {
 
   // Elements != 0 should have zero field (the source kernel only writes
   // to element 0; interface flux from zero field is also zero).
+  auto prev = toHost(data.getPreviousField(0));
   for (int e = 1; e < nElem_; ++e)
-    for (int d = 0; d < kNDof; ++d)
-      EXPECT_FLOAT_EQ(data.getPreviousField(0)(e, d), 0.0f) << "elem=" << e << " dof=" << d;
+    for (int d = 0; d < kNDof; ++d) EXPECT_FLOAT_EQ(prev(e, d), 0.0f) << "elem=" << e << " dof=" << d;
 }
 
 // ============================================================
@@ -230,9 +234,11 @@ TEST_F(DGsolverAcousticTest, MultipleSteps_NoNanOrInf) {
   auto rhsElem = allocateVector<vectorInt>(1, "rhsElem");
   auto rhsWeights = allocateArray2D<arrayReal>(1, kNDof, "rhsWeights");
 
-  rhsElem(0) = 0;
-  for (int t = 0; t < kNumSteps; ++t) rhsTerm(0, t) = std::sin(t * 0.1f);
-  for (int d = 0; d < kNDof; ++d) rhsWeights(0, d) = 1.0f / kNDof;
+  Kokkos::deep_copy(rhsElem, 0);
+  fillFromHost(rhsTerm, [&](const auto& h) {
+    for (int t = 0; t < kNumSteps; ++t) h(0, t) = std::sin(t * 0.1f);
+  });
+  Kokkos::deep_copy(rhsWeights, 1.0f / kNDof);
 
   DGWavefieldAcoustic wavefield(pPrev, pCurr);
   RhsAcoustic rhs(rhsTerm, rhsElem, rhsWeights);
@@ -244,9 +250,9 @@ TEST_F(DGsolverAcousticTest, MultipleSteps_NoNanOrInf) {
     data.swapWavefields();
   }
 
+  auto curr = toHost(data.getCurrentField(0));
   for (int e = 0; e < nElem_; ++e)
-    for (int d = 0; d < kNDof; ++d)
-      EXPECT_TRUE(std::isfinite(data.getCurrentField(0)(e, d))) << "NaN/Inf at elem=" << e << " dof=" << d;
+    for (int d = 0; d < kNDof; ++d) EXPECT_TRUE(std::isfinite(curr(e, d))) << "NaN/Inf at elem=" << e << " dof=" << d;
 }
 
 // ============================================================
@@ -270,7 +276,7 @@ TEST_F(DGsolverAcousticTest, BackwardEntryPointsThrow) {
   constexpr float kDt = 0.001f;
   auto data = makeData(0.0f, 0.0f);
   auto elem_list = allocateVector<vectorInt>(1, "elemList");
-  elem_list(0) = 0;
+  Kokkos::deep_copy(elem_list, 0);
 
   EXPECT_THROW(solver_.updateSolutionBackward(kDt, data), std::runtime_error);
   EXPECT_THROW(solver_.updateFieldsBackward(kDt, data), std::runtime_error);
@@ -306,8 +312,7 @@ TEST_F(DGsolverAcousticTest, StubOverrides_DoNotCrash) {
   solver_.computeDampingMatrix();
   solver_.setAnisotropyType(model::AnisotropyType::kIso);
   auto ref = allocateVector<vectorReal>(2, "sls_ref_dg");
-  ref(0) = 6.28f;
-  ref(1) = 62.8f;
+  fillFromList(ref, {6.28f, 62.8f});
   solver_.setSLSAttenuation(ref);
   EXPECT_EQ(solver_.getNumComponents(), 1);
 }
@@ -324,7 +329,9 @@ TEST_F(DGsolverAcousticTest, updateFieldsFromListForward_AllElems_DoesNotCrash) 
   Kokkos::fence();
 
   auto elem_list = allocateVector<vectorInt>(nElem_, "elem_list");
-  for (int i = 0; i < nElem_; ++i) elem_list(i) = i;
+  fillFromHost(elem_list, [&](const auto& h) {
+    for (int i = 0; i < nElem_; ++i) h(i) = i;
+  });
   EXPECT_NO_THROW(solver_.updateFieldsFromListForward(0.001f, data, elem_list, nElem_));
 }
 
@@ -336,7 +343,9 @@ TEST_F(DGsolverAcousticTest, updateFieldsFromListForward_SubsetElems_DoesNotCras
   // Update only the first 4 elements out of 8
   constexpr int kSubset = 4;
   auto elem_list = allocateVector<vectorInt>(kSubset, "elem_list_sub");
-  for (int i = 0; i < kSubset; ++i) elem_list(i) = i;
+  fillFromHost(elem_list, [&](const auto& h) {
+    for (int i = 0; i < kSubset; ++i) h(i) = i;
+  });
   EXPECT_NO_THROW(solver_.updateFieldsFromListForward(0.001f, data, elem_list, kSubset));
 }
 
@@ -349,16 +358,18 @@ TEST_F(DGsolverAcousticTest, updateFieldsFromListForward_ProducesFiniteValues) {
   auto rhsTerm = allocateArray2D<arrayReal>(1, kNumSteps, "rhsTl");
   auto rhsElem = allocateVector<vectorInt>(1, "reL");
   auto rhsWeights = allocateArray2D<arrayReal>(1, kNDof, "rwL");
-  rhsElem(0) = 0;
-  for (int t = 0; t < kNumSteps; ++t) rhsTerm(0, t) = 1.0f;
-  for (int d = 0; d < kNDof; ++d) rhsWeights(0, d) = 1.0f / kNDof;
+  Kokkos::deep_copy(rhsElem, 0);
+  Kokkos::deep_copy(rhsTerm, 1.0f);
+  Kokkos::deep_copy(rhsWeights, 1.0f / kNDof);
 
   DGWavefieldAcoustic wavefield(pPrev, pCurr);
   RhsAcoustic rhs(rhsTerm, rhsElem, rhsWeights);
   DGsolverDataAcoustic data(wavefield, rhs);
 
   auto elem_list = allocateVector<vectorInt>(nElem_, "elem_list_fin");
-  for (int i = 0; i < nElem_; ++i) elem_list(i) = i;
+  fillFromHost(elem_list, [&](const auto& h) {
+    for (int i = 0; i < nElem_; ++i) h(i) = i;
+  });
 
   for (int t = 0; t < kNumSteps; ++t) {
     solver_.computeForces(kDt, t, data);
@@ -367,9 +378,9 @@ TEST_F(DGsolverAcousticTest, updateFieldsFromListForward_ProducesFiniteValues) {
     data.swapWavefields();
   }
 
+  auto curr = toHost(data.getCurrentField(0));
   for (int e = 0; e < nElem_; ++e)
-    for (int d = 0; d < kNDof; ++d)
-      EXPECT_TRUE(std::isfinite(data.getCurrentField(0)(e, d))) << "NaN/Inf at elem=" << e << " dof=" << d;
+    for (int d = 0; d < kNDof; ++d) EXPECT_TRUE(std::isfinite(curr(e, d))) << "NaN/Inf at elem=" << e << " dof=" << d;
 }
 
 }  // namespace test

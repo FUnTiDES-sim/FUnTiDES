@@ -1,10 +1,14 @@
 #include <gtest/gtest.h>
 
 #include "data_type.h"
+#include "device_view_access.h"
 #include "differentiator_data_elastic.h"
 
 namespace gradient {
 namespace test {
+
+using test_utils::fillFromHost;
+using test_utils::toHost;
 
 class GradientDataElasticTest : public ::testing::Test {
  protected:
@@ -22,17 +26,33 @@ class GradientDataElasticTest : public ::testing::Test {
     gradLambda = allocateVector<vectorReal>(size, "gradLambda");
     gradMu = allocateVector<vectorReal>(size, "gradMu");
 
-    for (int i = 0; i < size; ++i) {
-      ux_n(i) = static_cast<float>(i) * 0.1f;
-      uy_n(i) = static_cast<float>(i) * 0.2f;
-      uz_n(i) = static_cast<float>(i) * 0.3f;
-      ux_dt2(i) = static_cast<float>(i) * 0.4f;
-      uy_dt2(i) = static_cast<float>(i) * 0.5f;
-      uz_dt2(i) = static_cast<float>(i) * 0.6f;
-      gradRho(i) = static_cast<float>(i) * 1.0f;
-      gradLambda(i) = static_cast<float>(i) * 2.0f;
-      gradMu(i) = static_cast<float>(i) * 3.0f;
-    }
+    fillFromHost(ux_n, [&](const auto& h) {
+      for (int i = 0; i < size; ++i) h(i) = static_cast<float>(i) * 0.1f;
+    });
+    fillFromHost(uy_n, [&](const auto& h) {
+      for (int i = 0; i < size; ++i) h(i) = static_cast<float>(i) * 0.2f;
+    });
+    fillFromHost(uz_n, [&](const auto& h) {
+      for (int i = 0; i < size; ++i) h(i) = static_cast<float>(i) * 0.3f;
+    });
+    fillFromHost(ux_dt2, [&](const auto& h) {
+      for (int i = 0; i < size; ++i) h(i) = static_cast<float>(i) * 0.4f;
+    });
+    fillFromHost(uy_dt2, [&](const auto& h) {
+      for (int i = 0; i < size; ++i) h(i) = static_cast<float>(i) * 0.5f;
+    });
+    fillFromHost(uz_dt2, [&](const auto& h) {
+      for (int i = 0; i < size; ++i) h(i) = static_cast<float>(i) * 0.6f;
+    });
+    fillFromHost(gradRho, [&](const auto& h) {
+      for (int i = 0; i < size; ++i) h(i) = static_cast<float>(i) * 1.0f;
+    });
+    fillFromHost(gradLambda, [&](const auto& h) {
+      for (int i = 0; i < size; ++i) h(i) = static_cast<float>(i) * 2.0f;
+    });
+    fillFromHost(gradMu, [&](const auto& h) {
+      for (int i = 0; i < size; ++i) h(i) = static_cast<float>(i) * 3.0f;
+    });
   }
 
   int size;
@@ -55,7 +75,7 @@ TEST_F(GradientDataElasticTest, GetForwardFieldReturnsUxN) {
   GradientElastic grad(gradRho, gradLambda, gradMu);
   GradientDataElastic data(fwd, bwd, grad);
 
-  auto field = data.getForwardField(0);
+  auto field = toHost(data.getForwardField(0));
   ASSERT_EQ(field.extent(0), static_cast<size_t>(size));
   for (int i = 0; i < size; ++i) EXPECT_FLOAT_EQ(field(i), static_cast<float>(i) * 0.1f);
 }
@@ -66,7 +86,7 @@ TEST_F(GradientDataElasticTest, GetForwardFieldReturnsUyN) {
   GradientElastic grad(gradRho, gradLambda, gradMu);
   GradientDataElastic data(fwd, bwd, grad);
 
-  auto field = data.getForwardField(1);
+  auto field = toHost(data.getForwardField(1));
   ASSERT_EQ(field.extent(0), static_cast<size_t>(size));
   for (int i = 0; i < size; ++i) EXPECT_FLOAT_EQ(field(i), static_cast<float>(i) * 0.2f);
 }
@@ -77,7 +97,7 @@ TEST_F(GradientDataElasticTest, GetBackwardFieldReturnsUxDt2) {
   GradientElastic grad(gradRho, gradLambda, gradMu);
   GradientDataElastic data(fwd, bwd, grad);
 
-  auto field = data.getBackwardField(3);
+  auto field = toHost(data.getBackwardField(3));
   ASSERT_EQ(field.extent(0), static_cast<size_t>(size));
   for (int i = 0; i < size; ++i) EXPECT_FLOAT_EQ(field(i), static_cast<float>(i) * 0.4f);
 }
@@ -88,7 +108,7 @@ TEST_F(GradientDataElasticTest, GetGradientZeroReturnsRho) {
   GradientElastic grad(gradRho, gradLambda, gradMu);
   GradientDataElastic data(fwd, bwd, grad);
 
-  auto g = data.getGradient(0);
+  auto g = toHost(data.getGradient(0));
   ASSERT_EQ(g.extent(0), static_cast<size_t>(size));
   for (int i = 0; i < size; ++i) EXPECT_FLOAT_EQ(g(i), static_cast<float>(i) * 1.0f);
 }
@@ -99,7 +119,7 @@ TEST_F(GradientDataElasticTest, GetGradientOneReturnsLambda) {
   GradientElastic grad(gradRho, gradLambda, gradMu);
   GradientDataElastic data(fwd, bwd, grad);
 
-  auto g = data.getGradient(1);
+  auto g = toHost(data.getGradient(1));
   ASSERT_EQ(g.extent(0), static_cast<size_t>(size));
   for (int i = 0; i < size; ++i) EXPECT_FLOAT_EQ(g(i), static_cast<float>(i) * 2.0f);
 }
@@ -110,7 +130,7 @@ TEST_F(GradientDataElasticTest, GetGradientTwoReturnsMu) {
   GradientElastic grad(gradRho, gradLambda, gradMu);
   GradientDataElastic data(fwd, bwd, grad);
 
-  auto g = data.getGradient(2);
+  auto g = toHost(data.getGradient(2));
   ASSERT_EQ(g.extent(0), static_cast<size_t>(size));
   for (int i = 0; i < size; ++i) EXPECT_FLOAT_EQ(g(i), static_cast<float>(i) * 3.0f);
 }

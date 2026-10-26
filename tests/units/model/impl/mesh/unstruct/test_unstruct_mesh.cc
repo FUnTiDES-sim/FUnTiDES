@@ -3,10 +3,58 @@
 #include <cmath>
 #include <set>
 
+#include "../faceconnectivity/test_face_connectivity_helpers.h"
 #include "model_unstruct.h"
 
 namespace model {
+namespace unstruct_mesh_test {
+
+/// Elasticity tensor of one element, read on the device.
+template <typename ModelType, typename FloatType>
+void readCTensorOnElement(const ModelType& model, int e, FloatType C[6][6]) {
+  Kokkos::View<FloatType[6][6]> c("c_tensor");
+  Kokkos::parallel_for(
+      "read_c_tensor", 1, KOKKOS_LAMBDA(const int) {
+        FloatType tmp[6][6];
+        model.getCTensorOnElement(e, tmp);
+        for (int i = 0; i < 6; ++i)
+          for (int j = 0; j < 6; ++j) c(i, j) = tmp[i][j];
+      });
+  auto host = Kokkos::create_mirror_view_and_copy(Kokkos::HostSpace{}, c);
+  for (int i = 0; i < 6; ++i)
+    for (int j = 0; j < 6; ++j) C[i][j] = host(i, j);
+}
+
+}  // namespace unstruct_mesh_test
+
 namespace {
+
+/// Marks the host side of a filled DualView as modified, so the model copies it to the device.
+template <typename DualViewType>
+void markHostModified(DualViewType& dv) {
+  if (dv.extent(0) > 0) dv.modify_host();
+}
+
+/// Marks every filled array of @p data as modified on the host.
+template <typename FloatType, typename ScalarType>
+void markAllHostModified(ModelUnstructData<FloatType, ScalarType>& data) {
+  markHostModified(data.global_node_index_);
+  markHostModified(data.nodes_coords_x_);
+  markHostModified(data.nodes_coords_y_);
+  markHostModified(data.nodes_coords_z_);
+  markHostModified(data.model_vp_element_);
+  markHostModified(data.model_rho_element_);
+  markHostModified(data.model_vs_element_);
+  markHostModified(data.model_delta_element_);
+  markHostModified(data.model_epsilon_element_);
+  markHostModified(data.model_gamma_element_);
+  markHostModified(data.model_theta_element_);
+  markHostModified(data.model_phi_element_);
+  markHostModified(data.model_vp_node_);
+  markHostModified(data.model_rho_node_);
+  markHostModified(data.model_vs_node_);
+  markHostModified(data.boundaries_t_);
+}
 
 // ============================================================================
 // Test Fixture
@@ -48,6 +96,7 @@ class ModelUnstructTest : public ::testing::Test {
     fillGeometry(data);
     data.model_vp_element_.view_host()(0) = 1500.0;
     data.model_rho_element_.view_host()(0) = 1.0;
+    markAllHostModified(data);
 
     return ModelType(data);
   }
@@ -80,6 +129,7 @@ class ModelUnstructTest : public ::testing::Test {
       data.boundaries_t_.view_host()(i) =
           (i == 7) ? static_cast<int>(BoundaryFlag::Surface) : static_cast<int>(BoundaryFlag::InteriorNode);
     }
+    markAllHostModified(data);
     return ModelType(data);
   }
 
@@ -116,6 +166,7 @@ class ModelUnstructTest : public ::testing::Test {
     data.model_gamma_element_.view_host()(0) = 0.0;
     data.model_theta_element_.view_host()(0) = 0.0;
     data.model_phi_element_.view_host()(0) = 0.0;
+    markAllHostModified(data);
     return ModelType(data);
   }
 };
@@ -388,6 +439,7 @@ TYPED_TEST(ModelUnstructTest, BoundaryTypeWithEmptyBoundariesIsInterior) {
   TestFixture::fillGeometry(data);
   data.model_vp_element_.view_host()(0) = 1500.0;
   data.model_rho_element_.view_host()(0) = 1.0;
+  markAllHostModified(data);
   typename TestFixture::ModelType model(data);
   EXPECT_EQ(model.boundaryType(0), BoundaryFlag::InteriorNode);
   EXPECT_FALSE(model.isFreeSurface(0));
@@ -427,9 +479,10 @@ TYPED_TEST(ModelUnstructTest, BuildFaceConnectivityIdempotent) {
 TYPED_TEST(ModelUnstructTest, GetGlobalFaceReturnsValidId) {
   auto model = this->createTestMesh();
   model.buildFaceConnectivity();
+  auto faces = gatherFaceQueries<false>(model, 1, 4);
   std::set<int> face_ids;
   for (int lf = 0; lf < 6; ++lf) {
-    auto fid = model.getGlobalFace(0, static_cast<CubicFace>(lf));
+    auto fid = faces.getGlobalFace(0, static_cast<CubicFace>(lf));
     EXPECT_GE(fid, 0);
     EXPECT_LT(fid, 6);
     face_ids.insert(fid);
@@ -440,19 +493,21 @@ TYPED_TEST(ModelUnstructTest, GetGlobalFaceReturnsValidId) {
 TYPED_TEST(ModelUnstructTest, AllFacesBoundaryInSingleElement) {
   auto model = this->createTestMesh();
   model.buildFaceConnectivity();
+  auto faces = gatherFaceQueries<false>(model, 1, 4);
   for (int lf = 0; lf < 6; ++lf) {
-    auto fid = model.getGlobalFace(0, static_cast<CubicFace>(lf));
-    EXPECT_TRUE(model.isBoundaryFace(fid));
+    auto fid = faces.getGlobalFace(0, static_cast<CubicFace>(lf));
+    EXPECT_TRUE(faces.isBoundaryFace(fid));
   }
 }
 
 TYPED_TEST(ModelUnstructTest, GetGlobalNodeFromFaceReturnsValidNode) {
   auto model = this->createTestMesh();
   model.buildFaceConnectivity();
-  auto fid = model.getGlobalFace(0, CubicFace::kXMinus);
   int n_dofs = (1 + 1) * (1 + 1);  // order=1 → 4
+  auto faces = gatherFaceQueries<false>(model, 1, n_dofs);
+  auto fid = faces.getGlobalFace(0, CubicFace::kXMinus);
   for (int dof = 0; dof < n_dofs; ++dof) {
-    auto node = model.getGlobalNodeFromFace(fid, dof);
+    auto node = faces.getGlobalNodeFromFace(fid, dof);
     EXPECT_GE(node, 0);
     EXPECT_LT(node, 8);
   }
@@ -499,7 +554,7 @@ TYPED_TEST(ModelUnstructTest, InitElasticityTensorsTTISymmetric) {
   model.initElasticityTensors(kTTI);
   Kokkos::fence();
   typename TestFixture::FloatType C[6][6];
-  model.getCTensorOnElement(0, C);
+  unstruct_mesh_test::readCTensorOnElement(model, 0, C);
   for (int i = 0; i < 6; ++i)
     for (int j = 0; j < 6; ++j) EXPECT_NEAR(C[i][j], C[j][i], 1e-4f) << "C[" << i << "][" << j << "]";
 }

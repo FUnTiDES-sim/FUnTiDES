@@ -24,6 +24,7 @@
 #include "cartesian_struct_builder.h"
 #include "common_macros.h"
 #include "data_type.h"
+#include "device_view_access.h"
 #include "dg-sem_solver_data.h"
 #include "dg-sem_solver_impl.h"
 #include "model_struct.h"
@@ -31,6 +32,10 @@
 namespace solver {
 namespace fe {
 namespace test {
+
+using test_utils::fillFromHost;
+using test_utils::setAt;
+using test_utils::toHost;
 
 // ============================================================
 // Type aliases for ORDER=1 DG-SEM acoustic solver on structured mesh
@@ -77,15 +82,10 @@ class DGSEMsolverAcousticTest : public ::testing::Test {
     auto p_sem_Curr = allocateVector<vectorReal>(nNode_, "pCurrSEM");
     auto p_sem_Prev = allocateVector<vectorReal>(nNode_, "pPrevSEM");
 
-    for (int e = 0; e < nElem_; ++e)
-      for (int d = 0; d < kNDof; ++d) {
-        p_dg_Curr(e, d) = p_dg_CurrVal;
-        p_dg_Prev(e, d) = p_dg_PrevVal;
-      }
-    for (int n = 0; n < nNode_; ++n) {
-      p_sem_Curr(n) = p_sem_CurrVal;
-      p_sem_Prev(n) = p_sem_PrevVal;
-    }
+    Kokkos::deep_copy(p_dg_Curr, p_dg_CurrVal);
+    Kokkos::deep_copy(p_dg_Prev, p_dg_PrevVal);
+    Kokkos::deep_copy(p_sem_Curr, p_sem_CurrVal);
+    Kokkos::deep_copy(p_sem_Prev, p_sem_PrevVal);
     int const nSrc = (nSample > 0) ? 1 : 0;
     auto rhsTerm_dg = allocateArray2D<arrayReal>(nSrc, (nSample > 0 ? nSample : 1), "rhsTermDG");
     auto rhsTerm_sem = allocateArray2D<arrayReal>(nSrc, (nSample > 0 ? nSample : 1), "rhsTermSEM");
@@ -93,12 +93,10 @@ class DGSEMsolverAcousticTest : public ::testing::Test {
     auto rhsWeights = allocateArray2D<arrayReal>(nSrc, kNDof, "rhsWeights");
 
     if (nSrc > 0) {
-      rhsElem(0) = srcElem;
-      for (int t = 0; t < nSample; ++t) {
-        rhsTerm_dg(0, t) = wavelet;
-        rhsTerm_sem(0, t) = wavelet;
-      }
-      for (int d = 0; d < kNDof; ++d) rhsWeights(0, d) = 1.0f / kNDof;
+      setAt(rhsElem, srcElem, 0);
+      Kokkos::deep_copy(rhsTerm_dg, wavelet);
+      Kokkos::deep_copy(rhsTerm_sem, wavelet);
+      Kokkos::deep_copy(rhsWeights, 1.0f / kNDof);
     }
 
     DGSEMWavefieldAcoustic wavefield(p_dg_Prev, p_dg_Curr, p_sem_Prev, p_sem_Curr);
@@ -138,7 +136,9 @@ TEST_F(DGSEMsolverAcousticTest, ElementPartitionIsConsistent) {
 // the intended cut plane, so it needs a test of its own.
 TEST_F(DGSEMsolverAcousticTest, SetElementTagsOverridesZThreshold) {
   auto tags = allocateVector<vectorInt>(nElem_, "elementTags");
-  for (int e = 0; e < nElem_; ++e) tags(e) = (e < 2) ? kElementTypeDG : kElementTypeSEM;
+  fillFromHost(tags, [&](const auto& h) {
+    for (int e = 0; e < nElem_; ++e) h(e) = (e < 2) ? kElementTypeDG : kElementTypeSEM;
+  });
 
   DGSEMSolverT tagged_solver;
   tagged_solver.setElementTags(tags);
@@ -188,10 +188,11 @@ TEST_F(DGSEMsolverAcousticTest, ZeroFieldZeroSource_StaysZero) {
   solver_.computeOneStep(0.001f, 0, data);
 
   // After one step from p=0 with no source, p must remain 0.
+  auto dg_prev = toHost(data.m_wavefield.getDGPreviousField(0));
+  auto sem_prev = toHost(data.m_wavefield.getSEMPreviousField(0));
   for (int e = 0; e < nElem_; ++e)
-    for (int d = 0; d < kNDof; ++d)
-      EXPECT_FLOAT_EQ(data.m_wavefield.getDGPreviousField(0)(e, d), 0.0f) << "elem=" << e << " dof=" << d;
-  for (int n = 0; n < nNode_; ++n) EXPECT_FLOAT_EQ(data.m_wavefield.getSEMPreviousField(0)(n), 0.0f) << "node=" << n;
+    for (int d = 0; d < kNDof; ++d) EXPECT_FLOAT_EQ(dg_prev(e, d), 0.0f) << "elem=" << e << " dof=" << d;
+  for (int n = 0; n < nNode_; ++n) EXPECT_FLOAT_EQ(sem_prev(n), 0.0f) << "node=" << n;
 }
 
 TEST_F(DGSEMsolverAcousticTest, UniformFieldZeroSource_StaysUniform) {
@@ -202,10 +203,11 @@ TEST_F(DGSEMsolverAcousticTest, UniformFieldZeroSource_StaysUniform) {
   auto data = makeData(1.0f, 1.0f, 1.0f, 1.0f);
   solver_.computeOneStep(0.001f, 0, data);
 
+  auto dg_prev = toHost(data.m_wavefield.getDGPreviousField(0));
+  auto sem_prev = toHost(data.m_wavefield.getSEMPreviousField(0));
   for (int e = 0; e < nElem_; ++e)
-    for (int d = 0; d < kNDof; ++d)
-      EXPECT_NEAR(data.m_wavefield.getDGPreviousField(0)(e, d), 1.0f, 1e-4f) << "elem=" << e << " dof=" << d;
-  for (int n = 0; n < nNode_; ++n) EXPECT_NEAR(data.m_wavefield.getSEMPreviousField(0)(n), 1.0f, 1e-4f) << "node=" << n;
+    for (int d = 0; d < kNDof; ++d) EXPECT_NEAR(dg_prev(e, d), 1.0f, 1e-4f) << "elem=" << e << " dof=" << d;
+  for (int n = 0; n < nNode_; ++n) EXPECT_NEAR(sem_prev(n), 1.0f, 1e-4f) << "node=" << n;
 }
 
 TEST_F(DGSEMsolverAcousticTest, NonzeroSourceDG_FieldChangesAtSourceElem) {
@@ -217,7 +219,8 @@ TEST_F(DGSEMsolverAcousticTest, NonzeroSourceDG_FieldChangesAtSourceElem) {
 
   // rhs_elem(0,d) = -kWavelet * (1/kNDof) < 0
   // Verlet (curr=prev=0): new_prev = -dt^2 * rhs / (M + ...) > 0
-  for (int d = 0; d < kNDof; ++d) EXPECT_GT(data.m_wavefield.getDGPreviousField(0)(0, d), 0.0f) << "dof=" << d;
+  auto dg_prev = toHost(data.m_wavefield.getDGPreviousField(0));
+  for (int d = 0; d < kNDof; ++d) EXPECT_GT(dg_prev(0, d), 0.0f) << "dof=" << d;
 }
 
 TEST_F(DGSEMsolverAcousticTest, NonzeroSourceSEM_FieldChangesAtSourceElem) {
@@ -229,7 +232,7 @@ TEST_F(DGSEMsolverAcousticTest, NonzeroSourceSEM_FieldChangesAtSourceElem) {
 
   // rhs_elem(0,d) = -kWavelet * (1/kNDof) < 0
   // Verlet (curr=prev=0): new_prev = -dt^2 * rhs / (M + ...) > 0
-  EXPECT_GT(data.m_wavefield.getSEMPreviousField(0)(26), 0.0f);
+  EXPECT_GT(toHost(data.m_wavefield.getSEMPreviousField(0))(26), 0.0f);
 }
 
 TEST_F(DGSEMsolverAcousticTest, NoSourceElements_UnaffectedBySource) {
@@ -240,13 +243,14 @@ TEST_F(DGSEMsolverAcousticTest, NoSourceElements_UnaffectedBySource) {
 
   // Elements != 0 should have zero field (the source kernel only writes
   // to element 0; interface flux from zero field is also zero).
+  auto dg_prev = toHost(data.m_wavefield.getDGPreviousField(0));
+  auto sem_prev = toHost(data.m_wavefield.getSEMPreviousField(0));
   for (int e = 1; e < nElem_; ++e)
-    for (int d = 0; d < kNDof; ++d)
-      EXPECT_FLOAT_EQ(data.m_wavefield.getDGPreviousField(0)(e, d), 0.0f) << "elem=" << e << " dof=" << d;
+    for (int d = 0; d < kNDof; ++d) EXPECT_FLOAT_EQ(dg_prev(e, d), 0.0f) << "elem=" << e << " dof=" << d;
   // SEM nodes which are not on the source element interface should have zero field
-  EXPECT_FLOAT_EQ(data.m_wavefield.getSEMPreviousField(0)(11), 0.0f) << "node=" << 11;
+  EXPECT_FLOAT_EQ(sem_prev(11), 0.0f) << "node=" << 11;
   for (int n = 14; n < nNode_; ++n)  // test only SEM Nodes
-    EXPECT_FLOAT_EQ(data.m_wavefield.getSEMPreviousField(0)(n), 0.0f) << "node=" << n;
+    EXPECT_FLOAT_EQ(sem_prev(n), 0.0f) << "node=" << n;
 }
 
 // ============================================================
@@ -266,12 +270,12 @@ TEST_F(DGSEMsolverAcousticTest, MultipleSteps_NoNanOrInf) {
   auto rhsElem = allocateVector<vectorInt>(1, "rhsElem");
   auto rhsWeights = allocateArray2D<arrayReal>(1, kNDof, "rhsWeights");
 
-  rhsElem(0) = 0;
-  for (int t = 0; t < kNumSteps; ++t) {
-    rhsTerm_dg(0, t) = std::sin(t * 0.1f);
-    rhsTerm_sem(0, t) = std::sin(t * 0.1f);
-  }
-  for (int d = 0; d < kNDof; ++d) rhsWeights(0, d) = 1.0f / kNDof;
+  Kokkos::deep_copy(rhsElem, 0);
+  fillFromHost(rhsTerm_dg, [&](const auto& h) {
+    for (int t = 0; t < kNumSteps; ++t) h(0, t) = std::sin(t * 0.1f);
+  });
+  Kokkos::deep_copy(rhsTerm_sem, rhsTerm_dg);
+  Kokkos::deep_copy(rhsWeights, 1.0f / kNDof);
 
   DGSEMWavefieldAcoustic wavefield(p_dg_Prev, p_dg_Curr, p_sem_Prev, p_sem_Curr);
   DGSEMRhsAcoustic rhs(rhsTerm_dg, rhsTerm_sem, rhsElem, rhsWeights);
@@ -283,12 +287,12 @@ TEST_F(DGSEMsolverAcousticTest, MultipleSteps_NoNanOrInf) {
     data.swapWavefields();
   }
 
+  auto dg_curr = toHost(data.m_wavefield.getDGCurrentField(0));
+  auto sem_curr = toHost(data.m_wavefield.getSEMCurrentField(0));
   for (int e = 0; e < nElem_; ++e)
     for (int d = 0; d < kNDof; ++d)
-      EXPECT_TRUE(std::isfinite(data.m_wavefield.getDGCurrentField(0)(e, d)))
-          << "NaN/Inf at elem=" << e << " dof=" << d;
-  for (int n = 0; n < nNode_; ++n)
-    EXPECT_TRUE(std::isfinite(data.m_wavefield.getSEMCurrentField(0)(n))) << "NaN/Inf at node=" << n;
+      EXPECT_TRUE(std::isfinite(dg_curr(e, d))) << "NaN/Inf at elem=" << e << " dof=" << d;
+  for (int n = 0; n < nNode_; ++n) EXPECT_TRUE(std::isfinite(sem_curr(n))) << "NaN/Inf at node=" << n;
 }
 
 // ============================================================

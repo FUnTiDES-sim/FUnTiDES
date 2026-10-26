@@ -21,6 +21,7 @@
 #include "cartesian_struct_builder.h"
 #include "common_macros.h"
 #include "data_type.h"
+#include "device_view_access.h"
 #include "rhs_acoustic.h"
 #include "rhs_elastic.h"
 #include "sem_solver.h"
@@ -32,10 +33,17 @@
 namespace solver {
 namespace fe {
 namespace test {
+
+using test_utils::fillFromHost;
+using test_utils::setAt;
+using test_utils::toHost;
+
 static vectorReal toView(const std::vector<float>& v, const char* name) {
   if (v.empty()) return vectorReal();
   auto view = allocateVector<vectorReal>(v.size(), name);
-  for (size_t i = 0; i < v.size(); ++i) view[i] = v[i];
+  test_utils::fillFromHost(view, [&](const auto& host) {
+    for (size_t i = 0; i < v.size(); ++i) host(i) = v[i];
+  });
   return view;
 }
 
@@ -73,8 +81,9 @@ static std::shared_ptr<model::ModelApi<float, int>> buildSmallMesh(int order, bo
 // ======================================================================
 static float fieldL2Norm(const vectorReal& field, int numNodes) {
   float sum = 0.0f;
+  auto host = test_utils::toHost(field);
   for (int i = 0; i < numNodes; ++i) {
-    sum += field(i) * field(i);
+    sum += host(i) * host(i);
   }
   return std::sqrt(sum);
 }
@@ -84,7 +93,7 @@ static float fieldL2Norm(const vectorReal& field, int numNodes) {
 // ======================================================================
 static void setImpulseSource(vectorReal& field, int numNodes, float amplitude) {
   int centerNode = numNodes / 2;
-  field(centerNode) = amplitude;
+  test_utils::setAt(field, amplitude, centerNode);
 }
 
 // ======================================================================
@@ -176,20 +185,16 @@ static float runAcousticSimulation(std::shared_ptr<model::ModelApi<float, int>> 
 
   auto pPrev = allocateVector<vectorReal>(numNodes, "pPrev");
   auto pCurr = allocateVector<vectorReal>(numNodes, "pCurr");
-  for (int i = 0; i < numNodes; ++i) {
-    pPrev(i) = 0.0f;
-    pCurr(i) = 0.0f;
-  }
+  Kokkos::deep_copy(pPrev, 0.0f);
+  Kokkos::deep_copy(pCurr, 0.0f);
   setImpulseSource(pCurr, numNodes, 1.0f);
 
   auto rhsTerm = allocateArray2D<arrayReal>(1, numTimeSteps, "rhsTerm");
   auto rhsElem = allocateVector<vectorInt>(1, "rhsElem");
   auto rhsWeights = allocateArray2D<arrayReal>(1, npp, "rhsWeights");
-  rhsElem(0) = 0;
-  for (int j = 0; j < npp; ++j) {
-    rhsTerm(0, j) = 0.0f;
-    rhsWeights(0, j) = 0.0f;
-  }
+  Kokkos::deep_copy(rhsElem, 0);
+  Kokkos::deep_copy(rhsTerm, 0.0f);
+  Kokkos::deep_copy(rhsWeights, 0.0f);
 
   WavefieldAcoustic wf(pPrev, pCurr);
   RhsAcoustic rhs(rhsTerm, rhsElem, rhsWeights);
@@ -256,10 +261,8 @@ TEST(AttenuationAcoustic, NoNanOrInfWithAttenuation) {
 
   auto pPrev = allocateVector<vectorReal>(numNodes, "pPrev_nan");
   auto pCurr = allocateVector<vectorReal>(numNodes, "pCurr_nan");
-  for (int i = 0; i < numNodes; ++i) {
-    pPrev(i) = 0.0f;
-    pCurr(i) = 0.0f;
-  }
+  Kokkos::deep_copy(pPrev, 0.0f);
+  Kokkos::deep_copy(pCurr, 0.0f);
   setImpulseSource(pCurr, numNodes, 1.0f);
 
   int npp = (order + 1) * (order + 1) * (order + 1);
@@ -267,11 +270,9 @@ TEST(AttenuationAcoustic, NoNanOrInfWithAttenuation) {
   auto rhsTerm = allocateArray2D<arrayReal>(1, numSteps, "rhsTerm_nantest");
   auto rhsElem = allocateVector<vectorInt>(1, "rhsElem_nantest");
   auto rhsWeights = allocateArray2D<arrayReal>(1, npp, "rhsWeights_nantest");
-  rhsElem(0) = 0;
-  for (int j = 0; j < npp; ++j) {
-    rhsTerm(0, j) = 0.0f;
-    rhsWeights(0, j) = 0.0f;
-  }
+  Kokkos::deep_copy(rhsElem, 0);
+  Kokkos::deep_copy(rhsTerm, 0.0f);
+  Kokkos::deep_copy(rhsWeights, 0.0f);
 
   WavefieldAcoustic wf(pPrev, pCurr);
   RhsAcoustic rhs(rhsTerm, rhsElem, rhsWeights);
@@ -285,8 +286,9 @@ TEST(AttenuationAcoustic, NoNanOrInfWithAttenuation) {
   }
 
   // Check no NaN or Inf
+  auto h_curr0 = toHost(data.getCurrentField(0));
   for (int i = 0; i < numNodes; ++i) {
-    EXPECT_TRUE(std::isfinite(data.getCurrentField(0)(i))) << "NaN/Inf detected at node " << i;
+    EXPECT_TRUE(std::isfinite(h_curr0(i))) << "NaN/Inf detected at node " << i;
   }
 }
 
@@ -319,14 +321,12 @@ TEST(AttenuationElastic, AttenuationDecaysAmplitude) {
   auto uyCurr_na = allocateVector<vectorReal>(numNodes, "uyCurr_na");
   auto uzPrev_na = allocateVector<vectorReal>(numNodes, "uzPrev_na");
   auto uzCurr_na = allocateVector<vectorReal>(numNodes, "uzCurr_na");
-  for (int i = 0; i < numNodes; ++i) {
-    uxPrev_na(i) = 0.0f;
-    uxCurr_na(i) = 0.0f;
-    uyPrev_na(i) = 0.0f;
-    uyCurr_na(i) = 0.0f;
-    uzPrev_na(i) = 0.0f;
-    uzCurr_na(i) = 0.0f;
-  }
+  Kokkos::deep_copy(uxPrev_na, 0.0f);
+  Kokkos::deep_copy(uxCurr_na, 0.0f);
+  Kokkos::deep_copy(uyPrev_na, 0.0f);
+  Kokkos::deep_copy(uyCurr_na, 0.0f);
+  Kokkos::deep_copy(uzPrev_na, 0.0f);
+  Kokkos::deep_copy(uzCurr_na, 0.0f);
   setImpulseSource(uzCurr_na, numNodes, 1.0f);
 
   auto rhsTermx_na = allocateArray2D<arrayReal>(1, numTimeSteps, "rtx_na");
@@ -334,13 +334,11 @@ TEST(AttenuationElastic, AttenuationDecaysAmplitude) {
   auto rhsTermz_na = allocateArray2D<arrayReal>(1, numTimeSteps, "rtz_na");
   auto rhsElem_na = allocateVector<vectorInt>(1, "re_na");
   auto rhsW_na = allocateArray2D<arrayReal>(1, npp, "rw_na");
-  rhsElem_na(0) = 0;
-  for (int j = 0; j < npp; ++j) {
-    rhsTermx_na(0, j) = 0.0f;
-    rhsTermy_na(0, j) = 0.0f;
-    rhsTermz_na(0, j) = 0.0f;
-    rhsW_na(0, j) = 0.0f;
-  }
+  Kokkos::deep_copy(rhsElem_na, 0);
+  Kokkos::deep_copy(rhsTermx_na, 0.0f);
+  Kokkos::deep_copy(rhsTermy_na, 0.0f);
+  Kokkos::deep_copy(rhsTermz_na, 0.0f);
+  Kokkos::deep_copy(rhsW_na, 0.0f);
 
   WavefieldElastic wf_na(uxPrev_na, uxCurr_na, uyPrev_na, uyCurr_na, uzPrev_na, uzCurr_na);
   RhsElastic rhs_na(rhsTermx_na, rhsTermy_na, rhsTermz_na, rhsElem_na, rhsW_na);
@@ -372,14 +370,12 @@ TEST(AttenuationElastic, AttenuationDecaysAmplitude) {
   auto uyCurr_a = allocateVector<vectorReal>(numNodes, "uyCurr_a");
   auto uzPrev_a = allocateVector<vectorReal>(numNodes, "uzPrev_a");
   auto uzCurr_a = allocateVector<vectorReal>(numNodes, "uzCurr_a");
-  for (int i = 0; i < numNodes; ++i) {
-    uxPrev_a(i) = 0.0f;
-    uxCurr_a(i) = 0.0f;
-    uyPrev_a(i) = 0.0f;
-    uyCurr_a(i) = 0.0f;
-    uzPrev_a(i) = 0.0f;
-    uzCurr_a(i) = 0.0f;
-  }
+  Kokkos::deep_copy(uxPrev_a, 0.0f);
+  Kokkos::deep_copy(uxCurr_a, 0.0f);
+  Kokkos::deep_copy(uyPrev_a, 0.0f);
+  Kokkos::deep_copy(uyCurr_a, 0.0f);
+  Kokkos::deep_copy(uzPrev_a, 0.0f);
+  Kokkos::deep_copy(uzCurr_a, 0.0f);
   setImpulseSource(uzCurr_a, numNodes, 1.0f);
 
   auto rhsTermx_a = allocateArray2D<arrayReal>(1, numTimeSteps, "rtx_a");
@@ -387,13 +383,11 @@ TEST(AttenuationElastic, AttenuationDecaysAmplitude) {
   auto rhsTermz_a = allocateArray2D<arrayReal>(1, numTimeSteps, "rtz_a");
   auto rhsElem_a = allocateVector<vectorInt>(1, "re_a");
   auto rhsW_a = allocateArray2D<arrayReal>(1, npp, "rw_a");
-  rhsElem_a(0) = 0;
-  for (int j = 0; j < npp; ++j) {
-    rhsTermx_a(0, j) = 0.0f;
-    rhsTermy_a(0, j) = 0.0f;
-    rhsTermz_a(0, j) = 0.0f;
-    rhsW_a(0, j) = 0.0f;
-  }
+  Kokkos::deep_copy(rhsElem_a, 0);
+  Kokkos::deep_copy(rhsTermx_a, 0.0f);
+  Kokkos::deep_copy(rhsTermy_a, 0.0f);
+  Kokkos::deep_copy(rhsTermz_a, 0.0f);
+  Kokkos::deep_copy(rhsW_a, 0.0f);
 
   WavefieldElastic wf_a(uxPrev_a, uxCurr_a, uyPrev_a, uyCurr_a, uzPrev_a, uzCurr_a);
   RhsElastic rhs_a(rhsTermx_a, rhsTermy_a, rhsTermz_a, rhsElem_a, rhsW_a);
@@ -437,14 +431,12 @@ TEST(AttenuationElastic, NoNanOrInfWithAttenuation) {
   auto uyC = allocateVector<vectorReal>(numNodes, "uy_c_e");
   auto uzP = allocateVector<vectorReal>(numNodes, "uz_p_e");
   auto uzC = allocateVector<vectorReal>(numNodes, "uz_c_e");
-  for (int i = 0; i < numNodes; ++i) {
-    uxP(i) = 0.0f;
-    uxC(i) = 0.0f;
-    uyP(i) = 0.0f;
-    uyC(i) = 0.0f;
-    uzP(i) = 0.0f;
-    uzC(i) = 0.0f;
-  }
+  Kokkos::deep_copy(uxP, 0.0f);
+  Kokkos::deep_copy(uxC, 0.0f);
+  Kokkos::deep_copy(uyP, 0.0f);
+  Kokkos::deep_copy(uyC, 0.0f);
+  Kokkos::deep_copy(uzP, 0.0f);
+  Kokkos::deep_copy(uzC, 0.0f);
   setImpulseSource(uzC, numNodes, 1.0f);
 
   const int numSteps = 100;
@@ -453,13 +445,11 @@ TEST(AttenuationElastic, NoNanOrInfWithAttenuation) {
   auto rtz = allocateArray2D<arrayReal>(1, numSteps, "rtz_ef");
   auto re = allocateVector<vectorInt>(1, "re_ef");
   auto rw = allocateArray2D<arrayReal>(1, npp, "rw_ef");
-  re(0) = 0;
-  for (int j = 0; j < npp; ++j) {
-    rtx(0, j) = 0.0f;
-    rty(0, j) = 0.0f;
-    rtz(0, j) = 0.0f;
-    rw(0, j) = 0.0f;
-  }
+  Kokkos::deep_copy(re, 0);
+  Kokkos::deep_copy(rtx, 0.0f);
+  Kokkos::deep_copy(rty, 0.0f);
+  Kokkos::deep_copy(rtz, 0.0f);
+  Kokkos::deep_copy(rw, 0.0f);
 
   WavefieldElastic wf(uxP, uxC, uyP, uyC, uzP, uzC);
   RhsElastic rhs(rtx, rty, rtz, re, rw);
@@ -473,8 +463,9 @@ TEST(AttenuationElastic, NoNanOrInfWithAttenuation) {
   }
 
   for (int f = 0; f < 3; ++f) {
+    auto h_curr = toHost(data.getCurrentField(f));
     for (int i = 0; i < numNodes; ++i) {
-      EXPECT_TRUE(std::isfinite(data.getCurrentField(f)(i))) << "NaN/Inf on elastic field " << f << " at node " << i;
+      EXPECT_TRUE(std::isfinite(h_curr(i))) << "NaN/Inf on elastic field " << f << " at node " << i;
     }
   }
 }
@@ -500,21 +491,17 @@ TEST(AttenuationAcoustic, ComputeOneStepWithAttenuation) {
 
   auto pP = allocateVector<vectorReal>(numNodes, "pP_os");
   auto pC = allocateVector<vectorReal>(numNodes, "pC_os");
-  for (int i = 0; i < numNodes; ++i) {
-    pP(i) = 0.0f;
-    pC(i) = 0.0f;
-  }
+  Kokkos::deep_copy(pP, 0.0f);
+  Kokkos::deep_copy(pC, 0.0f);
   setImpulseSource(pC, numNodes, 1.0f);
 
   const int numSteps = 50;
   auto rt = allocateArray2D<arrayReal>(1, numSteps, "rt_os");
   auto re = allocateVector<vectorInt>(1, "re_os");
   auto rw = allocateArray2D<arrayReal>(1, npp, "rw_os");
-  re(0) = 0;
-  for (int j = 0; j < npp; ++j) {
-    rt(0, j) = 0.0f;
-    rw(0, j) = 0.0f;
-  }
+  Kokkos::deep_copy(re, 0);
+  Kokkos::deep_copy(rt, 0.0f);
+  Kokkos::deep_copy(rw, 0.0f);
 
   WavefieldAcoustic wf(pP, pC);
   RhsAcoustic rhs(rt, re, rw);
@@ -527,8 +514,9 @@ TEST(AttenuationAcoustic, ComputeOneStepWithAttenuation) {
   }
 
   // Verify finite values
+  auto h_curr0 = toHost(data.getCurrentField(0));
   for (int i = 0; i < numNodes; ++i) {
-    EXPECT_TRUE(std::isfinite(data.getCurrentField(0)(i)));
+    EXPECT_TRUE(std::isfinite(h_curr0(i)));
   }
 }
 
@@ -620,10 +608,12 @@ TEST(AttenuationElasticHighOrder, Order2DecaysAmplitude) {
   auto uyC_na = allocateVector<vectorReal>(numNodes, "uyC_na2");
   auto uzP_na = allocateVector<vectorReal>(numNodes, "uzP_na2");
   auto uzC_na = allocateVector<vectorReal>(numNodes, "uzC_na2");
-  for (int i = 0; i < numNodes; ++i) {
-    uxP_na(i) = uxC_na(i) = uyP_na(i) = uyC_na(i) = 0.0f;
-    uzP_na(i) = uzC_na(i) = 0.0f;
-  }
+  Kokkos::deep_copy(uxP_na, 0.0f);
+  Kokkos::deep_copy(uxC_na, 0.0f);
+  Kokkos::deep_copy(uyP_na, 0.0f);
+  Kokkos::deep_copy(uyC_na, 0.0f);
+  Kokkos::deep_copy(uzP_na, 0.0f);
+  Kokkos::deep_copy(uzC_na, 0.0f);
   setImpulseSource(uzC_na, numNodes, 1.0f);
 
   auto rtx_na = allocateArray2D<arrayReal>(1, numTimeSteps, "rtx_na2");
@@ -631,10 +621,11 @@ TEST(AttenuationElasticHighOrder, Order2DecaysAmplitude) {
   auto rtz_na = allocateArray2D<arrayReal>(1, numTimeSteps, "rtz_na2");
   auto re_na = allocateVector<vectorInt>(1, "re_na2");
   auto rw_na = allocateArray2D<arrayReal>(1, npp, "rw_na2");
-  re_na(0) = 0;
-  for (int j = 0; j < npp; ++j) {
-    rtx_na(0, j) = rty_na(0, j) = rtz_na(0, j) = rw_na(0, j) = 0.0f;
-  }
+  Kokkos::deep_copy(re_na, 0);
+  Kokkos::deep_copy(rtx_na, 0.0f);
+  Kokkos::deep_copy(rty_na, 0.0f);
+  Kokkos::deep_copy(rtz_na, 0.0f);
+  Kokkos::deep_copy(rw_na, 0.0f);
 
   WavefieldElastic wf_na(uxP_na, uxC_na, uyP_na, uyC_na, uzP_na, uzC_na);
   RhsElastic rhs_na(rtx_na, rty_na, rtz_na, re_na, rw_na);
@@ -663,10 +654,12 @@ TEST(AttenuationElasticHighOrder, Order2DecaysAmplitude) {
   auto uyC_a = allocateVector<vectorReal>(numNodes, "uyC_a2");
   auto uzP_a = allocateVector<vectorReal>(numNodes, "uzP_a2");
   auto uzC_a = allocateVector<vectorReal>(numNodes, "uzC_a2");
-  for (int i = 0; i < numNodes; ++i) {
-    uxP_a(i) = uxC_a(i) = uyP_a(i) = uyC_a(i) = 0.0f;
-    uzP_a(i) = uzC_a(i) = 0.0f;
-  }
+  Kokkos::deep_copy(uxP_a, 0.0f);
+  Kokkos::deep_copy(uxC_a, 0.0f);
+  Kokkos::deep_copy(uyP_a, 0.0f);
+  Kokkos::deep_copy(uyC_a, 0.0f);
+  Kokkos::deep_copy(uzP_a, 0.0f);
+  Kokkos::deep_copy(uzC_a, 0.0f);
   setImpulseSource(uzC_a, numNodes, 1.0f);
 
   auto rtx_a = allocateArray2D<arrayReal>(1, numTimeSteps, "rtx_a2");
@@ -674,10 +667,11 @@ TEST(AttenuationElasticHighOrder, Order2DecaysAmplitude) {
   auto rtz_a = allocateArray2D<arrayReal>(1, numTimeSteps, "rtz_a2");
   auto re_a = allocateVector<vectorInt>(1, "re_a2");
   auto rw_a = allocateArray2D<arrayReal>(1, npp, "rw_a2");
-  re_a(0) = 0;
-  for (int j = 0; j < npp; ++j) {
-    rtx_a(0, j) = rty_a(0, j) = rtz_a(0, j) = rw_a(0, j) = 0.0f;
-  }
+  Kokkos::deep_copy(re_a, 0);
+  Kokkos::deep_copy(rtx_a, 0.0f);
+  Kokkos::deep_copy(rty_a, 0.0f);
+  Kokkos::deep_copy(rtz_a, 0.0f);
+  Kokkos::deep_copy(rw_a, 0.0f);
 
   WavefieldElastic wf_a(uxP_a, uxC_a, uyP_a, uyC_a, uzP_a, uzC_a);
   RhsElastic rhs_a(rtx_a, rty_a, rtz_a, re_a, rw_a);
@@ -746,10 +740,8 @@ TEST(AttenuationAcousticHighOrder, Order2NoNanOrInf) {
 
   auto pPrev = allocateVector<vectorReal>(numNodes, "pPrev_o2");
   auto pCurr = allocateVector<vectorReal>(numNodes, "pCurr_o2");
-  for (int i = 0; i < numNodes; ++i) {
-    pPrev(i) = 0.0f;
-    pCurr(i) = 0.0f;
-  }
+  Kokkos::deep_copy(pPrev, 0.0f);
+  Kokkos::deep_copy(pCurr, 0.0f);
   setImpulseSource(pCurr, numNodes, 1.0f);
 
   int npp = (order + 1) * (order + 1) * (order + 1);
@@ -757,11 +749,9 @@ TEST(AttenuationAcousticHighOrder, Order2NoNanOrInf) {
   auto rhsTerm = allocateArray2D<arrayReal>(1, numSteps, "rt_o2");
   auto rhsElem = allocateVector<vectorInt>(1, "re_o2");
   auto rhsW = allocateArray2D<arrayReal>(1, npp, "rw_o2");
-  rhsElem(0) = 0;
-  for (int j = 0; j < npp; ++j) {
-    rhsTerm(0, j) = 0.0f;
-    rhsW(0, j) = 0.0f;
-  }
+  Kokkos::deep_copy(rhsElem, 0);
+  Kokkos::deep_copy(rhsTerm, 0.0f);
+  Kokkos::deep_copy(rhsW, 0.0f);
 
   WavefieldAcoustic wf(pPrev, pCurr);
   RhsAcoustic rhs(rhsTerm, rhsElem, rhsW);
@@ -774,8 +764,9 @@ TEST(AttenuationAcousticHighOrder, Order2NoNanOrInf) {
     data.swapWavefields();
   }
 
+  auto h_curr0 = toHost(data.getCurrentField(0));
   for (int i = 0; i < numNodes; ++i) {
-    EXPECT_TRUE(std::isfinite(data.getCurrentField(0)(i))) << "Order-2: NaN/Inf at node " << i;
+    EXPECT_TRUE(std::isfinite(h_curr0(i))) << "Order-2: NaN/Inf at node " << i;
   }
 }
 
@@ -804,9 +795,12 @@ TEST(AttenuationElasticHighOrder, Order3NoNanOrInf) {
   auto uyC = allocateVector<vectorReal>(numNodes, "uyC_o3");
   auto uzP = allocateVector<vectorReal>(numNodes, "uzP_o3");
   auto uzC = allocateVector<vectorReal>(numNodes, "uzC_o3");
-  for (int i = 0; i < numNodes; ++i) {
-    uxP(i) = uxC(i) = uyP(i) = uyC(i) = uzP(i) = uzC(i) = 0.0f;
-  }
+  Kokkos::deep_copy(uxP, 0.0f);
+  Kokkos::deep_copy(uxC, 0.0f);
+  Kokkos::deep_copy(uyP, 0.0f);
+  Kokkos::deep_copy(uyC, 0.0f);
+  Kokkos::deep_copy(uzP, 0.0f);
+  Kokkos::deep_copy(uzC, 0.0f);
   setImpulseSource(uzC, numNodes, 1.0f);
 
   const int numSteps = 200;
@@ -815,10 +809,11 @@ TEST(AttenuationElasticHighOrder, Order3NoNanOrInf) {
   auto rtz = allocateArray2D<arrayReal>(1, numSteps, "rtz_o3");
   auto re = allocateVector<vectorInt>(1, "re_o3");
   auto rw = allocateArray2D<arrayReal>(1, npp, "rw_o3");
-  re(0) = 0;
-  for (int j = 0; j < npp; ++j) {
-    rtx(0, j) = rty(0, j) = rtz(0, j) = rw(0, j) = 0.0f;
-  }
+  Kokkos::deep_copy(re, 0);
+  Kokkos::deep_copy(rtx, 0.0f);
+  Kokkos::deep_copy(rty, 0.0f);
+  Kokkos::deep_copy(rtz, 0.0f);
+  Kokkos::deep_copy(rw, 0.0f);
 
   WavefieldElastic wf(uxP, uxC, uyP, uyC, uzP, uzC);
   RhsElastic rhs(rtx, rty, rtz, re, rw);
@@ -832,9 +827,9 @@ TEST(AttenuationElasticHighOrder, Order3NoNanOrInf) {
   }
 
   for (int f = 0; f < 3; ++f) {
+    auto h_curr = toHost(data.getCurrentField(f));
     for (int i = 0; i < numNodes; ++i) {
-      EXPECT_TRUE(std::isfinite(data.getCurrentField(f)(i)))
-          << "Order-3: NaN/Inf on elastic field " << f << " at node " << i;
+      EXPECT_TRUE(std::isfinite(h_curr(i))) << "Order-3: NaN/Inf on elastic field " << f << " at node " << i;
     }
   }
 }

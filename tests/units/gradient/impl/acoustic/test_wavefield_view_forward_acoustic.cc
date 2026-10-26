@@ -1,10 +1,17 @@
 #include <gtest/gtest.h>
 
 #include "data_type.h"
+#include "device_view_access.h"
 #include "wavefield_view_forward_acoustic.h"
 
 namespace gradient {
 namespace test {
+
+using test_utils::getAt;
+
+using test_utils::fillFromHost;
+using test_utils::setAt;
+using test_utils::toHost;
 
 class WavefieldViewForwardAcousticTest : public ::testing::Test {
  protected:
@@ -12,7 +19,9 @@ class WavefieldViewForwardAcousticTest : public ::testing::Test {
     size = 50;
     pn = allocateVector<vectorReal>(size, "pn");
 
-    for (int i = 0; i < size; ++i) pn(i) = static_cast<float>(i) * 0.1f;
+    fillFromHost(pn, [&](const auto& h) {
+      for (int i = 0; i < size; ++i) h(i) = static_cast<float>(i) * 0.1f;
+    });
   }
 
   int size;
@@ -43,7 +52,7 @@ TEST_F(WavefieldViewForwardAcousticTest, GetFieldNameReturnsCorrectString) {
 
 TEST_F(WavefieldViewForwardAcousticTest, GetFieldZeroReturnsPn) {
   WavefieldViewForwardAcoustic view(pn);
-  auto field = view.getField(0);
+  auto field = toHost(view.getField(0));
 
   ASSERT_EQ(field.extent(0), static_cast<size_t>(size));
   for (int i = 0; i < size; ++i) EXPECT_FLOAT_EQ(field(i), static_cast<float>(i) * 0.1f);
@@ -58,8 +67,8 @@ TEST_F(WavefieldViewForwardAcousticTest, GetFieldOutOfBoundsReturnsPn) {
 
 TEST_F(WavefieldViewForwardAcousticTest, ViewIsShallowCopy) {
   WavefieldViewForwardAcoustic view(pn);
-  pn(0) = 123.0f;
-  EXPECT_FLOAT_EQ(view.getField(0)(0), 123.0f);
+  setAt(pn, 123.0f, 0);
+  EXPECT_FLOAT_EQ(getAt(view.getField(0), 0), 123.0f);
 }
 
 TEST_F(WavefieldViewForwardAcousticTest, PrintDoesNotThrow) {

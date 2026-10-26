@@ -20,6 +20,7 @@
 #include "cartesian_params.h"
 #include "cartesian_unstruct_builder.h"
 #include "data_type.h"
+#include "device_view_access.h"
 #include "model_unstruct.h"
 #include "rhs_acoustic.h"
 #include "rhs_elastic.h"
@@ -98,6 +99,9 @@ std::shared_ptr<model::ModelApi<float, int>> MakeDeformedMesh(bool on_nodes, boo
         data.nodes_coords_y_.view_host()(node) = static_cast<float>(j) * kStepY;
         data.nodes_coords_z_.view_host()(node) = static_cast<float>(k) * kStepZ + shift;
       }
+  data.nodes_coords_x_.modify_host();
+  data.nodes_coords_y_.modify_host();
+  data.nodes_coords_z_.modify_host();
 
   data.global_node_index_ = allocateArray2D<dualArrayInt>(kNumElements, kPointsPerElement, "global node index");
   for (int n = 0; n < kElementsZ; ++n)
@@ -110,6 +114,7 @@ std::shared_ptr<model::ModelApi<float, int>> MakeDeformedMesh(bool on_nodes, boo
               data.global_node_index_.view_host()(e, i + 2 * j + 4 * k) =
                   (l + i) + (m + j) * kNodesX + (n + k) * kNodesX * kNodesY;
       }
+  data.global_node_index_.modify_host();
 
   // Same uniform material as the Cartesian builder.
   if (on_nodes) {
@@ -143,7 +148,9 @@ std::shared_ptr<model::ModelApi<float, int>> MakeMesh(bool on_nodes, bool elasti
 
 vectorReal MakeField(int n_nodes, float phase, const char* name) {
   vectorReal field = allocateVector<vectorReal>(n_nodes, name);
-  for (int i = 0; i < n_nodes; ++i) field(i) = std::sin(0.7f * static_cast<float>(i) + phase);
+  test_utils::fillFromHost(field, [&](const auto& host) {
+    for (int i = 0; i < n_nodes; ++i) host(i) = std::sin(0.7f * static_cast<float>(i) + phase);
+  });
   return field;
 }
 
@@ -155,7 +162,7 @@ std::vector<float> Assemble(SolverType& solver, int n_nodes, Kernel&& kernel) {
   Kokkos::fence();
   std::vector<float> forces;
   for (int f = 0; f < SolverType::kNumFields; ++f) {
-    auto const force = solver.getForceVector(f);
+    auto const force = test_utils::toHost(solver.getForceVector(f));
     for (int i = 0; i < n_nodes; ++i) forces.push_back(force(i));
   }
   return forces;
@@ -181,9 +188,9 @@ void CheckAcoustic(bool deformed) {
   arrayReal rhs_term = allocateArray2D<arrayReal>(1, 1, "rhsTerm");
   vectorInt rhs_elem = allocateVector<vectorInt>(1, "rhsElem");
   arrayReal rhs_weights = allocateArray2D<arrayReal>(1, kPointsPerElement, "rhsWeights");
-  rhs_term(0, 0) = 0.0f;
-  rhs_elem(0) = 0;
-  for (int j = 0; j < kPointsPerElement; ++j) rhs_weights(0, j) = 0.0f;
+  Kokkos::deep_copy(rhs_term, 0.0f);
+  Kokkos::deep_copy(rhs_elem, 0);
+  Kokkos::deep_copy(rhs_weights, 0.0f);
 
   WavefieldAcoustic wf(p_prev, p_curr);
   RhsAcoustic rhs(rhs_term, rhs_elem, rhs_weights);
@@ -199,7 +206,9 @@ void CheckAcoustic(bool deformed) {
 
   // Every element once, in another order.
   vectorInt reversed = allocateVector<vectorInt>(kNumElements, "reversed");
-  for (int i = 0; i < kNumElements; ++i) reversed(i) = kNumElements - 1 - i;
+  test_utils::fillFromHost(reversed, [&](const auto& host) {
+    for (int i = 0; i < kNumElements; ++i) host(i) = kNumElements - 1 - i;
+  });
   ExpectSameForces(
       ref, Assemble(solver, n_nodes, [&] { solver.computeElementContributionsFromList(data, reversed, kNumElements); }),
       "reversed list");
@@ -208,10 +217,12 @@ void CheckAcoustic(bool deformed) {
   constexpr int kHalf = kNumElements / 2;
   vectorInt first = allocateVector<vectorInt>(kHalf, "first");
   vectorInt second = allocateVector<vectorInt>(kHalf, "second");
-  for (int i = 0; i < kHalf; ++i) {
-    first(i) = i;
-    second(i) = kHalf + i;
-  }
+  test_utils::fillFromHost(first, [&](const auto& host) {
+    for (int i = 0; i < kHalf; ++i) host(i) = i;
+  });
+  test_utils::fillFromHost(second, [&](const auto& host) {
+    for (int i = 0; i < kHalf; ++i) host(i) = kHalf + i;
+  });
   ExpectSameForces(ref,
                    Assemble(solver, n_nodes,
                             [&] {
@@ -239,9 +250,11 @@ void CheckTti(bool deformed) {
   arrayReal rhs_term_z = allocateArray2D<arrayReal>(1, 1, "rhsTermZ");
   vectorInt rhs_elem = allocateVector<vectorInt>(1, "rhsElem");
   arrayReal rhs_weights = allocateArray2D<arrayReal>(1, kPointsPerElement, "rhsWeights");
-  rhs_term_x(0, 0) = rhs_term_y(0, 0) = rhs_term_z(0, 0) = 0.0f;
-  rhs_elem(0) = 0;
-  for (int j = 0; j < kPointsPerElement; ++j) rhs_weights(0, j) = 0.0f;
+  Kokkos::deep_copy(rhs_term_x, 0.0f);
+  Kokkos::deep_copy(rhs_term_y, 0.0f);
+  Kokkos::deep_copy(rhs_term_z, 0.0f);
+  Kokkos::deep_copy(rhs_elem, 0);
+  Kokkos::deep_copy(rhs_weights, 0.0f);
 
   WavefieldElastic wf(ux_prev, ux_curr, uy_prev, uy_curr, uz_prev, uz_curr);
   RhsElastic rhs(rhs_term_x, rhs_term_y, rhs_term_z, rhs_elem, rhs_weights);

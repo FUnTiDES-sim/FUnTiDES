@@ -17,6 +17,7 @@
 #include "cartesian_struct_builder.h"
 #include "common_macros.h"
 #include "data_type.h"
+#include "device_view_access.h"
 #include "rhs_acoustic.h"
 #include "sem_solver.h"
 #include "sem_solver_data.h"
@@ -26,6 +27,11 @@
 namespace solver {
 namespace fe {
 namespace test {
+
+using test_utils::fillFromList;
+using test_utils::getAt;
+using test_utils::setAt;
+using test_utils::toHost;
 
 namespace feenum = utils::enums;
 
@@ -73,21 +79,17 @@ class SemSolverAcousticTest : public ::testing::TestWithParam<AcousticSolverOrde
     pPrevPrev_ = allocateVector<vectorReal>(numNodes_, "pPrevPrev");
     pPrev_ = allocateVector<vectorReal>(numNodes_, "pPrev");
     pCurr_ = allocateVector<vectorReal>(numNodes_, "pCurr");
-    for (int i = 0; i < numNodes_; ++i) {
-      pPrevPrev_(i) = 0.0f;
-      pPrev_(i) = 0.0f;
-      pCurr_(i) = 0.0f;
-    }
-    pCurr_(numNodes_ / 2) = 1.0f;
+    Kokkos::deep_copy(pPrevPrev_, 0.0f);
+    Kokkos::deep_copy(pPrev_, 0.0f);
+    Kokkos::deep_copy(pCurr_, 0.0f);
+    setAt(pCurr_, 1.0f, numNodes_ / 2);
 
     rhsTerm_ = allocateArray2D<arrayReal>(1, kNumSteps, "rhsTerm");
     rhsElem_ = allocateVector<vectorInt>(1, "rhsElem");
     rhsWeights_ = allocateArray2D<arrayReal>(1, npp, "rhsWeights");
-    rhsElem_(0) = 0;
-    for (int j = 0; j < npp; ++j) {
-      rhsTerm_(0, j) = 0.0f;
-      rhsWeights_(0, j) = 0.0f;
-    }
+    Kokkos::deep_copy(rhsElem_, 0);
+    Kokkos::deep_copy(rhsTerm_, 0.0f);
+    Kokkos::deep_copy(rhsWeights_, 0.0f);
   }
 
   static constexpr int kNumSteps = 50;
@@ -116,7 +118,7 @@ TEST_P(SemSolverAcousticTest, ComputeFEInitDoesNotCrash) { EXPECT_NE(solver_, nu
 // Mass matrix
 // ======================================================================
 TEST_P(SemSolverAcousticTest, MassMatrixNonZero) {
-  auto& mm = solver_->getMassMatrixAcoustic();
+  auto mm = toHost(solver_->getMassMatrixAcoustic());
   ASSERT_GT(mm.extent(0), 0u);
   float sum = 0.0f;
   for (size_t i = 0; i < mm.extent(0); ++i) sum += mm(i);
@@ -124,7 +126,7 @@ TEST_P(SemSolverAcousticTest, MassMatrixNonZero) {
 }
 
 TEST_P(SemSolverAcousticTest, MassMatrixAllPositive) {
-  auto& mm = solver_->getMassMatrixAcoustic();
+  auto mm = toHost(solver_->getMassMatrixAcoustic());
   for (size_t i = 0; i < mm.extent(0); ++i) EXPECT_GT(mm(i), 0.0f) << "mass matrix zero at node " << i;
 }
 
@@ -132,12 +134,12 @@ TEST_P(SemSolverAcousticTest, MassMatrixAllPositive) {
 // Damping matrix
 // ======================================================================
 TEST_P(SemSolverAcousticTest, DampingMatrixNonNegative) {
-  auto& dm = solver_->getDampingMatrix(0);
+  auto dm = toHost(solver_->getDampingMatrix(0));
   for (size_t i = 0; i < dm.extent(0); ++i) EXPECT_GE(dm(i), 0.0f) << "negative damping at node " << i;
 }
 
 TEST_P(SemSolverAcousticTest, DampingMatrixHasBoundaryContribution) {
-  auto& dm = solver_->getDampingMatrix(0);
+  auto dm = toHost(solver_->getDampingMatrix(0));
   float sum = 0.0f;
   for (size_t i = 0; i < dm.extent(0); ++i) sum += dm(i);
   EXPECT_GT(sum, 0.0f);
@@ -148,10 +150,10 @@ TEST_P(SemSolverAcousticTest, DampingMatrixHasBoundaryContribution) {
 // ======================================================================
 TEST_P(SemSolverAcousticTest, ResetGlobalVectorsZerosForceVector) {
   auto& fv = solver_->getForceVector(0);
-  fv(0) = 99.0f;
+  setAt(fv, 99.0f, 0);
   solver_->resetGlobalVectors(numNodes_);
   Kokkos::fence();
-  EXPECT_FLOAT_EQ(fv(0), 0.0f);
+  EXPECT_FLOAT_EQ(getAt(fv, 0), 0.0f);
 }
 
 // ======================================================================
@@ -214,14 +216,13 @@ TEST_P(SemSolverAcousticTest, ComputeOneStepProducesFiniteValues) {
     solver_->computeOneStep(kDt, t, data);
     data.swapWavefields();
   }
-  for (int i = 0; i < numNodes_; ++i) EXPECT_TRUE(std::isfinite(data.getCurrentField(0)(i))) << "NaN/Inf at node " << i;
+  auto current = toHost(data.getCurrentField(0));
+  for (int i = 0; i < numNodes_; ++i) EXPECT_TRUE(std::isfinite(current(i))) << "NaN/Inf at node " << i;
 }
 
 TEST_P(SemSolverAcousticTest, ComputeOneStepZeroSourceStaysBounded) {
-  for (int i = 0; i < numNodes_; ++i) {
-    pPrev_(i) = 0.0f;
-    pCurr_(i) = 0.0f;
-  }
+  Kokkos::deep_copy(pPrev_, 0.0f);
+  Kokkos::deep_copy(pCurr_, 0.0f);
   WavefieldAcoustic wf(pPrev_, pCurr_);
   RhsAcoustic rhs(rhsTerm_, rhsElem_, rhsWeights_);
   SEMsolverDataAcoustic data(wf, rhs);
@@ -230,7 +231,8 @@ TEST_P(SemSolverAcousticTest, ComputeOneStepZeroSourceStaysBounded) {
     data.swapWavefields();
   }
   float sum = 0.0f;
-  for (int i = 0; i < numNodes_; ++i) sum += std::fabs(data.getCurrentField(0)(i));
+  auto current = toHost(data.getCurrentField(0));
+  for (int i = 0; i < numNodes_; ++i) sum += std::fabs(current(i));
   EXPECT_FLOAT_EQ(sum, 0.0f);
 }
 
@@ -243,7 +245,8 @@ TEST_P(SemSolverAcousticTest, ComputeOneStepPropagatesEnergy) {
     data.swapWavefields();
   }
   float norm = 0.0f;
-  for (int i = 0; i < numNodes_; ++i) norm += data.getCurrentField(0)(i) * data.getCurrentField(0)(i);
+  auto current = toHost(data.getCurrentField(0));
+  for (int i = 0; i < numNodes_; ++i) norm += current(i) * current(i);
   EXPECT_GT(norm, 0.0f);
 }
 
@@ -291,19 +294,15 @@ class SemSolverAcousticOnNodesTest : public ::testing::Test {
     constexpr int npp = 8;
     pPrev_ = allocateVector<vectorReal>(numNodes_, "pPrev_n");
     pCurr_ = allocateVector<vectorReal>(numNodes_, "pCurr_n");
-    for (int i = 0; i < numNodes_; ++i) {
-      pPrev_(i) = 0.0f;
-      pCurr_(i) = 0.0f;
-    }
-    pCurr_(numNodes_ / 2) = 1.0f;
+    Kokkos::deep_copy(pPrev_, 0.0f);
+    Kokkos::deep_copy(pCurr_, 0.0f);
+    setAt(pCurr_, 1.0f, numNodes_ / 2);
     rhsTerm_ = allocateArray2D<arrayReal>(1, kNumSteps, "rhsTerm_n");
     rhsElem_ = allocateVector<vectorInt>(1, "rhsElem_n");
     rhsWeights_ = allocateArray2D<arrayReal>(1, npp, "rhsWeights_n");
-    rhsElem_(0) = 0;
-    for (int j = 0; j < npp; ++j) {
-      rhsTerm_(0, j) = 0.0f;
-      rhsWeights_(0, j) = 0.0f;
-    }
+    Kokkos::deep_copy(rhsElem_, 0);
+    Kokkos::deep_copy(rhsTerm_, 0.0f);
+    Kokkos::deep_copy(rhsWeights_, 0.0f);
   }
 
   static constexpr int kNumSteps = 10;
@@ -333,11 +332,12 @@ TEST_F(SemSolverAcousticOnNodesTest, ComputeOneStepProducesFiniteValues) {
     solver_->computeOneStep(kDt, t, data);
     data.swapWavefields();
   }
-  for (int i = 0; i < numNodes_; ++i) EXPECT_TRUE(std::isfinite(data.getCurrentField(0)(i))) << "NaN/Inf at node " << i;
+  auto current = toHost(data.getCurrentField(0));
+  for (int i = 0; i < numNodes_; ++i) EXPECT_TRUE(std::isfinite(current(i))) << "NaN/Inf at node " << i;
 }
 
 TEST_F(SemSolverAcousticOnNodesTest, MassMatrixAllPositive) {
-  auto& mm = solver_->getMassMatrixAcoustic();
+  auto mm = toHost(solver_->getMassMatrixAcoustic());
   for (size_t i = 0; i < mm.extent(0); ++i) EXPECT_GT(mm(i), 0.0f);
 }
 
@@ -361,19 +361,15 @@ class SemSolverAcousticSpongeTest : public ::testing::Test {
     constexpr int npp = 8;
     pPrev_ = allocateVector<vectorReal>(numNodes_, "pPrev_s");
     pCurr_ = allocateVector<vectorReal>(numNodes_, "pCurr_s");
-    for (int i = 0; i < numNodes_; ++i) {
-      pPrev_(i) = 0.0f;
-      pCurr_(i) = 0.0f;
-    }
-    pCurr_(numNodes_ / 2) = 1.0f;
+    Kokkos::deep_copy(pPrev_, 0.0f);
+    Kokkos::deep_copy(pCurr_, 0.0f);
+    setAt(pCurr_, 1.0f, numNodes_ / 2);
     rhsTerm_ = allocateArray2D<arrayReal>(1, kNumSteps, "rhsTerm_s");
     rhsElem_ = allocateVector<vectorInt>(1, "rhsElem_s");
     rhsWeights_ = allocateArray2D<arrayReal>(1, npp, "rhsWeights_s");
-    rhsElem_(0) = 0;
-    for (int j = 0; j < npp; ++j) {
-      rhsTerm_(0, j) = 0.0f;
-      rhsWeights_(0, j) = 0.0f;
-    }
+    Kokkos::deep_copy(rhsElem_, 0);
+    Kokkos::deep_copy(rhsTerm_, 0.0f);
+    Kokkos::deep_copy(rhsWeights_, 0.0f);
   }
 
   static constexpr int kNumSteps = 10;
@@ -396,7 +392,8 @@ TEST_F(SemSolverAcousticSpongeTest, ComputeOneStepWithSpongeProducesFiniteValues
     solver_->computeOneStep(kDt, t, data);
     data.swapWavefields();
   }
-  for (int i = 0; i < numNodes_; ++i) EXPECT_TRUE(std::isfinite(data.getCurrentField(0)(i)));
+  auto current = toHost(data.getCurrentField(0));
+  for (int i = 0; i < numNodes_; ++i) EXPECT_TRUE(std::isfinite(current(i)));
 }
 
 TEST_F(SemSolverAcousticSpongeTest, SpongeWithSurfaceFlagDoesNotCrash) {
@@ -429,10 +426,8 @@ class SemSolverAcousticAttenuationTest : public ::testing::Test {
 
     auto ref = allocateVector<vectorReal>(2, "att_ref_ac");
     auto coeffs = allocateVector<vectorReal>(2, "att_coeffs_ac");
-    ref(0) = 2.0f * 3.14159f * 1.0f;
-    ref(1) = 2.0f * 3.14159f * 10.0f;
-    coeffs(0) = 0.1f;
-    coeffs(1) = 0.1f;
+    fillFromList(ref, {2.0f * 3.14159f * 1.0f, 2.0f * 3.14159f * 10.0f});
+    fillFromList(coeffs, {0.1f, 0.1f});
     solver_->setSLSAttenuation(ref, coeffs);
     solver_->computeFEInit(*mesh_, {0.0f, 0.0f, 0.0f}, false, 0.0f);
 
@@ -440,19 +435,15 @@ class SemSolverAcousticAttenuationTest : public ::testing::Test {
     constexpr int npp = 8;
     pPrev_ = allocateVector<vectorReal>(numNodes_, "pPrev_att");
     pCurr_ = allocateVector<vectorReal>(numNodes_, "pCurr_att");
-    for (int i = 0; i < numNodes_; ++i) {
-      pPrev_(i) = 0.0f;
-      pCurr_(i) = 0.0f;
-    }
-    pCurr_(numNodes_ / 2) = 1.0f;
+    Kokkos::deep_copy(pPrev_, 0.0f);
+    Kokkos::deep_copy(pCurr_, 0.0f);
+    setAt(pCurr_, 1.0f, numNodes_ / 2);
     rhsTerm_ = allocateArray2D<arrayReal>(1, kNumSteps, "rhsTerm_att");
     rhsElem_ = allocateVector<vectorInt>(1, "rhsElem_att");
     rhsWeights_ = allocateArray2D<arrayReal>(1, npp, "rhsWeights_att");
-    rhsElem_(0) = 0;
-    for (int j = 0; j < npp; ++j) {
-      rhsTerm_(0, j) = 0.0f;
-      rhsWeights_(0, j) = 0.0f;
-    }
+    Kokkos::deep_copy(rhsElem_, 0);
+    Kokkos::deep_copy(rhsTerm_, 0.0f);
+    Kokkos::deep_copy(rhsWeights_, 0.0f);
   }
 
   static constexpr int kNumSteps = 10;
@@ -482,15 +473,16 @@ TEST_F(SemSolverAcousticAttenuationTest, ComputeOneStepProducesFiniteValues) {
     solver_->computeOneStep(kDt, t, data);
     data.swapWavefields();
   }
-  for (int i = 0; i < numNodes_; ++i) EXPECT_TRUE(std::isfinite(data.getCurrentField(0)(i))) << "NaN/Inf at node " << i;
+  auto current = toHost(data.getCurrentField(0));
+  for (int i = 0; i < numNodes_; ++i) EXPECT_TRUE(std::isfinite(current(i))) << "NaN/Inf at node " << i;
 }
 
 TEST_F(SemSolverAcousticAttenuationTest, ResetGlobalVectorsZerosAttenuationWorkVectors) {
   auto& fv = solver_->getForceVector(0);
-  fv(0) = 99.0f;
+  setAt(fv, 99.0f, 0);
   solver_->resetGlobalVectors(numNodes_);
   Kokkos::fence();
-  EXPECT_FLOAT_EQ(fv(0), 0.0f);
+  EXPECT_FLOAT_EQ(getAt(fv, 0), 0.0f);
 }
 
 // Covers Solver::setZBoundary default body (non-overriding solver).

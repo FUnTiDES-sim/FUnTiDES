@@ -4,12 +4,17 @@
 
 #include "Integrals.h"
 #include "data_type.h"
+#include "device_view_access.h"
 #include "differentiator_acoustic.h"
 #include "differentiator_data_acoustic.h"
 #include "model_unstruct.h"
 
 namespace gradient {
 namespace test {
+
+using test_utils::getAt;
+using test_utils::setAt;
+using test_utils::toHost;
 
 // =============================================================================
 // Order wrappers — Google Test requires types, not non-type parameters.
@@ -75,6 +80,11 @@ static model::ModelUnstruct<float, int> makeUnstructMesh1x1x1() {
     data.nodes_coords_z_.view_host()(lDof) = static_cast<float>(k) / ORDER;
   }
 
+  data.global_node_index_.modify_host();
+  data.nodes_coords_x_.modify_host();
+  data.nodes_coords_y_.modify_host();
+  data.nodes_coords_z_.modify_host();
+
   return model::ModelUnstruct<float, int>(data);
 }
 
@@ -104,14 +114,12 @@ class DifferentiatorAcousticElemUnstructTest : public ::testing::Test {
     gradKappa = allocateVector<vectorReal>(kNumElements, "gradKappa");
     gradBuoyancy = allocateVector<vectorReal>(kNumElements, "gradBuoyancy");
 
-    for (int i = 0; i < kNumNodes; ++i) {
-      pn(i) = 0.0f;
-      qn(i) = 0.0f;
-      qnPrev(i) = 0.0f;
-      qnPrevPrev(i) = 0.0f;
-    }
-    gradKappa(0) = 0.0f;
-    gradBuoyancy(0) = 0.0f;
+    Kokkos::deep_copy(pn, 0.0f);
+    Kokkos::deep_copy(qn, 0.0f);
+    Kokkos::deep_copy(qnPrev, 0.0f);
+    Kokkos::deep_copy(qnPrevPrev, 0.0f);
+    setAt(gradKappa, 0.0f, 0);
+    setAt(gradBuoyancy, 0.0f, 0);
   }
 
   vectorReal pn, qn, qnPrev, qnPrevPrev;
@@ -167,19 +175,17 @@ TYPED_TEST(DifferentiatorAcousticElemUnstructTest, ZeroWavefieldsYieldZeroGradie
   diff.initGeometricMassMatrix(mesh);
   diff.compute(mesh, data, 0.001f);
 
-  EXPECT_FLOAT_EQ(this->gradKappa(0), 0.0f);
-  EXPECT_FLOAT_EQ(this->gradBuoyancy(0), 0.0f);
+  EXPECT_FLOAT_EQ(getAt(this->gradKappa, 0), 0.0f);
+  EXPECT_FLOAT_EQ(getAt(this->gradBuoyancy, 0), 0.0f);
 }
 
 TYPED_TEST(DifferentiatorAcousticElemUnstructTest, UniformFieldGradKappaEqualsVolume) {
   // pn = 1, qn = 1e-6 (qdt2 = 1 with dt=0.001)  =>  gradKappa = ∫_Ω 1 dΩ = 1.0
   // (unit cube)
-  for (int i = 0; i < TestFixture::kNumNodes; ++i) {
-    this->pn(i) = 1.0f;
-    this->qn(i) = 1e-6f;
-    this->qnPrev(i) = 0.0f;
-    this->qnPrevPrev(i) = 0.0f;
-  }
+  Kokkos::deep_copy(this->pn, 1.0f);
+  Kokkos::deep_copy(this->qn, 1e-6f);
+  Kokkos::deep_copy(this->qnPrev, 0.0f);
+  Kokkos::deep_copy(this->qnPrevPrev, 0.0f);
 
   typename TestFixture::Diff diff;
   auto mesh = makeUnstructMesh1x1x1<TestFixture::kOrder>();
@@ -192,15 +198,13 @@ TYPED_TEST(DifferentiatorAcousticElemUnstructTest, UniformFieldGradKappaEqualsVo
   diff.initGeometricMassMatrix(mesh);
   diff.compute(mesh, data, 0.001f);
 
-  EXPECT_NEAR(this->gradKappa(0), 1.0f, 1e-5f);
+  EXPECT_NEAR(getAt(this->gradKappa, 0), 1.0f, 1e-5f);
 }
 
 TYPED_TEST(DifferentiatorAcousticElemUnstructTest, ConstantFieldGradBuoyancyIsZero) {
   // pn = qn = const  =>  ∇pn = ∇qn = 0  =>  stiffness contribution = 0
-  for (int i = 0; i < TestFixture::kNumNodes; ++i) {
-    this->pn(i) = 1.0f;
-    this->qn(i) = 1.0f;
-  }
+  Kokkos::deep_copy(this->pn, 1.0f);
+  Kokkos::deep_copy(this->qn, 1.0f);
 
   typename TestFixture::Diff diff;
   auto mesh = makeUnstructMesh1x1x1<TestFixture::kOrder>();
@@ -213,17 +217,15 @@ TYPED_TEST(DifferentiatorAcousticElemUnstructTest, ConstantFieldGradBuoyancyIsZe
   diff.initGeometricMassMatrix(mesh);
   diff.compute(mesh, data, 0.001f);
 
-  EXPECT_NEAR(this->gradBuoyancy(0), 0.0f, 1e-5f);
+  EXPECT_NEAR(getAt(this->gradBuoyancy, 0), 0.0f, 1e-5f);
 }
 
 TYPED_TEST(DifferentiatorAcousticElemUnstructTest, GradKappaScalesWithAmplitude) {
   // Doubling pn doubles gradKappa
-  for (int i = 0; i < TestFixture::kNumNodes; ++i) {
-    this->pn(i) = 1.0f;
-    this->qn(i) = 1e-6f;
-    this->qnPrev(i) = 0.0f;
-    this->qnPrevPrev(i) = 0.0f;
-  }
+  Kokkos::deep_copy(this->pn, 1.0f);
+  Kokkos::deep_copy(this->qn, 1e-6f);
+  Kokkos::deep_copy(this->qnPrev, 0.0f);
+  Kokkos::deep_copy(this->qnPrevPrev, 0.0f);
 
   typename TestFixture::Diff diff;
   auto mesh = makeUnstructMesh1x1x1<TestFixture::kOrder>();
@@ -236,10 +238,10 @@ TYPED_TEST(DifferentiatorAcousticElemUnstructTest, GradKappaScalesWithAmplitude)
     diff.initGeometricMassMatrix(mesh);
     diff.compute(mesh, data, 0.001f);
   }
-  float single = this->gradKappa(0);
+  float single = getAt(this->gradKappa, 0);
 
-  this->gradKappa(0) = 0.0f;
-  for (int i = 0; i < TestFixture::kNumNodes; ++i) this->pn(i) = 2.0f;
+  setAt(this->gradKappa, 0.0f, 0);
+  Kokkos::deep_copy(this->pn, 2.0f);
 
   {
     WavefieldViewForwardAcoustic fwd(this->pn);
@@ -250,17 +252,15 @@ TYPED_TEST(DifferentiatorAcousticElemUnstructTest, GradKappaScalesWithAmplitude)
     diff.compute(mesh, data, 0.001f);
   }
 
-  EXPECT_NEAR(this->gradKappa(0), 2.0f * single, 1e-5f);
+  EXPECT_NEAR(getAt(this->gradKappa, 0), 2.0f * single, 1e-5f);
 }
 
 TYPED_TEST(DifferentiatorAcousticElemUnstructTest, ComputeAccumulatesIntoExistingGradient) {
-  for (int i = 0; i < TestFixture::kNumNodes; ++i) {
-    this->pn(i) = 1.0f;
-    this->qn(i) = 1e-6f;
-    this->qnPrev(i) = 0.0f;
-    this->qnPrevPrev(i) = 0.0f;
-  }
-  this->gradKappa(0) = 5.0f;
+  Kokkos::deep_copy(this->pn, 1.0f);
+  Kokkos::deep_copy(this->qn, 1e-6f);
+  Kokkos::deep_copy(this->qnPrev, 0.0f);
+  Kokkos::deep_copy(this->qnPrevPrev, 0.0f);
+  setAt(this->gradKappa, 5.0f, 0);
 
   typename TestFixture::Diff diff;
   auto mesh = makeUnstructMesh1x1x1<TestFixture::kOrder>();
@@ -274,18 +274,16 @@ TYPED_TEST(DifferentiatorAcousticElemUnstructTest, ComputeAccumulatesIntoExistin
   diff.compute(mesh, data, 0.001f);
 
   // 5.0 (initial) + 1.0 (volume of unit cube) = 6.0
-  EXPECT_NEAR(this->gradKappa(0), 6.0f, 1e-5f);
+  EXPECT_NEAR(getAt(this->gradKappa, 0), 6.0f, 1e-5f);
 }
 
 // --- Polymorphic interface ---
 
 TYPED_TEST(DifferentiatorAcousticElemUnstructTest, PolymorphicInterface) {
-  for (int i = 0; i < TestFixture::kNumNodes; ++i) {
-    this->pn(i) = 1.0f;
-    this->qn(i) = 1e-6f;
-    this->qnPrev(i) = 0.0f;
-    this->qnPrevPrev(i) = 0.0f;
-  }
+  Kokkos::deep_copy(this->pn, 1.0f);
+  Kokkos::deep_copy(this->qn, 1e-6f);
+  Kokkos::deep_copy(this->qnPrev, 0.0f);
+  Kokkos::deep_copy(this->qnPrevPrev, 0.0f);
 
   std::unique_ptr<Differentiator> diff = std::make_unique<typename TestFixture::Diff>();
   auto mesh = makeUnstructMesh1x1x1<TestFixture::kOrder>();
@@ -300,7 +298,7 @@ TYPED_TEST(DifferentiatorAcousticElemUnstructTest, PolymorphicInterface) {
 
   diff->initGeometricMassMatrix(mesh);
   EXPECT_NO_THROW(diff->compute(mesh, data, 0.001f));
-  EXPECT_GT(this->gradKappa(0), 0.0f);
+  EXPECT_GT(getAt(this->gradKappa, 0), 0.0f);
 }
 
 // =============================================================================
@@ -330,25 +328,25 @@ class DifferentiatorAcousticNodeUnstructTest : public ::testing::Test {
     gradKappa = allocateVector<vectorReal>(kNumNodes, "gradKappa");
     gradBuoyancy = allocateVector<vectorReal>(kNumNodes, "gradBuoyancy");
 
-    for (int i = 0; i < kNumNodes; ++i) {
-      pn(i) = 0.0f;
-      qn(i) = 0.0f;
-      qnPrev(i) = 0.0f;
-      qnPrevPrev(i) = 0.0f;
-      gradKappa(i) = 0.0f;
-      gradBuoyancy(i) = 0.0f;
-    }
+    Kokkos::deep_copy(pn, 0.0f);
+    Kokkos::deep_copy(qn, 0.0f);
+    Kokkos::deep_copy(qnPrev, 0.0f);
+    Kokkos::deep_copy(qnPrevPrev, 0.0f);
+    Kokkos::deep_copy(gradKappa, 0.0f);
+    Kokkos::deep_copy(gradBuoyancy, 0.0f);
   }
 
   float sumGradKappa() const {
     float s = 0.0f;
-    for (int i = 0; i < kNumNodes; ++i) s += gradKappa(i);
+    auto h_grad_kappa = toHost(gradKappa);
+    for (int i = 0; i < kNumNodes; ++i) s += h_grad_kappa(i);
     return s;
   }
 
   float sumGradBuoyancy() const {
     float s = 0.0f;
-    for (int i = 0; i < kNumNodes; ++i) s += gradBuoyancy(i);
+    auto h_grad_buoyancy = toHost(gradBuoyancy);
+    for (int i = 0; i < kNumNodes; ++i) s += h_grad_buoyancy(i);
     return s;
   }
 
@@ -404,12 +402,10 @@ TYPED_TEST(DifferentiatorAcousticNodeUnstructTest, ZeroWavefieldsYieldZeroGradie
 TYPED_TEST(DifferentiatorAcousticNodeUnstructTest, UniformFieldGradKappaSumsToVolume) {
   // pn = 1, qn = 1e-6 (qdt2 = 1 with dt=0.001)  =>  scattered contributions
   // With massDiag normalization, the sum equals the number of nodes.
-  for (int i = 0; i < TestFixture::kNumNodes; ++i) {
-    this->pn(i) = 1.0f;
-    this->qn(i) = 1e-6f;
-    this->qnPrev(i) = 0.0f;
-    this->qnPrevPrev(i) = 0.0f;
-  }
+  Kokkos::deep_copy(this->pn, 1.0f);
+  Kokkos::deep_copy(this->qn, 1e-6f);
+  Kokkos::deep_copy(this->qnPrev, 0.0f);
+  Kokkos::deep_copy(this->qnPrevPrev, 0.0f);
 
   typename TestFixture::DiffNode diff;
   auto mesh = makeUnstructMesh1x1x1<TestFixture::kOrder>();
@@ -427,10 +423,8 @@ TYPED_TEST(DifferentiatorAcousticNodeUnstructTest, UniformFieldGradKappaSumsToVo
 
 TYPED_TEST(DifferentiatorAcousticNodeUnstructTest, ConstantFieldGradBuoyancySumsToZero) {
   // pn = qn = 1  =>  ∇p = ∇q = 0  =>  stiffness contribution sums to 0
-  for (int i = 0; i < TestFixture::kNumNodes; ++i) {
-    this->pn(i) = 1.0f;
-    this->qn(i) = 1.0f;
-  }
+  Kokkos::deep_copy(this->pn, 1.0f);
+  Kokkos::deep_copy(this->qn, 1.0f);
 
   typename TestFixture::DiffNode diff;
   auto mesh = makeUnstructMesh1x1x1<TestFixture::kOrder>();
@@ -451,12 +445,10 @@ TYPED_TEST(DifferentiatorAcousticNodeUnstructTest, NodeBasedSumEqualsElementBase
   // For a single-element mesh with massDiag normalization, the sum of
   // node-scattered gradients is scaled by the number of nodes relative to
   // the element-accumulated value: nodeSum ≈ kNumNodes * elementValue.
-  for (int i = 0; i < TestFixture::kNumNodes; ++i) {
-    this->pn(i) = 1.0f;
-    this->qn(i) = 1e-6f;
-    this->qnPrev(i) = 0.0f;
-    this->qnPrevPrev(i) = 0.0f;
-  }
+  Kokkos::deep_copy(this->pn, 1.0f);
+  Kokkos::deep_copy(this->qn, 1e-6f);
+  Kokkos::deep_copy(this->qnPrev, 0.0f);
+  Kokkos::deep_copy(this->qnPrevPrev, 0.0f);
 
   auto mesh = makeUnstructMesh1x1x1<TestFixture::kOrder>();
 
@@ -474,8 +466,8 @@ TYPED_TEST(DifferentiatorAcousticNodeUnstructTest, NodeBasedSumEqualsElementBase
   // Element-based
   auto gradKappaElem = allocateVector<vectorReal>(1, "gradKappaElem");
   auto gradBuoyancyElem = allocateVector<vectorReal>(1, "gradBuoyancyElem");
-  gradKappaElem(0) = 0.0f;
-  gradBuoyancyElem(0) = 0.0f;
+  setAt(gradKappaElem, 0.0f, 0);
+  setAt(gradBuoyancyElem, 0.0f, 0);
 
   typename TestFixture::DiffElem diffElem;
   GradientAcoustic gradElem(gradKappaElem, gradBuoyancyElem);
@@ -485,18 +477,16 @@ TYPED_TEST(DifferentiatorAcousticNodeUnstructTest, NodeBasedSumEqualsElementBase
 
   // Tolerance relaxed: float32 accumulation order differs on GPU, causing
   // small rounding drift that scales with kNumNodes.
-  EXPECT_NEAR(nodeSum, (float)TestFixture::kNumNodes * gradKappaElem(0), 2e-5f);
+  EXPECT_NEAR(nodeSum, (float)TestFixture::kNumNodes * getAt(gradKappaElem, 0), 2e-5f);
 }
 
 // --- Polymorphic interface ---
 
 TYPED_TEST(DifferentiatorAcousticNodeUnstructTest, PolymorphicInterface) {
-  for (int i = 0; i < TestFixture::kNumNodes; ++i) {
-    this->pn(i) = 1.0f;
-    this->qn(i) = 1e-6f;
-    this->qnPrev(i) = 0.0f;
-    this->qnPrevPrev(i) = 0.0f;
-  }
+  Kokkos::deep_copy(this->pn, 1.0f);
+  Kokkos::deep_copy(this->qn, 1e-6f);
+  Kokkos::deep_copy(this->qnPrev, 0.0f);
+  Kokkos::deep_copy(this->qnPrevPrev, 0.0f);
 
   std::unique_ptr<Differentiator> diff = std::make_unique<typename TestFixture::DiffNode>();
   auto mesh = makeUnstructMesh1x1x1<TestFixture::kOrder>();
