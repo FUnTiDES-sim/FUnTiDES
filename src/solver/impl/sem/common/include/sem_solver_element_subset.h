@@ -92,6 +92,5 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::upd
   m_node_list_mode_ = false;
 }
 
-
 }  // namespace solver
 #endif  // FUNTIDES_SOLVER_IMPL_SEM_COMMON_INCLUDE_SEM_SOLVER_ELEMENT_SUBSET_H_

@@ -9,12 +9,11 @@
  * output file.
  */
 
+#include <Kokkos_Core.hpp>
 #include <chrono>
 #include <memory>
 #include <string>
 #include <vector>
-
-#include <Kokkos_Core.hpp>
 
 #include "proxy_sem_common.h"
 #include "rhs_elastic.h"
@@ -24,8 +23,8 @@
 namespace {
 
 using namespace solver::proxy;
-using solver::SEMsolverDataElastic;
 using solver::RhsElastic;
+using solver::SEMsolverDataElastic;
 using solver::WavefieldElastic;
 
 // Order 1: the flat sum-factorization elastic path is exercised and

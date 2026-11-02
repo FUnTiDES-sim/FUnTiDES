@@ -28,7 +28,6 @@
 namespace solver {
 namespace test {
 
-
 // ======================================================================
 // Fixture
 // ======================================================================
@@ -61,9 +60,9 @@ class SemSolverAcousticTest : public ::testing::TestWithParam<AcousticSolverOrde
       }
     }
 
-    solver_ =
-        solver_factory::createSolver(utils::enums::methodType::kSem, utils::enums::implemType::kMakutu, utils::enums::meshType::kStruct,
-                                     utils::enums::modelLocationType::kOnElements, utils::enums::physicType::kAcoustic, order);
+    solver_ = solver_factory::createSolver(
+        utils::enums::methodType::kSem, utils::enums::implemType::kMakutu, utils::enums::meshType::kStruct,
+        utils::enums::modelLocationType::kOnElements, utils::enums::physicType::kAcoustic, order);
     solver_->setAnisotropyType(model::AnisotropyType::kIso);
     solver_->computeFEInit(*mesh_, {0.0f, 0.0f, 0.0f}, false, 0.0f);
 
@@ -282,9 +281,9 @@ class SemSolverAcousticOnNodesTest : public ::testing::Test {
     constexpr float LX = 200.0f, LY = 200.0f, LZ = 200.0f;
     model::CartesianStructBuilder<float, int, 1> b(EX, LX, EY, LY, EZ, LZ, true, false);
     mesh_ = b.getModel(false);
-    solver_ =
-        solver_factory::createSolver(utils::enums::methodType::kSem, utils::enums::implemType::kMakutu, utils::enums::meshType::kStruct,
-                                     utils::enums::modelLocationType::kOnNodes, utils::enums::physicType::kAcoustic, 1);
+    solver_ = solver_factory::createSolver(utils::enums::methodType::kSem, utils::enums::implemType::kMakutu,
+                                           utils::enums::meshType::kStruct, utils::enums::modelLocationType::kOnNodes,
+                                           utils::enums::physicType::kAcoustic, 1);
     solver_->setAnisotropyType(model::AnisotropyType::kIso);
     solver_->computeFEInit(*mesh_, {0.0f, 0.0f, 0.0f}, false, 0.0f);
     numNodes_ = mesh_->getNumberOfNodes();
@@ -351,9 +350,9 @@ class SemSolverAcousticSpongeTest : public ::testing::Test {
     constexpr float LX = 200.0f, LY = 200.0f, LZ = 200.0f;
     model::CartesianStructBuilder<float, int, 1> b(EX, LX, EY, LY, EZ, LZ, false, false);
     mesh_ = b.getModel(false);
-    solver_ =
-        solver_factory::createSolver(utils::enums::methodType::kSem, utils::enums::implemType::kMakutu, utils::enums::meshType::kStruct,
-                                     utils::enums::modelLocationType::kOnElements, utils::enums::physicType::kAcoustic, 1);
+    solver_ = solver_factory::createSolver(
+        utils::enums::methodType::kSem, utils::enums::implemType::kMakutu, utils::enums::meshType::kStruct,
+        utils::enums::modelLocationType::kOnElements, utils::enums::physicType::kAcoustic, 1);
     solver_->setAnisotropyType(model::AnisotropyType::kIso);
     solver_->computeFEInit(*mesh_, {50.0f, 0.0f, 0.0f}, false, 10.0f);
     solver_->initSpongeValues();
@@ -402,9 +401,9 @@ TEST_F(SemSolverAcousticSpongeTest, ComputeOneStepWithSpongeProducesFiniteValues
 TEST_F(SemSolverAcousticSpongeTest, SpongeWithSurfaceFlagDoesNotCrash) {
   model::CartesianStructBuilder<float, int, 1> b(2, 200.0f, 2, 200.0f, 2, 200.0f, false, false);
   auto mesh2 = b.getModel(false);
-  auto solver2 =
-      solver_factory::createSolver(utils::enums::methodType::kSem, utils::enums::implemType::kMakutu, utils::enums::meshType::kStruct,
-                                   utils::enums::modelLocationType::kOnElements, utils::enums::physicType::kAcoustic, 1);
+  auto solver2 = solver_factory::createSolver(
+      utils::enums::methodType::kSem, utils::enums::implemType::kMakutu, utils::enums::meshType::kStruct,
+      utils::enums::modelLocationType::kOnElements, utils::enums::physicType::kAcoustic, 1);
   solver2->setAnisotropyType(model::AnisotropyType::kIso);
   solver2->computeFEInit(*mesh2, {50.0f, 0.0f, 0.0f}, true, 10.0f);
   EXPECT_NO_THROW(solver2->initSpongeValues());
@@ -422,9 +421,9 @@ class SemSolverAcousticAttenuationTest : public ::testing::Test {
     constexpr float LX = 200.0f, LY = 200.0f, LZ = 200.0f;
     model::CartesianStructBuilder<float, int, 1> b(EX, LX, EY, LY, EZ, LZ, false, false);
     mesh_ = b.getModel(false);
-    solver_ =
-        solver_factory::createSolver(utils::enums::methodType::kSem, utils::enums::implemType::kMakutu, utils::enums::meshType::kStruct,
-                                     utils::enums::modelLocationType::kOnElements, utils::enums::physicType::kAcoustic, 1);
+    solver_ = solver_factory::createSolver(
+        utils::enums::methodType::kSem, utils::enums::implemType::kMakutu, utils::enums::meshType::kStruct,
+        utils::enums::modelLocationType::kOnElements, utils::enums::physicType::kAcoustic, 1);
     solver_->setAnisotropyType(model::AnisotropyType::kIso);
 
     auto ref = allocateVector<vectorReal>(2, "att_ref_ac");

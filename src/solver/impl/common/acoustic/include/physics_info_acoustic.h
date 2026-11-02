@@ -17,7 +17,7 @@ struct PhysicsInfo<utils::enums::physicType::kAcoustic> {
   static constexpr const char* kName = "Acoustic";
 
   static constexpr int kNumFields = 1;  ///< Pressure components.
-  static constexpr int kNumRhs = 1;    ///< Source components per RHS.
+  static constexpr int kNumRhs = 1;     ///< Source components per RHS.
 };
 
 }  // namespace solver

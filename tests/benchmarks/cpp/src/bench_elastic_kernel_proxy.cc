@@ -21,7 +21,6 @@
 // =============================================================================
 
 #include <Kokkos_Core.hpp>
-
 #include <algorithm>
 #include <array>
 #include <cmath>
@@ -75,15 +74,24 @@ Args parseArgs(int argc, char** argv) {
   for (int i = 1; i < argc; ++i) {
     const std::string s(argv[i]);
     std::string v;
-    if (value(s, "order", v)) a.order = std::atoi(v.c_str());
-    else if (value(s, "on-nodes", v)) a.on_nodes = std::atoi(v.c_str());
-    else if (value(s, "aniso", v)) a.aniso = std::atoi(v.c_str());
-    else if (value(s, "ex", v)) a.ex = std::atoi(v.c_str());
-    else if (value(s, "iters", v)) a.iters = std::atoi(v.c_str());
-    else if (value(s, "reps", v)) a.reps = std::atoi(v.c_str());
-    else if (value(s, "oracle", v)) a.oracle = std::atoi(v.c_str());
-    else if (value(s, "sample", v)) a.sample = std::atoll(v.c_str());
-    else if (value(s, "out", v)) a.out = v;
+    if (value(s, "order", v))
+      a.order = std::atoi(v.c_str());
+    else if (value(s, "on-nodes", v))
+      a.on_nodes = std::atoi(v.c_str());
+    else if (value(s, "aniso", v))
+      a.aniso = std::atoi(v.c_str());
+    else if (value(s, "ex", v))
+      a.ex = std::atoi(v.c_str());
+    else if (value(s, "iters", v))
+      a.iters = std::atoi(v.c_str());
+    else if (value(s, "reps", v))
+      a.reps = std::atoi(v.c_str());
+    else if (value(s, "oracle", v))
+      a.oracle = std::atoi(v.c_str());
+    else if (value(s, "sample", v))
+      a.sample = std::atoll(v.c_str());
+    else if (value(s, "out", v))
+      a.out = v;
   }
   if (a.iters < 1) a.iters = 1;
   if (a.reps < 1) a.reps = 1;
@@ -203,11 +211,11 @@ int runCase(const Args& a) {
   fillDeterministic("init_uz_curr", uzCurr, 131u);
   FENCE
 
-  const long long alloc_bytes = static_cast<long long>(n_dof) * 6 * static_cast<long long>(sizeof(float)) +
-                                 static_cast<long long>(n_rhs) * n_time_steps * 3 *
-                                    static_cast<long long>(sizeof(float)) +
-                                static_cast<long long>(n_rhs) * static_cast<long long>(sizeof(int)) +
-                                static_cast<long long>(n_rhs) * n_points * static_cast<long long>(sizeof(float));
+  const long long alloc_bytes =
+      static_cast<long long>(n_dof) * 6 * static_cast<long long>(sizeof(float)) +
+      static_cast<long long>(n_rhs) * n_time_steps * 3 * static_cast<long long>(sizeof(float)) +
+      static_cast<long long>(n_rhs) * static_cast<long long>(sizeof(int)) +
+      static_cast<long long>(n_rhs) * n_points * static_cast<long long>(sizeof(float));
 
   auto wavefield = WavefieldElastic(uxPrev, uyPrev, uzPrev, uxCurr, uyCurr, uzCurr);
   auto rhs = RhsElastic(rhsTermx, rhsTermy, rhsTermz, rhsElement, rhsWeights);
@@ -323,12 +331,24 @@ int main(int argc, char** argv) {
   int rc = 0;
   {
     switch (a.order * 10 + (a.on_nodes != 0 ? 1 : 0)) {
-      case 10: rc = runCase<1, false>(a); break;
-      case 11: rc = runCase<1, true>(a); break;
-      case 20: rc = runCase<2, false>(a); break;
-      case 21: rc = runCase<2, true>(a); break;
-      case 40: rc = runCase<4, false>(a); break;
-      case 41: rc = runCase<4, true>(a); break;
+      case 10:
+        rc = runCase<1, false>(a);
+        break;
+      case 11:
+        rc = runCase<1, true>(a);
+        break;
+      case 20:
+        rc = runCase<2, false>(a);
+        break;
+      case 21:
+        rc = runCase<2, true>(a);
+        break;
+      case 40:
+        rc = runCase<4, false>(a);
+        break;
+      case 41:
+        rc = runCase<4, true>(a);
+        break;
       default:
         std::fprintf(stderr, "unsupported --order/--on-nodes combination\n");
         rc = 2;

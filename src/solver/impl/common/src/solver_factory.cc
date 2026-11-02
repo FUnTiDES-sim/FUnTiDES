@@ -21,7 +21,6 @@
 namespace solver {
 namespace solver_factory {
 
-
 /**
  * @brief Maps a runtime polynomial order to a compile-time one.
  *
@@ -90,7 +89,8 @@ std::unique_ptr<Solver> makeSemSolverForMesh(bool isModelOnNodes, utils::enums::
  * @brief Creates a SEM-type solver of order ORDER, selecting the mesh type.
  */
 template <auto ImplTag, int ORDER>
-std::unique_ptr<Solver> makeSemSolverForOrder(bool isModelOnNodes, utils::enums::meshType mesh, utils::enums::physicType physic) {
+std::unique_ptr<Solver> makeSemSolverForOrder(bool isModelOnNodes, utils::enums::meshType mesh,
+                                              utils::enums::physicType physic) {
   if (mesh == utils::enums::meshType::kStruct) {
     return makeSemSolverForMesh<ImplTag, ORDER, model::ModelStruct<float, int, ORDER>>(isModelOnNodes, physic);
   }
@@ -105,8 +105,8 @@ std::unique_ptr<Solver> makeSemSolverForOrder(bool isModelOnNodes, utils::enums:
  * @throws std::runtime_error If the order or the physics is unsupported.
  */
 template <auto ImplTag>
-std::unique_ptr<Solver> makeSemSolver(int order, utils::enums::meshType mesh, utils::enums::modelLocationType modelLocation,
-                                      utils::enums::physicType physic) {
+std::unique_ptr<Solver> makeSemSolver(int order, utils::enums::meshType mesh,
+                                      utils::enums::modelLocationType modelLocation, utils::enums::physicType physic) {
   bool const isModelOnNodes = (modelLocation == utils::enums::modelLocationType::kOnNodes);
 
   if (physic == utils::enums::physicType::kAcoustic) {
@@ -155,7 +155,8 @@ std::unique_ptr<Solver> makeDgSolverForMesh(bool isModelOnNodes, utils::enums::p
  * @brief Creates a DG solver of order ORDER, selecting the mesh type.
  */
 template <auto ImplTag, int ORDER>
-std::unique_ptr<Solver> makeDgSolverForOrder(bool isModelOnNodes, utils::enums::meshType mesh, utils::enums::physicType physic) {
+std::unique_ptr<Solver> makeDgSolverForOrder(bool isModelOnNodes, utils::enums::meshType mesh,
+                                             utils::enums::physicType physic) {
   if (mesh == utils::enums::meshType::kStruct) {
     return makeDgSolverForMesh<ImplTag, ORDER, model::ModelStruct<float, int, ORDER>>(isModelOnNodes, physic);
   }
@@ -167,8 +168,8 @@ std::unique_ptr<Solver> makeDgSolverForOrder(bool isModelOnNodes, utils::enums::
  * @throws std::runtime_error If the order or the physics is unsupported.
  */
 template <auto ImplTag>
-std::unique_ptr<Solver> makeDgSolver(int order, utils::enums::meshType mesh, utils::enums::modelLocationType modelLocation,
-                                     utils::enums::physicType physic) {
+std::unique_ptr<Solver> makeDgSolver(int order, utils::enums::meshType mesh,
+                                     utils::enums::modelLocationType modelLocation, utils::enums::physicType physic) {
   bool const isModelOnNodes = (modelLocation == utils::enums::modelLocationType::kOnNodes);
   return orderDispatch<MAX_DG_SOLVER_ACOUSTIC_ORDER>(order, [&](auto orderIC) {
     return makeDgSolverForOrder<ImplTag, decltype(orderIC)::value>(isModelOnNodes, mesh, physic);
@@ -204,7 +205,8 @@ std::unique_ptr<Solver> makeDgSemSolverForMesh(bool isModelOnNodes, utils::enums
  * @brief Creates a coupled DG-SEM solver of order ORDER, selecting the mesh type.
  */
 template <auto ImplTag, int ORDER>
-std::unique_ptr<Solver> makeDgSemSolverForOrder(bool isModelOnNodes, utils::enums::meshType mesh, utils::enums::physicType physic) {
+std::unique_ptr<Solver> makeDgSemSolverForOrder(bool isModelOnNodes, utils::enums::meshType mesh,
+                                                utils::enums::physicType physic) {
   if (mesh == utils::enums::meshType::kStruct) {
     return makeDgSemSolverForMesh<ImplTag, ORDER, model::ModelStruct<float, int, ORDER>>(isModelOnNodes, physic);
   }
@@ -216,7 +218,8 @@ std::unique_ptr<Solver> makeDgSemSolverForOrder(bool isModelOnNodes, utils::enum
  * @throws std::runtime_error If the order or the physics is unsupported.
  */
 template <auto ImplTag>
-std::unique_ptr<Solver> makeDgSemSolver(int order, utils::enums::meshType mesh, utils::enums::modelLocationType modelLocation,
+std::unique_ptr<Solver> makeDgSemSolver(int order, utils::enums::meshType mesh,
+                                        utils::enums::modelLocationType modelLocation,
                                         utils::enums::physicType physic) {
   bool const isModelOnNodes = (modelLocation == utils::enums::modelLocationType::kOnNodes);
   return orderDispatch<MAX_DG_SEM_SOLVER_ACOUSTIC_ORDER>(order, [&](auto orderIC) {
@@ -241,10 +244,10 @@ std::unique_ptr<Solver> makeDgPAdaptiveSolverForMesh(bool isModelOnNodes, utils:
   if (physic == utils::enums::physicType::kAcoustic) {
     if (isModelOnNodes)
       return std::make_unique<solver::DGPAdaptiveSolver<ORDER_MIN, ORDER_MAX, IntegralTypeSelector, ImplTag, MeshT,
-                                                            true, utils::enums::physicType::kAcoustic>>();
+                                                        true, utils::enums::physicType::kAcoustic>>();
     else
       return std::make_unique<solver::DGPAdaptiveSolver<ORDER_MIN, ORDER_MAX, IntegralTypeSelector, ImplTag, MeshT,
-                                                            false, utils::enums::physicType::kAcoustic>>();
+                                                        false, utils::enums::physicType::kAcoustic>>();
   }
   throw std::runtime_error("DG p-adaptive: unsupported physics type");
 }
@@ -254,13 +257,13 @@ std::unique_ptr<Solver> makeDgPAdaptiveSolverForMesh(bool isModelOnNodes, utils:
  */
 template <auto ImplTag, int ORDER_MIN, int ORDER_MAX>
 std::unique_ptr<Solver> makeDgPAdaptiveSolverForOrders(bool isModelOnNodes, utils::enums::meshType mesh,
-                                                        utils::enums::physicType physic) {
+                                                       utils::enums::physicType physic) {
   if (mesh == utils::enums::meshType::kStruct) {
     return makeDgPAdaptiveSolverForMesh<ImplTag, ORDER_MIN, ORDER_MAX, model::ModelStruct<float, int, ORDER_MAX>>(
         isModelOnNodes, physic);
   }
-  return makeDgPAdaptiveSolverForMesh<ImplTag, ORDER_MIN, ORDER_MAX, model::ModelUnstruct<float, int>>(
-      isModelOnNodes, physic);
+  return makeDgPAdaptiveSolverForMesh<ImplTag, ORDER_MIN, ORDER_MAX, model::ModelUnstruct<float, int>>(isModelOnNodes,
+                                                                                                       physic);
 }
 
 /**
@@ -274,7 +277,8 @@ std::unique_ptr<Solver> makeDgPAdaptiveSolverForOrders(bool isModelOnNodes, util
  */
 template <auto ImplTag>
 std::unique_ptr<Solver> makeDgPAdaptiveSolver(int order_min, int order_max, utils::enums::meshType mesh,
-                                              utils::enums::modelLocationType modelLocation, utils::enums::physicType physic) {
+                                              utils::enums::modelLocationType modelLocation,
+                                              utils::enums::physicType physic) {
   bool const isModelOnNodes = (modelLocation == utils::enums::modelLocationType::kOnNodes);
   return orderDispatch<MAX_DG_PADAPTIVE_SOLVER_ACOUSTIC_ORDER>(
       order_max, [&](auto orderMaxIC) -> std::unique_ptr<Solver> {
@@ -303,8 +307,9 @@ std::unique_ptr<Solver> makeDgPAdaptiveSolver(int order_min, int order_max, util
  * @return The newly created solver.
  * @throws std::runtime_error If the configuration is not supported.
  */
-std::unique_ptr<Solver> createSolver(utils::enums::methodType const methodType, utils::enums::implemType const implemType,
-                                     utils::enums::meshType const mesh, utils::enums::modelLocationType const modelLocation,
+std::unique_ptr<Solver> createSolver(utils::enums::methodType const methodType,
+                                     utils::enums::implemType const implemType, utils::enums::meshType const mesh,
+                                     utils::enums::modelLocationType const modelLocation,
                                      utils::enums::physicType const physicType, int const order, int const order_min) {
 #ifdef COMPILE_SEM
   if (methodType == utils::enums::methodType::kSem) {
@@ -355,9 +360,8 @@ std::unique_ptr<Solver> createSolver(utils::enums::methodType const methodType, 
 #endif
 
   throw std::runtime_error(
-      "Unsupported solver configuration: methodType=" + std::to_string(static_cast<int>(methodType)) +
-      ", implemType=" + std::to_string(static_cast<int>(implemType)) + ", physicType=" +
-      std::to_string(static_cast<int>(physicType)));
+      "Unsupported solver configuration: methodType=" + std::to_string(static_cast<int>(methodType)) + ", implemType=" +
+      std::to_string(static_cast<int>(implemType)) + ", physicType=" + std::to_string(static_cast<int>(physicType)));
 }
 
 }  // namespace solver_factory

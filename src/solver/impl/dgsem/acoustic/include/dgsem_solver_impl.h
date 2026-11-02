@@ -8,8 +8,8 @@
 
 #include "Integrals.h"
 #include "data_type.h"
-#include "dgsem_solver.h"
 #include "dg_penalty.h"
+#include "dgsem_solver.h"
 
 namespace solver {
 

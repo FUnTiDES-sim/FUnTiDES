@@ -19,12 +19,11 @@
  * to the output file.
  */
 
+#include <Kokkos_Core.hpp>
 #include <chrono>
 #include <memory>
 #include <string>
 #include <vector>
-
-#include <Kokkos_Core.hpp>
 
 #include "proxy_sem_common.h"
 #include "rhs_elastic.h"
@@ -34,8 +33,8 @@
 namespace {
 
 using namespace solver::proxy;
-using solver::SEMsolverDataElastic;
 using solver::RhsElastic;
+using solver::SEMsolverDataElastic;
 using solver::WavefieldElastic;
 
 // Order 1 mirrors proxy_sem_elastic.cc so the TTI and Iso oracles differ

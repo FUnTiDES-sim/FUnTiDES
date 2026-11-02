@@ -8,12 +8,11 @@
  * final pressure field as raw float64 to the output file.
  */
 
+#include <Kokkos_Core.hpp>
 #include <chrono>
 #include <memory>
 #include <string>
 #include <vector>
-
-#include <Kokkos_Core.hpp>
 
 #include "proxy_sem_common.h"
 #include "rhs_acoustic.h"
@@ -23,8 +22,8 @@
 namespace {
 
 using namespace solver::proxy;
-using solver::SEMsolverDataAcoustic;
 using solver::RhsAcoustic;
+using solver::SEMsolverDataAcoustic;
 using solver::WavefieldAcoustic;
 
 constexpr int kOrder = 2;  // 24^3 elements, order 2 -> 49^3 = 117,649 dofs.

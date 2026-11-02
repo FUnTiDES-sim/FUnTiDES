@@ -27,8 +27,8 @@ namespace solver {
  * @tparam IS_MODEL_ON_NODES whether the medium properties live on nodes.
  */
 template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE, bool IS_MODEL_ON_NODES>
-class AcousticSolver final : public SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES,
-                                              utils::enums::physicType::kAcoustic> {
+class AcousticSolver final
+    : public SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, utils::enums::physicType::kAcoustic> {
  public:
   AcousticSolver() = default;
 };

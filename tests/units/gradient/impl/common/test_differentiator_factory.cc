@@ -9,10 +9,10 @@
 namespace gradient {
 namespace testing {
 
-
 // Helper function to provide a valid baseline configuration
 std::unique_ptr<Differentiator> createDefaultTestDifferentiator(
-    utils::enums::physicType physic = utils::enums::physicType::kAcoustic, utils::enums::meshType mesh = utils::enums::meshType::kStruct,
+    utils::enums::physicType physic = utils::enums::physicType::kAcoustic,
+    utils::enums::meshType mesh = utils::enums::meshType::kStruct,
     utils::enums::modelLocationType loc = utils::enums::modelLocationType::kOnNodes, int order = 1) {
   return createDifferentiator(utils::enums::implemType::kMakutu, mesh, loc, physic, order);
 }
@@ -59,8 +59,8 @@ TEST(DifferentiatorFactoryTest, ThrowsOnUnknownPhysicsType) {
 
   EXPECT_THROW(
       {
-        createDefaultTestDifferentiator(invalid_physic, utils::enums::meshType::kStruct, utils::enums::modelLocationType::kOnNodes,
-                                        1);
+        createDefaultTestDifferentiator(invalid_physic, utils::enums::meshType::kStruct,
+                                        utils::enums::modelLocationType::kOnNodes, 1);
       },
       std::runtime_error);
 }

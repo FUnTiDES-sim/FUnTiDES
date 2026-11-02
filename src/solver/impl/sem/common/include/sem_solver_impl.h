@@ -28,19 +28,13 @@
  * for the explicit-instantiation units.
  */
 
-#include "sem_solver_step.h"
-
-#include "sem_solver_kernels.h"
-
 #include "sem_solver_acoustic_impl.h"
-
 #include "sem_solver_elastic_impl.h"
-
-#include "sem_solver_update.h"
-
-#include "sem_solver_init.h"
-
 #include "sem_solver_element_subset.h"
+#include "sem_solver_init.h"
+#include "sem_solver_kernels.h"
+#include "sem_solver_step.h"
+#include "sem_solver_update.h"
 
 // Named physics solver types — after all fragments, where SEMsolver's
 // definition is complete.

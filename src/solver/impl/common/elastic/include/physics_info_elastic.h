@@ -17,7 +17,7 @@ struct PhysicsInfo<utils::enums::physicType::kElastic> {
   static constexpr const char* kName = "Elastic";
 
   static constexpr int kNumFields = 3;  ///< Displacement components.
-  static constexpr int kNumRhs = 3;    ///< Source components per RHS.
+  static constexpr int kNumRhs = 3;     ///< Source components per RHS.
 };
 
 }  // namespace solver

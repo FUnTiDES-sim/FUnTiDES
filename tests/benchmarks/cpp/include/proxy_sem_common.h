@@ -18,6 +18,7 @@
  * (source weights are zero), so no dependence on source-term indexing.
  */
 
+#include <Kokkos_Core.hpp>
 #include <chrono>
 #include <cmath>
 #include <cstdio>
@@ -25,8 +26,6 @@
 #include <memory>
 #include <stdexcept>
 #include <string>
-
-#include <Kokkos_Core.hpp>
 
 #include "cartesian_struct_builder.h"
 #include "data_type.h"

@@ -27,7 +27,6 @@
 namespace solver {
 namespace test {
 
-
 // ======================================================================
 // Fixture
 // ======================================================================
@@ -60,9 +59,9 @@ class SemSolverElasticTest : public ::testing::TestWithParam<ElasticSolverOrderP
       }
     }
 
-    solver_ =
-        solver_factory::createSolver(utils::enums::methodType::kSem, utils::enums::implemType::kMakutu, utils::enums::meshType::kStruct,
-                                     utils::enums::modelLocationType::kOnElements, utils::enums::physicType::kElastic, order);
+    solver_ = solver_factory::createSolver(
+        utils::enums::methodType::kSem, utils::enums::implemType::kMakutu, utils::enums::meshType::kStruct,
+        utils::enums::modelLocationType::kOnElements, utils::enums::physicType::kElastic, order);
     solver_->setAnisotropyType(model::AnisotropyType::kIso);
     solver_->computeFEInit(*mesh_, {0.0f, 0.0f, 0.0f}, false, 0.0f);
 
@@ -313,9 +312,9 @@ class SemSolverElasticVtiTest : public ::testing::TestWithParam<ElasticSolverOrd
     }
     mesh_->initElasticityTensors(model::AnisotropyType::kVTI);
 
-    solver_ =
-        solver_factory::createSolver(utils::enums::methodType::kSem, utils::enums::implemType::kMakutu, utils::enums::meshType::kStruct,
-                                     utils::enums::modelLocationType::kOnElements, utils::enums::physicType::kElastic, order);
+    solver_ = solver_factory::createSolver(
+        utils::enums::methodType::kSem, utils::enums::implemType::kMakutu, utils::enums::meshType::kStruct,
+        utils::enums::modelLocationType::kOnElements, utils::enums::physicType::kElastic, order);
     solver_->setAnisotropyType(model::AnisotropyType::kVTI);
     solver_->computeFEInit(*mesh_, {0.0f, 0.0f, 0.0f}, false, 0.0f);
 
@@ -407,9 +406,9 @@ class SemSolverElasticTtiTest : public ::testing::TestWithParam<ElasticSolverOrd
     }
     mesh_->initElasticityTensors(model::AnisotropyType::kTTI);
 
-    solver_ =
-        solver_factory::createSolver(utils::enums::methodType::kSem, utils::enums::implemType::kMakutu, utils::enums::meshType::kStruct,
-                                     utils::enums::modelLocationType::kOnElements, utils::enums::physicType::kElastic, order);
+    solver_ = solver_factory::createSolver(
+        utils::enums::methodType::kSem, utils::enums::implemType::kMakutu, utils::enums::meshType::kStruct,
+        utils::enums::modelLocationType::kOnElements, utils::enums::physicType::kElastic, order);
     solver_->setAnisotropyType(model::AnisotropyType::kTTI);
     solver_->computeFEInit(*mesh_, {0.0f, 0.0f, 0.0f}, false, 0.0f);
 
@@ -494,9 +493,9 @@ class SemSolverElasticOnNodesTest : public ::testing::Test {
     constexpr float LX = 200.0f, LY = 200.0f, LZ = 200.0f;
     model::CartesianStructBuilder<float, int, 1> b(EX, LX, EY, LY, EZ, LZ, true, true);
     mesh_ = b.getModel(false);
-    solver_ =
-        solver_factory::createSolver(utils::enums::methodType::kSem, utils::enums::implemType::kMakutu, utils::enums::meshType::kStruct,
-                                     utils::enums::modelLocationType::kOnNodes, utils::enums::physicType::kElastic, 1);
+    solver_ = solver_factory::createSolver(utils::enums::methodType::kSem, utils::enums::implemType::kMakutu,
+                                           utils::enums::meshType::kStruct, utils::enums::modelLocationType::kOnNodes,
+                                           utils::enums::physicType::kElastic, 1);
     solver_->setAnisotropyType(model::AnisotropyType::kIso);
     solver_->computeFEInit(*mesh_, {0.0f, 0.0f, 0.0f}, false, 0.0f);
     numNodes_ = mesh_->getNumberOfNodes();
@@ -566,9 +565,9 @@ class SemSolverElasticSpongeTest : public ::testing::Test {
     constexpr float LX = 200.0f, LY = 200.0f, LZ = 200.0f;
     model::CartesianStructBuilder<float, int, 1> b(EX, LX, EY, LY, EZ, LZ, false, true);
     mesh_ = b.getModel(false);
-    solver_ =
-        solver_factory::createSolver(utils::enums::methodType::kSem, utils::enums::implemType::kMakutu, utils::enums::meshType::kStruct,
-                                     utils::enums::modelLocationType::kOnElements, utils::enums::physicType::kElastic, 1);
+    solver_ = solver_factory::createSolver(
+        utils::enums::methodType::kSem, utils::enums::implemType::kMakutu, utils::enums::meshType::kStruct,
+        utils::enums::modelLocationType::kOnElements, utils::enums::physicType::kElastic, 1);
     solver_->setAnisotropyType(model::AnisotropyType::kIso);
     solver_->computeFEInit(*mesh_, {50.0f, 0.0f, 0.0f}, false, 10.0f);
     solver_->initSpongeValues();
@@ -651,9 +650,9 @@ class SemSolverElasticAttenuationTest : public ::testing::Test {
     constexpr float LX = 200.0f, LY = 200.0f, LZ = 200.0f;
     model::CartesianStructBuilder<float, int, 1> b(EX, LX, EY, LY, EZ, LZ, false, true);
     mesh_ = b.getModel(false);
-    solver_ =
-        solver_factory::createSolver(utils::enums::methodType::kSem, utils::enums::implemType::kMakutu, utils::enums::meshType::kStruct,
-                                     utils::enums::modelLocationType::kOnElements, utils::enums::physicType::kElastic, 1);
+    solver_ = solver_factory::createSolver(
+        utils::enums::methodType::kSem, utils::enums::implemType::kMakutu, utils::enums::meshType::kStruct,
+        utils::enums::modelLocationType::kOnElements, utils::enums::physicType::kElastic, 1);
     solver_->setAnisotropyType(model::AnisotropyType::kIso);
 
     auto ref = allocateVector<vectorReal>(2, "att_ref_el");
@@ -736,9 +735,9 @@ class SemSolverElasticAttenuationVtiTest : public ::testing::Test {
     model::CartesianStructBuilder<float, int, 1> b(EX, LX, EY, LY, EZ, LZ, false, true);
     mesh_ = b.getModel(false);
     mesh_->initElasticityTensors(model::AnisotropyType::kVTI);
-    solver_ =
-        solver_factory::createSolver(utils::enums::methodType::kSem, utils::enums::implemType::kMakutu, utils::enums::meshType::kStruct,
-                                     utils::enums::modelLocationType::kOnElements, utils::enums::physicType::kElastic, 1);
+    solver_ = solver_factory::createSolver(
+        utils::enums::methodType::kSem, utils::enums::implemType::kMakutu, utils::enums::meshType::kStruct,
+        utils::enums::modelLocationType::kOnElements, utils::enums::physicType::kElastic, 1);
     solver_->setAnisotropyType(model::AnisotropyType::kVTI);
 
     auto ref = allocateVector<vectorReal>(2, "att_ref_vti");
@@ -794,9 +793,9 @@ class SemSolverElasticTtiOnNodesTest : public ::testing::Test {
     model::CartesianStructBuilder<float, int, 1> b(EX, LX, EY, LY, EZ, LZ, true, true);
     mesh_ = b.getModel(false);
     mesh_->initElasticityTensors(model::AnisotropyType::kTTI);
-    solver_ =
-        solver_factory::createSolver(utils::enums::methodType::kSem, utils::enums::implemType::kMakutu, utils::enums::meshType::kStruct,
-                                     utils::enums::modelLocationType::kOnNodes, utils::enums::physicType::kElastic, 1);
+    solver_ = solver_factory::createSolver(utils::enums::methodType::kSem, utils::enums::implemType::kMakutu,
+                                           utils::enums::meshType::kStruct, utils::enums::modelLocationType::kOnNodes,
+                                           utils::enums::physicType::kElastic, 1);
     solver_->setAnisotropyType(model::AnisotropyType::kTTI);
     solver_->computeFEInit(*mesh_, {0.0f, 0.0f, 0.0f}, false, 0.0f);
 

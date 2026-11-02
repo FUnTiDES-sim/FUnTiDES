@@ -4,9 +4,9 @@
 #include <array>
 
 #include "data_type.h"
+#include "dg_solver.h"
 #include "dgsem_physics_traits_acoustic.h"
 #include "dgsem_solver_data.h"
-#include "dg_solver.h"
 #include "face_connectivity_unstruct.h"
 #include "model.h"
 #include "sem_enums.h"

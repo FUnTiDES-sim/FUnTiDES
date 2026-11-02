@@ -283,6 +283,5 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::out
             << " after computeOneStep = " << value << std::endl;
 }
 
-
 }  // namespace solver
 #endif  // FUNTIDES_SOLVER_IMPL_SEM_COMMON_INCLUDE_SEM_SOLVER_INIT_H_
