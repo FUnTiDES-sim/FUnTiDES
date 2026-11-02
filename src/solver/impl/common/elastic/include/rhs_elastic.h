@@ -2,6 +2,7 @@
 #define FUNTIDES_SOLVER_IMPL_COMMON_ELASTIC_INCLUDE_RHS_ELASTIC_H_
 #include <data_type.h>
 
+#include "physics_info_elastic.h"
 #include "rhs.h"
 
 namespace solver {
@@ -9,8 +10,8 @@ namespace solver {
  * @brief Elastic RHS data structure.
  */
 struct RhsElastic : public Rhs {
-  /// Number of RHS (source) components
-  static constexpr int kNumRhsComponents = 3;
+  /// Number of RHS (source) components, from the physics description.
+  static constexpr int kNumRhsComponents = PhysicsInfo<utils::enums::physicType::kElastic>::kNumRhs;
 
   /// Default constructor: produces an empty (no-forcing) RHS.
   /// All views are null/zero-extent; safe as long as RHS is not accessed.

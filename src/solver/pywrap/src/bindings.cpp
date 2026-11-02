@@ -2,6 +2,7 @@
 #include <pybind11/pybind11.h>
 #include <pybind11/stl.h>
 
+#include "bindings_common.h"
 #include "bindings_rhs.h"
 #include "bindings_sem_enums.h"
 #ifdef COMPILE_SEM
@@ -36,9 +37,15 @@ PYBIND11_MODULE(solver, m) {
   solver::bind_rhs_elastic(m);
   solver::bind_rhs_acoustoelastic(m);
 
+  // Bind the method-agnostic part: the Wavefield interface every method's
+  // wavefield derives from and the factory every method is built through.
+  // Both live outside the per-method blocks, so the module imports whatever
+  // method set is compiled in (including none).
+  solver::bind_wavefield_base(m);
+  solver::bind_solver_factory(m);
+
 #ifdef COMPILE_SEM
   // Bind Wavefield
-  solver::bind_wavefield_base(m);
   solver::bind_wavefield_acoustic(m);
   solver::bind_wavefield_elastic(m);
   solver::bind_wavefield_acoustoelastic(m);
@@ -51,7 +58,6 @@ PYBIND11_MODULE(solver, m) {
 
   // Bind Solver
   solver::bind_sem_solver_base(m);
-  solver::bind_solver_factory(m);
 #endif
 
 #ifdef COMPILE_DG

@@ -16,32 +16,6 @@ namespace py = pybind11;
 
 namespace solver {
 
-void bind_wavefield_base(py::module_& m) {
-  // Bind Wavefield (base class)
-  py::class_<Wavefield, std::shared_ptr<Wavefield>>(m, "Wavefield")
-      .def("swap", &Wavefield::swap)
-      .def(
-          "get_current_field",
-          [](const Wavefield& self, int i) {
-            return Kokkos::Experimental::python_view_type_t<vectorReal>(self.getCurrentField(i));
-          },
-          py::arg("i"))
-      .def(
-          "get_previous_field",
-          [](const Wavefield& self, int i) {
-            return Kokkos::Experimental::python_view_type_t<vectorReal>(self.getPreviousField(i));
-          },
-          py::arg("i"))
-      .def(
-          "get_prevprev_field",
-          [](const Wavefield& self, int i) {
-            return Kokkos::Experimental::python_view_type_t<vectorReal>(self.getPrevPrevField(i));
-          },
-          py::arg("i"))
-      .def("has_prevprev", &Wavefield::hasPrevPrev)
-      .def("print", &Wavefield::print);
-}
-
 void bind_wavefield_acoustic(py::module_& m) {
   // Bind WavefieldAcoustic (inherits from Wavefield)
   py::class_<WavefieldAcoustic, Wavefield, std::shared_ptr<WavefieldAcoustic>>(m, "WavefieldAcoustic")

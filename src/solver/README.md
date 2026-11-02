@@ -74,6 +74,10 @@ Two description layers serve different consumers:
   component counts intrinsic to the physics. Methods that need nothing
   beyond these counts (the DG variants) consume `PhysicsInfo` instead of a
   method's `PhysicsTraits`, so they do not depend on SEM storage types.
+  `PhysicsInfo` is the single source of truth for the component counts: the
+  concrete wavefields and RHS (`WavefieldAcoustic`, `WavefieldElastic`,
+  `RhsAcoustic`, `RhsElastic`) read their `kNumFields` /
+  `kNumRhsComponents` from it, so the two can never drift apart.
 
 ## pywrap bindings
 

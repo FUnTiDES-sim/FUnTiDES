@@ -2,6 +2,7 @@
 #define FUNTIDES_SOLVER_IMPL_COMMON_ACOUSTIC_INCLUDE_RHS_ACOUSTIC_H_
 #include <data_type.h>
 
+#include "physics_info_acoustic.h"
 #include "rhs.h"
 
 namespace solver {
@@ -15,8 +16,8 @@ namespace solver {
  * the time sample, the source, the node)?
  */
 struct RhsAcoustic : public Rhs {
-  /// Number of RHS (source) components
-  static constexpr int kNumRhsComponents = 1;
+  /// Number of RHS (source) components, from the physics description.
+  static constexpr int kNumRhsComponents = PhysicsInfo<utils::enums::physicType::kAcoustic>::kNumRhs;
 
   PROXY_HOST_DEVICE RhsAcoustic() = default;
   PROXY_HOST_DEVICE ~RhsAcoustic() = default;

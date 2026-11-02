@@ -195,17 +195,5 @@ void bind_sem_solver_base(py::module_ &m) {
           py::arg("tags"));
 }
 
-void bind_solver_factory(py::module_ &m) {
-  m.def(
-      "create_solver",
-      [](utils::enums::methodType method, utils::enums::implemType implem, utils::enums::meshType mesh,
-         utils::enums::modelLocationType modelLocation, utils::enums::physicType physic, int order, int order_min) {
-        auto solver = solver_factory::createSolver(method, implem, mesh, modelLocation, physic, order, order_min);
-        return std::shared_ptr<Solver>(std::move(solver));
-      },
-      py::arg("method_type"), py::arg("implem_type"), py::arg("mesh_type"), py::arg("model_location"),
-      py::arg("physic_type"), py::arg("order"), py::arg("order_min") = 0);
-}
-
 }  // namespace solver
 #endif  // FUNTIDES_SOLVER_PYWRAP_INCLUDE_BINDINGS_SEM_SOLVER_H_

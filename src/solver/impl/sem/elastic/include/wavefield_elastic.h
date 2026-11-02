@@ -2,6 +2,7 @@
 #define FUNTIDES_SOLVER_IMPL_SEM_ELASTIC_INCLUDE_WAVEFIELD_ELASTIC_H_
 #include <data_type.h>
 
+#include "physics_info_elastic.h"
 #include "wavefield.h"
 
 namespace solver {
@@ -10,10 +11,10 @@ namespace solver {
  * Arrays are kept flat for easy cpp-python-fortran interop.
  */
 struct WavefieldElastic : public Wavefield {
+  /// Number of solution fields (3 for displacement vector), from the physics description.
+  static constexpr int kNumFields = PhysicsInfo<utils::enums::physicType::kElastic>::kNumFields;
   /// Field names for each component
-  static constexpr const char* kFieldNames[3] = {"ux", "uy", "uz"};
-  /// Number of solution fields (3 for displacement vector)
-  static constexpr int kNumFields = 3;
+  static constexpr const char* kFieldNames[kNumFields] = {"ux", "uy", "uz"};
 
   // Add explicit device-callable constructors and destructors
   PROXY_HOST_DEVICE WavefieldElastic() = default;

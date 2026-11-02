@@ -1,6 +1,6 @@
 #!/bin/bash
 # Smoke test: pyfuntides import + one GPU solver run through the Python API.
-# Validates that the fe/api boundary and the pywrap bindings survive the
+# Validates that the public api/ boundary and the pywrap bindings survive the
 # src/solver refactor. Runs on elba-b02 (glibc 2.34 + GPU required).
 #
 # Known pre-existing issues deliberately OUT of scope (see workspace memory):

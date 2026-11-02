@@ -2,6 +2,7 @@
 #define FUNTIDES_SOLVER_IMPL_SEM_ACOUSTIC_INCLUDE_WAVEFIELD_ACOUSTIC_H_
 #include <data_type.h>
 
+#include "physics_info_acoustic.h"
 #include "wavefield.h"
 
 namespace solver {
@@ -13,11 +14,11 @@ namespace solver {
  * @todo VERIFY: size and indexing of the pressure vectors (one value per global node?).
  */
 struct WavefieldAcoustic : public Wavefield {
-  /// Number of solution fields (1: pressure).
-  static constexpr int kNumFields = 1;
+  /// Number of solution fields (1: pressure), from the physics description.
+  static constexpr int kNumFields = PhysicsInfo<utils::enums::physicType::kAcoustic>::kNumFields;
 
   /// Names of the solution fields, indexed like the fields.
-  static constexpr const char* kFieldNames[1] = {"pressure"};
+  static constexpr const char* kFieldNames[kNumFields] = {"pressure"};
 
   PROXY_HOST_DEVICE WavefieldAcoustic() = default;
   PROXY_HOST_DEVICE ~WavefieldAcoustic() = default;
