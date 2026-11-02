@@ -6,12 +6,12 @@
  * @brief Shared boilerplate of the SEM proxy harnesses
  * (proxy_sem_acoustic.cc, proxy_sem_elastic.cc).
  *
- * These harnesses are driven by the MIMIR proxy server: they run one fixed,
- * fully deterministic problem and (1) print a metrics block with one
- * key=value per line (time_s, finite, max_abs, n_values), (2) write the final
- * wavefield to the file given on the command line as raw float64 values,
- * component after component, so the server can seal it as a reference and
- * compute l2_rel of later runs against it.
+ * Each harness runs one fixed, fully deterministic problem and (1) prints
+ * a metrics block with one key=value per line (time_s, finite, max_abs,
+ * n_values), (2) writes the final wavefield to the file given on the command
+ * line as raw float64 values, component after component. Two runs of the same
+ * binary are therefore comparable field by field, which is what makes the
+ * harnesses usable as regression oracles.
  *
  * Determinism rules: Kokkos views are NOT zero-initialised, so every array is
  * explicitly filled here; the only excitation is a single-node initial pulse
@@ -130,7 +130,7 @@ inline long writeAndScanFields(const std::string& path, const std::vector<vector
   return count;
 }
 
-/// @brief Prints the metrics block parsed by the proxy server.
+/// @brief Prints the metrics block (one key=value per line).
 inline void printMetrics(double time_s_per_step, bool finite, double max_abs, long n_values) {
   std::printf("time_s=%.9f\n", time_s_per_step);
   std::printf("finite=%d\n", finite ? 1 : 0);

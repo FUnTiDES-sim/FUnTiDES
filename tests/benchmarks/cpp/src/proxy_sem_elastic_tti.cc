@@ -8,11 +8,11 @@
  * initElasticityTensors(kTTI) before computeFEInit and
  * setAnisotropyType(kTTI) on the solver — the exact recipe of the green
  * gtest SemSolverElasticTtiTest. This exercises the TTI path
- * (computeElementContributions_Tti, computeTtiCompact) that the isotropic
- * oracle cannot see: the 2026-10-15 TTI port showed a fix in these kernels
- * is invisible to the existing sealed references.
+ * (computeElementContributions_Tti, computeTtiCompact) that an isotropic
+ * case cannot see: a defect in these kernels leaves an isotropic result
+ * unchanged.
  *
- * Driven by the MIMIR proxy server (see proxy_sem_common.h). Usage:
+ * See proxy_sem_common.h. Usage:
  *   proxy_sem_elastic_tti [output-file]
  * Prints one metrics block (time_s, finite, max_abs, n_values) and writes
  * the final (ux, uy, uz) fields as raw float64, component after component,

@@ -2,7 +2,7 @@
  * @file proxy_sem_elastic.cc
  * @brief Proxy harness: single-physics elastic SEM solver, fixed problem.
  *
- * Driven by the MIMIR proxy server (see proxy_sem_common.h). Usage:
+ * See proxy_sem_common.h. Usage:
  *   proxy_sem_elastic [output-file]
  * Prints one metrics block (time_s, finite, max_abs, n_values) and writes the
  * final (ux, uy, uz) fields as raw float64, component after component, to the

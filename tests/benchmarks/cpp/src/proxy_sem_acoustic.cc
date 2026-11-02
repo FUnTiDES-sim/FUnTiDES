@@ -2,7 +2,7 @@
  * @file proxy_sem_acoustic.cc
  * @brief Proxy harness: single-physics acoustic SEM solver, fixed problem.
  *
- * Driven by the MIMIR proxy server (see proxy_sem_common.h). Usage:
+ * See proxy_sem_common.h. Usage:
  *   proxy_sem_acoustic [output-file]
  * Prints one metrics block (time_s, finite, max_abs, n_values) and writes the
  * final pressure field as raw float64 to the output file.

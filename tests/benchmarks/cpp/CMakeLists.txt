@@ -91,11 +91,11 @@ add_benchmark(bench_solver_acoustic
 )
 
 # ---------------------------------------------------------------------------
-# MIMIR proxy harnesses: standalone executables (no google-benchmark), driven
-# by the proxy server. Each prints a metrics block (time_s=, finite=, ...) and
-# writes the final field as raw float64 to the file passed as argv[1]. The
-# build stays non-O3: the SEM solver has a latent use-after-free that -O3
-# turns into a crash (see scripts/build_sem_proxy.sh).
+# Regression harnesses: standalone executables (no google-benchmark). Each
+# prints a metrics block (time_s=, finite=, ...) and writes the final field as
+# raw float64 to the file passed as argv[1], so two runs are comparable field
+# by field. The build stays non-O3: the SEM solver has a latent use-after-free
+# that -O3 turns into a crash.
 # ---------------------------------------------------------------------------
 add_executable(proxy_sem_acoustic src/proxy_sem_acoustic.cc)
 target_include_directories(proxy_sem_acoustic
