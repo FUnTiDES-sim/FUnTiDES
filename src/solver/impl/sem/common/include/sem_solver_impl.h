@@ -28,13 +28,17 @@
  * for the explicit-instantiation units.
  */
 
+// Order matters: sem_solver_kernels.h defines the detail:: probes the physics
+// fragments use.
+// clang-format off
+#include "sem_solver_step.h"
+#include "sem_solver_kernels.h"
 #include "sem_solver_acoustic_impl.h"
 #include "sem_solver_elastic_impl.h"
-#include "sem_solver_element_subset.h"
-#include "sem_solver_init.h"
-#include "sem_solver_kernels.h"
-#include "sem_solver_step.h"
 #include "sem_solver_update.h"
+#include "sem_solver_init.h"
+#include "sem_solver_element_subset.h"
+// clang-format on
 
 // Named physics solver types — after all fragments, where SEMsolver's
 // definition is complete.
