@@ -37,11 +37,13 @@ PYBIND11_MODULE(solver, m) {
   solver::bind_rhs_elastic(m);
   solver::bind_rhs_acoustoelastic(m);
 
-  // Bind the method-agnostic part: the Wavefield interface every method's
-  // wavefield derives from and the factory every method is built through.
-  // Both live outside the per-method blocks, so the module imports whatever
-  // method set is compiled in (including none).
+  // Bind the method-agnostic part: the Wavefield, Solver and DataStruct
+  // interfaces every method derives from, and the factory every method is
+  // built through. They live outside the per-method blocks, so the module
+  // imports whatever method set is compiled in (including none).
   solver::bind_wavefield_base(m);
+  solver::bind_data_struct(m);
+  solver::bind_solver_base(m);
   solver::bind_solver_factory(m);
 
 #ifdef COMPILE_SEM
@@ -51,13 +53,9 @@ PYBIND11_MODULE(solver, m) {
   solver::bind_wavefield_acoustoelastic(m);
 
   // Bind Data Structures
-  solver::bind_data_struct(m);
   solver::bind_acoustic_solver_data(m);
   solver::bind_elastic_solver_data(m);
   solver::bind_acoustoelastic_solver_data(m);
-
-  // Bind Solver
-  solver::bind_sem_solver_base(m);
 #endif
 
 #ifdef COMPILE_DG

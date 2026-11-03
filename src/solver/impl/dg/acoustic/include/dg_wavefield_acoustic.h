@@ -2,6 +2,8 @@
 #define FUNTIDES_SOLVER_IMPL_DG_ACOUSTIC_INCLUDE_DG_WAVEFIELD_ACOUSTIC_H_
 #include <data_type.h>
 
+#include "physics_info_acoustic.h"
+
 namespace solver {
 /**
  * @brief Pressure wavefield of the acoustic discontinuous Galerkin solver.
@@ -10,9 +12,10 @@ namespace solver {
  * indexed by (element, local dof).
  */
 struct DGWavefieldAcoustic {
-  static constexpr int kNumFields = 1;  ///< Number of solution fields (pressure only).
+  /// Number of solution fields (1: pressure), from the physics description.
+  static constexpr int kNumFields = PhysicsInfo<utils::enums::physicType::kAcoustic>::kNumFields;
 
-  static constexpr const char* kFieldNames[1] = {"pressure"};  ///< Name of each field.
+  static constexpr const char* kFieldNames[kNumFields] = {"pressure"};  ///< Name of each field.
 
   PROXY_HOST_DEVICE DGWavefieldAcoustic() = default;
   PROXY_HOST_DEVICE ~DGWavefieldAcoustic() = default;
