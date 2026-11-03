@@ -24,7 +24,7 @@ solver/
 | `impl/common` | (always) | Construction entry point `solver_factory.{h,cc}` and the per-physics types shared across methods (`rhs_*.h`, `physics_info_*.h`) |
 | `impl/sem` | `COMPILE_SEM` | SEM solvers: `common/` skeleton plus one subtree per physics (`{include,src}`) |
 | `impl/dg` | `COMPILE_DG` | Acoustic DG solver (base of the other variants): `common/` + `acoustic/` |
-| `impl/dgsem` | `COMPILE_DG_SEM` (implies `COMPILE_DG`) | Coupled DG-SEM (DG + SEM domains), composite reusing `impl/sem/` + `impl/dg/` |
+| `impl/dgsem` | `COMPILE_DG_SEM` (implies `COMPILE_DG` and `COMPILE_SEM`) | Coupled DG-SEM (DG + SEM domains), composite reusing `impl/sem/` + `impl/dg/` |
 | `impl/dg_padaptive` | `COMPILE_DG_PADAPTIVE` (implies `COMPILE_DG`) | p-adaptive DG (pMin/pMax subdomains), composite reusing `impl/dg/` |
 | `pywrap` | `ENABLE_PYWRAP` | The pyfuntides `solver` module; per-method bindings guarded by the `COMPILE_*` definitions |
 
@@ -32,7 +32,9 @@ Every method compiles into the single `fun_solver` library. All
 `<method>/{common,<physics>}/include` roots are on its include path, which
 supports the cross-tree includes documented below. The factory and the
 bindings guard their per-method parts with the `COMPILE_*` definitions, so
-a build with `COMPILE_SEM=OFF` compiles the shared boundary only.
+a method left out of the build compiles nothing. `COMPILE_DG_SEM` is `ON` by
+default and forces `COMPILE_SEM`: excluding SEM requires `COMPILE_SEM=OFF` and
+`COMPILE_DG_SEM=OFF` together.
 
 ## Wavefield / RHS type composition
 
@@ -118,28 +120,22 @@ re-included in one fixed order by the umbrella `sem_solver_impl.h`:
 - `sem_solver_element_subset.h` — entry points on element/node subsets:
   masked assemblies, per-node-list contributions and field updates.
 
-Include the fragment you need when adding code; the umbrella is what the
-explicit-instantiation units include. The fragment boundary is also where a
-future geometry pre-computation (today recomputed every step by the face
-kernels) can plug in without touching the stepping.
+The fragments are not self-sufficient and their order matters
+(`sem_solver_kernels.h` defines the `detail::` probes used by the physics
+fragments), so the umbrella keeps its include list out of clang-format's
+reach; always include the umbrella, never a fragment directly. The fragment
+boundary is also where a future geometry pre-computation (today recomputed
+every step by the face kernels) can plug in without touching the stepping.
 
 ## Per-physics hierarchy
 
 Each physics lives in its method subtree — `impl/sem/acoustic/` and
 `impl/sem/elastic/`, each with its types (wavefield, rhs, traits), its
 implementation fragment (`sem_solver_{acoustic,elastic}_impl.h`) and its
-explicit instantiations in `src/`. Besides the kernels above they carry the
-named types:
-
-- `AcousticSolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES>` — a
-  thin `final` subclass of `SEMsolver<..., kAcoustic>`;
-- `ElasticSolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES>` — the
-  same for `kElastic` (Iso/Vti/Tti anisotropy stays a runtime model choice,
-  as in the underlying template).
-
-These names exist for readability; the factory remains the only
-construction path. Dispatch stays compile-time (template parameter) — no
-virtual method is added on a GPU path.
+explicit instantiations in `src/`. The class itself stays one template,
+`SEMsolver<..., PHYSICS>`: Iso/Vti/Tti anisotropy is a runtime model choice,
+dispatch stays compile-time (template parameter) and the factory remains the
+only construction path — no virtual method is added on a GPU path.
 
 ## The acousto-elastic fork
 

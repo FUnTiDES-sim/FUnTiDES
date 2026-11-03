@@ -24,8 +24,8 @@
  * - sem_solver_element_subset.h — the masked / node-list entry points
  *                           (subset assemblies and field updates).
  *
- * Include the fragment you need when adding new code; keep this umbrella
- * for the explicit-instantiation units.
+ * The fragments are not self-sufficient: always include this umbrella, never a
+ * fragment directly.
  */
 
 // Order matters: sem_solver_kernels.h defines the detail:: probes the physics
@@ -39,10 +39,5 @@
 #include "sem_solver_init.h"
 #include "sem_solver_element_subset.h"
 // clang-format on
-
-// Named physics solver types — after all fragments, where SEMsolver's
-// definition is complete.
-#include "acoustic_solver.h"
-#include "elastic_solver.h"
 
 #endif  // FUNTIDES_SOLVER_IMPL_SEM_COMMON_INCLUDE_SEM_SOLVER_IMPL_H_
