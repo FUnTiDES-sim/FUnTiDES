@@ -27,8 +27,8 @@ GPU. Kokkos kernels call `PROXY_HOST_DEVICE` methods on the concrete type (solve
 pointer. Methods without `PROXY_HOST_DEVICE` (e.g. `initElasticityTensors()`,
 `buildFaceConnectivity()`, `setQualityFactors()`, `getMaxSpeed()`) are host only.
 
-The same rule applies to `solver::fe::Wavefield` and `solver::fe::Rhs`: device code reaches
-them through the concrete types selected by `solver::fe::PhysicsTraits<PHYSICS>`, never through
+The same rule applies to `solver::Wavefield` and `solver::Rhs`: device code reaches
+them through the concrete types selected by `solver::PhysicsTraits<PHYSICS>`, never through
 the base class.
 
 Likewise, `gradient::WavefieldView` and `gradient::Gradient` declare `PROXY_HOST_DEVICE`

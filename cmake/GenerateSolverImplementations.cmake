@@ -4,6 +4,74 @@
 # Function to generate solver implementation files from templates
 # ============================================================================
 
+# Convenience wrapper for the most common instantiation pattern: one physics,
+# all orders from 1 to a variable holding the maximum, both mesh types, both
+# model locations, added to one library target. Each directory that used to
+# carry a hand-written copy of this boilerplate now calls:
+#
+#   add_solver_instantiations(
+#     PHYSIC      acoustic|elastic|acoustoelastic
+#     MAX_ORDER   <variable holding the maximum polynomial order>
+#     [SOLVER_NAME makutu|gemm]  integral back-end (default makutu)
+#     [FILE_PREFIX ...]          file prefix override (default per generator)
+#     [TARGET fun_solver]        target receiving the sources (default)
+#     [ORDER_PAIRS]              p-adaptive: one file per ordered pair
+#                                ORDER_MIN < ORDER_MAX instead of one per
+#                                order (dispatches to the p-adaptive
+#                                generator; requires the *_solver_template_*.cpp.in
+#                                of the calling directory to use @ORDER_MIN@/
+#                                @ORDER_MAX@)
+#   )
+function(add_solver_instantiations)
+    set(options ORDER_PAIRS)
+    set(oneValueArgs PHYSIC MAX_ORDER SOLVER_NAME FILE_PREFIX TARGET)
+    cmake_parse_arguments(ASI "${options}" "${oneValueArgs}" "" ${ARGN})
+
+    if(NOT DEFINED ASI_PHYSIC)
+        message(FATAL_ERROR "add_solver_instantiations: PHYSIC is required")
+    endif()
+    if(NOT DEFINED ASI_MAX_ORDER)
+        message(FATAL_ERROR "add_solver_instantiations: MAX_ORDER is required")
+    endif()
+    if(NOT DEFINED ASI_SOLVER_NAME)
+        set(ASI_SOLVER_NAME "makutu")
+    endif()
+    if(NOT DEFINED ASI_TARGET)
+        set(ASI_TARGET "fun_solver")
+    endif()
+
+    set(ORDERS "")
+    foreach(order RANGE 1 ${${ASI_MAX_ORDER}})
+        list(APPEND ORDERS ${order})
+    endforeach()
+
+    set(EXTRA_ARGS "")
+    if(DEFINED ASI_FILE_PREFIX)
+        list(APPEND EXTRA_ARGS FILE_PREFIX "${ASI_FILE_PREFIX}")
+    endif()
+
+    # Arguments common to both generators; the ORDER_PAIRS option only
+    # selects which one iterates: generate_solver_implementations() emits one
+    # file per order, generate_padaptive_solver_implementations() one per
+    # ordered pair ORDER_MIN < ORDER_MAX.
+    set(GEN_ARGS
+        SOLVER_NAME "${ASI_SOLVER_NAME}"
+        ${EXTRA_ARGS}
+        ORDERS ${ORDERS}
+        MESH_TYPES "struct" "unstruct"
+        MODEL_TYPES "onelements" "onnodes"
+        PHYSIC_TYPES "${ASI_PHYSIC}"
+        OUTPUT_DIR "${CMAKE_CURRENT_BINARY_DIR}"
+        OUTPUT_VAR ASI_GENERATED_SOURCES
+    )
+    if(ASI_ORDER_PAIRS)
+        generate_padaptive_solver_implementations(${GEN_ARGS})
+    else()
+        generate_solver_implementations(${GEN_ARGS})
+    endif()
+    target_sources(${ASI_TARGET} PRIVATE ${ASI_GENERATED_SOURCES})
+endfunction()
+
 function(generate_solver_implementations)
     set(options "")
     set(oneValueArgs OUTPUT_DIR OUTPUT_VAR SOLVER_NAME FILE_PREFIX)
