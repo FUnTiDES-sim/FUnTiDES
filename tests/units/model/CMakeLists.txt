@@ -25,3 +25,11 @@ add_gtest(cartesian_partitioner_test
   impl/builder/cartesian/test_cartesian_partitioner.cc
   "fun_model;fun_parallel"
 )
+
+# 2-D Cartesian builder and ModelUnstruct of dimension 2 (COMPILE_SEM_2D)
+if(COMPILE_SEM_2D)
+  add_gtest(cartesian_unstruct_2d_builder_test
+    impl/builder/cartesian/test_cartesian_unstruct_2d_builder.cc
+    "fun_model;fun_discretization"
+  )
+endif()

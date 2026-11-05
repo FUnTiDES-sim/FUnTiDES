@@ -320,6 +320,12 @@ class ModelApi {
   PROXY_HOST_DEVICE virtual int getOrder() const = 0;
 
   /**
+   * @brief Get the space dimension of the mesh: 3 (hexahedra) or 2 (quadrilaterals in the
+   * (x, z) plane). Host only.
+   */
+  virtual int getDimension() const { return 3; }
+
+  /**
    * @brief Compute the outward unit normal of an element face.
    * @param[in] e Element index.
    * @param[in] face Local face of element e.

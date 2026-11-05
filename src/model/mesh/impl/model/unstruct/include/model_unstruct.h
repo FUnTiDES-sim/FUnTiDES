@@ -6,6 +6,7 @@
 #include <algorithm>
 #include <array>
 #include <map>
+#include <stdexcept>
 
 #include "face_connectivity_unstruct.h"
 
@@ -52,6 +53,7 @@ struct ModelUnstructData : public ModelDataBase<FloatType, ScalarType> {
    * @param boundaries_t BoundaryFlag value of each node (size n_node), may be empty.
    * @param model_C_tensor_element Per-element 6x6 Voigt elasticity tensor, shape (n_element, 6, 6).
    * @param face_connectivity Optional precomputed face connectivity.
+   * @param dim Space dimension: 3 (hexahedra) or 2 (quadrilaterals in the (x, z) plane, see dim_).
    * @todo VERIFY: units of the angles model_theta_* and model_phi_* (radians or degrees).
    */
   ModelUnstructData(ScalarType order, ScalarType n_element, ScalarType n_node, FloatType lx, FloatType ly, FloatType lz,
@@ -65,7 +67,7 @@ struct ModelUnstructData : public ModelDataBase<FloatType, ScalarType> {
                     array3DReal model_C_tensor_element, vectorInt boundaries_t, vectorReal model_qp_node = vectorReal(),
                     vectorReal model_qp_element = vectorReal(), vectorReal model_qs_node = vectorReal(),
                     vectorReal model_qs_element = vectorReal(),
-                    FaceConnectivityUnstructData<FloatType, ScalarType> face_connectivity = {})
+                    FaceConnectivityUnstructData<FloatType, ScalarType> face_connectivity = {}, int dim = 3)
       : order_(order),
         n_element_(n_element),
         n_node_(n_node),
@@ -100,7 +102,8 @@ struct ModelUnstructData : public ModelDataBase<FloatType, ScalarType> {
         model_phi_element_(makeDualView<dualVectorReal>(model_phi_element)),
         model_C_tensor_element_(model_C_tensor_element),
         boundaries_t_(makeDualView<dualVectorInt>(boundaries_t)),
-        face_connectivity_(face_connectivity) {}
+        face_connectivity_(face_connectivity),
+        dim_(dim) {}
 
   /// @todo VERIFY: is origin_x_/y_/z_ read anywhere, and how does it relate to ox_/oy_/oz_?
   FloatType origin_x_{0}, origin_y_{0}, origin_z_{0};
@@ -142,6 +145,10 @@ struct ModelUnstructData : public ModelDataBase<FloatType, ScalarType> {
   array3DReal model_C_tensor_element_;  ///< Shape (n_element, 6, 6), Voigt notation. Device only, filled by a kernel.
   dualVectorInt boundaries_t_;          ///< BoundaryFlag value of each node, size n_node; may be empty.
   FaceConnectivityUnstructData<FloatType, ScalarType> face_connectivity_;
+  /// Space dimension. 3: hexahedra. 2: quadrilaterals in the (x, z) plane; global_node_index_ then
+  /// has (order+1)^2 columns indexed by i + k*(order+1) (i along x, k along z), the y coordinates
+  /// are unused and ly_ is 0.
+  int dim_{3};
 };
 
 /**
@@ -207,7 +214,11 @@ class ModelUnstruct final : public ModelApi<FloatType, ScalarType> {
         model_C_tensor_element_(data.model_C_tensor_element_),
         boundaries_t_(data.boundaries_t_),
         face_connectivity_(data.face_connectivity_),
-        n_points_per_element_((order_ + 1) * (order_ + 1) * (order_ + 1)) {
+        dim_(data.dim_),
+        stride_j_(data.dim_ == 2 ? 0 : (order_ + 1)),
+        stride_k_(data.dim_ == 2 ? (order_ + 1) : (order_ + 1) * (order_ + 1)),
+        n_points_per_element_(data.dim_ == 2 ? (order_ + 1) * (order_ + 1) : (order_ + 1) * (order_ + 1) * (order_ + 1)) {
+    if (dim_ != 2 && dim_ != 3) throw std::invalid_argument("ModelUnstruct: dim must be 2 or 3");
     syncToDevice();
   }
 
@@ -232,10 +243,7 @@ class ModelUnstruct final : public ModelApi<FloatType, ScalarType> {
    */
   PROXY_HOST_DEVICE
   IndexType globalVertexIndex(IndexType e, int const i, int const j, int const k) const {
-    int local_i = i * order_;
-    int local_j = j * order_;
-    int local_k = k * order_;
-    const auto localDofIndex = local_i + local_j * (order_ + 1) + local_k * (order_ + 1) * (order_ + 1);
+    const auto localDofIndex = i * order_ + j * order_ * stride_j_ + k * order_ * stride_k_;
     return dualAt(global_node_index_, e, localDofIndex);
   }
 
@@ -280,11 +288,12 @@ class ModelUnstruct final : public ModelApi<FloatType, ScalarType> {
    * @param i Local index along the first axis, in [0, order].
    * @param j Local index along the second axis, in [0, order].
    * @param k Local index along the third axis, in [0, order].
-   * @return Global node index. The local node number is i + j*(order+1) + k*(order+1)^2.
+   * @return Global node index. The local node number is i + j*(order+1) + k*(order+1)^2 in 3-D,
+   * i + k*(order+1) in 2-D (j is ignored).
    */
   PROXY_HOST_DEVICE
   ScalarType globalNodeIndex(ScalarType e, int i, int j, int k) const final {
-    const auto localDofIndex = i + j * (order_ + 1) + k * (order_ + 1) * (order_ + 1);
+    const auto localDofIndex = i + j * stride_j_ + k * stride_k_;
     return dualAt(global_node_index_, e, localDofIndex);
   }
 
@@ -592,6 +601,12 @@ class ModelUnstruct final : public ModelApi<FloatType, ScalarType> {
   PROXY_HOST_DEVICE int getOrder() const final { return static_cast<int>(order_); }
 
   /**
+   * @brief Get the space dimension of the mesh.
+   * @return 3 for hexahedra, 2 for quadrilaterals in the (x, z) plane.
+   */
+  int getDimension() const final { return dim_; }
+
+  /**
    * @brief Compute the unit outward normal of an element face.
    *
    * The normal is built from three corner nodes of the face. It is left unnormalized
@@ -714,9 +729,10 @@ class ModelUnstruct final : public ModelApi<FloatType, ScalarType> {
           minSpacing = std::fmin(minSpacing, std::sqrt(dx * dx + dy * dy + dz * dz));
         }
 
+    // In 2-D there is no y direction (j is ignored by globalNodeIndex)
     for (int k = 0; k <= order_; ++k)
       for (int i = 0; i <= order_; ++i)
-        for (int j = 0; j < order_; ++j) {
+        for (int j = 0; j < (dim_ == 2 ? 0 : order_); ++j) {
           ScalarType node1 = globalNodeIndex(e, i, j, k);
           ScalarType node2 = globalNodeIndex(e, i, j + 1, k);
           FloatType dx = nodeCoord(node2, 0) - nodeCoord(node1, 0);
@@ -769,6 +785,7 @@ class ModelUnstruct final : public ModelApi<FloatType, ScalarType> {
    * any face query.
    */
   void buildFaceConnectivity() override {
+    if (dim_ == 2) throw std::logic_error("ModelUnstruct: no face connectivity in 2-D (quadrilateral) meshes");
     if (face_connectivity_.getNumberOfFaces() > 0) return;
 
     face_connectivity_.build(*this);
@@ -900,6 +917,9 @@ class ModelUnstruct final : public ModelApi<FloatType, ScalarType> {
   FloatType lx_, ly_, lz_;
   FloatType ox_, oy_, oz_;
 
+  int dim_{3};       ///< Space dimension (see ModelUnstructData::dim_).
+  int stride_j_{0};  ///< Local node index stride along j: order+1 in 3-D, 0 in 2-D.
+  int stride_k_{0};  ///< Local node index stride along k: (order+1)^2 in 3-D, order+1 in 2-D.
   int n_points_per_element_;
   bool isModelOnNodes_;
   bool isElastic_;
