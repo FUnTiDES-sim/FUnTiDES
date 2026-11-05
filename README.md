@@ -101,12 +101,17 @@ the TPLs were installed with `--enable-venv`.
 
 ```sh
 cd FUnTiDES
-cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DENABLE_PYWRAP=ON
+cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DENABLE_PYWRAP=ON \
+      -DCMAKE_INSTALL_PREFIX=$(pwd)/../funtides-install
 cmake --build build -j 8
 cmake --install build
 ```
 
-- FUnTiDES is installed into `build/install` (change it with `-DCMAKE_INSTALL_PREFIX`).
+- Keep the install prefix outside the build directory, so that deleting `build` for a
+  clean rebuild does not remove the installed FUnTiDES. Without `-DCMAKE_INSTALL_PREFIX`,
+  FUnTiDES is installed into `build/install`.
+- With CUDA, each high-order solver file can take several GB of memory to compile. If
+  the build runs out of memory, use fewer jobs or lower `MAX_SOLVER_ORDER`.
 - No extra option is needed for the GPU: the CUDA backend is enabled when the TPL Kokkos
   was built with CUDA.
 - `-DENABLE_PYWRAP=ON` builds the Python package. CMake uses the Python of the active
@@ -121,7 +126,7 @@ The installation generates `funtides_env.sh` in the install directory. It source
 `CMAKE_PREFIX_PATH` and, with `ENABLE_PYWRAP=ON`, `PYTHONPATH` (`pyfuntides` package):
 
 ```sh
-source build/install/funtides_env.sh
+source ../funtides-install/funtides_env.sh
 python -c "import kokkos, pyfuntides.model, pyfuntides.solver"
 ```
 
@@ -200,7 +205,7 @@ pip install -r requirements.txt
 ### Generation
 
 Configure with `-DENABLE_PYWRAP=ON` and install (Step 3). This creates a *pyfuntides*
-package in `<install prefix>/python` (`build/install/python` by default), which contains
+package in `<install prefix>/python` (`CMAKE_INSTALL_PYTHONDIR`, relative to the prefix), which contains
 both the *solver* and *model* pybind modules.
 
 ### Usage

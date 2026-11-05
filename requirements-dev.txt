@@ -5,4 +5,5 @@ pygal
 ruff
 scipy
 clang-format==18.1.8
-adios2
+# adios2: not installed from pip, the Python bindings come with the ADIOS2 built
+# by FUnTiDES-TPL (a pip wheel would replace them in the TPL venv)

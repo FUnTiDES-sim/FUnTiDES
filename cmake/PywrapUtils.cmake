@@ -22,9 +22,6 @@ function(install_pyfuntides_package)
   # Set install directory for pyfuntides
   set(PYFUNTIDES_INSTALL_DIR "${CMAKE_INSTALL_PYTHONDIR}/pyfuntides")
 
-  # Create the directory at install time
-  install(CODE "file(MAKE_DIRECTORY \"${PYFUNTIDES_INSTALL_DIR}\")")
-
   # Install libraries from input targets into the directory
   install(TARGETS ${ARGV}
     LIBRARY DESTINATION ${PYFUNTIDES_INSTALL_DIR}
@@ -32,6 +29,8 @@ function(install_pyfuntides_package)
     RUNTIME DESTINATION ${PYFUNTIDES_INSTALL_DIR}
   )
 
-  # Create __init__.py to make it a Python package
-  install(CODE "file(WRITE \"${PYFUNTIDES_INSTALL_DIR}/__init__.py\" \"\")")
+  # Empty __init__.py to make it a Python package
+  set(_init_py "${CMAKE_CURRENT_BINARY_DIR}/pyfuntides_init/__init__.py")
+  file(WRITE "${_init_py}" "")
+  install(FILES "${_init_py}" DESTINATION ${PYFUNTIDES_INSTALL_DIR})
 endfunction()
