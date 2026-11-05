@@ -102,14 +102,17 @@ the TPLs were installed with `--enable-venv`.
 ```sh
 cd FUnTiDES
 cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DENABLE_PYWRAP=ON \
-      -DCMAKE_INSTALL_PREFIX=$(pwd)/../funtides-install
+      -DCMAKE_INSTALL_PREFIX=${FUNTIDES_TPL_INSTALL_DIR}
 cmake --build build -j 8
 cmake --install build
 ```
 
-- Keep the install prefix outside the build directory, so that deleting `build` for a
-  clean rebuild does not remove the installed FUnTiDES. Without `-DCMAKE_INSTALL_PREFIX`,
-  FUnTiDES is installed into `build/install`.
+- FUnTiDES is installed next to the TPLs, in the same prefix: a single directory holds
+  everything, and a single entry in `CMAKE_PREFIX_PATH` is enough. The files installed
+  are listed in `build/install_manifest.txt` (to remove them later).
+- Any other prefix works, but keep it outside the build directory, so that deleting
+  `build` for a clean rebuild does not remove the installed FUnTiDES. Without
+  `-DCMAKE_INSTALL_PREFIX`, FUnTiDES is installed into `build/install`.
 - With CUDA, each high-order solver file can take several GB of memory to compile. If
   the build runs out of memory, use fewer jobs or lower `MAX_SOLVER_ORDER`.
 - No extra option is needed for the GPU: the CUDA backend is enabled when the TPL Kokkos
@@ -126,7 +129,7 @@ The installation generates `funtides_env.sh` in the install directory. It source
 `CMAKE_PREFIX_PATH` and, with `ENABLE_PYWRAP=ON`, `PYTHONPATH` (`pyfuntides` package):
 
 ```sh
-source ../funtides-install/funtides_env.sh
+source ${FUNTIDES_TPL_INSTALL_DIR}/funtides_env.sh
 python -c "import kokkos, pyfuntides.model, pyfuntides.solver"
 ```
 
