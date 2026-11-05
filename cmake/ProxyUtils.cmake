@@ -12,6 +12,7 @@ function(print_configuration_summary)
   message(STATUS "  COMPILE_DG:           ${COMPILE_DG}")
   message(STATUS "  COMPILE_DG_SEM:       ${COMPILE_DG_SEM}")
   message(STATUS "  COMPILE_DG_PADAPTIVE: ${COMPILE_DG_PADAPTIVE}")
+  message(STATUS "  COMPILE_SEM_2D:       ${COMPILE_SEM_2D}")
   message(STATUS "")
 
   message(STATUS "Python Wrapping:")

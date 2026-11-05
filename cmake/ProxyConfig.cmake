@@ -7,6 +7,7 @@ option(COMPILE_SEM "Compile Spectral Elements Method simulation" ON)
 option(COMPILE_DG "Compile Discontinuous Galerkin simulation" ON)
 option(COMPILE_DG_SEM "Compile Discontinuous Galerkin coupled with Spectral Elements Method simulation" ON)
 option(COMPILE_DG_PADAPTIVE "Compile p-adaptive Discontinuous Galerkin simulation" ON)
+option(COMPILE_SEM_2D "Compile the 2-D (quadrilateral) acoustic Spectral Elements Method" OFF)
 
 if (COMPILE_DG_SEM)
   set(COMPILE_DG ON)

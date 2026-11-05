@@ -89,3 +89,33 @@ endforeach()
 
 unset(_gen_file)
 unset(_target)
+
+# ============================================================================
+# 2-D quadrilateral element (COMPILE_SEM_2D): one test binary per order.
+# ============================================================================
+
+if(COMPILE_SEM_2D)
+  set(GROUP "quad_element")
+  foreach(ORDER RANGE 1 ${TARGET_SOLVER_ACOUSTIC_ORDER})
+    set(QK_TYPE "Q${ORDER}_Quadrilateral_Lagrange_GaussLobatto")
+    set(_gen_file "${CMAKE_CURRENT_BINARY_DIR}/test_Qk_Quadrilateral_Q${ORDER}_${GROUP}.cpp")
+
+    configure_file(
+      "${CMAKE_CURRENT_SOURCE_DIR}/templates/test_Qk_Quadrilateral_group.cpp.in"
+      "${_gen_file}"
+      @ONLY
+    )
+
+    set(_target "semkernels_qk_quadrilateral_Q${ORDER}_${GROUP}_test")
+    add_gtest(${_target}
+      ${_gen_file}
+      fun_discretization
+    )
+    target_include_directories(${_target} PRIVATE
+      ${CMAKE_CURRENT_SOURCE_DIR}   # for impl/ directory
+    )
+  endforeach()
+  unset(GROUP)
+  unset(_gen_file)
+  unset(_target)
+endif()
