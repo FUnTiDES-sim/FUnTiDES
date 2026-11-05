@@ -231,11 +231,15 @@ function(generate_padaptive_solver_implementations)
                                 set(MODEL_ON_NODES "true")
                             endif()
 
-                            # ModelStruct is built on the pMax mesh (highest order); ModelUnstruct is order-agnostic
+                            # ModelStruct is built on the pMax mesh (highest order); ModelUnstruct is order-agnostic.
+                            # PMIN_SOLVER_IN_DG: the pMin DGsolver is also instantiated by the DG solver
+                            # (true only when the model does not depend on the order).
                             if(MESH_TYPE STREQUAL "struct")
                                 set(MODEL_TEMPLATE_PARAMS "float, int, ORDER_MAX")
+                                set(PMIN_SOLVER_IN_DG 0)
                             else()
                                 set(MODEL_TEMPLATE_PARAMS "float, int")
+                                set(PMIN_SOLVER_IN_DG 1)
                             endif()
 
                             # Configure the file from template

@@ -7,6 +7,18 @@
 
 constexpr int ORDER = @ORDER@;
 
+// DG sub-solver already instantiated by the DG solver (DGQ<order>_* files): use
+// it instead of compiling it again here. With CUDA, a Kokkos lambda compiled in
+// several files breaks nvcc's __host__ __device__ lambda wrapper (its copy can
+// read a function pointer of another file, still null -> segfault).
+#ifdef COMPILE_DG
+extern template class solver::DGsolver<ORDER,
+                         IntegralTypeSelector<ORDER, IntegralType::MAKUTU>::type,
+                         model::@MODEL_CLASS@<@MODEL_TEMPLATE_PARAMS@>,
+                         @MODEL_ON_NODES@,
+                         solver::physicType::kAcoustic>;
+#endif
+
 template class solver::DGSEMsolver<ORDER,
                          IntegralTypeSelector<ORDER, IntegralType::MAKUTU>::type,
                          model::@MODEL_CLASS@<@MODEL_TEMPLATE_PARAMS@>,

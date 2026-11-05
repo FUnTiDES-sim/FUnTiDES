@@ -8,6 +8,26 @@
 constexpr int ORDER_MIN = @ORDER_MIN@;
 constexpr int ORDER_MAX = @ORDER_MAX@;
 
+// Sub-solvers already instantiated by the DG solver (DGQ<order>_* files): use
+// them instead of compiling them again here. With CUDA, a Kokkos lambda compiled
+// in several files breaks nvcc's __host__ __device__ lambda wrapper (its copy
+// can read a function pointer of another file, still null -> segfault).
+// The pMin solver on a ModelStruct uses the pMax mesh order, so it only exists here.
+#ifdef COMPILE_DG
+extern template class solver::DGsolver<ORDER_MAX,
+                         IntegralTypeSelector<ORDER_MAX, IntegralType::MAKUTU>::type,
+                         model::@MODEL_CLASS@<@MODEL_TEMPLATE_PARAMS@>,
+                         @MODEL_ON_NODES@,
+                         solver::physicType::kAcoustic>;
+#if @PMIN_SOLVER_IN_DG@
+extern template class solver::DGsolver<ORDER_MIN,
+                         IntegralTypeSelector<ORDER_MIN, IntegralType::MAKUTU>::type,
+                         model::@MODEL_CLASS@<@MODEL_TEMPLATE_PARAMS@>,
+                         @MODEL_ON_NODES@,
+                         solver::physicType::kAcoustic>;
+#endif
+#endif
+
 template class solver::DGPAdaptiveSolver<ORDER_MIN, ORDER_MAX,
                          IntegralTypeSelector,
                          IntegralType::MAKUTU,
