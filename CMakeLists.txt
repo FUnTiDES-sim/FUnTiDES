@@ -37,6 +37,11 @@ add_subdirectory(src)
 add_subdirectory(tests)
 
 #--------------------------------------------------------
+# Environment script to source (e.g. from ~/.bashrc)
+#--------------------------------------------------------
+include(cmake/EnvScript.cmake)
+
+#--------------------------------------------------------
 # Print configuration summary
 #--------------------------------------------------------
 print_configuration_summary()

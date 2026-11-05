@@ -17,50 +17,119 @@ The following options can be used to configure your build:
 
 | Option                     | Description                                                                        |
 |----------------------------|------------------------------------------------------------------------------------|
-| `COMPILE_SEM`              | Enable compilation of the SEM proxy (default: ON)                                  |
-| `ENABLE_PYWRAP`            | Enable Python bindings via pybind11 (experimental)                                 |
-| `ENABLE_COVERAGE`          | Enable Code coverage. Does not work with device enable                             |
+| `COMPILE_SEM`              | Compile the Spectral Element Method solvers (default: ON)                          |
+| `COMPILE_DG`               | Compile the Discontinuous Galerkin solvers (default: ON)                           |
+| `COMPILE_DG_SEM`           | Compile the coupled DG-SEM solvers, forces `COMPILE_DG` and `COMPILE_SEM` (default: ON) |
+| `COMPILE_DG_PADAPTIVE`     | Compile the p-adaptive DG solver, forces `COMPILE_DG` (default: ON)                |
+| `ENABLE_PYWRAP`            | Build the Python bindings (`pyfuntides`) with pybind11 (default: OFF)              |
+| `USE_MPI`                  | Compile with MPI (default: OFF)                                                    |
+| `BUILD_SHARED_LIBS`        | Build shared libraries (default: ON)                                               |
+| `ENABLE_COVERAGE`          | Enable code coverage. Does not work with device enabled (default: OFF)            |
 | `CMAKE_INSTALL_PREFIX`     | Where to install FUnTiDES (default: `<build>/install`)                             |
 | `MAX_SOLVER_ORDER`         | Max polynomial order generated for solvers (reduces compile time & binary size)    |
 | `MAX_DIFFERENTIATOR_ORDER` | Max polynomial order generated for differentiators (reduces compile time)          |
 
+The Kokkos backends (OpenMP, CUDA, ...) are not FUnTiDES options: they come from the
+Kokkos installed with the TPLs (see Step 1).
+
 **Optimizing Build Times:** Because FUnTiDES heavily relies on C++ templates for different polynomial orders (up to order 9 by default), compiling all of them can take time and memory. You can restrict the generation to lower orders if you don't need them:
 
 ```sh
-cmake .. -DMAX_SOLVER_ORDER=3 -DMAX_DIFFERENTIATOR_ORDER=2
+cmake -S . -B build -DMAX_SOLVER_ORDER=3 -DMAX_DIFFERENTIATOR_ORDER=2
 ```
 
 *Note: Advanced users can also fine-tune maximum orders per physics using specific variables like `MAX_SOLVER_ACOUSTIC_ORDER`, `MAX_SOLVER_ELASTOACOUSTIC_ORDER`, `MAX_DIFFERENTIATOR_ELASTIC_ORDER`, etc.*
 
 ## Quick Start: Build and Run
 
-### Step 1: Install Third-Party Libraries (TPL)
+### Step 1: Install the Third-Party Libraries (TPL)
 
-Before compiling the main project, you must install the required dependencies via the FUnTiDES-TPL repository.
+Kokkos, pybind11, the Python `kokkos` module (pykokkos-base), ADIOS2, GoogleTest and
+Google Benchmark are installed by the FUnTiDES-TPL repository.
 
 ```sh
-# Clone the TPL repository
-git clone https://github.com/FUnTiDES-sim/FUnTiDES-TPL.git
-
-# Install TPL for CPU
+git clone --recursive https://github.com/FUnTiDES-sim/FUnTiDES-TPL.git
+git clone https://github.com/FUnTiDES-sim/FUnTiDES.git
 export FUNTIDES_TPL_INSTALL_DIR=$(pwd)/FUnTiDES-TPL/install
-FUnTiDES-TPL/install.sh --prefix=${FUNTIDES_TPL_INSTALL_DIR} --disable-cuda --disable-mpi --no-venv --jobs=$(nproc)
 ```
 
-For more TPL builds options see `FUnTiDES-TPL/install.sh --help`.
+Then pick the target architecture.
 
-### Step 2: Compile and Install
-
-Once the TPLs are installed and your environment is configured, you can build the applications.
+**CPU only (OpenMP):**
 
 ```sh
-source FUnTiDES-TPL/setup_env.sh ${FUNTIDES_TPL_INSTALL_DIR}
-cd FUnTiDES
-mkdir build
-cd build
-cmake ..
-make install
+FUnTiDES-TPL/install.sh --prefix=${FUNTIDES_TPL_INSTALL_DIR} --disable-cuda --enable-venv --jobs=$(nproc)
 ```
+
+**NVIDIA GPU (CUDA):**
+
+```sh
+FUnTiDES-TPL/install.sh --prefix=${FUNTIDES_TPL_INSTALL_DIR} --enable-cuda --cuda-arch=89 --enable-venv --jobs=$(nproc)
+```
+
+`--cuda-arch` is the compute capability of the GPU (e.g. `80` for A100, `89` for RTX 40xx,
+`90` for H100). It is printed by `nvidia-smi --query-gpu=compute_cap --format=csv`.
+
+Notes on the TPL build:
+
+- **Python version.** `--enable-venv` creates the virtual environment
+  `${FUNTIDES_TPL_INSTALL_DIR}/tpl-venv` from the `python3` found in `PATH`. The
+  `pykokkos` package requires **Python ≥ 3.11**. With an older Python, either put a newer
+  one first in `PATH` before running `install.sh` (for instance `uv python install 3.12`),
+  or add `--skip-pykokkos`: FUnTiDES itself only needs the `kokkos` module. Use
+  `--skip-python` for a C++-only installation.
+- **Memory.** Compiling pykokkos-base is memory hungry. Keep `--pykokkos-build-threads`
+  low (default: 2); `--jobs` only applies to the other libraries.
+- **Reruns.** Running `install.sh` again skips the components already installed;
+  `--force` rebuilds everything.
+
+For all TPL options see `FUnTiDES-TPL/install.sh --help`.
+
+### Step 2: Set Up the Environment
+
+`install.sh` generates a `setup_env.sh` script in the TPL install directory. Source it in
+every new shell, before building or running FUnTiDES:
+
+```sh
+source ${FUNTIDES_TPL_INSTALL_DIR}/setup_env.sh
+```
+
+It sets `PATH`, `LD_LIBRARY_PATH` and `CMAKE_PREFIX_PATH`, and activates `tpl-venv` when
+the TPLs were installed with `--enable-venv`.
+
+### Step 3: Compile and Install
+
+```sh
+cd FUnTiDES
+cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DENABLE_PYWRAP=ON
+cmake --build build -j 8
+cmake --install build
+```
+
+- FUnTiDES is installed into `build/install` (change it with `-DCMAKE_INSTALL_PREFIX`).
+- No extra option is needed for the GPU: the CUDA backend is enabled when the TPL Kokkos
+  was built with CUDA.
+- `-DENABLE_PYWRAP=ON` builds the Python package. CMake uses the Python of the active
+  environment; it must be the one where the `kokkos` module is installed (`tpl-venv` with
+  `--enable-venv`). Otherwise pass `-DPython_EXECUTABLE=/path/to/python`. Remove the
+  option for a C++-only build.
+
+### Step 4: Set Up the FUnTiDES Environment
+
+The installation generates `funtides_env.sh` in the install directory. It sources the TPL
+`setup_env.sh` (Step 2), then adds FUnTiDES to `PATH`, `LD_LIBRARY_PATH`,
+`CMAKE_PREFIX_PATH` and, with `ENABLE_PYWRAP=ON`, `PYTHONPATH` (`pyfuntides` package):
+
+```sh
+source build/install/funtides_env.sh
+python -c "import kokkos, pyfuntides.model, pyfuntides.solver"
+```
+
+To load it in every new shell, add the `source` line, with the absolute path, to
+`~/.bashrc`. The script can be sourced several times without duplicating entries in
+FUnTiDES paths. The TPL script it relies on is found from the Kokkos used at
+configuration; set `-DFUNTIDES_TPL_ENV_SCRIPT=/path/to/setup_env.sh` to choose another one,
+or to an empty value to skip it.
 
 ### Using FUnTiDES from another CMake project
 
@@ -75,9 +144,9 @@ target_link_libraries(my_app PRIVATE funtides::funtides)
 `funtides::funtides` brings every component; a single one can be linked instead
 (`funtides::model`, `funtides::solver`, `funtides::gradient`, `funtides::io`, ...).
 
-### Step 3: Run Tests & Benchmarks
+### Step 5: Run Tests & Benchmarks
 
-Unit tests only:
+From the `build` directory, unit tests only:
 
 ```sh
 ctest -LE "benchmark"
@@ -98,29 +167,31 @@ ctest
 The validation against analytical solutions (`make validate`) runs the `funtides-sem`
 driver and lives with it in the FUnTiDES-App repository.
 
-### Step 4: Run Examples
+### Step 6: Run Examples
 
 The `funtides-sem` command-line driver and its YAML launcher (`run_funtides.py`) are
 provided by the FUnTiDES-App repository, which builds against an installed FUnTiDES.
 
-The Python and MPI examples are provided in the `examples` folder:
+The Python and MPI examples are provided in the `examples` folder. They need the Python
+package (Step 4) and their own requirements (`matplotlib`); the MPI example also needs
+`mpi4py` (installed in `tpl-venv`):
 
 ```sh
+pip install -r examples/requirements.txt
+
 # Run a simple Python cartesian solver example
 python3 examples/solver_cartesian.py --ex 100 --ey 100 --ez 100 --order 2
 
 # Run an MPI-distributed Python cartesian solver (requires MPI)
 mpirun -n 4 python3 examples/solver_cartesian_mpi.py --ex 200 --snap_interval 20
-
 ```
-
-> **Note**: A dedicated python env can be made via TPLs.
 
 ## 🐍 Python wrappers
 
 ### Prerequisites
 
-To install python requirements:
+The Python requirements (`numpy`, `pybind11`) are already installed in `tpl-venv`.
+Without the TPL venv, install them with:
 
 ```bash
 pip install -r requirements.txt
@@ -128,19 +199,21 @@ pip install -r requirements.txt
 
 ### Generation
 
-The proxy must be configured with `-DENABLE_PYWRAP=ON` and installed via `make install`.
-This will create a *pyfuntides* package in your `install/python` directory which contains both the *solver* and *model* pybind modules.
+Configure with `-DENABLE_PYWRAP=ON` and install (Step 3). This creates a *pyfuntides*
+package in `<install prefix>/python` (`build/install/python` by default), which contains
+both the *solver* and *model* pybind modules.
 
 ### Usage
 
-First, extend your `PYTHONPATH` to make the *pyfuntides* and *adios* packages visible.
+Source the generated environment script (Step 4), which makes the *pyfuntides*,
+*kokkos* and *adios2* packages visible:
 
 ```bash
-export PYTHONPATH=$PYTHONPATH:$MY_INSTALL_DIR/python
+source <install prefix>/funtides_env.sh
 ```
 
-Note: if *pykokkos* is not in your python environment, also extend your `PYTHONPATH` to make the kokkos package visible.
-Some examples on how to use the wrappers are available in the [`examples`](examples/) folder.
+Some examples on how to use the wrappers are available
+in the [`examples`](examples/) folder.
 
 ### Tests & Benchmarks
 
