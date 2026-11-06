@@ -21,6 +21,8 @@ void DGPAdaptiveSolver<ORDER_MIN, ORDER_MAX, INTEGRAL_SELECTOR, IMPL_TAG, MESH_T
                        PHYSICS>::computeFEInit(model::ModelApi<float, int>& mesh_in,
                                                const std::array<float, 3>& sponge_size, const bool surface_sponge,
                                                const float taper_delta) {
+  // 3-D solver: a 2-D ModelUnstruct (quadrilaterals) has another node table layout
+  if (mesh_in.getDimension() != 3) throw std::runtime_error("DGPAdaptiveSolver: 3-D solver, the mesh is 2-D");
   if (auto* typed = dynamic_cast<MESH_TYPE*>(&mesh_in)) {
     m_mesh_ = *typed;
   } else {

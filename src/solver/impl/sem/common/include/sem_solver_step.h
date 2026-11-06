@@ -19,6 +19,8 @@ template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE, bool IS_MODEL_O
 void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::computeFEInit(
     model::ModelApi<float, int>& mesh_in, const std::array<float, 3>& sponge_size, const bool surface_sponge,
     const float taper_delta) {
+  // 3-D solver: a 2-D ModelUnstruct (quadrilaterals) has another node table layout
+  if (mesh_in.getDimension() != 3) throw std::runtime_error("SEMsolver: 3-D solver, the mesh is 2-D");
   if (auto* typed_mesh = dynamic_cast<MESH_TYPE*>(&mesh_in)) {
     m_mesh = *typed_mesh;
   } else {

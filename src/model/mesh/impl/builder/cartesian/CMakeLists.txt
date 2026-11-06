@@ -4,6 +4,7 @@ target_sources(fun_model PRIVATE
 )
 
 if(COMPILE_SEM_2D)
+  target_compile_definitions(fun_model PUBLIC COMPILE_SEM_2D)
   target_sources(fun_model PRIVATE
       ${CMAKE_CURRENT_SOURCE_DIR}/src/cartesian_unstruct_2d_builder.cc
   )

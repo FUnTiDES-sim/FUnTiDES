@@ -87,6 +87,7 @@ void bind_modelapi(py::module_ &m) {
       .def("get_number_of_nodes", &T::getNumberOfNodes)
       .def("get_number_of_points_per_element", &T::getNumberOfPointsPerElement)
       .def("get_order", &T::getOrder)
+      .def("get_dimension", &T::getDimension)
       .def("boundary_type", &T::boundaryType)
       .def("face_normal", &T::faceNormal)
       .def("domain_size", &T::domainSize)
@@ -215,7 +216,9 @@ void bind_modelunstructdata(py::module_ &m) {
            py::arg("model_phi_node"), py::arg("model_phi_element"), py::arg("model_C_tensor_element"),
            py::arg("boundaries_t"))
 
-      .def_readwrite("face_connectivity", &Data::face_connectivity_);
+      .def_readwrite("face_connectivity", &Data::face_connectivity_)
+      // 3 (hexahedra) or 2 (quadrilaterals in the (x, z) plane, (order+1)^2 node columns)
+      .def_readwrite("dim", &Data::dim_);
 }
 
 }  // namespace model

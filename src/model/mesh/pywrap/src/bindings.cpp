@@ -88,6 +88,9 @@ PYBIND11_MODULE(model, m) {
   model::bind_cartesian_unstruct_builder<double, int>(m);
   model::bind_cartesian_unstruct_builder<float, long>(m);
   model::bind_cartesian_unstruct_builder<double, long>(m);
+#ifdef COMPILE_SEM_2D
+  model::bind_cartesian_unstruct_2d_builder<float, int>(m);
+#endif
 
   model::bind_cartesian_partitioner<float, int>(m);
   model::bind_cartesian_partitioner<double, int>(m);

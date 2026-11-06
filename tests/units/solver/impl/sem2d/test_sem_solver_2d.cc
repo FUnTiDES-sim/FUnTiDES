@@ -10,6 +10,7 @@
 #include "cartesian_unstruct_2d_builder.h"
 #include "rhs_acoustic.h"
 #include "sem_solver_2d.h"
+#include "solver_factory.h"
 #include "wavefield_acoustic.h"
 
 namespace solver {
@@ -340,6 +341,44 @@ TYPED_TEST(SemSolver2DTest, RejectsUnsupportedInput) {
   Run run(model->getNumberOfNodes(), (O + 1) * (O + 1), 1);
   EXPECT_THROW(solver.updateSolutionBackward(1e-3f, *run.data), std::runtime_error);
   EXPECT_THROW(solver.setAnisotropyType(model::AnisotropyType::kVTI), std::invalid_argument);
+}
+
+// ---------------------------------------------------------------------------
+// Factory
+// ---------------------------------------------------------------------------
+
+namespace e = utils::enums;
+
+TEST(SemSolver2DFactory, CreatesThe2DSolver) {
+  for (auto loc : {e::modelLocationType::kOnElements, e::modelLocationType::kOnNodes}) {
+    auto s = solver_factory::createSolver(e::methodType::kSem, e::implemType::kMakutu, e::meshType::kUnstruct, loc,
+                                          e::physicType::kAcoustic, 2, 0, 2);
+    ASSERT_NE(s, nullptr);
+    if (loc == e::modelLocationType::kOnNodes)
+      EXPECT_NE((dynamic_cast<SEMsolver2D<2, true>*>(s.get())), nullptr);
+    else
+      EXPECT_NE((dynamic_cast<SEMsolver2D<2, false>*>(s.get())), nullptr);
+  }
+}
+
+TEST(SemSolver2DFactory, RejectsUnsupportedConfigurations) {
+  auto create = [](e::methodType m, e::meshType mesh, e::physicType ph, int order, int dim) {
+    return solver_factory::createSolver(m, e::implemType::kMakutu, mesh, e::modelLocationType::kOnElements, ph, order,
+                                        0, dim);
+  };
+  EXPECT_THROW(create(e::methodType::kSem, e::meshType::kStruct, e::physicType::kAcoustic, 2, 2), std::runtime_error);
+  EXPECT_THROW(create(e::methodType::kSem, e::meshType::kUnstruct, e::physicType::kElastic, 2, 2), std::runtime_error);
+  EXPECT_THROW(create(e::methodType::kDg, e::meshType::kUnstruct, e::physicType::kAcoustic, 2, 2), std::runtime_error);
+  EXPECT_THROW(create(e::methodType::kSem, e::meshType::kUnstruct, e::physicType::kAcoustic, 2, 4), std::runtime_error);
+  EXPECT_THROW(create(e::methodType::kSem, e::meshType::kUnstruct, e::physicType::kAcoustic, MAX_SOLVER_ACOUSTIC_ORDER + 1, 2),
+               std::runtime_error);
+}
+
+TEST(SemSolver2DFactory, ThreeDimensionalSolverRejectsA2DMesh) {
+  auto model = builderModel(2, 3, 3, 300.f, 300.f, false);
+  auto s3d = solver_factory::createSolver(e::methodType::kSem, e::implemType::kMakutu, e::meshType::kUnstruct,
+                                          e::modelLocationType::kOnElements, e::physicType::kAcoustic, 2);
+  EXPECT_THROW(s3d->computeFEInit(*model, {0, 0, 0}, false, 0), std::runtime_error);
 }
 
 }  // namespace test

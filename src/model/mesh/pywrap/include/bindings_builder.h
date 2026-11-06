@@ -13,6 +13,9 @@
 #include "builder.h"
 #include "cartesian_struct_builder.h"
 #include "cartesian_unstruct_builder.h"
+#ifdef COMPILE_SEM_2D
+#include "cartesian_unstruct_2d_builder.h"
+#endif
 
 namespace py = pybind11;
 
@@ -133,6 +136,25 @@ void bind_cartesian_unstruct_builder(py::module_ &m) {
       .def(py::init<>())
       .def(py::init<const model::CartesianParams<FloatType, ScalarType> &>());
 }
+
+#ifdef COMPILE_SEM_2D
+/**
+ * @brief Registers the Python class wrapping CartesianUnstruct2DBuilder (2-D quadrilateral mesh
+ * in the (x, z) plane) for one type pair.
+ *
+ * Constructible from a CartesianParams (its y members are ignored). The matching
+ * bind_cartesian_unstruct_params and bind_modelbuilderbase must be called first.
+ */
+template <typename FloatType, typename ScalarType>
+void bind_cartesian_unstruct_2d_builder(py::module_ &m) {
+  using Base = model::ModelBuilderBase<FloatType, ScalarType>;
+  using T = model::CartesianUnstruct2DBuilder<FloatType, ScalarType>;
+  std::string name = model_class_name<FloatType, ScalarType>("CartesianUnstruct2DBuilder");
+
+  py::class_<T, Base, std::shared_ptr<T>>(m, name.c_str())
+      .def(py::init<const model::CartesianParams<FloatType, ScalarType> &>());
+}
+#endif
 
 }  // namespace model
 

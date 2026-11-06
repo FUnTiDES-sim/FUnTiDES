@@ -17,6 +17,9 @@
 #ifdef COMPILE_DG_PADAPTIVE
 #include "dg_padaptive_solver.h"
 #endif
+#ifdef COMPILE_SEM_2D
+#include "sem_solver_2d.h"
+#endif
 
 namespace solver {
 namespace solver_factory {
@@ -126,6 +129,31 @@ std::unique_ptr<Solver> makeSemSolver(int order, utils::enums::meshType mesh,
   throw std::runtime_error("Unknown physics type");
 }
 #endif  // COMPILE_SEM
+
+// ============================================================================
+// 2-D SEM solver (acoustic, quadrilaterals in the (x, z) plane)
+// ============================================================================
+#ifdef COMPILE_SEM_2D
+
+/**
+ * @brief Creates the 2-D acoustic SEM solver, dispatching the runtime order and model location.
+ * @throws std::runtime_error If the configuration is not the supported one (makutu back-end,
+ *         unstructured mesh, acoustic physics) or the order is unsupported.
+ */
+inline std::unique_ptr<Solver> makeSem2DSolver(int order, utils::enums::implemType implem, utils::enums::meshType mesh,
+                                               utils::enums::modelLocationType modelLocation,
+                                               utils::enums::physicType physic) {
+  if (implem != utils::enums::implemType::kMakutu) throw std::runtime_error("2-D SEM: makutu back-end only");
+  if (mesh != utils::enums::meshType::kUnstruct) throw std::runtime_error("2-D SEM: unstructured (2-D) mesh only");
+  if (physic != utils::enums::physicType::kAcoustic) throw std::runtime_error("2-D SEM: acoustic physics only");
+  bool const onNodes = (modelLocation == utils::enums::modelLocationType::kOnNodes);
+  return orderDispatch<MAX_SOLVER_ACOUSTIC_ORDER>(order, [&](auto orderIC) -> std::unique_ptr<Solver> {
+    constexpr int O = decltype(orderIC)::value;
+    if (onNodes) return std::make_unique<SEMsolver2D<O, true>>();
+    return std::make_unique<SEMsolver2D<O, false>>();
+  });
+}
+#endif  // COMPILE_SEM_2D
 
 #ifdef COMPILE_DG
 // ============================================================================
@@ -310,7 +338,18 @@ std::unique_ptr<Solver> makeDgPAdaptiveSolver(int order_min, int order_max, util
 std::unique_ptr<Solver> createSolver(utils::enums::methodType const methodType,
                                      utils::enums::implemType const implemType, utils::enums::meshType const mesh,
                                      utils::enums::modelLocationType const modelLocation,
-                                     utils::enums::physicType const physicType, int const order, int const order_min) {
+                                     utils::enums::physicType const physicType, int const order, int const order_min,
+                                     int const dim) {
+  if (dim == 2) {
+#ifdef COMPILE_SEM_2D
+    if (methodType != utils::enums::methodType::kSem) throw std::runtime_error("2-D: only the SEM method is available");
+    return makeSem2DSolver(order, implemType, mesh, modelLocation, physicType);
+#else
+    throw std::runtime_error("2-D solvers are not compiled (configure FUnTiDES with -DCOMPILE_SEM_2D=ON)");
+#endif
+  }
+  if (dim != 3) throw std::runtime_error("Unsupported dimension: " + std::to_string(dim));
+
 #ifdef COMPILE_SEM
   if (methodType == utils::enums::methodType::kSem) {
     switch (implemType) {

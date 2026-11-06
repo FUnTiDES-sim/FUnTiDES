@@ -25,12 +25,15 @@ namespace solver_factory {
  * @param[in] order Polynomial order of the elements (the higher order for the p-adaptive method).
  * @param[in] order_min Lower polynomial order, used by the p-adaptive method only
  *            (0 < order_min < order); ignored by the other methods.
+ * @param[in] dim Space dimension: 3, or 2 for the 2-D acoustic SEM solver (SEMsolver2D, built
+ *            with COMPILE_SEM_2D: method kSem, back-end kMakutu, unstructured 2-D mesh).
  * @return Owning pointer to the created solver.
  * @throws std::runtime_error if the configuration is unsupported.
  */
 std::unique_ptr<Solver> createSolver(utils::enums::methodType methodType, utils::enums::implemType implemType,
                                      utils::enums::meshType meshType, utils::enums::modelLocationType modelLocation,
-                                     utils::enums::physicType physicType, int const order, int const order_min = 0);
+                                     utils::enums::physicType physicType, int const order, int const order_min = 0,
+                                     int const dim = 3);
 }  // namespace solver_factory
 }  // namespace solver
 #endif  // FUNTIDES_SOLVER_IMPL_COMMON_INCLUDE_SOLVER_FACTORY_H_
