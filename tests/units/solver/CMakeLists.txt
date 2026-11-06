@@ -54,6 +54,14 @@ if(COMPILE_DG_PADAPTIVE)
   )
 endif()
 
+# 2-D acoustic SEM solver: own binary, it links the explicit instantiations of fun_solver
+if(COMPILE_SEM_2D)
+  add_gtest(sem_solver_2d_test
+    impl/sem2d/test_sem_solver_2d.cc
+    "fun_solver;fun_model"
+  )
+endif()
+
 add_gtest_group(solver_tests
   SOURCES ${SOLVER_TEST_SOURCES}
   EXTRA_LINKS fun_solver fun_model

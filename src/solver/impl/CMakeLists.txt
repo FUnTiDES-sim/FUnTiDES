@@ -38,6 +38,9 @@ endif()
 if(COMPILE_DG_PADAPTIVE)
   add_subdirectory(dg_padaptive)
 endif()
+if(COMPILE_SEM_2D)
+  add_subdirectory(sem2d)
+endif()
 
 set(SOLV_LIBS fun_discretization fun_core fun_parallel fun_model fun_solver_api)
 

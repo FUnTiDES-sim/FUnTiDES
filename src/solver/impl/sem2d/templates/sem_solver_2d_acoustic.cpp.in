@@ -1,0 +1,7 @@
+// Template of a generated file: edit this template, not its generated output.
+// Explicit instantiation of SEMsolver2D for SEM2DQ@ORDER@, model @MODEL_TYPE@.
+
+#define FUNTIDES_SEM2D_INSTANTIATION
+#include "sem_solver_2d.h"
+
+template class solver::SEMsolver2D<@ORDER@, @MODEL_ON_NODES@>;

@@ -15,6 +15,11 @@ if (COMPILE_DG_SEM)
   message(STATUS "DGSEM solver will be compiled, so DG and SEM solvers will also be compiled")
 endif()
 
+if(COMPILE_SEM_2D)
+  set(COMPILE_SEM ON)
+  message(STATUS "2-D SEM solver will be compiled, so SEM solver (shared data types) will also be compiled")
+endif()
+
 if(COMPILE_DG_PADAPTIVE)
   set(COMPILE_DG ON)
   message(STATUS "p-adaptive DG solver will be compiled, so DG solver will also be compiled")
