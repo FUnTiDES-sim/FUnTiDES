@@ -1,0 +1,24 @@
+[build-system]
+requires = ["scikit-build-core>=0.10"]
+build-backend = "scikit_build_core.build"
+
+[project]
+name ="pyfuntides"
+description="Python package for FUnTiDES library"
+dependencies=["numpy"]
+dynamic= ["version"]
+#3.9:for cluster compatibility
+requires-python=">=3.9"
+readme="README.md"
+
+[tool.scikit-build.metadata.version]
+provider = "scikit_build_core.metadata.regex"
+input = "CMakeLists.txt"
+regex = 'project\(funtides VERSION (?P<value>[0-9.]+)'
+
+[tool.scikit-build]
+cmake.build-type="Release"
+cmake.define={ENABLE_PYWRAP= 'ON', MAX_SOLVER_ORDER='3', MAX_DIFFERENTIATOR_ORDER='2', ENABLE_TESTS= 'OFF'}
+build-dir= "build-pip/{wheel_tag}"
+install.components= ["python"]
+wheel.packages = []

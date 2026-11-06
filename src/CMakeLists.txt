@@ -21,6 +21,12 @@ target_link_libraries(funtides INTERFACE
   fun_io
 )
 
+# Wheel: shared libs next to the Python modules so $ORIGIN finds them
+if(SKBUILD)
+  set(FUNTIDES_LIB_INSTALL_DIR "pyfuntides")
+else()
+  set(FUNTIDES_LIB_INSTALL_DIR "lib")
+endif()
 install(TARGETS funtides
                 fun_core
                 fun_parallel
@@ -33,7 +39,7 @@ install(TARGETS funtides
                 fun_gradient_api fun_gradient
                 fun_io_api fun_io
         EXPORT funtidesTargets
-        LIBRARY DESTINATION lib
+        LIBRARY DESTINATION "${FUNTIDES_LIB_INSTALL_DIR}" COMPONENT python
         ARCHIVE DESTINATION lib
         RUNTIME DESTINATION bin
         INCLUDES DESTINATION include
@@ -66,7 +72,7 @@ install(FILES ${CMAKE_BINARY_DIR}/funtidesConfig.cmake
 )
 
 if(ENABLE_PYWRAP)
-  install_pyfuntides_package(model solver gradient)
+  install_pyfuntides_package(model solver gradient io)
 endif()
 
 

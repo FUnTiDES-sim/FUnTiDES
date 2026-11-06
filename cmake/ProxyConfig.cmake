@@ -30,6 +30,9 @@ option(PRINT_ALLOC_INFO "Printout memory allocation info" OFF)
 # Build options
 option(BUILD_SHARED_LIBS "Build shared libraries" ON)
 
+# Option enable or disable tests compilation
+option(ENABLE_TESTS "Enable tests" ON)
+
 # Install options
 # Without an explicit prefix, make install fills <build>/install.
 if(CMAKE_INSTALL_PREFIX_INITIALIZED_TO_DEFAULT)
@@ -39,7 +42,11 @@ endif()
 
 # Installed binaries find the FUnTiDES libraries next to them and the external
 # ones (Kokkos, MPI...) where they were linked, without LD_LIBRARY_PATH.
-set(CMAKE_INSTALL_RPATH "$ORIGIN/../lib")
+if(SKBUILD)
+  set(CMAKE_INSTALL_RPATH "$ORIGIN")
+else()
+  set(CMAKE_INSTALL_RPATH "$ORIGIN/../lib")
+endif()
 set(CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
 
 # Macro definitions

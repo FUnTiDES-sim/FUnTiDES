@@ -12,26 +12,40 @@ function(configure_python_module target_name)
   set_target_properties(${target_name} PROPERTIES POSITION_INDEPENDENT_CODE TRUE)
 
   # set rpath to find funtides shared libraries at runtime
+  if(SKBUILD)
+    set(rpath "$ORIGIN")
+  else()
+    set(rpath "$ORIGIN/../../lib64;$ORIGIN/../../lib")
+  endif()
   set_target_properties(${target_name} PROPERTIES
-    INSTALL_RPATH "$ORIGIN/../../lib64;$ORIGIN/../../lib"
+    INSTALL_RPATH "${rpath}"
     BUILD_WITH_INSTALL_RPATH TRUE
   )
 endfunction()
 
+# Set install directory for pyfuntides
 function(install_pyfuntides_package)
-  # Set install directory for pyfuntides
-  set(PYFUNTIDES_INSTALL_DIR "${CMAKE_INSTALL_PYTHONDIR}/pyfuntides")
+  if(SKBUILD)
+    set(PYFUNTIDES_INSTALL_DIR "pyfuntides")
+  else()
+    set(PYFUNTIDES_INSTALL_DIR "${CMAKE_INSTALL_PYTHONDIR}/pyfuntides")
+  endif()
 
-  # Create the directory at install time
-  install(CODE "file(MAKE_DIRECTORY \"${PYFUNTIDES_INSTALL_DIR}\")")
+  # Configure _build_info.py with variables only known at build time, such
+  # as the compiled methods and max orders
+  configure_file( "${PROJECT_SOURCE_DIR}/src/pyfuntides/_build_info.py.in"
+                  "${PROJECT_BINARY_DIR}/src/pyfuntides/_build_info.py" @ONLY)
 
   # Install libraries from input targets into the directory
   install(TARGETS ${ARGV}
-    LIBRARY DESTINATION ${PYFUNTIDES_INSTALL_DIR}
-    ARCHIVE DESTINATION ${PYFUNTIDES_INSTALL_DIR}
-    RUNTIME DESTINATION ${PYFUNTIDES_INSTALL_DIR}
+    LIBRARY DESTINATION ${PYFUNTIDES_INSTALL_DIR} COMPONENT python
+    ARCHIVE DESTINATION ${PYFUNTIDES_INSTALL_DIR} COMPONENT python
+    RUNTIME DESTINATION ${PYFUNTIDES_INSTALL_DIR} COMPONENT python
   )
 
-  # Create __init__.py to make it a Python package
-  install(CODE "file(WRITE \"${PYFUNTIDES_INSTALL_DIR}/__init__.py\" \"\")")
+  # Install the package's Python files (__init__.py and the generated _build_info.py)
+  install(FILES "${PROJECT_SOURCE_DIR}/src/pyfuntides/__init__.py"
+                "${PROJECT_BINARY_DIR}/src/pyfuntides/_build_info.py"
+          DESTINATION "${PYFUNTIDES_INSTALL_DIR}"
+          COMPONENT python)
 endfunction()

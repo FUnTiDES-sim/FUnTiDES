@@ -18,8 +18,10 @@ include(cmake/ProxyConfig.cmake)    # This must go *before* other configurations
 include(cmake/GenerateVariables.cmake)
 include(cmake/PywrapConfig.cmake)   # This must go *before* kokkos configuration
 include(cmake/MPIConfig.cmake)
-include(cmake/GoogleTestConfig.cmake)
-include(cmake/GoogleBenchConfig.cmake)
+if(ENABLE_TESTS)
+  include(cmake/GoogleTestConfig.cmake)
+  include(cmake/GoogleBenchConfig.cmake)
+endif()
 
 #--------------------------------------------------------
 # Custom cmake functions
@@ -27,14 +29,18 @@ include(cmake/GoogleBenchConfig.cmake)
 include(cmake/KokkosUtils.cmake)
 include(cmake/ProxyUtils.cmake)
 include(cmake/PywrapUtils.cmake)
-include(cmake/GoogleBenchUtils.cmake)
-include(cmake/GoogleTestUtils.cmake)
+if(ENABLE_TESTS)
+  include(cmake/GoogleBenchUtils.cmake)
+  include(cmake/GoogleTestUtils.cmake)
+endif()
 
 #--------------------------------------------------------
 # Subdirectories
 #--------------------------------------------------------
 add_subdirectory(src)
-add_subdirectory(tests)
+if(ENABLE_TESTS)
+  add_subdirectory(tests)
+endif()
 
 #--------------------------------------------------------
 # Print configuration summary
