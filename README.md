@@ -21,6 +21,7 @@ The following options can be used to configure your build:
 | `COMPILE_DG`               | Compile the Discontinuous Galerkin solvers (default: ON)                           |
 | `COMPILE_DG_SEM`           | Compile the coupled DG-SEM solvers, forces `COMPILE_DG` and `COMPILE_SEM` (default: ON) |
 | `COMPILE_DG_PADAPTIVE`     | Compile the p-adaptive DG solver, forces `COMPILE_DG` (default: ON)                |
+| `COMPILE_SEM_2D`           | Compile the 2-D acoustic SEM solver (quadrilaterals in the (x, z) plane), forces `COMPILE_SEM` (default: OFF) |
 | `ENABLE_PYWRAP`            | Build the Python bindings (`pyfuntides`) with pybind11 (default: OFF)              |
 | `USE_MPI`                  | Compile with MPI (default: OFF)                                                    |
 | `BUILD_SHARED_LIBS`        | Build shared libraries (default: ON)                                               |
@@ -152,6 +153,31 @@ target_link_libraries(my_app PRIVATE funtides::funtides)
 `funtides::funtides` brings every component; a single one can be linked instead
 (`funtides::model`, `funtides::solver`, `funtides::gradient`, `funtides::io`, ...).
 
+### 2-D acoustic SEM (`COMPILE_SEM_2D`)
+
+With `-DCOMPILE_SEM_2D=ON`, FUnTiDES also builds an acoustic SEM solver in 2-D: a mesh of
+quadrilaterals in the (x, z) plane (z up, free surface on the top edge), the same
+equation and time scheme as in 3-D, single process. The mesh is a `ModelUnstruct` of
+dimension 2, built by `CartesianUnstruct2DBuilder` or from arrays
+(`ModelUnstructData` with `dim = 2`); the solver is created with `dim = 2`:
+
+```python
+import pyfuntides.model as Model, pyfuntides.solver as Solver
+params = Model.CartesianParams_f32_i32(order, ex, 1, ez, lx, 1.0, lz, False, False)  # y ignored
+model = Model.CartesianUnstruct2DBuilder_f32_i32(params).get_model(True)           # free surface on top
+solver = Solver.create_solver(Solver.MethodType.SEM, Solver.ImplemType.MAKUTU, Solver.MeshType.UNSTRUCT,
+                              Solver.ModelLocationType.ONELEMENTS, Solver.PhysicType.ACOUSTIC, order, dim=2)
+solver.compute_fe_init(model)
+```
+
+The data classes are the acoustic ones (`WavefieldAcoustic`, `RhsAcoustic`,
+`SEMsolverDataAcoustic`) with (order+1)^2 points per element, local node
+`ix + iz * (order + 1)`. Not available in 2-D yet: elastic physics, MPI, adjoint
+(`update_solution_backward`), attenuation. The 3-D solvers reject a 2-D mesh. The
+FUnTiDES-App repository provides the `funtides-sem2d` driver and its validation against
+the exact 2-D solution; its `python/` part (makutu) has a 2-D mesh class and a 2-D
+Marmousi example.
+
 ### Step 5: Run Tests & Benchmarks
 
 From the `build` directory, unit tests only:
@@ -171,6 +197,11 @@ Or just all tests:
 ```sh
 ctest
 ```
+
+When the tests of a build directory run while another FUnTiDES is installed in a
+directory listed in `LD_LIBRARY_PATH` (e.g. after sourcing `funtides_env.sh`), the test
+executables load the installed libraries instead of their own (`LD_LIBRARY_PATH` comes
+before their RUNPATH): run `ctest` with `LD_LIBRARY_PATH` unset in that case.
 
 The validation against analytical solutions (`make validate`) runs the `funtides-sem`
 driver and lives with it in the FUnTiDES-App repository.

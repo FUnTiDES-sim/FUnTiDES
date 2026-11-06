@@ -14,7 +14,8 @@ solver/
 │   ├── sem/         common/ + acoustic/ + elastic/ + acoustoelastic/
 │   ├── dg/          common/ + acoustic/
 │   ├── dgsem/       common/ + acoustic/
-│   └── dg_padaptive/ common/ + acoustic/
+│   ├── dg_padaptive/ common/ + acoustic/
+│   └── sem2d/       include/ + templates/  (2-D acoustic SEM)
 └── pywrap/          the single `solver` Python module (like gradient/pywrap)
 ```
 
@@ -26,6 +27,7 @@ solver/
 | `impl/dg` | `COMPILE_DG` | Acoustic DG solver (base of the other variants): `common/` + `acoustic/` |
 | `impl/dgsem` | `COMPILE_DG_SEM` (implies `COMPILE_DG` and `COMPILE_SEM`) | Coupled DG-SEM (DG + SEM domains), composite reusing `impl/sem/` + `impl/dg/` |
 | `impl/dg_padaptive` | `COMPILE_DG_PADAPTIVE` (implies `COMPILE_DG`) | p-adaptive DG (pMin/pMax subdomains), composite reusing `impl/dg/` |
+| `impl/sem2d` | `COMPILE_SEM_2D` (implies `COMPILE_SEM`) | 2-D acoustic SEM `SEMsolver2D<ORDER, IS_MODEL_ON_NODES>` on a 2-D `ModelUnstruct` (quadrilaterals in the (x, z) plane, `Qk_Quadrilateral_Lagrange_GaussLobatto`); reuses the SEM acoustic data types. Header-only class, one generated instantiation file per (order, model location), `extern template` elsewhere |
 | `pywrap` | `ENABLE_PYWRAP` | The pyfuntides `solver` module; per-method bindings guarded by the `COMPILE_*` definitions |
 
 Every method compiles into the single `fun_solver` library. All
@@ -93,7 +95,9 @@ them would change the exposed Python API for a marginal line count.
 `solver_factory::createSolver` is the single construction entry point: it
 dispatches (method, implementation, mesh, physics, order) to `SEMsolver`,
 `SEMsolverAcoustoElastic`, `DGsolver`, `DGSEMsolver` or `DGPAdaptiveSolver`
-according to the compile options. Its declaration header
+according to the compile options. Its last argument `dim` (default 3) selects
+`SEMsolver2D` when it is 2 (SEM method, makutu back-end, unstructured mesh,
+acoustic physics; any other 2-D configuration throws). Its declaration header
 (`impl/common/include/solver_factory.h`) is the public boundary common to
 every method — it depends only on `solver.h` and the enums; the definition
 (`impl/common/src/solver_factory.cc`) guards each method with the
