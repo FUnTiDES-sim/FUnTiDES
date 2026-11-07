@@ -18,6 +18,7 @@
 #include "elastic_flux.h"
 #include "mesh_type_traits.h"
 #include "sem_solver.h"
+#include "sponge_profile.h"
 
 namespace solver {
 template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE, bool IS_MODEL_ON_NODES, physicType PHYSICS>
@@ -210,6 +211,7 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::all
   }
 
   spongeTaperCoeff_ = allocateVector<dualVectorReal>(m_mesh.getNumberOfNodes(), "spongeTaperCoeff");
+  spongeRate_ = allocateVector<dualVectorReal>(m_mesh.getNumberOfNodes(), "spongeRate");
 }
 
 template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE, bool IS_MODEL_ON_NODES, physicType PHYSICS>
@@ -226,51 +228,55 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::ini
   }
 }
 
+/**
+ * Sponge damping rate per node (1/s), from sponge::dampingRate() along x, y and z (the rates add
+ * up on the edges and corners): d is the distance to the faces of the box [0, domainSize], vmax
+ * the largest P-wave velocity of the model. With surface_sponge_, no sponge along the top face
+ * (z = domainSize(2), the free surface). The taper exp(-rate dt) is computed by
+ * updateSpongeTaper() at the first update with a new dt.
+ */
 template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE, bool IS_MODEL_ON_NODES, physicType PHYSICS>
 void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::initSpongeValues() {
-  // @todo VERIFY: unit and origin of the peak damping factor sigma_max = 0.15 (dimensionless?).
-  const double sigma_max = 0.15;
-
   // Computed on the host (the mesh accessors read its host copy), then copied to the device.
-  auto taper_host = spongeTaperCoeff_.view_host();
+  double vmax = 0.0;
+  if constexpr (IS_MODEL_ON_NODES) {
+    for (int n = 0; n < m_mesh.getNumberOfNodes(); n++) vmax = std::max<double>(vmax, m_mesh.getModelVpOnNodes(n));
+  } else {
+    for (int e = 0; e < m_mesh.getNumberOfElements(); e++) vmax = std::max<double>(vmax, m_mesh.getModelVpOnElement(e));
+  }
+
+  auto rate_host = spongeRate_.view_host();
   for (int n = 0; n < m_mesh.getNumberOfNodes(); n++) {
     const double x = m_mesh.nodeCoord(n, 0);
     const double y = m_mesh.nodeCoord(n, 1);
     const double z = m_mesh.nodeCoord(n, 2);
-
-    const double distToFrontierX = (surface_sponge_) ? m_mesh.domainSize(0) - x : std::min(m_mesh.domainSize(0) - x, x);
-    const double distToFrontierY = std::min(m_mesh.domainSize(1) - y, y);
-    const double distToFrontierZ = std::min(m_mesh.domainSize(2) - z, z);
-
-    double minDistToFrontier = std::max(m_mesh.domainSize(0), std::max(m_mesh.domainSize(1), m_mesh.domainSize(2)));
-
-    bool is_sponge = false;
-    if (distToFrontierX < sponge_size_[0]) {
-      is_sponge = true;
-      minDistToFrontier = std::min(minDistToFrontier, distToFrontierX);
-    }
-    if (distToFrontierY < sponge_size_[1]) {
-      is_sponge = true;
-      minDistToFrontier = std::min(minDistToFrontier, distToFrontierY);
-    }
-    if (distToFrontierZ < sponge_size_[2]) {
-      is_sponge = true;
-      minDistToFrontier = std::min(minDistToFrontier, distToFrontierZ);
-    }
-
-    // Gaussian taper in the distance to the closest sponge frontier.
-    if (is_sponge) {
-      double d = minDistToFrontier;
-      double delta = taper_delta_;
-      double sigma = sigma_max * std::exp(-((d / delta) * (d / delta)));
-      taper_host(n) = 1.0 / (1.0 + sigma);
-    } else {
-      taper_host(n) = 1.0;
-    }
+    const double dx = std::min<double>(m_mesh.domainSize(0) - x, x);
+    const double dy = std::min<double>(m_mesh.domainSize(1) - y, y);
+    const double dz = surface_sponge_ ? z : std::min<double>(m_mesh.domainSize(2) - z, z);
+    rate_host(n) = static_cast<float>(sponge::dampingRate(dx, sponge_size_[0], vmax, taper_delta_) +
+                                      sponge::dampingRate(dy, sponge_size_[1], vmax, taper_delta_) +
+                                      sponge::dampingRate(dz, sponge_size_[2], vmax, taper_delta_));
   }
-
+  spongeRate_.modify_host();
+  spongeRate_.sync_device();
+  // 1 until the first update with a dt (updateSpongeTaper())
+  Kokkos::deep_copy(spongeTaperCoeff_.view_host(), 1.0f);
   spongeTaperCoeff_.modify_host();
   spongeTaperCoeff_.sync_device();
+  spongeTaperDt_ = -1.0f;
+}
+
+template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE, bool IS_MODEL_ON_NODES, physicType PHYSICS>
+void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::updateSpongeTaper(float dt) {
+  if (dt == spongeTaperDt_) return;
+  auto rate = spongeRate_.view_device();
+  auto taper = spongeTaperCoeff_.view_device();
+  Kokkos::parallel_for(
+      "SEM sponge taper", Kokkos::RangePolicy<>(0, m_mesh.getNumberOfNodes()),
+      KOKKOS_LAMBDA(const int n) { taper(n) = Kokkos::exp(-rate(n) * dt); });
+  spongeTaperCoeff_.modify_device();
+  FENCE
+  spongeTaperDt_ = dt;
 }
 
 template <int ORDER, typename INTEGRAL_TYPE, typename MESH_TYPE, bool IS_MODEL_ON_NODES, physicType PHYSICS>

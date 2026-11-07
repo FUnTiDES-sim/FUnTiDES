@@ -26,6 +26,7 @@
 #include "sem_enums.h"
 #include "sem_solver_data.h"
 #include "solver.h"
+#include "sponge_profile.h"
 
 namespace solver {
 
@@ -42,7 +43,8 @@ namespace solver {
  *    flagged Damping of the boundary edges (edges of a single element);
  *  - free surface: nodes flagged Surface are kept at 0;
  *  - boundary nodes without a flag (InteriorNode) get the natural condition (rigid wall);
- *  - optional Gaussian sponge taper along x and z (sponge_size[0] and sponge_size[2]).
+ *  - optional sponge layers along x and z (sponge_size[0] and sponge_size[2]): both time levels
+ *    multiplied by exp(-sigma dt) at each step, sigma given by sponge::dampingRate().
  * Each step adds the stiffness term and the sources into the force vector, then updates the
  * wavefield: the new value is written into the previous-field buffer, which the caller swaps.
  *
@@ -76,8 +78,10 @@ class SEMsolver2D : public Solver {
    * @brief Take the mesh, then build the mass and damping matrices and the sponge taper.
    * @param[in] mesh ModelUnstruct<float, int> of dimension 2 and order ORDER.
    * @param[in] sponge_size Sponge widths along x, (unused), z.
-   * @param[in] surface_sponge When true, no sponge along the top (z max) edge.
-   * @param[in] taper_delta Decay length of the Gaussian sponge taper.
+   * @param[in] surface_sponge When true, no sponge along the top (z max) edge (free surface).
+   * @param[in] taper_delta Attenuation R of the sponge: amplitude ratio of a wave crossing it at
+   * normal incidence and coming back, at the largest velocity of the model (see
+   * sponge::dampingRate(); 1e-2 if not in (0, 1)).
    * @throws std::runtime_error If the mesh is not a 2-D ModelUnstruct of order ORDER.
    */
   void computeFEInit(model::ModelApi<float, int>& mesh, const std::array<float, 3>& sponge_size,
@@ -106,18 +110,21 @@ class SEMsolver2D : public Solver {
     dampingMatrixGlobal_ = allocateVector<vectorReal>(n, "dampingMatrix2D");
     workVectorGlobal_ = allocateVector<vectorReal>(n, "workVector2D");
     spongeTaperCoeff_ = allocateVector<dualVectorReal>(n, "spongeTaper2D");
+    spongeRate_ = allocateVector<dualVectorReal>(n, "spongeRate2D");
   }
 
-  /// Fills the sponge taper.
+  /// Fills the sponge damping rates.
   void initFEarrays() override { initSpongeValues(); }
 
   /**
-   * @brief Gaussian sponge taper 1 / (1 + 0.15 exp(-(d / taper_delta)^2)), d being the distance
-   * to the closest edge of the domain bounding box within the sponge width; 1 elsewhere.
+   * @brief Sponge damping rate per node (1/s), from sponge::dampingRate() along x and z (the
+   * rates add up on the corners); d is the distance to the edges of the domain bounding box and
+   * vmax the largest velocity of the model. The taper exp(-rate dt) is computed at the first
+   * update with a new dt.
    */
   void initSpongeValues() override {
     int const n = m_mesh.getNumberOfNodes();
-    auto taper = spongeTaperCoeff_.view_host();
+    auto rate = spongeRate_.view_host();
     double xmin = std::numeric_limits<double>::max(), xmax = std::numeric_limits<double>::lowest();
     double zmin = xmin, zmax = xmax;
     for (int i = 0; i < n; ++i) {
@@ -126,24 +133,30 @@ class SEMsolver2D : public Solver {
       zmin = std::min<double>(zmin, m_mesh.nodeCoord(i, 2));
       zmax = std::max<double>(zmax, m_mesh.nodeCoord(i, 2));
     }
-    double const sigma_max = 0.15;
+    double vmax = 0.0;
+    if constexpr (IS_MODEL_ON_NODES) {
+      for (int i = 0; i < n; ++i) vmax = std::max<double>(vmax, m_mesh.getModelVpOnNodes(i));
+    } else {
+      for (int e = 0; e < m_mesh.getNumberOfElements(); ++e)
+        vmax = std::max<double>(vmax, m_mesh.getModelVpOnElement(e));
+    }
     for (int i = 0; i < n; ++i) {
       double const x = m_mesh.nodeCoord(i, 0), z = m_mesh.nodeCoord(i, 2);
       double const dx = std::min(x - xmin, xmax - x);
       double const dz = surface_sponge_ ? (z - zmin) : std::min(z - zmin, zmax - z);
-      double d = std::numeric_limits<double>::max();
-      if (dx < sponge_size_[0]) d = std::min(d, dx);
-      if (dz < sponge_size_[2]) d = std::min(d, dz);
-      if (d < std::numeric_limits<double>::max() && taper_delta_ > 0) {
-        double const sigma = sigma_max * std::exp(-(d / taper_delta_) * (d / taper_delta_));
-        taper(i) = static_cast<float>(1.0 / (1.0 + sigma));
-      } else {
-        taper(i) = 1.0f;
-      }
+      rate(i) = static_cast<float>(sponge::dampingRate(dx, sponge_size_[0], vmax, taper_delta_) +
+                                   sponge::dampingRate(dz, sponge_size_[2], vmax, taper_delta_));
     }
+    spongeRate_.modify_host();
+    spongeRate_.sync_device();
+    Kokkos::deep_copy(spongeTaperCoeff_.view_host(), 1.0f);  // 1 until the first update with a dt
     spongeTaperCoeff_.modify_host();
     spongeTaperCoeff_.sync_device();
+    spongeTaperDt_ = -1.0f;
   }
+
+  /// Sets the taper to exp(-rate dt) if dt differs from the one of the last call.
+  void updateSpongeTaper(float dt);
 
   /**
    * @brief Lists the boundary edges (edges of a single element) as (element, local edge) pairs.
@@ -242,7 +255,7 @@ class SEMsolver2D : public Solver {
   vectorReal& getMassMatrixElastic() override { return massMatrixGlobal_; }
   vectorReal& getDampingMatrix(int) override { return dampingMatrixGlobal_; }
   vectorReal& getForceVector(int) override { return workVectorGlobal_; }
-  /// @return Device copy of the sponge taper coefficients, per node.
+  /// @return Sponge taper exp(-rate dt) per node, for the dt of the last update (device).
   vectorReal getSpongeTaperCoeff() const { return spongeTaperCoeff_.view_device(); }
   /// @return Boundary edges, as element * 4 + local edge.
   vectorInt getBoundaryEdges() const { return boundaryEdges_; }
@@ -277,7 +290,9 @@ class SEMsolver2D : public Solver {
   vectorReal massMatrixGlobal_;
   vectorReal dampingMatrixGlobal_;
   vectorReal workVectorGlobal_;
-  dualVectorReal spongeTaperCoeff_;
+  dualVectorReal spongeTaperCoeff_;  ///< exp(-spongeRate_ dt), for dt = spongeTaperDt_
+  dualVectorReal spongeRate_;        ///< sponge damping rate per node (1/s)
+  float spongeTaperDt_{-1.0f};
   vectorInt boundaryEdges_;  ///< element * 4 + local edge, for each boundary edge
   std::array<float, 3> sponge_size_{0, 0, 0};
   bool surface_sponge_{false};
@@ -399,6 +414,19 @@ void SEMsolver2D<ORDER, IS_MODEL_ON_NODES>::computeElementContributions(const Da
 }
 
 template <int ORDER, bool IS_MODEL_ON_NODES>
+void SEMsolver2D<ORDER, IS_MODEL_ON_NODES>::updateSpongeTaper(float dt) {
+  if (dt == spongeTaperDt_) return;
+  auto rate = spongeRate_.view_device();
+  auto taper = spongeTaperCoeff_.view_device();
+  Kokkos::parallel_for(
+      "SEM2D sponge taper", Kokkos::RangePolicy<>(0, m_mesh.getNumberOfNodes()),
+      KOKKOS_LAMBDA(const int i) { taper(i) = Kokkos::exp(-rate(i) * dt); });
+  spongeTaperCoeff_.modify_device();
+  FENCE
+  spongeTaperDt_ = dt;
+}
+
+template <int ORDER, bool IS_MODEL_ON_NODES>
 void SEMsolver2D<ORDER, IS_MODEL_ON_NODES>::updateSolutionForward(const float& dt, DataStruct& data) {
   auto& myData = dynamic_cast<DataType&>(data);
   if (myData.getPrevPrevField(0).extent(0) > 0)
@@ -407,6 +435,7 @@ void SEMsolver2D<ORDER, IS_MODEL_ON_NODES>::updateSolutionForward(const float& d
   auto mass = massMatrixGlobal_;
   auto damping = dampingMatrixGlobal_;
   auto work = workVectorGlobal_;
+  updateSpongeTaper(dt);
   auto taper = spongeTaperCoeff_.view_device();
   auto cur = myData.getCurrentField(0);
   auto prev = myData.getPreviousField(0);

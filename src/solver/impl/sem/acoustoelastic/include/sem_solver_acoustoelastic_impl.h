@@ -577,6 +577,7 @@ void SEMsolverAcoustoElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES>
   auto C_ex = m_elastic_solver_.getDampingMatrix(0);
   auto C_ey = m_elastic_solver_.getDampingMatrix(1);
   auto C_ez = m_elastic_solver_.getDampingMatrix(2);
+  m_elastic_solver_.updateSpongeTaper(dt);  // taper exp(-rate dt) for this dt
   auto taper_e = m_elastic_solver_.getSpongeTaperCoeff();
   auto mesh_local = m_mesh_;
   auto cx = m_coupling_coeff_x_;
@@ -626,6 +627,7 @@ void SEMsolverAcoustoElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES>
   auto u_nm1_z = m_uz_nm1_iface_;
   auto M_f = m_acoustic_solver_.getMassMatrixAcoustic();
   auto C_f = m_acoustic_solver_.getDampingMatrix(0);
+  m_acoustic_solver_.updateSpongeTaper(dt);  // taper exp(-rate dt) for this dt
   auto taper_f = m_acoustic_solver_.getSpongeTaperCoeff();
   auto mesh_local = m_mesh_;
   auto cx = m_coupling_coeff_x_;

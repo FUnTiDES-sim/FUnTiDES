@@ -57,13 +57,15 @@ class Solver {
    *
    * @param[in] mesh Mesh and model of the local subdomain; copied by the solver.
    * @param[in] sponge_size Thickness of the absorbing sponge layers along x, y
-   * and z, in mesh coordinate units.
-   * @param[in] surface_sponge When true, the free-surface side of the domain is
-   * excluded from the sponge.
-   * @todo VERIFY: which boundary is the free surface for surface_sponge (the
-   * sponge code excludes the x = 0 side)?
-   * @param[in] taper_delta_ Decay length of the sponge taper, in mesh coordinate
-   * units.
+   * and z (m); 0: no sponge. A sponge reflects little when it is at least two
+   * wavelengths thick (see sponge_profile.h); thinner, the absorbing condition
+   * alone does better.
+   * @param[in] surface_sponge When true, no sponge along the top side (z max, the
+   * free surface).
+   * @param[in] taper_delta_ Attenuation R of the sponge: amplitude ratio of a wave
+   * crossing it at normal incidence at the largest velocity of the model and
+   * coming back (sponge::dampingRate(); 1e-2 if not in (0, 1)). The DG solvers
+   * ignore the three sponge parameters.
    * @throws std::runtime_error if mesh is not of the mesh type the solver was
    * instantiated for.
    */

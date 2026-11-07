@@ -78,6 +78,7 @@ class SEMsolver : public Solver {
 
   /// @return Device copy of the sponge taper coefficients (a view sharing the solver's memory).
   /// @todo VERIFY: size and indexing of the taper vector (per node?).
+  /// @return Sponge taper exp(-rate dt) per node, for the dt of the last update (device).
   vectorReal getSpongeTaperCoeff() const { return spongeTaperCoeff_.view_device(); }
 
   vectorReal& getForceVector(int c) override { return workVectorsGlobal_[c]; }
@@ -109,6 +110,8 @@ class SEMsolver : public Solver {
   void initFEarrays() override;
   void allocateFEarrays() override;
   void initSpongeValues() override;
+  /// Sets the sponge taper to exp(-rate dt) if dt differs from the one of the last call.
+  void updateSpongeTaper(float dt);
   void resetGlobalVectors(int numNodes) override;
   void computeGlobalMassMatrix() override;
   void computeDampingMatrix() override;
@@ -462,7 +465,9 @@ class SEMsolver : public Solver {
   /// Set by updateFieldsFromListForwardAndReset().
   bool m_reset_forces_in_update_ = false;
 
-  dualVectorReal spongeTaperCoeff_;  ///< Size numNodes. Filled on the host by initSpongeValues().
+  dualVectorReal spongeTaperCoeff_;  ///< Size numNodes: exp(-spongeRate_ dt), dt = spongeTaperDt_.
+  dualVectorReal spongeRate_;        ///< Size numNodes: sponge damping rate (1/s), by initSpongeValues().
+  float spongeTaperDt_ = -1.0f;      ///< dt of the current taper; -1: to compute.
   vectorReal massMatrixGlobal_;      ///< Size numNodes.
   std::array<vectorReal, kNumFields> dampingMatrixGlobal_;  ///< One vector of size numNodes per component.
   std::array<vectorReal, kNumFields> workVectorsGlobal_;    ///< One vector of size numNodes per component.

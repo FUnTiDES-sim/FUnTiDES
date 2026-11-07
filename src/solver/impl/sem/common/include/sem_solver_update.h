@@ -25,6 +25,7 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::upd
 
   auto mesh_local = m_mesh;
   auto mass_matrix = massMatrixGlobal_;
+  updateSpongeTaper(dt);
   auto taper_coeff = spongeTaperCoeff_.view_device();
 
   auto sls_w = slsReferenceAngularFrequencies_.view_device();
@@ -188,6 +189,7 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::upd
 
   auto mesh_local = m_mesh;
   auto mass_matrix = massMatrixGlobal_;
+  updateSpongeTaper(dt);
   auto taper_coeff = spongeTaperCoeff_.view_device();
 
   auto sls_w = slsReferenceAngularFrequencies_.view_device();

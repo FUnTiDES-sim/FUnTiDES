@@ -52,8 +52,8 @@ Nothing here has been fixed yet.
   `setSLSAttenuation`; each `outputSolutionValues` overload is a no-op in one solver family.
 - `Solver::computeFEInit`, `surface_sponge`: contradictory meaning. The CLI help says
   surface nodes are "non sponge nodes", `SemProxy::surface_sponge_` says "the top surface has
-  an absorbing boundary", and `SEMsolver::initSpongeValues` drops the sponge on the x = 0
-  side (not z).
+  an absorbing boundary". Fixed in `SEMsolver::initSpongeValues` (it dropped the sponge on the
+  x = 0 side, not z): true now means no sponge along the top side (z max), as in 2-D.
 - `Solver::setZBoundary` and `Solver::setElementTags`: hooks for two coupled solvers on the
   base interface, whose tag values are defined per implementation (`kElementTypeSEM`,
   `kElementTypePMin`...), so a caller cannot use them through `Solver` alone.
@@ -429,7 +429,7 @@ Nothing here has been fixed yet.
 - `SEMsolverData`: the header uses `std::enable_if_t` without including `<type_traits>`, relying on transitive includes.
 - `src/solver/impl/sem/common/include/sem_solver_element_subset.h`, `computeElementContributionsMasked`: it sets `m_mask_enabled_`, but none of the stiffness kernels (acoustic flat/GEMM, Iso, Vti, Tti) reads the mask, only list mode. Only the mass and damping assemblies honor it, so a masked stiffness assembly silently covers every element.
 - `SEMsolver::computeAttenuationContributionsElastic`: returns silently for VTI and TTI, while `computeForces` still calls it and `computeFEInit` still derives a default anelasticity coefficient. Attenuation is silently ignored for anisotropic elastic models. The acoustic attenuation kernel also has no list-mode support, unlike the stiffness kernels.
-- `SEMsolver::initSpongeValues`: `sigma_max = 0.15` is hardcoded and independent of the user options. The function divides by `taper_delta_` unchecked (zero gives a NaN taper).
+- `SEMsolver::initSpongeValues` (fixed): the taper was 1 / (1 + 0.15 exp(-(d / taper_delta)^2)) per time step, with a hardcoded 0.15 and an unchecked division by `taper_delta_` (zero gave a NaN taper). With the 0.015 of the examples (Cerjan's coefficient per grid point, read as a length in m) only the boundary nodes were damped, and the 2-D field grew at late times (x 25 above the signal at 1 s); with a large `taper_delta` the sponge reflected strongly. Now `sponge_profile.h`: damping rate sigma_max ((L - d) / L)^2, taper exp(-sigma dt) (independent of dt), sigma_max from the attenuation R = `taper_delta` and the largest velocity of the model. Remaining: under domain decomposition vmax is the local one (the rate may differ between ranks), and the 3-D distances use the box [0, domainSize].
 - SEM fragments included by `sem_solver_impl.h`: `std::numeric_limits`, `std::runtime_error`, `std::exp`, `sqrtf`, `cosf` and `sinf` are used without including `<limits>`, `<stdexcept>` and `<cmath>`, relying on transitive includes.
 - `SEMsolver::computeElementContributions_Vti_*`: the VTI coefficient formulas (c11, c13, c33, c44, c66) are copied four times (flat/team, element/node) and again in `computeCMatrix`; the `sqrtf` argument is unchecked and gives NaN for a strongly negative delta.
 - `SEMsolver::computeElementContributions_Iso_Flat`, `_Vti_Flat`, `_Tti_Flat`, `computeElementContributions_*_Team`: the elastic bodies are inside `if constexpr (PHYSICS == kElastic)`, so for an acoustic instantiation they silently do nothing instead of failing.
