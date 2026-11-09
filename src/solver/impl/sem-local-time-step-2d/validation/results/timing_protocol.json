@@ -1,0 +1,8 @@
+{
+  "backend": "Serial",
+  "concurrency": 1,
+  "repetitions": 11, "warmups_per_case": 2,
+  "duration_s": 1.8, "reference_for_error_dt_ms": 0.75,
+  "elements": 1800, "nodes": 7381, "order": 2,
+  "loop_excludes": "setup, energy, sampling, file IO, host copies"
+}

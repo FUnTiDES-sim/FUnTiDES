@@ -1,0 +1,58 @@
+{
+  "name": "single_4500_closed_sides",
+  "mesh": {
+    "lx": 6000,
+    "lz": 3000,
+    "ex": 60,
+    "ez": 30,
+    "order": 2
+  },
+  "initial_field": {
+    "x": 2200,
+    "z": 2800,
+    "sigma": 160
+  },
+  "boundary_conditions": "free_top_rigid_sides",
+  "receivers": {
+    "depth_m": 50,
+    "z": 2950,
+    "x_min": 500,
+    "x_max": 5500,
+    "count": 51
+  },
+  "initial_condition_profile": "gaussian_dirichlet_image",
+  "reference_time_accumulation": "float64",
+  "duration_s": 3.6,
+  "partition": {
+    "macro_dt_s": 0.012,
+    "cfl": 0.6
+  },
+  "regions": [
+    {
+      "id": 0,
+      "elements": 1784,
+      "vp": 1500,
+      "rho": 1,
+      "target_dt_s": 0.012
+    },
+    {
+      "id": 1,
+      "elements": 16,
+      "name": "fast_square",
+      "shape": "box",
+      "center": [
+        3000,
+        1500
+      ],
+      "size": [
+        400,
+        400
+      ],
+      "vp": 4500,
+      "rho": 1,
+      "target_dt_s": 0.004
+    }
+  ],
+  "target_steps_are_executed": false,
+  "actual_integrator": "LF-LTS 2:1; fixed projection from velocity diagnostics"
+}

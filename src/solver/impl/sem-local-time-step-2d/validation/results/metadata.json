@@ -1,0 +1,7 @@
+{
+  "nx": 121, "nz": 61,
+  "coarse_dt": 0.0120000001043, "fine_dt": 0.00600000005215,
+  "reference_dt": 0.00150000001304, "cfl": 0.40000000596,
+  "relative_l2_error": 0.0162003117544,
+  "max_relative_energy_drift": 2.69929962715e-07
+}

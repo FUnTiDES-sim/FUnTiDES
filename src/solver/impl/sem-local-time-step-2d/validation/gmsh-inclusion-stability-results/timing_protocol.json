@@ -1,0 +1,28 @@
+{
+  "study_date": "2026-11-08",
+  "backend": "Kokkos Serial",
+  "build_type": "Release",
+  "cpu_affinity": [
+    0
+  ],
+  "cpu_model": "13th Gen Intel(R) Core(TM) i9-13900HX",
+  "compiler": "c++ (Ubuntu 12.3.0-1ubuntu1~22.04.3) 12.3.0",
+  "warmups": 2,
+  "repetitions": 7,
+  "shuffled_order_seed": 20261108,
+  "kernel": "5.15.0-43-generic",
+  "timed_scope": "propagation loop only, fenced before and after; excludes setup, IO, diagnostics and host copies",
+  "setup_measured_separately": true,
+  "unstable_witness_steps": 30,
+  "unstable_witness_not_comparable_to_full_duration": true,
+  "sha256": {
+    "src/solver/impl/sem-local-time-step-2d/validation/gmsh-inclusion-stability-results/bilayer.msh": "34faf7e0abd7c8accae9ccdcd8e84ce7f2cd9e4d5965a1b6a3a38e6af03bb9d8",
+    "src/solver/impl/sem-local-time-step-2d/validation/gmsh-inclusion-stability-results/timing_parameters.txt": "324ed39653f60d0f3aa1bceb27a0fedcd13907569911d7ae1c80957cf55122fe",
+    "src/solver/impl/sem-local-time-step-2d/validation/gmsh-inclusion-stability-results/test_result.json": "fb9aae17ec03344eaeb35a5cec952c73526497bd7ef65c5708076af7bfc173d1",
+    "src/solver/impl/sem-local-time-step-2d/validation/gmsh-inclusion-stability-results/snapshots.csv": "68a409c56b5d82b0f4ee5e65f04f399a1895350889e91869fa5f21da30dcf600",
+    "src/solver/impl/sem-local-time-step-2d/validation/gmsh-structured-results/bilayer.msh": "71376834d847983e5d8ae729569fa7a869e2467b975e2f93aacf3c916531e1da",
+    "src/solver/impl/sem-local-time-step-2d/validation/benchmark_gmsh_inclusion_stability.cc": "1062faa4136b4ae3377b722962dae5a306dc21f115134b1a560fa2afa07edfba",
+    "src/solver/impl/sem-local-time-step-2d/validation/sem2d_benchmark_common.h": "9ef965405bf781389232975661f8e47ffa930f0435be29b522aca42fb80ea541",
+    "build-lts-cpu/src/solver/impl/sem-local-time-step-2d/sem2d_gmsh_inclusion_timing": "6a0f46e9fcfb319ead448e75383c8025a3180f35a968fc0426ec95622d6e444d"
+  }
+}

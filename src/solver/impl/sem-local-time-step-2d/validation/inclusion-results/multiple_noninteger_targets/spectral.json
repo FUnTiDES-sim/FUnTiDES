@@ -1,0 +1,7 @@
+{
+  "lambda_max_estimate": 92401.5783987,
+  "global_dt_limit_estimate_s": 0.00657946075388,
+  "relative_residual": 9.46415262624e-06,
+  "iterations": 135,
+  "iteration_limit_reached": false
+}

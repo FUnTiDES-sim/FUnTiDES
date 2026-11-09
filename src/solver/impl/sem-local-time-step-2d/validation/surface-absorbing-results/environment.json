@@ -1,0 +1,37 @@
+{
+  "recorded_at": "2026-11-07T17:10:25.076063+01:00",
+  "cpu": "13th Gen Intel(R) Core(TM) i9-13900HX",
+  "platform": "Linux-5.15.0-43-generic-x86_64-with-glibc2.35",
+  "compiler": "c++ (Ubuntu 12.3.0-1ubuntu1~22.04.3) 12.3.0",
+  "build_type": "Release",
+  "backend": "Kokkos Serial 4.7.2",
+  "cpu_affinity": [
+    0
+  ],
+  "cpu_exclusive": false,
+  "frequency_control": "OS controlled; no fixed-frequency or turbo control",
+  "cases": 4,
+  "repetitions": 7,
+  "warmups_per_case": 2,
+  "source_kind": "initial Gaussian pressure at z=3000 m, zero initial derivative",
+  "source_time_forcing": false,
+  "precision": "timed runs float32; reference temporal recurrence float64 with float32 spatial forces",
+  "sha256": {
+    "src/solver/impl/sem-local-time-step-2d/include/sem_solver_2d_local_time_step.h": "af0c2157191485e03e24a39dd1a861a5369e194a2eadb1a586f345b464fdec60",
+    "src/solver/impl/sem-local-time-step-2d/validation/benchmark_inclusions.cc": "61de13c54df845fcbe73e6d03be667d1769b99056fa53af561a0b36694602e29",
+    "src/solver/impl/sem-local-time-step-2d/validation/prepare_inclusions.py": "5371bcfb171adc5403a2ec34924f7be808142e21f4e73817d5960d1f1f24b420",
+    "src/solver/impl/sem-local-time-step-2d/validation/plot_inclusions.py": "045d48ee053c106babab131f878c4329e93ebe90ef97faca1eee0e31734d5566",
+    "src/solver/impl/sem-local-time-step-2d/validation/inclusion_surface_absorbing.json": "361682812352d90640e02e559e1d465685766caf2fb2a607101d4a2952d13932",
+    "src/solver/impl/sem-local-time-step-2d/validation/three_layer_case.h": "7fb92b8d9a8522b1e1268f9bc20f0f1846b1c974eb77e5a77310b1d45b3f5ab4",
+    "tests/units/solver/impl/sem-local-time-step-2d/test_sem_solver_2d_local_time_step.cc": "022f44f2b768c9b189ba884b3065d6cf0b86546d3987a02ccbedfe15de1c811a",
+    "build-lts-cpu/src/solver/impl/sem-local-time-step-2d/sem2d_lts_inclusion_benchmark": "327e96f0f5d7a4d9d11295c49bc7e2118e92f6dbeeb620f8ea69a8ea6e22dcc7"
+  },
+  "validation": {
+    "regression_tests_passed": 82,
+    "regression_tests_failed": 0,
+    "timing_samples_checked": 728,
+    "csv_statistics_checked": true,
+    "energy_balances_checked": true,
+    "document_links_checked": true
+  }
+}

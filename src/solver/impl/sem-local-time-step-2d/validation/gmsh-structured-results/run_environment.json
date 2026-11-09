@@ -1,0 +1,20 @@
+{
+  "study_date": "2026-11-08",
+  "cpu_model": "13th Gen Intel(R) Core(TM) i9-13900HX",
+  "logical_cpus": 32,
+  "timing_cpu_affinity": [
+    0
+  ],
+  "backend": "Kokkos Serial",
+  "build_type": "Release",
+  "compiler": "c++ (Ubuntu 12.3.0-1ubuntu1~22.04.3) 12.3.0",
+  "kernel": "5.15.0-43-generic",
+  "LD_LIBRARY_PATH": "unset for benchmark",
+  "sha256": {
+    "src/solver/impl/sem-local-time-step-2d/validation/gmsh-structured-results/bilayer.msh": "71376834d847983e5d8ae729569fa7a869e2467b975e2f93aacf3c916531e1da",
+    "src/solver/impl/sem-local-time-step-2d/validation/gmsh-structured-results/materials.csv": "b0917b46ed6570a54a0abb0ba363378479767d49c73698fd65a267cca48c98ee",
+    "src/solver/impl/sem-local-time-step-2d/validation/gmsh-structured-results/simulation.txt": "9e7c0401f94c764abe6548350422e6ac2d201d56bf2c87d6c5443689a9c60507",
+    "build-lts-cpu/src/solver/impl/sem-local-time-step-2d/sem2d_gmsh_benchmark": "ef669eaff09410bcfb2910425c5194304d1eb4900bd1ab70ee9da2b6cfda2333"
+  },
+  "unit_test_result": "91 passed, 0 failed (existing CPU executables)"
+}

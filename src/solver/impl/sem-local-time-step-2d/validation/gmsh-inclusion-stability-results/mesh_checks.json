@@ -1,0 +1,31 @@
+{
+  "elements": 2899,
+  "vertex_nodes": 2969,
+  "rectangular_elements": 1516,
+  "boundary_edges": 138,
+  "interior_edges": 5729,
+  "area_m2": 18000000.0,
+  "no_unmatched_interior_edges": true,
+  "propagation_run": false,
+  "regions": {
+    "upper_layer": {
+      "elements": 960,
+      "regular_block_elements": 960,
+      "regular_dx_m": 100.00000000105359,
+      "regular_dz_m": 93.75000000011914
+    },
+    "lower_layer": {
+      "elements": 633,
+      "regular_block_elements": 156,
+      "regular_dx_m": 200.0000000005441,
+      "regular_dz_m": 200.00000000007591
+    },
+    "inclusion": {
+      "elements": 1306,
+      "regular_block_elements": 400,
+      "regular_dx_m": 1.0,
+      "regular_dz_m": 1.0
+    }
+  },
+  "outside_mesh_identical_to_baseline_at_1e_minus6_m": true
+}

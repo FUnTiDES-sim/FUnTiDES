@@ -1,0 +1,46 @@
+{
+  "fine_fraction": 0.030124040165386886,
+  "support_fraction": 0.09273479031305375,
+  "receiver_relative_l2_error_raw": 0.0003676928291471203,
+  "final_energy_fraction": 0.21847337960705474,
+  "max_relative_energy_balance_error": 3.2432609109064818e-06,
+  "max_trajectory_relative_l2_error": 0.000614404559175,
+  "local_over_global_macro_time": 1.2439289314974489,
+  "local_over_global_fine_time": 0.6411190552323298,
+  "macro_dt_over_global_spectral_estimate": 0.8681482950708086,
+  "reference_delta_l2": 2.76334367239e-05,
+  "spectral_estimate_converged": false,
+  "spectral_relative_residual": 0.000135866342122,
+  "spectral_iterations": 2500,
+  "spectral_note": "Numerical estimate only; convergence status does not certify a stability bound",
+  "reference_note": "Same spatial mesh; float64 temporal recurrence, float32 spatial forces",
+  "display_gain": "min((time_s / 1.0)**2, 20.0); shared by reference, local and difference",
+  "fine_elements_by_vp": {
+    "600": 0,
+    "1500": 0,
+    "3000": 51
+  },
+  "mesh_by_vp": {
+    "1500": {
+      "elements": 960,
+      "target_size_m": 100.0,
+      "sqrt_area_median_m": 96.8245836551861,
+      "sqrt_area_q05_m": 96.82458365517809,
+      "sqrt_area_q95_m": 96.82458365519643
+    },
+    "3000": {
+      "elements": 633,
+      "target_size_m": 200.0,
+      "sqrt_area_median_m": 75.47723872823599,
+      "sqrt_area_q05_m": 34.87566255963297,
+      "sqrt_area_q95_m": 200.00000000000009
+    },
+    "600": {
+      "elements": 100,
+      "target_size_m": 40.0,
+      "sqrt_area_median_m": 39.9999999999978,
+      "sqrt_area_q05_m": 39.9999999999978,
+      "sqrt_area_q95_m": 40.00000000000335
+    }
+  }
+}

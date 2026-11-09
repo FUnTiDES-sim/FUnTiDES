@@ -1,0 +1,111 @@
+{
+  "name": "gmsh_slow_inclusion_requires_local_small_step",
+  "status": "executed_passed",
+  "purpose": "Demonstrate that reducing the time step in the inclusion is necessary at the selected macro step",
+  "baseline": "gmsh-structured-results/model.json",
+  "preserve": {
+    "upper_vp_m_s": 1500,
+    "lower_vp_m_s": 3000,
+    "inclusion_vp_m_s": 600,
+    "inclusion_bounds_x_m": [
+      2800,
+      3200
+    ],
+    "inclusion_bounds_z_up_m": [
+      700,
+      1100
+    ],
+    "sem_order": 2,
+    "density": 1,
+    "external_mesh_and_material_interfaces": true,
+    "free_top_absorbing_sides_and_bottom": true
+  },
+  "mesh_variant": {
+    "purpose": "Isolate a temporal stiffness restriction inside the slow inclusion",
+    "fine_patch_bounds_x_m": [
+      2990,
+      3010
+    ],
+    "fine_patch_bounds_z_up_m": [
+      890,
+      910
+    ],
+    "candidate_patch_element_size_m": 1,
+    "candidate_size_is_not_calibrated": false,
+    "inclusion_boundary_element_size_m": 40,
+    "transition_to_boundary": "Conforming graded quadrilaterals entirely inside the 600 m/s inclusion",
+    "require_outside_mesh_identical_to_baseline": true,
+    "output_directory": "gmsh-inclusion-stability-results"
+  },
+  "time_steps": {
+    "subcycling_ratio": 2,
+    "macro_dt_selection": "Calibrate from assembled operators and confirm by propagation, never just twice the minimum geometric estimate",
+    "required_relationship": "macro_dt/2 < critical_dt_refined_mesh < macro_dt < critical_dt_coarse_control",
+    "fine_elements_must_all_have_vp_m_s": 600,
+    "fine_support_may_include_neighbors_outside_inclusion": true,
+    "geometric_estimate_is_not_a_stability_bound": true
+  },
+  "initial_condition": {
+    "background": "Same smooth initial Gaussian field as baseline, with zero initial temporal derivative",
+    "localized_perturbation": "Deterministic nodal perturbation supported strictly inside the refined patch",
+    "relative_perturbation_amplitude": 1e-06,
+    "purpose": "Excite potentially unstable localized modes instead of relying on roundoff",
+    "identical_fields_and_startup_rule_for_refined_mesh_integrators": true,
+    "reference_comparison_requires_reference_refinement_check": true
+  },
+  "cases": [
+    {
+      "name": "coarse_control_global_macro",
+      "mesh": "baseline",
+      "integrator": "global",
+      "dt": "macro_dt",
+      "expected": "stable"
+    },
+    {
+      "name": "refined_global_macro",
+      "mesh": "refined_inclusion",
+      "integrator": "global",
+      "dt": "macro_dt",
+      "expected": "diverges_first_in_inclusion"
+    },
+    {
+      "name": "refined_global_fine",
+      "mesh": "refined_inclusion",
+      "integrator": "global",
+      "dt": "macro_dt/2",
+      "expected": "stable"
+    },
+    {
+      "name": "refined_local",
+      "mesh": "refined_inclusion",
+      "integrator": "local",
+      "dt": "macro_dt outside; macro_dt/2 inside fine region",
+      "expected": "stable_and_accurate"
+    }
+  ],
+  "acceptance": {
+    "physical_duration_s": 3.6,
+    "stable_run_fields_must_be_finite": true,
+    "stable_run_max_amplitude_over_initial_max_below": 10,
+    "unstable_global_amplitude_over_initial_max_above": 100000,
+    "first_global_tenfold_growth_maximum_must_be_in_inclusion": true,
+    "max_relative_local_energy_balance_error": 0.0001,
+    "max_relative_reference_refinement_difference": 0.001,
+    "max_local_final_mass_l2_error_vs_reference": 0.01,
+    "max_local_receiver_l2_error_vs_reference": 0.01,
+    "max_global_fine_final_mass_l2_error_vs_reference": 0.01,
+    "pressure_zero_at_free_surface": true,
+    "fail_if_refined_global_macro_does_not_diverge": true,
+    "fail_if_any_fine_element_outside_inclusion": true,
+    "fail_if_coarse_control_global_macro_diverges": true,
+    "timing_is_not_an_acceptance_criterion": true
+  },
+  "execution": {
+    "date": "2026-11-08",
+    "result_file": "gmsh-inclusion-stability-results/test_result.json",
+    "macro_dt_s": 0.000229445504374,
+    "fine_dt_s": 0.000114722752187,
+    "fine_elements": 144,
+    "fine_outside_inclusion": 0
+  }
+}

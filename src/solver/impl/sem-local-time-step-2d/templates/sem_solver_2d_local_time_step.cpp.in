@@ -1,0 +1,5 @@
+// One translation unit per instantiation: do not duplicate CUDA extended lambdas.
+#define FUNTIDES_SEM2D_LTS_INSTANTIATION
+#include "sem_solver_2d_local_time_step.h"
+
+template class solver::SEMsolver2DLocalTimeStep<@ORDER@, @MODEL_ON_NODES@>;

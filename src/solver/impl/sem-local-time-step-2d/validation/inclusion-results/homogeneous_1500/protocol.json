@@ -1,0 +1,1 @@
+{"backend": "Serial", "repetitions": 7, "warmups": 2, "seed": 20261109, "fine_elements": 0, "support_elements": 0, "reference_delta_l2": 0.000254103199592, "global_dt_limit_estimate_s": 0.0192459548894, "target_steps_are_executed": false, "loop_excludes": "setup, diagnostics, host copies, IO"}

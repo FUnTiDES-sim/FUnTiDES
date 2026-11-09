@@ -1,0 +1,7 @@
+{
+  "absorbing_final_energy_fraction": 0.000825091668590928,
+  "rigid_final_energy_fraction": 0.9999998788790442,
+  "inclusion_surface_response_l2_norm": 0.1904420590048648,
+  "inclusion_surface_response_relative_l2_error": 0.08940665009045047,
+  "rigid_minus_absorbing_surface_difference_l2_norm": 7.791294431127344
+}

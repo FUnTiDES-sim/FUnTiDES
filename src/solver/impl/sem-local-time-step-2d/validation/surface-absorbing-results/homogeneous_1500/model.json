@@ -1,0 +1,33 @@
+{
+  "name": "homogeneous_1500",
+  "mesh": {
+    "lx": 6000,
+    "lz": 3000,
+    "ex": 60,
+    "ez": 30,
+    "order": 2
+  },
+  "initial_field": {
+    "x": 2200,
+    "z": 3000,
+    "sigma": 160
+  },
+  "boundary_conditions": "absorbing",
+  "reference_time_accumulation": "float64",
+  "duration_s": 3.6,
+  "partition": {
+    "macro_dt_s": 0.012,
+    "cfl": 0.6
+  },
+  "regions": [
+    {
+      "id": 0,
+      "elements": 1800,
+      "vp": 1500,
+      "rho": 1,
+      "target_dt_s": 0.012
+    }
+  ],
+  "target_steps_are_executed": false,
+  "actual_integrator": "LF-LTS 2:1; fixed projection from velocity diagnostics"
+}

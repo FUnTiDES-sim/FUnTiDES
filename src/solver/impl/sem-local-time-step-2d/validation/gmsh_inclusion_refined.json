@@ -1,0 +1,55 @@
+{
+  "domain": {
+    "lx_m": 6000,
+    "lz_m": 3000,
+    "interface_z_m": 1500
+  },
+  "upper_layer": {
+    "physical_tag": 10,
+    "vp_m_s": 1500,
+    "rho": 1
+  },
+  "lower_layer": {
+    "physical_tag": 20,
+    "vp_m_s": 3000,
+    "rho": 1
+  },
+  "inclusion": {
+    "physical_tag": 30,
+    "vp_m_s": 600,
+    "rho": 1,
+    "x_min": 2800,
+    "x_max": 3200,
+    "z_min": 700,
+    "z_max": 1100
+  },
+  "mesh": {
+    "sem_order": 2,
+    "design_fmax_hz": 5,
+    "elements_per_wavelength": 3,
+    "transition_m": 250,
+    "interface_transition_bottom_z_m": 1200,
+    "inclusion_patch": {
+      "x_min": 2400,
+      "x_max": 3600,
+      "z_min": 400
+    },
+    "interior_refinement": {
+      "x_min": 2990,
+      "x_max": 3010,
+      "z_min": 890,
+      "z_max": 910,
+      "element_size_m": 1.0,
+      "transition_m": 100
+    }
+  },
+  "simulation": {
+    "duration_s": 3.6,
+    "source_x_m": 2200,
+    "source_depth_m": 200,
+    "source_sigma_m": 160,
+    "receiver_depth_m": 50,
+    "cfl": 0.3,
+    "repetitions": 7
+  }
+}

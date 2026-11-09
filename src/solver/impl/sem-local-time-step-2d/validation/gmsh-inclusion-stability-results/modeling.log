@@ -1,0 +1,9 @@
+Calibrated macro 0.229446 ms, fine 0.114723 ms; global limits refined/control 0.191275/1.53243 ms; 144 fine elements, all at 600 m/s
+Global macro divergence at 0.00688337 s; first growth at (3010.58,898.333)
+Physical time 0.6/3.6 s
+Physical time 1.2/3.6 s
+Physical time 1.8/3.6 s
+Physical time 2.4/3.6 s
+Physical time 3/3.6 s
+Physical time 3.6/3.6 s
+PASS: local error 0.000441081, fine error 0.00391405, trace error 0.000420572, reference delta 8.49114e-07

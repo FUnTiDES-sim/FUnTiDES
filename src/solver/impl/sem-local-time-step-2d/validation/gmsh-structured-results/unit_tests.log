@@ -1,0 +1,188 @@
+Internal ctest changing into directory: /home/henri/src/projectWithClaude/FUnTiDES-dir/FUnTiDES-sem-local-timesetp-2d/build-lts-cpu
+Test project /home/henri/src/projectWithClaude/FUnTiDES-dir/FUnTiDES-sem-local-timesetp-2d/build-lts-cpu
+      Start   4: Gmsh2DReader.SparseTagsClockwiseQuadAndSharedGLLNodes
+ 1/91 Test   #4: Gmsh2DReader.SparseTagsClockwiseQuadAndSharedGLLNodes ................................................................................   Passed    0.00 sec
+      Start   5: Gmsh2DReader.RejectsUnsupportedFormatAndElementType
+ 2/91 Test   #5: Gmsh2DReader.RejectsUnsupportedFormatAndElementType ..................................................................................   Passed    0.02 sec
+      Start   6: Gmsh2DReader.InterpolatesGLLFieldsWithoutSnappingReceivers
+ 3/91 Test   #6: Gmsh2DReader.InterpolatesGLLFieldsWithoutSnappingReceivers ...........................................................................   Passed    0.00 sec
+      Start   7: Gmsh2DReader.RejectsUnknownTagsAndNonplanarGeometry
+ 4/91 Test   #7: Gmsh2DReader.RejectsUnknownTagsAndNonplanarGeometry ..................................................................................   Passed    0.00 sec
+      Start   8: Gmsh2DReader.RejectsFoldedElementsAndUnmarkedBoundary
+ 5/91 Test   #8: Gmsh2DReader.RejectsFoldedElementsAndUnmarkedBoundary ................................................................................   Passed    0.00 sec
+      Start  12: SemSolver2DTest/std::integral_constant<int, 1>.MassSumsToAreaOverVp2Rho
+ 6/91 Test  #12: SemSolver2DTest/std::integral_constant<int, 1>.MassSumsToAreaOverVp2Rho ..............................................................   Passed    0.00 sec
+      Start  13: SemSolver2DTest/std::integral_constant<int, 1>.BoundaryEdgesAndDampingLength
+ 7/91 Test  #13: SemSolver2DTest/std::integral_constant<int, 1>.BoundaryEdgesAndDampingLength .........................................................   Passed    0.00 sec
+      Start  14: SemSolver2DTest/std::integral_constant<int, 1>.ConstantFieldHasNoStiffnessForce
+ 8/91 Test  #14: SemSolver2DTest/std::integral_constant<int, 1>.ConstantFieldHasNoStiffnessForce ......................................................   Passed    0.00 sec
+      Start  15: SemSolver2DTest/std::integral_constant<int, 1>.RigidBoxEigenmodeIsReproduced
+ 9/91 Test  #15: SemSolver2DTest/std::integral_constant<int, 1>.RigidBoxEigenmodeIsReproduced .........................................................   Passed    0.00 sec
+      Start  16: SemSolver2DTest/std::integral_constant<int, 1>.PointSourceFieldIsSymmetric
+10/91 Test  #16: SemSolver2DTest/std::integral_constant<int, 1>.PointSourceFieldIsSymmetric ...........................................................   Passed    0.00 sec
+      Start  17: SemSolver2DTest/std::integral_constant<int, 1>.FreeSurfaceNodesStayAtZero
+11/91 Test  #17: SemSolver2DTest/std::integral_constant<int, 1>.FreeSurfaceNodesStayAtZero ............................................................   Passed    0.00 sec
+      Start  18: SemSolver2DTest/std::integral_constant<int, 1>.AbsorbingEdgesRemoveTheEnergy
+12/91 Test  #18: SemSolver2DTest/std::integral_constant<int, 1>.AbsorbingEdgesRemoveTheEnergy .........................................................   Passed    0.00 sec
+      Start  19: SemSolver2DTest/std::integral_constant<int, 1>.RejectsUnsupportedInput
+13/91 Test  #19: SemSolver2DTest/std::integral_constant<int, 1>.RejectsUnsupportedInput ...............................................................   Passed    0.00 sec
+      Start  20: SemSolver2DTest/std::integral_constant<int, 2>.MassSumsToAreaOverVp2Rho
+14/91 Test  #20: SemSolver2DTest/std::integral_constant<int, 2>.MassSumsToAreaOverVp2Rho ..............................................................   Passed    0.00 sec
+      Start  21: SemSolver2DTest/std::integral_constant<int, 2>.BoundaryEdgesAndDampingLength
+15/91 Test  #21: SemSolver2DTest/std::integral_constant<int, 2>.BoundaryEdgesAndDampingLength .........................................................   Passed    0.00 sec
+      Start  22: SemSolver2DTest/std::integral_constant<int, 2>.ConstantFieldHasNoStiffnessForce
+16/91 Test  #22: SemSolver2DTest/std::integral_constant<int, 2>.ConstantFieldHasNoStiffnessForce ......................................................   Passed    0.00 sec
+      Start  23: SemSolver2DTest/std::integral_constant<int, 2>.RigidBoxEigenmodeIsReproduced
+17/91 Test  #23: SemSolver2DTest/std::integral_constant<int, 2>.RigidBoxEigenmodeIsReproduced .........................................................   Passed    0.00 sec
+      Start  24: SemSolver2DTest/std::integral_constant<int, 2>.PointSourceFieldIsSymmetric
+18/91 Test  #24: SemSolver2DTest/std::integral_constant<int, 2>.PointSourceFieldIsSymmetric ...........................................................   Passed    0.00 sec
+      Start  25: SemSolver2DTest/std::integral_constant<int, 2>.FreeSurfaceNodesStayAtZero
+19/91 Test  #25: SemSolver2DTest/std::integral_constant<int, 2>.FreeSurfaceNodesStayAtZero ............................................................   Passed    0.00 sec
+      Start  26: SemSolver2DTest/std::integral_constant<int, 2>.AbsorbingEdgesRemoveTheEnergy
+20/91 Test  #26: SemSolver2DTest/std::integral_constant<int, 2>.AbsorbingEdgesRemoveTheEnergy .........................................................   Passed    0.02 sec
+      Start  27: SemSolver2DTest/std::integral_constant<int, 2>.RejectsUnsupportedInput
+21/91 Test  #27: SemSolver2DTest/std::integral_constant<int, 2>.RejectsUnsupportedInput ...............................................................   Passed    0.00 sec
+      Start  31: SEM2DLocalTimeStepPlanTest/std::integral_constant<int, 1>.UniformMeshNeedsNoFineRegion
+22/91 Test  #31: SEM2DLocalTimeStepPlanTest/std::integral_constant<int, 1>.UniformMeshNeedsNoFineRegion ...............................................   Passed    0.00 sec
+      Start  32: SEM2DLocalTimeStepPlanTest/std::integral_constant<int, 1>.AllFineMeshHasNoCoarseInterface
+23/91 Test  #32: SEM2DLocalTimeStepPlanTest/std::integral_constant<int, 1>.AllFineMeshHasNoCoarseInterface ............................................   Passed    0.00 sec
+      Start  33: SEM2DLocalTimeStepPlanTest/std::integral_constant<int, 1>.RefinedCellIncludesCoarseNeighboursInSupport
+24/91 Test  #33: SEM2DLocalTimeStepPlanTest/std::integral_constant<int, 1>.RefinedCellIncludesCoarseNeighboursInSupport ...............................   Passed    0.00 sec
+      Start  34: SEM2DLocalTimeStepPlanTest/std::integral_constant<int, 1>.FasterMaterialRequiresFineSteps
+25/91 Test  #34: SEM2DLocalTimeStepPlanTest/std::integral_constant<int, 1>.FasterMaterialRequiresFineSteps ............................................   Passed    0.00 sec
+      Start  35: SEM2DLocalTimeStepPlanTest/std::integral_constant<int, 1>.NodalModelUsesFastestNodeOfEachElement
+26/91 Test  #35: SEM2DLocalTimeStepPlanTest/std::integral_constant<int, 1>.NodalModelUsesFastestNodeOfEachElement .....................................   Passed    0.00 sec
+      Start  36: SEM2DLocalTimeStepPlanTest/std::integral_constant<int, 2>.UniformMeshNeedsNoFineRegion
+27/91 Test  #36: SEM2DLocalTimeStepPlanTest/std::integral_constant<int, 2>.UniformMeshNeedsNoFineRegion ...............................................   Passed    0.00 sec
+      Start  37: SEM2DLocalTimeStepPlanTest/std::integral_constant<int, 2>.AllFineMeshHasNoCoarseInterface
+28/91 Test  #37: SEM2DLocalTimeStepPlanTest/std::integral_constant<int, 2>.AllFineMeshHasNoCoarseInterface ............................................   Passed    0.00 sec
+      Start  38: SEM2DLocalTimeStepPlanTest/std::integral_constant<int, 2>.RefinedCellIncludesCoarseNeighboursInSupport
+29/91 Test  #38: SEM2DLocalTimeStepPlanTest/std::integral_constant<int, 2>.RefinedCellIncludesCoarseNeighboursInSupport ...............................   Passed    0.00 sec
+      Start  39: SEM2DLocalTimeStepPlanTest/std::integral_constant<int, 2>.FasterMaterialRequiresFineSteps
+30/91 Test  #39: SEM2DLocalTimeStepPlanTest/std::integral_constant<int, 2>.FasterMaterialRequiresFineSteps ............................................   Passed    0.00 sec
+      Start  40: SEM2DLocalTimeStepPlanTest/std::integral_constant<int, 2>.NodalModelUsesFastestNodeOfEachElement
+31/91 Test  #40: SEM2DLocalTimeStepPlanTest/std::integral_constant<int, 2>.NodalModelUsesFastestNodeOfEachElement .....................................   Passed    0.00 sec
+      Start  41: SEM2DLocalTimeStepPlanTest/std::integral_constant<int, 4>.UniformMeshNeedsNoFineRegion
+32/91 Test  #41: SEM2DLocalTimeStepPlanTest/std::integral_constant<int, 4>.UniformMeshNeedsNoFineRegion ...............................................   Passed    0.00 sec
+      Start  42: SEM2DLocalTimeStepPlanTest/std::integral_constant<int, 4>.AllFineMeshHasNoCoarseInterface
+33/91 Test  #42: SEM2DLocalTimeStepPlanTest/std::integral_constant<int, 4>.AllFineMeshHasNoCoarseInterface ............................................   Passed    0.00 sec
+      Start  43: SEM2DLocalTimeStepPlanTest/std::integral_constant<int, 4>.RefinedCellIncludesCoarseNeighboursInSupport
+34/91 Test  #43: SEM2DLocalTimeStepPlanTest/std::integral_constant<int, 4>.RefinedCellIncludesCoarseNeighboursInSupport ...............................   Passed    0.00 sec
+      Start  44: SEM2DLocalTimeStepPlanTest/std::integral_constant<int, 4>.FasterMaterialRequiresFineSteps
+35/91 Test  #44: SEM2DLocalTimeStepPlanTest/std::integral_constant<int, 4>.FasterMaterialRequiresFineSteps ............................................   Passed    0.00 sec
+      Start  45: SEM2DLocalTimeStepPlanTest/std::integral_constant<int, 4>.NodalModelUsesFastestNodeOfEachElement
+36/91 Test  #45: SEM2DLocalTimeStepPlanTest/std::integral_constant<int, 4>.NodalModelUsesFastestNodeOfEachElement .....................................   Passed    0.00 sec
+      Start  46: SEM2DLocalTimeStepPlanTest/std::integral_constant<int, 9>.UniformMeshNeedsNoFineRegion
+37/91 Test  #46: SEM2DLocalTimeStepPlanTest/std::integral_constant<int, 9>.UniformMeshNeedsNoFineRegion ...............................................   Passed    0.00 sec
+      Start  47: SEM2DLocalTimeStepPlanTest/std::integral_constant<int, 9>.AllFineMeshHasNoCoarseInterface
+38/91 Test  #47: SEM2DLocalTimeStepPlanTest/std::integral_constant<int, 9>.AllFineMeshHasNoCoarseInterface ............................................   Passed    0.00 sec
+      Start  48: SEM2DLocalTimeStepPlanTest/std::integral_constant<int, 9>.RefinedCellIncludesCoarseNeighboursInSupport
+39/91 Test  #48: SEM2DLocalTimeStepPlanTest/std::integral_constant<int, 9>.RefinedCellIncludesCoarseNeighboursInSupport ...............................   Passed    0.00 sec
+      Start  49: SEM2DLocalTimeStepPlanTest/std::integral_constant<int, 9>.FasterMaterialRequiresFineSteps
+40/91 Test  #49: SEM2DLocalTimeStepPlanTest/std::integral_constant<int, 9>.FasterMaterialRequiresFineSteps ............................................   Passed    0.00 sec
+      Start  50: SEM2DLocalTimeStepPlanTest/std::integral_constant<int, 9>.NodalModelUsesFastestNodeOfEachElement
+41/91 Test  #50: SEM2DLocalTimeStepPlanTest/std::integral_constant<int, 9>.NodalModelUsesFastestNodeOfEachElement .....................................   Passed    0.00 sec
+      Start  51: SEM2DLocalTimeStepPlan.ReadsVelocitiesUpdatedOnDevice
+42/91 Test  #51: SEM2DLocalTimeStepPlan.ReadsVelocitiesUpdatedOnDevice ................................................................................   Passed    0.00 sec
+      Start  52: SEM2DLocalTimeStepPlan.RejectsStepsRequiringMoreThanTwoLevels
+43/91 Test  #52: SEM2DLocalTimeStepPlan.RejectsStepsRequiringMoreThanTwoLevels ........................................................................   Passed    0.00 sec
+      Start  53: SEM2DLocalTimeStepPlan.RejectsInvalidParameters
+44/91 Test  #53: SEM2DLocalTimeStepPlan.RejectsInvalidParameters ......................................................................................   Passed    0.00 sec
+      Start  54: SEM2DLocalTimeStepPlan.RejectsInvalidVelocitiesForBothLocations
+45/91 Test  #54: SEM2DLocalTimeStepPlan.RejectsInvalidVelocitiesForBothLocations ......................................................................   Passed    0.00 sec
+      Start  55: SEM2DLocalTimeStepPlan.RejectsInvalidCoordinatesAndConnectivity
+46/91 Test  #55: SEM2DLocalTimeStepPlan.RejectsInvalidCoordinatesAndConnectivity ......................................................................   Passed    0.00 sec
+      Start  56: SEM2DLocalTimeStepPlan.RejectsZeroSpacing
+47/91 Test  #56: SEM2DLocalTimeStepPlan.RejectsZeroSpacing ............................................................................................   Passed    0.00 sec
+      Start  57: SEM2DLocalTimeStepPlan.RejectsNon2DAndEmptyMeshes
+48/91 Test  #57: SEM2DLocalTimeStepPlan.RejectsNon2DAndEmptyMeshes ....................................................................................   Passed    0.00 sec
+      Start  58: SEM2DLTSTest/solver::test::(anonymous namespace)::Config<1, false>.FreeTopWithAbsorbingSidesKeepsZeroPressureAndDissipationBalance
+49/91 Test  #58: SEM2DLTSTest/solver::test::(anonymous namespace)::Config<1, false>.FreeTopWithAbsorbingSidesKeepsZeroPressureAndDissipationBalance ...   Passed    0.00 sec
+      Start  59: SEM2DLTSTest/solver::test::(anonymous namespace)::Config<1, false>.AbsorbingNoFineRegionMatchesGlobalAndInitialVelocityTaylor
+50/91 Test  #59: SEM2DLTSTest/solver::test::(anonymous namespace)::Config<1, false>.AbsorbingNoFineRegionMatchesGlobalAndInitialVelocityTaylor ........   Passed    0.00 sec
+      Start  60: SEM2DLTSTest/solver::test::(anonymous namespace)::Config<1, false>.AbsorbingMixedLevelsSatisfyDiscreteDissipationBalance
+51/91 Test  #60: SEM2DLTSTest/solver::test::(anonymous namespace)::Config<1, false>.AbsorbingMixedLevelsSatisfyDiscreteDissipationBalance .............   Passed    0.01 sec
+      Start  61: SEM2DLTSTest/solver::test::(anonymous namespace)::Config<1, false>.SpatialOperatorMatchesReferenceWithHeterogeneousDensity
+52/91 Test  #61: SEM2DLTSTest/solver::test::(anonymous namespace)::Config<1, false>.SpatialOperatorMatchesReferenceWithHeterogeneousDensity ...........   Passed    0.00 sec
+      Start  62: SEM2DLTSTest/solver::test::(anonymous namespace)::Config<1, false>.FineSupportMatchesFullOperatorOnFineFields
+53/91 Test  #62: SEM2DLTSTest/solver::test::(anonymous namespace)::Config<1, false>.FineSupportMatchesFullOperatorOnFineFields ........................   Passed    0.00 sec
+      Start  63: SEM2DLTSTest/solver::test::(anonymous namespace)::Config<1, false>.NoFineRegionMatchesGlobalVerlet
+54/91 Test  #63: SEM2DLTSTest/solver::test::(anonymous namespace)::Config<1, false>.NoFineRegionMatchesGlobalVerlet ...................................   Passed    0.00 sec
+      Start  64: SEM2DLTSTest/solver::test::(anonymous namespace)::Config<1, false>.MatchesIndependentTwoStageChebyshevRecurrence
+55/91 Test  #64: SEM2DLTSTest/solver::test::(anonymous namespace)::Config<1, false>.MatchesIndependentTwoStageChebyshevRecurrence .....................   Passed    0.00 sec
+      Start  65: SEM2DLTSTest/solver::test::(anonymous namespace)::Config<1, false>.ModifiedEnergyIsConservedAcrossTimeInterface
+56/91 Test  #65: SEM2DLTSTest/solver::test::(anonymous namespace)::Config<1, false>.ModifiedEnergyIsConservedAcrossTimeInterface ......................   Passed    0.01 sec
+      Start  66: SEM2DLTSTest/solver::test::(anonymous namespace)::Config<1, false>.RejectsInvalidMaterialBeforeAssembly
+57/91 Test  #66: SEM2DLTSTest/solver::test::(anonymous namespace)::Config<1, false>.RejectsInvalidMaterialBeforeAssembly ..............................   Passed    0.00 sec
+      Start  67: SEM2DLTSTest/solver::test::(anonymous namespace)::Config<1, true>.FreeTopWithAbsorbingSidesKeepsZeroPressureAndDissipationBalance
+58/91 Test  #67: SEM2DLTSTest/solver::test::(anonymous namespace)::Config<1, true>.FreeTopWithAbsorbingSidesKeepsZeroPressureAndDissipationBalance ....   Passed    0.01 sec
+      Start  68: SEM2DLTSTest/solver::test::(anonymous namespace)::Config<1, true>.AbsorbingNoFineRegionMatchesGlobalAndInitialVelocityTaylor
+59/91 Test  #68: SEM2DLTSTest/solver::test::(anonymous namespace)::Config<1, true>.AbsorbingNoFineRegionMatchesGlobalAndInitialVelocityTaylor .........   Passed    0.00 sec
+      Start  69: SEM2DLTSTest/solver::test::(anonymous namespace)::Config<1, true>.AbsorbingMixedLevelsSatisfyDiscreteDissipationBalance
+60/91 Test  #69: SEM2DLTSTest/solver::test::(anonymous namespace)::Config<1, true>.AbsorbingMixedLevelsSatisfyDiscreteDissipationBalance ..............   Passed    0.01 sec
+      Start  70: SEM2DLTSTest/solver::test::(anonymous namespace)::Config<1, true>.SpatialOperatorMatchesReferenceWithHeterogeneousDensity
+61/91 Test  #70: SEM2DLTSTest/solver::test::(anonymous namespace)::Config<1, true>.SpatialOperatorMatchesReferenceWithHeterogeneousDensity ............   Passed    0.00 sec
+      Start  71: SEM2DLTSTest/solver::test::(anonymous namespace)::Config<1, true>.FineSupportMatchesFullOperatorOnFineFields
+62/91 Test  #71: SEM2DLTSTest/solver::test::(anonymous namespace)::Config<1, true>.FineSupportMatchesFullOperatorOnFineFields .........................   Passed    0.00 sec
+      Start  72: SEM2DLTSTest/solver::test::(anonymous namespace)::Config<1, true>.NoFineRegionMatchesGlobalVerlet
+63/91 Test  #72: SEM2DLTSTest/solver::test::(anonymous namespace)::Config<1, true>.NoFineRegionMatchesGlobalVerlet ....................................   Passed    0.00 sec
+      Start  73: SEM2DLTSTest/solver::test::(anonymous namespace)::Config<1, true>.MatchesIndependentTwoStageChebyshevRecurrence
+64/91 Test  #73: SEM2DLTSTest/solver::test::(anonymous namespace)::Config<1, true>.MatchesIndependentTwoStageChebyshevRecurrence ......................   Passed    0.00 sec
+      Start  74: SEM2DLTSTest/solver::test::(anonymous namespace)::Config<1, true>.ModifiedEnergyIsConservedAcrossTimeInterface
+65/91 Test  #74: SEM2DLTSTest/solver::test::(anonymous namespace)::Config<1, true>.ModifiedEnergyIsConservedAcrossTimeInterface .......................   Passed    0.01 sec
+      Start  75: SEM2DLTSTest/solver::test::(anonymous namespace)::Config<1, true>.RejectsInvalidMaterialBeforeAssembly
+66/91 Test  #75: SEM2DLTSTest/solver::test::(anonymous namespace)::Config<1, true>.RejectsInvalidMaterialBeforeAssembly ...............................   Passed    0.00 sec
+      Start  76: SEM2DLTSTest/solver::test::(anonymous namespace)::Config<2, false>.FreeTopWithAbsorbingSidesKeepsZeroPressureAndDissipationBalance
+67/91 Test  #76: SEM2DLTSTest/solver::test::(anonymous namespace)::Config<2, false>.FreeTopWithAbsorbingSidesKeepsZeroPressureAndDissipationBalance ...   Passed    0.01 sec
+      Start  77: SEM2DLTSTest/solver::test::(anonymous namespace)::Config<2, false>.AbsorbingNoFineRegionMatchesGlobalAndInitialVelocityTaylor
+68/91 Test  #77: SEM2DLTSTest/solver::test::(anonymous namespace)::Config<2, false>.AbsorbingNoFineRegionMatchesGlobalAndInitialVelocityTaylor ........   Passed    0.00 sec
+      Start  78: SEM2DLTSTest/solver::test::(anonymous namespace)::Config<2, false>.AbsorbingMixedLevelsSatisfyDiscreteDissipationBalance
+69/91 Test  #78: SEM2DLTSTest/solver::test::(anonymous namespace)::Config<2, false>.AbsorbingMixedLevelsSatisfyDiscreteDissipationBalance .............   Passed    0.01 sec
+      Start  79: SEM2DLTSTest/solver::test::(anonymous namespace)::Config<2, false>.SpatialOperatorMatchesReferenceWithHeterogeneousDensity
+70/91 Test  #79: SEM2DLTSTest/solver::test::(anonymous namespace)::Config<2, false>.SpatialOperatorMatchesReferenceWithHeterogeneousDensity ...........   Passed    0.00 sec
+      Start  80: SEM2DLTSTest/solver::test::(anonymous namespace)::Config<2, false>.FineSupportMatchesFullOperatorOnFineFields
+71/91 Test  #80: SEM2DLTSTest/solver::test::(anonymous namespace)::Config<2, false>.FineSupportMatchesFullOperatorOnFineFields ........................   Passed    0.00 sec
+      Start  81: SEM2DLTSTest/solver::test::(anonymous namespace)::Config<2, false>.NoFineRegionMatchesGlobalVerlet
+72/91 Test  #81: SEM2DLTSTest/solver::test::(anonymous namespace)::Config<2, false>.NoFineRegionMatchesGlobalVerlet ...................................   Passed    0.00 sec
+      Start  82: SEM2DLTSTest/solver::test::(anonymous namespace)::Config<2, false>.MatchesIndependentTwoStageChebyshevRecurrence
+73/91 Test  #82: SEM2DLTSTest/solver::test::(anonymous namespace)::Config<2, false>.MatchesIndependentTwoStageChebyshevRecurrence .....................   Passed    0.00 sec
+      Start  83: SEM2DLTSTest/solver::test::(anonymous namespace)::Config<2, false>.ModifiedEnergyIsConservedAcrossTimeInterface
+74/91 Test  #83: SEM2DLTSTest/solver::test::(anonymous namespace)::Config<2, false>.ModifiedEnergyIsConservedAcrossTimeInterface ......................   Passed    0.01 sec
+      Start  84: SEM2DLTSTest/solver::test::(anonymous namespace)::Config<2, false>.RejectsInvalidMaterialBeforeAssembly
+75/91 Test  #84: SEM2DLTSTest/solver::test::(anonymous namespace)::Config<2, false>.RejectsInvalidMaterialBeforeAssembly ..............................   Passed    0.00 sec
+      Start  85: SEM2DLTSTest/solver::test::(anonymous namespace)::Config<2, true>.FreeTopWithAbsorbingSidesKeepsZeroPressureAndDissipationBalance
+76/91 Test  #85: SEM2DLTSTest/solver::test::(anonymous namespace)::Config<2, true>.FreeTopWithAbsorbingSidesKeepsZeroPressureAndDissipationBalance ....   Passed    0.01 sec
+      Start  86: SEM2DLTSTest/solver::test::(anonymous namespace)::Config<2, true>.AbsorbingNoFineRegionMatchesGlobalAndInitialVelocityTaylor
+77/91 Test  #86: SEM2DLTSTest/solver::test::(anonymous namespace)::Config<2, true>.AbsorbingNoFineRegionMatchesGlobalAndInitialVelocityTaylor .........   Passed    0.00 sec
+      Start  87: SEM2DLTSTest/solver::test::(anonymous namespace)::Config<2, true>.AbsorbingMixedLevelsSatisfyDiscreteDissipationBalance
+78/91 Test  #87: SEM2DLTSTest/solver::test::(anonymous namespace)::Config<2, true>.AbsorbingMixedLevelsSatisfyDiscreteDissipationBalance ..............   Passed    0.01 sec
+      Start  88: SEM2DLTSTest/solver::test::(anonymous namespace)::Config<2, true>.SpatialOperatorMatchesReferenceWithHeterogeneousDensity
+79/91 Test  #88: SEM2DLTSTest/solver::test::(anonymous namespace)::Config<2, true>.SpatialOperatorMatchesReferenceWithHeterogeneousDensity ............   Passed    0.00 sec
+      Start  89: SEM2DLTSTest/solver::test::(anonymous namespace)::Config<2, true>.FineSupportMatchesFullOperatorOnFineFields
+80/91 Test  #89: SEM2DLTSTest/solver::test::(anonymous namespace)::Config<2, true>.FineSupportMatchesFullOperatorOnFineFields .........................   Passed    0.00 sec
+      Start  90: SEM2DLTSTest/solver::test::(anonymous namespace)::Config<2, true>.NoFineRegionMatchesGlobalVerlet
+81/91 Test  #90: SEM2DLTSTest/solver::test::(anonymous namespace)::Config<2, true>.NoFineRegionMatchesGlobalVerlet ....................................   Passed    0.00 sec
+      Start  91: SEM2DLTSTest/solver::test::(anonymous namespace)::Config<2, true>.MatchesIndependentTwoStageChebyshevRecurrence
+82/91 Test  #91: SEM2DLTSTest/solver::test::(anonymous namespace)::Config<2, true>.MatchesIndependentTwoStageChebyshevRecurrence ......................   Passed    0.00 sec
+      Start  92: SEM2DLTSTest/solver::test::(anonymous namespace)::Config<2, true>.ModifiedEnergyIsConservedAcrossTimeInterface
+83/91 Test  #92: SEM2DLTSTest/solver::test::(anonymous namespace)::Config<2, true>.ModifiedEnergyIsConservedAcrossTimeInterface .......................   Passed    0.01 sec
+      Start  93: SEM2DLTSTest/solver::test::(anonymous namespace)::Config<2, true>.RejectsInvalidMaterialBeforeAssembly
+84/91 Test  #93: SEM2DLTSTest/solver::test::(anonymous namespace)::Config<2, true>.RejectsInvalidMaterialBeforeAssembly ...............................   Passed    0.00 sec
+      Start  94: SEM2DLTS.RejectsUnsupportedRunsAndInvalidState
+85/91 Test  #94: SEM2DLTS.RejectsUnsupportedRunsAndInvalidState .......................................................................................   Passed    0.00 sec
+      Start  95: SEM2DLTS.AcceptsAbsorbingBoundaryAndRejectsModelLocationMismatch
+86/91 Test  #95: SEM2DLTS.AcceptsAbsorbingBoundaryAndRejectsModelLocationMismatch .....................................................................   Passed    0.00 sec
+      Start  96: SEM2DLTS.FreeSurfaceProjectionRemainsSymmetricAndZero
+87/91 Test  #96: SEM2DLTS.FreeSurfaceProjectionRemainsSymmetricAndZero ................................................................................   Passed    0.00 sec
+      Start  97: SEM2DLTS.CornerNeighboursContributeToFineOperator
+88/91 Test  #97: SEM2DLTS.CornerNeighboursContributeToFineOperator ....................................................................................   Passed    0.00 sec
+      Start  98: SEM2DLTS.PulseCrossesInterfacesWithSecondOrderTemporalConvergence
+89/91 Test  #98: SEM2DLTS.PulseCrossesInterfacesWithSecondOrderTemporalConvergence ....................................................................   Passed    0.01 sec
+      Start  99: SEM2DLTS.RemainsBoundedWhenGlobalMacroStepIsUnstable
+90/91 Test  #99: SEM2DLTS.RemainsBoundedWhenGlobalMacroStepIsUnstable .................................................................................   Passed    0.01 sec
+      Start 100: SEM2DLTS.ThreeLayersAdaptToVelocityAndMatchSmallGlobalStep
+91/91 Test #100: SEM2DLTS.ThreeLayersAdaptToVelocityAndMatchSmallGlobalStep ...........................................................................   Passed    0.47 sec
+
+100% tests passed, 0 tests failed out of 91
+
+Total Test time (real) =   0.74 sec

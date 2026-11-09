@@ -1,0 +1,42 @@
+{
+  "fine_fraction": 0.038476190476190476,
+  "support_fraction": 0.09180952380952381,
+  "receiver_relative_l2_error_raw": 0.0016827684342367877,
+  "final_energy_fraction": 0.21837953168768287,
+  "max_relative_energy_balance_error": 4.940155909899749e-06,
+  "max_trajectory_relative_l2_error": 0.00110741963625,
+  "local_over_global_macro_time": 1.2672844054457644,
+  "local_over_global_fine_time": 0.6445954960698401,
+  "macro_dt_over_global_spectral_estimate": 0.8957343387810461,
+  "reference_delta_l2": 5.41735017652e-05,
+  "reference_note": "Same spatial mesh; float64 temporal recurrence, float32 spatial forces",
+  "display_gain": "min((time_s / 1.0)**2, 20.0); shared by reference, local and difference",
+  "fine_elements_by_vp": {
+    "600": 0,
+    "1500": 0,
+    "3000": 101
+  },
+  "mesh_by_vp": {
+    "1500": {
+      "elements": 1662,
+      "target_size_m": 100.0,
+      "sqrt_area_median_m": 75.88987566058962,
+      "sqrt_area_q05_m": 63.90788481794435,
+      "sqrt_area_q95_m": 77.8733783879667
+    },
+    "3000": {
+      "elements": 765,
+      "target_size_m": 200.0,
+      "sqrt_area_median_m": 100.77460325763012,
+      "sqrt_area_q05_m": 35.80924628009142,
+      "sqrt_area_q95_m": 154.83445951546668
+    },
+    "600": {
+      "elements": 198,
+      "target_size_m": 40.0,
+      "sqrt_area_median_m": 28.143220485471886,
+      "sqrt_area_q05_m": 25.16472401373334,
+      "sqrt_area_q95_m": 31.54156669840378
+    }
+  }
+}

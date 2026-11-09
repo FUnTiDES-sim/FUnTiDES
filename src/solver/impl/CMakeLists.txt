@@ -40,6 +40,7 @@ if(COMPILE_DG_PADAPTIVE)
 endif()
 if(COMPILE_SEM_2D)
   add_subdirectory(sem2d)
+  add_subdirectory(sem-local-time-step-2d)
 endif()
 
 set(SOLV_LIBS fun_discretization fun_core fun_parallel fun_model fun_solver_api)

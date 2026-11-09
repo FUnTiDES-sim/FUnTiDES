@@ -60,6 +60,20 @@ if(COMPILE_SEM_2D)
     impl/sem2d/test_sem_solver_2d.cc
     "fun_solver;fun_model"
   )
+  add_gtest(sem_2d_local_time_step_plan_test
+    impl/sem-local-time-step-2d/test_sem_2d_local_time_step_plan.cc
+    "fun_solver;fun_model"
+  )
+  add_gtest(sem_solver_2d_local_time_step_test
+    impl/sem-local-time-step-2d/test_sem_solver_2d_local_time_step.cc
+    "fun_solver;fun_model"
+  )
+  if(TARGET_SOLVER_ACOUSTIC_ORDER GREATER_EQUAL 2)
+    target_sources(sem_solver_2d_local_time_step_test PRIVATE
+      impl/sem-local-time-step-2d/test_sem_2d_three_layers.cc)
+    target_include_directories(sem_solver_2d_local_time_step_test PRIVATE
+      ${CMAKE_SOURCE_DIR}/src/solver/impl/sem-local-time-step-2d/validation)
+  endif()
 endif()
 
 add_gtest_group(solver_tests

@@ -1,0 +1,43 @@
+{
+  "recorded_at": "2026-11-07T11:19:07.564724+01:00",
+  "cpu": "13th Gen Intel(R) Core(TM) i9-13900HX",
+  "platform": "Linux-5.15.0-43-generic-x86_64-with-glibc2.35",
+  "compiler": "c++ (Ubuntu 12.3.0-1ubuntu1~22.04.3) 12.3.0",
+  "build_type": "Release",
+  "backend": "Kokkos Serial 4.7.2",
+  "cpu_affinity": [
+    0
+  ],
+  "cpu_exclusive": false,
+  "frequency_control": "OS controlled; no fixed-frequency or turbo control",
+  "repetitions": 7,
+  "warmups_per_case": 2,
+  "seed": 20261109,
+  "sha256_at_measurement": {
+    "src/solver/impl/sem-local-time-step-2d/validation/benchmark_inclusions.cc": "7a1a2e3fc5261919c9e0ca120bf2bfcd1744432cf583e06b9e56975ddf227576",
+    "src/solver/impl/sem-local-time-step-2d/validation/inclusion_models.json": "40c7f4e86efa40f569543ff9d4cf1de80d18ce67b9f7e93368d29e8ab33a726d",
+    "src/solver/impl/sem-local-time-step-2d/validation/prepare_inclusions.py": "9fce1dbb17939536d27ce2e4133ce22558a5b50dc9a876f29f01af947a284ec9",
+    "src/solver/impl/sem-local-time-step-2d/validation/plot_inclusions.py": "1d2570f78b790b06175679561e6b9da23a61f4438c9ed2b7ccd52ac6222cefcc",
+    "src/solver/impl/sem-local-time-step-2d/validation/three_layer_case.h": "7fb92b8d9a8522b1e1268f9bc20f0f1846b1c974eb77e5a77310b1d45b3f5ab4",
+    "src/solver/impl/sem-local-time-step-2d/include/sem_solver_2d_local_time_step.h": "2e6948394538cd2946dc58ef158c9746ef167770d242332b266fccb5332d0739",
+    "src/solver/impl/sem-local-time-step-2d/src/sem_2d_local_time_step_plan.cc": "a916e94233ca2a7cd1071c3d50c84a2026a130e53b47b1ca9a6e577c1c102a5c",
+    "build-lts-cpu/src/solver/impl/sem-local-time-step-2d/sem2d_lts_inclusion_benchmark": "3798f9bd79a8055afad7c50d4b60f92e09f351a61357759ceb94eafcce75ef3f"
+  },
+  "metadata_corrections": [
+    "Homogeneous spectral iteration count corrected from 2501 to 2500: output counter included the terminating loop condition; computed eigenvalue and timings unchanged."
+  ],
+  "sha256_after_counter_fix": {
+    "src/solver/impl/sem-local-time-step-2d/validation/benchmark_inclusions.cc": "ebe8e13e68692f09c656b1c6e9e53ed4f353f1c5850300e34da7fe6649430f69",
+    "build-lts-cpu/src/solver/impl/sem-local-time-step-2d/sem2d_lts_inclusion_benchmark": "6e95dc34777bae2d4787afe2acf09a692a2cdd9b53304f3be7d29107136689ea"
+  },
+  "validation": {
+    "regression_tests_passed": 74,
+    "regression_tests_failed": 0,
+    "cases": 3,
+    "timing_configurations_per_case": 26,
+    "timing_samples_per_case": 182,
+    "snapshot_frames_per_case": 6,
+    "surface_receivers_per_case": 51,
+    "document_links_checked": true
+  }
+}

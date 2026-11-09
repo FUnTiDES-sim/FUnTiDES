@@ -1,0 +1,35 @@
+{
+  "recorded_at": "2026-11-07T10:57:29.628868+01:00",
+  "cpu": "13th Gen Intel(R) Core(TM) i9-13900HX",
+  "platform": "Linux-5.15.0-43-generic-x86_64-with-glibc2.35",
+  "compiler": "c++ (Ubuntu 12.3.0-1ubuntu1~22.04.3) 12.3.0",
+  "build_type": "Release",
+  "backend": "Kokkos Serial 4.7.2",
+  "precision": "float32 fields, float64 host error sums",
+  "cpu_affinity": [
+    0
+  ],
+  "cpu_exclusive": false,
+  "frequency_control": "OS controlled; no fixed-frequency or turbo control",
+  "git_head": "4df696a8b05bb940b56fd598250ce166bf095121",
+  "source_sha256": {
+    "src/solver/impl/sem-local-time-step-2d/validation/benchmark_fine_fraction.cc": "b14847969f0fa78343a895609ba26305d1f60ec431d822bb46ddcfe751089f3a",
+    "src/solver/impl/sem-local-time-step-2d/validation/three_layer_case.h": "7fb92b8d9a8522b1e1268f9bc20f0f1846b1c974eb77e5a77310b1d45b3f5ab4",
+    "src/solver/impl/sem-local-time-step-2d/include/sem_solver_2d_local_time_step.h": "2e6948394538cd2946dc58ef158c9746ef167770d242332b266fccb5332d0739",
+    "src/solver/impl/sem-local-time-step-2d/src/sem_2d_local_time_step_plan.cc": "a916e94233ca2a7cd1071c3d50c84a2026a130e53b47b1ca9a6e577c1c102a5c",
+    "src/solver/impl/sem2d/include/sem_solver_2d.h": "b762a26b7c86511217e25b8954b41af071494996aaa82bd207cf88d3a7cde061",
+    "build-lts-cpu/src/solver/impl/sem-local-time-step-2d/sem2d_lts_fraction_benchmark": "26a24d8555649ba9f3227841c8ee2ab84ecc4f0bae254e0bdd6eaa54cd20a1b4"
+  },
+  "command": "env -u LD_LIBRARY_PATH taskset -c 0 build-lts-cpu/src/solver/impl/sem-local-time-step-2d/sem2d_lts_fraction_benchmark src/solver/impl/sem-local-time-step-2d/validation/fraction-results 7",
+  "refinement": {
+    "recorded_at": "2026-11-07T11:01:42.252640+01:00",
+    "extra_argument": "refine",
+    "cpu_affinity": [
+      0
+    ],
+    "source_sha256": {
+      "src/solver/impl/sem-local-time-step-2d/validation/benchmark_fine_fraction.cc": "8afde05699e729526960a4ea9c5a2fc67644074404a84038c70ffcbbd162dd40",
+      "build-lts-cpu/src/solver/impl/sem-local-time-step-2d/sem2d_lts_fraction_benchmark": "47ed9dd8d047c4ad7a2207a9f2d9f56d125d6208177806776824d9c6a756e9b1"
+    }
+  }
+}

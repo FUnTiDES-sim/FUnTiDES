@@ -1,0 +1,33 @@
+{
+  "recorded_at": "2026-11-07T17:24:32.779865+01:00",
+  "cpu": "13th Gen Intel(R) Core(TM) i9-13900HX",
+  "compiler": "c++ (Ubuntu 12.3.0-1ubuntu1~22.04.3) 12.3.0",
+  "backend": "Kokkos Serial 4.7.2",
+  "build_type": "Release",
+  "affinity": [
+    0
+  ],
+  "frequency_control": "OS controlled; CPU not reserved",
+  "repetitions": 7,
+  "warmups": 2,
+  "physical_duration_s": 3.6,
+  "boundary_conditions": "free_top_absorbing_sides",
+  "source_depth_m": 200,
+  "receiver_depth_m": 50,
+  "timing_scope": "propagation loop only; excludes setup, diagnostics, copies, IO",
+  "source_sha256": {
+    "src/solver/impl/sem-local-time-step-2d/validation/benchmark_inclusions.cc": "46de66b53c8f521a765f03289c77dce09c3c3526fcd2a594932747480816dc55",
+    "src/solver/impl/sem-local-time-step-2d/validation/prepare_inclusions.py": "ff61a80ed389f3d461c6c50bea9e8e4322c704b0068c33ec14a47b3e28aed3c9",
+    "src/solver/impl/sem-local-time-step-2d/validation/inclusion_free_surface.json": "1e908fec9cfaf17da7cd69d3f2970381d2bda422e69d103ffbb341a45ea3fd56",
+    "src/solver/impl/sem-local-time-step-2d/include/sem_solver_2d_local_time_step.h": "af0c2157191485e03e24a39dd1a861a5369e194a2eadb1a586f345b464fdec60",
+    "tests/units/solver/impl/sem-local-time-step-2d/test_sem_solver_2d_local_time_step.cc": "be7ff50a40444f148674ba99be9059f800fddffc8e3b1a4095386a7c2e40dc66",
+    "build-lts-cpu/src/solver/impl/sem-local-time-step-2d/sem2d_lts_inclusion_benchmark": "b5f4d7db581ef958359b34993e0716d7f3965bc7fb88942dcf8726829ba5d97b"
+  },
+  "validation": {
+    "regression_tests_passed": 86,
+    "samples_checked": 182,
+    "top_pressure_exactly_zero": true,
+    "energy_balance_checked": true,
+    "reference_refinement_checked": true
+  }
+}

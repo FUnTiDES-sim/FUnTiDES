@@ -1,0 +1,11 @@
+Imported 1693 quads, 6911 GLL nodes; local dt 0.00133038, global fine dt 0.000665188, fine elements 51
+Timing repeat 1/7
+Timing repeat 2/7
+Timing repeat 3/7
+Timing repeat 4/7
+Timing repeat 5/7
+Timing repeat 6/7
+Timing repeat 7/7
+Global_fine: 1152.45 ms; error 0.00018931
+Global_macro: 593.973 ms; error 0.000587074
+Local: 738.86 ms; error 0.000584891

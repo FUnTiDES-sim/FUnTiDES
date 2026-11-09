@@ -1,0 +1,48 @@
+{
+  "name": "multiple_noninteger_targets",
+  "surface_trace_relative_l2_error": 0.016022492972097145,
+  "final_field_relative_l2_error": 0.0208157562083,
+  "max_trajectory_relative_l2_error": 0.0208157562083,
+  "budget_0.01": [
+    {
+      "local": false,
+      "dt_ms": 6.0,
+      "loop_ms": 75.555898,
+      "error": 0.00520751756048
+    },
+    {
+      "local": true,
+      "dt_ms": 8.0,
+      "loop_ms": 66.787239,
+      "error": 0.00924731706139
+    }
+  ],
+  "budget_0.02": [
+    {
+      "local": false,
+      "dt_ms": 6.0,
+      "loop_ms": 75.555898,
+      "error": 0.00520751756048
+    },
+    {
+      "local": true,
+      "dt_ms": 10.0,
+      "loop_ms": 53.294598,
+      "error": 0.0144495095744
+    }
+  ],
+  "budget_0.05": [
+    {
+      "local": false,
+      "dt_ms": 6.0,
+      "loop_ms": 75.555898,
+      "error": 0.00520751756048
+    },
+    {
+      "local": true,
+      "dt_ms": 12.0,
+      "loop_ms": 43.996785,
+      "error": 0.0208157562099
+    }
+  ]
+}

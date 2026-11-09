@@ -1,0 +1,13 @@
+{
+  "formula": "min((t/reference_time_s)**power, max_gain)",
+  "power": 2.0,
+  "reference_time_s": 1.0,
+  "max_gain": 20.0,
+  "actual_max_gain": 12.96000102996002,
+  "common_vmin": -0.073349263661932,
+  "common_vmax": 0.073349263661932,
+  "gain_common_to_reference_local_error": true,
+  "color_scale_common_to_reference_local_error": true,
+  "per_trace_normalization": false,
+  "error_metrics_use_raw_data": true
+}

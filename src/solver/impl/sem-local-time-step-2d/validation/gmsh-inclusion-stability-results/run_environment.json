@@ -1,0 +1,20 @@
+{
+  "study_date": "2026-11-08",
+  "cpu_affinity": [
+    0
+  ],
+  "backend": "Kokkos Serial",
+  "build_type": "Release",
+  "compiler": "c++ (Ubuntu 12.3.0-1ubuntu1~22.04.3) 12.3.0",
+  "kernel": "5.15.0-43-generic",
+  "macro_factor": 1.2,
+  "sha256": {
+    "src/solver/impl/sem-local-time-step-2d/validation/gmsh-inclusion-stability-results/bilayer.msh": "34faf7e0abd7c8accae9ccdcd8e84ce7f2cd9e4d5965a1b6a3a38e6af03bb9d8",
+    "src/solver/impl/sem-local-time-step-2d/validation/gmsh-inclusion-stability-results/materials.csv": "b0917b46ed6570a54a0abb0ba363378479767d49c73698fd65a267cca48c98ee",
+    "src/solver/impl/sem-local-time-step-2d/validation/gmsh-inclusion-stability-results/model.json": "416ccb3fb56ea811b5081d507efa9e0dd633673b18e1e9bc6bfef54435827575",
+    "src/solver/impl/sem-local-time-step-2d/validation/gmsh_inclusion_refined.json": "eee633c7c42ac875b6a937eb6320676cfae1b552a09509e23afd591448d9aa4b",
+    "src/solver/impl/sem-local-time-step-2d/validation/test_gmsh_inclusion_stability.cc": "efb940e2f4017a34766278928c4f3265fdaf902773aca9d6eeb523cc4de1bf2f",
+    "build-lts-cpu/src/solver/impl/sem-local-time-step-2d/sem2d_gmsh_inclusion_stability": "6ff8f2a5782e4d0d9e0ec925bfa9fb8a27c9a2280444e03d1aa3c9763d143dcf",
+    "src/solver/impl/sem-local-time-step-2d/validation/gmsh-inclusion-stability-results/test_spec_at_run.json": "ed5f5e1d06a3ac995344b048d7126cd1bfc29c96eda924493f37439a0e9d9319"
+  }
+}

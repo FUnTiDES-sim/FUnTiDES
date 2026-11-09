@@ -1,0 +1,6 @@
+{
+  "budget": 0.02, "min_steps": 150, "max_steps": 1200,
+  "search": "integer bisection; adjacent failing count checked unless min_steps passes",
+  "reference_dt_ms": 0.375, "duration_s": 1.8,
+  "repetitions": 7, "warmups_per_case": 2, "seed": 20261108
+}

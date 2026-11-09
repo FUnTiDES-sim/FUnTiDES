@@ -1,0 +1,4 @@
+physical_tag,vp,rho,name
+10,1500,1,upper_layer
+20,3000,1,lower_layer
+30,600,1,inclusion

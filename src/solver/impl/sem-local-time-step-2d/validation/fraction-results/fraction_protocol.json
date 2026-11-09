@@ -1,0 +1,9 @@
+{
+  "backend": "Serial",
+  "concurrency": 1,
+  "repetitions": 7, "warmups_per_case": 2,
+  "seed": 20261107, "duration_s": 1.8, "order": 2,
+  "reference_dt_ms": 0.375, "reference_check_dt_ms": 0.75,
+  "lts_partition": "fixed per scenario; cfl scales with dt",
+  "loop_excludes": "setup, diagnostics, file IO, host copies"
+}

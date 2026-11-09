@@ -1,0 +1,23 @@
+{
+  "mesh": {"lx": 6000, "lz": 3000, "ex": 60, "ez": 30, "order": 2},
+  "initial_field": {"x": 2200, "z": 1500, "sigma": 160},
+  "duration_s": 1.8,
+  "partition": {"macro_dt_s": 0.012, "cfl": 0.6},
+  "background": {"vp": 1500, "rho": 1, "target_dt_s": 0.012},
+  "cases": [
+    {"name": "homogeneous_1500", "inclusions": []},
+    {
+      "name": "single_4500",
+      "inclusions": [
+        {"name": "fast_square", "shape": "box", "center": [3000, 1500], "size": [400, 400], "vp": 4500, "rho": 1, "target_dt_s": 0.004}
+      ]
+    },
+    {
+      "name": "multiple_noninteger_targets",
+      "inclusions": [
+        {"name": "fast_square", "shape": "box", "center": [3000, 1500], "size": [400, 400], "vp": 4500, "rho": 1, "target_dt_s": 0.004},
+        {"name": "second_disk", "shape": "disk", "center": [4100, 1900], "radius": 220, "vp": 3600, "rho": 1, "target_dt_s": 0.0055}
+      ]
+    }
+  ]
+}

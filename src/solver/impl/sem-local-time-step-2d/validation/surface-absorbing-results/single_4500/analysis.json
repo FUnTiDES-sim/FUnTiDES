@@ -1,0 +1,49 @@
+{
+  "name": "single_4500",
+  "surface_trace_relative_l2_error": 0.004349228952370197,
+  "boundary_conditions": "absorbing",
+  "final_field_relative_l2_error": 0.00988950520031,
+  "max_trajectory_relative_l2_error": 0.019812986599,
+  "budget_0.01": [
+    {
+      "local": false,
+      "dt_ms": 6.0,
+      "loop_ms": 151.515709,
+      "error": 0.00459942999849
+    },
+    {
+      "local": true,
+      "dt_ms": 12.0,
+      "loop_ms": 89.505719,
+      "error": 0.00988950520031
+    }
+  ],
+  "budget_0.02": [
+    {
+      "local": false,
+      "dt_ms": 6.0,
+      "loop_ms": 151.515709,
+      "error": 0.00459942999849
+    },
+    {
+      "local": true,
+      "dt_ms": 12.0,
+      "loop_ms": 89.505719,
+      "error": 0.00988950520031
+    }
+  ],
+  "budget_0.05": [
+    {
+      "local": false,
+      "dt_ms": 6.0,
+      "loop_ms": 151.515709,
+      "error": 0.00459942999849
+    },
+    {
+      "local": true,
+      "dt_ms": 12.0,
+      "loop_ms": 89.505719,
+      "error": 0.00988950520031
+    }
+  ]
+}

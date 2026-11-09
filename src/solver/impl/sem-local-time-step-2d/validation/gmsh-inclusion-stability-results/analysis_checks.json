@@ -1,0 +1,7 @@
+{
+  "passed": true,
+  "raw_csv_consistency": true,
+  "outside_mesh_identical": true,
+  "receiver_relative_l2_error_recomputed": 0.00042057199380393786,
+  "spectral_estimates_are_not_certified_bounds": true
+}

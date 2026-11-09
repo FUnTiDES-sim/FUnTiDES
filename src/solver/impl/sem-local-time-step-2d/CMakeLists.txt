@@ -1,0 +1,38 @@
+# Experimental source-free two-level LF-LTS, not registered in the factory yet.
+target_sources(fun_solver PRIVATE src/sem_2d_local_time_step_plan.cc)
+target_include_directories(fun_solver PUBLIC
+  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+)
+install_funtides_headers(solver ${CMAKE_CURRENT_SOURCE_DIR}/include)
+
+foreach(ORDER RANGE 1 ${TARGET_SOLVER_ACOUSTIC_ORDER})
+  foreach(MODEL_TYPE onelements onnodes)
+    if(MODEL_TYPE STREQUAL "onnodes")
+      set(MODEL_ON_NODES true)
+    else()
+      set(MODEL_ON_NODES false)
+    endif()
+    set(_lts_gen "${CMAKE_CURRENT_BINARY_DIR}/SEM2DLTSQ${ORDER}_${MODEL_TYPE}.cpp")
+    configure_file(templates/sem_solver_2d_local_time_step.cpp.in ${_lts_gen} @ONLY)
+    target_sources(fun_solver PRIVATE ${_lts_gen})
+  endforeach()
+endforeach()
+unset(_lts_gen)
+
+# Explicit opt-in target for exporting the layered validation figures' raw data.
+if(TARGET_SOLVER_ACOUSTIC_ORDER GREATER_EQUAL 2)
+  add_executable(sem2d_lts_three_layers_validation EXCLUDE_FROM_ALL validation/export_three_layers.cc)
+  target_link_libraries(sem2d_lts_three_layers_validation PRIVATE fun_solver fun_model)
+  add_executable(sem2d_lts_three_layers_benchmark EXCLUDE_FROM_ALL validation/benchmark_three_layers.cc)
+  target_link_libraries(sem2d_lts_three_layers_benchmark PRIVATE fun_solver fun_model)
+  add_executable(sem2d_lts_fraction_benchmark EXCLUDE_FROM_ALL validation/benchmark_fine_fraction.cc)
+  target_link_libraries(sem2d_lts_fraction_benchmark PRIVATE fun_solver fun_model)
+  add_executable(sem2d_lts_inclusion_benchmark EXCLUDE_FROM_ALL validation/benchmark_inclusions.cc)
+  target_link_libraries(sem2d_lts_inclusion_benchmark PRIVATE fun_solver fun_model)
+  add_executable(sem2d_gmsh_benchmark EXCLUDE_FROM_ALL validation/benchmark_gmsh_bilayer.cc)
+  target_link_libraries(sem2d_gmsh_benchmark PRIVATE fun_solver fun_model)
+  add_executable(sem2d_gmsh_inclusion_stability EXCLUDE_FROM_ALL validation/test_gmsh_inclusion_stability.cc)
+  target_link_libraries(sem2d_gmsh_inclusion_stability PRIVATE fun_solver fun_model)
+  add_executable(sem2d_gmsh_inclusion_timing EXCLUDE_FROM_ALL validation/benchmark_gmsh_inclusion_stability.cc)
+  target_link_libraries(sem2d_gmsh_inclusion_timing PRIVATE fun_solver fun_model)
+endif()
