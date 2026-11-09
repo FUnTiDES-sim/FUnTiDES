@@ -132,14 +132,19 @@ TYPED_TEST(SEM2DLocalTimeStepPlanTest, NodalModelUsesFastestNodeOfEachElement) {
   EXPECT_EQ(plan.element_steps[1].max_vp, 2 * kVp);
 }
 
+// nvcc rejects extended device lambdas in the (private) TestBody of a gtest: free function.
+template <class View>
+void setOnDevice(View const& view, int i, float value) {
+  Kokkos::parallel_for(
+      "update speed", 1, KOKKOS_LAMBDA(int) { view(i) = value; });
+}
+
 TEST(SEM2DLocalTimeStepPlan, ReadsVelocitiesUpdatedOnDevice) {
   auto d = strip(2, {0, 100, 200}, true);
   model::ModelUnstruct<float, int> mesh(d);
   float const dt = 0.9f * uniformEstimate(2);
   EXPECT_TRUE(buildSEM2DLocalTimeStepPlan(mesh, kCfl, dt).fine_elements.empty());
-  auto vp = d.model_vp_node_.view_device();
-  Kokkos::parallel_for(
-      "update speed", 1, KOKKOS_LAMBDA(int) { vp(4) = 2 * kVp; });
+  setOnDevice(d.model_vp_node_.view_device(), 4, 2 * kVp);
   d.model_vp_node_.modify_device();
   Kokkos::fence();
   auto const plan = buildSEM2DLocalTimeStepPlan(mesh, kCfl, dt);

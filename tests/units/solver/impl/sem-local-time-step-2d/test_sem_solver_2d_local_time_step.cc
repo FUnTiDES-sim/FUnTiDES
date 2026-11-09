@@ -516,10 +516,35 @@ TEST(SEM2DLTS, PulseCrossesInterfacesWithSecondOrderTemporalConvergence) {
     }
     errors.push_back(std::sqrt(err / norm));
   }
-  std::cout << "[LTS pulse] relative errors: " << errors[0] << ", " << errors[1] << ", " << errors[2] << '\n';
+  // Float32 floor of the time integration: global Verlet at the finest fine step
+  // (coarse_dt / 8). About 4e-4 on GPU (FMA rounding), well below on CPU.
+  double floor_error = 0;
+  {
+    SEMsolver2D<2, false> global;
+    global.computeFEInit(mesh, {0, 0, 0}, false, 0);
+    float const dt = coarse_dt / 8;
+    State state(nn);
+    fill(state.cur, initial);
+    global.computeForces(dt, 0, state.data);
+    auto f0 = host(global.getForceVector(0));
+    std::vector<float> start = initial;
+    for (int i = 0; i < nn; ++i) start[i] -= dt * velocity[i] + 0.5f * dt * dt * f0[i] / mass[i];
+    fill(state.prev, start);
+    advance(global, state, dt, coarse_steps * 8);
+    auto actual = host(state.data.getCurrentField(0));
+    double err = 0, norm = 0;
+    for (int i = 0; i < nn; ++i) {
+      err += mass[i] * std::pow(actual[i] - expected[i], 2);
+      norm += mass[i] * expected[i] * expected[i];
+    }
+    floor_error = std::sqrt(err / norm);
+  }
+  std::cout << "[LTS pulse] relative errors: " << errors[0] << ", " << errors[1] << ", " << errors[2]
+            << " (global Verlet at the finest fine step: " << floor_error << ")\n";
   EXPECT_LT(errors[0], 0.03);
   EXPECT_GT(errors[0] / errors[1], 3.0);
-  EXPECT_GT(errors[1] / errors[2], 3.0);
+  // Second order down to the float32 floor of the time integration
+  if (errors[2] > 1.5 * floor_error) EXPECT_GT(errors[1] / errors[2], 3.0);
 }
 
 TEST(SEM2DLTS, RemainsBoundedWhenGlobalMacroStepIsUnstable) {
