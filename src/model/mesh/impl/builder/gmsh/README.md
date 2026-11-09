@@ -28,12 +28,19 @@ Le partage des nœuds GLL utilise la topologie des sommets, arêtes et faces,
 y compris lorsque deux cellules ont des orientations locales différentes.
 Il ne fusionne pas des points sur la seule base de leur proximité géométrique.
 
-## Exemple reproductible
+## Génération et conversion des maillages
 
-Depuis la racine de ce dépôt, avec un Python disposant du module `gmsh` :
+Les outils Python de génération et de conversion sont dans makutu (FUnTiDES-App,
+`python/makutu/mesh/gmshmesh.py`, ligne de commande `python/apps/mesh/gmsh_mesh.py`) :
+conversion d'un maillage Q4/Hex8 en MSH 2.2 (`convert`, `--plane xy` pour un maillage 2D
+du plan XY), cube Hex8 (`box`), rectangle Q4 du plan XZ (`rectangle`). La classe
+`makutu.mesh.GmshMesh` lit un maillage par les lecteurs de FUnTiDES et place sources et
+récepteurs dans des éléments quelconques pour la modélisation.
+
+Exemple, depuis `FUnTiDES-App/python` puis depuis la racine de ce dépôt :
 
 ```bash
-python3 src/model/mesh/impl/builder/gmsh/examples/generate_hex_box.py /tmp/box.msh
+python apps/mesh/gmsh_mesh.py box /tmp/box.msh --cells 2
 cmake --build build-lts-cpu --target gmsh_sem3d_inspect
 build-lts-cpu/src/model/mesh/impl/builder/gmsh/gmsh_sem3d_inspect /tmp/box.msh /tmp/box.csv 2
 ```
@@ -42,15 +49,6 @@ Le générateur crée 8 hexaèdres, un matériau de tag 10 et deux frontières :
 1 = surface libre supérieure, 2 = absorption sur les cinq autres côtés.
 À l'ordre 2, le lecteur construit 125 nœuds GLL, dont 25 de surface libre
 et 73 absorbants. Le CSV a les colonnes `physical_tag,vp,rho`.
-
-Le convertisseur existant détecte maintenant la dimension et accepte les Hex8 :
-
-```bash
-python3 src/model/mesh/impl/builder/gmsh/tools/convert_gmsh_mesh.py input41.msh output22.msh
-```
-
-L'option `--plane xy` est réservée au 2D. La conversion conserve les groupes
-physiques exportés par Gmsh ; elle ne transforme pas des tétraèdres en hexaèdres.
 
 ## Utilisation C++
 
