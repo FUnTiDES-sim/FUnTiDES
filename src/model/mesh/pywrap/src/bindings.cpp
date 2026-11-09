@@ -1,6 +1,7 @@
 #include <pybind11/numpy.h>
 #include <pybind11/pybind11.h>
 #include <pybind11/stl.h>
+#include <pybind11/stl/filesystem.h>
 
 #include <cstdint>
 #include <string>
@@ -9,6 +10,7 @@
 #include "bindings_face_connectivity.h"
 #include "bindings_model.h"
 #include "bindings_partionner.h"
+#include "gmsh_3d_reader.h"
 
 namespace py = pybind11;
 
@@ -62,6 +64,18 @@ PYBIND11_MODULE(model, m) {
   model::bind_modelunstructdata<double, int>(m);
   model::bind_modelunstructdata<float, long>(m);
   model::bind_modelunstructdata<double, long>(m);
+
+  py::class_<model::GmshAcousticMaterial>(m, "GmshAcousticMaterial")
+      .def(py::init([](float vp, float rho) {
+             return model::GmshAcousticMaterial{vp, rho};
+           }),
+           py::arg("vp"), py::arg("rho") = 1.0f)
+      .def_readwrite("vp", &model::GmshAcousticMaterial::vp)
+      .def_readwrite("rho", &model::GmshAcousticMaterial::rho);
+  m.def("read_gmsh_3d", &model::readGmsh3D, py::arg("file"), py::arg("order"), py::arg("materials"),
+        py::arg("boundaries"));
+  m.def("read_gmsh_2d", &model::readGmsh2D, py::arg("file"), py::arg("order"), py::arg("materials"),
+        py::arg("boundaries"));
 
   model::bind_modelbuilderbase<float, int>(m);
   model::bind_modelbuilderbase<double, int>(m);

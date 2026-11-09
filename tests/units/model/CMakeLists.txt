@@ -37,3 +37,8 @@ if(COMPILE_SEM_2D)
     "fun_model;fun_discretization"
   )
 endif()
+
+add_gtest(gmsh_3d_reader_test
+  impl/builder/gmsh/test_gmsh_3d_reader.cc
+  "fun_model;fun_solver;fun_discretization"
+)

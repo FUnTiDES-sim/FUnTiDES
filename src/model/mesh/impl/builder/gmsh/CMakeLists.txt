@@ -3,3 +3,7 @@ target_include_directories(fun_model PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_SO
 install_funtides_headers(model ${CMAKE_CURRENT_SOURCE_DIR}/include)
 add_executable(gmsh_sem2d_inspect EXCLUDE_FROM_ALL tools/gmsh_sem2d_inspect.cc)
 target_link_libraries(gmsh_sem2d_inspect PRIVATE fun_model)
+
+target_sources(fun_model PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src/gmsh_3d_reader.cc)
+add_executable(gmsh_sem3d_inspect EXCLUDE_FROM_ALL tools/gmsh_sem3d_inspect.cc)
+target_link_libraries(gmsh_sem3d_inspect PRIVATE fun_model)
