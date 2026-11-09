@@ -80,9 +80,20 @@ class SEMsolver2DLocalTimeStep : public SEMsolver2D<ORDER, IS_MODEL_ON_NODES> {
   /// Positivity requires the actual spectral CFL condition.
   double discreteEnergy(const DataType& data);
 
-  /// Internal assembly launcher. elements contains validated mesh indices; all=true
-  /// ignores that view. Public only because nvcc requires public kernel launchers.
-  void assembleStiffness(const vectorReal& field, const vectorReal& result, const vectorInt& elements, bool all);
+  /// Internal assembly launcher: result = scale * K_e field summed over the elements, or
+  /// result += ... with accumulate=true. elements contains validated mesh indices; all=true
+  /// ignores that view. Free-surface (Dirichlet) masking is applied only in the elements
+  /// that touch the free surface. Public only because nvcc requires public kernel launchers.
+  void assembleStiffness(const vectorReal& field, const vectorReal& result, const vectorInt& elements, bool all,
+                         float scale = 1.f, bool accumulate = false);
+
+  /// Internal launcher of the correction: result -= factor * K field over the fine support
+  /// elements, with their geometric factors precomputed at configuration. Public only because
+  /// nvcc requires public kernel launchers.
+  void subtractFineSupportStiffness(const vectorReal& field, const vectorReal& result, float factor);
+
+  /// Internal launcher: precomputes w alpha B at the quadrature points of the support elements.
+  void buildSupportMetric();
 
  private:
   void requireInitialized() const {
@@ -103,7 +114,12 @@ class SEMsolver2DLocalTimeStep : public SEMsolver2D<ORDER, IS_MODEL_ON_NODES> {
   MeshType mesh_;
   SEM2DLocalTimeStepPlan plan_{};
   vectorInt fine_nodes_, support_elements_;
-  vectorReal fine_acceleration_, correction_, energy_force_;
+  vectorInt surface_elements_;     // 1 for the elements with a free-surface node
+  vectorReal fine_acceleration_;   // M^-1 K u on the fine nodes, zero elsewhere (set at configuration)
+  vectorReal energy_force_;
+  // w_q alpha_q B_q (B in Voigt order xi xi, eta eta, xi eta) of the fine support elements,
+  // index (item * kPointsPerElement + q) * 3 + c
+  vectorReal support_metric_;
   float correction_factor_{0};  // a * coarse_dt^2
   bool initialized_{false};
   bool configured_{false};
@@ -146,8 +162,19 @@ void SEMsolver2DLocalTimeStep<ORDER, IS_MODEL_ON_NODES>::computeFEInit(model::Mo
   mesh_ = *typed;
   int const n = mesh_.getNumberOfNodes();
   fine_acceleration_ = vectorReal("SEM2D LTS fine acceleration", n);
-  correction_ = vectorReal("SEM2D LTS correction", n);
   energy_force_ = vectorReal("SEM2D LTS energy force", n);
+  surface_elements_ = vectorInt("SEM2D LTS free-surface elements", mesh_.getNumberOfElements());
+  auto surface = surface_elements_;
+  auto geometry = mesh_;
+  Kokkos::parallel_for(
+      "SEM2D LTS free-surface elements", Kokkos::RangePolicy<>(0, geometry.getNumberOfElements()),
+      KOKKOS_LAMBDA(int const e) {
+        int touches = 0;
+        for (int q = 0; q < kPointsPerElement; ++q)
+          touches |= geometry.isFreeSurface(geometry.globalNodeIndex(e, q % kN1d, 0, q / kN1d)) ? 1 : 0;
+        surface(e) = touches;
+      });
+  FENCE
   initialized_ = true;
 }
 
@@ -167,9 +194,11 @@ void SEMsolver2DLocalTimeStep<ORDER, IS_MODEL_ON_NODES>::configureLocalTimeStep(
   Kokkos::deep_copy(support, h_support);
   double const delta = 1.0 + nu / 4.0;
   correction_factor_ = static_cast<float>((2 * delta * delta - 1) / (16 * delta * delta) * coarse_dt * coarse_dt);
+  Kokkos::deep_copy(fine_acceleration_, 0.f);   // only the fine nodes are written afterwards
   plan_ = std::move(next_plan);
   fine_nodes_ = nodes;
   support_elements_ = support;
+  buildSupportMetric();
   configured_ = true;
 }
 
@@ -212,18 +241,21 @@ void SEMsolver2DLocalTimeStep<ORDER, IS_MODEL_ON_NODES>::applyFineSupportStiffne
 template <int ORDER, bool IS_MODEL_ON_NODES>
 void SEMsolver2DLocalTimeStep<ORDER, IS_MODEL_ON_NODES>::assembleStiffness(const vectorReal& field,
                                                                            const vectorReal& result,
-                                                                           const vectorInt& elements, bool all) {
-  Kokkos::deep_copy(result, 0.f);
+                                                                           const vectorInt& elements, bool all,
+                                                                           float scale, bool accumulate) {
+  if (!accumulate) Kokkos::deep_copy(result, 0.f);
   auto mesh = mesh_;
+  auto surface = surface_elements_;
   int const count = all ? mesh.getNumberOfElements() : static_cast<int>(elements.extent(0));
   Kokkos::parallel_for(
       "SEM2D LTS stiffness", Kokkos::RangePolicy<>(0, count), KOKKOS_LAMBDA(int const item) {
         int const e = all ? item : elements(item);
+        bool const masked = surface(e) != 0;
         real_t u[kPointsPerElement], v[kPointsPerElement] = {0};
         int nodes[kPointsPerElement];
         for (int q = 0; q < kPointsPerElement; ++q) {
           nodes[q] = mesh.globalNodeIndex(e, q % kN1d, 0, q / kN1d);
-          u[q] = mesh.isFreeSurface(nodes[q]) ? 0.f : field(nodes[q]);
+          u[q] = masked && mesh.isFreeSurface(nodes[q]) ? 0.f : field(nodes[q]);
         }
         real_t X[4][2];
         for (int c = 0; c < 4; ++c) {
@@ -231,14 +263,16 @@ void SEMsolver2DLocalTimeStep<ORDER, IS_MODEL_ON_NODES>::assembleStiffness(const
           X[c][0] = mesh.nodeCoord(node, 0);
           X[c][1] = mesh.nodeCoord(node, 2);
         }
+        real_t inv_rho = 0;
+        if constexpr (!IS_MODEL_ON_NODES) inv_rho = 1.f / mesh.getModelRhoOnElement(e);
         Element::computeStiffnessTermSumFact(X, u, v, [&](int qa, int qb) -> real_t {
           if constexpr (IS_MODEL_ON_NODES)
             return 1.f / mesh.getModelRhoOnNodes(nodes[qa + qb * kN1d]);
           else
-            return 1.f / mesh.getModelRhoOnElement(e);
+            return inv_rho;
         });
         for (int q = 0; q < kPointsPerElement; ++q)
-          if (!mesh.isFreeSurface(nodes[q])) ATOMICADD(result(nodes[q]), v[q]);
+          if (!(masked && mesh.isFreeSurface(nodes[q]))) ATOMICADD(result(nodes[q]), scale * v[q]);
       });
   FENCE
 }
@@ -249,7 +283,7 @@ void SEMsolver2DLocalTimeStep<ORDER, IS_MODEL_ON_NODES>::applyEffectiveStiffness
   requireConfigured();
   applyStiffness(field, result);
   if (plan_.fine_nodes.empty()) return;
-  Kokkos::deep_copy(fine_acceleration_, 0.f);
+  // fine_acceleration_ is zero outside the fine nodes since configureLocalTimeStep
   auto acceleration = fine_acceleration_;
   auto nodes = fine_nodes_;
   auto mass = this->getMassMatrixAcoustic();
@@ -260,12 +294,88 @@ void SEMsolver2DLocalTimeStep<ORDER, IS_MODEL_ON_NODES>::applyEffectiveStiffness
         if (!mesh.isFreeSurface(i)) acceleration(i) = result(i) / mass(i);
       });
   FENCE
-  applyFineSupportStiffness(acceleration, correction_);
-  auto correction = correction_;
-  float const factor = correction_factor_;
+  // B u = K u - a dt^2 K P M^-1 K u: the restricted assembly subtracts directly into result
+  subtractFineSupportStiffness(acceleration, result, correction_factor_);
+}
+
+template <int ORDER, bool IS_MODEL_ON_NODES>
+void SEMsolver2DLocalTimeStep<ORDER, IS_MODEL_ON_NODES>::buildSupportMetric() {
+  int const count = static_cast<int>(support_elements_.extent(0));
+  support_metric_ = vectorReal("SEM2D LTS support metric", static_cast<size_t>(count) * kPointsPerElement * 3);
+  auto metric = support_metric_;
+  auto elements = support_elements_;
+  auto mesh = mesh_;
   Kokkos::parallel_for(
-      "SEM2D LTS modified stiffness", Kokkos::RangePolicy<>(0, mesh.getNumberOfNodes()),
-      KOKKOS_LAMBDA(int const i) { result(i) -= factor * correction(i); });
+      "SEM2D LTS support metric", Kokkos::RangePolicy<>(0, count), KOKKOS_LAMBDA(int const item) {
+        int const e = elements(item);
+        real_t X[4][2];
+        for (int c = 0; c < 4; ++c) {
+          int const local = Element::meshIndexToLinearIndex2D(c);
+          int const node = mesh.globalNodeIndex(e, local % kN1d, 0, local / kN1d);
+          X[c][0] = mesh.nodeCoord(node, 0);
+          X[c][1] = mesh.nodeCoord(node, 2);
+        }
+        for (int qb = 0; qb < kN1d; ++qb)
+          for (int qa = 0; qa < kN1d; ++qa) {
+            int const q = Element::linearIndex2D(qa, qb);
+            real_t J[2][2], B[3];
+            Element::computeBMatrix(qa, qb, X, J, B);
+            real_t alpha;
+            if constexpr (IS_MODEL_ON_NODES)
+              alpha = 1.f / mesh.getModelRhoOnNodes(mesh.globalNodeIndex(e, qa, 0, qb));
+            else
+              alpha = 1.f / mesh.getModelRhoOnElement(e);
+            real_t const scale = Element::quadratureWeight(qa) * Element::quadratureWeight(qb) * alpha;
+            for (int c = 0; c < 3; ++c) metric((item * kPointsPerElement + q) * 3 + c) = scale * B[c];
+          }
+      });
+  FENCE
+}
+
+template <int ORDER, bool IS_MODEL_ON_NODES>
+void SEMsolver2DLocalTimeStep<ORDER, IS_MODEL_ON_NODES>::subtractFineSupportStiffness(const vectorReal& field,
+                                                                                      const vectorReal& result,
+                                                                                      float factor) {
+  auto mesh = mesh_;
+  auto surface = surface_elements_;
+  auto elements = support_elements_;
+  auto metric = support_metric_;
+  Kokkos::parallel_for(
+      "SEM2D LTS fine correction", Kokkos::RangePolicy<>(0, elements.extent(0)), KOKKOS_LAMBDA(int const item) {
+        int const e = elements(item);
+        bool const masked = surface(e) != 0;
+        real_t u[kPointsPerElement], G_xi[kPointsPerElement], G_eta[kPointsPerElement];
+        int nodes[kPointsPerElement];
+        for (int b = 0; b < kN1d; ++b)
+          for (int a = 0; a < kN1d; ++a) {
+            int const q = Element::linearIndex2D(a, b);
+            nodes[q] = mesh.globalNodeIndex(e, a, 0, b);
+            u[q] = masked && mesh.isFreeSurface(nodes[q]) ? 0.f : field(nodes[q]);
+          }
+        // Weighted parent-coordinate fluxes (as Element::computeStiffnessTermSumFact)
+        for (int qb = 0; qb < kN1d; ++qb)
+          for (int qa = 0; qa < kN1d; ++qa) {
+            real_t dxi = 0, deta = 0;
+            for (int i = 0; i < kN1d; ++i) {
+              dxi += Element::basisGradientAt(i, qa) * u[Element::linearIndex2D(i, qb)];
+              deta += Element::basisGradientAt(i, qb) * u[Element::linearIndex2D(qa, i)];
+            }
+            int const q = Element::linearIndex2D(qa, qb);
+            int const m = (item * kPointsPerElement + q) * 3;
+            G_xi[q] = metric(m) * dxi + metric(m + 2) * deta;
+            G_eta[q] = metric(m + 2) * dxi + metric(m + 1) * deta;
+          }
+        for (int ib = 0; ib < kN1d; ++ib)
+          for (int ia = 0; ia < kN1d; ++ia) {
+            real_t v = 0;
+            for (int qq = 0; qq < kN1d; ++qq) {
+              v += Element::basisGradientAt(ia, qq) * G_xi[Element::linearIndex2D(qq, ib)];
+              v += Element::basisGradientAt(ib, qq) * G_eta[Element::linearIndex2D(ia, qq)];
+            }
+            int const q = Element::linearIndex2D(ia, ib);
+            if (!(masked && mesh.isFreeSurface(nodes[q]))) ATOMICADD(result(nodes[q]), -factor * v);
+          }
+      });
   FENCE
 }
 

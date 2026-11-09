@@ -1,6 +1,7 @@
 // Repeated propagation-only timings of the already validated four-run case.
 #include <iostream>
 #include <map>
+#include <numeric>
 #include <sstream>
 
 #include "gmsh_2d_reader.h"
@@ -104,7 +105,10 @@ void execute(const std::filesystem::path& baseline, const std::filesystem::path&
   std::vector<Scenario> scenarios{{"Control_global_macro", false, true, false, dt, steps},
                                  {"Refined_global_macro_unstable", false, false, true, dt, divergent_steps},
                                  {"Refined_global_fine", false, false, false, dt / 2, 2 * steps},
-                                 {"Refined_local", true, false, false, dt, steps}};
+                                 {"Refined_local", true, false, false, dt, steps},
+                                 // Loop overhead of the local integrator without fine elements
+                                 {"Control_local_macro", true, true, false, dt, steps}};
+  int const n_scenarios = static_cast<int>(scenarios.size());
   struct Measurement { double setup, loop, amplitude, relative_error; };
   auto sample = [&](const Scenario& s) {
     Mesh& mesh = s.control ? coarse : refined;
@@ -126,6 +130,14 @@ void execute(const std::filesystem::path& baseline, const std::filesystem::path&
     if (relative_error >= .01) throw std::runtime_error("Timed numerical error exceeds validation budget");
     return Measurement{setup, loop, amplitude, relative_error};
   };
+  for (auto const& s : scenarios)
+    if (s.local) {
+      Run probe(s.control ? coarse : refined, s.control ? coarse_initial : refined_initial, true, s.dt, p);
+      auto const& plan = static_cast<LTS&>(*probe.integrator).getLocalTimeStepPlan();
+      std::cout << s.name << ": " << (s.control ? coarse : refined).getNumberOfElements() << " elements, "
+                << plan.fine_elements.size() << " fine, " << plan.fine_support_elements.size()
+                << " in the fine support, " << plan.fine_nodes.size() << " fine nodes" << std::endl;
+    }
   for (int warmup = 0; warmup < 2; ++warmup)
     for (auto const& s : scenarios) sample(s);
   std::ofstream raw(root / "timing_samples.csv"), summary(root / "timing_summary.csv");
@@ -135,8 +147,9 @@ void execute(const std::filesystem::path& baseline, const std::filesystem::path&
   }
   raw << "case,trial,dt_s,steps,physical_duration_s,setup_ms,loop_ms,amplitude_ratio,relative_l2_error\n";
   summary << "case,dt_s,steps,physical_duration_s,setup_median_ms,loop_median_ms,loop_q25_ms,loop_q75_ms,solver_total_median_ms,relative_l2_error\n";
-  std::vector<std::vector<double>> setup(4), loop(4), total(4), errors(4);
-  std::vector<int> order{0, 1, 2, 3};
+  std::vector<std::vector<double>> setup(n_scenarios), loop(n_scenarios), total(n_scenarios), errors(n_scenarios);
+  std::vector<int> order(n_scenarios);
+  std::iota(order.begin(), order.end(), 0);
   std::mt19937 rng(20261108);
   for (int trial = 0; trial < repeats; ++trial) {
     std::shuffle(order.begin(), order.end(), rng);
@@ -155,7 +168,7 @@ void execute(const std::filesystem::path& baseline, const std::filesystem::path&
     raw.flush();
     std::cout << "Timing repeat " << trial + 1 << '/' << repeats << std::endl;
   }
-  for (int j = 0; j < 4; ++j) {
+  for (int j = 0; j < n_scenarios; ++j) {
     auto const& s = scenarios[j];
     summary << s.name << ',' << s.dt << ',' << s.steps << ',' << s.dt * s.steps << ',' << quantile(setup[j], .5)
             << ',' << quantile(loop[j], .5) << ',' << quantile(loop[j], .25) << ',' << quantile(loop[j], .75)

@@ -256,13 +256,14 @@ L’[étude de précision et de performances du 7 novembre](../../../../document
 couvre huit modèles avec 0 à 100 % d’éléments au petit pas. Après raffinement
 des pas pour une erreur finale plafonnée à 2 %, aucun candidat local retenu
 n’est plus rapide que le candidat global du même modèle. Le témoin sans zone
-fine présente déjà un surcoût d’environ 14 % pour la boucle du prototype.
+fine présentait alors un surcoût d’environ 14 % pour la boucle du prototype,
+ramené à moins de 1 % par l’étape 1 du plan ci-dessous.
 
 ## Plan d’amélioration
 
 Le cas gmsh à inclusion sur-raffinée montre un gain : **9,6 s contre 15,1 s**
-(1,57 fois) face au calcul global au petit pas, seul pas stable sur ce maillage,
-avec 5 % d’éléments au petit pas. Le LTS est rentable quand le raffinement est
+(1,57 fois, mesure du 8 novembre) face au calcul global au petit pas, seul pas
+stable sur ce maillage, avec 5 % d’éléments au petit pas ; **1,83** après l’étape 1. Le LTS est rentable quand le raffinement est
 imposé par la géométrie (petite inclusion, couche mince, topographie) ; sur un
 maillage adapté à la longueur d’onde, le rapport 2 n’apporte rien (étude du
 7 novembre). Le gain idéal du cas à inclusion est d’environ 2 / 1,07 ≈ 1,9 ;
@@ -271,7 +272,14 @@ le surcoût de la boucle (14 % sans zone fine) explique l’essentiel de l’éc
 0. **Remise en état** — *fait le 9 novembre* : Kokkos Serial hors de `/tmp`,
    sorties volumineuses non versionnées, commit, rebase sur `dev-2d` (calcul
    de l’éponge indépendant du pas).
-1. **Surcoût de la boucle** : profiler séparément la raideur globale, la raideur
+1. **Surcoût de la boucle** — *fait le 9 novembre*
+   ([mesures](../../../../documentation/acoustic/local-time-step/loop-overhead-results/README.md)) :
+   surcoût sans zone fine de 14,9 % à 0,6 %, gain sur l’inclusion gmsh de 1,52 à
+   1,83 (CPU), erreurs du même ordre (4,07e-4 au lieu de 4,41e-4). Masque de surface
+   libre limité aux éléments concernés, accélération fine sans remise à zéro, correction
+   soustraite directement par le noyau restreint, métrique des éléments du support
+   précalculée. Le support (éléments touchant un nœud fin) compte 12,5 % des éléments
+   pour 5 % d’éléments fins : c’est lui qui borne le gain. Énoncé initial : profiler séparément la raideur globale, la raideur
    restreinte, les remises à zéro et la correction ; restreindre remises à zéro
    et correction aux nœuds fins et à leur voisinage (listes précalculées dans
    le plan) ; fusionner la projection `M⁻¹` et la correction dans le noyau

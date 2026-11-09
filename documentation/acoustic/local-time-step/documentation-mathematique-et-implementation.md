@@ -409,11 +409,9 @@ Le déroulement d’un grand pas peut se résumer ainsi :
 
 ```text
 r = K(current)                         # tous les éléments
-z = 0
-z[fine_nodes] = r[fine_nodes] / mass
-correction = K_support(z)              # inclut les voisins grossiers
-force = r - a_nu * H^2 * correction
-previous = 2*current - previous - H^2 * force/mass
+z[fine_nodes] = r[fine_nodes] / mass   # z est nul ailleurs depuis la configuration
+r -= a_nu * H^2 * K_support(z)         # inclut les voisins grossiers, métrique précalculée
+previous = 2*current - previous - H^2 * r/mass
 swap(current, previous)
 ```
 
@@ -424,10 +422,13 @@ les champs à trois tampons et les données distribuées. Le grand pas fourni
 à chaque appel doit être celui de la configuration. Un changement de vitesse,
 de géométrie ou de pas impose de reconstruire les opérateurs et la partition.
 
-Les tableaux de travail `fine_acceleration_`, `correction_` et `energy_force_`
-ont actuellement la taille globale $N$ du champ, soit $3N$ réels en plus des
-champs de propagation. La localité des éléments calculés ne signifie donc pas
-encore que tous les parcours mémoire soient locaux. Les instanciations par
+Les tableaux de travail `fine_acceleration_` et `energy_force_` ont la taille
+globale $N$ du champ, soit $2N$ réels en plus des champs de propagation ; s'y
+ajoutent un indicateur par élément (contact avec la surface libre) et la
+métrique précalculée des éléments du support ($3(p+1)^2$ réels par élément).
+Depuis l'étape 1 du plan (9 novembre), un grand pas ne parcourt plus tous les
+nœuds que pour le calcul de $K$ et la mise à jour : la projection et la
+correction restent locales à la zone fine et à son support. Les instanciations par
 ordre et emplacement du modèle sont générées par CMake dans une seule unité
 de traduction par couple, afin d’éviter la duplication des noyaux CUDA.
 
