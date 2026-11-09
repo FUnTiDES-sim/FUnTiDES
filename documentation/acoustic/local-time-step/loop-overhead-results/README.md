@@ -26,6 +26,11 @@ fin. Avec la même efficacité par élément, le gain est donc borné par 2 / 1,
   par `configureLocalTimeStep` ; le noyau de correction ne recalcule plus jacobiennes et
   métriques. La raideur globale reste celle de `sem2d`, pour une comparaison équitable.
 
+Avec le noyau de correction de `sem2d` (géométrie recalculée, version a), le gain est de
+1,77 : le passage de 1,77 à 1,83 vient d'un noyau plus économe que celui du calcul global, qui
+profiterait aussi à `sem2d`. L'étude de l'étape 2
+([fine-fraction-gmsh-results](../fine-fraction-gmsh-results/README.md)) compare les deux.
+
 Les critères de l'étape 1 sont atteints : surcoût sans zone fine inférieur à 3 %, gain
 d'au moins 1,8. La validation complète du cas passe (`test_result_step1b.json`) ; seules
 les erreurs du calcul local changent, par l'ordre des additions en simple précision :

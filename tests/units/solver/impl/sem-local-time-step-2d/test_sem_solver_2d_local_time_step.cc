@@ -282,6 +282,30 @@ TYPED_TEST(SEM2DLTSTest, FineSupportMatchesFullOperatorOnFineFields) {
   EXPECT_GT(difference, 0.1);
 }
 
+TYPED_TEST(SEM2DLTSTest, PrecomputedSupportMetricMatchesRecomputedKernel) {
+  // The correction kernel with precomputed geometric factors equals the sem2d element kernel,
+  // also with a free surface (Dirichlet masking) in the fine support.
+  int const order = TestFixture::order;
+  auto d = grid(order, TypeParam::nodal, kMixedEdges);
+  absorbingEdges(d, static_cast<int>(kMixedEdges.size() - 1) * order + 1, true);
+  model::ModelUnstruct<float, int> mesh(d);
+  typename TestFixture::LTS lts;
+  lts.computeFEInit(mesh, {0, 0, 0}, false, 0);
+  lts.configureLocalTimeStep(macroStep(order));
+  ASSERT_FALSE(lts.getLocalTimeStepPlan().fine_elements.empty());
+  vectorReal field("field", mesh.getNumberOfNodes()), precomputed("B precomputed", mesh.getNumberOfNodes()),
+      recomputed("B recomputed", mesh.getNumberOfNodes());
+  fill(field, smoothField(mesh));
+  lts.applyEffectiveStiffness(field, precomputed);
+  lts.setPrecomputedSupportMetric(false);
+  lts.applyEffectiveStiffness(field, recomputed);
+  auto a = host(precomputed), b = host(recomputed);
+  double scale = 0;
+  for (float v : b) scale = std::max(scale, static_cast<double>(std::abs(v)));
+  ASSERT_GT(scale, 0);
+  for (size_t i = 0; i < a.size(); ++i) EXPECT_NEAR(a[i], b[i], 1e-5 * scale);
+}
+
 TYPED_TEST(SEM2DLTSTest, NoFineRegionMatchesGlobalVerlet) {
   model::ModelUnstruct<float, int> mesh(grid(TestFixture::order, TypeParam::nodal, kMixedEdges));
   typename TestFixture::LTS lts;

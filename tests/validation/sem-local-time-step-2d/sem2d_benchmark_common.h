@@ -48,6 +48,32 @@ inline double quantile(std::vector<double> v, double p) {
   return a == b || v[a] == v[b] ? v[a] : v[a] + (x - a) * (v[b] - v[a]);
 }
 
+// Kernels of the Run constructor: free functions, as nvcc rejects extended lambdas in a constructor.
+inline void setPreviousField(solver::Solver& integrator, solver::SEMsolverDataAcoustic& data, float step) {
+  auto cur = data.getCurrentField(0), prev = data.getPreviousField(0);
+  auto mass = integrator.getMassMatrixAcoustic(), force = integrator.getForceVector(0);
+  Kokkos::parallel_for(
+      "inclusion initial previous", Kokkos::RangePolicy<>(0, cur.extent(0)),
+      KOKKOS_LAMBDA(int i) { prev(i) = cur(i) - 0.5f * step * step * force(i) / mass(i); });
+}
+
+template <class Precise>
+void setPreciseReference(model::ModelUnstruct<float, int>& mesh, solver::Solver& integrator,
+                         solver::SEMsolverDataAcoustic& data, Precise c, Precise old, vectorInt mask, float step) {
+  auto cur = data.getCurrentField(0), prev = data.getPreviousField(0);
+  auto mass = integrator.getMassMatrixAcoustic(), force = integrator.getForceVector(0);
+  auto geometry = mesh;
+  double h = step;
+  Kokkos::parallel_for(
+      "reference Taylor f64", Kokkos::RangePolicy<>(0, mesh.getNumberOfNodes()), KOKKOS_LAMBDA(int i) {
+        c(i) = cur(i);
+        old(i) = c(i) - .5 * h * h * static_cast<double>(force(i)) / mass(i);
+        mask(i) = geometry.isFreeSurface(i);
+        if (mask(i)) c(i) = old(i) = cur(i) = 0;
+        prev(i) = old(i);
+      });
+}
+
 // All preparation is outside the integration timing. The generic target steps in
 // model.csv are intentionally not consumed by this fixed-ratio integrator.
 struct Run {
@@ -76,28 +102,13 @@ struct Run {
       lts.initializePreviousField(data);
     } else {
       integrator->computeForces(dt, 0, data);
-      auto cur = data.getCurrentField(0), prev = data.getPreviousField(0);
-      auto mass = integrator->getMassMatrixAcoustic(), force = integrator->getForceVector(0);
-      Kokkos::parallel_for(
-          "inclusion initial previous", Kokkos::RangePolicy<>(0, mesh.getNumberOfNodes()),
-          KOKKOS_LAMBDA(int i) { prev(i) = cur(i) - 0.5f * step * step * force(i) / mass(i); });
+      setPreviousField(*integrator, data, step);
       if (double_update) {
         int n = mesh.getNumberOfNodes();
         precise_current = Precise("reference current f64", n);
         precise_previous = Precise("reference previous f64", n);
         surface_mask = vectorInt("reference Dirichlet mask", n);
-        auto mask = surface_mask;
-        auto geometry = mesh;
-        auto c = precise_current, old = precise_previous;
-        double h = step;
-        Kokkos::parallel_for(
-            "reference Taylor f64", Kokkos::RangePolicy<>(0, n), KOKKOS_LAMBDA(int i) {
-              c(i) = cur(i);
-              old(i) = c(i) - .5 * h * h * static_cast<double>(force(i)) / mass(i);
-              mask(i) = geometry.isFreeSurface(i);
-              if (mask(i)) c(i) = old(i) = cur(i) = 0;
-              prev(i) = old(i);
-            });
+        setPreciseReference(mesh, *integrator, data, precise_current, precise_previous, surface_mask, step);
       }
     }
     Kokkos::fence();

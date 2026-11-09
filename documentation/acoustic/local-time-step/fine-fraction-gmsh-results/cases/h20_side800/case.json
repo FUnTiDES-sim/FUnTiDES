@@ -1,0 +1,15 @@
+{
+  "patch_side_m": 800.0,
+  "element_size_m": 20.0,
+  "patch_element_size_m": 10.0,
+  "transition_m": 200.0,
+  "domain_m": [
+    6000.0,
+    3000.0
+  ],
+  "vp_m_s": 2000.0,
+  "elements": 51465,
+  "minimum_quality_minSICN": 0.3881782320502258,
+  "gmsh_version": "4.15.2",
+  "method": "frontal-Delaunay for quads + blossom recombination, Box size field"
+}

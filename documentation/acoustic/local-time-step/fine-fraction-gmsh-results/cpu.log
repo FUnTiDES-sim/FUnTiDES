@@ -1,0 +1,20 @@
+h40_side0: 11313 elements, 11313 fine (100 %), support 11313, global limit 3.74165 ms, dt 3.3557 ms, 298 steps
+  global 597.137 ms, local 481.275 ms, gain 1.24074 (same kernel 1.14024), errors 0.00499351 / 0.00569826
+h40_side200: 11499 elements, 240 fine (2.08714 %), support 353, global limit 1.80802 ms, dt 1.62338 ms, 616 steps
+  global 1160.45 ms, local 627.266 ms, gain 1.85001 (same kernel 1.83944), errors 0.00117909 / 0.00484172
+h40_side400: 11815 elements, 632 fine (5.34913 %), support 790, global limit 1.79245 ms, dt 1.6129 ms, 620 steps
+  global 1188.65 ms, local 646.455 ms, gain 1.83871 (same kernel 1.81863), errors 0.0011639 / 0.00469048
+h40_side800: 12919 elements, 2032 fine (15.7288 %), support 2310, global limit 1.69332 ms, dt 1.51976 ms, 658 steps
+  global 1334.76 ms, local 759.077 ms, gain 1.7584 (same kernel 1.70171), errors 0.00103291 / 0.00393912
+h40_side1200: 14622 elements, 4219 fine (28.8538 %), support 4618, global limit 1.72295 ms, dt 1.54799 ms, 646 steps
+  global 1450.34 ms, local 862.727 ms, gain 1.68111 (same kernel 1.59015), errors 0.0010644 / 0.00366146
+h40_side1600: 16893 elements, 7232 fine (42.8106 %), support 7736, global limit 1.71615 ms, dt 1.54321 ms, 648 steps
+  global 1606.21 ms, local 1006.26 ms, gain 1.59622 (same kernel 1.47242), errors 0.00105802 / 0.00314563
+h20_side0: 45000 elements, 45000 fine (100 %), support 45000, global limit 2.88706 ms, dt 2.59067 ms, 386 steps
+  global 3465.93 ms, local 1999.26 ms, gain 1.7336 (same kernel 1.51147), errors 0.00297446 / 0.0052869
+h20_side400: 47106 elements, 2494 fine (5.29444 %), support 2922, global limit 0.848028 ms, dt 0.762195 ms, 1312 steps
+  global 8687.93 ms, local 4708.99 ms, gain 1.84497 (same kernel 1.81527), errors 0.000285125 / 0.00106503
+h20_side800: 51465 elements, 7868 fine (15.2881 %), support 8718, global limit 0.81304 ms, dt 0.730994 ms, 1368 steps
+  global 9569.23 ms, local 5593.51 ms, gain 1.71078 (same kernel 1.65337), errors 0.000262486 / 0.00093075
+h20_side1600: 67522 elements, 28513 fine (42.2277 %), support 30042, global limit 0.836449 ms, dt 0.75188 ms, 1330 steps
+  global 12647.8 ms, local 8038.07 ms, gain 1.57349 (same kernel 1.46798), errors 0.000294153 / 0.000780351

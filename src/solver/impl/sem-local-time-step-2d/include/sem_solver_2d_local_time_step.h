@@ -47,6 +47,11 @@ class SEMsolver2DLocalTimeStep : public SEMsolver2D<ORDER, IS_MODEL_ON_NODES> {
   /// nu=0 is the original, unstabilized LTS scheme; default nu=0.01 adds stabilization.
   void configureLocalTimeStep(float coarse_dt, float cfl = 0.3f, float nu = 0.01f);
 
+  /// Correction kernel with the geometric factors of the support elements precomputed at
+  /// configuration (default), or recomputed at each step as the global stiffness of sem2d
+  /// (to compare both integrators with the same element kernel).
+  void setPrecomputedSupportMetric(bool enabled) { precomputed_support_metric_ = enabled; }
+
   const SEM2DLocalTimeStepPlan& getLocalTimeStepPlan() const {
     requireConfigured();
     return plan_;
@@ -121,6 +126,7 @@ class SEMsolver2DLocalTimeStep : public SEMsolver2D<ORDER, IS_MODEL_ON_NODES> {
   // index (item * kPointsPerElement + q) * 3 + c
   vectorReal support_metric_;
   float correction_factor_{0};  // a * coarse_dt^2
+  bool precomputed_support_metric_{true};
   bool initialized_{false};
   bool configured_{false};
 };
@@ -295,7 +301,10 @@ void SEMsolver2DLocalTimeStep<ORDER, IS_MODEL_ON_NODES>::applyEffectiveStiffness
       });
   FENCE
   // B u = K u - a dt^2 K P M^-1 K u: the restricted assembly subtracts directly into result
-  subtractFineSupportStiffness(acceleration, result, correction_factor_);
+  if (precomputed_support_metric_)
+    subtractFineSupportStiffness(acceleration, result, correction_factor_);
+  else
+    assembleStiffness(acceleration, result, support_elements_, false, -correction_factor_, true);
 }
 
 template <int ORDER, bool IS_MODEL_ON_NODES>

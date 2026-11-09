@@ -285,7 +285,16 @@ le surcoût de la boucle (14 % sans zone fine) explique l’essentiel de l’éc
    le plan) ; fusionner la projection `M⁻¹` et la correction dans le noyau
    restreint. Critères : surcoût sans zone fine inférieur à 3 %, gain sur
    l’inclusion gmsh d’au moins 1,8, erreurs inchangées.
-2. **Domaine de rentabilité, CPU et GPU** : exécuter tests et benchmarks sur
+2. **Domaine de rentabilité, CPU et GPU** — *fait le 9 novembre*
+   ([étude](../../../../documentation/acoustic/local-time-step/fine-fraction-gmsh-results/README.md)) :
+   maillages gmsh à carré raffiné (2 à 45 % d’éléments fins, 11 000 à 270 000
+   éléments). Sur CPU le gain suit `2 / (1 + s)`, s étant la part des éléments qui
+   touchent un nœud fin : 1,84 à 5 %, 1,7 à 16 %, 1,6 à 43 %. Sur GPU, 1,4 à 1,5
+   au-delà de 150 000 éléments ; mesures trop dispersées en dessous de 50 000. Une
+   partition géométrique a donné un LTS instable (cas `h10_side1600`) : argument pour
+   l’étape 3. Tests et programmes de validation compilés et exécutés en CUDA (112
+   tests GPU). Option `setPrecomputedSupportMetric(false)` pour comparer à noyau égal.
+   Énoncé initial : exécuter tests et benchmarks sur
    GPU (occupation du noyau restreint quand la zone fine est petite) ; mesurer
    le gain sur des maillages gmsh à raffinement géométrique en fonction de la
    proportion fine (1 à 30 %), le global prenant le pas imposé par sa stabilité.
@@ -301,7 +310,12 @@ le surcoût de la boucle (14 % sans zone fine) explique l’essentiel de l’éc
    identique à `sem2d` à la tolérance de l’étude de convergence.
 5. **Intégration** : fabrique des solveurs, interfaces Python, lecteur gmsh,
    éponge ; option de pas local dans les tirs de makutu ; cas applicatif avec
-   couche lente mince ou topographie maillée finement.
+   couche lente mince ou topographie maillée finement. Les interfaces Python
+   exposent `SEMsolver2DLocalTimeStep` (configuration du grand pas, plan de
+   partition, énergie discrète) ; les validations, aujourd’hui des programmes
+   C++ lancés à la main, sont alors aussi pilotées depuis Python (makutu et
+   FUnTiDES-App, comme celles de `sem2d`) et intégrées aux tests automatiques.
+   Les mesures de temps de la boucle restent en C++.
 6. **Plusieurs niveaux** (rapports 4, 8, …, section 10 de la documentation
    mathématique) : multiplie le gain quand le raffinement géométrique est fort.
    Critère : trois pas distincts dans le cas à trois couches, énergie et ordre 2
