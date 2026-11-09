@@ -1,0 +1,5 @@
+target_sources(fun_model PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src/gmsh_2d_reader.cc)
+target_include_directories(fun_model PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>)
+install_funtides_headers(model ${CMAKE_CURRENT_SOURCE_DIR}/include)
+add_executable(gmsh_sem2d_inspect EXCLUDE_FROM_ALL tools/gmsh_sem2d_inspect.cc)
+target_link_libraries(gmsh_sem2d_inspect PRIVATE fun_model)

@@ -28,6 +28,10 @@ add_gtest(cartesian_partitioner_test
 
 # 2-D Cartesian builder and ModelUnstruct of dimension 2 (COMPILE_SEM_2D)
 if(COMPILE_SEM_2D)
+  add_gtest(gmsh_2d_reader_test
+    impl/builder/gmsh/test_gmsh_2d_reader.cc
+    "fun_model;fun_discretization"
+  )
   add_gtest(cartesian_unstruct_2d_builder_test
     impl/builder/cartesian/test_cartesian_unstruct_2d_builder.cc
     "fun_model;fun_discretization"
