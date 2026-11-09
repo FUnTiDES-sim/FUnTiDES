@@ -6,12 +6,15 @@ from pathlib import Path
 import gmsh
 import numpy as np
 
+# Results and reports of the validations
+RESULTS = Path(__file__).resolve().parents[3] / "documentation" / "acoustic" / "local-time-step"
+
 
 def main():
     here = Path(__file__).parent
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--config", type=Path, default=here / "gmsh_bilayer.json")
-    parser.add_argument("--output", type=Path, default=here / "gmsh-bilayer-results")
+    parser.add_argument("--output", type=Path, default=RESULTS / "gmsh-bilayer-results")
     args = parser.parse_args()
     c = json.loads(args.config.read_text())
     domain, inc, mesh = c["domain"], c["inclusion"], c["mesh"]

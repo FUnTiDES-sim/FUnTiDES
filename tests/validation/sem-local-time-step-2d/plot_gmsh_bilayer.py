@@ -16,6 +16,9 @@ from matplotlib.collections import PolyCollection
 from matplotlib.colors import BoundaryNorm, ListedColormap
 import numpy as np
 
+# Results and reports of the validations
+RESULTS = Path(__file__).resolve().parents[3] / "documentation" / "acoustic" / "local-time-step"
+
 
 def table(root, name):
     return np.atleast_1d(np.genfromtxt(root / f"{name}.csv", delimiter=",", names=True,
@@ -261,5 +264,5 @@ def analyze(root):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--results", type=Path, default=Path(__file__).parent / "gmsh-bilayer-results")
+    parser.add_argument("--results", type=Path, default=RESULTS / "gmsh-bilayer-results")
     analyze(parser.parse_args().results)

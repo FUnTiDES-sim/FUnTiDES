@@ -5,15 +5,15 @@ Développement sur la branche **`sem-local-timesetp-2d`**, dans le worktree
 `dev-2d` pour les développements de Claude. Ce composant est placé à côté du
 solveur de référence [`sem2d/`](../sem2d/).
 
-Le [document mathématique et d’implémentation](documentation-mathematique-et-implementation.md)
+Le [document mathématique et d’implémentation](../../../../documentation/acoustic/local-time-step/documentation-mathematique-et-implementation.md)
 présente les équations, la preuve de conservation de l’énergie, la correspondance
 avec le code et l’architecture envisagée pour des pas indépendants non multiples.
 Il contient les instantanés et les sismogrammes du
-[test à petites inclusions](validation/inclusion-results/README.md).
-L’[extension avec excitation en surface et quatre bords absorbants](validation/surface-absorbing-results/README-quatre-bords-absorbants.md)
+[test à petites inclusions](../../../../documentation/acoustic/local-time-step/inclusion-results/README.md).
+L’[extension avec excitation en surface et quatre bords absorbants](../../../../documentation/acoustic/local-time-step/surface-absorbing-results/README-quatre-bords-absorbants.md)
 ajoute la comparaison au témoin rigide, les traces différentielles de l’inclusion
 et la vérification de la dissipation d’énergie.
-La [configuration courante à surface libre](validation/free-surface-results/README.md)
+La [configuration courante à surface libre](../../../../documentation/acoustic/local-time-step/free-surface-results/README.md)
 remplace le bord supérieur absorbant par une pression nulle, avec excitation
 sous la surface ; elle donne les temps de calcul global et local.
 
@@ -209,10 +209,13 @@ cmake -S . -B build-lts-cpu -G Ninja \
 Cette configuration réutilise les sources GoogleTest déjà présentes localement
 pour éviter un téléchargement.
 
-Les gros fichiers de sortie des validations (sismogrammes `receivers.csv`,
+Les programmes et scripts de validation sont dans
+[`tests/validation/sem-local-time-step-2d/`](../../../../tests/validation/sem-local-time-step-2d/)
+(cibles CMake à la demande, non compilées par défaut). Les rapports, figures et résumés
+sont dans [`documentation/acoustic/local-time-step/`](../../../../documentation/acoustic/local-time-step/),
+avec la note mathématique. Les gros fichiers de sortie (sismogrammes `receivers.csv`,
 instantanés `snapshots.csv`, champs et maillages exportés) ne sont pas versionnés
-(`validation/.gitignore`) : les programmes de `validation/` les régénèrent. Les
-résumés, les mesures de temps, les maillages d’entrée `.msh` et les figures le sont.
+(`documentation/acoustic/local-time-step/.gitignore`) : les programmes les régénèrent.
 
 ### Résultats de validation CPU
 
@@ -242,14 +245,14 @@ session. Les tailles de champs temporaires restent globales dans ce prototype.
 
 ### Cas à trois couches et figures
 
-Le [cas de validation à trois couches](validation/README.md) utilise un maillage
+Le [cas de validation à trois couches](../../../../documentation/acoustic/local-time-step/validation-trois-couches.md) utilise un maillage
 uniforme et des vitesses de 1 500, 2 250 et 3 000 m/s. Les pas retenus sont
 respectivement de 12, 6 et 6 ms : les deux couches rapides partagent le petit pas
 de la version à deux niveaux. À 1,8 s, l’erreur relative face au calcul global à
 1,5 ms est de 1,62 %, avec une dérive relative maximale d’énergie de `2.7e-7`.
-Les figures, CSV et commandes de reproduction sont dans `validation/`.
+Les figures, CSV et commandes de reproduction sont dans `documentation/acoustic/local-time-step/`.
 
-L’[étude de précision et de performances du 7 novembre](validation/fraction-results/README.md)
+L’[étude de précision et de performances du 7 novembre](../../../../documentation/acoustic/local-time-step/fraction-results/README.md)
 couvre huit modèles avec 0 à 100 % d’éléments au petit pas. Après raffinement
 des pas pour une erreur finale plafonnée à 2 %, aucun candidat local retenu
 n’est plus rapide que le candidat global du même modèle. Le témoin sans zone

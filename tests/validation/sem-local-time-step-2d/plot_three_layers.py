@@ -15,10 +15,13 @@ from matplotlib.colors import BoundaryNorm, ListedColormap
 from matplotlib.ticker import MaxNLocator
 import numpy as np
 
+# Results and reports of the validations
+RESULTS = Path(__file__).resolve().parents[3] / "documentation" / "acoustic" / "local-time-step"
+
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--results", type=Path, default=Path(__file__).parent / "results")
+    parser.add_argument("--results", type=Path, default=RESULTS / "results")
     args = parser.parse_args()
     root = args.results
     meta = json.loads((root / "metadata.json").read_text())

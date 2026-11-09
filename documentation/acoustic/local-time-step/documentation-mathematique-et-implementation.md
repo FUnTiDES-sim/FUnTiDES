@@ -393,17 +393,17 @@ Les chemins ci-dessous sont relatifs au dossier de ce document.
 
 | Étape mathématique | Implémentation | Rôle |
 |---|---|---|
-| Diagnostic (9), ensembles fins et support | [`src/sem_2d_local_time_step_plan.cc`](src/sem_2d_local_time_step_plan.cc) | Lire géométrie et vitesse sur le device, assembler les listes sur le host |
-| Masse et mise à jour globale | [`../sem2d/include/sem_solver_2d.h`](../sem2d/include/sem_solver_2d.h) | Quadrature, masse diagonale, mise à jour des deux tampons |
-| Configuration de $H$, $P$ et $a_\nu H^2$ | [`configureLocalTimeStep()`](include/sem_solver_2d_local_time_step.h) | Vérifier les entrées et copier les listes sur le device |
+| Diagnostic (9), ensembles fins et support | [`src/sem_2d_local_time_step_plan.cc`](../../../src/solver/impl/sem-local-time-step-2d/src/sem_2d_local_time_step_plan.cc) | Lire géométrie et vitesse sur le device, assembler les listes sur le host |
+| Masse et mise à jour globale | [`../sem2d/include/sem_solver_2d.h`](../../../src/solver/impl/sem2d/include/sem_solver_2d.h) | Quadrature, masse diagonale, mise à jour des deux tampons |
+| Configuration de $H$, $P$ et $a_\nu H^2$ | [`configureLocalTimeStep()`](../../../src/solver/impl/sem-local-time-step-2d/include/sem_solver_2d_local_time_step.h) | Vérifier les entrées et copier les listes sur le device |
 | Application de $K$ | `assembleStiffness()` dans le même fichier | Factorisation tensorielle, projection des nœuds à pression nulle, assemblage atomique |
 | Correction (13) | `applyEffectiveStiffness()` | Construire $PM^{-1}K\mathbf U$, appliquer le support, corriger la force |
 | Démarrage (15) | `initializePreviousField()` | Construire le niveau $-H$ avec l’opérateur modifié |
 | Récurrence (12) | `computeOneStep()` puis `swapWavefields()` | Calculer la force et avancer les deux champs |
 | Diagnostic (17) | `discreteEnergy()` | Appliquer $B_H$ et réduire la somme en précision double |
-| Plusieurs inclusions | [`validation/prepare_inclusions.py`](validation/prepare_inclusions.py) | Construire la vitesse, la densité, les identifiants et les pas cibles par élément |
-| Test et sorties | [`validation/benchmark_inclusions.cc`](validation/benchmark_inclusions.cc) | Références, spectre estimé, mesures répétées, instantanés et traces |
-| Tracés et contrôles | [`validation/plot_inclusions.py`](validation/plot_inclusions.py) | Contrôler les CSV et produire les figures |
+| Plusieurs inclusions | [`validation/prepare_inclusions.py`](../../../tests/validation/sem-local-time-step-2d/prepare_inclusions.py) | Construire la vitesse, la densité, les identifiants et les pas cibles par élément |
+| Test et sorties | [`validation/benchmark_inclusions.cc`](../../../tests/validation/sem-local-time-step-2d/benchmark_inclusions.cc) | Références, spectre estimé, mesures répétées, instantanés et traces |
+| Tracés et contrôles | [`validation/plot_inclusions.py`](../../../tests/validation/sem-local-time-step-2d/plot_inclusions.py) | Contrôler les CSV et produire les figures |
 
 Le déroulement d’un grand pas peut se résumer ainsi :
 
@@ -454,7 +454,7 @@ différents de ceux du solveur global de référence.
 ### 8.1. Modèle et excitation
 
 La configuration source est
-[`validation/inclusion_models.json`](validation/inclusion_models.json).
+[`validation/inclusion_models.json`](../../../tests/validation/sem-local-time-step-2d/inclusion_models.json).
 Le domaine de 6 000 × 3 000 m contient 60 × 30 éléments carrés de 100 m,
 soit 1 800 éléments et 7 381 nœuds GLL à l’ordre 2.
 
@@ -551,7 +551,7 @@ de pression est commune ; le maximum initial est saturé comme indiqué dans la
 légende. Le passage dans l’inclusion déforme le front visible vers 0,6 s.
 Les images tardives montrent aussi les réflexions des bords rigides.
 
-![Propagation locale et récepteurs en surface](validation/inclusion-results/single_4500/02_snapshots.png)
+![Propagation locale et récepteurs en surface](inclusion-results/single_4500/02_snapshots.png)
 
 ### 9.2. Traces de pression
 
@@ -578,12 +578,12 @@ n’est pas l’erreur du champ final donnée par (22).
 La figure des sismogrammes utilise une même échelle pour le global de référence
 et le local. La différence possède une échelle propre explicitement indiquée.
 
-![Sismogrammes des 51 récepteurs en surface](validation/inclusion-results/single_4500/03_sismogrammes_surface.png)
+![Sismogrammes des 51 récepteurs en surface](inclusion-results/single_4500/03_sismogrammes_surface.png)
 
-Les [quatre traces individuelles](validation/inclusion-results/single_4500/04_traces_surface.png)
+Les [quatre traces individuelles](inclusion-results/single_4500/04_traces_surface.png)
 conservent les amplitudes originales. Le
-[modèle avec acquisition](validation/inclusion-results/single_4500/01_modele_et_recepteurs.png)
-et la [comparaison de stabilité](validation/inclusion-results/single_4500/05_precision_et_stabilite.png)
+[modèle avec acquisition](inclusion-results/single_4500/01_modele_et_recepteurs.png)
+et la [comparaison de stabilité](inclusion-results/single_4500/05_precision_et_stabilite.png)
 complètent ces vues.
 
 ## 10. Généralisation à plusieurs inclusions et à des pas non multiples
@@ -741,18 +741,18 @@ nécessaires avant une exposition dans la fabrique ou les interfaces Python.
 ### 11.1. Reproduction
 
 Depuis la racine du worktree `FUnTiDES-sem-local-timesetp-2d/`, avec la
-configuration CPU du [README](README.md), les commandes sont :
+configuration CPU du [README](../../../src/solver/impl/sem-local-time-step-2d/README.md), les commandes sont :
 
 ```bash
 cmake --build build-lts-cpu --target sem2d_lts_inclusion_benchmark -j 4
 ../FUnTiDES-install/tpl-venv/bin/python \
-  src/solver/impl/sem-local-time-step-2d/validation/prepare_inclusions.py
+  tests/validation/sem-local-time-step-2d/prepare_inclusions.py
 env -u LD_LIBRARY_PATH taskset -c 0 \
-  build-lts-cpu/src/solver/impl/sem-local-time-step-2d/sem2d_lts_inclusion_benchmark \
-  src/solver/impl/sem-local-time-step-2d/validation/inclusion-results/single_4500 7
+  build-lts-cpu/tests/validation/sem-local-time-step-2d/sem2d_lts_inclusion_benchmark \
+  documentation/acoustic/local-time-step/inclusion-results/single_4500 7
 ../FUnTiDES-install/tpl-venv/bin/python \
-  src/solver/impl/sem-local-time-step-2d/validation/plot_inclusions.py \
-  --results src/solver/impl/sem-local-time-step-2d/validation/inclusion-results/single_4500
+  tests/validation/sem-local-time-step-2d/plot_inclusions.py \
+  --results documentation/acoustic/local-time-step/inclusion-results/single_4500
 ```
 
 Les deux dernières commandes peuvent être répétées pour `homogeneous_1500`
@@ -770,7 +770,7 @@ env -u LD_LIBRARY_PATH ctest --test-dir build-lts-cpu \
 ### 11.2. Données et contrôles
 
 Les modèles, paramètres, références spectrales estimées et mesures brutes sont
-dans [`validation/inclusion-results/`](validation/inclusion-results/).
+dans [`inclusion-results/`](inclusion-results/).
 `snapshots.csv` contient les champs nodaux ; `receivers.csv` les pressions et
 coordonnées de chaque récepteur ; `history.csv` les diagnostics à chaque sortie.
 Les résultats non finis restent visibles dans les mesures et ne sont pas
@@ -911,8 +911,8 @@ et le bilan (32) pendant 500 pas sur un maillage à deux niveaux. La suite
 de régression contient maintenant **82 tests réussis**.
 
 Les cas d’essai et les résultats sont séparés de la première campagne :
-[`validation/inclusion_surface_absorbing.json`](validation/inclusion_surface_absorbing.json)
-et [`validation/surface-absorbing-results/`](validation/surface-absorbing-results/).
+[`validation/inclusion_surface_absorbing.json`](../../../tests/validation/sem-local-time-step-2d/inclusion_surface_absorbing.json)
+et [`surface-absorbing-results/`](surface-absorbing-results/).
 Ils comprennent un témoin homogène absorbant, une inclusion absorbante,
 deux inclusions absorbantes et la même inclusion avec source en surface et
 bords rigides. La durée est portée de 1,8 à **3,6 s** pour observer le retour
@@ -969,14 +969,14 @@ $\|\Delta D_{\rm LTS}-\Delta D_{\rm ref}\|_F/\|\Delta D_{\rm ref}\|_F$
 vaut **8,94 %** sur l’ensemble des traces. La précision de cette réponse faible
 est donc moins bonne que ne le suggère la métrique des traces complètes.
 
-![Instantanés : impulsion initiale en surface et bords absorbants](validation/surface-absorbing-results/single_4500/02_snapshots.png)
+![Instantanés : impulsion initiale en surface et bords absorbants](surface-absorbing-results/single_4500/02_snapshots.png)
 
-![Réponse de l’inclusion, effet des conditions de bord et décroissance d’énergie](validation/surface-absorbing-results/06_effet_inclusion_et_absorption.png)
+![Réponse de l’inclusion, effet des conditions de bord et décroissance d’énergie](surface-absorbing-results/06_effet_inclusion_et_absorption.png)
 
 Dans la figure précédente, la différence entre bords rigides et absorbants
 regroupe aussi le changement de rayonnement près de l’excitation située sur
 le bord. Elle ne doit pas être assimilée à une mesure isolée du coefficient
-de réflexion. Les [traces différentielles individuelles](validation/surface-absorbing-results/07_reponse_differentielle_inclusion.png)
+de réflexion. Les [traces différentielles individuelles](surface-absorbing-results/07_reponse_differentielle_inclusion.png)
 conservent leurs amplitudes.
 
 Pour un plafond de **1 % sur le champ final**, les configurations retenues
@@ -992,7 +992,7 @@ stationnaire, dont l’énergie de gradient est nulle. L’impulsion initiale
 positive n’a pas une moyenne nulle ; une faible énergie dynamique restante
 n’implique donc pas une pression identiquement nulle.
 
-Les [résultats détaillés et commandes de reproduction](validation/surface-absorbing-results/README-quatre-bords-absorbants.md)
+Les [résultats détaillés et commandes de reproduction](surface-absorbing-results/README-quatre-bords-absorbants.md)
 décrivent les quatre cas, les 728 chronométrages, la précision de référence
 et les contrôles du bilan d’énergie.
 
@@ -1028,7 +1028,7 @@ d’un forçage temporel. La pression est projetée à zéro à chaque pas, y co
 dans les deux tampons float64 de la référence à précision mixte.
 
 La configuration est définie dans
-[`validation/inclusion_free_surface.json`](validation/inclusion_free_surface.json).
+[`validation/inclusion_free_surface.json`](../../../tests/validation/sem-local-time-step-2d/inclusion_free_surface.json).
 Les modes de bord sont distincts dans le benchmark : rigide, quatre côtés
 absorbants, sommet libre avec côtés/fond absorbants, et sommet libre avec
 côtés/fond rigides. La profondeur des récepteurs est enregistrée explicitement.
@@ -1045,8 +1045,8 @@ pour le local et la référence : son maximum mesuré est exactement nul.
 
 Le cas à une inclusion a été relancé pendant **3,6 s**, avec sept mesures
 par configuration et une référence à 0,375 ms. Les
-[temps de calcul demandés](validation/free-surface-results/README.md) et leur
-[tableau CSV](validation/free-surface-results/compute_times.csv) portent uniquement
+[temps de calcul demandés](free-surface-results/README.md) et leur
+[tableau CSV](free-surface-results/compute_times.csv) portent uniquement
 sur la boucle de propagation, hors initialisation, diagnostics, copies host
 et écritures. La comparaison retenue est le global à 6 ms et le local
 à 12 / 6 ms ; les pas sont explicités sans affirmer une précision identique.
@@ -1085,9 +1085,9 @@ Les paramètres du script de tracé sont `--gain-power 2`,
    2003, DOI [10.1007/s00205-002-0212-y](https://doi.org/10.1007/s00205-002-0212-y),
    [notice et manuscrit auteur](https://authors.library.caltech.edu/records/87fjr-qhc90).
    Piste bibliographique pour l’extension à des pas indépendants, non exécutée ici.
-3. [Solveur local et contrats d’API](include/sem_solver_2d_local_time_step.h),
-   [construction de la partition](src/sem_2d_local_time_step_plan.cc),
-   [benchmark des inclusions](validation/benchmark_inclusions.cc) : sources
+3. [Solveur local et contrats d’API](../../../src/solver/impl/sem-local-time-step-2d/include/sem_solver_2d_local_time_step.h),
+   [construction de la partition](../../../src/solver/impl/sem-local-time-step-2d/src/sem_2d_local_time_step_plan.cc),
+   [benchmark des inclusions](../../../tests/validation/sem-local-time-step-2d/benchmark_inclusions.cc) : sources
    de l’implémentation et des mesures décrites.
-4. [Étude précédente à proportions fines variables](validation/fraction-results/README.md) :
+4. [Étude précédente à proportions fines variables](fraction-results/README.md) :
    protocole des couches, raffinement des pas et limites des comparaisons.

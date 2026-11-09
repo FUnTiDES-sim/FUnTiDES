@@ -81,7 +81,7 @@ et aux tests effectivement exécutés.
 
 **Statut : réussi le 8 novembre 2026.** Le calcul précédent reste un contrôle
 de précision dans un régime où les deux intégrateurs sont stables. La
-[définition du nouveau test](../gmsh_inclusion_stability_test.json) impose
+[définition du nouveau test](../../../../tests/validation/sem-local-time-step-2d/gmsh_inclusion_stability_test.json) impose
 explicitement l’échec du global au grand pas et la réussite du local.
 
 Le [cas raffiné a été exécuté](../gmsh-inclusion-stability-results/README.md).
@@ -193,13 +193,13 @@ Pour reproduire ces calculs et les contrôles :
 
 ```bash
 env -u LD_LIBRARY_PATH taskset -c 0 \
-  build-lts-cpu/src/solver/impl/sem-local-time-step-2d/sem2d_gmsh_benchmark \
-  src/solver/impl/sem-local-time-step-2d/validation/gmsh-structured-results/bilayer.msh \
-  src/solver/impl/sem-local-time-step-2d/validation/gmsh-structured-results/materials.csv \
-  src/solver/impl/sem-local-time-step-2d/validation/gmsh-structured-results 7
+  build-lts-cpu/tests/validation/sem-local-time-step-2d/sem2d_gmsh_benchmark \
+  documentation/acoustic/local-time-step/gmsh-structured-results/bilayer.msh \
+  documentation/acoustic/local-time-step/gmsh-structured-results/materials.csv \
+  documentation/acoustic/local-time-step/gmsh-structured-results 7
 ../FUnTiDES-install/tpl-venv/bin/python \
-  src/solver/impl/sem-local-time-step-2d/validation/plot_gmsh_bilayer.py \
-  --results src/solver/impl/sem-local-time-step-2d/validation/gmsh-structured-results
+  tests/validation/sem-local-time-step-2d/plot_gmsh_bilayer.py \
+  --results documentation/acoustic/local-time-step/gmsh-structured-results
 ```
 
 Ces commandes remplacent les sorties de propagation et leurs figures.
@@ -218,13 +218,13 @@ Depuis la racine du worktree :
 
 ```bash
 ../FUnTiDES-install/tpl-venv/bin/python \
-  src/solver/impl/sem-local-time-step-2d/validation/generate_gmsh_bilayer.py
+  tests/validation/sem-local-time-step-2d/generate_gmsh_bilayer.py
 ../FUnTiDES-install/tpl-venv/bin/python \
-  src/solver/impl/sem-local-time-step-2d/validation/plot_gmsh_mesh.py
+  tests/validation/sem-local-time-step-2d/plot_gmsh_mesh.py
 env -u LD_LIBRARY_PATH \
   build-lts-cpu/src/model/mesh/impl/builder/gmsh/gmsh_sem2d_inspect \
-  src/solver/impl/sem-local-time-step-2d/validation/gmsh-structured-results/bilayer.msh \
-  src/solver/impl/sem-local-time-step-2d/validation/gmsh-structured-results/materials.csv 2
+  documentation/acoustic/local-time-step/gmsh-structured-results/bilayer.msh \
+  documentation/acoustic/local-time-step/gmsh-structured-results/materials.csv 2
 ```
 
 Ces commandes génèrent, affichent et inspectent uniquement le maillage. Les

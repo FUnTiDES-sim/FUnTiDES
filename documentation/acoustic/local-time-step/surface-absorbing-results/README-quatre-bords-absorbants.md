@@ -120,7 +120,7 @@ réservé et sa fréquence n’est pas imposée.
 
 ## Cas, données et reproduction
 
-La [configuration](../inclusion_surface_absorbing.json) définit quatre cas :
+La [configuration](../../../../tests/validation/sem-local-time-step-2d/inclusion_surface_absorbing.json) définit quatre cas :
 
 - `single_4500` : inclusion carrée et quatre bords absorbants ;
 - `single_4500_rigid_surface` : même inclusion et même excitation, bords rigides ;
@@ -137,28 +137,28 @@ Depuis la racine du worktree :
 ```bash
 cmake --build build-lts-cpu --target sem2d_lts_inclusion_benchmark -j 4
 ../FUnTiDES-install/tpl-venv/bin/python \
-  src/solver/impl/sem-local-time-step-2d/validation/prepare_inclusions.py \
-  --config src/solver/impl/sem-local-time-step-2d/validation/inclusion_surface_absorbing.json \
-  --output src/solver/impl/sem-local-time-step-2d/validation/surface-absorbing-results
+  tests/validation/sem-local-time-step-2d/prepare_inclusions.py \
+  --config tests/validation/sem-local-time-step-2d/inclusion_surface_absorbing.json \
+  --output documentation/acoustic/local-time-step/surface-absorbing-results
 ```
 
 Pour chaque cas, remplacer `single_4500` dans les deux commandes suivantes :
 
 ```bash
 env -u LD_LIBRARY_PATH taskset -c 0 \
-  build-lts-cpu/src/solver/impl/sem-local-time-step-2d/sem2d_lts_inclusion_benchmark \
-  src/solver/impl/sem-local-time-step-2d/validation/surface-absorbing-results/single_4500 7
+  build-lts-cpu/tests/validation/sem-local-time-step-2d/sem2d_lts_inclusion_benchmark \
+  documentation/acoustic/local-time-step/surface-absorbing-results/single_4500 7
 ../FUnTiDES-install/tpl-venv/bin/python \
-  src/solver/impl/sem-local-time-step-2d/validation/plot_inclusions.py \
-  --results src/solver/impl/sem-local-time-step-2d/validation/surface-absorbing-results/single_4500
+  tests/validation/sem-local-time-step-2d/plot_inclusions.py \
+  --results documentation/acoustic/local-time-step/surface-absorbing-results/single_4500
 ```
 
 Puis créer la comparaison entre modèles :
 
 ```bash
 ../FUnTiDES-install/tpl-venv/bin/python \
-  src/solver/impl/sem-local-time-step-2d/validation/plot_inclusions.py \
-  --results src/solver/impl/sem-local-time-step-2d/validation/surface-absorbing-results \
+  tests/validation/sem-local-time-step-2d/plot_inclusions.py \
+  --results documentation/acoustic/local-time-step/surface-absorbing-results \
   --compare-surface
 ```
 
@@ -171,4 +171,4 @@ et `environment.json` pour les conditions et empreintes de la campagne.
 
 Les **82 tests de régression passent**, dont huit nouveaux cas sur
 l’amortissement. La formulation et la preuve du bilan figurent en
-[section 12 du document technique](../../documentation-mathematique-et-implementation.md).
+[section 12 du document technique](../documentation-mathematique-et-implementation.md).

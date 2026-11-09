@@ -72,7 +72,7 @@ if(COMPILE_SEM_2D)
     target_sources(sem_solver_2d_local_time_step_test PRIVATE
       impl/sem-local-time-step-2d/test_sem_2d_three_layers.cc)
     target_include_directories(sem_solver_2d_local_time_step_test PRIVATE
-      ${CMAKE_SOURCE_DIR}/src/solver/impl/sem-local-time-step-2d/validation)
+      ${CMAKE_SOURCE_DIR}/tests/validation/sem-local-time-step-2d)
   endif()
 endif()
 

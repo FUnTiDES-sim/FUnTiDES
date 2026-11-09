@@ -13,6 +13,9 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
 
+# Results and reports of the validations
+RESULTS = Path(__file__).resolve().parents[3] / "documentation" / "acoustic" / "local-time-step"
+
 
 def read_csv(path):
     with path.open(newline="") as stream:
@@ -21,7 +24,7 @@ def read_csv(path):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--results", type=Path, default=Path(__file__).parent / "fraction-results")
+    parser.add_argument("--results", type=Path, default=RESULTS / "fraction-results")
     args = parser.parse_args()
     root = args.results
     protocol = json.loads((root / "fraction_protocol.json").read_text())

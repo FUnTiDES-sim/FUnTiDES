@@ -10,6 +10,9 @@ matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 import numpy as np
 
+# Results and reports of the validations
+RESULTS = Path(__file__).resolve().parents[3] / "documentation" / "acoustic" / "local-time-step"
+
 
 def plot(root):
     result = json.loads((root / 'test_result.json').read_text())
@@ -120,5 +123,5 @@ def plot(root):
 
 if __name__ == '__main__':
     p = argparse.ArgumentParser(description=__doc__)
-    p.add_argument('--results', type=Path, default=Path(__file__).parent / 'gmsh-inclusion-stability-results')
+    p.add_argument('--results', type=Path, default=RESULTS / 'gmsh-inclusion-stability-results')
     plot(p.parse_args().results)

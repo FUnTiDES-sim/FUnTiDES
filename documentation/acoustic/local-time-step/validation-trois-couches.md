@@ -1,7 +1,7 @@
 # Validation visuelle : trois couches de vitesses différentes
 
 Les figures et les CSV proviennent du calcul C++ réalisé par
-[`runThreeLayerValidation()`](three_layer_case.h). Le même calcul est exécuté
+[`runThreeLayerValidation()`](../../../tests/validation/sem-local-time-step-2d/three_layer_case.h). Le même calcul est exécuté
 par le test `SEM2DLTS.ThreeLayersAdaptToVelocityAndMatchSmallGlobalStep`.
 Python lit les CSV et réalise uniquement les tracés.
 
@@ -97,17 +97,17 @@ une échelle distincte, indiquée sur sa barre de couleur.
 ## Reproduire
 
 Depuis la racine du worktree, après la configuration CPU décrite dans le
-[README du composant](../README.md) :
+[README du composant](../../../src/solver/impl/sem-local-time-step-2d/README.md) :
 
 ```bash
 cmake --build build-lts-cpu --target sem2d_lts_three_layers_validation \
     sem_solver_2d_local_time_step_test -j 4
 env -u LD_LIBRARY_PATH build-lts-cpu/tests/units/solver/sem_solver_2d_local_time_step_test \
     --gtest_filter=SEM2DLTS.ThreeLayersAdaptToVelocityAndMatchSmallGlobalStep
-env -u LD_LIBRARY_PATH build-lts-cpu/src/solver/impl/sem-local-time-step-2d/sem2d_lts_three_layers_validation \
-    src/solver/impl/sem-local-time-step-2d/validation/results
+env -u LD_LIBRARY_PATH build-lts-cpu/tests/validation/sem-local-time-step-2d/sem2d_lts_three_layers_validation \
+    documentation/acoustic/local-time-step/results
 ../FUnTiDES-install/tpl-venv/bin/python \
-    src/solver/impl/sem-local-time-step-2d/validation/plot_three_layers.py
+    tests/validation/sem-local-time-step-2d/plot_three_layers.py
 ```
 
 Le script de tracé nécessite NumPy et Matplotlib. Les fichiers `elements.csv`,
@@ -124,10 +124,10 @@ Pour le relancer avec le même cœur et tracer les résultats :
 
 ```bash
 env -u LD_LIBRARY_PATH taskset -c 0 \
-    build-lts-cpu/src/solver/impl/sem-local-time-step-2d/sem2d_lts_three_layers_benchmark \
-    src/solver/impl/sem-local-time-step-2d/validation/results 11
+    build-lts-cpu/tests/validation/sem-local-time-step-2d/sem2d_lts_three_layers_benchmark \
+    documentation/acoustic/local-time-step/results 11
 ../FUnTiDES-install/tpl-venv/bin/python \
-    src/solver/impl/sem-local-time-step-2d/validation/plot_three_layer_timings.py
+    tests/validation/sem-local-time-step-2d/plot_three_layer_timings.py
 ```
 
 Adapter le cœur si le processeur logique 0 n’est pas accessible dans la session.

@@ -1,0 +1,18 @@
+# Validation and timing programs of the SEM 2-D local time stepping (opt-in targets, not
+# built by default); results and reports: documentation/acoustic/local-time-step.
+if(TARGET_SOLVER_ACOUSTIC_ORDER GREATER_EQUAL 2)
+  add_executable(sem2d_lts_three_layers_validation EXCLUDE_FROM_ALL export_three_layers.cc)
+  target_link_libraries(sem2d_lts_three_layers_validation PRIVATE fun_solver fun_model)
+  add_executable(sem2d_lts_three_layers_benchmark EXCLUDE_FROM_ALL benchmark_three_layers.cc)
+  target_link_libraries(sem2d_lts_three_layers_benchmark PRIVATE fun_solver fun_model)
+  add_executable(sem2d_lts_fraction_benchmark EXCLUDE_FROM_ALL benchmark_fine_fraction.cc)
+  target_link_libraries(sem2d_lts_fraction_benchmark PRIVATE fun_solver fun_model)
+  add_executable(sem2d_lts_inclusion_benchmark EXCLUDE_FROM_ALL benchmark_inclusions.cc)
+  target_link_libraries(sem2d_lts_inclusion_benchmark PRIVATE fun_solver fun_model)
+  add_executable(sem2d_gmsh_benchmark EXCLUDE_FROM_ALL benchmark_gmsh_bilayer.cc)
+  target_link_libraries(sem2d_gmsh_benchmark PRIVATE fun_solver fun_model)
+  add_executable(sem2d_gmsh_inclusion_stability EXCLUDE_FROM_ALL test_gmsh_inclusion_stability.cc)
+  target_link_libraries(sem2d_gmsh_inclusion_stability PRIVATE fun_solver fun_model)
+  add_executable(sem2d_gmsh_inclusion_timing EXCLUDE_FROM_ALL benchmark_gmsh_inclusion_stability.cc)
+  target_link_libraries(sem2d_gmsh_inclusion_timing PRIVATE fun_solver fun_model)
+endif()

@@ -3,7 +3,7 @@
 **Test réussi le 8 novembre 2026.** Sur le maillage raffiné dans l’inclusion,
 le global au grand pas diverge ; le global au petit pas et le local restent
 stables et précis. Le témoin sans ce raffinement est stable au même grand pas.
-Les critères sont fixés dans la [définition du test](../gmsh_inclusion_stability_test.json).
+Les critères sont fixés dans la [définition du test](../../../../tests/validation/sem-local-time-step-2d/gmsh_inclusion_stability_test.json).
 
 ![Instabilité du global et stabilité du local, avec bilan énergétique](01_necessite_petit_pas.png)
 
@@ -151,12 +151,12 @@ Pour reproduire ces chronométrages après la validation :
 ```bash
 cmake --build build-lts-cpu --target sem2d_gmsh_inclusion_timing -j 4
 env -u LD_LIBRARY_PATH taskset -c 0 \
-  build-lts-cpu/src/solver/impl/sem-local-time-step-2d/sem2d_gmsh_inclusion_timing \
-  src/solver/impl/sem-local-time-step-2d/validation/gmsh-structured-results \
-  src/solver/impl/sem-local-time-step-2d/validation/gmsh-inclusion-stability-results \
-  src/solver/impl/sem-local-time-step-2d/validation/gmsh-inclusion-stability-results/timing_parameters.txt 7
+  build-lts-cpu/tests/validation/sem-local-time-step-2d/sem2d_gmsh_inclusion_timing \
+  documentation/acoustic/local-time-step/gmsh-structured-results \
+  documentation/acoustic/local-time-step/gmsh-inclusion-stability-results \
+  documentation/acoustic/local-time-step/gmsh-inclusion-stability-results/timing_parameters.txt 7
 ../FUnTiDES-install/tpl-venv/bin/python \
-  src/solver/impl/sem-local-time-step-2d/validation/plot_gmsh_inclusion_timings.py
+  tests/validation/sem-local-time-step-2d/plot_gmsh_inclusion_timings.py
 ```
 
 `timing_parameters.txt` contient le grand pas, le coefficient de partition,
@@ -170,19 +170,19 @@ Depuis la racine du worktree, avec la configuration CPU restaurée :
 
 ```bash
 ../FUnTiDES-install/tpl-venv/bin/python \
-  src/solver/impl/sem-local-time-step-2d/validation/generate_gmsh_bilayer.py \
-  --config src/solver/impl/sem-local-time-step-2d/validation/gmsh_inclusion_refined.json \
-  --output src/solver/impl/sem-local-time-step-2d/validation/gmsh-inclusion-stability-results
+  tests/validation/sem-local-time-step-2d/generate_gmsh_bilayer.py \
+  --config tests/validation/sem-local-time-step-2d/gmsh_inclusion_refined.json \
+  --output documentation/acoustic/local-time-step/gmsh-inclusion-stability-results
 ../FUnTiDES-install/tpl-venv/bin/python \
-  src/solver/impl/sem-local-time-step-2d/validation/plot_gmsh_mesh.py \
-  --results src/solver/impl/sem-local-time-step-2d/validation/gmsh-inclusion-stability-results
+  tests/validation/sem-local-time-step-2d/plot_gmsh_mesh.py \
+  --results documentation/acoustic/local-time-step/gmsh-inclusion-stability-results
 cmake --build build-lts-cpu --target sem2d_gmsh_inclusion_stability -j 4
 env -u LD_LIBRARY_PATH taskset -c 0 \
-  build-lts-cpu/src/solver/impl/sem-local-time-step-2d/sem2d_gmsh_inclusion_stability \
-  src/solver/impl/sem-local-time-step-2d/validation/gmsh-structured-results \
-  src/solver/impl/sem-local-time-step-2d/validation/gmsh-inclusion-stability-results 1.2
+  build-lts-cpu/tests/validation/sem-local-time-step-2d/sem2d_gmsh_inclusion_stability \
+  documentation/acoustic/local-time-step/gmsh-structured-results \
+  documentation/acoustic/local-time-step/gmsh-inclusion-stability-results 1.2
 ../FUnTiDES-install/tpl-venv/bin/python \
-  src/solver/impl/sem-local-time-step-2d/validation/plot_gmsh_inclusion_stability.py
+  tests/validation/sem-local-time-step-2d/plot_gmsh_inclusion_stability.py
 ```
 
 Les commandes remplacent les sorties de ce cas. `test_result.json` contient

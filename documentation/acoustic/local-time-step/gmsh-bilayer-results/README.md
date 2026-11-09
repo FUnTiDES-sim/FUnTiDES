@@ -93,7 +93,7 @@ Depuis la racine du worktree, pour vérifier les CSV et refaire les figures :
 
 ```bash
 ../FUnTiDES-install/tpl-venv/bin/python \
-  src/solver/impl/sem-local-time-step-2d/validation/plot_gmsh_bilayer.py
+  tests/validation/sem-local-time-step-2d/plot_gmsh_bilayer.py
 ```
 
 Pour régénérer le maillage et relancer le calcul, après construction de la
@@ -101,15 +101,15 @@ cible `sem2d_gmsh_benchmark` dans la configuration CPU :
 
 ```bash
 ../FUnTiDES-install/tpl-venv/bin/python \
-  src/solver/impl/sem-local-time-step-2d/validation/generate_gmsh_bilayer_unstructured.py
+  tests/validation/sem-local-time-step-2d/generate_gmsh_bilayer_unstructured.py
 env -u LD_LIBRARY_PATH taskset -c 0 \
-  build-lts-cpu/src/solver/impl/sem-local-time-step-2d/sem2d_gmsh_benchmark \
-  src/solver/impl/sem-local-time-step-2d/validation/gmsh-bilayer-results/bilayer.msh \
-  src/solver/impl/sem-local-time-step-2d/validation/gmsh-bilayer-results/materials.csv \
-  src/solver/impl/sem-local-time-step-2d/validation/gmsh-bilayer-results 7
+  build-lts-cpu/tests/validation/sem-local-time-step-2d/sem2d_gmsh_benchmark \
+  documentation/acoustic/local-time-step/gmsh-bilayer-results/bilayer.msh \
+  documentation/acoustic/local-time-step/gmsh-bilayer-results/materials.csv \
+  documentation/acoustic/local-time-step/gmsh-bilayer-results 7
 ```
 
 Ces dernières commandes remplacent les données existantes. Le générateur
 nécessite Gmsh 4.15.2, fixé dans `../requirements-gmsh.txt`. La reconstruction
 CPU nécessite de restaurer le préfixe Kokkos temporaire décrit dans le
-[README du composant](../../README.md) s’il a été supprimé.
+[README du composant](../../../../src/solver/impl/sem-local-time-step-2d/README.md) s’il a été supprimé.

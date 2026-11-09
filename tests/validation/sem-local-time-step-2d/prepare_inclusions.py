@@ -9,6 +9,9 @@ import json
 import math
 from pathlib import Path
 
+# Results and reports of the validations
+RESULTS = Path(__file__).resolve().parents[3] / "documentation" / "acoustic" / "local-time-step"
+
 
 def positive(value):
     assert isinstance(value, (int, float)) and math.isfinite(value) and value > 0, value
@@ -29,7 +32,7 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     here = Path(__file__).parent
     parser.add_argument("--config", type=Path, default=here / "inclusion_models.json")
-    parser.add_argument("--output", type=Path, default=here / "inclusion-results")
+    parser.add_argument("--output", type=Path, default=RESULTS / "inclusion-results")
     args = parser.parse_args()
     config = json.loads(args.config.read_text())
     mesh = config["mesh"]

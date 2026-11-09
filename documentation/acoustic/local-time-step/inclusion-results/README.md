@@ -13,7 +13,7 @@ maximale de **2,39 × 10⁻⁷** sur 1,8 s. La limite spectrale reste une estima
 numérique, dont le résidu est enregistré dans `spectral.json`.
 
 Les détails mathématiques, les hypothèses et la correspondance avec le code
-sont dans le [document technique](../../documentation-mathematique-et-implementation.md).
+sont dans le [document technique](../documentation-mathematique-et-implementation.md).
 
 ## Instantanés et récepteurs
 
@@ -67,7 +67,7 @@ n’est pas imposée et le cœur n’est pas réservé.
 
 ## Plusieurs inclusions et pas indépendants
 
-La [configuration JSON](../inclusion_models.json) contient une liste d’inclusions.
+La [configuration JSON](../../../../tests/validation/sem-local-time-step-2d/inclusion_models.json) contient une liste d’inclusions.
 Le cas `multiple_noninteger_targets` ajoute un disque de rayon 220 m, centré en
 `(4100, 1900)` m, à 3 600 m/s. Sa discrétisation ajoute 16 éléments rapides.
 Les 32 éléments fins ont un support de 72 éléments. Ce cas est calculé et possède
@@ -88,13 +88,13 @@ Depuis la racine du worktree et après configuration CPU :
 ```bash
 cmake --build build-lts-cpu --target sem2d_lts_inclusion_benchmark -j 4
 ../FUnTiDES-install/tpl-venv/bin/python \
-  src/solver/impl/sem-local-time-step-2d/validation/prepare_inclusions.py
+  tests/validation/sem-local-time-step-2d/prepare_inclusions.py
 env -u LD_LIBRARY_PATH taskset -c 0 \
-  build-lts-cpu/src/solver/impl/sem-local-time-step-2d/sem2d_lts_inclusion_benchmark \
-  src/solver/impl/sem-local-time-step-2d/validation/inclusion-results/single_4500 7
+  build-lts-cpu/tests/validation/sem-local-time-step-2d/sem2d_lts_inclusion_benchmark \
+  documentation/acoustic/local-time-step/inclusion-results/single_4500 7
 ../FUnTiDES-install/tpl-venv/bin/python \
-  src/solver/impl/sem-local-time-step-2d/validation/plot_inclusions.py \
-  --results src/solver/impl/sem-local-time-step-2d/validation/inclusion-results/single_4500
+  tests/validation/sem-local-time-step-2d/plot_inclusions.py \
+  --results documentation/acoustic/local-time-step/inclusion-results/single_4500
 ```
 
 Répéter les deux dernières commandes avec `homogeneous_1500` ou

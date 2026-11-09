@@ -12,7 +12,7 @@ Configuration : surface libre à pression nulle au sommet, côtés et fond absor
 excitation initiale à 200 m sous la surface, récepteurs de pression à 50 m.
 Le maillage reste uniforme (éléments de 100 m, ordre 2).
 
-[Configuration](../inclusion_free_surface.json) · [Détail mathématique](../../documentation-mathematique-et-implementation.md)
+[Configuration](../../../../tests/validation/sem-local-time-step-2d/inclusion_free_surface.json) · [Détail mathématique](../documentation-mathematique-et-implementation.md)
 
 
 ## Modèle, excitation et récepteurs

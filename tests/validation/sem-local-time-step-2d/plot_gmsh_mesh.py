@@ -14,6 +14,9 @@ from matplotlib.collections import PolyCollection
 from matplotlib.colors import BoundaryNorm, ListedColormap
 import numpy as np
 
+# Results and reports of the validations
+RESULTS = Path(__file__).resolve().parents[3] / "documentation" / "acoustic" / "local-time-step"
+
 
 def outside_cells(root):
     """Canonical exterior cell geometry, independent of Gmsh node numbering."""
@@ -148,5 +151,5 @@ def preview(root):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--results", type=Path, default=Path(__file__).parent / "gmsh-structured-results")
+    parser.add_argument("--results", type=Path, default=RESULTS / "gmsh-structured-results")
     preview(parser.parse_args().results)

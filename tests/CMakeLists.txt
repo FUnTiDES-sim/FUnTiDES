@@ -1,2 +1,5 @@
 add_subdirectory(units)
 add_subdirectory(benchmarks)
+if(COMPILE_SEM_2D)
+  add_subdirectory(validation/sem-local-time-step-2d)
+endif()

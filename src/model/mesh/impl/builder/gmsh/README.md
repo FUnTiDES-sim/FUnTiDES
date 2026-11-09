@@ -46,7 +46,7 @@ et 73 absorbants. Le CSV a les colonnes `physical_tag,vp,rho`.
 Le convertisseur existant détecte maintenant la dimension et accepte les Hex8 :
 
 ```bash
-python3 src/solver/impl/sem-local-time-step-2d/validation/convert_gmsh_mesh.py input41.msh output22.msh
+python3 src/model/mesh/impl/builder/gmsh/tools/convert_gmsh_mesh.py input41.msh output22.msh
 ```
 
 L'option `--plane xy` est réservée au 2D. La conversion conserve les groupes

@@ -12,10 +12,13 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
 
+# Results and reports of the validations
+RESULTS = Path(__file__).resolve().parents[3] / "documentation" / "acoustic" / "local-time-step"
+
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--results", type=Path, default=Path(__file__).parent / "results")
+    parser.add_argument("--results", type=Path, default=RESULTS / "results")
     args = parser.parse_args()
     rows = np.genfromtxt(args.results / "timing_summary.csv", delimiter=",", names=True, dtype=None, encoding="utf8")
     protocol = json.loads((args.results / "timing_protocol.json").read_text())

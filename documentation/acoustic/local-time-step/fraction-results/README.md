@@ -154,18 +154,18 @@ ni absorption ; elles ne préjugent pas d’un gain sur GPU ou d’un cas applic
 ## Reproduire
 
 Depuis la racine du worktree, après la configuration CPU du
-[README du composant](../../README.md) :
+[README du composant](../../../../src/solver/impl/sem-local-time-step-2d/README.md) :
 
 ```bash
 cmake --build build-lts-cpu --target sem2d_lts_fraction_benchmark -j 4
 env -u LD_LIBRARY_PATH taskset -c 0 \
-  build-lts-cpu/src/solver/impl/sem-local-time-step-2d/sem2d_lts_fraction_benchmark \
-  src/solver/impl/sem-local-time-step-2d/validation/fraction-results 7
+  build-lts-cpu/tests/validation/sem-local-time-step-2d/sem2d_lts_fraction_benchmark \
+  documentation/acoustic/local-time-step/fraction-results 7
 env -u LD_LIBRARY_PATH taskset -c 0 \
-  build-lts-cpu/src/solver/impl/sem-local-time-step-2d/sem2d_lts_fraction_benchmark \
-  src/solver/impl/sem-local-time-step-2d/validation/fraction-results 7 refine
+  build-lts-cpu/tests/validation/sem-local-time-step-2d/sem2d_lts_fraction_benchmark \
+  documentation/acoustic/local-time-step/fraction-results 7 refine
 ../FUnTiDES-install/tpl-venv/bin/python \
-  src/solver/impl/sem-local-time-step-2d/validation/analyze_fine_fraction.py
+  tests/validation/sem-local-time-step-2d/analyze_fine_fraction.py
 ```
 
 Les commandes du binaire remplacent leurs CSV et protocoles dans le dossier indiqué.
@@ -181,5 +181,5 @@ figure. Il exige un écart entre références inférieur à 0,1 %.
 Le [test d’inclusion à 4 500 m/s dans un fond à 1 500 m/s](../inclusion-results/README.md)
 complète cette étude avec une région rapide de 0,89 % du domaine, des instantanés
 et 51 récepteurs en surface. Le
-[document mathématique et d’implémentation](../../documentation-mathematique-et-implementation.md)
+[document mathématique et d’implémentation](../documentation-mathematique-et-implementation.md)
 décrit le schéma, ses propriétés et l’extension envisagée aux pas non multiples.
