@@ -178,6 +178,16 @@ FUnTiDES-App repository provides the `funtides-sem2d` driver and its validation 
 the exact 2-D solution; its `python/` part (makutu) has a 2-D mesh class and a 2-D
 Marmousi example.
 
+**Non-conforming blocks.** A 2-D mesh can be a set of regular blocks whose nodes are not shared
+across block edges (duplicated nodes, interface nodes flagged `InteriorNode`). The blocks are glued by
+a symmetric interior penalty (SIPG) applied segment by segment:
+`Solver::setInterfaceOperator(face, line, dn, lag, half_inv_rho, weight, gamma, n_q)` (Python
+`set_interface_operator`), one GPU thread per interface segment; the absorbing boundary skips the
+interface edges. `FieldSampler` (`solver/impl/common`) sums the receivers on the device. The block
+planner and the arrays given to the operator are built by makutu (`makutu.mortar`, FUnTiDES-App);
+`scripts/dev/build_tree_env.sh <build dir>` sets an environment that loads a build tree before the
+installed libraries (tests of a build before installing it).
+
 ### Step 5: Run Tests & Benchmarks
 
 From the `build` directory, unit tests only:

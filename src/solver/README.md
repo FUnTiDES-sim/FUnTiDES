@@ -7,7 +7,7 @@ solver/
 ├── api/include/   solver.h, wavefield.h, rhs.h, physics_traits.h — the pure contract
 ├── impl/
 │   ├── common/                 shared across every method
-│   │   ├── include/, src/      solver_factory.{h,cc}
+│   │   ├── include/, src/      solver_factory.{h,cc}, field_sampler.h
 │   │   ├── acoustic/include/   rhs_acoustic.h, physics_info_acoustic.h
 │   │   ├── elastic/include/    rhs_elastic.h, physics_info_elastic.h
 │   │   └── acoustoelastic/include/  rhs_acoustoelastic.h
@@ -27,7 +27,7 @@ solver/
 | `impl/dg` | `COMPILE_DG` | Acoustic DG solver (base of the other variants): `common/` + `acoustic/` |
 | `impl/dgsem` | `COMPILE_DG_SEM` (implies `COMPILE_DG` and `COMPILE_SEM`) | Coupled DG-SEM (DG + SEM domains), composite reusing `impl/sem/` + `impl/dg/` |
 | `impl/dg_padaptive` | `COMPILE_DG_PADAPTIVE` (implies `COMPILE_DG`) | p-adaptive DG (pMin/pMax subdomains), composite reusing `impl/dg/` |
-| `impl/sem2d` | `COMPILE_SEM_2D` (implies `COMPILE_SEM`) | 2-D acoustic SEM `SEMsolver2D<ORDER, IS_MODEL_ON_NODES>` on a 2-D `ModelUnstruct` (quadrilaterals in the (x, z) plane, `Qk_Quadrilateral_Lagrange_GaussLobatto`); reuses the SEM acoustic data types. Header-only class, one generated instantiation file per (order, model location), `extern template` elsewhere |
+| `impl/sem2d` | `COMPILE_SEM_2D` (implies `COMPILE_SEM`) | 2-D acoustic SEM `SEMsolver2D<ORDER, IS_MODEL_ON_NODES>` on a 2-D `ModelUnstruct` (quadrilaterals in the (x, z) plane, `Qk_Quadrilateral_Lagrange_GaussLobatto`); reuses the SEM acoustic data types. Header-only class, one generated instantiation file per (order, model location), `extern template` elsewhere. `setInterfaceOperator` adds the SIPG coupling of non-conforming blocks (duplicated nodes on the block edges), applied segment by segment |
 | `pywrap` | `ENABLE_PYWRAP` | The pyfuntides `solver` module; per-method bindings guarded by the `COMPILE_*` definitions |
 
 Every method compiles into the single `fun_solver` library. All
