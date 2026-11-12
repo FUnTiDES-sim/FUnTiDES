@@ -56,6 +56,7 @@ PYBIND11_MODULE(solver, m) {
   solver::bind_acoustic_solver_data(m);
   solver::bind_elastic_solver_data(m);
   solver::bind_acoustoelastic_solver_data(m);
+  solver::bind_field_sampler(m);
 #endif
 
 #ifdef COMPILE_DG

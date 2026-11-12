@@ -40,11 +40,14 @@ namespace solver {
  *  - mass: |det J| w / (vp^2 rho), lumped (diagonal);
  *  - stiffness: sum-factorized, coefficient 1 / rho;
  *  - absorbing boundary (first-order paraxial): w * edge length / 2 / (rho vp) on the nodes
- *    flagged Damping of the boundary edges (edges of a single element);
+ *    flagged Damping of the boundary edges (edges of a single element) that have no InteriorNode;
  *  - free surface: nodes flagged Surface are kept at 0;
  *  - boundary nodes without a flag (InteriorNode) get the natural condition (rigid wall);
  *  - optional sponge layers along x and z (sponge_size[0] and sponge_size[2]): both time levels
- *    multiplied by exp(-sigma dt) at each step, sigma given by sponge::dampingRate().
+ *    multiplied by exp(-sigma dt) at each step, sigma given by sponge::dampingRate();
+ *  - optional interface operator (setInterfaceOperator()): the mesh may be made of blocks that
+ *    share no node, glued by dense segment matrices (SIPG) added to the stiffness term. Nodes of
+ *    such interfaces must not be flagged Damping or Surface.
  * Each step adds the stiffness term and the sources into the force vector, then updates the
  * wavefield: the new value is written into the previous-field buffer, which the caller swaps.
  *
@@ -66,6 +69,7 @@ class SEMsolver2D : public Solver {
 
   static constexpr int kN1d = ORDER + 1;                 ///< Nodes along one element axis.
   static constexpr int kPointsPerElement = kN1d * kN1d;  ///< Nodes of an element.
+  static constexpr int kMaxInterfacePoints = 16;         ///< Quadrature points per interface segment, at most.
 
   SEMsolver2D() = default;
   ~SEMsolver2D() = default;
@@ -218,7 +222,59 @@ class SEMsolver2D : public Solver {
     FENCE
     computeElementContributions(myData);
     FENCE
+    if (nInterfaceSegments_ > 0) {
+      applyInterfaceOperator(myData);
+      FENCE
+    }
   }
+
+  /**
+   * @brief Store the interface operator (see Solver::setInterfaceOperator()).
+   * @throws std::invalid_argument If the sizes do not match or a node index is out of range.
+   */
+  void setInterfaceOperator(const vectorInt& face, const vectorInt& line, const vectorReal& dn, const vectorReal& lag,
+                            const vectorReal& half_inv_rho, const vectorReal& weight, const vectorReal& gamma,
+                            int points_per_segment) override {
+    long long const nf = face.extent(0);
+    if (nf == 0) {
+      nInterfaceSegments_ = 0;
+      return;
+    }
+    int const nq = points_per_segment;
+    if (nq <= 0 || nq > kMaxInterfacePoints || nf % (2 * kN1d) != 0)
+      throw std::invalid_argument("SEMsolver2D::setInterfaceOperator: face must hold n_seg * 2 * (order + 1) nodes");
+    long long const n_seg = nf / (2 * kN1d);
+    if (static_cast<long long>(line.extent(0)) != n_seg * 2 * kN1d * kN1d ||
+        static_cast<long long>(dn.extent(0)) != n_seg * 2 * kN1d ||
+        static_cast<long long>(lag.extent(0)) != n_seg * 2 * nq * kN1d ||
+        static_cast<long long>(half_inv_rho.extent(0)) != n_seg * 2 * nq ||
+        static_cast<long long>(weight.extent(0)) != n_seg * nq || static_cast<long long>(gamma.extent(0)) != n_seg)
+      throw std::invalid_argument("SEMsolver2D::setInterfaceOperator: array sizes do not match n_seg and n_q");
+    int bad = 0;
+    int const n_node = m_mesh.getNumberOfNodes();
+    Kokkos::parallel_reduce(
+        "SEM2D interface nodes check", Kokkos::RangePolicy<>(0, static_cast<int>(line.extent(0))),
+        KOKKOS_LAMBDA(const int i, int& b) { b += (line(i) < 0 || line(i) >= n_node) ? 1 : 0; }, bad);
+    Kokkos::parallel_reduce(
+        "SEM2D interface faces check", Kokkos::RangePolicy<>(0, static_cast<int>(nf)),
+        KOKKOS_LAMBDA(const int i, int& b) { b += (face(i) < 0 || face(i) >= n_node) ? 1 : 0; }, bad);
+    if (bad > 0) throw std::invalid_argument("SEMsolver2D::setInterfaceOperator: node index out of range");
+    ifFace_ = face;
+    ifLine_ = line;
+    ifDn_ = dn;
+    ifLag_ = lag;
+    ifHalfInvRho_ = half_inv_rho;
+    ifWeight_ = weight;
+    ifGamma_ = gamma;
+    interfacePointsPerSegment_ = nq;
+    nInterfaceSegments_ = static_cast<int>(n_seg);
+  }
+
+  /// Adds the interface operator applied to the current field to the force vector.
+  void applyInterfaceOperator(const DataType& data);
+
+  /// @return Number of interface segments (0: no interface operator).
+  int getNumberOfInterfaceSegments() const { return nInterfaceSegments_; }
 
   /// Subtracts the weighted source terms of the time sample from the force vector.
   void applyRHSTerm(int timeSample, float dt, const DataType& data);
@@ -297,6 +353,16 @@ class SEMsolver2D : public Solver {
   std::array<float, 3> sponge_size_{0, 0, 0};
   bool surface_sponge_{false};
   float taper_delta_{0};
+  // Interface operator (see Solver::setInterfaceOperator()), per segment, side, point, node
+  vectorInt ifFace_;           ///< face nodes (n_seg * 2 * n1)
+  vectorInt ifLine_;           ///< normal lines through the face nodes (n_seg * 2 * n1 * n1)
+  vectorReal ifDn_;            ///< normal derivative coefficients on a line (n_seg * 2 * n1)
+  vectorReal ifLag_;           ///< Lagrange basis of the face nodes at the points (n_seg * 2 * n_q * n1)
+  vectorReal ifHalfInvRho_;    ///< (1 / rho) / 2 at the points (n_seg * 2 * n_q)
+  vectorReal ifWeight_;        ///< Gauss weight x length / 2 (n_seg * n_q)
+  vectorReal ifGamma_;         ///< penalty (n_seg)
+  int interfacePointsPerSegment_{0}; ///< n_q
+  int nInterfaceSegments_{0};
 };
 
 // Member functions launching Kokkos kernels are defined out of the class: they are then not
@@ -344,6 +410,15 @@ void SEMsolver2D<ORDER, IS_MODEL_ON_NODES>::computeDampingMatrix() {
           int const node = mesh.globalNodeIndex(e, l % kN1d, 0, l / kN1d);
           E[v][0] = mesh.nodeCoord(node, 0);
           E[v][1] = mesh.nodeCoord(node, 2);
+        }
+        // An edge of a single element absorbs only if it lies on the outer boundary: none of its
+        // nodes is an interior node. Edges of non-conforming block interfaces (glued by the
+        // interface operator) have interior nodes and are skipped, even when one of their ends
+        // is a flagged node of the outer boundary.
+        for (int i = 0; i < kN1d; ++i) {
+          int const l = Element::edgeNodeIndex(ed, i);
+          if (mesh.boundaryType(mesh.globalNodeIndex(e, l % kN1d, 0, l / kN1d)) == model::BoundaryFlag::InteriorNode)
+            return;
         }
         for (int i = 0; i < kN1d; ++i) {
           int const l = Element::edgeNodeIndex(ed, i);
@@ -410,6 +485,72 @@ void SEMsolver2D<ORDER, IS_MODEL_ON_NODES>::computeElementContributions(const Da
           }
         });
         for (int l = 0; l < kPointsPerElement; ++l) ATOMICADD(work(nodes[l]), v[l]);
+      });
+}
+
+template <int ORDER, bool IS_MODEL_ON_NODES>
+void SEMsolver2D<ORDER, IS_MODEL_ON_NODES>::applyInterfaceOperator(const DataType& data) {
+  auto work = workVectorGlobal_;
+  auto u = data.getCurrentField(0);
+  auto face = ifFace_;
+  auto line = ifLine_;
+  auto dn = ifDn_;
+  auto lag = ifLag_;
+  auto hir = ifHalfInvRho_;
+  auto wgt = ifWeight_;
+  auto gamma = ifGamma_;
+  int const nq = interfacePointsPerSegment_;
+  constexpr int n1 = kN1d;
+  // One thread per segment. Traces and normal derivatives are computed once per face node (the normal
+  // derivative on an element line), then interpolated at the Gauss points: about four times less data
+  // than full rows over the element nodes. Two flat kernels with full rows, and a team per segment,
+  // were measured 2 to 5 times slower on GPU.
+  Kokkos::parallel_for(
+      "SEM2D interface operator", Kokkos::RangePolicy<>(0, nInterfaceSegments_), KOKKOS_LAMBDA(const int s) {
+        real_t t[2][n1], d[2][n1], sf[2][n1], el[2][n1];
+        for (int c = 0; c < 2; ++c)
+          for (int b = 0; b < n1; ++b) {
+            long long const fb = (static_cast<long long>(s) * 2 + c) * n1 + b;
+            t[c][b] = u(face(fb));
+            real_t acc = 0;
+            for (int a = 0; a < n1; ++a) acc += dn((static_cast<long long>(s) * 2 + c) * n1 + a) * u(line(fb * n1 + a));
+            d[c][b] = acc;
+            sf[c][b] = 0;
+            el[c][b] = 0;
+          }
+        real_t const g = gamma(s);
+        for (int q = 0; q < nq; ++q) {
+          real_t jump = 0, flux = 0;
+          for (int c = 0; c < 2; ++c) {
+            long long const lq = ((static_cast<long long>(s) * 2 + c) * nq + q) * n1;
+            real_t tr = 0, dr = 0;
+            for (int b = 0; b < n1; ++b) {
+              tr += lag(lq + b) * t[c][b];
+              dr += lag(lq + b) * d[c][b];
+            }
+            jump += (c == 0 ? tr : -tr);
+            flux += hir((static_cast<long long>(s) * 2 + c) * nq + q) * dr;
+          }
+          real_t const w = wgt(static_cast<long long>(s) * nq + q);
+          real_t const c1 = w * (g * jump - flux);
+          real_t const c2 = -w * jump;
+          for (int c = 0; c < 2; ++c) {
+            long long const lq = ((static_cast<long long>(s) * 2 + c) * nq + q) * n1;
+            real_t const h = hir((static_cast<long long>(s) * 2 + c) * nq + q) * c2;
+            real_t const sgn = (c == 0 ? c1 : -c1);
+            for (int b = 0; b < n1; ++b) {
+              sf[c][b] += lag(lq + b) * sgn;
+              el[c][b] += lag(lq + b) * h;
+            }
+          }
+        }
+        for (int c = 0; c < 2; ++c)
+          for (int b = 0; b < n1; ++b) {
+            long long const fb = (static_cast<long long>(s) * 2 + c) * n1 + b;
+            ATOMICADD(work(face(fb)), sf[c][b]);
+            for (int a = 0; a < n1; ++a)
+              ATOMICADD(work(line(fb * n1 + a)), dn((static_cast<long long>(s) * 2 + c) * n1 + a) * el[c][b]);
+          }
       });
 }
 

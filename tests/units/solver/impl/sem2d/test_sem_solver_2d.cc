@@ -210,6 +210,99 @@ TYPED_TEST(SemSolver2DTest, ConstantFieldHasNoStiffnessForce) {
   for (float w : toHost(solver.getForceVector(0))) EXPECT_NEAR(w, 0.f, 1e-4 * scale * 3);
 }
 
+TYPED_TEST(SemSolver2DTest, InterfaceOperatorAddsSegmentProducts) {
+  // Two segments with arbitrary (structured) data: the force vector gains, for each segment,
+  // sum_q w_q ((gamma [u]_q - {u}_q) [v]_q - [u]_q {v}_q) (see Solver::setInterfaceOperator()).
+  constexpr int O = TestFixture::kOrder;
+  constexpr int n1 = O + 1;
+  auto model = rigidModel(O, 3, 3, 300.f, 300.f);
+  typename TestFixture::Solver2D solver;
+  solver.computeFEInit(*model, {0, 0, 0}, false, 0);
+  int const n = model->getNumberOfNodes();
+  Run run(n, n1 * n1, 1);
+  std::vector<float> u(n);
+  for (int i = 0; i < n; ++i) u[i] = std::sin(0.7f * i) + 0.1f * i;
+  fromHost(run.cur, u);
+  solver.computeForces(1e-3f, 0, *run.data);
+  std::vector<float> const base = toHost(solver.getForceVector(0));
+
+  int const n_seg = 2, nq = 3;
+  std::vector<int> face(n_seg * 2 * n1), line(n_seg * 2 * n1 * n1);
+  std::vector<float> dn(n_seg * 2 * n1), lag(n_seg * 2 * nq * n1), hir(n_seg * 2 * nq), w(n_seg * nq),
+      gam = {3.f, 0.5f};
+  for (size_t i = 0; i < face.size(); ++i) face[i] = static_cast<int>((7 * i + 3) % n);
+  for (size_t i = 0; i < line.size(); ++i) line[i] = static_cast<int>((11 * i + 1) % n);
+  for (size_t i = 0; i < dn.size(); ++i) dn[i] = 0.3f * (i % 4) - 0.5f;
+  for (size_t i = 0; i < lag.size(); ++i) lag[i] = 0.2f * (i % 5) - 0.1f;
+  for (size_t i = 0; i < hir.size(); ++i) hir[i] = 0.5f + 0.1f * (i % 3);
+  for (size_t i = 0; i < w.size(); ++i) w[i] = 0.7f + 0.2f * (i % 2);
+  auto toInt = [](std::vector<int> const& v, const char* name) {
+    vectorInt out = allocateVector<vectorInt>(v.size(), name);
+    auto h = Kokkos::create_mirror_view(out);
+    for (size_t i = 0; i < v.size(); ++i) h(i) = v[i];
+    Kokkos::deep_copy(out, h);
+    return out;
+  };
+  auto toReal = [](std::vector<float> const& v, const char* name) {
+    vectorReal out = allocateVector<vectorReal>(v.size(), name);
+    fromHost(out, v);
+    return out;
+  };
+  vectorInt vface = toInt(face, "face"), vline = toInt(line, "line");
+  vectorReal vdn = toReal(dn, "dn"), vlag = toReal(lag, "lag"), vhir = toReal(hir, "hir"), vw = toReal(w, "w"),
+             vgam = toReal(gam, "gamma");
+  solver.setInterfaceOperator(vface, vline, vdn, vlag, vhir, vw, vgam, nq);
+  EXPECT_EQ(solver.getNumberOfInterfaceSegments(), n_seg);
+  solver.computeForces(1e-3f, 0, *run.data);
+  std::vector<float> const with = toHost(solver.getForceVector(0));
+
+  std::vector<double> expected(n, 0.0);
+  for (int s = 0; s < n_seg; ++s) {
+    double t[2][n1], d[2][n1];
+    for (int c = 0; c < 2; ++c)
+      for (int b = 0; b < n1; ++b) {
+        int const fb = (s * 2 + c) * n1 + b;
+        t[c][b] = u[face[fb]];
+        d[c][b] = 0;
+        for (int a = 0; a < n1; ++a) d[c][b] += dn[(s * 2 + c) * n1 + a] * u[line[fb * n1 + a]];
+      }
+    for (int q = 0; q < nq; ++q) {
+      double jump = 0, flux = 0;
+      for (int c = 0; c < 2; ++c) {
+        double tr = 0, dr = 0;
+        for (int b = 0; b < n1; ++b) {
+          tr += lag[((s * 2 + c) * nq + q) * n1 + b] * t[c][b];
+          dr += lag[((s * 2 + c) * nq + q) * n1 + b] * d[c][b];
+        }
+        jump += c == 0 ? tr : -tr;
+        flux += hir[(s * 2 + c) * nq + q] * dr;
+      }
+      double const c1 = w[s * nq + q] * (gam[s] * jump - flux), c2 = -w[s * nq + q] * jump;
+      for (int c = 0; c < 2; ++c)
+        for (int b = 0; b < n1; ++b) {
+          double const l = lag[((s * 2 + c) * nq + q) * n1 + b];
+          int const fb = (s * 2 + c) * n1 + b;
+          expected[face[fb]] += l * (c == 0 ? c1 : -c1);
+          for (int a = 0; a < n1; ++a)
+            expected[line[fb * n1 + a]] += dn[(s * 2 + c) * n1 + a] * hir[(s * 2 + c) * nq + q] * l * c2;
+        }
+    }
+  }
+  for (int i = 0; i < n; ++i) EXPECT_NEAR(with[i] - base[i], expected[i], 1e-4 * (1 + std::abs(expected[i])));
+
+  // Wrong sizes or node indices are rejected; an empty operator removes it.
+  vectorReal short_lag = toReal(std::vector<float>(lag.size() - 1, 0.f), "short");
+  EXPECT_THROW(solver.setInterfaceOperator(vface, vline, vdn, short_lag, vhir, vw, vgam, nq), std::invalid_argument);
+  EXPECT_THROW(solver.setInterfaceOperator(vface, vline, vdn, vlag, vhir, vw, vgam, nq + 1), std::invalid_argument);
+  std::vector<int> bad_face = face;
+  bad_face[0] = n;
+  EXPECT_THROW(solver.setInterfaceOperator(toInt(bad_face, "bad"), vline, vdn, vlag, vhir, vw, vgam, nq),
+               std::invalid_argument);
+  solver.setInterfaceOperator(vectorInt(), vectorInt(), vectorReal(), vectorReal(), vectorReal(), vectorReal(),
+                              vectorReal(), nq);
+  EXPECT_EQ(solver.getNumberOfInterfaceSegments(), 0);
+}
+
 TYPED_TEST(SemSolver2DTest, RigidBoxEigenmodeIsReproduced) {
   // p = cos(pi x / L) cos(pi z / L) cos(w t), w = vp pi sqrt(2) / L, in a rigid square box.
   constexpr int O = TestFixture::kOrder;

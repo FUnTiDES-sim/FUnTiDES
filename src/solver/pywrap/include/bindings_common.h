@@ -172,7 +172,42 @@ inline void bind_solver_base(py::module_& m) {
             }
             self.setElementTags(vt);
           },
-          py::arg("tags"));
+          py::arg("tags"))
+      .def(
+          "set_interface_operator",
+          [](Solver& self, const py::array_t<int, py::array::c_style | py::array::forcecast>& face,
+             const py::array_t<int, py::array::c_style | py::array::forcecast>& line,
+             const py::array_t<float, py::array::c_style | py::array::forcecast>& dn,
+             const py::array_t<float, py::array::c_style | py::array::forcecast>& lag,
+             const py::array_t<float, py::array::c_style | py::array::forcecast>& half_inv_rho,
+             const py::array_t<float, py::array::c_style | py::array::forcecast>& weight,
+             const py::array_t<float, py::array::c_style | py::array::forcecast>& gamma, int points_per_segment) {
+            using HostF = Kokkos::View<const float*, Kokkos::HostSpace, Kokkos::MemoryTraits<Kokkos::Unmanaged>>;
+            using HostI = Kokkos::View<const int*, Kokkos::HostSpace, Kokkos::MemoryTraits<Kokkos::Unmanaged>>;
+            auto vi = [](const py::array_t<int, py::array::c_style | py::array::forcecast>& a, const char* name) {
+              vectorInt v;
+              if (a.size() > 0) {
+                v = allocateVector<vectorInt>(a.size(), name);
+                Kokkos::deep_copy(v, HostI(a.data(), a.size()));
+              }
+              return v;
+            };
+            auto vf = [](const py::array_t<float, py::array::c_style | py::array::forcecast>& a, const char* name) {
+              vectorReal v;
+              if (a.size() > 0) {
+                v = allocateVector<vectorReal>(a.size(), name);
+                Kokkos::deep_copy(v, HostF(a.data(), a.size()));
+              }
+              return v;
+            };
+            self.setInterfaceOperator(vi(face, "if_face"), vi(line, "if_line"), vf(dn, "if_dn"), vf(lag, "if_lag"),
+                                      vf(half_inv_rho, "if_hir"), vf(weight, "if_weight"), vf(gamma, "if_gamma"),
+                                      points_per_segment);
+          },
+          py::arg("face"), py::arg("line"), py::arg("dn"), py::arg("lag"), py::arg("half_inv_rho"), py::arg("weight"),
+          py::arg("gamma"), py::arg("points_per_segment"),
+          "Glue non-conforming blocks of rectangular elements (SIPG); arrays from "
+          "makutu.mortar.Mortar2D.interface_faces(), see Solver::setInterfaceOperator.");
 }
 
 }  // namespace solver

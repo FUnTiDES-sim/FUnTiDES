@@ -8,6 +8,7 @@
 #include <memory>
 
 #include "common_macros.h"
+#include "field_sampler.h"
 #include "rhs_acoustic.h"
 #include "rhs_acoustoelastic.h"
 #include "rhs_elastic.h"
@@ -46,6 +47,38 @@ void bind_acoustic_solver_data(py::module_ &m) {
           },
           py::arg("i"))
       .def("print", &SEMsolverDataAcoustic::print);
+}
+
+void bind_field_sampler(py::module_ &m) {
+  py::class_<FieldSampler, std::shared_ptr<FieldSampler>>(m, "FieldSampler",
+                                                         "Weighted sums of a nodal field at fixed points, on the device "
+                                                         "(receivers): only the point values are copied to the host.")
+      .def(py::init([](const py::array_t<int, py::array::c_style | py::array::forcecast> &nodes,
+                       const py::array_t<float, py::array::c_style | py::array::forcecast> &weights,
+                       int nodes_per_point) {
+             if (nodes.size() != weights.size())
+               throw std::invalid_argument("FieldSampler: nodes and weights differ in size");
+             vectorInt vn = allocateVector<vectorInt>(nodes.size(), "field_sampler_nodes");
+             vectorReal vw = allocateVector<vectorReal>(weights.size(), "field_sampler_weights");
+             Kokkos::deep_copy(vn, Kokkos::View<const int *, Kokkos::HostSpace, Kokkos::MemoryTraits<Kokkos::Unmanaged>>(
+                                       nodes.data(), nodes.size()));
+             Kokkos::deep_copy(vw, Kokkos::View<const float *, Kokkos::HostSpace,
+                                                Kokkos::MemoryTraits<Kokkos::Unmanaged>>(weights.data(), weights.size()));
+             return std::make_shared<FieldSampler>(vn, vw, nodes_per_point);
+           }),
+           py::arg("nodes"), py::arg("weights"), py::arg("nodes_per_point"))
+      .def_property_readonly("num_points", &FieldSampler::numPoints)
+      .def(
+          "sample",
+          [](const FieldSampler &self, const SEMsolverDataAcoustic &data, int component) {
+            self.sample(data.getCurrentField(component));
+            py::array_t<float> out(self.numPoints());
+            Kokkos::deep_copy(Kokkos::View<float *, Kokkos::HostSpace, Kokkos::MemoryTraits<Kokkos::Unmanaged>>(
+                                  out.mutable_data(), self.numPoints()),
+                              self.values());
+            return out;
+          },
+          py::arg("data"), py::arg("component") = 0, "Values at the points of the current field of an acoustic SEM data.");
 }
 
 void bind_elastic_solver_data(py::module_ &m) {

@@ -2,6 +2,7 @@
 #define FUNTIDES_SOLVER_API_INCLUDE_SOLVER_H_
 #include <array>
 #include <cmath>
+#include <stdexcept>
 
 #include "model.h"
 #include "sem_enums.h"
@@ -263,6 +264,33 @@ class Solver {
    * node of an adjacent elastic element. Only interface nodes are read.
    */
   virtual void setSolidOnInterfaceNodes(const vectorReal&, const vectorReal&, const vectorReal&) {}
+
+  /**
+   * @brief Add the coupling between non-conforming parts of the mesh (symmetric interior penalty,
+   * SIPG), for regular blocks of rectangular elements that share no node (h-non-conforming interfaces,
+   * any size ratio). Arrays built by the caller (makutu.mortar.Mortar2D.interface_faces()).
+   *
+   * Each interface segment s has two sides (0: the side the unified normal leaves, 1: the other one),
+   * each the face of one element, and n_q Gauss points. With n1 = order + 1 and for side c:
+   *  - face(s, c, b): global node b of the face (b = 0..n1-1);
+   *  - line(s, c, b, a): the n1 nodes of the element line normal to the face through face node b;
+   *  - dn(s, c, a): coefficients of the derivative along the unified normal at the face on that line;
+   *  - lag(s, c, q, b): Lagrange basis of the face nodes at point q;
+   *  - half_inv_rho(s, c, q): (1 / rho) / 2 at point q;
+   *  - weight(s, q): Gauss weight x segment length / 2; gamma(s): penalty.
+   * With t_c = trace and d_c = normal derivative of u at the face nodes, the jump [u]_q = lag_0 t_0 -
+   * lag_1 t_1 and the average flux {u}_q = sum_c half_inv_rho_c lag_c d_c, the force vector receives
+   * sum_q weight_q ((gamma [u]_q - {u}_q) [v]_q - [u]_q {v}_q). An empty @p face removes the operator.
+   * Call after computeFEInit().
+   *
+   * @throws std::runtime_error If the solver does not support it (default).
+   */
+  virtual void setInterfaceOperator(const vectorInt& /*face*/, const vectorInt& /*line*/, const vectorReal& /*dn*/,
+                                    const vectorReal& /*lag*/, const vectorReal& /*half_inv_rho*/,
+                                    const vectorReal& /*weight*/, const vectorReal& /*gamma*/,
+                                    int /*points_per_segment*/) {
+    throw std::runtime_error("setInterfaceOperator: not supported by this solver");
+  }
 
   /**
    * @brief Enable viscoelastic attenuation with standard linear solids (SLS),
