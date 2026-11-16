@@ -10,6 +10,7 @@
 namespace solver {
 namespace test {
 
+using test_utils::copyToHost;
 using test_utils::fillFromHost;
 using test_utils::getAt;
 using test_utils::setAt;
@@ -189,8 +190,8 @@ TEST_F(WavefieldAcousticTest, SwapTwice) {
   WavefieldAcoustic wavefield(prevField, currField);
 
   // Store original values
-  auto original_prev = toHost(wavefield.m_pnGlobalPrev);
-  auto original_curr = toHost(wavefield.m_pnGlobalCurr);
+  auto original_prev = copyToHost(wavefield.m_pnGlobalPrev);
+  auto original_curr = copyToHost(wavefield.m_pnGlobalCurr);
 
   // Swap twice should restore original state
   wavefield.swap();

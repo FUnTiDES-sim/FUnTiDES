@@ -158,7 +158,7 @@ void DGPAdaptiveSolver<ORDER_MIN, ORDER_MAX, INTEGRAL_SELECTOR, IMPL_TAG, MESH_T
       "TagNodes_mainLoop", nElem, KOKKOS_LAMBDA(const int e) {
         if (e >= nElem) return;
 
-        int const etype = elem_type[e];
+        int const etype = elem_type(e);
         for (int i = 0; i < dim; ++i)
           for (int j = 0; j < dim; ++j)
             for (int k = 0; k < dim; ++k) {
@@ -235,7 +235,7 @@ void DGPAdaptiveSolver<ORDER_MIN, ORDER_MAX, INTEGRAL_SELECTOR, IMPL_TAG, MESH_T
   auto inum_interface_faces = num_interface_faces_;
 
   Kokkos::parallel_for(
-      "MarkInterfaceFaces", inum_interface_faces, KOKKOS_LAMBDA(const int i) { is_iface[iface_list(i)] = 1; });
+      "MarkInterfaceFaces", inum_interface_faces, KOKKOS_LAMBDA(const int i) { is_iface(iface_list(i)) = 1; });
   FENCE
 
   auto face_connectivity = m_face_connectivity_;
@@ -245,7 +245,7 @@ void DGPAdaptiveSolver<ORDER_MIN, ORDER_MAX, INTEGRAL_SELECTOR, IMPL_TAG, MESH_T
   Kokkos::parallel_reduce(
       "CountpMinInteriorFaces", num_faces_fc,
       KOKKOS_LAMBDA(const int f, int& local_count) {
-        if (is_iface[f]) return;
+        if (is_iface(f)) return;
 
         int const oe = face_connectivity.elemOwner(f);
         if (elem_type(oe) != kElementTypePMin) return;
@@ -259,7 +259,7 @@ void DGPAdaptiveSolver<ORDER_MIN, ORDER_MAX, INTEGRAL_SELECTOR, IMPL_TAG, MESH_T
 
   Kokkos::parallel_scan(
       "BuildpMinInteriorFaceList", num_faces_fc, KOKKOS_LAMBDA(const int f, int& update, const bool is_final) {
-        if (is_iface[f]) return;
+        if (is_iface(f)) return;
 
         int const oe = face_connectivity.elemOwner(f);
         if (elem_type(oe) != kElementTypePMin) return;
@@ -273,7 +273,7 @@ void DGPAdaptiveSolver<ORDER_MIN, ORDER_MAX, INTEGRAL_SELECTOR, IMPL_TAG, MESH_T
   Kokkos::parallel_reduce(
       "CountpMaxInteriorFaces", num_faces_fc,
       KOKKOS_LAMBDA(const int f, int& local_count) {
-        if (is_iface[f]) return;
+        if (is_iface(f)) return;
 
         int const oe = face_connectivity.elemOwner(f);
         if (elem_type(oe) != kElementTypePMax) return;
@@ -287,7 +287,7 @@ void DGPAdaptiveSolver<ORDER_MIN, ORDER_MAX, INTEGRAL_SELECTOR, IMPL_TAG, MESH_T
 
   Kokkos::parallel_scan(
       "BuildpMaxInteriorFaceList", num_faces_fc, KOKKOS_LAMBDA(const int f, int& update, const bool is_final) {
-        if (is_iface[f]) return;
+        if (is_iface(f)) return;
 
         int const oe = face_connectivity.elemOwner(f);
         if (elem_type(oe) != kElementTypePMax) return;

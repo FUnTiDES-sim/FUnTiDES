@@ -156,8 +156,8 @@ void DGSEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::T
 
   Kokkos::parallel_for(
       "TagNodes_initCount", nNode, KOKKOS_LAMBDA(const int i) {
-        dg_count[i] = 0;
-        sem_count[i] = 0;
+        dg_count(i) = 0;
+        sem_count(i) = 0;
       });
   FENCE
 
@@ -168,15 +168,15 @@ void DGSEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::T
       "TagNodes_mainLoop", nElem, KOKKOS_LAMBDA(const int e) {
         if (e >= nElem) return;
 
-        int const etype = elem_type[e];
+        int const etype = elem_type(e);
         for (int i = 0; i < dim; ++i)
           for (int j = 0; j < dim; ++j)
             for (int k = 0; k < dim; ++k) {
               int const gIdx = mesh_local.globalNodeIndex(e, i, j, k);
               if (etype == kElementTypeDG) {
-                ATOMICADD(dg_count[gIdx], 1);
+                ATOMICADD(dg_count(gIdx), 1);
               } else {
-                ATOMICADD(sem_count[gIdx], 1);
+                ATOMICADD(sem_count(gIdx), 1);
               }
             }
       });
@@ -188,9 +188,9 @@ void DGSEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::T
 
   auto face_connectivity = m_face_connectivity_;
 
-  Kokkos::parallel_scan(
+  Kokkos::parallel_reduce(
       "CountInterfaceFaces", num_faces_fc,
-      KOKKOS_LAMBDA(const int f, int& update, const bool is_final) {
+      KOKKOS_LAMBDA(const int f, int& local_n_interface) {
         if (face_connectivity.isBoundaryFace(f)) return;
 
         bool face_on_interface = true;
@@ -201,9 +201,7 @@ void DGSEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::T
             break;
           }
         }
-        if (face_on_interface) {
-          ++update;
-        }
+        if (face_on_interface) ++local_n_interface;
       },
       n_interface);
   FENCE
@@ -235,6 +233,9 @@ void DGSEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::T
       },
       idx);
   FENCE
+  if (idx != n_interface) {
+    throw std::logic_error("DGSEMsolver: interface face list size does not match the face count");
+  }
 
   // Compact list of the nodes owned by at least one SEM element.
   {
@@ -287,7 +288,7 @@ void DGSEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::B
   auto inum_interface_faces = num_interface_faces_;
 
   Kokkos::parallel_for(
-      "MarkInterfaceFaces", inum_interface_faces, KOKKOS_LAMBDA(const int i) { is_iface[iface_list(i)] = 1; });
+      "MarkInterfaceFaces", inum_interface_faces, KOKKOS_LAMBDA(const int i) { is_iface(iface_list(i)) = 1; });
   FENCE
 
   auto face_connectivity = m_face_connectivity_;
@@ -296,7 +297,7 @@ void DGSEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::B
   Kokkos::parallel_reduce(
       "CountDGInteriorFaces", num_faces_fc,
       KOKKOS_LAMBDA(const int f, int& local_count) {
-        if (is_iface[f]) return;
+        if (is_iface(f)) return;
 
         int const oe = face_connectivity.elemOwner(f);
         if (elem_type(oe) != kElementTypeDG) return;
@@ -311,7 +312,7 @@ void DGSEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::B
   Kokkos::parallel_scan(
       "BuildDGInteriorFaceList", num_faces_fc,
       KOKKOS_LAMBDA(const int f, int& update, const bool is_final) {
-        if (is_iface[f]) return;
+        if (is_iface(f)) return;
 
         int const oe = face_connectivity.elemOwner(f);
         if (elem_type(oe) != kElementTypeDG) return;

@@ -166,8 +166,8 @@ void SEMsolverAcoustoElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES>
 
   Kokkos::parallel_for(
       "TagNodes_initCount", nNode, KOKKOS_LAMBDA(const int i) {
-        acoustic_count[i] = 0;
-        elastic_count[i] = 0;
+        acoustic_count(i) = 0;
+        elastic_count(i) = 0;
       });
   FENCE
 
@@ -179,15 +179,15 @@ void SEMsolverAcoustoElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES>
       "TagNodes_mainLoop", nElem, KOKKOS_LAMBDA(const int e) {
         if (e >= nElem) return;
 
-        int const etype = elem_type[e];
+        int const etype = elem_type(e);
         for (int i = 0; i < dim; ++i)
           for (int j = 0; j < dim; ++j)
             for (int k = 0; k < dim; ++k) {
               int const gIdx = mesh_local.globalNodeIndex(e, i, j, k);
               if (etype == kElementTypeAcoustic) {
-                ATOMICADD(acoustic_count[gIdx], 1);
+                ATOMICADD(acoustic_count(gIdx), 1);
               } else {
-                ATOMICADD(elastic_count[gIdx], 1);
+                ATOMICADD(elastic_count(gIdx), 1);
               }
             }
       });
@@ -212,7 +212,7 @@ void SEMsolverAcoustoElastic<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES>
   // Fill the compact list of interface node global indices and the mapping from global to compact indices.
   Kokkos::parallel_scan(
       "BuildInterfaceNodeList", nNode, KOKKOS_LAMBDA(const int n, int& update, const bool is_final) {
-        if (acoustic_count[n] > 0 && elastic_count[n] > 0) {
+        if (acoustic_count(n) > 0 && elastic_count(n) > 0) {
           if (is_final) {
             interface_node_indices(update) = n;
             interface_node_index(n) = update;

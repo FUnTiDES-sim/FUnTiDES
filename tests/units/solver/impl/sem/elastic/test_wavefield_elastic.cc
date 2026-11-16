@@ -10,6 +10,7 @@
 namespace solver {
 namespace test {
 
+using test_utils::copyToHost;
 using test_utils::fillFromHost;
 using test_utils::getAt;
 using test_utils::setAt;
@@ -311,12 +312,12 @@ TEST_F(WavefieldElasticTest, SwapTwice) {
   WavefieldElastic wavefield(uxPrevField, uxCurrField, uyPrevField, uyCurrField, uzPrevField, uzCurrField);
 
   // Store original values
-  auto original_ux_prev = toHost(wavefield.m_uxnGlobalPrev);
-  auto original_ux_curr = toHost(wavefield.m_uxnGlobalCurr);
-  auto original_uy_prev = toHost(wavefield.m_uynGlobalPrev);
-  auto original_uy_curr = toHost(wavefield.m_uynGlobalCurr);
-  auto original_uz_prev = toHost(wavefield.m_uznGlobalPrev);
-  auto original_uz_curr = toHost(wavefield.m_uznGlobalCurr);
+  auto original_ux_prev = copyToHost(wavefield.m_uxnGlobalPrev);
+  auto original_ux_curr = copyToHost(wavefield.m_uxnGlobalCurr);
+  auto original_uy_prev = copyToHost(wavefield.m_uynGlobalPrev);
+  auto original_uy_curr = copyToHost(wavefield.m_uynGlobalCurr);
+  auto original_uz_prev = copyToHost(wavefield.m_uznGlobalPrev);
+  auto original_uz_curr = copyToHost(wavefield.m_uznGlobalCurr);
 
   // Swap twice should restore original state
   wavefield.swap();

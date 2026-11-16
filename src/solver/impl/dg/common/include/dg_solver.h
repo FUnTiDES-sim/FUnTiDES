@@ -272,7 +272,7 @@ class DGsolver : public Solver {
 
     Kokkos::parallel_for(
         "MarkFacesFromElementList", n_elem_list, KOKKOS_LAMBDA(const int _loop_idx) {
-          const int e = elem_list[_loop_idx];
+          const int e = elem_list(_loop_idx);
           for (int f = 0; f < 6; ++f) {
             const int face_id = face_connectivity.getGlobalFace(e, static_cast<model::CubicFace>(f));
             is_face(face_id) = 1;
@@ -283,7 +283,7 @@ class DGsolver : public Solver {
     Kokkos::parallel_reduce(
         "CountFacesFromElementList", n_faces_fc,
         KOKKOS_LAMBDA(const int f, int& local_count) {
-          if (is_face[f]) ++local_count;
+          if (is_face(f)) ++local_count;
         },
         m_n_face_list_);
     FENCE;
@@ -293,7 +293,7 @@ class DGsolver : public Solver {
 
     Kokkos::parallel_scan(
         "BuildFaceListFromElementList", n_faces_fc, KOKKOS_LAMBDA(const int f, int& update, const bool is_final) {
-          if (is_face[f]) {
+          if (is_face(f)) {
             if (is_final) face_list(update) = f;
             ++update;
           }
