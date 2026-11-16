@@ -16,7 +16,7 @@
 #include "solver_factory.h"
 #include "source_time_function.h"
 
-using namespace solver::fe;
+using namespace solver;
 using namespace utils::enums;
 
 namespace model {
