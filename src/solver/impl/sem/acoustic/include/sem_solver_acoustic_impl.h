@@ -235,7 +235,7 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::com
     // One thread per node and one per geometry entry are required. The last geometry entry, 1/rho of
     // the element, is only read when the model lives on elements.
     constexpr int kGeomLoaded = IS_MODEL_ON_NODES ? kZGeomStride - 1 : kZGeomStride;
-    int const team_size = std::min<int>(kPreferredTeamSize, ExecSpace::concurrency());
+    int const team_size = std::min<int>(kPreferredTeamSize, ExecSpace().concurrency());
     if (team_size < std::max(kPointsPerElement, kGeomLoaded)) {
       computeElementContributions_Acoustic_FlatZ(data);
       return;
@@ -254,7 +254,7 @@ void SEMsolver<ORDER, INTEGRAL_TYPE, MESH_TYPE, IS_MODEL_ON_NODES, PHYSICS>::com
     // Same choice as the TTI team kernel: up to 8 elements per team, at least four waves of teams.
     constexpr int kMaxElemsPerTeam = 8;
     constexpr int kMinWaves = 4;
-    int const resident_teams = std::max<int>(1, ExecSpace::concurrency() / kPreferredTeamSize);
+    int const resident_teams = std::max<int>(1, ExecSpace().concurrency() / kPreferredTeamSize);
     int const elems_per_team = std::clamp(n_iter / (kMinWaves * resident_teams), 1, kMaxElemsPerTeam);
     TeamPolicyType policy((n_iter + elems_per_team - 1) / elems_per_team, team_size);
 

@@ -1,10 +1,16 @@
 #include <gtest/gtest.h>
 
 #include "data_type.h"
+#include "device_view_access.h"
 #include "wavefield_view_backward_elastic.h"
 
 namespace gradient {
 namespace test {
+
+using test_utils::fillFromHost;
+using test_utils::getAt;
+using test_utils::setAt;
+using test_utils::toHost;
 
 // =============================================================================
 // WavefieldViewBackwardElastic
@@ -21,14 +27,24 @@ class WavefieldViewBackwardElasticTest : public ::testing::Test {
     uy_dt2 = allocateVector<vectorReal>(size, "uy_dt2");
     uz_dt2 = allocateVector<vectorReal>(size, "uz_dt2");
 
-    for (int i = 0; i < size; ++i) {
-      ux_n(i) = static_cast<float>(i) * 1.0f;
-      uy_n(i) = static_cast<float>(i) * 2.0f;
-      uz_n(i) = static_cast<float>(i) * 3.0f;
-      ux_dt2(i) = static_cast<float>(i) * 4.0f;
-      uy_dt2(i) = static_cast<float>(i) * 5.0f;
-      uz_dt2(i) = static_cast<float>(i) * 6.0f;
-    }
+    fillFromHost(ux_n, [&](const auto& h) {
+      for (int i = 0; i < size; ++i) h(i) = static_cast<float>(i) * 1.0f;
+    });
+    fillFromHost(uy_n, [&](const auto& h) {
+      for (int i = 0; i < size; ++i) h(i) = static_cast<float>(i) * 2.0f;
+    });
+    fillFromHost(uz_n, [&](const auto& h) {
+      for (int i = 0; i < size; ++i) h(i) = static_cast<float>(i) * 3.0f;
+    });
+    fillFromHost(ux_dt2, [&](const auto& h) {
+      for (int i = 0; i < size; ++i) h(i) = static_cast<float>(i) * 4.0f;
+    });
+    fillFromHost(uy_dt2, [&](const auto& h) {
+      for (int i = 0; i < size; ++i) h(i) = static_cast<float>(i) * 5.0f;
+    });
+    fillFromHost(uz_dt2, [&](const auto& h) {
+      for (int i = 0; i < size; ++i) h(i) = static_cast<float>(i) * 6.0f;
+    });
   }
 
   int size;
@@ -76,12 +92,12 @@ TEST_F(WavefieldViewBackwardElasticTest, GetFieldNameByIndex) {
 TEST_F(WavefieldViewBackwardElasticTest, GetFieldReturnsCorrectViews) {
   WavefieldViewBackwardElastic view(ux_n, uy_n, uz_n, ux_dt2, uy_dt2, uz_dt2);
 
-  auto f0 = view.getField(0);
-  auto f1 = view.getField(1);
-  auto f2 = view.getField(2);
-  auto f3 = view.getField(3);
-  auto f4 = view.getField(4);
-  auto f5 = view.getField(5);
+  auto f0 = toHost(view.getField(0));
+  auto f1 = toHost(view.getField(1));
+  auto f2 = toHost(view.getField(2));
+  auto f3 = toHost(view.getField(3));
+  auto f4 = toHost(view.getField(4));
+  auto f5 = toHost(view.getField(5));
 
   for (int i = 0; i < size; ++i) {
     EXPECT_FLOAT_EQ(f0(i), static_cast<float>(i) * 1.0f);
@@ -95,15 +111,15 @@ TEST_F(WavefieldViewBackwardElasticTest, GetFieldReturnsCorrectViews) {
 
 TEST_F(WavefieldViewBackwardElasticTest, GetFieldOutOfBoundsFallsBackToUxN) {
   WavefieldViewBackwardElastic view(ux_n, uy_n, uz_n, ux_dt2, uy_dt2, uz_dt2);
-  auto fallback = view.getField(99);
+  auto fallback = toHost(view.getField(99));
   EXPECT_EQ(fallback.extent(0), static_cast<size_t>(size));
-  EXPECT_FLOAT_EQ(fallback(0), ux_n(0));
+  EXPECT_FLOAT_EQ(fallback(0), getAt(ux_n, 0));
 }
 
 TEST_F(WavefieldViewBackwardElasticTest, ViewsAreShallowCopies) {
   WavefieldViewBackwardElastic view(ux_n, uy_n, uz_n, ux_dt2, uy_dt2, uz_dt2);
-  ux_dt2(5) = 999.0f;
-  EXPECT_FLOAT_EQ(view.getField(3)(5), 999.0f);
+  setAt(ux_dt2, 999.0f, 5);
+  EXPECT_FLOAT_EQ(getAt(view.getField(3), 5), 999.0f);
 }
 
 TEST_F(WavefieldViewBackwardElasticTest, PrintDoesNotThrow) {

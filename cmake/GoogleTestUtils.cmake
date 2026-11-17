@@ -14,6 +14,7 @@ function(add_gtest TEST_NAME TEST_FILE EXTRA_LINKS)
         gtest_main
         ${EXTRA_LINKS}
     )
+    target_include_directories(${TEST_NAME} PRIVATE ${funtides_SOURCE_DIR}/tests/units/common)
 
     target_link_kokkos_if_enabled(${TEST_NAME})
 
@@ -40,6 +41,7 @@ function(add_gtest_group GROUP_NAME)
         gtest_main
         ${GRP_EXTRA_LINKS}
     )
+    target_include_directories(${GROUP_NAME} PRIVATE ${funtides_SOURCE_DIR}/tests/units/common)
 
     target_link_kokkos_if_enabled(${GROUP_NAME})
 

@@ -5,6 +5,7 @@
 #include <string>
 
 #include "data_type.h"
+#include "device_view_access.h"
 #include "rhs_acoustic.h"
 #include "sem_solver_data.h"
 #include "wavefield_acoustic.h"
@@ -13,6 +14,9 @@
 
 namespace solver {
 namespace testing {
+
+using test_utils::fillFromHost;
+using test_utils::toHost;
 
 // ============================================================================
 // Print Method Tests (Using standard cout redirection)
@@ -105,10 +109,12 @@ class SEMSolverDataAcousticSwapRotateTest : public ::testing::Test {
     size = 50;
     prevField = allocateVector<vectorReal>(size, "prevField");
     currField = allocateVector<vectorReal>(size, "currField");
-    for (size_t i = 0; i < size; ++i) {
-      prevField(i) = static_cast<float>(i);
-      currField(i) = static_cast<float>(i) * 2.0f;
-    }
+    fillFromHost(prevField, [&](const auto& h) {
+      for (size_t i = 0; i < size; ++i) h(i) = static_cast<float>(i);
+    });
+    fillFromHost(currField, [&](const auto& h) {
+      for (size_t i = 0; i < size; ++i) h(i) = static_cast<float>(i) * 2.0f;
+    });
   }
 
   size_t size;
@@ -123,8 +129,8 @@ TEST_F(SEMSolverDataAcousticSwapRotateTest, SwapExchangesPrevAndCurrFields) {
 
   solver_data.swapWavefields();
 
-  auto curr = solver_data.getCurrentField(0);
-  auto prev = solver_data.getPreviousField(0);
+  auto curr = toHost(solver_data.getCurrentField(0));
+  auto prev = toHost(solver_data.getPreviousField(0));
   for (size_t i = 0; i < size; ++i) {
     EXPECT_FLOAT_EQ(curr(i), static_cast<float>(i));         // old prev
     EXPECT_FLOAT_EQ(prev(i), static_cast<float>(i) * 2.0f);  // old curr
@@ -139,8 +145,8 @@ TEST_F(SEMSolverDataAcousticSwapRotateTest, SwapTwiceRestoresOriginalValues) {
   solver_data.swapWavefields();
   solver_data.swapWavefields();
 
-  auto curr = solver_data.getCurrentField(0);
-  auto prev = solver_data.getPreviousField(0);
+  auto curr = toHost(solver_data.getCurrentField(0));
+  auto prev = toHost(solver_data.getPreviousField(0));
   for (size_t i = 0; i < size; ++i) {
     EXPECT_FLOAT_EQ(curr(i), static_cast<float>(i) * 2.0f);  // original curr
     EXPECT_FLOAT_EQ(prev(i), static_cast<float>(i));         // original prev
@@ -149,7 +155,7 @@ TEST_F(SEMSolverDataAcousticSwapRotateTest, SwapTwiceRestoresOriginalValues) {
 
 TEST_F(SEMSolverDataAcousticSwapRotateTest, SwapWithThreeBuffersRotatesCorrectly) {
   auto prevPrev = allocateVector<vectorReal>(size, "prevPrev");
-  for (size_t i = 0; i < size; ++i) prevPrev(i) = 10.0f;
+  Kokkos::deep_copy(prevPrev, 10.0f);
 
   WavefieldAcoustic wavefield(prevPrev, prevField, currField);
   RhsAcoustic rhs;
@@ -161,9 +167,9 @@ TEST_F(SEMSolverDataAcousticSwapRotateTest, SwapWithThreeBuffersRotatesCorrectly
   //   curr     <- old prevPrev (10.0)
   //   prev     <- old curr     (i*2)
   //   prevPrev <- old prev     (i)
-  auto curr = solver_data.getCurrentField(0);
-  auto prev = solver_data.getPreviousField(0);
-  auto pp = solver_data.getPrevPrevField(0);
+  auto curr = toHost(solver_data.getCurrentField(0));
+  auto prev = toHost(solver_data.getPreviousField(0));
+  auto pp = toHost(solver_data.getPrevPrevField(0));
   for (size_t i = 0; i < size; ++i) {
     EXPECT_FLOAT_EQ(curr(i), 10.0f);
     EXPECT_FLOAT_EQ(prev(i), static_cast<float>(i) * 2.0f);
@@ -173,7 +179,7 @@ TEST_F(SEMSolverDataAcousticSwapRotateTest, SwapWithThreeBuffersRotatesCorrectly
 
 TEST_F(SEMSolverDataAcousticSwapRotateTest, SwapThreeTimesRestoresStateWithThreeBuffers) {
   auto prevPrev = allocateVector<vectorReal>(size, "prevPrev");
-  for (size_t i = 0; i < size; ++i) prevPrev(i) = 10.0f;
+  Kokkos::deep_copy(prevPrev, 10.0f);
 
   WavefieldAcoustic wavefield(prevPrev, prevField, currField);
   RhsAcoustic rhs;
@@ -183,9 +189,9 @@ TEST_F(SEMSolverDataAcousticSwapRotateTest, SwapThreeTimesRestoresStateWithThree
   solver_data.swapWavefields();
   solver_data.swapWavefields();
 
-  auto curr = solver_data.getCurrentField(0);
-  auto prev = solver_data.getPreviousField(0);
-  auto pp = solver_data.getPrevPrevField(0);
+  auto curr = toHost(solver_data.getCurrentField(0));
+  auto prev = toHost(solver_data.getPreviousField(0));
+  auto pp = toHost(solver_data.getPrevPrevField(0));
   for (size_t i = 0; i < size; ++i) {
     EXPECT_FLOAT_EQ(curr(i), static_cast<float>(i) * 2.0f);  // original curr
     EXPECT_FLOAT_EQ(prev(i), static_cast<float>(i));         // original prev
