@@ -9,6 +9,26 @@
 #include "model_struct.h"
 
 namespace model {
+namespace struct_mesh_test {
+
+/// Elasticity tensor of one element, read on the device.
+template <typename ModelType, typename FloatType>
+void readCTensorOnElement(const ModelType& model, int e, FloatType C[6][6]) {
+  Kokkos::View<FloatType[6][6]> c("c_tensor");
+  Kokkos::parallel_for(
+      "read_c_tensor", 1, KOKKOS_LAMBDA(const int) {
+        FloatType tmp[6][6];
+        model.getCTensorOnElement(e, tmp);
+        for (int i = 0; i < 6; ++i)
+          for (int j = 0; j < 6; ++j) c(i, j) = tmp[i][j];
+      });
+  auto host = Kokkos::create_mirror_view_and_copy(Kokkos::HostSpace{}, c);
+  for (int i = 0; i < 6; ++i)
+    for (int j = 0; j < 6; ++j) C[i][j] = host(i, j);
+}
+
+}  // namespace struct_mesh_test
+
 namespace {
 
 // ============================================================================
@@ -590,7 +610,7 @@ TYPED_TEST(ModelStructTest, InitElasticityTensorsElastic) {
 
   // Verify tensors were created
   FloatType C[6][6];
-  elastic_model.getCTensorOnElement(0, C);
+  struct_mesh_test::readCTensorOnElement(elastic_model, 0, C);
 
   // Verify symmetry of C tensor (Voigt notation)
   for (int i = 0; i < 6; ++i) {
@@ -620,7 +640,7 @@ TYPED_TEST(ModelStructTest, GetCTensorOnElement) {
   elastic_model.initElasticityTensors(model::kTTI);  // CHANGED: Use TTI instead of kIso
 
   FloatType C[6][6];
-  elastic_model.getCTensorOnElement(0, C);
+  struct_mesh_test::readCTensorOnElement(elastic_model, 0, C);
 
   // Verify tensor values are reasonable (non-zero)
   bool has_nonzero = false;
@@ -850,6 +870,9 @@ TYPED_TEST(ModelStructTest, PerElementMaterialArraysUsedWhenPopulated) {
     data.model_vs_element_.view_host()(e) = 1500.0f;
     data.model_rho_element_.view_host()(e) = 2000.0f;
   }
+  data.model_vp_element_.modify_host();
+  data.model_vs_element_.modify_host();
+  data.model_rho_element_.modify_host();
 
   ModelStructType model(data);
   EXPECT_FLOAT_EQ(model.getModelVpOnElement(0), 3000.0f);
@@ -882,6 +905,9 @@ TYPED_TEST(ModelStructTest, PerNodeMaterialArraysUsedWhenPopulated) {
     data.model_vs_node_.view_host()(n) = 1200.0f;
     data.model_rho_node_.view_host()(n) = 1800.0f;
   }
+  data.model_vp_node_.modify_host();
+  data.model_vs_node_.modify_host();
+  data.model_rho_node_.modify_host();
 
   ModelStructType model(data);
   EXPECT_FLOAT_EQ(model.getModelVpOnNodes(0), 2500.0f);
@@ -913,6 +939,9 @@ TYPED_TEST(ModelStructTest, SetModelNodePropsUpdatesValues) {
     data.model_vs_node_.view_host()(n) = 755.0f;
     data.model_rho_node_.view_host()(n) = 1.0f;
   }
+  data.model_vp_node_.modify_host();
+  data.model_vs_node_.modify_host();
+  data.model_rho_node_.modify_host();
 
   ModelStructType model(data);
   model.setModelNodeProps(0, 3000.0f, 1500.0f, 2000.0f);
