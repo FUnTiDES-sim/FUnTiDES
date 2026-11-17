@@ -103,16 +103,8 @@ driver and lives with it in the FUnTiDES-App repository.
 The `funtides-sem` command-line driver and its YAML launcher (`run_funtides.py`) are
 provided by the FUnTiDES-App repository, which builds against an installed FUnTiDES.
 
-The Python and MPI examples are provided in the `examples` folder:
-
-```sh
-# Run a simple Python cartesian solver example
-python3 examples/solver_cartesian.py --ex 100 --ey 100 --ez 100 --order 2
-
-# Run an MPI-distributed Python cartesian solver (requires MPI)
-mpirun -n 4 python3 examples/solver_cartesian_mpi.py --ex 200 --snap_interval 20
-
-```
+The Python and MPI examples using `pyfuntides` are also provided by the FUnTiDES-App
+repository, in its `examples/python` folder.
 
 > **Note**: A dedicated python env can be made via TPLs.
 
@@ -140,7 +132,8 @@ export PYTHONPATH=$PYTHONPATH:$MY_INSTALL_DIR/python
 ```
 
 Note: if *pykokkos* is not in your python environment, also extend your `PYTHONPATH` to make the kokkos package visible.
-Some examples on how to use the wrappers are available in the [`examples`](examples/) folder.
+Examples on how to use the wrappers are available in the `examples/python` folder of the
+FUnTiDES-App repository.
 
 ### Tests & Benchmarks
 
