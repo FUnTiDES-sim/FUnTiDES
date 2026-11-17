@@ -7,6 +7,23 @@
 namespace model {
 namespace {
 
+/// Marks the host side of the filled arrays as modified, so the model copies them to the device.
+template <typename FloatType, typename ScalarType>
+void markHostModified(ModelUnstructData<FloatType, ScalarType>& data) {
+  data.global_node_index_.modify_host();
+  data.nodes_coords_x_.modify_host();
+  data.nodes_coords_y_.modify_host();
+  data.nodes_coords_z_.modify_host();
+  data.model_vp_element_.modify_host();
+  data.model_rho_element_.modify_host();
+}
+
+/// Face queries of a built connectivity, copied to the host.
+template <typename FCType>
+HostFaceQueries<int> hostQueries(const FCType& fc, int n_elements) {
+  return gatherFaceQueries<true>(fc, n_elements, fc.getDofsPerFace());
+}
+
 template <typename FloatType, typename ScalarType>
 ModelUnstruct<FloatType, ScalarType> createSingleCube() {
   ModelUnstructData<FloatType, ScalarType> data;
@@ -33,6 +50,7 @@ ModelUnstruct<FloatType, ScalarType> createSingleCube() {
   }
   data.model_vp_element_.view_host()(0) = 1500.0;
   data.model_rho_element_.view_host()(0) = 1.0;
+  markHostModified(data);
   return ModelUnstruct<FloatType, ScalarType>(data);
 }
 
@@ -93,6 +111,7 @@ ModelUnstruct<FloatType, ScalarType> createTwoAdjacentCubesRotated() {
   data.nodes_coords_z_.view_host()(11) = 1.0;
   data.model_vp_element_.view_host()(0) = data.model_vp_element_.view_host()(1) = 1500.0;
   data.model_rho_element_.view_host()(0) = data.model_rho_element_.view_host()(1) = 1.0;
+  markHostModified(data);
   return ModelUnstruct<FloatType, ScalarType>(data);
 }
 
@@ -135,6 +154,7 @@ ModelUnstruct<FloatType, ScalarType> createTwoAdjacentCubes() {
   }
   data.model_vp_element_.view_host()(0) = data.model_vp_element_.view_host()(1) = 1500.0;
   data.model_rho_element_.view_host()(0) = data.model_rho_element_.view_host()(1) = 1.0;
+  markHostModified(data);
   return ModelUnstruct<FloatType, ScalarType>(data);
 }
 
@@ -177,7 +197,7 @@ TYPED_TEST(FaceConnectivityUnstructTest, GetGlobalFaceReturnsValidIds) {
   using S = typename TestFixture::ScalarType;
   FaceConnectivityUnstruct<F, S> fc;
   fc.build(createSingleCube<F, S>());
-  testGlobalFaceIds<F, S>(fc);
+  testGlobalFaceIds<F, S>(hostQueries(fc, 1));
 }
 
 TYPED_TEST(FaceConnectivityUnstructTest, GetGlobalFaceUniqueness) {
@@ -185,7 +205,7 @@ TYPED_TEST(FaceConnectivityUnstructTest, GetGlobalFaceUniqueness) {
   using S = typename TestFixture::ScalarType;
   FaceConnectivityUnstruct<F, S> fc;
   fc.build(createSingleCube<F, S>());
-  testGlobalFaceUniqueness<F, S>(fc);
+  testGlobalFaceUniqueness<F, S>(hostQueries(fc, 1));
 }
 
 TYPED_TEST(FaceConnectivityUnstructTest, SingleCubeAllFacesAreBoundary) {
@@ -193,7 +213,7 @@ TYPED_TEST(FaceConnectivityUnstructTest, SingleCubeAllFacesAreBoundary) {
   using S = typename TestFixture::ScalarType;
   FaceConnectivityUnstruct<F, S> fc;
   fc.build(createSingleCube<F, S>());
-  testSingleCubeAllBoundary<F, S>(fc);
+  testSingleCubeAllBoundary<F, S>(hostQueries(fc, 1));
 }
 
 TYPED_TEST(FaceConnectivityUnstructTest, TwoCubesSharedFaceNotBoundary) {
@@ -201,7 +221,7 @@ TYPED_TEST(FaceConnectivityUnstructTest, TwoCubesSharedFaceNotBoundary) {
   using S = typename TestFixture::ScalarType;
   FaceConnectivityUnstruct<F, S> fc;
   fc.build(createTwoAdjacentCubes<F, S>());
-  testSharedFaceNotBoundary<F, S>(fc);
+  testSharedFaceNotBoundary<F, S>(hostQueries(fc, 2));
 }
 
 TYPED_TEST(FaceConnectivityUnstructTest, TwoCubesCountBoundaryFaces) {
@@ -209,7 +229,7 @@ TYPED_TEST(FaceConnectivityUnstructTest, TwoCubesCountBoundaryFaces) {
   using S = typename TestFixture::ScalarType;
   FaceConnectivityUnstruct<F, S> fc;
   fc.build(createTwoAdjacentCubes<F, S>());
-  testBoundaryFaceCount<F, S>(fc);
+  testBoundaryFaceCount<F, S>(hostQueries(fc, 2));
 }
 
 TYPED_TEST(FaceConnectivityUnstructTest, FaceNodesValid) {
@@ -217,7 +237,7 @@ TYPED_TEST(FaceConnectivityUnstructTest, FaceNodesValid) {
   using S = typename TestFixture::ScalarType;
   FaceConnectivityUnstruct<F, S> fc;
   fc.build(createSingleCube<F, S>());
-  testFaceNodes<F, S>(fc, 8);
+  testFaceNodes<F, S>(hostQueries(fc, 1), 8);
 }
 
 TYPED_TEST(FaceConnectivityUnstructTest, FaceNodesUnique) {
@@ -225,7 +245,7 @@ TYPED_TEST(FaceConnectivityUnstructTest, FaceNodesUnique) {
   using S = typename TestFixture::ScalarType;
   FaceConnectivityUnstruct<F, S> fc;
   fc.build(createSingleCube<F, S>());
-  testFaceNodesUnique<F, S>(fc);
+  testFaceNodesUnique<F, S>(hostQueries(fc, 1));
 }
 
 TYPED_TEST(FaceConnectivityUnstructTest, InternalFaceHasTwoOwners) {
@@ -233,7 +253,7 @@ TYPED_TEST(FaceConnectivityUnstructTest, InternalFaceHasTwoOwners) {
   using S = typename TestFixture::ScalarType;
   FaceConnectivityUnstruct<F, S> fc;
   fc.build(createTwoAdjacentCubes<F, S>());
-  testInternalFaceOwners<F, S>(fc);
+  testInternalFaceOwners<F, S>(hostQueries(fc, 2));
 }
 
 TYPED_TEST(FaceConnectivityUnstructTest, BoundaryFaceHasNoNeighbor) {
@@ -241,7 +261,7 @@ TYPED_TEST(FaceConnectivityUnstructTest, BoundaryFaceHasNoNeighbor) {
   using S = typename TestFixture::ScalarType;
   FaceConnectivityUnstruct<F, S> fc;
   fc.build(createSingleCube<F, S>());
-  testBoundaryFaceNoNeighbor<F, S>(fc);
+  testBoundaryFaceNoNeighbor<F, S>(hostQueries(fc, 1));
 }
 
 // ============================================================================
@@ -342,13 +362,14 @@ TYPED_TEST(FaceConnectivityUnstructTest, NeighborFaceDofAlignedIsIdentity) {
   auto mesh = createTwoAdjacentCubes<F, S>();
   FaceConnectivityUnstruct<F, S> fc;
   fc.build(mesh);
+  auto q = hostQueries(fc, 2);
 
-  auto shared_face = fc.getGlobalFace(0, CubicFace::kXPlus);
-  ASSERT_FALSE(fc.isBoundaryFace(shared_face));
+  auto shared_face = q.getGlobalFace(0, CubicFace::kXPlus);
+  ASSERT_FALSE(q.isBoundaryFace(shared_face));
 
   const int ndofs = fc.getDofsPerFace();
   for (int i = 0; i < ndofs; ++i)
-    EXPECT_EQ(fc.getNeighborFaceDof(shared_face, i), i) << "Aligned mesh: expected identity permutation at DOF " << i;
+    EXPECT_EQ(q.getNeighborFaceDof(shared_face, i), i) << "Aligned mesh: expected identity permutation at DOF " << i;
 }
 
 TYPED_TEST(FaceConnectivityUnstructTest, NeighborFaceDofRotatedIsCorrect) {
@@ -357,15 +378,16 @@ TYPED_TEST(FaceConnectivityUnstructTest, NeighborFaceDofRotatedIsCorrect) {
   auto mesh = createTwoAdjacentCubesRotated<F, S>();
   FaceConnectivityUnstruct<F, S> fc;
   fc.build(mesh);
+  auto q = hostQueries(fc, 2);
 
-  auto shared_face = fc.getGlobalFace(0, CubicFace::kXPlus);
-  ASSERT_FALSE(fc.isBoundaryFace(shared_face));
+  auto shared_face = q.getGlobalFace(0, CubicFace::kXPlus);
+  ASSERT_FALSE(q.isBoundaryFace(shared_face));
 
   // Elem 1 has j↔z and k↔y swapped → perm = {0,2,1,3}
-  EXPECT_EQ(fc.getNeighborFaceDof(shared_face, 0), 0);
-  EXPECT_EQ(fc.getNeighborFaceDof(shared_face, 1), 2);
-  EXPECT_EQ(fc.getNeighborFaceDof(shared_face, 2), 1);
-  EXPECT_EQ(fc.getNeighborFaceDof(shared_face, 3), 3);
+  EXPECT_EQ(q.getNeighborFaceDof(shared_face, 0), 0);
+  EXPECT_EQ(q.getNeighborFaceDof(shared_face, 1), 2);
+  EXPECT_EQ(q.getNeighborFaceDof(shared_face, 2), 1);
+  EXPECT_EQ(q.getNeighborFaceDof(shared_face, 3), 3);
 }
 
 TYPED_TEST(FaceConnectivityUnstructTest, NeighborFaceDofNodesMatch) {
@@ -374,10 +396,11 @@ TYPED_TEST(FaceConnectivityUnstructTest, NeighborFaceDofNodesMatch) {
   auto mesh = createTwoAdjacentCubesRotated<F, S>();
   FaceConnectivityUnstruct<F, S> fc;
   fc.build(mesh);
+  auto q = hostQueries(fc, 2);
 
-  auto shared_face = fc.getGlobalFace(0, CubicFace::kXPlus);
-  ASSERT_FALSE(fc.isBoundaryFace(shared_face));
-  testNeighborFaceDofCorrectness<F, S>(fc, mesh, shared_face);
+  auto shared_face = q.getGlobalFace(0, CubicFace::kXPlus);
+  ASSERT_FALSE(q.isBoundaryFace(shared_face));
+  testNeighborFaceDofCorrectness<F, S>(q, mesh, shared_face);
 }
 
 }  // namespace

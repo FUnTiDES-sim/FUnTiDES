@@ -1,10 +1,16 @@
 #include <gtest/gtest.h>
 
 #include "data_type.h"
+#include "device_view_access.h"
 #include "wavefield_view_backward_acoustic.h"
 
 namespace gradient {
 namespace test {
+
+using test_utils::fillFromHost;
+using test_utils::getAt;
+using test_utils::setAt;
+using test_utils::toHost;
 
 class WavefieldViewBackwardAcousticTest : public ::testing::Test {
  protected:
@@ -15,11 +21,15 @@ class WavefieldViewBackwardAcousticTest : public ::testing::Test {
     qnPrevPrev = allocateVector<vectorReal>(size, "qnPrevPrev");
     dt = 0.001f;
 
-    for (int i = 0; i < size; ++i) {
-      qn(i) = static_cast<float>(i) * 2.0f;
-      qnPrev(i) = static_cast<float>(i) * 3.0f;
-      qnPrevPrev(i) = static_cast<float>(i) * 4.0f;
-    }
+    fillFromHost(qn, [&](const auto& h) {
+      for (int i = 0; i < size; ++i) h(i) = static_cast<float>(i) * 2.0f;
+    });
+    fillFromHost(qnPrev, [&](const auto& h) {
+      for (int i = 0; i < size; ++i) h(i) = static_cast<float>(i) * 3.0f;
+    });
+    fillFromHost(qnPrevPrev, [&](const auto& h) {
+      for (int i = 0; i < size; ++i) h(i) = static_cast<float>(i) * 4.0f;
+    });
   }
 
   int size;
@@ -61,7 +71,7 @@ TEST_F(WavefieldViewBackwardAcousticTest, GetFieldNameByIndex) {
 
 TEST_F(WavefieldViewBackwardAcousticTest, GetFieldZeroReturnsQn) {
   WavefieldViewBackwardAcoustic view(qn, qnPrev, qnPrevPrev);
-  auto field = view.getField(0);
+  auto field = toHost(view.getField(0));
 
   ASSERT_EQ(field.extent(0), static_cast<size_t>(size));
   for (int i = 0; i < size; ++i) EXPECT_FLOAT_EQ(field(i), static_cast<float>(i) * 2.0f);
@@ -69,7 +79,7 @@ TEST_F(WavefieldViewBackwardAcousticTest, GetFieldZeroReturnsQn) {
 
 TEST_F(WavefieldViewBackwardAcousticTest, GetFieldOneReturnsQnPrev) {
   WavefieldViewBackwardAcoustic view(qn, qnPrev, qnPrevPrev);
-  auto field = view.getField(1);
+  auto field = toHost(view.getField(1));
 
   ASSERT_EQ(field.extent(0), static_cast<size_t>(size));
   for (int i = 0; i < size; ++i) EXPECT_FLOAT_EQ(field(i), static_cast<float>(i) * 3.0f);
@@ -77,7 +87,7 @@ TEST_F(WavefieldViewBackwardAcousticTest, GetFieldOneReturnsQnPrev) {
 
 TEST_F(WavefieldViewBackwardAcousticTest, GetFieldTwoReturnsQnPrevPrev) {
   WavefieldViewBackwardAcoustic view(qn, qnPrev, qnPrevPrev);
-  auto field = view.getField(2);
+  auto field = toHost(view.getField(2));
 
   ASSERT_EQ(field.extent(0), static_cast<size_t>(size));
   for (int i = 0; i < size; ++i) EXPECT_FLOAT_EQ(field(i), static_cast<float>(i) * 4.0f);
@@ -85,28 +95,28 @@ TEST_F(WavefieldViewBackwardAcousticTest, GetFieldTwoReturnsQnPrevPrev) {
 
 TEST_F(WavefieldViewBackwardAcousticTest, GetFieldOutOfBoundsFallsBackToQn) {
   WavefieldViewBackwardAcoustic view(qn, qnPrev, qnPrevPrev);
-  auto fallback = view.getField(99);
+  auto fallback = toHost(view.getField(99));
 
   EXPECT_EQ(fallback.extent(0), static_cast<size_t>(size));
-  EXPECT_FLOAT_EQ(fallback(0), qn(0));
+  EXPECT_FLOAT_EQ(fallback(0), getAt(qn, 0));
 }
 
 TEST_F(WavefieldViewBackwardAcousticTest, QnViewIsShallowCopy) {
   WavefieldViewBackwardAcoustic view(qn, qnPrev, qnPrevPrev);
-  qn(1) = 555.0f;
-  EXPECT_FLOAT_EQ(view.getField(0)(1), 555.0f);
+  setAt(qn, 555.0f, 1);
+  EXPECT_FLOAT_EQ(getAt(view.getField(0), 1), 555.0f);
 }
 
 TEST_F(WavefieldViewBackwardAcousticTest, QnPrevViewIsShallowCopy) {
   WavefieldViewBackwardAcoustic view(qn, qnPrev, qnPrevPrev);
-  qnPrev(3) = 666.0f;
-  EXPECT_FLOAT_EQ(view.getField(1)(3), 666.0f);
+  setAt(qnPrev, 666.0f, 3);
+  EXPECT_FLOAT_EQ(getAt(view.getField(1), 3), 666.0f);
 }
 
 TEST_F(WavefieldViewBackwardAcousticTest, QnPrevPrevViewIsShallowCopy) {
   WavefieldViewBackwardAcoustic view(qn, qnPrev, qnPrevPrev);
-  qnPrevPrev(5) = 777.0f;
-  EXPECT_FLOAT_EQ(view.getField(2)(5), 777.0f);
+  setAt(qnPrevPrev, 777.0f, 5);
+  EXPECT_FLOAT_EQ(getAt(view.getField(2), 5), 777.0f);
 }
 
 TEST_F(WavefieldViewBackwardAcousticTest, PrintDoesNotThrow) {

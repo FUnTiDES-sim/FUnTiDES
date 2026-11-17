@@ -5,12 +5,17 @@
 
 #include "Integrals.h"
 #include "data_type.h"
+#include "device_view_access.h"
 #include "differentiator_data_elastic.h"
 #include "differentiator_elastic.h"
 #include "model_struct.h"
 
 namespace gradient {
 namespace test {
+
+using test_utils::getAt;
+using test_utils::setAt;
+using test_utils::toHost;
 
 // =============================================================================
 // Order wrappers
@@ -88,20 +93,18 @@ class DifferentiatorElasticElemTest : public ::testing::Test {
     gradLambda = allocateVector<vectorReal>(kNumElements, "gradLambda");
     gradMu = allocateVector<vectorReal>(kNumElements, "gradMu");
 
-    for (int i = 0; i < kNumNodes; ++i) {
-      ux_fwd(i) = 0.0f;
-      uy_fwd(i) = 0.0f;
-      uz_fwd(i) = 0.0f;
-      ux_adj(i) = 0.0f;
-      uy_adj(i) = 0.0f;
-      uz_adj(i) = 0.0f;
-      ux_dt2(i) = 0.0f;
-      uy_dt2(i) = 0.0f;
-      uz_dt2(i) = 0.0f;
-    }
-    gradRho(0) = 0.0f;
-    gradLambda(0) = 0.0f;
-    gradMu(0) = 0.0f;
+    Kokkos::deep_copy(ux_fwd, 0.0f);
+    Kokkos::deep_copy(uy_fwd, 0.0f);
+    Kokkos::deep_copy(uz_fwd, 0.0f);
+    Kokkos::deep_copy(ux_adj, 0.0f);
+    Kokkos::deep_copy(uy_adj, 0.0f);
+    Kokkos::deep_copy(uz_adj, 0.0f);
+    Kokkos::deep_copy(ux_dt2, 0.0f);
+    Kokkos::deep_copy(uy_dt2, 0.0f);
+    Kokkos::deep_copy(uz_dt2, 0.0f);
+    setAt(gradRho, 0.0f, 0);
+    setAt(gradLambda, 0.0f, 0);
+    setAt(gradMu, 0.0f, 0);
   }
 
   void makeDataAndCompute(Diff& diff, float dt = 0.001f) {
@@ -157,110 +160,98 @@ TYPED_TEST(DifferentiatorElasticElemTest, ZeroWavefieldsYieldZeroGradients) {
   typename TestFixture::Diff diff;
   this->makeDataAndCompute(diff);
 
-  EXPECT_FLOAT_EQ(this->gradRho(0), 0.0f);
-  EXPECT_FLOAT_EQ(this->gradLambda(0), 0.0f);
-  EXPECT_FLOAT_EQ(this->gradMu(0), 0.0f);
+  EXPECT_FLOAT_EQ(getAt(this->gradRho, 0), 0.0f);
+  EXPECT_FLOAT_EQ(getAt(this->gradLambda, 0), 0.0f);
+  EXPECT_FLOAT_EQ(getAt(this->gradMu, 0), 0.0f);
 }
 
 TYPED_TEST(DifferentiatorElasticElemTest, UniformFieldGradRhoEqualsVolume) {
   // ux_fwd = 1, ux_dt2 = 1 on all nodes =>
   //   gradRho = ∫_Ω (ü†_x · u_x) dΩ = ∫_Ω 1 dΩ = 1.0 (unit cube)
-  for (int i = 0; i < TestFixture::kNumNodes; ++i) {
-    this->ux_fwd(i) = 1.0f;
-    this->ux_dt2(i) = 1.0f;
-  }
+  Kokkos::deep_copy(this->ux_fwd, 1.0f);
+  Kokkos::deep_copy(this->ux_dt2, 1.0f);
 
   typename TestFixture::Diff diff;
   this->makeDataAndCompute(diff);
 
-  EXPECT_NEAR(this->gradRho(0), 1.0f, 1e-5f);
+  EXPECT_NEAR(getAt(this->gradRho, 0), 1.0f, 1e-5f);
 }
 
 TYPED_TEST(DifferentiatorElasticElemTest, GradRhoAllThreeComponents) {
   // All forward and dt2 components active:
   //   gradRho = ∫(ü†_x·u_x + ü†_y·u_y + ü†_z·u_z) dΩ
   // u_x=1,u_y=2,u_z=3 with all dt2=1  =>  gradRho = (1+2+3) * volume = 6.0
-  for (int i = 0; i < TestFixture::kNumNodes; ++i) {
-    this->ux_fwd(i) = 1.0f;
-    this->uy_fwd(i) = 2.0f;
-    this->uz_fwd(i) = 3.0f;
-    this->ux_dt2(i) = 1.0f;
-    this->uy_dt2(i) = 1.0f;
-    this->uz_dt2(i) = 1.0f;
-  }
+  Kokkos::deep_copy(this->ux_fwd, 1.0f);
+  Kokkos::deep_copy(this->uy_fwd, 2.0f);
+  Kokkos::deep_copy(this->uz_fwd, 3.0f);
+  Kokkos::deep_copy(this->ux_dt2, 1.0f);
+  Kokkos::deep_copy(this->uy_dt2, 1.0f);
+  Kokkos::deep_copy(this->uz_dt2, 1.0f);
 
   typename TestFixture::Diff diff;
   this->makeDataAndCompute(diff);
 
-  EXPECT_NEAR(this->gradRho(0), 6.0f, 1e-4f);
+  EXPECT_NEAR(getAt(this->gradRho, 0), 6.0f, 1e-4f);
 }
 
 TYPED_TEST(DifferentiatorElasticElemTest, ConstantFieldGradLambdaIsZero) {
   // Constant displacement => ∇u = 0 => div(u†) = div(u) = 0 => gradLambda = 0
-  for (int i = 0; i < TestFixture::kNumNodes; ++i) {
-    this->ux_fwd(i) = 1.0f;
-    this->uy_fwd(i) = 1.0f;
-    this->uz_fwd(i) = 1.0f;
-    this->ux_adj(i) = 1.0f;
-    this->uy_adj(i) = 1.0f;
-    this->uz_adj(i) = 1.0f;
-  }
+  Kokkos::deep_copy(this->ux_fwd, 1.0f);
+  Kokkos::deep_copy(this->uy_fwd, 1.0f);
+  Kokkos::deep_copy(this->uz_fwd, 1.0f);
+  Kokkos::deep_copy(this->ux_adj, 1.0f);
+  Kokkos::deep_copy(this->uy_adj, 1.0f);
+  Kokkos::deep_copy(this->uz_adj, 1.0f);
 
   typename TestFixture::Diff diff;
   this->makeDataAndCompute(diff);
 
-  EXPECT_NEAR(this->gradLambda(0), 0.0f, 1e-5f);
+  EXPECT_NEAR(getAt(this->gradLambda, 0), 0.0f, 1e-5f);
 }
 
 TYPED_TEST(DifferentiatorElasticElemTest, ConstantFieldGradMuIsZero) {
   // Constant displacement => ε(u) = 0 => gradMu = 0
-  for (int i = 0; i < TestFixture::kNumNodes; ++i) {
-    this->ux_fwd(i) = 1.0f;
-    this->uy_fwd(i) = 1.0f;
-    this->uz_fwd(i) = 1.0f;
-    this->ux_adj(i) = 1.0f;
-    this->uy_adj(i) = 1.0f;
-    this->uz_adj(i) = 1.0f;
-  }
+  Kokkos::deep_copy(this->ux_fwd, 1.0f);
+  Kokkos::deep_copy(this->uy_fwd, 1.0f);
+  Kokkos::deep_copy(this->uz_fwd, 1.0f);
+  Kokkos::deep_copy(this->ux_adj, 1.0f);
+  Kokkos::deep_copy(this->uy_adj, 1.0f);
+  Kokkos::deep_copy(this->uz_adj, 1.0f);
 
   typename TestFixture::Diff diff;
   this->makeDataAndCompute(diff);
 
-  EXPECT_NEAR(this->gradMu(0), 0.0f, 1e-5f);
+  EXPECT_NEAR(getAt(this->gradMu, 0), 0.0f, 1e-5f);
 }
 
 TYPED_TEST(DifferentiatorElasticElemTest, GradRhoScalesWithAmplitude) {
   // Doubling ux_fwd doubles gradRho (linearity)
-  for (int i = 0; i < TestFixture::kNumNodes; ++i) {
-    this->ux_fwd(i) = 1.0f;
-    this->ux_dt2(i) = 1.0f;
-  }
+  Kokkos::deep_copy(this->ux_fwd, 1.0f);
+  Kokkos::deep_copy(this->ux_dt2, 1.0f);
 
   typename TestFixture::Diff diff;
   this->makeDataAndCompute(diff);
-  float single = this->gradRho(0);
+  float single = getAt(this->gradRho, 0);
 
   // Reset and double
-  this->gradRho(0) = 0.0f;
-  for (int i = 0; i < TestFixture::kNumNodes; ++i) this->ux_fwd(i) = 2.0f;
+  setAt(this->gradRho, 0.0f, 0);
+  Kokkos::deep_copy(this->ux_fwd, 2.0f);
 
   this->makeDataAndCompute(diff);
 
-  EXPECT_NEAR(this->gradRho(0), 2.0f * single, 1e-5f);
+  EXPECT_NEAR(getAt(this->gradRho, 0), 2.0f * single, 1e-5f);
 }
 
 TYPED_TEST(DifferentiatorElasticElemTest, ComputeAccumulatesIntoExistingGradient) {
-  for (int i = 0; i < TestFixture::kNumNodes; ++i) {
-    this->ux_fwd(i) = 1.0f;
-    this->ux_dt2(i) = 1.0f;
-  }
-  this->gradRho(0) = 5.0f;
+  Kokkos::deep_copy(this->ux_fwd, 1.0f);
+  Kokkos::deep_copy(this->ux_dt2, 1.0f);
+  setAt(this->gradRho, 5.0f, 0);
 
   typename TestFixture::Diff diff;
   this->makeDataAndCompute(diff);
 
   // 5.0 (initial) + 1.0 (volume of unit cube) = 6.0
-  EXPECT_NEAR(this->gradRho(0), 6.0f, 1e-5f);
+  EXPECT_NEAR(getAt(this->gradRho, 0), 6.0f, 1e-5f);
 }
 
 TYPED_TEST(DifferentiatorElasticElemTest, GradLambdaNonZeroForLinearField) {
@@ -271,14 +262,18 @@ TYPED_TEST(DifferentiatorElasticElemTest, GradLambdaNonZeroForLinearField) {
   // On structure mesh [0,1]³ with nodes at x = i/ORDER:
   auto mesh = makeMesh1x1x1<TestFixture::kOrder>();
   int const dim = TestFixture::kOrder + 1;
+  auto h_ux_fwd = Kokkos::create_mirror_view(this->ux_fwd);
+  auto h_ux_adj = Kokkos::create_mirror_view(this->ux_adj);
   for (int k = 0; k < dim; ++k)
     for (int j = 0; j < dim; ++j)
       for (int i = 0; i < dim; ++i) {
         int gIdx = mesh.globalNodeIndex(0, i, j, k);
         float x = static_cast<float>(i) / TestFixture::kOrder;
-        this->ux_fwd(gIdx) = x;
-        this->ux_adj(gIdx) = x;
+        h_ux_fwd(gIdx) = x;
+        h_ux_adj(gIdx) = x;
       }
+  Kokkos::deep_copy(this->ux_fwd, h_ux_fwd);
+  Kokkos::deep_copy(this->ux_adj, h_ux_adj);
 
   typename TestFixture::Diff diff;
 
@@ -291,7 +286,7 @@ TYPED_TEST(DifferentiatorElasticElemTest, GradLambdaNonZeroForLinearField) {
   // ∫₀¹ ∫₀¹ ∫₀¹ 1·1 dx dy dz = 1.0
   // Tolerance is wider for Order 3 where uniform node spacing diverges from
   // GLL quadrature points, introducing discretization error.
-  EXPECT_NEAR(this->gradLambda(0), 1.0f, 0.2f);
+  EXPECT_NEAR(getAt(this->gradLambda, 0), 1.0f, 0.2f);
 }
 
 TYPED_TEST(DifferentiatorElasticElemTest, GradMuNonZeroForLinearField) {
@@ -301,14 +296,18 @@ TYPED_TEST(DifferentiatorElasticElemTest, GradMuNonZeroForLinearField) {
   //   gradMu = ∫ 2 dΩ = 2.0
   auto mesh = makeMesh1x1x1<TestFixture::kOrder>();
   int const dim = TestFixture::kOrder + 1;
+  auto h_ux_fwd = Kokkos::create_mirror_view(this->ux_fwd);
+  auto h_ux_adj = Kokkos::create_mirror_view(this->ux_adj);
   for (int k = 0; k < dim; ++k)
     for (int j = 0; j < dim; ++j)
       for (int i = 0; i < dim; ++i) {
         int gIdx = mesh.globalNodeIndex(0, i, j, k);
         float x = static_cast<float>(i) / TestFixture::kOrder;
-        this->ux_fwd(gIdx) = x;
-        this->ux_adj(gIdx) = x;
+        h_ux_fwd(gIdx) = x;
+        h_ux_adj(gIdx) = x;
       }
+  Kokkos::deep_copy(this->ux_fwd, h_ux_fwd);
+  Kokkos::deep_copy(this->ux_adj, h_ux_adj);
 
   typename TestFixture::Diff diff;
 
@@ -319,7 +318,7 @@ TYPED_TEST(DifferentiatorElasticElemTest, GradMuNonZeroForLinearField) {
   diff.compute(mesh, data, 0.001f);
 
   // 2·ε†:ε = 2·ε_xx²  = 2·1 = 2; ∫_Ω 2 dΩ = 2.0
-  EXPECT_NEAR(this->gradMu(0), 2.0f, 0.4f);
+  EXPECT_NEAR(getAt(this->gradMu, 0), 2.0f, 0.4f);
 }
 
 TYPED_TEST(DifferentiatorElasticElemTest, LinearShearFieldProducesCorrectGradMu) {
@@ -330,17 +329,25 @@ TYPED_TEST(DifferentiatorElasticElemTest, LinearShearFieldProducesCorrectGradMu)
   // gradLambda = ∫ 0·0 dΩ = 0.0
   auto mesh = makeMesh1x1x1<TestFixture::kOrder>();
   int const dim = TestFixture::kOrder + 1;
+  auto h_ux_fwd = Kokkos::create_mirror_view(this->ux_fwd);
+  auto h_uy_fwd = Kokkos::create_mirror_view(this->uy_fwd);
+  auto h_ux_adj = Kokkos::create_mirror_view(this->ux_adj);
+  auto h_uy_adj = Kokkos::create_mirror_view(this->uy_adj);
   for (int k = 0; k < dim; ++k)
     for (int j = 0; j < dim; ++j)
       for (int i = 0; i < dim; ++i) {
         int gIdx = mesh.globalNodeIndex(0, i, j, k);
         float x = static_cast<float>(i) / TestFixture::kOrder;
         float y = static_cast<float>(j) / TestFixture::kOrder;
-        this->ux_fwd(gIdx) = y;
-        this->uy_fwd(gIdx) = x;
-        this->ux_adj(gIdx) = y;
-        this->uy_adj(gIdx) = x;
+        h_ux_fwd(gIdx) = y;
+        h_uy_fwd(gIdx) = x;
+        h_ux_adj(gIdx) = y;
+        h_uy_adj(gIdx) = x;
       }
+  Kokkos::deep_copy(this->ux_fwd, h_ux_fwd);
+  Kokkos::deep_copy(this->uy_fwd, h_uy_fwd);
+  Kokkos::deep_copy(this->ux_adj, h_ux_adj);
+  Kokkos::deep_copy(this->uy_adj, h_uy_adj);
 
   typename TestFixture::Diff diff;
 
@@ -350,8 +357,8 @@ TYPED_TEST(DifferentiatorElasticElemTest, LinearShearFieldProducesCorrectGradMu)
   GradientDataElastic data(fwd, bwd, grad);
   diff.compute(mesh, data, 0.001f);
 
-  EXPECT_NEAR(this->gradLambda(0), 0.0f, 1e-5f);
-  EXPECT_NEAR(this->gradMu(0), 4.0f, 0.4f);
+  EXPECT_NEAR(getAt(this->gradLambda, 0), 0.0f, 1e-5f);
+  EXPECT_NEAR(getAt(this->gradMu, 0), 4.0f, 0.4f);
 }
 
 TYPED_TEST(DifferentiatorElasticElemTest, PureDilatationLambdaMuConsistency) {
@@ -362,6 +369,12 @@ TYPED_TEST(DifferentiatorElasticElemTest, PureDilatationLambdaMuConsistency) {
   //   gradMu = ∫ 6 dΩ = 6.0
   auto mesh = makeMesh1x1x1<TestFixture::kOrder>();
   int const dim = TestFixture::kOrder + 1;
+  auto h_ux_fwd = Kokkos::create_mirror_view(this->ux_fwd);
+  auto h_uy_fwd = Kokkos::create_mirror_view(this->uy_fwd);
+  auto h_uz_fwd = Kokkos::create_mirror_view(this->uz_fwd);
+  auto h_ux_adj = Kokkos::create_mirror_view(this->ux_adj);
+  auto h_uy_adj = Kokkos::create_mirror_view(this->uy_adj);
+  auto h_uz_adj = Kokkos::create_mirror_view(this->uz_adj);
   for (int k = 0; k < dim; ++k)
     for (int j = 0; j < dim; ++j)
       for (int i = 0; i < dim; ++i) {
@@ -369,13 +382,19 @@ TYPED_TEST(DifferentiatorElasticElemTest, PureDilatationLambdaMuConsistency) {
         float x = static_cast<float>(i) / TestFixture::kOrder;
         float y = static_cast<float>(j) / TestFixture::kOrder;
         float z = static_cast<float>(k) / TestFixture::kOrder;
-        this->ux_fwd(gIdx) = x;
-        this->uy_fwd(gIdx) = y;
-        this->uz_fwd(gIdx) = z;
-        this->ux_adj(gIdx) = x;
-        this->uy_adj(gIdx) = y;
-        this->uz_adj(gIdx) = z;
+        h_ux_fwd(gIdx) = x;
+        h_uy_fwd(gIdx) = y;
+        h_uz_fwd(gIdx) = z;
+        h_ux_adj(gIdx) = x;
+        h_uy_adj(gIdx) = y;
+        h_uz_adj(gIdx) = z;
       }
+  Kokkos::deep_copy(this->ux_fwd, h_ux_fwd);
+  Kokkos::deep_copy(this->uy_fwd, h_uy_fwd);
+  Kokkos::deep_copy(this->uz_fwd, h_uz_fwd);
+  Kokkos::deep_copy(this->ux_adj, h_ux_adj);
+  Kokkos::deep_copy(this->uy_adj, h_uy_adj);
+  Kokkos::deep_copy(this->uz_adj, h_uz_adj);
 
   typename TestFixture::Diff diff;
 
@@ -385,8 +404,8 @@ TYPED_TEST(DifferentiatorElasticElemTest, PureDilatationLambdaMuConsistency) {
   GradientDataElastic data(fwd, bwd, grad);
   diff.compute(mesh, data, 0.001f);
 
-  EXPECT_NEAR(this->gradLambda(0), 9.0f, 1.0f);
-  EXPECT_NEAR(this->gradMu(0), 6.0f, 1.0f);
+  EXPECT_NEAR(getAt(this->gradLambda, 0), 9.0f, 1.0f);
+  EXPECT_NEAR(getAt(this->gradMu, 0), 6.0f, 1.0f);
 }
 
 TYPED_TEST(DifferentiatorElasticElemTest, GradRhoIndependentOfStrainKernels) {
@@ -395,17 +414,25 @@ TYPED_TEST(DifferentiatorElasticElemTest, GradRhoIndependentOfStrainKernels) {
   // => gradRho should still be 1.0
   auto mesh = makeMesh1x1x1<TestFixture::kOrder>();
   int const dim = TestFixture::kOrder + 1;
+  auto h_ux_fwd = Kokkos::create_mirror_view(this->ux_fwd);
+  auto h_ux_dt2 = Kokkos::create_mirror_view(this->ux_dt2);
+  auto h_ux_adj = Kokkos::create_mirror_view(this->ux_adj);
+  auto h_uy_adj = Kokkos::create_mirror_view(this->uy_adj);
   for (int k = 0; k < dim; ++k)
     for (int j = 0; j < dim; ++j)
       for (int i = 0; i < dim; ++i) {
         int gIdx = mesh.globalNodeIndex(0, i, j, k);
         float x = static_cast<float>(i) / TestFixture::kOrder;
-        this->ux_fwd(gIdx) = 1.0f;
-        this->ux_dt2(gIdx) = 1.0f;
+        h_ux_fwd(gIdx) = 1.0f;
+        h_ux_dt2(gIdx) = 1.0f;
         // Non-trivial adjoint displacement for strain kernels
-        this->ux_adj(gIdx) = x;
-        this->uy_adj(gIdx) = x;
+        h_ux_adj(gIdx) = x;
+        h_uy_adj(gIdx) = x;
       }
+  Kokkos::deep_copy(this->ux_fwd, h_ux_fwd);
+  Kokkos::deep_copy(this->ux_dt2, h_ux_dt2);
+  Kokkos::deep_copy(this->ux_adj, h_ux_adj);
+  Kokkos::deep_copy(this->uy_adj, h_uy_adj);
 
   typename TestFixture::Diff diff;
 
@@ -416,16 +443,14 @@ TYPED_TEST(DifferentiatorElasticElemTest, GradRhoIndependentOfStrainKernels) {
   diff.compute(mesh, data, 0.001f);
 
   // gradRho only depends on dt2·fwd dot product: 1 * 1 * volume = 1.0
-  EXPECT_NEAR(this->gradRho(0), 1.0f, 1e-5f);
+  EXPECT_NEAR(getAt(this->gradRho, 0), 1.0f, 1e-5f);
 }
 
 // --- Polymorphic interface ---
 
 TYPED_TEST(DifferentiatorElasticElemTest, PolymorphicInterface) {
-  for (int i = 0; i < TestFixture::kNumNodes; ++i) {
-    this->ux_fwd(i) = 1.0f;
-    this->ux_dt2(i) = 1.0f;
-  }
+  Kokkos::deep_copy(this->ux_fwd, 1.0f);
+  Kokkos::deep_copy(this->ux_dt2, 1.0f);
 
   std::unique_ptr<Differentiator> diff = std::make_unique<typename TestFixture::Diff>();
   auto mesh = makeMesh1x1x1<TestFixture::kOrder>();
@@ -439,7 +464,7 @@ TYPED_TEST(DifferentiatorElasticElemTest, PolymorphicInterface) {
   GradientDataElastic data(fwd, bwd, grad);
 
   EXPECT_NO_THROW(diff->compute(mesh, data, 0.001f));
-  EXPECT_GT(this->gradRho(0), 0.0f);
+  EXPECT_GT(getAt(this->gradRho, 0), 0.0f);
 }
 
 // =============================================================================
@@ -475,25 +500,24 @@ class DifferentiatorElasticNodeTest : public ::testing::Test {
     gradLambda = allocateVector<vectorReal>(kNumNodes, "gradLambda");
     gradMu = allocateVector<vectorReal>(kNumNodes, "gradMu");
 
-    for (int i = 0; i < kNumNodes; ++i) {
-      ux_fwd(i) = 0.0f;
-      uy_fwd(i) = 0.0f;
-      uz_fwd(i) = 0.0f;
-      ux_adj(i) = 0.0f;
-      uy_adj(i) = 0.0f;
-      uz_adj(i) = 0.0f;
-      ux_dt2(i) = 0.0f;
-      uy_dt2(i) = 0.0f;
-      uz_dt2(i) = 0.0f;
-      gradRho(i) = 0.0f;
-      gradLambda(i) = 0.0f;
-      gradMu(i) = 0.0f;
-    }
+    Kokkos::deep_copy(ux_fwd, 0.0f);
+    Kokkos::deep_copy(uy_fwd, 0.0f);
+    Kokkos::deep_copy(uz_fwd, 0.0f);
+    Kokkos::deep_copy(ux_adj, 0.0f);
+    Kokkos::deep_copy(uy_adj, 0.0f);
+    Kokkos::deep_copy(uz_adj, 0.0f);
+    Kokkos::deep_copy(ux_dt2, 0.0f);
+    Kokkos::deep_copy(uy_dt2, 0.0f);
+    Kokkos::deep_copy(uz_dt2, 0.0f);
+    Kokkos::deep_copy(gradRho, 0.0f);
+    Kokkos::deep_copy(gradLambda, 0.0f);
+    Kokkos::deep_copy(gradMu, 0.0f);
   }
 
   float sumGrad(vectorReal const& v) const {
     float s = 0.0f;
-    for (int i = 0; i < kNumNodes; ++i) s += v(i);
+    auto h_v = toHost(v);
+    for (int i = 0; i < kNumNodes; ++i) s += h_v(i);
     return s;
   }
 
@@ -552,10 +576,8 @@ TYPED_TEST(DifferentiatorElasticNodeTest, ZeroWavefieldsYieldZeroGradients) {
 }
 
 TYPED_TEST(DifferentiatorElasticNodeTest, UniformFieldGradRhoSumsToVolume) {
-  for (int i = 0; i < TestFixture::kNumNodes; ++i) {
-    this->ux_fwd(i) = 1.0f;
-    this->ux_dt2(i) = 1.0f;
-  }
+  Kokkos::deep_copy(this->ux_fwd, 1.0f);
+  Kokkos::deep_copy(this->ux_dt2, 1.0f);
 
   typename TestFixture::DiffNode diff;
   auto mesh = makeMesh1x1x1<TestFixture::kOrder>();
@@ -570,10 +592,8 @@ TYPED_TEST(DifferentiatorElasticNodeTest, UniformFieldGradRhoSumsToVolume) {
 }
 
 TYPED_TEST(DifferentiatorElasticNodeTest, ConstantFieldGradLambdaSumsToZero) {
-  for (int i = 0; i < TestFixture::kNumNodes; ++i) {
-    this->ux_fwd(i) = 1.0f;
-    this->ux_adj(i) = 1.0f;
-  }
+  Kokkos::deep_copy(this->ux_fwd, 1.0f);
+  Kokkos::deep_copy(this->ux_adj, 1.0f);
 
   typename TestFixture::DiffNode diff;
   auto mesh = makeMesh1x1x1<TestFixture::kOrder>();
@@ -591,18 +611,28 @@ TYPED_TEST(DifferentiatorElasticNodeTest, NodeBasedSumEqualsElementBasedResult) 
   // For single-element mesh, ∑ node_gradients == elem_gradient
   auto mesh = makeMesh1x1x1<TestFixture::kOrder>();
   int const dim = TestFixture::kOrder + 1;
+  auto h_ux_fwd = Kokkos::create_mirror_view(this->ux_fwd);
+  auto h_uy_fwd = Kokkos::create_mirror_view(this->uy_fwd);
+  auto h_ux_adj = Kokkos::create_mirror_view(this->ux_adj);
+  auto h_uy_adj = Kokkos::create_mirror_view(this->uy_adj);
+  auto h_ux_dt2 = Kokkos::create_mirror_view(this->ux_dt2);
   for (int k = 0; k < dim; ++k)
     for (int j = 0; j < dim; ++j)
       for (int i = 0; i < dim; ++i) {
         int gIdx = mesh.globalNodeIndex(0, i, j, k);
         float x = static_cast<float>(i) / TestFixture::kOrder;
         float y = static_cast<float>(j) / TestFixture::kOrder;
-        this->ux_fwd(gIdx) = x;
-        this->uy_fwd(gIdx) = y;
-        this->ux_adj(gIdx) = x;
-        this->uy_adj(gIdx) = y;
-        this->ux_dt2(gIdx) = 1.0f;
+        h_ux_fwd(gIdx) = x;
+        h_uy_fwd(gIdx) = y;
+        h_ux_adj(gIdx) = x;
+        h_uy_adj(gIdx) = y;
+        h_ux_dt2(gIdx) = 1.0f;
       }
+  Kokkos::deep_copy(this->ux_fwd, h_ux_fwd);
+  Kokkos::deep_copy(this->uy_fwd, h_uy_fwd);
+  Kokkos::deep_copy(this->ux_adj, h_ux_adj);
+  Kokkos::deep_copy(this->uy_adj, h_uy_adj);
+  Kokkos::deep_copy(this->ux_dt2, h_ux_dt2);
 
   // Node-based
   typename TestFixture::DiffNode diffNode;
@@ -622,9 +652,9 @@ TYPED_TEST(DifferentiatorElasticNodeTest, NodeBasedSumEqualsElementBasedResult) 
   auto gradRhoElem = allocateVector<vectorReal>(1, "gradRhoElem");
   auto gradLambdaElem = allocateVector<vectorReal>(1, "gradLambdaElem");
   auto gradMuElem = allocateVector<vectorReal>(1, "gradMuElem");
-  gradRhoElem(0) = 0.0f;
-  gradLambdaElem(0) = 0.0f;
-  gradMuElem(0) = 0.0f;
+  setAt(gradRhoElem, 0.0f, 0);
+  setAt(gradLambdaElem, 0.0f, 0);
+  setAt(gradMuElem, 0.0f, 0);
 
   typename TestFixture::DiffElem diffElem;
   {
@@ -636,18 +666,16 @@ TYPED_TEST(DifferentiatorElasticNodeTest, NodeBasedSumEqualsElementBasedResult) 
     diffElem.compute(mesh, data, 0.001f);
   }
 
-  EXPECT_NEAR(nodeRho, gradRhoElem(0), 1e-4f);
-  EXPECT_NEAR(nodeLambda, gradLambdaElem(0), 1e-4f);
-  EXPECT_NEAR(nodeMu, gradMuElem(0), 1e-4f);
+  EXPECT_NEAR(nodeRho, getAt(gradRhoElem, 0), 1e-4f);
+  EXPECT_NEAR(nodeLambda, getAt(gradLambdaElem, 0), 1e-4f);
+  EXPECT_NEAR(nodeMu, getAt(gradMuElem, 0), 1e-4f);
 }
 
 // --- Polymorphic interface ---
 
 TYPED_TEST(DifferentiatorElasticNodeTest, PolymorphicInterface) {
-  for (int i = 0; i < TestFixture::kNumNodes; ++i) {
-    this->ux_fwd(i) = 1.0f;
-    this->ux_dt2(i) = 1.0f;
-  }
+  Kokkos::deep_copy(this->ux_fwd, 1.0f);
+  Kokkos::deep_copy(this->ux_dt2, 1.0f);
 
   std::unique_ptr<Differentiator> diff = std::make_unique<typename TestFixture::DiffNode>();
   auto mesh = makeMesh1x1x1<TestFixture::kOrder>();
@@ -680,7 +708,7 @@ TYPED_TEST(DifferentiatorElasticElemTest, GeometricMassMatrixAllPositive) {
   typename TestFixture::Diff diff;
   this->makeDataAndCompute(diff);
 
-  auto& gmm = diff.getGeometricMassMatrix();
+  auto gmm = toHost(diff.getGeometricMassMatrix());
   for (int i = 0; i < TestFixture::kNumNodes; ++i) EXPECT_GT(gmm(i), 0.0f);
 }
 
@@ -689,7 +717,7 @@ TYPED_TEST(DifferentiatorElasticElemTest, GeometricMassMatrixSumsToVolume) {
   typename TestFixture::Diff diff;
   this->makeDataAndCompute(diff);
 
-  auto& gmm = diff.getGeometricMassMatrix();
+  auto gmm = toHost(diff.getGeometricMassMatrix());
   float total = 0.0f;
   for (int i = 0; i < TestFixture::kNumNodes; ++i) total += gmm(i);
   EXPECT_NEAR(total, 1.0f, 1e-5f);
@@ -706,17 +734,16 @@ TYPED_TEST(DifferentiatorElasticElemTest, GeometricMassMatrixIndependentOfWavefi
   Kokkos::deep_copy(saved, gmm0);
 
   // Second compute: non-zero wavefields
-  for (int i = 0; i < TestFixture::kNumNodes; ++i) {
-    this->ux_fwd(i) = 3.0f;
-    this->ux_dt2(i) = 2.5f;
-  }
-  this->gradRho(0) = 0.0f;
-  this->gradLambda(0) = 0.0f;
-  this->gradMu(0) = 0.0f;
+  Kokkos::deep_copy(this->ux_fwd, 3.0f);
+  Kokkos::deep_copy(this->ux_dt2, 2.5f);
+  setAt(this->gradRho, 0.0f, 0);
+  setAt(this->gradLambda, 0.0f, 0);
+  setAt(this->gradMu, 0.0f, 0);
   this->makeDataAndCompute(diff);
 
-  auto& gmm1 = diff.getGeometricMassMatrix();
-  for (int i = 0; i < TestFixture::kNumNodes; ++i) EXPECT_FLOAT_EQ(gmm1(i), saved(i));
+  auto gmm1 = toHost(diff.getGeometricMassMatrix());
+  auto h_saved = toHost(saved);
+  for (int i = 0; i < TestFixture::kNumNodes; ++i) EXPECT_FLOAT_EQ(gmm1(i), h_saved(i));
 }
 
 TYPED_TEST(DifferentiatorElasticElemTest, GeometricMassMatrixPolymorphicAccess) {
@@ -730,7 +757,7 @@ TYPED_TEST(DifferentiatorElasticElemTest, GeometricMassMatrixPolymorphicAccess) 
   diff->initGeometricMassMatrix(mesh);
   diff->compute(mesh, data, 0.001f);
 
-  auto& gmm = diff->getGeometricMassMatrix();
+  auto gmm = toHost(diff->getGeometricMassMatrix());
   EXPECT_EQ(gmm.extent(0), static_cast<size_t>(TestFixture::kNumNodes));
   float total = 0.0f;
   for (int i = 0; i < TestFixture::kNumNodes; ++i) total += gmm(i);
@@ -766,7 +793,7 @@ TYPED_TEST(DifferentiatorElasticNodeTest, GeometricMassMatrixSumsToVolume) {
   diff.initGeometricMassMatrix(mesh);
   diff.compute(mesh, data, 0.001f);
 
-  auto& gmm = diff.getGeometricMassMatrix();
+  auto gmm = toHost(diff.getGeometricMassMatrix());
   float total = 0.0f;
   for (int i = 0; i < TestFixture::kNumNodes; ++i) total += gmm(i);
   EXPECT_NEAR(total, 1.0f, 1e-5f);
@@ -791,9 +818,9 @@ TYPED_TEST(DifferentiatorElasticNodeTest, GeometricMassMatrixSameForNodeAndElemV
   auto gradRhoElem = allocateVector<vectorReal>(1, "gradRhoElem");
   auto gradLambdaElem = allocateVector<vectorReal>(1, "gradLambdaElem");
   auto gradMuElem = allocateVector<vectorReal>(1, "gradMuElem");
-  gradRhoElem(0) = 0.0f;
-  gradLambdaElem(0) = 0.0f;
-  gradMuElem(0) = 0.0f;
+  setAt(gradRhoElem, 0.0f, 0);
+  setAt(gradLambdaElem, 0.0f, 0);
+  setAt(gradMuElem, 0.0f, 0);
 
   typename TestFixture::DiffElem diffElem;
   {
@@ -806,8 +833,8 @@ TYPED_TEST(DifferentiatorElasticNodeTest, GeometricMassMatrixSameForNodeAndElemV
     diffElem.compute(mesh, data, 0.001f);
   }
 
-  auto& gmmNode = diffNode.getGeometricMassMatrix();
-  auto& gmmElem = diffElem.getGeometricMassMatrix();
+  auto gmmNode = toHost(diffNode.getGeometricMassMatrix());
+  auto gmmElem = toHost(diffElem.getGeometricMassMatrix());
   for (int i = 0; i < TestFixture::kNumNodes; ++i) EXPECT_FLOAT_EQ(gmmNode(i), gmmElem(i));
 }
 

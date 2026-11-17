@@ -2,10 +2,107 @@
 #include <gtest/gtest.h>
 
 #include <set>
+#include <vector>
 
 #include "face_connectivity.h"
 
 namespace model {
+
+/**
+ * @brief Host copy of the face queries of a connectivity whose tables live on the device.
+ *
+ * Offers the query names of the connectivity, so the checks below accept it in place of the
+ * connectivity. Filled by gatherFaceQueries(); the neighbor queries only when asked for.
+ */
+template <typename ScalarType>
+struct HostFaceQueries {
+  ScalarType n_faces = 0;
+  int ndofs_per_face = 0;
+  std::vector<ScalarType> global_face;  ///< Indexed by element * 6 + local face.
+  std::vector<ScalarType> face_node;    ///< Indexed by face * ndofs_per_face + dof.
+  std::vector<int> boundary;            ///< Indexed by face.
+  std::vector<ScalarType> owner;        ///< Indexed by face.
+  std::vector<ScalarType> neighbor;     ///< Indexed by face.
+  std::vector<int> local_neighbor;      ///< Indexed by face.
+  std::vector<int> neighbor_dof;        ///< Indexed by face * ndofs_per_face + owner dof.
+
+  ScalarType getNumberOfFaces() const { return n_faces; }
+  int getDofsPerFace() const { return ndofs_per_face; }
+  ScalarType getGlobalFace(ScalarType e, CubicFace lf) const { return global_face[e * 6 + static_cast<int>(lf)]; }
+  ScalarType getGlobalNodeFromFace(ScalarType f, int d) const { return face_node[f * ndofs_per_face + d]; }
+  bool isBoundaryFace(ScalarType f) const { return boundary[f] != 0; }
+  ScalarType elemOwner(ScalarType f) const { return owner[f]; }
+  ScalarType elemNeighbor(ScalarType f) const { return neighbor[f]; }
+  int localFaceNeighbor(ScalarType f) const { return local_neighbor[f]; }
+  int getNeighborFaceDof(ScalarType f, int d) const { return neighbor_dof[f * ndofs_per_face + d]; }
+};
+
+/// Copy of a device view, on the host.
+template <typename T>
+std::vector<T> toStdVector(const Kokkos::View<T*>& v) {
+  auto host = Kokkos::create_mirror_view_and_copy(Kokkos::HostSpace{}, v);
+  return std::vector<T>(host.data(), host.data() + host.extent(0));
+}
+
+/**
+ * @brief Evaluates the face queries of @p src on the device and copies the answers to the host.
+ *
+ * The queries are called qualified (src.Source::query) so they are not dispatched through the vtable,
+ * which lives in host memory.
+ * @tparam kWithNeighbors Also gather the owner/neighbor queries, which only a connectivity offers.
+ * @tparam Source Face connectivity, or model forwarding the face queries.
+ * @param src Face connectivity or model, already built.
+ * @param n_elements Number of elements of the mesh.
+ * @param ndofs_per_face Nodes per face.
+ */
+template <bool kWithNeighbors, typename Source, typename ScalarType>
+HostFaceQueries<ScalarType> gatherFaceQueries(const Source& src, ScalarType n_elements, int ndofs_per_face) {
+  HostFaceQueries<ScalarType> q;
+  q.n_faces = src.getNumberOfFaces();
+  q.ndofs_per_face = ndofs_per_face;
+  ScalarType const n_faces = q.n_faces;
+
+  Kokkos::View<ScalarType*> global_face("global_face", n_elements * 6);
+  Kokkos::parallel_for(
+      "gather_global_face", n_elements * 6,
+      KOKKOS_LAMBDA(const int i) { global_face(i) = src.Source::getGlobalFace(i / 6, static_cast<CubicFace>(i % 6)); });
+
+  Kokkos::View<ScalarType*> face_node("face_node", n_faces * ndofs_per_face);
+  Kokkos::parallel_for(
+      "gather_face_node", n_faces * ndofs_per_face, KOKKOS_LAMBDA(const int i) {
+        face_node(i) = src.Source::getGlobalNodeFromFace(i / ndofs_per_face, i % ndofs_per_face);
+      });
+
+  Kokkos::View<int*> boundary("boundary", n_faces);
+  Kokkos::parallel_for(
+      "gather_boundary", n_faces, KOKKOS_LAMBDA(const int f) { boundary(f) = src.Source::isBoundaryFace(f) ? 1 : 0; });
+
+  q.global_face = toStdVector(global_face);
+  q.face_node = toStdVector(face_node);
+  q.boundary = toStdVector(boundary);
+
+  if constexpr (kWithNeighbors) {
+    Kokkos::View<ScalarType*> owner("owner", n_faces);
+    Kokkos::View<ScalarType*> neighbor("neighbor", n_faces);
+    Kokkos::View<int*> local_neighbor("local_neighbor", n_faces);
+    Kokkos::parallel_for(
+        "gather_owner_neighbor", n_faces, KOKKOS_LAMBDA(const int f) {
+          owner(f) = src.Source::elemOwner(f);
+          neighbor(f) = src.Source::elemNeighbor(f);
+          local_neighbor(f) = src.Source::localFaceNeighbor(f);
+        });
+    Kokkos::View<int*> neighbor_dof("neighbor_dof", n_faces * ndofs_per_face);
+    Kokkos::parallel_for(
+        "gather_neighbor_dof", n_faces * ndofs_per_face, KOKKOS_LAMBDA(const int i) {
+          neighbor_dof(i) = src.Source::getNeighborFaceDof(i / ndofs_per_face, i % ndofs_per_face);
+        });
+    q.owner = toStdVector(owner);
+    q.neighbor = toStdVector(neighbor);
+    q.local_neighbor = toStdVector(local_neighbor);
+    q.neighbor_dof = toStdVector(neighbor_dof);
+  }
+  return q;
+}
 
 template <typename FloatType, typename ScalarType, typename FCType>
 void testSingleCubeFaceCount(const FCType& fc) {
