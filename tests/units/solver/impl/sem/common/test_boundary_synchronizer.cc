@@ -6,6 +6,8 @@
 #include <vector>
 
 #include "boundary_synchronizer.h"
+#include "data_type.h"
+#include "device_view_access.h"
 #include "parallel_topology.h"
 
 #ifdef COMPILE_SEM
@@ -26,6 +28,15 @@ class WrongSizeBackend : public BoundarySynchronizer::Backend {
                 std::map<int, std::vector<float>>& recvBuffers) override {
     recvBuffers.clear();
     for (const auto& [rank, data] : sendBuffers) recvBuffers[rank].resize(data.size() + 1, 0.0f);
+  }
+};
+
+// Sends back to each rank the values it sent, as if the neighbor held the same field.
+class EchoBackend : public BoundarySynchronizer::Backend {
+ public:
+  void exchange(const std::map<int, std::vector<float>>& sendBuffers,
+                std::map<int, std::vector<float>>& recvBuffers) override {
+    recvBuffers = sendBuffers;
   }
 };
 
@@ -87,6 +98,30 @@ TEST(BoundarySynchronizerTest, SynchronizeWithDebugBackend_AccumulatesZeros) {
 
   // DebugBackend returns zeros → accumulate adds 0 → values unchanged
   for (int i = 0; i < 6; ++i) EXPECT_FLOAT_EQ(field(i), 1.0f);
+}
+
+// ======================================================================
+// Kokkos::View in the default memory space
+// ======================================================================
+
+TEST(BoundarySynchronizerTest, SynchronizeDeviceView_AddsNeighborValues) {
+  parallel::ParallelTopology topo;
+  topo.myRank = 0;
+  topo.numRanks = 2;
+  topo.sharedNodes[1] = {2, 4};
+
+  vectorReal field("field", 6);
+  test_utils::fillFromList(field, {1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f});
+
+  BoundarySynchronizer sync(std::make_unique<EchoBackend>());
+  sync.synchronize(field, topo);
+
+  // Shared nodes receive their own value back (doubled), the others are unchanged.
+  auto h_field = test_utils::toHost(field);
+  for (int i = 0; i < 6; ++i) {
+    float const expected = (i == 2 || i == 4) ? 2.0f * (i + 1) : static_cast<float>(i + 1);
+    EXPECT_FLOAT_EQ(h_field(i), expected);
+  }
 }
 
 // ======================================================================
