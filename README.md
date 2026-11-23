@@ -20,6 +20,7 @@ The following options can be used to configure your build:
 | `COMPILE_SEM`              | Enable compilation of the SEM proxy (default: ON)                                  |
 | `ENABLE_PYWRAP`            | Enable Python bindings via pybind11 (experimental)                                 |
 | `ENABLE_COVERAGE`          | Enable Code coverage. Does not work with device enable                             |
+| `FUNTIDES_ENABLE_TESTS`    | Build unit tests and benchmarks (default: OFF). Needs Google Benchmark from the TPL |
 | `CMAKE_INSTALL_PREFIX`     | Where to install FUnTiDES (default: `<build>/install`)                             |
 | `MAX_SOLVER_ORDER`         | Max polynomial order generated for solvers (reduces compile time & binary size)    |
 | `MAX_DIFFERENTIATOR_ORDER` | Max polynomial order generated for differentiators (reduces compile time)          |
@@ -76,6 +77,9 @@ target_link_libraries(my_app PRIVATE funtides::funtides)
 (`funtides::model`, `funtides::solver`, `funtides::gradient`, `funtides::io`, ...).
 
 ### Step 3: Run Tests & Benchmarks
+
+Tests and benchmarks are built only with `-DFUNTIDES_ENABLE_TESTS=ON` (the TPL must
+then be installed without `--skip-tests`).
 
 Unit tests only:
 
@@ -190,7 +194,7 @@ python ./scripts/adios/inspect_bp5_detailed.py <bp_folder>
 
 ## Code Coverage
 
-**FUnTiDES** supports code coverage analysis. To enable this feature, set the CMake option `ENABLE_COVERAGE` to `ON`.
+**FUnTiDES** supports code coverage analysis. To enable this feature, set the CMake option `ENABLE_COVERAGE` to `ON` (together with `FUNTIDES_ENABLE_TESTS=ON`).
 
 > **Note:** The application will run significantly slower when this option is enabled. Currently, this feature is fully supported on **CPU** but has not been tested on device-specific code (GPU). Ensure that your **Kokkos** installation was not compiled with CUDA or ROCm/AMD support enabled.
 
