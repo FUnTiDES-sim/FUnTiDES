@@ -217,6 +217,9 @@ void bind_modelunstructdata(py::module_ &m) {
            py::arg("boundaries_t"))
 
       .def_readwrite("face_connectivity", &Data::face_connectivity_)
+      .def_readwrite("ox", &Data::ox_)
+      .def_readwrite("oy", &Data::oy_)
+      .def_readwrite("oz", &Data::oz_)
       // 3 (hexahedra) or 2 (quadrilaterals in the (x, z) plane, (order+1)^2 node columns)
       .def_readwrite("dim", &Data::dim_);
 }
