@@ -192,6 +192,16 @@ TYPED_TEST(ModelUnstructTest, DefaultConstructor) {
   SUCCEED();
 }
 
+TYPED_TEST(ModelUnstructTest, DataOriginDefaultsToZero) {
+  // The full ModelUnstructData constructor (used from Python by makutu) does not take the
+  // origin: it must then be 0, not left uninitialized.
+  using FloatType = typename TypeParam::FloatType;
+  ModelUnstructData<FloatType, typename TypeParam::ScalarType> data;
+  EXPECT_EQ(data.ox_, FloatType(0));
+  EXPECT_EQ(data.oy_, FloatType(0));
+  EXPECT_EQ(data.oz_, FloatType(0));
+}
+
 TYPED_TEST(ModelUnstructTest, ConstructFromData) {
   auto model = this->createTestMesh();
   EXPECT_EQ(model.getNumberOfElements(), 1);

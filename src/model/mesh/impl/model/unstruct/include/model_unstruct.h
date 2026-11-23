@@ -107,7 +107,7 @@ struct ModelUnstructData : public ModelDataBase<FloatType, ScalarType> {
 
   /// @todo VERIFY: is origin_x_/y_/z_ read anywhere, and how does it relate to ox_/oy_/oz_?
   FloatType origin_x_{0}, origin_y_{0}, origin_z_{0};
-  FloatType ox_, oy_, oz_;  ///< Origin of the local subdomain.
+  FloatType ox_{0}, oy_{0}, oz_{0};  ///< Origin of the local subdomain (0 unless a builder sets it).
   ScalarType order_;        ///< Polynomial order of the elements.
   ScalarType n_element_;    ///< Number of local elements.
   ScalarType n_node_;       ///< Number of local nodes.
@@ -915,7 +915,7 @@ class ModelUnstruct final : public ModelApi<FloatType, ScalarType> {
   ScalarType n_element_;
   ScalarType n_node_;
   FloatType lx_, ly_, lz_;
-  FloatType ox_, oy_, oz_;
+  FloatType ox_{0}, oy_{0}, oz_{0};
 
   int dim_{3};       ///< Space dimension (see ModelUnstructData::dim_).
   int stride_j_{0};  ///< Local node index stride along j: order+1 in 3-D, 0 in 2-D.
