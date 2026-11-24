@@ -19,8 +19,8 @@ include(cmake/GenerateVariables.cmake)
 include(cmake/PywrapConfig.cmake)   # This must go *before* kokkos configuration
 include(cmake/MPIConfig.cmake)
 if(FUNTIDES_ENABLE_TESTS)
+  include(cmake/GoogleBenchConfig.cmake)  # Fails fast if benchmark is missing, before the GoogleTest download
   include(cmake/GoogleTestConfig.cmake)
-  include(cmake/GoogleBenchConfig.cmake)
 endif()
 
 #--------------------------------------------------------
