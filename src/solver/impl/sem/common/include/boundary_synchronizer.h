@@ -1,5 +1,6 @@
 #ifndef FUNTIDES_SOLVER_IMPL_SEM_COMMON_INCLUDE_BOUNDARY_SYNCHRONIZER_H_
 #define FUNTIDES_SOLVER_IMPL_SEM_COMMON_INCLUDE_BOUNDARY_SYNCHRONIZER_H_
+#include <Kokkos_Core.hpp>
 #include <iostream>
 #include <map>
 #include <memory>
@@ -66,9 +67,10 @@ class BoundarySynchronizer {
    * values of all ranks sharing it. Does nothing if the topology is not
    * distributed.
    *
-   * @tparam ViewType Type whose operator()(int) gives read and write access to
-   *         the value at a node index (for example a Kokkos::View). The
-   *         storage must be accessible from the host.
+   * @tparam ViewType Kokkos::View in any memory space, or a host type whose
+   *         operator()(int) gives read and write access to the value at a
+   *         node index. A Kokkos::View is copied to a host mirror for the
+   *         exchange, then copied back.
    *
    * @param[in,out] field Nodal field, indexed by local node index.
    * @param[in] topo Topology giving, for each neighbor rank, the local indices
@@ -83,6 +85,31 @@ class BoundarySynchronizer {
       return;
     }
 
+    if constexpr (Kokkos::is_view_v<ViewType>) {
+      auto h_field = Kokkos::create_mirror_view_and_copy(Kokkos::HostSpace(), field);
+      exchangeAndAccumulate(h_field, topo);
+      Kokkos::deep_copy(field, h_field);
+    } else {
+      exchangeAndAccumulate(field, topo);
+    }
+  }
+
+ private:
+  std::unique_ptr<Backend> m_backend;  ///< Communication strategy, never null.
+
+  /**
+   * @brief Packs the shared-node values, exchanges them and adds the received ones.
+   *
+   * @tparam HostViewType Type whose operator()(int) gives host read and write
+   *         access to the value at a node index.
+   *
+   * @param[in,out] field Nodal field, accessible from the host.
+   * @param[in] topo Topology giving the shared nodes.
+   *
+   * @throws std::runtime_error if the exchange or the accumulation fails.
+   */
+  template <typename HostViewType>
+  void exchangeAndAccumulate(HostViewType& field, const parallel::ParallelTopology& topo) {
     try {
       auto sendBufs = pack(field, topo);
 
@@ -94,9 +121,6 @@ class BoundarySynchronizer {
       throw std::runtime_error(std::string("Boundary synchronization failed: ") + e.what());
     }
   }
-
- private:
-  std::unique_ptr<Backend> m_backend;  ///< Communication strategy, never null.
 
   /**
    * @brief Copies the field values at the shared nodes into one buffer per neighbor rank.
