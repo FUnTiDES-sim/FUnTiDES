@@ -52,6 +52,7 @@ jobs:
             -DMAX_SOLVER_ORDER=3 \
             -DMAX_DIFFERENTIATOR_ORDER=3 \
             -DENABLE_PYWRAP=OFF \
+            -DFUNTIDES_ENABLE_TESTS=ON \
             -DENABLE_COVERAGE=ON
 
       - name: Build
