@@ -6,6 +6,14 @@ target_include_directories(fun_gradient PUBLIC
     $<INSTALL_INTERFACE:include/funtides/gradient>
 )
 
+# Physics selection, shared with fun_solver (see ProxyConfig.cmake): guards the
+# per-physics parts of the factory and the instantiations in <physics>/src.
+foreach(_physics ACOUSTIC ELASTIC)
+  if(COMPILE_${_physics})
+    target_compile_definitions(fun_gradient PUBLIC COMPILE_${_physics})
+  endif()
+endforeach()
+
 add_subdirectory(acoustic)
 add_subdirectory(common)
 add_subdirectory(elastic)

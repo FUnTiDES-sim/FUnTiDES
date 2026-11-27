@@ -139,6 +139,31 @@ def pytest_collection_modifyitems(config, items):
             item.add_marker(skip_slow)
 
 
+# Message carried by the solver and differentiator factories when a physics is
+# left out of the build (COMPILE_ACOUSTIC/ELASTIC/ACOUSTOELASTIC=OFF).
+_NOT_COMPILED = "not compiled in this build"
+
+
+def _skip_if_not_compiled():
+    """Turns a 'physics not compiled' error into a skip, re-raises anything else."""
+    try:
+        return (yield)
+    except RuntimeError as e:
+        if _NOT_COMPILED in str(e):
+            pytest.skip(str(e))
+        raise
+
+
+@pytest.hookimpl(wrapper=True)
+def pytest_runtest_setup(item):
+    return (yield from _skip_if_not_compiled())
+
+
+@pytest.hookimpl(wrapper=True)
+def pytest_runtest_call(item):
+    return (yield from _skip_if_not_compiled())
+
+
 def _set_thread_env(n: int):
     v = str(n)
     for var in ("KOKKOS_NUM_THREADS", "OMP_NUM_THREADS", "OMP_THREAD_LIMIT"):

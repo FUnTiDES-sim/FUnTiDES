@@ -2,6 +2,7 @@
 
 #include <memory>
 #include <stdexcept>
+#include <vector>
 
 #include "solver.h"
 #include "solver_factory.h"
@@ -32,36 +33,34 @@ TEST_P(SolverFactoryMatrixTest, ProducesNonNullSolver) {
   ASSERT_NE(s, nullptr);
 }
 
-INSTANTIATE_TEST_SUITE_P(
-    FullMatrix, SolverFactoryMatrixTest,
-    ::testing::Values(
-        /* Structured Mesh: Covering both OnNodes and OnElements for all physics */
-        SolverTestParams{utils::enums::physicType::kAcoustic, utils::enums::meshType::kStruct,
-                         utils::enums::modelLocationType::kOnNodes, 1},
-        SolverTestParams{utils::enums::physicType::kAcoustic, utils::enums::meshType::kStruct,
-                         utils::enums::modelLocationType::kOnElements, 1},
-        SolverTestParams{utils::enums::physicType::kElastic, utils::enums::meshType::kStruct,
-                         utils::enums::modelLocationType::kOnNodes, 2},
-        SolverTestParams{utils::enums::physicType::kElastic, utils::enums::meshType::kStruct,
-                         utils::enums::modelLocationType::kOnElements, 2},
-        SolverTestParams{utils::enums::physicType::kAcoustoElastic, utils::enums::meshType::kStruct,
-                         utils::enums::modelLocationType::kOnNodes, 1},
-        SolverTestParams{utils::enums::physicType::kAcoustoElastic, utils::enums::meshType::kStruct,
-                         utils::enums::modelLocationType::kOnElements, 1},
+namespace {
 
-        /* Unstructured Mesh: Covering both OnNodes and OnElements for all physics */
-        SolverTestParams{utils::enums::physicType::kAcoustic, utils::enums::meshType::kUnstruct,
-                         utils::enums::modelLocationType::kOnNodes, 1},
-        SolverTestParams{utils::enums::physicType::kAcoustic, utils::enums::meshType::kUnstruct,
-                         utils::enums::modelLocationType::kOnElements, 1},
-        SolverTestParams{utils::enums::physicType::kElastic, utils::enums::meshType::kUnstruct,
-                         utils::enums::modelLocationType::kOnNodes, 2},
-        SolverTestParams{utils::enums::physicType::kElastic, utils::enums::meshType::kUnstruct,
-                         utils::enums::modelLocationType::kOnElements, 2},
-        SolverTestParams{utils::enums::physicType::kAcoustoElastic, utils::enums::meshType::kUnstruct,
-                         utils::enums::modelLocationType::kOnNodes, 1},
-        SolverTestParams{utils::enums::physicType::kAcoustoElastic, utils::enums::meshType::kUnstruct,
-                         utils::enums::modelLocationType::kOnElements, 1}));
+/* Both mesh types and both model locations, for one physics at one order */
+void AppendPhysics(std::vector<SolverTestParams>& params, utils::enums::physicType physic, int order) {
+  for (auto mesh : {utils::enums::meshType::kStruct, utils::enums::meshType::kUnstruct})
+    for (auto location : {utils::enums::modelLocationType::kOnNodes, utils::enums::modelLocationType::kOnElements})
+      params.push_back(SolverTestParams{physic, mesh, location, order});
+}
+
+/* Only the physics compiled in this build */
+std::vector<SolverTestParams> CompiledPhysicsMatrix() {
+  std::vector<SolverTestParams> params;
+#ifdef COMPILE_ACOUSTIC
+  AppendPhysics(params, utils::enums::physicType::kAcoustic, 1);
+#endif
+#ifdef COMPILE_ELASTIC
+  AppendPhysics(params, utils::enums::physicType::kElastic, 2);
+#endif
+#ifdef COMPILE_ACOUSTOELASTIC
+  AppendPhysics(params, utils::enums::physicType::kAcoustoElastic, 1);
+#endif
+  return params;
+}
+
+}  // namespace
+
+INSTANTIATE_TEST_SUITE_P(FullMatrix, SolverFactoryMatrixTest, ::testing::ValuesIn(CompiledPhysicsMatrix()));
+GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(SolverFactoryMatrixTest);
 
 class SolverFactoryErrorTest : public ::testing::Test {};
 
@@ -98,6 +97,7 @@ TEST_F(SolverFactoryErrorTest, ThrowsOnUnknownImplTypeForSem) {
                std::runtime_error);
 }
 
+#ifdef COMPILE_ACOUSTIC
 /* Covers the no-op default bodies of the Solver base API, i.e. the hooks that
    only some physics/methods override (SEM acoustic overrides none of them) */
 TEST_F(SolverFactoryErrorTest, BaseClassOptionalHooksAreNoOps) {
@@ -110,6 +110,24 @@ TEST_F(SolverFactoryErrorTest, BaseClassOptionalHooksAreNoOps) {
   EXPECT_NO_THROW(s->setInterfacePropertyConvention(utils::enums::interfacePropertyConvention::kFluidOnInterfaceNodes));
   EXPECT_EQ(s->getInterfaceCouplingCoeff(0).size(), 0u);
 }
+#endif  // COMPILE_ACOUSTIC
+
+#if !defined(COMPILE_ACOUSTIC) || !defined(COMPILE_ELASTIC) || !defined(COMPILE_ACOUSTOELASTIC)
+/* A physics left out of the build is reported, not silently replaced */
+TEST_F(SolverFactoryErrorTest, ThrowsOnPhysicsNotCompiled) {
+#ifndef COMPILE_ACOUSTIC
+  auto const missing = utils::enums::physicType::kAcoustic;
+#elif !defined(COMPILE_ELASTIC)
+  auto const missing = utils::enums::physicType::kElastic;
+#else
+  auto const missing = utils::enums::physicType::kAcoustoElastic;
+#endif
+  EXPECT_THROW(
+      createSolver(utils::enums::methodType::kSem, utils::enums::implemType::kMakutu, utils::enums::meshType::kStruct,
+                   utils::enums::modelLocationType::kOnNodes, missing, 1),
+      std::runtime_error);
+}
+#endif
 
 }  // namespace solver::solver_factory
 

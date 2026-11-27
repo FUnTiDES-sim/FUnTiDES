@@ -7,6 +7,12 @@ function(print_configuration_summary)
   message(STATUS "====== PROXY CONFIGURATION SUMMARY ======")
   message(STATUS "")
 
+  message(STATUS "Physics:")
+  message(STATUS "  COMPILE_ACOUSTIC:       ${COMPILE_ACOUSTIC}")
+  message(STATUS "  COMPILE_ELASTIC:        ${COMPILE_ELASTIC}")
+  message(STATUS "  COMPILE_ACOUSTOELASTIC: ${COMPILE_ACOUSTOELASTIC}")
+  message(STATUS "")
+
   message(STATUS "Discretization Methods:")
   message(STATUS "  COMPILE_SEM:          ${COMPILE_SEM}")
   message(STATUS "  COMPILE_DG:           ${COMPILE_DG}")

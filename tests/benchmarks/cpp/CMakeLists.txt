@@ -4,6 +4,7 @@ configure_file(
   @ONLY
 )
 
+if(COMPILE_ACOUSTIC)
 add_benchmark(bench_solver_fe_cartesian_struct_acoustic
  SOURCES
    src/bench_solver_fe_cartesian_struct_acoustic.cc
@@ -20,7 +21,9 @@ add_benchmark(bench_solver_fe_cartesian_struct_acoustic
    struct
    solver
 )
+endif()
 
+if(COMPILE_ELASTIC)
 add_benchmark(bench_solver_fe_cartesian_struct_elastic
  SOURCES
    src/bench_solver_fe_cartesian_struct_elastic.cc
@@ -37,8 +40,10 @@ add_benchmark(bench_solver_fe_cartesian_struct_elastic
    struct
    solver
 )
+endif()
 
 
+if(COMPILE_ACOUSTIC)
 add_benchmark(bench_solver_fe_cartesian_unstruct_acoustic
  SOURCES
    src/bench_solver_fe_cartesian_unstruct_acoustic.cc
@@ -55,7 +60,9 @@ add_benchmark(bench_solver_fe_cartesian_unstruct_acoustic
    unstruct
    solver
 )
+endif()
 
+if(COMPILE_ELASTIC)
 add_benchmark(bench_solver_fe_cartesian_unstruct_elastic
  SOURCES
    src/bench_solver_fe_cartesian_unstruct_elastic.cc
@@ -72,7 +79,9 @@ add_benchmark(bench_solver_fe_cartesian_unstruct_elastic
    unstruct
    solver
 )
+endif()
 
+if(COMPILE_ACOUSTIC)
 add_benchmark(bench_solver_acoustic
  SOURCES
    src/bench_acoustic_kernel.cc
@@ -89,6 +98,7 @@ add_benchmark(bench_solver_acoustic
    unstruct
    solver
 )
+endif()
 
 # ---------------------------------------------------------------------------
 # Regression harnesses: standalone executables (no google-benchmark). Each
@@ -97,6 +107,7 @@ add_benchmark(bench_solver_acoustic
 # by field. The build stays non-O3: the SEM solver has a latent use-after-free
 # that -O3 turns into a crash.
 # ---------------------------------------------------------------------------
+if(COMPILE_ACOUSTIC)
 add_executable(proxy_sem_acoustic src/proxy_sem_acoustic.cc)
 target_include_directories(proxy_sem_acoustic
   PRIVATE
@@ -115,7 +126,9 @@ set_target_properties(proxy_sem_acoustic
   PROPERTIES
     RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin/benchmarks
 )
+endif()
 
+if(COMPILE_ELASTIC)
 add_executable(proxy_sem_elastic src/proxy_sem_elastic.cc)
 target_include_directories(proxy_sem_elastic
   PRIVATE
@@ -134,10 +147,12 @@ set_target_properties(proxy_sem_elastic
   PROPERTIES
     RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin/benchmarks
 )
+endif()
 
 # TTI oracle: same fixed problem as proxy_sem_elastic, anisotropic tensors
 # (initElasticityTensors(kTTI) + setAnisotropyType(kTTI)). Guards the TTI
 # kernels the isotropic reference cannot see.
+if(COMPILE_ELASTIC)
 add_executable(proxy_sem_elastic_tti src/proxy_sem_elastic_tti.cc)
 target_include_directories(proxy_sem_elastic_tti
   PRIVATE
@@ -156,3 +171,4 @@ set_target_properties(proxy_sem_elastic_tti
   PROPERTIES
     RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin/benchmarks
 )
+endif()

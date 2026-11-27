@@ -2,11 +2,23 @@
 # Proxy app configuration
 #-------------------------------------------------------------------
 
-# Discretization
+include(CMakeDependentOption)
+
+# Physics. The acousto-elastic solver is built on the acoustic and elastic
+# ones; an option whose dependencies are off is forced off.
+option(COMPILE_ACOUSTIC "Compile acoustic solvers" ON)
+option(COMPILE_ELASTIC "Compile elastic solvers" ON)
+cmake_dependent_option(COMPILE_ACOUSTOELASTIC "Compile acousto-elastic solvers (needs acoustic and elastic)" ON
+                       "COMPILE_ACOUSTIC;COMPILE_ELASTIC" OFF)
+
+# Discretization. The DG-based methods only exist for the acoustic physics.
 option(COMPILE_SEM "Compile Spectral Elements Method simulation" ON)
-option(COMPILE_DG "Compile Discontinuous Galerkin simulation" ON)
-option(COMPILE_DG_SEM "Compile Discontinuous Galerkin coupled with Spectral Elements Method simulation" ON)
-option(COMPILE_DG_PADAPTIVE "Compile p-adaptive Discontinuous Galerkin simulation" ON)
+cmake_dependent_option(COMPILE_DG "Compile Discontinuous Galerkin simulation" ON
+                       "COMPILE_ACOUSTIC" OFF)
+cmake_dependent_option(COMPILE_DG_SEM "Compile Discontinuous Galerkin coupled with Spectral Elements Method simulation" ON
+                       "COMPILE_ACOUSTIC" OFF)
+cmake_dependent_option(COMPILE_DG_PADAPTIVE "Compile p-adaptive Discontinuous Galerkin simulation" ON
+                       "COMPILE_ACOUSTIC" OFF)
 
 if (COMPILE_DG_SEM)
   set(COMPILE_DG ON)

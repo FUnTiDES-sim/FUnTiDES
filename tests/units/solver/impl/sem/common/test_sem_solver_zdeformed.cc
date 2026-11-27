@@ -233,6 +233,7 @@ void CheckAcoustic(bool deformed) {
                    "two half lists");
 }
 
+#ifdef COMPILE_ELASTIC
 void CheckTti(bool deformed) {
   auto mesh = MakeMesh(true, true, deformed);
   ElasticSolver solver;
@@ -266,6 +267,7 @@ void CheckTti(bool deformed) {
   ExpectSameForces(ref, Assemble(solver, n_nodes, [&] { solver.computeElementContributions_Tti_TeamZ(data); }),
                    "Tti TeamZ");
 }
+#endif  // COMPILE_ELASTIC
 
 }  // namespace
 
@@ -273,13 +275,15 @@ TEST(SemSolverZDeformed, AcousticOnElementsMatchesGenericKernel) { CheckAcoustic
 
 TEST(SemSolverZDeformed, AcousticOnNodesMatchesGenericKernel) { CheckAcoustic<true>(false); }
 
-TEST(SemSolverZDeformed, TtiOnNodesMatchesGenericKernel) { CheckTti(false); }
-
 TEST(SemSolverZDeformed, AcousticOnElementsMatchesGenericKernelOnDeformedMesh) { CheckAcoustic<false>(true); }
 
 TEST(SemSolverZDeformed, AcousticOnNodesMatchesGenericKernelOnDeformedMesh) { CheckAcoustic<true>(true); }
 
+#ifdef COMPILE_ELASTIC
+TEST(SemSolverZDeformed, TtiOnNodesMatchesGenericKernel) { CheckTti(false); }
+
 TEST(SemSolverZDeformed, TtiOnNodesMatchesGenericKernelOnDeformedMesh) { CheckTti(true); }
+#endif  // COMPILE_ELASTIC
 
 }  // namespace test
 }  // namespace solver

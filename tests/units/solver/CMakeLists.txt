@@ -3,7 +3,9 @@ link_libraries(GTest::gtest GTest::gtest_main)
 # The tree mirrors src/solver: the shared per-physics types under
 # impl/common/<physics>, one subtree per method under impl/. Method-specific
 # sources compile only under their COMPILE_* option here, and carry the
-# matching #ifdef guard in the source.
+# matching #ifdef guard in the source. Per-physics SEM sources likewise
+# compile only under their COMPILE_<PHYSICS> option, so a reduced build only
+# runs the tests of the solvers it compiled.
 set(SOLVER_TEST_SOURCES
   impl/common/acoustic/test_rhs_acoustic.cc
   impl/common/elastic/test_rhs_elastic.cc
@@ -16,18 +18,32 @@ if(COMPILE_SEM)
     impl/sem/common/test_physics_traits.cc
     impl/sem/common/test_solver_data_acoustic.cc
     impl/sem/common/test_solver_data_elastic.cc
-    impl/sem/common/test_attenuation.cc
     impl/sem/common/test_boundary_synchronizer.cc
     impl/sem/common/test_sem_solver_zdeformed.cc
-    impl/sem/acoustic/test_wavefield_acoustic.cc
-    impl/sem/acoustic/test_sem_solver_acoustic.cc
-    impl/sem/elastic/test_wavefield_elastic.cc
-    impl/sem/elastic/test_sem_solver_elastic.cc
-    impl/sem/elastic/test_elastic_flux_symmetry.cc
-    impl/sem/elastic/test_elastic_flux_tti_compact.cc
-    impl/sem/acoustoelastic/test_wavefield_acoustoelastic.cc
-    impl/sem/acoustoelastic/test_sem_solver_acoustoelastic.cc
   )
+  if(COMPILE_ACOUSTIC AND COMPILE_ELASTIC)
+    list(APPEND SOLVER_TEST_SOURCES impl/sem/common/test_attenuation.cc)
+  endif()
+  if(COMPILE_ACOUSTIC)
+    list(APPEND SOLVER_TEST_SOURCES
+      impl/sem/acoustic/test_wavefield_acoustic.cc
+      impl/sem/acoustic/test_sem_solver_acoustic.cc
+    )
+  endif()
+  if(COMPILE_ELASTIC)
+    list(APPEND SOLVER_TEST_SOURCES
+      impl/sem/elastic/test_wavefield_elastic.cc
+      impl/sem/elastic/test_sem_solver_elastic.cc
+      impl/sem/elastic/test_elastic_flux_symmetry.cc
+      impl/sem/elastic/test_elastic_flux_tti_compact.cc
+    )
+  endif()
+  if(COMPILE_ACOUSTOELASTIC)
+    list(APPEND SOLVER_TEST_SOURCES
+      impl/sem/acoustoelastic/test_wavefield_acoustoelastic.cc
+      impl/sem/acoustoelastic/test_sem_solver_acoustoelastic.cc
+    )
+  endif()
 endif()
 
 if(COMPILE_DG)

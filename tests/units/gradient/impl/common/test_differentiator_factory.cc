@@ -17,13 +17,16 @@ std::unique_ptr<Differentiator> createDefaultTestDifferentiator(
   return createDifferentiator(utils::enums::implemType::kMakutu, mesh, loc, physic, order);
 }
 
+#ifdef COMPILE_ACOUSTIC
 TEST(DifferentiatorFactoryTest, CreatesAcousticStructuredOnNodes) {
   auto diff = createDefaultTestDifferentiator(utils::enums::physicType::kAcoustic, utils::enums::meshType::kStruct,
                                               utils::enums::modelLocationType::kOnNodes, 1);
 
   EXPECT_NE(diff, nullptr);
 }
+#endif  // COMPILE_ACOUSTIC
 
+#ifdef COMPILE_ELASTIC
 TEST(DifferentiatorFactoryTest, CreatesElasticUnstructuredOnElements) {
   // Casting to an unknown value triggers the 'else' branch for isModelOnNodes
   auto diff = createDefaultTestDifferentiator(utils::enums::physicType::kElastic, utils::enums::meshType::kUnstruct,
@@ -31,6 +34,7 @@ TEST(DifferentiatorFactoryTest, CreatesElasticUnstructuredOnElements) {
 
   EXPECT_NE(diff, nullptr);
 }
+#endif  // COMPILE_ELASTIC
 
 TEST(DifferentiatorFactoryTest, ThrowsOnUnsupportedPolynomialOrder) {
   int unsupported_order = 999;
@@ -64,6 +68,7 @@ TEST(DifferentiatorFactoryTest, ThrowsOnUnknownPhysicsType) {
       },
       std::runtime_error);
 }
+#ifdef COMPILE_ACOUSTIC
 TEST(DifferentiatorFactoryTest, CreatesAcousticStructuredOnElements) {
   auto diff = createDefaultTestDifferentiator(
       utils::enums::physicType::kAcoustic, utils::enums::meshType::kStruct,
@@ -71,35 +76,46 @@ TEST(DifferentiatorFactoryTest, CreatesAcousticStructuredOnElements) {
       1);
   EXPECT_NE(diff, nullptr);
 }
+#endif  // COMPILE_ACOUSTIC
 
+#ifdef COMPILE_ELASTIC
 TEST(DifferentiatorFactoryTest, CreatesElasticStructuredOnNodes) {
   auto diff = createDefaultTestDifferentiator(utils::enums::physicType::kElastic, utils::enums::meshType::kStruct,
                                               utils::enums::modelLocationType::kOnNodes, 1);
   EXPECT_NE(diff, nullptr);
 }
+#endif  // COMPILE_ELASTIC
 
+#ifdef COMPILE_ELASTIC
 TEST(DifferentiatorFactoryTest, CreatesElasticStructuredOnElements) {
   auto diff = createDefaultTestDifferentiator(utils::enums::physicType::kElastic, utils::enums::meshType::kStruct,
                                               static_cast<utils::enums::modelLocationType>(99), 1);
   EXPECT_NE(diff, nullptr);
 }
+#endif  // COMPILE_ELASTIC
 
+#ifdef COMPILE_ACOUSTIC
 TEST(DifferentiatorFactoryTest, CreatesAcousticUnstructuredOnNodes) {
   auto diff = createDefaultTestDifferentiator(utils::enums::physicType::kAcoustic, utils::enums::meshType::kUnstruct,
                                               utils::enums::modelLocationType::kOnNodes, 1);
   EXPECT_NE(diff, nullptr);
 }
+#endif  // COMPILE_ACOUSTIC
 
+#ifdef COMPILE_ACOUSTIC
 TEST(DifferentiatorFactoryTest, CreatesAcousticUnstructuredOnElements) {
   auto diff = createDefaultTestDifferentiator(utils::enums::physicType::kAcoustic, utils::enums::meshType::kUnstruct,
                                               static_cast<utils::enums::modelLocationType>(99), 1);
   EXPECT_NE(diff, nullptr);
 }
+#endif  // COMPILE_ACOUSTIC
 
+#ifdef COMPILE_ELASTIC
 TEST(DifferentiatorFactoryTest, CreatesElasticUnstructuredOnNodes) {
   auto diff = createDefaultTestDifferentiator(utils::enums::physicType::kElastic, utils::enums::meshType::kUnstruct,
                                               utils::enums::modelLocationType::kOnNodes, 1);
   EXPECT_NE(diff, nullptr);
 }
+#endif  // COMPILE_ELASTIC
 }  // namespace testing
 }  // namespace gradient

@@ -1,4 +1,6 @@
-add_subdirectory(src/makutu)
+if(COMPILE_ELASTIC)
+  add_subdirectory(src/makutu)
+endif()
 
 target_include_directories(fun_gradient
   PUBLIC

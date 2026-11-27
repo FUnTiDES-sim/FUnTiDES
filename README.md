@@ -18,6 +18,9 @@ The following options can be used to configure your build:
 | Option                     | Description                                                                        |
 |----------------------------|------------------------------------------------------------------------------------|
 | `COMPILE_SEM`              | Enable compilation of the SEM proxy (default: ON)                                  |
+| `COMPILE_ACOUSTIC`         | Compile the acoustic solvers and differentiators (default: ON)                     |
+| `COMPILE_ELASTIC`          | Compile the elastic solvers and differentiators (default: ON)                      |
+| `COMPILE_ACOUSTOELASTIC`   | Compile the acousto-elastic SEM solver (default: ON, needs acoustic and elastic)   |
 | `ENABLE_PYWRAP`            | Enable Python bindings via pybind11 (experimental)                                 |
 | `ENABLE_COVERAGE`          | Enable Code coverage. Does not work with device enable                             |
 | `FUNTIDES_ENABLE_TESTS`    | Build unit tests and benchmarks (default: OFF). Needs Google Benchmark from the TPL |
@@ -32,6 +35,12 @@ cmake .. -DMAX_SOLVER_ORDER=3 -DMAX_DIFFERENTIATOR_ORDER=2
 ```
 
 *Note: Advanced users can also fine-tune maximum orders per physics using specific variables like `MAX_SOLVER_ACOUSTIC_ORDER`, `MAX_SOLVER_ELASTOACOUSTIC_ORDER`, `MAX_DIFFERENTIATOR_ELASTIC_ORDER`, etc.*
+
+You can also leave out the physics you don't need. An option whose dependencies are off is forced off: without acoustics, the acousto-elastic solver and the DG, DG-SEM and p-adaptive DG methods (acoustic only) are not compiled either; without elastics, the acousto-elastic solver is not compiled. Asking the solver or differentiator factory for a physics left out of the build raises an error, and the unit tests (C++ and Python) of that physics are not run.
+
+```sh
+cmake .. -DCOMPILE_ELASTIC=OFF   # acoustic only
+```
 
 ## Quick Start: Build and Run
 
