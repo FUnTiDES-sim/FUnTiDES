@@ -5,9 +5,9 @@
 # ============================================================================
 
 # Convenience wrapper for the most common instantiation pattern: one physics,
-# all orders from 1 to a variable holding the maximum, both mesh types, both
-# model locations, added to one library target. Each directory that used to
-# carry a hand-written copy of this boilerplate now calls:
+# all orders from 1 to a variable holding the maximum or a list of orders, 
+# both mesh types, both model locations, added to one library target. 
+# Each directory that used to carry a hand-written copy of this boilerplate now calls:
 #
 #   add_solver_instantiations(
 #     PHYSIC      acoustic|elastic|acoustoelastic
@@ -21,17 +21,19 @@
 #                                generator; requires the *_solver_template_*.cpp.in
 #                                of the calling directory to use @ORDER_MIN@/
 #                                @ORDER_MAX@)
+#     [ORDER_LIST]               <variable holding a list of orders> This variable 
+#                               takes precedence over MAX_ORDER when both are defined.
 #   )
 function(add_solver_instantiations)
     set(options ORDER_PAIRS)
-    set(oneValueArgs PHYSIC MAX_ORDER SOLVER_NAME FILE_PREFIX TARGET)
+    set(oneValueArgs PHYSIC MAX_ORDER SOLVER_NAME FILE_PREFIX TARGET ORDER_LIST)
     cmake_parse_arguments(ASI "${options}" "${oneValueArgs}" "" ${ARGN})
 
     if(NOT DEFINED ASI_PHYSIC)
         message(FATAL_ERROR "add_solver_instantiations: PHYSIC is required")
     endif()
-    if(NOT DEFINED ASI_MAX_ORDER)
-        message(FATAL_ERROR "add_solver_instantiations: MAX_ORDER is required")
+    if(NOT DEFINED ASI_MAX_ORDER AND NOT DEFINED ASI_ORDER_LIST)
+        message(FATAL_ERROR "add_solver_instantiations: MAX_ORDER or ORDER_LIST is required")
     endif()
     if(NOT DEFINED ASI_SOLVER_NAME)
         set(ASI_SOLVER_NAME "makutu")
@@ -41,9 +43,13 @@ function(add_solver_instantiations)
     endif()
 
     set(ORDERS "")
-    foreach(order RANGE 1 ${${ASI_MAX_ORDER}})
-        list(APPEND ORDERS ${order})
-    endforeach()
+    if(DEFINED ASI_ORDER_LIST)
+        set(ORDERS ${${ASI_ORDER_LIST}})
+    else()
+        foreach(order RANGE 1 ${${ASI_MAX_ORDER}})
+            list(APPEND ORDERS ${order})
+        endforeach()
+    endif()
 
     set(EXTRA_ARGS "")
     if(DEFINED ASI_FILE_PREFIX)

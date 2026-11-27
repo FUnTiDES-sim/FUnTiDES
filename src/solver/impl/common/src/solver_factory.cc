@@ -6,7 +6,9 @@
 
 #ifdef COMPILE_SEM
 #include "sem_solver.h"
+#ifdef COMPILE_ACOUSTOELASTIC
 #include "sem_solver_acoustoelastic.h"
+#endif
 #endif
 #ifdef COMPILE_DG
 #include "dg_solver.h"
@@ -45,85 +47,108 @@ std::unique_ptr<Solver> orderDispatch(int const order, FUNC&& func) {
   }
 }
 
+/**
+ * @brief Dispatches a runtime order to a compile-time one from a list of supported orders.
+ *
+ * @tparam Orders List of supported orders.
+ * @param[in] order Runtime polynomial order.
+ * @param[in] func Callable taking a std::integral_constant<int, ORDER> and returning a solver.
+ * @return The solver built by func for the matching order.
+ * @throws std::runtime_error If order is not in the list of supported orders.
+ */
+template <int... Orders, typename FUNC>
+std::unique_ptr<Solver> orderDispatchList(int const order, FUNC&& func) {
+  std::unique_ptr<Solver> result = nullptr;
+  ((order == Orders ? (void)(result = func(std::integral_constant<int, Orders>{})) : void()), ...);
+  if (!result) {
+    throw std::runtime_error("Not compiled for order: " + std::to_string(order));
+  }
+  return result;
+}
+
 // ============================================================================
 // SEM solver (acoustic, elastic or acousto-elastic)
 // ============================================================================
 #ifdef COMPILE_SEM
 
 /**
- * @brief Creates a SEM-type solver for one mesh type.
- *
- * Any physic other than kAcoustic and kAcoustoElastic selects the elastic solver.
+ * @brief Creates a SEM-type solver of physics PHYSIC for one mesh type.
  *
  * @tparam MeshT Mesh type; structured meshes carry the polynomial order as a
  *         template argument, unstructured meshes do not.
  */
-template <auto ImplTag, int ORDER, typename MeshT>
-std::unique_ptr<Solver> makeSemSolverForMesh(bool isModelOnNodes, utils::enums::physicType physic) {
+template <auto ImplTag, utils::enums::physicType PHYSIC, int ORDER, typename MeshT>
+std::unique_ptr<Solver> makeSemSolverForMesh(bool isModelOnNodes) {
   using SelectedIntegral = typename IntegralTypeSelector<ORDER, ImplTag>::type;
 
-  if (physic == utils::enums::physicType::kAcoustic) {
-    if (isModelOnNodes)
-      return std::make_unique<
-          solver::SEMsolver<ORDER, SelectedIntegral, MeshT, true, utils::enums::physicType::kAcoustic>>();
-    else
-      return std::make_unique<
-          solver::SEMsolver<ORDER, SelectedIntegral, MeshT, false, utils::enums::physicType::kAcoustic>>();
-  } else if (physic == utils::enums::physicType::kAcoustoElastic) {
-    if (isModelOnNodes)
-      return std::make_unique<solver::SEMsolverAcoustoElastic<ORDER, SelectedIntegral, MeshT, true>>();
-    else
-      return std::make_unique<solver::SEMsolverAcoustoElastic<ORDER, SelectedIntegral, MeshT, false>>();
-  } else  // any other value selects elastic
+#ifdef COMPILE_ACOUSTOELASTIC
+  if constexpr (PHYSIC == utils::enums::physicType::kAcoustoElastic) {
+    if (isModelOnNodes) return std::make_unique<solver::SEMsolverAcoustoElastic<ORDER, SelectedIntegral, MeshT, true>>();
+    return std::make_unique<solver::SEMsolverAcoustoElastic<ORDER, SelectedIntegral, MeshT, false>>();
+  } else
+#endif
   {
-    if (isModelOnNodes)
-      return std::make_unique<
-          solver::SEMsolver<ORDER, SelectedIntegral, MeshT, true, utils::enums::physicType::kElastic>>();
-    else
-      return std::make_unique<
-          solver::SEMsolver<ORDER, SelectedIntegral, MeshT, false, utils::enums::physicType::kElastic>>();
+    if (isModelOnNodes) return std::make_unique<solver::SEMsolver<ORDER, SelectedIntegral, MeshT, true, PHYSIC>>();
+    return std::make_unique<solver::SEMsolver<ORDER, SelectedIntegral, MeshT, false, PHYSIC>>();
   }
 }
 
 /**
- * @brief Creates a SEM-type solver of order ORDER, selecting the mesh type.
+ * @brief Creates a SEM-type solver of physics PHYSIC and order ORDER, selecting the mesh type.
  */
-template <auto ImplTag, int ORDER>
-std::unique_ptr<Solver> makeSemSolverForOrder(bool isModelOnNodes, utils::enums::meshType mesh,
-                                              utils::enums::physicType physic) {
+template <auto ImplTag, utils::enums::physicType PHYSIC, int ORDER>
+std::unique_ptr<Solver> makeSemSolverForOrder(bool isModelOnNodes, utils::enums::meshType mesh) {
   if (mesh == utils::enums::meshType::kStruct) {
-    return makeSemSolverForMesh<ImplTag, ORDER, model::ModelStruct<float, int, ORDER>>(isModelOnNodes, physic);
+    return makeSemSolverForMesh<ImplTag, PHYSIC, ORDER, model::ModelStruct<float, int, ORDER>>(isModelOnNodes);
   }
-  return makeSemSolverForMesh<ImplTag, ORDER, model::ModelUnstruct<float, int>>(isModelOnNodes, physic);
+  return makeSemSolverForMesh<ImplTag, PHYSIC, ORDER, model::ModelUnstruct<float, int>>(isModelOnNodes);
 }
 
 /**
  * @brief Creates a SEM-type solver, dispatching the runtime order, mesh type and physics to template arguments.
  *
- * The maximum supported order depends on the physics.
+ * The maximum supported order depends on the physics. Only the physics enabled by the COMPILE_ACOUSTIC,
+ * COMPILE_ELASTIC and COMPILE_ACOUSTOELASTIC macros are available.
  *
- * @throws std::runtime_error If the order or the physics is unsupported.
+ * @throws std::runtime_error If the order or the physics is unsupported, or the physics is not compiled.
  */
 template <auto ImplTag>
 std::unique_ptr<Solver> makeSemSolver(int order, utils::enums::meshType mesh,
                                       utils::enums::modelLocationType modelLocation, utils::enums::physicType physic) {
   bool const isModelOnNodes = (modelLocation == utils::enums::modelLocationType::kOnNodes);
 
-  if (physic == utils::enums::physicType::kAcoustic) {
-    return orderDispatch<MAX_SOLVER_ACOUSTIC_ORDER>(order, [&](auto orderIC) {
-      return makeSemSolverForOrder<ImplTag, decltype(orderIC)::value>(isModelOnNodes, mesh, physic);
-    });
-  } else if (physic == utils::enums::physicType::kElastic) {
-    return orderDispatch<MAX_SOLVER_ELASTIC_ORDER>(order, [&](auto orderIC) {
-      return makeSemSolverForOrder<ImplTag, decltype(orderIC)::value>(isModelOnNodes, mesh, physic);
-    });
-  } else if (physic == utils::enums::physicType::kAcoustoElastic) {
-    return orderDispatch<MAX_SOLVER_ELASTOACOUSTIC_ORDER>(order, [&](auto orderIC) {
-      return makeSemSolverForOrder<ImplTag, decltype(orderIC)::value>(isModelOnNodes, mesh, physic);
-    });
+  switch (physic) {
+    case utils::enums::physicType::kAcoustic:
+#ifdef COMPILE_ACOUSTIC
+      return orderDispatchList<FUNTIDES_SOLVER_ORDERS>(order, [&](auto orderIC) {
+        return makeSemSolverForOrder<ImplTag, utils::enums::physicType::kAcoustic, decltype(orderIC)::value>(
+            isModelOnNodes, mesh);
+      });
+#else
+      throw std::runtime_error("SEM: acoustic physics not compiled in this build (COMPILE_ACOUSTIC=OFF)");
+#endif
+    case utils::enums::physicType::kElastic:
+#ifdef COMPILE_ELASTIC
+      return orderDispatchList<FUNTIDES_SOLVER_ORDERS>(order, [&](auto orderIC) {
+        return makeSemSolverForOrder<ImplTag, utils::enums::physicType::kElastic, decltype(orderIC)::value>(
+            isModelOnNodes, mesh);
+      });
+#else
+      throw std::runtime_error("SEM: elastic physics not compiled in this build (COMPILE_ELASTIC=OFF)");
+#endif
+    case utils::enums::physicType::kAcoustoElastic:
+#ifdef COMPILE_ACOUSTOELASTIC
+      return orderDispatchList<FUNTIDES_SOLVER_ORDERS>(order, [&](auto orderIC) {
+        return makeSemSolverForOrder<ImplTag, utils::enums::physicType::kAcoustoElastic, decltype(orderIC)::value>(
+            isModelOnNodes, mesh);
+      });
+#else
+      throw std::runtime_error(
+          "SEM: acousto-elastic physics not compiled in this build (COMPILE_ACOUSTOELASTIC=OFF)");
+#endif
+    default:
+      throw std::runtime_error("Unknown physics type");
   }
-
-  throw std::runtime_error("Unknown physics type");
 }
 #endif  // COMPILE_SEM
 

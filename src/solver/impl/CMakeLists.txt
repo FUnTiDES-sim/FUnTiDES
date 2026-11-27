@@ -7,10 +7,13 @@ add_library(fun_solver)
 add_library(funtides::solver ALIAS fun_solver)
 set_target_properties(fun_solver PROPERTIES EXPORT_NAME solver)
 
+string(JOIN "," TARGET_SOLVER_ORDER_LIST_STR ${TARGET_SOLVER_ORDER_LIST})
+
 target_compile_definitions(fun_solver PUBLIC
     MAX_SOLVER_ACOUSTIC_ORDER=${TARGET_SOLVER_ACOUSTIC_ORDER}
     MAX_SOLVER_ELASTIC_ORDER=${TARGET_SOLVER_ELASTIC_ORDER}
     MAX_SOLVER_ELASTOACOUSTIC_ORDER=${TARGET_SOLVER_ELASTOACOUSTIC_ORDER}
+    FUNTIDES_SOLVER_ORDERS=${TARGET_SOLVER_ORDER_LIST_STR}
 )
 
 target_include_directories(fun_solver PUBLIC
@@ -20,6 +23,14 @@ target_include_directories(fun_solver PUBLIC
 if(COMPILE_SEM)
   target_compile_definitions(fun_solver PUBLIC COMPILE_SEM)
 endif()
+
+# Physics selection: guards the per-physics parts of the factory, and the
+# SEM instantiations in sem/<physics>.
+foreach(_physics ACOUSTIC ELASTIC ACOUSTOELASTIC)
+  if(COMPILE_${_physics})
+    target_compile_definitions(fun_solver PUBLIC COMPILE_${_physics})
+  endif()
+endforeach()
 
 include(${CMAKE_SOURCE_DIR}/cmake/GenerateSolverImplementations.cmake)
 
