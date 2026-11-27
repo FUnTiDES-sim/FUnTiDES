@@ -31,6 +31,9 @@ option(USE_MPI "Enable MPI compilation" OFF)
 # Python wrapping
 option(ENABLE_PYWRAP "Enable python binding compilation with pybind11" OFF)
 
+# Tests and benchmarks (needs GoogleTest download and Google Benchmark)
+option(FUNTIDES_ENABLE_TESTS "Build unit tests and benchmarks" OFF)
+
 # Debugging options
 option(PRINT_ALLOC_INFO "Printout memory allocation info" OFF)
 # Build options

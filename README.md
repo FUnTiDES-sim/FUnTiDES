@@ -312,7 +312,7 @@ python ./scripts/adios/inspect_bp5_detailed.py <bp_folder>
 
 ## Code Coverage
 
-**FUnTiDES** supports code coverage analysis. To enable this feature, set the CMake option `ENABLE_COVERAGE` to `ON`.
+**FUnTiDES** supports code coverage analysis. To enable this feature, set the CMake option `ENABLE_COVERAGE` to `ON` (together with `FUNTIDES_ENABLE_TESTS=ON`).
 
 > **Note:** The application will run significantly slower when this option is enabled. Currently, this feature is fully supported on **CPU** but has not been tested on device-specific code (GPU). Ensure that your **Kokkos** installation was not compiled with CUDA or ROCm/AMD support enabled.
 
